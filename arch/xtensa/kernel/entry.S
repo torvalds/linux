@@ -2173,7 +2173,7 @@ ENDPROC(ret_from_kernel_thread)
 
 #ifdef CONFIG_HIBERNATION
 
-	.bss
+	.section	.bss, "aw"
 	.align	4
 .Lsaved_regs:
 #if defined(__XTENSA_WINDOWED_ABI__)

@@ -136,14 +136,6 @@ static int get_swap_bios(void)
 	return latch;
 }
 
-/*
- * For mempools pre-allocation at the table loading time.
- */
-struct dm_md_mempools {
-	struct bio_set bs;
-	struct bio_set io_bs;
-};
-
 struct table_device {
 	struct list_head list;
 	refcount_t count;
@@ -563,6 +555,10 @@ static void dm_start_io_acct(struct dm_io *io, struct bio *clone)
 		unsigned long flags;
 		/* Can afford locking given DM_TIO_IS_DUPLICATE_BIO */
 		spin_lock_irqsave(&io->lock, flags);
+		if (dm_io_flagged(io, DM_IO_ACCOUNTED)) {
+			spin_unlock_irqrestore(&io->lock, flags);
+			return;
+		}
 		dm_io_set_flag(io, DM_IO_ACCOUNTED);
 		spin_unlock_irqrestore(&io->lock, flags);
 	}
@@ -581,7 +577,7 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	struct dm_target_io *tio;
 	struct bio *clone;
 
-	clone = bio_alloc_clone(NULL, bio, GFP_NOIO, &md->io_bs);
+	clone = bio_alloc_clone(NULL, bio, GFP_NOIO, &md->mempools->io_bs);
 	/* Set default bdev, but target must bio_set_dev() before issuing IO */
 	clone->bi_bdev = md->disk->part0;
 
@@ -598,6 +594,7 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	atomic_set(&io->io_count, 2);
 	this_cpu_inc(*md->pending_io);
 	io->orig_bio = bio;
+	io->split_bio = NULL;
 	io->md = md;
 	spin_lock_init(&io->lock);
 	io->start_time = jiffies;
@@ -628,7 +625,8 @@ static struct bio *alloc_tio(struct clone_info *ci, struct dm_target *ti,
 	} else {
 		struct mapped_device *md = ci->io->md;
 
-		clone = bio_alloc_clone(NULL, ci->bio, gfp_mask, &md->bs);
+		clone = bio_alloc_clone(NULL, ci->bio, gfp_mask,
+					&md->mempools->bs);
 		if (!clone)
 			return NULL;
 		/* Set default bdev, but target must bio_set_dev() before issuing IO */
@@ -718,18 +716,18 @@ static void dm_put_live_table_fast(struct mapped_device *md) __releases(RCU)
 }
 
 static inline struct dm_table *dm_get_live_table_bio(struct mapped_device *md,
-						     int *srcu_idx, struct bio *bio)
+						     int *srcu_idx, unsigned bio_opf)
 {
-	if (bio->bi_opf & REQ_NOWAIT)
+	if (bio_opf & REQ_NOWAIT)
 		return dm_get_live_table_fast(md);
 	else
 		return dm_get_live_table(md, srcu_idx);
 }
 
 static inline void dm_put_live_table_bio(struct mapped_device *md, int srcu_idx,
-					 struct bio *bio)
+					 unsigned bio_opf)
 {
-	if (bio->bi_opf & REQ_NOWAIT)
+	if (bio_opf & REQ_NOWAIT)
 		dm_put_live_table_fast(md);
 	else
 		dm_put_live_table(md, srcu_idx);
@@ -890,7 +888,7 @@ static void dm_io_complete(struct dm_io *io)
 {
 	blk_status_t io_error;
 	struct mapped_device *md = io->md;
-	struct bio *bio = io->orig_bio;
+	struct bio *bio = io->split_bio ? io->split_bio : io->orig_bio;
 
 	if (io->status == BLK_STS_DM_REQUEUE) {
 		unsigned long flags;
@@ -942,9 +940,11 @@ static void dm_io_complete(struct dm_io *io)
 			if (io_error == BLK_STS_AGAIN) {
 				/* io_uring doesn't handle BLK_STS_AGAIN (yet) */
 				queue_io(md, bio);
+				return;
 			}
 		}
-		return;
+		if (io_error == BLK_STS_DM_REQUEUE)
+			return;
 	}
 
 	if (bio_is_flush_with_data(bio)) {
@@ -1023,22 +1023,18 @@ static void clone_endio(struct bio *bio)
 	struct dm_io *io = tio->io;
 	struct mapped_device *md = io->md;
 
-	if (likely(bio->bi_bdev != md->disk->part0)) {
-		struct request_queue *q = bdev_get_queue(bio->bi_bdev);
-
-		if (unlikely(error == BLK_STS_TARGET)) {
-			if (bio_op(bio) == REQ_OP_DISCARD &&
-			    !bdev_max_discard_sectors(bio->bi_bdev))
-				disable_discard(md);
-			else if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
-				 !q->limits.max_write_zeroes_sectors)
-				disable_write_zeroes(md);
-		}
-
-		if (static_branch_unlikely(&zoned_enabled) &&
-		    unlikely(blk_queue_is_zoned(q)))
-			dm_zone_endio(io, bio);
+	if (unlikely(error == BLK_STS_TARGET)) {
+		if (bio_op(bio) == REQ_OP_DISCARD &&
+		    !bdev_max_discard_sectors(bio->bi_bdev))
+			disable_discard(md);
+		else if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
+			 !bdev_write_zeroes_sectors(bio->bi_bdev))
+			disable_write_zeroes(md);
 	}
+
+	if (static_branch_unlikely(&zoned_enabled) &&
+	    unlikely(blk_queue_is_zoned(bdev_get_queue(bio->bi_bdev))))
+		dm_zone_endio(io, bio);
 
 	if (endio) {
 		int r = endio(ti, bio, &error);
@@ -1620,7 +1616,12 @@ static blk_status_t __split_and_process_bio(struct clone_info *ci)
 	ti = dm_table_find_target(ci->map, ci->sector);
 	if (unlikely(!ti))
 		return BLK_STS_IOERR;
-	else if (unlikely(ci->is_abnormal_io))
+
+	if (unlikely((ci->bio->bi_opf & REQ_NOWAIT) != 0) &&
+	    unlikely(!dm_target_supports_nowait(ti->type)))
+		return BLK_STS_NOTSUPP;
+
+	if (unlikely(ci->is_abnormal_io))
 		return __process_abnormal_io(ci, ti);
 
 	/*
@@ -1693,9 +1694,11 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 	 * Remainder must be passed to submit_bio_noacct() so it gets handled
 	 * *after* bios already submitted have been completely processed.
 	 */
-	bio_trim(bio, io->sectors, ci.sector_count);
-	trace_block_split(bio, bio->bi_iter.bi_sector);
-	bio_inc_remaining(bio);
+	WARN_ON_ONCE(!dm_io_flagged(io, DM_IO_WAS_SPLIT));
+	io->split_bio = bio_split(bio, io->sectors, GFP_NOIO,
+				  &md->queue->bio_split);
+	bio_chain(io->split_bio, bio);
+	trace_block_split(io->split_bio, bio->bi_iter.bi_sector);
 	submit_bio_noacct(bio);
 out:
 	/*
@@ -1722,8 +1725,9 @@ static void dm_submit_bio(struct bio *bio)
 	struct mapped_device *md = bio->bi_bdev->bd_disk->private_data;
 	int srcu_idx;
 	struct dm_table *map;
+	unsigned bio_opf = bio->bi_opf;
 
-	map = dm_get_live_table_bio(md, &srcu_idx, bio);
+	map = dm_get_live_table_bio(md, &srcu_idx, bio_opf);
 
 	/* If suspended, or map not yet available, queue this IO for later */
 	if (unlikely(test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) ||
@@ -1739,7 +1743,7 @@ static void dm_submit_bio(struct bio *bio)
 
 	dm_split_and_process_bio(md, map, bio);
 out:
-	dm_put_live_table_bio(md, srcu_idx, bio);
+	dm_put_live_table_bio(md, srcu_idx, bio_opf);
 }
 
 static bool dm_poll_dm_io(struct dm_io *io, struct io_comp_batch *iob,
@@ -1876,8 +1880,7 @@ static void cleanup_mapped_device(struct mapped_device *md)
 {
 	if (md->wq)
 		destroy_workqueue(md->wq);
-	bioset_exit(&md->bs);
-	bioset_exit(&md->io_bs);
+	dm_free_md_mempools(md->mempools);
 
 	if (md->dax_dev) {
 		dax_remove_host(md->disk);
@@ -2049,48 +2052,6 @@ static void free_dev(struct mapped_device *md)
 	kvfree(md);
 }
 
-static int __bind_mempools(struct mapped_device *md, struct dm_table *t)
-{
-	struct dm_md_mempools *p = dm_table_get_md_mempools(t);
-	int ret = 0;
-
-	if (dm_table_bio_based(t)) {
-		/*
-		 * The md may already have mempools that need changing.
-		 * If so, reload bioset because front_pad may have changed
-		 * because a different table was loaded.
-		 */
-		bioset_exit(&md->bs);
-		bioset_exit(&md->io_bs);
-
-	} else if (bioset_initialized(&md->bs)) {
-		/*
-		 * There's no need to reload with request-based dm
-		 * because the size of front_pad doesn't change.
-		 * Note for future: If you are to reload bioset,
-		 * prep-ed requests in the queue may refer
-		 * to bio from the old bioset, so you must walk
-		 * through the queue to unprep.
-		 */
-		goto out;
-	}
-
-	BUG_ON(!p ||
-	       bioset_initialized(&md->bs) ||
-	       bioset_initialized(&md->io_bs));
-
-	ret = bioset_init_from_src(&md->bs, &p->bs);
-	if (ret)
-		goto out;
-	ret = bioset_init_from_src(&md->io_bs, &p->io_bs);
-	if (ret)
-		bioset_exit(&md->bs);
-out:
-	/* mempool bind completed, no longer need any mempools in the table */
-	dm_table_free_md_mempools(t);
-	return ret;
-}
-
 /*
  * Bind a table to the device.
  */
@@ -2144,12 +2105,28 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 		 * immutable singletons - used to optimize dm_mq_queue_rq.
 		 */
 		md->immutable_target = dm_table_get_immutable_target(t);
-	}
 
-	ret = __bind_mempools(md, t);
-	if (ret) {
-		old_map = ERR_PTR(ret);
-		goto out;
+		/*
+		 * There is no need to reload with request-based dm because the
+		 * size of front_pad doesn't change.
+		 *
+		 * Note for future: If you are to reload bioset, prep-ed
+		 * requests in the queue may refer to bio from the old bioset,
+		 * so you must walk through the queue to unprep.
+		 */
+		if (!md->mempools) {
+			md->mempools = t->mempools;
+			t->mempools = NULL;
+		}
+	} else {
+		/*
+		 * The md may already have mempools that need changing.
+		 * If so, reload bioset because front_pad may have changed
+		 * because a different table was loaded.
+		 */
+		dm_free_md_mempools(md->mempools);
+		md->mempools = t->mempools;
+		t->mempools = NULL;
 	}
 
 	ret = dm_table_set_restrictions(t, md->queue, limits);

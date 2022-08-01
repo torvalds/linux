@@ -6,20 +6,41 @@
 
 set -e
 
-pythonchecker=$(dirname $0)/lib/perf_csv_output_lint.py
-if [ "x$PYTHON" == "x" ]
-then
-	if which python3 > /dev/null
-	then
-		PYTHON=python3
-	elif which python > /dev/null
-	then
-		PYTHON=python
-	else
-		echo Skipping test, python not detected please set environment variable PYTHON.
-		exit 2
-	fi
-fi
+function commachecker()
+{
+	local -i cnt=0 exp=0
+
+	case "$1"
+	in "--no-args")		exp=6
+	;; "--system-wide")	exp=6
+	;; "--event")		exp=6
+	;; "--interval")	exp=7
+	;; "--per-thread")	exp=7
+	;; "--system-wide-no-aggr")	exp=7
+				[ $(uname -m) = "s390x" ] && exp=6
+	;; "--per-core")	exp=8
+	;; "--per-socket")	exp=8
+	;; "--per-node")	exp=8
+	;; "--per-die")		exp=8
+	esac
+
+	while read line
+	do
+		# Check for lines beginning with Failed
+		x=${line:0:6}
+		[ "$x" = "Failed" ] && continue
+
+		# Count the number of commas
+		x=$(echo $line | tr -d -c ',')
+		cnt="${#x}"
+		# echo $line $cnt
+		[ "$cnt" -ne "$exp" ] && {
+			echo "wrong number of fields. expected $exp in $line" 1>&2
+			exit 1;
+		}
+	done
+	return 0
+}
 
 # Return true if perf_event_paranoid is > $1 and not running as root.
 function ParanoidAndNotRoot()
@@ -30,7 +51,7 @@ function ParanoidAndNotRoot()
 check_no_args()
 {
 	echo -n "Checking CSV output: no args "
-	perf stat -x, true 2>&1 | $PYTHON $pythonchecker --no-args
+	perf stat -x, true 2>&1 | commachecker --no-args
 	echo "[Success]"
 }
 
@@ -42,7 +63,7 @@ check_system_wide()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat -x, -a true 2>&1 | $PYTHON $pythonchecker --system-wide
+	perf stat -x, -a true 2>&1 | commachecker --system-wide
 	echo "[Success]"
 }
 
@@ -55,14 +76,14 @@ check_system_wide_no_aggr()
 		return
 	fi
 	echo -n "Checking CSV output: system wide no aggregation "
-	perf stat -x, -A -a --no-merge true 2>&1 | $PYTHON $pythonchecker --system-wide-no-aggr
+	perf stat -x, -A -a --no-merge true 2>&1 | commachecker --system-wide-no-aggr
 	echo "[Success]"
 }
 
 check_interval()
 {
 	echo -n "Checking CSV output: interval "
-	perf stat -x, -I 1000 true 2>&1 | $PYTHON $pythonchecker --interval
+	perf stat -x, -I 1000 true 2>&1 | commachecker --interval
 	echo "[Success]"
 }
 
@@ -70,7 +91,7 @@ check_interval()
 check_event()
 {
 	echo -n "Checking CSV output: event "
-	perf stat -x, -e cpu-clock true 2>&1 | $PYTHON $pythonchecker --event
+	perf stat -x, -e cpu-clock true 2>&1 | commachecker --event
 	echo "[Success]"
 }
 
@@ -82,7 +103,7 @@ check_per_core()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat -x, --per-core -a true 2>&1 | $PYTHON $pythonchecker --per-core
+	perf stat -x, --per-core -a true 2>&1 | commachecker --per-core
 	echo "[Success]"
 }
 
@@ -94,7 +115,7 @@ check_per_thread()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat -x, --per-thread -a true 2>&1 | $PYTHON $pythonchecker --per-thread
+	perf stat -x, --per-thread -a true 2>&1 | commachecker --per-thread
 	echo "[Success]"
 }
 
@@ -106,7 +127,7 @@ check_per_die()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat -x, --per-die -a true 2>&1 | $PYTHON $pythonchecker --per-die
+	perf stat -x, --per-die -a true 2>&1 | commachecker --per-die
 	echo "[Success]"
 }
 
@@ -118,7 +139,7 @@ check_per_node()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat -x, --per-node -a true 2>&1 | $PYTHON $pythonchecker --per-node
+	perf stat -x, --per-node -a true 2>&1 | commachecker --per-node
 	echo "[Success]"
 }
 
@@ -130,7 +151,7 @@ check_per_socket()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat -x, --per-socket -a true 2>&1 | $PYTHON $pythonchecker --per-socket
+	perf stat -x, --per-socket -a true 2>&1 | commachecker --per-socket
 	echo "[Success]"
 }
 

@@ -51,6 +51,7 @@ static char *status_str[] = {
 };
 
 static char *type_str[] = {
+	"", /* Type 0 is not defined */
 	"AMT_MSG_DISCOVERY",
 	"AMT_MSG_ADVERTISEMENT",
 	"AMT_MSG_REQUEST",
@@ -2220,8 +2221,7 @@ static bool amt_advertisement_handler(struct amt_dev *amt, struct sk_buff *skb)
 	struct amt_header_advertisement *amta;
 	int hdr_size;
 
-	hdr_size = sizeof(*amta) - sizeof(struct amt_header);
-
+	hdr_size = sizeof(*amta) + sizeof(struct udphdr);
 	if (!pskb_may_pull(skb, hdr_size))
 		return true;
 
@@ -2251,19 +2251,27 @@ static bool amt_multicast_data_handler(struct amt_dev *amt, struct sk_buff *skb)
 	struct ethhdr *eth;
 	struct iphdr *iph;
 
+	hdr_size = sizeof(*amtmd) + sizeof(struct udphdr);
+	if (!pskb_may_pull(skb, hdr_size))
+		return true;
+
 	amtmd = (struct amt_header_mcast_data *)(udp_hdr(skb) + 1);
 	if (amtmd->reserved || amtmd->version)
 		return true;
 
-	hdr_size = sizeof(*amtmd) + sizeof(struct udphdr);
 	if (iptunnel_pull_header(skb, hdr_size, htons(ETH_P_IP), false))
 		return true;
+
 	skb_reset_network_header(skb);
 	skb_push(skb, sizeof(*eth));
 	skb_reset_mac_header(skb);
 	skb_pull(skb, sizeof(*eth));
 	eth = eth_hdr(skb);
+
+	if (!pskb_may_pull(skb, sizeof(*iph)))
+		return true;
 	iph = ip_hdr(skb);
+
 	if (iph->version == 4) {
 		if (!ipv4_is_multicast(iph->daddr))
 			return true;
@@ -2273,6 +2281,9 @@ static bool amt_multicast_data_handler(struct amt_dev *amt, struct sk_buff *skb)
 #if IS_ENABLED(CONFIG_IPV6)
 	} else if (iph->version == 6) {
 		struct ipv6hdr *ip6h;
+
+		if (!pskb_may_pull(skb, sizeof(*ip6h)))
+			return true;
 
 		ip6h = ipv6_hdr(skb);
 		if (!ipv6_addr_is_multicast(&ip6h->daddr))
@@ -2306,8 +2317,7 @@ static bool amt_membership_query_handler(struct amt_dev *amt,
 	struct iphdr *iph;
 	int hdr_size, len;
 
-	hdr_size = sizeof(*amtmq) - sizeof(struct amt_header);
-
+	hdr_size = sizeof(*amtmq) + sizeof(struct udphdr);
 	if (!pskb_may_pull(skb, hdr_size))
 		return true;
 
@@ -2315,20 +2325,25 @@ static bool amt_membership_query_handler(struct amt_dev *amt,
 	if (amtmq->reserved || amtmq->version)
 		return true;
 
-	hdr_size = sizeof(*amtmq) + sizeof(struct udphdr) - sizeof(*eth);
+	hdr_size -= sizeof(*eth);
 	if (iptunnel_pull_header(skb, hdr_size, htons(ETH_P_TEB), false))
 		return true;
+
 	oeth = eth_hdr(skb);
 	skb_reset_mac_header(skb);
 	skb_pull(skb, sizeof(*eth));
 	skb_reset_network_header(skb);
 	eth = eth_hdr(skb);
+	if (!pskb_may_pull(skb, sizeof(*iph)))
+		return true;
+
 	iph = ip_hdr(skb);
 	if (iph->version == 4) {
-		if (!ipv4_is_multicast(iph->daddr))
-			return true;
 		if (!pskb_may_pull(skb, sizeof(*iph) + AMT_IPHDR_OPTS +
 				   sizeof(*ihv3)))
+			return true;
+
+		if (!ipv4_is_multicast(iph->daddr))
 			return true;
 
 		ihv3 = skb_pull(skb, sizeof(*iph) + AMT_IPHDR_OPTS);
@@ -2345,13 +2360,15 @@ static bool amt_membership_query_handler(struct amt_dev *amt,
 		ip_eth_mc_map(iph->daddr, eth->h_dest);
 #if IS_ENABLED(CONFIG_IPV6)
 	} else if (iph->version == 6) {
-		struct ipv6hdr *ip6h = ipv6_hdr(skb);
 		struct mld2_query *mld2q;
+		struct ipv6hdr *ip6h;
 
-		if (!ipv6_addr_is_multicast(&ip6h->daddr))
-			return true;
 		if (!pskb_may_pull(skb, sizeof(*ip6h) + AMT_IP6HDR_OPTS +
 				   sizeof(*mld2q)))
+			return true;
+
+		ip6h = ipv6_hdr(skb);
+		if (!ipv6_addr_is_multicast(&ip6h->daddr))
 			return true;
 
 		mld2q = skb_pull(skb, sizeof(*ip6h) + AMT_IP6HDR_OPTS);
@@ -2389,23 +2406,23 @@ static bool amt_update_handler(struct amt_dev *amt, struct sk_buff *skb)
 {
 	struct amt_header_membership_update *amtmu;
 	struct amt_tunnel_list *tunnel;
-	struct udphdr *udph;
 	struct ethhdr *eth;
 	struct iphdr *iph;
-	int len;
+	int len, hdr_size;
 
 	iph = ip_hdr(skb);
-	udph = udp_hdr(skb);
 
-	if (__iptunnel_pull_header(skb, sizeof(*udph), skb->protocol,
-				   false, false))
+	hdr_size = sizeof(*amtmu) + sizeof(struct udphdr);
+	if (!pskb_may_pull(skb, hdr_size))
 		return true;
 
-	amtmu = (struct amt_header_membership_update *)skb->data;
+	amtmu = (struct amt_header_membership_update *)(udp_hdr(skb) + 1);
 	if (amtmu->reserved || amtmu->version)
 		return true;
 
-	skb_pull(skb, sizeof(*amtmu));
+	if (iptunnel_pull_header(skb, hdr_size, skb->protocol, false))
+		return true;
+
 	skb_reset_network_header(skb);
 
 	list_for_each_entry_rcu(tunnel, &amt->tunnel_list, list) {
@@ -2426,6 +2443,9 @@ static bool amt_update_handler(struct amt_dev *amt, struct sk_buff *skb)
 	return true;
 
 report:
+	if (!pskb_may_pull(skb, sizeof(*iph)))
+		return true;
+
 	iph = ip_hdr(skb);
 	if (iph->version == 4) {
 		if (ip_mc_check_igmp(skb)) {
@@ -2679,7 +2699,8 @@ static int amt_rcv(struct sock *sk, struct sk_buff *skb)
 	amt = rcu_dereference_sk_user_data(sk);
 	if (!amt) {
 		err = true;
-		goto drop;
+		kfree_skb(skb);
+		goto out;
 	}
 
 	skb->dev = amt->dev;

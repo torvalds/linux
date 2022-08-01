@@ -364,8 +364,13 @@ config RISCV_ISA_SVPBMT
 	select RISCV_ALTERNATIVE
 	default y
 	help
-	   Adds support to dynamically detect the presence of the SVPBMT extension
-	   (Supervisor-mode: page-based memory types) and enable its usage.
+	   Adds support to dynamically detect the presence of the SVPBMT
+	   ISA-extension (Supervisor-mode: page-based memory types) and
+	   enable its usage.
+
+	   The memory type for a page contains a combination of attributes
+	   that indicate the cacheability, idempotency, and ordering
+	   properties for access to that page.
 
 	   The SVPBMT extension is only available on 64Bit cpus.
 

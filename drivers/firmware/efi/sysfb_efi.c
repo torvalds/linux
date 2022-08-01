@@ -26,8 +26,6 @@
 #include <linux/sysfb.h>
 #include <video/vga.h>
 
-#include <asm/efi.h>
-
 enum {
 	OVERRIDE_NONE = 0x0,
 	OVERRIDE_BASE = 0x1,

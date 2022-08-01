@@ -997,10 +997,10 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_ON:
 		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT,  0x01, 0xdf, 0);
 		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0xfc, 0);
-		if (ast->tx_chip_type == AST_TX_DP501)
+		if (ast->tx_chip_types & AST_TX_DP501_BIT)
 			ast_set_dp501_video_output(crtc->dev, 1);
 
-		if (ast->tx_chip_type == AST_TX_ASTDP) {
+		if (ast->tx_chip_types & AST_TX_ASTDP_BIT) {
 			ast_dp_power_on_off(crtc->dev, AST_DP_POWER_ON);
 			ast_wait_for_vretrace(ast);
 			ast_dp_set_on_off(crtc->dev, 1);
@@ -1012,17 +1012,17 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
 		ch = mode;
-		if (ast->tx_chip_type == AST_TX_DP501)
+		if (ast->tx_chip_types & AST_TX_DP501_BIT)
 			ast_set_dp501_video_output(crtc->dev, 0);
-		break;
 
-		if (ast->tx_chip_type == AST_TX_ASTDP) {
+		if (ast->tx_chip_types & AST_TX_ASTDP_BIT) {
 			ast_dp_set_on_off(crtc->dev, 0);
 			ast_dp_power_on_off(crtc->dev, AST_DP_POWER_OFF);
 		}
 
 		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT,  0x01, 0xdf, 0x20);
 		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0xfc, ch);
+		break;
 	}
 }
 
@@ -1155,7 +1155,7 @@ ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 		ast_crtc_load_lut(ast, crtc);
 
 	//Set Aspeed Display-Port
-	if (ast->tx_chip_type == AST_TX_ASTDP)
+	if (ast->tx_chip_types & AST_TX_ASTDP_BIT)
 		ast_dp_set_mode(crtc, vbios_mode_info);
 
 	mutex_unlock(&ast->ioregs_lock);
@@ -1739,22 +1739,26 @@ int ast_mode_config_init(struct ast_private *ast)
 
 	ast_crtc_init(dev);
 
-	switch (ast->tx_chip_type) {
-	case AST_TX_NONE:
+	if (ast->tx_chip_types & AST_TX_NONE_BIT) {
 		ret = ast_vga_output_init(ast);
-		break;
-	case AST_TX_SIL164:
-		ret = ast_sil164_output_init(ast);
-		break;
-	case AST_TX_DP501:
-		ret = ast_dp501_output_init(ast);
-		break;
-	case AST_TX_ASTDP:
-		ret = ast_astdp_output_init(ast);
-		break;
+		if (ret)
+			return ret;
 	}
-	if (ret)
-		return ret;
+	if (ast->tx_chip_types & AST_TX_SIL164_BIT) {
+		ret = ast_sil164_output_init(ast);
+		if (ret)
+			return ret;
+	}
+	if (ast->tx_chip_types & AST_TX_DP501_BIT) {
+		ret = ast_dp501_output_init(ast);
+		if (ret)
+			return ret;
+	}
+	if (ast->tx_chip_types & AST_TX_ASTDP_BIT) {
+		ret = ast_astdp_output_init(ast);
+		if (ret)
+			return ret;
+	}
 
 	drm_mode_config_reset(dev);
 

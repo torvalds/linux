@@ -164,12 +164,14 @@ static void read_pages(struct readahead_control *rac)
 		while ((folio = readahead_folio(rac)) != NULL) {
 			unsigned long nr = folio_nr_pages(folio);
 
+			folio_get(folio);
 			rac->ra->size -= nr;
 			if (rac->ra->async_size >= nr) {
 				rac->ra->async_size -= nr;
 				filemap_remove_folio(folio);
 			}
 			folio_unlock(folio);
+			folio_put(folio);
 		}
 	} else {
 		while ((folio = readahead_folio(rac)) != NULL)
@@ -508,6 +510,7 @@ void page_cache_ra_order(struct readahead_control *ractl,
 			new_order--;
 	}
 
+	filemap_invalidate_lock_shared(mapping);
 	while (index <= limit) {
 		unsigned int order = new_order;
 
@@ -534,6 +537,7 @@ void page_cache_ra_order(struct readahead_control *ractl,
 	}
 
 	read_pages(ractl);
+	filemap_invalidate_unlock_shared(mapping);
 
 	/*
 	 * If there were already pages in the page cache, then we may have

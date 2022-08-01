@@ -1306,6 +1306,7 @@ static const struct uart_ops qcom_geni_console_pops = {
 	.stop_tx = qcom_geni_serial_stop_tx,
 	.start_tx = qcom_geni_serial_start_tx,
 	.stop_rx = qcom_geni_serial_stop_rx,
+	.start_rx = qcom_geni_serial_start_rx,
 	.set_termios = qcom_geni_serial_set_termios,
 	.startup = qcom_geni_serial_startup,
 	.request_port = qcom_geni_serial_request_port,

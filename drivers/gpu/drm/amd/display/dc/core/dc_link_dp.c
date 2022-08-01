@@ -114,8 +114,8 @@ static const struct dc_link_settings fail_safe_link_settings = {
 
 static bool decide_fallback_link_setting(
 		struct dc_link *link,
-		struct dc_link_settings initial_link_settings,
-		struct dc_link_settings *current_link_setting,
+		struct dc_link_settings *max,
+		struct dc_link_settings *cur,
 		enum link_training_result training_result);
 static void maximize_lane_settings(const struct link_training_settings *lt_settings,
 		struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX]);
@@ -944,7 +944,7 @@ static void override_lane_settings(const struct link_training_settings *lt_setti
 
 		return;
 
-	for (lane = 1; lane < LANE_COUNT_DP_MAX; lane++) {
+	for (lane = 0; lane < LANE_COUNT_DP_MAX; lane++) {
 		if (lt_settings->voltage_swing)
 			lane_settings[lane].VOLTAGE_SWING = *lt_settings->voltage_swing;
 		if (lt_settings->pre_emphasis)
@@ -2784,6 +2784,7 @@ bool perform_link_training_with_retries(
 	enum dp_panel_mode panel_mode = dp_get_panel_mode(link);
 	enum link_training_result status = LINK_TRAINING_CR_FAIL_LANE0;
 	struct dc_link_settings cur_link_settings = *link_setting;
+	struct dc_link_settings max_link_settings = *link_setting;
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	int fail_count = 0;
 	bool is_link_bw_low = false; /* link bandwidth < stream bandwidth */
@@ -2792,7 +2793,6 @@ bool perform_link_training_with_retries(
 		(cur_link_settings.lane_count <= LANE_COUNT_ONE);
 
 	dp_trace_commit_lt_init(link);
-
 
 	if (dp_get_link_encoding_format(&cur_link_settings) == DP_8b_10b_ENCODING)
 		/* We need to do this before the link training to ensure the idle
@@ -2909,19 +2909,15 @@ bool perform_link_training_with_retries(
 			uint32_t req_bw;
 			uint32_t link_bw;
 
-			decide_fallback_link_setting(link, *link_setting, &cur_link_settings, status);
-			/* Flag if reduced link bandwidth no longer meets stream requirements or fallen back to
-			 * minimum link bandwidth.
+			decide_fallback_link_setting(link, &max_link_settings,
+					&cur_link_settings, status);
+			/* Fail link training if reduced link bandwidth no longer meets
+			 * stream requirements.
 			 */
 			req_bw = dc_bandwidth_in_kbps_from_timing(&stream->timing);
 			link_bw = dc_link_bandwidth_kbps(link, &cur_link_settings);
-			is_link_bw_low = (req_bw > link_bw);
-			is_link_bw_min = ((cur_link_settings.link_rate <= LINK_RATE_LOW) &&
-				(cur_link_settings.lane_count <= LANE_COUNT_ONE));
-
-			if (is_link_bw_low)
-				DC_LOG_WARNING("%s: Link bandwidth too low after fallback req_bw(%d) > link_bw(%d)\n",
-					__func__, req_bw, link_bw);
+			if (req_bw > link_bw)
+				break;
 		}
 
 		msleep(delay_between_attempts);
@@ -3309,7 +3305,7 @@ static bool dp_verify_link_cap(
 	int *fail_count)
 {
 	struct dc_link_settings cur_link_settings = {0};
-	struct dc_link_settings initial_link_settings = *known_limit_link_setting;
+	struct dc_link_settings max_link_settings = *known_limit_link_setting;
 	bool success = false;
 	bool skip_video_pattern;
 	enum clock_source_id dp_cs_id = get_clock_source_id(link);
@@ -3318,7 +3314,7 @@ static bool dp_verify_link_cap(
 	struct link_resource link_res;
 
 	memset(&irq_data, 0, sizeof(irq_data));
-	cur_link_settings = initial_link_settings;
+	cur_link_settings = max_link_settings;
 
 	/* Grant extended timeout request */
 	if ((link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) && (link->dpcd_caps.lttpr_caps.max_ext_timeout > 0)) {
@@ -3361,7 +3357,7 @@ static bool dp_verify_link_cap(
 		dp_trace_lt_result_update(link, status, true);
 		dp_disable_link_phy(link, &link_res, link->connector_signal);
 	} while (!success && decide_fallback_link_setting(link,
-			initial_link_settings, &cur_link_settings, status));
+			&max_link_settings, &cur_link_settings, status));
 
 	link->verified_link_cap = success ?
 			cur_link_settings : fail_safe_link_settings;
@@ -3596,16 +3592,19 @@ static bool decide_fallback_link_setting_max_bw_policy(
  */
 static bool decide_fallback_link_setting(
 		struct dc_link *link,
-		struct dc_link_settings initial_link_settings,
-		struct dc_link_settings *current_link_setting,
+		struct dc_link_settings *max,
+		struct dc_link_settings *cur,
 		enum link_training_result training_result)
 {
-	if (!current_link_setting)
+	if (!cur)
 		return false;
-	if (dp_get_link_encoding_format(&initial_link_settings) == DP_128b_132b_ENCODING ||
+	if (!max)
+		return false;
+
+	if (dp_get_link_encoding_format(max) == DP_128b_132b_ENCODING ||
 			link->dc->debug.force_dp2_lt_fallback_method)
-		return decide_fallback_link_setting_max_bw_policy(link, &initial_link_settings,
-				current_link_setting, training_result);
+		return decide_fallback_link_setting_max_bw_policy(link, max, cur,
+				training_result);
 
 	switch (training_result) {
 	case LINK_TRAINING_CR_FAIL_LANE0:
@@ -3613,28 +3612,18 @@ static bool decide_fallback_link_setting(
 	case LINK_TRAINING_CR_FAIL_LANE23:
 	case LINK_TRAINING_LQA_FAIL:
 	{
-		if (!reached_minimum_link_rate
-				(current_link_setting->link_rate)) {
-			current_link_setting->link_rate =
-				reduce_link_rate(
-					current_link_setting->link_rate);
-		} else if (!reached_minimum_lane_count
-				(current_link_setting->lane_count)) {
-			current_link_setting->link_rate =
-				initial_link_settings.link_rate;
+		if (!reached_minimum_link_rate(cur->link_rate)) {
+			cur->link_rate = reduce_link_rate(cur->link_rate);
+		} else if (!reached_minimum_lane_count(cur->lane_count)) {
+			cur->link_rate = max->link_rate;
 			if (training_result == LINK_TRAINING_CR_FAIL_LANE0)
 				return false;
 			else if (training_result == LINK_TRAINING_CR_FAIL_LANE1)
-				current_link_setting->lane_count =
-						LANE_COUNT_ONE;
-			else if (training_result ==
-					LINK_TRAINING_CR_FAIL_LANE23)
-				current_link_setting->lane_count =
-						LANE_COUNT_TWO;
+				cur->lane_count = LANE_COUNT_ONE;
+			else if (training_result == LINK_TRAINING_CR_FAIL_LANE23)
+				cur->lane_count = LANE_COUNT_TWO;
 			else
-				current_link_setting->lane_count =
-					reduce_lane_count(
-					current_link_setting->lane_count);
+				cur->lane_count = reduce_lane_count(cur->lane_count);
 		} else {
 			return false;
 		}
@@ -3642,17 +3631,17 @@ static bool decide_fallback_link_setting(
 	}
 	case LINK_TRAINING_EQ_FAIL_EQ:
 	{
-		if (!reached_minimum_lane_count
-				(current_link_setting->lane_count)) {
-			current_link_setting->lane_count =
-				reduce_lane_count(
-					current_link_setting->lane_count);
-		} else if (!reached_minimum_link_rate
-				(current_link_setting->link_rate)) {
-			current_link_setting->link_rate =
-				reduce_link_rate(
-					current_link_setting->link_rate);
-			current_link_setting->lane_count = initial_link_settings.lane_count;
+		if (!reached_minimum_lane_count(cur->lane_count)) {
+			cur->lane_count = reduce_lane_count(cur->lane_count);
+		} else if (!reached_minimum_link_rate(cur->link_rate)) {
+			cur->link_rate = reduce_link_rate(cur->link_rate);
+			/* Reduce max link rate to avoid potential infinite loop.
+			 * Needed so that any subsequent CR_FAIL fallback can't
+			 * re-set the link rate higher than the link rate from
+			 * the latest EQ_FAIL fallback.
+			 */
+			max->link_rate = cur->link_rate;
+			cur->lane_count = max->lane_count;
 		} else {
 			return false;
 		}
@@ -3660,12 +3649,15 @@ static bool decide_fallback_link_setting(
 	}
 	case LINK_TRAINING_EQ_FAIL_CR:
 	{
-		if (!reached_minimum_link_rate
-				(current_link_setting->link_rate)) {
-			current_link_setting->link_rate =
-				reduce_link_rate(
-					current_link_setting->link_rate);
-			current_link_setting->lane_count = initial_link_settings.lane_count;
+		if (!reached_minimum_link_rate(cur->link_rate)) {
+			cur->link_rate = reduce_link_rate(cur->link_rate);
+			/* Reduce max link rate to avoid potential infinite loop.
+			 * Needed so that any subsequent CR_FAIL fallback can't
+			 * re-set the link rate higher than the link rate from
+			 * the latest EQ_FAIL fallback.
+			 */
+			max->link_rate = cur->link_rate;
+			cur->lane_count = max->lane_count;
 		} else {
 			return false;
 		}
