@@ -1449,7 +1449,6 @@ int __init tls_device_init(void)
 void __exit tls_device_cleanup(void)
 {
 	unregister_netdevice_notifier(&tls_dev_notifier);
-	flush_workqueue(destruct_wq);
 	destroy_workqueue(destruct_wq);
 	clean_acked_data_flush();
 }
