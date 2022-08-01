@@ -173,7 +173,7 @@ int iommu_device_register(struct iommu_device *iommu,
 
 	iommu->ops = ops;
 	if (hwdev)
-		iommu->fwnode = hwdev->fwnode;
+		iommu->fwnode = dev_fwnode(hwdev);
 
 	spin_lock(&iommu_device_lock);
 	list_add_tail(&iommu->list, &iommu_device_list);
