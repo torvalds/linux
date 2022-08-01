@@ -140,7 +140,7 @@ static struct pwm_lookup crc_pwm_lookup[] = {
 	PWM_LOOKUP("crystal_cove_pwm", 0, "0000:00:02.0", "pwm_pmic_backlight", 0, PWM_POLARITY_NORMAL),
 };
 
-struct intel_soc_pmic_config {
+struct crystal_cove_config {
 	unsigned long irq_flags;
 	struct mfd_cell *cell_dev;
 	int n_cell_devs;
@@ -148,7 +148,7 @@ struct intel_soc_pmic_config {
 	const struct regmap_irq_chip *irq_chip;
 };
 
-static const struct intel_soc_pmic_config intel_soc_pmic_config_byt_crc = {
+static const struct crystal_cove_config crystal_cove_config_byt_crc = {
 	.irq_flags = IRQF_TRIGGER_RISING,
 	.cell_dev = crystal_cove_byt_dev,
 	.n_cell_devs = ARRAY_SIZE(crystal_cove_byt_dev),
@@ -156,7 +156,7 @@ static const struct intel_soc_pmic_config intel_soc_pmic_config_byt_crc = {
 	.irq_chip = &crystal_cove_irq_chip,
 };
 
-static const struct intel_soc_pmic_config intel_soc_pmic_config_cht_crc = {
+static const struct crystal_cove_config crystal_cove_config_cht_crc = {
 	.irq_flags = IRQF_TRIGGER_RISING,
 	.cell_dev = crystal_cove_cht_dev,
 	.n_cell_devs = ARRAY_SIZE(crystal_cove_cht_dev),
@@ -164,17 +164,17 @@ static const struct intel_soc_pmic_config intel_soc_pmic_config_cht_crc = {
 	.irq_chip = &crystal_cove_irq_chip,
 };
 
-static int intel_soc_pmic_i2c_probe(struct i2c_client *i2c)
+static int crystal_cove_i2c_probe(struct i2c_client *i2c)
 {
-	const struct intel_soc_pmic_config *config;
+	const struct crystal_cove_config *config;
 	struct device *dev = &i2c->dev;
 	struct intel_soc_pmic *pmic;
 	int ret;
 
 	if (soc_intel_is_byt())
-		config = &intel_soc_pmic_config_byt_crc;
+		config = &crystal_cove_config_byt_crc;
 	else
-		config = &intel_soc_pmic_config_cht_crc;
+		config = &crystal_cove_config_cht_crc;
 
 	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
@@ -214,7 +214,7 @@ static int intel_soc_pmic_i2c_probe(struct i2c_client *i2c)
 	return ret;
 }
 
-static int intel_soc_pmic_i2c_remove(struct i2c_client *i2c)
+static int crystal_cove_i2c_remove(struct i2c_client *i2c)
 {
 	/* remove crc-pwm lookup table */
 	pwm_remove_table(crc_pwm_lookup, ARRAY_SIZE(crc_pwm_lookup));
@@ -224,7 +224,7 @@ static int intel_soc_pmic_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-static void intel_soc_pmic_shutdown(struct i2c_client *i2c)
+static void crystal_cove_shutdown(struct i2c_client *i2c)
 {
 	struct intel_soc_pmic *pmic = i2c_get_clientdata(i2c);
 
@@ -233,7 +233,7 @@ static void intel_soc_pmic_shutdown(struct i2c_client *i2c)
 	return;
 }
 
-static int intel_soc_pmic_suspend(struct device *dev)
+static int crystal_cove_suspend(struct device *dev)
 {
 	struct intel_soc_pmic *pmic = dev_get_drvdata(dev);
 
@@ -242,7 +242,7 @@ static int intel_soc_pmic_suspend(struct device *dev)
 	return 0;
 }
 
-static int intel_soc_pmic_resume(struct device *dev)
+static int crystal_cove_resume(struct device *dev)
 {
 	struct intel_soc_pmic *pmic = dev_get_drvdata(dev);
 
@@ -251,26 +251,26 @@ static int intel_soc_pmic_resume(struct device *dev)
 	return 0;
 }
 
-static DEFINE_SIMPLE_DEV_PM_OPS(crystal_cove_pm_ops, intel_soc_pmic_suspend, intel_soc_pmic_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(crystal_cove_pm_ops, crystal_cove_suspend, crystal_cove_resume);
 
-static const struct acpi_device_id intel_soc_pmic_acpi_match[] = {
+static const struct acpi_device_id crystal_cove_acpi_match[] = {
 	{ "INT33FD" },
 	{ },
 };
-MODULE_DEVICE_TABLE(acpi, intel_soc_pmic_acpi_match);
+MODULE_DEVICE_TABLE(acpi, crystal_cove_acpi_match);
 
-static struct i2c_driver intel_soc_pmic_i2c_driver = {
+static struct i2c_driver crystal_cove_i2c_driver = {
 	.driver = {
-		.name = "intel_soc_pmic_i2c",
+		.name = "crystal_cove_i2c",
 		.pm = pm_sleep_ptr(&crystal_cove_pm_ops),
-		.acpi_match_table = intel_soc_pmic_acpi_match,
+		.acpi_match_table = crystal_cove_acpi_match,
 	},
-	.probe_new = intel_soc_pmic_i2c_probe,
-	.remove = intel_soc_pmic_i2c_remove,
-	.shutdown = intel_soc_pmic_shutdown,
+	.probe_new = crystal_cove_i2c_probe,
+	.remove = crystal_cove_i2c_remove,
+	.shutdown = crystal_cove_shutdown,
 };
 
-module_i2c_driver(intel_soc_pmic_i2c_driver);
+module_i2c_driver(crystal_cove_i2c_driver);
 
 MODULE_DESCRIPTION("I2C driver for Intel SoC PMIC");
 MODULE_LICENSE("GPL v2");
