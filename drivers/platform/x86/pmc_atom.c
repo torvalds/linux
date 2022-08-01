@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Intel Atom SOC Power Management Controller Driver
- * Copyright (c) 2014, Intel Corporation.
+ * Intel Atom SoC Power Management Controller Driver
+ * Copyright (c) 2014-2015,2017,2022 Intel Corporation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -489,11 +489,7 @@ static int pmc_setup_dev(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return ret;
 }
 
-/*
- * Data for PCI driver interface
- *
- * used by pci_match_id() call below.
- */
+/* Data for PCI driver interface used by pci_match_id() call below */
 static const struct pci_device_id pmc_pci_ids[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_VLV_PMC), (kernel_ulong_t)&byt_data },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_CHT_PMC), (kernel_ulong_t)&cht_data },
@@ -505,8 +501,9 @@ static int __init pmc_atom_init(void)
 	struct pci_dev *pdev = NULL;
 	const struct pci_device_id *ent;
 
-	/* We look for our device - PCU PMC
-	 * we assume that there is max. one device.
+	/*
+	 * We look for our device - PCU PMC.
+	 * We assume that there is maximum one device.
 	 *
 	 * We can't use plain pci_driver mechanism,
 	 * as the device is really a multiple function device,
@@ -518,7 +515,7 @@ static int __init pmc_atom_init(void)
 		if (ent)
 			return pmc_setup_dev(pdev, ent);
 	}
-	/* Device not found. */
+	/* Device not found */
 	return -ENODEV;
 }
 
@@ -526,6 +523,6 @@ device_initcall(pmc_atom_init);
 
 /*
 MODULE_AUTHOR("Aubrey Li <aubrey.li@linux.intel.com>");
-MODULE_DESCRIPTION("Intel Atom SOC Power Management Controller Interface");
+MODULE_DESCRIPTION("Intel Atom SoC Power Management Controller Interface");
 MODULE_LICENSE("GPL v2");
 */
