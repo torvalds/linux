@@ -648,12 +648,26 @@ static struct cxl_decoder *cxl_region_find_decoder(struct cxl_port *port,
 static struct cxl_region_ref *alloc_region_ref(struct cxl_port *port,
 					       struct cxl_region *cxlr)
 {
-	struct cxl_region_ref *cxl_rr;
+	struct cxl_region_params *p = &cxlr->params;
+	struct cxl_region_ref *cxl_rr, *iter;
+	unsigned long index;
 	int rc;
+
+	xa_for_each(&port->regions, index, iter) {
+		struct cxl_region_params *ip = &iter->region->params;
+
+		if (ip->res->start > p->res->start) {
+			dev_dbg(&cxlr->dev,
+				"%s: HPA order violation %s:%pr vs %pr\n",
+				dev_name(&port->dev),
+				dev_name(&iter->region->dev), ip->res, p->res);
+			return ERR_PTR(-EBUSY);
+		}
+	}
 
 	cxl_rr = kzalloc(sizeof(*cxl_rr), GFP_KERNEL);
 	if (!cxl_rr)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	cxl_rr->port = port;
 	cxl_rr->region = cxlr;
 	cxl_rr->nr_targets = 1;
@@ -665,7 +679,7 @@ static struct cxl_region_ref *alloc_region_ref(struct cxl_port *port,
 			"%s: failed to track region reference: %d\n",
 			dev_name(&port->dev), rc);
 		kfree(cxl_rr);
-		return NULL;
+		return ERR_PTR(rc);
 	}
 
 	return cxl_rr;
@@ -740,33 +754,25 @@ static int cxl_port_attach_region(struct cxl_port *port,
 {
 	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
 	struct cxl_ep *ep = cxl_ep_load(port, cxlmd);
-	struct cxl_region_ref *cxl_rr = NULL, *iter;
-	struct cxl_region_params *p = &cxlr->params;
-	struct cxl_decoder *cxld = NULL;
+	struct cxl_region_ref *cxl_rr;
+	bool nr_targets_inc = false;
+	struct cxl_decoder *cxld;
 	unsigned long index;
 	int rc = -EBUSY;
 
 	lockdep_assert_held_write(&cxl_region_rwsem);
 
-	xa_for_each(&port->regions, index, iter) {
-		struct cxl_region_params *ip = &iter->region->params;
-
-		if (iter->region == cxlr)
-			cxl_rr = iter;
-		if (ip->res->start > p->res->start) {
-			dev_dbg(&cxlr->dev,
-				"%s: HPA order violation %s:%pr vs %pr\n",
-				dev_name(&port->dev),
-				dev_name(&iter->region->dev), ip->res, p->res);
-			return -EBUSY;
-		}
-	}
-
+	cxl_rr = cxl_rr_load(port, cxlr);
 	if (cxl_rr) {
 		struct cxl_ep *ep_iter;
 		int found = 0;
 
-		cxld = cxl_rr->decoder;
+		/*
+		 * Walk the existing endpoints that have been attached to
+		 * @cxlr at @port and see if they share the same 'next' port
+		 * in the downstream direction. I.e. endpoints that share common
+		 * upstream switch.
+		 */
 		xa_for_each(&cxl_rr->endpoints, index, ep_iter) {
 			if (ep_iter == ep)
 				continue;
@@ -777,22 +783,29 @@ static int cxl_port_attach_region(struct cxl_port *port,
 		}
 
 		/*
-		 * If this is a new target or if this port is direct connected
-		 * to this endpoint then add to the target count.
+		 * New target port, or @port is an endpoint port that always
+		 * accounts its own local decode as a target.
 		 */
-		if (!found || !ep->next)
+		if (!found || !ep->next) {
 			cxl_rr->nr_targets++;
+			nr_targets_inc = true;
+		}
+
+		/*
+		 * The decoder for @cxlr was allocated when the region was first
+		 * attached to @port.
+		 */
+		cxld = cxl_rr->decoder;
 	} else {
 		cxl_rr = alloc_region_ref(port, cxlr);
-		if (!cxl_rr) {
+		if (IS_ERR(cxl_rr)) {
 			dev_dbg(&cxlr->dev,
 				"%s: failed to allocate region reference\n",
 				dev_name(&port->dev));
-			return -ENOMEM;
+			return PTR_ERR(cxl_rr);
 		}
-	}
+		nr_targets_inc = true;
 
-	if (!cxld) {
 		if (port == cxled_to_port(cxled))
 			cxld = &cxled->cxld;
 		else
@@ -835,6 +848,8 @@ static int cxl_port_attach_region(struct cxl_port *port,
 
 	return 0;
 out_erase:
+	if (nr_targets_inc)
+		cxl_rr->nr_targets--;
 	if (cxl_rr->nr_eps == 0)
 		free_region_ref(cxl_rr);
 	return rc;
