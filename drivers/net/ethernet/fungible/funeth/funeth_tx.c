@@ -16,23 +16,24 @@
 #define FUN_XDP_CLEAN_BATCH 16
 
 /* DMA-map a packet and return the (length, DMA_address) pairs for its
- * segments. If a mapping error occurs -ENOMEM is returned.
+ * segments. If a mapping error occurs -ENOMEM is returned. The packet
+ * consists of an skb_shared_info and one additional address/length pair.
  */
-static int map_skb(const struct sk_buff *skb, struct device *dev,
-		   dma_addr_t *addr, unsigned int *len)
+static int fun_map_pkt(struct device *dev, const struct skb_shared_info *si,
+		       void *data, unsigned int data_len,
+		       dma_addr_t *addr, unsigned int *len)
 {
-	const struct skb_shared_info *si;
 	const skb_frag_t *fp, *end;
 
-	*len = skb_headlen(skb);
-	*addr = dma_map_single(dev, skb->data, *len, DMA_TO_DEVICE);
+	*len = data_len;
+	*addr = dma_map_single(dev, data, *len, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, *addr))
 		return -ENOMEM;
 
-	si = skb_shinfo(skb);
-	end = &si->frags[si->nr_frags];
+	if (!si)
+		return 0;
 
-	for (fp = si->frags; fp < end; fp++) {
+	for (fp = si->frags, end = fp + si->nr_frags; fp < end; fp++) {
 		*++len = skb_frag_size(fp);
 		*++addr = skb_frag_dma_map(dev, fp, 0, *len, DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, *addr))
@@ -44,7 +45,7 @@ unwind:
 	while (fp-- > si->frags)
 		dma_unmap_page(dev, *--addr, skb_frag_size(fp), DMA_TO_DEVICE);
 
-	dma_unmap_single(dev, addr[-1], skb_headlen(skb), DMA_TO_DEVICE);
+	dma_unmap_single(dev, addr[-1], data_len, DMA_TO_DEVICE);
 	return -ENOMEM;
 }
 
@@ -69,6 +70,33 @@ static unsigned int txq_to_end(const struct funeth_txq *q, void *p)
 static unsigned int tx_req_ndesc(const struct fun_eth_tx_req *req)
 {
 	return DIV_ROUND_UP(req->len8, FUNETH_SQE_SIZE / 8);
+}
+
+/* Write a gather list to the Tx descriptor at @req from @ngle address/length
+ * pairs.
+ */
+static struct fun_dataop_gl *fun_write_gl(const struct funeth_txq *q,
+					  struct fun_eth_tx_req *req,
+					  const dma_addr_t *addrs,
+					  const unsigned int *lens,
+					  unsigned int ngle)
+{
+	struct fun_dataop_gl *gle;
+	unsigned int i;
+
+	req->len8 = (sizeof(*req) + ngle * sizeof(*gle)) / 8;
+
+	for (i = 0, gle = (struct fun_dataop_gl *)req->dataop.imm;
+	     i < ngle && txq_to_end(q, gle); i++, gle++)
+		fun_dataop_gl_init(gle, 0, 0, lens[i], addrs[i]);
+
+	if (txq_to_end(q, gle) == 0) {
+		gle = (struct fun_dataop_gl *)q->desc;
+		for ( ; i < ngle; i++, gle++)
+			fun_dataop_gl_init(gle, 0, 0, lens[i], addrs[i]);
+	}
+
+	return gle;
 }
 
 static __be16 tcp_hdr_doff_flags(const struct tcphdr *th)
@@ -129,11 +157,13 @@ static unsigned int write_pkt_desc(struct sk_buff *skb, struct funeth_txq *q,
 	struct fun_eth_tx_req *req;
 	struct fun_dataop_gl *gle;
 	const struct tcphdr *th;
-	unsigned int ngle, i;
 	unsigned int l4_hlen;
+	unsigned int ngle;
 	u16 flags;
 
-	if (unlikely(map_skb(skb, q->dma_dev, addrs, lens))) {
+	shinfo = skb_shinfo(skb);
+	if (unlikely(fun_map_pkt(q->dma_dev, shinfo, skb->data,
+				 skb_headlen(skb), addrs, lens))) {
 		FUN_QSTAT_INC(q, tx_map_err);
 		return 0;
 	}
@@ -146,7 +176,6 @@ static unsigned int write_pkt_desc(struct sk_buff *skb, struct funeth_txq *q,
 	req->repr_idn = 0;
 	req->encap_proto = 0;
 
-	shinfo = skb_shinfo(skb);
 	if (likely(shinfo->gso_size)) {
 		if (skb->encapsulation) {
 			u16 ol4_ofst;
@@ -243,18 +272,9 @@ static unsigned int write_pkt_desc(struct sk_buff *skb, struct funeth_txq *q,
 	}
 
 	ngle = shinfo->nr_frags + 1;
-	req->len8 = (sizeof(*req) + ngle * sizeof(*gle)) / 8;
 	req->dataop = FUN_DATAOP_HDR_INIT(ngle, 0, ngle, 0, skb->len);
 
-	for (i = 0, gle = (struct fun_dataop_gl *)req->dataop.imm;
-	     i < ngle && txq_to_end(q, gle); i++, gle++)
-		fun_dataop_gl_init(gle, 0, 0, lens[i], addrs[i]);
-
-	if (txq_to_end(q, gle) == 0) {
-		gle = (struct fun_dataop_gl *)q->desc;
-		for ( ; i < ngle; i++, gle++)
-			fun_dataop_gl_init(gle, 0, 0, lens[i], addrs[i]);
-	}
+	gle = fun_write_gl(q, req, addrs, lens, ngle);
 
 	if (IS_ENABLED(CONFIG_TLS_DEVICE) && unlikely(tls_len)) {
 		struct fun_eth_tls *tls = (struct fun_eth_tls *)gle;
@@ -371,7 +391,7 @@ static u16 txq_hw_head(const struct funeth_txq *q)
 /* Unmap the Tx packet starting at the given descriptor index and
  * return the number of Tx descriptors it occupied.
  */
-static unsigned int unmap_skb(const struct funeth_txq *q, unsigned int idx)
+static unsigned int fun_unmap_pkt(const struct funeth_txq *q, unsigned int idx)
 {
 	const struct fun_eth_tx_req *req = fun_tx_desc_addr(q, idx);
 	unsigned int ngle = req->dataop.ngather;
@@ -419,7 +439,7 @@ static bool fun_txq_reclaim(struct funeth_txq *q, int budget)
 		rmb();
 
 		do {
-			unsigned int pkt_desc = unmap_skb(q, reclaim_idx);
+			unsigned int pkt_desc = fun_unmap_pkt(q, reclaim_idx);
 			struct sk_buff *skb = q->info[reclaim_idx].skb;
 
 			trace_funeth_tx_free(q, reclaim_idx, pkt_desc, head);
@@ -461,20 +481,10 @@ int fun_txq_napi_poll(struct napi_struct *napi, int budget)
 	return 0;
 }
 
-static void fun_xdp_unmap(const struct funeth_txq *q, unsigned int idx)
-{
-	const struct fun_eth_tx_req *req = fun_tx_desc_addr(q, idx);
-	const struct fun_dataop_gl *gle;
-
-	gle = (const struct fun_dataop_gl *)req->dataop.imm;
-	dma_unmap_single(q->dma_dev, be64_to_cpu(gle->sgl_data),
-			 be32_to_cpu(gle->sgl_len), DMA_TO_DEVICE);
-}
-
-/* Reclaim up to @budget completed Tx descriptors from a TX XDP queue. */
+/* Reclaim up to @budget completed Tx packets from a TX XDP queue. */
 static unsigned int fun_xdpq_clean(struct funeth_txq *q, unsigned int budget)
 {
-	unsigned int npkts = 0, head, reclaim_idx;
+	unsigned int npkts = 0, ndesc = 0, head, reclaim_idx;
 
 	for (head = txq_hw_head(q), reclaim_idx = q->cons_cnt & q->mask;
 	     head != reclaim_idx && npkts < budget; head = txq_hw_head(q)) {
@@ -486,38 +496,49 @@ static unsigned int fun_xdpq_clean(struct funeth_txq *q, unsigned int budget)
 		rmb();
 
 		do {
-			fun_xdp_unmap(q, reclaim_idx);
+			unsigned int pkt_desc = fun_unmap_pkt(q, reclaim_idx);
+
 			xdp_return_frame(q->info[reclaim_idx].xdpf);
 
-			trace_funeth_tx_free(q, reclaim_idx, 1, head);
+			trace_funeth_tx_free(q, reclaim_idx, pkt_desc, head);
 
-			reclaim_idx = (reclaim_idx + 1) & q->mask;
+			reclaim_idx = (reclaim_idx + pkt_desc) & q->mask;
+			ndesc += pkt_desc;
 			npkts++;
 		} while (reclaim_idx != head && npkts < budget);
 	}
 
-	q->cons_cnt += npkts;
+	q->cons_cnt += ndesc;
 	return npkts;
 }
 
 bool fun_xdp_tx(struct funeth_txq *q, struct xdp_frame *xdpf)
 {
+	unsigned int idx, nfrags = 1, ndesc = 1, tot_len = xdpf->len;
+	const struct skb_shared_info *si = NULL;
+	unsigned int lens[MAX_SKB_FRAGS + 1];
+	dma_addr_t dma[MAX_SKB_FRAGS + 1];
 	struct fun_eth_tx_req *req;
-	struct fun_dataop_gl *gle;
-	unsigned int idx, len;
-	dma_addr_t dma;
 
 	if (fun_txq_avail(q) < FUN_XDP_CLEAN_THRES)
 		fun_xdpq_clean(q, FUN_XDP_CLEAN_BATCH);
 
-	if (!unlikely(fun_txq_avail(q))) {
+	if (unlikely(xdp_frame_has_frags(xdpf))) {
+		si = xdp_get_shared_info_from_frame(xdpf);
+		tot_len = xdp_get_frame_len(xdpf);
+		nfrags += si->nr_frags;
+		ndesc = DIV_ROUND_UP((sizeof(*req) + nfrags *
+				      sizeof(struct fun_dataop_gl)),
+				     FUNETH_SQE_SIZE);
+	}
+
+	if (unlikely(fun_txq_avail(q) < ndesc)) {
 		FUN_QSTAT_INC(q, tx_xdp_full);
 		return false;
 	}
 
-	len = xdpf->len;
-	dma = dma_map_single(q->dma_dev, xdpf->data, len, DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(q->dma_dev, dma))) {
+	if (unlikely(fun_map_pkt(q->dma_dev, si, xdpf->data, xdpf->len, dma,
+				 lens))) {
 		FUN_QSTAT_INC(q, tx_map_err);
 		return false;
 	}
@@ -525,26 +546,25 @@ bool fun_xdp_tx(struct funeth_txq *q, struct xdp_frame *xdpf)
 	idx = q->prod_cnt & q->mask;
 	req = fun_tx_desc_addr(q, idx);
 	req->op = FUN_ETH_OP_TX;
-	req->len8 = (sizeof(*req) + sizeof(*gle)) / 8;
+	req->len8 = 0;
 	req->flags = 0;
 	req->suboff8 = offsetof(struct fun_eth_tx_req, dataop);
 	req->repr_idn = 0;
 	req->encap_proto = 0;
 	fun_eth_offload_init(&req->offload, 0, 0, 0, 0, 0, 0, 0, 0);
-	req->dataop = FUN_DATAOP_HDR_INIT(1, 0, 1, 0, len);
+	req->dataop = FUN_DATAOP_HDR_INIT(nfrags, 0, nfrags, 0, tot_len);
 
-	gle = (struct fun_dataop_gl *)req->dataop.imm;
-	fun_dataop_gl_init(gle, 0, 0, len, dma);
+	fun_write_gl(q, req, dma, lens, nfrags);
 
 	q->info[idx].xdpf = xdpf;
 
 	u64_stats_update_begin(&q->syncp);
-	q->stats.tx_bytes += len;
+	q->stats.tx_bytes += tot_len;
 	q->stats.tx_pkts++;
 	u64_stats_update_end(&q->syncp);
 
-	trace_funeth_tx(q, len, idx, 1);
-	q->prod_cnt++;
+	trace_funeth_tx(q, tot_len, idx, nfrags);
+	q->prod_cnt += ndesc;
 
 	return true;
 }
@@ -584,7 +604,7 @@ static void fun_txq_purge(struct funeth_txq *q)
 	while (q->cons_cnt != q->prod_cnt) {
 		unsigned int idx = q->cons_cnt & q->mask;
 
-		q->cons_cnt += unmap_skb(q, idx);
+		q->cons_cnt += fun_unmap_pkt(q, idx);
 		dev_kfree_skb_any(q->info[idx].skb);
 	}
 	netdev_tx_reset_queue(q->ndq);
@@ -595,9 +615,8 @@ static void fun_xdpq_purge(struct funeth_txq *q)
 	while (q->cons_cnt != q->prod_cnt) {
 		unsigned int idx = q->cons_cnt & q->mask;
 
-		fun_xdp_unmap(q, idx);
+		q->cons_cnt += fun_unmap_pkt(q, idx);
 		xdp_return_frame(q->info[idx].xdpf);
-		q->cons_cnt++;
 	}
 }
 
