@@ -535,7 +535,7 @@ static int soc_tplg_kcontrol_bind_io(struct snd_soc_tplg_ctl_hdr *hdr,
 		 * return an -EINVAL error and prevent the card from
 		 * being configured.
 		 */
-		if (IS_ENABLED(CONFIG_SND_CTL_VALIDATION) && sbe->max > 512)
+		if (sbe->max > 512)
 			k->access |= SNDRV_CTL_ELEM_ACCESS_SKIP_CHECK;
 
 		ext_ops = tplg->bytes_ext_ops;

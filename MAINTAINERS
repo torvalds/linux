@@ -1507,7 +1507,7 @@ F:	drivers/clocksource/arm_arch_timer.c
 ARM HDLCD DRM DRIVER
 M:	Liviu Dudau <liviu.dudau@arm.com>
 S:	Supported
-F:	Documentation/devicetree/bindings/display/arm,hdlcd.txt
+F:	Documentation/devicetree/bindings/display/arm,hdlcd.yaml
 F:	drivers/gpu/drm/arm/hdlcd_*
 
 ARM INTEGRATOR, VERSATILE AND REALVIEW SUPPORT
@@ -1542,7 +1542,7 @@ M:	Mihail Atanassov <mihail.atanassov@arm.com>
 L:	Mali DP Maintainers <malidp@foss.arm.com>
 S:	Supported
 T:	git git://anongit.freedesktop.org/drm/drm-misc
-F:	Documentation/devicetree/bindings/display/arm,komeda.txt
+F:	Documentation/devicetree/bindings/display/arm,komeda.yaml
 F:	Documentation/gpu/komeda-kms.rst
 F:	drivers/gpu/drm/arm/display/include/
 F:	drivers/gpu/drm/arm/display/komeda/
@@ -1564,7 +1564,7 @@ M:	Brian Starkey <brian.starkey@arm.com>
 L:	Mali DP Maintainers <malidp@foss.arm.com>
 S:	Supported
 T:	git git://anongit.freedesktop.org/drm/drm-misc
-F:	Documentation/devicetree/bindings/display/arm,malidp.txt
+F:	Documentation/devicetree/bindings/display/arm,malidp.yaml
 F:	Documentation/gpu/afbc.rst
 F:	drivers/gpu/drm/arm/
 
@@ -2009,7 +2009,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://github.com/ulli-kroll/linux.git
 F:	Documentation/devicetree/bindings/arm/gemini.yaml
-F:	Documentation/devicetree/bindings/net/cortina,gemini-ethernet.txt
+F:	Documentation/devicetree/bindings/net/cortina,gemini-ethernet.yaml
 F:	Documentation/devicetree/bindings/pinctrl/cortina,gemini-pinctrl.txt
 F:	Documentation/devicetree/bindings/rtc/faraday,ftrtc010.yaml
 F:	arch/arm/boot/dts/gemini*
@@ -3757,6 +3757,13 @@ F:	include/linux/bpf_lsm.h
 F:	kernel/bpf/bpf_lsm.c
 F:	security/bpf/
 
+BPFTOOL
+M:	Quentin Monnet <quentin@isovalent.com>
+L:	bpf@vger.kernel.org
+S:	Maintained
+F:	kernel/bpf/disasm.*
+F:	tools/bpf/bpftool/
+
 BROADCOM B44 10/100 ETHERNET DRIVER
 M:	Michael Chan <michael.chan@broadcom.com>
 L:	netdev@vger.kernel.org
@@ -4748,6 +4755,7 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/sound/cirrus,cs*
 F:	include/dt-bindings/sound/cs*
 F:	sound/pci/hda/cs*
+F:	sound/pci/hda/hda_cs_dsp_ctl.*
 F:	sound/soc/codecs/cs*
 
 CIRRUS LOGIC DSP FIRMWARE DRIVER
@@ -6078,7 +6086,7 @@ M:	Sakari Ailus <sakari.ailus@linux.intel.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/devicetree/bindings/media/i2c/dongwoon,dw9807-vcm.txt
+F:	Documentation/devicetree/bindings/media/i2c/dongwoon,dw9807-vcm.yaml
 F:	drivers/media/i2c/dw9807-vcm.c
 
 DOUBLETALK DRIVER
@@ -7647,6 +7655,7 @@ F:	include/uapi/scsi/fc/
 
 FILE LOCKING (flock() and fcntl()/lockf())
 M:	Jeff Layton <jlayton@kernel.org>
+M:	Chuck Lever <chuck.lever@oracle.com>
 L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
 F:	fs/fcntl.c
@@ -9081,7 +9090,7 @@ HTE SUBSYSTEM
 M:	Dipen Patel <dipenp@nvidia.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/timestamp/
-F:	Documentation/hte/
+F:	Documentation/driver-api/hte/
 F:	drivers/hte/
 F:	include/linux/hte.h
 
@@ -10742,6 +10751,7 @@ W:	http://kernelnewbies.org/KernelJanitors
 
 KERNEL NFSD, SUNRPC, AND LOCKD SERVERS
 M:	Chuck Lever <chuck.lever@oracle.com>
+M:	Jeff Layton <jlayton@kernel.org>
 L:	linux-nfs@vger.kernel.org
 S:	Supported
 W:	http://nfs.sourceforge.net/
@@ -11260,6 +11270,7 @@ M:	Damien Le Moal <damien.lemoal@opensource.wdc.com>
 L:	linux-ide@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dlemoal/libata.git
+F:	Documentation/ABI/testing/sysfs-ata
 F:	Documentation/devicetree/bindings/ata/
 F:	drivers/ata/
 F:	include/linux/ata.h
@@ -12699,7 +12710,6 @@ L:	netdev@vger.kernel.org
 S:	Supported
 W:	http://www.mellanox.com
 Q:	https://patchwork.kernel.org/project/netdevbpf/list/
-F:	drivers/net/ethernet/mellanox/mlx5/core/accel/*
 F:	drivers/net/ethernet/mellanox/mlx5/core/en_accel/*
 F:	drivers/net/ethernet/mellanox/mlx5/core/fpga/*
 F:	include/linux/mlx5/mlx5_ifc_fpga.h
@@ -15827,6 +15837,14 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/iio/chemical/plantower,pms7003.yaml
 F:	drivers/iio/chemical/pms7003.c
 
+PLATFORM FEATURE INFRASTRUCTURE
+M:	Juergen Gross <jgross@suse.com>
+S:	Maintained
+F:	arch/*/include/asm/platform-feature.h
+F:	include/asm-generic/platform-feature.h
+F:	include/linux/platform-feature.h
+F:	kernel/platform-feature.c
+
 PLDMFW LIBRARY
 M:	Jacob Keller <jacob.e.keller@intel.com>
 S:	Maintained
@@ -16250,6 +16268,9 @@ M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 M:	Banajit Goswami <bgoswami@quicinc.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
+F:	include/dt-bindings/sound/qcom,wcd9335.h
+F:	sound/soc/codecs/lpass-rx-macro.*
+F:	sound/soc/codecs/lpass-tx-macro.*
 F:	sound/soc/codecs/lpass-va-macro.c
 F:	sound/soc/codecs/lpass-wsa-macro.*
 F:	sound/soc/codecs/msm8916-wcd-analog.c
@@ -16257,7 +16278,9 @@ F:	sound/soc/codecs/msm8916-wcd-digital.c
 F:	sound/soc/codecs/wcd9335.*
 F:	sound/soc/codecs/wcd934x.c
 F:	sound/soc/codecs/wcd-clsh-v2.*
+F:	sound/soc/codecs/wcd-mbhc-v2.*
 F:	sound/soc/codecs/wsa881x.c
+F:	sound/soc/codecs/wsa883x.c
 F:	sound/soc/qcom/
 
 QCOM EMBEDDED USB DEBUGGER (EUD)
@@ -19225,7 +19248,7 @@ F:	arch/arc/plat-axs10x
 SYNOPSYS AXS10x RESET CONTROLLER DRIVER
 M:	Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
 S:	Supported
-F:	Documentation/devicetree/bindings/reset/snps,axs10x-reset.txt
+F:	Documentation/devicetree/bindings/reset/snps,axs10x-reset.yaml
 F:	drivers/reset/reset-axs10x.c
 
 SYNOPSYS CREG GPIO DRIVER

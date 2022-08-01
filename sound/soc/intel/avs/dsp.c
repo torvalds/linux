@@ -13,6 +13,7 @@
 
 #define AVS_ADSPCS_INTERVAL_US		500
 #define AVS_ADSPCS_TIMEOUT_US		50000
+#define AVS_ADSPCS_DELAY_US		1000
 
 int avs_dsp_core_power(struct avs_dev *adev, u32 core_mask, bool power)
 {
@@ -26,6 +27,8 @@ int avs_dsp_core_power(struct avs_dev *adev, u32 core_mask, bool power)
 	value = power ? mask : 0;
 
 	snd_hdac_adsp_updatel(adev, AVS_ADSP_REG_ADSPCS, mask, value);
+	/* Delay the polling to avoid false positives. */
+	usleep_range(AVS_ADSPCS_DELAY_US, 2 * AVS_ADSPCS_DELAY_US);
 
 	mask = AVS_ADSPCS_CPA_MASK(core_mask);
 	value = power ? mask : 0;
@@ -82,11 +85,15 @@ int avs_dsp_core_stall(struct avs_dev *adev, u32 core_mask, bool stall)
 				       reg, (reg & mask) == value,
 				       AVS_ADSPCS_INTERVAL_US,
 				       AVS_ADSPCS_TIMEOUT_US);
-	if (ret)
+	if (ret) {
 		dev_err(adev->dev, "core_mask %d %sstall failed: %d\n",
 			core_mask, stall ? "" : "un", ret);
+		return ret;
+	}
 
-	return ret;
+	/* Give HW time to propagate the change. */
+	usleep_range(AVS_ADSPCS_DELAY_US, 2 * AVS_ADSPCS_DELAY_US);
+	return 0;
 }
 
 int avs_dsp_core_enable(struct avs_dev *adev, u32 core_mask)

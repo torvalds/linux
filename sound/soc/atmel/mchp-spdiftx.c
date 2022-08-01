@@ -753,7 +753,8 @@ static struct snd_soc_dai_driver mchp_spdiftx_dai = {
 };
 
 static const struct snd_soc_component_driver mchp_spdiftx_component = {
-	.name		= "mchp-spdiftx",
+	.name			= "mchp-spdiftx",
+	.legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id mchp_spdiftx_dt_ids[] = {

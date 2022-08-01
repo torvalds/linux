@@ -1479,20 +1479,16 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file);
 #define CIFS_CACHE_RW_FLG	(CIFS_CACHE_READ_FLG | CIFS_CACHE_WRITE_FLG)
 #define CIFS_CACHE_RHW_FLG	(CIFS_CACHE_RW_FLG | CIFS_CACHE_HANDLE_FLG)
 
-#define CIFS_CACHE_READ(cinode) ((cinode->oplock & CIFS_CACHE_READ_FLG) || (CIFS_SB(cinode->vfs_inode.i_sb)->mnt_cifs_flags & CIFS_MOUNT_RO_CACHE))
+#define CIFS_CACHE_READ(cinode) ((cinode->oplock & CIFS_CACHE_READ_FLG) || (CIFS_SB(cinode->netfs.inode.i_sb)->mnt_cifs_flags & CIFS_MOUNT_RO_CACHE))
 #define CIFS_CACHE_HANDLE(cinode) (cinode->oplock & CIFS_CACHE_HANDLE_FLG)
-#define CIFS_CACHE_WRITE(cinode) ((cinode->oplock & CIFS_CACHE_WRITE_FLG) || (CIFS_SB(cinode->vfs_inode.i_sb)->mnt_cifs_flags & CIFS_MOUNT_RW_CACHE))
+#define CIFS_CACHE_WRITE(cinode) ((cinode->oplock & CIFS_CACHE_WRITE_FLG) || (CIFS_SB(cinode->netfs.inode.i_sb)->mnt_cifs_flags & CIFS_MOUNT_RW_CACHE))
 
 /*
  * One of these for each file inode
  */
 
 struct cifsInodeInfo {
-	struct {
-		/* These must be contiguous */
-		struct inode	vfs_inode;	/* the VFS's inode record */
-		struct netfs_i_context netfs_ctx; /* Netfslib context */
-	};
+	struct netfs_inode netfs; /* Netfslib context and vfs inode */
 	bool can_cache_brlcks;
 	struct list_head llist;	/* locks helb by this inode */
 	/*
@@ -1531,7 +1527,7 @@ struct cifsInodeInfo {
 static inline struct cifsInodeInfo *
 CIFS_I(struct inode *inode)
 {
-	return container_of(inode, struct cifsInodeInfo, vfs_inode);
+	return container_of(inode, struct cifsInodeInfo, netfs.inode);
 }
 
 static inline struct cifs_sb_info *

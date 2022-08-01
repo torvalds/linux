@@ -255,7 +255,7 @@ static void vm_set_status(struct virtio_device *vdev, u8 status)
 
 	/*
 	 * Per memory-barriers.txt, wmb() is not needed to guarantee
-	 * that the the cache coherent memory writes have completed
+	 * that the cache coherent memory writes have completed
 	 * before writing to the MMIO region.
 	 */
 	writel(status, vm_dev->base + VIRTIO_MMIO_STATUS);
@@ -701,6 +701,7 @@ static int vm_cmdline_set(const char *device,
 	if (!vm_cmdline_parent_registered) {
 		err = device_register(&vm_cmdline_parent);
 		if (err) {
+			put_device(&vm_cmdline_parent);
 			pr_err("Failed to register parent device!\n");
 			return err;
 		}

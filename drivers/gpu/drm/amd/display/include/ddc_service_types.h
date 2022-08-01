@@ -127,6 +127,8 @@ struct av_sync_data {
 static const uint8_t DP_SINK_DEVICE_STR_ID_1[] = {7, 1, 8, 7, 3, 0};
 static const uint8_t DP_SINK_DEVICE_STR_ID_2[] = {7, 1, 8, 7, 5, 0};
 
+static const u8 DP_SINK_BRANCH_DEV_NAME_7580[] = "7580\x80u";
+
 /*MST Dock*/
 static const uint8_t SYNAPTICS_DEVICE_ID[] = "SYNA";
 

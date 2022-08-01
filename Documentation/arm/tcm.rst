@@ -34,7 +34,7 @@ CPU so it is usually wise not to overlap any physical RAM with
 the TCM.
 
 The TCM memory can then be remapped to another address again using
-the MMU, but notice that the TCM if often used in situations where
+the MMU, but notice that the TCM is often used in situations where
 the MMU is turned off. To avoid confusion the current Linux
 implementation will map the TCM 1 to 1 from physical to virtual
 memory in the location specified by the kernel. Currently Linux

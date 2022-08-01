@@ -32,31 +32,37 @@ patternProperties:
           groups:
             description: The pin group to select.
             enum: [
+              # common
+              i2c, spi, wdt,
+
               # For MT7620 SoC
-              ephy, i2c, mdio, nd_sd, pa, pcie, rgmii1, rgmii2, spi, spi refclk,
-              uartf, uartlite, wdt, wled,
+              ephy, mdio, nd_sd, pa, pcie, rgmii1, rgmii2, spi refclk,
+              uartf, uartlite, wled,
 
               # For MT7628 and MT7688 SoCs
-              gpio, i2c, i2s, p0led_an, p0led_kn, p1led_an, p1led_kn, p2led_an,
+              gpio, i2s, p0led_an, p0led_kn, p1led_an, p1led_kn, p2led_an,
               p2led_kn, p3led_an, p3led_kn, p4led_an, p4led_kn, perst, pwm0,
-              pwm1, refclk, sdmode, spi, spi cs1, spis, uart0, uart1, uart2,
-              wdt, wled_an, wled_kn,
+              pwm1, refclk, sdmode, spi cs1, spis, uart0, uart1, uart2,
+              wled_an, wled_kn,
             ]
 
           function:
             description: The mux function to select.
             enum: [
+              # common
+              gpio, i2c, refclk, spi,
+
               # For MT7620 SoC
-              ephy, gpio, gpio i2s, gpio uartf, i2c, i2s uartf, mdio, nand, pa,
-              pcie refclk, pcie rst, pcm gpio, pcm i2s, pcm uartf, refclk,
-              rgmii1, rgmii2, sd, spi, spi refclk, uartf, uartlite, wdt refclk,
+              ephy, gpio i2s, gpio uartf, i2s uartf, mdio, nand, pa,
+              pcie refclk, pcie rst, pcm gpio, pcm i2s, pcm uartf,
+              rgmii1, rgmii2, sd, spi refclk, uartf, uartlite, wdt refclk,
               wdt rst, wled,
 
               # For MT7628 and MT7688 SoCs
-              antenna, debug, gpio, i2c, i2s, jtag, p0led_an, p0led_kn,
+              antenna, debug, i2s, jtag, p0led_an, p0led_kn,
               p1led_an, p1led_kn, p2led_an, p2led_kn, p3led_an, p3led_kn,
               p4led_an, p4led_kn, pcie, pcm, perst, pwm, pwm0, pwm1, pwm_uart2,
-              refclk, rsvd, sdxc, sdxc d5 d4, sdxc d6, sdxc d7, spi, spi cs1,
+              rsvd, sdxc, sdxc d5 d4, sdxc d6, sdxc d7, spi cs1,
               spis, sw_r, uart0, uart1, uart2, utif, wdt, wled_an, wled_kn, -,
             ]
 

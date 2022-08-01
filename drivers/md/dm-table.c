@@ -1038,17 +1038,6 @@ static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *
 	return 0;
 }
 
-void dm_table_free_md_mempools(struct dm_table *t)
-{
-	dm_free_md_mempools(t->mempools);
-	t->mempools = NULL;
-}
-
-struct dm_md_mempools *dm_table_get_md_mempools(struct dm_table *t)
-{
-	return t->mempools;
-}
-
 static int setup_indexes(struct dm_table *t)
 {
 	int i;

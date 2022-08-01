@@ -13,7 +13,7 @@ Required properties:
  - resets	: list of phandle and reset specifier pairs. There should be two entries, one
 		  for the powerdown and softreset lines of the usb3 IP
  - reset-names	: list of reset signal names. Names should be "powerdown" and "softreset"
-See: Documentation/devicetree/bindings/reset/st,sti-powerdown.txt
+See: Documentation/devicetree/bindings/reset/st,stih407-powerdown.yaml
 See: Documentation/devicetree/bindings/reset/reset.txt
 
  - #address-cells, #size-cells : should be '1' if the device has sub-nodes

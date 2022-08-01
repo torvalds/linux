@@ -37,6 +37,8 @@ KASAN_SANITIZE_paca.o := n
 KASAN_SANITIZE_setup_64.o := n
 KASAN_SANITIZE_mce.o := n
 KASAN_SANITIZE_mce_power.o := n
+KASAN_SANITIZE_udbg.o := n
+KASAN_SANITIZE_udbg_16550.o := n
 
 # we have to be particularly careful in ppc64 to exclude code that
 # runs with translations off, as we cannot access the shadow with

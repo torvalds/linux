@@ -326,7 +326,7 @@ static struct resource nvsw_sn2201_lpc_res[] = {
 };
 
 /* SN2201 I2C platform data. */
-struct mlxreg_core_hotplug_platform_data nvsw_sn2201_i2c_data = {
+static struct mlxreg_core_hotplug_platform_data nvsw_sn2201_i2c_data = {
 	.irq = NVSW_SN2201_CPLD_SYSIRQ,
 };
 

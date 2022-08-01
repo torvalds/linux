@@ -343,6 +343,7 @@ config NR_CPUS
 
 config NUMA
 	bool "NUMA Support"
+	select SMP
 	select ACPI_NUMA if ACPI
 	help
 	  Say Y to compile the kernel with NUMA (Non-Uniform Memory Access)
