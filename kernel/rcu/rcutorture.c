@@ -341,6 +341,7 @@ struct rcu_torture_ops {
 	unsigned long (*start_gp_poll)(void);
 	bool (*poll_gp_state)(unsigned long oldstate);
 	bool (*poll_gp_state_full)(struct rcu_gp_oldstate *rgosp);
+	bool (*poll_need_2gp)(bool poll, bool poll_full);
 	void (*cond_sync)(unsigned long oldstate);
 	call_rcu_func_t call;
 	void (*cb_barrier)(void);
@@ -492,6 +493,11 @@ static void rcu_sync_torture_init(void)
 	INIT_LIST_HEAD(&rcu_torture_removed);
 }
 
+static bool rcu_poll_need_2gp(bool poll, bool poll_full)
+{
+	return poll || (!IS_ENABLED(CONFIG_TINY_RCU) && poll_full && num_online_cpus() <= 1);
+}
+
 static struct rcu_torture_ops rcu_ops = {
 	.ttype			= RCU_FLAVOR,
 	.init			= rcu_sync_torture_init,
@@ -511,6 +517,7 @@ static struct rcu_torture_ops rcu_ops = {
 	.start_gp_poll		= start_poll_synchronize_rcu,
 	.poll_gp_state		= poll_state_synchronize_rcu,
 	.poll_gp_state_full	= poll_state_synchronize_rcu_full,
+	.poll_need_2gp		= rcu_poll_need_2gp,
 	.cond_sync		= cond_synchronize_rcu,
 	.get_gp_state_exp	= get_state_synchronize_rcu,
 	.start_gp_poll_exp	= start_poll_synchronize_rcu_expedited,
@@ -1228,7 +1235,7 @@ static void do_rtws_sync(struct torture_random_state *trsp, void (*sync)(void))
 		cookie = cur_ops->get_gp_state();
 	if (dopoll_full)
 		cur_ops->get_gp_state_full(&cookie_full);
-	if (dopoll || (!IS_ENABLED(CONFIG_TINY_RCU) && dopoll_full && num_online_cpus() <= 1))
+	if (cur_ops->poll_need_2gp && cur_ops->poll_need_2gp(dopoll, dopoll_full))
 		sync();
 	sync();
 	WARN_ONCE(dopoll && !cur_ops->poll_gp_state(cookie),
