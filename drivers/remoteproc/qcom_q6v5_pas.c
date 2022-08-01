@@ -1191,6 +1191,22 @@ static const struct adsp_data kalama_adsp_resource = {
 	.ssctl_id = 0x14,
 };
 
+static const struct adsp_data pineapple_adsp_resource = {
+	.crash_reason_smem = 423,
+	.firmware_name = "adsp.mdt",
+	.dtb_firmware_name = "adsp_dtb.mdt",
+	.pas_id = 1,
+	.dtb_pas_id = 0x24,
+	.minidump_id = 5,
+	.uses_elf64 = true,
+	.has_aggre2_clk = false,
+	.auto_boot = false,
+	.ssr_name = "lpass",
+	.sysmon_name = "adsp",
+	.qmp_name = "adsp",
+	.ssctl_id = 0x14,
+};
+
 static const struct adsp_data khaje_adsp_resource = {
 	.crash_reason_smem = 423,
 	.firmware_name = "adsp.mdt",
@@ -1637,6 +1653,7 @@ static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,kalama-adsp-pas", .data = &kalama_adsp_resource},
 	{ .compatible = "qcom,kalama-cdsp-pas", .data = &kalama_cdsp_resource},
 	{ .compatible = "qcom,kalama-modem-pas", .data = &kalama_mpss_resource},
+	{ .compatible = "qcom,pineapple-adsp-pas", .data = &pineapple_adsp_resource},
 	{ .compatible = "qcom,cinder-modem-pas", .data = &cinder_mpss_resource},
 	{ .compatible = "qcom,khaje-adsp-pas", .data = &khaje_adsp_resource},
 	{ .compatible = "qcom,khaje-cdsp-pas", .data = &khaje_cdsp_resource},
