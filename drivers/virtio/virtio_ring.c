@@ -220,6 +220,7 @@ static struct virtqueue *__vring_new_virtqueue(unsigned int index,
 					       void (*callback)(struct virtqueue *),
 					       const char *name);
 static struct vring_desc_extra *vring_alloc_desc_extra(unsigned int num);
+static void vring_free(struct virtqueue *_vq);
 
 /*
  * Helpers.
@@ -1112,6 +1113,39 @@ static struct virtqueue *vring_create_virtqueue_split(
 	to_vvq(vq)->we_own_ring = true;
 
 	return vq;
+}
+
+static int virtqueue_resize_split(struct virtqueue *_vq, u32 num)
+{
+	struct vring_virtqueue_split vring_split = {};
+	struct vring_virtqueue *vq = to_vvq(_vq);
+	struct virtio_device *vdev = _vq->vdev;
+	int err;
+
+	err = vring_alloc_queue_split(&vring_split, vdev, num,
+				      vq->split.vring_align,
+				      vq->split.may_reduce_num);
+	if (err)
+		goto err;
+
+	err = vring_alloc_state_extra_split(&vring_split);
+	if (err)
+		goto err_state_extra;
+
+	vring_free(&vq->vq);
+
+	virtqueue_vring_init_split(&vring_split, vq);
+
+	virtqueue_init(vq, vring_split.vring.num);
+	virtqueue_vring_attach_split(vq, &vring_split);
+
+	return 0;
+
+err_state_extra:
+	vring_free_split(&vring_split, vdev);
+err:
+	virtqueue_reinit_split(vq);
+	return -ENOMEM;
 }
 
 
