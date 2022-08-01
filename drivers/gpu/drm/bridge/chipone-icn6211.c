@@ -259,7 +259,7 @@ static void chipone_configure_pll(struct chipone *icn,
 
 	/*
 	 * DSI byte clock frequency (input into PLL) is calculated as:
-	 *  DSI_CLK = mode clock * bpp / dsi_data_lanes / 8
+	 *  DSI_CLK = HS clock / 4
 	 *
 	 * DPI pixel clock frequency (output from PLL) is mode clock.
 	 *
@@ -273,8 +273,7 @@ static void chipone_configure_pll(struct chipone *icn,
 	 * It seems the PLL input clock after applying P pre-divider have
 	 * to be lower than 20 MHz.
 	 */
-	fin = mode_clock * mipi_dsi_pixel_format_to_bpp(icn->dsi->format) /
-	      icn->dsi->lanes / 8; /* in Hz */
+	fin = icn->dsi->hs_rate / 4; /* in Hz */
 
 	/* Minimum value of P predivider for PLL input in 5..20 MHz */
 	p_min = clamp(DIV_ROUND_UP(fin, 20000000), 1U, 31U);
@@ -515,6 +514,8 @@ static int chipone_dsi_attach(struct chipone *icn)
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
 			  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET;
+	dsi->hs_rate = 500000000;
+	dsi->lp_rate = 16000000;
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0)
