@@ -831,9 +831,16 @@ static ssize_t epf_ntb_##_name##_show(struct config_item *item,		\
 {									\
 	struct config_group *group = to_config_group(item);		\
 	struct epf_ntb *ntb = to_epf_ntb(group);			\
+	struct device *dev = &ntb->epf->dev;				\
 	int win_no;							\
 									\
-	sscanf(#_name, "mw%d", &win_no);				\
+	if (sscanf(#_name, "mw%d", &win_no) != 1)			\
+		return -EINVAL;						\
+									\
+	if (win_no <= 0 || win_no > ntb->num_mws) {			\
+		dev_err(dev, "Invalid num_nws: %d value\n", ntb->num_mws); \
+		return -EINVAL;						\
+	}								\
 									\
 	return sprintf(page, "%lld\n", ntb->mws_size[win_no - 1]);	\
 }
@@ -856,7 +863,7 @@ static ssize_t epf_ntb_##_name##_store(struct config_item *item,	\
 	if (sscanf(#_name, "mw%d", &win_no) != 1)			\
 		return -EINVAL;						\
 									\
-	if (ntb->num_mws < win_no) {					\
+	if (win_no <= 0 || win_no > ntb->num_mws) {			\
 		dev_err(dev, "Invalid num_nws: %d value\n", ntb->num_mws); \
 		return -EINVAL;						\
 	}								\
