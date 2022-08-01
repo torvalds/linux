@@ -554,6 +554,26 @@ static void rkisp_buf_queue(struct vb2_buffer *vb)
 
 	memset(ispbuf->buff_addr, 0, sizeof(ispbuf->buff_addr));
 	for (i = 0; i < isp_fmt->mplanes; i++) {
+		void *vaddr = vb2_plane_vaddr(vb, i);
+
+		if (vaddr && i == 0 &&
+		    stream->ispdev->isp_ver == ISP_V20 &&
+		    stream->ispdev->rd_mode == HDR_RDBK_FRAME1 &&
+		    RKMODULE_EXTEND_LINE >= 8 &&
+		    isp_fmt->fmt_type == FMT_BAYER &&
+		    stream->id == RKISP_STREAM_RAWRD2) {
+			u32 line = pixm->plane_fmt[0].bytesperline;
+			u32 val = RKMODULE_EXTEND_LINE;
+
+			vaddr += line * (pixm->height - 2);
+			while (val) {
+				memcpy(vaddr + line * val, vaddr, line * 2);
+				val -= 2;
+			}
+			if (vb->vb2_queue->mem_ops->prepare)
+				vb->vb2_queue->mem_ops->prepare(vb->planes[0].mem_priv);
+		}
+
 		if (stream->ispdev->hw_dev->is_dma_sg_ops) {
 			sgt = vb2_dma_sg_plane_desc(vb, i);
 			ispbuf->buff_addr[i] = sg_dma_address(sgt->sgl);
