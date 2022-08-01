@@ -80,8 +80,6 @@
 	psci {
 		compatible = "arm,psci-0.2";
 		method = "smc";
-		cpu_off = <1>;
-		cpu_on = <2>;
 	};
 
 	axi@81000000 {
