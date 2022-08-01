@@ -814,47 +814,28 @@ static void aspeed_pcie_reset_work(struct work_struct *work)
 {
 	struct aspeed_pcie *pcie = container_of(work, typeof(*pcie), rst_dwork.work);
 	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
-	struct pci_dev *dev;
-	u16 command;
+	struct pci_bus *parent = host->bus;
+	struct pci_dev *dev, *temp;
 	u32 link_sts = 0;
+	u16 command;
 
 	pci_lock_rescan_remove();
 
-	dev = pci_get_domain_bus_and_slot(pcie->domain, 130, 0);
-	if (dev) {
+	list_for_each_entry_safe_reverse(dev, temp, &parent->devices,
+					  bus_list) {
+		pci_dev_get(dev);
 		pci_stop_and_remove_bus_device(dev);
-
+		/*
+		 * Ensure that no new Requests will be generated from
+		 * the device.
+		 */
 		pci_read_config_word(dev, PCI_COMMAND, &command);
 		command &= ~(PCI_COMMAND_MASTER | PCI_COMMAND_SERR);
 		command |= PCI_COMMAND_INTX_DISABLE;
 		pci_write_config_word(dev, PCI_COMMAND, command);
-
 		pci_dev_put(dev);
 	}
 
-	dev = pci_get_domain_bus_and_slot(pcie->domain, 129, 0);
-	if (dev) {
-		pci_stop_and_remove_bus_device(dev);
-
-		pci_read_config_word(dev, PCI_COMMAND, &command);
-		command &= ~(PCI_COMMAND_MASTER | PCI_COMMAND_SERR);
-		command |= PCI_COMMAND_INTX_DISABLE;
-		pci_write_config_word(dev, PCI_COMMAND, command);
-
-		pci_dev_put(dev);
-	}
-
-	dev = pci_get_domain_bus_and_slot(pcie->domain, 128, PCI_DEVFN(8, 0));
-	if (dev) {
-		pci_stop_and_remove_bus_device(dev);
-
-		pci_read_config_word(dev, PCI_COMMAND, &command);
-		command &= ~(PCI_COMMAND_MASTER | PCI_COMMAND_SERR);
-		command |= PCI_COMMAND_INTX_DISABLE;
-		pci_write_config_word(dev, PCI_COMMAND, command);
-
-		pci_dev_put(dev);
-	}
 	if (pcie->perst_rc_out)
 		gpiod_set_value(pcie->perst_rc_out, 0);
 	reset_control_assert(pcie->phy_rst);
@@ -863,7 +844,6 @@ static void aspeed_pcie_reset_work(struct work_struct *work)
 		gpiod_set_value(pcie->perst_rc_out, 1);
 	reset_control_deassert(pcie->phy_rst);
 	mdelay(10);
-
 
 	regmap_read(pcie->pciephy, ASPEED_PCIE_LINK, &link_sts);
 	if (link_sts & PCIE_LINK_STS)
