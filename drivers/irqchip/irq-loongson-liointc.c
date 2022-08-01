@@ -207,7 +207,7 @@ static int liointc_init(phys_addr_t addr, unsigned long size, int revision,
 					"reg-names", core_reg_names[i]);
 
 			if (index < 0)
-				return -EINVAL;
+				goto out_iounmap;
 
 			priv->core_isr[i] = of_iomap(node, index);
 		}
