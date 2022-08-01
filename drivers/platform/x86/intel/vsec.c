@@ -426,7 +426,7 @@ MODULE_DEVICE_TABLE(pci, intel_vsec_pci_ids);
 static pci_ers_result_t intel_vsec_pci_error_detected(struct pci_dev *pdev,
 						      pci_channel_state_t state)
 {
-	pci_channel_state_t status = PCI_ERS_RESULT_NEED_RESET;
+	pci_ers_result_t status = PCI_ERS_RESULT_NEED_RESET;
 
 	dev_info(&pdev->dev, "PCI error detected, state %d", state);
 
@@ -441,7 +441,7 @@ static pci_ers_result_t intel_vsec_pci_error_detected(struct pci_dev *pdev,
 static pci_ers_result_t intel_vsec_pci_slot_reset(struct pci_dev *pdev)
 {
 	struct intel_vsec_device *intel_vsec_dev;
-	pci_channel_state_t status = PCI_ERS_RESULT_DISCONNECT;
+	pci_ers_result_t status = PCI_ERS_RESULT_DISCONNECT;
 	const struct pci_device_id *pci_dev_id;
 	unsigned long index;
 
@@ -454,7 +454,7 @@ static pci_ers_result_t intel_vsec_pci_slot_reset(struct pci_dev *pdev)
 		goto out;
 	}
 
-	status =  PCI_ERS_RESULT_RECOVERED;
+	status = PCI_ERS_RESULT_RECOVERED;
 
 	xa_for_each(&auxdev_array, index, intel_vsec_dev) {
 		/* check if pdev doesn't match */
@@ -477,7 +477,7 @@ static void intel_vsec_pci_resume(struct pci_dev *pdev)
 	dev_info(&pdev->dev, "Done resuming PCI device\n");
 }
 
-const struct pci_error_handlers intel_vsec_pci_err_handlers = {
+static const struct pci_error_handlers intel_vsec_pci_err_handlers = {
 	.error_detected = intel_vsec_pci_error_detected,
 	.slot_reset = intel_vsec_pci_slot_reset,
 	.resume = intel_vsec_pci_resume,
