@@ -460,7 +460,7 @@ static ssize_t vendor_id_show(struct device *dev,
 {
 	struct ac97_codec_device *codec = to_ac97_device(dev);
 
-	return sprintf(buf, "%08x", codec->vendor_id);
+	return sysfs_emit(buf, "%08x", codec->vendor_id);
 }
 DEVICE_ATTR_RO(vendor_id);
 
