@@ -937,6 +937,17 @@ static void *virtqueue_detach_unused_buf_split(struct virtqueue *_vq)
 	return NULL;
 }
 
+static void vring_free_split(struct vring_virtqueue_split *vring_split,
+			     struct virtio_device *vdev)
+{
+	vring_free_queue(vdev, vring_split->queue_size_in_bytes,
+			 vring_split->vring.desc,
+			 vring_split->queue_dma_addr);
+
+	kfree(vring_split->desc_state);
+	kfree(vring_split->desc_extra);
+}
+
 static struct virtqueue *vring_create_virtqueue_split(
 	unsigned int index,
 	unsigned int num,
