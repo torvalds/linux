@@ -2,7 +2,7 @@
 /*
  * Device access for Crystal Cove PMIC
  *
- * Copyright (C) 2012-2014 Intel Corporation. All rights reserved.
+ * Copyright (C) 2012-2014, 2022 Intel Corporation. All rights reserved.
  *
  * Author: Yang, Bin <bin.yang@intel.com>
  * Author: Zhu, Lejun <lejun.zhu@linux.intel.com>
