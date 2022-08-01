@@ -157,6 +157,7 @@ int exfat_free_cluster(struct inode *inode, struct exfat_chain *p_chain)
 	unsigned int clu;
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
+	int cur_cmap_i, next_cmap_i;
 
 	/* invalid cluster number */
 	if (p_chain->dir == EXFAT_FREE_CLUSTER ||
@@ -176,21 +177,53 @@ int exfat_free_cluster(struct inode *inode, struct exfat_chain *p_chain)
 
 	clu = p_chain->dir;
 
-	if (p_chain->flags == ALLOC_NO_FAT_CHAIN) {
-		do {
-			exfat_clear_bitmap(inode, clu);
-			clu++;
+	cur_cmap_i = next_cmap_i =
+			BITMAP_OFFSET_SECTOR_INDEX(sb, CLUSTER_TO_BITMAP_ENT(clu));
 
+	if (p_chain->flags == ALLOC_NO_FAT_CHAIN) {
+		unsigned int last_cluster = p_chain->dir + p_chain->size - 1;
+
+		do {
+			bool sync = false;
+
+			if (clu < last_cluster)
+				next_cmap_i =
+				  BITMAP_OFFSET_SECTOR_INDEX(sb, CLUSTER_TO_BITMAP_ENT(clu+1));
+
+			/* flush bitmap only if index would be changed or for last cluster */
+			if (clu == last_cluster || cur_cmap_i != next_cmap_i) {
+				sync = true;
+				cur_cmap_i = next_cmap_i;
+			}
+
+			exfat_clear_bitmap(inode, clu, (sync && IS_DIRSYNC(inode)));
+			clu++;
 			num_clusters++;
 		} while (num_clusters < p_chain->size);
 	} else {
 		do {
-			exfat_clear_bitmap(inode, clu);
+			bool sync = false;
+			unsigned int n_clu = clu;
+			int err = exfat_get_next_cluster(sb, &n_clu);
 
-			if (exfat_get_next_cluster(sb, &clu))
-				goto dec_used_clus;
+			if (err || n_clu == EXFAT_EOF_CLUSTER)
+				sync = true;
+			else
+				next_cmap_i =
+				  BITMAP_OFFSET_SECTOR_INDEX(sb, CLUSTER_TO_BITMAP_ENT(n_clu));
+
+			if (cur_cmap_i != next_cmap_i) {
+				sync = true;
+				cur_cmap_i = next_cmap_i;
+			}
+
+			exfat_clear_bitmap(inode, clu, (sync && IS_DIRSYNC(inode)));
+			clu = n_clu;
 
 			num_clusters++;
+
+			if (err)
+				goto dec_used_clus;
 		} while (clu != EXFAT_EOF_CLUSTER);
 	}
 
