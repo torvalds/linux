@@ -296,6 +296,9 @@ static void ast8250_shutdown(struct uart_port *port)
 	if (data->use_dma) {
 		dma = &data->dma;
 
+		aspeed_udma_tx_chan_ctrl(dma->ch, ASPEED_UDMA_OP_RESET);
+		aspeed_udma_rx_chan_ctrl(dma->ch, ASPEED_UDMA_OP_RESET);
+
 		aspeed_udma_tx_chan_ctrl(dma->ch, ASPEED_UDMA_OP_DISABLE);
 		aspeed_udma_rx_chan_ctrl(dma->ch, ASPEED_UDMA_OP_DISABLE);
 

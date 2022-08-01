@@ -12,6 +12,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
 #include <linux/soc/aspeed/aspeed-udma.h>
+#include <linux/delay.h>
 
 #define DEVICE_NAME "aspeed-udma"
 
@@ -313,8 +314,12 @@ static void aspeed_udma_chan_ctrl(u32 ch_no, u32 op, bool is_tx)
 	case ASPEED_UDMA_OP_RESET:
 		reg_en &= ~(0x1 << ch_no);
 		writel(reg_en, udma->regs + reg_en_off);
+
 		reg_rst |= (0x1 << ch_no);
 		writel(reg_rst, udma->regs + reg_rst_off);
+
+		udelay(100);
+
 		reg_rst &= ~(0x1 << ch_no);
 		writel(reg_rst, udma->regs + reg_rst_off);
 		break;
