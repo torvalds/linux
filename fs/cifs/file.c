@@ -4456,6 +4456,7 @@ static void cifs_readahead(struct readahead_control *ractl)
 				 * by the cache.
 				 */
 				struct folio *folio = readahead_folio(ractl);
+
 				last_batch_size = folio_nr_pages(folio);
 				if (cifs_readpage_from_fscache(ractl->mapping->host,
 							       &folio->page) < 0) {
