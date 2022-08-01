@@ -4,9 +4,8 @@
 #define __ASM_CSKY_CMPXCHG_H
 
 #ifdef CONFIG_SMP
+#include <linux/bug.h>
 #include <asm/barrier.h>
-
-extern void __bad_xchg(void);
 
 #define __xchg_relaxed(new, ptr, size)				\
 ({								\
@@ -46,7 +45,7 @@ extern void __bad_xchg(void);
 			:);					\
 		break;						\
 	default:						\
-		__bad_xchg();					\
+		BUILD_BUG();					\
 	}							\
 	__ret;							\
 })
@@ -76,7 +75,7 @@ extern void __bad_xchg(void);
 			:);					\
 		break;						\
 	default:						\
-		__bad_xchg();					\
+		BUILD_BUG();					\
 	}							\
 	__ret;							\
 })
@@ -107,7 +106,7 @@ extern void __bad_xchg(void);
 			:);					\
 		break;						\
 	default:						\
-		__bad_xchg();					\
+		BUILD_BUG();					\
 	}							\
 	__ret;							\
 })
@@ -139,7 +138,7 @@ extern void __bad_xchg(void);
 			:);					\
 		break;						\
 	default:						\
-		__bad_xchg();					\
+		BUILD_BUG();					\
 	}							\
 	__ret;							\
 })
