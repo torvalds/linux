@@ -454,7 +454,7 @@ static int alloc_hpa(struct cxl_region *cxlr, resource_size_t size)
 	lockdep_assert_held_write(&cxl_region_rwsem);
 
 	/* Nothing to do... */
-	if (p->res && resource_size(res) == size)
+	if (p->res && resource_size(p->res) == size)
 		return 0;
 
 	/* To change size the old size must be freed first */
