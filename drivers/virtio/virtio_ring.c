@@ -957,6 +957,29 @@ static void virtqueue_vring_init_split(struct vring_virtqueue_split *vring_split
 	}
 }
 
+static void virtqueue_reinit_split(struct vring_virtqueue *vq)
+{
+	int num;
+
+	num = vq->split.vring.num;
+
+	vq->split.vring.avail->flags = 0;
+	vq->split.vring.avail->idx = 0;
+
+	/* reset avail event */
+	vq->split.vring.avail->ring[num] = 0;
+
+	vq->split.vring.used->flags = 0;
+	vq->split.vring.used->idx = 0;
+
+	/* reset used event */
+	*(__virtio16 *)&(vq->split.vring.used->ring[num]) = 0;
+
+	virtqueue_init(vq, num);
+
+	virtqueue_vring_init_split(&vq->split, vq);
+}
+
 static void virtqueue_vring_attach_split(struct vring_virtqueue *vq,
 					 struct vring_virtqueue_split *vring_split)
 {
