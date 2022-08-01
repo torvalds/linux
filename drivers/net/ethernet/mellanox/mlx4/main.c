@@ -3958,11 +3958,9 @@ static int mlx4_devlink_reload_down(struct devlink *devlink, bool netns_change,
 		NL_SET_ERR_MSG_MOD(extack, "Namespace change is not supported");
 		return -EOPNOTSUPP;
 	}
-	devl_lock(devlink);
 	if (persist->num_vfs)
 		mlx4_warn(persist->dev, "Reload performed on PF, will cause reset on operating Virtual Functions\n");
 	mlx4_restart_one_down(persist->pdev);
-	devl_unlock(devlink);
 	return 0;
 }
 
@@ -3975,10 +3973,8 @@ static int mlx4_devlink_reload_up(struct devlink *devlink, enum devlink_reload_a
 	struct mlx4_dev_persistent *persist = dev->persist;
 	int err;
 
-	devl_lock(devlink);
 	*actions_performed = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT);
 	err = mlx4_restart_one_up(persist->pdev, true, devlink);
-	devl_unlock(devlink);
 	if (err)
 		mlx4_err(persist->dev, "mlx4_restart_one_up failed, ret=%d\n",
 			 err);
