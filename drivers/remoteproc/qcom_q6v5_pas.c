@@ -362,13 +362,25 @@ static int adsp_init_clock(struct qcom_adsp *adsp)
 static int adsp_init_regulator(struct qcom_adsp *adsp)
 {
 	adsp->cx_supply = devm_regulator_get_optional(adsp->dev, "cx");
-	if (IS_ERR(adsp->cx_supply))
-		return PTR_ERR(adsp->cx_supply);
+	if (IS_ERR(adsp->cx_supply)) {
+		if (PTR_ERR(adsp->cx_supply) == -ENODEV)
+			adsp->cx_supply = NULL;
+		else
+			return PTR_ERR(adsp->cx_supply);
+	}
 
-	regulator_set_load(adsp->cx_supply, 100000);
+	if (adsp->cx_supply)
+		regulator_set_load(adsp->cx_supply, 100000);
 
 	adsp->px_supply = devm_regulator_get_optional(adsp->dev, "px");
-	return PTR_ERR_OR_ZERO(adsp->px_supply);
+	if (IS_ERR(adsp->px_supply)) {
+		if (PTR_ERR(adsp->px_supply) == -ENODEV)
+			adsp->px_supply = NULL;
+		else
+			return PTR_ERR(adsp->px_supply);
+	}
+
+	return 0;
 }
 
 static int adsp_pds_attach(struct device *dev, struct device **devs,
