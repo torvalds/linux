@@ -5329,6 +5329,11 @@ static void dwc3_core_complete(struct device *dev);
 static void dwc3_msm_override_pm_ops(struct device *dev, struct dev_pm_ops *pm_ops,
 					bool is_host)
 {
+	if (!dev->driver || !dev->driver->pm) {
+		dev_err(dev, "can't override PM OPs\n");
+		return;
+	}
+
 	(*pm_ops) = (*dev->driver->pm);
 	pm_ops->prepare = is_host ? dwc3_host_prepare : dwc3_core_prepare;
 	pm_ops->complete = is_host ? dwc3_host_complete : dwc3_core_complete;
