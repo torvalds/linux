@@ -119,12 +119,6 @@ static int mt8186_i2s_hd_get(struct snd_kcontrol *kcontrol,
 	struct mtk_afe_i2s_priv *i2s_priv;
 
 	i2s_priv = get_i2s_priv_by_name(afe, kcontrol->id.name);
-
-	if (!i2s_priv) {
-		dev_err(afe->dev, "%s(), i2s_priv == NULL", __func__);
-		return -EINVAL;
-	}
-
 	ucontrol->value.integer.value[0] = i2s_priv->low_jitter_en;
 
 	return 0;
@@ -148,12 +142,6 @@ static int mt8186_i2s_hd_set(struct snd_kcontrol *kcontrol,
 		__func__, kcontrol->id.name, hd_en);
 
 	i2s_priv = get_i2s_priv_by_name(afe, kcontrol->id.name);
-
-	if (!i2s_priv) {
-		dev_err(afe->dev, "%s(), i2s_priv == NULL", __func__);
-		return -EINVAL;
-	}
-
 	if (i2s_priv->low_jitter_en == hd_en)
 		return 0;
 
@@ -377,11 +365,6 @@ static int mtk_i2s_en_event(struct snd_soc_dapm_widget *w,
 
 	i2s_priv = get_i2s_priv_by_name(afe, w->name);
 
-	if (!i2s_priv) {
-		dev_err(afe->dev, "%s(), i2s_priv == NULL", __func__);
-		return -EINVAL;
-	}
-
 	dev_dbg(cmpnt->dev, "%s(), name %s, event 0x%x\n",
 		__func__, w->name, event);
 
@@ -441,11 +424,6 @@ static int mtk_mclk_en_event(struct snd_soc_dapm_widget *w,
 		__func__, w->name, event);
 
 	i2s_priv = get_i2s_priv_by_name(afe, w->name);
-
-	if (!i2s_priv) {
-		dev_err(afe->dev, "%s(), i2s_priv == NULL", __func__);
-		return -EINVAL;
-	}
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -566,12 +544,6 @@ static int mtk_afe_i2s_share_connect(struct snd_soc_dapm_widget *source,
 	struct mtk_afe_i2s_priv *i2s_priv;
 
 	i2s_priv = get_i2s_priv_by_name(afe, sink->name);
-
-	if (!i2s_priv) {
-		dev_err(afe->dev, "%s(), i2s_priv == NULL", __func__);
-		return 0;
-	}
-
 	if (i2s_priv->share_i2s_id < 0)
 		return 0;
 
@@ -587,12 +559,6 @@ static int mtk_afe_i2s_hd_connect(struct snd_soc_dapm_widget *source,
 	struct mtk_afe_i2s_priv *i2s_priv;
 
 	i2s_priv = get_i2s_priv_by_name(afe, sink->name);
-
-	if (!i2s_priv) {
-		dev_err(afe->dev, "%s(), i2s_priv == NULL", __func__);
-		return 0;
-	}
-
 	if (get_i2s_id_by_name(afe, sink->name) ==
 	    get_i2s_id_by_name(afe, source->name))
 		return i2s_priv->low_jitter_en;
@@ -618,15 +584,8 @@ static int mtk_afe_i2s_apll_connect(struct snd_soc_dapm_widget *source,
 	int i2s_need_apll;
 
 	i2s_priv = get_i2s_priv_by_name(afe, w->name);
-
-	if (!i2s_priv) {
-		dev_err(afe->dev, "%s(), i2s_priv == NULL", __func__);
-		return 0;
-	}
-
 	/* which apll */
 	cur_apll = mt8186_get_apll_by_name(afe, source->name);
-
 	/* choose APLL from i2s rate */
 	i2s_need_apll = mt8186_get_apll_by_rate(afe, i2s_priv->rate);
 
@@ -642,12 +601,6 @@ static int mtk_afe_i2s_mclk_connect(struct snd_soc_dapm_widget *source,
 	struct mtk_afe_i2s_priv *i2s_priv;
 
 	i2s_priv = get_i2s_priv_by_name(afe, sink->name);
-
-	if (!i2s_priv) {
-		dev_err(afe->dev, "%s(), i2s_priv == NULL", __func__);
-		return 0;
-	}
-
 	if (get_i2s_id_by_name(afe, sink->name) ==
 	    get_i2s_id_by_name(afe, source->name))
 		return (i2s_priv->mclk_rate > 0) ? 1 : 0;
@@ -672,12 +625,6 @@ static int mtk_afe_mclk_apll_connect(struct snd_soc_dapm_widget *source,
 	int cur_apll;
 
 	i2s_priv = get_i2s_priv_by_name(afe, w->name);
-
-	if (!i2s_priv) {
-		dev_err(afe->dev, "%s(), i2s_priv == NULL", __func__);
-		return 0;
-	}
-
 	/* which apll */
 	cur_apll = mt8186_get_apll_by_name(afe, source->name);
 
@@ -980,11 +927,6 @@ static int mtk_dai_i2s_config(struct mtk_base_afe *afe,
 	dev_dbg(afe->dev, "%s(), id %d, rate %d, format %d\n",
 		__func__, i2s_id, rate, format);
 
-	if (!i2s_priv) {
-		dev_err(afe->dev, "%s(), i2s_priv == NULL", __func__);
-		return -EINVAL;
-	}
-
 	i2s_priv->rate = rate;
 
 	switch (i2s_id) {
@@ -1052,11 +994,6 @@ static int mtk_dai_i2s_set_sysclk(struct snd_soc_dai *dai,
 	struct mtk_afe_i2s_priv *i2s_priv = afe_priv->dai_priv[dai->id];
 	int apll;
 	int apll_rate;
-
-	if (!i2s_priv) {
-		dev_err(afe->dev, "%s(), i2s_priv == NULL", __func__);
-		return -EINVAL;
-	}
 
 	if (dir != SND_SOC_CLOCK_OUT) {
 		dev_err(afe->dev, "%s(), dir != SND_SOC_CLOCK_OUT", __func__);

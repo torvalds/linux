@@ -94,19 +94,19 @@ static irqreturn_t i2s_irq_handler(int irq, void *data)
 	struct acp_resource *rsrc = adata->rsrc;
 	struct acp_stream *stream;
 	u16 i2s_flag = 0;
-	u32 val, val1, i;
+	u32 ext_intr_stat, ext_intr_stat1, i;
 
 	if (!adata)
 		return IRQ_NONE;
 
 	if (adata->rsrc->no_of_ctrls == 2)
-		val1 = readl(ACP_EXTERNAL_INTR_STAT(adata, (rsrc->irqp_used - 1)));
+		ext_intr_stat1 = readl(ACP_EXTERNAL_INTR_STAT(adata, (rsrc->irqp_used - 1)));
 
-	val = readl(ACP_EXTERNAL_INTR_STAT(adata, rsrc->irqp_used));
+	ext_intr_stat = readl(ACP_EXTERNAL_INTR_STAT(adata, rsrc->irqp_used));
 
 	for (i = 0; i < ACP_MAX_STREAM; i++) {
 		stream = adata->stream[i];
-		if (stream && (val & stream->irq_bit)) {
+		if (stream && (ext_intr_stat & stream->irq_bit)) {
 			writel(stream->irq_bit,
 			       ACP_EXTERNAL_INTR_STAT(adata, rsrc->irqp_used));
 			snd_pcm_period_elapsed(stream->substream);
@@ -114,7 +114,7 @@ static irqreturn_t i2s_irq_handler(int irq, void *data)
 			break;
 		}
 		if (adata->rsrc->no_of_ctrls == 2) {
-			if (stream && (val1 & stream->irq_bit)) {
+			if (stream && (ext_intr_stat1 & stream->irq_bit)) {
 				writel(stream->irq_bit, ACP_EXTERNAL_INTR_STAT(adata,
 				       (rsrc->irqp_used - 1)));
 				snd_pcm_period_elapsed(stream->substream);
@@ -258,13 +258,6 @@ static int acp_dma_new(struct snd_soc_component *component,
 	return 0;
 }
 
-static int acp_dma_mmap(struct snd_soc_component *component,
-			struct snd_pcm_substream *substream,
-			struct vm_area_struct *vma)
-{
-	return snd_pcm_lib_default_mmap(substream, vma);
-}
-
 static int acp_dma_close(struct snd_soc_component *component,
 			 struct snd_pcm_substream *substream)
 {
@@ -288,7 +281,6 @@ static const struct snd_soc_component_driver acp_pcm_component = {
 	.close			= acp_dma_close,
 	.hw_params		= acp_dma_hw_params,
 	.pointer		= acp_dma_pointer,
-	.mmap			= acp_dma_mmap,
 	.pcm_construct		= acp_dma_new,
 	.legacy_dai_naming	= 1,
 };

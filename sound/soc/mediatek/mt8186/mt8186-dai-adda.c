@@ -75,8 +75,7 @@ static struct mtk_afe_adda_priv *get_adda_priv_by_name(struct mtk_base_afe *afe,
 	struct mt8186_afe_private *afe_priv = afe->platform_priv;
 	int dai_id;
 
-	if (strncmp(name, "aud_dac_hires_clk", 7) == 0 ||
-	    strncmp(name, "aud_adc_hires_clk", 7) == 0)
+	if (strncmp(name, "aud_dac", 7) == 0 || strncmp(name, "aud_adc", 7) == 0)
 		dai_id = MT8186_DAI_ADDA;
 	else
 		return NULL;
@@ -654,11 +653,6 @@ static int mtk_dai_adda_hw_params(struct snd_pcm_substream *substream,
 
 	dev_dbg(afe->dev, "%s(), id %d, stream %d, rate %d\n",
 		__func__, id, substream->stream, rate);
-
-	if (!adda_priv) {
-		dev_err(afe->dev, "%s(), adda_priv == NULL", __func__);
-		return -EINVAL;
-	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		unsigned int dl_src2_con0;
