@@ -290,7 +290,7 @@ static int prestera_pcs_config(struct phylink_pcs *pcs,
 			       const unsigned long *advertising,
 			       bool permit_pause_to_mac)
 {
-	struct prestera_port *port = port = prestera_pcs_to_port(pcs);
+	struct prestera_port *port = prestera_pcs_to_port(pcs);
 	struct prestera_port_mac_config cfg_mac;
 	int err;
 
