@@ -181,7 +181,7 @@ static int intel_soc_pmic_i2c_probe(struct i2c_client *i2c,
 	if (!pmic)
 		return -ENOMEM;
 
-	dev_set_drvdata(dev, pmic);
+	i2c_set_clientdata(i2c, pmic);
 
 	pmic->regmap = devm_regmap_init_i2c(i2c, config->regmap_config);
 	if (IS_ERR(pmic->regmap))
@@ -227,7 +227,7 @@ static int intel_soc_pmic_i2c_remove(struct i2c_client *i2c)
 
 static void intel_soc_pmic_shutdown(struct i2c_client *i2c)
 {
-	struct intel_soc_pmic *pmic = dev_get_drvdata(&i2c->dev);
+	struct intel_soc_pmic *pmic = i2c_get_clientdata(i2c);
 
 	disable_irq(pmic->irq);
 
