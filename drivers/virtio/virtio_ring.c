@@ -948,6 +948,51 @@ static void vring_free_split(struct vring_virtqueue_split *vring_split,
 	kfree(vring_split->desc_extra);
 }
 
+static int vring_alloc_queue_split(struct vring_virtqueue_split *vring_split,
+				   struct virtio_device *vdev,
+				   u32 num,
+				   unsigned int vring_align,
+				   bool may_reduce_num)
+{
+	void *queue = NULL;
+	dma_addr_t dma_addr;
+
+	/* We assume num is a power of 2. */
+	if (num & (num - 1)) {
+		dev_warn(&vdev->dev, "Bad virtqueue length %u\n", num);
+		return -EINVAL;
+	}
+
+	/* TODO: allocate each queue chunk individually */
+	for (; num && vring_size(num, vring_align) > PAGE_SIZE; num /= 2) {
+		queue = vring_alloc_queue(vdev, vring_size(num, vring_align),
+					  &dma_addr,
+					  GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
+		if (queue)
+			break;
+		if (!may_reduce_num)
+			return -ENOMEM;
+	}
+
+	if (!num)
+		return -ENOMEM;
+
+	if (!queue) {
+		/* Try to get a single page. You are my only hope! */
+		queue = vring_alloc_queue(vdev, vring_size(num, vring_align),
+					  &dma_addr, GFP_KERNEL|__GFP_ZERO);
+	}
+	if (!queue)
+		return -ENOMEM;
+
+	vring_init(&vring_split->vring, num, queue, vring_align);
+
+	vring_split->queue_dma_addr = dma_addr;
+	vring_split->queue_size_in_bytes = vring_size(num, vring_align);
+
+	return 0;
+}
+
 static struct virtqueue *vring_create_virtqueue_split(
 	unsigned int index,
 	unsigned int num,
@@ -962,52 +1007,22 @@ static struct virtqueue *vring_create_virtqueue_split(
 {
 	struct vring_virtqueue_split vring_split = {};
 	struct virtqueue *vq;
-	void *queue = NULL;
-	dma_addr_t dma_addr;
-	size_t queue_size_in_bytes;
-	struct vring vring;
+	int err;
 
-	/* We assume num is a power of 2. */
-	if (num & (num - 1)) {
-		dev_warn(&vdev->dev, "Bad virtqueue length %u\n", num);
+	err = vring_alloc_queue_split(&vring_split, vdev, num, vring_align,
+				      may_reduce_num);
+	if (err)
 		return NULL;
-	}
-
-	/* TODO: allocate each queue chunk individually */
-	for (; num && vring_size(num, vring_align) > PAGE_SIZE; num /= 2) {
-		queue = vring_alloc_queue(vdev, vring_size(num, vring_align),
-					  &dma_addr,
-					  GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
-		if (queue)
-			break;
-		if (!may_reduce_num)
-			return NULL;
-	}
-
-	if (!num)
-		return NULL;
-
-	if (!queue) {
-		/* Try to get a single page. You are my only hope! */
-		queue = vring_alloc_queue(vdev, vring_size(num, vring_align),
-					  &dma_addr, GFP_KERNEL|__GFP_ZERO);
-	}
-	if (!queue)
-		return NULL;
-
-	queue_size_in_bytes = vring_size(num, vring_align);
-	vring_init(&vring_split.vring, num, queue, vring_align);
 
 	vq = __vring_new_virtqueue(index, &vring_split, vdev, weak_barriers,
 				   context, notify, callback, name);
 	if (!vq) {
-		vring_free_queue(vdev, queue_size_in_bytes, queue,
-				 dma_addr);
+		vring_free_split(&vring_split, vdev);
 		return NULL;
 	}
 
-	to_vvq(vq)->split.queue_dma_addr = dma_addr;
-	to_vvq(vq)->split.queue_size_in_bytes = queue_size_in_bytes;
+	to_vvq(vq)->split.queue_dma_addr = vring_split.queue_dma_addr;
+	to_vvq(vq)->split.queue_size_in_bytes = vring_split.queue_size_in_bytes;
 	to_vvq(vq)->we_own_ring = true;
 
 	return vq;
