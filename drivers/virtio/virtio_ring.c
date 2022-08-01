@@ -1832,6 +1832,28 @@ static struct vring_desc_extra *vring_alloc_desc_extra(unsigned int num)
 	return desc_extra;
 }
 
+static void vring_free_packed(struct vring_virtqueue_packed *vring_packed,
+			      struct virtio_device *vdev)
+{
+	if (vring_packed->vring.desc)
+		vring_free_queue(vdev, vring_packed->ring_size_in_bytes,
+				 vring_packed->vring.desc,
+				 vring_packed->ring_dma_addr);
+
+	if (vring_packed->vring.driver)
+		vring_free_queue(vdev, vring_packed->event_size_in_bytes,
+				 vring_packed->vring.driver,
+				 vring_packed->driver_event_dma_addr);
+
+	if (vring_packed->vring.device)
+		vring_free_queue(vdev, vring_packed->event_size_in_bytes,
+				 vring_packed->vring.device,
+				 vring_packed->device_event_dma_addr);
+
+	kfree(vring_packed->desc_state);
+	kfree(vring_packed->desc_extra);
+}
+
 static struct virtqueue *vring_create_virtqueue_packed(
 	unsigned int index,
 	unsigned int num,
