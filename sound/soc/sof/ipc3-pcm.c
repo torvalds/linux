@@ -115,6 +115,9 @@ static int sof_ipc3_pcm_hw_params(struct snd_soc_component *component,
 			pcm.params.no_stream_position = 1;
 	}
 
+	if (platform_params->cont_update_posn)
+		pcm.params.cont_update_posn = 1;
+
 	dev_dbg(component->dev, "stream_tag %d", pcm.params.stream_tag);
 
 	/* send hw_params IPC to the DSP */
