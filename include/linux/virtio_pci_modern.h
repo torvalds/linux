@@ -9,7 +9,7 @@ struct virtio_pci_modern_common_cfg {
 	struct virtio_pci_common_cfg cfg;
 
 	__le16 queue_notify_data;	/* read-write */
-	__le16 padding;
+	__le16 queue_reset;		/* read-write */
 };
 
 struct virtio_pci_modern_device {
