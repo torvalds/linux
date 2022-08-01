@@ -2036,6 +2036,36 @@ err_ring:
 	return NULL;
 }
 
+static int virtqueue_resize_packed(struct virtqueue *_vq, u32 num)
+{
+	struct vring_virtqueue_packed vring_packed = {};
+	struct vring_virtqueue *vq = to_vvq(_vq);
+	struct virtio_device *vdev = _vq->vdev;
+	int err;
+
+	if (vring_alloc_queue_packed(&vring_packed, vdev, num))
+		goto err_ring;
+
+	err = vring_alloc_state_extra_packed(&vring_packed);
+	if (err)
+		goto err_state_extra;
+
+	vring_free(&vq->vq);
+
+	virtqueue_vring_init_packed(&vring_packed, !!vq->vq.callback);
+
+	virtqueue_init(vq, vring_packed.vring.num);
+	virtqueue_vring_attach_packed(vq, &vring_packed);
+
+	return 0;
+
+err_state_extra:
+	vring_free_packed(&vring_packed, vdev);
+err_ring:
+	virtqueue_reinit_packed(vq);
+	return -ENOMEM;
+}
+
 
 /*
  * Generic functions and exported symbols.
