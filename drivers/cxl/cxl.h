@@ -102,7 +102,7 @@ static inline int granularity_to_cxl(int g, u16 *ig)
 	return 0;
 }
 
-static inline int ways_to_cxl(int ways, u8 *iw)
+static inline int ways_to_cxl(unsigned int ways, u8 *iw)
 {
 	if (ways > 16)
 		return -EINVAL;

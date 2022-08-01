@@ -319,10 +319,11 @@ static ssize_t interleave_ways_store(struct device *dev,
 	struct cxl_decoder *cxld = &cxlrd->cxlsd.cxld;
 	struct cxl_region *cxlr = to_cxl_region(dev);
 	struct cxl_region_params *p = &cxlr->params;
-	int rc, val, save;
+	unsigned int val, save;
+	int rc;
 	u8 iw;
 
-	rc = kstrtoint(buf, 0, &val);
+	rc = kstrtouint(buf, 0, &val);
 	if (rc)
 		return rc;
 
