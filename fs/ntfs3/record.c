@@ -220,6 +220,11 @@ struct ATTRIB *mi_enum_attr(struct mft_inode *mi, struct ATTRIB *attr)
 			return NULL;
 		}
 
+		if (off + asize < off) {
+			/* overflow check */
+			return NULL;
+		}
+
 		attr = Add2Ptr(attr, asize);
 		off += asize;
 	}
