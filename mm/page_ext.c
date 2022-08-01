@@ -336,7 +336,7 @@ static int __meminit online_page_ext(unsigned long start_pfn,
 }
 
 static int __meminit offline_page_ext(unsigned long start_pfn,
-				unsigned long nr_pages, int nid)
+				unsigned long nr_pages)
 {
 	unsigned long start, end, pfn;
 
@@ -362,11 +362,11 @@ static int __meminit page_ext_callback(struct notifier_block *self,
 		break;
 	case MEM_OFFLINE:
 		offline_page_ext(mn->start_pfn,
-				mn->nr_pages, mn->status_change_nid);
+				mn->nr_pages);
 		break;
 	case MEM_CANCEL_ONLINE:
 		offline_page_ext(mn->start_pfn,
-				mn->nr_pages, mn->status_change_nid);
+				mn->nr_pages);
 		break;
 	case MEM_GOING_OFFLINE:
 		break;
