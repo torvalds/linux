@@ -1031,7 +1031,7 @@ static ssize_t pcm_class_show(struct device *dev,
 		str = "none";
 	else
 		str = strs[pcm->dev_class];
-	return sprintf(buf, "%s\n", str);
+	return sysfs_emit(buf, "%s\n", str);
 }
 
 static DEVICE_ATTR_RO(pcm_class);
