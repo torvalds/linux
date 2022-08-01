@@ -1957,6 +1957,18 @@ static void virtqueue_vring_attach_packed(struct vring_virtqueue *vq,
 	vq->free_head = 0;
 }
 
+static void virtqueue_reinit_packed(struct vring_virtqueue *vq)
+{
+	memset(vq->packed.vring.device, 0, vq->packed.event_size_in_bytes);
+	memset(vq->packed.vring.driver, 0, vq->packed.event_size_in_bytes);
+
+	/* we need to reset the desc.flags. For more, see is_used_desc_packed() */
+	memset(vq->packed.vring.desc, 0, vq->packed.ring_size_in_bytes);
+
+	virtqueue_init(vq, vq->packed.vring.num);
+	virtqueue_vring_init_packed(&vq->packed, !!vq->vq.callback);
+}
+
 static struct virtqueue *vring_create_virtqueue_packed(
 	unsigned int index,
 	unsigned int num,
