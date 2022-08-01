@@ -40,7 +40,7 @@
 #define MULTIPLEX_CH_MAX			10
 #define CLK_PPM_MIN				(-1000)
 #define CLK_PPM_MAX				(1000)
-
+#define MAXBURST_PER_FIFO			8
 struct txrx_config {
 	u32 addr;
 	u32 reg;
@@ -1108,10 +1108,14 @@ static int rockchip_i2s_tdm_hw_params(struct snd_pcm_substream *substream,
 				      struct snd_soc_dai *dai)
 {
 	struct rk_i2s_tdm_dev *i2s_tdm = to_info(dai);
+	struct snd_dmaengine_dai_dma_data *dma_data;
 	struct clk *mclk;
 	int ret = 0;
 	unsigned int val = 0;
 	unsigned int mclk_rate, bclk_rate, div_bclk = 4, div_lrck = 64;
+
+	dma_data = snd_soc_dai_get_dma_data(dai, substream);
+	dma_data->maxburst = MAXBURST_PER_FIFO * params_channels(params) / 2;
 
 	if (i2s_tdm->is_master_mode) {
 		if (i2s_tdm->mclk_calibrate)
@@ -1995,11 +1999,11 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 
 	i2s_tdm->playback_dma_data.addr = res->start + I2S_TXDR;
 	i2s_tdm->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	i2s_tdm->playback_dma_data.maxburst = 8;
+	i2s_tdm->playback_dma_data.maxburst = MAXBURST_PER_FIFO;
 
 	i2s_tdm->capture_dma_data.addr = res->start + I2S_RXDR;
 	i2s_tdm->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	i2s_tdm->capture_dma_data.maxburst = 8;
+	i2s_tdm->capture_dma_data.maxburst = MAXBURST_PER_FIFO;
 
 	ret = rockchip_i2s_tdm_tx_path_prepare(i2s_tdm, node);
 	if (ret < 0) {
