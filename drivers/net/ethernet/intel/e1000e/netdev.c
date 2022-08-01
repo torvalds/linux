@@ -3922,9 +3922,9 @@ static void e1000e_systim_reset(struct e1000_adapter *adapter)
 	if (!(adapter->flags & FLAG_HAS_HW_TIMESTAMP))
 		return;
 
-	if (info->adjfreq) {
+	if (info->adjfine) {
 		/* restore the previous ptp frequency delta */
-		ret_val = info->adjfreq(info, adapter->ptp_delta);
+		ret_val = info->adjfine(info, adapter->ptp_delta);
 	} else {
 		/* set the default base frequency if no adjustment possible */
 		ret_val = e1000e_get_base_timinca(adapter, &timinca);
