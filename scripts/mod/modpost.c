@@ -746,6 +746,13 @@ static bool match(const char *string, const char *const patterns[])
 	return false;
 }
 
+/* useful to pass patterns to match() directly */
+#define PATTERNS(...) \
+	({ \
+		static const char *const patterns[] = {__VA_ARGS__, NULL}; \
+		patterns; \
+	})
+
 /* sections that we do not want to do full section mismatch check on */
 static const char *const section_white_list[] =
 {
