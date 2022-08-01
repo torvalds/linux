@@ -164,8 +164,7 @@ static const struct intel_soc_pmic_config intel_soc_pmic_config_cht_crc = {
 	.irq_chip = &crystal_cove_irq_chip,
 };
 
-static int intel_soc_pmic_i2c_probe(struct i2c_client *i2c,
-				    const struct i2c_device_id *i2c_id)
+static int intel_soc_pmic_i2c_probe(struct i2c_client *i2c)
 {
 	const struct intel_soc_pmic_config *config;
 	struct device *dev = &i2c->dev;
@@ -254,11 +253,6 @@ static int intel_soc_pmic_resume(struct device *dev)
 
 static DEFINE_SIMPLE_DEV_PM_OPS(crystal_cove_pm_ops, intel_soc_pmic_suspend, intel_soc_pmic_resume);
 
-static const struct i2c_device_id intel_soc_pmic_i2c_id[] = {
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, intel_soc_pmic_i2c_id);
-
 static const struct acpi_device_id intel_soc_pmic_acpi_match[] = {
 	{ "INT33FD" },
 	{ },
@@ -271,9 +265,8 @@ static struct i2c_driver intel_soc_pmic_i2c_driver = {
 		.pm = pm_sleep_ptr(&crystal_cove_pm_ops),
 		.acpi_match_table = intel_soc_pmic_acpi_match,
 	},
-	.probe = intel_soc_pmic_i2c_probe,
+	.probe_new = intel_soc_pmic_i2c_probe,
 	.remove = intel_soc_pmic_i2c_remove,
-	.id_table = intel_soc_pmic_i2c_id,
 	.shutdown = intel_soc_pmic_shutdown,
 };
 
