@@ -2218,13 +2218,13 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 	ch->zw_cqe.done = srpt_zerolength_write_done;
 	INIT_WORK(&ch->release_work, srpt_release_channel_work);
 	ch->sport = sport;
-	if (ib_cm_id) {
-		ch->ib_cm.cm_id = ib_cm_id;
-		ib_cm_id->context = ch;
-	} else {
+	if (rdma_cm_id) {
 		ch->using_rdma_cm = true;
 		ch->rdma_cm.cm_id = rdma_cm_id;
 		rdma_cm_id->context = ch;
+	} else {
+		ch->ib_cm.cm_id = ib_cm_id;
+		ib_cm_id->context = ch;
 	}
 	/*
 	 * ch->rq_size should be at least as large as the initiator queue
