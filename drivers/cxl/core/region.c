@@ -1218,12 +1218,14 @@ static int cxl_region_attach(struct cxl_region *cxlr,
 	if (p->nr_targets == p->interleave_ways) {
 		rc = cxl_region_setup_targets(cxlr);
 		if (rc)
-			goto err;
+			goto err_decrement;
 		p->state = CXL_CONFIG_ACTIVE;
 	}
 
 	return 0;
 
+err_decrement:
+	p->nr_targets--;
 err:
 	for (iter = ep_port; !is_cxl_root(iter);
 	     iter = to_cxl_port(iter->dev.parent))
