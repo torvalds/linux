@@ -5,6 +5,13 @@
 #include <linux/pci.h>
 #include <linux/virtio_pci.h>
 
+struct virtio_pci_modern_common_cfg {
+	struct virtio_pci_common_cfg cfg;
+
+	__le16 queue_notify_data;	/* read-write */
+	__le16 padding;
+};
+
 struct virtio_pci_modern_device {
 	struct pci_dev *pci_dev;
 
