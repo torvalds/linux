@@ -2170,6 +2170,7 @@ struct vm_struct *remove_vm_area(const void *addr)
 	if (va && va->vm) {
 		struct vm_struct *vm = va->vm;
 
+		trace_android_vh_remove_vmalloc_stack(vm);
 		va->vm = NULL;
 		spin_unlock(&vmap_area_lock);
 

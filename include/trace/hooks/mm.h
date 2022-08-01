@@ -233,6 +233,9 @@ DECLARE_HOOK(android_vh_free_pages,
 DECLARE_HOOK(android_vh_set_shmem_page_flag,
 	TP_PROTO(struct page *page),
 	TP_ARGS(page));
+DECLARE_HOOK(android_vh_remove_vmalloc_stack,
+	TP_PROTO(struct vm_struct *vm),
+	TP_ARGS(vm));
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_MM_H */
