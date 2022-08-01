@@ -32,6 +32,7 @@
 			next-level-cache = <&L2_0>;
 			enable-method = "psci";
 		};
+
 		CA7_2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
@@ -39,6 +40,7 @@
 			next-level-cache = <&L2_0>;
 			enable-method = "psci";
 		};
+
 		L2_0: l2-cache0 {
 			compatible = "cache";
 		};
