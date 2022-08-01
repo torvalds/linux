@@ -46,4 +46,23 @@ static inline bool qcom_glink_is_wakeup(bool reset)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_RPMSG_QCOM_GLINK_SPSS)
+
+struct qcom_glink *qcom_glink_spss_register(struct device *parent,
+					    struct device_node *node);
+void qcom_glink_spss_unregister(struct qcom_glink *glink);
+
+#else
+
+static inline struct qcom_glink *
+qcom_glink_spss_register(struct device *parent,
+			 struct device_node *node)
+{
+	return NULL;
+}
+
+static inline void qcom_glink_spss_unregister(struct qcom_glink *glink) {}
+
+#endif
+
 #endif

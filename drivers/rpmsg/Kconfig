@@ -64,6 +64,18 @@ config RPMSG_QCOM_GLINK_SMEM
 	  which provides support for using the GLINK communication protocol
 	  over SMEM.
 
+config RPMSG_QCOM_GLINK_SPSS
+	tristate "QTI SPSS Glink driver"
+	select RPMSG_QCOM_GLINK_NATIVE
+	depends on MAILBOX
+	depends on QCOM_SMEM
+	help
+	  Say y here to enable support for the GLINK SPSS communication driver,
+	  which provides support for using the GLINK communication protocol
+	  over SMEM. This protocol maps the smem and then shares the mapped
+	  region with the remote proc by writing the smem descriptor location
+	  and size into shared registers.
+
 config RPMSG_QCOM_SMD
 	tristate "Qualcomm Shared Memory Driver (SMD)"
 	depends on MAILBOX
