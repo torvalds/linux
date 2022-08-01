@@ -401,14 +401,25 @@ reset:
 static void rockchip_i2s_tdm_dma_ctrl(struct rk_i2s_tdm_dev *i2s_tdm,
 				      int stream, bool en)
 {
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		regmap_update_bits(i2s_tdm->regmap, I2S_DMACR,
 				   I2S_DMACR_TDE_MASK,
 				   I2S_DMACR_TDE(en));
-	else
+		/*
+		 * Explicitly delay 1 usec for dma to fill FIFO,
+		 * though there was a implied HW delay that around
+		 * half LRCK cycle (e.g. 2.6us@192k) from XFER-start
+		 * to FIFO-pop.
+		 *
+		 * 1 usec is enough to fill at lease 4 entry each FIFO
+		 * @192k 8ch 32bit situation.
+		 */
+		udelay(1);
+	} else {
 		regmap_update_bits(i2s_tdm->regmap, I2S_DMACR,
 				   I2S_DMACR_RDE_MASK,
 				   I2S_DMACR_RDE(en));
+	}
 }
 
 static void rockchip_i2s_tdm_xfer_start(struct rk_i2s_tdm_dev *i2s_tdm,
