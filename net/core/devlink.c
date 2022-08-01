@@ -6315,8 +6315,10 @@ devlink_nl_cmd_region_new(struct sk_buff *skb, struct genl_info *info)
 
 		snapshot = devlink_region_snapshot_get_by_id(region,
 							     snapshot_id);
-		if (WARN_ON(!snapshot))
-			return -EINVAL;
+		if (WARN_ON(!snapshot)) {
+			err = -EINVAL;
+			goto unlock;
+		}
 
 		msg = devlink_nl_region_notify_build(region, snapshot,
 						     DEVLINK_CMD_REGION_NEW,
