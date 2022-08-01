@@ -403,6 +403,9 @@ static int rockchip_usb2phy_reset(struct rockchip_usb2phy *rphy)
 {
 	int ret;
 
+	if (!rphy->phy_reset)
+		return 0;
+
 	ret = reset_control_assert(rphy->phy_reset);
 	if (ret)
 		return ret;
@@ -2915,6 +2918,13 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 
 	if (device_may_wakeup(rphy->dev))
 		wakeup_enable = true;
+
+	/*
+	 * PHY lost power in suspend, it needs to reset
+	 * PHY to recovery clock to usb controller.
+	 */
+	if (!wakeup_enable)
+		rockchip_usb2phy_reset(rphy);
 
 	if (phy_cfg->phy_tuning)
 		ret = phy_cfg->phy_tuning(rphy);
