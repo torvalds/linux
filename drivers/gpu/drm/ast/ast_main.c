@@ -41,28 +41,52 @@ void ast_set_index_reg_mask(struct ast_private *ast,
 			    uint32_t base, uint8_t index,
 			    uint8_t mask, uint8_t val)
 {
-	u8 tmp;
-	ast_io_write8(ast, base, index);
-	tmp = (ast_io_read8(ast, base + 1) & mask) | val;
-	ast_set_index_reg(ast, base, index, tmp);
+	uint16_t usData;
+	uint8_t jData;
+
+	do {
+		ast_io_write8(ast, base, index);
+		usData = ast_io_read16(ast, base);
+	} while ((uint8_t)(usData) != index);
+
+	jData = (uint8_t)(usData >> 8);
+	jData &= mask;
+	jData |= val;
+	usData = ((uint16_t) jData << 8) | (uint16_t) index;
+	ast_io_write16(ast, base, usData);
 }
 
 uint8_t ast_get_index_reg(struct ast_private *ast,
 			  uint32_t base, uint8_t index)
 {
-	uint8_t ret;
-	ast_io_write8(ast, base, index);
-	ret = ast_io_read8(ast, base + 1);
-	return ret;
+	uint16_t usData;
+	uint8_t jData;
+
+	do {
+		ast_io_write8(ast, base, index);
+		usData = ast_io_read16(ast, base);
+	} while ((uint8_t)(usData) != index);
+
+	jData = (uint8_t)(usData >> 8);
+
+	return jData;
 }
 
 uint8_t ast_get_index_reg_mask(struct ast_private *ast,
 			       uint32_t base, uint8_t index, uint8_t mask)
 {
-	uint8_t ret;
-	ast_io_write8(ast, base, index);
-	ret = ast_io_read8(ast, base + 1) & mask;
-	return ret;
+	uint16_t usData;
+	uint8_t jData;
+
+	do {
+		ast_io_write8(ast, base, index);
+		usData = ast_io_read16(ast, base);
+	} while ((uint8_t)(usData) != index);
+
+	jData = (uint8_t)(usData >> 8);
+	jData &= mask;
+
+	return jData;
 }
 
 static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)

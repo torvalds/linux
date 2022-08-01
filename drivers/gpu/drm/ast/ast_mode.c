@@ -1009,7 +1009,10 @@ err_drm_gem_vram_put:
 static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct ast_private *ast = to_ast_private(crtc->dev);
-	u8 ch = 0x03;
+	struct ast_crtc_state *ast_state;
+	const struct drm_format_info *format;
+	struct ast_vbios_mode_info *vbios_mode_info;
+	u8 ch = AST_DPMS_VSYNC_OFF | AST_DPMS_HSYNC_OFF;
 
 	/* TODO: Maybe control display signal generation with
 	 *       Sync Enable (bit CR17.7).
@@ -1022,11 +1025,19 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 			ast_set_dp501_video_output(crtc->dev, 1);
 
 		if (ast->tx_chip_type == AST_TX_ASTDP) {
-#ifdef DPControlPower
-			ast_dp_PowerOnOff(crtc->dev, 1);
-#endif
+			ast_dp_power_on_off(crtc->dev, 1);
 			ast_wait_for_vretrace(ast);
-			ast_dp_SetOnOff(crtc->dev, 1);
+			ast_dp_set_on_off(crtc->dev, 1);
+		}
+
+		ast_state = to_ast_crtc_state(crtc->state);
+		format = ast_state->format;
+
+		if (format) {
+			vbios_mode_info = &ast_state->vbios_mode_info;
+
+			ast_set_color_reg(ast, format);
+			ast_set_vbios_color_reg(ast, format, vbios_mode_info);
 		}
 
 		ast_crtc_load_lut(ast, crtc);
@@ -1039,10 +1050,8 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 			ast_set_dp501_video_output(crtc->dev, 0);
 
 		if (ast->tx_chip_type == AST_TX_ASTDP) {
-			ast_dp_SetOnOff(crtc->dev, 0);
-#ifdef DPControlPower
-			ast_dp_PowerOnOff(crtc->dev, 0);
-#endif
+			ast_dp_set_on_off(crtc->dev, 0);
+			ast_dp_power_on_off(crtc->dev, 0);
 		}
 
 		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT,  0x01, 0xdf, 0x20);
@@ -1122,7 +1131,7 @@ ast_crtc_helper_atomic_enable(struct drm_crtc *crtc,
 
 	//Set Aspeed Display-Port
 	if (ast->tx_chip_type == AST_TX_ASTDP)
-		ast_dp_SetOutput(crtc, vbios_mode_info);
+		ast_dp_set_mode(crtc, vbios_mode_info);
 
 	ast_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 }
@@ -1263,13 +1272,15 @@ static int ast_get_modes(struct drm_connector *connector)
 	struct ast_private *ast = to_ast_private(connector->dev);
 	struct edid *edid;
 	int ret;
-	bool flags = false;
+	int flags = -1;
+
+	edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
+
+	if (!edid)
+		return -ENOMEM;
 
 	if (ast->tx_chip_type == AST_TX_DP501) {
 		ast->dp501_maxclk = 0xff;
-		edid = kmalloc(128, GFP_KERNEL);
-		if (!edid)
-			return -ENOMEM;
 
 		flags = ast_dp501_read_edid(connector->dev, (u8 *)edid);
 		if (flags)
@@ -1277,18 +1288,14 @@ static int ast_get_modes(struct drm_connector *connector)
 		else
 			kfree(edid);
 	} else if (ast->tx_chip_type == AST_TX_ASTDP) {
-		edid = kmalloc(128, GFP_KERNEL);
-		if (!edid)
-			return -ENOMEM;
-
-		flags = ast_dp_read_edid(connector->dev, (u8 *)edid);
-		if (!flags) {
+		flags = ast_astdp_read_edid(connector->dev, (u8 *)edid);
+		if (flags < 0) {
 			drm_info(connector->dev, "No DP EDID\n");
 			kfree(edid);
 		}
 	}
 
-	if (!flags)
+	if (flags < 0)
 		edid = drm_get_edid(connector, &ast_connector->i2c->adapter);
 	if (edid) {
 		drm_connector_update_edid_property(&ast_connector->base, edid);
@@ -1369,6 +1376,7 @@ static void ast_connector_destroy(struct drm_connector *connector)
 	struct ast_connector *ast_connector = to_ast_connector(connector);
 
 	ast_i2c_destroy(ast_connector->i2c);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 }
 
