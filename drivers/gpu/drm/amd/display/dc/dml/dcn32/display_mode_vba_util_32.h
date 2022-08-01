@@ -30,6 +30,7 @@
 #include "os_types.h"
 #include "../dc_features.h"
 #include "../display_mode_structs.h"
+#include "dml/display_mode_vba.h"
 
 unsigned int dml32_dscceComputeDelay(
 		unsigned int bpc,
@@ -81,6 +82,7 @@ void dml32_CalculateSinglePipeDPPCLKAndSCLThroughput(
 		double *DPPCLKUsingSingleDPP);
 
 void dml32_CalculateSwathAndDETConfiguration(
+		struct dml32_CalculateSwathAndDETConfiguration *st_vars,
 		unsigned int DETSizeOverride[],
 		enum dm_use_mall_for_pstate_change_mode UseMALLForPStateChange[],
 		unsigned int ConfigReturnBufferSizeInKByte,
@@ -90,6 +92,9 @@ void dml32_CalculateSwathAndDETConfiguration(
 		unsigned int NumberOfActiveSurfaces,
 		unsigned int nomDETInKByte,
 		enum unbounded_requesting_policy UseUnboundedRequestingFinal,
+		bool DisableUnboundRequestIfCompBufReservedSpaceNeedAdjustment,
+		unsigned int PixelChunkSizeKBytes,
+		unsigned int ROBSizeKBytes,
 		unsigned int CompressedBufferSegmentSizeInkByteFinal,
 		enum output_encoder_class Output[],
 		double ReadBandwidthLuma[],
@@ -137,6 +142,8 @@ void dml32_CalculateSwathAndDETConfiguration(
 		unsigned int DETBufferSizeC[],
 		bool *UnboundedRequestEnabled,
 		unsigned int *CompressedBufferSizeInkByte,
+		unsigned int *CompBufReservedSpaceKBytes,
+		bool *CompBufReservedSpaceNeedAdjustment,
 		bool ViewportSizeSupportPerSurface[],
 		bool *ViewportSizeSupport);
 
@@ -181,7 +188,10 @@ void dml32_CalculateSwathWidth(
 bool dml32_UnboundedRequest(enum unbounded_requesting_policy UseUnboundedRequestingFinal,
 		unsigned int TotalNumberOfActiveDPP,
 		bool NoChroma,
-		enum output_encoder_class Output);
+		enum output_encoder_class Output,
+		enum dm_swizzle_mode SurfaceTiling,
+		bool CompBufReservedSpaceNeedAdjustment,
+		bool DisableUnboundRequestIfCompBufReservedSpaceNeedAdjustment);
 
 void dml32_CalculateDETBufferSize(
 		unsigned int DETSizeOverride[],
@@ -352,6 +362,7 @@ void dml32_CalculateSurfaceSizeInMall(
 		bool *ExceededMALLSize);
 
 void dml32_CalculateVMRowAndSwath(
+		struct dml32_CalculateVMRowAndSwath *st_vars,
 		unsigned int NumberOfActiveSurfaces,
 		DmlPipe myPipe[],
 		unsigned int SurfaceSizeInMALL[],
@@ -704,6 +715,7 @@ double dml32_CalculateExtraLatency(
 		unsigned int HostVMMaxNonCachedPageTableLevels);
 
 bool dml32_CalculatePrefetchSchedule(
+		struct dml32_CalculatePrefetchSchedule *st_vars,
 		double HostVMInefficiencyFactor,
 		DmlPipe *myPipe,
 		unsigned int DSCDelay,
@@ -799,6 +811,7 @@ void dml32_CalculateFlipSchedule(
 		bool *ImmediateFlipSupportedForPipe);
 
 void dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
+		struct dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport *st_vars,
 		bool USRRetrainingRequiredFinal,
 		enum dm_use_mall_for_pstate_change_mode UseMALLForPStateChange[],
 		unsigned int PrefetchMode,

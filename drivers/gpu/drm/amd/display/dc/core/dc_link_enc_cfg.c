@@ -292,6 +292,7 @@ void link_enc_cfg_link_encs_assign(
 	int j;
 
 	ASSERT(state->stream_count == stream_count);
+	ASSERT(dc->current_state->res_ctx.link_enc_cfg_ctx.mode == LINK_ENC_CFG_STEADY);
 
 	/* Release DIG link encoder resources before running assignment algorithm. */
 	for (i = 0; i < dc->current_state->stream_count; i++)
@@ -561,6 +562,31 @@ struct link_encoder *link_enc_cfg_get_link_enc(
 	return link_enc;
 }
 
+struct link_encoder *link_enc_cfg_get_link_enc_used_by_stream_current(
+		struct dc *dc,
+		const struct dc_stream_state *stream)
+{
+	struct link_encoder *link_enc = NULL;
+	struct display_endpoint_id ep_id;
+	int i;
+
+	ep_id = (struct display_endpoint_id) {
+		.link_id = stream->link->link_id,
+		.ep_type = stream->link->ep_type};
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct link_enc_assignment assignment =
+			dc->current_state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i];
+
+		if (assignment.valid == true && are_ep_ids_equal(&assignment.ep_id, &ep_id)) {
+			link_enc = stream->link->dc->res_pool->link_encoders[assignment.eng_id - ENGINE_ID_DIGA];
+			break;
+		}
+	}
+
+	return link_enc;
+}
+
 bool link_enc_cfg_is_link_enc_avail(struct dc *dc, enum engine_id eng_id, struct dc_link *link)
 {
 	bool is_avail = true;
@@ -595,6 +621,7 @@ bool link_enc_cfg_validate(struct dc *dc, struct dc_state *state)
 	uint8_t dig_stream_count = 0;
 	int matching_stream_ptrs = 0;
 	int eng_ids_per_ep_id[MAX_PIPES] = {0};
+	int ep_ids_per_eng_id[MAX_PIPES] = {0};
 	int valid_bitmap = 0;
 
 	/* (1) No. valid entries same as stream count. */
@@ -630,6 +657,7 @@ bool link_enc_cfg_validate(struct dc *dc, struct dc_state *state)
 			struct display_endpoint_id ep_id_i = assignment_i.ep_id;
 
 			eng_ids_per_ep_id[i]++;
+			ep_ids_per_eng_id[i]++;
 			for (j = 0; j < MAX_PIPES; j++) {
 				struct link_enc_assignment assignment_j =
 					state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[j];
@@ -644,6 +672,10 @@ bool link_enc_cfg_validate(struct dc *dc, struct dc_state *state)
 							assignment_i.eng_id != assignment_j.eng_id) {
 						valid_uniqueness = false;
 						eng_ids_per_ep_id[i]++;
+					} else if (!are_ep_ids_equal(&ep_id_i, &ep_id_j) &&
+							assignment_i.eng_id == assignment_j.eng_id) {
+						valid_uniqueness = false;
+						ep_ids_per_eng_id[i]++;
 					}
 				}
 			}

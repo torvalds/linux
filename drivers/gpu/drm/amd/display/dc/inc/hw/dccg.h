@@ -101,7 +101,8 @@ struct dccg_funcs {
 	void (*set_dpstreamclk)(
 			struct dccg *dccg,
 			enum streamclk_source src,
-			int otg_inst);
+			int otg_inst,
+			int dp_hpo_inst);
 
 	void (*enable_symclk32_se)(
 			struct dccg *dccg,

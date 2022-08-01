@@ -100,9 +100,10 @@ void dcn32_smu_send_fclk_pstate_message(struct clk_mgr_internal *clk_mgr, bool e
 
 void dcn32_smu_send_cab_for_uclk_message(struct clk_mgr_internal *clk_mgr, unsigned int num_ways)
 {
-	smu_print("Numways for SubVP : %d\n", num_ways);
+	uint32_t param = (num_ways << 1) | (num_ways > 0);
 
-	dcn32_smu_send_msg_with_param(clk_mgr, DALSMC_MSG_SetCabForUclkPstate, num_ways, NULL);
+	dcn32_smu_send_msg_with_param(clk_mgr, DALSMC_MSG_SetCabForUclkPstate, param, NULL);
+	smu_print("Numways for SubVP : %d\n", num_ways);
 }
 
 void dcn32_smu_transfer_wm_table_dram_2_smu(struct clk_mgr_internal *clk_mgr)

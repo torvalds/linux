@@ -56,6 +56,8 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 	ssize_t result = 0;
 	struct aux_payload payload;
 	enum aux_return_code_type operation_result;
+	struct amdgpu_device *adev;
+	struct ddc_service *ddc;
 
 	if (WARN_ON(msg->size > 16))
 		return -E2BIG;
@@ -73,6 +75,21 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 
 	result = dc_link_aux_transfer_raw(TO_DM_AUX(aux)->ddc_service, &payload,
 				      &operation_result);
+
+	/*
+	 * w/a on certain intel platform where hpd is unexpected to pull low during
+	 * 1st sideband message transaction by return AUX_RET_ERROR_HPD_DISCON
+	 * aux transaction is succuess in such case, therefore bypass the error
+	 */
+	ddc = TO_DM_AUX(aux)->ddc_service;
+	adev = ddc->ctx->driver_context;
+	if (adev->dm.aux_hpd_discon_quirk) {
+		if (msg->address == DP_SIDEBAND_MSG_DOWN_REQ_BASE &&
+			operation_result == AUX_RET_ERROR_HPD_DISCON) {
+			result = 0;
+			operation_result = AUX_RET_SUCCESS;
+		}
+	}
 
 	if (payload.write && result >= 0)
 		result = msg->size;
@@ -160,7 +177,10 @@ amdgpu_dm_mst_connector_early_unregister(struct drm_connector *connector)
 
 		dc_sink_release(dc_sink);
 		aconnector->dc_sink = NULL;
+		aconnector->edid = NULL;
 	}
+
+	aconnector->mst_status = MST_STATUS_DEFAULT;
 	drm_modeset_unlock(&root->mst_mgr.base.lock);
 }
 
@@ -261,6 +281,9 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 		edid = drm_dp_mst_get_edid(connector, &aconnector->mst_port->mst_mgr, aconnector->port);
 
 		if (!edid) {
+			amdgpu_dm_set_mst_status(&aconnector->mst_status,
+			MST_REMOTE_EDID, false);
+
 			drm_connector_update_edid_property(
 				&aconnector->base,
 				NULL);
@@ -291,6 +314,8 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 		}
 
 		aconnector->edid = edid;
+		amdgpu_dm_set_mst_status(&aconnector->mst_status,
+			MST_REMOTE_EDID, true);
 	}
 
 	if (aconnector->dc_sink && aconnector->dc_sink->sink_signal == SIGNAL_TYPE_VIRTUAL) {
@@ -411,6 +436,11 @@ dm_dp_mst_detect(struct drm_connector *connector,
 
 		dc_sink_release(aconnector->dc_sink);
 		aconnector->dc_sink = NULL;
+		aconnector->edid = NULL;
+
+		amdgpu_dm_set_mst_status(&aconnector->mst_status,
+			MST_REMOTE_EDID | MST_ALLOCATE_NEW_PAYLOAD | MST_CLEAR_ALLOCATED_PAYLOAD,
+			false);
 	}
 
 	return connection_status;
@@ -507,6 +537,8 @@ dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	connector = &aconnector->base;
 	aconnector->port = port;
 	aconnector->mst_port = master;
+	amdgpu_dm_set_mst_status(&aconnector->mst_status,
+			MST_PROBE, true);
 
 	if (drm_connector_init(
 		dev,

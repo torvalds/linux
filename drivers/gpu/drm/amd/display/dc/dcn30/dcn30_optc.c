@@ -293,6 +293,11 @@ static void optc3_set_timing_double_buffer(struct timing_generator *optc, bool e
 		   OTG_DRR_TIMING_DBUF_UPDATE_MODE, mode);
 }
 
+void optc3_set_vtotal_min_max(struct timing_generator *optc, int vtotal_min, int vtotal_max)
+{
+	optc1_set_vtotal_min_max(optc, vtotal_min, vtotal_max);
+}
+
 void optc3_tg_init(struct timing_generator *optc)
 {
 	optc3_set_timing_double_buffer(optc, true);

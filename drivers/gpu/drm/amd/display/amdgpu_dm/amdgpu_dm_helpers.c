@@ -312,6 +312,8 @@ bool dm_helpers_dp_mst_send_payload_allocation(
 	struct amdgpu_dm_connector *aconnector;
 	struct drm_dp_mst_topology_mgr *mst_mgr;
 	struct drm_dp_mst_port *mst_port;
+	enum mst_progress_status set_flag = MST_ALLOCATE_NEW_PAYLOAD;
+	enum mst_progress_status clr_flag = MST_CLEAR_ALLOCATED_PAYLOAD;
 
 	aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
 
@@ -325,8 +327,20 @@ bool dm_helpers_dp_mst_send_payload_allocation(
 	if (!mst_mgr->mst_state)
 		return false;
 
-	/* It's OK for this to fail */
-	drm_dp_update_payload_part2(mst_mgr);
+	if (!enable) {
+		set_flag = MST_CLEAR_ALLOCATED_PAYLOAD;
+		clr_flag = MST_ALLOCATE_NEW_PAYLOAD;
+	}
+
+	if (drm_dp_update_payload_part2(mst_mgr)) {
+		amdgpu_dm_set_mst_status(&aconnector->mst_status,
+			set_flag, false);
+	} else {
+		amdgpu_dm_set_mst_status(&aconnector->mst_status,
+			set_flag, true);
+		amdgpu_dm_set_mst_status(&aconnector->mst_status,
+			clr_flag, false);
+	}
 
 	if (!enable)
 		drm_dp_mst_deallocate_vcpi(mst_mgr, mst_port);

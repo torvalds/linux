@@ -46,6 +46,7 @@
 #include "gem/i915_gem_lmem.h"
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_mcr.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_gt_regs.h"
 #include "gt/uc/intel_guc_capture.h"
@@ -436,7 +437,6 @@ static void err_compression_marker(struct drm_i915_error_state_buf *m)
 static void error_print_instdone(struct drm_i915_error_state_buf *m,
 				 const struct intel_engine_coredump *ee)
 {
-	const struct sseu_dev_info *sseu = &ee->engine->gt->info.sseu;
 	int slice;
 	int subslice;
 	int iter;
@@ -453,33 +453,21 @@ static void error_print_instdone(struct drm_i915_error_state_buf *m,
 	if (GRAPHICS_VER(m->i915) <= 6)
 		return;
 
-	if (GRAPHICS_VER_FULL(m->i915) >= IP_VER(12, 50)) {
-		for_each_instdone_gslice_dss_xehp(m->i915, sseu, iter, slice, subslice)
-			err_printf(m, "  SAMPLER_INSTDONE[%d][%d]: 0x%08x\n",
-				   slice, subslice,
-				   ee->instdone.sampler[slice][subslice]);
+	for_each_ss_steering(iter, ee->engine->gt, slice, subslice)
+		err_printf(m, "  SAMPLER_INSTDONE[%d][%d]: 0x%08x\n",
+			   slice, subslice,
+			   ee->instdone.sampler[slice][subslice]);
 
-		for_each_instdone_gslice_dss_xehp(m->i915, sseu, iter, slice, subslice)
-			err_printf(m, "  ROW_INSTDONE[%d][%d]: 0x%08x\n",
-				   slice, subslice,
-				   ee->instdone.row[slice][subslice]);
-	} else {
-		for_each_instdone_slice_subslice(m->i915, sseu, slice, subslice)
-			err_printf(m, "  SAMPLER_INSTDONE[%d][%d]: 0x%08x\n",
-				   slice, subslice,
-				   ee->instdone.sampler[slice][subslice]);
-
-		for_each_instdone_slice_subslice(m->i915, sseu, slice, subslice)
-			err_printf(m, "  ROW_INSTDONE[%d][%d]: 0x%08x\n",
-				   slice, subslice,
-				   ee->instdone.row[slice][subslice]);
-	}
+	for_each_ss_steering(iter, ee->engine->gt, slice, subslice)
+		err_printf(m, "  ROW_INSTDONE[%d][%d]: 0x%08x\n",
+			   slice, subslice,
+			   ee->instdone.row[slice][subslice]);
 
 	if (GRAPHICS_VER(m->i915) < 12)
 		return;
 
 	if (GRAPHICS_VER_FULL(m->i915) >= IP_VER(12, 55)) {
-		for_each_instdone_gslice_dss_xehp(m->i915, sseu, iter, slice, subslice)
+		for_each_ss_steering(iter, ee->engine->gt, slice, subslice)
 			err_printf(m, "  GEOM_SVGUNIT_INSTDONE[%d][%d]: 0x%08x\n",
 				   slice, subslice,
 				   ee->instdone.geom_svg[slice][subslice]);
@@ -1129,11 +1117,15 @@ i915_vma_coredump_create(const struct intel_gt *gt,
 		dma_addr_t dma;
 
 		for_each_sgt_daddr(dma, iter, vma_res->bi.pages) {
+			dma_addr_t offset = dma - mem->region.start;
 			void __iomem *s;
 
-			s = io_mapping_map_wc(&mem->iomap,
-					      dma - mem->region.start,
-					      PAGE_SIZE);
+			if (offset + PAGE_SIZE > mem->io_size) {
+				ret = -EINVAL;
+				break;
+			}
+
+			s = io_mapping_map_wc(&mem->iomap, offset, PAGE_SIZE);
 			ret = compress_page(compress,
 					    (void __force *)s, dst,
 					    true);

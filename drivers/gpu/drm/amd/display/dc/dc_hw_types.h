@@ -784,6 +784,8 @@ struct dc_crtc_timing {
 
 	uint32_t vic;
 	uint32_t hdmi_vic;
+	uint32_t rid;
+	uint32_t fr_index;
 	enum dc_timing_3d_format timing_3d_format;
 	enum dc_color_depth display_color_depth;
 	enum dc_pixel_encoding pixel_encoding;

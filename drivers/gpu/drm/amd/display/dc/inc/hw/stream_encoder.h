@@ -30,6 +30,7 @@
 
 #include "audio_types.h"
 #include "hw_shared.h"
+#include "dc_link.h"
 
 struct dc_bios;
 struct dc_context;
@@ -251,6 +252,8 @@ struct stream_encoder_funcs {
 
 	void (*set_input_mode)(
 		struct stream_encoder *enc, unsigned int pix_per_container);
+	void (*enable_fifo)(struct stream_encoder *enc);
+	void (*disable_fifo)(struct stream_encoder *enc);
 };
 
 struct hpo_dp_stream_encoder_state {

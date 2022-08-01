@@ -647,26 +647,4 @@ intel_engine_uses_wa_hold_ccs_switchout(struct intel_engine_cs *engine)
 	return engine->flags & I915_ENGINE_USES_WA_HOLD_CCS_SWITCHOUT;
 }
 
-#define instdone_has_slice(dev_priv___, sseu___, slice___) \
-	((GRAPHICS_VER(dev_priv___) == 7 ? 1 : ((sseu___)->slice_mask)) & BIT(slice___))
-
-#define instdone_has_subslice(dev_priv__, sseu__, slice__, subslice__) \
-	(GRAPHICS_VER(dev_priv__) == 7 ? (1 & BIT(subslice__)) : \
-	 intel_sseu_has_subslice(sseu__, 0, subslice__))
-
-#define for_each_instdone_slice_subslice(dev_priv_, sseu_, slice_, subslice_) \
-	for ((slice_) = 0, (subslice_) = 0; (slice_) < I915_MAX_SLICES; \
-	     (subslice_) = ((subslice_) + 1) % I915_MAX_SUBSLICES, \
-	     (slice_) += ((subslice_) == 0)) \
-		for_each_if((instdone_has_slice(dev_priv_, sseu_, slice_)) && \
-			    (instdone_has_subslice(dev_priv_, sseu_, slice_, \
-						    subslice_)))
-
-#define for_each_instdone_gslice_dss_xehp(dev_priv_, sseu_, iter_, gslice_, dss_) \
-	for ((iter_) = 0, (gslice_) = 0, (dss_) = 0; \
-	     (iter_) < GEN_SS_MASK_SIZE; \
-	     (iter_)++, (gslice_) = (iter_) / GEN_DSS_PER_GSLICE, \
-	     (dss_) = (iter_) % GEN_DSS_PER_GSLICE) \
-		for_each_if(intel_sseu_has_subslice((sseu_), 0, (iter_)))
-
 #endif /* __INTEL_ENGINE_TYPES_H__ */

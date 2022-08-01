@@ -47,6 +47,13 @@ void dcn32_cab_for_ss_control(struct dc *dc, bool enable);
 
 void dcn32_commit_subvp_config(struct dc *dc, struct dc_state *context);
 
+bool dcn32_set_mcm_luts(struct pipe_ctx *pipe_ctx,
+				const struct dc_plane_state *plane_state);
+
+bool dcn32_set_input_transfer_func(struct dc *dc,
+				struct pipe_ctx *pipe_ctx,
+				const struct dc_plane_state *plane_state);
+
 bool dcn32_set_output_transfer_func(struct dc *dc,
 				struct pipe_ctx *pipe_ctx,
 				const struct dc_stream_state *stream);
@@ -62,5 +69,19 @@ void dcn32_subvp_update_force_pstate(struct dc *dc, struct dc_state *context);
 void dcn32_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe_ctx);
 
 unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsigned int *k1_div, unsigned int *k2_div);
+
+void dcn32_set_pixels_per_cycle(struct pipe_ctx *pipe_ctx);
+
+void dcn32_subvp_pipe_control_lock(struct dc *dc,
+		struct dc_state *context,
+		bool lock,
+		bool should_lock_all_pipes,
+		struct pipe_ctx *top_pipe_to_program,
+		bool subvp_prev_use);
+
+void dcn32_unblank_stream(struct pipe_ctx *pipe_ctx,
+		struct dc_link_settings *link_settings);
+
+bool dcn32_is_dp_dig_pixel_rate_div_policy(struct pipe_ctx *pipe_ctx);
 
 #endif /* __DC_HWSS_DCN32_H__ */

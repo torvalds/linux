@@ -395,11 +395,11 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 	unsigned long pages_per_block;
 	int r;
 
-	lpfn = place->lpfn << PAGE_SHIFT;
+	lpfn = (u64)place->lpfn << PAGE_SHIFT;
 	if (!lpfn)
 		lpfn = man->size;
 
-	fpfn = place->fpfn << PAGE_SHIFT;
+	fpfn = (u64)place->fpfn << PAGE_SHIFT;
 
 	max_bytes = adev->gmc.mc_vram_size;
 	if (tbo->type != ttm_bo_type_kernel)
@@ -439,12 +439,12 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 		/* Allocate blocks in desired range */
 		vres->flags |= DRM_BUDDY_RANGE_ALLOCATION;
 
-	remaining_size = vres->base.num_pages << PAGE_SHIFT;
+	remaining_size = (u64)vres->base.num_pages << PAGE_SHIFT;
 
 	mutex_lock(&mgr->lock);
 	while (remaining_size) {
 		if (tbo->page_alignment)
-			min_block_size = tbo->page_alignment << PAGE_SHIFT;
+			min_block_size = (u64)tbo->page_alignment << PAGE_SHIFT;
 		else
 			min_block_size = mgr->default_page_size;
 
@@ -453,12 +453,12 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 		/* Limit maximum size to 2GiB due to SG table limitations */
 		size = min(remaining_size, 2ULL << 30);
 
-		if (size >= pages_per_block << PAGE_SHIFT)
-			min_block_size = pages_per_block << PAGE_SHIFT;
+		if (size >= (u64)pages_per_block << PAGE_SHIFT)
+			min_block_size = (u64)pages_per_block << PAGE_SHIFT;
 
 		cur_size = size;
 
-		if (fpfn + size != place->lpfn << PAGE_SHIFT) {
+		if (fpfn + size != (u64)place->lpfn << PAGE_SHIFT) {
 			/*
 			 * Except for actual range allocation, modify the size and
 			 * min_block_size conforming to continuous flag enablement
@@ -498,7 +498,7 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 		LIST_HEAD(temp);
 
 		trim_list = &vres->blocks;
-		original_size = vres->base.num_pages << PAGE_SHIFT;
+		original_size = (u64)vres->base.num_pages << PAGE_SHIFT;
 
 		/*
 		 * If size value is rounded up to min_block_size, trim the last

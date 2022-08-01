@@ -83,6 +83,7 @@ struct amdgpu_mes {
 	uint64_t                        default_gang_quantum;
 
 	struct amdgpu_ring              ring;
+	spinlock_t                      ring_lock;
 
 	const struct firmware           *fw[AMDGPU_MAX_MES_PIPES];
 
@@ -112,7 +113,7 @@ struct amdgpu_mes {
 	uint32_t                        compute_hqd_mask[AMDGPU_MES_MAX_COMPUTE_PIPES];
 	uint32_t                        gfx_hqd_mask[AMDGPU_MES_MAX_GFX_PIPES];
 	uint32_t                        sdma_hqd_mask[AMDGPU_MES_MAX_SDMA_PIPES];
-	uint32_t                        agreegated_doorbells[AMDGPU_MES_PRIORITY_NUM_LEVELS];
+	uint32_t                        aggregated_doorbells[AMDGPU_MES_PRIORITY_NUM_LEVELS];
 	uint32_t                        sch_ctx_offs;
 	uint64_t			sch_ctx_gpu_addr;
 	uint64_t			*sch_ctx_ptr;
@@ -346,12 +347,17 @@ int amdgpu_mes_add_ring(struct amdgpu_device *adev, int gang_id,
 void amdgpu_mes_remove_ring(struct amdgpu_device *adev,
 			    struct amdgpu_ring *ring);
 
+uint32_t amdgpu_mes_get_aggregated_doorbell_index(struct amdgpu_device *adev,
+						   enum amdgpu_mes_priority_level prio);
+
 int amdgpu_mes_ctx_alloc_meta_data(struct amdgpu_device *adev,
 				   struct amdgpu_mes_ctx_data *ctx_data);
 void amdgpu_mes_ctx_free_meta_data(struct amdgpu_mes_ctx_data *ctx_data);
 int amdgpu_mes_ctx_map_meta_data(struct amdgpu_device *adev,
 				 struct amdgpu_vm *vm,
 				 struct amdgpu_mes_ctx_data *ctx_data);
+int amdgpu_mes_ctx_unmap_meta_data(struct amdgpu_device *adev,
+				   struct amdgpu_mes_ctx_data *ctx_data);
 
 int amdgpu_mes_self_test(struct amdgpu_device *adev);
 

@@ -153,6 +153,8 @@ struct hwseq_private_funcs {
 	unsigned int (*calculate_dccg_k1_k2_values)(struct pipe_ctx *pipe_ctx,
 			unsigned int *k1_div,
 			unsigned int *k2_div);
+	void (*set_pixels_per_cycle)(struct pipe_ctx *pipe_ctx);
+	bool (*is_dp_dig_pixel_rate_div_policy)(struct pipe_ctx *pipe_ctx);
 #endif
 };
 

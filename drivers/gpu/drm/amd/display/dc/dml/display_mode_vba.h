@@ -67,6 +67,10 @@ dml_get_attr_decl(min_pixel_chunk_size_in_byte);
 dml_get_attr_decl(min_meta_chunk_size_in_byte);
 dml_get_attr_decl(fclk_watermark);
 dml_get_attr_decl(usr_retraining_watermark);
+dml_get_attr_decl(comp_buffer_reserved_space_kbytes);
+dml_get_attr_decl(comp_buffer_reserved_space_64bytes);
+dml_get_attr_decl(comp_buffer_reserved_space_zs);
+dml_get_attr_decl(unbounded_request_enabled);
 
 #define dml_get_pipe_attr_decl(attr) double get_##attr(struct display_mode_lib *mode_lib, const display_e2e_pipe_params_st *pipes, unsigned int num_pipes, unsigned int which_pipe)
 
@@ -161,7 +165,6 @@ unsigned int get_total_surface_size_in_mall_bytes(
 		struct display_mode_lib *mode_lib,
 		const display_e2e_pipe_params_st *pipes,
 		unsigned int num_pipes);
-unsigned int get_pipe_idx(struct display_mode_lib *mode_lib, unsigned int plane_idx);
 
 bool get_is_phantom_pipe(struct display_mode_lib *mode_lib,
 		const display_e2e_pipe_params_st *pipes,
@@ -169,7 +172,7 @@ bool get_is_phantom_pipe(struct display_mode_lib *mode_lib,
 		unsigned int pipe_idx);
 void PixelClockAdjustmentForProgressiveToInterlaceUnit(struct display_mode_lib *mode_lib);
 
-bool Calculate256BBlockSizes(
+void Calculate256BBlockSizes(
 		enum source_format_class SourcePixelFormat,
 		enum dm_swizzle_mode SurfaceTiling,
 		unsigned int BytePerPixelY,
@@ -178,6 +181,108 @@ bool Calculate256BBlockSizes(
 		unsigned int *BlockHeight256BytesC,
 		unsigned int *BlockWidth256BytesY,
 		unsigned int *BlockWidth256BytesC);
+
+struct dml32_CalculateSwathAndDETConfiguration {
+	unsigned int MaximumSwathHeightY[DC__NUM_DPP__MAX];
+	unsigned int MaximumSwathHeightC[DC__NUM_DPP__MAX];
+	unsigned int RoundedUpMaxSwathSizeBytesY[DC__NUM_DPP__MAX];
+	unsigned int RoundedUpMaxSwathSizeBytesC[DC__NUM_DPP__MAX];
+	unsigned int RoundedUpSwathSizeBytesY;
+	unsigned int RoundedUpSwathSizeBytesC;
+	double SwathWidthdoubleDPP[DC__NUM_DPP__MAX];
+	double SwathWidthdoubleDPPChroma[DC__NUM_DPP__MAX];
+	unsigned int TotalActiveDPP;
+	bool NoChromaSurfaces;
+	unsigned int DETBufferSizeInKByteForSwathCalculation;
+};
+
+struct dml32_CalculateVMRowAndSwath {
+	unsigned int PTEBufferSizeInRequestsForLuma[DC__NUM_DPP__MAX];
+	unsigned int PTEBufferSizeInRequestsForChroma[DC__NUM_DPP__MAX];
+	unsigned int PDEAndMetaPTEBytesFrameY;
+	unsigned int PDEAndMetaPTEBytesFrameC;
+	unsigned int MetaRowByteY[DC__NUM_DPP__MAX];
+	unsigned int MetaRowByteC[DC__NUM_DPP__MAX];
+	unsigned int PixelPTEBytesPerRowY[DC__NUM_DPP__MAX];
+	unsigned int PixelPTEBytesPerRowC[DC__NUM_DPP__MAX];
+	unsigned int PixelPTEBytesPerRowY_one_row_per_frame[DC__NUM_DPP__MAX];
+	unsigned int PixelPTEBytesPerRowC_one_row_per_frame[DC__NUM_DPP__MAX];
+	unsigned int dpte_row_width_luma_ub_one_row_per_frame[DC__NUM_DPP__MAX];
+	unsigned int dpte_row_height_luma_one_row_per_frame[DC__NUM_DPP__MAX];
+	unsigned int dpte_row_width_chroma_ub_one_row_per_frame[DC__NUM_DPP__MAX];
+	unsigned int dpte_row_height_chroma_one_row_per_frame[DC__NUM_DPP__MAX];
+	bool one_row_per_frame_fits_in_buffer[DC__NUM_DPP__MAX];
+};
+
+struct dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport {
+	unsigned int SurfaceWithMinActiveFCLKChangeMargin;
+	unsigned int DRAMClockChangeSupportNumber;
+	unsigned int LastSurfaceWithoutMargin;
+	unsigned int DRAMClockChangeMethod;
+	bool FoundFirstSurfaceWithMinActiveFCLKChangeMargin;
+	double MinActiveFCLKChangeMargin;
+	double SecondMinActiveFCLKChangeMarginOneDisplayInVBLank;
+	double ActiveClockChangeLatencyHidingY;
+	double ActiveClockChangeLatencyHidingC;
+	double ActiveClockChangeLatencyHiding;
+	double EffectiveDETBufferSizeY;
+	double ActiveFCLKChangeLatencyMargin[DC__NUM_DPP__MAX];
+	double USRRetrainingLatencyMargin[DC__NUM_DPP__MAX];
+	double TotalPixelBW;
+	bool SynchronizedSurfaces[DC__NUM_DPP__MAX][DC__NUM_DPP__MAX];
+	double EffectiveLBLatencyHidingY;
+	double EffectiveLBLatencyHidingC;
+	double LinesInDETY[DC__NUM_DPP__MAX];
+	double LinesInDETC[DC__NUM_DPP__MAX];
+	unsigned int LinesInDETYRoundedDownToSwath[DC__NUM_DPP__MAX];
+	unsigned int LinesInDETCRoundedDownToSwath[DC__NUM_DPP__MAX];
+	double FullDETBufferingTimeY;
+	double FullDETBufferingTimeC;
+	double WritebackDRAMClockChangeLatencyMargin;
+	double WritebackFCLKChangeLatencyMargin;
+	double WritebackLatencyHiding;
+	bool SameTimingForFCLKChange;
+	unsigned int TotalActiveWriteback;
+	unsigned int LBLatencyHidingSourceLinesY[DC__NUM_DPP__MAX];
+	unsigned int LBLatencyHidingSourceLinesC[DC__NUM_DPP__MAX];
+};
+
+struct dml32_CalculatePrefetchSchedule {
+	unsigned int DPPCycles, DISPCLKCycles;
+	double DSTTotalPixelsAfterScaler;
+	double LineTime;
+	double dst_y_prefetch_equ;
+	double prefetch_bw_oto;
+	double Tvm_oto;
+	double Tr0_oto;
+	double Tvm_oto_lines;
+	double Tr0_oto_lines;
+	double dst_y_prefetch_oto;
+	double TimeForFetchingMetaPTE;
+	double TimeForFetchingRowInVBlank;
+	double LinesToRequestPrefetchPixelData;
+	unsigned int HostVMDynamicLevelsTrips;
+	double trip_to_mem;
+	double Tvm_trips;
+	double Tr0_trips;
+	double Tvm_trips_rounded;
+	double Tr0_trips_rounded;
+	double Lsw_oto;
+	double Tpre_rounded;
+	double prefetch_bw_equ;
+	double Tvm_equ;
+	double Tr0_equ;
+	double Tdmbf;
+	double Tdmec;
+	double Tdmsks;
+	double prefetch_sw_bytes;
+	double bytes_pp;
+	double dep_bytes;
+	unsigned int max_vratio_pre;
+	double min_Lsw;
+	double Tsw_est1;
+	double Tsw_est3;
+};
 
 struct DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation {
 	unsigned int dummy_integer_array[2][DC__NUM_DPP__MAX];
@@ -193,6 +298,13 @@ struct DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCal
 	unsigned int ReorderBytes;
 	unsigned int VMDataOnlyReturnBW;
 	double HostVMInefficiencyFactor;
+	DmlPipe myPipe;
+	SOCParametersList mmSOCParameters;
+	double dummy_unit_vector[DC__NUM_DPP__MAX];
+	double dummy_single[2];
+	enum clock_change_support dummy_dramchange_support;
+	enum dm_fclock_change_support dummy_fclkchange_support;
+	bool dummy_USRRetrainingSupport;
 };
 
 struct dml32_ModeSupportAndSystemConfigurationFull {
@@ -208,12 +320,45 @@ struct dml32_ModeSupportAndSystemConfigurationFull {
 	double DSTXAfterScaler[DC__NUM_DPP__MAX];
 	double MaxTotalVActiveRDBandwidth;
 	bool dummy_boolean_array[2][DC__NUM_DPP__MAX];
+	enum odm_combine_mode dummy_odm_mode[DC__NUM_DPP__MAX];
+	DmlPipe myPipe;
+	unsigned int dummy_integer[4];
+	unsigned int TotalNumberOfActiveOTG;
+	unsigned int TotalNumberOfActiveHDMIFRL;
+	unsigned int TotalNumberOfActiveDP2p0;
+	unsigned int TotalNumberOfActiveDP2p0Outputs;
+	unsigned int TotalDSCUnitsRequired;
+	unsigned int ReorderingBytes;
+	unsigned int TotalSlots;
+	unsigned int NumberOfDPPDSC;
+	unsigned int NumberOfDPPNoDSC;
+	unsigned int NextPrefetchModeState;
+	bool MPCCombineMethodAsNeededForPStateChangeAndVoltage;
+	bool MPCCombineMethodAsPossible;
+	bool FullFrameMALLPStateMethod;
+	bool SubViewportMALLPStateMethod;
+	bool PhantomPipeMALLPStateMethod;
+	bool NoChroma;
+	bool TotalAvailablePipesSupportNoDSC;
+	bool TotalAvailablePipesSupportDSC;
+	enum odm_combine_mode ODMModeNoDSC;
+	enum odm_combine_mode ODMModeDSC;
+	double RequiredDISPCLKPerSurfaceNoDSC;
+	double RequiredDISPCLKPerSurfaceDSC;
+	double BWOfNonCombinedSurfaceOfMaximumBandwidth;
+	double VMDataOnlyReturnBWPerState;
+	double HostVMInefficiencyFactor;
+	bool dummy_boolean[2];
 };
 
 struct dummy_vars {
 	struct DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation
 	DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation;
 	struct dml32_ModeSupportAndSystemConfigurationFull dml32_ModeSupportAndSystemConfigurationFull;
+	struct dml32_CalculateSwathAndDETConfiguration dml32_CalculateSwathAndDETConfiguration;
+	struct dml32_CalculateVMRowAndSwath dml32_CalculateVMRowAndSwath;
+	struct dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport;
+	struct dml32_CalculatePrefetchSchedule dml32_CalculatePrefetchSchedule;
 };
 
 struct vba_vars_st {
@@ -232,7 +377,6 @@ struct vba_vars_st {
 	double DISPCLKWithRampingRoundedToDFSGranularity;
 	double DISPCLKWithoutRampingRoundedToDFSGranularity;
 	double MaxDispclkRoundedToDFSGranularity;
-	double MaxDppclkRoundedToDFSGranularity;
 	bool DCCEnabledAnyPlane;
 	double ReturnBandwidthToDCN;
 	unsigned int TotalActiveDPP;
@@ -249,7 +393,6 @@ struct vba_vars_st {
 	double VBlankTime;
 	double SmallestVBlank;
 	enum dm_prefetch_modes AllowForPStateChangeOrStutterInVBlankFinal; // Mode Support only
-	double DCFCLKDeepSleepPerSurface[DC__NUM_DPP__MAX];
 	double DCFCLKDeepSleepPerPlane[DC__NUM_DPP__MAX];
 	double EffectiveDETPlusLBLinesLuma;
 	double EffectiveDETPlusLBLinesChroma;
@@ -297,7 +440,6 @@ struct vba_vars_st {
 	double SMNLatency;
 	double FCLKChangeLatency;
 	unsigned int MALLAllocatedForDCNFinal;
-	double DefaultGPUVMMinPageSizeKBytes; // Default for the project
 	double MaxAveragePercentOfIdealFabricBWDisplayCanUseInNormalSystemOperation;
 	double MaxAveragePercentOfIdealDRAMBWDisplayCanUseInNormalSystemOperationSTROBE;
 	double PercentOfIdealDRAMBWReceivedAfterUrgLatencySTROBE;
@@ -470,6 +612,7 @@ struct vba_vars_st {
 	bool XFCEnabled[DC__NUM_DPP__MAX];
 	bool ScalerEnabled[DC__NUM_DPP__MAX];
 	unsigned int VBlankNom[DC__NUM_DPP__MAX];
+	bool DisableUnboundRequestIfCompBufReservedSpaceNeedAdjustment;
 
 	// Intermediates/Informational
 	bool ImmediateFlipSupport;
@@ -513,6 +656,10 @@ struct vba_vars_st {
 	double StutterPeriodBestCase;
 	Watermarks      Watermark;
 	bool DCHUBBUB_ARB_CSTATE_MAX_CAP_MODE;
+	unsigned int CompBufReservedSpaceKBytes;
+	unsigned int CompBufReservedSpace64B;
+	unsigned int CompBufReservedSpaceZs;
+	bool CompBufReservedSpaceNeedAdjustment;
 
 	// These are the clocks calcuated by the library but they are not actually
 	// used explicitly. They are fetched by tests and then possibly used. The
@@ -819,8 +966,6 @@ struct vba_vars_st {
 	double         dummy8[DC__NUM_DPP__MAX];
 	double         dummy13[DC__NUM_DPP__MAX];
 	double         dummy_double_array[2][DC__NUM_DPP__MAX];
-	unsigned int        dummyinteger1ms[DC__NUM_DPP__MAX];
-	double        dummyinteger2ms[DC__NUM_DPP__MAX];
 	unsigned int        dummyinteger3[DC__NUM_DPP__MAX];
 	unsigned int        dummyinteger4[DC__NUM_DPP__MAX];
 	unsigned int        dummyinteger5;
@@ -830,16 +975,7 @@ struct vba_vars_st {
 	unsigned int        dummyinteger9;
 	unsigned int        dummyinteger10;
 	unsigned int        dummyinteger11;
-	unsigned int        dummyinteger12;
-	unsigned int        dummyinteger30;
-	unsigned int        dummyinteger31;
-	unsigned int        dummyinteger32;
-	unsigned int        dummyintegerarr1[DC__NUM_DPP__MAX];
-	unsigned int        dummyintegerarr2[DC__NUM_DPP__MAX];
-	unsigned int        dummyintegerarr3[DC__NUM_DPP__MAX];
-	unsigned int        dummyintegerarr4[DC__NUM_DPP__MAX];
 	unsigned int        dummy_integer_array[8][DC__NUM_DPP__MAX];
-	unsigned int        dummy_integer_array22[22][DC__NUM_DPP__MAX];
 
 	bool           dummysinglestring;
 	bool           SingleDPPViewportSizeSupportPerPlane[DC__NUM_DPP__MAX];
@@ -980,7 +1116,6 @@ struct vba_vars_st {
 	double TimePerChromaMetaChunkFlip[DC__NUM_DPP__MAX];
 	unsigned int DCCCMaxUncompressedBlock[DC__NUM_DPP__MAX];
 	unsigned int DCCCMaxCompressedBlock[DC__NUM_DPP__MAX];
-	unsigned int DCCCIndependent64ByteBlock[DC__NUM_DPP__MAX];
 	double VStartupMargin;
 	bool NotEnoughTimeForDynamicMetadata[DC__NUM_DPP__MAX];
 
@@ -1085,8 +1220,6 @@ struct vba_vars_st {
 	double WritebackDelayTime[DC__NUM_DPP__MAX];
 	unsigned int DCCYIndependentBlock[DC__NUM_DPP__MAX];
 	unsigned int DCCCIndependentBlock[DC__NUM_DPP__MAX];
-	unsigned int dummyinteger15;
-	unsigned int dummyinteger16;
 	unsigned int dummyinteger17;
 	unsigned int dummyinteger18;
 	unsigned int dummyinteger19;
@@ -1147,17 +1280,11 @@ struct vba_vars_st {
 	int Z8NumberOfStutterBurstsPerFrame;
 	unsigned int MaximumDSCBitsPerComponent;
 	unsigned int NotEnoughUrgentLatencyHidingA[DC__VOLTAGE_STATES][2];
-	double UrgentLatencyWithUSRRetraining;
-	double UrgLatencyWithUSRRetraining[DC__VOLTAGE_STATES];
 	double ReadBandwidthSurfaceLuma[DC__NUM_DPP__MAX];
 	double ReadBandwidthSurfaceChroma[DC__NUM_DPP__MAX];
 	double SurfaceRequiredDISPCLKWithoutODMCombine;
 	double SurfaceRequiredDISPCLK;
-	double SurfaceRequiredDISPCLKWithODMCombine2To1;
-	double SurfaceRequiredDISPCLKWithODMCombine4To1;
 	double MinActiveFCLKChangeLatencySupported;
-	double dummy14;
-	double dummy15;
 	int MinVoltageLevel;
 	int MaxVoltageLevel;
 	unsigned int TotalNumberOfSingleDPPSurfaces[DC__VOLTAGE_STATES][2];
@@ -1168,17 +1295,10 @@ struct vba_vars_st {
 	bool ExceededMALLSize;
 	bool PTE_BUFFER_MODE[DC__NUM_DPP__MAX];
 	unsigned int BIGK_FRAGMENT_SIZE[DC__NUM_DPP__MAX];
-	unsigned int dummyinteger33;
 	unsigned int CompressedBufferSizeInkByteThisState;
 	enum dm_fclock_change_support FCLKChangeSupport[DC__VOLTAGE_STATES][2];
-	Latencies myLatency;
-	Latencies mLatency;
-	Watermarks DummyWatermark;
 	bool USRRetrainingSupport[DC__VOLTAGE_STATES][2];
-	bool dummyBooleanvector1[DC__NUM_DPP__MAX];
-	bool dummyBooleanvector2[DC__NUM_DPP__MAX];
 	enum dm_use_mall_for_pstate_change_mode UsesMALLForPStateChange[DC__NUM_DPP__MAX];
-	bool NotEnoughUrgentLatencyHiding_dml32[DC__VOLTAGE_STATES][2];
 	bool UnboundedRequestEnabledAllStates[DC__VOLTAGE_STATES][2];
 	bool SingleDPPViewportSizeSupportPerSurface[DC__NUM_DPP__MAX];
 	enum dm_use_mall_for_static_screen_mode UseMALLForStaticScreen[DC__NUM_DPP__MAX];
@@ -1186,9 +1306,6 @@ struct vba_vars_st {
 	bool DRAMClockChangeRequirementFinal;
 	bool FCLKChangeRequirementFinal;
 	bool USRRetrainingRequiredFinal;
-	bool MALLUseFinal;
-	bool ConfigurableDETSizeEnFinal;
-	bool dummyboolean;
 	unsigned int DETSizeOverride[DC__NUM_DPP__MAX];
 	unsigned int nomDETInKByte;
 	enum mpc_combine_affinity  MPCCombineUse[DC__NUM_DPP__MAX];

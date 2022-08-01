@@ -5,8 +5,6 @@
 #include "atom.h"
 #include "lut.h"
 
-#include <nvif/notify.h>
-
 struct nv50_wndw_ctxdma {
 	struct list_head head;
 	struct nvif_object object;
@@ -30,7 +28,6 @@ struct nv50_wndw {
 	struct nv50_dmac wndw;
 	struct nv50_dmac wimm;
 
-	struct nvif_notify notify;
 	u16 ntfy;
 	u16 sema;
 	u32 data;
