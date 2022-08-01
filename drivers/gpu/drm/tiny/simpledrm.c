@@ -217,7 +217,6 @@ struct simpledrm_device {
 	unsigned int pitch;
 
 	/* memory management */
-	struct resource *mem;
 	void __iomem *screen_base;
 
 	/* modesetting */
@@ -558,7 +557,6 @@ static int simpledrm_device_init_mm(struct simpledrm_device *sdev)
 	if (!screen_base)
 		return -ENOMEM;
 
-	sdev->mem = mem;
 	sdev->screen_base = screen_base;
 
 	return 0;
