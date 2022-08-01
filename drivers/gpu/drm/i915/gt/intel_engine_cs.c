@@ -1282,10 +1282,10 @@ static int __intel_engine_stop_cs(struct intel_engine_cs *engine,
 	intel_uncore_write_fw(uncore, mode, _MASKED_BIT_ENABLE(STOP_RING));
 
 	/*
-	 * Wa_22011802037 : gen12, Prior to doing a reset, ensure CS is
+	 * Wa_22011802037 : gen11, gen12, Prior to doing a reset, ensure CS is
 	 * stopped, set ring stop bit and prefetch disable bit to halt CS
 	 */
-	if (GRAPHICS_VER(engine->i915) == 12)
+	if (IS_GRAPHICS_VER(engine->i915, 11, 12))
 		intel_uncore_write_fw(uncore, RING_MODE_GEN7(engine->mmio_base),
 				      _MASKED_BIT_ENABLE(GEN12_GFX_PREFETCH_DISABLE));
 
@@ -1308,6 +1308,18 @@ int intel_engine_stop_cs(struct intel_engine_cs *engine)
 		return -ENODEV;
 
 	ENGINE_TRACE(engine, "\n");
+	/*
+	 * TODO: Find out why occasionally stopping the CS times out. Seen
+	 * especially with gem_eio tests.
+	 *
+	 * Occasionally trying to stop the cs times out, but does not adversely
+	 * affect functionality. The timeout is set as a config parameter that
+	 * defaults to 100ms. In most cases the follow up operation is to wait
+	 * for pending MI_FORCE_WAKES. The assumption is that this timeout is
+	 * sufficient for any pending MI_FORCEWAKEs to complete. Once root
+	 * caused, the caller must check and handle the return from this
+	 * function.
+	 */
 	if (__intel_engine_stop_cs(engine, 1000, stop_timeout(engine))) {
 		ENGINE_TRACE(engine,
 			     "timed out on STOP_RING -> IDLE; HEAD:%04x, TAIL:%04x\n",
@@ -1332,6 +1344,78 @@ void intel_engine_cancel_stop_cs(struct intel_engine_cs *engine)
 	ENGINE_TRACE(engine, "\n");
 
 	ENGINE_WRITE_FW(engine, RING_MI_MODE, _MASKED_BIT_DISABLE(STOP_RING));
+}
+
+static u32 __cs_pending_mi_force_wakes(struct intel_engine_cs *engine)
+{
+	static const i915_reg_t _reg[I915_NUM_ENGINES] = {
+		[RCS0] = MSG_IDLE_CS,
+		[BCS0] = MSG_IDLE_BCS,
+		[VCS0] = MSG_IDLE_VCS0,
+		[VCS1] = MSG_IDLE_VCS1,
+		[VCS2] = MSG_IDLE_VCS2,
+		[VCS3] = MSG_IDLE_VCS3,
+		[VCS4] = MSG_IDLE_VCS4,
+		[VCS5] = MSG_IDLE_VCS5,
+		[VCS6] = MSG_IDLE_VCS6,
+		[VCS7] = MSG_IDLE_VCS7,
+		[VECS0] = MSG_IDLE_VECS0,
+		[VECS1] = MSG_IDLE_VECS1,
+		[VECS2] = MSG_IDLE_VECS2,
+		[VECS3] = MSG_IDLE_VECS3,
+		[CCS0] = MSG_IDLE_CS,
+		[CCS1] = MSG_IDLE_CS,
+		[CCS2] = MSG_IDLE_CS,
+		[CCS3] = MSG_IDLE_CS,
+	};
+	u32 val;
+
+	if (!_reg[engine->id].reg) {
+		drm_err(&engine->i915->drm,
+			"MSG IDLE undefined for engine id %u\n", engine->id);
+		return 0;
+	}
+
+	val = intel_uncore_read(engine->uncore, _reg[engine->id]);
+
+	/* bits[29:25] & bits[13:9] >> shift */
+	return (val & (val >> 16) & MSG_IDLE_FW_MASK) >> MSG_IDLE_FW_SHIFT;
+}
+
+static void __gpm_wait_for_fw_complete(struct intel_gt *gt, u32 fw_mask)
+{
+	int ret;
+
+	/* Ensure GPM receives fw up/down after CS is stopped */
+	udelay(1);
+
+	/* Wait for forcewake request to complete in GPM */
+	ret =  __intel_wait_for_register_fw(gt->uncore,
+					    GEN9_PWRGT_DOMAIN_STATUS,
+					    fw_mask, fw_mask, 5000, 0, NULL);
+
+	/* Ensure CS receives fw ack from GPM */
+	udelay(1);
+
+	if (ret)
+		GT_TRACE(gt, "Failed to complete pending forcewake %d\n", ret);
+}
+
+/*
+ * Wa_22011802037:gen12: In addition to stopping the cs, we need to wait for any
+ * pending MI_FORCE_WAKEUP requests that the CS has initiated to complete. The
+ * pending status is indicated by bits[13:9] (masked by bits[29:25]) in the
+ * MSG_IDLE register. There's one MSG_IDLE register per reset domain. Since we
+ * are concerned only with the gt reset here, we use a logical OR of pending
+ * forcewakeups from all reset domains and then wait for them to complete by
+ * querying PWRGT_DOMAIN_STATUS.
+ */
+void intel_engine_wait_for_pending_mi_fw(struct intel_engine_cs *engine)
+{
+	u32 fw_pending = __cs_pending_mi_force_wakes(engine);
+
+	if (fw_pending)
+		__gpm_wait_for_fw_complete(engine->gt, fw_pending);
 }
 
 static u32

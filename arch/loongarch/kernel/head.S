@@ -32,7 +32,7 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	/* We might not get launched at the address the kernel is linked to,
 	   so we jump there.  */
 	la.abs		t0, 0f
-	jirl		zero, t0, 0
+	jr		t0
 0:
 	la		t0, __bss_start		# clear .bss
 	st.d		zero, t0, 0
@@ -50,7 +50,7 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	/* KSave3 used for percpu base, initialized as 0 */
 	csrwr		zero, PERCPU_BASE_KS
 	/* GPR21 used for percpu base (runtime), initialized as 0 */
-	or		u0, zero, zero
+	move		u0, zero
 
 	la		tp, init_thread_union
 	/* Set the SP after an empty pt_regs.  */
@@ -85,8 +85,8 @@ SYM_CODE_START(smpboot_entry)
 	ld.d		sp, t0, CPU_BOOT_STACK
 	ld.d		tp, t0, CPU_BOOT_TINFO
 
-	la.abs	t0, 0f
-	jirl	zero, t0, 0
+	la.abs		t0, 0f
+	jr		t0
 0:
 	bl		start_secondary
 SYM_CODE_END(smpboot_entry)
