@@ -784,7 +784,7 @@ static ssize_t id_show(struct device *dev,
 		       struct device_attribute *attr, char *buf)
 {
 	struct snd_card *card = container_of(dev, struct snd_card, card_dev);
-	return scnprintf(buf, PAGE_SIZE, "%s\n", card->id);
+	return sysfs_emit(buf, "%s\n", card->id);
 }
 
 static ssize_t id_store(struct device *dev, struct device_attribute *attr,
@@ -822,7 +822,7 @@ static ssize_t number_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
 	struct snd_card *card = container_of(dev, struct snd_card, card_dev);
-	return scnprintf(buf, PAGE_SIZE, "%i\n", card->number);
+	return sysfs_emit(buf, "%i\n", card->number);
 }
 
 static DEVICE_ATTR_RO(number);
