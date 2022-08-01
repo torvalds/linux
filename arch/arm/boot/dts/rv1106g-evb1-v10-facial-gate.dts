@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1106g-evb1-v10.dts"
+#include "rv1106-evb-ext-rgb-v10.dtsi"
+
+/ {
+	model = "Rockchip RV1106G EVB1 V10 Board For Facial Gate";
+	compatible = "rockchip,rv1106g-evb1-v10-facial-gate", "rockchip,rv1106";
+};
