@@ -367,3 +367,23 @@
 		/*AC0 - AC7*/   "", "", "", "", "", "", "", "";
 };
 
+&i3c0 {
+	status = "disabled";
+};
+
+&i3c1 {
+	status = "okay";
+
+	/delete-property/ jdec-spd;
+	/delete-node/ imx3102_1;
+	/delete-node/ spd5118_1_0;
+	/delete-node/ spd5118_1_1;
+};
+
+&i3c2 {
+	status = "disabled";
+};
+
+&i3c3 {
+	status = "disabled";
+};
