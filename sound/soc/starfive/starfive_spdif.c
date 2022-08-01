@@ -138,6 +138,7 @@ static int sf_spdif_hw_params(struct snd_pcm_substream *substream,
 	unsigned int format;
 	unsigned int tsamplerate;
 	unsigned int mclk;
+	unsigned int audio_root;
 	int ret;
 
 	channels = params_channels(params);
@@ -173,6 +174,7 @@ static int sf_spdif_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	audio_root = 204800000;
 	switch (rate) {
 	case 8000:
 		mclk = 4096000;
@@ -184,6 +186,7 @@ static int sf_spdif_hw_params(struct snd_pcm_substream *substream,
 		mclk = 8192000;
 		break;
 	case 22050:
+		audio_root = 153600000;
 		mclk = 11289600;
 		break;
 	default:
@@ -191,13 +194,22 @@ static int sf_spdif_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	ret = clk_set_rate(spdif->audio_root, audio_root);
+	if (ret) {
+		dev_err(dai->dev, "failed to set audio_root rate :%d\n", ret);
+		return ret;
+	}
+	dev_dbg(dai->dev, "audio_root get rate:%ld\n",
+			clk_get_rate(spdif->audio_root));
+
 	ret = clk_set_rate(spdif->mclk_inner, mclk);
 	if (ret) {
-		dev_err(dai->dev, "failed to set rate for spdif mclk_inner ret=%d\n", ret);
+		dev_err(dai->dev, "failed to set mclk_inner rate :%d\n", ret);
 		return ret;
 	}
 
 	mclk = clk_get_rate(spdif->mclk_inner);
+	dev_dbg(dai->dev, "mclk_inner get rate:%d\n", mclk);
 	/* (FCLK)4096000/128=32000 */
 	tsamplerate = (mclk / 128 + rate / 2) / rate - 1;
 	if (tsamplerate < 3)
