@@ -105,6 +105,13 @@ struct vring_virtqueue_split {
 	/* DMA address and size information */
 	dma_addr_t queue_dma_addr;
 	size_t queue_size_in_bytes;
+
+	/*
+	 * The parameters for creating vrings are reserved for creating new
+	 * vring.
+	 */
+	u32 vring_align;
+	bool may_reduce_num;
 };
 
 struct vring_virtqueue_packed {
@@ -1067,6 +1074,9 @@ static int vring_alloc_queue_split(struct vring_virtqueue_split *vring_split,
 
 	vring_split->queue_dma_addr = dma_addr;
 	vring_split->queue_size_in_bytes = vring_size(num, vring_align);
+
+	vring_split->vring_align = vring_align;
+	vring_split->may_reduce_num = may_reduce_num;
 
 	return 0;
 }
