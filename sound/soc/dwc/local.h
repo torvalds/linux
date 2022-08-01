@@ -100,6 +100,9 @@ enum {
 	CLK_ADC_LRCLK,
 	CLK_ADC_RX_BCLK,
 	CLK_ADC_RX_LRCK,
+	CLK_ADC_MCLK,
+	CLK_ADC_BCLK_EXT,
+	CLK_ADC_LRCK_EXT,
 	CLK_AUDIO_NUM,
 };
 
@@ -146,6 +149,8 @@ struct dw_i2s_dev {
 	struct clk *clks_mclk_out;
 	struct clk *clks_apb0;
 	struct clk *clks_4ch_apb;
+	struct clk *clks_dac_bclk;
+	struct clk *clks_dac_lrck;
 	struct reset_control *rstc_rx;
 	struct reset_control *rstc_ch0;
 	struct reset_control *rstc_ch1;
