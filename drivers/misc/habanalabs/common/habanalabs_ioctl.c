@@ -662,6 +662,55 @@ static int dev_mem_alloc_page_sizes_info(struct hl_fpriv *hpriv, struct hl_info_
 	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
 }
 
+static int sec_attest_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	struct cpucp_sec_attest_info *sec_attest_info;
+	struct hl_info_sec_attest *info;
+	u32 max_size = args->return_size;
+	int rc;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	sec_attest_info = kmalloc(sizeof(*sec_attest_info), GFP_KERNEL);
+	if (!sec_attest_info)
+		return -ENOMEM;
+
+	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	if (!info) {
+		rc = -ENOMEM;
+		goto free_sec_attest_info;
+	}
+
+	rc = hl_fw_get_sec_attest_info(hpriv->hdev, sec_attest_info, args->sec_attest_nonce);
+	if (rc)
+		goto free_info;
+
+	info->nonce = le32_to_cpu(sec_attest_info->nonce);
+	info->pcr_quote_len = le16_to_cpu(sec_attest_info->pcr_quote_len);
+	info->pub_data_len = le16_to_cpu(sec_attest_info->pub_data_len);
+	info->certificate_len = le16_to_cpu(sec_attest_info->certificate_len);
+	info->pcr_num_reg = sec_attest_info->pcr_num_reg;
+	info->pcr_reg_len = sec_attest_info->pcr_reg_len;
+	info->quote_sig_len = sec_attest_info->quote_sig_len;
+	memcpy(&info->pcr_data, &sec_attest_info->pcr_data, sizeof(info->pcr_data));
+	memcpy(&info->pcr_quote, &sec_attest_info->pcr_quote, sizeof(info->pcr_quote));
+	memcpy(&info->public_data, &sec_attest_info->public_data, sizeof(info->public_data));
+	memcpy(&info->certificate, &sec_attest_info->certificate, sizeof(info->certificate));
+	memcpy(&info->quote_sig, &sec_attest_info->quote_sig, sizeof(info->quote_sig));
+
+	rc = copy_to_user(out, info,
+				min_t(size_t, max_size, sizeof(*info))) ? -EFAULT : 0;
+
+free_info:
+	kfree(info);
+free_sec_attest_info:
+	kfree(sec_attest_info);
+
+	return rc;
+}
+
 static int eventfd_register(struct hl_fpriv *hpriv, struct hl_info_args *args)
 {
 	int rc;
@@ -843,6 +892,9 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_DRAM_PENDING_ROWS:
 		return dram_pending_rows_info(hpriv, args);
+
+	case HL_INFO_SECURED_ATTESTATION:
+		return sec_attest_info(hpriv, args);
 
 	case HL_INFO_REGISTER_EVENTFD:
 		return eventfd_register(hpriv, args);

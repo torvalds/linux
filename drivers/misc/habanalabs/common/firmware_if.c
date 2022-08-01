@@ -2988,3 +2988,49 @@ void hl_fw_set_max_power(struct hl_device *hdev)
 	if (rc)
 		dev_err(hdev->dev, "Failed to set max power, error %d\n", rc);
 }
+
+static int hl_fw_get_sec_attest_data(struct hl_device *hdev, u32 packet_id, void *data, u32 size,
+					u32 nonce, u32 timeout)
+{
+	struct cpucp_packet pkt = {};
+	dma_addr_t req_dma_addr;
+	void *req_cpu_addr;
+	int rc;
+
+	req_cpu_addr = hl_cpu_accessible_dma_pool_alloc(hdev, size, &req_dma_addr);
+	if (!data) {
+		dev_err(hdev->dev,
+			"Failed to allocate DMA memory for CPU-CP packet %u\n", packet_id);
+		return -ENOMEM;
+	}
+
+	memset(data, 0, size);
+
+	pkt.ctl = cpu_to_le32(packet_id << CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.addr = cpu_to_le64(req_dma_addr);
+	pkt.data_max_size = cpu_to_le32(size);
+	pkt.nonce = cpu_to_le32(nonce);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+					timeout, NULL);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to handle CPU-CP pkt %u, error %d\n", packet_id, rc);
+		goto out;
+	}
+
+	memcpy(data, req_cpu_addr, size);
+
+out:
+	hl_cpu_accessible_dma_pool_free(hdev, size, req_cpu_addr);
+
+	return rc;
+}
+
+int hl_fw_get_sec_attest_info(struct hl_device *hdev, struct cpucp_sec_attest_info *sec_attest_info,
+				u32 nonce)
+{
+	return hl_fw_get_sec_attest_data(hdev, CPUCP_PACKET_SEC_ATTEST_GET, sec_attest_info,
+					sizeof(struct cpucp_sec_attest_info), nonce,
+					HL_CPUCP_SEC_ATTEST_INFO_TINEOUT_USEC);
+}

@@ -773,6 +773,7 @@ enum hl_server_type {
  *                            Razwi initiator.
  *                            Razwi cause, was it a page fault or MMU access error.
  * HL_INFO_DEV_MEM_ALLOC_PAGE_SIZES - Retrieve valid page sizes for device memory allocation
+ * HL_INFO_SECURED_ATTESTATION - Retrieve attestation report of the boot.
  * HL_INFO_REGISTER_EVENTFD   - Register eventfd for event notifications.
  * HL_INFO_UNREGISTER_EVENTFD - Unregister eventfd
  * HL_INFO_GET_EVENTS         - Retrieve the last occurred events
@@ -802,6 +803,7 @@ enum hl_server_type {
 #define HL_INFO_CS_TIMEOUT_EVENT		24
 #define HL_INFO_RAZWI_EVENT			25
 #define HL_INFO_DEV_MEM_ALLOC_PAGE_SIZES	26
+#define HL_INFO_SECURED_ATTESTATION		27
 #define HL_INFO_REGISTER_EVENTFD		28
 #define HL_INFO_UNREGISTER_EVENTFD		29
 #define HL_INFO_GET_EVENTS			30
@@ -1133,6 +1135,45 @@ struct hl_info_dev_memalloc_page_sizes {
 	__u64 page_order_bitmask;
 };
 
+#define SEC_PCR_DATA_BUF_SZ	256
+#define SEC_PCR_QUOTE_BUF_SZ	510	/* (512 - 2) 2 bytes used for size */
+#define SEC_SIGNATURE_BUF_SZ	255	/* (256 - 1) 1 byte used for size */
+#define SEC_PUB_DATA_BUF_SZ	510	/* (512 - 2) 2 bytes used for size */
+#define SEC_CERTIFICATE_BUF_SZ	2046	/* (2048 - 2) 2 bytes used for size */
+
+/*
+ * struct hl_info_sec_attest - attestation report of the boot
+ * @nonce: number only used once. random number provided by host. this also passed to the quote
+ *         command as a qualifying data.
+ * @pcr_quote_len: length of the attestation quote data (bytes)
+ * @pub_data_len: length of the public data (bytes)
+ * @certificate_len: length of the certificate (bytes)
+ * @pcr_num_reg: number of PCR registers in the pcr_data array
+ * @pcr_reg_len: length of each PCR register in the pcr_data array (bytes)
+ * @quote_sig_len: length of the attestation report signature (bytes)
+ * @pcr_data: raw values of the PCR registers
+ * @pcr_quote: attestation report data structure
+ * @quote_sig: signature structure of the attestation report
+ * @public_data: public key for the signed attestation
+ *		 (outPublic + name + qualifiedName)
+ * @certificate: certificate for the attestation signing key
+ */
+struct hl_info_sec_attest {
+	__u32 nonce;
+	__u16 pcr_quote_len;
+	__u16 pub_data_len;
+	__u16 certificate_len;
+	__u8 pcr_num_reg;
+	__u8 pcr_reg_len;
+	__u8 quote_sig_len;
+	__u8 pcr_data[SEC_PCR_DATA_BUF_SZ];
+	__u8 pcr_quote[SEC_PCR_QUOTE_BUF_SZ];
+	__u8 quote_sig[SEC_SIGNATURE_BUF_SZ];
+	__u8 public_data[SEC_PUB_DATA_BUF_SZ];
+	__u8 certificate[SEC_CERTIFICATE_BUF_SZ];
+	__u8 pad0[2];
+};
+
 enum gaudi_dcores {
 	HL_GAUDI_WS_DCORE,
 	HL_GAUDI_WN_DCORE,
@@ -1158,6 +1199,7 @@ enum gaudi_dcores {
  *                           driver. It is possible for the user to allocate buffer larger than
  *                           needed, hence updating this variable so user will know the exact amount
  *                           of bytes copied by the kernel to the buffer.
+ * @sec_attest_nonce: Nonce number used for attestation report.
  * @pad: Padding to 64 bit.
  */
 struct hl_info_args {
@@ -1172,6 +1214,7 @@ struct hl_info_args {
 		__u32 pll_index;
 		__u32 eventfd;
 		__u32 user_buffer_actual_size;
+		__u32 sec_attest_nonce;
 	};
 
 	__u32 pad;

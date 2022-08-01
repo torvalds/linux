@@ -66,6 +66,7 @@ struct hl_fpriv;
 #define HL_CPUCP_INFO_TIMEOUT_USEC	10000000 /* 10s */
 #define HL_CPUCP_EEPROM_TIMEOUT_USEC	10000000 /* 10s */
 #define HL_CPUCP_MON_DUMP_TIMEOUT_USEC	10000000 /* 10s */
+#define HL_CPUCP_SEC_ATTEST_INFO_TINEOUT_USEC 10000000 /* 10s */
 
 #define HL_FW_STATUS_POLL_INTERVAL_USEC		10000 /* 10ms */
 #define HL_FW_COMMS_STATUS_PLDM_POLL_INTERVAL_USEC	1000000 /* 1s */
@@ -3748,6 +3749,8 @@ int hl_get_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr, long *va
 void hl_set_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr, long value);
 long hl_fw_get_max_power(struct hl_device *hdev);
 void hl_fw_set_max_power(struct hl_device *hdev);
+int hl_fw_get_sec_attest_info(struct hl_device *hdev, struct cpucp_sec_attest_info *sec_attest_info,
+				u32 nonce);
 int hl_set_voltage(struct hl_device *hdev, int sensor_index, u32 attr, long value);
 int hl_set_current(struct hl_device *hdev, int sensor_index, u32 attr, long value);
 int hl_set_power(struct hl_device *hdev, int sensor_index, u32 attr, long value);
