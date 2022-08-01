@@ -222,7 +222,7 @@ static int vfio_default_config_write(struct vfio_pci_core_device *vdev, int pos,
 		memcpy(vdev->vconfig + pos, &virt_val, count);
 	}
 
-	/* Non-virtualzed and writable bits go to hardware */
+	/* Non-virtualized and writable bits go to hardware */
 	if (write & ~virt) {
 		struct pci_dev *pdev = vdev->pdev;
 		__le32 phys_val = 0;
