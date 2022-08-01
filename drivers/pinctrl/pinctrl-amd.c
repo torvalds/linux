@@ -216,7 +216,6 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 	char *pull_up_enable;
 	char *pull_down_enable;
 	char *orientation;
-	char *output_enable;
 	char debounce_value[40];
 	char *debounce_enable;
 
