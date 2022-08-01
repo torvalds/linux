@@ -198,7 +198,6 @@ simplefb_get_format_of(struct drm_device *dev, struct device_node *of_node)
 
 struct simpledrm_device {
 	struct drm_device dev;
-	struct platform_device *pdev;
 
 	/* clocks */
 #if defined CONFIG_OF && defined CONFIG_COMMON_CLK
@@ -271,7 +270,7 @@ static void simpledrm_device_release_clocks(void *res)
 static int simpledrm_device_init_clocks(struct simpledrm_device *sdev)
 {
 	struct drm_device *dev = &sdev->dev;
-	struct platform_device *pdev = sdev->pdev;
+	struct platform_device *pdev = to_platform_device(dev->dev);
 	struct device_node *of_node = pdev->dev.of_node;
 	struct clk *clock;
 	unsigned int i;
@@ -369,7 +368,7 @@ static void simpledrm_device_release_regulators(void *res)
 static int simpledrm_device_init_regulators(struct simpledrm_device *sdev)
 {
 	struct drm_device *dev = &sdev->dev;
-	struct platform_device *pdev = sdev->pdev;
+	struct platform_device *pdev = to_platform_device(dev->dev);
 	struct device_node *of_node = pdev->dev.of_node;
 	struct property *prop;
 	struct regulator *regulator;
@@ -701,7 +700,6 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 	if (IS_ERR(sdev))
 		return ERR_CAST(sdev);
 	dev = &sdev->dev;
-	sdev->pdev = pdev;
 	platform_set_drvdata(pdev, sdev);
 
 	/*
