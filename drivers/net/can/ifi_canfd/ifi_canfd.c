@@ -13,6 +13,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/ethtool.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -925,6 +926,10 @@ static const struct net_device_ops ifi_canfd_netdev_ops = {
 	.ndo_change_mtu	= can_change_mtu,
 };
 
+static const struct ethtool_ops ifi_canfd_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static int ifi_canfd_plat_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -962,6 +967,7 @@ static int ifi_canfd_plat_probe(struct platform_device *pdev)
 	ndev->irq = irq;
 	ndev->flags |= IFF_ECHO;	/* we support local echo */
 	ndev->netdev_ops = &ifi_canfd_netdev_ops;
+	ndev->ethtool_ops = &ifi_canfd_ethtool_ops;
 
 	priv = netdev_priv(ndev);
 	priv->ndev = ndev;

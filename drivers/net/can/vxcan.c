@@ -9,6 +9,7 @@
  * Copyright (c) 2017 Oliver Hartkopp <socketcan@hartkopp.net>
  */
 
+#include <linux/ethtool.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
@@ -52,6 +53,8 @@ static netdev_tx_t vxcan_xmit(struct sk_buff *oskb, struct net_device *dev)
 		dev->stats.tx_dropped++;
 		goto out_unlock;
 	}
+
+	skb_tx_timestamp(oskb);
 
 	skb = skb_clone(oskb, GFP_ATOMIC);
 	if (skb) {
@@ -144,6 +147,10 @@ static const struct net_device_ops vxcan_netdev_ops = {
 	.ndo_change_mtu = vxcan_change_mtu,
 };
 
+static const struct ethtool_ops vxcan_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static void vxcan_setup(struct net_device *dev)
 {
 	struct can_ml_priv *can_ml;
@@ -155,6 +162,7 @@ static void vxcan_setup(struct net_device *dev)
 	dev->tx_queue_len	= 0;
 	dev->flags		= IFF_NOARP;
 	dev->netdev_ops		= &vxcan_netdev_ops;
+	dev->ethtool_ops	= &vxcan_ethtool_ops;
 	dev->needs_free_netdev	= true;
 
 	can_ml = netdev_priv(dev) + ALIGN(sizeof(struct vxcan_priv), NETDEV_ALIGN);

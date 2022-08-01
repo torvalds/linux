@@ -223,7 +223,7 @@ int c_can_power_up(struct net_device *dev);
 int c_can_power_down(struct net_device *dev);
 #endif
 
-void c_can_set_ethtool_ops(struct net_device *dev);
+extern const struct ethtool_ops c_can_ethtool_ops;
 
 static inline u8 c_can_get_tx_head(const struct c_can_tx_ring *ring)
 {

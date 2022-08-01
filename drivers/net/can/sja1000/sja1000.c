@@ -52,6 +52,7 @@
 #include <linux/ptrace.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+#include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
@@ -654,6 +655,10 @@ static const struct net_device_ops sja1000_netdev_ops = {
 	.ndo_change_mtu	= can_change_mtu,
 };
 
+static const struct ethtool_ops sja1000_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 int register_sja1000dev(struct net_device *dev)
 {
 	int ret;
@@ -663,6 +668,7 @@ int register_sja1000dev(struct net_device *dev)
 
 	dev->flags |= IFF_ECHO;	/* we support local echo */
 	dev->netdev_ops = &sja1000_netdev_ops;
+	dev->ethtool_ops = &sja1000_ethtool_ops;
 
 	set_reset_mode(dev);
 	chipset_init(dev);

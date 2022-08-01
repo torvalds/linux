@@ -10,7 +10,7 @@
  *                   Fred N. van Kempen <waltje@uwalt.nl.mugnet.org>
  */
 
-#define pr_fmt(fmt) "can327: " fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -827,7 +827,7 @@ static netdev_tx_t can327_netdev_start_xmit(struct sk_buff *skb,
 	netif_stop_queue(dev);
 
 	/* BHs are already disabled, so no spin_lock_bh().
-	 * See Documentation/networking/netdevices.txt
+	 * See Documentation/networking/netdevices.rst
 	 */
 	spin_lock(&elm->lock);
 	can327_send_frame(elm, frame);
@@ -835,6 +835,8 @@ static netdev_tx_t can327_netdev_start_xmit(struct sk_buff *skb,
 
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += frame->can_id & CAN_RTR_FLAG ? 0 : frame->len;
+
+	skb_tx_timestamp(skb);
 
 out:
 	kfree_skb(skb);
@@ -846,6 +848,10 @@ static const struct net_device_ops can327_netdev_ops = {
 	.ndo_stop = can327_netdev_close,
 	.ndo_start_xmit = can327_netdev_start_xmit,
 	.ndo_change_mtu = can_change_mtu,
+};
+
+static const struct ethtool_ops can327_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 static bool can327_is_valid_rx_char(u8 c)
@@ -1032,6 +1038,7 @@ static int can327_ldisc_open(struct tty_struct *tty)
 	/* Configure netdev interface */
 	elm->dev = dev;
 	dev->netdev_ops = &can327_netdev_ops;
+	dev->ethtool_ops = &can327_ethtool_ops;
 
 	/* Mark ldisc channel as alive */
 	elm->tty = tty;
@@ -1100,7 +1107,7 @@ static int can327_ldisc_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 static struct tty_ldisc_ops can327_ldisc = {
 	.owner = THIS_MODULE,
-	.name = "can327",
+	.name = KBUILD_MODNAME,
 	.num = N_CAN327,
 	.receive_buf = can327_ldisc_rx,
 	.write_wakeup = can327_ldisc_tx_wakeup,

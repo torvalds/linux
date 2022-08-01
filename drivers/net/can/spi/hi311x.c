@@ -20,6 +20,7 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/ethtool.h>
 #include <linux/freezer.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -802,6 +803,10 @@ static const struct net_device_ops hi3110_netdev_ops = {
 	.ndo_start_xmit = hi3110_hard_start_xmit,
 };
 
+static const struct ethtool_ops hi3110_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static const struct of_device_id hi3110_of_match[] = {
 	{
 		.compatible	= "holt,hi3110",
@@ -856,6 +861,7 @@ static int hi3110_can_probe(struct spi_device *spi)
 		goto out_free;
 
 	net->netdev_ops = &hi3110_netdev_ops;
+	net->ethtool_ops = &hi3110_ethtool_ops;
 	net->flags |= IFF_ECHO;
 
 	priv = netdev_priv(net);

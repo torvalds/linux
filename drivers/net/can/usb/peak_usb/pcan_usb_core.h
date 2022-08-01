@@ -145,5 +145,6 @@ int peak_usb_netif_rx(struct sk_buff *skb,
 int peak_usb_netif_rx_64(struct sk_buff *skb, u32 ts_low, u32 ts_high);
 void peak_usb_async_complete(struct urb *urb);
 void peak_usb_restart_complete(struct peak_usb_device *dev);
+int pcan_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info);
 
 #endif
