@@ -743,6 +743,9 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 		drm_err(dev, "no simplefb configuration found\n");
 		return ERR_PTR(-ENODEV);
 	}
+	if (!stride)
+		stride = DIV_ROUND_UP(drm_format_info_bpp(format, 0) * width, 8);
+
 	sdev->mode = simpledrm_mode(width, height);
 	sdev->format = format;
 	sdev->pitch = stride;
