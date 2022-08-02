@@ -1384,7 +1384,7 @@ static struct platform_driver rkcif_hw_plat_drv = {
 	.shutdown = rkcif_hw_shutdown,
 };
 
-static int __init rk_cif_plat_drv_init(void)
+int rk_cif_plat_drv_init(void)
 {
 	int ret;
 
@@ -1403,7 +1403,9 @@ static void __exit rk_cif_plat_drv_exit(void)
 #if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) && !defined(CONFIG_INITCALL_ASYNC)
 subsys_initcall(rk_cif_plat_drv_init);
 #else
+#if !defined(CONFIG_VIDEO_REVERSE_IMAGE)
 module_init(rk_cif_plat_drv_init);
+#endif
 #endif
 module_exit(rk_cif_plat_drv_exit);
 

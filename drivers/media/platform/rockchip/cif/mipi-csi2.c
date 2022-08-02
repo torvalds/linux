@@ -1072,7 +1072,7 @@ static struct platform_driver csi2_driver = {
 	.remove = csi2_remove,
 };
 
-int __init rkcif_csi2_plat_drv_init(void)
+int rkcif_csi2_plat_drv_init(void)
 {
 	return platform_driver_register(&csi2_driver);
 }

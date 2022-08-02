@@ -2188,13 +2188,15 @@ module_param_call(clr_unready_dev, rkcif_clr_unready_dev_param_set, NULL, NULL, 
 MODULE_PARM_DESC(clr_unready_dev, "clear unready devices");
 
 #ifndef MODULE
-static int __init rkcif_clr_unready_dev(void)
+int rkcif_clr_unready_dev(void)
 {
 	__rkcif_clr_unready_dev();
 
 	return 0;
 }
+#ifndef CONFIG_VIDEO_REVERSE_IMAGE
 late_initcall(rkcif_clr_unready_dev);
+#endif
 #endif
 
 static const struct dev_pm_ops rkcif_plat_pm_ops = {

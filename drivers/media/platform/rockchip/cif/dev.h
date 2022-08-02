@@ -918,4 +918,6 @@ void rkcif_assign_check_buffer_update_toisp(struct rkcif_stream *stream);
 
 struct rkcif_rx_buffer *to_cif_rx_buf(struct rkisp_rx_buf *dbufs);
 
+int rkcif_clr_unready_dev(void);
+
 #endif

@@ -163,7 +163,7 @@ struct csi2_dev {
 u32 rkcif_csi2_get_sof(struct csi2_dev *csi2_dev);
 void rkcif_csi2_set_sof(struct csi2_dev *csi2_dev, u32 seq);
 void rkcif_csi2_event_inc_sof(struct csi2_dev *csi2_dev);
-int __init rkcif_csi2_plat_drv_init(void);
+int rkcif_csi2_plat_drv_init(void);
 void __exit rkcif_csi2_plat_drv_exit(void);
 int rkcif_csi2_register_notifier(struct notifier_block *nb);
 int rkcif_csi2_unregister_notifier(struct notifier_block *nb);
