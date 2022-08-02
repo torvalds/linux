@@ -94,16 +94,6 @@ struct msm_gem_object {
 	uint8_t madv;
 
 	/**
-	 * Is object on inactive_dontneed list (ie. counted in priv->shrinkable_count)?
-	 */
-	bool dontneed : 1;
-
-	/**
-	 * Is object evictable (ie. counted in priv->evictable_count)?
-	 */
-	bool evictable : 1;
-
-	/**
 	 * count of active vmap'ing
 	 */
 	uint8_t vmap_count;
@@ -113,17 +103,6 @@ struct msm_gem_object {
 	 * priv->obj_lock
 	 */
 	struct list_head node;
-
-	/**
-	 * An object is either:
-	 *  inactive - on priv->inactive_dontneed or priv->inactive_willneed
-	 *     (depending on purgeability status)
-	 *  active   - on one one of the gpu's active_list..  well, at
-	 *     least for now we don't have (I don't think) hw sync between
-	 *     2d and 3d one devices which have both, meaning we need to
-	 *     block on submit if a bo is already on other ring
-	 */
-	struct list_head mm_list;
 
 	struct page **pages;
 	struct sg_table *sgt;
@@ -206,12 +185,6 @@ msm_gem_lock(struct drm_gem_object *obj)
 	dma_resv_lock(obj->resv, NULL);
 }
 
-static inline bool __must_check
-msm_gem_trylock(struct drm_gem_object *obj)
-{
-	return dma_resv_trylock(obj->resv);
-}
-
 static inline int
 msm_gem_lock_interruptible(struct drm_gem_object *obj)
 {
@@ -260,75 +233,9 @@ static inline bool is_vunmapable(struct msm_gem_object *msm_obj)
 	return (msm_obj->vmap_count == 0) && msm_obj->vaddr;
 }
 
-static inline void mark_purgeable(struct msm_gem_object *msm_obj)
-{
-	struct msm_drm_private *priv = msm_obj->base.dev->dev_private;
-
-	GEM_WARN_ON(!mutex_is_locked(&priv->mm_lock));
-
-	if (is_unpurgeable(msm_obj))
-		return;
-
-	if (GEM_WARN_ON(msm_obj->dontneed))
-		return;
-
-	priv->shrinkable_count += msm_obj->base.size >> PAGE_SHIFT;
-	msm_obj->dontneed = true;
-}
-
-static inline void mark_unpurgeable(struct msm_gem_object *msm_obj)
-{
-	struct msm_drm_private *priv = msm_obj->base.dev->dev_private;
-
-	GEM_WARN_ON(!mutex_is_locked(&priv->mm_lock));
-
-	if (is_unpurgeable(msm_obj))
-		return;
-
-	if (GEM_WARN_ON(!msm_obj->dontneed))
-		return;
-
-	priv->shrinkable_count -= msm_obj->base.size >> PAGE_SHIFT;
-	GEM_WARN_ON(priv->shrinkable_count < 0);
-	msm_obj->dontneed = false;
-}
-
 static inline bool is_unevictable(struct msm_gem_object *msm_obj)
 {
 	return is_unpurgeable(msm_obj) || msm_obj->vaddr;
-}
-
-static inline void mark_evictable(struct msm_gem_object *msm_obj)
-{
-	struct msm_drm_private *priv = msm_obj->base.dev->dev_private;
-
-	WARN_ON(!mutex_is_locked(&priv->mm_lock));
-
-	if (is_unevictable(msm_obj))
-		return;
-
-	if (WARN_ON(msm_obj->evictable))
-		return;
-
-	priv->evictable_count += msm_obj->base.size >> PAGE_SHIFT;
-	msm_obj->evictable = true;
-}
-
-static inline void mark_unevictable(struct msm_gem_object *msm_obj)
-{
-	struct msm_drm_private *priv = msm_obj->base.dev->dev_private;
-
-	WARN_ON(!mutex_is_locked(&priv->mm_lock));
-
-	if (is_unevictable(msm_obj))
-		return;
-
-	if (WARN_ON(!msm_obj->evictable))
-		return;
-
-	priv->evictable_count -= msm_obj->base.size >> PAGE_SHIFT;
-	WARN_ON(priv->evictable_count < 0);
-	msm_obj->evictable = false;
 }
 
 void msm_gem_purge(struct drm_gem_object *obj);

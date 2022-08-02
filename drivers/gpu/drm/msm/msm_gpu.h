@@ -187,12 +187,6 @@ struct msm_gpu {
 	 */
 	int cur_ctx_seqno;
 
-	/*
-	 * List of GEM active objects on this gpu.  Protected by
-	 * msm_drm_private::mm_lock
-	 */
-	struct list_head active_list;
-
 	/**
 	 * lock:
 	 *

@@ -418,14 +418,18 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 	INIT_LIST_HEAD(&priv->objects);
 	mutex_init(&priv->obj_lock);
 
-	INIT_LIST_HEAD(&priv->inactive_willneed);
-	INIT_LIST_HEAD(&priv->inactive_dontneed);
-	INIT_LIST_HEAD(&priv->inactive_unpinned);
-	mutex_init(&priv->mm_lock);
+	/*
+	 * Initialize the LRUs:
+	 */
+	mutex_init(&priv->lru.lock);
+	drm_gem_lru_init(&priv->lru.unbacked, &priv->lru.lock);
+	drm_gem_lru_init(&priv->lru.pinned,   &priv->lru.lock);
+	drm_gem_lru_init(&priv->lru.willneed, &priv->lru.lock);
+	drm_gem_lru_init(&priv->lru.dontneed, &priv->lru.lock);
 
 	/* Teach lockdep about lock ordering wrt. shrinker: */
 	fs_reclaim_acquire(GFP_KERNEL);
-	might_lock(&priv->mm_lock);
+	might_lock(&priv->lru.lock);
 	fs_reclaim_release(GFP_KERNEL);
 
 	drm_mode_config_init(ddev);
