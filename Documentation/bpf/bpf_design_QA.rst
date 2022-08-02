@@ -214,6 +214,12 @@ A: NO. Tracepoints are tied to internal implementation details hence they are
 subject to change and can break with newer kernels. BPF programs need to change
 accordingly when this happens.
 
+Q: Are places where kprobes can attach part of the stable ABI?
+--------------------------------------------------------------
+A: NO. The places to which kprobes can attach are internal implementation
+details, which means that they are subject to change and can break with
+newer kernels. BPF programs need to change accordingly when this happens.
+
 Q: How much stack space a BPF program uses?
 -------------------------------------------
 A: Currently all program types are limited to 512 bytes of stack
