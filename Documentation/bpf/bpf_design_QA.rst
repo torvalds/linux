@@ -291,3 +291,10 @@ The kernel function prototypes will change, and BPF programs attaching to
 them will need to change.  The BPF compile-once-run-everywhere (CO-RE)
 should be used in order to make it easier to adapt your BPF programs to
 different versions of the kernel.
+
+Q: Marking a function with BTF_ID makes that function an ABI?
+-------------------------------------------------------------
+A: NO.
+
+The BTF_ID macro does not cause a function to become part of the ABI
+any more than does the EXPORT_SYMBOL_GPL macro.
