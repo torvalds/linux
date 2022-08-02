@@ -624,7 +624,7 @@ static char mini2440_features_str[12] __initdata = "0tb";
 static int __init mini2440_features_setup(char *str)
 {
 	if (str)
-		strlcpy(mini2440_features_str, str,
+		strscpy(mini2440_features_str, str,
 			sizeof(mini2440_features_str));
 	return 1;
 }

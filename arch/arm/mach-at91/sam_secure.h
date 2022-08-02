@@ -14,5 +14,6 @@
 
 void __init sam_secure_init(void);
 struct arm_smccc_res sam_smccc_call(u32 fn, u32 arg0, u32 arg1);
+bool sam_linux_is_optee_available(void);
 
 #endif /* SAM_SECURE_H */
