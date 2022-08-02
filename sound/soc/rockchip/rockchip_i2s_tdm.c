@@ -36,11 +36,15 @@
 #endif
 
 #define DEFAULT_MCLK_FS				256
+#define DEFAULT_FS				48000
 #define CH_GRP_MAX				4  /* The max channel 8 / 2 */
 #define MULTIPLEX_CH_MAX			10
 #define CLK_PPM_MIN				(-1000)
 #define CLK_PPM_MAX				(1000)
 #define MAXBURST_PER_FIFO			8
+
+#define QUIRK_ALWAYS_ON				BIT(0)
+
 struct txrx_config {
 	u32 addr;
 	u32 reg;
@@ -103,9 +107,20 @@ struct rk_i2s_tdm_dev {
 	unsigned int clk_trcm;
 	unsigned int i2s_sdis[CH_GRP_MAX];
 	unsigned int i2s_sdos[CH_GRP_MAX];
+	unsigned int quirks;
 	int clk_ppm;
 	atomic_t refcount;
 	spinlock_t lock; /* xfer lock */
+};
+
+static struct i2s_of_quirks {
+	char *quirk;
+	int id;
+} of_quirks[] = {
+	{
+		.quirk = "rockchip,always-on",
+		.id = QUIRK_ALWAYS_ON,
+	},
 };
 
 static int to_ch_num(unsigned int val)
@@ -445,9 +460,12 @@ static void rockchip_i2s_tdm_xfer_start(struct rk_i2s_tdm_dev *i2s_tdm,
 }
 
 static void rockchip_i2s_tdm_xfer_stop(struct rk_i2s_tdm_dev *i2s_tdm,
-				       int stream)
+				       int stream, bool force)
 {
 	unsigned int msk, val, clr;
+
+	if (i2s_tdm->quirks & QUIRK_ALWAYS_ON && !force)
+		return;
 
 	if (i2s_tdm->clk_trcm) {
 		msk = I2S_XFER_TXS_MASK | I2S_XFER_RXS_MASK;
@@ -487,7 +505,7 @@ static void rockchip_i2s_tdm_xfer_trcm_stop(struct rk_i2s_tdm_dev *i2s_tdm)
 
 	spin_lock_irqsave(&i2s_tdm->lock, flags);
 	if (atomic_dec_and_test(&i2s_tdm->refcount))
-		rockchip_i2s_tdm_xfer_stop(i2s_tdm, 0);
+		rockchip_i2s_tdm_xfer_stop(i2s_tdm, 0, false);
 	spin_unlock_irqrestore(&i2s_tdm->lock, flags);
 }
 
@@ -500,7 +518,7 @@ static void rockchip_i2s_tdm_trcm_pause(struct snd_pcm_substream *substream,
 	/* disable dma for both tx and rx */
 	rockchip_i2s_tdm_dma_ctrl(i2s_tdm, stream, 0);
 	rockchip_i2s_tdm_dma_ctrl(i2s_tdm, bstream, 0);
-	rockchip_i2s_tdm_xfer_stop(i2s_tdm, bstream);
+	rockchip_i2s_tdm_xfer_stop(i2s_tdm, bstream, true);
 }
 
 static void rockchip_i2s_tdm_trcm_resume(struct snd_pcm_substream *substream,
@@ -533,7 +551,7 @@ static void rockchip_i2s_tdm_stop(struct rk_i2s_tdm_dev *i2s_tdm, int stream)
 	if (i2s_tdm->clk_trcm)
 		rockchip_i2s_tdm_xfer_trcm_stop(i2s_tdm);
 	else
-		rockchip_i2s_tdm_xfer_stop(i2s_tdm, stream);
+		rockchip_i2s_tdm_xfer_stop(i2s_tdm, stream, false);
 }
 
 static int rockchip_i2s_tdm_set_fmt(struct snd_soc_dai *cpu_dai,
@@ -1030,7 +1048,7 @@ static int rockchip_i2s_tdm_params(struct snd_pcm_substream *substream,
 	int stream = substream->stream;
 
 	if (is_stream_active(i2s_tdm, stream))
-		rockchip_i2s_tdm_stop(i2s_tdm, stream);
+		rockchip_i2s_tdm_xfer_stop(i2s_tdm, stream, true);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		regmap_update_bits(i2s_tdm->regmap, I2S_CLKDIV,
@@ -1878,8 +1896,7 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 #ifdef HAVE_SYNC_RESET
 	bool sync;
 #endif
-	int ret;
-	int val;
+	int ret, val, i;
 
 	ret = rockchip_i2s_tdm_dai_prepare(pdev, &soc_dai);
 	if (ret)
@@ -1897,6 +1914,10 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 
 	spin_lock_init(&i2s_tdm->lock);
 	i2s_tdm->soc_data = (const struct rk_i2s_soc_data *)of_id->data;
+
+	for (i = 0; i < ARRAY_SIZE(of_quirks); i++)
+		if (of_property_read_bool(node, of_quirks[i].quirk))
+			i2s_tdm->quirks |= of_quirks[i].id;
 
 	i2s_tdm->bclk_fs = 64;
 	if (!of_property_read_u32(node, "rockchip,bclk-fs", &val)) {
@@ -2036,6 +2057,32 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 		ret = i2s_tdm_runtime_resume(&pdev->dev);
 		if (ret)
 			goto err_pm_disable;
+	}
+
+	if (i2s_tdm->quirks & QUIRK_ALWAYS_ON) {
+		unsigned int rate = DEFAULT_FS * DEFAULT_MCLK_FS;
+		unsigned int div_bclk = DEFAULT_FS * DEFAULT_MCLK_FS;
+		unsigned int div_lrck = i2s_tdm->bclk_fs;
+
+		div_bclk = DIV_ROUND_CLOSEST(rate, div_lrck * DEFAULT_FS);
+
+		/* assign generic freq */
+		clk_set_rate(i2s_tdm->mclk_rx, rate);
+		clk_set_rate(i2s_tdm->mclk_tx, rate);
+
+		regmap_update_bits(i2s_tdm->regmap, I2S_CLKDIV,
+				   I2S_CLKDIV_RXM_MASK | I2S_CLKDIV_TXM_MASK,
+				   I2S_CLKDIV_RXM(div_bclk) | I2S_CLKDIV_TXM(div_bclk));
+		regmap_update_bits(i2s_tdm->regmap, I2S_CKR,
+				   I2S_CKR_RSD_MASK | I2S_CKR_TSD_MASK,
+				   I2S_CKR_RSD(div_lrck) | I2S_CKR_TSD(div_lrck));
+
+		if (i2s_tdm->clk_trcm)
+			rockchip_i2s_tdm_xfer_trcm_start(i2s_tdm);
+		else
+			rockchip_i2s_tdm_xfer_start(i2s_tdm, SNDRV_PCM_STREAM_PLAYBACK);
+
+		pm_runtime_forbid(&pdev->dev);
 	}
 
 	regmap_update_bits(i2s_tdm->regmap, I2S_DMACR, I2S_DMACR_TDL_MASK,
