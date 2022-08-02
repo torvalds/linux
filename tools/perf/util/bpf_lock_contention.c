@@ -27,10 +27,12 @@ struct lock_contention_data {
 	u32 flags;
 };
 
-int lock_contention_prepare(struct evlist *evlist, struct target *target)
+int lock_contention_prepare(struct lock_contention *con)
 {
 	int i, fd;
 	int ncpus = 1, ntasks = 1;
+	struct evlist *evlist = con->evlist;
+	struct target *target = con->target;
 
 	skel = lock_contention_bpf__open();
 	if (!skel) {
@@ -102,12 +104,13 @@ int lock_contention_stop(void)
 	return 0;
 }
 
-int lock_contention_read(struct machine *machine, struct hlist_head *head)
+int lock_contention_read(struct lock_contention *con)
 {
 	int fd, stack;
 	u32 prev_key, key;
 	struct lock_contention_data data;
 	struct lock_stat *st;
+	struct machine *machine = con->machine;
 	u64 stack_trace[CONTENTION_STACK_DEPTH];
 
 	fd = bpf_map__fd(skel->maps.lock_stat);
@@ -163,7 +166,7 @@ int lock_contention_read(struct machine *machine, struct hlist_head *head)
 			return -1;
 		}
 
-		hlist_add_head(&st->hash_entry, head);
+		hlist_add_head(&st->hash_entry, con->result);
 		prev_key = key;
 	}
 

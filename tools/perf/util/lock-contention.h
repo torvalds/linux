@@ -107,18 +107,24 @@ struct evlist;
 struct machine;
 struct target;
 
+struct lock_contention {
+	struct evlist *evlist;
+	struct target *target;
+	struct machine *machine;
+	struct hlist_head *result;
+};
+
 #ifdef HAVE_BPF_SKEL
 
-int lock_contention_prepare(struct evlist *evlist, struct target *target);
+int lock_contention_prepare(struct lock_contention *con);
 int lock_contention_start(void);
 int lock_contention_stop(void);
-int lock_contention_read(struct machine *machine, struct hlist_head *head);
+int lock_contention_read(struct lock_contention *con);
 int lock_contention_finish(void);
 
 #else  /* !HAVE_BPF_SKEL */
 
-static inline int lock_contention_prepare(struct evlist *evlist __maybe_unused,
-					  struct target *target __maybe_unused)
+static inline int lock_contention_prepare(struct lock_contention *con __maybe_unused)
 {
 	return 0;
 }
@@ -127,8 +133,7 @@ static inline int lock_contention_start(void) { return 0; }
 static inline int lock_contention_stop(void) { return 0; }
 static inline int lock_contention_finish(void) { return 0; }
 
-static inline int lock_contention_read(struct machine *machine __maybe_unused,
-				       struct hlist_head *head __maybe_unused)
+static inline int lock_contention_read(struct lock_contention *con __maybe_unused)
 {
 	return 0;
 }

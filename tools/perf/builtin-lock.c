@@ -1595,7 +1595,10 @@ static int __cmd_contention(int argc, const char **argv)
 		.mode  = PERF_DATA_MODE_READ,
 		.force = force,
 	};
-	struct evlist *evlist = NULL;
+	struct lock_contention con = {
+		.target = &target,
+		.result = &lockhash_table[0],
+	};
 
 	session = perf_session__new(use_bpf ? NULL : &data, &eops);
 	if (IS_ERR(session)) {
@@ -1621,24 +1624,26 @@ static int __cmd_contention(int argc, const char **argv)
 		signal(SIGCHLD, sighandler);
 		signal(SIGTERM, sighandler);
 
-		evlist = evlist__new();
-		if (evlist == NULL) {
+		con.machine = &session->machines.host;
+
+		con.evlist = evlist__new();
+		if (con.evlist == NULL) {
 			err = -ENOMEM;
 			goto out_delete;
 		}
 
-		err = evlist__create_maps(evlist, &target);
+		err = evlist__create_maps(con.evlist, &target);
 		if (err < 0)
 			goto out_delete;
 
 		if (argc) {
-			err = evlist__prepare_workload(evlist, &target,
+			err = evlist__prepare_workload(con.evlist, &target,
 						       argv, false, NULL);
 			if (err < 0)
 				goto out_delete;
 		}
 
-		if (lock_contention_prepare(evlist, &target) < 0) {
+		if (lock_contention_prepare(&con) < 0) {
 			pr_err("lock contention BPF setup failed\n");
 			goto out_delete;
 		}
@@ -1673,13 +1678,13 @@ static int __cmd_contention(int argc, const char **argv)
 	if (use_bpf) {
 		lock_contention_start();
 		if (argc)
-			evlist__start_workload(evlist);
+			evlist__start_workload(con.evlist);
 
 		/* wait for signal */
 		pause();
 
 		lock_contention_stop();
-		lock_contention_read(&session->machines.host, &lockhash_table[0]);
+		lock_contention_read(&con);
 	} else {
 		err = perf_session__process_events(session);
 		if (err)
@@ -1692,7 +1697,7 @@ static int __cmd_contention(int argc, const char **argv)
 	print_contention_result();
 
 out_delete:
-	evlist__delete(evlist);
+	evlist__delete(con.evlist);
 	lock_contention_finish();
 	perf_session__delete(session);
 	return err;
