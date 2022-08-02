@@ -446,6 +446,7 @@ struct st_lsm6dsr_hw {
 	unsigned long state;
 	u32 enable_mask;
 	u32 requested_mask;
+	u32 suspend_mask;
 
 	u16 fsm_enable_mask;
 	u8 embfunc_irq_reg;
@@ -544,6 +545,7 @@ int st_lsm6dsr_shub_set_enable(struct st_lsm6dsr_sensor *sensor, bool enable);
 int st_lsm6dsr_shub_probe(struct st_lsm6dsr_hw *hw);
 int st_lsm6dsr_sensor_set_enable(struct st_lsm6dsr_sensor *sensor,
 				 bool enable);
+int st_lsm6dsr_irq_setup(struct st_lsm6dsr_hw *hw);
 int st_lsm6dsr_buffers_setup(struct st_lsm6dsr_hw *hw);
 int st_lsm6dsr_deallocate_buffers(struct st_lsm6dsr_hw *hw);
 int st_lsm6dsr_get_odr_val(enum st_lsm6dsr_sensor_id id, int odr, int uodr,

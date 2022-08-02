@@ -21,6 +21,9 @@
 #include "st_lsm6dsr.h"
 #include "flat_roll_inward_x_y.h"
 
+#define ST_LSM6DSR_PM_IMPLEMENTED 1
+#define ST_LSM6DSR_PM_REGULATOR_CTL 1
+
 struct st_lsm6dsr_hw *hw_input;
 struct delayed_work data_work;
 struct input_dev *acc_input;
@@ -1665,6 +1668,26 @@ static int st_lsm6dsr_init_device(struct st_lsm6dsr_hw *hw)
 	return st_lsm6dsr_fsm_init(hw);
 }
 
+static int st_lsm6dsr_init_fsm(struct st_lsm6dsr_hw *hw)
+{
+	int i;
+	int err;
+
+	/* yxsui init config fsm */
+	mutex_lock(&hw->page_lock);
+	for (i = 0; i < ARRAY_SIZE(flat_roll_inward_x_y); i++) {
+		//err = hw->tf->write(hw->dev, addr, sizeof(data), &data);
+		err = hw->tf->write(hw->dev, flat_roll_inward_x_y[i].address,
+					sizeof(flat_roll_inward_x_y[i].data),
+					&(flat_roll_inward_x_y[i].data));
+		if (err < 0)
+			dev_info(hw->dev, "yxsui init config fsm fail\n");
+	}
+	mutex_unlock(&hw->page_lock);
+
+	return 0;
+}
+
 /**
  * Allocate IIO device
  *
@@ -2166,17 +2189,9 @@ int st_lsm6dsr_probe(struct device *dev, int irq,
 	INIT_DELAYED_WORK(&data_work, data_work_func);
 	schedule_delayed_work(&data_work, 10);
 
-	/* yxsui init config fsm */
-	mutex_lock(&hw->page_lock);
-	for (i = 0; i < ARRAY_SIZE(flat_roll_inward_x_y); i++) {
-		//err = hw->tf->write(hw->dev, addr, sizeof(data), &data);
-		err = hw->tf->write(hw->dev, flat_roll_inward_x_y[i].address,
-					sizeof(flat_roll_inward_x_y[i].data),
-					&(flat_roll_inward_x_y[i].data));
-		if (err < 0)
-			dev_info(dev, "yxsui init config fsm fail\n");
-	}
-	mutex_unlock(&hw->page_lock);
+	err = st_lsm6dsr_init_fsm(hw);
+	if (err < 0)
+		return err;
 
 	hw_input = hw;
 	dev_info(dev, "Device probed\n");
@@ -2274,19 +2289,31 @@ static int __maybe_unused st_lsm6dsr_suspend(struct device *dev)
 		if (!(hw->enable_mask & BIT(sensor->id)))
 			continue;
 
+		if (hw->enable_mask & (BIT(ST_LSM6DSR_ID_STEP_COUNTER) |
+				       BIT(ST_LSM6DSR_ID_GYRO) |
+				       BIT(ST_LSM6DSR_ID_ACC) |
+				       BIT(ST_LSM6DSR_ID_EXT0) |
+				       BIT(ST_LSM6DSR_ID_EXT1))) {
+			err = st_lsm6dsr_suspend_fifo(hw);
+			if (err < 0)
+				return err;
+		}
+
 		// power off enabled sensors
-		err = st_lsm6dsr_set_odr(sensor, 0, 0);
+		if (sensor->id == ST_LSM6DSR_ID_EXT0 ||
+		    sensor->id == ST_LSM6DSR_ID_EXT1)
+			err = st_lsm6dsr_shub_set_enable(sensor, false);
+		else
+			err = st_lsm6dsr_sensor_set_enable(sensor, false);
 		if (err < 0)
 			return err;
+
+		hw->suspend_mask |= BIT(sensor->id);
 	}
 
-	if (st_lsm6dsr_is_fifo_enabled(hw)) {
-		err = st_lsm6dsr_suspend_fifo(hw);
-		if (err < 0)
-			return err;
-	}
-
+#ifndef ST_LSM6DSR_PM_REGULATOR_CTL
 	err = st_lsm6dsr_bk_regs(hw);
+#endif
 
 #ifdef CONFIG_IIO_ST_LSM6DSR_MAY_WAKEUP
 	if (device_may_wakeup(dev))
@@ -2320,31 +2347,63 @@ static int __maybe_unused st_lsm6dsr_resume(struct device *dev)
 		disable_irq_wake(hw->irq);
 #endif
 
-	err = st_lsm6dsr_restore_regs(hw);
+#ifdef ST_LSM6DSR_PM_REGULATOR_CTL
+	err = st_lsm6dsr_reset_device(hw);
 	if (err < 0)
 		return err;
 
+	err = st_lsm6dsr_init_device(hw);
+	if (err < 0)
+		return err;
+
+	err = st_lsm6dsr_irq_setup(hw);
+	if (err < 0)
+		return err;
+
+	err = st_lsm6dsr_init_fsm(hw);
+	if (err < 0)
+		return err;
+#else
+	err = st_lsm6dsr_restore_regs(hw);
+	if (err < 0)
+		return err;
+#endif
+
+	// power on suspened sensors
 	for (i = 0; i < ST_LSM6DSR_ID_MAX; i++) {
 		if (!hw->iio_devs[i])
 			continue;
 
 		sensor = iio_priv(hw->iio_devs[i]);
-		if (!(hw->enable_mask & BIT(sensor->id)))
+		if (!(hw->suspend_mask & BIT(sensor->id)))
 			continue;
 
-		err = st_lsm6dsr_set_odr(sensor, sensor->odr, sensor->uodr);
+		if (sensor->id == ST_LSM6DSR_ID_EXT0 ||
+		    sensor->id == ST_LSM6DSR_ID_EXT1)
+			err = st_lsm6dsr_shub_set_enable(sensor, true);
+		else
+			err = st_lsm6dsr_sensor_set_enable(sensor, true);
+
 		if (err < 0)
 			return err;
+
+		if (sensor->id == ST_LSM6DSR_ID_STEP_COUNTER ||
+		    sensor->id == ST_LSM6DSR_ID_GYRO ||
+		    sensor->id == ST_LSM6DSR_ID_ACC ||
+		    sensor->id == ST_LSM6DSR_ID_EXT0 ||
+		    sensor->id == ST_LSM6DSR_ID_EXT1) {
+			err = st_lsm6dsr_set_fifo_mode(hw,
+						       ST_LSM6DSR_FIFO_CONT);
+			if (err < 0)
+				return err;
+		}
+
+		hw->suspend_mask &= ~BIT(sensor->id);
 	}
 
 	err = st_lsm6dsr_reset_hwts(hw);
 	if (err < 0)
 		return err;
-
-	if (st_lsm6dsr_is_fifo_enabled(hw))
-		err = st_lsm6dsr_set_fifo_mode(hw, ST_LSM6DSR_FIFO_CONT);
-
-	return err < 0 ? err : 0;
 #endif
 
 	return 0;

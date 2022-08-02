@@ -915,21 +915,19 @@ static const struct iio_buffer_setup_ops st_lsm6dsr_buffer_ops = {
 	.postdisable = st_lsm6dsr_buffer_postdisable,
 };
 
+
 /**
- * Init IIO buffers and triggers
+ * Init IRQ
  *
  * @param  hw: ST IMU MEMS hw instance
  * @return  < 0 if error, 0 otherwise
  */
-int st_lsm6dsr_buffers_setup(struct st_lsm6dsr_hw *hw)
+int st_lsm6dsr_irq_setup(struct st_lsm6dsr_hw *hw)
 {
 	struct device_node *np = hw->dev->of_node;
-	struct st_lsm6dsr_sensor *sensor;
-	struct iio_buffer *buffer;
-	struct iio_dev *iio_dev;
 	unsigned long irq_type;
 	bool irq_active_low;
-	int i, err;
+	int err;
 
 	irq_type = irqd_get_trigger_type(irq_get_irq_data(hw->irq));
 	if (irq_type == IRQF_TRIGGER_NONE)
@@ -961,9 +959,32 @@ int st_lsm6dsr_buffers_setup(struct st_lsm6dsr_hw *hw)
 						 ST_LSM6DSR_REG_PP_OD_MASK, 1);
 		if (err < 0)
 			return err;
-
-		irq_type |= IRQF_SHARED;
 	}
+
+	return 0;
+}
+
+/**
+ * Init IIO buffers and triggers
+ *
+ * @param  hw: ST IMU MEMS hw instance
+ * @return  < 0 if error, 0 otherwise
+ */
+int st_lsm6dsr_buffers_setup(struct st_lsm6dsr_hw *hw)
+{
+	struct st_lsm6dsr_sensor *sensor;
+	struct iio_buffer *buffer;
+	struct iio_dev *iio_dev;
+	unsigned long irq_type;
+	int i, err;
+
+	err = st_lsm6dsr_irq_setup(hw);
+	if (err < 0)
+		return err;
+
+	irq_type = irqd_get_trigger_type(irq_get_irq_data(hw->irq));
+	if (irq_type == IRQF_TRIGGER_NONE)
+		irq_type = IRQF_TRIGGER_HIGH;
 
 	err = devm_request_threaded_irq(hw->dev, hw->irq,
 					st_lsm6dsr_handler_irq,
