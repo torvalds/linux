@@ -43,6 +43,9 @@ purge(struct msm_gem_object *msm_obj)
 	if (!is_purgeable(msm_obj))
 		return false;
 
+	if (msm_gem_active(&msm_obj->base))
+		return false;
+
 	/*
 	 * This will move the obj out of still_in_list to
 	 * the purged list
@@ -56,6 +59,9 @@ static bool
 evict(struct msm_gem_object *msm_obj)
 {
 	if (is_unevictable(msm_obj))
+		return false;
+
+	if (msm_gem_active(&msm_obj->base))
 		return false;
 
 	msm_gem_evict(&msm_obj->base);
