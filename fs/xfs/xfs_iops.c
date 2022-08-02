@@ -24,6 +24,7 @@
 #include "xfs_iomap.h"
 #include "xfs_error.h"
 #include "xfs_ioctl.h"
+#include "xfs_xattr.h"
 
 #include <linux/posix_acl.h>
 #include <linux/security.h>
@@ -61,7 +62,7 @@ xfs_initxattrs(
 			.value		= xattr->value,
 			.valuelen	= xattr->value_len,
 		};
-		error = xfs_attr_set(&args);
+		error = xfs_attr_change(&args);
 		if (error < 0)
 			break;
 	}

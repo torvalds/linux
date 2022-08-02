@@ -38,6 +38,8 @@
 #include "xfs_pwork.h"
 #include "xfs_ag.h"
 #include "xfs_defer.h"
+#include "xfs_attr_item.h"
+#include "xfs_xattr.h"
 
 #include <linux/magic.h>
 #include <linux/fs_context.h>
@@ -795,8 +797,11 @@ xfs_fs_statfs(
 	xfs_extlen_t		lsize;
 	int64_t			ffree;
 
-	/* Wait for whatever inactivations are in progress. */
-	xfs_inodegc_flush(mp);
+	/*
+	 * Expedite background inodegc but don't wait. We do not want to block
+	 * here waiting hours for a billion extent file to be truncated.
+	 */
+	xfs_inodegc_push(mp);
 
 	statp->f_type = XFS_SUPER_MAGIC;
 	statp->f_namelen = MAXNAMELEN - 1;
@@ -1072,7 +1077,7 @@ xfs_inodegc_init_percpu(
 		gc = per_cpu_ptr(mp->m_inodegc, cpu);
 		init_llist_head(&gc->list);
 		gc->items = 0;
-		INIT_WORK(&gc->work, xfs_inodegc_worker);
+		INIT_DELAYED_WORK(&gc->work, xfs_inodegc_worker);
 	}
 	return 0;
 }
@@ -2079,8 +2084,24 @@ xfs_init_caches(void)
 	if (!xfs_bui_cache)
 		goto out_destroy_bud_cache;
 
+	xfs_attrd_cache = kmem_cache_create("xfs_attrd_item",
+					    sizeof(struct xfs_attrd_log_item),
+					    0, 0, NULL);
+	if (!xfs_attrd_cache)
+		goto out_destroy_bui_cache;
+
+	xfs_attri_cache = kmem_cache_create("xfs_attri_item",
+					    sizeof(struct xfs_attri_log_item),
+					    0, 0, NULL);
+	if (!xfs_attri_cache)
+		goto out_destroy_attrd_cache;
+
 	return 0;
 
+ out_destroy_attrd_cache:
+	kmem_cache_destroy(xfs_attrd_cache);
+ out_destroy_bui_cache:
+	kmem_cache_destroy(xfs_bui_cache);
  out_destroy_bud_cache:
 	kmem_cache_destroy(xfs_bud_cache);
  out_destroy_cui_cache:
@@ -2127,6 +2148,8 @@ xfs_destroy_caches(void)
 	 * destroy caches.
 	 */
 	rcu_barrier();
+	kmem_cache_destroy(xfs_attri_cache);
+	kmem_cache_destroy(xfs_attrd_cache);
 	kmem_cache_destroy(xfs_bui_cache);
 	kmem_cache_destroy(xfs_bud_cache);
 	kmem_cache_destroy(xfs_cui_cache);

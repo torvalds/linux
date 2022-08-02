@@ -97,6 +97,20 @@ Description:	Dump the status of the QM.
 		Four states: initiated, started, stopped and closed.
 		Available for both PF and VF, and take no other effect on ZIP.
 
+What:		/sys/kernel/debug/hisi_zip/<bdf>/qm/diff_regs
+Date:		Mar 2022
+Contact:	linux-crypto@vger.kernel.org
+Description:	QM debug registers(regs) read hardware register value. This
+		node is used to show the change of the qm registers value. This
+		node can be help users to check the change of register values.
+
+What:		/sys/kernel/debug/hisi_zip/<bdf>/zip_dfx/diff_regs
+Date:		Mar 2022
+Contact:	linux-crypto@vger.kernel.org
+Description:	ZIP debug registers(regs) read hardware register value. This
+		node is used to show the change of the registers value. this
+		node can be help users to check the change of register values.
+
 What:		/sys/kernel/debug/hisi_zip/<bdf>/zip_dfx/send_cnt
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org

@@ -185,10 +185,10 @@ void rtl92e_set_ofdm_tx_power(struct net_device *dev, u8 powerlevel)
 	for (index = 0; index < 6; index++) {
 		writeVal = (u32)(priv->MCSTxPowerLevelOriginalOffset[index] +
 			   ((index < 2) ? powerBase0 : powerBase1));
-		byte0 = (u8)(writeVal & 0x7f);
-		byte1 = (u8)((writeVal & 0x7f00)>>8);
-		byte2 = (u8)((writeVal & 0x7f0000)>>16);
-		byte3 = (u8)((writeVal & 0x7f000000)>>24);
+		byte0 = writeVal & 0x7f;
+		byte1 = (writeVal & 0x7f00) >> 8;
+		byte2 = (writeVal & 0x7f0000) >> 16;
+		byte3 = (writeVal & 0x7f000000) >> 24;
 		if (byte0 > 0x24)
 			byte0 = 0x24;
 		if (byte1 > 0x24)

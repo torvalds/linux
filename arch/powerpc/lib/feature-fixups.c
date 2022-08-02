@@ -451,7 +451,7 @@ static int __do_rfi_flush_fixups(void *data)
 
 	if (types & L1D_FLUSH_FALLBACK)
 		/* b .+16 to fallback flush */
-		instrs[0] = PPC_INST_BRANCH | 16;
+		instrs[0] = PPC_RAW_BRANCH(16);
 
 	i = 0;
 	if (types & L1D_FLUSH_ORI) {

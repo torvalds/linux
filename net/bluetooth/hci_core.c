@@ -571,6 +571,7 @@ int hci_dev_close(__u16 dev)
 		goto done;
 	}
 
+	cancel_work_sync(&hdev->power_on);
 	if (hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF))
 		cancel_delayed_work(&hdev->power_off);
 
@@ -2153,7 +2154,7 @@ int hci_bdaddr_list_add_with_flags(struct list_head *list, bdaddr_t *bdaddr,
 
 	bacpy(&entry->bdaddr, bdaddr);
 	entry->bdaddr_type = type;
-	bitmap_from_u64(entry->flags, flags);
+	entry->flags = flags;
 
 	list_add(&entry->list, list);
 
@@ -2634,7 +2635,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	 * callback.
 	 */
 	if (hdev->wakeup)
-		set_bit(HCI_CONN_FLAG_REMOTE_WAKEUP, hdev->conn_flags);
+		hdev->conn_flags |= HCI_CONN_FLAG_REMOTE_WAKEUP;
 
 	hci_sock_dev_event(hdev, HCI_DEV_REG);
 	hci_dev_hold(hdev);
@@ -2674,6 +2675,8 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	write_lock(&hci_dev_list_lock);
 	list_del(&hdev->list);
 	write_unlock(&hci_dev_list_lock);
+
+	cancel_work_sync(&hdev->power_on);
 
 	hci_cmd_sync_clear(hdev);
 

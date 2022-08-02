@@ -275,7 +275,9 @@
 				compatible = "marvell,pdma-1.0";
 				reg = <0xd4000000 0x10000>;
 				interrupts = <48>;
+				/* For backwards compatibility: */
 				#dma-channels = <16>;
+				dma-channels = <16>;
 				status = "disabled";
 			};
 

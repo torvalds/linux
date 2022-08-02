@@ -462,7 +462,7 @@ static void icp_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	 * new guy. We cannot assume that the rejected interrupt is less
 	 * favored than the new one, and thus doesn't need to be delivered,
 	 * because by the time we exit icp_try_to_deliver() the target
-	 * processor may well have alrady consumed & completed it, and thus
+	 * processor may well have already consumed & completed it, and thus
 	 * the rejected interrupt might actually be already acceptable.
 	 */
 	if (icp_try_to_deliver(icp, new_irq, state->priority, &reject)) {

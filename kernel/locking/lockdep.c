@@ -5432,7 +5432,7 @@ static struct pin_cookie __lock_pin_lock(struct lockdep_map *lock)
 			 * be guessable and still allows some pin nesting in
 			 * our u32 pin_count.
 			 */
-			cookie.val = 1 + (prandom_u32() >> 16);
+			cookie.val = 1 + (sched_clock() & 0xffff);
 			hlock->pin_count += cookie.val;
 			return cookie;
 		}

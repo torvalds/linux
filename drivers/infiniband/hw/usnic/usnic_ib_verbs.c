@@ -305,7 +305,8 @@ int usnic_ib_query_device(struct ib_device *ibdev,
 	props->max_qp = qp_per_vf *
 		kref_read(&us_ibdev->vf_cnt);
 	props->device_cap_flags = IB_DEVICE_PORT_ACTIVE_EVENT |
-		IB_DEVICE_SYS_IMAGE_GUID | IB_DEVICE_BLOCK_MULTICAST_LOOPBACK;
+		IB_DEVICE_SYS_IMAGE_GUID;
+	props->kernel_cap_flags = IBK_BLOCK_MULTICAST_LOOPBACK;
 	props->max_cq = us_ibdev->vf_res_cnt[USNIC_VNIC_RES_TYPE_CQ] *
 		kref_read(&us_ibdev->vf_cnt);
 	props->max_pd = USNIC_UIOM_MAX_PD_CNT;
@@ -442,7 +443,7 @@ int usnic_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct usnic_ib_pd *pd = to_upd(ibpd);
 
-	pd->umem_pd = usnic_uiom_alloc_pd();
+	pd->umem_pd = usnic_uiom_alloc_pd(ibpd->device->dev.parent);
 	if (IS_ERR(pd->umem_pd))
 		return PTR_ERR(pd->umem_pd);
 
@@ -706,4 +707,3 @@ int usnic_ib_mmap(struct ib_ucontext *context,
 	usnic_err("No VF %u found\n", vfid);
 	return -EINVAL;
 }
-

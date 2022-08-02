@@ -536,8 +536,9 @@
   flush_dcache_page
   flush_delayed_work
   flush_work
-  flush_workqueue
+  __flush_workqueue
   __folio_lock
+  folio_wait_bit
   fortify_panic
   fput
   free_io_pgtable_ops
@@ -1455,6 +1456,7 @@
   round_jiffies_relative
   rpmsg_poll
   rpmsg_register_device
+  rpmsg_register_device_override
   rpmsg_send
   rpmsg_trysend
   rpmsg_unregister_device
@@ -1709,7 +1711,6 @@
   thermal_cooling_device_register
   thermal_cooling_device_unregister
   thermal_of_cooling_device_register
-  thermal_pressure
   thermal_zone_device_enable
   thermal_zone_device_register
   thermal_zone_device_unregister
@@ -1720,7 +1721,6 @@
   time64_to_tm
   timer_unstable_counter_workaround
   topology_clear_scale_freq_source
-  topology_update_done
   _totalram_pages
   __trace_bprintk
   trace_clock_local
@@ -1776,7 +1776,6 @@
   __tracepoint_android_vh_ufs_send_command
   __tracepoint_android_vh_ufs_send_tm_command
   __tracepoint_android_vh_ufs_send_uic_command
-  __tracepoint_android_vh_update_topology_flags_workfn
   __tracepoint_binder_transaction_received
   __tracepoint_cpu_frequency_limits
   __tracepoint_cpu_idle
@@ -1924,7 +1923,6 @@
   vhost_enable_notify
   vhost_get_vq_desc
   vhost_log_access_ok
-  vhost_poll_flush
   vhost_vq_access_ok
   vhost_vq_init_access
   vhost_vring_ioctl

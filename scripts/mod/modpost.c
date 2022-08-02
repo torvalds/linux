@@ -13,6 +13,7 @@
 
 #define _GNU_SOURCE
 #include <elf.h>
+#include <fnmatch.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
@@ -172,11 +173,11 @@ static struct module *find_module(const char *modname)
 	return NULL;
 }
 
-static struct module *new_module(const char *modname)
+static struct module *new_module(const char *name, size_t namelen)
 {
 	struct module *mod;
 
-	mod = NOFAIL(malloc(sizeof(*mod) + strlen(modname) + 1));
+	mod = NOFAIL(malloc(sizeof(*mod) + namelen + 1));
 	memset(mod, 0, sizeof(*mod));
 
 	INIT_LIST_HEAD(&mod->exported_symbols);
@@ -184,8 +185,9 @@ static struct module *new_module(const char *modname)
 	INIT_LIST_HEAD(&mod->missing_namespaces);
 	INIT_LIST_HEAD(&mod->imported_namespaces);
 
-	strcpy(mod->name, modname);
-	mod->is_vmlinux = (strcmp(modname, "vmlinux") == 0);
+	memcpy(mod->name, name, namelen);
+	mod->name[namelen] = '\0';
+	mod->is_vmlinux = (strcmp(mod->name, "vmlinux") == 0);
 
 	/*
 	 * Set mod->is_gpl_compatible to true by default. If MODULE_LICENSE()
@@ -212,7 +214,6 @@ struct symbol {
 	unsigned int crc;
 	bool crc_valid;
 	bool weak;
-	bool is_static;		/* true if symbol is not global */
 	bool is_gpl_only;	/* exported by EXPORT_SYMBOL_GPL */
 	char name[];
 };
@@ -242,7 +243,7 @@ static struct symbol *alloc_symbol(const char *name)
 
 	memset(s, 0, sizeof(*s));
 	strcpy(s->name, name);
-	s->is_static = true;
+
 	return s;
 }
 
@@ -710,29 +711,6 @@ static char *get_modinfo(struct elf_info *info, const char *tag)
 	return get_next_modinfo(info, tag, NULL);
 }
 
-/**
- * Test if string s ends in string sub
- * return 0 if match
- **/
-static int strrcmp(const char *s, const char *sub)
-{
-	int slen, sublen;
-
-	if (!s || !sub)
-		return 1;
-
-	slen = strlen(s);
-	sublen = strlen(sub);
-
-	if ((slen == 0) || (sublen == 0))
-		return 1;
-
-	if (sublen > slen)
-		return 1;
-
-	return memcmp(s + slen - sublen, sub, sublen);
-}
-
 static const char *sym_name(struct elf_info *elf, Elf_Sym *sym)
 {
 	if (sym)
@@ -741,48 +719,22 @@ static const char *sym_name(struct elf_info *elf, Elf_Sym *sym)
 		return "(unknown)";
 }
 
-/* The pattern is an array of simple patterns.
- * "foo" will match an exact string equal to "foo"
- * "*foo" will match a string that ends with "foo"
- * "foo*" will match a string that begins with "foo"
- * "*foo*" will match a string that contains "foo"
+/*
+ * Check whether the 'string' argument matches one of the 'patterns',
+ * an array of shell wildcard patterns (glob).
+ *
+ * Return true is there is a match.
  */
-static int match(const char *sym, const char * const pat[])
+static bool match(const char *string, const char *const patterns[])
 {
-	const char *p;
-	while (*pat) {
-		const char *endp;
+	const char *pattern;
 
-		p = *pat++;
-		endp = p + strlen(p) - 1;
-
-		/* "*foo*" */
-		if (*p == '*' && *endp == '*') {
-			char *bare = NOFAIL(strndup(p + 1, strlen(p) - 2));
-			char *here = strstr(sym, bare);
-
-			free(bare);
-			if (here != NULL)
-				return 1;
-		}
-		/* "*foo" */
-		else if (*p == '*') {
-			if (strrcmp(sym, p + 1) == 0)
-				return 1;
-		}
-		/* "foo*" */
-		else if (*endp == '*') {
-			if (strncmp(sym, p, strlen(p) - 1) == 0)
-				return 1;
-		}
-		/* no wildcards */
-		else {
-			if (strcmp(p, sym) == 0)
-				return 1;
-		}
+	while ((pattern = *patterns++)) {
+		if (!fnmatch(pattern, string, 0))
+			return true;
 	}
-	/* no match */
-	return 0;
+
+	return false;
 }
 
 /* sections that we do not want to do full section mismatch check on */
@@ -1028,7 +980,7 @@ static const struct sectioncheck sectioncheck[] = {
 },
 /* Do not export init/exit functions or data */
 {
-	.fromsec = { "__ksymtab*", NULL },
+	.fromsec = { "___ksymtab*", NULL },
 	.bad_tosec = { INIT_SECTIONS, EXIT_SECTIONS, NULL },
 	.mismatch = EXPORT_TO_INIT_EXIT,
 	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
@@ -1049,8 +1001,6 @@ static const struct sectioncheck *section_mismatch(
 		const char *fromsec, const char *tosec)
 {
 	int i;
-	int elems = sizeof(sectioncheck) / sizeof(struct sectioncheck);
-	const struct sectioncheck *check = &sectioncheck[0];
 
 	/*
 	 * The target section could be the SHT_NUL section when we're
@@ -1061,14 +1011,15 @@ static const struct sectioncheck *section_mismatch(
 	if (*tosec == '\0')
 		return NULL;
 
-	for (i = 0; i < elems; i++) {
+	for (i = 0; i < ARRAY_SIZE(sectioncheck); i++) {
+		const struct sectioncheck *check = &sectioncheck[i];
+
 		if (match(fromsec, check->fromsec)) {
 			if (check->bad_tosec[0] && match(tosec, check->bad_tosec))
 				return check;
 			if (check->good_tosec[0] && !match(tosec, check->good_tosec))
 				return check;
 		}
-		check++;
 	}
 	return NULL;
 }
@@ -1180,7 +1131,8 @@ static int secref_whitelist(const struct sectioncheck *mismatch,
 
 static inline int is_arm_mapping_symbol(const char *str)
 {
-	return str[0] == '$' && strchr("axtd", str[1])
+	return str[0] == '$' &&
+	       (str[1] == 'a' || str[1] == 'd' || str[1] == 't' || str[1] == 'x')
 	       && (str[2] == '\0' || str[2] == '.');
 }
 
@@ -1270,13 +1222,9 @@ static Elf_Sym *find_elf_symbol2(struct elf_info *elf, Elf_Addr addr,
 			continue;
 		if (!is_valid_name(elf, sym))
 			continue;
-		if (sym->st_value <= addr) {
-			if ((addr - sym->st_value) < distance) {
-				distance = addr - sym->st_value;
-				near = sym;
-			} else if ((addr - sym->st_value) == distance) {
-				near = sym;
-			}
+		if (sym->st_value <= addr && addr - sym->st_value <= distance) {
+			distance = addr - sym->st_value;
+			near = sym;
 		}
 	}
 	return near;
@@ -1883,8 +1831,7 @@ static void section_rel(const char *modname, struct elf_info *elf,
  * to find all references to a section that reference a section that will
  * be discarded and warns about it.
  **/
-static void check_sec_ref(struct module *mod, const char *modname,
-			  struct elf_info *elf)
+static void check_sec_ref(const char *modname, struct elf_info *elf)
 {
 	int i;
 	Elf_Shdr *sechdrs = elf->sechdrs;
@@ -1906,12 +1853,8 @@ static char *remove_dot(char *s)
 
 	if (n && s[n]) {
 		size_t m = strspn(s + n + 1, "0123456789");
-		if (m && (s[n + m] == '.' || s[n + m] == 0))
+		if (m && (s[n + m + 1] == '.' || s[n + m + 1] == 0))
 			s[n] = 0;
-
-		/* strip trailing .prelink */
-		if (strends(s, ".prelink"))
-			s[strlen(s) - 8] = '\0';
 	}
 	return s;
 }
@@ -2027,18 +1970,13 @@ static void read_symbols(const char *modname)
 	if (!parse_elf(&info, modname))
 		return;
 
-	{
-		char *tmp;
-
-		/* strip trailing .o */
-		tmp = NOFAIL(strdup(modname));
-		tmp[strlen(tmp) - 2] = '\0';
-		/* strip trailing .prelink */
-		if (strends(tmp, ".prelink"))
-			tmp[strlen(tmp) - 8] = '\0';
-		mod = new_module(tmp);
-		free(tmp);
+	if (!strends(modname, ".o")) {
+		error("%s: filename must be suffixed with .o\n", modname);
+		return;
 	}
+
+	/* strip trailing .o */
+	mod = new_module(modname, strlen(modname) - strlen(".o"));
 
 	if (!mod->is_vmlinux) {
 		license = get_modinfo(&info, "license");
@@ -2076,21 +2014,7 @@ static void read_symbols(const char *modname)
 					     sym_get_data(&info, sym));
 	}
 
-	// check for static EXPORT_SYMBOL_* functions && global vars
-	for (sym = info.symtab_start; sym < info.symtab_stop; sym++) {
-		unsigned char bind = ELF_ST_BIND(sym->st_info);
-
-		if (bind == STB_GLOBAL || bind == STB_WEAK) {
-			struct symbol *s =
-				find_symbol(remove_dot(info.strtab +
-						       sym->st_name));
-
-			if (s)
-				s->is_static = false;
-		}
-	}
-
-	check_sec_ref(mod, modname, &info);
+	check_sec_ref(modname, &info);
 
 	if (!mod->is_vmlinux) {
 		version = get_modinfo(&info, "version");
@@ -2515,11 +2439,10 @@ static void read_dump(const char *fname)
 
 		mod = find_module(modname);
 		if (!mod) {
-			mod = new_module(modname);
+			mod = new_module(modname, strlen(modname));
 			mod->from_dump = true;
 		}
 		s = sym_add_exported(symname, mod, gpl_only);
-		s->is_static = false;
 		sym_set_crc(s, crc);
 		sym_update_namespace(symname, namespace);
 	}
@@ -2584,7 +2507,6 @@ int main(int argc, char **argv)
 	char *missing_namespace_deps = NULL;
 	char *dump_write = NULL, *files_source = NULL;
 	int opt;
-	int n;
 	LIST_HEAD(dump_lists);
 	struct dump_list *dl, *dl2;
 
@@ -2660,15 +2582,6 @@ int main(int argc, char **argv)
 	if (sec_mismatch_count && !sec_mismatch_warn_only)
 		error("Section mismatches detected.\n"
 		      "Set CONFIG_SECTION_MISMATCH_WARN_ONLY=y to allow them.\n");
-	for (n = 0; n < SYMBOL_HASH_SIZE; n++) {
-		struct symbol *s;
-
-		for (s = symbolhash[n]; s; s = s->next) {
-			if (s->is_static)
-				error("\"%s\" [%s] is a static EXPORT_SYMBOL\n",
-				      s->name, s->module->name);
-		}
-	}
 
 	if (nr_unresolved > MAX_UNRESOLVED_REPORTS)
 		warn("suppressed %u unresolved symbol warnings because there were too many)\n",

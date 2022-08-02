@@ -1932,7 +1932,7 @@ static void __init gic_populate_ppi_partitions(struct device_node *gic_node)
 
 	gic_data.ppi_descs = kcalloc(gic_data.ppi_nr, sizeof(*gic_data.ppi_descs), GFP_KERNEL);
 	if (!gic_data.ppi_descs)
-		return;
+		goto out_put_node;
 
 	nr_parts = of_get_child_count(parts_node);
 
@@ -1973,12 +1973,15 @@ static void __init gic_populate_ppi_partitions(struct device_node *gic_node)
 				continue;
 
 			cpu = of_cpu_node_to_id(cpu_node);
-			if (WARN_ON(cpu < 0))
+			if (WARN_ON(cpu < 0)) {
+				of_node_put(cpu_node);
 				continue;
+			}
 
 			pr_cont("%pOF[%d] ", cpu_node, cpu);
 
 			cpumask_set_cpu(cpu, &part->mask);
+			of_node_put(cpu_node);
 		}
 
 		pr_cont("}\n");
@@ -2039,15 +2042,40 @@ static void __init gic_of_setup_kvm_info(struct device_node *node)
 	vgic_set_kvm_info(&gic_v3_kvm_info);
 }
 
+static void gic_request_region(resource_size_t base, resource_size_t size,
+			       const char *name)
+{
+	if (!request_mem_region(base, size, name))
+		pr_warn_once(FW_BUG "%s region %pa has overlapping address\n",
+			     name, &base);
+}
+
+static void __iomem *gic_of_iomap(struct device_node *node, int idx,
+				  const char *name, struct resource *res)
+{
+	void __iomem *base;
+	int ret;
+
+	ret = of_address_to_resource(node, idx, res);
+	if (ret)
+		return IOMEM_ERR_PTR(ret);
+
+	gic_request_region(res->start, resource_size(res), name);
+	base = of_iomap(node, idx);
+
+	return base ?: IOMEM_ERR_PTR(-ENOMEM);
+}
+
 static int __init gic_of_init(struct device_node *node, struct device_node *parent)
 {
 	void __iomem *dist_base;
 	struct redist_region *rdist_regs;
+	struct resource res;
 	u64 redist_stride;
 	u32 nr_redist_regions;
 	int err, i;
 
-	dist_base = of_io_request_and_map(node, 0, "GICD");
+	dist_base = gic_of_iomap(node, 0, "GICD", &res);
 	if (IS_ERR(dist_base)) {
 		pr_err("%pOF: unable to map gic dist registers\n", node);
 		return PTR_ERR(dist_base);
@@ -2070,12 +2098,8 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
 	}
 
 	for (i = 0; i < nr_redist_regions; i++) {
-		struct resource res;
-		int ret;
-
-		ret = of_address_to_resource(node, 1 + i, &res);
-		rdist_regs[i].redist_base = of_io_request_and_map(node, 1 + i, "GICR");
-		if (ret || IS_ERR(rdist_regs[i].redist_base)) {
+		rdist_regs[i].redist_base = gic_of_iomap(node, 1 + i, "GICR", &res);
+		if (IS_ERR(rdist_regs[i].redist_base)) {
 			pr_err("%pOF: couldn't map region %d\n", node, i);
 			err = -ENODEV;
 			goto out_unmap_rdist;
@@ -2148,7 +2172,7 @@ gic_acpi_parse_madt_redist(union acpi_subtable_headers *header,
 		pr_err("Couldn't map GICR region @%llx\n", redist->base_address);
 		return -ENOMEM;
 	}
-	request_mem_region(redist->base_address, redist->length, "GICR");
+	gic_request_region(redist->base_address, redist->length, "GICR");
 
 	gic_acpi_register_redist(redist->base_address, redist_base);
 	return 0;
@@ -2171,7 +2195,7 @@ gic_acpi_parse_madt_gicc(union acpi_subtable_headers *header,
 	redist_base = ioremap(gicc->gicr_base_address, size);
 	if (!redist_base)
 		return -ENOMEM;
-	request_mem_region(gicc->gicr_base_address, size, "GICR");
+	gic_request_region(gicc->gicr_base_address, size, "GICR");
 
 	gic_acpi_register_redist(gicc->gicr_base_address, redist_base);
 	return 0;
@@ -2373,7 +2397,7 @@ gic_acpi_init(union acpi_subtable_headers *header, const unsigned long end)
 		pr_err("Unable to map GICD registers\n");
 		return -ENOMEM;
 	}
-	request_mem_region(dist->base_address, ACPI_GICV3_DIST_MEM_SIZE, "GICD");
+	gic_request_region(dist->base_address, ACPI_GICV3_DIST_MEM_SIZE, "GICD");
 
 	err = gic_validate_dist_version(acpi_data.dist_base);
 	if (err) {

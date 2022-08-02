@@ -18,7 +18,6 @@
 boot := arch/parisc/boot
 KBUILD_IMAGE := $(boot)/bzImage
 
-NM		= sh $(srctree)/arch/parisc/nm
 CHECKFLAGS	+= -D__hppa__=1
 
 ifdef CONFIG_64BIT

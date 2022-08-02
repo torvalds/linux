@@ -2474,21 +2474,16 @@ drop_unsolicited_na - BOOLEAN
 
 	By default this is turned off.
 
-accept_unsolicited_na - BOOLEAN
-	Add a new neighbour cache entry in STALE state for routers on receiving an
-	unsolicited neighbour advertisement with target link-layer address option
-	specified. This is as per router-side behavior documented in RFC9131.
-	This has lower precedence than drop_unsolicited_na.
+accept_untracked_na - BOOLEAN
+	Add a new neighbour cache entry in STALE state for routers on receiving a
+	neighbour advertisement (either solicited or unsolicited) with target
+	link-layer address option specified if no neighbour entry is already
+	present for the advertised IPv6 address. Without this knob, NAs received
+	for untracked addresses (absent in neighbour cache) are silently ignored.
 
-	 ====   ======  ======  ==============================================
-	 drop   accept  fwding                   behaviour
-	 ----   ------  ------  ----------------------------------------------
-	    1        X       X  Drop NA packet and don't pass up the stack
-	    0        0       X  Pass NA packet up the stack, don't update NC
-	    0        1       0  Pass NA packet up the stack, don't update NC
-	    0        1       1  Pass NA packet up the stack, and add a STALE
-	                        NC entry
-	 ====   ======  ======  ==============================================
+	This is as per router-side behaviour documented in RFC9131.
+
+	This has lower precedence than drop_unsolicited_na.
 
 	This will optimize the return path for the initial off-link communication
 	that is initiated by a directly connected host, by ensuring that
@@ -2929,6 +2924,43 @@ plpmtud_probe_interval - INTEGER
         must be >= 5000.
 
 	Default: 0
+
+reconf_enable - BOOLEAN
+        Enable or disable extension of Stream Reconfiguration functionality
+        specified in RFC6525. This extension provides the ability to "reset"
+        a stream, and it includes the Parameters of "Outgoing/Incoming SSN
+        Reset", "SSN/TSN Reset" and "Add Outgoing/Incoming Streams".
+
+	- 1: Enable extension.
+	- 0: Disable extension.
+
+	Default: 0
+
+intl_enable - BOOLEAN
+        Enable or disable extension of User Message Interleaving functionality
+        specified in RFC8260. This extension allows the interleaving of user
+        messages sent on different streams. With this feature enabled, I-DATA
+        chunk will replace DATA chunk to carry user messages if also supported
+        by the peer. Note that to use this feature, one needs to set this option
+        to 1 and also needs to set socket options SCTP_FRAGMENT_INTERLEAVE to 2
+        and SCTP_INTERLEAVING_SUPPORTED to 1.
+
+	- 1: Enable extension.
+	- 0: Disable extension.
+
+	Default: 0
+
+ecn_enable - BOOLEAN
+        Control use of Explicit Congestion Notification (ECN) by SCTP.
+        Like in TCP, ECN is used only when both ends of the SCTP connection
+        indicate support for it. This feature is useful in avoiding losses
+        due to congestion by allowing supporting routers to signal congestion
+        before having to drop packets.
+
+        1: Enable ecn.
+        0: Disable ecn.
+
+        Default: 1
 
 
 ``/proc/sys/net/core/*``

@@ -36,8 +36,8 @@
 #include <linux/delay.h>
 #include <linux/highmem.h>
 #include <linux/memblock.h>
+#include <linux/of_fdt.h>
 
-#include <asm/prom.h>
 #include <asm/io.h>
 #include <asm/mmu_context.h>
 #include <asm/mmu.h>
@@ -51,10 +51,9 @@
 
 unsigned int tlbcam_index;
 
-#define NUM_TLBCAMS	(64)
 struct tlbcam TLBCAM[NUM_TLBCAMS];
 
-struct tlbcamrange {
+static struct {
 	unsigned long start;
 	unsigned long limit;
 	phys_addr_t phys;
@@ -274,7 +273,7 @@ void __init adjust_total_lowmem(void)
 
 	i = switch_to_as1();
 	__max_low_memory = map_mem_in_cams(ram, CONFIG_LOWMEM_CAM_NUM, false, true);
-	restore_to_as0(i, 0, 0, 1);
+	restore_to_as0(i, 0, NULL, 1);
 
 	pr_info("Memory CAM mapping: ");
 	for (i = 0; i < tlbcam_index - 1; i++)
@@ -288,20 +287,17 @@ void __init adjust_total_lowmem(void)
 #ifdef CONFIG_STRICT_KERNEL_RWX
 void mmu_mark_rodata_ro(void)
 {
-	/* Everything is done in mmu_mark_initmem_nx() */
+	unsigned long remapped;
+
+	remapped = map_mem_in_cams(__max_low_memory, CONFIG_LOWMEM_CAM_NUM, false, false);
+
+	WARN_ON(__max_low_memory != remapped);
 }
 #endif
 
 void mmu_mark_initmem_nx(void)
 {
-	unsigned long remapped;
-
-	if (!strict_kernel_rwx_enabled())
-		return;
-
-	remapped = map_mem_in_cams(__max_low_memory, CONFIG_LOWMEM_CAM_NUM, false, false);
-
-	WARN_ON(__max_low_memory != remapped);
+	/* Everything is done in mmu_mark_rodata_ro() */
 }
 
 void setup_initial_memory_limit(phys_addr_t first_memblock_base,

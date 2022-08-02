@@ -104,6 +104,20 @@ Description:	Dump the status of the QM.
 		Four states: initiated, started, stopped and closed.
 		Available for both PF and VF, and take no other effect on HPRE.
 
+What:		/sys/kernel/debug/hisi_hpre/<bdf>/qm/diff_regs
+Date:		Mar 2022
+Contact:	linux-crypto@vger.kernel.org
+Description:	QM debug registers(regs) read hardware register value. This
+		node is used to show the change of the qm register values. This
+		node can be help users to check the change of register values.
+
+What:		/sys/kernel/debug/hisi_hpre/<bdf>/hpre_dfx/diff_regs
+Date:		Mar 2022
+Contact:	linux-crypto@vger.kernel.org
+Description:	HPRE debug registers(regs) read hardware register value. This
+		node is used to show the change of the register values. This
+		node can be help users to check the change of register values.
+
 What:		/sys/kernel/debug/hisi_hpre/<bdf>/hpre_dfx/send_cnt
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org

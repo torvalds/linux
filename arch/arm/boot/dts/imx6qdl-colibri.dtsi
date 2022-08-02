@@ -593,7 +593,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_atmel_conn>;
 		reg = <0x4a>;
-		reset-gpios = <&gpio1 14 GPIO_ACTIVE_HIGH>;	/* SODIMM 106 */
+		reset-gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;	/* SODIMM 106 */
 		status = "disabled";
 	};
 };

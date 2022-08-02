@@ -1880,8 +1880,7 @@ static int _regmap_raw_write_impl(struct regmap *map, unsigned int reg,
  */
 bool regmap_can_raw_write(struct regmap *map)
 {
-	return map->bus && map->bus->write && map->format.format_val &&
-		map->format.format_reg;
+	return map->write && map->format.format_val && map->format.format_reg;
 }
 EXPORT_SYMBOL_GPL(regmap_can_raw_write);
 
@@ -2155,10 +2154,9 @@ int regmap_noinc_write(struct regmap *map, unsigned int reg,
 	size_t write_len;
 	int ret;
 
-	if (!map->bus)
-		return -EINVAL;
-	if (!map->bus->write)
+	if (!map->write)
 		return -ENOTSUPP;
+
 	if (val_len % map->format.val_bytes)
 		return -EINVAL;
 	if (!IS_ALIGNED(reg, map->reg_stride))
@@ -2278,7 +2276,7 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 	 * Some devices don't support bulk write, for them we have a series of
 	 * single write operations.
 	 */
-	if (!map->bus || !map->format.parse_inplace) {
+	if (!map->write || !map->format.parse_inplace) {
 		map->lock(map->lock_arg);
 		for (i = 0; i < val_count; i++) {
 			unsigned int ival;
@@ -2904,6 +2902,9 @@ int regmap_noinc_read(struct regmap *map, unsigned int reg,
 	size_t read_len;
 	int ret;
 
+	if (!map->read)
+		return -ENOTSUPP;
+
 	if (val_len % map->format.val_bytes)
 		return -EINVAL;
 	if (!IS_ALIGNED(reg, map->reg_stride))
@@ -3017,7 +3018,7 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 	if (val_count == 0)
 		return -EINVAL;
 
-	if (map->format.parse_inplace && (vol || map->cache_type == REGCACHE_NONE)) {
+	if (map->read && map->format.parse_inplace && (vol || map->cache_type == REGCACHE_NONE)) {
 		ret = regmap_raw_read(map, reg, val, val_bytes * val_count);
 		if (ret != 0)
 			return ret;

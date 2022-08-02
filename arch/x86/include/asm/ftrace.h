@@ -9,6 +9,13 @@
 # define MCOUNT_ADDR		((unsigned long)(__fentry__))
 #define MCOUNT_INSN_SIZE	5 /* sizeof mcount call */
 
+/* Ignore unused weak functions which will have non zero offsets */
+#ifdef CONFIG_HAVE_FENTRY
+# include <asm/ibt.h>
+/* Add offset for endbr64 if IBT enabled */
+# define FTRACE_MCOUNT_MAX_OFFSET	ENDBR_INSN_SIZE
+#endif
+
 #ifdef CONFIG_DYNAMIC_FTRACE
 #define ARCH_SUPPORTS_FTRACE_OPS 1
 #endif

@@ -136,18 +136,45 @@ static int binder_set_stop_on_user_error(const char *val,
 module_param_call(stop_on_user_error, binder_set_stop_on_user_error,
 	param_get_int, &binder_stop_on_user_error, 0644);
 
-#define binder_debug(mask, x...) \
-	do { \
-		if (binder_debug_mask & mask) \
-			pr_info_ratelimited(x); \
-	} while (0)
+static __printf(2, 3) void binder_debug(int mask, const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
 
-#define binder_user_error(x...) \
+	if (binder_debug_mask & mask) {
+		va_start(args, format);
+		vaf.va = &args;
+		vaf.fmt = format;
+		pr_info_ratelimited("%pV", &vaf);
+		va_end(args);
+	}
+}
+
+#define binder_txn_error(x...) \
+	binder_debug(BINDER_DEBUG_FAILED_TRANSACTION, x)
+
+static __printf(1, 2) void binder_user_error(const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (binder_debug_mask & BINDER_DEBUG_USER_ERROR) {
+		va_start(args, format);
+		vaf.va = &args;
+		vaf.fmt = format;
+		pr_info_ratelimited("%pV", &vaf);
+		va_end(args);
+	}
+
+	if (binder_stop_on_user_error)
+		binder_stop_on_user_error = 2;
+}
+
+#define binder_set_extended_error(ee, _id, _command, _param) \
 	do { \
-		if (binder_debug_mask & BINDER_DEBUG_USER_ERROR) \
-			pr_info_ratelimited(x); \
-		if (binder_stop_on_user_error) \
-			binder_stop_on_user_error = 2; \
+		(ee)->id = _id; \
+		(ee)->command = _command; \
+		(ee)->param = _param; \
 	} while (0)
 
 #define to_flat_binder_object(hdr) \
@@ -1654,6 +1681,8 @@ static void binder_free_txn_fixups(struct binder_transaction *t)
 
 	list_for_each_entry_safe(fixup, tmp, &t->fd_fixups, fixup_entry) {
 		fput(fixup->file);
+		if (fixup->target_fd >= 0)
+			put_unused_fd(fixup->target_fd);
 		list_del(&fixup->fixup_entry);
 		kfree(fixup);
 	}
@@ -2028,8 +2057,10 @@ static void binder_deferred_fd_close(int fd)
 	if (!twcb)
 		return;
 	init_task_work(&twcb->twork, binder_do_fd_close);
-	close_fd_get_file(fd, &twcb->file);
+	twcb->file = close_fd_get_file(fd);
 	if (twcb->file) {
+		// pin it until binder_do_fd_close(); see comments there
+		get_file(twcb->file);
 		filp_close(twcb->file, current->files);
 		task_work_add(current, &twcb->twork, TWA_RESUME);
 	} else {
@@ -2393,6 +2424,7 @@ static int binder_translate_fd(u32 fd, binder_size_t fd_offset,
 	}
 	fixup->file = file;
 	fixup->offset = fd_offset;
+	fixup->target_fd = -1;
 	trace_binder_transaction_fd_send(t, fd, fixup->offset);
 	list_add_tail(&fixup->fixup_entry, &t->fd_fixups);
 
@@ -2881,6 +2913,24 @@ static struct binder_node *binder_get_node_refs_for_txn(
 	return target_node;
 }
 
+static void binder_set_txn_from_error(struct binder_transaction *t, int id,
+				      uint32_t command, int32_t param)
+{
+	struct binder_thread *from = binder_get_txn_from_and_acq_inner(t);
+
+	if (!from) {
+		/* annotation for sparse */
+		__release(&from->proc->inner_lock);
+		return;
+	}
+
+	/* don't override existing errors */
+	if (from->ee.command == BR_OK)
+		binder_set_extended_error(&from->ee, id, command, param);
+	binder_inner_proc_unlock(from->proc);
+	binder_thread_dec_tmpref(from);
+}
+
 static void binder_transaction(struct binder_proc *proc,
 			       struct binder_thread *thread,
 			       struct binder_transaction_data *tr, int reply,
@@ -2927,6 +2977,10 @@ static void binder_transaction(struct binder_proc *proc,
 	e->offsets_size = tr->offsets_size;
 	strscpy(e->context_name, proc->context->name, BINDERFS_MAX_NAME);
 
+	binder_inner_proc_lock(proc);
+	binder_set_extended_error(&thread->ee, t_debug_id, BR_OK, 0);
+	binder_inner_proc_unlock(proc);
+
 	if (reply) {
 		binder_inner_proc_lock(proc);
 		in_reply_to = thread->transaction_stack;
@@ -2961,6 +3015,8 @@ static void binder_transaction(struct binder_proc *proc,
 		if (target_thread == NULL) {
 			/* annotation for sparse */
 			__release(&target_thread->proc->inner_lock);
+			binder_txn_error("%d:%d reply target not found\n",
+				thread->pid, proc->pid);
 			return_error = BR_DEAD_REPLY;
 			return_error_line = __LINE__;
 			goto err_dead_binder;
@@ -3026,6 +3082,8 @@ static void binder_transaction(struct binder_proc *proc,
 			}
 		}
 		if (!target_node) {
+			binder_txn_error("%d:%d cannot find target node\n",
+				thread->pid, proc->pid);
 			/*
 			 * return_error is set above
 			 */
@@ -3035,6 +3093,8 @@ static void binder_transaction(struct binder_proc *proc,
 		}
 		e->to_node = target_node->debug_id;
 		if (WARN_ON(proc == target_proc)) {
+			binder_txn_error("%d:%d self transactions not allowed\n",
+				thread->pid, proc->pid);
 			return_error = BR_FAILED_REPLY;
 			return_error_param = -EINVAL;
 			return_error_line = __LINE__;
@@ -3042,6 +3102,8 @@ static void binder_transaction(struct binder_proc *proc,
 		}
 		if (security_binder_transaction(proc->cred,
 						target_proc->cred) < 0) {
+			binder_txn_error("%d:%d transaction credentials failed\n",
+				thread->pid, proc->pid);
 			return_error = BR_FAILED_REPLY;
 			return_error_param = -EPERM;
 			return_error_line = __LINE__;
@@ -3114,6 +3176,8 @@ static void binder_transaction(struct binder_proc *proc,
 	/* TODO: reuse incoming transaction for reply */
 	t = kzalloc(sizeof(*t), GFP_KERNEL);
 	if (t == NULL) {
+		binder_txn_error("%d:%d cannot allocate transaction\n",
+			thread->pid, proc->pid);
 		return_error = BR_FAILED_REPLY;
 		return_error_param = -ENOMEM;
 		return_error_line = __LINE__;
@@ -3126,6 +3190,8 @@ static void binder_transaction(struct binder_proc *proc,
 
 	tcomplete = kzalloc(sizeof(*tcomplete), GFP_KERNEL);
 	if (tcomplete == NULL) {
+		binder_txn_error("%d:%d cannot allocate work for transaction\n",
+			thread->pid, proc->pid);
 		return_error = BR_FAILED_REPLY;
 		return_error_param = -ENOMEM;
 		return_error_line = __LINE__;
@@ -3181,6 +3247,8 @@ static void binder_transaction(struct binder_proc *proc,
 		security_cred_getsecid(proc->cred, &secid);
 		ret = security_secid_to_secctx(secid, &secctx, &secctx_sz);
 		if (ret) {
+			binder_txn_error("%d:%d failed to get security context\n",
+				thread->pid, proc->pid);
 			return_error = BR_FAILED_REPLY;
 			return_error_param = ret;
 			return_error_line = __LINE__;
@@ -3189,7 +3257,8 @@ static void binder_transaction(struct binder_proc *proc,
 		added_size = ALIGN(secctx_sz, sizeof(u64));
 		extra_buffers_size += added_size;
 		if (extra_buffers_size < added_size) {
-			/* integer overflow of extra_buffers_size */
+			binder_txn_error("%d:%d integer overflow of extra_buffers_size\n",
+				thread->pid, proc->pid);
 			return_error = BR_FAILED_REPLY;
 			return_error_param = -EINVAL;
 			return_error_line = __LINE__;
@@ -3203,9 +3272,15 @@ static void binder_transaction(struct binder_proc *proc,
 		tr->offsets_size, extra_buffers_size,
 		!reply && (t->flags & TF_ONE_WAY), current->tgid);
 	if (IS_ERR(t->buffer)) {
-		/*
-		 * -ESRCH indicates VMA cleared. The target is dying.
-		 */
+		char *s;
+
+		ret = PTR_ERR(t->buffer);
+		s = (ret == -ESRCH) ? ": vma cleared, target dead or dying"
+			: (ret == -ENOSPC) ? ": no space left"
+			: (ret == -ENOMEM) ? ": memory allocation failed"
+			: "";
+		binder_txn_error("cannot allocate buffer%s", s);
+
 		return_error_param = PTR_ERR(t->buffer);
 		return_error = return_error_param == -ESRCH ?
 			BR_DEAD_REPLY : BR_FAILED_REPLY;
@@ -3288,6 +3363,8 @@ static void binder_transaction(struct binder_proc *proc,
 						  t->buffer,
 						  buffer_offset,
 						  sizeof(object_offset))) {
+			binder_txn_error("%d:%d copy offset from buffer failed\n",
+				thread->pid, proc->pid);
 			return_error = BR_FAILED_REPLY;
 			return_error_param = -EINVAL;
 			return_error_line = __LINE__;
@@ -3346,6 +3423,8 @@ static void binder_transaction(struct binder_proc *proc,
 							t->buffer,
 							object_offset,
 							fp, sizeof(*fp))) {
+				binder_txn_error("%d:%d translate binder failed\n",
+					thread->pid, proc->pid);
 				return_error = BR_FAILED_REPLY;
 				return_error_param = ret;
 				return_error_line = __LINE__;
@@ -3363,6 +3442,8 @@ static void binder_transaction(struct binder_proc *proc,
 							t->buffer,
 							object_offset,
 							fp, sizeof(*fp))) {
+				binder_txn_error("%d:%d translate handle failed\n",
+					thread->pid, proc->pid);
 				return_error = BR_FAILED_REPLY;
 				return_error_param = ret;
 				return_error_line = __LINE__;
@@ -3383,6 +3464,8 @@ static void binder_transaction(struct binder_proc *proc,
 							t->buffer,
 							object_offset,
 							fp, sizeof(*fp))) {
+				binder_txn_error("%d:%d translate fd failed\n",
+					thread->pid, proc->pid);
 				return_error = BR_FAILED_REPLY;
 				return_error_param = ret;
 				return_error_line = __LINE__;
@@ -3452,6 +3535,8 @@ static void binder_transaction(struct binder_proc *proc,
 								  object_offset,
 								  fda, sizeof(*fda));
 			if (ret) {
+				binder_txn_error("%d:%d translate fd array failed\n",
+					thread->pid, proc->pid);
 				return_error = BR_FAILED_REPLY;
 				return_error_param = ret > 0 ? -EINVAL : ret;
 				return_error_line = __LINE__;
@@ -3479,6 +3564,8 @@ static void binder_transaction(struct binder_proc *proc,
 				(const void __user *)(uintptr_t)bp->buffer,
 				bp->length);
 			if (ret) {
+				binder_txn_error("%d:%d deferred copy failed\n",
+					thread->pid, proc->pid);
 				return_error = BR_FAILED_REPLY;
 				return_error_param = ret;
 				return_error_line = __LINE__;
@@ -3502,6 +3589,8 @@ static void binder_transaction(struct binder_proc *proc,
 							t->buffer,
 							object_offset,
 							bp, sizeof(*bp))) {
+				binder_txn_error("%d:%d failed to fixup parent\n",
+					thread->pid, proc->pid);
 				return_error = BR_FAILED_REPLY;
 				return_error_param = ret;
 				return_error_line = __LINE__;
@@ -3617,6 +3706,8 @@ static void binder_transaction(struct binder_proc *proc,
 	return;
 
 err_dead_proc_or_thread:
+	binder_txn_error("%d:%d dead process or thread\n",
+		thread->pid, proc->pid);
 	return_error_line = __LINE__;
 	binder_dequeue_work(proc, tcomplete);
 err_translate_failed:
@@ -3652,20 +3743,25 @@ err_bad_call_stack:
 err_empty_call_stack:
 err_dead_binder:
 err_invalid_target_handle:
-	if (target_thread)
-		binder_thread_dec_tmpref(target_thread);
-	if (target_proc)
-		binder_proc_dec_tmpref(target_proc);
 	if (target_node) {
 		binder_dec_node(target_node, 1, 0);
 		binder_dec_node_tmpref(target_node);
 	}
 
 	binder_debug(BINDER_DEBUG_FAILED_TRANSACTION,
-		     "%d:%d transaction failed %d/%d, size %lld-%lld line %d\n",
-		     proc->pid, thread->pid, return_error, return_error_param,
+		     "%d:%d transaction %s to %d:%d failed %d/%d/%d, size %lld-%lld line %d\n",
+		     proc->pid, thread->pid, reply ? "reply" :
+		     (tr->flags & TF_ONE_WAY ? "async" : "call"),
+		     target_proc ? target_proc->pid : 0,
+		     target_thread ? target_thread->pid : 0,
+		     t_debug_id, return_error, return_error_param,
 		     (u64)tr->data_size, (u64)tr->offsets_size,
 		     return_error_line);
+
+	if (target_thread)
+		binder_thread_dec_tmpref(target_thread);
+	if (target_proc)
+		binder_proc_dec_tmpref(target_proc);
 
 	{
 		struct binder_transaction_log_entry *fe;
@@ -3688,10 +3784,16 @@ err_invalid_target_handle:
 	if (in_reply_to) {
 		trace_android_vh_binder_restore_priority(in_reply_to, current);
 		binder_restore_priority(thread, &in_reply_to->saved_priority);
+		binder_set_txn_from_error(in_reply_to, t_debug_id,
+				return_error, return_error_param);
 		thread->return_error.cmd = BR_TRANSACTION_COMPLETE;
 		binder_enqueue_thread_work(thread, &thread->return_error.work);
 		binder_send_failed_reply(in_reply_to, return_error);
 	} else {
+		binder_inner_proc_lock(proc);
+		binder_set_extended_error(&thread->ee, t_debug_id,
+				return_error, return_error_param);
+		binder_inner_proc_unlock(proc);
 		thread->return_error.cmd = return_error;
 		binder_enqueue_thread_work(thread, &thread->return_error.work);
 	}
@@ -4181,7 +4283,7 @@ static int binder_thread_write(struct binder_proc *proc,
 		} break;
 
 		default:
-			pr_err("%d:%d unknown command %d\n",
+			pr_err("%d:%d unknown command %u\n",
 			       proc->pid, thread->pid, cmd);
 			return -EINVAL;
 		}
@@ -4273,10 +4375,9 @@ static int binder_wait_for_work(struct binder_thread *thread,
  * Now that we are in the context of the transaction target
  * process, we can allocate and install fds. Process the
  * list of fds to translate and fixup the buffer with the
- * new fds.
+ * new fds first and only then install the files.
  *
- * If we fail to allocate an fd, then free the resources by
- * fput'ing files that have not been processed and ksys_close'ing
+ * If we fail to allocate an fd, skip the install and release
  * any fds that have already been allocated.
  */
 static int binder_apply_fd_fixups(struct binder_proc *proc,
@@ -4293,40 +4394,30 @@ static int binder_apply_fd_fixups(struct binder_proc *proc,
 				     "failed fd fixup txn %d fd %d\n",
 				     t->debug_id, fd);
 			ret = -ENOMEM;
-			break;
+			goto err;
 		}
 		binder_debug(BINDER_DEBUG_TRANSACTION,
 			     "fd fixup txn %d fd %d\n",
 			     t->debug_id, fd);
 		trace_binder_transaction_fd_recv(t, fd, fixup->offset);
-		fd_install(fd, fixup->file);
-		fixup->file = NULL;
+		fixup->target_fd = fd;
 		if (binder_alloc_copy_to_buffer(&proc->alloc, t->buffer,
 						fixup->offset, &fd,
 						sizeof(u32))) {
 			ret = -EINVAL;
-			break;
+			goto err;
 		}
 	}
 	list_for_each_entry_safe(fixup, tmp, &t->fd_fixups, fixup_entry) {
-		if (fixup->file) {
-			fput(fixup->file);
-		} else if (ret) {
-			u32 fd;
-			int err;
-
-			err = binder_alloc_copy_from_buffer(&proc->alloc, &fd,
-							    t->buffer,
-							    fixup->offset,
-							    sizeof(fd));
-			WARN_ON(err);
-			if (!err)
-				binder_deferred_fd_close(fd);
-		}
+		fd_install(fixup->target_fd, fixup->file);
 		list_del(&fixup->fixup_entry);
 		kfree(fixup);
 	}
 
+	return ret;
+
+err:
+	binder_free_txn_fixups(t);
 	return ret;
 }
 
@@ -4684,7 +4775,7 @@ retry:
 		trace_binder_transaction_received(t);
 		binder_stat_br(proc, thread, cmd);
 		binder_debug(BINDER_DEBUG_TRANSACTION,
-			     "%d:%d %s %d %d:%d, cmd %d size %zd-%zd ptr %016llx-%016llx\n",
+			     "%d:%d %s %d %d:%d, cmd %u size %zd-%zd ptr %016llx-%016llx\n",
 			     proc->pid, thread->pid,
 			     (cmd == BR_TRANSACTION) ? "BR_TRANSACTION" :
 				(cmd == BR_TRANSACTION_SEC_CTX) ?
@@ -4830,6 +4921,7 @@ static struct binder_thread *binder_get_thread_ilocked(
 	thread->reply_error.cmd = BR_OK;
 	spin_lock_init(&thread->prio_lock);
 	thread->prio_state = BINDER_PRIO_SET;
+	thread->ee.command = BR_OK;
 	INIT_LIST_HEAD(&new_thread->waiting_thread_node);
 	return thread;
 }
@@ -5269,6 +5361,22 @@ static int binder_ioctl_get_freezer_info(
 	return 0;
 }
 
+static int binder_ioctl_get_extended_error(struct binder_thread *thread,
+					   void __user *ubuf)
+{
+	struct binder_extended_error ee;
+
+	binder_inner_proc_lock(thread->proc);
+	ee = thread->ee;
+	binder_set_extended_error(&thread->ee, 0, BR_OK, 0);
+	binder_inner_proc_unlock(thread->proc);
+
+	if (copy_to_user(ubuf, &ee, sizeof(ee)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int ret;
@@ -5477,6 +5585,11 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		binder_inner_proc_unlock(proc);
 		break;
 	}
+	case BINDER_GET_EXTENDED_ERROR:
+		ret = binder_ioctl_get_extended_error(thread, ubuf);
+		if (ret < 0)
+			goto err;
+		break;
 	default:
 		ret = -EINVAL;
 		goto err;

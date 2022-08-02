@@ -153,7 +153,7 @@ static int scmi_clock_attributes_get(const struct scmi_protocol_handle *ph,
 	if (!ret) {
 		u32 latency = 0;
 		attributes = le32_to_cpu(attr->attributes);
-		strlcpy(clk->name, attr->name, SCMI_MAX_STR_SIZE);
+		strscpy(clk->name, attr->name, SCMI_SHORT_NAME_MAX_SIZE);
 		/* clock_enable_latency field is present only since SCMI v3.1 */
 		if (PROTOCOL_REV_MAJOR(version) >= 0x2)
 			latency = le32_to_cpu(attr->clock_enable_latency);
@@ -194,6 +194,7 @@ static int rate_cmp_func(const void *_r1, const void *_r2)
 }
 
 struct scmi_clk_ipriv {
+	struct device *dev;
 	u32 clk_id;
 	struct scmi_clock_info *clk;
 };
@@ -222,6 +223,29 @@ iter_clk_describe_update_state(struct scmi_iterator_state *st,
 	st->num_remaining = NUM_REMAINING(flags);
 	st->num_returned = NUM_RETURNED(flags);
 	p->clk->rate_discrete = RATE_DISCRETE(flags);
+
+	/* Warn about out of spec replies ... */
+	if (!p->clk->rate_discrete &&
+	    (st->num_returned != 3 || st->num_remaining != 0)) {
+		dev_warn(p->dev,
+			 "Out-of-spec CLOCK_DESCRIBE_RATES reply for %s - returned:%d remaining:%d rx_len:%zd\n",
+			 p->clk->name, st->num_returned, st->num_remaining,
+			 st->rx_len);
+
+		/*
+		 * A known quirk: a triplet is returned but num_returned != 3
+		 * Check for a safe payload size and fix.
+		 */
+		if (st->num_returned != 3 && st->num_remaining == 0 &&
+		    st->rx_len == sizeof(*r) + sizeof(__le32) * 2 * 3) {
+			st->num_returned = 3;
+			st->num_remaining = 0;
+		} else {
+			dev_err(p->dev,
+				"Cannot fix out-of-spec reply !\n");
+			return -EPROTO;
+		}
+	}
 
 	return 0;
 }
@@ -255,7 +279,6 @@ iter_clk_describe_process_response(const struct scmi_protocol_handle *ph,
 
 		*rate = RATE_TO_U64(r->rate[st->loop_idx]);
 		p->clk->list.num_rates++;
-		//XXX dev_dbg(ph->dev, "Rate %llu Hz\n", *rate);
 	}
 
 	return ret;
@@ -266,9 +289,7 @@ scmi_clock_describe_rates_get(const struct scmi_protocol_handle *ph, u32 clk_id,
 			      struct scmi_clock_info *clk)
 {
 	int ret;
-
 	void *iter;
-	struct scmi_msg_clock_describe_rates *msg;
 	struct scmi_iterator_ops ops = {
 		.prepare_message = iter_clk_describe_prepare_message,
 		.update_state = iter_clk_describe_update_state,
@@ -277,11 +298,13 @@ scmi_clock_describe_rates_get(const struct scmi_protocol_handle *ph, u32 clk_id,
 	struct scmi_clk_ipriv cpriv = {
 		.clk_id = clk_id,
 		.clk = clk,
+		.dev = ph->dev,
 	};
 
 	iter = ph->hops->iter_response_init(ph, &ops, SCMI_MAX_NUM_RATES,
 					    CLOCK_DESCRIBE_RATES,
-					    sizeof(*msg), &cpriv);
+					    sizeof(struct scmi_msg_clock_describe_rates),
+					    &cpriv);
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
 

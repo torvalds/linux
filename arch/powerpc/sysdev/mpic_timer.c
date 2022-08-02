@@ -255,7 +255,7 @@ EXPORT_SYMBOL(mpic_start_timer);
 
 /**
  * mpic_stop_timer - stop hardware timer
- * @handle: the timer to be stoped
+ * @handle: the timer to be stopped
  *
  * The timer periodically generates an interrupt. Unless user stops the timer.
  */

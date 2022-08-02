@@ -19,8 +19,6 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
-/* Goes away with OF conversion */
-#include <linux/platform_data/timer-ixp4xx.h>
 
 /*
  * Constants to make it easy to access Timer Control/Status registers
@@ -263,28 +261,6 @@ static struct platform_driver ixp4xx_timer_driver = {
 };
 builtin_platform_driver(ixp4xx_timer_driver);
 
-/**
- * ixp4xx_timer_setup() - Timer setup function to be called from boardfiles
- * @timerbase: physical base of timer block
- * @timer_irq: Linux IRQ number for the timer
- * @timer_freq: Fixed frequency of the timer
- */
-void __init ixp4xx_timer_setup(resource_size_t timerbase,
-			       int timer_irq,
-			       unsigned int timer_freq)
-{
-	void __iomem *base;
-
-	base = ioremap(timerbase, 0x100);
-	if (!base) {
-		pr_crit("IXP4xx: can't remap timer\n");
-		return;
-	}
-	ixp4xx_timer_register(base, timer_irq, timer_freq);
-}
-EXPORT_SYMBOL_GPL(ixp4xx_timer_setup);
-
-#ifdef CONFIG_OF
 static __init int ixp4xx_of_timer_init(struct device_node *np)
 {
 	void __iomem *base;
@@ -315,4 +291,3 @@ out_unmap:
 	return ret;
 }
 TIMER_OF_DECLARE(ixp4xx, "intel,ixp4xx-timer", ixp4xx_of_timer_init);
-#endif

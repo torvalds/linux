@@ -41,9 +41,7 @@ struct mod_arch_specific {
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 	unsigned long tramp;
-#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 	unsigned long tramp_regs;
-#endif
 #endif
 
 	/* List of BUG addresses, source line numbers and filenames */

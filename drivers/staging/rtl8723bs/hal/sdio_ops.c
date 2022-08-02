@@ -811,17 +811,14 @@ static struct recv_buf *sd_recv_rxfifo(struct adapter *adapter, u32 size)
 		SIZE_PTR alignment = 0;
 
 		recvbuf->pskb = rtw_skb_alloc(MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
-
-		if (recvbuf->pskb) {
-			recvbuf->pskb->dev = adapter->pnetdev;
-
-			tmpaddr = (SIZE_PTR)recvbuf->pskb->data;
-			alignment = tmpaddr & (RECVBUFF_ALIGN_SZ - 1);
-			skb_reserve(recvbuf->pskb, (RECVBUFF_ALIGN_SZ - alignment));
-		}
-
 		if (!recvbuf->pskb)
 			return NULL;
+
+		recvbuf->pskb->dev = adapter->pnetdev;
+
+		tmpaddr = (SIZE_PTR)recvbuf->pskb->data;
+		alignment = tmpaddr & (RECVBUFF_ALIGN_SZ - 1);
+		skb_reserve(recvbuf->pskb, (RECVBUFF_ALIGN_SZ - alignment));
 	}
 
 	/* 3 3. read data from rxfifo */

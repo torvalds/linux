@@ -11,6 +11,16 @@
 
 /* Refer to drivers/acpi/cppc_acpi.c for the description of functions */
 
+bool cpc_supported_by_cpu(void)
+{
+	switch (boot_cpu_data.x86_vendor) {
+	case X86_VENDOR_AMD:
+	case X86_VENDOR_HYGON:
+		return boot_cpu_has(X86_FEATURE_CPPC);
+	}
+	return false;
+}
+
 bool cpc_ffh_supported(void)
 {
 	return true;

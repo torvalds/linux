@@ -71,7 +71,8 @@ static int generic_remap_checks(struct file *file_in, loff_t pos_in,
 	 * Otherwise, make sure the count is also block-aligned, having
 	 * already confirmed the starting offsets' block alignment.
 	 */
-	if (pos_in + count == size_in) {
+	if (pos_in + count == size_in &&
+	    (!(remap_flags & REMAP_FILE_DEDUP) || pos_out + count == size_out)) {
 		bcount = ALIGN(size_in, bs) - pos_in;
 	} else {
 		if (!IS_ALIGNED(count, bs))
@@ -546,7 +547,7 @@ int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
 		else if (deduped < 0)
 			info->status = deduped;
 		else
-			info->bytes_deduped = len;
+			info->bytes_deduped = deduped;
 
 next_fdput:
 		fdput(dst_fd);

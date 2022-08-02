@@ -1602,7 +1602,8 @@ static inline void nfs42_complete_copies(struct nfs4_state_owner *sp,
 #endif /* CONFIG_NFS_V4_2 */
 
 static int __nfs4_reclaim_open_state(struct nfs4_state_owner *sp, struct nfs4_state *state,
-				     const struct nfs4_state_recovery_ops *ops)
+				     const struct nfs4_state_recovery_ops *ops,
+				     int *lost_locks)
 {
 	struct nfs4_lock_state *lock;
 	int status;
@@ -1620,7 +1621,7 @@ static int __nfs4_reclaim_open_state(struct nfs4_state_owner *sp, struct nfs4_st
 		list_for_each_entry(lock, &state->lock_states, ls_locks) {
 			trace_nfs4_state_lock_reclaim(state, lock);
 			if (!test_bit(NFS_LOCK_INITIALIZED, &lock->ls_flags))
-				pr_warn_ratelimited("NFS: %s: Lock reclaim failed!\n", __func__);
+				*lost_locks += 1;
 		}
 		spin_unlock(&state->state_lock);
 	}
@@ -1630,7 +1631,9 @@ static int __nfs4_reclaim_open_state(struct nfs4_state_owner *sp, struct nfs4_st
 	return status;
 }
 
-static int nfs4_reclaim_open_state(struct nfs4_state_owner *sp, const struct nfs4_state_recovery_ops *ops)
+static int nfs4_reclaim_open_state(struct nfs4_state_owner *sp,
+				   const struct nfs4_state_recovery_ops *ops,
+				   int *lost_locks)
 {
 	struct nfs4_state *state;
 	unsigned int loop = 0;
@@ -1666,7 +1669,7 @@ restart:
 #endif /* CONFIG_NFS_V4_2 */
 		refcount_inc(&state->count);
 		spin_unlock(&sp->so_lock);
-		status = __nfs4_reclaim_open_state(sp, state, ops);
+		status = __nfs4_reclaim_open_state(sp, state, ops, lost_locks);
 
 		switch (status) {
 		default:
@@ -1909,6 +1912,7 @@ static int nfs4_do_reclaim(struct nfs_client *clp, const struct nfs4_state_recov
 	struct rb_node *pos;
 	LIST_HEAD(freeme);
 	int status = 0;
+	int lost_locks = 0;
 
 restart:
 	rcu_read_lock();
@@ -1928,8 +1932,11 @@ restart:
 			spin_unlock(&clp->cl_lock);
 			rcu_read_unlock();
 
-			status = nfs4_reclaim_open_state(sp, ops);
+			status = nfs4_reclaim_open_state(sp, ops, &lost_locks);
 			if (status < 0) {
+				if (lost_locks)
+					pr_warn("NFS: %s: lost %d locks\n",
+						clp->cl_hostname, lost_locks);
 				set_bit(ops->owner_flag_bit, &sp->so_flags);
 				nfs4_put_state_owner(sp);
 				status = nfs4_recovery_handle_error(clp, status);
@@ -1943,6 +1950,9 @@ restart:
 	}
 	rcu_read_unlock();
 	nfs4_free_state_owners(&freeme);
+	if (lost_locks)
+		pr_warn("NFS: %s: lost %d locks\n",
+			clp->cl_hostname, lost_locks);
 	return 0;
 }
 
@@ -2106,6 +2116,11 @@ static int nfs4_try_migration(struct nfs_server *server, const struct cred *cred
 		dprintk("<-- %s: no memory\n", __func__);
 		goto out;
 	}
+	locations->fattr = nfs_alloc_fattr();
+	if (locations->fattr == NULL) {
+		dprintk("<-- %s: no memory\n", __func__);
+		goto out;
+	}
 
 	inode = d_inode(server->super->s_root);
 	result = nfs4_proc_get_locations(server, NFS_FH(inode), locations,
@@ -2120,7 +2135,7 @@ static int nfs4_try_migration(struct nfs_server *server, const struct cred *cred
 	if (!locations->nlocations)
 		goto out;
 
-	if (!(locations->fattr.valid & NFS_ATTR_FATTR_V4_LOCATIONS)) {
+	if (!(locations->fattr->valid & NFS_ATTR_FATTR_V4_LOCATIONS)) {
 		dprintk("<-- %s: No fs_locations data, migration skipped\n",
 			__func__);
 		goto out;
@@ -2145,6 +2160,8 @@ static int nfs4_try_migration(struct nfs_server *server, const struct cred *cred
 out:
 	if (page != NULL)
 		__free_page(page);
+	if (locations != NULL)
+		kfree(locations->fattr);
 	kfree(locations);
 	if (result) {
 		pr_err("NFS: migration recovery failed (server %s)\n",
@@ -2736,5 +2753,6 @@ again:
 		goto again;
 
 	nfs_put_client(clp);
+	module_put_and_kthread_exit(0);
 	return 0;
 }

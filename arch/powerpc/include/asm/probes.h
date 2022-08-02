@@ -8,6 +8,7 @@
  * Copyright IBM Corporation, 2012
  */
 #include <linux/types.h>
+#include <asm/disassemble.h>
 
 typedef u32 ppc_opcode_t;
 #define BREAKPOINT_INSTRUCTION	0x7fe00008	/* trap */
@@ -30,6 +31,41 @@ typedef u32 ppc_opcode_t;
 #else
 #define MSR_SINGLESTEP	(MSR_SE)
 #endif
+
+static inline bool can_single_step(u32 inst)
+{
+	switch (get_op(inst)) {
+	case OP_TRAP_64:	return false;
+	case OP_TRAP:		return false;
+	case OP_SC:		return false;
+	case OP_19:
+		switch (get_xop(inst)) {
+		case OP_19_XOP_RFID:		return false;
+		case OP_19_XOP_RFMCI:		return false;
+		case OP_19_XOP_RFDI:		return false;
+		case OP_19_XOP_RFI:		return false;
+		case OP_19_XOP_RFCI:		return false;
+		case OP_19_XOP_RFSCV:		return false;
+		case OP_19_XOP_HRFID:		return false;
+		case OP_19_XOP_URFID:		return false;
+		case OP_19_XOP_STOP:		return false;
+		case OP_19_XOP_DOZE:		return false;
+		case OP_19_XOP_NAP:		return false;
+		case OP_19_XOP_SLEEP:		return false;
+		case OP_19_XOP_RVWINKLE:	return false;
+		}
+		break;
+	case OP_31:
+		switch (get_xop(inst)) {
+		case OP_31_XOP_TRAP:		return false;
+		case OP_31_XOP_TRAP_64:		return false;
+		case OP_31_XOP_MTMSR:		return false;
+		case OP_31_XOP_MTMSRD:		return false;
+		}
+		break;
+	}
+	return true;
+}
 
 /* Enable single stepping for the current task */
 static inline void enable_single_step(struct pt_regs *regs)

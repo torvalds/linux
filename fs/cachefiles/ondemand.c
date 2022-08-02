@@ -21,7 +21,8 @@ static int cachefiles_ondemand_fd_release(struct inode *inode,
 	 * anon_fd.
 	 */
 	xas_for_each(&xas, req, ULONG_MAX) {
-		if (req->msg.opcode == CACHEFILES_OP_READ) {
+		if (req->msg.object_id == object_id &&
+		    req->msg.opcode == CACHEFILES_OP_READ) {
 			req->error = -EIO;
 			complete(&req->done);
 			xas_store(&xas, NULL);

@@ -149,11 +149,10 @@ get_bpf_prog_info_linear(int fd, __u64 arrays)
 		count = bpf_prog_info_read_offset_u32(&info, desc->count_offset);
 		size  = bpf_prog_info_read_offset_u32(&info, desc->size_offset);
 
-		data_len += count * size;
+		data_len += roundup(count * size, sizeof(__u64));
 	}
 
 	/* step 3: allocate continuous memory */
-	data_len = roundup(data_len, sizeof(__u64));
 	info_linear = malloc(sizeof(struct perf_bpil) + data_len);
 	if (!info_linear)
 		return ERR_PTR(-ENOMEM);
@@ -180,7 +179,7 @@ get_bpf_prog_info_linear(int fd, __u64 arrays)
 		bpf_prog_info_set_offset_u64(&info_linear->info,
 					     desc->array_offset,
 					     ptr_to_u64(ptr));
-		ptr += count * size;
+		ptr += roundup(count * size, sizeof(__u64));
 	}
 
 	/* step 5: call syscall again to get required arrays */

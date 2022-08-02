@@ -102,7 +102,6 @@ SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)
  * x19-x29 per the AAPCS, and we created frame records upon entry, so we need
  * to restore x0-x8, x29, and x30.
  */
-ftrace_common_return:
 	/* Restore function arguments */
 	ldp	x0, x1, [sp]
 	ldp	x2, x3, [sp, #S_X2]

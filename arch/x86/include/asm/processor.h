@@ -559,7 +559,7 @@ static __always_inline void native_swapgs(void)
 #endif
 }
 
-static inline unsigned long current_top_of_stack(void)
+static __always_inline unsigned long current_top_of_stack(void)
 {
 	/*
 	 *  We can't read directly from tss.sp0: sp0 on x86_32 is special in
@@ -569,7 +569,7 @@ static inline unsigned long current_top_of_stack(void)
 	return this_cpu_read_stable(cpu_current_top_of_stack);
 }
 
-static inline bool on_thread_stack(void)
+static __always_inline bool on_thread_stack(void)
 {
 	return (unsigned long)(current_top_of_stack() -
 			       current_stack_pointer) < THREAD_SIZE;
