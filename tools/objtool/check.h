@@ -19,11 +19,28 @@ struct insn_state {
 	s8 instr;
 };
 
+struct alt_group {
+	/*
+	 * Pointer from a replacement group to the original group.  NULL if it
+	 * *is* the original group.
+	 */
+	struct alt_group *orig_group;
+
+	/* First and last instructions in the group */
+	struct instruction *first_insn, *last_insn;
+
+	/*
+	 * Byte-offset-addressed len-sized array of pointers to CFI structs.
+	 * This is shared with the other alt_groups in the same alternative.
+	 */
+	struct cfi_state **cfi;
+};
+
 struct instruction {
 	struct list_head list;
 	struct hlist_node hash;
-	struct list_head static_call_node;
 	struct list_head mcount_loc_node;
+	struct list_head call_node;
 	struct section *sec;
 	unsigned long offset;
 	unsigned int len;
@@ -31,23 +48,27 @@ struct instruction {
 	unsigned long immediate;
 	bool dead_end, ignore, ignore_alts;
 	bool hint;
+	bool save, restore;
 	bool retpoline_safe;
+	bool entry;
 	s8 instr;
 	u8 visited;
-	u8 ret_offset;
-	int alt_group;
+	struct alt_group *alt_group;
 	struct symbol *call_dest;
 	struct instruction *jump_dest;
 	struct instruction *first_jump_src;
 	struct reloc *jump_table;
+	struct reloc *reloc;
 	struct list_head alts;
 	struct symbol *func;
 	struct list_head stack_ops;
-	struct cfi_state cfi;
-#ifdef INSN_USE_ORC
-	struct orc_entry orc;
-#endif
+	struct cfi_state *cfi;
 };
+
+#define VISITED_BRANCH		0x01
+#define VISITED_BRANCH_UACCESS	0x02
+#define VISITED_BRANCH_MASK	0x03
+#define VISITED_ENTRY		0x04
 
 static inline bool is_static_jump(struct instruction *insn)
 {

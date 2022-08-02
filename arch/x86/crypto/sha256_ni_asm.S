@@ -326,7 +326,7 @@ SYM_FUNC_START(sha256_ni_transform)
 
 .Ldone_hash:
 
-	ret
+	RET
 SYM_FUNC_END(sha256_ni_transform)
 
 .section	.rodata.cst256.K256, "aM", @progbits, 256

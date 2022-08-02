@@ -129,6 +129,15 @@ SYM_FUNC_START(__svm_vcpu_run)
 #endif
 
 	/*
+	 * Mitigate RETBleed for AMD/Hygon Zen uarch. RET should be
+	 * untrained as soon as we exit the VM and are back to the
+	 * kernel. This should be done before re-enabling interrupts
+	 * because interrupt handlers won't sanitize 'ret' if the return is
+	 * from the kernel.
+	 */
+	UNTRAIN_RET
+
+	/*
 	 * Clear all general purpose registers except RSP and RAX to prevent
 	 * speculative use of the guest's values, even those that are reloaded
 	 * via the stack.  In theory, an L1 cache miss when restoring registers
@@ -166,5 +175,5 @@ SYM_FUNC_START(__svm_vcpu_run)
 	pop %edi
 #endif
 	pop %_ASM_BP
-	ret
+	RET
 SYM_FUNC_END(__svm_vcpu_run)

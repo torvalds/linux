@@ -6,7 +6,7 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/alternative-asm.h>
+#include <asm/alternative.h>
 
 .macro read64 reg
 	movl %ebx, %eax
@@ -18,7 +18,7 @@
 
 SYM_FUNC_START(atomic64_read_cx8)
 	read64 %ecx
-	ret
+	RET
 SYM_FUNC_END(atomic64_read_cx8)
 
 SYM_FUNC_START(atomic64_set_cx8)
@@ -28,7 +28,7 @@ SYM_FUNC_START(atomic64_set_cx8)
 	cmpxchg8b (%esi)
 	jne 1b
 
-	ret
+	RET
 SYM_FUNC_END(atomic64_set_cx8)
 
 SYM_FUNC_START(atomic64_xchg_cx8)
@@ -37,7 +37,7 @@ SYM_FUNC_START(atomic64_xchg_cx8)
 	cmpxchg8b (%esi)
 	jne 1b
 
-	ret
+	RET
 SYM_FUNC_END(atomic64_xchg_cx8)
 
 .macro addsub_return func ins insc
@@ -68,7 +68,7 @@ SYM_FUNC_START(atomic64_\func\()_return_cx8)
 	popl %esi
 	popl %ebx
 	popl %ebp
-	ret
+	RET
 SYM_FUNC_END(atomic64_\func\()_return_cx8)
 .endm
 
@@ -93,7 +93,7 @@ SYM_FUNC_START(atomic64_\func\()_return_cx8)
 	movl %ebx, %eax
 	movl %ecx, %edx
 	popl %ebx
-	ret
+	RET
 SYM_FUNC_END(atomic64_\func\()_return_cx8)
 .endm
 
@@ -118,7 +118,7 @@ SYM_FUNC_START(atomic64_dec_if_positive_cx8)
 	movl %ebx, %eax
 	movl %ecx, %edx
 	popl %ebx
-	ret
+	RET
 SYM_FUNC_END(atomic64_dec_if_positive_cx8)
 
 SYM_FUNC_START(atomic64_add_unless_cx8)
@@ -149,7 +149,7 @@ SYM_FUNC_START(atomic64_add_unless_cx8)
 	addl $8, %esp
 	popl %ebx
 	popl %ebp
-	ret
+	RET
 4:
 	cmpl %edx, 4(%esp)
 	jne 2b
@@ -176,5 +176,5 @@ SYM_FUNC_START(atomic64_inc_not_zero_cx8)
 	movl $1, %eax
 3:
 	popl %ebx
-	ret
+	RET
 SYM_FUNC_END(atomic64_inc_not_zero_cx8)

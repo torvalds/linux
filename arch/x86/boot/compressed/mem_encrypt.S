@@ -58,7 +58,7 @@ SYM_FUNC_START(get_sev_encryption_bit)
 
 #endif	/* CONFIG_AMD_MEM_ENCRYPT */
 
-	ret
+	RET
 SYM_FUNC_END(get_sev_encryption_bit)
 
 	.code64
@@ -99,7 +99,7 @@ SYM_FUNC_START(set_sev_encryption_mask)
 #endif
 
 	xor	%rax, %rax
-	ret
+	RET
 SYM_FUNC_END(set_sev_encryption_mask)
 
 	.data

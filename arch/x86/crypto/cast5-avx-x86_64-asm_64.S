@@ -279,7 +279,7 @@ SYM_FUNC_START_LOCAL(__cast5_enc_blk16)
 	outunpack_blocks(RR3, RL3, RTMP, RX, RKM);
 	outunpack_blocks(RR4, RL4, RTMP, RX, RKM);
 
-	ret;
+	RET;
 SYM_FUNC_END(__cast5_enc_blk16)
 
 .align 16
@@ -352,7 +352,7 @@ SYM_FUNC_START_LOCAL(__cast5_dec_blk16)
 	outunpack_blocks(RR3, RL3, RTMP, RX, RKM);
 	outunpack_blocks(RR4, RL4, RTMP, RX, RKM);
 
-	ret;
+	RET;
 
 .L__skip_dec:
 	vpsrldq $4, RKR, RKR;
@@ -393,7 +393,7 @@ SYM_FUNC_START(cast5_ecb_enc_16way)
 
 	popq %r15;
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(cast5_ecb_enc_16way)
 
 SYM_FUNC_START(cast5_ecb_dec_16way)
@@ -431,7 +431,7 @@ SYM_FUNC_START(cast5_ecb_dec_16way)
 
 	popq %r15;
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(cast5_ecb_dec_16way)
 
 SYM_FUNC_START(cast5_cbc_dec_16way)
@@ -483,7 +483,7 @@ SYM_FUNC_START(cast5_cbc_dec_16way)
 	popq %r15;
 	popq %r12;
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(cast5_cbc_dec_16way)
 
 SYM_FUNC_START(cast5_ctr_16way)
@@ -559,5 +559,5 @@ SYM_FUNC_START(cast5_ctr_16way)
 	popq %r15;
 	popq %r12;
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(cast5_ctr_16way)

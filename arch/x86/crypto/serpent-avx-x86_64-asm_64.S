@@ -605,7 +605,7 @@ SYM_FUNC_START_LOCAL(__serpent_enc_blk8_avx)
 	write_blocks(RA1, RB1, RC1, RD1, RK0, RK1, RK2);
 	write_blocks(RA2, RB2, RC2, RD2, RK0, RK1, RK2);
 
-	ret;
+	RET;
 SYM_FUNC_END(__serpent_enc_blk8_avx)
 
 .align 8
@@ -659,7 +659,7 @@ SYM_FUNC_START_LOCAL(__serpent_dec_blk8_avx)
 	write_blocks(RC1, RD1, RB1, RE1, RK0, RK1, RK2);
 	write_blocks(RC2, RD2, RB2, RE2, RK0, RK1, RK2);
 
-	ret;
+	RET;
 SYM_FUNC_END(__serpent_dec_blk8_avx)
 
 SYM_FUNC_START(serpent_ecb_enc_8way_avx)
@@ -677,7 +677,7 @@ SYM_FUNC_START(serpent_ecb_enc_8way_avx)
 	store_8way(%rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(serpent_ecb_enc_8way_avx)
 
 SYM_FUNC_START(serpent_ecb_dec_8way_avx)
@@ -695,7 +695,7 @@ SYM_FUNC_START(serpent_ecb_dec_8way_avx)
 	store_8way(%rsi, RC1, RD1, RB1, RE1, RC2, RD2, RB2, RE2);
 
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(serpent_ecb_dec_8way_avx)
 
 SYM_FUNC_START(serpent_cbc_dec_8way_avx)
@@ -713,7 +713,7 @@ SYM_FUNC_START(serpent_cbc_dec_8way_avx)
 	store_cbc_8way(%rdx, %rsi, RC1, RD1, RB1, RE1, RC2, RD2, RB2, RE2);
 
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(serpent_cbc_dec_8way_avx)
 
 SYM_FUNC_START(serpent_ctr_8way_avx)
@@ -733,7 +733,7 @@ SYM_FUNC_START(serpent_ctr_8way_avx)
 	store_ctr_8way(%rdx, %rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(serpent_ctr_8way_avx)
 
 SYM_FUNC_START(serpent_xts_enc_8way_avx)
@@ -755,7 +755,7 @@ SYM_FUNC_START(serpent_xts_enc_8way_avx)
 	store_xts_8way(%rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(serpent_xts_enc_8way_avx)
 
 SYM_FUNC_START(serpent_xts_dec_8way_avx)
@@ -777,5 +777,5 @@ SYM_FUNC_START(serpent_xts_dec_8way_avx)
 	store_xts_8way(%rsi, RC1, RD1, RB1, RE1, RC2, RD2, RB2, RE2);
 
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(serpent_xts_dec_8way_avx)

@@ -3,7 +3,7 @@
 
 #include <linux/linkage.h>
 #include <asm/cpufeatures.h>
-#include <asm/alternative-asm.h>
+#include <asm/alternative.h>
 #include <asm/export.h>
 
 /*
@@ -17,7 +17,7 @@ SYM_FUNC_START(copy_page)
 	ALTERNATIVE "jmp copy_page_regs", "", X86_FEATURE_REP_GOOD
 	movl	$4096/8, %ecx
 	rep	movsq
-	ret
+	RET
 SYM_FUNC_END(copy_page)
 EXPORT_SYMBOL(copy_page)
 
@@ -85,5 +85,5 @@ SYM_FUNC_START_LOCAL(copy_page_regs)
 	movq	(%rsp), %rbx
 	movq	1*8(%rsp), %r12
 	addq	$2*8, %rsp
-	ret
+	RET
 SYM_FUNC_END(copy_page_regs)

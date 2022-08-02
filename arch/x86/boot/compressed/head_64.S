@@ -786,7 +786,7 @@ SYM_FUNC_START(efi32_pe_entry)
 2:	popl	%edi				// restore callee-save registers
 	popl	%ebx
 	leave
-	ret
+	RET
 SYM_FUNC_END(efi32_pe_entry)
 
 	.section ".rodata"
@@ -868,7 +868,7 @@ SYM_FUNC_START(startup32_check_sev_cbit)
 	popl	%ebx
 	popl	%eax
 #endif
-	ret
+	RET
 SYM_FUNC_END(startup32_check_sev_cbit)
 
 /*
