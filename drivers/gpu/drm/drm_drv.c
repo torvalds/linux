@@ -1070,5 +1070,9 @@ error:
 	return ret;
 }
 
+#ifdef CONFIG_VIDEO_REVERSE_IMAGE
+fs_initcall(drm_core_init);
+#else
 module_init(drm_core_init);
+#endif
 module_exit(drm_core_exit);

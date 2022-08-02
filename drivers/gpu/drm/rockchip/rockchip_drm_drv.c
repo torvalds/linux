@@ -1977,7 +1977,11 @@ static void __exit rockchip_drm_fini(void)
 				    num_rockchip_sub_drivers);
 }
 
+#ifdef CONFIG_VIDEO_REVERSE_IMAGE
+fs_initcall(rockchip_drm_init);
+#else
 module_init(rockchip_drm_init);
+#endif
 module_exit(rockchip_drm_fini);
 
 MODULE_AUTHOR("Mark Yao <mark.yao@rock-chips.com>");
