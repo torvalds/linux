@@ -689,19 +689,9 @@ static int analogix_dp_full_link_train(struct analogix_dp_device *dp,
 	analogix_dp_get_max_rx_bandwidth(dp, &dp->link_train.link_rate);
 	analogix_dp_get_max_rx_lane_count(dp, &dp->link_train.lane_count);
 
-	if ((dp->link_train.link_rate != DP_LINK_BW_1_62) &&
-	    (dp->link_train.link_rate != DP_LINK_BW_2_7) &&
-	    (dp->link_train.link_rate != DP_LINK_BW_5_4)) {
-		dev_err(dp->dev, "Rx Max Link Rate is abnormal :%x !\n",
-			dp->link_train.link_rate);
-		dp->link_train.link_rate = DP_LINK_BW_1_62;
-	}
-
-	if (dp->link_train.lane_count == 0) {
-		dev_err(dp->dev, "Rx Max Lane count is abnormal :%x !\n",
-			dp->link_train.lane_count);
-		dp->link_train.lane_count = (u8)LANE_COUNT1;
-	}
+	/* Setup TX lane count & rate */
+	dp->link_train.lane_count = min_t(u32, dp->link_train.lane_count, max_lanes);
+	dp->link_train.link_rate = min_t(u32, dp->link_train.link_rate, max_rate);
 
 	if (!analogix_dp_bandwidth_ok(dp, &video->mode,
 				      drm_dp_bw_code_to_link_rate(dp->link_train.link_rate),
@@ -712,12 +702,6 @@ static int analogix_dp_full_link_train(struct analogix_dp_device *dp,
 
 	drm_dp_dpcd_readb(&dp->aux, DP_MAX_DOWNSPREAD, &dpcd);
 	dp->link_train.ssc = !!(dpcd & DP_MAX_DOWNSPREAD_0_5);
-
-	/* Setup TX lane count & rate */
-	if (dp->link_train.lane_count > max_lanes)
-		dp->link_train.lane_count = max_lanes;
-	if (dp->link_train.link_rate > max_rate)
-		dp->link_train.link_rate = max_rate;
 
 	/* All DP analog module power up */
 	analogix_dp_set_analog_power_down(dp, POWER_ALL, 0);
