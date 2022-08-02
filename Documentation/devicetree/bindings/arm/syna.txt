@@ -18,10 +18,6 @@ stable binding/ABI.
 
 ---------------------------------------------------------------
 
-Boards with the Synaptics AS370 SoC shall have the following properties:
-  Required root node property:
-    compatible: "syna,as370"
-
 Boards with a SoC of the Marvell Berlin family, e.g. Armada 1500
 shall have the following properties:
 

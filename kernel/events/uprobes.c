@@ -155,11 +155,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 				struct page *old_page, struct page *new_page)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	struct page_vma_mapped_walk pvmw = {
-		.page = compound_head(old_page),
-		.vma = vma,
-		.address = addr,
-	};
+	DEFINE_FOLIO_VMA_WALK(pvmw, page_folio(old_page), vma, addr, 0);
 	int err;
 	struct mmu_notifier_range range;
 
@@ -173,7 +169,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 			return err;
 	}
 
-	/* For try_to_free_swap() and munlock_vma_page() below */
+	/* For try_to_free_swap() below */
 	lock_page(old_page);
 
 	mmu_notifier_invalidate_range_start(&range);
@@ -184,7 +180,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 
 	if (new_page) {
 		get_page(new_page);
-		page_add_new_anon_rmap(new_page, vma, addr, false);
+		page_add_new_anon_rmap(new_page, vma, addr);
 		lru_cache_add_inactive_or_unevictable(new_page, vma);
 	} else
 		/* no new page, just dec_mm_counter for old_page */
@@ -201,13 +197,10 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 		set_pte_at_notify(mm, addr, pvmw.pte,
 				  mk_pte(new_page, vma->vm_page_prot));
 
-	page_remove_rmap(old_page, false);
+	page_remove_rmap(old_page, vma, false);
 	if (!page_mapped(old_page))
 		try_to_free_swap(old_page);
 	page_vma_mapped_walk_done(&pvmw);
-
-	if ((vma->vm_flags & VM_LOCKED) && !PageCompound(old_page))
-		munlock_vma_page(old_page);
 	put_page(old_page);
 
 	err = 0;
@@ -794,10 +787,10 @@ static int __copy_insn(struct address_space *mapping, struct file *filp,
 	struct page *page;
 	/*
 	 * Ensure that the page that has the original instruction is populated
-	 * and in page-cache. If ->readpage == NULL it must be shmem_mapping(),
+	 * and in page-cache. If ->read_folio == NULL it must be shmem_mapping(),
 	 * see uprobe_register().
 	 */
-	if (mapping->a_ops->readpage)
+	if (mapping->a_ops->read_folio)
 		page = read_mapping_page(mapping, offset >> PAGE_SHIFT, filp);
 	else
 		page = shmem_read_mapping_page(mapping, offset >> PAGE_SHIFT);
@@ -1150,7 +1143,8 @@ static int __uprobe_register(struct inode *inode, loff_t offset,
 		return -EINVAL;
 
 	/* copy_insn() uses read_mapping_page() or shmem_read_mapping_page() */
-	if (!inode->i_mapping->a_ops->readpage && !shmem_mapping(inode->i_mapping))
+	if (!inode->i_mapping->a_ops->read_folio &&
+	    !shmem_mapping(inode->i_mapping))
 		return -EIO;
 	/* Racy, just to catch the obvious mistakes */
 	if (offset > i_size_read(inode))

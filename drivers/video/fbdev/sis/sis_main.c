@@ -213,7 +213,7 @@ static void sisfb_search_mode(char *name, bool quiet)
 		/* This does some fuzzy mode naming detection */
 		if(sscanf(strbuf1, "%u %u %u %u", &xres, &yres, &depth, &rate) == 4) {
 			if((rate <= 32) || (depth > 32)) {
-				j = rate; rate = depth; depth = j;
+				swap(rate, depth);
 			}
 			sprintf(strbuf, "%ux%ux%u", xres, yres, depth);
 			nameptr = strbuf;
@@ -4463,7 +4463,7 @@ static void sisfb_post_sis300(struct pci_dev *pdev)
 		SiS_SetReg(SISCR, 0x37, 0x02);
 		SiS_SetReg(SISPART2, 0x00, 0x1c);
 		v4 = 0x00; v5 = 0x00; v6 = 0x10;
-		if(ivideo->SiS_Pr.UseROM) {
+		if (ivideo->SiS_Pr.UseROM && bios) {
 			v4 = bios[0xf5];
 			v5 = bios[0xf6];
 			v6 = bios[0xf7];

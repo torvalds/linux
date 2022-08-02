@@ -9,6 +9,7 @@
 #include <linux/threads.h>
 #include <linux/kernel.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/debugfs.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
@@ -21,7 +22,6 @@
 #include <linux/msi.h>
 #include <linux/vmalloc.h>
 
-#include <asm/prom.h>
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/machdep.h>
@@ -1241,7 +1241,7 @@ static int xive_setup_cpu_ipi(unsigned int cpu)
 	return 0;
 }
 
-static void xive_cleanup_cpu_ipi(unsigned int cpu, struct xive_cpu *xc)
+noinstr static void xive_cleanup_cpu_ipi(unsigned int cpu, struct xive_cpu *xc)
 {
 	unsigned int xive_ipi_irq = xive_ipi_cpu_to_irq(cpu);
 
@@ -1634,7 +1634,7 @@ void xive_flush_interrupt(void)
 
 #endif /* CONFIG_SMP */
 
-void xive_teardown_cpu(void)
+noinstr void xive_teardown_cpu(void)
 {
 	struct xive_cpu *xc = __this_cpu_read(xive_cpu);
 	unsigned int cpu = smp_processor_id();
@@ -1708,20 +1708,20 @@ __be32 *xive_queue_page_alloc(unsigned int cpu, u32 queue_shift)
 static int __init xive_off(char *arg)
 {
 	xive_cmdline_disabled = true;
-	return 0;
+	return 1;
 }
 __setup("xive=off", xive_off);
 
 static int __init xive_store_eoi_cmdline(char *arg)
 {
 	if (!arg)
-		return -EINVAL;
+		return 1;
 
 	if (strncmp(arg, "off", 3) == 0) {
 		pr_info("StoreEOI disabled on kernel command line\n");
 		xive_store_eoi = false;
 	}
-	return 0;
+	return 1;
 }
 __setup("xive.store-eoi=", xive_store_eoi_cmdline);
 
@@ -1791,7 +1791,7 @@ static int xive_ipi_debug_show(struct seq_file *m, void *private)
 	if (xive_ops->debug_show)
 		xive_ops->debug_show(m, private);
 
-	for_each_possible_cpu(cpu)
+	for_each_online_cpu(cpu)
 		xive_debug_show_ipi(m, cpu);
 	return 0;
 }

@@ -22,6 +22,7 @@
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
@@ -167,7 +168,7 @@ static const struct meson_drm_soc_attr meson_drm_soc_attrs[] = {
 		},
 		.attrs = (const struct soc_device_attribute []) {
 			{ .soc_id = "GXL (S805*)", },
-			{ /* sentinel */ },
+			{ /* sentinel */ }
 		}
 	},
 };
@@ -302,42 +303,42 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 	if (priv->afbcd.ops) {
 		ret = priv->afbcd.ops->init(priv);
 		if (ret)
-			return ret;
+			goto free_drm;
 	}
 
 	/* Encoder Initialization */
 
 	ret = meson_encoder_cvbs_init(priv);
 	if (ret)
-		goto free_drm;
+		goto exit_afbcd;
 
 	if (has_components) {
 		ret = component_bind_all(drm->dev, drm);
 		if (ret) {
 			dev_err(drm->dev, "Couldn't bind all components\n");
-			goto free_drm;
+			goto exit_afbcd;
 		}
 	}
 
 	ret = meson_encoder_hdmi_init(priv);
 	if (ret)
-		goto free_drm;
+		goto exit_afbcd;
 
 	ret = meson_plane_create(priv);
 	if (ret)
-		goto free_drm;
+		goto exit_afbcd;
 
 	ret = meson_overlay_create(priv);
 	if (ret)
-		goto free_drm;
+		goto exit_afbcd;
 
 	ret = meson_crtc_create(priv);
 	if (ret)
-		goto free_drm;
+		goto exit_afbcd;
 
 	ret = request_irq(priv->vsync_irq, meson_irq, 0, drm->driver->name, drm);
 	if (ret)
-		goto free_drm;
+		goto exit_afbcd;
 
 	drm_mode_config_reset(drm);
 
@@ -355,6 +356,9 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 
 uninstall_irq:
 	free_irq(priv->vsync_irq, drm);
+exit_afbcd:
+	if (priv->afbcd.ops)
+		priv->afbcd.ops->exit(priv);
 free_drm:
 	drm_dev_put(drm);
 
@@ -385,10 +389,8 @@ static void meson_drv_unbind(struct device *dev)
 	free_irq(priv->vsync_irq, drm);
 	drm_dev_put(drm);
 
-	if (priv->afbcd.ops) {
-		priv->afbcd.ops->reset(priv);
-		meson_rdma_free(priv);
-	}
+	if (priv->afbcd.ops)
+		priv->afbcd.ops->exit(priv);
 }
 
 static const struct component_master_ops meson_drv_master_ops = {
@@ -421,14 +423,6 @@ static int __maybe_unused meson_drv_pm_resume(struct device *dev)
 		priv->afbcd.ops->init(priv);
 
 	return drm_mode_config_helper_resume(priv->drm);
-}
-
-static int compare_of(struct device *dev, void *data)
-{
-	DRM_DEBUG_DRIVER("Comparing of node %pOF with %pOF\n",
-			 dev->of_node, data);
-
-	return dev->of_node == data;
 }
 
 static void meson_drv_shutdown(struct platform_device *pdev)
@@ -473,7 +467,7 @@ static int meson_drv_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "parent %pOF remote match add %pOF parent %s\n",
 			np, remote, dev_name(&pdev->dev));
 
-		component_match_add(&pdev->dev, &match, compare_of, remote);
+		component_match_add(&pdev->dev, &match, component_compare_of, remote);
 
 		of_node_put(remote);
 
@@ -541,7 +535,7 @@ static struct platform_driver meson_drm_platform_driver = {
 	},
 };
 
-module_platform_driver(meson_drm_platform_driver);
+drm_module_platform_driver(meson_drm_platform_driver);
 
 MODULE_AUTHOR("Jasper St. Pierre <jstpierre@mecheye.net>");
 MODULE_AUTHOR("Neil Armstrong <narmstrong@baylibre.com>");

@@ -80,6 +80,7 @@ struct adreno_gpu {
 	const struct adreno_info *info;
 	uint32_t gmem;  /* actual gmem size */
 	uint32_t revn;  /* numeric revision name */
+	uint16_t speedbin;
 	const struct adreno_gpu_funcs *funcs;
 
 	/* interesting register offsets to dump: */
@@ -279,7 +280,10 @@ static inline int adreno_is_a650_family(struct adreno_gpu *gpu)
 	       adreno_is_a660_family(gpu);
 }
 
-int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value);
+int adreno_get_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
+		     uint32_t param, uint64_t *value, uint32_t *len);
+int adreno_set_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
+		     uint32_t param, uint64_t value, uint32_t len);
 const struct firmware *adreno_request_fw(struct adreno_gpu *adreno_gpu,
 		const char *fwname);
 struct drm_gem_object *adreno_fw_create_bo(struct msm_gpu *gpu,
@@ -323,6 +327,8 @@ adreno_iommu_create_address_space(struct msm_gpu *gpu,
 		struct platform_device *pdev);
 
 void adreno_set_llc_attributes(struct iommu_domain *iommu);
+
+int adreno_read_speedbin(struct device *dev, u32 *speedbin);
 
 /*
  * For a5xx and a6xx targets load the zap shader that is used to pull the GPU

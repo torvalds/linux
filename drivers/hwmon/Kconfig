@@ -174,6 +174,7 @@ config SENSORS_ADM9240
 
 config SENSORS_ADT7X10
 	tristate
+	select REGMAP
 	help
 	  This module contains common code shared by the ADT7310/ADT7320 and
 	  ADT7410/ADT7420 temperature monitoring chip drivers.
@@ -255,11 +256,14 @@ config SENSORS_AHT10
 	  will be called aht10.
 
 config SENSORS_AQUACOMPUTER_D5NEXT
-	tristate "Aquacomputer D5 Next watercooling pump"
+	tristate "Aquacomputer D5 Next, Octo, Farbwerk, and Farbwerk 360"
 	depends on USB_HID
+	select CRC16
 	help
-	  If you say yes here you get support for the Aquacomputer D5 Next
-	  watercooling pump sensors.
+	  If you say yes here you get support for sensors and fans of
+	  the Aquacomputer D5 Next watercooling pump, Octo fan
+	  controller, Farbwerk and Farbwerk 360 RGB controllers, where
+	  available.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called aquacomputer_d5next.
@@ -414,6 +418,7 @@ config SENSORS_ATXP1
 config SENSORS_BT1_PVT
 	tristate "Baikal-T1 Process, Voltage, Temperature sensor driver"
 	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
+	select POLYNOMIAL
 	help
 	  If you say yes here you get support for Baikal-T1 PVT sensor
 	  embedded into the SoC.
@@ -497,6 +502,7 @@ config SENSORS_DS1621
 config SENSORS_DELL_SMM
 	tristate "Dell laptop SMM BIOS hwmon driver"
 	depends on X86
+	imply THERMAL
 	help
 	  This hwmon driver adds support for reporting temperature of different
 	  sensors and controls the fans on Dell laptops via System Management
@@ -504,6 +510,21 @@ config SENSORS_DELL_SMM
 
 	  When option I8K is also enabled this driver provides legacy /proc/i8k
 	  userspace interface for i8kutils package.
+
+config I8K
+	bool "Legacy /proc/i8k interface of Dell laptop SMM BIOS hwmon driver"
+	depends on SENSORS_DELL_SMM
+	depends on PROC_FS
+	help
+	  This option enables the legacy /proc/i8k userspace interface of the
+	  dell-smm-hwmon driver. The character file /proc/i8k exposes the BIOS
+	  version, temperatures and allows control of fan speeds of some Dell
+	  laptops. Sometimes it also reports power and hotkey status.
+
+	  This interface is required to run programs from the i8kutils package.
+
+	  Say Y if you intend to run userspace programs that use this interface.
+	  Say N otherwise.
 
 config SENSORS_DA9052_ADC
 	tristate "Dialog DA9052/DA9053 ADC"
@@ -798,6 +819,18 @@ config SENSORS_POWR1220
 	  This driver can also be built as a module. If so, the module
 	  will be called powr1220.
 
+config SENSORS_LAN966X
+	tristate "Microchip LAN966x Hardware Monitoring"
+	depends on SOC_LAN966 || COMPILE_TEST
+	select REGMAP
+	select POLYNOMIAL
+	help
+	  If you say yes here you get support for temperature monitoring
+	  on the Microchip LAN966x SoC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lan966x-hwmon.
+
 config SENSORS_LINEAGE
 	tristate "Lineage Compact Power Line Power Entry Module"
 	depends on I2C
@@ -944,7 +977,7 @@ config SENSORS_LTC4261
 
 config SENSORS_LTQ_CPUTEMP
 	bool "Lantiq cpu temperature sensor driver"
-	depends on LANTIQ
+	depends on SOC_XWAY
 	help
 	  If you say yes here you get support for the temperature
 	  sensor inside your CPU.
@@ -1208,8 +1241,8 @@ config SENSORS_LM70
 	depends on SPI_MASTER
 	help
 	  If you say yes here you get support for the National Semiconductor
-	  LM70, LM71, LM74 and Texas Instruments TMP121/TMP123 digital tempera-
-	  ture sensor chips.
+	  LM70, LM71, LM74 and Texas Instruments TMP121/TMP123, TMP122/TMP124,
+	  TMP125 digital temperature sensor chips.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called lm70.
@@ -1232,6 +1265,7 @@ config SENSORS_LM75
 	  temperature sensor chip, with models including:
 
 		- Analog Devices ADT75
+		- Atmel (now Microchip) AT30TS74
 		- Dallas Semiconductor DS75, DS1775 and DS7505
 		- Global Mixed-mode Technology (GMT) G751
 		- Maxim MAX6625 and MAX6626
@@ -1288,6 +1322,7 @@ config SENSORS_LM80
 config SENSORS_LM83
 	tristate "National Semiconductor LM83 and compatibles"
 	depends on I2C
+	select REGMAP
 	help
 	  If you say yes here you get support for National Semiconductor
 	  LM82 and LM83 sensor chips.
@@ -1440,11 +1475,23 @@ config SENSORS_NCT6683
 	  This driver can also be built as a module. If so, the module
 	  will be called nct6683.
 
+config SENSORS_NCT6775_CORE
+	tristate
+	select REGMAP
+	help
+	  This module contains common code shared by the platform and
+	  i2c versions of the nct6775 driver; it is not useful on its
+	  own.
+
+	  If built as a module, the module will be called
+	  nct6775-core.
+
 config SENSORS_NCT6775
-	tristate "Nuvoton NCT6775F and compatibles"
+	tristate "Platform driver for Nuvoton NCT6775F and compatibles"
 	depends on !PPC
 	depends on ACPI_WMI || ACPI_WMI=n
 	select HWMON_VID
+	select SENSORS_NCT6775_CORE
 	help
 	  If you say yes here you get support for the hardware monitoring
 	  functionality of the Nuvoton NCT6106D, NCT6775F, NCT6776F, NCT6779D,
@@ -1454,6 +1501,23 @@ config SENSORS_NCT6775
 
 	  This driver can also be built as a module. If so, the module
 	  will be called nct6775.
+
+config SENSORS_NCT6775_I2C
+	tristate "I2C driver for Nuvoton NCT6775F and compatibles"
+	depends on I2C
+	select REGMAP_I2C
+	select SENSORS_NCT6775_CORE
+	help
+	  If you say yes here you get support for the hardware monitoring
+	  functionality of the Nuvoton NCT6106D, NCT6775F, NCT6776F, NCT6779D,
+	  NCT6791D, NCT6792D, NCT6793D, NCT6795D, NCT6796D, and compatible
+	  Super-I/O chips via their I2C interface.
+
+	  If you're not building a kernel for a BMC, this is probably
+	  not the driver you want (see CONFIG_SENSORS_NCT6775).
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nct6775-i2c.
 
 config SENSORS_NCT7802
 	tristate "Nuvoton NCT7802Y"
@@ -1537,6 +1601,8 @@ config SENSORS_PCF8591
 
 	  These devices are hard to detect and rarely found on mainstream
 	  hardware. If unsure, say N.
+
+source "drivers/hwmon/peci/Kconfig"
 
 source "drivers/hwmon/pmbus/Kconfig"
 
@@ -1671,6 +1737,15 @@ config SENSORS_SIS5595
 
 	  This driver can also be built as a module. If so, the module
 	  will be called sis5595.
+
+config SENSORS_SY7636A
+	tristate "Silergy SY7636A"
+	help
+	  If you say yes here you get support for the thermistor readout of
+	  the Silergy SY7636A PMIC.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called sy7636a-hwmon.
 
 config SENSORS_DME1737
 	tristate "SMSC DME1737, SCH311x and compatibles"
@@ -1979,6 +2054,17 @@ config SENSORS_TMP421
 	  This driver can also be built as a module. If so, the module
 	  will be called tmp421.
 
+config SENSORS_TMP464
+	tristate "Texas Instruments TMP464 and compatible"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for Texas Instruments TMP464
+	  and TMP468 temperature sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called tmp464.
+
 config SENSORS_TMP513
 	tristate "Texas Instruments TMP513 and compatibles"
 	depends on I2C
@@ -2252,15 +2338,30 @@ config SENSORS_ASUS_WMI
 
 config SENSORS_ASUS_WMI_EC
 	tristate "ASUS WMI B550/X570"
-	depends on ACPI_WMI
+	depends on ACPI_WMI && SENSORS_ASUS_EC=n
 	help
 	  If you say yes here you get support for the ACPI embedded controller
 	  hardware monitoring interface found in B550/X570 ASUS motherboards.
 	  This driver will provide readings of fans, voltages and temperatures
 	  through the system firmware.
 
+	  This driver is deprecated in favor of the ASUS EC Sensors driver
+	  which provides fully compatible output.
+
 	  This driver can also be built as a module. If so, the module
 	  will be called asus_wmi_sensors_ec.
+
+config SENSORS_ASUS_EC
+	tristate "ASUS EC Sensors"
+	depends on X86
+	help
+	  If you say yes here you get support for the ACPI embedded controller
+	  hardware monitoring interface found in ASUS motherboards. The driver
+	  currently supports B550/X570 boards, although other ASUS boards might
+	  provide this monitoring interface as well.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called asus_ec_sensors.
 
 endif # ACPI
 

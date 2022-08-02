@@ -883,7 +883,7 @@ static void w5100_rx_work(struct work_struct *work)
 	struct sk_buff *skb;
 
 	while ((skb = w5100_rx_skb(priv->ndev)))
-		netif_rx_ni(skb);
+		netif_rx(skb);
 
 	w5100_enable_intr(priv);
 }
@@ -1133,7 +1133,7 @@ int w5100_probe(struct device *dev, const struct w5100_ops *ops,
 
 	ndev->netdev_ops = &w5100_netdev_ops;
 	ndev->ethtool_ops = &w5100_ethtool_ops;
-	netif_napi_add(ndev, &priv->napi, w5100_napi_poll, 16);
+	netif_napi_add_weight(ndev, &priv->napi, w5100_napi_poll, 16);
 
 	/* This chip doesn't support VLAN packets with normal MTU,
 	 * so disable VLAN for this device.

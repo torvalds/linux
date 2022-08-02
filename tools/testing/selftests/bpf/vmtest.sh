@@ -241,7 +241,7 @@ EOF
 		-nodefaults \
 		-display none \
 		-serial mon:stdio \
-		"${qemu_flags[@]}" \
+		"${QEMU_FLAGS[@]}" \
 		-enable-kvm \
 		-m 4G \
 		-drive file="${rootfs_img}",format=raw,index=1,media=disk,if=virtio,cache=none \

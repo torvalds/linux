@@ -22,12 +22,12 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 
-#include <mach/common.h>
 #include <linux/platform_data/i2c-davinci.h>
-#include <mach/serial.h>
-#include <mach/mux.h>
 #include <linux/platform_data/usb-davinci.h>
 
+#include "common.h"
+#include "serial.h"
+#include "mux.h"
 #include "davinci.h"
 
 #define SFFSDR_PHY_ID		"davinci_mdio-0:01"

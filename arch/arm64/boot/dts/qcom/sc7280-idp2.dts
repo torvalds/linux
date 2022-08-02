@@ -23,10 +23,18 @@
 	};
 };
 
+&bluetooth {
+	vddio-supply = <&vreg_l18b_1p8>;
+};
+
 &nvme_pwren {
 	pins = "gpio51";
 };
 
 &nvme_3v3_regulator {
 	gpio = <&tlmm 51 GPIO_ACTIVE_HIGH>;
+};
+
+&pm8350c_pwm {
+	status = "okay";
 };

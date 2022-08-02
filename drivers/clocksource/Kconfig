@@ -80,7 +80,7 @@ config IXP4XX_TIMER
 	bool "Intel XScale IXP4xx timer driver" if COMPILE_TEST
 	depends on HAS_IOMEM
 	select CLKSRC_MMIO
-	select TIMER_OF if OF
+	select TIMER_OF
 	help
 	  Enables support for the Intel XScale IXP4xx SoC timer.
 
@@ -567,26 +567,6 @@ config CLKSRC_PXA
 	  This enables OST0 support available on PXA and SA-11x0
 	  platforms.
 
-config H8300_TMR8
-	bool "Clockevent timer for the H8300 platform" if COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  This enables the 8 bits timer for the H8300 platform.
-
-config H8300_TMR16
-	bool "Clockevent timer for the H83069 platform" if COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  This enables the 16 bits timer for the H8300 platform with the
-	  H83069 CPU.
-
-config H8300_TPU
-	bool "Clocksource for the H8300 platform" if COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  This enables the clocksource for the H8300 platform with the
-	  H8S2678 CPU.
-
 config CLKSRC_IMX_GPT
 	bool "Clocksource using i.MX GPT" if COMPILE_TEST
 	depends on (ARM || ARM64) && HAVE_CLK
@@ -617,14 +597,13 @@ config CLKSRC_ST_LPC
 	  Enable this option to use the Low Power controller timer
 	  as clocksource.
 
-config ATCPIT100_TIMER
-	bool "ATCPIT100 timer driver"
-	depends on NDS32 || COMPILE_TEST
-	depends on HAS_IOMEM
-	select TIMER_OF
-	default NDS32
+config GXP_TIMER
+	bool "GXP timer driver" if COMPILE_TEST && !ARCH_HPE
+	default ARCH_HPE
+	select TIMER_OF if OF
 	help
-	  This option enables support for the Andestech ATCPIT100 timers.
+	  Provides a driver for the timer control found on HPE
+	  GXP SOCs. This is required for all GXP SOCs.
 
 config RISCV_TIMER
 	bool "Timer for the RISC-V platform" if COMPILE_TEST
@@ -713,12 +692,18 @@ config INGENIC_OST
 config MICROCHIP_PIT64B
 	bool "Microchip PIT64B support"
 	depends on OF || COMPILE_TEST
-	select CLKSRC_MMIO
 	select TIMER_OF
 	help
 	  This option enables Microchip PIT64B timer for Atmel
 	  based system. It supports the oneshot, the periodic
 	  modes and high resolution. It is used as a clocksource
 	  and a clockevent.
+
+config GOLDFISH_TIMER
+	bool "Clocksource using goldfish-rtc"
+	depends on M68K || COMPILE_TEST
+	depends on RTC_DRV_GOLDFISH
+	help
+	  Support for the timer/counter of goldfish-rtc
 
 endmenu

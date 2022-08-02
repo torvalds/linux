@@ -652,9 +652,10 @@ static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
 		report = SND_JACK_HEADSET;
 
 	if (report) {
-		ret = snd_soc_card_jack_new(runtime->card, "Headset",
-				    report, &priv->jack, bytcr_jack_pins,
-				    ARRAY_SIZE(bytcr_jack_pins));
+		ret = snd_soc_card_jack_new_pins(runtime->card, "Headset",
+						 report, &priv->jack,
+						 bytcr_jack_pins,
+						 ARRAY_SIZE(bytcr_jack_pins));
 		if (ret) {
 			dev_err(runtime->dev, "jack creation failed %d\n", ret);
 			return ret;
@@ -1088,7 +1089,7 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 	byt_rt5651_card.long_name = byt_rt5651_long_name;
 #endif
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	platform_name = mach->mach_params.platform;
 
 	ret_val = snd_soc_fixup_dai_links_platform_name(&byt_rt5651_card,

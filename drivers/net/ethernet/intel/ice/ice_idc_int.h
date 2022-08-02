@@ -5,7 +5,6 @@
 #define _ICE_IDC_INT_H_
 
 #include <linux/net/intel/iidc.h>
-#include "ice.h"
 
 struct ice_pf;
 

@@ -124,7 +124,6 @@ properties:
     description: |
       Override the default TX fifo size.  Unit is words.  Ignored if 0.
     $ref: /schemas/types.yaml#/definitions/uint32
-    maxItems: 1
     default: 64
 
   renesas,rx-fifo-size:
@@ -132,7 +131,6 @@ properties:
     description: |
       Override the default RX fifo size.  Unit is words.  Ignored if 0.
     $ref: /schemas/types.yaml#/definitions/uint32
-    maxItems: 1
     default: 64
 
 required:

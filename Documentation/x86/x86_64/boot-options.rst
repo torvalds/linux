@@ -47,14 +47,7 @@ Please see Documentation/x86/x86_64/machinecheck.rst for sysfs runtime tunables.
 		in a reboot. On Intel systems it is enabled by default.
    mce=nobootlog
 		Disable boot machine check logging.
-   mce=tolerancelevel[,monarchtimeout] (number,number)
-		tolerance levels:
-		0: always panic on uncorrected errors, log corrected errors
-		1: panic or SIGBUS on uncorrected errors, log corrected errors
-		2: SIGBUS or log uncorrected errors, log corrected errors
-		3: never panic or SIGBUS, log all errors (for testing only)
-		Default is 1
-		Can be also set using sysfs which is preferable.
+   mce=monarchtimeout (number)
 		monarchtimeout:
 		Sets the time in us to wait for other CPUs on machine checks. 0
 		to disable.
@@ -163,15 +156,6 @@ Rebooting
      In the case where you think the quirk is in error (e.g. you have
      newer BIOS, or newer board) using this option will ignore the built-in
      quirk table, and use the generic default reboot actions.
-
-Non Executable Mappings
-=======================
-
-  noexec=on|off
-    on
-      Enable(default)
-    off
-      Disable
 
 NUMA
 ====
@@ -317,3 +301,17 @@ Miscellaneous
     Do not use GB pages for kernel direct mappings.
   gbpages
     Use GB pages for kernel direct mappings.
+
+
+AMD SEV (Secure Encrypted Virtualization)
+=========================================
+Options relating to AMD SEV, specified via the following format:
+
+::
+
+   sev=option1[,option2]
+
+The available options are:
+
+   debug
+     Enable debug messages.

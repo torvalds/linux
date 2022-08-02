@@ -174,12 +174,12 @@ static int max98390_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 
 	dev_dbg(component->dev, "%s: fmt 0x%08X\n", __func__, fmt);
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		mode = MAX98390_PCM_MASTER_MODE_SLAVE;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
-		max98390->master = true;
+	case SND_SOC_DAIFMT_CBP_CFP:
+		max98390->provider = true;
 		mode = MAX98390_PCM_MASTER_MODE_MASTER;
 		break;
 	default:
@@ -265,7 +265,7 @@ static int max98390_set_clock(struct snd_soc_component *component,
 		* snd_pcm_format_width(params_format(params));
 	int value;
 
-	if (max98390->master) {
+	if (max98390->provider) {
 		int i;
 		/* match rate to closest value */
 		for (i = 0; i < ARRAY_SIZE(rate_table); i++) {
@@ -1014,14 +1014,14 @@ static void max98390_slot_config(struct i2c_client *i2c,
 		max98390->i_l_slot = 1;
 }
 
-static int max98390_i2c_probe(struct i2c_client *i2c,
-		const struct i2c_device_id *id)
+static int max98390_i2c_probe(struct i2c_client *i2c)
 {
 	int ret = 0;
 	int reg = 0;
 
 	struct max98390_priv *max98390 = NULL;
 	struct i2c_adapter *adapter = i2c->adapter;
+	struct gpio_desc *reset_gpio;
 
 	ret = i2c_check_functionality(adapter,
 		I2C_FUNC_SMBUS_BYTE
@@ -1073,6 +1073,17 @@ static int max98390_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
+	reset_gpio = devm_gpiod_get_optional(&i2c->dev,
+					     "reset", GPIOD_OUT_HIGH);
+
+	/* Power on device */
+	if (reset_gpio) {
+		usleep_range(1000, 2000);
+		/* bring out of reset */
+		gpiod_set_value_cansleep(reset_gpio, 0);
+		usleep_range(1000, 2000);
+	}
+
 	/* Check Revision ID */
 	ret = regmap_read(max98390->regmap,
 		MAX98390_R24FF_REV_ID, &reg);
@@ -1121,7 +1132,7 @@ static struct i2c_driver max98390_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(max98390_acpi_match),
 		.pm = &max98390_pm,
 	},
-	.probe = max98390_i2c_probe,
+	.probe_new = max98390_i2c_probe,
 	.id_table = max98390_i2c_id,
 };
 

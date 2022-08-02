@@ -6,6 +6,7 @@
 #include <linux/module.h>
 #include <linux/compiler.h>
 #include <linux/fs.h>
+#include <linux/fscrypt.h>
 #include <linux/pagemap.h>
 #include <linux/iomap.h>
 #include <linux/backing-dev.h>
@@ -50,12 +51,22 @@ struct iomap_dio {
 	};
 };
 
+static struct bio *iomap_dio_alloc_bio(const struct iomap_iter *iter,
+		struct iomap_dio *dio, unsigned short nr_vecs, unsigned int opf)
+{
+	if (dio->dops && dio->dops->bio_set)
+		return bio_alloc_bioset(iter->iomap.bdev, nr_vecs, opf,
+					GFP_KERNEL, dio->dops->bio_set);
+	return bio_alloc(iter->iomap.bdev, nr_vecs, opf, GFP_KERNEL);
+}
+
 static void iomap_dio_submit_bio(const struct iomap_iter *iter,
 		struct iomap_dio *dio, struct bio *bio, loff_t pos)
 {
 	atomic_inc(&dio->ref);
 
-	if (dio->iocb->ki_flags & IOCB_HIPRI) {
+	/* Sync dio can't be polled reliably */
+	if ((dio->iocb->ki_flags & IOCB_HIPRI) && !is_sync_kiocb(dio->iocb)) {
 		bio_set_polled(bio, dio->iocb);
 		dio->submit.poll_bio = bio;
 	}
@@ -143,7 +154,7 @@ static inline void iomap_dio_set_error(struct iomap_dio *dio, int ret)
 	cmpxchg(&dio->error, 0, ret);
 }
 
-static void iomap_dio_bio_end_io(struct bio *bio)
+void iomap_dio_bio_end_io(struct bio *bio)
 {
 	struct iomap_dio *dio = bio->bi_private;
 	bool should_dirty = (dio->flags & IOMAP_DIO_DIRTY);
@@ -175,23 +186,24 @@ static void iomap_dio_bio_end_io(struct bio *bio)
 		bio_put(bio);
 	}
 }
+EXPORT_SYMBOL_GPL(iomap_dio_bio_end_io);
 
 static void iomap_dio_zero(const struct iomap_iter *iter, struct iomap_dio *dio,
 		loff_t pos, unsigned len)
 {
+	struct inode *inode = file_inode(dio->iocb->ki_filp);
 	struct page *page = ZERO_PAGE(0);
-	int flags = REQ_SYNC | REQ_IDLE;
 	struct bio *bio;
 
-	bio = bio_alloc(GFP_KERNEL, 1);
-	bio_set_dev(bio, iter->iomap.bdev);
+	bio = iomap_dio_alloc_bio(iter, dio, 1, REQ_OP_WRITE | REQ_SYNC | REQ_IDLE);
+	fscrypt_set_bio_crypt_ctx(bio, inode, pos >> inode->i_blkbits,
+				  GFP_KERNEL);
 	bio->bi_iter.bi_sector = iomap_sector(&iter->iomap, pos);
 	bio->bi_private = dio;
 	bio->bi_end_io = iomap_dio_bio_end_io;
 
 	get_page(page);
 	__bio_add_page(bio, page, len, 0);
-	bio_set_op_attrs(bio, REQ_OP_WRITE, flags);
 	iomap_dio_submit_bio(iter, dio, bio, pos);
 }
 
@@ -263,8 +275,7 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 		 * cache flushes on IO completion.
 		 */
 		if (!(iomap->flags & (IOMAP_F_SHARED|IOMAP_F_DIRTY)) &&
-		    (dio->flags & IOMAP_DIO_WRITE_FUA) &&
-		    blk_queue_fua(bdev_get_queue(iomap->bdev)))
+		    (dio->flags & IOMAP_DIO_WRITE_FUA) && bdev_fua(iomap->bdev))
 			use_fua = true;
 	}
 
@@ -309,14 +320,13 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 			goto out;
 		}
 
-		bio = bio_alloc(GFP_KERNEL, nr_pages);
-		bio_set_dev(bio, iomap->bdev);
+		bio = iomap_dio_alloc_bio(iter, dio, nr_pages, bio_opf);
+		fscrypt_set_bio_crypt_ctx(bio, inode, pos >> inode->i_blkbits,
+					  GFP_KERNEL);
 		bio->bi_iter.bi_sector = iomap_sector(iomap, pos);
-		bio->bi_write_hint = dio->iocb->ki_hint;
 		bio->bi_ioprio = dio->iocb->ki_ioprio;
 		bio->bi_private = dio;
 		bio->bi_end_io = iomap_dio_bio_end_io;
-		bio->bi_opf = bio_opf;
 
 		ret = bio_iov_iter_get_pages(bio, dio->submit.iter);
 		if (unlikely(ret)) {
@@ -473,7 +483,7 @@ static loff_t iomap_dio_iter(const struct iomap_iter *iter,
 struct iomap_dio *
 __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		const struct iomap_ops *ops, const struct iomap_dio_ops *dops,
-		unsigned int dio_flags, size_t done_before)
+		unsigned int dio_flags, void *private, size_t done_before)
 {
 	struct address_space *mapping = iocb->ki_filp->f_mapping;
 	struct inode *inode = file_inode(iocb->ki_filp);
@@ -482,6 +492,7 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		.pos		= iocb->ki_pos,
 		.len		= iov_iter_count(iter),
 		.flags		= IOMAP_DIRECT,
+		.private	= private,
 	};
 	loff_t end = iomi.pos + iomi.len - 1, ret = 0;
 	bool wait_for_completion =
@@ -653,9 +664,7 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 			if (!READ_ONCE(dio->submit.waiter))
 				break;
 
-			if (!dio->submit.poll_bio ||
-			    !bio_poll(dio->submit.poll_bio, NULL, 0))
-				blk_io_schedule();
+			blk_io_schedule();
 		}
 		__set_current_state(TASK_RUNNING);
 	}
@@ -673,11 +682,12 @@ EXPORT_SYMBOL_GPL(__iomap_dio_rw);
 ssize_t
 iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		const struct iomap_ops *ops, const struct iomap_dio_ops *dops,
-		unsigned int dio_flags, size_t done_before)
+		unsigned int dio_flags, void *private, size_t done_before)
 {
 	struct iomap_dio *dio;
 
-	dio = __iomap_dio_rw(iocb, iter, ops, dops, dio_flags, done_before);
+	dio = __iomap_dio_rw(iocb, iter, ops, dops, dio_flags, private,
+			     done_before);
 	if (IS_ERR_OR_NULL(dio))
 		return PTR_ERR_OR_ZERO(dio);
 	return iomap_dio_complete(dio);

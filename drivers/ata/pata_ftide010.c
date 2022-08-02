@@ -536,8 +536,8 @@ static int pata_ftide010_probe(struct platform_device *pdev)
 	return 0;
 
 err_dis_clk:
-	if (!IS_ERR(ftide->pclk))
-		clk_disable_unprepare(ftide->pclk);
+	clk_disable_unprepare(ftide->pclk);
+
 	return ret;
 }
 
@@ -547,17 +547,14 @@ static int pata_ftide010_remove(struct platform_device *pdev)
 	struct ftide010 *ftide = host->private_data;
 
 	ata_host_detach(ftide->host);
-	if (!IS_ERR(ftide->pclk))
-		clk_disable_unprepare(ftide->pclk);
+	clk_disable_unprepare(ftide->pclk);
 
 	return 0;
 }
 
 static const struct of_device_id pata_ftide010_of_match[] = {
-	{
-		.compatible = "faraday,ftide010",
-	},
-	{},
+	{ .compatible = "faraday,ftide010", },
+	{ /* sentinel */ }
 };
 
 static struct platform_driver pata_ftide010_driver = {

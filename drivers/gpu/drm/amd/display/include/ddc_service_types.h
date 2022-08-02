@@ -34,8 +34,13 @@
 #define DP_BRANCH_DEVICE_ID_90CC24 0x90CC24
 #define DP_BRANCH_DEVICE_ID_00E04C 0x00E04C
 #define DP_BRANCH_DEVICE_ID_006037 0x006037
+#define DP_BRANCH_DEVICE_ID_001CF8 0x001CF8
+#define DP_BRANCH_HW_REV_10 0x10
+#define DP_BRANCH_HW_REV_20 0x20
 
 #define DP_DEVICE_ID_38EC11 0x38EC11
+#define DP_FORCE_PSRSU_CAPABILITY 0x40F
+
 enum ddc_result {
 	DDC_RESULT_UNKNOWN = 0,
 	DDC_RESULT_SUCESSFULL,
@@ -61,6 +66,7 @@ enum ddc_service_type {
 struct display_sink_capability {
 	/* dongle type (DP converter, CV smart dongle) */
 	enum display_dongle_type dongle_type;
+	bool is_dongle_type_one;
 
 	/**********************************************************
 	 capabilities going INTO SINK DEVICE (stream capabilities)
@@ -120,5 +126,10 @@ struct av_sync_data {
 
 static const uint8_t DP_SINK_DEVICE_STR_ID_1[] = {7, 1, 8, 7, 3, 0};
 static const uint8_t DP_SINK_DEVICE_STR_ID_2[] = {7, 1, 8, 7, 5, 0};
+
+static const u8 DP_SINK_BRANCH_DEV_NAME_7580[] = "7580\x80u";
+
+/*MST Dock*/
+static const uint8_t SYNAPTICS_DEVICE_ID[] = "SYNA";
 
 #endif /* __DAL_DDC_SERVICE_TYPES_H__ */

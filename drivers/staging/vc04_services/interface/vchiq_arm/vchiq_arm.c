@@ -189,6 +189,20 @@ cleanup_pagelistinfo(struct vchiq_pagelist_info *pagelistinfo)
 			  pagelistinfo->pagelist, pagelistinfo->dma_addr);
 }
 
+static inline bool
+is_adjacent_block(u32 *addrs, u32 addr, unsigned int k)
+{
+	u32 tmp;
+
+	if (!k)
+		return false;
+
+	tmp = (addrs[k - 1] & PAGE_MASK) +
+	      (((addrs[k - 1] & ~PAGE_MASK) + 1) << PAGE_SHIFT);
+
+	return tmp == (addr & PAGE_MASK);
+}
+
 /* There is a potential problem with partial cache lines (pages?)
  * at the ends of the block when reading. If the CPU accessed anything in
  * the same line (page?) then it may have pulled old data into the cache,
@@ -349,10 +363,7 @@ create_pagelist(char *buf, char __user *ubuf,
 		WARN_ON(len == 0);
 		WARN_ON(i && (i != (dma_buffers - 1)) && (len & ~PAGE_MASK));
 		WARN_ON(i && (addr & ~PAGE_MASK));
-		if (k > 0 &&
-		    ((addrs[k - 1] & PAGE_MASK) +
-		     (((addrs[k - 1] & ~PAGE_MASK) + 1) << PAGE_SHIFT))
-		    == (addr & PAGE_MASK))
+		if (is_adjacent_block(addrs, addr, k))
 			addrs[k - 1] += ((len + PAGE_SIZE - 1) >> PAGE_SHIFT);
 		else
 			addrs[k++] = (addr & PAGE_MASK) |
@@ -420,21 +431,18 @@ free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
 			if (head_bytes > actual)
 				head_bytes = actual;
 
-			memcpy((char *)kmap(pages[0]) +
+			memcpy_to_page(pages[0],
 				pagelist->offset,
 				fragments,
 				head_bytes);
-			kunmap(pages[0]);
 		}
 		if ((actual >= 0) && (head_bytes < actual) &&
-		    (tail_bytes != 0)) {
-			memcpy((char *)kmap(pages[num_pages - 1]) +
-				((pagelist->offset + actual) &
-				(PAGE_SIZE - 1) & ~(g_cache_line_size - 1)),
+		    (tail_bytes != 0))
+			memcpy_to_page(pages[num_pages - 1],
+				(pagelist->offset + actual) &
+				(PAGE_SIZE - 1) & ~(g_cache_line_size - 1),
 				fragments + g_cache_line_size,
 				tail_bytes);
-			kunmap(pages[num_pages - 1]);
-		}
 
 		down(&g_free_fragments_mutex);
 		*(char **)fragments = g_free_fragments;
@@ -582,8 +590,7 @@ vchiq_platform_init_state(struct vchiq_state *state)
 	return 0;
 }
 
-struct vchiq_arm_state*
-vchiq_platform_get_arm_state(struct vchiq_state *state)
+static struct vchiq_arm_state *vchiq_platform_get_arm_state(struct vchiq_state *state)
 {
 	struct vchiq_2835_state *platform_state;
 
@@ -908,8 +915,7 @@ vchiq_blocking_bulk_transfer(unsigned int handle, void *data, unsigned int size,
 	struct vchiq_instance *instance;
 	struct vchiq_service *service;
 	enum vchiq_status status;
-	struct bulk_waiter_node *waiter = NULL;
-	bool found = false;
+	struct bulk_waiter_node *waiter = NULL, *iter;
 
 	service = find_service_by_handle(handle);
 	if (!service)
@@ -920,16 +926,16 @@ vchiq_blocking_bulk_transfer(unsigned int handle, void *data, unsigned int size,
 	vchiq_service_put(service);
 
 	mutex_lock(&instance->bulk_waiter_list_mutex);
-	list_for_each_entry(waiter, &instance->bulk_waiter_list, list) {
-		if (waiter->pid == current->pid) {
-			list_del(&waiter->list);
-			found = true;
+	list_for_each_entry(iter, &instance->bulk_waiter_list, list) {
+		if (iter->pid == current->pid) {
+			list_del(&iter->list);
+			waiter = iter;
 			break;
 		}
 	}
 	mutex_unlock(&instance->bulk_waiter_list_mutex);
 
-	if (found) {
+	if (waiter) {
 		struct vchiq_bulk *bulk = waiter->bulk_waiter.bulk;
 
 		if (bulk) {
@@ -1209,6 +1215,9 @@ int vchiq_dump_platform_instances(void *dump_context)
 	int len;
 	int i;
 
+	if (!state)
+		return -ENOTCONN;
+
 	/*
 	 * There is no list of instances, so instead scan all services,
 	 * marking those that have been dumped.
@@ -1290,14 +1299,18 @@ int vchiq_dump_platform_service_state(void *dump_context,
 struct vchiq_state *
 vchiq_get_state(void)
 {
-	if (!g_state.remote)
+	if (!g_state.remote) {
 		pr_err("%s: g_state.remote == NULL\n", __func__);
-	else if (g_state.remote->initialised != 1)
+		return NULL;
+	}
+
+	if (g_state.remote->initialised != 1) {
 		pr_notice("%s: g_state.remote->initialised != 1 (%d)\n",
 			  __func__, g_state.remote->initialised);
+		return NULL;
+	}
 
-	return (g_state.remote &&
-		(g_state.remote->initialised == 1)) ? &g_state : NULL;
+	return &g_state;
 }
 
 /*

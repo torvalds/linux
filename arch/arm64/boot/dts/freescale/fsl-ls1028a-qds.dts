@@ -107,6 +107,30 @@
 				reg = <5>;
 			};
 		};
+
+		mdio_slot1: mdio@4 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <4>;
+		};
+
+		mdio_slot2: mdio@5 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <5>;
+		};
+
+		mdio_slot3: mdio@6 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <6>;
+		};
+
+		mdio_slot4: mdio@7 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <7>;
+		};
 	};
 };
 
@@ -358,9 +382,11 @@
 };
 
 &usb0 {
+	dr_mode = "host";
 	status = "okay";
 };
 
 &usb1 {
+	dr_mode = "host";
 	status = "okay";
 };

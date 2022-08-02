@@ -168,10 +168,8 @@ static void altera_jtaguart_tx_chars(struct altera_jtaguart *pp)
 		}
 	}
 
-	if (pending == 0) {
-		pp->imr &= ~ALTERA_JTAGUART_CONTROL_WE_MSK;
-		writel(pp->imr, port->membase + ALTERA_JTAGUART_CONTROL_REG);
-	}
+	if (pending == 0)
+		altera_jtaguart_stop_tx(port);
 }
 
 static irqreturn_t altera_jtaguart_interrupt(int irq, void *data)
@@ -298,7 +296,7 @@ static struct altera_jtaguart altera_jtaguart_ports[ALTERA_JTAGUART_MAXPORTS];
 #if defined(CONFIG_SERIAL_ALTERA_JTAGUART_CONSOLE)
 
 #if defined(CONFIG_SERIAL_ALTERA_JTAGUART_CONSOLE_BYPASS)
-static void altera_jtaguart_console_putc(struct uart_port *port, int c)
+static void altera_jtaguart_console_putc(struct uart_port *port, unsigned char c)
 {
 	unsigned long status;
 	unsigned long flags;
@@ -318,7 +316,7 @@ static void altera_jtaguart_console_putc(struct uart_port *port, int c)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 #else
-static void altera_jtaguart_console_putc(struct uart_port *port, int c)
+static void altera_jtaguart_console_putc(struct uart_port *port, unsigned char c)
 {
 	unsigned long flags;
 

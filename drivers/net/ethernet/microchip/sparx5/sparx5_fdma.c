@@ -240,6 +240,8 @@ static bool sparx5_fdma_rx_get_frame(struct sparx5 *sparx5, struct sparx5_rx *rx
 	skb_pull(skb, IFH_LEN * sizeof(u32));
 	if (likely(!(skb->dev->features & NETIF_F_RXFCS)))
 		skb_trim(skb, skb->len - ETH_FCS_LEN);
+
+	sparx5_ptp_rxtstamp(sparx5, skb, fi.timestamp);
 	skb->protocol = eth_type_trans(skb, skb->dev);
 	/* Everything we see on an interface that is in the HW bridge
 	 * has already been forwarded
@@ -379,7 +381,8 @@ static int sparx5_fdma_rx_alloc(struct sparx5 *sparx5)
 		}
 		sparx5_fdma_rx_add_dcb(rx, dcb, rx->dma + sizeof(*dcb) * idx);
 	}
-	netif_napi_add(rx->ndev, &rx->napi, sparx5_fdma_napi_callback, FDMA_WEIGHT);
+	netif_napi_add_weight(rx->ndev, &rx->napi, sparx5_fdma_napi_callback,
+			      FDMA_WEIGHT);
 	napi_enable(&rx->napi);
 	sparx5_fdma_rx_activate(sparx5, rx);
 	return 0;
@@ -420,6 +423,8 @@ static int sparx5_fdma_tx_alloc(struct sparx5 *sparx5)
 			db_hw->dataptr = phys;
 			db_hw->status = 0;
 			db = devm_kzalloc(sparx5->dev, sizeof(*db), GFP_KERNEL);
+			if (!db)
+				return -ENOMEM;
 			db->cpu_addr = cpu_addr;
 			list_add_tail(&db->list, &tx->db_list);
 		}

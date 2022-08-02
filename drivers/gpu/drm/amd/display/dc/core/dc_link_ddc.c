@@ -298,6 +298,9 @@ static uint32_t defer_delay_converter_wa(
 
 	if (link->dpcd_caps.dongle_type == DISPLAY_DONGLE_DP_VGA_CONVERTER &&
 		link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_0080E1 &&
+		(link->dpcd_caps.branch_fw_revision[0] < 0x01 ||
+				(link->dpcd_caps.branch_fw_revision[0] == 0x01 &&
+				link->dpcd_caps.branch_fw_revision[1] < 0x40)) &&
 		!memcmp(link->dpcd_caps.branch_dev_name,
 		    DP_VGA_DONGLE_BRANCH_DEV_NAME,
 			sizeof(link->dpcd_caps.branch_dev_name)))
@@ -490,6 +493,7 @@ void dal_ddc_service_i2c_query_dp_dual_mode_adaptor(
 			sink_cap->max_hdmi_pixel_clock =
 				max_tmds_clk * 1000;
 		}
+		sink_cap->is_dongle_type_one = false;
 
 	} else {
 		if (is_valid_hdmi_signature == true) {
@@ -507,6 +511,7 @@ void dal_ddc_service_i2c_query_dp_dual_mode_adaptor(
 					"Type 1 DP-HDMI passive dongle (no signature) %dMhz: ",
 					sink_cap->max_hdmi_pixel_clock / 1000);
 		}
+		sink_cap->is_dongle_type_one = true;
 	}
 
 	return;
@@ -538,15 +543,9 @@ bool dal_ddc_service_query_ddc_data(
 
 	uint32_t payloads_num = write_payloads + read_payloads;
 
-
-	if (write_size > EDID_SEGMENT_SIZE || read_size > EDID_SEGMENT_SIZE)
-		return false;
-
 	if (!payloads_num)
 		return false;
 
-	/*TODO: len of payload data for i2c and aux is uint8!!!!,
-	 *  but we want to read 256 over i2c!!!!*/
 	if (dal_ddc_service_is_in_aux_transaction_mode(ddc)) {
 		struct aux_payload payload;
 

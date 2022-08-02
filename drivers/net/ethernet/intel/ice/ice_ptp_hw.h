@@ -191,6 +191,7 @@ int ice_phy_exit_bypass_e822(struct ice_hw *hw, u8 port);
 int ice_ptp_init_phy_e810(struct ice_hw *hw);
 int ice_read_sma_ctrl_e810t(struct ice_hw *hw, u8 *data);
 int ice_write_sma_ctrl_e810t(struct ice_hw *hw, u8 data);
+int ice_read_pca9575_reg_e810t(struct ice_hw *hw, u8 offset, u8 *data);
 bool ice_is_pca9575_present(struct ice_hw *hw);
 
 #define PFTSYN_SEM_BYTES	4
@@ -442,5 +443,11 @@ bool ice_is_pca9575_present(struct ice_hw *hw);
 #define ICE_SMA_MIN_BIT_E810T	3
 #define ICE_SMA_MAX_BIT_E810T	7
 #define ICE_PCA9575_P1_OFFSET	8
+
+/* E810T PCA9575 IO controller registers */
+#define ICE_PCA9575_P0_IN	0x0
+
+/* E810T PCA9575 IO controller pin control */
+#define ICE_E810T_P0_GNSS_PRSNT_N	BIT(4)
 
 #endif /* _ICE_PTP_HW_H_ */

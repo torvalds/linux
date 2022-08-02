@@ -451,7 +451,7 @@ static bool amdgpu_bo_validate_size(struct amdgpu_device *adev,
 	if (domain & AMDGPU_GEM_DOMAIN_GTT) {
 		man = ttm_manager_type(&adev->mman.bdev, TTM_PL_TT);
 
-		if (size < (man->size << PAGE_SHIFT))
+		if (size < man->size)
 			return true;
 		else
 			goto fail;
@@ -460,7 +460,7 @@ static bool amdgpu_bo_validate_size(struct amdgpu_device *adev,
 	if (domain & AMDGPU_GEM_DOMAIN_VRAM) {
 		man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
 
-		if (size < (man->size << PAGE_SHIFT))
+		if (size < man->size)
 			return true;
 		else
 			goto fail;
@@ -472,7 +472,7 @@ static bool amdgpu_bo_validate_size(struct amdgpu_device *adev,
 
 fail:
 	DRM_DEBUG("BO size %lu > total memory in domain: %llu\n", size,
-		  man->size << PAGE_SHIFT);
+		  man->size);
 	return false;
 }
 
@@ -567,6 +567,7 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 		bp->domain;
 	bo->allowed_domains = bo->preferred_domains;
 	if (bp->type != ttm_bo_type_kernel &&
+	    !(bp->flags & AMDGPU_GEM_CREATE_DISCARDABLE) &&
 	    bo->allowed_domains == AMDGPU_GEM_DOMAIN_VRAM)
 		bo->allowed_domains |= AMDGPU_GEM_DOMAIN_GTT;
 
@@ -574,6 +575,9 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 
 	if (!amdgpu_bo_support_uswc(bo->flags))
 		bo->flags &= ~AMDGPU_GEM_CREATE_CPU_GTT_USWC;
+
+	if (adev->ras_enabled)
+		bo->flags |= AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE;
 
 	bo->tbo.bdev = &adev->mman.bdev;
 	if (bp->domain & (AMDGPU_GEM_DOMAIN_GWS | AMDGPU_GEM_DOMAIN_OA |
@@ -609,9 +613,8 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 		if (unlikely(r))
 			goto fail_unreserve;
 
-		amdgpu_bo_fence(bo, fence, false);
-		dma_fence_put(bo->tbo.moving);
-		bo->tbo.moving = dma_fence_get(fence);
+		dma_resv_add_fence(bo->tbo.base.resv, fence,
+				   DMA_RESV_USAGE_KERNEL);
 		dma_fence_put(fence);
 	}
 	if (!bp->resv)
@@ -758,17 +761,17 @@ int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr)
 	if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
 		return -EPERM;
 
+	r = dma_resv_wait_timeout(bo->tbo.base.resv, DMA_RESV_USAGE_KERNEL,
+				  false, MAX_SCHEDULE_TIMEOUT);
+	if (r < 0)
+		return r;
+
 	kptr = amdgpu_bo_kptr(bo);
 	if (kptr) {
 		if (ptr)
 			*ptr = kptr;
 		return 0;
 	}
-
-	r = dma_resv_wait_timeout(bo->tbo.base.resv, false, false,
-				  MAX_SCHEDULE_TIMEOUT);
-	if (r < 0)
-		return r;
 
 	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.resource->num_pages, &bo->kmap);
 	if (r)
@@ -1016,7 +1019,9 @@ static const char *amdgpu_vram_names[] = {
 	"DDR3",
 	"DDR4",
 	"GDDR6",
-	"DDR5"
+	"DDR5",
+	"LPDDR4",
+	"LPDDR5"
 };
 
 /**
@@ -1281,6 +1286,7 @@ void amdgpu_bo_get_memory(struct amdgpu_bo *bo, uint64_t *vram_mem,
  */
 void amdgpu_bo_release_notify(struct ttm_buffer_object *bo)
 {
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
 	struct dma_fence *fence = NULL;
 	struct amdgpu_bo *abo;
 	int r;
@@ -1300,10 +1306,12 @@ void amdgpu_bo_release_notify(struct ttm_buffer_object *bo)
 		amdgpu_amdkfd_remove_fence_on_pt_pd_bos(abo);
 
 	if (bo->resource->mem_type != TTM_PL_VRAM ||
-	    !(abo->flags & AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE))
+	    !(abo->flags & AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE) ||
+	    adev->in_suspend || adev->shutdown)
 		return;
 
-	dma_resv_lock(bo->base.resv, NULL);
+	if (WARN_ON_ONCE(!dma_resv_trylock(bo->base.resv)))
+		return;
 
 	r = amdgpu_fill_buffer(abo, AMDGPU_POISON, bo->base.resv, &fence);
 	if (!WARN_ON(r)) {
@@ -1384,11 +1392,17 @@ void amdgpu_bo_fence(struct amdgpu_bo *bo, struct dma_fence *fence,
 		     bool shared)
 {
 	struct dma_resv *resv = bo->tbo.base.resv;
+	int r;
 
-	if (shared)
-		dma_resv_add_shared_fence(resv, fence);
-	else
-		dma_resv_add_excl_fence(resv, fence);
+	r = dma_resv_reserve_fences(resv, 1);
+	if (r) {
+		/* As last resort on OOM we block for the fence */
+		dma_fence_wait(fence, false);
+		return;
+	}
+
+	dma_resv_add_fence(resv, fence, shared ? DMA_RESV_USAGE_READ :
+			   DMA_RESV_USAGE_WRITE);
 }
 
 /**

@@ -1,0 +1,3 @@
+libthermal_tools-y += mainloop.o
+libthermal_tools-y += log.o
+libthermal_tools-y += uptimeofday.o

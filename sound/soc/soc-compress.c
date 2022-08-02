@@ -567,6 +567,11 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 		return -EINVAL;
 	}
 
+	if (!codec_dai) {
+		dev_err(rtd->card->dev, "Missing codec\n");
+		return -EINVAL;
+	}
+
 	/* check client and interface hw capabilities */
 	if (snd_soc_dai_stream_valid(codec_dai, SNDRV_PCM_STREAM_PLAYBACK) &&
 	    snd_soc_dai_stream_valid(cpu_dai,   SNDRV_PCM_STREAM_PLAYBACK))

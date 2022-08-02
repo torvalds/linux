@@ -12,9 +12,10 @@ maintainers:
 properties:
   power-supplies:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
     description:
       This property is added to a supply in order to list the devices which
       supply it power, referenced by their phandles.
 
 additionalProperties: true
-

@@ -1,13 +1,2 @@
-* Support for VP8, VP9 and H264 is planned for this driver.
-
-  Given the V4L controls for those CODECs will be part of
-  the uABI, it will be required to have the driver in staging.
-
-  For this reason, we are keeping this driver in staging for now.
-
-* Add support for the S_SELECTION API.
-  See the comment for VEPU_REG_ENC_OVER_FILL_STRM_OFFSET.
-
-* Instead of having a DMA bounce buffer, it could be possible to use a
-  normal buffer and memmove() the payload to make space for the header.
-  This might need to use extra JPEG markers for padding reasons.
+The V4L controls for the HEVC CODEC are not yet part of the stable uABI,
+we are keeping this driver in staging until the HEVC uABI has been merged.

@@ -20,7 +20,7 @@ void arch_handle_alternative(unsigned short feature, struct special_alt *alt)
 		 * find paths that see the STAC but take the NOP instead of
 		 * CLAC and the other way around.
 		 */
-		if (uaccess)
+		if (opts.uaccess)
 			alt->skip_orig = true;
 		else
 			alt->skip_alt = true;

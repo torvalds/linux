@@ -1368,7 +1368,7 @@ static int bcmgenet_set_eee(struct net_device *dev, struct ethtool_eee *e)
 	if (!p->eee_enabled) {
 		bcmgenet_eee_enable_set(dev, false);
 	} else {
-		ret = phy_init_eee(dev->phydev, 0);
+		ret = phy_init_eee(dev->phydev, false);
 		if (ret) {
 			netif_err(priv, hw, dev, "EEE initialization failed\n");
 			return ret;
@@ -2035,6 +2035,11 @@ static struct sk_buff *bcmgenet_add_tsb(struct net_device *dev,
 	return skb;
 }
 
+static void bcmgenet_hide_tsb(struct sk_buff *skb)
+{
+	__skb_pull(skb, sizeof(struct status_64));
+}
+
 static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
@@ -2141,6 +2146,8 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	GENET_CB(skb)->last_cb = tx_cb_ptr;
+
+	bcmgenet_hide_tsb(skb);
 	skb_tx_timestamp(skb);
 
 	/* Decrement total BD count and advance our write pointer */
@@ -2664,8 +2671,7 @@ static void bcmgenet_init_tx_ring(struct bcmgenet_priv *priv,
 				  DMA_END_ADDR);
 
 	/* Initialize Tx NAPI */
-	netif_tx_napi_add(priv->dev, &ring->napi, bcmgenet_tx_poll,
-			  NAPI_POLL_WEIGHT);
+	netif_napi_add_tx(priv->dev, &ring->napi, bcmgenet_tx_poll);
 }
 
 /* Initialize a RDMA ring */
@@ -3992,6 +3998,10 @@ static int bcmgenet_probe(struct platform_device *pdev)
 		goto err;
 	}
 	priv->wol_irq = platform_get_irq_optional(pdev, 2);
+	if (priv->wol_irq == -EPROBE_DEFER) {
+		err = priv->wol_irq;
+		goto err;
+	}
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base)) {

@@ -1221,8 +1221,8 @@ nvmet_rdma_find_get_device(struct rdma_cm_id *cm_id)
 	ndev->inline_data_size = nport->inline_data_size;
 	ndev->inline_page_count = inline_page_count;
 
-	if (nport->pi_enable && !(cm_id->device->attrs.device_cap_flags &
-				  IB_DEVICE_INTEGRITY_HANDOVER)) {
+	if (nport->pi_enable && !(cm_id->device->attrs.kernel_cap_flags &
+				  IBK_INTEGRITY_HANDOVER)) {
 		pr_warn("T10-PI is not supported by device %s. Disabling it\n",
 			cm_id->device->name);
 		nport->pi_enable = false;
@@ -1356,7 +1356,7 @@ static void nvmet_rdma_free_queue(struct nvmet_rdma_queue *queue)
 				!queue->host_qid);
 	}
 	nvmet_rdma_free_rsps(queue);
-	ida_simple_remove(&nvmet_rdma_queue_ida, queue->idx);
+	ida_free(&nvmet_rdma_queue_ida, queue->idx);
 	kfree(queue);
 }
 
@@ -1459,7 +1459,7 @@ nvmet_rdma_alloc_queue(struct nvmet_rdma_device *ndev,
 	spin_lock_init(&queue->rsps_lock);
 	INIT_LIST_HEAD(&queue->queue_list);
 
-	queue->idx = ida_simple_get(&nvmet_rdma_queue_ida, 0, 0, GFP_KERNEL);
+	queue->idx = ida_alloc(&nvmet_rdma_queue_ida, GFP_KERNEL);
 	if (queue->idx < 0) {
 		ret = NVME_RDMA_CM_NO_RSC;
 		goto out_destroy_sq;
@@ -1510,7 +1510,7 @@ out_free_cmds:
 out_free_responses:
 	nvmet_rdma_free_rsps(queue);
 out_ida_remove:
-	ida_simple_remove(&nvmet_rdma_queue_ida, queue->idx);
+	ida_free(&nvmet_rdma_queue_ida, queue->idx);
 out_destroy_sq:
 	nvmet_sq_destroy(&queue->nvme_sq);
 out_free_queue:
@@ -1584,7 +1584,7 @@ static int nvmet_rdma_queue_connect(struct rdma_cm_id *cm_id,
 
 	if (queue->host_qid == 0) {
 		/* Let inflight controller teardown complete */
-		flush_scheduled_work();
+		flush_workqueue(nvmet_wq);
 	}
 
 	ret = nvmet_rdma_cm_accept(cm_id, queue, &event->param.conn);
@@ -1669,7 +1669,7 @@ static void __nvmet_rdma_queue_disconnect(struct nvmet_rdma_queue *queue)
 
 	if (disconnect) {
 		rdma_disconnect(queue->cm_id);
-		schedule_work(&queue->release_work);
+		queue_work(nvmet_wq, &queue->release_work);
 	}
 }
 
@@ -1699,11 +1699,11 @@ static void nvmet_rdma_queue_connect_fail(struct rdma_cm_id *cm_id,
 	mutex_unlock(&nvmet_rdma_queue_mutex);
 
 	pr_err("failed to connect queue %d\n", queue->idx);
-	schedule_work(&queue->release_work);
+	queue_work(nvmet_wq, &queue->release_work);
 }
 
 /**
- * nvme_rdma_device_removal() - Handle RDMA device removal
+ * nvmet_rdma_device_removal() - Handle RDMA device removal
  * @cm_id:	rdma_cm id, used for nvmet port
  * @queue:      nvmet rdma queue (cm id qp_context)
  *
@@ -1773,7 +1773,7 @@ static int nvmet_rdma_cm_handler(struct rdma_cm_id *cm_id,
 		if (!queue) {
 			struct nvmet_rdma_port *port = cm_id->context;
 
-			schedule_delayed_work(&port->repair_work, 0);
+			queue_delayed_work(nvmet_wq, &port->repair_work, 0);
 			break;
 		}
 		fallthrough;
@@ -1903,7 +1903,7 @@ static void nvmet_rdma_repair_port_work(struct work_struct *w)
 	nvmet_rdma_disable_port(port);
 	ret = nvmet_rdma_enable_port(port);
 	if (ret)
-		schedule_delayed_work(&port->repair_work, 5 * HZ);
+		queue_delayed_work(nvmet_wq, &port->repair_work, 5 * HZ);
 }
 
 static int nvmet_rdma_add_port(struct nvmet_port *nport)
@@ -2053,7 +2053,7 @@ static void nvmet_rdma_remove_one(struct ib_device *ib_device, void *client_data
 	}
 	mutex_unlock(&nvmet_rdma_queue_mutex);
 
-	flush_scheduled_work();
+	flush_workqueue(nvmet_wq);
 }
 
 static struct ib_client nvmet_rdma_ib_client = {

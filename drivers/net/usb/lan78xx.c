@@ -92,8 +92,6 @@
 					 WAKE_MCAST | WAKE_BCAST | \
 					 WAKE_ARP | WAKE_MAGIC)
 
-#define LAN78XX_NAPI_WEIGHT		64
-
 #define TX_URB_NUM			10
 #define TX_SS_URB_NUM			TX_URB_NUM
 #define TX_HS_URB_NUM			TX_URB_NUM
@@ -1537,11 +1535,8 @@ static void lan78xx_status(struct lan78xx_net *dev, struct urb *urb)
 		netif_dbg(dev, link, dev->net, "PHY INTR: 0x%08x\n", intdata);
 		lan78xx_defer_kevent(dev, EVENT_LINK_RESET);
 
-		if (dev->domain_data.phyirq > 0) {
-			local_irq_disable();
-			generic_handle_irq(dev->domain_data.phyirq);
-			local_irq_enable();
-		}
+		if (dev->domain_data.phyirq > 0)
+			generic_handle_irq_safe(dev->domain_data.phyirq);
 	} else {
 		netdev_warn(dev->net,
 			    "unexpected interrupt: 0x%08x\n", intdata);
@@ -4377,9 +4372,9 @@ static int lan78xx_probe(struct usb_interface *intf,
 	/* MTU range: 68 - 9000 */
 	netdev->max_mtu = MAX_SINGLE_PACKET_SIZE;
 
-	netif_set_gso_max_size(netdev, LAN78XX_TSO_SIZE(dev));
+	netif_set_tso_max_size(netdev, LAN78XX_TSO_SIZE(dev));
 
-	netif_napi_add(netdev, &dev->napi, lan78xx_poll, LAN78XX_NAPI_WEIGHT);
+	netif_napi_add(netdev, &dev->napi, lan78xx_poll, NAPI_POLL_WEIGHT);
 
 	INIT_DELAYED_WORK(&dev->wq, lan78xx_delayedwork);
 	init_usb_anchor(&dev->deferred);
@@ -4426,7 +4421,7 @@ static int lan78xx_probe(struct usb_interface *intf,
 		goto out4;
 
 	period = ep_intr->desc.bInterval;
-	maxp = usb_maxpacket(dev->udev, dev->pipe_intr, 0);
+	maxp = usb_maxpacket(dev->udev, dev->pipe_intr);
 	buf = kmalloc(maxp, GFP_KERNEL);
 	if (!buf) {
 		ret = -ENOMEM;
@@ -4444,7 +4439,7 @@ static int lan78xx_probe(struct usb_interface *intf,
 		dev->urb_intr->transfer_flags |= URB_FREE_BUFFER;
 	}
 
-	dev->maxpacket = usb_maxpacket(dev->udev, dev->pipe_out, 1);
+	dev->maxpacket = usb_maxpacket(dev->udev, dev->pipe_out);
 
 	/* Reject broken descriptors. */
 	if (dev->maxpacket == 0) {

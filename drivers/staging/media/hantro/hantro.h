@@ -259,7 +259,6 @@ struct hantro_ctx {
 	/* Specific for particular codec modes. */
 	union {
 		struct hantro_h264_dec_hw_ctx h264_dec;
-		struct hantro_jpeg_enc_hw_ctx jpeg_enc;
 		struct hantro_mpeg2_dec_hw_ctx mpeg2_dec;
 		struct hantro_vp8_dec_hw_ctx vp8_dec;
 		struct hantro_hevc_dec_hw_ctx hevc_dec;
@@ -476,5 +475,7 @@ void hantro_postproc_disable(struct hantro_ctx *ctx);
 void hantro_postproc_enable(struct hantro_ctx *ctx);
 void hantro_postproc_free(struct hantro_ctx *ctx);
 int hantro_postproc_alloc(struct hantro_ctx *ctx);
+int hanto_postproc_enum_framesizes(struct hantro_ctx *ctx,
+				   struct v4l2_frmsizeenum *fsize);
 
 #endif /* HANTRO_H_ */

@@ -100,7 +100,18 @@ static void amdgpu_doorbell_get_kfd_info(struct amdgpu_device *adev,
 	 * The first num_doorbells are used by amdgpu.
 	 * amdkfd takes whatever's left in the aperture.
 	 */
-	if (adev->doorbell.size > adev->doorbell.num_doorbells * sizeof(u32)) {
+	if (adev->enable_mes) {
+		/*
+		 * With MES enabled, we only need to initialize
+		 * the base address. The size and offset are
+		 * not initialized as AMDGPU manages the whole
+		 * doorbell space.
+		 */
+		*aperture_base = adev->doorbell.base;
+		*aperture_size = 0;
+		*start_offset = 0;
+	} else if (adev->doorbell.size > adev->doorbell.num_doorbells *
+						sizeof(u32)) {
 		*aperture_base = adev->doorbell.base;
 		*aperture_size = adev->doorbell.size;
 		*start_offset = adev->doorbell.num_doorbells * sizeof(u32);
@@ -128,7 +139,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 					  AMDGPU_GMC_HOLE_START),
 			.drm_render_minor = adev_to_drm(adev)->render->index,
 			.sdma_doorbell_idx = adev->doorbell_index.sdma_engine,
-
+			.enable_mes = adev->enable_mes,
 		};
 
 		/* this is going to have a few of the MSBs set that we need to
@@ -703,7 +714,8 @@ int amdgpu_amdkfd_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 {
 	bool all_hub = false;
 
-	if (adev->family == AMDGPU_FAMILY_AI)
+	if (adev->family == AMDGPU_FAMILY_AI ||
+	    adev->family == AMDGPU_FAMILY_RV)
 		all_hub = true;
 
 	return amdgpu_gmc_flush_gpu_tlb_pasid(adev, pasid, flush_type, all_hub);
@@ -723,4 +735,12 @@ void amdgpu_amdkfd_ras_poison_consumption_handler(struct amdgpu_device *adev, bo
 		amdgpu_umc_poison_handler(adev, &err_data, reset);
 	else if (reset)
 		amdgpu_amdkfd_gpu_reset(adev);
+}
+
+bool amdgpu_amdkfd_ras_query_utcl2_poison_status(struct amdgpu_device *adev)
+{
+	if (adev->gfx.ras && adev->gfx.ras->query_utcl2_poison_status)
+		return adev->gfx.ras->query_utcl2_poison_status(adev);
+	else
+		return false;
 }

@@ -69,6 +69,11 @@ config SUN6I_A31_CCU
 	default MACH_SUN6I
 	depends on MACH_SUN6I || COMPILE_TEST
 
+config SUN6I_RTC_CCU
+	tristate "Support for the Allwinner H616/R329 RTC CCU"
+	default ARCH_SUNXI
+	depends on ARCH_SUNXI || COMPILE_TEST
+
 config SUN8I_A23_CCU
 	tristate "Support for the Allwinner A23 CCU"
 	default MACH_SUN8I

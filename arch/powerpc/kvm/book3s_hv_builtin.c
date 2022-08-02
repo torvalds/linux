@@ -15,7 +15,6 @@
 #include <linux/cma.h>
 #include <linux/bitops.h>
 
-#include <asm/asm-prototypes.h>
 #include <asm/cputable.h>
 #include <asm/interrupt.h>
 #include <asm/kvm_ppc.h>
@@ -489,70 +488,6 @@ static long kvmppc_read_one_intr(bool *again)
 
 	return kvmppc_check_passthru(xisr, xirr, again);
 }
-
-#ifdef CONFIG_KVM_XICS
-unsigned long kvmppc_rm_h_xirr(struct kvm_vcpu *vcpu)
-{
-	if (!kvmppc_xics_enabled(vcpu))
-		return H_TOO_HARD;
-	if (xics_on_xive())
-		return xive_rm_h_xirr(vcpu);
-	else
-		return xics_rm_h_xirr(vcpu);
-}
-
-unsigned long kvmppc_rm_h_xirr_x(struct kvm_vcpu *vcpu)
-{
-	if (!kvmppc_xics_enabled(vcpu))
-		return H_TOO_HARD;
-	vcpu->arch.regs.gpr[5] = get_tb();
-	if (xics_on_xive())
-		return xive_rm_h_xirr(vcpu);
-	else
-		return xics_rm_h_xirr(vcpu);
-}
-
-unsigned long kvmppc_rm_h_ipoll(struct kvm_vcpu *vcpu, unsigned long server)
-{
-	if (!kvmppc_xics_enabled(vcpu))
-		return H_TOO_HARD;
-	if (xics_on_xive())
-		return xive_rm_h_ipoll(vcpu, server);
-	else
-		return H_TOO_HARD;
-}
-
-int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
-		    unsigned long mfrr)
-{
-	if (!kvmppc_xics_enabled(vcpu))
-		return H_TOO_HARD;
-	if (xics_on_xive())
-		return xive_rm_h_ipi(vcpu, server, mfrr);
-	else
-		return xics_rm_h_ipi(vcpu, server, mfrr);
-}
-
-int kvmppc_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
-{
-	if (!kvmppc_xics_enabled(vcpu))
-		return H_TOO_HARD;
-	if (xics_on_xive())
-		return xive_rm_h_cppr(vcpu, cppr);
-	else
-		return xics_rm_h_cppr(vcpu, cppr);
-}
-
-int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
-{
-	if (!kvmppc_xics_enabled(vcpu))
-		return H_TOO_HARD;
-	if (xics_on_xive())
-		return xive_rm_h_eoi(vcpu, xirr);
-	else
-		return xics_rm_h_eoi(vcpu, xirr);
-}
-#endif /* CONFIG_KVM_XICS */
 
 void kvmppc_bad_interrupt(struct pt_regs *regs)
 {

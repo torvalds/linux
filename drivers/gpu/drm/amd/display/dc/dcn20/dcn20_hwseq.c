@@ -55,6 +55,7 @@
 #include "inc/link_dpcd.h"
 #include "dpcd_defs.h"
 #include "inc/link_enc_cfg.h"
+#include "link_hwss.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -1592,7 +1593,6 @@ static void dcn20_program_pipe(
 				pipe_ctx->pipe_dlg_param.vupdate_offset,
 				pipe_ctx->pipe_dlg_param.vupdate_width);
 
-		pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg, CRTC_STATE_VBLANK);
 		pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg, CRTC_STATE_VACTIVE);
 
 		pipe_ctx->stream_res.tg->funcs->set_vtg_params(
@@ -1738,6 +1738,16 @@ void dcn20_program_front_end_for_ctx(
 					|| pipe->stream->update_flags.raw)
 				&& hws->funcs.program_all_writeback_pipes_in_tree)
 			hws->funcs.program_all_writeback_pipes_in_tree(dc, pipe->stream, context);
+
+		/* Avoid underflow by check of pipe line read when adding 2nd plane. */
+		if (hws->wa.wait_hubpret_read_start_during_mpo_transition &&
+			!pipe->top_pipe &&
+			pipe->stream &&
+			pipe->plane_res.hubp->funcs->hubp_wait_pipe_read_start &&
+			dc->current_state->stream_status[0].plane_count == 1 &&
+			context->stream_status[0].plane_count > 1) {
+			pipe->plane_res.hubp->funcs->hubp_wait_pipe_read_start(pipe->plane_res.hubp);
+		}
 	}
 }
 
@@ -1763,7 +1773,6 @@ void dcn20_post_unlock_program_front_end(
 	 */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-
 		if (pipe->plane_state && !pipe->top_pipe && pipe->update_flags.bits.enable) {
 			struct hubp *hubp = pipe->plane_res.hubp;
 			int j = 0;
@@ -1817,6 +1826,7 @@ void dcn20_prepare_bandwidth(
 		struct dc_state *context)
 {
 	struct hubbub *hubbub = dc->res_pool->hubbub;
+	unsigned int compbuf_size_kb = 0;
 
 	dc->clk_mgr->funcs->update_clocks(
 			dc->clk_mgr,
@@ -1828,9 +1838,16 @@ void dcn20_prepare_bandwidth(
 					&context->bw_ctx.bw.dcn.watermarks,
 					dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
 					false);
+
 	/* decrease compbuf size */
-	if (hubbub->funcs->program_compbuf_size)
-		hubbub->funcs->program_compbuf_size(hubbub, context->bw_ctx.bw.dcn.compbuf_size_kb, false);
+	if (hubbub->funcs->program_compbuf_size) {
+		if (context->bw_ctx.dml.ip.min_comp_buffer_size_kbytes)
+			compbuf_size_kb = context->bw_ctx.dml.ip.min_comp_buffer_size_kbytes;
+		else
+			compbuf_size_kb = context->bw_ctx.bw.dcn.compbuf_size_kb;
+
+		hubbub->funcs->program_compbuf_size(hubbub, compbuf_size_kb, false);
+	}
 }
 
 void dcn20_optimize_bandwidth(
@@ -1838,6 +1855,7 @@ void dcn20_optimize_bandwidth(
 		struct dc_state *context)
 {
 	struct hubbub *hubbub = dc->res_pool->hubbub;
+	int i;
 
 	/* program dchubbub watermarks */
 	hubbub->funcs->program_watermarks(hubbub,
@@ -1854,6 +1872,17 @@ void dcn20_optimize_bandwidth(
 			dc->clk_mgr,
 			context,
 			true);
+	if (dc_extended_blank_supported(dc) && context->bw_ctx.bw.dcn.clk.zstate_support == DCN_ZSTATE_SUPPORT_ALLOW) {
+		for (i = 0; i < dc->res_pool->pipe_count; ++i) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+			if (pipe_ctx->stream && pipe_ctx->plane_res.hubp->funcs->program_extended_blank
+				&& pipe_ctx->stream->adjust.v_total_min == pipe_ctx->stream->adjust.v_total_max
+				&& pipe_ctx->stream->adjust.v_total_max > pipe_ctx->stream->timing.v_total)
+					pipe_ctx->plane_res.hubp->funcs->program_extended_blank(pipe_ctx->plane_res.hubp,
+						pipe_ctx->dlg_regs.optimized_min_dst_y_next_start);
+		}
+	}
 	/* increase compbuf size */
 	if (hubbub->funcs->program_compbuf_size)
 		hubbub->funcs->program_compbuf_size(hubbub, context->bw_ctx.bw.dcn.compbuf_size_kb, true);
@@ -2313,13 +2342,21 @@ void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	struct mpc *mpc = dc->res_pool->mpc;
 	struct mpc_tree *mpc_tree_params = &(pipe_ctx->stream_res.opp->mpc_tree_params);
 
-	if (per_pixel_alpha)
-		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA;
-	else
-		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_GLOBAL_ALPHA;
-
 	blnd_cfg.overlap_only = false;
 	blnd_cfg.global_gain = 0xff;
+
+	if (per_pixel_alpha) {
+		blnd_cfg.pre_multiplied_alpha = pipe_ctx->plane_state->pre_multiplied_alpha;
+		if (pipe_ctx->plane_state->global_alpha) {
+			blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA_COMBINED_GLOBAL_GAIN;
+			blnd_cfg.global_gain = pipe_ctx->plane_state->global_alpha_value;
+		} else {
+			blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA;
+		}
+	} else {
+		blnd_cfg.pre_multiplied_alpha = false;
+		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_GLOBAL_ALPHA;
+	}
 
 	if (pipe_ctx->plane_state->global_alpha)
 		blnd_cfg.global_alpha = pipe_ctx->plane_state->global_alpha_value;
@@ -2331,7 +2368,7 @@ void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	blnd_cfg.top_gain = 0x1f000;
 	blnd_cfg.bottom_inside_gain = 0x1f000;
 	blnd_cfg.bottom_outside_gain = 0x1f000;
-	blnd_cfg.pre_multiplied_alpha = per_pixel_alpha;
+
 	if (pipe_ctx->plane_state->format
 			== SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA)
 		blnd_cfg.pre_multiplied_alpha = false;
@@ -2390,46 +2427,22 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 	uint32_t active_total_with_borders;
 	uint32_t early_control = 0;
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
-	struct link_encoder *link_enc;
+	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
 
-	if (link->is_dig_mapping_flexible &&
-			link->dc->res_pool->funcs->link_encs_assign)
-		link_enc = link_enc_cfg_get_link_enc_used_by_stream(link->ctx->dc, pipe_ctx->stream);
-	else
-		link_enc = link->link_enc;
-	ASSERT(link_enc);
-
-	/* For MST, there are multiply stream go to only one link.
-	 * connect DIG back_end to front_end while enable_stream and
-	 * disconnect them during disable_stream
-	 * BY this, it is logic clean to separate stream and link
-	 */
 	if (is_dp_128b_132b_signal(pipe_ctx)) {
-		if (pipe_ctx->stream->ctx->dc->hwseq->funcs.setup_hpo_hw_control)
-			pipe_ctx->stream->ctx->dc->hwseq->funcs.setup_hpo_hw_control(
-				pipe_ctx->stream->ctx->dc->hwseq, true);
-		setup_dp_hpo_stream(pipe_ctx, true);
-		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->enable_stream(
-				pipe_ctx->stream_res.hpo_dp_stream_enc);
-		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->map_stream_to_link(
-				pipe_ctx->stream_res.hpo_dp_stream_enc,
-				pipe_ctx->stream_res.hpo_dp_stream_enc->inst,
-				pipe_ctx->link_res.hpo_dp_link_enc->inst);
+		if (dc->hwseq->funcs.setup_hpo_hw_control)
+			dc->hwseq->funcs.setup_hpo_hw_control(dc->hwseq, true);
 	}
 
-	if (!is_dp_128b_132b_signal(pipe_ctx) && link_enc)
-		link_enc->funcs->connect_dig_be_to_fe(
-			link_enc, pipe_ctx->stream_res.stream_enc->id, true);
-
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_BE);
+	link_hwss->setup_stream_encoder(pipe_ctx);
 
 	if (pipe_ctx->plane_state && pipe_ctx->plane_state->flip_immediate != 1) {
-		if (link->dc->hwss.program_dmdata_engine)
-			link->dc->hwss.program_dmdata_engine(pipe_ctx);
+		if (dc->hwss.program_dmdata_engine)
+			dc->hwss.program_dmdata_engine(pipe_ctx);
 	}
 
-	link->dc->hwss.update_info_frame(pipe_ctx);
+	dc->hwss.update_info_frame(pipe_ctx);
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_UPDATE_INFO_FRAME);

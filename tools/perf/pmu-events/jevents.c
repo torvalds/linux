@@ -207,21 +207,6 @@ static struct msrmap {
 	{ NULL, NULL }
 };
 
-static struct field {
-	const char *field;
-	const char *kernel;
-} fields[] = {
-	{ "UMask",	"umask=" },
-	{ "CounterMask", "cmask=" },
-	{ "Invert",	"inv=" },
-	{ "AnyThread",	"any=" },
-	{ "EdgeDetect",	"edge=" },
-	{ "SampleAfterValue", "period=" },
-	{ "FCMask",	"fc_mask=" },
-	{ "PortMask",	"ch_mask=" },
-	{ NULL, NULL }
-};
-
 static void cut_comma(char *map, jsmntok_t *newval)
 {
 	int i;
@@ -231,21 +216,6 @@ static void cut_comma(char *map, jsmntok_t *newval)
 		if (map[i] == ',')
 			newval->end = i;
 	}
-}
-
-static int match_field(char *map, jsmntok_t *field, int nz,
-		       char **event, jsmntok_t *val)
-{
-	struct field *f;
-	jsmntok_t newval = *val;
-
-	for (f = fields; f->field; f++)
-		if (json_streq(map, field, f->field) && nz) {
-			cut_comma(map, &newval);
-			addfield(map, event, ",", f->kernel, &newval);
-			return 1;
-		}
-	return 0;
 }
 
 static struct msrmap *lookup_msr(char *map, jsmntok_t *val)
@@ -277,6 +247,7 @@ static struct map {
 	{ "CPU-M-CF", "cpum_cf" },
 	{ "CPU-M-SF", "cpum_sf" },
 	{ "UPI LL", "uncore_upi" },
+	{ "hisi_sicl,cpa", "hisi_sicl,cpa"},
 	{ "hisi_sccl,ddrc", "hisi_sccl,ddrc" },
 	{ "hisi_sccl,hha", "hisi_sccl,hha" },
 	{ "hisi_sccl,l3c", "hisi_sccl,l3c" },
@@ -580,6 +551,14 @@ static int json_events(const char *fn,
 		jsmntok_t *precise = NULL;
 		jsmntok_t *obj = tok++;
 		bool configcode_present = false;
+		char *umask = NULL;
+		char *cmask = NULL;
+		char *inv = NULL;
+		char *any = NULL;
+		char *edge = NULL;
+		char *period = NULL;
+		char *fc_mask = NULL;
+		char *ch_mask = NULL;
 
 		EXPECT(obj->type == JSMN_OBJECT, obj, "expected object");
 		for (j = 0; j < obj->size; j += 2) {
@@ -595,8 +574,23 @@ static int json_events(const char *fn,
 			       "Expected string value");
 
 			nz = !json_streq(map, val, "0");
-			if (match_field(map, field, nz, &event, val)) {
-				/* ok */
+			/* match_field */
+			if (json_streq(map, field, "UMask") && nz) {
+				addfield(map, &umask, "", "umask=", val);
+			} else if (json_streq(map, field, "CounterMask") && nz) {
+				addfield(map, &cmask, "", "cmask=", val);
+			} else if (json_streq(map, field, "Invert") && nz) {
+				addfield(map, &inv, "", "inv=", val);
+			} else if (json_streq(map, field, "AnyThread") && nz) {
+				addfield(map, &any, "", "any=", val);
+			} else if (json_streq(map, field, "EdgeDetect") && nz) {
+				addfield(map, &edge, "", "edge=", val);
+			} else if (json_streq(map, field, "SampleAfterValue") && nz) {
+				addfield(map, &period, "", "period=", val);
+			} else if (json_streq(map, field, "FCMask") && nz) {
+				addfield(map, &fc_mask, "", "fc_mask=", val);
+			} else if (json_streq(map, field, "PortMask") && nz) {
+				addfield(map, &ch_mask, "", "ch_mask=", val);
 			} else if (json_streq(map, field, "EventCode")) {
 				char *code = NULL;
 				addfield(map, &code, "", "", val);
@@ -611,7 +605,7 @@ static int json_events(const char *fn,
 			} else if (json_streq(map, field, "ExtSel")) {
 				char *code = NULL;
 				addfield(map, &code, "", "", val);
-				eventcode |= strtoul(code, NULL, 0) << 21;
+				eventcode |= strtoul(code, NULL, 0) << 8;
 				free(code);
 			} else if (json_streq(map, field, "EventName")) {
 				addfield(map, &je.name, "", "", val);
@@ -651,9 +645,6 @@ static int json_events(const char *fn,
 					for (s = je.pmu; *s; s++)
 						*s = tolower(*s);
 				}
-				addfield(map, &je.desc, ". ", "Unit: ", NULL);
-				addfield(map, &je.desc, "", je.pmu, NULL);
-				addfield(map, &je.desc, "", " ", NULL);
 			} else if (json_streq(map, field, "Filter")) {
 				addfield(map, &filter, "", "", val);
 			} else if (json_streq(map, field, "ScaleUnit")) {
@@ -692,10 +683,32 @@ static int json_events(const char *fn,
 		else
 			snprintf(buf, sizeof buf, "event=%#llx", eventcode);
 		addfield(map, &event, ",", buf, NULL);
+		if (any)
+			addfield(map, &event, ",", any, NULL);
+		if (ch_mask)
+			addfield(map, &event, ",", ch_mask, NULL);
+		if (cmask)
+			addfield(map, &event, ",", cmask, NULL);
+		if (edge)
+			addfield(map, &event, ",", edge, NULL);
+		if (fc_mask)
+			addfield(map, &event, ",", fc_mask, NULL);
+		if (inv)
+			addfield(map, &event, ",", inv, NULL);
+		if (period)
+			addfield(map, &event, ",", period, NULL);
+		if (umask)
+			addfield(map, &event, ",", umask, NULL);
+
 		if (je.desc && extra_desc)
 			addfield(map, &je.desc, " ", extra_desc, NULL);
 		if (je.long_desc && extra_desc)
 			addfield(map, &je.long_desc, " ", extra_desc, NULL);
+		if (je.pmu) {
+			addfield(map, &je.desc, ". ", "Unit: ", NULL);
+			addfield(map, &je.desc, "", je.pmu, NULL);
+			addfield(map, &je.desc, "", " ", NULL);
+		}
 		if (filter)
 			addfield(map, &event, ",", filter, NULL);
 		if (msr != NULL)
@@ -715,6 +728,14 @@ static int json_events(const char *fn,
 		je.event = real_event(je.name, event);
 		err = func(data, &je);
 free_strings:
+		free(umask);
+		free(cmask);
+		free(inv);
+		free(any);
+		free(edge);
+		free(period);
+		free(fc_mask);
+		free(ch_mask);
 		free(event);
 		free(je.desc);
 		free(je.name);

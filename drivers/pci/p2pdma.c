@@ -321,19 +321,21 @@ static const struct pci_p2pdma_whitelist_entry {
 	{PCI_VENDOR_ID_INTEL,	0x2032, 0},
 	{PCI_VENDOR_ID_INTEL,	0x2033, 0},
 	{PCI_VENDOR_ID_INTEL,	0x2020, 0},
+	{PCI_VENDOR_ID_INTEL,	0x09a2, 0},
 	{}
 };
 
 /*
- * This lookup function tries to find the PCI device corresponding to a given
- * host bridge.
+ * If the first device on host's root bus is either devfn 00.0 or a PCIe
+ * Root Port, return it.  Otherwise return NULL.
  *
- * It assumes the host bridge device is the first PCI device in the
- * bus->devices list and that the devfn is 00.0. These assumptions should hold
- * for all the devices in the whitelist above.
+ * We often use a devfn 00.0 "host bridge" in the pci_p2pdma_whitelist[]
+ * (though there is no PCI/PCIe requirement for such a device).  On some
+ * platforms, e.g., Intel Skylake, there is no such host bridge device, and
+ * pci_p2pdma_whitelist[] may contain a Root Port at any devfn.
  *
- * This function is equivalent to pci_get_slot(host->bus, 0), however it does
- * not take the pci_bus_sem lock seeing __host_bridge_whitelist() must not
+ * This function is similar to pci_get_slot(host->bus, 0), but it does
+ * not take the pci_bus_sem lock since __host_bridge_whitelist() must not
  * sleep.
  *
  * For this to be safe, the caller should hold a reference to a device on the
@@ -349,10 +351,14 @@ static struct pci_dev *pci_host_bridge_dev(struct pci_host_bridge *host)
 
 	if (!root)
 		return NULL;
-	if (root->devfn != PCI_DEVFN(0, 0))
-		return NULL;
 
-	return root;
+	if (root->devfn == PCI_DEVFN(0, 0))
+		return root;
+
+	if (pci_pcie_type(root) == PCI_EXP_TYPE_ROOT_PORT)
+		return root;
+
+	return NULL;
 }
 
 static bool __host_bridge_whitelist(struct pci_host_bridge *host,

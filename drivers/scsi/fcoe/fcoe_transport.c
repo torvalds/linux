@@ -183,9 +183,9 @@ void __fcoe_get_lesb(struct fc_lport *lport,
 	memset(lesb, 0, sizeof(*lesb));
 	for_each_possible_cpu(cpu) {
 		stats = per_cpu_ptr(lport->stats, cpu);
-		lfc += stats->LinkFailureCount;
-		vlfc += stats->VLinkFailureCount;
-		mdac += stats->MissDiscAdvCount;
+		lfc += READ_ONCE(stats->LinkFailureCount);
+		vlfc += READ_ONCE(stats->VLinkFailureCount);
+		mdac += READ_ONCE(stats->MissDiscAdvCount);
 	}
 	lesb->lesb_link_fail = htonl(lfc);
 	lesb->lesb_vlink_fail = htonl(vlfc);

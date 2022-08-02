@@ -149,6 +149,11 @@ static inline void totalhigh_pages_add(long count)
 	atomic_long_add(count, &_totalhigh_pages);
 }
 
+static inline bool is_kmap_addr(const void *x)
+{
+	unsigned long addr = (unsigned long)x;
+	return addr >= PKMAP_ADDR(0) && addr < PKMAP_ADDR(LAST_PKMAP);
+}
 #else /* CONFIG_HIGHMEM */
 
 static inline struct page *kmap_to_page(void *addr)
@@ -234,11 +239,28 @@ static inline void __kunmap_atomic(void *addr)
 static inline unsigned int nr_free_highpages(void) { return 0; }
 static inline unsigned long totalhigh_pages(void) { return 0UL; }
 
+static inline bool is_kmap_addr(const void *x)
+{
+	return false;
+}
+
 #endif /* CONFIG_HIGHMEM */
 
-/*
- * Prevent people trying to call kunmap_atomic() as if it were kunmap()
- * kunmap_atomic() should get the return value of kmap_atomic, not the page.
+/**
+ * kunmap_atomic - Unmap the virtual address mapped by kmap_atomic() - deprecated!
+ * @__addr:       Virtual address to be unmapped
+ *
+ * Unmaps an address previously mapped by kmap_atomic() and re-enables
+ * pagefaults. Depending on PREEMP_RT configuration, re-enables also
+ * migration and preemption. Users should not count on these side effects.
+ *
+ * Mappings should be unmapped in the reverse order that they were mapped.
+ * See kmap_local_page() for details on nesting.
+ *
+ * @__addr can be any address within the mapped page, so there is no need
+ * to subtract any offset that has been added. In contrast to kunmap(),
+ * this function takes the address returned from kmap_atomic(), not the
+ * page passed to it. The compiler will warn you if you pass the page.
  */
 #define kunmap_atomic(__addr)					\
 do {								\
@@ -246,6 +268,16 @@ do {								\
 	__kunmap_atomic(__addr);				\
 } while (0)
 
+/**
+ * kunmap_local - Unmap a page mapped via kmap_local_page().
+ * @__addr: An address within the page mapped
+ *
+ * @__addr can be any address within the mapped page.  Commonly it is the
+ * address return from kmap_local_page(), but it can also include offsets.
+ *
+ * Unmapping should be done in the reverse order of the mapping.  See
+ * kmap_local_page() for details.
+ */
 #define kunmap_local(__addr)					\
 do {								\
 	BUILD_BUG_ON(__same_type((__addr), struct page *));	\

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_CORE_H
@@ -10,6 +11,9 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/bitfield.h>
+#include <linux/dmi.h>
+#include <linux/ctype.h>
+#include <linux/rhashtable.h>
 #include "qmi.h"
 #include "htc.h"
 #include "wmi.h"
@@ -23,6 +27,7 @@
 #include "thermal.h"
 #include "dbring.h"
 #include "spectral.h"
+#include "wow.h"
 
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
 
@@ -36,9 +41,26 @@
 #define ATH11K_INVALID_HW_MAC_ID	0xFF
 #define ATH11K_CONNECTION_LOSS_HZ	(3 * HZ)
 
+/* SMBIOS type containing Board Data File Name Extension */
+#define ATH11K_SMBIOS_BDF_EXT_TYPE 0xF8
+
+/* SMBIOS type structure length (excluding strings-set) */
+#define ATH11K_SMBIOS_BDF_EXT_LENGTH 0x9
+
+/* The magic used by QCA spec */
+#define ATH11K_SMBIOS_BDF_EXT_MAGIC "BDF_"
+
 extern unsigned int ath11k_frame_mode;
 
+#define ATH11K_SCAN_TIMEOUT_HZ (20 * HZ)
+
 #define ATH11K_MON_TIMER_INTERVAL  10
+#define ATH11K_RESET_TIMEOUT_HZ (20 * HZ)
+#define ATH11K_RESET_MAX_FAIL_COUNT_FIRST 3
+#define ATH11K_RESET_MAX_FAIL_COUNT_FINAL 5
+#define ATH11K_RESET_FAIL_TIMEOUT_HZ (20 * HZ)
+#define ATH11K_RECONFIGURE_TIMEOUT_HZ (10 * HZ)
+#define ATH11K_RECOVER_START_TIMEOUT_HZ (20 * HZ)
 
 enum ath11k_supported_bw {
 	ATH11K_BW_20	= 0,
@@ -118,6 +140,7 @@ enum ath11k_hw_rev {
 	ATH11K_HW_QCN9074_HW10,
 	ATH11K_HW_WCN6855_HW20,
 	ATH11K_HW_WCN6855_HW21,
+	ATH11K_HW_WCN6750_HW10,
 };
 
 enum ath11k_firmware_mode {
@@ -146,6 +169,39 @@ struct ath11k_ext_irq_grp {
 	struct napi_struct napi;
 	struct net_device napi_ndev;
 };
+
+enum ath11k_smbios_cc_type {
+	/* disable country code setting from SMBIOS */
+	ATH11K_SMBIOS_CC_DISABLE = 0,
+
+	/* set country code by ANSI country name, based on ISO3166-1 alpha2 */
+	ATH11K_SMBIOS_CC_ISO = 1,
+
+	/* worldwide regdomain */
+	ATH11K_SMBIOS_CC_WW = 2,
+};
+
+struct ath11k_smbios_bdf {
+	struct dmi_header hdr;
+
+	u8 features_disabled;
+
+	/* enum ath11k_smbios_cc_type */
+	u8 country_code_flag;
+
+	/* To set specific country, you need to set country code
+	 * flag=ATH11K_SMBIOS_CC_ISO first, then if country is United
+	 * States, then country code value = 0x5553 ("US",'U' = 0x55, 'S'=
+	 * 0x53). To set country to INDONESIA, then country code value =
+	 * 0x4944 ("IN", 'I'=0x49, 'D'=0x44). If country code flag =
+	 * ATH11K_SMBIOS_CC_WW, then you can use worldwide regulatory
+	 * setting.
+	 */
+	u16 cc_code;
+
+	u8 bdf_enabled;
+	u8 bdf_ext[];
+} __packed;
 
 #define HEHANDLE_CAP_PHYINFO_SIZE       3
 #define HECAP_PHYINFO_SIZE              9
@@ -189,6 +245,12 @@ enum ath11k_scan_state {
 	ATH11K_SCAN_ABORTING,
 };
 
+enum ath11k_11d_state {
+	ATH11K_11D_IDLE,
+	ATH11K_11D_PREPARING,
+	ATH11K_11D_RUNNING,
+};
+
 enum ath11k_dev_flags {
 	ATH11K_CAC_RUNNING,
 	ATH11K_FLAG_CORE_REGISTERED,
@@ -204,12 +266,38 @@ enum ath11k_dev_flags {
 	ATH11K_FLAG_CE_IRQ_ENABLED,
 	ATH11K_FLAG_EXT_IRQ_ENABLED,
 	ATH11K_FLAG_FIXED_MEM_RGN,
+	ATH11K_FLAG_DEVICE_INIT_DONE,
+	ATH11K_FLAG_MULTI_MSI_VECTORS,
 };
 
 enum ath11k_monitor_flags {
 	ATH11K_FLAG_MONITOR_CONF_ENABLED,
 	ATH11K_FLAG_MONITOR_STARTED,
 	ATH11K_FLAG_MONITOR_VDEV_CREATED,
+};
+
+#define ATH11K_IPV6_UC_TYPE     0
+#define ATH11K_IPV6_AC_TYPE     1
+
+#define ATH11K_IPV6_MAX_COUNT   16
+#define ATH11K_IPV4_MAX_COUNT   2
+
+struct ath11k_arp_ns_offload {
+	u8  ipv4_addr[ATH11K_IPV4_MAX_COUNT][4];
+	u32 ipv4_count;
+	u32 ipv6_count;
+	u8  ipv6_addr[ATH11K_IPV6_MAX_COUNT][16];
+	u8  self_ipv6_addr[ATH11K_IPV6_MAX_COUNT][16];
+	u8  ipv6_type[ATH11K_IPV6_MAX_COUNT];
+	bool ipv6_valid[ATH11K_IPV6_MAX_COUNT];
+	u8  mac_addr[ETH_ALEN];
+};
+
+struct ath11k_rekey_data {
+	u8 kck[NL80211_KCK_LEN];
+	u8 kek[NL80211_KCK_LEN];
+	u64 replay_ctr;
+	bool enable_offload;
 };
 
 struct ath11k_vif {
@@ -263,6 +351,12 @@ struct ath11k_vif {
 	bool bcca_zero_sent;
 	bool do_not_send_tmpl;
 	struct ieee80211_chanctx_conf chanctx;
+	struct ath11k_arp_ns_offload arp_ns_offload;
+	struct ath11k_rekey_data rekey_data;
+
+#ifdef CONFIG_ATH11K_DEBUGFS
+	struct dentry *debugfs_twt;
+#endif /* CONFIG_ATH11K_DEBUGFS */
 };
 
 struct ath11k_vif_iter {
@@ -441,6 +535,8 @@ struct ath11k_dbg_htt_stats {
 	spinlock_t lock;
 };
 
+#define MAX_MODULE_ID_BITMAP_WORDS	16
+
 struct ath11k_debug {
 	struct dentry *debugfs_pdev;
 	struct ath11k_dbg_htt_stats htt_stats;
@@ -454,6 +550,9 @@ struct ath11k_debug {
 	u32 pktlog_peer_valid;
 	u8 pktlog_peer_addr[ETH_ALEN];
 	u32 rx_filter;
+	u32 mem_offset;
+	u32 module_id_bitmap[MAX_MODULE_ID_BITMAP_WORDS];
+	struct ath11k_debug_dbr *dbr_debug[WMI_DIRECT_BUF_MAX];
 };
 
 struct ath11k_per_peer_tx_stats {
@@ -582,6 +681,9 @@ struct ath11k {
 	struct work_struct wmi_mgmt_tx_work;
 	struct sk_buff_head wmi_mgmt_tx_queue;
 
+	struct ath11k_wow wow;
+	struct completion target_suspend;
+	bool target_suspend_ack;
 	struct ath11k_per_peer_tx_stats peer_tx_stats;
 	struct list_head ppdu_stats_info;
 	u32 ppdu_stat_list_depth;
@@ -599,10 +701,13 @@ struct ath11k {
 	bool dfs_block_radar_events;
 	struct ath11k_thermal thermal;
 	u32 vdev_id_11d_scan;
-	struct completion finish_11d_scan;
-	struct completion finish_11d_ch_list;
-	bool pending_11d;
+	struct completion completed_11d_scan;
+	enum ath11k_11d_state state_11d;
 	bool regdom_set_by_user;
+	int hw_rate_code;
+	u8 twt_enabled;
+	bool nlo_enabled;
+	u8 alpha2[REG_ALPHA2_LEN + 1];
 };
 
 struct ath11k_band_cap {
@@ -644,12 +749,12 @@ struct ath11k_board_data {
 	size_t len;
 };
 
-struct ath11k_bus_params {
-	bool mhi_support;
-	bool m3_fw_support;
-	bool fixed_bdf_addr;
-	bool fixed_mem_region;
-	bool static_window_map;
+struct ath11k_pci_ops {
+	int (*wakeup)(struct ath11k_base *ab);
+	void (*release)(struct ath11k_base *ab);
+	int (*get_msi_irq)(struct ath11k_base *ab, unsigned int vector);
+	void (*window_write32)(struct ath11k_base *ab, u32 offset, u32 value);
+	u32 (*window_read32)(struct ath11k_base *ab, u32 offset);
 };
 
 /* IPQ8074 HW channel counters frequency value in hertz */
@@ -691,6 +796,19 @@ struct ath11k_soc_dp_stats {
 	u32 hal_reo_error[DP_REO_DST_RING_MAX];
 	struct ath11k_soc_dp_tx_err_stats tx_err;
 	struct ath11k_dp_ring_bp_stats bp_stats;
+};
+
+struct ath11k_msi_user {
+	char *name;
+	int num_vectors;
+	u32 base_vector;
+};
+
+struct ath11k_msi_config {
+	int total_vectors;
+	int total_users;
+	struct ath11k_msi_user *users;
+	u16 hw_rev;
 };
 
 /* Master structure to hold the hw data which may be used in core module */
@@ -737,6 +855,18 @@ struct ath11k_base {
 	struct ath11k_pdev __rcu *pdevs_active[MAX_RADIOS];
 	struct ath11k_hal_reg_capabilities_ext hal_reg_cap[MAX_RADIOS];
 	unsigned long long free_vdev_map;
+
+	/* To synchronize rhash tbl write operation */
+	struct mutex tbl_mtx_lock;
+
+	/* The rhashtable containing struct ath11k_peer keyed by mac addr */
+	struct rhashtable *rhead_peer_addr;
+	struct rhashtable_params rhash_peer_addr_param;
+
+	/* The rhashtable containing struct ath11k_peer keyed by id  */
+	struct rhashtable *rhead_peer_id;
+	struct rhashtable_params rhash_peer_id_param;
+
 	struct list_head peers;
 	wait_queue_head_t peer_mapping_wq;
 	u8 mac_addr[ETH_ALEN];
@@ -750,7 +880,6 @@ struct ath11k_base {
 	int bd_api;
 
 	struct ath11k_hw_params hw_params;
-	struct ath11k_bus_params bus_params;
 
 	const struct firmware *cal_file;
 
@@ -778,6 +907,18 @@ struct ath11k_base {
 	struct work_struct restart_work;
 	struct work_struct update_11d_work;
 	u8 new_alpha2[3];
+	struct workqueue_struct *workqueue_aux;
+	struct work_struct reset_work;
+	atomic_t reset_count;
+	atomic_t recovery_count;
+	atomic_t recovery_start_count;
+	bool is_reset;
+	struct completion reset_complete;
+	struct completion reconfigure_complete;
+	struct completion recovery_start;
+	/* continuous recovery fail count */
+	atomic_t fail_cont_count;
+	unsigned long reset_fail_timeout;
 	struct {
 		/* protected by data_lock */
 		u32 fw_crash_counter;
@@ -805,8 +946,20 @@ struct ath11k_base {
 		u32 subsystem_device;
 	} id;
 
+	struct {
+		struct {
+			const struct ath11k_msi_config *config;
+			u32 ep_base_data;
+			u32 irqs[32];
+			u32 addr_lo;
+			u32 addr_hi;
+		} msi;
+
+		const struct ath11k_pci_ops *ops;
+	} pci;
+
 	/* must be last */
-	u8 drv_priv[0] __aligned(sizeof(void *));
+	u8 drv_priv[] __aligned(sizeof(void *));
 };
 
 struct ath11k_fw_stats_pdev {
@@ -975,8 +1128,7 @@ int ath11k_core_pre_init(struct ath11k_base *ab);
 int ath11k_core_init(struct ath11k_base *ath11k);
 void ath11k_core_deinit(struct ath11k_base *ath11k);
 struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
-				      enum ath11k_bus bus,
-				      const struct ath11k_bus_params *bus_params);
+				      enum ath11k_bus bus);
 void ath11k_core_free(struct ath11k_base *ath11k);
 int ath11k_core_fetch_bdf(struct ath11k_base *ath11k,
 			  struct ath11k_board_data *bd);
@@ -986,7 +1138,7 @@ int ath11k_core_fetch_board_data_api_1(struct ath11k_base *ab,
 				       const char *name);
 void ath11k_core_free_bdf(struct ath11k_base *ab, struct ath11k_board_data *bd);
 int ath11k_core_check_dt(struct ath11k_base *ath11k);
-
+int ath11k_core_check_smbios(struct ath11k_base *ab);
 void ath11k_core_halt(struct ath11k *ar);
 int ath11k_core_resume(struct ath11k_base *ab);
 int ath11k_core_suspend(struct ath11k_base *ab);

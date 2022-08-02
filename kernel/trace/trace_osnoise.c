@@ -1167,8 +1167,10 @@ thread_exit(struct osnoise_variables *osn_var, struct task_struct *t)
  * used to record the beginning and to report the end of a thread noise window.
  */
 static void
-trace_sched_switch_callback(void *data, bool preempt, struct task_struct *p,
-			    struct task_struct *n)
+trace_sched_switch_callback(void *data, bool preempt,
+			    struct task_struct *p,
+			    struct task_struct *n,
+			    unsigned int prev_state)
 {
 	struct osnoise_variables *osn_var = this_cpu_osn_var();
 
@@ -1576,11 +1578,27 @@ static enum hrtimer_restart timerlat_irq(struct hrtimer *timer)
 
 	trace_timerlat_sample(&s);
 
-	notify_new_max_latency(diff);
+	if (osnoise_data.stop_tracing) {
+		if (time_to_us(diff) >= osnoise_data.stop_tracing) {
 
-	if (osnoise_data.stop_tracing)
-		if (time_to_us(diff) >= osnoise_data.stop_tracing)
+			/*
+			 * At this point, if stop_tracing is set and <= print_stack,
+			 * print_stack is set and would be printed in the thread handler.
+			 *
+			 * Thus, print the stack trace as it is helpful to define the
+			 * root cause of an IRQ latency.
+			 */
+			if (osnoise_data.stop_tracing <= osnoise_data.print_stack) {
+				timerlat_save_stack(0);
+				timerlat_dump_stack(time_to_us(diff));
+			}
+
 			osnoise_stop_tracing();
+			notify_new_max_latency(diff);
+
+			return HRTIMER_NORESTART;
+		}
+	}
 
 	wake_up_process(tlat->kthread);
 

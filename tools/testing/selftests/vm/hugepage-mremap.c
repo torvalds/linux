@@ -178,6 +178,12 @@ int main(int argc, char *argv[])
 
 	munmap(addr, length);
 
+	addr = mremap(addr, length, length, 0);
+	if (addr != MAP_FAILED) {
+		printf("mremap: Expected failure, but call succeeded\n");
+		exit(1);
+	}
+
 	close(fd);
 	unlink(argv[argc-1]);
 

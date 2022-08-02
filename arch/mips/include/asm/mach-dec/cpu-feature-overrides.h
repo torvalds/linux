@@ -17,7 +17,6 @@
 #define cpu_has_rixiex			0
 #define cpu_has_maar			0
 #define cpu_has_rw_llb			0
-#define cpu_has_tx39_cache		0
 #define cpu_has_divec			0
 #define cpu_has_prefetch		0
 #define cpu_has_mcheck			0

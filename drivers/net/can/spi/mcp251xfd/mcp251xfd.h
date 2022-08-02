@@ -2,8 +2,8 @@
  *
  * mcp251xfd - Microchip MCP251xFD Family CAN controller driver
  *
- * Copyright (c) 2019 Pengutronix,
- *                    Marc Kleine-Budde <kernel@pengutronix.de>
+ * Copyright (c) 2019, 2020, 2021 Pengutronix,
+ *               Marc Kleine-Budde <kernel@pengutronix.de>
  * Copyright (c) 2019 Martin Sperl <kernel@martin.sperl.org>
  */
 
@@ -367,25 +367,6 @@
 #define MCP251XFD_REG_DEVID_ID_MASK GENMASK(7, 4)
 #define MCP251XFD_REG_DEVID_REV_MASK GENMASK(3, 0)
 
-/* number of TX FIFO objects, depending on CAN mode
- *
- * FIFO setup: tef: 8*12 bytes = 96 bytes, tx: 8*16 bytes = 128 bytes
- * FIFO setup: tef: 4*12 bytes = 48 bytes, tx: 4*72 bytes = 288 bytes
- */
-#define MCP251XFD_RX_OBJ_NUM_MAX 32
-#define MCP251XFD_TX_OBJ_NUM_CAN 8
-#define MCP251XFD_TX_OBJ_NUM_CANFD 4
-
-#if MCP251XFD_TX_OBJ_NUM_CAN > MCP251XFD_TX_OBJ_NUM_CANFD
-#define MCP251XFD_TX_OBJ_NUM_MAX MCP251XFD_TX_OBJ_NUM_CAN
-#else
-#define MCP251XFD_TX_OBJ_NUM_MAX MCP251XFD_TX_OBJ_NUM_CANFD
-#endif
-
-#define MCP251XFD_NAPI_WEIGHT 32
-#define MCP251XFD_TX_FIFO 1
-#define MCP251XFD_RX_FIFO(x) (MCP251XFD_TX_FIFO + 1 + (x))
-
 /* SPI commands */
 #define MCP251XFD_SPI_INSTRUCTION_RESET 0x0000
 #define MCP251XFD_SPI_INSTRUCTION_WRITE 0x2000
@@ -406,11 +387,37 @@ static_assert(MCP251XFD_TIMESTAMP_WORK_DELAY_SEC <
 #define MCP251XFD_OSC_STAB_TIMEOUT_US (10 * MCP251XFD_OSC_STAB_SLEEP_US)
 #define MCP251XFD_POLL_SLEEP_US (10)
 #define MCP251XFD_POLL_TIMEOUT_US (USEC_PER_MSEC)
+
+/* Misc */
+#define MCP251XFD_NAPI_WEIGHT 32
 #define MCP251XFD_SOFTRESET_RETRIES_MAX 3
 #define MCP251XFD_READ_CRC_RETRIES_MAX 3
 #define MCP251XFD_ECC_CNT_MAX 2
 #define MCP251XFD_SANITIZE_SPI 1
 #define MCP251XFD_SANITIZE_CAN 1
+
+/* FIFO and Ring */
+#define MCP251XFD_FIFO_TEF_NUM 1U
+#define MCP251XFD_FIFO_RX_NUM 3U
+#define MCP251XFD_FIFO_TX_NUM 1U
+
+#define MCP251XFD_FIFO_DEPTH 32U
+
+#define MCP251XFD_RX_OBJ_NUM_MIN 16U
+#define MCP251XFD_RX_OBJ_NUM_MAX (MCP251XFD_FIFO_RX_NUM * MCP251XFD_FIFO_DEPTH)
+#define MCP251XFD_RX_FIFO_DEPTH_MIN 4U
+#define MCP251XFD_RX_FIFO_DEPTH_COALESCE_MIN 8U
+
+#define MCP251XFD_TX_OBJ_NUM_MIN 2U
+#define MCP251XFD_TX_OBJ_NUM_MAX 16U
+#define MCP251XFD_TX_OBJ_NUM_CAN_DEFAULT 8U
+#define MCP251XFD_TX_OBJ_NUM_CANFD_DEFAULT 4U
+#define MCP251XFD_TX_FIFO_DEPTH_MIN 2U
+#define MCP251XFD_TX_FIFO_DEPTH_COALESCE_MIN 2U
+
+static_assert(MCP251XFD_FIFO_TEF_NUM == 1U);
+static_assert(MCP251XFD_FIFO_TEF_NUM == MCP251XFD_FIFO_TX_NUM);
+static_assert(MCP251XFD_FIFO_RX_NUM <= 4U);
 
 /* Silence TX MAB overflow warnings */
 #define MCP251XFD_QUIRK_MAB_NO_WARN BIT(0)
@@ -434,7 +441,7 @@ struct mcp251xfd_hw_tef_obj {
 /* The tx_obj_raw version is used in spi async, i.e. without
  * regmap. We have to take care of endianness ourselves.
  */
-struct mcp251xfd_hw_tx_obj_raw {
+struct __packed mcp251xfd_hw_tx_obj_raw {
 	__le32 id;
 	__le32 flags;
 	u8 data[sizeof_field(struct canfd_frame, data)];
@@ -512,7 +519,12 @@ struct mcp251xfd_tef_ring {
 	/* u8 obj_num equals tx_ring->obj_num */
 	/* u8 obj_size equals sizeof(struct mcp251xfd_hw_tef_obj) */
 
+	union mcp251xfd_write_reg_buf irq_enable_buf;
+	struct spi_transfer irq_enable_xfer;
+	struct spi_message irq_enable_msg;
+
 	union mcp251xfd_write_reg_buf uinc_buf;
+	union mcp251xfd_write_reg_buf uinc_irq_disable_buf;
 	struct spi_transfer uinc_xfer[MCP251XFD_TX_OBJ_NUM_MAX];
 };
 
@@ -521,6 +533,8 @@ struct mcp251xfd_tx_ring {
 	unsigned int tail;
 
 	u16 base;
+	u8 nr;
+	u8 fifo_nr;
 	u8 obj_num;
 	u8 obj_size;
 
@@ -538,8 +552,13 @@ struct mcp251xfd_rx_ring {
 	u8 obj_num;
 	u8 obj_size;
 
+	union mcp251xfd_write_reg_buf irq_enable_buf;
+	struct spi_transfer irq_enable_xfer;
+	struct spi_message irq_enable_msg;
+
 	union mcp251xfd_write_reg_buf uinc_buf;
-	struct spi_transfer uinc_xfer[MCP251XFD_RX_OBJ_NUM_MAX];
+	union mcp251xfd_write_reg_buf uinc_irq_disable_buf;
+	struct spi_transfer uinc_xfer[MCP251XFD_FIFO_DEPTH];
 	struct mcp251xfd_hw_rx_obj_canfd obj[];
 };
 
@@ -561,17 +580,26 @@ struct mcp251xfd_ecc {
 
 struct mcp251xfd_regs_status {
 	u32 intf;
+	u32 rxif;
 };
 
 enum mcp251xfd_model {
 	MCP251XFD_MODEL_MCP2517FD = 0x2517,
 	MCP251XFD_MODEL_MCP2518FD = 0x2518,
-	MCP251XFD_MODEL_MCP251XFD = 0xffff,	/* autodetect model */
+	MCP251XFD_MODEL_MCP251863 = 0x251863,
+	MCP251XFD_MODEL_MCP251XFD = 0xffffffff,	/* autodetect model */
 };
 
 struct mcp251xfd_devtype_data {
 	enum mcp251xfd_model model;
 	u32 quirks;
+};
+
+enum mcp251xfd_flags {
+	MCP251XFD_FLAGS_DOWN,
+	MCP251XFD_FLAGS_FD_MODE,
+
+	__MCP251XFD_FLAGS_SIZE__
 };
 
 struct mcp251xfd_priv {
@@ -592,12 +620,24 @@ struct mcp251xfd_priv {
 
 	struct spi_device *spi;
 	u32 spi_max_speed_hz_orig;
+	u32 spi_max_speed_hz_fast;
+	u32 spi_max_speed_hz_slow;
 
-	struct mcp251xfd_tef_ring tef[1];
-	struct mcp251xfd_tx_ring tx[1];
-	struct mcp251xfd_rx_ring *rx[1];
+	struct mcp251xfd_tef_ring tef[MCP251XFD_FIFO_TEF_NUM];
+	struct mcp251xfd_rx_ring *rx[MCP251XFD_FIFO_RX_NUM];
+	struct mcp251xfd_tx_ring tx[MCP251XFD_FIFO_TX_NUM];
+
+	DECLARE_BITMAP(flags, __MCP251XFD_FLAGS_SIZE__);
 
 	u8 rx_ring_num;
+	u8 rx_obj_num;
+	u8 rx_obj_num_coalesce_irq;
+	u8 tx_obj_num_coalesce_irq;
+
+	u32 rx_coalesce_usecs_irq;
+	u32 tx_coalesce_usecs_irq;
+	struct hrtimer rx_irq_timer;
+	struct hrtimer tx_irq_timer;
 
 	struct mcp251xfd_ecc ecc;
 	struct mcp251xfd_regs_status regs_status;
@@ -608,6 +648,7 @@ struct mcp251xfd_priv {
 
 	struct gpio_desc *rx_int;
 	struct clk *clk;
+	bool pll_enable;
 	struct regulator *reg_vdd;
 	struct regulator *reg_xceiver;
 
@@ -619,12 +660,13 @@ struct mcp251xfd_priv {
 static inline bool \
 mcp251xfd_is_##_model(const struct mcp251xfd_priv *priv) \
 { \
-	return priv->devtype_data.model == MCP251XFD_MODEL_MCP##_model##FD; \
+	return priv->devtype_data.model == MCP251XFD_MODEL_MCP##_model; \
 }
 
-MCP251XFD_IS(2517);
-MCP251XFD_IS(2518);
-MCP251XFD_IS(251X);
+MCP251XFD_IS(2517FD);
+MCP251XFD_IS(2518FD);
+MCP251XFD_IS(251863);
+MCP251XFD_IS(251XFD);
 
 static inline bool mcp251xfd_is_fd_mode(const struct mcp251xfd_priv *priv)
 {
@@ -776,7 +818,7 @@ mcp251xfd_tx_tail_get_from_chip(const struct mcp251xfd_priv *priv,
 	int err;
 
 	err = regmap_read(priv->map_reg,
-			  MCP251XFD_REG_FIFOSTA(MCP251XFD_TX_FIFO),
+			  MCP251XFD_REG_FIFOSTA(priv->tx->fifo_nr),
 			  &fifo_sta);
 	if (err)
 		return err;
@@ -878,8 +920,10 @@ int mcp251xfd_chip_fifo_init(const struct mcp251xfd_priv *priv);
 u16 mcp251xfd_crc16_compute2(const void *cmd, size_t cmd_size,
 			     const void *data, size_t data_size);
 u16 mcp251xfd_crc16_compute(const void *data, size_t data_size);
+void mcp251xfd_ethtool_init(struct mcp251xfd_priv *priv);
 int mcp251xfd_regmap_init(struct mcp251xfd_priv *priv);
-void mcp251xfd_ring_init(struct mcp251xfd_priv *priv);
+extern const struct can_ram_config mcp251xfd_ram_config;
+int mcp251xfd_ring_init(struct mcp251xfd_priv *priv);
 void mcp251xfd_ring_free(struct mcp251xfd_priv *priv);
 int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv);
 int mcp251xfd_handle_rxif(struct mcp251xfd_priv *priv);

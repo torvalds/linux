@@ -19,10 +19,10 @@
 
 #include <asm/unaligned.h>
 
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_dp_helper.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
@@ -241,7 +241,7 @@ static inline u32 TC358775_LVCFG_PCLKDIV(uint32_t val)
 }
 
 #define TC358775_LVCFG_LVDLINK__MASK                         0x00000002
-#define TC358775_LVCFG_LVDLINK__SHIFT                        0
+#define TC358775_LVCFG_LVDLINK__SHIFT                        1
 static inline u32 TC358775_LVCFG_LVDLINK(uint32_t val)
 {
 	return ((val) << TC358775_LVCFG_LVDLINK__SHIFT) &
@@ -649,7 +649,6 @@ static int tc_attach_host(struct tc_data *tc)
 static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
-	struct drm_panel *panel;
 	struct tc_data *tc;
 	int ret;
 
@@ -660,14 +659,8 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	tc->dev = dev;
 	tc->i2c = client;
 
-	ret = drm_of_find_panel_or_bridge(dev->of_node, TC358775_LVDS_OUT0,
-					  0, &panel, NULL);
-	if (ret < 0)
-		return ret;
-	if (!panel)
-		return -ENODEV;
-
-	tc->panel_bridge = devm_drm_panel_bridge_add(dev, panel);
+	tc->panel_bridge = devm_drm_of_get_bridge(dev, dev->of_node,
+						  TC358775_LVDS_OUT0, 0);
 	if (IS_ERR(tc->panel_bridge))
 		return PTR_ERR(tc->panel_bridge);
 

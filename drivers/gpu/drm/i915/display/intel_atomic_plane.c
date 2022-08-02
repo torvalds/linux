@@ -45,6 +45,7 @@
 #include "intel_fb_pin.h"
 #include "intel_pm.h"
 #include "intel_sprite.h"
+#include "skl_scaler.h"
 
 static void intel_plane_state_reset(struct intel_plane_state *plane_state,
 				    struct intel_plane *plane)
@@ -180,29 +181,67 @@ unsigned int intel_plane_pixel_rate(const struct intel_crtc_state *crtc_state,
 }
 
 unsigned int intel_plane_data_rate(const struct intel_crtc_state *crtc_state,
-				   const struct intel_plane_state *plane_state)
+				   const struct intel_plane_state *plane_state,
+				   int color_plane)
 {
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	unsigned int cpp;
-	unsigned int pixel_rate;
 
 	if (!plane_state->uapi.visible)
 		return 0;
 
-	pixel_rate = intel_plane_pixel_rate(crtc_state, plane_state);
+	return intel_plane_pixel_rate(crtc_state, plane_state) *
+		fb->format->cpp[color_plane];
+}
 
-	cpp = fb->format->cpp[0];
+static bool
+use_min_ddb(const struct intel_crtc_state *crtc_state,
+	    struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+
+	return DISPLAY_VER(i915) >= 13 &&
+	       crtc_state->uapi.async_flip &&
+	       plane->async_flip;
+}
+
+static unsigned int
+intel_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
+			       const struct intel_plane_state *plane_state,
+			       int color_plane)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
+	int width, height;
+
+	if (plane->id == PLANE_CURSOR)
+		return 0;
+
+	if (!plane_state->uapi.visible)
+		return 0;
 
 	/*
-	 * Based on HSD#:1408715493
-	 * NV12 cpp == 4, P010 cpp == 8
-	 *
-	 * FIXME what is the logic behind this?
+	 * We calculate extra ddb based on ratio plane rate/total data rate
+	 * in case, in some cases we should not allocate extra ddb for the plane,
+	 * so do not count its data rate, if this is the case.
 	 */
-	if (fb->format->is_yuv && fb->format->num_planes > 1)
-		cpp *= 4;
+	if (use_min_ddb(crtc_state, plane))
+		return 0;
 
-	return pixel_rate * cpp;
+	/*
+	 * Src coordinates are already rotated by 270 degrees for
+	 * the 90/270 degree plane rotation cases (to match the
+	 * GTT mapping), hence no need to account for rotation here.
+	 */
+	width = drm_rect_width(&plane_state->uapi.src) >> 16;
+	height = drm_rect_height(&plane_state->uapi.src) >> 16;
+
+	/* UV plane does 1/2 pixel sub-sampling */
+	if (color_plane == 1) {
+		width /= 2;
+		height /= 2;
+	}
+
+	return width * height * fb->format->cpp[color_plane];
 }
 
 int intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
@@ -321,12 +360,195 @@ void intel_plane_set_invisible(struct intel_crtc_state *crtc_state,
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 
 	crtc_state->active_planes &= ~BIT(plane->id);
+	crtc_state->scaled_planes &= ~BIT(plane->id);
 	crtc_state->nv12_planes &= ~BIT(plane->id);
 	crtc_state->c8_planes &= ~BIT(plane->id);
 	crtc_state->data_rate[plane->id] = 0;
+	crtc_state->data_rate_y[plane->id] = 0;
+	crtc_state->rel_data_rate[plane->id] = 0;
+	crtc_state->rel_data_rate_y[plane->id] = 0;
 	crtc_state->min_cdclk[plane->id] = 0;
 
 	plane_state->uapi.visible = false;
+}
+
+/* FIXME nuke when all wm code is atomic */
+static bool intel_wm_need_update(const struct intel_plane_state *cur,
+				 struct intel_plane_state *new)
+{
+	/* Update watermarks on tiling or size changes. */
+	if (new->uapi.visible != cur->uapi.visible)
+		return true;
+
+	if (!cur->hw.fb || !new->hw.fb)
+		return false;
+
+	if (cur->hw.fb->modifier != new->hw.fb->modifier ||
+	    cur->hw.rotation != new->hw.rotation ||
+	    drm_rect_width(&new->uapi.src) != drm_rect_width(&cur->uapi.src) ||
+	    drm_rect_height(&new->uapi.src) != drm_rect_height(&cur->uapi.src) ||
+	    drm_rect_width(&new->uapi.dst) != drm_rect_width(&cur->uapi.dst) ||
+	    drm_rect_height(&new->uapi.dst) != drm_rect_height(&cur->uapi.dst))
+		return true;
+
+	return false;
+}
+
+static bool intel_plane_is_scaled(const struct intel_plane_state *plane_state)
+{
+	int src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
+	int src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
+	int dst_w = drm_rect_width(&plane_state->uapi.dst);
+	int dst_h = drm_rect_height(&plane_state->uapi.dst);
+
+	return src_w != dst_w || src_h != dst_h;
+}
+
+static bool intel_plane_do_async_flip(struct intel_plane *plane,
+				      const struct intel_crtc_state *old_crtc_state,
+				      const struct intel_crtc_state *new_crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+
+	if (!plane->async_flip)
+		return false;
+
+	if (!new_crtc_state->uapi.async_flip)
+		return false;
+
+	/*
+	 * In platforms after DISPLAY13, we might need to override
+	 * first async flip in order to change watermark levels
+	 * as part of optimization.
+	 * So for those, we are checking if this is a first async flip.
+	 * For platforms earlier than DISPLAY13 we always do async flip.
+	 */
+	return DISPLAY_VER(i915) < 13 || old_crtc_state->uapi.async_flip;
+}
+
+static int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_state,
+					   struct intel_crtc_state *new_crtc_state,
+					   const struct intel_plane_state *old_plane_state,
+					   struct intel_plane_state *new_plane_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
+	struct intel_plane *plane = to_intel_plane(new_plane_state->uapi.plane);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	bool mode_changed = intel_crtc_needs_modeset(new_crtc_state);
+	bool was_crtc_enabled = old_crtc_state->hw.active;
+	bool is_crtc_enabled = new_crtc_state->hw.active;
+	bool turn_off, turn_on, visible, was_visible;
+	int ret;
+
+	if (DISPLAY_VER(dev_priv) >= 9 && plane->id != PLANE_CURSOR) {
+		ret = skl_update_scaler_plane(new_crtc_state, new_plane_state);
+		if (ret)
+			return ret;
+	}
+
+	was_visible = old_plane_state->uapi.visible;
+	visible = new_plane_state->uapi.visible;
+
+	if (!was_crtc_enabled && drm_WARN_ON(&dev_priv->drm, was_visible))
+		was_visible = false;
+
+	/*
+	 * Visibility is calculated as if the crtc was on, but
+	 * after scaler setup everything depends on it being off
+	 * when the crtc isn't active.
+	 *
+	 * FIXME this is wrong for watermarks. Watermarks should also
+	 * be computed as if the pipe would be active. Perhaps move
+	 * per-plane wm computation to the .check_plane() hook, and
+	 * only combine the results from all planes in the current place?
+	 */
+	if (!is_crtc_enabled) {
+		intel_plane_set_invisible(new_crtc_state, new_plane_state);
+		visible = false;
+	}
+
+	if (!was_visible && !visible)
+		return 0;
+
+	turn_off = was_visible && (!visible || mode_changed);
+	turn_on = visible && (!was_visible || mode_changed);
+
+	drm_dbg_atomic(&dev_priv->drm,
+		       "[CRTC:%d:%s] with [PLANE:%d:%s] visible %i -> %i, off %i, on %i, ms %i\n",
+		       crtc->base.base.id, crtc->base.name,
+		       plane->base.base.id, plane->base.name,
+		       was_visible, visible,
+		       turn_off, turn_on, mode_changed);
+
+	if (turn_on) {
+		if (DISPLAY_VER(dev_priv) < 5 && !IS_G4X(dev_priv))
+			new_crtc_state->update_wm_pre = true;
+
+		/* must disable cxsr around plane enable/disable */
+		if (plane->id != PLANE_CURSOR)
+			new_crtc_state->disable_cxsr = true;
+	} else if (turn_off) {
+		if (DISPLAY_VER(dev_priv) < 5 && !IS_G4X(dev_priv))
+			new_crtc_state->update_wm_post = true;
+
+		/* must disable cxsr around plane enable/disable */
+		if (plane->id != PLANE_CURSOR)
+			new_crtc_state->disable_cxsr = true;
+	} else if (intel_wm_need_update(old_plane_state, new_plane_state)) {
+		if (DISPLAY_VER(dev_priv) < 5 && !IS_G4X(dev_priv)) {
+			/* FIXME bollocks */
+			new_crtc_state->update_wm_pre = true;
+			new_crtc_state->update_wm_post = true;
+		}
+	}
+
+	if (visible || was_visible)
+		new_crtc_state->fb_bits |= plane->frontbuffer_bit;
+
+	/*
+	 * ILK/SNB DVSACNTR/Sprite Enable
+	 * IVB SPR_CTL/Sprite Enable
+	 * "When in Self Refresh Big FIFO mode, a write to enable the
+	 *  plane will be internally buffered and delayed while Big FIFO
+	 *  mode is exiting."
+	 *
+	 * Which means that enabling the sprite can take an extra frame
+	 * when we start in big FIFO mode (LP1+). Thus we need to drop
+	 * down to LP0 and wait for vblank in order to make sure the
+	 * sprite gets enabled on the next vblank after the register write.
+	 * Doing otherwise would risk enabling the sprite one frame after
+	 * we've already signalled flip completion. We can resume LP1+
+	 * once the sprite has been enabled.
+	 *
+	 *
+	 * WaCxSRDisabledForSpriteScaling:ivb
+	 * IVB SPR_SCALE/Scaling Enable
+	 * "Low Power watermarks must be disabled for at least one
+	 *  frame before enabling sprite scaling, and kept disabled
+	 *  until sprite scaling is disabled."
+	 *
+	 * ILK/SNB DVSASCALE/Scaling Enable
+	 * "When in Self Refresh Big FIFO mode, scaling enable will be
+	 *  masked off while Big FIFO mode is exiting."
+	 *
+	 * Despite the w/a only being listed for IVB we assume that
+	 * the ILK/SNB note has similar ramifications, hence we apply
+	 * the w/a on all three platforms.
+	 *
+	 * With experimental results seems this is needed also for primary
+	 * plane, not only sprite plane.
+	 */
+	if (plane->id != PLANE_CURSOR &&
+	    (IS_IRONLAKE(dev_priv) || IS_SANDYBRIDGE(dev_priv) ||
+	     IS_IVYBRIDGE(dev_priv)) &&
+	    (turn_on || (!intel_plane_is_scaled(old_plane_state) &&
+			 intel_plane_is_scaled(new_plane_state))))
+		new_crtc_state->disable_lp_wm = true;
+
+	if (intel_plane_do_async_flip(plane, old_crtc_state, new_crtc_state))
+		new_crtc_state->do_async_flip = true;
+
+	return 0;
 }
 
 int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_state,
@@ -356,6 +578,10 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 		new_crtc_state->active_planes |= BIT(plane->id);
 
 	if (new_plane_state->uapi.visible &&
+	    intel_plane_is_scaled(new_plane_state))
+		new_crtc_state->scaled_planes |= BIT(plane->id);
+
+	if (new_plane_state->uapi.visible &&
 	    intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier))
 		new_crtc_state->nv12_planes |= BIT(plane->id);
 
@@ -366,8 +592,27 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 	if (new_plane_state->uapi.visible || old_plane_state->uapi.visible)
 		new_crtc_state->update_planes |= BIT(plane->id);
 
-	new_crtc_state->data_rate[plane->id] =
-		intel_plane_data_rate(new_crtc_state, new_plane_state);
+	if (new_plane_state->uapi.visible &&
+	    intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier)) {
+		new_crtc_state->data_rate_y[plane->id] =
+			intel_plane_data_rate(new_crtc_state, new_plane_state, 0);
+		new_crtc_state->data_rate[plane->id] =
+			intel_plane_data_rate(new_crtc_state, new_plane_state, 1);
+
+		new_crtc_state->rel_data_rate_y[plane->id] =
+			intel_plane_relative_data_rate(new_crtc_state,
+						       new_plane_state, 0);
+		new_crtc_state->rel_data_rate[plane->id] =
+			intel_plane_relative_data_rate(new_crtc_state,
+						       new_plane_state, 1);
+	} else if (new_plane_state->uapi.visible) {
+		new_crtc_state->data_rate[plane->id] =
+			intel_plane_data_rate(new_crtc_state, new_plane_state, 0);
+
+		new_crtc_state->rel_data_rate[plane->id] =
+			intel_plane_relative_data_rate(new_crtc_state,
+						       new_plane_state, 0);
+	}
 
 	return intel_plane_atomic_calc_changes(old_crtc_state, new_crtc_state,
 					       old_plane_state, new_plane_state);
@@ -402,10 +647,11 @@ int intel_plane_atomic_check(struct intel_atomic_state *state,
 	struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 
-	if (new_crtc_state && new_crtc_state->bigjoiner_slave) {
+	if (new_crtc_state && intel_crtc_is_bigjoiner_slave(new_crtc_state)) {
+		struct intel_crtc *master_crtc =
+			intel_master_crtc(new_crtc_state);
 		struct intel_plane *master_plane =
-			intel_crtc_get_plane(new_crtc_state->bigjoiner_linked_crtc,
-					     plane->id);
+			intel_crtc_get_plane(master_crtc, plane->id);
 
 		new_master_plane_state =
 			intel_atomic_get_new_plane_state(state, master_plane);
@@ -430,8 +676,8 @@ int intel_plane_atomic_check(struct intel_atomic_state *state,
 static struct intel_plane *
 skl_next_plane_to_commit(struct intel_atomic_state *state,
 			 struct intel_crtc *crtc,
-			 struct skl_ddb_entry entries_y[I915_MAX_PLANES],
-			 struct skl_ddb_entry entries_uv[I915_MAX_PLANES],
+			 struct skl_ddb_entry ddb[I915_MAX_PLANES],
+			 struct skl_ddb_entry ddb_y[I915_MAX_PLANES],
 			 unsigned int *update_mask)
 {
 	struct intel_crtc_state *crtc_state =
@@ -450,17 +696,15 @@ skl_next_plane_to_commit(struct intel_atomic_state *state,
 		    !(*update_mask & BIT(plane_id)))
 			continue;
 
-		if (skl_ddb_allocation_overlaps(&crtc_state->wm.skl.plane_ddb_y[plane_id],
-						entries_y,
-						I915_MAX_PLANES, plane_id) ||
-		    skl_ddb_allocation_overlaps(&crtc_state->wm.skl.plane_ddb_uv[plane_id],
-						entries_uv,
-						I915_MAX_PLANES, plane_id))
+		if (skl_ddb_allocation_overlaps(&crtc_state->wm.skl.plane_ddb[plane_id],
+						ddb, I915_MAX_PLANES, plane_id) ||
+		    skl_ddb_allocation_overlaps(&crtc_state->wm.skl.plane_ddb_y[plane_id],
+						ddb_y, I915_MAX_PLANES, plane_id))
 			continue;
 
 		*update_mask &= ~BIT(plane_id);
-		entries_y[plane_id] = crtc_state->wm.skl.plane_ddb_y[plane_id];
-		entries_uv[plane_id] = crtc_state->wm.skl.plane_ddb_uv[plane_id];
+		ddb[plane_id] = crtc_state->wm.skl.plane_ddb[plane_id];
+		ddb_y[plane_id] = crtc_state->wm.skl.plane_ddb_y[plane_id];
 
 		return plane;
 	}
@@ -491,7 +735,7 @@ void intel_plane_update_arm(struct intel_plane *plane,
 
 	trace_intel_plane_update_arm(&plane->base, crtc);
 
-	if (crtc_state->uapi.async_flip && plane->async_flip)
+	if (crtc_state->do_async_flip && plane->async_flip)
 		plane->async_flip(plane, crtc_state, plane_state, true);
 	else
 		plane->update_arm(plane, crtc_state, plane_state);
@@ -506,8 +750,8 @@ void intel_plane_disable_arm(struct intel_plane *plane,
 	plane->disable_arm(plane, crtc_state);
 }
 
-void intel_update_planes_on_crtc(struct intel_atomic_state *state,
-				 struct intel_crtc *crtc)
+void intel_crtc_planes_update_noarm(struct intel_atomic_state *state,
+				    struct intel_crtc *crtc)
 {
 	struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -516,7 +760,7 @@ void intel_update_planes_on_crtc(struct intel_atomic_state *state,
 	struct intel_plane *plane;
 	int i;
 
-	if (new_crtc_state->uapi.async_flip)
+	if (new_crtc_state->do_async_flip)
 		return;
 
 	/*
@@ -535,26 +779,24 @@ void intel_update_planes_on_crtc(struct intel_atomic_state *state,
 	}
 }
 
-void skl_arm_planes_on_crtc(struct intel_atomic_state *state,
-			    struct intel_crtc *crtc)
+static void skl_crtc_planes_update_arm(struct intel_atomic_state *state,
+				       struct intel_crtc *crtc)
 {
 	struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
 	struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
-	struct skl_ddb_entry entries_y[I915_MAX_PLANES];
-	struct skl_ddb_entry entries_uv[I915_MAX_PLANES];
+	struct skl_ddb_entry ddb[I915_MAX_PLANES];
+	struct skl_ddb_entry ddb_y[I915_MAX_PLANES];
 	u32 update_mask = new_crtc_state->update_planes;
 	struct intel_plane *plane;
 
-	memcpy(entries_y, old_crtc_state->wm.skl.plane_ddb_y,
+	memcpy(ddb, old_crtc_state->wm.skl.plane_ddb,
+	       sizeof(old_crtc_state->wm.skl.plane_ddb));
+	memcpy(ddb_y, old_crtc_state->wm.skl.plane_ddb_y,
 	       sizeof(old_crtc_state->wm.skl.plane_ddb_y));
-	memcpy(entries_uv, old_crtc_state->wm.skl.plane_ddb_uv,
-	       sizeof(old_crtc_state->wm.skl.plane_ddb_uv));
 
-	while ((plane = skl_next_plane_to_commit(state, crtc,
-						 entries_y, entries_uv,
-						 &update_mask))) {
+	while ((plane = skl_next_plane_to_commit(state, crtc, ddb, ddb_y, &update_mask))) {
 		struct intel_plane_state *new_plane_state =
 			intel_atomic_get_new_plane_state(state, plane);
 
@@ -570,8 +812,8 @@ void skl_arm_planes_on_crtc(struct intel_atomic_state *state,
 	}
 }
 
-void i9xx_arm_planes_on_crtc(struct intel_atomic_state *state,
-			     struct intel_crtc *crtc)
+static void i9xx_crtc_planes_update_arm(struct intel_atomic_state *state,
+					struct intel_crtc *crtc)
 {
 	struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -596,16 +838,28 @@ void i9xx_arm_planes_on_crtc(struct intel_atomic_state *state,
 	}
 }
 
+void intel_crtc_planes_update_arm(struct intel_atomic_state *state,
+				  struct intel_crtc *crtc)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+
+	if (DISPLAY_VER(i915) >= 9)
+		skl_crtc_planes_update_arm(state, crtc);
+	else
+		i9xx_crtc_planes_update_arm(state, crtc);
+}
+
 int intel_atomic_plane_check_clipping(struct intel_plane_state *plane_state,
 				      struct intel_crtc_state *crtc_state,
 				      int min_scale, int max_scale,
 				      bool can_position)
 {
+	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
 	struct drm_framebuffer *fb = plane_state->hw.fb;
 	struct drm_rect *src = &plane_state->uapi.src;
 	struct drm_rect *dst = &plane_state->uapi.dst;
+	const struct drm_rect *clip = &crtc_state->pipe_src;
 	unsigned int rotation = plane_state->hw.rotation;
-	struct drm_rect clip = {};
 	int hscale, vscale;
 
 	if (!fb) {
@@ -619,36 +873,30 @@ int intel_atomic_plane_check_clipping(struct intel_plane_state *plane_state,
 	hscale = drm_rect_calc_hscale(src, dst, min_scale, max_scale);
 	vscale = drm_rect_calc_vscale(src, dst, min_scale, max_scale);
 	if (hscale < 0 || vscale < 0) {
-		DRM_DEBUG_KMS("Invalid scaling of plane\n");
+		drm_dbg_kms(&i915->drm, "Invalid scaling of plane\n");
 		drm_rect_debug_print("src: ", src, true);
 		drm_rect_debug_print("dst: ", dst, false);
 		return -ERANGE;
 	}
 
-	if (crtc_state->hw.enable) {
-		clip.x2 = crtc_state->pipe_src_w;
-		clip.y2 = crtc_state->pipe_src_h;
-	}
-
-	/* right side of the image is on the slave crtc, adjust dst to match */
-	if (crtc_state->bigjoiner_slave)
-		drm_rect_translate(dst, -crtc_state->pipe_src_w, 0);
-
 	/*
 	 * FIXME: This might need further adjustment for seamless scaling
 	 * with phase information, for the 2p2 and 2p1 scenarios.
 	 */
-	plane_state->uapi.visible = drm_rect_clip_scaled(src, dst, &clip);
+	plane_state->uapi.visible = drm_rect_clip_scaled(src, dst, clip);
 
 	drm_rect_rotate_inv(src, fb->width << 16, fb->height << 16, rotation);
 
 	if (!can_position && plane_state->uapi.visible &&
-	    !drm_rect_equals(dst, &clip)) {
-		DRM_DEBUG_KMS("Plane must cover entire CRTC\n");
+	    !drm_rect_equals(dst, clip)) {
+		drm_dbg_kms(&i915->drm, "Plane must cover entire CRTC\n");
 		drm_rect_debug_print("dst: ", dst, false);
-		drm_rect_debug_print("clip: ", &clip, false);
+		drm_rect_debug_print("clip: ", clip, false);
 		return -EINVAL;
 	}
+
+	/* final plane coordinates will be relative to the plane's pipe */
+	drm_rect_translate(dst, -clip->x1, -clip->y1);
 
 	return 0;
 }
@@ -799,7 +1047,8 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 		if (ret < 0)
 			goto unpin_fb;
 
-		dma_resv_iter_begin(&cursor, obj->base.resv, false);
+		dma_resv_iter_begin(&cursor, obj->base.resv,
+				    DMA_RESV_USAGE_WRITE);
 		dma_resv_for_each_fence_unlocked(&cursor, fence) {
 			add_rps_boost_after_vblank(new_plane_state->hw.crtc,
 						   fence);

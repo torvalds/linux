@@ -25,6 +25,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_uvd.h"
+#include "amdgpu_cs.h"
 #include "soc15.h"
 #include "soc15d.h"
 #include "soc15_common.h"
@@ -117,7 +118,7 @@ static uint64_t uvd_v7_0_enc_ring_get_wptr(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 
 	if (ring->use_doorbell)
-		return adev->wb.wb[ring->wptr_offs];
+		return *ring->wptr_cpu_addr;
 
 	if (ring == &adev->uvd.inst[ring->me].ring_enc[0])
 		return RREG32_SOC15(UVD, ring->me, mmUVD_RB_WPTR);
@@ -152,7 +153,7 @@ static void uvd_v7_0_enc_ring_set_wptr(struct amdgpu_ring *ring)
 
 	if (ring->use_doorbell) {
 		/* XXX check if swapping is necessary on BE */
-		adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
+		*ring->wptr_cpu_addr = lower_32_bits(ring->wptr);
 		WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr));
 		return;
 	}
@@ -753,7 +754,7 @@ static int uvd_v7_0_mmsch_start(struct amdgpu_device *adev,
 		if (adev->uvd.harvest_config & (1 << i))
 			continue;
 		WDOORBELL32(adev->uvd.inst[i].ring_enc[0].doorbell_index, 0);
-		adev->wb.wb[adev->uvd.inst[i].ring_enc[0].wptr_offs] = 0;
+		*adev->uvd.inst[i].ring_enc[0].wptr_cpu_addr = 0;
 		adev->uvd.inst[i].ring_enc[0].wptr = 0;
 		adev->uvd.inst[i].ring_enc[0].wptr_old = 0;
 	}
@@ -1275,14 +1276,15 @@ static int uvd_v7_0_ring_test_ring(struct amdgpu_ring *ring)
  * uvd_v7_0_ring_patch_cs_in_place - Patch the IB for command submission.
  *
  * @p: the CS parser with the IBs
- * @ib_idx: which IB to patch
+ * @job: which job this ib is in
+ * @ib: which IB to patch
  *
  */
 static int uvd_v7_0_ring_patch_cs_in_place(struct amdgpu_cs_parser *p,
-					   uint32_t ib_idx)
+					   struct amdgpu_job *job,
+					   struct amdgpu_ib *ib)
 {
-	struct amdgpu_ring *ring = to_amdgpu_ring(p->entity->rq->sched);
-	struct amdgpu_ib *ib = &p->job->ibs[ib_idx];
+	struct amdgpu_ring *ring = to_amdgpu_ring(job->base.sched);
 	unsigned i;
 
 	/* No patching necessary for the first instance */
@@ -1290,12 +1292,12 @@ static int uvd_v7_0_ring_patch_cs_in_place(struct amdgpu_cs_parser *p,
 		return 0;
 
 	for (i = 0; i < ib->length_dw; i += 2) {
-		uint32_t reg = amdgpu_get_ib_value(p, ib_idx, i);
+		uint32_t reg = amdgpu_ib_get_value(ib, i);
 
 		reg -= p->adev->reg_offset[UVD_HWIP][0][1];
 		reg += p->adev->reg_offset[UVD_HWIP][1][1];
 
-		amdgpu_set_ib_value(p, ib_idx, i, reg);
+		amdgpu_ib_set_value(ib, i, reg);
 	}
 	return 0;
 }

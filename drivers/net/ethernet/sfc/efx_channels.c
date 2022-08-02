@@ -46,63 +46,52 @@ module_param(irq_adapt_high_thresh, uint, 0644);
 MODULE_PARM_DESC(irq_adapt_high_thresh,
 		 "Threshold score for increasing IRQ moderation");
 
-/* This is the weight assigned to each of the (per-channel) virtual
- * NAPI devices.
- */
-static int napi_weight = 64;
-
-/***************
- * Housekeeping
- ***************/
-
-int efx_channel_dummy_op_int(struct efx_channel *channel)
-{
-	return 0;
-}
-
-void efx_channel_dummy_op_void(struct efx_channel *channel)
-{
-}
-
-static const struct efx_channel_type efx_default_channel_type = {
-	.pre_probe		= efx_channel_dummy_op_int,
-	.post_remove		= efx_channel_dummy_op_void,
-	.get_name		= efx_get_channel_name,
-	.copy			= efx_copy_channel,
-	.want_txqs		= efx_default_channel_want_txqs,
-	.keep_eventq		= false,
-	.want_pio		= true,
-};
+static const struct efx_channel_type efx_default_channel_type;
 
 /*************
  * INTERRUPTS
  *************/
 
-static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
+static unsigned int count_online_cores(struct efx_nic *efx, bool local_node)
 {
-	cpumask_var_t thread_mask;
+	cpumask_var_t filter_mask;
 	unsigned int count;
 	int cpu;
+
+	if (unlikely(!zalloc_cpumask_var(&filter_mask, GFP_KERNEL))) {
+		netif_warn(efx, probe, efx->net_dev,
+			   "RSS disabled due to allocation failure\n");
+		return 1;
+	}
+
+	cpumask_copy(filter_mask, cpu_online_mask);
+	if (local_node)
+		cpumask_and(filter_mask, filter_mask,
+			    cpumask_of_pcibus(efx->pci_dev->bus));
+
+	count = 0;
+	for_each_cpu(cpu, filter_mask) {
+		++count;
+		cpumask_andnot(filter_mask, filter_mask, topology_sibling_cpumask(cpu));
+	}
+
+	free_cpumask_var(filter_mask);
+
+	return count;
+}
+
+static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
+{
+	unsigned int count;
 
 	if (rss_cpus) {
 		count = rss_cpus;
 	} else {
-		if (unlikely(!zalloc_cpumask_var(&thread_mask, GFP_KERNEL))) {
-			netif_warn(efx, probe, efx->net_dev,
-				   "RSS disabled due to allocation failure\n");
-			return 1;
-		}
+		count = count_online_cores(efx, true);
 
-		count = 0;
-		for_each_online_cpu(cpu) {
-			if (!cpumask_test_cpu(cpu, thread_mask)) {
-				++count;
-				cpumask_or(thread_mask, thread_mask,
-					   topology_sibling_cpumask(cpu));
-			}
-		}
-
-		free_cpumask_var(thread_mask);
+		/* If no online CPUs in local node, fallback to any online CPUs */
+		if (count == 0)
+			count = count_online_cores(efx, false);
 	}
 
 	if (count > EFX_MAX_RX_QUEUES) {
@@ -309,6 +298,7 @@ int efx_probe_interrupts(struct efx_nic *efx)
 		efx->n_channels = 1;
 		efx->n_rx_channels = 1;
 		efx->n_tx_channels = 1;
+		efx->tx_channel_offset = 0;
 		efx->n_xdp_channels = 0;
 		efx->xdp_channel_offset = efx->n_channels;
 		rc = pci_enable_msi(efx->pci_dev);
@@ -329,6 +319,7 @@ int efx_probe_interrupts(struct efx_nic *efx)
 		efx->n_channels = 1 + (efx_separate_tx_channels ? 1 : 0);
 		efx->n_rx_channels = 1;
 		efx->n_tx_channels = 1;
+		efx->tx_channel_offset = 1;
 		efx->n_xdp_channels = 0;
 		efx->xdp_channel_offset = efx->n_channels;
 		efx->legacy_irq = efx->pci_dev->irq;
@@ -369,12 +360,19 @@ int efx_probe_interrupts(struct efx_nic *efx)
 #if defined(CONFIG_SMP)
 void efx_set_interrupt_affinity(struct efx_nic *efx)
 {
+	const struct cpumask *numa_mask = cpumask_of_pcibus(efx->pci_dev->bus);
 	struct efx_channel *channel;
 	unsigned int cpu;
 
+	/* If no online CPUs in local node, fallback to any online CPU */
+	if (cpumask_first_and(cpu_online_mask, numa_mask) >= nr_cpu_ids)
+		numa_mask = cpu_online_mask;
+
+	cpu = -1;
 	efx_for_each_channel(channel, efx) {
-		cpu = cpumask_local_spread(channel->channel,
-					   pcibus_to_node(efx->pci_dev->bus));
+		cpu = cpumask_next_and(cpu, cpu_online_mask, numa_mask);
+		if (cpu >= nr_cpu_ids)
+			cpu = cpumask_first_and(cpu_online_mask, numa_mask);
 		irq_set_affinity_hint(channel->irq, cpumask_of(cpu));
 	}
 }
@@ -674,7 +672,8 @@ fail:
 	return rc;
 }
 
-void efx_get_channel_name(struct efx_channel *channel, char *buf, size_t len)
+static void efx_get_channel_name(struct efx_channel *channel, char *buf,
+				 size_t len)
 {
 	struct efx_nic *efx = channel->efx;
 	const char *type;
@@ -764,9 +763,90 @@ void efx_remove_channels(struct efx_nic *efx)
 	kfree(efx->xdp_tx_queues);
 }
 
+static int efx_set_xdp_tx_queue(struct efx_nic *efx, int xdp_queue_number,
+				struct efx_tx_queue *tx_queue)
+{
+	if (xdp_queue_number >= efx->xdp_tx_queue_count)
+		return -EINVAL;
+
+	netif_dbg(efx, drv, efx->net_dev,
+		  "Channel %u TXQ %u is XDP %u, HW %u\n",
+		  tx_queue->channel->channel, tx_queue->label,
+		  xdp_queue_number, tx_queue->queue);
+	efx->xdp_tx_queues[xdp_queue_number] = tx_queue;
+	return 0;
+}
+
+static void efx_set_xdp_channels(struct efx_nic *efx)
+{
+	struct efx_tx_queue *tx_queue;
+	struct efx_channel *channel;
+	unsigned int next_queue = 0;
+	int xdp_queue_number = 0;
+	int rc;
+
+	/* We need to mark which channels really have RX and TX
+	 * queues, and adjust the TX queue numbers if we have separate
+	 * RX-only and TX-only channels.
+	 */
+	efx_for_each_channel(channel, efx) {
+		if (channel->channel < efx->tx_channel_offset)
+			continue;
+
+		if (efx_channel_is_xdp_tx(channel)) {
+			efx_for_each_channel_tx_queue(tx_queue, channel) {
+				tx_queue->queue = next_queue++;
+				rc = efx_set_xdp_tx_queue(efx, xdp_queue_number,
+							  tx_queue);
+				if (rc == 0)
+					xdp_queue_number++;
+			}
+		} else {
+			efx_for_each_channel_tx_queue(tx_queue, channel) {
+				tx_queue->queue = next_queue++;
+				netif_dbg(efx, drv, efx->net_dev,
+					  "Channel %u TXQ %u is HW %u\n",
+					  channel->channel, tx_queue->label,
+					  tx_queue->queue);
+			}
+
+			/* If XDP is borrowing queues from net stack, it must
+			 * use the queue with no csum offload, which is the
+			 * first one of the channel
+			 * (note: tx_queue_by_type is not initialized yet)
+			 */
+			if (efx->xdp_txq_queues_mode ==
+			    EFX_XDP_TX_QUEUES_BORROWED) {
+				tx_queue = &channel->tx_queue[0];
+				rc = efx_set_xdp_tx_queue(efx, xdp_queue_number,
+							  tx_queue);
+				if (rc == 0)
+					xdp_queue_number++;
+			}
+		}
+	}
+	WARN_ON(efx->xdp_txq_queues_mode == EFX_XDP_TX_QUEUES_DEDICATED &&
+		xdp_queue_number != efx->xdp_tx_queue_count);
+	WARN_ON(efx->xdp_txq_queues_mode != EFX_XDP_TX_QUEUES_DEDICATED &&
+		xdp_queue_number > efx->xdp_tx_queue_count);
+
+	/* If we have more CPUs than assigned XDP TX queues, assign the already
+	 * existing queues to the exceeding CPUs
+	 */
+	next_queue = 0;
+	while (xdp_queue_number < efx->xdp_tx_queue_count) {
+		tx_queue = efx->xdp_tx_queues[next_queue++];
+		rc = efx_set_xdp_tx_queue(efx, xdp_queue_number, tx_queue);
+		if (rc == 0)
+			xdp_queue_number++;
+	}
+}
+
 int efx_realloc_channels(struct efx_nic *efx, u32 rxq_entries, u32 txq_entries)
 {
-	struct efx_channel *other_channel[EFX_MAX_CHANNELS], *channel;
+	struct efx_channel *other_channel[EFX_MAX_CHANNELS], *channel,
+			   *ptp_channel = efx_ptp_channel(efx);
+	struct efx_ptp_data *ptp_data = efx->ptp_data;
 	unsigned int i, next_buffer_table = 0;
 	u32 old_rxq_entries, old_txq_entries;
 	int rc, rc2;
@@ -835,7 +915,9 @@ int efx_realloc_channels(struct efx_nic *efx, u32 rxq_entries, u32 txq_entries)
 		efx_init_napi_channel(efx->channel[i]);
 	}
 
+	efx_set_xdp_channels(efx);
 out:
+	efx->ptp_data = NULL;
 	/* Destroy unused channel structures */
 	for (i = 0; i < efx->n_channels; i++) {
 		channel = other_channel[i];
@@ -846,6 +928,7 @@ out:
 		}
 	}
 
+	efx->ptp_data = ptp_data;
 	rc2 = efx_soft_enable_interrupts(efx);
 	if (rc2) {
 		rc = rc ? rc : rc2;
@@ -864,34 +947,14 @@ rollback:
 	efx->txq_entries = old_txq_entries;
 	for (i = 0; i < efx->n_channels; i++)
 		swap(efx->channel[i], other_channel[i]);
+	efx_ptp_update_channel(efx, ptp_channel);
 	goto out;
-}
-
-static inline int
-efx_set_xdp_tx_queue(struct efx_nic *efx, int xdp_queue_number,
-		     struct efx_tx_queue *tx_queue)
-{
-	if (xdp_queue_number >= efx->xdp_tx_queue_count)
-		return -EINVAL;
-
-	netif_dbg(efx, drv, efx->net_dev, "Channel %u TXQ %u is XDP %u, HW %u\n",
-		  tx_queue->channel->channel, tx_queue->label,
-		  xdp_queue_number, tx_queue->queue);
-	efx->xdp_tx_queues[xdp_queue_number] = tx_queue;
-	return 0;
 }
 
 int efx_set_channels(struct efx_nic *efx)
 {
-	struct efx_tx_queue *tx_queue;
 	struct efx_channel *channel;
-	unsigned int next_queue = 0;
-	int xdp_queue_number;
 	int rc;
-
-	efx->tx_channel_offset =
-		efx_separate_tx_channels ?
-		efx->n_channels - efx->n_tx_channels : 0;
 
 	if (efx->xdp_tx_queue_count) {
 		EFX_WARN_ON_PARANOID(efx->xdp_tx_queues);
@@ -904,61 +967,14 @@ int efx_set_channels(struct efx_nic *efx)
 			return -ENOMEM;
 	}
 
-	/* We need to mark which channels really have RX and TX
-	 * queues, and adjust the TX queue numbers if we have separate
-	 * RX-only and TX-only channels.
-	 */
-	xdp_queue_number = 0;
 	efx_for_each_channel(channel, efx) {
 		if (channel->channel < efx->n_rx_channels)
 			channel->rx_queue.core_index = channel->channel;
 		else
 			channel->rx_queue.core_index = -1;
-
-		if (channel->channel >= efx->tx_channel_offset) {
-			if (efx_channel_is_xdp_tx(channel)) {
-				efx_for_each_channel_tx_queue(tx_queue, channel) {
-					tx_queue->queue = next_queue++;
-					rc = efx_set_xdp_tx_queue(efx, xdp_queue_number, tx_queue);
-					if (rc == 0)
-						xdp_queue_number++;
-				}
-			} else {
-				efx_for_each_channel_tx_queue(tx_queue, channel) {
-					tx_queue->queue = next_queue++;
-					netif_dbg(efx, drv, efx->net_dev, "Channel %u TXQ %u is HW %u\n",
-						  channel->channel, tx_queue->label,
-						  tx_queue->queue);
-				}
-
-				/* If XDP is borrowing queues from net stack, it must use the queue
-				 * with no csum offload, which is the first one of the channel
-				 * (note: channel->tx_queue_by_type is not initialized yet)
-				 */
-				if (efx->xdp_txq_queues_mode == EFX_XDP_TX_QUEUES_BORROWED) {
-					tx_queue = &channel->tx_queue[0];
-					rc = efx_set_xdp_tx_queue(efx, xdp_queue_number, tx_queue);
-					if (rc == 0)
-						xdp_queue_number++;
-				}
-			}
-		}
 	}
-	WARN_ON(efx->xdp_txq_queues_mode == EFX_XDP_TX_QUEUES_DEDICATED &&
-		xdp_queue_number != efx->xdp_tx_queue_count);
-	WARN_ON(efx->xdp_txq_queues_mode != EFX_XDP_TX_QUEUES_DEDICATED &&
-		xdp_queue_number > efx->xdp_tx_queue_count);
 
-	/* If we have more CPUs than assigned XDP TX queues, assign the already
-	 * existing queues to the exceeding CPUs
-	 */
-	next_queue = 0;
-	while (xdp_queue_number < efx->xdp_tx_queue_count) {
-		tx_queue = efx->xdp_tx_queues[next_queue++];
-		rc = efx_set_xdp_tx_queue(efx, xdp_queue_number, tx_queue);
-		if (rc == 0)
-			xdp_queue_number++;
-	}
+	efx_set_xdp_channels(efx);
 
 	rc = netif_set_real_num_tx_queues(efx->net_dev, efx->n_tx_channels);
 	if (rc)
@@ -966,7 +982,7 @@ int efx_set_channels(struct efx_nic *efx)
 	return netif_set_real_num_rx_queues(efx->net_dev, efx->n_rx_channels);
 }
 
-bool efx_default_channel_want_txqs(struct efx_channel *channel)
+static bool efx_default_channel_want_txqs(struct efx_channel *channel)
 {
 	return channel->channel - channel->efx->tx_channel_offset <
 		channel->efx->n_tx_channels;
@@ -1102,7 +1118,7 @@ void efx_start_channels(struct efx_nic *efx)
 	struct efx_rx_queue *rx_queue;
 	struct efx_channel *channel;
 
-	efx_for_each_channel(channel, efx) {
+	efx_for_each_channel_rev(channel, efx) {
 		efx_for_each_channel_tx_queue(tx_queue, channel) {
 			efx_init_tx_queue(tx_queue);
 			atomic_inc(&efx->active_queues);
@@ -1297,8 +1313,7 @@ void efx_init_napi_channel(struct efx_channel *channel)
 	struct efx_nic *efx = channel->efx;
 
 	channel->napi_dev = efx->net_dev;
-	netif_napi_add(channel->napi_dev, &channel->napi_str,
-		       efx_poll, napi_weight);
+	netif_napi_add(channel->napi_dev, &channel->napi_str, efx_poll, 64);
 }
 
 void efx_init_napi(struct efx_nic *efx)
@@ -1324,3 +1339,26 @@ void efx_fini_napi(struct efx_nic *efx)
 	efx_for_each_channel(channel, efx)
 		efx_fini_napi_channel(channel);
 }
+
+/***************
+ * Housekeeping
+ ***************/
+
+static int efx_channel_dummy_op_int(struct efx_channel *channel)
+{
+	return 0;
+}
+
+void efx_channel_dummy_op_void(struct efx_channel *channel)
+{
+}
+
+static const struct efx_channel_type efx_default_channel_type = {
+	.pre_probe		= efx_channel_dummy_op_int,
+	.post_remove		= efx_channel_dummy_op_void,
+	.get_name		= efx_get_channel_name,
+	.copy			= efx_copy_channel,
+	.want_txqs		= efx_default_channel_want_txqs,
+	.keep_eventq		= false,
+	.want_pio		= true,
+};

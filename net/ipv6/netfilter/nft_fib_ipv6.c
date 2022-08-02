@@ -30,6 +30,10 @@ static int nft_fib6_flowi_init(struct flowi6 *fl6, const struct nft_fib *priv,
 		fl6->daddr = iph->daddr;
 		fl6->saddr = iph->saddr;
 	} else {
+		if (nft_hook(pkt) == NF_INET_FORWARD &&
+		    priv->flags & NFTA_FIB_F_IIF)
+			fl6->flowi6_iif = nft_out(pkt)->ifindex;
+
 		fl6->daddr = iph->saddr;
 		fl6->saddr = iph->daddr;
 	}
@@ -211,6 +215,7 @@ static const struct nft_expr_ops nft_fib6_type_ops = {
 	.init		= nft_fib_init,
 	.dump		= nft_fib_dump,
 	.validate	= nft_fib_validate,
+	.reduce		= nft_fib_reduce,
 };
 
 static const struct nft_expr_ops nft_fib6_ops = {
@@ -220,6 +225,7 @@ static const struct nft_expr_ops nft_fib6_ops = {
 	.init		= nft_fib_init,
 	.dump		= nft_fib_dump,
 	.validate	= nft_fib_validate,
+	.reduce		= nft_fib_reduce,
 };
 
 static const struct nft_expr_ops *

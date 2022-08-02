@@ -8,21 +8,21 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno.xml                     (    594 bytes, from 2021-02-18 16:45:44)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/freedreno_copyright.xml        (   1572 bytes, from 2021-02-18 16:45:44)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a2xx.xml                (  90810 bytes, from 2021-02-18 16:45:44)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_common.xml       (  14386 bytes, from 2021-02-18 16:45:44)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_pm4.xml          (  67699 bytes, from 2021-05-31 20:21:57)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a3xx.xml                (  84226 bytes, from 2021-02-18 16:45:44)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a4xx.xml                ( 112551 bytes, from 2021-02-18 16:45:44)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a5xx.xml                ( 150713 bytes, from 2021-06-10 22:34:02)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a6xx.xml                ( 180049 bytes, from 2021-06-02 21:44:19)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a6xx_gmu.xml            (  11331 bytes, from 2021-05-21 19:18:08)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/ocmem.xml               (   1773 bytes, from 2021-02-18 16:45:44)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_control_regs.xml (   6038 bytes, from 2021-05-27 20:22:36)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_pipe_regs.xml    (   2924 bytes, from 2021-05-27 20:18:13)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno.xml                     (    594 bytes, from 2021-01-30 18:25:22)
+- /home/robclark/tmp/mesa/src/freedreno/registers/freedreno_copyright.xml        (   1572 bytes, from 2020-12-31 19:26:32)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a2xx.xml                (  90810 bytes, from 2021-06-21 15:24:24)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_common.xml       (  14609 bytes, from 2021-11-24 23:05:10)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_pm4.xml          (  69086 bytes, from 2022-03-03 16:41:33)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a3xx.xml                (  84231 bytes, from 2021-11-24 23:05:10)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a4xx.xml                ( 113358 bytes, from 2022-01-31 23:06:21)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a5xx.xml                ( 149512 bytes, from 2022-01-31 23:06:21)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a6xx.xml                ( 184954 bytes, from 2022-03-03 16:41:33)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a6xx_gmu.xml            (  11331 bytes, from 2021-07-22 15:21:56)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/ocmem.xml               (   1773 bytes, from 2021-01-30 18:25:22)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_control_regs.xml (   6038 bytes, from 2021-07-22 15:21:56)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_pipe_regs.xml    (   2924 bytes, from 2021-07-22 15:21:56)
 
-Copyright (C) 2013-2021 by the following authors:
+Copyright (C) 2013-2022 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
@@ -299,6 +299,8 @@ enum adreno_pm4_type3_packets {
 	CP_SET_BIN_DATA5_OFFSET = 46,
 	CP_SET_CTXSWITCH_IB = 85,
 	CP_REG_WRITE = 109,
+	CP_START_BIN = 80,
+	CP_END_BIN = 81,
 };
 
 enum adreno_state_block {
@@ -438,7 +440,7 @@ enum cp_blit_cmd {
 	BLIT_OP_SCALE = 3,
 };
 
-enum a6xx_render_mode {
+enum a6xx_marker {
 	RM6_BYPASS = 1,
 	RM6_BINNING = 2,
 	RM6_GMEM = 4,
@@ -2150,13 +2152,13 @@ static inline uint32_t A5XX_CP_EXEC_CS_INDIRECT_3_LOCALSIZEZ(uint32_t val)
 #define REG_A6XX_CP_SET_MARKER_0				0x00000000
 #define A6XX_CP_SET_MARKER_0_MODE__MASK				0x000001ff
 #define A6XX_CP_SET_MARKER_0_MODE__SHIFT			0
-static inline uint32_t A6XX_CP_SET_MARKER_0_MODE(enum a6xx_render_mode val)
+static inline uint32_t A6XX_CP_SET_MARKER_0_MODE(enum a6xx_marker val)
 {
 	return ((val) << A6XX_CP_SET_MARKER_0_MODE__SHIFT) & A6XX_CP_SET_MARKER_0_MODE__MASK;
 }
 #define A6XX_CP_SET_MARKER_0_MARKER__MASK			0x0000000f
 #define A6XX_CP_SET_MARKER_0_MARKER__SHIFT			0
-static inline uint32_t A6XX_CP_SET_MARKER_0_MARKER(enum a6xx_render_mode val)
+static inline uint32_t A6XX_CP_SET_MARKER_0_MARKER(enum a6xx_marker val)
 {
 	return ((val) << A6XX_CP_SET_MARKER_0_MARKER__SHIFT) & A6XX_CP_SET_MARKER_0_MARKER__MASK;
 }
@@ -2350,6 +2352,14 @@ static inline uint32_t CP_SMMU_TABLE_UPDATE_3_CONTEXTBANK(uint32_t val)
 {
 	return ((val) << CP_SMMU_TABLE_UPDATE_3_CONTEXTBANK__SHIFT) & CP_SMMU_TABLE_UPDATE_3_CONTEXTBANK__MASK;
 }
+
+#define REG_CP_START_BIN_BIN_COUNT				0x00000000
+
+#define REG_CP_START_BIN_PREFIX_ADDR				0x00000001
+
+#define REG_CP_START_BIN_PREFIX_DWORDS				0x00000003
+
+#define REG_CP_START_BIN_BODY_DWORDS				0x00000004
 
 
 #endif /* ADRENO_PM4_XML */

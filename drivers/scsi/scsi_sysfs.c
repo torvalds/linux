@@ -448,6 +448,7 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 	struct list_head *this, *tmp;
 	struct scsi_vpd *vpd_pg80 = NULL, *vpd_pg83 = NULL;
 	struct scsi_vpd *vpd_pg0 = NULL, *vpd_pg89 = NULL;
+	struct scsi_vpd *vpd_pgb0 = NULL, *vpd_pgb1 = NULL, *vpd_pgb2 = NULL;
 	unsigned long flags;
 	struct module *mod;
 
@@ -490,6 +491,12 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 				       lockdep_is_held(&sdev->inquiry_mutex));
 	vpd_pg89 = rcu_replace_pointer(sdev->vpd_pg89, vpd_pg89,
 				       lockdep_is_held(&sdev->inquiry_mutex));
+	vpd_pgb0 = rcu_replace_pointer(sdev->vpd_pgb0, vpd_pgb0,
+				       lockdep_is_held(&sdev->inquiry_mutex));
+	vpd_pgb1 = rcu_replace_pointer(sdev->vpd_pgb1, vpd_pgb1,
+				       lockdep_is_held(&sdev->inquiry_mutex));
+	vpd_pgb2 = rcu_replace_pointer(sdev->vpd_pgb2, vpd_pgb2,
+				       lockdep_is_held(&sdev->inquiry_mutex));
 	mutex_unlock(&sdev->inquiry_mutex);
 
 	if (vpd_pg0)
@@ -500,6 +507,12 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 		kfree_rcu(vpd_pg80, rcu);
 	if (vpd_pg89)
 		kfree_rcu(vpd_pg89, rcu);
+	if (vpd_pgb0)
+		kfree_rcu(vpd_pgb0, rcu);
+	if (vpd_pgb1)
+		kfree_rcu(vpd_pgb1, rcu);
+	if (vpd_pgb2)
+		kfree_rcu(vpd_pgb2, rcu);
 	kfree(sdev->inquiry);
 	kfree(sdev);
 
@@ -560,7 +573,6 @@ struct bus_type scsi_bus_type = {
 	.pm		= &scsi_bus_pm_ops,
 #endif
 };
-EXPORT_SYMBOL_GPL(scsi_bus_type);
 
 int scsi_sysfs_register(void)
 {
@@ -913,6 +925,9 @@ static struct bin_attribute dev_attr_vpd_##_page = {		\
 sdev_vpd_pg_attr(pg83);
 sdev_vpd_pg_attr(pg80);
 sdev_vpd_pg_attr(pg89);
+sdev_vpd_pg_attr(pgb0);
+sdev_vpd_pg_attr(pgb1);
+sdev_vpd_pg_attr(pgb2);
 sdev_vpd_pg_attr(pg0);
 
 static ssize_t show_inquiry(struct file *filep, struct kobject *kobj,
@@ -1228,14 +1243,6 @@ static umode_t scsi_sdev_attr_is_visible(struct kobject *kobj,
 	    !sdev->host->hostt->change_queue_depth)
 		return 0;
 
-#ifdef CONFIG_SCSI_DH
-	if (attr == &dev_attr_access_state.attr &&
-	    !sdev->handler)
-		return 0;
-	if (attr == &dev_attr_preferred_path.attr &&
-	    !sdev->handler)
-		return 0;
-#endif
 	return attr->mode;
 }
 
@@ -1256,6 +1263,15 @@ static umode_t scsi_sdev_bin_attr_is_visible(struct kobject *kobj,
 		return 0;
 
 	if (attr == &dev_attr_vpd_pg89 && !sdev->vpd_pg89)
+		return 0;
+
+	if (attr == &dev_attr_vpd_pgb0 && !sdev->vpd_pgb0)
+		return 0;
+
+	if (attr == &dev_attr_vpd_pgb1 && !sdev->vpd_pgb1)
+		return 0;
+
+	if (attr == &dev_attr_vpd_pgb2 && !sdev->vpd_pgb2)
 		return 0;
 
 	return S_IRUGO;
@@ -1304,6 +1320,9 @@ static struct bin_attribute *scsi_sdev_bin_attrs[] = {
 	&dev_attr_vpd_pg83,
 	&dev_attr_vpd_pg80,
 	&dev_attr_vpd_pg89,
+	&dev_attr_vpd_pgb0,
+	&dev_attr_vpd_pgb1,
+	&dev_attr_vpd_pgb2,
 	&dev_attr_inquiry,
 	NULL
 };
@@ -1392,10 +1411,6 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 	if (IS_ENABLED(CONFIG_BLK_DEV_BSG)) {
 		sdev->bsg_dev = scsi_bsg_register_queue(sdev);
 		if (IS_ERR(sdev->bsg_dev)) {
-			/*
-			 * We're treating error on bsg register as non-fatal, so
-			 * pretend nothing went wrong.
-			 */
 			error = PTR_ERR(sdev->bsg_dev);
 			sdev_printk(KERN_INFO, sdev,
 				    "Failed to register bsg queue, errno=%d\n",

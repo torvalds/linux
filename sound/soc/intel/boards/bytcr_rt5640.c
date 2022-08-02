@@ -773,6 +773,18 @@ static const struct dmi_system_id byt_rt5640_quirk_table[] = {
 					BYT_RT5640_OVCD_SF_0P75 |
 					BYT_RT5640_MCLK_EN),
 	},
+	{	/* HP Pro Tablet 408 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP Pro Tablet 408"),
+		},
+		.driver_data = (void *)(BYT_RT5640_DMIC1_MAP |
+					BYT_RT5640_JD_SRC_JD2_IN4N |
+					BYT_RT5640_OVCD_TH_1500UA |
+					BYT_RT5640_OVCD_SF_0P75 |
+					BYT_RT5640_SSP0_AIF1 |
+					BYT_RT5640_MCLK_EN),
+	},
 	{	/* HP Stream 7 */
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
@@ -1179,12 +1191,14 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 {
 	struct snd_soc_card *card = runtime->card;
 	struct byt_rt5640_private *priv = snd_soc_card_get_drvdata(card);
+	struct rt5640_set_jack_data *jack_data = &priv->jack_data;
 	struct snd_soc_component *component = asoc_rtd_to_codec(runtime, 0)->component;
 	const struct snd_soc_dapm_route *custom_map = NULL;
 	int num_routes = 0;
 	int ret;
 
 	card->dapm.idle_bias_off = true;
+	jack_data->use_platform_clock = true;
 
 	/* Start with RC clk for jack-detect (we disable MCLK below) */
 	if (byt_rt5640_quirk & BYT_RT5640_MCLK_EN)
@@ -1300,10 +1314,10 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	}
 
 	if (BYT_RT5640_JDSRC(byt_rt5640_quirk)) {
-		ret = snd_soc_card_jack_new(card, "Headset",
-					    SND_JACK_HEADSET | SND_JACK_BTN_0,
-					    &priv->jack, rt5640_pins,
-					    ARRAY_SIZE(rt5640_pins));
+		ret = snd_soc_card_jack_new_pins(card, "Headset",
+						 SND_JACK_HEADSET | SND_JACK_BTN_0,
+						 &priv->jack, rt5640_pins,
+						 ARRAY_SIZE(rt5640_pins));
 		if (ret) {
 			dev_err(card->dev, "Jack creation failed %d\n", ret);
 			return ret;
@@ -1321,17 +1335,17 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	}
 
 	if (byt_rt5640_quirk & BYT_RT5640_JD_HP_ELITEP_1000G2) {
-		ret = snd_soc_card_jack_new(card, "Headset",
-					    SND_JACK_HEADSET,
-					    &priv->jack, rt5640_pins,
-					    ARRAY_SIZE(rt5640_pins));
+		ret = snd_soc_card_jack_new_pins(card, "Headset",
+						 SND_JACK_HEADSET,
+						 &priv->jack, rt5640_pins,
+						 ARRAY_SIZE(rt5640_pins));
 		if (ret)
 			return ret;
 
-		ret = snd_soc_card_jack_new(card, "Headset 2",
-					    SND_JACK_HEADSET,
-					    &priv->jack2, rt5640_pins2,
-					    ARRAY_SIZE(rt5640_pins2));
+		ret = snd_soc_card_jack_new_pins(card, "Headset 2",
+						 SND_JACK_HEADSET,
+						 &priv->jack2, rt5640_pins2,
+						 ARRAY_SIZE(rt5640_pins2));
 		if (ret)
 			return ret;
 
@@ -1764,7 +1778,7 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 	byt_rt5640_card.long_name = byt_rt5640_long_name;
 #endif
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	platform_name = mach->mach_params.platform;
 
 	ret_val = snd_soc_fixup_dai_links_platform_name(&byt_rt5640_card,

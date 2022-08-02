@@ -21,6 +21,7 @@ properties:
       - const: ti,j721e-sdhci-4bit
       - const: ti,am64-sdhci-8bit
       - const: ti,am64-sdhci-4bit
+      - const: ti,am62-sdhci
       - items:
           - const: ti,j7200-sdhci-8bit
           - const: ti,j721e-sdhci-8bit
@@ -184,6 +185,13 @@ properties:
   ti,clkbuf-sel:
     description: Clock Delay Buffer Select
     $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  ti,fails-without-test-cd:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      When present, indicates that the CD line is not connected
+      and the controller is required to be forced into Test mode
+      to set the TESTCD bit.
 
 required:
   - compatible

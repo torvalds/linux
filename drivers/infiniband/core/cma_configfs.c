@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-#include <linux/module.h>
 #include <linux/configfs.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>

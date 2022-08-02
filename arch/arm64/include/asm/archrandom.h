@@ -42,13 +42,47 @@ static inline bool __arm64_rndr(unsigned long *v)
 	return ok;
 }
 
+static inline bool __arm64_rndrrs(unsigned long *v)
+{
+	bool ok;
+
+	/*
+	 * Reads of RNDRRS set PSTATE.NZCV to 0b0000 on success,
+	 * and set PSTATE.NZCV to 0b0100 otherwise.
+	 */
+	asm volatile(
+		__mrs_s("%0", SYS_RNDRRS_EL0) "\n"
+	"	cset %w1, ne\n"
+	: "=r" (*v), "=r" (ok)
+	:
+	: "cc");
+
+	return ok;
+}
+
 static inline bool __must_check arch_get_random_long(unsigned long *v)
 {
+	/*
+	 * Only support the generic interface after we have detected
+	 * the system wide capability, avoiding complexity with the
+	 * cpufeature code and with potential scheduling between CPUs
+	 * with and without the feature.
+	 */
+	if (cpus_have_const_cap(ARM64_HAS_RNG) && __arm64_rndr(v))
+		return true;
 	return false;
 }
 
 static inline bool __must_check arch_get_random_int(unsigned int *v)
 {
+	if (cpus_have_const_cap(ARM64_HAS_RNG)) {
+		unsigned long val;
+
+		if (__arm64_rndr(&val)) {
+			*v = val;
+			return true;
+		}
+	}
 	return false;
 }
 
@@ -71,12 +105,11 @@ static inline bool __must_check arch_get_random_seed_long(unsigned long *v)
 	}
 
 	/*
-	 * Only support the generic interface after we have detected
-	 * the system wide capability, avoiding complexity with the
-	 * cpufeature code and with potential scheduling between CPUs
-	 * with and without the feature.
+	 * RNDRRS is not backed by an entropy source but by a DRBG that is
+	 * reseeded after each invocation. This is not a 100% fit but good
+	 * enough to implement this API if no other entropy source exists.
 	 */
-	if (cpus_have_const_cap(ARM64_HAS_RNG) && __arm64_rndr(v))
+	if (cpus_have_const_cap(ARM64_HAS_RNG) && __arm64_rndrrs(v))
 		return true;
 
 	return false;
@@ -96,7 +129,7 @@ static inline bool __must_check arch_get_random_seed_int(unsigned int *v)
 	}
 
 	if (cpus_have_const_cap(ARM64_HAS_RNG)) {
-		if (__arm64_rndr(&val)) {
+		if (__arm64_rndrrs(&val)) {
 			*v = val;
 			return true;
 		}
@@ -109,7 +142,7 @@ static inline bool __init __early_cpu_has_rndr(void)
 {
 	/* Open code as we run prior to the first call to cpufeature. */
 	unsigned long ftr = read_sysreg_s(SYS_ID_AA64ISAR0_EL1);
-	return (ftr >> ID_AA64ISAR0_RNDR_SHIFT) & 0xf;
+	return (ftr >> ID_AA64ISAR0_EL1_RNDR_SHIFT) & 0xf;
 }
 
 static inline bool __init __must_check

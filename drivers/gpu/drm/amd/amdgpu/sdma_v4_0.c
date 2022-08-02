@@ -722,7 +722,7 @@ static uint64_t sdma_v4_0_ring_get_rptr(struct amdgpu_ring *ring)
 	u64 *rptr;
 
 	/* XXX check if swapping is necessary on BE */
-	rptr = ((u64 *)&ring->adev->wb.wb[ring->rptr_offs]);
+	rptr = ((u64 *)ring->rptr_cpu_addr);
 
 	DRM_DEBUG("rptr before shift == 0x%016llx\n", *rptr);
 	return ((*rptr) >> 2);
@@ -742,7 +742,7 @@ static uint64_t sdma_v4_0_ring_get_wptr(struct amdgpu_ring *ring)
 
 	if (ring->use_doorbell) {
 		/* XXX check if swapping is necessary on BE */
-		wptr = READ_ONCE(*((u64 *)&adev->wb.wb[ring->wptr_offs]));
+		wptr = READ_ONCE(*((u64 *)ring->wptr_cpu_addr));
 		DRM_DEBUG("wptr/doorbell before shift == 0x%016llx\n", wptr);
 	} else {
 		wptr = RREG32_SDMA(ring->me, mmSDMA0_GFX_RB_WPTR_HI);
@@ -768,12 +768,12 @@ static void sdma_v4_0_ring_set_wptr(struct amdgpu_ring *ring)
 
 	DRM_DEBUG("Setting write pointer\n");
 	if (ring->use_doorbell) {
-		u64 *wb = (u64 *)&adev->wb.wb[ring->wptr_offs];
+		u64 *wb = (u64 *)ring->wptr_cpu_addr;
 
 		DRM_DEBUG("Using doorbell -- "
 				"wptr_offs == 0x%08x "
-				"lower_32_bits(ring->wptr) << 2 == 0x%08x "
-				"upper_32_bits(ring->wptr) << 2 == 0x%08x\n",
+				"lower_32_bits(ring->wptr << 2) == 0x%08x "
+				"upper_32_bits(ring->wptr << 2) == 0x%08x\n",
 				ring->wptr_offs,
 				lower_32_bits(ring->wptr << 2),
 				upper_32_bits(ring->wptr << 2));
@@ -811,7 +811,7 @@ static uint64_t sdma_v4_0_page_ring_get_wptr(struct amdgpu_ring *ring)
 
 	if (ring->use_doorbell) {
 		/* XXX check if swapping is necessary on BE */
-		wptr = READ_ONCE(*((u64 *)&adev->wb.wb[ring->wptr_offs]));
+		wptr = READ_ONCE(*((u64 *)ring->wptr_cpu_addr));
 	} else {
 		wptr = RREG32_SDMA(ring->me, mmSDMA0_PAGE_RB_WPTR_HI);
 		wptr = wptr << 32;
@@ -833,7 +833,7 @@ static void sdma_v4_0_page_ring_set_wptr(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 
 	if (ring->use_doorbell) {
-		u64 *wb = (u64 *)&adev->wb.wb[ring->wptr_offs];
+		u64 *wb = (u64 *)ring->wptr_cpu_addr;
 
 		/* XXX check if swapping is necessary on BE */
 		WRITE_ONCE(*wb, (ring->wptr << 2));
@@ -1174,12 +1174,9 @@ static void sdma_v4_0_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 {
 	struct amdgpu_ring *ring = &adev->sdma.instance[i].ring;
 	u32 rb_cntl, ib_cntl, wptr_poll_cntl;
-	u32 wb_offset;
 	u32 doorbell;
 	u32 doorbell_offset;
 	u64 wptr_gpu_addr;
-
-	wb_offset = (ring->rptr_offs * 4);
 
 	rb_cntl = RREG32_SDMA(i, mmSDMA0_GFX_RB_CNTL);
 	rb_cntl = sdma_v4_0_rb_cntl(ring, rb_cntl);
@@ -1193,9 +1190,9 @@ static void sdma_v4_0_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 
 	/* set the wb address whether it's enabled or not */
 	WREG32_SDMA(i, mmSDMA0_GFX_RB_RPTR_ADDR_HI,
-	       upper_32_bits(adev->wb.gpu_addr + wb_offset) & 0xFFFFFFFF);
+	       upper_32_bits(ring->rptr_gpu_addr) & 0xFFFFFFFF);
 	WREG32_SDMA(i, mmSDMA0_GFX_RB_RPTR_ADDR_LO,
-	       lower_32_bits(adev->wb.gpu_addr + wb_offset) & 0xFFFFFFFC);
+	       lower_32_bits(ring->rptr_gpu_addr) & 0xFFFFFFFC);
 
 	rb_cntl = REG_SET_FIELD(rb_cntl, SDMA0_GFX_RB_CNTL,
 				RPTR_WRITEBACK_ENABLE, 1);
@@ -1225,7 +1222,7 @@ static void sdma_v4_0_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 	WREG32_SDMA(i, mmSDMA0_GFX_MINOR_PTR_UPDATE, 0);
 
 	/* setup the wptr shadow polling */
-	wptr_gpu_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
+	wptr_gpu_addr = ring->wptr_gpu_addr;
 	WREG32_SDMA(i, mmSDMA0_GFX_RB_WPTR_POLL_ADDR_LO,
 		    lower_32_bits(wptr_gpu_addr));
 	WREG32_SDMA(i, mmSDMA0_GFX_RB_WPTR_POLL_ADDR_HI,
@@ -1264,12 +1261,9 @@ static void sdma_v4_0_page_resume(struct amdgpu_device *adev, unsigned int i)
 {
 	struct amdgpu_ring *ring = &adev->sdma.instance[i].page;
 	u32 rb_cntl, ib_cntl, wptr_poll_cntl;
-	u32 wb_offset;
 	u32 doorbell;
 	u32 doorbell_offset;
 	u64 wptr_gpu_addr;
-
-	wb_offset = (ring->rptr_offs * 4);
 
 	rb_cntl = RREG32_SDMA(i, mmSDMA0_PAGE_RB_CNTL);
 	rb_cntl = sdma_v4_0_rb_cntl(ring, rb_cntl);
@@ -1283,9 +1277,9 @@ static void sdma_v4_0_page_resume(struct amdgpu_device *adev, unsigned int i)
 
 	/* set the wb address whether it's enabled or not */
 	WREG32_SDMA(i, mmSDMA0_PAGE_RB_RPTR_ADDR_HI,
-	       upper_32_bits(adev->wb.gpu_addr + wb_offset) & 0xFFFFFFFF);
+	       upper_32_bits(ring->rptr_gpu_addr) & 0xFFFFFFFF);
 	WREG32_SDMA(i, mmSDMA0_PAGE_RB_RPTR_ADDR_LO,
-	       lower_32_bits(adev->wb.gpu_addr + wb_offset) & 0xFFFFFFFC);
+	       lower_32_bits(ring->rptr_gpu_addr) & 0xFFFFFFFC);
 
 	rb_cntl = REG_SET_FIELD(rb_cntl, SDMA0_PAGE_RB_CNTL,
 				RPTR_WRITEBACK_ENABLE, 1);
@@ -1316,7 +1310,7 @@ static void sdma_v4_0_page_resume(struct amdgpu_device *adev, unsigned int i)
 	WREG32_SDMA(i, mmSDMA0_PAGE_MINOR_PTR_UPDATE, 0);
 
 	/* setup the wptr shadow polling */
-	wptr_gpu_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
+	wptr_gpu_addr = ring->wptr_gpu_addr;
 	WREG32_SDMA(i, mmSDMA0_PAGE_RB_WPTR_POLL_ADDR_LO,
 		    lower_32_bits(wptr_gpu_addr));
 	WREG32_SDMA(i, mmSDMA0_PAGE_RB_WPTR_POLL_ADDR_HI,
@@ -1885,22 +1879,16 @@ static int sdma_v4_0_process_ras_data_cb(struct amdgpu_device *adev,
 static int sdma_v4_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct ras_ih_if ih_info = {
-		.cb = sdma_v4_0_process_ras_data_cb,
-	};
 
 	sdma_v4_0_setup_ulv(adev);
 
 	if (!amdgpu_persistent_edc_harvesting_supported(adev)) {
-		if (adev->sdma.funcs &&
-		    adev->sdma.funcs->reset_ras_error_count)
-			adev->sdma.funcs->reset_ras_error_count(adev);
+		if (adev->sdma.ras && adev->sdma.ras->ras_block.hw_ops &&
+		    adev->sdma.ras->ras_block.hw_ops->reset_ras_error_count)
+			adev->sdma.ras->ras_block.hw_ops->reset_ras_error_count(adev);
 	}
 
-	if (adev->sdma.funcs && adev->sdma.funcs->ras_late_init)
-		return adev->sdma.funcs->ras_late_init(adev, &ih_info);
-	else
-		return 0;
+	return 0;
 }
 
 static int sdma_v4_0_sw_init(void *handle)
@@ -2000,9 +1988,6 @@ static int sdma_v4_0_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int i;
-
-	if (adev->sdma.funcs && adev->sdma.funcs->ras_fini)
-		adev->sdma.funcs->ras_fini(adev);
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		amdgpu_ring_fini(&adev->sdma.instance[i].ring);
@@ -2381,7 +2366,7 @@ static int sdma_v4_0_set_powergating_state(void *handle,
 	return 0;
 }
 
-static void sdma_v4_0_get_clockgating_state(void *handle, u32 *flags)
+static void sdma_v4_0_get_clockgating_state(void *handle, u64 *flags)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int data;
@@ -2423,6 +2408,7 @@ static const struct amdgpu_ring_funcs sdma_v4_0_ring_funcs = {
 	.align_mask = 0xf,
 	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
 	.support_64bit_ptrs = true,
+	.secure_submission_supported = true,
 	.vmhub = AMDGPU_MMHUB_0,
 	.get_rptr = sdma_v4_0_ring_get_rptr,
 	.get_wptr = sdma_v4_0_ring_get_wptr,
@@ -2459,6 +2445,7 @@ static const struct amdgpu_ring_funcs sdma_v4_0_ring_funcs_2nd_mmhub = {
 	.align_mask = 0xf,
 	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
 	.support_64bit_ptrs = true,
+	.secure_submission_supported = true,
 	.vmhub = AMDGPU_MMHUB_1,
 	.get_rptr = sdma_v4_0_ring_get_rptr,
 	.get_wptr = sdma_v4_0_ring_get_wptr,
@@ -2491,6 +2478,7 @@ static const struct amdgpu_ring_funcs sdma_v4_0_page_ring_funcs = {
 	.align_mask = 0xf,
 	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
 	.support_64bit_ptrs = true,
+	.secure_submission_supported = true,
 	.vmhub = AMDGPU_MMHUB_0,
 	.get_rptr = sdma_v4_0_ring_get_rptr,
 	.get_wptr = sdma_v4_0_page_ring_get_wptr,
@@ -2523,6 +2511,7 @@ static const struct amdgpu_ring_funcs sdma_v4_0_page_ring_funcs_2nd_mmhub = {
 	.align_mask = 0xf,
 	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
 	.support_64bit_ptrs = true,
+	.secure_submission_supported = true,
 	.vmhub = AMDGPU_MMHUB_1,
 	.get_rptr = sdma_v4_0_ring_get_rptr,
 	.get_wptr = sdma_v4_0_page_ring_get_wptr,
@@ -2748,7 +2737,7 @@ static void sdma_v4_0_get_ras_error_count(uint32_t value,
 	}
 }
 
-static int sdma_v4_0_query_ras_error_count(struct amdgpu_device *adev,
+static int sdma_v4_0_query_ras_error_count_by_instance(struct amdgpu_device *adev,
 			uint32_t instance, void *ras_error_status)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
@@ -2770,6 +2759,18 @@ static int sdma_v4_0_query_ras_error_count(struct amdgpu_device *adev,
 	return 0;
 };
 
+static void sdma_v4_0_query_ras_error_count(struct amdgpu_device *adev,  void *ras_error_status)
+{
+	int i = 0;
+
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		if (sdma_v4_0_query_ras_error_count_by_instance(adev, i, ras_error_status)) {
+			dev_err(adev->dev, "Query ras error count failed in SDMA%d\n", i);
+			return;
+		}
+	}
+}
+
 static void sdma_v4_0_reset_ras_error_count(struct amdgpu_device *adev)
 {
 	int i;
@@ -2781,11 +2782,16 @@ static void sdma_v4_0_reset_ras_error_count(struct amdgpu_device *adev)
 	}
 }
 
-static const struct amdgpu_sdma_ras_funcs sdma_v4_0_ras_funcs = {
-	.ras_late_init = amdgpu_sdma_ras_late_init,
-	.ras_fini = amdgpu_sdma_ras_fini,
+const struct amdgpu_ras_block_hw_ops sdma_v4_0_ras_hw_ops = {
 	.query_ras_error_count = sdma_v4_0_query_ras_error_count,
 	.reset_ras_error_count = sdma_v4_0_reset_ras_error_count,
+};
+
+static struct amdgpu_sdma_ras sdma_v4_0_ras = {
+	.ras_block = {
+		.hw_ops = &sdma_v4_0_ras_hw_ops,
+		.ras_cb = sdma_v4_0_process_ras_data_cb,
+	},
 };
 
 static void sdma_v4_0_set_ras_funcs(struct amdgpu_device *adev)
@@ -2793,13 +2799,30 @@ static void sdma_v4_0_set_ras_funcs(struct amdgpu_device *adev)
 	switch (adev->ip_versions[SDMA0_HWIP][0]) {
 	case IP_VERSION(4, 2, 0):
 	case IP_VERSION(4, 2, 2):
-		adev->sdma.funcs = &sdma_v4_0_ras_funcs;
+		adev->sdma.ras = &sdma_v4_0_ras;
 		break;
 	case IP_VERSION(4, 4, 0):
-		adev->sdma.funcs = &sdma_v4_4_ras_funcs;
+		adev->sdma.ras = &sdma_v4_4_ras;
 		break;
 	default:
 		break;
+	}
+
+	if (adev->sdma.ras) {
+		amdgpu_ras_register_ras_block(adev, &adev->sdma.ras->ras_block);
+
+		strcpy(adev->sdma.ras->ras_block.ras_comm.name, "sdma");
+		adev->sdma.ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__SDMA;
+		adev->sdma.ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->sdma.ras_if = &adev->sdma.ras->ras_block.ras_comm;
+
+		/* If don't define special ras_late_init function, use default ras_late_init */
+		if (!adev->sdma.ras->ras_block.ras_late_init)
+			adev->sdma.ras->ras_block.ras_late_init = amdgpu_sdma_ras_late_init;
+
+		/* If not defined special ras_cb function, use default ras_cb */
+		if (!adev->sdma.ras->ras_block.ras_cb)
+			adev->sdma.ras->ras_block.ras_cb = amdgpu_sdma_process_ras_data_cb;
 	}
 }
 

@@ -198,7 +198,7 @@ static int xprt_rdma_bc_send_request(struct rpc_rqst *rqst)
 
 	ret = rpcrdma_bc_send_request(rdma, rqst);
 	if (ret == -ENOTCONN)
-		svc_close_xprt(sxprt);
+		svc_xprt_close(sxprt);
 	return ret;
 }
 

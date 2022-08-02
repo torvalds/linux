@@ -6,6 +6,7 @@
 #include <linux/err.h>
 #include <linux/sock_diag.h>
 #include <net/sock_reuseport.h>
+#include <linux/btf_ids.h>
 
 struct reuseport_array {
 	struct bpf_map map;
@@ -143,7 +144,7 @@ static void reuseport_array_free(struct bpf_map *map)
 
 	/*
 	 * Once reaching here, all sk->sk_user_data is not
-	 * referenceing this "array".  "array" can be freed now.
+	 * referencing this "array". "array" can be freed now.
 	 */
 	bpf_map_area_free(array);
 }
@@ -337,7 +338,7 @@ static int reuseport_array_get_next_key(struct bpf_map *map, void *key,
 	return 0;
 }
 
-static int reuseport_array_map_btf_id;
+BTF_ID_LIST_SINGLE(reuseport_array_map_btf_ids, struct, reuseport_array)
 const struct bpf_map_ops reuseport_array_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = reuseport_array_alloc_check,
@@ -346,6 +347,5 @@ const struct bpf_map_ops reuseport_array_ops = {
 	.map_lookup_elem = reuseport_array_lookup_elem,
 	.map_get_next_key = reuseport_array_get_next_key,
 	.map_delete_elem = reuseport_array_delete_elem,
-	.map_btf_name = "reuseport_array",
-	.map_btf_id = &reuseport_array_map_btf_id,
+	.map_btf_id = &reuseport_array_map_btf_ids[0],
 };

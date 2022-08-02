@@ -100,7 +100,7 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 	struct snd_soc_component *component = codec_dai->component;
 	int ret, jack_type;
 
-	/* NAU88L24 supports 4 butons headset detection
+	/* NAU88L24 supports 4 buttons headset detection
 	 * KEY_PLAYPAUSE
 	 * KEY_VOICECOMMAND
 	 * KEY_VOLUMEUP
@@ -108,8 +108,8 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 	 */
 	jack_type = SND_JACK_HEADSET | SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 		SND_JACK_BTN_2 | SND_JACK_BTN_3;
-	ret = snd_soc_card_jack_new(runtime->card, "Headset", jack_type, jack,
-		cht_bsw_jack_pins, ARRAY_SIZE(cht_bsw_jack_pins));
+	ret = snd_soc_card_jack_new_pins(runtime->card, "Headset", jack_type,
+		jack, cht_bsw_jack_pins, ARRAY_SIZE(cht_bsw_jack_pins));
 	if (ret) {
 		dev_err(runtime->dev,
 			"Headset Jack creation failed %d\n", ret);
@@ -257,7 +257,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	snd_soc_card_set_drvdata(&snd_soc_card_cht, drv);
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	snd_soc_card_cht.dev = &pdev->dev;
 	mach = pdev->dev.platform_data;
 	platform_name = mach->mach_params.platform;

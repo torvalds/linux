@@ -24,6 +24,7 @@ properties:
       - const: allwinner,sun7i-a20-mmc
       - const: allwinner,sun8i-a83t-emmc
       - const: allwinner,sun9i-a80-mmc
+      - const: allwinner,sun20i-d1-mmc
       - const: allwinner,sun50i-a64-emmc
       - const: allwinner,sun50i-a64-mmc
       - const: allwinner,sun50i-a100-emmc
@@ -50,11 +51,17 @@ properties:
           - const: allwinner,sun50i-h6-mmc
           - const: allwinner,sun50i-a64-mmc
       - items:
+          - const: allwinner,sun20i-d1-emmc
+          - const: allwinner,sun50i-a100-emmc
+      - items:
           - const: allwinner,sun50i-h616-emmc
           - const: allwinner,sun50i-a100-emmc
       - items:
           - const: allwinner,sun50i-h616-mmc
           - const: allwinner,sun50i-a100-mmc
+      - items:
+          - const: allwinner,suniv-f1c100s-mmc
+          - const: allwinner,sun7i-a20-mmc
 
   reg:
     maxItems: 1

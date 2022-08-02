@@ -51,10 +51,14 @@
 /*
  * The actual block is 0x800-0x8ff, but some BIOSes think it's 0x880-0x8ff
  * and they tell the kernel that so we have to think of it as two parts.
+ *
+ * Other BIOSes report only the I/O port region spanned by the Microchip
+ * MEC series EC; an attempt to address a larger region may fail.
  */
-#define EC_HOST_CMD_REGION0    0x800
-#define EC_HOST_CMD_REGION1    0x880
-#define EC_HOST_CMD_REGION_SIZE 0x80
+#define EC_HOST_CMD_REGION0       0x800
+#define EC_HOST_CMD_REGION1       0x880
+#define EC_HOST_CMD_REGION_SIZE    0x80
+#define EC_HOST_CMD_MEC_REGION_SIZE 0x8
 
 /* EC command register bit functions */
 #define EC_LPC_CMDR_DATA	BIT(0)  /* Data ready for host to read */
@@ -3386,6 +3390,9 @@ enum ec_mkbp_event {
 	/* Send an incoming CEC message to the AP */
 	EC_MKBP_EVENT_CEC_MESSAGE = 9,
 
+	/* Peripheral device charger event */
+	EC_MKBP_EVENT_PCHG = 12,
+
 	/* Number of MKBP events */
 	EC_MKBP_EVENT_COUNT,
 };
@@ -5527,6 +5534,67 @@ enum pchg_state {
 	[PCHG_STATE_CONNECTED] = "CONNECTED", \
 	}
 
+/*
+ * Update firmware of peripheral chip
+ */
+#define EC_CMD_PCHG_UPDATE 0x0136
+
+/* Port number is encoded in bit[28:31]. */
+#define EC_MKBP_PCHG_PORT_SHIFT		28
+/* Utility macro for converting MKBP event to port number. */
+#define EC_MKBP_PCHG_EVENT_TO_PORT(e)	(((e) >> EC_MKBP_PCHG_PORT_SHIFT) & 0xf)
+/* Utility macro for extracting event bits. */
+#define EC_MKBP_PCHG_EVENT_MASK(e)	((e) \
+					& GENMASK(EC_MKBP_PCHG_PORT_SHIFT-1, 0))
+
+#define EC_MKBP_PCHG_UPDATE_OPENED	BIT(0)
+#define EC_MKBP_PCHG_WRITE_COMPLETE	BIT(1)
+#define EC_MKBP_PCHG_UPDATE_CLOSED	BIT(2)
+#define EC_MKBP_PCHG_UPDATE_ERROR	BIT(3)
+#define EC_MKBP_PCHG_DEVICE_EVENT	BIT(4)
+
+enum ec_pchg_update_cmd {
+	/* Reset chip to normal mode. */
+	EC_PCHG_UPDATE_CMD_RESET_TO_NORMAL = 0,
+	/* Reset and put a chip in update (a.k.a. download) mode. */
+	EC_PCHG_UPDATE_CMD_OPEN,
+	/* Write a block of data containing FW image. */
+	EC_PCHG_UPDATE_CMD_WRITE,
+	/* Close update session. */
+	EC_PCHG_UPDATE_CMD_CLOSE,
+	/* End of commands */
+	EC_PCHG_UPDATE_CMD_COUNT,
+};
+
+struct ec_params_pchg_update {
+	/* PCHG port number */
+	uint8_t port;
+	/* enum ec_pchg_update_cmd */
+	uint8_t cmd;
+	/* Padding */
+	uint8_t reserved0;
+	uint8_t reserved1;
+	/* Version of new firmware */
+	uint32_t version;
+	/* CRC32 of new firmware */
+	uint32_t crc32;
+	/* Address in chip memory where <data> is written to */
+	uint32_t addr;
+	/* Size of <data> */
+	uint32_t size;
+	/* Partial data of new firmware */
+	uint8_t data[];
+} __ec_align4;
+
+BUILD_ASSERT(EC_PCHG_UPDATE_CMD_COUNT
+	     < BIT(sizeof(((struct ec_params_pchg_update *)0)->cmd)*8));
+
+struct ec_response_pchg_update {
+	/* Block size */
+	uint32_t block_size;
+} __ec_align4;
+
+
 /*****************************************************************************/
 /* Voltage regulator controls */
 
@@ -5644,7 +5712,7 @@ struct ec_response_typec_discovery {
 	uint8_t svid_count;	   /* Number of SVIDs partner sent */
 	uint16_t reserved;
 	uint32_t discovery_vdo[6]; /* Max VDOs allowed after VDM header is 6 */
-	struct svid_mode_info svids[0];
+	struct svid_mode_info svids[];
 } __ec_align1;
 
 /* USB Type-C commands for AP-controlled device policy. */

@@ -5,6 +5,8 @@
 #include <linux/pci.h>
 #include <linux/irq.h>
 
+#include <asm/pmac_feature.h>
+
 /*
  * Declaration for the various functions exported by the
  * pmac_* files. Mostly for use by pmac_setup
@@ -13,6 +15,8 @@
 struct rtc_time;
 
 extern int pmac_newworld;
+
+void g5_phy_disable_cpu1(void);
 
 extern long pmac_time_init(void);
 extern time64_t pmac_get_boot_time(void);

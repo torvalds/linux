@@ -4,7 +4,7 @@
  *
  *  zcrypt 2.2.1 (user-visible header)
  *
- *  Copyright IBM Corp. 2001, 2019
+ *  Copyright IBM Corp. 2001, 2022
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
  *
@@ -85,7 +85,7 @@ struct ica_rsa_modexpo_crt {
 struct CPRBX {
 	__u16	     cprb_len;		/* CPRB length	      220	 */
 	__u8	     cprb_ver_id;	/* CPRB version id.   0x02	 */
-	__u8	     pad_000[3];	/* Alignment pad bytes		 */
+	__u8	     _pad_000[3];	/* Alignment pad bytes		 */
 	__u8	     func_id[2];	/* function id	      0x5432	 */
 	__u8	     cprb_flags[4];	/* Flags			 */
 	__u32	     req_parml;		/* request parameter buffer len	 */
@@ -95,19 +95,19 @@ struct CPRBX {
 	__u32	     rpl_datal;		/* reply data block len		 */
 	__u32	     rpld_datal;	/* replied data block len	 */
 	__u32	     req_extbl;		/* request extension block len	 */
-	__u8	     pad_001[4];	/* reserved			 */
+	__u8	     _pad_001[4];	/* reserved			 */
 	__u32	     rpld_extbl;	/* replied extension block len	 */
-	__u8	     padx000[16 - sizeof(__u8 *)];
+	__u8	     _pad_002[16 - sizeof(__u8 *)];
 	__u8 __user *req_parmb;		/* request parm block 'address'	 */
-	__u8	     padx001[16 - sizeof(__u8 *)];
+	__u8	     _pad_003[16 - sizeof(__u8 *)];
 	__u8 __user *req_datab;		/* request data block 'address'	 */
-	__u8	     padx002[16 - sizeof(__u8 *)];
+	__u8	     _pad_004[16 - sizeof(__u8 *)];
 	__u8 __user *rpl_parmb;		/* reply parm block 'address'	 */
-	__u8	     padx003[16 - sizeof(__u8 *)];
+	__u8	     _pad_005[16 - sizeof(__u8 *)];
 	__u8 __user *rpl_datab;		/* reply data block 'address'	 */
-	__u8	     padx004[16 - sizeof(__u8 *)];
+	__u8	     _pad_006[16 - sizeof(__u8 *)];
 	__u8 __user *req_extb;		/* request extension block 'addr'*/
-	__u8	     padx005[16 - sizeof(__u8 *)];
+	__u8	     _pad_007[16 - sizeof(__u8 *)];
 	__u8 __user *rpl_extb;		/* reply extension block 'address'*/
 	__u16	     ccp_rtcode;	/* server return code		 */
 	__u16	     ccp_rscode;	/* server reason code		 */
@@ -115,12 +115,10 @@ struct CPRBX {
 	__u8	     logon_id[8];	/* Logon Identifier		 */
 	__u8	     mac_value[8];	/* Mac Value			 */
 	__u8	     mac_content_flgs;	/* Mac content flag byte	 */
-	__u8	     pad_002;		/* Alignment			 */
+	__u8	     _pad_008;		/* Alignment			 */
 	__u16	     domain;		/* Domain			 */
-	__u8	     usage_domain[4];	/* Usage domain			 */
-	__u8	     cntrl_domain[4];	/* Control domain		 */
-	__u8	     S390enf_mask[4];	/* S/390 enforcement mask	 */
-	__u8	     pad_004[36];	/* reserved			 */
+	__u8	     _pad_009[12];	/* reserved, checked for zeros	 */
+	__u8	     _pad_010[36];	/* reserved			 */
 } __attribute__((packed));
 
 /**
@@ -238,8 +236,8 @@ struct zcrypt_device_matrix_ext {
 };
 
 #define AUTOSELECT  0xFFFFFFFF
-#define AUTOSEL_AP  ((__u16) 0xFFFF)
-#define AUTOSEL_DOM ((__u16) 0xFFFF)
+#define AUTOSEL_AP  ((__u16)0xFFFF)
+#define AUTOSEL_DOM ((__u16)0xFFFF)
 
 #define ZCRYPT_IOCTL_MAGIC 'z'
 
@@ -288,7 +286,7 @@ struct zcrypt_device_matrix_ext {
  *	 0x08: CEX3A
  *	 0x0a: CEX4
  *	 0x0b: CEX5
- *	 0x0c: CEX6 and CEX7
+ *	 0x0c: CEX6, CEX7 or CEX8
  *	 0x0d: device is disabled
  *
  *   ZCRYPT_QDEPTH_MASK
@@ -305,12 +303,12 @@ struct zcrypt_device_matrix_ext {
 /**
  * Supported ioctl calls
  */
-#define ICARSAMODEXPO	_IOC(_IOC_READ|_IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x05, 0)
-#define ICARSACRT	_IOC(_IOC_READ|_IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x06, 0)
-#define ZSECSENDCPRB	_IOC(_IOC_READ|_IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x81, 0)
-#define ZSENDEP11CPRB	_IOC(_IOC_READ|_IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x04, 0)
+#define ICARSAMODEXPO  _IOC(_IOC_READ | _IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x05, 0)
+#define ICARSACRT      _IOC(_IOC_READ | _IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x06, 0)
+#define ZSECSENDCPRB   _IOC(_IOC_READ | _IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x81, 0)
+#define ZSENDEP11CPRB  _IOC(_IOC_READ | _IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x04, 0)
 
-#define ZCRYPT_DEVICE_STATUS _IOC(_IOC_READ|_IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x5f, 0)
+#define ZCRYPT_DEVICE_STATUS _IOC(_IOC_READ | _IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x5f, 0)
 #define ZCRYPT_STATUS_MASK   _IOR(ZCRYPT_IOCTL_MAGIC, 0x58, char[MAX_ZDEV_CARDIDS_EXT])
 #define ZCRYPT_QDEPTH_MASK   _IOR(ZCRYPT_IOCTL_MAGIC, 0x59, char[MAX_ZDEV_CARDIDS_EXT])
 #define ZCRYPT_PERDEV_REQCNT _IOR(ZCRYPT_IOCTL_MAGIC, 0x5a, int[MAX_ZDEV_CARDIDS_EXT])
@@ -352,7 +350,7 @@ struct zcrypt_device_matrix {
 };
 
 /* Deprecated: use ZCRYPT_DEVICE_STATUS */
-#define ZDEVICESTATUS _IOC(_IOC_READ|_IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x4f, 0)
+#define ZDEVICESTATUS _IOC(_IOC_READ | _IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x4f, 0)
 /* Deprecated: use ZCRYPT_STATUS_MASK */
 #define Z90STAT_STATUS_MASK _IOR(ZCRYPT_IOCTL_MAGIC, 0x48, char[64])
 /* Deprecated: use ZCRYPT_QDEPTH_MASK */

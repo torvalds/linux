@@ -325,7 +325,7 @@
 	cdns,rclk-en;
 	status = "okay";
 
-	flash0: m25p80@0 {
+	flash0: flash@0 {
 		compatible = "s25fl256s1", "jedec,spi-nor";
 		reg = <0>;
 		spi-tx-bus-width = <1>;

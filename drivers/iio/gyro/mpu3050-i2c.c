@@ -86,7 +86,9 @@ static int mpu3050_i2c_remove(struct i2c_client *client)
 	if (mpu3050->i2cmux)
 		i2c_mux_del_adapters(mpu3050->i2cmux);
 
-	return mpu3050_common_remove(&client->dev);
+	mpu3050_common_remove(&client->dev);
+
+	return 0;
 }
 
 /*

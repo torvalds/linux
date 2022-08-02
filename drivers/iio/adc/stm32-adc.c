@@ -1365,7 +1365,7 @@ static int stm32_adc_read_raw(struct iio_dev *indio_dev,
 		else
 			ret = -EINVAL;
 
-		if (mask == IIO_CHAN_INFO_PROCESSED && adc->vrefint.vrefint_cal)
+		if (mask == IIO_CHAN_INFO_PROCESSED)
 			*val = STM32_ADC_VREFINT_VOLTAGE * adc->vrefint.vrefint_cal / *val;
 
 		iio_device_release_direct_mode(indio_dev);
@@ -1407,7 +1407,6 @@ static irqreturn_t stm32_adc_threaded_isr(int irq, void *data)
 	struct stm32_adc *adc = iio_priv(indio_dev);
 	const struct stm32_adc_regspec *regs = adc->cfg->regs;
 	u32 status = stm32_adc_readl(adc, regs->isr_eoc.reg);
-	u32 mask = stm32_adc_readl(adc, regs->ier_eoc.reg);
 
 	/* Check ovr status right now, as ovr mask should be already disabled */
 	if (status & regs->isr_ovr.mask) {
@@ -1422,11 +1421,6 @@ static irqreturn_t stm32_adc_threaded_isr(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	if (!(status & mask))
-		dev_err_ratelimited(&indio_dev->dev,
-				    "Unexpected IRQ: IER=0x%08x, ISR=0x%08x\n",
-				    mask, status);
-
 	return IRQ_NONE;
 }
 
@@ -1436,10 +1430,6 @@ static irqreturn_t stm32_adc_isr(int irq, void *data)
 	struct stm32_adc *adc = iio_priv(indio_dev);
 	const struct stm32_adc_regspec *regs = adc->cfg->regs;
 	u32 status = stm32_adc_readl(adc, regs->isr_eoc.reg);
-	u32 mask = stm32_adc_readl(adc, regs->ier_eoc.reg);
-
-	if (!(status & mask))
-		return IRQ_WAKE_THREAD;
 
 	if (status & regs->isr_ovr.mask) {
 		/*
@@ -1979,10 +1969,10 @@ static int stm32_adc_populate_int_ch(struct iio_dev *indio_dev, const char *ch_n
 
 	for (i = 0; i < STM32_ADC_INT_CH_NB; i++) {
 		if (!strncmp(stm32_adc_ic[i].name, ch_name, STM32_ADC_CH_SZ)) {
-			adc->int_ch[i] = chan;
-
-			if (stm32_adc_ic[i].idx != STM32_ADC_INT_CH_VREFINT)
-				continue;
+			if (stm32_adc_ic[i].idx != STM32_ADC_INT_CH_VREFINT) {
+				adc->int_ch[i] = chan;
+				break;
+			}
 
 			/* Get calibration data for vrefint channel */
 			ret = nvmem_cell_read_u16(&indio_dev->dev, "vrefint", &vrefint);
@@ -1990,10 +1980,15 @@ static int stm32_adc_populate_int_ch(struct iio_dev *indio_dev, const char *ch_n
 				return dev_err_probe(indio_dev->dev.parent, ret,
 						     "nvmem access error\n");
 			}
-			if (ret == -ENOENT)
-				dev_dbg(&indio_dev->dev, "vrefint calibration not found\n");
-			else
-				adc->vrefint.vrefint_cal = vrefint;
+			if (ret == -ENOENT) {
+				dev_dbg(&indio_dev->dev, "vrefint calibration not found. Skip vrefint channel\n");
+				return ret;
+			} else if (!vrefint) {
+				dev_dbg(&indio_dev->dev, "Null vrefint calibration value. Skip vrefint channel\n");
+				return -ENOENT;
+			}
+			adc->int_ch[i] = chan;
+			adc->vrefint.vrefint_cal = vrefint;
 		}
 	}
 
@@ -2030,7 +2025,9 @@ static int stm32_adc_generic_chan_init(struct iio_dev *indio_dev,
 			}
 			strncpy(adc->chan_name[val], name, STM32_ADC_CH_SZ);
 			ret = stm32_adc_populate_int_ch(indio_dev, name, val);
-			if (ret)
+			if (ret == -ENOENT)
+				continue;
+			else if (ret)
 				goto err;
 		} else if (ret != -EINVAL) {
 			dev_err(&indio_dev->dev, "Invalid label %d\n", ret);
@@ -2352,7 +2349,6 @@ static int stm32_adc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#if defined(CONFIG_PM_SLEEP)
 static int stm32_adc_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
@@ -2382,9 +2378,7 @@ static int stm32_adc_resume(struct device *dev)
 
 	return stm32_adc_buffer_postenable(indio_dev);
 }
-#endif
 
-#if defined(CONFIG_PM)
 static int stm32_adc_runtime_suspend(struct device *dev)
 {
 	return stm32_adc_hw_stop(dev);
@@ -2394,12 +2388,11 @@ static int stm32_adc_runtime_resume(struct device *dev)
 {
 	return stm32_adc_hw_start(dev);
 }
-#endif
 
 static const struct dev_pm_ops stm32_adc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(stm32_adc_suspend, stm32_adc_resume)
-	SET_RUNTIME_PM_OPS(stm32_adc_runtime_suspend, stm32_adc_runtime_resume,
-			   NULL)
+	SYSTEM_SLEEP_PM_OPS(stm32_adc_suspend, stm32_adc_resume)
+	RUNTIME_PM_OPS(stm32_adc_runtime_suspend, stm32_adc_runtime_resume,
+		       NULL)
 };
 
 static const struct stm32_adc_cfg stm32f4_adc_cfg = {
@@ -2453,7 +2446,7 @@ static struct platform_driver stm32_adc_driver = {
 	.driver = {
 		.name = "stm32-adc",
 		.of_match_table = stm32_adc_of_match,
-		.pm = &stm32_adc_pm_ops,
+		.pm = pm_ptr(&stm32_adc_pm_ops),
 	},
 };
 module_platform_driver(stm32_adc_driver);

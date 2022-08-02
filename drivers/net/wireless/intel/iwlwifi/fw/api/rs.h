@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_fw_api_rs_h__
@@ -133,7 +133,7 @@ enum IWL_TLC_MCS_PER_BW {
 };
 
 /**
- * struct tlc_config_cmd - TLC configuration
+ * struct iwl_tlc_config_cmd_v3 - TLC configuration
  * @sta_id: station id
  * @reserved1: reserved
  * @max_ch_width: max supported channel width from @enum iwl_tlc_mng_cfg_cw
@@ -168,7 +168,7 @@ struct iwl_tlc_config_cmd_v3 {
 } __packed; /* TLC_MNG_CONFIG_CMD_API_S_VER_3 */
 
 /**
- * struct tlc_config_cmd - TLC configuration
+ * struct iwl_tlc_config_cmd_v4 - TLC configuration
  * @sta_id: station id
  * @reserved1: reserved
  * @max_ch_width: max supported channel width from &enum iwl_tlc_mng_cfg_cw

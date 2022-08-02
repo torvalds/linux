@@ -19,6 +19,7 @@
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+#include <linux/spinlock.h>
 
 #include "core.h"
 #include "pinconf.h"
@@ -63,11 +64,13 @@ struct sgpio_properties {
 #define SGPIO_LUTON_BIT_SOURCE   GENMASK(11, 0)
 
 #define SGPIO_OCELOT_AUTO_REPEAT BIT(10)
+#define SGPIO_OCELOT_SINGLE_SHOT BIT(11)
 #define SGPIO_OCELOT_PORT_WIDTH  GENMASK(8, 7)
 #define SGPIO_OCELOT_CLK_FREQ    GENMASK(19, 8)
 #define SGPIO_OCELOT_BIT_SOURCE  GENMASK(23, 12)
 
 #define SGPIO_SPARX5_AUTO_REPEAT BIT(6)
+#define SGPIO_SPARX5_SINGLE_SHOT BIT(7)
 #define SGPIO_SPARX5_PORT_WIDTH  GENMASK(4, 3)
 #define SGPIO_SPARX5_CLK_FREQ    GENMASK(19, 8)
 #define SGPIO_SPARX5_BIT_SOURCE  GENMASK(23, 12)
@@ -116,6 +119,9 @@ struct sgpio_priv {
 	u32 clock;
 	struct regmap *regs;
 	const struct sgpio_properties *properties;
+	spinlock_t lock;
+	/* protects the config register and single shot mode */
+	struct mutex poll_lock;
 };
 
 struct sgpio_port_addr {
@@ -166,12 +172,11 @@ static void sgpio_writel(struct sgpio_priv *priv,
 static inline void sgpio_clrsetbits(struct sgpio_priv *priv,
 				    u32 rno, u32 off, u32 clear, u32 set)
 {
-	u32 val = sgpio_readl(priv, rno, off);
+	u32 addr = sgpio_get_addr(priv, rno, off);
+	int ret;
 
-	val &= ~clear;
-	val |= set;
-
-	sgpio_writel(priv, val, rno, off);
+	ret = regmap_update_bits(priv->regs, addr, clear | set, set);
+	WARN_ONCE(ret, "error updating sgpio reg %d\n", ret);
 }
 
 static inline void sgpio_configure_bitstream(struct sgpio_priv *priv)
@@ -224,12 +229,64 @@ static inline void sgpio_configure_clock(struct sgpio_priv *priv, u32 clkfrq)
 	sgpio_clrsetbits(priv, REG_SIO_CLOCK, 0, clr, set);
 }
 
-static void sgpio_output_set(struct sgpio_priv *priv,
-			     struct sgpio_port_addr *addr,
-			     int value)
+static int sgpio_single_shot(struct sgpio_priv *priv)
+{
+	u32 addr = sgpio_get_addr(priv, REG_SIO_CONFIG, 0);
+	int ret, ret2;
+	u32 ctrl;
+	unsigned int single_shot;
+	unsigned int auto_repeat;
+
+	switch (priv->properties->arch) {
+	case SGPIO_ARCH_LUTON:
+		/* not supported for now */
+		return 0;
+	case SGPIO_ARCH_OCELOT:
+		single_shot = SGPIO_OCELOT_SINGLE_SHOT;
+		auto_repeat = SGPIO_OCELOT_AUTO_REPEAT;
+		break;
+	case SGPIO_ARCH_SPARX5:
+		single_shot = SGPIO_SPARX5_SINGLE_SHOT;
+		auto_repeat = SGPIO_SPARX5_AUTO_REPEAT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/*
+	 * Trigger immediate burst. This only works when auto repeat is turned
+	 * off. Otherwise, the single shot bit will never be cleared by the
+	 * hardware. Measurements showed that an update might take as long as
+	 * the burst gap. On a LAN9668 this is about 50ms for the largest
+	 * setting.
+	 * After the manual burst, reenable the auto repeat mode again.
+	 */
+	mutex_lock(&priv->poll_lock);
+	ret = regmap_update_bits(priv->regs, addr, single_shot | auto_repeat,
+				 single_shot);
+	if (ret)
+		goto out;
+
+	ret = regmap_read_poll_timeout(priv->regs, addr, ctrl,
+				       !(ctrl & single_shot), 100, 60000);
+
+	/* reenable auto repeat mode even if there was an error */
+	ret2 = regmap_update_bits(priv->regs, addr, auto_repeat, auto_repeat);
+out:
+	mutex_unlock(&priv->poll_lock);
+
+	return ret ?: ret2;
+}
+
+static int sgpio_output_set(struct sgpio_priv *priv,
+			    struct sgpio_port_addr *addr,
+			    int value)
 {
 	unsigned int bit = SGPIO_SRC_BITS * addr->bit;
+	u32 reg = sgpio_get_addr(priv, REG_PORT_CONFIG, addr->port);
+	bool changed;
 	u32 clr, set;
+	int ret;
 
 	switch (priv->properties->arch) {
 	case SGPIO_ARCH_LUTON:
@@ -245,9 +302,21 @@ static void sgpio_output_set(struct sgpio_priv *priv,
 		set = FIELD_PREP(SGPIO_SPARX5_BIT_SOURCE, value << bit);
 		break;
 	default:
-		return;
+		return -EINVAL;
 	}
-	sgpio_clrsetbits(priv, REG_PORT_CONFIG, addr->port, clr, set);
+
+	ret = regmap_update_bits_check(priv->regs, reg, clr | set, set,
+				       &changed);
+	if (ret)
+		return ret;
+
+	if (changed) {
+		ret = sgpio_single_shot(priv);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int sgpio_output_get(struct sgpio_priv *priv,
@@ -333,7 +402,7 @@ static int sgpio_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		case PIN_CONFIG_OUTPUT:
 			if (bank->is_input)
 				return -EINVAL;
-			sgpio_output_set(priv, &addr, arg);
+			err = sgpio_output_set(priv, &addr, arg);
 			break;
 
 		default:
@@ -473,9 +542,7 @@ static int microchip_sgpio_direction_output(struct gpio_chip *gc,
 
 	sgpio_pin_to_addr(priv, gpio, &addr);
 
-	sgpio_output_set(priv, &addr, value);
-
-	return 0;
+	return sgpio_output_set(priv, &addr, value);
 }
 
 static int microchip_sgpio_get_direction(struct gpio_chip *gc, unsigned int gpio)
@@ -575,9 +642,12 @@ static void microchip_sgpio_irq_settype(struct irq_data *data,
 	struct sgpio_bank *bank = gpiochip_get_data(chip);
 	unsigned int gpio = irqd_to_hwirq(data);
 	struct sgpio_port_addr addr;
+	unsigned long flags;
 	u32 ena;
 
 	sgpio_pin_to_addr(bank->priv, gpio, &addr);
+
+	spin_lock_irqsave(&bank->priv->lock, flags);
 
 	/* Disable interrupt while changing type */
 	ena = sgpio_readl(bank->priv, REG_INT_ENABLE, addr.bit);
@@ -595,6 +665,8 @@ static void microchip_sgpio_irq_settype(struct irq_data *data,
 
 	/* Possibly re-enable interrupts */
 	sgpio_writel(bank->priv, ena, REG_INT_ENABLE, addr.bit);
+
+	spin_unlock_irqrestore(&bank->priv->lock, flags);
 }
 
 static void microchip_sgpio_irq_setreg(struct irq_data *data,
@@ -616,17 +688,30 @@ static void microchip_sgpio_irq_setreg(struct irq_data *data,
 
 static void microchip_sgpio_irq_mask(struct irq_data *data)
 {
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+
 	microchip_sgpio_irq_setreg(data, REG_INT_ENABLE, true);
+	gpiochip_disable_irq(chip, data->hwirq);
 }
 
 static void microchip_sgpio_irq_unmask(struct irq_data *data)
 {
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+
+	gpiochip_enable_irq(chip, data->hwirq);
 	microchip_sgpio_irq_setreg(data, REG_INT_ENABLE, false);
 }
 
 static void microchip_sgpio_irq_ack(struct irq_data *data)
 {
-	microchip_sgpio_irq_setreg(data, REG_INT_ACK, false);
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct sgpio_bank *bank = gpiochip_get_data(chip);
+	unsigned int gpio = irqd_to_hwirq(data);
+	struct sgpio_port_addr addr;
+
+	sgpio_pin_to_addr(bank->priv, gpio, &addr);
+
+	sgpio_writel(bank->priv, BIT(addr.port), REG_INT_ACK, addr.bit);
 }
 
 static int microchip_sgpio_irq_set_type(struct irq_data *data, unsigned int type)
@@ -667,6 +752,8 @@ static const struct irq_chip microchip_sgpio_irqchip = {
 	.irq_ack	= microchip_sgpio_irq_ack,
 	.irq_unmask	= microchip_sgpio_irq_unmask,
 	.irq_set_type	= microchip_sgpio_irq_set_type,
+	.flags		= IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static void sgpio_irq_handler(struct irq_desc *desc)
@@ -761,7 +848,7 @@ static int microchip_sgpio_register_bank(struct device *dev,
 	gc			= &bank->gpio;
 	gc->label		= pctl_desc->name;
 	gc->parent		= dev;
-	gc->of_node		= to_of_node(fwnode);
+	gc->fwnode		= fwnode;
 	gc->owner		= THIS_MODULE;
 	gc->get_direction	= microchip_sgpio_get_direction;
 	gc->direction_input	= microchip_sgpio_direction_input;
@@ -774,6 +861,7 @@ static int microchip_sgpio_register_bank(struct device *dev,
 	gc->of_gpio_n_cells     = 3;
 	gc->base		= -1;
 	gc->ngpio		= ngpios;
+	gc->can_sleep		= !bank->is_input;
 
 	if (bank->is_input && priv->properties->flags & SGPIO_FLAGS_HAS_IRQ) {
 		int irq = fwnode_irq_get(fwnode, 0);
@@ -781,11 +869,7 @@ static int microchip_sgpio_register_bank(struct device *dev,
 		if (irq) {
 			struct gpio_irq_chip *girq = &gc->irq;
 
-			girq->chip = devm_kmemdup(dev, &microchip_sgpio_irqchip,
-						  sizeof(microchip_sgpio_irqchip),
-						  GFP_KERNEL);
-			if (!girq->chip)
-				return -ENOMEM;
+			gpio_irq_chip_set_chip(girq, &microchip_sgpio_irqchip);
 			girq->parent_handler = sgpio_irq_handler;
 			girq->num_parents = 1;
 			girq->parents = devm_kcalloc(dev, 1,
@@ -833,6 +917,8 @@ static int microchip_sgpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->dev = dev;
+	spin_lock_init(&priv->lock);
+	mutex_init(&priv->poll_lock);
 
 	reset = devm_reset_control_get_optional_shared(&pdev->dev, "switch");
 	if (IS_ERR(reset))

@@ -2596,7 +2596,7 @@ static struct list_head *qh_urb_transaction(struct fotg210_hcd *fotg210,
 		token |= (1 /* "in" */ << 8);
 	/* else it's already initted to "out" pid (0 << 8) */
 
-	maxpacket = usb_maxpacket(urb->dev, urb->pipe, !is_input);
+	maxpacket = usb_maxpacket(urb->dev, urb->pipe);
 
 	/*
 	 * buffer gets wrapped in one or more qtds;
@@ -4014,10 +4014,8 @@ static struct fotg210_iso_sched *iso_sched_alloc(unsigned packets,
 		gfp_t mem_flags)
 {
 	struct fotg210_iso_sched *iso_sched;
-	int size = sizeof(*iso_sched);
 
-	size += packets * sizeof(struct fotg210_iso_packet);
-	iso_sched = kzalloc(size, mem_flags);
+	iso_sched = kzalloc(struct_size(iso_sched, packet, packets), mem_flags);
 	if (likely(iso_sched != NULL))
 		INIT_LIST_HEAD(&iso_sched->td_list);
 

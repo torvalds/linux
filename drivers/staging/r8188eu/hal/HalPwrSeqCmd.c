@@ -1,30 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2007 - 2011 Realtek Corporation. */
 
-/*++
-
-Module Name:
-	HalPwrSeqCmd.c
-
-Abstract:
-	Implement HW Power sequence configuration CMD handling routine for Realtek devices.
-
-Major Change History:
-	When       Who               What
-	---------- ---------------   -------------------------------
-	2011-10-26 Lucas            Modify to be compatible with SD4-CE driver.
-	2011-07-07 Roger            Create.
-
---*/
-
 #include "../include/HalPwrSeqCmd.h"
 
-/*	Description: */
-/*		This routine deals with the Power Configuration CMDs parsing
- *		for RTL8723/RTL8188E Series IC.
- *	Assumption:
- *		We should follow specific format which was released from HW SD.
- */
 u8 HalPwrSeqCmdParsing(struct adapter *padapter, struct wl_pwr_cfg pwrseqcmd[])
 {
 	struct wl_pwr_cfg pwrcfgcmd = {0};
@@ -63,10 +41,8 @@ u8 HalPwrSeqCmdParsing(struct adapter *padapter, struct wl_pwr_cfg pwrseqcmd[])
 				else
 					udelay(10);
 
-				if (poll_count++ > max_poll_count) {
-					DBG_88E("Fail to polling Offset[%#x]\n", offset);
+				if (poll_count++ > max_poll_count)
 					return false;
-				}
 			} while (!poll_bit);
 			break;
 		case PWR_CMD_DELAY:

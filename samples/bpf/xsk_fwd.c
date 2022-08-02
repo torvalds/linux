@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <time.h>
@@ -131,7 +130,6 @@ static struct bpool *
 bpool_init(struct bpool_params *params,
 	   struct xsk_umem_config *umem_cfg)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	u64 n_slabs, n_slabs_reserved, n_buffers, n_buffers_reserved;
 	u64 slabs_size, slabs_reserved_size;
 	u64 buffers_size, buffers_reserved_size;
@@ -140,9 +138,8 @@ bpool_init(struct bpool_params *params,
 	u8 *p;
 	int status;
 
-	/* mmap prep. */
-	if (setrlimit(RLIMIT_MEMLOCK, &r))
-		return NULL;
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	/* bpool internals dimensioning. */
 	n_slabs = (params->n_buffers + params->n_buffers_per_slab - 1) /
@@ -974,8 +971,8 @@ static void remove_xdp_program(void)
 	int i;
 
 	for (i = 0 ; i < n_ports; i++)
-		bpf_set_link_xdp_fd(if_nametoindex(port_params[i].iface), -1,
-				    port_params[i].xsk_cfg.xdp_flags);
+		bpf_xdp_detach(if_nametoindex(port_params[i].iface),
+			       port_params[i].xsk_cfg.xdp_flags, NULL);
 }
 
 int main(int argc, char **argv)

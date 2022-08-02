@@ -150,8 +150,8 @@ struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize)
 
 void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info)
 {
-	struct radix_tree_iter iter;
-	void **slot;
+	unsigned long index;
+	struct extent_buffer *eb;
 	struct btrfs_device *dev, *tmp;
 
 	if (!fs_info)
@@ -163,25 +163,9 @@ void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info)
 
 	test_mnt->mnt_sb->s_fs_info = NULL;
 
-	spin_lock(&fs_info->buffer_lock);
-	radix_tree_for_each_slot(slot, &fs_info->buffer_radix, &iter, 0) {
-		struct extent_buffer *eb;
-
-		eb = radix_tree_deref_slot_protected(slot, &fs_info->buffer_lock);
-		if (!eb)
-			continue;
-		/* Shouldn't happen but that kind of thinking creates CVE's */
-		if (radix_tree_exception(eb)) {
-			if (radix_tree_deref_retry(eb))
-				slot = radix_tree_iter_retry(&iter);
-			continue;
-		}
-		slot = radix_tree_iter_resume(slot, &iter);
-		spin_unlock(&fs_info->buffer_lock);
+	xa_for_each(&fs_info->extent_buffers, index, eb) {
 		free_extent_buffer_stale(eb);
-		spin_lock(&fs_info->buffer_lock);
 	}
-	spin_unlock(&fs_info->buffer_lock);
 
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
 	list_for_each_entry_safe(dev, tmp, &fs_info->fs_devices->devices,
@@ -202,7 +186,7 @@ void btrfs_free_dummy_root(struct btrfs_root *root)
 	if (!root)
 		return;
 	/* Will be freed by btrfs_free_fs_roots */
-	if (WARN_ON(test_bit(BTRFS_ROOT_IN_RADIX, &root->state)))
+	if (WARN_ON(test_bit(BTRFS_ROOT_REGISTERED, &root->state)))
 		return;
 	btrfs_global_root_delete(root);
 	btrfs_put_root(root);

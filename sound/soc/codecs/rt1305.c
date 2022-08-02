@@ -1117,8 +1117,7 @@ static void rt1305_calibrate(struct rt1305_priv *rt1305)
 	regcache_cache_bypass(rt1305->regmap, false);
 }
 
-static int rt1305_i2c_probe(struct i2c_client *i2c,
-		    const struct i2c_device_id *id)
+static int rt1305_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt1305_priv *rt1305;
 	int ret;
@@ -1172,7 +1171,7 @@ static struct i2c_driver rt1305_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(rt1305_acpi_match)
 #endif
 	},
-	.probe = rt1305_i2c_probe,
+	.probe_new = rt1305_i2c_probe,
 	.shutdown = rt1305_i2c_shutdown,
 	.id_table = rt1305_i2c_id,
 };

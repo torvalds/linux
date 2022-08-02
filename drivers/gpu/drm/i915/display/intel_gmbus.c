@@ -31,12 +31,22 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/i2c.h>
 
-#include <drm/drm_hdcp.h>
+#include <drm/display/drm_hdcp_helper.h>
 
 #include "i915_drv.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_gmbus.h"
+
+struct intel_gmbus {
+	struct i2c_adapter adapter;
+#define GMBUS_FORCE_BIT_RETRY (1U << 31)
+	u32 force_bit;
+	u32 reg0;
+	i915_reg_t gpio_reg;
+	struct i2c_algo_bit_data bit_algo;
+	struct drm_i915_private *dev_priv;
+};
 
 struct gmbus_pin {
 	const char *name;
@@ -98,47 +108,55 @@ static const struct gmbus_pin gmbus_pins_dg1[] = {
 	[GMBUS_PIN_4_CNP] = { "dpd", GPIOE },
 };
 
-/* pin is expected to be valid */
-static const struct gmbus_pin *get_gmbus_pin(struct drm_i915_private *dev_priv,
+static const struct gmbus_pin gmbus_pins_dg2[] = {
+	[GMBUS_PIN_1_BXT] = { "dpa", GPIOB },
+	[GMBUS_PIN_2_BXT] = { "dpb", GPIOC },
+	[GMBUS_PIN_3_BXT] = { "dpc", GPIOD },
+	[GMBUS_PIN_4_CNP] = { "dpd", GPIOE },
+	[GMBUS_PIN_9_TC1_ICP] = { "tc1", GPIOJ },
+};
+
+static const struct gmbus_pin *get_gmbus_pin(struct drm_i915_private *i915,
 					     unsigned int pin)
 {
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1)
-		return &gmbus_pins_dg1[pin];
-	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
-		return &gmbus_pins_icp[pin];
-	else if (HAS_PCH_CNP(dev_priv))
-		return &gmbus_pins_cnp[pin];
-	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
-		return &gmbus_pins_bxt[pin];
-	else if (DISPLAY_VER(dev_priv) == 9)
-		return &gmbus_pins_skl[pin];
-	else if (IS_BROADWELL(dev_priv))
-		return &gmbus_pins_bdw[pin];
-	else
-		return &gmbus_pins[pin];
+	const struct gmbus_pin *pins;
+	size_t size;
+
+	if (INTEL_PCH_TYPE(i915) >= PCH_DG2) {
+		pins = gmbus_pins_dg2;
+		size = ARRAY_SIZE(gmbus_pins_dg2);
+	} else if (INTEL_PCH_TYPE(i915) >= PCH_DG1) {
+		pins = gmbus_pins_dg1;
+		size = ARRAY_SIZE(gmbus_pins_dg1);
+	} else if (INTEL_PCH_TYPE(i915) >= PCH_ICP) {
+		pins = gmbus_pins_icp;
+		size = ARRAY_SIZE(gmbus_pins_icp);
+	} else if (HAS_PCH_CNP(i915)) {
+		pins = gmbus_pins_cnp;
+		size = ARRAY_SIZE(gmbus_pins_cnp);
+	} else if (IS_GEMINILAKE(i915) || IS_BROXTON(i915)) {
+		pins = gmbus_pins_bxt;
+		size = ARRAY_SIZE(gmbus_pins_bxt);
+	} else if (DISPLAY_VER(i915) == 9) {
+		pins = gmbus_pins_skl;
+		size = ARRAY_SIZE(gmbus_pins_skl);
+	} else if (IS_BROADWELL(i915)) {
+		pins = gmbus_pins_bdw;
+		size = ARRAY_SIZE(gmbus_pins_bdw);
+	} else {
+		pins = gmbus_pins;
+		size = ARRAY_SIZE(gmbus_pins);
+	}
+
+	if (pin >= size || !pins[pin].name)
+		return NULL;
+
+	return &pins[pin];
 }
 
-bool intel_gmbus_is_valid_pin(struct drm_i915_private *dev_priv,
-			      unsigned int pin)
+bool intel_gmbus_is_valid_pin(struct drm_i915_private *i915, unsigned int pin)
 {
-	unsigned int size;
-
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1)
-		size = ARRAY_SIZE(gmbus_pins_dg1);
-	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
-		size = ARRAY_SIZE(gmbus_pins_icp);
-	else if (HAS_PCH_CNP(dev_priv))
-		size = ARRAY_SIZE(gmbus_pins_cnp);
-	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
-		size = ARRAY_SIZE(gmbus_pins_bxt);
-	else if (DISPLAY_VER(dev_priv) == 9)
-		size = ARRAY_SIZE(gmbus_pins_skl);
-	else if (IS_BROADWELL(dev_priv))
-		size = ARRAY_SIZE(gmbus_pins_bdw);
-	else
-		size = ARRAY_SIZE(gmbus_pins);
-
-	return pin < size && get_gmbus_pin(dev_priv, pin)->name;
+	return get_gmbus_pin(i915, pin);
 }
 
 /* Intel GPIO access functions */
@@ -282,9 +300,7 @@ static void set_data(void *data, int state_high)
 static int
 intel_gpio_pre_xfer(struct i2c_adapter *adapter)
 {
-	struct intel_gmbus *bus = container_of(adapter,
-					       struct intel_gmbus,
-					       adapter);
+	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 
 	intel_gmbus_reset(dev_priv);
@@ -301,9 +317,7 @@ intel_gpio_pre_xfer(struct i2c_adapter *adapter)
 static void
 intel_gpio_post_xfer(struct i2c_adapter *adapter)
 {
-	struct intel_gmbus *bus = container_of(adapter,
-					       struct intel_gmbus,
-					       adapter);
+	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 
 	set_data(bus, 1);
@@ -314,14 +328,13 @@ intel_gpio_post_xfer(struct i2c_adapter *adapter)
 }
 
 static void
-intel_gpio_setup(struct intel_gmbus *bus, unsigned int pin)
+intel_gpio_setup(struct intel_gmbus *bus, i915_reg_t gpio_reg)
 {
-	struct drm_i915_private *dev_priv = bus->dev_priv;
 	struct i2c_algo_bit_data *algo;
 
 	algo = &bus->bit_algo;
 
-	bus->gpio_reg = GPIO(get_gmbus_pin(dev_priv, pin)->gpio);
+	bus->gpio_reg = gpio_reg;
 	bus->adapter.algo_data = algo;
 	algo->setsda = set_data;
 	algo->setscl = set_clock;
@@ -602,9 +615,7 @@ static int
 do_gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num,
 	      u32 gmbus0_source)
 {
-	struct intel_gmbus *bus = container_of(adapter,
-					       struct intel_gmbus,
-					       adapter);
+	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 	int i = 0, inc, try = 0;
 	int ret = 0;
@@ -734,8 +745,7 @@ out:
 static int
 gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 {
-	struct intel_gmbus *bus =
-		container_of(adapter, struct intel_gmbus, adapter);
+	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 	intel_wakeref_t wakeref;
 	int ret;
@@ -759,8 +769,7 @@ gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 
 int intel_gmbus_output_aksv(struct i2c_adapter *adapter)
 {
-	struct intel_gmbus *bus =
-		container_of(adapter, struct intel_gmbus, adapter);
+	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 	u8 cmd = DRM_HDCP_DDC_AKSV;
 	u8 buf[DRM_HDCP_KSV_LEN] = { 0 };
@@ -851,7 +860,6 @@ static const struct i2c_lock_operations gmbus_lock_ops = {
 int intel_gmbus_setup(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
-	struct intel_gmbus *bus;
 	unsigned int pin;
 	int ret;
 
@@ -868,17 +876,24 @@ int intel_gmbus_setup(struct drm_i915_private *dev_priv)
 	init_waitqueue_head(&dev_priv->gmbus_wait_queue);
 
 	for (pin = 0; pin < ARRAY_SIZE(dev_priv->gmbus); pin++) {
-		if (!intel_gmbus_is_valid_pin(dev_priv, pin))
+		const struct gmbus_pin *gmbus_pin;
+		struct intel_gmbus *bus;
+
+		gmbus_pin = get_gmbus_pin(dev_priv, pin);
+		if (!gmbus_pin)
 			continue;
 
-		bus = &dev_priv->gmbus[pin];
+		bus = kzalloc(sizeof(*bus), GFP_KERNEL);
+		if (!bus) {
+			ret = -ENOMEM;
+			goto err;
+		}
 
 		bus->adapter.owner = THIS_MODULE;
 		bus->adapter.class = I2C_CLASS_DDC;
 		snprintf(bus->adapter.name,
 			 sizeof(bus->adapter.name),
-			 "i915 gmbus %s",
-			 get_gmbus_pin(dev_priv, pin)->name);
+			 "i915 gmbus %s", gmbus_pin->name);
 
 		bus->adapter.dev.parent = &pdev->dev;
 		bus->dev_priv = dev_priv;
@@ -899,11 +914,15 @@ int intel_gmbus_setup(struct drm_i915_private *dev_priv)
 		if (IS_I830(dev_priv))
 			bus->force_bit = 1;
 
-		intel_gpio_setup(bus, pin);
+		intel_gpio_setup(bus, GPIO(gmbus_pin->gpio));
 
 		ret = i2c_add_adapter(&bus->adapter);
-		if (ret)
+		if (ret) {
+			kfree(bus);
 			goto err;
+		}
+
+		dev_priv->gmbus[pin] = bus;
 	}
 
 	intel_gmbus_reset(dev_priv);
@@ -911,31 +930,19 @@ int intel_gmbus_setup(struct drm_i915_private *dev_priv)
 	return 0;
 
 err:
-	while (pin--) {
-		if (!intel_gmbus_is_valid_pin(dev_priv, pin))
-			continue;
+	intel_gmbus_teardown(dev_priv);
 
-		bus = &dev_priv->gmbus[pin];
-		i2c_del_adapter(&bus->adapter);
-	}
 	return ret;
 }
 
 struct i2c_adapter *intel_gmbus_get_adapter(struct drm_i915_private *dev_priv,
 					    unsigned int pin)
 {
-	if (drm_WARN_ON(&dev_priv->drm,
-			!intel_gmbus_is_valid_pin(dev_priv, pin)))
+	if (drm_WARN_ON(&dev_priv->drm, pin >= ARRAY_SIZE(dev_priv->gmbus) ||
+			!dev_priv->gmbus[pin]))
 		return NULL;
 
-	return &dev_priv->gmbus[pin].adapter;
-}
-
-void intel_gmbus_set_speed(struct i2c_adapter *adapter, int speed)
-{
-	struct intel_gmbus *bus = to_intel_gmbus(adapter);
-
-	bus->reg0 = (bus->reg0 & ~(0x3 << 8)) | speed;
+	return &dev_priv->gmbus[pin]->adapter;
 }
 
 void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)
@@ -963,14 +970,18 @@ bool intel_gmbus_is_forced_bit(struct i2c_adapter *adapter)
 
 void intel_gmbus_teardown(struct drm_i915_private *dev_priv)
 {
-	struct intel_gmbus *bus;
 	unsigned int pin;
 
 	for (pin = 0; pin < ARRAY_SIZE(dev_priv->gmbus); pin++) {
-		if (!intel_gmbus_is_valid_pin(dev_priv, pin))
+		struct intel_gmbus *bus;
+
+		bus = dev_priv->gmbus[pin];
+		if (!bus)
 			continue;
 
-		bus = &dev_priv->gmbus[pin];
 		i2c_del_adapter(&bus->adapter);
+
+		kfree(bus);
+		dev_priv->gmbus[pin] = NULL;
 	}
 }

@@ -974,18 +974,18 @@ static int gmap_protect_pmd(struct gmap *gmap, unsigned long gaddr,
 		return -EAGAIN;
 
 	if (prot == PROT_NONE && !pmd_i) {
-		pmd_val(new) |= _SEGMENT_ENTRY_INVALID;
+		new = set_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_INVALID));
 		gmap_pmdp_xchg(gmap, pmdp, new, gaddr);
 	}
 
 	if (prot == PROT_READ && !pmd_p) {
-		pmd_val(new) &= ~_SEGMENT_ENTRY_INVALID;
-		pmd_val(new) |= _SEGMENT_ENTRY_PROTECT;
+		new = clear_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_INVALID));
+		new = set_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_PROTECT));
 		gmap_pmdp_xchg(gmap, pmdp, new, gaddr);
 	}
 
 	if (bits & GMAP_NOTIFY_MPROT)
-		pmd_val(*pmdp) |= _SEGMENT_ENTRY_GMAP_IN;
+		set_pmd(pmdp, set_pmd_bit(*pmdp, __pgprot(_SEGMENT_ENTRY_GMAP_IN)));
 
 	/* Shadow GMAP protection needs split PMDs */
 	if (bits & GMAP_NOTIFY_SHADOW)
@@ -1151,7 +1151,7 @@ int gmap_read_table(struct gmap *gmap, unsigned long gaddr, unsigned long *val)
 				address = pte_val(pte) & PAGE_MASK;
 				address += gaddr & ~PAGE_MASK;
 				*val = *(unsigned long *) address;
-				pte_val(*ptep) |= _PAGE_YOUNG;
+				set_pte(ptep, set_pte_bit(*ptep, __pgprot(_PAGE_YOUNG)));
 				/* Do *NOT* clear the _PAGE_INVALID bit! */
 				rc = 0;
 			}
@@ -1183,6 +1183,7 @@ EXPORT_SYMBOL_GPL(gmap_read_table);
 static inline void gmap_insert_rmap(struct gmap *sg, unsigned long vmaddr,
 				    struct gmap_rmap *rmap)
 {
+	struct gmap_rmap *temp;
 	void __rcu **slot;
 
 	BUG_ON(!gmap_is_shadow(sg));
@@ -1190,6 +1191,12 @@ static inline void gmap_insert_rmap(struct gmap *sg, unsigned long vmaddr,
 	if (slot) {
 		rmap->next = radix_tree_deref_slot_protected(slot,
 							&sg->guest_table_lock);
+		for (temp = rmap->next; temp; temp = temp->next) {
+			if (temp->raddr == rmap->raddr) {
+				kfree(rmap);
+				return;
+			}
+		}
 		radix_tree_replace_slot(&sg->host_to_rmap, slot, rmap);
 	} else {
 		rmap->next = NULL;
@@ -1278,7 +1285,7 @@ static int gmap_protect_rmap(struct gmap *sg, unsigned long raddr,
 static inline void gmap_idte_one(unsigned long asce, unsigned long vaddr)
 {
 	asm volatile(
-		"	.insn	rrf,0xb98e0000,%0,%1,0,0"
+		"	idte	%0,0,%1"
 		: : "a" (asce), "a" (vaddr) : "cc", "memory");
 }
 
@@ -2275,7 +2282,7 @@ EXPORT_SYMBOL_GPL(ptep_notify);
 static void pmdp_notify_gmap(struct gmap *gmap, pmd_t *pmdp,
 			     unsigned long gaddr)
 {
-	pmd_val(*pmdp) &= ~_SEGMENT_ENTRY_GMAP_IN;
+	set_pmd(pmdp, clear_pmd_bit(*pmdp, __pgprot(_SEGMENT_ENTRY_GMAP_IN)));
 	gmap_call_notifier(gmap, gaddr, gaddr + HPAGE_SIZE - 1);
 }
 
@@ -2294,7 +2301,7 @@ static void gmap_pmdp_xchg(struct gmap *gmap, pmd_t *pmdp, pmd_t new,
 {
 	gaddr &= HPAGE_MASK;
 	pmdp_notify_gmap(gmap, pmdp, gaddr);
-	pmd_val(new) &= ~_SEGMENT_ENTRY_GMAP_IN;
+	new = clear_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_GMAP_IN));
 	if (MACHINE_HAS_TLB_GUEST)
 		__pmdp_idte(gaddr, (pmd_t *)pmdp, IDTE_GUEST_ASCE, gmap->asce,
 			    IDTE_GLOBAL);
@@ -2302,7 +2309,7 @@ static void gmap_pmdp_xchg(struct gmap *gmap, pmd_t *pmdp, pmd_t new,
 		__pmdp_idte(gaddr, (pmd_t *)pmdp, 0, 0, IDTE_GLOBAL);
 	else
 		__pmdp_csp(pmdp);
-	*pmdp = new;
+	set_pmd(pmdp, new);
 }
 
 static void gmap_pmdp_clear(struct mm_struct *mm, unsigned long vmaddr,
@@ -2324,7 +2331,7 @@ static void gmap_pmdp_clear(struct mm_struct *mm, unsigned long vmaddr,
 						   _SEGMENT_ENTRY_GMAP_UC));
 			if (purge)
 				__pmdp_csp(pmdp);
-			pmd_val(*pmdp) = _SEGMENT_ENTRY_EMPTY;
+			set_pmd(pmdp, __pmd(_SEGMENT_ENTRY_EMPTY));
 		}
 		spin_unlock(&gmap->guest_table_lock);
 	}
@@ -2447,7 +2454,7 @@ static bool gmap_test_and_clear_dirty_pmd(struct gmap *gmap, pmd_t *pmdp,
 		return false;
 
 	/* Clear UC indication and reset protection */
-	pmd_val(*pmdp) &= ~_SEGMENT_ENTRY_GMAP_UC;
+	set_pmd(pmdp, clear_pmd_bit(*pmdp, __pgprot(_SEGMENT_ENTRY_GMAP_UC)));
 	gmap_protect_pmd(gmap, gaddr, pmdp, PROT_READ, 0);
 	return true;
 }
@@ -2601,6 +2608,18 @@ static int __s390_enable_skey_pte(pte_t *pte, unsigned long addr,
 	return 0;
 }
 
+/*
+ * Give a chance to schedule after setting a key to 256 pages.
+ * We only hold the mm lock, which is a rwsem and the kvm srcu.
+ * Both can sleep.
+ */
+static int __s390_enable_skey_pmd(pmd_t *pmd, unsigned long addr,
+				  unsigned long next, struct mm_walk *walk)
+{
+	cond_resched();
+	return 0;
+}
+
 static int __s390_enable_skey_hugetlb(pte_t *pte, unsigned long addr,
 				      unsigned long hmask, unsigned long next,
 				      struct mm_walk *walk)
@@ -2623,12 +2642,14 @@ static int __s390_enable_skey_hugetlb(pte_t *pte, unsigned long addr,
 	end = start + HPAGE_SIZE - 1;
 	__storage_key_init_range(start, end);
 	set_bit(PG_arch_1, &page->flags);
+	cond_resched();
 	return 0;
 }
 
 static const struct mm_walk_ops enable_skey_walk_ops = {
 	.hugetlb_entry		= __s390_enable_skey_hugetlb,
 	.pte_entry		= __s390_enable_skey_pte,
+	.pmd_entry		= __s390_enable_skey_pmd,
 };
 
 int s390_enable_skey(void)

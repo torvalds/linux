@@ -107,7 +107,7 @@ void dcn10_lock_all_pipes(struct dc *dc,
 		 * (un)locking. Also skip if pipe is disabled.
 		 */
 		if (pipe_ctx->top_pipe ||
-		    !pipe_ctx->stream || !pipe_ctx->plane_state ||
+		    !pipe_ctx->stream ||
 		    !tg->funcs->is_tg_enabled(tg))
 			continue;
 
@@ -1112,9 +1112,13 @@ static bool dcn10_hw_wa_force_recovery(struct dc *dc)
 
 void dcn10_verify_allow_pstate_change_high(struct dc *dc)
 {
+	struct hubbub *hubbub = dc->res_pool->hubbub;
 	static bool should_log_hw_state; /* prevent hw state log by default */
 
-	if (!hubbub1_verify_allow_pstate_change_high(dc->res_pool->hubbub)) {
+	if (!hubbub->funcs->verify_allow_pstate_change_high)
+		return;
+
+	if (!hubbub->funcs->verify_allow_pstate_change_high(hubbub)) {
 		int i = 0;
 
 		if (should_log_hw_state)
@@ -1123,8 +1127,8 @@ void dcn10_verify_allow_pstate_change_high(struct dc *dc)
 		TRACE_DC_PIPE_STATE(pipe_ctx, i, MAX_PIPES);
 		BREAK_TO_DEBUGGER();
 		if (dcn10_hw_wa_force_recovery(dc)) {
-		/*check again*/
-			if (!hubbub1_verify_allow_pstate_change_high(dc->res_pool->hubbub))
+			/*check again*/
+			if (!hubbub->funcs->verify_allow_pstate_change_high(hubbub))
 				BREAK_TO_DEBUGGER();
 		}
 	}
@@ -1255,6 +1259,7 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 {
 	int i;
 	struct dce_hwseq *hws = dc->hwseq;
+	struct hubbub *hubbub = dc->res_pool->hubbub;
 	bool can_apply_seamless_boot = false;
 
 	for (i = 0; i < context->stream_count; i++) {
@@ -1287,6 +1292,21 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 				tg->funcs->set_blank(tg, true);
 				hwss_wait_for_blank_complete(tg);
 			}
+		}
+	}
+
+	/* Reset det size */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+		struct hubp *hubp = dc->res_pool->hubps[i];
+
+		/* Do not need to reset for seamless boot */
+		if (pipe_ctx->stream != NULL && can_apply_seamless_boot)
+			continue;
+
+		if (hubbub && hubp) {
+			if (hubbub->funcs->program_det_size)
+				hubbub->funcs->program_det_size(hubbub, hubp->inst, 0);
 		}
 	}
 
@@ -1354,6 +1374,11 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 
 		pipe_ctx->stream_res.tg = NULL;
 		pipe_ctx->plane_res.hubp = NULL;
+
+		if (tg->funcs->is_tg_enabled(tg)) {
+			if (tg->funcs->init_odm)
+				tg->funcs->init_odm(tg);
+		}
 
 		tg->funcs->tg_init(tg);
 	}
@@ -1489,24 +1514,19 @@ void dcn10_init_hw(struct dc *dc)
 
 		/* Check for enabled DIG to identify enabled display */
 		if (link->link_enc->funcs->is_dig_enabled &&
-			link->link_enc->funcs->is_dig_enabled(link->link_enc))
+			link->link_enc->funcs->is_dig_enabled(link->link_enc)) {
 			link->link_status.link_active = true;
+			if (link->link_enc->funcs->fec_is_active &&
+					link->link_enc->funcs->fec_is_active(link->link_enc))
+				link->fec_state = dc_link_fec_enabled;
+		}
 	}
-
-	/* Power gate DSCs */
-	if (!is_optimized_init_done) {
-		for (i = 0; i < res_pool->res_cap->num_dsc; i++)
-			if (hws->funcs.dsc_pg_control != NULL)
-				hws->funcs.dsc_pg_control(hws, res_pool->dscs[i]->inst, false);
-	}
-
-	/* Enable outbox notification feature of dmub */
-	if (dc->debug.enable_dmub_aux_for_legacy_ddc)
-		dmub_enable_outbox_notification(dc);
 
 	/* we want to turn off all dp displays before doing detection */
-	if (dc->config.power_down_display_on_boot)
-		dc_link_blank_all_dp_displays(dc);
+	dc_link_blank_all_dp_displays(dc);
+
+	if (hws->funcs.enable_power_gating_plane)
+		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 
 	/* If taking control over from VBIOS, we may want to optimize our first
 	 * mode set, so we need to skip powering down pipes until we know which
@@ -1514,7 +1534,7 @@ void dcn10_init_hw(struct dc *dc)
 	 * Otherwise, if taking control is not possible, we need to power
 	 * everything down.
 	 */
-	if (dcb->funcs->is_accelerated_mode(dcb) || dc->config.power_down_display_on_boot) {
+	if (dcb->funcs->is_accelerated_mode(dcb) || !dc->config.seamless_boot_edp_requested) {
 		if (!is_optimized_init_done) {
 			hws->funcs.init_pipes(dc, dc->current_state);
 			if (dc->res_pool->hubbub->funcs->allow_self_refresh_control)
@@ -1560,8 +1580,6 @@ void dcn10_init_hw(struct dc *dc)
 
 		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
 	}
-	if (hws->funcs.enable_power_gating_plane)
-		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 
 	if (dc->clk_mgr->funcs->notify_wm_ranges)
 		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
@@ -2057,7 +2075,7 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	int i, master = -1, embedded = -1;
-	struct dc_crtc_timing hw_crtc_timing[MAX_PIPES] = {0};
+	struct dc_crtc_timing *hw_crtc_timing;
 	uint64_t phase[MAX_PIPES];
 	uint64_t modulo[MAX_PIPES];
 	unsigned int pclk;
@@ -2065,14 +2083,15 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 	uint32_t embedded_pix_clk_100hz;
 	uint16_t embedded_h_total;
 	uint16_t embedded_v_total;
-	bool clamshell_closed = false;
 	uint32_t dp_ref_clk_100hz =
 		dc->res_pool->dp_clock_source->ctx->dc->clk_mgr->dprefclk_khz*10;
 
+	hw_crtc_timing = kcalloc(MAX_PIPES, sizeof(*hw_crtc_timing), GFP_KERNEL);
+	if (!hw_crtc_timing)
+		return master;
+
 	if (dc->config.vblank_alignment_dto_params &&
 		dc->res_pool->dp_clock_source->funcs->override_dp_pix_clk) {
-		clamshell_closed =
-			(dc->config.vblank_alignment_dto_params >> 63);
 		embedded_h_total =
 			(dc->config.vblank_alignment_dto_params >> 32) & 0x7FFF;
 		embedded_v_total =
@@ -2134,6 +2153,8 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 		}
 
 	}
+
+	kfree(hw_crtc_timing);
 	return master;
 }
 
@@ -2526,26 +2547,31 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	struct mpc *mpc = dc->res_pool->mpc;
 	struct mpc_tree *mpc_tree_params = &(pipe_ctx->stream_res.opp->mpc_tree_params);
 
-	if (per_pixel_alpha)
-		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA;
-	else
-		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_GLOBAL_ALPHA;
-
 	blnd_cfg.overlap_only = false;
 	blnd_cfg.global_gain = 0xff;
+
+	if (per_pixel_alpha) {
+		/* DCN1.0 has output CM before MPC which seems to screw with
+		 * pre-multiplied alpha.
+		 */
+		blnd_cfg.pre_multiplied_alpha = (is_rgb_cspace(
+				pipe_ctx->stream->output_color_space)
+						&& pipe_ctx->plane_state->pre_multiplied_alpha);
+		if (pipe_ctx->plane_state->global_alpha) {
+			blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA_COMBINED_GLOBAL_GAIN;
+			blnd_cfg.global_gain = pipe_ctx->plane_state->global_alpha_value;
+		} else {
+			blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA;
+		}
+	} else {
+		blnd_cfg.pre_multiplied_alpha = false;
+		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_GLOBAL_ALPHA;
+	}
 
 	if (pipe_ctx->plane_state->global_alpha)
 		blnd_cfg.global_alpha = pipe_ctx->plane_state->global_alpha_value;
 	else
 		blnd_cfg.global_alpha = 0xff;
-
-	/* DCN1.0 has output CM before MPC which seems to screw with
-	 * pre-multiplied alpha.
-	 */
-	blnd_cfg.pre_multiplied_alpha = is_rgb_cspace(
-			pipe_ctx->stream->output_color_space)
-					&& per_pixel_alpha;
-
 
 	/*
 	 * TODO: remove hack
@@ -2983,8 +3009,11 @@ void dcn10_prepare_bandwidth(
 			true);
 	dcn10_stereo_hw_frame_pack_wa(dc, context);
 
-	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE)
+	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE) {
+		DC_FP_START();
 		dcn_bw_notify_pplib_of_wm_ranges(dc);
+		DC_FP_END();
+	}
 
 	if (dc->debug.sanity_checks)
 		hws->funcs.verify_allow_pstate_change_high(dc);
@@ -3017,8 +3046,11 @@ void dcn10_optimize_bandwidth(
 
 	dcn10_stereo_hw_frame_pack_wa(dc, context);
 
-	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE)
+	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE) {
+		DC_FP_START();
 		dcn_bw_notify_pplib_of_wm_ranges(dc);
+		DC_FP_END();
+	}
 
 	if (dc->debug.sanity_checks)
 		hws->funcs.verify_allow_pstate_change_high(dc);
@@ -3043,12 +3075,16 @@ void dcn10_set_drr(struct pipe_ctx **pipe_ctx,
 	 * as well.
 	 */
 	for (i = 0; i < num_pipes; i++) {
-		pipe_ctx[i]->stream_res.tg->funcs->set_drr(
-			pipe_ctx[i]->stream_res.tg, &params);
-		if (adjust.v_total_max != 0 && adjust.v_total_min != 0)
-			pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control(
-					pipe_ctx[i]->stream_res.tg,
-					event_triggers, num_frames);
+		if ((pipe_ctx[i]->stream_res.tg != NULL) && pipe_ctx[i]->stream_res.tg->funcs) {
+			if (pipe_ctx[i]->stream_res.tg->funcs->set_drr)
+				pipe_ctx[i]->stream_res.tg->funcs->set_drr(
+					pipe_ctx[i]->stream_res.tg, &params);
+			if (adjust.v_total_max != 0 && adjust.v_total_min != 0)
+				if (pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control)
+					pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control(
+						pipe_ctx[i]->stream_res.tg,
+						event_triggers, num_frames);
+		}
 	}
 }
 
@@ -3101,7 +3137,8 @@ static void dcn10_config_stereo_parameters(
 
 		flags->PROGRAM_STEREO         = 1;
 		flags->PROGRAM_POLARITY       = 1;
-		if (timing_3d_format == TIMING_3D_FORMAT_INBAND_FA ||
+		if (timing_3d_format == TIMING_3D_FORMAT_FRAME_ALTERNATE ||
+			timing_3d_format == TIMING_3D_FORMAT_INBAND_FA ||
 			timing_3d_format == TIMING_3D_FORMAT_DP_HDMI_INBAND_FA ||
 			timing_3d_format == TIMING_3D_FORMAT_SIDEBAND_FA) {
 			enum display_dongle_type dongle = \
@@ -3178,7 +3215,8 @@ void dcn10_wait_for_mpcc_disconnect(
 		if (pipe_ctx->stream_res.opp->mpcc_disconnect_pending[mpcc_inst]) {
 			struct hubp *hubp = get_hubp_by_inst(res_pool, mpcc_inst);
 
-			res_pool->mpc->funcs->wait_for_idle(res_pool->mpc, mpcc_inst);
+			if (pipe_ctx->stream_res.tg->funcs->is_tg_enabled(pipe_ctx->stream_res.tg))
+				res_pool->mpc->funcs->wait_for_idle(res_pool->mpc, mpcc_inst);
 			pipe_ctx->stream_res.opp->mpcc_disconnect_pending[mpcc_inst] = false;
 			hubp->funcs->set_blank(hubp, true);
 		}

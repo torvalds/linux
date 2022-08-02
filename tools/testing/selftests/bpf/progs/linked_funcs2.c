@@ -4,6 +4,7 @@
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+#include <bpf/bpf_core_read.h>
 
 /* weak and shared between both files */
 const volatile int my_tid __weak;
@@ -44,6 +45,13 @@ void set_output_ctx2(__u64 *ctx)
 /* this weak instance should lose, because it will be processed second */
 __weak int set_output_weak(int x)
 {
+	static volatile int whatever;
+
+	/* make sure we use CO-RE relocations in a weak function, this used to
+	 * cause problems for BPF static linker
+	 */
+	whatever = 2 * bpf_core_type_size(struct task_struct);
+
 	output_weak2 = x;
 	return 2 * x;
 }
@@ -53,11 +61,16 @@ extern int set_output_val1(int x);
 /* here we'll force set_output_ctx1() to be __hidden in the final obj file */
 __hidden extern void set_output_ctx1(__u64 *ctx);
 
-SEC("raw_tp/sys_enter")
+SEC("?raw_tp/sys_enter")
 int BPF_PROG(handler2, struct pt_regs *regs, long id)
 {
+	static volatile int whatever;
+
 	if (my_tid != (u32)bpf_get_current_pid_tgid() || id != syscall_id)
 		return 0;
+
+	/* make sure we have CO-RE relocations in main program */
+	whatever = bpf_core_type_size(struct task_struct);
 
 	set_output_val1(2000);
 	set_output_ctx1(ctx); /* ctx definition is hidden in BPF_PROG macro */

@@ -34,12 +34,16 @@ void *kasan_find_first_bad_addr(void *addr, size_t size)
 {
 	void *p = addr;
 
+	if (!addr_has_metadata(p))
+		return p;
+
 	while (p < addr + size && !(*(u8 *)kasan_mem_to_shadow(p)))
 		p += KASAN_GRANULE_SIZE;
+
 	return p;
 }
 
-static const char *get_shadow_bug_type(struct kasan_access_info *info)
+static const char *get_shadow_bug_type(struct kasan_report_info *info)
 {
 	const char *bug_type = "unknown-crash";
 	u8 *shadow_addr;
@@ -62,7 +66,7 @@ static const char *get_shadow_bug_type(struct kasan_access_info *info)
 		bug_type = "out-of-bounds";
 		break;
 	case KASAN_PAGE_REDZONE:
-	case KASAN_KMALLOC_REDZONE:
+	case KASAN_SLAB_REDZONE:
 		bug_type = "slab-out-of-bounds";
 		break;
 	case KASAN_GLOBAL_REDZONE:
@@ -74,9 +78,9 @@ static const char *get_shadow_bug_type(struct kasan_access_info *info)
 	case KASAN_STACK_PARTIAL:
 		bug_type = "stack-out-of-bounds";
 		break;
-	case KASAN_FREE_PAGE:
-	case KASAN_KMALLOC_FREE:
-	case KASAN_KMALLOC_FREETRACK:
+	case KASAN_PAGE_FREE:
+	case KASAN_SLAB_FREE:
+	case KASAN_SLAB_FREETRACK:
 		bug_type = "use-after-free";
 		break;
 	case KASAN_ALLOCA_LEFT:
@@ -91,7 +95,7 @@ static const char *get_shadow_bug_type(struct kasan_access_info *info)
 	return bug_type;
 }
 
-static const char *get_wild_bug_type(struct kasan_access_info *info)
+static const char *get_wild_bug_type(struct kasan_report_info *info)
 {
 	const char *bug_type = "unknown-crash";
 
@@ -105,7 +109,7 @@ static const char *get_wild_bug_type(struct kasan_access_info *info)
 	return bug_type;
 }
 
-const char *kasan_get_bug_type(struct kasan_access_info *info)
+const char *kasan_get_bug_type(struct kasan_report_info *info)
 {
 	/*
 	 * If access_size is a negative number, then it has reason to be
@@ -180,7 +184,7 @@ static void print_decoded_frame_descr(const char *frame_descr)
 		return;
 
 	pr_err("\n");
-	pr_err("this frame has %lu %s:\n", num_objects,
+	pr_err("This frame has %lu %s:\n", num_objects,
 	       num_objects == 1 ? "object" : "objects");
 
 	while (num_objects--) {
@@ -211,6 +215,7 @@ static void print_decoded_frame_descr(const char *frame_descr)
 	}
 }
 
+/* Returns true only if the address is on the current task's stack. */
 static bool __must_check get_address_stack_frame_info(const void *addr,
 						      unsigned long *offset,
 						      const char **frame_descr,
@@ -223,13 +228,6 @@ static bool __must_check get_address_stack_frame_info(const void *addr,
 	const unsigned long *frame;
 
 	BUILD_BUG_ON(IS_ENABLED(CONFIG_STACK_GROWSUP));
-
-	/*
-	 * NOTE: We currently only support printing frame information for
-	 * accesses to the task's own stack.
-	 */
-	if (!object_is_on_stack(addr))
-		return false;
 
 	aligned_addr = round_down((unsigned long)addr, sizeof(long));
 	mem_ptr = round_down(aligned_addr, KASAN_GRANULE_SIZE);
@@ -269,17 +267,17 @@ void kasan_print_address_stack_frame(const void *addr)
 	const char *frame_descr;
 	const void *frame_pc;
 
+	if (WARN_ON(!object_is_on_stack(addr)))
+		return;
+
+	pr_err("The buggy address belongs to stack of task %s/%d\n",
+	       current->comm, task_pid_nr(current));
+
 	if (!get_address_stack_frame_info(addr, &offset, &frame_descr,
 					  &frame_pc))
 		return;
 
-	/*
-	 * get_address_stack_frame_info only returns true if the given addr is
-	 * on the current task's stack.
-	 */
-	pr_err("\n");
-	pr_err("addr %px is located in stack of task %s/%d at offset %lu in frame:\n",
-	       addr, current->comm, task_pid_nr(current), offset);
+	pr_err(" and is located at offset %lu in frame:\n", offset);
 	pr_err(" %pS\n", frame_pc);
 
 	if (!frame_descr)

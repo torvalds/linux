@@ -146,11 +146,11 @@ static int tad_pmu_event_init(struct perf_event *event)
 {
 	struct tad_pmu *tad_pmu = to_tad_pmu(event->pmu);
 
-	if (!event->attr.disabled)
-		return -EINVAL;
-
 	if (event->attr.type != event->pmu->type)
 		return -ENOENT;
+
+	if (!event->attr.disabled)
+		return -EINVAL;
 
 	if (event->state != PERF_EVENT_STATE_OFF)
 		return -EINVAL;
@@ -368,10 +368,12 @@ static int tad_pmu_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id tad_pmu_of_match[] = {
 	{ .compatible = "marvell,cn10k-tad-pmu", },
 	{},
 };
+#endif
 
 static struct platform_driver tad_pmu_driver = {
 	.driver         = {

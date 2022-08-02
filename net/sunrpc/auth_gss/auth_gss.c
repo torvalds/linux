@@ -72,7 +72,8 @@ struct gss_auth {
 	struct gss_api_mech *mech;
 	enum rpc_gss_svc service;
 	struct rpc_clnt *client;
-	struct net *net;
+	struct net	*net;
+	netns_tracker	ns_tracker;
 	/*
 	 * There are two upcall pipes; dentry[1], named "gssd", is used
 	 * for the new text-based upcall; dentry[0] is named after the
@@ -145,7 +146,7 @@ gss_alloc_context(void)
 {
 	struct gss_cl_ctx *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_NOFS);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx != NULL) {
 		ctx->gc_proc = RPC_GSS_PROC_DATA;
 		ctx->gc_seq = 1;	/* NetApp 6.4R1 doesn't accept seq. no. 0 */
@@ -208,7 +209,7 @@ gss_fill_context(const void *p, const void *end, struct gss_cl_ctx *ctx, struct 
 		p = ERR_PTR(-EFAULT);
 		goto err;
 	}
-	ret = gss_import_sec_context(p, seclen, gm, &ctx->gc_gss_ctx, NULL, GFP_NOFS);
+	ret = gss_import_sec_context(p, seclen, gm, &ctx->gc_gss_ctx, NULL, GFP_KERNEL);
 	if (ret < 0) {
 		trace_rpcgss_import_ctx(ret);
 		p = ERR_PTR(ret);
@@ -510,7 +511,7 @@ gss_alloc_msg(struct gss_auth *gss_auth,
 	int vers;
 	int err = -ENOMEM;
 
-	gss_msg = kzalloc(sizeof(*gss_msg), GFP_NOFS);
+	gss_msg = kzalloc(sizeof(*gss_msg), GFP_KERNEL);
 	if (gss_msg == NULL)
 		goto err;
 	vers = get_pipe_version(gss_auth->net);
@@ -526,7 +527,7 @@ gss_alloc_msg(struct gss_auth *gss_auth,
 	gss_msg->auth = gss_auth;
 	kref_get(&gss_auth->kref);
 	if (service_name) {
-		gss_msg->service_name = kstrdup_const(service_name, GFP_NOFS);
+		gss_msg->service_name = kstrdup_const(service_name, GFP_KERNEL);
 		if (!gss_msg->service_name) {
 			err = -ENOMEM;
 			goto err_put_pipe_version;
@@ -702,7 +703,7 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	if (mlen > MSG_BUF_MAXSIZE)
 		goto out;
 	err = -ENOMEM;
-	buf = kmalloc(mlen, GFP_NOFS);
+	buf = kmalloc(mlen, GFP_KERNEL);
 	if (!buf)
 		goto out;
 
@@ -1013,7 +1014,8 @@ gss_create_new(const struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 			goto err_free;
 	}
 	gss_auth->client = clnt;
-	gss_auth->net = get_net(rpc_net_ns(clnt));
+	gss_auth->net = get_net_track(rpc_net_ns(clnt), &gss_auth->ns_tracker,
+				      GFP_KERNEL);
 	err = -EINVAL;
 	gss_auth->mech = gss_mech_get_by_pseudoflavor(flavor);
 	if (!gss_auth->mech)
@@ -1068,7 +1070,7 @@ err_destroy_credcache:
 err_put_mech:
 	gss_mech_put(gss_auth->mech);
 err_put_net:
-	put_net(gss_auth->net);
+	put_net_track(gss_auth->net, &gss_auth->ns_tracker);
 err_free:
 	kfree(gss_auth->target_name);
 	kfree(gss_auth);
@@ -1084,7 +1086,7 @@ gss_free(struct gss_auth *gss_auth)
 	gss_pipe_free(gss_auth->gss_pipe[0]);
 	gss_pipe_free(gss_auth->gss_pipe[1]);
 	gss_mech_put(gss_auth->mech);
-	put_net(gss_auth->net);
+	put_net_track(gss_auth->net, &gss_auth->ns_tracker);
 	kfree(gss_auth->target_name);
 
 	kfree(gss_auth);
@@ -1218,7 +1220,7 @@ gss_dup_cred(struct gss_auth *gss_auth, struct gss_cred *gss_cred)
 	struct gss_cred *new;
 
 	/* Make a copy of the cred so that we can reference count it */
-	new = kzalloc(sizeof(*gss_cred), GFP_NOFS);
+	new = kzalloc(sizeof(*gss_cred), GFP_KERNEL);
 	if (new) {
 		struct auth_cred acred = {
 			.cred = gss_cred->gc_base.cr_cred,
@@ -1341,7 +1343,11 @@ gss_hash_cred(struct auth_cred *acred, unsigned int hashbits)
 static struct rpc_cred *
 gss_lookup_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 {
-	return rpcauth_lookup_credcache(auth, acred, flags, GFP_NOFS);
+	gfp_t gfp = GFP_KERNEL;
+
+	if (flags & RPCAUTH_LOOKUP_ASYNC)
+		gfp = GFP_NOWAIT | __GFP_NOWARN;
+	return rpcauth_lookup_credcache(auth, acred, flags, gfp);
 }
 
 static struct rpc_cred *
@@ -1667,7 +1673,7 @@ gss_validate(struct rpc_task *task, struct xdr_stream *xdr)
 	if (!p)
 		goto validate_failed;
 
-	seq = kmalloc(4, GFP_NOFS);
+	seq = kmalloc(4, GFP_KERNEL);
 	if (!seq)
 		goto validate_failed;
 	*seq = cpu_to_be32(task->tk_rqstp->rq_seqno);
@@ -1777,11 +1783,11 @@ alloc_enc_pages(struct rpc_rqst *rqstp)
 	rqstp->rq_enc_pages
 		= kmalloc_array(rqstp->rq_enc_pages_num,
 				sizeof(struct page *),
-				GFP_NOFS);
+				GFP_KERNEL);
 	if (!rqstp->rq_enc_pages)
 		goto out;
 	for (i=0; i < rqstp->rq_enc_pages_num; i++) {
-		rqstp->rq_enc_pages[i] = alloc_page(GFP_NOFS);
+		rqstp->rq_enc_pages[i] = alloc_page(GFP_KERNEL);
 		if (rqstp->rq_enc_pages[i] == NULL)
 			goto out_free;
 	}
@@ -1985,7 +1991,7 @@ gss_unwrap_resp_integ(struct rpc_task *task, struct rpc_cred *cred,
 	if (offset + len > rcv_buf->len)
 		goto unwrap_failed;
 	mic.len = len;
-	mic.data = kmalloc(len, GFP_NOFS);
+	mic.data = kmalloc(len, GFP_KERNEL);
 	if (!mic.data)
 		goto unwrap_failed;
 	if (read_bytes_from_xdr_buf(rcv_buf, offset, mic.data, mic.len))

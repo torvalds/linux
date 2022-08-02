@@ -66,9 +66,9 @@ examples:
                     compatible = "qcom,kryo385";
                     reg = <0x0 0x0>;
                     enable-method = "psci";
-                    cpu-idle-states = <&LITTLE_CPU_SLEEP_0
-                                       &LITTLE_CPU_SLEEP_1
-                                       &CLUSTER_SLEEP_0>;
+                    cpu-idle-states = <&LITTLE_CPU_SLEEP_0>,
+                                      <&LITTLE_CPU_SLEEP_1>,
+                                      <&CLUSTER_SLEEP_0>;
                     capacity-dmips-mhz = <607>;
                     dynamic-power-coefficient = <100>;
                     qcom,freq-domain = <&cpufreq_hw 0>;

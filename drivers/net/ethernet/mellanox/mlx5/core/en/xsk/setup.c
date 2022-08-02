@@ -43,7 +43,7 @@ static void mlx5e_build_xsk_cparam(struct mlx5_core_dev *mdev,
 				   struct mlx5e_channel_param *cparam)
 {
 	mlx5e_build_rq_param(mdev, params, xsk, q_counter, &cparam->rq);
-	mlx5e_build_xdpsq_param(mdev, params, &cparam->xdp_sq);
+	mlx5e_build_xdpsq_param(mdev, params, xsk, &cparam->xdp_sq);
 }
 
 static int mlx5e_init_xsk_rq(struct mlx5e_channel *c,
@@ -64,6 +64,7 @@ static int mlx5e_init_xsk_rq(struct mlx5e_channel *c,
 	rq->clock        = &mdev->clock;
 	rq->icosq        = &c->icosq;
 	rq->ix           = c->ix;
+	rq->channel      = c;
 	rq->mdev         = mdev;
 	rq->hw_mtu       = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 	rq->xdpsq        = &c->rq_xdpsq;
@@ -179,10 +180,6 @@ void mlx5e_activate_xsk(struct mlx5e_channel *c)
 	mlx5e_reporter_icosq_resume_recovery(c);
 
 	/* TX queue is created active. */
-
-	spin_lock_bh(&c->async_icosq_lock);
-	mlx5e_trigger_irq(&c->async_icosq);
-	spin_unlock_bh(&c->async_icosq_lock);
 }
 
 void mlx5e_deactivate_xsk(struct mlx5e_channel *c)

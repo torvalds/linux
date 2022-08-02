@@ -123,6 +123,33 @@ config ADXL355_SPI
 	  will be called adxl355_spi and you will also get adxl355_core
 	  for the core module.
 
+config ADXL367
+	tristate
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+
+config ADXL367_SPI
+	tristate "Analog Devices ADXL367 3-Axis Accelerometer SPI Driver"
+	depends on SPI
+	select ADXL367
+	select REGMAP_SPI
+	help
+	  Say yes here to add support for the Analog Devices ADXL367 triaxial
+	  acceleration sensor.
+	  To compile this driver as a module, choose M here: the
+	  module will be called adxl367_spi.
+
+config ADXL367_I2C
+	tristate "Analog Devices ADXL367 3-Axis Accelerometer I2C Driver"
+	depends on I2C
+	select ADXL367
+	select REGMAP_I2C
+	help
+	  Say yes here to add support for the Analog Devices ADXL367 triaxial
+	  acceleration sensor.
+	  To compile this driver as a module, choose M here: the
+	  module will be called adxl367_i2c.
+
 config ADXL372
 	tristate
 	select IIO_BUFFER
@@ -263,7 +290,6 @@ config DA311
 
 config DMARD06
 	tristate "Domintech DMARD06 Digital Accelerometer Driver"
-	depends on OF || COMPILE_TEST
 	depends on I2C
 	help
 	  Say yes here to build support for the Domintech low-g tri-axial
@@ -349,8 +375,6 @@ config IIO_ST_ACCEL_3AXIS
 	depends on !SENSORS_LIS3_I2C
 	depends on !SENSORS_LIS3_SPI
 	select IIO_ST_SENSORS_CORE
-	select IIO_ST_ACCEL_I2C_3AXIS if (I2C)
-	select IIO_ST_ACCEL_SPI_3AXIS if (SPI_MASTER)
 	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
 	help
 	  Say yes here to build support for STMicroelectronics accelerometers:
@@ -358,23 +382,30 @@ config IIO_ST_ACCEL_3AXIS
 	  LIS331DLH, LSM303DL, LSM303DLM, LSM330, LIS2DH12, H3LIS331DL,
 	  LNG2DM, LIS3DE, LIS2DE12, LIS2HH12
 
-	  This driver can also be built as a module. If so, these modules
-	  will be created:
-	  - st_accel (core functions for the driver [it is mandatory]);
-	  - st_accel_i2c (necessary for the I2C devices [optional*]);
-	  - st_accel_spi (necessary for the SPI devices [optional*]);
-
-	  (*) one of these is necessary to do something.
+	  Also need to enable at least one of I2C and SPI interface drivers
+	  below.
 
 config IIO_ST_ACCEL_I2C_3AXIS
-	tristate
-	depends on IIO_ST_ACCEL_3AXIS
-	depends on IIO_ST_SENSORS_I2C
+	tristate "STMicroelectronics accelerometers 3-Axis I2C Interface"
+	depends on I2C && IIO_ST_ACCEL_3AXIS
+	default I2C && IIO_ST_ACCEL_3AXIS
+	select IIO_ST_SENSORS_I2C
+	help
+	  Build support for STMicroelectronics accelerometers I2C interface.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called st_accel_i2c.
 
 config IIO_ST_ACCEL_SPI_3AXIS
-	tristate
-	depends on IIO_ST_ACCEL_3AXIS
-	depends on IIO_ST_SENSORS_SPI
+	tristate "STMicroelectronics accelerometers 3-Axis SPI Interface"
+	depends on SPI_MASTER && IIO_ST_ACCEL_3AXIS
+	default SPI_MASTER && IIO_ST_ACCEL_3AXIS
+	select IIO_ST_SENSORS_SPI
+	help
+	  Build support for STMicroelectronics accelerometers SPI interface.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called st_accel_spi.
 
 config KXSD9
 	tristate "Kionix KXSD9 Accelerometer Driver"

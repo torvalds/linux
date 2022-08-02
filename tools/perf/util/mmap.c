@@ -62,8 +62,8 @@ void __weak auxtrace_mmap_params__init(struct auxtrace_mmap_params *mp __maybe_u
 
 void __weak auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp __maybe_unused,
 					  struct evlist *evlist __maybe_unused,
-					  int idx __maybe_unused,
-					  bool per_cpu __maybe_unused)
+					  struct evsel *evsel __maybe_unused,
+					  int idx __maybe_unused)
 {
 }
 
@@ -230,6 +230,10 @@ void mmap__munmap(struct mmap *map)
 {
 	bitmap_free(map->affinity_mask.bits);
 
+#ifndef PYTHON_PERF
+	zstd_fini(&map->zstd_data);
+#endif
+
 	perf_mmap__aio_munmap(map);
 	if (map->data != NULL) {
 		munmap(map->data, mmap__mmap_len(map));
@@ -292,6 +296,12 @@ int mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, struct perf_cpu
 	map->core.flush = mp->flush;
 
 	map->comp_level = mp->comp_level;
+#ifndef PYTHON_PERF
+	if (zstd_init(&map->zstd_data, map->comp_level)) {
+		pr_debug2("failed to init mmap compressor, error %d\n", errno);
+		return -1;
+	}
+#endif
 
 	if (map->comp_level && !perf_mmap__aio_enabled(map)) {
 		map->data = mmap(NULL, mmap__mmap_len(map), PROT_READ|PROT_WRITE,

@@ -1049,18 +1049,14 @@ err_get_alloc_mutex_failed:
 static unsigned long
 binder_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
 {
-	unsigned long ret = list_lru_count(&binder_alloc_lru);
-	return ret;
+	return list_lru_count(&binder_alloc_lru);
 }
 
 static unsigned long
 binder_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 {
-	unsigned long ret;
-
-	ret = list_lru_walk(&binder_alloc_lru, binder_alloc_free_page,
+	return list_lru_walk(&binder_alloc_lru, binder_alloc_free_page,
 			    NULL, sc->nr_to_scan);
-	return ret;
 }
 
 static struct shrinker binder_shrinker = {
@@ -1179,14 +1175,11 @@ static void binder_alloc_clear_buf(struct binder_alloc *alloc,
 		unsigned long size;
 		struct page *page;
 		pgoff_t pgoff;
-		void *kptr;
 
 		page = binder_alloc_get_page(alloc, buffer,
 					     buffer_offset, &pgoff);
 		size = min_t(size_t, bytes, PAGE_SIZE - pgoff);
-		kptr = kmap(page) + pgoff;
-		memset(kptr, 0, size);
-		kunmap(page);
+		memset_page(page, pgoff, 0, size);
 		bytes -= size;
 		buffer_offset += size;
 	}
@@ -1224,9 +1217,9 @@ binder_alloc_copy_user_to_buffer(struct binder_alloc *alloc,
 		page = binder_alloc_get_page(alloc, buffer,
 					     buffer_offset, &pgoff);
 		size = min_t(size_t, bytes, PAGE_SIZE - pgoff);
-		kptr = kmap(page) + pgoff;
+		kptr = kmap_local_page(page) + pgoff;
 		ret = copy_from_user(kptr, from, size);
-		kunmap(page);
+		kunmap_local(kptr);
 		if (ret)
 			return bytes - size + ret;
 		bytes -= size;
@@ -1251,23 +1244,14 @@ static int binder_alloc_do_buffer_copy(struct binder_alloc *alloc,
 		unsigned long size;
 		struct page *page;
 		pgoff_t pgoff;
-		void *tmpptr;
-		void *base_ptr;
 
 		page = binder_alloc_get_page(alloc, buffer,
 					     buffer_offset, &pgoff);
 		size = min_t(size_t, bytes, PAGE_SIZE - pgoff);
-		base_ptr = kmap_atomic(page);
-		tmpptr = base_ptr + pgoff;
 		if (to_buffer)
-			memcpy(tmpptr, ptr, size);
+			memcpy_to_page(page, pgoff, ptr, size);
 		else
-			memcpy(ptr, tmpptr, size);
-		/*
-		 * kunmap_atomic() takes care of flushing the cache
-		 * if this device has VIVT cache arch
-		 */
-		kunmap_atomic(base_ptr);
+			memcpy_from_page(ptr, page, pgoff, size);
 		bytes -= size;
 		pgoff = 0;
 		ptr = ptr + size;

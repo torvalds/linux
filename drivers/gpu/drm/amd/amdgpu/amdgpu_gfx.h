@@ -30,7 +30,9 @@
 #include "clearstate_defs.h"
 #include "amdgpu_ring.h"
 #include "amdgpu_rlc.h"
+#include "amdgpu_imu.h"
 #include "soc15.h"
+#include "amdgpu_ras.h"
 
 /* GFX current status */
 #define AMDGPU_GFX_NORMAL_MODE			0x00000000L
@@ -47,12 +49,6 @@ enum amdgpu_gfx_pipe_priority {
 	AMDGPU_GFX_PIPE_PRIO_HIGH = AMDGPU_RING_PRIO_2
 };
 
-/* Argument for PPSMC_MSG_GpuChangeState */
-enum gfx_change_state {
-	sGpuChangeState_D0Entry = 1,
-	sGpuChangeState_D3Entry,
-};
-
 #define AMDGPU_GFX_QUEUE_PRIORITY_MINIMUM  0
 #define AMDGPU_GFX_QUEUE_PRIORITY_MAXIMUM  15
 
@@ -61,6 +57,9 @@ struct amdgpu_mec {
 	u64			hpd_eop_gpu_addr;
 	struct amdgpu_bo	*mec_fw_obj;
 	u64			mec_fw_gpu_addr;
+	struct amdgpu_bo	*mec_fw_data_obj;
+	u64			mec_fw_data_gpu_addr;
+
 	u32 num_mec;
 	u32 num_pipe_per_mec;
 	u32 num_queue_per_pipe;
@@ -109,15 +108,6 @@ struct amdgpu_kiq {
 	struct amdgpu_ring	ring;
 	struct amdgpu_irq_src	irq;
 	const struct kiq_pm4_funcs *pmf;
-};
-
-/*
- * GPU scratch registers structures, functions & helpers
- */
-struct amdgpu_scratch {
-	unsigned		num_reg;
-	uint32_t                reg_base;
-	uint32_t		free_mask;
 };
 
 /*
@@ -188,6 +178,17 @@ struct amdgpu_gfx_config {
 	uint32_t num_packer_per_sc;
 	uint32_t pa_sc_tile_steering_override;
 	uint64_t tcc_disabled_mask;
+	uint32_t gc_num_tcp_per_sa;
+	uint32_t gc_num_sdp_interface;
+	uint32_t gc_num_tcps;
+	uint32_t gc_num_tcp_per_wpg;
+	uint32_t gc_tcp_l1_size;
+	uint32_t gc_num_sqc_per_wgp;
+	uint32_t gc_l1_instruction_cache_size_per_sqc;
+	uint32_t gc_l1_data_cache_size_per_sqc;
+	uint32_t gc_gl1c_per_sa;
+	uint32_t gc_gl1c_size_per_instance;
+	uint32_t gc_gl2c_per_gpu;
 };
 
 struct amdgpu_cu_info {
@@ -204,17 +205,10 @@ struct amdgpu_cu_info {
 	uint32_t bitmap[4][4];
 };
 
-struct amdgpu_gfx_ras_funcs {
-	int (*ras_late_init)(struct amdgpu_device *adev);
-	void (*ras_fini)(struct amdgpu_device *adev);
-	int (*ras_error_inject)(struct amdgpu_device *adev,
-				void *inject_if);
-	int (*query_ras_error_count)(struct amdgpu_device *adev,
-				     void *ras_error_status);
-	void (*reset_ras_error_count)(struct amdgpu_device *adev);
-	void (*query_ras_error_status)(struct amdgpu_device *adev);
-	void (*reset_ras_error_status)(struct amdgpu_device *adev);
+struct amdgpu_gfx_ras {
+	struct amdgpu_ras_block_object  ras_block;
 	void (*enable_watchdog_timer)(struct amdgpu_device *adev);
+	bool (*query_utcl2_poison_status)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_gfx_funcs {
@@ -245,6 +239,10 @@ struct amdgpu_pfp {
 	struct amdgpu_bo		*pfp_fw_obj;
 	uint64_t			pfp_fw_gpu_addr;
 	uint32_t			*pfp_fw_ptr;
+
+	struct amdgpu_bo		*pfp_fw_data_obj;
+	uint64_t			pfp_fw_data_gpu_addr;
+	uint32_t			*pfp_fw_data_ptr;
 };
 
 struct amdgpu_ce {
@@ -257,6 +255,11 @@ struct amdgpu_me {
 	struct amdgpu_bo		*me_fw_obj;
 	uint64_t			me_fw_gpu_addr;
 	uint32_t			*me_fw_ptr;
+
+	struct amdgpu_bo		*me_fw_data_obj;
+	uint64_t			me_fw_data_gpu_addr;
+	uint32_t			*me_fw_data_ptr;
+
 	uint32_t			num_me;
 	uint32_t			num_pipe_per_me;
 	uint32_t			num_queue_per_pipe;
@@ -275,7 +278,8 @@ struct amdgpu_gfx {
 	struct amdgpu_me		me;
 	struct amdgpu_mec		mec;
 	struct amdgpu_kiq		kiq;
-	struct amdgpu_scratch		scratch;
+	struct amdgpu_imu		imu;
+	bool				rs64_enable; /* firmware format */
 	const struct firmware		*me_fw;	/* ME firmware */
 	uint32_t			me_fw_version;
 	const struct firmware		*pfp_fw; /* PFP firmware */
@@ -288,6 +292,8 @@ struct amdgpu_gfx {
 	uint32_t			mec_fw_version;
 	const struct firmware		*mec2_fw; /* MEC2 firmware */
 	uint32_t			mec2_fw_version;
+	const struct firmware		*imu_fw; /* IMU firmware */
+	uint32_t			imu_fw_version;
 	uint32_t			me_feature_version;
 	uint32_t			ce_feature_version;
 	uint32_t			pfp_feature_version;
@@ -336,8 +342,10 @@ struct amdgpu_gfx {
 	DECLARE_BITMAP			(pipe_reserve_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
 
 	/*ras */
-	struct ras_common_if			*ras_if;
-	const struct amdgpu_gfx_ras_funcs	*ras_funcs;
+	struct ras_common_if		*ras_if;
+	struct amdgpu_gfx_ras		*ras;
+
+	bool				is_poweron;
 };
 
 #define amdgpu_gfx_get_gpu_clock_counter(adev) (adev)->gfx.funcs->get_gpu_clock_counter((adev))
@@ -357,9 +365,6 @@ static inline u32 amdgpu_gfx_create_bitmask(u32 bit_width)
 {
 	return (u32)((1ULL << bit_width) - 1);
 }
-
-int amdgpu_gfx_scratch_get(struct amdgpu_device *adev, uint32_t *reg);
-void amdgpu_gfx_scratch_free(struct amdgpu_device *adev, uint32_t reg);
 
 void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se,
 				 unsigned max_sh);
@@ -399,8 +404,7 @@ bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev, int me,
 				    int pipe, int queue);
 void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable);
 int amdgpu_get_gfx_off_status(struct amdgpu_device *adev, uint32_t *value);
-int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev);
-void amdgpu_gfx_ras_fini(struct amdgpu_device *adev);
+int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block);
 int amdgpu_gfx_process_ras_data_cb(struct amdgpu_device *adev,
 		void *err_data,
 		struct amdgpu_iv_entry *entry);
@@ -410,5 +414,4 @@ int amdgpu_gfx_cp_ecc_error_irq(struct amdgpu_device *adev,
 uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg);
 void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v);
 int amdgpu_gfx_get_num_kcq(struct amdgpu_device *adev);
-void amdgpu_gfx_state_change_set(struct amdgpu_device *adev, enum gfx_change_state state);
 #endif

@@ -265,6 +265,8 @@ static ssize_t hfi1_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 	unsigned long dim = from->nr_segs;
 	int idx;
 
+	if (!HFI1_CAP_IS_KSET(SDMA))
+		return -EINVAL;
 	idx = srcu_read_lock(&fd->pq_srcu);
 	pq = srcu_dereference(fd->pq, &fd->pq_srcu);
 	if (!cq || !pq) {
@@ -1220,7 +1222,7 @@ static int get_base_info(struct hfi1_filedata *fd, unsigned long arg, u32 len)
 
 	memset(&binfo, 0, sizeof(binfo));
 	binfo.hw_version = dd->revision;
-	binfo.sw_version = HFI1_KERN_SWVERSION;
+	binfo.sw_version = HFI1_USER_SWVERSION;
 	binfo.bthqp = RVT_KDETH_QP_PREFIX;
 	binfo.jkey = uctxt->jkey;
 	/*

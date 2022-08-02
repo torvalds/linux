@@ -2560,11 +2560,38 @@ qla24xx_tm_iocb(srb_t *sp, struct tsk_mgmt_entry *tsk)
 	}
 }
 
-void qla2x00_init_timer(srb_t *sp, unsigned long tmo)
+static void
+qla2x00_async_done(struct srb *sp, int res)
+{
+	if (del_timer(&sp->u.iocb_cmd.timer)) {
+		/*
+		 * Successfully cancelled the timeout handler
+		 * ref: TMR
+		 */
+		if (kref_put(&sp->cmd_kref, qla2x00_sp_release))
+			return;
+	}
+	sp->async_done(sp, res);
+}
+
+void
+qla2x00_sp_release(struct kref *kref)
+{
+	struct srb *sp = container_of(kref, struct srb, cmd_kref);
+
+	sp->free(sp);
+}
+
+void
+qla2x00_init_async_sp(srb_t *sp, unsigned long tmo,
+		     void (*done)(struct srb *sp, int res))
 {
 	timer_setup(&sp->u.iocb_cmd.timer, qla2x00_sp_timeout, 0);
-	sp->u.iocb_cmd.timer.expires = jiffies + tmo * HZ;
+	sp->done = qla2x00_async_done;
+	sp->async_done = done;
 	sp->free = qla2x00_sp_free;
+	sp->u.iocb_cmd.timeout = qla2x00_async_iocb_timeout;
+	sp->u.iocb_cmd.timer.expires = jiffies + tmo * HZ;
 	if (IS_QLAFX00(sp->vha->hw) && sp->type == SRB_FXIOCB_DCMD)
 		init_completion(&sp->u.iocb_cmd.u.fxiocb.fxiocb_comp);
 	sp->start_timer = 1;
@@ -2651,7 +2678,9 @@ qla24xx_els_dcmd_iocb(scsi_qla_host_t *vha, int els_opcode,
 	       return -ENOMEM;
 	}
 
-	/* Alloc SRB structure */
+	/* Alloc SRB structure
+	 * ref: INIT
+	 */
 	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp) {
 		kfree(fcport);
@@ -2672,18 +2701,19 @@ qla24xx_els_dcmd_iocb(scsi_qla_host_t *vha, int els_opcode,
 	sp->type = SRB_ELS_DCMD;
 	sp->name = "ELS_DCMD";
 	sp->fcport = fcport;
-	elsio->timeout = qla2x00_els_dcmd_iocb_timeout;
-	qla2x00_init_timer(sp, ELS_DCMD_TIMEOUT);
-	init_completion(&sp->u.iocb_cmd.u.els_logo.comp);
-	sp->done = qla2x00_els_dcmd_sp_done;
+	qla2x00_init_async_sp(sp, ELS_DCMD_TIMEOUT,
+			      qla2x00_els_dcmd_sp_done);
 	sp->free = qla2x00_els_dcmd_sp_free;
+	sp->u.iocb_cmd.timeout = qla2x00_els_dcmd_iocb_timeout;
+	init_completion(&sp->u.iocb_cmd.u.els_logo.comp);
 
 	elsio->u.els_logo.els_logo_pyld = dma_alloc_coherent(&ha->pdev->dev,
 			    DMA_POOL_SIZE, &elsio->u.els_logo.els_logo_pyld_dma,
 			    GFP_KERNEL);
 
 	if (!elsio->u.els_logo.els_logo_pyld) {
-		sp->free(sp);
+		/* ref: INIT */
+		kref_put(&sp->cmd_kref, qla2x00_sp_release);
 		return QLA_FUNCTION_FAILED;
 	}
 
@@ -2706,7 +2736,8 @@ qla24xx_els_dcmd_iocb(scsi_qla_host_t *vha, int els_opcode,
 
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS) {
-		sp->free(sp);
+		/* ref: INIT */
+		kref_put(&sp->cmd_kref, qla2x00_sp_release);
 		return QLA_FUNCTION_FAILED;
 	}
 
@@ -2717,7 +2748,8 @@ qla24xx_els_dcmd_iocb(scsi_qla_host_t *vha, int els_opcode,
 
 	wait_for_completion(&elsio->u.els_logo.comp);
 
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 	return rval;
 }
 
@@ -2850,7 +2882,6 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 	    sp->name, res, sp->handle, fcport->d_id.b24, fcport->port_name);
 
 	fcport->flags &= ~(FCF_ASYNC_SENT|FCF_ASYNC_ACTIVE);
-	del_timer(&sp->u.iocb_cmd.timer);
 
 	if (sp->flags & SRB_WAKEUP_ON_COMP)
 		complete(&lio->u.els_plogi.comp);
@@ -2927,6 +2958,7 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 					set_bit(ISP_ABORT_NEEDED,
 					    &vha->dpc_flags);
 					qla2xxx_wake_dpc(vha);
+					break;
 				}
 				fallthrough;
 			default:
@@ -2936,9 +2968,7 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 				    fw_status[0], fw_status[1], fw_status[2]);
 
 				fcport->flags &= ~FCF_ASYNC_SENT;
-				qla2x00_set_fcport_disc_state(fcport,
-				    DSC_LOGIN_FAILED);
-				set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
+				qlt_schedule_sess_for_deletion(fcport);
 				break;
 			}
 			break;
@@ -2950,8 +2980,7 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 			    fw_status[0], fw_status[1], fw_status[2]);
 
 			sp->fcport->flags &= ~FCF_ASYNC_SENT;
-			qla2x00_set_fcport_disc_state(fcport, DSC_LOGIN_FAILED);
-			set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
+			qlt_schedule_sess_for_deletion(fcport);
 			break;
 		}
 
@@ -2960,7 +2989,8 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 			struct srb_iocb *elsio = &sp->u.iocb_cmd;
 
 			qla2x00_els_dcmd2_free(vha, &elsio->u.els_plogi);
-			sp->free(sp);
+			/* ref: INIT */
+			kref_put(&sp->cmd_kref, qla2x00_sp_release);
 			return;
 		}
 		e->u.iosb.sp = sp;
@@ -2978,7 +3008,9 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 	int rval = QLA_SUCCESS;
 	void	*ptr, *resp_ptr;
 
-	/* Alloc SRB structure */
+	/* Alloc SRB structure
+	 * ref: INIT
+	 */
 	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp) {
 		ql_log(ql_log_info, vha, 0x70e6,
@@ -2993,17 +3025,16 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 	ql_dbg(ql_dbg_io, vha, 0x3073,
 	       "%s Enter: PLOGI portid=%06x\n", __func__, fcport->d_id.b24);
 
-	sp->type = SRB_ELS_DCMD;
-	sp->name = "ELS_DCMD";
-	sp->fcport = fcport;
-
-	elsio->timeout = qla2x00_els_dcmd2_iocb_timeout;
 	if (wait)
 		sp->flags = SRB_WAKEUP_ON_COMP;
 
-	qla2x00_init_timer(sp, ELS_DCMD_TIMEOUT + 2);
+	sp->type = SRB_ELS_DCMD;
+	sp->name = "ELS_DCMD";
+	sp->fcport = fcport;
+	qla2x00_init_async_sp(sp, ELS_DCMD_TIMEOUT + 2,
+			     qla2x00_els_dcmd2_sp_done);
+	sp->u.iocb_cmd.timeout = qla2x00_els_dcmd2_iocb_timeout;
 
-	sp->done = qla2x00_els_dcmd2_sp_done;
 	elsio->u.els_plogi.tx_size = elsio->u.els_plogi.rx_size = DMA_POOL_SIZE;
 
 	ptr = elsio->u.els_plogi.els_plogi_pyld =
@@ -3068,7 +3099,8 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 out:
 	fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
 	qla2x00_els_dcmd2_free(vha, &elsio->u.els_plogi);
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	return rval;
 }
@@ -3879,8 +3911,15 @@ qla2x00_start_sp(srb_t *sp)
 		break;
 	}
 
-	if (sp->start_timer)
+	if (sp->start_timer) {
+		/* ref: TMR timer ref
+		 * this code should be just before start_iocbs function
+		 * This will make sure that caller function don't to do
+		 * kref_put even on failure
+		 */
+		kref_get(&sp->cmd_kref);
 		add_timer(&sp->u.iocb_cmd.timer);
+	}
 
 	wmb();
 	qla2x00_start_iocbs(vha, qp->req);

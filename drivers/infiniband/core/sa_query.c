@@ -32,7 +32,6 @@
  * SOFTWARE.
  */
 
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/random.h>
@@ -1035,10 +1034,9 @@ int ib_nl_handle_resolve_resp(struct sk_buff *skb,
 			      struct netlink_ext_ack *extack)
 {
 	unsigned long flags;
-	struct ib_sa_query *query;
+	struct ib_sa_query *query = NULL, *iter;
 	struct ib_mad_send_buf *send_buf;
 	struct ib_mad_send_wc mad_send_wc;
-	int found = 0;
 	int ret;
 
 	if ((nlh->nlmsg_flags & NLM_F_REQUEST) ||
@@ -1046,20 +1044,21 @@ int ib_nl_handle_resolve_resp(struct sk_buff *skb,
 		return -EPERM;
 
 	spin_lock_irqsave(&ib_nl_request_lock, flags);
-	list_for_each_entry(query, &ib_nl_request_list, list) {
+	list_for_each_entry(iter, &ib_nl_request_list, list) {
 		/*
 		 * If the query is cancelled, let the timeout routine
 		 * take care of it.
 		 */
-		if (nlh->nlmsg_seq == query->seq) {
-			found = !ib_sa_query_cancelled(query);
-			if (found)
-				list_del(&query->list);
+		if (nlh->nlmsg_seq == iter->seq) {
+			if (!ib_sa_query_cancelled(iter)) {
+				list_del(&iter->list);
+				query = iter;
+			}
 			break;
 		}
 	}
 
-	if (!found) {
+	if (!query) {
 		spin_unlock_irqrestore(&ib_nl_request_lock, flags);
 		goto resp_out;
 	}

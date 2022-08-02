@@ -5,20 +5,27 @@
 
 #include <linux/sched/mm.h>
 #include <linux/stop_machine.h>
+#include <linux/string_helpers.h>
 
 #include "display/intel_display.h"
 #include "display/intel_overlay.h"
 
 #include "gem/i915_gem_context.h"
 
+#include "gt/intel_gt_regs.h"
+
 #include "i915_drv.h"
+#include "i915_file_private.h"
 #include "i915_gpu_error.h"
 #include "i915_irq.h"
 #include "intel_breadcrumbs.h"
 #include "intel_engine_pm.h"
+#include "intel_engine_regs.h"
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
 #include "intel_gt_requests.h"
+#include "intel_mchbar_regs.h"
+#include "intel_pci_config.h"
 #include "intel_reset.h"
 
 #include "uc/intel_guc.h"
@@ -131,7 +138,7 @@ void __i915_request_reset(struct i915_request *rq, bool guilty)
 {
 	bool banned = false;
 
-	RQ_TRACE(rq, "guilty? %s\n", yesno(guilty));
+	RQ_TRACE(rq, "guilty? %s\n", str_yes_no(guilty));
 	GEM_BUG_ON(__i915_request_is_complete(rq));
 
 	rcu_read_lock(); /* protect the GEM context */
@@ -343,25 +350,25 @@ static void get_sfc_forced_lock_data(struct intel_engine_cs *engine,
 		MISSING_CASE(engine->class);
 		fallthrough;
 	case VIDEO_DECODE_CLASS:
-		sfc_lock->lock_reg = GEN11_VCS_SFC_FORCED_LOCK(engine);
+		sfc_lock->lock_reg = GEN11_VCS_SFC_FORCED_LOCK(engine->mmio_base);
 		sfc_lock->lock_bit = GEN11_VCS_SFC_FORCED_LOCK_BIT;
 
-		sfc_lock->ack_reg = GEN11_VCS_SFC_LOCK_STATUS(engine);
+		sfc_lock->ack_reg = GEN11_VCS_SFC_LOCK_STATUS(engine->mmio_base);
 		sfc_lock->ack_bit  = GEN11_VCS_SFC_LOCK_ACK_BIT;
 
-		sfc_lock->usage_reg = GEN11_VCS_SFC_LOCK_STATUS(engine);
+		sfc_lock->usage_reg = GEN11_VCS_SFC_LOCK_STATUS(engine->mmio_base);
 		sfc_lock->usage_bit = GEN11_VCS_SFC_USAGE_BIT;
 		sfc_lock->reset_bit = GEN11_VCS_SFC_RESET_BIT(engine->instance);
 
 		break;
 	case VIDEO_ENHANCEMENT_CLASS:
-		sfc_lock->lock_reg = GEN11_VECS_SFC_FORCED_LOCK(engine);
+		sfc_lock->lock_reg = GEN11_VECS_SFC_FORCED_LOCK(engine->mmio_base);
 		sfc_lock->lock_bit = GEN11_VECS_SFC_FORCED_LOCK_BIT;
 
-		sfc_lock->ack_reg = GEN11_VECS_SFC_LOCK_ACK(engine);
+		sfc_lock->ack_reg = GEN11_VECS_SFC_LOCK_ACK(engine->mmio_base);
 		sfc_lock->ack_bit  = GEN11_VECS_SFC_LOCK_ACK_BIT;
 
-		sfc_lock->usage_reg = GEN11_VECS_SFC_USAGE(engine);
+		sfc_lock->usage_reg = GEN11_VECS_SFC_USAGE(engine->mmio_base);
 		sfc_lock->usage_bit = GEN11_VECS_SFC_USAGE_BIT;
 		sfc_lock->reset_bit = GEN11_VECS_SFC_RESET_BIT(engine->instance);
 
@@ -408,7 +415,7 @@ static int gen11_lock_sfc(struct intel_engine_cs *engine,
 		 * forced lock on the VE engine that shares the same SFC.
 		 */
 		if (!(intel_uncore_read_fw(uncore,
-					   GEN12_HCP_SFC_LOCK_STATUS(engine)) &
+					   GEN12_HCP_SFC_LOCK_STATUS(engine->mmio_base)) &
 		      GEN12_HCP_SFC_USAGE_BIT))
 			return 0;
 
@@ -598,6 +605,15 @@ static int gen8_reset_engines(struct intel_gt *gt,
 		 */
 	}
 
+	/*
+	 * Wa_22011100796:dg2, whenever Full soft reset is required,
+	 * reset all individual engines firstly, and then do a full soft reset.
+	 *
+	 * This is best effort, so ignore any error from the initial reset.
+	 */
+	if (IS_DG2(gt->i915) && engine_mask == ALL_ENGINES)
+		gen11_reset_engines(gt, gt->info.engine_mask, 0);
+
 	if (GRAPHICS_VER(gt->i915) >= 11)
 		ret = gen11_reset_engines(gt, engine_mask, retry);
 	else
@@ -756,13 +772,14 @@ static intel_engine_mask_t reset_prepare(struct intel_gt *gt)
 	intel_engine_mask_t awake = 0;
 	enum intel_engine_id id;
 
+	/* For GuC mode, ensure submission is disabled before stopping ring */
+	intel_uc_reset_prepare(&gt->uc);
+
 	for_each_engine(engine, gt, id) {
 		if (intel_engine_pm_get_if_awake(engine))
 			awake |= engine->mask;
 		reset_prepare_engine(engine);
 	}
-
-	intel_uc_reset_prepare(&gt->uc);
 
 	return awake;
 }
@@ -791,7 +808,7 @@ static int gt_reset(struct intel_gt *gt, intel_engine_mask_t stalled_mask)
 		__intel_engine_reset(engine, stalled_mask & engine->mask);
 	local_bh_enable();
 
-	intel_uc_reset(&gt->uc, true);
+	intel_uc_reset(&gt->uc, ALL_ENGINES);
 
 	intel_ggtt_restore_fences(gt->ggtt);
 
@@ -1303,7 +1320,7 @@ void intel_gt_handle_error(struct intel_gt *gt,
 	engine_mask &= gt->info.engine_mask;
 
 	if (flags & I915_ERROR_CAPTURE) {
-		i915_capture_error_state(gt, engine_mask);
+		i915_capture_error_state(gt, engine_mask, CORE_DUMP_FLAG_NONE);
 		intel_gt_clear_error_registers(gt, engine_mask);
 	}
 

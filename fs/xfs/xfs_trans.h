@@ -8,6 +8,7 @@
 
 /* kernel only transaction subsystem defines */
 
+struct xlog;
 struct xfs_buf;
 struct xfs_buftarg;
 struct xfs_efd_log_item;
@@ -31,7 +32,7 @@ struct xfs_log_item {
 	struct list_head		li_ail;		/* AIL pointers */
 	struct list_head		li_trans;	/* transaction list */
 	xfs_lsn_t			li_lsn;		/* last on-disk lsn */
-	struct xfs_mount		*li_mountp;	/* ptr to fs mount */
+	struct xlog			*li_log;
 	struct xfs_ail			*li_ailp;	/* ptr to AIL */
 	uint				li_type;	/* item type */
 	unsigned long			li_flags;	/* misc flags */
@@ -54,13 +55,15 @@ struct xfs_log_item {
 #define	XFS_LI_IN_AIL	0
 #define	XFS_LI_ABORTED	1
 #define	XFS_LI_FAILED	2
-#define	XFS_LI_DIRTY	3	/* log item dirty in transaction */
+#define	XFS_LI_DIRTY	3
+#define	XFS_LI_WHITEOUT	4
 
 #define XFS_LI_FLAGS \
-	{ (1 << XFS_LI_IN_AIL),		"IN_AIL" }, \
-	{ (1 << XFS_LI_ABORTED),	"ABORTED" }, \
-	{ (1 << XFS_LI_FAILED),		"FAILED" }, \
-	{ (1 << XFS_LI_DIRTY),		"DIRTY" }
+	{ (1u << XFS_LI_IN_AIL),	"IN_AIL" }, \
+	{ (1u << XFS_LI_ABORTED),	"ABORTED" }, \
+	{ (1u << XFS_LI_FAILED),	"FAILED" }, \
+	{ (1u << XFS_LI_DIRTY),		"DIRTY" }, \
+	{ (1u << XFS_LI_WHITEOUT),	"WHITEOUT" }
 
 struct xfs_item_ops {
 	unsigned flags;
@@ -77,29 +80,31 @@ struct xfs_item_ops {
 	bool (*iop_match)(struct xfs_log_item *item, uint64_t id);
 	struct xfs_log_item *(*iop_relog)(struct xfs_log_item *intent,
 			struct xfs_trans *tp);
+	struct xfs_log_item *(*iop_intent)(struct xfs_log_item *intent_done);
 };
 
-/* Is this log item a deferred action intent? */
+/*
+ * Log item ops flags
+ */
+/*
+ * Release the log item when the journal commits instead of inserting into the
+ * AIL for writeback tracking and/or log tail pinning.
+ */
+#define XFS_ITEM_RELEASE_WHEN_COMMITTED	(1 << 0)
+#define XFS_ITEM_INTENT			(1 << 1)
+#define XFS_ITEM_INTENT_DONE		(1 << 2)
+
 static inline bool
 xlog_item_is_intent(struct xfs_log_item *lip)
 {
-	return lip->li_ops->iop_recover != NULL &&
-	       lip->li_ops->iop_match != NULL;
+	return lip->li_ops->flags & XFS_ITEM_INTENT;
 }
 
-/* Is this a log intent-done item? */
 static inline bool
 xlog_item_is_intent_done(struct xfs_log_item *lip)
 {
-	return lip->li_ops->iop_unpin == NULL &&
-	       lip->li_ops->iop_push == NULL;
+	return lip->li_ops->flags & XFS_ITEM_INTENT_DONE;
 }
-
-/*
- * Release the log item as soon as committed.  This is for items just logging
- * intents that never need to be written back in place.
- */
-#define XFS_ITEM_RELEASE_WHEN_COMMITTED	(1 << 0)
 
 void	xfs_log_item_init(struct xfs_mount *mp, struct xfs_log_item *item,
 			  int type, const struct xfs_item_ops *ops);
@@ -174,7 +179,7 @@ xfs_trans_get_buf(
 	struct xfs_buftarg	*target,
 	xfs_daddr_t		blkno,
 	int			numblks,
-	uint			flags,
+	xfs_buf_flags_t		flags,
 	struct xfs_buf		**bpp)
 {
 	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
@@ -259,6 +264,9 @@ int xfs_trans_alloc_icreate(struct xfs_mount *mp, struct xfs_trans_res *resv,
 int xfs_trans_alloc_ichange(struct xfs_inode *ip, struct xfs_dquot *udqp,
 		struct xfs_dquot *gdqp, struct xfs_dquot *pdqp, bool force,
 		struct xfs_trans **tpp);
+int xfs_trans_alloc_dir(struct xfs_inode *dp, struct xfs_trans_res *resv,
+		struct xfs_inode *ip, unsigned int *dblocks,
+		struct xfs_trans **tpp, int *nospace_error);
 
 static inline void
 xfs_trans_set_context(

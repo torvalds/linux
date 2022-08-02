@@ -45,6 +45,7 @@ i915_ttm_to_gem(struct ttm_buffer_object *bo)
 
 int __i915_gem_ttm_object_init(struct intel_memory_region *mem,
 			       struct drm_i915_gem_object *obj,
+			       resource_size_t offset,
 			       resource_size_t size,
 			       resource_size_t page_size,
 			       unsigned int flags);

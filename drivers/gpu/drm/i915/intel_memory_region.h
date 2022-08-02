@@ -10,7 +10,7 @@
 #include <linux/mutex.h>
 #include <linux/io-mapping.h>
 #include <drm/drm_mm.h>
-#include <drm/i915_drm.h>
+#include <uapi/drm/i915_drm.h>
 
 struct drm_i915_private;
 struct drm_i915_gem_object;
@@ -29,14 +29,17 @@ enum intel_memory_type {
 
 enum intel_region_id {
 	INTEL_REGION_SMEM = 0,
-	INTEL_REGION_LMEM,
+	INTEL_REGION_LMEM_0,
+	INTEL_REGION_LMEM_1,
+	INTEL_REGION_LMEM_2,
+	INTEL_REGION_LMEM_3,
 	INTEL_REGION_STOLEN_SMEM,
 	INTEL_REGION_STOLEN_LMEM,
 	INTEL_REGION_UNKNOWN, /* Should be last */
 };
 
 #define REGION_SMEM     BIT(INTEL_REGION_SMEM)
-#define REGION_LMEM     BIT(INTEL_REGION_LMEM)
+#define REGION_LMEM     BIT(INTEL_REGION_LMEM_0)
 #define REGION_STOLEN_SMEM   BIT(INTEL_REGION_STOLEN_SMEM)
 #define REGION_STOLEN_LMEM   BIT(INTEL_REGION_STOLEN_LMEM)
 
@@ -54,6 +57,7 @@ struct intel_memory_region_ops {
 
 	int (*init_object)(struct intel_memory_region *mem,
 			   struct drm_i915_gem_object *obj,
+			   resource_size_t offset,
 			   resource_size_t size,
 			   resource_size_t page_size,
 			   unsigned int flags);
@@ -67,10 +71,8 @@ struct intel_memory_region {
 	struct io_mapping iomap;
 	struct resource region;
 
-	/* For fake LMEM */
-	struct drm_mm_node fake_mappable;
-
 	resource_size_t io_start;
+	resource_size_t io_size;
 	resource_size_t min_page_size;
 	resource_size_t total;
 	resource_size_t avail;
@@ -80,8 +82,6 @@ struct intel_memory_region {
 	enum intel_region_id id;
 	char name[16];
 	bool private; /* not for userspace */
-
-	dma_addr_t remap_addr;
 
 	struct {
 		struct mutex lock; /* Protects access to objects */
@@ -103,6 +103,7 @@ intel_memory_region_create(struct drm_i915_private *i915,
 			   resource_size_t size,
 			   resource_size_t min_page_size,
 			   resource_size_t io_start,
+			   resource_size_t io_size,
 			   u16 type,
 			   u16 instance,
 			   const struct intel_memory_region_ops *ops);

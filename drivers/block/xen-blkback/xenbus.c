@@ -10,6 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/kthread.h>
+#include <linux/pagemap.h>
 #include <xen/events.h>
 #include <xen/grant_table.h>
 #include "common.h"
@@ -483,7 +484,6 @@ static int xen_vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
 {
 	struct xen_vbd *vbd;
 	struct block_device *bdev;
-	struct request_queue *q;
 
 	vbd = &blkif->vbd;
 	vbd->handle   = handle;
@@ -515,11 +515,9 @@ static int xen_vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
 	if (vbd->bdev->bd_disk->flags & GENHD_FL_REMOVABLE)
 		vbd->type |= VDISK_REMOVABLE;
 
-	q = bdev_get_queue(bdev);
-	if (q && test_bit(QUEUE_FLAG_WC, &q->queue_flags))
+	if (bdev_write_cache(bdev))
 		vbd->flush_support = true;
-
-	if (q && blk_queue_secure_erase(q))
+	if (bdev_max_secure_erase_sectors(bdev))
 		vbd->discard_secure = true;
 
 	vbd->feature_gnt_persistent = feature_persistent;
@@ -577,22 +575,21 @@ static void xen_blkbk_discard(struct xenbus_transaction xbt, struct backend_info
 	int err;
 	int state = 0;
 	struct block_device *bdev = be->blkif->vbd.bdev;
-	struct request_queue *q = bdev_get_queue(bdev);
 
 	if (!xenbus_read_unsigned(dev->nodename, "discard-enable", 1))
 		return;
 
-	if (blk_queue_discard(q)) {
+	if (bdev_max_discard_sectors(bdev)) {
 		err = xenbus_printf(xbt, dev->nodename,
 			"discard-granularity", "%u",
-			q->limits.discard_granularity);
+			bdev_discard_granularity(bdev));
 		if (err) {
 			dev_warn(&dev->dev, "writing discard-granularity (%d)", err);
 			return;
 		}
 		err = xenbus_printf(xbt, dev->nodename,
 			"discard-alignment", "%u",
-			q->limits.discard_alignment);
+			bdev_discard_alignment(bdev));
 		if (err) {
 			dev_warn(&dev->dev, "writing discard-alignment (%d)", err);
 			return;

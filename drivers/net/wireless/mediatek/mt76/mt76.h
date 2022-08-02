@@ -13,18 +13,29 @@
 #include <linux/leds.h>
 #include <linux/usb.h>
 #include <linux/average.h>
+#include <linux/soc/mediatek/mtk_wed.h>
 #include <net/mac80211.h>
 #include "util.h"
 #include "testmode.h"
 
 #define MT_MCU_RING_SIZE	32
 #define MT_RX_BUF_SIZE		2048
-#define MT_SKB_HEAD_LEN		128
+#define MT_SKB_HEAD_LEN		256
 
 #define MT_MAX_NON_AQL_PKT	16
 #define MT_TXQ_FREE_THR		32
 
 #define MT76_TOKEN_FREE_THR	64
+
+#define MT_QFLAG_WED_RING	GENMASK(1, 0)
+#define MT_QFLAG_WED_TYPE	GENMASK(3, 2)
+#define MT_QFLAG_WED		BIT(4)
+
+#define __MT_WED_Q(_type, _n)	(MT_QFLAG_WED | \
+				 FIELD_PREP(MT_QFLAG_WED_TYPE, _type) | \
+				 FIELD_PREP(MT_QFLAG_WED_RING, _n))
+#define MT_WED_Q_TX(_n)		__MT_WED_Q(MT76_WED_Q_TX, _n)
+#define MT_WED_Q_TXFREE		__MT_WED_Q(MT76_WED_Q_TXFREE, 0)
 
 struct mt76_dev;
 struct mt76_phy;
@@ -40,6 +51,11 @@ enum mt76_bus_type {
 	MT76_BUS_MMIO,
 	MT76_BUS_USB,
 	MT76_BUS_SDIO,
+};
+
+enum mt76_wed_type {
+	MT76_WED_Q_TX,
+	MT76_WED_Q_TXFREE,
 };
 
 struct mt76_bus_ops {
@@ -85,6 +101,7 @@ enum mt76_rxq_id {
 	MT_RXQ_MCU_WA,
 	MT_RXQ_EXT,
 	MT_RXQ_EXT_WA,
+	MT_RXQ_MAIN_WA,
 	__MT_RXQ_MAX
 };
 
@@ -102,6 +119,13 @@ enum mt76_cipher_type {
 	MT_CIPHER_CCMP_256,
 	MT_CIPHER_GCMP,
 	MT_CIPHER_GCMP_256,
+};
+
+enum mt76_dfs_state {
+	MT_DFS_STATE_UNKNOWN,
+	MT_DFS_STATE_DISABLED,
+	MT_DFS_STATE_CAC,
+	MT_DFS_STATE_ACTIVE,
 };
 
 struct mt76_queue_buf {
@@ -162,6 +186,9 @@ struct mt76_queue {
 	u8 buf_offset;
 	u8 hw_idx;
 	u8 qid;
+	u8 flags;
+
+	u32 wed_regs;
 
 	dma_addr_t desc_dma;
 	struct sk_buff *rx_head;
@@ -224,7 +251,7 @@ enum mt76_wcid_flags {
 	MT_WCID_FLAG_HDR_TRANS,
 };
 
-#define MT76_N_WCIDS 288
+#define MT76_N_WCIDS 544
 
 /* stored in ieee80211_tx_info::hw_queue */
 #define MT_TX_HW_QUEUE_EXT_PHY		BIT(3)
@@ -267,7 +294,7 @@ struct mt76_wcid {
 };
 
 struct mt76_txq {
-	struct mt76_wcid *wcid;
+	u16 wcid;
 
 	u16 agg_ssn;
 	bool send_bar;
@@ -496,7 +523,7 @@ struct mt76_usb {
 	} mcu;
 };
 
-#define MT76S_XMIT_BUF_SZ	(16 * PAGE_SIZE)
+#define MT76S_XMIT_BUF_SZ	0x3fe00
 #define MT76S_NUM_TX_ENTRIES	256
 #define MT76S_NUM_RX_ENTRIES	512
 struct mt76_sdio {
@@ -506,7 +533,8 @@ struct mt76_sdio {
 
 	struct work_struct stat_work;
 
-	u8 *xmit_buf[IEEE80211_NUM_ACS + 2];
+	u8 *xmit_buf;
+	u32 xmit_buf_sz;
 
 	struct sdio_func *func;
 	void *intr_data;
@@ -528,6 +556,8 @@ struct mt76_mmio {
 	void __iomem *regs;
 	spinlock_t irq_lock;
 	u32 irqmask;
+
+	struct mtk_wed_device wed;
 };
 
 struct mt76_rx_status {
@@ -621,6 +651,7 @@ struct mt76_vif {
 	u8 band_idx;
 	u8 wmm_idx;
 	u8 scan_seq_num;
+	u8 cipher;
 };
 
 struct mt76_phy {
@@ -636,6 +667,7 @@ struct mt76_phy {
 	struct ieee80211_channel *main_chan;
 
 	struct mt76_channel_state *chan_state;
+	enum mt76_dfs_state dfs_state;
 	ktime_t survey_time;
 
 	struct mt76_hw_cap cap;
@@ -687,6 +719,7 @@ struct mt76_dev {
 	const struct mt76_driver_ops *drv;
 	const struct mt76_mcu_ops *mcu_ops;
 	struct device *dev;
+	struct device *dma_dev;
 
 	struct mt76_mcu mcu;
 
@@ -707,7 +740,9 @@ struct mt76_dev {
 
 	spinlock_t token_lock;
 	struct idr token;
-	int token_count;
+	u16 wed_token_count;
+	u16 token_count;
+	u16 token_size;
 
 	wait_queue_head_t tx_wait;
 	/* spinclock used to protect wcid pktid linked list */
@@ -716,7 +751,7 @@ struct mt76_dev {
 	u32 wcid_mask[DIV_ROUND_UP(MT76_N_WCIDS, 32)];
 	u32 wcid_phy_mask[DIV_ROUND_UP(MT76_N_WCIDS, 32)];
 
-	u32 vif_mask;
+	u64 vif_mask;
 
 	struct mt76_wcid global_wcid;
 	struct mt76_wcid __rcu *wcid[MT76_N_WCIDS];
@@ -897,8 +932,8 @@ static inline u16 mt76_rev(struct mt76_dev *dev)
 #define mt76_queue_reset(dev, ...)	(dev)->mt76.queue_ops->reset_q(&((dev)->mt76), __VA_ARGS__)
 
 #define mt76_for_each_q_rx(dev, i)	\
-	for (i = 0; i < ARRAY_SIZE((dev)->q_rx) && \
-		    (dev)->q_rx[i].ndesc; i++)
+	for (i = 0; i < ARRAY_SIZE((dev)->q_rx); i++)	\
+		if ((dev)->q_rx[i].ndesc)
 
 struct mt76_dev *mt76_alloc_device(struct device *pdev, unsigned int size,
 				   const struct ieee80211_ops *ops,
@@ -931,14 +966,14 @@ int mt76_get_of_eeprom(struct mt76_dev *dev, void *data, int offset, int len);
 
 struct mt76_queue *
 mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
-		int ring_base);
+		int ring_base, u32 flags);
 u16 mt76_calculate_default_rate(struct mt76_phy *phy, int rateidx);
 static inline int mt76_init_tx_queue(struct mt76_phy *phy, int qid, int idx,
-				     int n_desc, int ring_base)
+				     int n_desc, int ring_base, u32 flags)
 {
 	struct mt76_queue *q;
 
-	q = mt76_init_queue(phy->dev, qid, idx, n_desc, ring_base);
+	q = mt76_init_queue(phy->dev, qid, idx, n_desc, ring_base, flags);
 	if (IS_ERR(q))
 		return PTR_ERR(q);
 
@@ -953,7 +988,7 @@ static inline int mt76_init_mcu_queue(struct mt76_dev *dev, int qid, int idx,
 {
 	struct mt76_queue *q;
 
-	q = mt76_init_queue(dev, qid, idx, n_desc, ring_base);
+	q = mt76_init_queue(dev, qid, idx, n_desc, ring_base, 0);
 	if (IS_ERR(q))
 		return PTR_ERR(q);
 
@@ -1181,6 +1216,7 @@ void mt76_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  const u8 *mac);
 void mt76_sw_scan_complete(struct ieee80211_hw *hw,
 			   struct ieee80211_vif *vif);
+enum mt76_dfs_state mt76_phy_dfs_state(struct mt76_phy *phy);
 int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      void *data, int len);
 int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
@@ -1262,13 +1298,21 @@ mt76u_bulk_msg(struct mt76_dev *dev, void *data, int len, int *actual_len,
 void mt76_ethtool_worker(struct mt76_ethtool_worker_info *wi,
 			 struct mt76_sta_stats *stats);
 int mt76_skb_adjust_pad(struct sk_buff *skb, int pad);
+int __mt76u_vendor_request(struct mt76_dev *dev, u8 req, u8 req_type,
+			   u16 val, u16 offset, void *buf, size_t len);
 int mt76u_vendor_request(struct mt76_dev *dev, u8 req,
 			 u8 req_type, u16 val, u16 offset,
 			 void *buf, size_t len);
 void mt76u_single_wr(struct mt76_dev *dev, const u8 req,
 		     const u16 offset, const u32 val);
-int mt76u_init(struct mt76_dev *dev, struct usb_interface *intf,
-	       bool ext);
+void mt76u_read_copy(struct mt76_dev *dev, u32 offset,
+		     void *data, int len);
+u32 ___mt76u_rr(struct mt76_dev *dev, u8 req, u8 req_type, u32 addr);
+void ___mt76u_wr(struct mt76_dev *dev, u8 req, u8 req_type,
+		 u32 addr, u32 val);
+int __mt76u_init(struct mt76_dev *dev, struct usb_interface *intf,
+		 struct mt76_bus_ops *ops);
+int mt76u_init(struct mt76_dev *dev, struct usb_interface *intf);
 int mt76u_alloc_mcu_queue(struct mt76_dev *dev);
 int mt76u_alloc_queues(struct mt76_dev *dev);
 void mt76u_stop_tx(struct mt76_dev *dev);
@@ -1301,8 +1345,15 @@ int mt76s_rd_rp(struct mt76_dev *dev, u32 base,
 		struct mt76_reg_pair *data, int len);
 
 struct sk_buff *
+__mt76_mcu_msg_alloc(struct mt76_dev *dev, const void *data,
+		     int data_len, gfp_t gfp);
+static inline struct sk_buff *
 mt76_mcu_msg_alloc(struct mt76_dev *dev, const void *data,
-		   int data_len);
+		   int data_len)
+{
+	return __mt76_mcu_msg_alloc(dev, data, data_len, GFP_KERNEL);
+}
+
 void mt76_mcu_rx_event(struct mt76_dev *dev, struct sk_buff *skb);
 struct sk_buff *mt76_mcu_get_response(struct mt76_dev *dev,
 				      unsigned long expires);
@@ -1360,8 +1411,7 @@ mt76_token_get(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi)
 	int token;
 
 	spin_lock_bh(&dev->token_lock);
-	token = idr_alloc(&dev->token, *ptxwi, 0, dev->drv->token_size,
-			  GFP_ATOMIC);
+	token = idr_alloc(&dev->token, *ptxwi, 0, dev->token_size, GFP_ATOMIC);
 	spin_unlock_bh(&dev->token_lock);
 
 	return token;

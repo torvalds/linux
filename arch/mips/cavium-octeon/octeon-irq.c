@@ -1274,13 +1274,13 @@ static int octeon_irq_gpio_map(struct irq_domain *d,
 	return r;
 }
 
-static struct irq_domain_ops octeon_irq_domain_ciu_ops = {
+static const struct irq_domain_ops octeon_irq_domain_ciu_ops = {
 	.map = octeon_irq_ciu_map,
 	.unmap = octeon_irq_free_cd,
 	.xlate = octeon_irq_ciu_xlat,
 };
 
-static struct irq_domain_ops octeon_irq_domain_gpio_ops = {
+static const struct irq_domain_ops octeon_irq_domain_gpio_ops = {
 	.map = octeon_irq_gpio_map,
 	.unmap = octeon_irq_free_cd,
 	.xlate = octeon_irq_gpio_xlat,
@@ -1405,7 +1405,7 @@ static void octeon_irq_init_ciu2_percpu(void)
 	 * completed.
 	 *
 	 * There are 9 registers and 3 IPX levels with strides 0x1000
-	 * and 0x200 respectivly.  Use loops to clear them.
+	 * and 0x200 respectively.  Use loops to clear them.
 	 */
 	for (regx = 0; regx <= 0x8000; regx += 0x1000) {
 		for (ipx = 0; ipx <= 0x400; ipx += 0x200)
@@ -1974,7 +1974,7 @@ static int octeon_irq_ciu2_map(struct irq_domain *d,
 	return 0;
 }
 
-static struct irq_domain_ops octeon_irq_domain_ciu2_ops = {
+static const struct irq_domain_ops octeon_irq_domain_ciu2_ops = {
 	.map = octeon_irq_ciu2_map,
 	.unmap = octeon_irq_free_cd,
 	.xlate = octeon_irq_ciu2_xlat,
@@ -2226,7 +2226,7 @@ static int octeon_irq_cib_map(struct irq_domain *d,
 	return 0;
 }
 
-static struct irq_domain_ops octeon_irq_domain_cib_ops = {
+static const struct irq_domain_ops octeon_irq_domain_cib_ops = {
 	.map = octeon_irq_cib_map,
 	.unmap = octeon_irq_free_cd,
 	.xlate = octeon_irq_cib_xlat,
@@ -2578,7 +2578,7 @@ static int octeon_irq_ciu3_map(struct irq_domain *d,
 	return octeon_irq_ciu3_mapx(d, virq, hw, &octeon_irq_chip_ciu3);
 }
 
-static struct irq_domain_ops octeon_dflt_domain_ciu3_ops = {
+static const struct irq_domain_ops octeon_dflt_domain_ciu3_ops = {
 	.map = octeon_irq_ciu3_map,
 	.unmap = octeon_irq_free_cd,
 	.xlate = octeon_irq_ciu3_xlat,

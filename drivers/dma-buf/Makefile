@@ -12,6 +12,7 @@ dmabuf_selftests-y := \
 	selftest.o \
 	st-dma-fence.o \
 	st-dma-fence-chain.o \
+	st-dma-fence-unwrap.o \
 	st-dma-resv.o
 
 obj-$(CONFIG_DMABUF_SELFTESTS)	+= dmabuf_selftests.o

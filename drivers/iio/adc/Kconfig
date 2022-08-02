@@ -64,6 +64,17 @@ config AD7266
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad7266.
 
+config AD7280
+	tristate "Analog Devices AD7280A Lithium Ion Battery Monitoring System"
+	depends on SPI
+	select CRC8
+	help
+	  Say yes here to build support for Analog Devices AD7280A
+	  Lithium Ion Battery Monitoring System.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7280a
+
 config AD7291
 	tristate "Analog Devices AD7291 ADC driver"
 	depends on I2C
@@ -899,7 +910,7 @@ config ROCKCHIP_SARADC
 
 config RZG2L_ADC
 	tristate "Renesas RZ/G2L ADC driver"
-	depends on ARCH_R9A07G044 || COMPILE_TEST
+	depends on ARCH_RZG2L || COMPILE_TEST
 	help
 	  Say yes here to build support for the ADC found in Renesas
 	  RZ/G2L family.

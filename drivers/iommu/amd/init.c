@@ -27,7 +27,6 @@
 #include <asm/apic.h>
 #include <asm/gart.h>
 #include <asm/x86_init.h>
-#include <asm/iommu_table.h>
 #include <asm/io_apic.h>
 #include <asm/irq_remapping.h>
 #include <asm/set_memory.h>
@@ -84,7 +83,7 @@
 #define ACPI_DEVFLAG_LINT1              0x80
 #define ACPI_DEVFLAG_ATSDIS             0x10000000
 
-#define LOOP_TIMEOUT	100000
+#define LOOP_TIMEOUT	2000000
 /*
  * ACPI table definitions
  *
@@ -182,6 +181,7 @@ u32 amd_iommu_max_pasid __read_mostly = ~0;
 
 bool amd_iommu_v2_present __read_mostly;
 static bool amd_iommu_pc_present __read_mostly;
+bool amdr_ivrs_remap_support __read_mostly;
 
 bool amd_iommu_force_isolation __read_mostly;
 
@@ -326,6 +326,8 @@ static void __init early_iommu_features_init(struct amd_iommu *iommu,
 {
 	if (amd_iommu_ivinfo & IOMMU_IVINFO_EFRSUP)
 		iommu->features = h->efr_reg;
+	if (amd_iommu_ivinfo & IOMMU_IVINFO_DMA_REMAP)
+		amdr_ivrs_remap_support = true;
 }
 
 /* Access to l1 and l2 indexed register spaces */
@@ -671,7 +673,7 @@ void amd_iommu_restart_event_logging(struct amd_iommu *iommu)
  * This function resets the command buffer if the IOMMU stopped fetching
  * commands from it.
  */
-void amd_iommu_reset_cmd_buffer(struct amd_iommu *iommu)
+static void amd_iommu_reset_cmd_buffer(struct amd_iommu *iommu)
 {
 	iommu_feature_disable(iommu, CONTROL_CMDBUF_EN);
 
@@ -990,6 +992,7 @@ static bool copy_device_table(void)
 				get_order(dev_table_size));
 	if (old_dev_tbl_cpy == NULL) {
 		pr_err("Failed to allocate memory for copying old device table!\n");
+		memunmap(old_devtb);
 		return false;
 	}
 
@@ -1020,6 +1023,7 @@ static bool copy_device_table(void)
 			if ((int_ctl != DTE_IRQ_REMAP_INTCTL) ||
 			    (int_tab_len != DTE_INTTABLEN)) {
 				pr_err("Wrong old irq remapping flag: %#x\n", devid);
+				memunmap(old_devtb);
 				return false;
 			}
 
@@ -1953,9 +1957,11 @@ static int __init amd_iommu_init_pci(void)
 
 	for_each_iommu(iommu) {
 		ret = iommu_init_pci(iommu);
-		if (ret)
-			break;
-
+		if (ret) {
+			pr_err("IOMMU%d: Failed to initialize IOMMU Hardware (error=%d)!\n",
+			       iommu->index, ret);
+			goto out;
+		}
 		/* Need to setup range after PCI init */
 		iommu_set_cwwb_range(iommu);
 	}
@@ -1971,15 +1977,20 @@ static int __init amd_iommu_init_pci(void)
 	 * active.
 	 */
 	ret = amd_iommu_init_api();
+	if (ret) {
+		pr_err("IOMMU: Failed to initialize IOMMU-API interface (error=%d)!\n",
+		       ret);
+		goto out;
+	}
 
 	init_device_table_dma();
 
 	for_each_iommu(iommu)
 		iommu_flush_all_caches(iommu);
 
-	if (!ret)
-		print_iommu_info();
+	print_iommu_info();
 
+out:
 	return ret;
 }
 
@@ -3246,11 +3257,6 @@ __setup("amd_iommu_intr=",	parse_amd_iommu_intr);
 __setup("ivrs_ioapic",		parse_ivrs_ioapic);
 __setup("ivrs_hpet",		parse_ivrs_hpet);
 __setup("ivrs_acpihid",		parse_ivrs_acpihid);
-
-IOMMU_INIT_FINISH(amd_iommu_detect,
-		  gart_iommu_hole_init,
-		  NULL,
-		  NULL);
 
 bool amd_iommu_v2_supported(void)
 {

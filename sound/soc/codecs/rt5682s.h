@@ -1434,7 +1434,11 @@ struct pll_calc_map {
 	bool sel_ps;
 };
 
-#define RT5682S_NUM_SUPPLIES 2
+enum {
+	RT5682S_SUPPLY_AVDD,
+	RT5682S_SUPPLY_MICVDD,
+	RT5682S_NUM_SUPPLIES,
+};
 
 struct rt5682s_priv {
 	struct snd_soc_component *component;
@@ -1446,7 +1450,6 @@ struct rt5682s_priv {
 	struct delayed_work jd_check_work;
 	struct mutex calibrate_mutex;
 	struct mutex sar_mutex;
-	struct mutex jdet_mutex;
 
 #ifdef CONFIG_COMMON_CLK
 	struct clk_hw dai_clks_hw[RT5682S_DAI_NUM_CLKS];

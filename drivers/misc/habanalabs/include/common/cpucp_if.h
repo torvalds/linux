@@ -389,6 +389,14 @@ enum pq_init_status {
  *
  * CPUCP_PACKET_ENGINE_CORE_ASID_SET -
  *       Packet to perform engine core ASID configuration
+ *
+ * CPUCP_PACKET_MONITOR_DUMP_GET -
+ *       Get monitors registers dump from the CpuCP kernel.
+ *       The CPU will put the registers dump in the a buffer allocated by the driver
+ *       which address is passed via the CpuCp packet. In addition, the host's driver
+ *       passes the max size it allows the CpuCP to write to the structure, to prevent
+ *       data corruption in case of mismatched driver/FW versions.
+ *       Relevant only to Gaudi.
  */
 
 enum cpucp_packet_id {
@@ -439,6 +447,11 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_POWER_SET,			/* internal */
 	CPUCP_PACKET_RESERVED,			/* not used */
 	CPUCP_PACKET_ENGINE_CORE_ASID_SET,	/* internal */
+	CPUCP_PACKET_RESERVED2,			/* not used */
+	CPUCP_PACKET_RESERVED3,			/* not used */
+	CPUCP_PACKET_RESERVED4,			/* not used */
+	CPUCP_PACKET_RESERVED5,			/* not used */
+	CPUCP_PACKET_MONITOR_DUMP_GET,		/* debugfs */
 };
 
 #define CPUCP_PACKET_FENCE_VAL	0xFE8CE7A5
@@ -540,19 +553,25 @@ struct cpucp_packet {
 struct cpucp_unmask_irq_arr_packet {
 	struct cpucp_packet cpucp_pkt;
 	__le32 length;
-	__le32 irqs[0];
+	__le32 irqs[];
 };
 
 struct cpucp_nic_status_packet {
 	struct cpucp_packet cpucp_pkt;
 	__le32 length;
-	__le32 data[0];
+	__le32 data[];
 };
 
 struct cpucp_array_data_packet {
 	struct cpucp_packet cpucp_pkt;
 	__le32 length;
-	__le32 data[0];
+	__le32 data[];
+};
+
+enum cpucp_led_index {
+	CPUCP_LED0_INDEX = 0,
+	CPUCP_LED1_INDEX,
+	CPUCP_LED2_INDEX
 };
 
 enum cpucp_packet_rc {
@@ -576,7 +595,10 @@ enum cpucp_temp_type {
 	cpucp_temp_offset = 19,
 	cpucp_temp_lowest = 21,
 	cpucp_temp_highest = 22,
-	cpucp_temp_reset_history = 23
+	cpucp_temp_reset_history = 23,
+	cpucp_temp_warn = 24,
+	cpucp_temp_max_crit = 25,
+	cpucp_temp_max_warn = 26,
 };
 
 enum cpucp_in_attributes {
@@ -686,6 +708,7 @@ enum pll_index {
 enum rl_index {
 	TPC_RL = 0,
 	MME_RL,
+	EDMA_RL,
 };
 
 enum pvt_index {
@@ -780,6 +803,7 @@ struct cpucp_security_info {
  *                     (0 = functional 1 = binned)
  * @xbar_binning_mask: Xbar binning mask, 1 bit per Xbar instance
  *                     (0 = functional 1 = binned)
+ * @fw_os_version: Firmware OS Version
  */
 struct cpucp_info {
 	struct cpucp_sensor sensors[CPUCP_MAX_SENSORS];
@@ -807,6 +831,7 @@ struct cpucp_info {
 	__le32 reserved6;
 	__u8 pll_map[PLL_MAP_LEN];
 	__le64 mme_binning_mask;
+	__u8 fw_os_version[VERSION_MAX_LEN];
 };
 
 struct cpucp_mac_addr {
@@ -818,6 +843,7 @@ enum cpucp_serdes_type {
 	TYPE_2_SERDES_TYPE,
 	HLS1_SERDES_TYPE,
 	HLS1H_SERDES_TYPE,
+	HLS2_SERDES_TYPE,
 	UNKNOWN_SERDES_TYPE,
 	MAX_NUM_SERDES_TYPE = UNKNOWN_SERDES_TYPE
 };
@@ -831,7 +857,26 @@ struct cpucp_nic_info {
 	__u8 qsfp_eeprom[CPUCP_NIC_QSFP_EEPROM_MAX_LEN];
 	__le64 auto_neg_mask[CPUCP_NIC_MASK_ARR_LEN];
 	__le16 serdes_type; /* enum cpucp_serdes_type */
+	__le16 tx_swap_map[CPUCP_MAX_NICS];
 	__u8 reserved[6];
+};
+
+#define PAGE_DISCARD_MAX	64
+
+struct page_discard_info {
+	__u8 num_entries;
+	__u8 reserved[7];
+	__le32 mmu_page_idx[PAGE_DISCARD_MAX];
+};
+
+/*
+ * struct ser_val - the SER (symbol error rate) value is represented by "integer * 10 ^ -exp".
+ * @integer: the integer part of the SER value;
+ * @exp: the exponent part of the SER value.
+ */
+struct ser_val {
+	__le16 integer;
+	__le16 exp;
 };
 
 /*
@@ -885,6 +930,31 @@ struct cpucp_hbm_row_replaced_rows_info {
 	__le16 num_replaced_rows;
 	__u8 pad[6];
 	struct cpucp_hbm_row_info replaced_rows[CPUCP_HBM_ROW_REPLACE_MAX];
+};
+
+/*
+ * struct dcore_monitor_regs_data - DCORE monitor regs data.
+ * the structure follows sync manager block layout. relevant only to Gaudi.
+ * @mon_pay_addrl: array of payload address low bits.
+ * @mon_pay_addrh: array of payload address high bits.
+ * @mon_pay_data: array of payload data.
+ * @mon_arm: array of monitor arm.
+ * @mon_status: array of monitor status.
+ */
+struct dcore_monitor_regs_data {
+	__le32 mon_pay_addrl[512];
+	__le32 mon_pay_addrh[512];
+	__le32 mon_pay_data[512];
+	__le32 mon_arm[512];
+	__le32 mon_status[512];
+};
+
+/* contains SM data for each SYNC_MNGR (relevant only to Gaudi) */
+struct cpucp_monitor_dump {
+	struct dcore_monitor_regs_data sync_mngr_w_s;
+	struct dcore_monitor_regs_data sync_mngr_e_s;
+	struct dcore_monitor_regs_data sync_mngr_w_n;
+	struct dcore_monitor_regs_data sync_mngr_e_n;
 };
 
 #endif /* CPUCP_IF_H */

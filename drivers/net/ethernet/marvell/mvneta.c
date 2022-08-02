@@ -76,6 +76,8 @@
 #define MVNETA_WIN_SIZE(w)                      (0x2204 + ((w) << 3))
 #define MVNETA_WIN_REMAP(w)                     (0x2280 + ((w) << 2))
 #define MVNETA_BASE_ADDR_ENABLE                 0x2290
+#define      MVNETA_AC5_CNM_DDR_TARGET		0x2
+#define      MVNETA_AC5_CNM_DDR_ATTR		0xb
 #define MVNETA_ACCESS_PROTECT_ENABLE            0x2294
 #define MVNETA_PORT_CONFIG                      0x2400
 #define      MVNETA_UNI_PROMISC_MODE            BIT(0)
@@ -544,6 +546,7 @@ struct mvneta_port {
 
 	/* Flags for special SoC configurations */
 	bool neta_armada3700;
+	bool neta_ac5;
 	u16 rx_offset_correction;
 	const struct mbus_dram_target_info *dram_target_info;
 };
@@ -1884,8 +1887,8 @@ static void mvneta_txq_bufs_free(struct mvneta_port *pp,
 			bytes_compl += buf->skb->len;
 			pkts_compl++;
 			dev_kfree_skb_any(buf->skb);
-		} else if (buf->type == MVNETA_TYPE_XDP_TX ||
-			   buf->type == MVNETA_TYPE_XDP_NDO) {
+		} else if ((buf->type == MVNETA_TYPE_XDP_TX ||
+			    buf->type == MVNETA_TYPE_XDP_NDO) && buf->xdpf) {
 			if (napi && buf->type == MVNETA_TYPE_XDP_TX)
 				xdp_return_frame_rx_napi(buf->xdpf);
 			else
@@ -2060,61 +2063,104 @@ int mvneta_rx_refill_queue(struct mvneta_port *pp, struct mvneta_rx_queue *rxq)
 
 static void
 mvneta_xdp_put_buff(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
-		    struct xdp_buff *xdp, struct skb_shared_info *sinfo,
-		    int sync_len)
+		    struct xdp_buff *xdp, int sync_len)
 {
+	struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(xdp);
 	int i;
+
+	if (likely(!xdp_buff_has_frags(xdp)))
+		goto out;
 
 	for (i = 0; i < sinfo->nr_frags; i++)
 		page_pool_put_full_page(rxq->page_pool,
 					skb_frag_page(&sinfo->frags[i]), true);
+
+out:
 	page_pool_put_page(rxq->page_pool, virt_to_head_page(xdp->data),
 			   sync_len, true);
 }
 
 static int
 mvneta_xdp_submit_frame(struct mvneta_port *pp, struct mvneta_tx_queue *txq,
-			struct xdp_frame *xdpf, bool dma_map)
+			struct xdp_frame *xdpf, int *nxmit_byte, bool dma_map)
 {
+	struct skb_shared_info *sinfo = xdp_get_shared_info_from_frame(xdpf);
+	struct device *dev = pp->dev->dev.parent;
 	struct mvneta_tx_desc *tx_desc;
-	struct mvneta_tx_buf *buf;
-	dma_addr_t dma_addr;
+	int i, num_frames = 1;
+	struct page *page;
 
-	if (txq->count >= txq->tx_stop_threshold)
+	if (unlikely(xdp_frame_has_frags(xdpf)))
+		num_frames += sinfo->nr_frags;
+
+	if (txq->count + num_frames >= txq->size)
 		return MVNETA_XDP_DROPPED;
 
-	tx_desc = mvneta_txq_next_desc_get(txq);
+	for (i = 0; i < num_frames; i++) {
+		struct mvneta_tx_buf *buf = &txq->buf[txq->txq_put_index];
+		skb_frag_t *frag = NULL;
+		int len = xdpf->len;
+		dma_addr_t dma_addr;
 
-	buf = &txq->buf[txq->txq_put_index];
-	if (dma_map) {
-		/* ndo_xdp_xmit */
-		dma_addr = dma_map_single(pp->dev->dev.parent, xdpf->data,
-					  xdpf->len, DMA_TO_DEVICE);
-		if (dma_mapping_error(pp->dev->dev.parent, dma_addr)) {
-			mvneta_txq_desc_put(txq);
-			return MVNETA_XDP_DROPPED;
+		if (unlikely(i)) { /* paged area */
+			frag = &sinfo->frags[i - 1];
+			len = skb_frag_size(frag);
 		}
-		buf->type = MVNETA_TYPE_XDP_NDO;
-	} else {
-		struct page *page = virt_to_page(xdpf->data);
 
-		dma_addr = page_pool_get_dma_addr(page) +
-			   sizeof(*xdpf) + xdpf->headroom;
-		dma_sync_single_for_device(pp->dev->dev.parent, dma_addr,
-					   xdpf->len, DMA_BIDIRECTIONAL);
-		buf->type = MVNETA_TYPE_XDP_TX;
+		tx_desc = mvneta_txq_next_desc_get(txq);
+		if (dma_map) {
+			/* ndo_xdp_xmit */
+			void *data;
+
+			data = unlikely(frag) ? skb_frag_address(frag)
+					      : xdpf->data;
+			dma_addr = dma_map_single(dev, data, len,
+						  DMA_TO_DEVICE);
+			if (dma_mapping_error(dev, dma_addr)) {
+				mvneta_txq_desc_put(txq);
+				goto unmap;
+			}
+
+			buf->type = MVNETA_TYPE_XDP_NDO;
+		} else {
+			page = unlikely(frag) ? skb_frag_page(frag)
+					      : virt_to_page(xdpf->data);
+			dma_addr = page_pool_get_dma_addr(page);
+			if (unlikely(frag))
+				dma_addr += skb_frag_off(frag);
+			else
+				dma_addr += sizeof(*xdpf) + xdpf->headroom;
+			dma_sync_single_for_device(dev, dma_addr, len,
+						   DMA_BIDIRECTIONAL);
+			buf->type = MVNETA_TYPE_XDP_TX;
+		}
+		buf->xdpf = unlikely(i) ? NULL : xdpf;
+
+		tx_desc->command = unlikely(i) ? 0 : MVNETA_TXD_F_DESC;
+		tx_desc->buf_phys_addr = dma_addr;
+		tx_desc->data_size = len;
+		*nxmit_byte += len;
+
+		mvneta_txq_inc_put(txq);
 	}
-	buf->xdpf = xdpf;
+	/*last descriptor */
+	tx_desc->command |= MVNETA_TXD_L_DESC | MVNETA_TXD_Z_PAD;
 
-	tx_desc->command = MVNETA_TXD_FLZ_DESC;
-	tx_desc->buf_phys_addr = dma_addr;
-	tx_desc->data_size = xdpf->len;
-
-	mvneta_txq_inc_put(txq);
-	txq->pending++;
-	txq->count++;
+	txq->pending += num_frames;
+	txq->count += num_frames;
 
 	return MVNETA_XDP_TX;
+
+unmap:
+	for (i--; i >= 0; i--) {
+		mvneta_txq_desc_put(txq);
+		tx_desc = txq->descs + txq->next_desc_to_proc;
+		dma_unmap_single(dev, tx_desc->buf_phys_addr,
+				 tx_desc->data_size,
+				 DMA_TO_DEVICE);
+	}
+
+	return MVNETA_XDP_DROPPED;
 }
 
 static int
@@ -2123,8 +2169,8 @@ mvneta_xdp_xmit_back(struct mvneta_port *pp, struct xdp_buff *xdp)
 	struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
 	struct mvneta_tx_queue *txq;
 	struct netdev_queue *nq;
+	int cpu, nxmit_byte = 0;
 	struct xdp_frame *xdpf;
-	int cpu;
 	u32 ret;
 
 	xdpf = xdp_convert_buff_to_frame(xdp);
@@ -2136,10 +2182,10 @@ mvneta_xdp_xmit_back(struct mvneta_port *pp, struct xdp_buff *xdp)
 	nq = netdev_get_tx_queue(pp->dev, txq->id);
 
 	__netif_tx_lock(nq, cpu);
-	ret = mvneta_xdp_submit_frame(pp, txq, xdpf, false);
+	ret = mvneta_xdp_submit_frame(pp, txq, xdpf, &nxmit_byte, false);
 	if (ret == MVNETA_XDP_TX) {
 		u64_stats_update_begin(&stats->syncp);
-		stats->es.ps.tx_bytes += xdpf->len;
+		stats->es.ps.tx_bytes += nxmit_byte;
 		stats->es.ps.tx_packets++;
 		stats->es.ps.xdp_tx++;
 		u64_stats_update_end(&stats->syncp);
@@ -2178,11 +2224,11 @@ mvneta_xdp_xmit(struct net_device *dev, int num_frame,
 
 	__netif_tx_lock(nq, cpu);
 	for (i = 0; i < num_frame; i++) {
-		ret = mvneta_xdp_submit_frame(pp, txq, frames[i], true);
+		ret = mvneta_xdp_submit_frame(pp, txq, frames[i], &nxmit_byte,
+					      true);
 		if (ret != MVNETA_XDP_TX)
 			break;
 
-		nxmit_byte += frames[i]->len;
 		nxmit++;
 	}
 
@@ -2205,7 +2251,6 @@ mvneta_run_xdp(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
 	       struct bpf_prog *prog, struct xdp_buff *xdp,
 	       u32 frame_sz, struct mvneta_stats *stats)
 {
-	struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(xdp);
 	unsigned int len, data_len, sync;
 	u32 ret, act;
 
@@ -2226,7 +2271,7 @@ mvneta_run_xdp(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
 
 		err = xdp_do_redirect(pp->dev, xdp, prog);
 		if (unlikely(err)) {
-			mvneta_xdp_put_buff(pp, rxq, xdp, sinfo, sync);
+			mvneta_xdp_put_buff(pp, rxq, xdp, sync);
 			ret = MVNETA_XDP_DROPPED;
 		} else {
 			ret = MVNETA_XDP_REDIR;
@@ -2237,7 +2282,7 @@ mvneta_run_xdp(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
 	case XDP_TX:
 		ret = mvneta_xdp_xmit_back(pp, xdp);
 		if (ret != MVNETA_XDP_TX)
-			mvneta_xdp_put_buff(pp, rxq, xdp, sinfo, sync);
+			mvneta_xdp_put_buff(pp, rxq, xdp, sync);
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(pp->dev, prog, act);
@@ -2246,7 +2291,7 @@ mvneta_run_xdp(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
 		trace_xdp_exception(pp->dev, prog, act);
 		fallthrough;
 	case XDP_DROP:
-		mvneta_xdp_put_buff(pp, rxq, xdp, sinfo, sync);
+		mvneta_xdp_put_buff(pp, rxq, xdp, sync);
 		ret = MVNETA_XDP_DROPPED;
 		stats->xdp_drop++;
 		break;
@@ -2269,7 +2314,6 @@ mvneta_swbm_rx_frame(struct mvneta_port *pp,
 	int data_len = -MVNETA_MH_SIZE, len;
 	struct net_device *dev = pp->dev;
 	enum dma_data_direction dma_dir;
-	struct skb_shared_info *sinfo;
 
 	if (*size > MVNETA_MAX_RX_BUF_SIZE) {
 		len = MVNETA_MAX_RX_BUF_SIZE;
@@ -2289,11 +2333,9 @@ mvneta_swbm_rx_frame(struct mvneta_port *pp,
 
 	/* Prefetch header */
 	prefetch(data);
+	xdp_buff_clear_frags_flag(xdp);
 	xdp_prepare_buff(xdp, data, pp->rx_offset_correction + MVNETA_MH_SIZE,
 			 data_len, false);
-
-	sinfo = xdp_get_shared_info_from_buff(xdp);
-	sinfo->nr_frags = 0;
 }
 
 static void
@@ -2301,9 +2343,9 @@ mvneta_swbm_add_rx_fragment(struct mvneta_port *pp,
 			    struct mvneta_rx_desc *rx_desc,
 			    struct mvneta_rx_queue *rxq,
 			    struct xdp_buff *xdp, int *size,
-			    struct skb_shared_info *xdp_sinfo,
 			    struct page *page)
 {
+	struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(xdp);
 	struct net_device *dev = pp->dev;
 	enum dma_data_direction dma_dir;
 	int data_len, len;
@@ -2321,24 +2363,24 @@ mvneta_swbm_add_rx_fragment(struct mvneta_port *pp,
 				len, dma_dir);
 	rx_desc->buf_phys_addr = 0;
 
-	if (data_len > 0 && xdp_sinfo->nr_frags < MAX_SKB_FRAGS) {
-		skb_frag_t *frag = &xdp_sinfo->frags[xdp_sinfo->nr_frags++];
+	if (!xdp_buff_has_frags(xdp))
+		sinfo->nr_frags = 0;
+
+	if (data_len > 0 && sinfo->nr_frags < MAX_SKB_FRAGS) {
+		skb_frag_t *frag = &sinfo->frags[sinfo->nr_frags++];
 
 		skb_frag_off_set(frag, pp->rx_offset_correction);
 		skb_frag_size_set(frag, data_len);
 		__skb_frag_set_page(frag, page);
+
+		if (!xdp_buff_has_frags(xdp)) {
+			sinfo->xdp_frags_size = *size;
+			xdp_buff_set_frags_flag(xdp);
+		}
+		if (page_is_pfmemalloc(page))
+			xdp_buff_set_frag_pfmemalloc(xdp);
 	} else {
 		page_pool_put_full_page(rxq->page_pool, page, true);
-	}
-
-	/* last fragment */
-	if (len == *size) {
-		struct skb_shared_info *sinfo;
-
-		sinfo = xdp_get_shared_info_from_buff(xdp);
-		sinfo->nr_frags = xdp_sinfo->nr_frags;
-		memcpy(sinfo->frags, xdp_sinfo->frags,
-		       sinfo->nr_frags * sizeof(skb_frag_t));
 	}
 	*size -= len;
 }
@@ -2348,8 +2390,11 @@ mvneta_swbm_build_skb(struct mvneta_port *pp, struct page_pool *pool,
 		      struct xdp_buff *xdp, u32 desc_status)
 {
 	struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(xdp);
-	int i, num_frags = sinfo->nr_frags;
 	struct sk_buff *skb;
+	u8 num_frags;
+
+	if (unlikely(xdp_buff_has_frags(xdp)))
+		num_frags = sinfo->nr_frags;
 
 	skb = build_skb(xdp->data_hard_start, PAGE_SIZE);
 	if (!skb)
@@ -2361,13 +2406,11 @@ mvneta_swbm_build_skb(struct mvneta_port *pp, struct page_pool *pool,
 	skb_put(skb, xdp->data_end - xdp->data);
 	skb->ip_summed = mvneta_rx_csum(pp, desc_status);
 
-	for (i = 0; i < num_frags; i++) {
-		skb_frag_t *frag = &sinfo->frags[i];
-
-		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
-				skb_frag_page(frag), skb_frag_off(frag),
-				skb_frag_size(frag), PAGE_SIZE);
-	}
+	if (unlikely(xdp_buff_has_frags(xdp)))
+		xdp_update_skb_shared_info(skb, num_frags,
+					   sinfo->xdp_frags_size,
+					   num_frags * xdp->frame_sz,
+					   xdp_buff_is_frag_pfmemalloc(xdp));
 
 	return skb;
 }
@@ -2379,7 +2422,6 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 {
 	int rx_proc = 0, rx_todo, refill, size = 0;
 	struct net_device *dev = pp->dev;
-	struct skb_shared_info sinfo;
 	struct mvneta_stats ps = {};
 	struct bpf_prog *xdp_prog;
 	u32 desc_status, frame_sz;
@@ -2387,8 +2429,6 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 
 	xdp_init_buff(&xdp_buf, PAGE_SIZE, &rxq->xdp_rxq);
 	xdp_buf.data_hard_start = NULL;
-
-	sinfo.nr_frags = 0;
 
 	/* Get number of received packets */
 	rx_todo = mvneta_rxq_busy_desc_num_get(pp, rxq);
@@ -2431,7 +2471,7 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 			}
 
 			mvneta_swbm_add_rx_fragment(pp, rx_desc, rxq, &xdp_buf,
-						    &size, &sinfo, page);
+						    &size, page);
 		} /* Middle or Last descriptor */
 
 		if (!(rx_status & MVNETA_RXD_LAST_DESC))
@@ -2439,7 +2479,7 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 			continue;
 
 		if (size) {
-			mvneta_xdp_put_buff(pp, rxq, &xdp_buf, &sinfo, -1);
+			mvneta_xdp_put_buff(pp, rxq, &xdp_buf, -1);
 			goto next;
 		}
 
@@ -2451,7 +2491,7 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 		if (IS_ERR(skb)) {
 			struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
 
-			mvneta_xdp_put_buff(pp, rxq, &xdp_buf, &sinfo, -1);
+			mvneta_xdp_put_buff(pp, rxq, &xdp_buf, -1);
 
 			u64_stats_update_begin(&stats->syncp);
 			stats->es.skb_alloc_error++;
@@ -2468,11 +2508,10 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 		napi_gro_receive(napi, skb);
 next:
 		xdp_buf.data_hard_start = NULL;
-		sinfo.nr_frags = 0;
 	}
 
 	if (xdp_buf.data_hard_start)
-		mvneta_xdp_put_buff(pp, rxq, &xdp_buf, &sinfo, -1);
+		mvneta_xdp_put_buff(pp, rxq, &xdp_buf, -1);
 
 	if (ps.xdp_redirect)
 		xdp_do_flush_map();
@@ -3260,7 +3299,8 @@ static int mvneta_create_page_pool(struct mvneta_port *pp,
 		return err;
 	}
 
-	err = xdp_rxq_info_reg(&rxq->xdp_rxq, pp->dev, rxq->id, 0);
+	err = __xdp_rxq_info_reg(&rxq->xdp_rxq, pp->dev, rxq->id, 0,
+				 PAGE_SIZE);
 	if (err < 0)
 		goto err_free_pp;
 
@@ -3740,6 +3780,7 @@ static void mvneta_percpu_disable(void *arg)
 static int mvneta_change_mtu(struct net_device *dev, int mtu)
 {
 	struct mvneta_port *pp = netdev_priv(dev);
+	struct bpf_prog *prog = pp->xdp_prog;
 	int ret;
 
 	if (!IS_ALIGNED(MVNETA_RX_PKT_SIZE(mtu), 8)) {
@@ -3748,8 +3789,11 @@ static int mvneta_change_mtu(struct net_device *dev, int mtu)
 		mtu = ALIGN(MVNETA_RX_PKT_SIZE(mtu), 8);
 	}
 
-	if (pp->xdp_prog && mtu > MVNETA_MAX_RX_BUF_SIZE) {
-		netdev_info(dev, "Illegal MTU value %d for XDP mode\n", mtu);
+	if (prog && !prog->aux->xdp_has_frags &&
+	    mtu > MVNETA_MAX_RX_BUF_SIZE) {
+		netdev_info(dev, "Illegal MTU %d for XDP prog without frags\n",
+			    mtu);
+
 		return -EINVAL;
 	}
 
@@ -3969,6 +4013,15 @@ static const struct phylink_pcs_ops mvneta_phylink_pcs_ops = {
 	.pcs_an_restart = mvneta_pcs_an_restart,
 };
 
+static struct phylink_pcs *mvneta_mac_select_pcs(struct phylink_config *config,
+						 phy_interface_t interface)
+{
+	struct net_device *ndev = to_net_dev(config->dev);
+	struct mvneta_port *pp = netdev_priv(ndev);
+
+	return &pp->phylink_pcs;
+}
+
 static int mvneta_mac_prepare(struct phylink_config *config, unsigned int mode,
 			      phy_interface_t interface)
 {
@@ -4169,13 +4222,14 @@ static void mvneta_mac_link_up(struct phylink_config *config,
 	mvneta_port_up(pp);
 
 	if (phy && pp->eee_enabled) {
-		pp->eee_active = phy_init_eee(phy, 0) >= 0;
+		pp->eee_active = phy_init_eee(phy, false) >= 0;
 		mvneta_set_eee(pp, pp->eee_active && pp->tx_lpi_enabled);
 	}
 }
 
 static const struct phylink_mac_ops mvneta_phylink_ops = {
 	.validate = phylink_generic_validate,
+	.mac_select_pcs = mvneta_mac_select_pcs,
 	.mac_prepare = mvneta_mac_prepare,
 	.mac_config = mvneta_mac_config,
 	.mac_finish = mvneta_mac_finish,
@@ -4490,8 +4544,9 @@ static int mvneta_xdp_setup(struct net_device *dev, struct bpf_prog *prog,
 	struct mvneta_port *pp = netdev_priv(dev);
 	struct bpf_prog *old_prog;
 
-	if (prog && dev->mtu > MVNETA_MAX_RX_BUF_SIZE) {
-		NL_SET_ERR_MSG_MOD(extack, "MTU too large for XDP");
+	if (prog && !prog->aux->xdp_has_frags &&
+	    dev->mtu > MVNETA_MAX_RX_BUF_SIZE) {
+		NL_SET_ERR_MSG_MOD(extack, "prog does not support XDP frags");
 		return -EOPNOTSUPP;
 	}
 
@@ -4680,6 +4735,9 @@ static void mvneta_ethtool_get_strings(struct net_device *netdev, u32 sset,
 		for (i = 0; i < ARRAY_SIZE(mvneta_statistics); i++)
 			memcpy(data + i * ETH_GSTRING_LEN,
 			       mvneta_statistics[i].name, ETH_GSTRING_LEN);
+
+		data += ETH_GSTRING_LEN * ARRAY_SIZE(mvneta_statistics);
+		page_pool_ethtool_stats_get_strings(data);
 	}
 }
 
@@ -4792,6 +4850,17 @@ static void mvneta_ethtool_update_stats(struct mvneta_port *pp)
 	}
 }
 
+static void mvneta_ethtool_pp_stats(struct mvneta_port *pp, u64 *data)
+{
+	struct page_pool_stats stats = {};
+	int i;
+
+	for (i = 0; i < rxq_number; i++)
+		page_pool_get_stats(pp->rxqs[i].page_pool, &stats);
+
+	page_pool_ethtool_stats_get(data, &stats);
+}
+
 static void mvneta_ethtool_get_stats(struct net_device *dev,
 				     struct ethtool_stats *stats, u64 *data)
 {
@@ -4802,12 +4871,16 @@ static void mvneta_ethtool_get_stats(struct net_device *dev,
 
 	for (i = 0; i < ARRAY_SIZE(mvneta_statistics); i++)
 		*data++ = pp->ethtool_stats[i];
+
+	mvneta_ethtool_pp_stats(pp, data);
 }
 
 static int mvneta_ethtool_get_sset_count(struct net_device *dev, int sset)
 {
 	if (sset == ETH_SS_STATS)
-		return ARRAY_SIZE(mvneta_statistics);
+		return ARRAY_SIZE(mvneta_statistics) +
+		       page_pool_ethtool_stats_get_count();
+
 	return -EOPNOTSUPP;
 }
 
@@ -5272,6 +5345,10 @@ static void mvneta_conf_mbus_windows(struct mvneta_port *pp,
 			win_protect |= 3 << (2 * i);
 		}
 	} else {
+		if (pp->neta_ac5)
+			mvreg_write(pp, MVNETA_WIN_BASE(0),
+				    (MVNETA_AC5_CNM_DDR_ATTR << 8) |
+				    MVNETA_AC5_CNM_DDR_TARGET);
 		/* For Armada3700 open default 4GB Mbus window, leaving
 		 * arbitration of target/attribute to a different layer
 		 * of configuration.
@@ -5321,26 +5398,66 @@ static int mvneta_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
-	dev->irq = irq_of_parse_and_map(dn, 0);
-	if (dev->irq == 0)
-		return -EINVAL;
+	dev->tx_queue_len = MVNETA_MAX_TXD;
+	dev->watchdog_timeo = 5 * HZ;
+	dev->netdev_ops = &mvneta_netdev_ops;
+	dev->ethtool_ops = &mvneta_eth_tool_ops;
+
+	pp = netdev_priv(dev);
+	spin_lock_init(&pp->lock);
+	pp->dn = dn;
+
+	pp->rxq_def = rxq_def;
+	pp->indir[0] = rxq_def;
 
 	err = of_get_phy_mode(dn, &phy_mode);
 	if (err) {
 		dev_err(&pdev->dev, "incorrect phy-mode\n");
-		goto err_free_irq;
+		return err;
 	}
+
+	pp->phy_interface = phy_mode;
 
 	comphy = devm_of_phy_get(&pdev->dev, dn, NULL);
-	if (comphy == ERR_PTR(-EPROBE_DEFER)) {
-		err = -EPROBE_DEFER;
-		goto err_free_irq;
-	} else if (IS_ERR(comphy)) {
+	if (comphy == ERR_PTR(-EPROBE_DEFER))
+		return -EPROBE_DEFER;
+
+	if (IS_ERR(comphy))
 		comphy = NULL;
+
+	pp->comphy = comphy;
+
+	pp->base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(pp->base))
+		return PTR_ERR(pp->base);
+
+	/* Get special SoC configurations */
+	if (of_device_is_compatible(dn, "marvell,armada-3700-neta"))
+		pp->neta_armada3700 = true;
+	if (of_device_is_compatible(dn, "marvell,armada-ac5-neta")) {
+		pp->neta_armada3700 = true;
+		pp->neta_ac5 = true;
 	}
 
-	pp = netdev_priv(dev);
-	spin_lock_init(&pp->lock);
+	dev->irq = irq_of_parse_and_map(dn, 0);
+	if (dev->irq == 0)
+		return -EINVAL;
+
+	pp->clk = devm_clk_get(&pdev->dev, "core");
+	if (IS_ERR(pp->clk))
+		pp->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(pp->clk)) {
+		err = PTR_ERR(pp->clk);
+		goto err_free_irq;
+	}
+
+	clk_prepare_enable(pp->clk);
+
+	pp->clk_bus = devm_clk_get(&pdev->dev, "bus");
+	if (!IS_ERR(pp->clk_bus))
+		clk_prepare_enable(pp->clk_bus);
+
+	pp->phylink_pcs.ops = &mvneta_phylink_pcs_ops;
 
 	pp->phylink_config.dev = &dev->dev;
 	pp->phylink_config.type = PHYLINK_NETDEV;
@@ -5377,55 +5494,16 @@ static int mvneta_probe(struct platform_device *pdev)
 				 phy_mode, &mvneta_phylink_ops);
 	if (IS_ERR(phylink)) {
 		err = PTR_ERR(phylink);
-		goto err_free_irq;
-	}
-
-	dev->tx_queue_len = MVNETA_MAX_TXD;
-	dev->watchdog_timeo = 5 * HZ;
-	dev->netdev_ops = &mvneta_netdev_ops;
-
-	dev->ethtool_ops = &mvneta_eth_tool_ops;
-
-	pp->phylink = phylink;
-	pp->comphy = comphy;
-	pp->phy_interface = phy_mode;
-	pp->dn = dn;
-
-	pp->rxq_def = rxq_def;
-	pp->indir[0] = rxq_def;
-
-	/* Get special SoC configurations */
-	if (of_device_is_compatible(dn, "marvell,armada-3700-neta"))
-		pp->neta_armada3700 = true;
-
-	pp->clk = devm_clk_get(&pdev->dev, "core");
-	if (IS_ERR(pp->clk))
-		pp->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(pp->clk)) {
-		err = PTR_ERR(pp->clk);
-		goto err_free_phylink;
-	}
-
-	clk_prepare_enable(pp->clk);
-
-	pp->clk_bus = devm_clk_get(&pdev->dev, "bus");
-	if (!IS_ERR(pp->clk_bus))
-		clk_prepare_enable(pp->clk_bus);
-
-	pp->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(pp->base)) {
-		err = PTR_ERR(pp->base);
 		goto err_clk;
 	}
 
-	pp->phylink_pcs.ops = &mvneta_phylink_pcs_ops;
-	phylink_set_pcs(phylink, &pp->phylink_pcs);
+	pp->phylink = phylink;
 
 	/* Alloc per-cpu port structure */
 	pp->ports = alloc_percpu(struct mvneta_pcpu_port);
 	if (!pp->ports) {
 		err = -ENOMEM;
-		goto err_clk;
+		goto err_free_phylink;
 	}
 
 	/* Alloc per-cpu stats */
@@ -5539,7 +5617,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	dev->hw_features |= dev->features;
 	dev->vlan_features |= dev->features;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
-	netif_set_gso_max_segs(dev, MVNETA_MAX_TSO_SEGS);
+	netif_set_tso_max_segs(dev, MVNETA_MAX_TSO_SEGS);
 
 	/* MTU range: 68 - 9676 */
 	dev->min_mtu = ETH_MIN_MTU;
@@ -5569,12 +5647,12 @@ err_netdev:
 	free_percpu(pp->stats);
 err_free_ports:
 	free_percpu(pp->ports);
-err_clk:
-	clk_disable_unprepare(pp->clk_bus);
-	clk_disable_unprepare(pp->clk);
 err_free_phylink:
 	if (pp->phylink)
 		phylink_destroy(pp->phylink);
+err_clk:
+	clk_disable_unprepare(pp->clk_bus);
+	clk_disable_unprepare(pp->clk);
 err_free_irq:
 	irq_dispose_mapping(dev->irq);
 	return err;
@@ -5720,6 +5798,7 @@ static const struct of_device_id mvneta_match[] = {
 	{ .compatible = "marvell,armada-370-neta" },
 	{ .compatible = "marvell,armada-xp-neta" },
 	{ .compatible = "marvell,armada-3700-neta" },
+	{ .compatible = "marvell,armada-ac5-neta" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mvneta_match);

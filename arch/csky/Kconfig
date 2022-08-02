@@ -79,7 +79,6 @@ config CSKY
 	select PCI_DOMAINS_GENERIC if PCI
 	select PCI_SYSCALL if PCI
 	select PCI_MSI if PCI
-	select SET_FS
 	select TRACE_IRQFLAGS_SUPPORT
 
 config LOCKDEP_SUPPORT
@@ -321,6 +320,14 @@ config HOTPLUG_CPU
 	  controlled through /sys/devices/system/cpu/cpu1/hotplug/target.
 
 	  Say N if you want to disable CPU hotplug.
+
+config HAVE_EFFICIENT_UNALIGNED_STRING_OPS
+	bool "Enable EFFICIENT_UNALIGNED_STRING_OPS for abiv2"
+	depends on CPU_CK807 || CPU_CK810 || CPU_CK860
+	help
+	  Say Y here to enable EFFICIENT_UNALIGNED_STRING_OPS. Some CPU models could
+	  deal with unaligned access by hardware.
+
 endmenu
 
 source "arch/csky/Kconfig.platforms"

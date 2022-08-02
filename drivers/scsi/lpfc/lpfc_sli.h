@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2021 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -35,7 +35,13 @@ typedef enum _lpfc_ctx_cmd {
 	LPFC_CTX_HOST
 } lpfc_ctx_cmd;
 
-union lpfc_vmid_iocb_tag {
+/* Enumeration to describe the thread lock context. */
+enum lpfc_mbox_ctx {
+	MBOX_THD_UNLOCKED,
+	MBOX_THD_LOCKED
+};
+
+union lpfc_vmid_tag {
 	uint32_t app_id;
 	uint8_t cs_ctl_vmid;
 	struct lpfc_vmid_context *vmid_context;	/* UVEM context information */
@@ -69,16 +75,25 @@ struct lpfc_iocbq {
 	uint16_t sli4_xritag;   /* pre-assigned XRI, (OXID) tag. */
 	uint16_t hba_wqidx;     /* index to HBA work queue */
 	struct lpfc_cq_event cq_event;
-	struct lpfc_wcqe_complete wcqe_cmpl;	/* WQE cmpl */
 	uint64_t isr_timestamp;
 
 	union lpfc_wqe128 wqe;	/* SLI-4 */
 	IOCB_t iocb;		/* SLI-3 */
+	struct lpfc_wcqe_complete wcqe_cmpl;	/* WQE cmpl */
 
-	uint8_t rsvd2;
-	uint8_t priority;	/* OAS priority */
-	uint8_t retry;		/* retry counter for IOCB cmd - if needed */
-	uint32_t iocb_flag;
+	u32 unsol_rcv_len;	/* Receive len in usol path */
+
+	/* Pack the u8's together and make them module-4. */
+	u8 num_bdes;	/* Number of BDEs */
+	u8 abort_bls;	/* ABTS by initiator or responder */
+	u8 abort_rctl;	/* ACC or RJT flag */
+	u8 priority;	/* OAS priority */
+	u8 retry;	/* retry counter for IOCB cmd - if needed */
+	u8 rsvd1;       /* Pad for u32 */
+	u8 rsvd2;       /* Pad for u32 */
+	u8 rsvd3;	/* Pad for u32 */
+
+	u32 cmd_flag;
 #define LPFC_IO_LIBDFC		1	/* libdfc iocb */
 #define LPFC_IO_WAKE		2	/* Synchronous I/O completed */
 #define LPFC_IO_WAKE_TMO	LPFC_IO_WAKE /* Synchronous I/O timed out */
@@ -111,27 +126,29 @@ struct lpfc_iocbq {
 
 	uint32_t drvrTimeout;	/* driver timeout in seconds */
 	struct lpfc_vport *vport;/* virtual port pointer */
-	void *context1;		/* caller context information */
-	void *context2;		/* caller context information */
-	void *context3;		/* caller context information */
+	struct lpfc_dmabuf *cmd_dmabuf;
+	struct lpfc_dmabuf *rsp_dmabuf;
+	struct lpfc_dmabuf *bpl_dmabuf;
 	uint32_t event_tag;	/* LA Event tag */
 	union {
 		wait_queue_head_t    *wait_queue;
-		struct lpfc_iocbq    *rsp_iocb;
 		struct lpfcMboxq     *mbox;
-		struct lpfc_nodelist *ndlp;
 		struct lpfc_node_rrq *rrq;
+		struct nvmefc_ls_req *nvme_lsreq;
+		struct lpfc_async_xchg_ctx *axchg;
+		struct bsg_job_data *dd_data;
 	} context_un;
 
-	union lpfc_vmid_iocb_tag vmid_tag;
-	void (*fabric_iocb_cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
-			   struct lpfc_iocbq *);
-	void (*wait_iocb_cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
-			   struct lpfc_iocbq *);
-	void (*iocb_cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
-			   struct lpfc_iocbq *);
-	void (*wqe_cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
-			  struct lpfc_wcqe_complete *);
+	struct lpfc_io_buf *io_buf;
+	struct lpfc_iocbq *rsp_iocb;
+	struct lpfc_nodelist *ndlp;
+	union lpfc_vmid_tag vmid_tag;
+	void (*fabric_cmd_cmpl)(struct lpfc_hba *phba, struct lpfc_iocbq *cmd,
+				struct lpfc_iocbq *rsp);
+	void (*wait_cmd_cmpl)(struct lpfc_hba *phba, struct lpfc_iocbq *cmd,
+			      struct lpfc_iocbq *rsp);
+	void (*cmd_cmpl)(struct lpfc_hba *phba, struct lpfc_iocbq *cmd,
+			 struct lpfc_iocbq *rsp);
 };
 
 #define SLI_IOCB_RET_IOCB      1	/* Return IOCB if cmd ring full */

@@ -162,7 +162,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
-	.errstr = "type=inv expected=sock",
+	.errstr = "type=scalar expected=sock",
 	.result = REJECT,
 },
 {
@@ -178,7 +178,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
-	.errstr = "type=inv expected=sock",
+	.errstr = "type=scalar expected=sock",
 	.result = REJECT,
 },
 {
@@ -274,7 +274,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
-	.errstr = "type=inv expected=sock",
+	.errstr = "type=scalar expected=sock",
 	.result = REJECT,
 },
 {
@@ -796,7 +796,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "reference has not been acquired before",
+	.errstr = "R1 must be referenced when passed to release function",
 },
 {
 	/* !bpf_sk_fullsock(sk) is checked but !bpf_tcp_sock(sk) is not checked */

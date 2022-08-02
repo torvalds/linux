@@ -74,9 +74,9 @@
 #include <linux/sched/signal.h>
 #include <trace/events/block.h>
 #include <linux/blk-mq.h>
-#include <linux/blk-cgroup.h>
 #include "blk-rq-qos.h"
 #include "blk-stat.h"
+#include "blk-cgroup.h"
 #include "blk.h"
 
 #define DEFAULT_SCALE_COOKIE 1000000U
@@ -87,17 +87,22 @@ struct iolatency_grp;
 struct blk_iolatency {
 	struct rq_qos rqos;
 	struct timer_list timer;
-	atomic_t enabled;
+
+	/*
+	 * ->enabled is the master enable switch gating the throttling logic and
+	 * inflight tracking. The number of cgroups which have iolat enabled is
+	 * tracked in ->enable_cnt, and ->enable is flipped on/off accordingly
+	 * from ->enable_work with the request_queue frozen. For details, See
+	 * blkiolatency_enable_work_fn().
+	 */
+	bool enabled;
+	atomic_t enable_cnt;
+	struct work_struct enable_work;
 };
 
 static inline struct blk_iolatency *BLKIOLATENCY(struct rq_qos *rqos)
 {
 	return container_of(rqos, struct blk_iolatency, rqos);
-}
-
-static inline bool blk_iolatency_enabled(struct blk_iolatency *blkiolat)
-{
-	return atomic_read(&blkiolat->enabled) > 0;
 }
 
 struct child_latency_info {
@@ -464,7 +469,7 @@ static void blkcg_iolatency_throttle(struct rq_qos *rqos, struct bio *bio)
 	struct blkcg_gq *blkg = bio->bi_blkg;
 	bool issue_as_root = bio_issue_as_root_blkg(bio);
 
-	if (!blk_iolatency_enabled(blkiolat))
+	if (!blkiolat->enabled)
 		return;
 
 	while (blkg && blkg->parent) {
@@ -594,19 +599,17 @@ static void blkcg_iolatency_done_bio(struct rq_qos *rqos, struct bio *bio)
 	u64 window_start;
 	u64 now;
 	bool issue_as_root = bio_issue_as_root_blkg(bio);
-	bool enabled = false;
 	int inflight = 0;
 
 	blkg = bio->bi_blkg;
-	if (!blkg || !bio_flagged(bio, BIO_TRACKED))
+	if (!blkg || !bio_flagged(bio, BIO_QOS_THROTTLED))
 		return;
 
 	iolat = blkg_to_lat(bio->bi_blkg);
 	if (!iolat)
 		return;
 
-	enabled = blk_iolatency_enabled(iolat->blkiolat);
-	if (!enabled)
+	if (!iolat->blkiolat->enabled)
 		return;
 
 	now = ktime_to_ns(ktime_get());
@@ -645,6 +648,7 @@ static void blkcg_iolatency_exit(struct rq_qos *rqos)
 	struct blk_iolatency *blkiolat = BLKIOLATENCY(rqos);
 
 	del_timer_sync(&blkiolat->timer);
+	flush_work(&blkiolat->enable_work);
 	blkcg_deactivate_policy(rqos->q, &blkcg_policy_iolatency);
 	kfree(blkiolat);
 }
@@ -716,6 +720,44 @@ next:
 	rcu_read_unlock();
 }
 
+/**
+ * blkiolatency_enable_work_fn - Enable or disable iolatency on the device
+ * @work: enable_work of the blk_iolatency of interest
+ *
+ * iolatency needs to keep track of the number of in-flight IOs per cgroup. This
+ * is relatively expensive as it involves walking up the hierarchy twice for
+ * every IO. Thus, if iolatency is not enabled in any cgroup for the device, we
+ * want to disable the in-flight tracking.
+ *
+ * We have to make sure that the counting is balanced - we don't want to leak
+ * the in-flight counts by disabling accounting in the completion path while IOs
+ * are in flight. This is achieved by ensuring that no IO is in flight by
+ * freezing the queue while flipping ->enabled. As this requires a sleepable
+ * context, ->enabled flipping is punted to this work function.
+ */
+static void blkiolatency_enable_work_fn(struct work_struct *work)
+{
+	struct blk_iolatency *blkiolat = container_of(work, struct blk_iolatency,
+						      enable_work);
+	bool enabled;
+
+	/*
+	 * There can only be one instance of this function running for @blkiolat
+	 * and it's guaranteed to be executed at least once after the latest
+	 * ->enabled_cnt modification. Acting on the latest ->enable_cnt is
+	 * sufficient.
+	 *
+	 * Also, we know @blkiolat is safe to access as ->enable_work is flushed
+	 * in blkcg_iolatency_exit().
+	 */
+	enabled = atomic_read(&blkiolat->enable_cnt);
+	if (enabled != blkiolat->enabled) {
+		blk_mq_freeze_queue(blkiolat->rqos.q);
+		blkiolat->enabled = enabled;
+		blk_mq_unfreeze_queue(blkiolat->rqos.q);
+	}
+}
+
 int blk_iolatency_init(struct request_queue *q)
 {
 	struct blk_iolatency *blkiolat;
@@ -741,17 +783,15 @@ int blk_iolatency_init(struct request_queue *q)
 	}
 
 	timer_setup(&blkiolat->timer, blkiolatency_timer_fn, 0);
+	INIT_WORK(&blkiolat->enable_work, blkiolatency_enable_work_fn);
 
 	return 0;
 }
 
-/*
- * return 1 for enabling iolatency, return -1 for disabling iolatency, otherwise
- * return 0.
- */
-static int iolatency_set_min_lat_nsec(struct blkcg_gq *blkg, u64 val)
+static void iolatency_set_min_lat_nsec(struct blkcg_gq *blkg, u64 val)
 {
 	struct iolatency_grp *iolat = blkg_to_lat(blkg);
+	struct blk_iolatency *blkiolat = iolat->blkiolat;
 	u64 oldval = iolat->min_lat_nsec;
 
 	iolat->min_lat_nsec = val;
@@ -759,13 +799,15 @@ static int iolatency_set_min_lat_nsec(struct blkcg_gq *blkg, u64 val)
 	iolat->cur_win_nsec = min_t(u64, iolat->cur_win_nsec,
 				    BLKIOLATENCY_MAX_WIN_SIZE);
 
-	if (!oldval && val)
-		return 1;
+	if (!oldval && val) {
+		if (atomic_inc_return(&blkiolat->enable_cnt) == 1)
+			schedule_work(&blkiolat->enable_work);
+	}
 	if (oldval && !val) {
 		blkcg_clear_delay(blkg);
-		return -1;
+		if (atomic_dec_return(&blkiolat->enable_cnt) == 0)
+			schedule_work(&blkiolat->enable_work);
 	}
-	return 0;
 }
 
 static void iolatency_clear_scaling(struct blkcg_gq *blkg)
@@ -797,7 +839,6 @@ static ssize_t iolatency_set_limit(struct kernfs_open_file *of, char *buf,
 	u64 lat_val = 0;
 	u64 oldval;
 	int ret;
-	int enable = 0;
 
 	ret = blkg_conf_prep(blkcg, &blkcg_policy_iolatency, buf, &ctx);
 	if (ret)
@@ -832,41 +873,12 @@ static ssize_t iolatency_set_limit(struct kernfs_open_file *of, char *buf,
 	blkg = ctx.blkg;
 	oldval = iolat->min_lat_nsec;
 
-	enable = iolatency_set_min_lat_nsec(blkg, lat_val);
-	if (enable) {
-		if (!blk_get_queue(blkg->q)) {
-			ret = -ENODEV;
-			goto out;
-		}
-
-		blkg_get(blkg);
-	}
-
-	if (oldval != iolat->min_lat_nsec) {
+	iolatency_set_min_lat_nsec(blkg, lat_val);
+	if (oldval != iolat->min_lat_nsec)
 		iolatency_clear_scaling(blkg);
-	}
-
 	ret = 0;
 out:
 	blkg_conf_finish(&ctx);
-	if (ret == 0 && enable) {
-		struct iolatency_grp *tmp = blkg_to_lat(blkg);
-		struct blk_iolatency *blkiolat = tmp->blkiolat;
-
-		blk_mq_freeze_queue(blkg->q);
-
-		if (enable == 1)
-			atomic_inc(&blkiolat->enabled);
-		else if (enable == -1)
-			atomic_dec(&blkiolat->enabled);
-		else
-			WARN_ON_ONCE(1);
-
-		blk_mq_unfreeze_queue(blkg->q);
-
-		blkg_put(blkg);
-		blk_put_queue(blkg->q);
-	}
 	return ret ?: nbytes;
 }
 
@@ -891,7 +903,7 @@ static int iolatency_print_limit(struct seq_file *sf, void *v)
 	return 0;
 }
 
-static bool iolatency_ssd_stat(struct iolatency_grp *iolat, struct seq_file *s)
+static void iolatency_ssd_stat(struct iolatency_grp *iolat, struct seq_file *s)
 {
 	struct latency_stat stat;
 	int cpu;
@@ -914,17 +926,16 @@ static bool iolatency_ssd_stat(struct iolatency_grp *iolat, struct seq_file *s)
 			(unsigned long long)stat.ps.missed,
 			(unsigned long long)stat.ps.total,
 			iolat->rq_depth.max_depth);
-	return true;
 }
 
-static bool iolatency_pd_stat(struct blkg_policy_data *pd, struct seq_file *s)
+static void iolatency_pd_stat(struct blkg_policy_data *pd, struct seq_file *s)
 {
 	struct iolatency_grp *iolat = pd_to_lat(pd);
 	unsigned long long avg_lat;
 	unsigned long long cur_win;
 
 	if (!blkcg_debug_stats)
-		return false;
+		return;
 
 	if (iolat->ssd)
 		return iolatency_ssd_stat(iolat, s);
@@ -937,7 +948,6 @@ static bool iolatency_pd_stat(struct blkg_policy_data *pd, struct seq_file *s)
 	else
 		seq_printf(s, " depth=%u avg_lat=%llu win=%llu",
 			iolat->rq_depth.max_depth, avg_lat, cur_win);
-	return true;
 }
 
 static struct blkg_policy_data *iolatency_pd_alloc(gfp_t gfp,
@@ -1007,14 +1017,8 @@ static void iolatency_pd_offline(struct blkg_policy_data *pd)
 {
 	struct iolatency_grp *iolat = pd_to_lat(pd);
 	struct blkcg_gq *blkg = lat_to_blkg(iolat);
-	struct blk_iolatency *blkiolat = iolat->blkiolat;
-	int ret;
 
-	ret = iolatency_set_min_lat_nsec(blkg, 0);
-	if (ret == 1)
-		atomic_inc(&blkiolat->enabled);
-	if (ret == -1)
-		atomic_dec(&blkiolat->enabled);
+	iolatency_set_min_lat_nsec(blkg, 0);
 	iolatency_clear_scaling(blkg);
 }
 

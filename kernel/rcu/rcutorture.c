@@ -284,7 +284,7 @@ static atomic_t barrier_cbs_invoked;	/* Barrier callbacks invoked. */
 static wait_queue_head_t *barrier_cbs_wq; /* Coordinate barrier testing. */
 static DECLARE_WAIT_QUEUE_HEAD(barrier_wq);
 
-static bool rcu_fwd_cb_nodelay;		/* Short rcu_torture_delay() delays. */
+static atomic_t rcu_fwd_cb_nodelay;	/* Short rcu_torture_delay() delays. */
 
 /*
  * Allocate an element from the rcu_tortures pool.
@@ -387,7 +387,7 @@ rcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 	 * period, and we want a long delay occasionally to trigger
 	 * force_quiescent_state. */
 
-	if (!READ_ONCE(rcu_fwd_cb_nodelay) &&
+	if (!atomic_read(&rcu_fwd_cb_nodelay) &&
 	    !(torture_random(rrsp) % (nrealreaders * 2000 * longdelay_ms))) {
 		started = cur_ops->get_gp_seq();
 		ts = rcu_trace_clock_local();
@@ -674,6 +674,7 @@ static struct rcu_torture_ops srcu_ops = {
 	.call		= srcu_torture_call,
 	.cb_barrier	= srcu_torture_barrier,
 	.stats		= srcu_torture_stats,
+	.cbflood_max	= 50000,
 	.irq_capable	= 1,
 	.no_pi_lock	= IS_ENABLED(CONFIG_TINY_SRCU),
 	.name		= "srcu"
@@ -708,6 +709,7 @@ static struct rcu_torture_ops srcud_ops = {
 	.call		= srcu_torture_call,
 	.cb_barrier	= srcu_torture_barrier,
 	.stats		= srcu_torture_stats,
+	.cbflood_max	= 50000,
 	.irq_capable	= 1,
 	.no_pi_lock	= IS_ENABLED(CONFIG_TINY_SRCU),
 	.name		= "srcud"
@@ -733,49 +735,6 @@ static struct rcu_torture_ops busted_srcud_ops = {
 	.no_pi_lock	= IS_ENABLED(CONFIG_TINY_SRCU),
 	.extendables	= RCUTORTURE_MAX_EXTEND,
 	.name		= "busted_srcud"
-};
-
-/*
- * Definitions for RCU-tasks torture testing.
- */
-
-static int tasks_torture_read_lock(void)
-{
-	return 0;
-}
-
-static void tasks_torture_read_unlock(int idx)
-{
-}
-
-static void rcu_tasks_torture_deferred_free(struct rcu_torture *p)
-{
-	call_rcu_tasks(&p->rtort_rcu, rcu_torture_cb);
-}
-
-static void synchronize_rcu_mult_test(void)
-{
-	synchronize_rcu_mult(call_rcu_tasks, call_rcu);
-}
-
-static struct rcu_torture_ops tasks_ops = {
-	.ttype		= RCU_TASKS_FLAVOR,
-	.init		= rcu_sync_torture_init,
-	.readlock	= tasks_torture_read_lock,
-	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
-	.readunlock	= tasks_torture_read_unlock,
-	.get_gp_seq	= rcu_no_completed,
-	.deferred_free	= rcu_tasks_torture_deferred_free,
-	.sync		= synchronize_rcu_tasks,
-	.exp_sync	= synchronize_rcu_mult_test,
-	.call		= call_rcu_tasks,
-	.cb_barrier	= rcu_barrier_tasks,
-	.gp_kthread_dbg	= show_rcu_tasks_classic_gp_kthread,
-	.fqs		= NULL,
-	.stats		= NULL,
-	.irq_capable	= 1,
-	.slow_gps	= 1,
-	.name		= "tasks"
 };
 
 /*
@@ -820,6 +779,62 @@ static struct rcu_torture_ops trivial_ops = {
 	.name		= "trivial"
 };
 
+#ifdef CONFIG_TASKS_RCU
+
+/*
+ * Definitions for RCU-tasks torture testing.
+ */
+
+static int tasks_torture_read_lock(void)
+{
+	return 0;
+}
+
+static void tasks_torture_read_unlock(int idx)
+{
+}
+
+static void rcu_tasks_torture_deferred_free(struct rcu_torture *p)
+{
+	call_rcu_tasks(&p->rtort_rcu, rcu_torture_cb);
+}
+
+static void synchronize_rcu_mult_test(void)
+{
+	synchronize_rcu_mult(call_rcu_tasks, call_rcu);
+}
+
+static struct rcu_torture_ops tasks_ops = {
+	.ttype		= RCU_TASKS_FLAVOR,
+	.init		= rcu_sync_torture_init,
+	.readlock	= tasks_torture_read_lock,
+	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
+	.readunlock	= tasks_torture_read_unlock,
+	.get_gp_seq	= rcu_no_completed,
+	.deferred_free	= rcu_tasks_torture_deferred_free,
+	.sync		= synchronize_rcu_tasks,
+	.exp_sync	= synchronize_rcu_mult_test,
+	.call		= call_rcu_tasks,
+	.cb_barrier	= rcu_barrier_tasks,
+	.gp_kthread_dbg	= show_rcu_tasks_classic_gp_kthread,
+	.fqs		= NULL,
+	.stats		= NULL,
+	.irq_capable	= 1,
+	.slow_gps	= 1,
+	.name		= "tasks"
+};
+
+#define TASKS_OPS &tasks_ops,
+
+#else // #ifdef CONFIG_TASKS_RCU
+
+#define TASKS_OPS
+
+#endif // #else #ifdef CONFIG_TASKS_RCU
+
+
+#ifdef CONFIG_TASKS_RUDE_RCU
+
 /*
  * Definitions for rude RCU-tasks torture testing.
  */
@@ -848,6 +863,17 @@ static struct rcu_torture_ops tasks_rude_ops = {
 	.irq_capable	= 1,
 	.name		= "tasks-rude"
 };
+
+#define TASKS_RUDE_OPS &tasks_rude_ops,
+
+#else // #ifdef CONFIG_TASKS_RUDE_RCU
+
+#define TASKS_RUDE_OPS
+
+#endif // #else #ifdef CONFIG_TASKS_RUDE_RCU
+
+
+#ifdef CONFIG_TASKS_TRACE_RCU
 
 /*
  * Definitions for tracing RCU-tasks torture testing.
@@ -890,6 +916,15 @@ static struct rcu_torture_ops tasks_tracing_ops = {
 	.slow_gps	= 1,
 	.name		= "tasks-tracing"
 };
+
+#define TASKS_TRACING_OPS &tasks_tracing_ops,
+
+#else // #ifdef CONFIG_TASKS_TRACE_RCU
+
+#define TASKS_TRACING_OPS
+
+#endif // #else #ifdef CONFIG_TASKS_TRACE_RCU
+
 
 static unsigned long rcutorture_seq_diff(unsigned long new, unsigned long old)
 {
@@ -997,7 +1032,7 @@ static int rcu_torture_boost(void *arg)
 			goto checkwait;
 
 		/* Wait for the next test interval. */
-		oldstarttime = boost_starttime;
+		oldstarttime = READ_ONCE(boost_starttime);
 		while (time_before(jiffies, oldstarttime)) {
 			schedule_timeout_interruptible(oldstarttime - jiffies);
 			if (stutter_wait("rcu_torture_boost"))
@@ -1041,10 +1076,11 @@ static int rcu_torture_boost(void *arg)
 		 * interval.  Besides, we are running at RT priority,
 		 * so delays should be relatively rare.
 		 */
-		while (oldstarttime == boost_starttime && !kthread_should_stop()) {
+		while (oldstarttime == READ_ONCE(boost_starttime) && !kthread_should_stop()) {
 			if (mutex_trylock(&boost_mutex)) {
 				if (oldstarttime == boost_starttime) {
-					boost_starttime = jiffies + test_boost_interval * HZ;
+					WRITE_ONCE(boost_starttime,
+						   jiffies + test_boost_interval * HZ);
 					n_rcu_torture_boosts++;
 				}
 				mutex_unlock(&boost_mutex);
@@ -1175,7 +1211,7 @@ rcu_torture_writer(void *arg)
 			 " GP expediting controlled from boot/sysfs for %s.\n",
 			 torture_type, cur_ops->name);
 	if (WARN_ONCE(nsynctypes == 0,
-		      "rcu_torture_writer: No update-side primitives.\n")) {
+		      "%s: No update-side primitives.\n", __func__)) {
 		/*
 		 * No updates primitives, so don't try updating.
 		 * The resulting test won't be testing much, hence the
@@ -1183,6 +1219,7 @@ rcu_torture_writer(void *arg)
 		 */
 		rcu_torture_writer_state = RTWS_STOPPING;
 		torture_kthread_stopping("rcu_torture_writer");
+		return 0;
 	}
 
 	do {
@@ -1276,7 +1313,7 @@ rcu_torture_writer(void *arg)
 		boot_ended = rcu_inkernel_boot_has_ended();
 		stutter_waited = stutter_wait("rcu_torture_writer");
 		if (stutter_waited &&
-		    !READ_ONCE(rcu_fwd_cb_nodelay) &&
+		    !atomic_read(&rcu_fwd_cb_nodelay) &&
 		    !cur_ops->slow_gps &&
 		    !torture_must_stop() &&
 		    boot_ended)
@@ -1318,6 +1355,17 @@ rcu_torture_fakewriter(void *arg)
 
 	VERBOSE_TOROUT_STRING("rcu_torture_fakewriter task started");
 	set_user_nice(current, MAX_NICE);
+
+	if (WARN_ONCE(nsynctypes == 0,
+		      "%s: No update-side primitives.\n", __func__)) {
+		/*
+		 * No updates primitives, so don't try updating.
+		 * The resulting test won't be testing much, hence the
+		 * above WARN_ONCE().
+		 */
+		torture_kthread_stopping("rcu_torture_fakewriter");
+		return 0;
+	}
 
 	do {
 		torture_hrtimeout_jiffies(torture_random(&rand) % 10, &rand);
@@ -2180,7 +2228,6 @@ static void rcu_torture_fwd_cb_hist(struct rcu_fwd *rfp)
 	for (i = ARRAY_SIZE(rfp->n_launders_hist) - 1; i > 0; i--)
 		if (rfp->n_launders_hist[i].n_launders > 0)
 			break;
-	mutex_lock(&rcu_fwd_mutex); // Serialize histograms.
 	pr_alert("%s: Callback-invocation histogram %d (duration %lu jiffies):",
 		 __func__, rfp->rcu_fwd_id, jiffies - rfp->rcu_fwd_startat);
 	gps_old = rfp->rcu_launder_gp_seq_start;
@@ -2193,7 +2240,6 @@ static void rcu_torture_fwd_cb_hist(struct rcu_fwd *rfp)
 		gps_old = gps;
 	}
 	pr_cont("\n");
-	mutex_unlock(&rcu_fwd_mutex);
 }
 
 /* Callback function for continuous-flood RCU callbacks. */
@@ -2281,6 +2327,7 @@ static void rcu_torture_fwd_prog_nr(struct rcu_fwd *rfp,
 	unsigned long stopat;
 	static DEFINE_TORTURE_RANDOM(trs);
 
+	pr_alert("%s: Starting forward-progress test %d\n", __func__, rfp->rcu_fwd_id);
 	if (!cur_ops->sync)
 		return; // Cannot do need_resched() forward progress testing without ->sync.
 	if (cur_ops->call && cur_ops->cb_barrier) {
@@ -2289,7 +2336,7 @@ static void rcu_torture_fwd_prog_nr(struct rcu_fwd *rfp,
 	}
 
 	/* Tight loop containing cond_resched(). */
-	WRITE_ONCE(rcu_fwd_cb_nodelay, true);
+	atomic_inc(&rcu_fwd_cb_nodelay);
 	cur_ops->sync(); /* Later readers see above write. */
 	if  (selfpropcb) {
 		WRITE_ONCE(fcs.stop, 0);
@@ -2325,6 +2372,7 @@ static void rcu_torture_fwd_prog_nr(struct rcu_fwd *rfp,
 	if (selfpropcb) {
 		WRITE_ONCE(fcs.stop, 1);
 		cur_ops->sync(); /* Wait for running CB to complete. */
+		pr_alert("%s: Waiting for CBs: %pS() %d\n", __func__, cur_ops->cb_barrier, rfp->rcu_fwd_id);
 		cur_ops->cb_barrier(); /* Wait for queued callbacks. */
 	}
 
@@ -2333,7 +2381,7 @@ static void rcu_torture_fwd_prog_nr(struct rcu_fwd *rfp,
 		destroy_rcu_head_on_stack(&fcs.rh);
 	}
 	schedule_timeout_uninterruptible(HZ / 10); /* Let kthreads recover. */
-	WRITE_ONCE(rcu_fwd_cb_nodelay, false);
+	atomic_dec(&rcu_fwd_cb_nodelay);
 }
 
 /* Carry out call_rcu() forward-progress testing. */
@@ -2353,13 +2401,14 @@ static void rcu_torture_fwd_prog_cr(struct rcu_fwd *rfp)
 	unsigned long stopat;
 	unsigned long stoppedat;
 
+	pr_alert("%s: Starting forward-progress test %d\n", __func__, rfp->rcu_fwd_id);
 	if (READ_ONCE(rcu_fwd_emergency_stop))
 		return; /* Get out of the way quickly, no GP wait! */
 	if (!cur_ops->call)
 		return; /* Can't do call_rcu() fwd prog without ->call. */
 
 	/* Loop continuously posting RCU callbacks. */
-	WRITE_ONCE(rcu_fwd_cb_nodelay, true);
+	atomic_inc(&rcu_fwd_cb_nodelay);
 	cur_ops->sync(); /* Later readers see above write. */
 	WRITE_ONCE(rfp->rcu_fwd_startat, jiffies);
 	stopat = rfp->rcu_fwd_startat + MAX_FWD_CB_JIFFIES;
@@ -2414,6 +2463,7 @@ static void rcu_torture_fwd_prog_cr(struct rcu_fwd *rfp)
 	n_launders_cb_snap = READ_ONCE(rfp->n_launders_cb);
 	cver = READ_ONCE(rcu_torture_current_version) - cver;
 	gps = rcutorture_seq_diff(cur_ops->get_gp_seq(), gps);
+	pr_alert("%s: Waiting for CBs: %pS() %d\n", __func__, cur_ops->cb_barrier, rfp->rcu_fwd_id);
 	cur_ops->cb_barrier(); /* Wait for callbacks to be invoked. */
 	(void)rcu_torture_fwd_prog_cbfree(rfp);
 
@@ -2427,11 +2477,13 @@ static void rcu_torture_fwd_prog_cr(struct rcu_fwd *rfp)
 			 n_launders, n_launders_sa,
 			 n_max_gps, n_max_cbs, cver, gps);
 		atomic_long_add(n_max_cbs, &rcu_fwd_max_cbs);
+		mutex_lock(&rcu_fwd_mutex); // Serialize histograms.
 		rcu_torture_fwd_cb_hist(rfp);
+		mutex_unlock(&rcu_fwd_mutex);
 	}
 	schedule_timeout_uninterruptible(HZ); /* Let CBs drain. */
 	tick_dep_clear_task(current, TICK_DEP_BIT_RCU);
-	WRITE_ONCE(rcu_fwd_cb_nodelay, false);
+	atomic_dec(&rcu_fwd_cb_nodelay);
 }
 
 
@@ -2511,7 +2563,7 @@ static int rcu_torture_fwd_prog(void *args)
 			firsttime = false;
 			WRITE_ONCE(rcu_fwd_seq, rcu_fwd_seq + 1);
 		} else {
-			while (READ_ONCE(rcu_fwd_seq) == oldseq)
+			while (READ_ONCE(rcu_fwd_seq) == oldseq && !torture_must_stop())
 				schedule_timeout_interruptible(1);
 			oldseq = READ_ONCE(rcu_fwd_seq);
 		}
@@ -2905,12 +2957,16 @@ rcu_torture_cleanup(void)
 	int i;
 
 	if (torture_cleanup_begin()) {
-		if (cur_ops->cb_barrier != NULL)
+		if (cur_ops->cb_barrier != NULL) {
+			pr_info("%s: Invoking %pS().\n", __func__, cur_ops->cb_barrier);
 			cur_ops->cb_barrier();
+		}
+		rcu_gp_slow_unregister(NULL);
 		return;
 	}
 	if (!cur_ops) {
 		torture_cleanup_end();
+		rcu_gp_slow_unregister(NULL);
 		return;
 	}
 
@@ -2961,8 +3017,10 @@ rcu_torture_cleanup(void)
 	 * Wait for all RCU callbacks to fire, then do torture-type-specific
 	 * cleanup operations.
 	 */
-	if (cur_ops->cb_barrier != NULL)
+	if (cur_ops->cb_barrier != NULL) {
+		pr_info("%s: Invoking %pS().\n", __func__, cur_ops->cb_barrier);
 		cur_ops->cb_barrier();
+	}
 	if (cur_ops->cleanup != NULL)
 		cur_ops->cleanup();
 
@@ -3005,6 +3063,7 @@ rcu_torture_cleanup(void)
 	else
 		rcu_torture_print_module_parms(cur_ops, "End of test: SUCCESS");
 	torture_cleanup_end();
+	rcu_gp_slow_unregister(&rcu_fwd_cb_nodelay);
 }
 
 #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
@@ -3085,9 +3144,9 @@ rcu_torture_init(void)
 	int flags = 0;
 	unsigned long gp_seq = 0;
 	static struct rcu_torture_ops *torture_ops[] = {
-		&rcu_ops, &rcu_busted_ops, &srcu_ops, &srcud_ops,
-		&busted_srcud_ops, &tasks_ops, &tasks_rude_ops,
-		&tasks_tracing_ops, &trivial_ops,
+		&rcu_ops, &rcu_busted_ops, &srcu_ops, &srcud_ops, &busted_srcud_ops,
+		TASKS_OPS TASKS_RUDE_OPS TASKS_TRACING_OPS
+		&trivial_ops,
 	};
 
 	if (!torture_init_begin(torture_type, verbose))
@@ -3309,6 +3368,7 @@ rcu_torture_init(void)
 	if (object_debug)
 		rcu_test_debug_objects();
 	torture_init_end();
+	rcu_gp_slow_register(&rcu_fwd_cb_nodelay);
 	return 0;
 
 unwind:

@@ -21,7 +21,7 @@
 #include "map.h"
 #include "regs-clock.h"
 #include "regs-irq.h"
-#include <mach/irqs.h>
+#include "irqs.h"
 
 #include <asm/irq.h>
 

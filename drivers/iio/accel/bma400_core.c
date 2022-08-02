@@ -136,7 +136,7 @@ const struct regmap_config bma400_regmap_config = {
 	.writeable_reg = bma400_is_writable_reg,
 	.volatile_reg = bma400_is_volatile_reg,
 };
-EXPORT_SYMBOL(bma400_regmap_config);
+EXPORT_SYMBOL_NS(bma400_regmap_config, IIO_BMA400);
 
 static const struct iio_mount_matrix *
 bma400_accel_get_mount_matrix(const struct iio_dev *indio_dev,
@@ -826,7 +826,7 @@ int bma400_probe(struct device *dev, struct regmap *regmap, const char *name)
 
 	return iio_device_register(indio_dev);
 }
-EXPORT_SYMBOL(bma400_probe);
+EXPORT_SYMBOL_NS(bma400_probe, IIO_BMA400);
 
 void bma400_remove(struct device *dev)
 {
@@ -846,7 +846,7 @@ void bma400_remove(struct device *dev)
 
 	iio_device_unregister(indio_dev);
 }
-EXPORT_SYMBOL(bma400_remove);
+EXPORT_SYMBOL_NS(bma400_remove, IIO_BMA400);
 
 MODULE_AUTHOR("Dan Robertson <dan@dlrobertson.com>");
 MODULE_DESCRIPTION("Bosch BMA400 triaxial acceleration sensor core");

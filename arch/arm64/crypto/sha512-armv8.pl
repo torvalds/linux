@@ -43,7 +43,7 @@
 #	on Cortex-A53 (or by 4 cycles per round).
 # (***)	Super-impressive coefficients over gcc-generated code are
 #	indication of some compiler "pathology", most notably code
-#	generated with -mgeneral-regs-only is significanty faster
+#	generated with -mgeneral-regs-only is significantly faster
 #	and the gap is only 40-90%.
 #
 # October 2016.

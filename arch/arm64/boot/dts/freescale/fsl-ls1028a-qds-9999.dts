@@ -11,69 +11,58 @@
 /dts-v1/;
 /plugin/;
 
-/ {
-	fragment@0 {
-		target = <&mdio_slot1>;
-		__overlay__ {
-			#address-cells = <1>;
-			#size-cells = <0>;
+&mdio_slot1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
 
-			/* VSC8234 */
-			slot1_sgmii0: ethernet-phy@1c {
-				reg = <0x1c>;
-			};
-
-			slot1_sgmii1: ethernet-phy@1d {
-				reg = <0x1d>;
-			};
-
-			slot1_sgmii2: ethernet-phy@1e {
-				reg = <0x1e>;
-			};
-
-			slot1_sgmii3: ethernet-phy@1f {
-				reg = <0x1f>;
-			};
-		};
+	/* VSC8234 */
+	slot1_sgmii0: ethernet-phy@1c {
+		reg = <0x1c>;
 	};
 
-	fragment@1 {
-		target = <&mscc_felix_ports>;
-		__overlay__ {
-			port@0 {
-				status = "okay";
-				phy-handle = <&slot1_sgmii0>;
-				phy-mode = "sgmii";
-				managed = "in-band-status";
-			};
-
-			port@1 {
-				status = "okay";
-				phy-handle = <&slot1_sgmii1>;
-				phy-mode = "sgmii";
-				managed = "in-band-status";
-			};
-
-			port@2 {
-				status = "okay";
-				phy-handle = <&slot1_sgmii2>;
-				phy-mode = "sgmii";
-				managed = "in-band-status";
-			};
-
-			port@3 {
-				status = "okay";
-				phy-handle = <&slot1_sgmii3>;
-				phy-mode = "sgmii";
-				managed = "in-band-status";
-			};
-		};
+	slot1_sgmii1: ethernet-phy@1d {
+		reg = <0x1d>;
 	};
 
-	fragment@2 {
-		target = <&mscc_felix>;
-		__overlay__ {
-			status = "okay";
-		};
+	slot1_sgmii2: ethernet-phy@1e {
+		reg = <0x1e>;
 	};
+
+	slot1_sgmii3: ethernet-phy@1f {
+		reg = <0x1f>;
+	};
+};
+
+&mscc_felix_ports {
+	port@0 {
+		status = "okay";
+		phy-handle = <&slot1_sgmii0>;
+		phy-mode = "sgmii";
+		managed = "in-band-status";
+	};
+
+	port@1 {
+		status = "okay";
+		phy-handle = <&slot1_sgmii1>;
+		phy-mode = "sgmii";
+		managed = "in-band-status";
+	};
+
+	port@2 {
+		status = "okay";
+		phy-handle = <&slot1_sgmii2>;
+		phy-mode = "sgmii";
+		managed = "in-band-status";
+	};
+
+	port@3 {
+		status = "okay";
+		phy-handle = <&slot1_sgmii3>;
+		phy-mode = "sgmii";
+		managed = "in-band-status";
+	};
+};
+
+&mscc_felix {
+	status = "okay";
 };

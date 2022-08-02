@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2021 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2009-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -981,6 +981,9 @@ struct lpfc_sli4_hba {
 #define lpfc_conf_trunk_port3_nd_MASK	0x1
 	uint8_t flash_id;
 	uint8_t asic_rev;
+	uint16_t fawwpn_flag;	/* FA-WWPN support state */
+#define LPFC_FAWWPN_CONFIG	0x1 /* FA-PWWN is configured */
+#define LPFC_FAWWPN_FABRIC	0x2 /* FA-PWWN success with Fabric */
 };
 
 enum lpfc_sge_type {

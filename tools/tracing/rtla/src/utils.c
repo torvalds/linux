@@ -3,13 +3,14 @@
  * Copyright (C) 2021 Red Hat Inc, Daniel Bristot de Oliveira <bristot@kernel.org>
  */
 
-#include <proc/readproc.h>
+#include <dirent.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <sched.h>
 #include <stdio.h>
 
@@ -254,50 +255,114 @@ int __set_sched_attr(int pid, struct sched_attr *attr)
 
 	retval = sched_setattr(pid, attr, flags);
 	if (retval < 0) {
-		err_msg("boost_with_deadline failed to boost pid %d: %s\n",
+		err_msg("Failed to set sched attributes to the pid %d: %s\n",
 			pid, strerror(errno));
 		return 1;
 	}
 
 	return 0;
 }
+
 /*
- * set_comm_sched_attr - set sched params to threads starting with char *comm
+ * procfs_is_workload_pid - check if a procfs entry contains a comm_prefix* comm
  *
- * This function uses procps to list the currently running threads and then
- * set the sched_attr *attr to the threads that start with char *comm. It is
+ * Check if the procfs entry is a directory of a process, and then check if the
+ * process has a comm with the prefix set in char *comm_prefix. As the
+ * current users of this function only check for kernel threads, there is no
+ * need to check for the threads for the process.
+ *
+ * Return: True if the proc_entry contains a comm file with comm_prefix*.
+ * Otherwise returns false.
+ */
+static int procfs_is_workload_pid(const char *comm_prefix, struct dirent *proc_entry)
+{
+	char buffer[MAX_PATH];
+	int comm_fd, retval;
+	char *t_name;
+
+	if (proc_entry->d_type != DT_DIR)
+		return 0;
+
+	if (*proc_entry->d_name == '.')
+		return 0;
+
+	/* check if the string is a pid */
+	for (t_name = proc_entry->d_name; t_name; t_name++) {
+		if (!isdigit(*t_name))
+			break;
+	}
+
+	if (*t_name != '\0')
+		return 0;
+
+	snprintf(buffer, MAX_PATH, "/proc/%s/comm", proc_entry->d_name);
+	comm_fd = open(buffer, O_RDONLY);
+	if (comm_fd < 0)
+		return 0;
+
+	memset(buffer, 0, MAX_PATH);
+	retval = read(comm_fd, buffer, MAX_PATH);
+
+	close(comm_fd);
+
+	if (retval <= 0)
+		return 0;
+
+	retval = strncmp(comm_prefix, buffer, strlen(comm_prefix));
+	if (retval)
+		return 0;
+
+	/* comm already have \n */
+	debug_msg("Found workload pid:%s comm:%s", proc_entry->d_name, buffer);
+
+	return 1;
+}
+
+/*
+ * set_comm_sched_attr - set sched params to threads starting with char *comm_prefix
+ *
+ * This function uses procfs to list the currently running threads and then set the
+ * sched_attr *attr to the threads that start with char *comm_prefix. It is
  * mainly used to set the priority to the kernel threads created by the
  * tracers.
  */
-int set_comm_sched_attr(const char *comm, struct sched_attr *attr)
+int set_comm_sched_attr(const char *comm_prefix, struct sched_attr *attr)
 {
-	int flags = PROC_FILLCOM | PROC_FILLSTAT;
-	PROCTAB *ptp;
-	proc_t task;
+	struct dirent *proc_entry;
+	DIR *procfs;
 	int retval;
 
-	ptp = openproc(flags);
-	if (!ptp) {
-		err_msg("error openproc()\n");
-		return -ENOENT;
+	if (strlen(comm_prefix) >= MAX_PATH) {
+		err_msg("Command prefix is too long: %d < strlen(%s)\n",
+			MAX_PATH, comm_prefix);
+		return 1;
 	}
 
-	memset(&task, 0, sizeof(task));
+	procfs = opendir("/proc");
+	if (!procfs) {
+		err_msg("Could not open procfs\n");
+		return 1;
+	}
 
-	while (readproc(ptp, &task)) {
-		retval = strncmp(comm, task.cmd, strlen(comm));
-		if (retval)
+	while ((proc_entry = readdir(procfs))) {
+
+		retval = procfs_is_workload_pid(comm_prefix, proc_entry);
+		if (!retval)
 			continue;
-		retval = __set_sched_attr(task.tid, attr);
-		if (retval)
-			goto out_err;
-	}
 
-	closeproc(ptp);
+		/* procfs_is_workload_pid confirmed it is a pid */
+		retval = __set_sched_attr(atoi(proc_entry->d_name), attr);
+		if (retval) {
+			err_msg("Error setting sched attributes for pid:%s\n", proc_entry->d_name);
+			goto out_err;
+		}
+
+		debug_msg("Set sched attributes for pid:%s\n", proc_entry->d_name);
+	}
 	return 0;
 
 out_err:
-	closeproc(ptp);
+	closedir(procfs);
 	return 1;
 }
 
@@ -430,4 +495,36 @@ int parse_prio(char *arg, struct sched_attr *sched_param)
 		return -1;
 	}
 	return 0;
+}
+
+/*
+ * set_cpu_dma_latency - set the /dev/cpu_dma_latecy
+ *
+ * This is used to reduce the exit from idle latency. The value
+ * will be reset once the file descriptor of /dev/cpu_dma_latecy
+ * is closed.
+ *
+ * Return: the /dev/cpu_dma_latecy file descriptor
+ */
+int set_cpu_dma_latency(int32_t latency)
+{
+	int retval;
+	int fd;
+
+	fd = open("/dev/cpu_dma_latency", O_RDWR);
+	if (fd < 0) {
+		err_msg("Error opening /dev/cpu_dma_latency\n");
+		return -1;
+	}
+
+	retval = write(fd, &latency, 4);
+	if (retval < 1) {
+		err_msg("Error setting /dev/cpu_dma_latency\n");
+		close(fd);
+		return -1;
+	}
+
+	debug_msg("Set /dev/cpu_dma_latency to %d\n", latency);
+
+	return fd;
 }

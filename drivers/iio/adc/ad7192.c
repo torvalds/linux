@@ -58,7 +58,8 @@
 /* Mode Register Bit Designations (AD7192_REG_MODE) */
 #define AD7192_MODE_SEL(x)	(((x) & 0x7) << 21) /* Operation Mode Select */
 #define AD7192_MODE_SEL_MASK	(0x7 << 21) /* Operation Mode Select Mask */
-#define AD7192_MODE_DAT_STA	BIT(20) /* Status Register transmission */
+#define AD7192_MODE_STA(x)	(((x) & 0x1) << 20) /* Status Register transmission */
+#define AD7192_MODE_STA_MASK	BIT(20) /* Status Register transmission Mask */
 #define AD7192_MODE_CLKSRC(x)	(((x) & 0x3) << 18) /* Clock Source Select */
 #define AD7192_MODE_SINC3	BIT(15) /* SINC3 Filter Select */
 #define AD7192_MODE_ACX		BIT(14) /* AC excitation enable(AD7195 only)*/
@@ -225,7 +226,7 @@ static ssize_t ad7192_write_syscalib(struct iio_dev *indio_dev,
 	bool sys_calib;
 	int ret, temp;
 
-	ret = strtobool(buf, &sys_calib);
+	ret = kstrtobool(buf, &sys_calib);
 	if (ret)
 		return ret;
 
@@ -288,12 +289,51 @@ static int ad7192_set_mode(struct ad_sigma_delta *sd,
 	return ad_sd_write_reg(&st->sd, AD7192_REG_MODE, 3, st->mode);
 }
 
+static int ad7192_append_status(struct ad_sigma_delta *sd, bool append)
+{
+	struct ad7192_state *st = ad_sigma_delta_to_ad7192(sd);
+	unsigned int mode = st->mode;
+	int ret;
+
+	mode &= ~AD7192_MODE_STA_MASK;
+	mode |= AD7192_MODE_STA(append);
+
+	ret = ad_sd_write_reg(&st->sd, AD7192_REG_MODE, 3, mode);
+	if (ret < 0)
+		return ret;
+
+	st->mode = mode;
+
+	return 0;
+}
+
+static int ad7192_disable_all(struct ad_sigma_delta *sd)
+{
+	struct ad7192_state *st = ad_sigma_delta_to_ad7192(sd);
+	u32 conf = st->conf;
+	int ret;
+
+	conf &= ~AD7192_CONF_CHAN_MASK;
+
+	ret = ad_sd_write_reg(&st->sd, AD7192_REG_CONF, 3, conf);
+	if (ret < 0)
+		return ret;
+
+	st->conf = conf;
+
+	return 0;
+}
+
 static const struct ad_sigma_delta_info ad7192_sigma_delta_info = {
 	.set_channel = ad7192_set_channel,
+	.append_status = ad7192_append_status,
+	.disable_all = ad7192_disable_all,
 	.set_mode = ad7192_set_mode,
 	.has_registers = true,
 	.addr_shift = 3,
 	.read_mask = BIT(6),
+	.status_ch_mask = GENMASK(3, 0),
+	.num_slots = 4,
 	.irq_flags = IRQF_TRIGGER_FALLING,
 };
 
@@ -433,7 +473,7 @@ static ssize_t ad7192_show_ac_excitation(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7192_state *st = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n", !!(st->mode & AD7192_MODE_ACX));
+	return sysfs_emit(buf, "%d\n", !!(st->mode & AD7192_MODE_ACX));
 }
 
 static ssize_t ad7192_show_bridge_switch(struct device *dev,
@@ -443,7 +483,7 @@ static ssize_t ad7192_show_bridge_switch(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7192_state *st = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n", !!(st->gpocon & AD7192_GPOCON_BPDSW));
+	return sysfs_emit(buf, "%d\n", !!(st->gpocon & AD7192_GPOCON_BPDSW));
 }
 
 static ssize_t ad7192_set(struct device *dev,
@@ -457,7 +497,7 @@ static ssize_t ad7192_set(struct device *dev,
 	int ret;
 	bool val;
 
-	ret = strtobool(buf, &val);
+	ret = kstrtobool(buf, &val);
 	if (ret < 0)
 		return ret;
 
@@ -783,6 +823,26 @@ static int ad7192_read_avail(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static int ad7192_update_scan_mode(struct iio_dev *indio_dev, const unsigned long *scan_mask)
+{
+	struct ad7192_state *st = iio_priv(indio_dev);
+	u32 conf = st->conf;
+	int ret;
+	int i;
+
+	conf &= ~AD7192_CONF_CHAN_MASK;
+	for_each_set_bit(i, scan_mask, 8)
+		conf |= AD7192_CONF_CHAN(i);
+
+	ret = ad_sd_write_reg(&st->sd, AD7192_REG_CONF, 3, conf);
+	if (ret < 0)
+		return ret;
+
+	st->conf = conf;
+
+	return 0;
+}
+
 static const struct iio_info ad7192_info = {
 	.read_raw = ad7192_read_raw,
 	.write_raw = ad7192_write_raw,
@@ -790,6 +850,7 @@ static const struct iio_info ad7192_info = {
 	.read_avail = ad7192_read_avail,
 	.attrs = &ad7192_attribute_group,
 	.validate_trigger = ad_sd_validate_trigger,
+	.update_scan_mode = ad7192_update_scan_mode,
 };
 
 static const struct iio_info ad7195_info = {
@@ -799,6 +860,7 @@ static const struct iio_info ad7195_info = {
 	.read_avail = ad7192_read_avail,
 	.attrs = &ad7195_attribute_group,
 	.validate_trigger = ad_sd_validate_trigger,
+	.update_scan_mode = ad7192_update_scan_mode,
 };
 
 #define __AD719x_CHANNEL(_si, _channel1, _channel2, _address, _extend_name, \
@@ -1048,3 +1110,4 @@ module_spi_driver(ad7192_driver);
 MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7190, AD7192, AD7193, AD7195 ADC");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_AD_SIGMA_DELTA);

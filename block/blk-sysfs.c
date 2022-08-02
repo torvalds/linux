@@ -10,7 +10,6 @@
 #include <linux/backing-dev.h>
 #include <linux/blktrace_api.h>
 #include <linux/blk-mq.h>
-#include <linux/blk-cgroup.h>
 #include <linux/debugfs.h>
 
 #include "blk.h"
@@ -18,6 +17,7 @@
 #include "blk-mq-debugfs.h"
 #include "blk-mq-sched.h"
 #include "blk-wbt.h"
+#include "blk-cgroup.h"
 #include "blk-throttle.h"
 
 struct queue_sysfs_entry {
@@ -214,8 +214,7 @@ static ssize_t queue_discard_zeroes_data_show(struct request_queue *q, char *pag
 
 static ssize_t queue_write_same_max_show(struct request_queue *q, char *page)
 {
-	return sprintf(page, "%llu\n",
-		(unsigned long long)q->limits.max_write_same_sectors << 9);
+	return queue_var_show(0, page);
 }
 
 static ssize_t queue_write_zeroes_max_show(struct request_queue *q, char *page)
@@ -739,27 +738,6 @@ static void blk_free_queue_rcu(struct rcu_head *rcu_head)
 	kmem_cache_free(blk_get_queue_kmem_cache(blk_queue_has_srcu(q)), q);
 }
 
-/* Unconfigure the I/O scheduler and dissociate from the cgroup controller. */
-static void blk_exit_queue(struct request_queue *q)
-{
-	/*
-	 * Since the I/O scheduler exit code may access cgroup information,
-	 * perform I/O scheduler exit before disassociating from the block
-	 * cgroup controller.
-	 */
-	if (q->elevator) {
-		ioc_clear_queue(q);
-		elevator_exit(q);
-	}
-
-	/*
-	 * Remove all references to @q from the block cgroup controller before
-	 * restoring @q->queue_lock to avoid that restoring this pointer causes
-	 * e.g. blkcg_print_blkgs() to crash.
-	 */
-	blkcg_exit_queue(q);
-}
-
 /**
  * blk_release_queue - releases all allocated resources of the request_queue
  * @kobj: pointer to a kobject, whose container is a request_queue
@@ -787,11 +765,11 @@ static void blk_release_queue(struct kobject *kobj)
 
 	might_sleep();
 
+	percpu_ref_exit(&q->q_usage_counter);
+
 	if (q->poll_stat)
 		blk_stat_remove_callback(q, q->poll_cb);
 	blk_stat_free_callback(q->poll_cb);
-
-	blk_exit_queue(q);
 
 	blk_free_queue_stats(q->stats);
 	kfree(q->poll_stat);
@@ -800,14 +778,6 @@ static void blk_release_queue(struct kobject *kobj)
 
 	if (queue_is_mq(q))
 		blk_mq_release(q);
-
-	blk_trace_shutdown(q);
-	mutex_lock(&q->debugfs_mutex);
-	debugfs_remove_recursive(q->debugfs_dir);
-	mutex_unlock(&q->debugfs_mutex);
-
-	if (queue_is_mq(q))
-		blk_mq_debugfs_unregister(q);
 
 	bioset_exit(&q->bio_split);
 
@@ -858,17 +828,16 @@ int blk_register_queue(struct gendisk *disk)
 		goto unlock;
 	}
 
+	if (queue_is_mq(q))
+		__blk_mq_register_dev(dev, q);
+	mutex_lock(&q->sysfs_lock);
+
 	mutex_lock(&q->debugfs_mutex);
 	q->debugfs_dir = debugfs_create_dir(kobject_name(q->kobj.parent),
 					    blk_debugfs_root);
-	mutex_unlock(&q->debugfs_mutex);
-
-	if (queue_is_mq(q)) {
-		__blk_mq_register_dev(dev, q);
+	if (queue_is_mq(q))
 		blk_mq_debugfs_register(q);
-	}
-
-	mutex_lock(&q->sysfs_lock);
+	mutex_unlock(&q->debugfs_mutex);
 
 	ret = disk_register_independent_access_ranges(disk, NULL);
 	if (ret)
@@ -879,6 +848,10 @@ int blk_register_queue(struct gendisk *disk)
 		if (ret)
 			goto put_dev;
 	}
+
+	ret = blk_crypto_sysfs_register(q);
+	if (ret)
+		goto put_dev;
 
 	blk_queue_flag_set(QUEUE_FLAG_REGISTERED, q);
 	wbt_enable_default(q);
@@ -910,6 +883,7 @@ unlock:
 	return ret;
 
 put_dev:
+	elv_unregister_queue(q);
 	disk_unregister_independent_access_ranges(disk);
 	mutex_unlock(&q->sysfs_lock);
 	mutex_unlock(&q->sysfs_dir_lock);
@@ -954,17 +928,26 @@ void blk_unregister_queue(struct gendisk *disk)
 	 */
 	if (queue_is_mq(q))
 		blk_mq_unregister_dev(disk_to_dev(disk), q);
-
-	kobject_uevent(&q->kobj, KOBJ_REMOVE);
-	kobject_del(&q->kobj);
+	blk_crypto_sysfs_unregister(q);
 	blk_trace_remove_sysfs(disk_to_dev(disk));
 
 	mutex_lock(&q->sysfs_lock);
-	if (q->elevator)
-		elv_unregister_queue(q);
+	elv_unregister_queue(q);
 	disk_unregister_independent_access_ranges(disk);
 	mutex_unlock(&q->sysfs_lock);
+
+	/* Now that we've deleted all child objects, we can delete the queue. */
+	kobject_uevent(&q->kobj, KOBJ_REMOVE);
+	kobject_del(&q->kobj);
 	mutex_unlock(&q->sysfs_dir_lock);
+
+	mutex_lock(&q->debugfs_mutex);
+	blk_trace_shutdown(q);
+	debugfs_remove_recursive(q->debugfs_dir);
+	q->debugfs_dir = NULL;
+	q->sched_debugfs_dir = NULL;
+	q->rqos_debugfs_dir = NULL;
+	mutex_unlock(&q->debugfs_mutex);
 
 	kobject_put(&disk_to_dev(disk)->kobj);
 }

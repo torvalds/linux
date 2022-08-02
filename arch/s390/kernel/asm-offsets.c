@@ -32,6 +32,22 @@ int main(void)
 	/* pt_regs offsets */
 	OFFSET(__PT_PSW, pt_regs, psw);
 	OFFSET(__PT_GPRS, pt_regs, gprs);
+	OFFSET(__PT_R0, pt_regs, gprs[0]);
+	OFFSET(__PT_R1, pt_regs, gprs[1]);
+	OFFSET(__PT_R2, pt_regs, gprs[2]);
+	OFFSET(__PT_R3, pt_regs, gprs[3]);
+	OFFSET(__PT_R4, pt_regs, gprs[4]);
+	OFFSET(__PT_R5, pt_regs, gprs[5]);
+	OFFSET(__PT_R6, pt_regs, gprs[6]);
+	OFFSET(__PT_R7, pt_regs, gprs[7]);
+	OFFSET(__PT_R8, pt_regs, gprs[8]);
+	OFFSET(__PT_R9, pt_regs, gprs[9]);
+	OFFSET(__PT_R10, pt_regs, gprs[10]);
+	OFFSET(__PT_R11, pt_regs, gprs[11]);
+	OFFSET(__PT_R12, pt_regs, gprs[12]);
+	OFFSET(__PT_R13, pt_regs, gprs[13]);
+	OFFSET(__PT_R14, pt_regs, gprs[14]);
+	OFFSET(__PT_R15, pt_regs, gprs[15]);
 	OFFSET(__PT_ORIG_GPR2, pt_regs, orig_gpr2);
 	OFFSET(__PT_FLAGS, pt_regs, flags);
 	OFFSET(__PT_CR1, pt_regs, cr1);
@@ -41,18 +57,16 @@ int main(void)
 	/* stack_frame offsets */
 	OFFSET(__SF_BACKCHAIN, stack_frame, back_chain);
 	OFFSET(__SF_GPRS, stack_frame, gprs);
-	OFFSET(__SF_EMPTY, stack_frame, empty1[0]);
-	OFFSET(__SF_SIE_CONTROL, stack_frame, empty1[1]);
-	OFFSET(__SF_SIE_SAVEAREA, stack_frame, empty1[2]);
-	OFFSET(__SF_SIE_REASON, stack_frame, empty1[3]);
-	OFFSET(__SF_SIE_FLAGS, stack_frame, empty1[4]);
+	OFFSET(__SF_EMPTY, stack_frame, empty[0]);
+	OFFSET(__SF_SIE_CONTROL, stack_frame, sie_control_block);
+	OFFSET(__SF_SIE_SAVEAREA, stack_frame, sie_savearea);
+	OFFSET(__SF_SIE_REASON, stack_frame, sie_reason);
+	OFFSET(__SF_SIE_FLAGS, stack_frame, sie_flags);
 	DEFINE(STACK_FRAME_OVERHEAD, sizeof(struct stack_frame));
 	BLANK();
 	/* idle data offsets */
 	OFFSET(__CLOCK_IDLE_ENTER, s390_idle_data, clock_idle_enter);
-	OFFSET(__CLOCK_IDLE_EXIT, s390_idle_data, clock_idle_exit);
 	OFFSET(__TIMER_IDLE_ENTER, s390_idle_data, timer_idle_enter);
-	OFFSET(__TIMER_IDLE_EXIT, s390_idle_data, timer_idle_exit);
 	OFFSET(__MT_CYCLES_ENTER, s390_idle_data, mt_cycles_enter);
 	BLANK();
 	/* hardware defined lowcore locations 0x000 - 0x1ff */
@@ -123,14 +137,12 @@ int main(void)
 	OFFSET(__LC_USER_ASCE, lowcore, user_asce);
 	OFFSET(__LC_LPP, lowcore, lpp);
 	OFFSET(__LC_CURRENT_PID, lowcore, current_pid);
-	OFFSET(__LC_PERCPU_OFFSET, lowcore, percpu_offset);
-	OFFSET(__LC_MACHINE_FLAGS, lowcore, machine_flags);
-	OFFSET(__LC_PREEMPT_COUNT, lowcore, preempt_count);
 	OFFSET(__LC_GMAP, lowcore, gmap);
-	OFFSET(__LC_BR_R1, lowcore, br_r1_trampoline);
 	OFFSET(__LC_LAST_BREAK, lowcore, last_break);
 	/* software defined ABI-relevant lowcore locations 0xe00 - 0xe20 */
 	OFFSET(__LC_DUMP_REIPL, lowcore, ipib);
+	OFFSET(__LC_VMCORE_INFO, lowcore, vmcore_info);
+	OFFSET(__LC_OS_INFO, lowcore, os_info);
 	/* hardware defined lowcore locations 0x1000 - 0x18ff */
 	OFFSET(__LC_MCESAD, lowcore, mcesad);
 	OFFSET(__LC_EXT_PARAMS2, lowcore, ext_params2);

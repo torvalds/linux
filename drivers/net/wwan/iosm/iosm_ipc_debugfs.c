@@ -12,10 +12,10 @@
 
 void ipc_debugfs_init(struct iosm_imem *ipc_imem)
 {
-	struct dentry *debugfs_pdev = wwan_get_debugfs_dir(ipc_imem->dev);
+	ipc_imem->debugfs_wwan_dir = wwan_get_debugfs_dir(ipc_imem->dev);
 
 	ipc_imem->debugfs_dir = debugfs_create_dir(KBUILD_MODNAME,
-						   debugfs_pdev);
+						   ipc_imem->debugfs_wwan_dir);
 
 	ipc_imem->trace = ipc_trace_init(ipc_imem);
 	if (!ipc_imem->trace)
@@ -26,4 +26,5 @@ void ipc_debugfs_deinit(struct iosm_imem *ipc_imem)
 {
 	ipc_trace_deinit(ipc_imem->trace);
 	debugfs_remove_recursive(ipc_imem->debugfs_dir);
+	wwan_put_debugfs_dir(ipc_imem->debugfs_wwan_dir);
 }

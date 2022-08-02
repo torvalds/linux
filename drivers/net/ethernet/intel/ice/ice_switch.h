@@ -14,8 +14,14 @@
 #define ICE_VSI_INVAL_ID 0xffff
 #define ICE_INVAL_Q_HANDLE 0xFFFF
 
-#define ICE_SW_RULE_RX_TX_NO_HDR_SIZE \
-	(offsetof(struct ice_aqc_sw_rules_elem, pdata.lkup_tx_rx.hdr))
+/* Switch Profile IDs for Profile related switch rules */
+#define ICE_PROFID_IPV4_GTPC_TEID			41
+#define ICE_PROFID_IPV4_GTPC_NO_TEID			42
+#define ICE_PROFID_IPV4_GTPU_TEID			43
+#define ICE_PROFID_IPV6_GTPC_TEID			44
+#define ICE_PROFID_IPV6_GTPC_NO_TEID			45
+#define ICE_PROFID_IPV6_GTPU_TEID			46
+#define ICE_PROFID_IPV6_GTPU_IPV6_TCP_INNER		70
 
 /* VSI context structure for add/get/update/free operations */
 struct ice_vsi_ctx {
@@ -31,15 +37,6 @@ struct ice_vsi_ctx {
 	struct ice_q_ctx *lan_q_ctx[ICE_MAX_TRAFFIC_CLASS];
 	u16 num_rdma_q_entries[ICE_MAX_TRAFFIC_CLASS];
 	struct ice_q_ctx *rdma_q_ctx[ICE_MAX_TRAFFIC_CLASS];
-};
-
-enum ice_sw_fwd_act_type {
-	ICE_FWD_TO_VSI = 0,
-	ICE_FWD_TO_VSI_LIST, /* Do not use this when adding filter */
-	ICE_FWD_TO_Q,
-	ICE_FWD_TO_QGRP,
-	ICE_DROP_PACKET,
-	ICE_INVAL_ACT
 };
 
 /* Switch recipe ID enum values are specific to hardware */
@@ -86,6 +83,8 @@ struct ice_fltr_info {
 		} mac_vlan;
 		struct {
 			u16 vlan_id;
+			u16 tpid;
+			u8 tpid_valid;
 		} vlan;
 		/* Set lkup_type as ICE_SW_LKUP_ETHERTYPE
 		 * if just using ethertype as filter. Set lkup_type as
@@ -125,10 +124,27 @@ struct ice_fltr_info {
 	u8 lan_en;	/* Indicate if packet can be forwarded to the uplink */
 };
 
+struct ice_update_recipe_lkup_idx_params {
+	u16 rid;
+	u16 fv_idx;
+	bool ignore_valid;
+	u16 mask;
+	bool mask_valid;
+	u8 lkup_idx;
+};
+
 struct ice_adv_lkup_elem {
 	enum ice_protocol_type type;
-	union ice_prot_hdr h_u;	/* Header values */
-	union ice_prot_hdr m_u;	/* Mask of header values to match */
+	union {
+		union ice_prot_hdr h_u;	/* Header values */
+		/* Used to iterate over the headers */
+		u16 h_raw[sizeof(union ice_prot_hdr) / sizeof(u16)];
+	};
+	union {
+		union ice_prot_hdr m_u;	/* Mask of header values to match */
+		/* Used to iterate over header mask */
+		u16 m_raw[sizeof(union ice_prot_hdr) / sizeof(u16)];
+	};
 };
 
 struct ice_sw_act_ctrl {
@@ -367,4 +383,8 @@ void ice_rm_all_sw_replay_rule_info(struct ice_hw *hw);
 int
 ice_aq_sw_rules(struct ice_hw *hw, void *rule_list, u16 rule_list_sz,
 		u8 num_rules, enum ice_adminq_opc opc, struct ice_sq_cd *cd);
+int
+ice_update_recipe_lkup_idx(struct ice_hw *hw,
+			   struct ice_update_recipe_lkup_idx_params *params);
+void ice_change_proto_id_to_dvm(void);
 #endif /* _ICE_SWITCH_H_ */

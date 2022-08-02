@@ -148,6 +148,7 @@ static void otx2_snd_pkt_handler(struct otx2_nic *pfvf,
 	if (skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS) {
 		timestamp = ((u64 *)sq->timestamps->base)[snd_comp->sqe_id];
 		if (timestamp != 1) {
+			timestamp = pfvf->ptp->convert_tx_ptp_tstmp(timestamp);
 			err = otx2_ptp_tstamp2time(pfvf, timestamp, &tsns);
 			if (!err) {
 				memset(&ts, 0, sizeof(ts));
@@ -167,14 +168,15 @@ static void otx2_snd_pkt_handler(struct otx2_nic *pfvf,
 static void otx2_set_rxtstamp(struct otx2_nic *pfvf,
 			      struct sk_buff *skb, void *data)
 {
-	u64 tsns;
+	u64 timestamp, tsns;
 	int err;
 
 	if (!(pfvf->flags & OTX2_FLAG_RX_TSTAMP_ENABLED))
 		return;
 
+	timestamp = pfvf->ptp->convert_rx_ptp_tstmp(*(u64 *)data);
 	/* The first 8 bytes is the timestamp */
-	err = otx2_ptp_tstamp2time(pfvf, be64_to_cpu(*(__be64 *)data), &tsns);
+	err = otx2_ptp_tstamp2time(pfvf, timestamp, &tsns);
 	if (err)
 		return;
 
@@ -482,6 +484,18 @@ process_cqe:
 	return 0;
 }
 
+static void otx2_adjust_adaptive_coalese(struct otx2_nic *pfvf, struct otx2_cq_poll *cq_poll)
+{
+	struct dim_sample dim_sample;
+	u64 rx_frames, rx_bytes;
+
+	rx_frames = OTX2_GET_RX_STATS(RX_BCAST) + OTX2_GET_RX_STATS(RX_MCAST) +
+		OTX2_GET_RX_STATS(RX_UCAST);
+	rx_bytes = OTX2_GET_RX_STATS(RX_OCTS);
+	dim_update_sample(pfvf->napi_events, rx_frames, rx_bytes, &dim_sample);
+	net_dim(&cq_poll->dim, dim_sample);
+}
+
 int otx2_napi_handler(struct napi_struct *napi, int budget)
 {
 	struct otx2_cq_queue *rx_cq = NULL;
@@ -518,6 +532,17 @@ int otx2_napi_handler(struct napi_struct *napi, int budget)
 		/* If interface is going down, don't re-enable IRQ */
 		if (pfvf->flags & OTX2_FLAG_INTF_DOWN)
 			return workdone;
+
+		/* Check for adaptive interrupt coalesce */
+		if (workdone != 0 &&
+		    ((pfvf->flags & OTX2_FLAG_ADPTV_INT_COAL_ENABLED) ==
+		     OTX2_FLAG_ADPTV_INT_COAL_ENABLED)) {
+			/* Adjust irq coalese using net_dim */
+			otx2_adjust_adaptive_coalese(pfvf, cq_poll);
+			/* Update irq coalescing */
+			for (i = 0; i < pfvf->hw.cint_cnt; i++)
+				otx2_config_irq_coalescing(pfvf, i);
+		}
 
 		/* Re-enable interrupts */
 		otx2_write64(pfvf, NIX_LF_CINTX_ENA_W1S(cq_poll->cint_idx),

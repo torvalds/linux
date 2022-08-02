@@ -1084,8 +1084,9 @@ static int stmmac_test_rxp(struct stmmac_priv *priv)
 	unsigned char addr[ETH_ALEN] = {0xde, 0xad, 0xbe, 0xef, 0x00, 0x00};
 	struct tc_cls_u32_offload cls_u32 = { };
 	struct stmmac_packet_attrs attr = { };
-	struct tc_action **actions, *act;
+	struct tc_action **actions;
 	struct tc_u32_sel *sel;
+	struct tcf_gact *gact;
 	struct tcf_exts *exts;
 	int ret, i, nk = 1;
 
@@ -1110,8 +1111,8 @@ static int stmmac_test_rxp(struct stmmac_priv *priv)
 		goto cleanup_exts;
 	}
 
-	act = kcalloc(nk, sizeof(*act), GFP_KERNEL);
-	if (!act) {
+	gact = kcalloc(nk, sizeof(*gact), GFP_KERNEL);
+	if (!gact) {
 		ret = -ENOMEM;
 		goto cleanup_actions;
 	}
@@ -1126,9 +1127,7 @@ static int stmmac_test_rxp(struct stmmac_priv *priv)
 	exts->nr_actions = nk;
 	exts->actions = actions;
 	for (i = 0; i < nk; i++) {
-		struct tcf_gact *gact = to_gact(&act[i]);
-
-		actions[i] = &act[i];
+		actions[i] = (struct tc_action *)&gact[i];
 		gact->tcf_action = TC_ACT_SHOT;
 	}
 
@@ -1152,7 +1151,7 @@ static int stmmac_test_rxp(struct stmmac_priv *priv)
 	stmmac_tc_setup_cls_u32(priv, priv, &cls_u32);
 
 cleanup_act:
-	kfree(act);
+	kfree(gact);
 cleanup_actions:
 	kfree(actions);
 cleanup_exts:
@@ -1777,9 +1776,9 @@ static int stmmac_test_tbs(struct stmmac_priv *priv)
 	if (ret)
 		return ret;
 
-	spin_lock_irqsave(&priv->ptp_lock, flags);
+	read_lock_irqsave(&priv->ptp_lock, flags);
 	stmmac_get_systime(priv, priv->ptpaddr, &curr_time);
-	spin_unlock_irqrestore(&priv->ptp_lock, flags);
+	read_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	if (!curr_time) {
 		ret = -EOPNOTSUPP;
@@ -1799,9 +1798,9 @@ static int stmmac_test_tbs(struct stmmac_priv *priv)
 		goto fail_disable;
 
 	/* Check if expected time has elapsed */
-	spin_lock_irqsave(&priv->ptp_lock, flags);
+	read_lock_irqsave(&priv->ptp_lock, flags);
 	stmmac_get_systime(priv, priv->ptpaddr, &curr_time);
-	spin_unlock_irqrestore(&priv->ptp_lock, flags);
+	read_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	if ((curr_time - start_time) < STMMAC_TBS_LT_OFFSET)
 		ret = -EINVAL;

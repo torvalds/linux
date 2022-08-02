@@ -16,6 +16,7 @@
 #include <sound/soc-acpi.h>
 
 struct snd_sof_dsp_ops;
+struct snd_sof_dev;
 
 /**
  * enum sof_fw_state - DSP firmware state definitions
@@ -37,6 +38,21 @@ enum sof_fw_state {
 	SOF_FW_BOOT_READY_OK,
 	SOF_FW_BOOT_COMPLETE,
 	SOF_FW_CRASHED,
+};
+
+/* DSP power states */
+enum sof_dsp_power_states {
+	SOF_DSP_PM_D0,
+	SOF_DSP_PM_D1,
+	SOF_DSP_PM_D2,
+	SOF_DSP_PM_D3,
+};
+
+/* Definitions for multiple IPCs */
+enum sof_ipc_type {
+	SOF_IPC,
+	SOF_INTEL_IPC4,
+	SOF_IPC_TYPE_COUNT
 };
 
 /*
@@ -75,6 +91,8 @@ struct snd_sof_pdata {
 	const struct snd_soc_acpi_mach *machine;
 
 	void *hw_pdata;
+
+	enum sof_ipc_type ipc_type;
 };
 
 /*
@@ -107,14 +125,19 @@ struct sof_dev_desc {
 	/* defaults for no codec mode */
 	const char *nocodec_tplg_filename;
 
+	/* information on supported IPCs */
+	unsigned int ipc_supported_mask;
+	enum sof_ipc_type ipc_default;
+
 	/* defaults paths for firmware and topology files */
-	const char *default_fw_path;
-	const char *default_tplg_path;
+	const char *default_fw_path[SOF_IPC_TYPE_COUNT];
+	const char *default_tplg_path[SOF_IPC_TYPE_COUNT];
 
 	/* default firmware name */
-	const char *default_fw_filename;
+	const char *default_fw_filename[SOF_IPC_TYPE_COUNT];
 
-	const struct snd_sof_dsp_ops *ops;
+	struct snd_sof_dsp_ops *ops;
+	int (*ops_init)(struct snd_sof_dev *sdev);
 };
 
 int sof_dai_get_mclk(struct snd_soc_pcm_runtime *rtd);

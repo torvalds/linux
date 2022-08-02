@@ -171,9 +171,10 @@
 		/* 48MB region from the end of flash to start of vga memory */
 		ramoops@bc000000 {
 			compatible = "ramoops";
-			reg = <0xbc000000 0x180000>; /* 16 * (3 * 0x8000) */
+			reg = <0xbc000000 0x200000>; /* 16 * (4 * 0x8000) */
 			record-size = <0x8000>;
 			console-size = <0x8000>;
+			ftrace-size = <0x8000>;
 			pmsg-size = <0x8000>;
 			max-reason = <3>; /* KMSG_DUMP_EMERG */
 		};
@@ -269,9 +270,7 @@
 	/*C0-C7*/	"","","","","","","","",
 	/*D0-D7*/	"","","","","","","","",
 	/*E0-E7*/	"","","","","","","","",
-	/*F0-F7*/	"PIN_HOLE_RESET_IN_N","","",
-				"PIN_HOLE_RESET_OUT_N","","",
-				"factory-reset-toggle","",
+	/*F0-F7*/	"","","rtc-battery-voltage-read-enable","reset-cause-pinhole","","","factory-reset-toggle","",
 	/*G0-G7*/	"","","","","","","","",
 	/*H0-H7*/	"led-rtc-battery","led-bmc","led-rear-enc-id0","led-rear-enc-fault0","","","","",
 	/*I0-I7*/	"","","","","","","bmc-secure-boot","",
@@ -284,7 +283,7 @@
 	/*P0-P7*/	"","","","","led-pcieslot-power","","","",
 	/*Q0-Q7*/	"","","regulator-standby-faulted","","","","","",
 	/*R0-R7*/	"bmc-tpm-reset","power-chassis-control","power-chassis-good","","","I2C_FLASH_MICRO_N","","",
-	/*S0-S7*/	"","","","","","","","",
+	/*S0-S7*/	"","","","","power-ffs-sync-history","","","",
 	/*T0-T7*/	"","","","","","","","",
 	/*U0-U7*/	"","","","","","","","",
 	/*V0-V7*/	"","BMC_3RESTART_ATTEMPT_P","","","","","","",
@@ -2391,6 +2390,10 @@
 };
 
 &ehci1 {
+	status = "okay";
+};
+
+&uhci {
 	status = "okay";
 };
 

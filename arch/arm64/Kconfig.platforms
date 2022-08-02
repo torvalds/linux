@@ -11,12 +11,11 @@ config ARCH_ACTIONS
 config ARCH_SUNXI
 	bool "Allwinner sunxi 64-bit SoC Family"
 	select ARCH_HAS_RESET_CONTROLLER
-	select GENERIC_IRQ_CHIP
-	select IRQ_DOMAIN_HIERARCHY
-	select IRQ_FASTEOI_HIERARCHY_HANDLERS
 	select PINCTRL
 	select RESET_CONTROLLER
 	select SUN4I_TIMER
+	select SUN6I_R_INTC
+	select SUNXI_NMI_INTC
 	help
 	  This enables support for Allwinner sunxi based SoCs like the A64.
 
@@ -253,6 +252,7 @@ config ARCH_INTEL_SOCFPGA
 
 config ARCH_SYNQUACER
 	bool "Socionext SynQuacer SoC Family"
+	select IRQ_FASTEOI_HIERARCHY_HANDLERS
 
 config ARCH_TEGRA
 	bool "NVIDIA Tegra SoC Family"
@@ -267,6 +267,12 @@ config ARCH_TEGRA
 	select RESET_CONTROLLER
 	help
 	  This enables support for the NVIDIA Tegra SoC family.
+
+config ARCH_TESLA_FSD
+	bool "ARMv8 based Tesla platform"
+	depends on ARCH_EXYNOS
+	help
+	  Support for ARMv8 based Tesla platforms.
 
 config ARCH_SPRD
 	bool "Spreadtrum SoC platform"
@@ -319,4 +325,4 @@ config ARCH_ZYNQMP
 	help
 	  This enables support for Xilinx ZynqMP Family
 
-endmenu
+endmenu # "Platform selection"

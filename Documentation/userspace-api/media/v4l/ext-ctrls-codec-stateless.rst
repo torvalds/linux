@@ -616,6 +616,12 @@ Stateless Codec Control ID
     * - ``V4L2_H264_DECODE_PARAM_FLAG_BOTTOM_FIELD``
       - 0x00000004
       -
+    * - ``V4L2_H264_DECODE_PARAM_FLAG_PFRAME``
+      - 0x00000008
+      -
+    * - ``V4L2_H264_DECODE_PARAM_FLAG_BFRAME``
+      - 0x00000010
+      -
 
 .. raw:: latex
 
@@ -643,10 +649,16 @@ Stateless Codec Control ID
         :c:type:`timeval` in struct :c:type:`v4l2_buffer` to a __u64.
     * - __u32
       - ``pic_num``
-      -
+      - For short term references, this must match the derived value PicNum
+	(8-28) and for long term references it must match the derived value
+	LongTermPicNum (8-29). When decoding frames (as opposed to fields)
+	pic_num is the same as FrameNumWrap.
     * - __u16
       - ``frame_num``
-      -
+      - For short term references, this must match the frame_num value from
+	the slice header syntax (the driver will wrap the value if needed). For
+	long term references, this must be set to the value of
+	long_term_frame_idx described in the dec_ref_pic_marking() syntax.
     * - __u8
       - ``fields``
       - Specifies how the DPB entry is referenced. See :ref:`Reference Fields <h264_ref_fields>`
@@ -1692,7 +1704,12 @@ See section '7.3.1 Tx mode semantics' of the :ref:`vp9` specification for more d
     * - __u8
       - ``reference_mode``
       - Specifies the type of inter prediction to be used. See
-        :ref:`Reference Mode<vp9_reference_mode>` for more details.
+        :ref:`Reference Mode<vp9_reference_mode>` for more details. Note that
+	this is derived as part of the compressed header parsing process and
+	for this reason should have been part of
+	:c:type: `v4l2_ctrl_vp9_compressed_hdr` optional control. It is safe to
+	set this value to zero if the driver does not require compressed
+	headers.
     * - __u8
       - ``reserved[7]``
       - Applications and drivers must set this to zero.

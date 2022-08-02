@@ -86,7 +86,6 @@ enum phylink_op_type {
  * @type: operation type of PHYLINK instance
  * @legacy_pre_march2020: driver has not been updated for March 2020 updates
  *	(See commit 7cceb599d15d ("net: phylink: avoid mac_config calls")
- * @pcs_poll: MAC PCS cannot provide link change interrupt
  * @poll_fixed_state: if true, starts link_poll,
  *		      if MAC link is at %MLO_AN_FIXED mode.
  * @ovr_an_inband: if true, override PCS to MLO_AN_INBAND
@@ -100,7 +99,6 @@ struct phylink_config {
 	struct device *dev;
 	enum phylink_op_type type;
 	bool legacy_pre_march2020;
-	bool pcs_poll;
 	bool poll_fixed_state;
 	bool ovr_an_inband;
 	void (*get_fixed_state)(struct phylink_config *config,
@@ -161,11 +159,6 @@ struct phylink_mac_ops {
  * because the MAC is unable to BaseX mode. This is more about
  * clearing unsupported speeds and duplex settings. The port modes
  * should not be cleared; phylink_set_port_modes() will help with this.
- *
- * If the @state->interface mode is %PHY_INTERFACE_MODE_1000BASEX
- * or %PHY_INTERFACE_MODE_2500BASEX, select the appropriate mode
- * based on @state->advertising and/or @state->speed and update
- * @state->interface accordingly. See phylink_helper_basex_speed().
  *
  * When @config->supported_interfaces has been set, phylink will iterate
  * over the supported interfaces to determine the full capability of the
@@ -534,7 +527,6 @@ void phylink_generic_validate(struct phylink_config *config,
 struct phylink *phylink_create(struct phylink_config *, struct fwnode_handle *,
 			       phy_interface_t iface,
 			       const struct phylink_mac_ops *mac_ops);
-void phylink_set_pcs(struct phylink *, struct phylink_pcs *pcs);
 void phylink_destroy(struct phylink *);
 
 int phylink_connect_phy(struct phylink *, struct phy_device *);
@@ -582,8 +574,6 @@ int phylink_speed_up(struct phylink *pl);
 #define phylink_test(bm, mode)	__phylink_do_bit(test_bit, bm, mode)
 
 void phylink_set_port_modes(unsigned long *bits);
-void phylink_set_10g_modes(unsigned long *mask);
-void phylink_helper_basex_speed(struct phylink_link_state *state);
 
 void phylink_mii_c22_pcs_decode_state(struct phylink_link_state *state,
 				      u16 bmsr, u16 lpa);

@@ -3,7 +3,6 @@
  * Copyright IBM Corp. 2005, 2011
  *
  * Author(s): Rolf Adelsberger,
- *	      Heiko Carstens <heiko.carstens@de.ibm.com>
  *	      Michael Holzheu <holzheu@linux.vnet.ibm.com>
  */
 
@@ -27,8 +26,10 @@
 #include <asm/stacktrace.h>
 #include <asm/switch_to.h>
 #include <asm/nmi.h>
+#include <asm/sclp.h>
 
-typedef void (*relocate_kernel_t)(kimage_entry_t *, unsigned long);
+typedef void (*relocate_kernel_t)(kimage_entry_t *, unsigned long,
+				  unsigned long);
 
 extern const unsigned char relocate_kernel[];
 extern const unsigned long long relocate_kernel_len;
@@ -55,7 +56,7 @@ static void __do_machine_kdump(void *image)
 	 * This need to be done *after* s390_reset_system set the
 	 * prefix register of this CPU to zero
 	 */
-	memcpy((void *) __LC_FPREGS_SAVE_AREA,
+	memcpy(absolute_pointer(__LC_FPREGS_SAVE_AREA),
 	       (void *)(prefix + __LC_FPREGS_SAVE_AREA), 512);
 
 	__load_psw_mask(PSW_MASK_BASE | PSW_DEFAULT_KEY | PSW_MASK_EA | PSW_MASK_BA);
@@ -227,7 +228,7 @@ void arch_crash_save_vmcoreinfo(void)
 	vmcoreinfo_append_str("SAMODE31=%lx\n", __samode31);
 	vmcoreinfo_append_str("EAMODE31=%lx\n", __eamode31);
 	vmcoreinfo_append_str("KERNELOFFSET=%lx\n", kaslr_offset());
-	mem_assign_absolute(S390_lowcore.vmcore_info, paddr_vmcoreinfo_note());
+	put_abs_lowcore(vmcore_info, paddr_vmcoreinfo_note());
 }
 
 void machine_shutdown(void)
@@ -244,6 +245,7 @@ void machine_crash_shutdown(struct pt_regs *regs)
  */
 static void __do_machine_kexec(void *data)
 {
+	unsigned long diag308_subcode;
 	relocate_kernel_t data_mover;
 	struct kimage *image = data;
 
@@ -252,7 +254,10 @@ static void __do_machine_kexec(void *data)
 
 	__arch_local_irq_stnsm(0xfb); /* disable DAT - avoid no-execute */
 	/* Call the moving routine */
-	(*data_mover)(&image->head, image->start);
+	diag308_subcode = DIAG308_CLEAR_RESET;
+	if (sclp.has_iplcc)
+		diag308_subcode |= DIAG308_FLAG_EI;
+	(*data_mover)(&image->head, image->start, diag308_subcode);
 
 	/* Die if kexec returns */
 	disabled_wait();

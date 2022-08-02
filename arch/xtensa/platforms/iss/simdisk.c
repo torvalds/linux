@@ -108,13 +108,13 @@ static void simdisk_submit_bio(struct bio *bio)
 	sector_t sector = bio->bi_iter.bi_sector;
 
 	bio_for_each_segment(bvec, bio, iter) {
-		char *buffer = kmap_atomic(bvec.bv_page) + bvec.bv_offset;
+		char *buffer = bvec_kmap_local(&bvec);
 		unsigned len = bvec.bv_len >> SECTOR_SHIFT;
 
 		simdisk_transfer(dev, sector, len, buffer,
 				bio_data_dir(bio) == WRITE);
 		sector += len;
-		kunmap_atomic(buffer);
+		kunmap_local(buffer);
 	}
 
 	bio_endio(bio);
@@ -211,12 +211,18 @@ static ssize_t proc_read_simdisk(struct file *file, char __user *buf,
 	struct simdisk *dev = pde_data(file_inode(file));
 	const char *s = dev->filename;
 	if (s) {
-		ssize_t n = simple_read_from_buffer(buf, size, ppos,
-							s, strlen(s));
-		if (n < 0)
-			return n;
-		buf += n;
-		size -= n;
+		ssize_t len = strlen(s);
+		char *temp = kmalloc(len + 2, GFP_KERNEL);
+
+		if (!temp)
+			return -ENOMEM;
+
+		len = scnprintf(temp, len + 2, "%s\n", s);
+		len = simple_read_from_buffer(buf, size, ppos,
+					      temp, len);
+
+		kfree(temp);
+		return len;
 	}
 	return simple_read_from_buffer(buf, size, ppos, "\n", 1);
 }

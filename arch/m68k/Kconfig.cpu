@@ -37,7 +37,7 @@ endchoice
 if M68KCLASSIC
 
 config M68000
-	bool
+	def_bool y
 	depends on !MMU
 	select CPU_HAS_NO_BITFIELDS
 	select CPU_HAS_NO_CAS
@@ -327,7 +327,7 @@ comment "Processor Specific Options"
 
 config M68KFPU_EMU
 	bool "Math emulation support"
-	depends on MMU
+	depends on M68KCLASSIC && FPU
 	help
 	  At some point in the future, this will cause floating-point math
 	  instructions to be emulated by the kernel on machines that lack a
@@ -453,6 +453,7 @@ config CPU_HAS_NO_UNALIGNED
 
 config CPU_HAS_ADDRESS_SPACES
 	bool
+	select ALTERNATE_USER_ADDRESS_SPACE
 
 config FPU
 	bool

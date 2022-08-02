@@ -60,8 +60,8 @@ static int vp_finalize_features(struct virtio_device *vdev)
 }
 
 /* virtio config->get() implementation */
-static void vp_get(struct virtio_device *vdev, unsigned offset,
-		   void *buf, unsigned len)
+static void vp_get(struct virtio_device *vdev, unsigned int offset,
+		   void *buf, unsigned int len)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	struct virtio_pci_modern_device *mdev = &vp_dev->mdev;
@@ -98,8 +98,8 @@ static void vp_get(struct virtio_device *vdev, unsigned offset,
 
 /* the config->set() implementation.  it's symmetric to the config->get()
  * implementation */
-static void vp_set(struct virtio_device *vdev, unsigned offset,
-		   const void *buf, unsigned len)
+static void vp_set(struct virtio_device *vdev, unsigned int offset,
+		   const void *buf, unsigned int len)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	struct virtio_pci_modern_device *mdev = &vp_dev->mdev;
@@ -172,8 +172,8 @@ static void vp_reset(struct virtio_device *vdev)
 	 */
 	while (vp_modern_get_status(mdev))
 		msleep(1);
-	/* Disable VQ/configuration callbacks. */
-	vp_disable_cbs(vdev);
+	/* Flush pending VQ/configuration callbacks. */
+	vp_synchronize_vectors(vdev);
 }
 
 static u16 vp_config_vector(struct virtio_pci_device *vp_dev, u16 vector)
@@ -183,7 +183,7 @@ static u16 vp_config_vector(struct virtio_pci_device *vp_dev, u16 vector)
 
 static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 				  struct virtio_pci_vq_info *info,
-				  unsigned index,
+				  unsigned int index,
 				  void (*callback)(struct virtqueue *vq),
 				  const char *name,
 				  bool ctx,
@@ -248,7 +248,7 @@ err_map_notify:
 	return ERR_PTR(err);
 }
 
-static int vp_modern_find_vqs(struct virtio_device *vdev, unsigned nvqs,
+static int vp_modern_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 			      struct virtqueue *vqs[],
 			      vq_callback_t *callbacks[],
 			      const char * const names[], const bool *ctx,
@@ -293,7 +293,7 @@ static int virtio_pci_find_shm_cap(struct pci_dev *dev, u8 required_id,
 
 	for (pos = pci_find_capability(dev, PCI_CAP_ID_VNDR); pos > 0;
 	     pos = pci_find_next_capability(dev, pos, PCI_CAP_ID_VNDR)) {
-		u8 type, cap_len, id;
+		u8 type, cap_len, id, res_bar;
 		u32 tmp32;
 		u64 res_offset, res_length;
 
@@ -315,9 +315,14 @@ static int virtio_pci_find_shm_cap(struct pci_dev *dev, u8 required_id,
 		if (id != required_id)
 			continue;
 
-		/* Type, and ID match, looks good */
 		pci_read_config_byte(dev, pos + offsetof(struct virtio_pci_cap,
-							 bar), bar);
+							 bar), &res_bar);
+		if (res_bar >= PCI_STD_NUM_BARS)
+			continue;
+
+		/* Type and ID match, and the BAR value isn't reserved.
+		 * Looks good.
+		 */
 
 		/* Read the lower 32bit of length and offset */
 		pci_read_config_dword(dev, pos + offsetof(struct virtio_pci_cap,
@@ -337,6 +342,7 @@ static int virtio_pci_find_shm_cap(struct pci_dev *dev, u8 required_id,
 						     length_hi), &tmp32);
 		res_length |= ((u64)tmp32) << 32;
 
+		*bar = res_bar;
 		*offset = res_offset;
 		*len = res_length;
 
@@ -380,7 +386,6 @@ static bool vp_get_shm_region(struct virtio_device *vdev,
 }
 
 static const struct virtio_config_ops virtio_pci_config_nodev_ops = {
-	.enable_cbs	= vp_enable_cbs,
 	.get		= NULL,
 	.set		= NULL,
 	.generation	= vp_generation,
@@ -389,6 +394,7 @@ static const struct virtio_config_ops virtio_pci_config_nodev_ops = {
 	.reset		= vp_reset,
 	.find_vqs	= vp_modern_find_vqs,
 	.del_vqs	= vp_del_vqs,
+	.synchronize_cbs = vp_synchronize_vectors,
 	.get_features	= vp_get_features,
 	.finalize_features = vp_finalize_features,
 	.bus_name	= vp_bus_name,
@@ -398,7 +404,6 @@ static const struct virtio_config_ops virtio_pci_config_nodev_ops = {
 };
 
 static const struct virtio_config_ops virtio_pci_config_ops = {
-	.enable_cbs	= vp_enable_cbs,
 	.get		= vp_get,
 	.set		= vp_set,
 	.generation	= vp_generation,
@@ -407,6 +412,7 @@ static const struct virtio_config_ops virtio_pci_config_ops = {
 	.reset		= vp_reset,
 	.find_vqs	= vp_modern_find_vqs,
 	.del_vqs	= vp_del_vqs,
+	.synchronize_cbs = vp_synchronize_vectors,
 	.get_features	= vp_get_features,
 	.finalize_features = vp_finalize_features,
 	.bus_name	= vp_bus_name,

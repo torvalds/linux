@@ -8,11 +8,13 @@
 
 struct device;
 struct typec_mux;
+struct typec_mux_dev;
 struct typec_switch;
+struct typec_switch_dev;
 struct typec_altmode;
 struct fwnode_handle;
 
-typedef int (*typec_switch_set_fn_t)(struct typec_switch *sw,
+typedef int (*typec_switch_set_fn_t)(struct typec_switch_dev *sw,
 				     enum typec_orientation orientation);
 
 struct typec_switch_desc {
@@ -32,13 +34,13 @@ static inline struct typec_switch *typec_switch_get(struct device *dev)
 	return fwnode_typec_switch_get(dev_fwnode(dev));
 }
 
-struct typec_switch *
+struct typec_switch_dev *
 typec_switch_register(struct device *parent,
 		      const struct typec_switch_desc *desc);
-void typec_switch_unregister(struct typec_switch *sw);
+void typec_switch_unregister(struct typec_switch_dev *sw);
 
-void typec_switch_set_drvdata(struct typec_switch *sw, void *data);
-void *typec_switch_get_drvdata(struct typec_switch *sw);
+void typec_switch_set_drvdata(struct typec_switch_dev *sw, void *data);
+void *typec_switch_get_drvdata(struct typec_switch_dev *sw);
 
 struct typec_mux_state {
 	struct typec_altmode *alt;
@@ -46,7 +48,7 @@ struct typec_mux_state {
 	void *data;
 };
 
-typedef int (*typec_mux_set_fn_t)(struct typec_mux *mux,
+typedef int (*typec_mux_set_fn_t)(struct typec_mux_dev *mux,
 				  struct typec_mux_state *state);
 
 struct typec_mux_desc {
@@ -67,11 +69,11 @@ typec_mux_get(struct device *dev, const struct typec_altmode_desc *desc)
 	return fwnode_typec_mux_get(dev_fwnode(dev), desc);
 }
 
-struct typec_mux *
+struct typec_mux_dev *
 typec_mux_register(struct device *parent, const struct typec_mux_desc *desc);
-void typec_mux_unregister(struct typec_mux *mux);
+void typec_mux_unregister(struct typec_mux_dev *mux);
 
-void typec_mux_set_drvdata(struct typec_mux *mux, void *data);
-void *typec_mux_get_drvdata(struct typec_mux *mux);
+void typec_mux_set_drvdata(struct typec_mux_dev *mux, void *data);
+void *typec_mux_get_drvdata(struct typec_mux_dev *mux);
 
 #endif /* __USB_TYPEC_MUX */

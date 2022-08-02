@@ -175,12 +175,12 @@ DEFINE_QBCM(bcm_sn12, "SN12", false, &qnm_gladiator_sodv, &xm_gic);
 DEFINE_QBCM(bcm_sn14, "SN14", false, &qnm_pcie_anoc);
 DEFINE_QBCM(bcm_sn15, "SN15", false, &qnm_memnoc);
 
-static struct qcom_icc_bcm *aggre1_noc_bcms[] = {
+static struct qcom_icc_bcm * const aggre1_noc_bcms[] = {
 	&bcm_sn9,
 	&bcm_qup0,
 };
 
-static struct qcom_icc_node *aggre1_noc_nodes[] = {
+static struct qcom_icc_node * const aggre1_noc_nodes[] = {
 	[MASTER_A1NOC_CFG] = &qhm_a1noc_cfg,
 	[MASTER_TSIF] = &qhm_tsif,
 	[MASTER_SDCC_2] = &xm_sdc2,
@@ -201,13 +201,13 @@ static const struct qcom_icc_desc sdm845_aggre1_noc = {
 	.num_bcms = ARRAY_SIZE(aggre1_noc_bcms),
 };
 
-static struct qcom_icc_bcm *aggre2_noc_bcms[] = {
+static struct qcom_icc_bcm * const aggre2_noc_bcms[] = {
 	&bcm_ce0,
 	&bcm_sn11,
 	&bcm_qup0,
 };
 
-static struct qcom_icc_node *aggre2_noc_nodes[] = {
+static struct qcom_icc_node * const aggre2_noc_nodes[] = {
 	[MASTER_A2NOC_CFG] = &qhm_a2noc_cfg,
 	[MASTER_QDSS_BAM] = &qhm_qdss_bam,
 	[MASTER_CNOC_A2NOC] = &qnm_cnoc,
@@ -230,11 +230,11 @@ static const struct qcom_icc_desc sdm845_aggre2_noc = {
 	.num_bcms = ARRAY_SIZE(aggre2_noc_bcms),
 };
 
-static struct qcom_icc_bcm *config_noc_bcms[] = {
+static struct qcom_icc_bcm * const config_noc_bcms[] = {
 	&bcm_cn0,
 };
 
-static struct qcom_icc_node *config_noc_nodes[] = {
+static struct qcom_icc_node * const config_noc_nodes[] = {
 	[MASTER_SPDM] = &qhm_spdm,
 	[MASTER_TIC] = &qhm_tic,
 	[MASTER_SNOC_CNOC] = &qnm_snoc,
@@ -291,10 +291,10 @@ static const struct qcom_icc_desc sdm845_config_noc = {
 	.num_bcms = ARRAY_SIZE(config_noc_bcms),
 };
 
-static struct qcom_icc_bcm *dc_noc_bcms[] = {
+static struct qcom_icc_bcm * const dc_noc_bcms[] = {
 };
 
-static struct qcom_icc_node *dc_noc_nodes[] = {
+static struct qcom_icc_node * const dc_noc_nodes[] = {
 	[MASTER_CNOC_DC_NOC] = &qhm_cnoc,
 	[SLAVE_LLCC_CFG] = &qhs_llcc,
 	[SLAVE_MEM_NOC_CFG] = &qhs_memnoc,
@@ -307,10 +307,10 @@ static const struct qcom_icc_desc sdm845_dc_noc = {
 	.num_bcms = ARRAY_SIZE(dc_noc_bcms),
 };
 
-static struct qcom_icc_bcm *gladiator_noc_bcms[] = {
+static struct qcom_icc_bcm * const gladiator_noc_bcms[] = {
 };
 
-static struct qcom_icc_node *gladiator_noc_nodes[] = {
+static struct qcom_icc_node * const gladiator_noc_nodes[] = {
 	[MASTER_APPSS_PROC] = &acm_l3,
 	[MASTER_GNOC_CFG] = &pm_gnoc_cfg,
 	[SLAVE_GNOC_SNOC] = &qns_gladiator_sodv,
@@ -325,7 +325,7 @@ static const struct qcom_icc_desc sdm845_gladiator_noc = {
 	.num_bcms = ARRAY_SIZE(gladiator_noc_bcms),
 };
 
-static struct qcom_icc_bcm *mem_noc_bcms[] = {
+static struct qcom_icc_bcm * const mem_noc_bcms[] = {
 	&bcm_mc0,
 	&bcm_acv,
 	&bcm_sh0,
@@ -335,7 +335,7 @@ static struct qcom_icc_bcm *mem_noc_bcms[] = {
 	&bcm_sh5,
 };
 
-static struct qcom_icc_node *mem_noc_nodes[] = {
+static struct qcom_icc_node * const mem_noc_nodes[] = {
 	[MASTER_TCU_0] = &acm_tcu,
 	[MASTER_MEM_NOC_CFG] = &qhm_memnoc_cfg,
 	[MASTER_GNOC_MEM_NOC] = &qnm_apps,
@@ -360,14 +360,14 @@ static const struct qcom_icc_desc sdm845_mem_noc = {
 	.num_bcms = ARRAY_SIZE(mem_noc_bcms),
 };
 
-static struct qcom_icc_bcm *mmss_noc_bcms[] = {
+static struct qcom_icc_bcm * const mmss_noc_bcms[] = {
 	&bcm_mm0,
 	&bcm_mm1,
 	&bcm_mm2,
 	&bcm_mm3,
 };
 
-static struct qcom_icc_node *mmss_noc_nodes[] = {
+static struct qcom_icc_node * const mmss_noc_nodes[] = {
 	[MASTER_CNOC_MNOC_CFG] = &qhm_mnoc_cfg,
 	[MASTER_CAMNOC_HF0] = &qxm_camnoc_hf0,
 	[MASTER_CAMNOC_HF1] = &qxm_camnoc_hf1,
@@ -394,7 +394,7 @@ static const struct qcom_icc_desc sdm845_mmss_noc = {
 	.num_bcms = ARRAY_SIZE(mmss_noc_bcms),
 };
 
-static struct qcom_icc_bcm *system_noc_bcms[] = {
+static struct qcom_icc_bcm * const system_noc_bcms[] = {
 	&bcm_sn0,
 	&bcm_sn1,
 	&bcm_sn2,
@@ -411,7 +411,7 @@ static struct qcom_icc_bcm *system_noc_bcms[] = {
 	&bcm_sn15,
 };
 
-static struct qcom_icc_node *system_noc_nodes[] = {
+static struct qcom_icc_node * const system_noc_nodes[] = {
 	[MASTER_SNOC_CFG] = &qhm_snoc_cfg,
 	[MASTER_A1NOC_SNOC] = &qnm_aggre1_noc,
 	[MASTER_A2NOC_SNOC] = &qnm_aggre2_noc,

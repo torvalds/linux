@@ -9,12 +9,12 @@
 #include <linux/nodemask.h>
 #include <linux/cpumask.h>
 #include <linux/notifier.h>
+#include <linux/of.h>
 
 #include <asm/current.h>
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/hvcall.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/smp.h>
 #include <asm/pmc.h>
@@ -1110,14 +1110,6 @@ EXPORT_SYMBOL_GPL(cpu_remove_dev_attr_group);
 /* NUMA stuff */
 
 #ifdef CONFIG_NUMA
-static void __init register_nodes(void)
-{
-	int i;
-
-	for (i = 0; i < MAX_NUMNODES; i++)
-		register_one_node(i);
-}
-
 int sysfs_add_device_to_node(struct device *dev, int nid)
 {
 	struct node *node = node_devices[nid];
@@ -1132,13 +1124,6 @@ void sysfs_remove_device_from_node(struct device *dev, int nid)
 	sysfs_remove_link(&node->dev.kobj, kobject_name(&dev->kobj));
 }
 EXPORT_SYMBOL_GPL(sysfs_remove_device_from_node);
-
-#else
-static void __init register_nodes(void)
-{
-	return;
-}
-
 #endif
 
 /* Only valid if CPU is present. */
@@ -1154,8 +1139,6 @@ static DEVICE_ATTR(physical_id, 0444, show_physical_id, NULL);
 static int __init topology_init(void)
 {
 	int cpu, r;
-
-	register_nodes();
 
 	for_each_possible_cpu(cpu) {
 		struct cpu *c = &per_cpu(cpu_devices, cpu);

@@ -504,6 +504,7 @@ static const char *hw_flag_names[] = {
 	FLAG(SUPPORTS_TX_ENCAP_OFFLOAD),
 	FLAG(SUPPORTS_RX_DECAP_OFFLOAD),
 	FLAG(SUPPORTS_CONC_MON_RX_DECAP),
+	FLAG(DETECTS_COLOR_COLLISION),
 #undef FLAG
 };
 
@@ -634,8 +635,10 @@ static const struct file_operations stats_ ##name## _ops = {		\
 	.llseek = generic_file_llseek,					\
 };
 
+#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
 #define DEBUGFS_STATS_ADD(name)					\
 	debugfs_create_u32(#name, 0400, statsd, &local->name);
+#endif
 #define DEBUGFS_DEVSTATS_ADD(name)					\
 	debugfs_create_file(#name, 0400, statsd, local, &stats_ ##name## _ops);
 

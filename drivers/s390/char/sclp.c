@@ -60,7 +60,7 @@ static LIST_HEAD(sclp_reg_list);
 /* List of queued requests. */
 static LIST_HEAD(sclp_req_queue);
 
-/* Data for read and and init requests. */
+/* Data for read and init requests. */
 static struct sclp_req sclp_read_req;
 static struct sclp_req sclp_init_req;
 static void *sclp_read_sccb;
@@ -745,9 +745,7 @@ sclp_sync_wait(void)
 	/* Loop until driver state indicates finished request */
 	while (sclp_running_state != sclp_running_state_idle) {
 		/* Check for expired request timer */
-		if (timer_pending(&sclp_request_timer) &&
-		    get_tod_clock_fast() > timeout &&
-		    del_timer(&sclp_request_timer))
+		if (get_tod_clock_fast() > timeout && del_timer(&sclp_request_timer))
 			sclp_request_timer.function(&sclp_request_timer);
 		cpu_relax();
 	}

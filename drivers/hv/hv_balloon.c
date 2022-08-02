@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/completion.h>
+#include <linux/count_zeros.h>
 #include <linux/memory_hotplug.h>
 #include <linux/memory.h>
 #include <linux/notifier.h>
@@ -1130,6 +1131,7 @@ static void post_status(struct hv_dynmem_device *dm)
 	struct dm_status status;
 	unsigned long now = jiffies;
 	unsigned long last_post = last_post_time;
+	unsigned long num_pages_avail, num_pages_committed;
 
 	if (pressure_report_delay > 0) {
 		--pressure_report_delay;
@@ -1154,16 +1156,21 @@ static void post_status(struct hv_dynmem_device *dm)
 	 * num_pages_onlined) as committed to the host, otherwise it can try
 	 * asking us to balloon them out.
 	 */
-	status.num_avail = si_mem_available();
-	status.num_committed = vm_memory_committed() +
+	num_pages_avail = si_mem_available();
+	num_pages_committed = vm_memory_committed() +
 		dm->num_pages_ballooned +
 		(dm->num_pages_added > dm->num_pages_onlined ?
 		 dm->num_pages_added - dm->num_pages_onlined : 0) +
 		compute_balloon_floor();
 
-	trace_balloon_status(status.num_avail, status.num_committed,
+	trace_balloon_status(num_pages_avail, num_pages_committed,
 			     vm_memory_committed(), dm->num_pages_ballooned,
 			     dm->num_pages_added, dm->num_pages_onlined);
+
+	/* Convert numbers of pages into numbers of HV_HYP_PAGEs. */
+	status.num_avail = num_pages_avail * NR_HV_HYP_PAGES_IN_PAGE;
+	status.num_committed = num_pages_committed * NR_HV_HYP_PAGES_IN_PAGE;
+
 	/*
 	 * If our transaction ID is no longer current, just don't
 	 * send the status. This can happen if we were interrupted
@@ -1563,7 +1570,7 @@ static void balloon_onchannelcallback(void *context)
 			break;
 
 		default:
-			pr_warn("Unhandled message: type: %d\n", dm_hdr->type);
+			pr_warn_ratelimited("Unhandled message: type: %d\n", dm_hdr->type);
 
 		}
 	}
@@ -1653,6 +1660,38 @@ static void disable_page_reporting(void)
 	}
 }
 
+static int ballooning_enabled(void)
+{
+	/*
+	 * Disable ballooning if the page size is not 4k (HV_HYP_PAGE_SIZE),
+	 * since currently it's unclear to us whether an unballoon request can
+	 * make sure all page ranges are guest page size aligned.
+	 */
+	if (PAGE_SIZE != HV_HYP_PAGE_SIZE) {
+		pr_info("Ballooning disabled because page size is not 4096 bytes\n");
+		return 0;
+	}
+
+	return 1;
+}
+
+static int hot_add_enabled(void)
+{
+	/*
+	 * Disable hot add on ARM64, because we currently rely on
+	 * memory_add_physaddr_to_nid() to get a node id of a hot add range,
+	 * however ARM64's memory_add_physaddr_to_nid() always return 0 and
+	 * DM_MEM_HOT_ADD_REQUEST doesn't have the NUMA node information for
+	 * add_memory().
+	 */
+	if (IS_ENABLED(CONFIG_ARM64)) {
+		pr_info("Memory hot add disabled on ARM64\n");
+		return 0;
+	}
+
+	return 1;
+}
+
 static int balloon_connect_vsp(struct hv_device *dev)
 {
 	struct dm_version_request version_req;
@@ -1724,8 +1763,8 @@ static int balloon_connect_vsp(struct hv_device *dev)
 	 * currently still requires the bits to be set, so we have to add code
 	 * to fail the host's hot-add and balloon up/down requests, if any.
 	 */
-	cap_msg.caps.cap_bits.balloon = 1;
-	cap_msg.caps.cap_bits.hot_add = 1;
+	cap_msg.caps.cap_bits.balloon = ballooning_enabled();
+	cap_msg.caps.cap_bits.hot_add = hot_add_enabled();
 
 	/*
 	 * Specify our alignment requirements as it relates
@@ -1803,7 +1842,7 @@ static int balloon_probe(struct hv_device *dev,
 
 	ret = balloon_connect_vsp(dev);
 	if (ret != 0)
-		return ret;
+		goto connect_error;
 
 	enable_page_reporting();
 	dm_device.state = DM_INITIALIZED;
@@ -1822,6 +1861,7 @@ probe_error:
 	dm_device.thread  = NULL;
 	disable_page_reporting();
 	vmbus_close(dev->channel);
+connect_error:
 #ifdef CONFIG_MEMORY_HOTPLUG
 	unregister_memory_notifier(&hv_memory_nb);
 	restore_online_page_callback(&hv_online_page);
@@ -1843,12 +1883,21 @@ static int balloon_remove(struct hv_device *dev)
 	cancel_work_sync(&dm->ha_wrk.wrk);
 
 	kthread_stop(dm->thread);
-	disable_page_reporting();
-	vmbus_close(dev->channel);
+
+	/*
+	 * This is to handle the case when balloon_resume()
+	 * call has failed and some cleanup has been done as
+	 * a part of the error handling.
+	 */
+	if (dm_device.state != DM_INIT_ERROR) {
+		disable_page_reporting();
+		vmbus_close(dev->channel);
 #ifdef CONFIG_MEMORY_HOTPLUG
-	unregister_memory_notifier(&hv_memory_nb);
-	restore_online_page_callback(&hv_online_page);
+		unregister_memory_notifier(&hv_memory_nb);
+		restore_online_page_callback(&hv_online_page);
 #endif
+	}
+
 	spin_lock_irqsave(&dm_device.ha_lock, flags);
 	list_for_each_entry_safe(has, tmp, &dm->ha_region_list, list) {
 		list_for_each_entry_safe(gap, tmp_gap, &has->gap_list, list) {
@@ -1909,6 +1958,7 @@ close_channel:
 	vmbus_close(dev->channel);
 out:
 	dm_device.state = DM_INIT_ERROR;
+	disable_page_reporting();
 #ifdef CONFIG_MEMORY_HOTPLUG
 	unregister_memory_notifier(&hv_memory_nb);
 	restore_online_page_callback(&hv_online_page);

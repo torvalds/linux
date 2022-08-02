@@ -6,6 +6,7 @@
  *
  */
 
+#include <dt-bindings/clock/samsung,exynosautov9.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/soc/samsung,exynos-usi.h>
 
@@ -153,29 +154,7 @@
 		xtcxo: clock {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <26000000>;
 			clock-output-names = "oscclk";
-		};
-
-		/*
-		 * Keep the stub clock for serial driver, until proper clock
-		 * driver is implemented.
-		 */
-		uart_clock: uart-clock {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <133250000>;
-			clock-output-names = "uart";
-		};
-
-		/*
-		 * Keep the stub clock for ufs driver, until proper clock
-		 * driver is implemented.
-		 */
-		ufs_core_clock: ufs-core-clock {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <166562500>;
 		};
 	};
 
@@ -188,6 +167,89 @@
 		chipid@10000000 {
 			compatible = "samsung,exynos850-chipid";
 			reg = <0x10000000 0x24>;
+		};
+
+		cmu_peris: clock-controller@10020000 {
+			compatible = "samsung,exynosautov9-cmu-peris";
+			reg = <0x10020000 0x8000>;
+			#clock-cells = <1>;
+
+			clocks = <&xtcxo>,
+				 <&cmu_top DOUT_CLKCMU_PERIS_BUS>;
+			clock-names = "oscclk",
+				      "dout_clkcmu_peris_bus";
+		};
+
+		cmu_peric0: clock-controller@10200000 {
+			compatible = "samsung,exynosautov9-cmu-peric0";
+			reg = <0x10200000 0x8000>;
+			#clock-cells = <1>;
+
+			clocks = <&xtcxo>,
+				 <&cmu_top DOUT_CLKCMU_PERIC0_BUS>,
+				 <&cmu_top DOUT_CLKCMU_PERIC0_IP>;
+			clock-names = "oscclk",
+				      "dout_clkcmu_peric0_bus",
+				      "dout_clkcmu_peric0_ip";
+		};
+
+		cmu_peric1: clock-controller@10800000 {
+			compatible = "samsung,exynosautov9-cmu-peric1";
+			reg = <0x10800000 0x8000>;
+			#clock-cells = <1>;
+
+			clocks = <&xtcxo>,
+				 <&cmu_top DOUT_CLKCMU_PERIC1_BUS>,
+				 <&cmu_top DOUT_CLKCMU_PERIC1_IP>;
+			clock-names = "oscclk",
+				      "dout_clkcmu_peric1_bus",
+				      "dout_clkcmu_peric1_ip";
+		};
+
+		cmu_fsys2: clock-controller@17c00000 {
+			compatible = "samsung,exynosautov9-cmu-fsys2";
+			reg = <0x17c00000 0x8000>;
+			#clock-cells = <1>;
+
+			clocks = <&xtcxo>,
+				 <&cmu_top DOUT_CLKCMU_FSYS2_BUS>,
+				 <&cmu_top DOUT_CLKCMU_FSYS2_UFS_EMBD>,
+				 <&cmu_top DOUT_CLKCMU_FSYS2_ETHERNET>;
+			clock-names = "oscclk",
+				      "dout_clkcmu_fsys2_bus",
+				      "dout_fsys2_clkcmu_ufs_embd",
+				      "dout_fsys2_clkcmu_ethernet";
+		};
+
+		cmu_core: clock-controller@1b030000 {
+			compatible = "samsung,exynosautov9-cmu-core";
+			reg = <0x1b030000 0x8000>;
+			#clock-cells = <1>;
+
+			clocks = <&xtcxo>,
+				 <&cmu_top DOUT_CLKCMU_CORE_BUS>;
+			clock-names = "oscclk",
+				      "dout_clkcmu_core_bus";
+		};
+
+		cmu_busmc: clock-controller@1b200000 {
+			compatible = "samsung,exynosautov9-cmu-busmc";
+			reg = <0x1b200000 0x8000>;
+			#clock-cells = <1>;
+
+			clocks = <&xtcxo>,
+				 <&cmu_top DOUT_CLKCMU_BUSMC_BUS>;
+			clock-names = "oscclk",
+				      "dout_clkcmu_busmc_bus";
+		};
+
+		cmu_top: clock-controller@1b240000 {
+			compatible = "samsung,exynosautov9-cmu-top";
+			reg = <0x1b240000 0x8000>;
+			#clock-cells = <1>;
+
+			clocks = <&xtcxo>;
+			clock-names = "oscclk";
 		};
 
 		gic: interrupt-controller@10101000 {
@@ -208,7 +270,7 @@
 			reg = <0x10450000 0x1000>;
 
 			wakeup-interrupt-controller {
-				compatible = "samsung,exynos7-wakeup-eint";
+				compatible = "samsung,exynosautov9-wakeup-eint";
 			};
 		};
 
@@ -271,7 +333,8 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
-			clocks = <&uart_clock>, <&uart_clock>;
+			clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_0>,
+				 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_0>;
 			clock-names = "pclk", "ipclk";
 			status = "disabled";
 
@@ -282,7 +345,8 @@
 				interrupts = <GIC_SPI 345 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&uart0_bus_dual>;
-				clocks = <&uart_clock>, <&uart_clock>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_0>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_0>;
 				clock-names = "uart", "clk_uart_baud0";
 				status = "disabled";
 			};
@@ -308,8 +372,8 @@
 				<0x17dc0000 0x2200>;  /* 3: UFS protector */
 			reg-names = "hci", "vs_hci", "unipro", "ufsp";
 			interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&ufs_core_clock>,
-				<&ufs_core_clock>;
+			clocks = <&cmu_fsys2 CLK_GOUT_FSYS2_UFS_EMBD0_ACLK>,
+				 <&cmu_fsys2 CLK_GOUT_FSYS2_UFS_EMBD0_UNIPRO>;
 			clock-names = "core_clk", "sclk_unipro_main";
 			freq-table-hz = <0 0>, <0 0>;
 			pinctrl-names = "default";

@@ -86,8 +86,6 @@ struct odm_phy_dbg_info {
 	/* ODM Write,debug info */
 	s8	RxSNRdB[MAX_PATH_NUM_92CS];
 	u64	NumQryPhyStatus;
-	u64	NumQryPhyStatusCCK;
-	u64	NumQryPhyStatusOFDM;
 	/* Others */
 	s32	RxEVM[MAX_PATH_NUM_92CS];
 };
@@ -100,82 +98,28 @@ struct odm_per_pkt_info {
 	bool	bPacketBeacon;
 };
 
-enum odm_ability {
-	/*  BB Team */
-	ODM_DIG			= 0x00000001,
-	ODM_HIGH_POWER		= 0x00000002,
-	ODM_CCK_CCA_TH		= 0x00000004,
-	ODM_FA_STATISTICS	= 0x00000008,
-	ODM_RAMASK		= 0x00000010,
-	ODM_RSSI_MONITOR	= 0x00000020,
-	ODM_SW_ANTDIV		= 0x00000040,
-	ODM_HW_ANTDIV		= 0x00000080,
-	ODM_BB_PWRSV		= 0x00000100,
-	ODM_2TPATHDIV		= 0x00000200,
-	ODM_1TPATHDIV		= 0x00000400,
-	ODM_PSD2AFH		= 0x00000800
-};
-
 /*  2011/10/20 MH Define Common info enum for all team. */
 
 enum odm_common_info_def {
 	/*  Fixed value: */
 
 	/* HOOK BEFORE REG INIT----------- */
-	ODM_CMNINFO_ABILITY,		/* ODM_ABILITY_E */
 	ODM_CMNINFO_MP_TEST_CHIP,
 	/* HOOK BEFORE REG INIT-----------  */
 
-	/*  Dynamic value: */
-/*  POINTER REFERENCE-----------  */
-	ODM_CMNINFO_WM_MODE,		/*  ODM_WIRELESS_MODE_E */
-	ODM_CMNINFO_SEC_CHNL_OFFSET,	/*  ODM_SEC_CHNL_OFFSET_E */
-	ODM_CMNINFO_BW,			/*  ODM_BW_E */
-	ODM_CMNINFO_CHNL,
-
-	ODM_CMNINFO_SCAN,
-	ODM_CMNINFO_POWER_SAVING,
-/*  POINTER REFERENCE----------- */
-
 /* CALL BY VALUE------------- */
-	ODM_CMNINFO_LINK,
-	ODM_CMNINFO_RSSI_MIN,
 	ODM_CMNINFO_RF_ANTENNA_TYPE,		/*  u8 */
 /* CALL BY VALUE-------------*/
 };
 
-/*  2011/10/20 MH Define ODM support ability.  ODM_CMNINFO_ABILITY */
-
 enum odm_ability_def {
 	/*  BB ODM section BIT 0-15 */
-	ODM_BB_FA_CNT			= BIT(3),
 	ODM_BB_RSSI_MONITOR		= BIT(4),
-	ODM_BB_CCK_PD			= BIT(5),
 	ODM_BB_ANT_DIV			= BIT(6),
 	ODM_BB_PWR_TRA			= BIT(8),
-
-	/*  MAC DM section BIT 16-23 */
-	ODM_MAC_EDCA_TURBO		= BIT(16),
-
-	/*  RF ODM section BIT 24-31 */
-	ODM_RF_TX_PWR_TRACK		= BIT(24),
-	ODM_RF_CALIBRATION		= BIT(26),
 };
 
 # define ODM_ITRF_USB 0x2
-
-/*  ODM_CMNINFO_OP_MODE */
-enum odm_operation_mode {
-	ODM_NO_LINK		= BIT(0),
-	ODM_LINK		= BIT(1),
-	ODM_SCAN		= BIT(2),
-	ODM_POWERSAVE		= BIT(3),
-	ODM_AP_MODE		= BIT(4),
-	ODM_CLIENT_MODE		= BIT(5),
-	ODM_AD_HOC		= BIT(6),
-	ODM_WIFI_DIRECT		= BIT(7),
-	ODM_WIFI_DISPLAY	= BIT(8),
-};
 
 /*  ODM_CMNINFO_WM_MODE */
 enum odm_wireless_mode {
@@ -184,12 +128,6 @@ enum odm_wireless_mode {
 	ODM_WM_G	= BIT(1),
 	ODM_WM_N24G	= BIT(3),
 	ODM_WM_AUTO	= BIT(5),
-};
-
-/*  ODM_CMNINFO_BW */
-enum odm_bw {
-	ODM_BW20M		= 0,
-	ODM_BW40M		= 1,
 };
 
 struct odm_ra_info {
@@ -238,9 +176,6 @@ struct odm_rf_cal {
 	s32	RegEB4;
 	s32	RegEBC;
 
-	u8	TXPowercount;
-	bool	bTXPowerTrackingInit;
-	bool	bTXPowerTracking;
 	u8	TxPowerTrackControl; /* for mp mode, turn off txpwrtracking
 				      * as default */
 	u8	TM_Trigger;
@@ -263,11 +198,9 @@ struct odm_rf_cal {
 
 	bool	bReloadtxpowerindex;
 	u8	bRfPiEnable;
-	u32	TXPowerTrackingCallbackCnt; /* cosa add for debug */
 
-	u8	bCCKinCH14;
 	u8	CCK_index;
-	u8	OFDM_index[2];
+	u8	OFDM_index;
 	bool bDoneTxpower;
 
 	u8	ThermalValue_HP[HP_THERMAL_NUM];
@@ -355,7 +288,7 @@ struct odm_dm_struct {
 	/*  Secondary channel offset don't_care/below/above = 0/1/2 */
 	u8	*pSecChOffset;
 	/*  BW info 20M/40M/80M = 0/1/2 */
-	u8	*pBandWidth;
+	enum ht_channel_width *pBandWidth;
 	/*  Central channel location Ch1/Ch2/.... */
 	u8	*pChannel;	/* central channel number */
 
@@ -461,8 +394,7 @@ enum dm_swas {
 #define	CCK_TABLE_SIZE		33
 
 extern	u32 OFDMSwingTable[OFDM_TABLE_SIZE_92D];
-extern	u8 CCKSwingTable_Ch1_Ch13[CCK_TABLE_SIZE][8];
-extern	u8 CCKSwingTable_Ch14 [CCK_TABLE_SIZE][8];
+extern u8 cck_swing_table[CCK_TABLE_SIZE][8];
 
 /*  check Sta pointer valid or not */
 #define IS_STA_VALID(pSta)		(pSta)
@@ -486,10 +418,5 @@ void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm);
 
 void ODM_CmnInfoInit(struct odm_dm_struct *pDM_Odm,
 		     enum odm_common_info_def CmnInfo, u32 Value);
-
-void ODM_CmnInfoHook(struct odm_dm_struct *pDM_Odm,
-		     enum odm_common_info_def CmnInfo, void *pValue);
-
-void ODM_CmnInfoUpdate(struct odm_dm_struct *pDM_Odm, u32 CmnInfo, u64 Value);
 
 #endif

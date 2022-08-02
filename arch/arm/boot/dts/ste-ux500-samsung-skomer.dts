@@ -24,6 +24,24 @@
 		compatible = "samsung,eb485159lu";
 	};
 
+	thermal-zones {
+		battery-thermal {
+			/* This zone will be polled by the battery temperature code */
+			polling-delay = <0>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&bat_therm>;
+		};
+	};
+
+	bat_therm: thermistor {
+		compatible = "samsung,1404-001221";
+		io-channels = <&gpadc 0x02>; /* BatTemp */
+		pullup-uv = <1800000>;
+		pullup-ohm = <230000>;
+		pulldown-ohm = <0>;
+		#thermal-sensor-cells = <0>;
+	};
+
 	/* TI TXS0206 level translator for 2.9 V */
 	sd_level_translator: regulator-gpio {
 		compatible = "regulator-fixed";
@@ -263,12 +281,27 @@
 			};
 		};
 
-		/* GPF UART */
+		/* GPS UART */
 		uart@80121000 {
 			status = "okay";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&u1rxtx_a_1_default &u1ctsrts_a_1_default>;
 			pinctrl-1 = <&u1rxtx_a_1_sleep &u1ctsrts_a_1_sleep>;
+
+			gnss {
+				/* The CSRG05TA03-ICJE-R is a SirfStarV 5t chip */
+				compatible = "csr,csrg05ta03-icje-r";
+				/* GPS_RSTN on GPIO209 */
+				reset-gpios = <&gpio6 17 GPIO_ACTIVE_LOW>;
+				/* GPS_ON_OFF on GPIO86 */
+				sirf,onoff-gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>;
+				/* GPS_1V8 (VSMPS2) */
+				vcc-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&g05ta03_skomer_default>;
+				/* According to /etc/sirfgps.conf */
+				current-speed = <460800>;
+			};
 		};
 
 		/* Debugging console UART connected to AB8505 USB */
@@ -281,13 +314,17 @@
 
 		prcmu@80157000 {
 			ab8505 {
-				ab8500_usb {
+				phy {
 					pinctrl-names = "default", "sleep";
 					pinctrl-0 = <&usb_a_1_default>;
 					pinctrl-1 = <&usb_a_1_sleep>;
 				};
 
-				ab8505-regulators {
+				ab8500_fg {
+					line-impedance-micro-ohms = <16000>;
+				};
+
+				regulator {
 					ab8500_ldo_aux1 {
 						/* Used for VDD for sensors */
 						regulator-name = "AUX1";
@@ -628,6 +665,20 @@
 			skomer_cfg1 {
 				pins = "GPIO218_AH11";
 				ste,config = <&gpio_in_nopull>;
+			};
+		};
+	};
+	g05ta03 {
+		g05ta03_skomer_default: g05ta03 {
+			/* Reset line, start out de-asserted */
+			skomer_cfg1 {
+				pins = "GPIO209_AG15";
+				ste,config = <&gpio_out_hi>;
+			};
+			/* GPS_ON_OFF, start out deasserted (off) */
+			skomer_cfg2 {
+				pins = "GPIO86_C6";
+				ste,config = <&gpio_out_lo>;
 			};
 		};
 	};

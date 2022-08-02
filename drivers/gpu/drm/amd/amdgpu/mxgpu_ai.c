@@ -32,6 +32,8 @@
 #include "soc15_common.h"
 #include "mxgpu_ai.h"
 
+#include "amdgpu_reset.h"
+
 static void xgpu_ai_mailbox_send_ack(struct amdgpu_device *adev)
 {
 	WREG8(AI_MAIBOX_CONTROL_RCV_OFFSET_BYTE, 2);
@@ -257,10 +259,10 @@ static void xgpu_ai_mailbox_flr_work(struct work_struct *work)
 	 * otherwise the mailbox msg will be ruined/reseted by
 	 * the VF FLR.
 	 */
-	if (atomic_cmpxchg(&adev->in_gpu_reset, 0, 1) != 0)
+	if (atomic_cmpxchg(&adev->reset_domain->in_gpu_reset, 0, 1) != 0)
 		return;
 
-	down_write(&adev->reset_sem);
+	down_write(&adev->reset_domain->sem);
 
 	amdgpu_virt_fini_data_exchange(adev);
 
@@ -275,14 +277,14 @@ static void xgpu_ai_mailbox_flr_work(struct work_struct *work)
 	} while (timeout > 1);
 
 flr_done:
-	atomic_set(&adev->in_gpu_reset, 0);
-	up_write(&adev->reset_sem);
+	atomic_set(&adev->reset_domain->in_gpu_reset, 0);
+	up_write(&adev->reset_domain->sem);
 
 	/* Trigger recovery for world switch failure if no TDR */
 	if (amdgpu_device_should_recover_gpu(adev)
 		&& (!amdgpu_device_has_job_running(adev) ||
 		adev->sdma_timeout == MAX_SCHEDULE_TIMEOUT))
-		amdgpu_device_gpu_recover(adev, NULL);
+		amdgpu_device_gpu_recover_imp(adev, NULL);
 }
 
 static int xgpu_ai_set_mailbox_rcv_irq(struct amdgpu_device *adev,
@@ -307,8 +309,11 @@ static int xgpu_ai_mailbox_rcv_irq(struct amdgpu_device *adev,
 
 	switch (event) {
 		case IDH_FLR_NOTIFICATION:
-		if (amdgpu_sriov_runtime(adev))
-			schedule_work(&adev->virt.flr_work);
+		if (amdgpu_sriov_runtime(adev) && !amdgpu_in_reset(adev))
+			WARN_ONCE(!amdgpu_reset_domain_schedule(adev->reset_domain,
+								&adev->virt.flr_work),
+				  "Failed to queue work! at %s",
+				  __func__);
 		break;
 		case IDH_QUERY_ALIVE:
 			xgpu_ai_mailbox_send_ack(adev);

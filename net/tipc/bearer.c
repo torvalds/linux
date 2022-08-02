@@ -259,9 +259,8 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 	u32 i;
 
 	if (!bearer_name_validate(name, &b_names)) {
-		errstr = "illegal name";
 		NL_SET_ERR_MSG(extack, "Illegal name");
-		goto rejected;
+		return res;
 	}
 
 	if (prio > TIPC_MAX_LINK_PRI && prio != TIPC_MEDIA_LINK_PRI) {
@@ -770,7 +769,7 @@ void tipc_clone_to_loopback(struct net *net, struct sk_buff_head *pkts)
 		skb->pkt_type = PACKET_HOST;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		skb->protocol = eth_type_trans(skb, dev);
-		netif_rx_ni(skb);
+		netif_rx(skb);
 	}
 }
 

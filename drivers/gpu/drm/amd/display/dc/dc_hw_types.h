@@ -201,8 +201,9 @@ enum surface_pixel_format {
 	SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb,
 	SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr,
 	SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb,
+	SURFACE_PIXEL_FORMAT_SUBSAMPLE_END,
+	SURFACE_PIXEL_FORMAT_VIDEO_ACrYCb2101010 =
 		SURFACE_PIXEL_FORMAT_SUBSAMPLE_END,
-	SURFACE_PIXEL_FORMAT_VIDEO_ACrYCb2101010,
 	SURFACE_PIXEL_FORMAT_VIDEO_CrYCbA1010102,
 	SURFACE_PIXEL_FORMAT_VIDEO_AYCrCb8888,
 	SURFACE_PIXEL_FORMAT_INVALID
@@ -233,6 +234,22 @@ enum pixel_format {
 	PIXEL_FORMAT_VIDEO_BEGIN = PIXEL_FORMAT_420BPP8,
 	PIXEL_FORMAT_VIDEO_END = PIXEL_FORMAT_420BPP10,
 	PIXEL_FORMAT_UNKNOWN
+};
+
+/*
+ * This structure holds a surface address.  There could be multiple addresses
+ * in cases such as Stereo 3D, Planar YUV, etc.  Other per-flip attributes such
+ * as frame durations and DCC format can also be set.
+ */
+#define DC_MAX_DIRTY_RECTS 3
+struct dc_flip_addrs {
+	struct dc_plane_address address;
+	unsigned int flip_timestamp_in_us;
+	bool flip_immediate;
+	/* TODO: add flip duration for FreeSync */
+	bool triplebuffer_flips;
+	unsigned int dirty_rect_count;
+	struct rect dirty_rects[DC_MAX_DIRTY_RECTS];
 };
 
 enum tile_split_values {
@@ -745,6 +762,7 @@ struct dc_dsc_config {
 	bool is_frl; /* indicate if DSC is applied based on HDMI FRL sink's capability */
 #endif
 	bool is_dp; /* indicate if DSC is applied based on DP's capability */
+	uint32_t mst_pbn; /* pbn of display on dsc mst hub */
 };
 struct dc_crtc_timing {
 	uint32_t h_total;

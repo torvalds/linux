@@ -31,8 +31,6 @@ MODULE_LICENSE("GPL");
 
 #define ENA_MAX_RINGS min_t(unsigned int, ENA_MAX_NUM_IO_QUEUES, num_possible_cpus())
 
-#define ENA_NAPI_BUDGET 64
-
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_IFUP | \
 		NETIF_MSG_TX_DONE | NETIF_MSG_TX_ERR | NETIF_MSG_RX_ERR)
 
@@ -1400,10 +1398,9 @@ static struct sk_buff *ena_alloc_skb(struct ena_ring *rx_ring, void *first_frag)
 	struct sk_buff *skb;
 
 	if (!first_frag)
-		skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
-						rx_ring->rx_copybreak);
+		skb = napi_alloc_skb(rx_ring->napi, rx_ring->rx_copybreak);
 	else
-		skb = build_skb(first_frag, ENA_PAGE_SIZE);
+		skb = napi_build_skb(first_frag, ENA_PAGE_SIZE);
 
 	if (unlikely(!skb)) {
 		ena_increase_stat(&rx_ring->rx_stats.skb_alloc_fail, 1,
@@ -2271,7 +2268,7 @@ static void ena_init_napi_in_range(struct ena_adapter *adapter,
 		netif_napi_add(adapter->netdev,
 			       &napi->napi,
 			       ENA_IS_XDP_INDEX(adapter, i) ? ena_xdp_io_poll : ena_io_poll,
-			       ENA_NAPI_BUDGET);
+			       NAPI_POLL_WEIGHT);
 
 		if (!ENA_IS_XDP_INDEX(adapter, i)) {
 			napi->rx_ring = &adapter->rx_ring[i];

@@ -19,6 +19,9 @@
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/thermal_pressure.h>
+
 static DEFINE_PER_CPU(struct scale_freq_data __rcu *, sft_data);
 static struct cpumask scale_freq_counters_mask;
 static bool scale_freq_invariant;
@@ -195,6 +198,8 @@ void topology_update_thermal_pressure(const struct cpumask *cpus,
 
 	th_pressure = max_capacity - capacity;
 
+	trace_thermal_pressure_update(cpu, th_pressure);
+
 	for_each_cpu(cpu, cpus)
 		WRITE_ONCE(per_cpu(thermal_pressure, cpu), th_pressure);
 }
@@ -339,6 +344,46 @@ bool __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
 	return !ret;
 }
 
+#ifdef CONFIG_ACPI_CPPC_LIB
+#include <acpi/cppc_acpi.h>
+
+void topology_init_cpu_capacity_cppc(void)
+{
+	struct cppc_perf_caps perf_caps;
+	int cpu;
+
+	if (likely(acpi_disabled || !acpi_cpc_valid()))
+		return;
+
+	raw_capacity = kcalloc(num_possible_cpus(), sizeof(*raw_capacity),
+			       GFP_KERNEL);
+	if (!raw_capacity)
+		return;
+
+	for_each_possible_cpu(cpu) {
+		if (!cppc_get_perf_caps(cpu, &perf_caps) &&
+		    (perf_caps.highest_perf >= perf_caps.nominal_perf) &&
+		    (perf_caps.highest_perf >= perf_caps.lowest_perf)) {
+			raw_capacity[cpu] = perf_caps.highest_perf;
+			pr_debug("cpu_capacity: CPU%d cpu_capacity=%u (raw).\n",
+				 cpu, raw_capacity[cpu]);
+			continue;
+		}
+
+		pr_err("cpu_capacity: CPU%d missing/invalid highest performance.\n", cpu);
+		pr_err("cpu_capacity: partial information: fallback to 1024 for all CPUs\n");
+		goto exit;
+	}
+
+	topology_normalize_cpu_scale();
+	schedule_work(&update_topology_flags_work);
+	pr_debug("cpu_capacity: cpu_capacity initialization done\n");
+
+exit:
+	free_raw_capacity();
+}
+#endif
+
 #ifdef CONFIG_CPU_FREQ
 static cpumask_var_t cpus_to_visit;
 static void parsing_done_workfn(struct work_struct *work);
@@ -387,9 +432,8 @@ static int __init register_cpufreq_notifier(void)
 	int ret;
 
 	/*
-	 * on ACPI-based systems we need to use the default cpu capacity
-	 * until we have the necessary code to parse the cpu capacity, so
-	 * skip registering cpufreq notifier.
+	 * On ACPI-based systems skip registering cpufreq notifier as cpufreq
+	 * information is not needed for cpu capacity initialization.
 	 */
 	if (!acpi_disabled || !raw_capacity)
 		return -EINVAL;
@@ -628,6 +672,15 @@ const struct cpumask *cpu_coregroup_mask(int cpu)
 			core_mask = &cpu_topology[cpu].llc_sibling;
 	}
 
+	/*
+	 * For systems with no shared cpu-side LLC but with clusters defined,
+	 * extend core_mask to cluster_siblings. The sched domain builder will
+	 * then remove MC as redundant with CLS if SCHED_CLUSTER is enabled.
+	 */
+	if (IS_ENABLED(CONFIG_SCHED_CLUSTER) &&
+	    cpumask_subset(core_mask, &cpu_topology[cpu].cluster_sibling))
+		core_mask = &cpu_topology[cpu].cluster_sibling;
+
 	return core_mask;
 }
 
@@ -645,7 +698,7 @@ void update_siblings_masks(unsigned int cpuid)
 	for_each_online_cpu(cpu) {
 		cpu_topo = &cpu_topology[cpu];
 
-		if (cpuid_topo->llc_id == cpu_topo->llc_id) {
+		if (cpu_topo->llc_id != -1 && cpuid_topo->llc_id == cpu_topo->llc_id) {
 			cpumask_set_cpu(cpu, &cpuid_topo->llc_sibling);
 			cpumask_set_cpu(cpuid, &cpu_topo->llc_sibling);
 		}

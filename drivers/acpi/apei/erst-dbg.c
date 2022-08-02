@@ -111,7 +111,8 @@ retry_next:
 		goto out;
 	}
 retry:
-	rc = len = erst_read(id, erst_dbg_buf, erst_dbg_buf_len);
+	rc = len = erst_read_record(id, erst_dbg_buf, erst_dbg_buf_len,
+			erst_dbg_buf_len, NULL);
 	/* The record may be cleared by others, try read next record */
 	if (rc == -ENOENT)
 		goto retry_next;

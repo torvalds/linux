@@ -77,6 +77,7 @@ static void i40iw_fill_device_info(struct irdma_device *iwdev, struct i40e_info 
 	rf->rdma_ver = IRDMA_GEN_1;
 	rf->gen_ops.request_reset = i40iw_request_reset;
 	rf->pcidev = cdev_info->pcidev;
+	rf->pf_id = cdev_info->fid;
 	rf->hw.hw_addr = cdev_info->hw_addr;
 	rf->cdev = cdev_info;
 	rf->msix_count = cdev_info->msix_count;
@@ -138,7 +139,7 @@ static int i40iw_open(struct i40e_info *cdev_info, struct i40e_client *client)
 		if (last_qset == IRDMA_NO_QSET)
 			last_qset = qset;
 		else if ((qset != last_qset) && (qset != IRDMA_NO_QSET))
-			iwdev->dcb = true;
+			iwdev->dcb_vlan_mode = true;
 	}
 
 	if (irdma_rt_init_hw(iwdev, &l2params)) {

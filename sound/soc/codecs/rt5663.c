@@ -3478,6 +3478,8 @@ static int rt5663_parse_dp(struct rt5663_priv *rt5663, struct device *dev)
 		table_size = sizeof(struct impedance_mapping_table) *
 			rt5663->pdata.impedance_sensing_num;
 		rt5663->imp_table = devm_kzalloc(dev, table_size, GFP_KERNEL);
+		if (!rt5663->imp_table)
+			return -ENOMEM;
 		ret = device_property_read_u32_array(dev,
 			"realtek,impedance_sensing_table",
 			(u32 *)rt5663->imp_table, table_size);
@@ -3488,8 +3490,7 @@ static int rt5663_parse_dp(struct rt5663_priv *rt5663, struct device *dev)
 	return 0;
 }
 
-static int rt5663_i2c_probe(struct i2c_client *i2c,
-		    const struct i2c_device_id *id)
+static int rt5663_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt5663_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5663_priv *rt5663;
@@ -3735,7 +3736,7 @@ static struct i2c_driver rt5663_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(rt5663_acpi_match),
 		.of_match_table = of_match_ptr(rt5663_of_match),
 	},
-	.probe = rt5663_i2c_probe,
+	.probe_new = rt5663_i2c_probe,
 	.remove = rt5663_i2c_remove,
 	.shutdown = rt5663_i2c_shutdown,
 	.id_table = rt5663_i2c_id,

@@ -26,10 +26,10 @@
 #ifndef __AMDGPU_DM_H__
 #define __AMDGPU_DM_H__
 
+#include <drm/display/drm_dp_mst_helper.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_dp_mst_helper.h>
 #include <drm/drm_plane.h>
 
 /*
@@ -358,14 +358,12 @@ struct amdgpu_display_manager {
 	 */
 	struct mutex audio_lock;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/**
 	 * @vblank_lock:
 	 *
 	 * Guards access to deferred vblank work state.
 	 */
 	spinlock_t vblank_lock;
-#endif
 
 	/**
 	 * @audio_component:
@@ -469,14 +467,12 @@ struct amdgpu_display_manager {
 	struct hdcp_workqueue *hdcp_workqueue;
 #endif
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/**
 	 * @vblank_control_workqueue:
 	 *
 	 * Deferred work for vblank control events.
 	 */
 	struct workqueue_struct *vblank_control_workqueue;
-#endif
 
 	struct drm_atomic_state *cached_state;
 	struct dc_state *cached_dc_state;
@@ -493,14 +489,12 @@ struct amdgpu_display_manager {
 	 */
 	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/**
 	 * @active_vblank_irq_count:
 	 *
 	 * number of currently active vblank irqs
 	 */
 	uint32_t active_vblank_irq_count;
-#endif
 
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 	/**
@@ -540,6 +534,12 @@ struct amdgpu_display_manager {
 	 * cached backlight values.
 	 */
 	u32 brightness[AMDGPU_DM_MAX_NUM_EDP];
+	/**
+	 * @actual_brightness:
+	 *
+	 * last successfully applied backlight values.
+	 */
+	u32 actual_brightness[AMDGPU_DM_MAX_NUM_EDP];
 };
 
 enum dsc_clock_force_state {
@@ -604,6 +604,7 @@ struct amdgpu_dm_connector {
 #endif
 	bool force_yuv420_output;
 	struct dsc_preferred_settings dsc_settings;
+	union dp_downstream_port_present mst_downstream_port_present;
 	/* Cached display modes */
 	struct drm_display_mode freesync_vid_base;
 
@@ -736,4 +737,16 @@ int amdgpu_dm_process_dmub_aux_transfer_sync(bool is_cmd_aux,
 
 bool check_seamless_boot_capability(struct amdgpu_device *adev);
 
+struct dc_stream_state *
+	create_validate_stream_for_sink(struct amdgpu_dm_connector *aconnector,
+					const struct drm_display_mode *drm_mode,
+					const struct dm_connector_state *dm_state,
+					const struct dc_stream_state *old_stream);
+
+int dm_atomic_get_state(struct drm_atomic_state *state,
+			struct dm_atomic_state **dm_state);
+
+struct amdgpu_dm_connector *
+amdgpu_dm_find_first_crtc_matching_connector(struct drm_atomic_state *state,
+					     struct drm_crtc *crtc);
 #endif /* __AMDGPU_DM_H__ */

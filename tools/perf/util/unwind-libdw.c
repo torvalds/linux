@@ -200,7 +200,8 @@ frame_callback(Dwfl_Frame *state, void *arg)
 	bool isactivation;
 
 	if (!dwfl_frame_pc(state, &pc, NULL)) {
-		pr_err("%s", dwfl_errmsg(-1));
+		if (!ui->best_effort)
+			pr_err("%s", dwfl_errmsg(-1));
 		return DWARF_CB_ABORT;
 	}
 
@@ -208,7 +209,8 @@ frame_callback(Dwfl_Frame *state, void *arg)
 	report_module(pc, ui);
 
 	if (!dwfl_frame_pc(state, &pc, &isactivation)) {
-		pr_err("%s", dwfl_errmsg(-1));
+		if (!ui->best_effort)
+			pr_err("%s", dwfl_errmsg(-1));
 		return DWARF_CB_ABORT;
 	}
 
@@ -222,7 +224,8 @@ frame_callback(Dwfl_Frame *state, void *arg)
 int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 			struct thread *thread,
 			struct perf_sample *data,
-			int max_stack)
+			int max_stack,
+			bool best_effort)
 {
 	struct unwind_info *ui, ui_buf = {
 		.sample		= data,
@@ -231,6 +234,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 		.cb		= cb,
 		.arg		= arg,
 		.max_stack	= max_stack,
+		.best_effort    = best_effort
 	};
 	Dwarf_Word ip;
 	int err = -EINVAL, i;

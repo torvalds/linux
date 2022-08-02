@@ -48,7 +48,7 @@ config FS_DAX
 	bool "File system based Direct Access (DAX) support"
 	depends on MMU
 	depends on !(ARM || MIPS || SPARC)
-	select DEV_PAGEMAP_OPS if (ZONE_DEVICE && !FS_DAX_LIMITED)
+	depends on ZONE_DEVICE || FS_DAX_LIMITED
 	select FS_IOMAP
 	select DAX
 	help
@@ -245,19 +245,27 @@ config HUGETLBFS
 config HUGETLB_PAGE
 	def_bool HUGETLBFS
 
-config HUGETLB_PAGE_FREE_VMEMMAP
+#
+# Select this config option from the architecture Kconfig, if it is preferred
+# to enable the feature of minimizing overhead of struct page associated with
+# each HugeTLB page.
+#
+config ARCH_WANT_HUGETLB_PAGE_OPTIMIZE_VMEMMAP
+	bool
+
+config HUGETLB_PAGE_OPTIMIZE_VMEMMAP
 	def_bool HUGETLB_PAGE
-	depends on X86_64
+	depends on ARCH_WANT_HUGETLB_PAGE_OPTIMIZE_VMEMMAP
 	depends on SPARSEMEM_VMEMMAP
 
-config HUGETLB_PAGE_FREE_VMEMMAP_DEFAULT_ON
-	bool "Default freeing vmemmap pages of HugeTLB to on"
+config HUGETLB_PAGE_OPTIMIZE_VMEMMAP_DEFAULT_ON
+	bool "Default optimizing vmemmap pages of HugeTLB to on"
 	default n
-	depends on HUGETLB_PAGE_FREE_VMEMMAP
+	depends on HUGETLB_PAGE_OPTIMIZE_VMEMMAP
 	help
-	  When using HUGETLB_PAGE_FREE_VMEMMAP, the freeing unused vmemmap
+	  When using HUGETLB_PAGE_OPTIMIZE_VMEMMAP, the optimizing unused vmemmap
 	  pages associated with each HugeTLB page is default off. Say Y here
-	  to enable freeing vmemmap pages of HugeTLB by default. It can then
+	  to enable optimizing vmemmap pages of HugeTLB by default. It can then
 	  be disabled on the command line via hugetlb_free_vmemmap=off.
 
 config MEMFD_CREATE
@@ -344,7 +352,7 @@ config LOCKD
 
 config LOCKD_V4
 	bool
-	depends on NFSD_V3 || NFS_V3
+	depends on NFSD || NFS_V3
 	depends on FILE_LOCKING
 	default y
 

@@ -509,7 +509,8 @@ int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 		/* One for parent inode, two for dir entries */
 		qgroup_num_bytes = 3 * fs_info->nodesize;
 		ret = btrfs_qgroup_reserve_meta_prealloc(root,
-				qgroup_num_bytes, true);
+							 qgroup_num_bytes, true,
+							 false);
 		if (ret)
 			return ret;
 	}

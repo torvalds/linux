@@ -23,30 +23,16 @@ struct reg_band {
 	u32 band[2];
 };
 
-#define REG_BAND(_reg) \
-	{ .band[0] = MT_##_reg(0), .band[1] = MT_##_reg(1) }
-#define REG_BAND_IDX(_reg, _idx) \
-	{ .band[0] = MT_##_reg(0, _idx), .band[1] = MT_##_reg(1, _idx) }
+#define REG_BAND(_list, _reg) \
+		{ _list.band[0] = MT_##_reg(0);	\
+		  _list.band[1] = MT_##_reg(1); }
+#define REG_BAND_IDX(_list, _reg, _idx) \
+		{ _list.band[0] = MT_##_reg(0, _idx);	\
+		  _list.band[1] = MT_##_reg(1, _idx); }
 
-static const struct reg_band reg_backup_list[] = {
-	REG_BAND_IDX(AGG_PCR0, 0),
-	REG_BAND_IDX(AGG_PCR0, 1),
-	REG_BAND_IDX(AGG_AWSCR0, 0),
-	REG_BAND_IDX(AGG_AWSCR0, 1),
-	REG_BAND_IDX(AGG_AWSCR0, 2),
-	REG_BAND_IDX(AGG_AWSCR0, 3),
-	REG_BAND(AGG_MRCR),
-	REG_BAND(TMAC_TFCR0),
-	REG_BAND(TMAC_TCR0),
-	REG_BAND(AGG_ATCR1),
-	REG_BAND(AGG_ATCR3),
-	REG_BAND(TMAC_TRCR0),
-	REG_BAND(TMAC_ICR0),
-	REG_BAND_IDX(ARB_DRNGR0, 0),
-	REG_BAND_IDX(ARB_DRNGR0, 1),
-	REG_BAND(WF_RFCR),
-	REG_BAND(WF_RFCR1),
-};
+#define TM_REG_MAX_ID	17
+static struct reg_band reg_backup_list[TM_REG_MAX_ID];
+
 
 static int
 mt7915_tm_set_tx_power(struct mt7915_phy *phy)
@@ -212,7 +198,6 @@ mt7915_tm_set_ipg_params(struct mt7915_phy *phy, u32 ipg, u8 mode)
 	u8 slot_time = 9, sifs = TM_DEFAULT_SIFS;
 	u8 aifsn = TM_MIN_AIFSN;
 	u32 i2t_time, tr2t_time, txv_time;
-	bool ext_phy = phy != &dev->phy;
 	u16 cw = 0;
 
 	if (ipg < sig_ext + slot_time + sifs)
@@ -242,29 +227,25 @@ mt7915_tm_set_ipg_params(struct mt7915_phy *phy, u32 ipg, u8 mode)
 
 		ipg -= aifsn * slot_time;
 
-		if (ipg > TM_DEFAULT_SIFS) {
-			if (ipg < TM_MAX_SIFS)
-				sifs = ipg;
-			else
-				sifs = TM_MAX_SIFS;
-		}
+		if (ipg > TM_DEFAULT_SIFS)
+			sifs = min_t(u32, ipg, TM_MAX_SIFS);
 	}
 done:
-	txv_time = mt76_get_field(dev, MT_TMAC_ATCR(ext_phy),
+	txv_time = mt76_get_field(dev, MT_TMAC_ATCR(phy->band_idx),
 				  MT_TMAC_ATCR_TXV_TOUT);
 	txv_time *= 50;	/* normal clock time */
 
 	i2t_time = (slot_time * 1000 - txv_time - BBP_PROC_TIME) / 50;
 	tr2t_time = (sifs * 1000 - txv_time - BBP_PROC_TIME) / 50;
 
-	mt76_set(dev, MT_TMAC_TRCR0(ext_phy),
+	mt76_set(dev, MT_TMAC_TRCR0(phy->band_idx),
 		 FIELD_PREP(MT_TMAC_TRCR0_TR2T_CHK, tr2t_time) |
 		 FIELD_PREP(MT_TMAC_TRCR0_I2T_CHK, i2t_time));
 
 	mt7915_tm_set_slot_time(phy, slot_time, sifs);
 
 	return mt7915_tm_set_wmm_qid(dev,
-				     mt7915_lmac_mapping(dev, IEEE80211_AC_BE),
+				     mt76_connac_lmac_mapping(IEEE80211_AC_BE),
 				     aifsn, cw, cw, 0);
 }
 
@@ -290,6 +271,8 @@ mt7915_tm_set_tx_len(struct mt7915_phy *phy, u32 tx_time)
 	case MT76_TM_TX_MODE_OFDM:
 		if (mphy->chandef.chan->band == NL80211_BAND_5GHZ)
 			sband = &mphy->sband_5g.sband;
+		else if (mphy->chandef.chan->band == NL80211_BAND_6GHZ)
+			sband = &mphy->sband_6g.sband;
 		else
 			sband = &mphy->sband_2g.sband;
 
@@ -351,13 +334,30 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
 {
 	int n_regs = ARRAY_SIZE(reg_backup_list);
 	struct mt7915_dev *dev = phy->dev;
-	bool ext_phy = phy != &dev->phy;
 	u32 *b = phy->test.reg_backup;
 	int i;
 
+	REG_BAND_IDX(reg_backup_list[0], AGG_PCR0, 0);
+	REG_BAND_IDX(reg_backup_list[1], AGG_PCR0, 1);
+	REG_BAND_IDX(reg_backup_list[2], AGG_AWSCR0, 0);
+	REG_BAND_IDX(reg_backup_list[3], AGG_AWSCR0, 1);
+	REG_BAND_IDX(reg_backup_list[4], AGG_AWSCR0, 2);
+	REG_BAND_IDX(reg_backup_list[5], AGG_AWSCR0, 3);
+	REG_BAND(reg_backup_list[6], AGG_MRCR);
+	REG_BAND(reg_backup_list[7], TMAC_TFCR0);
+	REG_BAND(reg_backup_list[8], TMAC_TCR0);
+	REG_BAND(reg_backup_list[9], AGG_ATCR1);
+	REG_BAND(reg_backup_list[10], AGG_ATCR3);
+	REG_BAND(reg_backup_list[11], TMAC_TRCR0);
+	REG_BAND(reg_backup_list[12], TMAC_ICR0);
+	REG_BAND_IDX(reg_backup_list[13], ARB_DRNGR0, 0);
+	REG_BAND_IDX(reg_backup_list[14], ARB_DRNGR0, 1);
+	REG_BAND(reg_backup_list[15], WF_RFCR);
+	REG_BAND(reg_backup_list[16], WF_RFCR1);
+
 	if (phy->mt76->test.state == MT76_TM_STATE_OFF) {
 		for (i = 0; i < n_regs; i++)
-			mt76_wr(dev, reg_backup_list[i].band[ext_phy], b[i]);
+			mt76_wr(dev, reg_backup_list[i].band[phy->band_idx], b[i]);
 		return;
 	}
 
@@ -368,33 +368,33 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
 
 		phy->test.reg_backup = b;
 		for (i = 0; i < n_regs; i++)
-			b[i] = mt76_rr(dev, reg_backup_list[i].band[ext_phy]);
+			b[i] = mt76_rr(dev, reg_backup_list[i].band[phy->band_idx]);
 	}
 
-	mt76_clear(dev, MT_AGG_PCR0(ext_phy, 0), MT_AGG_PCR0_MM_PROT |
+	mt76_clear(dev, MT_AGG_PCR0(phy->band_idx, 0), MT_AGG_PCR0_MM_PROT |
 		   MT_AGG_PCR0_GF_PROT | MT_AGG_PCR0_ERP_PROT |
 		   MT_AGG_PCR0_VHT_PROT | MT_AGG_PCR0_BW20_PROT |
 		   MT_AGG_PCR0_BW40_PROT | MT_AGG_PCR0_BW80_PROT);
-	mt76_set(dev, MT_AGG_PCR0(ext_phy, 0), MT_AGG_PCR0_PTA_WIN_DIS);
+	mt76_set(dev, MT_AGG_PCR0(phy->band_idx, 0), MT_AGG_PCR0_PTA_WIN_DIS);
 
-	mt76_wr(dev, MT_AGG_PCR0(ext_phy, 1), MT_AGG_PCR1_RTS0_NUM_THRES |
+	mt76_wr(dev, MT_AGG_PCR0(phy->band_idx, 1), MT_AGG_PCR1_RTS0_NUM_THRES |
 		MT_AGG_PCR1_RTS0_LEN_THRES);
 
-	mt76_clear(dev, MT_AGG_MRCR(ext_phy), MT_AGG_MRCR_BAR_CNT_LIMIT |
+	mt76_clear(dev, MT_AGG_MRCR(phy->band_idx), MT_AGG_MRCR_BAR_CNT_LIMIT |
 		   MT_AGG_MRCR_LAST_RTS_CTS_RN | MT_AGG_MRCR_RTS_FAIL_LIMIT |
 		   MT_AGG_MRCR_TXCMD_RTS_FAIL_LIMIT);
 
-	mt76_rmw(dev, MT_AGG_MRCR(ext_phy), MT_AGG_MRCR_RTS_FAIL_LIMIT |
+	mt76_rmw(dev, MT_AGG_MRCR(phy->band_idx), MT_AGG_MRCR_RTS_FAIL_LIMIT |
 		 MT_AGG_MRCR_TXCMD_RTS_FAIL_LIMIT,
 		 FIELD_PREP(MT_AGG_MRCR_RTS_FAIL_LIMIT, 1) |
 		 FIELD_PREP(MT_AGG_MRCR_TXCMD_RTS_FAIL_LIMIT, 1));
 
-	mt76_wr(dev, MT_TMAC_TFCR0(ext_phy), 0);
-	mt76_clear(dev, MT_TMAC_TCR0(ext_phy), MT_TMAC_TCR0_TBTT_STOP_CTRL);
+	mt76_wr(dev, MT_TMAC_TFCR0(phy->band_idx), 0);
+	mt76_clear(dev, MT_TMAC_TCR0(phy->band_idx), MT_TMAC_TCR0_TBTT_STOP_CTRL);
 
 	/* config rx filter for testmode rx */
-	mt76_wr(dev, MT_WF_RFCR(ext_phy), 0xcf70a);
-	mt76_wr(dev, MT_WF_RFCR1(ext_phy), 0);
+	mt76_wr(dev, MT_WF_RFCR(phy->band_idx), 0xcf70a);
+	mt76_wr(dev, MT_WF_RFCR1(phy->band_idx), 0);
 }
 
 static void
@@ -452,7 +452,7 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
 			u8 tx_ant = td->tx_antenna_mask;
 
 			if (phy != &dev->phy)
-				tx_ant >>= 2;
+				tx_ant >>= dev->chainshift;
 			phy->test.spe_idx = spe_idx_map[tx_ant];
 		}
 	}
@@ -574,6 +574,8 @@ mt7915_tm_set_tx_cont(struct mt7915_phy *phy, bool en)
 
 		if (chandef->chan->band == NL80211_BAND_5GHZ)
 			sband = &phy->mt76->sband_5g.sband;
+		else if (chandef->chan->band == NL80211_BAND_6GHZ)
+			sband = &phy->mt76->sband_6g.sband;
 		else
 			sband = &phy->mt76->sband_2g.sband;
 
@@ -720,11 +722,11 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
 {
 	struct mt7915_phy *phy = mphy->priv;
 	struct mt7915_dev *dev = phy->dev;
-	bool ext_phy = phy != &dev->phy;
 	enum mt76_rxq_id q;
 	void *rx, *rssi;
 	u16 fcs_err;
 	int i;
+	u32 cnt;
 
 	rx = nla_nest_start(msg, MT76_TM_STATS_ATTR_LAST_RX);
 	if (!rx)
@@ -768,9 +770,11 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
 
 	nla_nest_end(msg, rx);
 
-	fcs_err = mt76_get_field(dev, MT_MIB_SDR3(ext_phy),
-				 MT_MIB_SDR3_FCS_ERR_MASK);
-	q = ext_phy ? MT_RXQ_EXT : MT_RXQ_MAIN;
+	cnt = mt76_rr(dev, MT_MIB_SDR3(phy->band_idx));
+	fcs_err = is_mt7915(&dev->mt76) ? FIELD_GET(MT_MIB_SDR3_FCS_ERR_MASK, cnt) :
+		FIELD_GET(MT_MIB_SDR3_FCS_ERR_MASK_MT7916, cnt);
+
+	q = phy->band_idx ? MT_RXQ_EXT : MT_RXQ_MAIN;
 	mphy->test.rx_stats.packets[q] += fcs_err;
 	mphy->test.rx_stats.fcs_error[q] += fcs_err;
 

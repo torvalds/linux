@@ -38,7 +38,9 @@ struct unwind_hint {
 #define UNWIND_HINT_TYPE_REGS_PARTIAL	2
 #define UNWIND_HINT_TYPE_FUNC		3
 
-#ifdef CONFIG_STACK_VALIDATION
+#ifdef CONFIG_OBJTOOL
+
+#include <asm/asm.h>
 
 #ifndef __ASSEMBLY__
 
@@ -76,6 +78,18 @@ struct unwind_hint {
 #else
 #define STACK_FRAME_NON_STANDARD_FP(func)
 #endif
+
+#define ANNOTATE_NOENDBR					\
+	"986: \n\t"						\
+	".pushsection .discard.noendbr\n\t"			\
+	_ASM_PTR " 986b\n\t"					\
+	".popsection\n\t"
+
+#define ASM_REACHABLE							\
+	"998:\n\t"							\
+	".pushsection .discard.reachable\n\t"				\
+	".long 998b - .\n\t"						\
+	".popsection\n\t"
 
 #else /* __ASSEMBLY__ */
 
@@ -125,13 +139,33 @@ struct unwind_hint {
 
 .macro STACK_FRAME_NON_STANDARD func:req
 	.pushsection .discard.func_stack_frame_non_standard, "aw"
-		.long \func - .
+	_ASM_PTR \func
+	.popsection
+.endm
+
+.macro STACK_FRAME_NON_STANDARD_FP func:req
+#ifdef CONFIG_FRAME_POINTER
+	STACK_FRAME_NON_STANDARD \func
+#endif
+.endm
+
+.macro ANNOTATE_NOENDBR
+.Lhere_\@:
+	.pushsection .discard.noendbr
+	.quad	.Lhere_\@
+	.popsection
+.endm
+
+.macro REACHABLE
+.Lhere_\@:
+	.pushsection .discard.reachable
+	.long	.Lhere_\@ - .
 	.popsection
 .endm
 
 #endif /* __ASSEMBLY__ */
 
-#else /* !CONFIG_STACK_VALIDATION */
+#else /* !CONFIG_OBJTOOL */
 
 #ifndef __ASSEMBLY__
 
@@ -139,14 +173,20 @@ struct unwind_hint {
 	"\n\t"
 #define STACK_FRAME_NON_STANDARD(func)
 #define STACK_FRAME_NON_STANDARD_FP(func)
+#define ANNOTATE_NOENDBR
+#define ASM_REACHABLE
 #else
 #define ANNOTATE_INTRA_FUNCTION_CALL
 .macro UNWIND_HINT sp_reg:req sp_offset=0 type:req end=0
 .endm
 .macro STACK_FRAME_NON_STANDARD func:req
 .endm
+.macro ANNOTATE_NOENDBR
+.endm
+.macro REACHABLE
+.endm
 #endif
 
-#endif /* CONFIG_STACK_VALIDATION */
+#endif /* CONFIG_OBJTOOL */
 
 #endif /* _LINUX_OBJTOOL_H */

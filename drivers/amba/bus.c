@@ -20,6 +20,10 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/of_irq.h>
+#include <linux/of_device.h>
+#include <linux/acpi.h>
+#include <linux/iommu.h>
+#include <linux/dma-map-ops.h>
 
 #define to_amba_driver(d)	container_of(d, struct amba_driver, drv)
 
@@ -94,31 +98,11 @@ static ssize_t driver_override_store(struct device *_dev,
 				     const char *buf, size_t count)
 {
 	struct amba_device *dev = to_amba_device(_dev);
-	char *driver_override, *old, *cp;
+	int ret;
 
-	/* We need to keep extra room for a newline */
-	if (count >= (PAGE_SIZE - 1))
-		return -EINVAL;
-
-	driver_override = kstrndup(buf, count, GFP_KERNEL);
-	if (!driver_override)
-		return -ENOMEM;
-
-	cp = strchr(driver_override, '\n');
-	if (cp)
-		*cp = '\0';
-
-	device_lock(_dev);
-	old = dev->driver_override;
-	if (strlen(driver_override)) {
-		dev->driver_override = driver_override;
-	} else {
-		kfree(driver_override);
-		dev->driver_override = NULL;
-	}
-	device_unlock(_dev);
-
-	kfree(old);
+	ret = driver_set_override(_dev, &dev->driver_override, buf, count);
+	if (ret)
+		return ret;
 
 	return count;
 }
@@ -273,6 +257,36 @@ static void amba_shutdown(struct device *dev)
 		drv->shutdown(to_amba_device(dev));
 }
 
+static int amba_dma_configure(struct device *dev)
+{
+	struct amba_driver *drv = to_amba_driver(dev->driver);
+	enum dev_dma_attr attr;
+	int ret = 0;
+
+	if (dev->of_node) {
+		ret = of_dma_configure(dev, dev->of_node, true);
+	} else if (has_acpi_companion(dev)) {
+		attr = acpi_get_dma_attr(to_acpi_device_node(dev->fwnode));
+		ret = acpi_dma_configure(dev, attr);
+	}
+
+	if (!ret && !drv->driver_managed_dma) {
+		ret = iommu_device_use_default_domain(dev);
+		if (ret)
+			arch_teardown_dma_ops(dev);
+	}
+
+	return ret;
+}
+
+static void amba_dma_cleanup(struct device *dev)
+{
+	struct amba_driver *drv = to_amba_driver(dev->driver);
+
+	if (!drv->driver_managed_dma)
+		iommu_device_unuse_default_domain(dev);
+}
+
 #ifdef CONFIG_PM
 /*
  * Hooks to provide runtime PM of the pclk (bus clock).  It is safe to
@@ -341,7 +355,8 @@ struct bus_type amba_bustype = {
 	.probe		= amba_probe,
 	.remove		= amba_remove,
 	.shutdown	= amba_shutdown,
-	.dma_configure	= platform_dma_configure,
+	.dma_configure	= amba_dma_configure,
+	.dma_cleanup	= amba_dma_cleanup,
 	.pm		= &amba_pm,
 };
 EXPORT_SYMBOL_GPL(amba_bustype);
@@ -370,6 +385,7 @@ int amba_driver_register(struct amba_driver *drv)
 
 	return driver_register(&drv->drv);
 }
+EXPORT_SYMBOL(amba_driver_register);
 
 /**
  *	amba_driver_unregister - remove an AMBA device driver
@@ -383,7 +399,7 @@ void amba_driver_unregister(struct amba_driver *drv)
 {
 	driver_unregister(&drv->drv);
 }
-
+EXPORT_SYMBOL(amba_driver_unregister);
 
 static void amba_device_release(struct device *dev)
 {
@@ -394,11 +410,79 @@ static void amba_device_release(struct device *dev)
 	kfree(d);
 }
 
-static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
+static int amba_read_periphid(struct amba_device *dev)
 {
-	u32 size;
+	struct reset_control *rstc;
+	u32 size, pid, cid;
 	void __iomem *tmp;
 	int i, ret;
+
+	ret = dev_pm_domain_attach(&dev->dev, true);
+	if (ret)
+		goto err_out;
+
+	ret = amba_get_enable_pclk(dev);
+	if (ret)
+		goto err_pm;
+
+	/*
+	 * Find reset control(s) of the amba bus and de-assert them.
+	 */
+	rstc = of_reset_control_array_get_optional_shared(dev->dev.of_node);
+	if (IS_ERR(rstc)) {
+		ret = PTR_ERR(rstc);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&dev->dev, "can't get reset: %d\n", ret);
+		goto err_clk;
+	}
+	reset_control_deassert(rstc);
+	reset_control_put(rstc);
+
+	size = resource_size(&dev->res);
+	tmp = ioremap(dev->res.start, size);
+	if (!tmp) {
+		ret = -ENOMEM;
+		goto err_clk;
+	}
+
+	/*
+	 * Read pid and cid based on size of resource
+	 * they are located at end of region
+	 */
+	for (pid = 0, i = 0; i < 4; i++)
+		pid |= (readl(tmp + size - 0x20 + 4 * i) & 255) << (i * 8);
+	for (cid = 0, i = 0; i < 4; i++)
+		cid |= (readl(tmp + size - 0x10 + 4 * i) & 255) << (i * 8);
+
+	if (cid == CORESIGHT_CID) {
+		/* set the base to the start of the last 4k block */
+		void __iomem *csbase = tmp + size - 4096;
+
+		dev->uci.devarch = readl(csbase + UCI_REG_DEVARCH_OFFSET);
+		dev->uci.devtype = readl(csbase + UCI_REG_DEVTYPE_OFFSET) & 0xff;
+	}
+
+	if (cid == AMBA_CID || cid == CORESIGHT_CID) {
+		dev->periphid = pid;
+		dev->cid = cid;
+	}
+
+	if (!dev->periphid)
+		ret = -ENODEV;
+
+	iounmap(tmp);
+
+err_clk:
+	amba_put_disable_pclk(dev);
+err_pm:
+	dev_pm_domain_detach(&dev->dev, true);
+err_out:
+	return ret;
+}
+
+static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
+{
+	int ret;
 
 	ret = request_resource(parent, &dev->res);
 	if (ret)
@@ -408,93 +492,22 @@ static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 	if (dev->periphid != 0)
 		goto skip_probe;
 
-	/*
-	 * Dynamically calculate the size of the resource
-	 * and use this for iomap
-	 */
-	size = resource_size(&dev->res);
-	tmp = ioremap(dev->res.start, size);
-	if (!tmp) {
-		ret = -ENOMEM;
-		goto err_release;
-	}
-
-	ret = dev_pm_domain_attach(&dev->dev, true);
+	ret = amba_read_periphid(dev);
 	if (ret) {
-		iounmap(tmp);
+		if (ret != -EPROBE_DEFER) {
+			amba_device_put(dev);
+			goto err_out;
+		}
 		goto err_release;
 	}
 
-	ret = amba_get_enable_pclk(dev);
-	if (ret == 0) {
-		u32 pid, cid;
-		struct reset_control *rstc;
-
-		/*
-		 * Find reset control(s) of the amba bus and de-assert them.
-		 */
-		rstc = of_reset_control_array_get_optional_shared(dev->dev.of_node);
-		if (IS_ERR(rstc)) {
-			ret = PTR_ERR(rstc);
-			if (ret != -EPROBE_DEFER)
-				dev_err(&dev->dev, "can't get reset: %d\n",
-					ret);
-			goto err_reset;
-		}
-		reset_control_deassert(rstc);
-		reset_control_put(rstc);
-
-		/*
-		 * Read pid and cid based on size of resource
-		 * they are located at end of region
-		 */
-		for (pid = 0, i = 0; i < 4; i++)
-			pid |= (readl(tmp + size - 0x20 + 4 * i) & 255) <<
-				(i * 8);
-		for (cid = 0, i = 0; i < 4; i++)
-			cid |= (readl(tmp + size - 0x10 + 4 * i) & 255) <<
-				(i * 8);
-
-		if (cid == CORESIGHT_CID) {
-			/* set the base to the start of the last 4k block */
-			void __iomem *csbase = tmp + size - 4096;
-
-			dev->uci.devarch =
-				readl(csbase + UCI_REG_DEVARCH_OFFSET);
-			dev->uci.devtype =
-				readl(csbase + UCI_REG_DEVTYPE_OFFSET) & 0xff;
-		}
-
-		amba_put_disable_pclk(dev);
-
-		if (cid == AMBA_CID || cid == CORESIGHT_CID) {
-			dev->periphid = pid;
-			dev->cid = cid;
-		}
-
-		if (!dev->periphid)
-			ret = -ENODEV;
-	}
-
-	iounmap(tmp);
-	dev_pm_domain_detach(&dev->dev, true);
-
-	if (ret)
-		goto err_release;
-
- skip_probe:
+skip_probe:
 	ret = device_add(&dev->dev);
- err_release:
+err_release:
 	if (ret)
 		release_resource(&dev->res);
- err_out:
+err_out:
 	return ret;
-
- err_reset:
-	amba_put_disable_pclk(dev);
-	iounmap(tmp);
-	dev_pm_domain_detach(&dev->dev, true);
-	goto err_release;
 }
 
 /*
@@ -642,6 +655,7 @@ int amba_device_register(struct amba_device *dev, struct resource *parent)
 
 	return amba_device_add(dev, parent);
 }
+EXPORT_SYMBOL(amba_device_register);
 
 /**
  *	amba_device_put - put an AMBA device
@@ -668,66 +682,7 @@ void amba_device_unregister(struct amba_device *dev)
 {
 	device_unregister(&dev->dev);
 }
-
-
-struct find_data {
-	struct amba_device *dev;
-	struct device *parent;
-	const char *busid;
-	unsigned int id;
-	unsigned int mask;
-};
-
-static int amba_find_match(struct device *dev, void *data)
-{
-	struct find_data *d = data;
-	struct amba_device *pcdev = to_amba_device(dev);
-	int r;
-
-	r = (pcdev->periphid & d->mask) == d->id;
-	if (d->parent)
-		r &= d->parent == dev->parent;
-	if (d->busid)
-		r &= strcmp(dev_name(dev), d->busid) == 0;
-
-	if (r) {
-		get_device(dev);
-		d->dev = pcdev;
-	}
-
-	return r;
-}
-
-/**
- *	amba_find_device - locate an AMBA device given a bus id
- *	@busid: bus id for device (or NULL)
- *	@parent: parent device (or NULL)
- *	@id: peripheral ID (or 0)
- *	@mask: peripheral ID mask (or 0)
- *
- *	Return the AMBA device corresponding to the supplied parameters.
- *	If no device matches, returns NULL.
- *
- *	NOTE: When a valid device is found, its refcount is
- *	incremented, and must be decremented before the returned
- *	reference.
- */
-struct amba_device *
-amba_find_device(const char *busid, struct device *parent, unsigned int id,
-		 unsigned int mask)
-{
-	struct find_data data;
-
-	data.dev = NULL;
-	data.parent = parent;
-	data.busid = busid;
-	data.id = id;
-	data.mask = mask;
-
-	bus_for_each_dev(&amba_bustype, NULL, &data, amba_find_match);
-
-	return data.dev;
-}
+EXPORT_SYMBOL(amba_device_unregister);
 
 /**
  *	amba_request_regions - request all mem regions associated with device
@@ -749,6 +704,7 @@ int amba_request_regions(struct amba_device *dev, const char *name)
 
 	return ret;
 }
+EXPORT_SYMBOL(amba_request_regions);
 
 /**
  *	amba_release_regions - release mem regions associated with device
@@ -763,11 +719,4 @@ void amba_release_regions(struct amba_device *dev)
 	size = resource_size(&dev->res);
 	release_mem_region(dev->res.start, size);
 }
-
-EXPORT_SYMBOL(amba_driver_register);
-EXPORT_SYMBOL(amba_driver_unregister);
-EXPORT_SYMBOL(amba_device_register);
-EXPORT_SYMBOL(amba_device_unregister);
-EXPORT_SYMBOL(amba_find_device);
-EXPORT_SYMBOL(amba_request_regions);
 EXPORT_SYMBOL(amba_release_regions);

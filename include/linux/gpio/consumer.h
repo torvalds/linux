@@ -8,27 +8,16 @@
 #include <linux/err.h>
 
 struct device;
-
-/**
- * Opaque descriptor for a GPIO. These are obtained using gpiod_get() and are
- * preferable to the old integer-based handles.
- *
- * Contrary to integers, a pointer to a gpio_desc is guaranteed to be valid
- * until the GPIO is released.
- */
 struct gpio_desc;
-
-/**
- * Opaque descriptor for a structure of GPIO array attributes.  This structure
- * is attached to struct gpiod_descs obtained from gpiod_get_array() and can be
- * passed back to get/set array functions in order to activate fast processing
- * path if applicable.
- */
 struct gpio_array;
 
 /**
- * Struct containing an array of descriptors that can be obtained using
- * gpiod_get_array().
+ * struct gpio_descs - Struct containing an array of descriptors that can be
+ *                     obtained using gpiod_get_array()
+ *
+ * @info:	Pointer to the opaque gpio_array structure
+ * @ndescs:	Number of held descriptors
+ * @desc:	Array of pointers to GPIO descriptors
  */
 struct gpio_descs {
 	struct gpio_array *info;
@@ -43,8 +32,16 @@ struct gpio_descs {
 #define GPIOD_FLAGS_BIT_NONEXCLUSIVE	BIT(4)
 
 /**
- * Optional flags that can be passed to one of gpiod_* to configure direction
- * and output value. These values cannot be OR'd.
+ * enum gpiod_flags - Optional flags that can be passed to one of gpiod_* to
+ *                    configure direction and output value. These values
+ *                    cannot be OR'd.
+ *
+ * @GPIOD_ASIS:			Don't change anything
+ * @GPIOD_IN:			Set lines to input mode
+ * @GPIOD_OUT_LOW:		Set lines to output and drive them low
+ * @GPIOD_OUT_HIGH:		Set lines to output and drive them high
+ * @GPIOD_OUT_LOW_OPEN_DRAIN:	Set lines to open-drain output and drive them low
+ * @GPIOD_OUT_HIGH_OPEN_DRAIN:	Set lines to open-drain output and drive them high
  */
 enum gpiod_flags {
 	GPIOD_ASIS	= 0,
@@ -112,6 +109,8 @@ int gpiod_get_direction(struct gpio_desc *desc);
 int gpiod_direction_input(struct gpio_desc *desc);
 int gpiod_direction_output(struct gpio_desc *desc, int value);
 int gpiod_direction_output_raw(struct gpio_desc *desc, int value);
+int gpiod_enable_hw_timestamp_ns(struct gpio_desc *desc, unsigned long flags);
+int gpiod_disable_hw_timestamp_ns(struct gpio_desc *desc, unsigned long flags);
 
 /* Value get/set from non-sleeping context */
 int gpiod_get_value(const struct gpio_desc *desc);
@@ -353,8 +352,18 @@ static inline int gpiod_direction_output_raw(struct gpio_desc *desc, int value)
 	WARN_ON(desc);
 	return -ENOSYS;
 }
-
-
+static inline int gpiod_enable_hw_timestamp_ns(struct gpio_desc *desc,
+					       unsigned long flags)
+{
+	WARN_ON(desc);
+	return -ENOSYS;
+}
+static inline int gpiod_disable_hw_timestamp_ns(struct gpio_desc *desc,
+						unsigned long flags)
+{
+	WARN_ON(desc);
+	return -ENOSYS;
+}
 static inline int gpiod_get_value(const struct gpio_desc *desc)
 {
 	/* GPIO can never have been requested */
@@ -691,7 +700,7 @@ void acpi_dev_remove_driver_gpios(struct acpi_device *adev);
 int devm_acpi_dev_add_driver_gpios(struct device *dev,
 				   const struct acpi_gpio_mapping *gpios);
 
-struct gpio_desc *acpi_get_and_request_gpiod(char *path, int pin, char *label);
+struct gpio_desc *acpi_get_and_request_gpiod(char *path, unsigned int pin, char *label);
 
 #else  /* CONFIG_GPIOLIB && CONFIG_ACPI */
 
@@ -706,6 +715,12 @@ static inline int devm_acpi_dev_add_driver_gpios(struct device *dev,
 			      const struct acpi_gpio_mapping *gpios)
 {
 	return -ENXIO;
+}
+
+static inline struct gpio_desc *acpi_get_and_request_gpiod(char *path, unsigned int pin,
+							   char *label)
+{
+	return ERR_PTR(-ENOSYS);
 }
 
 #endif /* CONFIG_GPIOLIB && CONFIG_ACPI */

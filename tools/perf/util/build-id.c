@@ -706,7 +706,7 @@ build_id_cache__add(const char *sbuild_id, const char *name, const char *realnam
 		if (is_kallsyms) {
 			if (copyfile("/proc/kallsyms", filename))
 				goto out_free;
-		} else if (nsi && nsi->need_setns) {
+		} else if (nsi && nsinfo__need_setns(nsi)) {
 			if (copyfile_ns(name, filename, nsi))
 				goto out_free;
 		} else if (link(realname, filename) && errno != EEXIST &&
@@ -730,7 +730,7 @@ build_id_cache__add(const char *sbuild_id, const char *name, const char *realnam
 				goto out_free;
 			}
 			if (access(filename, F_OK)) {
-				if (nsi && nsi->need_setns) {
+				if (nsi && nsinfo__need_setns(nsi)) {
 					if (copyfile_ns(debugfile, filename,
 							nsi))
 						goto out_free;
@@ -762,7 +762,7 @@ build_id_cache__add(const char *sbuild_id, const char *name, const char *realnam
 
 		len = readlink(linkname, path, sizeof(path) - 1);
 		if (len <= 0) {
-			pr_err("Cant read link: %s\n", linkname);
+			pr_err("Can't read link: %s\n", linkname);
 			goto out_free;
 		}
 		path[len] = '\0';
@@ -872,6 +872,30 @@ out_free:
 	return err;
 }
 
+static int filename__read_build_id_ns(const char *filename,
+				      struct build_id *bid,
+				      struct nsinfo *nsi)
+{
+	struct nscookie nsc;
+	int ret;
+
+	nsinfo__mountns_enter(nsi, &nsc);
+	ret = filename__read_build_id(filename, bid);
+	nsinfo__mountns_exit(&nsc);
+
+	return ret;
+}
+
+static bool dso__build_id_mismatch(struct dso *dso, const char *name)
+{
+	struct build_id bid;
+
+	if (filename__read_build_id_ns(name, &bid, dso->nsinfo) < 0)
+		return false;
+
+	return !dso__build_id_equal(dso, &bid);
+}
+
 static int dso__cache_build_id(struct dso *dso, struct machine *machine,
 			       void *priv __maybe_unused)
 {
@@ -886,6 +910,10 @@ static int dso__cache_build_id(struct dso *dso, struct machine *machine,
 		is_kallsyms = true;
 		name = machine->mmap_name;
 	}
+
+	if (!is_kallsyms && dso__build_id_mismatch(dso, name))
+		return 0;
+
 	return build_id_cache__add_b(&dso->bid, name, dso->nsinfo,
 				     is_kallsyms, is_vdso);
 }

@@ -10,17 +10,15 @@
  * to drop unexpected traffic.
  */
 
-#define _GNU_SOURCE
-
 #include <arpa/inet.h>
 #include <linux/if.h>
 #include <linux/if_tun.h>
 #include <linux/limits.h>
 #include <linux/sysctl.h>
-#include <sched.h>
+#include <linux/time_types.h>
+#include <linux/net_tstamp.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <sys/mount.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -29,6 +27,11 @@
 #include "test_tc_neigh_fib.skel.h"
 #include "test_tc_neigh.skel.h"
 #include "test_tc_peer.skel.h"
+#include "test_tc_dtime.skel.h"
+
+#ifndef TCP_TX_DELAY
+#define TCP_TX_DELAY 37
+#endif
 
 #define NS_SRC "ns_src"
 #define NS_FWD "ns_fwd"
@@ -61,6 +64,7 @@
 #define CHK_PROG_PIN_FILE "/sys/fs/bpf/test_tc_chk"
 
 #define TIMEOUT_MILLIS 10000
+#define NSEC_PER_SEC 1000000000ULL
 
 #define log_err(MSG, ...) \
 	fprintf(stderr, "(%s:%d: errno: %s) " MSG "\n", \
@@ -82,91 +86,6 @@ static int write_file(const char *path, const char *newval)
 	}
 	fclose(f);
 	return 0;
-}
-
-struct nstoken {
-	int orig_netns_fd;
-};
-
-static int setns_by_fd(int nsfd)
-{
-	int err;
-
-	err = setns(nsfd, CLONE_NEWNET);
-	close(nsfd);
-
-	if (!ASSERT_OK(err, "setns"))
-		return err;
-
-	/* Switch /sys to the new namespace so that e.g. /sys/class/net
-	 * reflects the devices in the new namespace.
-	 */
-	err = unshare(CLONE_NEWNS);
-	if (!ASSERT_OK(err, "unshare"))
-		return err;
-
-	/* Make our /sys mount private, so the following umount won't
-	 * trigger the global umount in case it's shared.
-	 */
-	err = mount("none", "/sys", NULL, MS_PRIVATE, NULL);
-	if (!ASSERT_OK(err, "remount private /sys"))
-		return err;
-
-	err = umount2("/sys", MNT_DETACH);
-	if (!ASSERT_OK(err, "umount2 /sys"))
-		return err;
-
-	err = mount("sysfs", "/sys", "sysfs", 0, NULL);
-	if (!ASSERT_OK(err, "mount /sys"))
-		return err;
-
-	err = mount("bpffs", "/sys/fs/bpf", "bpf", 0, NULL);
-	if (!ASSERT_OK(err, "mount /sys/fs/bpf"))
-		return err;
-
-	return 0;
-}
-
-/**
- * open_netns() - Switch to specified network namespace by name.
- *
- * Returns token with which to restore the original namespace
- * using close_netns().
- */
-static struct nstoken *open_netns(const char *name)
-{
-	int nsfd;
-	char nspath[PATH_MAX];
-	int err;
-	struct nstoken *token;
-
-	token = malloc(sizeof(struct nstoken));
-	if (!ASSERT_OK_PTR(token, "malloc token"))
-		return NULL;
-
-	token->orig_netns_fd = open("/proc/self/ns/net", O_RDONLY);
-	if (!ASSERT_GE(token->orig_netns_fd, 0, "open /proc/self/ns/net"))
-		goto fail;
-
-	snprintf(nspath, sizeof(nspath), "%s/%s", "/var/run/netns", name);
-	nsfd = open(nspath, O_RDONLY | O_CLOEXEC);
-	if (!ASSERT_GE(nsfd, 0, "open netns fd"))
-		goto fail;
-
-	err = setns_by_fd(nsfd);
-	if (!ASSERT_OK(err, "setns_by_fd"))
-		goto fail;
-
-	return token;
-fail:
-	free(token);
-	return NULL;
-}
-
-static void close_netns(struct nstoken *token)
-{
-	ASSERT_OK(setns_by_fd(token->orig_netns_fd), "setns_by_fd");
-	free(token);
 }
 
 static int netns_setup_namespaces(const char *verb)
@@ -440,6 +359,431 @@ static int set_forwarding(bool enable)
 	return 0;
 }
 
+static void rcv_tstamp(int fd, const char *expected, size_t s)
+{
+	struct __kernel_timespec pkt_ts = {};
+	char ctl[CMSG_SPACE(sizeof(pkt_ts))];
+	struct timespec now_ts;
+	struct msghdr msg = {};
+	__u64 now_ns, pkt_ns;
+	struct cmsghdr *cmsg;
+	struct iovec iov;
+	char data[32];
+	int ret;
+
+	iov.iov_base = data;
+	iov.iov_len = sizeof(data);
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = &ctl;
+	msg.msg_controllen = sizeof(ctl);
+
+	ret = recvmsg(fd, &msg, 0);
+	if (!ASSERT_EQ(ret, s, "recvmsg"))
+		return;
+	ASSERT_STRNEQ(data, expected, s, "expected rcv data");
+
+	cmsg = CMSG_FIRSTHDR(&msg);
+	if (cmsg && cmsg->cmsg_level == SOL_SOCKET &&
+	    cmsg->cmsg_type == SO_TIMESTAMPNS_NEW)
+		memcpy(&pkt_ts, CMSG_DATA(cmsg), sizeof(pkt_ts));
+
+	pkt_ns = pkt_ts.tv_sec * NSEC_PER_SEC + pkt_ts.tv_nsec;
+	ASSERT_NEQ(pkt_ns, 0, "pkt rcv tstamp");
+
+	ret = clock_gettime(CLOCK_REALTIME, &now_ts);
+	ASSERT_OK(ret, "clock_gettime");
+	now_ns = now_ts.tv_sec * NSEC_PER_SEC + now_ts.tv_nsec;
+
+	if (ASSERT_GE(now_ns, pkt_ns, "check rcv tstamp"))
+		ASSERT_LT(now_ns - pkt_ns, 5 * NSEC_PER_SEC,
+			  "check rcv tstamp");
+}
+
+static void snd_tstamp(int fd, char *b, size_t s)
+{
+	struct sock_txtime opt = { .clockid = CLOCK_TAI };
+	char ctl[CMSG_SPACE(sizeof(__u64))];
+	struct timespec now_ts;
+	struct msghdr msg = {};
+	struct cmsghdr *cmsg;
+	struct iovec iov;
+	__u64 now_ns;
+	int ret;
+
+	ret = clock_gettime(CLOCK_TAI, &now_ts);
+	ASSERT_OK(ret, "clock_get_time(CLOCK_TAI)");
+	now_ns = now_ts.tv_sec * NSEC_PER_SEC + now_ts.tv_nsec;
+
+	iov.iov_base = b;
+	iov.iov_len = s;
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = &ctl;
+	msg.msg_controllen = sizeof(ctl);
+
+	cmsg = CMSG_FIRSTHDR(&msg);
+	cmsg->cmsg_level = SOL_SOCKET;
+	cmsg->cmsg_type = SCM_TXTIME;
+	cmsg->cmsg_len = CMSG_LEN(sizeof(now_ns));
+	*(__u64 *)CMSG_DATA(cmsg) = now_ns;
+
+	ret = setsockopt(fd, SOL_SOCKET, SO_TXTIME, &opt, sizeof(opt));
+	ASSERT_OK(ret, "setsockopt(SO_TXTIME)");
+
+	ret = sendmsg(fd, &msg, 0);
+	ASSERT_EQ(ret, s, "sendmsg");
+}
+
+static void test_inet_dtime(int family, int type, const char *addr, __u16 port)
+{
+	int opt = 1, accept_fd = -1, client_fd = -1, listen_fd, err;
+	char buf[] = "testing testing";
+	struct nstoken *nstoken;
+
+	nstoken = open_netns(NS_DST);
+	if (!ASSERT_OK_PTR(nstoken, "setns dst"))
+		return;
+	listen_fd = start_server(family, type, addr, port, 0);
+	close_netns(nstoken);
+
+	if (!ASSERT_GE(listen_fd, 0, "listen"))
+		return;
+
+	/* Ensure the kernel puts the (rcv) timestamp for all skb */
+	err = setsockopt(listen_fd, SOL_SOCKET, SO_TIMESTAMPNS_NEW,
+			 &opt, sizeof(opt));
+	if (!ASSERT_OK(err, "setsockopt(SO_TIMESTAMPNS_NEW)"))
+		goto done;
+
+	if (type == SOCK_STREAM) {
+		/* Ensure the kernel set EDT when sending out rst/ack
+		 * from the kernel's ctl_sk.
+		 */
+		err = setsockopt(listen_fd, SOL_TCP, TCP_TX_DELAY, &opt,
+				 sizeof(opt));
+		if (!ASSERT_OK(err, "setsockopt(TCP_TX_DELAY)"))
+			goto done;
+	}
+
+	nstoken = open_netns(NS_SRC);
+	if (!ASSERT_OK_PTR(nstoken, "setns src"))
+		goto done;
+	client_fd = connect_to_fd(listen_fd, TIMEOUT_MILLIS);
+	close_netns(nstoken);
+
+	if (!ASSERT_GE(client_fd, 0, "connect_to_fd"))
+		goto done;
+
+	if (type == SOCK_STREAM) {
+		int n;
+
+		accept_fd = accept(listen_fd, NULL, NULL);
+		if (!ASSERT_GE(accept_fd, 0, "accept"))
+			goto done;
+
+		n = write(client_fd, buf, sizeof(buf));
+		if (!ASSERT_EQ(n, sizeof(buf), "send to server"))
+			goto done;
+		rcv_tstamp(accept_fd, buf, sizeof(buf));
+	} else {
+		snd_tstamp(client_fd, buf, sizeof(buf));
+		rcv_tstamp(listen_fd, buf, sizeof(buf));
+	}
+
+done:
+	close(listen_fd);
+	if (accept_fd != -1)
+		close(accept_fd);
+	if (client_fd != -1)
+		close(client_fd);
+}
+
+static int netns_load_dtime_bpf(struct test_tc_dtime *skel)
+{
+	struct nstoken *nstoken;
+
+#define PIN_FNAME(__file) "/sys/fs/bpf/" #__file
+#define PIN(__prog) ({							\
+		int err = bpf_program__pin(skel->progs.__prog, PIN_FNAME(__prog)); \
+		if (!ASSERT_OK(err, "pin " #__prog))		\
+			goto fail;					\
+		})
+
+	/* setup ns_src tc progs */
+	nstoken = open_netns(NS_SRC);
+	if (!ASSERT_OK_PTR(nstoken, "setns " NS_SRC))
+		return -1;
+	PIN(egress_host);
+	PIN(ingress_host);
+	SYS("tc qdisc add dev veth_src clsact");
+	SYS("tc filter add dev veth_src ingress bpf da object-pinned "
+	    PIN_FNAME(ingress_host));
+	SYS("tc filter add dev veth_src egress bpf da object-pinned "
+	    PIN_FNAME(egress_host));
+	close_netns(nstoken);
+
+	/* setup ns_dst tc progs */
+	nstoken = open_netns(NS_DST);
+	if (!ASSERT_OK_PTR(nstoken, "setns " NS_DST))
+		return -1;
+	PIN(egress_host);
+	PIN(ingress_host);
+	SYS("tc qdisc add dev veth_dst clsact");
+	SYS("tc filter add dev veth_dst ingress bpf da object-pinned "
+	    PIN_FNAME(ingress_host));
+	SYS("tc filter add dev veth_dst egress bpf da object-pinned "
+	    PIN_FNAME(egress_host));
+	close_netns(nstoken);
+
+	/* setup ns_fwd tc progs */
+	nstoken = open_netns(NS_FWD);
+	if (!ASSERT_OK_PTR(nstoken, "setns " NS_FWD))
+		return -1;
+	PIN(ingress_fwdns_prio100);
+	PIN(egress_fwdns_prio100);
+	PIN(ingress_fwdns_prio101);
+	PIN(egress_fwdns_prio101);
+	SYS("tc qdisc add dev veth_dst_fwd clsact");
+	SYS("tc filter add dev veth_dst_fwd ingress prio 100 bpf da object-pinned "
+	    PIN_FNAME(ingress_fwdns_prio100));
+	SYS("tc filter add dev veth_dst_fwd ingress prio 101 bpf da object-pinned "
+	    PIN_FNAME(ingress_fwdns_prio101));
+	SYS("tc filter add dev veth_dst_fwd egress prio 100 bpf da object-pinned "
+	    PIN_FNAME(egress_fwdns_prio100));
+	SYS("tc filter add dev veth_dst_fwd egress prio 101 bpf da object-pinned "
+	    PIN_FNAME(egress_fwdns_prio101));
+	SYS("tc qdisc add dev veth_src_fwd clsact");
+	SYS("tc filter add dev veth_src_fwd ingress prio 100 bpf da object-pinned "
+	    PIN_FNAME(ingress_fwdns_prio100));
+	SYS("tc filter add dev veth_src_fwd ingress prio 101 bpf da object-pinned "
+	    PIN_FNAME(ingress_fwdns_prio101));
+	SYS("tc filter add dev veth_src_fwd egress prio 100 bpf da object-pinned "
+	    PIN_FNAME(egress_fwdns_prio100));
+	SYS("tc filter add dev veth_src_fwd egress prio 101 bpf da object-pinned "
+	    PIN_FNAME(egress_fwdns_prio101));
+	close_netns(nstoken);
+
+#undef PIN
+
+	return 0;
+
+fail:
+	close_netns(nstoken);
+	return -1;
+}
+
+enum {
+	INGRESS_FWDNS_P100,
+	INGRESS_FWDNS_P101,
+	EGRESS_FWDNS_P100,
+	EGRESS_FWDNS_P101,
+	INGRESS_ENDHOST,
+	EGRESS_ENDHOST,
+	SET_DTIME,
+	__MAX_CNT,
+};
+
+const char *cnt_names[] = {
+	"ingress_fwdns_p100",
+	"ingress_fwdns_p101",
+	"egress_fwdns_p100",
+	"egress_fwdns_p101",
+	"ingress_endhost",
+	"egress_endhost",
+	"set_dtime",
+};
+
+enum {
+	TCP_IP6_CLEAR_DTIME,
+	TCP_IP4,
+	TCP_IP6,
+	UDP_IP4,
+	UDP_IP6,
+	TCP_IP4_RT_FWD,
+	TCP_IP6_RT_FWD,
+	UDP_IP4_RT_FWD,
+	UDP_IP6_RT_FWD,
+	UKN_TEST,
+	__NR_TESTS,
+};
+
+const char *test_names[] = {
+	"tcp ip6 clear dtime",
+	"tcp ip4",
+	"tcp ip6",
+	"udp ip4",
+	"udp ip6",
+	"tcp ip4 rt fwd",
+	"tcp ip6 rt fwd",
+	"udp ip4 rt fwd",
+	"udp ip6 rt fwd",
+};
+
+static const char *dtime_cnt_str(int test, int cnt)
+{
+	static char name[64];
+
+	snprintf(name, sizeof(name), "%s %s", test_names[test], cnt_names[cnt]);
+
+	return name;
+}
+
+static const char *dtime_err_str(int test, int cnt)
+{
+	static char name[64];
+
+	snprintf(name, sizeof(name), "%s %s errs", test_names[test],
+		 cnt_names[cnt]);
+
+	return name;
+}
+
+static void test_tcp_clear_dtime(struct test_tc_dtime *skel)
+{
+	int i, t = TCP_IP6_CLEAR_DTIME;
+	__u32 *dtimes = skel->bss->dtimes[t];
+	__u32 *errs = skel->bss->errs[t];
+
+	skel->bss->test = t;
+	test_inet_dtime(AF_INET6, SOCK_STREAM, IP6_DST, 0);
+
+	ASSERT_EQ(dtimes[INGRESS_FWDNS_P100], 0,
+		  dtime_cnt_str(t, INGRESS_FWDNS_P100));
+	ASSERT_EQ(dtimes[INGRESS_FWDNS_P101], 0,
+		  dtime_cnt_str(t, INGRESS_FWDNS_P101));
+	ASSERT_GT(dtimes[EGRESS_FWDNS_P100], 0,
+		  dtime_cnt_str(t, EGRESS_FWDNS_P100));
+	ASSERT_EQ(dtimes[EGRESS_FWDNS_P101], 0,
+		  dtime_cnt_str(t, EGRESS_FWDNS_P101));
+	ASSERT_GT(dtimes[EGRESS_ENDHOST], 0,
+		  dtime_cnt_str(t, EGRESS_ENDHOST));
+	ASSERT_GT(dtimes[INGRESS_ENDHOST], 0,
+		  dtime_cnt_str(t, INGRESS_ENDHOST));
+
+	for (i = INGRESS_FWDNS_P100; i < __MAX_CNT; i++)
+		ASSERT_EQ(errs[i], 0, dtime_err_str(t, i));
+}
+
+static void test_tcp_dtime(struct test_tc_dtime *skel, int family, bool bpf_fwd)
+{
+	__u32 *dtimes, *errs;
+	const char *addr;
+	int i, t;
+
+	if (family == AF_INET) {
+		t = bpf_fwd ? TCP_IP4 : TCP_IP4_RT_FWD;
+		addr = IP4_DST;
+	} else {
+		t = bpf_fwd ? TCP_IP6 : TCP_IP6_RT_FWD;
+		addr = IP6_DST;
+	}
+
+	dtimes = skel->bss->dtimes[t];
+	errs = skel->bss->errs[t];
+
+	skel->bss->test = t;
+	test_inet_dtime(family, SOCK_STREAM, addr, 0);
+
+	/* fwdns_prio100 prog does not read delivery_time_type, so
+	 * kernel puts the (rcv) timetamp in __sk_buff->tstamp
+	 */
+	ASSERT_EQ(dtimes[INGRESS_FWDNS_P100], 0,
+		  dtime_cnt_str(t, INGRESS_FWDNS_P100));
+	for (i = INGRESS_FWDNS_P101; i < SET_DTIME; i++)
+		ASSERT_GT(dtimes[i], 0, dtime_cnt_str(t, i));
+
+	for (i = INGRESS_FWDNS_P100; i < __MAX_CNT; i++)
+		ASSERT_EQ(errs[i], 0, dtime_err_str(t, i));
+}
+
+static void test_udp_dtime(struct test_tc_dtime *skel, int family, bool bpf_fwd)
+{
+	__u32 *dtimes, *errs;
+	const char *addr;
+	int i, t;
+
+	if (family == AF_INET) {
+		t = bpf_fwd ? UDP_IP4 : UDP_IP4_RT_FWD;
+		addr = IP4_DST;
+	} else {
+		t = bpf_fwd ? UDP_IP6 : UDP_IP6_RT_FWD;
+		addr = IP6_DST;
+	}
+
+	dtimes = skel->bss->dtimes[t];
+	errs = skel->bss->errs[t];
+
+	skel->bss->test = t;
+	test_inet_dtime(family, SOCK_DGRAM, addr, 0);
+
+	ASSERT_EQ(dtimes[INGRESS_FWDNS_P100], 0,
+		  dtime_cnt_str(t, INGRESS_FWDNS_P100));
+	/* non mono delivery time is not forwarded */
+	ASSERT_EQ(dtimes[INGRESS_FWDNS_P101], 0,
+		  dtime_cnt_str(t, INGRESS_FWDNS_P100));
+	for (i = EGRESS_FWDNS_P100; i < SET_DTIME; i++)
+		ASSERT_GT(dtimes[i], 0, dtime_cnt_str(t, i));
+
+	for (i = INGRESS_FWDNS_P100; i < __MAX_CNT; i++)
+		ASSERT_EQ(errs[i], 0, dtime_err_str(t, i));
+}
+
+static void test_tc_redirect_dtime(struct netns_setup_result *setup_result)
+{
+	struct test_tc_dtime *skel;
+	struct nstoken *nstoken;
+	int err;
+
+	skel = test_tc_dtime__open();
+	if (!ASSERT_OK_PTR(skel, "test_tc_dtime__open"))
+		return;
+
+	skel->rodata->IFINDEX_SRC = setup_result->ifindex_veth_src_fwd;
+	skel->rodata->IFINDEX_DST = setup_result->ifindex_veth_dst_fwd;
+
+	err = test_tc_dtime__load(skel);
+	if (!ASSERT_OK(err, "test_tc_dtime__load"))
+		goto done;
+
+	if (netns_load_dtime_bpf(skel))
+		goto done;
+
+	nstoken = open_netns(NS_FWD);
+	if (!ASSERT_OK_PTR(nstoken, "setns fwd"))
+		goto done;
+	err = set_forwarding(false);
+	close_netns(nstoken);
+	if (!ASSERT_OK(err, "disable forwarding"))
+		goto done;
+
+	test_tcp_clear_dtime(skel);
+
+	test_tcp_dtime(skel, AF_INET, true);
+	test_tcp_dtime(skel, AF_INET6, true);
+	test_udp_dtime(skel, AF_INET, true);
+	test_udp_dtime(skel, AF_INET6, true);
+
+	/* Test the kernel ip[6]_forward path instead
+	 * of bpf_redirect_neigh().
+	 */
+	nstoken = open_netns(NS_FWD);
+	if (!ASSERT_OK_PTR(nstoken, "setns fwd"))
+		goto done;
+	err = set_forwarding(true);
+	close_netns(nstoken);
+	if (!ASSERT_OK(err, "enable forwarding"))
+		goto done;
+
+	test_tcp_dtime(skel, AF_INET, false);
+	test_tcp_dtime(skel, AF_INET6, false);
+	test_udp_dtime(skel, AF_INET, false);
+	test_udp_dtime(skel, AF_INET6, false);
+
+done:
+	test_tc_dtime__destroy(skel);
+}
+
 static void test_tc_redirect_neigh_fib(struct netns_setup_result *setup_result)
 {
 	struct nstoken *nstoken = NULL;
@@ -605,7 +949,6 @@ fail:
 	return -1;
 }
 
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
 enum {
 	SRC_TO_TARGET = 0,
 	TARGET_TO_SRC = 1,
@@ -787,6 +1130,7 @@ static void *test_tc_redirect_run_tests(void *arg)
 	RUN_TEST(tc_redirect_peer_l3);
 	RUN_TEST(tc_redirect_neigh);
 	RUN_TEST(tc_redirect_neigh_fib);
+	RUN_TEST(tc_redirect_dtime);
 	return NULL;
 }
 

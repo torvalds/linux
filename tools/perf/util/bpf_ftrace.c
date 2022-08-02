@@ -38,7 +38,7 @@ int perf_ftrace__latency_prepare_bpf(struct perf_ftrace *ftrace)
 
 	/* don't need to set cpu filter for system-wide mode */
 	if (ftrace->target.cpu_list) {
-		ncpus = perf_cpu_map__nr(ftrace->evlist->core.cpus);
+		ncpus = perf_cpu_map__nr(ftrace->evlist->core.user_requested_cpus);
 		bpf_map__set_max_entries(skel->maps.cpu_filter, ncpus);
 	}
 
@@ -63,7 +63,7 @@ int perf_ftrace__latency_prepare_bpf(struct perf_ftrace *ftrace)
 		fd = bpf_map__fd(skel->maps.cpu_filter);
 
 		for (i = 0; i < ncpus; i++) {
-			cpu = perf_cpu_map__cpu(ftrace->evlist->core.cpus, i).cpu;
+			cpu = perf_cpu_map__cpu(ftrace->evlist->core.user_requested_cpus, i).cpu;
 			bpf_map_update_elem(fd, &cpu, &val, BPF_ANY);
 		}
 	}
@@ -80,6 +80,8 @@ int perf_ftrace__latency_prepare_bpf(struct perf_ftrace *ftrace)
 			bpf_map_update_elem(fd, &pid, &val, BPF_ANY);
 		}
 	}
+
+	skel->bss->use_nsec = ftrace->use_nsec;
 
 	skel->links.func_begin = bpf_program__attach_kprobe(skel->progs.func_begin,
 							    false, func->name);

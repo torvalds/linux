@@ -152,6 +152,7 @@ struct kgd2kfd_shared_resources {
 	/* Minor device number of the render node */
 	int drm_render_minor;
 
+	bool enable_mes;
 };
 
 struct tile_config {
@@ -269,18 +270,9 @@ struct kfd2kgd_calls {
 	int (*hqd_sdma_destroy)(struct amdgpu_device *adev, void *mqd,
 				unsigned int timeout);
 
-	int (*address_watch_disable)(struct amdgpu_device *adev);
-	int (*address_watch_execute)(struct amdgpu_device *adev,
-					unsigned int watch_point_id,
-					uint32_t cntl_val,
-					uint32_t addr_hi,
-					uint32_t addr_lo);
 	int (*wave_control_execute)(struct amdgpu_device *adev,
 					uint32_t gfx_index_val,
 					uint32_t sq_cmd);
-	uint32_t (*address_watch_get_offset)(struct amdgpu_device *adev,
-					unsigned int watch_point_id,
-					unsigned int reg_offset);
 	bool (*get_atc_vmid_pasid_mapping_info)(struct amdgpu_device *adev,
 					uint8_t vmid,
 					uint16_t *p_pasid);

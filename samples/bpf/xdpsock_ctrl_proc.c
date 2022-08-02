@@ -173,7 +173,7 @@ main(int argc, char **argv)
 	unlink(SOCKET_NAME);
 
 	/* Unset fd for given ifindex */
-	err = bpf_set_link_xdp_fd(ifindex, -1, 0);
+	err = bpf_xdp_detach(ifindex, 0, NULL);
 	if (err) {
 		fprintf(stderr, "Error when unsetting bpf prog_fd for ifindex(%d)\n", ifindex);
 		return err;

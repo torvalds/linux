@@ -167,6 +167,14 @@ int skb_gro_receive(struct sk_buff *p, struct sk_buff *skb)
 	if (unlikely(p->len + len >= gro_max_size || NAPI_GRO_CB(skb)->flush))
 		return -E2BIG;
 
+	if (unlikely(p->len + len >= GRO_LEGACY_MAX_SIZE)) {
+		if (p->protocol != htons(ETH_P_IPV6) ||
+		    skb_headroom(p) < sizeof(struct hop_jumbo_hdr) ||
+		    ipv6_hdr(p)->nexthdr != IPPROTO_TCP ||
+		    p->encapsulation)
+			return -E2BIG;
+	}
+
 	lp = NAPI_GRO_CB(p)->last;
 	pinfo = skb_shinfo(lp);
 
@@ -484,29 +492,22 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 
 		skb_set_network_header(skb, skb_gro_offset(skb));
 		skb_reset_mac_len(skb);
-		NAPI_GRO_CB(skb)->same_flow = 0;
+		BUILD_BUG_ON(sizeof_field(struct napi_gro_cb, zeroed) != sizeof(u32));
+		BUILD_BUG_ON(!IS_ALIGNED(offsetof(struct napi_gro_cb, zeroed),
+					 sizeof(u32))); /* Avoid slow unaligned acc */
+		*(u32 *)&NAPI_GRO_CB(skb)->zeroed = 0;
 		NAPI_GRO_CB(skb)->flush = skb_is_gso(skb) || skb_has_frag_list(skb);
-		NAPI_GRO_CB(skb)->free = 0;
-		NAPI_GRO_CB(skb)->encap_mark = 0;
-		NAPI_GRO_CB(skb)->recursion_counter = 0;
-		NAPI_GRO_CB(skb)->is_fou = 0;
 		NAPI_GRO_CB(skb)->is_atomic = 1;
-		NAPI_GRO_CB(skb)->gro_remcsum_start = 0;
 
 		/* Setup for GRO checksum validation */
 		switch (skb->ip_summed) {
 		case CHECKSUM_COMPLETE:
 			NAPI_GRO_CB(skb)->csum = skb->csum;
 			NAPI_GRO_CB(skb)->csum_valid = 1;
-			NAPI_GRO_CB(skb)->csum_cnt = 0;
 			break;
 		case CHECKSUM_UNNECESSARY:
 			NAPI_GRO_CB(skb)->csum_cnt = skb->csum_level + 1;
-			NAPI_GRO_CB(skb)->csum_valid = 0;
 			break;
-		default:
-			NAPI_GRO_CB(skb)->csum_cnt = 0;
-			NAPI_GRO_CB(skb)->csum_valid = 0;
 		}
 
 		pp = INDIRECT_CALL_INET(ptype->callbacks.gro_receive,
@@ -659,7 +660,6 @@ static void napi_reuse_skb(struct napi_struct *napi, struct sk_buff *skb)
 
 	skb->encapsulation = 0;
 	skb_shinfo(skb)->gso_type = 0;
-	skb->truesize = SKB_TRUESIZE(skb_end_offset(skb));
 	if (unlikely(skb->slow_gro)) {
 		skb_orphan(skb);
 		skb_ext_reset(skb);

@@ -102,7 +102,7 @@ void bpf_task_storage_free(struct task_struct *task)
 		 */
 		bpf_selem_unlink_map(selem);
 		free_task_storage = bpf_selem_unlink_storage_nolock(
-			local_storage, selem, false);
+			local_storage, selem, false, false);
 	}
 	raw_spin_unlock_irqrestore(&local_storage->lock, flags);
 	bpf_task_storage_unlock();
@@ -174,7 +174,8 @@ static int bpf_pid_task_storage_update_elem(struct bpf_map *map, void *key,
 
 	bpf_task_storage_lock();
 	sdata = bpf_local_storage_update(
-		task, (struct bpf_local_storage_map *)map, value, map_flags);
+		task, (struct bpf_local_storage_map *)map, value, map_flags,
+		GFP_ATOMIC);
 	bpf_task_storage_unlock();
 
 	err = PTR_ERR_OR_ZERO(sdata);
@@ -191,7 +192,7 @@ static int task_storage_delete(struct task_struct *task, struct bpf_map *map)
 	if (!sdata)
 		return -ENOENT;
 
-	bpf_selem_unlink(SELEM(sdata));
+	bpf_selem_unlink(SELEM(sdata), true);
 
 	return 0;
 }
@@ -226,8 +227,9 @@ out:
 	return err;
 }
 
-BPF_CALL_4(bpf_task_storage_get, struct bpf_map *, map, struct task_struct *,
-	   task, void *, value, u64, flags)
+/* *gfp_flags* is a hidden argument provided by the verifier */
+BPF_CALL_5(bpf_task_storage_get, struct bpf_map *, map, struct task_struct *,
+	   task, void *, value, u64, flags, gfp_t, gfp_flags)
 {
 	struct bpf_local_storage_data *sdata;
 
@@ -250,7 +252,7 @@ BPF_CALL_4(bpf_task_storage_get, struct bpf_map *, map, struct task_struct *,
 	    (flags & BPF_LOCAL_STORAGE_GET_F_CREATE))
 		sdata = bpf_local_storage_update(
 			task, (struct bpf_local_storage_map *)map, value,
-			BPF_NOEXIST);
+			BPF_NOEXIST, gfp_flags);
 
 unlock:
 	bpf_task_storage_unlock();
@@ -305,7 +307,7 @@ static void task_storage_map_free(struct bpf_map *map)
 	bpf_local_storage_map_free(smap, &bpf_task_storage_busy);
 }
 
-static int task_storage_map_btf_id;
+BTF_ID_LIST_SINGLE(task_storage_map_btf_ids, struct, bpf_local_storage_map)
 const struct bpf_map_ops task_storage_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = bpf_local_storage_map_alloc_check,
@@ -316,8 +318,7 @@ const struct bpf_map_ops task_storage_map_ops = {
 	.map_update_elem = bpf_pid_task_storage_update_elem,
 	.map_delete_elem = bpf_pid_task_storage_delete_elem,
 	.map_check_btf = bpf_local_storage_map_check_btf,
-	.map_btf_name = "bpf_local_storage_map",
-	.map_btf_id = &task_storage_map_btf_id,
+	.map_btf_id = &task_storage_map_btf_ids[0],
 	.map_owner_storage_ptr = task_storage_ptr,
 };
 

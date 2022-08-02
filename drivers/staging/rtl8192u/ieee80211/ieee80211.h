@@ -467,8 +467,8 @@ do { if (ieee80211_debug_level & (level)) \
 		}                                                              \
 	} while (0)
 #else
-#define IEEE80211_DEBUG (level, fmt, args...) do {} while (0)
-#define IEEE80211_DEBUG_DATA (level, data, datalen) do {} while (0)
+#define IEEE80211_DEBUG(level, fmt, args...)
+#define IEEE80211_DEBUG_DATA(level, data, datalen)
 #endif	/* CONFIG_IEEE80211_DEBUG */
 
 /* debug macros not dependent on CONFIG_IEEE80211_DEBUG */
@@ -1790,7 +1790,7 @@ struct ieee80211_device {
 	short sta_sleep;
 	int ps_timeout;
 	int ps_period;
-	struct tasklet_struct ps_task;
+	struct work_struct ps_task;
 	u32 ps_th;
 	u32 ps_tl;
 
@@ -2315,8 +2315,13 @@ int ieee80211_wx_get_freq(struct ieee80211_device *ieee,
 			  union iwreq_data *wrqu, char *b);
 
 /* ieee80211_module.c */
+#ifdef CONFIG_IEEE80211_DEBUG
 int ieee80211_debug_init(void);
 void ieee80211_debug_exit(void);
+#else
+static inline int ieee80211_debug_init(void) { return 0; }
+static inline void ieee80211_debug_exit(void) { }
+#endif
 
 //extern void ieee80211_wx_sync_scan_wq(struct ieee80211_device *ieee);
 void ieee80211_wx_sync_scan_wq(struct work_struct *work);

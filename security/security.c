@@ -59,10 +59,12 @@ const char *const lockdown_reasons[LOCKDOWN_CONFIDENTIALITY_MAX+1] = {
 	[LOCKDOWN_DEBUGFS] = "debugfs access",
 	[LOCKDOWN_XMON_WR] = "xmon write access",
 	[LOCKDOWN_BPF_WRITE_USER] = "use of bpf to write user RAM",
+	[LOCKDOWN_DBG_WRITE_KERNEL] = "use of kgdb/kdb to write kernel RAM",
 	[LOCKDOWN_INTEGRITY_MAX] = "integrity",
 	[LOCKDOWN_KCORE] = "/proc/kcore access",
 	[LOCKDOWN_KPROBES] = "use of kprobes",
 	[LOCKDOWN_BPF_READ_KERNEL] = "use of bpf to read kernel RAM",
+	[LOCKDOWN_DBG_READ_KERNEL] = "use of kgdb/kdb to read kernel RAM",
 	[LOCKDOWN_PERF] = "unsafe use of perf",
 	[LOCKDOWN_TRACEFS] = "use of tracefs",
 	[LOCKDOWN_XMON_RW] = "xmon read and write access",
@@ -365,13 +367,12 @@ static void __init ordered_lsm_init(void)
 
 int __init early_security_init(void)
 {
-	int i;
-	struct hlist_head *list = (struct hlist_head *) &security_hook_heads;
 	struct lsm_info *lsm;
 
-	for (i = 0; i < sizeof(security_hook_heads) / sizeof(struct hlist_head);
-	     i++)
-		INIT_HLIST_HEAD(&list[i]);
+#define LSM_HOOK(RET, DEFAULT, NAME, ...) \
+	INIT_HLIST_HEAD(&security_hook_heads.NAME);
+#include "linux/lsm_hook_defs.h"
+#undef LSM_HOOK
 
 	for (lsm = __start_early_lsm_info; lsm < __end_early_lsm_info; lsm++) {
 		if (!lsm->enabled)
@@ -478,7 +479,7 @@ static int lsm_append(const char *new, char **result)
  * Each LSM has to register its hooks with the infrastructure.
  */
 void __init security_add_hooks(struct security_hook_list *hooks, int count,
-				char *lsm)
+				const char *lsm)
 {
 	int i;
 
@@ -884,9 +885,22 @@ int security_fs_context_dup(struct fs_context *fc, struct fs_context *src_fc)
 	return call_int_hook(fs_context_dup, 0, fc, src_fc);
 }
 
-int security_fs_context_parse_param(struct fs_context *fc, struct fs_parameter *param)
+int security_fs_context_parse_param(struct fs_context *fc,
+				    struct fs_parameter *param)
 {
-	return call_int_hook(fs_context_parse_param, -ENOPARAM, fc, param);
+	struct security_hook_list *hp;
+	int trc;
+	int rc = -ENOPARAM;
+
+	hlist_for_each_entry(hp, &security_hook_heads.fs_context_parse_param,
+			     list) {
+		trc = hp->hook.fs_context_parse_param(fc, param);
+		if (trc == 0)
+			rc = 0;
+		else if (trc != -ENOPARAM)
+			return trc;
+	}
+	return rc;
 }
 
 int security_sb_alloc(struct super_block *sb)
@@ -1184,15 +1198,8 @@ int security_path_rename(const struct path *old_dir, struct dentry *old_dentry,
 		     (d_is_positive(new_dentry) && IS_PRIVATE(d_backing_inode(new_dentry)))))
 		return 0;
 
-	if (flags & RENAME_EXCHANGE) {
-		int err = call_int_hook(path_rename, 0, new_dir, new_dentry,
-					old_dir, old_dentry);
-		if (err)
-			return err;
-	}
-
 	return call_int_hook(path_rename, 0, old_dir, old_dentry, new_dir,
-				new_dentry);
+				new_dentry, flags);
 }
 EXPORT_SYMBOL(security_path_rename);
 
@@ -2390,6 +2397,13 @@ void security_sctp_sk_clone(struct sctp_association *asoc, struct sock *sk,
 	call_void_hook(sctp_sk_clone, asoc, sk, newsk);
 }
 EXPORT_SYMBOL(security_sctp_sk_clone);
+
+int security_sctp_assoc_established(struct sctp_association *asoc,
+				    struct sk_buff *skb)
+{
+	return call_int_hook(sctp_assoc_established, 0, asoc, skb);
+}
+EXPORT_SYMBOL(security_sctp_assoc_established);
 
 #endif	/* CONFIG_SECURITY_NETWORK */
 

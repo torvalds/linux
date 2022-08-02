@@ -609,7 +609,7 @@ static void i3c_master_free_i2c_dev(struct i2c_dev_desc *dev)
 
 static struct i2c_dev_desc *
 i3c_master_alloc_i2c_dev(struct i3c_master_controller *master,
-			 const struct i2c_dev_boardinfo *boardinfo)
+			 u16 addr, u8 lvr)
 {
 	struct i2c_dev_desc *dev;
 
@@ -618,9 +618,8 @@ i3c_master_alloc_i2c_dev(struct i3c_master_controller *master,
 		return ERR_PTR(-ENOMEM);
 
 	dev->common.master = master;
-	dev->boardinfo = boardinfo;
-	dev->addr = boardinfo->base.addr;
-	dev->lvr = boardinfo->lvr;
+	dev->addr = addr;
+	dev->lvr = lvr;
 
 	return dev;
 }
@@ -694,7 +693,7 @@ i3c_master_find_i2c_dev_by_addr(const struct i3c_master_controller *master,
 	struct i2c_dev_desc *dev;
 
 	i3c_bus_for_each_i2cdev(&master->bus, dev) {
-		if (dev->boardinfo->base.addr == addr)
+		if (dev->addr == addr)
 			return dev;
 	}
 
@@ -1689,7 +1688,9 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 					     i2cboardinfo->base.addr,
 					     I3C_ADDR_SLOT_I2C_DEV);
 
-		i2cdev = i3c_master_alloc_i2c_dev(master, i2cboardinfo);
+		i2cdev = i3c_master_alloc_i2c_dev(master,
+						  i2cboardinfo->base.addr,
+						  i2cboardinfo->lvr);
 		if (IS_ERR(i2cdev)) {
 			ret = PTR_ERR(i2cdev);
 			goto err_detach_devs;
@@ -2166,15 +2167,127 @@ static u32 i3c_master_i2c_funcs(struct i2c_adapter *adapter)
 	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C;
 }
 
+static u8 i3c_master_i2c_get_lvr(struct i2c_client *client)
+{
+	/* Fall back to no spike filters and FM bus mode. */
+	u8 lvr = I3C_LVR_I2C_INDEX(2) | I3C_LVR_I2C_FM_MODE;
+
+	if (client->dev.of_node) {
+		u32 reg[3];
+
+		if (!of_property_read_u32_array(client->dev.of_node, "reg",
+						reg, ARRAY_SIZE(reg)))
+			lvr = reg[2];
+	}
+
+	return lvr;
+}
+
+static int i3c_master_i2c_attach(struct i2c_adapter *adap, struct i2c_client *client)
+{
+	struct i3c_master_controller *master = i2c_adapter_to_i3c_master(adap);
+	enum i3c_addr_slot_status status;
+	struct i2c_dev_desc *i2cdev;
+	int ret;
+
+	/* Already added by board info? */
+	if (i3c_master_find_i2c_dev_by_addr(master, client->addr))
+		return 0;
+
+	status = i3c_bus_get_addr_slot_status(&master->bus, client->addr);
+	if (status != I3C_ADDR_SLOT_FREE)
+		return -EBUSY;
+
+	i3c_bus_set_addr_slot_status(&master->bus, client->addr,
+				     I3C_ADDR_SLOT_I2C_DEV);
+
+	i2cdev = i3c_master_alloc_i2c_dev(master, client->addr,
+					  i3c_master_i2c_get_lvr(client));
+	if (IS_ERR(i2cdev)) {
+		ret = PTR_ERR(i2cdev);
+		goto out_clear_status;
+	}
+
+	ret = i3c_master_attach_i2c_dev(master, i2cdev);
+	if (ret)
+		goto out_free_dev;
+
+	return 0;
+
+out_free_dev:
+	i3c_master_free_i2c_dev(i2cdev);
+out_clear_status:
+	i3c_bus_set_addr_slot_status(&master->bus, client->addr,
+				     I3C_ADDR_SLOT_FREE);
+
+	return ret;
+}
+
+static int i3c_master_i2c_detach(struct i2c_adapter *adap, struct i2c_client *client)
+{
+	struct i3c_master_controller *master = i2c_adapter_to_i3c_master(adap);
+	struct i2c_dev_desc *dev;
+
+	dev = i3c_master_find_i2c_dev_by_addr(master, client->addr);
+	if (!dev)
+		return -ENODEV;
+
+	i3c_master_detach_i2c_dev(dev);
+	i3c_bus_set_addr_slot_status(&master->bus, dev->addr,
+				     I3C_ADDR_SLOT_FREE);
+	i3c_master_free_i2c_dev(dev);
+
+	return 0;
+}
+
 static const struct i2c_algorithm i3c_master_i2c_algo = {
 	.master_xfer = i3c_master_i2c_adapter_xfer,
 	.functionality = i3c_master_i2c_funcs,
+};
+
+static int i3c_i2c_notifier_call(struct notifier_block *nb, unsigned long action,
+				 void *data)
+{
+	struct i2c_adapter *adap;
+	struct i2c_client *client;
+	struct device *dev = data;
+	struct i3c_master_controller *master;
+	int ret;
+
+	if (dev->type != &i2c_client_type)
+		return 0;
+
+	client = to_i2c_client(dev);
+	adap = client->adapter;
+
+	if (adap->algo != &i3c_master_i2c_algo)
+		return 0;
+
+	master = i2c_adapter_to_i3c_master(adap);
+
+	i3c_bus_maintenance_lock(&master->bus);
+	switch (action) {
+	case BUS_NOTIFY_ADD_DEVICE:
+		ret = i3c_master_i2c_attach(adap, client);
+		break;
+	case BUS_NOTIFY_DEL_DEVICE:
+		ret = i3c_master_i2c_detach(adap, client);
+		break;
+	}
+	i3c_bus_maintenance_unlock(&master->bus);
+
+	return ret;
+}
+
+static struct notifier_block i2cdev_notifier = {
+	.notifier_call = i3c_i2c_notifier_call,
 };
 
 static int i3c_master_i2c_adapter_init(struct i3c_master_controller *master)
 {
 	struct i2c_adapter *adap = i3c_master_to_i2c_adapter(master);
 	struct i2c_dev_desc *i2cdev;
+	struct i2c_dev_boardinfo *i2cboardinfo;
 	int ret;
 
 	adap->dev.parent = master->dev.parent;
@@ -2194,8 +2307,13 @@ static int i3c_master_i2c_adapter_init(struct i3c_master_controller *master)
 	 * We silently ignore failures here. The bus should keep working
 	 * correctly even if one or more i2c devices are not registered.
 	 */
-	i3c_bus_for_each_i2cdev(&master->bus, i2cdev)
-		i2cdev->dev = i2c_new_client_device(adap, &i2cdev->boardinfo->base);
+	list_for_each_entry(i2cboardinfo, &master->boardinfo.i2c, node) {
+		i2cdev = i3c_master_find_i2c_dev_by_addr(master,
+							 i2cboardinfo->base.addr);
+		if (WARN_ON(!i2cdev))
+			continue;
+		i2cdev->dev = i2c_new_client_device(adap, &i2cboardinfo->base);
+	}
 
 	return 0;
 }
@@ -2697,12 +2815,27 @@ void i3c_dev_free_ibi_locked(struct i3c_dev_desc *dev)
 
 static int __init i3c_init(void)
 {
-	return bus_register(&i3c_bus_type);
+	int res = bus_register_notifier(&i2c_bus_type, &i2cdev_notifier);
+
+	if (res)
+		return res;
+
+	res = bus_register(&i3c_bus_type);
+	if (res)
+		goto out_unreg_notifier;
+
+	return 0;
+
+out_unreg_notifier:
+	bus_unregister_notifier(&i2c_bus_type, &i2cdev_notifier);
+
+	return res;
 }
 subsys_initcall(i3c_init);
 
 static void __exit i3c_exit(void)
 {
+	bus_unregister_notifier(&i2c_bus_type, &i2cdev_notifier);
 	idr_destroy(&i3c_bus_idr);
 	bus_unregister(&i3c_bus_type);
 }

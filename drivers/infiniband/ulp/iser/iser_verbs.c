@@ -32,7 +32,6 @@
  * SOFTWARE.
  */
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 
@@ -116,7 +115,7 @@ iser_create_fastreg_desc(struct iser_device *device,
 	if (!desc)
 		return ERR_PTR(-ENOMEM);
 
-	if (ib_dev->attrs.device_cap_flags & IB_DEVICE_SG_GAPS_REG)
+	if (ib_dev->attrs.kernel_cap_flags & IBK_SG_GAPS_REG)
 		mr_type = IB_MR_TYPE_SG_GAPS;
 	else
 		mr_type = IB_MR_TYPE_MEM_REG;
@@ -518,7 +517,7 @@ static void iser_calc_scsi_params(struct iser_conn *iser_conn,
 	 * (head and tail) for a single page worth data, so one additional
 	 * entry is required.
 	 */
-	if (attr->device_cap_flags & IB_DEVICE_SG_GAPS_REG)
+	if (attr->kernel_cap_flags & IBK_SG_GAPS_REG)
 		reserved_mr_pages = 0;
 	else
 		reserved_mr_pages = 1;
@@ -563,8 +562,8 @@ static void iser_addr_handler(struct rdma_cm_id *cma_id)
 
 	/* connection T10-PI support */
 	if (iser_pi_enable) {
-		if (!(device->ib_device->attrs.device_cap_flags &
-		      IB_DEVICE_INTEGRITY_HANDOVER)) {
+		if (!(device->ib_device->attrs.kernel_cap_flags &
+		      IBK_INTEGRITY_HANDOVER)) {
 			iser_warn("T10-PI requested but not supported on %s, "
 				  "continue without T10-PI\n",
 				  dev_name(&ib_conn->device->ib_device->dev));
@@ -905,7 +904,7 @@ u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 			     enum iser_data_dir cmd_dir, sector_t *sector)
 {
 	struct iser_mem_reg *reg = &iser_task->rdma_reg[cmd_dir];
-	struct iser_fr_desc *desc = reg->mem_h;
+	struct iser_fr_desc *desc = reg->desc;
 	unsigned long sector_size = iser_task->sc->device->sector_size;
 	struct ib_mr_status mr_status;
 	int ret;

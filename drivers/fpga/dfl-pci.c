@@ -15,6 +15,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -258,6 +259,15 @@ static int find_dfls_by_default(struct pci_dev *pcidev,
 			 */
 			bar = FIELD_GET(FME_PORT_OFST_BAR_ID, v);
 			offset = FIELD_GET(FME_PORT_OFST_DFH_OFST, v);
+			if (bar == FME_PORT_OFST_BAR_SKIP) {
+				continue;
+			} else if (bar >= PCI_STD_NUM_BARS) {
+				dev_err(&pcidev->dev, "bad BAR %d for port %d\n",
+					bar, i);
+				ret = -EINVAL;
+				break;
+			}
+
 			start = pci_resource_start(pcidev, bar) + offset;
 			len = pci_resource_len(pcidev, bar) - offset;
 
@@ -354,16 +364,10 @@ int cci_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *pcidevid)
 
 	pci_set_master(pcidev);
 
-	if (!pci_set_dma_mask(pcidev, DMA_BIT_MASK(64))) {
-		ret = pci_set_consistent_dma_mask(pcidev, DMA_BIT_MASK(64));
-		if (ret)
-			goto disable_error_report_exit;
-	} else if (!pci_set_dma_mask(pcidev, DMA_BIT_MASK(32))) {
-		ret = pci_set_consistent_dma_mask(pcidev, DMA_BIT_MASK(32));
-		if (ret)
-			goto disable_error_report_exit;
-	} else {
-		ret = -EIO;
+	ret = dma_set_mask_and_coherent(&pcidev->dev, DMA_BIT_MASK(64));
+	if (ret)
+		ret = dma_set_mask_and_coherent(&pcidev->dev, DMA_BIT_MASK(32));
+	if (ret) {
 		dev_err(&pcidev->dev, "No suitable DMA support available.\n");
 		goto disable_error_report_exit;
 	}

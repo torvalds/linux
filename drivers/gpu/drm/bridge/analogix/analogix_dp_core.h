@@ -9,8 +9,8 @@
 #ifndef _ANALOGIX_DP_CORE_H
 #define _ANALOGIX_DP_CORE_H
 
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_dp_helper.h>
 
 #define DP_TIMEOUT_LOOP_COUNT 100
 #define MAX_CR_LOOP 5

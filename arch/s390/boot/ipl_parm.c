@@ -8,8 +8,15 @@
 #include <asm/sections.h>
 #include <asm/boot_data.h>
 #include <asm/facility.h>
+#include <asm/setup.h>
 #include <asm/uv.h>
 #include "boot.h"
+
+struct parmarea parmarea __section(".parmarea") = {
+	.kernel_version		= (unsigned long)kernel_version,
+	.max_command_line_size	= COMMAND_LINE_SIZE,
+	.command_line		= "root=/dev/ram0 ro",
+};
 
 char __bootdata(early_command_line)[COMMAND_LINE_SIZE];
 int __bootdata(noexec_disabled);

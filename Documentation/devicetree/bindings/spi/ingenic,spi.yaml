@@ -18,7 +18,10 @@ properties:
     oneOf:
       - enum:
           - ingenic,jz4750-spi
+          - ingenic,jz4775-spi
           - ingenic,jz4780-spi
+          - ingenic,x1000-spi
+          - ingenic,x2000-spi
       - items:
           - enum:
               - ingenic,jz4760-spi

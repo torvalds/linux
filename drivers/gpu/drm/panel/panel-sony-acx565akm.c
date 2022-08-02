@@ -655,7 +655,7 @@ static int acx565akm_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int acx565akm_remove(struct spi_device *spi)
+static void acx565akm_remove(struct spi_device *spi)
 {
 	struct acx565akm_panel *lcd = spi_get_drvdata(spi);
 
@@ -666,8 +666,6 @@ static int acx565akm_remove(struct spi_device *spi)
 
 	drm_panel_disable(&lcd->panel);
 	drm_panel_unprepare(&lcd->panel);
-
-	return 0;
 }
 
 static const struct of_device_id acx565akm_of_match[] = {

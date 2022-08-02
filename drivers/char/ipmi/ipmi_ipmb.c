@@ -39,6 +39,7 @@ MODULE_PARM_DESC(max_retries, "Max resends of a command before timing out.");
 struct ipmi_ipmb_dev {
 	struct ipmi_smi *intf;
 	struct i2c_client *client;
+	struct i2c_client *slave;
 
 	struct ipmi_smi_handlers handlers;
 
@@ -257,7 +258,7 @@ static void ipmi_ipmb_format_for_xmit(struct ipmi_ipmb_dev *iidev,
 		memcpy(iidev->xmitmsg + 5, msg->data + 1, msg->data_size - 1);
 		iidev->xmitlen = msg->data_size + 4;
 	}
-	iidev->xmitmsg[3] = iidev->client->addr << 1;
+	iidev->xmitmsg[3] = iidev->slave->addr << 1;
 	if (((msg->data[0] >> 2) & 1) == 0)
 		/* If it's a command, put in our own sequence number. */
 		iidev->xmitmsg[4] = ((iidev->xmitmsg[4] & 0x03) |
@@ -427,20 +428,27 @@ static int ipmi_ipmb_remove(struct i2c_client *client)
 {
 	struct ipmi_ipmb_dev *iidev = i2c_get_clientdata(client);
 
-	if (iidev->client) {
-		iidev->client = NULL;
-		i2c_slave_unregister(client);
+	if (iidev->slave) {
+		i2c_slave_unregister(iidev->slave);
+		if (iidev->slave != iidev->client)
+			i2c_unregister_device(iidev->slave);
 	}
+	iidev->slave = NULL;
+	iidev->client = NULL;
 	ipmi_ipmb_stop_thread(iidev);
+
+	ipmi_unregister_smi(iidev->intf);
 
 	return 0;
 }
 
-static int ipmi_ipmb_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int ipmi_ipmb_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ipmi_ipmb_dev *iidev;
+	struct device_node *slave_np;
+	struct i2c_adapter *slave_adap = NULL;
+	struct i2c_client *slave = NULL;
 	int rv;
 
 	iidev = devm_kzalloc(&client->dev, sizeof(*iidev), GFP_KERNEL);
@@ -464,14 +472,46 @@ static int ipmi_ipmb_probe(struct i2c_client *client,
 				 &iidev->max_retries) != 0)
 		iidev->max_retries = max_retries;
 
-	i2c_set_clientdata(client, iidev);
-	client->flags |= I2C_CLIENT_SLAVE;
-
-	rv = i2c_slave_register(client, ipmi_ipmb_slave_cb);
-	if (rv)
-		return rv;
+	slave_np = of_parse_phandle(dev->of_node, "slave-dev", 0);
+	if (slave_np) {
+		slave_adap = of_get_i2c_adapter_by_node(slave_np);
+		of_node_put(slave_np);
+		if (!slave_adap) {
+			dev_notice(&client->dev,
+				   "Could not find slave adapter\n");
+			return -EINVAL;
+		}
+	}
 
 	iidev->client = client;
+
+	if (slave_adap) {
+		struct i2c_board_info binfo;
+
+		memset(&binfo, 0, sizeof(binfo));
+		strscpy(binfo.type, "ipmb-slave", I2C_NAME_SIZE);
+		binfo.addr = client->addr;
+		binfo.flags = I2C_CLIENT_SLAVE;
+		slave = i2c_new_client_device(slave_adap, &binfo);
+		i2c_put_adapter(slave_adap);
+		if (IS_ERR(slave)) {
+			rv = PTR_ERR(slave);
+			dev_notice(&client->dev,
+				   "Could not allocate slave device: %d\n", rv);
+			return rv;
+		}
+		i2c_set_clientdata(slave, iidev);
+	} else {
+		slave = client;
+	}
+	i2c_set_clientdata(client, iidev);
+	slave->flags |= I2C_CLIENT_SLAVE;
+
+	rv = i2c_slave_register(slave, ipmi_ipmb_slave_cb);
+	if (rv)
+		goto out_err;
+	iidev->slave = slave;
+	slave = NULL;
 
 	iidev->handlers.flags = IPMI_SMI_CAN_HANDLE_IPMB_DIRECT;
 	iidev->handlers.start_processing = ipmi_ipmb_start_processing;
@@ -502,6 +542,8 @@ static int ipmi_ipmb_probe(struct i2c_client *client,
 	return 0;
 
 out_err:
+	if (slave && slave != client)
+		i2c_unregister_device(slave);
 	ipmi_ipmb_remove(client);
 	return rv;
 }
@@ -528,7 +570,7 @@ static struct i2c_driver ipmi_ipmb_driver = {
 		.name = DEVICE_NAME,
 		.of_match_table = of_ipmi_ipmb_match,
 	},
-	.probe		= ipmi_ipmb_probe,
+	.probe_new	= ipmi_ipmb_probe,
 	.remove		= ipmi_ipmb_remove,
 	.id_table	= ipmi_ipmb_id,
 };

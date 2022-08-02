@@ -235,12 +235,6 @@ offgrpjquota		 Turn off group journalled quota.
 offprjjquota		 Turn off project journalled quota.
 quota			 Enable plain user disk quota accounting.
 noquota			 Disable all plain disk quota option.
-whint_mode=%s		 Control which write hints are passed down to block
-			 layer. This supports "off", "user-based", and
-			 "fs-based".  In "off" mode (default), f2fs does not pass
-			 down hints. In "user-based" mode, f2fs tries to pass
-			 down hints given by users. And in "fs-based" mode, f2fs
-			 passes down hints with its policy.
 alloc_mode=%s		 Adjust block allocation policy, which supports "reuse"
 			 and "default".
 fsync_mode=%s		 Control the policy of fsync. Currently supports "posix",
@@ -750,70 +744,6 @@ algorithm.
 In order to identify whether the data in the victim segment are valid or not,
 F2FS manages a bitmap. Each bit represents the validity of a block, and the
 bitmap is composed of a bit stream covering whole blocks in main area.
-
-Write-hint Policy
------------------
-
-1) whint_mode=off. F2FS only passes down WRITE_LIFE_NOT_SET.
-
-2) whint_mode=user-based. F2FS tries to pass down hints given by
-users.
-
-===================== ======================== ===================
-User                  F2FS                     Block
-===================== ======================== ===================
-N/A                   META                     WRITE_LIFE_NOT_SET
-N/A                   HOT_NODE                 "
-N/A                   WARM_NODE                "
-N/A                   COLD_NODE                "
-ioctl(COLD)           COLD_DATA                WRITE_LIFE_EXTREME
-extension list        "                        "
-
--- buffered io
-WRITE_LIFE_EXTREME    COLD_DATA                WRITE_LIFE_EXTREME
-WRITE_LIFE_SHORT      HOT_DATA                 WRITE_LIFE_SHORT
-WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_NOT_SET
-WRITE_LIFE_NONE       "                        "
-WRITE_LIFE_MEDIUM     "                        "
-WRITE_LIFE_LONG       "                        "
-
--- direct io
-WRITE_LIFE_EXTREME    COLD_DATA                WRITE_LIFE_EXTREME
-WRITE_LIFE_SHORT      HOT_DATA                 WRITE_LIFE_SHORT
-WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_NOT_SET
-WRITE_LIFE_NONE       "                        WRITE_LIFE_NONE
-WRITE_LIFE_MEDIUM     "                        WRITE_LIFE_MEDIUM
-WRITE_LIFE_LONG       "                        WRITE_LIFE_LONG
-===================== ======================== ===================
-
-3) whint_mode=fs-based. F2FS passes down hints with its policy.
-
-===================== ======================== ===================
-User                  F2FS                     Block
-===================== ======================== ===================
-N/A                   META                     WRITE_LIFE_MEDIUM;
-N/A                   HOT_NODE                 WRITE_LIFE_NOT_SET
-N/A                   WARM_NODE                "
-N/A                   COLD_NODE                WRITE_LIFE_NONE
-ioctl(COLD)           COLD_DATA                WRITE_LIFE_EXTREME
-extension list        "                        "
-
--- buffered io
-WRITE_LIFE_EXTREME    COLD_DATA                WRITE_LIFE_EXTREME
-WRITE_LIFE_SHORT      HOT_DATA                 WRITE_LIFE_SHORT
-WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_LONG
-WRITE_LIFE_NONE       "                        "
-WRITE_LIFE_MEDIUM     "                        "
-WRITE_LIFE_LONG       "                        "
-
--- direct io
-WRITE_LIFE_EXTREME    COLD_DATA                WRITE_LIFE_EXTREME
-WRITE_LIFE_SHORT      HOT_DATA                 WRITE_LIFE_SHORT
-WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_NOT_SET
-WRITE_LIFE_NONE       "                        WRITE_LIFE_NONE
-WRITE_LIFE_MEDIUM     "                        WRITE_LIFE_MEDIUM
-WRITE_LIFE_LONG       "                        WRITE_LIFE_LONG
-===================== ======================== ===================
 
 Fallocate(2) Policy
 -------------------

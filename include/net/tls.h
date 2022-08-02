@@ -64,6 +64,7 @@
 #define TLS_AAD_SPACE_SIZE		13
 
 #define MAX_IV_SIZE			16
+#define TLS_TAG_SIZE			16
 #define TLS_MAX_REC_SEQ_SIZE		8
 
 /* For CCM mode, the full 16-bytes of IV is made of '4' fields of given sizes.
@@ -117,11 +118,6 @@ struct tls_rec {
 	u8 aead_req_ctx[];
 };
 
-struct tls_msg {
-	struct strp_msg rxm;
-	u8 control;
-};
-
 struct tx_work {
 	struct delayed_work work;
 	struct sock *sk;
@@ -152,13 +148,10 @@ struct tls_sw_context_rx {
 	void (*saved_data_ready)(struct sock *sk);
 
 	struct sk_buff *recv_pkt;
-	u8 control;
 	u8 async_capable:1;
-	u8 decrypted:1;
 	atomic_t decrypt_pending;
 	/* protect crypto_wait with decrypt_pending*/
 	spinlock_t decrypt_compl_lock;
-	bool async_notify;
 };
 
 struct tls_record_info {
@@ -245,6 +238,7 @@ struct tls_context {
 
 	u8 tx_conf:3;
 	u8 rx_conf:3;
+	u8 zerocopy_sendfile:1;
 
 	int (*push_pending_record)(struct sock *sk, int flags);
 	void (*sk_write_space)(struct sock *sk);
@@ -378,7 +372,7 @@ void tls_sw_free_resources_rx(struct sock *sk);
 void tls_sw_release_resources_rx(struct sock *sk);
 void tls_sw_free_ctx_rx(struct tls_context *tls_ctx);
 int tls_sw_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
-		   int nonblock, int flags, int *addr_len);
+		   int flags, int *addr_len);
 bool tls_sw_sock_is_readable(struct sock *sk);
 ssize_t tls_sw_splice_read(struct socket *sock, loff_t *ppos,
 			   struct pipe_inode_info *pipe,
@@ -411,7 +405,9 @@ void tls_free_partial_record(struct sock *sk, struct tls_context *ctx);
 
 static inline struct tls_msg *tls_msg(struct sk_buff *skb)
 {
-	return (struct tls_msg *)strp_msg(skb);
+	struct sk_skb_cb *scb = (struct sk_skb_cb *)skb->cb;
+
+	return &scb->tls;
 }
 
 static inline bool tls_is_partially_sent_record(struct tls_context *ctx)
@@ -626,7 +622,6 @@ tls_offload_ctx_rx(const struct tls_context *tls_ctx)
 	return (struct tls_offload_context_rx *)tls_ctx->priv_ctx_rx;
 }
 
-#if IS_ENABLED(CONFIG_TLS_DEVICE)
 static inline void *__tls_driver_ctx(struct tls_context *tls_ctx,
 				     enum tls_offload_ctx_dir direction)
 {
@@ -641,7 +636,6 @@ tls_driver_ctx(const struct sock *sk, enum tls_offload_ctx_dir direction)
 {
 	return __tls_driver_ctx(tls_get_ctx(sk), direction);
 }
-#endif
 
 #define RESYNC_REQ BIT(0)
 #define RESYNC_REQ_ASYNC BIT(1)

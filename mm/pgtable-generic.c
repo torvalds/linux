@@ -201,6 +201,14 @@ pmd_t pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 }
 #endif
 
+#ifndef __HAVE_ARCH_PMDP_INVALIDATE_AD
+pmd_t pmdp_invalidate_ad(struct vm_area_struct *vma, unsigned long address,
+			 pmd_t *pmdp)
+{
+	return pmdp_invalidate(vma, address, pmdp);
+}
+#endif
+
 #ifndef pmdp_collapse_flush
 pmd_t pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long address,
 			  pmd_t *pmdp)

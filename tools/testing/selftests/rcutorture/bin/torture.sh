@@ -13,8 +13,8 @@
 scriptname=$0
 args="$*"
 
-KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
-PATH=${KVM}/bin:$PATH; export PATH
+RCUTORTURE="`pwd`/tools/testing/selftests/rcutorture"; export RCUTORTURE
+PATH=${RCUTORTURE}/bin:$PATH; export PATH
 . functions.sh
 
 TORTURE_ALLOTED_CPUS="`identify_qemu_vcpus`"
@@ -37,7 +37,7 @@ configs_scftorture=
 kcsan_kmake_args=
 
 # Default compression, duration, and apportionment.
-compress_kasan_vmlinux="`identify_qemu_vcpus`"
+compress_concurrency="`identify_qemu_vcpus`"
 duration_base=10
 duration_rcutorture_frac=7
 duration_locktorture_frac=1
@@ -54,6 +54,7 @@ do_kvfree=yes
 do_kasan=yes
 do_kcsan=no
 do_clocksourcewd=yes
+do_rt=yes
 
 # doyesno - Helper function for yes/no arguments
 function doyesno () {
@@ -67,12 +68,12 @@ function doyesno () {
 
 usage () {
 	echo "Usage: $scriptname optional arguments:"
-	echo "       --compress-kasan-vmlinux concurrency"
+	echo "       --compress-concurrency concurrency"
 	echo "       --configs-rcutorture \"config-file list w/ repeat factor (3*TINY01)\""
 	echo "       --configs-locktorture \"config-file list w/ repeat factor (10*LOCK01)\""
 	echo "       --configs-scftorture \"config-file list w/ repeat factor (2*CFLIST)\""
-	echo "       --doall"
-	echo "       --doallmodconfig / --do-no-allmodconfig"
+	echo "       --do-all"
+	echo "       --do-allmodconfig / --do-no-allmodconfig"
 	echo "       --do-clocksourcewd / --do-no-clocksourcewd"
 	echo "       --do-kasan / --do-no-kasan"
 	echo "       --do-kcsan / --do-no-kcsan"
@@ -82,6 +83,7 @@ usage () {
 	echo "       --do-rcuscale / --do-no-rcuscale"
 	echo "       --do-rcutorture / --do-no-rcutorture"
 	echo "       --do-refscale / --do-no-refscale"
+	echo "       --do-rt / --do-no-rt"
 	echo "       --do-scftorture / --do-no-scftorture"
 	echo "       --duration [ <minutes> | <hours>h | <days>d ]"
 	echo "       --kcsan-kmake-arg kernel-make-arguments"
@@ -91,9 +93,9 @@ usage () {
 while test $# -gt 0
 do
 	case "$1" in
-	--compress-kasan-vmlinux)
-		checkarg --compress-kasan-vmlinux "(concurrency level)" $# "$2" '^[0-9][0-9]*$' '^error'
-		compress_kasan_vmlinux=$2
+	--compress-concurrency)
+		checkarg --compress-concurrency "(concurrency level)" $# "$2" '^[0-9][0-9]*$' '^error'
+		compress_concurrency=$2
 		shift
 		;;
 	--config-rcutorture|--configs-rcutorture)
@@ -118,6 +120,7 @@ do
 		do_scftorture=yes
 		do_rcuscale=yes
 		do_refscale=yes
+		do_rt=yes
 		do_kvfree=yes
 		do_kasan=yes
 		do_kcsan=yes
@@ -148,6 +151,7 @@ do
 		do_scftorture=no
 		do_rcuscale=no
 		do_refscale=no
+		do_rt=no
 		do_kvfree=no
 		do_kasan=no
 		do_kcsan=no
@@ -161,6 +165,9 @@ do
 		;;
 	--do-refscale|--do-no-refscale)
 		do_refscale=`doyesno "$1" --do-refscale`
+		;;
+	--do-rt|--do-no-rt)
+		do_rt=`doyesno "$1" --do-rt`
 		;;
 	--do-scftorture|--do-no-scftorture)
 		do_scftorture=`doyesno "$1" --do-scftorture`
@@ -322,6 +329,7 @@ then
 	echo " --- make clean" > "$amcdir/Make.out" 2>&1
 	make -j$MAKE_ALLOTED_CPUS clean >> "$amcdir/Make.out" 2>&1
 	echo " --- make allmodconfig" >> "$amcdir/Make.out" 2>&1
+	cp .config $amcdir
 	make -j$MAKE_ALLOTED_CPUS allmodconfig >> "$amcdir/Make.out" 2>&1
 	echo " --- make " >> "$amcdir/Make.out" 2>&1
 	make -j$MAKE_ALLOTED_CPUS >> "$amcdir/Make.out" 2>&1
@@ -350,8 +358,19 @@ fi
 
 if test "$do_scftorture" = "yes"
 then
-	torture_bootargs="scftorture.nthreads=$HALF_ALLOTED_CPUS torture.disable_onoff_at_boot"
-	torture_set "scftorture" tools/testing/selftests/rcutorture/bin/kvm.sh --torture scf --allcpus --duration "$duration_scftorture" --configs "$configs_scftorture" --kconfig "CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --memory 1G --trust-make
+	torture_bootargs="scftorture.nthreads=$HALF_ALLOTED_CPUS torture.disable_onoff_at_boot csdlock_debug=1"
+	torture_set "scftorture" tools/testing/selftests/rcutorture/bin/kvm.sh --torture scf --allcpus --duration "$duration_scftorture" --configs "$configs_scftorture" --kconfig "CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --memory 2G --trust-make
+fi
+
+if test "$do_rt" = "yes"
+then
+	# With all post-boot grace periods forced to normal.
+	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000 rcupdate.rcu_normal=1"
+	torture_set "rcurttorture" tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration "$duration_rcutorture" --configs "TREE03" --trust-make
+
+	# With all post-boot grace periods forced to expedited.
+	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000 rcupdate.rcu_expedited=1"
+	torture_set "rcurttorture-exp" tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration "$duration_rcutorture" --configs "TREE03" --trust-make
 fi
 
 if test "$do_refscale" = yes
@@ -363,7 +382,7 @@ fi
 for prim in $primlist
 do
 	torture_bootargs="refscale.scale_type="$prim" refscale.nreaders=$HALF_ALLOTED_CPUS refscale.loops=10000 refscale.holdoff=20 torture.disable_onoff_at_boot"
-	torture_set "refscale-$prim" tools/testing/selftests/rcutorture/bin/kvm.sh --torture refscale --allcpus --duration 5 --kconfig "CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --bootargs "verbose_batched=$VERBOSE_BATCH_CPUS torture.verbose_sleep_frequency=8 torture.verbose_sleep_duration=$VERBOSE_BATCH_CPUS" --trust-make
+	torture_set "refscale-$prim" tools/testing/selftests/rcutorture/bin/kvm.sh --torture refscale --allcpus --duration 5 --kconfig "CONFIG_TASKS_TRACE_RCU=y CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --bootargs "verbose_batched=$VERBOSE_BATCH_CPUS torture.verbose_sleep_frequency=8 torture.verbose_sleep_duration=$VERBOSE_BATCH_CPUS" --trust-make
 done
 
 if test "$do_rcuscale" = yes
@@ -375,13 +394,13 @@ fi
 for prim in $primlist
 do
 	torture_bootargs="rcuscale.scale_type="$prim" rcuscale.nwriters=$HALF_ALLOTED_CPUS rcuscale.holdoff=20 torture.disable_onoff_at_boot"
-	torture_set "rcuscale-$prim" tools/testing/selftests/rcutorture/bin/kvm.sh --torture rcuscale --allcpus --duration 5 --kconfig "CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --trust-make
+	torture_set "rcuscale-$prim" tools/testing/selftests/rcutorture/bin/kvm.sh --torture rcuscale --allcpus --duration 5 --kconfig "CONFIG_TASKS_TRACE_RCU=y CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --trust-make
 done
 
 if test "$do_kvfree" = "yes"
 then
 	torture_bootargs="rcuscale.kfree_rcu_test=1 rcuscale.kfree_nthreads=16 rcuscale.holdoff=20 rcuscale.kfree_loops=10000 torture.disable_onoff_at_boot"
-	torture_set "rcuscale-kvfree" tools/testing/selftests/rcutorture/bin/kvm.sh --torture rcuscale --allcpus --duration 10 --kconfig "CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --memory 1G --trust-make
+	torture_set "rcuscale-kvfree" tools/testing/selftests/rcutorture/bin/kvm.sh --torture rcuscale --allcpus --duration 10 --kconfig "CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --memory 2G --trust-make
 fi
 
 if test "$do_clocksourcewd" = "yes"
@@ -414,8 +433,14 @@ nfailures=0
 echo FAILURES: | tee -a $T/log
 if test -s "$T/failures"
 then
-	cat "$T/failures" | tee -a $T/log
+	awk < "$T/failures" -v sq="'" '{ print "echo " sq $0 sq; print "sed -e " sq "1,/^ --- .* Test summary:$/d" sq " " $2 "/log | grep Summary: | sed -e " sq "s/^[^S]*/  /" sq; }' | sh | tee -a $T/log | tee "$T/failuresum"
 	nfailures="`wc -l "$T/failures" | awk '{ print $1 }'`"
+	grep "^  Summary: " "$T/failuresum" |
+		grep -v '^  Summary: Bugs: [0-9]* (all bugs kcsan)$' > "$T/nonkcsan"
+	if test -s "$T/nonkcsan"
+	then
+		nonkcsanbug="yes"
+	fi
 	ret=2
 fi
 if test "$do_kcsan" = "yes"
@@ -424,12 +449,16 @@ then
 fi
 echo Started at $startdate, ended at `date`, duration `get_starttime_duration $starttime`. | tee -a $T/log
 echo Summary: Successes: $nsuccesses Failures: $nfailures. | tee -a $T/log
+if test -z "$nonkcsanbug" && test -s "$T/failuresum"
+then
+	echo "  All bugs were KCSAN failures."
+fi
 tdir="`cat $T/successes $T/failures | head -1 | awk '{ print $NF }' | sed -e 's,/[^/]\+/*$,,'`"
-if test -n "$tdir" && test $compress_kasan_vmlinux -gt 0
+if test -n "$tdir" && test $compress_concurrency -gt 0
 then
 	# KASAN vmlinux files can approach 1GB in size, so compress them.
-	echo Looking for KASAN files to compress: `date` > "$tdir/log-xz" 2>&1
-	find "$tdir" -type d -name '*-kasan' -print > $T/xz-todo
+	echo Looking for K[AC]SAN files to compress: `date` > "$tdir/log-xz" 2>&1
+	find "$tdir" -type d -name '*-k[ac]san' -print > $T/xz-todo
 	ncompresses=0
 	batchno=1
 	if test -s $T/xz-todo
@@ -447,7 +476,7 @@ then
 			do
 				xz "$j" >> "$tdir/log-xz" 2>&1 &
 				ncompresses=$((ncompresses+1))
-				if test $ncompresses -ge $compress_kasan_vmlinux
+				if test $ncompresses -ge $compress_concurrency
 				then
 					echo Waiting for batch $batchno of $ncompresses compressions `date` | tee -a "$tdir/log-xz" | tee -a $T/log
 					wait

@@ -25,6 +25,7 @@ properties:
           - mediatek,mt8173-mtu3
           - mediatek,mt8183-mtu3
           - mediatek,mt8192-mtu3
+          - mediatek,mt8195-mtu3
       - const: mediatek,mtu3
 
   reg:
@@ -132,7 +133,7 @@ properties:
     default: host
 
   connector:
-    $ref: /connector/usb-connector.yaml#
+    $ref: /schemas/connector/usb-connector.yaml#
     description:
       Connector for dual role switch, especially for "gpio-usb-b-connector"
     type: object
@@ -191,7 +192,7 @@ properties:
 patternProperties:
   "^usb@[0-9a-f]+$":
     type: object
-    $ref: /usb/mediatek,mtk-xhci.yaml#
+    $ref: /schemas/usb/mediatek,mtk-xhci.yaml#
     description:
       The xhci should be added as subnode to mtu3 as shown in the following
       example if the host mode is enabled.

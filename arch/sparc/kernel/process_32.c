@@ -259,9 +259,11 @@ clone_stackframe(struct sparc_stackf __user *dst,
 extern void ret_from_fork(void);
 extern void ret_from_kernel_thread(void);
 
-int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
-		struct task_struct *p, unsigned long tls)
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
+	unsigned long clone_flags = args->flags;
+	unsigned long sp = args->stack;
+	unsigned long tls = args->tls;
 	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *childregs, *regs = current_pt_regs();
 	char *new_stack;
@@ -296,14 +298,13 @@ int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
 	ti->ksp = (unsigned long) new_stack;
 	p->thread.kregs = childregs;
 
-	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
+	if (unlikely(args->fn)) {
 		extern int nwindows;
 		unsigned long psr;
 		memset(new_stack, 0, STACKFRAME_SZ + TRACEREG_SZ);
-		p->thread.current_ds = KERNEL_DS;
 		ti->kpc = (((unsigned long) ret_from_kernel_thread) - 0x8);
-		childregs->u_regs[UREG_G1] = sp; /* function */
-		childregs->u_regs[UREG_G2] = arg;
+		childregs->u_regs[UREG_G1] = (unsigned long) args->fn;
+		childregs->u_regs[UREG_G2] = (unsigned long) args->fn_arg;
 		psr = childregs->psr = get_psr();
 		ti->kpsr = psr | PSR_PIL;
 		ti->kwim = 1 << (((psr & PSR_CWP) + 1) % nwindows);
@@ -311,7 +312,6 @@ int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
 	}
 	memcpy(new_stack, (char *)regs - STACKFRAME_SZ, STACKFRAME_SZ + TRACEREG_SZ);
 	childregs->u_regs[UREG_FP] = sp;
-	p->thread.current_ds = USER_DS;
 	ti->kpc = (((unsigned long) ret_from_fork) - 0x8);
 	ti->kpsr = current->thread.fork_kpsr | PSR_PIL;
 	ti->kwim = current->thread.fork_kwim;

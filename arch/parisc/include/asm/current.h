@@ -2,14 +2,16 @@
 #ifndef _ASM_PARISC_CURRENT_H
 #define _ASM_PARISC_CURRENT_H
 
-#include <asm/special_insns.h>
-
 #ifndef __ASSEMBLY__
 struct task_struct;
 
 static __always_inline struct task_struct *get_current(void)
 {
-	return (struct task_struct *) mfctl(30);
+	struct task_struct *ts;
+
+	/* do not use mfctl() macro as it is marked volatile */
+	asm( "mfctl %%cr30,%0" : "=r" (ts) );
+	return ts;
 }
 
 #define current get_current()

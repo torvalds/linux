@@ -163,7 +163,6 @@ struct request {
 		struct rb_node rb_node;	/* sort/lookup */
 		struct bio_vec special_vec;
 		void *completion_data;
-		int error_count; /* for legacy drivers, don't use */
 	};
 
 
@@ -917,8 +916,7 @@ static inline void *blk_mq_rq_to_pdu(struct request *rq)
 }
 
 #define queue_for_each_hw_ctx(q, hctx, i)				\
-	for ((i) = 0; (i) < (q)->nr_hw_queues &&			\
-	     ({ hctx = (q)->queue_hw_ctx[i]; 1; }); (i)++)
+	xa_for_each(&(q)->hctx_table, (i), (hctx))
 
 #define hctx_for_each_ctx(hctx, ctx, i)					\
 	for ((i) = 0; (i) < (hctx)->nr_ctx &&				\
@@ -952,8 +950,7 @@ int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
 		struct bio_set *bs, gfp_t gfp_mask,
 		int (*bio_ctr)(struct bio *, struct bio *, void *), void *data);
 void blk_rq_unprep_clone(struct request *rq);
-blk_status_t blk_insert_cloned_request(struct request_queue *q,
-		struct request *rq);
+blk_status_t blk_insert_cloned_request(struct request *rq);
 
 struct rq_map_data {
 	struct page **pages;
@@ -972,8 +969,7 @@ int blk_rq_unmap_user(struct bio *);
 int blk_rq_map_kern(struct request_queue *, struct request *, void *,
 		unsigned int, gfp_t);
 int blk_rq_append_bio(struct request *rq, struct bio *bio);
-void blk_execute_rq_nowait(struct request *rq, bool at_head,
-		rq_end_io_fn *end_io);
+void blk_execute_rq_nowait(struct request *rq, bool at_head);
 blk_status_t blk_execute_rq(struct request *rq, bool at_head);
 
 struct req_iterator {

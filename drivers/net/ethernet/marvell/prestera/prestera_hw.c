@@ -55,6 +55,8 @@ enum prestera_cmd_type_t {
 
 	PRESTERA_CMD_TYPE_ROUTER_RIF_CREATE = 0x600,
 	PRESTERA_CMD_TYPE_ROUTER_RIF_DELETE = 0x601,
+	PRESTERA_CMD_TYPE_ROUTER_LPM_ADD = 0x610,
+	PRESTERA_CMD_TYPE_ROUTER_LPM_DELETE = 0x611,
 	PRESTERA_CMD_TYPE_ROUTER_VR_CREATE = 0x630,
 	PRESTERA_CMD_TYPE_ROUTER_VR_DELETE = 0x631,
 
@@ -71,6 +73,10 @@ enum prestera_cmd_type_t {
 	PRESTERA_CMD_TYPE_SPAN_BIND = 0x1101,
 	PRESTERA_CMD_TYPE_SPAN_UNBIND = 0x1102,
 	PRESTERA_CMD_TYPE_SPAN_RELEASE = 0x1103,
+
+	PRESTERA_CMD_TYPE_POLICER_CREATE = 0x1500,
+	PRESTERA_CMD_TYPE_POLICER_RELEASE = 0x1501,
+	PRESTERA_CMD_TYPE_POLICER_SET = 0x1502,
 
 	PRESTERA_CMD_TYPE_CPU_CODE_COUNTERS_GET = 0x2000,
 
@@ -159,6 +165,10 @@ enum {
 	PRESTERA_FC_SYMMETRIC,
 	PRESTERA_FC_ASYMMETRIC,
 	PRESTERA_FC_SYMM_ASYMM,
+};
+
+enum {
+	PRESTERA_POLICER_MODE_SR_TCM
 };
 
 enum {
@@ -424,6 +434,12 @@ struct prestera_msg_acl_action {
 	__le32 __reserved;
 	union {
 		struct {
+			__le32 index;
+		} jump;
+		struct {
+			__le32 id;
+		} police;
+		struct {
 			__le32 id;
 		} count;
 		__le32 reserved[6];
@@ -499,6 +515,15 @@ struct prestera_msg_iface {
 	u8 __pad[3];
 };
 
+struct prestera_msg_ip_addr {
+	union {
+		__be32 ipv4;
+		__be32 ipv6[4];
+	} u;
+	u8 v; /* e.g. PRESTERA_IPV4 */
+	u8 __pad[3];
+};
+
 struct prestera_msg_rif_req {
 	struct prestera_msg_cmd cmd;
 	struct prestera_msg_iface iif;
@@ -512,6 +537,15 @@ struct prestera_msg_rif_req {
 struct prestera_msg_rif_resp {
 	struct prestera_msg_ret ret;
 	__le16 rif_id;
+	u8 __pad[2];
+};
+
+struct prestera_msg_lpm_req {
+	struct prestera_msg_cmd cmd;
+	struct prestera_msg_ip_addr dst;
+	__le32 grp_id;
+	__le32 dst_len;
+	__le16 vr_id;
 	u8 __pad[2];
 };
 
@@ -545,6 +579,26 @@ struct prestera_msg_cpu_code_counter_req {
 struct mvsw_msg_cpu_code_counter_ret {
 	struct prestera_msg_ret ret;
 	__le64 packet_count;
+};
+
+struct prestera_msg_policer_req {
+	struct prestera_msg_cmd cmd;
+	__le32 id;
+	union {
+		struct {
+			__le64 cir;
+			__le32 cbs;
+		} __packed sr_tcm; /* make sure always 12 bytes size */
+		__le32 reserved[6];
+	};
+	u8 mode;
+	u8 type;
+	u8 pad[2];
+};
+
+struct prestera_msg_policer_resp {
+	struct prestera_msg_ret ret;
+	__le32 id;
 };
 
 struct prestera_msg_event {
@@ -598,9 +652,12 @@ static void prestera_hw_build_tests(void)
 	BUILD_BUG_ON(sizeof(struct prestera_msg_counter_stats) != 16);
 	BUILD_BUG_ON(sizeof(struct prestera_msg_rif_req) != 36);
 	BUILD_BUG_ON(sizeof(struct prestera_msg_vr_req) != 8);
+	BUILD_BUG_ON(sizeof(struct prestera_msg_lpm_req) != 36);
+	BUILD_BUG_ON(sizeof(struct prestera_msg_policer_req) != 36);
 
 	/*  structure that are part of req/resp fw messages */
 	BUILD_BUG_ON(sizeof(struct prestera_msg_iface) != 16);
+	BUILD_BUG_ON(sizeof(struct prestera_msg_ip_addr) != 20);
 
 	/* check responses */
 	BUILD_BUG_ON(sizeof(struct prestera_msg_common_resp) != 8);
@@ -615,6 +672,7 @@ static void prestera_hw_build_tests(void)
 	BUILD_BUG_ON(sizeof(struct prestera_msg_counter_resp) != 24);
 	BUILD_BUG_ON(sizeof(struct prestera_msg_rif_resp) != 12);
 	BUILD_BUG_ON(sizeof(struct prestera_msg_vr_resp) != 12);
+	BUILD_BUG_ON(sizeof(struct prestera_msg_policer_resp) != 12);
 
 	/* check events */
 	BUILD_BUG_ON(sizeof(struct prestera_msg_event_port) != 20);
@@ -1163,6 +1221,12 @@ prestera_acl_rule_add_put_action(struct prestera_msg_acl_action *action,
 	case PRESTERA_ACL_RULE_ACTION_DROP:
 	case PRESTERA_ACL_RULE_ACTION_TRAP:
 		/* just rule action id, no specific data */
+		break;
+	case PRESTERA_ACL_RULE_ACTION_JUMP:
+		action->jump.index = __cpu_to_le32(info->jump.index);
+		break;
+	case PRESTERA_ACL_RULE_ACTION_POLICE:
+		action->police.id = __cpu_to_le32(info->police.id);
 		break;
 	case PRESTERA_ACL_RULE_ACTION_COUNT:
 		action->count.id = __cpu_to_le32(info->count.id);
@@ -1891,6 +1955,33 @@ int prestera_hw_vr_delete(struct prestera_switch *sw, u16 vr_id)
 			    sizeof(req));
 }
 
+int prestera_hw_lpm_add(struct prestera_switch *sw, u16 vr_id,
+			__be32 dst, u32 dst_len, u32 grp_id)
+{
+	struct prestera_msg_lpm_req req = {
+		.dst_len = __cpu_to_le32(dst_len),
+		.vr_id = __cpu_to_le16(vr_id),
+		.grp_id = __cpu_to_le32(grp_id),
+		.dst.u.ipv4 = dst
+	};
+
+	return prestera_cmd(sw, PRESTERA_CMD_TYPE_ROUTER_LPM_ADD, &req.cmd,
+			    sizeof(req));
+}
+
+int prestera_hw_lpm_del(struct prestera_switch *sw, u16 vr_id,
+			__be32 dst, u32 dst_len)
+{
+	struct prestera_msg_lpm_req req = {
+		.dst_len = __cpu_to_le32(dst_len),
+		.vr_id = __cpu_to_le16(vr_id),
+		.dst.u.ipv4 = dst
+	};
+
+	return prestera_cmd(sw, PRESTERA_CMD_TYPE_ROUTER_LPM_DELETE, &req.cmd,
+			    sizeof(req));
+}
+
 int prestera_hw_rxtx_init(struct prestera_switch *sw,
 			  struct prestera_rxtx_params *params)
 {
@@ -2106,5 +2197,50 @@ int prestera_hw_counter_clear(struct prestera_switch *sw, u32 block_id,
 	};
 
 	return prestera_cmd(sw, PRESTERA_CMD_TYPE_COUNTER_CLEAR,
+			    &req.cmd, sizeof(req));
+}
+
+int prestera_hw_policer_create(struct prestera_switch *sw, u8 type,
+			       u32 *policer_id)
+{
+	struct prestera_msg_policer_resp resp;
+	struct prestera_msg_policer_req req = {
+		.type = type
+	};
+	int err;
+
+	err = prestera_cmd_ret(sw, PRESTERA_CMD_TYPE_POLICER_CREATE,
+			       &req.cmd, sizeof(req), &resp.ret, sizeof(resp));
+	if (err)
+		return err;
+
+	*policer_id = __le32_to_cpu(resp.id);
+	return 0;
+}
+
+int prestera_hw_policer_release(struct prestera_switch *sw,
+				u32 policer_id)
+{
+	struct prestera_msg_policer_req req = {
+		.id = __cpu_to_le32(policer_id)
+	};
+
+	return prestera_cmd(sw, PRESTERA_CMD_TYPE_POLICER_RELEASE,
+			    &req.cmd, sizeof(req));
+}
+
+int prestera_hw_policer_sr_tcm_set(struct prestera_switch *sw,
+				   u32 policer_id, u64 cir, u32 cbs)
+{
+	struct prestera_msg_policer_req req = {
+		.mode = PRESTERA_POLICER_MODE_SR_TCM,
+		.id = __cpu_to_le32(policer_id),
+		.sr_tcm = {
+			.cir = __cpu_to_le64(cir),
+			.cbs = __cpu_to_le32(cbs)
+		}
+	};
+
+	return prestera_cmd(sw, PRESTERA_CMD_TYPE_POLICER_SET,
 			    &req.cmd, sizeof(req));
 }

@@ -1474,7 +1474,6 @@ static int sca3000_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = devm_iio_kfifo_buffer_setup(&spi->dev, indio_dev,
-					  INDIO_BUFFER_SOFTWARE,
 					  &sca3000_ring_setup_ops);
 	if (ret)
 		return ret;
@@ -1524,7 +1523,7 @@ error_ret:
 	return ret;
 }
 
-static int sca3000_remove(struct spi_device *spi)
+static void sca3000_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct sca3000_state *st = iio_priv(indio_dev);
@@ -1535,8 +1534,6 @@ static int sca3000_remove(struct spi_device *spi)
 	sca3000_stop_all_interrupts(st);
 	if (spi->irq)
 		free_irq(spi->irq, indio_dev);
-
-	return 0;
 }
 
 static const struct spi_device_id sca3000_id[] = {

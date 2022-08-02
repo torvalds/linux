@@ -369,12 +369,19 @@ static void vp702x_usb_disconnect(struct usb_interface *intf)
 	dvb_usb_device_exit(intf);
 }
 
-static struct usb_device_id vp702x_usb_table [] = {
-	    { USB_DEVICE(USB_VID_VISIONPLUS, USB_PID_TWINHAN_VP7021_COLD) },
-//	    { USB_DEVICE(USB_VID_VISIONPLUS, USB_PID_TWINHAN_VP7020_COLD) },
-//	    { USB_DEVICE(USB_VID_VISIONPLUS, USB_PID_TWINHAN_VP7020_WARM) },
-	    { 0 },
+enum {
+	VISIONPLUS_VP7021_COLD,
+	VISIONPLUS_VP7020_COLD,
+	VISIONPLUS_VP7020_WARM,
 };
+
+static struct usb_device_id vp702x_usb_table[] = {
+	DVB_USB_DEV(VISIONPLUS, VISIONPLUS_VP7021_COLD),
+//	DVB_USB_DEV(VISIONPLUS, VISIONPLUS_VP7020_COLD),
+//	DVB_USB_DEV(VISIONPLUS, VISIONPLUS_VP7020_WARM),
+	{ }
+};
+
 MODULE_DEVICE_TABLE(usb, vp702x_usb_table);
 
 static struct dvb_usb_device_properties vp702x_properties = {
@@ -421,12 +428,12 @@ static struct dvb_usb_device_properties vp702x_properties = {
 	.num_device_descs = 1,
 	.devices = {
 		{ .name = "TwinhanDTV StarBox DVB-S USB2.0 (VP7021)",
-		  .cold_ids = { &vp702x_usb_table[0], NULL },
+		  .cold_ids = { &vp702x_usb_table[VISIONPLUS_VP7021_COLD], NULL },
 		  .warm_ids = { NULL },
 		},
 /*		{ .name = "TwinhanDTV StarBox DVB-S USB2.0 (VP7020)",
-		  .cold_ids = { &vp702x_usb_table[2], NULL },
-		  .warm_ids = { &vp702x_usb_table[3], NULL },
+		  .cold_ids = { &vp702x_usb_table[VISIONPLUS_VP7020_COLD], NULL },
+		  .warm_ids = { &vp702x_usb_table[VISIONPLUS_VP7020_WARM], NULL },
 		},
 */		{ NULL },
 	}

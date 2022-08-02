@@ -93,8 +93,7 @@ static int sprd_hwspinlock_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	sprd_hwlock = devm_kzalloc(&pdev->dev,
-				   sizeof(struct sprd_hwspinlock_dev) +
-				   SPRD_HWLOCKS_NUM * sizeof(*lock),
+				   struct_size(sprd_hwlock, bank.lock, SPRD_HWLOCKS_NUM),
 				   GFP_KERNEL);
 	if (!sprd_hwlock)
 		return -ENOMEM;

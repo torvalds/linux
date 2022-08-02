@@ -9,6 +9,12 @@
 #ifndef __RENESAS_RZG2L_CPG_H__
 #define __RENESAS_RZG2L_CPG_H__
 
+#define CPG_SIPLL5_STBY		(0x140)
+#define CPG_SIPLL5_CLK1		(0x144)
+#define CPG_SIPLL5_CLK3		(0x14C)
+#define CPG_SIPLL5_CLK4		(0x150)
+#define CPG_SIPLL5_CLK5		(0x154)
+#define CPG_SIPLL5_MON		(0x15C)
 #define CPG_PL1_DDIV		(0x200)
 #define CPG_PL2_DDIV		(0x204)
 #define CPG_PL3A_DDIV		(0x208)
@@ -18,6 +24,24 @@
 #define CPG_PL3_SSEL		(0x408)
 #define CPG_PL6_SSEL		(0x414)
 #define CPG_PL6_ETH_SSEL	(0x418)
+#define CPG_PL5_SDIV		(0x420)
+#define CPG_RST_MON		(0x680)
+#define CPG_OTHERFUNC1_REG	(0xBE8)
+
+#define CPG_SIPLL5_STBY_RESETB		BIT(0)
+#define CPG_SIPLL5_STBY_RESETB_WEN	BIT(16)
+#define CPG_SIPLL5_STBY_SSCG_EN_WEN	BIT(18)
+#define CPG_SIPLL5_STBY_DOWNSPREAD_WEN	BIT(20)
+#define CPG_SIPLL5_CLK1_POSTDIV1_WEN	BIT(16)
+#define CPG_SIPLL5_CLK1_POSTDIV2_WEN	BIT(20)
+#define CPG_SIPLL5_CLK1_REFDIV_WEN	BIT(24)
+#define CPG_SIPLL5_CLK4_RESV_LSB	(0xFF)
+#define CPG_SIPLL5_MON_PLL5_LOCK	BIT(4)
+
+#define CPG_OTHERFUNC1_REG_RES0_ON_WEN	BIT(16)
+
+#define CPG_PL5_SDIV_DIV_DSI_A_WEN	BIT(16)
+#define CPG_PL5_SDIV_DIV_DSI_B_WEN	BIT(24)
 
 #define CPG_CLKSTATUS_SELSDHI0_STS	BIT(28)
 #define CPG_CLKSTATUS_SELSDHI1_STS	BIT(29)
@@ -34,6 +58,7 @@
 		(((offset) << 20) | ((bitpos) << 12) | ((size) << 8))
 #define DIVPL1A		DDIV_PACK(CPG_PL1_DDIV, 0, 2)
 #define DIVPL2A		DDIV_PACK(CPG_PL2_DDIV, 0, 3)
+#define DIVDSILPCLK	DDIV_PACK(CPG_PL2_DDIV, 12, 2)
 #define DIVPL3A		DDIV_PACK(CPG_PL3A_DDIV, 0, 3)
 #define DIVPL3B		DDIV_PACK(CPG_PL3A_DDIV, 4, 3)
 #define DIVPL3C		DDIV_PACK(CPG_PL3A_DDIV, 8, 3)
@@ -43,11 +68,14 @@
 		(((offset) << 20) | ((bitpos) << 12) | ((size) << 8))
 
 #define SEL_PLL3_3	SEL_PLL_PACK(CPG_PL3_SSEL, 8, 1)
+#define SEL_PLL5_4	SEL_PLL_PACK(CPG_OTHERFUNC1_REG, 0, 1)
 #define SEL_PLL6_2	SEL_PLL_PACK(CPG_PL6_ETH_SSEL, 0, 1)
 #define SEL_GPU2	SEL_PLL_PACK(CPG_PL6_SSEL, 12, 1)
 
 #define SEL_SDHI0	DDIV_PACK(CPG_PL2SDHI_DSEL, 0, 2)
 #define SEL_SDHI1	DDIV_PACK(CPG_PL2SDHI_DSEL, 4, 2)
+
+#define EXTAL_FREQ_IN_MEGA_HZ	(24)
 
 /**
  * Definitions of CPG Core Clocks
@@ -86,6 +114,16 @@ enum clk_types {
 
 	/* Clock with SD clock source selector */
 	CLK_TYPE_SD_MUX,
+
+	/* Clock for SIPLL5 */
+	CLK_TYPE_SIPLL5,
+
+	/* Clock for PLL5_4 clock source selector */
+	CLK_TYPE_PLL5_4_MUX,
+
+	/* Clock for DSI divider */
+	CLK_TYPE_DSI_DIV,
+
 };
 
 #define DEF_TYPE(_name, _id, _type...) \
@@ -98,17 +136,36 @@ enum clk_types {
 	DEF_TYPE(_name, _id, CLK_TYPE_IN)
 #define DEF_FIXED(_name, _id, _parent, _mult, _div) \
 	DEF_BASE(_name, _id, CLK_TYPE_FF, _parent, .div = _div, .mult = _mult)
-#define DEF_DIV(_name, _id, _parent, _conf, _dtable, _flag) \
+#define DEF_DIV(_name, _id, _parent, _conf, _dtable) \
 	DEF_TYPE(_name, _id, CLK_TYPE_DIV, .conf = _conf, \
-		 .parent = _parent, .dtable = _dtable, .flag = _flag)
-#define DEF_MUX(_name, _id, _conf, _parent_names, _num_parents, _flag, \
-		_mux_flags) \
+		 .parent = _parent, .dtable = _dtable, \
+		 .flag = CLK_DIVIDER_HIWORD_MASK)
+#define DEF_DIV_RO(_name, _id, _parent, _conf, _dtable) \
+	DEF_TYPE(_name, _id, CLK_TYPE_DIV, .conf = _conf, \
+		 .parent = _parent, .dtable = _dtable, \
+		 .flag = CLK_DIVIDER_READ_ONLY)
+#define DEF_MUX(_name, _id, _conf, _parent_names) \
 	DEF_TYPE(_name, _id, CLK_TYPE_MUX, .conf = _conf, \
-		 .parent_names = _parent_names, .num_parents = _num_parents, \
-		 .flag = _flag, .mux_flags = _mux_flags)
-#define DEF_SD_MUX(_name, _id, _conf, _parent_names, _num_parents) \
+		 .parent_names = _parent_names, \
+		 .num_parents = ARRAY_SIZE(_parent_names), \
+		 .mux_flags = CLK_MUX_HIWORD_MASK)
+#define DEF_MUX_RO(_name, _id, _conf, _parent_names) \
+	DEF_TYPE(_name, _id, CLK_TYPE_MUX, .conf = _conf, \
+		 .parent_names = _parent_names, \
+		 .num_parents = ARRAY_SIZE(_parent_names), \
+		 .mux_flags = CLK_MUX_READ_ONLY)
+#define DEF_SD_MUX(_name, _id, _conf, _parent_names) \
 	DEF_TYPE(_name, _id, CLK_TYPE_SD_MUX, .conf = _conf, \
-		 .parent_names = _parent_names, .num_parents = _num_parents)
+		 .parent_names = _parent_names, \
+		 .num_parents = ARRAY_SIZE(_parent_names))
+#define DEF_PLL5_FOUTPOSTDIV(_name, _id, _parent) \
+	DEF_TYPE(_name, _id, CLK_TYPE_SIPLL5, .parent = _parent)
+#define DEF_PLL5_4_MUX(_name, _id, _conf, _parent_names) \
+	DEF_TYPE(_name, _id, CLK_TYPE_PLL5_4_MUX, .conf = _conf, \
+		 .parent_names = _parent_names, \
+		 .num_parents = ARRAY_SIZE(_parent_names))
+#define DEF_DSI_DIV(_name, _id, _parent, _flag) \
+	DEF_TYPE(_name, _id, CLK_TYPE_DSI_DIV, .parent = _parent, .flag = _flag)
 
 /**
  * struct rzg2l_mod_clk - Module Clocks definitions
@@ -150,17 +207,22 @@ struct rzg2l_mod_clk {
  *
  * @off: register offset
  * @bit: reset bit
+ * @monbit: monitor bit in CPG_RST_MON register, -1 if none
  */
 struct rzg2l_reset {
 	u16 off;
 	u8 bit;
+	s8 monbit;
 };
 
-#define DEF_RST(_id, _off, _bit)	\
+#define DEF_RST_MON(_id, _off, _bit, _monbit)	\
 	[_id] = { \
 		.off = (_off), \
-		.bit = (_bit) \
+		.bit = (_bit), \
+		.monbit = (_monbit) \
 	}
+#define DEF_RST(_id, _off, _bit)	\
+	DEF_RST_MON(_id, _off, _bit, -1)
 
 /**
  * struct rzg2l_cpg_info - SoC-specific CPG Description
@@ -180,6 +242,7 @@ struct rzg2l_reset {
  * @crit_mod_clks: Array with Module Clock IDs of critical clocks that
  *                 should not be disabled without a knowledgeable driver
  * @num_crit_mod_clks: Number of entries in crit_mod_clks[]
+ * @has_clk_mon_regs: Flag indicating whether the SoC has CLK_MON registers
  */
 struct rzg2l_cpg_info {
 	/* Core Clocks */
@@ -200,8 +263,13 @@ struct rzg2l_cpg_info {
 	/* Critical Module Clocks that should not be disabled */
 	const unsigned int *crit_mod_clks;
 	unsigned int num_crit_mod_clks;
+
+	bool has_clk_mon_regs;
 };
 
+extern const struct rzg2l_cpg_info r9a07g043_cpg_info;
 extern const struct rzg2l_cpg_info r9a07g044_cpg_info;
+extern const struct rzg2l_cpg_info r9a07g054_cpg_info;
+extern const struct rzg2l_cpg_info r9a09g011_cpg_info;
 
 #endif

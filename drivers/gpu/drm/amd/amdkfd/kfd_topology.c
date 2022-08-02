@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2014-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -45,15 +46,13 @@ static struct list_head topology_device_list;
 static struct kfd_system_properties sys_props;
 
 static DECLARE_RWSEM(topology_lock);
-static atomic_t topology_crat_proximity_domain;
+static uint32_t topology_crat_proximity_domain;
 
-struct kfd_topology_device *kfd_topology_device_by_proximity_domain(
+struct kfd_topology_device *kfd_topology_device_by_proximity_domain_no_lock(
 						uint32_t proximity_domain)
 {
 	struct kfd_topology_device *top_dev;
 	struct kfd_topology_device *device = NULL;
-
-	down_read(&topology_lock);
 
 	list_for_each_entry(top_dev, &topology_device_list, list)
 		if (top_dev->proximity_domain == proximity_domain) {
@@ -61,6 +60,18 @@ struct kfd_topology_device *kfd_topology_device_by_proximity_domain(
 			break;
 		}
 
+	return device;
+}
+
+struct kfd_topology_device *kfd_topology_device_by_proximity_domain(
+						uint32_t proximity_domain)
+{
+	struct kfd_topology_device *device = NULL;
+
+	down_read(&topology_lock);
+
+	device = kfd_topology_device_by_proximity_domain_no_lock(
+							proximity_domain);
 	up_read(&topology_lock);
 
 	return device;
@@ -1059,7 +1070,7 @@ int kfd_topology_init(void)
 	down_write(&topology_lock);
 	kfd_topology_update_device_list(&temp_topology_device_list,
 					&topology_device_list);
-	atomic_set(&topology_crat_proximity_domain, sys_props.num_devices-1);
+	topology_crat_proximity_domain = sys_props.num_devices-1;
 	ret = kfd_topology_update_sysfs();
 	up_write(&topology_lock);
 
@@ -1101,15 +1112,12 @@ static uint32_t kfd_generate_gpu_id(struct kfd_dev *gpu)
 	uint32_t buf[7];
 	uint64_t local_mem_size;
 	int i;
-	struct kfd_local_mem_info local_mem_info;
 
 	if (!gpu)
 		return 0;
 
-	amdgpu_amdkfd_get_local_mem_info(gpu->adev, &local_mem_info);
-
-	local_mem_size = local_mem_info.local_mem_size_private +
-			local_mem_info.local_mem_size_public;
+	local_mem_size = gpu->local_mem_info.local_mem_size_private +
+			gpu->local_mem_info.local_mem_size_public;
 
 	buf[0] = gpu->pdev->devfn;
 	buf[1] = gpu->pdev->subsystem_vendor |
@@ -1263,6 +1271,12 @@ static void kfd_fill_iolink_non_crat_info(struct kfd_topology_device *dev)
 		if (!peer_dev)
 			continue;
 
+		/* Include the CPU peer in GPU hive if connected over xGMI. */
+		if (!peer_dev->gpu && !peer_dev->node_props.hive_id &&
+				dev->node_props.hive_id &&
+				dev->gpu->adev->gmc.xgmi.connected_to_cpu)
+			peer_dev->node_props.hive_id = dev->node_props.hive_id;
+
 		list_for_each_entry(inbound_link, &peer_dev->io_link_props,
 									list) {
 			if (inbound_link->node_to != link->node_from)
@@ -1294,24 +1308,6 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 
 	pr_debug("Adding new GPU (ID: 0x%x) to topology\n", gpu_id);
 
-	proximity_domain = atomic_inc_return(&topology_crat_proximity_domain);
-
-	/* Include the CPU in xGMI hive if xGMI connected by assigning it the hive ID. */
-	if (gpu->hive_id && gpu->adev->gmc.xgmi.connected_to_cpu) {
-		struct kfd_topology_device *top_dev;
-
-		down_read(&topology_lock);
-
-		list_for_each_entry(top_dev, &topology_device_list, list) {
-			if (top_dev->gpu)
-				break;
-
-			top_dev->node_props.hive_id = gpu->hive_id;
-		}
-
-		up_read(&topology_lock);
-	}
-
 	/* Check to see if this gpu device exists in the topology_device_list.
 	 * If so, assign the gpu to that device,
 	 * else create a Virtual CRAT for this gpu device and then parse that
@@ -1320,12 +1316,16 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	 */
 	dev = kfd_assign_gpu(gpu);
 	if (!dev) {
+		down_write(&topology_lock);
+		proximity_domain = ++topology_crat_proximity_domain;
+
 		res = kfd_create_crat_image_virtual(&crat_image, &image_size,
 						    COMPUTE_UNIT_GPU, gpu,
 						    proximity_domain);
 		if (res) {
 			pr_err("Error creating VCRAT for GPU (ID: 0x%x)\n",
 			       gpu_id);
+			topology_crat_proximity_domain--;
 			return res;
 		}
 		res = kfd_parse_crat_table(crat_image,
@@ -1334,10 +1334,10 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		if (res) {
 			pr_err("Error parsing VCRAT for GPU (ID: 0x%x)\n",
 			       gpu_id);
+			topology_crat_proximity_domain--;
 			goto err;
 		}
 
-		down_write(&topology_lock);
 		kfd_topology_update_device_list(&temp_topology_device_list,
 			&topology_device_list);
 
@@ -1402,7 +1402,8 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	dev->node_props.num_sdma_xgmi_engines =
 					kfd_get_num_xgmi_sdma_engines(gpu);
 	dev->node_props.num_sdma_queues_per_engine =
-				gpu->device_info.num_sdma_queues_per_engine;
+				gpu->device_info.num_sdma_queues_per_engine -
+				gpu->device_info.num_reserved_sdma_queues_per_engine;
 	dev->node_props.num_gws = (dev->gpu->gws &&
 		dev->gpu->dqm->sched_policy != KFD_SCHED_POLICY_NO_HWS) ?
 		dev->gpu->adev->gds.gws_size : 0;
@@ -1441,9 +1442,9 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	}
 
 	/*
-	* Overwrite ATS capability according to needs_iommu_device to fix
-	* potential missing corresponding bit in CRAT of BIOS.
-	*/
+	 * Overwrite ATS capability according to needs_iommu_device to fix
+	 * potential missing corresponding bit in CRAT of BIOS.
+	 */
 	if (dev->gpu->use_iommu_v2)
 		dev->node_props.capability |= HSA_CAP_ATS_PRESENT;
 	else
@@ -1484,25 +1485,78 @@ err:
 	return res;
 }
 
+/**
+ * kfd_topology_update_io_links() - Update IO links after device removal.
+ * @proximity_domain: Proximity domain value of the dev being removed.
+ *
+ * The topology list currently is arranged in increasing order of
+ * proximity domain.
+ *
+ * Two things need to be done when a device is removed:
+ * 1. All the IO links to this device need to be removed.
+ * 2. All nodes after the current device node need to move
+ *    up once this device node is removed from the topology
+ *    list. As a result, the proximity domain values for
+ *    all nodes after the node being deleted reduce by 1.
+ *    This would also cause the proximity domain values for
+ *    io links to be updated based on new proximity domain
+ *    values.
+ *
+ * Context: The caller must hold write topology_lock.
+ */
+static void kfd_topology_update_io_links(int proximity_domain)
+{
+	struct kfd_topology_device *dev;
+	struct kfd_iolink_properties *iolink, *tmp;
+
+	list_for_each_entry(dev, &topology_device_list, list) {
+		if (dev->proximity_domain > proximity_domain)
+			dev->proximity_domain--;
+
+		list_for_each_entry_safe(iolink, tmp, &dev->io_link_props, list) {
+			/*
+			 * If there is an io link to the dev being deleted
+			 * then remove that IO link also.
+			 */
+			if (iolink->node_to == proximity_domain) {
+				list_del(&iolink->list);
+				dev->io_link_count--;
+				dev->node_props.io_links_count--;
+			} else {
+				if (iolink->node_from > proximity_domain)
+					iolink->node_from--;
+				if (iolink->node_to > proximity_domain)
+					iolink->node_to--;
+			}
+		}
+	}
+}
+
 int kfd_topology_remove_device(struct kfd_dev *gpu)
 {
 	struct kfd_topology_device *dev, *tmp;
 	uint32_t gpu_id;
 	int res = -ENODEV;
+	int i = 0;
 
 	down_write(&topology_lock);
 
-	list_for_each_entry_safe(dev, tmp, &topology_device_list, list)
+	list_for_each_entry_safe(dev, tmp, &topology_device_list, list) {
 		if (dev->gpu == gpu) {
 			gpu_id = dev->gpu_id;
 			kfd_remove_sysfs_node_entry(dev);
 			kfd_release_topology_device(dev);
 			sys_props.num_devices--;
+			kfd_topology_update_io_links(i);
+			topology_crat_proximity_domain = sys_props.num_devices-1;
+			sys_props.generation_count++;
 			res = 0;
 			if (kfd_topology_update_sysfs() < 0)
 				kfd_topology_release_sysfs();
 			break;
 		}
+		i++;
+	}
 
 	up_write(&topology_lock);
 

@@ -133,11 +133,11 @@ struct tb_cap_phy {
 } __packed;
 
 struct tb_eeprom_ctl {
-	bool clock:1; /* send pulse to transfer one bit */
-	bool access_low:1; /* set to 0 before access */
-	bool data_out:1; /* to eeprom */
-	bool data_in:1; /* from eeprom */
-	bool access_high:1; /* set to 1 before access */
+	bool fl_sk:1; /* send pulse to transfer one bit */
+	bool fl_cs:1; /* set to 0 before access */
+	bool fl_di:1; /* to eeprom */
+	bool fl_do:1; /* from eeprom */
+	bool bit_banging_enable:1; /* set to 1 before access */
 	bool not_present:1; /* should be 0 */
 	bool unknown1:1;
 	bool present:1; /* should be 1 */
@@ -146,14 +146,14 @@ struct tb_eeprom_ctl {
 
 struct tb_cap_plug_events {
 	struct tb_cap_extended_short cap_header;
-	u32 __unknown1:2;
-	u32 plug_events:5;
-	u32 __unknown2:25;
-	u32 __unknown3;
-	u32 __unknown4;
+	u32 __unknown1:2; /* VSC_CS_1 */
+	u32 plug_events:5; /* VSC_CS_1 */
+	u32 __unknown2:25; /* VSC_CS_1 */
+	u32 vsc_cs_2;
+	u32 vsc_cs_3;
 	struct tb_eeprom_ctl eeprom_ctl;
-	u32 __unknown5[7];
-	u32 drom_offset; /* 32 bit register, but eeprom addresses are 16 bit */
+	u32 __unknown5[7]; /* VSC_CS_5 -> VSC_CS_11 */
+	u32 drom_offset; /* VSC_CS_12: 32 bit register, but eeprom addresses are 16 bit */
 } __packed;
 
 /* device headers */
@@ -311,11 +311,16 @@ struct tb_regs_port_header {
 
 /* Lane adapter registers */
 #define LANE_ADP_CS_0				0x00
+#define LANE_ADP_CS_0_SUPPORTED_SPEED_MASK	GENMASK(19, 16)
+#define LANE_ADP_CS_0_SUPPORTED_SPEED_SHIFT	16
 #define LANE_ADP_CS_0_SUPPORTED_WIDTH_MASK	GENMASK(25, 20)
 #define LANE_ADP_CS_0_SUPPORTED_WIDTH_SHIFT	20
+#define LANE_ADP_CS_0_SUPPORTED_WIDTH_DUAL	0x2
 #define LANE_ADP_CS_0_CL0S_SUPPORT		BIT(26)
 #define LANE_ADP_CS_0_CL1_SUPPORT		BIT(27)
 #define LANE_ADP_CS_1				0x01
+#define LANE_ADP_CS_1_TARGET_SPEED_MASK		GENMASK(3, 0)
+#define LANE_ADP_CS_1_TARGET_SPEED_GEN3		0xc
 #define LANE_ADP_CS_1_TARGET_WIDTH_MASK		GENMASK(9, 4)
 #define LANE_ADP_CS_1_TARGET_WIDTH_SHIFT	4
 #define LANE_ADP_CS_1_TARGET_WIDTH_SINGLE	0x1
@@ -389,6 +394,7 @@ struct tb_regs_port_header {
 #define DP_COMMON_CAP_1_LANE			0x0
 #define DP_COMMON_CAP_2_LANES			0x1
 #define DP_COMMON_CAP_4_LANES			0x2
+#define DP_COMMON_CAP_LTTPR_NS			BIT(27)
 #define DP_COMMON_CAP_DPRX_DONE			BIT(31)
 
 /* PCIe adapter registers */
@@ -462,6 +468,12 @@ struct tb_regs_hop {
 #define TMU_ADP_CS_6_DISABLE_TMU_OBJ_CL2	BIT(3)
 
 /* Plug Events registers */
+#define TB_PLUG_EVENTS_USB_DISABLE		BIT(2)
+#define TB_PLUG_EVENTS_CS_1_LANE_DISABLE	BIT(3)
+#define TB_PLUG_EVENTS_CS_1_DPOUT_DISABLE	BIT(4)
+#define TB_PLUG_EVENTS_CS_1_LOW_DPIN_DISABLE	BIT(5)
+#define TB_PLUG_EVENTS_CS_1_HIGH_DPIN_DISABLE	BIT(6)
+
 #define TB_PLUG_EVENTS_PCIE_WR_DATA		0x1b
 #define TB_PLUG_EVENTS_PCIE_CMD			0x1c
 #define TB_PLUG_EVENTS_PCIE_CMD_DW_OFFSET_MASK	GENMASK(9, 0)
@@ -501,6 +513,9 @@ struct tb_regs_hop {
 #define TB_LC_POWER				0x740
 
 /* Link controller registers */
+#define TB_LC_CS_42				0x2a
+#define TB_LC_CS_42_USB_PLUGGED			BIT(31)
+
 #define TB_LC_PORT_ATTR				0x8d
 #define TB_LC_PORT_ATTR_BE			BIT(12)
 
@@ -520,5 +535,8 @@ struct tb_regs_hop {
 #define TB_LC_SX_CTRL_SLP			BIT(31)
 #define TB_LC_LINK_ATTR				0x97
 #define TB_LC_LINK_ATTR_CPS			BIT(18)
+
+#define TB_LC_LINK_REQ				0xad
+#define TB_LC_LINK_REQ_XHCI_CONNECT		BIT(31)
 
 #endif

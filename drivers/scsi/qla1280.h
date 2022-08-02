@@ -87,8 +87,7 @@
 #define RESPONSE_ENTRY_CNT		63  /* Number of response entries. */
 
 /*
- * SCSI Request Block structure  (sp)  that is placed
- * on cmd->SCp location of every I/O
+ * SCSI Request Block structure (sp) that occurs after each struct scsi_cmnd.
  */
 struct srb {
 	struct list_head list;		/* (8/16) LU queue */

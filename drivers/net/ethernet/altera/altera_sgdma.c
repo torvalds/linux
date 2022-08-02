@@ -513,7 +513,7 @@ static int sgdma_txbusy(struct altera_tse_private *priv)
 {
 	int delay = 0;
 
-	/* if DMA is busy, wait for current transactino to finish */
+	/* if DMA is busy, wait for current transaction to finish */
 	while ((csrrd32(priv->tx_dma_csr, sgdma_csroffs(status))
 		& SGDMA_STSREG_BUSY) && (delay++ < 100))
 		udelay(1);

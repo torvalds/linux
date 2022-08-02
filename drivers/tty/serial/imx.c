@@ -30,7 +30,7 @@
 #include <linux/dma-mapping.h>
 
 #include <asm/irq.h>
-#include <linux/platform_data/dma-imx.h>
+#include <linux/dma/imx-dma.h>
 
 #include "serial_mctrl_gpio.h"
 
@@ -455,9 +455,14 @@ static void imx_uart_stop_tx(struct uart_port *port)
 	if (port->rs485.flags & SER_RS485_ENABLED) {
 		if (sport->tx_state == SEND) {
 			sport->tx_state = WAIT_AFTER_SEND;
-			start_hrtimer_ms(&sport->trigger_stop_tx,
+
+			if (port->rs485.delay_rts_after_send > 0) {
+				start_hrtimer_ms(&sport->trigger_stop_tx,
 					 port->rs485.delay_rts_after_send);
-			return;
+				return;
+			}
+
+			/* continue without any delay */
 		}
 
 		if (sport->tx_state == WAIT_AFTER_RTS ||
@@ -698,9 +703,14 @@ static void imx_uart_start_tx(struct uart_port *port)
 				imx_uart_stop_rx(port);
 
 			sport->tx_state = WAIT_AFTER_RTS;
-			start_hrtimer_ms(&sport->trigger_start_tx,
+
+			if (port->rs485.delay_rts_before_send > 0) {
+				start_hrtimer_ms(&sport->trigger_start_tx,
 					 port->rs485.delay_rts_before_send);
-			return;
+				return;
+			}
+
+			/* continue without any delay */
 		}
 
 		if (sport->tx_state == WAIT_AFTER_SEND
@@ -1258,7 +1268,7 @@ static void imx_uart_clear_rx_errors(struct imx_port *sport)
 }
 
 #define TXTL_DEFAULT 2 /* reset default */
-#define RXTL_DEFAULT 1 /* reset default */
+#define RXTL_DEFAULT 8 /* 8 characters or aging timer */
 #define TXTL_DMA 8 /* DMA burst setting */
 #define RXTL_DMA 9 /* DMA burst setting */
 
@@ -1438,7 +1448,7 @@ static int imx_uart_startup(struct uart_port *port)
 	imx_uart_writel(sport, ucr1, UCR1);
 
 	ucr4 = imx_uart_readl(sport, UCR4) & ~(UCR4_OREN | UCR4_INVR);
-	if (!sport->dma_is_enabled)
+	if (!dma_is_inited)
 		ucr4 |= UCR4_OREN;
 	if (sport->inverted_rx)
 		ucr4 |= UCR4_INVR;
@@ -1927,8 +1937,6 @@ static int imx_uart_rs485_config(struct uart_port *port,
 	    rs485conf->flags & SER_RS485_RX_DURING_TX)
 		imx_uart_start_rx(port);
 
-	port->rs485 = *rs485conf;
-
 	return 0;
 }
 
@@ -1958,7 +1966,7 @@ static const struct uart_ops imx_uart_pops = {
 static struct imx_port *imx_uart_ports[UART_NR];
 
 #if IS_ENABLED(CONFIG_SERIAL_IMX_CONSOLE)
-static void imx_uart_console_putchar(struct uart_port *port, int ch)
+static void imx_uart_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	struct imx_port *sport = (struct imx_port *)port;
 

@@ -314,10 +314,9 @@ static int lz4_decompress_pages(struct decompress_io_ctx *dic)
 	}
 
 	if (ret != PAGE_SIZE << dic->log_cluster_size) {
-		printk_ratelimited("%sF2FS-fs (%s): lz4 invalid rlen:%zu, "
+		printk_ratelimited("%sF2FS-fs (%s): lz4 invalid ret:%d, "
 					"expected:%lu\n", KERN_ERR,
-					F2FS_I_SB(dic->inode)->sb->s_id,
-					dic->rlen,
+					F2FS_I_SB(dic->inode)->sb->s_id, ret,
 					PAGE_SIZE << dic->log_cluster_size);
 		return -EIO;
 	}
@@ -1267,7 +1266,7 @@ static int f2fs_write_compressed_pages(struct compress_ctx *cc,
 		 * checkpoint. This can only happen to quota writes which can cause
 		 * the below discard race condition.
 		 */
-		down_read(&sbi->node_write);
+		f2fs_down_read(&sbi->node_write);
 	} else if (!f2fs_trylock_op(sbi)) {
 		goto out_free;
 	}
@@ -1384,7 +1383,7 @@ unlock_continue:
 
 	f2fs_put_dnode(&dn);
 	if (IS_NOQUOTA(inode))
-		up_read(&sbi->node_write);
+		f2fs_up_read(&sbi->node_write);
 	else
 		f2fs_unlock_op(sbi);
 
@@ -1410,7 +1409,7 @@ out_put_dnode:
 	f2fs_put_dnode(&dn);
 out_unlock_op:
 	if (IS_NOQUOTA(inode))
-		up_read(&sbi->node_write);
+		f2fs_up_read(&sbi->node_write);
 	else
 		f2fs_unlock_op(sbi);
 out_free:
@@ -1505,9 +1504,7 @@ continue_unlock:
 				if (IS_NOQUOTA(cc->inode))
 					return 0;
 				ret = 0;
-				cond_resched();
-				congestion_wait(BLK_RW_ASYNC,
-						DEFAULT_IO_TIMEOUT);
+				f2fs_io_schedule_timeout(DEFAULT_IO_TIMEOUT);
 				goto retry_write;
 			}
 			return ret;
@@ -1749,8 +1746,8 @@ unsigned int f2fs_cluster_blocks_are_contiguous(struct dnode_of_data *dn)
 }
 
 const struct address_space_operations f2fs_compress_aops = {
-	.releasepage = f2fs_release_page,
-	.invalidatepage = f2fs_invalidate_page,
+	.release_folio = f2fs_release_folio,
+	.invalidate_folio = f2fs_invalidate_folio,
 };
 
 struct address_space *COMPRESS_MAPPING(struct f2fs_sb_info *sbi)

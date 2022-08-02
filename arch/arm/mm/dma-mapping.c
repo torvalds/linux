@@ -33,7 +33,7 @@
 #include <asm/dma-iommu.h>
 #include <asm/mach/map.h>
 #include <asm/system_info.h>
-#include <xen/swiotlb-xen.h>
+#include <asm/xen/xen-ops.h>
 
 #include "dma.h"
 #include "mm.h"
@@ -381,6 +381,7 @@ out:
  */
 postcore_initcall(atomic_pool_init);
 
+#ifdef CONFIG_CMA_AREAS
 struct dma_contig_early_reserve {
 	phys_addr_t base;
 	unsigned long size;
@@ -435,6 +436,7 @@ void __init dma_contiguous_remap(void)
 		iotable_init(&map, 1);
 	}
 }
+#endif
 
 static int __dma_update_pte(pte_t *pte, unsigned long addr, void *data)
 {
@@ -2285,10 +2287,7 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 
 	set_dma_ops(dev, dma_ops);
 
-#ifdef CONFIG_XEN
-	if (xen_initial_domain())
-		dev->dma_ops = &xen_swiotlb_dma_ops;
-#endif
+	xen_setup_dma_ops(dev);
 	dev->archdata.dma_ops_setup = true;
 }
 

@@ -17,12 +17,12 @@
 #define THROTTLE_RATE_BPS (5 * 1000 * 1000)
 
 /* flow_key => last_tstamp timestamp used */
-struct bpf_map_def SEC("maps") flow_map = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(uint32_t),
-	.value_size = sizeof(uint64_t),
-	.max_entries = 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, uint32_t);
+	__type(value, uint64_t);
+	__uint(max_entries, 1);
+} flow_map SEC(".maps");
 
 static inline int throttle_flow(struct __sk_buff *skb)
 {

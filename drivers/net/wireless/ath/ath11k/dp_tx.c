@@ -351,7 +351,8 @@ ath11k_dp_tx_htt_tx_complete_buf(struct ath11k_base *ab,
 			info->flags |= IEEE80211_TX_STAT_ACK;
 			info->status.ack_signal = ATH11K_DEFAULT_NOISE_FLOOR +
 						  ts->ack_rssi;
-			info->status.is_valid_ack_signal = true;
+			info->status.flags |=
+				IEEE80211_TX_STATUS_ACK_SIGNAL_VALID;
 		} else {
 			info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
 		}
@@ -426,7 +427,7 @@ void ath11k_dp_tx_update_txcompl(struct ath11k *ar, struct hal_tx_status *ts)
 	struct ath11k_sta *arsta;
 	struct ieee80211_sta *sta;
 	u16 rate, ru_tones;
-	u8 mcs, rate_idx, ofdma;
+	u8 mcs, rate_idx = 0, ofdma;
 	int ret;
 
 	spin_lock_bh(&ab->base_lock);
@@ -518,9 +519,14 @@ static void ath11k_dp_tx_complete_msdu(struct ath11k *ar,
 				       struct sk_buff *msdu,
 				       struct hal_tx_status *ts)
 {
+	struct ieee80211_tx_status status = { 0 };
+	struct ieee80211_rate_status status_rate = { 0 };
 	struct ath11k_base *ab = ar->ab;
 	struct ieee80211_tx_info *info;
 	struct ath11k_skb_cb *skb_cb;
+	struct ath11k_peer *peer;
+	struct ath11k_sta *arsta;
+	struct rate_info rate;
 
 	if (WARN_ON_ONCE(ts->buf_rel_source != HAL_WBM_REL_SRC_MODULE_TQM)) {
 		/* Must not happen */
@@ -552,7 +558,7 @@ static void ath11k_dp_tx_complete_msdu(struct ath11k *ar,
 		info->flags |= IEEE80211_TX_STAT_ACK;
 		info->status.ack_signal = ATH11K_DEFAULT_NOISE_FLOOR +
 					  ts->ack_rssi;
-		info->status.is_valid_ack_signal = true;
+		info->status.flags |= IEEE80211_TX_STATUS_ACK_SIGNAL_VALID;
 	}
 
 	if (ts->status == HAL_WBM_TQM_REL_REASON_CMD_REMOVE_TX &&
@@ -583,12 +589,31 @@ static void ath11k_dp_tx_complete_msdu(struct ath11k *ar,
 		ath11k_dp_tx_cache_peer_stats(ar, msdu, ts);
 	}
 
-	/* NOTE: Tx rate status reporting. Tx completion status does not have
-	 * necessary information (for example nss) to build the tx rate.
-	 * Might end up reporting it out-of-band from HTT stats.
-	 */
+	spin_lock_bh(&ab->base_lock);
+	peer = ath11k_peer_find_by_id(ab, ts->peer_id);
+	if (!peer || !peer->sta) {
+		ath11k_dbg(ab, ATH11K_DBG_DATA,
+			   "dp_tx: failed to find the peer with peer_id %d\n",
+			    ts->peer_id);
+		spin_unlock_bh(&ab->base_lock);
+		dev_kfree_skb_any(msdu);
+		return;
+	}
+	arsta = (struct ath11k_sta *)peer->sta->drv_priv;
+	status.sta = peer->sta;
+	status.skb = msdu;
+	status.info = info;
+	rate = arsta->last_txrate;
 
-	ieee80211_tx_status(ar->hw, msdu);
+	status_rate.rate_idx = rate;
+	status_rate.try_count = 1;
+
+	status.rates = &status_rate;
+	status.n_rates = 1;
+
+	spin_unlock_bh(&ab->base_lock);
+
+	ieee80211_tx_status_ext(ar->hw, &status);
 }
 
 static inline void ath11k_dp_tx_status_parse(struct ath11k_base *ab,

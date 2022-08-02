@@ -7,7 +7,6 @@
 #include <sys/prctl.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
-#include <sys/resource.h>
 #include "trace_helpers.h"
 
 #ifdef __mips__

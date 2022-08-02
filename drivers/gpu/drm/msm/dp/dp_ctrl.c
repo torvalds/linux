@@ -11,8 +11,9 @@
 #include <linux/phy/phy.h>
 #include <linux/phy/phy-dp.h>
 #include <linux/pm_opp.h>
+
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm_fixed.h>
-#include <drm/drm_dp_helper.h>
 #include <drm/drm_print.h>
 
 #include "dp_reg.h"
@@ -69,6 +70,7 @@ struct dp_vc_tu_mapping_table {
 
 struct dp_ctrl_private {
 	struct dp_ctrl dp_ctrl;
+	struct drm_device *drm_dev;
 	struct device *dev;
 	struct drm_dp_aux *aux;
 	struct dp_panel *panel;
@@ -113,7 +115,7 @@ void dp_ctrl_push_idle(struct dp_ctrl *dp_ctrl)
 			IDLE_PATTERN_COMPLETION_TIMEOUT_JIFFIES))
 		pr_warn("PUSH_IDLE pattern timedout\n");
 
-	DRM_DEBUG_DP("mainlink off done\n");
+	drm_dbg_dp(ctrl->drm_dev, "mainlink off\n");
 }
 
 static void dp_ctrl_config_ctrl(struct dp_ctrl_private *ctrl)
@@ -602,8 +604,9 @@ static void _tu_valid_boundary_calc(struct tu_algo_data *tu)
 	}
 }
 
-static void _dp_ctrl_calc_tu(struct dp_tu_calc_input *in,
-				   struct dp_vc_tu_mapping_table *tu_table)
+static void _dp_ctrl_calc_tu(struct dp_ctrl_private *ctrl,
+				struct dp_tu_calc_input *in,
+				struct dp_vc_tu_mapping_table *tu_table)
 {
 	struct tu_algo_data *tu;
 	int compare_result_1, compare_result_2;
@@ -686,8 +689,8 @@ static void _dp_ctrl_calc_tu(struct dp_tu_calc_input *in,
 
 	if (tu->dsc_en && compare_result_1 && compare_result_2) {
 		HBLANK_MARGIN += 4;
-		DRM_DEBUG_DP("Info: increase HBLANK_MARGIN to %d\n",
-				HBLANK_MARGIN);
+		drm_dbg_dp(ctrl->drm_dev,
+			"increase HBLANK_MARGIN to %d\n", HBLANK_MARGIN);
 	}
 
 tu_size_calc:
@@ -721,8 +724,10 @@ tu_size_calc:
 		tu->n_tus += 1;
 
 	tu->even_distribution_legacy = tu->n_tus % tu->nlanes == 0 ? 1 : 0;
-	DRM_DEBUG_DP("Info: n_sym = %d, num_of_tus = %d\n",
-		tu->valid_boundary_link, tu->n_tus);
+
+	drm_dbg_dp(ctrl->drm_dev,
+			"n_sym = %d, num_of_tus = %d\n",
+			tu->valid_boundary_link, tu->n_tus);
 
 	temp1_fp = drm_fixp_from_fraction(tu->tu_size_desired, 1);
 	temp2_fp = drm_fixp_mul(tu->original_ratio_fp, temp1_fp);
@@ -915,19 +920,20 @@ tu_size_calc:
 	tu_table->lower_boundary_count      = tu->lower_boundary_count;
 	tu_table->tu_size_minus1            = tu->tu_size_minus1;
 
-	DRM_DEBUG_DP("TU: valid_boundary_link: %d\n",
+	drm_dbg_dp(ctrl->drm_dev, "TU: valid_boundary_link: %d\n",
 				tu_table->valid_boundary_link);
-	DRM_DEBUG_DP("TU: delay_start_link: %d\n",
+	drm_dbg_dp(ctrl->drm_dev, "TU: delay_start_link: %d\n",
 				tu_table->delay_start_link);
-	DRM_DEBUG_DP("TU: boundary_moderation_en: %d\n",
+	drm_dbg_dp(ctrl->drm_dev, "TU: boundary_moderation_en: %d\n",
 			tu_table->boundary_moderation_en);
-	DRM_DEBUG_DP("TU: valid_lower_boundary_link: %d\n",
+	drm_dbg_dp(ctrl->drm_dev, "TU: valid_lower_boundary_link: %d\n",
 			tu_table->valid_lower_boundary_link);
-	DRM_DEBUG_DP("TU: upper_boundary_count: %d\n",
+	drm_dbg_dp(ctrl->drm_dev, "TU: upper_boundary_count: %d\n",
 			tu_table->upper_boundary_count);
-	DRM_DEBUG_DP("TU: lower_boundary_count: %d\n",
+	drm_dbg_dp(ctrl->drm_dev, "TU: lower_boundary_count: %d\n",
 			tu_table->lower_boundary_count);
-	DRM_DEBUG_DP("TU: tu_size_minus1: %d\n", tu_table->tu_size_minus1);
+	drm_dbg_dp(ctrl->drm_dev, "TU: tu_size_minus1: %d\n",
+			tu_table->tu_size_minus1);
 
 	kfree(tu);
 }
@@ -953,7 +959,7 @@ static void dp_ctrl_calc_tu_parameters(struct dp_ctrl_private *ctrl,
 	in.num_of_dsc_slices = 0;
 	in.compress_ratio = 100;
 
-	_dp_ctrl_calc_tu(&in, tu_table);
+	_dp_ctrl_calc_tu(ctrl, &in, tu_table);
 }
 
 static void dp_ctrl_setup_tr_unit(struct dp_ctrl_private *ctrl)
@@ -1004,8 +1010,9 @@ static int dp_ctrl_update_vx_px(struct dp_ctrl_private *ctrl)
 	u32 voltage_swing_level = link->phy_params.v_level;
 	u32 pre_emphasis_level = link->phy_params.p_level;
 
-	DRM_DEBUG_DP("voltage level: %d emphasis level: %d\n", voltage_swing_level,
-			pre_emphasis_level);
+	drm_dbg_dp(ctrl->drm_dev,
+		"voltage level: %d emphasis level: %d\n",
+			voltage_swing_level, pre_emphasis_level);
 	ret = dp_catalog_ctrl_update_vx_px(ctrl->catalog,
 		voltage_swing_level, pre_emphasis_level);
 
@@ -1013,13 +1020,15 @@ static int dp_ctrl_update_vx_px(struct dp_ctrl_private *ctrl)
 		return ret;
 
 	if (voltage_swing_level >= DP_TRAIN_VOLTAGE_SWING_MAX) {
-		DRM_DEBUG_DP("max. voltage swing level reached %d\n",
+		drm_dbg_dp(ctrl->drm_dev,
+				"max. voltage swing level reached %d\n",
 				voltage_swing_level);
 		max_level_reached |= DP_TRAIN_MAX_SWING_REACHED;
 	}
 
 	if (pre_emphasis_level >= DP_TRAIN_PRE_EMPHASIS_MAX) {
-		DRM_DEBUG_DP("max. pre-emphasis level reached %d\n",
+		drm_dbg_dp(ctrl->drm_dev,
+				"max. pre-emphasis level reached %d\n",
 				pre_emphasis_level);
 		max_level_reached  |= DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
 	}
@@ -1031,8 +1040,8 @@ static int dp_ctrl_update_vx_px(struct dp_ctrl_private *ctrl)
 		buf[lane] = voltage_swing_level | pre_emphasis_level
 				| max_level_reached;
 
-	DRM_DEBUG_DP("sink: p|v=0x%x\n", voltage_swing_level
-					| pre_emphasis_level);
+	drm_dbg_dp(ctrl->drm_dev, "sink: p|v=0x%x\n",
+			voltage_swing_level | pre_emphasis_level);
 	ret = drm_dp_dpcd_write(ctrl->aux, DP_TRAINING_LANE0_SET,
 					buf, lane_cnt);
 	if (ret == lane_cnt)
@@ -1047,7 +1056,7 @@ static bool dp_ctrl_train_pattern_set(struct dp_ctrl_private *ctrl,
 	u8 buf;
 	int ret = 0;
 
-	DRM_DEBUG_DP("sink: pattern=%x\n", pattern);
+	drm_dbg_dp(ctrl->drm_dev, "sink: pattern=%x\n", pattern);
 
 	buf = pattern;
 
@@ -1083,7 +1092,7 @@ static int dp_ctrl_link_train_1(struct dp_ctrl_private *ctrl,
 
 	*training_step = DP_TRAINING_1;
 
-	ret = dp_catalog_ctrl_set_pattern(ctrl->catalog, DP_TRAINING_PATTERN_1);
+	ret = dp_catalog_ctrl_set_pattern_state_bit(ctrl->catalog, 1);
 	if (ret)
 		return ret;
 	dp_ctrl_train_pattern_set(ctrl, DP_TRAINING_PATTERN_1 |
@@ -1118,8 +1127,6 @@ static int dp_ctrl_link_train_1(struct dp_ctrl_private *ctrl,
 			old_v_level = ctrl->link->phy_params.v_level;
 		}
 
-		DRM_DEBUG_DP("clock recovery not done, adjusting vx px\n");
-
 		dp_link_adjust_levels(ctrl->link, link_status);
 		ret = dp_ctrl_update_vx_px(ctrl);
 		if (ret)
@@ -1150,8 +1157,10 @@ static int dp_ctrl_link_rate_down_shift(struct dp_ctrl_private *ctrl)
 		break;
 	}
 
-	if (!ret)
-		DRM_DEBUG_DP("new rate=0x%x\n", ctrl->link->link_params.rate);
+	if (!ret) {
+		drm_dbg_dp(ctrl->drm_dev, "new rate=0x%x\n",
+				ctrl->link->link_params.rate);
+	}
 
 	return ret;
 }
@@ -1181,7 +1190,8 @@ static int dp_ctrl_link_train_2(struct dp_ctrl_private *ctrl,
 			int *training_step)
 {
 	int tries = 0, ret = 0;
-	char pattern;
+	u8 pattern;
+	u32 state_ctrl_bit;
 	int const maximum_retries = 5;
 	u8 link_status[DP_LINK_STATUS_SIZE];
 
@@ -1189,12 +1199,18 @@ static int dp_ctrl_link_train_2(struct dp_ctrl_private *ctrl,
 
 	*training_step = DP_TRAINING_2;
 
-	if (drm_dp_tps3_supported(ctrl->panel->dpcd))
+	if (drm_dp_tps4_supported(ctrl->panel->dpcd)) {
+		pattern = DP_TRAINING_PATTERN_4;
+		state_ctrl_bit = 4;
+	} else if (drm_dp_tps3_supported(ctrl->panel->dpcd)) {
 		pattern = DP_TRAINING_PATTERN_3;
-	else
+		state_ctrl_bit = 3;
+	} else {
 		pattern = DP_TRAINING_PATTERN_2;
+		state_ctrl_bit = 2;
+	}
 
-	ret = dp_catalog_ctrl_set_pattern(ctrl->catalog, pattern);
+	ret = dp_catalog_ctrl_set_pattern_state_bit(ctrl->catalog, state_ctrl_bit);
 	if (ret)
 		return ret;
 
@@ -1263,7 +1279,7 @@ static int dp_ctrl_link_train(struct dp_ctrl_private *ctrl,
 	}
 
 	/* print success info as this is a result of user initiated action */
-	DRM_DEBUG_DP("link training #1 successful\n");
+	drm_dbg_dp(ctrl->drm_dev, "link training #1 successful\n");
 
 	ret = dp_ctrl_link_train_2(ctrl, training_step);
 	if (ret) {
@@ -1272,7 +1288,7 @@ static int dp_ctrl_link_train(struct dp_ctrl_private *ctrl,
 	}
 
 	/* print success info as this is a result of user initiated action */
-	DRM_DEBUG_DP("link training #2 successful\n");
+	drm_dbg_dp(ctrl->drm_dev, "link training #2 successful\n");
 
 end:
 	dp_catalog_ctrl_state_ctrl(ctrl->catalog, 0);
@@ -1312,7 +1328,8 @@ static void dp_ctrl_set_clock_rate(struct dp_ctrl_private *ctrl,
 		cfg++;
 	}
 
-	DRM_DEBUG_DP("setting rate=%lu on clk=%s\n", rate, name);
+	drm_dbg_dp(ctrl->drm_dev, "setting rate=%lu on clk=%s\n",
+						rate, name);
 
 	if (num)
 		cfg->rate = rate;
@@ -1342,7 +1359,7 @@ static int dp_ctrl_enable_mainlink_clocks(struct dp_ctrl_private *ctrl)
 	if (ret)
 		DRM_ERROR("Unable to start link clocks. ret=%d\n", ret);
 
-	DRM_DEBUG_DP("link rate=%d pixel_clk=%d\n",
+	drm_dbg_dp(ctrl->drm_dev, "link rate=%d pixel_clk=%d\n",
 		ctrl->link->link_params.rate, ctrl->dp_ctrl.pixel_rate);
 
 	return ret;
@@ -1359,66 +1376,60 @@ static int dp_ctrl_enable_stream_clocks(struct dp_ctrl_private *ctrl)
 	if (ret)
 		DRM_ERROR("Unabled to start pixel clocks. ret=%d\n", ret);
 
-	DRM_DEBUG_DP("link rate=%d pixel_clk=%d\n",
+	drm_dbg_dp(ctrl->drm_dev, "link rate=%d pixel_clk=%d\n",
 			ctrl->link->link_params.rate, ctrl->dp_ctrl.pixel_rate);
 
 	return ret;
 }
 
-int dp_ctrl_host_init(struct dp_ctrl *dp_ctrl, bool flip, bool reset)
+void dp_ctrl_reset_irq_ctrl(struct dp_ctrl *dp_ctrl, bool enable)
 {
 	struct dp_ctrl_private *ctrl;
-	struct dp_io *dp_io;
-	struct phy *phy;
-
-	if (!dp_ctrl) {
-		DRM_ERROR("Invalid input data\n");
-		return -EINVAL;
-	}
 
 	ctrl = container_of(dp_ctrl, struct dp_ctrl_private, dp_ctrl);
-	dp_io = &ctrl->parser->io;
-	phy = dp_io->phy;
 
-	ctrl->dp_ctrl.orientation = flip;
+	dp_catalog_ctrl_reset(ctrl->catalog);
 
-	if (reset)
-		dp_catalog_ctrl_reset(ctrl->catalog);
-
-	DRM_DEBUG_DP("flip=%d\n", flip);
-	dp_catalog_ctrl_phy_reset(ctrl->catalog);
-	phy_init(phy);
-	dp_catalog_ctrl_enable_irq(ctrl->catalog, true);
-
-	return 0;
+	/*
+	 * all dp controller programmable registers will not
+	 * be reset to default value after DP_SW_RESET
+	 * therefore interrupt mask bits have to be updated
+	 * to enable/disable interrupts
+	 */
+	dp_catalog_ctrl_enable_irq(ctrl->catalog, enable);
 }
 
-/**
- * dp_ctrl_host_deinit() - Uninitialize DP controller
- * @dp_ctrl: Display Port Driver data
- *
- * Perform required steps to uninitialize DP controller
- * and its resources.
- */
-void dp_ctrl_host_deinit(struct dp_ctrl *dp_ctrl)
+void dp_ctrl_phy_init(struct dp_ctrl *dp_ctrl)
 {
 	struct dp_ctrl_private *ctrl;
 	struct dp_io *dp_io;
 	struct phy *phy;
 
-	if (!dp_ctrl) {
-		DRM_ERROR("Invalid input data\n");
-		return;
-	}
+	ctrl = container_of(dp_ctrl, struct dp_ctrl_private, dp_ctrl);
+	dp_io = &ctrl->parser->io;
+	phy = dp_io->phy;
+
+	dp_catalog_ctrl_phy_reset(ctrl->catalog);
+	phy_init(phy);
+
+	drm_dbg_dp(ctrl->drm_dev, "phy=%p init=%d power_on=%d\n",
+			phy, phy->init_count, phy->power_count);
+}
+
+void dp_ctrl_phy_exit(struct dp_ctrl *dp_ctrl)
+{
+	struct dp_ctrl_private *ctrl;
+	struct dp_io *dp_io;
+	struct phy *phy;
 
 	ctrl = container_of(dp_ctrl, struct dp_ctrl_private, dp_ctrl);
 	dp_io = &ctrl->parser->io;
 	phy = dp_io->phy;
 
-	dp_catalog_ctrl_enable_irq(ctrl->catalog, false);
+	dp_catalog_ctrl_phy_reset(ctrl->catalog);
 	phy_exit(phy);
-
-	DRM_DEBUG_DP("Host deinitialized successfully\n");
+	drm_dbg_dp(ctrl->drm_dev, "phy=%p init=%d power_on=%d\n",
+			phy, phy->init_count, phy->power_count);
 }
 
 static bool dp_ctrl_use_fixed_nvid(struct dp_ctrl_private *ctrl)
@@ -1488,8 +1499,13 @@ static int dp_ctrl_deinitialize_mainlink(struct dp_ctrl_private *ctrl)
 	}
 
 	phy_power_off(phy);
-	phy_exit(phy);
 
+	/* aux channel down, reinit phy */
+	phy_exit(phy);
+	phy_init(phy);
+
+	drm_dbg_dp(ctrl->drm_dev, "phy=%p init=%d power_on=%d\n",
+			phy, phy->init_count, phy->power_count);
 	return 0;
 }
 
@@ -1518,12 +1534,15 @@ end:
 	return ret;
 }
 
+static int dp_ctrl_on_stream_phy_test_report(struct dp_ctrl *dp_ctrl);
+
 static int dp_ctrl_process_phy_test_request(struct dp_ctrl_private *ctrl)
 {
 	int ret = 0;
 
 	if (!ctrl->link->phy_params.phy_test_pattern_sel) {
-		DRM_DEBUG_DP("no test pattern selected by sink\n");
+		drm_dbg_dp(ctrl->drm_dev,
+			"no test pattern selected by sink\n");
 		return ret;
 	}
 
@@ -1532,7 +1551,7 @@ static int dp_ctrl_process_phy_test_request(struct dp_ctrl_private *ctrl)
 	 * running. Add the global reset just before disabling the
 	 * link clocks and core clocks.
 	 */
-	ret = dp_ctrl_off_link_stream(&ctrl->dp_ctrl);
+	ret = dp_ctrl_off(&ctrl->dp_ctrl);
 	if (ret) {
 		DRM_ERROR("failed to disable DP controller\n");
 		return ret;
@@ -1540,7 +1559,7 @@ static int dp_ctrl_process_phy_test_request(struct dp_ctrl_private *ctrl)
 
 	ret = dp_ctrl_on_link(&ctrl->dp_ctrl);
 	if (!ret)
-		ret = dp_ctrl_on_stream(&ctrl->dp_ctrl);
+		ret = dp_ctrl_on_stream_phy_test_report(&ctrl->dp_ctrl);
 	else
 		DRM_ERROR("failed to enable DP link controller\n");
 
@@ -1553,7 +1572,7 @@ static bool dp_ctrl_send_phy_test_pattern(struct dp_ctrl_private *ctrl)
 	u32 pattern_sent = 0x0;
 	u32 pattern_requested = ctrl->link->phy_params.phy_test_pattern_sel;
 
-	DRM_DEBUG_DP("request: 0x%x\n", pattern_requested);
+	drm_dbg_dp(ctrl->drm_dev, "request: 0x%x\n", pattern_requested);
 
 	if (dp_catalog_ctrl_update_vx_px(ctrl->catalog,
 			ctrl->link->phy_params.v_level,
@@ -1594,8 +1613,8 @@ static bool dp_ctrl_send_phy_test_pattern(struct dp_ctrl_private *ctrl)
 		success = false;
 	}
 
-	DRM_DEBUG_DP("%s: test->0x%x\n", success ? "success" : "failed",
-						pattern_requested);
+	drm_dbg_dp(ctrl->drm_dev, "%s: test->0x%x\n",
+		success ? "success" : "failed", pattern_requested);
 	return success;
 }
 
@@ -1613,7 +1632,7 @@ void dp_ctrl_handle_sink_request(struct dp_ctrl *dp_ctrl)
 	sink_request = ctrl->link->sink_request;
 
 	if (sink_request & DP_TEST_LINK_PHY_TEST_PATTERN) {
-		DRM_DEBUG_DP("PHY_TEST_PATTERN request\n");
+		drm_dbg_dp(ctrl->drm_dev, "PHY_TEST_PATTERN request\n");
 		if (dp_ctrl_process_phy_test_request(ctrl)) {
 			DRM_ERROR("process phy_test_req failed\n");
 			return;
@@ -1685,7 +1704,8 @@ int dp_ctrl_on_link(struct dp_ctrl *dp_ctrl)
 	dp_power_clk_enable(ctrl->power, DP_CORE_PM, true);
 
 	if (ctrl->link->sink_request & DP_TEST_LINK_PHY_TEST_PATTERN) {
-		DRM_DEBUG_DP("using phy test link parameters\n");
+		drm_dbg_dp(ctrl->drm_dev,
+				"using phy test link parameters\n");
 		if (!ctrl->panel->dp_mode.drm_mode.clock)
 			ctrl->dp_ctrl.pixel_rate = phy_cts_pixel_clk_khz;
 	} else {
@@ -1695,12 +1715,10 @@ int dp_ctrl_on_link(struct dp_ctrl *dp_ctrl)
 		ctrl->dp_ctrl.pixel_rate = ctrl->panel->dp_mode.drm_mode.clock;
 	}
 
-	DRM_DEBUG_DP("rate=%d, num_lanes=%d, pixel_rate=%d\n",
-		ctrl->link->link_params.rate,
-		ctrl->link->link_params.num_lanes, ctrl->dp_ctrl.pixel_rate);
+	drm_dbg_dp(ctrl->drm_dev, "rate=%d, num_lanes=%d, pixel_rate=%d\n",
+		ctrl->link->link_params.rate, ctrl->link->link_params.num_lanes,
+		ctrl->dp_ctrl.pixel_rate);
 
-	ctrl->link->phy_params.p_level = 0;
-	ctrl->link->phy_params.v_level = 0;
 
 	rc = dp_ctrl_enable_mainlink_clocks(ctrl);
 	if (rc)
@@ -1761,6 +1779,9 @@ int dp_ctrl_on_link(struct dp_ctrl *dp_ctrl)
 				/* end with failure */
 				break; /* lane == 1 already */
 			}
+
+			/* stop link training before start re training  */
+			dp_ctrl_clear_training_pattern(ctrl);
 		}
 	}
 
@@ -1794,11 +1815,32 @@ static int dp_ctrl_link_retrain(struct dp_ctrl_private *ctrl)
 	return dp_ctrl_setup_main_link(ctrl, &training_step);
 }
 
-int dp_ctrl_on_stream(struct dp_ctrl *dp_ctrl)
+static int dp_ctrl_on_stream_phy_test_report(struct dp_ctrl *dp_ctrl)
+{
+	int ret;
+	struct dp_ctrl_private *ctrl;
+
+	ctrl = container_of(dp_ctrl, struct dp_ctrl_private, dp_ctrl);
+
+	ctrl->dp_ctrl.pixel_rate = ctrl->panel->dp_mode.drm_mode.clock;
+
+	ret = dp_ctrl_enable_stream_clocks(ctrl);
+	if (ret) {
+		DRM_ERROR("Failed to start pixel clocks. ret=%d\n", ret);
+		return ret;
+	}
+
+	dp_ctrl_send_phy_test_pattern(ctrl);
+
+	return 0;
+}
+
+int dp_ctrl_on_stream(struct dp_ctrl *dp_ctrl, bool force_link_train)
 {
 	int ret = 0;
 	bool mainlink_ready = false;
 	struct dp_ctrl_private *ctrl;
+	unsigned long pixel_rate_orig;
 
 	if (!dp_ctrl)
 		return -EINVAL;
@@ -1807,7 +1849,11 @@ int dp_ctrl_on_stream(struct dp_ctrl *dp_ctrl)
 
 	ctrl->dp_ctrl.pixel_rate = ctrl->panel->dp_mode.drm_mode.clock;
 
-	DRM_DEBUG_DP("rate=%d, num_lanes=%d, pixel_rate=%d\n",
+	pixel_rate_orig = ctrl->dp_ctrl.pixel_rate;
+	if (dp_ctrl->wide_bus_en)
+		ctrl->dp_ctrl.pixel_rate >>= 1;
+
+	drm_dbg_dp(ctrl->drm_dev, "rate=%d, num_lanes=%d, pixel_rate=%d\n",
 		ctrl->link->link_params.rate,
 		ctrl->link->link_params.num_lanes, ctrl->dp_ctrl.pixel_rate);
 
@@ -1819,22 +1865,17 @@ int dp_ctrl_on_stream(struct dp_ctrl *dp_ctrl)
 		}
 	}
 
-	if (!dp_ctrl_channel_eq_ok(ctrl))
-		dp_ctrl_link_retrain(ctrl);
-
-	/* stop txing train pattern to end link training */
-	dp_ctrl_clear_training_pattern(ctrl);
-
 	ret = dp_ctrl_enable_stream_clocks(ctrl);
 	if (ret) {
 		DRM_ERROR("Failed to start pixel clocks. ret=%d\n", ret);
 		goto end;
 	}
 
-	if (ctrl->link->sink_request & DP_TEST_LINK_PHY_TEST_PATTERN) {
-		dp_ctrl_send_phy_test_pattern(ctrl);
-		return 0;
-	}
+	if (force_link_train || !dp_ctrl_channel_eq_ok(ctrl))
+		dp_ctrl_link_retrain(ctrl);
+
+	/* stop txing train pattern to end link training */
+	dp_ctrl_clear_training_pattern(ctrl);
 
 	/*
 	 * Set up transfer unit values and set controller state to send
@@ -1846,7 +1887,7 @@ int dp_ctrl_on_stream(struct dp_ctrl *dp_ctrl)
 
 	dp_catalog_ctrl_config_msa(ctrl->catalog,
 		ctrl->link->link_params.rate,
-		ctrl->dp_ctrl.pixel_rate, dp_ctrl_use_fixed_nvid(ctrl));
+		pixel_rate_orig, dp_ctrl_use_fixed_nvid(ctrl));
 
 	dp_ctrl_setup_tr_unit(ctrl);
 
@@ -1857,7 +1898,8 @@ int dp_ctrl_on_stream(struct dp_ctrl *dp_ctrl)
 		return ret;
 
 	mainlink_ready = dp_catalog_ctrl_mainlink_ready(ctrl->catalog);
-	DRM_DEBUG_DP("mainlink %s\n", mainlink_ready ? "READY" : "NOT READY");
+	drm_dbg_dp(ctrl->drm_dev,
+		"mainlink %s\n", mainlink_ready ? "READY" : "NOT READY");
 
 end:
 	return ret;
@@ -1899,25 +1941,38 @@ int dp_ctrl_off_link_stream(struct dp_ctrl *dp_ctrl)
 	phy_exit(phy);
 	phy_init(phy);
 
-	DRM_DEBUG_DP("DP off link/stream done\n");
+	drm_dbg_dp(ctrl->drm_dev, "phy=%p init=%d power_on=%d\n",
+			phy, phy->init_count, phy->power_count);
 	return ret;
 }
 
-void dp_ctrl_off_phy(struct dp_ctrl *dp_ctrl)
+int dp_ctrl_off_link(struct dp_ctrl *dp_ctrl)
 {
 	struct dp_ctrl_private *ctrl;
 	struct dp_io *dp_io;
 	struct phy *phy;
+	int ret;
 
 	ctrl = container_of(dp_ctrl, struct dp_ctrl_private, dp_ctrl);
 	dp_io = &ctrl->parser->io;
 	phy = dp_io->phy;
 
-	dp_catalog_ctrl_reset(ctrl->catalog);
+	dp_catalog_ctrl_mainlink_ctrl(ctrl->catalog, false);
 
-	phy_exit(phy);
+	ret = dp_power_clk_enable(ctrl->power, DP_CTRL_PM, false);
+	if (ret) {
+		DRM_ERROR("Failed to disable link clocks. ret=%d\n", ret);
+	}
 
-	DRM_DEBUG_DP("DP off phy done\n");
+	DRM_DEBUG_DP("Before, phy=%p init_count=%d power_on=%d\n",
+		phy, phy->init_count, phy->power_count);
+
+	phy_power_off(phy);
+
+	DRM_DEBUG_DP("After, phy=%p init_count=%d power_on=%d\n",
+		phy, phy->init_count, phy->power_count);
+
+	return ret;
 }
 
 int dp_ctrl_off(struct dp_ctrl *dp_ctrl)
@@ -1948,9 +2003,9 @@ int dp_ctrl_off(struct dp_ctrl *dp_ctrl)
 	}
 
 	phy_power_off(phy);
-	phy_exit(phy);
+	drm_dbg_dp(ctrl->drm_dev, "phy=%p init=%d power_on=%d\n",
+			phy, phy->init_count, phy->power_count);
 
-	DRM_DEBUG_DP("DP off done\n");
 	return ret;
 }
 
@@ -1967,12 +2022,12 @@ void dp_ctrl_isr(struct dp_ctrl *dp_ctrl)
 	isr = dp_catalog_ctrl_get_interrupt(ctrl->catalog);
 
 	if (isr & DP_CTRL_INTR_READY_FOR_VIDEO) {
-		DRM_DEBUG_DP("dp_video_ready\n");
+		drm_dbg_dp(ctrl->drm_dev, "dp_video_ready\n");
 		complete(&ctrl->video_comp);
 	}
 
 	if (isr & DP_CTRL_INTR_IDLE_PATTERN_SENT) {
-		DRM_DEBUG_DP("idle_patterns_sent\n");
+		drm_dbg_dp(ctrl->drm_dev, "idle_patterns_sent\n");
 		complete(&ctrl->idle_comp);
 	}
 }

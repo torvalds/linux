@@ -140,7 +140,7 @@ __tagtable(BP_TAG_FDT, parse_tag_fdt);
 
 static int __init parse_tag_cmdline(const bp_tag_t* tag)
 {
-	strlcpy(command_line, (char *)(tag->data), COMMAND_LINE_SIZE);
+	strscpy(command_line, (char *)(tag->data), COMMAND_LINE_SIZE);
 	return 0;
 }
 
@@ -230,7 +230,7 @@ void __init early_init_devtree(void *params)
 	of_scan_flat_dt(xtensa_dt_io_area, NULL);
 
 	if (!command_line[0])
-		strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
+		strscpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 }
 
 #endif /* CONFIG_USE_OF */
@@ -260,7 +260,7 @@ void __init init_arch(bp_tag_t *bp_start)
 
 #ifdef CONFIG_CMDLINE_BOOL
 	if (!command_line[0])
-		strlcpy(command_line, default_command_line, COMMAND_LINE_SIZE);
+		strscpy(command_line, default_command_line, COMMAND_LINE_SIZE);
 #endif
 
 	/* Early hook for platforms */
@@ -289,7 +289,7 @@ void __init setup_arch(char **cmdline_p)
 
 	*cmdline_p = command_line;
 	platform_setup(cmdline_p);
-	strlcpy(boot_command_line, *cmdline_p, COMMAND_LINE_SIZE);
+	strscpy(boot_command_line, *cmdline_p, COMMAND_LINE_SIZE);
 
 	/* Reserve some memory regions */
 
@@ -349,7 +349,7 @@ void __init setup_arch(char **cmdline_p)
 
 #endif /* CONFIG_VECTORS_ADDR */
 
-#ifdef CONFIG_SMP
+#ifdef CONFIG_SECONDARY_RESET_VECTOR
 	mem_reserve(__pa(_SecondaryResetVector_text_start),
 		    __pa(_SecondaryResetVector_text_end));
 #endif

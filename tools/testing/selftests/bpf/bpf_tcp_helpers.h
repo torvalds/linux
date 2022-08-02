@@ -16,6 +16,10 @@ BPF_PROG(name, args)
 #define SOL_TCP 6
 #endif
 
+#ifndef TCP_CA_NAME_MAX
+#define TCP_CA_NAME_MAX	16
+#endif
+
 #define tcp_jiffies32 ((__u32)bpf_jiffies64())
 
 struct sock_common {
@@ -81,6 +85,7 @@ struct tcp_sock {
 	__u32	lsndtime;
 	__u32	prior_cwnd;
 	__u64	tcp_mstamp;	/* most recent packet received/sent */
+	bool	is_mptcp;
 } __attribute__((preserve_access_index));
 
 static __always_inline struct inet_connection_sock *inet_csk(const struct sock *sk)
@@ -224,5 +229,13 @@ static __always_inline bool tcp_cc_eq(const char *a, const char *b)
 
 extern __u32 tcp_slow_start(struct tcp_sock *tp, __u32 acked) __ksym;
 extern void tcp_cong_avoid_ai(struct tcp_sock *tp, __u32 w, __u32 acked) __ksym;
+
+struct mptcp_sock {
+	struct inet_connection_sock	sk;
+
+	__u32		token;
+	struct sock	*first;
+	char		ca_name[TCP_CA_NAME_MAX];
+} __attribute__((preserve_access_index));
 
 #endif

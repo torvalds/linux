@@ -24,7 +24,6 @@
 #include <asm/spu_priv1.h>
 #include <asm/spu_csa.h>
 #include <asm/xmon.h>
-#include <asm/prom.h>
 #include <asm/kexec.h>
 
 const struct spu_management_ops *spu_management_ops;
@@ -490,7 +489,7 @@ int spu_add_dev_attr(struct device_attribute *attr)
 }
 EXPORT_SYMBOL_GPL(spu_add_dev_attr);
 
-int spu_add_dev_attr_group(struct attribute_group *attrs)
+int spu_add_dev_attr_group(const struct attribute_group *attrs)
 {
 	struct spu *spu;
 	int rc = 0;
@@ -529,7 +528,7 @@ void spu_remove_dev_attr(struct device_attribute *attr)
 }
 EXPORT_SYMBOL_GPL(spu_remove_dev_attr);
 
-void spu_remove_dev_attr_group(struct attribute_group *attrs)
+void spu_remove_dev_attr_group(const struct attribute_group *attrs)
 {
 	struct spu *spu;
 

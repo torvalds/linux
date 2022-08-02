@@ -33,6 +33,34 @@ TRACE_EVENT(scmi_xfer_begin,
 		__entry->seq, __entry->poll)
 );
 
+TRACE_EVENT(scmi_xfer_response_wait,
+	TP_PROTO(int transfer_id, u8 msg_id, u8 protocol_id, u16 seq,
+		 u32 timeout, bool poll),
+	TP_ARGS(transfer_id, msg_id, protocol_id, seq, timeout, poll),
+
+	TP_STRUCT__entry(
+		__field(int, transfer_id)
+		__field(u8, msg_id)
+		__field(u8, protocol_id)
+		__field(u16, seq)
+		__field(u32, timeout)
+		__field(bool, poll)
+	),
+
+	TP_fast_assign(
+		__entry->transfer_id = transfer_id;
+		__entry->msg_id = msg_id;
+		__entry->protocol_id = protocol_id;
+		__entry->seq = seq;
+		__entry->timeout = timeout;
+		__entry->poll = poll;
+	),
+
+	TP_printk("transfer_id=%d msg_id=%u protocol_id=%u seq=%u tmo_ms=%u poll=%u",
+		__entry->transfer_id, __entry->msg_id, __entry->protocol_id,
+		__entry->seq, __entry->timeout, __entry->poll)
+);
+
 TRACE_EVENT(scmi_xfer_end,
 	TP_PROTO(int transfer_id, u8 msg_id, u8 protocol_id, u16 seq,
 		 int status),

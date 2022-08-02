@@ -6,6 +6,9 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
+#undef pr_fmt
+#define pr_fmt(fmt)	"null_blk: " fmt
+
 static inline sector_t mb_to_sects(unsigned long mb)
 {
 	return ((sector_t)mb * SZ_1M) >> SECTOR_SHIFT;
@@ -75,8 +78,8 @@ int null_init_zoned_dev(struct nullb_device *dev, struct request_queue *q)
 		dev->zone_capacity = dev->zone_size;
 
 	if (dev->zone_capacity > dev->zone_size) {
-		pr_err("null_blk: zone capacity (%lu MB) larger than zone size (%lu MB)\n",
-					dev->zone_capacity, dev->zone_size);
+		pr_err("zone capacity (%lu MB) larger than zone size (%lu MB)\n",
+		       dev->zone_capacity, dev->zone_size);
 		return -EINVAL;
 	}
 
@@ -395,10 +398,10 @@ static blk_status_t null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 	 */
 	if (append) {
 		sector = zone->wp;
-		if (cmd->bio)
-			cmd->bio->bi_iter.bi_sector = sector;
-		else
+		if (dev->queue_mode == NULL_Q_MQ)
 			cmd->rq->__sector = sector;
+		else
+			cmd->bio->bi_iter.bi_sector = sector;
 	} else if (sector != zone->wp) {
 		ret = BLK_STS_IOERR;
 		goto unlock;

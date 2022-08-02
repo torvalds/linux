@@ -78,14 +78,6 @@ void __init prom_init(void)
 	pic32_init_cmdline((int)fw_arg0, (char **)fw_arg1);
 }
 
-void __init device_tree_init(void)
-{
-	if (!initial_boot_params)
-		return;
-
-	unflatten_and_copy_device_tree();
-}
-
 static struct pic32_sdhci_platform_data sdhci_data = {
 	.setup_dma = pic32_set_sdhci_adma_fifo_threshold,
 };
@@ -106,12 +98,17 @@ static int __init pic32_of_prepare_platform_data(struct of_dev_auxdata *lookup)
 		np = of_find_compatible_node(NULL, NULL, lookup->compatible);
 		if (np) {
 			lookup->name = (char *)np->name;
-			if (lookup->phys_addr)
+			if (lookup->phys_addr) {
+				of_node_put(np);
 				continue;
+			}
 			if (!of_address_to_resource(np, 0, &res))
 				lookup->phys_addr = res.start;
+			of_node_put(np);
 		}
 	}
+
+	of_node_put(root);
 
 	return 0;
 }

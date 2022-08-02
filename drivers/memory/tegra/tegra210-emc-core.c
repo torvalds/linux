@@ -711,7 +711,7 @@ static int tegra210_emc_cd_set_state(struct thermal_cooling_device *cd,
 	return 0;
 }
 
-static struct thermal_cooling_device_ops tegra210_emc_cd_ops = {
+static const struct thermal_cooling_device_ops tegra210_emc_cd_ops = {
 	.get_max_state = tegra210_emc_cd_max_state,
 	.get_cur_state = tegra210_emc_cd_get_state,
 	.set_cur_state = tegra210_emc_cd_set_state,

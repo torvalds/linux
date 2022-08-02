@@ -18,9 +18,12 @@
 #include <linux/cuda.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+
 #ifdef CONFIG_PPC
-#include <asm/prom.h>
 #include <asm/machdep.h>
+#include <asm/pmac_feature.h>
 #else
 #include <asm/macintosh.h>
 #include <asm/macints.h>
@@ -236,10 +239,10 @@ int __init find_via_cuda(void)
     const u32 *reg;
     int err;
 
-    if (vias != 0)
+    if (vias)
 	return 1;
     vias = of_find_node_by_name(NULL, "via-cuda");
-    if (vias == 0)
+    if (!vias)
 	return 0;
 
     reg = of_get_property(vias, "reg", NULL);
@@ -517,7 +520,7 @@ cuda_write(struct adb_request *req)
     req->reply_len = 0;
 
     spin_lock_irqsave(&cuda_lock, flags);
-    if (current_req != 0) {
+    if (current_req) {
 	last_req->next = req;
 	last_req = req;
     } else {

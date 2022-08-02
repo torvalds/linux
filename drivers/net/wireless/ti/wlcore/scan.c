@@ -53,11 +53,9 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	wl->scan.req = NULL;
 	wl->scan_wlvif = NULL;
 
-	ret = pm_runtime_get_sync(wl->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+	ret = pm_runtime_resume_and_get(wl->dev);
+	if (ret < 0)
 		goto out;
-	}
 
 	if (test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags)) {
 		/* restore hardware connection monitoring template */

@@ -23,6 +23,7 @@
 #include <linux/huge_mm.h>
 #include <linux/shmem_fs.h>
 #include "internal.h"
+#include "swap.h"
 
 /*
  * swapper_space is a fiction, retained to simplify the path through
@@ -30,7 +31,7 @@
  */
 static const struct address_space_operations swap_aops = {
 	.writepage	= swap_writepage,
-	.set_page_dirty	= swap_set_page_dirty,
+	.dirty_folio	= noop_dirty_folio,
 #ifdef CONFIG_MIGRATION
 	.migratepage	= migrate_page,
 #endif
@@ -175,23 +176,26 @@ void __delete_from_swap_cache(struct page *page,
 }
 
 /**
- * add_to_swap - allocate swap space for a page
- * @page: page we want to move to swap
+ * add_to_swap - allocate swap space for a folio
+ * @folio: folio we want to move to swap
  *
- * Allocate swap space for the page and add the page to the
- * swap cache.  Caller needs to hold the page lock. 
+ * Allocate swap space for the folio and add the folio to the
+ * swap cache.
+ *
+ * Context: Caller needs to hold the folio lock.
+ * Return: Whether the folio was added to the swap cache.
  */
-int add_to_swap(struct page *page)
+bool add_to_swap(struct folio *folio)
 {
 	swp_entry_t entry;
 	int err;
 
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
-	VM_BUG_ON_PAGE(!PageUptodate(page), page);
+	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
+	VM_BUG_ON_FOLIO(!folio_test_uptodate(folio), folio);
 
-	entry = get_swap_page(page);
+	entry = folio_alloc_swap(folio);
 	if (!entry.val)
-		return 0;
+		return false;
 
 	/*
 	 * XArray node allocations from PF_MEMALLOC contexts could
@@ -204,7 +208,7 @@ int add_to_swap(struct page *page)
 	/*
 	 * Add it to the swap cache.
 	 */
-	err = add_to_swap_cache(page, entry,
+	err = add_to_swap_cache(&folio->page, entry,
 			__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN, NULL);
 	if (err)
 		/*
@@ -213,22 +217,23 @@ int add_to_swap(struct page *page)
 		 */
 		goto fail;
 	/*
-	 * Normally the page will be dirtied in unmap because its pte should be
-	 * dirty. A special case is MADV_FREE page. The page's pte could have
-	 * dirty bit cleared but the page's SwapBacked bit is still set because
-	 * clearing the dirty bit and SwapBacked bit has no lock protected. For
-	 * such page, unmap will not set dirty bit for it, so page reclaim will
-	 * not write the page out. This can cause data corruption when the page
-	 * is swap in later. Always setting the dirty bit for the page solves
-	 * the problem.
+	 * Normally the folio will be dirtied in unmap because its
+	 * pte should be dirty. A special case is MADV_FREE page. The
+	 * page's pte could have dirty bit cleared but the folio's
+	 * SwapBacked flag is still set because clearing the dirty bit
+	 * and SwapBacked flag has no lock protected. For such folio,
+	 * unmap will not set dirty bit for it, so folio reclaim will
+	 * not write the folio out. This can cause data corruption when
+	 * the folio is swapped in later. Always setting the dirty flag
+	 * for the folio solves the problem.
 	 */
-	set_page_dirty(page);
+	folio_mark_dirty(folio);
 
-	return 1;
+	return true;
 
 fail:
-	put_swap_page(page, entry);
-	return 0;
+	put_swap_page(&folio->page, entry);
+	return false;
 }
 
 /*
@@ -405,6 +410,9 @@ struct page *find_get_incore_page(struct address_space *mapping, pgoff_t index)
 		return NULL;
 
 	swp = radix_to_swp_entry(page);
+	/* There might be swapin error entries in shmem mapping. */
+	if (non_swap_entry(swp))
+		return NULL;
 	/* Prevent swapoff from happening to us */
 	si = get_swap_device(swp);
 	if (!si)
@@ -519,14 +527,16 @@ fail_unlock:
  * the swap entry is no longer in use.
  */
 struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
-		struct vm_area_struct *vma, unsigned long addr, bool do_poll)
+				   struct vm_area_struct *vma,
+				   unsigned long addr, bool do_poll,
+				   struct swap_iocb **plug)
 {
 	bool page_was_allocated;
 	struct page *retpage = __read_swap_cache_async(entry, gfp_mask,
 			vma, addr, &page_was_allocated);
 
 	if (page_was_allocated)
-		swap_readpage(retpage, do_poll);
+		swap_readpage(retpage, do_poll, plug);
 
 	return retpage;
 }
@@ -620,6 +630,7 @@ struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
 	unsigned long mask;
 	struct swap_info_struct *si = swp_swap_info(entry);
 	struct blk_plug plug;
+	struct swap_iocb *splug = NULL;
 	bool do_poll = true, page_allocated;
 	struct vm_area_struct *vma = vmf->vma;
 	unsigned long addr = vmf->address;
@@ -646,7 +657,7 @@ struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
 		if (!page)
 			continue;
 		if (page_allocated) {
-			swap_readpage(page, false);
+			swap_readpage(page, false, &splug);
 			if (offset != entry_offset) {
 				SetPageReadahead(page);
 				count_vm_event(SWAP_RA);
@@ -655,10 +666,12 @@ struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
 		put_page(page);
 	}
 	blk_finish_plug(&plug);
+	swap_read_unplug(splug);
 
 	lru_add_drain();	/* Push any new pages onto the LRU now */
 skip:
-	return read_swap_cache_async(entry, gfp_mask, vma, addr, do_poll);
+	/* The page was likely read above, so no need for plugging here */
+	return read_swap_cache_async(entry, gfp_mask, vma, addr, do_poll, NULL);
 }
 
 int init_swap_address_space(unsigned int type, unsigned long nr_pages)
@@ -789,6 +802,7 @@ static struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
 				       struct vm_fault *vmf)
 {
 	struct blk_plug plug;
+	struct swap_iocb *splug = NULL;
 	struct vm_area_struct *vma = vmf->vma;
 	struct page *page;
 	pte_t *pte, pentry;
@@ -807,9 +821,7 @@ static struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
 	for (i = 0, pte = ra_info.ptes; i < ra_info.nr_pte;
 	     i++, pte++) {
 		pentry = *pte;
-		if (pte_none(pentry))
-			continue;
-		if (pte_present(pentry))
+		if (!is_swap_pte(pentry))
 			continue;
 		entry = pte_to_swp_entry(pentry);
 		if (unlikely(non_swap_entry(entry)))
@@ -819,7 +831,7 @@ static struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
 		if (!page)
 			continue;
 		if (page_allocated) {
-			swap_readpage(page, false);
+			swap_readpage(page, false, &splug);
 			if (i != ra_info.offset) {
 				SetPageReadahead(page);
 				count_vm_event(SWAP_RA);
@@ -828,10 +840,12 @@ static struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
 		put_page(page);
 	}
 	blk_finish_plug(&plug);
+	swap_read_unplug(splug);
 	lru_add_drain();
 skip:
+	/* The page was likely read above, so no need for plugging here */
 	return read_swap_cache_async(fentry, gfp_mask, vma, vmf->address,
-				     ra_info.win == 1);
+				     ra_info.win == 1, NULL);
 }
 
 /**
@@ -865,18 +879,15 @@ static ssize_t vma_ra_enabled_store(struct kobject *kobj,
 				      struct kobj_attribute *attr,
 				      const char *buf, size_t count)
 {
-	if (!strncmp(buf, "true", 4) || !strncmp(buf, "1", 1))
-		enable_vma_readahead = true;
-	else if (!strncmp(buf, "false", 5) || !strncmp(buf, "0", 1))
-		enable_vma_readahead = false;
-	else
-		return -EINVAL;
+	ssize_t ret;
+
+	ret = kstrtobool(buf, &enable_vma_readahead);
+	if (ret)
+		return ret;
 
 	return count;
 }
-static struct kobj_attribute vma_ra_enabled_attr =
-	__ATTR(vma_ra_enabled, 0644, vma_ra_enabled_show,
-	       vma_ra_enabled_store);
+static struct kobj_attribute vma_ra_enabled_attr = __ATTR_RW(vma_ra_enabled);
 
 static struct attribute *swap_attrs[] = {
 	&vma_ra_enabled_attr.attr,

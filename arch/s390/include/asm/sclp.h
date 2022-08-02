@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    Copyright IBM Corp. 2007
- *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
 #ifndef _ASM_S390_SCLP_H
@@ -88,6 +87,7 @@ struct sclp_info {
 	unsigned char has_diag318 : 1;
 	unsigned char has_sipl : 1;
 	unsigned char has_dirq : 1;
+	unsigned char has_iplcc : 1;
 	unsigned int ibc;
 	unsigned int mtid;
 	unsigned int mtid_cp;
@@ -112,7 +112,7 @@ struct zpci_report_error_header {
 			 *	(OpenCrypto Successful Diagnostics Execution)
 			 */
 	u16 length;	/* Length of Subsequent Data (up to 4K – SCLP header */
-	u8 data[0];	/* Subsequent Data passed verbatim to SCLP ET 24 */
+	u8 data[];	/* Subsequent Data passed verbatim to SCLP ET 24 */
 } __packed;
 
 extern char *sclp_early_sccb;

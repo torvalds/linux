@@ -184,7 +184,7 @@ static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 	xsk_xdp = xsk_buff_alloc(xs->pool);
 	if (!xsk_xdp) {
 		xs->rx_dropped++;
-		return -ENOSPC;
+		return -ENOMEM;
 	}
 
 	xsk_copy_xdp(xsk_xdp, xdp, len);
@@ -217,7 +217,7 @@ static bool xsk_is_bound(struct xdp_sock *xs)
 static int xsk_rcv_check(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
 	if (!xsk_is_bound(xs))
-		return -EINVAL;
+		return -ENXIO;
 
 	if (xs->dev != xdp->rxq->dev || xs->queue_id != xdp->rxq->queue_index)
 		return -EINVAL;
@@ -343,9 +343,9 @@ out:
 }
 EXPORT_SYMBOL(xsk_tx_peek_desc);
 
-static u32 xsk_tx_peek_release_fallback(struct xsk_buff_pool *pool, struct xdp_desc *descs,
-					u32 max_entries)
+static u32 xsk_tx_peek_release_fallback(struct xsk_buff_pool *pool, u32 max_entries)
 {
+	struct xdp_desc *descs = pool->tx_descs;
 	u32 nb_pkts = 0;
 
 	while (nb_pkts < max_entries && xsk_tx_peek_desc(pool, &descs[nb_pkts]))
@@ -355,8 +355,7 @@ static u32 xsk_tx_peek_release_fallback(struct xsk_buff_pool *pool, struct xdp_d
 	return nb_pkts;
 }
 
-u32 xsk_tx_peek_release_desc_batch(struct xsk_buff_pool *pool, struct xdp_desc *descs,
-				   u32 max_entries)
+u32 xsk_tx_peek_release_desc_batch(struct xsk_buff_pool *pool, u32 max_entries)
 {
 	struct xdp_sock *xs;
 	u32 nb_pkts;
@@ -365,7 +364,7 @@ u32 xsk_tx_peek_release_desc_batch(struct xsk_buff_pool *pool, struct xdp_desc *
 	if (!list_is_singular(&pool->xsk_tx_list)) {
 		/* Fallback to the non-batched version */
 		rcu_read_unlock();
-		return xsk_tx_peek_release_fallback(pool, descs, max_entries);
+		return xsk_tx_peek_release_fallback(pool, max_entries);
 	}
 
 	xs = list_first_or_null_rcu(&pool->xsk_tx_list, struct xdp_sock, tx_list);
@@ -374,7 +373,8 @@ u32 xsk_tx_peek_release_desc_batch(struct xsk_buff_pool *pool, struct xdp_desc *
 		goto out;
 	}
 
-	nb_pkts = xskq_cons_peek_desc_batch(xs->tx, descs, pool, max_entries);
+	max_entries = xskq_cons_nb_entries(xs->tx, max_entries);
+	nb_pkts = xskq_cons_read_desc_batch(xs->tx, pool, max_entries);
 	if (!nb_pkts) {
 		xs->tx->queue_empty_descs++;
 		goto out;
@@ -386,11 +386,11 @@ u32 xsk_tx_peek_release_desc_batch(struct xsk_buff_pool *pool, struct xdp_desc *
 	 * packets. This avoids having to implement any buffering in
 	 * the Tx path.
 	 */
-	nb_pkts = xskq_prod_reserve_addr_batch(pool->cq, descs, nb_pkts);
+	nb_pkts = xskq_prod_reserve_addr_batch(pool->cq, pool->tx_descs, nb_pkts);
 	if (!nb_pkts)
 		goto out;
 
-	xskq_cons_release_n(xs->tx, nb_pkts);
+	xskq_cons_release_n(xs->tx, max_entries);
 	__xskq_cons_release(xs->tx);
 	xs->sk.sk_write_space(&xs->sk);
 
@@ -403,18 +403,8 @@ EXPORT_SYMBOL(xsk_tx_peek_release_desc_batch);
 static int xsk_wakeup(struct xdp_sock *xs, u8 flags)
 {
 	struct net_device *dev = xs->dev;
-	int err;
 
-	rcu_read_lock();
-	err = dev->netdev_ops->ndo_xsk_wakeup(dev, xs->queue_id, flags);
-	rcu_read_unlock();
-
-	return err;
-}
-
-static int xsk_zc_xmit(struct xdp_sock *xs)
-{
-	return xsk_wakeup(xs, XDP_WAKEUP_TX);
+	return dev->netdev_ops->ndo_xsk_wakeup(dev, xs->queue_id, flags);
 }
 
 static void xsk_destruct_skb(struct sk_buff *skb)
@@ -533,18 +523,18 @@ static int xsk_generic_xmit(struct sock *sk)
 
 	mutex_lock(&xs->mutex);
 
+	/* Since we dropped the RCU read lock, the socket state might have changed. */
+	if (unlikely(!xsk_is_bound(xs))) {
+		err = -ENXIO;
+		goto out;
+	}
+
 	if (xs->queue_id >= xs->dev->real_num_tx_queues)
 		goto out;
 
 	while (xskq_cons_peek_desc(xs->tx, &desc, xs->pool)) {
 		if (max_batch-- == 0) {
 			err = -EAGAIN;
-			goto out;
-		}
-
-		skb = xsk_build_skb(xs, &desc);
-		if (IS_ERR(skb)) {
-			err = PTR_ERR(skb);
 			goto out;
 		}
 
@@ -556,10 +546,18 @@ static int xsk_generic_xmit(struct sock *sk)
 		spin_lock_irqsave(&xs->pool->cq_lock, flags);
 		if (xskq_prod_reserve(xs->pool->cq)) {
 			spin_unlock_irqrestore(&xs->pool->cq_lock, flags);
-			kfree_skb(skb);
 			goto out;
 		}
 		spin_unlock_irqrestore(&xs->pool->cq_lock, flags);
+
+		skb = xsk_build_skb(xs, &desc);
+		if (IS_ERR(skb)) {
+			err = PTR_ERR(skb);
+			spin_lock_irqsave(&xs->pool->cq_lock, flags);
+			xskq_prod_cancel(xs->pool->cq);
+			spin_unlock_irqrestore(&xs->pool->cq_lock, flags);
+			goto out;
+		}
 
 		err = __dev_direct_xmit(skb, xs->queue_id);
 		if  (err == NETDEV_TX_BUSY) {
@@ -596,16 +594,26 @@ out:
 	return err;
 }
 
-static int __xsk_sendmsg(struct sock *sk)
+static int xsk_xmit(struct sock *sk)
 {
 	struct xdp_sock *xs = xdp_sk(sk);
+	int ret;
 
 	if (unlikely(!(xs->dev->flags & IFF_UP)))
 		return -ENETDOWN;
 	if (unlikely(!xs->tx))
 		return -ENOBUFS;
 
-	return xs->zc ? xsk_zc_xmit(xs) : xsk_generic_xmit(sk);
+	if (xs->zc)
+		return xsk_wakeup(xs, XDP_WAKEUP_TX);
+
+	/* Drop the RCU lock since the SKB path might sleep. */
+	rcu_read_unlock();
+	ret = xsk_generic_xmit(sk);
+	/* Reaquire RCU lock before going into common code. */
+	rcu_read_lock();
+
+	return ret;
 }
 
 static bool xsk_no_wakeup(struct sock *sk)
@@ -619,7 +627,7 @@ static bool xsk_no_wakeup(struct sock *sk)
 #endif
 }
 
-static int xsk_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len)
+static int __xsk_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len)
 {
 	bool need_wait = !(m->msg_flags & MSG_DONTWAIT);
 	struct sock *sk = sock->sk;
@@ -634,16 +642,27 @@ static int xsk_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len)
 	if (sk_can_busy_loop(sk))
 		sk_busy_loop(sk, 1); /* only support non-blocking sockets */
 
-	if (xsk_no_wakeup(sk))
+	if (xs->zc && xsk_no_wakeup(sk))
 		return 0;
 
 	pool = xs->pool;
 	if (pool->cached_need_wakeup & XDP_WAKEUP_TX)
-		return __xsk_sendmsg(sk);
+		return xsk_xmit(sk);
 	return 0;
 }
 
-static int xsk_recvmsg(struct socket *sock, struct msghdr *m, size_t len, int flags)
+static int xsk_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len)
+{
+	int ret;
+
+	rcu_read_lock();
+	ret = __xsk_sendmsg(sock, m, total_len);
+	rcu_read_unlock();
+
+	return ret;
+}
+
+static int __xsk_recvmsg(struct socket *sock, struct msghdr *m, size_t len, int flags)
 {
 	bool need_wait = !(flags & MSG_DONTWAIT);
 	struct sock *sk = sock->sk;
@@ -669,6 +688,17 @@ static int xsk_recvmsg(struct socket *sock, struct msghdr *m, size_t len, int fl
 	return 0;
 }
 
+static int xsk_recvmsg(struct socket *sock, struct msghdr *m, size_t len, int flags)
+{
+	int ret;
+
+	rcu_read_lock();
+	ret = __xsk_recvmsg(sock, m, len, flags);
+	rcu_read_unlock();
+
+	return ret;
+}
+
 static __poll_t xsk_poll(struct file *file, struct socket *sock,
 			     struct poll_table_struct *wait)
 {
@@ -679,8 +709,11 @@ static __poll_t xsk_poll(struct file *file, struct socket *sock,
 
 	sock_poll_wait(file, sock, wait);
 
-	if (unlikely(!xsk_is_bound(xs)))
+	rcu_read_lock();
+	if (unlikely(!xsk_is_bound(xs))) {
+		rcu_read_unlock();
 		return mask;
+	}
 
 	pool = xs->pool;
 
@@ -689,7 +722,7 @@ static __poll_t xsk_poll(struct file *file, struct socket *sock,
 			xsk_wakeup(xs, pool->cached_need_wakeup);
 		else
 			/* Poll needs to drive Tx also in copy mode */
-			__xsk_sendmsg(sk);
+			xsk_xmit(sk);
 	}
 
 	if (xs->rx && !xskq_prod_is_empty(xs->rx))
@@ -697,6 +730,7 @@ static __poll_t xsk_poll(struct file *file, struct socket *sock,
 	if (xs->tx && xsk_tx_writeable(xs))
 		mask |= EPOLLOUT | EPOLLWRNORM;
 
+	rcu_read_unlock();
 	return mask;
 }
 
@@ -728,7 +762,6 @@ static void xsk_unbind_dev(struct xdp_sock *xs)
 
 	/* Wait for driver to stop using the xdp socket. */
 	xp_del_xsk(xs->pool, xs);
-	xs->dev = NULL;
 	synchronize_net();
 	dev_put(dev);
 }
@@ -937,6 +970,19 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 
 			xp_get_pool(umem_xs->pool);
 			xs->pool = umem_xs->pool;
+
+			/* If underlying shared umem was created without Tx
+			 * ring, allocate Tx descs array that Tx batching API
+			 * utilizes
+			 */
+			if (xs->tx && !xs->pool->tx_descs) {
+				err = xp_alloc_tx_descs(xs->pool, xs);
+				if (err) {
+					xp_put_pool(xs->pool);
+					sockfd_put(sock);
+					goto out_unlock;
+				}
+			}
 		}
 
 		xdp_get_umem(umem_xs->umem);

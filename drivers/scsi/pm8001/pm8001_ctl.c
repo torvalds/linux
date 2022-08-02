@@ -721,12 +721,15 @@ static int pm8001_update_flash(struct pm8001_hba_info *pm8001_ha)
 	DECLARE_COMPLETION_ONSTACK(completion);
 	u8		*ioctlbuffer;
 	struct fw_control_info	*fwControl;
-	u32		partitionSize, partitionSizeTmp;
+	__be32		partitionSizeTmp;
+	u32		partitionSize;
 	u32		loopNumber, loopcount;
 	struct pm8001_fw_image_header *image_hdr;
 	u32		sizeRead = 0;
 	u32		ret = 0;
 	u32		length = 1024 * 16 + sizeof(*payload) - 1;
+	u32		fc_len;
+	u8		*read_buf;
 
 	if (pm8001_ha->fw_image->size < 28) {
 		pm8001_ha->fw_status = FAIL_FILE_SIZE;
@@ -740,7 +743,7 @@ static int pm8001_update_flash(struct pm8001_hba_info *pm8001_ha)
 	image_hdr = (struct pm8001_fw_image_header *)pm8001_ha->fw_image->data;
 	while (sizeRead < pm8001_ha->fw_image->size) {
 		partitionSizeTmp =
-			*(u32 *)((u8 *)&image_hdr->image_length + sizeRead);
+			*(__be32 *)((u8 *)&image_hdr->image_length + sizeRead);
 		partitionSize = be32_to_cpu(partitionSizeTmp);
 		loopcount = DIV_ROUND_UP(partitionSize + HEADER_LEN,
 					IOCTL_BUF_SIZE);
@@ -755,36 +758,35 @@ static int pm8001_update_flash(struct pm8001_hba_info *pm8001_ha)
 			fwControl->retcode = 0;/* OUT */
 			fwControl->offset = loopNumber * IOCTL_BUF_SIZE;/*OUT */
 
-		/* for the last chunk of data in case file size is not even with
-		4k, load only the rest*/
-		if (((loopcount-loopNumber) == 1) &&
-			((partitionSize + HEADER_LEN) % IOCTL_BUF_SIZE)) {
-			fwControl->len =
-				(partitionSize + HEADER_LEN) % IOCTL_BUF_SIZE;
-			memcpy((u8 *)fwControl->buffer,
-				(u8 *)pm8001_ha->fw_image->data + sizeRead,
-				(partitionSize + HEADER_LEN) % IOCTL_BUF_SIZE);
-			sizeRead +=
-				(partitionSize + HEADER_LEN) % IOCTL_BUF_SIZE;
-		} else {
-			memcpy((u8 *)fwControl->buffer,
-				(u8 *)pm8001_ha->fw_image->data + sizeRead,
-				IOCTL_BUF_SIZE);
-			sizeRead += IOCTL_BUF_SIZE;
-		}
+			/*
+			 * for the last chunk of data in case file size is
+			 * not even with 4k, load only the rest
+			 */
 
-		pm8001_ha->nvmd_completion = &completion;
-		ret = PM8001_CHIP_DISP->fw_flash_update_req(pm8001_ha, payload);
-		if (ret) {
-			pm8001_ha->fw_status = FAIL_OUT_MEMORY;
-			goto out;
-		}
-		wait_for_completion(&completion);
-		if (fwControl->retcode > FLASH_UPDATE_IN_PROGRESS) {
-			pm8001_ha->fw_status = fwControl->retcode;
-			ret = -EFAULT;
-			goto out;
-		}
+			read_buf  = (u8 *)pm8001_ha->fw_image->data + sizeRead;
+			fc_len = (partitionSize + HEADER_LEN) % IOCTL_BUF_SIZE;
+
+			if (loopcount - loopNumber == 1 && fc_len) {
+				fwControl->len = fc_len;
+				memcpy((u8 *)fwControl->buffer, read_buf, fc_len);
+				sizeRead += fc_len;
+			} else {
+				memcpy((u8 *)fwControl->buffer, read_buf, IOCTL_BUF_SIZE);
+				sizeRead += IOCTL_BUF_SIZE;
+			}
+
+			pm8001_ha->nvmd_completion = &completion;
+			ret = PM8001_CHIP_DISP->fw_flash_update_req(pm8001_ha, payload);
+			if (ret) {
+				pm8001_ha->fw_status = FAIL_OUT_MEMORY;
+				goto out;
+			}
+			wait_for_completion(&completion);
+			if (fwControl->retcode > FLASH_UPDATE_IN_PROGRESS) {
+				pm8001_ha->fw_status = fwControl->retcode;
+				ret = -EFAULT;
+				goto out;
+			}
 		}
 	}
 out:

@@ -11,6 +11,7 @@
  * You could find a link for the datasheet in Documentation/arm/sunxi.rst
  */
 
+#include <linux/bottom_half.h>
 #include <linux/crypto.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
@@ -21,34 +22,53 @@
 
 static bool sun8i_ss_need_fallback(struct skcipher_request *areq)
 {
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
+	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
+	struct sun8i_ss_alg_template *algt = container_of(alg, struct sun8i_ss_alg_template, alg.skcipher);
 	struct scatterlist *in_sg = areq->src;
 	struct scatterlist *out_sg = areq->dst;
 	struct scatterlist *sg;
+	unsigned int todo, len;
 
-	if (areq->cryptlen == 0 || areq->cryptlen % 16)
+	if (areq->cryptlen == 0 || areq->cryptlen % 16) {
+		algt->stat_fb_len++;
 		return true;
+	}
 
-	if (sg_nents(areq->src) > 8 || sg_nents(areq->dst) > 8)
+	if (sg_nents_for_len(areq->src, areq->cryptlen) > 8 ||
+		sg_nents_for_len(areq->dst, areq->cryptlen) > 8) {
+		algt->stat_fb_sgnum++;
 		return true;
+	}
 
+	len = areq->cryptlen;
 	sg = areq->src;
 	while (sg) {
-		if ((sg->length % 16) != 0)
+		todo = min(len, sg->length);
+		if ((todo % 16) != 0) {
+			algt->stat_fb_sglen++;
 			return true;
-		if ((sg_dma_len(sg) % 16) != 0)
+		}
+		if (!IS_ALIGNED(sg->offset, 16)) {
+			algt->stat_fb_align++;
 			return true;
-		if (!IS_ALIGNED(sg->offset, 16))
-			return true;
+		}
+		len -= todo;
 		sg = sg_next(sg);
 	}
+	len = areq->cryptlen;
 	sg = areq->dst;
 	while (sg) {
-		if ((sg->length % 16) != 0)
+		todo = min(len, sg->length);
+		if ((todo % 16) != 0) {
+			algt->stat_fb_sglen++;
 			return true;
-		if ((sg_dma_len(sg) % 16) != 0)
+		}
+		if (!IS_ALIGNED(sg->offset, 16)) {
+			algt->stat_fb_align++;
 			return true;
-		if (!IS_ALIGNED(sg->offset, 16))
-			return true;
+		}
+		len -= todo;
 		sg = sg_next(sg);
 	}
 
@@ -92,6 +112,68 @@ static int sun8i_ss_cipher_fallback(struct skcipher_request *areq)
 	return err;
 }
 
+static int sun8i_ss_setup_ivs(struct skcipher_request *areq)
+{
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
+	struct sun8i_cipher_tfm_ctx *op = crypto_skcipher_ctx(tfm);
+	struct sun8i_ss_dev *ss = op->ss;
+	struct sun8i_cipher_req_ctx *rctx = skcipher_request_ctx(areq);
+	struct scatterlist *sg = areq->src;
+	unsigned int todo, offset;
+	unsigned int len = areq->cryptlen;
+	unsigned int ivsize = crypto_skcipher_ivsize(tfm);
+	struct sun8i_ss_flow *sf = &ss->flows[rctx->flow];
+	int i = 0;
+	u32 a;
+	int err;
+
+	rctx->ivlen = ivsize;
+	if (rctx->op_dir & SS_DECRYPTION) {
+		offset = areq->cryptlen - ivsize;
+		scatterwalk_map_and_copy(sf->biv, areq->src, offset,
+					 ivsize, 0);
+	}
+
+	/* we need to copy all IVs from source in case DMA is bi-directionnal */
+	while (sg && len) {
+		if (sg_dma_len(sg) == 0) {
+			sg = sg_next(sg);
+			continue;
+		}
+		if (i == 0)
+			memcpy(sf->iv[0], areq->iv, ivsize);
+		a = dma_map_single(ss->dev, sf->iv[i], ivsize, DMA_TO_DEVICE);
+		if (dma_mapping_error(ss->dev, a)) {
+			memzero_explicit(sf->iv[i], ivsize);
+			dev_err(ss->dev, "Cannot DMA MAP IV\n");
+			err = -EFAULT;
+			goto dma_iv_error;
+		}
+		rctx->p_iv[i] = a;
+		/* we need to setup all others IVs only in the decrypt way */
+		if (rctx->op_dir & SS_ENCRYPTION)
+			return 0;
+		todo = min(len, sg_dma_len(sg));
+		len -= todo;
+		i++;
+		if (i < MAX_SG) {
+			offset = sg->length - ivsize;
+			scatterwalk_map_and_copy(sf->iv[i], sg, offset, ivsize, 0);
+		}
+		rctx->niv = i;
+		sg = sg_next(sg);
+	}
+
+	return 0;
+dma_iv_error:
+	i--;
+	while (i >= 0) {
+		dma_unmap_single(ss->dev, rctx->p_iv[i], ivsize, DMA_TO_DEVICE);
+		memzero_explicit(sf->iv[i], ivsize);
+	}
+	return err;
+}
+
 static int sun8i_ss_cipher(struct skcipher_request *areq)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
@@ -100,12 +182,14 @@ static int sun8i_ss_cipher(struct skcipher_request *areq)
 	struct sun8i_cipher_req_ctx *rctx = skcipher_request_ctx(areq);
 	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
 	struct sun8i_ss_alg_template *algt;
+	struct sun8i_ss_flow *sf = &ss->flows[rctx->flow];
 	struct scatterlist *sg;
 	unsigned int todo, len, offset, ivsize;
-	void *backup_iv = NULL;
 	int nr_sgs = 0;
 	int nr_sgd = 0;
 	int err = 0;
+	int nsgs = sg_nents_for_len(areq->src, areq->cryptlen);
+	int nsgd = sg_nents_for_len(areq->dst, areq->cryptlen);
 	int i;
 
 	algt = container_of(alg, struct sun8i_ss_alg_template, alg.skcipher);
@@ -133,34 +217,12 @@ static int sun8i_ss_cipher(struct skcipher_request *areq)
 
 	ivsize = crypto_skcipher_ivsize(tfm);
 	if (areq->iv && crypto_skcipher_ivsize(tfm) > 0) {
-		rctx->ivlen = ivsize;
-		rctx->biv = kzalloc(ivsize, GFP_KERNEL | GFP_DMA);
-		if (!rctx->biv) {
-			err = -ENOMEM;
+		err = sun8i_ss_setup_ivs(areq);
+		if (err)
 			goto theend_key;
-		}
-		if (rctx->op_dir & SS_DECRYPTION) {
-			backup_iv = kzalloc(ivsize, GFP_KERNEL);
-			if (!backup_iv) {
-				err = -ENOMEM;
-				goto theend_key;
-			}
-			offset = areq->cryptlen - ivsize;
-			scatterwalk_map_and_copy(backup_iv, areq->src, offset,
-						 ivsize, 0);
-		}
-		memcpy(rctx->biv, areq->iv, ivsize);
-		rctx->p_iv = dma_map_single(ss->dev, rctx->biv, rctx->ivlen,
-					    DMA_TO_DEVICE);
-		if (dma_mapping_error(ss->dev, rctx->p_iv)) {
-			dev_err(ss->dev, "Cannot DMA MAP IV\n");
-			err = -ENOMEM;
-			goto theend_iv;
-		}
 	}
 	if (areq->src == areq->dst) {
-		nr_sgs = dma_map_sg(ss->dev, areq->src, sg_nents(areq->src),
-				    DMA_BIDIRECTIONAL);
+		nr_sgs = dma_map_sg(ss->dev, areq->src, nsgs, DMA_BIDIRECTIONAL);
 		if (nr_sgs <= 0 || nr_sgs > 8) {
 			dev_err(ss->dev, "Invalid sg number %d\n", nr_sgs);
 			err = -EINVAL;
@@ -168,15 +230,13 @@ static int sun8i_ss_cipher(struct skcipher_request *areq)
 		}
 		nr_sgd = nr_sgs;
 	} else {
-		nr_sgs = dma_map_sg(ss->dev, areq->src, sg_nents(areq->src),
-				    DMA_TO_DEVICE);
+		nr_sgs = dma_map_sg(ss->dev, areq->src, nsgs, DMA_TO_DEVICE);
 		if (nr_sgs <= 0 || nr_sgs > 8) {
 			dev_err(ss->dev, "Invalid sg number %d\n", nr_sgs);
 			err = -EINVAL;
 			goto theend_iv;
 		}
-		nr_sgd = dma_map_sg(ss->dev, areq->dst, sg_nents(areq->dst),
-				    DMA_FROM_DEVICE);
+		nr_sgd = dma_map_sg(ss->dev, areq->dst, nsgd, DMA_FROM_DEVICE);
 		if (nr_sgd <= 0 || nr_sgd > 8) {
 			dev_err(ss->dev, "Invalid sg number %d\n", nr_sgd);
 			err = -EINVAL;
@@ -232,31 +292,26 @@ sgd_next:
 
 theend_sgs:
 	if (areq->src == areq->dst) {
-		dma_unmap_sg(ss->dev, areq->src, sg_nents(areq->src),
-			     DMA_BIDIRECTIONAL);
+		dma_unmap_sg(ss->dev, areq->src, nsgs, DMA_BIDIRECTIONAL);
 	} else {
-		dma_unmap_sg(ss->dev, areq->src, sg_nents(areq->src),
-			     DMA_TO_DEVICE);
-		dma_unmap_sg(ss->dev, areq->dst, sg_nents(areq->dst),
-			     DMA_FROM_DEVICE);
+		dma_unmap_sg(ss->dev, areq->src, nsgs, DMA_TO_DEVICE);
+		dma_unmap_sg(ss->dev, areq->dst, nsgd, DMA_FROM_DEVICE);
 	}
 
 theend_iv:
-	if (rctx->p_iv)
-		dma_unmap_single(ss->dev, rctx->p_iv, rctx->ivlen,
-				 DMA_TO_DEVICE);
-
 	if (areq->iv && ivsize > 0) {
-		if (rctx->biv) {
-			offset = areq->cryptlen - ivsize;
-			if (rctx->op_dir & SS_DECRYPTION) {
-				memcpy(areq->iv, backup_iv, ivsize);
-				kfree_sensitive(backup_iv);
-			} else {
-				scatterwalk_map_and_copy(areq->iv, areq->dst, offset,
-							 ivsize, 0);
-			}
-			kfree(rctx->biv);
+		for (i = 0; i < rctx->niv; i++) {
+			dma_unmap_single(ss->dev, rctx->p_iv[i], ivsize, DMA_TO_DEVICE);
+			memzero_explicit(sf->iv[i], ivsize);
+		}
+
+		offset = areq->cryptlen - ivsize;
+		if (rctx->op_dir & SS_DECRYPTION) {
+			memcpy(areq->iv, sf->biv, ivsize);
+			memzero_explicit(sf->biv, ivsize);
+		} else {
+			scatterwalk_map_and_copy(areq->iv, areq->dst, offset,
+					ivsize, 0);
 		}
 	}
 
@@ -274,7 +329,9 @@ static int sun8i_ss_handle_cipher_request(struct crypto_engine *engine, void *ar
 	struct skcipher_request *breq = container_of(areq, struct skcipher_request, base);
 
 	err = sun8i_ss_cipher(breq);
+	local_bh_disable();
 	crypto_finalize_skcipher_request(engine, breq, err);
+	local_bh_enable();
 
 	return 0;
 }
@@ -346,9 +403,9 @@ int sun8i_ss_cipher_init(struct crypto_tfm *tfm)
 			 crypto_skcipher_reqsize(op->fallback_tfm);
 
 
-	dev_info(op->ss->dev, "Fallback for %s is %s\n",
-		 crypto_tfm_alg_driver_name(&sktfm->base),
-		 crypto_tfm_alg_driver_name(crypto_skcipher_tfm(op->fallback_tfm)));
+	memcpy(algt->fbname,
+	       crypto_tfm_alg_driver_name(crypto_skcipher_tfm(op->fallback_tfm)),
+	       CRYPTO_MAX_ALG_NAME);
 
 	op->enginectx.op.do_one_request = sun8i_ss_handle_cipher_request;
 	op->enginectx.op.prepare_request = NULL;

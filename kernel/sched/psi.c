@@ -137,21 +137,6 @@
  * sampling of the aggregate task states would be.
  */
 
-#include "../workqueue_internal.h"
-#include <linux/sched/loadavg.h>
-#include <linux/seq_file.h>
-#include <linux/proc_fs.h>
-#include <linux/seqlock.h>
-#include <linux/uaccess.h>
-#include <linux/cgroup.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/ctype.h>
-#include <linux/file.h>
-#include <linux/poll.h>
-#include <linux/psi.h>
-#include "sched.h"
-
 static int psi_bug __read_mostly;
 
 DEFINE_STATIC_KEY_FALSE(psi_disabled);
@@ -523,7 +508,7 @@ static void init_triggers(struct psi_group *group, u64 now)
 static u64 update_triggers(struct psi_group *group, u64 now)
 {
 	struct psi_trigger *t;
-	bool new_stall = false;
+	bool update_total = false;
 	u64 *total = group->total[PSI_POLL];
 
 	/*
@@ -532,24 +517,35 @@ static u64 update_triggers(struct psi_group *group, u64 now)
 	 */
 	list_for_each_entry(t, &group->triggers, node) {
 		u64 growth;
+		bool new_stall;
 
-		/* Check for stall activity */
-		if (group->polling_total[t->state] == total[t->state])
+		new_stall = group->polling_total[t->state] != total[t->state];
+
+		/* Check for stall activity or a previous threshold breach */
+		if (!new_stall && !t->pending_event)
 			continue;
-
 		/*
-		 * Multiple triggers might be looking at the same state,
-		 * remember to update group->polling_total[] once we've
-		 * been through all of them. Also remember to extend the
-		 * polling time if we see new stall activity.
+		 * Check for new stall activity, as well as deferred
+		 * events that occurred in the last window after the
+		 * trigger had already fired (we want to ratelimit
+		 * events without dropping any).
 		 */
-		new_stall = true;
+		if (new_stall) {
+			/*
+			 * Multiple triggers might be looking at the same state,
+			 * remember to update group->polling_total[] once we've
+			 * been through all of them. Also remember to extend the
+			 * polling time if we see new stall activity.
+			 */
+			update_total = true;
 
-		/* Calculate growth since last update */
-		growth = window_update(&t->win, now, total[t->state]);
-		if (growth < t->threshold)
-			continue;
+			/* Calculate growth since last update */
+			growth = window_update(&t->win, now, total[t->state]);
+			if (growth < t->threshold)
+				continue;
 
+			t->pending_event = true;
+		}
 		/* Limit event signaling to once per window */
 		if (now < t->last_event_time + t->win.size)
 			continue;
@@ -558,9 +554,11 @@ static u64 update_triggers(struct psi_group *group, u64 now)
 		if (cmpxchg(&t->event, 0, 1) == 0)
 			wake_up_interruptible(&t->event_wait);
 		t->last_event_time = now;
+		/* Reset threshold breach flag once event got generated */
+		t->pending_event = false;
 	}
 
-	if (new_stall)
+	if (update_total)
 		memcpy(group->polling_total, total,
 				sizeof(group->polling_total));
 
@@ -1062,14 +1060,17 @@ int psi_show(struct seq_file *m, struct psi_group *group, enum psi_res res)
 	mutex_unlock(&group->avgs_lock);
 
 	for (full = 0; full < 2; full++) {
-		unsigned long avg[3];
-		u64 total;
+		unsigned long avg[3] = { 0, };
+		u64 total = 0;
 		int w;
 
-		for (w = 0; w < 3; w++)
-			avg[w] = group->avg[res * 2 + full][w];
-		total = div_u64(group->total[PSI_AVGS][res * 2 + full],
-				NSEC_PER_USEC);
+		/* CPU FULL is undefined at the system level */
+		if (!(group == &psi_system && res == PSI_CPU && full)) {
+			for (w = 0; w < 3; w++)
+				avg[w] = group->avg[res * 2 + full][w];
+			total = div_u64(group->total[PSI_AVGS][res * 2 + full],
+					NSEC_PER_USEC);
+		}
 
 		seq_printf(m, "%s avg10=%lu.%02lu avg60=%lu.%02lu avg300=%lu.%02lu total=%llu\n",
 			   full ? "full" : "some",
@@ -1119,11 +1120,13 @@ struct psi_trigger *psi_trigger_create(struct psi_group *group,
 	t->state = state;
 	t->threshold = threshold_us * NSEC_PER_USEC;
 	t->win.size = window_us * NSEC_PER_USEC;
-	window_reset(&t->win, 0, 0, 0);
+	window_reset(&t->win, sched_clock(),
+			group->total[PSI_POLL][t->state], 0);
 
 	t->event = 0;
 	t->last_event_time = 0;
 	init_waitqueue_head(&t->event_wait);
+	t->pending_event = false;
 
 	mutex_lock(&group->trigger_lock);
 

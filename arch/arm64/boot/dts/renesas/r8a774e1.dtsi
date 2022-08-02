@@ -1280,6 +1280,7 @@
 			reg = <0 0xe66c0000 0 0x8000>;
 			interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "ch_int", "g_int";
 			clocks = <&cpg CPG_MOD 914>,
 				 <&cpg CPG_CORE R8A774E1_CLK_CANFD>,
 				 <&can_clk>;
@@ -1784,7 +1785,7 @@
 			 * clkout	: #clock-cells = <0>;	<&rcar_sound>;
 			 * clkout0/1/2/3: #clock-cells = <1>;	<&rcar_sound N>;
 			 */
-			compatible =  "renesas,rcar_sound-r8a774e1", "renesas,rcar_sound-gen3";
+			compatible = "renesas,rcar_sound-r8a774e1", "renesas,rcar_sound-gen3";
 			reg = <0 0xec500000 0 0x1000>, /* SCU */
 			      <0 0xec5a0000 0 0x100>,  /* ADG */
 			      <0 0xec540000 0 0x1000>, /* SSIU */
@@ -2043,7 +2044,7 @@
 					dma-names = "rx", "tx";
 				};
 				ssiu40: ssiu-32 {
-					dmas =	<&audma0 0x71>, <&audma1 0x72>;
+					dmas = <&audma0 0x71>, <&audma1 0x72>;
 					dma-names = "rx", "tx";
 				};
 				ssiu41: ssiu-33 {
@@ -2857,8 +2858,6 @@
 
 				port@0 {
 					reg = <0>;
-					du_out_rgb: endpoint {
-					};
 				};
 				port@1 {
 					reg = <1>;
@@ -2895,8 +2894,6 @@
 				};
 				port@1 {
 					reg = <1>;
-					lvds0_out: endpoint {
-					};
 				};
 			};
 		};

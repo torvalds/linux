@@ -92,6 +92,9 @@
 # define offsetofend(TYPE, FIELD) \
 	(offsetof(TYPE, FIELD) + sizeof(((TYPE *)0)->FIELD))
 #endif
+#ifndef __alias
+#define __alias(symbol) __attribute__((alias(#symbol)))
+#endif
 
 /* Check whether a string `str` has prefix `pfx`, regardless if `pfx` is
  * a string literal known at compilation time or char * pointer known only at
@@ -99,6 +102,17 @@
  */
 #define str_has_pfx(str, pfx) \
 	(strncmp(str, pfx, __builtin_constant_p(pfx) ? sizeof(pfx) - 1 : strlen(pfx)) == 0)
+
+/* suffix check */
+static inline bool str_has_sfx(const char *str, const char *sfx)
+{
+	size_t str_len = strlen(str);
+	size_t sfx_len = strlen(sfx);
+
+	if (sfx_len <= str_len)
+		return strcmp(str + str_len - sfx_len, sfx);
+	return false;
+}
 
 /* Symbol versioning is different between static and shared library.
  * Properly versioned symbols are needed for shared library, but
@@ -145,6 +159,15 @@ do {				\
 #ifndef __has_builtin
 #define __has_builtin(x) 0
 #endif
+
+struct bpf_link {
+	int (*detach)(struct bpf_link *link);
+	void (*dealloc)(struct bpf_link *link);
+	char *pin_path;		/* NULL, if not pinned */
+	int fd;			/* hook FD, -1 if not applicable */
+	bool disconnected;
+};
+
 /*
  * Re-implement glibc's reallocarray() for libbpf internal-only use.
  * reallocarray(), unfortunately, is not available in all versions of glibc,
@@ -326,6 +349,8 @@ enum kern_feature_id {
 	FEAT_BTF_TYPE_TAG,
 	/* memcg-based accounting for BPF maps and progs */
 	FEAT_MEMCG_ACCOUNT,
+	/* BPF cookie (bpf_get_attach_cookie() BPF helper) support */
+	FEAT_BPF_COOKIE,
 	__FEAT_CNT,
 };
 
@@ -351,6 +376,13 @@ struct btf_ext_info {
 	void *info;
 	__u32 rec_size;
 	__u32 len;
+	/* optional (maintained internally by libbpf) mapping between .BTF.ext
+	 * section and corresponding ELF section. This is used to join
+	 * information like CO-RE relocation records with corresponding BPF
+	 * programs defined in ELF sections
+	 */
+	__u32 *sec_idxs;
+	int sec_cnt;
 };
 
 #define for_each_btf_ext_sec(seg, sec)					\
@@ -446,6 +478,11 @@ __s32 btf__find_by_name_kind_own(const struct btf *btf, const char *type_name,
 
 extern enum libbpf_strict_mode libbpf_mode;
 
+typedef int (*kallsyms_cb_t)(unsigned long long sym_addr, char sym_type,
+			     const char *sym_name, void *ctx);
+
+int libbpf_kallsyms_parse(kallsyms_cb_t cb, void *arg);
+
 /* handle direct returned errors */
 static inline int libbpf_err(int ret)
 {
@@ -525,5 +562,22 @@ static inline int ensure_good_fd(int fd)
 	}
 	return fd;
 }
+
+/* The following two functions are exposed to bpftool */
+int bpf_core_add_cands(struct bpf_core_cand *local_cand,
+		       size_t local_essent_len,
+		       const struct btf *targ_btf,
+		       const char *targ_btf_name,
+		       int targ_start_id,
+		       struct bpf_core_cand_list *cands);
+void bpf_core_free_cands(struct bpf_core_cand_list *cands);
+
+struct usdt_manager *usdt_manager_new(struct bpf_object *obj);
+void usdt_manager_free(struct usdt_manager *man);
+struct bpf_link * usdt_manager_attach_usdt(struct usdt_manager *man,
+					   const struct bpf_program *prog,
+					   pid_t pid, const char *path,
+					   const char *usdt_provider, const char *usdt_name,
+					   __u64 usdt_cookie);
 
 #endif /* __LIBBPF_LIBBPF_INTERNAL_H */

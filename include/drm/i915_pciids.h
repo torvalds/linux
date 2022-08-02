@@ -666,6 +666,12 @@
 	INTEL_VGA_DEVICE(0x46C2, info), \
 	INTEL_VGA_DEVICE(0x46C3, info)
 
+/* ADL-N */
+#define INTEL_ADLN_IDS(info) \
+	INTEL_VGA_DEVICE(0x46D0, info), \
+	INTEL_VGA_DEVICE(0x46D1, info), \
+	INTEL_VGA_DEVICE(0x46D2, info)
+
 /* RPL-S */
 #define INTEL_RPLS_IDS(info) \
 	INTEL_VGA_DEVICE(0xA780, info), \
@@ -673,6 +679,39 @@
 	INTEL_VGA_DEVICE(0xA782, info), \
 	INTEL_VGA_DEVICE(0xA783, info), \
 	INTEL_VGA_DEVICE(0xA788, info), \
-	INTEL_VGA_DEVICE(0xA789, info)
+	INTEL_VGA_DEVICE(0xA789, info), \
+	INTEL_VGA_DEVICE(0xA78A, info), \
+	INTEL_VGA_DEVICE(0xA78B, info)
+
+/* RPL-P */
+#define INTEL_RPLP_IDS(info) \
+	INTEL_VGA_DEVICE(0xA720, info), \
+	INTEL_VGA_DEVICE(0xA721, info), \
+	INTEL_VGA_DEVICE(0xA7A0, info), \
+	INTEL_VGA_DEVICE(0xA7A1, info), \
+	INTEL_VGA_DEVICE(0xA7A8, info), \
+	INTEL_VGA_DEVICE(0xA7A9, info)
+
+/* DG2 */
+#define INTEL_DG2_G10_IDS(info) \
+	INTEL_VGA_DEVICE(0x5690, info), \
+	INTEL_VGA_DEVICE(0x5691, info), \
+	INTEL_VGA_DEVICE(0x5692, info)
+
+#define INTEL_DG2_G11_IDS(info) \
+	INTEL_VGA_DEVICE(0x5693, info), \
+	INTEL_VGA_DEVICE(0x5694, info), \
+	INTEL_VGA_DEVICE(0x5695, info), \
+	INTEL_VGA_DEVICE(0x56B0, info)
+
+#define INTEL_DG2_G12_IDS(info) \
+	INTEL_VGA_DEVICE(0x5696, info), \
+	INTEL_VGA_DEVICE(0x5697, info), \
+	INTEL_VGA_DEVICE(0x56B2, info)
+
+#define INTEL_DG2_IDS(info) \
+	INTEL_DG2_G10_IDS(info), \
+	INTEL_DG2_G11_IDS(info), \
+	INTEL_DG2_G12_IDS(info)
 
 #endif /* _I915_PCIIDS_H */

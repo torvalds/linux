@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm Multimedia Clock & Reset Controller Binding
 
 maintainers:
-  - Jeffrey Hugo <jhugo@codeaurora.org>
+  - Jeffrey Hugo <quic_jhugo@quicinc.com>
   - Taniya Das <tdas@codeaurora.org>
 
 description: |
@@ -19,6 +19,7 @@ properties:
     enum:
       - qcom,mmcc-apq8064
       - qcom,mmcc-apq8084
+      - qcom,mmcc-msm8226
       - qcom,mmcc-msm8660
       - qcom,mmcc-msm8960
       - qcom,mmcc-msm8974

@@ -459,7 +459,7 @@ static int max8973_thermal_read_temp(void *data, int *temp)
 		return ret;
 	}
 
-	/* +1 degC to trigger cool devive */
+	/* +1 degC to trigger cool device */
 	if (val & MAX77621_CHIPID_TJINT_S)
 		*temp = mchip->junction_temp_warning + 1000;
 	else

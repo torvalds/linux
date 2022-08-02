@@ -77,7 +77,6 @@ struct cdrom_device_ops {
 	int (*tray_move) (struct cdrom_device_info *, int);
 	int (*lock_door) (struct cdrom_device_info *, int);
 	int (*select_speed) (struct cdrom_device_info *, int);
-	int (*select_disc) (struct cdrom_device_info *, int);
 	int (*get_last_session) (struct cdrom_device_info *,
 				 struct cdrom_multisession *);
 	int (*get_mcn) (struct cdrom_device_info *,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -76,6 +76,7 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 	if (hw_ip.dram_size > PAGE_SIZE)
 		hw_ip.dram_enabled = 1;
 	hw_ip.dram_page_size = prop->dram_page_size;
+	hw_ip.device_mem_alloc_default_page_size = prop->device_mem_alloc_default_page_size;
 	hw_ip.num_of_events = prop->num_of_events;
 
 	memcpy(hw_ip.cpucp_version, prop->cpucp_info.cpucp_version,
@@ -92,8 +93,8 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 	hw_ip.psoc_pci_pll_od = prop->psoc_pci_pll_od;
 	hw_ip.psoc_pci_pll_div_factor = prop->psoc_pci_pll_div_factor;
 
-	hw_ip.first_available_interrupt_id =
-			prop->first_available_user_msix_interrupt;
+	hw_ip.first_available_interrupt_id = prop->first_available_user_msix_interrupt;
+	hw_ip.number_of_user_interrupts = prop->user_interrupt_count;
 	hw_ip.server_type = prop->server_type;
 
 	return copy_to_user(out, &hw_ip,
@@ -113,6 +114,23 @@ static int hw_events_info(struct hl_device *hdev, bool aggregate,
 	arr = hdev->asic_funcs->get_events_stat(hdev, aggregate, &size);
 
 	return copy_to_user(out, arr, min(max_size, size)) ? -EFAULT : 0;
+}
+
+static int events_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	u32 max_size = args->return_size;
+	u64 events_mask;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((max_size < sizeof(u64)) || (!out))
+		return -EINVAL;
+
+	mutex_lock(&hpriv->notifier_event.lock);
+	events_mask = hpriv->notifier_event.events_mask;
+	hpriv->notifier_event.events_mask = 0;
+	mutex_unlock(&hpriv->notifier_event.lock);
+
+	return copy_to_user(out, &events_mask, sizeof(u64)) ? -EFAULT : 0;
 }
 
 static int dram_usage_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
@@ -251,13 +269,12 @@ static int get_clk_rate(struct hl_device *hdev, struct hl_info_args *args)
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	rc = hdev->asic_funcs->get_clk_rate(hdev, &clk_rate.cur_clk_rate_mhz,
-						&clk_rate.max_clk_rate_mhz);
+	rc = hl_fw_get_clk_rate(hdev, &clk_rate.cur_clk_rate_mhz, &clk_rate.max_clk_rate_mhz);
 	if (rc)
 		return rc;
 
-	return copy_to_user(out, &clk_rate,
-		min((size_t) max_size, sizeof(clk_rate))) ? -EFAULT : 0;
+	return copy_to_user(out, &clk_rate, min_t(size_t, max_size, sizeof(clk_rate)))
+										? -EFAULT : 0;
 }
 
 static int get_reset_count(struct hl_device *hdev, struct hl_info_args *args)
@@ -498,6 +515,8 @@ static int open_stats_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	open_stats_info.last_open_period_ms = jiffies64_to_msecs(
 		hdev->last_open_session_duration_jif);
 	open_stats_info.open_counter = hdev->open_counter;
+	open_stats_info.is_compute_ctx_active = hdev->is_compute_ctx_active;
+	open_stats_info.compute_ctx_in_release = hdev->compute_ctx_in_release;
 
 	return copy_to_user(out, &open_stats_info,
 		min((size_t) max_size, sizeof(open_stats_info))) ? -EFAULT : 0;
@@ -550,7 +569,7 @@ static int last_err_open_dev_info(struct hl_fpriv *hpriv, struct hl_info_args *a
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	info.timestamp = ktime_to_ns(hdev->last_error.open_dev_timestamp);
+	info.timestamp = ktime_to_ns(hdev->last_successful_open_ktime);
 
 	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
 }
@@ -565,8 +584,8 @@ static int cs_timeout_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	info.seq = hdev->last_error.cs_timeout_seq;
-	info.timestamp = ktime_to_ns(hdev->last_error.cs_timeout_timestamp);
+	info.seq = hdev->last_error.cs_timeout.seq;
+	info.timestamp = ktime_to_ns(hdev->last_error.cs_timeout.timestamp);
 
 	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
 }
@@ -581,14 +600,72 @@ static int razwi_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	info.timestamp = ktime_to_ns(hdev->last_error.razwi_timestamp);
-	info.addr = hdev->last_error.razwi_addr;
-	info.engine_id_1 = hdev->last_error.razwi_engine_id_1;
-	info.engine_id_2 = hdev->last_error.razwi_engine_id_2;
-	info.no_engine_id = hdev->last_error.razwi_non_engine_initiator;
-	info.error_type = hdev->last_error.razwi_type;
+	info.timestamp = ktime_to_ns(hdev->last_error.razwi.timestamp);
+	info.addr = hdev->last_error.razwi.addr;
+	info.engine_id_1 = hdev->last_error.razwi.engine_id_1;
+	info.engine_id_2 = hdev->last_error.razwi.engine_id_2;
+	info.no_engine_id = hdev->last_error.razwi.non_engine_initiator;
+	info.error_type = hdev->last_error.razwi.type;
 
 	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
+}
+
+static int dev_mem_alloc_page_sizes_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	struct hl_info_dev_memalloc_page_sizes info = {0};
+	struct hl_device *hdev = hpriv->hdev;
+	u32 max_size = args->return_size;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	/*
+	 * Future ASICs that will support multiple DRAM page sizes will support only "powers of 2"
+	 * pages (unlike some of the ASICs before supporting multiple page sizes).
+	 * For this reason for all ASICs that not support multiple page size the function will
+	 * return an empty bitmask indicating that multiple page sizes is not supported.
+	 */
+	hdev->asic_funcs->get_valid_dram_page_orders(&info);
+
+	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
+}
+
+static int eventfd_register(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	int rc;
+
+	/* check if there is already a registered on that process */
+	mutex_lock(&hpriv->notifier_event.lock);
+	if (hpriv->notifier_event.eventfd) {
+		mutex_unlock(&hpriv->notifier_event.lock);
+		return -EINVAL;
+	}
+
+	hpriv->notifier_event.eventfd = eventfd_ctx_fdget(args->eventfd);
+	if (IS_ERR(hpriv->notifier_event.eventfd)) {
+		rc = PTR_ERR(hpriv->notifier_event.eventfd);
+		hpriv->notifier_event.eventfd = NULL;
+		mutex_unlock(&hpriv->notifier_event.lock);
+		return rc;
+	}
+
+	mutex_unlock(&hpriv->notifier_event.lock);
+	return 0;
+}
+
+static int eventfd_unregister(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	mutex_lock(&hpriv->notifier_event.lock);
+	if (!hpriv->notifier_event.eventfd) {
+		mutex_unlock(&hpriv->notifier_event.lock);
+		return -EINVAL;
+	}
+
+	eventfd_ctx_put(hpriv->notifier_event.eventfd);
+	hpriv->notifier_event.eventfd = NULL;
+	mutex_unlock(&hpriv->notifier_event.lock);
+	return 0;
 }
 
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
@@ -641,6 +718,12 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	case HL_INFO_RAZWI_EVENT:
 		return razwi_info(hpriv, args);
 
+	case HL_INFO_DEV_MEM_ALLOC_PAGE_SIZES:
+		return dev_mem_alloc_page_sizes_info(hpriv, args);
+
+	case HL_INFO_GET_EVENTS:
+		return events_info(hpriv, args);
+
 	default:
 		break;
 	}
@@ -690,6 +773,12 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_DRAM_PENDING_ROWS:
 		return dram_pending_rows_info(hpriv, args);
+
+	case HL_INFO_REGISTER_EVENTFD:
+		return eventfd_register(hpriv, args);
+
+	case HL_INFO_UNREGISTER_EVENTFD:
+		return eventfd_unregister(hpriv, args);
 
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);

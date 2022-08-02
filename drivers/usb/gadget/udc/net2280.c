@@ -932,19 +932,11 @@ static void start_dma(struct net2280_ep *ep, struct net2280_request *req)
 static inline void
 queue_dma(struct net2280_ep *ep, struct net2280_request *req, int valid)
 {
-	struct net2280_dma	*end;
-	dma_addr_t		tmp;
-
 	/* swap new dummy for old, link; fill and maybe activate */
-	end = ep->dummy;
-	ep->dummy = req->td;
-	req->td = end;
+	swap(ep->dummy, req->td);
+	swap(ep->td_dma, req->td_dma);
 
-	tmp = ep->td_dma;
-	ep->td_dma = req->td_dma;
-	req->td_dma = tmp;
-
-	end->dmadesc = cpu_to_le32 (ep->td_dma);
+	req->td->dmadesc = cpu_to_le32 (ep->td_dma);
 
 	fill_dma_desc(ep, req, valid);
 }
@@ -1240,7 +1232,8 @@ static void nuke(struct net2280_ep *ep)
 static int net2280_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
 	struct net2280_ep	*ep;
-	struct net2280_request	*req;
+	struct net2280_request	*req = NULL;
+	struct net2280_request	*iter;
 	unsigned long		flags;
 	u32			dmactl;
 	int			stopped;
@@ -1266,11 +1259,13 @@ static int net2280_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	}
 
 	/* make sure it's still queued on this endpoint */
-	list_for_each_entry(req, &ep->queue, queue) {
-		if (&req->req == _req)
-			break;
+	list_for_each_entry(iter, &ep->queue, queue) {
+		if (&iter->req != _req)
+			continue;
+		req = iter;
+		break;
 	}
-	if (&req->req != _req) {
+	if (!req) {
 		ep->stopped = stopped;
 		spin_unlock_irqrestore(&ep->dev->lock, flags);
 		ep_dbg(ep->dev, "%s: Request mismatch\n", __func__);

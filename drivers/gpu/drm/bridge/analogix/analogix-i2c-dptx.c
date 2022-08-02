@@ -7,8 +7,8 @@
  */
 #include <linux/regmap.h>
 
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm.h>
-#include <drm/drm_dp_helper.h>
 #include <drm/drm_print.h>
 
 #include "analogix-i2c-dptx.h"

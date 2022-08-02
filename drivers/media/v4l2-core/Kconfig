@@ -3,17 +3,9 @@
 # Generic video config states
 #
 
-# Enable the V4L2 core and API
-config VIDEO_V4L2
-	tristate
-	depends on (I2C || I2C=n) && VIDEO_DEV
-	select RATIONAL
-	select VIDEOBUF2_V4L2 if VIDEOBUF2_CORE
-	default (I2C || I2C=n) && VIDEO_DEV
-
 config VIDEO_V4L2_I2C
 	bool
-	depends on I2C && VIDEO_V4L2
+	depends on I2C && VIDEO_DEV
 	default y
 
 config VIDEO_V4L2_SUBDEV_API
@@ -64,7 +56,7 @@ config V4L2_MEM2MEM_DEV
 # Used by LED subsystem flash drivers
 config V4L2_FLASH_LED_CLASS
 	tristate "V4L2 flash API for LED flash class devices"
-	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_DEV && VIDEO_V4L2_SUBDEV_API
 	depends on LEDS_CLASS_FLASH
 	select V4L2_ASYNC
 	help

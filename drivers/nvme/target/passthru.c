@@ -30,6 +30,53 @@ void nvmet_passthrough_override_cap(struct nvmet_ctrl *ctrl)
 		ctrl->cap &= ~(1ULL << 43);
 }
 
+static u16 nvmet_passthru_override_id_descs(struct nvmet_req *req)
+{
+	struct nvmet_ctrl *ctrl = req->sq->ctrl;
+	u16 status = NVME_SC_SUCCESS;
+	int pos, len;
+	bool csi_seen = false;
+	void *data;
+	u8 csi;
+
+	if (!ctrl->subsys->clear_ids)
+		return status;
+
+	data = kzalloc(NVME_IDENTIFY_DATA_SIZE, GFP_KERNEL);
+	if (!data)
+		return NVME_SC_INTERNAL;
+
+	status = nvmet_copy_from_sgl(req, 0, data, NVME_IDENTIFY_DATA_SIZE);
+	if (status)
+		goto out_free;
+
+	for (pos = 0; pos < NVME_IDENTIFY_DATA_SIZE; pos += len) {
+		struct nvme_ns_id_desc *cur = data + pos;
+
+		if (cur->nidl == 0)
+			break;
+		if (cur->nidt == NVME_NIDT_CSI) {
+			memcpy(&csi, cur + 1, NVME_NIDT_CSI_LEN);
+			csi_seen = true;
+			break;
+		}
+		len = sizeof(struct nvme_ns_id_desc) + cur->nidl;
+	}
+
+	memset(data, 0, NVME_IDENTIFY_DATA_SIZE);
+	if (csi_seen) {
+		struct nvme_ns_id_desc *cur = data;
+
+		cur->nidt = NVME_NIDT_CSI;
+		cur->nidl = NVME_NIDT_CSI_LEN;
+		memcpy(cur + 1, &csi, NVME_NIDT_CSI_LEN);
+	}
+	status = nvmet_copy_to_sgl(req, 0, data, NVME_IDENTIFY_DATA_SIZE);
+out_free:
+	kfree(data);
+	return status;
+}
+
 static u16 nvmet_passthru_override_id_ctrl(struct nvmet_req *req)
 {
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
@@ -97,7 +144,7 @@ static u16 nvmet_passthru_override_id_ctrl(struct nvmet_req *req)
 		id->sgls |= cpu_to_le32(1 << 20);
 
 	/*
-	 * When passsthru controller is setup using nvme-loop transport it will
+	 * When passthru controller is setup using nvme-loop transport it will
 	 * export the passthru ctrl subsysnqn (PCIe NVMe ctrl) and will fail in
 	 * the nvme/host/core.c in the nvme_init_subsystem()->nvme_active_ctrl()
 	 * code path with duplicate ctr subsynqn. In order to prevent that we
@@ -152,6 +199,11 @@ static u16 nvmet_passthru_override_id_ns(struct nvmet_req *req)
 	 */
 	id->mc = 0;
 
+	if (req->sq->ctrl->subsys->clear_ids) {
+		memset(id->nguid, 0, NVME_NIDT_NGUID_LEN);
+		memset(id->eui64, 0, NVME_NIDT_EUI64_LEN);
+	}
+
 	status = nvmet_copy_to_sgl(req, 0, id, sizeof(*id));
 
 out_free:
@@ -175,6 +227,9 @@ static void nvmet_passthru_execute_cmd_work(struct work_struct *w)
 			break;
 		case NVME_ID_CNS_NS:
 			nvmet_passthru_override_id_ns(req);
+			break;
+		case NVME_ID_CNS_NS_DESC_LIST:
+			nvmet_passthru_override_id_descs(req);
 			break;
 		}
 	} else if (status < 0)
@@ -206,12 +261,13 @@ static int nvmet_passthru_map_sg(struct nvmet_req *req, struct request *rq)
 
 	if (nvmet_use_inline_bvec(req)) {
 		bio = &req->p.inline_bio;
-		bio_init(bio, req->inline_bvec, ARRAY_SIZE(req->inline_bvec));
+		bio_init(bio, NULL, req->inline_bvec,
+			 ARRAY_SIZE(req->inline_bvec), req_op(rq));
 	} else {
-		bio = bio_alloc(GFP_KERNEL, bio_max_segs(req->sg_cnt));
+		bio = bio_alloc(NULL, bio_max_segs(req->sg_cnt), req_op(rq),
+				GFP_KERNEL);
 		bio->bi_end_io = bio_put;
 	}
-	bio->bi_opf = req_op(rq);
 
 	for_each_sg(req->sg, sg, req->sg_cnt, i) {
 		if (bio_add_pc_page(rq->q, bio, sg_page(sg), sg->length,
@@ -253,11 +309,12 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 		timeout = nvmet_req_subsys(req)->admin_timeout;
 	}
 
-	rq = nvme_alloc_request(q, req->cmd, 0);
+	rq = blk_mq_alloc_request(q, nvme_req_op(req->cmd), 0);
 	if (IS_ERR(rq)) {
 		status = NVME_SC_INTERNAL;
 		goto out_put_ns;
 	}
+	nvme_init_request(rq, req->cmd);
 
 	if (timeout)
 		rq->timeout = timeout;
@@ -281,10 +338,11 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 	if (req->p.use_workqueue || effects) {
 		INIT_WORK(&req->p.work, nvmet_passthru_execute_cmd_work);
 		req->p.rq = rq;
-		schedule_work(&req->p.work);
+		queue_work(nvmet_wq, &req->p.work);
 	} else {
+		rq->end_io = nvmet_passthru_req_done;
 		rq->end_io_data = req;
-		blk_execute_rq_nowait(rq, false, nvmet_passthru_req_done);
+		blk_execute_rq_nowait(rq, false);
 	}
 
 	if (ns)

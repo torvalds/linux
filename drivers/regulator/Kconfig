@@ -984,6 +984,7 @@ config REGULATOR_RASPBERRYPI_TOUCHSCREEN_ATTINY
 	tristate "Raspberry Pi 7-inch touchscreen panel ATTINY regulator"
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on I2C
+	depends on OF_GPIO
 	select REGMAP_I2C
 	help
 	  This driver supports ATTINY regulator on the Raspberry Pi 7-inch
@@ -1045,6 +1046,26 @@ config REGULATOR_RT5033
 	  This adds support for voltage and current regulators in Richtek
 	  RT5033 PMIC. The device supports multiple regulators like
 	  current source, LDO and Buck.
+
+config REGULATOR_RT5190A
+	tristate "Richtek RT5190A PMIC"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This adds support for voltage regulator in Richtek RT5190A PMIC.
+	  It integratas 1 channel buck controller, 3 channels high efficiency
+	  buck converters, 1 LDO, mute AC OFF depop function, with the general
+	  I2C control interface.
+
+config REGULATOR_RT5759
+	tristate "Richtek RT5759 Regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This adds support for voltage regulator in Richtek RT5759.
+	  The RT5759 is a high-performance, synchronous step-down DC-DC
+	  converter that can deliver up to 9A output current from 3V to 6.5V
+	  input supply.
 
 config REGULATOR_RT6160
 	tristate "Richtek RT6160 BuckBoost voltage regulator"
@@ -1146,6 +1167,13 @@ config REGULATOR_SLG51000
 	  The SLG51000 is seven compact and customizable low dropout
 	  regulators.
 
+config REGULATOR_SM5703
+	tristate "Silicon Mitus SM5703 regulators"
+	depends on MFD_SM5703
+	help
+	  This driver provides support for voltage regulators of SM5703
+	  multi-function device.
+
 config REGULATOR_STM32_BOOSTER
 	tristate "STMicroelectronics STM32 BOOSTER"
 	depends on ARCH_STM32 || COMPILE_TEST
@@ -1208,7 +1236,6 @@ config REGULATOR_STW481X_VMMC
 
 config REGULATOR_SY7636A
 	tristate "Silergy SY7636A voltage regulator"
-	depends on MFD_SY7636A
 	help
 	  This driver supports Silergy SY3686A voltage regulator.
 
@@ -1262,6 +1289,15 @@ config REGULATOR_TPS62360
 	  regulator is meant for processor core supply. This chip is
 	  high-frequency synchronous step down dc-dc converter optimized
 	  for battery-powered portable applications.
+
+config REGULATOR_TPS6286X
+	tristate "TI TPS6286x Power Regulator"
+	depends on I2C && OF
+	select REGMAP_I2C
+	help
+	  This driver supports TPS6236x voltage regulator chips. These are
+	  high-frequency synchronous step-down converters with an I2C
+	  interface.
 
 config REGULATOR_TPS65023
 	tristate "TI TPS65023 Power regulators"

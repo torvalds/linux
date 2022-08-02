@@ -29,7 +29,9 @@ struct timerlat_top_params {
 	int			duration;
 	int			quiet;
 	int			set_sched;
+	int			dma_latency;
 	struct sched_attr	sched_param;
+	struct trace_events	*events;
 };
 
 struct timerlat_top_cpu {
@@ -266,10 +268,12 @@ static void timerlat_top_usage(char *usage)
 
 	static const char *const msg[] = {
 		"",
-		"  usage: rtla timerlat [top] [-h] [-q] [-d s] [-D] [-n] [-p us] [-i us] [-T us] [-s us] [-t[=file]] \\",
-		"	  [-c cpu-list] [-P priority]",
+		"  usage: rtla timerlat [top] [-h] [-q] [-a us] [-d s] [-D] [-n] [-p us] [-i us] [-T us] [-s us] \\",
+		"	  [[-t[=file]] [-e sys[:event]] [--filter <filter>] [--trigger <trigger>] [-c cpu-list] \\",
+		"	  [-P priority] [--dma-latency us]",
 		"",
 		"	  -h/--help: print this menu",
+		"	  -a/--auto: set automatic trace mode, stopping the session if argument in us latency is hit",
 		"	  -p/--period us: timerlat period in us",
 		"	  -i/--irq us: stop trace if the irq latency is higher than the argument in us",
 		"	  -T/--thread us: stop trace if the thread latency is higher than the argument in us",
@@ -278,8 +282,12 @@ static void timerlat_top_usage(char *usage)
 		"	  -d/--duration time[m|h|d]: duration of the session in seconds",
 		"	  -D/--debug: print debug info",
 		"	  -t/--trace[=file]: save the stopped trace to [file|timerlat_trace.txt]",
+		"	  -e/--event <sys:event>: enable the <sys:event> in the trace instance, multiple -e are allowed",
+		"	     --filter <command>: enable a trace event filter to the previous -e event",
+		"	     --trigger <command>: enable a trace event trigger to the previous -e event",
 		"	  -n/--nano: display data in nanoseconds",
 		"	  -q/--quiet print only a summary at the end",
+		"	     --dma-latency us: set /dev/cpu_dma_latency latency <us> to reduce exit from idle latency",
 		"	  -P/--priority o:prio|r:prio|f:prio|d:runtime:period : set scheduling parameters",
 		"		o:prio - use SCHED_OTHER with prio",
 		"		r:prio - use SCHED_RR with prio",
@@ -307,6 +315,8 @@ static struct timerlat_top_params
 *timerlat_top_parse_args(int argc, char **argv)
 {
 	struct timerlat_top_params *params;
+	struct trace_events *tevent;
+	long long auto_thresh;
 	int retval;
 	int c;
 
@@ -314,14 +324,19 @@ static struct timerlat_top_params
 	if (!params)
 		exit(1);
 
+	/* disabled by default */
+	params->dma_latency = -1;
+
 	/* display data in microseconds */
 	params->output_divisor = 1000;
 
 	while (1) {
 		static struct option long_options[] = {
+			{"auto",		required_argument,	0, 'a'},
 			{"cpus",		required_argument,	0, 'c'},
 			{"debug",		no_argument,		0, 'D'},
 			{"duration",		required_argument,	0, 'd'},
+			{"event",		required_argument,	0, 'e'},
 			{"help",		no_argument,		0, 'h'},
 			{"irq",			required_argument,	0, 'i'},
 			{"nano",		no_argument,		0, 'n'},
@@ -331,13 +346,16 @@ static struct timerlat_top_params
 			{"stack",		required_argument,	0, 's'},
 			{"thread",		required_argument,	0, 'T'},
 			{"trace",		optional_argument,	0, 't'},
+			{"trigger",		required_argument,	0, '0'},
+			{"filter",		required_argument,	0, '1'},
+			{"dma-latency",		required_argument,	0, '2'},
 			{0, 0, 0, 0}
 		};
 
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "c:d:Dhi:np:P:qs:t::T:",
+		c = getopt_long(argc, argv, "a:c:d:De:hi:np:P:qs:t::T:0:1:2:",
 				 long_options, &option_index);
 
 		/* detect the end of the options. */
@@ -345,6 +363,19 @@ static struct timerlat_top_params
 			break;
 
 		switch (c) {
+		case 'a':
+			auto_thresh = get_llong_from_str(optarg);
+
+			/* set thread stop to auto_thresh */
+			params->stop_total_us = auto_thresh;
+
+			/* get stack trace */
+			params->print_stack = auto_thresh;
+
+			/* set trace */
+			params->trace_output = "timerlat_trace.txt";
+
+			break;
 		case 'c':
 			retval = parse_cpu_list(optarg, &params->monitored_cpus);
 			if (retval)
@@ -358,6 +389,17 @@ static struct timerlat_top_params
 			params->duration = parse_seconds_duration(optarg);
 			if (!params->duration)
 				timerlat_top_usage("Invalid -D duration\n");
+			break;
+		case 'e':
+			tevent = trace_event_alloc(optarg);
+			if (!tevent) {
+				err_msg("Error alloc trace event");
+				exit(EXIT_FAILURE);
+			}
+
+			if (params->events)
+				tevent->next = params->events;
+			params->events = tevent;
 			break;
 		case 'h':
 		case '?':
@@ -395,6 +437,35 @@ static struct timerlat_top_params
 				params->trace_output = &optarg[1];
 			else
 				params->trace_output = "timerlat_trace.txt";
+			break;
+		case '0': /* trigger */
+			if (params->events) {
+				retval = trace_event_add_trigger(params->events, optarg);
+				if (retval) {
+					err_msg("Error adding trigger %s\n", optarg);
+					exit(EXIT_FAILURE);
+				}
+			} else {
+				timerlat_top_usage("--trigger requires a previous -e\n");
+			}
+			break;
+		case '1': /* filter */
+			if (params->events) {
+				retval = trace_event_add_filter(params->events, optarg);
+				if (retval) {
+					err_msg("Error adding filter %s\n", optarg);
+					exit(EXIT_FAILURE);
+				}
+			} else {
+				timerlat_top_usage("--filter requires a previous -e\n");
+			}
+			break;
+		case '2': /* dma-latency */
+			params->dma_latency = get_llong_from_str(optarg);
+			if (params->dma_latency < 0 || params->dma_latency > 10000) {
+				err_msg("--dma-latency needs to be >= 0 and < 10000");
+				exit(EXIT_FAILURE);
+			}
 			break;
 		default:
 			timerlat_top_usage("Invalid option");
@@ -524,6 +595,7 @@ int timerlat_top_main(int argc, char *argv[])
 	struct osnoise_tool *record = NULL;
 	struct osnoise_tool *top = NULL;
 	struct trace_instance *trace;
+	int dma_latency_fd = -1;
 	int return_value = 1;
 	int retval;
 
@@ -540,7 +612,7 @@ int timerlat_top_main(int argc, char *argv[])
 	retval = timerlat_top_apply_config(top, params);
 	if (retval) {
 		err_msg("Could not apply config\n");
-		goto out_top;
+		goto out_free;
 	}
 
 	trace = &top->trace;
@@ -548,14 +620,22 @@ int timerlat_top_main(int argc, char *argv[])
 	retval = enable_timerlat(trace);
 	if (retval) {
 		err_msg("Failed to enable timerlat tracer\n");
-		goto out_top;
+		goto out_free;
 	}
 
 	if (params->set_sched) {
 		retval = set_comm_sched_attr("timerlat/", &params->sched_param);
 		if (retval) {
 			err_msg("Failed to set sched parameters\n");
-			goto out_top;
+			goto out_free;
+		}
+	}
+
+	if (params->dma_latency >= 0) {
+		dma_latency_fd = set_cpu_dma_latency(params->dma_latency);
+		if (dma_latency_fd < 0) {
+			err_msg("Could not set /dev/cpu_dma_latency.\n");
+			goto out_free;
 		}
 	}
 
@@ -565,8 +645,15 @@ int timerlat_top_main(int argc, char *argv[])
 		record = osnoise_init_trace_tool("timerlat");
 		if (!record) {
 			err_msg("Failed to enable the trace instance\n");
-			goto out_top;
+			goto out_free;
 		}
+
+		if (params->events) {
+			retval = trace_events_enable(&record->trace, params->events);
+			if (retval)
+				goto out_top;
+		}
+
 		trace_instance_start(&record->trace);
 	}
 
@@ -590,16 +677,16 @@ int timerlat_top_main(int argc, char *argv[])
 		if (!params->quiet)
 			timerlat_print_stats(params, top);
 
-		if (!tracefs_trace_is_on(trace->inst))
+		if (trace_is_off(&top->trace, &record->trace))
 			break;
 
-	};
+	}
 
 	timerlat_print_stats(params, top);
 
 	return_value = 0;
 
-	if (!tracefs_trace_is_on(trace->inst)) {
+	if (trace_is_off(&top->trace, &record->trace)) {
 		printf("rtla timelat hit stop tracing\n");
 		if (params->trace_output) {
 			printf("  Saving trace to %s\n", params->trace_output);
@@ -608,6 +695,11 @@ int timerlat_top_main(int argc, char *argv[])
 	}
 
 out_top:
+	if (dma_latency_fd >= 0)
+		close(dma_latency_fd);
+	trace_events_destroy(&record->trace, params->events);
+	params->events = NULL;
+out_free:
 	timerlat_free_top(top->data);
 	osnoise_destroy_tool(record);
 	osnoise_destroy_tool(top);

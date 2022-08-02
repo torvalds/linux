@@ -5,10 +5,9 @@
  * Copyright 2010 Andre B. Oliveira
  */
 
-/*
- * References:
- * - Getting started with TS-CAN1, Technologic Systems, Jun 2009
- *	http://www.embeddedarm.com/documentation/ts-can1-manual.pdf
+/* References:
+ * - Getting started with TS-CAN1, Technologic Systems, Feb 2022
+ *	https://docs.embeddedts.com/TS-CAN1
  */
 
 #include <linux/init.h>

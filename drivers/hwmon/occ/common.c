@@ -145,7 +145,7 @@ static int occ_poll(struct occ *occ)
 	cmd[6] = 0;			/* checksum lsb */
 
 	/* mutex should already be locked if necessary */
-	rc = occ->send_cmd(occ, cmd, sizeof(cmd));
+	rc = occ->send_cmd(occ, cmd, sizeof(cmd), &occ->resp, sizeof(occ->resp));
 	if (rc) {
 		occ->last_error = rc;
 		if (occ->error_count++ > OCC_ERROR_COUNT_THRESHOLD)
@@ -182,6 +182,7 @@ static int occ_set_user_power_cap(struct occ *occ, u16 user_power_cap)
 {
 	int rc;
 	u8 cmd[8];
+	u8 resp[8];
 	__be16 user_power_cap_be = cpu_to_be16(user_power_cap);
 
 	cmd[0] = 0;	/* sequence number */
@@ -198,7 +199,7 @@ static int occ_set_user_power_cap(struct occ *occ, u16 user_power_cap)
 	if (rc)
 		return rc;
 
-	rc = occ->send_cmd(occ, cmd, sizeof(cmd));
+	rc = occ->send_cmd(occ, cmd, sizeof(cmd), resp, sizeof(resp));
 
 	mutex_unlock(&occ->lock);
 
@@ -674,6 +675,9 @@ static ssize_t occ_show_caps_3(struct device *dev,
 	case 7:
 		val = caps->user_source;
 		break;
+	case 8:
+		val = get_unaligned_be16(&caps->soft_min) * 1000000ULL;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -835,11 +839,12 @@ static int occ_setup_sensor_attrs(struct occ *occ)
 	case 1:
 		num_attrs += (sensors->caps.num_sensors * 7);
 		break;
-	case 3:
-		show_caps = occ_show_caps_3;
-		fallthrough;
 	case 2:
 		num_attrs += (sensors->caps.num_sensors * 8);
+		break;
+	case 3:
+		show_caps = occ_show_caps_3;
+		num_attrs += (sensors->caps.num_sensors * 9);
 		break;
 	default:
 		sensors->caps.num_sensors = 0;
@@ -1047,6 +1052,15 @@ static int occ_setup_sensor_attrs(struct occ *occ)
 			attr->sensor = OCC_INIT_ATTR(attr->name, 0444,
 						     show_caps, NULL, 7, 0);
 			attr++;
+
+			if (sensors->caps.version > 2) {
+				snprintf(attr->name, sizeof(attr->name),
+					 "power%d_cap_min_soft", s);
+				attr->sensor = OCC_INIT_ATTR(attr->name, 0444,
+							     show_caps, NULL,
+							     8, 0);
+				attr++;
+			}
 		}
 	}
 
@@ -1136,43 +1150,74 @@ static void occ_parse_poll_response(struct occ *occ)
 		sizeof(*header), size + sizeof(*header));
 }
 
-int occ_setup(struct occ *occ, const char *name)
+int occ_active(struct occ *occ, bool active)
+{
+	int rc = mutex_lock_interruptible(&occ->lock);
+
+	if (rc)
+		return rc;
+
+	if (active) {
+		if (occ->active) {
+			rc = -EALREADY;
+			goto unlock;
+		}
+
+		occ->error_count = 0;
+		occ->last_safe = 0;
+
+		rc = occ_poll(occ);
+		if (rc < 0) {
+			dev_err(occ->bus_dev,
+				"failed to get OCC poll response=%02x: %d\n",
+				occ->resp.return_status, rc);
+			goto unlock;
+		}
+
+		occ->active = true;
+		occ->next_update = jiffies + OCC_UPDATE_FREQUENCY;
+		occ_parse_poll_response(occ);
+
+		rc = occ_setup_sensor_attrs(occ);
+		if (rc) {
+			dev_err(occ->bus_dev,
+				"failed to setup sensor attrs: %d\n", rc);
+			goto unlock;
+		}
+
+		occ->hwmon = hwmon_device_register_with_groups(occ->bus_dev,
+							       "occ", occ,
+							       occ->groups);
+		if (IS_ERR(occ->hwmon)) {
+			rc = PTR_ERR(occ->hwmon);
+			occ->hwmon = NULL;
+			dev_err(occ->bus_dev,
+				"failed to register hwmon device: %d\n", rc);
+			goto unlock;
+		}
+	} else {
+		if (!occ->active) {
+			rc = -EALREADY;
+			goto unlock;
+		}
+
+		if (occ->hwmon)
+			hwmon_device_unregister(occ->hwmon);
+		occ->active = false;
+		occ->hwmon = NULL;
+	}
+
+unlock:
+	mutex_unlock(&occ->lock);
+	return rc;
+}
+
+int occ_setup(struct occ *occ)
 {
 	int rc;
 
 	mutex_init(&occ->lock);
 	occ->groups[0] = &occ->group;
-
-	/* no need to lock */
-	rc = occ_poll(occ);
-	if (rc == -ESHUTDOWN) {
-		dev_info(occ->bus_dev, "host is not ready\n");
-		return rc;
-	} else if (rc < 0) {
-		dev_err(occ->bus_dev,
-			"failed to get OCC poll response=%02x: %d\n",
-			occ->resp.return_status, rc);
-		return rc;
-	}
-
-	occ->next_update = jiffies + OCC_UPDATE_FREQUENCY;
-	occ_parse_poll_response(occ);
-
-	rc = occ_setup_sensor_attrs(occ);
-	if (rc) {
-		dev_err(occ->bus_dev, "failed to setup sensor attrs: %d\n",
-			rc);
-		return rc;
-	}
-
-	occ->hwmon = devm_hwmon_device_register_with_groups(occ->bus_dev, name,
-							    occ, occ->groups);
-	if (IS_ERR(occ->hwmon)) {
-		rc = PTR_ERR(occ->hwmon);
-		dev_err(occ->bus_dev, "failed to register hwmon device: %d\n",
-			rc);
-		return rc;
-	}
 
 	rc = occ_setup_sysfs(occ);
 	if (rc)
@@ -1181,6 +1226,20 @@ int occ_setup(struct occ *occ, const char *name)
 	return rc;
 }
 EXPORT_SYMBOL_GPL(occ_setup);
+
+void occ_shutdown(struct occ *occ)
+{
+	mutex_lock(&occ->lock);
+
+	occ_shutdown_sysfs(occ);
+
+	if (occ->hwmon)
+		hwmon_device_unregister(occ->hwmon);
+	occ->hwmon = NULL;
+
+	mutex_unlock(&occ->lock);
+}
+EXPORT_SYMBOL_GPL(occ_shutdown);
 
 MODULE_AUTHOR("Eddie James <eajames@linux.ibm.com>");
 MODULE_DESCRIPTION("Common OCC hwmon code");

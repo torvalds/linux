@@ -201,7 +201,7 @@ static int prism2_wep_get_key(void *key, int len, u8 *seq, void *priv)
 	struct prism2_wep_data *wep = priv;
 
 	if (len < wep->key_len)
-		return -1;
+		return 0;
 
 	memcpy(key, wep->key, wep->key_len);
 
@@ -240,7 +240,7 @@ int __init ieee80211_crypto_wep_init(void)
 	return ieee80211_register_crypto_ops(&ieee80211_crypt_wep);
 }
 
-void __exit ieee80211_crypto_wep_exit(void)
+void ieee80211_crypto_wep_exit(void)
 {
 	ieee80211_unregister_crypto_ops(&ieee80211_crypt_wep);
 }

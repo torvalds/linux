@@ -21,7 +21,7 @@
 
 #define MMC_BKOPS_TIMEOUT_MS		(120 * 1000) /* 120s */
 #define MMC_SANITIZE_TIMEOUT_MS		(240 * 1000) /* 240s */
-#define MMC_OP_COND_PERIOD_US		(1 * 1000) /* 1ms */
+#define MMC_OP_COND_PERIOD_US		(4 * 1000) /* 4ms */
 #define MMC_OP_COND_TIMEOUT_MS		1000 /* 1s */
 
 static const u8 tuning_blk_pattern_4bit[] = {

@@ -547,10 +547,12 @@ tcf_match_indev(struct sk_buff *skb, int ifindex)
 }
 
 int tc_setup_offload_action(struct flow_action *flow_action,
-			    const struct tcf_exts *exts);
+			    const struct tcf_exts *exts,
+			    struct netlink_ext_ack *extack);
 void tc_cleanup_offload_action(struct flow_action *flow_action);
 int tc_setup_action(struct flow_action *flow_action,
-		    struct tc_action *actions[]);
+		    struct tc_action *actions[],
+		    struct netlink_ext_ack *extack);
 
 int tc_setup_cb_call(struct tcf_block *block, enum tc_setup_type type,
 		     void *type_data, bool err_stop, bool rtnl_held);
@@ -1027,5 +1029,16 @@ struct tc_fifo_qopt_offload {
 		struct tc_qopt_offload_stats stats;
 	};
 };
+
+#ifdef CONFIG_NET_CLS_ACT
+DECLARE_STATIC_KEY_FALSE(tc_skb_ext_tc);
+void tc_skb_ext_tc_enable(void);
+void tc_skb_ext_tc_disable(void);
+#define tc_skb_ext_tc_enabled() static_branch_unlikely(&tc_skb_ext_tc)
+#else /* CONFIG_NET_CLS_ACT */
+static inline void tc_skb_ext_tc_enable(void) { }
+static inline void tc_skb_ext_tc_disable(void) { }
+#define tc_skb_ext_tc_enabled() false
+#endif
 
 #endif

@@ -264,11 +264,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 			ptxdesc->txdw5 |= cpu_to_le32(0x00300000);/* retry limit = 12 */
 
 		ptxdesc->txdw5 |= cpu_to_le32(MRateToHwRate(pmlmeext->tx_rate));
-	} else if ((pxmitframe->frame_tag & 0x0f) == TXAGG_FRAMETAG) {
-		DBG_88E("pxmitframe->frame_tag == TXAGG_FRAMETAG\n");
-	} else {
-		DBG_88E("pxmitframe->frame_tag = %d\n", pxmitframe->frame_tag);
-
+	} else if ((pxmitframe->frame_tag & 0x0f) != TXAGG_FRAMETAG) {
 		/* offset 4 */
 		ptxdesc->txdw1 |= cpu_to_le32((4) & 0x3f);/* CAM_ID(MAC_ID) */
 
@@ -351,7 +347,7 @@ static s32 rtw_dump_xframe(struct adapter *adapt, struct xmit_frame *pxmitframe)
 
 		mem_addr += w_sz;
 
-		mem_addr = (u8 *)RND4(((size_t)(mem_addr)));
+		mem_addr = PTR_ALIGN(mem_addr, 4);
 	}
 
 	rtw_free_xmitframe(pxmitpriv, pxmitframe);
@@ -380,9 +376,9 @@ static u32 xmitframe_need_length(struct xmit_frame *pxmitframe)
 	return len;
 }
 
-s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
+bool rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
 {
-	struct hal_data_8188e *haldata = &adapt->haldata;
+	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(adapt);
 	struct xmit_frame *pxmitframe = NULL;
 	struct xmit_frame *pfirstframe = NULL;
 
@@ -396,12 +392,17 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 	u32 pbuf_tail;	/*  last pkt tail */
 	u32 len;	/*  packet length, except TXDESC_SIZE and PKT_OFFSET */
 
-	u32 bulksize = haldata->UsbBulkOutSize;
+	u32 bulksize;
 	u8 desc_cnt;
 	u32 bulkptr;
 
 	/*  dump frame variable */
 	u32 ff_hwaddr;
+
+	if (pdvobjpriv->pusbdev->speed == USB_SPEED_HIGH)
+		bulksize = USB_HIGH_SPEED_BULK_SIZE;
+	else
+		bulksize = USB_FULL_SPEED_BULK_SIZE;
 
 	/*  check xmitbuffer is ok */
 	if (!pxmitbuf) {
@@ -436,7 +437,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 	pfirstframe = pxmitframe;
 	len = xmitframe_need_length(pfirstframe) + TXDESC_SIZE + (pfirstframe->pkt_offset * PACKET_OFFSET_SZ);
 	pbuf_tail = len;
-	pbuf = _RND8(pbuf_tail);
+	pbuf = round_up(pbuf_tail, 8);
 
 	/*  check pkt amount in one bulk */
 	desc_cnt = 0;
@@ -487,7 +488,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 
 		len = xmitframe_need_length(pxmitframe) + TXDESC_SIZE + (pxmitframe->pkt_offset * PACKET_OFFSET_SZ);
 
-		if (_RND8(pbuf + len) > MAX_XMITBUF_SZ) {
+		if (pbuf + len > MAX_XMITBUF_SZ) {
 			pxmitframe->agg_num = 1;
 			pxmitframe->pkt_offset = 1;
 			break;
@@ -510,7 +511,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 
 		/*  handle pointer and stop condition */
 		pbuf_tail = pbuf + len;
-		pbuf = _RND8(pbuf_tail);
+		pbuf = round_up(pbuf_tail, 8);
 
 		pfirstframe->agg_num++;
 		if (MAX_TX_AGG_PACKET_NUMBER == pfirstframe->agg_num)
@@ -518,7 +519,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 
 		if (pbuf < bulkptr) {
 			desc_cnt++;
-			if (desc_cnt == haldata->UsbTxAggDescNum)
+			if (desc_cnt == USB_TXAGG_DESC_NUM)
 				break;
 		} else {
 			desc_cnt = 0;
@@ -567,8 +568,7 @@ static s32 xmitframe_direct(struct adapter *adapt, struct xmit_frame *pxmitframe
 	res = rtw_xmitframe_coalesce(adapt, pxmitframe->pkt, pxmitframe);
 	if (res == _SUCCESS)
 		rtw_dump_xframe(adapt, pxmitframe);
-	else
-		DBG_88E("==> %s xmitframe_coalsece failed\n", __func__);
+
 	return res;
 }
 

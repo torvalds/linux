@@ -190,12 +190,6 @@ static void mdp5_complete_commit(struct msm_kms *kms, unsigned crtc_mask)
 		mdp5_smp_complete_commit(mdp5_kms->smp, &global_state->smp);
 }
 
-static long mdp5_round_pixclk(struct msm_kms *kms, unsigned long rate,
-		struct drm_encoder *encoder)
-{
-	return rate;
-}
-
 static int mdp5_set_split_display(struct msm_kms *kms,
 		struct drm_encoder *encoder,
 		struct drm_encoder *slave_encoder,
@@ -208,6 +202,8 @@ static int mdp5_set_split_display(struct msm_kms *kms,
 		return mdp5_vid_encoder_set_split_display(encoder,
 							  slave_encoder);
 }
+
+static void mdp5_destroy(struct platform_device *pdev);
 
 static void mdp5_kms_destroy(struct msm_kms *kms)
 {
@@ -227,6 +223,7 @@ static void mdp5_kms_destroy(struct msm_kms *kms)
 	}
 
 	mdp_kms_destroy(&mdp5_kms->base);
+	mdp5_destroy(mdp5_kms->pdev);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -278,7 +275,6 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.wait_flush      = mdp5_wait_flush,
 		.complete_commit = mdp5_complete_commit,
 		.get_format      = mdp_get_format,
-		.round_pixclk    = mdp5_round_pixclk,
 		.set_split_display = mdp5_set_split_display,
 		.destroy         = mdp5_kms_destroy,
 #ifdef CONFIG_DEBUG_FS
@@ -326,7 +322,6 @@ static struct drm_encoder *construct_encoder(struct mdp5_kms *mdp5_kms,
 					     struct mdp5_ctl *ctl)
 {
 	struct drm_device *dev = mdp5_kms->dev;
-	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_encoder *encoder;
 
 	encoder = mdp5_encoder_init(dev, intf, ctl);
@@ -334,8 +329,6 @@ static struct drm_encoder *construct_encoder(struct mdp5_kms *mdp5_kms,
 		DRM_DEV_ERROR(dev->dev, "failed to construct encoder\n");
 		return encoder;
 	}
-
-	priv->encoders[priv->num_encoders++] = encoder;
 
 	return encoder;
 }
@@ -441,6 +434,8 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	int i, ret, pi = 0, ci = 0;
 	struct drm_plane *primary[MAX_BASES] = { NULL };
 	struct drm_plane *cursor[MAX_BASES] = { NULL };
+	struct drm_encoder *encoder;
+	unsigned int num_encoders;
 
 	/*
 	 * Construct encoders and modeset initialize connector devices
@@ -452,12 +447,16 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 			goto fail;
 	}
 
+	num_encoders = 0;
+	drm_for_each_encoder(encoder, dev)
+		num_encoders++;
+
 	/*
 	 * We should ideally have less number of encoders (set up by parsing
 	 * the MDP5 interfaces) than the number of layer mixers present in HW,
 	 * but let's be safe here anyway
 	 */
-	num_crtcs = min(priv->num_encoders, mdp5_kms->num_hwmixers);
+	num_crtcs = min(num_encoders, mdp5_kms->num_hwmixers);
 
 	/*
 	 * Construct planes equaling the number of hw pipes, and CRTCs for the
@@ -482,7 +481,6 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 			DRM_DEV_ERROR(dev->dev, "failed to construct plane %d (%d)\n", i, ret);
 			goto fail;
 		}
-		priv->planes[priv->num_planes++] = plane;
 
 		if (type == DRM_PLANE_TYPE_PRIMARY)
 			primary[pi++] = plane;
@@ -506,11 +504,8 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	 * Now that we know the number of crtcs we've created, set the possible
 	 * crtcs for the encoders
 	 */
-	for (i = 0; i < priv->num_encoders; i++) {
-		struct drm_encoder *encoder = priv->encoders[i];
-
+	drm_for_each_encoder(encoder, dev)
 		encoder->possible_crtcs = (1 << priv->num_crtcs) - 1;
-	}
 
 	return 0;
 
@@ -551,7 +546,9 @@ static int get_clk(struct platform_device *pdev, struct clk **clkp,
 	return 0;
 }
 
-struct msm_kms *mdp5_kms_init(struct drm_device *dev)
+static int mdp5_init(struct platform_device *pdev, struct drm_device *dev);
+
+static int mdp5_kms_init(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct platform_device *pdev;
@@ -562,10 +559,12 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	int irq, i, ret;
 	struct device *iommu_dev;
 
+	ret = mdp5_init(to_platform_device(dev->dev), dev);
+
 	/* priv->kms would have been populated by the MDP5 driver */
 	kms = priv->kms;
 	if (!kms)
-		return NULL;
+		return -ENOMEM;
 
 	mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	pdev = mdp5_kms->pdev;
@@ -577,9 +576,9 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	}
 
 	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
-	if (irq < 0) {
-		ret = irq;
-		DRM_DEV_ERROR(&pdev->dev, "failed to get irq: %d\n", ret);
+	if (!irq) {
+		ret = -EINVAL;
+		DRM_DEV_ERROR(&pdev->dev, "failed to get irq\n");
 		goto fail;
 	}
 
@@ -644,11 +643,12 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	dev->max_vblank_count = 0; /* max_vblank_count is set on each CRTC */
 	dev->vblank_disable_immediate = true;
 
-	return kms;
+	return 0;
 fail:
 	if (kms)
 		mdp5_kms_destroy(kms);
-	return ERR_PTR(ret);
+
+	return ret;
 }
 
 static void mdp5_destroy(struct platform_device *pdev)
@@ -827,7 +827,7 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 	if (ret)
 		goto fail;
 
-	mdp5_kms->mmio = msm_ioremap(pdev, "mdp_phys", "MDP5");
+	mdp5_kms->mmio = msm_ioremap(pdev, "mdp_phys");
 	if (IS_ERR(mdp5_kms->mmio)) {
 		ret = PTR_ERR(mdp5_kms->mmio);
 		goto fail;
@@ -919,35 +919,14 @@ fail:
 	return ret;
 }
 
-static int mdp5_bind(struct device *dev, struct device *master, void *data)
-{
-	struct msm_drm_private *priv = dev_get_drvdata(master);
-	struct drm_device *ddev = priv->dev;
-	struct platform_device *pdev = to_platform_device(dev);
-
-	DBG("");
-
-	return mdp5_init(pdev, ddev);
-}
-
-static void mdp5_unbind(struct device *dev, struct device *master,
-			void *data)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-
-	mdp5_destroy(pdev);
-}
-
-static const struct component_ops mdp5_ops = {
-	.bind   = mdp5_bind,
-	.unbind = mdp5_unbind,
-};
-
 static int mdp5_setup_interconnect(struct platform_device *pdev)
 {
-	struct icc_path *path0 = of_icc_get(&pdev->dev, "mdp0-mem");
-	struct icc_path *path1 = of_icc_get(&pdev->dev, "mdp1-mem");
-	struct icc_path *path_rot = of_icc_get(&pdev->dev, "rotator-mem");
+	/* Interconnects are a part of MDSS device tree binding, not the
+	 * MDP5 device. */
+	struct device *mdss_dev = pdev->dev.parent;
+	struct icc_path *path0 = of_icc_get(mdss_dev, "mdp0-mem");
+	struct icc_path *path1 = of_icc_get(mdss_dev, "mdp1-mem");
+	struct icc_path *path_rot = of_icc_get(mdss_dev, "rotator-mem");
 
 	if (IS_ERR(path0))
 		return PTR_ERR(path0);
@@ -983,13 +962,13 @@ static int mdp5_dev_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return component_add(&pdev->dev, &mdp5_ops);
+	return msm_drv_probe(&pdev->dev, mdp5_kms_init);
 }
 
 static int mdp5_dev_remove(struct platform_device *pdev)
 {
 	DBG("");
-	component_del(&pdev->dev, &mdp5_ops);
+	component_master_del(&pdev->dev, &msm_drm_ops);
 	return 0;
 }
 
@@ -1015,9 +994,11 @@ static __maybe_unused int mdp5_runtime_resume(struct device *dev)
 
 static const struct dev_pm_ops mdp5_pm_ops = {
 	SET_RUNTIME_PM_OPS(mdp5_runtime_suspend, mdp5_runtime_resume, NULL)
+	.prepare = msm_pm_prepare,
+	.complete = msm_pm_complete,
 };
 
-const struct of_device_id mdp5_dt_match[] = {
+static const struct of_device_id mdp5_dt_match[] = {
 	{ .compatible = "qcom,mdp5", },
 	/* to support downstream DT files */
 	{ .compatible = "qcom,mdss_mdp", },
@@ -1028,6 +1009,7 @@ MODULE_DEVICE_TABLE(of, mdp5_dt_match);
 static struct platform_driver mdp5_driver = {
 	.probe = mdp5_dev_probe,
 	.remove = mdp5_dev_remove,
+	.shutdown = msm_drv_shutdown,
 	.driver = {
 		.name = "msm_mdp",
 		.of_match_table = mdp5_dt_match,

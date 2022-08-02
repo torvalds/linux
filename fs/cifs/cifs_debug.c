@@ -94,7 +94,7 @@ static void cifs_debug_tcon(struct seq_file *m, struct cifs_tcon *tcon)
 		   le32_to_cpu(tcon->fsDevInfo.DeviceCharacteristics),
 		   le32_to_cpu(tcon->fsAttrInfo.Attributes),
 		   le32_to_cpu(tcon->fsAttrInfo.MaxPathNameComponentLength),
-		   tcon->tidStatus);
+		   tcon->status);
 	if (dev_type == FILE_DEVICE_DISK)
 		seq_puts(m, " type: DISK ");
 	else if (dev_type == FILE_DEVICE_CD_ROM)
@@ -116,7 +116,8 @@ static void cifs_debug_tcon(struct seq_file *m, struct cifs_tcon *tcon)
 		tcon->ses->server->ops->dump_share_caps(m, tcon);
 	if (tcon->use_witness)
 		seq_puts(m, " Witness");
-
+	if (tcon->broken_sparse_sup)
+		seq_puts(m, " nosparse");
 	if (tcon->need_reconnect)
 		seq_puts(m, "\tDISCONNECTED ");
 	seq_putc(m, '\n');
@@ -161,6 +162,8 @@ cifs_dump_iface(struct seq_file *m, struct cifs_server_iface *iface)
 		seq_printf(m, "\t\tIPv4: %pI4\n", &ipv4->sin_addr);
 	else if (iface->sockaddr.ss_family == AF_INET6)
 		seq_printf(m, "\t\tIPv6: %pI6\n", &ipv6->sin6_addr);
+	if (!iface->is_active)
+		seq_puts(m, "\t\t[for-cleanup]\n");
 }
 
 static int cifs_debug_files_proc_show(struct seq_file *m, void *v)
@@ -220,6 +223,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 	struct TCP_Server_Info *server;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
+	struct cifs_server_iface *iface;
 	int c, i, j;
 
 	seq_puts(m,
@@ -386,7 +390,7 @@ skip_rdma:
 				(ses->serverNOS == NULL)) {
 				seq_printf(m, "\n\t%d) Address: %s Uses: %d Capability: 0x%x\tSession Status: %d ",
 					i, ses->ip_addr, ses->ses_count,
-					ses->capabilities, ses->status);
+					ses->capabilities, ses->ses_status);
 				if (ses->session_flags & SMB2_SESSION_FLAG_IS_GUEST)
 					seq_printf(m, "Guest ");
 				else if (ses->session_flags & SMB2_SESSION_FLAG_IS_NULL)
@@ -398,7 +402,7 @@ skip_rdma:
 					"\n\tSMB session status: %d ",
 				i, ses->ip_addr, ses->serverDomain,
 				ses->ses_count, ses->serverOS, ses->serverNOS,
-				ses->capabilities, ses->status);
+				ses->capabilities, ses->ses_status);
 			}
 
 			seq_printf(m, "\n\tSecurity type: %s ",
@@ -418,6 +422,8 @@ skip_rdma:
 			spin_lock(&ses->chan_lock);
 			if (CIFS_CHAN_NEEDS_RECONNECT(ses, 0))
 				seq_puts(m, "\tPrimary channel: DISCONNECTED ");
+			if (CIFS_CHAN_IN_RECONNECT(ses, 0))
+				seq_puts(m, "\t[RECONNECTING] ");
 
 			if (ses->chan_count > 1) {
 				seq_printf(m, "\n\n\tExtra Channels: %zu ",
@@ -426,6 +432,8 @@ skip_rdma:
 					cifs_dump_channel(m, j, &ses->chans[j]);
 					if (CIFS_CHAN_NEEDS_RECONNECT(ses, j))
 						seq_puts(m, "\tDISCONNECTED ");
+					if (CIFS_CHAN_IN_RECONNECT(ses, j))
+						seq_puts(m, "\t[RECONNECTING] ");
 				}
 			}
 			spin_unlock(&ses->chan_lock);
@@ -451,11 +459,10 @@ skip_rdma:
 			if (ses->iface_count)
 				seq_printf(m, "\n\n\tServer interfaces: %zu",
 					   ses->iface_count);
-			for (j = 0; j < ses->iface_count; j++) {
-				struct cifs_server_iface *iface;
-
-				iface = &ses->iface_list[j];
-				seq_printf(m, "\n\t%d)", j+1);
+			j = 0;
+			list_for_each_entry(iface, &ses->iface_list,
+						 iface_head) {
+				seq_printf(m, "\n\t%d)", ++j);
 				cifs_dump_iface(m, iface);
 				if (is_ses_using_iface(ses, iface))
 					seq_puts(m, "\t\t[CONNECTED]\n");

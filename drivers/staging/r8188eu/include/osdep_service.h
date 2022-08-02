@@ -54,25 +54,10 @@ static inline struct list_head *get_list_head(struct __queue *queue)
 	return (&(queue->queue));
 }
 
-static inline void rtw_list_delete(struct list_head *plist)
-{
-	list_del_init(plist);
-}
-
 static inline void _set_timer(struct timer_list *ptimer,u32 delay_time)
 {
-	mod_timer(ptimer , (jiffies+(delay_time*HZ/1000)));
+	mod_timer(ptimer, jiffies + msecs_to_jiffies(delay_time));
 }
-
-static inline void _cancel_timer(struct timer_list *ptimer,u8 *bcancelled)
-{
-	del_timer_sync(ptimer);
-	*bcancelled=  true;/* true ==1; false==0 */
-}
-
-#define RTW_TIMER_HDL_ARGS void *FunctionContext
-#define RTW_TIMER_HDL_NAME(name) rtw_##name##_timer_hdl
-#define RTW_DECLARE_TIMER_HDL(name) void RTW_TIMER_HDL_NAME(name)(RTW_TIMER_HDL_ARGS)
 
 static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 {
@@ -82,28 +67,7 @@ static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 		netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 3));
 }
 
-static inline void rtw_netif_wake_queue(struct net_device *pnetdev)
-{
-	netif_tx_wake_all_queues(pnetdev);
-}
-
-static inline void rtw_netif_start_queue(struct net_device *pnetdev)
-{
-	netif_tx_start_all_queues(pnetdev);
-}
-
-static inline void rtw_netif_stop_queue(struct net_device *pnetdev)
-{
-	netif_tx_stop_all_queues(pnetdev);
-}
-
 extern int RTW_STATUS_CODE(int error_code);
-
-extern unsigned char MCS_rate_2R[16];
-extern unsigned char MCS_rate_1R[16];
-extern unsigned char RTW_WPA_OUI[];
-extern unsigned char WPA_TKIP_CIPHER[4];
-extern unsigned char RSN_TKIP_CIPHER[4];
 
 void *rtw_malloc2d(int h, int w, int size);
 
@@ -112,10 +76,6 @@ void *rtw_malloc2d(int h, int w, int size);
 		INIT_LIST_HEAD(&((q)->queue));			\
 		spin_lock_init(&((q)->lock));			\
 	} while (0)
-
-u32  rtw_systime_to_ms(u32 systime);
-u32  rtw_ms_to_systime(u32 ms);
-s32  rtw_get_passing_time_ms(u32 start);
 
 void rtw_usleep_os(int us);
 
@@ -129,61 +89,6 @@ static inline void flush_signals_thread(void)
 	if (signal_pending (current))
 		flush_signals(current);
 }
-
-#define _RND(sz, r) ((((sz)+((r)-1))/(r))*(r))
-#define RND4(x)	(((x >> 2) + (((x & 3) == 0) ?  0: 1)) << 2)
-
-static inline u32 _RND4(u32 sz)
-{
-	u32	val;
-
-	val = ((sz >> 2) + ((sz & 3) ? 1: 0)) << 2;
-	return val;
-}
-
-static inline u32 _RND8(u32 sz)
-{
-	u32	val;
-
-	val = ((sz >> 3) + ((sz & 7) ? 1: 0)) << 3;
-	return val;
-}
-
-static inline u32 _RND128(u32 sz)
-{
-	u32	val;
-
-	val = ((sz >> 7) + ((sz & 127) ? 1: 0)) << 7;
-	return val;
-}
-
-static inline u32 _RND256(u32 sz)
-{
-	u32	val;
-
-	val = ((sz >> 8) + ((sz & 255) ? 1: 0)) << 8;
-	return val;
-}
-
-static inline u32 _RND512(u32 sz)
-{
-	u32	val;
-
-	val = ((sz >> 9) + ((sz & 511) ? 1: 0)) << 9;
-	return val;
-}
-
-static inline u32 bitshift(u32 bitmask)
-{
-	u32 i;
-
-	for (i = 0; i <= 31; i++)
-		if (((bitmask>>i) &  0x1) == 1) break;
-	return i;
-}
-
-/*  limitation of path length */
-#define PATH_LENGTH_MAX PATH_MAX
 
 struct rtw_netdev_priv_indicator {
 	void *priv;

@@ -220,6 +220,10 @@
 	};
 };
 
+&disp_blk_ctrl {
+	status = "disabled";
+};
+
 /* off-board header */
 &ecspi2 {
 	pinctrl-names = "default";
@@ -249,6 +253,47 @@
 			rx-fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
 		};
 	};
+};
+
+&gpio1 {
+	gpio-line-names = "", "", "", "", "", "", "", "",
+		"", "", "", "", "", "m2_reset", "", "m2_wdis#",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio2 {
+	gpio-line-names = "", "", "", "", "", "", "", "",
+		"uart2_en#", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio3 {
+	gpio-line-names = "", "m2_gdis#", "", "", "", "", "", "m2_off#",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio4 {
+	gpio-line-names = "", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "app_gpio1", "", "uart1_rs485",
+		"", "uart1_term", "uart1_half", "app_gpio2",
+		"mipi_gpio1", "", "", "";
+};
+
+&gpio5 {
+	gpio-line-names = "", "", "", "mipi_gpio4",
+		"mipi_gpio3", "mipi_gpio2", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&gpu {
+	status = "disabled";
 };
 
 &i2c1 {
@@ -345,6 +390,13 @@
 				gw,mode = <2>;
 				reg = <0x9a>;
 				label = "vdd_2p5";
+				gw,voltage-divider-ohms = <10000 10000>;
+			};
+
+			channel@9c {
+				gw,mode = <2>;
+				reg = <0x9c>;
+				label = "vdd_5p0";
 				gw,voltage-divider-ohms = <10000 10000>;
 			};
 
@@ -546,6 +598,10 @@
 	status = "okay";
 };
 
+&pgc_gpumix {
+	status = "disabled";
+};
+
 /* off-board header */
 &sai3 {
 	pinctrl-names = "default";
@@ -576,6 +632,7 @@
 	pinctrl-0 = <&pinctrl_uart3>, <&pinctrl_uart3_gpio>;
 	rts-gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
 	cts-gpios = <&gpio2 0 GPIO_ACTIVE_LOW>;
+	uart-has-rtscts;
 	status = "okay";
 
 	bluetooth {
@@ -633,7 +690,7 @@
 	pinctrl_hog: hoggrp {
 		fsl,pins = <
 			MX8MN_IOMUXC_NAND_CE0_B_GPIO3_IO1	0x40000159 /* M2_GDIS# */
-			MX8MN_IOMUXC_GPIO1_IO13_GPIO1_IO13	0x40000041 /* M2_RST# */
+			MX8MN_IOMUXC_GPIO1_IO13_GPIO1_IO13	0x40000041 /* M2_RESET */
 			MX8MN_IOMUXC_NAND_DATA01_GPIO3_IO7	0x40000119 /* M2_OFF# */
 			MX8MN_IOMUXC_GPIO1_IO15_GPIO1_IO15	0x40000159 /* M2_WDIS# */
 			MX8MN_IOMUXC_SAI2_RXFS_GPIO4_IO21	0x40000041 /* APP GPIO1 */

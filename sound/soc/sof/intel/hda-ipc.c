@@ -15,6 +15,7 @@
  * Hardware interface for generic Intel audio DSP HDA IP
  */
 
+#include <sound/sof/ipc4/header.h>
 #include "../ops.h"
 #include "hda.h"
 
@@ -65,6 +66,22 @@ int hda_dsp_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 	return 0;
 }
 
+int hda_dsp_ipc4_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
+{
+	struct sof_ipc4_msg *msg_data = msg->msg_data;
+
+	/* send the message via mailbox */
+	if (msg_data->data_size)
+		sof_mailbox_write(sdev, sdev->host_box.offset, msg_data->data_ptr,
+				  msg_data->data_size);
+
+	snd_sof_dsp_write(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCIE, msg_data->extension);
+	snd_sof_dsp_write(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCI,
+			  msg_data->primary | HDA_DSP_REG_HIPCI_BUSY);
+
+	return 0;
+}
+
 void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_ipc_msg *msg = sdev->msg;
@@ -98,6 +115,71 @@ void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 	} else {
 		snd_sof_ipc_get_reply(sdev);
 	}
+}
+
+irqreturn_t hda_dsp_ipc4_irq_thread(int irq, void *context)
+{
+	struct sof_ipc4_msg notification_data = {{ 0 }};
+	struct snd_sof_dev *sdev = context;
+	bool ipc_irq = false;
+	u32 hipcie, hipct;
+
+	hipcie = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCIE);
+	if (hipcie & HDA_DSP_REG_HIPCIE_DONE) {
+		/* DSP received the message */
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCCTL,
+					HDA_DSP_REG_HIPCCTL_DONE, 0);
+		hda_dsp_ipc_dsp_done(sdev);
+
+		ipc_irq = true;
+	}
+
+	hipct = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCT);
+	if (hipct & HDA_DSP_REG_HIPCT_BUSY) {
+		/* Message from DSP (reply or notification) */
+		u32 hipcte = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+					      HDA_DSP_REG_HIPCTE);
+		u32 primary = hipct & HDA_DSP_REG_HIPCT_MSG_MASK;
+		u32 extension = hipcte & HDA_DSP_REG_HIPCTE_MSG_MASK;
+
+		/* mask BUSY interrupt */
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCCTL,
+					HDA_DSP_REG_HIPCCTL_BUSY, 0);
+
+		if (primary & SOF_IPC4_MSG_DIR_MASK) {
+			/* Reply received */
+			struct sof_ipc4_msg *data = sdev->ipc->msg.reply_data;
+
+			data->primary = primary;
+			data->extension = extension;
+
+			spin_lock_irq(&sdev->ipc_lock);
+
+			snd_sof_ipc_get_reply(sdev);
+			snd_sof_ipc_reply(sdev, data->primary);
+
+			spin_unlock_irq(&sdev->ipc_lock);
+		} else {
+			/* Notification received */
+
+			notification_data.primary = primary;
+			notification_data.extension = extension;
+			sdev->ipc->msg.rx_data = &notification_data;
+			snd_sof_ipc_msgs_rx(sdev);
+			sdev->ipc->msg.rx_data = NULL;
+		}
+
+		/* Let DSP know that we have finished processing the message */
+		hda_dsp_ipc_host_done(sdev);
+
+		ipc_irq = true;
+	}
+
+	if (!ipc_irq)
+		/* This interrupt is not shared so no need to return IRQ_NONE. */
+		dev_dbg_ratelimited(sdev->dev, "nothing to do in IPC IRQ thread\n");
+
+	return IRQ_HANDLED;
 }
 
 /* IPC handler thread */
@@ -255,39 +337,37 @@ int hda_ipc_msg_data(struct snd_sof_dev *sdev,
 
 		hda_stream = container_of(hstream,
 					  struct sof_intel_hda_stream,
-					  hda_stream.hstream);
+					  hext_stream.hstream);
 
 		/* The stream might already be closed */
 		if (!hstream)
 			return -ESTRPIPE;
 
-		sof_mailbox_read(sdev, hda_stream->stream.posn_offset, p, sz);
+		sof_mailbox_read(sdev, hda_stream->sof_intel_stream.posn_offset, p, sz);
 	}
 
 	return 0;
 }
 
-int hda_ipc_pcm_params(struct snd_sof_dev *sdev,
-		       struct snd_pcm_substream *substream,
-		       const struct sof_ipc_pcm_params_reply *reply)
+int hda_set_stream_data_offset(struct snd_sof_dev *sdev,
+			       struct snd_pcm_substream *substream,
+			       size_t posn_offset)
 {
 	struct hdac_stream *hstream = substream->runtime->private_data;
 	struct sof_intel_hda_stream *hda_stream;
-	/* validate offset */
-	size_t posn_offset = reply->posn_offset;
 
 	hda_stream = container_of(hstream, struct sof_intel_hda_stream,
-				  hda_stream.hstream);
+				  hext_stream.hstream);
 
 	/* check for unaligned offset or overflow */
 	if (posn_offset > sdev->stream_box.size ||
 	    posn_offset % sizeof(struct sof_ipc_stream_posn) != 0)
 		return -EINVAL;
 
-	hda_stream->stream.posn_offset = sdev->stream_box.offset + posn_offset;
+	hda_stream->sof_intel_stream.posn_offset = sdev->stream_box.offset + posn_offset;
 
 	dev_dbg(sdev->dev, "pcm: stream dir %d, posn mailbox offset is %zu",
-		substream->stream, hda_stream->stream.posn_offset);
+		substream->stream, hda_stream->sof_intel_stream.posn_offset);
 
 	return 0;
 }

@@ -70,7 +70,7 @@ static struct kmem_cache *isofs_inode_cachep;
 static struct inode *isofs_alloc_inode(struct super_block *sb)
 {
 	struct iso_inode_info *ei;
-	ei = kmem_cache_alloc(isofs_inode_cachep, GFP_KERNEL);
+	ei = alloc_inode_sb(sb, isofs_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	return &ei->vfs_inode;
@@ -1174,9 +1174,9 @@ struct buffer_head *isofs_bread(struct inode *inode, sector_t block)
 	return sb_bread(inode->i_sb, blknr);
 }
 
-static int isofs_readpage(struct file *file, struct page *page)
+static int isofs_read_folio(struct file *file, struct folio *folio)
 {
-	return mpage_readpage(page, isofs_get_block);
+	return mpage_read_folio(folio, isofs_get_block);
 }
 
 static void isofs_readahead(struct readahead_control *rac)
@@ -1190,7 +1190,7 @@ static sector_t _isofs_bmap(struct address_space *mapping, sector_t block)
 }
 
 static const struct address_space_operations isofs_aops = {
-	.readpage = isofs_readpage,
+	.read_folio = isofs_read_folio,
 	.readahead = isofs_readahead,
 	.bmap = _isofs_bmap
 };

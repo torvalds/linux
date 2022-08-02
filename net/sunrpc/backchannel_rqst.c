@@ -75,9 +75,9 @@ static int xprt_alloc_xdr_buf(struct xdr_buf *buf, gfp_t gfp_flags)
 	return 0;
 }
 
-static
-struct rpc_rqst *xprt_alloc_bc_req(struct rpc_xprt *xprt, gfp_t gfp_flags)
+static struct rpc_rqst *xprt_alloc_bc_req(struct rpc_xprt *xprt)
 {
+	gfp_t gfp_flags = GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN;
 	struct rpc_rqst *req;
 
 	/* Pre-allocate one backchannel rpc_rqst */
@@ -154,7 +154,7 @@ int xprt_setup_bc(struct rpc_xprt *xprt, unsigned int min_reqs)
 	INIT_LIST_HEAD(&tmp_list);
 	for (i = 0; i < min_reqs; i++) {
 		/* Pre-allocate one backchannel rpc_rqst */
-		req = xprt_alloc_bc_req(xprt, GFP_KERNEL);
+		req = xprt_alloc_bc_req(xprt);
 		if (req == NULL) {
 			printk(KERN_ERR "Failed to create bc rpc_rqst\n");
 			goto out_free;
@@ -343,7 +343,7 @@ found:
 			break;
 		} else if (req)
 			break;
-		new = xprt_alloc_bc_req(xprt, GFP_KERNEL);
+		new = xprt_alloc_bc_req(xprt);
 	} while (new);
 	return req;
 }

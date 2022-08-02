@@ -69,6 +69,47 @@ typedef enum _FIRMWARE_ID_ {
 	FIRMWARE_ID_MAX                                         = 38,
 } FIRMWARE_ID;
 
+typedef enum _SOC21_FIRMWARE_ID_ {
+    SOC21_FIRMWARE_ID_INVALID                     = 0,
+    SOC21_FIRMWARE_ID_RLC_G_UCODE                 = 1,
+    SOC21_FIRMWARE_ID_RLC_TOC                     = 2,
+    SOC21_FIRMWARE_ID_RLCG_SCRATCH                = 3,
+    SOC21_FIRMWARE_ID_RLC_SRM_ARAM                = 4,
+    SOC21_FIRMWARE_ID_RLC_P_UCODE                 = 5,
+    SOC21_FIRMWARE_ID_RLC_V_UCODE                 = 6,
+    SOC21_FIRMWARE_ID_RLX6_UCODE                  = 7,
+    SOC21_FIRMWARE_ID_RLX6_UCODE_CORE1            = 8,
+    SOC21_FIRMWARE_ID_RLX6_DRAM_BOOT              = 9,
+    SOC21_FIRMWARE_ID_RLX6_DRAM_BOOT_CORE1        = 10,
+    SOC21_FIRMWARE_ID_SDMA_UCODE_TH0              = 11,
+    SOC21_FIRMWARE_ID_SDMA_UCODE_TH1              = 12,
+    SOC21_FIRMWARE_ID_CP_PFP                      = 13,
+    SOC21_FIRMWARE_ID_CP_ME                       = 14,
+    SOC21_FIRMWARE_ID_CP_MEC                      = 15,
+    SOC21_FIRMWARE_ID_RS64_MES_P0                 = 16,
+    SOC21_FIRMWARE_ID_RS64_MES_P1                 = 17,
+    SOC21_FIRMWARE_ID_RS64_PFP                    = 18,
+    SOC21_FIRMWARE_ID_RS64_ME                     = 19,
+    SOC21_FIRMWARE_ID_RS64_MEC                    = 20,
+    SOC21_FIRMWARE_ID_RS64_MES_P0_STACK           = 21,
+    SOC21_FIRMWARE_ID_RS64_MES_P1_STACK           = 22,
+    SOC21_FIRMWARE_ID_RS64_PFP_P0_STACK           = 23,
+    SOC21_FIRMWARE_ID_RS64_PFP_P1_STACK           = 24,
+    SOC21_FIRMWARE_ID_RS64_ME_P0_STACK            = 25,
+    SOC21_FIRMWARE_ID_RS64_ME_P1_STACK            = 26,
+    SOC21_FIRMWARE_ID_RS64_MEC_P0_STACK           = 27,
+    SOC21_FIRMWARE_ID_RS64_MEC_P1_STACK           = 28,
+    SOC21_FIRMWARE_ID_RS64_MEC_P2_STACK           = 29,
+    SOC21_FIRMWARE_ID_RS64_MEC_P3_STACK           = 30,
+    SOC21_FIRMWARE_ID_RLC_SRM_DRAM_SR             = 31,
+    SOC21_FIRMWARE_ID_RLCG_SCRATCH_SR             = 32,
+    SOC21_FIRMWARE_ID_RLCP_SCRATCH_SR             = 33,
+    SOC21_FIRMWARE_ID_RLCV_SCRATCH_SR             = 34,
+    SOC21_FIRMWARE_ID_RLX6_DRAM_SR                = 35,
+    SOC21_FIRMWARE_ID_RLX6_DRAM_SR_CORE1          = 36,
+    SOC21_FIRMWARE_ID_MAX                         = 37
+} SOC21_FIRMWARE_ID;
+
 typedef struct _RLC_TABLE_OF_CONTENT {
 	union {
 		unsigned int	DW0;
@@ -127,9 +168,17 @@ struct amdgpu_rlc_funcs {
 	void (*reset)(struct amdgpu_device *adev);
 	void (*start)(struct amdgpu_device *adev);
 	void (*update_spm_vmid)(struct amdgpu_device *adev, unsigned vmid);
-	void (*sriov_wreg)(struct amdgpu_device *adev, u32 offset, u32 v, u32 acc_flags, u32 hwip);
-	u32 (*sriov_rreg)(struct amdgpu_device *adev, u32 offset, u32 acc_flags, u32 hwip);
 	bool (*is_rlcg_access_range)(struct amdgpu_device *adev, uint32_t reg);
+};
+
+struct amdgpu_rlcg_reg_access_ctrl {
+	uint32_t scratch_reg0;
+	uint32_t scratch_reg1;
+	uint32_t scratch_reg2;
+	uint32_t scratch_reg3;
+	uint32_t grbm_cntl;
+	uint32_t grbm_idx;
+	uint32_t spare_int;
 };
 
 struct amdgpu_rlc {
@@ -171,6 +220,8 @@ struct amdgpu_rlc {
 	u32 save_restore_list_srm_size_bytes;
 	u32 rlc_iram_ucode_size_bytes;
 	u32 rlc_dram_ucode_size_bytes;
+	u32 rlcp_ucode_size_bytes;
+	u32 rlcv_ucode_size_bytes;
 
 	u32 *register_list_format;
 	u32 *register_restore;
@@ -179,6 +230,8 @@ struct amdgpu_rlc {
 	u8 *save_restore_list_srm;
 	u8 *rlc_iram_ucode;
 	u8 *rlc_dram_ucode;
+	u8 *rlcp_ucode;
+	u8 *rlcv_ucode;
 
 	bool is_rlc_v2_1;
 
@@ -191,6 +244,10 @@ struct amdgpu_rlc {
 	struct amdgpu_bo	*rlc_toc_bo;
 	uint64_t		rlc_toc_gpu_addr;
 	void			*rlc_toc_buf;
+
+	bool rlcg_reg_access_supported;
+	/* registers for rlcg indirect reg access */
+	struct amdgpu_rlcg_reg_access_ctrl reg_access_ctrl;
 };
 
 void amdgpu_gfx_rlc_enter_safe_mode(struct amdgpu_device *adev);

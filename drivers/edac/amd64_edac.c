@@ -15,6 +15,21 @@ static struct msr __percpu *msrs;
 
 static struct amd64_family_type *fam_type;
 
+static inline u32 get_umc_reg(u32 reg)
+{
+	if (!fam_type->flags.zn_regs_v2)
+		return reg;
+
+	switch (reg) {
+	case UMCCH_ADDR_CFG:		return UMCCH_ADDR_CFG_DDR5;
+	case UMCCH_ADDR_MASK_SEC:	return UMCCH_ADDR_MASK_SEC_DDR5;
+	case UMCCH_DIMM_CFG:		return UMCCH_DIMM_CFG_DDR5;
+	}
+
+	WARN_ONCE(1, "%s: unknown register 0x%x", __func__, reg);
+	return 0;
+}
+
 /* Per-node stuff */
 static struct ecc_settings **ecc_stngs;
 
@@ -1429,8 +1444,10 @@ static void __dump_misc_regs_df(struct amd64_pvt *pvt)
 		edac_dbg(1, "UMC%d x16 DIMMs present: %s\n",
 				i, (umc->dimm_cfg & BIT(7)) ? "yes" : "no");
 
-		if (pvt->dram_type == MEM_LRDDR4) {
-			amd_smn_read(pvt->mc_node_id, umc_base + UMCCH_ADDR_CFG, &tmp);
+		if (umc->dram_type == MEM_LRDDR4 || umc->dram_type == MEM_LRDDR5) {
+			amd_smn_read(pvt->mc_node_id,
+				     umc_base + get_umc_reg(UMCCH_ADDR_CFG),
+				     &tmp);
 			edac_dbg(1, "UMC%d LRDIMM %dx rank multiply\n",
 					i, 1 << ((tmp >> 4) & 0x3));
 		}
@@ -1505,7 +1522,7 @@ static void prep_chip_selects(struct amd64_pvt *pvt)
 
 		for_each_umc(umc) {
 			pvt->csels[umc].b_cnt = 4;
-			pvt->csels[umc].m_cnt = 2;
+			pvt->csels[umc].m_cnt = fam_type->flags.zn_regs_v2 ? 4 : 2;
 		}
 
 	} else {
@@ -1545,7 +1562,7 @@ static void read_umc_base_mask(struct amd64_pvt *pvt)
 		}
 
 		umc_mask_reg = get_umc_base(umc) + UMCCH_ADDR_MASK;
-		umc_mask_reg_sec = get_umc_base(umc) + UMCCH_ADDR_MASK_SEC;
+		umc_mask_reg_sec = get_umc_base(umc) + get_umc_reg(UMCCH_ADDR_MASK_SEC);
 
 		for_each_chip_select_mask(cs, umc, pvt) {
 			mask = &pvt->csels[umc].csmasks[cs];
@@ -1616,19 +1633,49 @@ static void read_dct_base_mask(struct amd64_pvt *pvt)
 	}
 }
 
+static void determine_memory_type_df(struct amd64_pvt *pvt)
+{
+	struct amd64_umc *umc;
+	u32 i;
+
+	for_each_umc(i) {
+		umc = &pvt->umc[i];
+
+		if (!(umc->sdp_ctrl & UMC_SDP_INIT)) {
+			umc->dram_type = MEM_EMPTY;
+			continue;
+		}
+
+		/*
+		 * Check if the system supports the "DDR Type" field in UMC Config
+		 * and has DDR5 DIMMs in use.
+		 */
+		if (fam_type->flags.zn_regs_v2 && ((umc->umc_cfg & GENMASK(2, 0)) == 0x1)) {
+			if (umc->dimm_cfg & BIT(5))
+				umc->dram_type = MEM_LRDDR5;
+			else if (umc->dimm_cfg & BIT(4))
+				umc->dram_type = MEM_RDDR5;
+			else
+				umc->dram_type = MEM_DDR5;
+		} else {
+			if (umc->dimm_cfg & BIT(5))
+				umc->dram_type = MEM_LRDDR4;
+			else if (umc->dimm_cfg & BIT(4))
+				umc->dram_type = MEM_RDDR4;
+			else
+				umc->dram_type = MEM_DDR4;
+		}
+
+		edac_dbg(1, "  UMC%d DIMM type: %s\n", i, edac_mem_types[umc->dram_type]);
+	}
+}
+
 static void determine_memory_type(struct amd64_pvt *pvt)
 {
 	u32 dram_ctrl, dcsm;
 
-	if (pvt->umc) {
-		if ((pvt->umc[0].dimm_cfg | pvt->umc[1].dimm_cfg) & BIT(5))
-			pvt->dram_type = MEM_LRDDR4;
-		else if ((pvt->umc[0].dimm_cfg | pvt->umc[1].dimm_cfg) & BIT(4))
-			pvt->dram_type = MEM_RDDR4;
-		else
-			pvt->dram_type = MEM_DDR4;
-		return;
-	}
+	if (pvt->umc)
+		return determine_memory_type_df(pvt);
 
 	switch (pvt->fam) {
 	case 0xf:
@@ -2149,6 +2196,7 @@ static int f17_addr_mask_to_cs_size(struct amd64_pvt *pvt, u8 umc,
 {
 	u32 addr_mask_orig, addr_mask_deinterleaved;
 	u32 msb, weight, num_zero_bits;
+	int cs_mask_nr = csrow_nr;
 	int dimm, size = 0;
 
 	/* No Chip Selects are enabled. */
@@ -2164,17 +2212,33 @@ static int f17_addr_mask_to_cs_size(struct amd64_pvt *pvt, u8 umc,
 		return size;
 
 	/*
-	 * There is one mask per DIMM, and two Chip Selects per DIMM.
-	 *	CS0 and CS1 -> DIMM0
-	 *	CS2 and CS3 -> DIMM1
+	 * Family 17h introduced systems with one mask per DIMM,
+	 * and two Chip Selects per DIMM.
+	 *
+	 *	CS0 and CS1 -> MASK0 / DIMM0
+	 *	CS2 and CS3 -> MASK1 / DIMM1
+	 *
+	 * Family 19h Model 10h introduced systems with one mask per Chip Select,
+	 * and two Chip Selects per DIMM.
+	 *
+	 *	CS0 -> MASK0 -> DIMM0
+	 *	CS1 -> MASK1 -> DIMM0
+	 *	CS2 -> MASK2 -> DIMM1
+	 *	CS3 -> MASK3 -> DIMM1
+	 *
+	 * Keep the mask number equal to the Chip Select number for newer systems,
+	 * and shift the mask number for older systems.
 	 */
 	dimm = csrow_nr >> 1;
 
+	if (!fam_type->flags.zn_regs_v2)
+		cs_mask_nr >>= 1;
+
 	/* Asymmetric dual-rank DIMM support. */
 	if ((csrow_nr & 1) && (cs_mode & CS_ODD_SECONDARY))
-		addr_mask_orig = pvt->csels[umc].csmasks_sec[dimm];
+		addr_mask_orig = pvt->csels[umc].csmasks_sec[cs_mask_nr];
 	else
-		addr_mask_orig = pvt->csels[umc].csmasks[dimm];
+		addr_mask_orig = pvt->csels[umc].csmasks[cs_mask_nr];
 
 	/*
 	 * The number of zero bits in the mask is equal to the number of bits
@@ -2930,6 +2994,7 @@ static struct amd64_family_type family_types[] = {
 		.f0_id = PCI_DEVICE_ID_AMD_19H_M10H_DF_F0,
 		.f6_id = PCI_DEVICE_ID_AMD_19H_M10H_DF_F6,
 		.max_mcs = 12,
+		.flags.zn_regs_v2 = 1,
 		.ops = {
 			.early_channel_count	= f17_early_channel_count,
 			.dbam_to_cs		= f17_addr_mask_to_cs_size,
@@ -3368,7 +3433,7 @@ static void __read_mc_regs_df(struct amd64_pvt *pvt)
 		umc_base = get_umc_base(i);
 		umc = &pvt->umc[i];
 
-		amd_smn_read(nid, umc_base + UMCCH_DIMM_CFG, &umc->dimm_cfg);
+		amd_smn_read(nid, umc_base + get_umc_reg(UMCCH_DIMM_CFG), &umc->dimm_cfg);
 		amd_smn_read(nid, umc_base + UMCCH_UMC_CFG, &umc->umc_cfg);
 		amd_smn_read(nid, umc_base + UMCCH_SDP_CTRL, &umc->sdp_ctrl);
 		amd_smn_read(nid, umc_base + UMCCH_ECC_CTRL, &umc->ecc_ctrl);
@@ -3452,7 +3517,9 @@ skip:
 	read_dct_base_mask(pvt);
 
 	determine_memory_type(pvt);
-	edac_dbg(1, "  DIMM type: %s\n", edac_mem_types[pvt->dram_type]);
+
+	if (!pvt->umc)
+		edac_dbg(1, "  DIMM type: %s\n", edac_mem_types[pvt->dram_type]);
 
 	determine_ecc_sym_sz(pvt);
 }
@@ -3548,7 +3615,7 @@ static int init_csrows_df(struct mem_ctl_info *mci)
 					pvt->mc_node_id, cs);
 
 			dimm->nr_pages = get_csrow_nr_pages(pvt, umc, cs);
-			dimm->mtype = pvt->dram_type;
+			dimm->mtype = pvt->umc[umc].dram_type;
 			dimm->edac_mode = edac_mode;
 			dimm->dtype = dev_type;
 			dimm->grain = 64;
@@ -4269,7 +4336,7 @@ static int __init amd64_edac_init(void)
 	if (!x86_match_cpu(amd64_cpuids))
 		return -ENODEV;
 
-	if (amd_cache_northbridges() < 0)
+	if (!amd_nb_num())
 		return -ENODEV;
 
 	opstate_init();

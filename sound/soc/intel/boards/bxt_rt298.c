@@ -168,7 +168,7 @@ static int broxton_rt298_codec_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
 	int ret = 0;
 
-	ret = snd_soc_card_jack_new(rtd->card, "Headset",
+	ret = snd_soc_card_jack_new_pins(rtd->card, "Headset",
 		SND_JACK_HEADSET | SND_JACK_BTN_0,
 		&broxton_headset,
 		broxton_headset_pins, ARRAY_SIZE(broxton_headset_pins));
@@ -544,8 +544,7 @@ static int bxt_card_late_probe(struct snd_soc_card *card)
 		snprintf(jack_name, sizeof(jack_name),
 			"HDMI/DP, pcm=%d Jack", pcm->device);
 		err = snd_soc_card_jack_new(card, jack_name,
-					SND_JACK_AVOUT, &broxton_hdmi[i],
-					NULL, 0);
+					SND_JACK_AVOUT, &broxton_hdmi[i]);
 
 		if (err)
 			return err;
@@ -628,7 +627,7 @@ static int broxton_audio_probe(struct platform_device *pdev)
 	card->dev = &pdev->dev;
 	snd_soc_card_set_drvdata(card, ctx);
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	mach = pdev->dev.platform_data;
 	platform_name = mach->mach_params.platform;
 

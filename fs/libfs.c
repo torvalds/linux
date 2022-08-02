@@ -539,17 +539,17 @@ int simple_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 }
 EXPORT_SYMBOL(simple_setattr);
 
-static int simple_readpage(struct file *file, struct page *page)
+static int simple_read_folio(struct file *file, struct folio *folio)
 {
-	clear_highpage(page);
-	flush_dcache_page(page);
-	SetPageUptodate(page);
-	unlock_page(page);
+	folio_zero_range(folio, 0, folio_size(folio));
+	flush_dcache_folio(folio);
+	folio_mark_uptodate(folio);
+	folio_unlock(folio);
 	return 0;
 }
 
 int simple_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
+			loff_t pos, unsigned len,
 			struct page **pagep, void **fsdata)
 {
 	struct page *page;
@@ -557,7 +557,7 @@ int simple_write_begin(struct file *file, struct address_space *mapping,
 
 	index = pos >> PAGE_SHIFT;
 
-	page = grab_cache_page_write_begin(mapping, index, flags);
+	page = grab_cache_page_write_begin(mapping, index);
 	if (!page)
 		return -ENOMEM;
 
@@ -592,7 +592,7 @@ EXPORT_SYMBOL(simple_write_begin);
  * should extend on what's done here with a call to mark_inode_dirty() in the
  * case that i_size has changed.
  *
- * Use *ONLY* with simple_readpage()
+ * Use *ONLY* with simple_read_folio()
  */
 static int simple_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
@@ -628,10 +628,10 @@ static int simple_write_end(struct file *file, struct address_space *mapping,
  * Provides ramfs-style behavior: data in the pagecache, but no writeback.
  */
 const struct address_space_operations ram_aops = {
-	.readpage	= simple_readpage,
+	.read_folio	= simple_read_folio,
 	.write_begin	= simple_write_begin,
 	.write_end	= simple_write_end,
-	.set_page_dirty	= __set_page_dirty_no_writeback,
+	.dirty_folio	= noop_dirty_folio,
 };
 EXPORT_SYMBOL(ram_aops);
 
@@ -1198,17 +1198,6 @@ int noop_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 }
 EXPORT_SYMBOL(noop_fsync);
 
-void noop_invalidatepage(struct page *page, unsigned int offset,
-		unsigned int length)
-{
-	/*
-	 * There is no page cache to invalidate in the dax case, however
-	 * we need this callback defined to prevent falling back to
-	 * block_invalidatepage() in do_invalidatepage().
-	 */
-}
-EXPORT_SYMBOL_GPL(noop_invalidatepage);
-
 ssize_t noop_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	/*
@@ -1231,7 +1220,7 @@ EXPORT_SYMBOL(kfree_link);
 struct inode *alloc_anon_inode(struct super_block *s)
 {
 	static const struct address_space_operations anon_aops = {
-		.set_page_dirty = __set_page_dirty_no_writeback,
+		.dirty_folio	= noop_dirty_folio,
 	};
 	struct inode *inode = new_inode_pseudo(s);
 

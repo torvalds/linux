@@ -48,12 +48,11 @@
 #include "dce80/hw_factory_dce80.h"
 #include "dce110/hw_factory_dce110.h"
 #include "dce120/hw_factory_dce120.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 #include "dcn10/hw_factory_dcn10.h"
 #include "dcn20/hw_factory_dcn20.h"
 #include "dcn21/hw_factory_dcn21.h"
 #include "dcn30/hw_factory_dcn30.h"
-#endif
+#include "dcn315/hw_factory_dcn315.h"
 
 #include "diagnostics/hw_factory_diag.h"
 
@@ -97,7 +96,6 @@ bool dal_hw_factory_init(
 	case DCE_VERSION_12_1:
 		dal_hw_factory_dce120_init(factory);
 		return true;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	case DCN_VERSION_1_0:
 	case DCN_VERSION_1_01:
 		dal_hw_factory_dcn10_init(factory);
@@ -114,9 +112,12 @@ bool dal_hw_factory_init(
 	case DCN_VERSION_3_02:
 	case DCN_VERSION_3_03:
 	case DCN_VERSION_3_1:
+	case DCN_VERSION_3_16:
 		dal_hw_factory_dcn30_init(factory);
 		return true;
-#endif
+	case DCN_VERSION_3_15:
+		dal_hw_factory_dcn315_init(factory);
+		return true;
 	default:
 		ASSERT_CRITICAL(false);
 		return false;

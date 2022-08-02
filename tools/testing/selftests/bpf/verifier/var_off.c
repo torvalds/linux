@@ -131,7 +131,7 @@
 	 * write might have overwritten the spilled pointer (i.e. we lose track
 	 * of the spilled register when we analyze the write).
 	 */
-	.errstr = "R2 invalid mem access 'inv'",
+	.errstr = "R2 invalid mem access 'scalar'",
 	.result = REJECT,
 },
 {

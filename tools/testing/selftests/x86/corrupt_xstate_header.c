@@ -17,25 +17,13 @@
 #include <stdint.h>
 #include <sys/wait.h>
 
-static inline void __cpuid(unsigned int *eax, unsigned int *ebx,
-			   unsigned int *ecx, unsigned int *edx)
-{
-	asm volatile(
-		"cpuid;"
-		: "=a" (*eax),
-		  "=b" (*ebx),
-		  "=c" (*ecx),
-		  "=d" (*edx)
-		: "0" (*eax), "2" (*ecx));
-}
+#include "../kselftest.h" /* For __cpuid_count() */
 
 static inline int xsave_enabled(void)
 {
 	unsigned int eax, ebx, ecx, edx;
 
-	eax = 0x1;
-	ecx = 0x0;
-	__cpuid(&eax, &ebx, &ecx, &edx);
+	__cpuid_count(0x1, 0x0, eax, ebx, ecx, edx);
 
 	/* Is CR4.OSXSAVE enabled ? */
 	return ecx & (1U << 27);

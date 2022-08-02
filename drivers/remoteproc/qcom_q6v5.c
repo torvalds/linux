@@ -8,6 +8,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/interconnect.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/soc/qcom/qcom_aoss.h>
@@ -51,9 +52,17 @@ int qcom_q6v5_prepare(struct qcom_q6v5 *q6v5)
 {
 	int ret;
 
-	ret = q6v5_load_state_toggle(q6v5, true);
-	if (ret)
+	ret = icc_set_bw(q6v5->path, 0, UINT_MAX);
+	if (ret < 0) {
+		dev_err(q6v5->dev, "failed to set bandwidth request\n");
 		return ret;
+	}
+
+	ret = q6v5_load_state_toggle(q6v5, true);
+	if (ret) {
+		icc_set_bw(q6v5->path, 0, 0);
+		return ret;
+	}
 
 	reinit_completion(&q6v5->start_done);
 	reinit_completion(&q6v5->stop_done);
@@ -77,6 +86,9 @@ int qcom_q6v5_unprepare(struct qcom_q6v5 *q6v5)
 {
 	disable_irq(q6v5->handover_irq);
 	q6v5_load_state_toggle(q6v5, false);
+
+	/* Disable interconnect vote, in case handover never happened */
+	icc_set_bw(q6v5->path, 0, 0);
 
 	return !q6v5->handover_issued;
 }
@@ -159,6 +171,8 @@ static irqreturn_t q6v5_handover_interrupt(int irq, void *data)
 
 	if (q6v5->handover)
 		q6v5->handover(q6v5);
+
+	icc_set_bw(q6v5->path, 0, 0);
 
 	q6v5->handover_issued = true;
 
@@ -331,6 +345,11 @@ int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
 		qmp_put(q6v5->qmp);
 		return load_state ? -ENOMEM : -EINVAL;
 	}
+
+	q6v5->path = devm_of_icc_get(&pdev->dev, NULL);
+	if (IS_ERR(q6v5->path))
+		return dev_err_probe(&pdev->dev, PTR_ERR(q6v5->path),
+				     "failed to acquire interconnect path\n");
 
 	return 0;
 }

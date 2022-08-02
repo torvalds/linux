@@ -310,13 +310,12 @@ struct qos_priv {
 struct mlme_priv {
 	spinlock_t lock;
 	int fw_state;	/* shall we protect this variable? maybe not necessarily... */
-	u8 bScanInProcess;
+	bool bScanInProcess;
 	u8 to_join; /* flag */
 	u8 to_roaming; /*  roaming trying times */
 
 	u8 *nic_hdl;
 
-	u8 not_indic_disco;
 	struct list_head *pscanned;
 	struct __queue free_bss_pool;
 	struct __queue scanned_queue;
@@ -364,8 +363,6 @@ struct mlme_priv {
 
 	u8 *assoc_req;
 	u32 assoc_req_len;
-	u8 *assoc_rsp;
-	u32 assoc_rsp_len;
 
 	/* Number of associated Non-ERP stations (i.e., stations using 802.11b
 	 * in 802.11g BSS) */
@@ -417,10 +414,6 @@ struct mlme_priv {
 	u8		update_bcn;
 };
 
-struct hostapd_priv {
-	struct adapter *padapter;
-};
-
 int hostapd_mode_init(struct adapter *padapter);
 void hostapd_mode_unload(struct adapter *padapter);
 
@@ -456,7 +449,7 @@ static inline u8 *get_bssid(struct mlme_priv *pmlmepriv)
 	return pmlmepriv->cur_network.network.MacAddress;
 }
 
-static inline int check_fwstate(struct mlme_priv *pmlmepriv, int state)
+static inline bool check_fwstate(struct mlme_priv *pmlmepriv, int state)
 {
 	if (pmlmepriv->fw_state & state)
 		return true;
@@ -554,8 +547,6 @@ void rtw_init_registrypriv_dev_network(struct adapter *adapter);
 
 void rtw_update_registrypriv_dev_network(struct adapter *adapter);
 
-void rtw_get_encrypt_decrypt_from_registrypriv(struct adapter *adapter);
-
 void _rtw_join_timeout_handler(struct adapter *adapter);
 void rtw_scan_timeout_handler(struct adapter *adapter);
 
@@ -565,13 +556,9 @@ void rtw_scan_timeout_handler(struct adapter *adapter);
 #define rtw_set_scan_deny_timer_hdl(adapter) do {} while (0)
 #define rtw_set_scan_deny(adapter, ms) do {} while (0)
 
-int _rtw_init_mlme_priv(struct adapter *padapter);
-
 void rtw_free_mlme_priv_ie_data(struct mlme_priv *pmlmepriv);
 
-void _rtw_free_mlme_priv(struct mlme_priv *pmlmepriv);
-
- struct wlan_network *_rtw_alloc_network(struct mlme_priv *pmlmepriv);
+struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv);
 
 void _rtw_free_network(struct mlme_priv *pmlmepriv,
 		       struct wlan_network *pnetwork, u8 isfreeall);
@@ -603,7 +590,10 @@ void _rtw_roaming(struct adapter *padapter, struct wlan_network *tgt_network);
 void rtw_set_roaming(struct adapter *adapter, u8 to_roaming);
 u8 rtw_to_roaming(struct adapter *adapter);
 
+void rtw_set_max_rpt_macid(struct adapter *adapter, u8 macid);
 void rtw_sta_media_status_rpt(struct adapter *adapter, struct sta_info *psta,
 			      u32 mstatus);
+
+u8 rtw_current_antenna(struct adapter *adapter);
 
 #endif /* __RTL871X_MLME_H_ */

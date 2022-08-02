@@ -8,25 +8,24 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/msm.xml                   (    981 bytes, from 2021-06-05 21:37:42)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/freedreno_copyright.xml   (   1572 bytes, from 2021-02-18 16:45:44)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/mdp/mdp4.xml              (  20912 bytes, from 2021-02-18 16:45:44)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/mdp/mdp_common.xml        (   2849 bytes, from 2021-02-18 16:45:44)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/mdp/mdp5.xml              (  37461 bytes, from 2021-02-18 16:45:44)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/dsi.xml               (  15291 bytes, from 2021-06-15 22:36:13)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/dsi_phy_v2.xml        (   3236 bytes, from 2021-06-05 21:37:42)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/dsi_phy_28nm_8960.xml (   4935 bytes, from 2021-05-21 19:18:08)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/dsi_phy_28nm.xml      (   7004 bytes, from 2021-05-21 19:18:08)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/dsi_phy_20nm.xml      (   3712 bytes, from 2021-05-21 19:18:08)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/dsi_phy_14nm.xml      (   5381 bytes, from 2021-05-21 19:18:08)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/dsi_phy_10nm.xml      (   4499 bytes, from 2021-05-21 19:18:08)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/dsi_phy_7nm.xml       (  10953 bytes, from 2021-05-21 19:18:08)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/dsi_phy_5nm.xml       (  10900 bytes, from 2021-05-21 19:18:08)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/sfpb.xml              (    602 bytes, from 2021-02-18 16:45:44)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/mmss_cc.xml           (   1686 bytes, from 2021-02-18 16:45:44)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/hdmi/qfprom.xml           (    600 bytes, from 2021-02-18 16:45:44)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/hdmi/hdmi.xml             (  41874 bytes, from 2021-02-18 16:45:44)
-- /home/robclark/src/mesa/mesa/src/freedreno/registers/edp/edp.xml               (  10416 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/tmp/mesa/src/freedreno/registers/msm.xml                   (    944 bytes, from 2022-03-03 01:18:13)
+- /home/robclark/tmp/mesa/src/freedreno/registers/freedreno_copyright.xml   (   1572 bytes, from 2020-12-31 19:26:32)
+- /home/robclark/tmp/mesa/src/freedreno/registers/mdp/mdp4.xml              (  20912 bytes, from 2021-01-30 18:25:22)
+- /home/robclark/tmp/mesa/src/freedreno/registers/mdp/mdp_common.xml        (   2849 bytes, from 2021-01-30 18:25:22)
+- /home/robclark/tmp/mesa/src/freedreno/registers/mdp/mdp5.xml              (  37461 bytes, from 2021-01-30 18:25:22)
+- /home/robclark/tmp/mesa/src/freedreno/registers/dsi/dsi.xml               (  17560 bytes, from 2021-09-16 22:37:02)
+- /home/robclark/tmp/mesa/src/freedreno/registers/dsi/dsi_phy_v2.xml        (   3236 bytes, from 2021-07-22 15:21:56)
+- /home/robclark/tmp/mesa/src/freedreno/registers/dsi/dsi_phy_28nm_8960.xml (   4935 bytes, from 2021-07-22 15:21:56)
+- /home/robclark/tmp/mesa/src/freedreno/registers/dsi/dsi_phy_28nm.xml      (   7004 bytes, from 2021-07-22 15:21:56)
+- /home/robclark/tmp/mesa/src/freedreno/registers/dsi/dsi_phy_20nm.xml      (   3712 bytes, from 2021-07-22 15:21:56)
+- /home/robclark/tmp/mesa/src/freedreno/registers/dsi/dsi_phy_14nm.xml      (   5381 bytes, from 2021-07-22 15:21:56)
+- /home/robclark/tmp/mesa/src/freedreno/registers/dsi/dsi_phy_10nm.xml      (   4499 bytes, from 2021-07-22 15:21:56)
+- /home/robclark/tmp/mesa/src/freedreno/registers/dsi/dsi_phy_7nm.xml       (  11007 bytes, from 2022-03-03 01:18:13)
+- /home/robclark/tmp/mesa/src/freedreno/registers/dsi/sfpb.xml              (    602 bytes, from 2021-01-30 18:25:22)
+- /home/robclark/tmp/mesa/src/freedreno/registers/dsi/mmss_cc.xml           (   1686 bytes, from 2021-01-30 18:25:22)
+- /home/robclark/tmp/mesa/src/freedreno/registers/hdmi/qfprom.xml           (    600 bytes, from 2021-01-30 18:25:22)
+- /home/robclark/tmp/mesa/src/freedreno/registers/hdmi/hdmi.xml             (  41874 bytes, from 2021-01-30 18:25:22)
+- /home/robclark/tmp/mesa/src/freedreno/registers/edp/edp.xml               (  10416 bytes, from 2021-01-30 18:25:22)
 
 Copyright (C) 2013-2021 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
@@ -705,5 +704,85 @@ static inline uint32_t DSI_VERSION_MAJOR(uint32_t val)
 
 #define REG_DSI_CPHY_MODE_CTRL					0x000002d4
 
+#define REG_DSI_VIDEO_COMPRESSION_MODE_CTRL			0x0000029c
+#define DSI_VIDEO_COMPRESSION_MODE_CTRL_WC__MASK		0xffff0000
+#define DSI_VIDEO_COMPRESSION_MODE_CTRL_WC__SHIFT		16
+static inline uint32_t DSI_VIDEO_COMPRESSION_MODE_CTRL_WC(uint32_t val)
+{
+	return ((val) << DSI_VIDEO_COMPRESSION_MODE_CTRL_WC__SHIFT) & DSI_VIDEO_COMPRESSION_MODE_CTRL_WC__MASK;
+}
+#define DSI_VIDEO_COMPRESSION_MODE_CTRL_DATATYPE__MASK		0x00003f00
+#define DSI_VIDEO_COMPRESSION_MODE_CTRL_DATATYPE__SHIFT		8
+static inline uint32_t DSI_VIDEO_COMPRESSION_MODE_CTRL_DATATYPE(uint32_t val)
+{
+	return ((val) << DSI_VIDEO_COMPRESSION_MODE_CTRL_DATATYPE__SHIFT) & DSI_VIDEO_COMPRESSION_MODE_CTRL_DATATYPE__MASK;
+}
+#define DSI_VIDEO_COMPRESSION_MODE_CTRL_PKT_PER_LINE__MASK	0x000000c0
+#define DSI_VIDEO_COMPRESSION_MODE_CTRL_PKT_PER_LINE__SHIFT	6
+static inline uint32_t DSI_VIDEO_COMPRESSION_MODE_CTRL_PKT_PER_LINE(uint32_t val)
+{
+	return ((val) << DSI_VIDEO_COMPRESSION_MODE_CTRL_PKT_PER_LINE__SHIFT) & DSI_VIDEO_COMPRESSION_MODE_CTRL_PKT_PER_LINE__MASK;
+}
+#define DSI_VIDEO_COMPRESSION_MODE_CTRL_EOL_BYTE_NUM__MASK	0x00000030
+#define DSI_VIDEO_COMPRESSION_MODE_CTRL_EOL_BYTE_NUM__SHIFT	4
+static inline uint32_t DSI_VIDEO_COMPRESSION_MODE_CTRL_EOL_BYTE_NUM(uint32_t val)
+{
+	return ((val) << DSI_VIDEO_COMPRESSION_MODE_CTRL_EOL_BYTE_NUM__SHIFT) & DSI_VIDEO_COMPRESSION_MODE_CTRL_EOL_BYTE_NUM__MASK;
+}
+#define DSI_VIDEO_COMPRESSION_MODE_CTRL_EN			0x00000001
+
+#define REG_DSI_COMMAND_COMPRESSION_MODE_CTRL			0x000002a4
+#define DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM1_DATATYPE__MASK	0x3f000000
+#define DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM1_DATATYPE__SHIFT	24
+static inline uint32_t DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM1_DATATYPE(uint32_t val)
+{
+	return ((val) << DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM1_DATATYPE__SHIFT) & DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM1_DATATYPE__MASK;
+}
+#define DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM1_PKT_PER_LINE__MASK	0x00c00000
+#define DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM1_PKT_PER_LINE__SHIFT	22
+static inline uint32_t DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM1_PKT_PER_LINE(uint32_t val)
+{
+	return ((val) << DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM1_PKT_PER_LINE__SHIFT) & DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM1_PKT_PER_LINE__MASK;
+}
+#define DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM1_EOL_BYTE_NUM__MASK	0x00300000
+#define DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM1_EOL_BYTE_NUM__SHIFT	20
+static inline uint32_t DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM1_EOL_BYTE_NUM(uint32_t val)
+{
+	return ((val) << DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM1_EOL_BYTE_NUM__SHIFT) & DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM1_EOL_BYTE_NUM__MASK;
+}
+#define DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM1_EN		0x00010000
+#define DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM0_DATATYPE__MASK	0x00003f00
+#define DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM0_DATATYPE__SHIFT	8
+static inline uint32_t DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM0_DATATYPE(uint32_t val)
+{
+	return ((val) << DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM0_DATATYPE__SHIFT) & DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM0_DATATYPE__MASK;
+}
+#define DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM0_PKT_PER_LINE__MASK	0x000000c0
+#define DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM0_PKT_PER_LINE__SHIFT	6
+static inline uint32_t DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM0_PKT_PER_LINE(uint32_t val)
+{
+	return ((val) << DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM0_PKT_PER_LINE__SHIFT) & DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM0_PKT_PER_LINE__MASK;
+}
+#define DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM0_EOL_BYTE_NUM__MASK	0x00000030
+#define DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM0_EOL_BYTE_NUM__SHIFT	4
+static inline uint32_t DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM0_EOL_BYTE_NUM(uint32_t val)
+{
+	return ((val) << DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM0_EOL_BYTE_NUM__SHIFT) & DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM0_EOL_BYTE_NUM__MASK;
+}
+#define DSI_COMMAND_COMPRESSION_MODE_CTRL_STREAM0_EN		0x00000001
+
+#define REG_DSI_COMMAND_COMPRESSION_MODE_CTRL2			0x000002a8
+#define DSI_COMMAND_COMPRESSION_MODE_CTRL2_STREAM1_SLICE_WIDTH__MASK	0xffff0000
+#define DSI_COMMAND_COMPRESSION_MODE_CTRL2_STREAM1_SLICE_WIDTH__SHIFT	16
+static inline uint32_t DSI_COMMAND_COMPRESSION_MODE_CTRL2_STREAM1_SLICE_WIDTH(uint32_t val)
+{
+	return ((val) << DSI_COMMAND_COMPRESSION_MODE_CTRL2_STREAM1_SLICE_WIDTH__SHIFT) & DSI_COMMAND_COMPRESSION_MODE_CTRL2_STREAM1_SLICE_WIDTH__MASK;
+}
+#define DSI_COMMAND_COMPRESSION_MODE_CTRL2_STREAM0_SLICE_WIDTH__MASK	0x0000ffff
+#define DSI_COMMAND_COMPRESSION_MODE_CTRL2_STREAM0_SLICE_WIDTH__SHIFT	0
+static inline uint32_t DSI_COMMAND_COMPRESSION_MODE_CTRL2_STREAM0_SLICE_WIDTH(uint32_t val)
+{
+	return ((val) << DSI_COMMAND_COMPRESSION_MODE_CTRL2_STREAM0_SLICE_WIDTH__SHIFT) & DSI_COMMAND_COMPRESSION_MODE_CTRL2_STREAM0_SLICE_WIDTH__MASK;
+}
 
 #endif /* DSI_XML */

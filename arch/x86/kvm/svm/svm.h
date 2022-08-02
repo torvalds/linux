@@ -22,15 +22,18 @@
 #include <asm/svm.h>
 #include <asm/sev-common.h>
 
+#include "kvm_cache_regs.h"
+
 #define __sme_page_pa(x) __sme_set(page_to_pfn(x) << PAGE_SHIFT)
 
 #define	IOPM_SIZE PAGE_SIZE * 3
 #define	MSRPM_SIZE PAGE_SIZE * 2
 
-#define MAX_DIRECT_ACCESS_MSRS	20
+#define MAX_DIRECT_ACCESS_MSRS	21
 #define MSRPM_OFFSETS	16
 extern u32 msrpm_offsets[MSRPM_OFFSETS] __read_mostly;
 extern bool npt_enabled;
+extern int vgif;
 extern bool intercept_smi;
 
 /*
@@ -79,7 +82,8 @@ struct kvm_sev_info {
 	struct list_head regions_list;  /* List of registered regions */
 	u64 ap_jump_table;	/* SEV-ES AP Jump Table address */
 	struct kvm *enc_context_owner; /* Owner of copied encryption context */
-	unsigned long num_mirrored_vms; /* Number of VMs sharing this ASID */
+	struct list_head mirror_vms; /* List of VMs mirroring */
+	struct list_head mirror_entry; /* Use as a list entry of mirrors */
 	struct misc_cg *misc_cg; /* For misc cgroup accounting */
 	atomic_t migration_in_progress;
 };
@@ -137,6 +141,8 @@ struct vmcb_ctrl_area_cached {
 	u32 event_inj_err;
 	u64 nested_cr3;
 	u64 virt_ext;
+	u32 clean;
+	u8 reserved_sw[32];
 };
 
 struct svm_nested_state {
@@ -163,11 +169,20 @@ struct svm_nested_state {
 	struct vmcb_save_area_cached save;
 
 	bool initialized;
+
+	/*
+	 * Indicates whether MSR bitmap for L2 needs to be rebuilt due to
+	 * changes in MSR bitmap for L1 or switching to a different L2. Note,
+	 * this flag can only be used reliably in conjunction with a paravirt L1
+	 * which informs L0 whether any changes to MSR bitmap for L2 were done
+	 * on its side.
+	 */
+	bool force_msr_bitmap_recalc;
 };
 
 struct vcpu_sev_es_state {
 	/* SEV-ES support */
-	struct vmcb_save_area *vmsa;
+	struct sev_es_save_area *vmsa;
 	struct ghcb *ghcb;
 	struct kvm_host_map ghcb_map;
 	bool received_first_sipi;
@@ -217,9 +232,14 @@ struct vcpu_svm {
 	unsigned int3_injected;
 	unsigned long int3_rip;
 
-	/* cached guest cpuid flags for faster access */
+	/* optional nested SVM features that are enabled for this guest  */
 	bool nrips_enabled                : 1;
 	bool tsc_scaling_enabled          : 1;
+	bool v_vmload_vmsave_enabled      : 1;
+	bool lbrv_enabled                 : 1;
+	bool pause_filter_enabled         : 1;
+	bool pause_threshold_enabled      : 1;
+	bool vgif_enabled                 : 1;
 
 	u32 ldr_reg;
 	u32 dfr_reg;
@@ -321,7 +341,7 @@ static __always_inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
 
 /*
  * Only the PDPTRs are loaded on demand into the shadow MMU.  All other
- * fields are synchronized in handle_exit, because accessing the VMCB is cheap.
+ * fields are synchronized on VM-Exit, because accessing the VMCB is cheap.
  *
  * CR3 might be out of date in the VMCB but it is not marked dirty; instead,
  * KVM_REQ_LOAD_MMU_PGD is always requested when the cached vcpu->arch.cr3
@@ -438,37 +458,61 @@ static inline bool svm_is_intercept(struct vcpu_svm *svm, int bit)
 	return vmcb_is_intercept(&svm->vmcb->control, bit);
 }
 
-static inline bool vgif_enabled(struct vcpu_svm *svm)
+static inline bool nested_vgif_enabled(struct vcpu_svm *svm)
 {
-	return !!(svm->vmcb->control.int_ctl & V_GIF_ENABLE_MASK);
+	return svm->vgif_enabled && (svm->nested.ctl.int_ctl & V_GIF_ENABLE_MASK);
+}
+
+static inline struct vmcb *get_vgif_vmcb(struct vcpu_svm *svm)
+{
+	if (!vgif)
+		return NULL;
+
+	if (is_guest_mode(&svm->vcpu) && !nested_vgif_enabled(svm))
+		return svm->nested.vmcb02.ptr;
+	else
+		return svm->vmcb01.ptr;
 }
 
 static inline void enable_gif(struct vcpu_svm *svm)
 {
-	if (vgif_enabled(svm))
-		svm->vmcb->control.int_ctl |= V_GIF_MASK;
+	struct vmcb *vmcb = get_vgif_vmcb(svm);
+
+	if (vmcb)
+		vmcb->control.int_ctl |= V_GIF_MASK;
 	else
 		svm->vcpu.arch.hflags |= HF_GIF_MASK;
 }
 
 static inline void disable_gif(struct vcpu_svm *svm)
 {
-	if (vgif_enabled(svm))
-		svm->vmcb->control.int_ctl &= ~V_GIF_MASK;
+	struct vmcb *vmcb = get_vgif_vmcb(svm);
+
+	if (vmcb)
+		vmcb->control.int_ctl &= ~V_GIF_MASK;
 	else
 		svm->vcpu.arch.hflags &= ~HF_GIF_MASK;
 }
 
 static inline bool gif_set(struct vcpu_svm *svm)
 {
-	if (vgif_enabled(svm))
-		return !!(svm->vmcb->control.int_ctl & V_GIF_MASK);
+	struct vmcb *vmcb = get_vgif_vmcb(svm);
+
+	if (vmcb)
+		return !!(vmcb->control.int_ctl & V_GIF_MASK);
 	else
 		return !!(svm->vcpu.arch.hflags & HF_GIF_MASK);
 }
 
+static inline bool nested_npt_enabled(struct vcpu_svm *svm)
+{
+	return svm->nested.ctl.nested_ctl & SVM_NESTED_CTL_NP_ENABLE;
+}
+
 /* svm.c */
 #define MSR_INVALID				0xffffffffU
+
+#define DEBUGCTL_RESERVED_BITS (~(0x3fULL))
 
 extern bool dump_invalid_vmcb;
 
@@ -476,11 +520,12 @@ u32 svm_msrpm_offset(u32 msr);
 u32 *svm_vcpu_alloc_msrpm(void);
 void svm_vcpu_init_msrpm(struct kvm_vcpu *vcpu, u32 *msrpm);
 void svm_vcpu_free_msrpm(u32 *msrpm);
+void svm_copy_lbrs(struct vmcb *to_vmcb, struct vmcb *from_vmcb);
+void svm_update_lbrv(struct kvm_vcpu *vcpu);
 
 int svm_set_efer(struct kvm_vcpu *vcpu, u64 efer);
 void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 void svm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
-void svm_flush_tlb(struct kvm_vcpu *vcpu);
 void disable_nmi_singlestep(struct vcpu_svm *svm);
 bool svm_smi_blocked(struct kvm_vcpu *vcpu);
 bool svm_nmi_blocked(struct kvm_vcpu *vcpu);
@@ -545,7 +590,7 @@ int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 			       bool has_error_code, u32 error_code);
 int nested_svm_exit_special(struct vcpu_svm *svm);
 void nested_svm_update_tsc_ratio_msr(struct kvm_vcpu *vcpu);
-void svm_write_tsc_multiplier(struct kvm_vcpu *vcpu, u64 multiplier);
+void __svm_write_tsc_multiplier(u64 multiplier);
 void nested_copy_vmcb_control_to_cache(struct vcpu_svm *svm,
 				       struct vmcb_control_area *control);
 void nested_copy_vmcb_save_to_cache(struct vcpu_svm *svm,
@@ -561,25 +606,25 @@ extern struct kvm_x86_nested_ops svm_nested_ops;
 int avic_ga_log_notifier(u32 ga_tag);
 void avic_vm_destroy(struct kvm *kvm);
 int avic_vm_init(struct kvm *kvm);
-void avic_init_vmcb(struct vcpu_svm *svm);
+void avic_init_vmcb(struct vcpu_svm *svm, struct vmcb *vmcb);
 int avic_incomplete_ipi_interception(struct kvm_vcpu *vcpu);
 int avic_unaccelerated_access_interception(struct kvm_vcpu *vcpu);
 int avic_init_vcpu(struct vcpu_svm *svm);
 void avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
 void avic_vcpu_put(struct kvm_vcpu *vcpu);
-void avic_post_state_restore(struct kvm_vcpu *vcpu);
-void svm_set_virtual_apic_mode(struct kvm_vcpu *vcpu);
-void svm_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu);
-bool svm_check_apicv_inhibit_reasons(ulong bit);
-void svm_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap);
-void svm_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr);
-void svm_hwapic_isr_update(struct kvm_vcpu *vcpu, int max_isr);
-bool svm_dy_apicv_has_pending_interrupt(struct kvm_vcpu *vcpu);
-int svm_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
-		       uint32_t guest_irq, bool set);
+void avic_apicv_post_state_restore(struct kvm_vcpu *vcpu);
+void avic_set_virtual_apic_mode(struct kvm_vcpu *vcpu);
+void avic_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu);
+bool avic_check_apicv_inhibit_reasons(enum kvm_apicv_inhibit reason);
+void avic_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr);
+void avic_hwapic_isr_update(struct kvm_vcpu *vcpu, int max_isr);
+bool avic_dy_apicv_has_pending_interrupt(struct kvm_vcpu *vcpu);
+int avic_pi_update_irte(struct kvm *kvm, unsigned int host_irq,
+			uint32_t guest_irq, bool set);
 void avic_vcpu_blocking(struct kvm_vcpu *vcpu);
 void avic_vcpu_unblocking(struct kvm_vcpu *vcpu);
 void avic_ring_doorbell(struct kvm_vcpu *vcpu);
+unsigned long avic_vcpu_get_apicv_inhibit_reasons(struct kvm_vcpu *vcpu);
 
 /* sev.c */
 
@@ -590,25 +635,27 @@ void avic_ring_doorbell(struct kvm_vcpu *vcpu);
 extern unsigned int max_sev_asid;
 
 void sev_vm_destroy(struct kvm *kvm);
-int svm_mem_enc_op(struct kvm *kvm, void __user *argp);
-int svm_register_enc_region(struct kvm *kvm,
-			    struct kvm_enc_region *range);
-int svm_unregister_enc_region(struct kvm *kvm,
-			      struct kvm_enc_region *range);
-int svm_vm_copy_asid_from(struct kvm *kvm, unsigned int source_fd);
-int svm_vm_migrate_from(struct kvm *kvm, unsigned int source_fd);
+int sev_mem_enc_ioctl(struct kvm *kvm, void __user *argp);
+int sev_mem_enc_register_region(struct kvm *kvm,
+				struct kvm_enc_region *range);
+int sev_mem_enc_unregister_region(struct kvm *kvm,
+				  struct kvm_enc_region *range);
+int sev_vm_copy_enc_context_from(struct kvm *kvm, unsigned int source_fd);
+int sev_vm_move_enc_context_from(struct kvm *kvm, unsigned int source_fd);
+void sev_guest_memory_reclaimed(struct kvm *kvm);
+
 void pre_sev_run(struct vcpu_svm *svm, int cpu);
 void __init sev_set_cpu_caps(void);
 void __init sev_hardware_setup(void);
-void sev_hardware_teardown(void);
+void sev_hardware_unsetup(void);
 int sev_cpu_init(struct svm_cpu_data *sd);
+void sev_init_vmcb(struct vcpu_svm *svm);
 void sev_free_vcpu(struct kvm_vcpu *vcpu);
 int sev_handle_vmgexit(struct kvm_vcpu *vcpu);
 int sev_es_string_io(struct vcpu_svm *svm, int size, unsigned int port, int in);
-void sev_es_init_vmcb(struct vcpu_svm *svm);
 void sev_es_vcpu_reset(struct vcpu_svm *svm);
 void sev_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector);
-void sev_es_prepare_guest_switch(struct vcpu_svm *svm, unsigned int cpu);
+void sev_es_prepare_switch_to_guest(struct sev_es_save_area *hostsa);
 void sev_es_unmap_ghcb(struct vcpu_svm *svm);
 
 /* vmenter.S */

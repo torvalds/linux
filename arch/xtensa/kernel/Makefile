@@ -13,11 +13,13 @@ obj-$(CONFIG_MMU) += pci-dma.o
 obj-$(CONFIG_PCI) += pci.o
 obj-$(CONFIG_MODULES) += xtensa_ksyms.o module.o
 obj-$(CONFIG_FUNCTION_TRACER) += mcount.o
-obj-$(CONFIG_SMP) += smp.o mxhead.o
+obj-$(CONFIG_SMP) += smp.o
+obj-$(CONFIG_SECONDARY_RESET_VECTOR) += mxhead.o
 obj-$(CONFIG_XTENSA_VARIANT_HAVE_PERF_EVENTS) += perf_event.o
 obj-$(CONFIG_HAVE_HW_BREAKPOINT) += hw_breakpoint.o
 obj-$(CONFIG_S32C1I_SELFTEST) += s32c1i_selftest.o
 obj-$(CONFIG_JUMP_LABEL) += jump_label.o
+obj-$(CONFIG_HIBERNATION) += hibernate.o
 
 # In the Xtensa architecture, assembly generates literals which must always
 # precede the L32R instruction with a relative offset less than 256 kB.

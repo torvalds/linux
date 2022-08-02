@@ -11,6 +11,7 @@
 #include <linux/pci.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
+#include <linux/iommu.h>
 
 #define MMU_ADDR_BUF_SIZE	40
 #define MMU_ASID_BUF_SIZE	10
@@ -125,9 +126,9 @@ static int command_buffers_show(struct seq_file *s, void *data)
 		}
 		seq_printf(s,
 			"   %03llu        %d    0x%08x      %d          %d          %d\n",
-			cb->id, cb->ctx->asid, cb->size,
-			kref_read(&cb->refcount),
-			cb->mmap, atomic_read(&cb->cs_cnt));
+			cb->buf->handle, cb->ctx->asid, cb->size,
+			kref_read(&cb->buf->refcount),
+			atomic_read(&cb->buf->mmap), atomic_read(&cb->cs_cnt));
 	}
 
 	spin_unlock(&dev_entry->cb_spinlock);
@@ -369,8 +370,7 @@ static int userptr_lookup_show(struct seq_file *s, void *data)
 		if (dev_entry->userptr_lookup >= userptr->addr &&
 		dev_entry->userptr_lookup < userptr->addr + userptr->size) {
 			total_npages = 0;
-			for_each_sg(userptr->sgt->sgl, sg, userptr->sgt->nents,
-					i) {
+			for_each_sgtable_dma_sg(userptr->sgt, sg, i) {
 				npages = hl_get_sg_info(sg, &dma_addr);
 				sg_start = userptr->addr +
 					total_npages * PAGE_SIZE;
@@ -538,6 +538,39 @@ static int engines_show(struct seq_file *s, void *data)
 	return 0;
 }
 
+static ssize_t hl_memory_scrub(struct file *f, const char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_device *hdev = entry->hdev;
+	u64 val = entry->memory_scrub_val;
+	int rc;
+
+	if (!hl_device_operational(hdev, NULL)) {
+		dev_warn_ratelimited(hdev->dev, "Can't scrub memory, device is not operational\n");
+		return -EIO;
+	}
+
+	mutex_lock(&hdev->fpriv_list_lock);
+	if (hdev->is_compute_ctx_active) {
+		mutex_unlock(&hdev->fpriv_list_lock);
+		dev_err(hdev->dev, "can't scrub dram, context exist\n");
+		return -EBUSY;
+	}
+	hdev->is_in_dram_scrub = true;
+	mutex_unlock(&hdev->fpriv_list_lock);
+
+	rc = hdev->asic_funcs->scrub_device_dram(hdev, val);
+
+	mutex_lock(&hdev->fpriv_list_lock);
+	hdev->is_in_dram_scrub = false;
+	mutex_unlock(&hdev->fpriv_list_lock);
+
+	if (rc)
+		return rc;
+	return count;
+}
+
 static bool hl_is_device_va(struct hl_device *hdev, u64 addr)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
@@ -647,13 +680,105 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr, u32 size,
 	return rc;
 }
 
+static int hl_access_dev_mem_by_region(struct hl_device *hdev, u64 addr,
+		u64 *val, enum debugfs_access_type acc_type, bool *found)
+{
+	size_t acc_size = (acc_type == DEBUGFS_READ64 || acc_type == DEBUGFS_WRITE64) ?
+		sizeof(u64) : sizeof(u32);
+	struct pci_mem_region *mem_reg;
+	int i;
+
+	for (i = 0; i < PCI_REGION_NUMBER; i++) {
+		mem_reg = &hdev->pci_mem_region[i];
+		if (!mem_reg->used)
+			continue;
+		if (addr >= mem_reg->region_base &&
+			addr <= mem_reg->region_base + mem_reg->region_size - acc_size) {
+			*found = true;
+			return hdev->asic_funcs->access_dev_mem(hdev, mem_reg, i,
+				addr, val, acc_type);
+		}
+	}
+	return 0;
+}
+
+static void hl_access_host_mem(struct hl_device *hdev, u64 addr, u64 *val,
+		enum debugfs_access_type acc_type)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 offset = prop->device_dma_offset_for_host_access;
+
+	switch (acc_type) {
+	case DEBUGFS_READ32:
+		*val = *(u32 *) phys_to_virt(addr - offset);
+		break;
+	case DEBUGFS_WRITE32:
+		*(u32 *) phys_to_virt(addr - offset) = *val;
+		break;
+	case DEBUGFS_READ64:
+		*val = *(u64 *) phys_to_virt(addr - offset);
+		break;
+	case DEBUGFS_WRITE64:
+		*(u64 *) phys_to_virt(addr - offset) = *val;
+		break;
+	default:
+		dev_err(hdev->dev, "hostmem access-type %d id not supported\n", acc_type);
+		break;
+	}
+}
+
+static int hl_access_mem(struct hl_device *hdev, u64 addr, u64 *val,
+	enum debugfs_access_type acc_type)
+{
+	size_t acc_size = (acc_type == DEBUGFS_READ64 || acc_type == DEBUGFS_WRITE64) ?
+		sizeof(u64) : sizeof(u32);
+	u64 host_start = hdev->asic_prop.host_base_address;
+	u64 host_end = hdev->asic_prop.host_end_address;
+	bool user_address, found = false;
+	int rc;
+
+	user_address = hl_is_device_va(hdev, addr);
+	if (user_address) {
+		rc = device_va_to_pa(hdev, addr, acc_size, &addr);
+		if (rc)
+			return rc;
+	}
+
+	rc = hl_access_dev_mem_by_region(hdev, addr, val, acc_type, &found);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed reading addr %#llx from dev mem (%d)\n",
+			addr, rc);
+		return rc;
+	}
+
+	if (found)
+		return 0;
+
+	if (!user_address || device_iommu_mapped(&hdev->pdev->dev)) {
+		rc = -EINVAL;
+		goto err;
+	}
+
+	if (addr >= host_start && addr <= host_end - acc_size) {
+		hl_access_host_mem(hdev, addr, val, acc_type);
+	} else {
+		rc = -EINVAL;
+		goto err;
+	}
+
+	return 0;
+err:
+	dev_err(hdev->dev, "invalid addr %#llx\n", addr);
+	return rc;
+}
+
 static ssize_t hl_data_read32(struct file *f, char __user *buf,
 					size_t count, loff_t *ppos)
 {
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
-	u64 addr = entry->addr;
-	bool user_address;
+	u64 value64, addr = entry->addr;
 	char tmp_buf[32];
 	ssize_t rc;
 	u32 val;
@@ -666,18 +791,11 @@ static ssize_t hl_data_read32(struct file *f, char __user *buf,
 	if (*ppos)
 		return 0;
 
-	user_address = hl_is_device_va(hdev, addr);
-	if (user_address) {
-		rc = device_va_to_pa(hdev, addr, sizeof(val), &addr);
-		if (rc)
-			return rc;
-	}
-
-	rc = hdev->asic_funcs->debugfs_read32(hdev, addr, user_address, &val);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to read from 0x%010llx\n", addr);
+	rc = hl_access_mem(hdev, addr, &value64, DEBUGFS_READ32);
+	if (rc)
 		return rc;
-	}
+
+	val = value64; /* downcast back to 32 */
 
 	sprintf(tmp_buf, "0x%08x\n", val);
 	return simple_read_from_buffer(buf, count, ppos, tmp_buf,
@@ -689,8 +807,7 @@ static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 {
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
-	u64 addr = entry->addr;
-	bool user_address;
+	u64 value64, addr = entry->addr;
 	u32 value;
 	ssize_t rc;
 
@@ -703,19 +820,10 @@ static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 	if (rc)
 		return rc;
 
-	user_address = hl_is_device_va(hdev, addr);
-	if (user_address) {
-		rc = device_va_to_pa(hdev, addr, sizeof(value), &addr);
-		if (rc)
-			return rc;
-	}
-
-	rc = hdev->asic_funcs->debugfs_write32(hdev, addr, user_address, value);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to write 0x%08x to 0x%010llx\n",
-			value, addr);
+	value64 = value;
+	rc = hl_access_mem(hdev, addr, &value64, DEBUGFS_WRITE32);
+	if (rc)
 		return rc;
-	}
 
 	return count;
 }
@@ -726,7 +834,6 @@ static ssize_t hl_data_read64(struct file *f, char __user *buf,
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
 	u64 addr = entry->addr;
-	bool user_address;
 	char tmp_buf[32];
 	ssize_t rc;
 	u64 val;
@@ -739,18 +846,9 @@ static ssize_t hl_data_read64(struct file *f, char __user *buf,
 	if (*ppos)
 		return 0;
 
-	user_address = hl_is_device_va(hdev, addr);
-	if (user_address) {
-		rc = device_va_to_pa(hdev, addr, sizeof(val), &addr);
-		if (rc)
-			return rc;
-	}
-
-	rc = hdev->asic_funcs->debugfs_read64(hdev, addr, user_address, &val);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to read from 0x%010llx\n", addr);
+	rc = hl_access_mem(hdev, addr, &val, DEBUGFS_READ64);
+	if (rc)
 		return rc;
-	}
 
 	sprintf(tmp_buf, "0x%016llx\n", val);
 	return simple_read_from_buffer(buf, count, ppos, tmp_buf,
@@ -763,7 +861,6 @@ static ssize_t hl_data_write64(struct file *f, const char __user *buf,
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
 	u64 addr = entry->addr;
-	bool user_address;
 	u64 value;
 	ssize_t rc;
 
@@ -776,19 +873,9 @@ static ssize_t hl_data_write64(struct file *f, const char __user *buf,
 	if (rc)
 		return rc;
 
-	user_address = hl_is_device_va(hdev, addr);
-	if (user_address) {
-		rc = device_va_to_pa(hdev, addr, sizeof(value), &addr);
-		if (rc)
-			return rc;
-	}
-
-	rc = hdev->asic_funcs->debugfs_write64(hdev, addr, user_address, value);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to write 0x%016llx to 0x%010llx\n",
-			value, addr);
+	rc = hl_access_mem(hdev, addr, &value, DEBUGFS_WRITE64);
+	if (rc)
 		return rc;
-	}
 
 	return count;
 }
@@ -829,23 +916,67 @@ static ssize_t hl_dma_size_write(struct file *f, const char __user *buf,
 	}
 
 	/* Free the previous allocation, if there was any */
-	entry->blob_desc.size = 0;
-	vfree(entry->blob_desc.data);
+	entry->data_dma_blob_desc.size = 0;
+	vfree(entry->data_dma_blob_desc.data);
 
-	entry->blob_desc.data = vmalloc(size);
-	if (!entry->blob_desc.data)
+	entry->data_dma_blob_desc.data = vmalloc(size);
+	if (!entry->data_dma_blob_desc.data)
 		return -ENOMEM;
 
 	rc = hdev->asic_funcs->debugfs_read_dma(hdev, addr, size,
-						entry->blob_desc.data);
+						entry->data_dma_blob_desc.data);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to DMA from 0x%010llx\n", addr);
-		vfree(entry->blob_desc.data);
-		entry->blob_desc.data = NULL;
+		vfree(entry->data_dma_blob_desc.data);
+		entry->data_dma_blob_desc.data = NULL;
 		return -EIO;
 	}
 
-	entry->blob_desc.size = size;
+	entry->data_dma_blob_desc.size = size;
+
+	return count;
+}
+
+static ssize_t hl_monitor_dump_trigger(struct file *f, const char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_device *hdev = entry->hdev;
+	u32 size, trig;
+	ssize_t rc;
+
+	if (hdev->reset_info.in_reset) {
+		dev_warn_ratelimited(hdev->dev, "Can't dump monitors during reset\n");
+		return 0;
+	}
+	rc = kstrtouint_from_user(buf, count, 10, &trig);
+	if (rc)
+		return rc;
+
+	if (trig != 1) {
+		dev_err(hdev->dev, "Must write 1 to trigger monitor dump\n");
+		return -EINVAL;
+	}
+
+	size = sizeof(struct cpucp_monitor_dump);
+
+	/* Free the previous allocation, if there was any */
+	entry->mon_dump_blob_desc.size = 0;
+	vfree(entry->mon_dump_blob_desc.data);
+
+	entry->mon_dump_blob_desc.data = vmalloc(size);
+	if (!entry->mon_dump_blob_desc.data)
+		return -ENOMEM;
+
+	rc = hdev->asic_funcs->get_monitor_dump(hdev, entry->mon_dump_blob_desc.data);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to dump monitors\n");
+		vfree(entry->mon_dump_blob_desc.data);
+		entry->mon_dump_blob_desc.data = NULL;
+		return -EIO;
+	}
+
+	entry->mon_dump_blob_desc.size = size;
 
 	return count;
 }
@@ -890,6 +1021,8 @@ static ssize_t hl_set_power_state(struct file *f, const char __user *buf,
 		pci_set_power_state(hdev->pdev, PCI_D0);
 		pci_restore_state(hdev->pdev);
 		rc = pci_enable_device(hdev->pdev);
+		if (rc < 0)
+			return rc;
 	} else if (value == 2) {
 		pci_save_state(hdev->pdev);
 		pci_disable_device(hdev->pdev);
@@ -1054,42 +1187,12 @@ static ssize_t hl_device_write(struct file *f, const char __user *buf,
 static ssize_t hl_clk_gate_read(struct file *f, char __user *buf,
 					size_t count, loff_t *ppos)
 {
-	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
-	struct hl_device *hdev = entry->hdev;
-	char tmp_buf[200];
-	ssize_t rc;
-
-	if (*ppos)
-		return 0;
-
-	sprintf(tmp_buf, "0x%llx\n", hdev->clock_gating_mask);
-	rc = simple_read_from_buffer(buf, count, ppos, tmp_buf,
-			strlen(tmp_buf) + 1);
-
-	return rc;
+	return 0;
 }
 
 static ssize_t hl_clk_gate_write(struct file *f, const char __user *buf,
 				     size_t count, loff_t *ppos)
 {
-	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
-	struct hl_device *hdev = entry->hdev;
-	u64 value;
-	ssize_t rc;
-
-	if (hdev->reset_info.in_reset) {
-		dev_warn_ratelimited(hdev->dev,
-				"Can't change clock gating during reset\n");
-		return 0;
-	}
-
-	rc = kstrtoull_from_user(buf, count, 16, &value);
-	if (rc)
-		return rc;
-
-	hdev->clock_gating_mask = value;
-	hdev->asic_funcs->set_clock_gating(hdev);
-
 	return count;
 }
 
@@ -1100,6 +1203,9 @@ static ssize_t hl_stop_on_err_read(struct file *f, char __user *buf,
 	struct hl_device *hdev = entry->hdev;
 	char tmp_buf[200];
 	ssize_t rc;
+
+	if (!hdev->asic_prop.configurable_stop_on_err)
+		return -EOPNOTSUPP;
 
 	if (*ppos)
 		return 0;
@@ -1118,6 +1224,9 @@ static ssize_t hl_stop_on_err_write(struct file *f, const char __user *buf,
 	struct hl_device *hdev = entry->hdev;
 	u32 value;
 	ssize_t rc;
+
+	if (!hdev->asic_prop.configurable_stop_on_err)
+		return -EOPNOTSUPP;
 
 	if (hdev->reset_info.in_reset) {
 		dev_warn_ratelimited(hdev->dev,
@@ -1240,6 +1349,11 @@ static ssize_t hl_timeout_locked_write(struct file *f, const char __user *buf,
 	return count;
 }
 
+static const struct file_operations hl_mem_scrub_fops = {
+	.owner = THIS_MODULE,
+	.write = hl_memory_scrub,
+};
+
 static const struct file_operations hl_data32b_fops = {
 	.owner = THIS_MODULE,
 	.read = hl_data_read32,
@@ -1255,6 +1369,11 @@ static const struct file_operations hl_data64b_fops = {
 static const struct file_operations hl_dma_size_fops = {
 	.owner = THIS_MODULE,
 	.write = hl_dma_size_write
+};
+
+static const struct file_operations hl_monitor_dump_fops = {
+	.owner = THIS_MODULE,
+	.write = hl_monitor_dump_trigger
 };
 
 static const struct file_operations hl_i2c_data_fops = {
@@ -1372,8 +1491,10 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 	if (!dev_entry->entry_arr)
 		return;
 
-	dev_entry->blob_desc.size = 0;
-	dev_entry->blob_desc.data = NULL;
+	dev_entry->data_dma_blob_desc.size = 0;
+	dev_entry->data_dma_blob_desc.data = NULL;
+	dev_entry->mon_dump_blob_desc.size = 0;
+	dev_entry->mon_dump_blob_desc.data = NULL;
 
 	INIT_LIST_HEAD(&dev_entry->file_list);
 	INIT_LIST_HEAD(&dev_entry->cb_list);
@@ -1391,6 +1512,17 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 
 	dev_entry->root = debugfs_create_dir(dev_name(hdev->dev),
 						hl_debug_root);
+
+	debugfs_create_x64("memory_scrub_val",
+				0644,
+				dev_entry->root,
+				&dev_entry->memory_scrub_val);
+
+	debugfs_create_file("memory_scrub",
+				0200,
+				dev_entry->root,
+				dev_entry,
+				&hl_mem_scrub_fops);
 
 	debugfs_create_x64("addr",
 				0644,
@@ -1492,7 +1624,18 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 	debugfs_create_blob("data_dma",
 				0400,
 				dev_entry->root,
-				&dev_entry->blob_desc);
+				&dev_entry->data_dma_blob_desc);
+
+	debugfs_create_file("monitor_dump_trig",
+				0200,
+				dev_entry->root,
+				dev_entry,
+				&hl_monitor_dump_fops);
+
+	debugfs_create_blob("monitor_dump",
+				0400,
+				dev_entry->root,
+				&dev_entry->mon_dump_blob_desc);
 
 	debugfs_create_x8("skip_reset_on_timeout",
 				0644,
@@ -1531,7 +1674,8 @@ void hl_debugfs_remove_device(struct hl_device *hdev)
 
 	mutex_destroy(&entry->file_mutex);
 
-	vfree(entry->blob_desc.data);
+	vfree(entry->data_dma_blob_desc.data);
+	vfree(entry->mon_dump_blob_desc.data);
 
 	for (i = 0; i < ARRAY_SIZE(entry->state_dump); ++i)
 		vfree(entry->state_dump[i]);

@@ -132,7 +132,11 @@ static inline bool pfn_valid(unsigned long pfn)
 #define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 
-#define virt_addr_valid(kaddr)	pfn_valid(virt_to_pfn(kaddr))
+#define virt_addr_valid(vaddr)	({					\
+	unsigned long _addr = (unsigned long)vaddr;			\
+	_addr >= PAGE_OFFSET && _addr < (unsigned long)high_memory &&	\
+	pfn_valid(virt_to_pfn(_addr));					\
+})
 
 /*
  * On Book-E parts we need __va to parse the device tree and we can't
@@ -212,6 +216,9 @@ static inline bool pfn_valid(unsigned long pfn)
 #define __pa(x) ((phys_addr_t)(unsigned long)(x) - VIRT_PHYS_OFFSET)
 #else
 #ifdef CONFIG_PPC64
+
+#define VIRTUAL_WARN_ON(x)	WARN_ON(IS_ENABLED(CONFIG_DEBUG_VIRTUAL) && (x))
+
 /*
  * gcc miscompiles (unsigned long)(&static_var) - PAGE_OFFSET
  * with -mcmodel=medium, so we use & and | instead of - and + on 64-bit.
@@ -219,13 +226,13 @@ static inline bool pfn_valid(unsigned long pfn)
  */
 #define __va(x)								\
 ({									\
-	VIRTUAL_BUG_ON((unsigned long)(x) >= PAGE_OFFSET);		\
+	VIRTUAL_WARN_ON((unsigned long)(x) >= PAGE_OFFSET);		\
 	(void *)(unsigned long)((phys_addr_t)(x) | PAGE_OFFSET);	\
 })
 
 #define __pa(x)								\
 ({									\
-	VIRTUAL_BUG_ON((unsigned long)(x) < PAGE_OFFSET);		\
+	VIRTUAL_WARN_ON((unsigned long)(x) < PAGE_OFFSET);		\
 	(unsigned long)(x) & 0x0fffffffffffffffUL;			\
 })
 
@@ -329,6 +336,5 @@ static inline unsigned long kaslr_offset(void)
 
 #include <asm-generic/memory_model.h>
 #endif /* __ASSEMBLY__ */
-#include <asm/slice.h>
 
 #endif /* _ASM_POWERPC_PAGE_H */

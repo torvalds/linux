@@ -36,7 +36,7 @@
 
 #include "signal.h"
 
-#ifdef CONFIG_CURRENT_POINTER_IN_TPIDRURO
+#if defined(CONFIG_CURRENT_POINTER_IN_TPIDRURO) || defined(CONFIG_SMP)
 DEFINE_PER_CPU(struct task_struct *, __entry_task);
 #endif
 
@@ -44,6 +44,11 @@ DEFINE_PER_CPU(struct task_struct *, __entry_task);
 #include <linux/stackprotector.h>
 unsigned long __stack_chk_guard __read_mostly;
 EXPORT_SYMBOL(__stack_chk_guard);
+#endif
+
+#ifndef CONFIG_CURRENT_POINTER_IN_TPIDRURO
+asmlinkage struct task_struct *__current;
+EXPORT_SYMBOL(__current);
 #endif
 
 static const char *processor_modes[] __maybe_unused = {
@@ -233,9 +238,11 @@ void release_thread(struct task_struct *dead_task)
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 
-int copy_thread(unsigned long clone_flags, unsigned long stack_start,
-		unsigned long stk_sz, struct task_struct *p, unsigned long tls)
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
+	unsigned long clone_flags = args->flags;
+	unsigned long stack_start = args->stack;
+	unsigned long tls = args->tls;
 	struct thread_info *thread = task_thread_info(p);
 	struct pt_regs *childregs = task_pt_regs(p);
 
@@ -251,15 +258,15 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	thread->cpu_domain = get_domain();
 #endif
 
-	if (likely(!(p->flags & (PF_KTHREAD | PF_IO_WORKER)))) {
+	if (likely(!args->fn)) {
 		*childregs = *current_pt_regs();
 		childregs->ARM_r0 = 0;
 		if (stack_start)
 			childregs->ARM_sp = stack_start;
 	} else {
 		memset(childregs, 0, sizeof(struct pt_regs));
-		thread->cpu_context.r4 = stk_sz;
-		thread->cpu_context.r5 = stack_start;
+		thread->cpu_context.r4 = (unsigned long)args->fn_arg;
+		thread->cpu_context.r5 = (unsigned long)args->fn;
 		childregs->ARM_cpsr = SVC_MODE;
 	}
 	thread->cpu_context.pc = (unsigned long)ret_from_fork;

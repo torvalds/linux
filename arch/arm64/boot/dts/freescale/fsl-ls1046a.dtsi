@@ -280,8 +280,8 @@
 			big-endian;
 		};
 
-		ifc: ifc@1530000 {
-			compatible = "fsl,ifc", "simple-bus";
+		ifc: memory-controller@1530000 {
+			compatible = "fsl,ifc";
 			reg = <0x0 0x1530000 0x0 0x10000>;
 			interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
@@ -341,7 +341,7 @@
 					<9 0 &gic GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>,
 					<10 0 &gic GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>,
 					<11 0 &gic GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-map-mask = <0xffffffff 0x0>;
+				interrupt-map-mask = <0xf 0x0>;
 			};
 		};
 
@@ -499,9 +499,9 @@
 			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(2)>;
-			dmas = <&edma0 1 39>,
-			       <&edma0 1 38>;
-			dma-names = "tx", "rx";
+			dmas = <&edma0 1 38>,
+			       <&edma0 1 39>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 

@@ -44,14 +44,50 @@ struct bpf_core_spec {
 	__u32 bit_offset;
 };
 
-int bpf_core_apply_relo_insn(const char *prog_name,
-			     struct bpf_insn *insn, int insn_idx,
-			     const struct bpf_core_relo *relo, int relo_idx,
-			     const struct btf *local_btf,
-			     struct bpf_core_cand_list *cands,
-			     struct bpf_core_spec *specs_scratch);
+struct bpf_core_relo_res {
+	/* expected value in the instruction, unless validate == false */
+	__u32 orig_val;
+	/* new value that needs to be patched up to */
+	__u32 new_val;
+	/* relocation unsuccessful, poison instruction, but don't fail load */
+	bool poison;
+	/* some relocations can't be validated against orig_val */
+	bool validate;
+	/* for field byte offset relocations or the forms:
+	 *     *(T *)(rX + <off>) = rY
+	 *     rX = *(T *)(rY + <off>),
+	 * we remember original and resolved field size to adjust direct
+	 * memory loads of pointers and integers; this is necessary for 32-bit
+	 * host kernel architectures, but also allows to automatically
+	 * relocate fields that were resized from, e.g., u32 to u64, etc.
+	 */
+	bool fail_memsz_adjust;
+	__u32 orig_sz;
+	__u32 orig_type_id;
+	__u32 new_sz;
+	__u32 new_type_id;
+};
+
 int bpf_core_types_are_compat(const struct btf *local_btf, __u32 local_id,
 			      const struct btf *targ_btf, __u32 targ_id);
 
 size_t bpf_core_essential_name_len(const char *name);
+
+int bpf_core_calc_relo_insn(const char *prog_name,
+			    const struct bpf_core_relo *relo, int relo_idx,
+			    const struct btf *local_btf,
+			    struct bpf_core_cand_list *cands,
+			    struct bpf_core_spec *specs_scratch,
+			    struct bpf_core_relo_res *targ_res);
+
+int bpf_core_patch_insn(const char *prog_name, struct bpf_insn *insn,
+			int insn_idx, const struct bpf_core_relo *relo,
+			int relo_idx, const struct bpf_core_relo_res *res);
+
+int bpf_core_parse_spec(const char *prog_name, const struct btf *btf,
+		        const struct bpf_core_relo *relo,
+		        struct bpf_core_spec *spec);
+
+int bpf_core_format_spec(char *buf, size_t buf_sz, const struct bpf_core_spec *spec);
+
 #endif

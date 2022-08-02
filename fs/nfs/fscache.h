@@ -45,19 +45,17 @@ extern void nfs_fscache_clear_inode(struct inode *);
 extern void nfs_fscache_open_file(struct inode *, struct file *);
 extern void nfs_fscache_release_file(struct inode *, struct file *);
 
-extern int __nfs_readpage_from_fscache(struct inode *, struct page *);
-extern void __nfs_read_completion_to_fscache(struct nfs_pgio_header *hdr,
-					     unsigned long bytes);
-extern void __nfs_readpage_to_fscache(struct inode *, struct page *);
+extern int __nfs_fscache_read_page(struct inode *, struct page *);
+extern void __nfs_fscache_write_page(struct inode *, struct page *);
 
-static inline int nfs_fscache_release_page(struct page *page, gfp_t gfp)
+static inline bool nfs_fscache_release_folio(struct folio *folio, gfp_t gfp)
 {
-	if (PageFsCache(page)) {
+	if (folio_test_fscache(folio)) {
 		if (current_is_kswapd() || !(gfp & __GFP_FS))
 			return false;
-		wait_on_page_fscache(page);
-		fscache_note_page_release(nfs_i_fscache(page->mapping->host));
-		nfs_inc_fscache_stats(page->mapping->host,
+		folio_wait_fscache(folio);
+		fscache_note_page_release(nfs_i_fscache(folio->mapping->host));
+		nfs_inc_fscache_stats(folio->mapping->host,
 				      NFSIOS_FSCACHE_PAGES_UNCACHED);
 	}
 	return true;
@@ -66,11 +64,10 @@ static inline int nfs_fscache_release_page(struct page *page, gfp_t gfp)
 /*
  * Retrieve a page from an inode data storage object.
  */
-static inline int nfs_readpage_from_fscache(struct inode *inode,
-					    struct page *page)
+static inline int nfs_fscache_read_page(struct inode *inode, struct page *page)
 {
-	if (NFS_I(inode)->fscache)
-		return __nfs_readpage_from_fscache(inode, page);
+	if (nfs_i_fscache(inode))
+		return __nfs_fscache_read_page(inode, page);
 	return -ENOBUFS;
 }
 
@@ -78,24 +75,24 @@ static inline int nfs_readpage_from_fscache(struct inode *inode,
  * Store a page newly fetched from the server in an inode data storage object
  * in the cache.
  */
-static inline void nfs_readpage_to_fscache(struct inode *inode,
+static inline void nfs_fscache_write_page(struct inode *inode,
 					   struct page *page)
 {
-	if (NFS_I(inode)->fscache)
-		__nfs_readpage_to_fscache(inode, page);
+	if (nfs_i_fscache(inode))
+		__nfs_fscache_write_page(inode, page);
 }
 
 static inline void nfs_fscache_update_auxdata(struct nfs_fscache_inode_auxdata *auxdata,
-					      struct nfs_inode *nfsi)
+					      struct inode *inode)
 {
 	memset(auxdata, 0, sizeof(*auxdata));
-	auxdata->mtime_sec  = nfsi->vfs_inode.i_mtime.tv_sec;
-	auxdata->mtime_nsec = nfsi->vfs_inode.i_mtime.tv_nsec;
-	auxdata->ctime_sec  = nfsi->vfs_inode.i_ctime.tv_sec;
-	auxdata->ctime_nsec = nfsi->vfs_inode.i_ctime.tv_nsec;
+	auxdata->mtime_sec  = inode->i_mtime.tv_sec;
+	auxdata->mtime_nsec = inode->i_mtime.tv_nsec;
+	auxdata->ctime_sec  = inode->i_ctime.tv_sec;
+	auxdata->ctime_nsec = inode->i_ctime.tv_nsec;
 
-	if (NFS_SERVER(&nfsi->vfs_inode)->nfs_client->rpc_ops->version == 4)
-		auxdata->change_attr = inode_peek_iversion_raw(&nfsi->vfs_inode);
+	if (NFS_SERVER(inode)->nfs_client->rpc_ops->version == 4)
+		auxdata->change_attr = inode_peek_iversion_raw(inode);
 }
 
 /*
@@ -107,9 +104,9 @@ static inline void nfs_fscache_invalidate(struct inode *inode, int flags)
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	if (nfsi->fscache) {
-		nfs_fscache_update_auxdata(&auxdata, nfsi);
+		nfs_fscache_update_auxdata(&auxdata, inode);
 		fscache_invalidate(nfsi->fscache, &auxdata,
-				   i_size_read(&nfsi->vfs_inode), flags);
+				   i_size_read(inode), flags);
 	}
 }
 
@@ -132,19 +129,15 @@ static inline void nfs_fscache_open_file(struct inode *inode,
 					 struct file *filp) {}
 static inline void nfs_fscache_release_file(struct inode *inode, struct file *file) {}
 
-static inline int nfs_fscache_release_page(struct page *page, gfp_t gfp)
+static inline bool nfs_fscache_release_folio(struct folio *folio, gfp_t gfp)
 {
-	return 1; /* True: may release page */
+	return true; /* may release folio */
 }
-static inline int nfs_readpage_from_fscache(struct inode *inode,
-					    struct page *page)
+static inline int nfs_fscache_read_page(struct inode *inode, struct page *page)
 {
 	return -ENOBUFS;
 }
-static inline void nfs_readpage_to_fscache(struct inode *inode,
-					   struct page *page) {}
-
-
+static inline void nfs_fscache_write_page(struct inode *inode, struct page *page) {}
 static inline void nfs_fscache_invalidate(struct inode *inode, int flags) {}
 
 static inline const char *nfs_server_fscache_state(struct nfs_server *server)

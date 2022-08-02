@@ -2049,6 +2049,13 @@ static SOC_ENUM_SINGLE_DECL(hpoutl_enum,
 static const struct snd_kcontrol_new hpoutl_mux =
 	SOC_DAPM_ENUM("HPOUTL Mux", hpoutl_enum);
 
+static const char * const input_mode_text[] = { "Analog", "Digital" };
+
+static SOC_ENUM_SINGLE_VIRT_DECL(input_mode_enum, input_mode_text);
+
+static const struct snd_kcontrol_new input_mode_mux =
+	SOC_DAPM_ENUM("Input Mode", input_mode_enum);
+
 static const struct snd_kcontrol_new inpgal[] = {
 SOC_DAPM_SINGLE("IN1L Switch", WM8962_LEFT_INPUT_PGA_CONTROL, 3, 1, 0),
 SOC_DAPM_SINGLE("IN2L Switch", WM8962_LEFT_INPUT_PGA_CONTROL, 2, 1, 0),
@@ -2147,6 +2154,9 @@ SND_SOC_DAPM_MIXER("MIXINR", WM8962_PWR_MGMT_1, 4, 0,
 
 SND_SOC_DAPM_AIF_IN("DMIC_ENA", NULL, 0, WM8962_PWR_MGMT_1, 10, 0),
 
+SND_SOC_DAPM_MUX("Input Mode L", SND_SOC_NOPM, 0, 0, &input_mode_mux),
+SND_SOC_DAPM_MUX("Input Mode R", SND_SOC_NOPM, 0, 0, &input_mode_mux),
+
 SND_SOC_DAPM_ADC("ADCL", "Capture", WM8962_PWR_MGMT_1, 3, 0),
 SND_SOC_DAPM_ADC("ADCR", "Capture", WM8962_PWR_MGMT_1, 2, 0),
 
@@ -2226,16 +2236,19 @@ static const struct snd_soc_dapm_route wm8962_intercon[] = {
 
 	{ "DMIC_ENA", NULL, "DMICDAT" },
 
+	{ "Input Mode L", "Analog", "MIXINL" },
+	{ "Input Mode L", "Digital", "DMIC_ENA" },
+	{ "Input Mode R", "Analog", "MIXINR" },
+	{ "Input Mode R", "Digital", "DMIC_ENA" },
+
 	{ "ADCL", NULL, "SYSCLK" },
 	{ "ADCL", NULL, "TOCLK" },
-	{ "ADCL", NULL, "MIXINL" },
-	{ "ADCL", NULL, "DMIC_ENA" },
+	{ "ADCL", NULL, "Input Mode L" },
 	{ "ADCL", NULL, "DSP2" },
 
 	{ "ADCR", NULL, "SYSCLK" },
 	{ "ADCR", NULL, "TOCLK" },
-	{ "ADCR", NULL, "MIXINR" },
-	{ "ADCR", NULL, "DMIC_ENA" },
+	{ "ADCR", NULL, "Input Mode R" },
 	{ "ADCR", NULL, "DSP2" },
 
 	{ "STL", "Left", "ADCL" },
@@ -2883,9 +2896,8 @@ static int wm8962_set_fll(struct snd_soc_component *component, int fll_id, int s
 
 	reinit_completion(&wm8962->fll_lock);
 
-	ret = pm_runtime_get_sync(component->dev);
+	ret = pm_runtime_resume_and_get(component->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(component->dev);
 		dev_err(component->dev, "Failed to resume device: %d\n", ret);
 		return ret;
 	}
@@ -3017,9 +3029,8 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 	unsigned int active;
 	int reg, ret;
 
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
 		dev_err(dev, "Failed to resume: %d\n", ret);
 		return IRQ_NONE;
 	}
@@ -3542,8 +3553,7 @@ static int wm8962_set_pdata_from_of(struct i2c_client *i2c,
 	return PTR_ERR_OR_ZERO(pdata->mclk);
 }
 
-static int wm8962_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8962_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8962_pdata *pdata = dev_get_platdata(&i2c->dev);
 	struct wm8962_priv *wm8962;
@@ -3858,6 +3868,7 @@ static int wm8962_runtime_suspend(struct device *dev)
 #endif
 
 static const struct dev_pm_ops wm8962_pm = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(wm8962_runtime_suspend, wm8962_runtime_resume, NULL)
 };
 
@@ -3879,7 +3890,7 @@ static struct i2c_driver wm8962_i2c_driver = {
 		.of_match_table = wm8962_of_match,
 		.pm = &wm8962_pm,
 	},
-	.probe =    wm8962_i2c_probe,
+	.probe_new = wm8962_i2c_probe,
 	.remove =   wm8962_i2c_remove,
 	.id_table = wm8962_i2c_id,
 };

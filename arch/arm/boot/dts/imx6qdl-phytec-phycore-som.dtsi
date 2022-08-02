@@ -116,6 +116,16 @@
 			dlg,use-sw-pm;
 		};
 
+		thermal {
+			compatible = "dlg,da9062-thermal";
+			status = "disabled";
+		};
+
+		gpio {
+			compatible = "dlg,da9062-gpio";
+			status = "disabled";
+		};
+
 		regulators {
 			vdd_arm: buck1 {
 				regulator-name = "vdd_arm";

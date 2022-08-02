@@ -56,6 +56,7 @@ struct mlxsw_sp_router {
 	struct {
 		struct delayed_work dw;
 		unsigned long interval;	/* ms */
+		atomic_t neigh_count;
 	} neighs_update;
 	struct delayed_work nexthop_probe_dw;
 #define MLXSW_SP_UNRESOLVED_NH_PROBE_INTERVAL 5000 /* ms */
@@ -66,6 +67,7 @@ struct mlxsw_sp_router {
 	struct notifier_block netevent_nb;
 	struct notifier_block inetaddr_nb;
 	struct notifier_block inet6addr_nb;
+	struct notifier_block netdevice_nb;
 	const struct mlxsw_sp_rif_ops **rif_ops_arr;
 	const struct mlxsw_sp_ipip_ops **ipip_ops_arr;
 	struct mlxsw_sp_router_nve_decap nve_decap_config;
@@ -159,11 +161,9 @@ int mlxsw_sp_rif_counter_value_get(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_rif *rif,
 				   enum mlxsw_sp_rif_counter_dir dir,
 				   u64 *cnt);
-void mlxsw_sp_rif_counter_free(struct mlxsw_sp *mlxsw_sp,
-			       struct mlxsw_sp_rif *rif,
+void mlxsw_sp_rif_counter_free(struct mlxsw_sp_rif *rif,
 			       enum mlxsw_sp_rif_counter_dir dir);
-int mlxsw_sp_rif_counter_alloc(struct mlxsw_sp *mlxsw_sp,
-			       struct mlxsw_sp_rif *rif,
+int mlxsw_sp_rif_counter_alloc(struct mlxsw_sp_rif *rif,
 			       enum mlxsw_sp_rif_counter_dir dir);
 struct mlxsw_sp_neigh_entry *
 mlxsw_sp_rif_neigh_next(struct mlxsw_sp_rif *rif,

@@ -437,11 +437,11 @@ static int _bandwidth_supported(struct device *dev, struct opp_table *opp_table)
 
 	/* Checking only first OPP is sufficient */
 	np = of_get_next_available_child(opp_np, NULL);
+	of_node_put(opp_np);
 	if (!np) {
 		dev_err(dev, "OPP table empty\n");
 		return -EINVAL;
 	}
-	of_node_put(opp_np);
 
 	prop = of_find_property(np, "opp-peak-kBps", NULL);
 	of_node_put(np);
@@ -575,8 +575,9 @@ static bool _opp_is_supported(struct device *dev, struct opp_table *opp_table,
 static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 			      struct opp_table *opp_table)
 {
-	u32 *microvolt, *microamp = NULL;
-	int supplies = opp_table->regulator_count, vcount, icount, ret, i, j;
+	u32 *microvolt, *microamp = NULL, *microwatt = NULL;
+	int supplies = opp_table->regulator_count;
+	int vcount, icount, pcount, ret, i, j;
 	struct property *prop = NULL;
 	char name[NAME_MAX];
 
@@ -688,6 +689,43 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 		}
 	}
 
+	/* Search for "opp-microwatt" */
+	sprintf(name, "opp-microwatt");
+	prop = of_find_property(opp->np, name, NULL);
+
+	if (prop) {
+		pcount = of_property_count_u32_elems(opp->np, name);
+		if (pcount < 0) {
+			dev_err(dev, "%s: Invalid %s property (%d)\n", __func__,
+				name, pcount);
+			ret = pcount;
+			goto free_microamp;
+		}
+
+		if (pcount != supplies) {
+			dev_err(dev, "%s: Invalid number of elements in %s property (%d) with supplies (%d)\n",
+				__func__, name, pcount, supplies);
+			ret = -EINVAL;
+			goto free_microamp;
+		}
+
+		microwatt = kmalloc_array(pcount, sizeof(*microwatt),
+					  GFP_KERNEL);
+		if (!microwatt) {
+			ret = -EINVAL;
+			goto free_microamp;
+		}
+
+		ret = of_property_read_u32_array(opp->np, name, microwatt,
+						 pcount);
+		if (ret) {
+			dev_err(dev, "%s: error parsing %s: %d\n", __func__,
+				name, ret);
+			ret = -EINVAL;
+			goto free_microwatt;
+		}
+	}
+
 	for (i = 0, j = 0; i < supplies; i++) {
 		opp->supplies[i].u_volt = microvolt[j++];
 
@@ -701,8 +739,13 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 
 		if (microamp)
 			opp->supplies[i].u_amp = microamp[i];
+
+		if (microwatt)
+			opp->supplies[i].u_watt = microwatt[i];
 	}
 
+free_microwatt:
+	kfree(microwatt);
 free_microamp:
 	kfree(microamp);
 free_microvolt:
@@ -1397,6 +1440,38 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_of_node);
 
 /*
  * Callback function provided to the Energy Model framework upon registration.
+ * It provides the power used by @dev at @kHz if it is the frequency of an
+ * existing OPP, or at the frequency of the first OPP above @kHz otherwise
+ * (see dev_pm_opp_find_freq_ceil()). This function updates @kHz to the ceiled
+ * frequency and @mW to the associated power.
+ *
+ * Returns 0 on success or a proper -EINVAL value in case of error.
+ */
+static int __maybe_unused
+_get_dt_power(struct device *dev, unsigned long *mW, unsigned long *kHz)
+{
+	struct dev_pm_opp *opp;
+	unsigned long opp_freq, opp_power;
+
+	/* Find the right frequency and related OPP */
+	opp_freq = *kHz * 1000;
+	opp = dev_pm_opp_find_freq_ceil(dev, &opp_freq);
+	if (IS_ERR(opp))
+		return -EINVAL;
+
+	opp_power = dev_pm_opp_get_power(opp);
+	dev_pm_opp_put(opp);
+	if (!opp_power)
+		return -EINVAL;
+
+	*kHz = opp_freq / 1000;
+	*mW = opp_power / 1000;
+
+	return 0;
+}
+
+/*
+ * Callback function provided to the Energy Model framework upon registration.
  * This computes the power estimated by @dev at @kHz if it is the frequency
  * of an existing OPP, or at the frequency of the first OPP above @kHz otherwise
  * (see dev_pm_opp_find_freq_ceil()). This function updates @kHz to the ceiled
@@ -1407,8 +1482,8 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_of_node);
  * Returns -EINVAL if the power calculation failed because of missing
  * parameters, 0 otherwise.
  */
-static int __maybe_unused _get_power(unsigned long *mW, unsigned long *kHz,
-				     struct device *dev)
+static int __maybe_unused _get_power(struct device *dev, unsigned long *mW,
+				     unsigned long *kHz)
 {
 	struct dev_pm_opp *opp;
 	struct device_node *np;
@@ -1445,6 +1520,24 @@ static int __maybe_unused _get_power(unsigned long *mW, unsigned long *kHz,
 	return 0;
 }
 
+static bool _of_has_opp_microwatt_property(struct device *dev)
+{
+	unsigned long power, freq = 0;
+	struct dev_pm_opp *opp;
+
+	/* Check if at least one OPP has needed property */
+	opp = dev_pm_opp_find_freq_ceil(dev, &freq);
+	if (IS_ERR(opp))
+		return false;
+
+	power = dev_pm_opp_get_power(opp);
+	dev_pm_opp_put(opp);
+	if (!power)
+		return false;
+
+	return true;
+}
+
 /**
  * dev_pm_opp_of_register_em() - Attempt to register an Energy Model
  * @dev		: Device for which an Energy Model has to be registered
@@ -1458,7 +1551,7 @@ static int __maybe_unused _get_power(unsigned long *mW, unsigned long *kHz,
  */
 int dev_pm_opp_of_register_em(struct device *dev, struct cpumask *cpus)
 {
-	struct em_data_callback em_cb = EM_DATA_CB(_get_power);
+	struct em_data_callback em_cb;
 	struct device_node *np;
 	int ret, nr_opp;
 	u32 cap;
@@ -1472,6 +1565,12 @@ int dev_pm_opp_of_register_em(struct device *dev, struct cpumask *cpus)
 	if (nr_opp <= 0) {
 		ret = -EINVAL;
 		goto failed;
+	}
+
+	/* First, try to find more precised Energy Model in DT */
+	if (_of_has_opp_microwatt_property(dev)) {
+		EM_SET_ACTIVE_POWER_CB(em_cb, _get_dt_power);
+		goto register_em;
 	}
 
 	np = of_node_get(dev->of_node);
@@ -1495,6 +1594,9 @@ int dev_pm_opp_of_register_em(struct device *dev, struct cpumask *cpus)
 		goto failed;
 	}
 
+	EM_SET_ACTIVE_POWER_CB(em_cb, _get_power);
+
+register_em:
 	ret = em_dev_register_perf_domain(dev, nr_opp, &em_cb, cpus, true);
 	if (ret)
 		goto failed;

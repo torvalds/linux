@@ -5,9 +5,6 @@
  * Copyright 2020 Google LLC.
  */
 
-ap_ec_spi: &spi6 {};
-ap_h1_spi: &spi0 {};
-
 #include "sc7180-trogdor.dtsi"
 
 &ap_sar_sensor {
@@ -17,6 +14,10 @@ ap_h1_spi: &spi0 {};
 	semtech,startup-sensor = <0>;
 	semtech,proxraw-strength = <8>;
 	semtech,avg-pos-strength = <64>;
+};
+
+&ap_tp_i2c {
+	status = "okay";
 };
 
 /*

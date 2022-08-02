@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
- * Copyright (C) 2021 Arınç ÜNAL <arinc.unal@arinc9.com>
+ * Copyright (C) 2021-2022 Arınç ÜNAL <arinc.unal@arinc9.com>
  */
 
 /dts-v1/;
@@ -25,6 +25,9 @@
 	nvram@1c080000 {
 		compatible = "brcm,nvram";
 		reg = <0x1c080000 0x00180000>;
+
+		et1macaddr: et1macaddr {
+		};
 	};
 
 	leds {
@@ -93,6 +96,82 @@
 			gpios = <&chipcommon 4 GPIO_ACTIVE_LOW>;
 		};
 	};
+
+	switch {
+		compatible = "realtek,rtl8365mb";
+		/* 7 = MDIO (has input reads), 6 = MDC (clock, output only) */
+		mdc-gpios = <&chipcommon 6 GPIO_ACTIVE_HIGH>;
+		mdio-gpios = <&chipcommon 7 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&chipcommon 10 GPIO_ACTIVE_LOW>;
+		realtek,disable-leds;
+		dsa,member = <1 0>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				label = "lan5";
+				phy-handle = <&ethphy0>;
+			};
+
+			port@1 {
+				reg = <1>;
+				label = "lan6";
+				phy-handle = <&ethphy1>;
+			};
+
+			port@2 {
+				reg = <2>;
+				label = "lan7";
+				phy-handle = <&ethphy2>;
+			};
+
+			port@3 {
+				reg = <3>;
+				label = "lan8";
+				phy-handle = <&ethphy3>;
+			};
+
+			port@6 {
+				reg = <6>;
+				label = "cpu";
+				ethernet = <&sw0_p5>;
+				phy-mode = "rgmii";
+				tx-internal-delay-ps = <2000>;
+				rx-internal-delay-ps = <2100>;
+
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+					pause;
+				};
+			};
+		};
+
+		mdio {
+			compatible = "realtek,smi-mdio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ethphy0: ethernet-phy@0 {
+				reg = <0>;
+			};
+
+			ethphy1: ethernet-phy@1 {
+				reg = <1>;
+			};
+
+			ethphy2: ethernet-phy@2 {
+				reg = <2>;
+			};
+
+			ethphy3: ethernet-phy@3 {
+				reg = <3>;
+			};
+		};
+	};
 };
 
 &srab {
@@ -101,9 +180,6 @@
 	dsa,member = <0 0>;
 
 	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		port@0 {
 			reg = <0>;
 			label = "lan4";
@@ -132,6 +208,7 @@
 		sw0_p5: port@5 {
 			reg = <5>;
 			label = "extsw";
+			phy-mode = "rgmii";
 
 			fixed-link {
 				speed = <1000>;
@@ -155,7 +232,6 @@
 			reg = <8>;
 			ethernet = <&gmac2>;
 			label = "cpu";
-			status = "disabled";
 
 			fixed-link {
 				speed = <1000>;
@@ -163,6 +239,15 @@
 			};
 		};
 	};
+};
+
+&gmac0 {
+	status = "disabled";
+};
+
+&gmac1 {
+	nvmem-cells = <&et1macaddr>;
+	nvmem-cell-names = "mac-address";
 };
 
 &usb2 {

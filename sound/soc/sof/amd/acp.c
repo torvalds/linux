@@ -36,19 +36,6 @@ static int smn_read(struct pci_dev *dev, u32 smn_addr, u32 *data)
 	return 0;
 }
 
-static void configure_acp_groupregisters(struct acp_dev_data *adata)
-{
-	struct snd_sof_dev *sdev = adata->dev;
-
-	/* Group Enable */
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACPAXI2AXI_ATU_BASE_ADDR_GRP_1,
-			  ACP_SRAM_PTE_OFFSET | BIT(31));
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACPAXI2AXI_ATU_PAGE_SIZE_GRP_1,
-			  PAGE_SIZE_4K_ENABLE);
-
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACPAXI2AXI_ATU_CTRL, ACP_ATU_CACHE_INVALID);
-}
-
 static void init_dma_descriptor(struct acp_dev_data *adata)
 {
 	struct snd_sof_dev *sdev = adata->dev;
@@ -151,23 +138,75 @@ int configure_and_run_dma(struct acp_dev_data *adata, unsigned int src_addr,
 	return ret;
 }
 
-static int psp_fw_validate(struct acp_dev_data *adata)
+/*
+ * psp_mbox_ready- function to poll ready bit of psp mbox
+ * @adata: acp device data
+ * @ack: bool variable to check ready bit status or psp ack
+ */
+
+static int psp_mbox_ready(struct acp_dev_data *adata, bool ack)
 {
 	struct snd_sof_dev *sdev = adata->dev;
 	int timeout;
 	u32 data;
 
-	smn_write(adata->smn_dev, MP0_C2PMSG_26_REG, MBOX_ACP_SHA_DMA_COMMAND);
-
 	for (timeout = ACP_PSP_TIMEOUT_COUNTER; timeout > 0; timeout--) {
 		msleep(20);
-		smn_read(adata->smn_dev, MP0_C2PMSG_26_REG, &data);
+		smn_read(adata->smn_dev, MP0_C2PMSG_114_REG, &data);
 		if (data & MBOX_READY_MASK)
 			return 0;
 	}
 
-	dev_err(sdev->dev, "FW validation timedout: status %x\n", data & MBOX_STATUS_MASK);
-	return -ETIMEDOUT;
+	dev_err(sdev->dev, "PSP error status %x\n", data & MBOX_STATUS_MASK);
+
+	if (ack)
+		return -ETIMEDOUT;
+
+	return -EBUSY;
+}
+
+/*
+ * psp_send_cmd - function to send psp command over mbox
+ * @adata: acp device data
+ * @cmd: non zero integer value for command type
+ */
+
+static int psp_send_cmd(struct acp_dev_data *adata, int cmd)
+{
+	struct snd_sof_dev *sdev = adata->dev;
+	int ret, timeout;
+	u32 data;
+
+	if (!cmd)
+		return -EINVAL;
+
+	/* Get a non-zero Doorbell value from PSP */
+	for (timeout = ACP_PSP_TIMEOUT_COUNTER; timeout > 0; timeout--) {
+		msleep(MBOX_DELAY);
+		smn_read(adata->smn_dev, MP0_C2PMSG_73_REG, &data);
+		if (data)
+			break;
+	}
+
+	if (!timeout) {
+		dev_err(sdev->dev, "Failed to get Doorbell from MBOX %x\n", MP0_C2PMSG_73_REG);
+		return -EINVAL;
+	}
+
+	/* Check if PSP is ready for new command */
+	ret = psp_mbox_ready(adata, 0);
+	if (ret)
+		return ret;
+
+	smn_write(adata->smn_dev, MP0_C2PMSG_114_REG, cmd);
+
+	/* Ring the Doorbell for PSP */
+	smn_write(adata->smn_dev, MP0_C2PMSG_73_REG, data);
+
+	/* Check MBOX ready as PSP ack */
+	ret = psp_mbox_ready(adata, 1);
+
+	return ret;
 }
 
 int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
@@ -209,7 +248,7 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 		return ret;
 	}
 
-	ret = psp_fw_validate(adata);
+	ret = psp_send_cmd(adata, MBOX_ACP_SHA_DMA_COMMAND);
 	if (ret)
 		return ret;
 
@@ -264,7 +303,6 @@ static int acp_memory_init(struct snd_sof_dev *sdev)
 
 	snd_sof_dsp_update_bits(sdev, ACP_DSP_BAR, ACP_DSP_SW_INTR_CNTL,
 				ACP_DSP_INTR_EN_MASK, ACP_DSP_INTR_EN_MASK);
-	configure_acp_groupregisters(adata);
 	init_dma_descriptor(adata);
 
 	return 0;
@@ -273,7 +311,7 @@ static int acp_memory_init(struct snd_sof_dev *sdev)
 static irqreturn_t acp_irq_thread(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
-	unsigned int val;
+	unsigned int val, count = ACP_HW_SEM_RETRY_COUNT;
 
 	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_EXTERNAL_INTR_STAT);
 	if (val & ACP_SHA_STAT) {
@@ -284,9 +322,22 @@ static irqreturn_t acp_irq_thread(int irq, void *context)
 
 	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_DSP_SW_INTR_STAT);
 	if (val & ACP_DSP_TO_HOST_IRQ) {
+		while (snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_AXI2DAGB_SEM_0)) {
+			/* Wait until acquired HW Semaphore lock or timeout */
+			count--;
+			if (!count) {
+				dev_err(sdev->dev, "%s: Failed to acquire HW lock\n", __func__);
+				return IRQ_NONE;
+			}
+		}
+
 		sof_ops(sdev)->irq_thread(irq, sdev);
 		val |= ACP_DSP_TO_HOST_IRQ;
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_DSP_SW_INTR_STAT, val);
+
+		/* Unlock or Release HW Semaphore */
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_AXI2DAGB_SEM_0, 0x0);
+
 		return IRQ_HANDLED;
 	}
 

@@ -31,7 +31,6 @@
 #include <asm/mmu_context.h>
 #include <asm/iommu.h>
 #include <asm/tlb.h>
-#include <asm/prom.h>
 #include <asm/cputable.h>
 #include <asm/udbg.h>
 #include <asm/smp.h>
@@ -40,7 +39,6 @@
 #include <asm/plpar_wrappers.h>
 #include <asm/kexec.h>
 #include <asm/fadump.h>
-#include <asm/asm-prototypes.h>
 #include <asm/dtl.h>
 
 #include "pseries.h"

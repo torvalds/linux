@@ -310,23 +310,32 @@ void dcn31_smu_transfer_wm_table_dram_2_smu(struct clk_mgr_internal *clk_mgr)
 			VBIOSSMC_MSG_TransferTableDram2Smu, TABLE_WATERMARKS);
 }
 
-void dcn31_smu_set_Z9_support(struct clk_mgr_internal *clk_mgr, bool support)
+void dcn31_smu_set_zstate_support(struct clk_mgr_internal *clk_mgr, enum dcn_zstate_support_state support)
 {
-	//TODO: Work with smu team to define optimization options.
-	unsigned int msg_id;
+	unsigned int msg_id, param;
 
 	if (!clk_mgr->smu_present)
 		return;
 
-	if (support)
-		msg_id = VBIOSSMC_MSG_AllowZstatesEntry;
+	if (!clk_mgr->base.ctx->dc->debug.enable_z9_disable_interface &&
+			(support == DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY))
+		support = DCN_ZSTATE_SUPPORT_DISALLOW;
+
+
+	if (support == DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY)
+		param = 1;
 	else
+		param = 0;
+
+	if (support == DCN_ZSTATE_SUPPORT_DISALLOW)
 		msg_id = VBIOSSMC_MSG_DisallowZstatesEntry;
+	else
+		msg_id = VBIOSSMC_MSG_AllowZstatesEntry;
 
 	dcn31_smu_send_msg_with_param(
 		clk_mgr,
 		msg_id,
-		0);
+		param);
 
 }
 

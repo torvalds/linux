@@ -9,12 +9,15 @@ struct ipv_counts {
 	unsigned int v6;
 };
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 struct bpf_map_def SEC("maps") btf_map = {
 	.type = BPF_MAP_TYPE_ARRAY,
 	.key_size = sizeof(int),
 	.value_size = sizeof(struct ipv_counts),
 	.max_entries = 4,
 };
+#pragma GCC diagnostic pop
 
 BPF_ANNOTATE_KV_PAIR(btf_map, int, struct ipv_counts);
 

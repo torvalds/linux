@@ -809,7 +809,8 @@ static int tx_request_irq(struct hinic_txq *txq)
 
 	qp = container_of(sq, struct hinic_qp, sq);
 
-	netif_napi_add(txq->netdev, &txq->napi, free_tx_poll, nic_dev->tx_weight);
+	netif_napi_add_weight(txq->netdev, &txq->napi, free_tx_poll,
+			      nic_dev->tx_weight);
 
 	hinic_hwdev_msix_set(nic_dev->hwdev, sq->msix_entry,
 			     TX_IRQ_NO_PENDING, TX_IRQ_NO_COALESC,

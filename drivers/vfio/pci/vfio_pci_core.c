@@ -36,6 +36,10 @@ static bool nointxmask;
 static bool disable_vga;
 static bool disable_idle_d3;
 
+/* List of PF's that vfio_pci_core_sriov_configure() has been called on */
+static DEFINE_MUTEX(vfio_pci_sriov_pfs_mutex);
+static LIST_HEAD(vfio_pci_sriov_pfs);
+
 static inline bool vfio_vga_disabled(void)
 {
 #ifdef CONFIG_VFIO_PCI_VGA
@@ -152,7 +156,7 @@ no_mmap:
 }
 
 struct vfio_pci_group_info;
-static bool vfio_pci_dev_set_try_reset(struct vfio_device_set *dev_set);
+static void vfio_pci_dev_set_try_reset(struct vfio_device_set *dev_set);
 static int vfio_pci_dev_set_hot_reset(struct vfio_device_set *dev_set,
 				      struct vfio_pci_group_info *groups);
 
@@ -213,6 +217,10 @@ int vfio_pci_set_power_state(struct vfio_pci_core_device *vdev, pci_power_t stat
 	bool needs_restore = false, needs_save = false;
 	int ret;
 
+	/* Prevent changing power state for PFs with VFs enabled */
+	if (pci_num_vf(pdev) && state > PCI_D0)
+		return -EBUSY;
+
 	if (vdev->needs_pm_restore) {
 		if (pdev->current_state < PCI_D3hot && state >= PCI_D3hot) {
 			pci_save_state(pdev);
@@ -228,6 +236,19 @@ int vfio_pci_set_power_state(struct vfio_pci_core_device *vdev, pci_power_t stat
 	if (!ret) {
 		/* D3 might be unsupported via quirk, skip unless in D3 */
 		if (needs_save && pdev->current_state >= PCI_D3hot) {
+			/*
+			 * The current PCI state will be saved locally in
+			 * 'pm_save' during the D3hot transition. When the
+			 * device state is changed to D0 again with the current
+			 * function, then pci_store_saved_state() will restore
+			 * the state and will free the memory pointed by
+			 * 'pm_save'. There are few cases where the PCI power
+			 * state can be changed to D0 without the involvement
+			 * of the driver. For these cases, free the earlier
+			 * allocated memory first before overwriting 'pm_save'
+			 * to prevent the memory leak.
+			 */
+			kfree(vdev->pm_save);
 			vdev->pm_save = pci_store_saved_state(pdev);
 		} else if (needs_restore) {
 			pci_load_and_free_saved_state(pdev, &vdev->pm_save);
@@ -238,6 +259,17 @@ int vfio_pci_set_power_state(struct vfio_pci_core_device *vdev, pci_power_t stat
 	return ret;
 }
 
+/*
+ * The dev_pm_ops needs to be provided to make pci-driver runtime PM working,
+ * so use structure without any callbacks.
+ *
+ * The pci-driver core runtime PM routines always save the device state
+ * before going into suspended state. If the device is going into low power
+ * state with only with runtime PM ops, then no explicit handling is needed
+ * for the devices which have NoSoftRst-.
+ */
+static const struct dev_pm_ops vfio_pci_core_pm_ops = { };
+
 int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
@@ -245,21 +277,23 @@ int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 	u16 cmd;
 	u8 msix_pos;
 
-	vfio_pci_set_power_state(vdev, PCI_D0);
+	if (!disable_idle_d3) {
+		ret = pm_runtime_resume_and_get(&pdev->dev);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* Don't allow our initial saved state to include busmaster */
 	pci_clear_master(pdev);
 
 	ret = pci_enable_device(pdev);
 	if (ret)
-		return ret;
+		goto out_power;
 
 	/* If reset fails because of the device lock, fail this path entirely */
 	ret = pci_try_reset_function(pdev);
-	if (ret == -EAGAIN) {
-		pci_disable_device(pdev);
-		return ret;
-	}
+	if (ret == -EAGAIN)
+		goto out_disable_device;
 
 	vdev->reset_works = !ret;
 	pci_save_state(pdev);
@@ -283,12 +317,8 @@ int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 	}
 
 	ret = vfio_config_init(vdev);
-	if (ret) {
-		kfree(vdev->pci_saved_state);
-		vdev->pci_saved_state = NULL;
-		pci_disable_device(pdev);
-		return ret;
-	}
+	if (ret)
+		goto out_free_state;
 
 	msix_pos = pdev->msix_cap;
 	if (msix_pos) {
@@ -309,6 +339,16 @@ int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 
 
 	return 0;
+
+out_free_state:
+	kfree(vdev->pci_saved_state);
+	vdev->pci_saved_state = NULL;
+out_disable_device:
+	pci_disable_device(pdev);
+out_power:
+	if (!disable_idle_d3)
+		pm_runtime_put(&pdev->dev);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(vfio_pci_core_enable);
 
@@ -321,6 +361,17 @@ void vfio_pci_core_disable(struct vfio_pci_core_device *vdev)
 
 	/* For needs_reset */
 	lockdep_assert_held(&vdev->vdev.dev_set->lock);
+
+	/*
+	 * This function can be invoked while the power state is non-D0.
+	 * This function calls __pci_reset_function_locked() which internally
+	 * can use pci_pm_reset() for the function reset. pci_pm_reset() will
+	 * fail if the power state is non-D0. Also, for the devices which
+	 * have NoSoftRst-, the reset function can cause the PCI config space
+	 * reset without restoring the original state (saved locally in
+	 * 'vdev->pm_save').
+	 */
+	vfio_pci_set_power_state(vdev, PCI_D0);
 
 	/* Stop the device from further DMA */
 	pci_clear_master(pdev);
@@ -405,52 +456,25 @@ void vfio_pci_core_disable(struct vfio_pci_core_device *vdev)
 out:
 	pci_disable_device(pdev);
 
-	if (!vfio_pci_dev_set_try_reset(vdev->vdev.dev_set) && !disable_idle_d3)
-		vfio_pci_set_power_state(vdev, PCI_D3hot);
+	vfio_pci_dev_set_try_reset(vdev->vdev.dev_set);
+
+	/* Put the pm-runtime usage counter acquired during enable */
+	if (!disable_idle_d3)
+		pm_runtime_put(&pdev->dev);
 }
 EXPORT_SYMBOL_GPL(vfio_pci_core_disable);
-
-static struct vfio_pci_core_device *get_pf_vdev(struct vfio_pci_core_device *vdev)
-{
-	struct pci_dev *physfn = pci_physfn(vdev->pdev);
-	struct vfio_device *pf_dev;
-
-	if (!vdev->pdev->is_virtfn)
-		return NULL;
-
-	pf_dev = vfio_device_get_from_dev(&physfn->dev);
-	if (!pf_dev)
-		return NULL;
-
-	if (pci_dev_driver(physfn) != pci_dev_driver(vdev->pdev)) {
-		vfio_device_put(pf_dev);
-		return NULL;
-	}
-
-	return container_of(pf_dev, struct vfio_pci_core_device, vdev);
-}
-
-static void vfio_pci_vf_token_user_add(struct vfio_pci_core_device *vdev, int val)
-{
-	struct vfio_pci_core_device *pf_vdev = get_pf_vdev(vdev);
-
-	if (!pf_vdev)
-		return;
-
-	mutex_lock(&pf_vdev->vf_token->lock);
-	pf_vdev->vf_token->users += val;
-	WARN_ON(pf_vdev->vf_token->users < 0);
-	mutex_unlock(&pf_vdev->vf_token->lock);
-
-	vfio_device_put(&pf_vdev->vdev);
-}
 
 void vfio_pci_core_close_device(struct vfio_device *core_vdev)
 {
 	struct vfio_pci_core_device *vdev =
 		container_of(core_vdev, struct vfio_pci_core_device, vdev);
 
-	vfio_pci_vf_token_user_add(vdev, -1);
+	if (vdev->sriov_pf_core_dev) {
+		mutex_lock(&vdev->sriov_pf_core_dev->vf_token->lock);
+		WARN_ON(!vdev->sriov_pf_core_dev->vf_token->users);
+		vdev->sriov_pf_core_dev->vf_token->users--;
+		mutex_unlock(&vdev->sriov_pf_core_dev->vf_token->lock);
+	}
 	vfio_spapr_pci_eeh_release(vdev->pdev);
 	vfio_pci_core_disable(vdev);
 
@@ -471,7 +495,12 @@ void vfio_pci_core_finish_enable(struct vfio_pci_core_device *vdev)
 {
 	vfio_pci_probe_mmaps(vdev);
 	vfio_spapr_pci_eeh_open(vdev->pdev);
-	vfio_pci_vf_token_user_add(vdev, 1);
+
+	if (vdev->sriov_pf_core_dev) {
+		mutex_lock(&vdev->sriov_pf_core_dev->vf_token->lock);
+		vdev->sriov_pf_core_dev->vf_token->users++;
+		mutex_unlock(&vdev->sriov_pf_core_dev->vf_token->lock);
+	}
 }
 EXPORT_SYMBOL_GPL(vfio_pci_core_finish_enable);
 
@@ -553,7 +582,7 @@ static int vfio_pci_fill_devs(struct pci_dev *pdev, void *data)
 
 struct vfio_pci_group_info {
 	int count;
-	struct vfio_group **groups;
+	struct file **files;
 };
 
 static bool vfio_pci_dev_below_slot(struct pci_dev *pdev, struct pci_slot *slot)
@@ -921,6 +950,19 @@ long vfio_pci_core_ioctl(struct vfio_device *core_vdev, unsigned int cmd,
 			return -EINVAL;
 
 		vfio_pci_zap_and_down_write_memory_lock(vdev);
+
+		/*
+		 * This function can be invoked while the power state is non-D0.
+		 * If pci_try_reset_function() has been called while the power
+		 * state is non-D0, then pci_try_reset_function() will
+		 * internally set the power state to D0 without vfio driver
+		 * involvement. For the devices which have NoSoftRst-, the
+		 * reset function can cause the PCI config space reset without
+		 * restoring the original state (saved locally in
+		 * 'vdev->pm_save').
+		 */
+		vfio_pci_set_power_state(vdev, PCI_D0);
+
 		ret = pci_try_reset_function(vdev->pdev);
 		up_write(&vdev->memory_lock);
 
@@ -1002,10 +1044,10 @@ reset_info_exit:
 	} else if (cmd == VFIO_DEVICE_PCI_HOT_RESET) {
 		struct vfio_pci_hot_reset hdr;
 		int32_t *group_fds;
-		struct vfio_group **groups;
+		struct file **files;
 		struct vfio_pci_group_info info;
 		bool slot = false;
-		int group_idx, count = 0, ret = 0;
+		int file_idx, count = 0, ret = 0;
 
 		minsz = offsetofend(struct vfio_pci_hot_reset, count);
 
@@ -1038,17 +1080,17 @@ reset_info_exit:
 			return -EINVAL;
 
 		group_fds = kcalloc(hdr.count, sizeof(*group_fds), GFP_KERNEL);
-		groups = kcalloc(hdr.count, sizeof(*groups), GFP_KERNEL);
-		if (!group_fds || !groups) {
+		files = kcalloc(hdr.count, sizeof(*files), GFP_KERNEL);
+		if (!group_fds || !files) {
 			kfree(group_fds);
-			kfree(groups);
+			kfree(files);
 			return -ENOMEM;
 		}
 
 		if (copy_from_user(group_fds, (void __user *)(arg + minsz),
 				   hdr.count * sizeof(*group_fds))) {
 			kfree(group_fds);
-			kfree(groups);
+			kfree(files);
 			return -EFAULT;
 		}
 
@@ -1057,22 +1099,22 @@ reset_info_exit:
 		 * user interface and store the group and iommu ID.  This
 		 * ensures the group is held across the reset.
 		 */
-		for (group_idx = 0; group_idx < hdr.count; group_idx++) {
-			struct vfio_group *group;
-			struct fd f = fdget(group_fds[group_idx]);
-			if (!f.file) {
+		for (file_idx = 0; file_idx < hdr.count; file_idx++) {
+			struct file *file = fget(group_fds[file_idx]);
+
+			if (!file) {
 				ret = -EBADF;
 				break;
 			}
 
-			group = vfio_group_get_external_user(f.file);
-			fdput(f);
-			if (IS_ERR(group)) {
-				ret = PTR_ERR(group);
+			/* Ensure the FD is a vfio group FD.*/
+			if (!vfio_file_iommu_group(file)) {
+				fput(file);
+				ret = -EINVAL;
 				break;
 			}
 
-			groups[group_idx] = group;
+			files[file_idx] = file;
 		}
 
 		kfree(group_fds);
@@ -1082,15 +1124,15 @@ reset_info_exit:
 			goto hot_reset_release;
 
 		info.count = hdr.count;
-		info.groups = groups;
+		info.files = files;
 
 		ret = vfio_pci_dev_set_hot_reset(vdev->vdev.dev_set, &info);
 
 hot_reset_release:
-		for (group_idx--; group_idx >= 0; group_idx--)
-			vfio_group_put_external_user(groups[group_idx]);
+		for (file_idx--; file_idx >= 0; file_idx--)
+			fput(files[file_idx]);
 
-		kfree(groups);
+		kfree(files);
 		return ret;
 	} else if (cmd == VFIO_DEVICE_IOEVENTFD) {
 		struct vfio_device_ioeventfd ioeventfd;
@@ -1114,70 +1156,50 @@ hot_reset_release:
 
 		return vfio_pci_ioeventfd(vdev, ioeventfd.offset,
 					  ioeventfd.data, count, ioeventfd.fd);
-	} else if (cmd == VFIO_DEVICE_FEATURE) {
-		struct vfio_device_feature feature;
-		uuid_t uuid;
-
-		minsz = offsetofend(struct vfio_device_feature, flags);
-
-		if (copy_from_user(&feature, (void __user *)arg, minsz))
-			return -EFAULT;
-
-		if (feature.argsz < minsz)
-			return -EINVAL;
-
-		/* Check unknown flags */
-		if (feature.flags & ~(VFIO_DEVICE_FEATURE_MASK |
-				      VFIO_DEVICE_FEATURE_SET |
-				      VFIO_DEVICE_FEATURE_GET |
-				      VFIO_DEVICE_FEATURE_PROBE))
-			return -EINVAL;
-
-		/* GET & SET are mutually exclusive except with PROBE */
-		if (!(feature.flags & VFIO_DEVICE_FEATURE_PROBE) &&
-		    (feature.flags & VFIO_DEVICE_FEATURE_SET) &&
-		    (feature.flags & VFIO_DEVICE_FEATURE_GET))
-			return -EINVAL;
-
-		switch (feature.flags & VFIO_DEVICE_FEATURE_MASK) {
-		case VFIO_DEVICE_FEATURE_PCI_VF_TOKEN:
-			if (!vdev->vf_token)
-				return -ENOTTY;
-
-			/*
-			 * We do not support GET of the VF Token UUID as this
-			 * could expose the token of the previous device user.
-			 */
-			if (feature.flags & VFIO_DEVICE_FEATURE_GET)
-				return -EINVAL;
-
-			if (feature.flags & VFIO_DEVICE_FEATURE_PROBE)
-				return 0;
-
-			/* Don't SET unless told to do so */
-			if (!(feature.flags & VFIO_DEVICE_FEATURE_SET))
-				return -EINVAL;
-
-			if (feature.argsz < minsz + sizeof(uuid))
-				return -EINVAL;
-
-			if (copy_from_user(&uuid, (void __user *)(arg + minsz),
-					   sizeof(uuid)))
-				return -EFAULT;
-
-			mutex_lock(&vdev->vf_token->lock);
-			uuid_copy(&vdev->vf_token->uuid, &uuid);
-			mutex_unlock(&vdev->vf_token->lock);
-
-			return 0;
-		default:
-			return -ENOTTY;
-		}
 	}
-
 	return -ENOTTY;
 }
 EXPORT_SYMBOL_GPL(vfio_pci_core_ioctl);
+
+static int vfio_pci_core_feature_token(struct vfio_device *device, u32 flags,
+				       void __user *arg, size_t argsz)
+{
+	struct vfio_pci_core_device *vdev =
+		container_of(device, struct vfio_pci_core_device, vdev);
+	uuid_t uuid;
+	int ret;
+
+	if (!vdev->vf_token)
+		return -ENOTTY;
+	/*
+	 * We do not support GET of the VF Token UUID as this could
+	 * expose the token of the previous device user.
+	 */
+	ret = vfio_check_feature(flags, argsz, VFIO_DEVICE_FEATURE_SET,
+				 sizeof(uuid));
+	if (ret != 1)
+		return ret;
+
+	if (copy_from_user(&uuid, arg, sizeof(uuid)))
+		return -EFAULT;
+
+	mutex_lock(&vdev->vf_token->lock);
+	uuid_copy(&vdev->vf_token->uuid, &uuid);
+	mutex_unlock(&vdev->vf_token->lock);
+	return 0;
+}
+
+int vfio_pci_core_ioctl_feature(struct vfio_device *device, u32 flags,
+				void __user *arg, size_t argsz)
+{
+	switch (flags & VFIO_DEVICE_FEATURE_MASK) {
+	case VFIO_DEVICE_FEATURE_PCI_VF_TOKEN:
+		return vfio_pci_core_feature_token(device, flags, arg, argsz);
+	default:
+		return -ENOTTY;
+	}
+}
+EXPORT_SYMBOL_GPL(vfio_pci_core_ioctl_feature);
 
 static ssize_t vfio_pci_rw(struct vfio_pci_core_device *vdev, char __user *buf,
 			   size_t count, loff_t *ppos, bool iswrite)
@@ -1566,11 +1588,8 @@ static int vfio_pci_validate_vf_token(struct vfio_pci_core_device *vdev,
 	 *
 	 * If the VF token is provided but unused, an error is generated.
 	 */
-	if (!vdev->pdev->is_virtfn && !vdev->vf_token && !vf_token)
-		return 0; /* No VF token provided or required */
-
 	if (vdev->pdev->is_virtfn) {
-		struct vfio_pci_core_device *pf_vdev = get_pf_vdev(vdev);
+		struct vfio_pci_core_device *pf_vdev = vdev->sriov_pf_core_dev;
 		bool match;
 
 		if (!pf_vdev) {
@@ -1583,7 +1602,6 @@ static int vfio_pci_validate_vf_token(struct vfio_pci_core_device *vdev,
 		}
 
 		if (!vf_token) {
-			vfio_device_put(&pf_vdev->vdev);
 			pci_info_ratelimited(vdev->pdev,
 				"VF token required to access device\n");
 			return -EACCES;
@@ -1592,8 +1610,6 @@ static int vfio_pci_validate_vf_token(struct vfio_pci_core_device *vdev,
 		mutex_lock(&pf_vdev->vf_token->lock);
 		match = uuid_equal(uuid, &pf_vdev->vf_token->uuid);
 		mutex_unlock(&pf_vdev->vf_token->lock);
-
-		vfio_device_put(&pf_vdev->vdev);
 
 		if (!match) {
 			pci_info_ratelimited(vdev->pdev,
@@ -1715,8 +1731,30 @@ static int vfio_pci_bus_notifier(struct notifier_block *nb,
 static int vfio_pci_vf_init(struct vfio_pci_core_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
+	struct vfio_pci_core_device *cur;
+	struct pci_dev *physfn;
 	int ret;
 
+	if (pdev->is_virtfn) {
+		/*
+		 * If this VF was created by our vfio_pci_core_sriov_configure()
+		 * then we can find the PF vfio_pci_core_device now, and due to
+		 * the locking in pci_disable_sriov() it cannot change until
+		 * this VF device driver is removed.
+		 */
+		physfn = pci_physfn(vdev->pdev);
+		mutex_lock(&vfio_pci_sriov_pfs_mutex);
+		list_for_each_entry(cur, &vfio_pci_sriov_pfs, sriov_pfs_item) {
+			if (cur->pdev == physfn) {
+				vdev->sriov_pf_core_dev = cur;
+				break;
+			}
+		}
+		mutex_unlock(&vfio_pci_sriov_pfs_mutex);
+		return 0;
+	}
+
+	/* Not a SRIOV PF */
 	if (!pdev->is_physfn)
 		return 0;
 
@@ -1788,6 +1826,7 @@ void vfio_pci_core_init_device(struct vfio_pci_core_device *vdev,
 	INIT_LIST_HEAD(&vdev->ioeventfds_list);
 	mutex_init(&vdev->vma_lock);
 	INIT_LIST_HEAD(&vdev->vma_list);
+	INIT_LIST_HEAD(&vdev->sriov_pfs_item);
 	init_rwsem(&vdev->memory_lock);
 }
 EXPORT_SYMBOL_GPL(vfio_pci_core_init_device);
@@ -1806,7 +1845,12 @@ EXPORT_SYMBOL_GPL(vfio_pci_core_uninit_device);
 int vfio_pci_core_register_device(struct vfio_pci_core_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
+	struct device *dev = &pdev->dev;
 	int ret;
+
+	/* Drivers must set the vfio_pci_core_device to their drvdata */
+	if (WARN_ON(vdev != dev_get_drvdata(dev)))
+		return -EINVAL;
 
 	if (pdev->hdr_type != PCI_HEADER_TYPE_NORMAL)
 		return -EINVAL;
@@ -1847,19 +1891,21 @@ int vfio_pci_core_register_device(struct vfio_pci_core_device *vdev)
 
 	vfio_pci_probe_power_state(vdev);
 
-	if (!disable_idle_d3) {
-		/*
-		 * pci-core sets the device power state to an unknown value at
-		 * bootup and after being removed from a driver.  The only
-		 * transition it allows from this unknown state is to D0, which
-		 * typically happens when a driver calls pci_enable_device().
-		 * We're not ready to enable the device yet, but we do want to
-		 * be able to get to D3.  Therefore first do a D0 transition
-		 * before going to D3.
-		 */
-		vfio_pci_set_power_state(vdev, PCI_D0);
-		vfio_pci_set_power_state(vdev, PCI_D3hot);
-	}
+	/*
+	 * pci-core sets the device power state to an unknown value at
+	 * bootup and after being removed from a driver.  The only
+	 * transition it allows from this unknown state is to D0, which
+	 * typically happens when a driver calls pci_enable_device().
+	 * We're not ready to enable the device yet, but we do want to
+	 * be able to get to D3.  Therefore first do a D0 transition
+	 * before enabling runtime PM.
+	 */
+	vfio_pci_set_power_state(vdev, PCI_D0);
+
+	dev->driver->pm = &vfio_pci_core_pm_ops;
+	pm_runtime_allow(dev);
+	if (!disable_idle_d3)
+		pm_runtime_put(dev);
 
 	ret = vfio_register_group_dev(&vdev->vdev);
 	if (ret)
@@ -1868,7 +1914,9 @@ int vfio_pci_core_register_device(struct vfio_pci_core_device *vdev)
 
 out_power:
 	if (!disable_idle_d3)
-		vfio_pci_set_power_state(vdev, PCI_D0);
+		pm_runtime_get_noresume(dev);
+
+	pm_runtime_forbid(dev);
 out_vf:
 	vfio_pci_vf_uninit(vdev);
 	return ret;
@@ -1877,9 +1925,7 @@ EXPORT_SYMBOL_GPL(vfio_pci_core_register_device);
 
 void vfio_pci_core_unregister_device(struct vfio_pci_core_device *vdev)
 {
-	struct pci_dev *pdev = vdev->pdev;
-
-	pci_disable_sriov(pdev);
+	vfio_pci_core_sriov_configure(vdev, 0);
 
 	vfio_unregister_group_dev(&vdev->vdev);
 
@@ -1887,21 +1933,16 @@ void vfio_pci_core_unregister_device(struct vfio_pci_core_device *vdev)
 	vfio_pci_vga_uninit(vdev);
 
 	if (!disable_idle_d3)
-		vfio_pci_set_power_state(vdev, PCI_D0);
+		pm_runtime_get_noresume(&vdev->pdev->dev);
+
+	pm_runtime_forbid(&vdev->pdev->dev);
 }
 EXPORT_SYMBOL_GPL(vfio_pci_core_unregister_device);
 
-static pci_ers_result_t vfio_pci_aer_err_detected(struct pci_dev *pdev,
-						  pci_channel_state_t state)
+pci_ers_result_t vfio_pci_core_aer_err_detected(struct pci_dev *pdev,
+						pci_channel_state_t state)
 {
-	struct vfio_pci_core_device *vdev;
-	struct vfio_device *device;
-
-	device = vfio_device_get_from_dev(&pdev->dev);
-	if (device == NULL)
-		return PCI_ERS_RESULT_DISCONNECT;
-
-	vdev = container_of(device, struct vfio_pci_core_device, vdev);
+	struct vfio_pci_core_device *vdev = dev_get_drvdata(&pdev->dev);
 
 	mutex_lock(&vdev->igate);
 
@@ -1910,33 +1951,74 @@ static pci_ers_result_t vfio_pci_aer_err_detected(struct pci_dev *pdev,
 
 	mutex_unlock(&vdev->igate);
 
-	vfio_device_put(device);
-
 	return PCI_ERS_RESULT_CAN_RECOVER;
 }
+EXPORT_SYMBOL_GPL(vfio_pci_core_aer_err_detected);
 
-int vfio_pci_core_sriov_configure(struct pci_dev *pdev, int nr_virtfn)
+int vfio_pci_core_sriov_configure(struct vfio_pci_core_device *vdev,
+				  int nr_virtfn)
 {
-	struct vfio_device *device;
+	struct pci_dev *pdev = vdev->pdev;
 	int ret = 0;
 
-	device = vfio_device_get_from_dev(&pdev->dev);
-	if (!device)
-		return -ENODEV;
+	device_lock_assert(&pdev->dev);
 
-	if (nr_virtfn == 0)
-		pci_disable_sriov(pdev);
-	else
+	if (nr_virtfn) {
+		mutex_lock(&vfio_pci_sriov_pfs_mutex);
+		/*
+		 * The thread that adds the vdev to the list is the only thread
+		 * that gets to call pci_enable_sriov() and we will only allow
+		 * it to be called once without going through
+		 * pci_disable_sriov()
+		 */
+		if (!list_empty(&vdev->sriov_pfs_item)) {
+			ret = -EINVAL;
+			goto out_unlock;
+		}
+		list_add_tail(&vdev->sriov_pfs_item, &vfio_pci_sriov_pfs);
+		mutex_unlock(&vfio_pci_sriov_pfs_mutex);
+
+		/*
+		 * The PF power state should always be higher than the VF power
+		 * state. The PF can be in low power state either with runtime
+		 * power management (when there is no user) or PCI_PM_CTRL
+		 * register write by the user. If PF is in the low power state,
+		 * then change the power state to D0 first before enabling
+		 * SR-IOV. Also, this function can be called at any time, and
+		 * userspace PCI_PM_CTRL write can race against this code path,
+		 * so protect the same with 'memory_lock'.
+		 */
+		ret = pm_runtime_resume_and_get(&pdev->dev);
+		if (ret)
+			goto out_del;
+
+		down_write(&vdev->memory_lock);
+		vfio_pci_set_power_state(vdev, PCI_D0);
 		ret = pci_enable_sriov(pdev, nr_virtfn);
+		up_write(&vdev->memory_lock);
+		if (ret) {
+			pm_runtime_put(&pdev->dev);
+			goto out_del;
+		}
+		return nr_virtfn;
+	}
 
-	vfio_device_put(device);
+	if (pci_num_vf(pdev)) {
+		pci_disable_sriov(pdev);
+		pm_runtime_put(&pdev->dev);
+	}
 
-	return ret < 0 ? ret : nr_virtfn;
+out_del:
+	mutex_lock(&vfio_pci_sriov_pfs_mutex);
+	list_del_init(&vdev->sriov_pfs_item);
+out_unlock:
+	mutex_unlock(&vfio_pci_sriov_pfs_mutex);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(vfio_pci_core_sriov_configure);
 
 const struct pci_error_handlers vfio_pci_core_err_handlers = {
-	.error_detected = vfio_pci_aer_err_detected,
+	.error_detected = vfio_pci_core_aer_err_detected,
 };
 EXPORT_SYMBOL_GPL(vfio_pci_core_err_handlers);
 
@@ -1946,7 +2028,7 @@ static bool vfio_dev_in_groups(struct vfio_pci_core_device *vdev,
 	unsigned int i;
 
 	for (i = 0; i < groups->count; i++)
-		if (groups->groups[i] == vdev->vdev.group)
+		if (vfio_file_has_dev(groups->files[i], &vdev->vdev))
 			return true;
 	return false;
 }
@@ -1997,6 +2079,27 @@ vfio_pci_dev_set_resettable(struct vfio_device_set *dev_set)
 					  !pci_probe_reset_slot(pdev->slot)))
 		return NULL;
 	return pdev;
+}
+
+static int vfio_pci_dev_set_pm_runtime_get(struct vfio_device_set *dev_set)
+{
+	struct vfio_pci_core_device *cur;
+	int ret;
+
+	list_for_each_entry(cur, &dev_set->device_list, vdev.dev_set_list) {
+		ret = pm_runtime_resume_and_get(&cur->pdev->dev);
+		if (ret)
+			goto unwind;
+	}
+
+	return 0;
+
+unwind:
+	list_for_each_entry_continue_reverse(cur, &dev_set->device_list,
+					     vdev.dev_set_list)
+		pm_runtime_put(&cur->pdev->dev);
+
+	return ret;
 }
 
 /*
@@ -2055,6 +2158,18 @@ static int vfio_pci_dev_set_hot_reset(struct vfio_device_set *dev_set,
 	}
 	cur_mem = NULL;
 
+	/*
+	 * The pci_reset_bus() will reset all the devices in the bus.
+	 * The power state can be non-D0 for some of the devices in the bus.
+	 * For these devices, the pci_reset_bus() will internally set
+	 * the power state to D0 without vfio driver involvement.
+	 * For the devices which have NoSoftRst-, the reset function can
+	 * cause the PCI config space reset without restoring the original
+	 * state (saved locally in 'vdev->pm_save').
+	 */
+	list_for_each_entry(cur, &dev_set->device_list, vdev.dev_set_list)
+		vfio_pci_set_power_state(cur, PCI_D0);
+
 	ret = pci_reset_bus(pdev);
 
 err_undo:
@@ -2093,31 +2208,38 @@ static bool vfio_pci_dev_set_needs_reset(struct vfio_device_set *dev_set)
  *  - At least one of the affected devices is marked dirty via
  *    needs_reset (such as by lack of FLR support)
  * Then attempt to perform that bus or slot reset.
- * Returns true if the dev_set was reset.
  */
-static bool vfio_pci_dev_set_try_reset(struct vfio_device_set *dev_set)
+static void vfio_pci_dev_set_try_reset(struct vfio_device_set *dev_set)
 {
 	struct vfio_pci_core_device *cur;
 	struct pci_dev *pdev;
-	int ret;
+	bool reset_done = false;
 
 	if (!vfio_pci_dev_set_needs_reset(dev_set))
-		return false;
+		return;
 
 	pdev = vfio_pci_dev_set_resettable(dev_set);
 	if (!pdev)
-		return false;
+		return;
 
-	ret = pci_reset_bus(pdev);
-	if (ret)
-		return false;
+	/*
+	 * Some of the devices in the bus can be in the runtime suspended
+	 * state. Increment the usage count for all the devices in the dev_set
+	 * before reset and decrement the same after reset.
+	 */
+	if (!disable_idle_d3 && vfio_pci_dev_set_pm_runtime_get(dev_set))
+		return;
+
+	if (!pci_reset_bus(pdev))
+		reset_done = true;
 
 	list_for_each_entry(cur, &dev_set->device_list, vdev.dev_set_list) {
-		cur->needs_reset = false;
+		if (reset_done)
+			cur->needs_reset = false;
+
 		if (!disable_idle_d3)
-			vfio_pci_set_power_state(cur, PCI_D3hot);
+			pm_runtime_put(&cur->pdev->dev);
 	}
-	return true;
 }
 
 void vfio_pci_core_set_params(bool is_nointxmask, bool is_disable_vga,

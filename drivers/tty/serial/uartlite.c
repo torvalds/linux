@@ -321,7 +321,8 @@ static void ulite_set_termios(struct uart_port *port, struct ktermios *termios,
 	struct uartlite_data *pdata = port->private_data;
 
 	/* Set termios to what the hardware supports */
-	termios->c_cflag &= ~(BRKINT | CSTOPB | PARENB | PARODD | CSIZE);
+	termios->c_iflag &= ~BRKINT;
+	termios->c_cflag &= ~(CSTOPB | PARENB | PARODD | CSIZE);
 	termios->c_cflag |= pdata->cflags & (PARENB | PARODD | CSIZE);
 	tty_termios_encode_baud_rate(termios, pdata->baud, pdata->baud);
 
@@ -482,7 +483,7 @@ static void ulite_console_wait_tx(struct uart_port *port)
 			 "timeout waiting for TX buffer empty\n");
 }
 
-static void ulite_console_putchar(struct uart_port *port, int ch)
+static void ulite_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	ulite_console_wait_tx(port);
 	uart_out32(ch, ULITE_TX, port);
@@ -558,7 +559,7 @@ static struct console ulite_console = {
 	.data	= &ulite_uart_driver,
 };
 
-static void early_uartlite_putc(struct uart_port *port, int c)
+static void early_uartlite_putc(struct uart_port *port, unsigned char c)
 {
 	/*
 	 * Limit how many times we'll spin waiting for TX FIFO status.

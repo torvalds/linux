@@ -74,6 +74,7 @@ struct phylink {
 	struct work_struct resolve;
 
 	bool mac_link_dropped;
+	bool using_mac_select_pcs;
 
 	struct sfp_bus *sfp_bus;
 	bool sfp_may_have_phy;
@@ -132,17 +133,6 @@ void phylink_set_port_modes(unsigned long *mask)
 }
 EXPORT_SYMBOL_GPL(phylink_set_port_modes);
 
-void phylink_set_10g_modes(unsigned long *mask)
-{
-	phylink_set(mask, 10000baseT_Full);
-	phylink_set(mask, 10000baseCR_Full);
-	phylink_set(mask, 10000baseSR_Full);
-	phylink_set(mask, 10000baseLR_Full);
-	phylink_set(mask, 10000baseLRM_Full);
-	phylink_set(mask, 10000baseER_Full);
-}
-EXPORT_SYMBOL_GPL(phylink_set_10g_modes);
-
 static int phylink_is_empty_linkmode(const unsigned long *linkmode)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(tmp) = { 0, };
@@ -178,8 +168,10 @@ static void phylink_caps_to_linkmodes(unsigned long *linkmodes,
 	if (caps & MAC_10HD)
 		__set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, linkmodes);
 
-	if (caps & MAC_10FD)
+	if (caps & MAC_10FD) {
 		__set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, linkmodes);
+		__set_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT, linkmodes);
+	}
 
 	if (caps & MAC_100HD) {
 		__set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, linkmodes);
@@ -427,7 +419,7 @@ static int phylink_validate_mac_and_pcs(struct phylink *pl,
 	int ret;
 
 	/* Get the PCS for this interface mode */
-	if (pl->mac_ops->mac_select_pcs) {
+	if (pl->using_mac_select_pcs) {
 		pcs = pl->mac_ops->mac_select_pcs(pl->config, state->interface);
 		if (IS_ERR(pcs))
 			return PTR_ERR(pcs);
@@ -802,7 +794,7 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 
 	phylink_dbg(pl, "major config %s\n", phy_modes(state->interface));
 
-	if (pl->mac_ops->mac_select_pcs) {
+	if (pl->using_mac_select_pcs) {
 		pcs = pl->mac_ops->mac_select_pcs(pl->config, state->interface);
 		if (IS_ERR(pcs)) {
 			phylink_err(pl,
@@ -825,8 +817,18 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 	/* If we have a new PCS, switch to the new PCS after preparing the MAC
 	 * for the change.
 	 */
-	if (pcs)
-		phylink_set_pcs(pl, pcs);
+	if (pcs) {
+		pl->pcs = pcs;
+		pl->pcs_ops = pcs->ops;
+
+		if (!pl->phylink_disable_state &&
+		    pl->cfg_link_an_mode == MLO_AN_INBAND) {
+			if (pcs->poll)
+				mod_timer(&pl->link_poll, jiffies + HZ);
+			else
+				del_timer(&pl->link_poll);
+		}
+	}
 
 	phylink_mac_config(pl, state);
 
@@ -1182,9 +1184,8 @@ static int phylink_register_sfp(struct phylink *pl,
 
 	bus = sfp_bus_find_fwnode(fwnode);
 	if (IS_ERR(bus)) {
-		ret = PTR_ERR(bus);
-		phylink_err(pl, "unable to attach SFP bus: %d\n", ret);
-		return ret;
+		phylink_err(pl, "unable to attach SFP bus: %pe\n", bus);
+		return PTR_ERR(bus);
 	}
 
 	pl->sfp_bus = bus;
@@ -1216,11 +1217,17 @@ struct phylink *phylink_create(struct phylink_config *config,
 			       phy_interface_t iface,
 			       const struct phylink_mac_ops *mac_ops)
 {
+	bool using_mac_select_pcs = false;
 	struct phylink *pl;
 	int ret;
 
-	/* Validate the supplied configuration */
 	if (mac_ops->mac_select_pcs &&
+	    mac_ops->mac_select_pcs(config, PHY_INTERFACE_MODE_NA) !=
+	      ERR_PTR(-EOPNOTSUPP))
+		using_mac_select_pcs = true;
+
+	/* Validate the supplied configuration */
+	if (using_mac_select_pcs &&
 	    phy_interface_empty(config->supported_interfaces)) {
 		dev_err(config->dev,
 			"phylink: error: empty supported_interfaces but mac_select_pcs() method present\n");
@@ -1244,6 +1251,7 @@ struct phylink *phylink_create(struct phylink_config *config,
 		return ERR_PTR(-EINVAL);
 	}
 
+	pl->using_mac_select_pcs = using_mac_select_pcs;
 	pl->phy_state.interface = iface;
 	pl->link_interface = iface;
 	if (iface == PHY_INTERFACE_MODE_MOCA)
@@ -1288,36 +1296,6 @@ struct phylink *phylink_create(struct phylink_config *config,
 	return pl;
 }
 EXPORT_SYMBOL_GPL(phylink_create);
-
-/**
- * phylink_set_pcs() - set the current PCS for phylink to use
- * @pl: a pointer to a &struct phylink returned from phylink_create()
- * @pcs: a pointer to the &struct phylink_pcs
- *
- * Bind the MAC PCS to phylink.  This may be called after phylink_create().
- * If it is desired to dynamically change the PCS, then the preferred method
- * is to use mac_select_pcs(), but it may also be called in mac_prepare()
- * or mac_config().
- *
- * Please note that there are behavioural changes with the mac_config()
- * callback if a PCS is present (denoting a newer setup) so removing a PCS
- * is not supported, and if a PCS is going to be used, it must be registered
- * by calling phylink_set_pcs() at the latest in the first mac_config() call.
- */
-void phylink_set_pcs(struct phylink *pl, struct phylink_pcs *pcs)
-{
-	pl->pcs = pcs;
-	pl->pcs_ops = pcs->ops;
-
-	if (!pl->phylink_disable_state &&
-	    pl->cfg_link_an_mode == MLO_AN_INBAND) {
-		if (pl->config->pcs_poll || pcs->poll)
-			mod_timer(&pl->link_poll, jiffies + HZ);
-		else
-			del_timer(&pl->link_poll);
-	}
-}
-EXPORT_SYMBOL_GPL(phylink_set_pcs);
 
 /**
  * phylink_destroy() - cleanup and destroy the phylink instance
@@ -1403,11 +1381,11 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy,
 
 	ret = phylink_validate(pl, supported, &config);
 	if (ret) {
-		phylink_warn(pl, "validation of %s with support %*pb and advertisement %*pb failed: %d\n",
+		phylink_warn(pl, "validation of %s with support %*pb and advertisement %*pb failed: %pe\n",
 			     phy_modes(config.interface),
 			     __ETHTOOL_LINK_MODE_MASK_NBITS, phy->supported,
 			     __ETHTOOL_LINK_MODE_MASK_NBITS, config.advertising,
-			     ret);
+			     ERR_PTR(ret));
 		return ret;
 	}
 
@@ -1684,7 +1662,6 @@ void phylink_start(struct phylink *pl)
 		poll |= pl->config->poll_fixed_state;
 		break;
 	case MLO_AN_INBAND:
-		poll |= pl->config->pcs_poll;
 		if (pl->pcs)
 			poll |= pl->pcs->poll;
 		break;
@@ -2326,8 +2303,11 @@ static int phylink_phy_read(struct phylink *pl, unsigned int phy_id,
 	if (mdio_phy_id_is_c45(phy_id)) {
 		prtad = mdio_phy_id_prtad(phy_id);
 		devad = mdio_phy_id_devad(phy_id);
-		devad = mdiobus_c45_addr(devad, reg);
-	} else if (phydev->is_c45) {
+		return mdiobus_c45_read(pl->phydev->mdio.bus, prtad, devad,
+					reg);
+	}
+
+	if (phydev->is_c45) {
 		switch (reg) {
 		case MII_BMCR:
 		case MII_BMSR:
@@ -2349,12 +2329,11 @@ static int phylink_phy_read(struct phylink *pl, unsigned int phy_id,
 			return -EINVAL;
 		}
 		prtad = phy_id;
-		devad = mdiobus_c45_addr(devad, reg);
-	} else {
-		prtad = phy_id;
-		devad = reg;
+		return mdiobus_c45_read(pl->phydev->mdio.bus, prtad, devad,
+					reg);
 	}
-	return mdiobus_read(pl->phydev->mdio.bus, prtad, devad);
+
+	return mdiobus_read(pl->phydev->mdio.bus, phy_id, reg);
 }
 
 static int phylink_phy_write(struct phylink *pl, unsigned int phy_id,
@@ -2366,8 +2345,11 @@ static int phylink_phy_write(struct phylink *pl, unsigned int phy_id,
 	if (mdio_phy_id_is_c45(phy_id)) {
 		prtad = mdio_phy_id_prtad(phy_id);
 		devad = mdio_phy_id_devad(phy_id);
-		devad = mdiobus_c45_addr(devad, reg);
-	} else if (phydev->is_c45) {
+		return mdiobus_c45_write(pl->phydev->mdio.bus, prtad, devad,
+					 reg, val);
+	}
+
+	if (phydev->is_c45) {
 		switch (reg) {
 		case MII_BMCR:
 		case MII_BMSR:
@@ -2388,14 +2370,11 @@ static int phylink_phy_write(struct phylink *pl, unsigned int phy_id,
 		default:
 			return -EINVAL;
 		}
-		prtad = phy_id;
-		devad = mdiobus_c45_addr(devad, reg);
-	} else {
-		prtad = phy_id;
-		devad = reg;
+		return mdiobus_c45_write(pl->phydev->mdio.bus, phy_id, devad,
+					 reg, val);
 	}
 
-	return mdiobus_write(phydev->mdio.bus, prtad, devad, val);
+	return mdiobus_write(phydev->mdio.bus, phy_id, reg, val);
 }
 
 static int phylink_mii_read(struct phylink *pl, unsigned int phy_id,
@@ -2607,8 +2586,9 @@ static int phylink_sfp_config(struct phylink *pl, u8 mode,
 	/* Ignore errors if we're expecting a PHY to attach later */
 	ret = phylink_validate(pl, support, &config);
 	if (ret) {
-		phylink_err(pl, "validation with support %*pb failed: %d\n",
-			    __ETHTOOL_LINK_MODE_MASK_NBITS, support, ret);
+		phylink_err(pl, "validation with support %*pb failed: %pe\n",
+			    __ETHTOOL_LINK_MODE_MASK_NBITS, support,
+			    ERR_PTR(ret));
 		return ret;
 	}
 
@@ -2624,10 +2604,12 @@ static int phylink_sfp_config(struct phylink *pl, u8 mode,
 	linkmode_copy(support1, support);
 	ret = phylink_validate(pl, support1, &config);
 	if (ret) {
-		phylink_err(pl, "validation of %s/%s with support %*pb failed: %d\n",
+		phylink_err(pl,
+			    "validation of %s/%s with support %*pb failed: %pe\n",
 			    phylink_an_mode_str(mode),
 			    phy_modes(config.interface),
-			    __ETHTOOL_LINK_MODE_MASK_NBITS, support, ret);
+			    __ETHTOOL_LINK_MODE_MASK_NBITS, support,
+			    ERR_PTR(ret));
 		return ret;
 	}
 
@@ -2799,34 +2781,6 @@ static const struct sfp_upstream_ops sfp_phylink_ops = {
 };
 
 /* Helpers for MAC drivers */
-
-/**
- * phylink_helper_basex_speed() - 1000BaseX/2500BaseX helper
- * @state: a pointer to a &struct phylink_link_state
- *
- * Inspect the interface mode, advertising mask or forced speed and
- * decide whether to run at 2.5Gbit or 1Gbit appropriately, switching
- * the interface mode to suit.  @state->interface is appropriately
- * updated, and the advertising mask has the "other" baseX_Full flag
- * cleared.
- */
-void phylink_helper_basex_speed(struct phylink_link_state *state)
-{
-	if (phy_interface_mode_is_8023z(state->interface)) {
-		bool want_2500 = state->an_enabled ?
-			phylink_test(state->advertising, 2500baseX_Full) :
-			state->speed == SPEED_2500;
-
-		if (want_2500) {
-			phylink_clear(state->advertising, 1000baseX_Full);
-			state->interface = PHY_INTERFACE_MODE_2500BASEX;
-		} else {
-			phylink_clear(state->advertising, 2500baseX_Full);
-			state->interface = PHY_INTERFACE_MODE_1000BASEX;
-		}
-	}
-}
-EXPORT_SYMBOL_GPL(phylink_helper_basex_speed);
 
 static void phylink_decode_c37_word(struct phylink_link_state *state,
 				    uint16_t config_reg, int speed)

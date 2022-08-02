@@ -52,8 +52,6 @@ static enum ata_completion_errors sas_to_ata_err(struct task_status_struct *ts)
 	case SAS_DATA_OVERRUN:
 	case SAS_QUEUE_FULL:
 	case SAS_DEVICE_UNKNOWN:
-	case SAS_SG_ERR:
-		return AC_ERR_INVALID;
 	case SAS_OPEN_TO:
 	case SAS_OPEN_REJECT:
 		pr_warn("%s: Saw error %d.  What to do?\n",
@@ -181,14 +179,9 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	task->task_proto = SAS_PROTOCOL_STP;
 	task->task_done = sas_ata_task_done;
 
-	if (qc->tf.command == ATA_CMD_FPDMA_WRITE ||
-	    qc->tf.command == ATA_CMD_FPDMA_READ ||
-	    qc->tf.command == ATA_CMD_FPDMA_RECV ||
-	    qc->tf.command == ATA_CMD_FPDMA_SEND ||
-	    qc->tf.command == ATA_CMD_NCQ_NON_DATA) {
-		/* Need to zero out the tag libata assigned us */
+	/* For NCQ commands, zero out the tag libata assigned us */
+	if (ata_is_ncq(qc->tf.protocol))
 		qc->tf.nsect = 0;
-	}
 
 	ata_tf_to_fis(&qc->tf, qc->dev->link->pmp, 1, (u8 *)&task->ata_task.fis);
 	task->uldd_task = qc;
@@ -197,7 +190,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		task->total_xfer_len = qc->nbytes;
 		task->num_scatter = qc->n_elem;
 		task->data_dir = qc->dma_dir;
-	} else if (qc->tf.protocol == ATA_PROT_NODATA) {
+	} else if (!ata_is_data(qc->tf.protocol)) {
 		task->data_dir = DMA_NONE;
 	} else {
 		for_each_sg(qc->sg, sg, qc->n_elem, si)
@@ -209,7 +202,6 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	}
 	task->scatter = qc->sg;
 	task->ata_task.retry_count = 1;
-	task->task_state_flags = SAS_TASK_STATE_PENDING;
 	qc->lldd_task = task;
 
 	task->ata_task.use_ncq = ata_is_ncq(qc->tf.protocol);
@@ -366,22 +358,14 @@ static int sas_ata_printk(const char *level, const struct domain_device *ddev,
 	return r;
 }
 
-static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
-			      unsigned long deadline)
+int sas_ata_wait_after_reset(struct domain_device *dev, unsigned long deadline)
 {
-	int ret = 0, res;
-	struct sas_phy *phy;
-	struct ata_port *ap = link->ap;
+	struct sata_device *sata_dev = &dev->sata_dev;
 	int (*check_ready)(struct ata_link *link);
-	struct domain_device *dev = ap->private_data;
-	struct sas_internal *i = dev_to_sas_internal(dev);
-
-	res = i->dft->lldd_I_T_nexus_reset(dev);
-	if (res == -ENODEV)
-		return res;
-
-	if (res != TMF_RESP_FUNC_COMPLETE)
-		sas_ata_printk(KERN_DEBUG, dev, "Unable to reset ata device?\n");
+	struct ata_port *ap = sata_dev->ap;
+	struct ata_link *link = &ap->link;
+	struct sas_phy *phy;
+	int ret;
 
 	phy = sas_get_local_phy(dev);
 	if (scsi_is_sas_phy_local(phy))
@@ -393,6 +377,27 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 	ret = ata_wait_after_reset(link, deadline, check_ready);
 	if (ret && ret != -EAGAIN)
 		sas_ata_printk(KERN_ERR, dev, "reset failed (errno=%d)\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(sas_ata_wait_after_reset);
+
+static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
+			      unsigned long deadline)
+{
+	struct ata_port *ap = link->ap;
+	struct domain_device *dev = ap->private_data;
+	struct sas_internal *i = dev_to_sas_internal(dev);
+	int ret;
+
+	ret = i->dft->lldd_I_T_nexus_reset(dev);
+	if (ret == -ENODEV)
+		return ret;
+
+	if (ret != TMF_RESP_FUNC_COMPLETE)
+		sas_ata_printk(KERN_DEBUG, dev, "Unable to reset ata device?\n");
+
+	ret = sas_ata_wait_after_reset(dev, deadline);
 
 	*class = dev->sata_dev.class;
 
@@ -783,8 +788,7 @@ void sas_ata_strategy_handler(struct Scsi_Host *shost)
 	sas_enable_revalidation(sas_ha);
 }
 
-void sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
-		struct list_head *done_q)
+void sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q)
 {
 	struct scsi_cmnd *cmd, *n;
 	struct domain_device *eh_dev;
@@ -856,3 +860,11 @@ void sas_ata_wait_eh(struct domain_device *dev)
 	ap = dev->sata_dev.ap;
 	ata_port_wait_eh(ap);
 }
+
+int sas_execute_ata_cmd(struct domain_device *device, u8 *fis, int force_phy_id)
+{
+	struct sas_tmf_task tmf_task = {};
+	return sas_execute_tmf(device, fis, sizeof(struct host_to_dev_fis),
+			       force_phy_id, &tmf_task);
+}
+EXPORT_SYMBOL_GPL(sas_execute_ata_cmd);

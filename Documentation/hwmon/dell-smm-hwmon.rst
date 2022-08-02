@@ -86,6 +86,13 @@ probe the BIOS on your machine and discover the appropriate codes.
 
 Again, when you find new codes, we'd be happy to have your patches!
 
+``thermal`` interface
+---------------------------
+
+The driver also exports the fans as thermal cooling devices with
+``type`` set to ``dell-smm-fan[1-3]``. This allows for easy fan control
+using one of the thermal governors.
+
 Module parameters
 -----------------
 
@@ -165,3 +172,185 @@ obtain the same information and to control the fan status. The ioctl
 interface can be accessed from C programs or from shell using the
 i8kctl utility. See the source file of ``i8kutils`` for more
 information on how to use the ioctl interface.
+
+SMM Interface
+-------------
+
+.. warning:: The SMM interface was reverse-engineered by trial-and-error
+             since Dell did not provide any Documentation,
+             please keep that in mind.
+
+The driver uses the SMM interface to send commands to the system BIOS.
+This interface is normally used by Dell's 32-bit diagnostic program or
+on newer notebook models by the buildin BIOS diagnostics.
+The SMM is triggered by writing to the special ioports ``0xb2`` and ``0x84``,
+and may cause short hangs when the BIOS code is taking too long to
+execute.
+
+The SMM handler inside the system BIOS looks at the contents of the
+``eax``, ``ebx``, ``ecx``, ``edx``, ``esi`` and ``edi`` registers.
+Each register has a special purpose:
+
+=============== ==================================
+Register        Purpose
+=============== ==================================
+eax             Holds the command code before SMM,
+                holds the first result after SMM.
+ebx             Holds the arguments.
+ecx             Unknown, set to 0.
+edx             Holds the second result after SMM.
+esi             Unknown, set to 0.
+edi             Unknown, set to 0.
+=============== ==================================
+
+The SMM handler can signal a failure by either:
+
+- setting the lower sixteen bits of ``eax`` to ``0xffff``
+- not modifying ``eax`` at all
+- setting the carry flag
+
+SMM command codes
+-----------------
+
+=============== ======================= ================================================
+Command Code    Command Name            Description
+=============== ======================= ================================================
+``0x0025``      Get Fn key status       Returns the Fn key pressed after SMM:
+
+                                        - 9th bit in ``eax`` indicates Volume up
+                                        - 10th bit in ``eax`` indicates Volume down
+                                        - both bits indicate Volume mute
+
+``0xa069``      Get power status        Returns current power status after SMM:
+
+                                        - 1st bit in ``eax`` indicates Battery connected
+                                        - 3th bit in ``eax`` indicates AC connected
+
+``0x00a3``      Get fan state           Returns current fan state after SMM:
+
+                                        - 1st byte in ``eax`` holds the current
+                                          fan state (0 - 2 or 3)
+
+``0x01a3``      Set fan state           Sets the fan speed:
+
+                                        - 1st byte in ``ebx`` holds the fan number
+                                        - 2nd byte in ``ebx`` holds the desired
+                                          fan state (0 - 2 or 3)
+
+``0x02a3``      Get fan speed           Returns the current fan speed in RPM:
+
+                                        - 1st byte in ``ebx`` holds the fan number
+                                        - 1st word in ``eax`` holds the current
+                                          fan speed in RPM (after SMM)
+
+``0x03a3``      Get fan type            Returns the fan type:
+
+                                        - 1st byte in ``ebx`` holds the fan number
+                                        - 1st byte in ``eax`` holds the
+                                          fan type (after SMM):
+
+                                          - 5th bit indicates docking fan
+                                          - 1 indicates Processor fan
+                                          - 2 indicates Motherboard fan
+                                          - 3 indicates Video fan
+                                          - 4 indicates Power supply fan
+                                          - 5 indicates Chipset fan
+                                          - 6 indicates other fan type
+
+``0x04a3``      Get nominal fan speed   Returns the nominal RPM in each fan state:
+
+                                        - 1st byte in ``ebx`` holds the fan number
+                                        - 2nd byte in ``ebx`` holds the fan state
+                                          in question (0 - 2 or 3)
+                                        - 1st word in ``eax`` holds the nominal
+                                          fan speed in RPM (after SMM)
+
+``0x05a3``      Get fan speed tolerance Returns the speed tolerance for each fan state:
+
+                                        - 1st byte in ``ebx`` holds the fan number
+                                        - 2nd byte in ``ebx`` holds the fan state
+                                          in question (0 - 2 or 3)
+                                        - 1st byte in ``eax`` returns the speed
+                                          tolerance
+
+``0x10a3``      Get sensor temperature  Returns the measured temperature:
+
+                                        - 1st byte in ``ebx`` holds the sensor number
+                                        - 1st byte in ``eax`` holds the measured
+                                          temperature (after SMM)
+
+``0x11a3``      Get sensor type         Returns the sensor type:
+
+                                        - 1st byte in ``ebx`` holds the sensor number
+                                        - 1st byte in ``eax`` holds the
+                                          temperature type (after SMM):
+
+                                          - 1 indicates CPU sensor
+                                          - 2 indicates GPU sensor
+                                          - 3 indicates SODIMM sensor
+                                          - 4 indicates other sensor type
+                                          - 5 indicates Ambient sensor
+                                          - 6 indicates other sensor type
+
+``0xfea3``      Get SMM signature       Returns Dell signature if interface
+                                        is supported (after SMM):
+
+                                        - ``eax`` holds 1145651527
+                                          (0x44494147 or "DIAG")
+                                        - ``edx`` holds 1145392204
+                                          (0x44454c4c or "DELL")
+
+``0xffa3``      Get SMM signature       Same as ``0xfea3``, check both.
+=============== ======================= ================================================
+
+There are additional commands for enabling (``0x31a3`` or ``0x35a3``) and
+disabling (``0x30a3`` or ``0x34a3``) automatic fan speed control.
+The commands are however causing severe sideeffects on many machines, so
+they are not used by default.
+
+On several machines (Inspiron 3505, Precision 490, Vostro 1720, ...), the
+fans supports a 4th "magic" state, which signals the BIOS that automatic
+fan control should be enabled for a specific fan.
+However there are also some machines who do support a 4th regular fan state too,
+but in case of the "magic" state, the nominal RPM reported for this state is a
+placeholder value, which however is not always detectable.
+
+Firmware Bugs
+-------------
+
+The SMM calls can behave erratic on some machines:
+
+======================================================= =================
+Firmware Bug                                            Affected Machines
+======================================================= =================
+Reading of fan states return spurious errors.           Precision 490
+
+Reading of fan types causes erratic fan behaviour.      Studio XPS 8000
+
+                                                        Studio XPS 8100
+
+                                                        Inspiron 580
+
+                                                        Inspiron 3505
+
+Fan-related SMM calls take too long (about 500ms).      Inspiron 7720
+
+                                                        Vostro 3360
+
+                                                        XPS 13 9333
+
+                                                        XPS 15 L502X
+======================================================= =================
+
+In case you experience similar issues on your Dell machine, please
+submit a bugreport on bugzilla to we can apply workarounds.
+
+Limitations
+-----------
+
+The SMM calls can take too long to execute on some machines, causing
+short hangs and/or audio glitches.
+Also the fan state needs to be restored after suspend, as well as
+the automatic mode settings.
+When reading a temperature sensor, values above 127 degrees indicate
+a BIOS read error or a deactivated sensor.

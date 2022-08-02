@@ -65,11 +65,14 @@ static int exfat_d_revalidate(struct dentry *dentry, unsigned int flags)
 	return ret;
 }
 
-/* returns the length of a struct qstr, ignoring trailing dots */
-static unsigned int exfat_striptail_len(unsigned int len, const char *name)
+/* returns the length of a struct qstr, ignoring trailing dots if necessary */
+static unsigned int exfat_striptail_len(unsigned int len, const char *name,
+					bool keep_last_dots)
 {
-	while (len && name[len - 1] == '.')
-		len--;
+	if (!keep_last_dots) {
+		while (len && name[len - 1] == '.')
+			len--;
+	}
 	return len;
 }
 
@@ -83,7 +86,8 @@ static int exfat_d_hash(const struct dentry *dentry, struct qstr *qstr)
 	struct super_block *sb = dentry->d_sb;
 	struct nls_table *t = EXFAT_SB(sb)->nls_io;
 	const unsigned char *name = qstr->name;
-	unsigned int len = exfat_striptail_len(qstr->len, qstr->name);
+	unsigned int len = exfat_striptail_len(qstr->len, qstr->name,
+			   EXFAT_SB(sb)->options.keep_last_dots);
 	unsigned long hash = init_name_hash(dentry);
 	int i, charlen;
 	wchar_t c;
@@ -104,8 +108,10 @@ static int exfat_d_cmp(const struct dentry *dentry, unsigned int len,
 {
 	struct super_block *sb = dentry->d_sb;
 	struct nls_table *t = EXFAT_SB(sb)->nls_io;
-	unsigned int alen = exfat_striptail_len(name->len, name->name);
-	unsigned int blen = exfat_striptail_len(len, str);
+	unsigned int alen = exfat_striptail_len(name->len, name->name,
+				EXFAT_SB(sb)->options.keep_last_dots);
+	unsigned int blen = exfat_striptail_len(len, str,
+				EXFAT_SB(sb)->options.keep_last_dots);
 	wchar_t c1, c2;
 	int charlen, i;
 
@@ -136,7 +142,8 @@ static int exfat_utf8_d_hash(const struct dentry *dentry, struct qstr *qstr)
 {
 	struct super_block *sb = dentry->d_sb;
 	const unsigned char *name = qstr->name;
-	unsigned int len = exfat_striptail_len(qstr->len, qstr->name);
+	unsigned int len = exfat_striptail_len(qstr->len, qstr->name,
+			       EXFAT_SB(sb)->options.keep_last_dots);
 	unsigned long hash = init_name_hash(dentry);
 	int i, charlen;
 	unicode_t u;
@@ -161,8 +168,11 @@ static int exfat_utf8_d_cmp(const struct dentry *dentry, unsigned int len,
 		const char *str, const struct qstr *name)
 {
 	struct super_block *sb = dentry->d_sb;
-	unsigned int alen = exfat_striptail_len(name->len, name->name);
-	unsigned int blen = exfat_striptail_len(len, str);
+	unsigned int alen = exfat_striptail_len(name->len, name->name,
+				EXFAT_SB(sb)->options.keep_last_dots);
+	unsigned int blen = exfat_striptail_len(len, str,
+				EXFAT_SB(sb)->options.keep_last_dots);
+
 	unicode_t u_a, u_b;
 	int charlen, i;
 
@@ -416,13 +426,25 @@ static int __exfat_resolve_path(struct inode *inode, const unsigned char *path,
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct exfat_inode_info *ei = EXFAT_I(inode);
+	int pathlen = strlen(path);
 
-	/* strip all trailing periods */
-	namelen = exfat_striptail_len(strlen(path), path);
+	/*
+	 * get the length of the pathname excluding
+	 * trailing periods, if any.
+	 */
+	namelen = exfat_striptail_len(pathlen, path, false);
+	if (EXFAT_SB(sb)->options.keep_last_dots) {
+		/*
+		 * Do not allow the creation of files with names
+		 * ending with period(s).
+		 */
+		if (!lookup && (namelen < pathlen))
+			return -EINVAL;
+		namelen = pathlen;
+	}
 	if (!namelen)
 		return -ENOENT;
-
-	if (strlen(path) > (MAX_NAME_LENGTH * MAX_CHARSET_SIZE))
+	if (pathlen > (MAX_NAME_LENGTH * MAX_CHARSET_SIZE))
 		return -ENAMETOOLONG;
 
 	/*
@@ -554,7 +576,6 @@ static int exfat_create(struct user_namespace *mnt_userns, struct inode *dir,
 	exfat_set_volume_dirty(sb);
 	err = exfat_add_entry(dir, dentry->d_name.name, &cdir, TYPE_FILE,
 		&info);
-	exfat_clear_volume_dirty(sb);
 	if (err)
 		goto unlock;
 
@@ -812,7 +833,6 @@ static int exfat_unlink(struct inode *dir, struct dentry *dentry)
 
 	/* This doesn't modify ei */
 	ei->dir.dir = DIR_DELETED;
-	exfat_clear_volume_dirty(sb);
 
 	inode_inc_iversion(dir);
 	dir->i_mtime = dir->i_atime = current_time(dir);
@@ -846,7 +866,6 @@ static int exfat_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
 	exfat_set_volume_dirty(sb);
 	err = exfat_add_entry(dir, dentry->d_name.name, &cdir, TYPE_DIR,
 		&info);
-	exfat_clear_volume_dirty(sb);
 	if (err)
 		goto unlock;
 
@@ -976,7 +995,6 @@ static int exfat_rmdir(struct inode *dir, struct dentry *dentry)
 		goto unlock;
 	}
 	ei->dir.dir = DIR_DELETED;
-	exfat_clear_volume_dirty(sb);
 
 	inode_inc_iversion(dir);
 	dir->i_mtime = dir->i_atime = current_time(dir);
@@ -1062,6 +1080,7 @@ static int exfat_rename_file(struct inode *inode, struct exfat_chain *p_dir,
 
 		exfat_remove_entries(inode, p_dir, oldentry, 0,
 			num_old_entries);
+		ei->dir = *p_dir;
 		ei->entry = newentry;
 	} else {
 		if (exfat_get_entry_type(epold) == TYPE_FILE) {
@@ -1149,28 +1168,6 @@ static int exfat_move_file(struct inode *inode, struct exfat_chain *p_olddir,
 	return 0;
 }
 
-static void exfat_update_parent_info(struct exfat_inode_info *ei,
-		struct inode *parent_inode)
-{
-	struct exfat_sb_info *sbi = EXFAT_SB(parent_inode->i_sb);
-	struct exfat_inode_info *parent_ei = EXFAT_I(parent_inode);
-	loff_t parent_isize = i_size_read(parent_inode);
-
-	/*
-	 * the problem that struct exfat_inode_info caches wrong parent info.
-	 *
-	 * because of flag-mismatch of ei->dir,
-	 * there is abnormal traversing cluster chain.
-	 */
-	if (unlikely(parent_ei->flags != ei->dir.flags ||
-		     parent_isize != EXFAT_CLU_TO_B(ei->dir.size, sbi) ||
-		     parent_ei->start_clu != ei->dir.dir)) {
-		exfat_chain_set(&ei->dir, parent_ei->start_clu,
-			EXFAT_B_TO_CLU_ROUND_UP(parent_isize, sbi),
-			parent_ei->flags);
-	}
-}
-
 /* rename or move a old file into a new file */
 static int __exfat_rename(struct inode *old_parent_inode,
 		struct exfat_inode_info *ei, struct inode *new_parent_inode,
@@ -1201,9 +1198,9 @@ static int __exfat_rename(struct inode *old_parent_inode,
 		return -ENOENT;
 	}
 
-	exfat_update_parent_info(ei, old_parent_inode);
-
-	exfat_chain_dup(&olddir, &ei->dir);
+	exfat_chain_set(&olddir, EXFAT_I(old_parent_inode)->start_clu,
+		EXFAT_B_TO_CLU_ROUND_UP(i_size_read(old_parent_inode), sbi),
+		EXFAT_I(old_parent_inode)->flags);
 	dentry = ei->entry;
 
 	ep = exfat_get_dentry(sb, &olddir, dentry, &old_bh);
@@ -1222,8 +1219,6 @@ static int __exfat_rename(struct inode *old_parent_inode,
 			exfat_err(sb, "abnormal access to deleted target dentry");
 			goto out;
 		}
-
-		exfat_update_parent_info(new_ei, new_parent_inode);
 
 		p_dir = &(new_ei->dir);
 		new_entry = new_ei->entry;
@@ -1311,7 +1306,6 @@ del_out:
 		 */
 		new_ei->dir.dir = DIR_DELETED;
 	}
-	exfat_clear_volume_dirty(sb);
 out:
 	return ret;
 }

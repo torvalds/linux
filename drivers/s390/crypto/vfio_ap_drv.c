@@ -14,6 +14,7 @@
 #include <linux/string.h>
 #include <asm/facility.h>
 #include "vfio_ap_private.h"
+#include "vfio_ap_debug.h"
 
 #define VFIO_AP_ROOT_NAME "vfio_ap"
 #define VFIO_AP_DEV_NAME "matrix"
@@ -26,6 +27,7 @@ MODULE_DESCRIPTION("VFIO AP device driver, Copyright IBM Corp. 2018");
 MODULE_LICENSE("GPL v2");
 
 struct ap_matrix_dev *matrix_dev;
+debug_info_t *vfio_ap_dbf_info;
 
 /* Only type 10 adapters (CEX4 and later) are supported
  * by the AP matrix device driver
@@ -39,10 +41,10 @@ static struct ap_device_id ap_queue_ids[] = {
 	  .match_flags = AP_DEVICE_ID_MATCH_QUEUE_TYPE },
 	{ .dev_type = AP_DEVICE_TYPE_CEX7,
 	  .match_flags = AP_DEVICE_ID_MATCH_QUEUE_TYPE },
+	{ .dev_type = AP_DEVICE_TYPE_CEX8,
+	  .match_flags = AP_DEVICE_ID_MATCH_QUEUE_TYPE },
 	{ /* end of sibling */ },
 };
-
-MODULE_DEVICE_TABLE(vfio_ap, ap_queue_ids);
 
 static struct ap_matrix_mdev *vfio_ap_mdev_for_queue(struct vfio_ap_queue *q)
 {
@@ -250,9 +252,27 @@ static void vfio_ap_matrix_dev_destroy(void)
 	root_device_unregister(root_device);
 }
 
+static int __init vfio_ap_dbf_info_init(void)
+{
+	vfio_ap_dbf_info = debug_register("vfio_ap", 1, 1,
+					  DBF_MAX_SPRINTF_ARGS * sizeof(long));
+
+	if (!vfio_ap_dbf_info)
+		return -ENOENT;
+
+	debug_register_view(vfio_ap_dbf_info, &debug_sprintf_view);
+	debug_set_level(vfio_ap_dbf_info, DBF_WARN);
+
+	return 0;
+}
+
 static int __init vfio_ap_init(void)
 {
 	int ret;
+
+	ret = vfio_ap_dbf_info_init();
+	if (ret)
+		return ret;
 
 	/* If there are no AP instructions, there is nothing to pass through. */
 	if (!ap_instructions_available())
@@ -284,6 +304,7 @@ static void __exit vfio_ap_exit(void)
 	vfio_ap_mdev_unregister();
 	ap_driver_unregister(&vfio_ap_drv);
 	vfio_ap_matrix_dev_destroy();
+	debug_unregister(vfio_ap_dbf_info);
 }
 
 module_init(vfio_ap_init);

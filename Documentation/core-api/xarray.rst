@@ -315,11 +315,15 @@ indeed the normal API is implemented in terms of the advanced API.  The
 advanced API is only available to modules with a GPL-compatible license.
 
 The advanced API is based around the xa_state.  This is an opaque data
-structure which you declare on the stack using the XA_STATE()
-macro.  This macro initialises the xa_state ready to start walking
-around the XArray.  It is used as a cursor to maintain the position
-in the XArray and let you compose various operations together without
-having to restart from the top every time.
+structure which you declare on the stack using the XA_STATE() macro.
+This macro initialises the xa_state ready to start walking around the
+XArray.  It is used as a cursor to maintain the position in the XArray
+and let you compose various operations together without having to restart
+from the top every time.  The contents of the xa_state are protected by
+the rcu_read_lock() or the xas_lock().  If you need to drop whichever of
+those locks is protecting your state and tree, you must call xas_pause()
+so that future calls do not rely on the parts of the state which were
+left unprotected.
 
 The xa_state is also used to store errors.  You can call
 xas_error() to retrieve the error.  All operations check whether

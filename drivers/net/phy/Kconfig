@@ -83,6 +83,13 @@ config ADIN_PHY
 	  - ADIN1300 - Robust,Industrial, Low Latency 10/100/1000 Gigabit
 	    Ethernet PHY
 
+config ADIN1100_PHY
+	tristate "Analog Devices Industrial Ethernet T1L PHYs"
+	help
+	  Adds support for the Analog Devices Industrial T1L Ethernet PHYs.
+	  Currently supports the:
+	  - ADIN1100 - Robust,Industrial, Low Power 10BASE-T1L Ethernet PHY
+
 config AQUANTIA_PHY
 	tristate "Aquantia PHYs"
 	help
@@ -220,6 +227,7 @@ config MEDIATEK_GE_PHY
 
 config MICREL_PHY
 	tristate "Micrel PHYs"
+	depends on PTP_1588_CLOCK_OPTIONAL
 	help
 	  Supports the KSZ9021, VSC8201, KS8001 PHYs.
 
@@ -333,6 +341,12 @@ config DP83869_PHY
 	help
 	  Currently supports the DP83869 PHY.  This PHY supports copper and
 	  fiber connections.
+
+config DP83TD510_PHY
+	tristate "Texas Instruments DP83TD510 Ethernet 10Base-T1L PHY"
+	help
+	  Support for the DP83TD510 Ethernet 10Base-T1L PHY. This PHY supports
+	  a 10M single pair Ethernet connection for up to 1000 meter cable.
 
 config VITESSE_PHY
 	tristate "Vitesse PHYs"

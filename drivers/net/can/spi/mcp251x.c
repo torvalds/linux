@@ -22,7 +22,6 @@
 #include <linux/bitfield.h>
 #include <linux/can/core.h>
 #include <linux/can/dev.h>
-#include <linux/can/led.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
@@ -738,9 +737,7 @@ static void mcp251x_hw_rx(struct spi_device *spi, int buf_idx)
 	}
 	priv->net->stats.rx_packets++;
 
-	can_led_event(priv->net, CAN_LED_EVENT_RX);
-
-	netif_rx_ni(skb);
+	netif_rx(skb);
 }
 
 static void mcp251x_hw_sleep(struct spi_device *spi)
@@ -973,8 +970,6 @@ static int mcp251x_stop(struct net_device *net)
 
 	mutex_unlock(&priv->mcp_lock);
 
-	can_led_event(net, CAN_LED_EVENT_STOP);
-
 	return 0;
 }
 
@@ -987,7 +982,7 @@ static void mcp251x_error_skb(struct net_device *net, int can_id, int data1)
 	if (skb) {
 		frame->can_id |= can_id;
 		frame->data[1] = data1;
-		netif_rx_ni(skb);
+		netif_rx(skb);
 	} else {
 		netdev_err(net, "cannot allocate error skb\n");
 	}
@@ -1177,7 +1172,6 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 			break;
 
 		if (intf & CANINTF_TX) {
-			can_led_event(net, CAN_LED_EVENT_TX);
 			if (priv->tx_busy) {
 				net->stats.tx_packets++;
 				net->stats.tx_bytes += can_get_echo_skb(net, 0,
@@ -1231,8 +1225,6 @@ static int mcp251x_open(struct net_device *net)
 	ret = mcp251x_set_normal_mode(spi);
 	if (ret)
 		goto out_free_irq;
-
-	can_led_event(net, CAN_LED_EVENT_OPEN);
 
 	netif_wake_queue(net);
 	mutex_unlock(&priv->mcp_lock);
@@ -1403,8 +1395,6 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	if (ret)
 		goto error_probe;
 
-	devm_can_led_init(net);
-
 	ret = mcp251x_gpio_setup(priv);
 	if (ret)
 		goto error_probe;
@@ -1427,7 +1417,7 @@ out_free:
 	return ret;
 }
 
-static int mcp251x_can_remove(struct spi_device *spi)
+static void mcp251x_can_remove(struct spi_device *spi)
 {
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
 	struct net_device *net = priv->net;
@@ -1442,8 +1432,6 @@ static int mcp251x_can_remove(struct spi_device *spi)
 	clk_disable_unprepare(priv->clk);
 
 	free_candev(net);
-
-	return 0;
 }
 
 static int __maybe_unused mcp251x_can_suspend(struct device *dev)

@@ -30,6 +30,9 @@ properties:
           - const: mediatek,mt7623-mmc
           - const: mediatek,mt2701-mmc
       - items:
+          - const: mediatek,mt8186-mmc
+          - const: mediatek,mt8183-mmc
+      - items:
           - const: mediatek,mt8192-mmc
           - const: mediatek,mt8183-mmc
       - items:
@@ -37,7 +40,10 @@ properties:
           - const: mediatek,mt8183-mmc
 
   reg:
-    maxItems: 1
+    minItems: 1
+    items:
+      - description: base register (required).
+      - description: top base register (required for MT8183).
 
   clocks:
     description:
@@ -164,6 +170,16 @@ required:
   - pinctrl-1
   - vmmc-supply
   - vqmmc-supply
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: mediatek,mt8183-mmc
+then:
+  properties:
+    reg:
+      minItems: 2
 
 unevaluatedProperties: false
 

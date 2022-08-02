@@ -1028,46 +1028,56 @@ static bool hns3_can_use_tx_sgl(struct hns3_enet_ring *ring,
 
 static void hns3_init_tx_spare_buffer(struct hns3_enet_ring *ring)
 {
+	u32 alloc_size = ring->tqp->handle->kinfo.tx_spare_buf_size;
 	struct hns3_tx_spare *tx_spare;
 	struct page *page;
-	u32 alloc_size;
 	dma_addr_t dma;
 	int order;
 
-	alloc_size = ring->tqp->handle->kinfo.tx_spare_buf_size;
 	if (!alloc_size)
 		return;
 
 	order = get_order(alloc_size);
+	if (order >= MAX_ORDER) {
+		if (net_ratelimit())
+			dev_warn(ring_to_dev(ring), "failed to allocate tx spare buffer, exceed to max order\n");
+		return;
+	}
+
 	tx_spare = devm_kzalloc(ring_to_dev(ring), sizeof(*tx_spare),
 				GFP_KERNEL);
 	if (!tx_spare) {
 		/* The driver still work without the tx spare buffer */
 		dev_warn(ring_to_dev(ring), "failed to allocate hns3_tx_spare\n");
-		return;
+		goto devm_kzalloc_error;
 	}
 
 	page = alloc_pages_node(dev_to_node(ring_to_dev(ring)),
 				GFP_KERNEL, order);
 	if (!page) {
 		dev_warn(ring_to_dev(ring), "failed to allocate tx spare pages\n");
-		devm_kfree(ring_to_dev(ring), tx_spare);
-		return;
+		goto alloc_pages_error;
 	}
 
 	dma = dma_map_page(ring_to_dev(ring), page, 0,
 			   PAGE_SIZE << order, DMA_TO_DEVICE);
 	if (dma_mapping_error(ring_to_dev(ring), dma)) {
 		dev_warn(ring_to_dev(ring), "failed to map pages for tx spare\n");
-		put_page(page);
-		devm_kfree(ring_to_dev(ring), tx_spare);
-		return;
+		goto dma_mapping_error;
 	}
 
 	tx_spare->dma = dma;
 	tx_spare->buf = page_address(page);
 	tx_spare->len = PAGE_SIZE << order;
 	ring->tx_spare = tx_spare;
+	return;
+
+dma_mapping_error:
+	put_page(page);
+alloc_pages_error:
+	devm_kfree(ring_to_dev(ring), tx_spare);
+devm_kzalloc_error:
+	ring->tqp->handle->kinfo.tx_spare_buf_size = 0;
 }
 
 /* Use hns3_tx_spare_space() to make sure there is enough buffer
@@ -2028,9 +2038,73 @@ static int hns3_fill_skb_to_desc(struct hns3_enet_ring *ring,
 	return bd_num;
 }
 
+static void hns3_tx_push_bd(struct hns3_enet_ring *ring, int num)
+{
+#define HNS3_BYTES_PER_64BIT		8
+
+	struct hns3_desc desc[HNS3_MAX_PUSH_BD_NUM] = {};
+	int offset = 0;
+
+	/* make sure everything is visible to device before
+	 * excuting tx push or updating doorbell
+	 */
+	dma_wmb();
+
+	do {
+		int idx = (ring->next_to_use - num + ring->desc_num) %
+			  ring->desc_num;
+
+		u64_stats_update_begin(&ring->syncp);
+		ring->stats.tx_push++;
+		u64_stats_update_end(&ring->syncp);
+		memcpy(&desc[offset], &ring->desc[idx],
+		       sizeof(struct hns3_desc));
+		offset++;
+	} while (--num);
+
+	__iowrite64_copy(ring->tqp->mem_base, desc,
+			 (sizeof(struct hns3_desc) * HNS3_MAX_PUSH_BD_NUM) /
+			 HNS3_BYTES_PER_64BIT);
+
+	io_stop_wc();
+}
+
+static void hns3_tx_mem_doorbell(struct hns3_enet_ring *ring)
+{
+#define HNS3_MEM_DOORBELL_OFFSET	64
+
+	__le64 bd_num = cpu_to_le64((u64)ring->pending_buf);
+
+	/* make sure everything is visible to device before
+	 * excuting tx push or updating doorbell
+	 */
+	dma_wmb();
+
+	__iowrite64_copy(ring->tqp->mem_base + HNS3_MEM_DOORBELL_OFFSET,
+			 &bd_num, 1);
+	u64_stats_update_begin(&ring->syncp);
+	ring->stats.tx_mem_doorbell += ring->pending_buf;
+	u64_stats_update_end(&ring->syncp);
+
+	io_stop_wc();
+}
+
 static void hns3_tx_doorbell(struct hns3_enet_ring *ring, int num,
 			     bool doorbell)
 {
+	struct net_device *netdev = ring_to_netdev(ring);
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+
+	/* when tx push is enabled, the packet whose number of BD below
+	 * HNS3_MAX_PUSH_BD_NUM can be pushed directly.
+	 */
+	if (test_bit(HNS3_NIC_STATE_TX_PUSH_ENABLE, &priv->state) && num &&
+	    !ring->pending_buf && num <= HNS3_MAX_PUSH_BD_NUM && doorbell) {
+		hns3_tx_push_bd(ring, num);
+		WRITE_ONCE(ring->last_to_use, ring->next_to_use);
+		return;
+	}
+
 	ring->pending_buf += num;
 
 	if (!doorbell) {
@@ -2038,11 +2112,12 @@ static void hns3_tx_doorbell(struct hns3_enet_ring *ring, int num,
 		return;
 	}
 
-	if (!ring->pending_buf)
-		return;
+	if (ring->tqp->mem_base)
+		hns3_tx_mem_doorbell(ring);
+	else
+		writel(ring->pending_buf,
+		       ring->tqp->io_base + HNS3_RING_TX_RING_TAIL_REG);
 
-	writel(ring->pending_buf,
-	       ring->tqp->io_base + HNS3_RING_TX_RING_TAIL_REG);
 	ring->pending_buf = 0;
 	WRITE_ONCE(ring->last_to_use, ring->next_to_use);
 }
@@ -2732,6 +2807,9 @@ static void hns3_dump_queue_stats(struct net_device *ndev,
 		    "seg_pkt_cnt: %llu, tx_more: %llu, restart_queue: %llu, tx_busy: %llu\n",
 		    tx_ring->stats.seg_pkt_cnt, tx_ring->stats.tx_more,
 		    tx_ring->stats.restart_queue, tx_ring->stats.tx_busy);
+
+	netdev_info(ndev, "tx_push: %llu, tx_mem_doorbell: %llu\n",
+		    tx_ring->stats.tx_push, tx_ring->stats.tx_mem_doorbell);
 }
 
 static void hns3_dump_queue_reg(struct net_device *ndev,
@@ -2982,6 +3060,21 @@ static int hns3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return ret;
 }
 
+/**
+ * hns3_clean_vf_config
+ * @pdev: pointer to a pci_dev structure
+ * @num_vfs: number of VFs allocated
+ *
+ * Clean residual vf config after disable sriov
+ **/
+static void hns3_clean_vf_config(struct pci_dev *pdev, int num_vfs)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
+
+	if (ae_dev->ops->clean_vf_config)
+		ae_dev->ops->clean_vf_config(ae_dev, num_vfs);
+}
+
 /* hns3_remove - Device removal routine
  * @pdev: PCI device information struct
  */
@@ -3020,7 +3113,10 @@ static int hns3_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
 		else
 			return num_vfs;
 	} else if (!pci_vfs_assigned(pdev)) {
+		int num_vfs_pre = pci_num_vf(pdev);
+
 		pci_disable_sriov(pdev);
+		hns3_clean_vf_config(pdev, num_vfs_pre);
 	} else {
 		dev_warn(&pdev->dev,
 			 "Unable to free VFs because some are assigned to VMs.\n");
@@ -5063,10 +5159,7 @@ static void hns3_set_cq_period_mode(struct hns3_nic_priv *priv,
 			priv->tqp_vector[i].rx_group.dim.mode = mode;
 	}
 
-	/* only device version above V3(include V3), GL can switch CQ/EQ
-	 * period mode.
-	 */
-	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3) {
+	if (hnae3_ae_dev_cq_supported(ae_dev)) {
 		u32 new_mode;
 		u64 reg;
 
@@ -5094,6 +5187,9 @@ static void hns3_state_init(struct hnae3_handle *handle)
 
 	set_bit(HNS3_NIC_STATE_INITED, &priv->state);
 
+	if (test_bit(HNAE3_DEV_SUPPORT_TX_PUSH_B, ae_dev->caps))
+		set_bit(HNS3_NIC_STATE_TX_PUSH_ENABLE, &priv->state);
+
 	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3)
 		set_bit(HNAE3_PFLAG_LIMIT_PROMISC, &handle->supported_pflags);
 
@@ -5102,6 +5198,13 @@ static void hns3_state_init(struct hnae3_handle *handle)
 
 	if (hnae3_ae_dev_rxd_adv_layout_supported(ae_dev))
 		set_bit(HNS3_NIC_STATE_RXD_ADV_LAYOUT_ENABLE, &priv->state);
+}
+
+static void hns3_state_uninit(struct hnae3_handle *handle)
+{
+	struct hns3_nic_priv *priv  = handle->priv;
+
+	clear_bit(HNS3_NIC_STATE_INITED, &priv->state);
 }
 
 static int hns3_client_init(struct hnae3_handle *handle)
@@ -5221,7 +5324,9 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	return ret;
 
 out_reg_netdev_fail:
+	hns3_state_uninit(handle);
 	hns3_dbg_uninit(handle);
+	hns3_client_stop(handle);
 out_client_start:
 	hns3_free_rx_cpu_rmap(netdev);
 	hns3_nic_uninit_irq(priv);

@@ -301,7 +301,7 @@ static struct inode *sock_alloc_inode(struct super_block *sb)
 {
 	struct socket_alloc *ei;
 
-	ei = kmem_cache_alloc(sock_inode_cachep, GFP_KERNEL);
+	ei = alloc_inode_sb(sb, sock_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	init_waitqueue_head(&ei->socket.wq.wait);
@@ -504,7 +504,7 @@ static int sock_map_fd(struct socket *sock, int flags)
 struct socket *sock_from_file(struct file *file)
 {
 	if (file->f_op == &socket_file_ops)
-		return file->private_data;	/* set in sock_map_fd */
+		return file->private_data;	/* set in sock_alloc_file */
 
 	return NULL;
 }
@@ -683,8 +683,17 @@ void __sock_tx_timestamp(__u16 tsflags, __u8 *tx_flags)
 {
 	u8 flags = *tx_flags;
 
-	if (tsflags & SOF_TIMESTAMPING_TX_HARDWARE)
+	if (tsflags & SOF_TIMESTAMPING_TX_HARDWARE) {
 		flags |= SKBTX_HW_TSTAMP;
+
+		/* PTP hardware clocks can provide a free running cycle counter
+		 * as a time base for virtual clocks. Tell driver to use the
+		 * free running cycle counter for timestamp if socket is bound
+		 * to virtual clock.
+		 */
+		if (tsflags & SOF_TIMESTAMPING_BIND_PHC)
+			flags |= SKBTX_HW_TSTAMP_USE_CYCLES;
+	}
 
 	if (tsflags & SOF_TIMESTAMPING_TX_SOFTWARE)
 		flags |= SKBTX_SW_TSTAMP;
@@ -796,7 +805,28 @@ static bool skb_is_swtx_tstamp(const struct sk_buff *skb, int false_tstamp)
 	return skb->tstamp && !false_tstamp && skb_is_err_queue(skb);
 }
 
-static void put_ts_pktinfo(struct msghdr *msg, struct sk_buff *skb)
+static ktime_t get_timestamp(struct sock *sk, struct sk_buff *skb, int *if_index)
+{
+	bool cycles = sk->sk_tsflags & SOF_TIMESTAMPING_BIND_PHC;
+	struct skb_shared_hwtstamps *shhwtstamps = skb_hwtstamps(skb);
+	struct net_device *orig_dev;
+	ktime_t hwtstamp;
+
+	rcu_read_lock();
+	orig_dev = dev_get_by_napi_id(skb_napi_id(skb));
+	if (orig_dev) {
+		*if_index = orig_dev->ifindex;
+		hwtstamp = netdev_get_tstamp(orig_dev, shhwtstamps, cycles);
+	} else {
+		hwtstamp = shhwtstamps->hwtstamp;
+	}
+	rcu_read_unlock();
+
+	return hwtstamp;
+}
+
+static void put_ts_pktinfo(struct msghdr *msg, struct sk_buff *skb,
+			   int if_index)
 {
 	struct scm_ts_pktinfo ts_pktinfo;
 	struct net_device *orig_dev;
@@ -806,11 +836,14 @@ static void put_ts_pktinfo(struct msghdr *msg, struct sk_buff *skb)
 
 	memset(&ts_pktinfo, 0, sizeof(ts_pktinfo));
 
-	rcu_read_lock();
-	orig_dev = dev_get_by_napi_id(skb_napi_id(skb));
-	if (orig_dev)
-		ts_pktinfo.if_index = orig_dev->ifindex;
-	rcu_read_unlock();
+	if (!if_index) {
+		rcu_read_lock();
+		orig_dev = dev_get_by_napi_id(skb_napi_id(skb));
+		if (orig_dev)
+			if_index = orig_dev->ifindex;
+		rcu_read_unlock();
+	}
+	ts_pktinfo.if_index = if_index;
 
 	ts_pktinfo.pkt_length = skb->len - skb_mac_offset(skb);
 	put_cmsg(msg, SOL_SOCKET, SCM_TIMESTAMPING_PKTINFO,
@@ -830,6 +863,7 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 	int empty = 1, false_tstamp = 0;
 	struct skb_shared_hwtstamps *shhwtstamps =
 		skb_hwtstamps(skb);
+	int if_index;
 	ktime_t hwtstamp;
 
 	/* Race occurred between timestamp enabling and packet
@@ -878,18 +912,22 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 	if (shhwtstamps &&
 	    (sk->sk_tsflags & SOF_TIMESTAMPING_RAW_HARDWARE) &&
 	    !skb_is_swtx_tstamp(skb, false_tstamp)) {
-		if (sk->sk_tsflags & SOF_TIMESTAMPING_BIND_PHC)
-			hwtstamp = ptp_convert_timestamp(shhwtstamps,
-							 sk->sk_bind_phc);
+		if_index = 0;
+		if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP_NETDEV)
+			hwtstamp = get_timestamp(sk, skb, &if_index);
 		else
 			hwtstamp = shhwtstamps->hwtstamp;
+
+		if (sk->sk_tsflags & SOF_TIMESTAMPING_BIND_PHC)
+			hwtstamp = ptp_convert_timestamp(&hwtstamp,
+							 sk->sk_bind_phc);
 
 		if (ktime_to_timespec64_cond(hwtstamp, tss.ts + 2)) {
 			empty = 0;
 
 			if ((sk->sk_tsflags & SOF_TIMESTAMPING_OPT_PKTINFO) &&
 			    !skb_is_err_queue(skb))
-				put_ts_pktinfo(msg, skb);
+				put_ts_pktinfo(msg, skb, if_index);
 		}
 	}
 	if (!empty) {
@@ -930,13 +968,22 @@ static inline void sock_recv_drops(struct msghdr *msg, struct sock *sk,
 			sizeof(__u32), &SOCK_SKB_CB(skb)->dropcount);
 }
 
-void __sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
-	struct sk_buff *skb)
+static void sock_recv_mark(struct msghdr *msg, struct sock *sk,
+			   struct sk_buff *skb)
+{
+	if (sock_flag(sk, SOCK_RCVMARK) && skb)
+		put_cmsg(msg, SOL_SOCKET, SO_MARK, sizeof(__u32),
+			 &skb->mark);
+}
+
+void __sock_recv_cmsgs(struct msghdr *msg, struct sock *sk,
+		       struct sk_buff *skb)
 {
 	sock_recv_timestamp(msg, sk, skb);
 	sock_recv_drops(msg, sk, skb);
+	sock_recv_mark(msg, sk, skb);
 }
-EXPORT_SYMBOL_GPL(__sock_recv_ts_and_drops);
+EXPORT_SYMBOL_GPL(__sock_recv_cmsgs);
 
 INDIRECT_CALLABLE_DECLARE(int inet_recvmsg(struct socket *, struct msghdr *,
 					   size_t, int));
@@ -1538,11 +1585,10 @@ int sock_create_kern(struct net *net, int family, int type, int protocol, struct
 }
 EXPORT_SYMBOL(sock_create_kern);
 
-int __sys_socket(int family, int type, int protocol)
+static struct socket *__sys_socket_create(int family, int type, int protocol)
 {
-	int retval;
 	struct socket *sock;
-	int flags;
+	int retval;
 
 	/* Check the SOCK_* constants for consistency.  */
 	BUILD_BUG_ON(SOCK_CLOEXEC != O_CLOEXEC);
@@ -1550,17 +1596,50 @@ int __sys_socket(int family, int type, int protocol)
 	BUILD_BUG_ON(SOCK_CLOEXEC & SOCK_TYPE_MASK);
 	BUILD_BUG_ON(SOCK_NONBLOCK & SOCK_TYPE_MASK);
 
-	flags = type & ~SOCK_TYPE_MASK;
-	if (flags & ~(SOCK_CLOEXEC | SOCK_NONBLOCK))
-		return -EINVAL;
+	if ((type & ~SOCK_TYPE_MASK) & ~(SOCK_CLOEXEC | SOCK_NONBLOCK))
+		return ERR_PTR(-EINVAL);
 	type &= SOCK_TYPE_MASK;
-
-	if (SOCK_NONBLOCK != O_NONBLOCK && (flags & SOCK_NONBLOCK))
-		flags = (flags & ~SOCK_NONBLOCK) | O_NONBLOCK;
 
 	retval = sock_create(family, type, protocol, &sock);
 	if (retval < 0)
-		return retval;
+		return ERR_PTR(retval);
+
+	return sock;
+}
+
+struct file *__sys_socket_file(int family, int type, int protocol)
+{
+	struct socket *sock;
+	struct file *file;
+	int flags;
+
+	sock = __sys_socket_create(family, type, protocol);
+	if (IS_ERR(sock))
+		return ERR_CAST(sock);
+
+	flags = type & ~SOCK_TYPE_MASK;
+	if (SOCK_NONBLOCK != O_NONBLOCK && (flags & SOCK_NONBLOCK))
+		flags = (flags & ~SOCK_NONBLOCK) | O_NONBLOCK;
+
+	file = sock_alloc_file(sock, flags, NULL);
+	if (IS_ERR(file))
+		sock_release(sock);
+
+	return file;
+}
+
+int __sys_socket(int family, int type, int protocol)
+{
+	struct socket *sock;
+	int flags;
+
+	sock = __sys_socket_create(family, type, protocol);
+	if (IS_ERR(sock))
+		return PTR_ERR(sock);
+
+	flags = type & ~SOCK_TYPE_MASK;
+	if (SOCK_NONBLOCK != O_NONBLOCK && (flags & SOCK_NONBLOCK))
+		flags = (flags & ~SOCK_NONBLOCK) | O_NONBLOCK;
 
 	return sock_map_fd(sock, flags & (O_CLOEXEC | O_NONBLOCK));
 }
@@ -2070,10 +2149,13 @@ SYSCALL_DEFINE4(send, int, fd, void __user *, buff, size_t, len,
 int __sys_recvfrom(int fd, void __user *ubuf, size_t size, unsigned int flags,
 		   struct sockaddr __user *addr, int __user *addr_len)
 {
+	struct sockaddr_storage address;
+	struct msghdr msg = {
+		/* Save some cycles and don't copy the address if not needed */
+		.msg_name = addr ? (struct sockaddr *)&address : NULL,
+	};
 	struct socket *sock;
 	struct iovec iov;
-	struct msghdr msg;
-	struct sockaddr_storage address;
 	int err, err2;
 	int fput_needed;
 
@@ -2084,14 +2166,6 @@ int __sys_recvfrom(int fd, void __user *ubuf, size_t size, unsigned int flags,
 	if (!sock)
 		goto out;
 
-	msg.msg_control = NULL;
-	msg.msg_controllen = 0;
-	/* Save some cycles and don't copy the address if not needed */
-	msg.msg_name = addr ? (struct sockaddr *)&address : NULL;
-	/* We assume all kernel code knows the size of sockaddr_storage */
-	msg.msg_namelen = 0;
-	msg.msg_iocb = NULL;
-	msg.msg_flags = 0;
 	if (sock->file->f_flags & O_NONBLOCK)
 		flags |= MSG_DONTWAIT;
 	err = sock_recvmsg(sock, &msg, flags);
@@ -2296,6 +2370,7 @@ int __copy_msghdr_from_user(struct msghdr *kmsg,
 		return -EFAULT;
 
 	kmsg->msg_control_is_user = true;
+	kmsg->msg_get_inq = 0;
 	kmsg->msg_control_user = msg.msg_control;
 	kmsg->msg_controllen = msg.msg_controllen;
 	kmsg->msg_flags = msg.msg_flags;

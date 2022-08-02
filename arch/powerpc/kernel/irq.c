@@ -52,19 +52,17 @@
 #include <linux/of_irq.h>
 #include <linux/vmalloc.h>
 #include <linux/pgtable.h>
+#include <linux/static_call.h>
 
 #include <linux/uaccess.h>
 #include <asm/interrupt.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/cache.h>
-#include <asm/prom.h>
 #include <asm/ptrace.h>
 #include <asm/machdep.h>
 #include <asm/udbg.h>
 #include <asm/smp.h>
-#include <asm/livepatch.h>
-#include <asm/asm-prototypes.h>
 #include <asm/hw_irq.h>
 #include <asm/softirq_stack.h>
 
@@ -218,7 +216,6 @@ static inline void replay_soft_interrupts_irqrestore(void)
 #define replay_soft_interrupts_irqrestore() replay_soft_interrupts()
 #endif
 
-#ifdef CONFIG_CC_HAS_ASM_GOTO
 notrace void arch_local_irq_restore(unsigned long mask)
 {
 	unsigned char irq_happened;
@@ -314,82 +311,6 @@ happened:
 	__hard_irq_enable();
 	preempt_enable();
 }
-#else
-notrace void arch_local_irq_restore(unsigned long mask)
-{
-	unsigned char irq_happened;
-
-	/* Write the new soft-enabled value */
-	irq_soft_mask_set(mask);
-	if (mask)
-		return;
-
-	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
-		WARN_ON_ONCE(in_nmi() || in_hardirq());
-
-	/*
-	 * From this point onward, we can take interrupts, preempt,
-	 * etc... unless we got hard-disabled. We check if an event
-	 * happened. If none happened, we know we can just return.
-	 *
-	 * We may have preempted before the check below, in which case
-	 * we are checking the "new" CPU instead of the old one. This
-	 * is only a problem if an event happened on the "old" CPU.
-	 *
-	 * External interrupt events will have caused interrupts to
-	 * be hard-disabled, so there is no problem, we
-	 * cannot have preempted.
-	 */
-	irq_happened = get_irq_happened();
-	if (!irq_happened) {
-		if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
-			WARN_ON_ONCE(!(mfmsr() & MSR_EE));
-		return;
-	}
-
-	/* We need to hard disable to replay. */
-	if (!(irq_happened & PACA_IRQ_HARD_DIS)) {
-		if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
-			WARN_ON_ONCE(!(mfmsr() & MSR_EE));
-		__hard_irq_disable();
-		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
-	} else {
-		/*
-		 * We should already be hard disabled here. We had bugs
-		 * where that wasn't the case so let's dbl check it and
-		 * warn if we are wrong. Only do that when IRQ tracing
-		 * is enabled as mfmsr() can be costly.
-		 */
-		if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG)) {
-			if (WARN_ON_ONCE(mfmsr() & MSR_EE))
-				__hard_irq_disable();
-		}
-
-		if (irq_happened == PACA_IRQ_HARD_DIS) {
-			local_paca->irq_happened = 0;
-			__hard_irq_enable();
-			return;
-		}
-	}
-
-	/*
-	 * Disable preempt here, so that the below preempt_enable will
-	 * perform resched if required (a replayed interrupt may set
-	 * need_resched).
-	 */
-	preempt_disable();
-	irq_soft_mask_set(IRQS_ALL_DISABLED);
-	trace_hardirqs_off();
-
-	replay_soft_interrupts_irqrestore();
-	local_paca->irq_happened = 0;
-
-	trace_hardirqs_on();
-	irq_soft_mask_set(IRQS_ENABLED);
-	__hard_irq_enable();
-	preempt_enable();
-}
-#endif
 EXPORT_SYMBOL(arch_local_irq_restore);
 
 /*
@@ -731,6 +652,8 @@ static __always_inline void call_do_irq(struct pt_regs *regs, void *sp)
 	);
 }
 
+DEFINE_STATIC_CALL_RET0(ppc_get_irq, *ppc_md.get_irq);
+
 void __do_irq(struct pt_regs *regs)
 {
 	unsigned int irq;
@@ -742,7 +665,7 @@ void __do_irq(struct pt_regs *regs)
 	 *
 	 * This will typically lower the interrupt line to the CPU
 	 */
-	irq = ppc_md.get_irq();
+	irq = static_call(ppc_get_irq)();
 
 	/* We can hard enable interrupts now to allow perf interrupts */
 	if (should_hard_irq_enable())
@@ -810,6 +733,9 @@ void __init init_IRQ(void)
 
 	if (ppc_md.init_IRQ)
 		ppc_md.init_IRQ();
+
+	if (!WARN_ON(!ppc_md.get_irq))
+		static_call_update(ppc_get_irq, ppc_md.get_irq);
 }
 
 #ifdef CONFIG_BOOKE_OR_40x

@@ -647,7 +647,9 @@ enum gpio_result dal_ddc_set_config(
 void dal_ddc_close(
 	struct ddc *ddc)
 {
-	dal_gpio_close(ddc->pin_clock);
-	dal_gpio_close(ddc->pin_data);
+	if (ddc != NULL) {
+		dal_gpio_close(ddc->pin_clock);
+		dal_gpio_close(ddc->pin_data);
+	}
 }
 

@@ -269,7 +269,7 @@ static void __zpci_event_error(struct zpci_ccdf_err *ccdf)
 	       pdev ? pci_name(pdev) : "n/a", ccdf->pec, ccdf->fid);
 
 	if (!pdev)
-		return;
+		goto no_pdev;
 
 	switch (ccdf->pec) {
 	case 0x003a: /* Service Action or Error Recovery Successful */
@@ -286,6 +286,8 @@ static void __zpci_event_error(struct zpci_ccdf_err *ccdf)
 		break;
 	}
 	pci_dev_put(pdev);
+no_pdev:
+	zpci_zdev_put(zdev);
 }
 
 void zpci_event_error(void *data)
@@ -314,13 +316,11 @@ static void zpci_event_hard_deconfigured(struct zpci_dev *zdev, u32 fh)
 static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 {
 	struct zpci_dev *zdev = get_zdev_by_fid(ccdf->fid);
+	bool existing_zdev = !!zdev;
 	enum zpci_state state;
 
 	zpci_dbg(3, "avl fid:%x, fh:%x, pec:%x\n",
 		 ccdf->fid, ccdf->fh, ccdf->pec);
-	zpci_err("avail CCDF:\n");
-	zpci_err_hex(ccdf, sizeof(*ccdf));
-
 	switch (ccdf->pec) {
 	case 0x0301: /* Reserved|Standby -> Configured */
 		if (!zdev) {
@@ -378,6 +378,8 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 	default:
 		break;
 	}
+	if (existing_zdev)
+		zpci_zdev_put(zdev);
 }
 
 void zpci_event_availability(void *data)

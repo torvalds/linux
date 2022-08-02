@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/spinlock.h>
 #include <linux/task_work.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 
 static struct callback_head work_exited; /* all we need is ->next == NULL */
 
@@ -12,12 +12,22 @@ static struct callback_head work_exited; /* all we need is ->next == NULL */
  * @notify: how to notify the targeted task
  *
  * Queue @work for task_work_run() below and notify the @task if @notify
- * is @TWA_RESUME or @TWA_SIGNAL. @TWA_SIGNAL works like signals, in that the
- * it will interrupt the targeted task and run the task_work. @TWA_RESUME
- * work is run only when the task exits the kernel and returns to user mode,
- * or before entering guest mode. Fails if the @task is exiting/exited and thus
- * it can't process this @work. Otherwise @work->func() will be called when the
- * @task goes through one of the aforementioned transitions, or exits.
+ * is @TWA_RESUME, @TWA_SIGNAL, or @TWA_SIGNAL_NO_IPI.
+ *
+ * @TWA_SIGNAL works like signals, in that the it will interrupt the targeted
+ * task and run the task_work, regardless of whether the task is currently
+ * running in the kernel or userspace.
+ * @TWA_SIGNAL_NO_IPI works like @TWA_SIGNAL, except it doesn't send a
+ * reschedule IPI to force the targeted task to reschedule and run task_work.
+ * This can be advantageous if there's no strict requirement that the
+ * task_work be run as soon as possible, just whenever the task enters the
+ * kernel anyway.
+ * @TWA_RESUME work is run only when the task exits the kernel and returns to
+ * user mode, or before entering guest mode.
+ *
+ * Fails if the @task is exiting/exited and thus it can't process this @work.
+ * Otherwise @work->func() will be called when the @task goes through one of
+ * the aforementioned transitions, or exits.
  *
  * If the targeted task is exiting, then an error is returned and the work item
  * is not queued. It's up to the caller to arrange for an alternative mechanism
@@ -53,6 +63,9 @@ int task_work_add(struct task_struct *task, struct callback_head *work,
 	case TWA_SIGNAL:
 		set_notify_signal(task);
 		break;
+	case TWA_SIGNAL_NO_IPI:
+		__set_notify_signal(task);
+		break;
 	default:
 		WARN_ON_ONCE(1);
 		break;
@@ -78,7 +91,7 @@ task_work_cancel_match(struct task_struct *task,
 	struct callback_head *work;
 	unsigned long flags;
 
-	if (likely(!task->task_works))
+	if (likely(!task_work_pending(task)))
 		return NULL;
 	/*
 	 * If cmpxchg() fails we continue without updating pprev.

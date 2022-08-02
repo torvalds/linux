@@ -55,13 +55,6 @@ struct	stainfo_rxcache	{
 */
 };
 
-struct smooth_rssi_data {
-	u32	elements[100];	/* array to store values */
-	u32	index;			/* index to current array to store */
-	u32	total_num;		/* num of valid elements */
-	u32	total_val;		/* sum of valid elements */
-};
-
 struct signal_stat {
 	u8	update_req;		/* used to indicate */
 	u8	avg_val;		/* avg of valid elements */
@@ -72,7 +65,6 @@ struct signal_stat {
 struct phy_info {
 	u8	RxPWDBAll;
 	u8	SignalQuality;	 /*  in 0-100 index. */
-	u8	RxMIMOSignalQuality[MAX_PATH_NUM_92CS]; /* EVM */
 	u8	RxMIMOSignalStrength[MAX_PATH_NUM_92CS];/*  in 0~100 index */
 	s8	RxPower; /*  in dBm Translate from PWdB */
 /*  Real power in dBm for this packet, no beautification and aggregation.
@@ -80,7 +72,6 @@ struct phy_info {
 	s8	recvpower;
 	u8	SignalStrength; /*  in 0-100 index. */
 	u8	RxPwr[MAX_PATH_NUM_92CS];/* per-path's pwdb */
-	u8	RxSNR[MAX_PATH_NUM_92CS];/* per-path's SNR */
 };
 
 struct rx_pkt_attrib {
@@ -89,9 +80,8 @@ struct rx_pkt_attrib {
 	u8	drvinfo_sz;
 	u8	shift_sz;
 	u8	hdrlen; /* the WLAN Header Len */
-	u8	to_fr_ds;
 	u8	amsdu;
-	u8	qos;
+	bool	qos;
 	u8	priority;
 	u8	pw_save;
 	u8	mdata;
@@ -176,10 +166,8 @@ struct recv_priv {
 	uint  rx_largepacket_crcerr;
 	uint  rx_smallpacket_crcerr;
 	uint  rx_middlepacket_crcerr;
-	struct semaphore allrxreturnevt;
 	u8	rx_pending_cnt;
 
-	struct tasklet_struct irq_prepare_beacon_tasklet;
 	struct tasklet_struct recv_tasklet;
 	struct sk_buff_head free_recv_skb_queue;
 	struct sk_buff_head rx_skb_queue;
@@ -217,22 +205,8 @@ struct sta_recv_priv {
 };
 
 struct recv_buf {
-	struct list_head list;
-	spinlock_t recvbuf_lock;
-	u32	ref_cnt;
 	struct adapter *adapter;
-	u8	*pbuf;
-	u8	*pallocated_buf;
-	u32	len;
-	u8	*phead;
-	u8	*pdata;
-	u8	*ptail;
-	u8	*pend;
 	struct urb *purb;
-	dma_addr_t dma_transfer_addr;	/* (in) dma addr for transfer_buffer */
-	u32 alloc_sz;
-	u8  irp_pending;
-	int  transfer_len;
 	struct sk_buff *pskb;
 	u8	reuse;
 };
@@ -254,7 +228,6 @@ struct recv_buf {
 struct recv_frame {
 	struct list_head list;
 	struct sk_buff	 *pkt;
-	struct sk_buff	 *pkt_newalloc;
 	struct adapter  *adapter;
 	u8 fragcnt;
 	int frame_tag;
@@ -274,7 +247,6 @@ struct recv_frame *_rtw_alloc_recvframe(struct __queue *pfree_recv_queue);
 struct recv_frame *rtw_alloc_recvframe(struct __queue *pfree_recv_queue);
 int  rtw_free_recvframe(struct recv_frame *precvframe,
 			struct __queue *pfree_recv_queue);
-#define rtw_dequeue_recvframe(queue) rtw_alloc_recvframe(queue)
 int _rtw_enqueue_recvframe(struct recv_frame *precvframe, struct __queue *queue);
 int rtw_enqueue_recvframe(struct recv_frame *precvframe, struct __queue *queue);
 void rtw_free_recvframe_queue(struct __queue *pframequeue,
@@ -289,40 +261,6 @@ static inline u8 *get_rxmem(struct recv_frame *precvframe)
 	if (precvframe == NULL)
 		return NULL;
 	return precvframe->rx_head;
-}
-
-static inline u8 *get_rx_status(struct recv_frame *precvframe)
-{
-	return get_rxmem(precvframe);
-}
-
-static inline u8 *get_recvframe_data(struct recv_frame *precvframe)
-{
-	/* always return rx_data */
-	if (precvframe == NULL)
-		return NULL;
-
-	return precvframe->rx_data;
-}
-
-static inline u8 *recvframe_push(struct recv_frame *precvframe, int sz)
-{
-	/*  append data before rx_data */
-
-	/* add data to the start of recv_frame
- *
- *      This function extends the used data area of the recv_frame at the buffer
- *      start. rx_data must be still larger than rx_head, after pushing.
- */
-	if (precvframe == NULL)
-		return NULL;
-	precvframe->rx_data -= sz ;
-	if (precvframe->rx_data < precvframe->rx_head) {
-		precvframe->rx_data += sz;
-		return NULL;
-	}
-	precvframe->len += sz;
-	return precvframe->rx_data;
 }
 
 static inline u8 *recvframe_pull(struct recv_frame *precvframe, int sz)

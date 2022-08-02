@@ -41,7 +41,7 @@
 #include <media/v4l2-fh.h>
 #include <media/i2c/ir-kbd-i2c.h>
 #include <media/rc-core.h>
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include "xc5000.h"
 #include "em28xx-reg.h"
 

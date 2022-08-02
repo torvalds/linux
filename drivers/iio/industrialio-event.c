@@ -230,6 +230,7 @@ static const char * const iio_ev_type_text[] = {
 	[IIO_EV_TYPE_THRESH_ADAPTIVE] = "thresh_adaptive",
 	[IIO_EV_TYPE_MAG_ADAPTIVE] = "mag_adaptive",
 	[IIO_EV_TYPE_CHANGE] = "change",
+	[IIO_EV_TYPE_MAG_REFERENCED] = "mag_referenced",
 };
 
 static const char * const iio_ev_dir_text[] = {
@@ -273,7 +274,7 @@ static ssize_t iio_ev_state_store(struct device *dev,
 	int ret;
 	bool val;
 
-	ret = strtobool(buf, &val);
+	ret = kstrtobool(buf, &val);
 	if (ret < 0)
 		return ret;
 

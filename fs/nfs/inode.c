@@ -203,14 +203,13 @@ void nfs_set_cache_invalid(struct inode *inode, unsigned long flags)
 				   NFS_INO_INVALID_OTHER |
 				   NFS_INO_INVALID_XATTR);
 		flags &= ~(NFS_INO_INVALID_CHANGE | NFS_INO_INVALID_SIZE);
-	} else if (flags & NFS_INO_REVAL_PAGECACHE)
-		flags |= NFS_INO_INVALID_CHANGE | NFS_INO_INVALID_SIZE;
+	}
 
 	if (!nfs_has_xattr_cache(nfsi))
 		flags &= ~NFS_INO_INVALID_XATTR;
 	if (flags & NFS_INO_INVALID_DATA)
 		nfs_fscache_invalidate(inode, 0);
-	flags &= ~(NFS_INO_REVAL_PAGECACHE | NFS_INO_REVAL_FORCED);
+	flags &= ~NFS_INO_REVAL_FORCED;
 
 	nfsi->cache_validity |= flags;
 
@@ -236,19 +235,17 @@ static void nfs_zap_caches_locked(struct inode *inode)
 	nfsi->attrtimeo = NFS_MINATTRTIMEO(inode);
 	nfsi->attrtimeo_timestamp = jiffies;
 
-	if (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode)) {
-		nfs_set_cache_invalid(inode, NFS_INO_INVALID_ATTR
-					| NFS_INO_INVALID_DATA
-					| NFS_INO_INVALID_ACCESS
-					| NFS_INO_INVALID_ACL
-					| NFS_INO_INVALID_XATTR
-					| NFS_INO_REVAL_PAGECACHE);
-	} else
-		nfs_set_cache_invalid(inode, NFS_INO_INVALID_ATTR
-					| NFS_INO_INVALID_ACCESS
-					| NFS_INO_INVALID_ACL
-					| NFS_INO_INVALID_XATTR
-					| NFS_INO_REVAL_PAGECACHE);
+	if (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode))
+		nfs_set_cache_invalid(inode, NFS_INO_INVALID_ATTR |
+						     NFS_INO_INVALID_DATA |
+						     NFS_INO_INVALID_ACCESS |
+						     NFS_INO_INVALID_ACL |
+						     NFS_INO_INVALID_XATTR);
+	else
+		nfs_set_cache_invalid(inode, NFS_INO_INVALID_ATTR |
+						     NFS_INO_INVALID_ACCESS |
+						     NFS_INO_INVALID_ACL |
+						     NFS_INO_INVALID_XATTR);
 	nfs_zap_label_cache_locked(nfsi);
 }
 
@@ -564,8 +561,6 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 			inode->i_gid = fattr->gid;
 		else if (fattr_supported & NFS_ATTR_FATTR_GROUP)
 			nfs_set_cache_invalid(inode, NFS_INO_INVALID_OTHER);
-		if (nfs_server_capable(inode, NFS_CAP_XATTR))
-			nfs_set_cache_invalid(inode, NFS_INO_INVALID_XATTR);
 		if (fattr->valid & NFS_ATTR_FATTR_BLOCKS_USED)
 			inode->i_blocks = fattr->du.nfs2.blocks;
 		else if (fattr_supported & NFS_ATTR_FATTR_BLOCKS_USED &&
@@ -785,26 +780,32 @@ void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr,
 }
 EXPORT_SYMBOL_GPL(nfs_setattr_update_inode);
 
+/*
+ * Don't request help from readdirplus if the file is being written to,
+ * or if attribute caching is turned off
+ */
+static bool nfs_getattr_readdirplus_enable(const struct inode *inode)
+{
+	return nfs_server_capable(inode, NFS_CAP_READDIRPLUS) &&
+	       !nfs_have_writebacks(inode) && NFS_MAXATTRTIMEO(inode) > 5 * HZ;
+}
+
 static void nfs_readdirplus_parent_cache_miss(struct dentry *dentry)
 {
-	struct dentry *parent;
-
-	if (!nfs_server_capable(d_inode(dentry), NFS_CAP_READDIRPLUS))
-		return;
-	parent = dget_parent(dentry);
-	nfs_force_use_readdirplus(d_inode(parent));
-	dput(parent);
+	if (!IS_ROOT(dentry)) {
+		struct dentry *parent = dget_parent(dentry);
+		nfs_readdir_record_entry_cache_miss(d_inode(parent));
+		dput(parent);
+	}
 }
 
 static void nfs_readdirplus_parent_cache_hit(struct dentry *dentry)
 {
-	struct dentry *parent;
-
-	if (!nfs_server_capable(d_inode(dentry), NFS_CAP_READDIRPLUS))
-		return;
-	parent = dget_parent(dentry);
-	nfs_advise_use_readdirplus(d_inode(parent));
-	dput(parent);
+	if (!IS_ROOT(dentry)) {
+		struct dentry *parent = dget_parent(dentry);
+		nfs_readdir_record_entry_cache_hit(d_inode(parent));
+		dput(parent);
+	}
 }
 
 static u32 nfs_get_valid_attrmask(struct inode *inode)
@@ -840,6 +841,7 @@ int nfs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 	int err = 0;
 	bool force_sync = query_flags & AT_STATX_FORCE_SYNC;
 	bool do_update = false;
+	bool readdirplus_enabled = nfs_getattr_readdirplus_enable(inode);
 
 	trace_nfs_getattr_enter(inode);
 
@@ -848,7 +850,8 @@ int nfs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 			STATX_INO | STATX_SIZE | STATX_BLOCKS;
 
 	if ((query_flags & AT_STATX_DONT_SYNC) && !force_sync) {
-		nfs_readdirplus_parent_cache_hit(path->dentry);
+		if (readdirplus_enabled)
+			nfs_readdirplus_parent_cache_hit(path->dentry);
 		goto out_no_revalidate;
 	}
 
@@ -898,15 +901,12 @@ int nfs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 		do_update |= cache_validity & NFS_INO_INVALID_BLOCKS;
 
 	if (do_update) {
-		/* Update the attribute cache */
-		if (!(server->flags & NFS_MOUNT_NOAC))
+		if (readdirplus_enabled)
 			nfs_readdirplus_parent_cache_miss(path->dentry);
-		else
-			nfs_readdirplus_parent_cache_hit(path->dentry);
 		err = __nfs_revalidate_inode(server, inode);
 		if (err)
 			goto out;
-	} else
+	} else if (readdirplus_enabled)
 		nfs_readdirplus_parent_cache_hit(path->dentry);
 out_no_revalidate:
 	/* Only return attributes that were revalidated. */
@@ -952,7 +952,7 @@ struct nfs_lock_context *nfs_get_lock_context(struct nfs_open_context *ctx)
 	res = __nfs_find_lock_context(ctx);
 	rcu_read_unlock();
 	if (res == NULL) {
-		new = kmalloc(sizeof(*new), GFP_KERNEL);
+		new = kmalloc(sizeof(*new), GFP_KERNEL_ACCOUNT);
 		if (new == NULL)
 			return ERR_PTR(-ENOMEM);
 		nfs_init_lock_context(new);
@@ -1030,7 +1030,7 @@ struct nfs_open_context *alloc_nfs_open_context(struct dentry *dentry,
 {
 	struct nfs_open_context *ctx;
 
-	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL_ACCOUNT);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 	nfs_sb_active(dentry->d_sb);
@@ -1180,7 +1180,6 @@ int nfs_open(struct inode *inode, struct file *filp)
 	nfs_fscache_open_file(inode, filp);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(nfs_open);
 
 /*
  * This function is called whenever some part of NFS notices that
@@ -1583,7 +1582,7 @@ struct nfs_fattr *nfs_alloc_fattr(void)
 {
 	struct nfs_fattr *fattr;
 
-	fattr = kmalloc(sizeof(*fattr), GFP_NOFS);
+	fattr = kmalloc(sizeof(*fattr), GFP_KERNEL);
 	if (fattr != NULL) {
 		nfs_fattr_init(fattr);
 		fattr->label = NULL;
@@ -1599,7 +1598,7 @@ struct nfs_fattr *nfs_alloc_fattr_with_label(struct nfs_server *server)
 	if (!fattr)
 		return NULL;
 
-	fattr->label = nfs4_label_alloc(server, GFP_NOFS);
+	fattr->label = nfs4_label_alloc(server, GFP_KERNEL);
 	if (IS_ERR(fattr->label)) {
 		kfree(fattr);
 		return NULL;
@@ -1613,7 +1612,7 @@ struct nfs_fh *nfs_alloc_fhandle(void)
 {
 	struct nfs_fh *fh;
 
-	fh = kmalloc(sizeof(struct nfs_fh), GFP_NOFS);
+	fh = kmalloc(sizeof(struct nfs_fh), GFP_KERNEL);
 	if (fh != NULL)
 		fh->size = 0;
 	return fh;
@@ -2238,7 +2237,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 struct inode *nfs_alloc_inode(struct super_block *sb)
 {
 	struct nfs_inode *nfsi;
-	nfsi = kmem_cache_alloc(nfs_inode_cachep, GFP_KERNEL);
+	nfsi = alloc_inode_sb(sb, nfs_inode_cachep, GFP_KERNEL);
 	if (!nfsi)
 		return NULL;
 	nfsi->flags = 0UL;

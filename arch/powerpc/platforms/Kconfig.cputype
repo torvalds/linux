@@ -104,9 +104,11 @@ config PPC_BOOK3S_64
 	select HAVE_MOVE_PUD
 	select IRQ_WORK
 	select PPC_64S_HASH_MMU if !PPC_RADIX_MMU
+	select KASAN_VMALLOC if KASAN
 
 config PPC_BOOK3E_64
 	bool "Embedded processors"
+	select PPC_FSL_BOOK3E
 	select PPC_FPU # Make it a choice ?
 	select PPC_SMP_MUXED_IPI
 	select PPC_DOORBELL
@@ -295,7 +297,7 @@ config FSL_BOOKE
 config PPC_FSL_BOOK3E
 	bool
 	select ARCH_SUPPORTS_HUGETLBFS if PHYS_64BIT || PPC64
-	select FSL_EMB_PERFMON
+	imply FSL_EMB_PERFMON
 	select PPC_SMP_MUXED_IPI
 	select PPC_DOORBELL
 	select PPC_KUEP
@@ -376,7 +378,6 @@ config SPE
 config PPC_64S_HASH_MMU
 	bool "Hash MMU Support"
 	depends on PPC_BOOK3S_64
-	select PPC_MM_SLICES
 	default y
 	help
 	  Enable support for the Power ISA Hash style MMU. This is implemented
@@ -449,9 +450,6 @@ config PPC_MMU_NOHASH
 config PPC_BOOK3E_MMU
 	def_bool y
 	depends on FSL_BOOKE || PPC_BOOK3E
-
-config PPC_MM_SLICES
-	bool
 
 config PPC_HAVE_PMU_SUPPORT
 	bool
@@ -554,6 +552,12 @@ config CPU_LITTLE_ENDIAN
 	  little endian powerpc.
 
 endchoice
+
+config PPC64_ELF_ABI_V1
+	def_bool PPC64 && CPU_BIG_ENDIAN
+
+config PPC64_ELF_ABI_V2
+	def_bool PPC64 && CPU_LITTLE_ENDIAN
 
 config PPC64_BOOT_WRAPPER
 	def_bool n

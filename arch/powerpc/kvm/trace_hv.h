@@ -115,6 +115,7 @@
 	{H_VASI_STATE,			"H_VASI_STATE"}, \
 	{H_ENABLE_CRQ,			"H_ENABLE_CRQ"}, \
 	{H_GET_EM_PARMS,		"H_GET_EM_PARMS"}, \
+	{H_GET_ENERGY_SCALE_INFO,	"H_GET_ENERGY_SCALE_INFO"}, \
 	{H_SET_MPP,			"H_SET_MPP"}, \
 	{H_GET_MPP,			"H_GET_MPP"}, \
 	{H_HOME_NODE_ASSOCIATIVITY,	"H_HOME_NODE_ASSOCIATIVITY"}, \
@@ -408,9 +409,9 @@ TRACE_EVENT(kvmppc_run_core,
 );
 
 TRACE_EVENT(kvmppc_vcore_blocked,
-	TP_PROTO(struct kvmppc_vcore *vc, int where),
+	TP_PROTO(struct kvm_vcpu *vcpu, int where),
 
-	TP_ARGS(vc, where),
+	TP_ARGS(vcpu, where),
 
 	TP_STRUCT__entry(
 		__field(int,	n_runnable)
@@ -420,8 +421,8 @@ TRACE_EVENT(kvmppc_vcore_blocked,
 	),
 
 	TP_fast_assign(
-		__entry->runner_vcpu = vc->runner->vcpu_id;
-		__entry->n_runnable  = vc->n_runnable;
+		__entry->runner_vcpu = vcpu->vcpu_id;
+		__entry->n_runnable  = vcpu->arch.vcore->n_runnable;
 		__entry->where       = where;
 		__entry->tgid	     = current->tgid;
 	),

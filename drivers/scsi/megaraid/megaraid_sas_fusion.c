@@ -2047,8 +2047,6 @@ map_cmd_status(struct fusion_context *fusion,
 
 		scmd->result = (DID_OK << 16) | ext_status;
 		if (ext_status == SAM_STAT_CHECK_CONDITION) {
-			memset(scmd->sense_buffer, 0,
-			       SCSI_SENSE_BUFFERSIZE);
 			memcpy(scmd->sense_buffer, sense,
 			       SCSI_SENSE_BUFFERSIZE);
 		}
@@ -2915,7 +2913,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 				get_updated_dev_handle(instance,
 					&fusion->load_balance_info[device_id],
 					&io_info, local_map_ptr);
-			scp->SCp.Status |= MEGASAS_LOAD_BALANCE_FLAG;
+			megasas_priv(scp)->status |= MEGASAS_LOAD_BALANCE_FLAG;
 			cmd->pd_r1_lb = io_info.pd_after_lb;
 			if (instance->adapter_type >= VENTURA_SERIES)
 				rctx_g35->span_arm = io_info.span_arm;
@@ -2923,7 +2921,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 				rctx->span_arm = io_info.span_arm;
 
 		} else
-			scp->SCp.Status &= ~MEGASAS_LOAD_BALANCE_FLAG;
+			megasas_priv(scp)->status &= ~MEGASAS_LOAD_BALANCE_FLAG;
 
 		if (instance->adapter_type >= VENTURA_SERIES)
 			cmd->r1_alt_dev_handle = io_info.r1_alt_dev_handle;
@@ -3293,7 +3291,7 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 	io_request->SenseBufferLength = SCSI_SENSE_BUFFERSIZE;
 
 	cmd->scmd = scp;
-	scp->SCp.ptr = (char *)cmd;
+	megasas_priv(scp)->cmd_priv = cmd;
 
 	return 0;
 }
@@ -3489,7 +3487,7 @@ megasas_complete_r1_command(struct megasas_instance *instance,
 		if (instance->ldio_threshold &&
 		    megasas_cmd_type(scmd_local) == READ_WRITE_LDIO)
 			atomic_dec(&instance->ldio_outstanding);
-		scmd_local->SCp.ptr = NULL;
+		megasas_priv(scmd_local)->cmd_priv = NULL;
 		megasas_return_cmd_fusion(instance, cmd);
 		scsi_dma_unmap(scmd_local);
 		megasas_sdev_busy_dec(instance, scmd_local);
@@ -3613,12 +3611,13 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex,
 		case MPI2_FUNCTION_SCSI_IO_REQUEST:  /*Fast Path IO.*/
 			/* Update load balancing info */
 			if (fusion->load_balance_info &&
-			    (cmd_fusion->scmd->SCp.Status &
+			    (megasas_priv(cmd_fusion->scmd)->status &
 			    MEGASAS_LOAD_BALANCE_FLAG)) {
 				device_id = MEGASAS_DEV_INDEX(scmd_local);
 				lbinfo = &fusion->load_balance_info[device_id];
 				atomic_dec(&lbinfo->scsi_pending_cmds[cmd_fusion->pd_r1_lb]);
-				cmd_fusion->scmd->SCp.Status &= ~MEGASAS_LOAD_BALANCE_FLAG;
+				megasas_priv(cmd_fusion->scmd)->status &=
+					~MEGASAS_LOAD_BALANCE_FLAG;
 			}
 			fallthrough;	/* and complete IO */
 		case MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST: /* LD-IO Path */
@@ -3630,7 +3629,7 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex,
 				if (instance->ldio_threshold &&
 				    (megasas_cmd_type(scmd_local) == READ_WRITE_LDIO))
 					atomic_dec(&instance->ldio_outstanding);
-				scmd_local->SCp.ptr = NULL;
+				megasas_priv(scmd_local)->cmd_priv = NULL;
 				megasas_return_cmd_fusion(instance, cmd_fusion);
 				scsi_dma_unmap(scmd_local);
 				megasas_sdev_busy_dec(instance, scmd_local);
@@ -5099,8 +5098,8 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 			if (instance->adapter_type >= VENTURA_SERIES) {
 				for (j = 0; j < MAX_LOGICAL_DRIVES_EXT; ++j) {
 					memset(fusion->stream_detect_by_ld[j],
-					0, sizeof(struct LD_STREAM_DETECT));
-				 fusion->stream_detect_by_ld[j]->mru_bit_map
+					       0, sizeof(struct LD_STREAM_DETECT));
+					fusion->stream_detect_by_ld[j]->mru_bit_map
 						= MR_STREAM_BITMAP;
 				}
 			}

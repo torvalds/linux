@@ -10,7 +10,7 @@
 
 static volatile int fortify_scratch_space;
 
-void lkdtm_FORTIFIED_OBJECT(void)
+static void lkdtm_FORTIFIED_OBJECT(void)
 {
 	struct target {
 		char a[10];
@@ -31,7 +31,7 @@ void lkdtm_FORTIFIED_OBJECT(void)
 	pr_expected_config(CONFIG_FORTIFY_SOURCE);
 }
 
-void lkdtm_FORTIFIED_SUBOBJECT(void)
+static void lkdtm_FORTIFIED_SUBOBJECT(void)
 {
 	struct target {
 		char a[10];
@@ -44,14 +44,14 @@ void lkdtm_FORTIFIED_SUBOBJECT(void)
 	strscpy(src, "over ten bytes", size);
 	size = strlen(src) + 1;
 
-	pr_info("trying to strcpy past the end of a member of a struct\n");
+	pr_info("trying to strncpy past the end of a member of a struct\n");
 
 	/*
-	 * memcpy(target.a, src, 20); will hit a compile error because the
+	 * strncpy(target.a, src, 20); will hit a compile error because the
 	 * compiler knows at build time that target.a < 20 bytes. Use a
 	 * volatile to force a runtime error.
 	 */
-	memcpy(target.a, src, size);
+	strncpy(target.a, src, size);
 
 	/* Store result to global to prevent the code from being eliminated */
 	fortify_scratch_space = target.a[3];
@@ -67,7 +67,7 @@ void lkdtm_FORTIFIED_SUBOBJECT(void)
  * strscpy and generate a panic because there is a write overflow (i.e. src
  * length is greater than dst length).
  */
-void lkdtm_FORTIFIED_STRSCPY(void)
+static void lkdtm_FORTIFIED_STRSCPY(void)
 {
 	char *src;
 	char dst[5];
@@ -134,3 +134,14 @@ void lkdtm_FORTIFIED_STRSCPY(void)
 
 	kfree(src);
 }
+
+static struct crashtype crashtypes[] = {
+	CRASHTYPE(FORTIFIED_OBJECT),
+	CRASHTYPE(FORTIFIED_SUBOBJECT),
+	CRASHTYPE(FORTIFIED_STRSCPY),
+};
+
+struct crashtype_category fortify_crashtypes = {
+	.crashtypes = crashtypes,
+	.len	    = ARRAY_SIZE(crashtypes),
+};

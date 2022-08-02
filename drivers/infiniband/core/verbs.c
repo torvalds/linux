@@ -268,9 +268,6 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 		return ERR_PTR(-ENOMEM);
 
 	pd->device = device;
-	pd->uobject = NULL;
-	pd->__internal_mr = NULL;
-	atomic_set(&pd->usecnt, 0);
 	pd->flags = flags;
 
 	rdma_restrack_new(&pd->res, RDMA_RESTRACK_PD);
@@ -284,7 +281,7 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 	}
 	rdma_restrack_add(&pd->res);
 
-	if (device->attrs.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)
+	if (device->attrs.kernel_cap_flags & IBK_LOCAL_DMA_LKEY)
 		pd->local_dma_lkey = device->local_dma_lkey;
 	else
 		mr_access_flags |= IB_ACCESS_LOCAL_WRITE;
@@ -311,7 +308,7 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 
 		pd->__internal_mr = mr;
 
-		if (!(device->attrs.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY))
+		if (!(device->attrs.kernel_cap_flags & IBK_LOCAL_DMA_LKEY))
 			pd->local_dma_lkey = pd->__internal_mr->lkey;
 
 		if (flags & IB_PD_UNSAFE_GLOBAL_RKEY)
@@ -340,11 +337,6 @@ int ib_dealloc_pd_user(struct ib_pd *pd, struct ib_udata *udata)
 		WARN_ON(ret);
 		pd->__internal_mr = NULL;
 	}
-
-	/* uverbs manipulates usecnt with proper locking, while the kabi
-	 * requires the caller to guarantee we can't race here.
-	 */
-	WARN_ON(atomic_read(&pd->usecnt));
 
 	ret = pd->device->ops.dealloc_pd(pd, udata);
 	if (ret)
@@ -2139,8 +2131,8 @@ struct ib_mr *ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	struct ib_mr *mr;
 
 	if (access_flags & IB_ACCESS_ON_DEMAND) {
-		if (!(pd->device->attrs.device_cap_flags &
-		      IB_DEVICE_ON_DEMAND_PAGING)) {
+		if (!(pd->device->attrs.kernel_cap_flags &
+		      IBK_ON_DEMAND_PAGING)) {
 			pr_debug("ODP support not available\n");
 			return ERR_PTR(-EINVAL);
 		}
@@ -2153,6 +2145,7 @@ struct ib_mr *ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		return mr;
 
 	mr->device = pd->device;
+	mr->type = IB_MR_TYPE_USER;
 	mr->pd = pd;
 	mr->dm = NULL;
 	atomic_inc(&pd->usecnt);

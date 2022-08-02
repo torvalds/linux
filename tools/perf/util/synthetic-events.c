@@ -754,7 +754,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 	snprintf(filename, sizeof(filename), "%s/proc/%d/task",
 		 machine->root_dir, pid);
 
-	n = scandir(filename, &dirent, filter_task, alphasort);
+	n = scandir(filename, &dirent, filter_task, NULL);
 	if (n < 0)
 		return n;
 
@@ -767,11 +767,12 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 		if (*end)
 			continue;
 
-		rc = -1;
+		/* some threads may exit just after scan, ignore it */
 		if (perf_event__prepare_comm(comm_event, pid, _pid, machine,
 					     &tgid, &ppid, &kernel_thread) != 0)
-			break;
+			continue;
 
+		rc = -1;
 		if (perf_event__synthesize_fork(tool, fork_event, _pid, tgid,
 						ppid, process, machine) < 0)
 			break;
@@ -987,7 +988,7 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 		return 0;
 
 	snprintf(proc_path, sizeof(proc_path), "%s/proc", machine->root_dir);
-	n = scandir(proc_path, &dirent, filter_task, alphasort);
+	n = scandir(proc_path, &dirent, filter_task, NULL);
 	if (n < 0)
 		return err;
 
@@ -2127,7 +2128,7 @@ int perf_event__synthesize_stat_events(struct perf_stat_config *config, struct p
 		return err;
 	}
 
-	err = perf_event__synthesize_cpu_map(tool, evlist->core.cpus, process, NULL);
+	err = perf_event__synthesize_cpu_map(tool, evlist->core.user_requested_cpus, process, NULL);
 	if (err < 0) {
 		pr_err("Couldn't synthesize thread map.\n");
 		return err;

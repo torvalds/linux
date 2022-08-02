@@ -806,7 +806,8 @@
 		};
 
 		timer@101c0000 {
-			compatible = "samsung,exynos4210-mct";
+			compatible = "samsung,exynos5433-mct",
+				     "samsung,exynos4210-mct";
 			reg = <0x101c0000 0x800>;
 			interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
@@ -1858,26 +1859,22 @@
 			status = "disabled";
 		};
 
-		pdma0: pdma@15610000 {
+		pdma0: dma-controller@15610000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x15610000 0x1000>;
 			interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cmu_fsys CLK_PDMA0>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
 		};
 
-		pdma1: pdma@15600000 {
+		pdma1: dma-controller@15600000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x15600000 0x1000>;
 			interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cmu_fsys CLK_PDMA1>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
 		};
 
 		audio-subsystem@11400000 {
@@ -1885,21 +1882,18 @@
 			reg = <0x11400000 0x100>, <0x11500000 0x08>;
 			clocks = <&cmu_aud CLK_PCLK_SFR0_CTRL>;
 			clock-names = "sfr0_ctrl";
-			samsung,pmu-syscon = <&pmu_system_controller>;
 			power-domains = <&pd_aud>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
 
-			adma: adma@11420000 {
+			adma: dma-controller@11420000 {
 				compatible = "arm,pl330", "arm,primecell";
 				reg = <0x11420000 0x1000>;
 				interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&cmu_aud CLK_ACLK_DMAC>;
 				clock-names = "apb_pclk";
 				#dma-cells = <1>;
-				#dma-channels = <8>;
-				#dma-requests = <32>;
 				power-domains = <&pd_aud>;
 			};
 

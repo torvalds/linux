@@ -266,7 +266,7 @@
 		function = "lcd0";
 	};
 
-	lcd0_mux {
+	lcd0-mux-hog {
 		/* DBGMD/LCDC0/FSIA MUX */
 		gpio-hog;
 		gpios = <176 0>;

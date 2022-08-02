@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -374,28 +374,6 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		hw->wiphy->n_cipher_suites++;
 	}
 
-	/* currently FW API supports only one optional cipher scheme */
-	if (mvm->fw->cs[0].cipher) {
-		const struct iwl_fw_cipher_scheme *fwcs = &mvm->fw->cs[0];
-		struct ieee80211_cipher_scheme *cs = &mvm->cs[0];
-
-		mvm->hw->n_cipher_schemes = 1;
-
-		cs->cipher = le32_to_cpu(fwcs->cipher);
-		cs->iftype = BIT(NL80211_IFTYPE_STATION);
-		cs->hdr_len = fwcs->hdr_len;
-		cs->pn_len = fwcs->pn_len;
-		cs->pn_off = fwcs->pn_off;
-		cs->key_idx_off = fwcs->key_idx_off;
-		cs->key_idx_mask = fwcs->key_idx_mask;
-		cs->key_idx_shift = fwcs->key_idx_shift;
-		cs->mic_len = fwcs->mic_len;
-
-		mvm->hw->cipher_schemes = mvm->cs;
-		mvm->ciphers[hw->wiphy->n_cipher_suites] = cs->cipher;
-		hw->wiphy->n_cipher_suites++;
-	}
-
 	if (fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_FTM_CALIBRATED)) {
 		wiphy_ext_feature_set(hw->wiphy,
@@ -553,8 +531,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 			IWL_UCODE_TLV_CAPA_WFA_TPC_REP_IE_SUPPORT))
 		hw->wiphy->features |= NL80211_FEATURE_WFA_TPC_IE_IN_PROBES;
 
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
-				  WOWLAN_KEK_KCK_MATERIAL,
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, WOWLAN_KEK_KCK_MATERIAL,
 				  IWL_FW_CMD_VER_UNKNOWN) == 3)
 		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_EXT_KEK_KCK;
 
@@ -567,9 +544,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	}
 
 	if (iwl_mvm_is_oce_supported(mvm)) {
-		u8 scan_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
-						    IWL_ALWAYS_LONG_GROUP,
-						    SCAN_REQ_UMAC, 0);
+		u8 scan_ver = iwl_fw_lookup_cmd_ver(mvm->fw, SCAN_REQ_UMAC, 0);
 
 		wiphy_ext_feature_set(hw->wiphy,
 			NL80211_EXT_FEATURE_ACCEPT_BCAST_PROBE_RESP);
@@ -1001,7 +976,6 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 
 	ieee80211_wake_queues(mvm->hw);
 
-	mvm->vif_count = 0;
 	mvm->rx_ba_sessions = 0;
 	mvm->fwrt.dump.conf = FW_DBG_INVALID;
 	mvm->monitor_on = false;
@@ -1154,7 +1128,7 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 
 	/* async_handlers_wk is now blocked */
 
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP, ADD_STA, 0) < 12)
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, ADD_STA, 0) < 12)
 		iwl_mvm_rm_aux_sta(mvm);
 
 	iwl_mvm_stop_device(mvm);
@@ -1246,6 +1220,7 @@ static struct iwl_mvm_phy_ctxt *iwl_mvm_get_free_phy_ctxt(struct iwl_mvm *mvm)
 static int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				s16 tx_power)
 {
+	u32 cmd_id = REDUCE_TX_POWER_CMD;
 	int len;
 	struct iwl_dev_tx_power_cmd cmd = {
 		.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_MAC),
@@ -1253,14 +1228,15 @@ static int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			cpu_to_le32(iwl_mvm_vif_from_mac80211(vif)->id),
 		.common.pwr_restriction = cpu_to_le16(8 * tx_power),
 	};
-	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-					   REDUCE_TX_POWER_CMD,
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id,
 					   IWL_FW_CMD_VER_UNKNOWN);
 
 	if (tx_power == IWL_DEFAULT_MAX_TX_POWER)
 		cmd.common.pwr_restriction = cpu_to_le16(IWL_DEV_MAX_TX_POWER);
 
-	if (cmd_ver == 6)
+	if (cmd_ver == 7)
+		len = sizeof(cmd.v7);
+	else if (cmd_ver == 6)
 		len = sizeof(cmd.v6);
 	else if (fw_has_api(&mvm->fw->ucode_capa,
 			    IWL_UCODE_TLV_API_REDUCE_TX_POWER))
@@ -1274,7 +1250,7 @@ static int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	/* all structs have the same common part, add it */
 	len += sizeof(cmd.common);
 
-	return iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, 0, len, &cmd);
+	return iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, len, &cmd);
 }
 
 static int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
@@ -1335,6 +1311,15 @@ static void iwl_mvm_abort_channel_switch(struct ieee80211_hw *hw,
 		.action = cpu_to_le32(FW_CTXT_ACTION_REMOVE),
 	};
 
+	/*
+	 * In the new flow since FW is in charge of the timing,
+	 * if driver has canceled the channel switch he will receive the
+	 * CHANNEL_SWITCH_START_NOTIF notification from FW and then cancel it
+	 */
+	if (iwl_fw_lookup_notif_ver(mvm->fw, MAC_CONF_GROUP,
+				    CHANNEL_SWITCH_ERROR_NOTIF, 0))
+		return;
+
 	IWL_DEBUG_MAC80211(mvm, "Abort CSA on mac %d\n", mvmvif->id);
 
 	mutex_lock(&mvm->mutex);
@@ -1394,10 +1379,6 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 
 	rcu_assign_pointer(mvm->vif_id_to_mac[mvmvif->id], vif);
 
-	/* Counting number of interfaces is needed for legacy PM */
-	if (vif->type != NL80211_IFTYPE_P2P_DEVICE)
-		mvm->vif_count++;
-
 	/*
 	 * The AP binding flow can be done only after the beacon
 	 * template is configured (which happens only in the mac80211
@@ -1414,7 +1395,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		ret = iwl_mvm_alloc_bcast_sta(mvm, vif);
 		if (ret) {
 			IWL_ERR(mvm, "Failed to allocate bcast sta\n");
-			goto out_release;
+			goto out_unlock;
 		}
 
 		/*
@@ -1425,7 +1406,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 					       0, vif->type,
 					       IWL_STA_MULTICAST);
 		if (ret)
-			goto out_release;
+			goto out_unlock;
 
 		iwl_mvm_vif_dbgfs_register(mvm, vif);
 		goto out_unlock;
@@ -1435,7 +1416,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 
 	ret = iwl_mvm_mac_ctxt_add(mvm, vif);
 	if (ret)
-		goto out_release;
+		goto out_unlock;
 
 	ret = iwl_mvm_power_update_mac(mvm);
 	if (ret)
@@ -1512,9 +1493,6 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
  out_remove_mac:
 	mvmvif->phy_ctxt = NULL;
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
- out_release:
-	if (vif->type != NL80211_IFTYPE_P2P_DEVICE)
-		mvm->vif_count--;
  out_unlock:
 	mutex_unlock(&mvm->mutex);
 
@@ -1595,9 +1573,6 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 		iwl_mvm_phy_ctxt_unref(mvm, mvmvif->phy_ctxt);
 		mvmvif->phy_ctxt = NULL;
 	}
-
-	if (mvm->vif_count && vif->type != NL80211_IFTYPE_P2P_DEVICE)
-		mvm->vif_count--;
 
 	iwl_mvm_power_update_mac(mvm);
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
@@ -1845,11 +1820,108 @@ static u8 iwl_mvm_he_get_ppe_val(u8 *ppe, u8 ppe_pos_bit)
 	return res;
 }
 
+static void iwl_mvm_parse_ppe(struct iwl_mvm *mvm,
+			      struct iwl_he_pkt_ext_v2 *pkt_ext, u8 nss,
+			      u8 ru_index_bitmap, u8 *ppe, u8 ppe_pos_bit)
+{
+	int i;
+
+	/*
+	* FW currently supports only nss == MAX_HE_SUPP_NSS
+	*
+	* If nss > MAX: we can ignore values we don't support
+	* If nss < MAX: we can set zeros in other streams
+	*/
+	if (nss > MAX_HE_SUPP_NSS) {
+		IWL_INFO(mvm, "Got NSS = %d - trimming to %d\n", nss,
+			 MAX_HE_SUPP_NSS);
+		nss = MAX_HE_SUPP_NSS;
+	}
+
+	for (i = 0; i < nss; i++) {
+		u8 ru_index_tmp = ru_index_bitmap << 1;
+		u8 low_th = IWL_HE_PKT_EXT_NONE, high_th = IWL_HE_PKT_EXT_NONE;
+		u8 bw;
+
+		for (bw = 0;
+		     bw < ARRAY_SIZE(pkt_ext->pkt_ext_qam_th[i]);
+		     bw++) {
+			ru_index_tmp >>= 1;
+
+			if (!(ru_index_tmp & 1))
+				continue;
+
+			high_th = iwl_mvm_he_get_ppe_val(ppe, ppe_pos_bit);
+			ppe_pos_bit += IEEE80211_PPE_THRES_INFO_PPET_SIZE;
+			low_th = iwl_mvm_he_get_ppe_val(ppe, ppe_pos_bit);
+			ppe_pos_bit += IEEE80211_PPE_THRES_INFO_PPET_SIZE;
+
+			pkt_ext->pkt_ext_qam_th[i][bw][0] = low_th;
+			pkt_ext->pkt_ext_qam_th[i][bw][1] = high_th;
+		}
+	}
+}
+
+static void iwl_mvm_set_pkt_ext_from_he_ppe(struct iwl_mvm *mvm,
+					    struct ieee80211_sta *sta,
+					    struct iwl_he_pkt_ext_v2 *pkt_ext)
+{
+	u8 nss = (sta->deflink.he_cap.ppe_thres[0] & IEEE80211_PPE_THRES_NSS_MASK) + 1;
+	u8 *ppe = &sta->deflink.he_cap.ppe_thres[0];
+	u8 ru_index_bitmap =
+		u8_get_bits(*ppe,
+			    IEEE80211_PPE_THRES_RU_INDEX_BITMASK_MASK);
+	/* Starting after PPE header */
+	u8 ppe_pos_bit = IEEE80211_HE_PPE_THRES_INFO_HEADER_SIZE;
+
+	iwl_mvm_parse_ppe(mvm, pkt_ext, nss, ru_index_bitmap, ppe, ppe_pos_bit);
+}
+
+static void iwl_mvm_set_pkt_ext_from_nominal_padding(struct iwl_he_pkt_ext_v2 *pkt_ext,
+						     u8 nominal_padding,
+						     u32 *flags)
+{
+	int low_th = -1;
+	int high_th = -1;
+	int i;
+
+	switch (nominal_padding) {
+	case IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_0US:
+		low_th = IWL_HE_PKT_EXT_NONE;
+		high_th = IWL_HE_PKT_EXT_NONE;
+		break;
+	case IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_8US:
+		low_th = IWL_HE_PKT_EXT_BPSK;
+		high_th = IWL_HE_PKT_EXT_NONE;
+		break;
+	case IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_16US:
+		low_th = IWL_HE_PKT_EXT_NONE;
+		high_th = IWL_HE_PKT_EXT_BPSK;
+		break;
+	}
+
+	/* Set the PPE thresholds accordingly */
+	if (low_th >= 0 && high_th >= 0) {
+		for (i = 0; i < MAX_HE_SUPP_NSS; i++) {
+			u8 bw;
+
+			for (bw = 0;
+			     bw < ARRAY_SIZE(pkt_ext->pkt_ext_qam_th[i]);
+			     bw++) {
+				pkt_ext->pkt_ext_qam_th[i][bw][0] = low_th;
+				pkt_ext->pkt_ext_qam_th[i][bw][1] = high_th;
+			}
+		}
+
+		*flags |= STA_CTXT_HE_PACKET_EXT;
+	}
+}
+
 static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 			       struct ieee80211_vif *vif, u8 sta_id)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_he_sta_context_cmd sta_ctxt_cmd = {
+	struct iwl_he_sta_context_cmd_v3 sta_ctxt_cmd = {
 		.sta_id = sta_id,
 		.tid_limit = IWL_MAX_TID_COUNT,
 		.bss_color = vif->bss_conf.he_bss_color.color,
@@ -1857,16 +1929,39 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 		.frame_time_rts_th =
 			cpu_to_le16(vif->bss_conf.frame_time_rts_th),
 	};
-	int size = fw_has_api(&mvm->fw->ucode_capa,
-			      IWL_UCODE_TLV_API_MBSSID_HE) ?
-		   sizeof(sta_ctxt_cmd) :
-		   sizeof(struct iwl_he_sta_context_cmd_v1);
+	struct iwl_he_sta_context_cmd_v2 sta_ctxt_cmd_v2 = {};
+	u32 cmd_id = WIDE_ID(DATA_PATH_GROUP, STA_HE_CTXT_CMD);
+	u8 ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id, 2);
+	int size;
 	struct ieee80211_sta *sta;
 	u32 flags;
 	int i;
 	const struct ieee80211_sta_he_cap *own_he_cap = NULL;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	const struct ieee80211_supported_band *sband;
+	void *cmd;
+
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_MBSSID_HE))
+		ver = 1;
+
+	switch (ver) {
+	case 1:
+		/* same layout as v2 except some data at the end */
+		cmd = &sta_ctxt_cmd_v2;
+		size = sizeof(struct iwl_he_sta_context_cmd_v1);
+		break;
+	case 2:
+		cmd = &sta_ctxt_cmd_v2;
+		size = sizeof(struct iwl_he_sta_context_cmd_v2);
+		break;
+	case 3:
+		cmd = &sta_ctxt_cmd;
+		size = sizeof(struct iwl_he_sta_context_cmd_v3);
+		break;
+	default:
+		IWL_ERR(mvm, "bad STA_HE_CTXT_CMD version %d\n", ver);
+		return;
+	}
 
 	rcu_read_lock();
 
@@ -1887,7 +1982,7 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 		return;
 	}
 
-	if (!sta->he_cap.has_he) {
+	if (!sta->deflink.he_cap.has_he) {
 		rcu_read_unlock();
 		return;
 	}
@@ -1899,17 +1994,17 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 		flags |= STA_CTXT_HE_RU_2MHZ_BLOCK;
 
 	/* HTC flags */
-	if (sta->he_cap.he_cap_elem.mac_cap_info[0] &
+	if (sta->deflink.he_cap.he_cap_elem.mac_cap_info[0] &
 	    IEEE80211_HE_MAC_CAP0_HTC_HE)
 		sta_ctxt_cmd.htc_flags |= cpu_to_le32(IWL_HE_HTC_SUPPORT);
-	if ((sta->he_cap.he_cap_elem.mac_cap_info[1] &
+	if ((sta->deflink.he_cap.he_cap_elem.mac_cap_info[1] &
 	      IEEE80211_HE_MAC_CAP1_LINK_ADAPTATION) ||
-	    (sta->he_cap.he_cap_elem.mac_cap_info[2] &
+	    (sta->deflink.he_cap.he_cap_elem.mac_cap_info[2] &
 	      IEEE80211_HE_MAC_CAP2_LINK_ADAPTATION)) {
 		u8 link_adap =
-			((sta->he_cap.he_cap_elem.mac_cap_info[2] &
+			((sta->deflink.he_cap.he_cap_elem.mac_cap_info[2] &
 			  IEEE80211_HE_MAC_CAP2_LINK_ADAPTATION) << 1) +
-			 (sta->he_cap.he_cap_elem.mac_cap_info[1] &
+			 (sta->deflink.he_cap.he_cap_elem.mac_cap_info[1] &
 			  IEEE80211_HE_MAC_CAP1_LINK_ADAPTATION);
 
 		if (link_adap == 2)
@@ -1919,116 +2014,44 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 			sta_ctxt_cmd.htc_flags |=
 				cpu_to_le32(IWL_HE_HTC_LINK_ADAP_BOTH);
 	}
-	if (sta->he_cap.he_cap_elem.mac_cap_info[2] & IEEE80211_HE_MAC_CAP2_BSR)
+	if (sta->deflink.he_cap.he_cap_elem.mac_cap_info[2] & IEEE80211_HE_MAC_CAP2_BSR)
 		sta_ctxt_cmd.htc_flags |= cpu_to_le32(IWL_HE_HTC_BSR_SUPP);
-	if (sta->he_cap.he_cap_elem.mac_cap_info[3] &
+	if (sta->deflink.he_cap.he_cap_elem.mac_cap_info[3] &
 	    IEEE80211_HE_MAC_CAP3_OMI_CONTROL)
 		sta_ctxt_cmd.htc_flags |= cpu_to_le32(IWL_HE_HTC_OMI_SUPP);
-	if (sta->he_cap.he_cap_elem.mac_cap_info[4] & IEEE80211_HE_MAC_CAP4_BQR)
+	if (sta->deflink.he_cap.he_cap_elem.mac_cap_info[4] & IEEE80211_HE_MAC_CAP4_BQR)
 		sta_ctxt_cmd.htc_flags |= cpu_to_le32(IWL_HE_HTC_BQR_SUPP);
 
 	/*
 	 * Initialize the PPE thresholds to "None" (7), as described in Table
 	 * 9-262ac of 80211.ax/D3.0.
 	 */
-	memset(&sta_ctxt_cmd.pkt_ext, 7, sizeof(sta_ctxt_cmd.pkt_ext));
+	memset(&sta_ctxt_cmd.pkt_ext, IWL_HE_PKT_EXT_NONE,
+	       sizeof(sta_ctxt_cmd.pkt_ext));
 
 	/* If PPE Thresholds exist, parse them into a FW-familiar format. */
-	if (sta->he_cap.he_cap_elem.phy_cap_info[6] &
-	    IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT) {
-		u8 nss = (sta->he_cap.ppe_thres[0] &
-			  IEEE80211_PPE_THRES_NSS_MASK) + 1;
-		u8 ru_index_bitmap =
-			(sta->he_cap.ppe_thres[0] &
-			 IEEE80211_PPE_THRES_RU_INDEX_BITMASK_MASK) >>
-			IEEE80211_PPE_THRES_RU_INDEX_BITMASK_POS;
-		u8 *ppe = &sta->he_cap.ppe_thres[0];
-		u8 ppe_pos_bit = 7; /* Starting after PPE header */
-
-		/*
-		 * FW currently supports only nss == MAX_HE_SUPP_NSS
-		 *
-		 * If nss > MAX: we can ignore values we don't support
-		 * If nss < MAX: we can set zeros in other streams
-		 */
-		if (nss > MAX_HE_SUPP_NSS) {
-			IWL_INFO(mvm, "Got NSS = %d - trimming to %d\n", nss,
-				 MAX_HE_SUPP_NSS);
-			nss = MAX_HE_SUPP_NSS;
-		}
-
-		for (i = 0; i < nss; i++) {
-			u8 ru_index_tmp = ru_index_bitmap << 1;
-			u8 bw;
-
-			for (bw = 0; bw < MAX_HE_CHANNEL_BW_INDX; bw++) {
-				ru_index_tmp >>= 1;
-				if (!(ru_index_tmp & 1))
-					continue;
-
-				sta_ctxt_cmd.pkt_ext.pkt_ext_qam_th[i][bw][1] =
-					iwl_mvm_he_get_ppe_val(ppe,
-							       ppe_pos_bit);
-				ppe_pos_bit +=
-					IEEE80211_PPE_THRES_INFO_PPET_SIZE;
-				sta_ctxt_cmd.pkt_ext.pkt_ext_qam_th[i][bw][0] =
-					iwl_mvm_he_get_ppe_val(ppe,
-							       ppe_pos_bit);
-				ppe_pos_bit +=
-					IEEE80211_PPE_THRES_INFO_PPET_SIZE;
-			}
-		}
-
+	if (sta->deflink.he_cap.he_cap_elem.phy_cap_info[6] &
+		IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT) {
+		iwl_mvm_set_pkt_ext_from_he_ppe(mvm, sta,
+						&sta_ctxt_cmd.pkt_ext);
 		flags |= STA_CTXT_HE_PACKET_EXT;
-	} else if (u8_get_bits(sta->he_cap.he_cap_elem.phy_cap_info[9],
-			       IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK)
-		   != IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_RESERVED) {
-		int low_th = -1;
-		int high_th = -1;
-
-		/* Take the PPE thresholds from the nominal padding info */
-		switch (u8_get_bits(sta->he_cap.he_cap_elem.phy_cap_info[9],
-				    IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK)) {
-		case IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_0US:
-			low_th = IWL_HE_PKT_EXT_NONE;
-			high_th = IWL_HE_PKT_EXT_NONE;
-			break;
-		case IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_8US:
-			low_th = IWL_HE_PKT_EXT_BPSK;
-			high_th = IWL_HE_PKT_EXT_NONE;
-			break;
-		case IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_16US:
-			low_th = IWL_HE_PKT_EXT_NONE;
-			high_th = IWL_HE_PKT_EXT_BPSK;
-			break;
-		}
-
-		/* Set the PPE thresholds accordingly */
-		if (low_th >= 0 && high_th >= 0) {
-			struct iwl_he_pkt_ext *pkt_ext =
-				(struct iwl_he_pkt_ext *)&sta_ctxt_cmd.pkt_ext;
-
-			for (i = 0; i < MAX_HE_SUPP_NSS; i++) {
-				u8 bw;
-
-				for (bw = 0; bw < MAX_HE_CHANNEL_BW_INDX;
-				     bw++) {
-					pkt_ext->pkt_ext_qam_th[i][bw][0] =
-						low_th;
-					pkt_ext->pkt_ext_qam_th[i][bw][1] =
-						high_th;
-				}
-			}
-
-			flags |= STA_CTXT_HE_PACKET_EXT;
-		}
+	/* PPE Thresholds doesn't exist - set the API PPE values
+	* according to Common Nominal Packet Padding fiels. */
+	} else {
+		u8 nominal_padding =
+			u8_get_bits(sta->deflink.he_cap.he_cap_elem.phy_cap_info[9],
+				    IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK);
+		if (nominal_padding != IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_RESERVED)
+			iwl_mvm_set_pkt_ext_from_nominal_padding(&sta_ctxt_cmd.pkt_ext,
+								 nominal_padding,
+								 &flags);
 	}
 
-	if (sta->he_cap.he_cap_elem.mac_cap_info[2] &
+	if (sta->deflink.he_cap.he_cap_elem.mac_cap_info[2] &
 	    IEEE80211_HE_MAC_CAP2_32BIT_BA_BITMAP)
 		flags |= STA_CTXT_HE_32BIT_BA_BITMAP;
 
-	if (sta->he_cap.he_cap_elem.mac_cap_info[2] &
+	if (sta->deflink.he_cap.he_cap_elem.mac_cap_info[2] &
 	    IEEE80211_HE_MAC_CAP2_ACK_EN)
 		flags |= STA_CTXT_HE_ACK_ENABLED;
 
@@ -2084,9 +2107,46 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 
 	sta_ctxt_cmd.flags = cpu_to_le32(flags);
 
-	if (iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(STA_HE_CTXT_CMD,
-						 DATA_PATH_GROUP, 0),
-				 0, size, &sta_ctxt_cmd))
+	if (ver < 3) {
+		/* fields before pkt_ext */
+		BUILD_BUG_ON(offsetof(typeof(sta_ctxt_cmd), pkt_ext) !=
+			     offsetof(typeof(sta_ctxt_cmd_v2), pkt_ext));
+		memcpy(&sta_ctxt_cmd_v2, &sta_ctxt_cmd,
+		       offsetof(typeof(sta_ctxt_cmd), pkt_ext));
+
+		/* pkt_ext */
+		for (i = 0;
+		     i < ARRAY_SIZE(sta_ctxt_cmd_v2.pkt_ext.pkt_ext_qam_th);
+		     i++) {
+			u8 bw;
+
+			for (bw = 0;
+			     bw < ARRAY_SIZE(sta_ctxt_cmd_v2.pkt_ext.pkt_ext_qam_th[i]);
+			     bw++) {
+				BUILD_BUG_ON(sizeof(sta_ctxt_cmd.pkt_ext.pkt_ext_qam_th[i][bw]) !=
+					     sizeof(sta_ctxt_cmd_v2.pkt_ext.pkt_ext_qam_th[i][bw]));
+
+				memcpy(&sta_ctxt_cmd_v2.pkt_ext.pkt_ext_qam_th[i][bw],
+				       &sta_ctxt_cmd.pkt_ext.pkt_ext_qam_th[i][bw],
+				       sizeof(sta_ctxt_cmd.pkt_ext.pkt_ext_qam_th[i][bw]));
+			}
+		}
+
+		/* fields after pkt_ext */
+		BUILD_BUG_ON(sizeof(sta_ctxt_cmd) -
+			     offsetofend(typeof(sta_ctxt_cmd), pkt_ext) !=
+			     sizeof(sta_ctxt_cmd_v2) -
+			     offsetofend(typeof(sta_ctxt_cmd_v2), pkt_ext));
+		memcpy((u8 *)&sta_ctxt_cmd_v2 +
+				offsetofend(typeof(sta_ctxt_cmd_v2), pkt_ext),
+		       (u8 *)&sta_ctxt_cmd +
+				offsetofend(typeof(sta_ctxt_cmd), pkt_ext),
+		       sizeof(sta_ctxt_cmd) -
+				offsetofend(typeof(sta_ctxt_cmd), pkt_ext));
+		sta_ctxt_cmd_v2.reserved3 = 0;
+	}
+
+	if (iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, size, cmd))
 		IWL_ERR(mvm, "Failed to config FW to work HE!\n");
 }
 
@@ -2301,11 +2361,8 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		/*
 		 * We received a beacon from the associated AP so
 		 * remove the session protection.
-		 * A firmware with the new API will remove it automatically.
 		 */
-		if (!fw_has_capa(&mvm->fw->ucode_capa,
-				 IWL_UCODE_TLV_CAPA_SESSION_PROT_CMD))
-			iwl_mvm_stop_session_protection(mvm, vif);
+		iwl_mvm_stop_session_protection(mvm, vif);
 
 		iwl_mvm_sf_update(mvm, vif, false);
 		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, 0));
@@ -2949,7 +3006,7 @@ static void iwl_mvm_reset_cca_40mhz_workaround(struct iwl_mvm *mvm,
 
 	if (he_cap) {
 		/* we know that ours is writable */
-		struct ieee80211_sta_he_cap *he = (void *)he_cap;
+		struct ieee80211_sta_he_cap *he = (void *)(uintptr_t)he_cap;
 
 		he->he_cap_elem.phy_cap_info[0] |=
 			IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G;
@@ -3089,7 +3146,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		}
 
 		if (vif->type == NL80211_IFTYPE_STATION)
-			vif->bss_conf.he_support = sta->he_cap.has_he;
+			vif->bss_conf.he_support = sta->deflink.he_cap.has_he;
 
 		if (sta->tdls &&
 		    (vif->p2p ||
@@ -3121,17 +3178,17 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	} else if (old_state == IEEE80211_STA_AUTH &&
 		   new_state == IEEE80211_STA_ASSOC) {
 		if (vif->type == NL80211_IFTYPE_AP) {
-			vif->bss_conf.he_support = sta->he_cap.has_he;
+			vif->bss_conf.he_support = sta->deflink.he_cap.has_he;
 			mvmvif->ap_assoc_sta_count++;
 			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 			if (vif->bss_conf.he_support &&
 			    !iwlwifi_mod_params.disable_11ax)
 				iwl_mvm_cfg_he_sta(mvm, vif, mvm_sta->sta_id);
 		} else if (vif->type == NL80211_IFTYPE_STATION) {
-			vif->bss_conf.he_support = sta->he_cap.has_he;
+			vif->bss_conf.he_support = sta->deflink.he_cap.has_he;
 
 			mvmvif->he_ru_2mhz_block = false;
-			if (sta->he_cap.has_he)
+			if (sta->deflink.he_cap.has_he)
 				iwl_mvm_check_he_obss_narrow_bw_ru(hw, vif);
 
 			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
@@ -3413,12 +3470,7 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 		/* support HW crypto on TX */
 		return 0;
 	default:
-		/* currently FW supports only one optional cipher scheme */
-		if (hw->n_cipher_schemes &&
-		    hw->cipher_schemes->cipher == key->cipher)
-			key->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE;
-		else
-			return -EOPNOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	switch (cmd) {
@@ -3801,8 +3853,7 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 		if (fw_has_capa(&mvm->fw->ucode_capa,
 				IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT)) {
 			/* Use aux roc framework (HS20) */
-			if (iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-						  ADD_STA, 0) >= 12) {
+			if (iwl_fw_lookup_cmd_ver(mvm->fw, ADD_STA, 0) >= 12) {
 				u32 lmac_id;
 
 				lmac_id = iwl_mvm_get_lmac_id(mvm->fw,
@@ -4606,6 +4657,15 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 		break;
 	case NL80211_IFTYPE_STATION:
 		/*
+		 * In the new flow FW is in charge of timing the switch so there
+		 * is no need for all of this
+		 */
+		if (iwl_fw_lookup_notif_ver(mvm->fw, MAC_CONF_GROUP,
+					    CHANNEL_SWITCH_ERROR_NOTIF,
+					    0))
+			break;
+
+		/*
 		 * We haven't configured the firmware to be associated yet since
 		 * we don't know the dtim period. In this case, the firmware can't
 		 * track the beacons.
@@ -4675,6 +4735,14 @@ static void iwl_mvm_channel_switch_rx_beacon(struct ieee80211_hw *hw,
 		.cs_count = chsw->count,
 		.cs_mode = chsw->block_tx,
 	};
+
+	/*
+	 * In the new flow FW is in charge of timing the switch so there is no
+	 * need for all of this
+	 */
+	if (iwl_fw_lookup_notif_ver(mvm->fw, MAC_CONF_GROUP,
+				    CHANNEL_SWITCH_ERROR_NOTIF, 0))
+		return;
 
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_CS_MODIFY))
 		return;

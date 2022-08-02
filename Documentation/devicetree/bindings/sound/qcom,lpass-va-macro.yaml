@@ -28,14 +28,25 @@ properties:
     maxItems: 3
 
   clock-names:
-    items:
-      - const: mclk
-      - const: core
-      - const: dcodec
+    oneOf:
+      - items:   #for ADSP based platforms
+          - const: mclk
+          - const: core
+          - const: dcodec
+      - items:   #for ADSP bypass based platforms
+          - const: mclk
 
   clock-output-names:
     items:
       - const: fsgen
+
+  power-domains:
+    maxItems: 2
+
+  power-domain-names:
+    items:
+      - const: macro
+      - const: dcodec
 
   qcom,dmic-sample-rate:
     description: dmic sample rate

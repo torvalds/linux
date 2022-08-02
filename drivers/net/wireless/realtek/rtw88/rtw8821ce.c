@@ -9,6 +9,10 @@
 
 static const struct pci_device_id rtw_8821ce_id_table[] = {
 	{
+		PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0xB821),
+		.driver_data = (kernel_ulong_t)&rtw8821c_hw_spec
+	},
+	{
 		PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0xC821),
 		.driver_data = (kernel_ulong_t)&rtw8821c_hw_spec
 	},

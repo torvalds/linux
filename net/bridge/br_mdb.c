@@ -251,14 +251,16 @@ static int __mdb_fill_info(struct sk_buff *skb,
 	__mdb_entry_fill_flags(&e, flags);
 	e.ifindex = ifindex;
 	e.vid = mp->addr.vid;
-	if (mp->addr.proto == htons(ETH_P_IP))
+	if (mp->addr.proto == htons(ETH_P_IP)) {
 		e.addr.u.ip4 = mp->addr.dst.ip4;
 #if IS_ENABLED(CONFIG_IPV6)
-	else if (mp->addr.proto == htons(ETH_P_IPV6))
+	} else if (mp->addr.proto == htons(ETH_P_IPV6)) {
 		e.addr.u.ip6 = mp->addr.dst.ip6;
 #endif
-	else
+	} else {
 		ether_addr_copy(e.addr.u.mac_addr, mp->addr.dst.mac_addr);
+		e.state = MDB_PG_FLAGS_PERMANENT;
+	}
 	e.addr.proto = mp->addr.proto;
 	nest_ent = nla_nest_start_noflag(skb,
 					 MDBA_MDB_ENTRY_INFO);
@@ -873,8 +875,8 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 		return -EINVAL;
 
 	/* host join errors which can happen before creating the group */
-	if (!port) {
-		/* don't allow any flags for host-joined groups */
+	if (!port && !br_group_is_l2(&group)) {
+		/* don't allow any flags for host-joined IP groups */
 		if (entry->state) {
 			NL_SET_ERR_MSG_MOD(extack, "Flags are not allowed for host groups");
 			return -EINVAL;

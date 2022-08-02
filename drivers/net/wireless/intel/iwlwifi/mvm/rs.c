@@ -135,7 +135,7 @@ static bool rs_mimo_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			  struct rs_rate *rate,
 			  const struct rs_tx_column *next_col)
 {
-	if (!sta->ht_cap.ht_supported)
+	if (!sta->deflink.ht_cap.ht_supported)
 		return false;
 
 	if (sta->smps_mode == IEEE80211_SMPS_STATIC)
@@ -157,7 +157,7 @@ static bool rs_siso_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			  struct rs_rate *rate,
 			  const struct rs_tx_column *next_col)
 {
-	if (!sta->ht_cap.ht_supported)
+	if (!sta->deflink.ht_cap.ht_supported)
 		return false;
 
 	return true;
@@ -167,8 +167,8 @@ static bool rs_sgi_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			 struct rs_rate *rate,
 			 const struct rs_tx_column *next_col)
 {
-	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
-	struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->deflink.ht_cap;
+	struct ieee80211_sta_vht_cap *vht_cap = &sta->deflink.vht_cap;
 
 	if (is_ht20(rate) && (ht_cap->cap &
 			     IEEE80211_HT_CAP_SGI_20))
@@ -453,8 +453,6 @@ static const u16 expected_tpt_mimo2_160MHz[4][IWL_RATE_COUNT] = {
 	{0, 0, 0, 0, 875, 0, 1735, 2582, 3414, 5043, 6619, 7389, 8147, 9629,  10592},
 	{0, 0, 0, 0, 971, 0, 1925, 2861, 3779, 5574, 7304, 8147, 8976, 10592, 11640},
 };
-
-#define MCS_INDEX_PER_STREAM	(8)
 
 static const char *rs_pretty_lq_type(enum iwl_table_type type)
 {
@@ -1371,13 +1369,13 @@ static s32 rs_get_best_rate(struct iwl_mvm *mvm,
 
 static u32 rs_bw_from_sta_bw(struct ieee80211_sta *sta)
 {
-	struct ieee80211_sta_vht_cap *sta_vht_cap = &sta->vht_cap;
+	struct ieee80211_sta_vht_cap *sta_vht_cap = &sta->deflink.vht_cap;
 	struct ieee80211_vht_cap vht_cap = {
 		.vht_cap_info = cpu_to_le32(sta_vht_cap->cap),
 		.supp_mcs = sta_vht_cap->vht_mcs,
 	};
 
-	switch (sta->bandwidth) {
+	switch (sta->deflink.bandwidth) {
 	case IEEE80211_STA_RX_BW_160:
 		/*
 		 * Don't use 160 MHz if VHT extended NSS support
@@ -1390,7 +1388,7 @@ static u32 rs_bw_from_sta_bw(struct ieee80211_sta *sta)
 		if (ieee80211_get_vht_max_nss(&vht_cap,
 					      IEEE80211_VHT_CHANWIDTH_160MHZ,
 					      0, true,
-					      sta->rx_nss) < sta->rx_nss)
+					      sta->deflink.rx_nss) < sta->deflink.rx_nss)
 			return RATE_MCS_CHAN_WIDTH_80;
 		return RATE_MCS_CHAN_WIDTH_160;
 	case IEEE80211_STA_RX_BW_80:
@@ -2539,7 +2537,7 @@ static void rs_get_initial_rate(struct iwl_mvm *mvm,
 	 * In case of VHT/HT when the rssi is low fallback to the case of
 	 * legacy rates.
 	 */
-	if (sta->vht_cap.vht_supported &&
+	if (sta->deflink.vht_cap.vht_supported &&
 	    best_rssi > IWL_RS_LOW_RSSI_THRESHOLD) {
 		/*
 		 * In AP mode, when a new station associates, rs is initialized
@@ -2565,14 +2563,15 @@ static void rs_get_initial_rate(struct iwl_mvm *mvm,
 			nentries = ARRAY_SIZE(rs_optimal_rates_vht_20mhz);
 			break;
 		default:
-			IWL_ERR(mvm, "Invalid BW %d\n", sta->bandwidth);
+			IWL_ERR(mvm, "Invalid BW %d\n",
+				sta->deflink.bandwidth);
 			goto out;
 		}
 
 		active_rate = lq_sta->active_siso_rate;
 		rate->type = LQ_VHT_SISO;
 		rate->bw = bw;
-	} else if (sta->ht_cap.ht_supported &&
+	} else if (sta->deflink.ht_cap.ht_supported &&
 		   best_rssi > IWL_RS_LOW_RSSI_THRESHOLD) {
 		initial_rates = rs_optimal_rates_ht;
 		nentries = ARRAY_SIZE(rs_optimal_rates_ht);
@@ -2763,14 +2762,14 @@ static void rs_vht_set_enabled_rates(struct ieee80211_sta *sta,
 
 			/* VHT MCS9 isn't valid for 20Mhz for NSS=1,2 */
 			if (i == IWL_RATE_MCS_9_INDEX &&
-			    sta->bandwidth == IEEE80211_STA_RX_BW_20)
+			    sta->deflink.bandwidth == IEEE80211_STA_RX_BW_20)
 				continue;
 
 			lq_sta->active_siso_rate |= BIT(i);
 		}
 	}
 
-	if (sta->rx_nss < 2)
+	if (sta->deflink.rx_nss < 2)
 		return;
 
 	highest_mcs = rs_vht_highest_rx_mcs_index(vht_cap, 2);
@@ -2781,7 +2780,7 @@ static void rs_vht_set_enabled_rates(struct ieee80211_sta *sta,
 
 			/* VHT MCS9 isn't valid for 20Mhz for NSS=1,2 */
 			if (i == IWL_RATE_MCS_9_INDEX &&
-			    sta->bandwidth == IEEE80211_STA_RX_BW_20)
+			    sta->deflink.bandwidth == IEEE80211_STA_RX_BW_20)
 				continue;
 
 			lq_sta->active_mimo2_rate |= BIT(i);
@@ -2918,8 +2917,8 @@ static void rs_drv_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 {
 	int i, j;
 	struct ieee80211_hw *hw = mvm->hw;
-	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
-	struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->deflink.ht_cap;
+	struct ieee80211_sta_vht_cap *vht_cap = &sta->deflink.vht_cap;
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta.rs_drv;
 	struct ieee80211_supported_band *sband;
@@ -2955,7 +2954,7 @@ static void rs_drv_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	/*
 	 * active legacy rates as per supported rates bitmap
 	 */
-	supp = sta->supp_rates[sband->band];
+	supp = sta->deflink.supp_rates[sband->band];
 	lq_sta->active_legacy_rate = 0;
 	for_each_set_bit(i, &supp, BITS_PER_LONG)
 		lq_sta->active_legacy_rate |= BIT(sband->bitrates[i].hw_value);
@@ -3248,7 +3247,7 @@ static void __iwl_mvm_rs_tx_status(struct iwl_mvm *mvm,
 	IWL_DEBUG_RATE(mvm, "reduced txpower: %d\n", reduced_txp);
 done:
 	/* See if there's a better rate or modulation mode to try. */
-	if (sta->supp_rates[info->band])
+	if (sta->deflink.supp_rates[info->band])
 		rs_rate_scale_perform(mvm, sta, lq_sta, tid, ndp);
 }
 

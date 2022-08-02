@@ -249,6 +249,7 @@ struct nvmet_subsys {
 	struct config_group	passthru_group;
 	unsigned int		admin_timeout;
 	unsigned int		io_timeout;
+	unsigned int		clear_ids;
 #endif /* CONFIG_NVME_TARGET_PASSTHRU */
 
 #ifdef CONFIG_BLK_DEV_ZONED
@@ -366,6 +367,7 @@ struct nvmet_req {
 
 extern struct workqueue_struct *buffered_io_wq;
 extern struct workqueue_struct *zbd_wq;
+extern struct workqueue_struct *nvmet_wq;
 
 static inline void nvmet_set_result(struct nvmet_req *req, u32 result)
 {
@@ -541,8 +543,8 @@ u16 nvmet_bdev_flush(struct nvmet_req *req);
 u16 nvmet_file_flush(struct nvmet_req *req);
 void nvmet_ns_changed(struct nvmet_subsys *subsys, u32 nsid);
 void nvmet_bdev_ns_revalidate(struct nvmet_ns *ns);
-int nvmet_file_ns_revalidate(struct nvmet_ns *ns);
-void nvmet_ns_revalidate(struct nvmet_ns *ns);
+void nvmet_file_ns_revalidate(struct nvmet_ns *ns);
+bool nvmet_ns_revalidate(struct nvmet_ns *ns);
 u16 blk_to_nvme_status(struct nvmet_req *req, blk_status_t blk_sts);
 
 bool nvmet_bdev_zns_enable(struct nvmet_ns *ns);

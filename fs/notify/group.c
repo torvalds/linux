@@ -112,8 +112,10 @@ void fsnotify_put_group(struct fsnotify_group *group)
 EXPORT_SYMBOL_GPL(fsnotify_put_group);
 
 static struct fsnotify_group *__fsnotify_alloc_group(
-				const struct fsnotify_ops *ops, gfp_t gfp)
+				const struct fsnotify_ops *ops,
+				int flags, gfp_t gfp)
 {
+	static struct lock_class_key nofs_marks_lock;
 	struct fsnotify_group *group;
 
 	group = kzalloc(sizeof(struct fsnotify_group), gfp);
@@ -133,6 +135,17 @@ static struct fsnotify_group *__fsnotify_alloc_group(
 	INIT_LIST_HEAD(&group->marks_list);
 
 	group->ops = ops;
+	group->flags = flags;
+	/*
+	 * For most backends, eviction of inode with a mark is not expected,
+	 * because marks hold a refcount on the inode against eviction.
+	 *
+	 * Use a different lockdep class for groups that support evictable
+	 * inode marks, because with evictable marks, mark_mutex is NOT
+	 * fs-reclaim safe - the mutex is taken when evicting inodes.
+	 */
+	if (flags & FSNOTIFY_GROUP_NOFS)
+		lockdep_set_class(&group->mark_mutex, &nofs_marks_lock);
 
 	return group;
 }
@@ -140,20 +153,15 @@ static struct fsnotify_group *__fsnotify_alloc_group(
 /*
  * Create a new fsnotify_group and hold a reference for the group returned.
  */
-struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops)
+struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops,
+					    int flags)
 {
-	return __fsnotify_alloc_group(ops, GFP_KERNEL);
+	gfp_t gfp = (flags & FSNOTIFY_GROUP_USER) ? GFP_KERNEL_ACCOUNT :
+						    GFP_KERNEL;
+
+	return __fsnotify_alloc_group(ops, flags, gfp);
 }
 EXPORT_SYMBOL_GPL(fsnotify_alloc_group);
-
-/*
- * Create a new fsnotify_group and hold a reference for the group returned.
- */
-struct fsnotify_group *fsnotify_alloc_user_group(const struct fsnotify_ops *ops)
-{
-	return __fsnotify_alloc_group(ops, GFP_KERNEL_ACCOUNT);
-}
-EXPORT_SYMBOL_GPL(fsnotify_alloc_user_group);
 
 int fsnotify_fasync(int fd, struct file *file, int on)
 {

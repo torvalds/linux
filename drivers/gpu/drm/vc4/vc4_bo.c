@@ -248,6 +248,9 @@ void vc4_bo_add_to_purgeable_pool(struct vc4_bo *bo)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(bo->base.base.dev);
 
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return;
+
 	mutex_lock(&vc4->purgeable.lock);
 	list_add_tail(&bo->size_head, &vc4->purgeable.list);
 	vc4->purgeable.num++;
@@ -258,6 +261,9 @@ void vc4_bo_add_to_purgeable_pool(struct vc4_bo *bo)
 static void vc4_bo_remove_from_purgeable_pool_locked(struct vc4_bo *bo)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(bo->base.base.dev);
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return;
 
 	/* list_del_init() is used here because the caller might release
 	 * the purgeable lock in order to acquire the madv one and update the
@@ -355,8 +361,6 @@ static struct vc4_bo *vc4_bo_get_from_cache(struct drm_device *dev,
 	uint32_t page_index = bo_page_index(size);
 	struct vc4_bo *bo = NULL;
 
-	size = roundup(size, PAGE_SIZE);
-
 	mutex_lock(&vc4->bo_lock);
 	if (page_index >= vc4->bo_cache.size_list_size)
 		goto out;
@@ -389,6 +393,9 @@ struct drm_gem_object *vc4_create_object(struct drm_device *dev, size_t size)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_bo *bo;
 
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return ERR_PTR(-ENODEV);
+
 	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
 	if (!bo)
 		return ERR_PTR(-ENOMEM);
@@ -414,6 +421,9 @@ struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t unaligned_size,
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_gem_cma_object *cma_obj;
 	struct vc4_bo *bo;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return ERR_PTR(-ENODEV);
 
 	if (size == 0)
 		return ERR_PTR(-EINVAL);
@@ -473,19 +483,20 @@ struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t unaligned_size,
 	return bo;
 }
 
-int vc4_dumb_create(struct drm_file *file_priv,
-		    struct drm_device *dev,
-		    struct drm_mode_create_dumb *args)
+int vc4_bo_dumb_create(struct drm_file *file_priv,
+		       struct drm_device *dev,
+		       struct drm_mode_create_dumb *args)
 {
-	int min_pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_bo *bo = NULL;
 	int ret;
 
-	if (args->pitch < min_pitch)
-		args->pitch = min_pitch;
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
 
-	if (args->size < args->pitch * args->height)
-		args->size = args->pitch * args->height;
+	ret = vc4_dumb_fixup_args(args);
+	if (ret)
+		return ret;
 
 	bo = vc4_bo_create(dev, args->size, false, VC4_BO_TYPE_DUMB);
 	if (IS_ERR(bo))
@@ -603,7 +614,11 @@ static void vc4_bo_cache_time_work(struct work_struct *work)
 
 int vc4_bo_inc_usecnt(struct vc4_bo *bo)
 {
+	struct vc4_dev *vc4 = to_vc4_dev(bo->base.base.dev);
 	int ret;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
 
 	/* Fast path: if the BO is already retained by someone, no need to
 	 * check the madv status.
@@ -639,6 +654,11 @@ int vc4_bo_inc_usecnt(struct vc4_bo *bo)
 
 void vc4_bo_dec_usecnt(struct vc4_bo *bo)
 {
+	struct vc4_dev *vc4 = to_vc4_dev(bo->base.base.dev);
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return;
+
 	/* Fast path: if the BO is still retained by someone, no need to test
 	 * the madv value.
 	 */
@@ -740,19 +760,13 @@ static const struct drm_gem_object_funcs vc4_gem_object_funcs = {
 
 static int vc4_grab_bin_bo(struct vc4_dev *vc4, struct vc4_file *vc4file)
 {
-	int ret;
-
 	if (!vc4->v3d)
 		return -ENODEV;
 
 	if (vc4file->bin_bo_used)
 		return 0;
 
-	ret = vc4_v3d_bin_bo_get(vc4, &vc4file->bin_bo_used);
-	if (ret)
-		return ret;
-
-	return 0;
+	return vc4_v3d_bin_bo_get(vc4, &vc4file->bin_bo_used);
 }
 
 int vc4_create_bo_ioctl(struct drm_device *dev, void *data,
@@ -763,6 +777,9 @@ int vc4_create_bo_ioctl(struct drm_device *dev, void *data,
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_bo *bo = NULL;
 	int ret;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
 
 	ret = vc4_grab_bin_bo(vc4, vc4file);
 	if (ret)
@@ -787,8 +804,12 @@ int vc4_create_bo_ioctl(struct drm_device *dev, void *data,
 int vc4_mmap_bo_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv)
 {
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_vc4_mmap_bo *args = data;
 	struct drm_gem_object *gem_obj;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
@@ -812,6 +833,9 @@ vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_bo *bo = NULL;
 	int ret;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
 
 	if (args->size == 0)
 		return -EINVAL;
@@ -883,10 +907,14 @@ fail:
 int vc4_set_tiling_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_vc4_set_tiling *args = data;
 	struct drm_gem_object *gem_obj;
 	struct vc4_bo *bo;
 	bool t_format;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
 
 	if (args->flags != 0)
 		return -EINVAL;
@@ -926,9 +954,13 @@ int vc4_set_tiling_ioctl(struct drm_device *dev, void *data,
 int vc4_get_tiling_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_vc4_get_tiling *args = data;
 	struct drm_gem_object *gem_obj;
 	struct vc4_bo *bo;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
 
 	if (args->flags != 0 || args->modifier != 0)
 		return -EINVAL;
@@ -955,6 +987,9 @@ int vc4_bo_cache_init(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	int i;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
 
 	/* Create the initial set of BO labels that the kernel will
 	 * use.  This lets us avoid a bunch of string reallocation in
@@ -1014,6 +1049,9 @@ int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
 	char *name;
 	struct drm_gem_object *gem_obj;
 	int ret = 0, label;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
 
 	if (!args->len)
 		return -EINVAL;

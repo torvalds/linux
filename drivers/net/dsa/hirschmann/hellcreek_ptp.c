@@ -300,6 +300,7 @@ static int hellcreek_led_setup(struct hellcreek *hellcreek)
 	const char *label, *state;
 	int ret = -EINVAL;
 
+	of_node_get(hellcreek->dev->of_node);
 	leds = of_find_node_by_name(hellcreek->dev->of_node, "leds");
 	if (!leds) {
 		dev_err(hellcreek->dev, "No LEDs specified in device tree!\n");

@@ -141,7 +141,6 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 	struct scpi_ops *scpi_ops;
 	struct device *hwdev, *dev = &pdev->dev;
 	struct scpi_sensors *scpi_sensors;
-	const struct of_device_id *of_id;
 	int idx, ret;
 
 	scpi_ops = get_scpi_ops();
@@ -171,12 +170,11 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 
 	scpi_sensors->scpi_ops = scpi_ops;
 
-	of_id = of_match_device(scpi_of_match, &pdev->dev);
-	if (!of_id) {
+	scale = of_device_get_match_data(&pdev->dev);
+	if (!scale) {
 		dev_err(&pdev->dev, "Unable to initialize scpi-hwmon data\n");
 		return -ENODEV;
 	}
-	scale = of_id->data;
 
 	for (i = 0, idx = 0; i < nr_sensors; i++) {
 		struct sensor_data *sensor = &scpi_sensors->data[idx];

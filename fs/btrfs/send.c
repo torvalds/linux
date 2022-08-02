@@ -10,7 +10,6 @@
 #include <linux/mount.h>
 #include <linux/xattr.h>
 #include <linux/posix_acl_xattr.h>
-#include <linux/radix-tree.h>
 #include <linux/vmalloc.h>
 #include <linux/string.h>
 #include <linux/compat.h>
@@ -128,11 +127,18 @@ struct send_ctx {
 	struct list_head new_refs;
 	struct list_head deleted_refs;
 
-	struct radix_tree_root name_cache;
+	struct xarray name_cache;
 	struct list_head name_cache_list;
 	int name_cache_size;
 
+	/*
+	 * The inode we are currently processing. It's not NULL only when we
+	 * need to issue write commands for data extents from this inode.
+	 */
+	struct inode *cur_inode;
 	struct file_ra_state ra;
+	u64 page_cache_clear_start;
+	bool clean_page_cache;
 
 	/*
 	 * We process inodes by their increasing order, so if before an
@@ -262,14 +268,13 @@ struct orphan_dir_info {
 struct name_cache_entry {
 	struct list_head list;
 	/*
-	 * radix_tree has only 32bit entries but we need to handle 64bit inums.
-	 * We use the lower 32bit of the 64bit inum to store it in the tree. If
-	 * more then one inum would fall into the same entry, we use radix_list
-	 * to store the additional entries. radix_list is also used to store
-	 * entries where two entries have the same inum but different
-	 * generations.
+	 * On 32bit kernels, xarray has only 32bit indices, but we need to
+	 * handle 64bit inums. We use the lower 32bit of the 64bit inum to store
+	 * it in the tree. If more than one inum would fall into the same entry,
+	 * we use inum_aliases to store the additional entries. inum_aliases is
+	 * also used to store entries with the same inum but different generations.
 	 */
-	struct list_head radix_list;
+	struct list_head inum_aliases;
 	u64 ino;
 	u64 gen;
 	u64 parent_ino;
@@ -528,16 +533,11 @@ out:
 
 static int fs_path_copy(struct fs_path *p, struct fs_path *from)
 {
-	int ret;
-
 	p->reversed = from->reversed;
 	fs_path_reset(p);
 
-	ret = fs_path_add_path(p, from);
-
-	return ret;
+	return fs_path_add_path(p, from);
 }
-
 
 static void fs_path_unreverse(struct fs_path *p)
 {
@@ -2024,9 +2024,9 @@ out:
 }
 
 /*
- * Insert a name cache entry. On 32bit kernels the radix tree index is 32bit,
+ * Insert a name cache entry. On 32bit kernels the xarray index is 32bit,
  * so we need to do some special handling in case we have clashes. This function
- * takes care of this with the help of name_cache_entry::radix_list.
+ * takes care of this with the help of name_cache_entry::inum_aliases.
  * In case of error, nce is kfreed.
  */
 static int name_cache_insert(struct send_ctx *sctx,
@@ -2035,8 +2035,7 @@ static int name_cache_insert(struct send_ctx *sctx,
 	int ret = 0;
 	struct list_head *nce_head;
 
-	nce_head = radix_tree_lookup(&sctx->name_cache,
-			(unsigned long)nce->ino);
+	nce_head = xa_load(&sctx->name_cache, (unsigned long)nce->ino);
 	if (!nce_head) {
 		nce_head = kmalloc(sizeof(*nce_head), GFP_KERNEL);
 		if (!nce_head) {
@@ -2045,14 +2044,14 @@ static int name_cache_insert(struct send_ctx *sctx,
 		}
 		INIT_LIST_HEAD(nce_head);
 
-		ret = radix_tree_insert(&sctx->name_cache, nce->ino, nce_head);
+		ret = xa_insert(&sctx->name_cache, nce->ino, nce_head, GFP_KERNEL);
 		if (ret < 0) {
 			kfree(nce_head);
 			kfree(nce);
 			return ret;
 		}
 	}
-	list_add_tail(&nce->radix_list, nce_head);
+	list_add_tail(&nce->inum_aliases, nce_head);
 	list_add_tail(&nce->list, &sctx->name_cache_list);
 	sctx->name_cache_size++;
 
@@ -2064,15 +2063,14 @@ static void name_cache_delete(struct send_ctx *sctx,
 {
 	struct list_head *nce_head;
 
-	nce_head = radix_tree_lookup(&sctx->name_cache,
-			(unsigned long)nce->ino);
+	nce_head = xa_load(&sctx->name_cache, (unsigned long)nce->ino);
 	if (!nce_head) {
 		btrfs_err(sctx->send_root->fs_info,
 	      "name_cache_delete lookup failed ino %llu cache size %d, leaking memory",
 			nce->ino, sctx->name_cache_size);
 	}
 
-	list_del(&nce->radix_list);
+	list_del(&nce->inum_aliases);
 	list_del(&nce->list);
 	sctx->name_cache_size--;
 
@@ -2080,7 +2078,7 @@ static void name_cache_delete(struct send_ctx *sctx,
 	 * We may not get to the final release of nce_head if the lookup fails
 	 */
 	if (nce_head && list_empty(nce_head)) {
-		radix_tree_delete(&sctx->name_cache, (unsigned long)nce->ino);
+		xa_erase(&sctx->name_cache, (unsigned long)nce->ino);
 		kfree(nce_head);
 	}
 }
@@ -2091,11 +2089,11 @@ static struct name_cache_entry *name_cache_search(struct send_ctx *sctx,
 	struct list_head *nce_head;
 	struct name_cache_entry *cur;
 
-	nce_head = radix_tree_lookup(&sctx->name_cache, (unsigned long)ino);
+	nce_head = xa_load(&sctx->name_cache, (unsigned long)ino);
 	if (!nce_head)
 		return NULL;
 
-	list_for_each_entry(cur, nce_head, radix_list) {
+	list_for_each_entry(cur, nce_head, inum_aliases) {
 		if (cur->ino == ino && cur->gen == gen)
 			return cur;
 	}
@@ -2680,61 +2678,43 @@ out:
 static int did_create_dir(struct send_ctx *sctx, u64 dir)
 {
 	int ret = 0;
+	int iter_ret = 0;
 	struct btrfs_path *path = NULL;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
 	struct btrfs_key di_key;
-	struct extent_buffer *eb;
 	struct btrfs_dir_item *di;
-	int slot;
 
 	path = alloc_path_for_send();
-	if (!path) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!path)
+		return -ENOMEM;
 
 	key.objectid = dir;
 	key.type = BTRFS_DIR_INDEX_KEY;
 	key.offset = 0;
-	ret = btrfs_search_slot(NULL, sctx->send_root, &key, path, 0, 0);
-	if (ret < 0)
-		goto out;
 
-	while (1) {
-		eb = path->nodes[0];
-		slot = path->slots[0];
-		if (slot >= btrfs_header_nritems(eb)) {
-			ret = btrfs_next_leaf(sctx->send_root, path);
-			if (ret < 0) {
-				goto out;
-			} else if (ret > 0) {
-				ret = 0;
-				break;
-			}
-			continue;
-		}
+	btrfs_for_each_slot(sctx->send_root, &key, &found_key, path, iter_ret) {
+		struct extent_buffer *eb = path->nodes[0];
 
-		btrfs_item_key_to_cpu(eb, &found_key, slot);
 		if (found_key.objectid != key.objectid ||
 		    found_key.type != key.type) {
 			ret = 0;
-			goto out;
+			break;
 		}
 
-		di = btrfs_item_ptr(eb, slot, struct btrfs_dir_item);
+		di = btrfs_item_ptr(eb, path->slots[0], struct btrfs_dir_item);
 		btrfs_dir_item_key_to_cpu(eb, di, &di_key);
 
 		if (di_key.type != BTRFS_ROOT_ITEM_KEY &&
 		    di_key.objectid < sctx->send_progress) {
 			ret = 1;
-			goto out;
+			break;
 		}
-
-		path->slots[0]++;
 	}
+	/* Catch error found during iteration */
+	if (iter_ret < 0)
+		ret = iter_ret;
 
-out:
 	btrfs_free_path(path);
 	return ret;
 }
@@ -2938,6 +2918,7 @@ static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 		     u64 send_progress)
 {
 	int ret = 0;
+	int iter_ret = 0;
 	struct btrfs_root *root = sctx->parent_root;
 	struct btrfs_path *path;
 	struct btrfs_key key;
@@ -2964,23 +2945,9 @@ static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 	if (odi)
 		key.offset = odi->last_dir_index_offset;
 
-	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-	if (ret < 0)
-		goto out;
-
-	while (1) {
+	btrfs_for_each_slot(root, &key, &found_key, path, iter_ret) {
 		struct waiting_dir_move *dm;
 
-		if (path->slots[0] >= btrfs_header_nritems(path->nodes[0])) {
-			ret = btrfs_next_leaf(root, path);
-			if (ret < 0)
-				goto out;
-			else if (ret > 0)
-				break;
-			continue;
-		}
-		btrfs_item_key_to_cpu(path->nodes[0], &found_key,
-				      path->slots[0]);
 		if (found_key.objectid != key.objectid ||
 		    found_key.type != key.type)
 			break;
@@ -3015,8 +2982,10 @@ static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 			ret = 0;
 			goto out;
 		}
-
-		path->slots[0]++;
+	}
+	if (iter_ret < 0) {
+		ret = iter_ret;
+		goto out;
 	}
 	free_orphan_dir_info(sctx, odi);
 
@@ -3584,7 +3553,7 @@ static int check_ino_in_path(struct btrfs_root *root,
 }
 
 /*
- * Check if ino ino1 is an ancestor of inode ino2 in the given root for any
+ * Check if inode ino1 is an ancestor of inode ino2 in the given root for any
  * possible path (in case ino2 is not a directory and has multiple hard links).
  * Return 1 if true, 0 if false and < 0 on error.
  */
@@ -3596,6 +3565,7 @@ static int is_ancestor(struct btrfs_root *root,
 {
 	bool free_fs_path = false;
 	int ret = 0;
+	int iter_ret = 0;
 	struct btrfs_path *path = NULL;
 	struct btrfs_key key;
 
@@ -3616,26 +3586,12 @@ static int is_ancestor(struct btrfs_root *root,
 	key.type = BTRFS_INODE_REF_KEY;
 	key.offset = 0;
 
-	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-	if (ret < 0)
-		goto out;
-
-	while (true) {
+	btrfs_for_each_slot(root, &key, &key, path, iter_ret) {
 		struct extent_buffer *leaf = path->nodes[0];
 		int slot = path->slots[0];
 		u32 cur_offset = 0;
 		u32 item_size;
 
-		if (slot >= btrfs_header_nritems(leaf)) {
-			ret = btrfs_next_leaf(root, path);
-			if (ret < 0)
-				goto out;
-			if (ret > 0)
-				break;
-			continue;
-		}
-
-		btrfs_item_key_to_cpu(leaf, &key, slot);
 		if (key.objectid != ino2)
 			break;
 		if (key.type != BTRFS_INODE_REF_KEY &&
@@ -3673,10 +3629,12 @@ static int is_ancestor(struct btrfs_root *root,
 			if (ret)
 				goto out;
 		}
-		path->slots[0]++;
 	}
 	ret = 0;
- out:
+	if (iter_ret < 0)
+		ret = iter_ret;
+
+out:
 	btrfs_free_path(path);
 	if (free_fs_path)
 		fs_path_free(fs_path);
@@ -4556,13 +4514,12 @@ out:
 static int process_all_refs(struct send_ctx *sctx,
 			    enum btrfs_compare_tree_result cmd)
 {
-	int ret;
+	int ret = 0;
+	int iter_ret = 0;
 	struct btrfs_root *root;
 	struct btrfs_path *path;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
-	struct extent_buffer *eb;
-	int slot;
 	iterate_inode_ref_t cb;
 	int pending_move = 0;
 
@@ -4586,24 +4543,7 @@ static int process_all_refs(struct send_ctx *sctx,
 	key.objectid = sctx->cmp_key->objectid;
 	key.type = BTRFS_INODE_REF_KEY;
 	key.offset = 0;
-	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-	if (ret < 0)
-		goto out;
-
-	while (1) {
-		eb = path->nodes[0];
-		slot = path->slots[0];
-		if (slot >= btrfs_header_nritems(eb)) {
-			ret = btrfs_next_leaf(root, path);
-			if (ret < 0)
-				goto out;
-			else if (ret > 0)
-				break;
-			continue;
-		}
-
-		btrfs_item_key_to_cpu(eb, &found_key, slot);
-
+	btrfs_for_each_slot(root, &key, &found_key, path, iter_ret) {
 		if (found_key.objectid != key.objectid ||
 		    (found_key.type != BTRFS_INODE_REF_KEY &&
 		     found_key.type != BTRFS_INODE_EXTREF_KEY))
@@ -4612,8 +4552,11 @@ static int process_all_refs(struct send_ctx *sctx,
 		ret = iterate_inode_ref(root, path, &found_key, 0, cb, sctx);
 		if (ret < 0)
 			goto out;
-
-		path->slots[0]++;
+	}
+	/* Catch error found during iteration */
+	if (iter_ret < 0) {
+		ret = iter_ret;
+		goto out;
 	}
 	btrfs_release_path(path);
 
@@ -4875,13 +4818,12 @@ out:
 
 static int process_all_new_xattrs(struct send_ctx *sctx)
 {
-	int ret;
+	int ret = 0;
+	int iter_ret = 0;
 	struct btrfs_root *root;
 	struct btrfs_path *path;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
-	struct extent_buffer *eb;
-	int slot;
 
 	path = alloc_path_for_send();
 	if (!path)
@@ -4892,39 +4834,21 @@ static int process_all_new_xattrs(struct send_ctx *sctx)
 	key.objectid = sctx->cmp_key->objectid;
 	key.type = BTRFS_XATTR_ITEM_KEY;
 	key.offset = 0;
-	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-	if (ret < 0)
-		goto out;
-
-	while (1) {
-		eb = path->nodes[0];
-		slot = path->slots[0];
-		if (slot >= btrfs_header_nritems(eb)) {
-			ret = btrfs_next_leaf(root, path);
-			if (ret < 0) {
-				goto out;
-			} else if (ret > 0) {
-				ret = 0;
-				break;
-			}
-			continue;
-		}
-
-		btrfs_item_key_to_cpu(eb, &found_key, slot);
+	btrfs_for_each_slot(root, &key, &found_key, path, iter_ret) {
 		if (found_key.objectid != key.objectid ||
 		    found_key.type != key.type) {
 			ret = 0;
-			goto out;
+			break;
 		}
 
 		ret = iterate_dir_item(root, path, __process_new_xattr, sctx);
 		if (ret < 0)
-			goto out;
-
-		path->slots[0]++;
+			break;
 	}
+	/* Catch error found during iteration */
+	if (iter_ret < 0)
+		ret = iter_ret;
 
-out:
 	btrfs_free_path(path);
 	return ret;
 }
@@ -4951,7 +4875,6 @@ static int put_file_data(struct send_ctx *sctx, u64 offset, u32 len)
 {
 	struct btrfs_root *root = sctx->send_root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct inode *inode;
 	struct page *page;
 	pgoff_t index = offset >> PAGE_SHIFT;
 	pgoff_t last_index;
@@ -4962,40 +4885,33 @@ static int put_file_data(struct send_ctx *sctx, u64 offset, u32 len)
 	if (ret)
 		return ret;
 
-	inode = btrfs_iget(fs_info->sb, sctx->cur_ino, root);
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
-
 	last_index = (offset + len - 1) >> PAGE_SHIFT;
-
-	/* initial readahead */
-	memset(&sctx->ra, 0, sizeof(struct file_ra_state));
-	file_ra_state_init(&sctx->ra, inode->i_mapping);
 
 	while (index <= last_index) {
 		unsigned cur_len = min_t(unsigned, len,
 					 PAGE_SIZE - pg_offset);
 
-		page = find_lock_page(inode->i_mapping, index);
+		page = find_lock_page(sctx->cur_inode->i_mapping, index);
 		if (!page) {
-			page_cache_sync_readahead(inode->i_mapping, &sctx->ra,
-				NULL, index, last_index + 1 - index);
+			page_cache_sync_readahead(sctx->cur_inode->i_mapping,
+						  &sctx->ra, NULL, index,
+						  last_index + 1 - index);
 
-			page = find_or_create_page(inode->i_mapping, index,
-					GFP_KERNEL);
+			page = find_or_create_page(sctx->cur_inode->i_mapping,
+						   index, GFP_KERNEL);
 			if (!page) {
 				ret = -ENOMEM;
 				break;
 			}
 		}
 
-		if (PageReadahead(page)) {
-			page_cache_async_readahead(inode->i_mapping, &sctx->ra,
-				NULL, page, index, last_index + 1 - index);
-		}
+		if (PageReadahead(page))
+			page_cache_async_readahead(sctx->cur_inode->i_mapping,
+						   &sctx->ra, NULL, page_folio(page),
+						   index, last_index + 1 - index);
 
 		if (!PageUptodate(page)) {
-			btrfs_readpage(NULL, page);
+			btrfs_read_folio(NULL, page_folio(page));
 			lock_page(page);
 			if (!PageUptodate(page)) {
 				unlock_page(page);
@@ -5018,7 +4934,7 @@ static int put_file_data(struct send_ctx *sctx, u64 offset, u32 len)
 		len -= cur_len;
 		sctx->send_size += cur_len;
 	}
-	iput(inode);
+
 	return ret;
 }
 
@@ -5225,11 +5141,48 @@ static int send_extent_data(struct send_ctx *sctx,
 			    const u64 offset,
 			    const u64 len)
 {
+	const u64 end = offset + len;
 	u64 read_size = max_send_read_size(sctx);
 	u64 sent = 0;
 
 	if (sctx->flags & BTRFS_SEND_FLAG_NO_FILE_DATA)
 		return send_update_extent(sctx, offset, len);
+
+	if (sctx->cur_inode == NULL) {
+		struct btrfs_root *root = sctx->send_root;
+
+		sctx->cur_inode = btrfs_iget(root->fs_info->sb, sctx->cur_ino, root);
+		if (IS_ERR(sctx->cur_inode)) {
+			int err = PTR_ERR(sctx->cur_inode);
+
+			sctx->cur_inode = NULL;
+			return err;
+		}
+		memset(&sctx->ra, 0, sizeof(struct file_ra_state));
+		file_ra_state_init(&sctx->ra, sctx->cur_inode->i_mapping);
+
+		/*
+		 * It's very likely there are no pages from this inode in the page
+		 * cache, so after reading extents and sending their data, we clean
+		 * the page cache to avoid trashing the page cache (adding pressure
+		 * to the page cache and forcing eviction of other data more useful
+		 * for applications).
+		 *
+		 * We decide if we should clean the page cache simply by checking
+		 * if the inode's mapping nrpages is 0 when we first open it, and
+		 * not by using something like filemap_range_has_page() before
+		 * reading an extent because when we ask the readahead code to
+		 * read a given file range, it may (and almost always does) read
+		 * pages from beyond that range (see the documentation for
+		 * page_cache_sync_readahead()), so it would not be reliable,
+		 * because after reading the first extent future calls to
+		 * filemap_range_has_page() would return true because the readahead
+		 * on the previous extent resulted in reading pages of the current
+		 * extent as well.
+		 */
+		sctx->clean_page_cache = (sctx->cur_inode->i_mapping->nrpages == 0);
+		sctx->page_cache_clear_start = round_down(offset, PAGE_SIZE);
+	}
 
 	while (sent < len) {
 		u64 size = min(len - sent, read_size);
@@ -5240,6 +5193,37 @@ static int send_extent_data(struct send_ctx *sctx,
 			return ret;
 		sent += size;
 	}
+
+	if (sctx->clean_page_cache && IS_ALIGNED(end, PAGE_SIZE)) {
+		/*
+		 * Always operate only on ranges that are a multiple of the page
+		 * size. This is not only to prevent zeroing parts of a page in
+		 * the case of subpage sector size, but also to guarantee we evict
+		 * pages, as passing a range that is smaller than page size does
+		 * not evict the respective page (only zeroes part of its content).
+		 *
+		 * Always start from the end offset of the last range cleared.
+		 * This is because the readahead code may (and very often does)
+		 * reads pages beyond the range we request for readahead. So if
+		 * we have an extent layout like this:
+		 *
+		 *            [ extent A ] [ extent B ] [ extent C ]
+		 *
+		 * When we ask page_cache_sync_readahead() to read extent A, it
+		 * may also trigger reads for pages of extent B. If we are doing
+		 * an incremental send and extent B has not changed between the
+		 * parent and send snapshots, some or all of its pages may end
+		 * up being read and placed in the page cache. So when truncating
+		 * the page cache we always start from the end offset of the
+		 * previously processed extent up to the end of the current
+		 * extent.
+		 */
+		truncate_inode_pages_range(&sctx->cur_inode->i_data,
+					   sctx->page_cache_clear_start,
+					   end - 1);
+		sctx->page_cache_clear_start = end;
+	}
+
 	return 0;
 }
 
@@ -5970,13 +5954,12 @@ out:
 
 static int process_all_extents(struct send_ctx *sctx)
 {
-	int ret;
+	int ret = 0;
+	int iter_ret = 0;
 	struct btrfs_root *root;
 	struct btrfs_path *path;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
-	struct extent_buffer *eb;
-	int slot;
 
 	root = sctx->send_root;
 	path = alloc_path_for_send();
@@ -5986,41 +5969,21 @@ static int process_all_extents(struct send_ctx *sctx)
 	key.objectid = sctx->cmp_key->objectid;
 	key.type = BTRFS_EXTENT_DATA_KEY;
 	key.offset = 0;
-	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-	if (ret < 0)
-		goto out;
-
-	while (1) {
-		eb = path->nodes[0];
-		slot = path->slots[0];
-
-		if (slot >= btrfs_header_nritems(eb)) {
-			ret = btrfs_next_leaf(root, path);
-			if (ret < 0) {
-				goto out;
-			} else if (ret > 0) {
-				ret = 0;
-				break;
-			}
-			continue;
-		}
-
-		btrfs_item_key_to_cpu(eb, &found_key, slot);
-
+	btrfs_for_each_slot(root, &key, &found_key, path, iter_ret) {
 		if (found_key.objectid != key.objectid ||
 		    found_key.type != key.type) {
 			ret = 0;
-			goto out;
+			break;
 		}
 
 		ret = process_extent(sctx, path, &found_key);
 		if (ret < 0)
-			goto out;
-
-		path->slots[0]++;
+			break;
 	}
+	/* Catch error found during iteration */
+	if (iter_ret < 0)
+		ret = iter_ret;
 
-out:
 	btrfs_free_path(path);
 	return ret;
 }
@@ -6210,8 +6173,11 @@ static int btrfs_unlink_all_paths(struct send_ctx *sctx)
 {
 	LIST_HEAD(deleted_refs);
 	struct btrfs_path *path;
+	struct btrfs_root *root = sctx->parent_root;
 	struct btrfs_key key;
+	struct btrfs_key found_key;
 	struct parent_paths_ctx ctx;
+	int iter_ret = 0;
 	int ret;
 
 	path = alloc_path_for_send();
@@ -6221,39 +6187,26 @@ static int btrfs_unlink_all_paths(struct send_ctx *sctx)
 	key.objectid = sctx->cur_ino;
 	key.type = BTRFS_INODE_REF_KEY;
 	key.offset = 0;
-	ret = btrfs_search_slot(NULL, sctx->parent_root, &key, path, 0, 0);
-	if (ret < 0)
-		goto out;
 
 	ctx.refs = &deleted_refs;
 	ctx.sctx = sctx;
 
-	while (true) {
-		struct extent_buffer *eb = path->nodes[0];
-		int slot = path->slots[0];
-
-		if (slot >= btrfs_header_nritems(eb)) {
-			ret = btrfs_next_leaf(sctx->parent_root, path);
-			if (ret < 0)
-				goto out;
-			else if (ret > 0)
-				break;
-			continue;
-		}
-
-		btrfs_item_key_to_cpu(eb, &key, slot);
-		if (key.objectid != sctx->cur_ino)
+	btrfs_for_each_slot(root, &key, &found_key, path, iter_ret) {
+		if (found_key.objectid != key.objectid)
 			break;
-		if (key.type != BTRFS_INODE_REF_KEY &&
-		    key.type != BTRFS_INODE_EXTREF_KEY)
+		if (found_key.type != key.type &&
+		    found_key.type != BTRFS_INODE_EXTREF_KEY)
 			break;
 
-		ret = iterate_inode_ref(sctx->parent_root, path, &key, 1,
+		ret = iterate_inode_ref(root, path, &found_key, 1,
 					record_parent_ref, &ctx);
 		if (ret < 0)
 			goto out;
-
-		path->slots[0]++;
+	}
+	/* Catch error found during iteration */
+	if (iter_ret < 0) {
+		ret = iter_ret;
+		goto out;
 	}
 
 	while (!list_empty(&deleted_refs)) {
@@ -6275,6 +6228,30 @@ out:
 	return ret;
 }
 
+static void close_current_inode(struct send_ctx *sctx)
+{
+	u64 i_size;
+
+	if (sctx->cur_inode == NULL)
+		return;
+
+	i_size = i_size_read(sctx->cur_inode);
+
+	/*
+	 * If we are doing an incremental send, we may have extents between the
+	 * last processed extent and the i_size that have not been processed
+	 * because they haven't changed but we may have read some of their pages
+	 * through readahead, see the comments at send_extent_data().
+	 */
+	if (sctx->clean_page_cache && sctx->page_cache_clear_start < i_size)
+		truncate_inode_pages_range(&sctx->cur_inode->i_data,
+					   sctx->page_cache_clear_start,
+					   round_up(i_size, PAGE_SIZE) - 1);
+
+	iput(sctx->cur_inode);
+	sctx->cur_inode = NULL;
+}
+
 static int changed_inode(struct send_ctx *sctx,
 			 enum btrfs_compare_tree_result result)
 {
@@ -6284,6 +6261,8 @@ static int changed_inode(struct send_ctx *sctx,
 	struct btrfs_inode_item *right_ii = NULL;
 	u64 left_gen = 0;
 	u64 right_gen = 0;
+
+	close_current_inode(sctx);
 
 	sctx->cur_ino = key->objectid;
 	sctx->cur_inode_new_gen = 0;
@@ -7477,10 +7456,10 @@ static void dedupe_in_progress_warn(const struct btrfs_root *root)
 		      root->root_key.objectid, root->dedupe_in_progress);
 }
 
-long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
+long btrfs_ioctl_send(struct inode *inode, struct btrfs_ioctl_send_args *arg)
 {
 	int ret = 0;
-	struct btrfs_root *send_root = BTRFS_I(file_inode(mnt_file))->root;
+	struct btrfs_root *send_root = BTRFS_I(inode)->root;
 	struct btrfs_fs_info *fs_info = send_root->fs_info;
 	struct btrfs_root *clone_root;
 	struct send_ctx *sctx = NULL;
@@ -7539,7 +7518,7 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 
 	INIT_LIST_HEAD(&sctx->new_refs);
 	INIT_LIST_HEAD(&sctx->deleted_refs);
-	INIT_RADIX_TREE(&sctx->name_cache, GFP_KERNEL);
+	xa_init_flags(&sctx->name_cache, GFP_KERNEL);
 	INIT_LIST_HEAD(&sctx->name_cache_list);
 
 	sctx->flags = arg->flags;
@@ -7770,6 +7749,8 @@ out:
 		kvfree(sctx->send_buf);
 
 		name_cache_free(sctx);
+
+		close_current_inode(sctx);
 
 		kfree(sctx);
 	}

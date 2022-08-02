@@ -222,7 +222,7 @@ Convert drivers to use drm_fbdev_generic_setup()
 Most drivers can use drm_fbdev_generic_setup(). Driver have to implement
 atomic modesetting and GEM vmap support. Historically, generic fbdev emulation
 expected the framebuffer in system memory or system-like memory. By employing
-struct dma_buf_map, drivers with frambuffers in I/O memory can be supported
+struct iosys_map, drivers with frambuffers in I/O memory can be supported
 as well.
 
 Contact: Maintainer of the driver you plan to convert
@@ -234,13 +234,35 @@ Reimplement functions in drm_fbdev_fb_ops without fbdev
 
 A number of callback functions in drm_fbdev_fb_ops could benefit from
 being rewritten without dependencies on the fbdev module. Some of the
-helpers could further benefit from using struct dma_buf_map instead of
+helpers could further benefit from using struct iosys_map instead of
 raw pointers.
 
 Contact: Thomas Zimmermann <tzimmermann@suse.de>, Daniel Vetter
 
 Level: Advanced
 
+Benchmark and optimize blitting and format-conversion function
+--------------------------------------------------------------
+
+Drawing to dispay memory quickly is crucial for many applications'
+performance.
+
+On at least x86-64, sys_imageblit() is significantly slower than
+cfb_imageblit(), even though both use the same blitting algorithm and
+the latter is written for I/O memory. It turns out that cfb_imageblit()
+uses movl instructions, while sys_imageblit apparently does not. This
+seems to be a problem with gcc's optimizer. DRM's format-conversion
+helpers might be subject to similar issues.
+
+Benchmark and optimize fbdev's sys_() helpers and DRM's format-conversion
+helpers. In cases that can be further optimized, maybe implement a different
+algorithm. For micro-optimizations, use movl/movq instructions explicitly.
+That might possibly require architecture-specific helpers (e.g., storel()
+storeq()).
+
+Contact: Thomas Zimmermann <tzimmermann@suse.de>
+
+Level: Intermediate
 
 drm_framebuffer_funcs and drm_mode_config_funcs.fb_create cleanup
 -----------------------------------------------------------------
@@ -410,19 +432,19 @@ Contact: Emil Velikov, respective driver maintainers
 
 Level: Intermediate
 
-Use struct dma_buf_map throughout codebase
-------------------------------------------
+Use struct iosys_map throughout codebase
+----------------------------------------
 
-Pointers to shared device memory are stored in struct dma_buf_map. Each
+Pointers to shared device memory are stored in struct iosys_map. Each
 instance knows whether it refers to system or I/O memory. Most of the DRM-wide
-interface have been converted to use struct dma_buf_map, but implementations
+interface have been converted to use struct iosys_map, but implementations
 often still use raw pointers.
 
-The task is to use struct dma_buf_map where it makes sense.
+The task is to use struct iosys_map where it makes sense.
 
-* Memory managers should use struct dma_buf_map for dma-buf-imported buffers.
-* TTM might benefit from using struct dma_buf_map internally.
-* Framebuffer copying and blitting helpers should operate on struct dma_buf_map.
+* Memory managers should use struct iosys_map for dma-buf-imported buffers.
+* TTM might benefit from using struct iosys_map internally.
+* Framebuffer copying and blitting helpers should operate on struct iosys_map.
 
 Contact: Thomas Zimmermann <tzimmermann@suse.de>, Christian König, Daniel Vetter
 
@@ -443,6 +465,21 @@ Contact: Thomas Zimmermann <tzimmermann@suse.de>
 
 Level: Intermediate
 
+Request memory regions in all drivers
+-------------------------------------
+
+Go through all drivers and add code to request the memory regions that the
+driver uses. This requires adding calls to request_mem_region(),
+pci_request_region() or similar functions. Use helpers for managed cleanup
+where possible.
+
+Drivers are pretty bad at doing this and there used to be conflicts among
+DRM and fbdev drivers. Still, it's the correct thing to do.
+
+Contact: Thomas Zimmermann <tzimmermann@suse.de>
+
+Level: Starter
+
 
 Core refactorings
 =================
@@ -460,8 +497,12 @@ This is a really varied tasks with lots of little bits and pieces:
   achieved by using an IPI to the local processor.
 
 * There's a massive confusion of different panic handlers. DRM fbdev emulation
-  helpers have one, but on top of that the fbcon code itself also has one. We
-  need to make sure that they stop fighting over each another.
+  helpers had their own (long removed), but on top of that the fbcon code itself
+  also has one. We need to make sure that they stop fighting over each other.
+  This is worked around by checking ``oops_in_progress`` at various entry points
+  into the DRM fbdev emulation helpers. A much cleaner approach here would be to
+  switch fbcon to the `threaded printk support
+  <https://lwn.net/Articles/800946/>`_.
 
 * ``drm_can_sleep()`` is a mess. It hides real bugs in normal operations and
   isn't a full solution for panic paths. We need to make sure that it only
@@ -473,16 +514,15 @@ This is a really varied tasks with lots of little bits and pieces:
   even spinlocks (because NMI and hardirq can panic too). We need to either
   make sure to not call such paths, or trylock everything. Really tricky.
 
-* For the above locking troubles reasons it's pretty much impossible to
-  attempt a synchronous modeset from panic handlers. The only thing we could
-  try to achive is an atomic ``set_base`` of the primary plane, and hope that
-  it shows up. Everything else probably needs to be delayed to some worker or
-  something else which happens later on. Otherwise it just kills the box
-  harder, prevent the panic from going out on e.g. netconsole.
+* A clean solution would be an entirely separate panic output support in KMS,
+  bypassing the current fbcon support. See `[PATCH v2 0/3] drm: Add panic handling
+  <https://lore.kernel.org/dri-devel/20190311174218.51899-1-noralf@tronnes.org/>`_.
 
-* There's also proposal for a simplied DRM console instead of the full-blown
-  fbcon and DRM fbdev emulation. Any kind of panic handling tricks should
-  obviously work for both console, in case we ever get kmslog merged.
+* Encoding the actual oops and preceding dmesg in a QR might help with the
+  dread "important stuff scrolled away" problem. See `[RFC][PATCH] Oops messages
+  transfer using QR codes
+  <https://lore.kernel.org/lkml/1446217392-11981-1-git-send-email-alexandru.murtaza@intel.com/>`_
+  for some example code that could be reused.
 
 Contact: Daniel Vetter
 
@@ -562,6 +602,20 @@ Level: Advanced
 
 Better Testing
 ==============
+
+Add unit tests using the Kernel Unit Testing (KUnit) framework
+--------------------------------------------------------------
+
+The `KUnit <https://www.kernel.org/doc/html/latest/dev-tools/kunit/index.html>`_
+provides a common framework for unit tests within the Linux kernel. Having a
+test suite would allow to identify regressions earlier.
+
+A good candidate for the first unit tests are the format-conversion helpers in
+``drm_format_helper.c``.
+
+Contact: Javier Martinez Canillas <javierm@redhat.com>
+
+Level: Intermediate
 
 Enable trinity for DRM
 ----------------------

@@ -67,6 +67,7 @@ struct rxe_cq {
 	bool			is_dying;
 	bool			is_user;
 	struct tasklet_struct	comp_task;
+	atomic_t		num_wq;
 };
 
 enum wqe_state {
@@ -157,7 +158,6 @@ struct resp_res {
 			struct sk_buff	*skb;
 		} atomic;
 		struct {
-			struct rxe_mr	*mr;
 			u64		va_org;
 			u32		rkey;
 			u32		length;
@@ -232,9 +232,7 @@ struct rxe_qp {
 	struct rxe_av		pri_av;
 	struct rxe_av		alt_av;
 
-	/* list of mcast groups qp has joined (for cleanup) */
-	struct list_head	grp_list;
-	spinlock_t		grp_lock; /* guard grp_list */
+	atomic_t		mcg_num;
 
 	struct sk_buff_head	req_pkts;
 	struct sk_buff_head	resp_pkts;
@@ -353,23 +351,20 @@ struct rxe_mw {
 	u64			length;
 };
 
-struct rxe_mc_grp {
-	struct rxe_pool_elem	elem;
-	spinlock_t		mcg_lock; /* guard group */
+struct rxe_mcg {
+	struct rb_node		node;
+	struct kref		ref_cnt;
 	struct rxe_dev		*rxe;
 	struct list_head	qp_list;
 	union ib_gid		mgid;
-	int			num_qp;
+	atomic_t		qp_num;
 	u32			qkey;
 	u16			pkey;
 };
 
-struct rxe_mc_elem {
-	struct rxe_pool_elem	elem;
+struct rxe_mca {
 	struct list_head	qp_list;
-	struct list_head	grp_list;
 	struct rxe_qp		*qp;
-	struct rxe_mc_grp	*grp;
 };
 
 struct rxe_port {
@@ -379,7 +374,6 @@ struct rxe_port {
 	spinlock_t		port_lock; /* guard port */
 	unsigned int		mtu_cap;
 	/* special QPs */
-	u32			qp_smi_index;
 	u32			qp_gsi_index;
 };
 
@@ -400,8 +394,12 @@ struct rxe_dev {
 	struct rxe_pool		cq_pool;
 	struct rxe_pool		mr_pool;
 	struct rxe_pool		mw_pool;
-	struct rxe_pool		mc_grp_pool;
-	struct rxe_pool		mc_elem_pool;
+
+	/* multicast support */
+	spinlock_t		mcg_lock;
+	struct rb_root		mcg_tree;
+	atomic_t		mcg_num;
+	atomic_t		mcg_attach;
 
 	spinlock_t		pending_lock; /* guard pending_mmaps */
 	struct list_head	pending_mmaps;
@@ -481,7 +479,5 @@ static inline struct rxe_pd *rxe_mw_pd(struct rxe_mw *mw)
 }
 
 int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name);
-
-void rxe_mc_cleanup(struct rxe_pool_elem *elem);
 
 #endif /* RXE_VERBS_H */

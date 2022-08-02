@@ -14,25 +14,16 @@
 
 struct rnbd_dev {
 	struct block_device	*bdev;
-	struct bio_set		*ibd_bio_set;
 	fmode_t			blk_open_flags;
 	char			name[BDEVNAME_SIZE];
 };
 
-struct rnbd_dev_blk_io {
-	struct rnbd_dev *dev;
-	void		 *priv;
-	/* have to be last member for front_pad usage of bioset_init */
-	struct bio	bio;
-};
-
 /**
  * rnbd_dev_open() - Open a device
+ * @path:	path to open
  * @flags:	open flags
- * @bs:		bio_set to use during block io,
  */
-struct rnbd_dev *rnbd_dev_open(const char *path, fmode_t flags,
-			       struct bio_set *bs);
+struct rnbd_dev *rnbd_dev_open(const char *path, fmode_t flags);
 
 /**
  * rnbd_dev_close() - Close a device
@@ -40,11 +31,6 @@ struct rnbd_dev *rnbd_dev_open(const char *path, fmode_t flags,
 void rnbd_dev_close(struct rnbd_dev *dev);
 
 void rnbd_endio(void *priv, int error);
-
-void rnbd_dev_bi_end_io(struct bio *bio);
-
-struct bio *rnbd_bio_map_kern(void *data, struct bio_set *bs,
-			      unsigned int len, gfp_t gfp_mask);
 
 static inline int rnbd_dev_get_max_segs(const struct rnbd_dev *dev)
 {
@@ -58,16 +44,12 @@ static inline int rnbd_dev_get_max_hw_sects(const struct rnbd_dev *dev)
 
 static inline int rnbd_dev_get_secure_discard(const struct rnbd_dev *dev)
 {
-	return blk_queue_secure_erase(bdev_get_queue(dev->bdev));
+	return bdev_max_secure_erase_sectors(dev->bdev);
 }
 
 static inline int rnbd_dev_get_max_discard_sects(const struct rnbd_dev *dev)
 {
-	if (!blk_queue_discard(bdev_get_queue(dev->bdev)))
-		return 0;
-
-	return blk_queue_get_max_sectors(bdev_get_queue(dev->bdev),
-					 REQ_OP_DISCARD);
+	return bdev_max_discard_sectors(dev->bdev);
 }
 
 static inline int rnbd_dev_get_discard_granularity(const struct rnbd_dev *dev)
@@ -77,7 +59,7 @@ static inline int rnbd_dev_get_discard_granularity(const struct rnbd_dev *dev)
 
 static inline int rnbd_dev_get_discard_alignment(const struct rnbd_dev *dev)
 {
-	return bdev_get_queue(dev->bdev)->limits.discard_alignment;
+	return bdev_discard_alignment(dev->bdev);
 }
 
 #endif /* RNBD_SRV_DEV_H */

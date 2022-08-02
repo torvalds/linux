@@ -60,22 +60,52 @@
 
 #include "lockdep_internals.h"
 
-#define CREATE_TRACE_POINTS
 #include <trace/events/lock.h>
 
 #ifdef CONFIG_PROVE_LOCKING
-int prove_locking = 1;
+static int prove_locking = 1;
 module_param(prove_locking, int, 0644);
 #else
 #define prove_locking 0
 #endif
 
 #ifdef CONFIG_LOCK_STAT
-int lock_stat = 1;
+static int lock_stat = 1;
 module_param(lock_stat, int, 0644);
 #else
 #define lock_stat 0
 #endif
+
+#ifdef CONFIG_SYSCTL
+static struct ctl_table kern_lockdep_table[] = {
+#ifdef CONFIG_PROVE_LOCKING
+	{
+		.procname       = "prove_locking",
+		.data           = &prove_locking,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec,
+	},
+#endif /* CONFIG_PROVE_LOCKING */
+#ifdef CONFIG_LOCK_STAT
+	{
+		.procname       = "lock_stat",
+		.data           = &lock_stat,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec,
+	},
+#endif /* CONFIG_LOCK_STAT */
+	{ }
+};
+
+static __init int kernel_lockdep_sysctls_init(void)
+{
+	register_sysctl_init("kernel", kern_lockdep_table);
+	return 0;
+}
+late_initcall(kernel_lockdep_sysctls_init);
+#endif /* CONFIG_SYSCTL */
 
 DEFINE_PER_CPU(unsigned int, lockdep_recursion);
 EXPORT_PER_CPU_SYMBOL_GPL(lockdep_recursion);
@@ -183,11 +213,9 @@ static DECLARE_BITMAP(list_entries_in_use, MAX_LOCKDEP_ENTRIES);
 static struct hlist_head lock_keys_hash[KEYHASH_SIZE];
 unsigned long nr_lock_classes;
 unsigned long nr_zapped_classes;
-#ifndef CONFIG_DEBUG_LOCKDEP
-static
-#endif
+unsigned long max_lock_class_idx;
 struct lock_class lock_classes[MAX_LOCKDEP_KEYS];
-static DECLARE_BITMAP(lock_classes_in_use, MAX_LOCKDEP_KEYS);
+DECLARE_BITMAP(lock_classes_in_use, MAX_LOCKDEP_KEYS);
 
 static inline struct lock_class *hlock_class(struct held_lock *hlock)
 {
@@ -338,7 +366,7 @@ static inline void lock_release_holdtime(struct held_lock *hlock)
  * elements. These elements are linked together by the lock_entry member in
  * struct lock_class.
  */
-LIST_HEAD(all_lock_classes);
+static LIST_HEAD(all_lock_classes);
 static LIST_HEAD(free_lock_classes);
 
 /**
@@ -1252,6 +1280,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 	struct lockdep_subclass_key *key;
 	struct hlist_head *hash_head;
 	struct lock_class *class;
+	int idx;
 
 	DEBUG_LOCKS_WARN_ON(!irqs_disabled());
 
@@ -1317,6 +1346,9 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 	 * of classes.
 	 */
 	list_move_tail(&class->lock_entry, &all_lock_classes);
+	idx = class - lock_classes;
+	if (idx > max_lock_class_idx)
+		max_lock_class_idx = idx;
 
 	if (verbose(class)) {
 		graph_unlock();
@@ -1378,7 +1410,7 @@ static struct lock_list *alloc_list_entry(void)
  */
 static int add_lock_to_list(struct lock_class *this,
 			    struct lock_class *links_to, struct list_head *head,
-			    unsigned long ip, u16 distance, u8 dep,
+			    u16 distance, u8 dep,
 			    const struct lock_trace *trace)
 {
 	struct lock_list *entry;
@@ -3131,19 +3163,15 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 	 * to the previous lock's dependency list:
 	 */
 	ret = add_lock_to_list(hlock_class(next), hlock_class(prev),
-			       &hlock_class(prev)->locks_after,
-			       next->acquire_ip, distance,
-			       calc_dep(prev, next),
-			       *trace);
+			       &hlock_class(prev)->locks_after, distance,
+			       calc_dep(prev, next), *trace);
 
 	if (!ret)
 		return 0;
 
 	ret = add_lock_to_list(hlock_class(prev), hlock_class(next),
-			       &hlock_class(next)->locks_before,
-			       next->acquire_ip, distance,
-			       calc_depb(prev, next),
-			       *trace);
+			       &hlock_class(next)->locks_before, distance,
+			       calc_depb(prev, next), *trace);
 	if (!ret)
 		return 0;
 
@@ -4234,14 +4262,13 @@ static void __trace_hardirqs_on_caller(void)
 
 /**
  * lockdep_hardirqs_on_prepare - Prepare for enabling interrupts
- * @ip:		Caller address
  *
  * Invoked before a possible transition to RCU idle from exit to user or
  * guest mode. This ensures that all RCU operations are done before RCU
  * stops watching. After the RCU transition lockdep_hardirqs_on() has to be
  * invoked to set the final state.
  */
-void lockdep_hardirqs_on_prepare(unsigned long ip)
+void lockdep_hardirqs_on_prepare(void)
 {
 	if (unlikely(!debug_locks))
 		return;
@@ -4838,8 +4865,7 @@ EXPORT_SYMBOL_GPL(__lockdep_no_validate__);
 
 static void
 print_lock_nested_lock_not_held(struct task_struct *curr,
-				struct held_lock *hlock,
-				unsigned long ip)
+				struct held_lock *hlock)
 {
 	if (!debug_locks_off())
 		return;
@@ -5015,7 +5041,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	chain_key = iterate_chain_key(chain_key, hlock_id(hlock));
 
 	if (nest_lock && !__lock_is_held(nest_lock, -1)) {
-		print_lock_nested_lock_not_held(curr, hlock, ip);
+		print_lock_nested_lock_not_held(curr, hlock);
 		return 0;
 	}
 
@@ -5406,7 +5432,7 @@ static struct pin_cookie __lock_pin_lock(struct lockdep_map *lock)
 			 * be guessable and still allows some pin nesting in
 			 * our u32 pin_count.
 			 */
-			cookie.val = 1 + (prandom_u32() >> 16);
+			cookie.val = 1 + (sched_clock() & 0xffff);
 			hlock->pin_count += cookie.val;
 			return cookie;
 		}
@@ -6000,6 +6026,8 @@ static void zap_class(struct pending_free *pf, struct lock_class *class)
 		WRITE_ONCE(class->name, NULL);
 		nr_lock_classes--;
 		__clear_bit(class - lock_classes, lock_classes_in_use);
+		if (class - lock_classes == max_lock_class_idx)
+			max_lock_class_idx--;
 	} else {
 		WARN_ONCE(true, "%s() failed for class %s\n", __func__,
 			  class->name);
@@ -6011,13 +6039,10 @@ static void zap_class(struct pending_free *pf, struct lock_class *class)
 
 static void reinit_class(struct lock_class *class)
 {
-	void *const p = class;
-	const unsigned int offset = offsetof(struct lock_class, key);
-
 	WARN_ON_ONCE(!class->lock_entry.next);
 	WARN_ON_ONCE(!list_empty(&class->locks_after));
 	WARN_ON_ONCE(!list_empty(&class->locks_before));
-	memset(p + offset, 0, sizeof(*class) - offset);
+	memset_startat(class, 0, key);
 	WARN_ON_ONCE(!class->lock_entry.next);
 	WARN_ON_ONCE(!list_empty(&class->locks_after));
 	WARN_ON_ONCE(!list_empty(&class->locks_before));
@@ -6290,7 +6315,13 @@ void lockdep_reset_lock(struct lockdep_map *lock)
 		lockdep_reset_lock_reg(lock);
 }
 
-/* Unregister a dynamically allocated key. */
+/*
+ * Unregister a dynamically allocated key.
+ *
+ * Unlike lockdep_register_key(), a search is always done to find a matching
+ * key irrespective of debug_locks to avoid potential invalid access to freed
+ * memory in lock_class entry.
+ */
 void lockdep_unregister_key(struct lock_class_key *key)
 {
 	struct hlist_head *hash_head = keyhashentry(key);
@@ -6305,10 +6336,8 @@ void lockdep_unregister_key(struct lock_class_key *key)
 		return;
 
 	raw_local_irq_save(flags);
-	if (!graph_lock())
-		goto out_irq;
+	lockdep_lock();
 
-	pf = get_pending_free();
 	hlist_for_each_entry_rcu(k, hash_head, hash_entry) {
 		if (k == key) {
 			hlist_del_rcu(&k->hash_entry);
@@ -6316,11 +6345,13 @@ void lockdep_unregister_key(struct lock_class_key *key)
 			break;
 		}
 	}
-	WARN_ON_ONCE(!found);
-	__lockdep_free_key_range(pf, key, 1);
-	call_rcu_zapped(pf);
-	graph_unlock();
-out_irq:
+	WARN_ON_ONCE(!found && debug_locks);
+	if (found) {
+		pf = get_pending_free();
+		__lockdep_free_key_range(pf, key, 1);
+		call_rcu_zapped(pf);
+	}
+	lockdep_unlock();
 	raw_local_irq_restore(flags);
 
 	/* Wait until is_dynamic_key() has finished accessing k->hash_entry. */

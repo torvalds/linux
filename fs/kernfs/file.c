@@ -33,7 +33,6 @@ static DEFINE_SPINLOCK(kernfs_open_node_lock);
 static DEFINE_MUTEX(kernfs_open_file_mutex);
 
 struct kernfs_open_node {
-	atomic_t		refcnt;
 	atomic_t		event;
 	wait_queue_head_t	poll;
 	struct list_head	files; /* goes through kernfs_open_file.list */
@@ -120,13 +119,8 @@ static void *kernfs_seq_start(struct seq_file *sf, loff_t *ppos)
 		if (next == ERR_PTR(-ENODEV))
 			kernfs_seq_stop_active(sf, next);
 		return next;
-	} else {
-		/*
-		 * The same behavior and code as single_open().  Returns
-		 * !NULL if pos is at the beginning; otherwise, NULL.
-		 */
-		return NULL + !*ppos;
 	}
+	return single_start(sf, ppos);
 }
 
 static void *kernfs_seq_next(struct seq_file *sf, void *v, loff_t *ppos)
@@ -535,10 +529,8 @@ static int kernfs_get_open_node(struct kernfs_node *kn,
 	}
 
 	on = kn->attr.open;
-	if (on) {
-		atomic_inc(&on->refcnt);
+	if (on)
 		list_add_tail(&of->list, &on->files);
-	}
 
 	spin_unlock_irq(&kernfs_open_node_lock);
 	mutex_unlock(&kernfs_open_file_mutex);
@@ -553,7 +545,6 @@ static int kernfs_get_open_node(struct kernfs_node *kn,
 	if (!new_on)
 		return -ENOMEM;
 
-	atomic_set(&new_on->refcnt, 0);
 	atomic_set(&new_on->event, 1);
 	init_waitqueue_head(&new_on->poll);
 	INIT_LIST_HEAD(&new_on->files);
@@ -561,17 +552,19 @@ static int kernfs_get_open_node(struct kernfs_node *kn,
 }
 
 /**
- *	kernfs_put_open_node - put kernfs_open_node
- *	@kn: target kernfs_nodet
+ *	kernfs_unlink_open_file - Unlink @of from @kn.
+ *
+ *	@kn: target kernfs_node
  *	@of: associated kernfs_open_file
  *
- *	Put @kn->attr.open and unlink @of from the files list.  If
- *	reference count reaches zero, disassociate and free it.
+ *	Unlink @of from list of @kn's associated open files. If list of
+ *	associated open files becomes empty, disassociate and free
+ *	kernfs_open_node.
  *
  *	LOCKING:
  *	None.
  */
-static void kernfs_put_open_node(struct kernfs_node *kn,
+static void kernfs_unlink_open_file(struct kernfs_node *kn,
 				 struct kernfs_open_file *of)
 {
 	struct kernfs_open_node *on = kn->attr.open;
@@ -583,7 +576,7 @@ static void kernfs_put_open_node(struct kernfs_node *kn,
 	if (of)
 		list_del(&of->list);
 
-	if (atomic_dec_and_test(&on->refcnt))
+	if (list_empty(&on->files))
 		kn->attr.open = NULL;
 	else
 		on = NULL;
@@ -711,7 +704,7 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 	return 0;
 
 err_put_node:
-	kernfs_put_open_node(kn, of);
+	kernfs_unlink_open_file(kn, of);
 err_seq_release:
 	seq_release(inode, file);
 err_free:
@@ -757,7 +750,7 @@ static int kernfs_fop_release(struct inode *inode, struct file *filp)
 		mutex_unlock(&kernfs_open_file_mutex);
 	}
 
-	kernfs_put_open_node(kn, of);
+	kernfs_unlink_open_file(kn, of);
 	seq_release(inode, filp);
 	kfree(of->prealloc_buf);
 	kfree(of);
@@ -773,15 +766,24 @@ void kernfs_drain_open_files(struct kernfs_node *kn)
 	if (!(kn->flags & (KERNFS_HAS_MMAP | KERNFS_HAS_RELEASE)))
 		return;
 
-	spin_lock_irq(&kernfs_open_node_lock);
-	on = kn->attr.open;
-	if (on)
-		atomic_inc(&on->refcnt);
-	spin_unlock_irq(&kernfs_open_node_lock);
-	if (!on)
+	/*
+	 * lockless opportunistic check is safe below because no one is adding to
+	 * ->attr.open at this point of time. This check allows early bail out
+	 * if ->attr.open is already NULL. kernfs_unlink_open_file makes
+	 * ->attr.open NULL only while holding kernfs_open_file_mutex so below
+	 * check under kernfs_open_file_mutex will ensure bailing out if
+	 * ->attr.open became NULL while waiting for the mutex.
+	 */
+	if (!kn->attr.open)
 		return;
 
 	mutex_lock(&kernfs_open_file_mutex);
+	if (!kn->attr.open) {
+		mutex_unlock(&kernfs_open_file_mutex);
+		return;
+	}
+
+	on = kn->attr.open;
 
 	list_for_each_entry(of, &on->files, list) {
 		struct inode *inode = file_inode(of->file);
@@ -794,8 +796,6 @@ void kernfs_drain_open_files(struct kernfs_node *kn)
 	}
 
 	mutex_unlock(&kernfs_open_file_mutex);
-
-	kernfs_put_open_node(kn, NULL);
 }
 
 /*
@@ -1002,7 +1002,7 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 #endif
 
 	/*
-	 * kn->attr.ops is accesible only while holding active ref.  We
+	 * kn->attr.ops is accessible only while holding active ref.  We
 	 * need to know whether some ops are implemented outside active
 	 * ref.  Cache their existence in flags.
 	 */

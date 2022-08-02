@@ -10,6 +10,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-mem.h>
+#include <linux/sched/task_stack.h>
 
 #include "internals.h"
 
@@ -160,24 +161,28 @@ static bool spi_mem_check_buswidth(struct spi_mem *mem,
 	return true;
 }
 
-bool spi_mem_dtr_supports_op(struct spi_mem *mem,
-			     const struct spi_mem_op *op)
-{
-	if (op->cmd.nbytes != 2)
-		return false;
-
-	return spi_mem_check_buswidth(mem, op);
-}
-EXPORT_SYMBOL_GPL(spi_mem_dtr_supports_op);
-
 bool spi_mem_default_supports_op(struct spi_mem *mem,
 				 const struct spi_mem_op *op)
 {
-	if (op->cmd.dtr || op->addr.dtr || op->dummy.dtr || op->data.dtr)
-		return false;
+	struct spi_controller *ctlr = mem->spi->controller;
+	bool op_is_dtr =
+		op->cmd.dtr || op->addr.dtr || op->dummy.dtr || op->data.dtr;
 
-	if (op->cmd.nbytes != 1)
-		return false;
+	if (op_is_dtr) {
+		if (!spi_mem_controller_is_capable(ctlr, dtr))
+			return false;
+
+		if (op->cmd.nbytes != 2)
+			return false;
+	} else {
+		if (op->cmd.nbytes != 1)
+			return false;
+	}
+
+	if (op->data.ecc) {
+		if (!spi_mem_controller_is_capable(ctlr, ecc))
+			return false;
+	}
 
 	return spi_mem_check_buswidth(mem, op);
 }
@@ -205,6 +210,15 @@ static int spi_mem_check_op(const struct spi_mem_op *op)
 	    !spi_mem_buswidth_is_valid(op->addr.buswidth) ||
 	    !spi_mem_buswidth_is_valid(op->dummy.buswidth) ||
 	    !spi_mem_buswidth_is_valid(op->data.buswidth))
+		return -EINVAL;
+
+	/* Buffers must be DMA-able. */
+	if (WARN_ON_ONCE(op->data.dir == SPI_MEM_DATA_IN &&
+			 object_is_on_stack(op->data.buf.in)))
+		return -EINVAL;
+
+	if (WARN_ON_ONCE(op->data.dir == SPI_MEM_DATA_OUT &&
+			 object_is_on_stack(op->data.buf.out)))
 		return -EINVAL;
 
 	return 0;
@@ -258,9 +272,8 @@ static int spi_mem_access_start(struct spi_mem *mem)
 	if (ctlr->auto_runtime_pm) {
 		int ret;
 
-		ret = pm_runtime_get_sync(ctlr->dev.parent);
+		ret = pm_runtime_resume_and_get(ctlr->dev.parent);
 		if (ret < 0) {
-			pm_runtime_put_noidle(ctlr->dev.parent);
 			dev_err(&ctlr->dev, "Failed to power device: %d\n",
 				ret);
 			return ret;
@@ -795,7 +808,7 @@ int spi_mem_poll_status(struct spi_mem *mem,
 	    op->data.dir != SPI_MEM_DATA_IN)
 		return -EINVAL;
 
-	if (ctlr->mem_ops && ctlr->mem_ops->poll_status) {
+	if (ctlr->mem_ops && ctlr->mem_ops->poll_status && !mem->spi->cs_gpiod) {
 		ret = spi_mem_access_start(mem);
 		if (ret)
 			return ret;
@@ -854,15 +867,13 @@ static int spi_mem_probe(struct spi_device *spi)
 	return memdrv->probe(mem);
 }
 
-static int spi_mem_remove(struct spi_device *spi)
+static void spi_mem_remove(struct spi_device *spi)
 {
 	struct spi_mem_driver *memdrv = to_spi_mem_drv(spi->dev.driver);
 	struct spi_mem *mem = spi_get_drvdata(spi);
 
 	if (memdrv->remove)
-		return memdrv->remove(mem);
-
-	return 0;
+		memdrv->remove(mem);
 }
 
 static void spi_mem_shutdown(struct spi_device *spi)

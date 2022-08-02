@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include <linux/dma-buf-map.h>
+#include <linux/iosys-map.h>
 #include <linux/module.h>
 
 #include <drm/drm_debugfs.h>
@@ -116,7 +116,7 @@ static void drm_gem_vram_cleanup(struct drm_gem_vram_object *gbo)
 	 */
 
 	WARN_ON(gbo->vmap_use_count);
-	WARN_ON(dma_buf_map_is_set(&gbo->map));
+	WARN_ON(iosys_map_is_set(&gbo->map));
 
 	drm_gem_object_release(&gbo->bo.base);
 }
@@ -365,7 +365,7 @@ int drm_gem_vram_unpin(struct drm_gem_vram_object *gbo)
 EXPORT_SYMBOL(drm_gem_vram_unpin);
 
 static int drm_gem_vram_kmap_locked(struct drm_gem_vram_object *gbo,
-				    struct dma_buf_map *map)
+				    struct iosys_map *map)
 {
 	int ret;
 
@@ -377,7 +377,7 @@ static int drm_gem_vram_kmap_locked(struct drm_gem_vram_object *gbo,
 	 * page mapping might still be around. Only vmap if the there's
 	 * no mapping present.
 	 */
-	if (dma_buf_map_is_null(&gbo->map)) {
+	if (iosys_map_is_null(&gbo->map)) {
 		ret = ttm_bo_vmap(&gbo->bo, &gbo->map);
 		if (ret)
 			return ret;
@@ -391,14 +391,14 @@ out:
 }
 
 static void drm_gem_vram_kunmap_locked(struct drm_gem_vram_object *gbo,
-				       struct dma_buf_map *map)
+				       struct iosys_map *map)
 {
 	struct drm_device *dev = gbo->bo.base.dev;
 
 	if (drm_WARN_ON_ONCE(dev, !gbo->vmap_use_count))
 		return;
 
-	if (drm_WARN_ON_ONCE(dev, !dma_buf_map_is_equal(&gbo->map, map)))
+	if (drm_WARN_ON_ONCE(dev, !iosys_map_is_equal(&gbo->map, map)))
 		return; /* BUG: map not mapped from this BO */
 
 	if (--gbo->vmap_use_count > 0)
@@ -428,7 +428,7 @@ static void drm_gem_vram_kunmap_locked(struct drm_gem_vram_object *gbo,
  * Returns:
  * 0 on success, or a negative error code otherwise.
  */
-int drm_gem_vram_vmap(struct drm_gem_vram_object *gbo, struct dma_buf_map *map)
+int drm_gem_vram_vmap(struct drm_gem_vram_object *gbo, struct iosys_map *map)
 {
 	int ret;
 
@@ -463,7 +463,8 @@ EXPORT_SYMBOL(drm_gem_vram_vmap);
  * A call to drm_gem_vram_vunmap() unmaps and unpins a GEM VRAM buffer. See
  * the documentation for drm_gem_vram_vmap() for more information.
  */
-void drm_gem_vram_vunmap(struct drm_gem_vram_object *gbo, struct dma_buf_map *map)
+void drm_gem_vram_vunmap(struct drm_gem_vram_object *gbo,
+			 struct iosys_map *map)
 {
 	int ret;
 
@@ -567,7 +568,7 @@ static void drm_gem_vram_bo_driver_move_notify(struct drm_gem_vram_object *gbo)
 		return;
 
 	ttm_bo_vunmap(bo, &gbo->map);
-	dma_buf_map_clear(&gbo->map); /* explicitly clear mapping for next vmap call */
+	iosys_map_clear(&gbo->map); /* explicitly clear mapping for next vmap call */
 }
 
 static int drm_gem_vram_bo_driver_move(struct drm_gem_vram_object *gbo,
@@ -802,7 +803,8 @@ static void drm_gem_vram_object_unpin(struct drm_gem_object *gem)
  * Returns:
  * 0 on success, or a negative error code otherwise.
  */
-static int drm_gem_vram_object_vmap(struct drm_gem_object *gem, struct dma_buf_map *map)
+static int drm_gem_vram_object_vmap(struct drm_gem_object *gem,
+				    struct iosys_map *map)
 {
 	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(gem);
 
@@ -815,7 +817,8 @@ static int drm_gem_vram_object_vmap(struct drm_gem_object *gem, struct dma_buf_m
  * @gem: The GEM object to unmap
  * @map: Kernel virtual address where the VRAM GEM object was mapped
  */
-static void drm_gem_vram_object_vunmap(struct drm_gem_object *gem, struct dma_buf_map *map)
+static void drm_gem_vram_object_vunmap(struct drm_gem_object *gem,
+				       struct iosys_map *map)
 {
 	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(gem);
 
@@ -864,7 +867,7 @@ static struct ttm_tt *bo_driver_ttm_tt_create(struct ttm_buffer_object *bo,
 	if (!tt)
 		return NULL;
 
-	ret = ttm_tt_init(tt, bo, page_flags, ttm_cached);
+	ret = ttm_tt_init(tt, bo, page_flags, ttm_cached, 0);
 	if (ret < 0)
 		goto err_ttm_tt_init;
 

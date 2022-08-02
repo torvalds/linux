@@ -60,7 +60,7 @@ static int ocelot_mrp_redirect_add_vcap(struct ocelot *ocelot, int src_port,
 
 	filter->key_type = OCELOT_VCAP_KEY_ETYPE;
 	filter->prio = 1;
-	filter->id.cookie = src_port;
+	filter->id.cookie = OCELOT_VCAP_IS2_MRP_REDIRECT(ocelot, src_port);
 	filter->id.tc_offload = false;
 	filter->block_id = VCAP_IS2;
 	filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
@@ -77,55 +77,46 @@ static int ocelot_mrp_redirect_add_vcap(struct ocelot *ocelot, int src_port,
 	return err;
 }
 
-static int ocelot_mrp_copy_add_vcap(struct ocelot *ocelot, int port,
-				    int prio, unsigned long cookie)
+static void ocelot_populate_mrp_trap_key(struct ocelot_vcap_filter *filter)
 {
 	const u8 mrp_mask[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0x00 };
-	struct ocelot_vcap_filter *filter;
-	int err;
 
-	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
-	if (!filter)
-		return -ENOMEM;
-
-	filter->key_type = OCELOT_VCAP_KEY_ETYPE;
-	filter->prio = prio;
-	filter->id.cookie = cookie;
-	filter->id.tc_offload = false;
-	filter->block_id = VCAP_IS2;
-	filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
-	filter->ingress_port_mask = BIT(port);
 	/* Here is possible to use control or test dmac because the mask
 	 * doesn't cover the LSB
 	 */
 	ether_addr_copy(filter->key.etype.dmac.value, mrp_test_dmac);
 	ether_addr_copy(filter->key.etype.dmac.mask, mrp_mask);
-	filter->action.mask_mode = OCELOT_MASK_MODE_PERMIT_DENY;
-	filter->action.port_mask = 0x0;
-	filter->action.cpu_copy_ena = true;
-	filter->action.cpu_qu_num = OCELOT_MRP_CPUQ;
+}
 
-	err = ocelot_vcap_filter_add(ocelot, filter, NULL);
-	if (err)
-		kfree(filter);
+static int ocelot_mrp_trap_add(struct ocelot *ocelot, int port)
+{
+	unsigned long cookie = OCELOT_VCAP_IS2_MRP_TRAP(ocelot);
 
-	return err;
+	return ocelot_trap_add(ocelot, port, cookie, false,
+			       ocelot_populate_mrp_trap_key);
+}
+
+static int ocelot_mrp_trap_del(struct ocelot *ocelot, int port)
+{
+	unsigned long cookie = OCELOT_VCAP_IS2_MRP_TRAP(ocelot);
+
+	return ocelot_trap_del(ocelot, port, cookie);
 }
 
 static void ocelot_mrp_save_mac(struct ocelot *ocelot,
 				struct ocelot_port *port)
 {
 	ocelot_mact_learn(ocelot, PGID_BLACKHOLE, mrp_test_dmac,
-			  OCELOT_VLAN_UNAWARE_PVID, ENTRYTYPE_LOCKED);
+			  OCELOT_STANDALONE_PVID, ENTRYTYPE_LOCKED);
 	ocelot_mact_learn(ocelot, PGID_BLACKHOLE, mrp_control_dmac,
-			  OCELOT_VLAN_UNAWARE_PVID, ENTRYTYPE_LOCKED);
+			  OCELOT_STANDALONE_PVID, ENTRYTYPE_LOCKED);
 }
 
 static void ocelot_mrp_del_mac(struct ocelot *ocelot,
 			       struct ocelot_port *port)
 {
-	ocelot_mact_forget(ocelot, mrp_test_dmac, OCELOT_VLAN_UNAWARE_PVID);
-	ocelot_mact_forget(ocelot, mrp_control_dmac, OCELOT_VLAN_UNAWARE_PVID);
+	ocelot_mact_forget(ocelot, mrp_test_dmac, OCELOT_STANDALONE_PVID);
+	ocelot_mact_forget(ocelot, mrp_control_dmac, OCELOT_STANDALONE_PVID);
 }
 
 int ocelot_mrp_add(struct ocelot *ocelot, int port,
@@ -186,7 +177,7 @@ int ocelot_mrp_add_ring_role(struct ocelot *ocelot, int port,
 	ocelot_mrp_save_mac(ocelot, ocelot_port);
 
 	if (mrp->ring_role != BR_MRP_RING_ROLE_MRC)
-		return ocelot_mrp_copy_add_vcap(ocelot, port, 1, port);
+		return ocelot_mrp_trap_add(ocelot, port);
 
 	dst_port = ocelot_mrp_find_partner_port(ocelot, ocelot_port);
 	if (dst_port == -1)
@@ -196,10 +187,10 @@ int ocelot_mrp_add_ring_role(struct ocelot *ocelot, int port,
 	if (err)
 		return err;
 
-	err = ocelot_mrp_copy_add_vcap(ocelot, port, 2,
-				       port + ocelot->num_phys_ports);
+	err = ocelot_mrp_trap_add(ocelot, port);
 	if (err) {
-		ocelot_mrp_del_vcap(ocelot, port);
+		ocelot_mrp_del_vcap(ocelot,
+				    OCELOT_VCAP_IS2_MRP_REDIRECT(ocelot, port));
 		return err;
 	}
 
@@ -211,7 +202,7 @@ int ocelot_mrp_del_ring_role(struct ocelot *ocelot, int port,
 			     const struct switchdev_obj_ring_role_mrp *mrp)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
-	int i;
+	int err, i;
 
 	if (!ocelot_port)
 		return -EOPNOTSUPP;
@@ -222,8 +213,11 @@ int ocelot_mrp_del_ring_role(struct ocelot *ocelot, int port,
 	if (ocelot_port->mrp_ring_id != mrp->ring_id)
 		return 0;
 
-	ocelot_mrp_del_vcap(ocelot, port);
-	ocelot_mrp_del_vcap(ocelot, port + ocelot->num_phys_ports);
+	err = ocelot_mrp_trap_del(ocelot, port);
+	if (err)
+		return err;
+
+	ocelot_mrp_del_vcap(ocelot, OCELOT_VCAP_IS2_MRP_REDIRECT(ocelot, port));
 
 	for (i = 0; i < ocelot->num_phys_ports; ++i) {
 		ocelot_port = ocelot->ports[i];

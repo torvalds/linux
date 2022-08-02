@@ -70,19 +70,19 @@
 	phy-names = "hsic0";
 
 	hub@2 {
-		compatible = "usb0424,3503";
+		compatible = "usb424,3503";
 		reg = <2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
 		hub@1 {
-			compatible = "usb0424,9514";
+			compatible = "usb424,9514";
 			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			ethernet: usbether@1 {
-				compatible = "usb0424,ec00";
+			ethernet: ethernet@1 {
+				compatible = "usb424,ec00";
 				reg = <1>;
 				/* Filled in by a bootloader */
 				local-mac-address = [00 00 00 00 00 00];
@@ -112,7 +112,7 @@
 };
 
 &pinctrl_1 {
-	gpio_home_key: home-key {
+	gpio_home_key: home-key-pins {
 		samsung,pins = "gpx2-2";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};

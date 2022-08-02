@@ -106,16 +106,6 @@ enum {
 	SERV_TYPE_XRC = 5,
 };
 
-enum hns_roce_qp_state {
-	HNS_ROCE_QP_STATE_RST,
-	HNS_ROCE_QP_STATE_INIT,
-	HNS_ROCE_QP_STATE_RTR,
-	HNS_ROCE_QP_STATE_RTS,
-	HNS_ROCE_QP_STATE_SQD,
-	HNS_ROCE_QP_STATE_ERR,
-	HNS_ROCE_QP_NUM_STATE,
-};
-
 enum hns_roce_event {
 	HNS_ROCE_EVENT_TYPE_PATH_MIG                  = 0x01,
 	HNS_ROCE_EVENT_TYPE_PATH_MIG_FAILED           = 0x02,
@@ -138,8 +128,6 @@ enum hns_roce_event {
 	HNS_ROCE_EVENT_TYPE_XRCD_VIOLATION	      = 0x16,
 	HNS_ROCE_EVENT_TYPE_INVALID_XRCETH	      = 0x17,
 };
-
-#define HNS_ROCE_CAP_FLAGS_EX_SHIFT 12
 
 enum {
 	HNS_ROCE_CAP_FLAG_REREG_MR		= BIT(0),
@@ -535,6 +523,11 @@ struct hns_roce_cmd_context {
 	u16			busy;
 };
 
+enum hns_roce_cmdq_state {
+	HNS_ROCE_CMDQ_STATE_NORMAL,
+	HNS_ROCE_CMDQ_STATE_FATAL_ERR,
+};
+
 struct hns_roce_cmdq {
 	struct dma_pool		*pool;
 	struct semaphore	poll_sem;
@@ -554,11 +547,21 @@ struct hns_roce_cmdq {
 	 * close device, switch into poll mode(non event mode)
 	 */
 	u8			use_events;
+	enum hns_roce_cmdq_state state;
 };
 
 struct hns_roce_cmd_mailbox {
 	void		       *buf;
 	dma_addr_t		dma;
+};
+
+struct hns_roce_mbox_msg {
+	u64 in_param;
+	u64 out_param;
+	u8 cmd;
+	u32 tag;
+	u16 token;
+	u8 event_en;
 };
 
 struct hns_roce_dev;
@@ -624,6 +627,7 @@ struct hns_roce_qp {
 	u32			next_sge;
 	enum ib_mtu		path_mtu;
 	u32			max_inline_data;
+	u8			free_mr_en;
 
 	/* 0: flush needed, 1: unneeded */
 	unsigned long		flush_flag;
@@ -647,6 +651,11 @@ struct hns_roce_ceqe {
 	__le32	rsv[15];
 };
 
+#define CEQE_FIELD_LOC(h, l) FIELD_LOC(struct hns_roce_ceqe, h, l)
+
+#define CEQE_CQN CEQE_FIELD_LOC(23, 0)
+#define CEQE_OWNER CEQE_FIELD_LOC(31, 31)
+
 struct hns_roce_aeqe {
 	__le32 asyn;
 	union {
@@ -665,6 +674,13 @@ struct hns_roce_aeqe {
 	 } event;
 	__le32 rsv[12];
 };
+
+#define AEQE_FIELD_LOC(h, l) FIELD_LOC(struct hns_roce_aeqe, h, l)
+
+#define AEQE_EVENT_TYPE AEQE_FIELD_LOC(7, 0)
+#define AEQE_SUB_TYPE AEQE_FIELD_LOC(15, 8)
+#define AEQE_OWNER AEQE_FIELD_LOC(31, 31)
+#define AEQE_EVENT_QUEUE_NUM AEQE_FIELD_LOC(55, 32)
 
 struct hns_roce_eq {
 	struct hns_roce_dev		*hr_dev;
@@ -715,7 +731,6 @@ struct hns_roce_caps {
 	u32		num_pi_qps;
 	u32		reserved_qps;
 	int		num_qpc_timer;
-	int		num_cqc_timer;
 	u32		num_srqs;
 	u32		max_wqes;
 	u32		max_srq_wrs;
@@ -851,11 +866,9 @@ struct hns_roce_hw {
 	int (*hw_profile)(struct hns_roce_dev *hr_dev);
 	int (*hw_init)(struct hns_roce_dev *hr_dev);
 	void (*hw_exit)(struct hns_roce_dev *hr_dev);
-	int (*post_mbox)(struct hns_roce_dev *hr_dev, u64 in_param,
-			 u64 out_param, u32 in_modifier, u8 op_modifier, u16 op,
-			 u16 token, int event);
-	int (*poll_mbox_done)(struct hns_roce_dev *hr_dev,
-			      unsigned int timeout);
+	int (*post_mbox)(struct hns_roce_dev *hr_dev,
+			 struct hns_roce_mbox_msg *mbox_msg);
+	int (*poll_mbox_done)(struct hns_roce_dev *hr_dev);
 	bool (*chk_mbox_avail)(struct hns_roce_dev *hr_dev, bool *is_busy);
 	int (*set_gid)(struct hns_roce_dev *hr_dev, int gid_index,
 		       const union ib_gid *gid, const struct ib_gid_attr *attr);
@@ -873,15 +886,16 @@ struct hns_roce_hw {
 			  struct hns_roce_cq *hr_cq, void *mb_buf, u64 *mtts,
 			  dma_addr_t dma_handle);
 	int (*set_hem)(struct hns_roce_dev *hr_dev,
-		       struct hns_roce_hem_table *table, int obj, int step_idx);
+		       struct hns_roce_hem_table *table, int obj, u32 step_idx);
 	int (*clear_hem)(struct hns_roce_dev *hr_dev,
 			 struct hns_roce_hem_table *table, int obj,
-			 int step_idx);
+			 u32 step_idx);
 	int (*modify_qp)(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			 int attr_mask, enum ib_qp_state cur_state,
 			 enum ib_qp_state new_state);
 	int (*qp_flow_control_init)(struct hns_roce_dev *hr_dev,
 			 struct hns_roce_qp *hr_qp);
+	void (*dereg_mr)(struct hns_roce_dev *hr_dev);
 	int (*init_eq)(struct hns_roce_dev *hr_dev);
 	void (*cleanup_eq)(struct hns_roce_dev *hr_dev);
 	int (*write_srqc)(struct hns_roce_srq *srq, void *mb_buf);
@@ -1145,9 +1159,6 @@ struct ib_mr *hns_roce_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 int hns_roce_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		       unsigned int *sg_offset);
 int hns_roce_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata);
-int hns_roce_hw_destroy_mpt(struct hns_roce_dev *hr_dev,
-			    struct hns_roce_cmd_mailbox *mailbox,
-			    unsigned long mpt_index);
 unsigned long key_to_hw_index(u32 key);
 
 int hns_roce_alloc_mw(struct ib_mw *mw, struct ib_udata *udata);
@@ -1185,7 +1196,6 @@ void *hns_roce_get_send_wqe(struct hns_roce_qp *hr_qp, unsigned int n);
 void *hns_roce_get_extend_sge(struct hns_roce_qp *hr_qp, unsigned int n);
 bool hns_roce_wq_overflow(struct hns_roce_wq *hr_wq, u32 nreq,
 			  struct ib_cq *ib_cq);
-enum hns_roce_qp_state to_hns_roce_state(enum ib_qp_state state);
 void hns_roce_lock_cqs(struct hns_roce_cq *send_cq,
 		       struct hns_roce_cq *recv_cq);
 void hns_roce_unlock_cqs(struct hns_roce_cq *send_cq,

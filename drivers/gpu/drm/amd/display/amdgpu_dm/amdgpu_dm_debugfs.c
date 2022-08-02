@@ -23,6 +23,7 @@
  *
  */
 
+#include <linux/string_helpers.h>
 #include <linux/uaccess.h>
 
 #include "dc.h"
@@ -48,11 +49,6 @@ struct dmub_debugfs_trace_entry {
 	uint32_t param0;
 	uint32_t param1;
 };
-
-static inline const char *yesno(bool v)
-{
-	return v ? "yes" : "no";
-}
 
 /* parse_write_buffer_into_params - Helper function to parse debugfs write buffer into an array
  *
@@ -227,8 +223,10 @@ static ssize_t dp_link_settings_read(struct file *f, char __user *buf,
 			break;
 
 		r = put_user(*(rd_buf + result), buf);
-		if (r)
+		if (r) {
+			kfree(rd_buf);
 			return r; /* r = -EFAULT */
+		}
 
 		buf += 1;
 		size -= 1;
@@ -245,6 +243,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 {
 	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
 	struct dc_link *link = connector->dc_link;
+	struct amdgpu_device *adev = drm_to_adev(connector->base.dev);
 	struct dc *dc = (struct dc *)link->dc;
 	struct dc_link_settings prefer_link_settings;
 	char *wr_buf = NULL;
@@ -292,9 +291,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	case LINK_RATE_RBR2:
 	case LINK_RATE_HIGH2:
 	case LINK_RATE_HIGH3:
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	case LINK_RATE_UHBR10:
-#endif
 		break;
 	default:
 		valid_input = false;
@@ -304,6 +301,9 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	if (!valid_input) {
 		kfree(wr_buf);
 		DRM_DEBUG_DRIVER("Invalid Input value No HW will be programmed\n");
+		mutex_lock(&adev->dm.dc_lock);
+		dc_link_set_preferred_training_settings(dc, NULL, NULL, link, false);
+		mutex_unlock(&adev->dm.dc_lock);
 		return size;
 	}
 
@@ -315,7 +315,9 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	prefer_link_settings.lane_count = param[0];
 	prefer_link_settings.link_rate = param[1];
 
-	dc_link_set_preferred_training_settings(dc, &prefer_link_settings, NULL, link, true);
+	mutex_lock(&adev->dm.dc_lock);
+	dc_link_set_preferred_training_settings(dc, &prefer_link_settings, NULL, link, false);
+	mutex_unlock(&adev->dm.dc_lock);
 
 	kfree(wr_buf);
 	return size;
@@ -389,8 +391,10 @@ static ssize_t dp_phy_settings_read(struct file *f, char __user *buf,
 			break;
 
 		r = put_user((*(rd_buf + result)), buf);
-		if (r)
+		if (r) {
+			kfree(rd_buf);
 			return r; /* r = -EFAULT */
+		}
 
 		buf += 1;
 		size -= 1;
@@ -853,12 +857,12 @@ static int psr_capability_show(struct seq_file *m, void *data)
 	if (!(link->connector_signal & SIGNAL_TYPE_EDP))
 		return -ENODEV;
 
-	seq_printf(m, "Sink support: %s", yesno(link->dpcd_caps.psr_caps.psr_version != 0));
-	if (link->dpcd_caps.psr_caps.psr_version)
-		seq_printf(m, " [0x%02x]", link->dpcd_caps.psr_caps.psr_version);
+	seq_printf(m, "Sink support: %s", str_yes_no(link->dpcd_caps.psr_info.psr_version != 0));
+	if (link->dpcd_caps.psr_info.psr_version)
+		seq_printf(m, " [0x%02x]", link->dpcd_caps.psr_info.psr_version);
 	seq_puts(m, "\n");
 
-	seq_printf(m, "Driver support: %s", yesno(link->psr_settings.psr_feature_enabled));
+	seq_printf(m, "Driver support: %s", str_yes_no(link->psr_settings.psr_feature_enabled));
 	if (link->psr_settings.psr_version)
 		seq_printf(m, " [0x%02x]", link->psr_settings.psr_version);
 	seq_puts(m, "\n");
@@ -1207,8 +1211,8 @@ static int dp_dsc_fec_support_show(struct seq_file *m, void *data)
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 
-	seq_printf(m, "FEC_Sink_Support: %s\n", yesno(is_fec_supported));
-	seq_printf(m, "DSC_Sink_Support: %s\n", yesno(is_dsc_supported));
+	seq_printf(m, "FEC_Sink_Support: %s\n", str_yes_no(is_fec_supported));
+	seq_printf(m, "DSC_Sink_Support: %s\n", str_yes_no(is_dsc_supported));
 
 	return ret;
 }
@@ -1359,8 +1363,10 @@ static ssize_t dp_dsc_clock_en_read(struct file *f, char __user *buf,
 				break;
 	}
 
-	if (!pipe_ctx)
+	if (!pipe_ctx) {
+		kfree(rd_buf);
 		return -ENXIO;
+	}
 
 	dsc = pipe_ctx->stream_res.dsc;
 	if (dsc)
@@ -1376,8 +1382,10 @@ static ssize_t dp_dsc_clock_en_read(struct file *f, char __user *buf,
 			break;
 
 		r = put_user(*(rd_buf + result), buf);
-		if (r)
+		if (r) {
+			kfree(rd_buf);
 			return r; /* r = -EFAULT */
+		}
 
 		buf += 1;
 		size -= 1;
@@ -1546,8 +1554,10 @@ static ssize_t dp_dsc_slice_width_read(struct file *f, char __user *buf,
 				break;
 	}
 
-	if (!pipe_ctx)
+	if (!pipe_ctx) {
+		kfree(rd_buf);
 		return -ENXIO;
+	}
 
 	dsc = pipe_ctx->stream_res.dsc;
 	if (dsc)
@@ -1563,8 +1573,10 @@ static ssize_t dp_dsc_slice_width_read(struct file *f, char __user *buf,
 			break;
 
 		r = put_user(*(rd_buf + result), buf);
-		if (r)
+		if (r) {
+			kfree(rd_buf);
 			return r; /* r = -EFAULT */
+		}
 
 		buf += 1;
 		size -= 1;
@@ -1731,8 +1743,10 @@ static ssize_t dp_dsc_slice_height_read(struct file *f, char __user *buf,
 				break;
 	}
 
-	if (!pipe_ctx)
+	if (!pipe_ctx) {
+		kfree(rd_buf);
 		return -ENXIO;
+	}
 
 	dsc = pipe_ctx->stream_res.dsc;
 	if (dsc)
@@ -1748,8 +1762,10 @@ static ssize_t dp_dsc_slice_height_read(struct file *f, char __user *buf,
 			break;
 
 		r = put_user(*(rd_buf + result), buf);
-		if (r)
+		if (r) {
+			kfree(rd_buf);
 			return r; /* r = -EFAULT */
+		}
 
 		buf += 1;
 		size -= 1;
@@ -1912,8 +1928,10 @@ static ssize_t dp_dsc_bits_per_pixel_read(struct file *f, char __user *buf,
 				break;
 	}
 
-	if (!pipe_ctx)
+	if (!pipe_ctx) {
+		kfree(rd_buf);
 		return -ENXIO;
+	}
 
 	dsc = pipe_ctx->stream_res.dsc;
 	if (dsc)
@@ -1929,8 +1947,10 @@ static ssize_t dp_dsc_bits_per_pixel_read(struct file *f, char __user *buf,
 			break;
 
 		r = put_user(*(rd_buf + result), buf);
-		if (r)
+		if (r) {
+			kfree(rd_buf);
 			return r; /* r = -EFAULT */
+		}
 
 		buf += 1;
 		size -= 1;
@@ -2088,8 +2108,10 @@ static ssize_t dp_dsc_pic_width_read(struct file *f, char __user *buf,
 				break;
 	}
 
-	if (!pipe_ctx)
+	if (!pipe_ctx) {
+		kfree(rd_buf);
 		return -ENXIO;
+	}
 
 	dsc = pipe_ctx->stream_res.dsc;
 	if (dsc)
@@ -2105,8 +2127,10 @@ static ssize_t dp_dsc_pic_width_read(struct file *f, char __user *buf,
 			break;
 
 		r = put_user(*(rd_buf + result), buf);
-		if (r)
+		if (r) {
+			kfree(rd_buf);
 			return r; /* r = -EFAULT */
+		}
 
 		buf += 1;
 		size -= 1;
@@ -2145,8 +2169,10 @@ static ssize_t dp_dsc_pic_height_read(struct file *f, char __user *buf,
 				break;
 	}
 
-	if (!pipe_ctx)
+	if (!pipe_ctx) {
+		kfree(rd_buf);
 		return -ENXIO;
+	}
 
 	dsc = pipe_ctx->stream_res.dsc;
 	if (dsc)
@@ -2162,8 +2188,10 @@ static ssize_t dp_dsc_pic_height_read(struct file *f, char __user *buf,
 			break;
 
 		r = put_user(*(rd_buf + result), buf);
-		if (r)
+		if (r) {
+			kfree(rd_buf);
 			return r; /* r = -EFAULT */
+		}
 
 		buf += 1;
 		size -= 1;
@@ -2217,8 +2245,10 @@ static ssize_t dp_dsc_chunk_size_read(struct file *f, char __user *buf,
 				break;
 	}
 
-	if (!pipe_ctx)
+	if (!pipe_ctx) {
+		kfree(rd_buf);
 		return -ENXIO;
+	}
 
 	dsc = pipe_ctx->stream_res.dsc;
 	if (dsc)
@@ -2234,8 +2264,10 @@ static ssize_t dp_dsc_chunk_size_read(struct file *f, char __user *buf,
 			break;
 
 		r = put_user(*(rd_buf + result), buf);
-		if (r)
+		if (r) {
+			kfree(rd_buf);
 			return r; /* r = -EFAULT */
+		}
 
 		buf += 1;
 		size -= 1;
@@ -2289,8 +2321,10 @@ static ssize_t dp_dsc_slice_bpg_offset_read(struct file *f, char __user *buf,
 				break;
 	}
 
-	if (!pipe_ctx)
+	if (!pipe_ctx) {
+		kfree(rd_buf);
 		return -ENXIO;
+	}
 
 	dsc = pipe_ctx->stream_res.dsc;
 	if (dsc)
@@ -2306,8 +2340,10 @@ static ssize_t dp_dsc_slice_bpg_offset_read(struct file *f, char __user *buf,
 			break;
 
 		r = put_user(*(rd_buf + result), buf);
-		if (r)
+		if (r) {
+			kfree(rd_buf);
 			return r; /* r = -EFAULT */
+		}
 
 		buf += 1;
 		size -= 1;
@@ -2851,7 +2887,9 @@ static ssize_t edp_ilr_write(struct file *f, const char __user *buf,
 		kfree(wr_buf);
 		DRM_DEBUG_DRIVER("Invalid Input value. No HW will be programmed\n");
 		prefer_link_settings.use_link_rate_set = false;
-		dc_link_set_preferred_training_settings(dc, NULL, NULL, link, true);
+		mutex_lock(&adev->dm.dc_lock);
+		dc_link_set_preferred_training_settings(dc, NULL, NULL, link, false);
+		mutex_unlock(&adev->dm.dc_lock);
 		return size;
 	}
 
@@ -3371,7 +3409,6 @@ static int disable_hpd_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(disable_hpd_ops, disable_hpd_get,
 			 disable_hpd_set, "%llu\n");
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 /*
  * Temporary w/a to force sst sequence in M42D DP2 mst receiver
  * Example usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_dp_set_mst_en_for_sst
@@ -3395,7 +3432,30 @@ static int dp_force_sst_get(void *data, u64 *val)
 }
 DEFINE_DEBUGFS_ATTRIBUTE(dp_set_mst_en_for_sst_ops, dp_force_sst_get,
 			 dp_force_sst_set, "%llu\n");
-#endif
+
+/*
+ * Force DP2 sequence without VESA certified cable.
+ * Example usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_dp_ignore_cable_id
+ */
+static int dp_ignore_cable_id_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = data;
+
+	adev->dm.dc->debug.ignore_cable_id = val;
+
+	return 0;
+}
+
+static int dp_ignore_cable_id_get(void *data, u64 *val)
+{
+	struct amdgpu_device *adev = data;
+
+	*val = adev->dm.dc->debug.ignore_cable_id;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(dp_ignore_cable_id_ops, dp_ignore_cable_id_get,
+			 dp_ignore_cable_id_set, "%llu\n");
 
 /*
  * Sets the DC visual confirm debug option from the given string.
@@ -3426,6 +3486,40 @@ static int visual_confirm_get(void *data, u64 *val)
 DEFINE_SHOW_ATTRIBUTE(mst_topo);
 DEFINE_DEBUGFS_ATTRIBUTE(visual_confirm_fops, visual_confirm_get,
 			 visual_confirm_set, "%llu\n");
+
+
+/*
+ * Sets the DC skip_detection_link_training debug option from the given string.
+ * Example usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_skip_detection_link_training
+ */
+static int skip_detection_link_training_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = data;
+
+	if (val == 0)
+		adev->dm.dc->debug.skip_detection_link_training = false;
+	else
+		adev->dm.dc->debug.skip_detection_link_training = true;
+
+	return 0;
+}
+
+/*
+ * Reads the DC skip_detection_link_training debug option value into the given buffer.
+ * Example usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_skip_detection_link_training
+ */
+static int skip_detection_link_training_get(void *data, u64 *val)
+{
+	struct amdgpu_device *adev = data;
+
+	*val = adev->dm.dc->debug.skip_detection_link_training;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(skip_detection_link_training_fops,
+			 skip_detection_link_training_get,
+			 skip_detection_link_training_set, "%llu\n");
 
 /*
  * Dumps the DCC_EN bit for each pipe.
@@ -3459,8 +3553,10 @@ static ssize_t dcc_en_bits_read(
 	dc->hwss.get_dcc_en_bits(dc, dcc_en_bits);
 
 	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
-	if (!rd_buf)
+	if (!rd_buf) {
+		kfree(dcc_en_bits);
 		return -ENOMEM;
+	}
 
 	for (i = 0; i < num_pipes; i++)
 		offset += snprintf(rd_buf + offset, rd_buf_size - offset,
@@ -3473,8 +3569,10 @@ static ssize_t dcc_en_bits_read(
 		if (*pos >= rd_buf_size)
 			break;
 		r = put_user(*(rd_buf + result), buf);
-		if (r)
+		if (r) {
+			kfree(rd_buf);
 			return r; /* r = -EFAULT */
+		}
 		buf += 1;
 		size -= 1;
 		*pos += 1;
@@ -3506,13 +3604,16 @@ void dtn_debugfs_init(struct amdgpu_device *adev)
 			    adev, &mst_topo_fops);
 	debugfs_create_file("amdgpu_dm_dtn_log", 0644, root, adev,
 			    &dtn_log_fops);
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	debugfs_create_file("amdgpu_dm_dp_set_mst_en_for_sst", 0644, root, adev,
 				&dp_set_mst_en_for_sst_ops);
-#endif
+	debugfs_create_file("amdgpu_dm_dp_ignore_cable_id", 0644, root, adev,
+				&dp_ignore_cable_id_ops);
 
 	debugfs_create_file_unsafe("amdgpu_dm_visual_confirm", 0644, root, adev,
 				   &visual_confirm_fops);
+
+	debugfs_create_file_unsafe("amdgpu_dm_skip_detection_link_training", 0644, root, adev,
+				   &skip_detection_link_training_fops);
 
 	debugfs_create_file_unsafe("amdgpu_dm_dmub_tracebuffer", 0644, root,
 				   adev, &dmub_tracebuffer_fops);

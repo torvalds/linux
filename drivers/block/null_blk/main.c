@@ -11,6 +11,9 @@
 #include <linux/init.h>
 #include "null_blk.h"
 
+#undef pr_fmt
+#define pr_fmt(fmt)	"null_blk: " fmt
+
 #define FREE_BATCH		16
 
 #define TICKS_PER_SEC		50ULL
@@ -72,12 +75,6 @@ enum {
 	NULL_IRQ_NONE		= 0,
 	NULL_IRQ_SOFTIRQ	= 1,
 	NULL_IRQ_TIMER		= 2,
-};
-
-enum {
-	NULL_Q_BIO		= 0,
-	NULL_Q_RQ		= 1,
-	NULL_Q_MQ		= 2,
 };
 
 static bool g_virt_boundary = false;
@@ -232,6 +229,7 @@ static struct nullb_device *null_alloc_dev(void);
 static void null_free_dev(struct nullb_device *dev);
 static void null_del_dev(struct nullb *nullb);
 static int null_add_dev(struct nullb_device *dev);
+static struct nullb *null_find_dev_by_name(const char *name);
 static void null_free_device_storage(struct nullb_device *dev, bool is_cache);
 
 static inline struct nullb_device *to_nullb_device(struct config_item *item)
@@ -431,9 +429,10 @@ static ssize_t nullb_device_power_store(struct config_item *item,
 	if (!dev->power && newp) {
 		if (test_and_set_bit(NULLB_DEV_FL_UP, &dev->flags))
 			return count;
-		if (null_add_dev(dev)) {
+		ret = null_add_dev(dev);
+		if (ret) {
 			clear_bit(NULLB_DEV_FL_UP, &dev->flags);
-			return -ENOMEM;
+			return ret;
 		}
 
 		set_bit(NULLB_DEV_FL_CONFIGURED, &dev->flags);
@@ -558,6 +557,9 @@ static struct
 config_item *nullb_group_make_item(struct config_group *group, const char *name)
 {
 	struct nullb_device *dev;
+
+	if (null_find_dev_by_name(name))
+		return ERR_PTR(-EEXIST);
 
 	dev = null_alloc_dev();
 	if (!dev)
@@ -719,26 +721,25 @@ static struct nullb_cmd *__alloc_cmd(struct nullb_queue *nq)
 	return NULL;
 }
 
-static struct nullb_cmd *alloc_cmd(struct nullb_queue *nq, int can_wait)
+static struct nullb_cmd *alloc_cmd(struct nullb_queue *nq, struct bio *bio)
 {
 	struct nullb_cmd *cmd;
 	DEFINE_WAIT(wait);
 
-	cmd = __alloc_cmd(nq);
-	if (cmd || !can_wait)
-		return cmd;
-
 	do {
-		prepare_to_wait(&nq->wait, &wait, TASK_UNINTERRUPTIBLE);
+		/*
+		 * This avoids multiple return statements, multiple calls to
+		 * __alloc_cmd() and a fast path call to prepare_to_wait().
+		 */
 		cmd = __alloc_cmd(nq);
-		if (cmd)
-			break;
-
+		if (cmd) {
+			cmd->bio = bio;
+			return cmd;
+		}
+		prepare_to_wait(&nq->wait, &wait, TASK_UNINTERRUPTIBLE);
 		io_schedule();
+		finish_wait(&nq->wait, &wait);
 	} while (1);
-
-	finish_wait(&nq->wait, &wait);
-	return cmd;
 }
 
 static void end_cmd(struct nullb_cmd *cmd)
@@ -777,24 +778,22 @@ static void null_complete_rq(struct request *rq)
 	end_cmd(blk_mq_rq_to_pdu(rq));
 }
 
-static struct nullb_page *null_alloc_page(gfp_t gfp_flags)
+static struct nullb_page *null_alloc_page(void)
 {
 	struct nullb_page *t_page;
 
-	t_page = kmalloc(sizeof(struct nullb_page), gfp_flags);
+	t_page = kmalloc(sizeof(struct nullb_page), GFP_NOIO);
 	if (!t_page)
-		goto out;
+		return NULL;
 
-	t_page->page = alloc_pages(gfp_flags, 0);
-	if (!t_page->page)
-		goto out_freepage;
+	t_page->page = alloc_pages(GFP_NOIO, 0);
+	if (!t_page->page) {
+		kfree(t_page);
+		return NULL;
+	}
 
 	memset(t_page->bitmap, 0, sizeof(t_page->bitmap));
 	return t_page;
-out_freepage:
-	kfree(t_page);
-out:
-	return NULL;
 }
 
 static void null_free_page(struct nullb_page *t_page)
@@ -932,7 +931,7 @@ static struct nullb_page *null_insert_page(struct nullb *nullb,
 
 	spin_unlock_irq(&nullb->lock);
 
-	t_page = null_alloc_page(GFP_NOIO);
+	t_page = null_alloc_page();
 	if (!t_page)
 		goto out_lock;
 
@@ -1476,12 +1475,8 @@ static void null_submit_bio(struct bio *bio)
 	sector_t nr_sectors = bio_sectors(bio);
 	struct nullb *nullb = bio->bi_bdev->bd_disk->private_data;
 	struct nullb_queue *nq = nullb_to_queue(nullb);
-	struct nullb_cmd *cmd;
 
-	cmd = alloc_cmd(nq, 1);
-	cmd->bio = bio;
-
-	null_handle_cmd(cmd, sector, nr_sectors, bio_op(bio));
+	null_handle_cmd(alloc_cmd(nq, bio), sector, nr_sectors, bio_op(bio));
 }
 
 static bool should_timeout_request(struct request *rq)
@@ -1606,7 +1601,7 @@ static enum blk_eh_timer_return null_timeout_rq(struct request *rq, bool res)
 	 * Only fake timeouts need to execute blk_mq_complete_request() here.
 	 */
 	cmd->error = BLK_STS_TIMEOUT;
-	if (cmd->fake_timeout)
+	if (cmd->fake_timeout || hctx->type == HCTX_TYPE_POLL)
 		blk_mq_complete_request(rq);
 	return BLK_EH_DONE;
 }
@@ -1771,9 +1766,7 @@ static void null_config_discard(struct nullb *nullb)
 	}
 
 	nullb->q->limits.discard_granularity = nullb->dev->blocksize;
-	nullb->q->limits.discard_alignment = nullb->dev->blocksize;
 	blk_queue_max_discard_sectors(nullb->q, UINT_MAX >> 9);
-	blk_queue_flag_set(QUEUE_FLAG_DISCARD, nullb->q);
 }
 
 static const struct block_device_operations null_bio_ops = {
@@ -2067,7 +2060,13 @@ static int null_add_dev(struct nullb_device *dev)
 
 	null_config_discard(nullb);
 
-	sprintf(nullb->disk_name, "nullb%d", nullb->index);
+	if (config_item_name(&dev->item)) {
+		/* Use configfs dir name as the device name */
+		snprintf(nullb->disk_name, sizeof(nullb->disk_name),
+			 "%s", config_item_name(&dev->item));
+	} else {
+		sprintf(nullb->disk_name, "nullb%d", nullb->index);
+	}
 
 	rv = null_gendisk_register(nullb);
 	if (rv)
@@ -2076,6 +2075,8 @@ static int null_add_dev(struct nullb_device *dev)
 	mutex_lock(&lock);
 	list_add_tail(&nullb->list, &nullb_list);
 	mutex_unlock(&lock);
+
+	pr_info("disk %s created\n", nullb->disk_name);
 
 	return 0;
 out_cleanup_zone:
@@ -2094,12 +2095,53 @@ out:
 	return rv;
 }
 
+static struct nullb *null_find_dev_by_name(const char *name)
+{
+	struct nullb *nullb = NULL, *nb;
+
+	mutex_lock(&lock);
+	list_for_each_entry(nb, &nullb_list, list) {
+		if (strcmp(nb->disk_name, name) == 0) {
+			nullb = nb;
+			break;
+		}
+	}
+	mutex_unlock(&lock);
+
+	return nullb;
+}
+
+static int null_create_dev(void)
+{
+	struct nullb_device *dev;
+	int ret;
+
+	dev = null_alloc_dev();
+	if (!dev)
+		return -ENOMEM;
+
+	ret = null_add_dev(dev);
+	if (ret) {
+		null_free_dev(dev);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void null_destroy_dev(struct nullb *nullb)
+{
+	struct nullb_device *dev = nullb->dev;
+
+	null_del_dev(nullb);
+	null_free_dev(dev);
+}
+
 static int __init null_init(void)
 {
 	int ret = 0;
 	unsigned int i;
 	struct nullb *nullb;
-	struct nullb_device *dev;
 
 	if (g_bs > PAGE_SIZE) {
 		pr_warn("invalid block size\n");
@@ -2119,19 +2161,21 @@ static int __init null_init(void)
 	}
 
 	if (g_queue_mode == NULL_Q_RQ) {
-		pr_err("legacy IO path no longer available\n");
+		pr_err("legacy IO path is no longer available\n");
 		return -EINVAL;
 	}
+
 	if (g_queue_mode == NULL_Q_MQ && g_use_per_node_hctx) {
 		if (g_submit_queues != nr_online_nodes) {
 			pr_warn("submit_queues param is set to %u.\n",
-							nr_online_nodes);
+				nr_online_nodes);
 			g_submit_queues = nr_online_nodes;
 		}
-	} else if (g_submit_queues > nr_cpu_ids)
+	} else if (g_submit_queues > nr_cpu_ids) {
 		g_submit_queues = nr_cpu_ids;
-	else if (g_submit_queues <= 0)
+	} else if (g_submit_queues <= 0) {
 		g_submit_queues = 1;
+	}
 
 	if (g_queue_mode == NULL_Q_MQ && shared_tags) {
 		ret = null_init_tag_set(NULL, &tag_set);
@@ -2155,16 +2199,9 @@ static int __init null_init(void)
 	}
 
 	for (i = 0; i < nr_devices; i++) {
-		dev = null_alloc_dev();
-		if (!dev) {
-			ret = -ENOMEM;
+		ret = null_create_dev();
+		if (ret)
 			goto err_dev;
-		}
-		ret = null_add_dev(dev);
-		if (ret) {
-			null_free_dev(dev);
-			goto err_dev;
-		}
 	}
 
 	pr_info("module loaded\n");
@@ -2173,9 +2210,7 @@ static int __init null_init(void)
 err_dev:
 	while (!list_empty(&nullb_list)) {
 		nullb = list_entry(nullb_list.next, struct nullb, list);
-		dev = nullb->dev;
-		null_del_dev(nullb);
-		null_free_dev(dev);
+		null_destroy_dev(nullb);
 	}
 	unregister_blkdev(null_major, "nullb");
 err_conf:
@@ -2196,12 +2231,8 @@ static void __exit null_exit(void)
 
 	mutex_lock(&lock);
 	while (!list_empty(&nullb_list)) {
-		struct nullb_device *dev;
-
 		nullb = list_entry(nullb_list.next, struct nullb, list);
-		dev = nullb->dev;
-		null_del_dev(nullb);
-		null_free_dev(dev);
+		null_destroy_dev(nullb);
 	}
 	mutex_unlock(&lock);
 

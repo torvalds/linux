@@ -4,9 +4,19 @@
 #include <pthread.h>
 #include <sched.h>
 #include <sys/syscall.h>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <test_progs.h>
+#include <network_helpers.h>
+#include <bpf/btf.h>
 #include "test_bpf_cookie.skel.h"
+#include "kprobe_multi.skel.h"
+
+/* uprobe attach point */
+static void trigger_func(void)
+{
+	asm volatile ("");
+}
 
 static void kprobe_subtest(struct test_bpf_cookie *skel)
 {
@@ -57,16 +67,188 @@ cleanup:
 	bpf_link__destroy(retlink2);
 }
 
+static void kprobe_multi_test_run(struct kprobe_multi *skel)
+{
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+	int err, prog_fd;
+
+	prog_fd = bpf_program__fd(skel->progs.trigger);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
+	ASSERT_OK(err, "test_run");
+	ASSERT_EQ(topts.retval, 0, "test_run");
+
+	ASSERT_EQ(skel->bss->kprobe_test1_result, 1, "kprobe_test1_result");
+	ASSERT_EQ(skel->bss->kprobe_test2_result, 1, "kprobe_test2_result");
+	ASSERT_EQ(skel->bss->kprobe_test3_result, 1, "kprobe_test3_result");
+	ASSERT_EQ(skel->bss->kprobe_test4_result, 1, "kprobe_test4_result");
+	ASSERT_EQ(skel->bss->kprobe_test5_result, 1, "kprobe_test5_result");
+	ASSERT_EQ(skel->bss->kprobe_test6_result, 1, "kprobe_test6_result");
+	ASSERT_EQ(skel->bss->kprobe_test7_result, 1, "kprobe_test7_result");
+	ASSERT_EQ(skel->bss->kprobe_test8_result, 1, "kprobe_test8_result");
+
+	ASSERT_EQ(skel->bss->kretprobe_test1_result, 1, "kretprobe_test1_result");
+	ASSERT_EQ(skel->bss->kretprobe_test2_result, 1, "kretprobe_test2_result");
+	ASSERT_EQ(skel->bss->kretprobe_test3_result, 1, "kretprobe_test3_result");
+	ASSERT_EQ(skel->bss->kretprobe_test4_result, 1, "kretprobe_test4_result");
+	ASSERT_EQ(skel->bss->kretprobe_test5_result, 1, "kretprobe_test5_result");
+	ASSERT_EQ(skel->bss->kretprobe_test6_result, 1, "kretprobe_test6_result");
+	ASSERT_EQ(skel->bss->kretprobe_test7_result, 1, "kretprobe_test7_result");
+	ASSERT_EQ(skel->bss->kretprobe_test8_result, 1, "kretprobe_test8_result");
+}
+
+static void kprobe_multi_link_api_subtest(void)
+{
+	int prog_fd, link1_fd = -1, link2_fd = -1;
+	struct kprobe_multi *skel = NULL;
+	LIBBPF_OPTS(bpf_link_create_opts, opts);
+	unsigned long long addrs[8];
+	__u64 cookies[8];
+
+	if (!ASSERT_OK(load_kallsyms(), "load_kallsyms"))
+		goto cleanup;
+
+	skel = kprobe_multi__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "fentry_raw_skel_load"))
+		goto cleanup;
+
+	skel->bss->pid = getpid();
+	skel->bss->test_cookie = true;
+
+#define GET_ADDR(__sym, __addr) ({				\
+	__addr = ksym_get_addr(__sym);				\
+	if (!ASSERT_NEQ(__addr, 0, "ksym_get_addr " #__sym))	\
+		goto cleanup;					\
+})
+
+	GET_ADDR("bpf_fentry_test1", addrs[0]);
+	GET_ADDR("bpf_fentry_test3", addrs[1]);
+	GET_ADDR("bpf_fentry_test4", addrs[2]);
+	GET_ADDR("bpf_fentry_test5", addrs[3]);
+	GET_ADDR("bpf_fentry_test6", addrs[4]);
+	GET_ADDR("bpf_fentry_test7", addrs[5]);
+	GET_ADDR("bpf_fentry_test2", addrs[6]);
+	GET_ADDR("bpf_fentry_test8", addrs[7]);
+
+#undef GET_ADDR
+
+	cookies[0] = 1; /* bpf_fentry_test1 */
+	cookies[1] = 2; /* bpf_fentry_test3 */
+	cookies[2] = 3; /* bpf_fentry_test4 */
+	cookies[3] = 4; /* bpf_fentry_test5 */
+	cookies[4] = 5; /* bpf_fentry_test6 */
+	cookies[5] = 6; /* bpf_fentry_test7 */
+	cookies[6] = 7; /* bpf_fentry_test2 */
+	cookies[7] = 8; /* bpf_fentry_test8 */
+
+	opts.kprobe_multi.addrs = (const unsigned long *) &addrs;
+	opts.kprobe_multi.cnt = ARRAY_SIZE(addrs);
+	opts.kprobe_multi.cookies = (const __u64 *) &cookies;
+	prog_fd = bpf_program__fd(skel->progs.test_kprobe);
+
+	link1_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_KPROBE_MULTI, &opts);
+	if (!ASSERT_GE(link1_fd, 0, "link1_fd"))
+		goto cleanup;
+
+	cookies[0] = 8; /* bpf_fentry_test1 */
+	cookies[1] = 7; /* bpf_fentry_test3 */
+	cookies[2] = 6; /* bpf_fentry_test4 */
+	cookies[3] = 5; /* bpf_fentry_test5 */
+	cookies[4] = 4; /* bpf_fentry_test6 */
+	cookies[5] = 3; /* bpf_fentry_test7 */
+	cookies[6] = 2; /* bpf_fentry_test2 */
+	cookies[7] = 1; /* bpf_fentry_test8 */
+
+	opts.kprobe_multi.flags = BPF_F_KPROBE_MULTI_RETURN;
+	prog_fd = bpf_program__fd(skel->progs.test_kretprobe);
+
+	link2_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_KPROBE_MULTI, &opts);
+	if (!ASSERT_GE(link2_fd, 0, "link2_fd"))
+		goto cleanup;
+
+	kprobe_multi_test_run(skel);
+
+cleanup:
+	close(link1_fd);
+	close(link2_fd);
+	kprobe_multi__destroy(skel);
+}
+
+static void kprobe_multi_attach_api_subtest(void)
+{
+	struct bpf_link *link1 = NULL, *link2 = NULL;
+	LIBBPF_OPTS(bpf_kprobe_multi_opts, opts);
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+	struct kprobe_multi *skel = NULL;
+	const char *syms[8] = {
+		"bpf_fentry_test1",
+		"bpf_fentry_test3",
+		"bpf_fentry_test4",
+		"bpf_fentry_test5",
+		"bpf_fentry_test6",
+		"bpf_fentry_test7",
+		"bpf_fentry_test2",
+		"bpf_fentry_test8",
+	};
+	__u64 cookies[8];
+
+	skel = kprobe_multi__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "fentry_raw_skel_load"))
+		goto cleanup;
+
+	skel->bss->pid = getpid();
+	skel->bss->test_cookie = true;
+
+	cookies[0] = 1; /* bpf_fentry_test1 */
+	cookies[1] = 2; /* bpf_fentry_test3 */
+	cookies[2] = 3; /* bpf_fentry_test4 */
+	cookies[3] = 4; /* bpf_fentry_test5 */
+	cookies[4] = 5; /* bpf_fentry_test6 */
+	cookies[5] = 6; /* bpf_fentry_test7 */
+	cookies[6] = 7; /* bpf_fentry_test2 */
+	cookies[7] = 8; /* bpf_fentry_test8 */
+
+	opts.syms = syms;
+	opts.cnt = ARRAY_SIZE(syms);
+	opts.cookies = cookies;
+
+	link1 = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe,
+						      NULL, &opts);
+	if (!ASSERT_OK_PTR(link1, "bpf_program__attach_kprobe_multi_opts"))
+		goto cleanup;
+
+	cookies[0] = 8; /* bpf_fentry_test1 */
+	cookies[1] = 7; /* bpf_fentry_test3 */
+	cookies[2] = 6; /* bpf_fentry_test4 */
+	cookies[3] = 5; /* bpf_fentry_test5 */
+	cookies[4] = 4; /* bpf_fentry_test6 */
+	cookies[5] = 3; /* bpf_fentry_test7 */
+	cookies[6] = 2; /* bpf_fentry_test2 */
+	cookies[7] = 1; /* bpf_fentry_test8 */
+
+	opts.retprobe = true;
+
+	link2 = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kretprobe,
+						      NULL, &opts);
+	if (!ASSERT_OK_PTR(link2, "bpf_program__attach_kprobe_multi_opts"))
+		goto cleanup;
+
+	kprobe_multi_test_run(skel);
+
+cleanup:
+	bpf_link__destroy(link2);
+	bpf_link__destroy(link1);
+	kprobe_multi__destroy(skel);
+}
 static void uprobe_subtest(struct test_bpf_cookie *skel)
 {
 	DECLARE_LIBBPF_OPTS(bpf_uprobe_opts, opts);
 	struct bpf_link *link1 = NULL, *link2 = NULL;
 	struct bpf_link *retlink1 = NULL, *retlink2 = NULL;
-	size_t uprobe_offset;
-	ssize_t base_addr;
+	ssize_t uprobe_offset;
 
-	base_addr = get_base_addr();
-	uprobe_offset = get_uprobe_offset(&get_base_addr, base_addr);
+	uprobe_offset = get_uprobe_offset(&trigger_func);
+	if (!ASSERT_GE(uprobe_offset, 0, "uprobe_offset"))
+		goto cleanup;
 
 	/* attach two uprobes */
 	opts.bpf_cookie = 0x100;
@@ -99,7 +281,7 @@ static void uprobe_subtest(struct test_bpf_cookie *skel)
 		goto cleanup;
 
 	/* trigger uprobe && uretprobe */
-	get_base_addr();
+	trigger_func();
 
 	ASSERT_EQ(skel->bss->uprobe_res, 0x100 | 0x200, "uprobe_res");
 	ASSERT_EQ(skel->bss->uretprobe_res, 0x1000 | 0x2000, "uretprobe_res");
@@ -193,7 +375,7 @@ static void pe_subtest(struct test_bpf_cookie *skel)
 	attr.type = PERF_TYPE_SOFTWARE;
 	attr.config = PERF_COUNT_SW_CPU_CLOCK;
 	attr.freq = 1;
-	attr.sample_freq = 4000;
+	attr.sample_freq = 1000;
 	pfd = syscall(__NR_perf_event_open, &attr, -1, 0, -1, PERF_FLAG_FD_CLOEXEC);
 	if (!ASSERT_GE(pfd, 0, "perf_fd"))
 		goto cleanup;
@@ -231,6 +413,88 @@ cleanup:
 	bpf_link__destroy(link);
 }
 
+static void tracing_subtest(struct test_bpf_cookie *skel)
+{
+	__u64 cookie;
+	int prog_fd;
+	int fentry_fd = -1, fexit_fd = -1, fmod_ret_fd = -1;
+	LIBBPF_OPTS(bpf_test_run_opts, opts);
+	LIBBPF_OPTS(bpf_link_create_opts, link_opts);
+
+	skel->bss->fentry_res = 0;
+	skel->bss->fexit_res = 0;
+
+	cookie = 0x10000000000000L;
+	prog_fd = bpf_program__fd(skel->progs.fentry_test1);
+	link_opts.tracing.cookie = cookie;
+	fentry_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_FENTRY, &link_opts);
+	if (!ASSERT_GE(fentry_fd, 0, "fentry.link_create"))
+		goto cleanup;
+
+	cookie = 0x20000000000000L;
+	prog_fd = bpf_program__fd(skel->progs.fexit_test1);
+	link_opts.tracing.cookie = cookie;
+	fexit_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_FEXIT, &link_opts);
+	if (!ASSERT_GE(fexit_fd, 0, "fexit.link_create"))
+		goto cleanup;
+
+	cookie = 0x30000000000000L;
+	prog_fd = bpf_program__fd(skel->progs.fmod_ret_test);
+	link_opts.tracing.cookie = cookie;
+	fmod_ret_fd = bpf_link_create(prog_fd, 0, BPF_MODIFY_RETURN, &link_opts);
+	if (!ASSERT_GE(fmod_ret_fd, 0, "fmod_ret.link_create"))
+		goto cleanup;
+
+	prog_fd = bpf_program__fd(skel->progs.fentry_test1);
+	bpf_prog_test_run_opts(prog_fd, &opts);
+
+	prog_fd = bpf_program__fd(skel->progs.fmod_ret_test);
+	bpf_prog_test_run_opts(prog_fd, &opts);
+
+	ASSERT_EQ(skel->bss->fentry_res, 0x10000000000000L, "fentry_res");
+	ASSERT_EQ(skel->bss->fexit_res, 0x20000000000000L, "fexit_res");
+	ASSERT_EQ(skel->bss->fmod_ret_res, 0x30000000000000L, "fmod_ret_res");
+
+cleanup:
+	if (fentry_fd >= 0)
+		close(fentry_fd);
+	if (fexit_fd >= 0)
+		close(fexit_fd);
+	if (fmod_ret_fd >= 0)
+		close(fmod_ret_fd);
+}
+
+int stack_mprotect(void);
+
+static void lsm_subtest(struct test_bpf_cookie *skel)
+{
+	__u64 cookie;
+	int prog_fd;
+	int lsm_fd = -1;
+	LIBBPF_OPTS(bpf_link_create_opts, link_opts);
+
+	skel->bss->lsm_res = 0;
+
+	cookie = 0x90000000000090L;
+	prog_fd = bpf_program__fd(skel->progs.test_int_hook);
+	link_opts.tracing.cookie = cookie;
+	lsm_fd = bpf_link_create(prog_fd, 0, BPF_LSM_MAC, &link_opts);
+	if (!ASSERT_GE(lsm_fd, 0, "lsm.link_create"))
+		goto cleanup;
+
+	stack_mprotect();
+	if (!ASSERT_EQ(errno, EPERM, "stack_mprotect"))
+		goto cleanup;
+
+	usleep(1);
+
+	ASSERT_EQ(skel->bss->lsm_res, 0x90000000000090L, "fentry_res");
+
+cleanup:
+	if (lsm_fd >= 0)
+		close(lsm_fd);
+}
+
 void test_bpf_cookie(void)
 {
 	struct test_bpf_cookie *skel;
@@ -243,12 +507,20 @@ void test_bpf_cookie(void)
 
 	if (test__start_subtest("kprobe"))
 		kprobe_subtest(skel);
+	if (test__start_subtest("multi_kprobe_link_api"))
+		kprobe_multi_link_api_subtest();
+	if (test__start_subtest("multi_kprobe_attach_api"))
+		kprobe_multi_attach_api_subtest();
 	if (test__start_subtest("uprobe"))
 		uprobe_subtest(skel);
 	if (test__start_subtest("tracepoint"))
 		tp_subtest(skel);
 	if (test__start_subtest("perf_event"))
 		pe_subtest(skel);
+	if (test__start_subtest("trampoline"))
+		tracing_subtest(skel);
+	if (test__start_subtest("lsm"))
+		lsm_subtest(skel);
 
 	test_bpf_cookie__destroy(skel);
 }

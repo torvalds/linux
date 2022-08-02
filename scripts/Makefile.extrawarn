@@ -2,8 +2,8 @@
 # ==========================================================================
 # make W=... settings
 #
-# There are three warning groups enabled by W=1, W=2, W=3.
-# They are independent, and can be combined like W=12 or W=123.
+# There are four warning groups enabled by W=1, W=2, W=3, and W=e
+# They are independent, and can be combined like W=12 or W=123e.
 # ==========================================================================
 
 KBUILD_CFLAGS += $(call cc-disable-warning, packed-not-aligned)
@@ -36,6 +36,7 @@ KBUILD_CFLAGS += $(call cc-option, -Wstringop-truncation)
 KBUILD_CFLAGS += -Wno-missing-field-initializers
 KBUILD_CFLAGS += -Wno-sign-compare
 KBUILD_CFLAGS += -Wno-type-limits
+KBUILD_CFLAGS += -Wno-shift-negative-value
 
 KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN1
 
@@ -91,5 +92,14 @@ KBUILD_CFLAGS += -Wswitch-default
 KBUILD_CFLAGS += $(call cc-option, -Wpacked-bitfield-compat)
 
 KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN3
+
+endif
+
+#
+# W=e - error out on warnings
+#
+ifneq ($(findstring e, $(KBUILD_EXTRA_WARN)),)
+
+KBUILD_CFLAGS += -Werror
 
 endif

@@ -25,6 +25,8 @@ static struct btrfs_root *btrfs_free_space_root(
 		.offset = 0,
 	};
 
+	if (btrfs_fs_incompat(block_group->fs_info, EXTENT_TREE_V2))
+		key.offset = block_group->global_root_id;
 	return btrfs_global_root(block_group->fs_info, &key);
 }
 
@@ -1176,7 +1178,7 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 		goto abort;
 	}
 
-	node = rb_first(&fs_info->block_group_cache_tree);
+	node = rb_first_cached(&fs_info->block_group_cache_tree);
 	while (node) {
 		block_group = rb_entry(node, struct btrfs_block_group,
 				       cache_node);

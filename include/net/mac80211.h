@@ -7,7 +7,7 @@
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2021 Intel Corporation
+ * Copyright (C) 2018 - 2022 Intel Corporation
  */
 
 #ifndef MAC80211_H
@@ -514,7 +514,6 @@ struct ieee80211_fils_discovery {
  * to that BSS) that can change during the lifetime of the BSS.
  *
  * @htc_trig_based_pkt_ext: default PE in 4us units, if BSS supports HE
- * @multi_sta_back_32bit: supports BA bitmap of 32-bits in Multi-STA BACK
  * @uora_exists: is the UORA element advertised by AP
  * @ack_enabled: indicates support to receive a multi-TID that solicits either
  *	ACK, BACK or both
@@ -636,6 +635,7 @@ struct ieee80211_fils_discovery {
  * @tx_pwr_env: transmit power envelope array of BSS.
  * @tx_pwr_env_num: number of @tx_pwr_env.
  * @pwr_reduction: power constraint of BSS.
+ * @eht_support: does this BSS support EHT
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -710,6 +710,7 @@ struct ieee80211_bss_conf {
 	struct ieee80211_tx_pwr_env tx_pwr_env[IEEE80211_TPE_MAX_IE_COUNT];
 	u8 tx_pwr_env_num;
 	u8 pwr_reduction;
+	bool eht_support;
 };
 
 /**
@@ -883,6 +884,17 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTRL_DONT_REORDER		= BIT(8),
 };
 
+/**
+ * enum mac80211_tx_status_flags - flags to describe transmit status
+ *
+ * @IEEE80211_TX_STATUS_ACK_SIGNAL_VALID: ACK signal is valid
+ *
+ * These flags are used in tx_info->status.flags.
+ */
+enum mac80211_tx_status_flags {
+	IEEE80211_TX_STATUS_ACK_SIGNAL_VALID = BIT(0),
+};
+
 /*
  * This definition is used as a mask to clear all temporary flags, which are
  * set by the tx handlers for each transmission attempt by the mac80211 stack.
@@ -1046,7 +1058,7 @@ ieee80211_rate_get_vht_nss(const struct ieee80211_tx_rate *rate)
  * @status.antenna: (legacy, kept only for iwlegacy)
  * @status.tx_time: airtime consumed for transmission; note this is only
  *	used for WMM AC, not for airtime fairness
- * @status.is_valid_ack_signal: ACK signal is valid
+ * @status.flags: status flags, see &enum mac80211_tx_status_flags
  * @status.status_driver_data: driver use area
  * @ack: union part for pure ACK data
  * @ack.cookie: cookie for the ACK
@@ -1099,8 +1111,8 @@ struct ieee80211_tx_info {
 			u8 ampdu_len;
 			u8 antenna;
 			u16 tx_time;
-			bool is_valid_ack_signal;
-			void *status_driver_data[19 / sizeof(void *)];
+			u8 flags;
+			void *status_driver_data[18 / sizeof(void *)];
 		} status;
 		struct {
 			struct ieee80211_tx_rate driver_rates[
@@ -1131,20 +1143,41 @@ ieee80211_info_get_tx_time_est(struct ieee80211_tx_info *info)
 	return info->tx_time_est << 2;
 }
 
+/***
+ * struct ieee80211_rate_status - mrr stage for status path
+ *
+ * This struct is used in struct ieee80211_tx_status to provide drivers a
+ * dynamic way to report about used rates and power levels per packet.
+ *
+ * @rate_idx The actual used rate.
+ * @try_count How often the rate was tried.
+ * @tx_power_idx An idx into the ieee80211_hw->tx_power_levels list of the
+ * 	corresponding wifi hardware. The idx shall point to the power level
+ * 	that was used when sending the packet.
+ */
+struct ieee80211_rate_status {
+	struct rate_info rate_idx;
+	u8 try_count;
+	u8 tx_power_idx;
+};
+
 /**
  * struct ieee80211_tx_status - extended tx status info for rate control
  *
  * @sta: Station that the packet was transmitted for
  * @info: Basic tx status information
  * @skb: Packet skb (can be NULL if not provided by the driver)
- * @rate: The TX rate that was used when sending the packet
+ * @rates: Mrr stages that were used when sending the packet
+ * @n_rates: Number of mrr stages (count of instances for @rates)
  * @free_list: list where processed skbs are stored to be free'd by the driver
  */
 struct ieee80211_tx_status {
 	struct ieee80211_sta *sta;
 	struct ieee80211_tx_info *info;
 	struct sk_buff *skb;
-	struct rate_info *rate;
+	struct ieee80211_rate_status *rates;
+	u8 n_rates;
+
 	struct list_head *free_list;
 };
 
@@ -1188,9 +1221,9 @@ static inline struct ieee80211_rx_status *IEEE80211_SKB_RXCB(struct sk_buff *skb
  * in the TX status but the rate control information (it does clear
  * the count since you need to fill that in anyway).
  *
- * NOTE: You can only use this function if you do NOT use
- *	 info->driver_data! Use info->rate_driver_data
- *	 instead if you need only the less space that allows.
+ * NOTE: While the rates array is kept intact, this will wipe all of the
+ *	 driver_data fields in info, so it's up to the driver to restore
+ *	 any fields it needs after calling this helper.
  */
 static inline void
 ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
@@ -1688,7 +1721,7 @@ enum ieee80211_offload_flags {
  *	these need to be set (or cleared) when the interface is added
  *	or, if supported by the driver, the interface type is changed
  *	at runtime, mac80211 will never touch this field
- * @offloaad_flags: hardware offload capabilities/flags for this interface.
+ * @offload_flags: hardware offload capabilities/flags for this interface.
  *	These are initialized by mac80211 before calling .add_interface,
  *	.change_interface or .update_vif_offload and updated by the driver
  *	within these ops, based on supported features or runtime change
@@ -1994,6 +2027,7 @@ enum ieee80211_sta_state {
  * @IEEE80211_STA_RX_BW_80: station can receive up to 80 MHz
  * @IEEE80211_STA_RX_BW_160: station can receive up to 160 MHz
  *	(including 80+80 MHz)
+ * @IEEE80211_STA_RX_BW_320: station can receive up to 320 MHz
  *
  * Implementation note: 20 must be zero to be initialized
  *	correctly, the values must be sorted.
@@ -2003,6 +2037,7 @@ enum ieee80211_sta_rx_bandwidth {
 	IEEE80211_STA_RX_BW_40,
 	IEEE80211_STA_RX_BW_80,
 	IEEE80211_STA_RX_BW_160,
+	IEEE80211_STA_RX_BW_320,
 };
 
 /**
@@ -2041,6 +2076,45 @@ struct ieee80211_sta_txpwr {
 	enum nl80211_tx_power_setting type;
 };
 
+#define MAX_STA_LINKS			15
+
+/**
+ * struct ieee80211_link_sta - station Link specific info
+ * All link specific info for a STA link for a non MLD STA(single)
+ * or a MLD STA(multiple entries) are stored here.
+ *
+ * @addr: MAC address of the Link STA. For non-MLO STA this is same as the addr
+ *	in ieee80211_sta. For MLO Link STA this addr can be same or different
+ *	from addr in ieee80211_sta (representing MLD STA addr)
+ * @supp_rates: Bitmap of supported rates
+ * @ht_cap: HT capabilities of this STA; restricted to our own capabilities
+ * @vht_cap: VHT capabilities of this STA; restricted to our own capabilities
+ * @he_cap: HE capabilities of this STA
+ * @he_6ghz_capa: on 6 GHz, holds the HE 6 GHz band capabilities
+ * @eht_cap: EHT capabilities of this STA
+ * @bandwidth: current bandwidth the station can receive with
+ * @rx_nss: in HT/VHT, the maximum number of spatial streams the
+ *	station can receive at the moment, changed by operating mode
+ *	notifications and capabilities. The value is only valid after
+ *	the station moves to associated state.
+ * @txpwr: the station tx power configuration
+ *
+ */
+struct ieee80211_link_sta {
+	u8 addr[ETH_ALEN];
+
+	u32 supp_rates[NUM_NL80211_BANDS];
+	struct ieee80211_sta_ht_cap ht_cap;
+	struct ieee80211_sta_vht_cap vht_cap;
+	struct ieee80211_sta_he_cap he_cap;
+	struct ieee80211_he_6ghz_capa he_6ghz_capa;
+	struct ieee80211_sta_eht_cap eht_cap;
+
+	u8 rx_nss;
+	enum ieee80211_sta_rx_bandwidth bandwidth;
+	struct ieee80211_sta_txpwr txpwr;
+};
+
 /**
  * struct ieee80211_sta - station table entry
  *
@@ -2050,14 +2124,11 @@ struct ieee80211_sta_txpwr {
  * either be protected by rcu_read_lock() explicitly or implicitly,
  * or you must take good care to not use such a pointer after a
  * call to your sta_remove callback that removed it.
+ * This also represents the MLD STA in case of MLO association
+ * and holds pointers to various link STA's
  *
  * @addr: MAC address
  * @aid: AID we assigned to the station if we're an AP
- * @supp_rates: Bitmap of supported rates (per band)
- * @ht_cap: HT capabilities of this STA; restricted to our own capabilities
- * @vht_cap: VHT capabilities of this STA; restricted to our own capabilities
- * @he_cap: HE capabilities of this STA
- * @he_6ghz_capa: on 6 GHz, holds the HE 6 GHz band capabilities
  * @max_rx_aggregation_subframes: maximal amount of frames in a single AMPDU
  *	that this station is allowed to transmit to us.
  *	Can be modified by driver.
@@ -2069,11 +2140,6 @@ struct ieee80211_sta_txpwr {
  *	if wme is supported. The bits order is like in
  *	IEEE80211_WMM_IE_STA_QOSINFO_AC_*.
  * @max_sp: max Service Period. Only valid if wme is supported.
- * @bandwidth: current bandwidth the station can receive with
- * @rx_nss: in HT/VHT, the maximum number of spatial streams the
- *	station can receive at the moment, changed by operating mode
- *	notifications and capabilities. The value is only valid after
- *	the station moves to associated state.
  * @smps_mode: current SMPS mode (off, static or dynamic)
  * @rates: rate control selection table
  * @tdls: indicates whether the STA is a TDLS peer
@@ -2086,24 +2152,28 @@ struct ieee80211_sta_txpwr {
  * @support_p2p_ps: indicates whether the STA supports P2P PS mechanism or not.
  * @max_rc_amsdu_len: Maximum A-MSDU size in bytes recommended by rate control.
  * @max_tid_amsdu_len: Maximum A-MSDU size in bytes for this TID
- * @txpwr: the station tx power configuration
  * @txq: per-TID data TX queues (if driver uses the TXQ abstraction); note that
  *	the last entry (%IEEE80211_NUM_TIDS) is used for non-data frames
+ * @multi_link_sta: Identifies if this sta is a MLD STA
+ * @deflink: This holds the default link STA information, for non MLO STA all link
+ *	specific STA information is accessed through @deflink or through
+ *	link[0] which points to address of @deflink. For MLO Link STA
+ *	the first added link STA will point to deflink.
+ * @link: reference to Link Sta entries. For Non MLO STA, except 1st link,
+ *	i.e link[0] all links would be assigned to NULL by default and
+ *	would access link information via @deflink or link[0]. For MLO
+ *	STA, first link STA being added will point its link pointer to
+ *	@deflink address and remaining would be allocated and the address
+ *	would be assigned to link[link_id] where link_id is the id assigned
+ *	by the AP.
  */
 struct ieee80211_sta {
-	u32 supp_rates[NUM_NL80211_BANDS];
 	u8 addr[ETH_ALEN];
 	u16 aid;
-	struct ieee80211_sta_ht_cap ht_cap;
-	struct ieee80211_sta_vht_cap vht_cap;
-	struct ieee80211_sta_he_cap he_cap;
-	struct ieee80211_he_6ghz_capa he_6ghz_capa;
 	u16 max_rx_aggregation_subframes;
 	bool wme;
 	u8 uapsd_queues;
 	u8 max_sp;
-	u8 rx_nss;
-	enum ieee80211_sta_rx_bandwidth bandwidth;
 	enum ieee80211_smps_mode smps_mode;
 	struct ieee80211_sta_rates __rcu *rates;
 	bool tdls;
@@ -2130,9 +2200,12 @@ struct ieee80211_sta {
 	bool support_p2p_ps;
 	u16 max_rc_amsdu_len;
 	u16 max_tid_amsdu_len[IEEE80211_NUM_TIDS];
-	struct ieee80211_sta_txpwr txpwr;
 
 	struct ieee80211_txq *txq[IEEE80211_NUM_TIDS + 1];
+
+	bool multi_link_sta;
+	struct ieee80211_link_sta deflink;
+	struct ieee80211_link_sta *link[MAX_STA_LINKS];
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
@@ -2417,6 +2490,9 @@ struct ieee80211_txq {
  *	usage and 802.11 frames with %RX_FLAG_ONLY_MONITOR set for monitor to
  *	the stack.
  *
+ * @IEEE80211_HW_DETECTS_COLOR_COLLISION: HW/driver has support for BSS color
+ *	collision detection and doesn't need it in software.
+ *
  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
@@ -2472,6 +2548,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_TX_ENCAP_OFFLOAD,
 	IEEE80211_HW_SUPPORTS_RX_DECAP_OFFLOAD,
 	IEEE80211_HW_SUPPORTS_CONC_MON_RX_DECAP,
+	IEEE80211_HW_DETECTS_COLOR_COLLISION,
 
 	/* keep last, obviously */
 	NUM_IEEE80211_HW_FLAGS
@@ -2601,6 +2678,12 @@ enum ieee80211_hw_flags {
  *	refilling deficit of each TXQ.
  *
  * @max_mtu: the max mtu could be set.
+ *
+ * @tx_power_levels: a list of power levels supported by the wifi hardware.
+ * 	The power levels can be specified either as integer or fractions.
+ * 	The power level at idx 0 shall be the maximum positive power level.
+ *
+ * @max_txpwr_levels_idx: the maximum valid idx of 'tx_power_levels' list.
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
@@ -2639,6 +2722,8 @@ struct ieee80211_hw {
 	u8 tx_sk_pacing_shift;
 	u8 weight_multiplier;
 	u32 max_mtu;
+	const s8 *tx_power_levels;
+	u8 max_txpwr_levels_idx;
 };
 
 static inline bool _ieee80211_hw_check(struct ieee80211_hw *hw,
@@ -4931,12 +5016,14 @@ void ieee80211_report_low_ack(struct ieee80211_sta *sta, u32 num_packets);
  * @cntdwn_counter_offs: array of IEEE80211_MAX_CNTDWN_COUNTERS_NUM offsets
  *	to countdown counters.  This array can contain zero values which
  *	should be ignored.
+ * @mbssid_off: position of the multiple bssid element
  */
 struct ieee80211_mutable_offsets {
 	u16 tim_offset;
 	u16 tim_length;
 
 	u16 cntdwn_counter_offs[IEEE80211_MAX_CNTDWN_COUNTERS_NUM];
+	u16 mbssid_off;
 };
 
 /**
@@ -6054,6 +6141,16 @@ void ieee80211_disconnect(struct ieee80211_vif *vif, bool reconnect);
 void ieee80211_resume_disconnect(struct ieee80211_vif *vif);
 
 /**
+ * ieee80211_hw_restart_disconnect - disconnect from AP after
+ * hardware restart
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * Instructs mac80211 to disconnect from the AP after
+ * hardware restart.
+ */
+void ieee80211_hw_restart_disconnect(struct ieee80211_vif *vif);
+
+/**
  * ieee80211_cqm_rssi_notify - inform a configured connection quality monitoring
  *	rssi threshold triggered
  *
@@ -6338,7 +6435,7 @@ static inline int rate_supported(struct ieee80211_sta *sta,
 				 enum nl80211_band band,
 				 int index)
 {
-	return (sta == NULL || sta->supp_rates[band] & BIT(index));
+	return (sta == NULL || sta->deflink.supp_rates[band] & BIT(index));
 }
 
 static inline s8

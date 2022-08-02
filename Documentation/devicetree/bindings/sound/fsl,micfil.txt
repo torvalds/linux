@@ -6,6 +6,7 @@ microphone bitstream in a configurable output sampling rate.
 Required properties:
 
   - compatible		: Compatible list, contains "fsl,imx8mm-micfil"
+			  or "fsl,imx8mp-micfil"
 
   - reg			: Offset and length of the register set for the device.
 

@@ -503,7 +503,7 @@ err_clk_disable:
 	return ret;
 }
 
-static int adc12138_remove(struct spi_device *spi)
+static void adc12138_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct adc12138 *adc = iio_priv(indio_dev);
@@ -514,8 +514,6 @@ static int adc12138_remove(struct spi_device *spi)
 		regulator_disable(adc->vref_n);
 	regulator_disable(adc->vref_p);
 	clk_disable_unprepare(adc->cclk);
-
-	return 0;
 }
 
 static const struct of_device_id adc12138_dt_ids[] = {

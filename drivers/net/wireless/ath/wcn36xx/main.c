@@ -192,69 +192,73 @@ static inline u8 get_sta_index(struct ieee80211_vif *vif,
 	       sta_priv->sta_index;
 }
 
+#define DEFINE(s) [s] = #s
+
 static const char * const wcn36xx_caps_names[] = {
-	"MCC",				/* 0 */
-	"P2P",				/* 1 */
-	"DOT11AC",			/* 2 */
-	"SLM_SESSIONIZATION",		/* 3 */
-	"DOT11AC_OPMODE",		/* 4 */
-	"SAP32STA",			/* 5 */
-	"TDLS",				/* 6 */
-	"P2P_GO_NOA_DECOUPLE_INIT_SCAN",/* 7 */
-	"WLANACTIVE_OFFLOAD",		/* 8 */
-	"BEACON_OFFLOAD",		/* 9 */
-	"SCAN_OFFLOAD",			/* 10 */
-	"ROAM_OFFLOAD",			/* 11 */
-	"BCN_MISS_OFFLOAD",		/* 12 */
-	"STA_POWERSAVE",		/* 13 */
-	"STA_ADVANCED_PWRSAVE",		/* 14 */
-	"AP_UAPSD",			/* 15 */
-	"AP_DFS",			/* 16 */
-	"BLOCKACK",			/* 17 */
-	"PHY_ERR",			/* 18 */
-	"BCN_FILTER",			/* 19 */
-	"RTT",				/* 20 */
-	"RATECTRL",			/* 21 */
-	"WOW",				/* 22 */
-	"WLAN_ROAM_SCAN_OFFLOAD",	/* 23 */
-	"SPECULATIVE_PS_POLL",		/* 24 */
-	"SCAN_SCH",			/* 25 */
-	"IBSS_HEARTBEAT_OFFLOAD",	/* 26 */
-	"WLAN_SCAN_OFFLOAD",		/* 27 */
-	"WLAN_PERIODIC_TX_PTRN",	/* 28 */
-	"ADVANCE_TDLS",			/* 29 */
-	"BATCH_SCAN",			/* 30 */
-	"FW_IN_TX_PATH",		/* 31 */
-	"EXTENDED_NSOFFLOAD_SLOT",	/* 32 */
-	"CH_SWITCH_V1",			/* 33 */
-	"HT40_OBSS_SCAN",		/* 34 */
-	"UPDATE_CHANNEL_LIST",		/* 35 */
-	"WLAN_MCADDR_FLT",		/* 36 */
-	"WLAN_CH144",			/* 37 */
-	"NAN",				/* 38 */
-	"TDLS_SCAN_COEXISTENCE",	/* 39 */
-	"LINK_LAYER_STATS_MEAS",	/* 40 */
-	"MU_MIMO",			/* 41 */
-	"EXTENDED_SCAN",		/* 42 */
-	"DYNAMIC_WMM_PS",		/* 43 */
-	"MAC_SPOOFED_SCAN",		/* 44 */
-	"BMU_ERROR_GENERIC_RECOVERY",	/* 45 */
-	"DISA",				/* 46 */
-	"FW_STATS",			/* 47 */
-	"WPS_PRBRSP_TMPL",		/* 48 */
-	"BCN_IE_FLT_DELTA",		/* 49 */
-	"TDLS_OFF_CHANNEL",		/* 51 */
-	"RTT3",				/* 52 */
-	"MGMT_FRAME_LOGGING",		/* 53 */
-	"ENHANCED_TXBD_COMPLETION",	/* 54 */
-	"LOGGING_ENHANCEMENT",		/* 55 */
-	"EXT_SCAN_ENHANCED",		/* 56 */
-	"MEMORY_DUMP_SUPPORTED",	/* 57 */
-	"PER_PKT_STATS_SUPPORTED",	/* 58 */
-	"EXT_LL_STAT",			/* 60 */
-	"WIFI_CONFIG",			/* 61 */
-	"ANTENNA_DIVERSITY_SELECTION",	/* 62 */
+	DEFINE(MCC),
+	DEFINE(P2P),
+	DEFINE(DOT11AC),
+	DEFINE(SLM_SESSIONIZATION),
+	DEFINE(DOT11AC_OPMODE),
+	DEFINE(SAP32STA),
+	DEFINE(TDLS),
+	DEFINE(P2P_GO_NOA_DECOUPLE_INIT_SCAN),
+	DEFINE(WLANACTIVE_OFFLOAD),
+	DEFINE(BEACON_OFFLOAD),
+	DEFINE(SCAN_OFFLOAD),
+	DEFINE(ROAM_OFFLOAD),
+	DEFINE(BCN_MISS_OFFLOAD),
+	DEFINE(STA_POWERSAVE),
+	DEFINE(STA_ADVANCED_PWRSAVE),
+	DEFINE(AP_UAPSD),
+	DEFINE(AP_DFS),
+	DEFINE(BLOCKACK),
+	DEFINE(PHY_ERR),
+	DEFINE(BCN_FILTER),
+	DEFINE(RTT),
+	DEFINE(RATECTRL),
+	DEFINE(WOW),
+	DEFINE(WLAN_ROAM_SCAN_OFFLOAD),
+	DEFINE(SPECULATIVE_PS_POLL),
+	DEFINE(SCAN_SCH),
+	DEFINE(IBSS_HEARTBEAT_OFFLOAD),
+	DEFINE(WLAN_SCAN_OFFLOAD),
+	DEFINE(WLAN_PERIODIC_TX_PTRN),
+	DEFINE(ADVANCE_TDLS),
+	DEFINE(BATCH_SCAN),
+	DEFINE(FW_IN_TX_PATH),
+	DEFINE(EXTENDED_NSOFFLOAD_SLOT),
+	DEFINE(CH_SWITCH_V1),
+	DEFINE(HT40_OBSS_SCAN),
+	DEFINE(UPDATE_CHANNEL_LIST),
+	DEFINE(WLAN_MCADDR_FLT),
+	DEFINE(WLAN_CH144),
+	DEFINE(NAN),
+	DEFINE(TDLS_SCAN_COEXISTENCE),
+	DEFINE(LINK_LAYER_STATS_MEAS),
+	DEFINE(MU_MIMO),
+	DEFINE(EXTENDED_SCAN),
+	DEFINE(DYNAMIC_WMM_PS),
+	DEFINE(MAC_SPOOFED_SCAN),
+	DEFINE(BMU_ERROR_GENERIC_RECOVERY),
+	DEFINE(DISA),
+	DEFINE(FW_STATS),
+	DEFINE(WPS_PRBRSP_TMPL),
+	DEFINE(BCN_IE_FLT_DELTA),
+	DEFINE(TDLS_OFF_CHANNEL),
+	DEFINE(RTT3),
+	DEFINE(MGMT_FRAME_LOGGING),
+	DEFINE(ENHANCED_TXBD_COMPLETION),
+	DEFINE(LOGGING_ENHANCEMENT),
+	DEFINE(EXT_SCAN_ENHANCED),
+	DEFINE(MEMORY_DUMP_SUPPORTED),
+	DEFINE(PER_PKT_STATS_SUPPORTED),
+	DEFINE(EXT_LL_STAT),
+	DEFINE(WIFI_CONFIG),
+	DEFINE(ANTENNA_DIVERSITY_SELECTION),
 };
+
+#undef DEFINE
 
 static const char *wcn36xx_get_cap_name(enum place_holder_in_cap_bitmap x)
 {
@@ -331,6 +335,7 @@ static int wcn36xx_start(struct ieee80211_hw *hw)
 
 	INIT_LIST_HEAD(&wcn->vif_list);
 	spin_lock_init(&wcn->dxe_lock);
+	spin_lock_init(&wcn->survey_lock);
 
 	return 0;
 
@@ -392,11 +397,41 @@ static void wcn36xx_change_opchannel(struct wcn36xx *wcn, int ch)
 {
 	struct ieee80211_vif *vif = NULL;
 	struct wcn36xx_vif *tmp;
+	struct ieee80211_supported_band *band;
+	struct ieee80211_channel *channel = NULL;
+	unsigned long flags;
+	int i, j;
+
+	for (i = 0; i < ARRAY_SIZE(wcn->hw->wiphy->bands); i++) {
+		band = wcn->hw->wiphy->bands[i];
+		if (!band)
+			break;
+		for (j = 0; j < band->n_channels; j++) {
+			if (HW_VALUE_CHANNEL(band->channels[j].hw_value) == ch) {
+				channel = &band->channels[j];
+				break;
+			}
+		}
+		if (channel)
+			break;
+	}
+
+	if (!channel) {
+		wcn36xx_err("Cannot tune to channel %d\n", ch);
+		return;
+	}
+
+	spin_lock_irqsave(&wcn->survey_lock, flags);
+	wcn->band = band;
+	wcn->channel = channel;
+	spin_unlock_irqrestore(&wcn->survey_lock, flags);
 
 	list_for_each_entry(tmp, &wcn->vif_list, list) {
 		vif = wcn36xx_priv_to_vif(tmp);
 		wcn36xx_smd_switch_channel(wcn, vif, ch);
 	}
+
+	return;
 }
 
 static int wcn36xx_config(struct ieee80211_hw *hw, u32 changed)
@@ -757,7 +792,7 @@ static void wcn36xx_update_allowed_rates(struct ieee80211_sta *sta,
 	int i, size;
 	u16 *rates_table;
 	struct wcn36xx_sta *sta_priv = wcn36xx_sta_to_priv(sta);
-	u32 rates = sta->supp_rates[band];
+	u32 rates = sta->deflink.supp_rates[band];
 
 	memset(&sta_priv->supported_rates, 0,
 		sizeof(sta_priv->supported_rates));
@@ -783,20 +818,20 @@ static void wcn36xx_update_allowed_rates(struct ieee80211_sta *sta,
 		}
 	}
 
-	if (sta->ht_cap.ht_supported) {
-		BUILD_BUG_ON(sizeof(sta->ht_cap.mcs.rx_mask) >
-			sizeof(sta_priv->supported_rates.supported_mcs_set));
+	if (sta->deflink.ht_cap.ht_supported) {
+		BUILD_BUG_ON(sizeof(sta->deflink.ht_cap.mcs.rx_mask) >
+			     sizeof(sta_priv->supported_rates.supported_mcs_set));
 		memcpy(sta_priv->supported_rates.supported_mcs_set,
-		       sta->ht_cap.mcs.rx_mask,
-		       sizeof(sta->ht_cap.mcs.rx_mask));
+		       sta->deflink.ht_cap.mcs.rx_mask,
+		       sizeof(sta->deflink.ht_cap.mcs.rx_mask));
 	}
 
-	if (sta->vht_cap.vht_supported) {
+	if (sta->deflink.vht_cap.vht_supported) {
 		sta_priv->supported_rates.op_rate_mode = STA_11ac;
 		sta_priv->supported_rates.vht_rx_mcs_map =
-				sta->vht_cap.vht_mcs.rx_mcs_map;
+				sta->deflink.vht_cap.vht_mcs.rx_mcs_map;
 		sta_priv->supported_rates.vht_tx_mcs_map =
-				sta->vht_cap.vht_mcs.tx_mcs_map;
+				sta->deflink.vht_cap.vht_mcs.tx_mcs_map;
 	}
 }
 
@@ -1326,6 +1361,64 @@ static void wcn36xx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 }
 
+static int wcn36xx_get_survey(struct ieee80211_hw *hw, int idx,
+			      struct survey_info *survey)
+{
+	struct wcn36xx *wcn = hw->priv;
+	struct ieee80211_supported_band *sband;
+	struct wcn36xx_chan_survey *chan_survey;
+	int band_idx;
+	unsigned long flags;
+
+	sband = wcn->hw->wiphy->bands[NL80211_BAND_2GHZ];
+	band_idx = idx;
+	if (band_idx >= sband->n_channels) {
+		band_idx -= sband->n_channels;
+		sband = wcn->hw->wiphy->bands[NL80211_BAND_5GHZ];
+	}
+
+	if (!sband || band_idx >= sband->n_channels)
+		return -ENOENT;
+
+	spin_lock_irqsave(&wcn->survey_lock, flags);
+
+	chan_survey = &wcn->chan_survey[idx];
+	survey->channel = &sband->channels[band_idx];
+	survey->noise = chan_survey->rssi - chan_survey->snr;
+	survey->filled = 0;
+
+	if (chan_survey->rssi > -100 && chan_survey->rssi < 0)
+		survey->filled |= SURVEY_INFO_NOISE_DBM;
+
+	if (survey->channel == wcn->channel)
+		survey->filled |= SURVEY_INFO_IN_USE;
+
+	spin_unlock_irqrestore(&wcn->survey_lock, flags);
+
+	wcn36xx_dbg(WCN36XX_DBG_MAC,
+		    "ch %d rssi %d snr %d noise %d filled %x freq %d\n",
+		    HW_VALUE_CHANNEL(survey->channel->hw_value),
+		    chan_survey->rssi, chan_survey->snr, survey->noise,
+		    survey->filled, survey->channel->center_freq);
+
+	return 0;
+}
+
+static void wcn36xx_sta_statistics(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+				   struct ieee80211_sta *sta, struct station_info *sinfo)
+{
+	struct wcn36xx *wcn;
+	u8 sta_index;
+	int status;
+
+	wcn = hw->priv;
+	sta_index = get_sta_index(vif, wcn36xx_sta_to_priv(sta));
+	status = wcn36xx_smd_get_stats(wcn, sta_index, HAL_GLOBAL_CLASS_A_STATS_INFO, sinfo);
+
+	if (status)
+		wcn36xx_err("wcn36xx_smd_get_stats failed\n");
+}
+
 static const struct ieee80211_ops wcn36xx_ops = {
 	.start			= wcn36xx_start,
 	.stop			= wcn36xx_stop,
@@ -1349,11 +1442,13 @@ static const struct ieee80211_ops wcn36xx_ops = {
 	.set_rts_threshold	= wcn36xx_set_rts_threshold,
 	.sta_add		= wcn36xx_sta_add,
 	.sta_remove		= wcn36xx_sta_remove,
+	.sta_statistics		= wcn36xx_sta_statistics,
 	.ampdu_action		= wcn36xx_ampdu_action,
 #if IS_ENABLED(CONFIG_IPV6)
 	.ipv6_addr_change	= wcn36xx_ipv6_addr_change,
 #endif
 	.flush			= wcn36xx_flush,
+	.get_survey		= wcn36xx_get_survey,
 
 	CFG80211_TESTMODE_CMD(wcn36xx_tm_cmd)
 };
@@ -1446,25 +1541,20 @@ static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
 {
 	struct device_node *mmio_node;
 	struct device_node *iris_node;
-	struct resource *res;
 	int index;
 	int ret;
 
 	/* Set TX IRQ */
-	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "tx");
-	if (!res) {
-		wcn36xx_err("failed to get tx_irq\n");
-		return -ENOENT;
-	}
-	wcn->tx_irq = res->start;
+	ret = platform_get_irq_byname(pdev, "tx");
+	if (ret < 0)
+		return ret;
+	wcn->tx_irq = ret;
 
 	/* Set RX IRQ */
-	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "rx");
-	if (!res) {
-		wcn36xx_err("failed to get rx_irq\n");
-		return -ENOENT;
-	}
-	wcn->rx_irq = res->start;
+	ret = platform_get_irq_byname(pdev, "rx");
+	if (ret < 0)
+		return ret;
+	wcn->rx_irq = ret;
 
 	/* Acquire SMSM tx enable handle */
 	wcn->tx_enable_state = qcom_smem_state_get(&pdev->dev,
@@ -1513,6 +1603,9 @@ static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
 	if (iris_node) {
 		if (of_device_is_compatible(iris_node, "qcom,wcn3620"))
 			wcn->rf_id = RF_IRIS_WCN3620;
+		if (of_device_is_compatible(iris_node, "qcom,wcn3660") ||
+		    of_device_is_compatible(iris_node, "qcom,wcn3660b"))
+			wcn->rf_id = RF_IRIS_WCN3660;
 		if (of_device_is_compatible(iris_node, "qcom,wcn3680"))
 			wcn->rf_id = RF_IRIS_WCN3680;
 		of_node_put(iris_node);
@@ -1535,6 +1628,7 @@ static int wcn36xx_probe(struct platform_device *pdev)
 	void *wcnss;
 	int ret;
 	const u8 *addr;
+	int n_channels;
 
 	wcn36xx_dbg(WCN36XX_DBG_MAC, "platform probe\n");
 
@@ -1558,6 +1652,13 @@ static int wcn36xx_probe(struct platform_device *pdev)
 
 	wcn->hal_buf = devm_kmalloc(wcn->dev, WCN36XX_HAL_BUF_SIZE, GFP_KERNEL);
 	if (!wcn->hal_buf) {
+		ret = -ENOMEM;
+		goto out_wq;
+	}
+
+	n_channels = wcn_band_2ghz.n_channels + wcn_band_5ghz.n_channels;
+	wcn->chan_survey = devm_kmalloc(wcn->dev, n_channels, GFP_KERNEL);
+	if (!wcn->chan_survey) {
 		ret = -ENOMEM;
 		goto out_wq;
 	}

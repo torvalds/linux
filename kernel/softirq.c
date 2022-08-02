@@ -222,7 +222,7 @@ void __local_bh_enable_ip(unsigned long ip, unsigned int cnt)
 	u32 pending;
 	int curcnt;
 
-	WARN_ON_ONCE(in_irq());
+	WARN_ON_ONCE(in_hardirq());
 	lockdep_assert_irqs_enabled();
 
 	local_irq_save(flags);
@@ -294,6 +294,19 @@ static inline void invoke_softirq(void)
 		wakeup_softirqd();
 }
 
+/*
+ * flush_smp_call_function_queue() can raise a soft interrupt in a function
+ * call. On RT kernels this is undesired and the only known functionality
+ * in the block layer which does this is disabled on RT. If soft interrupts
+ * get raised which haven't been raised before the flush, warn so it can be
+ * investigated.
+ */
+void do_softirq_post_smp_call_flush(unsigned int was_pending)
+{
+	if (WARN_ON_ONCE(was_pending != local_softirq_pending()))
+		invoke_softirq();
+}
+
 #else /* CONFIG_PREEMPT_RT */
 
 /*
@@ -305,7 +318,7 @@ void __local_bh_disable_ip(unsigned long ip, unsigned int cnt)
 {
 	unsigned long flags;
 
-	WARN_ON_ONCE(in_irq());
+	WARN_ON_ONCE(in_hardirq());
 
 	raw_local_irq_save(flags);
 	/*
@@ -352,14 +365,14 @@ static void __local_bh_enable(unsigned int cnt)
  */
 void _local_bh_enable(void)
 {
-	WARN_ON_ONCE(in_irq());
+	WARN_ON_ONCE(in_hardirq());
 	__local_bh_enable(SOFTIRQ_DISABLE_OFFSET);
 }
 EXPORT_SYMBOL(_local_bh_enable);
 
 void __local_bh_enable_ip(unsigned long ip, unsigned int cnt)
 {
-	WARN_ON_ONCE(in_irq());
+	WARN_ON_ONCE(in_hardirq());
 	lockdep_assert_irqs_enabled();
 #ifdef CONFIG_TRACE_IRQFLAGS
 	local_irq_disable();
@@ -618,7 +631,7 @@ static inline void tick_irq_exit(void)
 
 	/* Make sure that timer wheel updates are propagated */
 	if ((idle_cpu(cpu) && !need_resched()) || tick_nohz_full_cpu(cpu)) {
-		if (!in_irq())
+		if (!in_hardirq())
 			tick_nohz_irq_exit();
 	}
 #endif

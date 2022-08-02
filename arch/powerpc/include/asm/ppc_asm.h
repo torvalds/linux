@@ -149,7 +149,7 @@
 #define __STK_REG(i)   (112 + ((i)-14)*8)
 #define STK_REG(i)     __STK_REG(__REG_##i)
 
-#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_PPC64_ELF_ABI_V2
 #define STK_GOT		24
 #define __STK_PARAM(i)	(32 + ((i)-3)*8)
 #else
@@ -158,7 +158,7 @@
 #endif
 #define STK_PARAM(i)	__STK_PARAM(__REG_##i)
 
-#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_PPC64_ELF_ABI_V2
 
 #define _GLOBAL(name) \
 	.align 2 ; \
@@ -203,12 +203,7 @@ GLUE(.,name):
 
 #else /* 32-bit */
 
-#define _ENTRY(n)	\
-	.globl n;	\
-n:
-
 #define _GLOBAL(n)	\
-	.stabs __stringify(n:F-1),N_FUN,0,0,n;\
 	.globl n;	\
 n:
 
@@ -696,12 +691,6 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
 #define	evr29	29
 #define	evr30	30
 #define	evr31	31
-
-/* some stab codes */
-#define N_FUN	36
-#define N_RSYM	64
-#define N_SLINE	68
-#define N_SO	100
 
 #define RFSCV	.long 0x4c0000a4
 

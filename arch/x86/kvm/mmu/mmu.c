@@ -104,15 +104,6 @@ static int max_huge_page_level __read_mostly;
 static int tdp_root_level __read_mostly;
 static int max_tdp_level __read_mostly;
 
-enum {
-	AUDIT_PRE_PAGE_FAULT,
-	AUDIT_POST_PAGE_FAULT,
-	AUDIT_PRE_PTE_WRITE,
-	AUDIT_POST_PTE_WRITE,
-	AUDIT_PRE_SYNC,
-	AUDIT_POST_SYNC
-};
-
 #ifdef MMU_DEBUG
 bool dbg = 0;
 module_param(dbg, bool, 0644);
@@ -190,8 +181,6 @@ struct kmem_cache *mmu_page_header_cache;
 static struct percpu_counter kvm_total_used_mmu_pages;
 
 static void mmu_spte_set(u64 *sptep, u64 spte);
-static union kvm_mmu_page_role
-kvm_mmu_calc_root_page_role(struct kvm_vcpu *vcpu);
 
 struct kvm_mmu_role_regs {
 	const unsigned long cr0;
@@ -204,11 +193,12 @@ struct kvm_mmu_role_regs {
 
 /*
  * Yes, lot's of underscores.  They're a hint that you probably shouldn't be
- * reading from the role_regs.  Once the mmu_role is constructed, it becomes
+ * reading from the role_regs.  Once the root_role is constructed, it becomes
  * the single source of truth for the MMU's state.
  */
 #define BUILD_MMU_ROLE_REGS_ACCESSOR(reg, name, flag)			\
-static inline bool __maybe_unused ____is_##reg##_##name(struct kvm_mmu_role_regs *regs)\
+static inline bool __maybe_unused					\
+____is_##reg##_##name(const struct kvm_mmu_role_regs *regs)		\
 {									\
 	return !!(regs->reg & flag);					\
 }
@@ -232,17 +222,26 @@ BUILD_MMU_ROLE_REGS_ACCESSOR(efer, lma, EFER_LMA);
 #define BUILD_MMU_ROLE_ACCESSOR(base_or_ext, reg, name)		\
 static inline bool __maybe_unused is_##reg##_##name(struct kvm_mmu *mmu)	\
 {								\
-	return !!(mmu->mmu_role. base_or_ext . reg##_##name);	\
+	return !!(mmu->cpu_role. base_or_ext . reg##_##name);	\
 }
-BUILD_MMU_ROLE_ACCESSOR(ext,  cr0, pg);
 BUILD_MMU_ROLE_ACCESSOR(base, cr0, wp);
 BUILD_MMU_ROLE_ACCESSOR(ext,  cr4, pse);
-BUILD_MMU_ROLE_ACCESSOR(ext,  cr4, pae);
 BUILD_MMU_ROLE_ACCESSOR(ext,  cr4, smep);
 BUILD_MMU_ROLE_ACCESSOR(ext,  cr4, smap);
 BUILD_MMU_ROLE_ACCESSOR(ext,  cr4, pke);
 BUILD_MMU_ROLE_ACCESSOR(ext,  cr4, la57);
 BUILD_MMU_ROLE_ACCESSOR(base, efer, nx);
+BUILD_MMU_ROLE_ACCESSOR(ext,  efer, lma);
+
+static inline bool is_cr0_pg(struct kvm_mmu *mmu)
+{
+        return mmu->cpu_role.base.level > 0;
+}
+
+static inline bool is_cr4_pae(struct kvm_mmu *mmu)
+{
+        return !mmu->cpu_role.base.has_4_byte_gpte;
+}
 
 static struct kvm_mmu_role_regs vcpu_to_role_regs(struct kvm_vcpu *vcpu)
 {
@@ -253,19 +252,6 @@ static struct kvm_mmu_role_regs vcpu_to_role_regs(struct kvm_vcpu *vcpu)
 	};
 
 	return regs;
-}
-
-static int role_regs_to_root_level(struct kvm_mmu_role_regs *regs)
-{
-	if (!____is_cr0_pg(regs))
-		return 0;
-	else if (____is_efer_lma(regs))
-		return ____is_cr4_la57(regs) ? PT64_ROOT_5LEVEL :
-					       PT64_ROOT_4LEVEL;
-	else if (____is_cr4_pae(regs))
-		return PT32E_ROOT_LEVEL;
-	else
-		return PT32_ROOT_LEVEL;
 }
 
 static inline bool kvm_available_flush_tlb_with_range(void)
@@ -484,30 +470,6 @@ retry:
 }
 #endif
 
-static bool spte_has_volatile_bits(u64 spte)
-{
-	if (!is_shadow_present_pte(spte))
-		return false;
-
-	/*
-	 * Always atomically update spte if it can be updated
-	 * out of mmu-lock, it can ensure dirty bit is not lost,
-	 * also, it can help us to get a stable is_writable_pte()
-	 * to ensure tlb flush is not missed.
-	 */
-	if (spte_can_locklessly_be_made_writable(spte) ||
-	    is_access_track_spte(spte))
-		return true;
-
-	if (spte_ad_enabled(spte)) {
-		if ((spte & shadow_accessed_mask) == 0 ||
-	    	    (is_writable_pte(spte) && (spte & shadow_dirty_mask) == 0))
-			return true;
-	}
-
-	return false;
-}
-
 /* Rules for using mmu_spte_set:
  * Set the sptep from nonpresent to present.
  * Note: the sptep being assigned *must* be either not present
@@ -529,6 +491,7 @@ static u64 mmu_spte_update_no_track(u64 *sptep, u64 new_spte)
 	u64 old_spte = *sptep;
 
 	WARN_ON(!is_shadow_present_pte(new_spte));
+	check_spte_writable_invariants(new_spte);
 
 	if (!is_shadow_present_pte(old_spte)) {
 		mmu_spte_set(sptep, new_spte);
@@ -548,11 +511,9 @@ static u64 mmu_spte_update_no_track(u64 *sptep, u64 new_spte)
 /* Rules for using mmu_spte_update:
  * Update the state bits, it means the mapped pfn is not changed.
  *
- * Whenever we overwrite a writable spte with a read-only one we
- * should flush remote TLBs. Otherwise rmap_write_protect
- * will find a read-only spte, even though the writable spte
- * might be cached on a CPU's TLB, the return value indicates this
- * case.
+ * Whenever an MMU-writable SPTE is overwritten with a read-only SPTE, remote
+ * TLBs must be flushed. Otherwise rmap_write_protect will find a read-only
+ * spte, even though the writable spte might be cached on a CPU's TLB.
  *
  * Returns true if the TLB needs to be flushed
  */
@@ -569,7 +530,7 @@ static bool mmu_spte_update(u64 *sptep, u64 new_spte)
 	 * we always atomically update it, see the comments in
 	 * spte_has_volatile_bits().
 	 */
-	if (spte_can_locklessly_be_made_writable(old_spte) &&
+	if (is_mmu_writable_spte(old_spte) &&
 	      !is_writable_pte(new_spte))
 		flush = true;
 
@@ -603,7 +564,8 @@ static int mmu_spte_clear_track_bits(struct kvm *kvm, u64 *sptep)
 	u64 old_spte = *sptep;
 	int level = sptep_to_sp(sptep)->role.level;
 
-	if (!spte_has_volatile_bits(old_spte))
+	if (!is_shadow_present_pte(old_spte) ||
+	    !spte_has_volatile_bits(old_spte))
 		__update_clear_spte_fast(sptep, 0ull);
 	else
 		old_spte = __update_clear_spte_slow(sptep, 0ull);
@@ -644,24 +606,6 @@ static void mmu_spte_clear_no_track(u64 *sptep)
 static u64 mmu_spte_get_lockless(u64 *sptep)
 {
 	return __get_spte_lockless(sptep);
-}
-
-/* Restore an acc-track PTE back to a regular PTE */
-static u64 restore_acc_track_spte(u64 spte)
-{
-	u64 new_spte = spte;
-	u64 saved_bits = (spte >> SHADOW_ACC_TRACK_SAVED_BITS_SHIFT)
-			 & SHADOW_ACC_TRACK_SAVED_BITS_MASK;
-
-	WARN_ON_ONCE(spte_ad_enabled(spte));
-	WARN_ON_ONCE(!is_access_track_spte(spte));
-
-	new_spte &= ~shadow_acc_track_mask;
-	new_spte &= ~(SHADOW_ACC_TRACK_SAVED_BITS_MASK <<
-		      SHADOW_ACC_TRACK_SAVED_BITS_SHIFT);
-	new_spte |= saved_bits;
-
-	return new_spte;
 }
 
 /* Returns the Accessed status of the PTE and resets it at the same time. */
@@ -767,6 +711,9 @@ static void mmu_free_pte_list_desc(struct pte_list_desc *pte_list_desc)
 
 static gfn_t kvm_mmu_page_get_gfn(struct kvm_mmu_page *sp, int index)
 {
+	if (sp->role.passthrough)
+		return sp->gfn;
+
 	if (!sp->role.direct)
 		return sp->gfns[index];
 
@@ -775,6 +722,11 @@ static gfn_t kvm_mmu_page_get_gfn(struct kvm_mmu_page *sp, int index)
 
 static void kvm_mmu_page_set_gfn(struct kvm_mmu_page *sp, int index, gfn_t gfn)
 {
+	if (sp->role.passthrough) {
+		WARN_ON_ONCE(gfn != sp->gfn);
+		return;
+	}
+
 	if (!sp->role.direct) {
 		sp->gfns[index] = gfn;
 		return;
@@ -1217,7 +1169,7 @@ static bool spte_write_protect(u64 *sptep, bool pt_protect)
 	u64 spte = *sptep;
 
 	if (!is_writable_pte(spte) &&
-	      !(pt_protect && spte_can_locklessly_be_made_writable(spte)))
+	    !(pt_protect && is_mmu_writable_spte(spte)))
 		return false;
 
 	rmap_printk("spte %p %llx\n", sptep, *sptep);
@@ -1229,9 +1181,8 @@ static bool spte_write_protect(u64 *sptep, bool pt_protect)
 	return mmu_spte_update(sptep, spte);
 }
 
-static bool __rmap_write_protect(struct kvm *kvm,
-				 struct kvm_rmap_head *rmap_head,
-				 bool pt_protect)
+static bool rmap_write_protect(struct kvm_rmap_head *rmap_head,
+			       bool pt_protect)
 {
 	u64 *sptep;
 	struct rmap_iterator iter;
@@ -1311,7 +1262,7 @@ static void kvm_mmu_write_protect_pt_masked(struct kvm *kvm,
 	while (mask) {
 		rmap_head = gfn_to_rmap(slot->base_gfn + gfn_offset + __ffs(mask),
 					PG_LEVEL_4K, slot);
-		__rmap_write_protect(kvm, rmap_head, false);
+		rmap_write_protect(rmap_head, false);
 
 		/* clear the first set bit */
 		mask &= mask - 1;
@@ -1378,6 +1329,9 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 		gfn_t start = slot->base_gfn + gfn_offset + __ffs(mask);
 		gfn_t end = slot->base_gfn + gfn_offset + __fls(mask);
 
+		if (READ_ONCE(eager_page_split))
+			kvm_mmu_try_split_huge_pages(kvm, slot, start, end, PG_LEVEL_4K);
+
 		kvm_mmu_slot_gfn_write_protect(kvm, slot, start, PG_LEVEL_2M);
 
 		/* Cross two large pages? */
@@ -1410,7 +1364,7 @@ bool kvm_mmu_slot_gfn_write_protect(struct kvm *kvm,
 	if (kvm_memslots_have_rmaps(kvm)) {
 		for (i = min_level; i <= KVM_MAX_HUGEPAGE_LEVEL; ++i) {
 			rmap_head = gfn_to_rmap(gfn, i, slot);
-			write_protected |= __rmap_write_protect(kvm, rmap_head, true);
+			write_protected |= rmap_write_protect(rmap_head, true);
 		}
 	}
 
@@ -1421,7 +1375,7 @@ bool kvm_mmu_slot_gfn_write_protect(struct kvm *kvm,
 	return write_protected;
 }
 
-static bool rmap_write_protect(struct kvm_vcpu *vcpu, u64 gfn)
+static bool kvm_vcpu_write_protect_gfn(struct kvm_vcpu *vcpu, u64 gfn)
 {
 	struct kvm_memory_slot *slot;
 
@@ -1529,9 +1483,11 @@ static bool slot_rmap_walk_okay(struct slot_rmap_walk_iterator *iterator)
 
 static void slot_rmap_walk_next(struct slot_rmap_walk_iterator *iterator)
 {
-	if (++iterator->rmap <= iterator->end_rmap) {
+	while (++iterator->rmap <= iterator->end_rmap) {
 		iterator->gfn += (1UL << KVM_HPAGE_GFN_SHIFT(iterator->level));
-		return;
+
+		if (iterator->rmap->val)
+			return;
 	}
 
 	if (++iterator->level > iterator->end_level) {
@@ -1884,27 +1840,35 @@ static bool kvm_mmu_prepare_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp,
 static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 				    struct list_head *invalid_list);
 
+static bool sp_has_gptes(struct kvm_mmu_page *sp)
+{
+	if (sp->role.direct)
+		return false;
+
+	if (sp->role.passthrough)
+		return false;
+
+	return true;
+}
+
 #define for_each_valid_sp(_kvm, _sp, _list)				\
 	hlist_for_each_entry(_sp, _list, hash_link)			\
 		if (is_obsolete_sp((_kvm), (_sp))) {			\
 		} else
 
-#define for_each_gfn_indirect_valid_sp(_kvm, _sp, _gfn)			\
+#define for_each_gfn_valid_sp_with_gptes(_kvm, _sp, _gfn)		\
 	for_each_valid_sp(_kvm, _sp,					\
 	  &(_kvm)->arch.mmu_page_hash[kvm_page_table_hashfn(_gfn)])	\
-		if ((_sp)->gfn != (_gfn) || (_sp)->role.direct) {} else
+		if ((_sp)->gfn != (_gfn) || !sp_has_gptes(_sp)) {} else
 
-static bool kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
+static int kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			 struct list_head *invalid_list)
 {
 	int ret = vcpu->arch.mmu->sync_page(vcpu, sp);
 
-	if (ret < 0) {
+	if (ret < 0)
 		kvm_mmu_prepare_zap_page(vcpu->kvm, sp, invalid_list);
-		return false;
-	}
-
-	return !!ret;
+	return ret;
 }
 
 static bool kvm_mmu_remote_flush_or_zap(struct kvm *kvm,
@@ -1920,13 +1884,6 @@ static bool kvm_mmu_remote_flush_or_zap(struct kvm *kvm,
 		kvm_flush_remote_tlbs(kvm);
 	return true;
 }
-
-#ifdef CONFIG_KVM_MMU_AUDIT
-#include "mmu_audit.c"
-#else
-static void kvm_mmu_audit(struct kvm_vcpu *vcpu, int point) { }
-static void mmu_audit_disable(void) { }
-#endif
 
 static bool is_obsolete_sp(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
@@ -2024,7 +1981,7 @@ static int mmu_sync_children(struct kvm_vcpu *vcpu,
 		bool protected = false;
 
 		for_each_sp(pages, sp, parents, i)
-			protected |= rmap_write_protect(vcpu, sp->gfn);
+			protected |= kvm_vcpu_write_protect_gfn(vcpu, sp->gfn);
 
 		if (protected) {
 			kvm_mmu_remote_flush_or_zap(vcpu->kvm, &invalid_list, true);
@@ -2033,7 +1990,7 @@ static int mmu_sync_children(struct kvm_vcpu *vcpu,
 
 		for_each_sp(pages, sp, parents, i) {
 			kvm_unlink_unsync_page(vcpu->kvm, sp);
-			flush |= kvm_sync_page(vcpu, sp, &invalid_list);
+			flush |= kvm_sync_page(vcpu, sp, &invalid_list) > 0;
 			mmu_pages_clear_parents(&parents);
 		}
 		if (need_resched() || rwlock_needbreak(&vcpu->kvm->mmu_lock)) {
@@ -2069,15 +2026,16 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 					     int direct,
 					     unsigned int access)
 {
-	bool direct_mmu = vcpu->arch.mmu->direct_map;
+	bool direct_mmu = vcpu->arch.mmu->root_role.direct;
 	union kvm_mmu_page_role role;
 	struct hlist_head *sp_list;
 	unsigned quadrant;
 	struct kvm_mmu_page *sp;
+	int ret;
 	int collisions = 0;
 	LIST_HEAD(invalid_list);
 
-	role = vcpu->arch.mmu->mmu_role.base;
+	role = vcpu->arch.mmu->root_role;
 	role.level = level;
 	role.direct = direct;
 	role.access = access;
@@ -2086,6 +2044,8 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 		quadrant &= (1 << ((PT32_PT_BITS - PT64_PT_BITS) * level)) - 1;
 		role.quadrant = quadrant;
 	}
+	if (level <= vcpu->arch.mmu->cpu_role.base.level)
+		role.passthrough = 0;
 
 	sp_list = &vcpu->kvm->arch.mmu_page_hash[kvm_page_table_hashfn(gfn)];
 	for_each_valid_sp(vcpu->kvm, sp, sp_list) {
@@ -2126,11 +2086,13 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 			 * If the sync fails, the page is zapped.  If so, break
 			 * in order to rebuild it.
 			 */
-			if (!kvm_sync_page(vcpu, sp, &invalid_list))
+			ret = kvm_sync_page(vcpu, sp, &invalid_list);
+			if (ret < 0)
 				break;
 
 			WARN_ON(!list_empty(&invalid_list));
-			kvm_flush_remote_tlbs(vcpu->kvm);
+			if (ret > 0)
+				kvm_flush_remote_tlbs(vcpu->kvm);
 		}
 
 		__clear_sp_write_flooding_count(sp);
@@ -2147,9 +2109,9 @@ trace_get_page:
 	sp->gfn = gfn;
 	sp->role = role;
 	hlist_add_head(&sp->hash_link, sp_list);
-	if (!direct) {
+	if (sp_has_gptes(sp)) {
 		account_shadowed(vcpu->kvm, sp);
-		if (level == PG_LEVEL_4K && rmap_write_protect(vcpu, gfn))
+		if (level == PG_LEVEL_4K && kvm_vcpu_write_protect_gfn(vcpu, gfn))
 			kvm_flush_remote_tlbs_with_address(vcpu->kvm, gfn, 1);
 	}
 	trace_kvm_mmu_get_page(sp, true);
@@ -2167,11 +2129,11 @@ static void shadow_walk_init_using_root(struct kvm_shadow_walk_iterator *iterato
 {
 	iterator->addr = addr;
 	iterator->shadow_addr = root;
-	iterator->level = vcpu->arch.mmu->shadow_root_level;
+	iterator->level = vcpu->arch.mmu->root_role.level;
 
 	if (iterator->level >= PT64_ROOT_4LEVEL &&
-	    vcpu->arch.mmu->root_level < PT64_ROOT_4LEVEL &&
-	    !vcpu->arch.mmu->direct_map)
+	    vcpu->arch.mmu->cpu_role.base.level < PT64_ROOT_4LEVEL &&
+	    !vcpu->arch.mmu->root_role.direct)
 		iterator->level = PT32E_ROOT_LEVEL;
 
 	if (iterator->level == PT32E_ROOT_LEVEL) {
@@ -2179,7 +2141,7 @@ static void shadow_walk_init_using_root(struct kvm_shadow_walk_iterator *iterato
 		 * prev_root is currently only used for 64-bit hosts. So only
 		 * the active root_hpa is valid here.
 		 */
-		BUG_ON(root != vcpu->arch.mmu->root_hpa);
+		BUG_ON(root != vcpu->arch.mmu->root.hpa);
 
 		iterator->shadow_addr
 			= vcpu->arch.mmu->pae_root[(addr >> 30) & 3];
@@ -2193,7 +2155,7 @@ static void shadow_walk_init_using_root(struct kvm_shadow_walk_iterator *iterato
 static void shadow_walk_init(struct kvm_shadow_walk_iterator *iterator,
 			     struct kvm_vcpu *vcpu, u64 addr)
 {
-	shadow_walk_init_using_root(iterator, vcpu, vcpu->arch.mmu->root_hpa,
+	shadow_walk_init_using_root(iterator, vcpu, vcpu->arch.mmu->root.hpa,
 				    addr);
 }
 
@@ -2307,7 +2269,7 @@ static int kvm_mmu_page_unlink_children(struct kvm *kvm,
 	return zapped;
 }
 
-static void kvm_mmu_unlink_parents(struct kvm *kvm, struct kvm_mmu_page *sp)
+static void kvm_mmu_unlink_parents(struct kvm_mmu_page *sp)
 {
 	u64 *sptep;
 	struct rmap_iterator iter;
@@ -2345,18 +2307,18 @@ static bool __kvm_mmu_prepare_zap_page(struct kvm *kvm,
 				       struct list_head *invalid_list,
 				       int *nr_zapped)
 {
-	bool list_unstable;
+	bool list_unstable, zapped_root = false;
 
 	trace_kvm_mmu_prepare_zap_page(sp);
 	++kvm->stat.mmu_shadow_zapped;
 	*nr_zapped = mmu_zap_unsync_children(kvm, sp, invalid_list);
 	*nr_zapped += kvm_mmu_page_unlink_children(kvm, sp, invalid_list);
-	kvm_mmu_unlink_parents(kvm, sp);
+	kvm_mmu_unlink_parents(sp);
 
 	/* Zapping children means active_mmu_pages has become unstable. */
 	list_unstable = *nr_zapped;
 
-	if (!sp->role.invalid && !sp->role.direct)
+	if (!sp->role.invalid && sp_has_gptes(sp))
 		unaccount_shadowed(kvm, sp);
 
 	if (sp->unsync)
@@ -2387,14 +2349,20 @@ static bool __kvm_mmu_prepare_zap_page(struct kvm *kvm,
 		 * in kvm_mmu_zap_all_fast().  Note, is_obsolete_sp() also
 		 * treats invalid shadow pages as being obsolete.
 		 */
-		if (!is_obsolete_sp(kvm, sp))
-			kvm_reload_remote_mmus(kvm);
+		zapped_root = !is_obsolete_sp(kvm, sp);
 	}
 
 	if (sp->lpage_disallowed)
 		unaccount_huge_nx_page(kvm, sp);
 
 	sp->role.invalid = 1;
+
+	/*
+	 * Make the request to free obsolete roots after marking the root
+	 * invalid, otherwise other vCPUs may not see it as invalid.
+	 */
+	if (zapped_root)
+		kvm_make_all_cpus_request(kvm, KVM_REQ_MMU_FREE_OBSOLETE_ROOTS);
 	return list_unstable;
 }
 
@@ -2530,7 +2498,7 @@ int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn)
 	pgprintk("%s: looking for gfn %llx\n", __func__, gfn);
 	r = 0;
 	write_lock(&kvm->mmu_lock);
-	for_each_gfn_indirect_valid_sp(kvm, sp, gfn) {
+	for_each_gfn_valid_sp_with_gptes(kvm, sp, gfn) {
 		pgprintk("%s: gfn %llx role %x\n", __func__, gfn,
 			 sp->role.word);
 		r = 1;
@@ -2547,7 +2515,7 @@ static int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva)
 	gpa_t gpa;
 	int r;
 
-	if (vcpu->arch.mmu->direct_map)
+	if (vcpu->arch.mmu->root_role.direct)
 		return 0;
 
 	gpa = kvm_mmu_gva_to_gpa_read(vcpu, gva, NULL);
@@ -2592,7 +2560,7 @@ int mmu_try_to_unsync_pages(struct kvm *kvm, const struct kvm_memory_slot *slot,
 	 * that case, KVM must complete emulation of the guest TLB flush before
 	 * allowing shadow pages to become unsync (writable by the guest).
 	 */
-	for_each_gfn_indirect_valid_sp(kvm, sp, gfn) {
+	for_each_gfn_valid_sp_with_gptes(kvm, sp, gfn) {
 		if (!can_unsync)
 			return -EPERM;
 
@@ -2694,6 +2662,7 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, struct kvm_memory_slot *slot,
 		 *sptep, write_fault, gfn);
 
 	if (unlikely(is_noslot_pfn(pfn))) {
+		vcpu->stat.pf_mmio_spte_created++;
 		mark_mmio_spte(vcpu, sptep, gfn, pte_access);
 		return RET_PF_EMULATE;
 	}
@@ -2725,8 +2694,8 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, struct kvm_memory_slot *slot,
 	if (*sptep == spte) {
 		ret = RET_PF_SPURIOUS;
 	} else {
-		trace_kvm_mmu_set_spte(level, gfn, sptep);
 		flush |= mmu_spte_update(sptep, spte);
+		trace_kvm_mmu_set_spte(level, gfn, sptep);
 	}
 
 	if (wrprot) {
@@ -2833,8 +2802,12 @@ static int host_pfn_mapping_level(struct kvm *kvm, gfn_t gfn, kvm_pfn_t pfn,
 				  const struct kvm_memory_slot *slot)
 {
 	unsigned long hva;
-	pte_t *pte;
-	int level;
+	unsigned long flags;
+	int level = PG_LEVEL_4K;
+	pgd_t pgd;
+	p4d_t p4d;
+	pud_t pud;
+	pmd_t pmd;
 
 	if (!PageCompound(pfn_to_page(pfn)) && !kvm_is_zone_device_pfn(pfn))
 		return PG_LEVEL_4K;
@@ -2849,10 +2822,43 @@ static int host_pfn_mapping_level(struct kvm *kvm, gfn_t gfn, kvm_pfn_t pfn,
 	 */
 	hva = __gfn_to_hva_memslot(slot, gfn);
 
-	pte = lookup_address_in_mm(kvm->mm, hva, &level);
-	if (unlikely(!pte))
-		return PG_LEVEL_4K;
+	/*
+	 * Lookup the mapping level in the current mm.  The information
+	 * may become stale soon, but it is safe to use as long as
+	 * 1) mmu_notifier_retry was checked after taking mmu_lock, and
+	 * 2) mmu_lock is taken now.
+	 *
+	 * We still need to disable IRQs to prevent concurrent tear down
+	 * of page tables.
+	 */
+	local_irq_save(flags);
 
+	pgd = READ_ONCE(*pgd_offset(kvm->mm, hva));
+	if (pgd_none(pgd))
+		goto out;
+
+	p4d = READ_ONCE(*p4d_offset(&pgd, hva));
+	if (p4d_none(p4d) || !p4d_present(p4d))
+		goto out;
+
+	pud = READ_ONCE(*pud_offset(&p4d, hva));
+	if (pud_none(pud) || !pud_present(pud))
+		goto out;
+
+	if (pud_large(pud)) {
+		level = PG_LEVEL_1G;
+		goto out;
+	}
+
+	pmd = READ_ONCE(*pmd_offset(&pud, hva));
+	if (pmd_none(pmd) || !pmd_present(pmd))
+		goto out;
+
+	if (pmd_large(pmd))
+		level = PG_LEVEL_2M;
+
+out:
+	local_irq_restore(flags);
 	return level;
 }
 
@@ -2977,7 +2983,6 @@ static int __direct_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 		return ret;
 
 	direct_pte_prefetch(vcpu, it.sptep);
-	++vcpu->stat.pf_fixed;
 	return ret;
 }
 
@@ -3004,14 +3009,12 @@ static int kvm_handle_bad_page(struct kvm_vcpu *vcpu, gfn_t gfn, kvm_pfn_t pfn)
 	return -EFAULT;
 }
 
-static bool handle_abnormal_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
-				unsigned int access, int *ret_val)
+static int handle_abnormal_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
+			       unsigned int access)
 {
 	/* The pfn is invalid, report the error! */
-	if (unlikely(is_error_pfn(fault->pfn))) {
-		*ret_val = kvm_handle_bad_page(vcpu, fault->gfn, fault->pfn);
-		return true;
-	}
+	if (unlikely(is_error_pfn(fault->pfn)))
+		return kvm_handle_bad_page(vcpu, fault->gfn, fault->pfn);
 
 	if (unlikely(!fault->slot)) {
 		gva_t gva = fault->is_tdp ? 0 : fault->addr;
@@ -3021,45 +3024,55 @@ static bool handle_abnormal_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fa
 		/*
 		 * If MMIO caching is disabled, emulate immediately without
 		 * touching the shadow page tables as attempting to install an
-		 * MMIO SPTE will just be an expensive nop.
+		 * MMIO SPTE will just be an expensive nop.  Do not cache MMIO
+		 * whose gfn is greater than host.MAXPHYADDR, any guest that
+		 * generates such gfns is running nested and is being tricked
+		 * by L0 userspace (you can observe gfn > L1.MAXPHYADDR if
+		 * and only if L1's MAXPHYADDR is inaccurate with respect to
+		 * the hardware's).
 		 */
-		if (unlikely(!shadow_mmio_value)) {
-			*ret_val = RET_PF_EMULATE;
-			return true;
-		}
+		if (unlikely(!enable_mmio_caching) ||
+		    unlikely(fault->gfn > kvm_mmu_max_gfn()))
+			return RET_PF_EMULATE;
 	}
 
-	return false;
+	return RET_PF_CONTINUE;
 }
 
 static bool page_fault_can_be_fast(struct kvm_page_fault *fault)
 {
 	/*
-	 * Do not fix the mmio spte with invalid generation number which
-	 * need to be updated by slow page fault path.
+	 * Page faults with reserved bits set, i.e. faults on MMIO SPTEs, only
+	 * reach the common page fault handler if the SPTE has an invalid MMIO
+	 * generation number.  Refreshing the MMIO generation needs to go down
+	 * the slow path.  Note, EPT Misconfigs do NOT set the PRESENT flag!
 	 */
 	if (fault->rsvd)
 		return false;
 
-	/* See if the page fault is due to an NX violation */
-	if (unlikely(fault->exec && fault->present))
-		return false;
-
 	/*
 	 * #PF can be fast if:
-	 * 1. The shadow page table entry is not present, which could mean that
-	 *    the fault is potentially caused by access tracking (if enabled).
-	 * 2. The shadow page table entry is present and the fault
-	 *    is caused by write-protect, that means we just need change the W
-	 *    bit of the spte which can be done out of mmu-lock.
 	 *
-	 * However, if access tracking is disabled we know that a non-present
-	 * page must be a genuine page fault where we have to create a new SPTE.
-	 * So, if access tracking is disabled, we return true only for write
-	 * accesses to a present page.
+	 * 1. The shadow page table entry is not present and A/D bits are
+	 *    disabled _by KVM_, which could mean that the fault is potentially
+	 *    caused by access tracking (if enabled).  If A/D bits are enabled
+	 *    by KVM, but disabled by L1 for L2, KVM is forced to disable A/D
+	 *    bits for L2 and employ access tracking, but the fast page fault
+	 *    mechanism only supports direct MMUs.
+	 * 2. The shadow page table entry is present, the access is a write,
+	 *    and no reserved bits are set (MMIO SPTEs cannot be "fixed"), i.e.
+	 *    the fault was caused by a write-protection violation.  If the
+	 *    SPTE is MMU-writable (determined later), the fault can be fixed
+	 *    by setting the Writable bit, which can be done out of mmu_lock.
 	 */
+	if (!fault->present)
+		return !kvm_ad_enabled();
 
-	return shadow_acc_track_mask != 0 || (fault->write && fault->present);
+	/*
+	 * Note, instruction fetches and writes are mutually exclusive, ignore
+	 * the "exec" flag.
+	 */
+	return fault->write;
 }
 
 /*
@@ -3174,16 +3187,27 @@ static int fast_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 
 		new_spte = spte;
 
-		if (is_access_track_spte(spte))
+		/*
+		 * KVM only supports fixing page faults outside of MMU lock for
+		 * direct MMUs, nested MMUs are always indirect, and KVM always
+		 * uses A/D bits for non-nested MMUs.  Thus, if A/D bits are
+		 * enabled, the SPTE can't be an access-tracked SPTE.
+		 */
+		if (unlikely(!kvm_ad_enabled()) && is_access_track_spte(spte))
 			new_spte = restore_acc_track_spte(new_spte);
 
 		/*
-		 * Currently, to simplify the code, write-protection can
-		 * be removed in the fast path only if the SPTE was
-		 * write-protected for dirty-logging or access tracking.
+		 * To keep things simple, only SPTEs that are MMU-writable can
+		 * be made fully writable outside of mmu_lock, e.g. only SPTEs
+		 * that were write-protected for dirty-logging or access
+		 * tracking are handled here.  Don't bother checking if the
+		 * SPTE is writable to prioritize running with A/D bits enabled.
+		 * The is_access_allowed() check above handles the common case
+		 * of the fault being spurious, and the SPTE is known to be
+		 * shadow-present, i.e. except for access tracking restoration
+		 * making the new SPTE writable, the check is wasteful.
 		 */
-		if (fault->write &&
-		    spte_can_locklessly_be_made_writable(spte)) {
+		if (fault->write && is_mmu_writable_spte(spte)) {
 			new_spte |= PT_WRITABLE_MASK;
 
 			/*
@@ -3227,6 +3251,9 @@ static int fast_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 	trace_fast_page_fault(vcpu, fault, sptep, spte, ret);
 	walk_shadow_page_lockless_end(vcpu);
 
+	if (ret != RET_PF_INVALID)
+		vcpu->stat.pf_fast++;
+
 	return ret;
 }
 
@@ -3239,6 +3266,8 @@ static void mmu_free_root_page(struct kvm *kvm, hpa_t *root_hpa,
 		return;
 
 	sp = to_shadow_page(*root_hpa & PT64_BASE_ADDR_MASK);
+	if (WARN_ON(!sp))
+		return;
 
 	if (is_tdp_mmu_page(sp))
 		kvm_tdp_mmu_put_root(kvm, sp, false);
@@ -3249,18 +3278,20 @@ static void mmu_free_root_page(struct kvm *kvm, hpa_t *root_hpa,
 }
 
 /* roots_to_free must be some combination of the KVM_MMU_ROOT_* flags */
-void kvm_mmu_free_roots(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
+void kvm_mmu_free_roots(struct kvm *kvm, struct kvm_mmu *mmu,
 			ulong roots_to_free)
 {
-	struct kvm *kvm = vcpu->kvm;
 	int i;
 	LIST_HEAD(invalid_list);
-	bool free_active_root = roots_to_free & KVM_MMU_ROOT_CURRENT;
+	bool free_active_root;
 
 	BUILD_BUG_ON(KVM_MMU_NUM_PREV_ROOTS >= BITS_PER_LONG);
 
 	/* Before acquiring the MMU lock, see if we need to do any real work. */
-	if (!(free_active_root && VALID_PAGE(mmu->root_hpa))) {
+	free_active_root = (roots_to_free & KVM_MMU_ROOT_CURRENT)
+		&& VALID_PAGE(mmu->root.hpa);
+
+	if (!free_active_root) {
 		for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
 			if ((roots_to_free & KVM_MMU_ROOT_PREVIOUS(i)) &&
 			    VALID_PAGE(mmu->prev_roots[i].hpa))
@@ -3278,9 +3309,8 @@ void kvm_mmu_free_roots(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 					   &invalid_list);
 
 	if (free_active_root) {
-		if (mmu->shadow_root_level >= PT64_ROOT_4LEVEL &&
-		    (mmu->root_level >= PT64_ROOT_4LEVEL || mmu->direct_map)) {
-			mmu_free_root_page(kvm, &mmu->root_hpa, &invalid_list);
+		if (to_shadow_page(mmu->root.hpa)) {
+			mmu_free_root_page(kvm, &mmu->root.hpa, &invalid_list);
 		} else if (mmu->pae_root) {
 			for (i = 0; i < 4; ++i) {
 				if (!IS_VALID_PAE_ROOT(mmu->pae_root[i]))
@@ -3291,8 +3321,8 @@ void kvm_mmu_free_roots(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 				mmu->pae_root[i] = INVALID_PAE_ROOT;
 			}
 		}
-		mmu->root_hpa = INVALID_PAGE;
-		mmu->root_pgd = 0;
+		mmu->root.hpa = INVALID_PAGE;
+		mmu->root.pgd = 0;
 	}
 
 	kvm_mmu_commit_zap_page(kvm, &invalid_list);
@@ -3300,7 +3330,7 @@ void kvm_mmu_free_roots(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_free_roots);
 
-void kvm_mmu_free_guest_mode_roots(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu)
+void kvm_mmu_free_guest_mode_roots(struct kvm *kvm, struct kvm_mmu *mmu)
 {
 	unsigned long roots_to_free = 0;
 	hpa_t root_hpa;
@@ -3310,7 +3340,7 @@ void kvm_mmu_free_guest_mode_roots(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu)
 	 * This should not be called while L2 is active, L2 can't invalidate
 	 * _only_ its own roots, e.g. INVVPID unconditionally exits.
 	 */
-	WARN_ON_ONCE(mmu->mmu_role.base.guest_mode);
+	WARN_ON_ONCE(mmu->root_role.guest_mode);
 
 	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++) {
 		root_hpa = mmu->prev_roots[i].hpa;
@@ -3322,7 +3352,7 @@ void kvm_mmu_free_guest_mode_roots(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu)
 			roots_to_free |= KVM_MMU_ROOT_PREVIOUS(i);
 	}
 
-	kvm_mmu_free_roots(vcpu, mmu, roots_to_free);
+	kvm_mmu_free_roots(kvm, mmu, roots_to_free);
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_free_guest_mode_roots);
 
@@ -3353,7 +3383,7 @@ static hpa_t mmu_alloc_root(struct kvm_vcpu *vcpu, gfn_t gfn, gva_t gva,
 static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu *mmu = vcpu->arch.mmu;
-	u8 shadow_root_level = mmu->shadow_root_level;
+	u8 shadow_root_level = mmu->root_role.level;
 	hpa_t root;
 	unsigned i;
 	int r;
@@ -3365,10 +3395,10 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 
 	if (is_tdp_mmu_enabled(vcpu->kvm)) {
 		root = kvm_tdp_mmu_get_vcpu_root_hpa(vcpu);
-		mmu->root_hpa = root;
+		mmu->root.hpa = root;
 	} else if (shadow_root_level >= PT64_ROOT_4LEVEL) {
 		root = mmu_alloc_root(vcpu, 0, 0, shadow_root_level, true);
-		mmu->root_hpa = root;
+		mmu->root.hpa = root;
 	} else if (shadow_root_level == PT32E_ROOT_LEVEL) {
 		if (WARN_ON_ONCE(!mmu->pae_root)) {
 			r = -EIO;
@@ -3381,17 +3411,17 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 			root = mmu_alloc_root(vcpu, i << (30 - PAGE_SHIFT),
 					      i << 30, PT32_ROOT_LEVEL, true);
 			mmu->pae_root[i] = root | PT_PRESENT_MASK |
-					   shadow_me_mask;
+					   shadow_me_value;
 		}
-		mmu->root_hpa = __pa(mmu->pae_root);
+		mmu->root.hpa = __pa(mmu->pae_root);
 	} else {
 		WARN_ONCE(1, "Bad TDP root level = %d\n", shadow_root_level);
 		r = -EIO;
 		goto out_unlock;
 	}
 
-	/* root_pgd is ignored for direct MMUs. */
-	mmu->root_pgd = 0;
+	/* root.pgd is ignored for direct MMUs. */
+	mmu->root.pgd = 0;
 out_unlock:
 	write_unlock(&vcpu->kvm->mmu_lock);
 	return r;
@@ -3477,7 +3507,7 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 	 * On SVM, reading PDPTRs might access guest memory, which might fault
 	 * and thus might sleep.  Grab the PDPTRs before acquiring mmu_lock.
 	 */
-	if (mmu->root_level == PT32E_ROOT_LEVEL) {
+	if (mmu->cpu_role.base.level == PT32E_ROOT_LEVEL) {
 		for (i = 0; i < 4; ++i) {
 			pdptrs[i] = mmu->get_pdptr(vcpu, i);
 			if (!(pdptrs[i] & PT_PRESENT_MASK))
@@ -3501,10 +3531,10 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 	 * Do we shadow a long mode page table? If so we need to
 	 * write-protect the guests page table root.
 	 */
-	if (mmu->root_level >= PT64_ROOT_4LEVEL) {
+	if (mmu->cpu_role.base.level >= PT64_ROOT_4LEVEL) {
 		root = mmu_alloc_root(vcpu, root_gfn, 0,
-				      mmu->shadow_root_level, false);
-		mmu->root_hpa = root;
+				      mmu->root_role.level, false);
+		mmu->root.hpa = root;
 		goto set_root_pgd;
 	}
 
@@ -3518,8 +3548,8 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 	 * or a PAE 3-level page table. In either case we need to be aware that
 	 * the shadow page table may be a PAE or a long mode page table.
 	 */
-	pm_mask = PT_PRESENT_MASK | shadow_me_mask;
-	if (mmu->shadow_root_level >= PT64_ROOT_4LEVEL) {
+	pm_mask = PT_PRESENT_MASK | shadow_me_value;
+	if (mmu->root_role.level >= PT64_ROOT_4LEVEL) {
 		pm_mask |= PT_ACCESSED_MASK | PT_WRITABLE_MASK | PT_USER_MASK;
 
 		if (WARN_ON_ONCE(!mmu->pml4_root)) {
@@ -3528,7 +3558,7 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 		}
 		mmu->pml4_root[0] = __pa(mmu->pae_root) | pm_mask;
 
-		if (mmu->shadow_root_level == PT64_ROOT_5LEVEL) {
+		if (mmu->root_role.level == PT64_ROOT_5LEVEL) {
 			if (WARN_ON_ONCE(!mmu->pml5_root)) {
 				r = -EIO;
 				goto out_unlock;
@@ -3540,7 +3570,7 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 	for (i = 0; i < 4; ++i) {
 		WARN_ON_ONCE(IS_VALID_PAE_ROOT(mmu->pae_root[i]));
 
-		if (mmu->root_level == PT32E_ROOT_LEVEL) {
+		if (mmu->cpu_role.base.level == PT32E_ROOT_LEVEL) {
 			if (!(pdptrs[i] & PT_PRESENT_MASK)) {
 				mmu->pae_root[i] = INVALID_PAE_ROOT;
 				continue;
@@ -3553,15 +3583,15 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 		mmu->pae_root[i] = root | pm_mask;
 	}
 
-	if (mmu->shadow_root_level == PT64_ROOT_5LEVEL)
-		mmu->root_hpa = __pa(mmu->pml5_root);
-	else if (mmu->shadow_root_level == PT64_ROOT_4LEVEL)
-		mmu->root_hpa = __pa(mmu->pml4_root);
+	if (mmu->root_role.level == PT64_ROOT_5LEVEL)
+		mmu->root.hpa = __pa(mmu->pml5_root);
+	else if (mmu->root_role.level == PT64_ROOT_4LEVEL)
+		mmu->root.hpa = __pa(mmu->pml4_root);
 	else
-		mmu->root_hpa = __pa(mmu->pae_root);
+		mmu->root.hpa = __pa(mmu->pae_root);
 
 set_root_pgd:
-	mmu->root_pgd = root_pgd;
+	mmu->root.pgd = root_pgd;
 out_unlock:
 	write_unlock(&vcpu->kvm->mmu_lock);
 
@@ -3571,7 +3601,7 @@ out_unlock:
 static int mmu_alloc_special_roots(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu *mmu = vcpu->arch.mmu;
-	bool need_pml5 = mmu->shadow_root_level > PT64_ROOT_4LEVEL;
+	bool need_pml5 = mmu->root_role.level > PT64_ROOT_4LEVEL;
 	u64 *pml5_root = NULL;
 	u64 *pml4_root = NULL;
 	u64 *pae_root;
@@ -3582,8 +3612,9 @@ static int mmu_alloc_special_roots(struct kvm_vcpu *vcpu)
 	 * equivalent level in the guest's NPT to shadow.  Allocate the tables
 	 * on demand, as running a 32-bit L1 VMM on 64-bit KVM is very rare.
 	 */
-	if (mmu->direct_map || mmu->root_level >= PT64_ROOT_4LEVEL ||
-	    mmu->shadow_root_level < PT64_ROOT_4LEVEL)
+	if (mmu->root_role.direct ||
+	    mmu->cpu_role.base.level >= PT64_ROOT_4LEVEL ||
+	    mmu->root_role.level < PT64_ROOT_4LEVEL)
 		return 0;
 
 	/*
@@ -3660,6 +3691,14 @@ static bool is_unsync_root(hpa_t root)
 	 */
 	smp_rmb();
 	sp = to_shadow_page(root);
+
+	/*
+	 * PAE roots (somewhat arbitrarily) aren't backed by shadow pages, the
+	 * PDPTEs for a given PAE root need to be synchronized individually.
+	 */
+	if (WARN_ON_ONCE(!sp))
+		return false;
+
 	if (sp->unsync || sp->unsync_children)
 		return true;
 
@@ -3671,33 +3710,28 @@ void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu)
 	int i;
 	struct kvm_mmu_page *sp;
 
-	if (vcpu->arch.mmu->direct_map)
+	if (vcpu->arch.mmu->root_role.direct)
 		return;
 
-	if (!VALID_PAGE(vcpu->arch.mmu->root_hpa))
+	if (!VALID_PAGE(vcpu->arch.mmu->root.hpa))
 		return;
 
 	vcpu_clear_mmio_info(vcpu, MMIO_GVA_ANY);
 
-	if (vcpu->arch.mmu->root_level >= PT64_ROOT_4LEVEL) {
-		hpa_t root = vcpu->arch.mmu->root_hpa;
+	if (vcpu->arch.mmu->cpu_role.base.level >= PT64_ROOT_4LEVEL) {
+		hpa_t root = vcpu->arch.mmu->root.hpa;
 		sp = to_shadow_page(root);
 
 		if (!is_unsync_root(root))
 			return;
 
 		write_lock(&vcpu->kvm->mmu_lock);
-		kvm_mmu_audit(vcpu, AUDIT_PRE_SYNC);
-
 		mmu_sync_children(vcpu, sp, true);
-
-		kvm_mmu_audit(vcpu, AUDIT_POST_SYNC);
 		write_unlock(&vcpu->kvm->mmu_lock);
 		return;
 	}
 
 	write_lock(&vcpu->kvm->mmu_lock);
-	kvm_mmu_audit(vcpu, AUDIT_PRE_SYNC);
 
 	for (i = 0; i < 4; ++i) {
 		hpa_t root = vcpu->arch.mmu->pae_root[i];
@@ -3709,7 +3743,6 @@ void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu)
 		}
 	}
 
-	kvm_mmu_audit(vcpu, AUDIT_POST_SYNC);
 	write_unlock(&vcpu->kvm->mmu_lock);
 }
 
@@ -3723,11 +3756,11 @@ void kvm_mmu_sync_prev_roots(struct kvm_vcpu *vcpu)
 			roots_to_free |= KVM_MMU_ROOT_PREVIOUS(i);
 
 	/* sync prev_roots by simply freeing them */
-	kvm_mmu_free_roots(vcpu, vcpu->arch.mmu, roots_to_free);
+	kvm_mmu_free_roots(vcpu->kvm, vcpu->arch.mmu, roots_to_free);
 }
 
 static gpa_t nonpaging_gva_to_gpa(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
-				  gpa_t vaddr, u32 access,
+				  gpa_t vaddr, u64 access,
 				  struct x86_exception *exception)
 {
 	if (exception)
@@ -3907,14 +3940,33 @@ static bool kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 
 	arch.token = alloc_apf_token(vcpu);
 	arch.gfn = gfn;
-	arch.direct_map = vcpu->arch.mmu->direct_map;
+	arch.direct_map = vcpu->arch.mmu->root_role.direct;
 	arch.cr3 = vcpu->arch.mmu->get_guest_pgd(vcpu);
 
 	return kvm_setup_async_pf(vcpu, cr2_or_gpa,
 				  kvm_vcpu_gfn_to_hva(vcpu, gfn), &arch);
 }
 
-static bool kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault, int *r)
+void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu, struct kvm_async_pf *work)
+{
+	int r;
+
+	if ((vcpu->arch.mmu->root_role.direct != work->arch.direct_map) ||
+	      work->wakeup_all)
+		return;
+
+	r = kvm_mmu_reload(vcpu);
+	if (unlikely(r))
+		return;
+
+	if (!vcpu->arch.mmu->root_role.direct &&
+	      work->arch.cr3 != vcpu->arch.mmu->get_guest_pgd(vcpu))
+		return;
+
+	kvm_mmu_do_page_fault(vcpu, work->cr2_or_gpa, 0, true);
+}
+
+static int kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 {
 	struct kvm_memory_slot *slot = fault->slot;
 	bool async;
@@ -3925,7 +3977,7 @@ static bool kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 	 * be zapped before KVM inserts a new MMIO SPTE for the gfn.
 	 */
 	if (slot && (slot->flags & KVM_MEMSLOT_INVALID))
-		goto out_retry;
+		return RET_PF_RETRY;
 
 	if (!kvm_is_visible_memslot(slot)) {
 		/* Don't expose private memslots to L2. */
@@ -3933,7 +3985,7 @@ static bool kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 			fault->slot = NULL;
 			fault->pfn = KVM_PFN_NOSLOT;
 			fault->map_writable = false;
-			return false;
+			return RET_PF_CONTINUE;
 		}
 		/*
 		 * If the APIC access page exists but is disabled, go directly
@@ -3942,10 +3994,8 @@ static bool kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 		 * when the AVIC is re-enabled.
 		 */
 		if (slot && slot->id == APIC_ACCESS_PAGE_PRIVATE_MEMSLOT &&
-		    !kvm_apicv_activated(vcpu->kvm)) {
-			*r = RET_PF_EMULATE;
-			return true;
-		}
+		    !kvm_apicv_activated(vcpu->kvm))
+			return RET_PF_EMULATE;
 	}
 
 	async = false;
@@ -3953,26 +4003,23 @@ static bool kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 					  fault->write, &fault->map_writable,
 					  &fault->hva);
 	if (!async)
-		return false; /* *pfn has correct page already */
+		return RET_PF_CONTINUE; /* *pfn has correct page already */
 
 	if (!fault->prefetch && kvm_can_do_async_pf(vcpu)) {
 		trace_kvm_try_async_get_page(fault->addr, fault->gfn);
 		if (kvm_find_async_pf_gfn(vcpu, fault->gfn)) {
 			trace_kvm_async_pf_doublefault(fault->addr, fault->gfn);
 			kvm_make_request(KVM_REQ_APF_HALT, vcpu);
-			goto out_retry;
-		} else if (kvm_arch_setup_async_pf(vcpu, fault->addr, fault->gfn))
-			goto out_retry;
+			return RET_PF_RETRY;
+		} else if (kvm_arch_setup_async_pf(vcpu, fault->addr, fault->gfn)) {
+			return RET_PF_RETRY;
+		}
 	}
 
 	fault->pfn = __gfn_to_pfn_memslot(slot, fault->gfn, false, NULL,
 					  fault->write, &fault->map_writable,
 					  &fault->hva);
-	return false;
-
-out_retry:
-	*r = RET_PF_RETRY;
-	return true;
+	return RET_PF_CONTINUE;
 }
 
 /*
@@ -3982,7 +4029,7 @@ out_retry:
 static bool is_page_fault_stale(struct kvm_vcpu *vcpu,
 				struct kvm_page_fault *fault, int mmu_seq)
 {
-	struct kvm_mmu_page *sp = to_shadow_page(vcpu->arch.mmu->root_hpa);
+	struct kvm_mmu_page *sp = to_shadow_page(vcpu->arch.mmu->root.hpa);
 
 	/* Special roots, e.g. pae_root, are not backed by shadow pages. */
 	if (sp && is_obsolete_sp(vcpu->kvm, sp))
@@ -3996,7 +4043,7 @@ static bool is_page_fault_stale(struct kvm_vcpu *vcpu,
 	 * previous root, then __kvm_mmu_prepare_zap_page() signals all vCPUs
 	 * to reload even if no vCPU is actively using the root.
 	 */
-	if (!sp && kvm_test_request(KVM_REQ_MMU_RELOAD, vcpu))
+	if (!sp && kvm_test_request(KVM_REQ_MMU_FREE_OBSOLETE_ROOTS, vcpu))
 		return true;
 
 	return fault->slot &&
@@ -4027,10 +4074,12 @@ static int direct_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
 	smp_rmb();
 
-	if (kvm_faultin_pfn(vcpu, fault, &r))
+	r = kvm_faultin_pfn(vcpu, fault);
+	if (r != RET_PF_CONTINUE)
 		return r;
 
-	if (handle_abnormal_pfn(vcpu, fault, ACC_ALL, &r))
+	r = handle_abnormal_pfn(vcpu, fault, ACC_ALL);
+	if (r != RET_PF_CONTINUE)
 		return r;
 
 	r = RET_PF_RETRY;
@@ -4125,81 +4174,111 @@ static void nonpaging_init_context(struct kvm_mmu *context)
 	context->gva_to_gpa = nonpaging_gva_to_gpa;
 	context->sync_page = nonpaging_sync_page;
 	context->invlpg = NULL;
-	context->direct_map = true;
 }
 
 static inline bool is_root_usable(struct kvm_mmu_root_info *root, gpa_t pgd,
 				  union kvm_mmu_page_role role)
 {
 	return (role.direct || pgd == root->pgd) &&
-	       VALID_PAGE(root->hpa) && to_shadow_page(root->hpa) &&
+	       VALID_PAGE(root->hpa) &&
 	       role.word == to_shadow_page(root->hpa)->role.word;
 }
 
 /*
- * Find out if a previously cached root matching the new pgd/role is available.
- * The current root is also inserted into the cache.
- * If a matching root was found, it is assigned to kvm_mmu->root_hpa and true is
- * returned.
- * Otherwise, the LRU root from the cache is assigned to kvm_mmu->root_hpa and
- * false is returned. This root should now be freed by the caller.
+ * Find out if a previously cached root matching the new pgd/role is available,
+ * and insert the current root as the MRU in the cache.
+ * If a matching root is found, it is assigned to kvm_mmu->root and
+ * true is returned.
+ * If no match is found, kvm_mmu->root is left invalid, the LRU root is
+ * evicted to make room for the current root, and false is returned.
  */
-static bool cached_root_available(struct kvm_vcpu *vcpu, gpa_t new_pgd,
-				  union kvm_mmu_page_role new_role)
+static bool cached_root_find_and_keep_current(struct kvm *kvm, struct kvm_mmu *mmu,
+					      gpa_t new_pgd,
+					      union kvm_mmu_page_role new_role)
 {
 	uint i;
-	struct kvm_mmu_root_info root;
-	struct kvm_mmu *mmu = vcpu->arch.mmu;
 
-	root.pgd = mmu->root_pgd;
-	root.hpa = mmu->root_hpa;
-
-	if (is_root_usable(&root, new_pgd, new_role))
+	if (is_root_usable(&mmu->root, new_pgd, new_role))
 		return true;
 
 	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++) {
-		swap(root, mmu->prev_roots[i]);
-
-		if (is_root_usable(&root, new_pgd, new_role))
-			break;
+		/*
+		 * The swaps end up rotating the cache like this:
+		 *   C   0 1 2 3   (on entry to the function)
+		 *   0   C 1 2 3
+		 *   1   C 0 2 3
+		 *   2   C 0 1 3
+		 *   3   C 0 1 2   (on exit from the loop)
+		 */
+		swap(mmu->root, mmu->prev_roots[i]);
+		if (is_root_usable(&mmu->root, new_pgd, new_role))
+			return true;
 	}
 
-	mmu->root_hpa = root.hpa;
-	mmu->root_pgd = root.pgd;
-
-	return i < KVM_MMU_NUM_PREV_ROOTS;
-}
-
-static bool fast_pgd_switch(struct kvm_vcpu *vcpu, gpa_t new_pgd,
-			    union kvm_mmu_page_role new_role)
-{
-	struct kvm_mmu *mmu = vcpu->arch.mmu;
-
-	/*
-	 * For now, limit the fast switch to 64-bit hosts+VMs in order to avoid
-	 * having to deal with PDPTEs. We may add support for 32-bit hosts/VMs
-	 * later if necessary.
-	 */
-	if (mmu->shadow_root_level >= PT64_ROOT_4LEVEL &&
-	    mmu->root_level >= PT64_ROOT_4LEVEL)
-		return cached_root_available(vcpu, new_pgd, new_role);
-
+	kvm_mmu_free_roots(kvm, mmu, KVM_MMU_ROOT_CURRENT);
 	return false;
 }
 
-static void __kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd,
-			      union kvm_mmu_page_role new_role)
+/*
+ * Find out if a previously cached root matching the new pgd/role is available.
+ * On entry, mmu->root is invalid.
+ * If a matching root is found, it is assigned to kvm_mmu->root, the LRU entry
+ * of the cache becomes invalid, and true is returned.
+ * If no match is found, kvm_mmu->root is left invalid and false is returned.
+ */
+static bool cached_root_find_without_current(struct kvm *kvm, struct kvm_mmu *mmu,
+					     gpa_t new_pgd,
+					     union kvm_mmu_page_role new_role)
 {
-	if (!fast_pgd_switch(vcpu, new_pgd, new_role)) {
-		kvm_mmu_free_roots(vcpu, vcpu->arch.mmu, KVM_MMU_ROOT_CURRENT);
+	uint i;
+
+	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
+		if (is_root_usable(&mmu->prev_roots[i], new_pgd, new_role))
+			goto hit;
+
+	return false;
+
+hit:
+	swap(mmu->root, mmu->prev_roots[i]);
+	/* Bubble up the remaining roots.  */
+	for (; i < KVM_MMU_NUM_PREV_ROOTS - 1; i++)
+		mmu->prev_roots[i] = mmu->prev_roots[i + 1];
+	mmu->prev_roots[i].hpa = INVALID_PAGE;
+	return true;
+}
+
+static bool fast_pgd_switch(struct kvm *kvm, struct kvm_mmu *mmu,
+			    gpa_t new_pgd, union kvm_mmu_page_role new_role)
+{
+	/*
+	 * For now, limit the caching to 64-bit hosts+VMs in order to avoid
+	 * having to deal with PDPTEs. We may add support for 32-bit hosts/VMs
+	 * later if necessary.
+	 */
+	if (VALID_PAGE(mmu->root.hpa) && !to_shadow_page(mmu->root.hpa))
+		kvm_mmu_free_roots(kvm, mmu, KVM_MMU_ROOT_CURRENT);
+
+	if (VALID_PAGE(mmu->root.hpa))
+		return cached_root_find_and_keep_current(kvm, mmu, new_pgd, new_role);
+	else
+		return cached_root_find_without_current(kvm, mmu, new_pgd, new_role);
+}
+
+void kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd)
+{
+	struct kvm_mmu *mmu = vcpu->arch.mmu;
+	union kvm_mmu_page_role new_role = mmu->root_role;
+
+	if (!fast_pgd_switch(vcpu->kvm, mmu, new_pgd, new_role)) {
+		/* kvm_mmu_ensure_valid_pgd will set up a new root.  */
 		return;
 	}
 
 	/*
 	 * It's possible that the cached previous root page is obsolete because
 	 * of a change in the MMU generation number. However, changing the
-	 * generation number is accompanied by KVM_REQ_MMU_RELOAD, which will
-	 * free the root set here and allocate a new one.
+	 * generation number is accompanied by KVM_REQ_MMU_FREE_OBSOLETE_ROOTS,
+	 * which will free the root set here and allocate a new one.
 	 */
 	kvm_make_request(KVM_REQ_LOAD_MMU_PGD, vcpu);
 
@@ -4222,12 +4301,7 @@ static void __kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd,
 	 */
 	if (!new_role.direct)
 		__clear_sp_write_flooding_count(
-				to_shadow_page(vcpu->arch.mmu->root_hpa));
-}
-
-void kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd)
-{
-	__kvm_mmu_new_pgd(vcpu, new_pgd, kvm_mmu_calc_root_page_role(vcpu));
+				to_shadow_page(vcpu->arch.mmu->root.hpa));
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_new_pgd);
 
@@ -4370,12 +4444,12 @@ static bool guest_can_use_gbpages(struct kvm_vcpu *vcpu)
 			     guest_cpuid_has(vcpu, X86_FEATURE_GBPAGES);
 }
 
-static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
-				  struct kvm_mmu *context)
+static void reset_guest_rsvds_bits_mask(struct kvm_vcpu *vcpu,
+					struct kvm_mmu *context)
 {
 	__reset_rsvds_bits_mask(&context->guest_rsvd_check,
 				vcpu->arch.reserved_gpa_bits,
-				context->root_level, is_efer_nx(context),
+				context->cpu_role.base.level, is_efer_nx(context),
 				guest_can_use_gbpages(vcpu),
 				is_cr4_pse(context),
 				guest_cpuid_is_amd_or_hygon(vcpu));
@@ -4440,16 +4514,6 @@ static inline u64 reserved_hpa_bits(void)
 static void reset_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
 					struct kvm_mmu *context)
 {
-	/*
-	 * KVM uses NX when TDP is disabled to handle a variety of scenarios,
-	 * notably for huge SPTEs if iTLB multi-hit mitigation is enabled and
-	 * to generate correct permissions for CR0.WP=0/CR4.SMEP=1/EFER.NX=0.
-	 * The iTLB multi-hit workaround can be toggled at any time, so assume
-	 * NX can be used by any non-nested shadow MMU to avoid having to reset
-	 * MMU contexts.  Note, KVM forces EFER.NX=1 when TDP is disabled.
-	 */
-	bool uses_nx = is_efer_nx(context) || !tdp_enabled;
-
 	/* @amd adds a check on bit of SPTEs, which KVM shouldn't use anyways. */
 	bool is_amd = true;
 	/* KVM doesn't use 2-level page tables for the shadow MMU. */
@@ -4457,19 +4521,28 @@ static void reset_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
 	struct rsvd_bits_validate *shadow_zero_check;
 	int i;
 
-	WARN_ON_ONCE(context->shadow_root_level < PT32E_ROOT_LEVEL);
+	WARN_ON_ONCE(context->root_role.level < PT32E_ROOT_LEVEL);
 
 	shadow_zero_check = &context->shadow_zero_check;
 	__reset_rsvds_bits_mask(shadow_zero_check, reserved_hpa_bits(),
-				context->shadow_root_level, uses_nx,
+				context->root_role.level,
+				context->root_role.efer_nx,
 				guest_can_use_gbpages(vcpu), is_pse, is_amd);
 
 	if (!shadow_me_mask)
 		return;
 
-	for (i = context->shadow_root_level; --i >= 0;) {
-		shadow_zero_check->rsvd_bits_mask[0][i] &= ~shadow_me_mask;
-		shadow_zero_check->rsvd_bits_mask[1][i] &= ~shadow_me_mask;
+	for (i = context->root_role.level; --i >= 0;) {
+		/*
+		 * So far shadow_me_value is a constant during KVM's life
+		 * time.  Bits in shadow_me_value are allowed to be set.
+		 * Bits in shadow_me_mask but not in shadow_me_value are
+		 * not allowed to be set.
+		 */
+		shadow_zero_check->rsvd_bits_mask[0][i] |= shadow_me_mask;
+		shadow_zero_check->rsvd_bits_mask[1][i] |= shadow_me_mask;
+		shadow_zero_check->rsvd_bits_mask[0][i] &= ~shadow_me_value;
+		shadow_zero_check->rsvd_bits_mask[1][i] &= ~shadow_me_value;
 	}
 
 }
@@ -4485,8 +4558,7 @@ static inline bool boot_cpu_is_amd(void)
  * possible, however, kvm currently does not do execution-protection.
  */
 static void
-reset_tdp_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
-				struct kvm_mmu *context)
+reset_tdp_shadow_zero_bits_mask(struct kvm_mmu *context)
 {
 	struct rsvd_bits_validate *shadow_zero_check;
 	int i;
@@ -4495,7 +4567,7 @@ reset_tdp_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
 
 	if (boot_cpu_is_amd())
 		__reset_rsvds_bits_mask(shadow_zero_check, reserved_hpa_bits(),
-					context->shadow_root_level, false,
+					context->root_role.level, false,
 					boot_cpu_has(X86_FEATURE_GBPAGES),
 					false, true);
 	else
@@ -4506,7 +4578,7 @@ reset_tdp_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
 	if (!shadow_me_mask)
 		return;
 
-	for (i = context->shadow_root_level; --i >= 0;) {
+	for (i = context->root_role.level; --i >= 0;) {
 		shadow_zero_check->rsvd_bits_mask[0][i] &= ~shadow_me_mask;
 		shadow_zero_check->rsvd_bits_mask[1][i] &= ~shadow_me_mask;
 	}
@@ -4517,8 +4589,7 @@ reset_tdp_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
  * is the shadow page table for intel nested guest.
  */
 static void
-reset_ept_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
-				struct kvm_mmu *context, bool execonly)
+reset_ept_shadow_zero_bits_mask(struct kvm_mmu *context, bool execonly)
 {
 	__reset_rsvds_bits_mask_ept(&context->shadow_zero_check,
 				    reserved_hpa_bits(), execonly,
@@ -4591,11 +4662,11 @@ static void update_permission_bitmask(struct kvm_mmu *mmu, bool ept)
 			 *   - X86_CR4_SMAP is set in CR4
 			 *   - A user page is accessed
 			 *   - The access is not a fetch
-			 *   - Page fault in kernel mode
-			 *   - if CPL = 3 or X86_EFLAGS_AC is clear
+			 *   - The access is supervisor mode
+			 *   - If implicit supervisor access or X86_EFLAGS_AC is clear
 			 *
-			 * Here, we cover the first three conditions.
-			 * The fourth is computed dynamically in permission_fault();
+			 * Here, we cover the first four conditions.
+			 * The fifth is computed dynamically in permission_fault();
 			 * PFERR_RSVD_MASK bit will be set in PFEC if the access is
 			 * *not* subject to SMAP restrictions.
 			 */
@@ -4681,7 +4752,7 @@ static void reset_guest_paging_metadata(struct kvm_vcpu *vcpu,
 	if (!is_cr0_pg(mmu))
 		return;
 
-	reset_rsvds_bits_mask(vcpu, mmu);
+	reset_guest_rsvds_bits_mask(vcpu, mmu);
 	update_permission_bitmask(mmu, false);
 	update_pkru_bitmask(mmu);
 }
@@ -4692,7 +4763,6 @@ static void paging64_init_context(struct kvm_mmu *context)
 	context->gva_to_gpa = paging64_gva_to_gpa;
 	context->sync_page = paging64_sync_page;
 	context->invlpg = paging64_invlpg;
-	context->direct_map = false;
 }
 
 static void paging32_init_context(struct kvm_mmu *context)
@@ -4701,51 +4771,45 @@ static void paging32_init_context(struct kvm_mmu *context)
 	context->gva_to_gpa = paging32_gva_to_gpa;
 	context->sync_page = paging32_sync_page;
 	context->invlpg = paging32_invlpg;
-	context->direct_map = false;
 }
 
-static union kvm_mmu_extended_role kvm_calc_mmu_role_ext(struct kvm_vcpu *vcpu,
-							 struct kvm_mmu_role_regs *regs)
+static union kvm_cpu_role
+kvm_calc_cpu_role(struct kvm_vcpu *vcpu, const struct kvm_mmu_role_regs *regs)
 {
-	union kvm_mmu_extended_role ext = {0};
-
-	if (____is_cr0_pg(regs)) {
-		ext.cr0_pg = 1;
-		ext.cr4_pae = ____is_cr4_pae(regs);
-		ext.cr4_smep = ____is_cr4_smep(regs);
-		ext.cr4_smap = ____is_cr4_smap(regs);
-		ext.cr4_pse = ____is_cr4_pse(regs);
-
-		/* PKEY and LA57 are active iff long mode is active. */
-		ext.cr4_pke = ____is_efer_lma(regs) && ____is_cr4_pke(regs);
-		ext.cr4_la57 = ____is_efer_lma(regs) && ____is_cr4_la57(regs);
-		ext.efer_lma = ____is_efer_lma(regs);
-	}
-
-	ext.valid = 1;
-
-	return ext;
-}
-
-static union kvm_mmu_role kvm_calc_mmu_role_common(struct kvm_vcpu *vcpu,
-						   struct kvm_mmu_role_regs *regs,
-						   bool base_only)
-{
-	union kvm_mmu_role role = {0};
+	union kvm_cpu_role role = {0};
 
 	role.base.access = ACC_ALL;
-	if (____is_cr0_pg(regs)) {
-		role.base.efer_nx = ____is_efer_nx(regs);
-		role.base.cr0_wp = ____is_cr0_wp(regs);
-	}
 	role.base.smm = is_smm(vcpu);
 	role.base.guest_mode = is_guest_mode(vcpu);
+	role.ext.valid = 1;
 
-	if (base_only)
+	if (!____is_cr0_pg(regs)) {
+		role.base.direct = 1;
 		return role;
+	}
 
-	role.ext = kvm_calc_mmu_role_ext(vcpu, regs);
+	role.base.efer_nx = ____is_efer_nx(regs);
+	role.base.cr0_wp = ____is_cr0_wp(regs);
+	role.base.smep_andnot_wp = ____is_cr4_smep(regs) && !____is_cr0_wp(regs);
+	role.base.smap_andnot_wp = ____is_cr4_smap(regs) && !____is_cr0_wp(regs);
+	role.base.has_4_byte_gpte = !____is_cr4_pae(regs);
 
+	if (____is_efer_lma(regs))
+		role.base.level = ____is_cr4_la57(regs) ? PT64_ROOT_5LEVEL
+							: PT64_ROOT_4LEVEL;
+	else if (____is_cr4_pae(regs))
+		role.base.level = PT32E_ROOT_LEVEL;
+	else
+		role.base.level = PT32_ROOT_LEVEL;
+
+	role.ext.cr4_smep = ____is_cr4_smep(regs);
+	role.ext.cr4_smap = ____is_cr4_smap(regs);
+	role.ext.cr4_pse = ____is_cr4_pse(regs);
+
+	/* PKEY and LA57 are active iff long mode is active. */
+	role.ext.cr4_pke = ____is_efer_lma(regs) && ____is_cr4_pke(regs);
+	role.ext.cr4_la57 = ____is_efer_lma(regs) && ____is_cr4_la57(regs);
+	role.ext.efer_lma = ____is_efer_lma(regs);
 	return role;
 }
 
@@ -4762,40 +4826,43 @@ static inline int kvm_mmu_get_tdp_level(struct kvm_vcpu *vcpu)
 	return max_tdp_level;
 }
 
-static union kvm_mmu_role
+static union kvm_mmu_page_role
 kvm_calc_tdp_mmu_root_page_role(struct kvm_vcpu *vcpu,
-				struct kvm_mmu_role_regs *regs, bool base_only)
+				union kvm_cpu_role cpu_role)
 {
-	union kvm_mmu_role role = kvm_calc_mmu_role_common(vcpu, regs, base_only);
+	union kvm_mmu_page_role role = {0};
 
-	role.base.ad_disabled = (shadow_accessed_mask == 0);
-	role.base.level = kvm_mmu_get_tdp_level(vcpu);
-	role.base.direct = true;
-	role.base.has_4_byte_gpte = false;
+	role.access = ACC_ALL;
+	role.cr0_wp = true;
+	role.efer_nx = true;
+	role.smm = cpu_role.base.smm;
+	role.guest_mode = cpu_role.base.guest_mode;
+	role.ad_disabled = !kvm_ad_enabled();
+	role.level = kvm_mmu_get_tdp_level(vcpu);
+	role.direct = true;
+	role.has_4_byte_gpte = false;
 
 	return role;
 }
 
-static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
+static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu,
+			     union kvm_cpu_role cpu_role)
 {
 	struct kvm_mmu *context = &vcpu->arch.root_mmu;
-	struct kvm_mmu_role_regs regs = vcpu_to_role_regs(vcpu);
-	union kvm_mmu_role new_role =
-		kvm_calc_tdp_mmu_root_page_role(vcpu, &regs, false);
+	union kvm_mmu_page_role root_role = kvm_calc_tdp_mmu_root_page_role(vcpu, cpu_role);
 
-	if (new_role.as_u64 == context->mmu_role.as_u64)
+	if (cpu_role.as_u64 == context->cpu_role.as_u64 &&
+	    root_role.word == context->root_role.word)
 		return;
 
-	context->mmu_role.as_u64 = new_role.as_u64;
+	context->cpu_role.as_u64 = cpu_role.as_u64;
+	context->root_role.word = root_role.word;
 	context->page_fault = kvm_tdp_page_fault;
 	context->sync_page = nonpaging_sync_page;
 	context->invlpg = NULL;
-	context->shadow_root_level = kvm_mmu_get_tdp_level(vcpu);
-	context->direct_map = true;
 	context->get_guest_pgd = get_cr3;
 	context->get_pdptr = kvm_pdptr_read;
 	context->inject_page_fault = kvm_inject_page_fault;
-	context->root_level = role_regs_to_root_level(&regs);
 
 	if (!is_cr0_pg(context))
 		context->gva_to_gpa = nonpaging_gva_to_gpa;
@@ -4805,49 +4872,19 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 		context->gva_to_gpa = paging32_gva_to_gpa;
 
 	reset_guest_paging_metadata(vcpu, context);
-	reset_tdp_shadow_zero_bits_mask(vcpu, context);
-}
-
-static union kvm_mmu_role
-kvm_calc_shadow_root_page_role_common(struct kvm_vcpu *vcpu,
-				      struct kvm_mmu_role_regs *regs, bool base_only)
-{
-	union kvm_mmu_role role = kvm_calc_mmu_role_common(vcpu, regs, base_only);
-
-	role.base.smep_andnot_wp = role.ext.cr4_smep && !____is_cr0_wp(regs);
-	role.base.smap_andnot_wp = role.ext.cr4_smap && !____is_cr0_wp(regs);
-	role.base.has_4_byte_gpte = ____is_cr0_pg(regs) && !____is_cr4_pae(regs);
-
-	return role;
-}
-
-static union kvm_mmu_role
-kvm_calc_shadow_mmu_root_page_role(struct kvm_vcpu *vcpu,
-				   struct kvm_mmu_role_regs *regs, bool base_only)
-{
-	union kvm_mmu_role role =
-		kvm_calc_shadow_root_page_role_common(vcpu, regs, base_only);
-
-	role.base.direct = !____is_cr0_pg(regs);
-
-	if (!____is_efer_lma(regs))
-		role.base.level = PT32E_ROOT_LEVEL;
-	else if (____is_cr4_la57(regs))
-		role.base.level = PT64_ROOT_5LEVEL;
-	else
-		role.base.level = PT64_ROOT_4LEVEL;
-
-	return role;
+	reset_tdp_shadow_zero_bits_mask(context);
 }
 
 static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *context,
-				    struct kvm_mmu_role_regs *regs,
-				    union kvm_mmu_role new_role)
+				    union kvm_cpu_role cpu_role,
+				    union kvm_mmu_page_role root_role)
 {
-	if (new_role.as_u64 == context->mmu_role.as_u64)
+	if (cpu_role.as_u64 == context->cpu_role.as_u64 &&
+	    root_role.word == context->root_role.word)
 		return;
 
-	context->mmu_role.as_u64 = new_role.as_u64;
+	context->cpu_role.as_u64 = cpu_role.as_u64;
+	context->root_role.word = root_role.word;
 
 	if (!is_cr0_pg(context))
 		nonpaging_init_context(context);
@@ -4855,35 +4892,34 @@ static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *conte
 		paging64_init_context(context);
 	else
 		paging32_init_context(context);
-	context->root_level = role_regs_to_root_level(regs);
 
 	reset_guest_paging_metadata(vcpu, context);
-	context->shadow_root_level = new_role.base.level;
-
 	reset_shadow_zero_bits_mask(vcpu, context);
 }
 
 static void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu,
-				struct kvm_mmu_role_regs *regs)
+				union kvm_cpu_role cpu_role)
 {
 	struct kvm_mmu *context = &vcpu->arch.root_mmu;
-	union kvm_mmu_role new_role =
-		kvm_calc_shadow_mmu_root_page_role(vcpu, regs, false);
+	union kvm_mmu_page_role root_role;
 
-	shadow_mmu_init_context(vcpu, context, regs, new_role);
-}
+	root_role = cpu_role.base;
 
-static union kvm_mmu_role
-kvm_calc_shadow_npt_root_page_role(struct kvm_vcpu *vcpu,
-				   struct kvm_mmu_role_regs *regs)
-{
-	union kvm_mmu_role role =
-		kvm_calc_shadow_root_page_role_common(vcpu, regs, false);
+	/* KVM uses PAE paging whenever the guest isn't using 64-bit paging. */
+	root_role.level = max_t(u32, root_role.level, PT32E_ROOT_LEVEL);
 
-	role.base.direct = false;
-	role.base.level = kvm_mmu_get_tdp_level(vcpu);
+	/*
+	 * KVM forces EFER.NX=1 when TDP is disabled, reflect it in the MMU role.
+	 * KVM uses NX when TDP is disabled to handle a variety of scenarios,
+	 * notably for huge SPTEs if iTLB multi-hit mitigation is enabled and
+	 * to generate correct permissions for CR0.WP=0/CR4.SMEP=1/EFER.NX=0.
+	 * The iTLB multi-hit workaround can be toggled at any time, so assume
+	 * NX can be used by any non-nested shadow MMU to avoid having to reset
+	 * MMU contexts.
+	 */
+	root_role.efer_nx = true;
 
-	return role;
+	shadow_mmu_init_context(vcpu, context, cpu_role, root_role);
 }
 
 void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, unsigned long cr0,
@@ -4895,25 +4931,34 @@ void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, unsigned long cr0,
 		.cr4 = cr4 & ~X86_CR4_PKE,
 		.efer = efer,
 	};
-	union kvm_mmu_role new_role;
+	union kvm_cpu_role cpu_role = kvm_calc_cpu_role(vcpu, &regs);
+	union kvm_mmu_page_role root_role;
 
-	new_role = kvm_calc_shadow_npt_root_page_role(vcpu, &regs);
+	/* NPT requires CR0.PG=1. */
+	WARN_ON_ONCE(cpu_role.base.direct);
 
-	__kvm_mmu_new_pgd(vcpu, nested_cr3, new_role.base);
+	root_role = cpu_role.base;
+	root_role.level = kvm_mmu_get_tdp_level(vcpu);
+	if (root_role.level == PT64_ROOT_5LEVEL &&
+	    cpu_role.base.level == PT64_ROOT_4LEVEL)
+		root_role.passthrough = 1;
 
-	shadow_mmu_init_context(vcpu, context, &regs, new_role);
+	shadow_mmu_init_context(vcpu, context, cpu_role, root_role);
+	kvm_mmu_new_pgd(vcpu, nested_cr3);
 }
 EXPORT_SYMBOL_GPL(kvm_init_shadow_npt_mmu);
 
-static union kvm_mmu_role
+static union kvm_cpu_role
 kvm_calc_shadow_ept_root_page_role(struct kvm_vcpu *vcpu, bool accessed_dirty,
 				   bool execonly, u8 level)
 {
-	union kvm_mmu_role role = {0};
+	union kvm_cpu_role role = {0};
 
-	/* SMM flag is inherited from root_mmu */
-	role.base.smm = vcpu->arch.root_mmu.mmu_role.base.smm;
-
+	/*
+	 * KVM does not support SMM transfer monitors, and consequently does not
+	 * support the "entry to SMM" control either.  role.base.smm is always 0.
+	 */
+	WARN_ON_ONCE(is_smm(vcpu));
 	role.base.level = level;
 	role.base.has_4_byte_gpte = false;
 	role.base.direct = false;
@@ -4921,7 +4966,6 @@ kvm_calc_shadow_ept_root_page_role(struct kvm_vcpu *vcpu, bool accessed_dirty,
 	role.base.guest_mode = true;
 	role.base.access = ACC_ALL;
 
-	/* EPT, and thus nested EPT, does not consume CR0, CR4, nor EFER. */
 	role.ext.word = 0;
 	role.ext.execonly = execonly;
 	role.ext.valid = 1;
@@ -4935,77 +4979,54 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 {
 	struct kvm_mmu *context = &vcpu->arch.guest_mmu;
 	u8 level = vmx_eptp_page_walk_level(new_eptp);
-	union kvm_mmu_role new_role =
+	union kvm_cpu_role new_mode =
 		kvm_calc_shadow_ept_root_page_role(vcpu, accessed_dirty,
 						   execonly, level);
 
-	__kvm_mmu_new_pgd(vcpu, new_eptp, new_role.base);
+	if (new_mode.as_u64 != context->cpu_role.as_u64) {
+		/* EPT, and thus nested EPT, does not consume CR0, CR4, nor EFER. */
+		context->cpu_role.as_u64 = new_mode.as_u64;
+		context->root_role.word = new_mode.base.word;
 
-	if (new_role.as_u64 == context->mmu_role.as_u64)
-		return;
+		context->page_fault = ept_page_fault;
+		context->gva_to_gpa = ept_gva_to_gpa;
+		context->sync_page = ept_sync_page;
+		context->invlpg = ept_invlpg;
 
-	context->mmu_role.as_u64 = new_role.as_u64;
+		update_permission_bitmask(context, true);
+		context->pkru_mask = 0;
+		reset_rsvds_bits_mask_ept(vcpu, context, execonly, huge_page_level);
+		reset_ept_shadow_zero_bits_mask(context, execonly);
+	}
 
-	context->shadow_root_level = level;
-
-	context->ept_ad = accessed_dirty;
-	context->page_fault = ept_page_fault;
-	context->gva_to_gpa = ept_gva_to_gpa;
-	context->sync_page = ept_sync_page;
-	context->invlpg = ept_invlpg;
-	context->root_level = level;
-	context->direct_map = false;
-
-	update_permission_bitmask(context, true);
-	context->pkru_mask = 0;
-	reset_rsvds_bits_mask_ept(vcpu, context, execonly, huge_page_level);
-	reset_ept_shadow_zero_bits_mask(vcpu, context, execonly);
+	kvm_mmu_new_pgd(vcpu, new_eptp);
 }
 EXPORT_SYMBOL_GPL(kvm_init_shadow_ept_mmu);
 
-static void init_kvm_softmmu(struct kvm_vcpu *vcpu)
+static void init_kvm_softmmu(struct kvm_vcpu *vcpu,
+			     union kvm_cpu_role cpu_role)
 {
 	struct kvm_mmu *context = &vcpu->arch.root_mmu;
-	struct kvm_mmu_role_regs regs = vcpu_to_role_regs(vcpu);
 
-	kvm_init_shadow_mmu(vcpu, &regs);
+	kvm_init_shadow_mmu(vcpu, cpu_role);
 
 	context->get_guest_pgd     = get_cr3;
 	context->get_pdptr         = kvm_pdptr_read;
 	context->inject_page_fault = kvm_inject_page_fault;
 }
 
-static union kvm_mmu_role
-kvm_calc_nested_mmu_role(struct kvm_vcpu *vcpu, struct kvm_mmu_role_regs *regs)
+static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu,
+				union kvm_cpu_role new_mode)
 {
-	union kvm_mmu_role role;
-
-	role = kvm_calc_shadow_root_page_role_common(vcpu, regs, false);
-
-	/*
-	 * Nested MMUs are used only for walking L2's gva->gpa, they never have
-	 * shadow pages of their own and so "direct" has no meaning.   Set it
-	 * to "true" to try to detect bogus usage of the nested MMU.
-	 */
-	role.base.direct = true;
-	role.base.level = role_regs_to_root_level(regs);
-	return role;
-}
-
-static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
-{
-	struct kvm_mmu_role_regs regs = vcpu_to_role_regs(vcpu);
-	union kvm_mmu_role new_role = kvm_calc_nested_mmu_role(vcpu, &regs);
 	struct kvm_mmu *g_context = &vcpu->arch.nested_mmu;
 
-	if (new_role.as_u64 == g_context->mmu_role.as_u64)
+	if (new_mode.as_u64 == g_context->cpu_role.as_u64)
 		return;
 
-	g_context->mmu_role.as_u64 = new_role.as_u64;
+	g_context->cpu_role.as_u64   = new_mode.as_u64;
 	g_context->get_guest_pgd     = get_cr3;
 	g_context->get_pdptr         = kvm_pdptr_read;
 	g_context->inject_page_fault = kvm_inject_page_fault;
-	g_context->root_level        = new_role.base.level;
 
 	/*
 	 * L2 page tables are never shadowed, so there is no need to sync
@@ -5035,28 +5056,17 @@ static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 
 void kvm_init_mmu(struct kvm_vcpu *vcpu)
 {
+	struct kvm_mmu_role_regs regs = vcpu_to_role_regs(vcpu);
+	union kvm_cpu_role cpu_role = kvm_calc_cpu_role(vcpu, &regs);
+
 	if (mmu_is_nested(vcpu))
-		init_kvm_nested_mmu(vcpu);
+		init_kvm_nested_mmu(vcpu, cpu_role);
 	else if (tdp_enabled)
-		init_kvm_tdp_mmu(vcpu);
+		init_kvm_tdp_mmu(vcpu, cpu_role);
 	else
-		init_kvm_softmmu(vcpu);
+		init_kvm_softmmu(vcpu, cpu_role);
 }
 EXPORT_SYMBOL_GPL(kvm_init_mmu);
-
-static union kvm_mmu_page_role
-kvm_mmu_calc_root_page_role(struct kvm_vcpu *vcpu)
-{
-	struct kvm_mmu_role_regs regs = vcpu_to_role_regs(vcpu);
-	union kvm_mmu_role role;
-
-	if (tdp_enabled)
-		role = kvm_calc_tdp_mmu_root_page_role(vcpu, &regs, true);
-	else
-		role = kvm_calc_shadow_mmu_root_page_role(vcpu, &regs, true);
-
-	return role.base;
-}
 
 void kvm_mmu_after_set_cpuid(struct kvm_vcpu *vcpu)
 {
@@ -5072,9 +5082,12 @@ void kvm_mmu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	 * problem is swept under the rug; KVM's CPUID API is horrific and
 	 * it's all but impossible to solve it without introducing a new API.
 	 */
-	vcpu->arch.root_mmu.mmu_role.ext.valid = 0;
-	vcpu->arch.guest_mmu.mmu_role.ext.valid = 0;
-	vcpu->arch.nested_mmu.mmu_role.ext.valid = 0;
+	vcpu->arch.root_mmu.root_role.word = 0;
+	vcpu->arch.guest_mmu.root_role.word = 0;
+	vcpu->arch.nested_mmu.root_role.word = 0;
+	vcpu->arch.root_mmu.cpu_role.ext.valid = 0;
+	vcpu->arch.guest_mmu.cpu_role.ext.valid = 0;
+	vcpu->arch.nested_mmu.cpu_role.ext.valid = 0;
 	kvm_mmu_reset_context(vcpu);
 
 	/*
@@ -5095,13 +5108,13 @@ int kvm_mmu_load(struct kvm_vcpu *vcpu)
 {
 	int r;
 
-	r = mmu_topup_memory_caches(vcpu, !vcpu->arch.mmu->direct_map);
+	r = mmu_topup_memory_caches(vcpu, !vcpu->arch.mmu->root_role.direct);
 	if (r)
 		goto out;
 	r = mmu_alloc_special_roots(vcpu);
 	if (r)
 		goto out;
-	if (vcpu->arch.mmu->direct_map)
+	if (vcpu->arch.mmu->root_role.direct)
 		r = mmu_alloc_direct_roots(vcpu);
 	else
 		r = mmu_alloc_shadow_roots(vcpu);
@@ -5111,17 +5124,73 @@ int kvm_mmu_load(struct kvm_vcpu *vcpu)
 	kvm_mmu_sync_roots(vcpu);
 
 	kvm_mmu_load_pgd(vcpu);
-	static_call(kvm_x86_tlb_flush_current)(vcpu);
+
+	/*
+	 * Flush any TLB entries for the new root, the provenance of the root
+	 * is unknown.  Even if KVM ensures there are no stale TLB entries
+	 * for a freed root, in theory another hypervisor could have left
+	 * stale entries.  Flushing on alloc also allows KVM to skip the TLB
+	 * flush when freeing a root (see kvm_tdp_mmu_put_root()).
+	 */
+	static_call(kvm_x86_flush_tlb_current)(vcpu);
 out:
 	return r;
 }
 
 void kvm_mmu_unload(struct kvm_vcpu *vcpu)
 {
-	kvm_mmu_free_roots(vcpu, &vcpu->arch.root_mmu, KVM_MMU_ROOTS_ALL);
-	WARN_ON(VALID_PAGE(vcpu->arch.root_mmu.root_hpa));
-	kvm_mmu_free_roots(vcpu, &vcpu->arch.guest_mmu, KVM_MMU_ROOTS_ALL);
-	WARN_ON(VALID_PAGE(vcpu->arch.guest_mmu.root_hpa));
+	struct kvm *kvm = vcpu->kvm;
+
+	kvm_mmu_free_roots(kvm, &vcpu->arch.root_mmu, KVM_MMU_ROOTS_ALL);
+	WARN_ON(VALID_PAGE(vcpu->arch.root_mmu.root.hpa));
+	kvm_mmu_free_roots(kvm, &vcpu->arch.guest_mmu, KVM_MMU_ROOTS_ALL);
+	WARN_ON(VALID_PAGE(vcpu->arch.guest_mmu.root.hpa));
+	vcpu_clear_mmio_info(vcpu, MMIO_GVA_ANY);
+}
+
+static bool is_obsolete_root(struct kvm *kvm, hpa_t root_hpa)
+{
+	struct kvm_mmu_page *sp;
+
+	if (!VALID_PAGE(root_hpa))
+		return false;
+
+	/*
+	 * When freeing obsolete roots, treat roots as obsolete if they don't
+	 * have an associated shadow page.  This does mean KVM will get false
+	 * positives and free roots that don't strictly need to be freed, but
+	 * such false positives are relatively rare:
+	 *
+	 *  (a) only PAE paging and nested NPT has roots without shadow pages
+	 *  (b) remote reloads due to a memslot update obsoletes _all_ roots
+	 *  (c) KVM doesn't track previous roots for PAE paging, and the guest
+	 *      is unlikely to zap an in-use PGD.
+	 */
+	sp = to_shadow_page(root_hpa);
+	return !sp || is_obsolete_sp(kvm, sp);
+}
+
+static void __kvm_mmu_free_obsolete_roots(struct kvm *kvm, struct kvm_mmu *mmu)
+{
+	unsigned long roots_to_free = 0;
+	int i;
+
+	if (is_obsolete_root(kvm, mmu->root.hpa))
+		roots_to_free |= KVM_MMU_ROOT_CURRENT;
+
+	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++) {
+		if (is_obsolete_root(kvm, mmu->prev_roots[i].hpa))
+			roots_to_free |= KVM_MMU_ROOT_PREVIOUS(i);
+	}
+
+	if (roots_to_free)
+		kvm_mmu_free_roots(kvm, mmu, roots_to_free);
+}
+
+void kvm_mmu_free_obsolete_roots(struct kvm_vcpu *vcpu)
+{
+	__kvm_mmu_free_obsolete_roots(vcpu->kvm, &vcpu->arch.root_mmu);
+	__kvm_mmu_free_obsolete_roots(vcpu->kvm, &vcpu->arch.guest_mmu);
 }
 
 static bool need_remote_flush(u64 old, u64 new)
@@ -5271,9 +5340,8 @@ static void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	gentry = mmu_pte_write_fetch_gpte(vcpu, &gpa, &bytes);
 
 	++vcpu->kvm->stat.mmu_pte_write;
-	kvm_mmu_audit(vcpu, AUDIT_PRE_PTE_WRITE);
 
-	for_each_gfn_indirect_valid_sp(vcpu->kvm, sp, gfn) {
+	for_each_gfn_valid_sp_with_gptes(vcpu->kvm, sp, gfn) {
 		if (detect_write_misaligned(sp, gpa, bytes) ||
 		      detect_write_flooding(sp)) {
 			kvm_mmu_prepare_zap_page(vcpu->kvm, sp, &invalid_list);
@@ -5296,17 +5364,16 @@ static void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		}
 	}
 	kvm_mmu_remote_flush_or_zap(vcpu->kvm, &invalid_list, flush);
-	kvm_mmu_audit(vcpu, AUDIT_POST_PTE_WRITE);
 	write_unlock(&vcpu->kvm->mmu_lock);
 }
 
-int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u64 error_code,
+int noinline kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u64 error_code,
 		       void *insn, int insn_len)
 {
 	int r, emulation_type = EMULTYPE_PF;
-	bool direct = vcpu->arch.mmu->direct_map;
+	bool direct = vcpu->arch.mmu->root_role.direct;
 
-	if (WARN_ON(!VALID_PAGE(vcpu->arch.mmu->root_hpa)))
+	if (WARN_ON(!VALID_PAGE(vcpu->arch.mmu->root.hpa)))
 		return RET_PF_RETRY;
 
 	r = RET_PF_INVALID;
@@ -5335,7 +5402,7 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u64 error_code,
 	 * paging in both guests. If true, we simply unprotect the page
 	 * and resume the guest.
 	 */
-	if (vcpu->arch.mmu->direct_map &&
+	if (vcpu->arch.mmu->root_role.direct &&
 	    (error_code & PFERR_NESTED_GUEST_PAGE) == PFERR_NESTED_GUEST_PAGE) {
 		kvm_mmu_unprotect_page(vcpu->kvm, gpa_to_gfn(cr2_or_gpa));
 		return 1;
@@ -5371,14 +5438,14 @@ void kvm_mmu_invalidate_gva(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 		if (is_noncanonical_address(gva, vcpu))
 			return;
 
-		static_call(kvm_x86_tlb_flush_gva)(vcpu, gva);
+		static_call(kvm_x86_flush_tlb_gva)(vcpu, gva);
 	}
 
 	if (!mmu->invlpg)
 		return;
 
 	if (root_hpa == INVALID_PAGE) {
-		mmu->invlpg(vcpu, gva, mmu->root_hpa);
+		mmu->invlpg(vcpu, gva, mmu->root.hpa);
 
 		/*
 		 * INVLPG is required to invalidate any global mappings for the VA,
@@ -5414,20 +5481,22 @@ void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid)
 	uint i;
 
 	if (pcid == kvm_get_active_pcid(vcpu)) {
-		mmu->invlpg(vcpu, gva, mmu->root_hpa);
+		if (mmu->invlpg)
+			mmu->invlpg(vcpu, gva, mmu->root.hpa);
 		tlb_flush = true;
 	}
 
 	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++) {
 		if (VALID_PAGE(mmu->prev_roots[i].hpa) &&
 		    pcid == kvm_get_pcid(vcpu, mmu->prev_roots[i].pgd)) {
-			mmu->invlpg(vcpu, gva, mmu->prev_roots[i].hpa);
+			if (mmu->invlpg)
+				mmu->invlpg(vcpu, gva, mmu->prev_roots[i].hpa);
 			tlb_flush = true;
 		}
 	}
 
 	if (tlb_flush)
-		static_call(kvm_x86_tlb_flush_gva)(vcpu, gva);
+		static_call(kvm_x86_flush_tlb_gva)(vcpu, gva);
 
 	++vcpu->stat.invlpg;
 
@@ -5527,8 +5596,8 @@ static int __kvm_mmu_create(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu)
 	struct page *page;
 	int i;
 
-	mmu->root_hpa = INVALID_PAGE;
-	mmu->root_pgd = 0;
+	mmu->root.hpa = INVALID_PAGE;
+	mmu->root.pgd = 0;
 	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
 		mmu->prev_roots[i] = KVM_MMU_ROOT_INFO_INVALID;
 
@@ -5567,7 +5636,7 @@ static int __kvm_mmu_create(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu)
 	if (!tdp_enabled)
 		set_memory_decrypted((unsigned long)mmu->pae_root, 1);
 	else
-		WARN_ON_ONCE(shadow_me_mask);
+		WARN_ON_ONCE(shadow_me_value);
 
 	for (i = 0; i < 4; ++i)
 		mmu->pae_root[i] = INVALID_PAE_ROOT;
@@ -5609,6 +5678,7 @@ static void kvm_zap_obsolete_pages(struct kvm *kvm)
 {
 	struct kvm_mmu_page *sp, *node;
 	int nr_zapped, batch = 0;
+	bool unstable;
 
 restart:
 	list_for_each_entry_safe_reverse(sp, node,
@@ -5640,17 +5710,22 @@ restart:
 			goto restart;
 		}
 
-		if (__kvm_mmu_prepare_zap_page(kvm, sp,
-				&kvm->arch.zapped_obsolete_pages, &nr_zapped)) {
-			batch += nr_zapped;
+		unstable = __kvm_mmu_prepare_zap_page(kvm, sp,
+				&kvm->arch.zapped_obsolete_pages, &nr_zapped);
+		batch += nr_zapped;
+
+		if (unstable)
 			goto restart;
-		}
 	}
 
 	/*
-	 * Trigger a remote TLB flush before freeing the page tables to ensure
-	 * KVM is not in the middle of a lockless shadow page table walk, which
-	 * may reference the pages.
+	 * Kick all vCPUs (via remote TLB flush) before freeing the page tables
+	 * to ensure KVM is not in the middle of a lockless shadow page table
+	 * walk, which may reference the pages.  The remote TLB flush itself is
+	 * not required and is simply a convenient way to kick vCPUs as needed.
+	 * KVM performs a local TLB flush when allocating a new root (see
+	 * kvm_mmu_load()), and the reload in the caller ensure no vCPUs are
+	 * running with an obsolete MMU.
 	 */
 	kvm_mmu_commit_zap_page(kvm, &kvm->arch.zapped_obsolete_pages);
 }
@@ -5680,11 +5755,11 @@ static void kvm_mmu_zap_all_fast(struct kvm *kvm)
 	 */
 	kvm->arch.mmu_valid_gen = kvm->arch.mmu_valid_gen ? 0 : 1;
 
-	/* In order to ensure all threads see this change when
-	 * handling the MMU reload signal, this must happen in the
-	 * same critical section as kvm_reload_remote_mmus, and
-	 * before kvm_zap_obsolete_pages as kvm_zap_obsolete_pages
-	 * could drop the MMU lock and yield.
+	/*
+	 * In order to ensure all vCPUs drop their soon-to-be invalid roots,
+	 * invalidating TDP MMU roots must be done while holding mmu_lock for
+	 * write and in the same critical section as making the reload request,
+	 * e.g. before kvm_zap_obsolete_pages() could drop mmu_lock and yield.
 	 */
 	if (is_tdp_mmu_enabled(kvm))
 		kvm_tdp_mmu_invalidate_all_roots(kvm);
@@ -5697,17 +5772,22 @@ static void kvm_mmu_zap_all_fast(struct kvm *kvm)
 	 * Note: we need to do this under the protection of mmu_lock,
 	 * otherwise, vcpu would purge shadow page but miss tlb flush.
 	 */
-	kvm_reload_remote_mmus(kvm);
+	kvm_make_all_cpus_request(kvm, KVM_REQ_MMU_FREE_OBSOLETE_ROOTS);
 
 	kvm_zap_obsolete_pages(kvm);
 
 	write_unlock(&kvm->mmu_lock);
 
-	if (is_tdp_mmu_enabled(kvm)) {
-		read_lock(&kvm->mmu_lock);
+	/*
+	 * Zap the invalidated TDP MMU roots, all SPTEs must be dropped before
+	 * returning to the caller, e.g. if the zap is in response to a memslot
+	 * deletion, mmu_notifier callbacks will be unable to reach the SPTEs
+	 * associated with the deleted memslot once the update completes, and
+	 * Deferring the zap until the final reference to the root is put would
+	 * lead to use-after-free.
+	 */
+	if (is_tdp_mmu_enabled(kvm))
 		kvm_tdp_mmu_zap_invalidated_roots(kvm);
-		read_unlock(&kvm->mmu_lock);
-	}
 }
 
 static bool kvm_has_zapped_obsolete_pages(struct kvm *kvm)
@@ -5722,17 +5802,24 @@ static void kvm_mmu_invalidate_zap_pages_in_memslot(struct kvm *kvm,
 	kvm_mmu_zap_all_fast(kvm);
 }
 
-void kvm_mmu_init_vm(struct kvm *kvm)
+int kvm_mmu_init_vm(struct kvm *kvm)
 {
 	struct kvm_page_track_notifier_node *node = &kvm->arch.mmu_sp_tracker;
+	int r;
 
+	INIT_LIST_HEAD(&kvm->arch.active_mmu_pages);
+	INIT_LIST_HEAD(&kvm->arch.zapped_obsolete_pages);
+	INIT_LIST_HEAD(&kvm->arch.lpage_disallowed_mmu_pages);
 	spin_lock_init(&kvm->arch.mmu_unsync_pages_lock);
 
-	kvm_mmu_init_tdp_mmu(kvm);
+	r = kvm_mmu_init_tdp_mmu(kvm);
+	if (r < 0)
+		return r;
 
 	node->track_write = kvm_mmu_pte_write;
 	node->track_flush_slot = kvm_mmu_invalidate_zap_pages_in_memslot;
 	kvm_page_track_register_notifier(kvm, node);
+	return 0;
 }
 
 void kvm_mmu_uninit_vm(struct kvm *kvm)
@@ -5796,8 +5883,8 @@ void kvm_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end)
 
 	if (is_tdp_mmu_enabled(kvm)) {
 		for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++)
-			flush = kvm_tdp_mmu_zap_gfn_range(kvm, i, gfn_start,
-							  gfn_end, flush);
+			flush = kvm_tdp_mmu_zap_leafs(kvm, i, gfn_start,
+						      gfn_end, true, flush);
 	}
 
 	if (flush)
@@ -5813,7 +5900,7 @@ static bool slot_rmap_write_protect(struct kvm *kvm,
 				    struct kvm_rmap_head *rmap_head,
 				    const struct kvm_memory_slot *slot)
 {
-	return __rmap_write_protect(kvm, rmap_head, false);
+	return rmap_write_protect(rmap_head, false);
 }
 
 void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
@@ -5857,10 +5944,50 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
 	 * will clear a separate software-only bit (MMU-writable) and skip the
 	 * flush if-and-only-if this bit was already clear.
 	 *
-	 * See DEFAULT_SPTE_MMU_WRITEABLE for more details.
+	 * See is_writable_pte() for more details.
 	 */
 	if (flush)
 		kvm_arch_flush_remote_tlbs_memslot(kvm, memslot);
+}
+
+/* Must be called with the mmu_lock held in write-mode. */
+void kvm_mmu_try_split_huge_pages(struct kvm *kvm,
+				   const struct kvm_memory_slot *memslot,
+				   u64 start, u64 end,
+				   int target_level)
+{
+	if (is_tdp_mmu_enabled(kvm))
+		kvm_tdp_mmu_try_split_huge_pages(kvm, memslot, start, end,
+						 target_level, false);
+
+	/*
+	 * A TLB flush is unnecessary at this point for the same resons as in
+	 * kvm_mmu_slot_try_split_huge_pages().
+	 */
+}
+
+void kvm_mmu_slot_try_split_huge_pages(struct kvm *kvm,
+					const struct kvm_memory_slot *memslot,
+					int target_level)
+{
+	u64 start = memslot->base_gfn;
+	u64 end = start + memslot->npages;
+
+	if (is_tdp_mmu_enabled(kvm)) {
+		read_lock(&kvm->mmu_lock);
+		kvm_tdp_mmu_try_split_huge_pages(kvm, memslot, start, end, target_level, true);
+		read_unlock(&kvm->mmu_lock);
+	}
+
+	/*
+	 * No TLB flush is necessary here. KVM will flush TLBs after
+	 * write-protecting and/or clearing dirty on the newly split SPTEs to
+	 * ensure that guest writes are reflected in the dirty log before the
+	 * ioctl to enable dirty logging on this memslot completes. Since the
+	 * split SPTEs retain the write and dirty bits of the huge SPTE, it is
+	 * safe for KVM to decide if a TLB flush is necessary based on the split
+	 * SPTEs.
+	 */
 }
 
 static bool kvm_mmu_zap_collapsible_spte(struct kvm *kvm,
@@ -6144,12 +6271,24 @@ static int set_nx_huge_pages(const char *val, const struct kernel_param *kp)
 	return 0;
 }
 
-int kvm_mmu_module_init(void)
+/*
+ * nx_huge_pages needs to be resolved to true/false when kvm.ko is loaded, as
+ * its default value of -1 is technically undefined behavior for a boolean.
+ */
+void kvm_mmu_x86_module_init(void)
 {
-	int ret = -ENOMEM;
-
 	if (nx_huge_pages == -1)
 		__set_nx_huge_pages(get_nx_auto_mode());
+}
+
+/*
+ * The bulk of the MMU initialization is deferred until the vendor module is
+ * loaded as many of the masks/values may be modified by VMX or SVM, i.e. need
+ * to be reset when a potentially different vendor module is loaded.
+ */
+int kvm_mmu_vendor_module_init(void)
+{
+	int ret = -ENOMEM;
 
 	/*
 	 * MMU roles use union aliasing which is, generally speaking, an
@@ -6159,7 +6298,7 @@ int kvm_mmu_module_init(void)
 	 */
 	BUILD_BUG_ON(sizeof(union kvm_mmu_page_role) != sizeof(u32));
 	BUILD_BUG_ON(sizeof(union kvm_mmu_extended_role) != sizeof(u32));
-	BUILD_BUG_ON(sizeof(union kvm_mmu_role) != sizeof(u64));
+	BUILD_BUG_ON(sizeof(union kvm_cpu_role) != sizeof(u64));
 
 	kvm_mmu_reset_all_pte_masks();
 
@@ -6197,12 +6336,11 @@ void kvm_mmu_destroy(struct kvm_vcpu *vcpu)
 	mmu_free_memory_caches(vcpu);
 }
 
-void kvm_mmu_module_exit(void)
+void kvm_mmu_vendor_module_exit(void)
 {
 	mmu_destroy_caches();
 	percpu_counter_destroy(&kvm_total_used_mmu_pages);
 	unregister_shrinker(&mmu_shrinker);
-	mmu_audit_disable();
 }
 
 /*
@@ -6272,6 +6410,13 @@ static void kvm_recover_nx_lpages(struct kvm *kvm)
 	rcu_idx = srcu_read_lock(&kvm->srcu);
 	write_lock(&kvm->mmu_lock);
 
+	/*
+	 * Zapping TDP MMU shadow pages, including the remote TLB flush, must
+	 * be done under RCU protection, because the pages are freed via RCU
+	 * callback.
+	 */
+	rcu_read_lock();
+
 	ratio = READ_ONCE(nx_huge_pages_recovery_ratio);
 	to_zap = ratio ? DIV_ROUND_UP(nx_lpage_splits, ratio) : 0;
 	for ( ; to_zap; --to_zap) {
@@ -6296,11 +6441,17 @@ static void kvm_recover_nx_lpages(struct kvm *kvm)
 
 		if (need_resched() || rwlock_needbreak(&kvm->mmu_lock)) {
 			kvm_mmu_remote_flush_or_zap(kvm, &invalid_list, flush);
+			rcu_read_unlock();
+
 			cond_resched_rwlock_write(&kvm->mmu_lock);
 			flush = false;
+
+			rcu_read_lock();
 		}
 	}
 	kvm_mmu_remote_flush_or_zap(kvm, &invalid_list, flush);
+
+	rcu_read_unlock();
 
 	write_unlock(&kvm->mmu_lock);
 	srcu_read_unlock(&kvm->srcu, rcu_idx);

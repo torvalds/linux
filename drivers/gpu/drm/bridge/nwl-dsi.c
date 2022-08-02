@@ -26,7 +26,6 @@
 #include <drm/drm_bridge.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_of.h>
-#include <drm/drm_panel.h>
 #include <drm/drm_print.h>
 
 #include <video/mipi_display.h>
@@ -66,7 +65,6 @@ struct nwl_dsi_transfer {
 struct nwl_dsi {
 	struct drm_bridge bridge;
 	struct mipi_dsi_host dsi_host;
-	struct drm_bridge *panel_bridge;
 	struct device *dev;
 	struct phy *phy;
 	union phy_configure_opts phy_cfg;
@@ -333,17 +331,13 @@ static int nwl_dsi_config_dpi(struct nwl_dsi *dsi)
 
 static int nwl_dsi_init_interrupts(struct nwl_dsi *dsi)
 {
-	u32 irq_enable;
-
-	nwl_dsi_write(dsi, NWL_DSI_IRQ_MASK, 0xffffffff);
-	nwl_dsi_write(dsi, NWL_DSI_IRQ_MASK2, 0x7);
-
-	irq_enable = ~(u32)(NWL_DSI_TX_PKT_DONE_MASK |
-			    NWL_DSI_RX_PKT_HDR_RCVD_MASK |
-			    NWL_DSI_TX_FIFO_OVFLW_MASK |
-			    NWL_DSI_HS_TX_TIMEOUT_MASK);
+	u32 irq_enable = ~(u32)(NWL_DSI_TX_PKT_DONE_MASK |
+				NWL_DSI_RX_PKT_HDR_RCVD_MASK |
+				NWL_DSI_TX_FIFO_OVFLW_MASK |
+				NWL_DSI_HS_TX_TIMEOUT_MASK);
 
 	nwl_dsi_write(dsi, NWL_DSI_IRQ_MASK, irq_enable);
+	nwl_dsi_write(dsi, NWL_DSI_IRQ_MASK2, 0x7);
 
 	return nwl_dsi_clear_error(dsi);
 }
@@ -858,21 +852,22 @@ nwl_dsi_bridge_mode_set(struct drm_bridge *bridge,
 	/* Save the new desired phy config */
 	memcpy(&dsi->phy_cfg, &new_cfg, sizeof(new_cfg));
 
-	memcpy(&dsi->mode, adjusted_mode, sizeof(dsi->mode));
+	drm_mode_copy(&dsi->mode, adjusted_mode);
 	drm_mode_debug_printmodeline(adjusted_mode);
 
-	pm_runtime_get_sync(dev);
+	if (pm_runtime_resume_and_get(dev) < 0)
+		return;
 
 	if (clk_prepare_enable(dsi->lcdif_clk) < 0)
-		return;
+		goto runtime_put;
 	if (clk_prepare_enable(dsi->core_clk) < 0)
-		return;
+		goto runtime_put;
 
 	/* Step 1 from DSI reset-out instructions */
 	ret = reset_control_deassert(dsi->rst_pclk);
 	if (ret < 0) {
 		DRM_DEV_ERROR(dev, "Failed to deassert PCLK: %d\n", ret);
-		return;
+		goto runtime_put;
 	}
 
 	/* Step 2 from DSI reset-out instructions */
@@ -882,13 +877,18 @@ nwl_dsi_bridge_mode_set(struct drm_bridge *bridge,
 	ret = reset_control_deassert(dsi->rst_esc);
 	if (ret < 0) {
 		DRM_DEV_ERROR(dev, "Failed to deassert ESC: %d\n", ret);
-		return;
+		goto runtime_put;
 	}
 	ret = reset_control_deassert(dsi->rst_byte);
 	if (ret < 0) {
 		DRM_DEV_ERROR(dev, "Failed to deassert BYTE: %d\n", ret);
-		return;
+		goto runtime_put;
 	}
+
+	return;
+
+runtime_put:
+	pm_runtime_put_sync(dev);
 }
 
 static void
@@ -909,32 +909,12 @@ static int nwl_dsi_bridge_attach(struct drm_bridge *bridge,
 {
 	struct nwl_dsi *dsi = bridge_to_dsi(bridge);
 	struct drm_bridge *panel_bridge;
-	struct drm_panel *panel;
-	int ret;
 
-	ret = drm_of_find_panel_or_bridge(dsi->dev->of_node, 1, 0, &panel,
-					  &panel_bridge);
-	if (ret)
-		return ret;
+	panel_bridge = devm_drm_of_get_bridge(dsi->dev, dsi->dev->of_node, 1, 0);
+	if (IS_ERR(panel_bridge))
+		return PTR_ERR(panel_bridge);
 
-	if (panel) {
-		panel_bridge = drm_panel_bridge_add(panel);
-		if (IS_ERR(panel_bridge))
-			return PTR_ERR(panel_bridge);
-	}
-	dsi->panel_bridge = panel_bridge;
-
-	if (!dsi->panel_bridge)
-		return -EPROBE_DEFER;
-
-	return drm_bridge_attach(bridge->encoder, dsi->panel_bridge, bridge,
-				 flags);
-}
-
-static void nwl_dsi_bridge_detach(struct drm_bridge *bridge)
-{	struct nwl_dsi *dsi = bridge_to_dsi(bridge);
-
-	drm_of_panel_bridge_remove(dsi->dev->of_node, 1, 0);
+	return drm_bridge_attach(bridge->encoder, panel_bridge, bridge, flags);
 }
 
 static u32 *nwl_bridge_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
@@ -982,7 +962,6 @@ static const struct drm_bridge_funcs nwl_dsi_bridge_funcs = {
 	.mode_set		= nwl_dsi_bridge_mode_set,
 	.mode_valid		= nwl_dsi_bridge_mode_valid,
 	.attach			= nwl_dsi_bridge_attach,
-	.detach			= nwl_dsi_bridge_detach,
 };
 
 static int nwl_dsi_parse_dt(struct nwl_dsi *dsi)
@@ -1154,7 +1133,7 @@ MODULE_DEVICE_TABLE(of, nwl_dsi_dt_ids);
 static const struct soc_device_attribute nwl_dsi_quirks_match[] = {
 	{ .soc_id = "i.MX8MQ", .revision = "2.0",
 	  .data = (void *)E11418_HS_MODE_QUIRK },
-	{ /* sentinel. */ },
+	{ /* sentinel. */ }
 };
 
 static int nwl_dsi_probe(struct platform_device *pdev)
@@ -1204,6 +1183,7 @@ static int nwl_dsi_probe(struct platform_device *pdev)
 
 	ret = nwl_dsi_select_input(dsi);
 	if (ret < 0) {
+		pm_runtime_disable(dev);
 		mipi_dsi_host_unregister(&dsi->dsi_host);
 		return ret;
 	}

@@ -44,6 +44,7 @@
 #include "../perf.h"
 #include "pmu.h"
 #include "pmu-hybrid.h"
+#include "string2.h"
 
 struct c2c_hists {
 	struct hists		hists;
@@ -652,6 +653,7 @@ STAT_FN(lcl_hitm)
 STAT_FN(store)
 STAT_FN(st_l1hit)
 STAT_FN(st_l1miss)
+STAT_FN(st_na)
 STAT_FN(ld_fbhit)
 STAT_FN(ld_l1hit)
 STAT_FN(ld_l2hit)
@@ -676,7 +678,8 @@ static uint64_t total_records(struct c2c_stats *stats)
 
 	total    = ldcnt +
 		   stats->st_l1hit +
-		   stats->st_l1miss;
+		   stats->st_l1miss +
+		   stats->st_na;
 
 	return total;
 }
@@ -898,6 +901,7 @@ PERCENT_FN(rmt_hitm)
 PERCENT_FN(lcl_hitm)
 PERCENT_FN(st_l1hit)
 PERCENT_FN(st_l1miss)
+PERCENT_FN(st_na)
 
 static int
 percent_rmt_hitm_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
@@ -924,8 +928,8 @@ percent_rmt_hitm_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 	double per_left;
 	double per_right;
 
-	per_left  = PERCENT(left, lcl_hitm);
-	per_right = PERCENT(right, lcl_hitm);
+	per_left  = PERCENT(left, rmt_hitm);
+	per_right = PERCENT(right, rmt_hitm);
 
 	return per_left - per_right;
 }
@@ -1023,6 +1027,37 @@ percent_stores_l1miss_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 	return per_left - per_right;
 }
 
+static int
+percent_stores_na_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+			struct hist_entry *he)
+{
+	int width = c2c_width(fmt, hpp, he->hists);
+	double per = PERCENT(he, st_na);
+	char buf[10];
+
+	return scnprintf(hpp->buf, hpp->size, "%*s", width, PERC_STR(buf, per));
+}
+
+static int
+percent_stores_na_color(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+			struct hist_entry *he)
+{
+	return percent_color(fmt, hpp, he, percent_st_na);
+}
+
+static int64_t
+percent_stores_na_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
+		      struct hist_entry *left, struct hist_entry *right)
+{
+	double per_left;
+	double per_right;
+
+	per_left  = PERCENT(left, st_na);
+	per_right = PERCENT(right, st_na);
+
+	return per_left - per_right;
+}
+
 STAT_FN(lcl_dram)
 STAT_FN(rmt_dram)
 
@@ -1080,7 +1115,7 @@ node_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
 		bitmap_zero(set, c2c.cpus_cnt);
 		bitmap_and(set, c2c_he->cpuset, c2c.nodes[node], c2c.cpus_cnt);
 
-		if (!bitmap_weight(set, c2c.cpus_cnt)) {
+		if (bitmap_empty(set, c2c.cpus_cnt)) {
 			if (c2c.node_info == 1) {
 				ret = scnprintf(hpp->buf, hpp->size, "%21s", " ");
 				advance_hpp(hpp, ret);
@@ -1350,7 +1385,7 @@ static struct c2c_dimension dim_tot_stores = {
 };
 
 static struct c2c_dimension dim_stores_l1hit = {
-	.header		= HEADER_SPAN("---- Stores ----", "L1Hit", 1),
+	.header		= HEADER_SPAN("--------- Stores --------", "L1Hit", 2),
 	.name		= "stores_l1hit",
 	.cmp		= st_l1hit_cmp,
 	.entry		= st_l1hit_entry,
@@ -1365,8 +1400,16 @@ static struct c2c_dimension dim_stores_l1miss = {
 	.width		= 7,
 };
 
+static struct c2c_dimension dim_stores_na = {
+	.header		= HEADER_SPAN_LOW("N/A"),
+	.name		= "stores_na",
+	.cmp		= st_na_cmp,
+	.entry		= st_na_entry,
+	.width		= 7,
+};
+
 static struct c2c_dimension dim_cl_stores_l1hit = {
-	.header		= HEADER_SPAN("-- Store Refs --", "L1 Hit", 1),
+	.header		= HEADER_SPAN("------- Store Refs ------", "L1 Hit", 2),
 	.name		= "cl_stores_l1hit",
 	.cmp		= st_l1hit_cmp,
 	.entry		= st_l1hit_entry,
@@ -1378,6 +1421,14 @@ static struct c2c_dimension dim_cl_stores_l1miss = {
 	.name		= "cl_stores_l1miss",
 	.cmp		= st_l1miss_cmp,
 	.entry		= st_l1miss_entry,
+	.width		= 7,
+};
+
+static struct c2c_dimension dim_cl_stores_na = {
+	.header		= HEADER_SPAN_LOW("N/A"),
+	.name		= "cl_stores_na",
+	.cmp		= st_na_cmp,
+	.entry		= st_na_entry,
 	.width		= 7,
 };
 
@@ -1470,7 +1521,7 @@ static struct c2c_dimension dim_percent_lcl_hitm = {
 };
 
 static struct c2c_dimension dim_percent_stores_l1hit = {
-	.header		= HEADER_SPAN("-- Store Refs --", "L1 Hit", 1),
+	.header		= HEADER_SPAN("------- Store Refs ------", "L1 Hit", 2),
 	.name		= "percent_stores_l1hit",
 	.cmp		= percent_stores_l1hit_cmp,
 	.entry		= percent_stores_l1hit_entry,
@@ -1484,6 +1535,15 @@ static struct c2c_dimension dim_percent_stores_l1miss = {
 	.cmp		= percent_stores_l1miss_cmp,
 	.entry		= percent_stores_l1miss_entry,
 	.color		= percent_stores_l1miss_color,
+	.width		= 7,
+};
+
+static struct c2c_dimension dim_percent_stores_na = {
+	.header		= HEADER_SPAN_LOW("N/A"),
+	.name		= "percent_stores_na",
+	.cmp		= percent_stores_na_cmp,
+	.entry		= percent_stores_na_entry,
+	.color		= percent_stores_na_color,
 	.width		= 7,
 };
 
@@ -1617,8 +1677,10 @@ static struct c2c_dimension *dimensions[] = {
 	&dim_tot_stores,
 	&dim_stores_l1hit,
 	&dim_stores_l1miss,
+	&dim_stores_na,
 	&dim_cl_stores_l1hit,
 	&dim_cl_stores_l1miss,
+	&dim_cl_stores_na,
 	&dim_ld_fbhit,
 	&dim_ld_l1hit,
 	&dim_ld_l2hit,
@@ -1631,6 +1693,7 @@ static struct c2c_dimension *dimensions[] = {
 	&dim_percent_lcl_hitm,
 	&dim_percent_stores_l1hit,
 	&dim_percent_stores_l1miss,
+	&dim_percent_stores_na,
 	&dim_dram_lcl,
 	&dim_dram_rmt,
 	&dim_pid,
@@ -1944,7 +2007,7 @@ static int set_nodestr(struct c2c_hist_entry *c2c_he)
 	if (c2c_he->nodestr)
 		return 0;
 
-	if (bitmap_weight(c2c_he->nodeset, c2c.nodes_cnt)) {
+	if (!bitmap_empty(c2c_he->nodeset, c2c.nodes_cnt)) {
 		len = bitmap_scnprintf(c2c_he->nodeset, c2c.nodes_cnt,
 				      buf, sizeof(buf));
 	} else {
@@ -2148,6 +2211,7 @@ static void print_c2c__display_stats(FILE *out)
 	fprintf(out, "  Store - no mapping                : %10d\n", stats->st_noadrs);
 	fprintf(out, "  Store L1D Hit                     : %10d\n", stats->st_l1hit);
 	fprintf(out, "  Store L1D Miss                    : %10d\n", stats->st_l1miss);
+	fprintf(out, "  Store No available memory level   : %10d\n", stats->st_na);
 	fprintf(out, "  No Page Map Rejects               : %10d\n", stats->nomap);
 	fprintf(out, "  Unable to parse data source       : %10d\n", stats->noparse);
 }
@@ -2170,6 +2234,7 @@ static void print_shared_cacheline_info(FILE *out)
 	fprintf(out, "  Blocked Access on shared lines    : %10d\n", stats->blk_data + stats->blk_addr);
 	fprintf(out, "  Store HITs on shared lines        : %10d\n", stats->store);
 	fprintf(out, "  Store L1D hits on shared lines    : %10d\n", stats->st_l1hit);
+	fprintf(out, "  Store No available memory level   : %10d\n", stats->st_na);
 	fprintf(out, "  Total Merged records              : %10d\n", hitm_cnt + stats->store);
 }
 
@@ -2192,10 +2257,10 @@ static void print_cacheline(struct c2c_hists *c2c_hists,
 		fprintf(out, "\n");
 	}
 
-	fprintf(out, "  -------------------------------------------------------------\n");
+	fprintf(out, "  ----------------------------------------------------------------------\n");
 	__hist_entry__snprintf(he_cl, &hpp, hpp_list);
 	fprintf(out, "%s\n", bf);
-	fprintf(out, "  -------------------------------------------------------------\n");
+	fprintf(out, "  ----------------------------------------------------------------------\n");
 
 	hists__fprintf(&c2c_hists->hists, false, 0, 0, 0, out, false);
 }
@@ -2212,6 +2277,7 @@ static void print_pareto(FILE *out)
 		    "cl_lcl_hitm,"
 		    "cl_stores_l1hit,"
 		    "cl_stores_l1miss,"
+		    "cl_stores_na,"
 		    "dcacheline";
 
 	perf_hpp_list__init(&hpp_list);
@@ -2663,6 +2729,7 @@ static int build_cl_output(char *cl_sort, bool no_source)
 		"percent_lcl_hitm,"
 		"percent_stores_l1hit,"
 		"percent_stores_l1miss,"
+		"percent_stores_na,"
 		"offset,offset_node,dcacheline_count,",
 		add_pid   ? "pid," : "",
 		add_tid   ? "tid," : "",
@@ -2734,9 +2801,7 @@ static int perf_c2c__report(int argc, const char **argv)
 		   "the input file to process"),
 	OPT_INCR('N', "node-info", &c2c.node_info,
 		 "show extra node info in report (repeat for more info)"),
-#ifdef HAVE_SLANG_SUPPORT
 	OPT_BOOLEAN(0, "stdio", &c2c.use_stdio, "Use the stdio interface"),
-#endif
 	OPT_BOOLEAN(0, "stats", &c2c.stats_only,
 		    "Display only statistic tables (implies --stdio)"),
 	OPT_BOOLEAN(0, "full-symbols", &c2c.symbol_full,
@@ -2765,6 +2830,10 @@ static int perf_c2c__report(int argc, const char **argv)
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 	if (argc)
 		usage_with_options(report_c2c_usage, options);
+
+#ifndef HAVE_SLANG_SUPPORT
+	c2c.use_stdio = true;
+#endif
 
 	if (c2c.stats_only)
 		c2c.use_stdio = true;
@@ -2849,7 +2918,7 @@ static int perf_c2c__report(int argc, const char **argv)
 		     "tot_recs,"
 		     "tot_loads,"
 		     "tot_stores,"
-		     "stores_l1hit,stores_l1miss,"
+		     "stores_l1hit,stores_l1miss,stores_na,"
 		     "ld_fbhit,ld_l1hit,ld_l2hit,"
 		     "ld_lclhit,lcl_hitm,"
 		     "ld_rmthit,rmt_hitm,"
@@ -3025,9 +3094,9 @@ int cmd_c2c(int argc, const char **argv)
 	if (!argc)
 		usage_with_options(c2c_usage, c2c_options);
 
-	if (!strncmp(argv[0], "rec", 3)) {
+	if (strlen(argv[0]) > 2 && strstarts("record", argv[0])) {
 		return perf_c2c__record(argc, argv);
-	} else if (!strncmp(argv[0], "rep", 3)) {
+	} else if (strlen(argv[0]) > 2 && strstarts("report", argv[0])) {
 		return perf_c2c__report(argc, argv);
 	} else {
 		usage_with_options(c2c_usage, c2c_options);

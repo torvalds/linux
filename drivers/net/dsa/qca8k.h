@@ -11,6 +11,11 @@
 #include <linux/delay.h>
 #include <linux/regmap.h>
 #include <linux/gpio.h>
+#include <linux/dsa/tag_qca.h>
+
+#define QCA8K_ETHERNET_MDIO_PRIORITY			7
+#define QCA8K_ETHERNET_PHY_PRIORITY			6
+#define QCA8K_ETHERNET_TIMEOUT				5
 
 #define QCA8K_NUM_PORTS					7
 #define QCA8K_NUM_CPU_PORTS				2
@@ -63,7 +68,7 @@
 #define QCA8K_REG_MODULE_EN				0x030
 #define   QCA8K_MODULE_EN_MIB				BIT(0)
 #define QCA8K_REG_MIB					0x034
-#define   QCA8K_MIB_FLUSH				BIT(24)
+#define   QCA8K_MIB_FUNC				GENMASK(26, 24)
 #define   QCA8K_MIB_CPU_KEEP				BIT(20)
 #define   QCA8K_MIB_BUSY				BIT(17)
 #define QCA8K_MDIO_MASTER_CTRL				0x3c
@@ -313,8 +318,10 @@ enum qca8k_vlan_cmd {
 	QCA8K_VLAN_READ = 6,
 };
 
-struct ar8xxx_port_status {
-	int enabled;
+enum qca8k_mid_cmd {
+	QCA8K_MIB_FLUSH = 1,
+	QCA8K_MIB_FLUSH_PORT = 2,
+	QCA8K_MIB_CAST = 3,
 };
 
 struct qca8k_match_data {
@@ -328,6 +335,22 @@ enum {
 	QCA8K_CPU_PORT6,
 };
 
+struct qca8k_mgmt_eth_data {
+	struct completion rw_done;
+	struct mutex mutex; /* Enforce one mdio read/write at time */
+	bool ack;
+	u32 seq;
+	u32 data[4];
+};
+
+struct qca8k_mib_eth_data {
+	struct completion rw_done;
+	struct mutex mutex; /* Process one command at time */
+	refcount_t port_parsed; /* Counter to track parsed port */
+	u8 req_port;
+	u64 *data; /* pointer to ethtool data */
+};
+
 struct qca8k_ports_config {
 	bool sgmii_rx_clk_falling_edge;
 	bool sgmii_tx_clk_falling_edge;
@@ -336,23 +359,48 @@ struct qca8k_ports_config {
 	u8 rgmii_tx_delay[QCA8K_NUM_CPU_PORTS]; /* 0: CPU port0, 1: CPU port6 */
 };
 
+struct qca8k_mdio_cache {
+/* The 32bit switch registers are accessed indirectly. To achieve this we need
+ * to set the page of the register. Track the last page that was set to reduce
+ * mdio writes
+ */
+	u16 page;
+/* lo and hi can also be cached and from Documentation we can skip one
+ * extra mdio write if lo or hi is didn't change.
+ */
+	u16 lo;
+	u16 hi;
+};
+
+struct qca8k_pcs {
+	struct phylink_pcs pcs;
+	struct qca8k_priv *priv;
+	int port;
+};
+
 struct qca8k_priv {
 	u8 switch_id;
 	u8 switch_revision;
 	u8 mirror_rx;
 	u8 mirror_tx;
 	u8 lag_hash_mode;
-	bool legacy_phy_port_mapping;
+	/* Each bit correspond to a port. This switch can support a max of 7 port.
+	 * Bit 1: port enabled. Bit 0: port disabled.
+	 */
+	u8 port_enabled_map;
 	struct qca8k_ports_config ports_config;
 	struct regmap *regmap;
 	struct mii_bus *bus;
-	struct ar8xxx_port_status port_sts[QCA8K_NUM_PORTS];
 	struct dsa_switch *ds;
 	struct mutex reg_mutex;
 	struct device *dev;
-	struct dsa_switch_ops ops;
 	struct gpio_desc *reset_gpio;
-	unsigned int port_mtu[QCA8K_NUM_PORTS];
+	struct net_device *mgmt_master; /* Track if mdio/mib Ethernet is available */
+	struct qca8k_mgmt_eth_data mgmt_eth_data;
+	struct qca8k_mib_eth_data mib_eth_data;
+	struct qca8k_mdio_cache mdio_cache;
+	struct qca8k_pcs pcs_port_0;
+	struct qca8k_pcs pcs_port_6;
 };
 
 struct qca8k_mib_desc {

@@ -201,7 +201,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	strscpy(cap->driver, dev->name, sizeof(cap->driver));
 	strscpy(cap->card, saa7164_boards[dev->board].name,
 		sizeof(cap->card));
-	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
 			    V4L2_CAP_TUNER | V4L2_CAP_VBI_CAPTURE |
 			    V4L2_CAP_DEVICE_CAPS;

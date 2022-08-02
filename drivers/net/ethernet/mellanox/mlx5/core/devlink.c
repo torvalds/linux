@@ -100,15 +100,11 @@ static int mlx5_devlink_reload_fw_activate(struct devlink *devlink, struct netli
 	}
 
 	net_port_alive = !!(reset_type & MLX5_MFRL_REG_RESET_TYPE_NET_PORT_ALIVE);
-	err = mlx5_fw_reset_set_reset_sync(dev, net_port_alive);
+	err = mlx5_fw_reset_set_reset_sync(dev, net_port_alive, extack);
 	if (err)
-		goto out;
+		return err;
 
-	err = mlx5_fw_reset_wait_reset_done(dev);
-out:
-	if (err)
-		NL_SET_ERR_MSG_MOD(extack, "FW activate command failed");
-	return err;
+	return mlx5_fw_reset_wait_reset_done(dev);
 }
 
 static int mlx5_devlink_trigger_fw_live_patch(struct devlink *devlink,
@@ -182,13 +178,13 @@ static int mlx5_devlink_reload_up(struct devlink *devlink, enum devlink_reload_a
 	*actions_performed = BIT(action);
 	switch (action) {
 	case DEVLINK_RELOAD_ACTION_DRIVER_REINIT:
-		return mlx5_load_one(dev);
+		return mlx5_load_one(dev, false);
 	case DEVLINK_RELOAD_ACTION_FW_ACTIVATE:
 		if (limit == DEVLINK_RELOAD_LIMIT_NO_RESET)
 			break;
 		/* On fw_activate action, also driver is reloaded and reinit performed */
 		*actions_performed |= BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT);
-		return mlx5_load_one(dev);
+		return mlx5_load_one(dev, false);
 	default:
 		/* Unsupported action should not get to this function */
 		WARN_ON(1);
@@ -588,14 +584,6 @@ static void mlx5_devlink_set_params_init_values(struct devlink *devlink)
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	union devlink_param_value value;
 
-	if (dev->priv.steering->mode == MLX5_FLOW_STEERING_MODE_DMFS)
-		strcpy(value.vstr, "dmfs");
-	else
-		strcpy(value.vstr, "smfs");
-	devlink_param_driverinit_value_set(devlink,
-					   MLX5_DEVLINK_PARAM_ID_FLOW_STEERING_MODE,
-					   value);
-
 	value.vbool = MLX5_CAP_GEN(dev, roce);
 	devlink_param_driverinit_value_set(devlink,
 					   DEVLINK_PARAM_GENERIC_ID_ENABLE_ROCE,
@@ -606,18 +594,6 @@ static void mlx5_devlink_set_params_init_values(struct devlink *devlink)
 	devlink_param_driverinit_value_set(devlink,
 					   MLX5_DEVLINK_PARAM_ID_ESW_LARGE_GROUP_NUM,
 					   value);
-
-	if (MLX5_ESWITCH_MANAGER(dev)) {
-		if (mlx5_esw_vport_match_metadata_supported(dev->priv.eswitch)) {
-			dev->priv.eswitch->flags |= MLX5_ESWITCH_VPORT_MATCH_METADATA;
-			value.vbool = true;
-		} else {
-			value.vbool = false;
-		}
-		devlink_param_driverinit_value_set(devlink,
-						   MLX5_DEVLINK_PARAM_ID_ESW_PORT_METADATA,
-						   value);
-	}
 #endif
 
 	value.vu32 = MLX5_COMP_EQ_SIZE;

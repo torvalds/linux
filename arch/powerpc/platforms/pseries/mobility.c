@@ -26,6 +26,7 @@
 #include <asm/machdep.h>
 #include <asm/rtas.h>
 #include "pseries.h"
+#include "vas.h"	/* vas_migration_handler() */
 #include "../../kernel/cacheinfo.h"
 
 static struct kobject *mobility_kobj;
@@ -265,7 +266,7 @@ static int add_dt_node(struct device_node *parent_dn, __be32 drc_index)
 	return rc;
 }
 
-int pseries_devicetree_update(s32 scope)
+static int pseries_devicetree_update(s32 scope)
 {
 	char *rtas_buf;
 	__be32 *data;
@@ -669,11 +670,15 @@ static int pseries_migrate_partition(u64 handle)
 	if (ret)
 		return ret;
 
+	vas_migration_handler(VAS_SUSPEND);
+
 	ret = pseries_suspend(handle);
 	if (ret == 0)
 		post_mobility_fixup();
 	else
 		pseries_cancel_migration(handle, ret);
+
+	vas_migration_handler(VAS_RESUME);
 
 	return ret;
 }

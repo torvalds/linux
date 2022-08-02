@@ -24,7 +24,6 @@
 #include "netcp.h"
 
 #define NETCP_SOP_OFFSET	(NET_IP_ALIGN + NET_SKB_PAD)
-#define NETCP_NAPI_WEIGHT	64
 #define NETCP_TX_TIMEOUT	(5 * HZ)
 #define NETCP_PACKET_SIZE	(ETH_FRAME_LEN + ETH_FCS_LEN)
 #define NETCP_MIN_PACKET_SIZE	ETH_ZLEN
@@ -2082,7 +2081,7 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 	netcp->tx_pool_region_id = temp[1];
 
 	if (netcp->tx_pool_size < MAX_SKB_FRAGS) {
-		dev_err(dev, "tx-pool size too small, must be atleast(%ld)\n",
+		dev_err(dev, "tx-pool size too small, must be at least %ld\n",
 			MAX_SKB_FRAGS);
 		ret = -ENODEV;
 		goto quit;
@@ -2096,8 +2095,8 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 	}
 
 	/* NAPI register */
-	netif_napi_add(ndev, &netcp->rx_napi, netcp_rx_poll, NETCP_NAPI_WEIGHT);
-	netif_tx_napi_add(ndev, &netcp->tx_napi, netcp_tx_poll, NETCP_NAPI_WEIGHT);
+	netif_napi_add(ndev, &netcp->rx_napi, netcp_rx_poll, NAPI_POLL_WEIGHT);
+	netif_napi_add_tx(ndev, &netcp->tx_napi, netcp_tx_poll);
 
 	/* Register the network device */
 	ndev->dev_id		= 0;

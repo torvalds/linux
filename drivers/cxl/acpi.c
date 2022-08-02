@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/acpi.h>
 #include <linux/pci.h>
+#include "cxlpci.h"
 #include "cxl.h"
 
 /* Encode defined in CXL 2.0 8.2.5.12.7 HDM Decoder Control Register */
@@ -14,7 +15,7 @@
 
 static unsigned long cfmws_to_decoder_flags(int restrictions)
 {
-	unsigned long flags = 0;
+	unsigned long flags = CXL_DECODER_F_ENABLE;
 
 	if (restrictions & ACPI_CEDT_CFMWS_RESTRICT_TYPE2)
 		flags |= CXL_DECODER_F_TYPE2;
@@ -101,16 +102,14 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 	for (i = 0; i < CFMWS_INTERLEAVE_WAYS(cfmws); i++)
 		target_map[i] = cfmws->interleave_targets[i];
 
-	cxld = cxl_decoder_alloc(root_port, CFMWS_INTERLEAVE_WAYS(cfmws));
+	cxld = cxl_root_decoder_alloc(root_port, CFMWS_INTERLEAVE_WAYS(cfmws));
 	if (IS_ERR(cxld))
 		return 0;
 
 	cxld->flags = cfmws_to_decoder_flags(cfmws->restrictions);
 	cxld->target_type = CXL_DECODER_EXPANDER;
-	cxld->range = (struct range){
-		.start = cfmws->base_hpa,
-		.end = cfmws->base_hpa + cfmws->window_size - 1,
-	};
+	cxld->platform_res = (struct resource)DEFINE_RES_MEM(cfmws->base_hpa,
+							     cfmws->window_size);
 	cxld->interleave_ways = CFMWS_INTERLEAVE_WAYS(cfmws);
 	cxld->interleave_granularity = CFMWS_INTERLEAVE_GRANULARITY(cfmws);
 
@@ -120,65 +119,15 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 	else
 		rc = cxl_decoder_autoremove(dev, cxld);
 	if (rc) {
-		dev_err(dev, "Failed to add decoder for %#llx-%#llx\n",
-			cfmws->base_hpa,
-			cfmws->base_hpa + cfmws->window_size - 1);
+		dev_err(dev, "Failed to add decoder for %pr\n",
+			&cxld->platform_res);
 		return 0;
 	}
-	dev_dbg(dev, "add: %s node: %d range %#llx-%#llx\n",
-		dev_name(&cxld->dev), phys_to_target_node(cxld->range.start),
-		cfmws->base_hpa, cfmws->base_hpa + cfmws->window_size - 1);
+	dev_dbg(dev, "add: %s node: %d range %pr\n", dev_name(&cxld->dev),
+		phys_to_target_node(cxld->platform_res.start),
+		&cxld->platform_res);
 
 	return 0;
-}
-
-__mock int match_add_root_ports(struct pci_dev *pdev, void *data)
-{
-	struct cxl_walk_context *ctx = data;
-	struct pci_bus *root_bus = ctx->root;
-	struct cxl_port *port = ctx->port;
-	int type = pci_pcie_type(pdev);
-	struct device *dev = ctx->dev;
-	u32 lnkcap, port_num;
-	int rc;
-
-	if (pdev->bus != root_bus)
-		return 0;
-	if (!pci_is_pcie(pdev))
-		return 0;
-	if (type != PCI_EXP_TYPE_ROOT_PORT)
-		return 0;
-	if (pci_read_config_dword(pdev, pci_pcie_cap(pdev) + PCI_EXP_LNKCAP,
-				  &lnkcap) != PCIBIOS_SUCCESSFUL)
-		return 0;
-
-	/* TODO walk DVSEC to find component register base */
-	port_num = FIELD_GET(PCI_EXP_LNKCAP_PN, lnkcap);
-	rc = cxl_add_dport(port, &pdev->dev, port_num, CXL_RESOURCE_NONE);
-	if (rc) {
-		ctx->error = rc;
-		return rc;
-	}
-	ctx->count++;
-
-	dev_dbg(dev, "add dport%d: %s\n", port_num, dev_name(&pdev->dev));
-
-	return 0;
-}
-
-static struct cxl_dport *find_dport_by_dev(struct cxl_port *port, struct device *dev)
-{
-	struct cxl_dport *dport;
-
-	device_lock(&port->dev);
-	list_for_each_entry(dport, &port->dports, list)
-		if (dport->dport == dev) {
-			device_unlock(&port->dev);
-			return dport;
-		}
-
-	device_unlock(&port->dev);
-	return NULL;
 }
 
 __mock struct acpi_device *to_cxl_host_bridge(struct device *host,
@@ -204,20 +153,27 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 	struct device *host = root_port->dev.parent;
 	struct acpi_device *bridge = to_cxl_host_bridge(host, match);
 	struct acpi_pci_root *pci_root;
-	struct cxl_walk_context ctx;
-	int single_port_map[1], rc;
-	struct cxl_decoder *cxld;
 	struct cxl_dport *dport;
 	struct cxl_port *port;
+	int rc;
 
 	if (!bridge)
 		return 0;
 
-	dport = find_dport_by_dev(root_port, match);
+	dport = cxl_find_dport_by_dev(root_port, match);
 	if (!dport) {
 		dev_dbg(host, "host bridge expected and not found\n");
 		return 0;
 	}
+
+	/*
+	 * Note that this lookup already succeeded in
+	 * to_cxl_host_bridge(), so no need to check for failure here
+	 */
+	pci_root = acpi_pci_find_root(bridge->handle);
+	rc = devm_cxl_register_pci_bus(host, match, pci_root->bus);
+	if (rc)
+		return rc;
 
 	port = devm_cxl_add_port(host, match, dport->component_reg_phys,
 				 root_port);
@@ -225,62 +181,7 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 		return PTR_ERR(port);
 	dev_dbg(host, "%s: add: %s\n", dev_name(match), dev_name(&port->dev));
 
-	/*
-	 * Note that this lookup already succeeded in
-	 * to_cxl_host_bridge(), so no need to check for failure here
-	 */
-	pci_root = acpi_pci_find_root(bridge->handle);
-	ctx = (struct cxl_walk_context){
-		.dev = host,
-		.root = pci_root->bus,
-		.port = port,
-	};
-	pci_walk_bus(pci_root->bus, match_add_root_ports, &ctx);
-
-	if (ctx.count == 0)
-		return -ENODEV;
-	if (ctx.error)
-		return ctx.error;
-	if (ctx.count > 1)
-		return 0;
-
-	/* TODO: Scan CHBCR for HDM Decoder resources */
-
-	/*
-	 * Per the CXL specification (8.2.5.12 CXL HDM Decoder Capability
-	 * Structure) single ported host-bridges need not publish a decoder
-	 * capability when a passthrough decode can be assumed, i.e. all
-	 * transactions that the uport sees are claimed and passed to the single
-	 * dport. Disable the range until the first CXL region is enumerated /
-	 * activated.
-	 */
-	cxld = cxl_decoder_alloc(port, 1);
-	if (IS_ERR(cxld))
-		return PTR_ERR(cxld);
-
-	cxld->interleave_ways = 1;
-	cxld->interleave_granularity = PAGE_SIZE;
-	cxld->target_type = CXL_DECODER_EXPANDER;
-	cxld->range = (struct range) {
-		.start = 0,
-		.end = -1,
-	};
-
-	device_lock(&port->dev);
-	dport = list_first_entry(&port->dports, typeof(*dport), list);
-	device_unlock(&port->dev);
-
-	single_port_map[0] = dport->port_id;
-
-	rc = cxl_decoder_add(cxld, single_port_map);
-	if (rc)
-		put_device(&cxld->dev);
-	else
-		rc = cxl_decoder_autoremove(host, cxld);
-
-	if (rc == 0)
-		dev_dbg(host, "add: %s\n", dev_name(&cxld->dev));
-	return rc;
+	return 0;
 }
 
 struct cxl_chbs_context {
@@ -309,9 +210,9 @@ static int cxl_get_chbcr(union acpi_subtable_headers *header, void *arg,
 
 static int add_host_bridge_dport(struct device *match, void *arg)
 {
-	int rc;
 	acpi_status status;
 	unsigned long long uid;
+	struct cxl_dport *dport;
 	struct cxl_chbs_context ctx;
 	struct cxl_port *root_port = arg;
 	struct device *host = root_port->dev.parent;
@@ -340,11 +241,11 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 		return 0;
 	}
 
-	rc = cxl_add_dport(root_port, match, uid, ctx.chbcr);
-	if (rc) {
+	dport = devm_cxl_add_dport(root_port, match, uid, ctx.chbcr);
+	if (IS_ERR(dport)) {
 		dev_err(host, "failed to add downstream port: %s\n",
 			dev_name(match));
-		return rc;
+		return PTR_ERR(dport);
 	}
 	dev_dbg(host, "add dport%llu: %s\n", uid, dev_name(match));
 	return 0;
@@ -374,6 +275,13 @@ static int add_root_nvdimm_bridge(struct device *match, void *data)
 	return 1;
 }
 
+static struct lock_class_key cxl_root_key;
+
+static void cxl_acpi_lock_reset_class(void *dev)
+{
+	device_lock_reset_class(dev);
+}
+
 static int cxl_acpi_probe(struct platform_device *pdev)
 {
 	int rc;
@@ -381,6 +289,12 @@ static int cxl_acpi_probe(struct platform_device *pdev)
 	struct device *host = &pdev->dev;
 	struct acpi_device *adev = ACPI_COMPANION(host);
 	struct cxl_cfmws_context ctx;
+
+	device_lock_set_class(&pdev->dev, &cxl_root_key);
+	rc = devm_add_action_or_reset(&pdev->dev, cxl_acpi_lock_reset_class,
+				      &pdev->dev);
+	if (rc)
+		return rc;
 
 	root_port = devm_cxl_add_port(host, host, CXL_RESOURCE_NONE, NULL);
 	if (IS_ERR(root_port))
@@ -413,7 +327,8 @@ static int cxl_acpi_probe(struct platform_device *pdev)
 	if (rc < 0)
 		return rc;
 
-	return 0;
+	/* In case PCI is scanned before ACPI re-trigger memdev attach */
+	return cxl_bus_rescan();
 }
 
 static const struct acpi_device_id cxl_acpi_ids[] = {

@@ -72,7 +72,7 @@ MODULE_PARM_DESC(dma_tx_num, "Number of descriptors in the TX list");
  */
 #define ALTERA_RXDMABUFFER_SIZE	2048
 
-/* Allow network stack to resume queueing packets after we've
+/* Allow network stack to resume queuing packets after we've
  * finished transmitting at least 1/4 of the packets in the queue.
  */
 #define TSE_TX_THRESH(x)	(x->tx_ring_size / 4)
@@ -163,7 +163,8 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 	mdio = mdiobus_alloc();
 	if (mdio == NULL) {
 		netdev_err(dev, "Error allocating MDIO bus\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto put_node;
 	}
 
 	mdio->name = ALTERA_TSE_RESOURCE_NAME;
@@ -180,6 +181,7 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 			   mdio->id);
 		goto out_free_mdio;
 	}
+	of_node_put(mdio_node);
 
 	if (netif_msg_drv(priv))
 		netdev_info(dev, "MDIO bus %s: created\n", mdio->id);
@@ -189,6 +191,8 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 out_free_mdio:
 	mdiobus_free(mdio);
 	mdio = NULL;
+put_node:
+	of_node_put(mdio_node);
 	return ret;
 }
 
@@ -390,7 +394,7 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 				   "RCV pktstatus %08X pktlength %08X\n",
 				   pktstatus, pktlength);
 
-		/* DMA trasfer from TSE starts with 2 aditional bytes for
+		/* DMA transfer from TSE starts with 2 additional bytes for
 		 * IP payload alignment. Status returned by get_rx_status()
 		 * contains DMA transfer length. Packet is 2 bytes shorter.
 		 */
@@ -1044,7 +1048,7 @@ static void altera_tse_set_mcfilterall(struct net_device *dev)
 		csrwr32(1, priv->mac_dev, tse_csroffs(hash_table) + i * 4);
 }
 
-/* Set or clear the multicast filter for this adaptor
+/* Set or clear the multicast filter for this adapter
  */
 static void tse_set_rx_mode_hashfilter(struct net_device *dev)
 {
@@ -1064,7 +1068,7 @@ static void tse_set_rx_mode_hashfilter(struct net_device *dev)
 	spin_unlock(&priv->mac_cfg_lock);
 }
 
-/* Set or clear the multicast filter for this adaptor
+/* Set or clear the multicast filter for this adapter
  */
 static void tse_set_rx_mode(struct net_device *dev)
 {

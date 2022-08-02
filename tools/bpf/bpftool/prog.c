@@ -26,6 +26,7 @@
 #include <bpf/btf.h>
 #include <bpf/hashmap.h>
 #include <bpf/libbpf.h>
+#include <bpf/libbpf_internal.h>
 #include <bpf/skel_internal.h>
 
 #include "cfg.h"
@@ -67,6 +68,7 @@ const char * const prog_type_name[] = {
 	[BPF_PROG_TYPE_EXT]			= "ext",
 	[BPF_PROG_TYPE_LSM]			= "lsm",
 	[BPF_PROG_TYPE_SK_LOOKUP]		= "sk_lookup",
+	[BPF_PROG_TYPE_SYSCALL]			= "syscall",
 };
 
 const size_t prog_type_name_size = ARRAY_SIZE(prog_type_name);
@@ -424,8 +426,10 @@ out_free:
 	free(value);
 }
 
-static void print_prog_header_json(struct bpf_prog_info *info)
+static void print_prog_header_json(struct bpf_prog_info *info, int fd)
 {
+	char prog_name[MAX_PROG_FULL_NAME];
+
 	jsonw_uint_field(json_wtr, "id", info->id);
 	if (info->type < ARRAY_SIZE(prog_type_name))
 		jsonw_string_field(json_wtr, "type",
@@ -433,8 +437,10 @@ static void print_prog_header_json(struct bpf_prog_info *info)
 	else
 		jsonw_uint_field(json_wtr, "type", info->type);
 
-	if (*info->name)
-		jsonw_string_field(json_wtr, "name", info->name);
+	if (*info->name) {
+		get_prog_full_name(info, fd, prog_name, sizeof(prog_name));
+		jsonw_string_field(json_wtr, "name", prog_name);
+	}
 
 	jsonw_name(json_wtr, "tag");
 	jsonw_printf(json_wtr, "\"" BPF_TAG_FMT "\"",
@@ -455,7 +461,7 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 	char *memlock;
 
 	jsonw_start_object(json_wtr);
-	print_prog_header_json(info);
+	print_prog_header_json(info, fd);
 	print_dev_json(info->ifindex, info->netns_dev, info->netns_ino);
 
 	if (info->load_time) {
@@ -480,7 +486,7 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 
 	memlock = get_fdinfo(fd, "memlock");
 	if (memlock)
-		jsonw_int_field(json_wtr, "bytes_memlock", atoi(memlock));
+		jsonw_int_field(json_wtr, "bytes_memlock", atoll(memlock));
 	free(memlock);
 
 	if (info->nr_map_ids)
@@ -507,16 +513,20 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 	jsonw_end_object(json_wtr);
 }
 
-static void print_prog_header_plain(struct bpf_prog_info *info)
+static void print_prog_header_plain(struct bpf_prog_info *info, int fd)
 {
+	char prog_name[MAX_PROG_FULL_NAME];
+
 	printf("%u: ", info->id);
 	if (info->type < ARRAY_SIZE(prog_type_name))
 		printf("%s  ", prog_type_name[info->type]);
 	else
 		printf("type %u  ", info->type);
 
-	if (*info->name)
-		printf("name %s  ", info->name);
+	if (*info->name) {
+		get_prog_full_name(info, fd, prog_name, sizeof(prog_name));
+		printf("name %s  ", prog_name);
+	}
 
 	printf("tag ");
 	fprint_hex(stdout, info->tag, BPF_TAG_SIZE, "");
@@ -534,7 +544,7 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 {
 	char *memlock;
 
-	print_prog_header_plain(info);
+	print_prog_header_plain(info, fd);
 
 	if (info->load_time) {
 		char buf[32];
@@ -641,7 +651,7 @@ static int do_show(int argc, char **argv)
 	if (show_pinned) {
 		prog_table = hashmap__new(hash_fn_for_key_as_id,
 					  equal_fn_for_key_as_id, NULL);
-		if (!prog_table) {
+		if (IS_ERR(prog_table)) {
 			p_err("failed to create hashmap for pinned paths");
 			return -1;
 		}
@@ -972,10 +982,10 @@ static int do_dump(int argc, char **argv)
 
 		if (json_output && nb_fds > 1) {
 			jsonw_start_object(json_wtr);	/* prog object */
-			print_prog_header_json(&info);
+			print_prog_header_json(&info, fds[i]);
 			jsonw_name(json_wtr, "insns");
 		} else if (nb_fds > 1) {
-			print_prog_header_plain(&info);
+			print_prog_header_plain(&info, fds[i]);
 		}
 
 		err = prog_dump(&info, mode, filepath, opcodes, visual, linum);
@@ -1264,12 +1274,12 @@ static int do_run(int argc, char **argv)
 {
 	char *data_fname_in = NULL, *data_fname_out = NULL;
 	char *ctx_fname_in = NULL, *ctx_fname_out = NULL;
-	struct bpf_prog_test_run_attr test_attr = {0};
 	const unsigned int default_size = SZ_32K;
 	void *data_in = NULL, *data_out = NULL;
 	void *ctx_in = NULL, *ctx_out = NULL;
 	unsigned int repeat = 1;
 	int fd, err;
+	LIBBPF_OPTS(bpf_test_run_opts, test_attr);
 
 	if (!REQ_ARGS(4))
 		return -1;
@@ -1387,14 +1397,13 @@ static int do_run(int argc, char **argv)
 			goto free_ctx_in;
 	}
 
-	test_attr.prog_fd	= fd;
 	test_attr.repeat	= repeat;
 	test_attr.data_in	= data_in;
 	test_attr.data_out	= data_out;
 	test_attr.ctx_in	= ctx_in;
 	test_attr.ctx_out	= ctx_out;
 
-	err = bpf_prog_test_run_xattr(&test_attr);
+	err = bpf_prog_test_run_opts(fd, &test_attr);
 	if (err) {
 		p_err("failed to run program: %s", strerror(errno));
 		goto free_ctx_out;
@@ -1551,9 +1560,9 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 			if (fd < 0)
 				goto err_free_reuse_maps;
 
-			new_map_replace = reallocarray(map_replace,
-						       old_map_fds + 1,
-						       sizeof(*map_replace));
+			new_map_replace = libbpf_reallocarray(map_replace,
+							      old_map_fds + 1,
+							      sizeof(*map_replace));
 			if (!new_map_replace) {
 				p_err("mem alloc failed");
 				goto err_free_reuse_maps;
@@ -1594,8 +1603,6 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 			goto err_free_reuse_maps;
 		}
 	}
-
-	set_max_rlimit();
 
 	if (verifier_logs)
 		/* log_level1 + log_level2 + stats, but not stable UAPI */
@@ -2275,10 +2282,10 @@ static int do_profile(int argc, char **argv)
 	profile_obj->rodata->num_metric = num_metric;
 
 	/* adjust map sizes */
-	bpf_map__resize(profile_obj->maps.events, num_metric * num_cpu);
-	bpf_map__resize(profile_obj->maps.fentry_readings, num_metric);
-	bpf_map__resize(profile_obj->maps.accum_readings, num_metric);
-	bpf_map__resize(profile_obj->maps.counts, 1);
+	bpf_map__set_max_entries(profile_obj->maps.events, num_metric * num_cpu);
+	bpf_map__set_max_entries(profile_obj->maps.fentry_readings, num_metric);
+	bpf_map__set_max_entries(profile_obj->maps.accum_readings, num_metric);
+	bpf_map__set_max_entries(profile_obj->maps.counts, 1);
 
 	/* change target name */
 	profile_tgt_name = profile_target_name(profile_tgt_fd);
@@ -2294,7 +2301,6 @@ static int do_profile(int argc, char **argv)
 		}
 	}
 
-	set_max_rlimit();
 	err = profiler_bpf__load(profile_obj);
 	if (err) {
 		p_err("failed to load profile_obj");

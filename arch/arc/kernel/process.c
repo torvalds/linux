@@ -43,7 +43,7 @@ SYSCALL_DEFINE0(arc_gettls)
 	return task_thread_info(current)->thr_ptr;
 }
 
-SYSCALL_DEFINE3(arc_usr_cmpxchg, int *, uaddr, int, expected, int, new)
+SYSCALL_DEFINE3(arc_usr_cmpxchg, int __user *, uaddr, int, expected, int, new)
 {
 	struct pt_regs *regs = current_pt_regs();
 	u32 uval;
@@ -162,10 +162,11 @@ asmlinkage void ret_from_fork(void);
  * |    user_r25    |
  * ------------------  <===== END of PAGE
  */
-int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long kthread_arg, struct task_struct *p,
-		unsigned long tls)
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
+	unsigned long clone_flags = args->flags;
+	unsigned long usp = args->stack;
+	unsigned long tls = args->tls;
 	struct pt_regs *c_regs;        /* child's pt_regs */
 	unsigned long *childksp;       /* to unwind out of __switch_to() */
 	struct callee_regs *c_callee;  /* child's callee regs */
@@ -191,11 +192,11 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	childksp[0] = 0;			/* fp */
 	childksp[1] = (unsigned long)ret_from_fork; /* blink */
 
-	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
+	if (unlikely(args->fn)) {
 		memset(c_regs, 0, sizeof(struct pt_regs));
 
-		c_callee->r13 = kthread_arg;
-		c_callee->r14 = usp;  /* function */
+		c_callee->r13 = (unsigned long)args->fn_arg;
+		c_callee->r14 = (unsigned long)args->fn;
 
 		return 0;
 	}

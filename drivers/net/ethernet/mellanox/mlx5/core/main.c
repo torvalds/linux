@@ -62,9 +62,7 @@
 #include "lib/mlx5.h"
 #include "lib/tout.h"
 #include "fpga/core.h"
-#include "fpga/ipsec.h"
-#include "accel/ipsec.h"
-#include "accel/tls.h"
+#include "en_accel/ipsec.h"
 #include "lib/clock.h"
 #include "lib/vxlan.h"
 #include "lib/geneve.h"
@@ -179,30 +177,30 @@ static struct mlx5_profile profile[] = {
 	},
 };
 
-static int fw_initializing(struct mlx5_core_dev *dev)
-{
-	return ioread32be(&dev->iseg->initializing) >> 31;
-}
-
 static int wait_fw_init(struct mlx5_core_dev *dev, u32 max_wait_mili,
 			u32 warn_time_mili)
 {
 	unsigned long warn = jiffies + msecs_to_jiffies(warn_time_mili);
 	unsigned long end = jiffies + msecs_to_jiffies(max_wait_mili);
+	u32 fw_initializing;
 	int err = 0;
 
-	while (fw_initializing(dev)) {
-		if (time_after(jiffies, end)) {
+	do {
+		fw_initializing = ioread32be(&dev->iseg->initializing);
+		if (!(fw_initializing >> 31))
+			break;
+		if (time_after(jiffies, end) ||
+		    test_and_clear_bit(MLX5_BREAK_FW_WAIT, &dev->intf_state)) {
 			err = -EBUSY;
 			break;
 		}
 		if (warn_time_mili && time_after(jiffies, warn)) {
-			mlx5_core_warn(dev, "Waiting for FW initialization, timeout abort in %ds\n",
-				       jiffies_to_msecs(end - warn) / 1000);
+			mlx5_core_warn(dev, "Waiting for FW initialization, timeout abort in %ds (0x%x)\n",
+				       jiffies_to_msecs(end - warn) / 1000, fw_initializing);
 			warn = jiffies + msecs_to_jiffies(warn_time_mili);
 		}
 		msleep(mlx5_tout_ms(dev, FW_PRE_INIT_WAIT));
-	}
+	} while (true);
 
 	return err;
 }
@@ -736,10 +734,9 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 	MLX5_SET(query_issi_in, query_in, opcode, MLX5_CMD_OP_QUERY_ISSI);
 	err = mlx5_cmd_exec_inout(dev, query_issi, query_in, query_out);
 	if (err) {
-		u32 syndrome;
-		u8 status;
+		u32 syndrome = MLX5_GET(query_issi_out, query_out, syndrome);
+		u8 status = MLX5_GET(query_issi_out, query_out, status);
 
-		mlx5_cmd_mbox_status(query_out, &status, &syndrome);
 		if (!status || syndrome == MLX5_DRIVER_SYND) {
 			mlx5_core_err(dev, "Failed to query ISSI err(%d) status(%d) synd(%d)\n",
 				      err, status, syndrome);
@@ -939,6 +936,12 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 		goto err_sf_table_cleanup;
 	}
 
+	err = mlx5_fs_core_alloc(dev);
+	if (err) {
+		mlx5_core_err(dev, "Failed to alloc flow steering\n");
+		goto err_fs;
+	}
+
 	dev->dm = mlx5_dm_create(dev);
 	if (IS_ERR(dev->dm))
 		mlx5_core_warn(dev, "Failed to init device memory%d\n", err);
@@ -949,6 +952,8 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 
 	return 0;
 
+err_fs:
+	mlx5_sf_table_cleanup(dev);
 err_sf_table_cleanup:
 	mlx5_sf_hw_table_cleanup(dev);
 err_sf_hw_table_cleanup:
@@ -986,6 +991,7 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 	mlx5_hv_vhca_destroy(dev->hv_vhca);
 	mlx5_fw_tracer_destroy(dev->tracer);
 	mlx5_dm_cleanup(dev);
+	mlx5_fs_core_free(dev);
 	mlx5_sf_table_cleanup(dev);
 	mlx5_sf_hw_table_cleanup(dev);
 	mlx5_vhca_event_cleanup(dev);
@@ -1006,7 +1012,7 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 	mlx5_devcom_unregister_device(dev->priv.devcom);
 }
 
-static int mlx5_function_setup(struct mlx5_core_dev *dev, bool boot)
+static int mlx5_function_setup(struct mlx5_core_dev *dev, u64 timeout)
 {
 	int err;
 
@@ -1021,11 +1027,11 @@ static int mlx5_function_setup(struct mlx5_core_dev *dev, bool boot)
 
 	/* wait for firmware to accept initialization segments configurations
 	 */
-	err = wait_fw_init(dev, mlx5_tout_ms(dev, FW_PRE_INIT_TIMEOUT),
+	err = wait_fw_init(dev, timeout,
 			   mlx5_tout_ms(dev, FW_PRE_INIT_WARN_MESSAGE_INTERVAL));
 	if (err) {
 		mlx5_core_err(dev, "Firmware over %llu MS in pre-initializing state, aborting\n",
-			      mlx5_tout_ms(dev, FW_PRE_INIT_TIMEOUT));
+			      timeout);
 		return err;
 	}
 
@@ -1184,15 +1190,7 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 		goto err_fpga_start;
 	}
 
-	mlx5_accel_ipsec_init(dev);
-
-	err = mlx5_accel_tls_init(dev);
-	if (err) {
-		mlx5_core_err(dev, "TLS device start failed %d\n", err);
-		goto err_tls_start;
-	}
-
-	err = mlx5_init_fs(dev);
+	err = mlx5_fs_core_init(dev);
 	if (err) {
 		mlx5_core_err(dev, "Failed to init flow steering\n");
 		goto err_fs;
@@ -1237,11 +1235,8 @@ err_ec:
 err_vhca:
 	mlx5_vhca_event_stop(dev);
 err_set_hca:
-	mlx5_cleanup_fs(dev);
+	mlx5_fs_core_cleanup(dev);
 err_fs:
-	mlx5_accel_tls_cleanup(dev);
-err_tls_start:
-	mlx5_accel_ipsec_cleanup(dev);
 	mlx5_fpga_device_stop(dev);
 err_fpga_start:
 	mlx5_rsc_dump_cleanup(dev);
@@ -1266,9 +1261,7 @@ static void mlx5_unload(struct mlx5_core_dev *dev)
 	mlx5_ec_cleanup(dev);
 	mlx5_sf_hw_table_destroy(dev);
 	mlx5_vhca_event_stop(dev);
-	mlx5_cleanup_fs(dev);
-	mlx5_accel_ipsec_cleanup(dev);
-	mlx5_accel_tls_cleanup(dev);
+	mlx5_fs_core_cleanup(dev);
 	mlx5_fpga_device_stop(dev);
 	mlx5_rsc_dump_cleanup(dev);
 	mlx5_hv_vhca_cleanup(dev->hv_vhca);
@@ -1288,7 +1281,7 @@ int mlx5_init_one(struct mlx5_core_dev *dev)
 	mutex_lock(&dev->intf_state_mutex);
 	dev->state = MLX5_DEVICE_STATE_UP;
 
-	err = mlx5_function_setup(dev, true);
+	err = mlx5_function_setup(dev, mlx5_tout_ms(dev, FW_PRE_INIT_TIMEOUT));
 	if (err)
 		goto err_function;
 
@@ -1352,9 +1345,10 @@ out:
 	mutex_unlock(&dev->intf_state_mutex);
 }
 
-int mlx5_load_one(struct mlx5_core_dev *dev)
+int mlx5_load_one(struct mlx5_core_dev *dev, bool recovery)
 {
 	int err = 0;
+	u64 timeout;
 
 	mutex_lock(&dev->intf_state_mutex);
 	if (test_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state)) {
@@ -1364,7 +1358,11 @@ int mlx5_load_one(struct mlx5_core_dev *dev)
 	/* remove any previous indication of internal error */
 	dev->state = MLX5_DEVICE_STATE_UP;
 
-	err = mlx5_function_setup(dev, false);
+	if (recovery)
+		timeout = mlx5_tout_ms(dev, FW_PRE_INIT_ON_RECOVERY_TIMEOUT);
+	else
+		timeout = mlx5_tout_ms(dev, FW_PRE_INIT_TIMEOUT);
+	err = mlx5_function_setup(dev, timeout);
 	if (err)
 		goto err_function;
 
@@ -1488,8 +1486,8 @@ int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx)
 	INIT_LIST_HEAD(&priv->pgdir_list);
 
 	priv->numa_node = dev_to_node(mlx5_core_dma_dev(dev));
-	priv->dbg_root = debugfs_create_dir(dev_name(dev->device),
-					    mlx5_debugfs_root);
+	priv->dbg.dbg_root = debugfs_create_dir(dev_name(dev->device),
+						mlx5_debugfs_root);
 	INIT_LIST_HEAD(&priv->traps);
 
 	err = mlx5_tout_init(dev);
@@ -1525,7 +1523,7 @@ err_pagealloc_init:
 err_health_init:
 	mlx5_tout_cleanup(dev);
 err_timeout_init:
-	debugfs_remove(dev->priv.dbg_root);
+	debugfs_remove(dev->priv.dbg.dbg_root);
 	mutex_destroy(&priv->pgdir_mutex);
 	mutex_destroy(&priv->alloc_mutex);
 	mutex_destroy(&priv->bfregs.wc_head.lock);
@@ -1543,7 +1541,7 @@ void mlx5_mdev_uninit(struct mlx5_core_dev *dev)
 	mlx5_pagealloc_cleanup(dev);
 	mlx5_health_cleanup(dev);
 	mlx5_tout_cleanup(dev);
-	debugfs_remove_recursive(dev->priv.dbg_root);
+	debugfs_remove_recursive(dev->priv.dbg.dbg_root);
 	mutex_destroy(&priv->pgdir_mutex);
 	mutex_destroy(&priv->alloc_mutex);
 	mutex_destroy(&priv->bfregs.wc_head.lock);
@@ -1619,7 +1617,13 @@ static void remove_one(struct pci_dev *pdev)
 	struct mlx5_core_dev *dev  = pci_get_drvdata(pdev);
 	struct devlink *devlink = priv_to_devlink(dev);
 
+	/* mlx5_drain_fw_reset() is using devlink APIs. Hence, we must drain
+	 * fw_reset before unregistering the devlink.
+	 */
+	mlx5_drain_fw_reset(dev);
+	set_bit(MLX5_BREAK_FW_WAIT, &dev->intf_state);
 	devlink_unregister(devlink);
+	mlx5_sriov_disable(pdev);
 	mlx5_crdump_disable(dev);
 	mlx5_drain_health_wq(dev);
 	mlx5_uninit_one(dev);
@@ -1733,7 +1737,7 @@ static void mlx5_pci_resume(struct pci_dev *pdev)
 
 	mlx5_pci_trace(dev, "Enter, loading driver..\n");
 
-	err = mlx5_load_one(dev);
+	err = mlx5_load_one(dev, false);
 
 	mlx5_pci_trace(dev, "Done, err = %d, device %s\n", err,
 		       !err ? "recovered" : "Failed");
@@ -1765,7 +1769,7 @@ static int mlx5_try_fast_unload(struct mlx5_core_dev *dev)
 	}
 
 	/* Panic tear down fw command will stop the PCI bus communication
-	 * with the HCA, so the health polll is no longer needed.
+	 * with the HCA, so the health poll is no longer needed.
 	 */
 	mlx5_drain_health_wq(dev);
 	mlx5_stop_health_poll(dev, false);
@@ -1801,6 +1805,7 @@ static void shutdown(struct pci_dev *pdev)
 	int err;
 
 	mlx5_core_info(dev, "Shutdown was called\n");
+	set_bit(MLX5_BREAK_FW_WAIT, &dev->intf_state);
 	err = mlx5_try_fast_unload(dev);
 	if (err)
 		mlx5_unload_one(dev);
@@ -1820,7 +1825,7 @@ static int mlx5_resume(struct pci_dev *pdev)
 {
 	struct mlx5_core_dev *dev = pci_get_drvdata(pdev);
 
-	return mlx5_load_one(dev);
+	return mlx5_load_one(dev, false);
 }
 
 static const struct pci_device_id mlx5_core_pci_table[] = {
@@ -1865,7 +1870,7 @@ int mlx5_recover_device(struct mlx5_core_dev *dev)
 			return -EIO;
 	}
 
-	return mlx5_load_one(dev);
+	return mlx5_load_one(dev, true);
 }
 
 static struct pci_driver mlx5_core_driver = {
@@ -1881,6 +1886,48 @@ static struct pci_driver mlx5_core_driver = {
 	.sriov_get_vf_total_msix = mlx5_sriov_get_vf_total_msix,
 	.sriov_set_msix_vec_count = mlx5_core_sriov_set_msix_vec_count,
 };
+
+/**
+ * mlx5_vf_get_core_dev - Get the mlx5 core device from a given VF PCI device if
+ *                     mlx5_core is its driver.
+ * @pdev: The associated PCI device.
+ *
+ * Upon return the interface state lock stay held to let caller uses it safely.
+ * Caller must ensure to use the returned mlx5 device for a narrow window
+ * and put it back with mlx5_vf_put_core_dev() immediately once usage was over.
+ *
+ * Return: Pointer to the associated mlx5_core_dev or NULL.
+ */
+struct mlx5_core_dev *mlx5_vf_get_core_dev(struct pci_dev *pdev)
+{
+	struct mlx5_core_dev *mdev;
+
+	mdev = pci_iov_get_pf_drvdata(pdev, &mlx5_core_driver);
+	if (IS_ERR(mdev))
+		return NULL;
+
+	mutex_lock(&mdev->intf_state_mutex);
+	if (!test_bit(MLX5_INTERFACE_STATE_UP, &mdev->intf_state)) {
+		mutex_unlock(&mdev->intf_state_mutex);
+		return NULL;
+	}
+
+	return mdev;
+}
+EXPORT_SYMBOL(mlx5_vf_get_core_dev);
+
+/**
+ * mlx5_vf_put_core_dev - Put the mlx5 core device back.
+ * @mdev: The mlx5 core device.
+ *
+ * Upon return the interface state lock is unlocked and caller should not
+ * access the mdev any more.
+ */
+void mlx5_vf_put_core_dev(struct mlx5_core_dev *mdev)
+{
+	mutex_unlock(&mdev->intf_state_mutex);
+}
+EXPORT_SYMBOL(mlx5_vf_put_core_dev);
 
 static void mlx5_core_verify_params(void)
 {
@@ -1903,7 +1950,6 @@ static int __init init(void)
 	get_random_bytes(&sw_owner_id, sizeof(sw_owner_id));
 
 	mlx5_core_verify_params();
-	mlx5_fpga_ipsec_build_fs_cmds();
 	mlx5_register_debugfs();
 
 	err = pci_register_driver(&mlx5_core_driver);

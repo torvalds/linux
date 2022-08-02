@@ -174,6 +174,16 @@ static ssize_t config_store(struct device *dev,
 
 static DEVICE_ATTR_RW(config);
 
+static ssize_t chkstop_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct ap_card *ac = to_ap_card(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", ac->chkstop ? 1 : 0);
+}
+
+static DEVICE_ATTR_RO(chkstop);
+
 static ssize_t max_msg_size_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
@@ -194,6 +204,7 @@ static struct attribute *ap_card_dev_attrs[] = {
 	&dev_attr_pendingq_count.attr,
 	&dev_attr_modalias.attr,
 	&dev_attr_config.attr,
+	&dev_attr_chkstop.attr,
 	&dev_attr_max_msg_size.attr,
 	NULL
 };

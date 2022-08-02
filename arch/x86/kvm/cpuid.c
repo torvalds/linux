@@ -19,6 +19,7 @@
 #include <asm/user.h>
 #include <asm/fpu/xstate.h>
 #include <asm/sgx.h>
+#include <asm/cpuid.h>
 #include "cpuid.h"
 #include "lapic.h"
 #include "mmu.h"
@@ -715,31 +716,37 @@ static struct kvm_cpuid_entry2 *do_host_cpuid(struct kvm_cpuid_array *array,
 
 	entry = &array->entries[array->nent++];
 
+	memset(entry, 0, sizeof(*entry));
 	entry->function = function;
 	entry->index = index;
-	entry->flags = 0;
+	switch (function & 0xC0000000) {
+	case 0x40000000:
+		/* Hypervisor leaves are always synthesized by __do_cpuid_func.  */
+		return entry;
+
+	case 0x80000000:
+		/*
+		 * 0x80000021 is sometimes synthesized by __do_cpuid_func, which
+		 * would result in out-of-bounds calls to do_host_cpuid.
+		 */
+		{
+			static int max_cpuid_80000000;
+			if (!READ_ONCE(max_cpuid_80000000))
+				WRITE_ONCE(max_cpuid_80000000, cpuid_eax(0x80000000));
+			if (function > READ_ONCE(max_cpuid_80000000))
+				return entry;
+		}
+		break;
+
+	default:
+		break;
+	}
 
 	cpuid_count(entry->function, entry->index,
 		    &entry->eax, &entry->ebx, &entry->ecx, &entry->edx);
 
-	switch (function) {
-	case 4:
-	case 7:
-	case 0xb:
-	case 0xd:
-	case 0xf:
-	case 0x10:
-	case 0x12:
-	case 0x14:
-	case 0x17:
-	case 0x18:
-	case 0x1d:
-	case 0x1e:
-	case 0x1f:
-	case 0x8000001d:
+	if (cpuid_function_is_indexed(function))
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
-		break;
-	}
 
 	return entry;
 }
@@ -865,6 +872,11 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		union cpuid10_eax eax;
 		union cpuid10_edx edx;
 
+		if (!static_cpu_has(X86_FEATURE_ARCH_PERFMON)) {
+			entry->eax = entry->ebx = entry->ecx = entry->edx = 0;
+			break;
+		}
+
 		perf_get_x86_pmu_capability(&cap);
 
 		/*
@@ -879,7 +891,8 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		eax.split.bit_width = cap.bit_width_gp;
 		eax.split.mask_length = cap.events_mask_len;
 
-		edx.split.num_counters_fixed = min(cap.num_counters_fixed, MAX_FIXED_COUNTERS);
+		edx.split.num_counters_fixed =
+			min(cap.num_counters_fixed, KVM_PMC_MAX_FIXED);
 		edx.split.bit_width_fixed = cap.bit_width_fixed;
 		if (cap.version)
 			edx.split.anythread_deprecated = 1;
@@ -1060,7 +1073,24 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		entry->edx = 0;
 		break;
 	case 0x80000000:
-		entry->eax = min(entry->eax, 0x8000001f);
+		entry->eax = min(entry->eax, 0x80000021);
+		/*
+		 * Serializing LFENCE is reported in a multitude of ways, and
+		 * NullSegClearsBase is not reported in CPUID on Zen2; help
+		 * userspace by providing the CPUID leaf ourselves.
+		 *
+		 * However, only do it if the host has CPUID leaf 0x8000001d.
+		 * QEMU thinks that it can query the host blindly for that
+		 * CPUID leaf if KVM reports that it supports 0x8000001d or
+		 * above.  The processor merrily returns values from the
+		 * highest Intel leaf which QEMU tries to use as the guest's
+		 * 0x8000001d.  Even worse, this can result in an infinite
+		 * loop if said highest leaf has no subleaves indexed by ECX.
+		 */
+		if (entry->eax >= 0x8000001d &&
+		    (static_cpu_has(X86_FEATURE_LFENCE_RDTSC)
+		     || !static_cpu_has_bug(X86_BUG_NULL_SEG)))
+			entry->eax = max(entry->eax, 0x80000021);
 		break;
 	case 0x80000001:
 		cpuid_entry_override(entry, CPUID_8000_0001_EDX);
@@ -1130,6 +1160,27 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 			 */
 			entry->ebx &= ~GENMASK(11, 6);
 		}
+		break;
+	case 0x80000020:
+		entry->eax = entry->ebx = entry->ecx = entry->edx = 0;
+		break;
+	case 0x80000021:
+		entry->ebx = entry->ecx = entry->edx = 0;
+		/*
+		 * Pass down these bits:
+		 *    EAX      0      NNDBP, Processor ignores nested data breakpoints
+		 *    EAX      2      LAS, LFENCE always serializing
+		 *    EAX      6      NSCB, Null selector clear base
+		 *
+		 * Other defined bits are for MSRs that KVM does not expose:
+		 *   EAX      3      SPCL, SMM page configuration lock
+		 *   EAX      13     PCMSR, Prefetch control MSR
+		 */
+		entry->eax &= BIT(0) | BIT(2) | BIT(6);
+		if (static_cpu_has(X86_FEATURE_LFENCE_RDTSC))
+			entry->eax |= BIT(2);
+		if (!static_cpu_has_bug(X86_BUG_NULL_SEG))
+			entry->eax |= BIT(6);
 		break;
 	/*Add support for Centaur's CPUID instruction*/
 	case 0xC0000000:
@@ -1240,8 +1291,7 @@ int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
 	if (sanity_check_entries(entries, cpuid->nent, type))
 		return -EINVAL;
 
-	array.entries = vzalloc(array_size(sizeof(struct kvm_cpuid_entry2),
-					   cpuid->nent));
+	array.entries = kvcalloc(sizeof(struct kvm_cpuid_entry2), cpuid->nent, GFP_KERNEL);
 	if (!array.entries)
 		return -ENOMEM;
 
@@ -1259,7 +1309,7 @@ int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
 		r = -EFAULT;
 
 out_free:
-	vfree(array.entries);
+	kvfree(array.entries);
 	return r;
 }
 

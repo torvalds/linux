@@ -12,6 +12,8 @@
 #include <asm/page.h>
 #include <uapi/linux/serial.h>
 
+/* Helper for dealing with UART_LCR_WLEN* defines */
+#define UART_LCR_WLEN(x)	((x) - 5)
 
 /*
  * Counters of the input lines (CTS, DSR, RI, CD) interrupts

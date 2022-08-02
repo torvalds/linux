@@ -65,6 +65,7 @@
 #define MCR_H2DSM0R			0x0070
 #define H2D_SW_INT_READ			BIT(16)
 #define H2D_SW_INT_WRITE		BIT(17)
+#define H2D_SW_INT_CLEAR_MAILBOX_ACK	BIT(22)
 
 #define MCR_H2DSM1R			0x0074
 #define MCR_D2HRM0R			0x0078
@@ -109,6 +110,7 @@
 #define MCR_H2DSM2R			0x0160 /* supported in CONNAC2 */
 #define MCR_H2DSM3R			0x0164 /* supported in CONNAC2 */
 #define MCR_D2HRM3R			0x0174 /* supported in CONNAC2 */
+#define D2HRM3R_IS_DRIVER_OWN		BIT(0)
 #define MCR_WTQCR8			0x0190 /* supported in CONNAC2 */
 #define MCR_WTQCR9			0x0194 /* supported in CONNAC2 */
 #define MCR_WTQCR10			0x0198 /* supported in CONNAC2 */

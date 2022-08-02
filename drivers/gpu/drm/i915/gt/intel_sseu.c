@@ -3,8 +3,11 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include <linux/string_helpers.h>
+
 #include "i915_drv.h"
-#include "intel_lrc_reg.h"
+#include "intel_engine_regs.h"
+#include "intel_gt_regs.h"
 #include "intel_sseu.h"
 
 void intel_sseu_set_info(struct sseu_dev_info *sseu, u8 max_slices,
@@ -31,7 +34,9 @@ intel_sseu_subslice_total(const struct sseu_dev_info *sseu)
 	return total;
 }
 
-u32 intel_sseu_get_subslices(const struct sseu_dev_info *sseu, u8 slice)
+static u32
+sseu_get_subslices(const struct sseu_dev_info *sseu,
+		   const u8 *subslice_mask, u8 slice)
 {
 	int i, offset = slice * sseu->ss_stride;
 	u32 mask = 0;
@@ -39,10 +44,24 @@ u32 intel_sseu_get_subslices(const struct sseu_dev_info *sseu, u8 slice)
 	GEM_BUG_ON(slice >= sseu->max_slices);
 
 	for (i = 0; i < sseu->ss_stride; i++)
-		mask |= (u32)sseu->subslice_mask[offset + i] <<
-			i * BITS_PER_BYTE;
+		mask |= (u32)subslice_mask[offset + i] << i * BITS_PER_BYTE;
 
 	return mask;
+}
+
+u32 intel_sseu_get_subslices(const struct sseu_dev_info *sseu, u8 slice)
+{
+	return sseu_get_subslices(sseu, sseu->subslice_mask, slice);
+}
+
+static u32 sseu_get_geometry_subslices(const struct sseu_dev_info *sseu)
+{
+	return sseu_get_subslices(sseu, sseu->geometry_subslice_mask, 0);
+}
+
+u32 intel_sseu_get_compute_subslices(const struct sseu_dev_info *sseu)
+{
+	return sseu_get_subslices(sseu, sseu->compute_subslice_mask, 0);
 }
 
 void intel_sseu_set_subslices(struct sseu_dev_info *sseu, int slice,
@@ -699,21 +718,17 @@ void intel_sseu_dump(const struct sseu_dev_info *sseu, struct drm_printer *p)
 	drm_printf(p, "EU total: %u\n", sseu->eu_total);
 	drm_printf(p, "EU per subslice: %u\n", sseu->eu_per_subslice);
 	drm_printf(p, "has slice power gating: %s\n",
-		   yesno(sseu->has_slice_pg));
+		   str_yes_no(sseu->has_slice_pg));
 	drm_printf(p, "has subslice power gating: %s\n",
-		   yesno(sseu->has_subslice_pg));
-	drm_printf(p, "has EU power gating: %s\n", yesno(sseu->has_eu_pg));
+		   str_yes_no(sseu->has_subslice_pg));
+	drm_printf(p, "has EU power gating: %s\n",
+		   str_yes_no(sseu->has_eu_pg));
 }
 
-void intel_sseu_print_topology(const struct sseu_dev_info *sseu,
-			       struct drm_printer *p)
+static void sseu_print_hsw_topology(const struct sseu_dev_info *sseu,
+				    struct drm_printer *p)
 {
 	int s, ss;
-
-	if (sseu->max_slices == 0) {
-		drm_printf(p, "Unavailable\n");
-		return;
-	}
 
 	for (s = 0; s < sseu->max_slices; s++) {
 		drm_printf(p, "slice%d: %u subslice(s) (0x%08x):\n",
@@ -726,6 +741,36 @@ void intel_sseu_print_topology(const struct sseu_dev_info *sseu,
 			drm_printf(p, "\tsubslice%d: %u EUs (0x%hx)\n",
 				   ss, hweight16(enabled_eus), enabled_eus);
 		}
+	}
+}
+
+static void sseu_print_xehp_topology(const struct sseu_dev_info *sseu,
+				     struct drm_printer *p)
+{
+	u32 g_dss_mask = sseu_get_geometry_subslices(sseu);
+	u32 c_dss_mask = intel_sseu_get_compute_subslices(sseu);
+	int dss;
+
+	for (dss = 0; dss < sseu->max_subslices; dss++) {
+		u16 enabled_eus = sseu_get_eus(sseu, 0, dss);
+
+		drm_printf(p, "DSS_%02d: G:%3s C:%3s, %2u EUs (0x%04hx)\n", dss,
+			   str_yes_no(g_dss_mask & BIT(dss)),
+			   str_yes_no(c_dss_mask & BIT(dss)),
+			   hweight16(enabled_eus), enabled_eus);
+	}
+}
+
+void intel_sseu_print_topology(struct drm_i915_private *i915,
+			       const struct sseu_dev_info *sseu,
+			       struct drm_printer *p)
+{
+	if (sseu->max_slices == 0) {
+		drm_printf(p, "Unavailable\n");
+	} else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
+		sseu_print_xehp_topology(sseu, p);
+	} else {
+		sseu_print_hsw_topology(sseu, p);
 	}
 }
 

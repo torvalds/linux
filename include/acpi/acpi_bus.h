@@ -480,6 +480,10 @@ void acpi_initialize_hp_context(struct acpi_device *adev,
 /* acpi_device.dev.bus == &acpi_bus_type */
 extern struct bus_type acpi_bus_type;
 
+int acpi_bus_for_each_dev(int (*fn)(struct device *, void *), void *data);
+int acpi_dev_for_each_child(struct acpi_device *adev,
+			    int (*fn)(struct acpi_device *, void *), void *data);
+
 /*
  * Events
  * ------
@@ -507,7 +511,6 @@ extern int unregister_acpi_notifier(struct notifier_block *);
  * External Functions
  */
 
-int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device);
 struct acpi_device *acpi_fetch_acpi_dev(acpi_handle handle);
 acpi_status acpi_bus_get_status_handle(acpi_handle handle,
 				       unsigned long long *sta);
@@ -521,6 +524,7 @@ int acpi_device_fix_up_power(struct acpi_device *device);
 int acpi_bus_update_power(acpi_handle handle, int *state_p);
 int acpi_device_update_power(struct acpi_device *device, int *state_p);
 bool acpi_bus_power_manageable(acpi_handle handle);
+void acpi_dev_power_up_children_with_adr(struct acpi_device *adev);
 int acpi_device_power_add_dependent(struct acpi_device *adev,
 				    struct device *dev);
 void acpi_device_power_remove_dependent(struct acpi_device *adev,
@@ -581,14 +585,22 @@ int unregister_acpi_bus_type(struct acpi_bus_type *);
 int acpi_bind_one(struct device *dev, struct acpi_device *adev);
 int acpi_unbind_one(struct device *dev);
 
+enum acpi_bridge_type {
+	ACPI_BRIDGE_TYPE_PCIE = 1,
+	ACPI_BRIDGE_TYPE_CXL,
+};
+
 struct acpi_pci_root {
 	struct acpi_device * device;
 	struct pci_bus *bus;
 	u16 segment;
+	int bridge_type;
 	struct resource secondary;	/* downstream bus range */
 
-	u32 osc_support_set;	/* _OSC state of support bits */
-	u32 osc_control_set;	/* _OSC state of control bits */
+	u32 osc_support_set;		/* _OSC state of support bits */
+	u32 osc_control_set;		/* _OSC state of control bits */
+	u32 osc_ext_support_set;	/* _OSC state of extended support bits */
+	u32 osc_ext_control_set;	/* _OSC state of extended control bits */
 	phys_addr_t mcfg_addr;
 };
 

@@ -45,6 +45,12 @@ typically between calling iget_locked() and unlocking the inode.
 
 At some point that will become mandatory.
 
+**mandatory**
+
+The foo_inode_info should always be allocated through alloc_inode_sb() rather
+than kmem_cache_alloc() or kmalloc() related to set up the inode reclaim context
+correctly.
+
 ---
 
 **mandatory**
@@ -618,7 +624,7 @@ any symlink that might use page_follow_link_light/page_put_link() must
 have inode_nohighmem(inode) called before anything might start playing with
 its pagecache.  No highmem pages should end up in the pagecache of such
 symlinks.  That includes any preseeding that might be done during symlink
-creation.  __page_symlink() will honour the mapping gfp flags, so once
+creation.  page_symlink() will honour the mapping gfp flags, so once
 you've done inode_nohighmem() it's safe to use, but if you allocate and
 insert the page manually, make sure to use the right gfp flags.
 

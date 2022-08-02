@@ -17,6 +17,7 @@
 
 #define ACP_DSP_BAR	0
 
+#define ACP_HW_SEM_RETRY_COUNT			10000
 #define ACP_REG_POLL_INTERVAL                   500
 #define ACP_REG_POLL_TIMEOUT_US                 2000
 #define ACP_DMA_COMPLETE_TIMEOUT_US		5000
@@ -56,8 +57,10 @@
 #define ACP_SHA_STAT				0x8000
 #define ACP_PSP_TIMEOUT_COUNTER			5
 #define ACP_EXT_INTR_ERROR_STAT			0x20000000
-#define MP0_C2PMSG_26_REG			0x03810570
-#define MBOX_ACP_SHA_DMA_COMMAND		0x330000
+#define MP0_C2PMSG_114_REG			0x3810AC8
+#define MP0_C2PMSG_73_REG			0x3810A24
+#define MBOX_ACP_SHA_DMA_COMMAND		0x70000
+#define MBOX_DELAY				1000
 #define MBOX_READY_MASK				0x80000000
 #define MBOX_STATUS_MASK			0xFFFF
 
@@ -185,8 +188,6 @@ int acp_sof_ipc_send_msg(struct snd_sof_dev *sdev,
 			 struct snd_sof_ipc_msg *msg);
 int acp_sof_ipc_get_mailbox_offset(struct snd_sof_dev *sdev);
 int acp_sof_ipc_get_window_offset(struct snd_sof_dev *sdev, u32 id);
-int acp_sof_ipc_pcm_params(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream,
-			   const struct sof_ipc_pcm_params_reply *reply);
 void acp_mailbox_write(struct snd_sof_dev *sdev, u32 offset, void *message, size_t bytes);
 void acp_mailbox_read(struct snd_sof_dev *sdev, u32 offset, void *message, size_t bytes);
 
@@ -202,15 +203,17 @@ int acp_dsp_stream_put(struct snd_sof_dev *sdev, struct acp_dsp_stream *acp_stre
 int acp_pcm_open(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream);
 int acp_pcm_close(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream);
 int acp_pcm_hw_params(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream,
-		      struct snd_pcm_hw_params *params, struct sof_ipc_stream_params *ipc_params);
+		      struct snd_pcm_hw_params *params,
+		      struct snd_sof_platform_stream_params *platform_params);
 
-extern const struct snd_sof_dsp_ops sof_renoir_ops;
+extern struct snd_sof_dsp_ops sof_renoir_ops;
 
 /* Machine configuration */
 int snd_amd_acp_find_config(struct pci_dev *pci);
 
 /* Trace */
-int acp_sof_trace_init(struct snd_sof_dev *sdev, u32 *stream_tag);
+int acp_sof_trace_init(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
+		       struct sof_ipc_dma_trace_params_ext *dtrace_params);
 int acp_sof_trace_release(struct snd_sof_dev *sdev);
 
 struct sof_amd_acp_desc {

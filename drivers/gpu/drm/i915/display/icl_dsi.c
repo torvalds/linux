@@ -25,13 +25,16 @@
  *   Jani Nikula <jani.nikula@intel.com>
  */
 
+#include <drm/display/drm_dsc_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_mipi_dsi.h>
 
 #include "icl_dsi.h"
+#include "icl_dsi_regs.h"
 #include "intel_atomic.h"
 #include "intel_backlight.h"
 #include "intel_combo_phy.h"
+#include "intel_combo_phy_regs.h"
 #include "intel_connector.h"
 #include "intel_crtc.h"
 #include "intel_ddi.h"
@@ -397,8 +400,8 @@ static void get_dsi_io_power_domains(struct drm_i915_private *dev_priv,
 		intel_dsi->io_wakeref[port] =
 			intel_display_power_get(dev_priv,
 						port == PORT_A ?
-						POWER_DOMAIN_PORT_DDI_A_IO :
-						POWER_DOMAIN_PORT_DDI_B_IO);
+						POWER_DOMAIN_PORT_DDI_IO_A :
+						POWER_DOMAIN_PORT_DDI_IO_B);
 	}
 }
 
@@ -569,7 +572,7 @@ gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder,
 	/* Program T-INIT master registers */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		tmp = intel_de_read(dev_priv, ICL_DSI_T_INIT_MASTER(port));
-		tmp &= ~MASTER_INIT_TIMER_MASK;
+		tmp &= ~DSI_T_INIT_MASTER_MASK;
 		tmp |= intel_dsi->init_count;
 		intel_de_write(dev_priv, ICL_DSI_T_INIT_MASTER(port), tmp);
 	}
@@ -787,14 +790,14 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 		/* program DSI operation mode */
 		if (is_vid_mode(intel_dsi)) {
 			tmp &= ~OP_MODE_MASK;
-			switch (intel_dsi->video_mode_format) {
+			switch (intel_dsi->video_mode) {
 			default:
-				MISSING_CASE(intel_dsi->video_mode_format);
+				MISSING_CASE(intel_dsi->video_mode);
 				fallthrough;
-			case VIDEO_MODE_NON_BURST_WITH_SYNC_EVENTS:
+			case NON_BURST_SYNC_EVENTS:
 				tmp |= VIDEO_MODE_SYNC_EVENT;
 				break;
-			case VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE:
+			case NON_BURST_SYNC_PULSE:
 				tmp |= VIDEO_MODE_SYNC_PULSE;
 				break;
 			}
@@ -959,8 +962,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 
 	/* TRANS_HSYNC register to be programmed only for video mode */
 	if (is_vid_mode(intel_dsi)) {
-		if (intel_dsi->video_mode_format ==
-		    VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE) {
+		if (intel_dsi->video_mode == NON_BURST_SYNC_PULSE) {
 			/* BSPEC: hsync size should be atleast 16 pixels */
 			if (hsync_size < 16)
 				drm_err(&dev_priv->drm,
@@ -1050,7 +1052,7 @@ static void gen11_dsi_enable_transcoder(struct intel_encoder *encoder)
 
 		/* wait for transcoder to be enabled */
 		if (intel_de_wait_for_set(dev_priv, PIPECONF(dsi_trans),
-					  I965_PIPECONF_ACTIVE, 10))
+					  PIPECONF_STATE_ENABLE, 10))
 			drm_err(&dev_priv->drm,
 				"DSI transcoder not enabled\n");
 	}
@@ -1232,8 +1234,6 @@ static void gen11_dsi_pre_enable(struct intel_atomic_state *state,
 
 	intel_dsc_dsi_pps_write(encoder, pipe_config);
 
-	intel_dsc_enable(pipe_config);
-
 	/* step6c: configure transcoder timings */
 	gen11_dsi_set_transcoder_timings(encoder, pipe_config);
 }
@@ -1320,7 +1320,7 @@ static void gen11_dsi_disable_transcoder(struct intel_encoder *encoder)
 
 		/* wait for transcoder to be disabled */
 		if (intel_de_wait_for_clear(dev_priv, PIPECONF(dsi_trans),
-					    I965_PIPECONF_ACTIVE, 50))
+					    PIPECONF_STATE_ENABLE, 50))
 			drm_err(&dev_priv->drm,
 				"DSI trancoder not disabled\n");
 	}
@@ -1426,8 +1426,8 @@ static void gen11_dsi_disable_io_power(struct intel_encoder *encoder)
 		wakeref = fetch_and_zero(&intel_dsi->io_wakeref[port]);
 		intel_display_power_put(dev_priv,
 					port == PORT_A ?
-					POWER_DOMAIN_PORT_DDI_A_IO :
-					POWER_DOMAIN_PORT_DDI_B_IO,
+					POWER_DOMAIN_PORT_DDI_IO_A :
+					POWER_DOMAIN_PORT_DDI_IO_B,
 					wakeref);
 	}
 
@@ -1968,6 +1968,8 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 
 static void icl_dsi_add_properties(struct intel_connector *connector)
 {
+	const struct drm_display_mode *fixed_mode =
+		intel_panel_preferred_fixed_mode(connector);
 	u32 allowed_scalers;
 
 	allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) |
@@ -1980,9 +1982,9 @@ static void icl_dsi_add_properties(struct intel_connector *connector)
 	connector->base.state->scaling_mode = DRM_MODE_SCALE_ASPECT;
 
 	drm_connector_set_panel_orientation_with_quirk(&connector->base,
-				intel_dsi_get_panel_orientation(connector),
-				connector->panel.fixed_mode->hdisplay,
-				connector->panel.fixed_mode->vdisplay);
+						       intel_dsi_get_panel_orientation(connector),
+						       fixed_mode->hdisplay,
+						       fixed_mode->vdisplay);
 }
 
 void icl_dsi_init(struct drm_i915_private *dev_priv)
@@ -1992,7 +1994,6 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	struct intel_encoder *encoder;
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
-	struct drm_display_mode *fixed_mode;
 	enum port port;
 
 	if (!intel_bios_is_dsi_present(dev_priv, &port))
@@ -2049,15 +2050,16 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	intel_connector_attach_encoder(intel_connector, encoder);
 
 	mutex_lock(&dev->mode_config.mutex);
-	fixed_mode = intel_panel_vbt_fixed_mode(intel_connector);
+	intel_panel_add_vbt_lfp_fixed_mode(intel_connector);
 	mutex_unlock(&dev->mode_config.mutex);
 
-	if (!fixed_mode) {
+	if (!intel_panel_preferred_fixed_mode(intel_connector)) {
 		drm_err(&dev_priv->drm, "DSI fixed mode info missing\n");
 		goto err;
 	}
 
-	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
+	intel_panel_init(intel_connector);
+
 	intel_backlight_setup(intel_connector, INVALID_PIPE);
 
 	if (dev_priv->vbt.dsi.config->dual_link)

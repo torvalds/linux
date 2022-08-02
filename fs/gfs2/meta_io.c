@@ -89,15 +89,17 @@ static int gfs2_aspace_writepage(struct page *page, struct writeback_control *wb
 }
 
 const struct address_space_operations gfs2_meta_aops = {
-	.set_page_dirty	= __set_page_dirty_buffers,
+	.dirty_folio	= block_dirty_folio,
+	.invalidate_folio = block_invalidate_folio,
 	.writepage = gfs2_aspace_writepage,
-	.releasepage = gfs2_releasepage,
+	.release_folio = gfs2_release_folio,
 };
 
 const struct address_space_operations gfs2_rgrp_aops = {
-	.set_page_dirty	= __set_page_dirty_buffers,
+	.dirty_folio	= block_dirty_folio,
+	.invalidate_folio = block_invalidate_folio,
 	.writepage = gfs2_aspace_writepage,
-	.releasepage = gfs2_releasepage,
+	.release_folio = gfs2_release_folio,
 };
 
 /**
@@ -222,9 +224,8 @@ static void gfs2_submit_bhs(int op, int op_flags, struct buffer_head *bhs[],
 		struct buffer_head *bh = *bhs;
 		struct bio *bio;
 
-		bio = bio_alloc(GFP_NOIO, num);
+		bio = bio_alloc(bh->b_bdev, num, op | op_flags, GFP_NOIO);
 		bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
-		bio_set_dev(bio, bh->b_bdev);
 		while (num > 0) {
 			bh = *bhs;
 			if (!bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh))) {
@@ -235,7 +236,6 @@ static void gfs2_submit_bhs(int op, int op_flags, struct buffer_head *bhs[],
 			num--;
 		}
 		bio->bi_end_io = gfs2_meta_read_endio;
-		bio_set_op_attrs(bio, op, op_flags);
 		submit_bio(bio);
 	}
 }

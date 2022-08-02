@@ -49,6 +49,7 @@ typedef u32 erofs_blk_t;
 
 struct erofs_device_info {
 	char *path;
+	struct erofs_fscache *fscache;
 	struct block_device *bdev;
 	struct dax_device *dax_dev;
 	u64 dax_part_off;
@@ -74,6 +75,7 @@ struct erofs_mount_opts {
 	unsigned int max_sync_decompress_pages;
 #endif
 	unsigned int mount_opt;
+	char *fsid;
 };
 
 struct erofs_dev_context {
@@ -94,6 +96,11 @@ struct erofs_sb_lz4_info {
 	u16 max_distance_pages;
 	/* maximum possible blocks for pclusters in the filesystem */
 	u16 max_pclusterblks;
+};
+
+struct erofs_fscache {
+	struct fscache_cookie *cookie;
+	struct inode *inode;
 };
 
 struct erofs_sb_info {
@@ -146,6 +153,10 @@ struct erofs_sb_info {
 	/* sysfs support */
 	struct kobject s_kobj;		/* /sys/fs/erofs/<devname> */
 	struct completion s_kobj_unregister;
+
+	/* fscache support */
+	struct fscache_volume *volume;
+	struct erofs_fscache *s_fscache;
 };
 
 #define EROFS_SB(sb) ((struct erofs_sb_info *)(sb)->s_fs_info)
@@ -160,6 +171,11 @@ struct erofs_sb_info {
 #define clear_opt(opt, option)	((opt)->mount_opt &= ~EROFS_MOUNT_##option)
 #define set_opt(opt, option)	((opt)->mount_opt |= EROFS_MOUNT_##option)
 #define test_opt(opt, option)	((opt)->mount_opt & EROFS_MOUNT_##option)
+
+static inline bool erofs_is_fscache_mode(struct super_block *sb)
+{
+	return IS_ENABLED(CONFIG_EROFS_FS_ONDEMAND) && !sb->s_bdev;
+}
 
 enum {
 	EROFS_ZIP_CACHE_DISABLED,
@@ -381,31 +397,6 @@ extern const struct super_operations erofs_sops;
 extern const struct address_space_operations erofs_raw_access_aops;
 extern const struct address_space_operations z_erofs_aops;
 
-/*
- * Logical to physical block mapping
- *
- * Different with other file systems, it is used for 2 access modes:
- *
- * 1) RAW access mode:
- *
- * Users pass a valid (m_lblk, m_lofs -- usually 0) pair,
- * and get the valid m_pblk, m_pofs and the longest m_len(in bytes).
- *
- * Note that m_lblk in the RAW access mode refers to the number of
- * the compressed ondisk block rather than the uncompressed
- * in-memory block for the compressed file.
- *
- * m_pofs equals to m_lofs except for the inline data page.
- *
- * 2) Normal access mode:
- *
- * If the inode is not compressed, it has no difference with
- * the RAW access mode. However, if the inode is compressed,
- * users should pass a valid (m_lblk, m_lofs) pair, and get
- * the needed m_pblk, m_pofs, m_len to get the compressed data
- * and the updated m_lblk, m_lofs which indicates the start
- * of the corresponding uncompressed data in the file.
- */
 enum {
 	BH_Encoded = BH_PrivateStart,
 	BH_FullMapped,
@@ -467,6 +458,7 @@ static inline int z_erofs_map_blocks_iter(struct inode *inode,
 #endif	/* !CONFIG_EROFS_FS_ZIP */
 
 struct erofs_map_dev {
+	struct erofs_fscache *m_fscache;
 	struct block_device *m_bdev;
 	struct dax_device *m_daxdev;
 	u64 m_dax_part_off;
@@ -479,11 +471,15 @@ struct erofs_map_dev {
 extern const struct file_operations erofs_file_fops;
 void erofs_unmap_metabuf(struct erofs_buf *buf);
 void erofs_put_metabuf(struct erofs_buf *buf);
+void *erofs_bread(struct erofs_buf *buf, struct inode *inode,
+		  erofs_blk_t blkaddr, enum erofs_kmap_type type);
 void *erofs_read_metabuf(struct erofs_buf *buf, struct super_block *sb,
 			 erofs_blk_t blkaddr, enum erofs_kmap_type type);
 int erofs_map_dev(struct super_block *sb, struct erofs_map_dev *dev);
 int erofs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		 u64 start, u64 len);
+int erofs_map_blocks(struct inode *inode,
+		     struct erofs_map_blocks *map, int flags);
 
 /* inode.c */
 static inline unsigned long erofs_inode_hash(erofs_nid_t nid)
@@ -507,7 +503,7 @@ int erofs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 /* namei.c */
 extern const struct inode_operations erofs_dir_iops;
 
-int erofs_namei(struct inode *dir, struct qstr *name,
+int erofs_namei(struct inode *dir, const struct qstr *name,
 		erofs_nid_t *nid, unsigned int *d_type);
 
 /* dir.c */
@@ -608,6 +604,36 @@ static inline int z_erofs_load_lzma_config(struct super_block *sb,
 	return 0;
 }
 #endif	/* !CONFIG_EROFS_FS_ZIP */
+
+/* fscache.c */
+#ifdef CONFIG_EROFS_FS_ONDEMAND
+int erofs_fscache_register_fs(struct super_block *sb);
+void erofs_fscache_unregister_fs(struct super_block *sb);
+
+int erofs_fscache_register_cookie(struct super_block *sb,
+				  struct erofs_fscache **fscache,
+				  char *name, bool need_inode);
+void erofs_fscache_unregister_cookie(struct erofs_fscache **fscache);
+
+extern const struct address_space_operations erofs_fscache_access_aops;
+#else
+static inline int erofs_fscache_register_fs(struct super_block *sb)
+{
+	return 0;
+}
+static inline void erofs_fscache_unregister_fs(struct super_block *sb) {}
+
+static inline int erofs_fscache_register_cookie(struct super_block *sb,
+						struct erofs_fscache **fscache,
+						char *name, bool need_inode)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void erofs_fscache_unregister_cookie(struct erofs_fscache **fscache)
+{
+}
+#endif
 
 #define EFSCORRUPTED    EUCLEAN         /* Filesystem is corrupted */
 

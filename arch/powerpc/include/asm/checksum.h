@@ -38,14 +38,15 @@ extern __wsum csum_and_copy_to_user(const void *src, void __user *dst,
  */
 static inline __sum16 csum_fold(__wsum sum)
 {
-	unsigned int tmp;
+	u32 tmp = (__force u32)sum;
 
-	/* swap the two 16-bit halves of sum */
-	__asm__("rlwinm %0,%1,16,0,31" : "=r" (tmp) : "r" (sum));
-	/* if there is a carry from adding the two 16-bit halves,
-	   it will carry from the lower half into the upper half,
-	   giving us the correct sum in the upper half. */
-	return (__force __sum16)(~((__force u32)sum + tmp) >> 16);
+	/*
+	 * swap the two 16-bit halves of sum
+	 * if there is a carry from adding the two 16-bit halves,
+	 * it will carry from the lower half into the upper half,
+	 * giving us the correct sum in the upper half.
+	 */
+	return (__force __sum16)(~(tmp + rol32(tmp, 16)) >> 16);
 }
 
 static inline u32 from64to32(u64 x)
@@ -95,21 +96,27 @@ static __always_inline __wsum csum_add(__wsum csum, __wsum addend)
 {
 #ifdef __powerpc64__
 	u64 res = (__force u64)csum;
-#endif
+
+	res += (__force u64)addend;
+	return (__force __wsum)((u32)res + (res >> 32));
+#else
 	if (__builtin_constant_p(csum) && csum == 0)
 		return addend;
 	if (__builtin_constant_p(addend) && addend == 0)
 		return csum;
 
-#ifdef __powerpc64__
-	res += (__force u64)addend;
-	return (__force __wsum)((u32)res + (res >> 32));
-#else
 	asm("addc %0,%0,%1;"
 	    "addze %0,%0;"
 	    : "+r" (csum) : "r" (addend) : "xer");
 	return csum;
 #endif
+}
+
+#define HAVE_ARCH_CSUM_SHIFT
+static __always_inline __wsum csum_shift(__wsum sum, int offset)
+{
+	/* rotate sum to align it with a 16b boundary */
+	return (__force __wsum)rol32((__force u32)sum, (offset & 1) << 3);
 }
 
 /*

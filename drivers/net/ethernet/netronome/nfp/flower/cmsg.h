@@ -85,6 +85,7 @@
 #define NFP_FL_ACTION_OPCODE_SET_TCP		15
 #define NFP_FL_ACTION_OPCODE_PRE_LAG		16
 #define NFP_FL_ACTION_OPCODE_PRE_TUNNEL		17
+#define NFP_FL_ACTION_OPCODE_METER		24
 #define NFP_FL_ACTION_OPCODE_PUSH_GENEVE	26
 #define NFP_FL_ACTION_OPCODE_NUM		32
 
@@ -258,6 +259,12 @@ struct nfp_fl_set_mpls {
 	__be16 reserved;
 	__be32 lse_mask;
 	__be32 lse;
+};
+
+struct nfp_fl_meter {
+	struct nfp_fl_act_head head;
+	__be16 reserved;
+	__be32 meter_id;
 };
 
 /* Metadata with L2 (1W/4B)

@@ -140,6 +140,10 @@ extern "C" {
  * not require GTT memory accounting
  */
 #define AMDGPU_GEM_CREATE_PREEMPTIBLE		(1 << 11)
+/* Flag that BO can be discarded under memory pressure without keeping the
+ * content.
+ */
+#define AMDGPU_GEM_CREATE_DISCARDABLE		(1 << 12)
 
 struct drm_amdgpu_gem_create_in  {
 	/** the requested memory size */
@@ -206,6 +210,8 @@ union drm_amdgpu_bo_list {
 #define AMDGPU_CTX_OP_FREE_CTX	2
 #define AMDGPU_CTX_OP_QUERY_STATE	3
 #define AMDGPU_CTX_OP_QUERY_STATE2	4
+#define AMDGPU_CTX_OP_GET_STABLE_PSTATE	5
+#define AMDGPU_CTX_OP_SET_STABLE_PSTATE	6
 
 /* GPU reset status */
 #define AMDGPU_CTX_NO_RESET		0
@@ -238,10 +244,18 @@ union drm_amdgpu_bo_list {
 #define AMDGPU_CTX_PRIORITY_HIGH        512
 #define AMDGPU_CTX_PRIORITY_VERY_HIGH   1023
 
+/* select a stable profiling pstate for perfmon tools */
+#define AMDGPU_CTX_STABLE_PSTATE_FLAGS_MASK  0xf
+#define AMDGPU_CTX_STABLE_PSTATE_NONE  0
+#define AMDGPU_CTX_STABLE_PSTATE_STANDARD  1
+#define AMDGPU_CTX_STABLE_PSTATE_MIN_SCLK  2
+#define AMDGPU_CTX_STABLE_PSTATE_MIN_MCLK  3
+#define AMDGPU_CTX_STABLE_PSTATE_PEAK  4
+
 struct drm_amdgpu_ctx_in {
 	/** AMDGPU_CTX_OP_* */
 	__u32	op;
-	/** For future use, no flags defined so far */
+	/** Flags */
 	__u32	flags;
 	__u32	ctx_id;
 	/** AMDGPU_CTX_PRIORITY_* */
@@ -262,6 +276,11 @@ union drm_amdgpu_ctx_out {
 			/** Reset status since the last call of the ioctl. */
 			__u32	reset_status;
 		} state;
+
+		struct {
+			__u32	flags;
+			__u32	_pad;
+		} pstate;
 };
 
 union drm_amdgpu_ctx {
@@ -514,6 +533,8 @@ struct drm_amdgpu_gem_op {
 #define AMDGPU_VM_MTYPE_UC		(4 << 5)
 /* Use Read Write MTYPE instead of default MTYPE */
 #define AMDGPU_VM_MTYPE_RW		(5 << 5)
+/* don't allocate MALL */
+#define AMDGPU_VM_PAGE_NOALLOC		(1 << 9)
 
 struct drm_amdgpu_gem_va {
 	/** GEM object handle */
@@ -728,6 +749,8 @@ struct drm_amdgpu_cs_chunk_data {
 	#define AMDGPU_INFO_FW_DMCUB		0x14
 	/* Subquery id: Query TOC firmware version */
 	#define AMDGPU_INFO_FW_TOC		0x15
+	/* Subquery id: Query CAP firmware version */
+	#define AMDGPU_INFO_FW_CAP		0x16
 
 /* number of bytes moved for TTM migration */
 #define AMDGPU_INFO_NUM_BYTES_MOVED		0x0f
@@ -971,6 +994,8 @@ struct drm_amdgpu_info_vbios {
 #define AMDGPU_VRAM_TYPE_DDR4  8
 #define AMDGPU_VRAM_TYPE_GDDR6 9
 #define AMDGPU_VRAM_TYPE_DDR5  10
+#define AMDGPU_VRAM_TYPE_LPDDR4 11
+#define AMDGPU_VRAM_TYPE_LPDDR5 12
 
 struct drm_amdgpu_info_device {
 	/** PCI Device ID */
@@ -1133,7 +1158,11 @@ struct drm_amdgpu_info_video_caps {
 #define AMDGPU_FAMILY_RV			142 /* Raven */
 #define AMDGPU_FAMILY_NV			143 /* Navi10 */
 #define AMDGPU_FAMILY_VGH			144 /* Van Gogh */
+#define AMDGPU_FAMILY_GC_11_0_0			145 /* GC 11.0.0 */
 #define AMDGPU_FAMILY_YC			146 /* Yellow Carp */
+#define AMDGPU_FAMILY_GC_11_0_1			148 /* GC 11.0.1 */
+#define AMDGPU_FAMILY_GC_10_3_6			149 /* GC 10.3.6 */
+#define AMDGPU_FAMILY_GC_10_3_7			151 /* GC 10.3.7 */
 
 #if defined(__cplusplus)
 }

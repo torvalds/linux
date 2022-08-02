@@ -802,6 +802,7 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 	fsc->have_copy_from2 = true;
 
 	atomic_long_set(&fsc->writeback_count, 0);
+	fsc->write_congested = false;
 
 	err = -ENOMEM;
 	/*
@@ -864,6 +865,7 @@ static void destroy_fs_client(struct ceph_fs_client *fsc)
  */
 struct kmem_cache *ceph_inode_cachep;
 struct kmem_cache *ceph_cap_cachep;
+struct kmem_cache *ceph_cap_snap_cachep;
 struct kmem_cache *ceph_cap_flush_cachep;
 struct kmem_cache *ceph_dentry_cachep;
 struct kmem_cache *ceph_file_cachep;
@@ -874,7 +876,7 @@ mempool_t *ceph_wb_pagevec_pool;
 static void ceph_inode_init_once(void *foo)
 {
 	struct ceph_inode_info *ci = foo;
-	inode_init_once(&ci->vfs_inode);
+	inode_init_once(&ci->netfs.inode);
 }
 
 static int __init init_caches(void)
@@ -892,6 +894,9 @@ static int __init init_caches(void)
 	ceph_cap_cachep = KMEM_CACHE(ceph_cap, SLAB_MEM_SPREAD);
 	if (!ceph_cap_cachep)
 		goto bad_cap;
+	ceph_cap_snap_cachep = KMEM_CACHE(ceph_cap_snap, SLAB_MEM_SPREAD);
+	if (!ceph_cap_snap_cachep)
+		goto bad_cap_snap;
 	ceph_cap_flush_cachep = KMEM_CACHE(ceph_cap_flush,
 					   SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD);
 	if (!ceph_cap_flush_cachep)
@@ -931,6 +936,8 @@ bad_file:
 bad_dentry:
 	kmem_cache_destroy(ceph_cap_flush_cachep);
 bad_cap_flush:
+	kmem_cache_destroy(ceph_cap_snap_cachep);
+bad_cap_snap:
 	kmem_cache_destroy(ceph_cap_cachep);
 bad_cap:
 	kmem_cache_destroy(ceph_inode_cachep);
@@ -947,6 +954,7 @@ static void destroy_caches(void)
 
 	kmem_cache_destroy(ceph_inode_cachep);
 	kmem_cache_destroy(ceph_cap_cachep);
+	kmem_cache_destroy(ceph_cap_snap_cachep);
 	kmem_cache_destroy(ceph_cap_flush_cachep);
 	kmem_cache_destroy(ceph_dentry_cachep);
 	kmem_cache_destroy(ceph_file_cachep);
@@ -1111,6 +1119,7 @@ static int ceph_set_super(struct super_block *s, struct fs_context *fc)
 	s->s_time_gran = 1;
 	s->s_time_min = 0;
 	s->s_time_max = U32_MAX;
+	s->s_flags |= SB_NODIRATIME | SB_NOATIME;
 
 	ret = set_anon_super_fc(s, fc);
 	if (ret != 0)

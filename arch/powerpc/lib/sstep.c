@@ -15,9 +15,6 @@
 #include <asm/cputable.h>
 #include <asm/disassemble.h>
 
-extern char system_call_common[];
-extern char system_call_vectored_emulate[];
-
 #ifdef CONFIG_PPC64
 /* Bits in SRR1 that are copied from MSR */
 #define MSR_MASK	0xffffffff87c0ffffUL
@@ -75,10 +72,8 @@ extern int do_stqcx(unsigned long ea, unsigned long val0, unsigned long val1,
 static nokprobe_inline unsigned long truncate_if_32bit(unsigned long msr,
 							unsigned long val)
 {
-#ifdef __powerpc64__
 	if ((msr & MSR_64BIT) == 0)
 		val &= 0xffffffffUL;
-#endif
 	return val;
 }
 
@@ -112,9 +107,9 @@ static nokprobe_inline long address_ok(struct pt_regs *regs,
 {
 	if (!user_mode(regs))
 		return 1;
-	if (__access_ok(ea, nb))
+	if (access_ok((void __user *)ea, nb))
 		return 1;
-	if (__access_ok(ea, 1))
+	if (access_ok((void __user *)ea, 1))
 		/* Access overlaps the end of the user region */
 		regs->dar = TASK_SIZE_MAX - 1;
 	else
@@ -1065,15 +1060,9 @@ Efault:
 int emulate_dcbz(unsigned long ea, struct pt_regs *regs)
 {
 	int err;
-	unsigned long size;
+	unsigned long size = l1_dcache_bytes();
 
-#ifdef __powerpc64__
-	size = ppc64_caches.l1d.block_size;
-	if (!(regs->msr & MSR_64BIT))
-		ea &= 0xffffffffUL;
-#else
-	size = L1_CACHE_BYTES;
-#endif
+	ea = truncate_if_32bit(regs->msr, ea);
 	ea &= ~(size - 1);
 	if (!address_ok(regs, ea, size))
 		return -EFAULT;
@@ -1097,7 +1086,10 @@ NOKPROBE_SYMBOL(emulate_dcbz);
 
 #define __put_user_asmx(x, addr, err, op, cr)		\
 	__asm__ __volatile__(				\
+		".machine push\n"			\
+		".machine power8\n"			\
 		"1:	" op " %2,0,%3\n"		\
+		".machine pop\n"			\
 		"	mfcr	%1\n"			\
 		"2:\n"					\
 		".section .fixup,\"ax\"\n"		\
@@ -1110,7 +1102,10 @@ NOKPROBE_SYMBOL(emulate_dcbz);
 
 #define __get_user_asmx(x, addr, err, op)		\
 	__asm__ __volatile__(				\
+		".machine push\n"			\
+		".machine power8\n"			\
 		"1:	"op" %1,0,%2\n"			\
+		".machine pop\n"			\
 		"2:\n"					\
 		".section .fixup,\"ax\"\n"		\
 		"3:	li	%0,%3\n"		\
@@ -1139,10 +1134,8 @@ static nokprobe_inline void set_cr0(const struct pt_regs *regs,
 
 	op->type |= SETCC;
 	op->ccval = (regs->ccr & 0x0fffffff) | ((regs->xer >> 3) & 0x10000000);
-#ifdef __powerpc64__
 	if (!(regs->msr & MSR_64BIT))
 		val = (int) val;
-#endif
 	if (val < 0)
 		op->ccval |= 0x80000000;
 	else if (val > 0)
@@ -1170,15 +1163,11 @@ static nokprobe_inline void add_with_carry(const struct pt_regs *regs,
 
 	if (carry_in)
 		++val;
-	op->type = COMPUTE + SETREG + SETXER;
+	op->type = COMPUTE | SETREG | SETXER;
 	op->reg = rd;
 	op->val = val;
-#ifdef __powerpc64__
-	if (!(regs->msr & MSR_64BIT)) {
-		val = (unsigned int) val;
-		val1 = (unsigned int) val1;
-	}
-#endif
+	val = truncate_if_32bit(regs->msr, val);
+	val1 = truncate_if_32bit(regs->msr, val1);
 	op->xerval = regs->xer;
 	if (val < val1 || (carry_in && val == val1))
 		op->xerval |= XER_CA;
@@ -1195,7 +1184,7 @@ static nokprobe_inline void do_cmp_signed(const struct pt_regs *regs,
 {
 	unsigned int crval, shift;
 
-	op->type = COMPUTE + SETCC;
+	op->type = COMPUTE | SETCC;
 	crval = (regs->xer >> 31) & 1;		/* get SO bit */
 	if (v1 < v2)
 		crval |= 8;
@@ -1214,7 +1203,7 @@ static nokprobe_inline void do_cmp_unsigned(const struct pt_regs *regs,
 {
 	unsigned int crval, shift;
 
-	op->type = COMPUTE + SETCC;
+	op->type = COMPUTE | SETCC;
 	crval = (regs->xer >> 31) & 1;		/* get SO bit */
 	if (v1 < v2)
 		crval |= 8;
@@ -1384,7 +1373,6 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		if (branch_taken(word, regs, op))
 			op->type |= BRTAKEN;
 		return 1;
-#ifdef CONFIG_PPC64
 	case 17:	/* sc */
 		if ((word & 0xfe2) == 2)
 			op->type = SYSCALL;
@@ -1396,7 +1384,6 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		} else
 			op->type = UNKNOWN;
 		return 0;
-#endif
 	case 18:	/* b */
 		op->type = BRANCH | BRTAKEN;
 		imm = word & 0x03fffffc;
@@ -3389,7 +3376,7 @@ int emulate_loadstore(struct pt_regs *regs, struct instruction_op *op)
 			__put_user_asmx(op->val, ea, err, "stbcx.", cr);
 			break;
 		case 2:
-			__put_user_asmx(op->val, ea, err, "stbcx.", cr);
+			__put_user_asmx(op->val, ea, err, "sthcx.", cr);
 			break;
 #endif
 		case 4:
@@ -3651,43 +3638,22 @@ int emulate_step(struct pt_regs *regs, ppc_inst_t instr)
 		regs_set_return_msr(regs, (regs->msr & ~op.val) | (val & op.val));
 		goto instr_done;
 
-#ifdef CONFIG_PPC64
 	case SYSCALL:	/* sc */
 		/*
-		 * N.B. this uses knowledge about how the syscall
-		 * entry code works.  If that is changed, this will
-		 * need to be changed also.
+		 * Per ISA v3.1, section 7.5.15 'Trace Interrupt', we can't
+		 * single step a system call instruction:
+		 *
+		 *   Successful completion for an instruction means that the
+		 *   instruction caused no other interrupt. Thus a Trace
+		 *   interrupt never occurs for a System Call or System Call
+		 *   Vectored instruction, or for a Trap instruction that
+		 *   traps.
 		 */
-		if (IS_ENABLED(CONFIG_PPC_FAST_ENDIAN_SWITCH) &&
-				cpu_has_feature(CPU_FTR_REAL_LE) &&
-				regs->gpr[0] == 0x1ebe) {
-			regs_set_return_msr(regs, regs->msr ^ MSR_LE);
-			goto instr_done;
-		}
-		regs->gpr[9] = regs->gpr[13];
-		regs->gpr[10] = MSR_KERNEL;
-		regs->gpr[11] = regs->nip + 4;
-		regs->gpr[12] = regs->msr & MSR_MASK;
-		regs->gpr[13] = (unsigned long) get_paca();
-		regs_set_return_ip(regs, (unsigned long) &system_call_common);
-		regs_set_return_msr(regs, MSR_KERNEL);
-		return 1;
-
-#ifdef CONFIG_PPC_BOOK3S_64
+		return -1;
 	case SYSCALL_VECTORED_0:	/* scv 0 */
-		regs->gpr[9] = regs->gpr[13];
-		regs->gpr[10] = MSR_KERNEL;
-		regs->gpr[11] = regs->nip + 4;
-		regs->gpr[12] = regs->msr & MSR_MASK;
-		regs->gpr[13] = (unsigned long) get_paca();
-		regs_set_return_ip(regs, (unsigned long) &system_call_vectored_emulate);
-		regs_set_return_msr(regs, MSR_KERNEL);
-		return 1;
-#endif
-
+		return -1;
 	case RFI:
 		return -1;
-#endif
 	}
 	return 0;
 

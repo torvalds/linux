@@ -46,11 +46,6 @@
 #define NFS_MAX_TRANSPORTS 16
 
 /*
- * These are the default flags for swap requests
- */
-#define NFS_RPC_SWAPFLAGS		(RPC_TASK_SWAPPER|RPC_TASK_ROOTCREDS)
-
-/*
  * Size of the NFS directory verifier
  */
 #define NFS_DIR_VERIFIER_SIZE		2
@@ -101,13 +96,17 @@ struct nfs_open_context {
 
 struct nfs_open_dir_context {
 	struct list_head list;
+	atomic_t cache_hits;
+	atomic_t cache_misses;
 	unsigned long attr_gencount;
 	__be32	verf[NFS_DIR_VERIFIER_SIZE];
 	__u64 dir_cookie;
-	__u64 dup_cookie;
+	__u64 last_cookie;
 	pgoff_t page_index;
-	signed char duped;
+	unsigned int dtsize;
+	bool force_clear;
 	bool eof;
+	struct rcu_head rcu_head;
 };
 
 /*
@@ -247,7 +246,6 @@ struct nfs4_copy_state {
 #define NFS_INO_INVALID_ATIME	BIT(2)		/* cached atime is invalid */
 #define NFS_INO_INVALID_ACCESS	BIT(3)		/* cached access cred invalid */
 #define NFS_INO_INVALID_ACL	BIT(4)		/* cached acls are invalid */
-#define NFS_INO_REVAL_PAGECACHE	BIT(5)		/* must revalidate pagecache */
 #define NFS_INO_REVAL_FORCED	BIT(6)		/* force revalidation ignoring a delegation */
 #define NFS_INO_INVALID_LABEL	BIT(7)		/* cached label is invalid */
 #define NFS_INO_INVALID_CHANGE	BIT(8)		/* cached change is invalid */
@@ -273,12 +271,11 @@ struct nfs4_copy_state {
 /*
  * Bit offsets in flags field
  */
-#define NFS_INO_ADVISE_RDPLUS	(0)		/* advise readdirplus */
 #define NFS_INO_STALE		(1)		/* possible stale inode */
 #define NFS_INO_ACL_LRU_SET	(2)		/* Inode is on the LRU list */
 #define NFS_INO_INVALIDATING	(3)		/* inode is being invalidated */
+#define NFS_INO_PRESERVE_UNLINKED (4)		/* preserve file if removed while open */
 #define NFS_INO_FSCACHE		(5)		/* inode can be cached by FS-Cache */
-#define NFS_INO_FORCE_READDIR	(7)		/* force readdirplus */
 #define NFS_INO_LAYOUTCOMMIT	(9)		/* layoutcommit required */
 #define NFS_INO_LAYOUTCOMMITTING (10)		/* layoutcommit inflight */
 #define NFS_INO_LAYOUTSTATS	(11)		/* layoutstats inflight */
@@ -355,17 +352,15 @@ static inline void nfs_mark_for_revalidate(struct inode *inode)
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	spin_lock(&inode->i_lock);
-	nfsi->cache_validity |= NFS_INO_REVAL_PAGECACHE
-		| NFS_INO_INVALID_ACCESS
-		| NFS_INO_INVALID_ACL
-		| NFS_INO_INVALID_CHANGE
-		| NFS_INO_INVALID_CTIME;
+	nfsi->cache_validity |= NFS_INO_INVALID_ACCESS | NFS_INO_INVALID_ACL |
+				NFS_INO_INVALID_CHANGE | NFS_INO_INVALID_CTIME |
+				NFS_INO_INVALID_SIZE;
 	if (S_ISDIR(inode->i_mode))
 		nfsi->cache_validity |= NFS_INO_INVALID_DATA;
 	spin_unlock(&inode->i_lock);
 }
 
-static inline int nfs_server_capable(struct inode *inode, int cap)
+static inline int nfs_server_capable(const struct inode *inode, int cap)
 {
 	return NFS_SERVER(inode)->caps & cap;
 }
@@ -512,11 +507,11 @@ static inline const struct cred *nfs_file_cred(struct file *file)
 /*
  * linux/fs/nfs/direct.c
  */
-extern ssize_t nfs_direct_IO(struct kiocb *, struct iov_iter *);
-extern ssize_t nfs_file_direct_read(struct kiocb *iocb,
-			struct iov_iter *iter);
-extern ssize_t nfs_file_direct_write(struct kiocb *iocb,
-			struct iov_iter *iter);
+int nfs_swap_rw(struct kiocb *iocb, struct iov_iter *iter);
+ssize_t nfs_file_direct_read(struct kiocb *iocb,
+			     struct iov_iter *iter, bool swap);
+ssize_t nfs_file_direct_write(struct kiocb *iocb,
+			      struct iov_iter *iter, bool swap);
 
 /*
  * linux/fs/nfs/dir.c
@@ -583,26 +578,24 @@ extern int  nfs_updatepage(struct file *, struct page *, unsigned int, unsigned 
 extern int nfs_sync_inode(struct inode *inode);
 extern int nfs_wb_all(struct inode *inode);
 extern int nfs_wb_page(struct inode *inode, struct page *page);
-extern int nfs_wb_page_cancel(struct inode *inode, struct page* page);
+int nfs_wb_folio_cancel(struct inode *inode, struct folio *folio);
 extern int  nfs_commit_inode(struct inode *, int);
-extern struct nfs_commit_data *nfs_commitdata_alloc(bool never_fail);
+extern struct nfs_commit_data *nfs_commitdata_alloc(void);
 extern void nfs_commit_free(struct nfs_commit_data *data);
 bool nfs_commit_end(struct nfs_mds_commit_info *cinfo);
 
-static inline int
-nfs_have_writebacks(struct inode *inode)
+static inline bool nfs_have_writebacks(const struct inode *inode)
 {
 	if (S_ISREG(inode->i_mode))
 		return atomic_long_read(&NFS_I(inode)->nrequests) != 0;
-	return 0;
+	return false;
 }
 
 /*
  * linux/fs/nfs/read.c
  */
-extern int  nfs_readpage(struct file *, struct page *);
-extern int  nfs_readpages(struct file *, struct address_space *,
-		struct list_head *, unsigned);
+int  nfs_read_folio(struct file *, struct folio *);
+void nfs_readahead(struct readahead_control *);
 
 /*
  * inline functions

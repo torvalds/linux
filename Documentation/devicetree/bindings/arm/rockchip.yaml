@@ -133,6 +133,11 @@ properties:
               - firefly,roc-rk3399-pc-plus
           - const: rockchip,rk3399
 
+      - description: Firefly Station M2
+        items:
+          - const: firefly,rk3566-roc-pc
+          - const: rockchip,rk3566
+
       - description: FriendlyElec NanoPi R2S
         items:
           - const: friendlyarm,nanopi-r2s
@@ -481,6 +486,14 @@ properties:
           - const: pine64,pinebook-pro
           - const: rockchip,rk3399
 
+      - description: Pine64 PineNote
+        items:
+          - enum:
+              - pine64,pinenote-v1.1
+              - pine64,pinenote-v1.2
+          - const: pine64,pinenote
+          - const: rockchip,rk3566
+
       - description: Pine64 Rock64
         items:
           - const: pine64,rock64
@@ -494,9 +507,18 @@ properties:
           - const: pine64,rockpro64
           - const: rockchip,rk3399
 
-      - description: Pine64 Quartz64 Model A
+      - description: Pine64 Quartz64 Model A/B
         items:
-          - const: pine64,quartz64-a
+          - enum:
+              - pine64,quartz64-a
+              - pine64,quartz64-b
+          - const: rockchip,rk3566
+
+      - description: Pine64 SoQuartz SoM
+        items:
+          - enum:
+              - pine64,soquartz-cm4io
+          - const: pine64,soquartz
           - const: rockchip,rk3566
 
       - description: Radxa Rock
@@ -536,6 +558,11 @@ properties:
         items:
           - const: radxa,rock2-square
           - const: rockchip,rk3288
+
+      - description: Radxa ROCK3 Model A
+        items:
+          - const: radxa,rock3a
+          - const: rockchip,rk3568
 
       - description: Rikomagic MK808 v1
         items:
@@ -649,6 +676,11 @@ properties:
       - description: Rockchip RK3568 Evaluation board
         items:
           - const: rockchip,rk3568-evb1-v10
+          - const: rockchip,rk3568
+
+      - description: Rockchip RK3568 Banana Pi R2 Pro
+        items:
+          - const: rockchip,rk3568-bpi-r2pro
           - const: rockchip,rk3568
 
 additionalProperties: true

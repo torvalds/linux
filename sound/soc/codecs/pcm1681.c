@@ -136,8 +136,8 @@ static int pcm1681_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_component *component = codec_dai->component;
 	struct pcm1681_private *priv = snd_soc_component_get_drvdata(component);
 
-	/* The PCM1681 can only be slave to all clocks */
-	if ((format & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS) {
+	/* The PCM1681 can only be consumer to all clocks */
+	if ((format & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) != SND_SOC_DAIFMT_CBC_CFC) {
 		dev_err(component->dev, "Invalid clocking mode\n");
 		return -EINVAL;
 	}
@@ -299,8 +299,7 @@ static const struct i2c_device_id pcm1681_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, pcm1681_i2c_id);
 
-static int pcm1681_i2c_probe(struct i2c_client *client,
-			      const struct i2c_device_id *id)
+static int pcm1681_i2c_probe(struct i2c_client *client)
 {
 	int ret;
 	struct pcm1681_private *priv;
@@ -329,7 +328,7 @@ static struct i2c_driver pcm1681_i2c_driver = {
 		.of_match_table = of_match_ptr(pcm1681_dt_ids),
 	},
 	.id_table	= pcm1681_i2c_id,
-	.probe		= pcm1681_i2c_probe,
+	.probe_new	= pcm1681_i2c_probe,
 };
 
 module_i2c_driver(pcm1681_i2c_driver);

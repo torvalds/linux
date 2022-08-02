@@ -3,6 +3,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
 #include <net/if.h>
@@ -44,6 +45,11 @@ static bool run_as_unprivileged;
 #endif
 
 /* Miscellaneous utility functions */
+
+static bool grep(const char *buffer, const char *pattern)
+{
+	return !!strstr(buffer, pattern);
+}
 
 static bool check_procfs(void)
 {
@@ -135,6 +141,32 @@ static void print_end_section(void)
 
 /* Probing functions */
 
+static int get_vendor_id(int ifindex)
+{
+	char ifname[IF_NAMESIZE], path[64], buf[8];
+	ssize_t len;
+	int fd;
+
+	if (!if_indextoname(ifindex, ifname))
+		return -1;
+
+	snprintf(path, sizeof(path), "/sys/class/net/%s/device/vendor", ifname);
+
+	fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		return -1;
+
+	len = read(fd, buf, sizeof(buf));
+	close(fd);
+	if (len < 0)
+		return -1;
+	if (len >= (ssize_t)sizeof(buf))
+		return -1;
+	buf[len] = '\0';
+
+	return strtol(buf, NULL, 0);
+}
+
 static int read_procfs(const char *path)
 {
 	char *endptr, *line = NULL;
@@ -175,7 +207,10 @@ static void probe_unprivileged_disabled(void)
 			printf("bpf() syscall for unprivileged users is enabled\n");
 			break;
 		case 1:
-			printf("bpf() syscall restricted to privileged users\n");
+			printf("bpf() syscall restricted to privileged users (without recovery)\n");
+			break;
+		case 2:
+			printf("bpf() syscall restricted to privileged users (admin can change)\n");
 			break;
 		case -1:
 			printf("Unable to retrieve required privileges for bpf() syscall\n");
@@ -478,6 +513,40 @@ static bool probe_bpf_syscall(const char *define_prefix)
 	return res;
 }
 
+static bool
+probe_prog_load_ifindex(enum bpf_prog_type prog_type,
+			const struct bpf_insn *insns, size_t insns_cnt,
+			char *log_buf, size_t log_buf_sz,
+			__u32 ifindex)
+{
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		    .log_buf = log_buf,
+		    .log_size = log_buf_sz,
+		    .log_level = log_buf ? 1 : 0,
+		    .prog_ifindex = ifindex,
+		   );
+	int fd;
+
+	errno = 0;
+	fd = bpf_prog_load(prog_type, NULL, "GPL", insns, insns_cnt, &opts);
+	if (fd >= 0)
+		close(fd);
+
+	return fd >= 0 && errno != EINVAL && errno != EOPNOTSUPP;
+}
+
+static bool probe_prog_type_ifindex(enum bpf_prog_type prog_type, __u32 ifindex)
+{
+	/* nfp returns -EINVAL on exit(0) with TC offload */
+	struct bpf_insn insns[2] = {
+		BPF_MOV64_IMM(BPF_REG_0, 2),
+		BPF_EXIT_INSN()
+	};
+
+	return probe_prog_load_ifindex(prog_type, insns, ARRAY_SIZE(insns),
+				       NULL, 0, ifindex);
+}
+
 static void
 probe_prog_type(enum bpf_prog_type prog_type, bool *supported_types,
 		const char *define_prefix, __u32 ifindex)
@@ -487,8 +556,7 @@ probe_prog_type(enum bpf_prog_type prog_type, bool *supported_types,
 	size_t maxlen;
 	bool res;
 
-	if (ifindex)
-		/* Only test offload-able program types */
+	if (ifindex) {
 		switch (prog_type) {
 		case BPF_PROG_TYPE_SCHED_CLS:
 		case BPF_PROG_TYPE_XDP:
@@ -497,7 +565,11 @@ probe_prog_type(enum bpf_prog_type prog_type, bool *supported_types,
 			return;
 		}
 
-	res = bpf_probe_prog_type(prog_type, ifindex);
+		res = probe_prog_type_ifindex(prog_type, ifindex);
+	} else {
+		res = libbpf_probe_bpf_prog_type(prog_type, NULL) > 0;
+	}
+
 #ifdef USE_LIBCAP
 	/* Probe may succeed even if program load fails, for unprivileged users
 	 * check that we did not fail because of insufficient permissions
@@ -526,6 +598,26 @@ probe_prog_type(enum bpf_prog_type prog_type, bool *supported_types,
 			   define_prefix);
 }
 
+static bool probe_map_type_ifindex(enum bpf_map_type map_type, __u32 ifindex)
+{
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
+	int key_size, value_size, max_entries;
+	int fd;
+
+	opts.map_ifindex = ifindex;
+
+	key_size = sizeof(__u32);
+	value_size = sizeof(__u32);
+	max_entries = 1;
+
+	fd = bpf_map_create(map_type, NULL, key_size, value_size, max_entries,
+			    &opts);
+	if (fd >= 0)
+		close(fd);
+
+	return fd >= 0;
+}
+
 static void
 probe_map_type(enum bpf_map_type map_type, const char *define_prefix,
 	       __u32 ifindex)
@@ -535,7 +627,19 @@ probe_map_type(enum bpf_map_type map_type, const char *define_prefix,
 	size_t maxlen;
 	bool res;
 
-	res = bpf_probe_map_type(map_type, ifindex);
+	if (ifindex) {
+		switch (map_type) {
+		case BPF_MAP_TYPE_HASH:
+		case BPF_MAP_TYPE_ARRAY:
+			break;
+		default:
+			return;
+		}
+
+		res = probe_map_type_ifindex(map_type, ifindex);
+	} else {
+		res = libbpf_probe_bpf_map_type(map_type, NULL) > 0;
+	}
 
 	/* Probe result depends on the success of map creation, no additional
 	 * check required for unprivileged users
@@ -559,7 +663,34 @@ probe_map_type(enum bpf_map_type map_type, const char *define_prefix,
 			   define_prefix);
 }
 
-static void
+static bool
+probe_helper_ifindex(enum bpf_func_id id, enum bpf_prog_type prog_type,
+		     __u32 ifindex)
+{
+	struct bpf_insn insns[2] = {
+		BPF_EMIT_CALL(id),
+		BPF_EXIT_INSN()
+	};
+	char buf[4096] = {};
+	bool res;
+
+	probe_prog_load_ifindex(prog_type, insns, ARRAY_SIZE(insns), buf,
+				sizeof(buf), ifindex);
+	res = !grep(buf, "invalid func ") && !grep(buf, "unknown func ");
+
+	switch (get_vendor_id(ifindex)) {
+	case 0x19ee: /* Netronome specific */
+		res = res && !grep(buf, "not supported by FW") &&
+			!grep(buf, "unsupported function id");
+		break;
+	default:
+		break;
+	}
+
+	return res;
+}
+
+static bool
 probe_helper_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 			  const char *define_prefix, unsigned int id,
 			  const char *ptype_name, __u32 ifindex)
@@ -567,7 +698,10 @@ probe_helper_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 	bool res = false;
 
 	if (supported_type) {
-		res = bpf_probe_helper(id, prog_type, ifindex);
+		if (ifindex)
+			res = probe_helper_ifindex(id, prog_type, ifindex);
+		else
+			res = libbpf_probe_bpf_helper(prog_type, id, NULL) > 0;
 #ifdef USE_LIBCAP
 		/* Probe may succeed even if program load fails, for
 		 * unprivileged users check that we did not fail because of
@@ -589,6 +723,8 @@ probe_helper_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 		if (res)
 			printf("\n\t- %s", helper_name[id]);
 	}
+
+	return res;
 }
 
 static void
@@ -598,6 +734,7 @@ probe_helpers_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 	const char *ptype_name = prog_type_name[prog_type];
 	char feat_name[128];
 	unsigned int id;
+	bool probe_res = false;
 
 	if (ifindex)
 		/* Only test helpers for offload-able program types */
@@ -630,7 +767,7 @@ probe_helpers_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 				continue;
 			/* fallthrough */
 		default:
-			probe_helper_for_progtype(prog_type, supported_type,
+			probe_res |= probe_helper_for_progtype(prog_type, supported_type,
 						  define_prefix, id, ptype_name,
 						  ifindex);
 		}
@@ -638,8 +775,17 @@ probe_helpers_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 
 	if (json_output)
 		jsonw_end_array(json_wtr);
-	else if (!define_prefix)
+	else if (!define_prefix) {
 		printf("\n");
+		if (!probe_res) {
+			if (!supported_type)
+				printf("\tProgram type not supported\n");
+			else
+				printf("\tCould not determine which helpers are available\n");
+		}
+	}
+
+
 }
 
 static void
@@ -1001,8 +1147,6 @@ static int do_probe(int argc, char **argv)
 	bool supported_types[128] = {};
 	__u32 ifindex = 0;
 	char *ifname;
-
-	set_max_rlimit();
 
 	while (argc) {
 		if (is_prefix(*argv, "kernel")) {

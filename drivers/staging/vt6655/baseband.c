@@ -29,7 +29,6 @@
  *
  */
 
-#include "tmacro.h"
 #include "mac.h"
 #include "baseband.h"
 #include "srom.h"
@@ -1910,19 +1909,19 @@ bool bb_read_embedded(struct vnt_private *priv, unsigned char by_bb_addr,
 	unsigned char by_value;
 
 	/* BB reg offset */
-	VNSvOutPortB(iobase + MAC_REG_BBREGADR, by_bb_addr);
+	iowrite8(by_bb_addr, iobase + MAC_REG_BBREGADR);
 
 	/* turn on REGR */
 	MACvRegBitsOn(iobase, MAC_REG_BBREGCTL, BBREGCTL_REGR);
 	/* W_MAX_TIMEOUT is the timeout period */
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
-		VNSvInPortB(iobase + MAC_REG_BBREGCTL, &by_value);
+		by_value = ioread8(iobase + MAC_REG_BBREGCTL);
 		if (by_value & BBREGCTL_DONE)
 			break;
 	}
 
 	/* get BB data */
-	VNSvInPortB(iobase + MAC_REG_BBREGDATA, pby_data);
+	*pby_data = ioread8(iobase + MAC_REG_BBREGDATA);
 
 	if (ww == W_MAX_TIMEOUT) {
 		pr_debug(" DBG_PORT80(0x30)\n");
@@ -1953,15 +1952,15 @@ bool bb_write_embedded(struct vnt_private *priv, unsigned char by_bb_addr,
 	unsigned char by_value;
 
 	/* BB reg offset */
-	VNSvOutPortB(iobase + MAC_REG_BBREGADR, by_bb_addr);
+	iowrite8(by_bb_addr, iobase + MAC_REG_BBREGADR);
 	/* set BB data */
-	VNSvOutPortB(iobase + MAC_REG_BBREGDATA, by_data);
+	iowrite8(by_data, iobase + MAC_REG_BBREGDATA);
 
 	/* turn on BBREGCTL_REGW */
 	MACvRegBitsOn(iobase, MAC_REG_BBREGCTL, BBREGCTL_REGW);
 	/* W_MAX_TIMEOUT is the timeout period */
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
-		VNSvInPortB(iobase + MAC_REG_BBREGCTL, &by_value);
+		by_value = ioread8(iobase + MAC_REG_BBREGCTL);
 		if (by_value & BBREGCTL_DONE)
 			break;
 	}
@@ -2054,7 +2053,7 @@ bool bb_vt3253_init(struct vnt_private *priv)
 				byVT3253B0_AGC[ii][0],
 				byVT3253B0_AGC[ii][1]);
 
-		VNSvOutPortB(iobase + MAC_REG_ITRTMSET, 0x23);
+		iowrite8(0x23, iobase + MAC_REG_ITRTMSET);
 		MACvRegBitsOn(iobase, MAC_REG_PAPEDELAY, BIT(0));
 
 		priv->abyBBVGA[0] = 0x14;
@@ -2065,54 +2064,6 @@ bool bb_vt3253_init(struct vnt_private *priv)
 		priv->dbm_threshold[1] = -50;
 		priv->dbm_threshold[2] = 0;
 		priv->dbm_threshold[3] = 0;
-	} else if (by_rf_type == RF_UW2452) {
-		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_UW2451; ii++)
-			result &= bb_write_embedded(priv,
-				byVT3253B0_UW2451[ii][0],
-				byVT3253B0_UW2451[ii][1]);
-
-		/* Init ANT B select,
-		 * TX Config CR09 = 0x61->0x45,
-		 * 0x45->0x41(VC1/VC2 define, make the ANT_A, ANT_B inverted)
-		 */
-
-		/*bResult &= bb_write_embedded(iobase,0x09,0x41);*/
-
-		/* Init ANT B select,
-		 * RX Config CR10 = 0x28->0x2A,
-		 * 0x2A->0x28(VC1/VC2 define,
-		 * make the ANT_A, ANT_B inverted)
-		 */
-
-		/*bResult &= bb_write_embedded(iobase,0x0a,0x28);*/
-		/* Select VC1/VC2, CR215 = 0x02->0x06 */
-		result &= bb_write_embedded(priv, 0xd7, 0x06);
-
-		/* {{RobertYu:20050125, request by Jack */
-		result &= bb_write_embedded(priv, 0x90, 0x20);
-		result &= bb_write_embedded(priv, 0x97, 0xeb);
-		/* }} */
-
-		/* {{RobertYu:20050221, request by Jack */
-		result &= bb_write_embedded(priv, 0xa6, 0x00);
-		result &= bb_write_embedded(priv, 0xa8, 0x30);
-		/* }} */
-		result &= bb_write_embedded(priv, 0xb0, 0x58);
-
-		for (ii = 0; ii < CB_VT3253B0_AGC; ii++)
-			result &= bb_write_embedded(priv,
-				byVT3253B0_AGC[ii][0], byVT3253B0_AGC[ii][1]);
-
-		priv->abyBBVGA[0] = 0x14;
-		priv->abyBBVGA[1] = 0x0A;
-		priv->abyBBVGA[2] = 0x0;
-		priv->abyBBVGA[3] = 0x0;
-		priv->dbm_threshold[0] = -60;
-		priv->dbm_threshold[1] = -50;
-		priv->dbm_threshold[2] = 0;
-		priv->dbm_threshold[3] = 0;
-		/* }} RobertYu */
-
 	} else if (by_rf_type == RF_VT3226) {
 		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_AIROHA2230; ii++)
 			result &= bb_write_embedded(priv,
@@ -2134,38 +2085,6 @@ bool bb_vt3253_init(struct vnt_private *priv)
 		/* Fix VT3226 DFC system timing issue */
 		MACvSetRFLE_LatchBase(iobase);
 		/* {{ RobertYu: 20050104 */
-	} else if (by_rf_type == RF_AIROHA7230) {
-		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_AIROHA2230; ii++)
-			result &= bb_write_embedded(priv,
-				byVT3253B0_AIROHA2230[ii][0],
-				byVT3253B0_AIROHA2230[ii][1]);
-
-		/* {{ RobertYu:20050223, request by JerryChung */
-		/* Init ANT B select,TX Config CR09 = 0x61->0x45,
-		 * 0x45->0x41(VC1/VC2 define, make the ANT_A, ANT_B inverted)
-		 */
-		/* bResult &= bb_write_embedded(iobase,0x09,0x41);*/
-		/* Init ANT B select,RX Config CR10 = 0x28->0x2A,
-		 * 0x2A->0x28(VC1/VC2 define, make the ANT_A, ANT_B inverted)
-		 */
-		/* bResult &= BBbWriteEmbedded(iobase,0x0a,0x28);*/
-		/* Select VC1/VC2, CR215 = 0x02->0x06 */
-		result &= bb_write_embedded(priv, 0xd7, 0x06);
-		/* }} */
-
-		for (ii = 0; ii < CB_VT3253B0_AGC; ii++)
-			result &= bb_write_embedded(priv,
-				byVT3253B0_AGC[ii][0], byVT3253B0_AGC[ii][1]);
-
-		priv->abyBBVGA[0] = 0x1C;
-		priv->abyBBVGA[1] = 0x10;
-		priv->abyBBVGA[2] = 0x0;
-		priv->abyBBVGA[3] = 0x0;
-		priv->dbm_threshold[0] = -70;
-		priv->dbm_threshold[1] = -48;
-		priv->dbm_threshold[2] = 0;
-		priv->dbm_threshold[3] = 0;
-		/* }} RobertYu */
 	} else {
 		/* No VGA Table now */
 		priv->bUpdateBBVGA = false;

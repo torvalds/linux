@@ -65,7 +65,7 @@ static int ksz9477_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ksz9477_spi_remove(struct spi_device *spi)
+static void ksz9477_spi_remove(struct spi_device *spi)
 {
 	struct ksz_device *dev = spi_get_drvdata(spi);
 
@@ -73,8 +73,6 @@ static int ksz9477_spi_remove(struct spi_device *spi)
 		ksz_switch_remove(dev);
 
 	spi_set_drvdata(spi, NULL);
-
-	return 0;
 }
 
 static void ksz9477_spi_shutdown(struct spi_device *spi)
@@ -88,12 +86,30 @@ static void ksz9477_spi_shutdown(struct spi_device *spi)
 }
 
 static const struct of_device_id ksz9477_dt_ids[] = {
-	{ .compatible = "microchip,ksz9477" },
-	{ .compatible = "microchip,ksz9897" },
-	{ .compatible = "microchip,ksz9893" },
-	{ .compatible = "microchip,ksz9563" },
-	{ .compatible = "microchip,ksz8563" },
-	{ .compatible = "microchip,ksz9567" },
+	{
+		.compatible = "microchip,ksz9477",
+		.data = &ksz_switch_chips[KSZ9477]
+	},
+	{
+		.compatible = "microchip,ksz9897",
+		.data = &ksz_switch_chips[KSZ9897]
+	},
+	{
+		.compatible = "microchip,ksz9893",
+		.data = &ksz_switch_chips[KSZ9893]
+	},
+	{
+		.compatible = "microchip,ksz9563",
+		.data = &ksz_switch_chips[KSZ9893]
+	},
+	{
+		.compatible = "microchip,ksz8563",
+		.data = &ksz_switch_chips[KSZ9893]
+	},
+	{
+		.compatible = "microchip,ksz9567",
+		.data = &ksz_switch_chips[KSZ9567]
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, ksz9477_dt_ids);

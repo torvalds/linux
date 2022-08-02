@@ -4,7 +4,12 @@
  */
 
 #include "gt/intel_migrate.h"
+#include "gt/intel_gpu_commands.h"
 #include "gem/i915_gem_ttm_move.h"
+
+#include "i915_deps.h"
+
+#include "selftests/igt_spinner.h"
 
 static int igt_fill_check_buffer(struct drm_i915_gem_object *obj,
 				 bool fill)
@@ -42,14 +47,16 @@ static int igt_create_migrate(struct intel_gt *gt, enum intel_region_id src,
 {
 	struct drm_i915_private *i915 = gt->i915;
 	struct intel_memory_region *src_mr = i915->mm.regions[src];
+	struct intel_memory_region *dst_mr = i915->mm.regions[dst];
 	struct drm_i915_gem_object *obj;
 	struct i915_gem_ww_ctx ww;
 	int err = 0;
 
 	GEM_BUG_ON(!src_mr);
+	GEM_BUG_ON(!dst_mr);
 
 	/* Switch object backing-store on create */
-	obj = i915_gem_object_create_region(src_mr, PAGE_SIZE, 0, 0);
+	obj = i915_gem_object_create_region(src_mr, dst_mr->min_page_size, 0, 0);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
@@ -87,21 +94,22 @@ static int igt_create_migrate(struct intel_gt *gt, enum intel_region_id src,
 
 static int igt_smem_create_migrate(void *arg)
 {
-	return igt_create_migrate(arg, INTEL_REGION_LMEM, INTEL_REGION_SMEM);
+	return igt_create_migrate(arg, INTEL_REGION_LMEM_0, INTEL_REGION_SMEM);
 }
 
 static int igt_lmem_create_migrate(void *arg)
 {
-	return igt_create_migrate(arg, INTEL_REGION_SMEM, INTEL_REGION_LMEM);
+	return igt_create_migrate(arg, INTEL_REGION_SMEM, INTEL_REGION_LMEM_0);
 }
 
 static int igt_same_create_migrate(void *arg)
 {
-	return igt_create_migrate(arg, INTEL_REGION_LMEM, INTEL_REGION_LMEM);
+	return igt_create_migrate(arg, INTEL_REGION_LMEM_0, INTEL_REGION_LMEM_0);
 }
 
 static int lmem_pages_migrate_one(struct i915_gem_ww_ctx *ww,
-				  struct drm_i915_gem_object *obj)
+				  struct drm_i915_gem_object *obj,
+				  struct i915_vma *vma)
 {
 	int err;
 
@@ -109,6 +117,24 @@ static int lmem_pages_migrate_one(struct i915_gem_ww_ctx *ww,
 	if (err)
 		return err;
 
+	if (vma) {
+		err = i915_vma_pin_ww(vma, ww, obj->base.size, 0,
+				      0UL | PIN_OFFSET_FIXED |
+				      PIN_USER);
+		if (err) {
+			if (err != -EINTR && err != ERESTARTSYS &&
+			    err != -EDEADLK)
+				pr_err("Failed to pin vma.\n");
+			return err;
+		}
+
+		i915_vma_unpin(vma);
+	}
+
+	/*
+	 * Migration will implicitly unbind (asynchronously) any bound
+	 * vmas.
+	 */
 	if (i915_gem_object_is_lmem(obj)) {
 		err = i915_gem_object_migrate(obj, ww, INTEL_REGION_SMEM);
 		if (err) {
@@ -128,7 +154,7 @@ static int lmem_pages_migrate_one(struct i915_gem_ww_ctx *ww,
 		}
 
 	} else {
-		err = i915_gem_object_migrate(obj, ww, INTEL_REGION_LMEM);
+		err = i915_gem_object_migrate(obj, ww, INTEL_REGION_LMEM_0);
 		if (err) {
 			pr_err("Object failed migration to lmem\n");
 			if (err)
@@ -149,11 +175,15 @@ static int lmem_pages_migrate_one(struct i915_gem_ww_ctx *ww,
 	return err;
 }
 
-static int igt_lmem_pages_migrate(void *arg)
+static int __igt_lmem_pages_migrate(struct intel_gt *gt,
+				    struct i915_address_space *vm,
+				    struct i915_deps *deps,
+				    struct igt_spinner *spin,
+				    struct dma_fence *spin_fence)
 {
-	struct intel_gt *gt = arg;
 	struct drm_i915_private *i915 = gt->i915;
 	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma = NULL;
 	struct i915_gem_ww_ctx ww;
 	struct i915_request *rq;
 	int err;
@@ -165,6 +195,14 @@ static int igt_lmem_pages_migrate(void *arg)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
+	if (vm) {
+		vma = i915_vma_instance(obj, vm, NULL);
+		if (IS_ERR(vma)) {
+			err = PTR_ERR(vma);
+			goto out_put;
+		}
+	}
+
 	/* Initial GPU fill, sync, CPU initialization. */
 	for_i915_gem_ww(&ww, err, true) {
 		err = i915_gem_object_lock(obj, &ww);
@@ -175,25 +213,25 @@ static int igt_lmem_pages_migrate(void *arg)
 		if (err)
 			continue;
 
-		err = intel_migrate_clear(&gt->migrate, &ww, NULL,
+		err = intel_migrate_clear(&gt->migrate, &ww, deps,
 					  obj->mm.pages->sgl, obj->cache_level,
 					  i915_gem_object_is_lmem(obj),
 					  0xdeadbeaf, &rq);
 		if (rq) {
-			dma_resv_add_excl_fence(obj->base.resv, &rq->fence);
+			err = dma_resv_reserve_fences(obj->base.resv, 1);
+			if (!err)
+				dma_resv_add_fence(obj->base.resv, &rq->fence,
+						   DMA_RESV_USAGE_KERNEL);
 			i915_request_put(rq);
 		}
 		if (err)
 			continue;
 
-		err = i915_gem_object_wait(obj, I915_WAIT_INTERRUPTIBLE,
-					   5 * HZ);
-		if (err)
-			continue;
-
-		err = igt_fill_check_buffer(obj, true);
-		if (err)
-			continue;
+		if (!vma) {
+			err = igt_fill_check_buffer(obj, true);
+			if (err)
+				continue;
+		}
 	}
 	if (err)
 		goto out_put;
@@ -204,7 +242,7 @@ static int igt_lmem_pages_migrate(void *arg)
 	 */
 	for (i = 1; i <= 5; ++i) {
 		for_i915_gem_ww(&ww, err, true)
-			err = lmem_pages_migrate_one(&ww, obj);
+			err = lmem_pages_migrate_one(&ww, obj, vma);
 		if (err)
 			goto out_put;
 	}
@@ -213,12 +251,27 @@ static int igt_lmem_pages_migrate(void *arg)
 	if (err)
 		goto out_put;
 
+	if (spin) {
+		if (dma_fence_is_signaled(spin_fence)) {
+			pr_err("Spinner was terminated by hangcheck.\n");
+			err = -EBUSY;
+			goto out_unlock;
+		}
+		igt_spinner_end(spin);
+	}
+
 	/* Finally sync migration and check content. */
 	err = i915_gem_object_wait_migration(obj, true);
 	if (err)
 		goto out_unlock;
 
-	err = igt_fill_check_buffer(obj, false);
+	if (vma) {
+		err = i915_vma_wait_for_bind(vma);
+		if (err)
+			goto out_unlock;
+	} else {
+		err = igt_fill_check_buffer(obj, false);
+	}
 
 out_unlock:
 	i915_gem_object_unlock(obj);
@@ -231,6 +284,7 @@ out_put:
 static int igt_lmem_pages_failsafe_migrate(void *arg)
 {
 	int fail_gpu, fail_alloc, ret;
+	struct intel_gt *gt = arg;
 
 	for (fail_gpu = 0; fail_gpu < 2; ++fail_gpu) {
 		for (fail_alloc = 0; fail_alloc < 2; ++fail_alloc) {
@@ -238,7 +292,118 @@ static int igt_lmem_pages_failsafe_migrate(void *arg)
 				fail_gpu, fail_alloc);
 			i915_ttm_migrate_set_failure_modes(fail_gpu,
 							   fail_alloc);
-			ret = igt_lmem_pages_migrate(arg);
+			ret = __igt_lmem_pages_migrate(gt, NULL, NULL, NULL, NULL);
+			if (ret)
+				goto out_err;
+		}
+	}
+
+out_err:
+	i915_ttm_migrate_set_failure_modes(false, false);
+	return ret;
+}
+
+/*
+ * This subtest tests that unbinding at migration is indeed performed
+ * async. We launch a spinner and a number of migrations depending on
+ * that spinner to have terminated. Before each migration we bind a
+ * vma, which should then be async unbound by the migration operation.
+ * If we are able to schedule migrations without blocking while the
+ * spinner is still running, those unbinds are indeed async and non-
+ * blocking.
+ *
+ * Note that each async bind operation is awaiting the previous migration
+ * due to the moving fence resulting from the migration.
+ */
+static int igt_async_migrate(struct intel_gt *gt)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	struct i915_ppgtt *ppgtt;
+	struct igt_spinner spin;
+	int err;
+
+	ppgtt = i915_ppgtt_create(gt, 0);
+	if (IS_ERR(ppgtt))
+		return PTR_ERR(ppgtt);
+
+	if (igt_spinner_init(&spin, gt)) {
+		err = -ENOMEM;
+		goto out_spin;
+	}
+
+	for_each_engine(engine, gt, id) {
+		struct ttm_operation_ctx ctx = {
+			.interruptible = true
+		};
+		struct dma_fence *spin_fence;
+		struct intel_context *ce;
+		struct i915_request *rq;
+		struct i915_deps deps;
+
+		ce = intel_context_create(engine);
+		if (IS_ERR(ce)) {
+			err = PTR_ERR(ce);
+			goto out_ce;
+		}
+
+		/*
+		 * Use MI_NOOP, making the spinner non-preemptible. If there
+		 * is a code path where we fail async operation due to the
+		 * running spinner, we will block and fail to end the
+		 * spinner resulting in a deadlock. But with a non-
+		 * preemptible spinner, hangcheck will terminate the spinner
+		 * for us, and we will later detect that and fail the test.
+		 */
+		rq = igt_spinner_create_request(&spin, ce, MI_NOOP);
+		intel_context_put(ce);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			goto out_ce;
+		}
+
+		i915_deps_init(&deps, GFP_KERNEL);
+		err = i915_deps_add_dependency(&deps, &rq->fence, &ctx);
+		spin_fence = dma_fence_get(&rq->fence);
+		i915_request_add(rq);
+		if (err)
+			goto out_ce;
+
+		err = __igt_lmem_pages_migrate(gt, &ppgtt->vm, &deps, &spin,
+					       spin_fence);
+		i915_deps_fini(&deps);
+		dma_fence_put(spin_fence);
+		if (err)
+			goto out_ce;
+	}
+
+out_ce:
+	igt_spinner_fini(&spin);
+out_spin:
+	i915_vm_put(&ppgtt->vm);
+
+	return err;
+}
+
+/*
+ * Setting ASYNC_FAIL_ALLOC to 2 will simulate memory allocation failure while
+ * arming the migration error check and block async migration. This
+ * will cause us to deadlock and hangcheck will terminate the spinner
+ * causing the test to fail.
+ */
+#define ASYNC_FAIL_ALLOC 1
+static int igt_lmem_async_migrate(void *arg)
+{
+	int fail_gpu, fail_alloc, ret;
+	struct intel_gt *gt = arg;
+
+	for (fail_gpu = 0; fail_gpu < 2; ++fail_gpu) {
+		for (fail_alloc = 0; fail_alloc < ASYNC_FAIL_ALLOC; ++fail_alloc) {
+			pr_info("Simulated failure modes: gpu: %d, alloc: %d\n",
+				fail_gpu, fail_alloc);
+			i915_ttm_migrate_set_failure_modes(fail_gpu,
+							   fail_alloc);
+			ret = igt_async_migrate(gt);
 			if (ret)
 				goto out_err;
 		}
@@ -256,6 +421,7 @@ int i915_gem_migrate_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_lmem_create_migrate),
 		SUBTEST(igt_same_create_migrate),
 		SUBTEST(igt_lmem_pages_failsafe_migrate),
+		SUBTEST(igt_lmem_async_migrate),
 	};
 
 	if (!HAS_LMEM(i915))

@@ -25,7 +25,6 @@
 #include <string.h>
 #include <sys/capability.h>
 #include <sys/mman.h>
-#include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/un.h>
@@ -571,13 +570,13 @@ static void remove_xdp_program(void)
 {
 	u32 curr_prog_id = 0;
 
-	if (bpf_get_link_xdp_id(opt_ifindex, &curr_prog_id, opt_xdp_flags)) {
-		printf("bpf_get_link_xdp_id failed\n");
+	if (bpf_xdp_query_id(opt_ifindex, opt_xdp_flags, &curr_prog_id)) {
+		printf("bpf_xdp_query_id failed\n");
 		exit(EXIT_FAILURE);
 	}
 
 	if (prog_id == curr_prog_id)
-		bpf_set_link_xdp_fd(opt_ifindex, -1, opt_xdp_flags);
+		bpf_xdp_detach(opt_ifindex, opt_xdp_flags, NULL);
 	else if (!curr_prog_id)
 		printf("couldn't find a prog id on a given interface\n");
 	else
@@ -1027,7 +1026,7 @@ static struct xsk_socket_info *xsk_configure_socket(struct xsk_umem_info *umem,
 	if (ret)
 		exit_with_error(-ret);
 
-	ret = bpf_get_link_xdp_id(opt_ifindex, &prog_id, opt_xdp_flags);
+	ret = bpf_xdp_query_id(opt_ifindex, opt_xdp_flags, &prog_id);
 	if (ret)
 		exit_with_error(-ret);
 
@@ -1760,7 +1759,7 @@ static void load_xdp_program(char **argv, struct bpf_object **obj)
 		exit(EXIT_FAILURE);
 	}
 
-	if (bpf_set_link_xdp_fd(opt_ifindex, prog_fd, opt_xdp_flags) < 0) {
+	if (bpf_xdp_attach(opt_ifindex, prog_fd, opt_xdp_flags, NULL) < 0) {
 		fprintf(stderr, "ERROR: link set xdp fd failed\n");
 		exit(EXIT_FAILURE);
 	}
@@ -1886,7 +1885,6 @@ int main(int argc, char **argv)
 {
 	struct __user_cap_header_struct hdr = { _LINUX_CAPABILITY_VERSION_3, 0 };
 	struct __user_cap_data_struct data[2] = { { 0 } };
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	bool rx = false, tx = false;
 	struct sched_param schparam;
 	struct xsk_umem_info *umem;
@@ -1917,11 +1915,8 @@ int main(int argc, char **argv)
 				data[1].effective, data[1].inheritable, data[1].permitted);
 		}
 	} else {
-		if (setrlimit(RLIMIT_MEMLOCK, &r)) {
-			fprintf(stderr, "ERROR: setrlimit(RLIMIT_MEMLOCK) \"%s\"\n",
-				strerror(errno));
-			exit(EXIT_FAILURE);
-		}
+		/* Use libbpf 1.0 API mode */
+		libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 		if (opt_num_xsks > 1)
 			load_xdp_program(argv, &obj);
@@ -1984,14 +1979,14 @@ int main(int argc, char **argv)
 
 	setlocale(LC_ALL, "");
 
+	prev_time = get_nsecs();
+	start_time = prev_time;
+
 	if (!opt_quiet) {
 		ret = pthread_create(&pt, NULL, poller, NULL);
 		if (ret)
 			exit_with_error(ret);
 	}
-
-	prev_time = get_nsecs();
-	start_time = prev_time;
 
 	/* Configure sched priority for better wake-up accuracy */
 	memset(&schparam, 0, sizeof(schparam));

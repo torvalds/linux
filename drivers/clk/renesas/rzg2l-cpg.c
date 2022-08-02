@@ -27,6 +27,7 @@
 #include <linux/pm_domain.h>
 #include <linux/reset-controller.h>
 #include <linux/slab.h>
+#include <linux/units.h>
 
 #include <dt-bindings/clock/renesas-cpg-mssr.h>
 
@@ -56,6 +57,8 @@
 #define GET_REG_SAMPLL_CLK1(val)	((val >> 22) & 0xfff)
 #define GET_REG_SAMPLL_CLK2(val)	((val >> 12) & 0xfff)
 
+#define MAX_VCLK_FREQ		(148500000)
+
 struct sd_hw_data {
 	struct clk_hw hw;
 	u32 conf;
@@ -63,6 +66,21 @@ struct sd_hw_data {
 };
 
 #define to_sd_hw_data(_hw)	container_of(_hw, struct sd_hw_data, hw)
+
+struct rzg2l_pll5_param {
+	u32 pl5_fracin;
+	u8 pl5_refdiv;
+	u8 pl5_intin;
+	u8 pl5_postdiv1;
+	u8 pl5_postdiv2;
+	u8 pl5_spread;
+};
+
+struct rzg2l_pll5_mux_dsi_div_param {
+	u8 clksrc;
+	u8 dsi_div_a;
+	u8 dsi_div_b;
+};
 
 /**
  * struct rzg2l_cpg_priv - Clock Pulse Generator Private Data
@@ -76,8 +94,8 @@ struct sd_hw_data {
  * @num_mod_clks: Number of Module Clocks in clks[]
  * @num_resets: Number of Module Resets in info->resets[]
  * @last_dt_core_clk: ID of the last Core Clock exported to DT
- * @notifiers: Notifier chain to save/restore clock state for system resume
  * @info: Pointer to platform data
+ * @pll5_mux_dsi_div_params: pll5 mux and dsi div parameters
  */
 struct rzg2l_cpg_priv {
 	struct reset_controller_dev rcdev;
@@ -91,8 +109,9 @@ struct rzg2l_cpg_priv {
 	unsigned int num_resets;
 	unsigned int last_dt_core_clk;
 
-	struct raw_notifier_head notifiers;
 	const struct rzg2l_cpg_info *info;
+
+	struct rzg2l_pll5_mux_dsi_div_param mux_dsi_div_params;
 };
 
 static void rzg2l_cpg_del_clk_provider(void *data)
@@ -266,6 +285,406 @@ rzg2l_cpg_sd_mux_clk_register(const struct cpg_core_clk *core,
 	return clk_hw->clk;
 }
 
+static unsigned long
+rzg2l_cpg_get_foutpostdiv_rate(struct rzg2l_pll5_param *params,
+			       unsigned long rate)
+{
+	unsigned long foutpostdiv_rate;
+
+	params->pl5_intin = rate / MEGA;
+	params->pl5_fracin = div_u64(((u64)rate % MEGA) << 24, MEGA);
+	params->pl5_refdiv = 2;
+	params->pl5_postdiv1 = 1;
+	params->pl5_postdiv2 = 1;
+	params->pl5_spread = 0x16;
+
+	foutpostdiv_rate =
+		EXTAL_FREQ_IN_MEGA_HZ * MEGA / params->pl5_refdiv *
+		((((params->pl5_intin << 24) + params->pl5_fracin)) >> 24) /
+		(params->pl5_postdiv1 * params->pl5_postdiv2);
+
+	return foutpostdiv_rate;
+}
+
+struct dsi_div_hw_data {
+	struct clk_hw hw;
+	u32 conf;
+	unsigned long rate;
+	struct rzg2l_cpg_priv *priv;
+};
+
+#define to_dsi_div_hw_data(_hw)	container_of(_hw, struct dsi_div_hw_data, hw)
+
+static unsigned long rzg2l_cpg_dsi_div_recalc_rate(struct clk_hw *hw,
+						   unsigned long parent_rate)
+{
+	struct dsi_div_hw_data *dsi_div = to_dsi_div_hw_data(hw);
+	unsigned long rate = dsi_div->rate;
+
+	if (!rate)
+		rate = parent_rate;
+
+	return rate;
+}
+
+static unsigned long rzg2l_cpg_get_vclk_parent_rate(struct clk_hw *hw,
+						    unsigned long rate)
+{
+	struct dsi_div_hw_data *dsi_div = to_dsi_div_hw_data(hw);
+	struct rzg2l_cpg_priv *priv = dsi_div->priv;
+	struct rzg2l_pll5_param params;
+	unsigned long parent_rate;
+
+	parent_rate = rzg2l_cpg_get_foutpostdiv_rate(&params, rate);
+
+	if (priv->mux_dsi_div_params.clksrc)
+		parent_rate /= 2;
+
+	return parent_rate;
+}
+
+static int rzg2l_cpg_dsi_div_determine_rate(struct clk_hw *hw,
+					    struct clk_rate_request *req)
+{
+	if (req->rate > MAX_VCLK_FREQ)
+		req->rate = MAX_VCLK_FREQ;
+
+	req->best_parent_rate = rzg2l_cpg_get_vclk_parent_rate(hw, req->rate);
+
+	return 0;
+}
+
+static int rzg2l_cpg_dsi_div_set_rate(struct clk_hw *hw,
+				      unsigned long rate,
+				      unsigned long parent_rate)
+{
+	struct dsi_div_hw_data *dsi_div = to_dsi_div_hw_data(hw);
+	struct rzg2l_cpg_priv *priv = dsi_div->priv;
+
+	/*
+	 * MUX -->DIV_DSI_{A,B} -->M3 -->VCLK
+	 *
+	 * Based on the dot clock, the DSI divider clock sets the divider value,
+	 * calculates the pll parameters for generating FOUTPOSTDIV and the clk
+	 * source for the MUX and propagates that info to the parents.
+	 */
+
+	if (!rate || rate > MAX_VCLK_FREQ)
+		return -EINVAL;
+
+	dsi_div->rate = rate;
+	writel(CPG_PL5_SDIV_DIV_DSI_A_WEN | CPG_PL5_SDIV_DIV_DSI_B_WEN |
+	       (priv->mux_dsi_div_params.dsi_div_a << 0) |
+	       (priv->mux_dsi_div_params.dsi_div_b << 8),
+	       priv->base + CPG_PL5_SDIV);
+
+	return 0;
+}
+
+static const struct clk_ops rzg2l_cpg_dsi_div_ops = {
+	.recalc_rate = rzg2l_cpg_dsi_div_recalc_rate,
+	.determine_rate = rzg2l_cpg_dsi_div_determine_rate,
+	.set_rate = rzg2l_cpg_dsi_div_set_rate,
+};
+
+static struct clk * __init
+rzg2l_cpg_dsi_div_clk_register(const struct cpg_core_clk *core,
+			       struct clk **clks,
+			       struct rzg2l_cpg_priv *priv)
+{
+	struct dsi_div_hw_data *clk_hw_data;
+	const struct clk *parent;
+	const char *parent_name;
+	struct clk_init_data init;
+	struct clk_hw *clk_hw;
+	int ret;
+
+	parent = clks[core->parent & 0xffff];
+	if (IS_ERR(parent))
+		return ERR_CAST(parent);
+
+	clk_hw_data = devm_kzalloc(priv->dev, sizeof(*clk_hw_data), GFP_KERNEL);
+	if (!clk_hw_data)
+		return ERR_PTR(-ENOMEM);
+
+	clk_hw_data->priv = priv;
+
+	parent_name = __clk_get_name(parent);
+	init.name = core->name;
+	init.ops = &rzg2l_cpg_dsi_div_ops;
+	init.flags = CLK_SET_RATE_PARENT;
+	init.parent_names = &parent_name;
+	init.num_parents = 1;
+
+	clk_hw = &clk_hw_data->hw;
+	clk_hw->init = &init;
+
+	ret = devm_clk_hw_register(priv->dev, clk_hw);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return clk_hw->clk;
+}
+
+struct pll5_mux_hw_data {
+	struct clk_hw hw;
+	u32 conf;
+	unsigned long rate;
+	struct rzg2l_cpg_priv *priv;
+};
+
+#define to_pll5_mux_hw_data(_hw)	container_of(_hw, struct pll5_mux_hw_data, hw)
+
+static int rzg2l_cpg_pll5_4_clk_mux_determine_rate(struct clk_hw *hw,
+						   struct clk_rate_request *req)
+{
+	struct clk_hw *parent;
+	struct pll5_mux_hw_data *hwdata = to_pll5_mux_hw_data(hw);
+	struct rzg2l_cpg_priv *priv = hwdata->priv;
+
+	parent = clk_hw_get_parent_by_index(hw, priv->mux_dsi_div_params.clksrc);
+	req->best_parent_hw = parent;
+	req->best_parent_rate = req->rate;
+
+	return 0;
+}
+
+static int rzg2l_cpg_pll5_4_clk_mux_set_parent(struct clk_hw *hw, u8 index)
+{
+	struct pll5_mux_hw_data *hwdata = to_pll5_mux_hw_data(hw);
+	struct rzg2l_cpg_priv *priv = hwdata->priv;
+
+	/*
+	 * FOUTPOSTDIV--->|
+	 *  |             | -->MUX -->DIV_DSIA_B -->M3 -->VCLK
+	 *  |--FOUT1PH0-->|
+	 *
+	 * Based on the dot clock, the DSI divider clock calculates the parent
+	 * rate and clk source for the MUX. It propagates that info to
+	 * pll5_4_clk_mux which sets the clock source for DSI divider clock.
+	 */
+
+	writel(CPG_OTHERFUNC1_REG_RES0_ON_WEN | index,
+	       priv->base + CPG_OTHERFUNC1_REG);
+
+	return 0;
+}
+
+static u8 rzg2l_cpg_pll5_4_clk_mux_get_parent(struct clk_hw *hw)
+{
+	struct pll5_mux_hw_data *hwdata = to_pll5_mux_hw_data(hw);
+	struct rzg2l_cpg_priv *priv = hwdata->priv;
+
+	return readl(priv->base + GET_REG_OFFSET(hwdata->conf));
+}
+
+static const struct clk_ops rzg2l_cpg_pll5_4_clk_mux_ops = {
+	.determine_rate = rzg2l_cpg_pll5_4_clk_mux_determine_rate,
+	.set_parent	= rzg2l_cpg_pll5_4_clk_mux_set_parent,
+	.get_parent	= rzg2l_cpg_pll5_4_clk_mux_get_parent,
+};
+
+static struct clk * __init
+rzg2l_cpg_pll5_4_mux_clk_register(const struct cpg_core_clk *core,
+				  struct rzg2l_cpg_priv *priv)
+{
+	struct pll5_mux_hw_data *clk_hw_data;
+	struct clk_init_data init;
+	struct clk_hw *clk_hw;
+	int ret;
+
+	clk_hw_data = devm_kzalloc(priv->dev, sizeof(*clk_hw_data), GFP_KERNEL);
+	if (!clk_hw_data)
+		return ERR_PTR(-ENOMEM);
+
+	clk_hw_data->priv = priv;
+	clk_hw_data->conf = core->conf;
+
+	init.name = core->name;
+	init.ops = &rzg2l_cpg_pll5_4_clk_mux_ops;
+	init.flags = CLK_SET_RATE_PARENT;
+	init.num_parents = core->num_parents;
+	init.parent_names = core->parent_names;
+
+	clk_hw = &clk_hw_data->hw;
+	clk_hw->init = &init;
+
+	ret = devm_clk_hw_register(priv->dev, clk_hw);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return clk_hw->clk;
+}
+
+struct sipll5 {
+	struct clk_hw hw;
+	u32 conf;
+	unsigned long foutpostdiv_rate;
+	struct rzg2l_cpg_priv *priv;
+};
+
+#define to_sipll5(_hw)	container_of(_hw, struct sipll5, hw)
+
+static unsigned long rzg2l_cpg_get_vclk_rate(struct clk_hw *hw,
+					     unsigned long rate)
+{
+	struct sipll5 *sipll5 = to_sipll5(hw);
+	struct rzg2l_cpg_priv *priv = sipll5->priv;
+	unsigned long vclk;
+
+	vclk = rate / ((1 << priv->mux_dsi_div_params.dsi_div_a) *
+		       (priv->mux_dsi_div_params.dsi_div_b + 1));
+
+	if (priv->mux_dsi_div_params.clksrc)
+		vclk /= 2;
+
+	return vclk;
+}
+
+static unsigned long rzg2l_cpg_sipll5_recalc_rate(struct clk_hw *hw,
+						  unsigned long parent_rate)
+{
+	struct sipll5 *sipll5 = to_sipll5(hw);
+	unsigned long pll5_rate = sipll5->foutpostdiv_rate;
+
+	if (!pll5_rate)
+		pll5_rate = parent_rate;
+
+	return pll5_rate;
+}
+
+static long rzg2l_cpg_sipll5_round_rate(struct clk_hw *hw,
+					unsigned long rate,
+					unsigned long *parent_rate)
+{
+	return rate;
+}
+
+static int rzg2l_cpg_sipll5_set_rate(struct clk_hw *hw,
+				     unsigned long rate,
+				     unsigned long parent_rate)
+{
+	struct sipll5 *sipll5 = to_sipll5(hw);
+	struct rzg2l_cpg_priv *priv = sipll5->priv;
+	struct rzg2l_pll5_param params;
+	unsigned long vclk_rate;
+	int ret;
+	u32 val;
+
+	/*
+	 *  OSC --> PLL5 --> FOUTPOSTDIV-->|
+	 *                   |             | -->MUX -->DIV_DSIA_B -->M3 -->VCLK
+	 *                   |--FOUT1PH0-->|
+	 *
+	 * Based on the dot clock, the DSI divider clock calculates the parent
+	 * rate and the pll5 parameters for generating FOUTPOSTDIV. It propagates
+	 * that info to sipll5 which sets parameters for generating FOUTPOSTDIV.
+	 *
+	 * OSC --> PLL5 --> FOUTPOSTDIV
+	 */
+
+	if (!rate)
+		return -EINVAL;
+
+	vclk_rate = rzg2l_cpg_get_vclk_rate(hw, rate);
+	sipll5->foutpostdiv_rate =
+		rzg2l_cpg_get_foutpostdiv_rate(&params, vclk_rate);
+
+	/* Put PLL5 into standby mode */
+	writel(CPG_SIPLL5_STBY_RESETB_WEN, priv->base + CPG_SIPLL5_STBY);
+	ret = readl_poll_timeout(priv->base + CPG_SIPLL5_MON, val,
+				 !(val & CPG_SIPLL5_MON_PLL5_LOCK), 100, 250000);
+	if (ret) {
+		dev_err(priv->dev, "failed to release pll5 lock");
+		return ret;
+	}
+
+	/* Output clock setting 1 */
+	writel(CPG_SIPLL5_CLK1_POSTDIV1_WEN | CPG_SIPLL5_CLK1_POSTDIV2_WEN |
+	       CPG_SIPLL5_CLK1_REFDIV_WEN  | (params.pl5_postdiv1 << 0) |
+	       (params.pl5_postdiv2 << 4) | (params.pl5_refdiv << 8),
+	       priv->base + CPG_SIPLL5_CLK1);
+
+	/* Output clock setting, SSCG modulation value setting 3 */
+	writel((params.pl5_fracin << 8), priv->base + CPG_SIPLL5_CLK3);
+
+	/* Output clock setting 4 */
+	writel(CPG_SIPLL5_CLK4_RESV_LSB | (params.pl5_intin << 16),
+	       priv->base + CPG_SIPLL5_CLK4);
+
+	/* Output clock setting 5 */
+	writel(params.pl5_spread, priv->base + CPG_SIPLL5_CLK5);
+
+	/* PLL normal mode setting */
+	writel(CPG_SIPLL5_STBY_DOWNSPREAD_WEN | CPG_SIPLL5_STBY_SSCG_EN_WEN |
+	       CPG_SIPLL5_STBY_RESETB_WEN | CPG_SIPLL5_STBY_RESETB,
+	       priv->base + CPG_SIPLL5_STBY);
+
+	/* PLL normal mode transition, output clock stability check */
+	ret = readl_poll_timeout(priv->base + CPG_SIPLL5_MON, val,
+				 (val & CPG_SIPLL5_MON_PLL5_LOCK), 100, 250000);
+	if (ret) {
+		dev_err(priv->dev, "failed to lock pll5");
+		return ret;
+	}
+
+	return 0;
+}
+
+static const struct clk_ops rzg2l_cpg_sipll5_ops = {
+	.recalc_rate = rzg2l_cpg_sipll5_recalc_rate,
+	.round_rate = rzg2l_cpg_sipll5_round_rate,
+	.set_rate = rzg2l_cpg_sipll5_set_rate,
+};
+
+static struct clk * __init
+rzg2l_cpg_sipll5_register(const struct cpg_core_clk *core,
+			  struct clk **clks,
+			  struct rzg2l_cpg_priv *priv)
+{
+	const struct clk *parent;
+	struct clk_init_data init;
+	const char *parent_name;
+	struct sipll5 *sipll5;
+	struct clk_hw *clk_hw;
+	int ret;
+
+	parent = clks[core->parent & 0xffff];
+	if (IS_ERR(parent))
+		return ERR_CAST(parent);
+
+	sipll5 = devm_kzalloc(priv->dev, sizeof(*sipll5), GFP_KERNEL);
+	if (!sipll5)
+		return ERR_PTR(-ENOMEM);
+
+	init.name = core->name;
+	parent_name = __clk_get_name(parent);
+	init.ops = &rzg2l_cpg_sipll5_ops;
+	init.flags = 0;
+	init.parent_names = &parent_name;
+	init.num_parents = 1;
+
+	sipll5->hw.init = &init;
+	sipll5->conf = core->conf;
+	sipll5->priv = priv;
+
+	writel(CPG_SIPLL5_STBY_SSCG_EN_WEN | CPG_SIPLL5_STBY_RESETB_WEN |
+	       CPG_SIPLL5_STBY_RESETB, priv->base + CPG_SIPLL5_STBY);
+
+	clk_hw = &sipll5->hw;
+	clk_hw->init = &init;
+
+	ret = devm_clk_hw_register(priv->dev, clk_hw);
+	if (ret)
+		return ERR_PTR(ret);
+
+	priv->mux_dsi_div_params.clksrc = 1; /* Use clk src 1 for DSI */
+	priv->mux_dsi_div_params.dsi_div_a = 1; /* Divided by 2 */
+	priv->mux_dsi_div_params.dsi_div_b = 2; /* Divided by 3 */
+
+	return clk_hw->clk;
+}
+
 struct pll_clk {
 	struct clk_hw hw;
 	unsigned int conf;
@@ -291,7 +710,7 @@ static unsigned long rzg2l_cpg_pll_clk_recalc_rate(struct clk_hw *hw,
 	val1 = readl(priv->base + GET_REG_SAMPLL_CLK1(pll_clk->conf));
 	val2 = readl(priv->base + GET_REG_SAMPLL_CLK2(pll_clk->conf));
 	mult = MDIV(val1) + KDIV(val1) / 65536;
-	div = PDIV(val1) * (1 << SDIV(val2));
+	div = PDIV(val1) << SDIV(val2);
 
 	return DIV_ROUND_CLOSEST_ULL((u64)parent_rate * mult, div);
 }
@@ -420,6 +839,9 @@ rzg2l_cpg_register_core_clk(const struct cpg_core_clk *core,
 		clk = rzg2l_cpg_pll_clk_register(core, priv->clks,
 						 priv->base, priv);
 		break;
+	case CLK_TYPE_SIPLL5:
+		clk = rzg2l_cpg_sipll5_register(core, priv->clks, priv);
+		break;
 	case CLK_TYPE_DIV:
 		clk = rzg2l_cpg_div_clk_register(core, priv->clks,
 						 priv->base, priv);
@@ -429,6 +851,12 @@ rzg2l_cpg_register_core_clk(const struct cpg_core_clk *core,
 		break;
 	case CLK_TYPE_SD_MUX:
 		clk = rzg2l_cpg_sd_mux_clk_register(core, priv->base, priv);
+		break;
+	case CLK_TYPE_PLL5_4_MUX:
+		clk = rzg2l_cpg_pll5_4_mux_clk_register(core, priv);
+		break;
+	case CLK_TYPE_DSI_DIV:
+		clk = rzg2l_cpg_dsi_div_clk_register(core, priv->clks, priv);
 		break;
 	default:
 		goto fail;
@@ -496,6 +924,9 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 	spin_unlock_irqrestore(&priv->rmw_lock, flags);
 
 	if (!enable)
+		return 0;
+
+	if (!priv->info->has_clk_mon_regs)
 		return 0;
 
 	for (i = 1000; i > 0; --i) {
@@ -568,7 +999,10 @@ static int rzg2l_mod_clock_is_enabled(struct clk_hw *hw)
 	if (clock->sibling)
 		return clock->enabled;
 
-	value = readl(priv->base + CLK_MON_R(clock->off));
+	if (priv->info->has_clk_mon_regs)
+		value = readl(priv->base + CLK_MON_R(clock->off));
+	else
+		value = readl(priv->base + clock->off);
 
 	return value & bitmask;
 }
@@ -743,8 +1177,16 @@ static int rzg2l_cpg_status(struct reset_controller_dev *rcdev,
 	const struct rzg2l_cpg_info *info = priv->info;
 	unsigned int reg = info->resets[id].off;
 	u32 bitmask = BIT(info->resets[id].bit);
+	s8 monbit = info->resets[id].monbit;
 
-	return !(readl(priv->base + CLK_MRST_R(reg)) & bitmask);
+	if (info->has_clk_mon_regs) {
+		return !(readl(priv->base + CLK_MRST_R(reg)) & bitmask);
+	} else if (monbit >= 0) {
+		u32 monbitmask = BIT(monbit);
+
+		return !!(readl(priv->base + CPG_RST_MON) & monbitmask);
+	}
+	return -ENOTSUPP;
 }
 
 static const struct reset_control_ops rzg2l_cpg_reset_ops = {
@@ -947,10 +1389,28 @@ static int __init rzg2l_cpg_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id rzg2l_cpg_match[] = {
+#ifdef CONFIG_CLK_R9A07G043
+	{
+		.compatible = "renesas,r9a07g043-cpg",
+		.data = &r9a07g043_cpg_info,
+	},
+#endif
 #ifdef CONFIG_CLK_R9A07G044
 	{
 		.compatible = "renesas,r9a07g044-cpg",
 		.data = &r9a07g044_cpg_info,
+	},
+#endif
+#ifdef CONFIG_CLK_R9A07G054
+	{
+		.compatible = "renesas,r9a07g054-cpg",
+		.data = &r9a07g054_cpg_info,
+	},
+#endif
+#ifdef CONFIG_CLK_R9A09G011
+	{
+		.compatible = "renesas,r9a09g011-cpg",
+		.data = &r9a09g011_cpg_info,
 	},
 #endif
 	{ /* sentinel */ }

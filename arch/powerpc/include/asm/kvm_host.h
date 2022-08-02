@@ -26,6 +26,8 @@
 #include <asm/hvcall.h>
 #include <asm/mce.h>
 
+#define __KVM_HAVE_ARCH_VCPU_DEBUGFS
+
 #define KVM_MAX_VCPUS		NR_CPUS
 #define KVM_MAX_VCORES		NR_CPUS
 
@@ -34,7 +36,12 @@
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 #include <asm/kvm_book3s_asm.h>		/* for MAX_SMT_THREADS */
 #define KVM_MAX_VCPU_IDS	(MAX_SMT_THREADS * KVM_MAX_VCORES)
-#define KVM_MAX_NESTED_GUESTS	KVMPPC_NR_LPIDS
+
+/*
+ * Limit the nested partition table to 4096 entries (because that's what
+ * hardware supports). Both guest and host use this value.
+ */
+#define KVM_MAX_NESTED_GUESTS_SHIFT	12
 
 #else
 #define KVM_MAX_VCPU_IDS	KVM_MAX_VCPUS
@@ -295,7 +302,6 @@ struct kvm_arch {
 	bool dawr1_enabled;
 	pgd_t *pgtable;
 	u64 process_table;
-	struct dentry *debugfs_dir;
 	struct kvm_resize_hpt *resize_hpt; /* protected by kvm->lock */
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
@@ -326,8 +332,7 @@ struct kvm_arch {
 	struct list_head uvmem_pfns;
 	struct mutex mmu_setup_lock;	/* nests inside vcpu mutexes */
 	u64 l1_ptcr;
-	int max_nested_lpid;
-	struct kvm_nested_guest *nested_guests[KVM_MAX_NESTED_GUESTS];
+	struct idr kvm_nested_guest_idr;
 	/* This array can grow quite large, keep it at the end */
 	struct kvmppc_vcore *vcores[KVM_MAX_VCORES];
 #endif
@@ -673,7 +678,6 @@ struct kvm_vcpu_arch {
 	u64 timing_min_duration[__NUMBER_OF_KVM_EXIT_TYPES];
 	u64 timing_max_duration[__NUMBER_OF_KVM_EXIT_TYPES];
 	u64 timing_last_exit;
-	struct dentry *debugfs_exit_timing;
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S
@@ -831,8 +835,6 @@ struct kvm_vcpu_arch {
 	struct kvmhv_tb_accumulator rm_exit;	/* real-mode exit code */
 	struct kvmhv_tb_accumulator guest_time;	/* guest execution */
 	struct kvmhv_tb_accumulator cede_time;	/* time napping inside guest */
-
-	struct dentry *debugfs_dir;
 #endif /* CONFIG_KVM_BOOK3S_HV_EXIT_TIMING */
 };
 

@@ -247,6 +247,7 @@ LIBBPF_0.0.8 {
 		bpf_link_create;
 		bpf_link_update;
 		bpf_map__set_initial_value;
+		bpf_prog_attach_opts;
 		bpf_program__attach_cgroup;
 		bpf_program__attach_lsm;
 		bpf_program__is_lsm;
@@ -423,12 +424,42 @@ LIBBPF_0.6.0 {
 LIBBPF_0.7.0 {
 	global:
 		bpf_btf_load;
+		bpf_program__expected_attach_type;
 		bpf_program__log_buf;
 		bpf_program__log_level;
 		bpf_program__set_log_buf;
 		bpf_program__set_log_level;
+		bpf_program__type;
+		bpf_xdp_attach;
+		bpf_xdp_detach;
+		bpf_xdp_query;
+		bpf_xdp_query_id;
 		libbpf_probe_bpf_helper;
 		libbpf_probe_bpf_map_type;
 		libbpf_probe_bpf_prog_type;
 		libbpf_set_memlock_rlim_max;
+} LIBBPF_0.6.0;
+
+LIBBPF_0.8.0 {
+	global:
+		bpf_map__autocreate;
+		bpf_map__get_next_key;
+		bpf_map__delete_elem;
+		bpf_map__lookup_and_delete_elem;
+		bpf_map__lookup_elem;
+		bpf_map__set_autocreate;
+		bpf_map__update_elem;
+		bpf_map_delete_elem_flags;
+		bpf_object__destroy_subskeleton;
+		bpf_object__open_subskeleton;
+		bpf_program__attach_kprobe_multi_opts;
+		bpf_program__attach_trace_opts;
+		bpf_program__attach_usdt;
+		bpf_program__set_insns;
+		libbpf_register_prog_handler;
+		libbpf_unregister_prog_handler;
+} LIBBPF_0.7.0;
+
+LIBBPF_1.0.0 {
+	local: *;
 };

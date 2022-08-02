@@ -29,6 +29,8 @@ properties:
   aspeed,external-nodes:
     minItems: 2
     maxItems: 2
+    items:
+      maxItems: 1
     $ref: /schemas/types.yaml#/definitions/phandle-array
     description: |
       A cell of phandles to external controller nodes:
@@ -73,58 +75,25 @@ additionalProperties: false
 
 examples:
   - |
-    apb {
-        compatible = "simple-bus";
-        #address-cells = <1>;
-        #size-cells = <1>;
-        ranges;
+    #include <dt-bindings/clock/aspeed-clock.h>
+    scu@1e6e2000 {
+        compatible = "aspeed,ast2500-scu", "syscon", "simple-mfd";
+        reg = <0x1e6e2000 0x1a8>;
+        #clock-cells = <1>;
+        #reset-cells = <1>;
 
-        syscon: scu@1e6e2000 {
-            compatible = "aspeed,ast2500-scu", "syscon", "simple-mfd";
-            reg = <0x1e6e2000 0x1a8>;
+        pinctrl: pinctrl {
+            compatible = "aspeed,ast2500-pinctrl";
+            aspeed,external-nodes = <&gfx>, <&lhc>;
 
-            pinctrl: pinctrl {
-                compatible = "aspeed,ast2500-pinctrl";
-                aspeed,external-nodes = <&gfx>, <&lhc>;
-
-                pinctrl_i2c3_default: i2c3_default {
-                    function = "I2C3";
-                    groups = "I2C3";
-                };
-
-                pinctrl_gpioh0_unbiased_default: gpioh0 {
-                    pins = "A18";
-                    bias-disable;
-                };
+            pinctrl_i2c3_default: i2c3_default {
+                function = "I2C3";
+                groups = "I2C3";
             };
-        };
 
-        gfx: display@1e6e6000 {
-            compatible = "aspeed,ast2500-gfx", "syscon";
-            reg = <0x1e6e6000 0x1000>;
-        };
-    };
-
-    lpc: lpc@1e789000 {
-        compatible = "aspeed,ast2500-lpc", "simple-mfd";
-        reg = <0x1e789000 0x1000>;
-
-        #address-cells = <1>;
-        #size-cells = <1>;
-        ranges = <0x0 0x1e789000 0x1000>;
-
-        lpc_host: lpc-host@80 {
-            compatible = "aspeed,ast2500-lpc-host", "simple-mfd", "syscon";
-            reg = <0x80 0x1e0>;
-            reg-io-width = <4>;
-
-            #address-cells = <1>;
-            #size-cells = <1>;
-            ranges = <0x0 0x80 0x1e0>;
-
-            lhc: lhc@20 {
-                   compatible = "aspeed,ast2500-lhc";
-                   reg = <0x20 0x24>, <0x48 0x8>;
+            pinctrl_gpioh0_unbiased_default: gpioh0 {
+                pins = "A18";
+                bias-disable;
             };
         };
     };

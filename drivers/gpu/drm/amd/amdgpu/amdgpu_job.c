@@ -37,6 +37,7 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 	struct amdgpu_task_info ti;
 	struct amdgpu_device *adev = ring->adev;
 	int idx;
+	int r;
 
 	if (!drm_dev_enter(adev_to_drm(adev), &idx)) {
 		DRM_INFO("%s - device unplugged skipping recovery on scheduler:%s",
@@ -63,7 +64,9 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 		  ti.process_name, ti.tgid, ti.task_name, ti.pid);
 
 	if (amdgpu_device_should_recover_gpu(ring->adev)) {
-		amdgpu_device_gpu_recover(ring->adev, job);
+		r = amdgpu_device_gpu_recover_imp(ring->adev, job);
+		if (r)
+			DRM_ERROR("GPU Recovery Failed: %d\n", r);
 	} else {
 		drm_sched_suspend_timeout(&ring->sched);
 		if (amdgpu_sriov_vf(adev))
@@ -78,14 +81,10 @@ exit:
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 		     struct amdgpu_job **job, struct amdgpu_vm *vm)
 {
-	size_t size = sizeof(struct amdgpu_job);
-
 	if (num_ibs == 0)
 		return -EINVAL;
 
-	size += sizeof(struct amdgpu_ib) * num_ibs;
-
-	*job = kzalloc(size, GFP_KERNEL);
+	*job = kzalloc(struct_size(*job, ibs, num_ibs), GFP_KERNEL);
 	if (!*job)
 		return -ENOMEM;
 
@@ -95,7 +94,6 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 	 */
 	(*job)->base.sched = &adev->rings[0]->sched;
 	(*job)->vm = vm;
-	(*job)->ibs = (void *)&(*job)[1];
 	(*job)->num_ibs = num_ibs;
 
 	amdgpu_sync_create(&(*job)->sync);

@@ -319,6 +319,12 @@ enum {
 /* RINGS */
 
 enum {
+	ETHTOOL_TCP_DATA_SPLIT_UNKNOWN = 0,
+	ETHTOOL_TCP_DATA_SPLIT_DISABLED,
+	ETHTOOL_TCP_DATA_SPLIT_ENABLED,
+};
+
+enum {
 	ETHTOOL_A_RINGS_UNSPEC,
 	ETHTOOL_A_RINGS_HEADER,				/* nest - _A_HEADER_* */
 	ETHTOOL_A_RINGS_RX_MAX,				/* u32 */
@@ -330,6 +336,9 @@ enum {
 	ETHTOOL_A_RINGS_RX_JUMBO,			/* u32 */
 	ETHTOOL_A_RINGS_TX,				/* u32 */
 	ETHTOOL_A_RINGS_RX_BUF_LEN,                     /* u32 */
+	ETHTOOL_A_RINGS_TCP_DATA_SPLIT,			/* u8 */
+	ETHTOOL_A_RINGS_CQE_SIZE,			/* u32 */
+	ETHTOOL_A_RINGS_TX_PUSH,			/* u8 */
 
 	/* add new constants above here */
 	__ETHTOOL_A_RINGS_CNT,

@@ -49,6 +49,23 @@ static LIST_HEAD(tcf_proto_base);
 /* Protects list of registered TC modules. It is pure SMP lock. */
 static DEFINE_RWLOCK(cls_mod_lock);
 
+#ifdef CONFIG_NET_CLS_ACT
+DEFINE_STATIC_KEY_FALSE(tc_skb_ext_tc);
+EXPORT_SYMBOL(tc_skb_ext_tc);
+
+void tc_skb_ext_tc_enable(void)
+{
+	static_branch_inc(&tc_skb_ext_tc);
+}
+EXPORT_SYMBOL(tc_skb_ext_tc_enable);
+
+void tc_skb_ext_tc_disable(void)
+{
+	static_branch_dec(&tc_skb_ext_tc);
+}
+EXPORT_SYMBOL(tc_skb_ext_tc_disable);
+#endif
+
 static u32 destroy_obj_hashfn(const struct tcf_proto *tp)
 {
 	return jhash_3words(tp->chain->index, tp->prio,
@@ -1615,19 +1632,21 @@ int tcf_classify(struct sk_buff *skb,
 	ret = __tcf_classify(skb, tp, orig_tp, res, compat_mode,
 			     &last_executed_chain);
 
-	/* If we missed on some chain */
-	if (ret == TC_ACT_UNSPEC && last_executed_chain) {
-		struct tc_skb_cb *cb = tc_skb_cb(skb);
+	if (tc_skb_ext_tc_enabled()) {
+		/* If we missed on some chain */
+		if (ret == TC_ACT_UNSPEC && last_executed_chain) {
+			struct tc_skb_cb *cb = tc_skb_cb(skb);
 
-		ext = tc_skb_ext_alloc(skb);
-		if (WARN_ON_ONCE(!ext))
-			return TC_ACT_SHOT;
-		ext->chain = last_executed_chain;
-		ext->mru = cb->mru;
-		ext->post_ct = cb->post_ct;
-		ext->post_ct_snat = cb->post_ct_snat;
-		ext->post_ct_dnat = cb->post_ct_dnat;
-		ext->zone = cb->zone;
+			ext = tc_skb_ext_alloc(skb);
+			if (WARN_ON_ONCE(!ext))
+				return TC_ACT_SHOT;
+			ext->chain = last_executed_chain;
+			ext->mru = cb->mru;
+			ext->post_ct = cb->post_ct;
+			ext->post_ct_snat = cb->post_ct_snat;
+			ext->post_ct_dnat = cb->post_ct_dnat;
+			ext->zone = cb->zone;
+		}
 	}
 
 	return ret;
@@ -1653,10 +1672,10 @@ static int tcf_chain_tp_insert(struct tcf_chain *chain,
 	if (chain->flushing)
 		return -EAGAIN;
 
+	RCU_INIT_POINTER(tp->next, tcf_chain_tp_prev(chain, chain_info));
 	if (*chain_info->pprev == chain->filter_chain)
 		tcf_chain0_head_change(chain, tp);
 	tcf_proto_get(tp);
-	RCU_INIT_POINTER(tp->next, tcf_chain_tp_prev(chain, chain_info));
 	rcu_assign_pointer(*chain_info->pprev, tp);
 
 	return 0;
@@ -3494,20 +3513,25 @@ EXPORT_SYMBOL(tc_cleanup_offload_action);
 
 static int tc_setup_offload_act(struct tc_action *act,
 				struct flow_action_entry *entry,
-				u32 *index_inc)
+				u32 *index_inc,
+				struct netlink_ext_ack *extack)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	if (act->ops->offload_act_setup)
-		return act->ops->offload_act_setup(act, entry, index_inc, true);
-	else
+	if (act->ops->offload_act_setup) {
+		return act->ops->offload_act_setup(act, entry, index_inc, true,
+						   extack);
+	} else {
+		NL_SET_ERR_MSG(extack, "Action does not support offload");
 		return -EOPNOTSUPP;
+	}
 #else
 	return 0;
 #endif
 }
 
 int tc_setup_action(struct flow_action *flow_action,
-		    struct tc_action *actions[])
+		    struct tc_action *actions[],
+		    struct netlink_ext_ack *extack)
 {
 	int i, j, index, err = 0;
 	struct tc_action *act;
@@ -3532,7 +3556,7 @@ int tc_setup_action(struct flow_action *flow_action,
 		entry->hw_stats = tc_act_hw_stats(act->hw_stats);
 		entry->hw_index = act->tcfa_index;
 		index = 0;
-		err = tc_setup_offload_act(act, entry, &index);
+		err = tc_setup_offload_act(act, entry, &index, extack);
 		if (!err)
 			j += index;
 		else
@@ -3551,13 +3575,14 @@ err_out_locked:
 }
 
 int tc_setup_offload_action(struct flow_action *flow_action,
-			    const struct tcf_exts *exts)
+			    const struct tcf_exts *exts,
+			    struct netlink_ext_ack *extack)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	if (!exts)
 		return 0;
 
-	return tc_setup_action(flow_action, exts->actions);
+	return tc_setup_action(flow_action, exts->actions, extack);
 #else
 	return 0;
 #endif

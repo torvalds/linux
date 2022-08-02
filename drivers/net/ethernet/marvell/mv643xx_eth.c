@@ -1661,7 +1661,7 @@ mv643xx_eth_set_ringparam(struct net_device *dev, struct ethtool_ringparam *er,
 	if (er->rx_mini_pending || er->rx_jumbo_pending)
 		return -EINVAL;
 
-	mp->rx_ring_size = er->rx_pending < 4096 ? er->rx_pending : 4096;
+	mp->rx_ring_size = min(er->rx_pending, 4096U);
 	mp->tx_ring_size = clamp_t(unsigned int, er->tx_pending,
 				   MV643XX_MAX_SKB_DESCS * 2, 4096);
 	if (mp->tx_ring_size != er->tx_pending)
@@ -2751,7 +2751,7 @@ static int mv643xx_eth_shared_of_add_port(struct platform_device *pdev,
 	}
 
 	ret = of_get_mac_address(pnp, ppd.mac_addr);
-	if (ret)
+	if (ret == -EPROBE_DEFER)
 		return ret;
 
 	mv643xx_eth_property(pnp, "tx-queue-size", ppd.tx_queue_size);
@@ -3092,8 +3092,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	struct mv643xx_eth_private *mp;
 	struct net_device *dev;
 	struct phy_device *phydev = NULL;
-	struct resource *res;
-	int err;
+	int err, irq;
 
 	pd = dev_get_platdata(&pdev->dev);
 	if (pd == NULL) {
@@ -3189,9 +3188,12 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	timer_setup(&mp->rx_oom, oom_timer_wrapper, 0);
 
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	BUG_ON(!res);
-	dev->irq = res->start;
+	irq = platform_get_irq(pdev, 0);
+	if (WARN_ON(irq < 0)) {
+		err = irq;
+		goto out;
+	}
+	dev->irq = irq;
 
 	dev->netdev_ops = &mv643xx_eth_netdev_ops;
 
@@ -3205,7 +3207,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	dev->hw_features = dev->features;
 
 	dev->priv_flags |= IFF_UNICAST_FLT;
-	netif_set_gso_max_segs(dev, MV643XX_MAX_TSO_SEGS);
+	netif_set_tso_max_segs(dev, MV643XX_MAX_TSO_SEGS);
 
 	/* MTU range: 64 - 9500 */
 	dev->min_mtu = 64;

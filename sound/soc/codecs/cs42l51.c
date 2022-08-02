@@ -51,11 +51,8 @@ struct cs42l51_private {
 	struct regmap *regmap;
 };
 
-#define CS42L51_FORMATS ( \
-		SNDRV_PCM_FMTBIT_S16_LE  | SNDRV_PCM_FMTBIT_S16_BE  | \
-		SNDRV_PCM_FMTBIT_S18_3LE | SNDRV_PCM_FMTBIT_S18_3BE | \
-		SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S20_3BE | \
-		SNDRV_PCM_FMTBIT_S24_LE  | SNDRV_PCM_FMTBIT_S24_BE)
+#define CS42L51_FORMATS (SNDRV_PCM_FMTBIT_S16_LE  | SNDRV_PCM_FMTBIT_S18_3LE | \
+			 SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE)
 
 static int cs42l51_get_chan_mix(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
@@ -146,7 +143,7 @@ static const struct snd_kcontrol_new cs42l51_snd_controls[] = {
 			0, 0xA0, 96, adc_att_tlv),
 	SOC_DOUBLE_R_SX_TLV("PGA Volume",
 			CS42L51_ALC_PGA_CTL, CS42L51_ALC_PGB_CTL,
-			0, 0x1A, 30, pga_tlv),
+			0, 0x19, 30, pga_tlv),
 	SOC_SINGLE("Playback Deemphasis Switch", CS42L51_DAC_CTL, 3, 1, 0),
 	SOC_SINGLE("Auto-Mute Switch", CS42L51_DAC_CTL, 2, 1, 0),
 	SOC_SINGLE("Soft Ramp Switch", CS42L51_DAC_CTL, 1, 1, 0),
@@ -793,14 +790,19 @@ error:
 }
 EXPORT_SYMBOL_GPL(cs42l51_probe);
 
-int cs42l51_remove(struct device *dev)
+void cs42l51_remove(struct device *dev)
 {
 	struct cs42l51_private *cs42l51 = dev_get_drvdata(dev);
+	int ret;
 
 	gpiod_set_value_cansleep(cs42l51->reset_gpio, 1);
 
-	return regulator_bulk_disable(ARRAY_SIZE(cs42l51->supplies),
-				      cs42l51->supplies);
+	ret = regulator_bulk_disable(ARRAY_SIZE(cs42l51->supplies),
+				     cs42l51->supplies);
+	if (ret)
+		dev_warn(dev, "Failed to disable all regulators (%pe)\n",
+			 ERR_PTR(ret));
+
 }
 EXPORT_SYMBOL_GPL(cs42l51_remove);
 

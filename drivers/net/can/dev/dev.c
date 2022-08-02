@@ -14,7 +14,6 @@
 #include <linux/can/can-ml.h>
 #include <linux/can/dev.h>
 #include <linux/can/skb.h>
-#include <linux/can/led.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of.h>
 
@@ -154,7 +153,7 @@ static void can_restart(struct net_device *dev)
 
 	cf->can_id |= CAN_ERR_RESTARTED;
 
-	netif_rx_ni(skb);
+	netif_rx(skb);
 
 restart:
 	netdev_dbg(dev, "restarted\n");
@@ -512,8 +511,6 @@ static __init int can_dev_init(void)
 {
 	int err;
 
-	can_led_notifier_init();
-
 	err = can_netlink_register();
 	if (!err)
 		pr_info(MOD_DESC "\n");
@@ -525,8 +522,6 @@ module_init(can_dev_init);
 static __exit void can_dev_exit(void)
 {
 	can_netlink_unregister();
-
-	can_led_notifier_exit();
 }
 module_exit(can_dev_exit);
 

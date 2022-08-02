@@ -80,8 +80,8 @@ DEFINE_EVENT(iomap_range_class, name,	\
 	TP_PROTO(struct inode *inode, loff_t off, u64 len),\
 	TP_ARGS(inode, off, len))
 DEFINE_RANGE_EVENT(iomap_writepage);
-DEFINE_RANGE_EVENT(iomap_releasepage);
-DEFINE_RANGE_EVENT(iomap_invalidatepage);
+DEFINE_RANGE_EVENT(iomap_release_folio);
+DEFINE_RANGE_EVENT(iomap_invalidate_folio);
 DEFINE_RANGE_EVENT(iomap_dio_invalidate_fail);
 
 #define IOMAP_TYPE_STRINGS \

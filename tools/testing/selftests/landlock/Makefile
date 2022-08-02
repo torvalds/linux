@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-CFLAGS += -Wall -O2
+CFLAGS += -Wall -O2 $(KHDR_INCLUDES)
 
 src_test := $(wildcard *_test.c)
 

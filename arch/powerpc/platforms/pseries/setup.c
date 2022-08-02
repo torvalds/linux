@@ -36,6 +36,7 @@
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/of_pci.h>
 #include <linux/memblock.h>
 #include <linux/swiotlb.h>
@@ -43,7 +44,6 @@
 #include <asm/mmu.h>
 #include <asm/processor.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/pci-bridge.h>
 #include <asm/iommu.h>
@@ -353,6 +353,14 @@ static void pseries_lpar_idle(void)
 	pseries_idle_epilog();
 }
 
+static bool pseries_reloc_on_exception_enabled;
+
+bool pseries_reloc_on_exception(void)
+{
+	return pseries_reloc_on_exception_enabled;
+}
+EXPORT_SYMBOL_GPL(pseries_reloc_on_exception);
+
 /*
  * Enable relocation on during exceptions. This has partition wide scope and
  * may take a while to complete, if it takes longer than one second we will
@@ -377,6 +385,7 @@ bool pseries_enable_reloc_on_exc(void)
 					" on exceptions: %ld\n", rc);
 				return false;
 			}
+			pseries_reloc_on_exception_enabled = true;
 			return true;
 		}
 
@@ -404,21 +413,13 @@ void pseries_disable_reloc_on_exc(void)
 			break;
 		mdelay(get_longbusy_msecs(rc));
 	}
-	if (rc != H_SUCCESS)
+	if (rc == H_SUCCESS)
+		pseries_reloc_on_exception_enabled = false;
+	else
 		pr_warn("Warning: Failed to disable relocation on exceptions: %ld\n",
 			rc);
 }
 EXPORT_SYMBOL(pseries_disable_reloc_on_exc);
-
-#ifdef CONFIG_KEXEC_CORE
-static void pSeries_machine_kexec(struct kimage *image)
-{
-	if (firmware_has_feature(FW_FEATURE_SET_MODE))
-		pseries_disable_reloc_on_exc();
-
-	default_machine_kexec(image);
-}
-#endif
 
 #ifdef __LITTLE_ENDIAN__
 void pseries_big_endian_exceptions(void)
@@ -647,7 +648,7 @@ static resource_size_t pseries_get_iov_fw_value(struct pci_dev *dev, int resno,
 	 */
 	num_res = of_read_number(&indexes[NUM_RES_PROPERTY], 1);
 	if (resno >= num_res)
-		return 0; /* or an errror */
+		return 0; /* or an error */
 
 	i = START_OF_ENTRIES + NEXT_ENTRY * resno;
 	switch (value) {
@@ -751,7 +752,7 @@ static void pseries_pci_fixup_iov_resources(struct pci_dev *pdev)
 
 	if (!pdev->is_physfn)
 		return;
-	/*Firmware must support open sriov otherwise dont configure*/
+	/*Firmware must support open sriov otherwise don't configure*/
 	indexes = of_get_property(dn, "ibm,open-sriov-vf-bar-info", NULL);
 	if (indexes)
 		of_pci_parse_iov_addrs(pdev, indexes);
@@ -838,9 +839,7 @@ static void __init pSeries_setup_arch(void)
 	}
 
 	ppc_md.pcibios_root_bridge_prepare = pseries_root_bridge_prepare;
-
-	if (swiotlb_force == SWIOTLB_FORCE)
-		ppc_swiotlb_enable = 1;
+	pseries_rng_init();
 }
 
 static void pseries_panic(char *str)
@@ -1086,8 +1085,9 @@ define_machine(pseries) {
 	.system_reset_exception = pSeries_system_reset_exception,
 	.machine_check_early	= pseries_machine_check_realmode,
 	.machine_check_exception = pSeries_machine_check_exception,
+	.machine_check_log_err	= pSeries_machine_check_log_err,
 #ifdef CONFIG_KEXEC_CORE
-	.machine_kexec          = pSeries_machine_kexec,
+	.machine_kexec          = pseries_machine_kexec,
 	.kexec_cpu_down         = pseries_kexec_cpu_down,
 #endif
 #ifdef CONFIG_MEMORY_HOTPLUG

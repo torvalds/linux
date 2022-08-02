@@ -120,6 +120,9 @@ config INDIRECT_IOMEM_FALLBACK
 
 source "lib/crypto/Kconfig"
 
+config LIB_MEMNEQ
+	bool
+
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help
@@ -144,6 +147,15 @@ config CRC_T10DIF
 	  This option is only needed if a module that's not in the
 	  kernel tree needs to calculate CRC checks for use with the
 	  SCSI data integrity subsystem.
+
+config CRC64_ROCKSOFT
+	tristate "CRC calculation for the Rocksoft model CRC64"
+	select CRC64
+	select CRYPTO
+	select CRYPTO_CRC64_ROCKSOFT
+	help
+	  This option provides a CRC64 API to a registered crypto driver.
+	  This is used with the block layer's data integrity subsystem.
 
 config CRC_ITU_T
 	tristate "CRC ITU-T V.41 functions"
@@ -727,4 +739,7 @@ config PLDMFW
 	default n
 
 config ASN1_ENCODER
+       tristate
+
+config POLYNOMIAL
        tristate

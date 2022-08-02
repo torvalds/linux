@@ -8,7 +8,6 @@
 #include <linux/filter.h>
 #include <linux/unistd.h>
 #include <bpf/bpf.h>
-#include <sys/resource.h>
 #include <libelf.h>
 #include <gelf.h>
 #include <string.h>
@@ -3939,6 +3938,25 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "Invalid component_idx",
 },
 {
+	.descr = "decl_tag test #15, func, invalid func proto",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_DECL_TAG_ENC(NAME_TBD, 3, 0),		/* [2] */
+		BTF_FUNC_ENC(NAME_TBD, 8),			/* [3] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0tag\0func"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "tag_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Invalid type_id",
+},
+{
 	.descr = "type_tag test #1",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
@@ -3954,6 +3972,105 @@ static struct btf_raw_test raw_tests[] = {
 	.key_type_id = 1,
 	.value_type_id = 1,
 	.max_entries = 1,
+},
+{
+	.descr = "type_tag test #2, type tag order",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_CONST_ENC(3),				/* [2] */
+		BTF_TYPE_TAG_ENC(NAME_TBD, 1),			/* [3] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0tag"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "tag_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Type tags don't precede modifiers",
+},
+{
+	.descr = "type_tag test #3, type tag order",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_TAG_ENC(NAME_TBD, 3),			/* [2] */
+		BTF_CONST_ENC(4),				/* [3] */
+		BTF_TYPE_TAG_ENC(NAME_TBD, 1),			/* [4] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0tag\0tag"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "tag_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Type tags don't precede modifiers",
+},
+{
+	.descr = "type_tag test #4, type tag order",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 3),			/* [2] */
+		BTF_CONST_ENC(4),				/* [3] */
+		BTF_TYPE_TAG_ENC(NAME_TBD, 1),			/* [4] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0tag\0tag"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "tag_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Type tags don't precede modifiers",
+},
+{
+	.descr = "type_tag test #5, type tag order",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_TAG_ENC(NAME_TBD, 3),			/* [2] */
+		BTF_CONST_ENC(1),				/* [3] */
+		BTF_TYPE_TAG_ENC(NAME_TBD, 2),			/* [4] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0tag\0tag"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "tag_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 1,
+},
+{
+	.descr = "type_tag test #6, type tag order",
+	.raw_types = {
+		BTF_PTR_ENC(2),					/* [1] */
+		BTF_TYPE_TAG_ENC(NAME_TBD, 3),			/* [2] */
+		BTF_CONST_ENC(4),				/* [3] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),  /* [4] */
+		BTF_PTR_ENC(6),					/* [5] */
+		BTF_CONST_ENC(2),				/* [6] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0tag"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "tag_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Type tags don't precede modifiers",
 },
 
 }; /* struct btf_raw_test raw_tests[] */
@@ -4560,6 +4677,8 @@ static void do_test_file(unsigned int test_num)
 	has_btf_ext = btf_ext != NULL;
 	btf_ext__free(btf_ext);
 
+	/* temporary disable LIBBPF_STRICT_MAP_DEFINITIONS to test legacy maps */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL & ~LIBBPF_STRICT_MAP_DEFINITIONS);
 	obj = bpf_object__open(test->file);
 	err = libbpf_get_error(obj);
 	if (CHECK(err, "obj: %d", err))
@@ -4684,6 +4803,8 @@ skip:
 	fprintf(stderr, "OK");
 
 done:
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
+
 	btf__free(btf);
 	free(func_info);
 	bpf_object__close(obj);
@@ -6533,7 +6654,7 @@ done:
 static void do_test_info_raw(unsigned int test_num)
 {
 	const struct prog_info_raw_test *test = &info_raw_tests[test_num - 1];
-	unsigned int raw_btf_size, linfo_str_off, linfo_size;
+	unsigned int raw_btf_size, linfo_str_off, linfo_size = 0;
 	int btf_fd = -1, prog_fd = -1, err = 0;
 	void *raw_btf, *patched_linfo = NULL;
 	const char *ret_next_str;

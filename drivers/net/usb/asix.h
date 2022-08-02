@@ -126,8 +126,7 @@
 	 AX_MEDIUM_RE)
 
 #define AX88772_MEDIUM_DEFAULT	\
-	(AX_MEDIUM_FD | AX_MEDIUM_RFC | \
-	 AX_MEDIUM_TFC | AX_MEDIUM_PS | \
+	(AX_MEDIUM_FD | AX_MEDIUM_PS | \
 	 AX_MEDIUM_AC | AX_MEDIUM_RE)
 
 /* AX88772 & AX88178 RX_CTL values */
@@ -158,6 +157,8 @@
 #define AX_EEPROM_MAGIC		0xdeadbeef
 #define AX_EEPROM_LEN		0x200
 
+#define AX_EMBD_PHY_ADDR	0x10
+
 /* This structure cannot exceed sizeof(unsigned long [5]) AKA 20 bytes */
 struct asix_data {
 	u8 multi_filter[AX_MCAST_FILTER_SIZE];
@@ -177,14 +178,16 @@ struct asix_rx_fixup_info {
 struct asix_common_private {
 	void (*resume)(struct usbnet *dev);
 	void (*suspend)(struct usbnet *dev);
+	int (*reset)(struct usbnet *dev, int in_pm);
 	u16 presvd_phy_advertise;
 	u16 presvd_phy_bmcr;
 	struct asix_rx_fixup_info rx_fixup_info;
 	struct mii_bus *mdio;
 	struct phy_device *phydev;
+	struct phy_device *phydev_int;
 	u16 phy_addr;
-	char phy_name[20];
 	bool embd_phy;
+	u8 chipcode;
 };
 
 extern const struct driver_info ax88172a_info;
@@ -192,8 +195,8 @@ extern const struct driver_info ax88172a_info;
 /* ASIX specific flags */
 #define FLAG_EEPROM_MAC		(1UL << 0)  /* init device MAC from eeprom */
 
-int asix_read_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
-		  u16 size, void *data, int in_pm);
+int __must_check asix_read_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
+			       u16 size, void *data, int in_pm);
 
 int asix_write_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 		   u16 size, void *data, int in_pm);

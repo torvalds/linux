@@ -48,8 +48,7 @@ static int __unix_recvmsg(struct sock *sk, struct msghdr *msg,
 }
 
 static int unix_bpf_recvmsg(struct sock *sk, struct msghdr *msg,
-			    size_t len, int nonblock, int flags,
-			    int *addr_len)
+			    size_t len, int flags, int *addr_len)
 {
 	struct unix_sock *u = unix_sk(sk);
 	struct sk_psock *psock;
@@ -73,7 +72,7 @@ msg_bytes_ready:
 		long timeo;
 		int data;
 
-		timeo = sock_rcvtimeo(sk, nonblock);
+		timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 		data = unix_msg_wait_data(sk, psock, timeo);
 		if (data) {
 			if (!sk_psock_queue_empty(psock))

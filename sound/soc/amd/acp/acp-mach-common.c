@@ -71,31 +71,6 @@ static const struct snd_soc_dapm_route rt5682_map[] = {
 	{ "IN1P", NULL, "Headset Mic" },
 };
 
-int event_spkr_handler(struct snd_soc_dapm_widget *w,
-			struct snd_kcontrol *k, int event)
-{
-	struct snd_soc_dapm_context *dapm = w->dapm;
-	struct snd_soc_card *card = dapm->card;
-	struct acp_card_drvdata *drvdata = snd_soc_card_get_drvdata(card);
-
-	if (!gpio_is_valid(drvdata->gpio_spkr_en))
-		return 0;
-
-	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-		gpio_set_value(drvdata->gpio_spkr_en, 1);
-		break;
-	case SND_SOC_DAPM_PRE_PMD:
-		gpio_set_value(drvdata->gpio_spkr_en, 0);
-		break;
-	default:
-		dev_warn(card->dev, "%s invalid setting\n", __func__);
-		break;
-	}
-	return 0;
-}
-EXPORT_SYMBOL_NS_GPL(event_spkr_handler, SND_SOC_AMD_MACH);
-
 /* Define card ops for RT5682 CODEC */
 static int acp_card_rt5682_init(struct snd_soc_pcm_runtime *rtd)
 {
@@ -145,7 +120,7 @@ static int acp_card_rt5682_init(struct snd_soc_pcm_runtime *rtd)
 				    SND_JACK_HEADSET | SND_JACK_LINEOUT |
 				    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 				    SND_JACK_BTN_2 | SND_JACK_BTN_3,
-				    &pco_jack, NULL, 0);
+				    &pco_jack);
 	if (ret) {
 		dev_err(card->dev, "HP jack creation failed %d\n", ret);
 		return ret;
@@ -266,7 +241,7 @@ static int acp_card_rt5682s_init(struct snd_soc_pcm_runtime *rtd)
 				    SND_JACK_HEADSET | SND_JACK_LINEOUT |
 				    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 				    SND_JACK_BTN_2 | SND_JACK_BTN_3,
-				    &pco_jack, NULL, 0);
+				    &pco_jack);
 	if (ret) {
 		dev_err(card->dev, "HP jack creation failed %d\n", ret);
 		return ret;
@@ -289,6 +264,32 @@ static int acp_card_rt5682s_init(struct snd_soc_pcm_runtime *rtd)
 static const struct snd_soc_ops acp_card_rt5682s_ops = {
 	.startup = acp_card_hs_startup,
 	.shutdown = acp_card_shutdown,
+};
+
+static const unsigned int dmic_channels[] = {
+	DUAL_CHANNEL, FOUR_CHANNEL,
+};
+
+static const struct snd_pcm_hw_constraint_list dmic_constraints_channels = {
+	.count = ARRAY_SIZE(dmic_channels),
+	.list = dmic_channels,
+	.mask = 0,
+};
+
+static int acp_card_dmic_startup(struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+				   &dmic_constraints_channels);
+	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				   &constraints_rates);
+
+	return 0;
+}
+
+static const struct snd_soc_ops acp_card_dmic_ops = {
+	.startup = acp_card_dmic_startup,
 };
 
 /* Declare RT1019 codec components */
@@ -438,6 +439,8 @@ SND_SOC_DAILINK_DEF(sof_sp,
 	DAILINK_COMP_ARRAY(COMP_CPU("acp-sof-sp")));
 SND_SOC_DAILINK_DEF(sof_dmic,
 	DAILINK_COMP_ARRAY(COMP_CPU("acp-sof-dmic")));
+SND_SOC_DAILINK_DEF(pdm_dmic,
+	DAILINK_COMP_ARRAY(COMP_CPU("acp-pdm-dmic")));
 
 int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 {
@@ -556,6 +559,8 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 		num_links++;
 
 	links = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link) * num_links, GFP_KERNEL);
+	if (!links)
+		return -ENOMEM;
 
 	if (drv_data->hs_cpu_id == I2S_SP) {
 		links[i].name = "acp-headset-codec";
@@ -613,6 +618,26 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 			links[i].ops = &acp_card_maxim_ops;
 			links[i].init = acp_card_maxim_init;
 		}
+		i++;
+	}
+
+	if (drv_data->dmic_cpu_id == DMIC) {
+		links[i].name = "acp-dmic-codec";
+		links[i].id = DMIC_BE_ID;
+		if (drv_data->dmic_codec_id == DMIC) {
+			links[i].codecs = dmic_codec;
+			links[i].num_codecs = ARRAY_SIZE(dmic_codec);
+		} else {
+			/* Use dummy codec if codec id not specified */
+			links[i].codecs = dummy_codec;
+			links[i].num_codecs = ARRAY_SIZE(dummy_codec);
+		}
+		links[i].cpus = pdm_dmic;
+		links[i].num_cpus = ARRAY_SIZE(pdm_dmic);
+		links[i].platforms = platform_component;
+		links[i].num_platforms = ARRAY_SIZE(platform_component);
+		links[i].ops = &acp_card_dmic_ops;
+		links[i].dpcm_capture = 1;
 	}
 
 	card->dai_link = links;

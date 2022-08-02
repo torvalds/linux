@@ -417,6 +417,16 @@
         "UMask": "0x1"
     },
     {
+        "BriefDescription": "Instruction decoders utilized in a cycle",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x55",
+        "EventName": "INST_DECODED.DECODERS",
+        "PublicDescription": "Number of decoders utilized in a cycle when the MITE (legacy decode pipeline) fetches instructions.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
+    },
+    {
         "BriefDescription": "Instructions retired from execution.",
         "Counter": "Fixed counter 0",
         "CounterHTOff": "Fixed counter 0",
@@ -434,6 +444,17 @@
         "EventName": "INST_RETIRED.ANY_P",
         "PublicDescription": "Counts the number of instructions (EOMs) retired. Counting covers macro-fused instructions individually (that is, increments by two).",
         "SampleAfterValue": "2000003"
+    },
+    {
+        "BriefDescription": "Number of all retired NOP instructions.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "Errata": "SKL091, SKL044",
+        "EventCode": "0xC0",
+        "EventName": "INST_RETIRED.NOP",
+        "PEBS": "1",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x2"
     },
     {
         "BriefDescription": "Precise instruction retired event with HW to reduce effect of PEBS shadow in IP distribution",
@@ -958,7 +979,7 @@
         "BriefDescription": "Cycles with less than 10 actually retired uops.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3,4,5,6,7",
-        "CounterMask": "10",
+        "CounterMask": "16",
         "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.TOTAL_CYCLES",
         "Invert": "1",

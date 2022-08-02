@@ -139,9 +139,9 @@ void dcn31_update_clocks(struct clk_mgr *clk_mgr_base,
 	 * also if safe to lower is false, we just go in the higher state
 	 */
 	if (safe_to_lower) {
-		if (new_clocks->zstate_support == DCN_ZSTATE_SUPPORT_ALLOW &&
+		if (new_clocks->zstate_support != DCN_ZSTATE_SUPPORT_DISALLOW &&
 				new_clocks->zstate_support != clk_mgr_base->clks.zstate_support) {
-			dcn31_smu_set_Z9_support(clk_mgr, true);
+			dcn31_smu_set_zstate_support(clk_mgr, new_clocks->zstate_support);
 			dm_helpers_enable_periodic_detection(clk_mgr_base->ctx, true);
 			clk_mgr_base->clks.zstate_support = new_clocks->zstate_support;
 		}
@@ -167,7 +167,7 @@ void dcn31_update_clocks(struct clk_mgr *clk_mgr_base,
 	} else {
 		if (new_clocks->zstate_support == DCN_ZSTATE_SUPPORT_DISALLOW &&
 				new_clocks->zstate_support != clk_mgr_base->clks.zstate_support) {
-			dcn31_smu_set_Z9_support(clk_mgr, false);
+			dcn31_smu_set_zstate_support(clk_mgr, DCN_ZSTATE_SUPPORT_DISALLOW);
 			dm_helpers_enable_periodic_detection(clk_mgr_base->ctx, false);
 			clk_mgr_base->clks.zstate_support = new_clocks->zstate_support;
 		}
@@ -287,8 +287,11 @@ static void dcn31_enable_pme_wa(struct clk_mgr *clk_mgr_base)
 
 void dcn31_init_clocks(struct clk_mgr *clk_mgr)
 {
+	uint32_t ref_dtbclk = clk_mgr->clks.ref_dtbclk_khz;
+
 	memset(&(clk_mgr->clks), 0, sizeof(struct dc_clocks));
 	// Assumption is that boot state always supports pstate
+	clk_mgr->clks.ref_dtbclk_khz = ref_dtbclk;	// restore ref_dtbclk
 	clk_mgr->clks.p_state_change_support = true;
 	clk_mgr->clks.prev_p_state_change_support = true;
 	clk_mgr->clks.pwr_state = DCN_PWR_STATE_UNKNOWN;
@@ -615,13 +618,43 @@ static void dcn31_clk_mgr_helper_populate_bw_params(struct clk_mgr_internal *clk
 	}
 }
 
+static void dcn31_set_low_power_state(struct clk_mgr *clk_mgr_base)
+{
+	int display_count;
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	struct dc *dc = clk_mgr_base->ctx->dc;
+	struct dc_state *context = dc->current_state;
+
+	if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_LOW_POWER) {
+		display_count = dcn31_get_active_display_cnt_wa(dc, context);
+		/* if we can go lower, go lower */
+		if (display_count == 0) {
+			union display_idle_optimization_u idle_info = { 0 };
+
+			idle_info.idle_info.df_request_disabled = 1;
+			idle_info.idle_info.phy_ref_clk_off = 1;
+			idle_info.idle_info.s0i2_rdy = 1;
+			dcn31_smu_set_display_idle_optimization(clk_mgr, idle_info.data);
+			/* update power state */
+			clk_mgr_base->clks.pwr_state = DCN_PWR_STATE_LOW_POWER;
+		}
+	}
+}
+
+int dcn31_get_dtb_ref_freq_khz(struct clk_mgr *clk_mgr_base)
+{
+	return clk_mgr_base->clks.ref_dtbclk_khz;
+}
+
 static struct clk_mgr_funcs dcn31_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
+	.get_dtb_ref_clk_frequency = dcn31_get_dtb_ref_freq_khz,
 	.update_clocks = dcn31_update_clocks,
 	.init_clocks = dcn31_init_clocks,
 	.enable_pme_wa = dcn31_enable_pme_wa,
 	.are_clock_states_equal = dcn31_are_clock_states_equal,
-	.notify_wm_ranges = dcn31_notify_wm_ranges
+	.notify_wm_ranges = dcn31_notify_wm_ranges,
+	.set_low_power_state = dcn31_set_low_power_state
 };
 extern struct clk_mgr_funcs dcn3_fpga_funcs;
 
@@ -695,8 +728,10 @@ void dcn31_clk_mgr_construct(
 	}
 
 	clk_mgr->base.base.dprefclk_khz = 600000;
-	clk_mgr->base.dccg->ref_dtbclk_khz = 600000;
+	clk_mgr->base.base.clks.ref_dtbclk_khz = 600000;
 	dce_clock_read_ss_info(&clk_mgr->base);
+	/*if bios enabled SS, driver needs to adjust dtb clock, only enable with correct bios*/
+	//clk_mgr->base.dccg->ref_dtbclk_khz = dce_adjust_dp_ref_freq_for_ss(clk_mgr_internal, clk_mgr->base.base.dprefclk_khz);
 
 	clk_mgr->base.base.bw_params = &dcn31_bw_params;
 

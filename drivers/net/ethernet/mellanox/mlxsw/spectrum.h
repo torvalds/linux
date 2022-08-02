@@ -145,9 +145,16 @@ struct mlxsw_sp_mall_entry;
 
 struct mlxsw_sp_port_mapping {
 	u8 module;
+	u8 slot_index;
 	u8 width; /* Number of lanes used by the port */
 	u8 module_width; /* Number of lanes in the module (static) */
 	u8 lane;
+};
+
+struct mlxsw_sp_port_mapping_events {
+	struct list_head queue;
+	spinlock_t queue_lock; /* protects queue */
+	struct work_struct work;
 };
 
 struct mlxsw_sp_parsing {
@@ -164,7 +171,8 @@ struct mlxsw_sp {
 	unsigned char base_mac[ETH_ALEN];
 	const unsigned char *mac_mask;
 	struct mlxsw_sp_upper *lags;
-	struct mlxsw_sp_port_mapping **port_mapping;
+	struct mlxsw_sp_port_mapping *port_mapping;
+	struct mlxsw_sp_port_mapping_events port_mapping_events;
 	struct rhashtable sample_trigger_ht;
 	struct mlxsw_sp_sb *sb;
 	struct mlxsw_sp_bridge *bridge;
@@ -481,6 +489,13 @@ int
 mlxsw_sp_port_vlan_classification_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				      bool is_8021ad_tagged,
 				      bool is_8021q_tagged);
+static inline bool
+mlxsw_sp_local_port_is_valid(struct mlxsw_sp *mlxsw_sp, u16 local_port)
+{
+	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_sp->core);
+
+	return local_port < max_ports && local_port;
+}
 
 /* spectrum_buffers.c */
 struct mlxsw_sp_hdroom_prio {
@@ -703,29 +718,12 @@ union mlxsw_sp_l3addr {
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 			 struct netlink_ext_ack *extack);
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
-int mlxsw_sp_netdevice_router_port_event(struct net_device *dev,
-					 unsigned long event, void *ptr);
 void mlxsw_sp_rif_macvlan_del(struct mlxsw_sp *mlxsw_sp,
 			      const struct net_device *macvlan_dev);
 int mlxsw_sp_inetaddr_valid_event(struct notifier_block *unused,
 				  unsigned long event, void *ptr);
 int mlxsw_sp_inet6addr_valid_event(struct notifier_block *unused,
 				   unsigned long event, void *ptr);
-int mlxsw_sp_netdevice_vrf_event(struct net_device *l3_dev, unsigned long event,
-				 struct netdev_notifier_changeupper_info *info);
-bool mlxsw_sp_netdev_is_ipip_ol(const struct mlxsw_sp *mlxsw_sp,
-				const struct net_device *dev);
-bool mlxsw_sp_netdev_is_ipip_ul(struct mlxsw_sp *mlxsw_sp,
-				const struct net_device *dev);
-int mlxsw_sp_netdevice_ipip_ol_event(struct mlxsw_sp *mlxsw_sp,
-				     struct net_device *l3_dev,
-				     unsigned long event,
-				     struct netdev_notifier_info *info);
-int
-mlxsw_sp_netdevice_ipip_ul_event(struct mlxsw_sp *mlxsw_sp,
-				 struct net_device *l3_dev,
-				 unsigned long event,
-				 struct netdev_notifier_info *info);
 int
 mlxsw_sp_port_vlan_router_join(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 			       struct net_device *l3_dev,
@@ -813,6 +811,24 @@ int mlxsw_sp1_kvdl_resources_register(struct mlxsw_core *mlxsw_core);
 /* spectrum2_kvdl.c */
 extern const struct mlxsw_sp_kvdl_ops mlxsw_sp2_kvdl_ops;
 
+enum mlxsw_sp_acl_mangle_field {
+	MLXSW_SP_ACL_MANGLE_FIELD_IP_DSFIELD,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP_DSCP,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP_ECN,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP_SPORT,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP_DPORT,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP4_SIP,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP4_DIP,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP6_SIP_1,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP6_SIP_2,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP6_SIP_3,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP6_SIP_4,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP6_DIP_1,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP6_DIP_2,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP6_DIP_3,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP6_DIP_4,
+};
+
 struct mlxsw_sp_acl_rule_info {
 	unsigned int priority;
 	struct mlxsw_afk_element_values values;
@@ -821,9 +837,14 @@ struct mlxsw_sp_acl_rule_info {
 	   ingress_bind_blocker:1,
 	   egress_bind_blocker:1,
 	   counter_valid:1,
-	   policer_index_valid:1;
+	   policer_index_valid:1,
+	   ipv6_valid:1;
 	unsigned int counter_index;
 	u16 policer_index;
+	struct {
+		u32 prev_val;
+		enum mlxsw_sp_acl_mangle_field prev_field;
+	} ipv6;
 };
 
 /* spectrum_flow.c */

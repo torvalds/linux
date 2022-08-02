@@ -7,6 +7,7 @@
 #include <uapi/linux/reboot.h>
 
 struct device;
+struct sys_off_handler;
 
 #define SYS_DOWN	0x0001	/* Notify of system down */
 #define SYS_RESTART	SYS_DOWN
@@ -62,6 +63,95 @@ extern void machine_shutdown(void);
 struct pt_regs;
 extern void machine_crash_shutdown(struct pt_regs *);
 
+void do_kernel_power_off(void);
+
+/*
+ * sys-off handler API.
+ */
+
+/*
+ * Standard sys-off priority levels. Users are expected to set priorities
+ * relative to the standard levels.
+ *
+ * SYS_OFF_PRIO_PLATFORM:	Use this for platform-level handlers.
+ *
+ * SYS_OFF_PRIO_LOW:		Use this for handler of last resort.
+ *
+ * SYS_OFF_PRIO_DEFAULT:	Use this for normal handlers.
+ *
+ * SYS_OFF_PRIO_HIGH:		Use this for higher priority handlers.
+ *
+ * SYS_OFF_PRIO_FIRMWARE:	Use this if handler uses firmware call.
+ */
+#define SYS_OFF_PRIO_PLATFORM		-256
+#define SYS_OFF_PRIO_LOW		-128
+#define SYS_OFF_PRIO_DEFAULT		0
+#define SYS_OFF_PRIO_HIGH		192
+#define SYS_OFF_PRIO_FIRMWARE		224
+
+enum sys_off_mode {
+	/**
+	 * @SYS_OFF_MODE_POWER_OFF_PREPARE:
+	 *
+	 * Handlers prepare system to be powered off. Handlers are
+	 * allowed to sleep.
+	 */
+	SYS_OFF_MODE_POWER_OFF_PREPARE,
+
+	/**
+	 * @SYS_OFF_MODE_POWER_OFF:
+	 *
+	 * Handlers power-off system. Handlers are disallowed to sleep.
+	 */
+	SYS_OFF_MODE_POWER_OFF,
+
+	/**
+	 * @SYS_OFF_MODE_RESTART:
+	 *
+	 * Handlers restart system. Handlers are disallowed to sleep.
+	 */
+	SYS_OFF_MODE_RESTART,
+};
+
+/**
+ * struct sys_off_data - sys-off callback argument
+ *
+ * @mode: Mode ID. Currently used only by the sys-off restart mode,
+ *        see enum reboot_mode for the available modes.
+ * @cb_data: User's callback data.
+ * @cmd: Command string. Currently used only by the sys-off restart mode,
+ *       NULL otherwise.
+ */
+struct sys_off_data {
+	int mode;
+	void *cb_data;
+	const char *cmd;
+};
+
+struct sys_off_handler *
+register_sys_off_handler(enum sys_off_mode mode,
+			 int priority,
+			 int (*callback)(struct sys_off_data *data),
+			 void *cb_data);
+void unregister_sys_off_handler(struct sys_off_handler *handler);
+
+int devm_register_sys_off_handler(struct device *dev,
+				  enum sys_off_mode mode,
+				  int priority,
+				  int (*callback)(struct sys_off_data *data),
+				  void *cb_data);
+
+int devm_register_power_off_handler(struct device *dev,
+				    int (*callback)(struct sys_off_data *data),
+				    void *cb_data);
+
+int devm_register_restart_handler(struct device *dev,
+				  int (*callback)(struct sys_off_data *data),
+				  void *cb_data);
+
+int register_platform_power_off(void (*power_off)(void));
+void unregister_platform_power_off(void (*power_off)(void));
+
 /*
  * Architecture independent implemenations of sys_reboot commands.
  */
@@ -70,12 +160,9 @@ extern void kernel_restart_prepare(char *cmd);
 extern void kernel_restart(char *cmd);
 extern void kernel_halt(void);
 extern void kernel_power_off(void);
+extern bool kernel_can_power_off(void);
 
-extern int C_A_D; /* for sysctl */
 void ctrl_alt_del(void);
-
-#define POWEROFF_CMD_PATH_LEN	256
-extern char poweroff_cmd[POWEROFF_CMD_PATH_LEN];
 
 extern void orderly_poweroff(bool force);
 extern void orderly_reboot(void);

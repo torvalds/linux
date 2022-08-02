@@ -221,7 +221,7 @@ static void slc_bump(struct slcan *sl)
 	if (!(cf.can_id & CAN_RTR_FLAG))
 		sl->dev->stats.rx_bytes += cf.len;
 
-	netif_rx_ni(skb);
+	netif_rx(skb);
 }
 
 /* parse tty input stream */
@@ -359,8 +359,8 @@ static netdev_tx_t slc_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct slcan *sl = netdev_priv(dev);
 
-	if (skb->len != CAN_MTU)
-		goto out;
+	if (can_dropped_invalid_skb(dev, skb))
+		return NETDEV_TX_OK;
 
 	spin_lock(&sl->lock);
 	if (!netif_running(dev))  {

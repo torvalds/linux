@@ -3,7 +3,6 @@
 #define __ASM_SH_PROCESSOR_H
 
 #include <asm/cpu-features.h>
-#include <asm/segment.h>
 #include <asm/cache.h>
 
 #ifndef __ASSEMBLY__

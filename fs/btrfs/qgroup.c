@@ -25,18 +25,6 @@
 #include "sysfs.h"
 #include "tree-mod-log.h"
 
-/* TODO XXX FIXME
- *  - subvol delete -> delete when ref goes to 0? delete limits also?
- *  - reorganize keys
- *  - compressed
- *  - sync
- *  - copy also limits on subvol creation
- *  - limit
- *  - caches for ulists
- *  - performance benchmarks
- *  - check all ioctl parameters
- */
-
 /*
  * Helpers to access qgroup reservation
  *
@@ -258,16 +246,19 @@ static int del_qgroup_rb(struct btrfs_fs_info *fs_info, u64 qgroupid)
 	return 0;
 }
 
-/* must be called with qgroup_lock held */
-static int add_relation_rb(struct btrfs_fs_info *fs_info,
-			   u64 memberid, u64 parentid)
+/*
+ * Add relation specified by two qgroups.
+ *
+ * Must be called with qgroup_lock held.
+ *
+ * Return: 0        on success
+ *         -ENOENT  if one of the qgroups is NULL
+ *         <0       other errors
+ */
+static int __add_relation_rb(struct btrfs_qgroup *member, struct btrfs_qgroup *parent)
 {
-	struct btrfs_qgroup *member;
-	struct btrfs_qgroup *parent;
 	struct btrfs_qgroup_list *list;
 
-	member = find_qgroup_rb(fs_info, memberid);
-	parent = find_qgroup_rb(fs_info, parentid);
 	if (!member || !parent)
 		return -ENOENT;
 
@@ -283,7 +274,27 @@ static int add_relation_rb(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-/* must be called with qgroup_lock held */
+/*
+ * Add relation specified by two qgoup ids.
+ *
+ * Must be called with qgroup_lock held.
+ *
+ * Return: 0        on success
+ *         -ENOENT  if one of the ids does not exist
+ *         <0       other errors
+ */
+static int add_relation_rb(struct btrfs_fs_info *fs_info, u64 memberid, u64 parentid)
+{
+	struct btrfs_qgroup *member;
+	struct btrfs_qgroup *parent;
+
+	member = find_qgroup_rb(fs_info, memberid);
+	parent = find_qgroup_rb(fs_info, parentid);
+
+	return __add_relation_rb(member, parent);
+}
+
+/* Must be called with qgroup_lock held */
 static int del_relation_rb(struct btrfs_fs_info *fs_info,
 			   u64 memberid, u64 parentid)
 {
@@ -948,6 +959,12 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info)
 	 */
 	lockdep_assert_held_write(&fs_info->subvol_sem);
 
+	if (btrfs_fs_incompat(fs_info, EXTENT_TREE_V2)) {
+		btrfs_err(fs_info,
+			  "qgroups are currently unsupported in extent tree v2");
+		return -EINVAL;
+	}
+
 	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	if (fs_info->quota_root)
 		goto out;
@@ -1451,7 +1468,7 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
 	}
 
 	spin_lock(&fs_info->qgroup_lock);
-	ret = add_relation_rb(fs_info, src, dst);
+	ret = __add_relation_rb(member, parent);
 	if (ret < 0) {
 		spin_unlock(&fs_info->qgroup_lock);
 		goto out;
@@ -2273,7 +2290,7 @@ int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
 		return 0;
 
 	if (!extent_buffer_uptodate(root_eb)) {
-		ret = btrfs_read_buffer(root_eb, root_gen, root_level, NULL);
+		ret = btrfs_read_extent_buffer(root_eb, root_gen, root_level, NULL);
 		if (ret)
 			goto out;
 	}
@@ -3268,7 +3285,8 @@ out:
 static bool rescan_should_stop(struct btrfs_fs_info *fs_info)
 {
 	return btrfs_fs_closing(fs_info) ||
-		test_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state);
+		test_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state) ||
+		!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags);
 }
 
 static void btrfs_qgroup_rescan_worker(struct btrfs_work *work)
@@ -3298,11 +3316,9 @@ static void btrfs_qgroup_rescan_worker(struct btrfs_work *work)
 			err = PTR_ERR(trans);
 			break;
 		}
-		if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags)) {
-			err = -EINTR;
-		} else {
-			err = qgroup_rescan_leaf(trans, path);
-		}
+
+		err = qgroup_rescan_leaf(trans, path);
+
 		if (err > 0)
 			btrfs_commit_transaction(trans);
 		else
@@ -3316,7 +3332,7 @@ out:
 	if (err > 0 &&
 	    fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT) {
 		fs_info->qgroup_flags &= ~BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
-	} else if (err < 0) {
+	} else if (err < 0 || stopped) {
 		fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
 	}
 	mutex_unlock(&fs_info->qgroup_rescan_lock);
@@ -3923,12 +3939,13 @@ int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
 }
 
 int __btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
-				enum btrfs_qgroup_rsv_type type, bool enforce)
+				enum btrfs_qgroup_rsv_type type, bool enforce,
+				bool noflush)
 {
 	int ret;
 
 	ret = btrfs_qgroup_reserve_meta(root, num_bytes, type, enforce);
-	if (ret <= 0 && ret != -EDQUOT)
+	if ((ret <= 0 && ret != -EDQUOT) || noflush)
 		return ret;
 
 	ret = try_flush_qgroup(root);

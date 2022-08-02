@@ -230,7 +230,9 @@ static void vnt_start_interrupt_urb_complete(struct urb *urb)
 	else
 		vnt_int_process_data(priv);
 
-	status = usb_submit_urb(priv->interrupt_urb, GFP_ATOMIC);
+	if (!test_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags))
+		status = usb_submit_urb(priv->interrupt_urb, GFP_ATOMIC);
+
 	if (status)
 		dev_dbg(&priv->usb->dev, "Submit int URB failed %d\n", status);
 }

@@ -8,6 +8,12 @@
 #include "metric.h"
 #include "mds_client.h"
 
+static void ktime_to_ceph_timespec(struct ceph_timespec *ts, ktime_t val)
+{
+	struct timespec64 t = ktime_to_timespec64(val);
+	ceph_encode_timespec64(ts, &t);
+}
+
 static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 				   struct ceph_mds_session *s)
 {
@@ -26,7 +32,6 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	u64 nr_caps = atomic64_read(&m->total_caps);
 	u32 header_len = sizeof(struct ceph_metric_header);
 	struct ceph_msg *msg;
-	struct timespec64 ts;
 	s64 sum;
 	s32 items = 0;
 	s32 len;
@@ -59,37 +64,40 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	/* encode the read latency metric */
 	read = (struct ceph_metric_read_latency *)(cap + 1);
 	read->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_READ_LATENCY);
-	read->header.ver = 1;
+	read->header.ver = 2;
 	read->header.compat = 1;
 	read->header.data_len = cpu_to_le32(sizeof(*read) - header_len);
 	sum = m->metric[METRIC_READ].latency_sum;
-	jiffies_to_timespec64(sum, &ts);
-	read->sec = cpu_to_le32(ts.tv_sec);
-	read->nsec = cpu_to_le32(ts.tv_nsec);
+	ktime_to_ceph_timespec(&read->lat, sum);
+	ktime_to_ceph_timespec(&read->avg, m->metric[METRIC_READ].latency_avg);
+	read->sq_sum = cpu_to_le64(m->metric[METRIC_READ].latency_sq_sum);
+	read->count = cpu_to_le64(m->metric[METRIC_READ].total);
 	items++;
 
 	/* encode the write latency metric */
 	write = (struct ceph_metric_write_latency *)(read + 1);
 	write->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_WRITE_LATENCY);
-	write->header.ver = 1;
+	write->header.ver = 2;
 	write->header.compat = 1;
 	write->header.data_len = cpu_to_le32(sizeof(*write) - header_len);
 	sum = m->metric[METRIC_WRITE].latency_sum;
-	jiffies_to_timespec64(sum, &ts);
-	write->sec = cpu_to_le32(ts.tv_sec);
-	write->nsec = cpu_to_le32(ts.tv_nsec);
+	ktime_to_ceph_timespec(&write->lat, sum);
+	ktime_to_ceph_timespec(&write->avg, m->metric[METRIC_WRITE].latency_avg);
+	write->sq_sum = cpu_to_le64(m->metric[METRIC_WRITE].latency_sq_sum);
+	write->count = cpu_to_le64(m->metric[METRIC_WRITE].total);
 	items++;
 
 	/* encode the metadata latency metric */
 	meta = (struct ceph_metric_metadata_latency *)(write + 1);
 	meta->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_METADATA_LATENCY);
-	meta->header.ver = 1;
+	meta->header.ver = 2;
 	meta->header.compat = 1;
 	meta->header.data_len = cpu_to_le32(sizeof(*meta) - header_len);
 	sum = m->metric[METRIC_METADATA].latency_sum;
-	jiffies_to_timespec64(sum, &ts);
-	meta->sec = cpu_to_le32(ts.tv_sec);
-	meta->nsec = cpu_to_le32(ts.tv_nsec);
+	ktime_to_ceph_timespec(&meta->lat, sum);
+	ktime_to_ceph_timespec(&meta->avg, m->metric[METRIC_METADATA].latency_avg);
+	meta->sq_sum = cpu_to_le64(m->metric[METRIC_METADATA].latency_sq_sum);
+	meta->count = cpu_to_le64(m->metric[METRIC_METADATA].total);
 	items++;
 
 	/* encode the dentry lease metric */
@@ -250,6 +258,7 @@ int ceph_metric_init(struct ceph_client_metric *m)
 		metric->size_max = 0;
 		metric->total = 0;
 		metric->latency_sum = 0;
+		metric->latency_avg = 0;
 		metric->latency_sq_sum = 0;
 		metric->latency_min = KTIME_MAX;
 		metric->latency_max = 0;
@@ -307,20 +316,19 @@ void ceph_metric_destroy(struct ceph_client_metric *m)
 		max = new;			\
 }
 
-static inline void __update_stdev(ktime_t total, ktime_t lsum,
-				  ktime_t *sq_sump, ktime_t lat)
+static inline void __update_mean_and_stdev(ktime_t total, ktime_t *lavg,
+					   ktime_t *sq_sump, ktime_t lat)
 {
-	ktime_t avg, sq;
+	ktime_t avg;
 
-	if (unlikely(total == 1))
-		return;
-
-	/* the sq is (lat - old_avg) * (lat - new_avg) */
-	avg = DIV64_U64_ROUND_CLOSEST((lsum - lat), (total - 1));
-	sq = lat - avg;
-	avg = DIV64_U64_ROUND_CLOSEST(lsum, total);
-	sq = sq * (lat - avg);
-	*sq_sump += sq;
+	if (unlikely(total == 1)) {
+		*lavg = lat;
+	} else {
+		/* the sq is (lat - old_avg) * (lat - new_avg) */
+		avg = *lavg + div64_s64(lat - *lavg, total);
+		*sq_sump += (lat - *lavg)*(lat - avg);
+		*lavg = avg;
+	}
 }
 
 void ceph_update_metrics(struct ceph_metric *m,
@@ -339,6 +347,7 @@ void ceph_update_metrics(struct ceph_metric *m,
 	METRIC_UPDATE_MIN_MAX(m->size_min, m->size_max, size);
 	m->latency_sum += lat;
 	METRIC_UPDATE_MIN_MAX(m->latency_min, m->latency_max, lat);
-	__update_stdev(total, m->latency_sum, &m->latency_sq_sum, lat);
+	__update_mean_and_stdev(total, &m->latency_avg,	&m->latency_sq_sum,
+				lat);
 	spin_unlock(&m->lock);
 }

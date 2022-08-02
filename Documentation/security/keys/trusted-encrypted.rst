@@ -35,6 +35,13 @@ safe.
          Rooted to Hardware Unique Key (HUK) which is generally burnt in on-chip
          fuses and is accessible to TEE only.
 
+     (3) CAAM (Cryptographic Acceleration and Assurance Module: IP on NXP SoCs)
+
+         When High Assurance Boot (HAB) is enabled and the CAAM is in secure
+         mode, trust is rooted to the OTPMK, a never-disclosed 256-bit key
+         randomly generated and fused into each SoC at manufacturing time.
+         Otherwise, a common fixed test key is used instead.
+
   *  Execution isolation
 
      (1) TPM
@@ -45,6 +52,10 @@ safe.
 
          Customizable set of operations running in isolated execution
          environment verified via Secure/Trusted boot process.
+
+     (3) CAAM
+
+         Fixed set of operations running in isolated execution environment.
 
   * Optional binding to platform integrity state
 
@@ -63,6 +74,11 @@ safe.
          Relies on Secure/Trusted boot process for platform integrity. It can
          be extended with TEE based measured boot process.
 
+     (3) CAAM
+
+         Relies on the High Assurance Boot (HAB) mechanism of NXP SoCs
+         for platform integrity.
+
   *  Interfaces and APIs
 
      (1) TPM
@@ -74,10 +90,13 @@ safe.
          TEEs have well-documented, standardized client interface and APIs. For
          more details refer to ``Documentation/staging/tee.rst``.
 
+     (3) CAAM
+
+         Interface is specific to silicon vendor.
 
   *  Threat model
 
-     The strength and appropriateness of a particular TPM or TEE for a given
+     The strength and appropriateness of a particular trust source for a given
      purpose must be assessed when using them to protect security-relevant data.
 
 
@@ -87,32 +106,43 @@ Key Generation
 Trusted Keys
 ------------
 
-New keys are created from random numbers generated in the trust source. They
-are encrypted/decrypted using a child key in the storage key hierarchy.
-Encryption and decryption of the child key must be protected by a strong
-access control policy within the trust source.
+New keys are created from random numbers. They are encrypted/decrypted using
+a child key in the storage key hierarchy. Encryption and decryption of the
+child key must be protected by a strong access control policy within the
+trust source. The random number generator in use differs according to the
+selected trust source:
 
-  *  TPM (hardware device) based RNG
+  *  TPM: hardware device based RNG
 
-     Strength of random numbers may vary from one device manufacturer to
-     another.
+     Keys are generated within the TPM. Strength of random numbers may vary
+     from one device manufacturer to another.
 
-  *  TEE (OP-TEE based on Arm TrustZone) based RNG
+  *  TEE: OP-TEE based on Arm TrustZone based RNG
 
      RNG is customizable as per platform needs. It can either be direct output
      from platform specific hardware RNG or a software based Fortuna CSPRNG
      which can be seeded via multiple entropy sources.
 
+  *  CAAM: Kernel RNG
+
+     The normal kernel random number generator is used. To seed it from the
+     CAAM HWRNG, enable CRYPTO_DEV_FSL_CAAM_RNG_API and ensure the device
+     is probed.
+
+Users may override this by specifying ``trusted.rng=kernel`` on the kernel
+command-line to override the used RNG with the kernel's random number pool.
+
 Encrypted Keys
 --------------
 
 Encrypted keys do not depend on a trust source, and are faster, as they use AES
-for encryption/decryption. New keys are created from kernel-generated random
-numbers, and are encrypted/decrypted using a specified ‘master’ key. The
-‘master’ key can either be a trusted-key or user-key type. The main disadvantage
-of encrypted keys is that if they are not rooted in a trusted key, they are only
-as secure as the user key encrypting them. The master user key should therefore
-be loaded in as secure a way as possible, preferably early in boot.
+for encryption/decryption. New keys are created either from kernel-generated
+random numbers or user-provided decrypted data, and are encrypted/decrypted
+using a specified ‘master’ key. The ‘master’ key can either be a trusted-key or
+user-key type. The main disadvantage of encrypted keys is that if they are not
+rooted in a trusted key, they are only as secure as the user key encrypting
+them. The master user key should therefore be loaded in as secure a way as
+possible, preferably early in boot.
 
 
 Usage
@@ -188,6 +218,19 @@ Usage::
 specific to TEE device implementation.  The key length for new keys is always
 in bytes. Trusted Keys can be 32 - 128 bytes (256 - 1024 bits).
 
+Trusted Keys usage: CAAM
+------------------------
+
+Usage::
+
+    keyctl add trusted name "new keylen" ring
+    keyctl add trusted name "load hex_blob" ring
+    keyctl print keyid
+
+"keyctl print" returns an ASCII hex copy of the sealed key, which is in a
+CAAM-specific format.  The key length for new keys is always in bytes.
+Trusted Keys can be 32 - 128 bytes (256 - 1024 bits).
+
 Encrypted Keys usage
 --------------------
 
@@ -199,6 +242,8 @@ Usage::
 
     keyctl add encrypted name "new [format] key-type:master-key-name keylen"
         ring
+    keyctl add encrypted name "new [format] key-type:master-key-name keylen
+        decrypted-data" ring
     keyctl add encrypted name "load hex_blob" ring
     keyctl update keyid "update key-type:master-key-name"
 
@@ -302,6 +347,16 @@ Load an encrypted key "evm" from saved blob::
     default trusted:kmk 32 2375725ad57798846a9bbd240de8906f006e66c03af53b1b3
     82dbbc55be2a44616e4959430436dc4f2a7a9659aa60bb4652aeb2120f149ed197c564e0
     24717c64 5972dcb82ab2dde83376d82b2e3c09ffc
+
+Instantiate an encrypted key "evm" using user-provided decrypted data::
+
+    $ keyctl add encrypted evm "new default user:kmk 32 `cat evm_decrypted_data.blob`" @u
+    794890253
+
+    $ keyctl print 794890253
+    default user:kmk 32 2375725ad57798846a9bbd240de8906f006e66c03af53b1b382d
+    bbc55be2a44616e4959430436dc4f2a7a9659aa60bb4652aeb2120f149ed197c564e0247
+    17c64 5972dcb82ab2dde83376d82b2e3c09ffc
 
 Other uses for trusted and encrypted keys, such as for disk and file encryption
 are anticipated.  In particular the new format 'ecryptfs' has been defined

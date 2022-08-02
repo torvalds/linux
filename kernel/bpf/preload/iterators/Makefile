@@ -35,15 +35,15 @@ endif
 
 .PHONY: all clean
 
-all: iterators.skel.h
+all: iterators.lskel.h
 
 clean:
 	$(call msg,CLEAN)
 	$(Q)rm -rf $(OUTPUT) iterators
 
-iterators.skel.h: $(OUTPUT)/iterators.bpf.o | $(BPFTOOL)
+iterators.lskel.h: $(OUTPUT)/iterators.bpf.o | $(BPFTOOL)
 	$(call msg,GEN-SKEL,$@)
-	$(Q)$(BPFTOOL) gen skeleton $< > $@
+	$(Q)$(BPFTOOL) gen skeleton -L $< > $@
 
 
 $(OUTPUT)/iterators.bpf.o: iterators.bpf.c $(BPFOBJ) | $(OUTPUT)

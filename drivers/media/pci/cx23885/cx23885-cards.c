@@ -15,7 +15,7 @@
 #include <linux/firmware.h>
 #include <misc/altera.h>
 
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include "netup-eeprom.h"
 #include "netup-init.h"
 #include "altera-ci.h"

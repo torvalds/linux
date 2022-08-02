@@ -5,9 +5,10 @@ TARGET=$1
 ARCH=$2
 SMP=$3
 PREEMPT=$4
-PREEMPT_RT=$5
-CC_VERSION="$6"
-LD=$7
+PREEMPT_DYNAMIC=$5
+PREEMPT_RT=$6
+CC_VERSION="$7"
+LD=$8
 
 # Do not expand names
 set -f
@@ -41,8 +42,14 @@ fi
 UTS_VERSION="#$VERSION"
 CONFIG_FLAGS=""
 if [ -n "$SMP" ] ; then CONFIG_FLAGS="SMP"; fi
-if [ -n "$PREEMPT" ] ; then CONFIG_FLAGS="$CONFIG_FLAGS PREEMPT"; fi
-if [ -n "$PREEMPT_RT" ] ; then CONFIG_FLAGS="$CONFIG_FLAGS PREEMPT_RT"; fi
+
+if [ -n "$PREEMPT_RT" ] ; then
+	CONFIG_FLAGS="$CONFIG_FLAGS PREEMPT_RT"
+elif [ -n "$PREEMPT_DYNAMIC" ] ; then
+	CONFIG_FLAGS="$CONFIG_FLAGS PREEMPT_DYNAMIC"
+elif [ -n "$PREEMPT" ] ; then
+	CONFIG_FLAGS="$CONFIG_FLAGS PREEMPT"
+fi
 
 # Truncate to maximum length
 UTS_LEN=64

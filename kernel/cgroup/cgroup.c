@@ -96,7 +96,7 @@ EXPORT_SYMBOL_GPL(css_set_lock);
 
 DEFINE_SPINLOCK(trace_cgroup_path_lock);
 char trace_cgroup_path[TRACE_CGROUP_PATH_LEN];
-bool cgroup_debug __read_mostly;
+static bool cgroup_debug __read_mostly;
 
 /*
  * Protects cgroup_idr and css_idr so that IDs can be released without
@@ -1302,7 +1302,7 @@ static struct css_set *find_css_set(struct css_set *old_cset,
 
 struct cgroup_root *cgroup_root_from_kf(struct kernfs_root *kf_root)
 {
-	struct cgroup *root_cgrp = kf_root->kn->priv;
+	struct cgroup *root_cgrp = kernfs_root_to_node(kf_root)->priv;
 
 	return root_cgrp->root;
 }
@@ -2025,7 +2025,7 @@ int cgroup_setup_root(struct cgroup_root *root, u16 ss_mask)
 		ret = PTR_ERR(root->kf_root);
 		goto exit_root_id;
 	}
-	root_cgrp->kn = root->kf_root->kn;
+	root_cgrp->kn = kernfs_root_to_node(root->kf_root);
 	WARN_ON_ONCE(cgroup_ino(root_cgrp) != 1);
 	root_cgrp->ancestor_ids[0] = cgroup_id(root_cgrp);
 
@@ -5685,7 +5685,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	css_clear_dir(&cgrp->self);
 	kernfs_remove(cgrp->kn);
 
-	if (parent && cgroup_is_threaded(cgrp))
+	if (cgroup_is_threaded(cgrp))
 		parent->nr_threaded_children--;
 
 	spin_lock_irq(&css_set_lock);
@@ -6243,6 +6243,7 @@ static void cgroup_css_set_put_fork(struct kernel_clone_args *kargs)
 /**
  * cgroup_can_fork - called on a new task before the process is exposed
  * @child: the child process
+ * @kargs: the arguments passed to create the child process
  *
  * This prepares a new css_set for the child process which the child will
  * be attached to in cgroup_post_fork().
@@ -6305,6 +6306,7 @@ void cgroup_cancel_fork(struct task_struct *child,
 /**
  * cgroup_post_fork - finalize cgroup setup for the child process
  * @child: the child process
+ * @kargs: the arguments passed to create the child process
  *
  * Attach the child process to its css_set calling the subsystem fork()
  * callbacks.

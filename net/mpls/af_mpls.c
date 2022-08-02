@@ -1527,10 +1527,9 @@ static int mpls_ifdown(struct net_device *dev, int event)
 					rt->rt_nh_size;
 				struct mpls_route *orig = rt;
 
-				rt = kmalloc(size, GFP_KERNEL);
+				rt = kmemdup(orig, size, GFP_KERNEL);
 				if (!rt)
 					return -ENOMEM;
-				memcpy(rt, orig, size);
 			}
 		}
 

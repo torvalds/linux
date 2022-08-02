@@ -7,10 +7,10 @@
 
 #include <linux/random.h>
 
-#include <drm/drm_dp_mst_helper.h>
+#include <drm/display/drm_dp_mst_helper.h>
 #include <drm/drm_print.h>
 
-#include "../drm_dp_mst_topology_internal.h"
+#include "../display/drm_dp_mst_topology_internal.h"
 #include "test-drm_modeset_common.h"
 
 int igt_dp_mst_calc_pbn_mode(void *ignored)
@@ -131,8 +131,10 @@ sideband_msg_req_encode_decode(struct drm_dp_sideband_msg_req_body *in)
 		return false;
 
 	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
-	if (!txmsg)
+	if (!txmsg) {
+		kfree(out);
 		return false;
+	}
 
 	drm_dp_encode_sideband_req(in, txmsg);
 	ret = drm_dp_decode_sideband_req(txmsg, out);

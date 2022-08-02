@@ -81,6 +81,18 @@ properties:
 
   phy-handle: true
 
+  phys:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+    description:
+      Recommended with ZynqMP, specify reset control for this
+      controller instance with zynqmp-reset driver.
+
+  reset-names:
+    maxItems: 1
+
   fixed-link: true
 
   iommus:
@@ -110,6 +122,7 @@ patternProperties:
       reset-gpios: true
 
       magic-packet:
+        type: boolean
         description:
           Indicates that the hardware supports waking up via magic packet.
 
@@ -155,5 +168,40 @@ examples:
             ethernet-phy@1 {
                     reg = <0x1>;
                     reset-gpios = <&pioE 6 1>;
+            };
+    };
+
+  - |
+    #include <dt-bindings/clock/xlnx-zynqmp-clk.h>
+    #include <dt-bindings/power/xlnx-zynqmp-power.h>
+    #include <dt-bindings/reset/xlnx-zynqmp-resets.h>
+    #include <dt-bindings/phy/phy.h>
+
+    bus {
+            #address-cells = <2>;
+            #size-cells = <2>;
+            gem1: ethernet@ff0c0000 {
+                    compatible = "cdns,zynqmp-gem", "cdns,gem";
+                    interrupt-parent = <&gic>;
+                    interrupts = <0 59 4>, <0 59 4>;
+                    reg = <0x0 0xff0c0000 0x0 0x1000>;
+                    clocks = <&zynqmp_clk LPD_LSBUS>, <&zynqmp_clk GEM1_REF>,
+                             <&zynqmp_clk GEM1_TX>, <&zynqmp_clk GEM1_RX>,
+                             <&zynqmp_clk GEM_TSU>;
+                    clock-names = "pclk", "hclk", "tx_clk", "rx_clk", "tsu_clk";
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+                    iommus = <&smmu 0x875>;
+                    power-domains = <&zynqmp_firmware PD_ETH_1>;
+                    resets = <&zynqmp_reset ZYNQMP_RESET_GEM1>;
+                    reset-names = "gem1_rst";
+                    status = "okay";
+                    phy-mode = "sgmii";
+                    phys = <&psgtr 1 PHY_TYPE_SGMII 1 1>;
+                    fixed-link {
+                            speed = <1000>;
+                            full-duplex;
+                            pause;
+                    };
             };
     };

@@ -18,10 +18,11 @@
 #include "common.h"
 
 #ifndef O_PATH
-#define O_PATH		010000000
+#define O_PATH 010000000
 #endif
 
-TEST(inconsistent_attr) {
+TEST(inconsistent_attr)
+{
 	const long page_size = sysconf(_SC_PAGESIZE);
 	char *const buf = malloc(page_size + 1);
 	struct landlock_ruleset_attr *const ruleset_attr = (void *)buf;
@@ -34,20 +35,26 @@ TEST(inconsistent_attr) {
 	ASSERT_EQ(EINVAL, errno);
 	ASSERT_EQ(-1, landlock_create_ruleset(ruleset_attr, 1, 0));
 	ASSERT_EQ(EINVAL, errno);
+	ASSERT_EQ(-1, landlock_create_ruleset(ruleset_attr, 7, 0));
+	ASSERT_EQ(EINVAL, errno);
 
 	ASSERT_EQ(-1, landlock_create_ruleset(NULL, 1, 0));
 	/* The size if less than sizeof(struct landlock_attr_enforce). */
 	ASSERT_EQ(EFAULT, errno);
 
-	ASSERT_EQ(-1, landlock_create_ruleset(NULL,
-				sizeof(struct landlock_ruleset_attr), 0));
+	ASSERT_EQ(-1, landlock_create_ruleset(
+			      NULL, sizeof(struct landlock_ruleset_attr), 0));
 	ASSERT_EQ(EFAULT, errno);
 
 	ASSERT_EQ(-1, landlock_create_ruleset(ruleset_attr, page_size + 1, 0));
 	ASSERT_EQ(E2BIG, errno);
 
-	ASSERT_EQ(-1, landlock_create_ruleset(ruleset_attr,
-				sizeof(struct landlock_ruleset_attr), 0));
+	/* Checks minimal valid attribute size. */
+	ASSERT_EQ(-1, landlock_create_ruleset(ruleset_attr, 8, 0));
+	ASSERT_EQ(ENOMSG, errno);
+	ASSERT_EQ(-1, landlock_create_ruleset(
+			      ruleset_attr,
+			      sizeof(struct landlock_ruleset_attr), 0));
 	ASSERT_EQ(ENOMSG, errno);
 	ASSERT_EQ(-1, landlock_create_ruleset(ruleset_attr, page_size, 0));
 	ASSERT_EQ(ENOMSG, errno);
@@ -63,38 +70,44 @@ TEST(inconsistent_attr) {
 	free(buf);
 }
 
-TEST(abi_version) {
+TEST(abi_version)
+{
 	const struct landlock_ruleset_attr ruleset_attr = {
 		.handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE,
 	};
-	ASSERT_EQ(1, landlock_create_ruleset(NULL, 0,
-				LANDLOCK_CREATE_RULESET_VERSION));
+	ASSERT_EQ(2, landlock_create_ruleset(NULL, 0,
+					     LANDLOCK_CREATE_RULESET_VERSION));
 
 	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr, 0,
-				LANDLOCK_CREATE_RULESET_VERSION));
+					      LANDLOCK_CREATE_RULESET_VERSION));
 	ASSERT_EQ(EINVAL, errno);
 
 	ASSERT_EQ(-1, landlock_create_ruleset(NULL, sizeof(ruleset_attr),
-				LANDLOCK_CREATE_RULESET_VERSION));
+					      LANDLOCK_CREATE_RULESET_VERSION));
 	ASSERT_EQ(EINVAL, errno);
 
-	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr,
-				sizeof(ruleset_attr),
-				LANDLOCK_CREATE_RULESET_VERSION));
+	ASSERT_EQ(-1,
+		  landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr),
+					  LANDLOCK_CREATE_RULESET_VERSION));
 	ASSERT_EQ(EINVAL, errno);
 
 	ASSERT_EQ(-1, landlock_create_ruleset(NULL, 0,
-				LANDLOCK_CREATE_RULESET_VERSION | 1 << 31));
+					      LANDLOCK_CREATE_RULESET_VERSION |
+						      1 << 31));
 	ASSERT_EQ(EINVAL, errno);
 }
 
-TEST(inval_create_ruleset_flags) {
+/* Tests ordering of syscall argument checks. */
+TEST(create_ruleset_checks_ordering)
+{
 	const int last_flag = LANDLOCK_CREATE_RULESET_VERSION;
 	const int invalid_flag = last_flag << 1;
+	int ruleset_fd;
 	const struct landlock_ruleset_attr ruleset_attr = {
 		.handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE,
 	};
 
+	/* Checks priority for invalid flags. */
 	ASSERT_EQ(-1, landlock_create_ruleset(NULL, 0, invalid_flag));
 	ASSERT_EQ(EINVAL, errno);
 
@@ -102,44 +115,121 @@ TEST(inval_create_ruleset_flags) {
 	ASSERT_EQ(EINVAL, errno);
 
 	ASSERT_EQ(-1, landlock_create_ruleset(NULL, sizeof(ruleset_attr),
-				invalid_flag));
+					      invalid_flag));
 	ASSERT_EQ(EINVAL, errno);
 
-	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr,
-				sizeof(ruleset_attr), invalid_flag));
+	ASSERT_EQ(-1,
+		  landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr),
+					  invalid_flag));
 	ASSERT_EQ(EINVAL, errno);
-}
 
-TEST(empty_path_beneath_attr) {
-	const struct landlock_ruleset_attr ruleset_attr = {
-		.handled_access_fs = LANDLOCK_ACCESS_FS_EXECUTE,
-	};
-	const int ruleset_fd = landlock_create_ruleset(&ruleset_attr,
-			sizeof(ruleset_attr), 0);
+	/* Checks too big ruleset_attr size. */
+	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr, -1, 0));
+	ASSERT_EQ(E2BIG, errno);
 
+	/* Checks too small ruleset_attr size. */
+	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr, 0, 0));
+	ASSERT_EQ(EINVAL, errno);
+	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr, 1, 0));
+	ASSERT_EQ(EINVAL, errno);
+
+	/* Checks valid call. */
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
 	ASSERT_LE(0, ruleset_fd);
-
-	/* Similar to struct landlock_path_beneath_attr.parent_fd = 0 */
-	ASSERT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
-				NULL, 0));
-	ASSERT_EQ(EFAULT, errno);
 	ASSERT_EQ(0, close(ruleset_fd));
 }
 
-TEST(inval_fd_enforce) {
-	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
+/* Tests ordering of syscall argument checks. */
+TEST(add_rule_checks_ordering)
+{
+	const struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_EXECUTE,
+	};
+	struct landlock_path_beneath_attr path_beneath_attr = {
+		.allowed_access = LANDLOCK_ACCESS_FS_EXECUTE,
+		.parent_fd = -1,
+	};
+	const int ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
 
-	ASSERT_EQ(-1, landlock_restrict_self(-1, 0));
+	ASSERT_LE(0, ruleset_fd);
+
+	/* Checks invalid flags. */
+	ASSERT_EQ(-1, landlock_add_rule(-1, 0, NULL, 1));
+	ASSERT_EQ(EINVAL, errno);
+
+	/* Checks invalid ruleset FD. */
+	ASSERT_EQ(-1, landlock_add_rule(-1, 0, NULL, 0));
 	ASSERT_EQ(EBADF, errno);
+
+	/* Checks invalid rule type. */
+	ASSERT_EQ(-1, landlock_add_rule(ruleset_fd, 0, NULL, 0));
+	ASSERT_EQ(EINVAL, errno);
+
+	/* Checks invalid rule attr. */
+	ASSERT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+					NULL, 0));
+	ASSERT_EQ(EFAULT, errno);
+
+	/* Checks invalid path_beneath.parent_fd. */
+	ASSERT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+					&path_beneath_attr, 0));
+	ASSERT_EQ(EBADF, errno);
+
+	/* Checks valid call. */
+	path_beneath_attr.parent_fd =
+		open("/tmp", O_PATH | O_NOFOLLOW | O_DIRECTORY | O_CLOEXEC);
+	ASSERT_LE(0, path_beneath_attr.parent_fd);
+	ASSERT_EQ(0, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+				       &path_beneath_attr, 0));
+	ASSERT_EQ(0, close(path_beneath_attr.parent_fd));
+	ASSERT_EQ(0, close(ruleset_fd));
 }
 
-TEST(unpriv_enforce_without_no_new_privs) {
-	int err;
+/* Tests ordering of syscall argument and permission checks. */
+TEST(restrict_self_checks_ordering)
+{
+	const struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_EXECUTE,
+	};
+	struct landlock_path_beneath_attr path_beneath_attr = {
+		.allowed_access = LANDLOCK_ACCESS_FS_EXECUTE,
+		.parent_fd = -1,
+	};
+	const int ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
 
+	ASSERT_LE(0, ruleset_fd);
+	path_beneath_attr.parent_fd =
+		open("/tmp", O_PATH | O_NOFOLLOW | O_DIRECTORY | O_CLOEXEC);
+	ASSERT_LE(0, path_beneath_attr.parent_fd);
+	ASSERT_EQ(0, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+				       &path_beneath_attr, 0));
+	ASSERT_EQ(0, close(path_beneath_attr.parent_fd));
+
+	/* Checks unprivileged enforcement without no_new_privs. */
 	drop_caps(_metadata);
-	err = landlock_restrict_self(-1, 0);
+	ASSERT_EQ(-1, landlock_restrict_self(-1, -1));
 	ASSERT_EQ(EPERM, errno);
-	ASSERT_EQ(err, -1);
+	ASSERT_EQ(-1, landlock_restrict_self(-1, 0));
+	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(-1, landlock_restrict_self(ruleset_fd, 0));
+	ASSERT_EQ(EPERM, errno);
+
+	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
+
+	/* Checks invalid flags. */
+	ASSERT_EQ(-1, landlock_restrict_self(-1, -1));
+	ASSERT_EQ(EINVAL, errno);
+
+	/* Checks invalid ruleset FD. */
+	ASSERT_EQ(-1, landlock_restrict_self(-1, 0));
+	ASSERT_EQ(EBADF, errno);
+
+	/* Checks valid call. */
+	ASSERT_EQ(0, landlock_restrict_self(ruleset_fd, 0));
+	ASSERT_EQ(0, close(ruleset_fd));
 }
 
 TEST(ruleset_fd_io)
@@ -151,8 +241,8 @@ TEST(ruleset_fd_io)
 	char buf;
 
 	drop_caps(_metadata);
-	ruleset_fd = landlock_create_ruleset(&ruleset_attr,
-			sizeof(ruleset_attr), 0);
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
 	ASSERT_LE(0, ruleset_fd);
 
 	ASSERT_EQ(-1, write(ruleset_fd, ".", 1));
@@ -197,14 +287,15 @@ TEST(ruleset_fd_transfer)
 	drop_caps(_metadata);
 
 	/* Creates a test ruleset with a simple rule. */
-	ruleset_fd_tx = landlock_create_ruleset(&ruleset_attr,
-			sizeof(ruleset_attr), 0);
+	ruleset_fd_tx =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
 	ASSERT_LE(0, ruleset_fd_tx);
-	path_beneath_attr.parent_fd = open("/tmp", O_PATH | O_NOFOLLOW |
-			O_DIRECTORY | O_CLOEXEC);
+	path_beneath_attr.parent_fd =
+		open("/tmp", O_PATH | O_NOFOLLOW | O_DIRECTORY | O_CLOEXEC);
 	ASSERT_LE(0, path_beneath_attr.parent_fd);
-	ASSERT_EQ(0, landlock_add_rule(ruleset_fd_tx, LANDLOCK_RULE_PATH_BENEATH,
-				&path_beneath_attr, 0));
+	ASSERT_EQ(0,
+		  landlock_add_rule(ruleset_fd_tx, LANDLOCK_RULE_PATH_BENEATH,
+				    &path_beneath_attr, 0));
 	ASSERT_EQ(0, close(path_beneath_attr.parent_fd));
 
 	cmsg = CMSG_FIRSTHDR(&msg);
@@ -215,7 +306,8 @@ TEST(ruleset_fd_transfer)
 	memcpy(CMSG_DATA(cmsg), &ruleset_fd_tx, sizeof(ruleset_fd_tx));
 
 	/* Sends the ruleset FD over a socketpair and then close it. */
-	ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, socket_fds));
+	ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0,
+				socket_fds));
 	ASSERT_EQ(sizeof(data_tx), sendmsg(socket_fds[0], &msg, 0));
 	ASSERT_EQ(0, close(socket_fds[0]));
 	ASSERT_EQ(0, close(ruleset_fd_tx));
@@ -226,7 +318,8 @@ TEST(ruleset_fd_transfer)
 		int ruleset_fd_rx;
 
 		*(char *)msg.msg_iov->iov_base = '\0';
-		ASSERT_EQ(sizeof(data_tx), recvmsg(socket_fds[1], &msg, MSG_CMSG_CLOEXEC));
+		ASSERT_EQ(sizeof(data_tx),
+			  recvmsg(socket_fds[1], &msg, MSG_CMSG_CLOEXEC));
 		ASSERT_EQ('.', *(char *)msg.msg_iov->iov_base);
 		ASSERT_EQ(0, close(socket_fds[1]));
 		cmsg = CMSG_FIRSTHDR(&msg);

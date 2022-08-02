@@ -78,7 +78,7 @@ static void pdc202xx_configure_piomode(struct ata_port *ap, struct ata_device *a
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	int port = 0x60 + 8 * ap->port_no + 4 * adev->devno;
-	static u16 pio_timing[5] = {
+	static const u16 pio_timing[5] = {
 		0x0913, 0x050C , 0x0308, 0x0206, 0x0104
 	};
 	u8 r_ap, r_bp;

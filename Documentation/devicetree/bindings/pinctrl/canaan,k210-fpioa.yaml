@@ -39,6 +39,10 @@ properties:
 
   canaan,k210-sysctl-power:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle of the K210 system controller node
+          - description: offset of its power domain control register
     description: |
       phandle of the K210 system controller node and offset of its
       power domain control register.
@@ -116,6 +120,7 @@ patternProperties:
       input-schmitt-disable: true
 
       input-polarity-invert:
+        type: boolean
         description:
           Enable or disable pin input polarity inversion.
 
@@ -128,6 +133,7 @@ patternProperties:
       output-low: true
 
       output-polarity-invert:
+        type: boolean
         description:
           Enable or disable pin output polarity inversion.
 

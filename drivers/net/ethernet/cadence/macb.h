@@ -12,6 +12,7 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/net_tstamp.h>
 #include <linux/interrupt.h>
+#include <linux/phy/phy.h>
 
 #if defined(CONFIG_ARCH_DMA_ADDR_T_64BIT) || defined(CONFIG_MACB_USE_HWSTAMP)
 #define MACB_EXT_DESC
@@ -1203,11 +1204,15 @@ struct macb_queue {
 	unsigned int		RBQP;
 	unsigned int		RBQPH;
 
+	/* Lock to protect tx_head and tx_tail */
+	spinlock_t		tx_ptr_lock;
 	unsigned int		tx_head, tx_tail;
 	struct macb_dma_desc	*tx_ring;
 	struct macb_tx_skb	*tx_skb;
 	dma_addr_t		tx_ring_dma;
 	struct work_struct	tx_error_task;
+	bool			txubr_pending;
+	struct napi_struct	napi_tx;
 
 	dma_addr_t		rx_ring_dma;
 	dma_addr_t		rx_buffers_dma;
@@ -1216,7 +1221,7 @@ struct macb_queue {
 	struct macb_dma_desc	*rx_ring;
 	struct sk_buff		**rx_skbuff;
 	void			*rx_buffers;
-	struct napi_struct	napi;
+	struct napi_struct	napi_rx;
 	struct queue_stats stats;
 
 #ifdef CONFIG_MACB_USE_HWSTAMP
@@ -1291,6 +1296,9 @@ struct macb {
 	u32			wol;
 
 	struct macb_ptp_info	*ptp_info;	/* macb-ptp interface */
+
+	struct phy		*sgmii_phy;	/* for ZynqMP SGMII mode */
+
 #ifdef MACB_EXT_DESC
 	uint8_t hw_dma_cap;
 #endif

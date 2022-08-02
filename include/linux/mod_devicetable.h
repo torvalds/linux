@@ -211,7 +211,7 @@ struct css_device_id {
 	kernel_ulong_t driver_data;
 };
 
-#define ACPI_ID_LEN	9
+#define ACPI_ID_LEN	16
 
 struct acpi_device_id {
 	__u8 id[ACPI_ID_LEN];
@@ -834,6 +834,8 @@ struct wmi_device_id {
 
 #define MHI_DEVICE_MODALIAS_FMT "mhi:%s"
 #define MHI_NAME_SIZE 32
+
+#define MHI_EP_DEVICE_MODALIAS_FMT "mhi_ep:%s"
 
 /**
  * struct mhi_device_id - MHI device identification

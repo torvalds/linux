@@ -134,12 +134,14 @@ int hl_device_open(struct inode *inode, struct file *filp)
 	hpriv->hdev = hdev;
 	filp->private_data = hpriv;
 	hpriv->filp = filp;
+
+	mutex_init(&hpriv->notifier_event.lock);
 	mutex_init(&hpriv->restore_phase_mutex);
 	kref_init(&hpriv->refcount);
 	nonseekable_open(inode, filp);
 
-	hl_cb_mgr_init(&hpriv->cb_mgr);
 	hl_ctx_mgr_init(&hpriv->ctx_mgr);
+	hl_mem_mgr_init(hpriv->hdev->dev, &hpriv->mem_mgr);
 
 	hpriv->taskpid = get_task_pid(current, PIDTYPE_PID);
 
@@ -149,7 +151,28 @@ int hl_device_open(struct inode *inode, struct file *filp)
 		dev_err_ratelimited(hdev->dev,
 			"Can't open %s because it is %s\n",
 			dev_name(hdev->dev), hdev->status[status]);
-		rc = -EPERM;
+
+		if (status == HL_DEVICE_STATUS_IN_RESET)
+			rc = -EAGAIN;
+		else
+			rc = -EPERM;
+
+		goto out_err;
+	}
+
+	if (hdev->is_in_dram_scrub) {
+		dev_dbg_ratelimited(hdev->dev,
+			"Can't open %s during dram scrub\n",
+			dev_name(hdev->dev));
+		rc = -EAGAIN;
+		goto out_err;
+	}
+
+	if (hdev->compute_ctx_in_release) {
+		dev_dbg_ratelimited(hdev->dev,
+			"Can't open %s because another user is still releasing it\n",
+			dev_name(hdev->dev));
+		rc = -EAGAIN;
 		goto out_err;
 	}
 
@@ -172,8 +195,8 @@ int hl_device_open(struct inode *inode, struct file *filp)
 
 	hl_debugfs_add_file(hpriv);
 
-	atomic_set(&hdev->last_error.cs_write_disable, 0);
-	atomic_set(&hdev->last_error.razwi_write_disable, 0);
+	atomic_set(&hdev->last_error.cs_timeout.write_disable, 0);
+	atomic_set(&hdev->last_error.razwi.write_disable, 0);
 
 	hdev->open_counter++;
 	hdev->last_successful_open_jif = jiffies;
@@ -183,10 +206,11 @@ int hl_device_open(struct inode *inode, struct file *filp)
 
 out_err:
 	mutex_unlock(&hdev->fpriv_list_lock);
-	hl_cb_mgr_fini(hpriv->hdev, &hpriv->cb_mgr);
+	hl_mem_mgr_fini(&hpriv->mem_mgr);
 	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
 	filp->private_data = NULL;
 	mutex_destroy(&hpriv->restore_phase_mutex);
+	mutex_destroy(&hpriv->notifier_event.lock);
 	put_pid(hpriv->taskpid);
 
 	kfree(hpriv);
@@ -220,9 +244,11 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 	hpriv->hdev = hdev;
 	filp->private_data = hpriv;
 	hpriv->filp = filp;
+
+	mutex_init(&hpriv->notifier_event.lock);
 	nonseekable_open(inode, filp);
 
-	hpriv->taskpid = find_get_pid(current->pid);
+	hpriv->taskpid = get_task_pid(current, PIDTYPE_PID);
 
 	mutex_lock(&hdev->fpriv_ctrl_list_lock);
 
@@ -256,7 +282,6 @@ static void set_driver_behavior_per_device(struct hl_device *hdev)
 	hdev->cpu_queues_enable = 1;
 	hdev->heartbeat = 1;
 	hdev->mmu_enable = 1;
-	hdev->clock_gating_mask = ULONG_MAX;
 	hdev->sram_scrambler_enable = 1;
 	hdev->dram_scrambler_enable = 1;
 	hdev->bmc_enable = 1;
@@ -287,6 +312,7 @@ static int fixup_device_params(struct hl_device *hdev)
 	hdev->asic_prop.fw_security_enabled = is_asic_secured(hdev->asic_type);
 
 	hdev->fw_poll_interval_usec = HL_FW_STATUS_POLL_INTERVAL_USEC;
+	hdev->fw_comms_poll_interval_usec = HL_FW_STATUS_POLL_INTERVAL_USEC;
 
 	hdev->stop_on_err = true;
 	hdev->reset_info.curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
@@ -294,9 +320,6 @@ static int fixup_device_params(struct hl_device *hdev)
 
 	/* Enable only after the initialization of the device */
 	hdev->disabled = true;
-
-	/* Set default DMA mask to 32 bits */
-	hdev->dma_mask = 32;
 
 	return 0;
 }

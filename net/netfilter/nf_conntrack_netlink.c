@@ -58,6 +58,12 @@
 
 MODULE_LICENSE("GPL");
 
+struct ctnetlink_list_dump_ctx {
+	struct nf_conn *last;
+	unsigned int cpu;
+	bool done;
+};
+
 static int ctnetlink_dump_tuples_proto(struct sk_buff *skb,
 				const struct nf_conntrack_tuple *tuple,
 				const struct nf_conntrack_l4proto *l4proto)
@@ -1553,6 +1559,11 @@ static int ctnetlink_flush_conntrack(struct net *net,
 				     u32 portid, int report, u8 family)
 {
 	struct ctnetlink_filter *filter = NULL;
+	struct nf_ct_iter_data iter = {
+		.net		= net,
+		.portid		= portid,
+		.report		= report,
+	};
 
 	if (ctnetlink_needs_filter(family, cda)) {
 		if (cda[CTA_FILTER])
@@ -1561,10 +1572,11 @@ static int ctnetlink_flush_conntrack(struct net *net,
 		filter = ctnetlink_alloc_filter(cda, family);
 		if (IS_ERR(filter))
 			return PTR_ERR(filter);
+
+		iter.data = filter;
 	}
 
-	nf_ct_iterate_cleanup_net(net, ctnetlink_flush_iterate, filter,
-				  portid, report);
+	nf_ct_iterate_cleanup_net(ctnetlink_flush_iterate, &iter);
 	kfree(filter);
 
 	return 0;
@@ -1694,87 +1706,109 @@ static int ctnetlink_get_conntrack(struct sk_buff *skb,
 
 static int ctnetlink_done_list(struct netlink_callback *cb)
 {
-	if (cb->args[1])
-		nf_ct_put((struct nf_conn *)cb->args[1]);
+	struct ctnetlink_list_dump_ctx *ctx = (void *)cb->ctx;
+
+	if (ctx->last)
+		nf_ct_put(ctx->last);
+
 	return 0;
 }
 
-static int
-ctnetlink_dump_list(struct sk_buff *skb, struct netlink_callback *cb, bool dying)
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+static int ctnetlink_dump_one_entry(struct sk_buff *skb,
+				    struct netlink_callback *cb,
+				    struct nf_conn *ct,
+				    bool dying)
 {
-	struct nf_conn *ct, *last;
-	struct nf_conntrack_tuple_hash *h;
-	struct hlist_nulls_node *n;
+	struct ctnetlink_list_dump_ctx *ctx = (void *)cb->ctx;
 	struct nfgenmsg *nfmsg = nlmsg_data(cb->nlh);
-	u_int8_t l3proto = nfmsg->nfgen_family;
+	u8 l3proto = nfmsg->nfgen_family;
 	int res;
-	int cpu;
-	struct hlist_nulls_head *list;
-	struct net *net = sock_net(skb->sk);
 
-	if (cb->args[2])
+	if (l3proto && nf_ct_l3num(ct) != l3proto)
 		return 0;
 
-	last = (struct nf_conn *)cb->args[1];
+	if (ctx->last) {
+		if (ct != ctx->last)
+			return 0;
 
-	for (cpu = cb->args[0]; cpu < nr_cpu_ids; cpu++) {
-		struct ct_pcpu *pcpu;
-
-		if (!cpu_possible(cpu))
-			continue;
-
-		pcpu = per_cpu_ptr(net->ct.pcpu_lists, cpu);
-		spin_lock_bh(&pcpu->lock);
-		list = dying ? &pcpu->dying : &pcpu->unconfirmed;
-restart:
-		hlist_nulls_for_each_entry(h, n, list, hnnode) {
-			ct = nf_ct_tuplehash_to_ctrack(h);
-			if (l3proto && nf_ct_l3num(ct) != l3proto)
-				continue;
-			if (cb->args[1]) {
-				if (ct != last)
-					continue;
-				cb->args[1] = 0;
-			}
-
-			/* We can't dump extension info for the unconfirmed
-			 * list because unconfirmed conntracks can have
-			 * ct->ext reallocated (and thus freed).
-			 *
-			 * In the dying list case ct->ext can't be free'd
-			 * until after we drop pcpu->lock.
-			 */
-			res = ctnetlink_fill_info(skb, NETLINK_CB(cb->skb).portid,
-						  cb->nlh->nlmsg_seq,
-						  NFNL_MSG_TYPE(cb->nlh->nlmsg_type),
-						  ct, dying, 0);
-			if (res < 0) {
-				if (!refcount_inc_not_zero(&ct->ct_general.use))
-					continue;
-				cb->args[0] = cpu;
-				cb->args[1] = (unsigned long)ct;
-				spin_unlock_bh(&pcpu->lock);
-				goto out;
-			}
-		}
-		if (cb->args[1]) {
-			cb->args[1] = 0;
-			goto restart;
-		}
-		spin_unlock_bh(&pcpu->lock);
+		ctx->last = NULL;
 	}
-	cb->args[2] = 1;
-out:
-	if (last)
-		nf_ct_put(last);
 
-	return skb->len;
+	/* We can't dump extension info for the unconfirmed
+	 * list because unconfirmed conntracks can have
+	 * ct->ext reallocated (and thus freed).
+	 *
+	 * In the dying list case ct->ext can't be free'd
+	 * until after we drop pcpu->lock.
+	 */
+	res = ctnetlink_fill_info(skb, NETLINK_CB(cb->skb).portid,
+				  cb->nlh->nlmsg_seq,
+				  NFNL_MSG_TYPE(cb->nlh->nlmsg_type),
+				  ct, dying, 0);
+	if (res < 0) {
+		if (!refcount_inc_not_zero(&ct->ct_general.use))
+			return 0;
+
+		ctx->last = ct;
+	}
+
+	return res;
+}
+#endif
+
+static int
+ctnetlink_dump_unconfirmed(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	return 0;
 }
 
 static int
 ctnetlink_dump_dying(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	return ctnetlink_dump_list(skb, cb, true);
+	struct ctnetlink_list_dump_ctx *ctx = (void *)cb->ctx;
+	struct nf_conn *last = ctx->last;
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	const struct net *net = sock_net(skb->sk);
+	struct nf_conntrack_net_ecache *ecache_net;
+	struct nf_conntrack_tuple_hash *h;
+	struct hlist_nulls_node *n;
+#endif
+
+	if (ctx->done)
+		return 0;
+
+	ctx->last = NULL;
+
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	ecache_net = nf_conn_pernet_ecache(net);
+	spin_lock_bh(&ecache_net->dying_lock);
+
+	hlist_nulls_for_each_entry(h, n, &ecache_net->dying_list, hnnode) {
+		struct nf_conn *ct;
+		int res;
+
+		ct = nf_ct_tuplehash_to_ctrack(h);
+		if (last && last != ct)
+			continue;
+
+		res = ctnetlink_dump_one_entry(skb, cb, ct, true);
+		if (res < 0) {
+			spin_unlock_bh(&ecache_net->dying_lock);
+			nf_ct_put(last);
+			return skb->len;
+		}
+
+		nf_ct_put(last);
+		last = NULL;
+	}
+
+	spin_unlock_bh(&ecache_net->dying_lock);
+#endif
+	ctx->done = true;
+	nf_ct_put(last);
+
+	return skb->len;
 }
 
 static int ctnetlink_get_ct_dying(struct sk_buff *skb,
@@ -1790,12 +1824,6 @@ static int ctnetlink_get_ct_dying(struct sk_buff *skb,
 	}
 
 	return -EOPNOTSUPP;
-}
-
-static int
-ctnetlink_dump_unconfirmed(struct sk_buff *skb, struct netlink_callback *cb)
-{
-	return ctnetlink_dump_list(skb, cb, false);
 }
 
 static int ctnetlink_get_ct_unconfirmed(struct sk_buff *skb,
@@ -3877,6 +3905,8 @@ static struct pernet_operations ctnetlink_net_ops = {
 static int __init ctnetlink_init(void)
 {
 	int ret;
+
+	BUILD_BUG_ON(sizeof(struct ctnetlink_list_dump_ctx) > sizeof_field(struct netlink_callback, ctx));
 
 	ret = nfnetlink_subsys_register(&ctnl_subsys);
 	if (ret < 0) {

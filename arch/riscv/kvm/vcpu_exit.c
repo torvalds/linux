@@ -144,12 +144,7 @@ static int system_opcode_insn(struct kvm_vcpu *vcpu,
 {
 	if ((insn & INSN_MASK_WFI) == INSN_MATCH_WFI) {
 		vcpu->stat.wfi_exit_stat++;
-		if (!kvm_arch_vcpu_runnable(vcpu)) {
-			srcu_read_unlock(&vcpu->kvm->srcu, vcpu->arch.srcu_idx);
-			kvm_vcpu_halt(vcpu);
-			vcpu->arch.srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
-			kvm_clear_request(KVM_REQ_UNHALT, vcpu);
-		}
+		kvm_riscv_vcpu_wfi(vcpu);
 		vcpu->arch.guest_context.sepc += INSN_LEN(insn);
 		return 1;
 	}
@@ -417,7 +412,7 @@ static int emulate_store(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	return 0;
 }
 
-static int stage2_page_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
+static int gstage_page_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			     struct kvm_cpu_trap *trap)
 {
 	struct kvm_memory_slot *memslot;
@@ -445,12 +440,27 @@ static int stage2_page_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		};
 	}
 
-	ret = kvm_riscv_stage2_map(vcpu, memslot, fault_addr, hva,
+	ret = kvm_riscv_gstage_map(vcpu, memslot, fault_addr, hva,
 		(trap->scause == EXC_STORE_GUEST_PAGE_FAULT) ? true : false);
 	if (ret < 0)
 		return ret;
 
 	return 1;
+}
+
+/**
+ * kvm_riscv_vcpu_wfi -- Emulate wait for interrupt (WFI) behaviour
+ *
+ * @vcpu: The VCPU pointer
+ */
+void kvm_riscv_vcpu_wfi(struct kvm_vcpu *vcpu)
+{
+	if (!kvm_arch_vcpu_runnable(vcpu)) {
+		kvm_vcpu_srcu_read_unlock(vcpu);
+		kvm_vcpu_halt(vcpu);
+		kvm_vcpu_srcu_read_lock(vcpu);
+		kvm_clear_request(KVM_REQ_UNHALT, vcpu);
+	}
 }
 
 /**
@@ -676,7 +686,7 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case EXC_LOAD_GUEST_PAGE_FAULT:
 	case EXC_STORE_GUEST_PAGE_FAULT:
 		if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV)
-			ret = stage2_page_fault(vcpu, run, trap);
+			ret = gstage_page_fault(vcpu, run, trap);
 		break;
 	case EXC_SUPERVISOR_SYSCALL:
 		if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV)

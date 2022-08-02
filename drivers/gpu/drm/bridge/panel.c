@@ -83,6 +83,12 @@ static int panel_bridge_attach(struct drm_bridge *bridge,
 	drm_connector_attach_encoder(&panel_bridge->connector,
 					  bridge->encoder);
 
+	if (bridge->dev->registered) {
+		if (connector->funcs->reset)
+			connector->funcs->reset(connector);
+		drm_connector_register(connector);
+	}
+
 	return 0;
 }
 
@@ -138,6 +144,17 @@ static int panel_bridge_get_modes(struct drm_bridge *bridge,
 	return drm_panel_get_modes(panel_bridge->panel, connector);
 }
 
+static void panel_bridge_debugfs_init(struct drm_bridge *bridge,
+				      struct dentry *root)
+{
+	struct panel_bridge *panel_bridge = drm_bridge_to_panel_bridge(bridge);
+	struct drm_panel *panel = panel_bridge->panel;
+
+	root = debugfs_create_dir("panel", root);
+	if (panel->funcs->debugfs_init)
+		panel->funcs->debugfs_init(panel, root);
+}
+
 static const struct drm_bridge_funcs panel_bridge_bridge_funcs = {
 	.attach = panel_bridge_attach,
 	.detach = panel_bridge_detach,
@@ -150,6 +167,7 @@ static const struct drm_bridge_funcs panel_bridge_bridge_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 	.atomic_get_input_bus_fmts = drm_atomic_helper_bridge_propagate_bus_fmt,
+	.debugfs_init = panel_bridge_debugfs_init,
 };
 
 /**

@@ -10,46 +10,6 @@
 
 #include <asm/uaccess.h>
 
-#ifdef CONFIG_SET_FS
-/*
- * Force the uaccess routines to be wired up for actual userspace access,
- * overriding any possible set_fs(KERNEL_DS) still lingering around.  Undone
- * using force_uaccess_end below.
- */
-static inline mm_segment_t force_uaccess_begin(void)
-{
-	mm_segment_t fs = get_fs();
-
-	set_fs(USER_DS);
-	return fs;
-}
-
-static inline void force_uaccess_end(mm_segment_t oldfs)
-{
-	set_fs(oldfs);
-}
-#else /* CONFIG_SET_FS */
-typedef struct {
-	/* empty dummy */
-} mm_segment_t;
-
-#ifndef TASK_SIZE_MAX
-#define TASK_SIZE_MAX			TASK_SIZE
-#endif
-
-#define uaccess_kernel()		(false)
-#define user_addr_max()			(TASK_SIZE_MAX)
-
-static inline mm_segment_t force_uaccess_begin(void)
-{
-	return (mm_segment_t) { };
-}
-
-static inline void force_uaccess_end(mm_segment_t oldfs)
-{
-}
-#endif /* CONFIG_SET_FS */
-
 /*
  * Architectures should provide two primitives (raw_copy_{to,from}_user())
  * and get rid of their private instances of copy_{to,from}_user() and
@@ -271,6 +231,28 @@ static inline bool pagefault_disabled(void)
  */
 #define faulthandler_disabled() (pagefault_disabled() || in_atomic())
 
+#ifndef CONFIG_ARCH_HAS_SUBPAGE_FAULTS
+
+/**
+ * probe_subpage_writeable: probe the user range for write faults at sub-page
+ *			    granularity (e.g. arm64 MTE)
+ * @uaddr: start of address range
+ * @size: size of address range
+ *
+ * Returns 0 on success, the number of bytes not probed on fault.
+ *
+ * It is expected that the caller checked for the write permission of each
+ * page in the range either by put_user() or GUP. The architecture port can
+ * implement a more efficient get_user() probing if the same sub-page faults
+ * are triggered by either a read or a write.
+ */
+static inline size_t probe_subpage_writeable(char __user *uaddr, size_t size)
+{
+	return 0;
+}
+
+#endif /* CONFIG_ARCH_HAS_SUBPAGE_FAULTS */
+
 #ifndef ARCH_HAS_NOCACHE_UACCESS
 
 static inline __must_check unsigned long
@@ -368,6 +350,25 @@ long strncpy_from_user_nofault(char *dst, const void __user *unsafe_addr,
 		long count);
 long strnlen_user_nofault(const void __user *unsafe_addr, long count);
 
+#ifndef __get_kernel_nofault
+#define __get_kernel_nofault(dst, src, type, label)	\
+do {							\
+	type __user *p = (type __force __user *)(src);	\
+	type data;					\
+	if (__get_user(data, p))			\
+		goto label;				\
+	*(type *)dst = data;				\
+} while (0)
+
+#define __put_kernel_nofault(dst, src, type, label)	\
+do {							\
+	type __user *p = (type __force __user *)(dst);	\
+	type data = *(type *)src;			\
+	if (__put_user(data, p))			\
+		goto label;				\
+} while (0)
+#endif
+
 /**
  * get_kernel_nofault(): safely attempt to read from a location
  * @val: read into this variable
@@ -401,8 +402,6 @@ static inline void user_access_restore(unsigned long flags) { }
 #endif
 
 #ifdef CONFIG_HARDENED_USERCOPY
-void usercopy_warn(const char *name, const char *detail, bool to_user,
-		   unsigned long offset, unsigned long len);
 void __noreturn usercopy_abort(const char *name, const char *detail,
 			       bool to_user, unsigned long offset,
 			       unsigned long len);

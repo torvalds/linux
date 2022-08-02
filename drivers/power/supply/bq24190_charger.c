@@ -39,6 +39,7 @@
 #define BQ24190_REG_POC_CHG_CONFIG_DISABLE		0x0
 #define BQ24190_REG_POC_CHG_CONFIG_CHARGE		0x1
 #define BQ24190_REG_POC_CHG_CONFIG_OTG			0x2
+#define BQ24190_REG_POC_CHG_CONFIG_OTG_ALT		0x3
 #define BQ24190_REG_POC_SYS_MIN_MASK		(BIT(3) | BIT(2) | BIT(1))
 #define BQ24190_REG_POC_SYS_MIN_SHIFT		1
 #define BQ24190_REG_POC_SYS_MIN_MIN			3000
@@ -162,14 +163,23 @@ struct bq24190_dev_info {
 	char				model_name[I2C_NAME_SIZE];
 	bool				initialized;
 	bool				irq_event;
+	bool				otg_vbus_enabled;
+	int				charge_type;
 	u16				sys_min;
 	u16				iprechg;
 	u16				iterm;
+	u32				ichg;
+	u32				ichg_max;
+	u32				vreg;
+	u32				vreg_max;
 	struct mutex			f_reg_lock;
 	u8				f_reg;
 	u8				ss_reg;
 	u8				watchdog;
 };
+
+static int bq24190_charger_set_charge_type(struct bq24190_dev_info *bdi,
+					   const union power_supply_propval *val);
 
 static const unsigned int bq24190_usb_extcon_cable[] = {
 	EXTCON_USB,
@@ -445,11 +455,9 @@ static ssize_t bq24190_sysfs_show(struct device *dev,
 	if (!info)
 		return -EINVAL;
 
-	ret = pm_runtime_get_sync(bdi->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(bdi->dev);
+	ret = pm_runtime_resume_and_get(bdi->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = bq24190_read_mask(bdi, info->reg, info->mask, info->shift, &v);
 	if (ret)
@@ -480,11 +488,9 @@ static ssize_t bq24190_sysfs_store(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	ret = pm_runtime_get_sync(bdi->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(bdi->dev);
+	ret = pm_runtime_resume_and_get(bdi->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = bq24190_write_mask(bdi, info->reg, info->mask, info->shift, v);
 	if (ret)
@@ -497,22 +503,25 @@ static ssize_t bq24190_sysfs_store(struct device *dev,
 }
 #endif
 
-#ifdef CONFIG_REGULATOR
-static int bq24190_set_charge_mode(struct regulator_dev *dev, u8 val)
+static int bq24190_set_otg_vbus(struct bq24190_dev_info *bdi, bool enable)
 {
-	struct bq24190_dev_info *bdi = rdev_get_drvdata(dev);
+	union power_supply_propval val = { .intval = bdi->charge_type };
 	int ret;
 
-	ret = pm_runtime_get_sync(bdi->dev);
+	ret = pm_runtime_resume_and_get(bdi->dev);
 	if (ret < 0) {
 		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", ret);
-		pm_runtime_put_noidle(bdi->dev);
 		return ret;
 	}
 
-	ret = bq24190_write_mask(bdi, BQ24190_REG_POC,
-				 BQ24190_REG_POC_CHG_CONFIG_MASK,
-				 BQ24190_REG_POC_CHG_CONFIG_SHIFT, val);
+	bdi->otg_vbus_enabled = enable;
+	if (enable)
+		ret = bq24190_write_mask(bdi, BQ24190_REG_POC,
+					 BQ24190_REG_POC_CHG_CONFIG_MASK,
+					 BQ24190_REG_POC_CHG_CONFIG_SHIFT,
+					 BQ24190_REG_POC_CHG_CONFIG_OTG);
+	else
+		ret = bq24190_charger_set_charge_type(bdi, &val);
 
 	pm_runtime_mark_last_busy(bdi->dev);
 	pm_runtime_put_autosuspend(bdi->dev);
@@ -520,14 +529,15 @@ static int bq24190_set_charge_mode(struct regulator_dev *dev, u8 val)
 	return ret;
 }
 
+#ifdef CONFIG_REGULATOR
 static int bq24190_vbus_enable(struct regulator_dev *dev)
 {
-	return bq24190_set_charge_mode(dev, BQ24190_REG_POC_CHG_CONFIG_OTG);
+	return bq24190_set_otg_vbus(rdev_get_drvdata(dev), true);
 }
 
 static int bq24190_vbus_disable(struct regulator_dev *dev)
 {
-	return bq24190_set_charge_mode(dev, BQ24190_REG_POC_CHG_CONFIG_CHARGE);
+	return bq24190_set_otg_vbus(rdev_get_drvdata(dev), false);
 }
 
 static int bq24190_vbus_is_enabled(struct regulator_dev *dev)
@@ -536,10 +546,9 @@ static int bq24190_vbus_is_enabled(struct regulator_dev *dev)
 	int ret;
 	u8 val;
 
-	ret = pm_runtime_get_sync(bdi->dev);
+	ret = pm_runtime_resume_and_get(bdi->dev);
 	if (ret < 0) {
 		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", ret);
-		pm_runtime_put_noidle(bdi->dev);
 		return ret;
 	}
 
@@ -550,7 +559,12 @@ static int bq24190_vbus_is_enabled(struct regulator_dev *dev)
 	pm_runtime_mark_last_busy(bdi->dev);
 	pm_runtime_put_autosuspend(bdi->dev);
 
-	return ret ? ret : val == BQ24190_REG_POC_CHG_CONFIG_OTG;
+	if (ret)
+		return ret;
+
+	bdi->otg_vbus_enabled = (val == BQ24190_REG_POC_CHG_CONFIG_OTG ||
+				 val == BQ24190_REG_POC_CHG_CONFIG_OTG_ALT);
+	return bdi->otg_vbus_enabled;
 }
 
 static const struct regulator_ops bq24190_vbus_ops = {
@@ -655,6 +669,28 @@ static int bq24190_set_config(struct bq24190_dev_info *bdi)
 					 BQ24190_REG_PCTCC_ITERM_MASK,
 					 BQ24190_REG_PCTCC_ITERM_SHIFT,
 					 v);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (bdi->ichg) {
+		ret = bq24190_set_field_val(bdi, BQ24190_REG_CCC,
+					    BQ24190_REG_CCC_ICHG_MASK,
+					    BQ24190_REG_CCC_ICHG_SHIFT,
+					    bq24190_ccc_ichg_values,
+					    ARRAY_SIZE(bq24190_ccc_ichg_values),
+					    bdi->ichg);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (bdi->vreg) {
+		ret = bq24190_set_field_val(bdi, BQ24190_REG_CVC,
+					    BQ24190_REG_CVC_VREG_MASK,
+					    BQ24190_REG_CVC_VREG_SHIFT,
+					    bq24190_cvc_vreg_values,
+					    ARRAY_SIZE(bq24190_cvc_vreg_values),
+					    bdi->vreg);
 		if (ret < 0)
 			return ret;
 	}
@@ -774,6 +810,14 @@ static int bq24190_charger_set_charge_type(struct bq24190_dev_info *bdi,
 	default:
 		return -EINVAL;
 	}
+
+	bdi->charge_type = val->intval;
+	/*
+	 * If the 5V Vbus boost regulator is enabled delay setting
+	 * the charge-type until its gets disabled.
+	 */
+	if (bdi->otg_vbus_enabled)
+		return 0;
 
 	if (chg_config) { /* Enabling the charger */
 		ret = bq24190_write_mask(bdi, BQ24190_REG_CCC,
@@ -976,15 +1020,6 @@ static int bq24190_charger_get_current(struct bq24190_dev_info *bdi,
 	return 0;
 }
 
-static int bq24190_charger_get_current_max(struct bq24190_dev_info *bdi,
-		union power_supply_propval *val)
-{
-	int idx = ARRAY_SIZE(bq24190_ccc_ichg_values) - 1;
-
-	val->intval = bq24190_ccc_ichg_values[idx];
-	return 0;
-}
-
 static int bq24190_charger_set_current(struct bq24190_dev_info *bdi,
 		const union power_supply_propval *val)
 {
@@ -1001,10 +1036,19 @@ static int bq24190_charger_set_current(struct bq24190_dev_info *bdi,
 	if (v)
 		curr *= 5;
 
-	return bq24190_set_field_val(bdi, BQ24190_REG_CCC,
+	if (curr > bdi->ichg_max)
+		return -EINVAL;
+
+	ret = bq24190_set_field_val(bdi, BQ24190_REG_CCC,
 			BQ24190_REG_CCC_ICHG_MASK, BQ24190_REG_CCC_ICHG_SHIFT,
 			bq24190_ccc_ichg_values,
 			ARRAY_SIZE(bq24190_ccc_ichg_values), curr);
+	if (ret < 0)
+		return ret;
+
+	bdi->ichg = curr;
+
+	return 0;
 }
 
 static int bq24190_charger_get_voltage(struct bq24190_dev_info *bdi,
@@ -1023,22 +1067,24 @@ static int bq24190_charger_get_voltage(struct bq24190_dev_info *bdi,
 	return 0;
 }
 
-static int bq24190_charger_get_voltage_max(struct bq24190_dev_info *bdi,
-		union power_supply_propval *val)
-{
-	int idx = ARRAY_SIZE(bq24190_cvc_vreg_values) - 1;
-
-	val->intval = bq24190_cvc_vreg_values[idx];
-	return 0;
-}
-
 static int bq24190_charger_set_voltage(struct bq24190_dev_info *bdi,
 		const union power_supply_propval *val)
 {
-	return bq24190_set_field_val(bdi, BQ24190_REG_CVC,
+	int ret;
+
+	if (val->intval > bdi->vreg_max)
+		return -EINVAL;
+
+	ret = bq24190_set_field_val(bdi, BQ24190_REG_CVC,
 			BQ24190_REG_CVC_VREG_MASK, BQ24190_REG_CVC_VREG_SHIFT,
 			bq24190_cvc_vreg_values,
 			ARRAY_SIZE(bq24190_cvc_vreg_values), val->intval);
+	if (ret < 0)
+		return ret;
+
+	bdi->vreg = val->intval;
+
+	return 0;
 }
 
 static int bq24190_charger_get_iinlimit(struct bq24190_dev_info *bdi,
@@ -1076,11 +1122,9 @@ static int bq24190_charger_get_property(struct power_supply *psy,
 
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
 
-	ret = pm_runtime_get_sync(bdi->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(bdi->dev);
+	ret = pm_runtime_resume_and_get(bdi->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
@@ -1108,13 +1152,15 @@ static int bq24190_charger_get_property(struct power_supply *psy,
 		ret = bq24190_charger_get_current(bdi, val);
 		break;
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
-		ret = bq24190_charger_get_current_max(bdi, val);
+		val->intval = bdi->ichg_max;
+		ret = 0;
 		break;
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
 		ret = bq24190_charger_get_voltage(bdi, val);
 		break;
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX:
-		ret = bq24190_charger_get_voltage_max(bdi, val);
+		val->intval = bdi->vreg_max;
+		ret = 0;
 		break;
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
 		ret = bq24190_charger_get_iinlimit(bdi, val);
@@ -1150,11 +1196,9 @@ static int bq24190_charger_set_property(struct power_supply *psy,
 
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
 
-	ret = pm_runtime_get_sync(bdi->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(bdi->dev);
+	ret = pm_runtime_resume_and_get(bdi->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
@@ -1206,8 +1250,18 @@ static void bq24190_input_current_limit_work(struct work_struct *work)
 	struct bq24190_dev_info *bdi =
 		container_of(work, struct bq24190_dev_info,
 			     input_current_limit_work.work);
+	union power_supply_propval val;
+	int ret;
 
-	power_supply_set_input_current_limit_from_supplier(bdi->charger);
+	ret = power_supply_get_property_from_supplier(bdi->charger,
+						      POWER_SUPPLY_PROP_CURRENT_MAX,
+						      &val);
+	if (ret)
+		return;
+
+	bq24190_charger_set_property(bdi->charger,
+				     POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
+				     &val);
 }
 
 /* Sync the input-current-limit with our parent supply (if we have one) */
@@ -1413,11 +1467,9 @@ static int bq24190_battery_get_property(struct power_supply *psy,
 	dev_warn(bdi->dev, "warning: /sys/class/power_supply/bq24190-battery is deprecated\n");
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
 
-	ret = pm_runtime_get_sync(bdi->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(bdi->dev);
+	ret = pm_runtime_resume_and_get(bdi->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -1461,11 +1513,9 @@ static int bq24190_battery_set_property(struct power_supply *psy,
 	dev_warn(bdi->dev, "warning: /sys/class/power_supply/bq24190-battery is deprecated\n");
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
 
-	ret = pm_runtime_get_sync(bdi->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(bdi->dev);
+	ret = pm_runtime_resume_and_get(bdi->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
@@ -1619,10 +1669,9 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 	int error;
 
 	bdi->irq_event = true;
-	error = pm_runtime_get_sync(bdi->dev);
+	error = pm_runtime_resume_and_get(bdi->dev);
 	if (error < 0) {
 		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", error);
-		pm_runtime_put_noidle(bdi->dev);
 		return IRQ_NONE;
 	}
 	bq24190_check_status(bdi);
@@ -1671,7 +1720,13 @@ static int bq24190_get_config(struct bq24190_dev_info *bdi)
 {
 	const char * const s = "ti,system-minimum-microvolt";
 	struct power_supply_battery_info *info;
-	int v;
+	int v, idx;
+
+	idx = ARRAY_SIZE(bq24190_ccc_ichg_values) - 1;
+	bdi->ichg_max = bq24190_ccc_ichg_values[idx];
+
+	idx = ARRAY_SIZE(bq24190_cvc_vreg_values) - 1;
+	bdi->vreg_max = bq24190_cvc_vreg_values[idx];
 
 	if (device_property_read_u32(bdi->dev, s, &v) == 0) {
 		v /= 1000;
@@ -1682,8 +1737,7 @@ static int bq24190_get_config(struct bq24190_dev_info *bdi)
 			dev_warn(bdi->dev, "invalid value for %s: %u\n", s, v);
 	}
 
-	if (bdi->dev->of_node &&
-	    !power_supply_get_battery_info(bdi->charger, &info)) {
+	if (!power_supply_get_battery_info(bdi->charger, &info)) {
 		v = info->precharge_current_ua / 1000;
 		if (v >= BQ24190_REG_PCTCC_IPRECHG_MIN
 		 && v <= BQ24190_REG_PCTCC_IPRECHG_MAX)
@@ -1699,6 +1753,15 @@ static int bq24190_get_config(struct bq24190_dev_info *bdi)
 		else
 			dev_warn(bdi->dev, "invalid value for battery:charge-term-current-microamp: %d\n",
 				 v);
+
+		/* These are optional, so no warning when not set */
+		v = info->constant_charge_current_max_ua;
+		if (v >= bq24190_ccc_ichg_values[0] && v <= bdi->ichg_max)
+			bdi->ichg = bdi->ichg_max = v;
+
+		v = info->constant_charge_voltage_max_uv;
+		if (v >= bq24190_cvc_vreg_values[0] && v <= bdi->vreg_max)
+			bdi->vreg = bdi->vreg_max = v;
 	}
 
 	return 0;
@@ -1728,6 +1791,7 @@ static int bq24190_probe(struct i2c_client *client,
 	bdi->dev = dev;
 	strncpy(bdi->model_name, id->name, I2C_NAME_SIZE);
 	mutex_init(&bdi->f_reg_lock);
+	bdi->charge_type = POWER_SUPPLY_CHARGE_TYPE_FAST;
 	bdi->f_reg = 0;
 	bdi->ss_reg = BQ24190_REG_SS_VBUS_STAT_MASK; /* impossible state */
 	INIT_DELAYED_WORK(&bdi->input_current_limit_work,
@@ -1842,11 +1906,9 @@ static int bq24190_remove(struct i2c_client *client)
 	struct bq24190_dev_info *bdi = i2c_get_clientdata(client);
 	int error;
 
-	error = pm_runtime_get_sync(bdi->dev);
-	if (error < 0) {
+	error = pm_runtime_resume_and_get(bdi->dev);
+	if (error < 0)
 		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", error);
-		pm_runtime_put_noidle(bdi->dev);
-	}
 
 	bq24190_register_reset(bdi);
 	if (bdi->battery)
@@ -1858,6 +1920,14 @@ static int bq24190_remove(struct i2c_client *client)
 	pm_runtime_disable(bdi->dev);
 
 	return 0;
+}
+
+static void bq24190_shutdown(struct i2c_client *client)
+{
+	struct bq24190_dev_info *bdi = i2c_get_clientdata(client);
+
+	/* Turn off 5V boost regulator on shutdown */
+	bq24190_set_otg_vbus(bdi, false);
 }
 
 static __maybe_unused int bq24190_runtime_suspend(struct device *dev)
@@ -1895,11 +1965,9 @@ static __maybe_unused int bq24190_pm_suspend(struct device *dev)
 	struct bq24190_dev_info *bdi = i2c_get_clientdata(client);
 	int error;
 
-	error = pm_runtime_get_sync(bdi->dev);
-	if (error < 0) {
+	error = pm_runtime_resume_and_get(bdi->dev);
+	if (error < 0)
 		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", error);
-		pm_runtime_put_noidle(bdi->dev);
-	}
 
 	bq24190_register_reset(bdi);
 
@@ -1920,11 +1988,9 @@ static __maybe_unused int bq24190_pm_resume(struct device *dev)
 	bdi->f_reg = 0;
 	bdi->ss_reg = BQ24190_REG_SS_VBUS_STAT_MASK; /* impossible state */
 
-	error = pm_runtime_get_sync(bdi->dev);
-	if (error < 0) {
+	error = pm_runtime_resume_and_get(bdi->dev);
+	if (error < 0)
 		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", error);
-		pm_runtime_put_noidle(bdi->dev);
-	}
 
 	bq24190_register_reset(bdi);
 	bq24190_set_config(bdi);
@@ -1970,6 +2036,7 @@ MODULE_DEVICE_TABLE(of, bq24190_of_match);
 static struct i2c_driver bq24190_driver = {
 	.probe		= bq24190_probe,
 	.remove		= bq24190_remove,
+	.shutdown	= bq24190_shutdown,
 	.id_table	= bq24190_i2c_ids,
 	.driver = {
 		.name		= "bq24190-charger",

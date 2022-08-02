@@ -1214,7 +1214,7 @@ static int dpcm_be_connect(struct snd_soc_pcm_runtime *fe,
 		be_substream->pcm->nonatomic = 1;
 	}
 
-	dpcm = kzalloc(sizeof(struct snd_soc_dpcm), GFP_ATOMIC);
+	dpcm = kzalloc(sizeof(struct snd_soc_dpcm), GFP_KERNEL);
 	if (!dpcm)
 		return -ENOMEM;
 
@@ -2090,6 +2090,7 @@ int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
 			       int cmd)
 {
 	struct snd_soc_pcm_runtime *be;
+	bool pause_stop_transition;
 	struct snd_soc_dpcm *dpcm;
 	unsigned long flags;
 	int ret = 0;
@@ -2121,7 +2122,12 @@ int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
 			if (be->dpcm[stream].be_start != 1)
 				goto next;
 
-			ret = soc_pcm_trigger(be_substream, cmd);
+			if (be->dpcm[stream].state == SND_SOC_DPCM_STATE_PAUSED)
+				ret = soc_pcm_trigger(be_substream,
+						      SNDRV_PCM_TRIGGER_PAUSE_RELEASE);
+			else
+				ret = soc_pcm_trigger(be_substream,
+						      SNDRV_PCM_TRIGGER_START);
 			if (ret) {
 				be->dpcm[stream].be_start--;
 				goto next;
@@ -2148,9 +2154,11 @@ int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
 		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 			if (!be->dpcm[stream].be_start &&
 			    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_START) &&
-			    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_STOP) &&
 			    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_PAUSED))
 				goto next;
+
+			fe->dpcm[stream].fe_pause = false;
+			be->dpcm[stream].be_pause--;
 
 			be->dpcm[stream].be_start++;
 			if (be->dpcm[stream].be_start != 1)
@@ -2175,14 +2183,33 @@ int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
 			if (be->dpcm[stream].be_start != 0)
 				goto next;
 
-			ret = soc_pcm_trigger(be_substream, cmd);
+			pause_stop_transition = false;
+			if (fe->dpcm[stream].fe_pause) {
+				pause_stop_transition = true;
+				fe->dpcm[stream].fe_pause = false;
+				be->dpcm[stream].be_pause--;
+			}
+
+			if (be->dpcm[stream].be_pause != 0)
+				ret = soc_pcm_trigger(be_substream, SNDRV_PCM_TRIGGER_PAUSE_PUSH);
+			else
+				ret = soc_pcm_trigger(be_substream, SNDRV_PCM_TRIGGER_STOP);
+
 			if (ret) {
 				if (be->dpcm[stream].state == SND_SOC_DPCM_STATE_START)
 					be->dpcm[stream].be_start++;
+				if (pause_stop_transition) {
+					fe->dpcm[stream].fe_pause = true;
+					be->dpcm[stream].be_pause++;
+				}
 				goto next;
 			}
 
-			be->dpcm[stream].state = SND_SOC_DPCM_STATE_STOP;
+			if (be->dpcm[stream].be_pause != 0)
+				be->dpcm[stream].state = SND_SOC_DPCM_STATE_PAUSED;
+			else
+				be->dpcm[stream].state = SND_SOC_DPCM_STATE_STOP;
+
 			break;
 		case SNDRV_PCM_TRIGGER_SUSPEND:
 			if (be->dpcm[stream].state != SND_SOC_DPCM_STATE_START)
@@ -2203,6 +2230,9 @@ int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
 		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 			if (be->dpcm[stream].state != SND_SOC_DPCM_STATE_START)
 				goto next;
+
+			fe->dpcm[stream].fe_pause = true;
+			be->dpcm[stream].be_pause++;
 
 			be->dpcm[stream].be_start--;
 			if (be->dpcm[stream].be_start != 0)

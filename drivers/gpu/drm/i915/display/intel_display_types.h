@@ -26,19 +26,17 @@
 #ifndef __INTEL_DISPLAY_TYPES_H__
 #define __INTEL_DISPLAY_TYPES_H__
 
-#include <linux/async.h>
 #include <linux/i2c.h>
 #include <linux/pm_qos.h>
 #include <linux/pwm.h>
 #include <linux/sched/clock.h>
 
+#include <drm/display/drm_dp_dual_mode_helper.h>
+#include <drm/display/drm_dp_mst_helper.h>
+#include <drm/display/drm_dsc.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_dp_dual_mode_helper.h>
-#include <drm/drm_dp_mst_helper.h>
-#include <drm/drm_dsc.h>
 #include <drm/drm_encoder.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
@@ -143,25 +141,6 @@ struct intel_framebuffer {
 	};
 
 	struct i915_address_space *dpt_vm;
-};
-
-struct intel_fbdev {
-	struct drm_fb_helper helper;
-	struct intel_framebuffer *fb;
-	struct i915_vma *vma;
-	unsigned long vma_flags;
-	async_cookie_t cookie;
-	int preferred_bpp;
-
-	/* Whether or not fbdev hpd processing is temporarily suspended */
-	bool hpd_suspended : 1;
-	/* Set when a hotplug was received while HPD processing was
-	 * suspended
-	 */
-	bool hpd_waiting : 1;
-
-	/* Protects hpd_suspended */
-	struct mutex hpd_lock;
 };
 
 enum intel_hotplug_state {
@@ -301,8 +280,7 @@ struct intel_panel_bl_funcs {
 };
 
 struct intel_panel {
-	struct drm_display_mode *fixed_mode;
-	struct drm_display_mode *downclock_mode;
+	struct list_head fixed_modes;
 
 	/* backlight */
 	struct {
@@ -868,8 +846,13 @@ struct intel_crtc_wm_state {
 			/* gen9+ only needs 1-step wm programming */
 			struct skl_pipe_wm optimal;
 			struct skl_ddb_entry ddb;
+			/*
+			 * pre-icl: for packed/planar CbCr
+			 * icl+: for everything
+			 */
+			struct skl_ddb_entry plane_ddb[I915_MAX_PLANES];
+			/* pre-icl: for planar Y */
 			struct skl_ddb_entry plane_ddb_y[I915_MAX_PLANES];
-			struct skl_ddb_entry plane_ddb_uv[I915_MAX_PLANES];
 		} skl;
 
 		struct {
@@ -969,10 +952,13 @@ struct intel_crtc_state {
 	bool preload_luts;
 	bool inherited; /* state inherited from BIOS? */
 
+	/* Ask the hardware to actually async flip? */
+	bool do_async_flip;
+
 	/* Pipe source size (ie. panel fitter input size)
 	 * All planes will be positioned inside this space,
 	 * and get clipped at the edges. */
-	int pipe_src_w, pipe_src_h;
+	struct drm_rect pipe_src;
 
 	/*
 	 * Pipe pixel rate, adjusted for
@@ -1143,11 +1129,14 @@ struct intel_crtc_state {
 
 	int min_cdclk[I915_MAX_PLANES];
 
+	/* for packed/planar CbCr */
 	u32 data_rate[I915_MAX_PLANES];
+	/* for planar Y */
+	u32 data_rate_y[I915_MAX_PLANES];
 
-	/* FIXME unify with data_rate[] */
-	u64 plane_data_rate[I915_MAX_PLANES];
-	u64 uv_plane_data_rate[I915_MAX_PLANES];
+	/* FIXME unify with data_rate[]? */
+	u64 rel_data_rate[I915_MAX_PLANES];
+	u64 rel_data_rate_y[I915_MAX_PLANES];
 
 	/* Gamma mode programmed on the pipe */
 	u32 gamma_mode;
@@ -1165,11 +1154,15 @@ struct intel_crtc_state {
 
 	/* bitmask of actually visible planes (enum plane_id) */
 	u8 active_planes;
+	u8 scaled_planes;
 	u8 nv12_planes;
 	u8 c8_planes;
 
 	/* bitmask of planes that will be updated during the commit */
 	u8 update_planes;
+
+	u8 framestart_delay; /* 1-4 */
+	u8 msa_timing_delay; /* 0-3 */
 
 	struct {
 		u32 enable;
@@ -1196,14 +1189,8 @@ struct intel_crtc_state {
 	/* enable pipe csc? */
 	bool csc_enable;
 
-	/* enable pipe big joiner? */
-	bool bigjoiner;
-
-	/* big joiner slave crtc? */
-	bool bigjoiner_slave;
-
-	/* linked crtc for bigjoiner, either slave or master */
-	struct intel_crtc *bigjoiner_linked_crtc;
+	/* big joiner pipe bitmask */
+	u8 bigjoiner_pipes;
 
 	/* Display Stream compression state */
 	struct {
@@ -1272,6 +1259,11 @@ enum intel_pipe_crc_source {
 	INTEL_PIPE_CRC_SOURCE_MAX,
 };
 
+enum drrs_refresh_rate {
+	DRRS_REFRESH_RATE_HIGH,
+	DRRS_REFRESH_RATE_LOW,
+};
+
 #define INTEL_PIPE_CRC_ENTRIES_NR	128
 struct intel_pipe_crc {
 	spinlock_t lock;
@@ -1313,6 +1305,16 @@ struct intel_crtc {
 			struct g4x_wm_state g4x;
 		} active;
 	} wm;
+
+	struct {
+		struct mutex mutex;
+		struct delayed_work work;
+		enum drrs_refresh_rate refresh_rate;
+		unsigned int frontbuffer_bits;
+		unsigned int busy_frontbuffer_bits;
+		enum transcoder cpu_transcoder;
+		struct intel_link_m_n m_n, m2_n2;
+	} drrs;
 
 	int scanline_offset;
 
@@ -1442,25 +1444,6 @@ struct intel_hdmi {
 };
 
 struct intel_dp_mst_encoder;
-/*
- * enum link_m_n_set:
- *	When platform provides two set of M_N registers for dp, we can
- *	program them and switch between them incase of DRRS.
- *	But When only one such register is provided, we have to program the
- *	required divider value on that registers itself based on the DRRS state.
- *
- * M1_N1	: Program dp_m_n on M1_N1 registers
- *			  dp_m2_n2 on M2_N2 registers (If supported)
- *
- * M2_N2	: Program dp_m2_n2 on M1_N1 registers
- *			  M2_N2 registers are not supported
- */
-
-enum link_m_n_set {
-	/* Sets the m1_n1 and m2_n2 */
-	M1_N1 = 0,
-	M2_N2
-};
 
 struct intel_dp_compliance_data {
 	unsigned long edid;
@@ -1542,6 +1525,7 @@ struct intel_psr {
 	bool colorimetry_support;
 	bool psr2_enabled;
 	bool psr2_sel_fetch_enabled;
+	bool psr2_sel_fetch_cff_enabled;
 	bool req_psr2_sdp_prior_scanline;
 	u8 sink_sync_latency;
 	ktime_t last_entry_attempt;

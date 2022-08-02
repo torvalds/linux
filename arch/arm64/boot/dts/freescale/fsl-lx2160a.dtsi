@@ -612,6 +612,12 @@
 		ranges;
 		dma-ranges = <0x0 0x0 0x0 0x0 0x10000 0x00000000>;
 
+		serdes_1: phy@1ea0000 {
+			compatible = "fsl,lynx-28g";
+			reg = <0x0 0x1ea0000 0x0 0x1e30>;
+			#phy-cells = <1>;
+		};
+
 		crypto: crypto@8000000 {
 			compatible = "fsl,sec-v5.0", "fsl,sec-v4.0";
 			fsl,sec-era = <10>;
@@ -692,7 +698,7 @@
 					<9 0 &gic GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
 					<10 0 &gic GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>,
 					<11 0 &gic GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-map-mask = <0xffffffff 0x0>;
+				interrupt-map-mask = <0xf 0x0>;
 			};
 		};
 
@@ -903,7 +909,7 @@
 					    QORIQ_CLK_PLL_DIV(8)>,
 				 <&clockgen QORIQ_CLK_SYSCLK 0>;
 			clock-names = "ipg", "per";
-			fsl,clk-source = <0>;
+			fsl,clk-source = /bits/ 8 <0>;
 			status = "disabled";
 		};
 
@@ -915,7 +921,7 @@
 					    QORIQ_CLK_PLL_DIV(8)>,
 				 <&clockgen QORIQ_CLK_SYSCLK 0>;
 			clock-names = "ipg", "per";
-			fsl,clk-source = <0>;
+			fsl,clk-source = /bits/ 8 <0>;
 			status = "disabled";
 		};
 

@@ -3,6 +3,8 @@ config XTENSA
 	def_bool y
 	select ARCH_32BIT_OFF_T
 	select ARCH_HAS_BINFMT_FLAT if !MMU
+	select ARCH_HAS_CURRENT_STACK_POINTER
+	select ARCH_HAS_DEBUG_VM_PGTABLE
 	select ARCH_HAS_DMA_PREP_COHERENT if MMU
 	select ARCH_HAS_SYNC_DMA_FOR_CPU if MMU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE if MMU
@@ -17,30 +19,36 @@ config XTENSA
 	select BUILDTIME_TABLE_SORT
 	select CLONE_BACKWARDS
 	select COMMON_CLK
-	select DMA_REMAP if MMU
+	select DMA_NONCOHERENT_MMAP if MMU
 	select GENERIC_ATOMIC64
 	select GENERIC_IRQ_SHOW
+	select GENERIC_LIB_CMPDI2
+	select GENERIC_LIB_MULDI3
+	select GENERIC_LIB_UCMPDI2
 	select GENERIC_PCI_IOMAP
 	select GENERIC_SCHED_CLOCK
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
 	select HAVE_ARCH_KASAN if MMU && !XIP_KERNEL
+	select HAVE_ARCH_KCSAN
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
+	select HAVE_CONTEXT_TRACKING
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_EXIT_THREAD
 	select HAVE_FUNCTION_TRACER
+	select HAVE_GCC_PLUGINS if GCC_VERSION >= 120000
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_PCI
 	select HAVE_PERF_EVENTS
 	select HAVE_STACKPROTECTOR
 	select HAVE_SYSCALL_TRACEPOINTS
+	select HAVE_VIRT_CPU_ACCOUNTING_GEN
 	select IRQ_DOMAIN
 	select MODULES_USE_ELF_RELA
 	select PERF_USE_VMALLOC
-	select SET_FS
 	select TRACE_IRQFLAGS_SUPPORT
 	select VIRT_TO_BUS
 	help
@@ -75,6 +83,7 @@ config STACKTRACE_SUPPORT
 
 config MMU
 	def_bool n
+	select PFAULT
 
 config HAVE_XTENSA_GPIO32
 	def_bool n
@@ -88,6 +97,9 @@ config CPU_BIG_ENDIAN
 
 config CPU_LITTLE_ENDIAN
 	def_bool !CPU_BIG_ENDIAN
+
+config CC_HAVE_CALL0_ABI
+	def_bool $(success,test "$(shell,echo __XTENSA_CALL0_ABI__ | $(CC) -mabi=call0 -E -P - 2>/dev/null)" = 1)
 
 menu "Processor type and features"
 
@@ -171,6 +183,16 @@ config XTENSA_FAKE_NMI
 
 	  If unsure, say N.
 
+config PFAULT
+	bool "Handle protection faults" if EXPERT && !MMU
+	default y
+	help
+	  Handle protection faults. MMU configurations must enable it.
+	  noMMU configurations may disable it if used memory map never
+	  generates protection faults or faults are always fatal.
+
+	  If unsure, say Y.
+
 config XTENSA_UNALIGNED_USER
 	bool "Unaligned memory access in user space"
 	help
@@ -221,6 +243,15 @@ config HOTPLUG_CPU
 
 	  Say N if you want to disable CPU hotplug.
 
+config SECONDARY_RESET_VECTOR
+	bool "Secondary cores use alternative reset vector"
+	default y
+	depends on HAVE_SMP
+	help
+	  Secondary cores may be configured to use alternative reset vector,
+	  or all cores may use primary reset vector.
+	  Say Y here to supply handler for the alternative reset location.
+
 config FAST_SYSCALL_XTENSA
 	bool "Enable fast atomic syscalls"
 	default n
@@ -246,6 +277,38 @@ config FAST_SYSCALL_SPILL_REGISTERS
 	  Only enable it if your userspace software requires it.
 
 	  If unsure, say N.
+
+choice
+	prompt "Kernel ABI"
+	default KERNEL_ABI_DEFAULT
+	help
+	  Select ABI for the kernel code. This ABI is independent of the
+	  supported userspace ABI and any combination of the
+	  kernel/userspace ABI is possible and should work.
+
+	  In case both kernel and userspace support only call0 ABI
+	  all register windows support code will be omitted from the
+	  build.
+
+	  If unsure, choose the default ABI.
+
+config KERNEL_ABI_DEFAULT
+	bool "Default ABI"
+	help
+	  Select this option to compile kernel code with the default ABI
+	  selected for the toolchain.
+	  Normally cores with windowed registers option use windowed ABI and
+	  cores without it use call0 ABI.
+
+config KERNEL_ABI_CALL0
+	bool "Call0 ABI" if CC_HAVE_CALL0_ABI
+	help
+	  Select this option to compile kernel code with call0 ABI even with
+	  toolchain that defaults to windowed ABI.
+	  When this option is not selected the default toolchain ABI will
+	  be used for the kernel code.
+
+endchoice
 
 config USER_ABI_CALL0
 	bool
@@ -724,6 +787,9 @@ config FORCE_MAX_ZONEORDER
 endmenu
 
 menu "Power management options"
+
+config ARCH_HIBERNATION_POSSIBLE
+	def_bool y
 
 source "kernel/power/Kconfig"
 

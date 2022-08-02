@@ -162,4 +162,4 @@
 	__diag_pop();									\
 	static inline long __do_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))
 
-#endif /* _ASM_X86_SYSCALL_WRAPPER_H */
+#endif /* _ASM_S390_SYSCALL_WRAPPER_H */

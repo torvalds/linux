@@ -2,7 +2,7 @@
 /*
  * Driver for Broadcom MPI3 Storage Controllers
  *
- * Copyright (C) 2017-2021 Broadcom Inc.
+ * Copyright (C) 2017-2022 Broadcom Inc.
  *  (mailto: mpi3mr-linuxdrv.pdl@broadcom.com)
  *
  */
@@ -23,8 +23,8 @@
 #define MPI3_DEBUG_RESET		0x00000020
 #define MPI3_DEBUG_SCSI_ERROR		0x00000040
 #define MPI3_DEBUG_REPLY		0x00000080
-#define MPI3_DEBUG_IOCTL_ERROR		0x00008000
-#define MPI3_DEBUG_IOCTL_INFO		0x00010000
+#define MPI3_DEBUG_BSG_ERROR		0x00008000
+#define MPI3_DEBUG_BSG_INFO		0x00010000
 #define MPI3_DEBUG_SCSI_INFO		0x00020000
 #define MPI3_DEBUG			0x01000000
 #define MPI3_DEBUG_SG			0x02000000
@@ -110,19 +110,44 @@
 	} while (0)
 
 
-#define dprint_ioctl_info(ioc, fmt, ...) \
+#define dprint_bsg_info(ioc, fmt, ...) \
 	do { \
-		if (ioc->logging_level & MPI3_DEBUG_IOCTL_INFO) \
+		if (ioc->logging_level & MPI3_DEBUG_BSG_INFO) \
 			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
 	} while (0)
 
-#define dprint_ioctl_err(ioc, fmt, ...) \
+#define dprint_bsg_err(ioc, fmt, ...) \
 	do { \
-		if (ioc->logging_level & MPI3_DEBUG_IOCTL_ERROR) \
+		if (ioc->logging_level & MPI3_DEBUG_BSG_ERROR) \
 			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
 	} while (0)
 
 #endif /* MPT3SAS_DEBUG_H_INCLUDED */
+
+/**
+ * dprint_dump - print contents of a memory buffer
+ * @req: Pointer to a memory buffer
+ * @sz: Memory buffer size
+ * @namestr: Name String to identify the buffer type
+ */
+static inline void
+dprint_dump(void *req, int sz, const char *name_string)
+{
+	int i;
+	__le32 *mfp = (__le32 *)req;
+
+	sz = sz/4;
+	if (name_string)
+		pr_info("%s:\n\t", name_string);
+	else
+		pr_info("request:\n\t");
+	for (i = 0; i < sz; i++) {
+		if (i && ((i % 8) == 0))
+			pr_info("\n\t");
+		pr_info("%08x ", le32_to_cpu(mfp[i]));
+	}
+	pr_info("\n");
+}
 
 /**
  * dprint_dump_req - print message frame contents

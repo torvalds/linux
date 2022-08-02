@@ -21,6 +21,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/clockchips.h>
 #include <linux/cpu.h>
+#include <linux/sched/isolation.h>
 #include <linux/sched/task_stack.h>
 
 #include <linux/delay.h>
@@ -77,8 +78,8 @@ static int hyperv_panic_event(struct notifier_block *nb, unsigned long val,
 
 	/*
 	 * Hyper-V should be notified only once about a panic.  If we will be
-	 * doing hyperv_report_panic_msg() later with kmsg data, don't do
-	 * the notification here.
+	 * doing hv_kmsg_dump() with kmsg data later, don't do the notification
+	 * here.
 	 */
 	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE
 	    && hyperv_report_reg()) {
@@ -100,8 +101,8 @@ static int hyperv_die_event(struct notifier_block *nb, unsigned long val,
 
 	/*
 	 * Hyper-V should be notified only once about a panic.  If we will be
-	 * doing hyperv_report_panic_msg() later with kmsg data, don't do
-	 * the notification here.
+	 * doing hv_kmsg_dump() with kmsg data later, don't do the notification
+	 * here.
 	 */
 	if (hyperv_report_reg())
 		hyperv_report_panic(regs, val, true);
@@ -575,31 +576,11 @@ static ssize_t driver_override_store(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct hv_device *hv_dev = device_to_hv_device(dev);
-	char *driver_override, *old, *cp;
+	int ret;
 
-	/* We need to keep extra room for a newline */
-	if (count >= (PAGE_SIZE - 1))
-		return -EINVAL;
-
-	driver_override = kstrndup(buf, count, GFP_KERNEL);
-	if (!driver_override)
-		return -ENOMEM;
-
-	cp = strchr(driver_override, '\n');
-	if (cp)
-		*cp = '\0';
-
-	device_lock(dev);
-	old = hv_dev->driver_override;
-	if (strlen(driver_override)) {
-		hv_dev->driver_override = driver_override;
-	} else {
-		kfree(driver_override);
-		hv_dev->driver_override = NULL;
-	}
-	device_unlock(dev);
-
-	kfree(old);
+	ret = driver_set_override(dev, &hv_dev->driver_override, buf, count);
+	if (ret)
+		return ret;
 
 	return count;
 }
@@ -921,6 +902,21 @@ static int vmbus_probe(struct device *child_device)
 }
 
 /*
+ * vmbus_dma_configure -- Configure DMA coherence for VMbus device
+ */
+static int vmbus_dma_configure(struct device *child_device)
+{
+	/*
+	 * On ARM64, propagate the DMA coherence setting from the top level
+	 * VMbus ACPI device to the child VMbus device being added here.
+	 * On x86/x64 coherence is assumed and these calls have no effect.
+	 */
+	hv_setup_dma_ops(child_device,
+		device_get_dma_attr(&hv_acpi_dev->dev) == DEV_DMA_COHERENT);
+	return 0;
+}
+
+/*
  * vmbus_remove - Remove a vmbus device
  */
 static void vmbus_remove(struct device *child_device)
@@ -1040,6 +1036,7 @@ static struct bus_type  hv_bus = {
 	.remove =		vmbus_remove,
 	.probe =		vmbus_probe,
 	.uevent =		vmbus_uevent,
+	.dma_configure =	vmbus_dma_configure,
 	.dev_groups =		vmbus_dev_groups,
 	.drv_groups =		vmbus_drv_groups,
 	.bus_groups =		vmbus_bus_groups,
@@ -1129,7 +1126,7 @@ void vmbus_on_msg_dpc(unsigned long data)
 	}
 
 	if (entry->handler_type	== VMHT_BLOCKING) {
-		ctx = kmalloc(sizeof(*ctx) + payload_size, GFP_ATOMIC);
+		ctx = kmalloc(struct_size(ctx, msg.payload, payload_size), GFP_ATOMIC);
 		if (ctx == NULL)
 			return;
 
@@ -1247,23 +1244,17 @@ static void vmbus_chan_sched(struct hv_per_cpu_context *hv_cpu)
 	unsigned long *recv_int_page;
 	u32 maxbits, relid;
 
-	if (vmbus_proto_version < VERSION_WIN8) {
-		maxbits = MAX_NUM_CHANNELS_SUPPORTED;
-		recv_int_page = vmbus_connection.recv_int_page;
-	} else {
-		/*
-		 * When the host is win8 and beyond, the event page
-		 * can be directly checked to get the id of the channel
-		 * that has the interrupt pending.
-		 */
-		void *page_addr = hv_cpu->synic_event_page;
-		union hv_synic_event_flags *event
-			= (union hv_synic_event_flags *)page_addr +
-						 VMBUS_MESSAGE_SINT;
+	/*
+	 * The event page can be directly checked to get the id of
+	 * the channel that has the interrupt pending.
+	 */
+	void *page_addr = hv_cpu->synic_event_page;
+	union hv_synic_event_flags *event
+		= (union hv_synic_event_flags *)page_addr +
+					 VMBUS_MESSAGE_SINT;
 
-		maxbits = HV_EVENT_FLAGS_COUNT;
-		recv_int_page = event->flags;
-	}
+	maxbits = HV_EVENT_FLAGS_COUNT;
+	recv_int_page = event->flags;
 
 	if (unlikely(!recv_int_page))
 		return;
@@ -1335,40 +1326,10 @@ static void vmbus_isr(void)
 {
 	struct hv_per_cpu_context *hv_cpu
 		= this_cpu_ptr(hv_context.cpu_context);
-	void *page_addr = hv_cpu->synic_event_page;
+	void *page_addr;
 	struct hv_message *msg;
-	union hv_synic_event_flags *event;
-	bool handled = false;
 
-	if (unlikely(page_addr == NULL))
-		return;
-
-	event = (union hv_synic_event_flags *)page_addr +
-					 VMBUS_MESSAGE_SINT;
-	/*
-	 * Check for events before checking for messages. This is the order
-	 * in which events and messages are checked in Windows guests on
-	 * Hyper-V, and the Windows team suggested we do the same.
-	 */
-
-	if ((vmbus_proto_version == VERSION_WS2008) ||
-		(vmbus_proto_version == VERSION_WIN7)) {
-
-		/* Since we are a child, we only need to check bit 0 */
-		if (sync_test_and_clear_bit(0, event->flags))
-			handled = true;
-	} else {
-		/*
-		 * Our host is win8 or above. The signaling mechanism
-		 * has changed and we can directly look at the event page.
-		 * If bit n is set then we have an interrup on the channel
-		 * whose id is n.
-		 */
-		handled = true;
-	}
-
-	if (handled)
-		vmbus_chan_sched(hv_cpu);
+	vmbus_chan_sched(hv_cpu);
 
 	page_addr = hv_cpu->synic_message_page;
 	msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;
@@ -1546,14 +1507,20 @@ static int vmbus_bus_init(void)
 	if (ret)
 		goto err_connect;
 
+	if (hv_is_isolation_supported())
+		sysctl_record_panic_msg = 0;
+
 	/*
 	 * Only register if the crash MSRs are available
 	 */
 	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
 		u64 hyperv_crash_ctl;
 		/*
-		 * Sysctl registration is not fatal, since by default
-		 * reporting is enabled.
+		 * Panic message recording (sysctl_record_panic_msg)
+		 * is enabled by default in non-isolated guests and
+		 * disabled by default in isolated guests; the panic
+		 * message recording won't be available in isolated
+		 * guests should the following registration fail.
 		 */
 		hv_ctl_table_hdr = register_sysctl_table(hv_root_table);
 		if (!hv_ctl_table_hdr)
@@ -1804,6 +1771,9 @@ static ssize_t target_cpu_store(struct vmbus_channel *channel,
 	if (target_cpu >= nr_cpumask_bits)
 		return -EINVAL;
 
+	if (!cpumask_test_cpu(target_cpu, housekeeping_cpumask(HK_TYPE_MANAGED_IRQ)))
+		return -EINVAL;
+
 	/* No CPUs should come up or down during this. */
 	cpus_read_lock();
 
@@ -1874,7 +1844,7 @@ static ssize_t target_cpu_store(struct vmbus_channel *channel,
 
 	/* See init_vp_index(). */
 	if (hv_is_perf_channel(channel))
-		hv_update_alloced_cpus(origin_cpu, target_cpu);
+		hv_update_allocated_cpus(origin_cpu, target_cpu);
 
 	/* Currently set only for storvsc channels. */
 	if (channel->change_target_cpu_callback) {
@@ -2097,6 +2067,10 @@ int vmbus_device_register(struct hv_device *child_device_obj)
 	child_device_obj->device.parent = &hv_acpi_dev->dev;
 	child_device_obj->device.release = vmbus_device_release;
 
+	child_device_obj->device.dma_parms = &child_device_obj->dma_parms;
+	child_device_obj->device.dma_mask = &child_device_obj->dma_mask;
+	dma_set_mask(&child_device_obj->device, DMA_BIT_MASK(64));
+
 	/*
 	 * Register with the LDM. This will kick off the driver/device
 	 * binding...which will eventually call vmbus_match() and vmbus_probe()
@@ -2122,9 +2096,6 @@ int vmbus_device_register(struct hv_device *child_device_obj)
 	}
 	hv_debug_add_dev_dir(child_device_obj);
 
-	child_device_obj->device.dma_parms = &child_device_obj->dma_parms;
-	child_device_obj->device.dma_mask = &child_device_obj->dma_mask;
-	dma_set_mask(&child_device_obj->device, DMA_BIT_MASK(64));
 	return 0;
 
 err_kset_unregister:
@@ -2427,6 +2398,21 @@ static int vmbus_acpi_add(struct acpi_device *device)
 	struct acpi_device *ancestor;
 
 	hv_acpi_dev = device;
+
+	/*
+	 * Older versions of Hyper-V for ARM64 fail to include the _CCA
+	 * method on the top level VMbus device in the DSDT. But devices
+	 * are hardware coherent in all current Hyper-V use cases, so fix
+	 * up the ACPI device to behave as if _CCA is present and indicates
+	 * hardware coherence.
+	 */
+	ACPI_COMPANION_SET(&device->dev, device);
+	if (IS_ENABLED(CONFIG_ACPI_CCA_REQUIRED) &&
+	    device_get_dma_attr(&device->dev) == DEV_DMA_NOT_SUPPORTED) {
+		pr_info("No ACPI _CCA found; assuming coherent device I/O\n");
+		device->flags.cca_seen = true;
+		device->flags.coherent_dma = true;
+	}
 
 	result = acpi_walk_resources(device->handle, METHOD_NAME__CRS,
 					vmbus_walk_resources, NULL);
@@ -2780,9 +2766,14 @@ static void __exit vmbus_exit(void)
 	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
 		kmsg_dump_unregister(&hv_kmsg_dumper);
 		unregister_die_notifier(&hyperv_die_block);
-		atomic_notifier_chain_unregister(&panic_notifier_list,
-						 &hyperv_panic_block);
 	}
+
+	/*
+	 * The panic notifier is always registered, hence we should
+	 * also unconditionally unregister it here as well.
+	 */
+	atomic_notifier_chain_unregister(&panic_notifier_list,
+					 &hyperv_panic_block);
 
 	free_page((unsigned long)hv_panic_page);
 	unregister_sysctl_table(hv_ctl_table_hdr);

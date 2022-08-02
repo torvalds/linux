@@ -21,39 +21,32 @@
 #define pr_fmt(fmt) "software IO TLB: " fmt
 
 #include <linux/cache.h>
+#include <linux/cc_platform.h>
+#include <linux/ctype.h>
+#include <linux/debugfs.h>
 #include <linux/dma-direct.h>
 #include <linux/dma-map-ops.h>
-#include <linux/mm.h>
 #include <linux/export.h>
+#include <linux/gfp.h>
+#include <linux/highmem.h>
+#include <linux/io.h>
+#include <linux/iommu-helper.h>
+#include <linux/init.h>
+#include <linux/memblock.h>
+#include <linux/mm.h>
+#include <linux/pfn.h>
+#include <linux/scatterlist.h>
+#include <linux/set_memory.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/swiotlb.h>
-#include <linux/pfn.h>
 #include <linux/types.h>
-#include <linux/ctype.h>
-#include <linux/highmem.h>
-#include <linux/gfp.h>
-#include <linux/scatterlist.h>
-#include <linux/cc_platform.h>
-#include <linux/set_memory.h>
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
-#endif
 #ifdef CONFIG_DMA_RESTRICTED_POOL
-#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/slab.h>
 #endif
-
-#include <asm/io.h>
-#include <asm/dma.h>
-
-#include <linux/io.h>
-#include <linux/init.h>
-#include <linux/memblock.h>
-#include <linux/iommu-helper.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/swiotlb.h>
@@ -69,17 +62,12 @@
 
 #define INVALID_PHYS_ADDR (~(phys_addr_t)0)
 
-enum swiotlb_force swiotlb_force;
+static bool swiotlb_force_bounce;
+static bool swiotlb_force_disable;
 
 struct io_tlb_mem io_tlb_default_mem;
 
 phys_addr_t swiotlb_unencrypted_base;
-
-/*
- * Max segment that we can provide which (if pages are contingous) will
- * not be bounced (unless SWIOTLB_FORCE is set).
- */
-static unsigned int max_segment;
 
 static unsigned long default_nslabs = IO_TLB_DEFAULT_SIZE >> IO_TLB_SHIFT;
 
@@ -94,9 +82,9 @@ setup_io_tlb_npages(char *str)
 	if (*str == ',')
 		++str;
 	if (!strcmp(str, "force"))
-		swiotlb_force = SWIOTLB_FORCE;
+		swiotlb_force_bounce = true;
 	else if (!strcmp(str, "noforce"))
-		swiotlb_force = SWIOTLB_NO_FORCE;
+		swiotlb_force_disable = true;
 
 	return 0;
 }
@@ -104,17 +92,11 @@ early_param("swiotlb", setup_io_tlb_npages);
 
 unsigned int swiotlb_max_segment(void)
 {
-	return io_tlb_default_mem.nslabs ? max_segment : 0;
+	if (!io_tlb_default_mem.nslabs)
+		return 0;
+	return rounddown(io_tlb_default_mem.nslabs << IO_TLB_SHIFT, PAGE_SIZE);
 }
 EXPORT_SYMBOL_GPL(swiotlb_max_segment);
-
-void swiotlb_set_max_segment(unsigned int val)
-{
-	if (swiotlb_force == SWIOTLB_FORCE)
-		max_segment = 1;
-	else
-		max_segment = rounddown(val, PAGE_SIZE);
-}
 
 unsigned long swiotlb_size_or_default(void)
 {
@@ -207,12 +189,10 @@ void __init swiotlb_update_mem_attributes(void)
 	mem->vaddr = swiotlb_mem_remap(mem, bytes);
 	if (!mem->vaddr)
 		mem->vaddr = vaddr;
-
-	memset(mem->vaddr, 0, bytes);
 }
 
 static void swiotlb_init_io_tlb_mem(struct io_tlb_mem *mem, phys_addr_t start,
-				    unsigned long nslabs, bool late_alloc)
+		unsigned long nslabs, unsigned int flags, bool late_alloc)
 {
 	void *vaddr = phys_to_virt(start);
 	unsigned long bytes = nslabs << IO_TLB_SHIFT, i;
@@ -223,8 +203,7 @@ static void swiotlb_init_io_tlb_mem(struct io_tlb_mem *mem, phys_addr_t start,
 	mem->index = 0;
 	mem->late_alloc = late_alloc;
 
-	if (swiotlb_force == SWIOTLB_FORCE)
-		mem->force_bounce = true;
+	mem->force_bounce = swiotlb_force_bounce || (flags & SWIOTLB_FORCE);
 
 	spin_lock_init(&mem->lock);
 	for (i = 0; i < mem->nslabs; i++) {
@@ -245,17 +224,49 @@ static void swiotlb_init_io_tlb_mem(struct io_tlb_mem *mem, phys_addr_t start,
 	return;
 }
 
-int __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
+/*
+ * Statically reserve bounce buffer space and initialize bounce buffer data
+ * structures for the software IO TLB used to implement the DMA API.
+ */
+void __init swiotlb_init_remap(bool addressing_limit, unsigned int flags,
+		int (*remap)(void *tlb, unsigned long nslabs))
 {
 	struct io_tlb_mem *mem = &io_tlb_default_mem;
+	unsigned long nslabs = default_nslabs;
 	size_t alloc_size;
+	size_t bytes;
+	void *tlb;
 
-	if (swiotlb_force == SWIOTLB_NO_FORCE)
-		return 0;
+	if (!addressing_limit && !swiotlb_force_bounce)
+		return;
+	if (swiotlb_force_disable)
+		return;
 
-	/* protect against double initialization */
-	if (WARN_ON_ONCE(mem->nslabs))
-		return -ENOMEM;
+	/*
+	 * By default allocate the bounce buffer memory from low memory, but
+	 * allow to pick a location everywhere for hypervisors with guest
+	 * memory encryption.
+	 */
+retry:
+	bytes = PAGE_ALIGN(nslabs << IO_TLB_SHIFT);
+	if (flags & SWIOTLB_ANY)
+		tlb = memblock_alloc(bytes, PAGE_SIZE);
+	else
+		tlb = memblock_alloc_low(bytes, PAGE_SIZE);
+	if (!tlb) {
+		pr_warn("%s: failed to allocate tlb structure\n", __func__);
+		return;
+	}
+
+	if (remap && remap(tlb, nslabs) < 0) {
+		memblock_free(tlb, PAGE_ALIGN(bytes));
+
+		nslabs = ALIGN(nslabs >> 1, IO_TLB_SEGSIZE);
+		if (nslabs < IO_TLB_MIN_SLABS)
+			panic("%s: Failed to remap %zu bytes\n",
+			      __func__, bytes);
+		goto retry;
+	}
 
 	alloc_size = PAGE_ALIGN(array_size(sizeof(*mem->slots), nslabs));
 	mem->slots = memblock_alloc(alloc_size, PAGE_SIZE);
@@ -263,39 +274,15 @@ int __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
 		panic("%s: Failed to allocate %zu bytes align=0x%lx\n",
 		      __func__, alloc_size, PAGE_SIZE);
 
-	swiotlb_init_io_tlb_mem(mem, __pa(tlb), nslabs, false);
+	swiotlb_init_io_tlb_mem(mem, __pa(tlb), nslabs, flags, false);
 
-	if (verbose)
+	if (flags & SWIOTLB_VERBOSE)
 		swiotlb_print_info();
-	swiotlb_set_max_segment(mem->nslabs << IO_TLB_SHIFT);
-	return 0;
 }
 
-/*
- * Statically reserve bounce buffer space and initialize bounce buffer data
- * structures for the software IO TLB used to implement the DMA API.
- */
-void  __init
-swiotlb_init(int verbose)
+void __init swiotlb_init(bool addressing_limit, unsigned int flags)
 {
-	size_t bytes = PAGE_ALIGN(default_nslabs << IO_TLB_SHIFT);
-	void *tlb;
-
-	if (swiotlb_force == SWIOTLB_NO_FORCE)
-		return;
-
-	/* Get IO TLB memory from the low pages */
-	tlb = memblock_alloc_low(bytes, PAGE_SIZE);
-	if (!tlb)
-		goto fail;
-	if (swiotlb_init_with_tbl(tlb, default_nslabs, verbose))
-		goto fail_free_mem;
-	return;
-
-fail_free_mem:
-	memblock_free(tlb, bytes);
-fail:
-	pr_warn("Cannot allocate buffer");
+	return swiotlb_init_remap(addressing_limit, flags, NULL);
 }
 
 /*
@@ -303,72 +290,65 @@ fail:
  * initialize the swiotlb later using the slab allocator if needed.
  * This should be just like above, but with some error catching.
  */
-int
-swiotlb_late_init_with_default_size(size_t default_size)
+int swiotlb_init_late(size_t size, gfp_t gfp_mask,
+		int (*remap)(void *tlb, unsigned long nslabs))
 {
-	unsigned long nslabs =
-		ALIGN(default_size >> IO_TLB_SHIFT, IO_TLB_SEGSIZE);
-	unsigned long bytes;
+	struct io_tlb_mem *mem = &io_tlb_default_mem;
+	unsigned long nslabs = ALIGN(size >> IO_TLB_SHIFT, IO_TLB_SEGSIZE);
 	unsigned char *vstart = NULL;
 	unsigned int order;
+	bool retried = false;
 	int rc = 0;
 
-	if (swiotlb_force == SWIOTLB_NO_FORCE)
+	if (swiotlb_force_disable)
 		return 0;
 
-	/*
-	 * Get IO TLB memory from the low pages
-	 */
+retry:
 	order = get_order(nslabs << IO_TLB_SHIFT);
 	nslabs = SLABS_PER_PAGE << order;
-	bytes = nslabs << IO_TLB_SHIFT;
 
 	while ((SLABS_PER_PAGE << order) > IO_TLB_MIN_SLABS) {
-		vstart = (void *)__get_free_pages(GFP_DMA | __GFP_NOWARN,
+		vstart = (void *)__get_free_pages(gfp_mask | __GFP_NOWARN,
 						  order);
 		if (vstart)
 			break;
 		order--;
+		nslabs = SLABS_PER_PAGE << order;
+		retried = true;
 	}
 
 	if (!vstart)
 		return -ENOMEM;
 
-	if (order != get_order(bytes)) {
-		pr_warn("only able to allocate %ld MB\n",
-			(PAGE_SIZE << order) >> 20);
-		nslabs = SLABS_PER_PAGE << order;
-	}
-	rc = swiotlb_late_init_with_tbl(vstart, nslabs);
-	if (rc)
+	if (remap)
+		rc = remap(vstart, nslabs);
+	if (rc) {
 		free_pages((unsigned long)vstart, order);
 
-	return rc;
-}
+		nslabs = ALIGN(nslabs >> 1, IO_TLB_SEGSIZE);
+		if (nslabs < IO_TLB_MIN_SLABS)
+			return rc;
+		retried = true;
+		goto retry;
+	}
 
-int
-swiotlb_late_init_with_tbl(char *tlb, unsigned long nslabs)
-{
-	struct io_tlb_mem *mem = &io_tlb_default_mem;
-	unsigned long bytes = nslabs << IO_TLB_SHIFT;
-
-	if (swiotlb_force == SWIOTLB_NO_FORCE)
-		return 0;
-
-	/* protect against double initialization */
-	if (WARN_ON_ONCE(mem->nslabs))
-		return -ENOMEM;
+	if (retried) {
+		pr_warn("only able to allocate %ld MB\n",
+			(PAGE_SIZE << order) >> 20);
+	}
 
 	mem->slots = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 		get_order(array_size(sizeof(*mem->slots), nslabs)));
-	if (!mem->slots)
+	if (!mem->slots) {
+		free_pages((unsigned long)vstart, order);
 		return -ENOMEM;
+	}
 
-	set_memory_decrypted((unsigned long)tlb, bytes >> PAGE_SHIFT);
-	swiotlb_init_io_tlb_mem(mem, virt_to_phys(tlb), nslabs, true);
+	set_memory_decrypted((unsigned long)vstart,
+			     (nslabs << IO_TLB_SHIFT) >> PAGE_SHIFT);
+	swiotlb_init_io_tlb_mem(mem, virt_to_phys(vstart), nslabs, 0, true);
 
 	swiotlb_print_info();
-	swiotlb_set_max_segment(mem->nslabs << IO_TLB_SHIFT);
 	return 0;
 }
 
@@ -377,6 +357,9 @@ void __init swiotlb_exit(void)
 	struct io_tlb_mem *mem = &io_tlb_default_mem;
 	unsigned long tbl_vaddr;
 	size_t tbl_size, slots_size;
+
+	if (swiotlb_force_bounce)
+		return;
 
 	if (!mem->nslabs)
 		return;
@@ -701,13 +684,10 @@ void swiotlb_tbl_unmap_single(struct device *dev, phys_addr_t tlb_addr,
 void swiotlb_sync_single_for_device(struct device *dev, phys_addr_t tlb_addr,
 		size_t size, enum dma_data_direction dir)
 {
-	/*
-	 * Unconditional bounce is necessary to avoid corruption on
-	 * sync_*_for_cpu or dma_ummap_* when the device didn't overwrite
-	 * the whole lengt of the bounce buffer.
-	 */
-	swiotlb_bounce(dev, tlb_addr, size, DMA_TO_DEVICE);
-	BUG_ON(!valid_dma_direction(dir));
+	if (dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL)
+		swiotlb_bounce(dev, tlb_addr, size, DMA_TO_DEVICE);
+	else
+		BUG_ON(dir != DMA_FROM_DEVICE);
 }
 
 void swiotlb_sync_single_for_cpu(struct device *dev, phys_addr_t tlb_addr,
@@ -729,8 +709,7 @@ dma_addr_t swiotlb_map(struct device *dev, phys_addr_t paddr, size_t size,
 	phys_addr_t swiotlb_addr;
 	dma_addr_t dma_addr;
 
-	trace_swiotlb_bounced(dev, phys_to_dma(dev, paddr), size,
-			      swiotlb_force);
+	trace_swiotlb_bounced(dev, phys_to_dma(dev, paddr), size);
 
 	swiotlb_addr = swiotlb_tbl_map_single(dev, paddr, size, size, 0, dir,
 			attrs);
@@ -755,7 +734,18 @@ dma_addr_t swiotlb_map(struct device *dev, phys_addr_t paddr, size_t size,
 
 size_t swiotlb_max_mapping_size(struct device *dev)
 {
-	return ((size_t)IO_TLB_SIZE) * IO_TLB_SEGSIZE;
+	int min_align_mask = dma_get_min_align_mask(dev);
+	int min_align = 0;
+
+	/*
+	 * swiotlb_find_slots() skips slots according to
+	 * min align mask. This affects max mapping size.
+	 * Take it into acount here.
+	 */
+	if (min_align_mask)
+		min_align = roundup(min_align_mask, IO_TLB_SIZE);
+
+	return ((size_t)IO_TLB_SIZE) * IO_TLB_SEGSIZE - min_align;
 }
 
 bool is_swiotlb_active(struct device *dev)
@@ -766,46 +756,28 @@ bool is_swiotlb_active(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(is_swiotlb_active);
 
-#ifdef CONFIG_DEBUG_FS
-static struct dentry *debugfs_dir;
-
-static void swiotlb_create_debugfs_files(struct io_tlb_mem *mem)
+static void swiotlb_create_debugfs_files(struct io_tlb_mem *mem,
+					 const char *dirname)
 {
+	mem->debugfs = debugfs_create_dir(dirname, io_tlb_default_mem.debugfs);
+	if (!mem->nslabs)
+		return;
+
 	debugfs_create_ulong("io_tlb_nslabs", 0400, mem->debugfs, &mem->nslabs);
 	debugfs_create_ulong("io_tlb_used", 0400, mem->debugfs, &mem->used);
 }
 
-static int __init swiotlb_create_default_debugfs(void)
+static int __init __maybe_unused swiotlb_create_default_debugfs(void)
 {
-	struct io_tlb_mem *mem = &io_tlb_default_mem;
-
-	debugfs_dir = debugfs_create_dir("swiotlb", NULL);
-	if (mem->nslabs) {
-		mem->debugfs = debugfs_dir;
-		swiotlb_create_debugfs_files(mem);
-	}
+	swiotlb_create_debugfs_files(&io_tlb_default_mem, "swiotlb");
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
 late_initcall(swiotlb_create_default_debugfs);
-
 #endif
 
 #ifdef CONFIG_DMA_RESTRICTED_POOL
-
-#ifdef CONFIG_DEBUG_FS
-static void rmem_swiotlb_debugfs_init(struct reserved_mem *rmem)
-{
-	struct io_tlb_mem *mem = rmem->priv;
-
-	mem->debugfs = debugfs_create_dir(rmem->name, debugfs_dir);
-	swiotlb_create_debugfs_files(mem);
-}
-#else
-static void rmem_swiotlb_debugfs_init(struct reserved_mem *rmem)
-{
-}
-#endif
 
 struct page *swiotlb_alloc(struct device *dev, size_t size)
 {
@@ -853,8 +825,7 @@ static int rmem_swiotlb_device_init(struct reserved_mem *rmem,
 		if (!mem)
 			return -ENOMEM;
 
-		mem->slots = kzalloc(array_size(sizeof(*mem->slots), nslabs),
-				     GFP_KERNEL);
+		mem->slots = kcalloc(nslabs, sizeof(*mem->slots), GFP_KERNEL);
 		if (!mem->slots) {
 			kfree(mem);
 			return -ENOMEM;
@@ -862,13 +833,13 @@ static int rmem_swiotlb_device_init(struct reserved_mem *rmem,
 
 		set_memory_decrypted((unsigned long)phys_to_virt(rmem->base),
 				     rmem->size >> PAGE_SHIFT);
-		swiotlb_init_io_tlb_mem(mem, rmem->base, nslabs, false);
-		mem->force_bounce = true;
+		swiotlb_init_io_tlb_mem(mem, rmem->base, nslabs, SWIOTLB_FORCE,
+				false);
 		mem->for_alloc = true;
 
 		rmem->priv = mem;
 
-		rmem_swiotlb_debugfs_init(rmem);
+		swiotlb_create_debugfs_files(mem, rmem->name);
 	}
 
 	dev->dma_io_tlb_mem = mem;

@@ -3,7 +3,6 @@
 
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
-#include <linux/module.h>
 #include <linux/mlx5/driver.h>
 #include "mlx5_core.h"
 #include "mlx5_irq.h"
@@ -95,8 +94,8 @@ int mlx5_set_msix_vec_count(struct mlx5_core_dev *dev, int function_id,
 	if (msix_vec_count > max_msix)
 		return -EOVERFLOW;
 
-	query_cap = kzalloc(query_sz, GFP_KERNEL);
-	hca_cap = kzalloc(set_sz, GFP_KERNEL);
+	query_cap = kvzalloc(query_sz, GFP_KERNEL);
+	hca_cap = kvzalloc(set_sz, GFP_KERNEL);
 	if (!hca_cap || !query_cap) {
 		ret = -ENOMEM;
 		goto out;
@@ -119,8 +118,8 @@ int mlx5_set_msix_vec_count(struct mlx5_core_dev *dev, int function_id,
 		 MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE << 1);
 	ret = mlx5_cmd_exec_in(dev, set_hca_cap, hca_cap);
 out:
-	kfree(hca_cap);
-	kfree(query_cap);
+	kvfree(hca_cap);
+	kvfree(query_cap);
 	return ret;
 }
 
@@ -601,7 +600,8 @@ int mlx5_irq_table_init(struct mlx5_core_dev *dev)
 	if (mlx5_core_is_sf(dev))
 		return 0;
 
-	irq_table = kvzalloc(sizeof(*irq_table), GFP_KERNEL);
+	irq_table = kvzalloc_node(sizeof(*irq_table), GFP_KERNEL,
+				  dev->priv.numa_node);
 	if (!irq_table)
 		return -ENOMEM;
 

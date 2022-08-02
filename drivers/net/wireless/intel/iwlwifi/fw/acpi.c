@@ -4,6 +4,7 @@
  * Copyright (C) 2019-2022 Intel Corporation
  */
 #include <linux/uuid.h>
+#include <linux/dmi.h>
 #include "iwl-drv.h"
 #include "iwl-debug.h"
 #include "acpi.h"
@@ -18,6 +19,30 @@ const guid_t iwl_rfi_guid = GUID_INIT(0x7266172C, 0x220B, 0x4B29,
 				      0x81, 0x4F, 0x75, 0xE4,
 				      0xDD, 0x26, 0xB5, 0xFD);
 IWL_EXPORT_SYMBOL(iwl_rfi_guid);
+
+static const struct dmi_system_id dmi_ppag_approved_list[] = {
+	{ .ident = "HP",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+		},
+	},
+	{ .ident = "SAMSUNG",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD"),
+		},
+	},
+	{ .ident = "MSFT",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+		},
+	},
+	{ .ident = "ASUS",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTek COMPUTER INC."),
+		},
+	},
+	{}
+};
 
 static int iwl_acpi_get_handle(struct device *dev, acpi_string method,
 			       acpi_handle *ret_handle)
@@ -242,7 +267,7 @@ found:
 IWL_EXPORT_SYMBOL(iwl_acpi_get_wifi_pkg_range);
 
 int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
-		     struct iwl_tas_config_cmd_v3 *cmd)
+		     union iwl_tas_config_cmd *cmd, int fw_ver)
 {
 	union acpi_object *wifi_pkg, *data;
 	int ret, tbl_rev, i, block_list_size, enabled;
@@ -268,10 +293,18 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 			(tas_selection & ACPI_WTAS_OVERRIDE_IEC_MSK) >> ACPI_WTAS_OVERRIDE_IEC_POS;
 		u16 enabled_iec = (tas_selection & ACPI_WTAS_ENABLE_IEC_MSK) >>
 			ACPI_WTAS_ENABLE_IEC_POS;
+		u8 usa_tas_uhb = (tas_selection & ACPI_WTAS_USA_UHB_MSK) >> ACPI_WTAS_USA_UHB_POS;
+
 
 		enabled = tas_selection & ACPI_WTAS_ENABLED_MSK;
-		cmd->override_tas_iec = cpu_to_le16(override_iec);
-		cmd->enable_tas_iec = cpu_to_le16(enabled_iec);
+		if (fw_ver <= 3) {
+			cmd->v3.override_tas_iec = cpu_to_le16(override_iec);
+			cmd->v3.enable_tas_iec = cpu_to_le16(enabled_iec);
+		} else {
+			cmd->v4.usa_tas_uhb_allowed = usa_tas_uhb;
+			cmd->v4.override_tas_iec = (u8)override_iec;
+			cmd->v4.enable_tas_iec = (u8)enabled_iec;
+		}
 
 	} else if (tbl_rev == 0 &&
 		wifi_pkg->package.elements[1].type == ACPI_TYPE_INTEGER) {
@@ -297,7 +330,7 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 		goto out_free;
 	}
 	block_list_size = wifi_pkg->package.elements[2].integer.value;
-	cmd->block_list_size = cpu_to_le32(block_list_size);
+	cmd->v4.block_list_size = cpu_to_le32(block_list_size);
 
 	IWL_DEBUG_RADIO(fwrt, "TAS array size %u\n", block_list_size);
 	if (block_list_size > APCI_WTAS_BLACK_LIST_MAX) {
@@ -319,7 +352,7 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 		}
 
 		country = wifi_pkg->package.elements[3 + i].integer.value;
-		cmd->block_list_array[i] = cpu_to_le32(country);
+		cmd->v4.block_list_array[i] = cpu_to_le32(country);
 		IWL_DEBUG_RADIO(fwrt, "TAS block list country %d\n", country);
 	}
 
@@ -529,8 +562,8 @@ IWL_EXPORT_SYMBOL(iwl_sar_select_profile);
 int iwl_sar_get_wrds_table(struct iwl_fw_runtime *fwrt)
 {
 	union acpi_object *wifi_pkg, *table, *data;
-	bool enabled;
 	int ret, tbl_rev;
+	u32 flags;
 	u8 num_chains, num_sub_bands;
 
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_WRDS_METHOD);
@@ -596,7 +629,8 @@ read_table:
 
 	IWL_DEBUG_RADIO(fwrt, "Reading WRDS tbl_rev=%d\n", tbl_rev);
 
-	enabled = !!(wifi_pkg->package.elements[1].integer.value);
+	flags = wifi_pkg->package.elements[1].integer.value;
+	fwrt->reduced_power_flags = flags >> IWL_REDUCE_POWER_FLAGS_POS;
 
 	/* position of the actual table */
 	table = &wifi_pkg->package.elements[2];
@@ -604,7 +638,8 @@ read_table:
 	/* The profile from WRDS is officially profile 1, but goes
 	 * into sar_profiles[0] (because we don't have a profile 0).
 	 */
-	ret = iwl_sar_set_profile(table, &fwrt->sar_profiles[0], enabled,
+	ret = iwl_sar_set_profile(table, &fwrt->sar_profiles[0],
+				  flags & IWL_SAR_ENABLE_MSK,
 				  num_chains, num_sub_bands);
 out_free:
 	kfree(data);
@@ -902,6 +937,9 @@ int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 {
 	int i, j;
 
+	if (!fwrt->geo_enabled)
+		return -ENODATA;
+
 	if (!iwl_sar_geo_support(fwrt))
 		return -EOPNOTSUPP;
 
@@ -962,3 +1000,181 @@ __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 	return config_bitmap;
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_lari_config_bitmap);
+
+int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt)
+{
+	union acpi_object *wifi_pkg, *data, *flags;
+	int i, j, ret, tbl_rev, num_sub_bands = 0;
+	int idx = 2;
+
+	fwrt->ppag_flags = 0;
+
+	data = iwl_acpi_get_object(fwrt->dev, ACPI_PPAG_METHOD);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	/* try to read ppag table rev 2 or 1 (both have the same data size) */
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+				ACPI_PPAG_WIFI_DATA_SIZE_V2, &tbl_rev);
+
+	if (!IS_ERR(wifi_pkg)) {
+		if (tbl_rev == 1 || tbl_rev == 2) {
+			num_sub_bands = IWL_NUM_SUB_BANDS_V2;
+			IWL_DEBUG_RADIO(fwrt,
+					"Reading PPAG table v2 (tbl_rev=%d)\n",
+					tbl_rev);
+			goto read_table;
+		} else {
+			ret = -EINVAL;
+			goto out_free;
+		}
+	}
+
+	/* try to read ppag table revision 0 */
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+			ACPI_PPAG_WIFI_DATA_SIZE_V1, &tbl_rev);
+
+	if (!IS_ERR(wifi_pkg)) {
+		if (tbl_rev != 0) {
+			ret = -EINVAL;
+			goto out_free;
+		}
+		num_sub_bands = IWL_NUM_SUB_BANDS_V1;
+		IWL_DEBUG_RADIO(fwrt, "Reading PPAG table v1 (tbl_rev=0)\n");
+		goto read_table;
+	}
+
+read_table:
+	fwrt->ppag_ver = tbl_rev;
+	flags = &wifi_pkg->package.elements[1];
+
+	if (flags->type != ACPI_TYPE_INTEGER) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	fwrt->ppag_flags = flags->integer.value & ACPI_PPAG_MASK;
+
+	if (!fwrt->ppag_flags) {
+		ret = 0;
+		goto out_free;
+	}
+
+	/*
+	 * read, verify gain values and save them into the PPAG table.
+	 * first sub-band (j=0) corresponds to Low-Band (2.4GHz), and the
+	 * following sub-bands to High-Band (5GHz).
+	 */
+	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
+		for (j = 0; j < num_sub_bands; j++) {
+			union acpi_object *ent;
+
+			ent = &wifi_pkg->package.elements[idx++];
+			if (ent->type != ACPI_TYPE_INTEGER) {
+				ret = -EINVAL;
+				goto out_free;
+			}
+
+			fwrt->ppag_chains[i].subbands[j] = ent->integer.value;
+
+			if ((j == 0 &&
+				(fwrt->ppag_chains[i].subbands[j] > ACPI_PPAG_MAX_LB ||
+				 fwrt->ppag_chains[i].subbands[j] < ACPI_PPAG_MIN_LB)) ||
+				(j != 0 &&
+				(fwrt->ppag_chains[i].subbands[j] > ACPI_PPAG_MAX_HB ||
+				fwrt->ppag_chains[i].subbands[j] < ACPI_PPAG_MIN_HB))) {
+					fwrt->ppag_flags = 0;
+					ret = -EINVAL;
+					goto out_free;
+				}
+		}
+	}
+
+
+	ret = 0;
+
+out_free:
+	kfree(data);
+	return ret;
+}
+IWL_EXPORT_SYMBOL(iwl_acpi_get_ppag_table);
+
+int iwl_read_ppag_table(struct iwl_fw_runtime *fwrt, union iwl_ppag_table_cmd *cmd,
+			int *cmd_size)
+{
+        u8 cmd_ver;
+        int i, j, num_sub_bands;
+        s8 *gain;
+
+        if (!fw_has_capa(&fwrt->fw->ucode_capa, IWL_UCODE_TLV_CAPA_SET_PPAG)) {
+                IWL_DEBUG_RADIO(fwrt,
+                                "PPAG capability not supported by FW, command not sent.\n");
+                return -EINVAL;
+        }
+        if (!fwrt->ppag_flags) {
+                IWL_DEBUG_RADIO(fwrt, "PPAG not enabled, command not sent.\n");
+                return -EINVAL;
+        }
+
+        /* The 'flags' field is the same in v1 and in v2 so we can just
+         * use v1 to access it.
+         */
+        cmd->v1.flags = cpu_to_le32(fwrt->ppag_flags);
+        cmd_ver = iwl_fw_lookup_cmd_ver(fwrt->fw,
+                                        WIDE_ID(PHY_OPS_GROUP, PER_PLATFORM_ANT_GAIN_CMD),
+                                        IWL_FW_CMD_VER_UNKNOWN);
+	if (cmd_ver == 1) {
+                num_sub_bands = IWL_NUM_SUB_BANDS_V1;
+                gain = cmd->v1.gain[0];
+                *cmd_size = sizeof(cmd->v1);
+                if (fwrt->ppag_ver == 1 || fwrt->ppag_ver == 2) {
+                        IWL_DEBUG_RADIO(fwrt,
+                                        "PPAG table rev is %d but FW supports v1, sending truncated table\n",
+                                        fwrt->ppag_ver);
+                        cmd->v1.flags &= cpu_to_le32(IWL_PPAG_ETSI_MASK);
+		}
+	} else if (cmd_ver == 2 || cmd_ver == 3) {
+                num_sub_bands = IWL_NUM_SUB_BANDS_V2;
+                gain = cmd->v2.gain[0];
+                *cmd_size = sizeof(cmd->v2);
+                if (fwrt->ppag_ver == 0) {
+                        IWL_DEBUG_RADIO(fwrt,
+                                        "PPAG table is v1 but FW supports v2, sending padded table\n");
+                } else if (cmd_ver == 2 && fwrt->ppag_ver == 2) {
+                        IWL_DEBUG_RADIO(fwrt,
+                                        "PPAG table is v3 but FW supports v2, sending partial bitmap.\n");
+                        cmd->v1.flags &= cpu_to_le32(IWL_PPAG_ETSI_MASK);
+                }
+        } else {
+                IWL_DEBUG_RADIO(fwrt, "Unsupported PPAG command version\n");
+                return -EINVAL;
+        }
+
+	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
+                for (j = 0; j < num_sub_bands; j++) {
+                        gain[i * num_sub_bands + j] =
+                                fwrt->ppag_chains[i].subbands[j];
+                        IWL_DEBUG_RADIO(fwrt,
+                                        "PPAG table: chain[%d] band[%d]: gain = %d\n",
+                                        i, j, gain[i * num_sub_bands + j]);
+                }
+        }
+
+	return 0;
+}
+IWL_EXPORT_SYMBOL(iwl_read_ppag_table);
+
+bool iwl_acpi_is_ppag_approved(struct iwl_fw_runtime *fwrt)
+{
+
+	if (!dmi_check_system(dmi_ppag_approved_list)) {
+		IWL_DEBUG_RADIO(fwrt,
+			"System vendor '%s' is not in the approved list, disabling PPAG.\n",
+			dmi_get_system_info(DMI_SYS_VENDOR));
+			fwrt->ppag_flags = 0;
+			return false;
+	}
+
+	return true;
+}
+IWL_EXPORT_SYMBOL(iwl_acpi_is_ppag_approved);

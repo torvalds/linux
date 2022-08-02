@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -31,7 +31,7 @@ void iwl_mvm_set_rekey_data(struct ieee80211_hw *hw,
 	memcpy(mvmvif->rekey_data.kck, data->kck, data->kck_len);
 	mvmvif->rekey_data.akm = data->akm & 0xFF;
 	mvmvif->rekey_data.replay_ctr =
-		cpu_to_le64(be64_to_cpup((__be64 *)data->replay_ctr));
+		cpu_to_le64(be64_to_cpup((const __be64 *)data->replay_ctr));
 	mvmvif->rekey_data.valid = true;
 
 	mutex_unlock(&mvm->mutex);
@@ -453,8 +453,7 @@ static int iwl_mvm_wowlan_config_rsc_tsc(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-					WOWLAN_TSC_RSC_PARAM,
+	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, WOWLAN_TSC_RSC_PARAM,
 					IWL_FW_CMD_VER_UNKNOWN);
 	int ret;
 
@@ -672,8 +671,7 @@ static int iwl_mvm_send_patterns(struct iwl_mvm *mvm,
 		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
 	};
 	int i, err;
-	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-					WOWLAN_PATTERNS,
+	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd.id,
 					IWL_FW_CMD_VER_UNKNOWN);
 
 	if (!wowlan->n_patterns)
@@ -917,12 +915,11 @@ iwl_mvm_get_wowlan_config(struct iwl_mvm *mvm,
 	/* TODO: wowlan_config_cmd->wowlan_ba_teardown_tids */
 
 	wowlan_config_cmd->is_11n_connection =
-					ap_sta->ht_cap.ht_supported;
+					ap_sta->deflink.ht_cap.ht_supported;
 	wowlan_config_cmd->flags = ENABLE_L3_FILTERING |
 		ENABLE_NBNS_FILTERING | ENABLE_DHCP_FILTERING;
 
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-				  WOWLAN_CONFIGURATION, 0) < 6) {
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, WOWLAN_CONFIGURATION, 0) < 6) {
 		/* Query the last used seqno and set it */
 		int ret = iwl_mvm_get_last_nonqos_seq(mvm, vif);
 
@@ -1017,8 +1014,7 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 
 	if (!fw_has_api(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_API_TKIP_MIC_KEYS)) {
-		int ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-						WOWLAN_TKIP_PARAM,
+		int ver = iwl_fw_lookup_cmd_ver(mvm->fw, WOWLAN_TKIP_PARAM,
 						IWL_FW_CMD_VER_UNKNOWN);
 		struct wowlan_key_tkip_data tkip_data = {};
 		int size;
@@ -1058,7 +1054,6 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 		};
 
 		cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
-						IWL_ALWAYS_LONG_GROUP,
 						WOWLAN_KEK_KCK_MATERIAL,
 						IWL_FW_CMD_VER_UNKNOWN);
 		if (WARN_ON(cmd_ver != 2 && cmd_ver != 3 && cmd_ver != 4 &&
@@ -1089,7 +1084,7 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 					sizeof(struct iwl_wowlan_kek_kck_material_cmd_v2);
 			/* skip the sta_id at the beginning */
 			_kek_kck_cmd = (void *)
-				((u8 *)_kek_kck_cmd) + sizeof(kek_kck_cmd.sta_id);
+				((u8 *)_kek_kck_cmd + sizeof(kek_kck_cmd.sta_id));
 		}
 
 		IWL_DEBUG_WOWLAN(mvm, "setting akm %d\n",
@@ -1489,7 +1484,7 @@ static void iwl_mvm_report_wakeup_reasons(struct iwl_mvm *mvm,
 		int pktsize = status->wake_packet_bufsize;
 		int pktlen = status->wake_packet_length;
 		const u8 *pktdata = status->wake_packet;
-		struct ieee80211_hdr *hdr = (void *)pktdata;
+		const struct ieee80211_hdr *hdr = (const void *)pktdata;
 		int truncated = pktlen - pktsize;
 
 		/* this would be a firmware bug */
@@ -1961,18 +1956,18 @@ iwl_mvm_parse_wowlan_status_common_ ## _ver(struct iwl_mvm *mvm,	\
 									\
 	if (len < sizeof(*data)) {					\
 		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");	\
-		return ERR_PTR(-EIO);					\
+		return NULL;						\
 	}								\
 									\
 	data_size = ALIGN(le32_to_cpu(data->wake_packet_bufsize), 4);	\
 	if (len != sizeof(*data) + data_size) {				\
 		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");	\
-		return ERR_PTR(-EIO);					\
+		return NULL;						\
 	}								\
 									\
 	status = kzalloc(sizeof(*status) + data_size, GFP_KERNEL);	\
 	if (!status)							\
-		return ERR_PTR(-ENOMEM);				\
+		return NULL;						\
 									\
 	/* copy all the common fields */				\
 	status->replay_ctr = le64_to_cpu(data->replay_ctr);		\
@@ -2074,8 +2069,7 @@ iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm, u8 sta_id)
 	};
 	int ret, len;
 	u8 notif_ver;
-	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-					   WOWLAN_GET_STATUSES,
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd.id,
 					   IWL_FW_CMD_VER_UNKNOWN);
 
 	if (cmd_ver == IWL_FW_CMD_VER_UNKNOWN)
@@ -2103,7 +2097,7 @@ iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm, u8 sta_id)
 		struct iwl_wowlan_status_v6 *v6 = (void *)cmd.resp_pkt->data;
 
 		status = iwl_mvm_parse_wowlan_status_common_v6(mvm, v6, len);
-		if (IS_ERR(status))
+		if (!status)
 			goto out_free_resp;
 
 		BUILD_BUG_ON(sizeof(v6->gtk.decrypt_key) >
@@ -2134,7 +2128,7 @@ iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm, u8 sta_id)
 		struct iwl_wowlan_status_v7 *v7 = (void *)cmd.resp_pkt->data;
 
 		status = iwl_mvm_parse_wowlan_status_common_v7(mvm, v7, len);
-		if (IS_ERR(status))
+		if (!status)
 			goto out_free_resp;
 
 		iwl_mvm_convert_key_counters(status, &v7->gtk[0].rsc.all_tsc_rsc);
@@ -2147,7 +2141,7 @@ iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm, u8 sta_id)
 		 * difference is only in a few not used (reserved) fields.
 		 */
 		status = iwl_mvm_parse_wowlan_status_common_v9(mvm, v9, len);
-		if (IS_ERR(status))
+		if (!status)
 			goto out_free_resp;
 
 		iwl_mvm_convert_key_counters(status, &v9->gtk[0].rsc.all_tsc_rsc);
@@ -2159,7 +2153,7 @@ iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm, u8 sta_id)
 		struct iwl_wowlan_status_v12 *v12 = (void *)cmd.resp_pkt->data;
 
 		status = iwl_mvm_parse_wowlan_status_common_v12(mvm, v12, len);
-		if (IS_ERR(status))
+		if (!status)
 			goto out_free_resp;
 
 		iwl_mvm_convert_key_counters_v5(status, &v12->gtk[0].sc);
@@ -2171,7 +2165,7 @@ iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm, u8 sta_id)
 		IWL_ERR(mvm,
 			"Firmware advertises unknown WoWLAN status response %d!\n",
 			notif_ver);
-		status = ERR_PTR(-EIO);
+		status = NULL;
 	}
 
 out_free_resp:
@@ -2182,8 +2176,7 @@ out_free_resp:
 static struct iwl_wowlan_status_data *
 iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, u8 sta_id)
 {
-	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-					   OFFLOADS_QUERY_CMD,
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, OFFLOADS_QUERY_CMD,
 					   IWL_FW_CMD_VER_UNKNOWN);
 	__le32 station_id = cpu_to_le32(sta_id);
 	u32 cmd_size = cmd_ver != IWL_FW_CMD_VER_UNKNOWN ? sizeof(station_id) : 0;
@@ -2210,7 +2203,7 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 	struct iwl_mvm_sta *mvm_ap_sta;
 
 	status = iwl_mvm_get_wakeup_status(mvm, mvmvif->ap_sta_id);
-	if (IS_ERR(status))
+	if (!status)
 		goto out_unlock;
 
 	IWL_DEBUG_WOWLAN(mvm, "wakeup reason 0x%x\n",
@@ -2377,7 +2370,7 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 	int i, n_matches, ret;
 
 	status = iwl_mvm_get_wakeup_status(mvm, IWL_MVM_INVALID_STA);
-	if (!IS_ERR(status)) {
+	if (status) {
 		reasons = status->wakeup_reasons;
 		kfree(status);
 	}
@@ -2704,7 +2697,9 @@ static int iwl_mvm_d3_test_open(struct inode *inode, struct file *file)
 
 	/* start pseudo D3 */
 	rtnl_lock();
+	wiphy_lock(mvm->hw->wiphy);
 	err = __iwl_mvm_suspend(mvm->hw, mvm->hw->wiphy->wowlan_config, true);
+	wiphy_unlock(mvm->hw->wiphy);
 	rtnl_unlock();
 	if (err > 0)
 		err = -EINVAL;
@@ -2760,7 +2755,9 @@ static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 	iwl_fw_dbg_read_d3_debug_data(&mvm->fwrt);
 
 	rtnl_lock();
+	wiphy_lock(mvm->hw->wiphy);
 	__iwl_mvm_resume(mvm, true);
+	wiphy_unlock(mvm->hw->wiphy);
 	rtnl_unlock();
 
 	iwl_mvm_resume_tcm(mvm);

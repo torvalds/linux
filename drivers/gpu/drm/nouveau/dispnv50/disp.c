@@ -33,14 +33,14 @@
 #include <linux/component.h>
 #include <linux/iopoll.h>
 
+#include <drm/display/drm_dp_helper.h>
+#include <drm/display/drm_scdc_helper.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_dp_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_scdc_helper.h>
 #include <drm/drm_vblank.h>
 
 #include <nvif/push507c.h>

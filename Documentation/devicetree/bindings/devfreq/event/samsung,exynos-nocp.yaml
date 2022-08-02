@@ -8,7 +8,7 @@ title: Samsung Exynos NoC (Network on Chip) Probe
 
 maintainers:
   - Chanwoo Choi <cw00.choi@samsung.com>
-  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
 
 description: |
   The Samsung Exynos542x SoC has a NoC (Network on Chip) Probe for NoC bus.

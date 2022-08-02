@@ -304,7 +304,6 @@ static void do_region(int op, int op_flags, unsigned region,
 	unsigned num_bvecs;
 	sector_t remaining = where->count;
 	struct request_queue *q = bdev_get_queue(where->bdev);
-	unsigned short logical_block_size = queue_logical_block_size(q);
 	sector_t num_sectors;
 	unsigned int special_cmd_max_sectors;
 
@@ -312,13 +311,11 @@ static void do_region(int op, int op_flags, unsigned region,
 	 * Reject unsupported discard and write same requests.
 	 */
 	if (op == REQ_OP_DISCARD)
-		special_cmd_max_sectors = q->limits.max_discard_sectors;
+		special_cmd_max_sectors = bdev_max_discard_sectors(where->bdev);
 	else if (op == REQ_OP_WRITE_ZEROES)
 		special_cmd_max_sectors = q->limits.max_write_zeroes_sectors;
-	else if (op == REQ_OP_WRITE_SAME)
-		special_cmd_max_sectors = q->limits.max_write_same_sectors;
-	if ((op == REQ_OP_DISCARD || op == REQ_OP_WRITE_ZEROES ||
-	     op == REQ_OP_WRITE_SAME) && special_cmd_max_sectors == 0) {
+	if ((op == REQ_OP_DISCARD || op == REQ_OP_WRITE_ZEROES) &&
+	    special_cmd_max_sectors == 0) {
 		atomic_inc(&io->count);
 		dec_count(io, region, BLK_STS_NOTSUPP);
 		return;
@@ -337,37 +334,21 @@ static void do_region(int op, int op_flags, unsigned region,
 		case REQ_OP_WRITE_ZEROES:
 			num_bvecs = 0;
 			break;
-		case REQ_OP_WRITE_SAME:
-			num_bvecs = 1;
-			break;
 		default:
 			num_bvecs = bio_max_segs(dm_sector_div_up(remaining,
 						(PAGE_SIZE >> SECTOR_SHIFT)));
 		}
 
-		bio = bio_alloc_bioset(GFP_NOIO, num_bvecs, &io->client->bios);
+		bio = bio_alloc_bioset(where->bdev, num_bvecs, op | op_flags,
+				       GFP_NOIO, &io->client->bios);
 		bio->bi_iter.bi_sector = where->sector + (where->count - remaining);
-		bio_set_dev(bio, where->bdev);
 		bio->bi_end_io = endio;
-		bio_set_op_attrs(bio, op, op_flags);
 		store_io_and_region_in_bio(bio, io, region);
 
 		if (op == REQ_OP_DISCARD || op == REQ_OP_WRITE_ZEROES) {
 			num_sectors = min_t(sector_t, special_cmd_max_sectors, remaining);
 			bio->bi_iter.bi_size = num_sectors << SECTOR_SHIFT;
 			remaining -= num_sectors;
-		} else if (op == REQ_OP_WRITE_SAME) {
-			/*
-			 * WRITE SAME only uses a single page.
-			 */
-			dp->get_page(dp, &page, &len, &offset);
-			bio_add_page(bio, page, logical_block_size, offset);
-			num_sectors = min_t(sector_t, special_cmd_max_sectors, remaining);
-			bio->bi_iter.bi_size = num_sectors << SECTOR_SHIFT;
-
-			offset = 0;
-			remaining -= num_sectors;
-			dp->next_page(dp);
 		} else while (remaining) {
 			/*
 			 * Try and add as many pages as possible.
@@ -526,14 +507,6 @@ static int dp_init(struct dm_io_request *io_req, struct dpages *dp,
 	return 0;
 }
 
-/*
- * New collapsed (a)synchronous interface.
- *
- * If the IO is asynchronous (i.e. it has notify.fn), you must either unplug
- * the queue with blk_unplug() some time later or set REQ_SYNC in
- * io_req->bi_opf. If you fail to do one of these, the IO will be submitted to
- * the disk after q->unplug_delay, which defaults to 3ms in blk-settings.c.
- */
 int dm_io(struct dm_io_request *io_req, unsigned num_regions,
 	  struct dm_io_region *where, unsigned long *sync_error_bits)
 {

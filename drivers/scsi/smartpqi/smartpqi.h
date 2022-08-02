@@ -96,12 +96,6 @@ struct pqi_ctrl_registers {
 	struct pqi_device_registers pqi_registers;	/* 4000h */
 };
 
-#if ((HZ) < 1000)
-#define PQI_HZ  1000
-#else
-#define PQI_HZ  (HZ)
-#endif
-
 #define PQI_DEVICE_REGISTERS_OFFSET	0x4000
 
 /* shutdown reasons for taking the controller offline */
@@ -924,7 +918,8 @@ union pqi_reset_register {
 #define PQI_MAX_TRANSFER_SIZE			(1024U * 1024U)
 #define PQI_MAX_TRANSFER_SIZE_KDUMP		(512 * 1024U)
 
-#define RAID_MAP_MAX_ENTRIES		1024
+#define RAID_MAP_MAX_ENTRIES			1024
+#define RAID_MAP_MAX_DATA_DISKS_PER_ROW		128
 
 #define PQI_PHYSICAL_DEVICE_BUS		0
 #define PQI_RAID_VOLUME_BUS		1
@@ -1087,7 +1082,7 @@ struct pqi_stream_data {
 };
 
 struct pqi_scsi_dev {
-	int	devtype;		/* as reported by INQUIRY commmand */
+	int	devtype;		/* as reported by INQUIRY command */
 	u8	device_type;		/* as reported by */
 					/* BMIC_IDENTIFY_PHYSICAL_DEVICE */
 					/* only valid for devtype = TYPE_DISK */
@@ -1127,9 +1122,11 @@ struct pqi_scsi_dev {
 	u8	box[8];
 	u16	phys_connector[8];
 	u8	phy_id;
+	u8	ncq_prio_enable;
+	u8	ncq_prio_support;
 	bool	raid_bypass_configured;	/* RAID bypass configured */
 	bool	raid_bypass_enabled;	/* RAID bypass enabled */
-	u32	next_bypass_group;
+	u32	next_bypass_group[RAID_MAP_MAX_DATA_DISKS_PER_ROW];
 	struct raid_map *raid_map;	/* RAID bypass map */
 	u32	max_transfer_encrypted;
 
@@ -1144,7 +1141,6 @@ struct pqi_scsi_dev {
 	struct pqi_stream_data stream_data[NUM_STREAMS_PER_LUN];
 	atomic_t scsi_cmds_outstanding;
 	atomic_t raid_bypass_cnt;
-	u8	page_83_identifier[16];
 };
 
 /* VPD inquiry pages */
@@ -1326,6 +1322,7 @@ struct pqi_ctrl_info {
 	bool		controller_online;
 	bool		block_requests;
 	bool		scan_blocked;
+	u8		logical_volume_rescan_needed : 1;
 	u8		inbound_spanning_supported : 1;
 	u8		outbound_spanning_supported : 1;
 	u8		pqi_mode_enabled : 1;
@@ -1333,7 +1330,6 @@ struct pqi_ctrl_info {
 	u8		soft_reset_handshake_supported : 1;
 	u8		raid_iu_timeout_supported : 1;
 	u8		tmf_iu_timeout_supported : 1;
-	u8		unique_wwid_in_report_phys_lun_supported : 1;
 	u8		firmware_triage_supported : 1;
 	u8		rpl_extended_format_4_5_supported : 1;
 	u8		enable_r1_writes : 1;

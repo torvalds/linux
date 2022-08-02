@@ -204,7 +204,8 @@ static int dpu_crtc_get_crc(struct drm_crtc *crtc)
 		rc = m->hw_lm->ops.collect_misr(m->hw_lm, &crcs[i]);
 
 		if (rc) {
-			DRM_DEBUG_DRIVER("MISR read failed\n");
+			if (rc != -ENODATA)
+				DRM_DEBUG_DRIVER("MISR read failed\n");
 			return rc;
 		}
 	}
@@ -408,7 +409,7 @@ static void _dpu_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 	if (ctl->ops.set_active_pipes)
 		ctl->ops.set_active_pipes(ctl, fetch_active);
 
-	 _dpu_crtc_program_lm_output_roi(crtc);
+	_dpu_crtc_program_lm_output_roi(crtc);
 }
 
 /**
@@ -869,6 +870,13 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc)
 
 	DPU_ATRACE_BEGIN("crtc_commit");
 
+	drm_for_each_encoder_mask(encoder, crtc->dev,
+			crtc->state->encoder_mask) {
+		if (!dpu_encoder_is_valid_for_commit(encoder)) {
+			DRM_DEBUG_ATOMIC("invalid FB not kicking off crtc\n");
+			goto end;
+		}
+	}
 	/*
 	 * Encoder will flush/start now, unless it has a tx pending. If so, it
 	 * may delay and flush at an irq event (e.g. ppdone)
@@ -891,6 +899,8 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc)
 		dpu_encoder_kickoff(encoder);
 
 	reinit_completion(&dpu_crtc->frame_done_comp);
+
+end:
 	DPU_ATRACE_END("crtc_commit");
 }
 
@@ -1046,6 +1056,20 @@ struct plane_state {
 	u32 pipe_id;
 };
 
+static bool dpu_crtc_needs_dirtyfb(struct drm_crtc_state *cstate)
+{
+	struct drm_crtc *crtc = cstate->crtc;
+	struct drm_encoder *encoder;
+
+	drm_for_each_encoder_mask (encoder, crtc->dev, cstate->encoder_mask) {
+		if (dpu_encoder_get_intf_mode(encoder) == INTF_MODE_CMD) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 		struct drm_atomic_state *state)
 {
@@ -1066,6 +1090,7 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 	const struct drm_plane_state *pipe_staged[SSPP_MAX];
 	int left_zpos_cnt = 0, right_zpos_cnt = 0;
 	struct drm_rect crtc_rect = { 0 };
+	bool needs_dirtyfb = dpu_crtc_needs_dirtyfb(crtc_state);
 
 	pstates = kzalloc(sizeof(*pstates) * DPU_STAGE_MAX * 4, GFP_KERNEL);
 
@@ -1097,6 +1122,7 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 
 	 /* get plane state for all drm planes associated with crtc state */
 	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, crtc_state) {
+		struct dpu_plane_state *dpu_pstate = to_dpu_plane_state(pstate);
 		struct drm_rect dst, clip = crtc_rect;
 
 		if (IS_ERR_OR_NULL(pstate)) {
@@ -1108,10 +1134,12 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 		if (cnt >= DPU_STAGE_MAX * 4)
 			continue;
 
-		pstates[cnt].dpu_pstate = to_dpu_plane_state(pstate);
+		pstates[cnt].dpu_pstate = dpu_pstate;
 		pstates[cnt].drm_pstate = pstate;
 		pstates[cnt].stage = pstate->normalized_zpos;
 		pstates[cnt].pipe_id = dpu_plane_pipe(plane);
+
+		dpu_pstate->needs_dirtyfb = needs_dirtyfb;
 
 		if (pipe_staged[pstates[cnt].pipe_id]) {
 			multirect_plane[multirect_count].r0 =

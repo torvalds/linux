@@ -70,6 +70,10 @@ struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi)
 	} else {
 		oms->pdata.caps |= MMC_CAP_NEEDS_POLL;
 	}
+	if (device_property_read_bool(dev, "cap-sd-highspeed"))
+		oms->pdata.caps |= MMC_CAP_SD_HIGHSPEED;
+	if (device_property_read_bool(dev, "cap-mmc-highspeed"))
+		oms->pdata.caps |= MMC_CAP_MMC_HIGHSPEED;
 
 	dev->platform_data = &oms->pdata;
 	return dev->platform_data;

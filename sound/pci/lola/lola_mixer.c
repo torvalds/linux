@@ -121,6 +121,8 @@ int lola_init_mixer_widget(struct lola *chip, int nid)
 
 	/* reserve memory to copy mixer data for sleep mode transitions */
 	chip->mixer.array_saved = vmalloc(sizeof(struct lola_mixer_array));
+	if (!chip->mixer.array_saved)
+		return -ENOMEM;
 
 	/* mixer matrix sources are physical input data and play streams */
 	chip->mixer.src_stream_outs = chip->pcm[PLAY].num_streams;

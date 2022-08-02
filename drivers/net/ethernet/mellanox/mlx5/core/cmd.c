@@ -31,7 +31,6 @@
  */
 
 #include <linux/highmem.h>
-#include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -191,10 +190,10 @@ static int verify_block_sig(struct mlx5_cmd_prot_block *block)
 	int xor_len = sizeof(*block) - sizeof(block->data) - 1;
 
 	if (xor8_buf(block, rsvd0_off, xor_len) != 0xff)
-		return -EINVAL;
+		return -EHWPOISON;
 
 	if (xor8_buf(block, 0, sizeof(*block)) != 0xff)
-		return -EINVAL;
+		return -EHWPOISON;
 
 	return 0;
 }
@@ -260,12 +259,12 @@ static int verify_signature(struct mlx5_cmd_work_ent *ent)
 
 	sig = xor8_buf(ent->lay, 0, sizeof(*ent->lay));
 	if (sig != 0xff)
-		return -EINVAL;
+		return -EHWPOISON;
 
 	for (i = 0; i < n && next; i++) {
 		err = verify_block_sig(next->buf);
 		if (err)
-			return err;
+			return -EHWPOISON;
 
 		next = next->next;
 	}
@@ -478,9 +477,14 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 	case MLX5_CMD_OP_QUERY_VHCA_STATE:
 	case MLX5_CMD_OP_MODIFY_VHCA_STATE:
 	case MLX5_CMD_OP_ALLOC_SF:
+	case MLX5_CMD_OP_SUSPEND_VHCA:
+	case MLX5_CMD_OP_RESUME_VHCA:
+	case MLX5_CMD_OP_QUERY_VHCA_MIGRATION_STATE:
+	case MLX5_CMD_OP_SAVE_VHCA_STATE:
+	case MLX5_CMD_OP_LOAD_VHCA_STATE:
 		*status = MLX5_DRIVER_STATUS_ABORTED;
 		*synd = MLX5_DRIVER_SYND;
-		return -EIO;
+		return -ENOLINK;
 	default:
 		mlx5_core_err(dev, "Unknown FW command (%d)\n", op);
 		return -EINVAL;
@@ -675,6 +679,11 @@ const char *mlx5_command_str(int command)
 	MLX5_COMMAND_STR_CASE(MODIFY_VHCA_STATE);
 	MLX5_COMMAND_STR_CASE(ALLOC_SF);
 	MLX5_COMMAND_STR_CASE(DEALLOC_SF);
+	MLX5_COMMAND_STR_CASE(SUSPEND_VHCA);
+	MLX5_COMMAND_STR_CASE(RESUME_VHCA);
+	MLX5_COMMAND_STR_CASE(QUERY_VHCA_MIGRATION_STATE);
+	MLX5_COMMAND_STR_CASE(SAVE_VHCA_STATE);
+	MLX5_COMMAND_STR_CASE(LOAD_VHCA_STATE);
 	default: return "unknown command opcode";
 	}
 }
@@ -761,44 +770,72 @@ struct mlx5_ifc_mbox_in_bits {
 	u8         reserved_at_40[0x40];
 };
 
-void mlx5_cmd_mbox_status(void *out, u8 *status, u32 *syndrome)
+void mlx5_cmd_out_err(struct mlx5_core_dev *dev, u16 opcode, u16 op_mod, void *out)
 {
-	*status = MLX5_GET(mbox_out, out, status);
-	*syndrome = MLX5_GET(mbox_out, out, syndrome);
-}
+	u32 syndrome = MLX5_GET(mbox_out, out, syndrome);
+	u8 status = MLX5_GET(mbox_out, out, status);
 
-static int mlx5_cmd_check(struct mlx5_core_dev *dev, void *in, void *out)
+	mlx5_core_err_rl(dev,
+			 "%s(0x%x) op_mod(0x%x) failed, status %s(0x%x), syndrome (0x%x), err(%d)\n",
+			 mlx5_command_str(opcode), opcode, op_mod,
+			 cmd_status_str(status), status, syndrome, cmd_status_to_err(status));
+}
+EXPORT_SYMBOL(mlx5_cmd_out_err);
+
+static void cmd_status_print(struct mlx5_core_dev *dev, void *in, void *out)
 {
+	u16 opcode, op_mod;
 	u32 syndrome;
 	u8  status;
-	u16 opcode;
-	u16 op_mod;
 	u16 uid;
+	int err;
 
-	mlx5_cmd_mbox_status(out, &status, &syndrome);
-	if (!status)
-		return 0;
+	syndrome = MLX5_GET(mbox_out, out, syndrome);
+	status = MLX5_GET(mbox_out, out, status);
 
 	opcode = MLX5_GET(mbox_in, in, opcode);
 	op_mod = MLX5_GET(mbox_in, in, op_mod);
 	uid    = MLX5_GET(mbox_in, in, uid);
 
+	err = cmd_status_to_err(status);
+
 	if (!uid && opcode != MLX5_CMD_OP_DESTROY_MKEY)
-		mlx5_core_err_rl(dev,
-			"%s(0x%x) op_mod(0x%x) failed, status %s(0x%x), syndrome (0x%x)\n",
-			mlx5_command_str(opcode), opcode, op_mod,
-			cmd_status_str(status), status, syndrome);
+		mlx5_cmd_out_err(dev, opcode, op_mod, out);
 	else
 		mlx5_core_dbg(dev,
-		      "%s(0x%x) op_mod(0x%x) failed, status %s(0x%x), syndrome (0x%x)\n",
-		      mlx5_command_str(opcode),
-		      opcode, op_mod,
-		      cmd_status_str(status),
-		      status,
-		      syndrome);
-
-	return cmd_status_to_err(status);
+			"%s(0x%x) op_mod(0x%x) uid(%d) failed, status %s(0x%x), syndrome (0x%x), err(%d)\n",
+			mlx5_command_str(opcode), opcode, op_mod, uid,
+			cmd_status_str(status), status, syndrome, err);
 }
+
+int mlx5_cmd_check(struct mlx5_core_dev *dev, int err, void *in, void *out)
+{
+	/* aborted due to PCI error or via reset flow mlx5_cmd_trigger_completions() */
+	if (err == -ENXIO) {
+		u16 opcode = MLX5_GET(mbox_in, in, opcode);
+		u32 syndrome;
+		u8 status;
+
+		/* PCI Error, emulate command return status, for smooth reset */
+		err = mlx5_internal_err_ret_value(dev, opcode, &syndrome, &status);
+		MLX5_SET(mbox_out, out, status, status);
+		MLX5_SET(mbox_out, out, syndrome, syndrome);
+		if (!err)
+			return 0;
+	}
+
+	/* driver or FW delivery error */
+	if (err != -EREMOTEIO && err)
+		return err;
+
+	/* check outbox status */
+	err = cmd_status_to_err(MLX5_GET(mbox_out, out, status));
+	if (err)
+		cmd_status_print(dev, in, out);
+
+	return err;
+}
+EXPORT_SYMBOL(mlx5_cmd_check);
 
 static void dump_command(struct mlx5_core_dev *dev,
 			 struct mlx5_cmd_work_ent *ent, int input)
@@ -981,13 +1018,7 @@ static void cmd_work_handler(struct work_struct *work)
 
 	/* Skip sending command to fw if internal error */
 	if (mlx5_cmd_is_down(dev) || !opcode_allowed(&dev->cmd, ent->op)) {
-		u8 status = 0;
-		u32 drv_synd;
-
-		ent->ret = mlx5_internal_err_ret_value(dev, msg_to_opcode(ent->in), &drv_synd, &status);
-		MLX5_SET(mbox_out, ent->out, status, status);
-		MLX5_SET(mbox_out, ent->out, syndrome, drv_synd);
-
+		ent->ret = -ENXIO;
 		mlx5_cmd_comp_handler(dev, 1ULL << ent->idx, true);
 		return;
 	}
@@ -1003,6 +1034,31 @@ static void cmd_work_handler(struct work_struct *work)
 		/* make sure we read the descriptor after ownership is SW */
 		rmb();
 		mlx5_cmd_comp_handler(dev, 1ULL << ent->idx, (ent->ret == -ETIMEDOUT));
+	}
+}
+
+static int deliv_status_to_err(u8 status)
+{
+	switch (status) {
+	case MLX5_CMD_DELIVERY_STAT_OK:
+	case MLX5_DRIVER_STATUS_ABORTED:
+		return 0;
+	case MLX5_CMD_DELIVERY_STAT_SIGNAT_ERR:
+	case MLX5_CMD_DELIVERY_STAT_TOK_ERR:
+		return -EBADR;
+	case MLX5_CMD_DELIVERY_STAT_BAD_BLK_NUM_ERR:
+	case MLX5_CMD_DELIVERY_STAT_OUT_PTR_ALIGN_ERR:
+	case MLX5_CMD_DELIVERY_STAT_IN_PTR_ALIGN_ERR:
+		return -EFAULT; /* Bad address */
+	case MLX5_CMD_DELIVERY_STAT_IN_LENGTH_ERR:
+	case MLX5_CMD_DELIVERY_STAT_OUT_LENGTH_ERR:
+	case MLX5_CMD_DELIVERY_STAT_CMD_DESCR_ERR:
+	case MLX5_CMD_DELIVERY_STAT_RES_FLD_NOT_CLR_ERR:
+		return -ENOMSG;
+	case MLX5_CMD_DELIVERY_STAT_FW_ERR:
+		return -EIO;
+	default:
+		return -EINVAL;
 	}
 }
 
@@ -1102,16 +1158,27 @@ out_err:
 /*  Notes:
  *    1. Callback functions may not sleep
  *    2. page queue commands do not support asynchrous completion
+ *
+ * return value in case (!callback):
+ *	ret < 0 : Command execution couldn't be submitted by driver
+ *	ret > 0 : Command execution couldn't be performed by firmware
+ *	ret == 0: Command was executed by FW, Caller must check FW outbox status.
+ *
+ * return value in case (callback):
+ *	ret < 0 : Command execution couldn't be submitted by driver
+ *	ret == 0: Command will be submitted to FW for execution
+ *		  and the callback will be called for further status updates
  */
 static int mlx5_cmd_invoke(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *in,
 			   struct mlx5_cmd_msg *out, void *uout, int uout_size,
 			   mlx5_cmd_cbk_t callback,
-			   void *context, int page_queue, u8 *status,
+			   void *context, int page_queue,
 			   u8 token, bool force_polling)
 {
 	struct mlx5_cmd *cmd = &dev->cmd;
 	struct mlx5_cmd_work_ent *ent;
 	struct mlx5_cmd_stats *stats;
+	u8 status = 0;
 	int err = 0;
 	s64 ds;
 	u16 op;
@@ -1142,12 +1209,12 @@ static int mlx5_cmd_invoke(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *in,
 		cmd_work_handler(&ent->work);
 	} else if (!queue_work(cmd->wq, &ent->work)) {
 		mlx5_core_warn(dev, "failed to queue work\n");
-		err = -ENOMEM;
+		err = -EALREADY;
 		goto out_free;
 	}
 
 	if (callback)
-		goto out; /* mlx5_cmd_comp_handler() will put(ent) */
+		return 0; /* mlx5_cmd_comp_handler() will put(ent) */
 
 	err = wait_func(dev, ent);
 	if (err == -ETIMEDOUT || err == -ECANCELED)
@@ -1165,12 +1232,11 @@ static int mlx5_cmd_invoke(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *in,
 	mlx5_core_dbg_mask(dev, 1 << MLX5_CMD_TIME,
 			   "fw exec time for %s is %lld nsec\n",
 			   mlx5_command_str(op), ds);
-	*status = ent->status;
 
 out_free:
+	status = ent->status;
 	cmd_ent_put(ent);
-out:
-	return err;
+	return err ? : status;
 }
 
 static ssize_t dbg_write(struct file *filp, const char __user *buf,
@@ -1487,7 +1553,7 @@ static void create_debugfs_files(struct mlx5_core_dev *dev)
 {
 	struct mlx5_cmd_debug *dbg = &dev->cmd.dbg;
 
-	dbg->dbg_root = debugfs_create_dir("cmd", dev->priv.dbg_root);
+	dbg->dbg_root = debugfs_create_dir("cmd", mlx5_debugfs_get_dev_root(dev));
 
 	debugfs_create_file("in", 0400, dbg->dbg_root, dev, &dfops);
 	debugfs_create_file("out", 0200, dbg->dbg_root, dev, &dfops);
@@ -1613,15 +1679,15 @@ static void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec, bool force
 			ent->ts2 = ktime_get_ns();
 			memcpy(ent->out->first.data, ent->lay->out, sizeof(ent->lay->out));
 			dump_command(dev, ent, 0);
-			if (!ent->ret) {
+
+			if (vec & MLX5_TRIGGERED_CMD_COMP)
+				ent->ret = -ENXIO;
+
+			if (!ent->ret) { /* Command completed by FW */
 				if (!cmd->checksum_disabled)
 					ent->ret = verify_signature(ent);
-				else
-					ent->ret = 0;
-				if (vec & MLX5_TRIGGERED_CMD_COMP)
-					ent->status = MLX5_DRIVER_STATUS_ABORTED;
-				else
-					ent->status = ent->lay->status_own >> 1;
+
+				ent->status = ent->lay->status_own >> 1;
 
 				mlx5_core_dbg(dev, "command completed. ret 0x%x, delivery status %s(0x%x)\n",
 					      ent->ret, deliv_status_to_str(ent->status), ent->status);
@@ -1639,21 +1705,18 @@ static void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec, bool force
 
 				callback = ent->callback;
 				context = ent->context;
-				err = ent->ret;
-				if (!err) {
+				err = ent->ret ? : ent->status;
+				if (err > 0) /* Failed in FW, command didn't execute */
+					err = deliv_status_to_err(err);
+
+				if (!err)
 					err = mlx5_copy_from_msg(ent->uout,
 								 ent->out,
 								 ent->uout_size);
 
-					err = err ? err : mlx5_cmd_check(dev,
-									ent->in->first.data,
-									ent->uout);
-				}
-
 				mlx5_free_cmd_msg(dev, ent->out);
 				free_msg(dev, ent->in);
 
-				err = err ? err : ent->status;
 				/* final consumer is done, release ent */
 				cmd_ent_put(ent);
 				callback(err, context);
@@ -1667,7 +1730,7 @@ static void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec, bool force
 	}
 }
 
-void mlx5_cmd_trigger_completions(struct mlx5_core_dev *dev)
+static void mlx5_cmd_trigger_completions(struct mlx5_core_dev *dev)
 {
 	struct mlx5_cmd *cmd = &dev->cmd;
 	unsigned long bitmask;
@@ -1720,31 +1783,6 @@ void mlx5_cmd_flush(struct mlx5_core_dev *dev)
 		up(&cmd->sem);
 }
 
-static int status_to_err(u8 status)
-{
-	switch (status) {
-	case MLX5_CMD_DELIVERY_STAT_OK:
-	case MLX5_DRIVER_STATUS_ABORTED:
-		return 0;
-	case MLX5_CMD_DELIVERY_STAT_SIGNAT_ERR:
-	case MLX5_CMD_DELIVERY_STAT_TOK_ERR:
-		return -EBADR;
-	case MLX5_CMD_DELIVERY_STAT_BAD_BLK_NUM_ERR:
-	case MLX5_CMD_DELIVERY_STAT_OUT_PTR_ALIGN_ERR:
-	case MLX5_CMD_DELIVERY_STAT_IN_PTR_ALIGN_ERR:
-		return -EFAULT; /* Bad address */
-	case MLX5_CMD_DELIVERY_STAT_IN_LENGTH_ERR:
-	case MLX5_CMD_DELIVERY_STAT_OUT_LENGTH_ERR:
-	case MLX5_CMD_DELIVERY_STAT_CMD_DESCR_ERR:
-	case MLX5_CMD_DELIVERY_STAT_RES_FLD_NOT_CLR_ERR:
-		return -ENOMSG;
-	case MLX5_CMD_DELIVERY_STAT_FW_ERR:
-		return -EIO;
-	default:
-		return -EINVAL;
-	}
-}
-
 static struct mlx5_cmd_msg *alloc_msg(struct mlx5_core_dev *dev, int in_size,
 				      gfp_t gfp)
 {
@@ -1788,27 +1826,23 @@ static int is_manage_pages(void *in)
 	return MLX5_GET(mbox_in, in, opcode) == MLX5_CMD_OP_MANAGE_PAGES;
 }
 
+/*  Notes:
+ *    1. Callback functions may not sleep
+ *    2. Page queue commands do not support asynchrous completion
+ */
 static int cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 		    int out_size, mlx5_cmd_cbk_t callback, void *context,
 		    bool force_polling)
 {
-	struct mlx5_cmd_msg *inb;
-	struct mlx5_cmd_msg *outb;
+	u16 opcode = MLX5_GET(mbox_in, in, opcode);
+	struct mlx5_cmd_msg *inb, *outb;
 	int pages_queue;
 	gfp_t gfp;
-	int err;
-	u8 status = 0;
-	u32 drv_synd;
-	u16 opcode;
 	u8 token;
+	int err;
 
-	opcode = MLX5_GET(mbox_in, in, opcode);
-	if (mlx5_cmd_is_down(dev) || !opcode_allowed(&dev->cmd, opcode)) {
-		err = mlx5_internal_err_ret_value(dev, opcode, &drv_synd, &status);
-		MLX5_SET(mbox_out, out, status, status);
-		MLX5_SET(mbox_out, out, syndrome, drv_synd);
-		return err;
-	}
+	if (mlx5_cmd_is_down(dev) || !opcode_allowed(&dev->cmd, opcode))
+		return -ENXIO;
 
 	pages_queue = is_manage_pages(in);
 	gfp = callback ? GFP_ATOMIC : GFP_KERNEL;
@@ -1834,38 +1868,135 @@ static int cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 	}
 
 	err = mlx5_cmd_invoke(dev, inb, outb, out, out_size, callback, context,
-			      pages_queue, &status, token, force_polling);
+			      pages_queue, token, force_polling);
+	if (callback)
+		return err;
+
+	if (err > 0) /* Failed in FW, command didn't execute */
+		err = deliv_status_to_err(err);
+
 	if (err)
 		goto out_out;
 
-	mlx5_core_dbg(dev, "err %d, status %d\n", err, status);
-	if (status) {
-		err = status_to_err(status);
-		goto out_out;
-	}
-
-	if (!callback)
-		err = mlx5_copy_from_msg(out, outb, out_size);
-
+	/* command completed by FW */
+	err = mlx5_copy_from_msg(out, outb, out_size);
 out_out:
-	if (!callback)
-		mlx5_free_cmd_msg(dev, outb);
-
+	mlx5_free_cmd_msg(dev, outb);
 out_in:
-	if (!callback)
-		free_msg(dev, inb);
+	free_msg(dev, inb);
 	return err;
 }
 
+static void cmd_status_log(struct mlx5_core_dev *dev, u16 opcode, u8 status,
+			   u32 syndrome, int err)
+{
+	struct mlx5_cmd_stats *stats;
+
+	if (!err)
+		return;
+
+	stats = &dev->cmd.stats[opcode];
+	spin_lock_irq(&stats->lock);
+	stats->failed++;
+	if (err < 0)
+		stats->last_failed_errno = -err;
+	if (err == -EREMOTEIO) {
+		stats->failed_mbox_status++;
+		stats->last_failed_mbox_status = status;
+		stats->last_failed_syndrome = syndrome;
+	}
+	spin_unlock_irq(&stats->lock);
+}
+
+/* preserve -EREMOTEIO for outbox.status != OK, otherwise return err as is */
+static int cmd_status_err(struct mlx5_core_dev *dev, int err, u16 opcode, void *out)
+{
+	u32 syndrome = MLX5_GET(mbox_out, out, syndrome);
+	u8 status = MLX5_GET(mbox_out, out, status);
+
+	if (err == -EREMOTEIO) /* -EREMOTEIO is preserved */
+		err = -EIO;
+
+	if (!err && status != MLX5_CMD_STAT_OK)
+		err = -EREMOTEIO;
+
+	cmd_status_log(dev, opcode, status, syndrome, err);
+	return err;
+}
+
+/**
+ * mlx5_cmd_do - Executes a fw command, wait for completion.
+ * Unlike mlx5_cmd_exec, this function will not translate or intercept
+ * outbox.status and will return -EREMOTEIO when
+ * outbox.status != MLX5_CMD_STAT_OK
+ *
+ * @dev: mlx5 core device
+ * @in: inbox mlx5_ifc command buffer
+ * @in_size: inbox buffer size
+ * @out: outbox mlx5_ifc buffer
+ * @out_size: outbox size
+ *
+ * @return:
+ * -EREMOTEIO : Command executed by FW, outbox.status != MLX5_CMD_STAT_OK.
+ *              Caller must check FW outbox status.
+ *   0 : Command execution successful, outbox.status == MLX5_CMD_STAT_OK.
+ * < 0 : Command execution couldn't be performed by firmware or driver
+ */
+int mlx5_cmd_do(struct mlx5_core_dev *dev, void *in, int in_size, void *out, int out_size)
+{
+	int err = cmd_exec(dev, in, in_size, out, out_size, NULL, NULL, false);
+	u16 opcode = MLX5_GET(mbox_in, in, opcode);
+
+	err = cmd_status_err(dev, err, opcode, out);
+	return err;
+}
+EXPORT_SYMBOL(mlx5_cmd_do);
+
+/**
+ * mlx5_cmd_exec - Executes a fw command, wait for completion
+ *
+ * @dev: mlx5 core device
+ * @in: inbox mlx5_ifc command buffer
+ * @in_size: inbox buffer size
+ * @out: outbox mlx5_ifc buffer
+ * @out_size: outbox size
+ *
+ * @return: 0 if no error, FW command execution was successful
+ *          and outbox status is ok.
+ */
 int mlx5_cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 		  int out_size)
 {
-	int err;
+	int err = mlx5_cmd_do(dev, in, in_size, out, out_size);
 
-	err = cmd_exec(dev, in, in_size, out, out_size, NULL, NULL, false);
-	return err ? : mlx5_cmd_check(dev, in, out);
+	return mlx5_cmd_check(dev, err, in, out);
 }
 EXPORT_SYMBOL(mlx5_cmd_exec);
+
+/**
+ * mlx5_cmd_exec_polling - Executes a fw command, poll for completion
+ *	Needed for driver force teardown, when command completion EQ
+ *	will not be available to complete the command
+ *
+ * @dev: mlx5 core device
+ * @in: inbox mlx5_ifc command buffer
+ * @in_size: inbox buffer size
+ * @out: outbox mlx5_ifc buffer
+ * @out_size: outbox size
+ *
+ * @return: 0 if no error, FW command execution was successful
+ *          and outbox status is ok.
+ */
+int mlx5_cmd_exec_polling(struct mlx5_core_dev *dev, void *in, int in_size,
+			  void *out, int out_size)
+{
+	int err = cmd_exec(dev, in, in_size, out, out_size, NULL, NULL, true);
+	u16 opcode = MLX5_GET(mbox_in, in, opcode);
+
+	err = cmd_status_err(dev, err, opcode, out);
+	return mlx5_cmd_check(dev, err, in, out);
+}
+EXPORT_SYMBOL(mlx5_cmd_exec_polling);
 
 void mlx5_cmd_init_async_ctx(struct mlx5_core_dev *dev,
 			     struct mlx5_async_ctx *ctx)
@@ -1895,8 +2026,10 @@ EXPORT_SYMBOL(mlx5_cmd_cleanup_async_ctx);
 static void mlx5_cmd_exec_cb_handler(int status, void *_work)
 {
 	struct mlx5_async_work *work = _work;
-	struct mlx5_async_ctx *ctx = work->ctx;
+	struct mlx5_async_ctx *ctx;
 
+	ctx = work->ctx;
+	status = cmd_status_err(ctx->dev, status, work->opcode, work->out);
 	work->user_callback(status, work);
 	if (atomic_dec_and_test(&ctx->num_inflight))
 		wake_up(&ctx->wait);
@@ -1910,6 +2043,8 @@ int mlx5_cmd_exec_cb(struct mlx5_async_ctx *ctx, void *in, int in_size,
 
 	work->ctx = ctx;
 	work->user_callback = callback;
+	work->opcode = MLX5_GET(mbox_in, in, opcode);
+	work->out = out;
 	if (WARN_ON(!atomic_inc_not_zero(&ctx->num_inflight)))
 		return -EIO;
 	ret = cmd_exec(ctx->dev, in, in_size, out, out_size,
@@ -1920,17 +2055,6 @@ int mlx5_cmd_exec_cb(struct mlx5_async_ctx *ctx, void *in, int in_size,
 	return ret;
 }
 EXPORT_SYMBOL(mlx5_cmd_exec_cb);
-
-int mlx5_cmd_exec_polling(struct mlx5_core_dev *dev, void *in, int in_size,
-			  void *out, int out_size)
-{
-	int err;
-
-	err = cmd_exec(dev, in, in_size, out, out_size, NULL, NULL, true);
-
-	return err ? : mlx5_cmd_check(dev, in, out);
-}
-EXPORT_SYMBOL(mlx5_cmd_exec_polling);
 
 static void destroy_msg_cache(struct mlx5_core_dev *dev)
 {

@@ -1641,14 +1641,14 @@ static int gfx_v9_4_2_query_utc_edc_count(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int gfx_v9_4_2_query_ras_error_count(struct amdgpu_device *adev,
+static void gfx_v9_4_2_query_ras_error_count(struct amdgpu_device *adev,
 					    void *ras_error_status)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 	uint32_t sec_count = 0, ded_count = 0;
 
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
-		return -EINVAL;
+		return;
 
 	err_data->ue_count = 0;
 	err_data->ce_count = 0;
@@ -1661,7 +1661,6 @@ static int gfx_v9_4_2_query_ras_error_count(struct amdgpu_device *adev,
 	err_data->ce_count += sec_count;
 	err_data->ue_count += ded_count;
 
-	return 0;
 }
 
 static void gfx_v9_4_2_reset_utc_err_status(struct amdgpu_device *adev)
@@ -1931,13 +1930,31 @@ static void gfx_v9_4_2_reset_sq_timeout_status(struct amdgpu_device *adev)
 	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
-const struct amdgpu_gfx_ras_funcs gfx_v9_4_2_ras_funcs = {
-	.ras_late_init = amdgpu_gfx_ras_late_init,
-	.ras_fini = amdgpu_gfx_ras_fini,
-	.ras_error_inject = &gfx_v9_4_2_ras_error_inject,
-	.query_ras_error_count = &gfx_v9_4_2_query_ras_error_count,
-	.reset_ras_error_count = &gfx_v9_4_2_reset_ras_error_count,
-	.query_ras_error_status = &gfx_v9_4_2_query_ras_error_status,
-	.reset_ras_error_status = &gfx_v9_4_2_reset_ras_error_status,
+static bool gfx_v9_4_2_query_uctl2_poison_status(struct amdgpu_device *adev)
+{
+	u32 status = 0;
+	struct amdgpu_vmhub *hub;
+
+	hub = &adev->vmhub[AMDGPU_GFXHUB_0];
+	status = RREG32(hub->vm_l2_pro_fault_status);
+	/* reset page fault status */
+	WREG32_P(hub->vm_l2_pro_fault_cntl, 1, ~1);
+
+	return REG_GET_FIELD(status, VM_L2_PROTECTION_FAULT_STATUS, FED);
+}
+
+struct amdgpu_ras_block_hw_ops  gfx_v9_4_2_ras_ops = {
+		.ras_error_inject = &gfx_v9_4_2_ras_error_inject,
+		.query_ras_error_count = &gfx_v9_4_2_query_ras_error_count,
+		.reset_ras_error_count = &gfx_v9_4_2_reset_ras_error_count,
+		.query_ras_error_status = &gfx_v9_4_2_query_ras_error_status,
+		.reset_ras_error_status = &gfx_v9_4_2_reset_ras_error_status,
+};
+
+struct amdgpu_gfx_ras gfx_v9_4_2_ras = {
+	.ras_block = {
+		.hw_ops = &gfx_v9_4_2_ras_ops,
+	},
 	.enable_watchdog_timer = &gfx_v9_4_2_enable_watchdog_timer,
+	.query_utcl2_poison_status = gfx_v9_4_2_query_uctl2_poison_status,
 };

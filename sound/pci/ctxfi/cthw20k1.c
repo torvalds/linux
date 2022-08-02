@@ -1916,7 +1916,7 @@ static int hw_card_start(struct hw *hw)
 
 	}
 
-	/* Switch to X-Fi mode from UAA mode if neeeded */
+	/* Switch to X-Fi mode from UAA mode if needed */
 	if (hw->model == CTUAA) {
 		err = uaa_to_xfi(pci);
 		if (err)

@@ -137,22 +137,137 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
+/*
+ * hl_ts_free_objects - handler of the free objects workqueue.
+ * This function should put refcount to objects that the registration node
+ * took refcount to them.
+ * @work: workqueue object pointer
+ */
+static void hl_ts_free_objects(struct work_struct *work)
+{
+	struct timestamp_reg_work_obj *job =
+			container_of(work, struct timestamp_reg_work_obj, free_obj);
+	struct timestamp_reg_free_node *free_obj, *temp_free_obj;
+	struct list_head *free_list_head = job->free_obj_head;
+	struct hl_device *hdev = job->hdev;
+
+	list_for_each_entry_safe(free_obj, temp_free_obj, free_list_head, free_objects_node) {
+		dev_dbg(hdev->dev, "About to put refcount to buf (%p) cq_cb(%p)\n",
+					free_obj->buf,
+					free_obj->cq_cb);
+
+		hl_mmap_mem_buf_put(free_obj->buf);
+		hl_cb_put(free_obj->cq_cb);
+		kfree(free_obj);
+	}
+
+	kfree(free_list_head);
+	kfree(job);
+}
+
+/*
+ * This function called with spin_lock of wait_list_lock taken
+ * This function will set timestamp and delete the registration node from the
+ * wait_list_lock.
+ * and since we're protected with spin_lock here, so we cannot just put the refcount
+ * for the objects here, since the release function may be called and it's also a long
+ * logic (which might sleep also) that cannot be handled in irq context.
+ * so here we'll be filling a list with nodes of "put" jobs and then will send this
+ * list to a dedicated workqueue to do the actual put.
+ */
+static int handle_registration_node(struct hl_device *hdev, struct hl_user_pending_interrupt *pend,
+						struct list_head **free_list)
+{
+	struct timestamp_reg_free_node *free_node;
+	u64 timestamp;
+
+	if (!(*free_list)) {
+		/* Alloc/Init the timestamp registration free objects list */
+		*free_list = kmalloc(sizeof(struct list_head), GFP_ATOMIC);
+		if (!(*free_list))
+			return -ENOMEM;
+
+		INIT_LIST_HEAD(*free_list);
+	}
+
+	free_node = kmalloc(sizeof(*free_node), GFP_ATOMIC);
+	if (!free_node)
+		return -ENOMEM;
+
+	timestamp = ktime_get_ns();
+
+	*pend->ts_reg_info.timestamp_kernel_addr = timestamp;
+
+	dev_dbg(hdev->dev, "Timestamp is set to ts cb address (%p), ts: 0x%llx\n",
+			pend->ts_reg_info.timestamp_kernel_addr,
+			*(u64 *)pend->ts_reg_info.timestamp_kernel_addr);
+
+	list_del(&pend->wait_list_node);
+
+	/* Mark kernel CB node as free */
+	pend->ts_reg_info.in_use = 0;
+
+	/* Putting the refcount for ts_buff and cq_cb objects will be handled
+	 * in workqueue context, just add job to free_list.
+	 */
+	free_node->buf = pend->ts_reg_info.buf;
+	free_node->cq_cb = pend->ts_reg_info.cq_cb;
+	list_add(&free_node->free_objects_node, *free_list);
+
+	return 0;
+}
+
 static void handle_user_cq(struct hl_device *hdev,
 			struct hl_user_interrupt *user_cq)
 {
-	struct hl_user_pending_interrupt *pend;
+	struct hl_user_pending_interrupt *pend, *temp_pend;
+	struct list_head *ts_reg_free_list_head = NULL;
+	struct timestamp_reg_work_obj *job;
+	bool reg_node_handle_fail = false;
 	ktime_t now = ktime_get();
+	int rc;
+
+	/* For registration nodes:
+	 * As part of handling the registration nodes, we should put refcount to
+	 * some objects. the problem is that we cannot do that under spinlock
+	 * or in irq handler context at all (since release functions are long and
+	 * might sleep), so we will need to handle that part in workqueue context.
+	 * To avoid handling kmalloc failure which compels us rolling back actions
+	 * and move nodes hanged on the free list back to the interrupt wait list
+	 * we always alloc the job of the WQ at the beginning.
+	 */
+	job = kmalloc(sizeof(*job), GFP_ATOMIC);
+	if (!job)
+		return;
 
 	spin_lock(&user_cq->wait_list_lock);
-	list_for_each_entry(pend, &user_cq->wait_list_head, wait_list_node) {
-		if ((pend->cq_kernel_addr &&
-				*(pend->cq_kernel_addr) >= pend->cq_target_value) ||
+	list_for_each_entry_safe(pend, temp_pend, &user_cq->wait_list_head, wait_list_node) {
+		if ((pend->cq_kernel_addr && *(pend->cq_kernel_addr) >= pend->cq_target_value) ||
 				!pend->cq_kernel_addr) {
-			pend->fence.timestamp = now;
-			complete_all(&pend->fence.completion);
+			if (pend->ts_reg_info.buf) {
+				if (!reg_node_handle_fail) {
+					rc = handle_registration_node(hdev, pend,
+									&ts_reg_free_list_head);
+					if (rc)
+						reg_node_handle_fail = true;
+				}
+			} else {
+				/* Handle wait target value node */
+				pend->fence.timestamp = now;
+				complete_all(&pend->fence.completion);
+			}
 		}
 	}
 	spin_unlock(&user_cq->wait_list_lock);
+
+	if (ts_reg_free_list_head) {
+		INIT_WORK(&job->free_obj, hl_ts_free_objects);
+		job->free_obj_head = ts_reg_free_list_head;
+		job->hdev = hdev;
+		queue_work(hdev->ts_free_obj_wq, &job->free_obj);
+	} else {
+		kfree(job);
+	}
 }
 
 /**
@@ -166,10 +281,6 @@ irqreturn_t hl_irq_handler_user_cq(int irq, void *arg)
 {
 	struct hl_user_interrupt *user_cq = arg;
 	struct hl_device *hdev = user_cq->hdev;
-
-	dev_dbg(hdev->dev,
-		"got user completion interrupt id %u",
-		user_cq->interrupt_id);
 
 	/* Handle user cq interrupts registered on all interrupts */
 	handle_user_cq(hdev, &hdev->common_user_interrupt);

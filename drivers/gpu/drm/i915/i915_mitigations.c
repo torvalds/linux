@@ -8,6 +8,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
+#include "i915_driver.h"
 #include "i915_drv.h"
 #include "i915_mitigations.h"
 

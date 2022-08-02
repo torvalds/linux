@@ -84,7 +84,7 @@ void dmub_dcn31_reset(struct dmub_srv *dmub)
 {
 	union dmub_gpint_data_register cmd;
 	const uint32_t timeout = 100;
-	uint32_t in_reset, scratch, i;
+	uint32_t in_reset, scratch, i, pwait_mode;
 
 	REG_GET(DMCUB_CNTL2, DMCUB_SOFT_RESET, &in_reset);
 
@@ -115,6 +115,13 @@ void dmub_dcn31_reset(struct dmub_srv *dmub)
 			udelay(1);
 		}
 
+		for (i = 0; i < timeout; ++i) {
+			REG_GET(DMCUB_CNTL, DMCUB_PWAIT_MODE_STATUS, &pwait_mode);
+			if (pwait_mode & (1 << 0))
+				break;
+
+			udelay(1);
+		}
 		/* Force reset in case we timed out, DMCUB is likely hung. */
 	}
 
@@ -125,6 +132,8 @@ void dmub_dcn31_reset(struct dmub_srv *dmub)
 	REG_WRITE(DMCUB_INBOX1_WPTR, 0);
 	REG_WRITE(DMCUB_OUTBOX1_RPTR, 0);
 	REG_WRITE(DMCUB_OUTBOX1_WPTR, 0);
+	REG_WRITE(DMCUB_OUTBOX0_RPTR, 0);
+	REG_WRITE(DMCUB_OUTBOX0_WPTR, 0);
 	REG_WRITE(DMCUB_SCRATCH0, 0);
 
 	/* Clear the GPINT command manually so we don't send anything during boot. */
@@ -340,6 +349,7 @@ void dmub_dcn31_enable_dmub_boot_options(struct dmub_srv *dmub, const struct dmu
 	boot_options.bits.z10_disable = params->disable_z10;
 	boot_options.bits.dpia_supported = params->dpia_supported;
 	boot_options.bits.enable_dpia = params->disable_dpia ? 0 : 1;
+	boot_options.bits.usb4_cm_version = params->usb4_cm_version;
 	boot_options.bits.power_optimization = params->power_optimization;
 
 	boot_options.bits.sel_mux_phy_c_d_phy_f_g = (dmub->asic == DMUB_ASIC_DCN31B) ? 1 : 0;
@@ -441,7 +451,7 @@ void dmub_dcn31_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnosti
 bool dmub_dcn31_should_detect(struct dmub_srv *dmub)
 {
 	uint32_t fw_boot_status = REG_READ(DMCUB_SCRATCH0);
-	bool should_detect = fw_boot_status & DMUB_FW_BOOT_STATUS_BIT_DETECTION_REQUIRED;
+	bool should_detect = (fw_boot_status & DMUB_FW_BOOT_STATUS_BIT_DETECTION_REQUIRED) != 0;
 	return should_detect;
 }
 

@@ -153,7 +153,6 @@ static int da280_probe(struct i2c_client *client,
 	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int da280_suspend(struct device *dev)
 {
 	return da280_enable(to_i2c_client(dev), false);
@@ -163,9 +162,8 @@ static int da280_resume(struct device *dev)
 {
 	return da280_enable(to_i2c_client(dev), true);
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(da280_pm_ops, da280_suspend, da280_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(da280_pm_ops, da280_suspend, da280_resume);
 
 static const struct acpi_device_id da280_acpi_match[] = {
 	{"MIRAACC", da280},
@@ -184,7 +182,7 @@ static struct i2c_driver da280_driver = {
 	.driver = {
 		.name = "da280",
 		.acpi_match_table = ACPI_PTR(da280_acpi_match),
-		.pm = &da280_pm_ops,
+		.pm = pm_sleep_ptr(&da280_pm_ops),
 	},
 	.probe		= da280_probe,
 	.id_table	= da280_i2c_id,

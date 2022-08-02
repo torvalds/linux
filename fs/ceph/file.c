@@ -205,8 +205,9 @@ static int ceph_init_file_info(struct inode *inode, struct file *file,
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_mount_options *opt =
-		ceph_inode_to_client(&ci->vfs_inode)->mount_options;
+		ceph_inode_to_client(&ci->netfs.inode)->mount_options;
 	struct ceph_file_info *fi;
+	int ret;
 
 	dout("%s %p %p 0%o (%s)\n", __func__, inode, file,
 			inode->i_mode, isdir ? "dir" : "regular");
@@ -240,7 +241,22 @@ static int ceph_init_file_info(struct inode *inode, struct file *file,
 	INIT_LIST_HEAD(&fi->rw_contexts);
 	fi->filp_gen = READ_ONCE(ceph_inode_to_client(inode)->filp_gen);
 
+	if ((file->f_mode & FMODE_WRITE) &&
+	    ci->i_inline_version != CEPH_INLINE_NONE) {
+		ret = ceph_uninline_data(file);
+		if (ret < 0)
+			goto error;
+	}
+
 	return 0;
+
+error:
+	ceph_fscache_unuse_cookie(inode, file->f_mode & FMODE_WRITE);
+	ceph_put_fmode(ci, fi->fmode, 1);
+	kmem_cache_free(ceph_file_cachep, fi);
+	/* wake up anyone waiting for caps on this inode */
+	wake_up_all(&ci->i_cap_wq);
+	return ret;
 }
 
 /*
@@ -516,52 +532,67 @@ static void restore_deleg_ino(struct inode *dir, u64 ino)
 	}
 }
 
+static void wake_async_create_waiters(struct inode *inode,
+				      struct ceph_mds_session *session)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+
+	spin_lock(&ci->i_ceph_lock);
+	if (ci->i_ceph_flags & CEPH_I_ASYNC_CREATE) {
+		ci->i_ceph_flags &= ~CEPH_I_ASYNC_CREATE;
+		wake_up_bit(&ci->i_ceph_flags, CEPH_ASYNC_CREATE_BIT);
+	}
+	ceph_kick_flushing_inode_caps(session, ci);
+	spin_unlock(&ci->i_ceph_lock);
+}
+
 static void ceph_async_create_cb(struct ceph_mds_client *mdsc,
                                  struct ceph_mds_request *req)
 {
+	struct dentry *dentry = req->r_dentry;
+	struct inode *dinode = d_inode(dentry);
+	struct inode *tinode = req->r_target_inode;
 	int result = req->r_err ? req->r_err :
 			le32_to_cpu(req->r_reply_info.head->result);
 
+	WARN_ON_ONCE(dinode && tinode && dinode != tinode);
+
+	/* MDS changed -- caller must resubmit */
 	if (result == -EJUKEBOX)
 		goto out;
 
 	mapping_set_error(req->r_parent->i_mapping, result);
 
 	if (result) {
-		struct dentry *dentry = req->r_dentry;
-		struct inode *inode = d_inode(dentry);
 		int pathlen = 0;
 		u64 base = 0;
 		char *path = ceph_mdsc_build_path(req->r_dentry, &pathlen,
 						  &base, 0);
 
+		pr_warn("ceph: async create failure path=(%llx)%s result=%d!\n",
+			base, IS_ERR(path) ? "<<bad>>" : path, result);
+		ceph_mdsc_free_path(path, pathlen);
+
 		ceph_dir_clear_complete(req->r_parent);
 		if (!d_unhashed(dentry))
 			d_drop(dentry);
 
-		ceph_inode_shutdown(inode);
-
-		pr_warn("ceph: async create failure path=(%llx)%s result=%d!\n",
-			base, IS_ERR(path) ? "<<bad>>" : path, result);
-		ceph_mdsc_free_path(path, pathlen);
+		if (dinode) {
+			mapping_set_error(dinode->i_mapping, result);
+			ceph_inode_shutdown(dinode);
+			wake_async_create_waiters(dinode, req->r_session);
+		}
 	}
 
-	if (req->r_target_inode) {
-		struct ceph_inode_info *ci = ceph_inode(req->r_target_inode);
-		u64 ino = ceph_vino(req->r_target_inode).ino;
+	if (tinode) {
+		u64 ino = ceph_vino(tinode).ino;
 
 		if (req->r_deleg_ino != ino)
 			pr_warn("%s: inode number mismatch! err=%d deleg_ino=0x%llx target=0x%llx\n",
 				__func__, req->r_err, req->r_deleg_ino, ino);
-		mapping_set_error(req->r_target_inode->i_mapping, result);
 
-		spin_lock(&ci->i_ceph_lock);
-		if (ci->i_ceph_flags & CEPH_I_ASYNC_CREATE) {
-			ci->i_ceph_flags &= ~CEPH_I_ASYNC_CREATE;
-			wake_up_bit(&ci->i_ceph_flags, CEPH_ASYNC_CREATE_BIT);
-		}
-		ceph_kick_flushing_inode_caps(req->r_session, ci);
-		spin_unlock(&ci->i_ceph_lock);
+		mapping_set_error(tinode->i_mapping, result);
+		wake_async_create_waiters(tinode, req->r_session);
 	} else if (!result) {
 		pr_warn("%s: no req->r_target_inode for 0x%llx\n", __func__,
 			req->r_deleg_ino);
@@ -598,9 +629,15 @@ static int ceph_finish_async_create(struct inode *dir, struct dentry *dentry,
 	iinfo.change_attr = 1;
 	ceph_encode_timespec64(&iinfo.btime, &now);
 
-	iinfo.xattr_len = ARRAY_SIZE(xattr_buf);
-	iinfo.xattr_data = xattr_buf;
-	memset(iinfo.xattr_data, 0, iinfo.xattr_len);
+	if (req->r_pagelist) {
+		iinfo.xattr_len = req->r_pagelist->length;
+		iinfo.xattr_data = req->r_pagelist->mapped_tail;
+	} else {
+		/* fake it */
+		iinfo.xattr_len = ARRAY_SIZE(xattr_buf);
+		iinfo.xattr_data = xattr_buf;
+		memset(iinfo.xattr_data, 0, iinfo.xattr_len);
+	}
 
 	in.ino = cpu_to_le64(vino.ino);
 	in.snapid = cpu_to_le64(CEPH_NOSNAP);
@@ -712,6 +749,10 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 		err = ceph_security_init_secctx(dentry, mode, &as_ctx);
 		if (err < 0)
 			goto out_ctx;
+		/* Async create can't handle more than a page of xattrs */
+		if (as_ctx.pagelist &&
+		    !list_is_singular(&as_ctx.pagelist->head))
+			try_async = false;
 	} else if (!d_in_lookup(dentry)) {
 		/* If it's not being looked up, it's negative */
 		return -ENOENT;
@@ -1041,7 +1082,6 @@ static void ceph_aio_complete(struct inode *inode,
 		}
 
 		spin_lock(&ci->i_ceph_lock);
-		ci->i_inline_version = CEPH_INLINE_NONE;
 		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR,
 					       &aio_req->prealloc_cf);
 		spin_unlock(&ci->i_ceph_lock);
@@ -1778,12 +1818,6 @@ retry_snap:
 	if (err)
 		goto out;
 
-	if (ci->i_inline_version != CEPH_INLINE_NONE) {
-		err = ceph_uninline_data(file, NULL);
-		if (err < 0)
-			goto out;
-	}
-
 	dout("aio_write %p %llx.%llx %llu~%zd getting caps. i_size %llu\n",
 	     inode, ceph_vinop(inode), pos, count, i_size_read(inode));
 	if (!(fi->flags & CEPH_F_SYNC) && !direct_lock)
@@ -1845,7 +1879,7 @@ retry_snap:
 		 * are pending vmtruncate. So write and vmtruncate
 		 * can not run at the same time
 		 */
-		written = generic_perform_write(file, from, pos);
+		written = generic_perform_write(iocb, from);
 		if (likely(written >= 0))
 			iocb->ki_pos = pos + written;
 		ceph_end_io_write(inode);
@@ -1855,7 +1889,6 @@ retry_snap:
 		int dirty;
 
 		spin_lock(&ci->i_ceph_lock);
-		ci->i_inline_version = CEPH_INLINE_NONE;
 		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR,
 					       &prealloc_cf);
 		spin_unlock(&ci->i_ceph_lock);
@@ -2109,12 +2142,6 @@ static long ceph_fallocate(struct file *file, int mode,
 		goto unlock;
 	}
 
-	if (ci->i_inline_version != CEPH_INLINE_NONE) {
-		ret = ceph_uninline_data(file, NULL);
-		if (ret < 0)
-			goto unlock;
-	}
-
 	size = i_size_read(inode);
 
 	/* Are we punching a hole beyond EOF? */
@@ -2139,7 +2166,6 @@ static long ceph_fallocate(struct file *file, int mode,
 
 	if (!ret) {
 		spin_lock(&ci->i_ceph_lock);
-		ci->i_inline_version = CEPH_INLINE_NONE;
 		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR,
 					       &prealloc_cf);
 		spin_unlock(&ci->i_ceph_lock);
@@ -2532,7 +2558,6 @@ static ssize_t __ceph_copy_file_range(struct file *src_file, loff_t src_off,
 	}
 	/* Mark Fw dirty */
 	spin_lock(&dst_ci->i_ceph_lock);
-	dst_ci->i_inline_version = CEPH_INLINE_NONE;
 	dirty = __ceph_mark_dirty_caps(dst_ci, CEPH_CAP_FILE_WR, &prealloc_cf);
 	spin_unlock(&dst_ci->i_ceph_lock);
 	if (dirty)

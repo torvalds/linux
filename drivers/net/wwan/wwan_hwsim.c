@@ -33,6 +33,7 @@ static struct dentry *wwan_hwsim_debugfs_devcreate;
 static DEFINE_SPINLOCK(wwan_hwsim_devs_lock);
 static LIST_HEAD(wwan_hwsim_devs);
 static unsigned int wwan_hwsim_dev_idx;
+static struct workqueue_struct *wwan_wq;
 
 struct wwan_hwsim_dev {
 	struct list_head list;
@@ -371,7 +372,7 @@ static ssize_t wwan_hwsim_debugfs_portdestroy_write(struct file *file,
 	 * waiting this callback to finish in the debugfs_remove() call. So,
 	 * use workqueue.
 	 */
-	schedule_work(&port->del_work);
+	queue_work(wwan_wq, &port->del_work);
 
 	return count;
 }
@@ -416,7 +417,7 @@ static ssize_t wwan_hwsim_debugfs_devdestroy_write(struct file *file,
 	 * waiting this callback to finish in the debugfs_remove() call. So,
 	 * use workqueue.
 	 */
-	schedule_work(&dev->del_work);
+	queue_work(wwan_wq, &dev->del_work);
 
 	return count;
 }
@@ -506,9 +507,15 @@ static int __init wwan_hwsim_init(void)
 	if (wwan_hwsim_devsnum < 0 || wwan_hwsim_devsnum > 128)
 		return -EINVAL;
 
+	wwan_wq = alloc_workqueue("wwan_wq", 0, 0);
+	if (!wwan_wq)
+		return -ENOMEM;
+
 	wwan_hwsim_class = class_create(THIS_MODULE, "wwan_hwsim");
-	if (IS_ERR(wwan_hwsim_class))
-		return PTR_ERR(wwan_hwsim_class);
+	if (IS_ERR(wwan_hwsim_class)) {
+		err = PTR_ERR(wwan_hwsim_class);
+		goto err_wq_destroy;
+	}
 
 	wwan_hwsim_debugfs_topdir = debugfs_create_dir("wwan_hwsim", NULL);
 	wwan_hwsim_debugfs_devcreate =
@@ -523,9 +530,13 @@ static int __init wwan_hwsim_init(void)
 	return 0;
 
 err_clean_devs:
+	debugfs_remove(wwan_hwsim_debugfs_devcreate);	/* Avoid new devs */
 	wwan_hwsim_free_devs();
+	flush_workqueue(wwan_wq);	/* Wait deletion works completion */
 	debugfs_remove(wwan_hwsim_debugfs_topdir);
 	class_destroy(wwan_hwsim_class);
+err_wq_destroy:
+	destroy_workqueue(wwan_wq);
 
 	return err;
 }
@@ -534,9 +545,10 @@ static void __exit wwan_hwsim_exit(void)
 {
 	debugfs_remove(wwan_hwsim_debugfs_devcreate);	/* Avoid new devs */
 	wwan_hwsim_free_devs();
-	flush_scheduled_work();		/* Wait deletion works completion */
+	flush_workqueue(wwan_wq);	/* Wait deletion works completion */
 	debugfs_remove(wwan_hwsim_debugfs_topdir);
 	class_destroy(wwan_hwsim_class);
+	destroy_workqueue(wwan_wq);
 }
 
 module_init(wwan_hwsim_init);

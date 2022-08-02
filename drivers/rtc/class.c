@@ -26,6 +26,15 @@ struct class *rtc_class;
 static void rtc_device_release(struct device *dev)
 {
 	struct rtc_device *rtc = to_rtc_device(dev);
+	struct timerqueue_head *head = &rtc->timerqueue;
+	struct timerqueue_node *node;
+
+	mutex_lock(&rtc->ops_lock);
+	while ((node = timerqueue_getnext(head)))
+		timerqueue_del(head, node);
+	mutex_unlock(&rtc->ops_lock);
+
+	cancel_work_sync(&rtc->irqwork);
 
 	ida_simple_remove(&rtc_ida, rtc->id);
 	mutex_destroy(&rtc->ops_lock);
@@ -389,9 +398,6 @@ int __devm_rtc_register_device(struct module *owner, struct rtc_device *rtc)
 
 	if (!rtc->ops->set_alarm)
 		clear_bit(RTC_FEATURE_ALARM, rtc->features);
-
-	if (rtc->uie_unsupported)
-		clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rtc->features);
 
 	if (rtc->ops->set_offset)
 		set_bit(RTC_FEATURE_CORRECTION, rtc->features);

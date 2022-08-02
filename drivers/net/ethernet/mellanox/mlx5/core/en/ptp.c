@@ -195,7 +195,6 @@ static int mlx5e_ptp_alloc_txqsq(struct mlx5e_ptp *c, int txq_ix,
 	int node;
 
 	sq->pdev      = c->pdev;
-	sq->tstamp    = c->tstamp;
 	sq->clock     = &mdev->clock;
 	sq->mkey_be   = c->mkey_be;
 	sq->netdev    = c->netdev;
@@ -449,7 +448,7 @@ static void mlx5e_ptp_build_sq_param(struct mlx5_core_dev *mdev,
 
 	wq = MLX5_ADDR_OF(sqc, sqc, wq);
 	MLX5_SET(wq, wq, log_wq_sz, params->log_sq_size);
-	param->stop_room = mlx5e_stop_room_for_wqe(MLX5_SEND_WQE_MAX_WQEBBS);
+	param->stop_room = mlx5e_stop_room_for_max_wqe(mdev);
 	mlx5e_build_tx_cq_param(mdev, params, &param->cqp);
 }
 
@@ -737,6 +736,7 @@ void mlx5e_ptp_activate_channel(struct mlx5e_ptp *c)
 	if (test_bit(MLX5E_PTP_STATE_RX, c->state)) {
 		mlx5e_ptp_rx_set_fs(c->priv);
 		mlx5e_activate_rq(&c->rq);
+		mlx5e_trigger_napi_sched(&c->napi);
 	}
 }
 

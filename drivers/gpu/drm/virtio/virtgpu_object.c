@@ -124,6 +124,7 @@ static const struct drm_gem_object_funcs virtio_gpu_shmem_funcs = {
 	.vmap = drm_gem_shmem_object_vmap,
 	.vunmap = drm_gem_shmem_object_vunmap,
 	.mmap = drm_gem_shmem_object_mmap,
+	.vm_ops = &drm_gem_shmem_vm_ops,
 };
 
 bool virtio_gpu_is_shmem(struct virtio_gpu_object *bo)

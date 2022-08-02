@@ -18,6 +18,120 @@
 
 struct folio_batch;
 
+unsigned long invalidate_mapping_pages(struct address_space *mapping,
+					pgoff_t start, pgoff_t end);
+
+static inline void invalidate_remote_inode(struct inode *inode)
+{
+	if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
+	    S_ISLNK(inode->i_mode))
+		invalidate_mapping_pages(inode->i_mapping, 0, -1);
+}
+int invalidate_inode_pages2(struct address_space *mapping);
+int invalidate_inode_pages2_range(struct address_space *mapping,
+		pgoff_t start, pgoff_t end);
+int write_inode_now(struct inode *, int sync);
+int filemap_fdatawrite(struct address_space *);
+int filemap_flush(struct address_space *);
+int filemap_fdatawait_keep_errors(struct address_space *mapping);
+int filemap_fdatawait_range(struct address_space *, loff_t lstart, loff_t lend);
+int filemap_fdatawait_range_keep_errors(struct address_space *mapping,
+		loff_t start_byte, loff_t end_byte);
+
+static inline int filemap_fdatawait(struct address_space *mapping)
+{
+	return filemap_fdatawait_range(mapping, 0, LLONG_MAX);
+}
+
+bool filemap_range_has_page(struct address_space *, loff_t lstart, loff_t lend);
+int filemap_write_and_wait_range(struct address_space *mapping,
+		loff_t lstart, loff_t lend);
+int __filemap_fdatawrite_range(struct address_space *mapping,
+		loff_t start, loff_t end, int sync_mode);
+int filemap_fdatawrite_range(struct address_space *mapping,
+		loff_t start, loff_t end);
+int filemap_check_errors(struct address_space *mapping);
+void __filemap_set_wb_err(struct address_space *mapping, int err);
+int filemap_fdatawrite_wbc(struct address_space *mapping,
+			   struct writeback_control *wbc);
+
+static inline int filemap_write_and_wait(struct address_space *mapping)
+{
+	return filemap_write_and_wait_range(mapping, 0, LLONG_MAX);
+}
+
+/**
+ * filemap_set_wb_err - set a writeback error on an address_space
+ * @mapping: mapping in which to set writeback error
+ * @err: error to be set in mapping
+ *
+ * When writeback fails in some way, we must record that error so that
+ * userspace can be informed when fsync and the like are called.  We endeavor
+ * to report errors on any file that was open at the time of the error.  Some
+ * internal callers also need to know when writeback errors have occurred.
+ *
+ * When a writeback error occurs, most filesystems will want to call
+ * filemap_set_wb_err to record the error in the mapping so that it will be
+ * automatically reported whenever fsync is called on the file.
+ */
+static inline void filemap_set_wb_err(struct address_space *mapping, int err)
+{
+	/* Fastpath for common case of no error */
+	if (unlikely(err))
+		__filemap_set_wb_err(mapping, err);
+}
+
+/**
+ * filemap_check_wb_err - has an error occurred since the mark was sampled?
+ * @mapping: mapping to check for writeback errors
+ * @since: previously-sampled errseq_t
+ *
+ * Grab the errseq_t value from the mapping, and see if it has changed "since"
+ * the given value was sampled.
+ *
+ * If it has then report the latest error set, otherwise return 0.
+ */
+static inline int filemap_check_wb_err(struct address_space *mapping,
+					errseq_t since)
+{
+	return errseq_check(&mapping->wb_err, since);
+}
+
+/**
+ * filemap_sample_wb_err - sample the current errseq_t to test for later errors
+ * @mapping: mapping to be sampled
+ *
+ * Writeback errors are always reported relative to a particular sample point
+ * in the past. This function provides those sample points.
+ */
+static inline errseq_t filemap_sample_wb_err(struct address_space *mapping)
+{
+	return errseq_sample(&mapping->wb_err);
+}
+
+/**
+ * file_sample_sb_err - sample the current errseq_t to test for later errors
+ * @file: file pointer to be sampled
+ *
+ * Grab the most current superblock-level errseq_t value for the given
+ * struct file.
+ */
+static inline errseq_t file_sample_sb_err(struct file *file)
+{
+	return errseq_sample(&file->f_path.dentry->d_sb->s_wb_err);
+}
+
+/*
+ * Flush file data before changing attributes.  Caller must hold any locks
+ * required to prevent further writes to this file until we're done setting
+ * flags.
+ */
+static inline int inode_drain_writes(struct inode *inode)
+{
+	inode_dio_wait(inode);
+	return filemap_write_and_wait(inode->i_mapping);
+}
+
 static inline bool mapping_empty(struct address_space *mapping)
 {
 	return xa_empty(&mapping->i_pages);
@@ -192,9 +306,14 @@ static inline void mapping_set_large_folios(struct address_space *mapping)
 	__set_bit(AS_LARGE_FOLIO_SUPPORT, &mapping->flags);
 }
 
+/*
+ * Large folio support currently depends on THP.  These dependencies are
+ * being worked on but are not yet fixed.
+ */
 static inline bool mapping_large_folio_support(struct address_space *mapping)
 {
-	return test_bit(AS_LARGE_FOLIO_SUPPORT, &mapping->flags);
+	return IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) &&
+		test_bit(AS_LARGE_FOLIO_SUPPORT, &mapping->flags);
 }
 
 static inline int filemap_nr_thps(struct address_space *mapping)
@@ -212,7 +331,7 @@ static inline void filemap_nr_thps_inc(struct address_space *mapping)
 	if (!mapping_large_folio_support(mapping))
 		atomic_inc(&mapping->nr_thps);
 #else
-	WARN_ON_ONCE(1);
+	WARN_ON_ONCE(mapping_large_folio_support(mapping) == 0);
 #endif
 }
 
@@ -222,7 +341,7 @@ static inline void filemap_nr_thps_dec(struct address_space *mapping)
 	if (!mapping_large_folio_support(mapping))
 		atomic_dec(&mapping->nr_thps);
 #else
-	WARN_ON_ONCE(1);
+	WARN_ON_ONCE(mapping_large_folio_support(mapping) == 0);
 #endif
 }
 
@@ -281,16 +400,6 @@ static inline struct address_space *page_mapping_file(struct page *page)
 static inline struct inode *folio_inode(struct folio *folio)
 {
 	return folio->mapping->host;
-}
-
-static inline bool page_cache_add_speculative(struct page *page, int count)
-{
-	return folio_ref_try_add_rcu((struct folio *)page, count);
-}
-
-static inline bool page_cache_get_speculative(struct page *page)
-{
-	return page_cache_add_speculative(page, 1);
 }
 
 /**
@@ -383,7 +492,7 @@ static inline gfp_t readahead_gfp_mask(struct address_space *x)
 	return mapping_gfp_mask(x) | __GFP_NORETRY | __GFP_NOWARN;
 }
 
-typedef int filler_t(void *, struct page *);
+typedef int filler_t(struct file *, struct folio *);
 
 pgoff_t page_cache_next_miss(struct address_space *mapping,
 			     pgoff_t index, unsigned long max_scan);
@@ -420,6 +529,24 @@ static inline struct folio *filemap_get_folio(struct address_space *mapping,
 					pgoff_t index)
 {
 	return __filemap_get_folio(mapping, index, 0, 0);
+}
+
+/**
+ * filemap_lock_folio - Find and lock a folio.
+ * @mapping: The address_space to search.
+ * @index: The page index.
+ *
+ * Looks up the page cache entry at @mapping & @index.  If a folio is
+ * present, it is returned locked with an increased refcount.
+ *
+ * Context: May sleep.
+ * Return: A folio or %NULL if there is no folio in the cache for this
+ * index.  Will not return a shadow, swap or DAX entry.
+ */
+static inline struct folio *filemap_lock_folio(struct address_space *mapping,
+					pgoff_t index)
+{
+	return __filemap_get_folio(mapping, index, FGP_LOCK, 0);
 }
 
 /**
@@ -594,13 +721,6 @@ static inline struct page *find_subpage(struct page *head, pgoff_t index)
 unsigned find_get_pages_range(struct address_space *mapping, pgoff_t *start,
 			pgoff_t end, unsigned int nr_pages,
 			struct page **pages);
-static inline unsigned find_get_pages(struct address_space *mapping,
-			pgoff_t *start, unsigned int nr_pages,
-			struct page **pages)
-{
-	return find_get_pages_range(mapping, start, (pgoff_t)-1, nr_pages,
-				    pages);
-}
 unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t start,
 			       unsigned int nr_pages, struct page **pages);
 unsigned find_get_pages_range_tag(struct address_space *mapping, pgoff_t *index,
@@ -615,7 +735,7 @@ static inline unsigned find_get_pages_tag(struct address_space *mapping,
 }
 
 struct page *grab_cache_page_write_begin(struct address_space *mapping,
-			pgoff_t index, unsigned flags);
+			pgoff_t index);
 
 /*
  * Returns locked page at given index in given cache, creating it if needed.
@@ -627,24 +747,22 @@ static inline struct page *grab_cache_page(struct address_space *mapping,
 }
 
 struct folio *read_cache_folio(struct address_space *, pgoff_t index,
-		filler_t *filler, void *data);
+		filler_t *filler, struct file *file);
 struct page *read_cache_page(struct address_space *, pgoff_t index,
-		filler_t *filler, void *data);
+		filler_t *filler, struct file *file);
 extern struct page * read_cache_page_gfp(struct address_space *mapping,
 				pgoff_t index, gfp_t gfp_mask);
-extern int read_cache_pages(struct address_space *mapping,
-		struct list_head *pages, filler_t *filler, void *data);
 
 static inline struct page *read_mapping_page(struct address_space *mapping,
-				pgoff_t index, void *data)
+				pgoff_t index, struct file *file)
 {
-	return read_cache_page(mapping, index, NULL, data);
+	return read_cache_page(mapping, index, NULL, file);
 }
 
 static inline struct folio *read_mapping_folio(struct address_space *mapping,
-				pgoff_t index, void *data)
+				pgoff_t index, struct file *file)
 {
-	return read_cache_folio(mapping, index, NULL, data);
+	return read_cache_folio(mapping, index, NULL, file);
 }
 
 /*
@@ -713,6 +831,17 @@ static inline loff_t folio_file_pos(struct folio *folio)
 	return page_file_offset(&folio->page);
 }
 
+/*
+ * Get the offset in PAGE_SIZE (even for hugetlb folios).
+ * (TODO: hugetlb folios should have ->index in PAGE_SIZE)
+ */
+static inline pgoff_t folio_pgoff(struct folio *folio)
+{
+	if (unlikely(folio_test_hugetlb(folio)))
+		return hugetlb_basepage_index(&folio->page);
+	return folio->index;
+}
+
 extern pgoff_t linear_hugepage_index(struct vm_area_struct *vma,
 				     unsigned long address);
 
@@ -759,6 +888,18 @@ bool __folio_lock_or_retry(struct folio *folio, struct mm_struct *mm,
 void unlock_page(struct page *page);
 void folio_unlock(struct folio *folio);
 
+/**
+ * folio_trylock() - Attempt to lock a folio.
+ * @folio: The folio to attempt to lock.
+ *
+ * Sometimes it is undesirable to wait for a folio to be unlocked (eg
+ * when the locks are being taken in the wrong order, or if making
+ * progress through a batch of folios is more important than processing
+ * them in order).  Usually folio_lock() is the correct function to call.
+ *
+ * Context: Any context.
+ * Return: Whether the lock was successfully acquired.
+ */
 static inline bool folio_trylock(struct folio *folio)
 {
 	return likely(!test_and_set_bit_lock(PG_locked, folio_flags(folio, 0)));
@@ -772,6 +913,28 @@ static inline int trylock_page(struct page *page)
 	return folio_trylock(page_folio(page));
 }
 
+/**
+ * folio_lock() - Lock this folio.
+ * @folio: The folio to lock.
+ *
+ * The folio lock protects against many things, probably more than it
+ * should.  It is primarily held while a folio is being brought uptodate,
+ * either from its backing file or from swap.  It is also held while a
+ * folio is being truncated from its address_space, so holding the lock
+ * is sufficient to keep folio->mapping stable.
+ *
+ * The folio lock is also held while write() is modifying the page to
+ * provide POSIX atomicity guarantees (as long as the write does not
+ * cross a page boundary).  Other modifications to the data in the folio
+ * do not hold the folio lock and can race with writes, eg DMA and stores
+ * to mapped pages.
+ *
+ * Context: May sleep.  If you need to acquire the locks of two or
+ * more folios, they must be in order of ascending index, if they are
+ * in the same address_space.  If they are in different address_spaces,
+ * acquire the lock of the folio which belongs to the address_space which
+ * has the lowest address in memory first.
+ */
 static inline void folio_lock(struct folio *folio)
 {
 	might_sleep();
@@ -779,8 +942,16 @@ static inline void folio_lock(struct folio *folio)
 		__folio_lock(folio);
 }
 
-/*
- * lock_page may only be called if we have the page's inode pinned.
+/**
+ * lock_page() - Lock the folio containing this page.
+ * @page: The page to lock.
+ *
+ * See folio_lock() for a description of what the lock protects.
+ * This is a legacy function and new code should probably use folio_lock()
+ * instead.
+ *
+ * Context: May sleep.  Pages in the same folio share a lock, so do not
+ * attempt to lock two pages which share a folio.
  */
 static inline void lock_page(struct page *page)
 {
@@ -792,6 +963,16 @@ static inline void lock_page(struct page *page)
 		__folio_lock(folio);
 }
 
+/**
+ * folio_lock_killable() - Lock this folio, interruptible by a fatal signal.
+ * @folio: The folio to lock.
+ *
+ * Attempts to lock the folio, like folio_lock(), except that the sleep
+ * to acquire the lock is interruptible by a fatal signal.
+ *
+ * Context: May sleep; see folio_lock().
+ * Return: 0 if the lock was acquired; -EINTR if a fatal signal was received.
+ */
 static inline int folio_lock_killable(struct folio *folio)
 {
 	might_sleep();
@@ -838,8 +1019,8 @@ int folio_wait_bit_killable(struct folio *folio, int bit_nr);
  * Wait for a folio to be unlocked.
  *
  * This must be called with the caller "holding" the folio,
- * ie with increased "page->count" so that the folio won't
- * go away during the wait..
+ * ie with increased folio reference count so that the folio won't
+ * go away during the wait.
  */
 static inline void folio_wait_locked(struct folio *folio)
 {
@@ -878,8 +1059,7 @@ static inline void __set_page_dirty(struct page *page,
 {
 	__folio_mark_dirty(page_folio(page), mapping, warn);
 }
-void folio_account_cleaned(struct folio *folio, struct address_space *mapping,
-			  struct bdi_writeback *wb);
+void folio_account_cleaned(struct folio *folio, struct bdi_writeback *wb);
 void __folio_cancel_dirty(struct folio *folio);
 static inline void folio_cancel_dirty(struct folio *folio)
 {
@@ -887,12 +1067,9 @@ static inline void folio_cancel_dirty(struct folio *folio)
 	if (folio_test_dirty(folio))
 		__folio_cancel_dirty(folio);
 }
-static inline void cancel_dirty_page(struct page *page)
-{
-	folio_cancel_dirty(page_folio(page));
-}
 bool folio_clear_dirty_for_io(struct folio *folio);
 bool clear_page_dirty_for_io(struct page *page);
+void folio_invalidate(struct folio *folio, size_t offset, size_t length);
 int __must_check folio_write_one(struct folio *folio);
 static inline int __must_check write_one_page(struct page *page)
 {
@@ -900,7 +1077,7 @@ static inline int __must_check write_one_page(struct page *page)
 }
 
 int __set_page_dirty_nobuffers(struct page *page);
-int __set_page_dirty_no_writeback(struct page *page);
+bool noop_dirty_folio(struct address_space *mapping, struct folio *folio);
 
 void page_endio(struct page *page, bool is_write, int err);
 
@@ -917,6 +1094,7 @@ void folio_add_wait_queue(struct folio *folio, wait_queue_entry_t *waiter);
  * Fault in userspace address range.
  */
 size_t fault_in_writeable(char __user *uaddr, size_t size);
+size_t fault_in_subpage_writeable(char __user *uaddr, size_t size);
 size_t fault_in_safe_writeable(const char __user *uaddr, size_t size);
 size_t fault_in_readable(const char __user *uaddr, size_t size);
 
@@ -1061,7 +1239,7 @@ void page_cache_sync_readahead(struct address_space *mapping,
  * @mapping: address_space which holds the pagecache and I/O vectors
  * @ra: file_ra_state which holds the readahead state
  * @file: Used by the filesystem for authentication.
- * @page: The page at @index which triggered the readahead call.
+ * @folio: The folio at @index which triggered the readahead call.
  * @index: Index of first page to be read.
  * @req_count: Total number of pages being read by the caller.
  *
@@ -1073,10 +1251,10 @@ void page_cache_sync_readahead(struct address_space *mapping,
 static inline
 void page_cache_async_readahead(struct address_space *mapping,
 		struct file_ra_state *ra, struct file *file,
-		struct page *page, pgoff_t index, unsigned long req_count)
+		struct folio *folio, pgoff_t index, unsigned long req_count)
 {
 	DEFINE_READAHEAD(ractl, file, ra, mapping, index);
-	page_cache_async_ra(&ractl, page_folio(page), req_count);
+	page_cache_async_ra(&ractl, folio, req_count);
 }
 
 static inline struct folio *__readahead_folio(struct readahead_control *ractl)

@@ -41,6 +41,19 @@
 		reg = <0x02037000 0x1000>;
 	};
 
+	vdd10_usb3: voltage-regulator-0 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDD10_USB3";
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+	};
+
+	vdd33_usb3: voltage-regulator-0 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDD33_USB3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
 };
 
 &mmc_0 {
@@ -66,14 +79,14 @@
 };
 
 &pinctrl_0 {
-	srom_ctl: srom-ctl {
+	srom_ctl: srom-ctl-pins {
 		samsung,pins = "gpy0-3", "gpy0-4", "gpy0-5",
 			       "gpy1-0", "gpy1-1", "gpy1-2", "gpy1-3";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
 
-	srom_ebi: srom-ebi {
+	srom_ebi: srom-ebi-pins {
 		samsung,pins = "gpy3-0", "gpy3-1", "gpy3-2", "gpy3-3",
 			       "gpy3-4", "gpy3-5", "gpy3-6", "gpy3-7",
 			       "gpy5-0", "gpy5-1", "gpy5-2", "gpy5-3",
@@ -120,4 +133,14 @@
 
 &serial_2 {
 	status = "okay";
+};
+
+&usbdrd3_0 {
+	vdd10-supply = <&vdd10_usb3>;
+	vdd33-supply = <&vdd33_usb3>;
+};
+
+&usbdrd3_1 {
+	vdd10-supply = <&vdd10_usb3>;
+	vdd33-supply = <&vdd33_usb3>;
 };

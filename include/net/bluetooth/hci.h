@@ -255,6 +255,25 @@ enum {
 	 * during the hdev->setup vendor callback.
 	 */
 	HCI_QUIRK_BROKEN_READ_TRANSMIT_POWER,
+
+	/* When this quirk is set, HCI_OP_SET_EVENT_FLT requests with
+	 * HCI_FLT_CLEAR_ALL are ignored and event filtering is
+	 * completely avoided. A subset of the CSR controller
+	 * clones struggle with this and instantly lock up.
+	 *
+	 * Note that devices using this must (separately) disable
+	 * runtime suspend, because event filtering takes place there.
+	 */
+	HCI_QUIRK_BROKEN_FILTER_CLEAR_ALL,
+
+	/*
+	 * When this quirk is set, disables the use of
+	 * HCI_OP_ENHANCED_SETUP_SYNC_CONN command to setup SCO connections.
+	 *
+	 * This quirk can be set before hci_register_dev is called or
+	 * during the hdev->setup vendor callback.
+	 */
+	HCI_QUIRK_BROKEN_ENHANCED_SETUP_SYNC_CONN,
 };
 
 /* HCI device flags */
@@ -568,6 +587,7 @@ enum {
 #define HCI_ERROR_CONNECTION_TIMEOUT	0x08
 #define HCI_ERROR_REJ_LIMITED_RESOURCES	0x0d
 #define HCI_ERROR_REJ_BAD_ADDR		0x0f
+#define HCI_ERROR_INVALID_PARAMETERS	0x12
 #define HCI_ERROR_REMOTE_USER_TERM	0x13
 #define HCI_ERROR_REMOTE_LOW_RESOURCES	0x14
 #define HCI_ERROR_REMOTE_POWER_OFF	0x15
@@ -605,6 +625,7 @@ enum {
 #define EIR_SSP_RAND_R192	0x0F /* Simple Pairing Randomizer R-192 */
 #define EIR_DEVICE_ID		0x10 /* device ID */
 #define EIR_APPEARANCE		0x19 /* Device appearance */
+#define EIR_SERVICE_DATA	0x16 /* Service Data */
 #define EIR_LE_BDADDR		0x1B /* LE Bluetooth device address */
 #define EIR_LE_ROLE		0x1C /* LE role */
 #define EIR_SSP_HASH_C256	0x1D /* Simple Pairing Hash C-256 */

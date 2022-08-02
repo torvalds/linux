@@ -57,6 +57,9 @@ static void smc_close_stream_wait(struct smc_sock *smc, long timeout)
 	if (!smc_tx_prepared_sends(&smc->conn))
 		return;
 
+	/* Send out corked data remaining in sndbuf */
+	smc_tx_pending(&smc->conn);
+
 	smc->wait_close_tx_prepared = 1;
 	add_wait_queue(sk_sleep(sk), &wait);
 	while (!signal_pending(current) && timeout) {
@@ -211,8 +214,11 @@ again:
 		sk->sk_state = SMC_CLOSED;
 		sk->sk_state_change(sk); /* wake up accept */
 		if (smc->clcsock && smc->clcsock->sk) {
-			smc->clcsock->sk->sk_data_ready = smc->clcsk_data_ready;
+			write_lock_bh(&smc->clcsock->sk->sk_callback_lock);
+			smc_clcsock_restore_cb(&smc->clcsock->sk->sk_data_ready,
+					       &smc->clcsk_data_ready);
 			smc->clcsock->sk->sk_user_data = NULL;
+			write_unlock_bh(&smc->clcsock->sk->sk_callback_lock);
 			rc = kernel_sock_shutdown(smc->clcsock, SHUT_RDWR);
 		}
 		smc_close_cleanup_listen(sk);

@@ -96,6 +96,7 @@ struct unwind_info {
 	struct perf_sample	*sample;
 	struct machine		*machine;
 	struct thread		*thread;
+	bool			 best_effort;
 };
 
 #define dw_read(ptr, type, end) ({	\
@@ -168,29 +169,63 @@ static int __dw_read_encoded_value(u8 **p, u8 *end, u64 *val,
 	__v;                                                    \
 	})
 
-static u64 elf_section_offset(int fd, const char *name)
+static int elf_section_address_and_offset(int fd, const char *name, u64 *address, u64 *offset)
 {
 	Elf *elf;
 	GElf_Ehdr ehdr;
 	GElf_Shdr shdr;
-	u64 offset = 0;
+	int ret = -1;
 
 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
 	if (elf == NULL)
+		return -1;
+
+	if (gelf_getehdr(elf, &ehdr) == NULL)
+		goto out_err;
+
+	if (!elf_section_by_name(elf, &ehdr, &shdr, name, NULL))
+		goto out_err;
+
+	*address = shdr.sh_addr;
+	*offset = shdr.sh_offset;
+	ret = 0;
+out_err:
+	elf_end(elf);
+	return ret;
+}
+
+#ifndef NO_LIBUNWIND_DEBUG_FRAME
+static u64 elf_section_offset(int fd, const char *name)
+{
+	u64 address, offset = 0;
+
+	if (elf_section_address_and_offset(fd, name, &address, &offset))
 		return 0;
 
-	do {
-		if (gelf_getehdr(elf, &ehdr) == NULL)
-			break;
+	return offset;
+}
+#endif
 
-		if (!elf_section_by_name(elf, &ehdr, &shdr, name, NULL))
-			break;
+static u64 elf_base_address(int fd)
+{
+	Elf *elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
+	GElf_Phdr phdr;
+	u64 retval = 0;
+	size_t i, phdrnum = 0;
 
-		offset = shdr.sh_offset;
-	} while (0);
+	if (elf == NULL)
+		return 0;
+	(void)elf_getphdrnum(elf, &phdrnum);
+	/* PT_LOAD segments are sorted by p_vaddr, so the first has the minimum p_vaddr. */
+	for (i = 0; i < phdrnum; i++) {
+		if (gelf_getphdr(elf, i, &phdr) && phdr.p_type == PT_LOAD) {
+			retval = phdr.p_vaddr & -getpagesize();
+			break;
+		}
+	}
 
 	elf_end(elf);
-	return offset;
+	return retval;
 }
 
 #ifndef NO_LIBUNWIND_DEBUG_FRAME
@@ -247,8 +282,7 @@ struct eh_frame_hdr {
 } __packed;
 
 static int unwind_spec_ehframe(struct dso *dso, struct machine *machine,
-			       u64 offset, u64 *table_data, u64 *segbase,
-			       u64 *fde_count)
+			       u64 offset, u64 *table_data_offset, u64 *fde_count)
 {
 	struct eh_frame_hdr hdr;
 	u8 *enc = (u8 *) &hdr.enc;
@@ -264,35 +298,47 @@ static int unwind_spec_ehframe(struct dso *dso, struct machine *machine,
 	dw_read_encoded_value(enc, end, hdr.eh_frame_ptr_enc);
 
 	*fde_count  = dw_read_encoded_value(enc, end, hdr.fde_count_enc);
-	*segbase    = offset;
-	*table_data = (enc - (u8 *) &hdr) + offset;
+	*table_data_offset = enc - (u8 *) &hdr;
 	return 0;
 }
 
-static int read_unwind_spec_eh_frame(struct dso *dso, struct machine *machine,
+static int read_unwind_spec_eh_frame(struct dso *dso, struct unwind_info *ui,
 				     u64 *table_data, u64 *segbase,
 				     u64 *fde_count)
 {
-	int ret = -EINVAL, fd;
-	u64 offset = dso->data.eh_frame_hdr_offset;
+	struct map *map;
+	u64 base_addr = UINT64_MAX;
+	int ret, fd;
 
-	if (offset == 0) {
-		fd = dso__data_get_fd(dso, machine);
+	if (dso->data.eh_frame_hdr_offset == 0) {
+		fd = dso__data_get_fd(dso, ui->machine);
 		if (fd < 0)
 			return -EINVAL;
 
 		/* Check the .eh_frame section for unwinding info */
-		offset = elf_section_offset(fd, ".eh_frame_hdr");
-		dso->data.eh_frame_hdr_offset = offset;
+		ret = elf_section_address_and_offset(fd, ".eh_frame_hdr",
+						     &dso->data.eh_frame_hdr_addr,
+						     &dso->data.eh_frame_hdr_offset);
+		dso->data.elf_base_addr = elf_base_address(fd);
 		dso__data_put_fd(dso);
+		if (ret || dso->data.eh_frame_hdr_offset == 0)
+			return -EINVAL;
 	}
 
-	if (offset)
-		ret = unwind_spec_ehframe(dso, machine, offset,
-					  table_data, segbase,
-					  fde_count);
-
-	return ret;
+	maps__for_each_entry(ui->thread->maps, map) {
+		if (map->dso == dso && map->start < base_addr)
+			base_addr = map->start;
+	}
+	base_addr -= dso->data.elf_base_addr;
+	/* Address of .eh_frame_hdr */
+	*segbase = base_addr + dso->data.eh_frame_hdr_addr;
+	ret = unwind_spec_ehframe(dso, ui->machine, dso->data.eh_frame_hdr_offset,
+				   table_data, fde_count);
+	if (ret)
+		return ret;
+	/* binary_search_table offset plus .eh_frame_hdr address */
+	*table_data += *segbase;
+	return 0;
 }
 
 #ifndef NO_LIBUNWIND_DEBUG_FRAME
@@ -387,14 +433,14 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 	pr_debug("unwind: find_proc_info dso %s\n", map->dso->name);
 
 	/* Check the .eh_frame section for unwinding info */
-	if (!read_unwind_spec_eh_frame(map->dso, ui->machine,
+	if (!read_unwind_spec_eh_frame(map->dso, ui,
 				       &table_data, &segbase, &fde_count)) {
 		memset(&di, 0, sizeof(di));
 		di.format   = UNW_INFO_FORMAT_REMOTE_TABLE;
 		di.start_ip = map->start;
 		di.end_ip   = map->end;
-		di.u.rti.segbase    = map->start + segbase - map->pgoff;
-		di.u.rti.table_data = map->start + table_data - map->pgoff;
+		di.u.rti.segbase    = segbase;
+		di.u.rti.table_data = table_data;
 		di.u.rti.table_len  = fde_count * sizeof(struct table_entry)
 				      / sizeof(unw_word_t);
 		ret = dwarf_search_unwind_table(as, ip, &di, pi,
@@ -553,7 +599,8 @@ static int access_reg(unw_addr_space_t __maybe_unused as,
 
 	ret = perf_reg_value(&val, &ui->sample->user_regs, id);
 	if (ret) {
-		pr_err("unwind: can't read reg %d\n", regnum);
+		if (!ui->best_effort)
+			pr_err("unwind: can't read reg %d\n", regnum);
 		return ret;
 	}
 
@@ -666,7 +713,7 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 			return -1;
 
 		ret = unw_init_remote(&c, addr_space, ui);
-		if (ret)
+		if (ret && !ui->best_effort)
 			display_error(ret);
 
 		while (!ret && (unw_step(&c) > 0) && i < max_stack) {
@@ -704,12 +751,14 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 
 static int _unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 			struct thread *thread,
-			struct perf_sample *data, int max_stack)
+			struct perf_sample *data, int max_stack,
+			bool best_effort)
 {
 	struct unwind_info ui = {
 		.sample       = data,
 		.thread       = thread,
 		.machine      = thread->maps->machine,
+		.best_effort  = best_effort
 	};
 
 	if (!data->user_regs.regs)

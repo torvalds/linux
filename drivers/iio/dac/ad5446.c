@@ -114,7 +114,7 @@ static ssize_t ad5446_write_dac_powerdown(struct iio_dev *indio_dev,
 	bool powerdown;
 	int ret;
 
-	ret = strtobool(buf, &powerdown);
+	ret = kstrtobool(buf, &powerdown);
 	if (ret)
 		return ret;
 
@@ -178,7 +178,7 @@ static int ad5446_read_raw(struct iio_dev *indio_dev,
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
-		*val = st->cached_val;
+		*val = st->cached_val >> chan->scan_type.shift;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		*val = st->vref_mv;
@@ -491,11 +491,9 @@ static int ad5446_spi_probe(struct spi_device *spi)
 		&ad5446_spi_chip_info[id->driver_data]);
 }
 
-static int ad5446_spi_remove(struct spi_device *spi)
+static void ad5446_spi_remove(struct spi_device *spi)
 {
 	ad5446_remove(&spi->dev);
-
-	return 0;
 }
 
 static struct spi_driver ad5446_spi_driver = {

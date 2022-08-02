@@ -29,10 +29,12 @@
 
 #include <subdev/bios/dcb.h>
 
+#include <drm/display/drm_dp_helper.h>
+#include <drm/display/drm_dp_mst_helper.h>
 #include <drm/drm_encoder_slave.h>
-#include <drm/drm_dp_helper.h>
-#include <drm/drm_dp_mst_helper.h>
+
 #include "dispnv04/disp.h"
+
 struct nv50_head_atom;
 struct nouveau_connector;
 

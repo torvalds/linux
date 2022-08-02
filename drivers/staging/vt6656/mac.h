@@ -172,20 +172,20 @@
 #define TFTCTL_TSFCNTREN	BIT(0)
 
 /* Bits in the EnhanceCFG_0 register */
-#define EnCFG_BBType_a		0x00
-#define EnCFG_BBType_b		BIT(0)
-#define EnCFG_BBType_g		BIT(1)
-#define EnCFG_BBType_MASK	(EnCFG_BBType_b | EnCFG_BBType_g)
-#define EnCFG_ProtectMd		BIT(5)
+#define EN_CFG_BB_TYPE_A	0x00
+#define EN_CFG_BB_TYPE_B	BIT(0)
+#define EN_CFG_BB_TYPE_G	BIT(1)
+#define EN_CFG_BB_TYPE_MASK	(EN_CFG_BB_TYPE_B | EN_CFG_BB_TYPE_G)
+#define EN_CFG_PROTECT_MD	BIT(5)
 
 /* Bits in the EnhanceCFG_1 register */
-#define EnCFG_BcnSusInd		BIT(0)
-#define EnCFG_BcnSusClr		BIT(1)
+#define EN_CFG_BCN_SUS_IND	BIT(0)
+#define EN_CFG_BCN_SUS_CLR	BIT(1)
 
 /* Bits in the EnhanceCFG_2 register */
-#define EnCFG_NXTBTTCFPSTR	BIT(0)
-#define EnCFG_BarkerPream	BIT(1)
-#define EnCFG_PktBurstMode	BIT(2)
+#define EN_CFG_NXTBTTCFPSTR	BIT(0)
+#define EN_CFG_BARKER_PREAM	BIT(1)
+#define EN_CFG_PKT_BURST_MD	BIT(2)
 
 /* Bits in the CFG register */
 #define CFG_TKIPOPT		BIT(7)
@@ -333,7 +333,7 @@
 #define PKT_TYPE_ERROR_CRC	BIT(1)
 #define PKT_TYPE_BSSID		BIT(0)
 
-#define Default_BI              0x200
+#define DEFAULT_BI		0x200
 
 /* MiscFIFO Offset */
 #define MISCFIFO_KEYETRY0	32

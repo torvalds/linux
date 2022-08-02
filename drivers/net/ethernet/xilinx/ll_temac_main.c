@@ -361,8 +361,9 @@ static int temac_dma_bd_init(struct net_device *ndev)
 		lp->rx_bd_v[i].next = cpu_to_be32(lp->rx_bd_p
 			+ sizeof(*lp->rx_bd_v) * ((i + 1) % lp->rx_bd_num));
 
-		skb = netdev_alloc_skb_ip_align(ndev,
-						XTE_MAX_JUMBO_FRAME_SIZE);
+		skb = __netdev_alloc_skb_ip_align(ndev,
+						  XTE_MAX_JUMBO_FRAME_SIZE,
+						  GFP_KERNEL);
 		if (!skb)
 			goto out;
 
@@ -1008,7 +1009,7 @@ static void ll_temac_recv(struct net_device *ndev)
 		    (skb->len > 64)) {
 
 			/* Convert from device endianness (be32) to cpu
-			 * endiannes, and if necessary swap the bytes
+			 * endianness, and if necessary swap the bytes
 			 * (back) for proper IP checksum byte order
 			 * (be16).
 			 */
@@ -1514,7 +1515,7 @@ static int temac_probe(struct platform_device *pdev)
 				of_node_put(dma_np);
 				return PTR_ERR(lp->sdma_regs);
 			}
-			if (of_get_property(dma_np, "little-endian", NULL)) {
+			if (of_property_read_bool(dma_np, "little-endian")) {
 				lp->dma_in = temac_dma_in32_le;
 				lp->dma_out = temac_dma_out32_le;
 			} else {

@@ -11,6 +11,8 @@
 #include <linux/rwsem.h>
 #include <linux/memcontrol.h>
 #include <linux/highmem.h>
+#include <linux/pagemap.h>
+#include <linux/memremap.h>
 
 /*
  * The anon_vma heads a list of private "related" vmas, to scan if
@@ -126,6 +128,11 @@ static inline void anon_vma_lock_read(struct anon_vma *anon_vma)
 	down_read(&anon_vma->root->rwsem);
 }
 
+static inline int anon_vma_trylock_read(struct anon_vma *anon_vma)
+{
+	return down_read_trylock(&anon_vma->root->rwsem);
+}
+
 static inline void anon_vma_unlock_read(struct anon_vma *anon_vma)
 {
 	up_read(&anon_vma->root->rwsem);
@@ -158,41 +165,141 @@ static inline void anon_vma_merge(struct vm_area_struct *vma,
 
 struct anon_vma *page_get_anon_vma(struct page *page);
 
-/* bitflags for do_page_add_anon_rmap() */
-#define RMAP_EXCLUSIVE 0x01
-#define RMAP_COMPOUND 0x02
+/* RMAP flags, currently only relevant for some anon rmap operations. */
+typedef int __bitwise rmap_t;
+
+/*
+ * No special request: if the page is a subpage of a compound page, it is
+ * mapped via a PTE. The mapped (sub)page is possibly shared between processes.
+ */
+#define RMAP_NONE		((__force rmap_t)0)
+
+/* The (sub)page is exclusive to a single process. */
+#define RMAP_EXCLUSIVE		((__force rmap_t)BIT(0))
+
+/*
+ * The compound page is not mapped via PTEs, but instead via a single PMD and
+ * should be accounted accordingly.
+ */
+#define RMAP_COMPOUND		((__force rmap_t)BIT(1))
 
 /*
  * rmap interfaces called when adding or removing pte of page
  */
 void page_move_anon_rmap(struct page *, struct vm_area_struct *);
 void page_add_anon_rmap(struct page *, struct vm_area_struct *,
-		unsigned long, bool);
-void do_page_add_anon_rmap(struct page *, struct vm_area_struct *,
-			   unsigned long, int);
+		unsigned long address, rmap_t flags);
 void page_add_new_anon_rmap(struct page *, struct vm_area_struct *,
-		unsigned long, bool);
-void page_add_file_rmap(struct page *, bool);
-void page_remove_rmap(struct page *, bool);
+		unsigned long address);
+void page_add_file_rmap(struct page *, struct vm_area_struct *,
+		bool compound);
+void page_remove_rmap(struct page *, struct vm_area_struct *,
+		bool compound);
 
 void hugepage_add_anon_rmap(struct page *, struct vm_area_struct *,
-			    unsigned long);
+		unsigned long address, rmap_t flags);
 void hugepage_add_new_anon_rmap(struct page *, struct vm_area_struct *,
-				unsigned long);
+		unsigned long address);
 
-static inline void page_dup_rmap(struct page *page, bool compound)
+static inline void __page_dup_rmap(struct page *page, bool compound)
 {
 	atomic_inc(compound ? compound_mapcount_ptr(page) : &page->_mapcount);
+}
+
+static inline void page_dup_file_rmap(struct page *page, bool compound)
+{
+	__page_dup_rmap(page, compound);
+}
+
+/**
+ * page_try_dup_anon_rmap - try duplicating a mapping of an already mapped
+ *			    anonymous page
+ * @page: the page to duplicate the mapping for
+ * @compound: the page is mapped as compound or as a small page
+ * @vma: the source vma
+ *
+ * The caller needs to hold the PT lock and the vma->vma_mm->write_protect_seq.
+ *
+ * Duplicating the mapping can only fail if the page may be pinned; device
+ * private pages cannot get pinned and consequently this function cannot fail.
+ *
+ * If duplicating the mapping succeeds, the page has to be mapped R/O into
+ * the parent and the child. It must *not* get mapped writable after this call.
+ *
+ * Returns 0 if duplicating the mapping succeeded. Returns -EBUSY otherwise.
+ */
+static inline int page_try_dup_anon_rmap(struct page *page, bool compound,
+					 struct vm_area_struct *vma)
+{
+	VM_BUG_ON_PAGE(!PageAnon(page), page);
+
+	/*
+	 * No need to check+clear for already shared pages, including KSM
+	 * pages.
+	 */
+	if (!PageAnonExclusive(page))
+		goto dup;
+
+	/*
+	 * If this page may have been pinned by the parent process,
+	 * don't allow to duplicate the mapping but instead require to e.g.,
+	 * copy the page immediately for the child so that we'll always
+	 * guarantee the pinned page won't be randomly replaced in the
+	 * future on write faults.
+	 */
+	if (likely(!is_device_private_page(page) &&
+	    unlikely(page_needs_cow_for_dma(vma, page))))
+		return -EBUSY;
+
+	ClearPageAnonExclusive(page);
+	/*
+	 * It's okay to share the anon page between both processes, mapping
+	 * the page R/O into both processes.
+	 */
+dup:
+	__page_dup_rmap(page, compound);
+	return 0;
+}
+
+/**
+ * page_try_share_anon_rmap - try marking an exclusive anonymous page possibly
+ *			      shared to prepare for KSM or temporary unmapping
+ * @page: the exclusive anonymous page to try marking possibly shared
+ *
+ * The caller needs to hold the PT lock and has to have the page table entry
+ * cleared/invalidated+flushed, to properly sync against GUP-fast.
+ *
+ * This is similar to page_try_dup_anon_rmap(), however, not used during fork()
+ * to duplicate a mapping, but instead to prepare for KSM or temporarily
+ * unmapping a page (swap, migration) via page_remove_rmap().
+ *
+ * Marking the page shared can only fail if the page may be pinned; device
+ * private pages cannot get pinned and consequently this function cannot fail.
+ *
+ * Returns 0 if marking the page possibly shared succeeded. Returns -EBUSY
+ * otherwise.
+ */
+static inline int page_try_share_anon_rmap(struct page *page)
+{
+	VM_BUG_ON_PAGE(!PageAnon(page) || !PageAnonExclusive(page), page);
+
+	/* See page_try_dup_anon_rmap(). */
+	if (likely(!is_device_private_page(page) &&
+	    unlikely(page_maybe_dma_pinned(page))))
+		return -EBUSY;
+
+	ClearPageAnonExclusive(page);
+	return 0;
 }
 
 /*
  * Called from mm/vmscan.c to handle paging out
  */
-int page_referenced(struct page *, int is_locked,
+int folio_referenced(struct folio *, int is_locked,
 			struct mem_cgroup *memcg, unsigned long *vm_flags);
 
-void try_to_migrate(struct page *page, enum ttu_flags flags);
-void try_to_unmap(struct page *, enum ttu_flags flags);
+void try_to_migrate(struct folio *folio, enum ttu_flags flags);
+void try_to_unmap(struct folio *, enum ttu_flags flags);
 
 int make_device_exclusive_range(struct mm_struct *mm, unsigned long start,
 				unsigned long end, struct page **pages,
@@ -200,11 +307,13 @@ int make_device_exclusive_range(struct mm_struct *mm, unsigned long start,
 
 /* Avoid racy checks */
 #define PVMW_SYNC		(1 << 0)
-/* Look for migarion entries rather than present PTEs */
+/* Look for migration entries rather than present PTEs */
 #define PVMW_MIGRATION		(1 << 1)
 
 struct page_vma_mapped_walk {
-	struct page *page;
+	unsigned long pfn;
+	unsigned long nr_pages;
+	pgoff_t pgoff;
 	struct vm_area_struct *vma;
 	unsigned long address;
 	pmd_t *pmd;
@@ -213,10 +322,30 @@ struct page_vma_mapped_walk {
 	unsigned int flags;
 };
 
+#define DEFINE_PAGE_VMA_WALK(name, _page, _vma, _address, _flags)	\
+	struct page_vma_mapped_walk name = {				\
+		.pfn = page_to_pfn(_page),				\
+		.nr_pages = compound_nr(page),				\
+		.pgoff = page_to_pgoff(page),				\
+		.vma = _vma,						\
+		.address = _address,					\
+		.flags = _flags,					\
+	}
+
+#define DEFINE_FOLIO_VMA_WALK(name, _folio, _vma, _address, _flags)	\
+	struct page_vma_mapped_walk name = {				\
+		.pfn = folio_pfn(_folio),				\
+		.nr_pages = folio_nr_pages(_folio),			\
+		.pgoff = folio_pgoff(_folio),				\
+		.vma = _vma,						\
+		.address = _address,					\
+		.flags = _flags,					\
+	}
+
 static inline void page_vma_mapped_walk_done(struct page_vma_mapped_walk *pvmw)
 {
 	/* HugeTLB pte is set to the relevant page table entry without pte_mapped. */
-	if (pvmw->pte && !PageHuge(pvmw->page))
+	if (pvmw->pte && !is_vm_hugetlb_page(pvmw->vma))
 		pte_unmap(pvmw->pte);
 	if (pvmw->ptl)
 		spin_unlock(pvmw->ptl);
@@ -237,25 +366,19 @@ unsigned long page_address_in_vma(struct page *, struct vm_area_struct *);
  */
 int folio_mkclean(struct folio *);
 
-/*
- * called in munlock()/munmap() path to check for other vmas holding
- * the page mlocked.
- */
-void page_mlock(struct page *page);
+int pfn_mkclean_range(unsigned long pfn, unsigned long nr_pages, pgoff_t pgoff,
+		      struct vm_area_struct *vma);
 
-void remove_migration_ptes(struct page *old, struct page *new, bool locked);
+void remove_migration_ptes(struct folio *src, struct folio *dst, bool locked);
 
-/*
- * Called by memory-failure.c to kill processes.
- */
-struct anon_vma *page_lock_anon_vma_read(struct page *page);
-void page_unlock_anon_vma_read(struct anon_vma *anon_vma);
 int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma);
 
 /*
  * rmap_walk_control: To control rmap traversing for specific needs
  *
  * arg: passed to rmap_one() and invalid_vma()
+ * try_lock: bail out if the rmap lock is contended
+ * contended: indicate the rmap traversal bailed out due to lock contention
  * rmap_one: executed on each vma where page is mapped
  * done: for checking traversing termination condition
  * anon_lock: for getting anon_lock by optimized way rather than default
@@ -263,19 +386,29 @@ int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma);
  */
 struct rmap_walk_control {
 	void *arg;
+	bool try_lock;
+	bool contended;
 	/*
 	 * Return false if page table scanning in rmap_walk should be stopped.
 	 * Otherwise, return true.
 	 */
-	bool (*rmap_one)(struct page *page, struct vm_area_struct *vma,
+	bool (*rmap_one)(struct folio *folio, struct vm_area_struct *vma,
 					unsigned long addr, void *arg);
-	int (*done)(struct page *page);
-	struct anon_vma *(*anon_lock)(struct page *page);
+	int (*done)(struct folio *folio);
+	struct anon_vma *(*anon_lock)(struct folio *folio,
+				      struct rmap_walk_control *rwc);
 	bool (*invalid_vma)(struct vm_area_struct *vma, void *arg);
 };
 
-void rmap_walk(struct page *page, struct rmap_walk_control *rwc);
-void rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc);
+void rmap_walk(struct folio *folio, struct rmap_walk_control *rwc);
+void rmap_walk_locked(struct folio *folio, struct rmap_walk_control *rwc);
+
+/*
+ * Called by memory-failure.c to kill processes.
+ */
+struct anon_vma *folio_lock_anon_vma_read(struct folio *folio,
+					  struct rmap_walk_control *rwc);
+void page_unlock_anon_vma_read(struct anon_vma *anon_vma);
 
 #else	/* !CONFIG_MMU */
 
@@ -283,7 +416,7 @@ void rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc);
 #define anon_vma_prepare(vma)	(0)
 #define anon_vma_link(vma)	do {} while (0)
 
-static inline int page_referenced(struct page *page, int is_locked,
+static inline int folio_referenced(struct folio *folio, int is_locked,
 				  struct mem_cgroup *memcg,
 				  unsigned long *vm_flags)
 {
@@ -291,7 +424,7 @@ static inline int page_referenced(struct page *page, int is_locked,
 	return 0;
 }
 
-static inline void try_to_unmap(struct page *page, enum ttu_flags flags)
+static inline void try_to_unmap(struct folio *folio, enum ttu_flags flags)
 {
 }
 

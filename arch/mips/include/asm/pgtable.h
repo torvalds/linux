@@ -86,6 +86,11 @@ extern void paging_init(void);
  */
 #define pmd_phys(pmd)		virt_to_phys((void *)pmd_val(pmd))
 
+static inline unsigned long pmd_pfn(pmd_t pmd)
+{
+	return pmd_val(pmd) >> _PFN_SHIFT;
+}
+
 #ifndef CONFIG_MIPS_HUGE_TLB_SUPPORT
 #define pmd_page(pmd)		(pfn_to_page(pmd_phys(pmd) >> PAGE_SHIFT))
 #endif /* CONFIG_MIPS_HUGE_TLB_SUPPORT */
@@ -420,11 +425,6 @@ static inline pte_t pte_mkhuge(pte_t pte)
 static inline int pmd_write(pmd_t pmd)
 {
 	return !!(pmd_val(pmd) & _PAGE_WRITE);
-}
-
-static inline unsigned long pmd_pfn(pmd_t pmd)
-{
-	return pmd_val(pmd) >> _PFN_SHIFT;
 }
 
 static inline struct page *pmd_page(pmd_t pmd)

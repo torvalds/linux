@@ -31,7 +31,6 @@ properties:
       - qcom,sc7180-config-noc
       - qcom,sc7180-dc-noc
       - qcom,sc7180-gem-noc
-      - qcom,sc7180-ipa-virt
       - qcom,sc7180-mc-virt
       - qcom,sc7180-mmss-noc
       - qcom,sc7180-npu-noc
@@ -59,7 +58,20 @@ properties:
       - qcom,sc8180x-ipa-virt
       - qcom,sc8180x-mc-virt
       - qcom,sc8180x-mmss-noc
+      - qcom,sc8180x-qup-virt
       - qcom,sc8180x-system-noc
+      - qcom,sc8280xp-aggre1-noc
+      - qcom,sc8280xp-aggre2-noc
+      - qcom,sc8280xp-clk-virt
+      - qcom,sc8280xp-config-noc
+      - qcom,sc8280xp-dc-noc
+      - qcom,sc8280xp-gem-noc
+      - qcom,sc8280xp-lpass-ag-noc
+      - qcom,sc8280xp-mc-virt
+      - qcom,sc8280xp-mmss-noc
+      - qcom,sc8280xp-nspa-noc
+      - qcom,sc8280xp-nspb-noc
+      - qcom,sc8280xp-system-noc
       - qcom,sdm845-aggre1-noc
       - qcom,sdm845-aggre2-noc
       - qcom,sdm845-config-noc
@@ -68,10 +80,12 @@ properties:
       - qcom,sdm845-mem-noc
       - qcom,sdm845-mmss-noc
       - qcom,sdm845-system-noc
-      - qcom,sdx55-ipa-virt
       - qcom,sdx55-mc-virt
       - qcom,sdx55-mem-noc
       - qcom,sdx55-system-noc
+      - qcom,sdx65-mc-virt
+      - qcom,sdx65-mem-noc
+      - qcom,sdx65-system-noc
       - qcom,sm8150-aggre1-noc
       - qcom,sm8150-aggre2-noc
       - qcom,sm8150-camnoc-noc
@@ -121,6 +135,8 @@ properties:
 
   qcom,bcm-voters:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
     description: |
       List of phandles to qcom,bcm-voter nodes that are required by
       this interconnect to send RPMh commands.

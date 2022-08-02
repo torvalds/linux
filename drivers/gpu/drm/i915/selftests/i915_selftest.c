@@ -24,6 +24,7 @@
 #include <linux/random.h>
 
 #include "gt/intel_gt_pm.h"
+#include "i915_driver.h"
 #include "i915_drv.h"
 #include "i915_selftest.h"
 

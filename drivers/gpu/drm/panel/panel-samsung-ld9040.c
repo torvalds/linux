@@ -358,14 +358,12 @@ static int ld9040_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ld9040_remove(struct spi_device *spi)
+static void ld9040_remove(struct spi_device *spi)
 {
 	struct ld9040 *ctx = spi_get_drvdata(spi);
 
 	ld9040_power_off(ctx);
 	drm_panel_remove(&ctx->panel);
-
-	return 0;
 }
 
 static const struct of_device_id ld9040_of_match[] = {

@@ -93,6 +93,21 @@ patternProperties:
         minItems: 1
         maxItems: 8   # Should be enough regulators
 
+      opp-microwatt:
+        description: |
+          The power for the OPP in micro-Watts.
+
+          Entries for multiple regulators shall be provided in the same field
+          separated by angular brackets <>. If current values aren't required
+          for a regulator, then it shall be filled with 0. If power values
+          aren't required for any of the regulators, then this field is not
+          required. The OPP binding doesn't provide any provisions to relate the
+          values to their power supplies or the order in which the supplies need
+          to be configured and that is left for the implementation specific
+          binding.
+        minItems: 1
+        maxItems: 8   # Should be enough regulators
+
       opp-level:
         description:
           A value representing the performance level of the device.
@@ -177,6 +192,8 @@ patternProperties:
           for the functioning of the current device at the current OPP (where
           this property is present).
         $ref: /schemas/types.yaml#/definitions/phandle-array
+        items:
+          maxItems: 1
 
     patternProperties:
       '^opp-microvolt-':
@@ -199,6 +216,14 @@ patternProperties:
         description:
           Named opp-microamp property. Similar to opp-microvolt-<name> property,
           but for microamp instead.
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        minItems: 1
+        maxItems: 8   # Should be enough regulators
+
+      '^opp-microwatt':
+        description:
+          Named opp-microwatt property. Similar to opp-microamp property,
+          but for microwatt instead.
         $ref: /schemas/types.yaml#/definitions/uint32-array
         minItems: 1
         maxItems: 8   # Should be enough regulators

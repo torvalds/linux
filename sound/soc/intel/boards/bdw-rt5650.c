@@ -192,15 +192,15 @@ static int bdw_rt5650_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	/* Create and initialize headphone jack */
-	if (snd_soc_card_jack_new(rtd->card, "Headphone Jack",
+	if (snd_soc_card_jack_new_pins(rtd->card, "Headphone Jack",
 			SND_JACK_HEADPHONE, &headphone_jack,
 			&headphone_jack_pin, 1)) {
 		dev_err(component->dev, "Can't create headphone jack\n");
 	}
 
 	/* Create and initialize mic jack */
-	if (snd_soc_card_jack_new(rtd->card, "Mic Jack", SND_JACK_MICROPHONE,
-			&mic_jack, &mic_jack_pin, 1)) {
+	if (snd_soc_card_jack_new_pins(rtd->card, "Mic Jack",
+			SND_JACK_MICROPHONE, &mic_jack, &mic_jack_pin, 1)) {
 		dev_err(component->dev, "Can't create mic jack\n");
 	}
 
@@ -299,7 +299,7 @@ static int bdw_rt5650_probe(struct platform_device *pdev)
 	if (!bdw_rt5650)
 		return -ENOMEM;
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	mach = pdev->dev.platform_data;
 	ret = snd_soc_fixup_dai_links_platform_name(&bdw_rt5650_card,
 						    mach->mach_params.platform);

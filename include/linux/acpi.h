@@ -520,13 +520,10 @@ int acpi_check_resource_conflict(const struct resource *res);
 int acpi_check_region(resource_size_t start, resource_size_t n,
 		      const char *name);
 
-acpi_status acpi_release_memory(acpi_handle handle, struct resource *res,
-				u32 level);
-
 int acpi_resources_are_enforced(void);
 
 #ifdef CONFIG_HIBERNATION
-void __init acpi_check_s4_hw_signature(int check);
+extern int acpi_check_s4_hw_signature;
 #endif
 
 #ifdef CONFIG_PM_SLEEP
@@ -550,10 +547,16 @@ struct acpi_osc_context {
 
 acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
 
-/* Indexes into _OSC Capabilities Buffer (DWORDs 2 & 3 are device-specific) */
+/* Number of _OSC capability DWORDS depends on bridge type */
+#define OSC_PCI_CAPABILITY_DWORDS		3
+#define OSC_CXL_CAPABILITY_DWORDS		5
+
+/* Indexes into _OSC Capabilities Buffer (DWORDs 2 to 5 are device-specific) */
 #define OSC_QUERY_DWORD				0	/* DWORD 1 */
 #define OSC_SUPPORT_DWORD			1	/* DWORD 2 */
 #define OSC_CONTROL_DWORD			2	/* DWORD 3 */
+#define OSC_EXT_SUPPORT_DWORD			3	/* DWORD 4 */
+#define OSC_EXT_CONTROL_DWORD			4	/* DWORD 5 */
 
 /* _OSC Capabilities DWORD 1: Query/Control and Error Returns (generic) */
 #define OSC_QUERY_ENABLE			0x00000001  /* input */
@@ -574,12 +577,15 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
 #define OSC_SB_OSLPI_SUPPORT			0x00000100
 #define OSC_SB_CPC_DIVERSE_HIGH_SUPPORT		0x00001000
 #define OSC_SB_GENERIC_INITIATOR_SUPPORT	0x00002000
+#define OSC_SB_CPC_FLEXIBLE_ADR_SPACE		0x00004000
 #define OSC_SB_NATIVE_USB4_SUPPORT		0x00040000
 #define OSC_SB_PRM_SUPPORT			0x00200000
 
 extern bool osc_sb_apei_support_acked;
 extern bool osc_pc_lpi_support_confirmed;
 extern bool osc_sb_native_usb4_support_confirmed;
+extern bool osc_sb_cppc_not_supported;
+extern bool osc_cpc_flexible_adr_space_confirmed;
 
 /* USB4 Capabilities */
 #define OSC_USB_USB3_TUNNELING			0x00000001
@@ -606,6 +612,29 @@ extern u32 osc_sb_native_usb4_control;
 #define OSC_PCI_EXPRESS_CAPABILITY_CONTROL	0x00000010
 #define OSC_PCI_EXPRESS_LTR_CONTROL		0x00000020
 #define OSC_PCI_EXPRESS_DPC_CONTROL		0x00000080
+
+/* CXL _OSC: Capabilities DWORD 4: Support Field */
+#define OSC_CXL_1_1_PORT_REG_ACCESS_SUPPORT	0x00000001
+#define OSC_CXL_2_0_PORT_DEV_REG_ACCESS_SUPPORT	0x00000002
+#define OSC_CXL_PROTOCOL_ERR_REPORTING_SUPPORT	0x00000004
+#define OSC_CXL_NATIVE_HP_SUPPORT		0x00000008
+
+/* CXL _OSC: Capabilities DWORD 5: Control Field */
+#define OSC_CXL_ERROR_REPORTING_CONTROL		0x00000001
+
+static inline u32 acpi_osc_ctx_get_pci_control(struct acpi_osc_context *context)
+{
+	u32 *ret = context->ret.pointer;
+
+	return ret[OSC_CONTROL_DWORD];
+}
+
+static inline u32 acpi_osc_ctx_get_cxl_control(struct acpi_osc_context *context)
+{
+	u32 *ret = context->ret.pointer;
+
+	return ret[OSC_EXT_CONTROL_DWORD];
+}
 
 #define ACPI_GSB_ACCESS_ATTRIB_QUICK		0x00000002
 #define ACPI_GSB_ACCESS_ATTRIB_SEND_RCV         0x00000004
@@ -691,7 +720,7 @@ int acpi_device_uevent_modalias(struct device *, struct kobj_uevent_env *);
 int acpi_device_modalias(struct device *, char *, int);
 
 struct platform_device *acpi_create_platform_device(struct acpi_device *,
-						    struct property_entry *);
+						    const struct property_entry *);
 #define ACPI_PTR(_ptr)	(_ptr)
 
 static inline void acpi_device_set_enumerated(struct acpi_device *adev)
@@ -930,7 +959,7 @@ static inline int acpi_device_modalias(struct device *dev,
 
 static inline struct platform_device *
 acpi_create_platform_device(struct acpi_device *adev,
-			    struct property_entry *properties)
+			    const struct property_entry *properties)
 {
 	return NULL;
 }
@@ -1003,6 +1032,17 @@ static inline int acpi_register_wakeup_handler(int wake_irq,
 static inline void acpi_unregister_wakeup_handler(
 	bool (*wakeup)(void *context), void *context) { }
 
+struct acpi_osc_context;
+static inline u32 acpi_osc_ctx_get_pci_control(struct acpi_osc_context *context)
+{
+	return 0;
+}
+
+static inline u32 acpi_osc_ctx_get_cxl_control(struct acpi_osc_context *context)
+{
+	return 0;
+}
+
 #endif	/* !CONFIG_ACPI */
 
 #ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
@@ -1023,7 +1063,15 @@ void acpi_os_set_prepare_extended_sleep(int (*func)(u8 sleep_state,
 
 acpi_status acpi_os_prepare_extended_sleep(u8 sleep_state,
 					   u32 val_a, u32 val_b);
-
+#ifdef CONFIG_X86
+struct acpi_s2idle_dev_ops {
+	struct list_head list_node;
+	void (*prepare)(void);
+	void (*restore)(void);
+};
+int acpi_register_lps0_dev(struct acpi_s2idle_dev_ops *arg);
+void acpi_unregister_lps0_dev(struct acpi_s2idle_dev_ops *arg);
+#endif /* CONFIG_X86 */
 #ifndef CONFIG_IA64
 void arch_reserve_mem_area(acpi_physical_address addr, size_t size);
 #else

@@ -228,7 +228,7 @@ static const struct snd_kcontrol_new controls[] = {
 	SOC_DAPM_PIN_SWITCH("WM1250 Output"),
 };
 
-static struct snd_soc_dapm_widget widgets[] = {
+static const struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 
 	SND_SOC_DAPM_MIC("AMIC", NULL),
@@ -239,7 +239,7 @@ static struct snd_soc_dapm_widget widgets[] = {
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
-static struct snd_soc_dapm_route audio_paths[] = {
+static const struct snd_soc_dapm_route audio_paths[] = {
 	{ "Headphone", NULL, "HPOUT1L" },
 	{ "Headphone", NULL, "HPOUT1R" },
 
@@ -285,7 +285,7 @@ static int littlemill_late_probe(struct snd_soc_card *card)
 				    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 				    SND_JACK_BTN_2 | SND_JACK_BTN_3 |
 				    SND_JACK_BTN_4 | SND_JACK_BTN_5,
-				    &littlemill_headset, NULL, 0);
+				    &littlemill_headset);
 	if (ret)
 		return ret;
 

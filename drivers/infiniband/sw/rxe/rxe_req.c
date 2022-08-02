@@ -33,8 +33,6 @@ static inline void retry_first_write_send(struct rxe_qp *qp,
 		} else {
 			advance_dma_data(&wqe->dma, to_send);
 		}
-		if (mask & WR_WRITE_MASK)
-			wqe->iova += qp->mtu;
 	}
 }
 
@@ -308,7 +306,6 @@ static int next_opcode(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 	case IB_QPT_UC:
 		return next_opcode_uc(qp, opcode, fits);
 
-	case IB_QPT_SMI:
 	case IB_QPT_UD:
 	case IB_QPT_GSI:
 		switch (opcode) {
@@ -358,14 +355,14 @@ static inline int get_mtu(struct rxe_qp *qp)
 }
 
 static struct sk_buff *init_req_packet(struct rxe_qp *qp,
+				       struct rxe_av *av,
 				       struct rxe_send_wqe *wqe,
-				       int opcode, int payload,
+				       int opcode, u32 payload,
 				       struct rxe_pkt_info *pkt)
 {
 	struct rxe_dev		*rxe = to_rdev(qp->ibqp.device);
 	struct sk_buff		*skb;
 	struct rxe_send_wr	*ibwr = &wqe->wr;
-	struct rxe_av		*av;
 	int			pad = (-payload) & 0x3;
 	int			paylen;
 	int			solicited;
@@ -374,21 +371,9 @@ static struct sk_buff *init_req_packet(struct rxe_qp *qp,
 
 	/* length from start of bth to end of icrc */
 	paylen = rxe_opcode[opcode].length + payload + pad + RXE_ICRC_SIZE;
-
-	/* pkt->hdr, port_num and mask are initialized in ifc layer */
-	pkt->rxe	= rxe;
-	pkt->opcode	= opcode;
-	pkt->qp		= qp;
-	pkt->psn	= qp->req.psn;
-	pkt->mask	= rxe_opcode[opcode].mask;
-	pkt->paylen	= paylen;
-	pkt->wqe	= wqe;
+	pkt->paylen = paylen;
 
 	/* init skb */
-	av = rxe_get_av(pkt);
-	if (!av)
-		return NULL;
-
 	skb = rxe_init_packet(rxe, av, paylen, pkt);
 	if (unlikely(!skb))
 		return NULL;
@@ -426,8 +411,7 @@ static struct sk_buff *init_req_packet(struct rxe_qp *qp,
 
 	if (pkt->mask & RXE_ATMETH_MASK) {
 		atmeth_set_va(pkt, wqe->iova);
-		if (opcode == IB_OPCODE_RC_COMPARE_SWAP ||
-		    opcode == IB_OPCODE_RD_COMPARE_SWAP) {
+		if (opcode == IB_OPCODE_RC_COMPARE_SWAP) {
 			atmeth_set_swap_add(pkt, ibwr->wr.atomic.swap);
 			atmeth_set_comp(pkt, ibwr->wr.atomic.compare_add);
 		} else {
@@ -447,13 +431,13 @@ static struct sk_buff *init_req_packet(struct rxe_qp *qp,
 	return skb;
 }
 
-static int finish_packet(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
-		       struct rxe_pkt_info *pkt, struct sk_buff *skb,
-		       int paylen)
+static int finish_packet(struct rxe_qp *qp, struct rxe_av *av,
+			 struct rxe_send_wqe *wqe, struct rxe_pkt_info *pkt,
+			 struct sk_buff *skb, u32 payload)
 {
 	int err;
 
-	err = rxe_prepare(pkt, skb);
+	err = rxe_prepare(av, pkt, skb);
 	if (err)
 		return err;
 
@@ -461,19 +445,19 @@ static int finish_packet(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 		if (wqe->wr.send_flags & IB_SEND_INLINE) {
 			u8 *tmp = &wqe->dma.inline_data[wqe->dma.sge_offset];
 
-			memcpy(payload_addr(pkt), tmp, paylen);
+			memcpy(payload_addr(pkt), tmp, payload);
 
-			wqe->dma.resid -= paylen;
-			wqe->dma.sge_offset += paylen;
+			wqe->dma.resid -= payload;
+			wqe->dma.sge_offset += payload;
 		} else {
 			err = copy_data(qp->pd, 0, &wqe->dma,
-					payload_addr(pkt), paylen,
+					payload_addr(pkt), payload,
 					RXE_FROM_MR_OBJ);
 			if (err)
 				return err;
 		}
 		if (bth_pad(pkt)) {
-			u8 *pad = payload_addr(pkt) + paylen;
+			u8 *pad = payload_addr(pkt) + payload;
 
 			memset(pad, 0, bth_pad(pkt));
 		}
@@ -497,7 +481,7 @@ static void update_wqe_state(struct rxe_qp *qp,
 static void update_wqe_psn(struct rxe_qp *qp,
 			   struct rxe_send_wqe *wqe,
 			   struct rxe_pkt_info *pkt,
-			   int payload)
+			   u32 payload)
 {
 	/* number of packets left to send including current one */
 	int num_pkt = (wqe->dma.resid + payload + qp->mtu - 1) / qp->mtu;
@@ -539,8 +523,7 @@ static void rollback_state(struct rxe_send_wqe *wqe,
 	qp->req.psn    = rollback_psn;
 }
 
-static void update_state(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
-			 struct rxe_pkt_info *pkt, int payload)
+static void update_state(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
 {
 	qp->req.opcode = pkt->opcode;
 
@@ -608,19 +591,23 @@ static int rxe_do_local_ops(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 int rxe_requester(void *arg)
 {
 	struct rxe_qp *qp = (struct rxe_qp *)arg;
+	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 	struct rxe_pkt_info pkt;
 	struct sk_buff *skb;
 	struct rxe_send_wqe *wqe;
 	enum rxe_hdr_mask mask;
-	int payload;
+	u32 payload;
 	int mtu;
 	int opcode;
 	int ret;
 	struct rxe_send_wqe rollback_wqe;
 	u32 rollback_psn;
 	struct rxe_queue *q = qp->sq.queue;
+	struct rxe_ah *ah;
+	struct rxe_av *av;
 
-	rxe_add_ref(qp);
+	if (!rxe_get(qp))
+		return -EAGAIN;
 
 next_wqe:
 	if (unlikely(!qp->valid || qp->req.state == QP_STATE_ERROR))
@@ -670,7 +657,7 @@ next_wqe:
 	opcode = next_opcode(qp, wqe, wqe->wr.opcode);
 	if (unlikely(opcode < 0)) {
 		wqe->status = IB_WC_LOC_QP_OP_ERR;
-		goto exit;
+		goto err;
 	}
 
 	mask = rxe_opcode[opcode].mask;
@@ -699,20 +686,34 @@ next_wqe:
 			wqe->state = wqe_state_done;
 			wqe->status = IB_WC_SUCCESS;
 			__rxe_do_task(&qp->comp.task);
-			rxe_drop_ref(qp);
+			rxe_put(qp);
 			return 0;
 		}
 		payload = mtu;
 	}
 
-	skb = init_req_packet(qp, wqe, opcode, payload, &pkt);
+	pkt.rxe = rxe;
+	pkt.opcode = opcode;
+	pkt.qp = qp;
+	pkt.psn = qp->req.psn;
+	pkt.mask = rxe_opcode[opcode].mask;
+	pkt.wqe = wqe;
+
+	av = rxe_get_av(&pkt, &ah);
+	if (unlikely(!av)) {
+		pr_err("qp#%d Failed no address vector\n", qp_num(qp));
+		wqe->status = IB_WC_LOC_QP_OP_ERR;
+		goto err_drop_ah;
+	}
+
+	skb = init_req_packet(qp, av, wqe, opcode, payload, &pkt);
 	if (unlikely(!skb)) {
 		pr_err("qp#%d Failed allocating skb\n", qp_num(qp));
 		wqe->status = IB_WC_LOC_QP_OP_ERR;
-		goto err;
+		goto err_drop_ah;
 	}
 
-	ret = finish_packet(qp, wqe, &pkt, skb, payload);
+	ret = finish_packet(qp, av, wqe, &pkt, skb, payload);
 	if (unlikely(ret)) {
 		pr_debug("qp#%d Error during finish packet\n", qp_num(qp));
 		if (ret == -EFAULT)
@@ -720,8 +721,11 @@ next_wqe:
 		else
 			wqe->status = IB_WC_LOC_QP_OP_ERR;
 		kfree_skb(skb);
-		goto err;
+		goto err_drop_ah;
 	}
+
+	if (ah)
+		rxe_put(ah);
 
 	/*
 	 * To prevent a race on wqe access between requester and completer,
@@ -747,15 +751,18 @@ next_wqe:
 		goto err;
 	}
 
-	update_state(qp, wqe, &pkt, payload);
+	update_state(qp, &pkt);
 
 	goto next_wqe;
 
+err_drop_ah:
+	if (ah)
+		rxe_put(ah);
 err:
 	wqe->state = wqe_state_error;
 	__rxe_do_task(&qp->comp.task);
 
 exit:
-	rxe_drop_ref(qp);
+	rxe_put(qp);
 	return -EAGAIN;
 }

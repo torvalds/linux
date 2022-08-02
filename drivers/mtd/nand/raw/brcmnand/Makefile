@@ -6,3 +6,5 @@ obj-$(CONFIG_MTD_NAND_BRCMNAND)		+= bcm63138_nand.o
 obj-$(CONFIG_MTD_NAND_BRCMNAND)		+= bcm6368_nand.o
 obj-$(CONFIG_MTD_NAND_BRCMNAND)		+= brcmstb_nand.o
 obj-$(CONFIG_MTD_NAND_BRCMNAND)		+= brcmnand.o
+
+obj-$(CONFIG_MTD_NAND_BRCMNAND_BCMA)	+= bcma_nand.o

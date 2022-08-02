@@ -117,6 +117,8 @@ EXPORT_SYMBOL_GPL(kvm_debugfs_dir);
 
 static const struct file_operations stat_fops_per_vm;
 
+static struct file_operations kvm_chardev_ops;
+
 static long kvm_vcpu_ioctl(struct file *file, unsigned int ioctl,
 			   unsigned long arg);
 #ifdef CONFIG_KVM_COMPAT
@@ -159,6 +161,10 @@ static DEFINE_PER_CPU(cpumask_var_t, cpu_kick_mask);
 
 __weak void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
 						   unsigned long start, unsigned long end)
+{
+}
+
+__weak void kvm_arch_guest_memory_reclaimed(struct kvm *kvm)
 {
 }
 
@@ -246,13 +252,13 @@ static inline bool kvm_kick_many_cpus(struct cpumask *cpus, bool wait)
 	return true;
 }
 
-static void kvm_make_vcpu_request(struct kvm *kvm, struct kvm_vcpu *vcpu,
-				  unsigned int req, struct cpumask *tmp,
-				  int current_cpu)
+static void kvm_make_vcpu_request(struct kvm_vcpu *vcpu, unsigned int req,
+				  struct cpumask *tmp, int current_cpu)
 {
 	int cpu;
 
-	kvm_make_request(req, vcpu);
+	if (likely(!(req & KVM_REQUEST_NO_ACTION)))
+		__kvm_make_request(req, vcpu);
 
 	if (!(req & KVM_REQUEST_NO_WAKEUP) && kvm_vcpu_wake_up(vcpu))
 		return;
@@ -291,7 +297,7 @@ bool kvm_make_vcpus_request_mask(struct kvm *kvm, unsigned int req,
 		vcpu = kvm_get_vcpu(kvm, i);
 		if (!vcpu)
 			continue;
-		kvm_make_vcpu_request(kvm, vcpu, req, cpus, me);
+		kvm_make_vcpu_request(vcpu, req, cpus, me);
 	}
 
 	called = kvm_kick_many_cpus(cpus, !!(req & KVM_REQUEST_WAIT));
@@ -317,7 +323,7 @@ bool kvm_make_all_cpus_request_except(struct kvm *kvm, unsigned int req,
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		if (vcpu == except)
 			continue;
-		kvm_make_vcpu_request(kvm, vcpu, req, cpus, me);
+		kvm_make_vcpu_request(vcpu, req, cpus, me);
 	}
 
 	called = kvm_kick_many_cpus(cpus, !!(req & KVM_REQUEST_WAIT));
@@ -355,9 +361,10 @@ void kvm_flush_remote_tlbs(struct kvm *kvm)
 EXPORT_SYMBOL_GPL(kvm_flush_remote_tlbs);
 #endif
 
-void kvm_reload_remote_mmus(struct kvm *kvm)
+static void kvm_flush_shadow_all(struct kvm *kvm)
 {
-	kvm_make_all_cpus_request(kvm, KVM_REQ_MMU_RELOAD);
+	kvm_arch_flush_shadow_all(kvm);
+	kvm_arch_guest_memory_reclaimed(kvm);
 }
 
 #ifdef KVM_ARCH_NR_OBJS_PER_MEMORY_CACHE
@@ -437,8 +444,8 @@ static void kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
 
 static void kvm_vcpu_destroy(struct kvm_vcpu *vcpu)
 {
-	kvm_dirty_ring_free(&vcpu->dirty_ring);
 	kvm_arch_vcpu_destroy(vcpu);
+	kvm_dirty_ring_free(&vcpu->dirty_ring);
 
 	/*
 	 * No need for rcu_read_lock as VCPU_RUN is the only place that changes
@@ -488,12 +495,15 @@ typedef bool (*hva_handler_t)(struct kvm *kvm, struct kvm_gfn_range *range);
 typedef void (*on_lock_fn_t)(struct kvm *kvm, unsigned long start,
 			     unsigned long end);
 
+typedef void (*on_unlock_fn_t)(struct kvm *kvm);
+
 struct kvm_hva_range {
 	unsigned long start;
 	unsigned long end;
 	pte_t pte;
 	hva_handler_t handler;
 	on_lock_fn_t on_lock;
+	on_unlock_fn_t on_unlock;
 	bool flush_on_ret;
 	bool may_block;
 };
@@ -581,8 +591,11 @@ static __always_inline int __kvm_handle_hva_range(struct kvm *kvm,
 	if (range->flush_on_ret && ret)
 		kvm_flush_remote_tlbs(kvm);
 
-	if (locked)
+	if (locked) {
 		KVM_MMU_UNLOCK(kvm);
+		if (!IS_KVM_NULL_FN(range->on_unlock))
+			range->on_unlock(kvm);
+	}
 
 	srcu_read_unlock(&kvm->srcu, idx);
 
@@ -603,6 +616,7 @@ static __always_inline int kvm_handle_hva_range(struct mmu_notifier *mn,
 		.pte		= pte,
 		.handler	= handler,
 		.on_lock	= (void *)kvm_null_fn,
+		.on_unlock	= (void *)kvm_null_fn,
 		.flush_on_ret	= true,
 		.may_block	= false,
 	};
@@ -622,6 +636,7 @@ static __always_inline int kvm_handle_hva_range_no_flush(struct mmu_notifier *mn
 		.pte		= __pte(0),
 		.handler	= handler,
 		.on_lock	= (void *)kvm_null_fn,
+		.on_unlock	= (void *)kvm_null_fn,
 		.flush_on_ret	= false,
 		.may_block	= false,
 	};
@@ -665,7 +680,7 @@ void kvm_inc_notifier_count(struct kvm *kvm, unsigned long start,
 		kvm->mmu_notifier_range_end = end;
 	} else {
 		/*
-		 * Fully tracking multiple concurrent ranges has dimishing
+		 * Fully tracking multiple concurrent ranges has diminishing
 		 * returns. Keep things simple and just find the minimal range
 		 * which includes the current and new ranges. As there won't be
 		 * enough information to subtract a range after its invalidate
@@ -690,6 +705,7 @@ static int kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
 		.pte		= __pte(0),
 		.handler	= kvm_unmap_gfn_range,
 		.on_lock	= kvm_inc_notifier_count,
+		.on_unlock	= kvm_arch_guest_memory_reclaimed,
 		.flush_on_ret	= true,
 		.may_block	= mmu_notifier_range_blockable(range),
 	};
@@ -744,6 +760,7 @@ static void kvm_mmu_notifier_invalidate_range_end(struct mmu_notifier *mn,
 		.pte		= __pte(0),
 		.handler	= (void *)kvm_null_fn,
 		.on_lock	= kvm_dec_notifier_count,
+		.on_unlock	= (void *)kvm_null_fn,
 		.flush_on_ret	= false,
 		.may_block	= mmu_notifier_range_blockable(range),
 	};
@@ -816,7 +833,7 @@ static void kvm_mmu_notifier_release(struct mmu_notifier *mn,
 	int idx;
 
 	idx = srcu_read_lock(&kvm->srcu);
-	kvm_arch_flush_shadow_all(kvm);
+	kvm_flush_shadow_all(kvm);
 	srcu_read_unlock(&kvm->srcu, idx);
 }
 
@@ -935,7 +952,7 @@ static void kvm_destroy_vm_debugfs(struct kvm *kvm)
 	int kvm_debugfs_num_entries = kvm_vm_stats_header.num_desc +
 				      kvm_vcpu_stats_header.num_desc;
 
-	if (!kvm->debugfs_dentry)
+	if (IS_ERR(kvm->debugfs_dentry))
 		return;
 
 	debugfs_remove_recursive(kvm->debugfs_dentry);
@@ -1075,8 +1092,15 @@ static struct kvm *kvm_create_vm(unsigned long type)
 	spin_lock_init(&kvm->gpc_lock);
 
 	INIT_LIST_HEAD(&kvm->devices);
+	kvm->max_vcpus = KVM_MAX_VCPUS;
 
 	BUILD_BUG_ON(KVM_MEM_SLOTS_NUM > SHRT_MAX);
+
+	/*
+	 * Force subsequent debugfs file creations to fail if the VM directory
+	 * is not created (by kvm_create_vm_debugfs()).
+	 */
+	kvm->debugfs_dentry = ERR_PTR(-ENOENT);
 
 	if (init_srcu_struct(&kvm->srcu))
 		goto out_err_no_srcu;
@@ -1136,6 +1160,16 @@ static struct kvm *kvm_create_vm(unsigned long type)
 
 	preempt_notifier_inc();
 	kvm_init_pm_notifier(kvm);
+
+	/*
+	 * When the fd passed to this ioctl() is opened it pins the module,
+	 * but try_module_get() also prevents getting a reference if the module
+	 * is in MODULE_STATE_GOING (e.g. if someone ran "rmmod --wait").
+	 */
+	if (!try_module_get(kvm_chardev_ops.owner)) {
+		r = -ENODEV;
+		goto out_err;
+	}
 
 	return kvm;
 
@@ -1212,7 +1246,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	WARN_ON(rcuwait_active(&kvm->mn_memslots_update_rcuwait));
 	kvm->mn_active_invalidate_count = 0;
 #else
-	kvm_arch_flush_shadow_all(kvm);
+	kvm_flush_shadow_all(kvm);
 #endif
 	kvm_arch_destroy_vm(kvm);
 	kvm_destroy_devices(kvm);
@@ -1226,6 +1260,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	preempt_notifier_dec();
 	hardware_disable_all();
 	mmdrop(mm);
+	module_put(kvm_chardev_ops.owner);
 }
 
 void kvm_get_kvm(struct kvm *kvm)
@@ -1280,9 +1315,9 @@ static int kvm_vm_release(struct inode *inode, struct file *filp)
  */
 static int kvm_alloc_dirty_bitmap(struct kvm_memory_slot *memslot)
 {
-	unsigned long dirty_bytes = 2 * kvm_dirty_bitmap_bytes(memslot);
+	unsigned long dirty_bytes = kvm_dirty_bitmap_bytes(memslot);
 
-	memslot->dirty_bitmap = kvzalloc(dirty_bytes, GFP_KERNEL_ACCOUNT);
+	memslot->dirty_bitmap = __vcalloc(2, dirty_bytes, GFP_KERNEL_ACCOUNT);
 	if (!memslot->dirty_bitmap)
 		return -ENOMEM;
 
@@ -1526,7 +1561,7 @@ static int kvm_prepare_memory_region(struct kvm *kvm,
 	r = kvm_arch_prepare_memory_region(kvm, old, new, change);
 
 	/* Free the bitmap on failure if it was allocated above. */
-	if (r && new && new->dirty_bitmap && old && !old->dirty_bitmap)
+	if (r && new && new->dirty_bitmap && (!old || !old->dirty_bitmap))
 		kvm_destroy_dirty_bitmap(new);
 
 	return r;
@@ -1638,6 +1673,7 @@ static void kvm_invalidate_memslot(struct kvm *kvm,
 	 *	- kvm_is_visible_gfn (mmu_check_root)
 	 */
 	kvm_arch_flush_shadow_memslot(kvm, old);
+	kvm_arch_guest_memory_reclaimed(kvm);
 
 	/* Was released by kvm_swap_active_memslots, reacquire. */
 	mutex_lock(&kvm->slots_arch_lock);
@@ -1785,7 +1821,7 @@ static int kvm_set_memslot(struct kvm *kvm,
 
 	/*
 	 * No need to refresh new->arch, changes after dropping slots_arch_lock
-	 * will directly hit the final, active memsot.  Architectures are
+	 * will directly hit the final, active memslot.  Architectures are
 	 * responsible for knowing that new->arch may be stale.
 	 */
 	kvm_commit_memory_region(kvm, old, new, change);
@@ -3292,9 +3328,11 @@ bool kvm_vcpu_block(struct kvm_vcpu *vcpu)
 
 	vcpu->stat.generic.blocking = 1;
 
+	preempt_disable();
 	kvm_arch_vcpu_blocking(vcpu);
-
 	prepare_to_rcuwait(wait);
+	preempt_enable();
+
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
@@ -3304,9 +3342,11 @@ bool kvm_vcpu_block(struct kvm_vcpu *vcpu)
 		waited = true;
 		schedule();
 	}
-	finish_rcuwait(wait);
 
+	preempt_disable();
+	finish_rcuwait(wait);
 	kvm_arch_vcpu_unblocking(vcpu);
+	preempt_enable();
 
 	vcpu->stat.generic.blocking = 0;
 
@@ -3669,7 +3709,7 @@ static int kvm_vcpu_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static struct file_operations kvm_vcpu_fops = {
+static const struct file_operations kvm_vcpu_fops = {
 	.release        = kvm_vcpu_release,
 	.unlocked_ioctl = kvm_vcpu_ioctl,
 	.mmap           = kvm_vcpu_mmap,
@@ -3718,7 +3758,7 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 		return -EINVAL;
 
 	mutex_lock(&kvm->lock);
-	if (kvm->created_vcpus == KVM_MAX_VCPUS) {
+	if (kvm->created_vcpus >= kvm->max_vcpus) {
 		mutex_unlock(&kvm->lock);
 		return -EINVAL;
 	}
@@ -4264,8 +4304,11 @@ static int kvm_ioctl_create_device(struct kvm *kvm,
 		kvm_put_kvm_no_destroy(kvm);
 		mutex_lock(&kvm->lock);
 		list_del(&dev->vm_node);
+		if (ops->release)
+			ops->release(dev);
 		mutex_unlock(&kvm->lock);
-		ops->destroy(dev);
+		if (ops->destroy)
+			ops->destroy(dev);
 		return ret;
 	}
 
@@ -4319,6 +4362,7 @@ static long kvm_vm_ioctl_check_extension_generic(struct kvm *kvm, long arg)
 		return 0;
 #endif
 	case KVM_CAP_BINARY_STATS_FD:
+	case KVM_CAP_SYSTEM_EVENT_DATA:
 		return 1;
 	default:
 		break;
@@ -4720,7 +4764,7 @@ static long kvm_vm_compat_ioctl(struct file *filp,
 }
 #endif
 
-static struct file_operations kvm_vm_fops = {
+static const struct file_operations kvm_vm_fops = {
 	.release        = kvm_vm_release,
 	.unlocked_ioctl = kvm_vm_ioctl,
 	.llseek		= noop_llseek,
@@ -5471,7 +5515,7 @@ static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
 	}
 	add_uevent_var(env, "PID=%d", kvm->userspace_pid);
 
-	if (kvm->debugfs_dentry) {
+	if (!IS_ERR(kvm->debugfs_dentry)) {
 		char *tmp, *p = kmalloc(PATH_MAX, GFP_KERNEL_ACCOUNT);
 
 		if (p) {
@@ -5727,8 +5771,6 @@ int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
 		goto out_free_5;
 
 	kvm_chardev_ops.owner = module;
-	kvm_vm_fops.owner = module;
-	kvm_vcpu_fops.owner = module;
 
 	r = misc_register(&kvm_dev);
 	if (r) {
@@ -5809,6 +5851,7 @@ static int kvm_vm_worker_thread(void *context)
 	 * we have to locally copy anything that is needed beyond initialization
 	 */
 	struct kvm_vm_worker_thread_context *init_context = context;
+	struct task_struct *parent;
 	struct kvm *kvm = init_context->kvm;
 	kvm_vm_thread_fn_t thread_fn = init_context->thread_fn;
 	uintptr_t data = init_context->data;
@@ -5835,13 +5878,32 @@ init_complete:
 	init_context = NULL;
 
 	if (err)
-		return err;
+		goto out;
 
 	/* Wait to be woken up by the spawner before proceeding. */
 	kthread_parkme();
 
 	if (!kthread_should_stop())
 		err = thread_fn(kvm, data);
+
+out:
+	/*
+	 * Move kthread back to its original cgroup to prevent it lingering in
+	 * the cgroup of the VM process, after the latter finishes its
+	 * execution.
+	 *
+	 * kthread_stop() waits on the 'exited' completion condition which is
+	 * set in exit_mm(), via mm_release(), in do_exit(). However, the
+	 * kthread is removed from the cgroup in the cgroup_exit() which is
+	 * called after the exit_mm(). This causes the kthread_stop() to return
+	 * before the kthread actually quits the cgroup.
+	 */
+	rcu_read_lock();
+	parent = rcu_dereference(current->real_parent);
+	get_task_struct(parent);
+	rcu_read_unlock();
+	cgroup_attach_task_all(parent, current);
+	put_task_struct(parent);
 
 	return err;
 }

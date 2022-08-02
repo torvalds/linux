@@ -16,7 +16,7 @@
 
 #include <media/tuner.h>
 
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include "xc5000.h"
 
 MODULE_DESCRIPTION("DVB driver extension module for tm5600/6000/6010 based TV cards");
@@ -120,7 +120,7 @@ static int tm6000_start_stream(struct tm6000_core *dev)
 	pipe = usb_rcvbulkpipe(dev->udev, dev->bulk_in.endp->desc.bEndpointAddress
 							  & USB_ENDPOINT_NUMBER_MASK);
 
-	size = usb_maxpacket(dev->udev, pipe, usb_pipeout(pipe));
+	size = usb_maxpacket(dev->udev, pipe);
 	size = size * 15; /* 512 x 8 or 12 or 15 */
 
 	dvb->bulk_urb->transfer_buffer = kzalloc(size, GFP_KERNEL);

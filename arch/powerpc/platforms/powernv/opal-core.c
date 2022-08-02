@@ -112,7 +112,7 @@ static void __init fill_prstatus(struct elf_prstatus *prstatus, int pir,
 			  struct pt_regs *regs)
 {
 	memset(prstatus, 0, sizeof(struct elf_prstatus));
-	elf_core_copy_kernel_regs(&(prstatus->pr_reg), regs);
+	elf_core_copy_regs(&(prstatus->pr_reg), regs);
 
 	/*
 	 * Overload PID with PIR value.
@@ -603,7 +603,7 @@ static struct bin_attribute *mpipl_bin_attr[] = {
 
 };
 
-static struct attribute_group mpipl_group = {
+static const struct attribute_group mpipl_group = {
 	.attrs = mpipl_attr,
 	.bin_attrs =  mpipl_bin_attr,
 };

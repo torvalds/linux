@@ -48,6 +48,10 @@ properties:
 
   ti,camerrx-control:
     $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    items:
+      - items:
+          - description: phandle to device control module
+          - description: offset to the control_camerarx_core register
     description:
       phandle to the device control module and offset to the
       control_camerarx_core register

@@ -169,12 +169,6 @@ static void tb_discover_tunnels(struct tb *tb)
 
 static int tb_port_configure_xdomain(struct tb_port *port)
 {
-	/*
-	 * XDomain paths currently only support single lane so we must
-	 * disable the other lane according to USB4 spec.
-	 */
-	tb_port_disable(port->dual_link_port);
-
 	if (tb_switch_is_usb4(port->sw))
 		return usb4_port_configure_xdomain(port);
 	return tb_lc_configure_xdomain(port);
@@ -867,7 +861,7 @@ static struct tb_port *tb_find_dp_out(struct tb *tb, struct tb_port *in)
 
 static void tb_tunnel_dp(struct tb *tb)
 {
-	int available_up, available_down, ret;
+	int available_up, available_down, ret, link_nr;
 	struct tb_cm *tcm = tb_priv(tb);
 	struct tb_port *port, *in, *out;
 	struct tb_tunnel *tunnel;
@@ -913,6 +907,20 @@ static void tb_tunnel_dp(struct tb *tb)
 	}
 
 	/*
+	 * This is only applicable to links that are not bonded (so
+	 * when Thunderbolt 1 hardware is involved somewhere in the
+	 * topology). For these try to share the DP bandwidth between
+	 * the two lanes.
+	 */
+	link_nr = 1;
+	list_for_each_entry(tunnel, &tcm->tunnel_list, list) {
+		if (tb_tunnel_is_dp(tunnel)) {
+			link_nr = 0;
+			break;
+		}
+	}
+
+	/*
 	 * DP stream needs the domain to be active so runtime resume
 	 * both ends of the tunnel.
 	 *
@@ -943,7 +951,8 @@ static void tb_tunnel_dp(struct tb *tb)
 	tb_dbg(tb, "available bandwidth for new DP tunnel %u/%u Mb/s\n",
 	       available_up, available_down);
 
-	tunnel = tb_tunnel_alloc_dp(tb, in, out, available_up, available_down);
+	tunnel = tb_tunnel_alloc_dp(tb, in, out, link_nr, available_up,
+				    available_down);
 	if (!tunnel) {
 		tb_port_dbg(out, "could not allocate DP tunnel\n");
 		goto err_reclaim;
@@ -1054,6 +1063,8 @@ static int tb_disconnect_pci(struct tb *tb, struct tb_switch *sw)
 	if (WARN_ON(!tunnel))
 		return -ENODEV;
 
+	tb_switch_xhci_disconnect(sw);
+
 	tb_tunnel_deactivate(tunnel);
 	list_del(&tunnel->list);
 	tb_tunnel_free(tunnel);
@@ -1098,6 +1109,9 @@ static int tb_tunnel_pci(struct tb *tb, struct tb_switch *sw)
 	 */
 	if (tb_switch_pcie_l1_enable(sw))
 		tb_sw_warn(sw, "failed to enable PCIe L1 for Titan Ridge\n");
+
+	if (tb_switch_xhci_connect(sw))
+		tb_sw_warn(sw, "failed to connect xHCI\n");
 
 	list_add_tail(&tunnel->list, &tcm->tunnel_list);
 	return 0;
@@ -1256,12 +1270,18 @@ static void tb_handle_hotplug(struct work_struct *work)
 			tb_port_unconfigure_xdomain(port);
 		} else if (tb_port_is_dpout(port) || tb_port_is_dpin(port)) {
 			tb_dp_resource_unavailable(tb, port);
+		} else if (!port->port) {
+			tb_sw_dbg(sw, "xHCI disconnect request\n");
+			tb_switch_xhci_disconnect(sw);
 		} else {
 			tb_port_dbg(port,
 				   "got unplug event for disconnected port, ignoring\n");
 		}
 	} else if (port->remote) {
 		tb_port_dbg(port, "got plug event for connected port, ignoring\n");
+	} else if (!port->port && sw->authorized) {
+		tb_sw_dbg(sw, "xHCI connect request\n");
+		tb_switch_xhci_connect(sw);
 	} else {
 		if (tb_port_is_null(port)) {
 			tb_port_dbg(port, "hotplug: scanning\n");

@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/bcm/brcm,bcmbca.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom Broadband SoC device tree bindings
+
+description:
+  Broadcom Broadband SoCs include family of high performance DSL/PON/Wireless
+  chips that can be used as home gateway, router and WLAN AP for residential,
+  enterprise and carrier applications.
+
+maintainers:
+  - William Zhang <william.zhang@broadcom.com>
+  - Anand Gore <anand.gore@broadcom.com>
+  - Kursad Oney <kursad.oney@broadcom.com>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      - description: BCM47622 based boards
+        items:
+          - enum:
+              - brcm,bcm947622
+          - const: brcm,bcm47622
+          - const: brcm,bcmbca
+
+additionalProperties: true
+
+...

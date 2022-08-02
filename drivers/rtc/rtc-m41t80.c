@@ -932,10 +932,8 @@ static int m41t80_probe(struct i2c_client *client,
 	m41t80_data->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	m41t80_data->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
-	if (client->irq <= 0) {
-		/* We cannot support UIE mode if we do not have an IRQ line */
-		m41t80_data->rtc->uie_unsupported = 1;
-	}
+	if (client->irq <= 0)
+		clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, m41t80_data->rtc->features);
 
 	/* Make sure HT (Halt Update) bit is cleared */
 	rc = i2c_smbus_read_byte_data(client, M41T80_REG_ALARM_HOUR);

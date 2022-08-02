@@ -208,8 +208,25 @@ static const struct arm64_cpu_capabilities arm64_repeat_tlbi_list[] = {
 #ifdef CONFIG_ARM64_ERRATUM_1286807
 	{
 		ERRATA_MIDR_RANGE(MIDR_CORTEX_A76, 0, 0, 3, 0),
+		/* Kryo4xx Gold (rcpe to rfpe) => (r0p0 to r3p0) */
+		ERRATA_MIDR_RANGE(MIDR_QCOM_KRYO_4XX_GOLD, 0xc, 0xe, 0xf, 0xe),
 	},
 #endif
+	{},
+};
+#endif
+
+#ifdef CONFIG_CAVIUM_ERRATUM_23154
+static const struct midr_range cavium_erratum_23154_cpus[] = {
+	MIDR_ALL_VERSIONS(MIDR_THUNDERX),
+	MIDR_ALL_VERSIONS(MIDR_THUNDERX_81XX),
+	MIDR_ALL_VERSIONS(MIDR_THUNDERX_83XX),
+	MIDR_ALL_VERSIONS(MIDR_OCTX2_98XX),
+	MIDR_ALL_VERSIONS(MIDR_OCTX2_96XX),
+	MIDR_ALL_VERSIONS(MIDR_OCTX2_95XX),
+	MIDR_ALL_VERSIONS(MIDR_OCTX2_95XXN),
+	MIDR_ALL_VERSIONS(MIDR_OCTX2_95XXMM),
+	MIDR_ALL_VERSIONS(MIDR_OCTX2_95XXO),
 	{},
 };
 #endif
@@ -425,10 +442,10 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 #endif
 #ifdef CONFIG_CAVIUM_ERRATUM_23154
 	{
-	/* Cavium ThunderX, pass 1.x */
-		.desc = "Cavium erratum 23154",
+		.desc = "Cavium errata 23154 and 38545",
 		.capability = ARM64_WORKAROUND_CAVIUM_23154,
-		ERRATA_MIDR_REV_RANGE(MIDR_THUNDERX, 0, 0, 1),
+		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
+		ERRATA_MIDR_RANGE_LIST(cavium_erratum_23154_cpus),
 	},
 #endif
 #ifdef CONFIG_CAVIUM_ERRATUM_27456

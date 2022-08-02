@@ -763,7 +763,7 @@ static irqreturn_t stm32f4_spi_irq_event(int irq, void *dev_id)
 	if (!spi->cur_usedma && (spi->cur_comm == SPI_SIMPLEX_TX ||
 				 spi->cur_comm == SPI_3WIRE_TX)) {
 		/* OVR flag shouldn't be handled for TX only mode */
-		sr &= ~STM32F4_SPI_SR_OVR | STM32F4_SPI_SR_RXNE;
+		sr &= ~(STM32F4_SPI_SR_OVR | STM32F4_SPI_SR_RXNE);
 		mask |= STM32F4_SPI_SR_TXE;
 	}
 
@@ -2000,9 +2000,8 @@ static int __maybe_unused stm32_spi_resume(struct device *dev)
 		return ret;
 	}
 
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
 		dev_err(dev, "Unable to power device:%d\n", ret);
 		return ret;
 	}

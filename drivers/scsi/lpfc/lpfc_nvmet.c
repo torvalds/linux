@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2021 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -285,7 +285,7 @@ lpfc_nvmet_defer_release(struct lpfc_hba *phba,
  *         transmission of an NVME LS response.
  * @phba: Pointer to HBA context object.
  * @cmdwqe: Pointer to driver command WQE object.
- * @wcqe: Pointer to driver response CQE object.
+ * @rspwqe: Pointer to driver response WQE object.
  *
  * The function is called from SLI ring event handler with no
  * lock held. The function frees memory resources used for the command
@@ -293,9 +293,10 @@ lpfc_nvmet_defer_release(struct lpfc_hba *phba,
  **/
 void
 __lpfc_nvme_xmt_ls_rsp_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
-			   struct lpfc_wcqe_complete *wcqe)
+			   struct lpfc_iocbq *rspwqe)
 {
-	struct lpfc_async_xchg_ctx *axchg = cmdwqe->context2;
+	struct lpfc_async_xchg_ctx *axchg = cmdwqe->context_un.axchg;
+	struct lpfc_wcqe_complete *wcqe = &rspwqe->wcqe_cmpl;
 	struct nvmefc_ls_rsp *ls_rsp = &axchg->ls_rsp;
 	uint32_t status, result;
 
@@ -316,9 +317,9 @@ __lpfc_nvme_xmt_ls_rsp_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 			"6038 NVMEx LS rsp cmpl: %d %d oxid x%x\n",
 			status, result, axchg->oxid);
 
-	lpfc_nlp_put(cmdwqe->context1);
-	cmdwqe->context2 = NULL;
-	cmdwqe->context3 = NULL;
+	lpfc_nlp_put(cmdwqe->ndlp);
+	cmdwqe->context_un.axchg = NULL;
+	cmdwqe->bpl_dmabuf = NULL;
 	lpfc_sli_release_iocbq(phba, cmdwqe);
 	ls_rsp->done(ls_rsp);
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
@@ -331,7 +332,7 @@ __lpfc_nvme_xmt_ls_rsp_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
  * lpfc_nvmet_xmt_ls_rsp_cmp - Completion handler for LS Response
  * @phba: Pointer to HBA context object.
  * @cmdwqe: Pointer to driver command WQE object.
- * @wcqe: Pointer to driver response CQE object.
+ * @rspwqe: Pointer to driver response WQE object.
  *
  * The function is called from SLI ring event handler with no
  * lock held. This function is the completion handler for NVME LS commands
@@ -340,10 +341,11 @@ __lpfc_nvme_xmt_ls_rsp_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
  **/
 static void
 lpfc_nvmet_xmt_ls_rsp_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
-			  struct lpfc_wcqe_complete *wcqe)
+			  struct lpfc_iocbq *rspwqe)
 {
 	struct lpfc_nvmet_tgtport *tgtp;
 	uint32_t status, result;
+	struct lpfc_wcqe_complete *wcqe = &rspwqe->wcqe_cmpl;
 
 	if (!phba->targetport)
 		goto finish;
@@ -365,7 +367,7 @@ lpfc_nvmet_xmt_ls_rsp_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	}
 
 finish:
-	__lpfc_nvme_xmt_ls_rsp_cmp(phba, cmdwqe, wcqe);
+	__lpfc_nvme_xmt_ls_rsp_cmp(phba, cmdwqe, rspwqe);
 }
 
 /**
@@ -707,7 +709,7 @@ out:
  * lpfc_nvmet_xmt_fcp_op_cmp - Completion handler for FCP Response
  * @phba: Pointer to HBA context object.
  * @cmdwqe: Pointer to driver command WQE object.
- * @wcqe: Pointer to driver response CQE object.
+ * @rspwqe: Pointer to driver response WQE object.
  *
  * The function is called from SLI ring event handler with no
  * lock held. This function is the completion handler for NVME FCP commands
@@ -715,17 +717,18 @@ out:
  **/
 static void
 lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
-			  struct lpfc_wcqe_complete *wcqe)
+			  struct lpfc_iocbq *rspwqe)
 {
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct nvmefc_tgt_fcp_req *rsp;
 	struct lpfc_async_xchg_ctx *ctxp;
 	uint32_t status, result, op, start_clean, logerr;
+	struct lpfc_wcqe_complete *wcqe = &rspwqe->wcqe_cmpl;
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	int id;
 #endif
 
-	ctxp = cmdwqe->context2;
+	ctxp = cmdwqe->context_un.axchg;
 	ctxp->flag &= ~LPFC_NVME_IO_INP;
 
 	rsp = &ctxp->hdlrctx.fcp_req;
@@ -817,7 +820,7 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 		/* lpfc_nvmet_xmt_fcp_release() will recycle the context */
 	} else {
 		ctxp->entry_cnt++;
-		start_clean = offsetof(struct lpfc_iocbq, iocb_flag);
+		start_clean = offsetof(struct lpfc_iocbq, cmd_flag);
 		memset(((char *)cmdwqe) + start_clean, 0,
 		       (sizeof(struct lpfc_iocbq) - start_clean));
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
@@ -862,7 +865,7 @@ __lpfc_nvme_xmt_ls_rsp(struct lpfc_async_xchg_ctx *axchg,
 			struct nvmefc_ls_rsp *ls_rsp,
 			void (*xmt_ls_rsp_cmp)(struct lpfc_hba *phba,
 				struct lpfc_iocbq *cmdwqe,
-				struct lpfc_wcqe_complete *wcqe))
+				struct lpfc_iocbq *rspwqe))
 {
 	struct lpfc_hba *phba = axchg->phba;
 	struct hbq_dmabuf *nvmebuf = (struct hbq_dmabuf *)axchg->rqb_buffer;
@@ -898,9 +901,9 @@ __lpfc_nvme_xmt_ls_rsp(struct lpfc_async_xchg_ctx *axchg,
 	}
 
 	/* Save numBdes for bpl2sgl */
-	nvmewqeq->rsvd2 = 1;
+	nvmewqeq->num_bdes = 1;
 	nvmewqeq->hba_wqidx = 0;
-	nvmewqeq->context3 = &dmabuf;
+	nvmewqeq->bpl_dmabuf = &dmabuf;
 	dmabuf.virt = &bpl;
 	bpl.addrLow = nvmewqeq->wqe.xmit_sequence.bde.addrLow;
 	bpl.addrHigh = nvmewqeq->wqe.xmit_sequence.bde.addrHigh;
@@ -913,9 +916,8 @@ __lpfc_nvme_xmt_ls_rsp(struct lpfc_async_xchg_ctx *axchg,
 	 * be referenced after it returns back to this routine.
 	 */
 
-	nvmewqeq->wqe_cmpl = xmt_ls_rsp_cmp;
-	nvmewqeq->iocb_cmpl = NULL;
-	nvmewqeq->context2 = axchg;
+	nvmewqeq->cmd_cmpl = xmt_ls_rsp_cmp;
+	nvmewqeq->context_un.axchg = axchg;
 
 	lpfc_nvmeio_data(phba, "NVMEx LS RSP: xri x%x wqidx x%x len x%x\n",
 			 axchg->oxid, nvmewqeq->hba_wqidx, ls_rsp->rsplen);
@@ -923,7 +925,7 @@ __lpfc_nvme_xmt_ls_rsp(struct lpfc_async_xchg_ctx *axchg,
 	rc = lpfc_sli4_issue_wqe(phba, axchg->hdwq, nvmewqeq);
 
 	/* clear to be sure there's no reference */
-	nvmewqeq->context3 = NULL;
+	nvmewqeq->bpl_dmabuf = NULL;
 
 	if (rc == WQE_SUCCESS) {
 		/*
@@ -940,7 +942,7 @@ __lpfc_nvme_xmt_ls_rsp(struct lpfc_async_xchg_ctx *axchg,
 
 	rc = -ENXIO;
 
-	lpfc_nlp_put(nvmewqeq->context1);
+	lpfc_nlp_put(nvmewqeq->ndlp);
 
 out_free_buf:
 	/* Give back resources */
@@ -1072,10 +1074,9 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 		goto aerr;
 	}
 
-	nvmewqeq->wqe_cmpl = lpfc_nvmet_xmt_fcp_op_cmp;
-	nvmewqeq->iocb_cmpl = NULL;
-	nvmewqeq->context2 = ctxp;
-	nvmewqeq->iocb_flag |=  LPFC_IO_NVMET;
+	nvmewqeq->cmd_cmpl = lpfc_nvmet_xmt_fcp_op_cmp;
+	nvmewqeq->context_un.axchg = ctxp;
+	nvmewqeq->cmd_flag |=  LPFC_IO_NVMET;
 	ctxp->wqeq->hba_wqidx = rsp->hwqid;
 
 	lpfc_nvmeio_data(phba, "NVMET FCP CMND: xri x%x op x%x len x%x\n",
@@ -1118,8 +1119,8 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 			ctxp->oxid, rc);
 
 	ctxp->wqeq->hba_wqidx = 0;
-	nvmewqeq->context2 = NULL;
-	nvmewqeq->context3 = NULL;
+	nvmewqeq->context_un.axchg = NULL;
+	nvmewqeq->bpl_dmabuf = NULL;
 	rc = -EBUSY;
 aerr:
 	return rc;
@@ -1275,7 +1276,7 @@ lpfc_nvmet_defer_rcv(struct nvmet_fc_target_port *tgtport,
  * lpfc_nvmet_ls_req_cmp - completion handler for a nvme ls request
  * @phba: Pointer to HBA context object
  * @cmdwqe: Pointer to driver command WQE object.
- * @wcqe: Pointer to driver response CQE object.
+ * @rspwqe: Pointer to driver response WQE object.
  *
  * This function is the completion handler for NVME LS requests.
  * The function updates any states and statistics, then calls the
@@ -1283,8 +1284,9 @@ lpfc_nvmet_defer_rcv(struct nvmet_fc_target_port *tgtport,
  **/
 static void
 lpfc_nvmet_ls_req_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
-		       struct lpfc_wcqe_complete *wcqe)
+		      struct lpfc_iocbq *rspwqe)
 {
+	struct lpfc_wcqe_complete *wcqe = &rspwqe->wcqe_cmpl;
 	__lpfc_nvme_ls_req_cmp(phba, cmdwqe->vport, cmdwqe, wcqe);
 }
 
@@ -1581,14 +1583,14 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 					"6406 Ran out of NVMET iocb/WQEs\n");
 			return -ENOMEM;
 		}
-		ctx_buf->iocbq->iocb_flag = LPFC_IO_NVMET;
+		ctx_buf->iocbq->cmd_flag = LPFC_IO_NVMET;
 		nvmewqe = ctx_buf->iocbq;
 		wqe = &nvmewqe->wqe;
 
 		/* Initialize WQE */
 		memset(wqe, 0, sizeof(union lpfc_wqe));
 
-		ctx_buf->iocbq->context1 = NULL;
+		ctx_buf->iocbq->cmd_dmabuf = NULL;
 		spin_lock(&phba->sli4_hba.sgl_list_lock);
 		ctx_buf->sglq = __lpfc_sli_get_nvmet_sglq(phba, ctx_buf->iocbq);
 		spin_unlock(&phba->sli4_hba.sgl_list_lock);
@@ -2023,12 +2025,14 @@ lpfc_nvmet_wqfull_flush(struct lpfc_hba *phba, struct lpfc_queue *wq,
 				 &wq->wqfull_list, list) {
 		if (ctxp) {
 			/* Checking for a specific IO to flush */
-			if (nvmewqeq->context2 == ctxp) {
+			if (nvmewqeq->context_un.axchg == ctxp) {
 				list_del(&nvmewqeq->list);
 				spin_unlock_irqrestore(&pring->ring_lock,
 						       iflags);
+				memcpy(&nvmewqeq->wcqe_cmpl, wcqep,
+				       sizeof(*wcqep));
 				lpfc_nvmet_xmt_fcp_op_cmp(phba, nvmewqeq,
-							  wcqep);
+							  nvmewqeq);
 				return;
 			}
 			continue;
@@ -2036,7 +2040,8 @@ lpfc_nvmet_wqfull_flush(struct lpfc_hba *phba, struct lpfc_queue *wq,
 			/* Flush all IOs */
 			list_del(&nvmewqeq->list);
 			spin_unlock_irqrestore(&pring->ring_lock, iflags);
-			lpfc_nvmet_xmt_fcp_op_cmp(phba, nvmewqeq, wcqep);
+			memcpy(&nvmewqeq->wcqe_cmpl, wcqep, sizeof(*wcqep));
+			lpfc_nvmet_xmt_fcp_op_cmp(phba, nvmewqeq, nvmewqeq);
 			spin_lock_irqsave(&pring->ring_lock, iflags);
 		}
 	}
@@ -2066,7 +2071,7 @@ lpfc_nvmet_wqfull_process(struct lpfc_hba *phba,
 		list_remove_head(&wq->wqfull_list, nvmewqeq, struct lpfc_iocbq,
 				 list);
 		spin_unlock_irqrestore(&pring->ring_lock, iflags);
-		ctxp = (struct lpfc_async_xchg_ctx *)nvmewqeq->context2;
+		ctxp = nvmewqeq->context_un.axchg;
 		rc = lpfc_sli4_issue_wqe(phba, ctxp->hdwq, nvmewqeq);
 		spin_lock_irqsave(&pring->ring_lock, iflags);
 		if (rc == -EBUSY) {
@@ -2612,10 +2617,10 @@ lpfc_nvmet_prep_ls_wqe(struct lpfc_hba *phba,
 	ctxp->wqeq = nvmewqe;
 
 	/* prevent preparing wqe with NULL ndlp reference */
-	nvmewqe->context1 = lpfc_nlp_get(ndlp);
-	if (nvmewqe->context1 == NULL)
+	nvmewqe->ndlp = lpfc_nlp_get(ndlp);
+	if (!nvmewqe->ndlp)
 		goto nvme_wqe_free_wqeq_exit;
-	nvmewqe->context2 = ctxp;
+	nvmewqe->context_un.axchg = ctxp;
 
 	wqe = &nvmewqe->wqe;
 	memset(wqe, 0, sizeof(union lpfc_wqe));
@@ -2676,7 +2681,7 @@ lpfc_nvmet_prep_ls_wqe(struct lpfc_hba *phba,
 	nvmewqe->retry = 1;
 	nvmewqe->vport = phba->pport;
 	nvmewqe->drvrTimeout = (phba->fc_ratov * 3) + LPFC_DRVR_TIMEOUT;
-	nvmewqe->iocb_flag |= LPFC_IO_NVME_LS;
+	nvmewqe->cmd_flag |= LPFC_IO_NVME_LS;
 
 	/* Xmit NVMET response to remote NPORT <did> */
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
@@ -2687,8 +2692,9 @@ lpfc_nvmet_prep_ls_wqe(struct lpfc_hba *phba,
 	return nvmewqe;
 
 nvme_wqe_free_wqeq_exit:
-	nvmewqe->context2 = NULL;
-	nvmewqe->context3 = NULL;
+	nvmewqe->context_un.axchg = NULL;
+	nvmewqe->ndlp = NULL;
+	nvmewqe->bpl_dmabuf = NULL;
 	lpfc_sli_release_iocbq(phba, nvmewqe);
 	return NULL;
 }
@@ -2990,7 +2996,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 	nvmewqe->retry = 1;
 	nvmewqe->vport = phba->pport;
 	nvmewqe->drvrTimeout = (phba->fc_ratov * 3) + LPFC_DRVR_TIMEOUT;
-	nvmewqe->context1 = ndlp;
+	nvmewqe->ndlp = ndlp;
 
 	for_each_sg(rsp->sg, sgel, nsegs, i) {
 		physaddr = sg_dma_address(sgel);
@@ -3031,7 +3037,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
  * lpfc_nvmet_sol_fcp_abort_cmp - Completion handler for ABTS
  * @phba: Pointer to HBA context object.
  * @cmdwqe: Pointer to driver command WQE object.
- * @wcqe: Pointer to driver response CQE object.
+ * @rspwqe: Pointer to driver response WQE object.
  *
  * The function is called from SLI ring event handler with no
  * lock held. This function is the completion handler for NVME ABTS for FCP cmds
@@ -3039,15 +3045,16 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
  **/
 static void
 lpfc_nvmet_sol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
-			     struct lpfc_wcqe_complete *wcqe)
+			     struct lpfc_iocbq *rspwqe)
 {
 	struct lpfc_async_xchg_ctx *ctxp;
 	struct lpfc_nvmet_tgtport *tgtp;
 	uint32_t result;
 	unsigned long flags;
 	bool released = false;
+	struct lpfc_wcqe_complete *wcqe = &rspwqe->wcqe_cmpl;
 
-	ctxp = cmdwqe->context2;
+	ctxp = cmdwqe->context_un.axchg;
 	result = wcqe->parameter;
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
@@ -3078,8 +3085,8 @@ lpfc_nvmet_sol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 			wcqe->word0, wcqe->total_data_placed,
 			result, wcqe->word3);
 
-	cmdwqe->context2 = NULL;
-	cmdwqe->context3 = NULL;
+	cmdwqe->rsp_dmabuf = NULL;
+	cmdwqe->bpl_dmabuf = NULL;
 	/*
 	 * if transport has released ctx, then can reuse it. Otherwise,
 	 * will be recycled by transport release call.
@@ -3100,7 +3107,7 @@ lpfc_nvmet_sol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
  * lpfc_nvmet_unsol_fcp_abort_cmp - Completion handler for ABTS
  * @phba: Pointer to HBA context object.
  * @cmdwqe: Pointer to driver command WQE object.
- * @wcqe: Pointer to driver response CQE object.
+ * @rspwqe: Pointer to driver response WQE object.
  *
  * The function is called from SLI ring event handler with no
  * lock held. This function is the completion handler for NVME ABTS for FCP cmds
@@ -3108,15 +3115,16 @@ lpfc_nvmet_sol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
  **/
 static void
 lpfc_nvmet_unsol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
-			       struct lpfc_wcqe_complete *wcqe)
+			       struct lpfc_iocbq *rspwqe)
 {
 	struct lpfc_async_xchg_ctx *ctxp;
 	struct lpfc_nvmet_tgtport *tgtp;
 	unsigned long flags;
 	uint32_t result;
 	bool released = false;
+	struct lpfc_wcqe_complete *wcqe = &rspwqe->wcqe_cmpl;
 
-	ctxp = cmdwqe->context2;
+	ctxp = cmdwqe->context_un.axchg;
 	result = wcqe->parameter;
 
 	if (!ctxp) {
@@ -3162,8 +3170,8 @@ lpfc_nvmet_unsol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 			wcqe->word0, wcqe->total_data_placed,
 			result, wcqe->word3);
 
-	cmdwqe->context2 = NULL;
-	cmdwqe->context3 = NULL;
+	cmdwqe->rsp_dmabuf = NULL;
+	cmdwqe->bpl_dmabuf = NULL;
 	/*
 	 * if transport has released ctx, then can reuse it. Otherwise,
 	 * will be recycled by transport release call.
@@ -3181,7 +3189,7 @@ lpfc_nvmet_unsol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
  * lpfc_nvmet_xmt_ls_abort_cmp - Completion handler for ABTS
  * @phba: Pointer to HBA context object.
  * @cmdwqe: Pointer to driver command WQE object.
- * @wcqe: Pointer to driver response CQE object.
+ * @rspwqe: Pointer to driver response WQE object.
  *
  * The function is called from SLI ring event handler with no
  * lock held. This function is the completion handler for NVME ABTS for LS cmds
@@ -3189,13 +3197,14 @@ lpfc_nvmet_unsol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
  **/
 static void
 lpfc_nvmet_xmt_ls_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
-			    struct lpfc_wcqe_complete *wcqe)
+			    struct lpfc_iocbq *rspwqe)
 {
 	struct lpfc_async_xchg_ctx *ctxp;
 	struct lpfc_nvmet_tgtport *tgtp;
 	uint32_t result;
+	struct lpfc_wcqe_complete *wcqe = &rspwqe->wcqe_cmpl;
 
-	ctxp = cmdwqe->context2;
+	ctxp = cmdwqe->context_un.axchg;
 	result = wcqe->parameter;
 
 	if (phba->nvmet_support) {
@@ -3226,8 +3235,8 @@ lpfc_nvmet_xmt_ls_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 				ctxp->oxid, ctxp->state, ctxp->entry_cnt);
 	}
 
-	cmdwqe->context2 = NULL;
-	cmdwqe->context3 = NULL;
+	cmdwqe->rsp_dmabuf = NULL;
+	cmdwqe->bpl_dmabuf = NULL;
 	lpfc_sli_release_iocbq(phba, cmdwqe);
 	kfree(ctxp);
 }
@@ -3314,10 +3323,10 @@ lpfc_nvmet_unsol_issue_abort(struct lpfc_hba *phba,
 	       OTHER_COMMAND);
 
 	abts_wqeq->vport = phba->pport;
-	abts_wqeq->context1 = ndlp;
-	abts_wqeq->context2 = ctxp;
-	abts_wqeq->context3 = NULL;
-	abts_wqeq->rsvd2 = 0;
+	abts_wqeq->ndlp = ndlp;
+	abts_wqeq->context_un.axchg = ctxp;
+	abts_wqeq->bpl_dmabuf = NULL;
+	abts_wqeq->num_bdes = 0;
 	/* hba_wqidx should already be setup from command we are aborting */
 	abts_wqeq->iocb.ulpCommand = CMD_XMIT_SEQUENCE64_CR;
 	abts_wqeq->iocb.ulpLe = 1;
@@ -3446,7 +3455,7 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 	}
 
 	/* Outstanding abort is in progress */
-	if (abts_wqeq->iocb_flag & LPFC_DRIVER_ABORTED) {
+	if (abts_wqeq->cmd_flag & LPFC_DRIVER_ABORTED) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		atomic_inc(&tgtp->xmt_abort_rsp_error);
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
@@ -3461,16 +3470,15 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 	}
 
 	/* Ready - mark outstanding as aborted by driver. */
-	abts_wqeq->iocb_flag |= LPFC_DRIVER_ABORTED;
+	abts_wqeq->cmd_flag |= LPFC_DRIVER_ABORTED;
 
 	lpfc_nvmet_prep_abort_wqe(abts_wqeq, ctxp->wqeq->sli4_xritag, opt);
 
 	/* ABTS WQE must go to the same WQ as the WQE to be aborted */
 	abts_wqeq->hba_wqidx = ctxp->wqeq->hba_wqidx;
-	abts_wqeq->wqe_cmpl = lpfc_nvmet_sol_fcp_abort_cmp;
-	abts_wqeq->iocb_cmpl = NULL;
-	abts_wqeq->iocb_flag |= LPFC_IO_NVME;
-	abts_wqeq->context2 = ctxp;
+	abts_wqeq->cmd_cmpl = lpfc_nvmet_sol_fcp_abort_cmp;
+	abts_wqeq->cmd_flag |= LPFC_IO_NVME;
+	abts_wqeq->context_un.axchg = ctxp;
 	abts_wqeq->vport = phba->pport;
 	if (!ctxp->hdwq)
 		ctxp->hdwq = &phba->sli4_hba.hdwq[abts_wqeq->hba_wqidx];
@@ -3526,9 +3534,8 @@ lpfc_nvmet_unsol_fcp_issue_abort(struct lpfc_hba *phba,
 
 	spin_lock_irqsave(&phba->hbalock, flags);
 	abts_wqeq = ctxp->wqeq;
-	abts_wqeq->wqe_cmpl = lpfc_nvmet_unsol_fcp_abort_cmp;
-	abts_wqeq->iocb_cmpl = NULL;
-	abts_wqeq->iocb_flag |= LPFC_IO_NVMET;
+	abts_wqeq->cmd_cmpl = lpfc_nvmet_unsol_fcp_abort_cmp;
+	abts_wqeq->cmd_flag |= LPFC_IO_NVMET;
 	if (!ctxp->hdwq)
 		ctxp->hdwq = &phba->sli4_hba.hdwq[abts_wqeq->hba_wqidx];
 
@@ -3612,9 +3619,8 @@ lpfc_nvme_unsol_ls_issue_abort(struct lpfc_hba *phba,
 	}
 
 	spin_lock_irqsave(&phba->hbalock, flags);
-	abts_wqeq->wqe_cmpl = lpfc_nvmet_xmt_ls_abort_cmp;
-	abts_wqeq->iocb_cmpl = NULL;
-	abts_wqeq->iocb_flag |=  LPFC_IO_NVME_LS;
+	abts_wqeq->cmd_cmpl = lpfc_nvmet_xmt_ls_abort_cmp;
+	abts_wqeq->cmd_flag |=  LPFC_IO_NVME_LS;
 	rc = lpfc_sli4_issue_wqe(phba, ctxp->hdwq, abts_wqeq);
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 	if (rc == WQE_SUCCESS) {
@@ -3625,8 +3631,8 @@ lpfc_nvme_unsol_ls_issue_abort(struct lpfc_hba *phba,
 out:
 	if (tgtp)
 		atomic_inc(&tgtp->xmt_abort_rsp_error);
-	abts_wqeq->context2 = NULL;
-	abts_wqeq->context3 = NULL;
+	abts_wqeq->rsp_dmabuf = NULL;
+	abts_wqeq->bpl_dmabuf = NULL;
 	lpfc_sli_release_iocbq(phba, abts_wqeq);
 	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"6056 Failed to Issue ABTS. Status x%x\n", rc);

@@ -38,7 +38,6 @@ struct kvm_timer {
 	u64 tscdeadline;
 	u64 expired_tscdeadline;
 	u32 timer_advance_ns;
-	s64 advance_expire_delta;
 	atomic_t pending;			/* accumulated triggered timers */
 	bool hv_timer_in_use;
 };
@@ -85,9 +84,6 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value);
 u64 kvm_lapic_get_base(struct kvm_vcpu *vcpu);
 void kvm_recalculate_apic_map(struct kvm *kvm);
 void kvm_apic_set_version(struct kvm_vcpu *vcpu);
-int kvm_lapic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val);
-int kvm_lapic_reg_read(struct kvm_lapic *apic, u32 offset, int len,
-		       void *data);
 bool kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 			   int shorthand, unsigned int dest, int dest_mode);
 int kvm_apic_compare_prio(struct kvm_vcpu *vcpu1, struct kvm_vcpu *vcpu2);
@@ -121,6 +117,7 @@ int kvm_lapic_set_vapic_addr(struct kvm_vcpu *vcpu, gpa_t vapic_addr);
 void kvm_lapic_sync_from_vapic(struct kvm_vcpu *vcpu);
 void kvm_lapic_sync_to_vapic(struct kvm_vcpu *vcpu);
 
+int kvm_x2apic_icr_write(struct kvm_lapic *apic, u64 data);
 int kvm_x2apic_msr_write(struct kvm_vcpu *vcpu, u32 msr, u64 data);
 int kvm_x2apic_msr_read(struct kvm_vcpu *vcpu, u32 msr, u64 *data);
 
@@ -153,19 +150,14 @@ static inline void kvm_lapic_set_irr(int vec, struct kvm_lapic *apic)
 	apic->irr_pending = true;
 }
 
+static inline u32 __kvm_lapic_get_reg(char *regs, int reg_off)
+{
+	return *((u32 *) (regs + reg_off));
+}
+
 static inline u32 kvm_lapic_get_reg(struct kvm_lapic *apic, int reg_off)
 {
-	return *((u32 *) (apic->regs + reg_off));
-}
-
-static inline void __kvm_lapic_set_reg(char *regs, int reg_off, u32 val)
-{
-	*((u32 *) (regs + reg_off)) = val;
-}
-
-static inline void kvm_lapic_set_reg(struct kvm_lapic *apic, int reg_off, u32 val)
-{
-	__kvm_lapic_set_reg(apic->regs, reg_off, val);
+	return __kvm_lapic_get_reg(apic->regs, reg_off);
 }
 
 DECLARE_STATIC_KEY_FALSE(kvm_has_noapic_vcpu);

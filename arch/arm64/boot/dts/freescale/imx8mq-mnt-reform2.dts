@@ -14,6 +14,30 @@
 	compatible = "mntre,reform2", "boundary,imx8mq-nitrogen8m-som", "fsl,imx8mq";
 	chassis-type = "laptop";
 
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_backlight>;
+		pwms = <&pwm2 0 10000 0>;
+		power-supply = <&reg_main_usb>;
+		enable-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+		brightness-levels = <0 32 64 128 160 200 255>;
+		default-brightness-level = <6>;
+	};
+
+	panel {
+		compatible = "innolux,n125hce-gn1", "simple-panel";
+		power-supply = <&reg_main_3v3>;
+		backlight = <&backlight>;
+		no-hpd;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&edp_bridge_out>;
+			};
+		};
+	};
+
 	pcie1_refclk: clock-pcie1-refclk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -42,6 +66,22 @@
 		vin-supply = <&reg_main_5v>;
 	};
 
+	reg_main_1v8: regulator-main-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&reg_main_3v3>;
+	};
+
+	reg_main_1v2: regulator-main-1v2 {
+		compatible = "regulator-fixed";
+		regulator-name = "1V2";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		vin-supply = <&reg_main_5v>;
+	};
+
 	sound {
 		compatible = "fsl,imx-audio-wm8960";
 		audio-cpu = <&sai2>;
@@ -59,6 +99,13 @@
 			"RINPUT2", "Line In Jack";
 		model = "wm8960-audio";
 	};
+};
+
+&dphy {
+	assigned-clocks = <&clk IMX8MQ_CLK_DSI_PHY_REF>;
+	assigned-clock-parents = <&clk IMX8MQ_SYS1_PLL_800M>;
+	assigned-clock-rates = <25000000>;
+	status = "okay";
 };
 
 &fec1 {
@@ -84,6 +131,67 @@
 	};
 };
 
+&i2c4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c4>;
+	clock-frequency = <400000>;
+	status = "okay";
+
+	edp_bridge: bridge@2c {
+		compatible = "ti,sn65dsi86";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_edp_bridge>;
+		reg = <0x2c>;
+		enable-gpios = <&gpio3 20 GPIO_ACTIVE_HIGH>;
+		vccio-supply = <&reg_main_1v8>;
+		vpll-supply = <&reg_main_1v8>;
+		vcca-supply = <&reg_main_1v2>;
+		vcc-supply = <&reg_main_1v2>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				edp_bridge_in: endpoint {
+					remote-endpoint = <&mipi_dsi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				edp_bridge_out: endpoint {
+					remote-endpoint = <&panel_in>;
+				};
+			};
+		};
+	};
+};
+
+&lcdif {
+	assigned-clocks = <&clk IMX8MQ_CLK_LCDIF_PIXEL>;
+	assigned-clock-parents = <&clk IMX8MQ_SYS1_PLL_800M>;
+	/delete-property/assigned-clock-rates;
+	status = "okay";
+};
+
+&mipi_dsi {
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			mipi_dsi_out: endpoint {
+				remote-endpoint = <&edp_bridge_in>;
+			};
+		};
+	};
+};
+
 &pcie1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pcie1>;
@@ -95,6 +203,13 @@
 	clock-names = "pcie", "pcie_aux", "pcie_phy", "pcie_bus";
 	status = "okay";
 };
+
+&pwm2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm2>;
+	status = "okay";
+};
+
 
 &reg_1p8v {
 	vin-supply = <&reg_main_5v>;
@@ -169,16 +284,41 @@
 };
 
 &iomuxc {
+	pinctrl_backlight: backlightgrp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_GPIO1_IO10_GPIO1_IO10		0x3
+		>;
+	};
+
+	pinctrl_edp_bridge: edpbridgegrp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_SAI5_RXC_GPIO3_IO20		0x1
+		>;
+	};
+
 	pinctrl_i2c3: i2c3grp {
 		fsl,pins = <
-			MX8MQ_IOMUXC_I2C3_SCL_I2C3_SCL			0x4000007f
-			MX8MQ_IOMUXC_I2C3_SDA_I2C3_SDA			0x4000007f
+			MX8MQ_IOMUXC_I2C3_SCL_I2C3_SCL			0x40000022
+			MX8MQ_IOMUXC_I2C3_SDA_I2C3_SDA			0x40000022
+		>;
+	};
+
+	pinctrl_i2c4: i2c4grp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_I2C4_SCL_I2C4_SCL			0x40000022
+			MX8MQ_IOMUXC_I2C4_SDA_I2C4_SDA			0x40000022
 		>;
 	};
 
 	pinctrl_pcie1: pcie1grp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_SAI5_RXD2_GPIO3_IO23		0x16
+		>;
+	};
+
+	pinctrl_pwm2: pwm2grp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_SPDIF_RX_PWM2_OUT			0x3
 		>;
 	};
 

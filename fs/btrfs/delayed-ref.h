@@ -58,7 +58,6 @@ struct btrfs_delayed_extent_op {
 	u8 level;
 	bool update_key;
 	bool update_flags;
-	bool is_data;
 	u64 flags_to_set;
 };
 

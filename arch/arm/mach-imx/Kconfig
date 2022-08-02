@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_MXC
 	bool "Freescale i.MX family"
-	depends on ARCH_MULTI_V4_V5 || ARCH_MULTI_V6_V7 || ARM_SINGLE_ARMV7M
-	select ARCH_SUPPORTS_BIG_ENDIAN
+	depends on (ARCH_MULTI_V4_V5 && CPU_LITTLE_ENDIAN) || \
+		ARCH_MULTI_V6_V7 || ARM_SINGLE_ARMV7M
 	select CLKSRC_IMX_GPT
 	select GENERIC_IRQ_CHIP
 	select GPIOLIB
@@ -226,6 +226,13 @@ config SOC_IMX7ULP
 	select SOC_IMX7D_CM4 if ARM_SINGLE_ARMV7M
 	help
 	  This enables support for Freescale i.MX7 Ultra Low Power processor.
+
+config SOC_IMXRT
+	bool "i.MXRT support"
+	depends on ARM_SINGLE_ARMV7M
+	select ARMV7M_SYSTICK if ARM_SINGLE_ARMV7M
+	help
+	  This enables support for Freescale i.MXRT Crossover processor.
 
 config SOC_VF610
 	bool "Vybrid Family VF610 support"

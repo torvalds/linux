@@ -178,3 +178,22 @@ discussed but the idea is to provide a low-level access point
 for debugging and hacking and to expose all lines without the
 need of any exporting. Also provide ample ammunition to shoot
 oneself in the foot, because this is debugfs after all.
+
+
+Moving over to immutable irq_chip structures
+
+Most of the gpio chips implementing interrupt support rely on gpiolib
+intercepting some of the irq_chip callbacks, preventing the structures
+from being made read-only and forcing duplication of structures that
+should otherwise be unique.
+
+The solution is to call into the gpiolib code when needed (resource
+management, enable/disable or unmask/mask callbacks), and to let the
+core code know about that by exposing a flag (IRQCHIP_IMMUTABLE) in
+the irq_chip structure. The irq_chip structure can then be made unique
+and const.
+
+A small number of drivers have been converted (pl061, tegra186, msm,
+amd, apple), and can be used as examples of how to proceed with this
+conversion. Note that drivers using the generic irqchip framework
+cannot be converted yet, but watch this space!

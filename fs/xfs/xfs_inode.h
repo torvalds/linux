@@ -218,6 +218,11 @@ static inline bool xfs_inode_has_bigtime(struct xfs_inode *ip)
 	return ip->i_diflags2 & XFS_DIFLAG2_BIGTIME;
 }
 
+static inline bool xfs_inode_has_large_extent_counts(struct xfs_inode *ip)
+{
+	return ip->i_diflags2 & XFS_DIFLAG2_NREXT64;
+}
+
 /*
  * Return the buftarg used for data allocations on a given inode.
  */
@@ -278,12 +283,12 @@ static inline bool xfs_inode_has_bigtime(struct xfs_inode *ip)
  * Bit ranges:	1<<1  - 1<<16-1 -- iolock/ilock modes (bitfield)
  *		1<<16 - 1<<32-1 -- lockdep annotation (integers)
  */
-#define	XFS_IOLOCK_EXCL		(1<<0)
-#define	XFS_IOLOCK_SHARED	(1<<1)
-#define	XFS_ILOCK_EXCL		(1<<2)
-#define	XFS_ILOCK_SHARED	(1<<3)
-#define	XFS_MMAPLOCK_EXCL	(1<<4)
-#define	XFS_MMAPLOCK_SHARED	(1<<5)
+#define	XFS_IOLOCK_EXCL		(1u << 0)
+#define	XFS_IOLOCK_SHARED	(1u << 1)
+#define	XFS_ILOCK_EXCL		(1u << 2)
+#define	XFS_ILOCK_SHARED	(1u << 3)
+#define	XFS_MMAPLOCK_EXCL	(1u << 4)
+#define	XFS_MMAPLOCK_SHARED	(1u << 5)
 
 #define XFS_LOCK_MASK		(XFS_IOLOCK_EXCL | XFS_IOLOCK_SHARED \
 				| XFS_ILOCK_EXCL | XFS_ILOCK_SHARED \
@@ -350,19 +355,19 @@ static inline bool xfs_inode_has_bigtime(struct xfs_inode *ip)
  */
 #define XFS_IOLOCK_SHIFT		16
 #define XFS_IOLOCK_MAX_SUBCLASS		3
-#define XFS_IOLOCK_DEP_MASK		0x000f0000
+#define XFS_IOLOCK_DEP_MASK		0x000f0000u
 
 #define XFS_MMAPLOCK_SHIFT		20
 #define XFS_MMAPLOCK_NUMORDER		0
 #define XFS_MMAPLOCK_MAX_SUBCLASS	3
-#define XFS_MMAPLOCK_DEP_MASK		0x00f00000
+#define XFS_MMAPLOCK_DEP_MASK		0x00f00000u
 
 #define XFS_ILOCK_SHIFT			24
-#define XFS_ILOCK_PARENT_VAL		5
+#define XFS_ILOCK_PARENT_VAL		5u
 #define XFS_ILOCK_MAX_SUBCLASS		(XFS_ILOCK_PARENT_VAL - 1)
-#define XFS_ILOCK_RTBITMAP_VAL		6
-#define XFS_ILOCK_RTSUM_VAL		7
-#define XFS_ILOCK_DEP_MASK		0xff000000
+#define XFS_ILOCK_RTBITMAP_VAL		6u
+#define XFS_ILOCK_RTSUM_VAL		7u
+#define XFS_ILOCK_DEP_MASK		0xff000000u
 #define	XFS_ILOCK_PARENT		(XFS_ILOCK_PARENT_VAL << XFS_ILOCK_SHIFT)
 #define	XFS_ILOCK_RTBITMAP		(XFS_ILOCK_RTBITMAP_VAL << XFS_ILOCK_SHIFT)
 #define	XFS_ILOCK_RTSUM			(XFS_ILOCK_RTSUM_VAL << XFS_ILOCK_SHIFT)
@@ -402,7 +407,7 @@ enum layout_break_reason {
 
 int		xfs_release(struct xfs_inode *ip);
 void		xfs_inactive(struct xfs_inode *ip);
-int		xfs_lookup(struct xfs_inode *dp, struct xfs_name *name,
+int		xfs_lookup(struct xfs_inode *dp, const struct xfs_name *name,
 			   struct xfs_inode **ipp, struct xfs_name *ci_name);
 int		xfs_create(struct user_namespace *mnt_userns,
 			   struct xfs_inode *dp, struct xfs_name *name,

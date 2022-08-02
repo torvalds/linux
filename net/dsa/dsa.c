@@ -7,19 +7,10 @@
 
 #include <linux/device.h>
 #include <linux/list.h>
-#include <linux/platform_device.h>
-#include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
-#include <linux/of.h>
-#include <linux/of_mdio.h>
-#include <linux/of_platform.h>
-#include <linux/of_net.h>
 #include <linux/netdevice.h>
 #include <linux/sysfs.h>
-#include <linux/phy_fixed.h>
 #include <linux/ptp_classify.h>
-#include <linux/etherdevice.h>
 
 #include "dsa_priv.h"
 
@@ -466,6 +457,66 @@ struct dsa_port *dsa_port_from_netdev(struct net_device *netdev)
 	return dsa_slave_to_port(netdev);
 }
 EXPORT_SYMBOL_GPL(dsa_port_from_netdev);
+
+bool dsa_db_equal(const struct dsa_db *a, const struct dsa_db *b)
+{
+	if (a->type != b->type)
+		return false;
+
+	switch (a->type) {
+	case DSA_DB_PORT:
+		return a->dp == b->dp;
+	case DSA_DB_LAG:
+		return a->lag.dev == b->lag.dev;
+	case DSA_DB_BRIDGE:
+		return a->bridge.num == b->bridge.num;
+	default:
+		WARN_ON(1);
+		return false;
+	}
+}
+
+bool dsa_fdb_present_in_other_db(struct dsa_switch *ds, int port,
+				 const unsigned char *addr, u16 vid,
+				 struct dsa_db db)
+{
+	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct dsa_mac_addr *a;
+
+	lockdep_assert_held(&dp->addr_lists_lock);
+
+	list_for_each_entry(a, &dp->fdbs, list) {
+		if (!ether_addr_equal(a->addr, addr) || a->vid != vid)
+			continue;
+
+		if (a->db.type == db.type && !dsa_db_equal(&a->db, &db))
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(dsa_fdb_present_in_other_db);
+
+bool dsa_mdb_present_in_other_db(struct dsa_switch *ds, int port,
+				 const struct switchdev_obj_port_mdb *mdb,
+				 struct dsa_db db)
+{
+	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct dsa_mac_addr *a;
+
+	lockdep_assert_held(&dp->addr_lists_lock);
+
+	list_for_each_entry(a, &dp->mdbs, list) {
+		if (!ether_addr_equal(a->addr, mdb->addr) || a->vid != mdb->vid)
+			continue;
+
+		if (a->db.type == db.type && !dsa_db_equal(&a->db, &db))
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(dsa_mdb_present_in_other_db);
 
 static int __init dsa_init_module(void)
 {

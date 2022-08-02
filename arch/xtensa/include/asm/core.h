@@ -37,4 +37,11 @@
 #endif
 #endif
 
+/* Xtensa ABI requires stack alignment to be at least 16 */
+#if XCHAL_DATA_WIDTH > 16
+#define XTENSA_STACK_ALIGNMENT	XCHAL_DATA_WIDTH
+#else
+#define XTENSA_STACK_ALIGNMENT	16
+#endif
+
 #endif

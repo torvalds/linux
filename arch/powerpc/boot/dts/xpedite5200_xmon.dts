@@ -136,7 +136,7 @@
 				reg = <0x68>;
 			};
 
-			dtt@48 {
+			dtt@34 {
 				compatible = "maxim,max1237";
 				reg = <0x34>;
 			};

@@ -7,7 +7,7 @@
 
 /dts-v1/;
 
-#include "sc7180.dtsi"
+#include "sc7180-trogdor.dtsi"
 #include "sc7180-trogdor-ti-sn65dsi86.dtsi"
 #include "sc7180-trogdor-lazor.dtsi"
 #include "sc7180-trogdor-lte-sku.dtsi"
@@ -18,10 +18,6 @@
 		"google,lazor-rev5-sku0", "google,lazor-rev6-sku0",
 		"google,lazor-rev7-sku0", "google,lazor-rev8-sku0",
 		"qcom,sc7180";
-};
-
-&ap_sar_sensor {
-	status = "okay";
 };
 
 &ap_sar_sensor_i2c {

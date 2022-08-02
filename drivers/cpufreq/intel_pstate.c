@@ -1322,6 +1322,7 @@ static ssize_t store_no_turbo(struct kobject *a, struct kobj_attribute *b,
 	mutex_unlock(&intel_pstate_limits_lock);
 
 	intel_pstate_update_policies();
+	arch_set_max_freq_ratio(global.no_turbo);
 
 	mutex_unlock(&intel_pstate_driver_lock);
 
@@ -1692,6 +1693,37 @@ static void intel_pstate_enable_hwp_interrupt(struct cpudata *cpudata)
 	}
 }
 
+static void intel_pstate_update_epp_defaults(struct cpudata *cpudata)
+{
+	cpudata->epp_default = intel_pstate_get_epp(cpudata, 0);
+
+	/*
+	 * If this CPU gen doesn't call for change in balance_perf
+	 * EPP return.
+	 */
+	if (epp_values[EPP_INDEX_BALANCE_PERFORMANCE] == HWP_EPP_BALANCE_PERFORMANCE)
+		return;
+
+	/*
+	 * If powerup EPP is something other than chipset default 0x80 and
+	 * - is more performance oriented than 0x80 (default balance_perf EPP)
+	 * - But less performance oriented than performance EPP
+	 *   then use this as new balance_perf EPP.
+	 */
+	if (cpudata->epp_default < HWP_EPP_BALANCE_PERFORMANCE &&
+	    cpudata->epp_default > HWP_EPP_PERFORMANCE) {
+		epp_values[EPP_INDEX_BALANCE_PERFORMANCE] = cpudata->epp_default;
+		return;
+	}
+
+	/*
+	 * Use hard coded value per gen to update the balance_perf
+	 * and default EPP.
+	 */
+	cpudata->epp_default = epp_values[EPP_INDEX_BALANCE_PERFORMANCE];
+	intel_pstate_set_epp(cpudata, cpudata->epp_default);
+}
+
 static void intel_pstate_hwp_enable(struct cpudata *cpudata)
 {
 	/* First disable HWP notification interrupt till we activate again */
@@ -1705,12 +1737,7 @@ static void intel_pstate_hwp_enable(struct cpudata *cpudata)
 	if (cpudata->epp_default >= 0)
 		return;
 
-	if (epp_values[EPP_INDEX_BALANCE_PERFORMANCE] == HWP_EPP_BALANCE_PERFORMANCE) {
-		cpudata->epp_default = intel_pstate_get_epp(cpudata, 0);
-	} else {
-		cpudata->epp_default = epp_values[EPP_INDEX_BALANCE_PERFORMANCE];
-		intel_pstate_set_epp(cpudata, cpudata->epp_default);
-	}
+	intel_pstate_update_epp_defaults(cpudata);
 }
 
 static int atom_get_min_pstate(void)
@@ -2398,6 +2425,7 @@ static const struct x86_cpu_id intel_pstate_cpu_oob_ids[] __initconst = {
 	X86_MATCH(BROADWELL_X,		core_funcs),
 	X86_MATCH(SKYLAKE_X,		core_funcs),
 	X86_MATCH(ICELAKE_X,		core_funcs),
+	X86_MATCH(SAPPHIRERAPIDS_X,	core_funcs),
 	{}
 };
 

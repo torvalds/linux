@@ -89,10 +89,29 @@ static ssize_t pmem_size_show(struct device *dev, struct device_attribute *attr,
 static struct device_attribute dev_attr_pmem_size =
 	__ATTR(size, 0444, pmem_size_show, NULL);
 
+static ssize_t serial_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
+{
+	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+
+	return sysfs_emit(buf, "%#llx\n", cxlds->serial);
+}
+static DEVICE_ATTR_RO(serial);
+
+static ssize_t numa_node_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	return sprintf(buf, "%d\n", dev_to_node(dev));
+}
+static DEVICE_ATTR_RO(numa_node);
+
 static struct attribute *cxl_memdev_attributes[] = {
+	&dev_attr_serial.attr,
 	&dev_attr_firmware_version.attr,
 	&dev_attr_payload_max.attr,
 	&dev_attr_label_storage_size.attr,
+	&dev_attr_numa_node.attr,
 	NULL,
 };
 
@@ -106,8 +125,17 @@ static struct attribute *cxl_memdev_ram_attributes[] = {
 	NULL,
 };
 
+static umode_t cxl_memdev_visible(struct kobject *kobj, struct attribute *a,
+				  int n)
+{
+	if (!IS_ENABLED(CONFIG_NUMA) && a == &dev_attr_numa_node.attr)
+		return 0;
+	return a->mode;
+}
+
 static struct attribute_group cxl_memdev_attribute_group = {
 	.attrs = cxl_memdev_attributes,
+	.is_visible = cxl_memdev_visible,
 };
 
 static struct attribute_group cxl_memdev_ram_attribute_group = {
@@ -133,6 +161,12 @@ static const struct device_type cxl_memdev_type = {
 	.devnode = cxl_memdev_devnode,
 	.groups = cxl_memdev_attribute_groups,
 };
+
+bool is_cxl_memdev(struct device *dev)
+{
+	return dev->type == &cxl_memdev_type;
+}
+EXPORT_SYMBOL_NS_GPL(is_cxl_memdev, CXL);
 
 /**
  * set_exclusive_cxl_commands() - atomically disable user cxl commands
@@ -185,6 +219,17 @@ static void cxl_memdev_unregister(void *_cxlmd)
 	put_device(dev);
 }
 
+static void detach_memdev(struct work_struct *work)
+{
+	struct cxl_memdev *cxlmd;
+
+	cxlmd = container_of(work, typeof(*cxlmd), detach_work);
+	device_release_driver(&cxlmd->dev);
+	put_device(&cxlmd->dev);
+}
+
+static struct lock_class_key cxl_memdev_key;
+
 static struct cxl_memdev *cxl_memdev_alloc(struct cxl_dev_state *cxlds,
 					   const struct file_operations *fops)
 {
@@ -204,11 +249,13 @@ static struct cxl_memdev *cxl_memdev_alloc(struct cxl_dev_state *cxlds,
 
 	dev = &cxlmd->dev;
 	device_initialize(dev);
+	lockdep_set_class(&dev->mutex, &cxl_memdev_key);
 	dev->parent = cxlds->dev;
 	dev->bus = &cxl_bus_type;
 	dev->devt = MKDEV(cxl_mem_major, cxlmd->id);
 	dev->type = &cxl_memdev_type;
 	device_set_pm_not_required(dev);
+	INIT_WORK(&cxlmd->detach_work, detach_memdev);
 
 	cdev = &cxlmd->cdev;
 	cdev_init(cdev, fops);

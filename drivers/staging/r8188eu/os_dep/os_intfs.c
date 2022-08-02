@@ -45,7 +45,6 @@ static int rtw_smart_ps = 2;
 module_param(rtw_ips_mode, int, 0644);
 MODULE_PARM_DESC(rtw_ips_mode, "The default IPS mode");
 
-static int rtw_debug = 1;
 static int rtw_radio_enable = 1;
 static int rtw_long_retry_lmt = 7;
 static int rtw_short_retry_lmt = 7;
@@ -148,14 +147,11 @@ MODULE_PARM_DESC(rtw_80211d, "Enable 802.11d mechanism");
 static uint rtw_notch_filter = RTW_NOTCH_FILTER;
 module_param(rtw_notch_filter, uint, 0644);
 MODULE_PARM_DESC(rtw_notch_filter, "0:Disable, 1:Enable, 2:Enable only for P2P");
-module_param_named(debug, rtw_debug, int, 0444);
-MODULE_PARM_DESC(debug, "Set debug level (1-9) (default 1)");
 
 static uint loadparam(struct adapter *padapter)
 {
 	struct registry_priv  *registry_par = &padapter->registrypriv;
 
-	GlobalDebugLevel = rtw_debug;
 	registry_par->chip_version = (u8)rtw_chip_version;
 	registry_par->rfintfs = (u8)rtw_rfintfs;
 	registry_par->lbkmode = (u8)rtw_lbkmode;
@@ -362,7 +358,6 @@ struct net_device *rtw_init_netdev(struct adapter *old_padapter)
 	pnetdev->dev.type = &wlan_type;
 	padapter = rtw_netdev_priv(pnetdev);
 	padapter->pnetdev = pnetdev;
-	DBG_88E("register rtw_netdev_ops to netdev_ops\n");
 	pnetdev->netdev_ops = &rtw_netdev_ops;
 	pnetdev->watchdog_timeo = HZ * 3; /* 3 second timeout */
 	pnetdev->wireless_handlers = (struct iw_handler_def *)&rtw_handlers_def;
@@ -446,7 +441,6 @@ static void rtw_init_default_value(struct adapter *padapter)
 u8 rtw_reset_drv_sw(struct adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
 
 	/* hal_priv */
 	rtl8188eu_init_default_value(padapter);
@@ -462,8 +456,6 @@ u8 rtw_reset_drv_sw(struct adapter *padapter)
 
 	_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY | _FW_UNDER_LINKING);
 
-	pwrctrlpriv->pwr_state_check_cnts = 0;
-
 	/* mlmeextpriv */
 	padapter->mlmeextpriv.sitesurvey_res.state = SCAN_DISABLE;
 
@@ -474,37 +466,42 @@ u8 rtw_reset_drv_sw(struct adapter *padapter)
 
 u8 rtw_init_drv_sw(struct adapter *padapter)
 {
-	if ((rtw_init_cmd_priv(&padapter->cmdpriv)) == _FAIL)
+	if ((rtw_init_cmd_priv(&padapter->cmdpriv)) == _FAIL) {
+		dev_err(dvobj_to_dev(padapter->dvobj), "rtw_init_cmd_priv failed\n");
 		return _FAIL;
+	}
 
 	padapter->cmdpriv.padapter = padapter;
 
-	if ((rtw_init_evt_priv(&padapter->evtpriv)) == _FAIL)
-		return _FAIL;
+	if ((rtw_init_evt_priv(&padapter->evtpriv)) == _FAIL) {
+		dev_err(dvobj_to_dev(padapter->dvobj), "rtw_init_evt_priv failed\n");
+		goto free_cmd_priv;
+	}
 
-	if (rtw_init_mlme_priv(padapter) == _FAIL)
-		return _FAIL;
+	if (rtw_init_mlme_priv(padapter) == _FAIL) {
+		dev_err(dvobj_to_dev(padapter->dvobj), "rtw_init_mlme_priv failed\n");
+		goto free_evt_priv;
+	}
 
 	rtw_init_wifidirect_timers(padapter);
 	init_wifidirect_info(padapter, P2P_ROLE_DISABLE);
 	reset_global_wifidirect_info(padapter);
 
-	if (init_mlme_ext_priv(padapter) == _FAIL)
-		return _FAIL;
+	init_mlme_ext_priv(padapter);
 
 	if (_rtw_init_xmit_priv(&padapter->xmitpriv, padapter) == _FAIL) {
-		DBG_88E("Can't _rtw_init_xmit_priv\n");
-		return _FAIL;
+		dev_err(dvobj_to_dev(padapter->dvobj), "_rtw_init_xmit_priv failed\n");
+		goto free_mlme_ext;
 	}
 
 	if (_rtw_init_recv_priv(&padapter->recvpriv, padapter) == _FAIL) {
-		DBG_88E("Can't _rtw_init_recv_priv\n");
-		return _FAIL;
+		dev_err(dvobj_to_dev(padapter->dvobj), "_rtw_init_recv_priv failed\n");
+		goto free_xmit_priv;
 	}
 
 	if (_rtw_init_sta_priv(&padapter->stapriv) == _FAIL) {
-		DBG_88E("Can't _rtw_init_sta_priv\n");
-		return _FAIL;
+		dev_err(dvobj_to_dev(padapter->dvobj), "_rtw_init_sta_priv failed\n");
+		goto free_recv_priv;
 	}
 
 	padapter->stapriv.padapter = padapter;
@@ -521,6 +518,25 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 	spin_lock_init(&padapter->br_ext_lock);
 
 	return _SUCCESS;
+
+free_recv_priv:
+	_rtw_free_recv_priv(&padapter->recvpriv);
+
+free_xmit_priv:
+	_rtw_free_xmit_priv(&padapter->xmitpriv);
+
+free_mlme_ext:
+	free_mlme_ext_priv(&padapter->mlmeextpriv);
+
+	rtw_free_mlme_priv(&padapter->mlmepriv);
+
+free_evt_priv:
+	rtw_free_evt_priv(&padapter->evtpriv);
+
+free_cmd_priv:
+	rtw_free_cmd_priv(&padapter->cmdpriv);
+
+	return _FAIL;
 }
 
 void rtw_cancel_all_timer(struct adapter *padapter)
@@ -609,14 +625,6 @@ int _netdev_open(struct net_device *pnetdev)
 {
 	uint status;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(pnetdev);
-	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
-
-	DBG_88E("+88eu_drv - drv_open, bup =%d\n", padapter->bup);
-
-	if (pwrctrlpriv->ps_flag) {
-		padapter->net_closed = false;
-		goto netdev_open_normal_process;
-	}
 
 	if (!padapter->bup) {
 		padapter->bDriverStopped = false;
@@ -654,21 +662,18 @@ int _netdev_open(struct net_device *pnetdev)
 	rtw_set_pwr_state_check_timer(&padapter->pwrctrlpriv);
 
 	if (!rtw_netif_queue_stopped(pnetdev))
-		rtw_netif_start_queue(pnetdev);
+		netif_tx_start_all_queues(pnetdev);
 	else
-		rtw_netif_wake_queue(pnetdev);
+		netif_tx_wake_all_queues(pnetdev);
 
 	netdev_br_init(pnetdev);
 
-netdev_open_normal_process:
-	DBG_88E("-88eu_drv - drv_open, bup =%d\n", padapter->bup);
 	return 0;
 
 netdev_open_error:
 	padapter->bup = false;
 	netif_carrier_off(pnetdev);
-	rtw_netif_stop_queue(pnetdev);
-	DBG_88E("-88eu_drv - drv_open fail, bup =%d\n", padapter->bup);
+	netif_tx_stop_all_queues(pnetdev);
 	return -1;
 }
 
@@ -687,7 +692,6 @@ static int  ips_netdrv_open(struct adapter *padapter)
 {
 	int status = _SUCCESS;
 	padapter->net_closed = false;
-	DBG_88E("===> %s.........\n", __func__);
 
 	padapter->bDriverStopped = false;
 	padapter->bSurpriseRemoved = false;
@@ -706,31 +710,23 @@ static int  ips_netdrv_open(struct adapter *padapter)
 	return _SUCCESS;
 
 netdev_open_error:
-	DBG_88E("-ips_netdrv_open - drv_open failure, bup =%d\n", padapter->bup);
-
 	return _FAIL;
 }
 
 int rtw_ips_pwr_up(struct adapter *padapter)
 {
 	int result;
-	u32 start_time = jiffies;
-	DBG_88E("===>  rtw_ips_pwr_up..............\n");
 	rtw_reset_drv_sw(padapter);
 
 	result = ips_netdrv_open(padapter);
 
 	rtw_led_control(padapter, LED_CTL_NO_LINK);
 
-	DBG_88E("<===  rtw_ips_pwr_up.............. in %dms\n", rtw_get_passing_time_ms(start_time));
 	return result;
 }
 
 void rtw_ips_pwr_down(struct adapter *padapter)
 {
-	u32 start_time = jiffies;
-	DBG_88E("===> rtw_ips_pwr_down...................\n");
-
 	padapter->bCardDisableWOHSM = true;
 	padapter->net_closed = true;
 
@@ -738,14 +734,38 @@ void rtw_ips_pwr_down(struct adapter *padapter)
 
 	rtw_ips_dev_unload(padapter);
 	padapter->bCardDisableWOHSM = false;
-	DBG_88E("<=== rtw_ips_pwr_down..................... in %dms\n", rtw_get_passing_time_ms(start_time));
+}
+
+static void rtw_fifo_cleanup(struct adapter *adapter)
+{
+	struct pwrctrl_priv *pwrpriv = &adapter->pwrctrlpriv;
+	u8 trycnt = 100;
+
+	/* pause tx */
+	rtw_write8(adapter, REG_TXPAUSE, 0xff);
+
+	/* keep sn */
+	adapter->xmitpriv.nqos_ssn = rtw_read16(adapter, REG_NQOS_SEQ);
+
+	if (!pwrpriv->bkeepfwalive) {
+		/* RX DMA stop */
+		rtw_write32(adapter, REG_RXPKT_NUM,
+			    (rtw_read32(adapter, REG_RXPKT_NUM) | RW_RELEASE_EN));
+		do {
+			if (!(rtw_read32(adapter, REG_RXPKT_NUM) & RXDMA_IDLE))
+				break;
+		} while (trycnt--);
+
+		/* RQPN Load 0 */
+		rtw_write16(adapter, REG_RQPN_NPQ, 0x0);
+		rtw_write32(adapter, REG_RQPN, 0x80000000);
+		mdelay(10);
+	}
 }
 
 void rtw_ips_dev_unload(struct adapter *padapter)
 {
-	DBG_88E("====> %s...\n", __func__);
-
-	SetHwReg8188EU(padapter, HW_VAR_FIFO_CLEARN_UP, NULL);
+	rtw_fifo_cleanup(padapter);
 
 	if (padapter->intf_stop)
 		padapter->intf_stop(padapter);
@@ -763,13 +783,10 @@ int netdev_close(struct net_device *pnetdev)
 	padapter->net_closed = true;
 
 	if (padapter->pwrctrlpriv.rf_pwrstate == rf_on) {
-		DBG_88E("(2)88eu_drv - drv_close, bup =%d, hw_init_completed =%d\n",
-			padapter->bup, padapter->hw_init_completed);
-
 		/* s1. */
 		if (pnetdev) {
 			if (!rtw_netif_queue_stopped(pnetdev))
-				rtw_netif_stop_queue(pnetdev);
+				netif_tx_stop_all_queues(pnetdev);
 		}
 
 		/* s2. */
@@ -789,9 +806,8 @@ int netdev_close(struct net_device *pnetdev)
 
 	rtw_p2p_enable(padapter, P2P_ROLE_DISABLE);
 
-	kfree(dvobj->firmware.szFwBuffer);
-	dvobj->firmware.szFwBuffer = NULL;
+	kfree(dvobj->firmware.data);
+	dvobj->firmware.data = NULL;
 
-	DBG_88E("-88eu_drv - drv_close, bup =%d\n", padapter->bup);
 	return 0;
 }

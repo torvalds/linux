@@ -6,6 +6,7 @@
 #include "g4x_dp.h"
 #include "i915_drv.h"
 #include "intel_de.h"
+#include "intel_display_power_well.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dpll.h"
@@ -1075,14 +1076,14 @@ static void intel_pps_vdd_sanitize(struct intel_dp *intel_dp)
 	edp_panel_vdd_schedule_off(intel_dp);
 }
 
-bool intel_pps_have_power(struct intel_dp *intel_dp)
+bool intel_pps_have_panel_power_or_vdd(struct intel_dp *intel_dp)
 {
 	intel_wakeref_t wakeref;
 	bool have_power = false;
 
 	with_intel_pps_lock(intel_dp, wakeref) {
-		have_power = edp_have_panel_power(intel_dp) &&
-						  edp_have_panel_vdd(intel_dp);
+		have_power = edp_have_panel_power(intel_dp) ||
+			     edp_have_panel_vdd(intel_dp);
 	}
 
 	return have_power;
@@ -1131,16 +1132,20 @@ intel_pps_readout_hw_state(struct intel_dp *intel_dp, struct edp_power_seq *seq)
 }
 
 static void
-intel_pps_dump_state(const char *state_name, const struct edp_power_seq *seq)
+intel_pps_dump_state(struct intel_dp *intel_dp, const char *state_name,
+		     const struct edp_power_seq *seq)
 {
-	DRM_DEBUG_KMS("%s t1_t3 %d t8 %d t9 %d t10 %d t11_t12 %d\n",
-		      state_name,
-		      seq->t1_t3, seq->t8, seq->t9, seq->t10, seq->t11_t12);
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	drm_dbg_kms(&i915->drm, "%s t1_t3 %d t8 %d t9 %d t10 %d t11_t12 %d\n",
+		    state_name,
+		    seq->t1_t3, seq->t8, seq->t9, seq->t10, seq->t11_t12);
 }
 
 static void
 intel_pps_verify_state(struct intel_dp *intel_dp)
 {
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	struct edp_power_seq hw;
 	struct edp_power_seq *sw = &intel_dp->pps.pps_delays;
 
@@ -1148,9 +1153,9 @@ intel_pps_verify_state(struct intel_dp *intel_dp)
 
 	if (hw.t1_t3 != sw->t1_t3 || hw.t8 != sw->t8 || hw.t9 != sw->t9 ||
 	    hw.t10 != sw->t10 || hw.t11_t12 != sw->t11_t12) {
-		DRM_ERROR("PPS state mismatch\n");
-		intel_pps_dump_state("sw", sw);
-		intel_pps_dump_state("hw", &hw);
+		drm_err(&i915->drm, "PPS state mismatch\n");
+		intel_pps_dump_state(intel_dp, "sw", sw);
+		intel_pps_dump_state(intel_dp, "hw", &hw);
 	}
 }
 
@@ -1168,7 +1173,7 @@ static void pps_init_delays(struct intel_dp *intel_dp)
 
 	intel_pps_readout_hw_state(intel_dp, &cur);
 
-	intel_pps_dump_state("cur", &cur);
+	intel_pps_dump_state(intel_dp, "cur", &cur);
 
 	vbt = dev_priv->vbt.edp.pps;
 	/* On Toshiba Satellite P50-C-18C system the VBT T12 delay
@@ -1200,7 +1205,7 @@ static void pps_init_delays(struct intel_dp *intel_dp)
 	 * too. */
 	spec.t11_t12 = (510 + 100) * 10;
 
-	intel_pps_dump_state("vbt", &vbt);
+	intel_pps_dump_state(intel_dp, "vbt", &vbt);
 
 	/* Use the max of the register settings and vbt. If both are
 	 * unset, fall back to the spec limits. */

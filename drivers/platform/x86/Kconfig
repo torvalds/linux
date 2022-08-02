@@ -210,6 +210,19 @@ config AMD_PMC
 	  If you choose to compile this driver as a module the module will be
 	  called amd-pmc.
 
+config AMD_HSMP
+	tristate "AMD HSMP Driver"
+	depends on AMD_NB && X86_64
+	help
+	  The driver provides a way for user space tools to monitor and manage
+	  system management functionality on EPYC server CPUs from AMD.
+
+	  Host System Management Port (HSMP) interface is a mailbox interface
+	  between the x86 core and the System Management Unit (SMU) firmware.
+
+	  If you choose to compile this driver as a module the module will be
+	  called amd_hsmp.
+
 config ADV_SWBUTTON
 	tristate "Advantech ACPI Software Button Driver"
 	depends on ACPI && INPUT
@@ -915,6 +928,7 @@ config COMPAL_LAPTOP
 config LG_LAPTOP
 	tristate "LG Laptop Extras"
 	depends on ACPI
+	depends on ACPI_BATTERY
 	depends on ACPI_WMI
 	depends on INPUT
 	select INPUT_SPARSEKMAP
@@ -931,6 +945,8 @@ config PANASONIC_LAPTOP
 	tristate "Panasonic Laptop Extras"
 	depends on INPUT && ACPI
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on ACPI_VIDEO=n || ACPI_VIDEO
+	depends on SERIO_I8042 || SERIO_I8042 = n
 	select INPUT_SPARSEKMAP
 	help
 	  This driver adds support for access to backlight control and hotkeys
@@ -990,16 +1006,16 @@ config TOPSTAR_LAPTOP
 
 	  If you have a Topstar laptop, say Y or M here.
 
-config I2C_MULTI_INSTANTIATE
-	tristate "I2C multi instantiate pseudo device driver"
-	depends on I2C && ACPI
+config SERIAL_MULTI_INSTANTIATE
+	tristate "Serial bus multi instantiate pseudo device driver"
+	depends on I2C && SPI && ACPI
 	help
-	  Some ACPI-based systems list multiple i2c-devices in a single ACPI
-	  firmware-node. This driver will instantiate separate i2c-clients
+	  Some ACPI-based systems list multiple devices in a single ACPI
+	  firmware-node. This driver will instantiate separate clients
 	  for each device in the firmware-node.
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called i2c-multi-instantiate.
+	  will be called serial-multi-instantiate.
 
 config MLX_PLATFORM
 	tristate "Mellanox Technologies platform support"
@@ -1027,7 +1043,7 @@ config TOUCHSCREEN_DMI
 
 config X86_ANDROID_TABLETS
 	tristate "X86 Android tablet support"
-	depends on I2C && SERIAL_DEV_BUS && ACPI && GPIOLIB
+	depends on I2C && SPI && SERIAL_DEV_BUS && ACPI && EFI && GPIOLIB
 	help
 	  X86 tablets which ship with Android as (part of) the factory image
 	  typically have various problems with their DSDTs. The factory kernels
@@ -1137,6 +1153,14 @@ config SIEMENS_SIMATIC_IPC
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called simatic-ipc.
+
+config WINMATE_FM07_KEYS
+	tristate "Winmate FM07/FM07P front-panel keys driver"
+	depends on INPUT
+	help
+	  Winmate FM07 and FM07P in-vehicle computers have a row of five
+	  buttons below the display. This module adds an input device
+	  that delivers key events when these buttons are pressed.
 
 endif # X86_PLATFORM_DEVICES
 

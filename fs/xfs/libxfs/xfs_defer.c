@@ -22,6 +22,10 @@
 #include "xfs_refcount.h"
 #include "xfs_bmap.h"
 #include "xfs_alloc.h"
+#include "xfs_buf.h"
+#include "xfs_da_format.h"
+#include "xfs_da_btree.h"
+#include "xfs_attr.h"
 
 static struct kmem_cache	*xfs_defer_pending_cache;
 
@@ -184,36 +188,61 @@ static const struct xfs_defer_op_type *defer_op_types[] = {
 	[XFS_DEFER_OPS_TYPE_RMAP]	= &xfs_rmap_update_defer_type,
 	[XFS_DEFER_OPS_TYPE_FREE]	= &xfs_extent_free_defer_type,
 	[XFS_DEFER_OPS_TYPE_AGFL_FREE]	= &xfs_agfl_free_defer_type,
+	[XFS_DEFER_OPS_TYPE_ATTR]	= &xfs_attr_defer_type,
 };
 
-static void
+/*
+ * Ensure there's a log intent item associated with this deferred work item if
+ * the operation must be restarted on crash.  Returns 1 if there's a log item;
+ * 0 if there isn't; or a negative errno.
+ */
+static int
 xfs_defer_create_intent(
 	struct xfs_trans		*tp,
 	struct xfs_defer_pending	*dfp,
 	bool				sort)
 {
 	const struct xfs_defer_op_type	*ops = defer_op_types[dfp->dfp_type];
+	struct xfs_log_item		*lip;
 
-	if (!dfp->dfp_intent)
-		dfp->dfp_intent = ops->create_intent(tp, &dfp->dfp_work,
-						     dfp->dfp_count, sort);
+	if (dfp->dfp_intent)
+		return 1;
+
+	lip = ops->create_intent(tp, &dfp->dfp_work, dfp->dfp_count, sort);
+	if (!lip)
+		return 0;
+	if (IS_ERR(lip))
+		return PTR_ERR(lip);
+
+	dfp->dfp_intent = lip;
+	return 1;
 }
 
 /*
  * For each pending item in the intake list, log its intent item and the
  * associated extents, then add the entire intake list to the end of
  * the pending list.
+ *
+ * Returns 1 if at least one log item was associated with the deferred work;
+ * 0 if there are no log items; or a negative errno.
  */
-STATIC void
+static int
 xfs_defer_create_intents(
 	struct xfs_trans		*tp)
 {
 	struct xfs_defer_pending	*dfp;
+	int				ret = 0;
 
 	list_for_each_entry(dfp, &tp->t_dfops, dfp_list) {
+		int			ret2;
+
 		trace_xfs_defer_create_intent(tp->t_mountp, dfp);
-		xfs_defer_create_intent(tp, dfp, true);
+		ret2 = xfs_defer_create_intent(tp, dfp, true);
+		if (ret2 < 0)
+			return ret2;
+		ret |= ret2;
 	}
+	return ret;
 }
 
 /* Abort all the intents that were committed. */
@@ -449,6 +478,8 @@ xfs_defer_finish_one(
 		dfp->dfp_count--;
 		error = ops->finish_item(tp, dfp->dfp_done, li, &state);
 		if (error == -EAGAIN) {
+			int		ret;
+
 			/*
 			 * Caller wants a fresh transaction; put the work item
 			 * back on the list and log a new log intent item to
@@ -459,7 +490,9 @@ xfs_defer_finish_one(
 			dfp->dfp_count++;
 			dfp->dfp_done = NULL;
 			dfp->dfp_intent = NULL;
-			xfs_defer_create_intent(tp, dfp, false);
+			ret = xfs_defer_create_intent(tp, dfp, false);
+			if (ret < 0)
+				error = ret;
 		}
 
 		if (error)
@@ -487,7 +520,7 @@ int
 xfs_defer_finish_noroll(
 	struct xfs_trans		**tp)
 {
-	struct xfs_defer_pending	*dfp;
+	struct xfs_defer_pending	*dfp = NULL;
 	int				error = 0;
 	LIST_HEAD(dop_pending);
 
@@ -506,17 +539,24 @@ xfs_defer_finish_noroll(
 		 * of time that any one intent item can stick around in memory,
 		 * pinning the log tail.
 		 */
-		xfs_defer_create_intents(*tp);
+		int has_intents = xfs_defer_create_intents(*tp);
+
 		list_splice_init(&(*tp)->t_dfops, &dop_pending);
 
-		error = xfs_defer_trans_roll(tp);
-		if (error)
+		if (has_intents < 0) {
+			error = has_intents;
 			goto out_shutdown;
+		}
+		if (has_intents || dfp) {
+			error = xfs_defer_trans_roll(tp);
+			if (error)
+				goto out_shutdown;
 
-		/* Possibly relog intent items to keep the log moving. */
-		error = xfs_defer_relog(tp, &dop_pending);
-		if (error)
-			goto out_shutdown;
+			/* Relog intent items to keep the log moving. */
+			error = xfs_defer_relog(tp, &dop_pending);
+			if (error)
+				goto out_shutdown;
+		}
 
 		dfp = list_first_entry(&dop_pending, struct xfs_defer_pending,
 				       dfp_list);
@@ -665,12 +705,14 @@ xfs_defer_ops_capture(
 	if (list_empty(&tp->t_dfops))
 		return NULL;
 
+	error = xfs_defer_create_intents(tp);
+	if (error < 0)
+		return ERR_PTR(error);
+
 	/* Create an object to capture the defer ops. */
 	dfc = kmem_zalloc(sizeof(*dfc), KM_NOFS);
 	INIT_LIST_HEAD(&dfc->dfc_list);
 	INIT_LIST_HEAD(&dfc->dfc_dfops);
-
-	xfs_defer_create_intents(tp);
 
 	/* Move the dfops chain and transaction state to the capture struct. */
 	list_splice_init(&tp->t_dfops, &dfc->dfc_dfops);
@@ -748,6 +790,10 @@ xfs_defer_ops_capture_and_commit(
 
 	/* If we don't capture anything, commit transaction and exit. */
 	dfc = xfs_defer_ops_capture(tp);
+	if (IS_ERR(dfc)) {
+		xfs_trans_cancel(tp);
+		return PTR_ERR(dfc);
+	}
 	if (!dfc)
 		return xfs_trans_commit(tp);
 
@@ -774,17 +820,25 @@ xfs_defer_ops_continue(
 	struct xfs_trans		*tp,
 	struct xfs_defer_resources	*dres)
 {
+	unsigned int			i;
+
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
 	ASSERT(!(tp->t_flags & XFS_TRANS_DIRTY));
 
-	/* Lock and join the captured inode to the new transaction. */
+	/* Lock the captured resources to the new transaction. */
 	if (dfc->dfc_held.dr_inos == 2)
 		xfs_lock_two_inodes(dfc->dfc_held.dr_ip[0], XFS_ILOCK_EXCL,
 				    dfc->dfc_held.dr_ip[1], XFS_ILOCK_EXCL);
 	else if (dfc->dfc_held.dr_inos == 1)
 		xfs_ilock(dfc->dfc_held.dr_ip[0], XFS_ILOCK_EXCL);
+
+	for (i = 0; i < dfc->dfc_held.dr_bufs; i++)
+		xfs_buf_lock(dfc->dfc_held.dr_bp[i]);
+
+	/* Join the captured resources to the new transaction. */
 	xfs_defer_restore_resources(tp, &dfc->dfc_held);
 	memcpy(dres, &dfc->dfc_held, sizeof(struct xfs_defer_resources));
+	dres->dr_bufs = 0;
 
 	/* Move captured dfops chain and state to the transaction. */
 	list_splice_init(&dfc->dfc_dfops, &tp->t_dfops);
@@ -854,7 +908,9 @@ xfs_defer_init_item_caches(void)
 	error = xfs_extfree_intent_init_cache();
 	if (error)
 		goto err;
-
+	error = xfs_attr_intent_init_cache();
+	if (error)
+		goto err;
 	return 0;
 err:
 	xfs_defer_destroy_item_caches();
@@ -865,6 +921,7 @@ err:
 void
 xfs_defer_destroy_item_caches(void)
 {
+	xfs_attr_intent_destroy_cache();
 	xfs_extfree_intent_destroy_cache();
 	xfs_bmap_intent_destroy_cache();
 	xfs_refcount_intent_destroy_cache();

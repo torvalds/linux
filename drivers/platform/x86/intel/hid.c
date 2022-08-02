@@ -122,6 +122,12 @@ static const struct dmi_system_id dmi_vgbs_allow_list[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "HP Spectre x360 Convertible 15-df0xxx"),
 		},
 	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Surface Go"),
+		},
+	},
 	{ }
 };
 
@@ -238,7 +244,7 @@ static bool intel_hid_evaluate_method(acpi_handle handle,
 
 	method_name = (char *)intel_hid_dsm_fn_to_method[fn_index];
 
-	if (!(intel_hid_dsm_fn_mask & fn_index))
+	if (!(intel_hid_dsm_fn_mask & BIT(fn_index)))
 		goto skip_dsm_eval;
 
 	obj = acpi_evaluate_dsm_typed(handle, &intel_dsm_guid,
@@ -726,12 +732,9 @@ static acpi_status __init
 check_acpi_dev(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	const struct acpi_device_id *ids = context;
-	struct acpi_device *dev;
+	struct acpi_device *dev = acpi_fetch_acpi_dev(handle);
 
-	if (acpi_bus_get_device(handle, &dev) != 0)
-		return AE_OK;
-
-	if (acpi_match_device_ids(dev, ids) == 0)
+	if (dev && acpi_match_device_ids(dev, ids) == 0)
 		if (!IS_ERR_OR_NULL(acpi_create_platform_device(dev, NULL)))
 			dev_info(&dev->dev,
 				 "intel-hid: created platform device\n");

@@ -28,12 +28,25 @@ config BINFMT_ELF
 	  ld.so (check the file <file:Documentation/Changes> for location and
 	  latest version).
 
+config BINFMT_ELF_KUNIT_TEST
+	bool "Build KUnit tests for ELF binary support" if !KUNIT_ALL_TESTS
+	depends on KUNIT=y && BINFMT_ELF=y
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the ELF loader KUnit tests, which try to gather
+	  prior bug fixes into a regression test collection. This is really
+	  only needed for debugging. Note that with CONFIG_COMPAT=y, the
+	  compat_binfmt_elf KUnit test is also created.
+
 config COMPAT_BINFMT_ELF
 	def_bool y
 	depends on COMPAT && BINFMT_ELF
 	select ELFCORE
 
 config ARCH_BINFMT_ELF_STATE
+	bool
+
+config ARCH_BINFMT_ELF_EXTRA_PHDRS
 	bool
 
 config ARCH_HAVE_ELF_PROT
@@ -45,7 +58,7 @@ config ARCH_USE_GNU_PROPERTY
 config BINFMT_ELF_FDPIC
 	bool "Kernel support for FDPIC ELF binaries"
 	default y if !BINFMT_ELF
-	depends on (ARM || (SUPERH && !MMU))
+	depends on ARM || ((M68K || SUPERH) && !MMU)
 	select ELFCORE
 	help
 	  ELF FDPIC binaries are based on ELF, but allow the individual load
@@ -128,12 +141,6 @@ config BINFMT_ZFLAT
 	select ZLIB_INFLATE
 	help
 	  Support FLAT format compressed binaries
-
-config BINFMT_SHARED_FLAT
-	bool "Enable shared FLAT support"
-	depends on BINFMT_FLAT
-	help
-	  Support FLAT shared libraries
 
 config HAVE_AOUT
        def_bool n

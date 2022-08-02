@@ -82,30 +82,12 @@ static inline void nvdimm_security_overwrite_query(struct work_struct *work)
 }
 #endif
 
-/**
- * struct blk_alloc_info - tracking info for BLK dpa scanning
- * @nd_mapping: blk region mapping boundaries
- * @available: decremented in alias_dpa_busy as aliased PMEM is scanned
- * @busy: decremented in blk_dpa_busy to account for ranges already
- * 	  handled by alias_dpa_busy
- * @res: alias_dpa_busy interprets this a free space range that needs to
- * 	 be truncated to the valid BLK allocation starting DPA, blk_dpa_busy
- * 	 treats it as a busy range that needs the aliased PMEM ranges
- * 	 truncated.
- */
-struct blk_alloc_info {
-	struct nd_mapping *nd_mapping;
-	resource_size_t available, busy;
-	struct resource *res;
-};
-
 bool is_nvdimm(struct device *dev);
 bool is_nd_pmem(struct device *dev);
 bool is_nd_volatile(struct device *dev);
-bool is_nd_blk(struct device *dev);
 static inline bool is_nd_region(struct device *dev)
 {
-	return is_nd_pmem(dev) || is_nd_blk(dev) || is_nd_volatile(dev);
+	return is_nd_pmem(dev) || is_nd_volatile(dev);
 }
 static inline bool is_memory(struct device *dev)
 {
@@ -124,7 +106,7 @@ void nd_region_create_dax_seed(struct nd_region *nd_region);
 int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus);
 void nvdimm_bus_destroy_ndctl(struct nvdimm_bus *nvdimm_bus);
 void nd_synchronize(void);
-void __nd_device_register(struct device *dev);
+void nd_device_register(struct device *dev);
 struct nd_label_id;
 char *nd_label_gen_id(struct nd_label_id *label_id, const uuid_t *uuid,
 		      u32 flags);
@@ -142,17 +124,12 @@ resource_size_t nd_pmem_max_contiguous_dpa(struct nd_region *nd_region,
 					   struct nd_mapping *nd_mapping);
 resource_size_t nd_region_allocatable_dpa(struct nd_region *nd_region);
 resource_size_t nd_pmem_available_dpa(struct nd_region *nd_region,
-		struct nd_mapping *nd_mapping, resource_size_t *overlap);
-resource_size_t nd_blk_available_dpa(struct nd_region *nd_region);
+				      struct nd_mapping *nd_mapping);
 resource_size_t nd_region_available_dpa(struct nd_region *nd_region);
 int nd_region_conflict(struct nd_region *nd_region, resource_size_t start,
 		resource_size_t size);
 resource_size_t nvdimm_allocated_dpa(struct nvdimm_drvdata *ndd,
 		struct nd_label_id *label_id);
-int alias_dpa_busy(struct device *dev, void *data);
-struct resource *nsblk_add_resource(struct nd_region *nd_region,
-		struct nvdimm_drvdata *ndd, struct nd_namespace_blk *nsblk,
-		resource_size_t start);
 int nvdimm_num_label_slots(struct nvdimm_drvdata *ndd);
 void get_ndd(struct nvdimm_drvdata *ndd);
 resource_size_t __nvdimm_namespace_capacity(struct nd_namespace_common *ndns);
@@ -181,72 +158,6 @@ static inline int devm_nsio_enable(struct device *dev,
 
 static inline void devm_nsio_disable(struct device *dev,
 		struct nd_namespace_io *nsio)
-{
-}
-#endif
-
-#ifdef CONFIG_PROVE_LOCKING
-extern struct class *nd_class;
-
-enum {
-	LOCK_BUS,
-	LOCK_NDCTL,
-	LOCK_REGION,
-	LOCK_DIMM = LOCK_REGION,
-	LOCK_NAMESPACE,
-	LOCK_CLAIM,
-};
-
-static inline void debug_nvdimm_lock(struct device *dev)
-{
-	if (is_nd_region(dev))
-		mutex_lock_nested(&dev->lockdep_mutex, LOCK_REGION);
-	else if (is_nvdimm(dev))
-		mutex_lock_nested(&dev->lockdep_mutex, LOCK_DIMM);
-	else if (is_nd_btt(dev) || is_nd_pfn(dev) || is_nd_dax(dev))
-		mutex_lock_nested(&dev->lockdep_mutex, LOCK_CLAIM);
-	else if (dev->parent && (is_nd_region(dev->parent)))
-		mutex_lock_nested(&dev->lockdep_mutex, LOCK_NAMESPACE);
-	else if (is_nvdimm_bus(dev))
-		mutex_lock_nested(&dev->lockdep_mutex, LOCK_BUS);
-	else if (dev->class && dev->class == nd_class)
-		mutex_lock_nested(&dev->lockdep_mutex, LOCK_NDCTL);
-	else
-		dev_WARN(dev, "unknown lock level\n");
-}
-
-static inline void debug_nvdimm_unlock(struct device *dev)
-{
-	mutex_unlock(&dev->lockdep_mutex);
-}
-
-static inline void nd_device_lock(struct device *dev)
-{
-	device_lock(dev);
-	debug_nvdimm_lock(dev);
-}
-
-static inline void nd_device_unlock(struct device *dev)
-{
-	debug_nvdimm_unlock(dev);
-	device_unlock(dev);
-}
-#else
-static inline void nd_device_lock(struct device *dev)
-{
-	device_lock(dev);
-}
-
-static inline void nd_device_unlock(struct device *dev)
-{
-	device_unlock(dev);
-}
-
-static inline void debug_nvdimm_lock(struct device *dev)
-{
-}
-
-static inline void debug_nvdimm_unlock(struct device *dev)
 {
 }
 #endif

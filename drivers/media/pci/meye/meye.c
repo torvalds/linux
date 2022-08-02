@@ -1012,7 +1012,6 @@ static int vidioc_querycap(struct file *file, void *fh,
 {
 	strscpy(cap->driver, "meye", sizeof(cap->driver));
 	strscpy(cap->card, "meye", sizeof(cap->card));
-	sprintf(cap->bus_info, "PCI:%s", pci_name(meye.mchip_dev));
 	return 0;
 }
 

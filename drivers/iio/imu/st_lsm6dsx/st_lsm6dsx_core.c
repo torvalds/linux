@@ -26,7 +26,7 @@
  *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
  *   - FIFO size: 4KB
  *
- * - LSM6DSO/LSM6DSOX/ASM330LHH/LSM6DSR/ISM330DHCX/LSM6DST/LSM6DSOP:
+ * - LSM6DSO/LSM6DSOX/ASM330LHH/ASM330LHHX/LSM6DSR/ISM330DHCX/LSM6DST/LSM6DSOP:
  *   - Accelerometer/Gyroscope supported ODR [Hz]: 12.5, 26, 52, 104, 208, 416,
  *     833
  *   - Accelerometer supported full-scale [g]: +-2/+-4/+-8/+-16
@@ -786,6 +786,10 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.hw_id = ST_LSM6DST_ID,
 				.name = ST_LSM6DST_DEV_NAME,
 				.wai = 0x6d,
+			}, {
+				.hw_id = ST_ASM330LHHX_ID,
+				.name = ST_ASM330LHHX_DEV_NAME,
+				.wai = 0x6b,
 			},
 		},
 		.channels = {
@@ -1633,7 +1637,7 @@ st_lsm6dsx_sysfs_sampling_frequency_avail(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct st_lsm6dsx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lsm6dsx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	const struct st_lsm6dsx_odr_table_entry *odr_table;
 	int i, len = 0;
 
@@ -1651,7 +1655,7 @@ static ssize_t st_lsm6dsx_sysfs_scale_avail(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
 {
-	struct st_lsm6dsx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lsm6dsx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	const struct st_lsm6dsx_fs_table_entry *fs_table;
 	struct st_lsm6dsx_hw *hw = sensor->hw;
 	int i, len = 0;

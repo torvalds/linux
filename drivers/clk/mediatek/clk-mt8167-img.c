@@ -43,14 +43,14 @@ static const struct mtk_gate img_clks[] __initconst = {
 
 static void __init mtk_imgsys_init(struct device_node *node)
 {
-	struct clk_onecell_data *clk_data;
+	struct clk_hw_onecell_data *clk_data;
 	int r;
 
 	clk_data = mtk_alloc_clk_data(CLK_IMG_NR_CLK);
 
 	mtk_clk_register_gates(node, img_clks, ARRAY_SIZE(img_clks), clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 
 	if (r)
 		pr_err("%s(): could not register clock provider: %d\n",

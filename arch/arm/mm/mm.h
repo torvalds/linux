@@ -88,6 +88,10 @@ extern phys_addr_t arm_lowmem_limit;
 
 void __init bootmem_init(void);
 void arm_mm_memblock_reserve(void);
+#ifdef CONFIG_CMA_AREAS
 void dma_contiguous_remap(void);
+#else
+static inline void dma_contiguous_remap(void) { }
+#endif
 
 unsigned long __clear_cr(unsigned long mask);

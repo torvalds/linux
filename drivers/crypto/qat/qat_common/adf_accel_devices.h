@@ -19,6 +19,8 @@
 #define ADF_4XXX_DEVICE_NAME "4xxx"
 #define ADF_4XXX_PCI_DEVICE_ID 0x4940
 #define ADF_4XXXIOV_PCI_DEVICE_ID 0x4941
+#define ADF_401XX_PCI_DEVICE_ID 0x4942
+#define ADF_401XXIOV_PCI_DEVICE_ID 0x4943
 #define ADF_DEVICE_FUSECTL_OFFSET 0x40
 #define ADF_DEVICE_LEGFUSE_OFFSET 0x4C
 #define ADF_DEVICE_FUSECTL_MASK 0x80000000
@@ -152,9 +154,9 @@ struct adf_pfvf_ops {
 	int (*enable_comms)(struct adf_accel_dev *accel_dev);
 	u32 (*get_pf2vf_offset)(u32 i);
 	u32 (*get_vf2pf_offset)(u32 i);
-	u32 (*get_vf2pf_sources)(void __iomem *pmisc_addr);
 	void (*enable_vf2pf_interrupts)(void __iomem *pmisc_addr, u32 vf_mask);
-	void (*disable_vf2pf_interrupts)(void __iomem *pmisc_addr, u32 vf_mask);
+	void (*disable_all_vf2pf_interrupts)(void __iomem *pmisc_addr);
+	u32 (*disable_pending_vf2pf_interrupts)(void __iomem *pmisc_addr);
 	int (*send_msg)(struct adf_accel_dev *accel_dev, struct pfvf_message msg,
 			u32 pfvf_offset, struct mutex *csr_lock);
 	struct pfvf_message (*recv_msg)(struct adf_accel_dev *accel_dev,
@@ -184,6 +186,8 @@ struct adf_hw_device_data {
 	void (*exit_arb)(struct adf_accel_dev *accel_dev);
 	const u32 *(*get_arb_mapping)(void);
 	int (*init_device)(struct adf_accel_dev *accel_dev);
+	int (*enable_pm)(struct adf_accel_dev *accel_dev);
+	bool (*handle_pm_interrupt)(struct adf_accel_dev *accel_dev);
 	void (*disable_iov)(struct adf_accel_dev *accel_dev);
 	void (*configure_iov_threads)(struct adf_accel_dev *accel_dev,
 				      bool enable);

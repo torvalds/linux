@@ -877,9 +877,7 @@ static int hash_dma_final(struct ahash_request *req)
 				__func__);
 			goto out;
 		}
-	}
-
-	if (!req_ctx->updated) {
+	} else {
 		ret = hash_setconfiguration(device_data, &ctx->config);
 		if (ret) {
 			dev_err(device_data->dev,
@@ -1658,7 +1656,7 @@ static int ux500_hash_probe(struct platform_device *pdev)
 	struct hash_device_data *device_data;
 	struct device		*dev = &pdev->dev;
 
-	device_data = devm_kzalloc(dev, sizeof(*device_data), GFP_ATOMIC);
+	device_data = devm_kzalloc(dev, sizeof(*device_data), GFP_KERNEL);
 	if (!device_data) {
 		ret = -ENOMEM;
 		goto out;

@@ -41,13 +41,18 @@ or ``VFAT_FS``. To run ``FAT_KUNIT_TEST``, the ``.kunitconfig`` has:
 	CONFIG_MSDOS_FS=y
 	CONFIG_FAT_KUNIT_TEST=y
 
-1. A good starting point for the ``.kunitconfig``, is the KUnit default
-   config. Run the command:
+1. A good starting point for the ``.kunitconfig`` is the KUnit default config.
+   You can generate it by running:
 
 .. code-block:: bash
 
 	cd $PATH_TO_LINUX_REPO
-	cp tools/testing/kunit/configs/default.config .kunitconfig
+	tools/testing/kunit/kunit.py config
+	cat .kunit/.kunitconfig
+
+.. note ::
+   ``.kunitconfig`` lives in the ``--build_dir`` used by kunit.py, which is
+   ``.kunit`` by default.
 
 .. note ::
    You may want to remove CONFIG_KUNIT_ALL_TESTS from the ``.kunitconfig`` as

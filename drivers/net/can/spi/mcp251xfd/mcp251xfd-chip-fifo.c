@@ -78,7 +78,7 @@ int mcp251xfd_chip_fifo_init(const struct mcp251xfd_priv *priv)
 	if (err)
 		return err;
 
-	/* FIFO 1 - TX */
+	/* TX FIFO */
 	val = FIELD_PREP(MCP251XFD_REG_FIFOCON_FSIZE_MASK,
 			 tx_ring->obj_num - 1) |
 		MCP251XFD_REG_FIFOCON_TXEN |
@@ -99,7 +99,7 @@ int mcp251xfd_chip_fifo_init(const struct mcp251xfd_priv *priv)
 				  MCP251XFD_REG_FIFOCON_TXAT_UNLIMITED);
 
 	err = regmap_write(priv->map_reg,
-			   MCP251XFD_REG_FIFOCON(MCP251XFD_TX_FIFO),
+			   MCP251XFD_REG_FIFOCON(priv->tx->fifo_nr),
 			   val);
 	if (err)
 		return err;

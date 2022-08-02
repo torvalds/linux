@@ -115,7 +115,7 @@ static int bcm6368_mdiomux_probe(struct platform_device *pdev)
 	md->mii_bus = devm_mdiobus_alloc(&pdev->dev);
 	if (!md->mii_bus) {
 		dev_err(&pdev->dev, "mdiomux bus alloc failed\n");
-		return ENOMEM;
+		return -ENOMEM;
 	}
 
 	bus = md->mii_bus;

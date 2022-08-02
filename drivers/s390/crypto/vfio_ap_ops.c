@@ -16,10 +16,12 @@
 #include <linux/bitops.h>
 #include <linux/kvm_host.h>
 #include <linux/module.h>
+#include <linux/uuid.h>
 #include <asm/kvm.h>
 #include <asm/zcrypt.h>
 
 #include "vfio_ap_private.h"
+#include "vfio_ap_debug.h"
 
 #define VFIO_AP_MDEV_TYPE_HWVIRT "passthrough"
 #define VFIO_AP_MDEV_NAME_HWVIRT "VFIO AP Passthrough Device"
@@ -122,8 +124,7 @@ static void vfio_ap_free_aqic_resources(struct vfio_ap_queue *q)
 		q->saved_isc = VFIO_AP_ISC_INVALID;
 	}
 	if (q->saved_pfn && !WARN_ON(!q->matrix_mdev)) {
-		vfio_unpin_pages(mdev_dev(q->matrix_mdev->mdev),
-				 &q->saved_pfn, 1);
+		vfio_unpin_pages(&q->matrix_mdev->vdev, &q->saved_pfn, 1);
 		q->saved_pfn = 0;
 	}
 }
@@ -184,11 +185,43 @@ end_free:
 }
 
 /**
+ * vfio_ap_validate_nib - validate a notification indicator byte (nib) address.
+ *
+ * @vcpu: the object representing the vcpu executing the PQAP(AQIC) instruction.
+ * @nib: the location for storing the nib address.
+ * @g_pfn: the location for storing the page frame number of the page containing
+ *	   the nib.
+ *
+ * When the PQAP(AQIC) instruction is executed, general register 2 contains the
+ * address of the notification indicator byte (nib) used for IRQ notification.
+ * This function parses the nib from gr2 and calculates the page frame
+ * number for the guest of the page containing the nib. The values are
+ * stored in @nib and @g_pfn respectively.
+ *
+ * The g_pfn of the nib is then validated to ensure the nib address is valid.
+ *
+ * Return: returns zero if the nib address is a valid; otherwise, returns
+ *	   -EINVAL.
+ */
+static int vfio_ap_validate_nib(struct kvm_vcpu *vcpu, unsigned long *nib,
+				unsigned long *g_pfn)
+{
+	*nib = vcpu->run->s.regs.gprs[2];
+	*g_pfn = *nib >> PAGE_SHIFT;
+
+	if (kvm_is_error_hva(gfn_to_hva(vcpu->kvm, *g_pfn)))
+		return -EINVAL;
+
+	return 0;
+}
+
+/**
  * vfio_ap_irq_enable - Enable Interruption for a APQN
  *
  * @q:	 the vfio_ap_queue holding AQIC parameters
  * @isc: the guest ISC to register with the GIB interface
- * @nib: the notification indicator byte to pin.
+ * @vcpu: the vcpu object containing the registers specifying the parameters
+ *	  passed to the PQAP(AQIC) instruction.
  *
  * Pin the NIB saved in *q
  * Register the guest ISC to GIB interface and retrieve the
@@ -204,22 +237,36 @@ end_free:
  */
 static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 						 int isc,
-						 unsigned long nib)
+						 struct kvm_vcpu *vcpu)
 {
+	unsigned long nib;
 	struct ap_qirq_ctrl aqic_gisa = {};
 	struct ap_queue_status status = {};
 	struct kvm_s390_gisa *gisa;
+	int nisc;
 	struct kvm *kvm;
 	unsigned long h_nib, g_pfn, h_pfn;
 	int ret;
 
-	g_pfn = nib >> PAGE_SHIFT;
-	ret = vfio_pin_pages(mdev_dev(q->matrix_mdev->mdev), &g_pfn, 1,
+	/* Verify that the notification indicator byte address is valid */
+	if (vfio_ap_validate_nib(vcpu, &nib, &g_pfn)) {
+		VFIO_AP_DBF_WARN("%s: invalid NIB address: nib=%#lx, g_pfn=%#lx, apqn=%#04x\n",
+				 __func__, nib, g_pfn, q->apqn);
+
+		status.response_code = AP_RESPONSE_INVALID_ADDRESS;
+		return status;
+	}
+
+	ret = vfio_pin_pages(&q->matrix_mdev->vdev, &g_pfn, 1,
 			     IOMMU_READ | IOMMU_WRITE, &h_pfn);
 	switch (ret) {
 	case 1:
 		break;
 	default:
+		VFIO_AP_DBF_WARN("%s: vfio_pin_pages failed: rc=%d,"
+				 "nib=%#lx, g_pfn=%#lx, apqn=%#04x\n",
+				 __func__, ret, nib, g_pfn, q->apqn);
+
 		status.response_code = AP_RESPONSE_INVALID_ADDRESS;
 		return status;
 	}
@@ -229,7 +276,17 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 
 	h_nib = (h_pfn << PAGE_SHIFT) | (nib & ~PAGE_MASK);
 	aqic_gisa.gisc = isc;
-	aqic_gisa.isc = kvm_s390_gisc_register(kvm, isc);
+
+	nisc = kvm_s390_gisc_register(kvm, isc);
+	if (nisc < 0) {
+		VFIO_AP_DBF_WARN("%s: gisc registration failed: nisc=%d, isc=%d, apqn=%#04x\n",
+				 __func__, nisc, isc, q->apqn);
+
+		status.response_code = AP_RESPONSE_INVALID_GISA;
+		return status;
+	}
+
+	aqic_gisa.isc = nisc;
 	aqic_gisa.ir = 1;
 	aqic_gisa.gisa = (uint64_t)gisa >> 4;
 
@@ -243,7 +300,7 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 		break;
 	case AP_RESPONSE_OTHERWISE_CHANGED:
 		/* We could not modify IRQ setings: clear new configuration */
-		vfio_unpin_pages(mdev_dev(q->matrix_mdev->mdev), &g_pfn, 1);
+		vfio_unpin_pages(&q->matrix_mdev->vdev, &g_pfn, 1);
 		kvm_s390_gisc_unregister(kvm, isc);
 		break;
 	default:
@@ -253,7 +310,59 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 		break;
 	}
 
+	if (status.response_code != AP_RESPONSE_NORMAL) {
+		VFIO_AP_DBF_WARN("%s: PQAP(AQIC) failed with status=%#02x: "
+				 "zone=%#x, ir=%#x, gisc=%#x, f=%#x,"
+				 "gisa=%#x, isc=%#x, apqn=%#04x\n",
+				 __func__, status.response_code,
+				 aqic_gisa.zone, aqic_gisa.ir, aqic_gisa.gisc,
+				 aqic_gisa.gf, aqic_gisa.gisa, aqic_gisa.isc,
+				 q->apqn);
+	}
+
 	return status;
+}
+
+/**
+ * vfio_ap_le_guid_to_be_uuid - convert a little endian guid array into an array
+ *				of big endian elements that can be passed by
+ *				value to an s390dbf sprintf event function to
+ *				format a UUID string.
+ *
+ * @guid: the object containing the little endian guid
+ * @uuid: a six-element array of long values that can be passed by value as
+ *	  arguments for a formatting string specifying a UUID.
+ *
+ * The S390 Debug Feature (s390dbf) allows the use of "%s" in the sprintf
+ * event functions if the memory for the passed string is available as long as
+ * the debug feature exists. Since a mediated device can be removed at any
+ * time, it's name can not be used because %s passes the reference to the string
+ * in memory and the reference will go stale once the device is removed .
+ *
+ * The s390dbf string formatting function allows a maximum of 9 arguments for a
+ * message to be displayed in the 'sprintf' view. In order to use the bytes
+ * comprising the mediated device's UUID to display the mediated device name,
+ * they will have to be converted into an array whose elements can be passed by
+ * value to sprintf. For example:
+ *
+ * guid array: { 83, 78, 17, 62, bb, f1, f0, 47, 91, 4d, 32, a2, 2e, 3a, 88, 04 }
+ * mdev name: 62177883-f1bb-47f0-914d-32a22e3a8804
+ * array returned: { 62177883, f1bb, 47f0, 914d, 32a2, 2e3a8804 }
+ * formatting string: "%08lx-%04lx-%04lx-%04lx-%02lx%04lx"
+ */
+static void vfio_ap_le_guid_to_be_uuid(guid_t *guid, unsigned long *uuid)
+{
+	/*
+	 * The input guid is ordered in little endian, so it needs to be
+	 * reordered for displaying a UUID as a string. This specifies the
+	 * guid indices in proper order.
+	 */
+	uuid[0] = le32_to_cpup((__le32 *)guid);
+	uuid[1] = le16_to_cpup((__le16 *)&guid->b[4]);
+	uuid[2] = le16_to_cpup((__le16 *)&guid->b[6]);
+	uuid[3] = *((__u16 *)&guid->b[8]);
+	uuid[4] = *((__u16 *)&guid->b[10]);
+	uuid[5] = *((__u32 *)&guid->b[12]);
 }
 
 /**
@@ -281,37 +390,54 @@ static int handle_pqap(struct kvm_vcpu *vcpu)
 {
 	uint64_t status;
 	uint16_t apqn;
+	unsigned long uuid[6];
 	struct vfio_ap_queue *q;
 	struct ap_queue_status qstatus = {
 			       .response_code = AP_RESPONSE_Q_NOT_AVAIL, };
 	struct ap_matrix_mdev *matrix_mdev;
 
-	/* If we do not use the AIV facility just go to userland */
-	if (!(vcpu->arch.sie_block->eca & ECA_AIV))
-		return -EOPNOTSUPP;
-
 	apqn = vcpu->run->s.regs.gprs[0] & 0xffff;
-	mutex_lock(&matrix_dev->lock);
 
-	if (!vcpu->kvm->arch.crypto.pqap_hook)
+	/* If we do not use the AIV facility just go to userland */
+	if (!(vcpu->arch.sie_block->eca & ECA_AIV)) {
+		VFIO_AP_DBF_WARN("%s: AIV facility not installed: apqn=0x%04x, eca=0x%04x\n",
+				 __func__, apqn, vcpu->arch.sie_block->eca);
+
+		return -EOPNOTSUPP;
+	}
+
+	mutex_lock(&matrix_dev->lock);
+	if (!vcpu->kvm->arch.crypto.pqap_hook) {
+		VFIO_AP_DBF_WARN("%s: PQAP(AQIC) hook not registered with the vfio_ap driver: apqn=0x%04x\n",
+				 __func__, apqn);
 		goto out_unlock;
+	}
+
 	matrix_mdev = container_of(vcpu->kvm->arch.crypto.pqap_hook,
 				   struct ap_matrix_mdev, pqap_hook);
 
 	/* If the there is no guest using the mdev, there is nothing to do */
-	if (!matrix_mdev->kvm)
+	if (!matrix_mdev->kvm) {
+		vfio_ap_le_guid_to_be_uuid(&matrix_mdev->mdev->uuid, uuid);
+		VFIO_AP_DBF_WARN("%s: mdev %08lx-%04lx-%04lx-%04lx-%04lx%08lx not in use: apqn=0x%04x\n",
+				 __func__, uuid[0],  uuid[1], uuid[2],
+				 uuid[3], uuid[4], uuid[5], apqn);
 		goto out_unlock;
+	}
 
 	q = vfio_ap_get_queue(matrix_mdev, apqn);
-	if (!q)
+	if (!q) {
+		VFIO_AP_DBF_WARN("%s: Queue %02x.%04x not bound to the vfio_ap driver\n",
+				 __func__, AP_QID_CARD(apqn),
+				 AP_QID_QUEUE(apqn));
 		goto out_unlock;
+	}
 
 	status = vcpu->run->s.regs.gprs[1];
 
 	/* If IR bit(16) is set we enable the interrupt */
 	if ((status >> (63 - 16)) & 0x01)
-		qstatus = vfio_ap_irq_enable(q, status & 0x07,
-					     vcpu->run->s.regs.gprs[2]);
+		qstatus = vfio_ap_irq_enable(q, status & 0x07, vcpu);
 	else
 		qstatus = vfio_ap_irq_disable(q);
 
@@ -1062,13 +1188,6 @@ static const struct attribute_group *vfio_ap_mdev_attr_groups[] = {
  * @matrix_mdev: a mediated matrix device
  * @kvm: reference to KVM instance
  *
- * Note: The matrix_dev->lock must be taken prior to calling
- * this function; however, the lock will be temporarily released while the
- * guest's AP configuration is set to avoid a potential lockdep splat.
- * The kvm->lock is taken to set the guest's AP configuration which, under
- * certain circumstances, will result in a circular lock dependency if this is
- * done under the @matrix_mdev->lock.
- *
  * Return: 0 if no other mediated matrix device has a reference to @kvm;
  * otherwise, returns an -EPERM.
  */
@@ -1130,7 +1249,7 @@ static int vfio_ap_mdev_iommu_notifier(struct notifier_block *nb,
 		struct vfio_iommu_type1_dma_unmap *unmap = data;
 		unsigned long g_pfn = unmap->iova >> PAGE_SHIFT;
 
-		vfio_unpin_pages(mdev_dev(matrix_mdev->mdev), &g_pfn, 1);
+		vfio_unpin_pages(&matrix_mdev->vdev, &g_pfn, 1);
 		return NOTIFY_OK;
 	}
 
@@ -1142,18 +1261,11 @@ static int vfio_ap_mdev_iommu_notifier(struct notifier_block *nb,
  * by @matrix_mdev.
  *
  * @matrix_mdev: a matrix mediated device
- * @kvm: the pointer to the kvm structure being unset.
- *
- * Note: The matrix_dev->lock must be taken prior to calling
- * this function; however, the lock will be temporarily released while the
- * guest's AP configuration is cleared to avoid a potential lockdep splat.
- * The kvm->lock is taken to clear the guest's AP configuration which, under
- * certain circumstances, will result in a circular lock dependency if this is
- * done under the @matrix_mdev->lock.
  */
-static void vfio_ap_mdev_unset_kvm(struct ap_matrix_mdev *matrix_mdev,
-				   struct kvm *kvm)
+static void vfio_ap_mdev_unset_kvm(struct ap_matrix_mdev *matrix_mdev)
 {
+	struct kvm *kvm = matrix_mdev->kvm;
+
 	if (kvm && kvm->arch.crypto.crycbd) {
 		down_write(&kvm->arch.crypto.pqap_hook_rwsem);
 		kvm->arch.crypto.pqap_hook = NULL;
@@ -1170,25 +1282,6 @@ static void vfio_ap_mdev_unset_kvm(struct ap_matrix_mdev *matrix_mdev,
 		mutex_unlock(&kvm->lock);
 		mutex_unlock(&matrix_dev->lock);
 	}
-}
-
-static int vfio_ap_mdev_group_notifier(struct notifier_block *nb,
-				       unsigned long action, void *data)
-{
-	int notify_rc = NOTIFY_OK;
-	struct ap_matrix_mdev *matrix_mdev;
-
-	if (action != VFIO_GROUP_NOTIFY_SET_KVM)
-		return NOTIFY_OK;
-
-	matrix_mdev = container_of(nb, struct ap_matrix_mdev, group_notifier);
-
-	if (!data)
-		vfio_ap_mdev_unset_kvm(matrix_mdev, matrix_mdev->kvm);
-	else if (vfio_ap_mdev_set_kvm(matrix_mdev, data))
-		notify_rc = NOTIFY_DONE;
-
-	return notify_rc;
 }
 
 static struct vfio_ap_queue *vfio_ap_find_queue(int apqn)
@@ -1290,25 +1383,23 @@ static int vfio_ap_mdev_open_device(struct vfio_device *vdev)
 	unsigned long events;
 	int ret;
 
-	matrix_mdev->group_notifier.notifier_call = vfio_ap_mdev_group_notifier;
-	events = VFIO_GROUP_NOTIFY_SET_KVM;
+	if (!vdev->kvm)
+		return -EINVAL;
 
-	ret = vfio_register_notifier(vdev->dev, VFIO_GROUP_NOTIFY,
-				     &events, &matrix_mdev->group_notifier);
+	ret = vfio_ap_mdev_set_kvm(matrix_mdev, vdev->kvm);
 	if (ret)
 		return ret;
 
 	matrix_mdev->iommu_notifier.notifier_call = vfio_ap_mdev_iommu_notifier;
 	events = VFIO_IOMMU_NOTIFY_DMA_UNMAP;
-	ret = vfio_register_notifier(vdev->dev, VFIO_IOMMU_NOTIFY,
-				     &events, &matrix_mdev->iommu_notifier);
+	ret = vfio_register_notifier(vdev, VFIO_IOMMU_NOTIFY, &events,
+				     &matrix_mdev->iommu_notifier);
 	if (ret)
-		goto out_unregister_group;
+		goto err_kvm;
 	return 0;
 
-out_unregister_group:
-	vfio_unregister_notifier(vdev->dev, VFIO_GROUP_NOTIFY,
-				 &matrix_mdev->group_notifier);
+err_kvm:
+	vfio_ap_mdev_unset_kvm(matrix_mdev);
 	return ret;
 }
 
@@ -1317,11 +1408,9 @@ static void vfio_ap_mdev_close_device(struct vfio_device *vdev)
 	struct ap_matrix_mdev *matrix_mdev =
 		container_of(vdev, struct ap_matrix_mdev, vdev);
 
-	vfio_unregister_notifier(vdev->dev, VFIO_IOMMU_NOTIFY,
+	vfio_unregister_notifier(vdev, VFIO_IOMMU_NOTIFY,
 				 &matrix_mdev->iommu_notifier);
-	vfio_unregister_notifier(vdev->dev, VFIO_GROUP_NOTIFY,
-				 &matrix_mdev->group_notifier);
-	vfio_ap_mdev_unset_kvm(matrix_mdev, matrix_mdev->kvm);
+	vfio_ap_mdev_unset_kvm(matrix_mdev);
 }
 
 static int vfio_ap_mdev_get_device_info(unsigned long arg)
@@ -1383,12 +1472,7 @@ static struct mdev_driver vfio_ap_matrix_driver = {
 	},
 	.probe = vfio_ap_mdev_probe,
 	.remove = vfio_ap_mdev_remove,
-};
-
-static const struct mdev_parent_ops vfio_ap_matrix_ops = {
-	.owner			= THIS_MODULE,
-	.device_driver		= &vfio_ap_matrix_driver,
-	.supported_type_groups	= vfio_ap_mdev_type_groups,
+	.supported_type_groups = vfio_ap_mdev_type_groups,
 };
 
 int vfio_ap_mdev_register(void)
@@ -1401,7 +1485,7 @@ int vfio_ap_mdev_register(void)
 	if (ret)
 		return ret;
 
-	ret = mdev_register_device(&matrix_dev->device, &vfio_ap_matrix_ops);
+	ret = mdev_register_device(&matrix_dev->device, &vfio_ap_matrix_driver);
 	if (ret)
 		goto err_driver;
 	return 0;

@@ -784,7 +784,6 @@ static int isl29018_probe(struct i2c_client *client,
 	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int isl29018_suspend(struct device *dev)
 {
 	struct isl29018_chip *chip = iio_priv(dev_get_drvdata(dev));
@@ -830,11 +829,8 @@ static int isl29018_resume(struct device *dev)
 	return err;
 }
 
-static SIMPLE_DEV_PM_OPS(isl29018_pm_ops, isl29018_suspend, isl29018_resume);
-#define ISL29018_PM_OPS (&isl29018_pm_ops)
-#else
-#define ISL29018_PM_OPS NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(isl29018_pm_ops, isl29018_suspend,
+				isl29018_resume);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id isl29018_acpi_match[] = {
@@ -866,7 +862,7 @@ static struct i2c_driver isl29018_driver = {
 	.driver	 = {
 			.name = "isl29018",
 			.acpi_match_table = ACPI_PTR(isl29018_acpi_match),
-			.pm = ISL29018_PM_OPS,
+			.pm = pm_sleep_ptr(&isl29018_pm_ops),
 			.of_match_table = isl29018_of_match,
 		    },
 	.probe	 = isl29018_probe,

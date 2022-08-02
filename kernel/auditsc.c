@@ -1014,10 +1014,10 @@ static void audit_reset_context(struct audit_context *ctx)
 	ctx->target_comm[0] = '\0';
 	unroll_tree_refs(ctx, NULL, 0);
 	WARN_ON(!list_empty(&ctx->killed_trees));
-	ctx->type = 0;
 	audit_free_module(ctx);
 	ctx->fds[0] = -1;
 	audit_proctitle_free(ctx);
+	ctx->type = 0; /* reset last for audit_free_*() */
 }
 
 static inline struct audit_context *audit_alloc_context(enum audit_state state)
@@ -1340,6 +1340,53 @@ static void audit_log_fcaps(struct audit_buffer *ab, struct audit_names *name)
 			 from_kuid(&init_user_ns, name->fcap.rootid));
 }
 
+static void audit_log_time(struct audit_context *context, struct audit_buffer **ab)
+{
+	const struct audit_ntp_data *ntp = &context->time.ntp_data;
+	const struct timespec64 *tk = &context->time.tk_injoffset;
+	static const char * const ntp_name[] = {
+		"offset",
+		"freq",
+		"status",
+		"tai",
+		"tick",
+		"adjust",
+	};
+	int type;
+
+	if (context->type == AUDIT_TIME_ADJNTPVAL) {
+		for (type = 0; type < AUDIT_NTP_NVALS; type++) {
+			if (ntp->vals[type].newval != ntp->vals[type].oldval) {
+				if (!*ab) {
+					*ab = audit_log_start(context,
+							GFP_KERNEL,
+							AUDIT_TIME_ADJNTPVAL);
+					if (!*ab)
+						return;
+				}
+				audit_log_format(*ab, "op=%s old=%lli new=%lli",
+						 ntp_name[type],
+						 ntp->vals[type].oldval,
+						 ntp->vals[type].newval);
+				audit_log_end(*ab);
+				*ab = NULL;
+			}
+		}
+	}
+	if (tk->tv_sec != 0 || tk->tv_nsec != 0) {
+		if (!*ab) {
+			*ab = audit_log_start(context, GFP_KERNEL,
+					      AUDIT_TIME_INJOFFSET);
+			if (!*ab)
+				return;
+		}
+		audit_log_format(*ab, "sec=%lli nsec=%li",
+				 (long long)tk->tv_sec, tk->tv_nsec);
+		audit_log_end(*ab);
+		*ab = NULL;
+	}
+}
+
 static void show_special(struct audit_context *context, int *call_panic)
 {
 	struct audit_buffer *ab;
@@ -1453,6 +1500,11 @@ static void show_special(struct audit_context *context, int *call_panic)
 		} else
 			audit_log_format(ab, "(null)");
 
+		break;
+	case AUDIT_TIME_ADJNTPVAL:
+	case AUDIT_TIME_INJOFFSET:
+		/* this call deviates from the rest, eating the buffer */
+		audit_log_time(context, &ab);
 		break;
 	}
 	audit_log_end(ab);
@@ -1906,6 +1958,12 @@ void __audit_uring_entry(u8 op)
 void __audit_uring_exit(int success, long code)
 {
 	struct audit_context *ctx = audit_context();
+
+	if (ctx->dummy) {
+		if (ctx->context != AUDIT_CTX_URING)
+			return;
+		goto out;
+	}
 
 	if (ctx->context == AUDIT_CTX_SYSCALL) {
 		/*
@@ -2849,31 +2907,26 @@ void __audit_fanotify(unsigned int response)
 
 void __audit_tk_injoffset(struct timespec64 offset)
 {
-	audit_log(audit_context(), GFP_KERNEL, AUDIT_TIME_INJOFFSET,
-		  "sec=%lli nsec=%li",
-		  (long long)offset.tv_sec, offset.tv_nsec);
-}
+	struct audit_context *context = audit_context();
 
-static void audit_log_ntp_val(const struct audit_ntp_data *ad,
-			      const char *op, enum audit_ntp_type type)
-{
-	const struct audit_ntp_val *val = &ad->vals[type];
-
-	if (val->newval == val->oldval)
-		return;
-
-	audit_log(audit_context(), GFP_KERNEL, AUDIT_TIME_ADJNTPVAL,
-		  "op=%s old=%lli new=%lli", op, val->oldval, val->newval);
+	/* only set type if not already set by NTP */
+	if (!context->type)
+		context->type = AUDIT_TIME_INJOFFSET;
+	memcpy(&context->time.tk_injoffset, &offset, sizeof(offset));
 }
 
 void __audit_ntp_log(const struct audit_ntp_data *ad)
 {
-	audit_log_ntp_val(ad, "offset",	AUDIT_NTP_OFFSET);
-	audit_log_ntp_val(ad, "freq",	AUDIT_NTP_FREQ);
-	audit_log_ntp_val(ad, "status",	AUDIT_NTP_STATUS);
-	audit_log_ntp_val(ad, "tai",	AUDIT_NTP_TAI);
-	audit_log_ntp_val(ad, "tick",	AUDIT_NTP_TICK);
-	audit_log_ntp_val(ad, "adjust",	AUDIT_NTP_ADJUST);
+	struct audit_context *context = audit_context();
+	int type;
+
+	for (type = 0; type < AUDIT_NTP_NVALS; type++)
+		if (ad->vals[type].newval != ad->vals[type].oldval) {
+			/* unconditionally set type, overwriting TK */
+			context->type = AUDIT_TIME_ADJNTPVAL;
+			memcpy(&context->time.ntp_data, ad, sizeof(*ad));
+			break;
+		}
 }
 
 void __audit_log_nfcfg(const char *name, u8 af, unsigned int nentries,

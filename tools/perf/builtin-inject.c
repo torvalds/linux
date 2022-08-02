@@ -25,6 +25,9 @@
 #include "util/synthetic-events.h"
 #include "util/thread.h"
 #include "util/namespaces.h"
+#include "util/util.h"
+
+#include <internal/lib.h>
 
 #include <linux/err.h>
 #include <subcmd/parse-options.h>
@@ -47,6 +50,7 @@ struct perf_inject {
 	bool			in_place_update;
 	bool			in_place_update_dry_run;
 	bool			is_pipe;
+	bool			copy_kcore_dir;
 	const char		*input_name;
 	struct perf_data	output;
 	u64			bytes_written;
@@ -54,6 +58,7 @@ struct perf_inject {
 	struct list_head	samples;
 	struct itrace_synth_opts itrace_synth_opts;
 	char			event_copy[PERF_SAMPLE_MAX_SIZE];
+	struct perf_file_section secs[HEADER_FEAT_BITS];
 };
 
 struct event_entry {
@@ -110,7 +115,8 @@ static int perf_event__repipe_op2_synth(struct perf_session *session,
 
 static int perf_event__repipe_op4_synth(struct perf_session *session,
 					union perf_event *event,
-					u64 data __maybe_unused)
+					u64 data __maybe_unused,
+					const char *str __maybe_unused)
 {
 	return perf_event__repipe_synth(session->tool, event);
 }
@@ -354,7 +360,7 @@ static struct dso *findnew_dso(int pid, int tid, const char *filename,
 		nnsi = nsinfo__copy(nsi);
 		if (nnsi) {
 			nsinfo__put(nsi);
-			nnsi->need_setns = false;
+			nsinfo__clear_need_setns(nnsi);
 			nsi = nnsi;
 		}
 		dso = machine__findnew_vdso(machine, thread);
@@ -550,6 +556,15 @@ static int dso__read_build_id(struct dso *dso)
 	nsinfo__mountns_enter(dso->nsinfo, &nsc);
 	if (filename__read_build_id(dso->long_name, &dso->bid) > 0)
 		dso->has_build_id = true;
+	else if (dso->nsinfo) {
+		char *new_name;
+
+		new_name = filename_with_chroot(dso->nsinfo->pid,
+						dso->long_name);
+		if (new_name && filename__read_build_id(new_name, &dso->bid) > 0)
+			dso->has_build_id = true;
+		free(new_name);
+	}
 	nsinfo__mountns_exit(&nsc);
 
 	return dso->has_build_id ? 0 : -1;
@@ -752,6 +767,135 @@ static int parse_vm_time_correlation(const struct option *opt, const char *str, 
 	return inject->itrace_synth_opts.vm_tm_corr_args ? 0 : -ENOMEM;
 }
 
+static int save_section_info_cb(struct perf_file_section *section,
+				struct perf_header *ph __maybe_unused,
+				int feat, int fd __maybe_unused, void *data)
+{
+	struct perf_inject *inject = data;
+
+	inject->secs[feat] = *section;
+	return 0;
+}
+
+static int save_section_info(struct perf_inject *inject)
+{
+	struct perf_header *header = &inject->session->header;
+	int fd = perf_data__fd(inject->session->data);
+
+	return perf_header__process_sections(header, fd, inject, save_section_info_cb);
+}
+
+static bool keep_feat(int feat)
+{
+	switch (feat) {
+	/* Keep original information that describes the machine or software */
+	case HEADER_TRACING_DATA:
+	case HEADER_HOSTNAME:
+	case HEADER_OSRELEASE:
+	case HEADER_VERSION:
+	case HEADER_ARCH:
+	case HEADER_NRCPUS:
+	case HEADER_CPUDESC:
+	case HEADER_CPUID:
+	case HEADER_TOTAL_MEM:
+	case HEADER_CPU_TOPOLOGY:
+	case HEADER_NUMA_TOPOLOGY:
+	case HEADER_PMU_MAPPINGS:
+	case HEADER_CACHE:
+	case HEADER_MEM_TOPOLOGY:
+	case HEADER_CLOCKID:
+	case HEADER_BPF_PROG_INFO:
+	case HEADER_BPF_BTF:
+	case HEADER_CPU_PMU_CAPS:
+	case HEADER_CLOCK_DATA:
+	case HEADER_HYBRID_TOPOLOGY:
+	case HEADER_HYBRID_CPU_PMU_CAPS:
+		return true;
+	/* Information that can be updated */
+	case HEADER_BUILD_ID:
+	case HEADER_CMDLINE:
+	case HEADER_EVENT_DESC:
+	case HEADER_BRANCH_STACK:
+	case HEADER_GROUP_DESC:
+	case HEADER_AUXTRACE:
+	case HEADER_STAT:
+	case HEADER_SAMPLE_TIME:
+	case HEADER_DIR_FORMAT:
+	case HEADER_COMPRESSED:
+	default:
+		return false;
+	};
+}
+
+static int read_file(int fd, u64 offs, void *buf, size_t sz)
+{
+	ssize_t ret = preadn(fd, buf, sz, offs);
+
+	if (ret < 0)
+		return -errno;
+	if ((size_t)ret != sz)
+		return -EINVAL;
+	return 0;
+}
+
+static int feat_copy(struct perf_inject *inject, int feat, struct feat_writer *fw)
+{
+	int fd = perf_data__fd(inject->session->data);
+	u64 offs = inject->secs[feat].offset;
+	size_t sz = inject->secs[feat].size;
+	void *buf = malloc(sz);
+	int ret;
+
+	if (!buf)
+		return -ENOMEM;
+
+	ret = read_file(fd, offs, buf, sz);
+	if (ret)
+		goto out_free;
+
+	ret = fw->write(fw, buf, sz);
+out_free:
+	free(buf);
+	return ret;
+}
+
+struct inject_fc {
+	struct feat_copier fc;
+	struct perf_inject *inject;
+};
+
+static int feat_copy_cb(struct feat_copier *fc, int feat, struct feat_writer *fw)
+{
+	struct inject_fc *inj_fc = container_of(fc, struct inject_fc, fc);
+	struct perf_inject *inject = inj_fc->inject;
+	int ret;
+
+	if (!inject->secs[feat].offset ||
+	    !keep_feat(feat))
+		return 0;
+
+	ret = feat_copy(inject, feat, fw);
+	if (ret < 0)
+		return ret;
+
+	return 1; /* Feature section copied */
+}
+
+static int copy_kcore_dir(struct perf_inject *inject)
+{
+	char *cmd;
+	int ret;
+
+	ret = asprintf(&cmd, "cp -r -n %s/kcore_dir* %s >/dev/null 2>&1",
+		       inject->input_name, inject->output.path);
+	if (ret < 0)
+		return ret;
+	pr_debug("%s\n", cmd);
+	ret = system(cmd);
+	free(cmd);
+	return ret;
+}
+
 static int output_fd(struct perf_inject *inject)
 {
 	return inject->in_place_update ? -1 : perf_data__fd(&inject->output);
@@ -774,7 +918,7 @@ static int __cmd_inject(struct perf_inject *inject)
 		inject->tool.tracing_data = perf_event__repipe_tracing_data;
 	}
 
-	output_data_offset = session->header.data_offset;
+	output_data_offset = perf_session__data_offset(session->evlist);
 
 	if (inject->build_id_all) {
 		inject->tool.mmap	  = perf_event__repipe_buildid_mmap;
@@ -837,6 +981,11 @@ static int __cmd_inject(struct perf_inject *inject)
 		return ret;
 
 	if (!inject->is_pipe && !inject->in_place_update) {
+		struct inject_fc inj_fc = {
+			.fc.copy = feat_copy_cb,
+			.inject = inject,
+		};
+
 		if (inject->build_ids)
 			perf_header__set_feat(&session->header,
 					      HEADER_BUILD_ID);
@@ -861,7 +1010,13 @@ static int __cmd_inject(struct perf_inject *inject)
 		}
 		session->header.data_offset = output_data_offset;
 		session->header.data_size = inject->bytes_written;
-		perf_session__write_header(session, session->evlist, fd, true);
+		perf_session__inject_header(session, session->evlist, fd, &inj_fc.fc);
+
+		if (inject->copy_kcore_dir) {
+			ret = copy_kcore_dir(inject);
+			if (ret)
+				return ret;
+		}
 	}
 
 	return ret;
@@ -998,9 +1153,16 @@ int cmd_inject(int argc, const char **argv)
 		}
 		if (!inject.in_place_update_dry_run)
 			data.in_place_update = true;
-	} else if (perf_data__open(&inject.output)) {
-		perror("failed to create output file");
-		return -1;
+	} else {
+		if (strcmp(inject.output.path, "-") && !inject.strip &&
+		    has_kcore_dir(inject.input_name)) {
+			inject.output.is_dir = true;
+			inject.copy_kcore_dir = true;
+		}
+		if (perf_data__open(&inject.output)) {
+			perror("failed to create output file");
+			return -1;
+		}
 	}
 
 	data.path = inject.input_name;
@@ -1025,6 +1187,11 @@ int cmd_inject(int argc, const char **argv)
 
 	if (zstd_init(&(inject.session->zstd_data), 0) < 0)
 		pr_warning("Decompression initialization failed.\n");
+
+	/* Save original section info before feature bits change */
+	ret = save_section_info(&inject);
+	if (ret)
+		goto out_delete;
 
 	if (!data.is_pipe && inject.output.is_pipe) {
 		ret = perf_header__write_pipe(perf_data__fd(&inject.output));

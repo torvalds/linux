@@ -61,48 +61,6 @@ LIBBPF_API int bpf_map_create(enum bpf_map_type map_type,
 			      __u32 max_entries,
 			      const struct bpf_map_create_opts *opts);
 
-struct bpf_create_map_attr {
-	const char *name;
-	enum bpf_map_type map_type;
-	__u32 map_flags;
-	__u32 key_size;
-	__u32 value_size;
-	__u32 max_entries;
-	__u32 numa_node;
-	__u32 btf_fd;
-	__u32 btf_key_type_id;
-	__u32 btf_value_type_id;
-	__u32 map_ifindex;
-	union {
-		__u32 inner_map_fd;
-		__u32 btf_vmlinux_value_type_id;
-	};
-};
-
-LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_map_create() instead")
-LIBBPF_API int bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr);
-LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_map_create() instead")
-LIBBPF_API int bpf_create_map_node(enum bpf_map_type map_type, const char *name,
-				   int key_size, int value_size,
-				   int max_entries, __u32 map_flags, int node);
-LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_map_create() instead")
-LIBBPF_API int bpf_create_map_name(enum bpf_map_type map_type, const char *name,
-				   int key_size, int value_size,
-				   int max_entries, __u32 map_flags);
-LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_map_create() instead")
-LIBBPF_API int bpf_create_map(enum bpf_map_type map_type, int key_size,
-			      int value_size, int max_entries, __u32 map_flags);
-LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_map_create() instead")
-LIBBPF_API int bpf_create_map_in_map_node(enum bpf_map_type map_type,
-					  const char *name, int key_size,
-					  int inner_map_fd, int max_entries,
-					  __u32 map_flags, int node);
-LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_map_create() instead")
-LIBBPF_API int bpf_create_map_in_map(enum bpf_map_type map_type,
-				     const char *name, int key_size,
-				     int inner_map_fd, int max_entries,
-				     __u32 map_flags);
-
 struct bpf_prog_load_opts {
 	size_t sz; /* size of this struct for forward/backward compatibility */
 
@@ -244,6 +202,7 @@ LIBBPF_API int bpf_map_lookup_and_delete_elem(int fd, const void *key,
 LIBBPF_API int bpf_map_lookup_and_delete_elem_flags(int fd, const void *key,
 						    void *value, __u64 flags);
 LIBBPF_API int bpf_map_delete_elem(int fd, const void *key);
+LIBBPF_API int bpf_map_delete_elem_flags(int fd, const void *key, __u64 flags);
 LIBBPF_API int bpf_map_get_next_key(int fd, const void *key, void *next_key);
 LIBBPF_API int bpf_map_freeze(int fd);
 
@@ -391,6 +350,10 @@ struct bpf_prog_attach_opts {
 
 LIBBPF_API int bpf_prog_attach(int prog_fd, int attachable_fd,
 			       enum bpf_attach_type type, unsigned int flags);
+LIBBPF_API int bpf_prog_attach_opts(int prog_fd, int attachable_fd,
+				     enum bpf_attach_type type,
+				     const struct bpf_prog_attach_opts *opts);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_prog_attach_opts() instead")
 LIBBPF_API int bpf_prog_attach_xattr(int prog_fd, int attachable_fd,
 				     enum bpf_attach_type type,
 				     const struct bpf_prog_attach_opts *opts);
@@ -409,10 +372,20 @@ struct bpf_link_create_opts {
 		struct {
 			__u64 bpf_cookie;
 		} perf_event;
+		struct {
+			__u32 flags;
+			__u32 cnt;
+			const char **syms;
+			const unsigned long *addrs;
+			const __u64 *cookies;
+		} kprobe_multi;
+		struct {
+			__u64 cookie;
+		} tracing;
 	};
 	size_t :0;
 };
-#define bpf_link_create_opts__last_field perf_event
+#define bpf_link_create_opts__last_field kprobe_multi.cookies
 
 LIBBPF_API int bpf_link_create(int prog_fd, int target_fd,
 			       enum bpf_attach_type attach_type,
@@ -449,12 +422,14 @@ struct bpf_prog_test_run_attr {
 			     * out: length of cxt_out */
 };
 
+LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_prog_test_run_opts() instead")
 LIBBPF_API int bpf_prog_test_run_xattr(struct bpf_prog_test_run_attr *test_attr);
 
 /*
  * bpf_prog_test_run does not check that data_out is large enough. Consider
- * using bpf_prog_test_run_xattr instead.
+ * using bpf_prog_test_run_opts instead.
  */
+LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_prog_test_run_opts() instead")
 LIBBPF_API int bpf_prog_test_run(int prog_fd, int repeat, void *data,
 				 __u32 size, void *data_out, __u32 *size_out,
 				 __u32 *retval, __u32 *duration);
@@ -506,8 +481,9 @@ struct bpf_test_run_opts {
 	__u32 duration;      /* out: average per repetition in ns */
 	__u32 flags;
 	__u32 cpu;
+	__u32 batch_size;
 };
-#define bpf_test_run_opts__last_field cpu
+#define bpf_test_run_opts__last_field batch_size
 
 LIBBPF_API int bpf_prog_test_run_opts(int prog_fd,
 				      struct bpf_test_run_opts *opts);

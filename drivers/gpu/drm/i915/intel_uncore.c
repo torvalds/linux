@@ -23,7 +23,8 @@
 
 #include <linux/pm_runtime.h>
 
-#include "gt/intel_lrc_reg.h" /* for shadow reg list */
+#include "gt/intel_engine_regs.h"
+#include "gt/intel_gt_regs.h"
 
 #include "i915_drv.h"
 #include "i915_iosf_mbi.h"
@@ -1495,22 +1496,33 @@ ilk_dummy_write(struct intel_uncore *uncore)
 	/* WaIssueDummyWriteToWakeupFromRC6:ilk Issue a dummy write to wake up
 	 * the chip from rc6 before touching it for real. MI_MODE is masked,
 	 * hence harmless to write 0 into. */
-	__raw_uncore_write32(uncore, MI_MODE, 0);
+	__raw_uncore_write32(uncore, RING_MI_MODE(RENDER_RING_BASE), 0);
 }
 
 static void
 __unclaimed_reg_debug(struct intel_uncore *uncore,
 		      const i915_reg_t reg,
-		      const bool read,
-		      const bool before)
+		      const bool read)
 {
 	if (drm_WARN(&uncore->i915->drm,
-		     check_for_unclaimed_mmio(uncore) && !before,
+		     check_for_unclaimed_mmio(uncore),
 		     "Unclaimed %s register 0x%x\n",
 		     read ? "read from" : "write to",
 		     i915_mmio_reg_offset(reg)))
 		/* Only report the first N failures */
 		uncore->i915->params.mmio_debug--;
+}
+
+static void
+__unclaimed_previous_reg_debug(struct intel_uncore *uncore,
+			       const i915_reg_t reg,
+			       const bool read)
+{
+	if (check_for_unclaimed_mmio(uncore))
+		drm_dbg(&uncore->i915->drm,
+			"Unclaimed access detected before %s register 0x%x\n",
+			read ? "read from" : "write to",
+			i915_mmio_reg_offset(reg));
 }
 
 static inline void
@@ -1525,13 +1537,13 @@ unclaimed_reg_debug(struct intel_uncore *uncore,
 	/* interrupts are disabled and re-enabled around uncore->lock usage */
 	lockdep_assert_held(&uncore->lock);
 
-	if (before)
+	if (before) {
 		spin_lock(&uncore->debug->lock);
-
-	__unclaimed_reg_debug(uncore, reg, read, before);
-
-	if (!before)
+		__unclaimed_previous_reg_debug(uncore, reg, read);
+	} else {
+		__unclaimed_reg_debug(uncore, reg, read);
 		spin_unlock(&uncore->debug->lock);
+	}
 }
 
 #define __vgpu_read(x) \
@@ -2038,14 +2050,11 @@ static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-int intel_uncore_setup_mmio(struct intel_uncore *uncore)
+int intel_uncore_setup_mmio(struct intel_uncore *uncore, phys_addr_t phys_addr)
 {
 	struct drm_i915_private *i915 = uncore->i915;
-	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
-	int mmio_bar;
 	int mmio_size;
 
-	mmio_bar = GRAPHICS_VER(i915) == 2 ? 1 : 0;
 	/*
 	 * Before gen4, the registers and the GTT are behind different BARs.
 	 * However, from gen4 onwards, the registers and the GTT are shared
@@ -2062,7 +2071,7 @@ int intel_uncore_setup_mmio(struct intel_uncore *uncore)
 	else
 		mmio_size = 2 * 1024 * 1024;
 
-	uncore->regs = pci_iomap(pdev, mmio_bar, mmio_size);
+	uncore->regs = ioremap(phys_addr, mmio_size);
 	if (uncore->regs == NULL) {
 		drm_err(&i915->drm, "failed to map registers\n");
 		return -EIO;
@@ -2073,9 +2082,7 @@ int intel_uncore_setup_mmio(struct intel_uncore *uncore)
 
 void intel_uncore_cleanup_mmio(struct intel_uncore *uncore)
 {
-	struct pci_dev *pdev = to_pci_dev(uncore->i915->drm.dev);
-
-	pci_iounmap(pdev, uncore->regs);
+	iounmap(uncore->regs);
 }
 
 void intel_uncore_init_early(struct intel_uncore *uncore,
@@ -2273,76 +2280,6 @@ void intel_uncore_fini_mmio(struct intel_uncore *uncore)
 	}
 }
 
-static const struct reg_whitelist {
-	i915_reg_t offset_ldw;
-	i915_reg_t offset_udw;
-	u8 min_graphics_ver;
-	u8 max_graphics_ver;
-	u8 size;
-} reg_read_whitelist[] = { {
-	.offset_ldw = RING_TIMESTAMP(RENDER_RING_BASE),
-	.offset_udw = RING_TIMESTAMP_UDW(RENDER_RING_BASE),
-	.min_graphics_ver = 4,
-	.max_graphics_ver = 12,
-	.size = 8
-} };
-
-int i915_reg_read_ioctl(struct drm_device *dev,
-			void *data, struct drm_file *file)
-{
-	struct drm_i915_private *i915 = to_i915(dev);
-	struct intel_uncore *uncore = &i915->uncore;
-	struct drm_i915_reg_read *reg = data;
-	struct reg_whitelist const *entry;
-	intel_wakeref_t wakeref;
-	unsigned int flags;
-	int remain;
-	int ret = 0;
-
-	entry = reg_read_whitelist;
-	remain = ARRAY_SIZE(reg_read_whitelist);
-	while (remain) {
-		u32 entry_offset = i915_mmio_reg_offset(entry->offset_ldw);
-
-		GEM_BUG_ON(!is_power_of_2(entry->size));
-		GEM_BUG_ON(entry->size > 8);
-		GEM_BUG_ON(entry_offset & (entry->size - 1));
-
-		if (IS_GRAPHICS_VER(i915, entry->min_graphics_ver, entry->max_graphics_ver) &&
-		    entry_offset == (reg->offset & -entry->size))
-			break;
-		entry++;
-		remain--;
-	}
-
-	if (!remain)
-		return -EINVAL;
-
-	flags = reg->offset & (entry->size - 1);
-
-	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
-		if (entry->size == 8 && flags == I915_REG_READ_8B_WA)
-			reg->val = intel_uncore_read64_2x32(uncore,
-							    entry->offset_ldw,
-							    entry->offset_udw);
-		else if (entry->size == 8 && flags == 0)
-			reg->val = intel_uncore_read64(uncore,
-						       entry->offset_ldw);
-		else if (entry->size == 4 && flags == 0)
-			reg->val = intel_uncore_read(uncore, entry->offset_ldw);
-		else if (entry->size == 2 && flags == 0)
-			reg->val = intel_uncore_read16(uncore,
-						       entry->offset_ldw);
-		else if (entry->size == 1 && flags == 0)
-			reg->val = intel_uncore_read8(uncore,
-						      entry->offset_ldw);
-		else
-			ret = -EINVAL;
-	}
-
-	return ret;
-}
-
 /**
  * __intel_wait_for_register_fw - wait until register matches expected state
  * @uncore: the struct intel_uncore
@@ -2533,17 +2470,46 @@ intel_uncore_forcewake_for_reg(struct intel_uncore *uncore,
 	return fw_domains;
 }
 
-u32 intel_uncore_read_with_mcr_steering_fw(struct intel_uncore *uncore,
-					   i915_reg_t reg,
-					   int slice, int subslice)
+/**
+ * uncore_rw_with_mcr_steering_fw - Access a register after programming
+ *				    the MCR selector register.
+ * @uncore: pointer to struct intel_uncore
+ * @reg: register being accessed
+ * @rw_flag: FW_REG_READ for read access or FW_REG_WRITE for write access
+ * @slice: slice number (ignored for multi-cast write)
+ * @subslice: sub-slice number (ignored for multi-cast write)
+ * @value: register value to be written (ignored for read)
+ *
+ * Return: 0 for write access. register value for read access.
+ *
+ * Caller needs to make sure the relevant forcewake wells are up.
+ */
+static u32 uncore_rw_with_mcr_steering_fw(struct intel_uncore *uncore,
+					  i915_reg_t reg, u8 rw_flag,
+					  int slice, int subslice, u32 value)
 {
-	u32 mcr_mask, mcr_ss, mcr, old_mcr, val;
+	u32 mcr_mask, mcr_ss, mcr, old_mcr, val = 0;
 
 	lockdep_assert_held(&uncore->lock);
 
 	if (GRAPHICS_VER(uncore->i915) >= 11) {
 		mcr_mask = GEN11_MCR_SLICE_MASK | GEN11_MCR_SUBSLICE_MASK;
 		mcr_ss = GEN11_MCR_SLICE(slice) | GEN11_MCR_SUBSLICE(subslice);
+
+		/*
+		 * Wa_22013088509
+		 *
+		 * The setting of the multicast/unicast bit usually wouldn't
+		 * matter for read operations (which always return the value
+		 * from a single register instance regardless of how that bit
+		 * is set), but some platforms have a workaround requiring us
+		 * to remain in multicast mode for reads.  There's no real
+		 * downside to this, so we'll just go ahead and do so on all
+		 * platforms; we'll only clear the multicast bit from the mask
+		 * when exlicitly doing a write operation.
+		 */
+		if (rw_flag == FW_REG_WRITE)
+			mcr_mask |= GEN11_MCR_MULTICAST;
 	} else {
 		mcr_mask = GEN8_MCR_SLICE_MASK | GEN8_MCR_SUBSLICE_MASK;
 		mcr_ss = GEN8_MCR_SLICE(slice) | GEN8_MCR_SUBSLICE(subslice);
@@ -2555,7 +2521,10 @@ u32 intel_uncore_read_with_mcr_steering_fw(struct intel_uncore *uncore,
 	mcr |= mcr_ss;
 	intel_uncore_write_fw(uncore, GEN8_MCR_SELECTOR, mcr);
 
-	val = intel_uncore_read_fw(uncore, reg);
+	if (rw_flag == FW_REG_READ)
+		val = intel_uncore_read_fw(uncore, reg);
+	else
+		intel_uncore_write_fw(uncore, reg, value);
 
 	mcr &= ~mcr_mask;
 	mcr |= old_mcr & mcr_mask;
@@ -2565,14 +2534,16 @@ u32 intel_uncore_read_with_mcr_steering_fw(struct intel_uncore *uncore,
 	return val;
 }
 
-u32 intel_uncore_read_with_mcr_steering(struct intel_uncore *uncore,
-					i915_reg_t reg, int slice, int subslice)
+static u32 uncore_rw_with_mcr_steering(struct intel_uncore *uncore,
+				       i915_reg_t reg, u8 rw_flag,
+				       int slice, int subslice,
+				       u32 value)
 {
 	enum forcewake_domains fw_domains;
 	u32 val;
 
 	fw_domains = intel_uncore_forcewake_for_reg(uncore, reg,
-						    FW_REG_READ);
+						    rw_flag);
 	fw_domains |= intel_uncore_forcewake_for_reg(uncore,
 						     GEN8_MCR_SELECTOR,
 						     FW_REG_READ | FW_REG_WRITE);
@@ -2580,12 +2551,35 @@ u32 intel_uncore_read_with_mcr_steering(struct intel_uncore *uncore,
 	spin_lock_irq(&uncore->lock);
 	intel_uncore_forcewake_get__locked(uncore, fw_domains);
 
-	val = intel_uncore_read_with_mcr_steering_fw(uncore, reg, slice, subslice);
+	val = uncore_rw_with_mcr_steering_fw(uncore, reg, rw_flag,
+					     slice, subslice, value);
 
 	intel_uncore_forcewake_put__locked(uncore, fw_domains);
 	spin_unlock_irq(&uncore->lock);
 
 	return val;
+}
+
+u32 intel_uncore_read_with_mcr_steering_fw(struct intel_uncore *uncore,
+					   i915_reg_t reg, int slice, int subslice)
+{
+	return uncore_rw_with_mcr_steering_fw(uncore, reg, FW_REG_READ,
+					      slice, subslice, 0);
+}
+
+u32 intel_uncore_read_with_mcr_steering(struct intel_uncore *uncore,
+					i915_reg_t reg, int slice, int subslice)
+{
+	return uncore_rw_with_mcr_steering(uncore, reg, FW_REG_READ,
+					   slice, subslice, 0);
+}
+
+void intel_uncore_write_with_mcr_steering(struct intel_uncore *uncore,
+					  i915_reg_t reg, u32 value,
+					  int slice, int subslice)
+{
+	uncore_rw_with_mcr_steering(uncore, reg, FW_REG_WRITE,
+				    slice, subslice, value);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

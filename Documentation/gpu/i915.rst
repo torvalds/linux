@@ -187,19 +187,7 @@ Display Refresh Rate Switching (DRRS)
    :doc: Display Refresh Rate Switching (DRRS)
 
 .. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
-   :functions: intel_drrs_enable
-
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
-   :functions: intel_drrs_disable
-
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
-   :functions: intel_drrs_invalidate
-
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
-   :functions: intel_drrs_flush
-
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
-   :functions: intel_drrs_init
+   :internal:
 
 DPIO
 ----
@@ -539,6 +527,7 @@ GuC ABI
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/abi/guc_communication_mmio_abi.h
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/abi/guc_communication_ctb_abi.h
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/abi/guc_actions_abi.h
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/abi/guc_klvs_abi.h
 
 HuC
 ---
@@ -708,3 +697,31 @@ The style guide for ``i915_reg.h``.
 
 .. kernel-doc:: drivers/gpu/drm/i915/i915_reg.h
    :doc: The i915 register macro definition style guide
+
+.. _i915-usage-stats:
+
+i915 DRM client usage stats implementation
+==========================================
+
+The drm/i915 driver implements the DRM client usage stats specification as
+documented in :ref:`drm-client-usage-stats`.
+
+Example of the output showing the implemented key value pairs and entirety of
+the currently possible format options:
+
+::
+
+      pos:    0
+      flags:  0100002
+      mnt_id: 21
+      drm-driver: i915
+      drm-pdev:   0000:00:02.0
+      drm-client-id:      7
+      drm-engine-render:  9288864723 ns
+      drm-engine-copy:    2035071108 ns
+      drm-engine-video:   0 ns
+      drm-engine-capacity-video:   2
+      drm-engine-video-enhance:   0 ns
+
+Possible `drm-engine-` key names are: `render`, `copy`, `video` and
+`video-enhance`.

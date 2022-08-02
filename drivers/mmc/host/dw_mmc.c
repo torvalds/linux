@@ -1812,7 +1812,7 @@ static const struct mmc_host_ops dw_mci_ops = {
 	.set_ios		= dw_mci_set_ios,
 	.get_ro			= dw_mci_get_ro,
 	.get_cd			= dw_mci_get_cd,
-	.hw_reset               = dw_mci_hw_reset,
+	.card_hw_reset          = dw_mci_hw_reset,
 	.enable_sdio_irq	= dw_mci_enable_sdio_irq,
 	.ack_sdio_irq		= dw_mci_ack_sdio_irq,
 	.execute_tuning		= dw_mci_execute_tuning,
@@ -2898,7 +2898,12 @@ static int dw_mci_init_slot_caps(struct dw_mci_slot *slot)
 	if (host->pdata->caps2)
 		mmc->caps2 = host->pdata->caps2;
 
-	mmc->f_min = DW_MCI_FREQ_MIN;
+	/* if host has set a minimum_freq, we should respect it */
+	if (host->minimum_speed)
+		mmc->f_min = host->minimum_speed;
+	else
+		mmc->f_min = DW_MCI_FREQ_MIN;
+
 	if (!mmc->f_max)
 		mmc->f_max = DW_MCI_FREQ_MAX;
 
@@ -3057,8 +3062,7 @@ static void dw_mci_init_dma(struct dw_mci *host)
 		dev_info(host->dev, "Using internal DMA controller.\n");
 	} else {
 		/* TRANS_MODE_EDMAC: check dma bindings again */
-		if ((device_property_read_string_array(dev, "dma-names",
-						       NULL, 0) < 0) ||
+		if ((device_property_string_array_count(dev, "dma-names") < 0) ||
 		    !device_property_present(dev, "dmas")) {
 			goto no_dma;
 		}
@@ -3568,7 +3572,7 @@ int dw_mci_runtime_resume(struct device *dev)
 	mci_writel(host, CTRL, SDMMC_CTRL_INT_ENABLE);
 
 
-	if (host->slot->mmc->pm_flags & MMC_PM_KEEP_POWER)
+	if (host->slot && host->slot->mmc->pm_flags & MMC_PM_KEEP_POWER)
 		dw_mci_set_ios(host->slot->mmc, &host->slot->mmc->ios);
 
 	/* Force setup bus to guarantee available clock output */

@@ -795,7 +795,7 @@ config KEYBOARD_MT6779
 
 config KEYBOARD_MTK_PMIC
 	tristate "MediaTek PMIC keys support"
-	depends on MFD_MT6397
+	depends on MFD_MT6397 || COMPILE_TEST
 	help
 	  Say Y here if you want to use the pmic keys (powerkey/homekey).
 

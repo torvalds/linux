@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timestamp/hte-consumer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: HTE Consumer Device Tree Bindings
+
+maintainers:
+  - Dipen Patel <dipenp@nvidia.com>
+
+select: true
+
+properties:
+  timestamps:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description:
+      The list of HTE provider phandle. The first cell must represent the
+      provider phandle followed by the line identifiers. The meaning of the
+      line identifier and exact number of arguments must be specified in the
+      HTE provider device tree binding document.
+
+  timestamp-names:
+    $ref: /schemas/types.yaml#/definitions/string-array
+    description:
+      An optional string property to label each line specifier present in the
+      timestamp property.
+
+dependencies:
+  timestamp-names: [ timestamps ]
+
+additionalProperties: true
+
+examples:
+  - |
+    hte_tegra_consumer {
+              timestamps = <&tegra_hte_aon 0x9>, <&tegra_hte_lic 0x19>;
+              timestamp-names = "hte-gpio", "hte-i2c";
+    };

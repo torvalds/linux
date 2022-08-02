@@ -31,9 +31,15 @@
 
 MODULE_FIRMWARE("amdgpu/aldebaran_sos.bin");
 MODULE_FIRMWARE("amdgpu/aldebaran_ta.bin");
-MODULE_FIRMWARE("amdgpu/yellow_carp_asd.bin");
+MODULE_FIRMWARE("amdgpu/aldebaran_cap.bin");
 MODULE_FIRMWARE("amdgpu/yellow_carp_toc.bin");
 MODULE_FIRMWARE("amdgpu/yellow_carp_ta.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_5_toc.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_5_ta.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_8_toc.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_8_ta.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_0_sos.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_7_sos.bin");
 
 /* For large FW files the time to complete can be very long */
 #define USBC_PD_POLLING_LIMIT_S 240
@@ -41,10 +47,20 @@ MODULE_FIRMWARE("amdgpu/yellow_carp_ta.bin");
 /* Read USB-PD from LFB */
 #define GFX_CMD_USB_PD_USE_LFB 0x480
 
+/* VBIOS gfl defines */
+#define MBOX_READY_MASK 0x80000000
+#define MBOX_STATUS_MASK 0x0000FFFF
+#define MBOX_COMMAND_MASK 0x00FF0000
+#define MBOX_READY_FLAG 0x80000000
+#define C2PMSG_CMD_SPI_UPDATE_ROM_IMAGE_ADDR_LO 0x2
+#define C2PMSG_CMD_SPI_UPDATE_ROM_IMAGE_ADDR_HI 0x3
+#define C2PMSG_CMD_SPI_UPDATE_FLASH_IMAGE 0x4
+
 static int psp_v13_0_init_microcode(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
 	const char *chip_name;
+	char ucode_prefix[30];
 	int err = 0;
 
 	switch (adev->ip_versions[MP0_HWIP][0]) {
@@ -56,26 +72,37 @@ static int psp_v13_0_init_microcode(struct psp_context *psp)
 		chip_name = "yellow_carp";
 		break;
 	default:
-		BUG();
+		amdgpu_ucode_ip_version_decode(adev, MP0_HWIP, ucode_prefix, sizeof(ucode_prefix));
+		chip_name = ucode_prefix;
+		break;
 	}
+
 	switch (adev->ip_versions[MP0_HWIP][0]) {
 	case IP_VERSION(13, 0, 2):
 		err = psp_init_sos_microcode(psp, chip_name);
 		if (err)
 			return err;
-		err = psp_init_ta_microcode(&adev->psp, chip_name);
-		if (err)
-			return err;
+		/* It's not necessary to load ras ta on Guest side */
+		if (!amdgpu_sriov_vf(adev)) {
+			err = psp_init_ta_microcode(&adev->psp, chip_name);
+			if (err)
+				return err;
+		}
 		break;
 	case IP_VERSION(13, 0, 1):
 	case IP_VERSION(13, 0, 3):
-		err = psp_init_asd_microcode(psp, chip_name);
-		if (err)
-			return err;
+	case IP_VERSION(13, 0, 5):
+	case IP_VERSION(13, 0, 8):
 		err = psp_init_toc_microcode(psp, chip_name);
 		if (err)
 			return err;
 		err = psp_init_ta_microcode(psp, chip_name);
+		if (err)
+			return err;
+		break;
+	case IP_VERSION(13, 0, 0):
+	case IP_VERSION(13, 0, 7):
+		err = psp_init_sos_microcode(psp, chip_name);
 		if (err)
 			return err;
 		break;
@@ -157,6 +184,11 @@ static int psp_v13_0_bootloader_load_component(struct psp_context  	*psp,
 static int psp_v13_0_bootloader_load_kdb(struct psp_context *psp)
 {
 	return psp_v13_0_bootloader_load_component(psp, &psp->kdb, PSP_BL__LOAD_KEY_DATABASE);
+}
+
+static int psp_v13_0_bootloader_load_spl(struct psp_context *psp)
+{
+	return psp_v13_0_bootloader_load_component(psp, &psp->kdb, PSP_BL__LOAD_TOS_SPL_TABLE);
 }
 
 static int psp_v13_0_bootloader_load_sysdrv(struct psp_context *psp)
@@ -439,9 +471,85 @@ static int psp_v13_0_read_usbc_pd_fw(struct psp_context *psp, uint32_t *fw_ver)
 	return ret;
 }
 
+static int psp_v13_0_exec_spi_cmd(struct psp_context *psp, int cmd)
+{
+	uint32_t reg_status = 0, reg_val = 0;
+	struct amdgpu_device *adev = psp->adev;
+	int ret;
+
+	/* clear MBX ready (MBOX_READY_MASK bit is 0) and set update command */
+	reg_val |= (cmd << 16);
+	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_115,  reg_val);
+
+	/* Ring the doorbell */
+	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_73, 1);
+
+	if (cmd == C2PMSG_CMD_SPI_UPDATE_FLASH_IMAGE)
+		return 0;
+
+	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_115),
+				MBOX_READY_FLAG, MBOX_READY_MASK, false);
+	if (ret) {
+		dev_err(adev->dev, "SPI cmd %x timed out, ret = %d", cmd, ret);
+		return ret;
+	}
+
+	reg_status = RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_115);
+	if ((reg_status & 0xFFFF) != 0) {
+		dev_err(adev->dev, "SPI cmd %x failed, fail status = %04x\n",
+				cmd, reg_status & 0xFFFF);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int psp_v13_0_update_spirom(struct psp_context *psp,
+				   uint64_t fw_pri_mc_addr)
+{
+	struct amdgpu_device *adev = psp->adev;
+	int ret;
+
+	/* Confirm PSP is ready to start */
+	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_115),
+			   MBOX_READY_FLAG, MBOX_READY_MASK, false);
+	if (ret) {
+		dev_err(adev->dev, "PSP Not ready to start processing, ret = %d", ret);
+		return ret;
+	}
+
+	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_116, lower_32_bits(fw_pri_mc_addr));
+
+	ret = psp_v13_0_exec_spi_cmd(psp, C2PMSG_CMD_SPI_UPDATE_ROM_IMAGE_ADDR_LO);
+	if (ret)
+		return ret;
+
+	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_116, upper_32_bits(fw_pri_mc_addr));
+
+	ret = psp_v13_0_exec_spi_cmd(psp, C2PMSG_CMD_SPI_UPDATE_ROM_IMAGE_ADDR_HI);
+	if (ret)
+		return ret;
+
+	psp->vbflash_done = true;
+
+	ret = psp_v13_0_exec_spi_cmd(psp, C2PMSG_CMD_SPI_UPDATE_FLASH_IMAGE);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int psp_v13_0_vbflash_status(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+
+	return RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_115);
+}
+
 static const struct psp_funcs psp_v13_0_funcs = {
 	.init_microcode = psp_v13_0_init_microcode,
 	.bootloader_load_kdb = psp_v13_0_bootloader_load_kdb,
+	.bootloader_load_spl = psp_v13_0_bootloader_load_spl,
 	.bootloader_load_sysdrv = psp_v13_0_bootloader_load_sysdrv,
 	.bootloader_load_soc_drv = psp_v13_0_bootloader_load_soc_drv,
 	.bootloader_load_intf_drv = psp_v13_0_bootloader_load_intf_drv,
@@ -454,7 +562,9 @@ static const struct psp_funcs psp_v13_0_funcs = {
 	.ring_get_wptr = psp_v13_0_ring_get_wptr,
 	.ring_set_wptr = psp_v13_0_ring_set_wptr,
 	.load_usbc_pd_fw = psp_v13_0_load_usbc_pd_fw,
-	.read_usbc_pd_fw = psp_v13_0_read_usbc_pd_fw
+	.read_usbc_pd_fw = psp_v13_0_read_usbc_pd_fw,
+	.update_spirom = psp_v13_0_update_spirom,
+	.vbflash_stat = psp_v13_0_vbflash_status
 };
 
 void psp_v13_0_set_psp_funcs(struct psp_context *psp)

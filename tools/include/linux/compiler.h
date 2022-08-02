@@ -102,10 +102,6 @@
 # define __init
 #endif
 
-#ifndef noinline
-# define noinline
-#endif
-
 #include <linux/types.h>
 
 /*

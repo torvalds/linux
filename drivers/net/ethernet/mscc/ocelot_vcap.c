@@ -335,6 +335,7 @@ static void is2_action_set(struct ocelot *ocelot, struct vcap_data *data,
 
 	vcap_action_set(vcap, data, VCAP_IS2_ACT_MASK_MODE, a->mask_mode);
 	vcap_action_set(vcap, data, VCAP_IS2_ACT_PORT_MASK, a->port_mask);
+	vcap_action_set(vcap, data, VCAP_IS2_ACT_MIRROR_ENA, a->mirror_ena);
 	vcap_action_set(vcap, data, VCAP_IS2_ACT_POLICE_ENA, a->police_ena);
 	vcap_action_set(vcap, data, VCAP_IS2_ACT_POLICE_IDX, a->pol_ix);
 	vcap_action_set(vcap, data, VCAP_IS2_ACT_CPU_QU_NUM, a->cpu_qu_num);
@@ -373,7 +374,6 @@ static void is2_entry_set(struct ocelot *ocelot, int ix,
 			 OCELOT_VCAP_BIT_0);
 	vcap_key_set(vcap, &data, VCAP_IS2_HK_IGR_PORT_MASK, 0,
 		     ~filter->ingress_port_mask);
-	vcap_key_bit_set(vcap, &data, VCAP_IS2_HK_FIRST, OCELOT_VCAP_BIT_ANY);
 	vcap_key_bit_set(vcap, &data, VCAP_IS2_HK_HOST_MATCH,
 			 OCELOT_VCAP_BIT_ANY);
 	vcap_key_bit_set(vcap, &data, VCAP_IS2_HK_L2_MC, filter->dmac_mc);
@@ -564,9 +564,9 @@ static void is2_entry_set(struct ocelot *ocelot, int ix,
 		val = proto.value[0];
 		msk = proto.mask[0];
 		type = IS2_TYPE_IP_UDP_TCP;
-		if (msk == 0xff && (val == 6 || val == 17)) {
+		if (msk == 0xff && (val == IPPROTO_TCP || val == IPPROTO_UDP)) {
 			/* UDP/TCP protocol match */
-			tcp = (val == 6 ?
+			tcp = (val == IPPROTO_TCP ?
 			       OCELOT_VCAP_BIT_1 : OCELOT_VCAP_BIT_0);
 			vcap_key_bit_set(vcap, &data, VCAP_IS2_HK_TCP, tcp);
 			vcap_key_l4_port_set(vcap, &data,
@@ -671,12 +671,10 @@ static void is1_entry_set(struct ocelot *ocelot, int ix,
 {
 	const struct vcap_props *vcap = &ocelot->vcap[VCAP_IS1];
 	struct ocelot_vcap_key_vlan *tag = &filter->vlan;
-	struct ocelot_vcap_u64 payload;
 	struct vcap_data data;
 	int row = ix / 2;
 	u32 type;
 
-	memset(&payload, 0, sizeof(payload));
 	memset(&data, 0, sizeof(data));
 
 	/* Read row */
@@ -812,11 +810,9 @@ static void es0_entry_set(struct ocelot *ocelot, int ix,
 {
 	const struct vcap_props *vcap = &ocelot->vcap[VCAP_ES0];
 	struct ocelot_vcap_key_vlan *tag = &filter->vlan;
-	struct ocelot_vcap_u64 payload;
 	struct vcap_data data;
 	int row = ix;
 
-	memset(&payload, 0, sizeof(payload));
 	memset(&data, 0, sizeof(data));
 
 	/* Read row */
@@ -917,7 +913,7 @@ int ocelot_vcap_policer_add(struct ocelot *ocelot, u32 pol_ix,
 	if (!tmp)
 		return -ENOMEM;
 
-	ret = qos_policer_conf_set(ocelot, 0, pol_ix, &pp);
+	ret = qos_policer_conf_set(ocelot, pol_ix, &pp);
 	if (ret) {
 		kfree(tmp);
 		return ret;
@@ -948,20 +944,27 @@ int ocelot_vcap_policer_del(struct ocelot *ocelot, u32 pol_ix)
 
 	if (z) {
 		pp.mode = MSCC_QOS_RATE_MODE_DISABLED;
-		return qos_policer_conf_set(ocelot, 0, pol_ix, &pp);
+		return qos_policer_conf_set(ocelot, pol_ix, &pp);
 	}
 
 	return 0;
 }
 EXPORT_SYMBOL(ocelot_vcap_policer_del);
 
-static int ocelot_vcap_filter_add_to_block(struct ocelot *ocelot,
-					   struct ocelot_vcap_block *block,
-					   struct ocelot_vcap_filter *filter)
+static int
+ocelot_vcap_filter_add_aux_resources(struct ocelot *ocelot,
+				     struct ocelot_vcap_filter *filter,
+				     struct netlink_ext_ack *extack)
 {
-	struct ocelot_vcap_filter *tmp;
-	struct list_head *pos, *n;
+	struct ocelot_mirror *m;
 	int ret;
+
+	if (filter->block_id == VCAP_IS2 && filter->action.mirror_ena) {
+		m = ocelot_mirror_get(ocelot, filter->egress_port.value,
+				      extack);
+		if (IS_ERR(m))
+			return PTR_ERR(m);
+	}
 
 	if (filter->block_id == VCAP_IS2 && filter->action.police_ena) {
 		ret = ocelot_vcap_policer_add(ocelot, filter->action.pol_ix,
@@ -970,19 +973,42 @@ static int ocelot_vcap_filter_add_to_block(struct ocelot *ocelot,
 			return ret;
 	}
 
+	return 0;
+}
+
+static void
+ocelot_vcap_filter_del_aux_resources(struct ocelot *ocelot,
+				     struct ocelot_vcap_filter *filter)
+{
+	if (filter->block_id == VCAP_IS2 && filter->action.police_ena)
+		ocelot_vcap_policer_del(ocelot, filter->action.pol_ix);
+
+	if (filter->block_id == VCAP_IS2 && filter->action.mirror_ena)
+		ocelot_mirror_put(ocelot);
+}
+
+static int ocelot_vcap_filter_add_to_block(struct ocelot *ocelot,
+					   struct ocelot_vcap_block *block,
+					   struct ocelot_vcap_filter *filter,
+					   struct netlink_ext_ack *extack)
+{
+	struct list_head *pos = &block->rules;
+	struct ocelot_vcap_filter *tmp;
+	int ret;
+
+	ret = ocelot_vcap_filter_add_aux_resources(ocelot, filter, extack);
+	if (ret)
+		return ret;
+
 	block->count++;
 
-	if (list_empty(&block->rules)) {
-		list_add(&filter->list, &block->rules);
-		return 0;
-	}
-
-	list_for_each_safe(pos, n, &block->rules) {
-		tmp = list_entry(pos, struct ocelot_vcap_filter, list);
-		if (filter->prio < tmp->prio)
+	list_for_each_entry(tmp, &block->rules, list) {
+		if (filter->prio < tmp->prio) {
+			pos = &tmp->list;
 			break;
+		}
 	}
-	list_add(&filter->list, pos->prev);
+	list_add_tail(&filter->list, pos);
 
 	return 0;
 }
@@ -1168,7 +1194,7 @@ int ocelot_vcap_filter_add(struct ocelot *ocelot,
 	}
 
 	/* Add filter to the linked list */
-	ret = ocelot_vcap_filter_add_to_block(ocelot, block, filter);
+	ret = ocelot_vcap_filter_add_to_block(ocelot, block, filter, extack);
 	if (ret)
 		return ret;
 
@@ -1182,6 +1208,8 @@ int ocelot_vcap_filter_add(struct ocelot *ocelot,
 		struct ocelot_vcap_filter *tmp;
 
 		tmp = ocelot_vcap_block_find_filter_by_index(block, i);
+		/* Read back the filter's counters before moving it */
+		vcap_entry_get(ocelot, i - 1, tmp);
 		vcap_entry_set(ocelot, i, tmp);
 	}
 
@@ -1195,18 +1223,12 @@ static void ocelot_vcap_block_remove_filter(struct ocelot *ocelot,
 					    struct ocelot_vcap_block *block,
 					    struct ocelot_vcap_filter *filter)
 {
-	struct ocelot_vcap_filter *tmp;
-	struct list_head *pos, *q;
+	struct ocelot_vcap_filter *tmp, *n;
 
-	list_for_each_safe(pos, q, &block->rules) {
-		tmp = list_entry(pos, struct ocelot_vcap_filter, list);
+	list_for_each_entry_safe(tmp, n, &block->rules, list) {
 		if (ocelot_vcap_filter_equal(filter, tmp)) {
-			if (tmp->block_id == VCAP_IS2 &&
-			    tmp->action.police_ena)
-				ocelot_vcap_policer_del(ocelot,
-							tmp->action.pol_ix);
-
-			list_del(pos);
+			ocelot_vcap_filter_del_aux_resources(ocelot, tmp);
+			list_del(&tmp->list);
 			kfree(tmp);
 		}
 	}
@@ -1221,7 +1243,11 @@ int ocelot_vcap_filter_del(struct ocelot *ocelot,
 	struct ocelot_vcap_filter del_filter;
 	int i, index;
 
+	/* Need to inherit the block_id so that vcap_entry_set()
+	 * does not get confused and knows where to install it.
+	 */
 	memset(&del_filter, 0, sizeof(del_filter));
+	del_filter.block_id = filter->block_id;
 
 	/* Gets index of the filter */
 	index = ocelot_vcap_block_get_filter_index(block, filter);
@@ -1236,6 +1262,8 @@ int ocelot_vcap_filter_del(struct ocelot *ocelot,
 		struct ocelot_vcap_filter *tmp;
 
 		tmp = ocelot_vcap_block_find_filter_by_index(block, i);
+		/* Read back the filter's counters before moving it */
+		vcap_entry_get(ocelot, i + 1, tmp);
 		vcap_entry_set(ocelot, i, tmp);
 	}
 
@@ -1373,22 +1401,18 @@ static void ocelot_vcap_detect_constants(struct ocelot *ocelot,
 
 int ocelot_vcap_init(struct ocelot *ocelot)
 {
-	int i;
+	struct qos_policer_conf cpu_drop = {
+		.mode = MSCC_QOS_RATE_MODE_DATA,
+	};
+	int ret, i;
 
 	/* Create a policer that will drop the frames for the cpu.
 	 * This policer will be used as action in the acl rules to drop
 	 * frames.
 	 */
-	ocelot_write_gix(ocelot, 0x299, ANA_POL_MODE_CFG,
-			 OCELOT_POLICER_DISCARD);
-	ocelot_write_gix(ocelot, 0x1, ANA_POL_PIR_CFG,
-			 OCELOT_POLICER_DISCARD);
-	ocelot_write_gix(ocelot, 0x3fffff, ANA_POL_PIR_STATE,
-			 OCELOT_POLICER_DISCARD);
-	ocelot_write_gix(ocelot, 0x0, ANA_POL_CIR_CFG,
-			 OCELOT_POLICER_DISCARD);
-	ocelot_write_gix(ocelot, 0x3fffff, ANA_POL_CIR_STATE,
-			 OCELOT_POLICER_DISCARD);
+	ret = qos_policer_conf_set(ocelot, OCELOT_POLICER_DISCARD, &cpu_drop);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < OCELOT_NUM_VCAP_BLOCKS; i++) {
 		struct ocelot_vcap_block *block = &ocelot->block[i];
@@ -1401,6 +1425,7 @@ int ocelot_vcap_init(struct ocelot *ocelot)
 	}
 
 	INIT_LIST_HEAD(&ocelot->dummy_rules);
+	INIT_LIST_HEAD(&ocelot->traps);
 	INIT_LIST_HEAD(&ocelot->vcap_pol.pol_list);
 
 	return 0;

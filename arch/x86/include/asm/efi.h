@@ -7,6 +7,7 @@
 #include <asm/tlb.h>
 #include <asm/nospec-branch.h>
 #include <asm/mmu_context.h>
+#include <asm/ibt.h>
 #include <linux/build_bug.h>
 #include <linux/kernel.h>
 #include <linux/pgtable.h>
@@ -120,8 +121,12 @@ extern asmlinkage u64 __efi_call(void *fp, ...);
 	efi_enter_mm();							\
 })
 
-#define arch_efi_call_virt(p, f, args...)				\
-	efi_call((void *)p->f, args)					\
+#define arch_efi_call_virt(p, f, args...) ({				\
+	u64 ret, ibt = ibt_save();					\
+	ret = efi_call((void *)p->f, args);				\
+	ibt_restore(ibt);						\
+	ret;								\
+})
 
 #define arch_efi_call_virt_teardown()					\
 ({									\
@@ -265,6 +270,8 @@ static inline u32 efi64_convert_status(efi_status_t status)
 	return (u32)(status | (u64)status >> 32);
 }
 
+#define __efi64_split(val)		(val) & U32_MAX, (u64)(val) >> 32
+
 #define __efi64_argmap_free_pages(addr, size)				\
 	((addr), 0, (size))
 
@@ -312,6 +319,13 @@ static inline u32 efi64_convert_status(efi_status_t status)
 #define __efi64_argmap_hash_log_extend_event(prot, fl, addr, size, ev)	\
 	((prot), (fl), 0ULL, (u64)(addr), 0ULL, (u64)(size), 0ULL, ev)
 
+/* DXE services */
+#define __efi64_argmap_get_memory_space_descriptor(phys, desc) \
+	(__efi64_split(phys), (desc))
+
+#define __efi64_argmap_set_memory_space_attributes(phys, size, flags) \
+	(__efi64_split(phys), __efi64_split(size), __efi64_split(flags))
+
 /*
  * The macros below handle the plumbing for the argument mapping. To add a
  * mapping for a specific EFI method, simply define a macro
@@ -351,6 +365,11 @@ static inline u32 efi64_convert_status(efi_status_t status)
 		: __efi64_thunk_map(efi_table_attr(efi_system_table,	\
 						   runtime),		\
 				    func, __VA_ARGS__))
+
+#define efi_dxe_call(func, ...)						\
+	(efi_is_native()						\
+		? efi_dxe_table->func(__VA_ARGS__)			\
+		: __efi64_thunk_map(efi_dxe_table, func, __VA_ARGS__))
 
 #else /* CONFIG_EFI_MIXED */
 

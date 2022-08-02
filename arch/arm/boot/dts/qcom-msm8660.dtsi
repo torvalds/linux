@@ -126,6 +126,7 @@
 		gcc: clock-controller@900000 {
 			compatible = "qcom,gcc-msm8660";
 			#clock-cells = <1>;
+			#power-domain-cells = <1>;
 			#reset-cells = <1>;
 			reg = <0x900000 0x4000>;
 		};
@@ -211,6 +212,7 @@
 			ranges;
 
 			syscon-tcsr = <&tcsr>;
+			status = "disabled";
 
 			gsbi8_i2c: i2c@19880000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
@@ -390,7 +392,7 @@
 		};
 
 		l2cc: clock-controller@2082000 {
-			compatible	= "syscon";
+			compatible	= "qcom,kpss-gcc", "syscon";
 			reg		= <0x02082000 0x1000>;
 		};
 

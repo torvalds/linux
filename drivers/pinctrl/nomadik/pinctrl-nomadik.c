@@ -1113,6 +1113,7 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	spin_lock_init(&nmk_chip->lock);
 
 	chip = &nmk_chip->chip;
+	chip->parent = &dev->dev;
 	chip->request = gpiochip_generic_request;
 	chip->free = gpiochip_generic_free;
 	chip->get_direction = nmk_gpio_get_dir;
@@ -1154,7 +1155,6 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	clk_enable(nmk_chip->clk);
 	nmk_chip->lowemi = readl_relaxed(nmk_chip->addr + NMK_GPIO_LOWEMI);
 	clk_disable(nmk_chip->clk);
-	chip->of_node = np;
 
 	ret = gpiochip_add_data(chip, nmk_chip);
 	if (ret)
@@ -1883,8 +1883,10 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	prcm_np = of_parse_phandle(np, "prcm", 0);
-	if (prcm_np)
+	if (prcm_np) {
 		npct->prcm_base = of_iomap(prcm_np, 0);
+		of_node_put(prcm_np);
+	}
 	if (!npct->prcm_base) {
 		if (version == PINCTRL_NMK_STN8815) {
 			dev_info(&pdev->dev,

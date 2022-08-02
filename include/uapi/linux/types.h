@@ -19,12 +19,15 @@
  * any application/library that wants linux/types.h.
  */
 
+/* sparse defines __CHECKER__; see Documentation/dev-tools/sparse.rst */
 #ifdef __CHECKER__
-#define __bitwise__ __attribute__((bitwise))
+#define __bitwise	__attribute__((bitwise))
 #else
-#define __bitwise__
+#define __bitwise
 #endif
-#define __bitwise __bitwise__
+
+/* The kernel doesn't use this legacy form, but user space does */
+#define __bitwise__ __bitwise
 
 typedef __u16 __bitwise __le16;
 typedef __u16 __bitwise __be16;

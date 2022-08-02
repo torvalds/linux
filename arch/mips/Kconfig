@@ -4,6 +4,7 @@ config MIPS
 	default y
 	select ARCH_32BIT_OFF_T if !64BIT
 	select ARCH_BINFMT_ELF_STATE if MIPS_FP_SUPPORT
+	select ARCH_HAS_CURRENT_STACK_POINTER if !CC_IS_CLANG || CLANG_VERSION >= 140000
 	select ARCH_HAS_DEBUG_VIRTUAL if !64BIT
 	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_KCOV
@@ -101,6 +102,7 @@ config MIPS
 	select TRACE_IRQFLAGS_SUPPORT
 	select VIRT_TO_BUS
 	select ARCH_HAS_ELFCORE_COMPAT
+	select HAVE_ARCH_KCSAN if 64BIT
 
 config MIPS_FIXUP_BIGPHYS_ADDR
 	bool
@@ -511,6 +513,7 @@ config MACH_LOONGSON64
 	select USE_OF
 	select BUILTIN_DTB
 	select PCI_HOST_GENERIC
+	select HAVE_ARCH_NODEDATA_EXTENSION if NUMA
 	help
 	  This enables the support of Loongson-2/3 family of machines.
 
@@ -707,6 +710,7 @@ config SGI_IP27
 	select WAR_R10000_LLSC
 	select MIPS_L1_CACHE_SHIFT_7
 	select NUMA
+	select HAVE_ARCH_NODEDATA_EXTENSION
 	help
 	  This are the SGI Origin 200, Origin 2000 and Onyx 2 Graphics
 	  workstations.  To compile a Linux kernel that runs on these, say Y
@@ -925,9 +929,6 @@ config SNI_RM
 	  Siemens Nixdorf Informationssysteme (SNI), parent company of Pyramid
 	  Technology and now in turn merged with Fujitsu.  Say Y here to
 	  support this machine type.
-
-config MACH_TX39XX
-	bool "Toshiba TX39 series based machines"
 
 config MACH_TX49XX
 	bool "Toshiba TX49 series based machines"
@@ -1320,11 +1321,11 @@ config CPU_LOONGSON64
 	select SWIOTLB
 	select HAVE_KVM
 	help
-		The Loongson GSx64(GS264/GS464/GS464E/GS464V) series of processor
-		cores implements the MIPS64R2 instruction set with many extensions,
-		including most 64-bit Loongson-2 (2H, 2K) and Loongson-3 (3A1000,
-		3B1000, 3B1500, 3A2000, 3A3000 and 3A4000) processors. However, old
-		Loongson-2E/2F is not covered here and will be removed in future.
+	  The Loongson GSx64(GS264/GS464/GS464E/GS464V) series of processor
+	  cores implements the MIPS64R2 instruction set with many extensions,
+	  including most 64-bit Loongson-2 (2H, 2K) and Loongson-3 (3A1000,
+	  3B1000, 3B1500, 3A2000, 3A3000 and 3A4000) processors. However, old
+	  Loongson-2E/2F is not covered here and will be removed in future.
 
 config LOONGSON3_ENHANCEMENT
 	bool "New Loongson-3 CPU Enhancements"
@@ -1343,19 +1344,14 @@ config LOONGSON3_ENHANCEMENT
 	  new Loongson-3 machines only, please say 'Y' here.
 
 config CPU_LOONGSON3_WORKAROUNDS
-	bool "Old Loongson-3 LLSC Workarounds"
+	bool "Loongson-3 LLSC Workarounds"
 	default y if SMP
 	depends on CPU_LOONGSON64
 	help
 	  Loongson-3 processors have the llsc issues which require workarounds.
 	  Without workarounds the system may hang unexpectedly.
 
-	  Newer Loongson-3 will fix these issues and no workarounds are needed.
-	  The workarounds have no significant side effect on them but may
-	  decrease the performance of the system so this option should be
-	  disabled unless the kernel is intended to be run on old systems.
-
-	  If unsure, please say Y.
+	  Say Y, unless you know what you are doing.
 
 config CPU_LOONGSON3_CPUCFG_EMULATION
 	bool "Emulate the CPUCFG instruction on older Loongson cores"
@@ -1582,12 +1578,6 @@ config CPU_R3000
 	  of the supported machines have an R4000 (or similar) CPU, R4x00
 	  might be a safe bet.  If the resulting kernel does not work,
 	  try to recompile with R3000.
-
-config CPU_TX39XX
-	bool "R39XX"
-	depends on SYS_HAS_CPU_TX39XX
-	select CPU_SUPPORTS_32BIT_KERNEL
-	select CPU_R3K_TLB
 
 config CPU_VR41XX
 	bool "R41xx"
@@ -1915,9 +1905,6 @@ config SYS_HAS_CPU_P5600
 config SYS_HAS_CPU_R3000
 	bool
 
-config SYS_HAS_CPU_TX39XX
-	bool
-
 config SYS_HAS_CPU_VR41XX
 	bool
 
@@ -2148,7 +2135,7 @@ config PAGE_SIZE_8KB
 
 config PAGE_SIZE_16KB
 	bool "16kB"
-	depends on !CPU_R3000 && !CPU_TX39XX
+	depends on !CPU_R3000
 	help
 	  Using 16kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available on
@@ -2167,7 +2154,7 @@ config PAGE_SIZE_32KB
 
 config PAGE_SIZE_64KB
 	bool "64kB"
-	depends on !CPU_R3000 && !CPU_TX39XX
+	depends on !CPU_R3000
 	help
 	  Using 64kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available on
@@ -2235,7 +2222,7 @@ config CPU_HAS_PREFETCH
 
 config CPU_GENERIC_DUMP_TLB
 	bool
-	default y if !(CPU_R3000 || CPU_TX39XX)
+	default y if !CPU_R3000
 
 config MIPS_FP_SUPPORT
 	bool "Floating Point support" if EXPERT
@@ -2255,7 +2242,7 @@ config MIPS_FP_SUPPORT
 config CPU_R2300_FPU
 	bool
 	depends on MIPS_FP_SUPPORT
-	default y if CPU_R3000 || CPU_TX39XX
+	default y if CPU_R3000
 
 config CPU_R3K_TLB
 	bool
@@ -2520,13 +2507,51 @@ config CPU_HAS_SYNC
 #
 # CPU non-features
 #
+
+# Work around the "daddi" and "daddiu" CPU errata:
+#
+# - The `daddi' instruction fails to trap on overflow.
+#   "MIPS R4000PC/SC Errata, Processor Revision 2.2 and 3.0",
+#   erratum #23
+#
+# - The `daddiu' instruction can produce an incorrect result.
+#   "MIPS R4000PC/SC Errata, Processor Revision 2.2 and 3.0",
+#   erratum #41
+#   "MIPS R4000MC Errata, Processor Revision 2.2 and 3.0", erratum
+#   #15
+#   "MIPS R4400PC/SC Errata, Processor Revision 1.0", erratum #7
+#   "MIPS R4400MC Errata, Processor Revision 1.0", erratum #5
 config CPU_DADDI_WORKAROUNDS
 	bool
 
+# Work around certain R4000 CPU errata (as implemented by GCC):
+#
+# - A double-word or a variable shift may give an incorrect result
+#   if executed immediately after starting an integer division:
+#   "MIPS R4000PC/SC Errata, Processor Revision 2.2 and 3.0",
+#   erratum #28
+#   "MIPS R4000MC Errata, Processor Revision 2.2 and 3.0", erratum
+#   #19
+#
+# - A double-word or a variable shift may give an incorrect result
+#   if executed while an integer multiplication is in progress:
+#   "MIPS R4000PC/SC Errata, Processor Revision 2.2 and 3.0",
+#   errata #16 & #28
+#
+# - An integer division may give an incorrect result if started in
+#   a delay slot of a taken branch or a jump:
+#   "MIPS R4000PC/SC Errata, Processor Revision 2.2 and 3.0",
+#   erratum #52
 config CPU_R4000_WORKAROUNDS
 	bool
 	select CPU_R4400_WORKAROUNDS
 
+# Work around certain R4400 CPU errata (as implemented by GCC):
+#
+# - A double-word or a variable shift may give an incorrect result
+#   if executed immediately after starting an integer division:
+#   "MIPS R4400MC Errata, Processor Revision 1.0", erratum #10
+#   "MIPS R4400MC Errata, Processor Revision 2.0 & 3.0", erratum #4
 config CPU_R4400_WORKAROUNDS
 	bool
 
@@ -2536,13 +2561,13 @@ config CPU_R4X00_BUGS64
 
 config MIPS_ASID_SHIFT
 	int
-	default 6 if CPU_R3000 || CPU_TX39XX
+	default 6 if CPU_R3000
 	default 0
 
 config MIPS_ASID_BITS
 	int
 	default 0 if MIPS_ASID_BITS_VARIABLE
-	default 6 if CPU_R3000 || CPU_TX39XX
+	default 6 if CPU_R3000
 	default 8
 
 config MIPS_ASID_BITS_VARIABLE
@@ -2683,6 +2708,9 @@ config NUMA
 	  disabled.
 
 config SYS_SUPPORTS_NUMA
+	bool
+
+config HAVE_ARCH_NODEDATA_EXTENSION
 	bool
 
 config RELOCATABLE
@@ -3170,16 +3198,12 @@ config MIPS32_COMPAT
 config COMPAT
 	bool
 
-config SYSVIPC_COMPAT
-	bool
-
 config MIPS32_O32
 	bool "Kernel support for o32 binaries"
 	depends on 64BIT
 	select ARCH_WANT_OLD_COMPAT_IPC
 	select COMPAT
 	select MIPS32_COMPAT
-	select SYSVIPC_COMPAT if SYSVIPC
 	help
 	  Select this option if you want to run o32 binaries.  These are pure
 	  32-bit binaries as used by the 32-bit Linux/MIPS port.  Most of
@@ -3193,7 +3217,6 @@ config MIPS32_N32
 	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION
 	select COMPAT
 	select MIPS32_COMPAT
-	select SYSVIPC_COMPAT if SYSVIPC
 	help
 	  Select this option if you want to run n32 binaries.  These are
 	  64-bit binaries using 32-bit quantities for addressing and certain
@@ -3201,6 +3224,10 @@ config MIPS32_N32
 	  cases.
 
 	  If unsure, say N.
+
+config CC_HAS_MNO_BRANCH_LIKELY
+	def_bool y
+	depends on $(cc-option,-mno-branch-likely)
 
 menu "Power management options"
 
@@ -3223,7 +3250,7 @@ menu "CPU Power Management"
 
 if CPU_SUPPORTS_CPUFREQ && MIPS_EXTERNAL_TIMER
 source "drivers/cpufreq/Kconfig"
-endif
+endif # CPU_SUPPORTS_CPUFREQ && MIPS_EXTERNAL_TIMER
 
 source "drivers/cpuidle/Kconfig"
 

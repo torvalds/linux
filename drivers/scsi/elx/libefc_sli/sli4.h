@@ -609,7 +609,7 @@ struct sli4_rqst_cmn_create_cq_v2 {
 	__le16			cqe_count;
 	__le16			rsvd30;
 	__le32			rsvd32;
-	struct sli4_dmaaddr	page_phys_addr[0];
+	struct sli4_dmaaddr	page_phys_addr[];
 };
 
 enum sli4_create_cqset_e {
@@ -634,7 +634,7 @@ struct sli4_rqst_cmn_create_cq_set_v0 {
 	__le16			num_cq_req;
 	__le16			dw6w1_flags;
 	__le16			eq_id[16];
-	struct sli4_dmaaddr	page_phys_addr[0];
+	struct sli4_dmaaddr	page_phys_addr[];
 };
 
 /* CQE count */
@@ -764,7 +764,7 @@ struct sli4_rqst_cmn_create_mq_ext {
 	__le32			dw7_val;
 	__le32			dw8_flags;
 	__le32			rsvd36;
-	struct sli4_dmaaddr	page_phys_addr[0];
+	struct sli4_dmaaddr	page_phys_addr[];
 };
 
 struct sli4_rsp_cmn_create_mq_ext {
@@ -802,7 +802,7 @@ struct sli4_rqst_cmn_create_cq_v0 {
 	__le32			dw6_flags;
 	__le32			rsvd28;
 	__le32			rsvd32;
-	struct sli4_dmaaddr	page_phys_addr[0];
+	struct sli4_dmaaddr	page_phys_addr[];
 };
 
 enum sli4_create_rq_e {
@@ -887,7 +887,7 @@ struct sli4_rqst_rq_create_v2 {
 	__le16			base_cq_id;
 	__le16			rsvd26;
 	__le32			rsvd42;
-	struct sli4_dmaaddr	page_phys_addr[0];
+	struct sli4_dmaaddr	page_phys_addr[];
 };
 
 struct sli4_rsp_rq_create_v2 {
@@ -3168,7 +3168,7 @@ struct sli4_rqst_cmn_read_object {
 	__le32			read_offset;
 	u8			object_name[104];
 	__le32			host_buffer_descriptor_count;
-	struct sli4_bde		host_buffer_descriptor[0];
+	struct sli4_bde		host_buffer_descriptor[];
 };
 
 #define RSP_COM_READ_OBJ_EOF		0x80000000
@@ -3191,7 +3191,7 @@ struct sli4_rqst_cmn_write_object {
 	__le32			write_offset;
 	u8			object_name[104];
 	__le32			host_buffer_descriptor_count;
-	struct sli4_bde		host_buffer_descriptor[0];
+	struct sli4_bde		host_buffer_descriptor[];
 };
 
 #define	RSP_CHANGE_STATUS		0xff
@@ -3217,7 +3217,7 @@ struct sli4_rqst_cmn_read_object_list {
 	__le32			read_offset;
 	u8			object_name[104];
 	__le32			host_buffer_descriptor_count;
-	struct sli4_bde		host_buffer_descriptor[0];
+	struct sli4_bde		host_buffer_descriptor[];
 };
 
 enum sli4_rqst_set_dump_flags {
@@ -3342,7 +3342,7 @@ struct sli4_rspource_descriptor_v1 {
 	u8		descriptor_type;
 	u8		descriptor_length;
 	__le16		rsvd16;
-	__le32		type_specific[0];
+	__le32		type_specific[];
 };
 
 enum sli4_pcie_desc_flags {
@@ -3474,7 +3474,7 @@ struct sli4_rqst_post_hdr_templates {
 	struct sli4_rqst_hdr	hdr;
 	__le16			rpi_offset;
 	__le16			page_count;
-	struct sli4_dmaaddr	page_descriptor[0];
+	struct sli4_dmaaddr	page_descriptor[];
 };
 
 #define SLI4_HDR_TEMPLATE_SIZE		64

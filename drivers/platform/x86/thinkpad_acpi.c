@@ -309,6 +309,20 @@ struct ibm_init_struct {
 	struct ibm_struct *data;
 };
 
+/* DMI Quirks */
+struct quirk_entry {
+	bool btusb_bug;
+	u32 s2idle_bug_mmio;
+};
+
+static struct quirk_entry quirk_btusb_bug = {
+	.btusb_bug = true,
+};
+
+static struct quirk_entry quirk_s2idle_bug = {
+	.s2idle_bug_mmio = 0xfed80380,
+};
+
 static struct {
 	u32 bluetooth:1;
 	u32 hotkey:1;
@@ -338,6 +352,7 @@ static struct {
 	u32 hotkey_poll_active:1;
 	u32 has_adaptive_kbd:1;
 	u32 kbd_lang:1;
+	struct quirk_entry *quirks;
 } tp_features;
 
 static struct {
@@ -728,11 +743,10 @@ static void __init drv_acpi_handle_init(const char *name,
 static acpi_status __init tpacpi_acpi_handle_locate_callback(acpi_handle handle,
 			u32 level, void *context, void **return_value)
 {
-	struct acpi_device *dev;
 	if (!strcmp(context, "video")) {
-		if (acpi_bus_get_device(handle, &dev))
-			return AE_OK;
-		if (strcmp(ACPI_VIDEO_HID, acpi_device_hid(dev)))
+		struct acpi_device *dev = acpi_fetch_acpi_dev(handle);
+
+		if (!dev || strcmp(ACPI_VIDEO_HID, acpi_device_hid(dev)))
 			return AE_OK;
 	}
 
@@ -786,7 +800,6 @@ static void dispatch_acpi_notify(acpi_handle handle, u32 event, void *data)
 static int __init setup_acpi_notify(struct ibm_struct *ibm)
 {
 	acpi_status status;
-	int rc;
 
 	BUG_ON(!ibm->acpi);
 
@@ -796,9 +809,9 @@ static int __init setup_acpi_notify(struct ibm_struct *ibm)
 	vdbg_printk(TPACPI_DBG_INIT,
 		"setting up ACPI notify for %s\n", ibm->name);
 
-	rc = acpi_bus_get_device(*ibm->acpi->handle, &ibm->acpi->device);
-	if (rc < 0) {
-		pr_err("acpi_bus_get_device(%s) failed: %d\n", ibm->name, rc);
+	ibm->acpi->device = acpi_fetch_acpi_dev(*ibm->acpi->handle);
+	if (!ibm->acpi->device) {
+		pr_err("acpi_fetch_acpi_dev(%s) failed\n", ibm->name);
 		return -ENODEV;
 	}
 
@@ -4361,9 +4374,10 @@ static void bluetooth_exit(void)
 	bluetooth_shutdown();
 }
 
-static const struct dmi_system_id bt_fwbug_list[] __initconst = {
+static const struct dmi_system_id fwbug_list[] __initconst = {
 	{
 		.ident = "ThinkPad E485",
+		.driver_data = &quirk_btusb_bug,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_BOARD_NAME, "20KU"),
@@ -4371,6 +4385,7 @@ static const struct dmi_system_id bt_fwbug_list[] __initconst = {
 	},
 	{
 		.ident = "ThinkPad E585",
+		.driver_data = &quirk_btusb_bug,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_BOARD_NAME, "20KV"),
@@ -4378,6 +4393,7 @@ static const struct dmi_system_id bt_fwbug_list[] __initconst = {
 	},
 	{
 		.ident = "ThinkPad A285 - 20MW",
+		.driver_data = &quirk_btusb_bug,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_BOARD_NAME, "20MW"),
@@ -4385,6 +4401,7 @@ static const struct dmi_system_id bt_fwbug_list[] __initconst = {
 	},
 	{
 		.ident = "ThinkPad A285 - 20MX",
+		.driver_data = &quirk_btusb_bug,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_BOARD_NAME, "20MX"),
@@ -4392,6 +4409,7 @@ static const struct dmi_system_id bt_fwbug_list[] __initconst = {
 	},
 	{
 		.ident = "ThinkPad A485 - 20MU",
+		.driver_data = &quirk_btusb_bug,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_BOARD_NAME, "20MU"),
@@ -4399,13 +4417,125 @@ static const struct dmi_system_id bt_fwbug_list[] __initconst = {
 	},
 	{
 		.ident = "ThinkPad A485 - 20MV",
+		.driver_data = &quirk_btusb_bug,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_BOARD_NAME, "20MV"),
 		},
 	},
+	{
+		.ident = "L14 Gen2 AMD",
+		.driver_data = &quirk_s2idle_bug,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "20X5"),
+		}
+	},
+	{
+		.ident = "T14s Gen2 AMD",
+		.driver_data = &quirk_s2idle_bug,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "20XF"),
+		}
+	},
+	{
+		.ident = "X13 Gen2 AMD",
+		.driver_data = &quirk_s2idle_bug,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "20XH"),
+		}
+	},
+	{
+		.ident = "T14 Gen2 AMD",
+		.driver_data = &quirk_s2idle_bug,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "20XK"),
+		}
+	},
+	{
+		.ident = "T14 Gen1 AMD",
+		.driver_data = &quirk_s2idle_bug,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "20UD"),
+		}
+	},
+	{
+		.ident = "T14 Gen1 AMD",
+		.driver_data = &quirk_s2idle_bug,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "20UE"),
+		}
+	},
+	{
+		.ident = "T14s Gen1 AMD",
+		.driver_data = &quirk_s2idle_bug,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "20UH"),
+		}
+	},
+	{
+		.ident = "P14s Gen1 AMD",
+		.driver_data = &quirk_s2idle_bug,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "20Y1"),
+		}
+	},
+	{
+		.ident = "P14s Gen2 AMD",
+		.driver_data = &quirk_s2idle_bug,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "21A0"),
+		}
+	},
 	{}
 };
+
+#ifdef CONFIG_SUSPEND
+/*
+ * Lenovo laptops from a variety of generations run a SMI handler during the D3->D0
+ * transition that occurs specifically when exiting suspend to idle which can cause
+ * large delays during resume when the IOMMU translation layer is enabled (the default
+ * behavior) for NVME devices:
+ *
+ * To avoid this firmware problem, skip the SMI handler on these machines before the
+ * D0 transition occurs.
+ */
+static void thinkpad_acpi_amd_s2idle_restore(void)
+{
+	struct resource *res;
+	void __iomem *addr;
+	u8 val;
+
+	res = request_mem_region_muxed(tp_features.quirks->s2idle_bug_mmio, 1,
+					"thinkpad_acpi_pm80");
+	if (!res)
+		return;
+
+	addr = ioremap(tp_features.quirks->s2idle_bug_mmio, 1);
+	if (!addr)
+		goto cleanup_resource;
+
+	val = ioread8(addr);
+	iowrite8(val & ~BIT(0), addr);
+
+	iounmap(addr);
+cleanup_resource:
+	release_resource(res);
+	kfree(res);
+}
+
+static struct acpi_s2idle_dev_ops thinkpad_acpi_s2idle_dev_ops = {
+	.restore = thinkpad_acpi_amd_s2idle_restore,
+};
+#endif
 
 static const struct pci_device_id fwbug_cards_ids[] __initconst = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x24F3) },
@@ -4421,7 +4551,8 @@ static int __init have_bt_fwbug(void)
 	 * Some AMD based ThinkPads have a firmware bug that calling
 	 * "GBDC" will cause bluetooth on Intel wireless cards blocked
 	 */
-	if (dmi_check_system(bt_fwbug_list) && pci_dev_present(fwbug_cards_ids)) {
+	if (tp_features.quirks && tp_features.quirks->btusb_bug &&
+	    pci_dev_present(fwbug_cards_ids)) {
 		vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_RFKILL,
 			FW_BUG "disable bluetooth subdriver for Intel cards\n");
 		return 1;
@@ -6723,7 +6854,8 @@ static int __init tpacpi_query_bcl_levels(acpi_handle handle)
 	struct acpi_device *device, *child;
 	int rc;
 
-	if (acpi_bus_get_device(handle, &device))
+	device = acpi_fetch_acpi_dev(handle);
+	if (!device)
 		return 0;
 
 	rc = 0;
@@ -8286,7 +8418,7 @@ static int fan_set_enable(void)
 	case TPACPI_FAN_WR_ACPI_FANS:
 	case TPACPI_FAN_WR_TPEC:
 		rc = fan_get_status(&s);
-		if (rc < 0)
+		if (rc)
 			break;
 
 		/* Don't go out of emergency fan mode */
@@ -8305,7 +8437,7 @@ static int fan_set_enable(void)
 
 	case TPACPI_FAN_WR_ACPI_SFAN:
 		rc = fan_get_status(&s);
-		if (rc < 0)
+		if (rc)
 			break;
 
 		s &= 0x07;
@@ -8699,10 +8831,7 @@ static const struct tpacpi_quirk fan_quirk_table[] __initconst = {
 	TPACPI_Q_LNV3('N', '2', 'N', TPACPI_FAN_2CTL),	/* P53 / P73 */
 	TPACPI_Q_LNV3('N', '2', 'E', TPACPI_FAN_2CTL),	/* P1 / X1 Extreme (1st gen) */
 	TPACPI_Q_LNV3('N', '2', 'O', TPACPI_FAN_2CTL),	/* P1 / X1 Extreme (2nd gen) */
-	TPACPI_Q_LNV3('N', '2', 'V', TPACPI_FAN_2CTL),	/* P1 / X1 Extreme (3nd gen) */
-	TPACPI_Q_LNV3('N', '4', '0', TPACPI_FAN_2CTL),	/* P1 / X1 Extreme (4nd gen) */
 	TPACPI_Q_LNV3('N', '3', '0', TPACPI_FAN_2CTL),	/* P15 (1st gen) / P15v (1st gen) */
-	TPACPI_Q_LNV3('N', '3', '2', TPACPI_FAN_2CTL),	/* X1 Carbon (9th gen) */
 	TPACPI_Q_LNV3('N', '3', '7', TPACPI_FAN_2CTL),  /* T15g (2nd gen) */
 	TPACPI_Q_LNV3('N', '1', 'O', TPACPI_FAN_NOFAN),	/* X1 Tablet (2nd gen) */
 };
@@ -8746,17 +8875,32 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 		 * ThinkPad ECs supports the fan control register */
 		if (likely(acpi_ec_read(fan_status_offset,
 					&fan_control_initial_status))) {
+			int res;
+			unsigned int speed;
+
 			fan_status_access_mode = TPACPI_FAN_RD_TPEC;
 			if (quirks & TPACPI_FAN_Q1)
 				fan_quirk1_setup();
-			if (quirks & TPACPI_FAN_2FAN) {
-				tp_features.second_fan = 1;
-				pr_info("secondary fan support enabled\n");
-			}
-			if (quirks & TPACPI_FAN_2CTL) {
+			/* Try and probe the 2nd fan */
+			tp_features.second_fan = 1; /* needed for get_speed to work */
+			res = fan2_get_speed(&speed);
+			if (res >= 0) {
+				/* It responded - so let's assume it's there */
 				tp_features.second_fan = 1;
 				tp_features.second_fan_ctl = 1;
-				pr_info("secondary fan control enabled\n");
+				pr_info("secondary fan control detected & enabled\n");
+			} else {
+				/* Fan not auto-detected */
+				tp_features.second_fan = 0;
+				if (quirks & TPACPI_FAN_2FAN) {
+					tp_features.second_fan = 1;
+					pr_info("secondary fan support enabled\n");
+				}
+				if (quirks & TPACPI_FAN_2CTL) {
+					tp_features.second_fan = 1;
+					tp_features.second_fan_ctl = 1;
+					pr_info("secondary fan control enabled\n");
+				}
 			}
 		} else {
 			pr_err("ThinkPad ACPI EC access misbehaving, fan status and control unavailable\n");
@@ -8835,7 +8979,7 @@ static void fan_suspend(void)
 	/* Store fan status in cache */
 	fan_control_resume_level = 0;
 	rc = fan_get_status_safe(&fan_control_resume_level);
-	if (rc < 0)
+	if (rc)
 		pr_notice("failed to read fan level for later restore during resume: %d\n",
 			  rc);
 
@@ -8856,7 +9000,7 @@ static void fan_resume(void)
 
 	if (!fan_control_allowed ||
 	    !fan_control_resume_level ||
-	    (fan_get_status_safe(&current_level) < 0))
+	    fan_get_status_safe(&current_level))
 		return;
 
 	switch (fan_control_access_mode) {
@@ -8910,7 +9054,7 @@ static int fan_read(struct seq_file *m)
 	case TPACPI_FAN_RD_ACPI_GFAN:
 		/* 570, 600e/x, 770e, 770x */
 		rc = fan_get_status_safe(&status);
-		if (rc < 0)
+		if (rc)
 			return rc;
 
 		seq_printf(m, "status:\t\t%s\n"
@@ -8921,7 +9065,7 @@ static int fan_read(struct seq_file *m)
 	case TPACPI_FAN_RD_TPEC:
 		/* all except 570, 600e/x, 770e, 770x */
 		rc = fan_get_status_safe(&status);
-		if (rc < 0)
+		if (rc)
 			return rc;
 
 		seq_printf(m, "status:\t\t%s\n",
@@ -9877,7 +10021,7 @@ static int tpacpi_lcdshadow_init(struct ibm_init_struct *iibm)
 		return 0;
 
 	lcdshadow_dev = drm_privacy_screen_register(&tpacpi_pdev->dev,
-						    &lcdshadow_ops);
+						    &lcdshadow_ops, NULL);
 	if (IS_ERR(lcdshadow_dev))
 		return PTR_ERR(lcdshadow_dev);
 
@@ -10122,6 +10266,7 @@ static struct ibm_struct proxsensor_driver_data = {
 
 #define DYTC_CMD_FUNC_CAP     3 /* To get DYTC capabilities */
 #define DYTC_FC_MMC           27 /* MMC Mode supported */
+#define DYTC_FC_PSC           29 /* PSC Mode supported */
 
 #define DYTC_GET_FUNCTION_BIT 8  /* Bits  8-11 - function setting */
 #define DYTC_GET_MODE_BIT     12 /* Bits 12-15 - mode setting */
@@ -10132,12 +10277,17 @@ static struct ibm_struct proxsensor_driver_data = {
 
 #define DYTC_FUNCTION_STD     0  /* Function = 0, standard mode */
 #define DYTC_FUNCTION_CQL     1  /* Function = 1, lap mode */
-#define DYTC_FUNCTION_MMC     11 /* Function = 11, desk mode */
+#define DYTC_FUNCTION_MMC     11 /* Function = 11, MMC mode */
+#define DYTC_FUNCTION_PSC     13 /* Function = 13, PSC mode */
 
-#define DYTC_MODE_PERFORM     2  /* High power mode aka performance */
-#define DYTC_MODE_LOWPOWER    3  /* Low power mode */
-#define DYTC_MODE_BALANCE   0xF  /* Default mode aka balanced */
-#define DYTC_MODE_MMC_BALANCE 0  /* Default mode from MMC_GET, aka balanced */
+#define DYTC_MODE_MMC_PERFORM  2  /* High power mode aka performance */
+#define DYTC_MODE_MMC_LOWPOWER 3  /* Low power mode */
+#define DYTC_MODE_MMC_BALANCE  0xF  /* Default mode aka balanced */
+#define DYTC_MODE_MMC_DEFAULT  0  /* Default mode from MMC_GET, aka balanced */
+
+#define DYTC_MODE_PSC_LOWPOWER 3  /* Low power mode */
+#define DYTC_MODE_PSC_BALANCE  5  /* Default mode aka balanced */
+#define DYTC_MODE_PSC_PERFORM  7  /* High power mode aka performance */
 
 #define DYTC_ERR_MASK       0xF  /* Bits 0-3 in cmd result are the error result */
 #define DYTC_ERR_SUCCESS      1  /* CMD completed successful */
@@ -10147,30 +10297,48 @@ static struct ibm_struct proxsensor_driver_data = {
 	 (mode) << DYTC_SET_MODE_BIT | \
 	 (on) << DYTC_SET_VALID_BIT)
 
-#define DYTC_DISABLE_CQL DYTC_SET_COMMAND(DYTC_FUNCTION_CQL, DYTC_MODE_BALANCE, 0)
-
-#define DYTC_ENABLE_CQL DYTC_SET_COMMAND(DYTC_FUNCTION_CQL, DYTC_MODE_BALANCE, 1)
+#define DYTC_DISABLE_CQL DYTC_SET_COMMAND(DYTC_FUNCTION_CQL, DYTC_MODE_MMC_BALANCE, 0)
+#define DYTC_ENABLE_CQL DYTC_SET_COMMAND(DYTC_FUNCTION_CQL, DYTC_MODE_MMC_BALANCE, 1)
 
 static enum platform_profile_option dytc_current_profile;
 static atomic_t dytc_ignore_event = ATOMIC_INIT(0);
 static DEFINE_MUTEX(dytc_mutex);
+static int dytc_capabilities;
 static bool dytc_mmc_get_available;
 
 static int convert_dytc_to_profile(int dytcmode, enum platform_profile_option *profile)
 {
-	switch (dytcmode) {
-	case DYTC_MODE_LOWPOWER:
-		*profile = PLATFORM_PROFILE_LOW_POWER;
-		break;
-	case DYTC_MODE_BALANCE:
-	case DYTC_MODE_MMC_BALANCE:
-		*profile =  PLATFORM_PROFILE_BALANCED;
-		break;
-	case DYTC_MODE_PERFORM:
-		*profile =  PLATFORM_PROFILE_PERFORMANCE;
-		break;
-	default: /* Unknown mode */
-		return -EINVAL;
+	if (dytc_capabilities & BIT(DYTC_FC_MMC)) {
+		switch (dytcmode) {
+		case DYTC_MODE_MMC_LOWPOWER:
+			*profile = PLATFORM_PROFILE_LOW_POWER;
+			break;
+		case DYTC_MODE_MMC_DEFAULT:
+		case DYTC_MODE_MMC_BALANCE:
+			*profile =  PLATFORM_PROFILE_BALANCED;
+			break;
+		case DYTC_MODE_MMC_PERFORM:
+			*profile =  PLATFORM_PROFILE_PERFORMANCE;
+			break;
+		default: /* Unknown mode */
+			return -EINVAL;
+		}
+		return 0;
+	}
+	if (dytc_capabilities & BIT(DYTC_FC_PSC)) {
+		switch (dytcmode) {
+		case DYTC_MODE_PSC_LOWPOWER:
+			*profile = PLATFORM_PROFILE_LOW_POWER;
+			break;
+		case DYTC_MODE_PSC_BALANCE:
+			*profile =  PLATFORM_PROFILE_BALANCED;
+			break;
+		case DYTC_MODE_PSC_PERFORM:
+			*profile =  PLATFORM_PROFILE_PERFORMANCE;
+			break;
+		default: /* Unknown mode */
+			return -EINVAL;
+		}
 	}
 	return 0;
 }
@@ -10179,13 +10347,22 @@ static int convert_profile_to_dytc(enum platform_profile_option profile, int *pe
 {
 	switch (profile) {
 	case PLATFORM_PROFILE_LOW_POWER:
-		*perfmode = DYTC_MODE_LOWPOWER;
+		if (dytc_capabilities & BIT(DYTC_FC_MMC))
+			*perfmode = DYTC_MODE_MMC_LOWPOWER;
+		else if (dytc_capabilities & BIT(DYTC_FC_PSC))
+			*perfmode = DYTC_MODE_PSC_LOWPOWER;
 		break;
 	case PLATFORM_PROFILE_BALANCED:
-		*perfmode = DYTC_MODE_BALANCE;
+		if (dytc_capabilities & BIT(DYTC_FC_MMC))
+			*perfmode = DYTC_MODE_MMC_BALANCE;
+		else if (dytc_capabilities & BIT(DYTC_FC_PSC))
+			*perfmode = DYTC_MODE_PSC_BALANCE;
 		break;
 	case PLATFORM_PROFILE_PERFORMANCE:
-		*perfmode = DYTC_MODE_PERFORM;
+		if (dytc_capabilities & BIT(DYTC_FC_MMC))
+			*perfmode = DYTC_MODE_MMC_PERFORM;
+		else if (dytc_capabilities & BIT(DYTC_FC_PSC))
+			*perfmode = DYTC_MODE_PSC_PERFORM;
 		break;
 	default: /* Unknown profile */
 		return -EOPNOTSUPP;
@@ -10251,6 +10428,7 @@ static int dytc_cql_command(int command, int *output)
 static int dytc_profile_set(struct platform_profile_handler *pprof,
 			    enum platform_profile_option profile)
 {
+	int perfmode;
 	int output;
 	int err;
 
@@ -10258,25 +10436,31 @@ static int dytc_profile_set(struct platform_profile_handler *pprof,
 	if (err)
 		return err;
 
-	if (profile == PLATFORM_PROFILE_BALANCED) {
-		/*
-		 * To get back to balanced mode we need to issue a reset command.
-		 * Note we still need to disable CQL mode before hand and re-enable
-		 * it afterwards, otherwise dytc_lapmode gets reset to 0 and stays
-		 * stuck at 0 for aprox. 30 minutes.
-		 */
-		err = dytc_cql_command(DYTC_CMD_RESET, &output);
-		if (err)
-			goto unlock;
-	} else {
-		int perfmode;
+	err = convert_profile_to_dytc(profile, &perfmode);
+	if (err)
+		goto unlock;
 
-		err = convert_profile_to_dytc(profile, &perfmode);
-		if (err)
-			goto unlock;
-
-		/* Determine if we are in CQL mode. This alters the commands we do */
-		err = dytc_cql_command(DYTC_SET_COMMAND(DYTC_FUNCTION_MMC, perfmode, 1), &output);
+	if (dytc_capabilities & BIT(DYTC_FC_MMC)) {
+		if (profile == PLATFORM_PROFILE_BALANCED) {
+			/*
+			 * To get back to balanced mode we need to issue a reset command.
+			 * Note we still need to disable CQL mode before hand and re-enable
+			 * it afterwards, otherwise dytc_lapmode gets reset to 0 and stays
+			 * stuck at 0 for aprox. 30 minutes.
+			 */
+			err = dytc_cql_command(DYTC_CMD_RESET, &output);
+			if (err)
+				goto unlock;
+		} else {
+			/* Determine if we are in CQL mode. This alters the commands we do */
+			err = dytc_cql_command(DYTC_SET_COMMAND(DYTC_FUNCTION_MMC, perfmode, 1),
+						&output);
+			if (err)
+				goto unlock;
+		}
+	}
+	if (dytc_capabilities & BIT(DYTC_FC_PSC)) {
+		err = dytc_command(DYTC_SET_COMMAND(DYTC_FUNCTION_PSC, perfmode, 1), &output);
 		if (err)
 			goto unlock;
 	}
@@ -10290,14 +10474,18 @@ unlock:
 static void dytc_profile_refresh(void)
 {
 	enum platform_profile_option profile;
-	int output, err;
+	int output, err = 0;
 	int perfmode;
 
 	mutex_lock(&dytc_mutex);
-	if (dytc_mmc_get_available)
-		err = dytc_command(DYTC_CMD_MMC_GET, &output);
-	else
-		err = dytc_cql_command(DYTC_CMD_GET, &output);
+	if (dytc_capabilities & BIT(DYTC_FC_MMC)) {
+		if (dytc_mmc_get_available)
+			err = dytc_command(DYTC_CMD_MMC_GET, &output);
+		else
+			err = dytc_cql_command(DYTC_CMD_GET, &output);
+	} else if (dytc_capabilities & BIT(DYTC_FC_PSC))
+		err = dytc_command(DYTC_CMD_GET, &output);
+
 	mutex_unlock(&dytc_mutex);
 	if (err)
 		return;
@@ -10335,27 +10523,38 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 	if (dytc_version < 5)
 		return -ENODEV;
 
-	/* Check what capabilities are supported. Currently MMC is needed */
-	err = dytc_command(DYTC_CMD_FUNC_CAP, &output);
+	/* Check what capabilities are supported */
+	err = dytc_command(DYTC_CMD_FUNC_CAP, &dytc_capabilities);
 	if (err)
 		return err;
-	if (!(output & BIT(DYTC_FC_MMC))) {
-		dbg_printk(TPACPI_DBG_INIT, " DYTC MMC mode not supported\n");
+
+	if (dytc_capabilities & BIT(DYTC_FC_MMC)) { /* MMC MODE */
+		pr_debug("MMC is supported\n");
+		/*
+		 * Check if MMC_GET functionality available
+		 * Version > 6 and return success from MMC_GET command
+		 */
+		dytc_mmc_get_available = false;
+		if (dytc_version >= 6) {
+			err = dytc_command(DYTC_CMD_MMC_GET, &output);
+			if (!err && ((output & DYTC_ERR_MASK) == DYTC_ERR_SUCCESS))
+				dytc_mmc_get_available = true;
+		}
+	} else if (dytc_capabilities & BIT(DYTC_FC_PSC)) { /* PSC MODE */
+		/* Support for this only works on AMD platforms */
+		if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD) {
+			dbg_printk(TPACPI_DBG_INIT, "PSC not support on Intel platforms\n");
+			return -ENODEV;
+		}
+		pr_debug("PSC is supported\n");
+	} else {
+		dbg_printk(TPACPI_DBG_INIT, "No DYTC support available\n");
 		return -ENODEV;
 	}
 
 	dbg_printk(TPACPI_DBG_INIT,
 			"DYTC version %d: thermal mode available\n", dytc_version);
-	/*
-	 * Check if MMC_GET functionality available
-	 * Version > 6 and return success from MMC_GET command
-	 */
-	dytc_mmc_get_available = false;
-	if (dytc_version >= 6) {
-		err = dytc_command(DYTC_CMD_MMC_GET, &output);
-		if (!err && ((output & DYTC_ERR_MASK) == DYTC_ERR_SUCCESS))
-			dytc_mmc_get_available = true;
-	}
+
 	/* Create platform_profile structure and register */
 	err = platform_profile_register(&dytc_profile);
 	/*
@@ -11388,6 +11587,10 @@ static void thinkpad_acpi_module_exit(void)
 
 	tpacpi_lifecycle = TPACPI_LIFE_EXITING;
 
+#ifdef CONFIG_SUSPEND
+	if (tp_features.quirks && tp_features.quirks->s2idle_bug_mmio)
+		acpi_unregister_lps0_dev(&thinkpad_acpi_s2idle_dev_ops);
+#endif
 	if (tpacpi_hwmon)
 		hwmon_device_unregister(tpacpi_hwmon);
 	if (tp_features.sensors_pdrv_registered)
@@ -11429,6 +11632,7 @@ static void thinkpad_acpi_module_exit(void)
 
 static int __init thinkpad_acpi_module_init(void)
 {
+	const struct dmi_system_id *dmi_id;
 	int ret, i;
 
 	tpacpi_lifecycle = TPACPI_LIFE_INIT;
@@ -11467,6 +11671,10 @@ static int __init thinkpad_acpi_module_init(void)
 		thinkpad_acpi_module_exit();
 		return -ENODEV;
 	}
+
+	dmi_id = dmi_first_match(fwbug_list);
+	if (dmi_id)
+		tp_features.quirks = dmi_id->driver_data;
 
 	/* Device initialization */
 	tpacpi_pdev = platform_device_register_simple(TPACPI_DRVR_NAME, -1,
@@ -11556,6 +11764,13 @@ static int __init thinkpad_acpi_module_init(void)
 		tp_features.input_device_registered = 1;
 	}
 
+#ifdef CONFIG_SUSPEND
+	if (tp_features.quirks && tp_features.quirks->s2idle_bug_mmio) {
+		if (!acpi_register_lps0_dev(&thinkpad_acpi_s2idle_dev_ops))
+			pr_info("Using s2idle quirk to avoid %s platform firmware bug\n",
+				(dmi_id && dmi_id->ident) ? dmi_id->ident : "");
+	}
+#endif
 	return 0;
 }
 

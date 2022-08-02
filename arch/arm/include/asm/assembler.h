@@ -86,6 +86,10 @@
 
 #define IMM12_MASK 0xfff
 
+/* the frame pointer used for stack unwinding */
+ARM(	fpreg	.req	r11	)
+THUMB(	fpreg	.req	r7	)
+
 /*
  * Enable and disable interrupts
  */
@@ -209,43 +213,12 @@
 	.endm
 	.endr
 
-	.macro	get_current, rd
-#ifdef CONFIG_CURRENT_POINTER_IN_TPIDRURO
-	mrc	p15, 0, \rd, c13, c0, 3		@ get TPIDRURO register
-#else
-	get_thread_info \rd
-	ldr	\rd, [\rd, #TI_TASK]
-#endif
-	.endm
-
-	.macro	set_current, rn
-#ifdef CONFIG_CURRENT_POINTER_IN_TPIDRURO
-	mcr	p15, 0, \rn, c13, c0, 3		@ set TPIDRURO register
-#endif
-	.endm
-
-	.macro	reload_current, t1:req, t2:req
-#ifdef CONFIG_CURRENT_POINTER_IN_TPIDRURO
-	adr_l	\t1, __entry_task		@ get __entry_task base address
-	mrc	p15, 0, \t2, c13, c0, 4		@ get per-CPU offset
-	ldr	\t1, [\t1, \t2]			@ load variable
-	mcr	p15, 0, \t1, c13, c0, 3		@ store in TPIDRURO
-#endif
-	.endm
-
 /*
  * Get current thread_info.
  */
 	.macro	get_thread_info, rd
-#ifdef CONFIG_THREAD_INFO_IN_TASK
 	/* thread_info is the first member of struct task_struct */
 	get_current \rd
-#else
- ARM(	mov	\rd, sp, lsr #THREAD_SIZE_ORDER + PAGE_SHIFT	)
- THUMB(	mov	\rd, sp			)
- THUMB(	lsr	\rd, \rd, #THREAD_SIZE_ORDER + PAGE_SHIFT	)
-	mov	\rd, \rd, lsl #THREAD_SIZE_ORDER + PAGE_SHIFT
-#endif
 	.endm
 
 /*
@@ -319,6 +292,80 @@
 #define ALT_UP(instr...) instr
 #define ALT_UP_B(label) b label
 #endif
+
+	/*
+	 * this_cpu_offset - load the per-CPU offset of this CPU into
+	 * 		     register 'rd'
+	 */
+	.macro		this_cpu_offset, rd:req
+#ifdef CONFIG_SMP
+ALT_SMP(mrc		p15, 0, \rd, c13, c0, 4)
+#ifdef CONFIG_CPU_V6
+ALT_UP_B(.L1_\@)
+.L0_\@:
+	.subsection	1
+.L1_\@: ldr_va		\rd, __per_cpu_offset
+	b		.L0_\@
+	.previous
+#endif
+#else
+	mov		\rd, #0
+#endif
+	.endm
+
+	/*
+	 * set_current - store the task pointer of this CPU's current task
+	 */
+	.macro		set_current, rn:req, tmp:req
+#if defined(CONFIG_CURRENT_POINTER_IN_TPIDRURO) || defined(CONFIG_SMP)
+9998:	mcr		p15, 0, \rn, c13, c0, 3		@ set TPIDRURO register
+#ifdef CONFIG_CPU_V6
+ALT_UP_B(.L0_\@)
+	.subsection	1
+.L0_\@: str_va		\rn, __current, \tmp
+	b		.L1_\@
+	.previous
+.L1_\@:
+#endif
+#else
+	str_va		\rn, __current, \tmp
+#endif
+	.endm
+
+	/*
+	 * get_current - load the task pointer of this CPU's current task
+	 */
+	.macro		get_current, rd:req
+#if defined(CONFIG_CURRENT_POINTER_IN_TPIDRURO) || defined(CONFIG_SMP)
+9998:	mrc		p15, 0, \rd, c13, c0, 3		@ get TPIDRURO register
+#ifdef CONFIG_CPU_V6
+ALT_UP_B(.L0_\@)
+	.subsection	1
+.L0_\@: ldr_va		\rd, __current
+	b		.L1_\@
+	.previous
+.L1_\@:
+#endif
+#else
+	ldr_va		\rd, __current
+#endif
+	.endm
+
+	/*
+	 * reload_current - reload the task pointer of this CPU's current task
+	 *		    into the TLS register
+	 */
+	.macro		reload_current, t1:req, t2:req
+#if defined(CONFIG_CURRENT_POINTER_IN_TPIDRURO) || defined(CONFIG_SMP)
+#ifdef CONFIG_CPU_V6
+ALT_SMP(nop)
+ALT_UP_B(.L0_\@)
+#endif
+	ldr_this_cpu	\t1, __entry_task, \t1, \t2
+	mcr		p15, 0, \t1, c13, c0, 3		@ store in TPIDRURO
+.L0_\@:
+#endif
+	.endm
 
 /*
  * Instruction barrier
@@ -576,12 +623,12 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	/*
 	 * mov_l - move a constant value or [relocated] address into a register
 	 */
-	.macro		mov_l, dst:req, imm:req
+	.macro		mov_l, dst:req, imm:req, cond
 	.if		__LINUX_ARM_ARCH__ < 7
-	ldr		\dst, =\imm
+	ldr\cond	\dst, =\imm
 	.else
-	movw		\dst, #:lower16:\imm
-	movt		\dst, #:upper16:\imm
+	movw\cond	\dst, #:lower16:\imm
+	movt\cond	\dst, #:upper16:\imm
 	.endif
 	.endm
 
@@ -619,6 +666,84 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	__adldst_l	str, \src, \sym, \tmp, \cond
 	.endm
 
+	.macro		__ldst_va, op, reg, tmp, sym, cond, offset
+#if __LINUX_ARM_ARCH__ >= 7 || \
+    !defined(CONFIG_ARM_HAS_GROUP_RELOCS) || \
+    (defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS))
+	mov_l		\tmp, \sym, \cond
+#else
+	/*
+	 * Avoid a literal load, by emitting a sequence of ADD/LDR instructions
+	 * with the appropriate relocations. The combined sequence has a range
+	 * of -/+ 256 MiB, which should be sufficient for the core kernel and
+	 * for modules loaded into the module region.
+	 */
+	.globl		\sym
+	.reloc		.L0_\@, R_ARM_ALU_PC_G0_NC, \sym
+	.reloc		.L1_\@, R_ARM_ALU_PC_G1_NC, \sym
+	.reloc		.L2_\@, R_ARM_LDR_PC_G2, \sym
+.L0_\@: sub\cond	\tmp, pc, #8 - \offset
+.L1_\@: sub\cond	\tmp, \tmp, #4 - \offset
+.L2_\@:
+#endif
+	\op\cond	\reg, [\tmp, #\offset]
+	.endm
+
+	/*
+	 * ldr_va - load a 32-bit word from the virtual address of \sym
+	 */
+	.macro		ldr_va, rd:req, sym:req, cond, tmp, offset=0
+	.ifnb		\tmp
+	__ldst_va	ldr, \rd, \tmp, \sym, \cond, \offset
+	.else
+	__ldst_va	ldr, \rd, \rd, \sym, \cond, \offset
+	.endif
+	.endm
+
+	/*
+	 * str_va - store a 32-bit word to the virtual address of \sym
+	 */
+	.macro		str_va, rn:req, sym:req, tmp:req, cond
+	__ldst_va	str, \rn, \tmp, \sym, \cond, 0
+	.endm
+
+	/*
+	 * ldr_this_cpu_armv6 - Load a 32-bit word from the per-CPU variable 'sym',
+	 *			without using a temp register. Supported in ARM mode
+	 *			only.
+	 */
+	.macro		ldr_this_cpu_armv6, rd:req, sym:req
+	this_cpu_offset	\rd
+	.globl		\sym
+	.reloc		.L0_\@, R_ARM_ALU_PC_G0_NC, \sym
+	.reloc		.L1_\@, R_ARM_ALU_PC_G1_NC, \sym
+	.reloc		.L2_\@, R_ARM_LDR_PC_G2, \sym
+	add		\rd, \rd, pc
+.L0_\@: sub		\rd, \rd, #4
+.L1_\@: sub		\rd, \rd, #0
+.L2_\@: ldr		\rd, [\rd, #4]
+	.endm
+
+	/*
+	 * ldr_this_cpu - Load a 32-bit word from the per-CPU variable 'sym'
+	 *		  into register 'rd', which may be the stack pointer,
+	 *		  using 't1' and 't2' as general temp registers. These
+	 *		  are permitted to overlap with 'rd' if != sp
+	 */
+	.macro		ldr_this_cpu, rd:req, sym:req, t1:req, t2:req
+#ifndef CONFIG_SMP
+	ldr_va		\rd, \sym, tmp=\t1
+#elif __LINUX_ARM_ARCH__ >= 7 || \
+      !defined(CONFIG_ARM_HAS_GROUP_RELOCS) || \
+      (defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS))
+	this_cpu_offset	\t1
+	mov_l		\t2, \sym
+	ldr		\rd, [\t1, \t2]
+#else
+	ldr_this_cpu_armv6 \rd, \sym
+#endif
+	.endm
+
 	/*
 	 * rev_l - byte-swap a 32-bit value
 	 *
@@ -633,6 +758,21 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	eor		\val, \val, \tmp, lsr #8
 	.else
 	rev		\val, \val
+	.endif
+	.endm
+
+	/*
+	 * bl_r - branch and link to register
+	 *
+	 * @dst: target to branch to
+	 * @c: conditional opcode suffix
+	 */
+	.macro		bl_r, dst:req, c
+	.if		__LINUX_ARM_ARCH__ < 6
+	mov\c		lr, pc
+	mov\c		pc, \dst
+	.else
+	blx\c		\dst
 	.endif
 	.endm
 

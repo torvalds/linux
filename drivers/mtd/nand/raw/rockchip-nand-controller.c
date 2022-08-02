@@ -911,8 +911,7 @@ static int rk_nfc_enable_clks(struct device *dev, struct rk_nfc *nfc)
 	ret = clk_prepare_enable(nfc->ahb_clk);
 	if (ret) {
 		dev_err(dev, "failed to enable ahb clk\n");
-		if (!IS_ERR(nfc->nfc_clk))
-			clk_disable_unprepare(nfc->nfc_clk);
+		clk_disable_unprepare(nfc->nfc_clk);
 		return ret;
 	}
 
@@ -921,8 +920,7 @@ static int rk_nfc_enable_clks(struct device *dev, struct rk_nfc *nfc)
 
 static void rk_nfc_disable_clks(struct rk_nfc *nfc)
 {
-	if (!IS_ERR(nfc->nfc_clk))
-		clk_disable_unprepare(nfc->nfc_clk);
+	clk_disable_unprepare(nfc->nfc_clk);
 	clk_disable_unprepare(nfc->ahb_clk);
 }
 
@@ -1403,7 +1401,6 @@ static int rk_nfc_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(dev, "no NFC irq resource\n");
 		ret = -EINVAL;
 		goto clk_disable;
 	}

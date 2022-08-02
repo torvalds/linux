@@ -27,7 +27,8 @@
 
 #include <drm/drm_util.h>
 
-enum link_m_n_set;
+#include "i915_reg_defs.h"
+
 enum drm_scaling_filter;
 struct dpll;
 struct drm_connector;
@@ -317,8 +318,8 @@ enum aux_ch {
 /* Used by dp and fdi links */
 struct intel_link_m_n {
 	u32 tu;
-	u32 gmch_m;
-	u32 gmch_n;
+	u32 data_m;
+	u32 data_n;
 	u32 link_m;
 	u32 link_n;
 };
@@ -429,11 +430,11 @@ enum hpd_pin {
 			    &(dev)->mode_config.crtc_list,		\
 			    base.head)
 
-#define for_each_intel_crtc_mask(dev, intel_crtc, crtc_mask)		\
+#define for_each_intel_crtc_in_pipe_mask(dev, intel_crtc, pipe_mask)	\
 	list_for_each_entry(intel_crtc,					\
 			    &(dev)->mode_config.crtc_list,		\
 			    base.head)					\
-		for_each_if((crtc_mask) & drm_crtc_mask(&intel_crtc->base))
+		for_each_if((pipe_mask) & BIT(intel_crtc->pipe))
 
 #define for_each_intel_encoder(dev, intel_encoder)		\
 	list_for_each_entry(intel_encoder,			\
@@ -554,13 +555,16 @@ intel_mode_valid_max_plane_size(struct drm_i915_private *dev_priv,
 				bool bigjoiner);
 enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port);
 bool is_trans_port_sync_mode(const struct intel_crtc_state *state);
+bool intel_crtc_is_bigjoiner_slave(const struct intel_crtc_state *crtc_state);
+bool intel_crtc_is_bigjoiner_master(const struct intel_crtc_state *crtc_state);
+u8 intel_crtc_bigjoiner_slave_pipes(const struct intel_crtc_state *crtc_state);
+struct intel_crtc *intel_master_crtc(const struct intel_crtc_state *crtc_state);
 
 void intel_plane_destroy(struct drm_plane *plane);
 void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state);
 void intel_disable_transcoder(const struct intel_crtc_state *old_crtc_state);
 void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);
 void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);
-enum pipe intel_crtc_pch_transcoder(struct intel_crtc *crtc);
 int vlv_get_hpll_vco(struct drm_i915_private *dev_priv);
 int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
 		      const char *name, u32 reg, int ref_freq);
@@ -605,23 +609,35 @@ bool intel_fuzzy_clock_check(int clock1, int clock2);
 
 void intel_display_prepare_reset(struct drm_i915_private *dev_priv);
 void intel_display_finish_reset(struct drm_i915_private *dev_priv);
-void intel_dp_get_m_n(struct intel_crtc *crtc,
-		      struct intel_crtc_state *pipe_config);
-void intel_dp_set_m_n(const struct intel_crtc_state *crtc_state,
-		      enum link_m_n_set m_n);
-void ilk_get_fdi_m_n_config(struct intel_crtc *crtc,
-			    struct intel_crtc_state *pipe_config);
+void intel_zero_m_n(struct intel_link_m_n *m_n);
+void intel_set_m_n(struct drm_i915_private *i915,
+		   const struct intel_link_m_n *m_n,
+		   i915_reg_t data_m_reg, i915_reg_t data_n_reg,
+		   i915_reg_t link_m_reg, i915_reg_t link_n_reg);
+void intel_get_m_n(struct drm_i915_private *i915,
+		   struct intel_link_m_n *m_n,
+		   i915_reg_t data_m_reg, i915_reg_t data_n_reg,
+		   i915_reg_t link_m_reg, i915_reg_t link_n_reg);
+bool intel_cpu_transcoder_has_m2_n2(struct drm_i915_private *dev_priv,
+				    enum transcoder transcoder);
+void intel_cpu_transcoder_set_m1_n1(struct intel_crtc *crtc,
+				    enum transcoder cpu_transcoder,
+				    const struct intel_link_m_n *m_n);
+void intel_cpu_transcoder_set_m2_n2(struct intel_crtc *crtc,
+				    enum transcoder cpu_transcoder,
+				    const struct intel_link_m_n *m_n);
+void intel_cpu_transcoder_get_m1_n1(struct intel_crtc *crtc,
+				    enum transcoder cpu_transcoder,
+				    struct intel_link_m_n *m_n);
+void intel_cpu_transcoder_get_m2_n2(struct intel_crtc *crtc,
+				    enum transcoder cpu_transcoder,
+				    struct intel_link_m_n *m_n);
 void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 			 struct intel_crtc_state *pipe_config);
 int intel_dotclock_calculate(int link_freq, const struct intel_link_m_n *m_n);
-bool hsw_crtc_state_ips_capable(const struct intel_crtc_state *crtc_state);
-void hsw_enable_ips(const struct intel_crtc_state *crtc_state);
-void hsw_disable_ips(const struct intel_crtc_state *crtc_state);
-enum intel_display_power_domain intel_port_to_power_domain(enum port port);
+enum intel_display_power_domain intel_port_to_power_domain(struct intel_digital_port *dig_port);
 enum intel_display_power_domain
 intel_aux_power_domain(struct intel_digital_port *dig_port);
-enum intel_display_power_domain
-intel_legacy_aux_to_power_domain(enum aux_ch aux_ch);
 void intel_crtc_arm_fifo_underrun(struct intel_crtc *crtc,
 				  struct intel_crtc_state *crtc_state);
 void ilk_pfit_disable(const struct intel_crtc_state *old_crtc_state);
@@ -675,5 +691,7 @@ void assert_transcoder(struct drm_i915_private *dev_priv,
 
 #define I915_STATE_WARN_ON(x)						\
 	I915_STATE_WARN((x), "%s", "WARN_ON(" __stringify(x) ")")
+
+bool intel_scanout_needs_vtd_wa(struct drm_i915_private *i915);
 
 #endif

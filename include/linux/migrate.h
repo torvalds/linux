@@ -47,7 +47,6 @@ void folio_migrate_copy(struct folio *newfolio, struct folio *folio);
 int folio_migrate_mapping(struct address_space *mapping,
 		struct folio *newfolio, struct folio *folio, int extra_count);
 
-extern bool numa_demotion_enabled;
 #else
 
 static inline void putback_movable_pages(struct list_head *l) {}
@@ -74,8 +73,22 @@ static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
 	return -ENOSYS;
 }
 
-#define numa_demotion_enabled	false
 #endif /* CONFIG_MIGRATION */
+
+#if defined(CONFIG_MIGRATION) && defined(CONFIG_NUMA)
+extern void set_migration_target_nodes(void);
+extern void migrate_on_reclaim_init(void);
+extern bool numa_demotion_enabled;
+extern int next_demotion_node(int node);
+#else
+static inline void set_migration_target_nodes(void) {}
+static inline void migrate_on_reclaim_init(void) {}
+static inline int next_demotion_node(int node)
+{
+        return NUMA_NO_NODE;
+}
+#define numa_demotion_enabled  false
+#endif
 
 #ifdef CONFIG_COMPACTION
 extern int PageMovable(struct page *page);
@@ -91,6 +104,11 @@ static inline void __ClearPageMovable(struct page *page)
 {
 }
 #endif
+
+static inline bool folio_test_movable(struct folio *folio)
+{
+	return PageMovable(&folio->page);
+}
 
 #ifdef CONFIG_NUMA_BALANCING
 extern int migrate_misplaced_page(struct page *page,
@@ -164,15 +182,6 @@ struct migrate_vma {
 int migrate_vma_setup(struct migrate_vma *args);
 void migrate_vma_pages(struct migrate_vma *migrate);
 void migrate_vma_finalize(struct migrate_vma *migrate);
-int next_demotion_node(int node);
-
-#else /* CONFIG_MIGRATION disabled: */
-
-static inline int next_demotion_node(int node)
-{
-	return NUMA_NO_NODE;
-}
-
 #endif /* CONFIG_MIGRATION */
 
 #endif /* _LINUX_MIGRATE_H */

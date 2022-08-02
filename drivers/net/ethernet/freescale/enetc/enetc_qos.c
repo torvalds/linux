@@ -52,10 +52,11 @@ static int enetc_setup_taprio(struct net_device *ndev,
 	struct enetc_cbd cbd = {.cmd = 0};
 	struct tgs_gcl_conf *gcl_config;
 	struct tgs_gcl_data *gcl_data;
-	struct gce *gce;
 	dma_addr_t dma;
+	struct gce *gce;
 	u16 data_size;
 	u16 gcl_len;
+	void *tmp;
 	u32 tge;
 	int err;
 	int i;
@@ -69,6 +70,9 @@ static int enetc_setup_taprio(struct net_device *ndev,
 		enetc_wr(&priv->si->hw,
 			 ENETC_QBV_PTGCR_OFFSET,
 			 tge & (~ENETC_QBV_TGE));
+
+		priv->active_offloads &= ~ENETC_F_QBV;
+
 		return 0;
 	}
 
@@ -82,8 +86,9 @@ static int enetc_setup_taprio(struct net_device *ndev,
 	gcl_config = &cbd.gcl_conf;
 
 	data_size = struct_size(gcl_data, entry, gcl_len);
-	gcl_data = kzalloc(data_size, __GFP_DMA | GFP_KERNEL);
-	if (!gcl_data)
+	tmp = enetc_cbd_alloc_data_mem(priv->si, &cbd, data_size,
+				       &dma, (void *)&gcl_data);
+	if (!tmp)
 		return -ENOMEM;
 
 	gce = (struct gce *)(gcl_data + 1);
@@ -107,19 +112,8 @@ static int enetc_setup_taprio(struct net_device *ndev,
 		temp_gce->period = cpu_to_le32(temp_entry->interval);
 	}
 
-	cbd.length = cpu_to_le16(data_size);
 	cbd.status_flags = 0;
 
-	dma = dma_map_single(&priv->si->pdev->dev, gcl_data,
-			     data_size, DMA_TO_DEVICE);
-	if (dma_mapping_error(&priv->si->pdev->dev, dma)) {
-		netdev_err(priv->si->ndev, "DMA mapping failed!\n");
-		kfree(gcl_data);
-		return -ENOMEM;
-	}
-
-	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma));
-	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma));
 	cbd.cls = BDCR_CMD_PORT_GCL;
 	cbd.status_flags = 0;
 
@@ -132,8 +126,10 @@ static int enetc_setup_taprio(struct net_device *ndev,
 			 ENETC_QBV_PTGCR_OFFSET,
 			 tge & (~ENETC_QBV_TGE));
 
-	dma_unmap_single(&priv->si->pdev->dev, dma, data_size, DMA_TO_DEVICE);
-	kfree(gcl_data);
+	enetc_cbd_free_data_mem(priv->si, data_size, tmp, &dma);
+
+	if (!err)
+		priv->active_offloads |= ENETC_F_QBV;
 
 	return err;
 }
@@ -307,10 +303,6 @@ int enetc_setup_tc_txtime(struct net_device *ndev, void *type_data)
 	if (tc < 0 || tc >= priv->num_tx_rings)
 		return -EINVAL;
 
-	/* Do not support TXSTART and TX CSUM offload simutaniously */
-	if (ndev->features & NETIF_F_CSUM_MASK)
-		return -EBUSY;
-
 	/* TSD and Qbv are mutually exclusive in hardware */
 	if (enetc_rd(&priv->si->hw, ENETC_QBV_PTGCR_OFFSET) & ENETC_QBV_TGE)
 		return -EBUSY;
@@ -450,6 +442,7 @@ static struct actions_fwd enetc_act_fwd[] = {
 };
 
 static struct enetc_psfp epsfp = {
+	.dev_bitmap = 0,
 	.psfp_sfi_bitmap = NULL,
 };
 
@@ -463,8 +456,9 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 	struct enetc_cbd cbd = {.cmd = 0};
 	struct streamid_data *si_data;
 	struct streamid_conf *si_conf;
-	u16 data_size;
 	dma_addr_t dma;
+	u16 data_size;
+	void *tmp;
 	int port;
 	int err;
 
@@ -485,21 +479,11 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 	cbd.status_flags = 0;
 
 	data_size = sizeof(struct streamid_data);
-	si_data = kzalloc(data_size, __GFP_DMA | GFP_KERNEL);
-	if (!si_data)
+	tmp = enetc_cbd_alloc_data_mem(priv->si, &cbd, data_size,
+				       &dma, (void *)&si_data);
+	if (!tmp)
 		return -ENOMEM;
-	cbd.length = cpu_to_le16(data_size);
 
-	dma = dma_map_single(&priv->si->pdev->dev, si_data,
-			     data_size, DMA_FROM_DEVICE);
-	if (dma_mapping_error(&priv->si->pdev->dev, dma)) {
-		netdev_err(priv->si->ndev, "DMA mapping failed!\n");
-		err = -ENOMEM;
-		goto out;
-	}
-
-	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma));
-	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma));
 	eth_broadcast_addr(si_data->dmac);
 	si_data->vid_vidm_tg = (ENETC_CBDR_SID_VID_MASK
 			       + ((0x3 << 14) | ENETC_CBDR_SID_VIDM));
@@ -520,11 +504,6 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 		goto out;
 
 	/* Enable the entry overwrite again incase space flushed by hardware */
-	memset(&cbd, 0, sizeof(cbd));
-
-	cbd.index = cpu_to_le16((u16)sid->index);
-	cbd.cmd = 0;
-	cbd.cls = BDCR_CMD_STREAM_IDENTIFY;
 	cbd.status_flags = 0;
 
 	si_conf->en = 0x80;
@@ -536,11 +515,6 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 	si_conf->oui[0] = 0xC2;
 
 	memset(si_data, 0, data_size);
-
-	cbd.length = cpu_to_le16(data_size);
-
-	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma));
-	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma));
 
 	/* VIDM default to be 1.
 	 * VID Match. If set (b1) then the VID must match, otherwise
@@ -561,10 +535,7 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 
 	err = enetc_send_cmd(priv->si, &cbd);
 out:
-	if (!dma_mapping_error(&priv->si->pdev->dev, dma))
-		dma_unmap_single(&priv->si->pdev->dev, dma, data_size, DMA_FROM_DEVICE);
-
-	kfree(si_data);
+	enetc_cbd_free_data_mem(priv->si, data_size, tmp, &dma);
 
 	return err;
 }
@@ -635,6 +606,7 @@ static int enetc_streamcounter_hw_get(struct enetc_ndev_priv *priv,
 	struct sfi_counter_data *data_buf;
 	dma_addr_t dma;
 	u16 data_size;
+	void *tmp;
 	int err;
 
 	cbd.index = cpu_to_le16((u16)index);
@@ -643,21 +615,11 @@ static int enetc_streamcounter_hw_get(struct enetc_ndev_priv *priv,
 	cbd.status_flags = 0;
 
 	data_size = sizeof(struct sfi_counter_data);
-	data_buf = kzalloc(data_size, __GFP_DMA | GFP_KERNEL);
-	if (!data_buf)
+
+	tmp = enetc_cbd_alloc_data_mem(priv->si, &cbd, data_size,
+				       &dma, (void *)&data_buf);
+	if (!tmp)
 		return -ENOMEM;
-
-	dma = dma_map_single(&priv->si->pdev->dev, data_buf,
-			     data_size, DMA_FROM_DEVICE);
-	if (dma_mapping_error(&priv->si->pdev->dev, dma)) {
-		netdev_err(priv->si->ndev, "DMA mapping failed!\n");
-		err = -ENOMEM;
-		goto exit;
-	}
-	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma));
-	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma));
-
-	cbd.length = cpu_to_le16(data_size);
 
 	err = enetc_send_cmd(priv->si, &cbd);
 	if (err)
@@ -684,7 +646,8 @@ static int enetc_streamcounter_hw_get(struct enetc_ndev_priv *priv,
 				data_buf->flow_meter_dropl;
 
 exit:
-	kfree(data_buf);
+	enetc_cbd_free_data_mem(priv->si, data_size, tmp, &dma);
+
 	return err;
 }
 
@@ -726,6 +689,7 @@ static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
 	dma_addr_t dma;
 	u16 data_size;
 	int err, i;
+	void *tmp;
 	u64 now;
 
 	cbd.index = cpu_to_le16(sgi->index);
@@ -772,24 +736,10 @@ static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
 	sgcl_config->acl_len = (sgi->num_entries - 1) & 0x3;
 
 	data_size = struct_size(sgcl_data, sgcl, sgi->num_entries);
-
-	sgcl_data = kzalloc(data_size, __GFP_DMA | GFP_KERNEL);
-	if (!sgcl_data)
+	tmp = enetc_cbd_alloc_data_mem(priv->si, &cbd, data_size,
+				       &dma, (void *)&sgcl_data);
+	if (!tmp)
 		return -ENOMEM;
-
-	cbd.length = cpu_to_le16(data_size);
-
-	dma = dma_map_single(&priv->si->pdev->dev,
-			     sgcl_data, data_size,
-			     DMA_FROM_DEVICE);
-	if (dma_mapping_error(&priv->si->pdev->dev, dma)) {
-		netdev_err(priv->si->ndev, "DMA mapping failed!\n");
-		kfree(sgcl_data);
-		return -ENOMEM;
-	}
-
-	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma));
-	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma));
 
 	sgce = &sgcl_data->sgcl[0];
 
@@ -844,8 +794,7 @@ static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
 	err = enetc_send_cmd(priv->si, &cbd);
 
 exit:
-	kfree(sgcl_data);
-
+	enetc_cbd_free_data_mem(priv->si, data_size, tmp, &dma);
 	return err;
 }
 
@@ -1074,6 +1023,46 @@ static struct actions_fwd *enetc_check_flow_actions(u64 acts,
 	return NULL;
 }
 
+static int enetc_psfp_policer_validate(const struct flow_action *action,
+				       const struct flow_action_entry *act,
+				       struct netlink_ext_ack *extack)
+{
+	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when exceed action is not drop");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
+	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is not pipe or ok");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	    !flow_action_is_last_entry(action, act)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is ok, but action is not last");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.peakrate_bytes_ps ||
+	    act->police.avrate || act->police.overhead) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when peakrate/avrate/overhead is configured");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.rate_pkt_ps) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "QoS offload not support packets per second");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 				      struct flow_cls_offload *f)
 {
@@ -1230,11 +1219,10 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 
 	/* Flow meter and max frame size */
 	if (entryp) {
-		if (entryp->police.rate_pkt_ps) {
-			NL_SET_ERR_MSG_MOD(extack, "QoS offload not support packets per second");
-			err = -EOPNOTSUPP;
+		err = enetc_psfp_policer_validate(&rule->action, entryp, extack);
+		if (err)
 			goto free_sfi;
-		}
+
 		if (entryp->police.burst) {
 			fmi = kzalloc(sizeof(*fmi), GFP_KERNEL);
 			if (!fmi) {

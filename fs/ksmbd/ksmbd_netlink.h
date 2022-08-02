@@ -104,7 +104,8 @@ struct ksmbd_startup_request {
 					 */
 	__u32	sub_auth[3];		/* Subauth value for Security ID */
 	__u32	smb2_max_credits;	/* MAX credits */
-	__u32	reserved[128];		/* Reserved room */
+	__u32	smbd_max_io_size;	/* smbd read write size */
+	__u32	reserved[127];		/* Reserved room */
 	__u32	ifc_list_sz;		/* interfaces list size */
 	__s8	____payload[];
 };
@@ -241,7 +242,7 @@ struct ksmbd_rpc_command {
 struct ksmbd_spnego_authen_request {
 	__u32	handle;
 	__u16	spnego_blob_len;	/* the length of spnego_blob */
-	__u8	spnego_blob[0];		/*
+	__u8	spnego_blob[];		/*
 					 * the GSS token from SecurityBuffer of
 					 * SMB2 SESSION SETUP request
 					 */

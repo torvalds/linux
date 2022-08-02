@@ -9,6 +9,20 @@
 
 #include "../habanalabs.h"
 
+/**
+ * hl_mmu_get_funcs() - get MMU functions structure
+ * @hdev: habanalabs device structure.
+ * @pgt_residency: page table residency.
+ * @is_dram_addr: true if we need HMMU functions
+ *
+ * @return appropriate MMU functions structure
+ */
+static struct hl_mmu_funcs *hl_mmu_get_funcs(struct hl_device *hdev, int pgt_residency,
+									bool is_dram_addr)
+{
+	return &hdev->mmu_func[pgt_residency];
+}
+
 bool hl_is_dram_va(struct hl_device *hdev, u64 virt_addr)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
@@ -122,6 +136,53 @@ void hl_mmu_ctx_fini(struct hl_ctx *ctx)
 }
 
 /*
+ * hl_mmu_get_real_page_size - get real page size to use in map/unmap operation
+ *
+ * @hdev: pointer to device data.
+ * @mmu_prop: MMU properties.
+ * @page_size: page size
+ * @real_page_size: set here the actual page size to use for the operation
+ * @is_dram_addr: true if DRAM address, otherwise false.
+ *
+ * @return 0 on success, otherwise non 0 error code
+ *
+ * note that this is general implementation that can fit most MMU arch. but as this is used as an
+ * MMU function:
+ * 1. it shall not be called directly- only from mmu_func structure instance
+ * 2. each MMU may modify the implementation internally
+ */
+int hl_mmu_get_real_page_size(struct hl_device *hdev, struct hl_mmu_properties *mmu_prop,
+				u32 page_size, u32 *real_page_size, bool is_dram_addr)
+{
+	/*
+	 * The H/W handles mapping of specific page sizes. Hence if the page
+	 * size is bigger, we break it to sub-pages and map them separately.
+	 */
+	if ((page_size % mmu_prop->page_size) == 0) {
+		*real_page_size = mmu_prop->page_size;
+		return 0;
+	}
+
+	dev_err(hdev->dev, "page size of %u is not %uKB aligned, can't map\n",
+						page_size, mmu_prop->page_size >> 10);
+
+	return -EFAULT;
+}
+
+static struct hl_mmu_properties *hl_mmu_get_prop(struct hl_device *hdev, u32 page_size,
+							bool is_dram_addr)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+
+	if (is_dram_addr)
+		return &prop->dmmu;
+	else if ((page_size % prop->pmmu_huge.page_size) == 0)
+		return &prop->pmmu_huge;
+
+	return &prop->pmmu;
+}
+
+/*
  * hl_mmu_unmap_page - unmaps a virtual addr
  *
  * @ctx: pointer to the context structure
@@ -142,60 +203,35 @@ void hl_mmu_ctx_fini(struct hl_ctx *ctx)
  * For optimization reasons PCI flush may be requested once after unmapping of
  * large area.
  */
-int hl_mmu_unmap_page(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
-		bool flush_pte)
+int hl_mmu_unmap_page(struct hl_ctx *ctx, u64 virt_addr, u32 page_size, bool flush_pte)
 {
 	struct hl_device *hdev = ctx->hdev;
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct hl_mmu_properties *mmu_prop;
-	u64 real_virt_addr;
+	struct hl_mmu_funcs *mmu_funcs;
+	int i, pgt_residency, rc = 0;
 	u32 real_page_size, npages;
-	int i, rc = 0, pgt_residency;
+	u64 real_virt_addr;
 	bool is_dram_addr;
 
 	if (!hdev->mmu_enable)
 		return 0;
 
 	is_dram_addr = hl_is_dram_va(hdev, virt_addr);
-
-	if (is_dram_addr)
-		mmu_prop = &prop->dmmu;
-	else if ((page_size % prop->pmmu_huge.page_size) == 0)
-		mmu_prop = &prop->pmmu_huge;
-	else
-		mmu_prop = &prop->pmmu;
+	mmu_prop = hl_mmu_get_prop(hdev, page_size, is_dram_addr);
 
 	pgt_residency = mmu_prop->host_resident ? MMU_HR_PGT : MMU_DR_PGT;
-	/*
-	 * The H/W handles mapping of specific page sizes. Hence if the page
-	 * size is bigger, we break it to sub-pages and unmap them separately.
-	 */
-	if ((page_size % mmu_prop->page_size) == 0) {
-		real_page_size = mmu_prop->page_size;
-	} else {
-		/*
-		 * MMU page size may differ from DRAM page size.
-		 * In such case work with the DRAM page size and let the MMU
-		 * scrambling routine to handle this mismatch when
-		 * calculating the address to remove from the MMU page table
-		 */
-		if (is_dram_addr && ((page_size % prop->dram_page_size) == 0)) {
-			real_page_size = prop->dram_page_size;
-		} else {
-			dev_err(hdev->dev,
-				"page size of %u is not %uKB aligned, can't unmap\n",
-				page_size, mmu_prop->page_size >> 10);
+	mmu_funcs = hl_mmu_get_funcs(hdev, pgt_residency, is_dram_addr);
 
-			return -EFAULT;
-		}
-	}
+	rc = hdev->asic_funcs->mmu_get_real_page_size(hdev, mmu_prop, page_size, &real_page_size,
+							is_dram_addr);
+	if (rc)
+		return rc;
 
 	npages = page_size / real_page_size;
 	real_virt_addr = virt_addr;
 
 	for (i = 0 ; i < npages ; i++) {
-		rc = hdev->mmu_func[pgt_residency].unmap(ctx,
-						real_virt_addr, is_dram_addr);
+		rc = mmu_funcs->unmap(ctx, real_virt_addr, is_dram_addr);
 		if (rc)
 			break;
 
@@ -203,7 +239,7 @@ int hl_mmu_unmap_page(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 	}
 
 	if (flush_pte)
-		hdev->mmu_func[pgt_residency].flush(ctx);
+		mmu_funcs->flush(ctx);
 
 	return rc;
 }
@@ -230,15 +266,15 @@ int hl_mmu_unmap_page(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
  * For optimization reasons PCI flush may be requested once after mapping of
  * large area.
  */
-int hl_mmu_map_page(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
-		u32 page_size, bool flush_pte)
+int hl_mmu_map_page(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size,
+			bool flush_pte)
 {
+	int i, rc, pgt_residency, mapped_cnt = 0;
 	struct hl_device *hdev = ctx->hdev;
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct hl_mmu_properties *mmu_prop;
 	u64 real_virt_addr, real_phys_addr;
+	struct hl_mmu_funcs *mmu_funcs;
 	u32 real_page_size, npages;
-	int i, rc, pgt_residency, mapped_cnt = 0;
 	bool is_dram_addr;
 
 
@@ -246,40 +282,15 @@ int hl_mmu_map_page(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 		return 0;
 
 	is_dram_addr = hl_is_dram_va(hdev, virt_addr);
-
-	if (is_dram_addr)
-		mmu_prop = &prop->dmmu;
-	else if ((page_size % prop->pmmu_huge.page_size) == 0)
-		mmu_prop = &prop->pmmu_huge;
-	else
-		mmu_prop = &prop->pmmu;
+	mmu_prop = hl_mmu_get_prop(hdev, page_size, is_dram_addr);
 
 	pgt_residency = mmu_prop->host_resident ? MMU_HR_PGT : MMU_DR_PGT;
+	mmu_funcs = hl_mmu_get_funcs(hdev, pgt_residency, is_dram_addr);
 
-	/*
-	 * The H/W handles mapping of specific page sizes. Hence if the page
-	 * size is bigger, we break it to sub-pages and map them separately.
-	 */
-	if ((page_size % mmu_prop->page_size) == 0) {
-		real_page_size = mmu_prop->page_size;
-	} else if (is_dram_addr && ((page_size % prop->dram_page_size) == 0) &&
-			(prop->dram_page_size < mmu_prop->page_size)) {
-		/*
-		 * MMU page size may differ from DRAM page size.
-		 * In such case work with the DRAM page size and let the MMU
-		 * scrambling routine handle this mismatch when calculating
-		 * the address to place in the MMU page table. (in that case
-		 * also make sure that the dram_page_size smaller than the
-		 * mmu page size)
-		 */
-		real_page_size = prop->dram_page_size;
-	} else {
-		dev_err(hdev->dev,
-			"page size of %u is not %uKB aligned, can't map\n",
-			page_size, mmu_prop->page_size >> 10);
-
-		return -EFAULT;
-	}
+	rc = hdev->asic_funcs->mmu_get_real_page_size(hdev, mmu_prop, page_size, &real_page_size,
+							is_dram_addr);
+	if (rc)
+		return rc;
 
 	/*
 	 * Verify that the phys and virt addresses are aligned with the
@@ -302,9 +313,8 @@ int hl_mmu_map_page(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 	real_phys_addr = phys_addr;
 
 	for (i = 0 ; i < npages ; i++) {
-		rc = hdev->mmu_func[pgt_residency].map(ctx,
-						real_virt_addr, real_phys_addr,
-						real_page_size, is_dram_addr);
+		rc = mmu_funcs->map(ctx, real_virt_addr, real_phys_addr, real_page_size,
+										is_dram_addr);
 		if (rc)
 			goto err;
 
@@ -314,22 +324,21 @@ int hl_mmu_map_page(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 	}
 
 	if (flush_pte)
-		hdev->mmu_func[pgt_residency].flush(ctx);
+		mmu_funcs->flush(ctx);
 
 	return 0;
 
 err:
 	real_virt_addr = virt_addr;
 	for (i = 0 ; i < mapped_cnt ; i++) {
-		if (hdev->mmu_func[pgt_residency].unmap(ctx,
-						real_virt_addr, is_dram_addr))
+		if (mmu_funcs->unmap(ctx, real_virt_addr, is_dram_addr))
 			dev_warn_ratelimited(hdev->dev,
 				"failed to unmap va: 0x%llx\n", real_virt_addr);
 
 		real_virt_addr += real_page_size;
 	}
 
-	hdev->mmu_func[pgt_residency].flush(ctx);
+	mmu_funcs->flush(ctx);
 
 	return rc;
 }
@@ -480,11 +489,9 @@ static void hl_mmu_pa_page_with_offset(struct hl_ctx *ctx, u64 virt_addr,
 						struct hl_mmu_hop_info *hops,
 						u64 *phys_addr)
 {
-	struct hl_device *hdev = ctx->hdev;
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct asic_fixed_properties *prop = &ctx->hdev->asic_prop;
 	u64 offset_mask, addr_mask, hop_shift, tmp_phys_addr;
-	u32 hop0_shift_off;
-	void *p;
+	struct hl_mmu_properties *mmu_prop;
 
 	/* last hop holds the phys address and flags */
 	if (hops->unscrambled_paddr)
@@ -493,11 +500,11 @@ static void hl_mmu_pa_page_with_offset(struct hl_ctx *ctx, u64 virt_addr,
 		tmp_phys_addr = hops->hop_info[hops->used_hops - 1].hop_pte_val;
 
 	if (hops->range_type == HL_VA_RANGE_TYPE_HOST_HUGE)
-		p = &prop->pmmu_huge;
+		mmu_prop = &prop->pmmu_huge;
 	else if (hops->range_type == HL_VA_RANGE_TYPE_HOST)
-		p = &prop->pmmu;
+		mmu_prop = &prop->pmmu;
 	else /* HL_VA_RANGE_TYPE_DRAM */
-		p = &prop->dmmu;
+		mmu_prop = &prop->dmmu;
 
 	if ((hops->range_type == HL_VA_RANGE_TYPE_DRAM) &&
 			!is_power_of_2(prop->dram_page_size)) {
@@ -508,7 +515,7 @@ static void hl_mmu_pa_page_with_offset(struct hl_ctx *ctx, u64 virt_addr,
 		/*
 		 * Bit arithmetics cannot be used for non power of two page
 		 * sizes. In addition, since bit arithmetics is not used,
-		 * we cannot ignore dram base. All that shall be considerd.
+		 * we cannot ignore dram base. All that shall be considered.
 		 */
 
 		dram_page_size = prop->dram_page_size;
@@ -526,10 +533,7 @@ static void hl_mmu_pa_page_with_offset(struct hl_ctx *ctx, u64 virt_addr,
 		 * structure in order to determine the right masks
 		 * for the page offset.
 		 */
-		hop0_shift_off = offsetof(struct hl_mmu_properties, hop0_shift);
-		p = (char *)p + hop0_shift_off;
-		p = (char *)p + ((hops->used_hops - 1) * sizeof(u64));
-		hop_shift = *(u64 *)p;
+		hop_shift = mmu_prop->hop_shifts[hops->used_hops - 1];
 		offset_mask = (1ull << hop_shift) - 1;
 		addr_mask = ~(offset_mask);
 		*phys_addr = (tmp_phys_addr & addr_mask) |
@@ -557,40 +561,39 @@ int hl_mmu_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
 			struct hl_mmu_hop_info *hops)
 {
 	struct hl_device *hdev = ctx->hdev;
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct asic_fixed_properties *prop;
 	struct hl_mmu_properties *mmu_prop;
-	int rc;
+	struct hl_mmu_funcs *mmu_funcs;
+	int pgt_residency, rc;
 	bool is_dram_addr;
 
 	if (!hdev->mmu_enable)
 		return -EOPNOTSUPP;
 
+	prop = &hdev->asic_prop;
 	hops->scrambled_vaddr = virt_addr;      /* assume no scrambling */
 
 	is_dram_addr = hl_mem_area_inside_range(virt_addr, prop->dmmu.page_size,
-						prop->dmmu.start_addr,
-						prop->dmmu.end_addr);
+								prop->dmmu.start_addr,
+								prop->dmmu.end_addr);
 
-	/* host-residency is the same in PMMU and HPMMU, use one of them */
+	/* host-residency is the same in PMMU and PMMU huge, no need to distinguish here */
 	mmu_prop = is_dram_addr ? &prop->dmmu : &prop->pmmu;
+	pgt_residency = mmu_prop->host_resident ? MMU_HR_PGT : MMU_DR_PGT;
+	mmu_funcs = hl_mmu_get_funcs(hdev, pgt_residency, is_dram_addr);
 
 	mutex_lock(&ctx->mmu_lock);
-
-	if (mmu_prop->host_resident)
-		rc = hdev->mmu_func[MMU_HR_PGT].get_tlb_info(ctx,
-							virt_addr, hops);
-	else
-		rc = hdev->mmu_func[MMU_DR_PGT].get_tlb_info(ctx,
-							virt_addr, hops);
-
+	rc = mmu_funcs->get_tlb_info(ctx, virt_addr, hops);
 	mutex_unlock(&ctx->mmu_lock);
+
+	if (rc)
+		return rc;
 
 	/* add page offset to physical address */
 	if (hops->unscrambled_paddr)
-		hl_mmu_pa_page_with_offset(ctx, virt_addr, hops,
-					&hops->unscrambled_paddr);
+		hl_mmu_pa_page_with_offset(ctx, virt_addr, hops, &hops->unscrambled_paddr);
 
-	return rc;
+	return 0;
 }
 
 int hl_mmu_if_set_funcs(struct hl_device *hdev)
@@ -660,5 +663,85 @@ int hl_mmu_invalidate_cache_range(struct hl_device *hdev, bool is_hard,
 		dev_err_ratelimited(hdev->dev, "MMU cache range invalidation failed\n");
 
 	return rc;
+}
+
+static void hl_mmu_prefetch_work_function(struct work_struct *work)
+{
+	struct hl_prefetch_work *pfw = container_of(work, struct hl_prefetch_work, pf_work);
+	struct hl_ctx *ctx = pfw->ctx;
+
+	if (!hl_device_operational(ctx->hdev, NULL))
+		goto put_ctx;
+
+	mutex_lock(&ctx->mmu_lock);
+
+	ctx->hdev->asic_funcs->mmu_prefetch_cache_range(ctx, pfw->flags, pfw->asid,
+								pfw->va, pfw->size);
+
+	mutex_unlock(&ctx->mmu_lock);
+
+put_ctx:
+	/*
+	 * context was taken in the common mmu prefetch function- see comment there about
+	 * context handling.
+	 */
+	hl_ctx_put(ctx);
+	kfree(pfw);
+}
+
+int hl_mmu_prefetch_cache_range(struct hl_ctx *ctx, u32 flags, u32 asid, u64 va, u64 size)
+{
+	struct hl_prefetch_work *handle_pf_work;
+
+	handle_pf_work = kmalloc(sizeof(*handle_pf_work), GFP_KERNEL);
+	if (!handle_pf_work)
+		return -ENOMEM;
+
+	INIT_WORK(&handle_pf_work->pf_work, hl_mmu_prefetch_work_function);
+	handle_pf_work->ctx = ctx;
+	handle_pf_work->va = va;
+	handle_pf_work->size = size;
+	handle_pf_work->flags = flags;
+	handle_pf_work->asid = asid;
+
+	/*
+	 * as actual prefetch is done in a WQ we must get the context (and put it
+	 * at the end of the work function)
+	 */
+	hl_ctx_get(ctx);
+	queue_work(ctx->hdev->pf_wq, &handle_pf_work->pf_work);
+
+	return 0;
+}
+
+u64 hl_mmu_get_next_hop_addr(struct hl_ctx *ctx, u64 curr_pte)
+{
+	return (curr_pte & PAGE_PRESENT_MASK) ? (curr_pte & HOP_PHYS_ADDR_MASK) : ULLONG_MAX;
+}
+
+/**
+ * hl_mmu_get_hop_pte_phys_addr() - extract PTE address from HOP
+ * @ctx: pointer to the context structure to initialize.
+ * @mmu_prop: MMU properties.
+ * @hop_idx: HOP index.
+ * @hop_addr: HOP address.
+ * @virt_addr: virtual address fro the translation.
+ *
+ * @return the matching PTE value on success, otherwise U64_MAX.
+ */
+u64 hl_mmu_get_hop_pte_phys_addr(struct hl_ctx *ctx, struct hl_mmu_properties *mmu_prop,
+					u8 hop_idx, u64 hop_addr, u64 virt_addr)
+{
+	u64 mask, shift;
+
+	if (hop_idx >= mmu_prop->num_hops) {
+		dev_err_ratelimited(ctx->hdev->dev, "Invalid hop index %d\n", hop_idx);
+		return U64_MAX;
+	}
+
+	shift = mmu_prop->hop_shifts[hop_idx];
+	mask = mmu_prop->hop_masks[hop_idx];
+
+	return hop_addr + ctx->hdev->asic_prop.mmu_pte_size * ((virt_addr & mask) >> shift);
 }
 

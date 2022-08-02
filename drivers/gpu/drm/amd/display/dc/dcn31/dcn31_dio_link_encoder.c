@@ -230,9 +230,7 @@ static void enc31_hw_init(struct link_encoder *enc)
 	AUX_RX_PHASE_DETECT_LEN,  [21,20] = 0x3 default is 3
 	AUX_RX_DETECTION_THRESHOLD [30:28] = 1
 */
-	AUX_REG_WRITE(AUX_DPHY_RX_CONTROL0, 0x103d1110);
-
-	AUX_REG_WRITE(AUX_DPHY_TX_CONTROL, 0x21c7a);
+	// dmub will read AUX_DPHY_RX_CONTROL0/AUX_DPHY_TX_CONTROL from vbios table in dp_aux_init
 
 	//AUX_DPHY_TX_REF_CONTROL'AUX_TX_REF_DIV HW default is 0x32;
 	// Set AUX_TX_REF_DIV Divider to generate 2 MHz reference from refclk
@@ -240,17 +238,8 @@ static void enc31_hw_init(struct link_encoder *enc)
 	// 100MHz -> 0x32
 	// 48MHz -> 0x18
 
-#ifdef CLEANUP_FIXME
-	/*from display_init*/
-	REG_WRITE(RDPCSTX_DEBUG_CONFIG, 0);
-#endif
-
 	// Set TMDS_CTL0 to 1.  This is a legacy setting.
 	REG_UPDATE(TMDS_CTL_BITS, TMDS_CTL0, 1);
-
-	/*HW default is 5*/
-	REG_UPDATE(RDPCSTX_CNTL,
-			RDPCS_TX_FIFO_RD_START_DELAY, 4);
 
 	dcn10_aux_initialize(enc10);
 }

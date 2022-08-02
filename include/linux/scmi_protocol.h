@@ -13,8 +13,9 @@
 #include <linux/notifier.h>
 #include <linux/types.h>
 
-#define SCMI_MAX_STR_SIZE	16
-#define SCMI_MAX_NUM_RATES	16
+#define SCMI_MAX_STR_SIZE		64
+#define SCMI_SHORT_NAME_MAX_SIZE	16
+#define SCMI_MAX_NUM_RATES		16
 
 /**
  * struct scmi_revision_info - version information structure
@@ -36,13 +37,16 @@ struct scmi_revision_info {
 	u8 num_protocols;
 	u8 num_agents;
 	u32 impl_ver;
-	char vendor_id[SCMI_MAX_STR_SIZE];
-	char sub_vendor_id[SCMI_MAX_STR_SIZE];
+	char vendor_id[SCMI_SHORT_NAME_MAX_SIZE];
+	char sub_vendor_id[SCMI_SHORT_NAME_MAX_SIZE];
 };
 
 struct scmi_clock_info {
 	char name[SCMI_MAX_STR_SIZE];
+	unsigned int enable_latency;
 	bool rate_discrete;
+	bool rate_changed_notifications;
+	bool rate_change_requested_notifications;
 	union {
 		struct {
 			int num_rates;
@@ -82,6 +86,9 @@ struct scmi_clk_proto_ops {
 			u64 rate);
 	int (*enable)(const struct scmi_protocol_handle *ph, u32 clk_id);
 	int (*disable)(const struct scmi_protocol_handle *ph, u32 clk_id);
+	int (*enable_atomic)(const struct scmi_protocol_handle *ph, u32 clk_id);
+	int (*disable_atomic)(const struct scmi_protocol_handle *ph,
+			      u32 clk_id);
 };
 
 /**
@@ -142,7 +149,8 @@ struct scmi_perf_proto_ops {
  */
 struct scmi_power_proto_ops {
 	int (*num_domains_get)(const struct scmi_protocol_handle *ph);
-	char *(*name_get)(const struct scmi_protocol_handle *ph, u32 domain);
+	const char *(*name_get)(const struct scmi_protocol_handle *ph,
+				u32 domain);
 #define SCMI_POWER_STATE_TYPE_SHIFT	30
 #define SCMI_POWER_STATE_ID_MASK	(BIT(28) - 1)
 #define SCMI_POWER_STATE_PARAM(type, id) \
@@ -480,11 +488,17 @@ struct scmi_sensor_proto_ops {
  */
 struct scmi_reset_proto_ops {
 	int (*num_domains_get)(const struct scmi_protocol_handle *ph);
-	char *(*name_get)(const struct scmi_protocol_handle *ph, u32 domain);
+	const char *(*name_get)(const struct scmi_protocol_handle *ph,
+				u32 domain);
 	int (*latency_get)(const struct scmi_protocol_handle *ph, u32 domain);
 	int (*reset)(const struct scmi_protocol_handle *ph, u32 domain);
 	int (*assert)(const struct scmi_protocol_handle *ph, u32 domain);
 	int (*deassert)(const struct scmi_protocol_handle *ph, u32 domain);
+};
+
+enum scmi_voltage_level_mode {
+	SCMI_VOLTAGE_LEVEL_SET_AUTO,
+	SCMI_VOLTAGE_LEVEL_SET_SYNC,
 };
 
 /**
@@ -499,7 +513,8 @@ struct scmi_reset_proto_ops {
  *	         supported voltage level
  * @negative_volts_allowed: True if any of the entries of @levels_uv represent
  *			    a negative voltage.
- * @attributes: represents Voltage Domain advertised attributes
+ * @async_level_set: True when the voltage domain supports asynchronous level
+ *		     set commands.
  * @name: name assigned to the Voltage Domain by platform
  * @num_levels: number of total entries in @levels_uv.
  * @levels_uv: array of entries describing the available voltage levels for
@@ -509,7 +524,7 @@ struct scmi_voltage_info {
 	unsigned int id;
 	bool segmented;
 	bool negative_volts_allowed;
-	unsigned int attributes;
+	bool async_level_set;
 	char name[SCMI_MAX_STR_SIZE];
 	unsigned int num_levels;
 #define SCMI_VOLTAGE_SEGMENT_LOW	0
@@ -540,7 +555,7 @@ struct scmi_voltage_proto_ops {
 	int (*config_get)(const struct scmi_protocol_handle *ph, u32 domain_id,
 			  u32 *config);
 	int (*level_set)(const struct scmi_protocol_handle *ph, u32 domain_id,
-			 u32 flags, s32 volt_uV);
+			 enum scmi_voltage_level_mode mode, s32 volt_uV);
 	int (*level_get)(const struct scmi_protocol_handle *ph, u32 domain_id,
 			 s32 *volt_uV);
 };
@@ -612,6 +627,15 @@ struct scmi_notify_ops {
  * @devm_protocol_get: devres managed method to acquire a protocol and get specific
  *		       operations and a dedicated protocol handler
  * @devm_protocol_put: devres managed method to release a protocol
+ * @is_transport_atomic: method to check if the underlying transport for this
+ *			 instance handle is configured to support atomic
+ *			 transactions for commands.
+ *			 Some users of the SCMI stack in the upper layers could
+ *			 be interested to know if they can assume SCMI
+ *			 command transactions associated to this handle will
+ *			 never sleep and act accordingly.
+ *			 An optional atomic threshold value could be returned
+ *			 where configured.
  * @notify_ops: pointer to set of notifications related operations
  */
 struct scmi_handle {
@@ -622,6 +646,8 @@ struct scmi_handle {
 		(*devm_protocol_get)(struct scmi_device *sdev, u8 proto,
 				     struct scmi_protocol_handle **ph);
 	void (*devm_protocol_put)(struct scmi_device *sdev, u8 proto);
+	bool (*is_transport_atomic)(const struct scmi_handle *handle,
+				    unsigned int *atomic_threshold);
 
 	const struct scmi_notify_ops *notify_ops;
 };
@@ -727,6 +753,8 @@ void scmi_protocol_unregister(const struct scmi_protocol *proto);
 /* SCMI Notification API - Custom Event Reports */
 enum scmi_notification_events {
 	SCMI_EVENT_POWER_STATE_CHANGED = 0x0,
+	SCMI_EVENT_CLOCK_RATE_CHANGED = 0x0,
+	SCMI_EVENT_CLOCK_RATE_CHANGE_REQUESTED = 0x1,
 	SCMI_EVENT_PERFORMANCE_LIMITS_CHANGED = 0x0,
 	SCMI_EVENT_PERFORMANCE_LEVEL_CHANGED = 0x1,
 	SCMI_EVENT_SENSOR_TRIP_POINT_EVENT = 0x0,
@@ -741,6 +769,13 @@ struct scmi_power_state_changed_report {
 	unsigned int	agent_id;
 	unsigned int	domain_id;
 	unsigned int	power_state;
+};
+
+struct scmi_clock_rate_notif_report {
+	ktime_t			timestamp;
+	unsigned int		agent_id;
+	unsigned int		clock_id;
+	unsigned long long	rate;
 };
 
 struct scmi_system_power_state_notifier_report {

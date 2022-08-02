@@ -39,9 +39,13 @@ description: |
         msm8994
         msm8996
         sa8155p
+        sa8540p
         sc7180
         sc7280
+        sc8180x
+        sc8280xp
         sdm630
+        sdm632
         sdm660
         sdm845
         sdx55
@@ -98,6 +102,7 @@ properties:
 
       - items:
           - enum:
+              - asus,sparrow
               - lg,lenok
           - const: qcom,apq8026
 
@@ -172,7 +177,21 @@ properties:
           - const: qcom,apq8094
 
       - items:
-          - const: qcom,msm8996-mtp
+          - enum:
+              - arrow,apq8096-db820c
+              - inforce,ifc6640
+          - const: qcom,apq8096-sbc
+          - const: qcom,apq8096
+
+      - items:
+          - enum:
+              - qcom,msm8996-mtp
+              - sony,dora-row
+              - sony,kagura-row
+              - sony,keyaki-row
+              - xiaomi,gemini
+              - xiaomi,scorpio
+          - const: qcom,msm8996
 
       - items:
           - enum:
@@ -212,6 +231,23 @@ properties:
 
       - items:
           - enum:
+              - lenovo,flex-5g
+              - microsoft,surface-prox
+              - qcom,sc8180x-primus
+          - const: qcom,sc8180x
+
+      - items:
+          - enum:
+              - qcom,sc8280xp-qrd
+          - const: qcom,sc8280xp
+
+      - items:
+          - enum:
+              - fairphone,fp3
+          - const: qcom,sdm632
+
+      - items:
+          - enum:
               - xiaomi,lavender
           - const: qcom,sdm660
 
@@ -240,6 +276,11 @@ properties:
 
       - items:
           - enum:
+              - qcom,sa8295p-adp
+          - const: qcom,sa8540p
+
+      - items:
+          - enum:
               - fairphone,fp4
           - const: qcom,sm7225
 
@@ -262,6 +303,7 @@ properties:
 
       - items:
           - enum:
+              - qcom,sm8450-hdk
               - qcom,sm8450-qrd
           - const: qcom,sm8450
 

@@ -90,7 +90,8 @@
 #include <string.h>
 #include <stddef.h>
 #include <sys/mman.h>
-#include <sys/resource.h>
+#include <sys/socket.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <time.h>
@@ -123,9 +124,17 @@ static void __exit_with_error(int error, const char *file, const char *func, int
 #define exit_with_error(error) __exit_with_error(error, __FILE__, __func__, __LINE__)
 
 #define mode_string(test) (test)->ifobj_tx->xdp_flags & XDP_FLAGS_SKB_MODE ? "SKB" : "DRV"
+#define busy_poll_string(test) (test)->ifobj_tx->busy_poll ? "BUSY-POLL " : ""
 
-#define print_ksft_result(test)						\
-	(ksft_test_result_pass("PASS: %s %s\n", mode_string(test), (test)->name))
+static void report_failure(struct test_spec *test)
+{
+	if (test->fail)
+		return;
+
+	ksft_test_result_fail("FAIL: %s %s%s\n", mode_string(test), busy_poll_string(test),
+			      test->name);
+	test->fail = true;
+}
 
 static void memset32_htonl(void *dest, u32 val, u32 size)
 {
@@ -265,29 +274,51 @@ static int xsk_configure_umem(struct xsk_umem_info *umem, void *buffer, u64 size
 	return 0;
 }
 
-static int xsk_configure_socket(struct xsk_socket_info *xsk, struct xsk_umem_info *umem,
-				struct ifobject *ifobject, u32 qid)
+static void enable_busy_poll(struct xsk_socket_info *xsk)
 {
-	struct xsk_socket_config cfg;
+	int sock_opt;
+
+	sock_opt = 1;
+	if (setsockopt(xsk_socket__fd(xsk->xsk), SOL_SOCKET, SO_PREFER_BUSY_POLL,
+		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		exit_with_error(errno);
+
+	sock_opt = 20;
+	if (setsockopt(xsk_socket__fd(xsk->xsk), SOL_SOCKET, SO_BUSY_POLL,
+		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		exit_with_error(errno);
+
+	sock_opt = BATCH_SIZE;
+	if (setsockopt(xsk_socket__fd(xsk->xsk), SOL_SOCKET, SO_BUSY_POLL_BUDGET,
+		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		exit_with_error(errno);
+}
+
+static int xsk_configure_socket(struct xsk_socket_info *xsk, struct xsk_umem_info *umem,
+				struct ifobject *ifobject, bool shared)
+{
+	struct xsk_socket_config cfg = {};
 	struct xsk_ring_cons *rxr;
 	struct xsk_ring_prod *txr;
 
 	xsk->umem = umem;
 	cfg.rx_size = xsk->rxqsize;
 	cfg.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
-	cfg.libbpf_flags = 0;
+	cfg.libbpf_flags = XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD;
 	cfg.xdp_flags = ifobject->xdp_flags;
 	cfg.bind_flags = ifobject->bind_flags;
+	if (shared)
+		cfg.bind_flags |= XDP_SHARED_UMEM;
 
 	txr = ifobject->tx_on ? &xsk->tx : NULL;
 	rxr = ifobject->rx_on ? &xsk->rx : NULL;
-	return xsk_socket__create(&xsk->xsk, ifobject->ifname, qid, umem->umem, rxr, txr, &cfg);
+	return xsk_socket__create(&xsk->xsk, ifobject->ifname, 0, umem->umem, rxr, txr, &cfg);
 }
 
 static struct option long_options[] = {
 	{"interface", required_argument, 0, 'i'},
-	{"queue", optional_argument, 0, 'q'},
-	{"dump-pkts", optional_argument, 0, 'D'},
+	{"busy-poll", no_argument, 0, 'b'},
+	{"dump-pkts", no_argument, 0, 'D'},
 	{"verbose", no_argument, 0, 'v'},
 	{0, 0, 0, 0}
 };
@@ -298,9 +329,9 @@ static void usage(const char *prog)
 		"  Usage: %s [OPTIONS]\n"
 		"  Options:\n"
 		"  -i, --interface      Use interface\n"
-		"  -q, --queue=n        Use queue n (default 0)\n"
 		"  -D, --dump-pkts      Dump packets L2 - L5\n"
-		"  -v, --verbose        Verbose output\n";
+		"  -v, --verbose        Verbose output\n"
+		"  -b, --busy-poll      Enable busy poll\n";
 
 	ksft_print_msg(str, prog);
 }
@@ -346,7 +377,7 @@ static void parse_command_line(struct ifobject *ifobj_tx, struct ifobject *ifobj
 	for (;;) {
 		char *sptr, *token;
 
-		c = getopt_long(argc, argv, "i:Dv", long_options, &option_index);
+		c = getopt_long(argc, argv, "i:Dvb", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -372,6 +403,10 @@ static void parse_command_line(struct ifobject *ifobj_tx, struct ifobject *ifobj
 		case 'v':
 			opt_verbose = true;
 			break;
+		case 'b':
+			ifobj_tx->busy_poll = true;
+			ifobj_rx->busy_poll = true;
+			break;
 		default:
 			usage(basename(argv[0]));
 			ksft_exit_xfail();
@@ -387,11 +422,12 @@ static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 	for (i = 0; i < MAX_INTERFACES; i++) {
 		struct ifobject *ifobj = i ? ifobj_rx : ifobj_tx;
 
-		ifobj->umem = &ifobj->umem_arr[0];
 		ifobj->xsk = &ifobj->xsk_arr[0];
 		ifobj->use_poll = false;
-		ifobj->pacing_on = true;
+		ifobj->use_fill_ring = true;
+		ifobj->release_rx = true;
 		ifobj->pkt_stream = test->pkt_stream_default;
+		ifobj->validation_func = NULL;
 
 		if (i == 0) {
 			ifobj->rx_on = false;
@@ -401,11 +437,12 @@ static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 			ifobj->tx_on = false;
 		}
 
+		memset(ifobj->umem, 0, sizeof(*ifobj->umem));
+		ifobj->umem->num_frames = DEFAULT_UMEM_BUFFERS;
+		ifobj->umem->frame_size = XSK_UMEM__DEFAULT_FRAME_SIZE;
+
 		for (j = 0; j < MAX_SOCKETS; j++) {
-			memset(&ifobj->umem_arr[j], 0, sizeof(ifobj->umem_arr[j]));
 			memset(&ifobj->xsk_arr[j], 0, sizeof(ifobj->xsk_arr[j]));
-			ifobj->umem_arr[j].num_frames = DEFAULT_UMEM_BUFFERS;
-			ifobj->umem_arr[j].frame_size = XSK_UMEM__DEFAULT_FRAME_SIZE;
 			ifobj->xsk_arr[j].rxqsize = XSK_RING_CONS__DEFAULT_NUM_DESCS;
 		}
 	}
@@ -415,6 +452,7 @@ static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 	test->current_step = 0;
 	test->total_steps = 1;
 	test->nb_sockets = 1;
+	test->fail = false;
 }
 
 static void test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
@@ -466,9 +504,10 @@ static struct pkt *pkt_stream_get_pkt(struct pkt_stream *pkt_stream, u32 pkt_nb)
 	return &pkt_stream->pkts[pkt_nb];
 }
 
-static struct pkt *pkt_stream_get_next_rx_pkt(struct pkt_stream *pkt_stream)
+static struct pkt *pkt_stream_get_next_rx_pkt(struct pkt_stream *pkt_stream, u32 *pkts_sent)
 {
 	while (pkt_stream->rx_pkt_nb < pkt_stream->nb_pkts) {
+		(*pkts_sent)++;
 		if (pkt_stream->pkts[pkt_stream->rx_pkt_nb].valid)
 			return &pkt_stream->pkts[pkt_stream->rx_pkt_nb++];
 		pkt_stream->rx_pkt_nb++;
@@ -484,10 +523,16 @@ static void pkt_stream_delete(struct pkt_stream *pkt_stream)
 
 static void pkt_stream_restore_default(struct test_spec *test)
 {
-	if (test->ifobj_tx->pkt_stream != test->pkt_stream_default) {
+	struct pkt_stream *tx_pkt_stream = test->ifobj_tx->pkt_stream;
+
+	if (tx_pkt_stream != test->pkt_stream_default) {
 		pkt_stream_delete(test->ifobj_tx->pkt_stream);
 		test->ifobj_tx->pkt_stream = test->pkt_stream_default;
 	}
+
+	if (test->ifobj_rx->pkt_stream != test->pkt_stream_default &&
+	    test->ifobj_rx->pkt_stream != tx_pkt_stream)
+		pkt_stream_delete(test->ifobj_rx->pkt_stream);
 	test->ifobj_rx->pkt_stream = test->pkt_stream_default;
 }
 
@@ -509,6 +554,16 @@ static struct pkt_stream *__pkt_stream_alloc(u32 nb_pkts)
 	return pkt_stream;
 }
 
+static void pkt_set(struct xsk_umem_info *umem, struct pkt *pkt, u64 addr, u32 len)
+{
+	pkt->addr = addr;
+	pkt->len = len;
+	if (len > umem->frame_size - XDP_PACKET_HEADROOM - MIN_PKT_SIZE * 2 - umem->frame_headroom)
+		pkt->valid = false;
+	else
+		pkt->valid = true;
+}
+
 static struct pkt_stream *pkt_stream_generate(struct xsk_umem_info *umem, u32 nb_pkts, u32 pkt_len)
 {
 	struct pkt_stream *pkt_stream;
@@ -520,14 +575,9 @@ static struct pkt_stream *pkt_stream_generate(struct xsk_umem_info *umem, u32 nb
 
 	pkt_stream->nb_pkts = nb_pkts;
 	for (i = 0; i < nb_pkts; i++) {
-		pkt_stream->pkts[i].addr = (i % umem->num_frames) * umem->frame_size;
-		pkt_stream->pkts[i].len = pkt_len;
+		pkt_set(umem, &pkt_stream->pkts[i], (i % umem->num_frames) * umem->frame_size,
+			pkt_len);
 		pkt_stream->pkts[i].payload = i;
-
-		if (pkt_len > umem->frame_size)
-			pkt_stream->pkts[i].valid = false;
-		else
-			pkt_stream->pkts[i].valid = true;
 	}
 
 	return pkt_stream;
@@ -555,13 +605,25 @@ static void pkt_stream_replace_half(struct test_spec *test, u32 pkt_len, int off
 	u32 i;
 
 	pkt_stream = pkt_stream_clone(umem, test->pkt_stream_default);
-	for (i = 1; i < test->pkt_stream_default->nb_pkts; i += 2) {
-		pkt_stream->pkts[i].addr = (i % umem->num_frames) * umem->frame_size + offset;
-		pkt_stream->pkts[i].len = pkt_len;
-	}
+	for (i = 1; i < test->pkt_stream_default->nb_pkts; i += 2)
+		pkt_set(umem, &pkt_stream->pkts[i],
+			(i % umem->num_frames) * umem->frame_size + offset, pkt_len);
 
 	test->ifobj_tx->pkt_stream = pkt_stream;
 	test->ifobj_rx->pkt_stream = pkt_stream;
+}
+
+static void pkt_stream_receive_half(struct test_spec *test)
+{
+	struct xsk_umem_info *umem = test->ifobj_rx->umem;
+	struct pkt_stream *pkt_stream = test->ifobj_tx->pkt_stream;
+	u32 i;
+
+	test->ifobj_rx->pkt_stream = pkt_stream_generate(umem, pkt_stream->nb_pkts,
+							 pkt_stream->pkts[0].len);
+	pkt_stream = test->ifobj_rx->pkt_stream;
+	for (i = 1; i < pkt_stream->nb_pkts; i += 2)
+		pkt_stream->pkts[i].valid = false;
 }
 
 static struct pkt *pkt_generate(struct ifobject *ifobject, u32 pkt_nb)
@@ -574,7 +636,7 @@ static struct pkt *pkt_generate(struct ifobject *ifobject, u32 pkt_nb)
 
 	if (!pkt)
 		return NULL;
-	if (!pkt->valid || pkt->len < PKT_SIZE)
+	if (!pkt->valid || pkt->len < MIN_PKT_SIZE)
 		return pkt;
 
 	data = xsk_umem__get_data(ifobject->umem->buffer, pkt->addr);
@@ -661,8 +723,7 @@ static bool is_offset_correct(struct xsk_umem_info *umem, struct pkt_stream *pkt
 	if (offset == expected_offset)
 		return true;
 
-	ksft_test_result_fail("ERROR: [%s] expected [%u], got [%u]\n", __func__, expected_offset,
-			      offset);
+	ksft_print_msg("[%s] expected [%u], got [%u]\n", __func__, expected_offset, offset);
 	return false;
 }
 
@@ -672,19 +733,18 @@ static bool is_pkt_valid(struct pkt *pkt, void *buffer, u64 addr, u32 len)
 	struct iphdr *iphdr = (struct iphdr *)(data + sizeof(struct ethhdr));
 
 	if (!pkt) {
-		ksft_test_result_fail("ERROR: [%s] too many packets received\n", __func__);
+		ksft_print_msg("[%s] too many packets received\n", __func__);
 		return false;
 	}
 
-	if (len < PKT_SIZE) {
-		/*Do not try to verify packets that are smaller than minimum size. */
+	if (len < MIN_PKT_SIZE || pkt->len < MIN_PKT_SIZE) {
+		/* Do not try to verify packets that are smaller than minimum size. */
 		return true;
 	}
 
 	if (pkt->len != len) {
-		ksft_test_result_fail
-			("ERROR: [%s] expected length [%d], got length [%d]\n",
-			 __func__, pkt->len, len);
+		ksft_print_msg("[%s] expected length [%d], got length [%d]\n",
+			       __func__, pkt->len, len);
 		return false;
 	}
 
@@ -695,9 +755,8 @@ static bool is_pkt_valid(struct pkt *pkt, void *buffer, u64 addr, u32 len)
 			pkt_dump(data, PKT_SIZE);
 
 		if (pkt->payload != seqnum) {
-			ksft_test_result_fail
-				("ERROR: [%s] expected seqnum [%d], got seqnum [%d]\n",
-					__func__, pkt->payload, seqnum);
+			ksft_print_msg("[%s] expected seqnum [%d], got seqnum [%d]\n",
+				       __func__, pkt->payload, seqnum);
 			return false;
 		}
 	} else {
@@ -715,12 +774,25 @@ static void kick_tx(struct xsk_socket_info *xsk)
 	int ret;
 
 	ret = sendto(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
-	if (ret >= 0 || errno == ENOBUFS || errno == EAGAIN || errno == EBUSY || errno == ENETDOWN)
+	if (ret >= 0)
 		return;
+	if (errno == ENOBUFS || errno == EAGAIN || errno == EBUSY || errno == ENETDOWN) {
+		usleep(100);
+		return;
+	}
 	exit_with_error(errno);
 }
 
-static void complete_pkts(struct xsk_socket_info *xsk, int batch_size)
+static void kick_rx(struct xsk_socket_info *xsk)
+{
+	int ret;
+
+	ret = recvfrom(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL, NULL);
+	if (ret < 0)
+		exit_with_error(errno);
+}
+
+static int complete_pkts(struct xsk_socket_info *xsk, int batch_size)
 {
 	unsigned int rcvd;
 	u32 idx;
@@ -733,26 +805,45 @@ static void complete_pkts(struct xsk_socket_info *xsk, int batch_size)
 		if (rcvd > xsk->outstanding_tx) {
 			u64 addr = *xsk_ring_cons__comp_addr(&xsk->umem->cq, idx + rcvd - 1);
 
-			ksft_test_result_fail("ERROR: [%s] Too many packets completed\n",
-					      __func__);
+			ksft_print_msg("[%s] Too many packets completed\n", __func__);
 			ksft_print_msg("Last completion address: %llx\n", addr);
-			return;
+			return TEST_FAILURE;
 		}
 
 		xsk_ring_cons__release(&xsk->umem->cq, rcvd);
 		xsk->outstanding_tx -= rcvd;
 	}
+
+	return TEST_PASS;
 }
 
-static void receive_pkts(struct pkt_stream *pkt_stream, struct xsk_socket_info *xsk,
-			 struct pollfd *fds)
+static int receive_pkts(struct ifobject *ifobj, struct pollfd *fds)
 {
-	struct pkt *pkt = pkt_stream_get_next_rx_pkt(pkt_stream);
+	struct timeval tv_end, tv_now, tv_timeout = {RECV_TMOUT, 0};
+	u32 idx_rx = 0, idx_fq = 0, rcvd, i, pkts_sent = 0;
+	struct pkt_stream *pkt_stream = ifobj->pkt_stream;
+	struct xsk_socket_info *xsk = ifobj->xsk;
 	struct xsk_umem_info *umem = xsk->umem;
-	u32 idx_rx = 0, idx_fq = 0, rcvd, i;
+	struct pkt *pkt;
 	int ret;
 
+	ret = gettimeofday(&tv_now, NULL);
+	if (ret)
+		exit_with_error(errno);
+	timeradd(&tv_now, &tv_timeout, &tv_end);
+
+	pkt = pkt_stream_get_next_rx_pkt(pkt_stream, &pkts_sent);
 	while (pkt) {
+		ret = gettimeofday(&tv_now, NULL);
+		if (ret)
+			exit_with_error(errno);
+		if (timercmp(&tv_now, &tv_end, >)) {
+			ksft_print_msg("ERROR: [%s] Receive loop timed out\n", __func__);
+			return TEST_FAILURE;
+		}
+
+		kick_rx(xsk);
+
 		rcvd = xsk_ring_cons__peek(&xsk->rx, BATCH_SIZE, &idx_rx);
 		if (!rcvd) {
 			if (xsk_ring_prod__needs_wakeup(&umem->fq)) {
@@ -763,54 +854,53 @@ static void receive_pkts(struct pkt_stream *pkt_stream, struct xsk_socket_info *
 			continue;
 		}
 
-		ret = xsk_ring_prod__reserve(&umem->fq, rcvd, &idx_fq);
-		while (ret != rcvd) {
-			if (ret < 0)
-				exit_with_error(-ret);
-			if (xsk_ring_prod__needs_wakeup(&umem->fq)) {
-				ret = poll(fds, 1, POLL_TMOUT);
+		if (ifobj->use_fill_ring) {
+			ret = xsk_ring_prod__reserve(&umem->fq, rcvd, &idx_fq);
+			while (ret != rcvd) {
 				if (ret < 0)
 					exit_with_error(-ret);
+				if (xsk_ring_prod__needs_wakeup(&umem->fq)) {
+					ret = poll(fds, 1, POLL_TMOUT);
+					if (ret < 0)
+						exit_with_error(-ret);
+				}
+				ret = xsk_ring_prod__reserve(&umem->fq, rcvd, &idx_fq);
 			}
-			ret = xsk_ring_prod__reserve(&umem->fq, rcvd, &idx_fq);
 		}
 
 		for (i = 0; i < rcvd; i++) {
 			const struct xdp_desc *desc = xsk_ring_cons__rx_desc(&xsk->rx, idx_rx++);
 			u64 addr = desc->addr, orig;
 
-			if (!pkt) {
-				ksft_test_result_fail("ERROR: [%s] Received too many packets.\n",
-						      __func__);
-				ksft_print_msg("Last packet has addr: %llx len: %u\n",
-					       addr, desc->len);
-				return;
-			}
-
 			orig = xsk_umem__extract_addr(addr);
 			addr = xsk_umem__add_offset_to_addr(addr);
 
-			if (!is_pkt_valid(pkt, umem->buffer, addr, desc->len))
-				return;
-			if (!is_offset_correct(umem, pkt_stream, addr, pkt->addr))
-				return;
+			if (!is_pkt_valid(pkt, umem->buffer, addr, desc->len) ||
+			    !is_offset_correct(umem, pkt_stream, addr, pkt->addr))
+				return TEST_FAILURE;
 
-			*xsk_ring_prod__fill_addr(&umem->fq, idx_fq++) = orig;
-			pkt = pkt_stream_get_next_rx_pkt(pkt_stream);
+			if (ifobj->use_fill_ring)
+				*xsk_ring_prod__fill_addr(&umem->fq, idx_fq++) = orig;
+			pkt = pkt_stream_get_next_rx_pkt(pkt_stream, &pkts_sent);
 		}
 
-		xsk_ring_prod__submit(&umem->fq, rcvd);
-		xsk_ring_cons__release(&xsk->rx, rcvd);
+		if (ifobj->use_fill_ring)
+			xsk_ring_prod__submit(&umem->fq, rcvd);
+		if (ifobj->release_rx)
+			xsk_ring_cons__release(&xsk->rx, rcvd);
 
 		pthread_mutex_lock(&pacing_mutex);
-		pkts_in_flight -= rcvd;
+		pkts_in_flight -= pkts_sent;
 		if (pkts_in_flight < umem->num_frames)
 			pthread_cond_signal(&pacing_cond);
 		pthread_mutex_unlock(&pacing_mutex);
+		pkts_sent = 0;
 	}
+
+	return TEST_PASS;
 }
 
-static u32 __send_pkts(struct ifobject *ifobject, u32 pkt_nb)
+static int __send_pkts(struct ifobject *ifobject, u32 *pkt_nb)
 {
 	struct xsk_socket_info *xsk = ifobject->xsk;
 	u32 i, idx, valid_pkts = 0;
@@ -820,21 +910,22 @@ static u32 __send_pkts(struct ifobject *ifobject, u32 pkt_nb)
 
 	for (i = 0; i < BATCH_SIZE; i++) {
 		struct xdp_desc *tx_desc = xsk_ring_prod__tx_desc(&xsk->tx, idx + i);
-		struct pkt *pkt = pkt_generate(ifobject, pkt_nb);
+		struct pkt *pkt = pkt_generate(ifobject, *pkt_nb);
 
 		if (!pkt)
 			break;
 
 		tx_desc->addr = pkt->addr;
 		tx_desc->len = pkt->len;
-		pkt_nb++;
+		(*pkt_nb)++;
 		if (pkt->valid)
 			valid_pkts++;
 	}
 
 	pthread_mutex_lock(&pacing_mutex);
 	pkts_in_flight += valid_pkts;
-	if (ifobject->pacing_on && pkts_in_flight >= ifobject->umem->num_frames - BATCH_SIZE) {
+	/* pkts_in_flight might be negative if many invalid packets are sent */
+	if (pkts_in_flight >= (int)(ifobject->umem->num_frames - BATCH_SIZE)) {
 		kick_tx(xsk);
 		pthread_cond_wait(&pacing_cond, &pacing_mutex);
 	}
@@ -842,10 +933,11 @@ static u32 __send_pkts(struct ifobject *ifobject, u32 pkt_nb)
 
 	xsk_ring_prod__submit(&xsk->tx, i);
 	xsk->outstanding_tx += valid_pkts;
-	complete_pkts(xsk, i);
+	if (complete_pkts(xsk, i))
+		return TEST_FAILURE;
 
 	usleep(10);
-	return i;
+	return TEST_PASS;
 }
 
 static void wait_for_tx_completion(struct xsk_socket_info *xsk)
@@ -854,7 +946,7 @@ static void wait_for_tx_completion(struct xsk_socket_info *xsk)
 		complete_pkts(xsk, BATCH_SIZE);
 }
 
-static void send_pkts(struct ifobject *ifobject)
+static int send_pkts(struct test_spec *test, struct ifobject *ifobject)
 {
 	struct pollfd fds = { };
 	u32 pkt_cnt = 0;
@@ -863,6 +955,8 @@ static void send_pkts(struct ifobject *ifobject)
 	fds.events = POLLOUT;
 
 	while (pkt_cnt < ifobject->pkt_stream->nb_pkts) {
+		int err;
+
 		if (ifobject->use_poll) {
 			int ret;
 
@@ -874,15 +968,96 @@ static void send_pkts(struct ifobject *ifobject)
 				continue;
 		}
 
-		pkt_cnt += __send_pkts(ifobject, pkt_cnt);
+		err = __send_pkts(ifobject, &pkt_cnt);
+		if (err || test->fail)
+			return TEST_FAILURE;
 	}
 
 	wait_for_tx_completion(ifobject->xsk);
+	return TEST_PASS;
 }
 
-static bool rx_stats_are_valid(struct ifobject *ifobject)
+static int get_xsk_stats(struct xsk_socket *xsk, struct xdp_statistics *stats)
 {
-	u32 xsk_stat = 0, expected_stat = ifobject->pkt_stream->nb_pkts;
+	int fd = xsk_socket__fd(xsk), err;
+	socklen_t optlen, expected_len;
+
+	optlen = sizeof(*stats);
+	err = getsockopt(fd, SOL_XDP, XDP_STATISTICS, stats, &optlen);
+	if (err) {
+		ksft_print_msg("[%s] getsockopt(XDP_STATISTICS) error %u %s\n",
+			       __func__, -err, strerror(-err));
+		return TEST_FAILURE;
+	}
+
+	expected_len = sizeof(struct xdp_statistics);
+	if (optlen != expected_len) {
+		ksft_print_msg("[%s] getsockopt optlen error. Expected: %u got: %u\n",
+			       __func__, expected_len, optlen);
+		return TEST_FAILURE;
+	}
+
+	return TEST_PASS;
+}
+
+static int validate_rx_dropped(struct ifobject *ifobject)
+{
+	struct xsk_socket *xsk = ifobject->xsk->xsk;
+	struct xdp_statistics stats;
+	int err;
+
+	kick_rx(ifobject->xsk);
+
+	err = get_xsk_stats(xsk, &stats);
+	if (err)
+		return TEST_FAILURE;
+
+	if (stats.rx_dropped == ifobject->pkt_stream->nb_pkts / 2)
+		return TEST_PASS;
+
+	return TEST_FAILURE;
+}
+
+static int validate_rx_full(struct ifobject *ifobject)
+{
+	struct xsk_socket *xsk = ifobject->xsk->xsk;
+	struct xdp_statistics stats;
+	int err;
+
+	usleep(1000);
+	kick_rx(ifobject->xsk);
+
+	err = get_xsk_stats(xsk, &stats);
+	if (err)
+		return TEST_FAILURE;
+
+	if (stats.rx_ring_full)
+		return TEST_PASS;
+
+	return TEST_FAILURE;
+}
+
+static int validate_fill_empty(struct ifobject *ifobject)
+{
+	struct xsk_socket *xsk = ifobject->xsk->xsk;
+	struct xdp_statistics stats;
+	int err;
+
+	usleep(1000);
+	kick_rx(ifobject->xsk);
+
+	err = get_xsk_stats(xsk, &stats);
+	if (err)
+		return TEST_FAILURE;
+
+	if (stats.rx_fill_ring_empty_descs)
+		return TEST_PASS;
+
+	return TEST_FAILURE;
+}
+
+static int validate_tx_invalid_descs(struct ifobject *ifobject)
+{
 	struct xsk_socket *xsk = ifobject->xsk->xsk;
 	int fd = xsk_socket__fd(xsk);
 	struct xdp_statistics stats;
@@ -892,62 +1067,26 @@ static bool rx_stats_are_valid(struct ifobject *ifobject)
 	optlen = sizeof(stats);
 	err = getsockopt(fd, SOL_XDP, XDP_STATISTICS, &stats, &optlen);
 	if (err) {
-		ksft_test_result_fail("ERROR Rx: [%s] getsockopt(XDP_STATISTICS) error %u %s\n",
-				      __func__, -err, strerror(-err));
-		return true;
+		ksft_print_msg("[%s] getsockopt(XDP_STATISTICS) error %u %s\n",
+			       __func__, -err, strerror(-err));
+		return TEST_FAILURE;
 	}
 
-	if (optlen == sizeof(struct xdp_statistics)) {
-		switch (stat_test_type) {
-		case STAT_TEST_RX_DROPPED:
-			xsk_stat = stats.rx_dropped;
-			break;
-		case STAT_TEST_TX_INVALID:
-			return true;
-		case STAT_TEST_RX_FULL:
-			xsk_stat = stats.rx_ring_full;
-			expected_stat -= RX_FULL_RXQSIZE;
-			break;
-		case STAT_TEST_RX_FILL_EMPTY:
-			xsk_stat = stats.rx_fill_ring_empty_descs;
-			break;
-		default:
-			break;
-		}
-
-		if (xsk_stat == expected_stat)
-			return true;
+	if (stats.tx_invalid_descs != ifobject->pkt_stream->nb_pkts / 2) {
+		ksft_print_msg("[%s] tx_invalid_descs incorrect. Got [%u] expected [%u]\n",
+			       __func__, stats.tx_invalid_descs, ifobject->pkt_stream->nb_pkts);
+		return TEST_FAILURE;
 	}
 
-	return false;
-}
-
-static void tx_stats_validate(struct ifobject *ifobject)
-{
-	struct xsk_socket *xsk = ifobject->xsk->xsk;
-	int fd = xsk_socket__fd(xsk);
-	struct xdp_statistics stats;
-	socklen_t optlen;
-	int err;
-
-	optlen = sizeof(stats);
-	err = getsockopt(fd, SOL_XDP, XDP_STATISTICS, &stats, &optlen);
-	if (err) {
-		ksft_test_result_fail("ERROR Tx: [%s] getsockopt(XDP_STATISTICS) error %u %s\n",
-				      __func__, -err, strerror(-err));
-		return;
-	}
-
-	if (stats.tx_invalid_descs == ifobject->pkt_stream->nb_pkts)
-		return;
-
-	ksft_test_result_fail("ERROR: [%s] tx_invalid_descs incorrect. Got [%u] expected [%u]\n",
-			      __func__, stats.tx_invalid_descs, ifobject->pkt_stream->nb_pkts);
+	return TEST_PASS;
 }
 
 static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 {
+	u64 umem_sz = ifobject->umem->num_frames * ifobject->umem->frame_size;
 	int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
+	int ret, ifindex;
+	void *bufs;
 	u32 i;
 
 	ifobject->ns_fd = switch_namespace(ifobject->nsname);
@@ -955,23 +1094,20 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 	if (ifobject->umem->unaligned_mode)
 		mmap_flags |= MAP_HUGETLB;
 
+	bufs = mmap(NULL, umem_sz, PROT_READ | PROT_WRITE, mmap_flags, -1, 0);
+	if (bufs == MAP_FAILED)
+		exit_with_error(errno);
+
+	ret = xsk_configure_umem(ifobject->umem, bufs, umem_sz);
+	if (ret)
+		exit_with_error(-ret);
+
 	for (i = 0; i < test->nb_sockets; i++) {
-		u64 umem_sz = ifobject->umem->num_frames * ifobject->umem->frame_size;
 		u32 ctr = 0;
-		void *bufs;
-		int ret;
-
-		bufs = mmap(NULL, umem_sz, PROT_READ | PROT_WRITE, mmap_flags, -1, 0);
-		if (bufs == MAP_FAILED)
-			exit_with_error(errno);
-
-		ret = xsk_configure_umem(&ifobject->umem_arr[i], bufs, umem_sz);
-		if (ret)
-			exit_with_error(-ret);
 
 		while (ctr++ < SOCK_RECONF_CTR) {
-			ret = xsk_configure_socket(&ifobject->xsk_arr[i], &ifobject->umem_arr[i],
-						   ifobject, i);
+			ret = xsk_configure_socket(&ifobject->xsk_arr[i], ifobject->umem,
+						   ifobject, !!i);
 			if (!ret)
 				break;
 
@@ -980,10 +1116,27 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 				exit_with_error(-ret);
 			usleep(USLEEP_MAX);
 		}
+
+		if (ifobject->busy_poll)
+			enable_busy_poll(&ifobject->xsk_arr[i]);
 	}
 
-	ifobject->umem = &ifobject->umem_arr[0];
 	ifobject->xsk = &ifobject->xsk_arr[0];
+
+	if (!ifobject->rx_on)
+		return;
+
+	ifindex = if_nametoindex(ifobject->ifname);
+	if (!ifindex)
+		exit_with_error(errno);
+
+	ret = xsk_setup_xdp_prog(ifindex, &ifobject->xsk_map_fd);
+	if (ret)
+		exit_with_error(-ret);
+
+	ret = xsk_socket__update_xskmap(ifobject->xsk->xsk, ifobject->xsk_map_fd);
+	if (ret)
+		exit_with_error(-ret);
 }
 
 static void testapp_cleanup_xsk_res(struct ifobject *ifobj)
@@ -998,18 +1151,21 @@ static void *worker_testapp_validate_tx(void *arg)
 {
 	struct test_spec *test = (struct test_spec *)arg;
 	struct ifobject *ifobject = test->ifobj_tx;
+	int err;
 
 	if (test->current_step == 1)
 		thread_common_ops(test, ifobject);
 
 	print_verbose("Sending %d packets on interface %s\n", ifobject->pkt_stream->nb_pkts,
 		      ifobject->ifname);
-	send_pkts(ifobject);
+	err = send_pkts(test, ifobject);
 
-	if (stat_test_type == STAT_TEST_TX_INVALID)
-		tx_stats_validate(ifobject);
+	if (!err && ifobject->validation_func)
+		err = ifobject->validation_func(ifobject);
+	if (err)
+		report_failure(test);
 
-	if (test->total_steps == test->current_step)
+	if (test->total_steps == test->current_step || err)
 		testapp_cleanup_xsk_res(ifobject);
 	pthread_exit(NULL);
 }
@@ -1050,6 +1206,7 @@ static void *worker_testapp_validate_rx(void *arg)
 	struct test_spec *test = (struct test_spec *)arg;
 	struct ifobject *ifobject = test->ifobj_rx;
 	struct pollfd fds = { };
+	int err;
 
 	if (test->current_step == 1)
 		thread_common_ops(test, ifobject);
@@ -1061,18 +1218,23 @@ static void *worker_testapp_validate_rx(void *arg)
 
 	pthread_barrier_wait(&barr);
 
-	if (test_type == TEST_TYPE_STATS)
-		while (!rx_stats_are_valid(ifobject))
-			continue;
-	else
-		receive_pkts(ifobject->pkt_stream, ifobject->xsk, &fds);
+	err = receive_pkts(ifobject, &fds);
 
-	if (test->total_steps == test->current_step)
+	if (!err && ifobject->validation_func)
+		err = ifobject->validation_func(ifobject);
+	if (err) {
+		report_failure(test);
+		pthread_mutex_lock(&pacing_mutex);
+		pthread_cond_signal(&pacing_cond);
+		pthread_mutex_unlock(&pacing_mutex);
+	}
+
+	if (test->total_steps == test->current_step || err)
 		testapp_cleanup_xsk_res(ifobject);
 	pthread_exit(NULL);
 }
 
-static void testapp_validate_traffic(struct test_spec *test)
+static int testapp_validate_traffic(struct test_spec *test)
 {
 	struct ifobject *ifobj_tx = test->ifobj_tx;
 	struct ifobject *ifobj_rx = test->ifobj_rx;
@@ -1097,6 +1259,8 @@ static void testapp_validate_traffic(struct test_spec *test)
 
 	pthread_join(t1, NULL);
 	pthread_join(t0, NULL);
+
+	return !!test->fail;
 }
 
 static void testapp_teardown(struct test_spec *test)
@@ -1105,7 +1269,8 @@ static void testapp_teardown(struct test_spec *test)
 
 	test_spec_set_name(test, "TEARDOWN");
 	for (i = 0; i < MAX_TEARDOWN_ITER; i++) {
-		testapp_validate_traffic(test);
+		if (testapp_validate_traffic(test))
+			return;
 		test_spec_reset(test);
 	}
 }
@@ -1128,7 +1293,8 @@ static void testapp_bidi(struct test_spec *test)
 	test->ifobj_tx->rx_on = true;
 	test->ifobj_rx->tx_on = true;
 	test->total_steps = 2;
-	testapp_validate_traffic(test);
+	if (testapp_validate_traffic(test))
+		return;
 
 	print_verbose("Switching Tx/Rx vectors\n");
 	swap_directions(&test->ifobj_rx, &test->ifobj_tx);
@@ -1139,14 +1305,16 @@ static void testapp_bidi(struct test_spec *test)
 
 static void swap_xsk_resources(struct ifobject *ifobj_tx, struct ifobject *ifobj_rx)
 {
+	int ret;
+
 	xsk_socket__delete(ifobj_tx->xsk->xsk);
-	xsk_umem__delete(ifobj_tx->umem->umem);
 	xsk_socket__delete(ifobj_rx->xsk->xsk);
-	xsk_umem__delete(ifobj_rx->umem->umem);
-	ifobj_tx->umem = &ifobj_tx->umem_arr[1];
 	ifobj_tx->xsk = &ifobj_tx->xsk_arr[1];
-	ifobj_rx->umem = &ifobj_rx->umem_arr[1];
 	ifobj_rx->xsk = &ifobj_rx->xsk_arr[1];
+
+	ret = xsk_socket__update_xskmap(ifobj_rx->xsk->xsk, ifobj_rx->xsk_map_fd);
+	if (ret)
+		exit_with_error(-ret);
 }
 
 static void testapp_bpf_res(struct test_spec *test)
@@ -1154,7 +1322,8 @@ static void testapp_bpf_res(struct test_spec *test)
 	test_spec_set_name(test, "BPF_RES");
 	test->total_steps = 2;
 	test->nb_sockets = 2;
-	testapp_validate_traffic(test);
+	if (testapp_validate_traffic(test))
+		return;
 
 	swap_xsk_resources(test->ifobj_tx, test->ifobj_rx);
 	testapp_validate_traffic(test);
@@ -1167,53 +1336,58 @@ static void testapp_headroom(struct test_spec *test)
 	testapp_validate_traffic(test);
 }
 
-static void testapp_stats(struct test_spec *test)
+static void testapp_stats_rx_dropped(struct test_spec *test)
 {
-	int i;
+	test_spec_set_name(test, "STAT_RX_DROPPED");
+	test->ifobj_rx->umem->frame_headroom = test->ifobj_rx->umem->frame_size -
+		XDP_PACKET_HEADROOM - MIN_PKT_SIZE * 3;
+	pkt_stream_replace_half(test, MIN_PKT_SIZE * 4, 0);
+	pkt_stream_receive_half(test);
+	test->ifobj_rx->validation_func = validate_rx_dropped;
+	testapp_validate_traffic(test);
+}
 
-	for (i = 0; i < STAT_TEST_TYPE_MAX; i++) {
-		test_spec_reset(test);
-		stat_test_type = i;
-		/* No or few packets will be received so cannot pace packets */
-		test->ifobj_tx->pacing_on = false;
+static void testapp_stats_tx_invalid_descs(struct test_spec *test)
+{
+	test_spec_set_name(test, "STAT_TX_INVALID");
+	pkt_stream_replace_half(test, XSK_UMEM__INVALID_FRAME_SIZE, 0);
+	test->ifobj_tx->validation_func = validate_tx_invalid_descs;
+	testapp_validate_traffic(test);
 
-		switch (stat_test_type) {
-		case STAT_TEST_RX_DROPPED:
-			test_spec_set_name(test, "STAT_RX_DROPPED");
-			test->ifobj_rx->umem->frame_headroom = test->ifobj_rx->umem->frame_size -
-				XDP_PACKET_HEADROOM - 1;
-			testapp_validate_traffic(test);
-			break;
-		case STAT_TEST_RX_FULL:
-			test_spec_set_name(test, "STAT_RX_FULL");
-			test->ifobj_rx->xsk->rxqsize = RX_FULL_RXQSIZE;
-			testapp_validate_traffic(test);
-			break;
-		case STAT_TEST_TX_INVALID:
-			test_spec_set_name(test, "STAT_TX_INVALID");
-			pkt_stream_replace(test, DEFAULT_PKT_CNT, XSK_UMEM__INVALID_FRAME_SIZE);
-			testapp_validate_traffic(test);
+	pkt_stream_restore_default(test);
+}
 
-			pkt_stream_restore_default(test);
-			break;
-		case STAT_TEST_RX_FILL_EMPTY:
-			test_spec_set_name(test, "STAT_RX_FILL_EMPTY");
-			test->ifobj_rx->pkt_stream = pkt_stream_generate(test->ifobj_rx->umem, 0,
-									 MIN_PKT_SIZE);
-			if (!test->ifobj_rx->pkt_stream)
-				exit_with_error(ENOMEM);
-			test->ifobj_rx->pkt_stream->use_addr_for_fill = true;
-			testapp_validate_traffic(test);
+static void testapp_stats_rx_full(struct test_spec *test)
+{
+	test_spec_set_name(test, "STAT_RX_FULL");
+	pkt_stream_replace(test, DEFAULT_UMEM_BUFFERS + DEFAULT_UMEM_BUFFERS / 2, PKT_SIZE);
+	test->ifobj_rx->pkt_stream = pkt_stream_generate(test->ifobj_rx->umem,
+							 DEFAULT_UMEM_BUFFERS, PKT_SIZE);
+	if (!test->ifobj_rx->pkt_stream)
+		exit_with_error(ENOMEM);
 
-			pkt_stream_restore_default(test);
-			break;
-		default:
-			break;
-		}
-	}
+	test->ifobj_rx->xsk->rxqsize = DEFAULT_UMEM_BUFFERS;
+	test->ifobj_rx->release_rx = false;
+	test->ifobj_rx->validation_func = validate_rx_full;
+	testapp_validate_traffic(test);
 
-	/* To only see the whole stat set being completed unless an individual test fails. */
-	test_spec_set_name(test, "STATS");
+	pkt_stream_restore_default(test);
+}
+
+static void testapp_stats_fill_empty(struct test_spec *test)
+{
+	test_spec_set_name(test, "STAT_RX_FILL_EMPTY");
+	pkt_stream_replace(test, DEFAULT_UMEM_BUFFERS + DEFAULT_UMEM_BUFFERS / 2, PKT_SIZE);
+	test->ifobj_rx->pkt_stream = pkt_stream_generate(test->ifobj_rx->umem,
+							 DEFAULT_UMEM_BUFFERS, PKT_SIZE);
+	if (!test->ifobj_rx->pkt_stream)
+		exit_with_error(ENOMEM);
+
+	test->ifobj_rx->use_fill_ring = false;
+	test->ifobj_rx->validation_func = validate_fill_empty;
+	testapp_validate_traffic(test);
+
+	pkt_stream_restore_default(test);
 }
 
 /* Simple test */
@@ -1262,10 +1436,10 @@ static void testapp_single_pkt(struct test_spec *test)
 static void testapp_invalid_desc(struct test_spec *test)
 {
 	struct pkt pkts[] = {
-		/* Zero packet length at address zero allowed */
-		{0, 0, 0, true},
-		/* Zero packet length allowed */
-		{0x1000, 0, 0, true},
+		/* Zero packet address allowed */
+		{0, PKT_SIZE, 0, true},
+		/* Allowed packet */
+		{0x1000, PKT_SIZE, 0, true},
 		/* Straddling the start of umem */
 		{-2, PKT_SIZE, 0, false},
 		/* Packet too large */
@@ -1318,14 +1492,18 @@ static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *
 
 static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_type type)
 {
-	test_type = type;
-
-	/* reset defaults after potential previous test */
-	stat_test_type = -1;
-
-	switch (test_type) {
-	case TEST_TYPE_STATS:
-		testapp_stats(test);
+	switch (type) {
+	case TEST_TYPE_STATS_RX_DROPPED:
+		testapp_stats_rx_dropped(test);
+		break;
+	case TEST_TYPE_STATS_TX_INVALID_DESCS:
+		testapp_stats_tx_invalid_descs(test);
+		break;
+	case TEST_TYPE_STATS_RX_FULL:
+		testapp_stats_rx_full(test);
+		break;
+	case TEST_TYPE_STATS_FILL_EMPTY:
+		testapp_stats_fill_empty(test);
 		break;
 	case TEST_TYPE_TEARDOWN:
 		testapp_teardown(test);
@@ -1348,7 +1526,7 @@ static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_
 		test_spec_set_name(test, "RUN_TO_COMPLETION_2K_FRAME_SIZE");
 		test->ifobj_tx->umem->frame_size = 2048;
 		test->ifobj_rx->umem->frame_size = 2048;
-		pkt_stream_replace(test, DEFAULT_PKT_CNT, MIN_PKT_SIZE);
+		pkt_stream_replace(test, DEFAULT_PKT_CNT, PKT_SIZE);
 		testapp_validate_traffic(test);
 
 		pkt_stream_restore_default(test);
@@ -1390,7 +1568,9 @@ static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_
 		break;
 	}
 
-	print_ksft_result(test);
+	if (!test->fail)
+		ksft_test_result_pass("PASS: %s %s%s\n", mode_string(test), busy_poll_string(test),
+				      test->name);
 }
 
 static struct ifobject *ifobject_create(void)
@@ -1405,13 +1585,13 @@ static struct ifobject *ifobject_create(void)
 	if (!ifobj->xsk_arr)
 		goto out_xsk_arr;
 
-	ifobj->umem_arr = calloc(MAX_SOCKETS, sizeof(*ifobj->umem_arr));
-	if (!ifobj->umem_arr)
-		goto out_umem_arr;
+	ifobj->umem = calloc(1, sizeof(*ifobj->umem));
+	if (!ifobj->umem)
+		goto out_umem;
 
 	return ifobj;
 
-out_umem_arr:
+out_umem:
 	free(ifobj->xsk_arr);
 out_xsk_arr:
 	free(ifobj);
@@ -1420,21 +1600,20 @@ out_xsk_arr:
 
 static void ifobject_delete(struct ifobject *ifobj)
 {
-	free(ifobj->umem_arr);
+	free(ifobj->umem);
 	free(ifobj->xsk_arr);
 	free(ifobj);
 }
 
 int main(int argc, char **argv)
 {
-	struct rlimit _rlim = { RLIM_INFINITY, RLIM_INFINITY };
 	struct pkt_stream *pkt_stream_default;
 	struct ifobject *ifobj_tx, *ifobj_rx;
+	u32 i, j, failed_tests = 0;
 	struct test_spec test;
-	u32 i, j;
 
-	if (setrlimit(RLIMIT_MEMLOCK, &_rlim))
-		exit_with_error(errno);
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	ifobj_tx = ifobject_create();
 	if (!ifobj_tx)
@@ -1470,12 +1649,17 @@ int main(int argc, char **argv)
 			test_spec_init(&test, ifobj_tx, ifobj_rx, i);
 			run_pkt_test(&test, i, j);
 			usleep(USLEEP_MAX);
+
+			if (test.fail)
+				failed_tests++;
 		}
 
 	pkt_stream_delete(pkt_stream_default);
 	ifobject_delete(ifobj_tx);
 	ifobject_delete(ifobj_rx);
 
-	ksft_exit_pass();
-	return 0;
+	if (failed_tests)
+		ksft_exit_fail();
+	else
+		ksft_exit_pass();
 }

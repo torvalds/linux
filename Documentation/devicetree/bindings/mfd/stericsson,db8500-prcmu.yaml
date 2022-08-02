@@ -263,6 +263,7 @@ patternProperties:
       set of devicetree bindings. The AB8505 is a newer version of the
       same ASIC.
     type: object
+    $ref: stericsson,ab8500.yaml#
 
 required:
   - compatible

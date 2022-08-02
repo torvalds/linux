@@ -33,7 +33,6 @@
 #include <linux/elf.h>
 #include <linux/audit.h>
 #include <linux/seccomp.h>
-#include <linux/tracehook.h>
 
 #include <linux/errno.h>
 #include <asm/processor.h>
@@ -140,7 +139,7 @@ asmlinkage unsigned long do_syscall_trace_enter(struct pt_regs *regs)
 	secure_computing_strict(regs->r12);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
-	    tracehook_report_syscall_entry(regs))
+	    ptrace_report_syscall_entry(regs))
 		/*
 		 * Tracing decided this syscall should not happen.
 		 * We'll return a bogus call number to get an ENOSYS
@@ -161,7 +160,7 @@ asmlinkage void do_syscall_trace_leave(struct pt_regs *regs)
 
 	step = test_thread_flag(TIF_SINGLESTEP);
 	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(regs, step);
+		ptrace_report_syscall_exit(regs, step);
 }
 
 void ptrace_disable(struct task_struct *child)

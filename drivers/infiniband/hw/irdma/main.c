@@ -79,6 +79,10 @@ static void irdma_fill_qos_info(struct irdma_l2params *l2params,
 	}
 	for (i = 0; i < IIDC_MAX_USER_PRIORITY; i++)
 		l2params->up2tc[i] = qos_info->up2tc[i];
+	if (qos_info->pfc_mode == IIDC_DSCP_PFC_MODE) {
+		l2params->dscp_mode = true;
+		memcpy(l2params->dscp_map, qos_info->dscp_map, sizeof(l2params->dscp_map));
+	}
 }
 
 static void irdma_iidc_event_handler(struct ice_pf *pf, struct iidc_event *event)
@@ -108,8 +112,9 @@ static void irdma_iidc_event_handler(struct ice_pf *pf, struct iidc_event *event
 		l2params.tc_changed = true;
 		ibdev_dbg(&iwdev->ibdev, "CLNT: TC Change\n");
 		ice_get_qos_params(pf, &qos_info);
-		iwdev->dcb = qos_info.num_tc > 1;
 		irdma_fill_qos_info(&l2params, &qos_info);
+		if (iwdev->rf->protocol_used != IRDMA_IWARP_PROTOCOL_ONLY)
+			iwdev->dcb_vlan_mode = qos_info.num_tc > 1 && !l2params.dscp_mode;
 		irdma_change_l2params(&iwdev->vsi, &l2params);
 	} else if (*event->type & BIT(IIDC_EVENT_CRIT_ERR)) {
 		ibdev_warn(&iwdev->ibdev, "ICE OICR event notification: oicr = 0x%08x\n",
@@ -157,8 +162,8 @@ static void irdma_request_reset(struct irdma_pci_f *rf)
  * @vsi: vsi structure
  * @tc_node: Traffic class node
  */
-static enum irdma_status_code irdma_lan_register_qset(struct irdma_sc_vsi *vsi,
-						      struct irdma_ws_node *tc_node)
+static int irdma_lan_register_qset(struct irdma_sc_vsi *vsi,
+				   struct irdma_ws_node *tc_node)
 {
 	struct irdma_device *iwdev = vsi->back_vsi;
 	struct ice_pf *pf = iwdev->rf->cdev;
@@ -171,7 +176,7 @@ static enum irdma_status_code irdma_lan_register_qset(struct irdma_sc_vsi *vsi,
 	ret = ice_add_rdma_qset(pf, &qset);
 	if (ret) {
 		ibdev_dbg(&iwdev->ibdev, "WS: LAN alloc_res for rdma qset failed.\n");
-		return IRDMA_ERR_REG_QSET;
+		return ret;
 	}
 
 	tc_node->l2_sched_node_id = qset.teid;
@@ -226,6 +231,7 @@ static void irdma_fill_device_info(struct irdma_device *iwdev, struct ice_pf *pf
 	rf->hw.hw_addr = pf->hw.hw_addr;
 	rf->pcidev = pf->pdev;
 	rf->msix_count =  pf->num_rdma_msix;
+	rf->pf_id = pf->hw.pf_id;
 	rf->msix_entries = &pf->msix_entries[pf->rdma_base_vector];
 	rf->default_vsi.vsi_idx = vsi->vsi_num;
 	rf->protocol_used = pf->rdma_mode & IIDC_RDMA_PROTOCOL_ROCEV2 ?
@@ -236,7 +242,7 @@ static void irdma_fill_device_info(struct irdma_device *iwdev, struct ice_pf *pf
 	rf->gen_ops.request_reset = irdma_request_reset;
 	rf->limits_sel = 7;
 	rf->iwdev = iwdev;
-
+	mutex_init(&iwdev->ah_tbl_lock);
 	iwdev->netdev = vsi->netdev;
 	iwdev->vsi_num = vsi->vsi_num;
 	iwdev->init_state = INITIAL_STATE;
@@ -275,18 +281,19 @@ static int irdma_probe(struct auxiliary_device *aux_dev, const struct auxiliary_
 	irdma_fill_device_info(iwdev, pf, vsi);
 	rf = iwdev->rf;
 
-	if (irdma_ctrl_init_hw(rf)) {
-		err = -EIO;
+	err = irdma_ctrl_init_hw(rf);
+	if (err)
 		goto err_ctrl_init;
-	}
 
 	l2params.mtu = iwdev->netdev->mtu;
 	ice_get_qos_params(pf, &qos_info);
 	irdma_fill_qos_info(&l2params, &qos_info);
-	if (irdma_rt_init_hw(iwdev, &l2params)) {
-		err = -EIO;
+	if (iwdev->rf->protocol_used != IRDMA_IWARP_PROTOCOL_ONLY)
+		iwdev->dcb_vlan_mode = l2params.num_tc > 1 && !l2params.dscp_mode;
+
+	err = irdma_rt_init_hw(iwdev, &l2params);
+	if (err)
 		goto err_rt_init;
-	}
 
 	err = irdma_ib_register_device(iwdev);
 	if (err)

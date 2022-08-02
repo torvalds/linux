@@ -16,14 +16,31 @@ struct sparx5_switchdev_event_work {
 	struct work_struct work;
 	struct switchdev_notifier_fdb_info fdb_info;
 	struct net_device *dev;
+	struct sparx5 *sparx5;
 	unsigned long event;
 };
+
+static int sparx5_port_attr_pre_bridge_flags(struct sparx5_port *port,
+					     struct switchdev_brport_flags flags)
+{
+	if (flags.mask & ~(BR_FLOOD | BR_MCAST_FLOOD | BR_BCAST_FLOOD))
+		return -EINVAL;
+
+	return 0;
+}
 
 static void sparx5_port_attr_bridge_flags(struct sparx5_port *port,
 					  struct switchdev_brport_flags flags)
 {
+	int pgid;
+
 	if (flags.mask & BR_MCAST_FLOOD)
-		sparx5_pgid_update_mask(port, PGID_MC_FLOOD, true);
+		for (pgid = PGID_MC_FLOOD; pgid <= PGID_IPV6_MC_CTRL; pgid++)
+			sparx5_pgid_update_mask(port, pgid, !!(flags.val & BR_MCAST_FLOOD));
+	if (flags.mask & BR_FLOOD)
+		sparx5_pgid_update_mask(port, PGID_UC_FLOOD, !!(flags.val & BR_FLOOD));
+	if (flags.mask & BR_BCAST_FLOOD)
+		sparx5_pgid_update_mask(port, PGID_BCAST, !!(flags.val & BR_BCAST_FLOOD));
 }
 
 static void sparx5_attr_stp_state_set(struct sparx5_port *port,
@@ -72,6 +89,9 @@ static int sparx5_port_attr_set(struct net_device *dev, const void *ctx,
 	struct sparx5_port *port = netdev_priv(dev);
 
 	switch (attr->id) {
+	case SWITCHDEV_ATTR_ID_PORT_PRE_BRIDGE_FLAGS:
+		return sparx5_port_attr_pre_bridge_flags(port,
+							 attr->u.brport_flags);
 	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
 		sparx5_port_attr_bridge_flags(port, attr->u.brport_flags);
 		break;
@@ -82,6 +102,11 @@ static int sparx5_port_attr_set(struct net_device *dev, const void *ctx,
 		sparx5_port_attr_ageing_set(port, attr->u.ageing_time);
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
+		/* Used PVID 1 when default_pvid is 0, to avoid
+		 * collision with non-bridged ports.
+		 */
+		if (port->pvid == 0)
+			port->pvid = 1;
 		port->vlan_aware = attr->u.vlan_filtering;
 		sparx5_vlan_port_apply(port->sparx5, port);
 		break;
@@ -117,6 +142,9 @@ static int sparx5_port_bridge_join(struct sparx5_port *port,
 	if (err)
 		goto err_switchdev_offload;
 
+	/* Remove standalone port entry */
+	sparx5_mact_forget(sparx5, ndev->dev_addr, 0);
+
 	/* Port enters in bridge mode therefor don't need to copy to CPU
 	 * frames for multicast in case the bridge is not requesting them
 	 */
@@ -144,6 +172,9 @@ static void sparx5_port_bridge_leave(struct sparx5_port *port,
 	port->vlan_aware = 0;
 	port->pvid = NULL_VID;
 	port->vid = NULL_VID;
+
+	/* Forward frames to CPU */
+	sparx5_mact_learn(sparx5, PGID_CPU, port->ndev->dev_addr, 0);
 
 	/* Port enters in host more therefore restore mc list */
 	__dev_mc_sync(port->ndev, sparx5_mc_sync, sparx5_mc_unsync);
@@ -228,31 +259,43 @@ static void sparx5_switchdev_bridge_fdb_event_work(struct work_struct *work)
 	struct switchdev_notifier_fdb_info *fdb_info;
 	struct sparx5_port *port;
 	struct sparx5 *sparx5;
+	bool host_addr;
+	u16 vid;
 
 	rtnl_lock();
-	if (!sparx5_netdevice_check(dev))
-		goto out;
-
-	port = netdev_priv(dev);
-	sparx5 = port->sparx5;
+	if (!sparx5_netdevice_check(dev)) {
+		host_addr = true;
+		sparx5 = switchdev_work->sparx5;
+	} else {
+		host_addr = false;
+		sparx5 = switchdev_work->sparx5;
+		port = netdev_priv(dev);
+	}
 
 	fdb_info = &switchdev_work->fdb_info;
 
+	/* Used PVID 1 when default_pvid is 0, to avoid
+	 * collision with non-bridged ports.
+	 */
+	if (fdb_info->vid == 0)
+		vid = 1;
+	else
+		vid = fdb_info->vid;
+
 	switch (switchdev_work->event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
-		if (!fdb_info->added_by_user)
-			break;
-		sparx5_add_mact_entry(sparx5, port, fdb_info->addr,
-				      fdb_info->vid);
+		if (host_addr)
+			sparx5_add_mact_entry(sparx5, dev, PGID_CPU,
+					      fdb_info->addr, vid);
+		else
+			sparx5_add_mact_entry(sparx5, port->ndev, port->portno,
+					      fdb_info->addr, vid);
 		break;
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
-		if (!fdb_info->added_by_user)
-			break;
-		sparx5_del_mact_entry(sparx5, fdb_info->addr, fdb_info->vid);
+		sparx5_del_mact_entry(sparx5, fdb_info->addr, vid);
 		break;
 	}
 
-out:
 	rtnl_unlock();
 	kfree(switchdev_work->fdb_info.addr);
 	kfree(switchdev_work);
@@ -264,14 +307,17 @@ static void sparx5_schedule_work(struct work_struct *work)
 	queue_work(sparx5_owq, work);
 }
 
-static int sparx5_switchdev_event(struct notifier_block *unused,
+static int sparx5_switchdev_event(struct notifier_block *nb,
 				  unsigned long event, void *ptr)
 {
 	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
 	struct sparx5_switchdev_event_work *switchdev_work;
 	struct switchdev_notifier_fdb_info *fdb_info;
 	struct switchdev_notifier_info *info = ptr;
+	struct sparx5 *spx5;
 	int err;
+
+	spx5 = container_of(nb, struct sparx5, switchdev_nb);
 
 	switch (event) {
 	case SWITCHDEV_PORT_ATTR_SET:
@@ -288,6 +334,7 @@ static int sparx5_switchdev_event(struct notifier_block *unused,
 
 		switchdev_work->dev = dev;
 		switchdev_work->event = event;
+		switchdev_work->sparx5 = spx5;
 
 		fdb_info = container_of(info,
 					struct switchdev_notifier_fdb_info,
@@ -314,54 +361,6 @@ err_addr_alloc:
 	return NOTIFY_BAD;
 }
 
-static void sparx5_sync_port_dev_addr(struct sparx5 *sparx5,
-				      struct sparx5_port *port,
-				      u16 vid, bool add)
-{
-	if (!port ||
-	    !test_bit(port->portno, sparx5->bridge_mask))
-		return; /* Skip null/host interfaces */
-
-	/* Bridge connects to vid? */
-	if (add) {
-		/* Add port MAC address from the VLAN */
-		sparx5_mact_learn(sparx5, PGID_CPU,
-				  port->ndev->dev_addr, vid);
-	} else {
-		/* Control port addr visibility depending on
-		 * port VLAN connectivity.
-		 */
-		if (test_bit(port->portno, sparx5->vlan_mask[vid]))
-			sparx5_mact_learn(sparx5, PGID_CPU,
-					  port->ndev->dev_addr, vid);
-		else
-			sparx5_mact_forget(sparx5,
-					   port->ndev->dev_addr, vid);
-	}
-}
-
-static void sparx5_sync_bridge_dev_addr(struct net_device *dev,
-					struct sparx5 *sparx5,
-					u16 vid, bool add)
-{
-	int i;
-
-	/* First, handle bridge address'es */
-	if (add) {
-		sparx5_mact_learn(sparx5, PGID_CPU, dev->dev_addr,
-				  vid);
-		sparx5_mact_learn(sparx5, PGID_BCAST, dev->broadcast,
-				  vid);
-	} else {
-		sparx5_mact_forget(sparx5, dev->dev_addr, vid);
-		sparx5_mact_forget(sparx5, dev->broadcast, vid);
-	}
-
-	/* Now look at bridged ports */
-	for (i = 0; i < SPX5_PORTS; i++)
-		sparx5_sync_port_dev_addr(sparx5, sparx5->ports[i], vid, add);
-}
-
 static int sparx5_handle_port_vlan_add(struct net_device *dev,
 				       struct notifier_block *nb,
 				       const struct switchdev_obj_port_vlan *v)
@@ -369,13 +368,13 @@ static int sparx5_handle_port_vlan_add(struct net_device *dev,
 	struct sparx5_port *port = netdev_priv(dev);
 
 	if (netif_is_bridge_master(dev)) {
-		if (v->flags & BRIDGE_VLAN_INFO_BRENTRY) {
-			struct sparx5 *sparx5 =
-				container_of(nb, struct sparx5,
-					     switchdev_blocking_nb);
+		struct sparx5 *sparx5 =
+			container_of(nb, struct sparx5,
+				     switchdev_blocking_nb);
 
-			sparx5_sync_bridge_dev_addr(dev, sparx5, v->vid, true);
-		}
+		/* Flood broadcast to CPU */
+		sparx5_mact_learn(sparx5, PGID_BCAST, dev->broadcast,
+				  v->vid);
 		return 0;
 	}
 
@@ -385,6 +384,123 @@ static int sparx5_handle_port_vlan_add(struct net_device *dev,
 	return sparx5_vlan_vid_add(port, v->vid,
 				  v->flags & BRIDGE_VLAN_INFO_PVID,
 				  v->flags & BRIDGE_VLAN_INFO_UNTAGGED);
+}
+
+static int sparx5_handle_port_mdb_add(struct net_device *dev,
+				      struct notifier_block *nb,
+				      const struct switchdev_obj_port_mdb *v)
+{
+	struct sparx5_port *port = netdev_priv(dev);
+	struct sparx5 *spx5 = port->sparx5;
+	u16 pgid_idx, vid;
+	u32 mact_entry;
+	int res, err;
+
+	if (!sparx5_netdevice_check(dev))
+		return -EOPNOTSUPP;
+
+	if (netif_is_bridge_master(v->obj.orig_dev)) {
+		sparx5_mact_learn(spx5, PGID_CPU, v->addr, v->vid);
+		return 0;
+	}
+
+	/* When VLAN unaware the vlan value is not parsed and we receive vid 0.
+	 * Fall back to bridge vid 1.
+	 */
+	if (!br_vlan_enabled(spx5->hw_bridge_dev))
+		vid = 1;
+	else
+		vid = v->vid;
+
+	res = sparx5_mact_find(spx5, v->addr, vid, &mact_entry);
+
+	if (res == 0) {
+		pgid_idx = LRN_MAC_ACCESS_CFG_2_MAC_ENTRY_ADDR_GET(mact_entry);
+
+		/* MC_IDX starts after the port masks in the PGID table */
+		pgid_idx += SPX5_PORTS;
+		sparx5_pgid_update_mask(port, pgid_idx, true);
+	} else {
+		err = sparx5_pgid_alloc_mcast(spx5, &pgid_idx);
+		if (err) {
+			netdev_warn(dev, "multicast pgid table full\n");
+			return err;
+		}
+		sparx5_pgid_update_mask(port, pgid_idx, true);
+		err = sparx5_mact_learn(spx5, pgid_idx, v->addr, vid);
+		if (err) {
+			netdev_warn(dev, "could not learn mac address %pM\n", v->addr);
+			sparx5_pgid_update_mask(port, pgid_idx, false);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+static int sparx5_mdb_del_entry(struct net_device *dev,
+				struct sparx5 *spx5,
+				const unsigned char mac[ETH_ALEN],
+				const u16 vid,
+				u16 pgid_idx)
+{
+	int err;
+
+	err = sparx5_mact_forget(spx5, mac, vid);
+	if (err) {
+		netdev_warn(dev, "could not forget mac address %pM", mac);
+		return err;
+	}
+	err = sparx5_pgid_free(spx5, pgid_idx);
+	if (err) {
+		netdev_err(dev, "attempted to free already freed pgid\n");
+		return err;
+	}
+	return 0;
+}
+
+static int sparx5_handle_port_mdb_del(struct net_device *dev,
+				      struct notifier_block *nb,
+				      const struct switchdev_obj_port_mdb *v)
+{
+	struct sparx5_port *port = netdev_priv(dev);
+	struct sparx5 *spx5 = port->sparx5;
+	u16 pgid_idx, vid;
+	u32 mact_entry, res, pgid_entry[3];
+	int err;
+
+	if (!sparx5_netdevice_check(dev))
+		return -EOPNOTSUPP;
+
+	if (netif_is_bridge_master(v->obj.orig_dev)) {
+		sparx5_mact_forget(spx5, v->addr, v->vid);
+		return 0;
+	}
+
+	if (!br_vlan_enabled(spx5->hw_bridge_dev))
+		vid = 1;
+	else
+		vid = v->vid;
+
+	res = sparx5_mact_find(spx5, v->addr, vid, &mact_entry);
+
+	if (res == 0) {
+		pgid_idx = LRN_MAC_ACCESS_CFG_2_MAC_ENTRY_ADDR_GET(mact_entry);
+
+		/* MC_IDX starts after the port masks in the PGID table */
+		pgid_idx += SPX5_PORTS;
+		sparx5_pgid_update_mask(port, pgid_idx, false);
+
+		sparx5_pgid_read_mask(spx5, pgid_idx, pgid_entry);
+		if (bitmap_empty((unsigned long *)pgid_entry, SPX5_PORTS)) {
+			/* No ports are in MC group. Remove entry */
+			err = sparx5_mdb_del_entry(dev, spx5, v->addr, vid, pgid_idx);
+			if (err)
+				return err;
+		}
+	}
+
+	return 0;
 }
 
 static int sparx5_handle_port_obj_add(struct net_device *dev,
@@ -398,6 +514,11 @@ static int sparx5_handle_port_obj_add(struct net_device *dev,
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		err = sparx5_handle_port_vlan_add(dev, nb,
 						  SWITCHDEV_OBJ_PORT_VLAN(obj));
+		break;
+	case SWITCHDEV_OBJ_ID_PORT_MDB:
+	case SWITCHDEV_OBJ_ID_HOST_MDB:
+		err = sparx5_handle_port_mdb_add(dev, nb,
+						 SWITCHDEV_OBJ_PORT_MDB(obj));
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -421,7 +542,7 @@ static int sparx5_handle_port_vlan_del(struct net_device *dev,
 			container_of(nb, struct sparx5,
 				     switchdev_blocking_nb);
 
-		sparx5_sync_bridge_dev_addr(dev, sparx5, vid, false);
+		sparx5_mact_forget(sparx5, dev->broadcast, vid);
 		return 0;
 	}
 
@@ -431,9 +552,6 @@ static int sparx5_handle_port_vlan_del(struct net_device *dev,
 	ret = sparx5_vlan_vid_del(port, vid);
 	if (ret)
 		return ret;
-
-	/* Delete the port MAC address with the matching VLAN information */
-	sparx5_mact_forget(port->sparx5, port->ndev->dev_addr, vid);
 
 	return 0;
 }
@@ -449,6 +567,11 @@ static int sparx5_handle_port_obj_del(struct net_device *dev,
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		err = sparx5_handle_port_vlan_del(dev, nb,
 						  SWITCHDEV_OBJ_PORT_VLAN(obj)->vid);
+		break;
+	case SWITCHDEV_OBJ_ID_PORT_MDB:
+	case SWITCHDEV_OBJ_ID_HOST_MDB:
+		err = sparx5_handle_port_mdb_del(dev, nb,
+						 SWITCHDEV_OBJ_PORT_MDB(obj));
 		break;
 	default:
 		err = -EOPNOTSUPP;

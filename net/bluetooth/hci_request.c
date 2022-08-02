@@ -261,7 +261,7 @@ void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
 	if (skb_queue_empty(&req->cmd_q))
 		bt_cb(skb)->hci.req_flags |= HCI_REQ_START;
 
-	bt_cb(skb)->hci.req_event = event;
+	hci_skb_event(skb) = event;
 
 	skb_queue_tail(&req->cmd_q, skb);
 }
@@ -482,7 +482,7 @@ static int add_to_accept_list(struct hci_request *req,
 
 	/* During suspend, only wakeable devices can be in accept list */
 	if (hdev->suspended &&
-	    !test_bit(HCI_CONN_FLAG_REMOTE_WAKEUP, params->flags))
+	    !(params->flags & HCI_CONN_FLAG_REMOTE_WAKEUP))
 		return 0;
 
 	*num_entries += 1;
@@ -2260,6 +2260,7 @@ static int active_scan(struct hci_request *req, unsigned long opt)
 	if (err < 0)
 		own_addr_type = ADDR_LE_DEV_PUBLIC;
 
+	hci_dev_lock(hdev);
 	if (hci_is_adv_monitoring(hdev)) {
 		/* Duplicate filter should be disabled when some advertisement
 		 * monitor is activated, otherwise AdvMon can only receive one
@@ -2276,6 +2277,7 @@ static int active_scan(struct hci_request *req, unsigned long opt)
 		 */
 		filter_dup = LE_SCAN_FILTER_DUP_DISABLE;
 	}
+	hci_dev_unlock(hdev);
 
 	hci_req_start_scan(req, LE_SCAN_ACTIVE, interval,
 			   hdev->le_scan_window_discovery, own_addr_type,

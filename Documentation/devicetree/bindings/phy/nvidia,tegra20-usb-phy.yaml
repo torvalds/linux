@@ -275,17 +275,17 @@ allOf:
           - nvidia,hssquelch-level
           - nvidia,hsdiscon-level
 
-        else:
-          properties:
-            clocks:
-              maxItems: 4
+      else:
+        properties:
+          clocks:
+            maxItems: 4
 
-            clock-names:
-              items:
-                - const: reg
-                - const: pll_u
-                - const: timer
-                - const: utmi-pads
+          clock-names:
+            items:
+              - const: reg
+              - const: pll_u
+              - const: timer
+              - const: utmi-pads
 
   - if:
       properties:

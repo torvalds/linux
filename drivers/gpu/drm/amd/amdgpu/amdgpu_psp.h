@@ -48,6 +48,17 @@ enum psp_shared_mem_size {
 	PSP_SECUREDISPLAY_SHARED_MEM_SIZE	= 0x4000,
 };
 
+enum ta_type_id {
+	TA_TYPE_XGMI = 1,
+	TA_TYPE_RAS,
+	TA_TYPE_HDCP,
+	TA_TYPE_DTM,
+	TA_TYPE_RAP,
+	TA_TYPE_SECUREDISPLAY,
+
+	TA_TYPE_MAX_INDEX,
+};
+
 struct psp_context;
 struct psp_xgmi_node_info;
 struct psp_xgmi_topology_info;
@@ -118,6 +129,8 @@ struct psp_funcs
 	void (*ring_set_wptr)(struct psp_context *psp, uint32_t value);
 	int (*load_usbc_pd_fw)(struct psp_context *psp, uint64_t fw_pri_mc_addr);
 	int (*read_usbc_pd_fw)(struct psp_context *psp, uint32_t *fw_ver);
+	int (*update_spirom)(struct psp_context *psp, uint64_t fw_pri_mc_addr);
+	int (*vbflash_stat)(struct psp_context *psp);
 };
 
 #define AMDGPU_XGMI_MAX_CONNECTED_NODES		64
@@ -151,9 +164,11 @@ struct ta_mem_context {
 struct ta_context {
 	bool			initialized;
 	uint32_t		session_id;
+	uint32_t		resp_status;
 	struct ta_mem_context	mem_context;
 	struct psp_bin_desc		bin_desc;
 	enum psp_gfx_cmd_id		ta_load_type;
+	enum ta_type_id		ta_type;
 };
 
 struct ta_cp_context {
@@ -231,6 +246,7 @@ enum psp_runtime_entry_type {
 	PSP_RUNTIME_ENTRY_TYPE_MGPU_WAFL	= 0x3,  /* WAFL runtime data */
 	PSP_RUNTIME_ENTRY_TYPE_MGPU_XGMI	= 0x4,  /* XGMI runtime data */
 	PSP_RUNTIME_ENTRY_TYPE_BOOT_CONFIG	= 0x5,  /* Boot Config runtime data */
+	PSP_RUNTIME_ENTRY_TYPE_PPTABLE_ERR_STATUS = 0x6, /* SCPM validation data */
 };
 
 /* PSP runtime DB header */
@@ -265,10 +281,22 @@ enum psp_runtime_boot_cfg_feature {
 	BOOT_CFG_FEATURE_TWO_STAGE_DRAM_TRAINING    = 0x2,
 };
 
+/* PSP run time DB SCPM authentication defines */
+enum psp_runtime_scpm_authentication {
+	SCPM_DISABLE                     = 0x0,
+	SCPM_ENABLE                      = 0x1,
+	SCPM_ENABLE_WITH_SCPM_ERR        = 0x2,
+};
+
 /* PSP runtime DB boot config entry */
 struct psp_runtime_boot_cfg_entry {
 	uint32_t boot_cfg_bitmask;
 	uint32_t reserved;
+};
+
+/* PSP runtime DB SCPM entry */
+struct psp_runtime_scpm_entry {
+	enum psp_runtime_scpm_authentication scpm_status;
 };
 
 struct psp_context
@@ -306,6 +334,9 @@ struct psp_context
 	/* toc firmware */
 	const struct firmware		*toc_fw;
 
+	/* cap firmware */
+	const struct firmware		*cap_fw;
+
 	/* fence buffer */
 	struct amdgpu_bo		*fence_buf_bo;
 	uint64_t			fence_buf_mc_addr;
@@ -327,6 +358,10 @@ struct psp_context
 	const struct firmware		*ta_fw;
 	uint32_t			ta_fw_version;
 
+	uint32_t			cap_fw_version;
+	uint32_t			cap_feature_version;
+	uint32_t			cap_ucode_size;
+
 	struct ta_context		asd_context;
 	struct psp_xgmi_context		xgmi_context;
 	struct psp_ras_context		ras_context;
@@ -338,6 +373,10 @@ struct psp_context
 	struct psp_memory_training_context mem_train_ctx;
 
 	uint32_t			boot_cfg_bitmask;
+
+	char *vbflash_tmp_buf;
+	size_t vbflash_image_size;
+	bool vbflash_done;
 };
 
 struct amdgpu_psp_funcs {
@@ -384,6 +423,14 @@ struct amdgpu_psp_funcs {
 	((psp)->funcs->read_usbc_pd_fw ? \
 	(psp)->funcs->read_usbc_pd_fw((psp), fw_ver) : -EINVAL)
 
+#define psp_update_spirom(psp, fw_pri_mc_addr) \
+	((psp)->funcs->update_spirom ? \
+	(psp)->funcs->update_spirom((psp), fw_pri_mc_addr) : -EINVAL)
+
+#define psp_vbflash_status(psp) \
+	((psp)->funcs->vbflash_stat ? \
+	(psp)->funcs->vbflash_stat((psp)) : -EINVAL)
+
 extern const struct amd_ip_funcs psp_ip_funcs;
 
 extern const struct amdgpu_ip_block_version psp_v3_1_ip_block;
@@ -399,6 +446,18 @@ extern int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 int psp_gpu_reset(struct amdgpu_device *adev);
 int psp_update_vcn_sram(struct amdgpu_device *adev, int inst_idx,
 			uint64_t cmd_gpu_addr, int cmd_size);
+
+int psp_ta_init_shared_buf(struct psp_context *psp,
+				  struct ta_mem_context *mem_ctx);
+void psp_ta_free_shared_buf(struct ta_mem_context *mem_ctx);
+int psp_ta_unload(struct psp_context *psp, struct ta_context *context);
+int psp_ta_load(struct psp_context *psp, struct ta_context *context);
+int psp_ta_invoke(struct psp_context *psp,
+			uint32_t ta_cmd_id,
+			struct ta_context *context);
+int psp_ta_invoke_indirect(struct psp_context *psp,
+		  uint32_t ta_cmd_id,
+		  struct ta_context *context);
 
 int psp_xgmi_initialize(struct psp_context *psp, bool set_extended_data, bool load_ta);
 int psp_xgmi_terminate(struct psp_context *psp);
@@ -418,6 +477,7 @@ int psp_ras_enable_features(struct psp_context *psp,
 		union ta_ras_cmd_input *info, bool enable);
 int psp_ras_trigger_error(struct psp_context *psp,
 			  struct ta_ras_trigger_error_input *info);
+int psp_ras_terminate(struct psp_context *psp);
 
 int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
@@ -440,6 +500,8 @@ int psp_init_sos_microcode(struct psp_context *psp,
 			   const char *chip_name);
 int psp_init_ta_microcode(struct psp_context *psp,
 			  const char *chip_name);
+int psp_init_cap_microcode(struct psp_context *psp,
+			  const char *chip_name);
 int psp_get_fw_attestation_records_addr(struct psp_context *psp,
 					uint64_t *output_ptr);
 
@@ -448,4 +510,7 @@ int psp_load_fw_list(struct psp_context *psp,
 void psp_copy_fw(struct psp_context *psp, uint8_t *start_addr, uint32_t bin_size);
 
 int is_psp_fw_valid(struct psp_bin_desc bin);
+
+int amdgpu_psp_sysfs_init(struct amdgpu_device *adev);
+void amdgpu_psp_sysfs_fini(struct amdgpu_device *adev);
 #endif

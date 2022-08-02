@@ -12,7 +12,6 @@
 #include <linux/ioctl.h>
 #include <linux/slab.h>
 #include <linux/ratelimit.h>
-#include <linux/genhd.h>
 #include <linux/netdevice.h>
 #include <linux/mutex.h>
 #include <linux/export.h>
@@ -436,7 +435,7 @@ err_mempool:
 err:
 	spin_lock_irqsave(&d->lock, flags);
 	d->flags &= ~DEVFL_GD_NOW;
-	schedule_work(&d->work);
+	queue_work(aoe_wq, &d->work);
 	spin_unlock_irqrestore(&d->lock, flags);
 }
 

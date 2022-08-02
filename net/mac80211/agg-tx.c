@@ -467,7 +467,7 @@ static void ieee80211_send_addba_with_timeout(struct sta_info *sta,
 	sta->ampdu_mlme.addba_req_num[tid]++;
 	spin_unlock_bh(&sta->lock);
 
-	if (sta->sta.he_cap.has_he) {
+	if (sta->sta.deflink.he_cap.has_he) {
 		buf_size = local->hw.max_tx_aggregation_subframes;
 	} else {
 		/*
@@ -594,7 +594,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 		 "Requested to start BA session on reserved tid=%d", tid))
 		return -EINVAL;
 
-	if (!pubsta->ht_cap.ht_supported &&
+	if (!pubsta->deflink.ht_cap.ht_supported &&
 	    sta->sdata->vif.bss_conf.chandef.chan->band != NL80211_BAND_6GHZ)
 		return -EINVAL;
 
@@ -647,7 +647,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	 * is set when we receive a bss info from a probe response or a beacon.
 	 */
 	if (sta->sdata->vif.type == NL80211_IFTYPE_ADHOC &&
-	    !sta->sta.ht_cap.ht_supported) {
+	    !sta->sta.deflink.ht_cap.ht_supported) {
 		ht_dbg(sdata,
 		       "BA request denied - IBSS STA %pM does not advertise HT support\n",
 		       pubsta->addr);

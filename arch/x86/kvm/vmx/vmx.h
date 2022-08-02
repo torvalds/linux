@@ -183,6 +183,7 @@ struct nested_vmx {
 	bool change_vmcs01_virtual_apic_mode;
 	bool reload_vmcs01_apic_access_page;
 	bool update_vmcs01_cpu_dirty_logging;
+	bool update_vmcs01_apicv_status;
 
 	/*
 	 * Enlightened VMCS has been enabled. It does not mean that L1 has to
@@ -347,6 +348,8 @@ struct vcpu_vmx {
 	u64 msr_ia32_feature_control_valid_bits;
 	/* SGX Launch Control public key hash */
 	u64 msr_ia32_sgxlepubkeyhash[4];
+	u64 msr_ia32_mcu_opt_ctrl;
+	bool disable_fb_clear;
 
 	struct pt_desc pt_desc;
 	struct lbr_desc lbr_desc;

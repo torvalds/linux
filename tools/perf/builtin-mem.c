@@ -20,6 +20,7 @@
 #include "util/symbol.h"
 #include "util/pmu.h"
 #include "util/pmu-hybrid.h"
+#include "util/string2.h"
 #include <linux/err.h>
 
 #define MEM_OPERATION_LOAD	0x1
@@ -496,9 +497,9 @@ int cmd_mem(int argc, const char **argv)
 			mem.input_name = "perf.data";
 	}
 
-	if (!strncmp(argv[0], "rec", 3))
+	if (strlen(argv[0]) > 2 && strstarts("record", argv[0]))
 		return __cmd_record(argc, argv, &mem);
-	else if (!strncmp(argv[0], "rep", 3))
+	else if (strlen(argv[0]) > 2 && strstarts("report", argv[0]))
 		return report_events(argc, argv, &mem);
 	else
 		usage_with_options(mem_usage, mem_options);

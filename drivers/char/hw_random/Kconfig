@@ -385,6 +385,19 @@ config HW_RANDOM_PIC32
 
 	  If unsure, say Y.
 
+config HW_RANDOM_POLARFIRE_SOC
+	tristate "Microchip PolarFire SoC Random Number Generator support"
+	depends on HW_RANDOM && POLARFIRE_SOC_SYS_CTRL
+	help
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on PolarFire SoC (MPFS).
+
+	  To compile this driver as a module, choose M here. The
+	  module will be called mfps_rng.
+
+	  If unsure, say N.
+
+
 config HW_RANDOM_MESON
 	tristate "Amlogic Meson Random Number Generator support"
 	depends on HW_RANDOM
@@ -401,7 +414,7 @@ config HW_RANDOM_MESON
 
 config HW_RANDOM_CAVIUM
 	tristate "Cavium ThunderX Random Number Generator support"
-	depends on HW_RANDOM && PCI && ARM64
+	depends on HW_RANDOM && PCI && ARCH_THUNDER
 	default HW_RANDOM
 	help
 	  This driver provides kernel-side support for the Random Number
@@ -527,7 +540,7 @@ config HW_RANDOM_ARM_SMCCC_TRNG
 
 config HW_RANDOM_CN10K
        tristate "Marvell CN10K Random Number Generator support"
-       depends on HW_RANDOM && PCI && ARM64
+       depends on HW_RANDOM && PCI && (ARM64 || (64BIT && COMPILE_TEST))
        default HW_RANDOM
        help
 	 This driver provides support for the True Random Number

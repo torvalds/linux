@@ -22,6 +22,8 @@ struct btrfs_inode;
 
 /* Maximum length of compressed data stored on disk */
 #define BTRFS_MAX_COMPRESSED		(SZ_128K)
+static_assert((BTRFS_MAX_COMPRESSED % PAGE_SIZE) == 0);
+
 /* Maximum size of data before compression */
 #define BTRFS_MAX_UNCOMPRESSED		(SZ_128K)
 
@@ -52,8 +54,11 @@ struct compressed_bio {
 	/* The compression algorithm for this bio */
 	u8 compress_type;
 
+	/* Whether this is a write for writeback. */
+	bool writeback;
+
 	/* IO errors */
-	u8 errors;
+	blk_status_t status;
 	int mirror_num;
 
 	/* for reads, this is the bio we are copying the data into */
@@ -95,9 +100,10 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 				  struct page **compressed_pages,
 				  unsigned int nr_pages,
 				  unsigned int write_flags,
-				  struct cgroup_subsys_state *blkcg_css);
-blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
-				 int mirror_num, unsigned long bio_flags);
+				  struct cgroup_subsys_state *blkcg_css,
+				  bool writeback);
+void btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
+				  int mirror_num);
 
 unsigned int btrfs_compress_str2level(unsigned int type, const char *str);
 

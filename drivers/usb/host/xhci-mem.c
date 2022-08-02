@@ -57,7 +57,7 @@ static struct xhci_segment *xhci_segment_alloc(struct xhci_hcd *xhci,
 	/* If the cycle state is 0, set the cycle bit to 1 for all the TRBs */
 	if (cycle_state == 0) {
 		for (i = 0; i < TRBS_PER_SEGMENT; i++)
-			seg->trbs[i].link.control |= cpu_to_le32(TRB_CYCLE);
+			seg->trbs[i].link.control = cpu_to_le32(TRB_CYCLE);
 	}
 	seg->dma = dma;
 	seg->next = NULL;
@@ -433,8 +433,7 @@ int xhci_ring_expansion(struct xhci_hcd *xhci, struct xhci_ring *ring,
 				(TRBS_PER_SEGMENT - 1);
 
 	/* Allocate number of segments we needed, or double the ring size */
-	num_segs = ring->num_segs > num_segs_needed ?
-			ring->num_segs : num_segs_needed;
+	num_segs = max(ring->num_segs, num_segs_needed);
 
 	ret = xhci_alloc_segments_for_ring(xhci, &first, &last,
 			num_segs, ring->cycle_state, ring->type,
@@ -783,14 +782,6 @@ void xhci_free_stream_info(struct xhci_hcd *xhci,
 
 /***************** Device context manipulation *************************/
 
-static void xhci_init_endpoint_timer(struct xhci_hcd *xhci,
-		struct xhci_virt_ep *ep)
-{
-	timer_setup(&ep->stop_cmd_timer, xhci_stop_endpoint_command_watchdog,
-		    0);
-	ep->xhci = xhci;
-}
-
 static void xhci_free_tt_info(struct xhci_hcd *xhci,
 		struct xhci_virt_device *virt_dev,
 		int slot_id)
@@ -995,11 +986,11 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 	xhci_dbg(xhci, "Slot %d input ctx = 0x%llx (dma)\n", slot_id,
 			(unsigned long long)dev->in_ctx->dma);
 
-	/* Initialize the cancellation list and watchdog timers for each ep */
+	/* Initialize the cancellation and bandwidth list for each ep */
 	for (i = 0; i < 31; i++) {
 		dev->eps[i].ep_index = i;
 		dev->eps[i].vdev = dev;
-		xhci_init_endpoint_timer(xhci, &dev->eps[i]);
+		dev->eps[i].xhci = xhci;
 		INIT_LIST_HEAD(&dev->eps[i].cancelled_td_list);
 		INIT_LIST_HEAD(&dev->eps[i].bw_endpoint_list);
 	}
@@ -1073,7 +1064,7 @@ static u32 xhci_find_real_port_number(struct xhci_hcd *xhci,
 	struct usb_hcd *hcd;
 
 	if (udev->speed >= USB_SPEED_SUPER)
-		hcd = xhci->shared_hcd;
+		hcd = xhci_get_usb3_hcd(xhci);
 	else
 		hcd = xhci->main_hcd;
 
@@ -1846,9 +1837,6 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	xhci->event_ring = NULL;
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "Freed event ring");
 
-	if (xhci->lpm_command)
-		xhci_free_command(xhci, xhci->lpm_command);
-	xhci->lpm_command = NULL;
 	if (xhci->cmd_ring)
 		xhci_ring_free(xhci, xhci->cmd_ring);
 	xhci->cmd_ring = NULL;
@@ -2366,10 +2354,11 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 		xhci->usb2_rhub.num_ports = USB_MAXCHILDREN;
 	}
 
-	/*
-	 * Note we could have all USB 3.0 ports, or all USB 2.0 ports.
-	 * Not sure how the USB core will handle a hub with no ports...
-	 */
+	if (!xhci->usb2_rhub.num_ports)
+		xhci_info(xhci, "USB2 root hub has no ports\n");
+
+	if (!xhci->usb3_rhub.num_ports)
+		xhci_info(xhci, "USB3 root hub has no ports\n");
 
 	xhci_create_rhub_port_array(xhci, &xhci->usb2_rhub, flags);
 	xhci_create_rhub_port_array(xhci, &xhci->usb3_rhub, flags);
@@ -2395,11 +2384,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	page_size = readl(&xhci->op_regs->page_size);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"Supported page size register = 0x%x", page_size);
-	for (i = 0; i < 16; i++) {
-		if ((0x1 & page_size) != 0)
-			break;
-		page_size = page_size >> 1;
-	}
+	i = ffs(page_size);
 	if (i < 16)
 		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"Supported page size of %iK", (1 << (i+12)) / 1024);
@@ -2425,7 +2410,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	writel(val, &xhci->op_regs->config_reg);
 
 	/*
-	 * xHCI section 5.4.6 - doorbell array must be
+	 * xHCI section 5.4.6 - Device Context array must be
 	 * "physically contiguous and 64-byte (cache line) aligned".
 	 */
 	xhci->dcbaa = dma_alloc_coherent(dev, sizeof(*xhci->dcbaa), &dma,
@@ -2487,10 +2472,6 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"// Setting command ring address to 0x%016llx", val_64);
 	xhci_write_64(xhci, val_64, &xhci->op_regs->cmd_ring);
-
-	xhci->lpm_command = xhci_alloc_command_with_ctx(xhci, true, flags);
-	if (!xhci->lpm_command)
-		goto fail;
 
 	/* Reserve one command ring TRB for disabling LPM.
 	 * Since the USB core grabs the shared usb_bus bandwidth mutex before
@@ -2583,7 +2564,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 
 fail:
 	xhci_halt(xhci);
-	xhci_reset(xhci);
+	xhci_reset(xhci, XHCI_RESET_SHORT_USEC);
 	xhci_mem_cleanup(xhci);
 	return -ENOMEM;
 }

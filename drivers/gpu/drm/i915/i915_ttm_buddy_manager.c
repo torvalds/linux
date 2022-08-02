@@ -8,16 +8,20 @@
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
 
+#include <drm/drm_buddy.h>
+
 #include "i915_ttm_buddy_manager.h"
 
-#include "i915_buddy.h"
 #include "i915_gem.h"
 
 struct i915_ttm_buddy_manager {
 	struct ttm_resource_manager manager;
-	struct i915_buddy_mm mm;
+	struct drm_buddy mm;
 	struct list_head reserved;
 	struct mutex lock;
+	unsigned long visible_size;
+	unsigned long visible_avail;
+	unsigned long visible_reserved;
 	u64 default_page_size;
 };
 
@@ -34,14 +38,15 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 {
 	struct i915_ttm_buddy_manager *bman = to_buddy_manager(man);
 	struct i915_ttm_buddy_resource *bman_res;
-	struct i915_buddy_mm *mm = &bman->mm;
-	unsigned long n_pages;
-	unsigned int min_order;
+	struct drm_buddy *mm = &bman->mm;
+	unsigned long n_pages, lpfn;
 	u64 min_page_size;
 	u64 size;
 	int err;
 
-	GEM_BUG_ON(place->fpfn || place->lpfn);
+	lpfn = place->lpfn;
+	if (!lpfn)
+		lpfn = man->size;
 
 	bman_res = kzalloc(sizeof(*bman_res), GFP_KERNEL);
 	if (!bman_res)
@@ -51,6 +56,12 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 	INIT_LIST_HEAD(&bman_res->blocks);
 	bman_res->mm = mm;
 
+	if (place->flags & TTM_PL_FLAG_TOPDOWN)
+		bman_res->flags |= DRM_BUDDY_TOPDOWN_ALLOCATION;
+
+	if (place->fpfn || lpfn != man->size)
+		bman_res->flags |= DRM_BUDDY_RANGE_ALLOCATION;
+
 	GEM_BUG_ON(!bman_res->base.num_pages);
 	size = bman_res->base.num_pages << PAGE_SHIFT;
 
@@ -59,56 +70,95 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 		min_page_size = bo->page_alignment << PAGE_SHIFT;
 
 	GEM_BUG_ON(min_page_size < mm->chunk_size);
-	min_order = ilog2(min_page_size) - ilog2(mm->chunk_size);
-	if (place->flags & TTM_PL_FLAG_CONTIGUOUS) {
+	GEM_BUG_ON(!IS_ALIGNED(size, min_page_size));
+
+	if (place->fpfn + bman_res->base.num_pages != place->lpfn &&
+	    place->flags & TTM_PL_FLAG_CONTIGUOUS) {
+		unsigned long pages;
+
 		size = roundup_pow_of_two(size);
-		min_order = ilog2(size) - ilog2(mm->chunk_size);
+		min_page_size = size;
+
+		pages = size >> ilog2(mm->chunk_size);
+		if (pages > lpfn)
+			lpfn = pages;
 	}
 
-	if (size > mm->size) {
+	if (size > lpfn << PAGE_SHIFT) {
 		err = -E2BIG;
 		goto err_free_res;
 	}
 
 	n_pages = size >> ilog2(mm->chunk_size);
 
-	do {
-		struct i915_buddy_block *block;
-		unsigned int order;
+	mutex_lock(&bman->lock);
+	if (lpfn <= bman->visible_size && n_pages > bman->visible_avail) {
+		mutex_unlock(&bman->lock);
+		err = -ENOSPC;
+		goto err_free_res;
+	}
 
-		order = fls(n_pages) - 1;
-		GEM_BUG_ON(order > mm->max_order);
-		GEM_BUG_ON(order < min_order);
+	err = drm_buddy_alloc_blocks(mm, (u64)place->fpfn << PAGE_SHIFT,
+				     (u64)lpfn << PAGE_SHIFT,
+				     (u64)n_pages << PAGE_SHIFT,
+				     min_page_size,
+				     &bman_res->blocks,
+				     bman_res->flags);
+	mutex_unlock(&bman->lock);
+	if (unlikely(err))
+		goto err_free_blocks;
 
-		do {
-			mutex_lock(&bman->lock);
-			block = i915_buddy_alloc(mm, order);
-			mutex_unlock(&bman->lock);
-			if (!IS_ERR(block))
-				break;
+	if (place->flags & TTM_PL_FLAG_CONTIGUOUS) {
+		u64 original_size = (u64)bman_res->base.num_pages << PAGE_SHIFT;
 
-			if (order-- == min_order) {
-				err = -ENOSPC;
-				goto err_free_blocks;
+		mutex_lock(&bman->lock);
+		drm_buddy_block_trim(mm,
+				     original_size,
+				     &bman_res->blocks);
+		mutex_unlock(&bman->lock);
+	}
+
+	if (lpfn <= bman->visible_size) {
+		bman_res->used_visible_size = bman_res->base.num_pages;
+	} else {
+		struct drm_buddy_block *block;
+
+		list_for_each_entry(block, &bman_res->blocks, link) {
+			unsigned long start =
+				drm_buddy_block_offset(block) >> PAGE_SHIFT;
+
+			if (start < bman->visible_size) {
+				unsigned long end = start +
+					(drm_buddy_block_size(mm, block) >> PAGE_SHIFT);
+
+				bman_res->used_visible_size +=
+					min(end, bman->visible_size) - start;
 			}
-		} while (1);
+		}
+	}
 
-		n_pages -= BIT(order);
+	if (bman_res->used_visible_size) {
+		mutex_lock(&bman->lock);
+		bman->visible_avail -= bman_res->used_visible_size;
+		mutex_unlock(&bman->lock);
+	}
 
-		list_add_tail(&block->link, &bman_res->blocks);
-
-		if (!n_pages)
-			break;
-	} while (1);
+	if (place->lpfn - place->fpfn == n_pages)
+		bman_res->base.start = place->fpfn;
+	else if (lpfn <= bman->visible_size)
+		bman_res->base.start = 0;
+	else
+		bman_res->base.start = bman->visible_size;
 
 	*res = &bman_res->base;
 	return 0;
 
 err_free_blocks:
 	mutex_lock(&bman->lock);
-	i915_buddy_free_list(mm, &bman_res->blocks);
+	drm_buddy_free_list(mm, &bman_res->blocks);
 	mutex_unlock(&bman->lock);
 err_free_res:
+	ttm_resource_fini(man, &bman_res->base);
 	kfree(bman_res);
 	return err;
 }
@@ -120,9 +170,11 @@ static void i915_ttm_buddy_man_free(struct ttm_resource_manager *man,
 	struct i915_ttm_buddy_manager *bman = to_buddy_manager(man);
 
 	mutex_lock(&bman->lock);
-	i915_buddy_free_list(&bman->mm, &bman_res->blocks);
+	drm_buddy_free_list(&bman->mm, &bman_res->blocks);
+	bman->visible_avail += bman_res->used_visible_size;
 	mutex_unlock(&bman->lock);
 
+	ttm_resource_fini(man, res);
 	kfree(bman_res);
 }
 
@@ -130,17 +182,23 @@ static void i915_ttm_buddy_man_debug(struct ttm_resource_manager *man,
 				     struct drm_printer *printer)
 {
 	struct i915_ttm_buddy_manager *bman = to_buddy_manager(man);
-	struct i915_buddy_block *block;
+	struct drm_buddy_block *block;
 
 	mutex_lock(&bman->lock);
 	drm_printf(printer, "default_page_size: %lluKiB\n",
 		   bman->default_page_size >> 10);
+	drm_printf(printer, "visible_avail: %lluMiB\n",
+		   (u64)bman->visible_avail << PAGE_SHIFT >> 20);
+	drm_printf(printer, "visible_size: %lluMiB\n",
+		   (u64)bman->visible_size << PAGE_SHIFT >> 20);
+	drm_printf(printer, "visible_reserved: %lluMiB\n",
+		   (u64)bman->visible_reserved << PAGE_SHIFT >> 20);
 
-	i915_buddy_print(&bman->mm, printer);
+	drm_buddy_print(&bman->mm, printer);
 
 	drm_printf(printer, "reserved:\n");
 	list_for_each_entry(block, &bman->reserved, link)
-		i915_buddy_block_print(&bman->mm, block, printer);
+		drm_buddy_block_print(&bman->mm, block, printer);
 	mutex_unlock(&bman->lock);
 }
 
@@ -156,6 +214,7 @@ static const struct ttm_resource_manager_func i915_ttm_buddy_manager_func = {
  * @type: Memory type we want to manage
  * @use_tt: Set use_tt for the manager
  * @size: The size in bytes to manage
+ * @visible_size: The CPU visible size in bytes to manage
  * @default_page_size: The default minimum page size in bytes for allocations,
  * this must be at least as large as @chunk_size, and can be overridden by
  * setting the BO page_alignment, to be larger or smaller as needed.
@@ -179,7 +238,7 @@ static const struct ttm_resource_manager_func i915_ttm_buddy_manager_func = {
  */
 int i915_ttm_buddy_man_init(struct ttm_device *bdev,
 			    unsigned int type, bool use_tt,
-			    u64 size, u64 default_page_size,
+			    u64 size, u64 visible_size, u64 default_page_size,
 			    u64 chunk_size)
 {
 	struct ttm_resource_manager *man;
@@ -190,7 +249,7 @@ int i915_ttm_buddy_man_init(struct ttm_device *bdev,
 	if (!bman)
 		return -ENOMEM;
 
-	err = i915_buddy_init(&bman->mm, size, chunk_size);
+	err = drm_buddy_init(&bman->mm, size, chunk_size);
 	if (err)
 		goto err_free_bman;
 
@@ -198,11 +257,13 @@ int i915_ttm_buddy_man_init(struct ttm_device *bdev,
 	INIT_LIST_HEAD(&bman->reserved);
 	GEM_BUG_ON(default_page_size < chunk_size);
 	bman->default_page_size = default_page_size;
+	bman->visible_size = visible_size >> PAGE_SHIFT;
+	bman->visible_avail = bman->visible_size;
 
 	man = &bman->manager;
 	man->use_tt = use_tt;
 	man->func = &i915_ttm_buddy_manager_func;
-	ttm_resource_manager_init(man, bman->mm.size >> PAGE_SHIFT);
+	ttm_resource_manager_init(man, bdev, bman->mm.size >> PAGE_SHIFT);
 
 	ttm_resource_manager_set_used(man, true);
 	ttm_set_driver_manager(bdev, type, man);
@@ -228,7 +289,7 @@ int i915_ttm_buddy_man_fini(struct ttm_device *bdev, unsigned int type)
 {
 	struct ttm_resource_manager *man = ttm_manager_type(bdev, type);
 	struct i915_ttm_buddy_manager *bman = to_buddy_manager(man);
-	struct i915_buddy_mm *mm = &bman->mm;
+	struct drm_buddy *mm = &bman->mm;
 	int ret;
 
 	ttm_resource_manager_set_used(man, false);
@@ -240,8 +301,10 @@ int i915_ttm_buddy_man_fini(struct ttm_device *bdev, unsigned int type)
 	ttm_set_driver_manager(bdev, type, NULL);
 
 	mutex_lock(&bman->lock);
-	i915_buddy_free_list(mm, &bman->reserved);
-	i915_buddy_fini(mm);
+	drm_buddy_free_list(mm, &bman->reserved);
+	drm_buddy_fini(mm);
+	bman->visible_avail += bman->visible_reserved;
+	WARN_ON_ONCE(bman->visible_avail != bman->visible_size);
 	mutex_unlock(&bman->lock);
 
 	ttm_resource_manager_cleanup(man);
@@ -264,13 +327,50 @@ int i915_ttm_buddy_man_reserve(struct ttm_resource_manager *man,
 			       u64 start, u64 size)
 {
 	struct i915_ttm_buddy_manager *bman = to_buddy_manager(man);
-	struct i915_buddy_mm *mm = &bman->mm;
+	struct drm_buddy *mm = &bman->mm;
+	unsigned long fpfn = start >> PAGE_SHIFT;
+	unsigned long flags = 0;
 	int ret;
 
+	flags |= DRM_BUDDY_RANGE_ALLOCATION;
+
 	mutex_lock(&bman->lock);
-	ret = i915_buddy_alloc_range(mm, &bman->reserved, start, size);
+	ret = drm_buddy_alloc_blocks(mm, start,
+				     start + size,
+				     size, mm->chunk_size,
+				     &bman->reserved,
+				     flags);
+
+	if (fpfn < bman->visible_size) {
+		unsigned long lpfn = fpfn + (size >> PAGE_SHIFT);
+		unsigned long visible = min(lpfn, bman->visible_size) - fpfn;
+
+		bman->visible_reserved += visible;
+		bman->visible_avail -= visible;
+	}
 	mutex_unlock(&bman->lock);
 
 	return ret;
 }
 
+/**
+ * i915_ttm_buddy_man_visible_size - Return the size of the CPU visible portion
+ * in pages.
+ * @man: The buddy allocator ttm manager
+ */
+u64 i915_ttm_buddy_man_visible_size(struct ttm_resource_manager *man)
+{
+	struct i915_ttm_buddy_manager *bman = to_buddy_manager(man);
+
+	return bman->visible_size;
+}
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+void i915_ttm_buddy_man_force_visible_size(struct ttm_resource_manager *man,
+					   u64 size)
+{
+	struct i915_ttm_buddy_manager *bman = to_buddy_manager(man);
+
+	bman->visible_size = size;
+}
+#endif

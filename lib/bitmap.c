@@ -45,19 +45,19 @@
  * for the best explanations of this ordering.
  */
 
-int __bitmap_equal(const unsigned long *bitmap1,
-		const unsigned long *bitmap2, unsigned int bits)
+bool __bitmap_equal(const unsigned long *bitmap1,
+		    const unsigned long *bitmap2, unsigned int bits)
 {
 	unsigned int k, lim = bits/BITS_PER_LONG;
 	for (k = 0; k < lim; ++k)
 		if (bitmap1[k] != bitmap2[k])
-			return 0;
+			return false;
 
 	if (bits % BITS_PER_LONG)
 		if ((bitmap1[k] ^ bitmap2[k]) & BITMAP_LAST_WORD_MASK(bits))
-			return 0;
+			return false;
 
-	return 1;
+	return true;
 }
 EXPORT_SYMBOL(__bitmap_equal);
 
@@ -303,33 +303,33 @@ void __bitmap_replace(unsigned long *dst,
 }
 EXPORT_SYMBOL(__bitmap_replace);
 
-int __bitmap_intersects(const unsigned long *bitmap1,
-			const unsigned long *bitmap2, unsigned int bits)
+bool __bitmap_intersects(const unsigned long *bitmap1,
+			 const unsigned long *bitmap2, unsigned int bits)
 {
 	unsigned int k, lim = bits/BITS_PER_LONG;
 	for (k = 0; k < lim; ++k)
 		if (bitmap1[k] & bitmap2[k])
-			return 1;
+			return true;
 
 	if (bits % BITS_PER_LONG)
 		if ((bitmap1[k] & bitmap2[k]) & BITMAP_LAST_WORD_MASK(bits))
-			return 1;
-	return 0;
+			return true;
+	return false;
 }
 EXPORT_SYMBOL(__bitmap_intersects);
 
-int __bitmap_subset(const unsigned long *bitmap1,
-		    const unsigned long *bitmap2, unsigned int bits)
+bool __bitmap_subset(const unsigned long *bitmap1,
+		     const unsigned long *bitmap2, unsigned int bits)
 {
 	unsigned int k, lim = bits/BITS_PER_LONG;
 	for (k = 0; k < lim; ++k)
 		if (bitmap1[k] & ~bitmap2[k])
-			return 0;
+			return false;
 
 	if (bits % BITS_PER_LONG)
 		if ((bitmap1[k] & ~bitmap2[k]) & BITMAP_LAST_WORD_MASK(bits))
-			return 0;
-	return 1;
+			return false;
+	return true;
 }
 EXPORT_SYMBOL(__bitmap_subset);
 
@@ -492,6 +492,11 @@ EXPORT_SYMBOL(bitmap_print_to_pagebuf);
  * @list: indicates whether the bitmap must be list
  *      true:  print in decimal list format
  *      false: print in hexadecimal bitmask format
+ * @buf: buffer into which string is placed
+ * @maskp: pointer to bitmap to convert
+ * @nmaskbits: size of bitmap, in bits
+ * @off: in the string from which we are copying, We copy to @buf
+ * @count: the maximum number of bytes to print
  */
 static int bitmap_print_to_buf(bool list, char *buf, const unsigned long *maskp,
 		int nmaskbits, loff_t off, size_t count)
@@ -512,38 +517,49 @@ static int bitmap_print_to_buf(bool list, char *buf, const unsigned long *maskp,
 
 /**
  * bitmap_print_bitmask_to_buf  - convert bitmap to hex bitmask format ASCII string
+ * @buf: buffer into which string is placed
+ * @maskp: pointer to bitmap to convert
+ * @nmaskbits: size of bitmap, in bits
+ * @off: in the string from which we are copying, We copy to @buf
+ * @count: the maximum number of bytes to print
  *
  * The bitmap_print_to_pagebuf() is used indirectly via its cpumap wrapper
  * cpumap_print_to_pagebuf() or directly by drivers to export hexadecimal
  * bitmask and decimal list to userspace by sysfs ABI.
  * Drivers might be using a normal attribute for this kind of ABIs. A
- * normal attribute typically has show entry as below:
- * static ssize_t example_attribute_show(struct device *dev,
+ * normal attribute typically has show entry as below::
+ *
+ *   static ssize_t example_attribute_show(struct device *dev,
  * 		struct device_attribute *attr, char *buf)
- * {
+ *   {
  * 	...
  * 	return bitmap_print_to_pagebuf(true, buf, &mask, nr_trig_max);
- * }
+ *   }
+ *
  * show entry of attribute has no offset and count parameters and this
  * means the file is limited to one page only.
  * bitmap_print_to_pagebuf() API works terribly well for this kind of
- * normal attribute with buf parameter and without offset, count:
- * bitmap_print_to_pagebuf(bool list, char *buf, const unsigned long *maskp,
+ * normal attribute with buf parameter and without offset, count::
+ *
+ *   bitmap_print_to_pagebuf(bool list, char *buf, const unsigned long *maskp,
  * 			   int nmaskbits)
- * {
- * }
+ *   {
+ *   }
+ *
  * The problem is once we have a large bitmap, we have a chance to get a
  * bitmask or list more than one page. Especially for list, it could be
  * as complex as 0,3,5,7,9,... We have no simple way to know it exact size.
  * It turns out bin_attribute is a way to break this limit. bin_attribute
- * has show entry as below:
- * static ssize_t
- * example_bin_attribute_show(struct file *filp, struct kobject *kobj,
+ * has show entry as below::
+ *
+ *   static ssize_t
+ *   example_bin_attribute_show(struct file *filp, struct kobject *kobj,
  * 		struct bin_attribute *attr, char *buf,
  * 		loff_t offset, size_t count)
- * {
+ *   {
  * 	...
- * }
+ *   }
+ *
  * With the new offset and count parameters, this makes sysfs ABI be able
  * to support file size more than one page. For example, offset could be
  * >= 4096.
@@ -552,12 +568,6 @@ static int bitmap_print_to_buf(bool list, char *buf, const unsigned long *maskp,
  * make those drivers be able to support large bitmask and list after they
  * move to use bin_attribute. In result, we have to pass the corresponding
  * parameters such as off, count from bin_attribute show entry to this API.
- *
- * @buf: buffer into which string is placed
- * @maskp: pointer to bitmap to convert
- * @nmaskbits: size of bitmap, in bits
- * @off: in the string from which we are copying, We copy to @buf
- * @count: the maximum number of bytes to print
  *
  * The role of cpumap_print_bitmask_to_buf() and cpumap_print_list_to_buf()
  * is similar with cpumap_print_to_pagebuf(),  the difference is that
@@ -573,6 +583,7 @@ static int bitmap_print_to_buf(bool list, char *buf, const unsigned long *maskp,
  * This function is not a replacement for sprintf() or bitmap_print_to_pagebuf().
  * It is intended to workaround sysfs limitations discussed above and should be
  * used carefully in general case for the following reasons:
+ *
  *  - Time complexity is O(nbits^2/count), comparing to O(nbits) for snprintf().
  *  - Memory complexity is O(nbits), comparing to O(1) for snprintf().
  *  - @off and @count are NOT offset and number of bits to print.
@@ -597,6 +608,11 @@ EXPORT_SYMBOL(bitmap_print_bitmask_to_buf);
 
 /**
  * bitmap_print_list_to_buf  - convert bitmap to decimal list format ASCII string
+ * @buf: buffer into which string is placed
+ * @maskp: pointer to bitmap to convert
+ * @nmaskbits: size of bitmap, in bits
+ * @off: in the string from which we are copying, We copy to @buf
+ * @count: the maximum number of bytes to print
  *
  * Everything is same with the above bitmap_print_bitmask_to_buf() except
  * the print format.
@@ -807,7 +823,8 @@ EXPORT_SYMBOL(bitmap_parselist);
 
 
 /**
- * bitmap_parselist_user()
+ * bitmap_parselist_user() - convert user buffer's list format ASCII
+ * string to bitmap
  *
  * @ubuf: pointer to user buffer containing string.
  * @ulen: buffer size in bytes.  If string is smaller than this
@@ -1495,5 +1512,59 @@ void bitmap_to_arr32(u32 *buf, const unsigned long *bitmap, unsigned int nbits)
 		buf[halfwords - 1] &= (u32) (UINT_MAX >> ((-nbits) & 31));
 }
 EXPORT_SYMBOL(bitmap_to_arr32);
+#endif
 
+#if (BITS_PER_LONG == 32) && defined(__BIG_ENDIAN)
+/**
+ * bitmap_from_arr64 - copy the contents of u64 array of bits to bitmap
+ *	@bitmap: array of unsigned longs, the destination bitmap
+ *	@buf: array of u64 (in host byte order), the source bitmap
+ *	@nbits: number of bits in @bitmap
+ */
+void bitmap_from_arr64(unsigned long *bitmap, const u64 *buf, unsigned int nbits)
+{
+	int n;
+
+	for (n = nbits; n > 0; n -= 64) {
+		u64 val = *buf++;
+
+		*bitmap++ = val;
+		if (n > 32)
+			*bitmap++ = val >> 32;
+	}
+
+	/*
+	 * Clear tail bits in the last word beyond nbits.
+	 *
+	 * Negative index is OK because here we point to the word next
+	 * to the last word of the bitmap, except for nbits == 0, which
+	 * is tested implicitly.
+	 */
+	if (nbits % BITS_PER_LONG)
+		bitmap[-1] &= BITMAP_LAST_WORD_MASK(nbits);
+}
+EXPORT_SYMBOL(bitmap_from_arr64);
+
+/**
+ * bitmap_to_arr64 - copy the contents of bitmap to a u64 array of bits
+ *	@buf: array of u64 (in host byte order), the dest bitmap
+ *	@bitmap: array of unsigned longs, the source bitmap
+ *	@nbits: number of bits in @bitmap
+ */
+void bitmap_to_arr64(u64 *buf, const unsigned long *bitmap, unsigned int nbits)
+{
+	const unsigned long *end = bitmap + BITS_TO_LONGS(nbits);
+
+	while (bitmap < end) {
+		*buf = *bitmap++;
+		if (bitmap < end)
+			*buf |= (u64)(*bitmap++) << 32;
+		buf++;
+	}
+
+	/* Clear tail bits in the last element of array beyond nbits. */
+	if (nbits % 64)
+		buf[-1] &= GENMASK_ULL(nbits % 64, 0);
+}
+EXPORT_SYMBOL(bitmap_to_arr64);
 #endif

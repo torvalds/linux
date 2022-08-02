@@ -757,6 +757,9 @@ char **devm_kasprintf_strarray(struct device *dev, const char *prefix, size_t n)
 		return ERR_PTR(-ENOMEM);
 	}
 
+	ptr->n = n;
+	devres_add(dev, ptr);
+
 	return ptr->array;
 }
 EXPORT_SYMBOL_GPL(devm_kasprintf_strarray);
@@ -968,6 +971,12 @@ void memcpy_and_pad(void *dest, size_t dest_len, const void *src, size_t count,
 EXPORT_SYMBOL(memcpy_and_pad);
 
 #ifdef CONFIG_FORTIFY_SOURCE
+/* These are placeholders for fortify compile-time warnings. */
+void __read_overflow2_field(size_t avail, size_t wanted) { }
+EXPORT_SYMBOL(__read_overflow2_field);
+void __write_overflow_field(size_t avail, size_t wanted) { }
+EXPORT_SYMBOL(__write_overflow_field);
+
 void fortify_panic(const char *name)
 {
 	pr_emerg("detected buffer overflow in %s\n", name);

@@ -55,17 +55,16 @@ int gfs2_replay_read_block(struct gfs2_jdesc *jd, unsigned int blk,
 int gfs2_revoke_add(struct gfs2_jdesc *jd, u64 blkno, unsigned int where)
 {
 	struct list_head *head = &jd->jd_revoke_list;
-	struct gfs2_revoke_replay *rr;
-	int found = 0;
+	struct gfs2_revoke_replay *rr = NULL, *iter;
 
-	list_for_each_entry(rr, head, rr_list) {
-		if (rr->rr_blkno == blkno) {
-			found = 1;
+	list_for_each_entry(iter, head, rr_list) {
+		if (iter->rr_blkno == blkno) {
+			rr = iter;
 			break;
 		}
 	}
 
-	if (found) {
+	if (rr) {
 		rr->rr_where = where;
 		return 0;
 	}
@@ -83,18 +82,17 @@ int gfs2_revoke_add(struct gfs2_jdesc *jd, u64 blkno, unsigned int where)
 
 int gfs2_revoke_check(struct gfs2_jdesc *jd, u64 blkno, unsigned int where)
 {
-	struct gfs2_revoke_replay *rr;
+	struct gfs2_revoke_replay *rr = NULL, *iter;
 	int wrap, a, b, revoke;
-	int found = 0;
 
-	list_for_each_entry(rr, &jd->jd_revoke_list, rr_list) {
-		if (rr->rr_blkno == blkno) {
-			found = 1;
+	list_for_each_entry(iter, &jd->jd_revoke_list, rr_list) {
+		if (iter->rr_blkno == blkno) {
+			rr = iter;
 			break;
 		}
 	}
 
-	if (!found)
+	if (!rr)
 		return 0;
 
 	wrap = (rr->rr_where < jd->jd_replay_tail);

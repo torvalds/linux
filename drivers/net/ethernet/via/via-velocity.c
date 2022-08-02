@@ -2846,8 +2846,7 @@ static int velocity_probe(struct device *dev, int irq,
 
 	netdev->netdev_ops = &velocity_netdev_ops;
 	netdev->ethtool_ops = &velocity_ethtool_ops;
-	netif_napi_add(netdev, &vptr->napi, velocity_poll,
-							VELOCITY_NAPI_WEIGHT);
+	netif_napi_add(netdev, &vptr->napi, velocity_poll, NAPI_POLL_WEIGHT);
 
 	netdev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
 			   NETIF_F_HW_VLAN_CTAG_TX;

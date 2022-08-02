@@ -34,18 +34,26 @@
  * @dev: driver core device object
  * @cdev: char dev core object for ioctl operations
  * @cxlds: The device state backing this device
+ * @detach_work: active memdev lost a port in its ancestry
  * @id: id number of this memdev instance.
  */
 struct cxl_memdev {
 	struct device dev;
 	struct cdev cdev;
 	struct cxl_dev_state *cxlds;
+	struct work_struct detach_work;
 	int id;
 };
 
 static inline struct cxl_memdev *to_cxl_memdev(struct device *dev)
 {
 	return container_of(dev, struct cxl_memdev, dev);
+}
+
+bool is_cxl_memdev(struct device *dev);
+static inline bool is_cxl_endpoint(struct cxl_port *port)
+{
+	return is_cxl_memdev(port->uport);
 }
 
 struct cxl_memdev *devm_cxl_add_memdev(struct cxl_dev_state *cxlds);
@@ -77,8 +85,59 @@ struct cxl_mbox_cmd {
 	size_t size_in;
 	size_t size_out;
 	u16 return_code;
-#define CXL_MBOX_SUCCESS 0
 };
+
+/*
+ * Per CXL 2.0 Section 8.2.8.4.5.1
+ */
+#define CMD_CMD_RC_TABLE							\
+	C(SUCCESS, 0, NULL),							\
+	C(BACKGROUND, -ENXIO, "background cmd started successfully"),           \
+	C(INPUT, -ENXIO, "cmd input was invalid"),				\
+	C(UNSUPPORTED, -ENXIO, "cmd is not supported"),				\
+	C(INTERNAL, -ENXIO, "internal device error"),				\
+	C(RETRY, -ENXIO, "temporary error, retry once"),			\
+	C(BUSY, -ENXIO, "ongoing background operation"),			\
+	C(MEDIADISABLED, -ENXIO, "media access is disabled"),			\
+	C(FWINPROGRESS, -ENXIO,	"one FW package can be transferred at a time"), \
+	C(FWOOO, -ENXIO, "FW package content was transferred out of order"),    \
+	C(FWAUTH, -ENXIO, "FW package authentication failed"),			\
+	C(FWSLOT, -ENXIO, "FW slot is not supported for requested operation"),  \
+	C(FWROLLBACK, -ENXIO, "rolled back to the previous active FW"),         \
+	C(FWRESET, -ENXIO, "FW failed to activate, needs cold reset"),		\
+	C(HANDLE, -ENXIO, "one or more Event Record Handles were invalid"),     \
+	C(PADDR, -ENXIO, "physical address specified is invalid"),		\
+	C(POISONLMT, -ENXIO, "poison injection limit has been reached"),        \
+	C(MEDIAFAILURE, -ENXIO, "permanent issue with the media"),		\
+	C(ABORT, -ENXIO, "background cmd was aborted by device"),               \
+	C(SECURITY, -ENXIO, "not valid in the current security state"),         \
+	C(PASSPHRASE, -ENXIO, "phrase doesn't match current set passphrase"),   \
+	C(MBUNSUPPORTED, -ENXIO, "unsupported on the mailbox it was issued on"),\
+	C(PAYLOADLEN, -ENXIO, "invalid payload length")
+
+#undef C
+#define C(a, b, c) CXL_MBOX_CMD_RC_##a
+enum  { CMD_CMD_RC_TABLE };
+#undef C
+#define C(a, b, c) { b, c }
+struct cxl_mbox_cmd_rc {
+	int err;
+	const char *desc;
+};
+
+static const
+struct cxl_mbox_cmd_rc cxl_mbox_cmd_rctable[] ={ CMD_CMD_RC_TABLE };
+#undef C
+
+static inline const char *cxl_mbox_cmd_rc2str(struct cxl_mbox_cmd *mbox_cmd)
+{
+	return cxl_mbox_cmd_rctable[mbox_cmd->return_code].desc;
+}
+
+static inline int cxl_mbox_cmd_rc2errno(struct cxl_mbox_cmd *mbox_cmd)
+{
+	return cxl_mbox_cmd_rctable[mbox_cmd->return_code].err;
+}
 
 /*
  * CXL 2.0 - Memory capacity multiplier
@@ -90,6 +149,18 @@ struct cxl_mbox_cmd {
 #define CXL_CAPACITY_MULTIPLIER SZ_256M
 
 /**
+ * struct cxl_endpoint_dvsec_info - Cached DVSEC info
+ * @mem_enabled: cached value of mem_enabled in the DVSEC, PCIE_DEVICE
+ * @ranges: Number of active HDM ranges this device uses.
+ * @dvsec_range: cached attributes of the ranges in the DVSEC, PCIE_DEVICE
+ */
+struct cxl_endpoint_dvsec_info {
+	bool mem_enabled;
+	int ranges;
+	struct range dvsec_range[2];
+};
+
+/**
  * struct cxl_dev_state - The driver device state
  *
  * cxl_dev_state represents the CXL driver/device state.  It provides an
@@ -98,6 +169,7 @@ struct cxl_mbox_cmd {
  *
  * @dev: The device associated with this CXL state
  * @regs: Parsed register blocks
+ * @cxl_dvsec: Offset to the PCIe device DVSEC
  * @payload_size: Size of space for payload
  *                (CXL 2.0 8.2.8.4.3 Mailbox Capabilities Register)
  * @lsa_size: Size of Label Storage Area
@@ -116,6 +188,9 @@ struct cxl_mbox_cmd {
  * @active_persistent_bytes: sum of hard + soft persistent
  * @next_volatile_bytes: volatile capacity change pending device reset
  * @next_persistent_bytes: persistent capacity change pending device reset
+ * @component_reg_phys: register base of component registers
+ * @info: Cached DVSEC information about the device.
+ * @serial: PCIe Device Serial Number
  * @mbox_send: @dev specific transport for transmitting mailbox commands
  *
  * See section 8.2.9.5.2 Capacity Configuration and Label Storage for
@@ -125,6 +200,7 @@ struct cxl_dev_state {
 	struct device *dev;
 
 	struct cxl_regs regs;
+	int cxl_dvsec;
 
 	size_t payload_size;
 	size_t lsa_size;
@@ -144,6 +220,9 @@ struct cxl_dev_state {
 	u64 active_persistent_bytes;
 	u64 next_volatile_bytes;
 	u64 next_persistent_bytes;
+
+	resource_size_t component_reg_phys;
+	u64 serial;
 
 	int (*mbox_send)(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd);
 };
@@ -231,6 +310,13 @@ struct cxl_mbox_set_lsa {
 	u8 data[];
 } __packed;
 
+struct cxl_mbox_set_partition_info {
+	__le64 volatile_capacity;
+	u8 flags;
+} __packed;
+
+#define  CXL_SET_PARTITION_IMMEDIATE_FLAG	BIT(0)
+
 /**
  * struct cxl_mem_command - Driver representation of a memory device command
  * @info: Command information as it exists for the UAPI
@@ -259,9 +345,29 @@ struct cxl_mem_command {
 int cxl_mbox_send_cmd(struct cxl_dev_state *cxlds, u16 opcode, void *in,
 		      size_t in_size, void *out, size_t out_size);
 int cxl_dev_state_identify(struct cxl_dev_state *cxlds);
+int cxl_await_media_ready(struct cxl_dev_state *cxlds);
 int cxl_enumerate_cmds(struct cxl_dev_state *cxlds);
 int cxl_mem_create_range_info(struct cxl_dev_state *cxlds);
 struct cxl_dev_state *cxl_dev_state_create(struct device *dev);
 void set_exclusive_cxl_commands(struct cxl_dev_state *cxlds, unsigned long *cmds);
 void clear_exclusive_cxl_commands(struct cxl_dev_state *cxlds, unsigned long *cmds);
+#ifdef CONFIG_CXL_SUSPEND
+void cxl_mem_active_inc(void);
+void cxl_mem_active_dec(void);
+#else
+static inline void cxl_mem_active_inc(void)
+{
+}
+static inline void cxl_mem_active_dec(void)
+{
+}
+#endif
+
+struct cxl_hdm {
+	struct cxl_component_regs regs;
+	unsigned int decoder_count;
+	unsigned int target_count;
+	unsigned int interleave_mask;
+	struct cxl_port *port;
+};
 #endif /* __CXL_MEM_H__ */

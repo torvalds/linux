@@ -49,11 +49,15 @@ static int sg_version_num = 30536;	/* 2 digits for each component */
 #include <linux/uio.h>
 #include <linux/cred.h> /* for sg_check_file_access() */
 
-#include "scsi.h"
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_dbg.h>
-#include <scsi/scsi_host.h>
+#include <scsi/scsi_device.h>
 #include <scsi/scsi_driver.h>
+#include <scsi/scsi_eh.h>
+#include <scsi/scsi_host.h>
 #include <scsi/scsi_ioctl.h>
+#include <scsi/scsi_tcq.h>
 #include <scsi/sg.h>
 
 #include "scsi_logging.h"
@@ -223,11 +227,6 @@ static int sg_check_file_access(struct file *filp, const char *caller)
 		pr_err_once("%s: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
 			caller, task_tgid_vnr(current), current->comm);
 		return -EPERM;
-	}
-	if (uaccess_kernel()) {
-		pr_err_once("%s: process %d (%s) called from kernel context, this is not allowed.\n",
-			caller, task_tgid_vnr(current), current->comm);
-		return -EACCES;
 	}
 	return 0;
 }
@@ -814,7 +813,6 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 	}
 	if (atomic_read(&sdp->detaching)) {
 		if (srp->bio) {
-			scsi_req_free_cmd(scsi_req(srp->rq));
 			blk_mq_free_request(srp->rq);
 			srp->rq = NULL;
 		}
@@ -833,7 +831,8 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 
 	srp->rq->timeout = timeout;
 	kref_get(&sfp->f_ref); /* sg_rq_end_io() does kref_put(). */
-	blk_execute_rq_nowait(srp->rq, at_head, sg_rq_end_io);
+	srp->rq->end_io = sg_rq_end_io;
+	blk_execute_rq_nowait(srp->rq, at_head);
 	return 0;
 }
 
@@ -1320,8 +1319,8 @@ sg_rq_end_io_usercontext(struct work_struct *work)
 static void
 sg_rq_end_io(struct request *rq, blk_status_t status)
 {
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 	struct sg_request *srp = rq->end_io_data;
-	struct scsi_request *req = scsi_req(rq);
 	Sg_device *sdp;
 	Sg_fd *sfp;
 	unsigned long iflags;
@@ -1340,9 +1339,9 @@ sg_rq_end_io(struct request *rq, blk_status_t status)
 	if (unlikely(atomic_read(&sdp->detaching)))
 		pr_info("%s: device detaching\n", __func__);
 
-	sense = req->sense;
-	result = req->result;
-	resid = req->resid_len;
+	sense = scmd->sense_buffer;
+	result = scmd->result;
+	resid = scmd->resid_len;
 
 	SCSI_LOG_TIMEOUT(4, sg_printk(KERN_INFO, sdp,
 				      "sg_cmd_done: pack_id=%d, res=0x%x\n",
@@ -1377,8 +1376,8 @@ sg_rq_end_io(struct request *rq, blk_status_t status)
 		}
 	}
 
-	if (req->sense_len)
-		memcpy(srp->sense_b, req->sense, SCSI_SENSE_BUFFERSIZE);
+	if (scmd->sense_len)
+		memcpy(srp->sense_b, scmd->sense_buffer, SCSI_SENSE_BUFFERSIZE);
 
 	/* Rely on write phase to clean out srp status values, so no "else" */
 
@@ -1389,7 +1388,6 @@ sg_rq_end_io(struct request *rq, blk_status_t status)
 	 * blk_rq_unmap_user() can be called from user context.
 	 */
 	srp->rq = NULL;
-	scsi_req_free_cmd(scsi_req(rq));
 	blk_mq_free_request(rq);
 
 	write_lock_irqsave(&sfp->rq_list_lock, iflags);
@@ -1723,7 +1721,6 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 {
 	int res;
 	struct request *rq;
-	struct scsi_request *req;
 	Sg_fd *sfp = srp->parentfp;
 	sg_io_hdr_t *hp = &srp->header;
 	int dxfer_len = (int) hp->dxfer_len;
@@ -1734,17 +1731,11 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 	struct request_queue *q = sfp->parentdp->device->request_queue;
 	struct rq_map_data *md, map_data;
 	int rw = hp->dxfer_direction == SG_DXFER_TO_DEV ? WRITE : READ;
-	unsigned char *long_cmdp = NULL;
+	struct scsi_cmnd *scmd;
 
 	SCSI_LOG_TIMEOUT(4, sg_printk(KERN_INFO, sfp->parentdp,
 				      "sg_start_req: dxfer_len=%d\n",
 				      dxfer_len));
-
-	if (hp->cmd_len > BLK_MAX_CDB) {
-		long_cmdp = kzalloc(hp->cmd_len, GFP_KERNEL);
-		if (!long_cmdp)
-			return -ENOMEM;
-	}
 
 	/*
 	 * NOTE
@@ -1759,20 +1750,21 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 	 */
 	rq = scsi_alloc_request(q, hp->dxfer_direction == SG_DXFER_TO_DEV ?
 			REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
-	if (IS_ERR(rq)) {
-		kfree(long_cmdp);
+	if (IS_ERR(rq))
 		return PTR_ERR(rq);
-	}
-	req = scsi_req(rq);
+	scmd = blk_mq_rq_to_pdu(rq);
 
-	if (hp->cmd_len > BLK_MAX_CDB)
-		req->cmd = long_cmdp;
-	memcpy(req->cmd, cmd, hp->cmd_len);
-	req->cmd_len = hp->cmd_len;
+	if (hp->cmd_len > sizeof(scmd->cmnd)) {
+		blk_mq_free_request(rq);
+		return -EINVAL;
+	}
+
+	memcpy(scmd->cmnd, cmd, hp->cmd_len);
+	scmd->cmd_len = hp->cmd_len;
 
 	srp->rq = rq;
 	rq->end_io_data = srp;
-	req->retries = SG_DEFAULT_RETRIES;
+	scmd->allowed = SG_DEFAULT_RETRIES;
 
 	if ((dxfer_len <= 0) || (dxfer_dir == SG_DXFER_NONE))
 		return 0;
@@ -1861,10 +1853,8 @@ sg_finish_rem_req(Sg_request *srp)
 	if (srp->bio)
 		ret = blk_rq_unmap_user(srp->bio);
 
-	if (srp->rq) {
-		scsi_req_free_cmd(scsi_req(srp->rq));
+	if (srp->rq)
 		blk_mq_free_request(srp->rq);
-	}
 
 	if (srp->res_used)
 		sg_unlink_reserve(sfp, srp);

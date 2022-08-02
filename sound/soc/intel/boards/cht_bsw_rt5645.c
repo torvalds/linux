@@ -302,9 +302,9 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 	else
 		jack_type = SND_JACK_HEADPHONE | SND_JACK_MICROPHONE;
 
-	ret = snd_soc_card_jack_new(runtime->card, "Headset",
-				    jack_type, &ctx->jack,
-				    cht_bsw_jack_pins, ARRAY_SIZE(cht_bsw_jack_pins));
+	ret = snd_soc_card_jack_new_pins(runtime->card, "Headset", jack_type,
+					 &ctx->jack, cht_bsw_jack_pins,
+					 ARRAY_SIZE(cht_bsw_jack_pins));
 	if (ret) {
 		dev_err(runtime->dev, "Headset jack creation failed %d\n", ret);
 		return ret;
@@ -653,7 +653,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	    (cht_rt5645_quirk & CHT_RT5645_SSP0_AIF2))
 		cht_dailink[dai_index].cpus->dai_name = "ssp0-port";
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	platform_name = mach->mach_params.platform;
 
 	ret_val = snd_soc_fixup_dai_links_platform_name(card,

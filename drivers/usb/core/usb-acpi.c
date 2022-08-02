@@ -166,7 +166,7 @@ usb_acpi_get_companion_for_port(struct usb_port *port_dev)
 		if (!parent_handle)
 			return NULL;
 
-		acpi_bus_get_device(parent_handle, &adev);
+		adev = acpi_fetch_acpi_dev(parent_handle);
 		port1 = port_dev->portnum;
 	}
 
@@ -205,8 +205,11 @@ usb_acpi_find_companion_for_device(struct usb_device *udev)
 	struct usb_hub *hub;
 
 	if (!udev->parent) {
-		/* root hub is only child (_ADR=0) under its parent, the HC */
-		adev = ACPI_COMPANION(udev->dev.parent);
+		/*
+		 * root hub is only child (_ADR=0) under its parent, the HC.
+		 * sysdev pointer is the HC as seen from firmware.
+		 */
+		adev = ACPI_COMPANION(udev->bus->sysdev);
 		return acpi_find_child_device(adev, 0, false);
 	}
 

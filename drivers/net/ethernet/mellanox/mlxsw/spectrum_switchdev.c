@@ -207,6 +207,16 @@ static void mlxsw_sp_bridge_device_vxlan_fini(struct mlxsw_sp_bridge *bridge,
 	}
 }
 
+static void mlxsw_sp_fdb_notify_work_schedule(struct mlxsw_sp *mlxsw_sp,
+					      bool no_delay)
+{
+	struct mlxsw_sp_bridge *bridge = mlxsw_sp->bridge;
+	unsigned int interval = no_delay ? 0 : bridge->fdb_notify.interval;
+
+	mlxsw_core_schedule_dw(&bridge->fdb_notify.dw,
+			       msecs_to_jiffies(interval));
+}
+
 static struct mlxsw_sp_bridge_device *
 mlxsw_sp_bridge_device_create(struct mlxsw_sp_bridge *bridge,
 			      struct net_device *br_dev,
@@ -245,6 +255,8 @@ mlxsw_sp_bridge_device_create(struct mlxsw_sp_bridge *bridge,
 		bridge_device->ops = bridge->bridge_8021d_ops;
 	}
 	INIT_LIST_HEAD(&bridge_device->mids_list);
+	if (list_empty(&bridge->bridges_list))
+		mlxsw_sp_fdb_notify_work_schedule(bridge->mlxsw_sp, false);
 	list_add(&bridge_device->list, &bridge->bridges_list);
 
 	/* It is possible we already have VXLAN devices enslaved to the bridge.
@@ -273,6 +285,8 @@ mlxsw_sp_bridge_device_destroy(struct mlxsw_sp_bridge *bridge,
 	mlxsw_sp_bridge_device_rifs_destroy(bridge->mlxsw_sp,
 					    bridge_device->dev);
 	list_del(&bridge_device->list);
+	if (list_empty(&bridge->bridges_list))
+		cancel_delayed_work(&bridge->fdb_notify.dw);
 	if (bridge_device->vlan_enabled)
 		bridge->vlan_enabled_exists = false;
 	WARN_ON(!list_empty(&bridge_device->ports_list));
@@ -1234,8 +1248,7 @@ static int mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (netif_is_bridge_master(orig_dev)) {
 		int err = 0;
 
-		if ((vlan->flags & BRIDGE_VLAN_INFO_BRENTRY) &&
-		    br_vlan_enabled(orig_dev))
+		if (br_vlan_enabled(orig_dev))
 			err = mlxsw_sp_br_ban_rif_pvid_change(mlxsw_sp,
 							      orig_dev, vlan);
 		if (!err)
@@ -2616,7 +2629,6 @@ static void mlxsw_sp_fdb_notify_mac_process(struct mlxsw_sp *mlxsw_sp,
 					    char *sfn_pl, int rec_index,
 					    bool adding)
 {
-	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_sp->core);
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 	struct mlxsw_sp_bridge_device *bridge_device;
 	struct mlxsw_sp_bridge_port *bridge_port;
@@ -2630,7 +2642,7 @@ static void mlxsw_sp_fdb_notify_mac_process(struct mlxsw_sp *mlxsw_sp,
 
 	mlxsw_reg_sfn_mac_unpack(sfn_pl, rec_index, mac, &fid, &local_port);
 
-	if (WARN_ON_ONCE(local_port >= max_ports))
+	if (WARN_ON_ONCE(!mlxsw_sp_local_port_is_valid(mlxsw_sp, local_port)))
 		return;
 	mlxsw_sp_port = mlxsw_sp->ports[local_port];
 	if (!mlxsw_sp_port) {
@@ -2888,22 +2900,13 @@ static void mlxsw_sp_fdb_notify_rec_process(struct mlxsw_sp *mlxsw_sp,
 	}
 }
 
-static void mlxsw_sp_fdb_notify_work_schedule(struct mlxsw_sp *mlxsw_sp,
-					      bool no_delay)
-{
-	struct mlxsw_sp_bridge *bridge = mlxsw_sp->bridge;
-	unsigned int interval = no_delay ? 0 : bridge->fdb_notify.interval;
-
-	mlxsw_core_schedule_dw(&bridge->fdb_notify.dw,
-			       msecs_to_jiffies(interval));
-}
-
 #define MLXSW_SP_FDB_SFN_QUERIES_PER_SESSION 10
 
 static void mlxsw_sp_fdb_notify_work(struct work_struct *work)
 {
 	struct mlxsw_sp_bridge *bridge;
 	struct mlxsw_sp *mlxsw_sp;
+	bool reschedule = false;
 	char *sfn_pl;
 	int queries;
 	u8 num_rec;
@@ -2918,6 +2921,9 @@ static void mlxsw_sp_fdb_notify_work(struct work_struct *work)
 	mlxsw_sp = bridge->mlxsw_sp;
 
 	rtnl_lock();
+	if (list_empty(&bridge->bridges_list))
+		goto out;
+	reschedule = true;
 	queries = MLXSW_SP_FDB_SFN_QUERIES_PER_SESSION;
 	while (queries > 0) {
 		mlxsw_reg_sfn_pack(sfn_pl);
@@ -2937,6 +2943,8 @@ static void mlxsw_sp_fdb_notify_work(struct work_struct *work)
 out:
 	rtnl_unlock();
 	kfree(sfn_pl);
+	if (!reschedule)
+		return;
 	mlxsw_sp_fdb_notify_work_schedule(mlxsw_sp, !queries);
 }
 
@@ -3667,7 +3675,6 @@ static int mlxsw_sp_fdb_init(struct mlxsw_sp *mlxsw_sp)
 
 	INIT_DELAYED_WORK(&bridge->fdb_notify.dw, mlxsw_sp_fdb_notify_work);
 	bridge->fdb_notify.interval = MLXSW_SP_DEFAULT_LEARNING_INTERVAL;
-	mlxsw_sp_fdb_notify_work_schedule(mlxsw_sp, false);
 	return 0;
 
 err_register_switchdev_blocking_notifier:

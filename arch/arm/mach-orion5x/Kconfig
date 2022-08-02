@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_ORION5X
 	bool "Marvell Orion"
-	depends on MMU && ARCH_MULTI_V5
+	depends on ARCH_MULTI_V5
+	depends on CPU_LITTLE_ENDIAN
 	select CPU_FEROCEON
 	select GPIOLIB
 	select MVEBU_MBUS

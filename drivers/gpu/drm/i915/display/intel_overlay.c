@@ -28,6 +28,7 @@
 
 #include <drm/drm_fourcc.h>
 
+#include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_ring.h"
@@ -38,6 +39,7 @@
 #include "intel_display_types.h"
 #include "intel_frontbuffer.h"
 #include "intel_overlay.h"
+#include "intel_pci_config.h"
 
 /* Limits for overlay size. According to intel doc, the real limits are:
  * Y width: 4095, UV width (planar): 2047, Y height: 2047,
@@ -956,19 +958,21 @@ static void update_pfit_vscale_ratio(struct intel_overlay *overlay)
 static int check_overlay_dst(struct intel_overlay *overlay,
 			     struct drm_intel_overlay_put_image *rec)
 {
-	const struct intel_crtc_state *pipe_config =
+	const struct intel_crtc_state *crtc_state =
 		overlay->crtc->config;
+	struct drm_rect req, clipped;
 
-	if (rec->dst_height == 0 || rec->dst_width == 0)
+	drm_rect_init(&req, rec->dst_x, rec->dst_y,
+		      rec->dst_width, rec->dst_height);
+
+	clipped = req;
+	drm_rect_intersect(&clipped, &crtc_state->pipe_src);
+
+	if (!drm_rect_visible(&clipped) ||
+	    !drm_rect_equals(&clipped, &req))
 		return -EINVAL;
 
-	if (rec->dst_x < pipe_config->pipe_src_w &&
-	    rec->dst_x + rec->dst_width <= pipe_config->pipe_src_w &&
-	    rec->dst_y < pipe_config->pipe_src_h &&
-	    rec->dst_y + rec->dst_height <= pipe_config->pipe_src_h)
-		return 0;
-	else
-		return -EINVAL;
+	return 0;
 }
 
 static int check_overlay_scaling(struct drm_intel_overlay_put_image *rec)
@@ -1158,7 +1162,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 		crtc->overlay = overlay;
 
 		/* line too wide, i.e. one-line-mode */
-		if (crtc->config->pipe_src_w > 1024 &&
+		if (drm_rect_width(&crtc->config->pipe_src) > 1024 &&
 		    crtc->config->gmch_pfit.control & PFIT_ENABLE) {
 			overlay->pfit_active = true;
 			update_pfit_vscale_ratio(overlay);

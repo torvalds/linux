@@ -446,7 +446,6 @@ int esp_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 	struct page *page;
 	struct sk_buff *trailer;
 	int tailen = esp->tailen;
-	unsigned int allocsz;
 
 	/* this is non-NULL only with TCP/UDP Encapsulation */
 	if (x->encap) {
@@ -456,8 +455,8 @@ int esp_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 			return err;
 	}
 
-	allocsz = ALIGN(skb->data_len + tailen, L1_CACHE_BYTES);
-	if (allocsz > ESP_SKB_FRAG_MAXSIZE)
+	if (ALIGN(tailen, L1_CACHE_BYTES) > PAGE_SIZE ||
+	    ALIGN(skb->data_len, L1_CACHE_BYTES) > PAGE_SIZE)
 		goto cow;
 
 	if (!skb_cloned(skb)) {
@@ -706,7 +705,6 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 static inline int esp_remove_trailer(struct sk_buff *skb)
 {
 	struct xfrm_state *x = xfrm_input_state(skb);
-	struct xfrm_offload *xo = xfrm_offload(skb);
 	struct crypto_aead *aead = x->data;
 	int alen, hlen, elen;
 	int padlen, trimlen;
@@ -717,11 +715,6 @@ static inline int esp_remove_trailer(struct sk_buff *skb)
 	alen = crypto_aead_authsize(aead);
 	hlen = sizeof(struct ip_esp_hdr) + crypto_aead_ivsize(aead);
 	elen = skb->len - hlen;
-
-	if (xo && (xo->flags & XFRM_ESP_NO_TRAILER)) {
-		ret = xo->proto;
-		goto out;
-	}
 
 	if (skb_copy_bits(skb, skb->len - alen - 2, nexthdr, 2))
 		BUG();

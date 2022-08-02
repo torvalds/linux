@@ -105,6 +105,7 @@ struct multipath {
 struct dm_mpath_io {
 	struct pgpath *pgpath;
 	size_t nr_bytes;
+	u64 start_time_ns;
 };
 
 typedef int (*action_fn) (struct pgpath *pgpath);
@@ -295,6 +296,7 @@ static void multipath_init_per_bio_data(struct bio *bio, struct dm_mpath_io **mp
 
 	mpio->nr_bytes = bio->bi_iter.bi_size;
 	mpio->pgpath = NULL;
+	mpio->start_time_ns = 0;
 	*mpio_p = mpio;
 
 	dm_bio_record(bio_details, bio);
@@ -647,6 +649,9 @@ static int __multipath_map_bio(struct multipath *m, struct bio *bio,
 
 	mpio->pgpath = pgpath;
 
+	if (dm_ps_use_hr_timer(pgpath->pg->ps.type))
+		mpio->start_time_ns = ktime_get_ns();
+
 	bio->bi_status = 0;
 	bio_set_dev(bio, pgpath->path.dev->bdev);
 	bio->bi_opf |= REQ_FAILFAST_TRANSPORT;
@@ -899,10 +904,7 @@ retain:
 	if (m->hw_handler_name) {
 		r = scsi_dh_attach(q, m->hw_handler_name);
 		if (r == -EBUSY) {
-			char b[BDEVNAME_SIZE];
-
-			printk(KERN_INFO "dm-mpath: retaining handler on device %s\n",
-			       bdevname(bdev, b));
+			DMINFO("retaining handler on device %pg", bdev);
 			goto retain;
 		}
 		if (r < 0) {
@@ -1252,7 +1254,6 @@ static int multipath_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	ti->num_flush_bios = 1;
 	ti->num_discard_bios = 1;
-	ti->num_write_same_bios = 1;
 	ti->num_write_zeroes_bios = 1;
 	if (m->queue_mode == DM_TYPE_BIO_BASED)
 		ti->per_io_data_size = multipath_per_bio_data_size();
@@ -1717,7 +1718,8 @@ done:
 
 		if (ps->type->end_io)
 			ps->type->end_io(ps, &pgpath->path, mpio->nr_bytes,
-					 dm_start_time_ns_from_clone(clone));
+					 (mpio->start_time_ns ?:
+					  dm_start_time_ns_from_clone(clone)));
 	}
 
 	return r;

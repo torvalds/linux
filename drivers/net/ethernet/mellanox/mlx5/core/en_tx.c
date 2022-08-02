@@ -40,6 +40,7 @@
 #include "en_accel/en_accel.h"
 #include "en_accel/ipsec_rxtx.h"
 #include "en/ptp.h"
+#include <net/ipv6.h>
 
 static void mlx5e_dma_unmap_wqe_err(struct mlx5e_txqsq *sq, u8 num_dma)
 {
@@ -51,117 +52,6 @@ static void mlx5e_dma_unmap_wqe_err(struct mlx5e_txqsq *sq, u8 num_dma)
 
 		mlx5e_tx_dma_unmap(sq->pdev, last_pushed_dma);
 	}
-}
-
-#ifdef CONFIG_MLX5_CORE_EN_DCB
-static inline int mlx5e_get_dscp_up(struct mlx5e_priv *priv, struct sk_buff *skb)
-{
-	int dscp_cp = 0;
-
-	if (skb->protocol == htons(ETH_P_IP))
-		dscp_cp = ipv4_get_dsfield(ip_hdr(skb)) >> 2;
-	else if (skb->protocol == htons(ETH_P_IPV6))
-		dscp_cp = ipv6_get_dsfield(ipv6_hdr(skb)) >> 2;
-
-	return priv->dcbx_dp.dscp2prio[dscp_cp];
-}
-#endif
-
-static u16 mlx5e_select_ptpsq(struct net_device *dev, struct sk_buff *skb)
-{
-	struct mlx5e_priv *priv = netdev_priv(dev);
-	int up = 0;
-
-	if (!netdev_get_num_tc(dev))
-		goto return_txq;
-
-#ifdef CONFIG_MLX5_CORE_EN_DCB
-	if (priv->dcbx_dp.trust_state == MLX5_QPTS_TRUST_DSCP)
-		up = mlx5e_get_dscp_up(priv, skb);
-	else
-#endif
-		if (skb_vlan_tag_present(skb))
-			up = skb_vlan_tag_get_prio(skb);
-
-return_txq:
-	return priv->port_ptp_tc2realtxq[up];
-}
-
-static int mlx5e_select_htb_queue(struct mlx5e_priv *priv, struct sk_buff *skb,
-				  u16 htb_maj_id)
-{
-	u16 classid;
-
-	if ((TC_H_MAJ(skb->priority) >> 16) == htb_maj_id)
-		classid = TC_H_MIN(skb->priority);
-	else
-		classid = READ_ONCE(priv->htb.defcls);
-
-	if (!classid)
-		return 0;
-
-	return mlx5e_get_txq_by_classid(priv, classid);
-}
-
-u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
-		       struct net_device *sb_dev)
-{
-	struct mlx5e_priv *priv = netdev_priv(dev);
-	int num_tc_x_num_ch;
-	int txq_ix;
-	int up = 0;
-	int ch_ix;
-
-	/* Sync with mlx5e_update_num_tc_x_num_ch - avoid refetching. */
-	num_tc_x_num_ch = READ_ONCE(priv->num_tc_x_num_ch);
-	if (unlikely(dev->real_num_tx_queues > num_tc_x_num_ch)) {
-		struct mlx5e_ptp *ptp_channel;
-
-		/* Order maj_id before defcls - pairs with mlx5e_htb_root_add. */
-		u16 htb_maj_id = smp_load_acquire(&priv->htb.maj_id);
-
-		if (unlikely(htb_maj_id)) {
-			txq_ix = mlx5e_select_htb_queue(priv, skb, htb_maj_id);
-			if (txq_ix > 0)
-				return txq_ix;
-		}
-
-		ptp_channel = READ_ONCE(priv->channels.ptp);
-		if (unlikely(ptp_channel &&
-			     test_bit(MLX5E_PTP_STATE_TX, ptp_channel->state) &&
-			     mlx5e_use_ptpsq(skb)))
-			return mlx5e_select_ptpsq(dev, skb);
-
-		txq_ix = netdev_pick_tx(dev, skb, NULL);
-		/* Fix netdev_pick_tx() not to choose ptp_channel and HTB txqs.
-		 * If they are selected, switch to regular queues.
-		 * Driver to select these queues only at mlx5e_select_ptpsq()
-		 * and mlx5e_select_htb_queue().
-		 */
-		if (unlikely(txq_ix >= num_tc_x_num_ch))
-			txq_ix %= num_tc_x_num_ch;
-	} else {
-		txq_ix = netdev_pick_tx(dev, skb, NULL);
-	}
-
-	if (!netdev_get_num_tc(dev))
-		return txq_ix;
-
-#ifdef CONFIG_MLX5_CORE_EN_DCB
-	if (priv->dcbx_dp.trust_state == MLX5_QPTS_TRUST_DSCP)
-		up = mlx5e_get_dscp_up(priv, skb);
-	else
-#endif
-		if (skb_vlan_tag_present(skb))
-			up = skb_vlan_tag_get_prio(skb);
-
-	/* Normalize any picked txq_ix to [0, num_channels),
-	 * So we can return a txq_ix that matches the channel and
-	 * packet UP.
-	 */
-	ch_ix = priv->txq2sq[txq_ix]->ch_ix;
-
-	return priv->channel_tc2realtxq[ch_ix][up];
 }
 
 static inline int mlx5e_skb_l2_header_offset(struct sk_buff *skb)
@@ -202,6 +92,13 @@ static inline u16 mlx5e_calc_min_inline(enum mlx5_inline_modes mode,
 	return min_t(u16, hlen, skb_headlen(skb));
 }
 
+#define MLX5_UNSAFE_MEMCPY_DISCLAIMER				\
+	"This copy has been bounds-checked earlier in "		\
+	"mlx5i_sq_calc_wqe_attr() and intentionally "		\
+	"crosses a flex array boundary. Since it is "		\
+	"performance sensitive, splitting the copy is "		\
+	"undesirable."
+
 static inline void mlx5e_insert_vlan(void *start, struct sk_buff *skb, u16 ihs)
 {
 	struct vlan_ethhdr *vhdr = (struct vlan_ethhdr *)start;
@@ -211,7 +108,10 @@ static inline void mlx5e_insert_vlan(void *start, struct sk_buff *skb, u16 ihs)
 	memcpy(&vhdr->addrs, skb->data, cpy1_sz);
 	vhdr->h_vlan_proto = skb->vlan_proto;
 	vhdr->h_vlan_TCI = cpu_to_be16(skb_vlan_tag_get(skb));
-	memcpy(&vhdr->h_vlan_encapsulated_proto, skb->data + cpy1_sz, cpy2_sz);
+	unsafe_memcpy(&vhdr->h_vlan_encapsulated_proto,
+		      skb->data + cpy1_sz,
+		      cpy2_sz,
+		      MLX5_UNSAFE_MEMCPY_DISCLAIMER);
 }
 
 static inline void
@@ -241,23 +141,32 @@ mlx5e_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		sq->stats->csum_none++;
 }
 
+/* Returns the number of header bytes that we plan
+ * to inline later in the transmit descriptor
+ */
 static inline u16
-mlx5e_tx_get_gso_ihs(struct mlx5e_txqsq *sq, struct sk_buff *skb)
+mlx5e_tx_get_gso_ihs(struct mlx5e_txqsq *sq, struct sk_buff *skb, int *hopbyhop)
 {
 	struct mlx5e_sq_stats *stats = sq->stats;
 	u16 ihs;
 
+	*hopbyhop = 0;
 	if (skb->encapsulation) {
 		ihs = skb_inner_transport_offset(skb) + inner_tcp_hdrlen(skb);
 		stats->tso_inner_packets++;
 		stats->tso_inner_bytes += skb->len - ihs;
 	} else {
-		if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
+		if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) {
 			ihs = skb_transport_offset(skb) + sizeof(struct udphdr);
-		else
+		} else {
 			ihs = skb_transport_offset(skb) + tcp_hdrlen(skb);
+			if (ipv6_has_hopopt_jumbo(skb)) {
+				*hopbyhop = sizeof(struct hop_jumbo_hdr);
+				ihs -= sizeof(struct hop_jumbo_hdr);
+			}
+		}
 		stats->tso_packets++;
-		stats->tso_bytes += skb->len - ihs;
+		stats->tso_bytes += skb->len - ihs - *hopbyhop;
 	}
 
 	return ihs;
@@ -319,6 +228,7 @@ struct mlx5e_tx_attr {
 	__be16 mss;
 	u16 insz;
 	u8 opcode;
+	u8 hopbyhop;
 };
 
 struct mlx5e_tx_wqe_attr {
@@ -355,14 +265,16 @@ static void mlx5e_sq_xmit_prepare(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	struct mlx5e_sq_stats *stats = sq->stats;
 
 	if (skb_is_gso(skb)) {
-		u16 ihs = mlx5e_tx_get_gso_ihs(sq, skb);
+		int hopbyhop;
+		u16 ihs = mlx5e_tx_get_gso_ihs(sq, skb, &hopbyhop);
 
 		*attr = (struct mlx5e_tx_attr) {
 			.opcode    = MLX5_OPCODE_LSO,
 			.mss       = cpu_to_be16(skb_shinfo(skb)->gso_size),
 			.ihs       = ihs,
 			.num_bytes = skb->len + (skb_shinfo(skb)->gso_segs - 1) * ihs,
-			.headlen   = skb_headlen(skb) - ihs,
+			.headlen   = skb_headlen(skb) - ihs - hopbyhop,
+			.hopbyhop  = hopbyhop,
 		};
 
 		stats->packets += skb_shinfo(skb)->gso_segs;
@@ -476,7 +388,8 @@ mlx5e_sq_xmit_wqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	struct mlx5_wqe_eth_seg  *eseg;
 	struct mlx5_wqe_data_seg *dseg;
 	struct mlx5e_tx_wqe_info *wi;
-
+	u16 ihs = attr->ihs;
+	struct ipv6hdr *h6;
 	struct mlx5e_sq_stats *stats = sq->stats;
 	int num_dma;
 
@@ -490,15 +403,40 @@ mlx5e_sq_xmit_wqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 
 	eseg->mss = attr->mss;
 
-	if (attr->ihs) {
-		if (skb_vlan_tag_present(skb)) {
-			eseg->inline_hdr.sz |= cpu_to_be16(attr->ihs + VLAN_HLEN);
-			mlx5e_insert_vlan(eseg->inline_hdr.start, skb, attr->ihs);
+	if (ihs) {
+		u8 *start = eseg->inline_hdr.start;
+
+		if (unlikely(attr->hopbyhop)) {
+			/* remove the HBH header.
+			 * Layout: [Ethernet header][IPv6 header][HBH][TCP header]
+			 */
+			if (skb_vlan_tag_present(skb)) {
+				mlx5e_insert_vlan(start, skb, ETH_HLEN + sizeof(*h6));
+				ihs += VLAN_HLEN;
+				h6 = (struct ipv6hdr *)(start + sizeof(struct vlan_ethhdr));
+			} else {
+				unsafe_memcpy(start, skb->data,
+					      ETH_HLEN + sizeof(*h6),
+					      MLX5_UNSAFE_MEMCPY_DISCLAIMER);
+				h6 = (struct ipv6hdr *)(start + ETH_HLEN);
+			}
+			h6->nexthdr = IPPROTO_TCP;
+			/* Copy the TCP header after the IPv6 one */
+			memcpy(h6 + 1,
+			       skb->data + ETH_HLEN + sizeof(*h6) +
+					sizeof(struct hop_jumbo_hdr),
+			       tcp_hdrlen(skb));
+			/* Leave ipv6 payload_len set to 0, as LSO v2 specs request. */
+		} else if (skb_vlan_tag_present(skb)) {
+			mlx5e_insert_vlan(start, skb, ihs);
+			ihs += VLAN_HLEN;
 			stats->added_vlan_packets++;
 		} else {
-			eseg->inline_hdr.sz |= cpu_to_be16(attr->ihs);
-			memcpy(eseg->inline_hdr.start, skb->data, attr->ihs);
+			unsafe_memcpy(eseg->inline_hdr.start, skb->data,
+				      attr->ihs,
+				      MLX5_UNSAFE_MEMCPY_DISCLAIMER);
 		}
+		eseg->inline_hdr.sz |= cpu_to_be16(ihs);
 		dseg += wqe_attr->ds_cnt_inl;
 	} else if (skb_vlan_tag_present(skb)) {
 		eseg->insert.type = cpu_to_be16(MLX5_ETH_WQE_INSERT_VLAN);
@@ -509,7 +447,7 @@ mlx5e_sq_xmit_wqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	}
 
 	dseg += wqe_attr->ds_cnt_ids;
-	num_dma = mlx5e_txwqe_build_dsegs(sq, skb, skb->data + attr->ihs,
+	num_dma = mlx5e_txwqe_build_dsegs(sq, skb, skb->data + attr->ihs + attr->hopbyhop,
 					  attr->headlen, dseg);
 	if (unlikely(num_dma < 0))
 		goto err_drop;
@@ -544,7 +482,7 @@ static void mlx5e_tx_mpwqe_session_start(struct mlx5e_txqsq *sq,
 	struct mlx5e_tx_wqe *wqe;
 	u16 pi;
 
-	pi = mlx5e_txqsq_get_next_pi(sq, MLX5E_TX_MPW_MAX_WQEBBS);
+	pi = mlx5e_txqsq_get_next_pi(sq, sq->max_sq_mpw_wqebbs);
 	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
 	net_prefetchw(wqe->data);
 
@@ -645,7 +583,7 @@ mlx5e_sq_xmit_mpwqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 
 	mlx5e_tx_skb_update_hwts_flags(skb);
 
-	if (unlikely(mlx5e_tx_mpwqe_is_full(&sq->mpwqe))) {
+	if (unlikely(mlx5e_tx_mpwqe_is_full(&sq->mpwqe, sq->max_sq_mpw_wqebbs))) {
 		/* Might stop the queue and affect the retval of __netdev_tx_sent_queue. */
 		cseg = mlx5e_tx_mpwqe_session_complete(sq);
 
@@ -691,8 +629,21 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct mlx5e_txqsq *sq;
 	u16 pi;
 
+	/* All changes to txq2sq are performed in sync with mlx5e_xmit, when the
+	 * queue being changed is disabled, and smp_wmb guarantees that the
+	 * changes are visible before mlx5e_xmit tries to read from txq2sq. It
+	 * guarantees that the value of txq2sq[qid] doesn't change while
+	 * mlx5e_xmit is running on queue number qid. smb_wmb is paired with
+	 * HARD_TX_LOCK around ndo_start_xmit, which serves as an ACQUIRE.
+	 */
 	sq = priv->txq2sq[skb_get_queue_mapping(skb)];
 	if (unlikely(!sq)) {
+		/* Two cases when sq can be NULL:
+		 * 1. The HTB node is registered, and mlx5e_select_queue
+		 * selected its queue ID, but the SQ itself is not yet created.
+		 * 2. HTB SQ creation failed. Similar to the previous case, but
+		 * the SQ won't be created.
+		 */
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
@@ -1016,12 +967,34 @@ void mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	eseg->mss = attr.mss;
 
 	if (attr.ihs) {
-		memcpy(eseg->inline_hdr.start, skb->data, attr.ihs);
+		if (unlikely(attr.hopbyhop)) {
+			struct ipv6hdr *h6;
+
+			/* remove the HBH header.
+			 * Layout: [Ethernet header][IPv6 header][HBH][TCP header]
+			 */
+			unsafe_memcpy(eseg->inline_hdr.start, skb->data,
+				      ETH_HLEN + sizeof(*h6),
+				      MLX5_UNSAFE_MEMCPY_DISCLAIMER);
+			h6 = (struct ipv6hdr *)((char *)eseg->inline_hdr.start + ETH_HLEN);
+			h6->nexthdr = IPPROTO_TCP;
+			/* Copy the TCP header after the IPv6 one */
+			unsafe_memcpy(h6 + 1,
+				      skb->data + ETH_HLEN + sizeof(*h6) +
+						  sizeof(struct hop_jumbo_hdr),
+				      tcp_hdrlen(skb),
+				      MLX5_UNSAFE_MEMCPY_DISCLAIMER);
+			/* Leave ipv6 payload_len set to 0, as LSO v2 specs request. */
+		} else {
+			unsafe_memcpy(eseg->inline_hdr.start, skb->data,
+				      attr.ihs,
+				      MLX5_UNSAFE_MEMCPY_DISCLAIMER);
+		}
 		eseg->inline_hdr.sz = cpu_to_be16(attr.ihs);
 		dseg += wqe_attr.ds_cnt_inl;
 	}
 
-	num_dma = mlx5e_txwqe_build_dsegs(sq, skb, skb->data + attr.ihs,
+	num_dma = mlx5e_txwqe_build_dsegs(sq, skb, skb->data + attr.ihs + attr.hopbyhop,
 					  attr.headlen, dseg);
 	if (unlikely(num_dma < 0))
 		goto err_drop;

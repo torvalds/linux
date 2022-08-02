@@ -1230,7 +1230,7 @@ int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
 	/*
 	 * Flip the polarity for the "CPU" end of a CODEC<->CODEC link
 	 */
-	inv_dai_fmt = snd_soc_daifmt_clock_provider_fliped(dai_fmt);
+	inv_dai_fmt = snd_soc_daifmt_clock_provider_flipped(dai_fmt);
 
 	for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
 		unsigned int fmt = dai_fmt;
@@ -2465,6 +2465,7 @@ struct snd_soc_dai *snd_soc_register_dai(struct snd_soc_component *component,
 	dev_dbg(dev, "ASoC: Registered DAI '%s'\n", dai->name);
 	return dai;
 }
+EXPORT_SYMBOL_GPL(snd_soc_register_dai);
 
 /**
  * snd_soc_unregister_dais - Unregister DAIs from the ASoC core
@@ -2496,7 +2497,7 @@ static int snd_soc_register_dais(struct snd_soc_component *component,
 
 	for (i = 0; i < count; i++) {
 		dai = snd_soc_register_dai(component, dai_drv + i, count == 1 &&
-					   !snd_soc_component_is_codec(component));
+					   !component->driver->non_legacy_dai_naming);
 		if (dai == NULL) {
 			ret = -ENOMEM;
 			goto err;
@@ -2585,6 +2586,11 @@ int snd_soc_component_initialize(struct snd_soc_component *component,
 
 	component->dev		= dev;
 	component->driver	= driver;
+
+#ifdef CONFIG_DEBUG_FS
+	if (!component->debugfs_prefix)
+		component->debugfs_prefix = driver->debugfs_prefix;
+#endif
 
 	return 0;
 }
@@ -2757,6 +2763,11 @@ int snd_soc_of_parse_audio_simple_widgets(struct snd_soc_card *card,
 			"ASoC: Property '%s' does not exist\n",	propname);
 		return -EINVAL;
 	}
+	if (!num_widgets) {
+		dev_err(card->dev, "ASoC: Property '%s's length is zero\n",
+			propname);
+		return -EINVAL;
+	}
 	if (num_widgets & 1) {
 		dev_err(card->dev,
 			"ASoC: Property '%s' length is not even\n", propname);
@@ -2764,11 +2775,6 @@ int snd_soc_of_parse_audio_simple_widgets(struct snd_soc_card *card,
 	}
 
 	num_widgets /= 2;
-	if (!num_widgets) {
-		dev_err(card->dev, "ASoC: Property '%s's length is zero\n",
-			propname);
-		return -EINVAL;
-	}
 
 	widgets = devm_kcalloc(card->dev, num_widgets, sizeof(*widgets),
 			       GFP_KERNEL);
@@ -3029,7 +3035,7 @@ int snd_soc_of_parse_aux_devs(struct snd_soc_card *card, const char *propname)
 }
 EXPORT_SYMBOL_GPL(snd_soc_of_parse_aux_devs);
 
-unsigned int snd_soc_daifmt_clock_provider_fliped(unsigned int dai_fmt)
+unsigned int snd_soc_daifmt_clock_provider_flipped(unsigned int dai_fmt)
 {
 	unsigned int inv_dai_fmt = dai_fmt & ~SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK;
 
@@ -3050,7 +3056,7 @@ unsigned int snd_soc_daifmt_clock_provider_fliped(unsigned int dai_fmt)
 
 	return inv_dai_fmt;
 }
-EXPORT_SYMBOL_GPL(snd_soc_daifmt_clock_provider_fliped);
+EXPORT_SYMBOL_GPL(snd_soc_daifmt_clock_provider_flipped);
 
 unsigned int snd_soc_daifmt_clock_provider_from_bitmap(unsigned int bit_frame)
 {
@@ -3233,7 +3239,7 @@ int snd_soc_get_dai_name(const struct of_phandle_args *args,
 	for_each_component(pos) {
 		struct device_node *component_of_node = soc_component_to_node(pos);
 
-		if (component_of_node != args->np)
+		if (component_of_node != args->np || !pos->num_dai)
 			continue;
 
 		ret = snd_soc_component_of_xlate_dai_name(pos, args, dai_name);
@@ -3388,6 +3394,86 @@ err:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_of_get_dai_link_codecs);
+
+/*
+ * snd_soc_of_put_dai_link_cpus - Dereference device nodes in the codecs array
+ * @dai_link: DAI link
+ *
+ * Dereference device nodes acquired by snd_soc_of_get_dai_link_cpus().
+ */
+void snd_soc_of_put_dai_link_cpus(struct snd_soc_dai_link *dai_link)
+{
+	struct snd_soc_dai_link_component *component;
+	int index;
+
+	for_each_link_cpus(dai_link, index, component) {
+		if (!component->of_node)
+			break;
+		of_node_put(component->of_node);
+		component->of_node = NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(snd_soc_of_put_dai_link_cpus);
+
+/*
+ * snd_soc_of_get_dai_link_cpus - Parse a list of CPU DAIs in the devicetree
+ * @dev: Card device
+ * @of_node: Device node
+ * @dai_link: DAI link
+ *
+ * Is analogous to snd_soc_of_get_dai_link_codecs but parses a list of CPU DAIs
+ * instead.
+ *
+ * Returns 0 for success
+ */
+int snd_soc_of_get_dai_link_cpus(struct device *dev,
+				 struct device_node *of_node,
+				 struct snd_soc_dai_link *dai_link)
+{
+	struct of_phandle_args args;
+	struct snd_soc_dai_link_component *component;
+	char *name;
+	int index, num_codecs, ret;
+
+	/* Count the number of CODECs */
+	name = "sound-dai";
+	num_codecs = of_count_phandle_with_args(of_node, name,
+						"#sound-dai-cells");
+	if (num_codecs <= 0) {
+		if (num_codecs == -ENOENT)
+			dev_err(dev, "No 'sound-dai' property\n");
+		else
+			dev_err(dev, "Bad phandle in 'sound-dai'\n");
+		return num_codecs;
+	}
+	component = devm_kcalloc(dev,
+				 num_codecs, sizeof(*component),
+				 GFP_KERNEL);
+	if (!component)
+		return -ENOMEM;
+	dai_link->cpus = component;
+	dai_link->num_cpus = num_codecs;
+
+	/* Parse the list */
+	for_each_link_cpus(dai_link, index, component) {
+		ret = of_parse_phandle_with_args(of_node, name,
+						 "#sound-dai-cells",
+						 index, &args);
+		if (ret)
+			goto err;
+		component->of_node = args.np;
+		ret = snd_soc_get_dai_name(&args, &component->dai_name);
+		if (ret < 0)
+			goto err;
+	}
+	return 0;
+err:
+	snd_soc_of_put_dai_link_codecs(dai_link);
+	dai_link->cpus = NULL;
+	dai_link->num_cpus = 0;
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_of_get_dai_link_cpus);
 
 static int __init snd_soc_init(void)
 {

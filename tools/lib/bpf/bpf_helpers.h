@@ -76,6 +76,30 @@
 #endif
 
 /*
+ * Compiler (optimization) barrier.
+ */
+#ifndef barrier
+#define barrier() asm volatile("" ::: "memory")
+#endif
+
+/* Variable-specific compiler (optimization) barrier. It's a no-op which makes
+ * compiler believe that there is some black box modification of a given
+ * variable and thus prevents compiler from making extra assumption about its
+ * value and potential simplifications and optimizations on this variable.
+ *
+ * E.g., compiler might often delay or even omit 32-bit to 64-bit casting of
+ * a variable, making some code patterns unverifiable. Putting barrier_var()
+ * in place will ensure that cast is performed before the barrier_var()
+ * invocation, because compiler has to pessimistically assume that embedded
+ * asm section might perform some extra operations on that variable.
+ *
+ * This is a variable-specific variant of more global barrier().
+ */
+#ifndef barrier_var
+#define barrier_var(var) asm volatile("" : "=r"(var) : "0"(var))
+#endif
+
+/*
  * Helper macro to throw a compilation error if __bpf_unreachable() gets
  * built into the resulting code. This works given BPF back end does not
  * implement __builtin_trap(). This is useful to assert that certain paths
@@ -133,7 +157,7 @@ struct bpf_map_def {
 	unsigned int value_size;
 	unsigned int max_entries;
 	unsigned int map_flags;
-};
+} __attribute__((deprecated("use BTF-defined maps in .maps section")));
 
 enum libbpf_pin_type {
 	LIBBPF_PIN_NONE,
@@ -149,6 +173,8 @@ enum libbpf_tristate {
 
 #define __kconfig __attribute__((section(".kconfig")))
 #define __ksym __attribute__((section(".ksyms")))
+#define __kptr __attribute__((btf_type_tag("kptr")))
+#define __kptr_ref __attribute__((btf_type_tag("kptr_ref")))
 
 #ifndef ___bpf_concat
 #define ___bpf_concat(a, b) a ## b

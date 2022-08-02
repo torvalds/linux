@@ -280,6 +280,82 @@ static void scsiback_free_translation_entry(struct kref *kref)
 	kfree(entry);
 }
 
+static int32_t scsiback_result(int32_t result)
+{
+	int32_t host_status;
+
+	switch (XEN_VSCSIIF_RSLT_HOST(result)) {
+	case DID_OK:
+		host_status = XEN_VSCSIIF_RSLT_HOST_OK;
+		break;
+	case DID_NO_CONNECT:
+		host_status = XEN_VSCSIIF_RSLT_HOST_NO_CONNECT;
+		break;
+	case DID_BUS_BUSY:
+		host_status = XEN_VSCSIIF_RSLT_HOST_BUS_BUSY;
+		break;
+	case DID_TIME_OUT:
+		host_status = XEN_VSCSIIF_RSLT_HOST_TIME_OUT;
+		break;
+	case DID_BAD_TARGET:
+		host_status = XEN_VSCSIIF_RSLT_HOST_BAD_TARGET;
+		break;
+	case DID_ABORT:
+		host_status = XEN_VSCSIIF_RSLT_HOST_ABORT;
+		break;
+	case DID_PARITY:
+		host_status = XEN_VSCSIIF_RSLT_HOST_PARITY;
+		break;
+	case DID_ERROR:
+		host_status = XEN_VSCSIIF_RSLT_HOST_ERROR;
+		break;
+	case DID_RESET:
+		host_status = XEN_VSCSIIF_RSLT_HOST_RESET;
+		break;
+	case DID_BAD_INTR:
+		host_status = XEN_VSCSIIF_RSLT_HOST_BAD_INTR;
+		break;
+	case DID_PASSTHROUGH:
+		host_status = XEN_VSCSIIF_RSLT_HOST_PASSTHROUGH;
+		break;
+	case DID_SOFT_ERROR:
+		host_status = XEN_VSCSIIF_RSLT_HOST_SOFT_ERROR;
+		break;
+	case DID_IMM_RETRY:
+		host_status = XEN_VSCSIIF_RSLT_HOST_IMM_RETRY;
+		break;
+	case DID_REQUEUE:
+		host_status = XEN_VSCSIIF_RSLT_HOST_REQUEUE;
+		break;
+	case DID_TRANSPORT_DISRUPTED:
+		host_status = XEN_VSCSIIF_RSLT_HOST_TRANSPORT_DISRUPTED;
+		break;
+	case DID_TRANSPORT_FAILFAST:
+		host_status = XEN_VSCSIIF_RSLT_HOST_TRANSPORT_FAILFAST;
+		break;
+	case DID_TARGET_FAILURE:
+		host_status = XEN_VSCSIIF_RSLT_HOST_TARGET_FAILURE;
+		break;
+	case DID_NEXUS_FAILURE:
+		host_status = XEN_VSCSIIF_RSLT_HOST_NEXUS_FAILURE;
+		break;
+	case DID_ALLOC_FAILURE:
+		host_status = XEN_VSCSIIF_RSLT_HOST_ALLOC_FAILURE;
+		break;
+	case DID_MEDIUM_ERROR:
+		host_status = XEN_VSCSIIF_RSLT_HOST_MEDIUM_ERROR;
+		break;
+	case DID_TRANSPORT_MARGINAL:
+		host_status = XEN_VSCSIIF_RSLT_HOST_TRANSPORT_MARGINAL;
+		break;
+	default:
+		host_status = XEN_VSCSIIF_RSLT_HOST_ERROR;
+		break;
+	}
+
+	return (host_status << 16) | (result & 0x00ffff);
+}
+
 static void scsiback_send_response(struct vscsibk_info *info,
 			char *sense_buffer, int32_t result, uint32_t resid,
 			uint16_t rqid)
@@ -295,7 +371,7 @@ static void scsiback_send_response(struct vscsibk_info *info,
 	ring_res = RING_GET_RESPONSE(&info->ring, info->ring.rsp_prod_pvt);
 	info->ring.rsp_prod_pvt++;
 
-	ring_res->rslt   = result;
+	ring_res->rslt   = scsiback_result(result);
 	ring_res->rqid   = rqid;
 
 	if (sense_buffer != NULL &&
@@ -555,7 +631,7 @@ static void scsiback_device_action(struct vscsibk_pend *pending_req,
 	struct scsiback_nexus *nexus = tpg->tpg_nexus;
 	struct se_cmd *se_cmd = &pending_req->se_cmd;
 	u64 unpacked_lun = pending_req->v2p->lun;
-	int rc, err = FAILED;
+	int rc, err = XEN_VSCSIIF_RSLT_RESET_FAILED;
 
 	init_completion(&pending_req->tmr_done);
 
@@ -569,7 +645,7 @@ static void scsiback_device_action(struct vscsibk_pend *pending_req,
 	wait_for_completion(&pending_req->tmr_done);
 
 	err = (se_cmd->se_tmr_req->response == TMR_FUNCTION_COMPLETE) ?
-		SUCCESS : FAILED;
+		XEN_VSCSIIF_RSLT_RESET_SUCCESS : XEN_VSCSIIF_RSLT_RESET_FAILED;
 
 	scsiback_do_resp_with_sense(NULL, err, 0, pending_req);
 	transport_generic_free_cmd(&pending_req->se_cmd, 0);

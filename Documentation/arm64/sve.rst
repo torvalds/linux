@@ -7,7 +7,9 @@ Author: Dave Martin <Dave.Martin@arm.com>
 Date:   4 August 2017
 
 This document outlines briefly the interface provided to userspace by Linux in
-order to support use of the ARM Scalable Vector Extension (SVE).
+order to support use of the ARM Scalable Vector Extension (SVE), including
+interactions with Streaming SVE mode added by the Scalable Matrix Extension
+(SME).
 
 This is an outline of the most important features and issues only and not
 intended to be exhaustive.
@@ -22,6 +24,10 @@ model features for SVE is included in Appendix A.
 
 * SVE registers Z0..Z31, P0..P15 and FFR and the current vector length VL, are
   tracked per-thread.
+
+* In streaming mode FFR is not accessible unless HWCAP2_SME_FA64 is present
+  in the system, when it is not supported and these interfaces are used to
+  access streaming mode FFR is read and written as zero.
 
 * The presence of SVE is reported to userspace via HWCAP_SVE in the aux vector
   AT_HWCAP entry.  Presence of this flag implies the presence of the SVE
@@ -53,10 +59,19 @@ model features for SVE is included in Appendix A.
   which userspace can read using an MRS instruction.  See elf_hwcaps.txt and
   cpu-feature-registers.txt for details.
 
+* On hardware that supports the SME extensions, HWCAP2_SME will also be
+  reported in the AT_HWCAP2 aux vector entry.  Among other things SME adds
+  streaming mode which provides a subset of the SVE feature set using a
+  separate SME vector length and the same Z/V registers.  See sme.rst
+  for more details.
+
 * Debuggers should restrict themselves to interacting with the target via the
   NT_ARM_SVE regset.  The recommended way of detecting support for this regset
   is to connect to a target process first and then attempt a
-  ptrace(PTRACE_GETREGSET, pid, NT_ARM_SVE, &iov).
+  ptrace(PTRACE_GETREGSET, pid, NT_ARM_SVE, &iov).  Note that when SME is
+  present and streaming SVE mode is in use the FPSIMD subset of registers
+  will be read via NT_ARM_SVE and NT_ARM_SVE writes will exit streaming mode
+  in the target.
 
 * Whenever SVE scalable register values (Zn, Pn, FFR) are exchanged in memory
   between userspace and the kernel, the register value is encoded in memory in
@@ -126,6 +141,11 @@ the SVE instruction set architecture.
   are only present in fpsimd_context.  For convenience, the content of V0..V31
   is duplicated between sve_context and fpsimd_context.
 
+* The record contains a flag field which includes a flag SVE_SIG_FLAG_SM which
+  if set indicates that the thread is in streaming mode and the vector length
+  and register data (if present) describe the streaming SVE data and vector
+  length.
+
 * The signal frame record for SVE always contains basic metadata, in particular
   the thread's vector length (in sve_context.vl).
 
@@ -169,6 +189,11 @@ When returning from a signal handler:
 * The vector length cannot be changed via signal return.  If sve_context.vl in
   the signal frame does not match the current vector length, the signal return
   attempt is treated as illegal, resulting in a forced SIGSEGV.
+
+* It is permitted to enter or leave streaming mode by setting or clearing
+  the SVE_SIG_FLAG_SM flag but applications should take care to ensure that
+  when doing so sve_context.vl and any register data are appropriate for the
+  vector length in the new mode.
 
 
 6.  prctl extensions
@@ -265,8 +290,14 @@ prctl(PR_SVE_GET_VL)
 7.  ptrace extensions
 ---------------------
 
-* A new regset NT_ARM_SVE is defined for use with PTRACE_GETREGSET and
-  PTRACE_SETREGSET.
+* New regsets NT_ARM_SVE and NT_ARM_SSVE are defined for use with
+  PTRACE_GETREGSET and PTRACE_SETREGSET. NT_ARM_SSVE describes the
+  streaming mode SVE registers and NT_ARM_SVE describes the
+  non-streaming mode SVE registers.
+
+  In this description a register set is referred to as being "live" when
+  the target is in the appropriate streaming or non-streaming mode and is
+  using data beyond the subset shared with the FPSIMD Vn registers.
 
   Refer to [2] for definitions.
 
@@ -297,7 +328,7 @@ The regset data starts with struct user_sve_header, containing:
 
     flags
 
-	either
+	at most one of
 
 	    SVE_PT_REGS_FPSIMD
 
@@ -331,6 +362,10 @@ The regset data starts with struct user_sve_header, containing:
 
 	    SVE_PT_VL_ONEXEC (SETREGSET only).
 
+	If neither FPSIMD nor SVE flags are provided then no register
+	payload is available, this is only possible when SME is implemented.
+
+
 * The effects of changing the vector length and/or flags are equivalent to
   those documented for PR_SVE_SET_VL.
 
@@ -346,6 +381,13 @@ The regset data starts with struct user_sve_header, containing:
   case only the vector length and flags are changed (along with any
   consequences of those changes).
 
+* In systems supporting SME when in streaming mode a GETREGSET for
+  NT_REG_SVE will return only the user_sve_header with no register data,
+  similarly a GETREGSET for NT_REG_SSVE will not return any register data
+  when not in streaming mode.
+
+* A GETREGSET for NT_ARM_SSVE will never return SVE_PT_REGS_FPSIMD.
+
 * For SETREGSET, if an SVE_PT_REGS_SVE payload is present and the
   requested VL is not supported, the effect will be the same as if the
   payload were omitted, except that an EIO error is reported.  No
@@ -355,17 +397,25 @@ The regset data starts with struct user_sve_header, containing:
   unspecified.  It is up to the caller to translate the payload layout
   for the actual VL and retry.
 
+* Where SME is implemented it is not possible to GETREGSET the register
+  state for normal SVE when in streaming mode, nor the streaming mode
+  register state when in normal mode, regardless of the implementation defined
+  behaviour of the hardware for sharing data between the two modes.
+
+* Any SETREGSET of NT_ARM_SVE will exit streaming mode if the target was in
+  streaming mode and any SETREGSET of NT_ARM_SSVE will enter streaming mode
+  if the target was not in streaming mode.
+
 * The effect of writing a partial, incomplete payload is unspecified.
 
 
 8.  ELF coredump extensions
 ---------------------------
 
-* A NT_ARM_SVE note will be added to each coredump for each thread of the
-  dumped process.  The contents will be equivalent to the data that would have
-  been read if a PTRACE_GETREGSET of NT_ARM_SVE were executed for each thread
-  when the coredump was generated.
-
+* NT_ARM_SVE and NT_ARM_SSVE notes will be added to each coredump for
+  each thread of the dumped process.  The contents will be equivalent to the
+  data that would have been read if a PTRACE_GETREGSET of the corresponding
+  type were executed for each thread when the coredump was generated.
 
 9.  System runtime configuration
 --------------------------------

@@ -10,6 +10,7 @@
 #include <linux/ipv6.h>
 #include <net/checksum.h>
 #include <linux/printk.h>
+#include <linux/jiffies.h>
 
 #include "qlcnic.h"
 
@@ -332,7 +333,7 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	hlist_for_each_entry_safe(tmp_fil, n, head, fnode) {
 		if (ether_addr_equal(tmp_fil->faddr, (u8 *)&src_addr) &&
 		    tmp_fil->vlan_id == vlan_id) {
-			if (jiffies > (QLCNIC_READD_AGE * HZ + tmp_fil->ftime))
+			if (time_is_before_jiffies(QLCNIC_READD_AGE * HZ + tmp_fil->ftime))
 				qlcnic_change_filter(adapter, &src_addr,
 						     vlan_id, tx_ring);
 			tmp_fil->ftime = jiffies;
@@ -1607,8 +1608,8 @@ int qlcnic_82xx_napi_add(struct qlcnic_adapter *adapter,
 	if (qlcnic_check_multi_tx(adapter) && !adapter->ahw->diag_test) {
 		for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
 			tx_ring = &adapter->tx_ring[ring];
-			netif_tx_napi_add(netdev, &tx_ring->napi, qlcnic_tx_poll,
-				       NAPI_POLL_WEIGHT);
+			netif_napi_add_tx(netdev, &tx_ring->napi,
+					  qlcnic_tx_poll);
 		}
 	}
 
@@ -2137,9 +2138,8 @@ int qlcnic_83xx_napi_add(struct qlcnic_adapter *adapter,
 	    !(adapter->flags & QLCNIC_TX_INTR_SHARED)) {
 		for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
 			tx_ring = &adapter->tx_ring[ring];
-			netif_tx_napi_add(netdev, &tx_ring->napi,
-				       qlcnic_83xx_msix_tx_poll,
-				       NAPI_POLL_WEIGHT);
+			netif_napi_add_tx(netdev, &tx_ring->napi,
+					  qlcnic_83xx_msix_tx_poll);
 		}
 	}
 

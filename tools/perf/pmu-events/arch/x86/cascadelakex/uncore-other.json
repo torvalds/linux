@@ -17,6 +17,16 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "LLC misses - Uncacheable reads (from cpu) ",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS",
+        "Filter": "config1=0x40e33",
+        "PerPkg": "1",
+        "UMask": "0x21",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "MMIO reads. Derived from unc_cha_tor_inserts.ia_miss",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
@@ -27,10 +37,30 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "MMIO reads",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS",
+        "Filter": "config1=0x40040e33",
+        "PerPkg": "1",
+        "UMask": "0x21",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "MMIO writes. Derived from unc_cha_tor_inserts.ia_miss",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "LLC_MISSES.MMIO_WRITE",
+        "Filter": "config1=0x40041e33",
+        "PerPkg": "1",
+        "UMask": "0x21",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "MMIO writes",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS",
         "Filter": "config1=0x40041e33",
         "PerPkg": "1",
         "UMask": "0x21",
@@ -48,10 +78,32 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "Streaming stores (full cache line)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS",
+        "Filter": "config1=0x41833",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x21",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "Streaming stores (partial cache line). Derived from unc_cha_tor_inserts.ia_miss",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "LLC_REFERENCES.STREAMING_PARTIAL",
+        "Filter": "config1=0x41a33",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x21",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Streaming stores (partial cache line)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS",
         "Filter": "config1=0x41a33",
         "PerPkg": "1",
         "ScaleUnit": "64Bytes",
@@ -108,6 +160,16 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x2",
         "EventName": "UPI_DATA_BANDWIDTH_TX",
+        "PerPkg": "1",
+        "ScaleUnit": "7.11E-06Bytes",
+        "UMask": "0xf",
+        "Unit": "UPI LL"
+    },
+    {
+        "BriefDescription": "UPI interconnect send bandwidth for payload",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_UPI_TxL_FLITS.ALL_DATA",
         "PerPkg": "1",
         "ScaleUnit": "7.11E-06Bytes",
         "UMask": "0xf",
@@ -177,6 +239,21 @@
         "Unit": "IIO"
     },
     {
+        "BriefDescription": "PCI Express bandwidth writing at IIO",
+        "Counter": "0,1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART0",
+        "FCMask": "0x07",
+        "Filter": "ch_mask=0x1f",
+        "MetricExpr": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART0 + UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART1 + UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART2 + UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART3",
+        "MetricName": "LLC_MISSES.PCIE_WRITE",
+        "PerPkg": "1",
+        "PortMask": "0x01",
+        "ScaleUnit": "4Bytes",
+        "UMask": "0x01",
+        "Unit": "IIO"
+    },
+    {
         "BriefDescription": "PCI Express bandwidth reading at IIO, part 0",
         "Counter": "0,1",
         "EventCode": "0x83",
@@ -229,6 +306,21 @@
         "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "LLC_MISSES.PCIE_READ",
+        "FCMask": "0x07",
+        "Filter": "ch_mask=0x1f",
+        "MetricExpr": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART0 + UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART1 + UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART2 + UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART3",
+        "MetricName": "LLC_MISSES.PCIE_READ",
+        "PerPkg": "1",
+        "PortMask": "0x01",
+        "ScaleUnit": "4Bytes",
+        "UMask": "0x04",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCI Express bandwidth reading at IIO",
+        "Counter": "0,1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART0",
         "FCMask": "0x07",
         "Filter": "ch_mask=0x1f",
         "MetricExpr": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART0 + UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART1 + UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART2 + UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART3",
@@ -514,7 +606,7 @@
         "EventCode": "0x5C",
         "EventName": "UNC_CHA_SNOOP_RESP.RSP_FWD_WB",
         "PerPkg": "1",
-        "PublicDescription": "Counts when a transaction with the opcode type Rsp*Fwd*WB Snoop Response was received which indicates the data was written back to it's home socket, and the cacheline was forwarded to the requestor socket.  This snoop response is only used in >= 4 socket systems.  It is used when a snoop HITM's in a remote caching agent and it directly forwards data to a requestor, and simultaneously returns data to it's home socket to be written back to memory.",
+        "PublicDescription": "Counts when a transaction with the opcode type Rsp*Fwd*WB Snoop Response was received which indicates the data was written back to its home socket, and the cacheline was forwarded to the requestor socket.  This snoop response is only used in >= 4 socket systems.  It is used when a snoop HITM's in a remote caching agent and it directly forwards data to a requestor, and simultaneously returns data to its home socket to be written back to memory.",
         "UMask": "0x20",
         "Unit": "CHA"
     },
@@ -524,7 +616,7 @@
         "EventCode": "0x5C",
         "EventName": "UNC_CHA_SNOOP_RESP.RSP_WBWB",
         "PerPkg": "1",
-        "PublicDescription": "Counts when a transaction with the opcode type Rsp*WB Snoop Response was received which indicates which indicates the data was written back to it's home.  This is returned when a non-RFO request hits a cacheline in the Modified state. The Cache can either downgrade the cacheline to a S (Shared) or I (Invalid) state depending on how the system has been configured.  This reponse will also be sent when a cache requests E (Exclusive) ownership of a cache line without receiving data, because the cache must acquire ownership.",
+        "PublicDescription": "Counts when a transaction with the opcode type Rsp*WB Snoop Response was received which indicates which indicates the data was written back to its home.  This is returned when a non-RFO request hits a cacheline in the Modified state. The Cache can either downgrade the cacheline to a S (Shared) or I (Invalid) state depending on how the system has been configured.  This response will also be sent when a cache requests E (Exclusive) ownership of a cache line without receiving data, because the cache must acquire ownership.",
         "UMask": "0x10",
         "Unit": "CHA"
     },
@@ -556,6 +648,18 @@
         "EventName": "UNC_IIO_CLOCKTICKS",
         "PerPkg": "1",
         "PublicDescription": "Counts clockticks of the 1GHz trafiic controller clock in the IIO unit.",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Inserts of completions with data: Part 0-3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC2",
+        "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.ALL_PARTS",
+        "FCMask": "0x4",
+        "PerPkg": "1",
+        "PortMask": "0x0f",
+        "PublicDescription": "PCIe Completion Buffer Inserts of completions with data: Part 0-3",
+        "UMask": "0x03",
         "Unit": "IIO"
     },
     {
@@ -604,6 +708,17 @@
         "PortMask": "0x08",
         "PublicDescription": "PCIe Completion Buffer Inserts of completions with data: Part 3",
         "UMask": "0x03",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer occupancy of completions with data: Part 0-3",
+        "Counter": "2,3",
+        "EventCode": "0xD5",
+        "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.ALL_PARTS",
+        "FCMask": "0x04",
+        "PerPkg": "1",
+        "PublicDescription": "PCIe Completion Buffer occupancy of completions with data: Part 0-3",
+        "UMask": "0x0f",
         "Unit": "IIO"
     },
     {

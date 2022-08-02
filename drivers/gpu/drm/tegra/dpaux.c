@@ -18,8 +18,8 @@
 #include <linux/reset.h>
 #include <linux/workqueue.h>
 
-#include <drm/drm_dp_helper.h>
-#include <drm/drm_dp_aux_bus.h>
+#include <drm/display/drm_dp_helper.h>
+#include <drm/display/drm_dp_aux_bus.h>
 #include <drm/drm_panel.h>
 
 #include "dp.h"
@@ -280,7 +280,6 @@ static void tegra_dpaux_hotplug(struct work_struct *work)
 static irqreturn_t tegra_dpaux_irq(int irq, void *data)
 {
 	struct tegra_dpaux *dpaux = data;
-	irqreturn_t ret = IRQ_HANDLED;
 	u32 value;
 
 	/* clear interrupts */
@@ -297,7 +296,7 @@ static irqreturn_t tegra_dpaux_irq(int irq, void *data)
 	if (value & DPAUX_INTR_AUX_DONE)
 		complete(&dpaux->complete);
 
-	return ret;
+	return IRQ_HANDLED;
 }
 
 enum tegra_dpaux_functions {

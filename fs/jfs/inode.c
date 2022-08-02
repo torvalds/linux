@@ -146,12 +146,13 @@ void jfs_evict_inode(struct inode *inode)
 		dquot_initialize(inode);
 
 		if (JFS_IP(inode)->fileset == FILESYSTEM_I) {
+			struct inode *ipimap = JFS_SBI(inode->i_sb)->ipimap;
 			truncate_inode_pages_final(&inode->i_data);
 
 			if (test_cflag(COMMIT_Freewmap, inode))
 				jfs_free_zero_link(inode);
 
-			if (JFS_SBI(inode->i_sb)->ipimap)
+			if (ipimap && JFS_IP(ipimap)->i_imap)
 				diFree(inode);
 
 			/*
@@ -223,18 +224,9 @@ int jfs_get_block(struct inode *ip, sector_t lblock,
 				 * this as a hole
 				 */
 				goto unlock;
-#ifdef _JFS_4K
 			XADoffset(&xad, lblock64);
 			XADlength(&xad, xlen);
 			XADaddress(&xad, xaddr);
-#else				/* _JFS_4K */
-			/*
-			 * As long as block size = 4K, this isn't a problem.
-			 * We should mark the whole page not ABNR, but how
-			 * will we know to mark the other blocks BH_New?
-			 */
-			BUG();
-#endif				/* _JFS_4K */
 			rc = extRecord(ip, &xad);
 			if (rc)
 				goto unlock;
@@ -251,7 +243,6 @@ int jfs_get_block(struct inode *ip, sector_t lblock,
 	/*
 	 * Allocate a new block
 	 */
-#ifdef _JFS_4K
 	if ((rc = extHint(ip, lblock64 << ip->i_sb->s_blocksize_bits, &xad)))
 		goto unlock;
 	rc = extAlloc(ip, xlen, lblock64, &xad, false);
@@ -261,14 +252,6 @@ int jfs_get_block(struct inode *ip, sector_t lblock,
 	set_buffer_new(bh_result);
 	map_bh(bh_result, ip->i_sb, addressXAD(&xad));
 	bh_result->b_size = lengthXAD(&xad) << ip->i_blkbits;
-
-#else				/* _JFS_4K */
-	/*
-	 * We need to do whatever it takes to keep all but the last buffers
-	 * in 4K pages - see jfs_write.c
-	 */
-	BUG();
-#endif				/* _JFS_4K */
 
       unlock:
 	/*
@@ -292,9 +275,9 @@ static int jfs_writepages(struct address_space *mapping,
 	return mpage_writepages(mapping, wbc, jfs_get_block);
 }
 
-static int jfs_readpage(struct file *file, struct page *page)
+static int jfs_read_folio(struct file *file, struct folio *folio)
 {
-	return mpage_readpage(page, jfs_get_block);
+	return mpage_read_folio(folio, jfs_get_block);
 }
 
 static void jfs_readahead(struct readahead_control *rac)
@@ -313,13 +296,12 @@ static void jfs_write_failed(struct address_space *mapping, loff_t to)
 }
 
 static int jfs_write_begin(struct file *file, struct address_space *mapping,
-				loff_t pos, unsigned len, unsigned flags,
+				loff_t pos, unsigned len,
 				struct page **pagep, void **fsdata)
 {
 	int ret;
 
-	ret = nobh_write_begin(mapping, pos, len, flags, pagep, fsdata,
-				jfs_get_block);
+	ret = nobh_write_begin(mapping, pos, len, pagep, fsdata, jfs_get_block);
 	if (unlikely(ret))
 		jfs_write_failed(mapping, pos + len);
 
@@ -357,8 +339,9 @@ static ssize_t jfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 }
 
 const struct address_space_operations jfs_aops = {
-	.set_page_dirty	= __set_page_dirty_buffers,
-	.readpage	= jfs_readpage,
+	.dirty_folio	= block_dirty_folio,
+	.invalidate_folio = block_invalidate_folio,
+	.read_folio	= jfs_read_folio,
 	.readahead	= jfs_readahead,
 	.writepage	= jfs_writepage,
 	.writepages	= jfs_writepages,

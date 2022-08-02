@@ -86,7 +86,7 @@ static void serial8250_early_out(struct uart_port *port, int offset, int value)
 
 #define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
 
-static void serial_putc(struct uart_port *port, int c)
+static void serial_putc(struct uart_port *port, unsigned char c)
 {
 	unsigned int status;
 

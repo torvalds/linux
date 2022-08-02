@@ -6,7 +6,7 @@
  */
 
 #include <linux/net_tstamp.h>
-#include <linux/phy.h>
+#include <linux/phylink.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
@@ -380,11 +380,9 @@ static int am65_cpsw_ethtool_op_begin(struct net_device *ndev)
 	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
 	int ret;
 
-	ret = pm_runtime_get_sync(common->dev);
-	if (ret < 0) {
+	ret = pm_runtime_resume_and_get(common->dev);
+	if (ret < 0)
 		dev_err(common->dev, "ethtool begin failed %d\n", ret);
-		pm_runtime_put_noidle(common->dev);
-	}
 
 	return ret;
 }
@@ -471,9 +469,7 @@ static void am65_cpsw_get_pauseparam(struct net_device *ndev,
 {
 	struct am65_cpsw_slave_data *salve = am65_ndev_to_slave(ndev);
 
-	pause->autoneg = AUTONEG_DISABLE;
-	pause->rx_pause = salve->rx_pause ? true : false;
-	pause->tx_pause = salve->tx_pause ? true : false;
+	phylink_ethtool_get_pauseparam(salve->phylink, pause);
 }
 
 static int am65_cpsw_set_pauseparam(struct net_device *ndev,
@@ -481,18 +477,7 @@ static int am65_cpsw_set_pauseparam(struct net_device *ndev,
 {
 	struct am65_cpsw_slave_data *salve = am65_ndev_to_slave(ndev);
 
-	if (!salve->phy)
-		return -EINVAL;
-
-	if (!phy_validate_pause(salve->phy, pause))
-		return -EINVAL;
-
-	salve->rx_pause = pause->rx_pause ? true : false;
-	salve->tx_pause = pause->tx_pause ? true : false;
-
-	phy_set_asym_pause(salve->phy, salve->rx_pause, salve->tx_pause);
-
-	return 0;
+	return phylink_ethtool_set_pauseparam(salve->phylink, pause);
 }
 
 static void am65_cpsw_get_wol(struct net_device *ndev,
@@ -500,11 +485,7 @@ static void am65_cpsw_get_wol(struct net_device *ndev,
 {
 	struct am65_cpsw_slave_data *salve = am65_ndev_to_slave(ndev);
 
-	wol->supported = 0;
-	wol->wolopts = 0;
-
-	if (salve->phy)
-		phy_ethtool_get_wol(salve->phy, wol);
+	phylink_ethtool_get_wol(salve->phylink, wol);
 }
 
 static int am65_cpsw_set_wol(struct net_device *ndev,
@@ -512,10 +493,7 @@ static int am65_cpsw_set_wol(struct net_device *ndev,
 {
 	struct am65_cpsw_slave_data *salve = am65_ndev_to_slave(ndev);
 
-	if (!salve->phy)
-		return -EOPNOTSUPP;
-
-	return phy_ethtool_set_wol(salve->phy, wol);
+	return phylink_ethtool_set_wol(salve->phylink, wol);
 }
 
 static int am65_cpsw_get_link_ksettings(struct net_device *ndev,
@@ -523,11 +501,7 @@ static int am65_cpsw_get_link_ksettings(struct net_device *ndev,
 {
 	struct am65_cpsw_slave_data *salve = am65_ndev_to_slave(ndev);
 
-	if (!salve->phy)
-		return -EOPNOTSUPP;
-
-	phy_ethtool_ksettings_get(salve->phy, ecmd);
-	return 0;
+	return phylink_ethtool_ksettings_get(salve->phylink, ecmd);
 }
 
 static int
@@ -536,40 +510,28 @@ am65_cpsw_set_link_ksettings(struct net_device *ndev,
 {
 	struct am65_cpsw_slave_data *salve = am65_ndev_to_slave(ndev);
 
-	if (!salve->phy || phy_is_pseudo_fixed_link(salve->phy))
-		return -EOPNOTSUPP;
-
-	return phy_ethtool_ksettings_set(salve->phy, ecmd);
+	return phylink_ethtool_ksettings_set(salve->phylink, ecmd);
 }
 
 static int am65_cpsw_get_eee(struct net_device *ndev, struct ethtool_eee *edata)
 {
 	struct am65_cpsw_slave_data *salve = am65_ndev_to_slave(ndev);
 
-	if (!salve->phy || phy_is_pseudo_fixed_link(salve->phy))
-		return -EOPNOTSUPP;
-
-	return phy_ethtool_get_eee(salve->phy, edata);
+	return phylink_ethtool_get_eee(salve->phylink, edata);
 }
 
 static int am65_cpsw_set_eee(struct net_device *ndev, struct ethtool_eee *edata)
 {
 	struct am65_cpsw_slave_data *salve = am65_ndev_to_slave(ndev);
 
-	if (!salve->phy || phy_is_pseudo_fixed_link(salve->phy))
-		return -EOPNOTSUPP;
-
-	return phy_ethtool_set_eee(salve->phy, edata);
+	return phylink_ethtool_set_eee(salve->phylink, edata);
 }
 
 static int am65_cpsw_nway_reset(struct net_device *ndev)
 {
 	struct am65_cpsw_slave_data *salve = am65_ndev_to_slave(ndev);
 
-	if (!salve->phy || phy_is_pseudo_fixed_link(salve->phy))
-		return -EOPNOTSUPP;
-
-	return phy_restart_aneg(salve->phy);
+	return phylink_ethtool_nway_reset(salve->phylink);
 }
 
 static int am65_cpsw_get_regs_len(struct net_device *ndev)

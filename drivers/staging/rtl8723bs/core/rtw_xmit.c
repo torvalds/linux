@@ -449,10 +449,7 @@ static void update_attrib_phy_info(struct adapter *padapter, struct pkt_attrib *
 
 	pattrib->raid = psta->raid;
 
-	if (mlmeext->cur_bwmode < psta->bw_mode)
-		pattrib->bwmode = mlmeext->cur_bwmode;
-	else
-		pattrib->bwmode = psta->bw_mode;
+	pattrib->bwmode = min(mlmeext->cur_bwmode, psta->bw_mode);
 
 	pattrib->sgi = query_ra_short_GI(psta);
 

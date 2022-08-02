@@ -1773,7 +1773,7 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 
 	/*
 	 * Only call invalidate_inode_pages2() after removing
-	 * FUSE_NOWRITE, otherwise fuse_launder_page() would deadlock.
+	 * FUSE_NOWRITE, otherwise fuse_launder_folio() would deadlock.
 	 */
 	if ((is_truncate || !is_wb) &&
 	    S_ISREG(inode->i_mode) && oldsize != outarg.attr.size) {
@@ -1957,20 +1957,20 @@ void fuse_init_dir(struct inode *inode)
 	fi->rdc.version = 0;
 }
 
-static int fuse_symlink_readpage(struct file *null, struct page *page)
+static int fuse_symlink_read_folio(struct file *null, struct folio *folio)
 {
-	int err = fuse_readlink_page(page->mapping->host, page);
+	int err = fuse_readlink_page(folio->mapping->host, &folio->page);
 
 	if (!err)
-		SetPageUptodate(page);
+		folio_mark_uptodate(folio);
 
-	unlock_page(page);
+	folio_unlock(folio);
 
 	return err;
 }
 
 static const struct address_space_operations fuse_symlink_aops = {
-	.readpage	= fuse_symlink_readpage,
+	.read_folio	= fuse_symlink_read_folio,
 };
 
 void fuse_init_symlink(struct inode *inode)

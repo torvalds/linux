@@ -176,7 +176,7 @@ static int geminilake_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 	ret = snd_soc_card_jack_new(rtd->card, "Headset Jack",
 			SND_JACK_HEADSET | SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 			SND_JACK_BTN_2 | SND_JACK_BTN_3 | SND_JACK_LINEOUT,
-			&ctx->geminilake_headset, NULL, 0);
+			&ctx->geminilake_headset);
 	if (ret) {
 		dev_err(rtd->dev, "Headset Jack creation failed: %d\n", ret);
 		return ret;
@@ -571,8 +571,7 @@ static int glk_card_late_probe(struct snd_soc_card *card)
 		snprintf(jack_name, sizeof(jack_name),
 			"HDMI/DP, pcm=%d Jack", pcm->device);
 		err = snd_soc_card_jack_new(card, jack_name,
-					SND_JACK_AVOUT, &geminilake_hdmi[i],
-					NULL, 0);
+					SND_JACK_AVOUT, &geminilake_hdmi[i]);
 
 		if (err)
 			return err;
@@ -638,7 +637,7 @@ static int geminilake_audio_probe(struct platform_device *pdev)
 	card->dev = &pdev->dev;
 	snd_soc_card_set_drvdata(card, ctx);
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	mach = pdev->dev.platform_data;
 	platform_name = mach->mach_params.platform;
 

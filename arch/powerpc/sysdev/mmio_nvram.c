@@ -10,12 +10,12 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/of_address.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
 #include <asm/machdep.h>
 #include <asm/nvram.h>
-#include <asm/prom.h>
 
 static void __iomem *mmio_nvram_start;
 static long mmio_nvram_len;

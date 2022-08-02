@@ -220,7 +220,7 @@ static ssize_t stm32_dac_write_powerdown(struct iio_dev *indio_dev,
 	bool powerdown;
 	int ret;
 
-	ret = strtobool(buf, &powerdown);
+	ret = kstrtobool(buf, &powerdown);
 	if (ret)
 		return ret;
 
@@ -372,7 +372,7 @@ static int stm32_dac_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused stm32_dac_suspend(struct device *dev)
+static int stm32_dac_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	int channel = indio_dev->channels[0].channel;
@@ -386,9 +386,8 @@ static int __maybe_unused stm32_dac_suspend(struct device *dev)
 	return pm_runtime_force_suspend(dev);
 }
 
-static const struct dev_pm_ops stm32_dac_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(stm32_dac_suspend, pm_runtime_force_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(stm32_dac_pm_ops, stm32_dac_suspend,
+				pm_runtime_force_resume);
 
 static const struct of_device_id stm32_dac_of_match[] = {
 	{ .compatible = "st,stm32-dac", },
@@ -402,7 +401,7 @@ static struct platform_driver stm32_dac_driver = {
 	.driver = {
 		.name = "stm32-dac",
 		.of_match_table = stm32_dac_of_match,
-		.pm = &stm32_dac_pm_ops,
+		.pm = pm_sleep_ptr(&stm32_dac_pm_ops),
 	},
 };
 module_platform_driver(stm32_dac_driver);

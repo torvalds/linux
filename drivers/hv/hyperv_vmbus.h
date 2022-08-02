@@ -181,7 +181,7 @@ void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info);
 
 int hv_ringbuffer_write(struct vmbus_channel *channel,
 			const struct kvec *kv_list, u32 kv_count,
-			u64 requestid);
+			u64 requestid, u64 *trans_id);
 
 int hv_ringbuffer_read(struct vmbus_channel *channel,
 		       void *buffer, u32 buflen, u32 *buffer_actual_len,
@@ -405,7 +405,7 @@ static inline bool hv_is_perf_channel(struct vmbus_channel *channel)
 	return vmbus_devs[channel->device_id].perf_device;
 }
 
-static inline bool hv_is_alloced_cpu(unsigned int cpu)
+static inline bool hv_is_allocated_cpu(unsigned int cpu)
 {
 	struct vmbus_channel *channel, *sc;
 
@@ -427,23 +427,23 @@ static inline bool hv_is_alloced_cpu(unsigned int cpu)
 	return false;
 }
 
-static inline void hv_set_alloced_cpu(unsigned int cpu)
+static inline void hv_set_allocated_cpu(unsigned int cpu)
 {
 	cpumask_set_cpu(cpu, &hv_context.hv_numa_map[cpu_to_node(cpu)]);
 }
 
-static inline void hv_clear_alloced_cpu(unsigned int cpu)
+static inline void hv_clear_allocated_cpu(unsigned int cpu)
 {
-	if (hv_is_alloced_cpu(cpu))
+	if (hv_is_allocated_cpu(cpu))
 		return;
 	cpumask_clear_cpu(cpu, &hv_context.hv_numa_map[cpu_to_node(cpu)]);
 }
 
-static inline void hv_update_alloced_cpus(unsigned int old_cpu,
+static inline void hv_update_allocated_cpus(unsigned int old_cpu,
 					  unsigned int new_cpu)
 {
-	hv_set_alloced_cpu(new_cpu);
-	hv_clear_alloced_cpu(old_cpu);
+	hv_set_allocated_cpu(new_cpu);
+	hv_clear_allocated_cpu(old_cpu);
 }
 
 #ifdef CONFIG_HYPERV_TESTING

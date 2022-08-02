@@ -47,7 +47,7 @@
 };
 
 &pinctrl_0 {
-	max98090_irq: max98090-irq {
+	max98090_irq: max98090-irq-pins {
 		samsung,pins = "gpx0-4";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;

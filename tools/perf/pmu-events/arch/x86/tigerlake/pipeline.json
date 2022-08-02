@@ -12,6 +12,17 @@
         "UMask": "0x9"
     },
     {
+        "BriefDescription": "Number of occurrences where a microcode assist is invoked by hardware.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc1",
+        "EventName": "ASSISTS.ANY",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "PublicDescription": "Counts the number of occurrences where a microcode assist is invoked by hardware Examples include AD (page Access Dirty), FP and AVX related assists.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x7"
+    },
+    {
         "BriefDescription": "All branch instructions retired.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
@@ -71,14 +82,14 @@
         "UMask": "0x40"
     },
     {
-        "BriefDescription": "All indirect branch instructions retired (excluding RETs. TSX aborts are considered indirect branch).",
+        "BriefDescription": "Indirect near branch instructions retired (excluding returns)",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.INDIRECT",
         "PEBS": "1",
         "PEBScounters": "0,1,2,3,4,5,6,7",
-        "PublicDescription": "Counts all indirect branch instructions retired (excluding RETs. TSX aborts is considered indirect branch).",
+        "PublicDescription": "Counts near indirect branch instructions retired excluding returns. TSX abort is an indirect branch.",
         "SampleAfterValue": "100003",
         "UMask": "0x80"
     },
@@ -443,6 +454,17 @@
         "UMask": "0x1"
     },
     {
+        "BriefDescription": "Instruction decoders utilized in a cycle",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x55",
+        "EventName": "INST_DECODED.DECODERS",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Number of decoders utilized in a cycle when the MITE (legacy decode pipeline) fetches instructions.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
+    },
+    {
         "BriefDescription": "Number of instructions retired. Fixed Counter - architectural event",
         "CollectPEBSRecord": "2",
         "Counter": "Fixed counter 0",
@@ -463,6 +485,17 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts the number of X86 instructions retired - an Architectural PerfMon event. Counting continues during hardware interrupts, traps, and inside interrupt handlers. Notes: INST_RETIRED.ANY is counted by a designated fixed counter freeing up programmable counters to count other events. INST_RETIRED.ANY_P is counted by a programmable counter.",
         "SampleAfterValue": "2000003"
+    },
+    {
+        "BriefDescription": "Number of all retired NOP instructions.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc0",
+        "EventName": "INST_RETIRED.NOP",
+        "PEBS": "1",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x2"
     },
     {
         "BriefDescription": "Precise instruction retired event with a reduced effect of PEBS shadow in IP distribution",
@@ -687,6 +720,60 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts end of periods where the Reservation Station (RS) was empty. Could be useful to closely sample on front-end latency issues (see the FRONTEND_RETIRED event of designated precise events)",
         "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "TMA slots where no uops were being issued due to lack of back-end resources.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xa4",
+        "EventName": "TOPDOWN.BACKEND_BOUND_SLOTS",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "PublicDescription": "Counts the number of Top-down Microarchitecture Analysis (TMA) method's  slots where no micro-operations were being issued from front-end to back-end of the machine due to lack of back-end resources.",
+        "SampleAfterValue": "10000003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "TMA slots wasted due to incorrect speculation by branch mispredictions",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xa4",
+        "EventName": "TOPDOWN.BR_MISPREDICT_SLOTS",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "PublicDescription": "Number of TMA slots that were wasted due to incorrect speculation by branch mispredictions. This event estimates number of operations that were issued but not retired from the specualtive path as well as the out-of-order engine recovery past a branch misprediction.",
+        "SampleAfterValue": "10000003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "TMA slots available for an unhalted logical processor. Fixed counter - architectural event",
+        "CollectPEBSRecord": "2",
+        "Counter": "Fixed counter 3",
+        "EventName": "TOPDOWN.SLOTS",
+        "PEBScounters": "35",
+        "PublicDescription": "Number of available slots for an unhalted logical processor. The event increments by machine-width of the narrowest pipeline as employed by the Top-down Microarchitecture Analysis method (TMA). The count is distributed among unhalted logical processors (hyper-threads) who share the same physical core. Software can use this event as the denominator for the top-level metrics of the TMA method. This architectural event is counted on a designated fixed counter (Fixed Counter 3).",
+        "SampleAfterValue": "10000003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "TMA slots available for an unhalted logical processor. General counter - architectural event",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xa4",
+        "EventName": "TOPDOWN.SLOTS_P",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "PublicDescription": "Counts the number of available slots for an unhalted logical processor. The event increments by machine-width of the narrowest pipeline as employed by the Top-down Microarchitecture Analysis method. The count is distributed among unhalted logical processors (hyper-threads) who share the same physical core.",
+        "SampleAfterValue": "10000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Number of uops decoded out of instructions exclusively fetched by decoder 0",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x56",
+        "EventName": "UOPS_DECODED.DEC0",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Uops exclusively fetched by decoder 0",
+        "SampleAfterValue": "1000003",
         "UMask": "0x1"
     },
     {

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -934,7 +934,6 @@ struct iwl_mvm {
 	unsigned long fw_key_table[BITS_TO_LONGS(STA_KEY_MAX_NUM)];
 	u8 fw_key_deleted[STA_KEY_MAX_NUM];
 
-	u8 vif_count;
 	struct ieee80211_vif __rcu *vif_id_to_mac[NUM_MAC_INDEX_DRIVER];
 
 	/* -1 for always, 0 for never, >0 for that many times */
@@ -1064,7 +1063,6 @@ struct iwl_mvm {
 
 
 	u32 ciphers[IWL_MVM_NUM_CIPHERS];
-	struct ieee80211_cipher_scheme cs[IWL_UCODE_MAX_CS];
 
 	struct cfg80211_ftm_responder_stats ftm_resp_stats;
 	struct {
@@ -1086,7 +1084,6 @@ struct iwl_mvm {
 	} cmd_ver;
 
 	struct ieee80211_vif *nan_vif;
-#define IWL_MAX_BAID	32
 	struct iwl_mvm_baid_data __rcu *baid_map[IWL_MAX_BAID];
 
 	/*
@@ -1106,6 +1103,8 @@ struct iwl_mvm {
 
 	unsigned long last_6ghz_passive_scan_jiffies;
 	unsigned long last_reset_or_resume_time_jiffies;
+
+	bool sta_remove_requires_queue_remove;
 };
 
 /* Extract MVM priv from op_mode and _hw */
@@ -1671,6 +1670,8 @@ void iwl_mvm_rx_missed_vap_notif(struct iwl_mvm *mvm,
 				 struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_channel_switch_start_notif(struct iwl_mvm *mvm,
 					struct iwl_rx_cmd_buffer *rxb);
+void iwl_mvm_channel_switch_error_notif(struct iwl_mvm *mvm,
+					struct iwl_rx_cmd_buffer *rxb);
 /* Bindings */
 int iwl_mvm_binding_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_binding_remove_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
@@ -1932,10 +1933,6 @@ static inline u32 iwl_mvm_flushable_queues(struct iwl_mvm *mvm)
 
 void iwl_mvm_stop_device(struct iwl_mvm *mvm);
 
-/* Re-configure the SCD for a queue that has already been configured */
-int iwl_mvm_reconfig_scd(struct iwl_mvm *mvm, int queue, int fifo, int sta_id,
-			 int tid, int frame_limit, u16 ssn);
-
 /* Thermal management and CT-kill */
 void iwl_mvm_tt_tx_backoff(struct iwl_mvm *mvm, u32 backoff);
 void iwl_mvm_temp_notif(struct iwl_mvm *mvm,
@@ -2085,6 +2082,8 @@ void iwl_mvm_sta_add_debugfs(struct ieee80211_hw *hw,
 int iwl_rfi_send_config_cmd(struct iwl_mvm *mvm,
 			    struct iwl_rfi_lut_entry *rfi_table);
 struct iwl_rfi_freq_table_resp_cmd *iwl_rfi_get_freq_table(struct iwl_mvm *mvm);
+void iwl_rfi_deactivate_notif_handler(struct iwl_mvm *mvm,
+				      struct iwl_rx_cmd_buffer *rxb);
 
 static inline u8 iwl_mvm_phy_band_from_nl80211(enum nl80211_band band)
 {
@@ -2159,8 +2158,7 @@ iwl_mvm_set_chan_info_chandef(struct iwl_mvm *mvm,
 
 static inline int iwl_umac_scan_get_max_profiles(const struct iwl_fw *fw)
 {
-	u8 ver = iwl_fw_lookup_cmd_ver(fw, IWL_ALWAYS_LONG_GROUP,
-				       SCAN_OFFLOAD_UPDATE_PROFILES_CMD,
+	u8 ver = iwl_fw_lookup_cmd_ver(fw, SCAN_OFFLOAD_UPDATE_PROFILES_CMD,
 				       IWL_FW_CMD_VER_UNKNOWN);
 	return (ver == IWL_FW_CMD_VER_UNKNOWN || ver < 3) ?
 		IWL_SCAN_MAX_PROFILES : IWL_SCAN_MAX_PROFILES_V2;

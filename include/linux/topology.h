@@ -211,6 +211,9 @@ static inline int cpu_to_mem(int cpu)
 #ifndef topology_drawer_id
 #define topology_drawer_id(cpu)			((void)(cpu), -1)
 #endif
+#ifndef topology_ppin
+#define topology_ppin(cpu)			((void)(cpu), 0ull)
+#endif
 #ifndef topology_sibling_cpumask
 #define topology_sibling_cpumask(cpu)		cpumask_of(cpu)
 #endif
@@ -234,13 +237,6 @@ static inline int cpu_to_mem(int cpu)
 static inline const struct cpumask *cpu_smt_mask(int cpu)
 {
 	return topology_sibling_cpumask(cpu);
-}
-#endif
-
-#if defined(CONFIG_SCHED_CLUSTER) && !defined(cpu_cluster_mask)
-static inline const struct cpumask *cpu_cluster_mask(int cpu)
-{
-	return topology_cluster_cpumask(cpu);
 }
 #endif
 

@@ -22,6 +22,7 @@ properties:
       - qcom,pmi8994-wled
       - qcom,pmi8998-wled
       - qcom,pm660l-wled
+      - qcom,pm6150l-wled
       - qcom,pm8150l-wled
 
   reg:
@@ -80,7 +81,7 @@ properties:
     description: |
       kHz; switching frequency.
     $ref: /schemas/types.yaml#/definitions/uint32
-    enum: [ 600, 640, 685, 738, 800, 872, 960, 1066, 1200, 1371, 1600, 1920, 
+    enum: [ 600, 640, 685, 738, 800, 872, 960, 1066, 1200, 1371, 1600, 1920,
             2400, 3200, 4800, 9600 ]
 
   qcom,ovp:

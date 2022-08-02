@@ -65,7 +65,7 @@ extern const int phy_basic_ports_array[3];
 extern const int phy_fibre_port_array[1];
 extern const int phy_all_ports_features_array[7];
 extern const int phy_10_100_features_array[4];
-extern const int phy_basic_t1_features_array[2];
+extern const int phy_basic_t1_features_array[3];
 extern const int phy_gbit_features_array[2];
 extern const int phy_10gbit_features_array[1];
 
@@ -570,7 +570,12 @@ struct macsec_ops;
  * @autoneg_complete: Flag auto negotiation of the link has completed
  * @mdix: Current crossover
  * @mdix_ctrl: User setting of crossover
+ * @pma_extable: Cached value of PMA/PMD Extended Abilities Register
  * @interrupts: Flag interrupts have been enabled
+ * @irq_suspended: Flag indicating PHY is suspended and therefore interrupt
+ *                 handling shall be postponed until PHY has resumed
+ * @irq_rerun: Flag indicating interrupts occurred while PHY was suspended,
+ *             requiring a rerun of the interrupt handler after resume
  * @interface: enum phy_interface_t value
  * @skb: Netlink message for cable diagnostics
  * @nest: Netlink nest used for cable diagnostics
@@ -625,6 +630,8 @@ struct phy_device {
 
 	/* Interrupts are enabled */
 	unsigned interrupts:1;
+	unsigned irq_suspended:1;
+	unsigned irq_rerun:1;
 
 	enum phy_state state;
 
@@ -697,6 +704,8 @@ struct phy_device {
 
 	u8 mdix;
 	u8 mdix_ctrl;
+
+	int pma_extable;
 
 	void (*phy_link_change)(struct phy_device *phydev, bool up);
 	void (*adjust_link)(struct net_device *dev);
@@ -1578,6 +1587,7 @@ int genphy_update_link(struct phy_device *phydev);
 int genphy_read_lpa(struct phy_device *phydev);
 int genphy_read_status_fixed(struct phy_device *phydev);
 int genphy_read_status(struct phy_device *phydev);
+int genphy_read_master_slave(struct phy_device *phydev);
 int genphy_suspend(struct phy_device *phydev);
 int genphy_resume(struct phy_device *phydev);
 int genphy_loopback(struct phy_device *phydev, bool enable);
@@ -1610,11 +1620,14 @@ int genphy_c45_read_link(struct phy_device *phydev);
 int genphy_c45_read_lpa(struct phy_device *phydev);
 int genphy_c45_read_pma(struct phy_device *phydev);
 int genphy_c45_pma_setup_forced(struct phy_device *phydev);
+int genphy_c45_pma_baset1_setup_master_slave(struct phy_device *phydev);
 int genphy_c45_an_config_aneg(struct phy_device *phydev);
 int genphy_c45_an_disable_aneg(struct phy_device *phydev);
 int genphy_c45_read_mdix(struct phy_device *phydev);
 int genphy_c45_pma_read_abilities(struct phy_device *phydev);
+int genphy_c45_pma_baset1_read_master_slave(struct phy_device *phydev);
 int genphy_c45_read_status(struct phy_device *phydev);
+int genphy_c45_baset1_read_status(struct phy_device *phydev);
 int genphy_c45_config_aneg(struct phy_device *phydev);
 int genphy_c45_loopback(struct phy_device *phydev, bool enable);
 int genphy_c45_pma_resume(struct phy_device *phydev);
@@ -1661,7 +1674,7 @@ int phy_disable_interrupts(struct phy_device *phydev);
 void phy_request_interrupt(struct phy_device *phydev);
 void phy_free_interrupt(struct phy_device *phydev);
 void phy_print_status(struct phy_device *phydev);
-int phy_set_max_speed(struct phy_device *phydev, u32 max_speed);
+void phy_set_max_speed(struct phy_device *phydev, u32 max_speed);
 void phy_remove_link_mode(struct phy_device *phydev, u32 link_mode);
 void phy_advertise_supported(struct phy_device *phydev);
 void phy_support_sym_pause(struct phy_device *phydev);

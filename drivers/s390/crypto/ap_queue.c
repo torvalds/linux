@@ -99,7 +99,7 @@ int ap_recv(ap_qid_t qid, unsigned long long *psmid, void *msg, size_t length)
 {
 	struct ap_queue_status status;
 
-	if (msg == NULL)
+	if (!msg)
 		return -EINVAL;
 	status = ap_dqap(qid, psmid, msg, length, NULL, NULL);
 	switch (status.response_code) {
@@ -455,7 +455,8 @@ static ap_func_t *ap_jumptable[NR_AP_SM_STATES][NR_AP_SM_EVENTS] = {
 
 enum ap_sm_wait ap_sm_event(struct ap_queue *aq, enum ap_sm_event event)
 {
-	if (aq->dev_state > AP_DEV_STATE_UNINITIATED)
+	if (aq->config && !aq->chkstop &&
+	    aq->dev_state > AP_DEV_STATE_UNINITIATED)
 		return ap_jumptable[aq->sm_state][event](aq);
 	else
 		return AP_SM_WAIT_NONE;
@@ -602,7 +603,7 @@ static ssize_t interrupt_show(struct device *dev,
 static DEVICE_ATTR_RO(interrupt);
 
 static ssize_t config_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
+			   struct device_attribute *attr, char *buf)
 {
 	struct ap_queue *aq = to_ap_queue(dev);
 	int rc;
@@ -614,6 +615,20 @@ static ssize_t config_show(struct device *dev,
 }
 
 static DEVICE_ATTR_RO(config);
+
+static ssize_t chkstop_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+	int rc;
+
+	spin_lock_bh(&aq->lock);
+	rc = scnprintf(buf, PAGE_SIZE, "%d\n", aq->chkstop ? 1 : 0);
+	spin_unlock_bh(&aq->lock);
+	return rc;
+}
+
+static DEVICE_ATTR_RO(chkstop);
 
 #ifdef CONFIG_ZCRYPT_DEBUG
 static ssize_t states_show(struct device *dev,
@@ -729,6 +744,7 @@ static struct attribute *ap_queue_dev_attrs[] = {
 	&dev_attr_reset.attr,
 	&dev_attr_interrupt.attr,
 	&dev_attr_config.attr,
+	&dev_attr_chkstop.attr,
 #ifdef CONFIG_ZCRYPT_DEBUG
 	&dev_attr_states.attr,
 	&dev_attr_last_err_rc.attr,
@@ -811,8 +827,9 @@ int ap_queue_message(struct ap_queue *aq, struct ap_message *ap_msg)
 		aq->requestq_count++;
 		aq->total_request_count++;
 		atomic64_inc(&aq->card->total_request_count);
-	} else
+	} else {
 		rc = -ENODEV;
+	}
 
 	/* Send/receive as many request from the queue as possible. */
 	ap_wait(ap_sm_event_loop(aq, AP_SM_EVENT_POLL));
@@ -915,6 +932,7 @@ void ap_queue_init_state(struct ap_queue *aq)
 	spin_lock_bh(&aq->lock);
 	aq->dev_state = AP_DEV_STATE_OPERATING;
 	aq->sm_state = AP_SM_STATE_RESET_START;
+	aq->last_err_rc = 0;
 	ap_wait(ap_sm_event(aq, AP_SM_EVENT_POLL));
 	spin_unlock_bh(&aq->lock);
 }

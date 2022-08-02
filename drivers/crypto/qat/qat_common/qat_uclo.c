@@ -387,7 +387,9 @@ static int qat_uclo_init_ustore(struct icp_qat_fw_loader_handle *handle,
 	page = image->page;
 
 	for_each_set_bit(ae, &ae_mask, handle->hal_handle->ae_max_num) {
-		if (!test_bit(ae, (unsigned long *)&uof_image->ae_assigned))
+		unsigned long ae_assigned = uof_image->ae_assigned;
+
+		if (!test_bit(ae, &ae_assigned))
 			continue;
 
 		if (!test_bit(ae, &cfg_ae_mask))
@@ -517,7 +519,7 @@ qat_uclo_map_chunk(char *buf, struct icp_qat_uof_filehdr *file_hdr,
 	return NULL;
 }
 
-static unsigned int
+static int
 qat_uclo_check_image_compat(struct icp_qat_uof_encap_obj *encap_uof_obj,
 			    struct icp_qat_uof_image *image)
 {
@@ -664,8 +666,9 @@ static int qat_uclo_map_ae(struct icp_qat_fw_loader_handle *handle, int max_ae)
 			continue;
 
 		for (i = 0; i < obj_handle->uimage_num; i++) {
-			if (!test_bit(ae, (unsigned long *)
-			&obj_handle->ae_uimage[i].img_ptr->ae_assigned))
+			unsigned long ae_assigned = obj_handle->ae_uimage[i].img_ptr->ae_assigned;
+
+			if (!test_bit(ae, &ae_assigned))
 				continue;
 			mflag = 1;
 			if (qat_uclo_init_ae_data(obj_handle, ae, i))
@@ -728,6 +731,7 @@ qat_uclo_get_dev_type(struct icp_qat_fw_loader_handle *handle)
 	case PCI_DEVICE_ID_INTEL_QAT_C3XXX:
 		return ICP_QAT_AC_C3XXX_DEV_TYPE;
 	case ADF_4XXX_PCI_DEVICE_ID:
+	case ADF_401XX_PCI_DEVICE_ID:
 		return ICP_QAT_AC_4XXX_A_DEV_TYPE;
 	default:
 		pr_err("QAT: unsupported device 0x%x\n",

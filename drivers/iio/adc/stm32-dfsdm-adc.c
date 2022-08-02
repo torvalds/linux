@@ -466,8 +466,7 @@ static int stm32_dfsdm_channels_configure(struct iio_dev *indio_dev,
 	 * In continuous mode, use fast mode configuration,
 	 * if it provides a better resolution.
 	 */
-	if (adc->nconv == 1 && !trig &&
-	    (indio_dev->currentmode & INDIO_BUFFER_SOFTWARE)) {
+	if (adc->nconv == 1 && !trig && iio_buffer_enabled(indio_dev)) {
 		if (fl->flo[1].res >= fl->flo[0].res) {
 			fl->fast = 1;
 			flo = &fl->flo[1];
@@ -562,7 +561,7 @@ static int stm32_dfsdm_filter_configure(struct iio_dev *indio_dev,
 		cr1 = DFSDM_CR1_RCH(chan->channel);
 
 		/* Continuous conversions triggered by SPI clk in buffer mode */
-		if (indio_dev->currentmode & INDIO_BUFFER_SOFTWARE)
+		if (iio_buffer_enabled(indio_dev))
 			cr1 |= DFSDM_CR1_RCONT(1);
 
 		cr1 |= DFSDM_CR1_RSYNC(fl->sync_mode);
@@ -1632,7 +1631,7 @@ static int stm32_dfsdm_adc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused stm32_dfsdm_adc_suspend(struct device *dev)
+static int stm32_dfsdm_adc_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 
@@ -1642,7 +1641,7 @@ static int __maybe_unused stm32_dfsdm_adc_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused stm32_dfsdm_adc_resume(struct device *dev)
+static int stm32_dfsdm_adc_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
@@ -1665,14 +1664,15 @@ static int __maybe_unused stm32_dfsdm_adc_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(stm32_dfsdm_adc_pm_ops,
-			 stm32_dfsdm_adc_suspend, stm32_dfsdm_adc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(stm32_dfsdm_adc_pm_ops,
+				stm32_dfsdm_adc_suspend,
+				stm32_dfsdm_adc_resume);
 
 static struct platform_driver stm32_dfsdm_adc_driver = {
 	.driver = {
 		.name = "stm32-dfsdm-adc",
 		.of_match_table = stm32_dfsdm_adc_match,
-		.pm = &stm32_dfsdm_adc_pm_ops,
+		.pm = pm_sleep_ptr(&stm32_dfsdm_adc_pm_ops),
 	},
 	.probe = stm32_dfsdm_adc_probe,
 	.remove = stm32_dfsdm_adc_remove,

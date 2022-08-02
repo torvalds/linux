@@ -356,15 +356,21 @@ svc_pool_map_set_cpumask(struct task_struct *task, unsigned int pidx)
 	}
 }
 
-/*
- * Use the mapping mode to choose a pool for a given CPU.
- * Used when enqueueing an incoming RPC.  Always returns
- * a non-NULL pool pointer.
+/**
+ * svc_pool_for_cpu - Select pool to run a thread on this cpu
+ * @serv: An RPC service
+ *
+ * Use the active CPU and the svc_pool_map's mode setting to
+ * select the svc thread pool to use. Once initialized, the
+ * svc_pool_map does not change.
+ *
+ * Return value:
+ *   A pointer to an svc_pool
  */
-struct svc_pool *
-svc_pool_for_cpu(struct svc_serv *serv, int cpu)
+struct svc_pool *svc_pool_for_cpu(struct svc_serv *serv)
 {
 	struct svc_pool_map *m = &svc_pool_map;
+	int cpu = raw_smp_processor_id();
 	unsigned int pidx = 0;
 
 	if (serv->sv_nrpools <= 1)
@@ -448,7 +454,7 @@ __svc_init_bc(struct svc_serv *serv)
  */
 static struct svc_serv *
 __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
-	     const struct svc_serv_ops *ops)
+	     int (*threadfn)(void *data))
 {
 	struct svc_serv	*serv;
 	unsigned int vers;
@@ -465,7 +471,7 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 		bufsize = RPCSVC_MAXPAYLOAD;
 	serv->sv_max_payload = bufsize? bufsize : 4096;
 	serv->sv_max_mesg  = roundup(serv->sv_max_payload + PAGE_SIZE, PAGE_SIZE);
-	serv->sv_ops = ops;
+	serv->sv_threadfn = threadfn;
 	xdrsize = 0;
 	while (prog) {
 		prog->pg_lovers = prog->pg_nvers-1;
@@ -511,22 +517,37 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 	return serv;
 }
 
-struct svc_serv *
-svc_create(struct svc_program *prog, unsigned int bufsize,
-	   const struct svc_serv_ops *ops)
+/**
+ * svc_create - Create an RPC service
+ * @prog: the RPC program the new service will handle
+ * @bufsize: maximum message size for @prog
+ * @threadfn: a function to service RPC requests for @prog
+ *
+ * Returns an instantiated struct svc_serv object or NULL.
+ */
+struct svc_serv *svc_create(struct svc_program *prog, unsigned int bufsize,
+			    int (*threadfn)(void *data))
 {
-	return __svc_create(prog, bufsize, /*npools*/1, ops);
+	return __svc_create(prog, bufsize, 1, threadfn);
 }
 EXPORT_SYMBOL_GPL(svc_create);
 
-struct svc_serv *
-svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
-		  const struct svc_serv_ops *ops)
+/**
+ * svc_create_pooled - Create an RPC service with pooled threads
+ * @prog: the RPC program the new service will handle
+ * @bufsize: maximum message size for @prog
+ * @threadfn: a function to service RPC requests for @prog
+ *
+ * Returns an instantiated struct svc_serv object or NULL.
+ */
+struct svc_serv *svc_create_pooled(struct svc_program *prog,
+				   unsigned int bufsize,
+				   int (*threadfn)(void *data))
 {
 	struct svc_serv *serv;
 	unsigned int npools = svc_pool_map_get();
 
-	serv = __svc_create(prog, bufsize, npools, ops);
+	serv = __svc_create(prog, bufsize, npools, threadfn);
 	if (!serv)
 		goto out_err;
 	return serv;
@@ -535,15 +556,6 @@ out_err:
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(svc_create_pooled);
-
-void svc_shutdown_net(struct svc_serv *serv, struct net *net)
-{
-	svc_close_net(serv, net);
-
-	if (serv->sv_ops->svo_shutdown)
-		serv->sv_ops->svo_shutdown(serv, net);
-}
-EXPORT_SYMBOL_GPL(svc_shutdown_net);
 
 /*
  * Destroy an RPC service. Should be called with appropriate locking to
@@ -745,11 +757,9 @@ svc_start_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 		if (IS_ERR(rqstp))
 			return PTR_ERR(rqstp);
 
-		__module_get(serv->sv_ops->svo_module);
-		task = kthread_create_on_node(serv->sv_ops->svo_function, rqstp,
+		task = kthread_create_on_node(serv->sv_threadfn, rqstp,
 					      node, "%s", serv->sv_name);
 		if (IS_ERR(task)) {
-			module_put(serv->sv_ops->svo_module);
 			svc_exit_thread(rqstp);
 			return PTR_ERR(task);
 		}
@@ -1234,10 +1244,10 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 		goto err_short_len;
 
 	/* Will be turned off by GSS integrity and privacy services */
-	set_bit(RQ_SPLICE_OK, &rqstp->rq_flags);
+	__set_bit(RQ_SPLICE_OK, &rqstp->rq_flags);
 	/* Will be turned off only when NFSv4 Sessions are used */
-	set_bit(RQ_USEDEFERRAL, &rqstp->rq_flags);
-	clear_bit(RQ_DROPME, &rqstp->rq_flags);
+	__set_bit(RQ_USEDEFERRAL, &rqstp->rq_flags);
+	__clear_bit(RQ_DROPME, &rqstp->rq_flags);
 
 	svc_putu32(resv, rqstp->rq_xid);
 
@@ -1355,7 +1365,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	svc_authorise(rqstp);
 close_xprt:
 	if (rqstp->rq_xprt && test_bit(XPT_TEMP, &rqstp->rq_xprt->xpt_flags))
-		svc_close_xprt(rqstp->rq_xprt);
+		svc_xprt_close(rqstp->rq_xprt);
 	dprintk("svc: svc_process close\n");
 	return 0;
 

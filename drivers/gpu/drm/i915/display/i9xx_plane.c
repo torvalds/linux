@@ -125,7 +125,7 @@ static struct intel_fbc *i9xx_plane_fbc(struct drm_i915_private *dev_priv,
 					enum i9xx_plane_id i9xx_plane)
 {
 	if (i9xx_plane_has_fbc(dev_priv, i9xx_plane))
-		return dev_priv->fbc;
+		return dev_priv->fbc[INTEL_FBC_A];
 	else
 		return NULL;
 }
@@ -155,51 +155,51 @@ static u32 i9xx_plane_ctl(const struct intel_crtc_state *crtc_state,
 	unsigned int rotation = plane_state->hw.rotation;
 	u32 dspcntr;
 
-	dspcntr = DISPLAY_PLANE_ENABLE;
+	dspcntr = DISP_ENABLE;
 
 	if (IS_G4X(dev_priv) || IS_IRONLAKE(dev_priv) ||
 	    IS_SANDYBRIDGE(dev_priv) || IS_IVYBRIDGE(dev_priv))
-		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
+		dspcntr |= DISP_TRICKLE_FEED_DISABLE;
 
 	switch (fb->format->format) {
 	case DRM_FORMAT_C8:
-		dspcntr |= DISPPLANE_8BPP;
+		dspcntr |= DISP_FORMAT_8BPP;
 		break;
 	case DRM_FORMAT_XRGB1555:
-		dspcntr |= DISPPLANE_BGRX555;
+		dspcntr |= DISP_FORMAT_BGRX555;
 		break;
 	case DRM_FORMAT_ARGB1555:
-		dspcntr |= DISPPLANE_BGRA555;
+		dspcntr |= DISP_FORMAT_BGRA555;
 		break;
 	case DRM_FORMAT_RGB565:
-		dspcntr |= DISPPLANE_BGRX565;
+		dspcntr |= DISP_FORMAT_BGRX565;
 		break;
 	case DRM_FORMAT_XRGB8888:
-		dspcntr |= DISPPLANE_BGRX888;
+		dspcntr |= DISP_FORMAT_BGRX888;
 		break;
 	case DRM_FORMAT_XBGR8888:
-		dspcntr |= DISPPLANE_RGBX888;
+		dspcntr |= DISP_FORMAT_RGBX888;
 		break;
 	case DRM_FORMAT_ARGB8888:
-		dspcntr |= DISPPLANE_BGRA888;
+		dspcntr |= DISP_FORMAT_BGRA888;
 		break;
 	case DRM_FORMAT_ABGR8888:
-		dspcntr |= DISPPLANE_RGBA888;
+		dspcntr |= DISP_FORMAT_RGBA888;
 		break;
 	case DRM_FORMAT_XRGB2101010:
-		dspcntr |= DISPPLANE_BGRX101010;
+		dspcntr |= DISP_FORMAT_BGRX101010;
 		break;
 	case DRM_FORMAT_XBGR2101010:
-		dspcntr |= DISPPLANE_RGBX101010;
+		dspcntr |= DISP_FORMAT_RGBX101010;
 		break;
 	case DRM_FORMAT_ARGB2101010:
-		dspcntr |= DISPPLANE_BGRA101010;
+		dspcntr |= DISP_FORMAT_BGRA101010;
 		break;
 	case DRM_FORMAT_ABGR2101010:
-		dspcntr |= DISPPLANE_RGBA101010;
+		dspcntr |= DISP_FORMAT_RGBA101010;
 		break;
 	case DRM_FORMAT_XBGR16161616F:
-		dspcntr |= DISPPLANE_RGBX161616;
+		dspcntr |= DISP_FORMAT_RGBX161616;
 		break;
 	default:
 		MISSING_CASE(fb->format->format);
@@ -208,13 +208,13 @@ static u32 i9xx_plane_ctl(const struct intel_crtc_state *crtc_state,
 
 	if (DISPLAY_VER(dev_priv) >= 4 &&
 	    fb->modifier == I915_FORMAT_MOD_X_TILED)
-		dspcntr |= DISPPLANE_TILED;
+		dspcntr |= DISP_TILED;
 
 	if (rotation & DRM_MODE_ROTATE_180)
-		dspcntr |= DISPPLANE_ROTATE_180;
+		dspcntr |= DISP_ROTATE_180;
 
 	if (rotation & DRM_MODE_REFLECT_X)
-		dspcntr |= DISPPLANE_MIRROR;
+		dspcntr |= DISP_MIRROR;
 
 	return dspcntr;
 }
@@ -354,13 +354,13 @@ static u32 i9xx_plane_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	u32 dspcntr = 0;
 
 	if (crtc_state->gamma_enable)
-		dspcntr |= DISPPLANE_GAMMA_ENABLE;
+		dspcntr |= DISP_PIPE_GAMMA_ENABLE;
 
 	if (crtc_state->csc_enable)
-		dspcntr |= DISPPLANE_PIPE_CSC_ENABLE;
+		dspcntr |= DISP_PIPE_CSC_ENABLE;
 
 	if (DISPLAY_VER(dev_priv) < 5)
-		dspcntr |= DISPPLANE_SEL_PIPE(crtc->pipe);
+		dspcntr |= DISP_PIPE_SEL(crtc->pipe);
 
 	return dspcntr;
 }
@@ -418,9 +418,6 @@ static void i9xx_plane_update_noarm(struct intel_plane *plane,
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
-	unsigned long irqflags;
-
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	intel_de_write_fw(dev_priv, DSPSTRIDE(i9xx_plane),
 			  plane_state->view.color_plane[0].mapping_stride);
@@ -437,12 +434,10 @@ static void i9xx_plane_update_noarm(struct intel_plane *plane,
 		 * program whatever is there.
 		 */
 		intel_de_write_fw(dev_priv, DSPPOS(i9xx_plane),
-				  (crtc_y << 16) | crtc_x);
+				  DISP_POS_Y(crtc_y) | DISP_POS_X(crtc_x));
 		intel_de_write_fw(dev_priv, DSPSIZE(i9xx_plane),
-				  ((crtc_h - 1) << 16) | (crtc_w - 1));
+				  DISP_HEIGHT(crtc_h - 1) | DISP_WIDTH(crtc_w - 1));
 	}
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void i9xx_plane_update_arm(struct intel_plane *plane,
@@ -454,7 +449,6 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 	int x = plane_state->view.color_plane[0].x;
 	int y = plane_state->view.color_plane[0].y;
 	u32 dspcntr, dspaddr_offset, linear_offset;
-	unsigned long irqflags;
 
 	dspcntr = plane_state->ctl | i9xx_plane_ctl_crtc(crtc_state);
 
@@ -465,8 +459,6 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 	else
 		dspaddr_offset = linear_offset;
 
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-
 	if (IS_CHERRYVIEW(dev_priv) && i9xx_plane == PLANE_B) {
 		int crtc_x = plane_state->uapi.dst.x1;
 		int crtc_y = plane_state->uapi.dst.y1;
@@ -474,20 +466,20 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 		int crtc_h = drm_rect_height(&plane_state->uapi.dst);
 
 		intel_de_write_fw(dev_priv, PRIMPOS(i9xx_plane),
-				  (crtc_y << 16) | crtc_x);
+				  PRIM_POS_Y(crtc_y) | PRIM_POS_X(crtc_x));
 		intel_de_write_fw(dev_priv, PRIMSIZE(i9xx_plane),
-				  ((crtc_h - 1) << 16) | (crtc_w - 1));
+				  PRIM_HEIGHT(crtc_h - 1) | PRIM_WIDTH(crtc_w - 1));
 		intel_de_write_fw(dev_priv, PRIMCNSTALPHA(i9xx_plane), 0);
 	}
 
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		intel_de_write_fw(dev_priv, DSPOFFSET(i9xx_plane),
-				  (y << 16) | x);
+				  DISP_OFFSET_Y(y) | DISP_OFFSET_X(x));
 	} else if (DISPLAY_VER(dev_priv) >= 4) {
 		intel_de_write_fw(dev_priv, DSPLINOFF(i9xx_plane),
 				  linear_offset);
 		intel_de_write_fw(dev_priv, DSPTILEOFF(i9xx_plane),
-				  (y << 16) | x);
+				  DISP_OFFSET_Y(y) | DISP_OFFSET_X(x));
 	}
 
 	/*
@@ -496,14 +488,13 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 	 * the control register just before the surface register.
 	 */
 	intel_de_write_fw(dev_priv, DSPCNTR(i9xx_plane), dspcntr);
+
 	if (DISPLAY_VER(dev_priv) >= 4)
 		intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane),
 				  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
 	else
 		intel_de_write_fw(dev_priv, DSPADDR(i9xx_plane),
 				  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void i830_plane_update_arm(struct intel_plane *plane,
@@ -525,7 +516,6 @@ static void i9xx_plane_disable_arm(struct intel_plane *plane,
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
-	unsigned long irqflags;
 	u32 dspcntr;
 
 	/*
@@ -540,15 +530,12 @@ static void i9xx_plane_disable_arm(struct intel_plane *plane,
 	 */
 	dspcntr = i9xx_plane_ctl_crtc(crtc_state);
 
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-
 	intel_de_write_fw(dev_priv, DSPCNTR(i9xx_plane), dspcntr);
+
 	if (DISPLAY_VER(dev_priv) >= 4)
 		intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane), 0);
 	else
 		intel_de_write_fw(dev_priv, DSPADDR(i9xx_plane), 0);
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void
@@ -561,16 +548,14 @@ g4x_primary_async_flip(struct intel_plane *plane,
 	u32 dspcntr = plane_state->ctl | i9xx_plane_ctl_crtc(crtc_state);
 	u32 dspaddr_offset = plane_state->view.color_plane[0].offset;
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
-	unsigned long irqflags;
 
 	if (async_flip)
-		dspcntr |= DISPPLANE_ASYNC_FLIP;
+		dspcntr |= DISP_ASYNC_FLIP;
 
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	intel_de_write_fw(dev_priv, DSPCNTR(i9xx_plane), dspcntr);
+
 	intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane),
 			  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void
@@ -582,12 +567,9 @@ vlv_primary_async_flip(struct intel_plane *plane,
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	u32 dspaddr_offset = plane_state->view.color_plane[0].offset;
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
-	unsigned long irqflags;
 
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	intel_de_write_fw(dev_priv, DSPADDR_VLV(i9xx_plane),
 			  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void
@@ -696,13 +678,12 @@ static bool i9xx_plane_get_hw_state(struct intel_plane *plane,
 
 	val = intel_de_read(dev_priv, DSPCNTR(i9xx_plane));
 
-	ret = val & DISPLAY_PLANE_ENABLE;
+	ret = val & DISP_ENABLE;
 
 	if (DISPLAY_VER(dev_priv) >= 5)
 		*pipe = plane->pipe;
 	else
-		*pipe = (val & DISPPLANE_SEL_PIPE_MASK) >>
-			DISPPLANE_SEL_PIPE_SHIFT;
+		*pipe = REG_FIELD_GET(DISP_PIPE_SEL_MASK, val);
 
 	intel_display_power_put(dev_priv, power_domain, wakeref);
 
@@ -958,32 +939,32 @@ fail:
 static int i9xx_format_to_fourcc(int format)
 {
 	switch (format) {
-	case DISPPLANE_8BPP:
+	case DISP_FORMAT_8BPP:
 		return DRM_FORMAT_C8;
-	case DISPPLANE_BGRA555:
+	case DISP_FORMAT_BGRA555:
 		return DRM_FORMAT_ARGB1555;
-	case DISPPLANE_BGRX555:
+	case DISP_FORMAT_BGRX555:
 		return DRM_FORMAT_XRGB1555;
-	case DISPPLANE_BGRX565:
+	case DISP_FORMAT_BGRX565:
 		return DRM_FORMAT_RGB565;
 	default:
-	case DISPPLANE_BGRX888:
+	case DISP_FORMAT_BGRX888:
 		return DRM_FORMAT_XRGB8888;
-	case DISPPLANE_RGBX888:
+	case DISP_FORMAT_RGBX888:
 		return DRM_FORMAT_XBGR8888;
-	case DISPPLANE_BGRA888:
+	case DISP_FORMAT_BGRA888:
 		return DRM_FORMAT_ARGB8888;
-	case DISPPLANE_RGBA888:
+	case DISP_FORMAT_RGBA888:
 		return DRM_FORMAT_ABGR8888;
-	case DISPPLANE_BGRX101010:
+	case DISP_FORMAT_BGRX101010:
 		return DRM_FORMAT_XRGB2101010;
-	case DISPPLANE_RGBX101010:
+	case DISP_FORMAT_RGBX101010:
 		return DRM_FORMAT_XBGR2101010;
-	case DISPPLANE_BGRA101010:
+	case DISP_FORMAT_BGRA101010:
 		return DRM_FORMAT_ARGB2101010;
-	case DISPPLANE_RGBA101010:
+	case DISP_FORMAT_RGBA101010:
 		return DRM_FORMAT_ABGR2101010;
-	case DISPPLANE_RGBX161616:
+	case DISP_FORMAT_RGBX161616:
 		return DRM_FORMAT_XBGR16161616F;
 	}
 }
@@ -1021,26 +1002,26 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	val = intel_de_read(dev_priv, DSPCNTR(i9xx_plane));
 
 	if (DISPLAY_VER(dev_priv) >= 4) {
-		if (val & DISPPLANE_TILED) {
+		if (val & DISP_TILED) {
 			plane_config->tiling = I915_TILING_X;
 			fb->modifier = I915_FORMAT_MOD_X_TILED;
 		}
 
-		if (val & DISPPLANE_ROTATE_180)
+		if (val & DISP_ROTATE_180)
 			plane_config->rotation = DRM_MODE_ROTATE_180;
 	}
 
 	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B &&
-	    val & DISPPLANE_MIRROR)
+	    val & DISP_MIRROR)
 		plane_config->rotation |= DRM_MODE_REFLECT_X;
 
-	pixel_format = val & DISPPLANE_PIXFORMAT_MASK;
+	pixel_format = val & DISP_FORMAT_MASK;
 	fourcc = i9xx_format_to_fourcc(pixel_format);
 	fb->format = drm_format_info(fourcc);
 
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		offset = intel_de_read(dev_priv, DSPOFFSET(i9xx_plane));
-		base = intel_de_read(dev_priv, DSPSURF(i9xx_plane)) & 0xfffff000;
+		base = intel_de_read(dev_priv, DSPSURF(i9xx_plane)) & DISP_ADDR_MASK;
 	} else if (DISPLAY_VER(dev_priv) >= 4) {
 		if (plane_config->tiling)
 			offset = intel_de_read(dev_priv,
@@ -1048,15 +1029,15 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 		else
 			offset = intel_de_read(dev_priv,
 					       DSPLINOFF(i9xx_plane));
-		base = intel_de_read(dev_priv, DSPSURF(i9xx_plane)) & 0xfffff000;
+		base = intel_de_read(dev_priv, DSPSURF(i9xx_plane)) & DISP_ADDR_MASK;
 	} else {
 		base = intel_de_read(dev_priv, DSPADDR(i9xx_plane));
 	}
 	plane_config->base = base;
 
 	val = intel_de_read(dev_priv, PIPESRC(pipe));
-	fb->width = ((val >> 16) & 0xfff) + 1;
-	fb->height = ((val >> 0) & 0xfff) + 1;
+	fb->width = REG_FIELD_GET(PIPESRC_WIDTH_MASK, val) + 1;
+	fb->height = REG_FIELD_GET(PIPESRC_HEIGHT_MASK, val) + 1;
 
 	val = intel_de_read(dev_priv, DSPSTRIDE(i9xx_plane));
 	fb->pitches[0] = val & 0xffffffc0;

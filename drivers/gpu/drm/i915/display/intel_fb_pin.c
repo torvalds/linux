@@ -7,6 +7,7 @@
  * DOC: display pinning helpers
  */
 
+#include "gem/i915_gem_domain.h"
 #include "gem/i915_gem_object.h"
 
 #include "i915_drv.h"
@@ -36,7 +37,11 @@ intel_pin_fb_obj_dpt(struct drm_framebuffer *fb,
 
 	atomic_inc(&dev_priv->gpu_error.pending_fb_pin);
 
-	ret = i915_gem_object_set_cache_level(obj, I915_CACHE_NONE);
+	ret = i915_gem_object_lock_interruptible(obj, NULL);
+	if (!ret) {
+		ret = i915_gem_object_set_cache_level(obj, I915_CACHE_NONE);
+		i915_gem_object_unlock(obj);
+	}
 	if (ret) {
 		vma = ERR_PTR(ret);
 		goto err;
@@ -47,7 +52,7 @@ intel_pin_fb_obj_dpt(struct drm_framebuffer *fb,
 		goto err;
 
 	if (i915_vma_misplaced(vma, 0, alignment, 0)) {
-		ret = i915_vma_unbind(vma);
+		ret = i915_vma_unbind_unlocked(vma);
 		if (ret) {
 			vma = ERR_PTR(ret);
 			goto err;
@@ -135,7 +140,7 @@ retry:
 	if (!ret && phys_cursor)
 		ret = i915_gem_object_attach_phys(obj, alignment);
 	else if (!ret && HAS_LMEM(dev_priv))
-		ret = i915_gem_object_migrate(obj, &ww, INTEL_REGION_LMEM);
+		ret = i915_gem_object_migrate(obj, &ww, INTEL_REGION_LMEM_0);
 	/* TODO: Do we need to sync when migration becomes async? */
 	if (!ret)
 		ret = i915_gem_object_pin_pages(obj);

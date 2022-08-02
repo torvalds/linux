@@ -242,20 +242,71 @@ int __evlist__add_default(struct evlist *evlist, bool precise)
 	return 0;
 }
 
-int evlist__add_dummy(struct evlist *evlist)
+static struct evsel *evlist__dummy_event(struct evlist *evlist)
 {
 	struct perf_event_attr attr = {
 		.type	= PERF_TYPE_SOFTWARE,
 		.config = PERF_COUNT_SW_DUMMY,
 		.size	= sizeof(attr), /* to capture ABI version */
 	};
-	struct evsel *evsel = evsel__new_idx(&attr, evlist->core.nr_entries);
+
+	return evsel__new_idx(&attr, evlist->core.nr_entries);
+}
+
+int evlist__add_dummy(struct evlist *evlist)
+{
+	struct evsel *evsel = evlist__dummy_event(evlist);
 
 	if (evsel == NULL)
 		return -ENOMEM;
 
 	evlist__add(evlist, evsel);
 	return 0;
+}
+
+static void evlist__add_on_all_cpus(struct evlist *evlist, struct evsel *evsel)
+{
+	evsel->core.system_wide = true;
+
+	/*
+	 * All CPUs.
+	 *
+	 * Note perf_event_open() does not accept CPUs that are not online, so
+	 * in fact this CPU list will include only all online CPUs.
+	 */
+	perf_cpu_map__put(evsel->core.own_cpus);
+	evsel->core.own_cpus = perf_cpu_map__new(NULL);
+	perf_cpu_map__put(evsel->core.cpus);
+	evsel->core.cpus = perf_cpu_map__get(evsel->core.own_cpus);
+
+	/* No threads */
+	perf_thread_map__put(evsel->core.threads);
+	evsel->core.threads = perf_thread_map__new_dummy();
+
+	evlist__add(evlist, evsel);
+}
+
+struct evsel *evlist__add_aux_dummy(struct evlist *evlist, bool system_wide)
+{
+	struct evsel *evsel = evlist__dummy_event(evlist);
+
+	if (!evsel)
+		return NULL;
+
+	evsel->core.attr.exclude_kernel = 1;
+	evsel->core.attr.exclude_guest = 1;
+	evsel->core.attr.exclude_hv = 1;
+	evsel->core.attr.freq = 0;
+	evsel->core.attr.sample_period = 1;
+	evsel->no_aux_samples = true;
+	evsel->name = strdup("dummy:u");
+
+	if (system_wide)
+		evlist__add_on_all_cpus(evlist, evsel);
+	else
+		evlist__add(evlist, evsel);
+
+	return evsel;
 }
 
 static int evlist__add_attrs(struct evlist *evlist, struct perf_event_attr *attrs, size_t nr_attrs)
@@ -332,14 +383,6 @@ int evlist__add_newtp(struct evlist *evlist, const char *sys, const char *name, 
 	evsel->handler = handler;
 	evlist__add(evlist, evsel);
 	return 0;
-}
-
-static int evlist__nr_threads(struct evlist *evlist, struct evsel *evsel)
-{
-	if (evsel->core.system_wide)
-		return 1;
-	else
-		return perf_thread_map__nr(evlist->core.threads);
 }
 
 struct evlist_cpu_iterator evlist__cpu_begin(struct evlist *evlist, struct affinity *affinity)
@@ -440,7 +483,7 @@ static void __evlist__disable(struct evlist *evlist, char *evsel_name)
 	bool has_imm = false;
 
 	// See explanation in evlist__close()
-	if (!cpu_map__is_dummy(evlist->core.cpus)) {
+	if (!cpu_map__is_dummy(evlist->core.user_requested_cpus)) {
 		if (affinity__setup(&saved_affinity) < 0)
 			return;
 		affinity = &saved_affinity;
@@ -500,7 +543,7 @@ static void __evlist__enable(struct evlist *evlist, char *evsel_name)
 	struct affinity saved_affinity, *affinity = NULL;
 
 	// See explanation in evlist__close()
-	if (!cpu_map__is_dummy(evlist->core.cpus)) {
+	if (!cpu_map__is_dummy(evlist->core.user_requested_cpus)) {
 		if (affinity__setup(&saved_affinity) < 0)
 			return;
 		affinity = &saved_affinity;
@@ -544,48 +587,6 @@ void evlist__enable_evsel(struct evlist *evlist, char *evsel_name)
 void evlist__toggle_enable(struct evlist *evlist)
 {
 	(evlist->enabled ? evlist__disable : evlist__enable)(evlist);
-}
-
-static int evlist__enable_event_cpu(struct evlist *evlist, struct evsel *evsel, int cpu)
-{
-	int thread;
-	int nr_threads = evlist__nr_threads(evlist, evsel);
-
-	if (!evsel->core.fd)
-		return -EINVAL;
-
-	for (thread = 0; thread < nr_threads; thread++) {
-		int err = ioctl(FD(evsel, cpu, thread), PERF_EVENT_IOC_ENABLE, 0);
-		if (err)
-			return err;
-	}
-	return 0;
-}
-
-static int evlist__enable_event_thread(struct evlist *evlist, struct evsel *evsel, int thread)
-{
-	int cpu;
-	int nr_cpus = perf_cpu_map__nr(evlist->core.cpus);
-
-	if (!evsel->core.fd)
-		return -EINVAL;
-
-	for (cpu = 0; cpu < nr_cpus; cpu++) {
-		int err = ioctl(FD(evsel, cpu, thread), PERF_EVENT_IOC_ENABLE, 0);
-		if (err)
-			return err;
-	}
-	return 0;
-}
-
-int evlist__enable_event_idx(struct evlist *evlist, struct evsel *evsel, int idx)
-{
-	bool per_cpu_mmaps = !perf_cpu_map__empty(evlist->core.cpus);
-
-	if (per_cpu_mmaps)
-		return evlist__enable_event_cpu(evlist, evsel, idx);
-
-	return evlist__enable_event_thread(evlist, evsel, idx);
 }
 
 int evlist__add_pollfd(struct evlist *evlist, int fd)
@@ -797,13 +798,15 @@ static struct mmap *evlist__alloc_mmap(struct evlist *evlist,
 
 static void
 perf_evlist__mmap_cb_idx(struct perf_evlist *_evlist,
+			 struct perf_evsel *_evsel,
 			 struct perf_mmap_param *_mp,
-			 int idx, bool per_cpu)
+			 int idx)
 {
 	struct evlist *evlist = container_of(_evlist, struct evlist, core);
 	struct mmap_params *mp = container_of(_mp, struct mmap_params, core);
+	struct evsel *evsel = container_of(_evsel, struct evsel, core);
 
-	auxtrace_mmap_params__set_idx(&mp->auxtrace_mp, evlist, idx, per_cpu);
+	auxtrace_mmap_params__set_idx(&mp->auxtrace_mp, evlist, evsel, idx);
 }
 
 static struct perf_mmap*
@@ -1301,10 +1304,11 @@ void evlist__close(struct evlist *evlist)
 	struct affinity affinity;
 
 	/*
-	 * With perf record core.cpus is usually NULL.
+	 * With perf record core.user_requested_cpus is usually NULL.
 	 * Use the old method to handle this for now.
 	 */
-	if (!evlist->core.cpus || cpu_map__is_dummy(evlist->core.cpus)) {
+	if (!evlist->core.user_requested_cpus ||
+	    cpu_map__is_dummy(evlist->core.user_requested_cpus)) {
 		evlist__for_each_entry_reverse(evlist, evsel)
 			evsel__close(evsel);
 		return;
@@ -1330,7 +1334,6 @@ static int evlist__create_syswide_maps(struct evlist *evlist)
 {
 	struct perf_cpu_map *cpus;
 	struct perf_thread_map *threads;
-	int err = -ENOMEM;
 
 	/*
 	 * Try reading /sys/devices/system/cpu/online to get
@@ -1355,7 +1358,7 @@ static int evlist__create_syswide_maps(struct evlist *evlist)
 out_put:
 	perf_cpu_map__put(cpus);
 out:
-	return err;
+	return -ENOMEM;
 }
 
 int evlist__open(struct evlist *evlist)
@@ -1367,7 +1370,7 @@ int evlist__open(struct evlist *evlist)
 	 * Default: one fd per CPU, all threads, aka systemwide
 	 * as sys_perf_event_open(cpu = -1, thread = -1) is EINVAL
 	 */
-	if (evlist->core.threads == NULL && evlist->core.cpus == NULL) {
+	if (evlist->core.threads == NULL && evlist->core.user_requested_cpus == NULL) {
 		err = evlist__create_syswide_maps(evlist);
 		if (err < 0)
 			goto out_err;
@@ -1790,8 +1793,13 @@ struct evsel *evlist__reset_weak_group(struct evlist *evsel_list, struct evsel *
 		if (evsel__has_leader(c2, leader)) {
 			if (is_open && close)
 				perf_evsel__close(&c2->core);
-			evsel__set_leader(c2, c2);
-			c2->core.nr_members = 0;
+			/*
+			 * We want to close all members of the group and reopen
+			 * them. Some events, like Intel topdown, require being
+			 * in a group and so keep these in the group.
+			 */
+			evsel__remove_from_group(c2, leader);
+
 			/*
 			 * Set this for all former members of the group
 			 * to indicate they get reopened.
@@ -1799,6 +1807,9 @@ struct evsel *evlist__reset_weak_group(struct evlist *evsel_list, struct evsel *
 			c2->reset_group = true;
 		}
 	}
+	/* Reset the leader count if all entries were removed. */
+	if (leader->core.nr_members == 1)
+		leader->core.nr_members = 0;
 	return leader;
 }
 
@@ -2143,6 +2154,22 @@ int evlist__ctlfd_process(struct evlist *evlist, enum evlist_ctl_cmd *cmd)
 		entries[ctlfd_pos].revents = 0;
 
 	return err;
+}
+
+int evlist__ctlfd_update(struct evlist *evlist, struct pollfd *update)
+{
+	int ctlfd_pos = evlist->ctl_fd.pos;
+	struct pollfd *entries = evlist->core.pollfd.entries;
+
+	if (!evlist__ctlfd_initialized(evlist))
+		return 0;
+
+	if (entries[ctlfd_pos].fd != update->fd ||
+	    entries[ctlfd_pos].events != update->events)
+		return -1;
+
+	entries[ctlfd_pos].revents = update->revents;
+	return 0;
 }
 
 struct evsel *evlist__find_evsel(struct evlist *evlist, int idx)

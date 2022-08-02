@@ -31,10 +31,13 @@ u"""
 
     * ``dot(1)``: Graphviz (https://www.graphviz.org). If Graphviz is not
       available, the DOT language is inserted as literal-block.
+      For conversion to PDF, ``rsvg-convert(1)`` of librsvg
+      (https://gitlab.gnome.org/GNOME/librsvg) is used when available.
 
     * SVG to PDF: To generate PDF, you need at least one of this tools:
 
       - ``convert(1)``: ImageMagick (https://www.imagemagick.org)
+      - ``inkscape(1)``: Inkscape (https://inkscape.org/)
 
     List of customizations:
 
@@ -49,6 +52,7 @@ import os
 from os import path
 import subprocess
 from hashlib import sha1
+import re
 from docutils import nodes
 from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives
@@ -109,9 +113,19 @@ def pass_handle(self, node):           # pylint: disable=W0613
 
 # Graphviz's dot(1) support
 dot_cmd = None
+# dot(1) -Tpdf should be used
+dot_Tpdf = False
 
 # ImageMagick' convert(1) support
 convert_cmd = None
+
+# librsvg's rsvg-convert(1) support
+rsvg_convert_cmd = None
+
+# Inkscape's inkscape(1) support
+inkscape_cmd = None
+# Inkscape prior to 1.0 uses different command options
+inkscape_ver_one = False
 
 
 def setup(app):
@@ -160,23 +174,62 @@ def setupTools(app):
 
     This function is called once, when the builder is initiated.
     """
-    global dot_cmd, convert_cmd   # pylint: disable=W0603
+    global dot_cmd, dot_Tpdf, convert_cmd, rsvg_convert_cmd   # pylint: disable=W0603
+    global inkscape_cmd, inkscape_ver_one  # pylint: disable=W0603
     kernellog.verbose(app, "kfigure: check installed tools ...")
 
     dot_cmd = which('dot')
     convert_cmd = which('convert')
+    rsvg_convert_cmd = which('rsvg-convert')
+    inkscape_cmd = which('inkscape')
 
     if dot_cmd:
         kernellog.verbose(app, "use dot(1) from: " + dot_cmd)
+
+        try:
+            dot_Thelp_list = subprocess.check_output([dot_cmd, '-Thelp'],
+                                    stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as err:
+            dot_Thelp_list = err.output
+            pass
+
+        dot_Tpdf_ptn = b'pdf'
+        dot_Tpdf = re.search(dot_Tpdf_ptn, dot_Thelp_list)
     else:
         kernellog.warn(app, "dot(1) not found, for better output quality install "
                        "graphviz from https://www.graphviz.org")
-    if convert_cmd:
-        kernellog.verbose(app, "use convert(1) from: " + convert_cmd)
+    if inkscape_cmd:
+        kernellog.verbose(app, "use inkscape(1) from: " + inkscape_cmd)
+        inkscape_ver = subprocess.check_output([inkscape_cmd, '--version'],
+                                               stderr=subprocess.DEVNULL)
+        ver_one_ptn = b'Inkscape 1'
+        inkscape_ver_one = re.search(ver_one_ptn, inkscape_ver)
+        convert_cmd = None
+        rsvg_convert_cmd = None
+        dot_Tpdf = False
+
     else:
-        kernellog.warn(app,
-            "convert(1) not found, for SVG to PDF conversion install "
-            "ImageMagick (https://www.imagemagick.org)")
+        if convert_cmd:
+            kernellog.verbose(app, "use convert(1) from: " + convert_cmd)
+        else:
+            kernellog.verbose(app,
+                "Neither inkscape(1) nor convert(1) found.\n"
+                "For SVG to PDF conversion, "
+                "install either Inkscape (https://inkscape.org/) (preferred) or\n"
+                "ImageMagick (https://www.imagemagick.org)")
+
+        if rsvg_convert_cmd:
+            kernellog.verbose(app, "use rsvg-convert(1) from: " + rsvg_convert_cmd)
+            kernellog.verbose(app, "use 'dot -Tsvg' and rsvg-convert(1) for DOT -> PDF conversion")
+            dot_Tpdf = False
+        else:
+            kernellog.verbose(app,
+                "rsvg-convert(1) not found.\n"
+                "  SVG rendering of convert(1) is done by ImageMagick-native renderer.")
+            if dot_Tpdf:
+                kernellog.verbose(app, "use 'dot -Tpdf' for DOT -> PDF conversion")
+            else:
+                kernellog.verbose(app, "use 'dot -Tsvg' and convert(1) for DOT -> PDF conversion")
 
 
 # integrate conversion tools
@@ -242,9 +295,11 @@ def convert_image(img_node, translator, src_fname=None):
     elif in_ext == '.svg':
 
         if translator.builder.format == 'latex':
-            if convert_cmd is None:
-                kernellog.verbose(app,
-                                  "no SVG to PDF conversion available / include SVG raw.")
+            if not inkscape_cmd and convert_cmd is None:
+                kernellog.warn(app,
+                                  "no SVG to PDF conversion available / include SVG raw."
+                                  "\nIncluding large raw SVGs can cause xelatex error."
+                                  "\nInstall Inkscape (preferred) or ImageMagick.")
                 img_node.replace_self(file2literal(src_fname))
             else:
                 dst_fname = path.join(translator.builder.outdir, fname + '.pdf')
@@ -266,7 +321,14 @@ def convert_image(img_node, translator, src_fname=None):
 
             if in_ext == '.dot':
                 kernellog.verbose(app, 'convert DOT to: {out}/' + _name)
-                ok = dot2format(app, src_fname, dst_fname)
+                if translator.builder.format == 'latex' and not dot_Tpdf:
+                    svg_fname = path.join(translator.builder.outdir, fname + '.svg')
+                    ok1 = dot2format(app, src_fname, svg_fname)
+                    ok2 = svg2pdf_by_rsvg(app, svg_fname, dst_fname)
+                    ok = ok1 and ok2
+
+                else:
+                    ok = dot2format(app, src_fname, dst_fname)
 
             elif in_ext == '.svg':
                 kernellog.verbose(app, 'convert SVG to: {out}/' + _name)
@@ -303,21 +365,69 @@ def dot2format(app, dot_fname, out_fname):
     return bool(exit_code == 0)
 
 def svg2pdf(app, svg_fname, pdf_fname):
-    """Converts SVG to PDF with ``convert(1)`` command.
+    """Converts SVG to PDF with ``inkscape(1)`` or ``convert(1)`` command.
 
-    Uses ``convert(1)`` from ImageMagick (https://www.imagemagick.org) for
-    conversion.  Returns ``True`` on success and ``False`` if an error occurred.
+    Uses ``inkscape(1)`` from Inkscape (https://inkscape.org/) or ``convert(1)``
+    from ImageMagick (https://www.imagemagick.org) for conversion.
+    Returns ``True`` on success and ``False`` if an error occurred.
 
     * ``svg_fname`` pathname of the input SVG file with extension (``.svg``)
     * ``pdf_name``  pathname of the output PDF file with extension (``.pdf``)
 
     """
     cmd = [convert_cmd, svg_fname, pdf_fname]
-    # use stdout and stderr from parent
-    exit_code = subprocess.call(cmd)
+    cmd_name = 'convert(1)'
+
+    if inkscape_cmd:
+        cmd_name = 'inkscape(1)'
+        if inkscape_ver_one:
+            cmd = [inkscape_cmd, '-o', pdf_fname, svg_fname]
+        else:
+            cmd = [inkscape_cmd, '-z', '--export-pdf=%s' % pdf_fname, svg_fname]
+
+    try:
+        warning_msg = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        exit_code = 0
+    except subprocess.CalledProcessError as err:
+        warning_msg = err.output
+        exit_code = err.returncode
+        pass
+
     if exit_code != 0:
         kernellog.warn(app, "Error #%d when calling: %s" % (exit_code, " ".join(cmd)))
+        if warning_msg:
+            kernellog.warn(app, "Warning msg from %s: %s"
+                           % (cmd_name, str(warning_msg, 'utf-8')))
+    elif warning_msg:
+        kernellog.verbose(app, "Warning msg from %s (likely harmless):\n%s"
+                          % (cmd_name, str(warning_msg, 'utf-8')))
+
     return bool(exit_code == 0)
+
+def svg2pdf_by_rsvg(app, svg_fname, pdf_fname):
+    """Convert SVG to PDF with ``rsvg-convert(1)`` command.
+
+    * ``svg_fname`` pathname of input SVG file, including extension ``.svg``
+    * ``pdf_fname`` pathname of output PDF file, including extension ``.pdf``
+
+    Input SVG file should be the one generated by ``dot2format()``.
+    SVG -> PDF conversion is done by ``rsvg-convert(1)``.
+
+    If ``rsvg-convert(1)`` is unavailable, fall back to ``svg2pdf()``.
+
+    """
+
+    if rsvg_convert_cmd is None:
+        ok = svg2pdf(app, svg_fname, pdf_fname)
+    else:
+        cmd = [rsvg_convert_cmd, '--format=pdf', '-o', pdf_fname, svg_fname]
+        # use stdout and stderr from parent
+        exit_code = subprocess.call(cmd)
+        if exit_code != 0:
+            kernellog.warn(app, "Error #%d when calling: %s" % (exit_code, " ".join(cmd)))
+        ok = bool(exit_code == 0)
+
+    return ok
 
 
 # image handling

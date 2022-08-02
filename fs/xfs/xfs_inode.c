@@ -35,6 +35,7 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_reflink.h"
 #include "xfs_ag.h"
+#include "xfs_log_priv.h"
 
 struct kmem_cache *xfs_inode_cache;
 
@@ -131,6 +132,26 @@ xfs_ilock_attr_map_shared(
 }
 
 /*
+ * You can't set both SHARED and EXCL for the same lock,
+ * and only XFS_IOLOCK_SHARED, XFS_IOLOCK_EXCL, XFS_MMAPLOCK_SHARED,
+ * XFS_MMAPLOCK_EXCL, XFS_ILOCK_SHARED, XFS_ILOCK_EXCL are valid values
+ * to set in lock_flags.
+ */
+static inline void
+xfs_lock_flags_assert(
+	uint		lock_flags)
+{
+	ASSERT((lock_flags & (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL)) !=
+		(XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL));
+	ASSERT((lock_flags & (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL)) !=
+		(XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL));
+	ASSERT((lock_flags & (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL)) !=
+		(XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
+	ASSERT((lock_flags & ~(XFS_LOCK_MASK | XFS_LOCK_SUBCLASS_MASK)) == 0);
+	ASSERT(lock_flags != 0);
+}
+
+/*
  * In addition to i_rwsem in the VFS inode, the xfs inode contains 2
  * multi-reader locks: invalidate_lock and the i_lock.  This routine allows
  * various combinations of the locks to be obtained.
@@ -167,18 +188,7 @@ xfs_ilock(
 {
 	trace_xfs_ilock(ip, lock_flags, _RET_IP_);
 
-	/*
-	 * You can't set both SHARED and EXCL for the same lock,
-	 * and only XFS_IOLOCK_SHARED, XFS_IOLOCK_EXCL, XFS_ILOCK_SHARED,
-	 * and XFS_ILOCK_EXCL are valid values to set in lock_flags.
-	 */
-	ASSERT((lock_flags & (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL)) !=
-	       (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL));
-	ASSERT((lock_flags & (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL)) !=
-	       (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL));
-	ASSERT((lock_flags & (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL)) !=
-	       (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
-	ASSERT((lock_flags & ~(XFS_LOCK_MASK | XFS_LOCK_SUBCLASS_MASK)) == 0);
+	xfs_lock_flags_assert(lock_flags);
 
 	if (lock_flags & XFS_IOLOCK_EXCL) {
 		down_write_nested(&VFS_I(ip)->i_rwsem,
@@ -221,18 +231,7 @@ xfs_ilock_nowait(
 {
 	trace_xfs_ilock_nowait(ip, lock_flags, _RET_IP_);
 
-	/*
-	 * You can't set both SHARED and EXCL for the same lock,
-	 * and only XFS_IOLOCK_SHARED, XFS_IOLOCK_EXCL, XFS_ILOCK_SHARED,
-	 * and XFS_ILOCK_EXCL are valid values to set in lock_flags.
-	 */
-	ASSERT((lock_flags & (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL)) !=
-	       (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL));
-	ASSERT((lock_flags & (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL)) !=
-	       (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL));
-	ASSERT((lock_flags & (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL)) !=
-	       (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
-	ASSERT((lock_flags & ~(XFS_LOCK_MASK | XFS_LOCK_SUBCLASS_MASK)) == 0);
+	xfs_lock_flags_assert(lock_flags);
 
 	if (lock_flags & XFS_IOLOCK_EXCL) {
 		if (!down_write_trylock(&VFS_I(ip)->i_rwsem))
@@ -290,19 +289,7 @@ xfs_iunlock(
 	xfs_inode_t		*ip,
 	uint			lock_flags)
 {
-	/*
-	 * You can't set both SHARED and EXCL for the same lock,
-	 * and only XFS_IOLOCK_SHARED, XFS_IOLOCK_EXCL, XFS_ILOCK_SHARED,
-	 * and XFS_ILOCK_EXCL are valid values to set in lock_flags.
-	 */
-	ASSERT((lock_flags & (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL)) !=
-	       (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL));
-	ASSERT((lock_flags & (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL)) !=
-	       (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL));
-	ASSERT((lock_flags & (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL)) !=
-	       (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
-	ASSERT((lock_flags & ~(XFS_LOCK_MASK | XFS_LOCK_SUBCLASS_MASK)) == 0);
-	ASSERT(lock_flags != 0);
+	xfs_lock_flags_assert(lock_flags);
 
 	if (lock_flags & XFS_IOLOCK_EXCL)
 		up_write(&VFS_I(ip)->i_rwsem);
@@ -378,8 +365,8 @@ xfs_isilocked(
 	}
 
 	if (lock_flags & (XFS_MMAPLOCK_EXCL|XFS_MMAPLOCK_SHARED)) {
-		return __xfs_rwsem_islocked(&VFS_I(ip)->i_rwsem,
-				(lock_flags & XFS_IOLOCK_SHARED));
+		return __xfs_rwsem_islocked(&VFS_I(ip)->i_mapping->invalidate_lock,
+				(lock_flags & XFS_MMAPLOCK_SHARED));
 	}
 
 	if (lock_flags & (XFS_IOLOCK_EXCL | XFS_IOLOCK_SHARED)) {
@@ -415,10 +402,12 @@ xfs_lockdep_subclass_ok(
  * parent locking. Care must be taken to ensure we don't overrun the subclass
  * storage fields in the class mask we build.
  */
-static inline int
-xfs_lock_inumorder(int lock_mode, int subclass)
+static inline uint
+xfs_lock_inumorder(
+	uint	lock_mode,
+	uint	subclass)
 {
-	int	class = 0;
+	uint	class = 0;
 
 	ASSERT(!(lock_mode & (XFS_ILOCK_PARENT | XFS_ILOCK_RTBITMAP |
 			      XFS_ILOCK_RTSUM)));
@@ -463,7 +452,10 @@ xfs_lock_inodes(
 	int			inodes,
 	uint			lock_mode)
 {
-	int			attempts = 0, i, j, try_lock;
+	int			attempts = 0;
+	uint			i;
+	int			j;
+	bool			try_lock;
 	struct xfs_log_item	*lp;
 
 	/*
@@ -488,9 +480,9 @@ xfs_lock_inodes(
 	} else if (lock_mode & XFS_MMAPLOCK_EXCL)
 		ASSERT(!(lock_mode & XFS_ILOCK_EXCL));
 
-	try_lock = 0;
-	i = 0;
 again:
+	try_lock = false;
+	i = 0;
 	for (; i < inodes; i++) {
 		ASSERT(ips[i]);
 
@@ -505,7 +497,7 @@ again:
 			for (j = (i - 1); j >= 0 && !try_lock; j--) {
 				lp = &ips[j]->i_itemp->ili_item;
 				if (lp && test_bit(XFS_LI_IN_AIL, &lp->li_flags))
-					try_lock++;
+					try_lock = true;
 			}
 		}
 
@@ -545,8 +537,6 @@ again:
 		if ((attempts % 5) == 0) {
 			delay(1); /* Don't just spin the CPU */
 		}
-		i = 0;
-		try_lock = 0;
 		goto again;
 	}
 }
@@ -658,9 +648,9 @@ xfs_ip2xflags(
  */
 int
 xfs_lookup(
-	xfs_inode_t		*dp,
-	struct xfs_name		*name,
-	xfs_inode_t		**ipp,
+	struct xfs_inode	*dp,
+	const struct xfs_name	*name,
+	struct xfs_inode	**ipp,
 	struct xfs_name		*ci_name)
 {
 	xfs_ino_t		inum;
@@ -1023,11 +1013,6 @@ xfs_create(
 	xfs_ilock(dp, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
 	unlock_dp_on_error = true;
 
-	error = xfs_iext_count_may_overflow(dp, XFS_DATA_FORK,
-			XFS_IEXT_DIR_MANIP_CNT(mp));
-	if (error)
-		goto out_trans_cancel;
-
 	/*
 	 * A newly created regular or special file just has one directory
 	 * entry pointing to them, but a directory also the "." entry
@@ -1217,7 +1202,7 @@ xfs_link(
 {
 	xfs_mount_t		*mp = tdp->i_mount;
 	xfs_trans_t		*tp;
-	int			error;
+	int			error, nospace_error = 0;
 	int			resblks;
 
 	trace_xfs_link(tdp, target_name);
@@ -1236,23 +1221,10 @@ xfs_link(
 		goto std_return;
 
 	resblks = XFS_LINK_SPACE_RES(mp, target_name->len);
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_link, resblks, 0, 0, &tp);
-	if (error == -ENOSPC) {
-		resblks = 0;
-		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_link, 0, 0, 0, &tp);
-	}
+	error = xfs_trans_alloc_dir(tdp, &M_RES(mp)->tr_link, sip, &resblks,
+			&tp, &nospace_error);
 	if (error)
 		goto std_return;
-
-	xfs_lock_two_inodes(sip, XFS_ILOCK_EXCL, tdp, XFS_ILOCK_EXCL);
-
-	xfs_trans_ijoin(tp, sip, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin(tp, tdp, XFS_ILOCK_EXCL);
-
-	error = xfs_iext_count_may_overflow(tdp, XFS_DATA_FORK,
-			XFS_IEXT_DIR_MANIP_CNT(mp));
-	if (error)
-		goto error_return;
 
 	/*
 	 * If we are using project inheritance, we only allow hard link
@@ -1306,6 +1278,8 @@ xfs_link(
  error_return:
 	xfs_trans_cancel(tp);
  std_return:
+	if (error == -ENOSPC && nospace_error)
+		error = nospace_error;
 	return error;
 }
 
@@ -2599,14 +2573,13 @@ xfs_ifree_cluster(
 }
 
 /*
- * This is called to return an inode to the inode free list.
- * The inode should already be truncated to 0 length and have
- * no pages associated with it.  This routine also assumes that
- * the inode is already a part of the transaction.
+ * This is called to return an inode to the inode free list.  The inode should
+ * already be truncated to 0 length and have no pages associated with it.  This
+ * routine also assumes that the inode is already a part of the transaction.
  *
- * The on-disk copy of the inode will have been added to the list
- * of unlinked inodes in the AGI. We need to remove the inode from
- * that list atomically with respect to freeing it here.
+ * The on-disk copy of the inode will have been added to the list of unlinked
+ * inodes in the AGI. We need to remove the inode from that list atomically with
+ * respect to freeing it here.
  */
 int
 xfs_ifree(
@@ -2628,13 +2601,16 @@ xfs_ifree(
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ip->i_ino));
 
 	/*
-	 * Pull the on-disk inode from the AGI unlinked list.
+	 * Free the inode first so that we guarantee that the AGI lock is going
+	 * to be taken before we remove the inode from the unlinked list. This
+	 * makes the AGI lock -> unlinked list modification order the same as
+	 * used in O_TMPFILE creation.
 	 */
-	error = xfs_iunlink_remove(tp, pag, ip);
+	error = xfs_difree(tp, pag, ip->i_ino, &xic);
 	if (error)
 		goto out;
 
-	error = xfs_difree(tp, pag, ip->i_ino, &xic);
+	error = xfs_iunlink_remove(tp, pag, ip);
 	if (error)
 		goto out;
 
@@ -2755,6 +2731,7 @@ xfs_remove(
 	xfs_mount_t		*mp = dp->i_mount;
 	xfs_trans_t             *tp = NULL;
 	int			is_dir = S_ISDIR(VFS_I(ip)->i_mode);
+	int			dontcare;
 	int                     error = 0;
 	uint			resblks;
 
@@ -2772,30 +2749,23 @@ xfs_remove(
 		goto std_return;
 
 	/*
-	 * We try to get the real space reservation first,
-	 * allowing for directory btree deletion(s) implying
-	 * possible bmap insert(s).  If we can't get the space
-	 * reservation then we use 0 instead, and avoid the bmap
-	 * btree insert(s) in the directory code by, if the bmap
-	 * insert tries to happen, instead trimming the LAST
-	 * block from the directory.
+	 * We try to get the real space reservation first, allowing for
+	 * directory btree deletion(s) implying possible bmap insert(s).  If we
+	 * can't get the space reservation then we use 0 instead, and avoid the
+	 * bmap btree insert(s) in the directory code by, if the bmap insert
+	 * tries to happen, instead trimming the LAST block from the directory.
+	 *
+	 * Ignore EDQUOT and ENOSPC being returned via nospace_error because
+	 * the directory code can handle a reservationless update and we don't
+	 * want to prevent a user from trying to free space by deleting things.
 	 */
 	resblks = XFS_REMOVE_SPACE_RES(mp);
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_remove, resblks, 0, 0, &tp);
-	if (error == -ENOSPC) {
-		resblks = 0;
-		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_remove, 0, 0, 0,
-				&tp);
-	}
+	error = xfs_trans_alloc_dir(dp, &M_RES(mp)->tr_remove, ip, &resblks,
+			&tp, &dontcare);
 	if (error) {
 		ASSERT(error != -ENOSPC);
 		goto std_return;
 	}
-
-	xfs_lock_two_inodes(dp, XFS_ILOCK_EXCL, ip, XFS_ILOCK_EXCL);
-
-	xfs_trans_ijoin(tp, dp, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
 	/*
 	 * If we're removing a directory perform some additional validation.
@@ -3109,7 +3079,8 @@ xfs_rename(
 	bool			new_parent = (src_dp != target_dp);
 	bool			src_is_directory = S_ISDIR(VFS_I(src_ip)->i_mode);
 	int			spaceres;
-	int			error;
+	bool			retried = false;
+	int			error, nospace_error = 0;
 
 	trace_xfs_rename(src_dp, target_dp, src_name, target_name);
 
@@ -3133,9 +3104,12 @@ xfs_rename(
 	xfs_sort_for_rename(src_dp, target_dp, src_ip, target_ip, wip,
 				inodes, &num_inodes);
 
+retry:
+	nospace_error = 0;
 	spaceres = XFS_RENAME_SPACE_RES(mp, target_name->len);
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_rename, spaceres, 0, 0, &tp);
 	if (error == -ENOSPC) {
+		nospace_error = error;
 		spaceres = 0;
 		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_rename, 0, 0, 0,
 				&tp);
@@ -3190,37 +3164,33 @@ xfs_rename(
 					spaceres);
 
 	/*
+	 * Try to reserve quota to handle an expansion of the target directory.
+	 * We'll allow the rename to continue in reservationless mode if we hit
+	 * a space usage constraint.  If we trigger reservationless mode, save
+	 * the errno if there isn't any free space in the target directory.
+	 */
+	if (spaceres != 0) {
+		error = xfs_trans_reserve_quota_nblks(tp, target_dp, spaceres,
+				0, false);
+		if (error == -EDQUOT || error == -ENOSPC) {
+			if (!retried) {
+				xfs_trans_cancel(tp);
+				xfs_blockgc_free_quota(target_dp, 0);
+				retried = true;
+				goto retry;
+			}
+
+			nospace_error = error;
+			spaceres = 0;
+			error = 0;
+		}
+		if (error)
+			goto out_trans_cancel;
+	}
+
+	/*
 	 * Check for expected errors before we dirty the transaction
 	 * so we can return an error without a transaction abort.
-	 *
-	 * Extent count overflow check:
-	 *
-	 * From the perspective of src_dp, a rename operation is essentially a
-	 * directory entry remove operation. Hence the only place where we check
-	 * for extent count overflow for src_dp is in
-	 * xfs_bmap_del_extent_real(). xfs_bmap_del_extent_real() returns
-	 * -ENOSPC when it detects a possible extent count overflow and in
-	 * response, the higher layers of directory handling code do the
-	 * following:
-	 * 1. Data/Free blocks: XFS lets these blocks linger until a
-	 *    future remove operation removes them.
-	 * 2. Dabtree blocks: XFS swaps the blocks with the last block in the
-	 *    Leaf space and unmaps the last block.
-	 *
-	 * For target_dp, there are two cases depending on whether the
-	 * destination directory entry exists or not.
-	 *
-	 * When destination directory entry does not exist (i.e. target_ip ==
-	 * NULL), extent count overflow check is performed only when transaction
-	 * has a non-zero sized space reservation associated with it.  With a
-	 * zero-sized space reservation, XFS allows a rename operation to
-	 * continue only when the directory has sufficient free space in its
-	 * data/leaf/free space blocks to hold the new entry.
-	 *
-	 * When destination directory entry exists (i.e. target_ip != NULL), all
-	 * we need to do is change the inode number associated with the already
-	 * existing entry. Hence there is no need to perform an extent count
-	 * overflow check.
 	 */
 	if (target_ip == NULL) {
 		/*
@@ -3229,12 +3199,6 @@ xfs_rename(
 		 */
 		if (!spaceres) {
 			error = xfs_dir_canenter(tp, target_dp, target_name);
-			if (error)
-				goto out_trans_cancel;
-		} else {
-			error = xfs_iext_count_may_overflow(target_dp,
-					XFS_DATA_FORK,
-					XFS_IEXT_DIR_MANIP_CNT(mp));
 			if (error)
 				goto out_trans_cancel;
 		}
@@ -3404,18 +3368,12 @@ xfs_rename(
 	 * inode number of the whiteout inode rather than removing it
 	 * altogether.
 	 */
-	if (wip) {
+	if (wip)
 		error = xfs_dir_replace(tp, src_dp, src_name, wip->i_ino,
 					spaceres);
-	} else {
-		/*
-		 * NOTE: We don't need to check for extent count overflow here
-		 * because the dir remove name code will leave the dir block in
-		 * place if the extent count would overflow.
-		 */
+	else
 		error = xfs_dir_removename(tp, src_dp, src_name, src_ip->i_ino,
 					   spaceres);
-	}
 
 	if (error)
 		goto out_trans_cancel;
@@ -3435,6 +3393,8 @@ out_trans_cancel:
 out_release_wip:
 	if (wip)
 		xfs_irele(wip);
+	if (error == -ENOSPC && nospace_error)
+		error = nospace_error;
 	return error;
 }
 
@@ -3495,8 +3455,8 @@ xfs_iflush(
 	if (XFS_TEST_ERROR(ip->i_df.if_nextents + xfs_ifork_nextents(ip->i_afp) >
 				ip->i_nblocks, mp, XFS_ERRTAG_IFLUSH_5)) {
 		xfs_alert_tag(mp, XFS_PTAG_IFLUSH,
-			"%s: detected corrupt incore inode %Lu, "
-			"total extents = %d, nblocks = %Ld, ptr "PTR_FMT,
+			"%s: detected corrupt incore inode %llu, "
+			"total extents = %llu nblocks = %lld, ptr "PTR_FMT,
 			__func__, ip->i_ino,
 			ip->i_df.if_nextents + xfs_ifork_nextents(ip->i_afp),
 			ip->i_nblocks, ip);
@@ -3611,7 +3571,7 @@ xfs_iflush_cluster(
 
 	/*
 	 * We must use the safe variant here as on shutdown xfs_iflush_abort()
-	 * can remove itself from the list.
+	 * will remove itself from the list.
 	 */
 	list_for_each_entry_safe(lip, n, &bp->b_li_list, li_bio_list) {
 		iip = (struct xfs_inode_log_item *)lip;
@@ -3659,7 +3619,7 @@ xfs_iflush_cluster(
 		 * AIL, leaving a dirty/unpinned inode attached to the buffer
 		 * that otherwise looks like it should be flushed.
 		 */
-		if (xfs_is_shutdown(mp)) {
+		if (xlog_is_shutdown(mp->m_log)) {
 			xfs_iunpin_wait(ip);
 			xfs_iflush_abort(ip);
 			xfs_iunlock(ip, XFS_ILOCK_SHARED);
@@ -3685,9 +3645,19 @@ xfs_iflush_cluster(
 	}
 
 	if (error) {
+		/*
+		 * Shutdown first so we kill the log before we release this
+		 * buffer. If it is an INODE_ALLOC buffer and pins the tail
+		 * of the log, failing it before the _log_ is shut down can
+		 * result in the log tail being moved forward in the journal
+		 * on disk because log writes can still be taking place. Hence
+		 * unpinning the tail will allow the ICREATE intent to be
+		 * removed from the log an recovery will fail with uninitialised
+		 * inode cluster buffers.
+		 */
+		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 		bp->b_flags |= XBF_ASYNC;
 		xfs_buf_ioend_fail(bp);
-		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 		return error;
 	}
 

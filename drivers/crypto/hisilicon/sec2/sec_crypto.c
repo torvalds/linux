@@ -42,6 +42,8 @@
 #define SEC_DE_OFFSET_V3		9
 #define SEC_SCENE_OFFSET_V3	5
 #define SEC_CKEY_OFFSET_V3	13
+#define SEC_CTR_CNT_OFFSET	25
+#define SEC_CTR_CNT_ROLLOVER	2
 #define SEC_SRC_SGL_OFFSET_V3	11
 #define SEC_DST_SGL_OFFSET_V3	14
 #define SEC_CALG_OFFSET_V3	4
@@ -63,6 +65,7 @@
 #define SEC_AUTH_CIPHER		0x1
 #define SEC_MAX_MAC_LEN		64
 #define SEC_MAX_AAD_LEN		65535
+#define SEC_MAX_CCM_AAD_LEN	65279
 #define SEC_TOTAL_MAC_SZ	(SEC_MAX_MAC_LEN * QM_Q_DEPTH)
 
 #define SEC_PBUF_SZ			512
@@ -237,7 +240,7 @@ static void sec_req_cb(struct hisi_qp *qp, void *resp)
 
 	if (unlikely(type != type_supported)) {
 		atomic64_inc(&dfx->err_bd_cnt);
-		pr_err("err bd type [%d]\n", type);
+		pr_err("err bd type [%u]\n", type);
 		return;
 	}
 
@@ -641,13 +644,15 @@ static int sec_skcipher_fbtfm_init(struct crypto_skcipher *tfm)
 	struct sec_cipher_ctx *c_ctx = &ctx->c_ctx;
 
 	c_ctx->fallback = false;
+
+	/* Currently, only XTS mode need fallback tfm when using 192bit key */
 	if (likely(strncmp(alg, "xts", SEC_XTS_NAME_SZ)))
 		return 0;
 
 	c_ctx->fbtfm = crypto_alloc_sync_skcipher(alg, 0,
 						  CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(c_ctx->fbtfm)) {
-		pr_err("failed to alloc fallback tfm!\n");
+		pr_err("failed to alloc xts mode fallback tfm!\n");
 		return PTR_ERR(c_ctx->fbtfm);
 	}
 
@@ -808,7 +813,7 @@ static int sec_skcipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	}
 
 	memcpy(c_ctx->c_key, key, keylen);
-	if (c_ctx->fallback) {
+	if (c_ctx->fallback && c_ctx->fbtfm) {
 		ret = crypto_sync_skcipher_setkey(c_ctx->fbtfm, key, keylen);
 		if (ret) {
 			dev_err(dev, "failed to set fallback skcipher key!\n");
@@ -1300,6 +1305,10 @@ static int sec_skcipher_bd_fill_v3(struct sec_ctx *ctx, struct sec_req *req)
 		cipher = SEC_CIPHER_DEC;
 	sec_sqe3->c_icv_key |= cpu_to_le16(cipher);
 
+	/* Set the CTR counter mode is 128bit rollover */
+	sec_sqe3->auth_mac_key = cpu_to_le32((u32)SEC_CTR_CNT_ROLLOVER <<
+					SEC_CTR_CNT_OFFSET);
+
 	if (req->use_pbuf) {
 		bd_param |= SEC_PBUF << SEC_SRC_SGL_OFFSET_V3;
 		bd_param |= SEC_PBUF << SEC_DST_SGL_OFFSET_V3;
@@ -1614,7 +1623,7 @@ static void sec_auth_bd_fill_ex_v3(struct sec_auth_ctx *ctx, int dir,
 		sqe3->auth_mac_key |= cpu_to_le32((u32)SEC_AUTH_TYPE1);
 		sqe3->huk_iv_seq &= SEC_CIPHER_AUTH_V3;
 	} else {
-		sqe3->auth_mac_key |= cpu_to_le32((u32)SEC_AUTH_TYPE1);
+		sqe3->auth_mac_key |= cpu_to_le32((u32)SEC_AUTH_TYPE2);
 		sqe3->huk_iv_seq |= SEC_AUTH_CIPHER_V3;
 	}
 	sqe3->a_len_key = cpu_to_le32(c_req->c_len + aq->assoclen);
@@ -2032,13 +2041,12 @@ static int sec_skcipher_soft_crypto(struct sec_ctx *ctx,
 				    struct skcipher_request *sreq, bool encrypt)
 {
 	struct sec_cipher_ctx *c_ctx = &ctx->c_ctx;
+	SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, c_ctx->fbtfm);
 	struct device *dev = ctx->dev;
 	int ret;
 
-	SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, c_ctx->fbtfm);
-
 	if (!c_ctx->fbtfm) {
-		dev_err(dev, "failed to check fallback tfm\n");
+		dev_err_ratelimited(dev, "the soft tfm isn't supported in the current system.\n");
 		return -EINVAL;
 	}
 
@@ -2105,7 +2113,6 @@ static int sec_skcipher_decrypt(struct skcipher_request *sk_req)
 		.cra_driver_name = "hisi_sec_"sec_cra_name,\
 		.cra_priority = SEC_PRIORITY,\
 		.cra_flags = CRYPTO_ALG_ASYNC |\
-		 CRYPTO_ALG_ALLOCATES_MEMORY |\
 		 CRYPTO_ALG_NEED_FALLBACK,\
 		.cra_blocksize = blk_size,\
 		.cra_ctxsize = sizeof(struct sec_ctx),\
@@ -2219,6 +2226,10 @@ static int sec_aead_spec_check(struct sec_ctx *ctx, struct sec_req *sreq)
 	}
 
 	if (c_mode == SEC_CMODE_CCM) {
+		if (unlikely(req->assoclen > SEC_MAX_CCM_AAD_LEN)) {
+			dev_err_ratelimited(dev, "CCM input aad parameter is too long!\n");
+			return -EINVAL;
+		}
 		ret = aead_iv_demension_check(req);
 		if (ret) {
 			dev_err(dev, "aead input iv param error!\n");
@@ -2256,7 +2267,6 @@ static int sec_aead_param_check(struct sec_ctx *ctx, struct sec_req *sreq)
 	if (ctx->sec->qm.ver == QM_HW_V2) {
 		if (unlikely(!req->cryptlen || (!sreq->c_req.encrypt &&
 		    req->cryptlen <= authsize))) {
-			dev_err(dev, "Kunpeng920 not support 0 length!\n");
 			ctx->a_ctx.fallback = true;
 			return -EINVAL;
 		}
@@ -2284,15 +2294,20 @@ static int sec_aead_soft_crypto(struct sec_ctx *ctx,
 				struct aead_request *aead_req,
 				bool encrypt)
 {
-	struct aead_request *subreq = aead_request_ctx(aead_req);
 	struct sec_auth_ctx *a_ctx = &ctx->a_ctx;
 	struct device *dev = ctx->dev;
+	struct aead_request *subreq;
+	int ret;
 
 	/* Kunpeng920 aead mode not support input 0 size */
 	if (!a_ctx->fallback_aead_tfm) {
 		dev_err(dev, "aead fallback tfm is NULL!\n");
 		return -EINVAL;
 	}
+
+	subreq = aead_request_alloc(a_ctx->fallback_aead_tfm, GFP_KERNEL);
+	if (!subreq)
+		return -ENOMEM;
 
 	aead_request_set_tfm(subreq, a_ctx->fallback_aead_tfm);
 	aead_request_set_callback(subreq, aead_req->base.flags,
@@ -2301,8 +2316,13 @@ static int sec_aead_soft_crypto(struct sec_ctx *ctx,
 			       aead_req->cryptlen, aead_req->iv);
 	aead_request_set_ad(subreq, aead_req->assoclen);
 
-	return encrypt ? crypto_aead_encrypt(subreq) :
-		   crypto_aead_decrypt(subreq);
+	if (encrypt)
+		ret = crypto_aead_encrypt(subreq);
+	else
+		ret = crypto_aead_decrypt(subreq);
+	aead_request_free(subreq);
+
+	return ret;
 }
 
 static int sec_aead_crypto(struct aead_request *a_req, bool encrypt)
@@ -2345,7 +2365,6 @@ static int sec_aead_decrypt(struct aead_request *a_req)
 		.cra_driver_name = "hisi_sec_"sec_cra_name,\
 		.cra_priority = SEC_PRIORITY,\
 		.cra_flags = CRYPTO_ALG_ASYNC |\
-		 CRYPTO_ALG_ALLOCATES_MEMORY |\
 		 CRYPTO_ALG_NEED_FALLBACK,\
 		.cra_blocksize = blk_size,\
 		.cra_ctxsize = sizeof(struct sec_ctx),\

@@ -543,6 +543,7 @@ enum enetc_txbd_flags {
 	ENETC_TXBD_FLAGS_EX = BIT(6),
 	ENETC_TXBD_FLAGS_F = BIT(7)
 };
+#define ENETC_TXBD_STATS_WIN	BIT(7)
 #define ENETC_TXBD_TXSTART_MASK GENMASK(24, 0)
 #define ENETC_TXBD_FLAGS_OFFSET 24
 
@@ -881,7 +882,7 @@ struct sgcl_data {
 	u32		bth;
 	u32		ct;
 	u32		cte;
-	struct sgce	sgcl[0];
+	struct sgce	sgcl[];
 };
 
 #define ENETC_CBDR_FMI_MR	BIT(0)

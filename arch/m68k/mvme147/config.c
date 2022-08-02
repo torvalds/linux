@@ -22,7 +22,6 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <linux/major.h>
-#include <linux/genhd.h>
 #include <linux/rtc.h>
 #include <linux/interrupt.h>
 
@@ -34,6 +33,7 @@
 #include <asm/traps.h>
 #include <asm/machdep.h>
 #include <asm/mvme147hw.h>
+#include <asm/config.h>
 
 
 static void mvme147_get_model(char *model);

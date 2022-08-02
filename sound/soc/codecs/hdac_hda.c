@@ -363,8 +363,13 @@ static struct hda_pcm *snd_soc_find_pcm_from_dai(struct hdac_hda_priv *hda_pvt,
 	}
 
 	list_for_each_entry(cpcm, &hcodec->pcm_list_head, list) {
-		if (strstr(cpcm->name, pcm_name))
+		if (strstr(cpcm->name, pcm_name)) {
+			if (strcmp(pcm_name, "Analog") == 0) {
+				if (strstr(cpcm->name, "Alt Analog"))
+					continue;
+			}
 			return cpcm;
+		}
 	}
 
 	dev_err(&hcodec->core.dev, "didn't find PCM for DAI %s\n", dai->name);
@@ -413,7 +418,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 				       HDA_CODEC_IDX_CONTROLLER, true);
 
 	ret = snd_hda_codec_device_new(hcodec->bus, component->card->snd_card,
-				       hdev->addr, hcodec);
+				       hdev->addr, hcodec, true);
 	if (ret < 0) {
 		dev_err(&hdev->dev, "failed to create hda codec %d\n", ret);
 		goto error_no_pm;
@@ -566,13 +571,14 @@ static const struct snd_soc_dapm_widget hdac_hda_dapm_widgets[] = {
 };
 
 static const struct snd_soc_component_driver hdac_hda_codec = {
-	.probe		= hdac_hda_codec_probe,
-	.remove		= hdac_hda_codec_remove,
-	.idle_bias_on	= false,
-	.dapm_widgets           = hdac_hda_dapm_widgets,
-	.num_dapm_widgets       = ARRAY_SIZE(hdac_hda_dapm_widgets),
-	.dapm_routes            = hdac_hda_dapm_routes,
-	.num_dapm_routes        = ARRAY_SIZE(hdac_hda_dapm_routes),
+	.probe			= hdac_hda_codec_probe,
+	.remove			= hdac_hda_codec_remove,
+	.dapm_widgets		= hdac_hda_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(hdac_hda_dapm_widgets),
+	.dapm_routes		= hdac_hda_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(hdac_hda_dapm_routes),
+	.idle_bias_on		= false,
+	.endianness		= 1,
 };
 
 static int hdac_hda_dev_probe(struct hdac_device *hdev)

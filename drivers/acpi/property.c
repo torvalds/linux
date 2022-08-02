@@ -433,6 +433,16 @@ void acpi_init_properties(struct acpi_device *adev)
 		acpi_extract_apple_properties(adev);
 }
 
+static void acpi_free_device_properties(struct list_head *list)
+{
+	struct acpi_device_properties *props, *tmp;
+
+	list_for_each_entry_safe(props, tmp, list, list) {
+		list_del(&props->list);
+		kfree(props);
+	}
+}
+
 static void acpi_destroy_nondev_subnodes(struct list_head *list)
 {
 	struct acpi_data_node *dn, *next;
@@ -445,22 +455,18 @@ static void acpi_destroy_nondev_subnodes(struct list_head *list)
 		wait_for_completion(&dn->kobj_done);
 		list_del(&dn->sibling);
 		ACPI_FREE((void *)dn->data.pointer);
+		acpi_free_device_properties(&dn->data.properties);
 		kfree(dn);
 	}
 }
 
 void acpi_free_properties(struct acpi_device *adev)
 {
-	struct acpi_device_properties *props, *tmp;
-
 	acpi_destroy_nondev_subnodes(&adev->data.subnodes);
 	ACPI_FREE((void *)adev->data.pointer);
 	adev->data.of_compatible = NULL;
 	adev->data.pointer = NULL;
-	list_for_each_entry_safe(props, tmp, &adev->data.properties, list) {
-		list_del(&props->list);
-		kfree(props);
-	}
+	acpi_free_device_properties(&adev->data.properties);
 }
 
 /**
@@ -541,7 +547,8 @@ acpi_device_data_of_node(const struct fwnode_handle *fwnode)
 	if (is_acpi_device_node(fwnode)) {
 		const struct acpi_device *adev = to_acpi_device_node(fwnode);
 		return &adev->data;
-	} else if (is_acpi_data_node(fwnode)) {
+	}
+	if (is_acpi_data_node(fwnode)) {
 		const struct acpi_data_node *dn = to_acpi_data_node(fwnode);
 		return &dn->data;
 	}
@@ -685,7 +692,7 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 	 */
 	if (obj->type == ACPI_TYPE_LOCAL_REFERENCE) {
 		if (index)
-			return -EINVAL;
+			return -ENOENT;
 
 		device = acpi_fetch_acpi_dev(obj->reference.handle);
 		if (!device)
@@ -739,14 +746,19 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 					return -EINVAL;
 			}
 
-			/* assume following integer elements are all args */
+			/*
+			 * Assume the following integer elements are all args.
+			 * Stop counting on the first reference or end of the
+			 * package arguments. In case of neither reference,
+			 * nor integer, return an error, we can't parse it.
+			 */
 			for (i = 0; element + i < end && i < num_args; i++) {
 				int type = element[i].type;
 
+				if (type == ACPI_TYPE_LOCAL_REFERENCE)
+					break;
 				if (type == ACPI_TYPE_INTEGER)
 					nargs++;
-				else if (type == ACPI_TYPE_LOCAL_REFERENCE)
-					break;
 				else
 					return -EINVAL;
 			}
@@ -950,7 +962,7 @@ static int acpi_data_prop_read(const struct acpi_device_data *data,
 
 	if (proptype != DEV_PROP_STRING && nval > obj->package.count)
 		return -EOVERFLOW;
-	else if (nval <= 0)
+	if (nval == 0)
 		return -EINVAL;
 
 	items = obj->package.elements;
@@ -1012,14 +1024,10 @@ struct fwnode_handle *acpi_get_next_subnode(const struct fwnode_handle *fwnode,
 	const struct list_head *head;
 	struct list_head *next;
 
-	if (!child || is_acpi_device_node(child)) {
+	if ((!child || is_acpi_device_node(child)) && adev) {
 		struct acpi_device *child_adev;
 
-		if (adev)
-			head = &adev->children;
-		else
-			goto nondev;
-
+		head = &adev->children;
 		if (list_empty(head))
 			goto nondev;
 
@@ -1089,7 +1097,8 @@ acpi_node_get_parent(const struct fwnode_handle *fwnode)
 	if (is_acpi_data_node(fwnode)) {
 		/* All data nodes have parent pointer so just return that */
 		return to_acpi_data_node(fwnode)->parent;
-	} else if (is_acpi_device_node(fwnode)) {
+	}
+	if (is_acpi_device_node(fwnode)) {
 		struct device *dev = to_acpi_device_node(fwnode)->dev.parent;
 
 		if (dev)
@@ -1253,6 +1262,24 @@ static bool acpi_fwnode_device_is_available(const struct fwnode_handle *fwnode)
 	return acpi_device_is_present(to_acpi_device_node(fwnode));
 }
 
+static const void *
+acpi_fwnode_device_get_match_data(const struct fwnode_handle *fwnode,
+				  const struct device *dev)
+{
+	return acpi_device_get_match_data(dev);
+}
+
+static bool acpi_fwnode_device_dma_supported(const struct fwnode_handle *fwnode)
+{
+	return acpi_dma_supported(to_acpi_device_node(fwnode));
+}
+
+static enum dev_dma_attr
+acpi_fwnode_device_get_dma_attr(const struct fwnode_handle *fwnode)
+{
+	return acpi_get_dma_attr(to_acpi_device_node(fwnode));
+}
+
 static bool acpi_fwnode_property_present(const struct fwnode_handle *fwnode,
 					 const char *propname)
 {
@@ -1373,17 +1400,26 @@ static int acpi_fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 	return 0;
 }
 
-static const void *
-acpi_fwnode_device_get_match_data(const struct fwnode_handle *fwnode,
-				  const struct device *dev)
+static int acpi_fwnode_irq_get(const struct fwnode_handle *fwnode,
+			       unsigned int index)
 {
-	return acpi_device_get_match_data(dev);
+	struct resource res;
+	int ret;
+
+	ret = acpi_irq_get(ACPI_HANDLE_FWNODE(fwnode), index, &res);
+	if (ret)
+		return ret;
+
+	return res.start;
 }
 
 #define DECLARE_ACPI_FWNODE_OPS(ops) \
 	const struct fwnode_operations ops = {				\
 		.device_is_available = acpi_fwnode_device_is_available, \
 		.device_get_match_data = acpi_fwnode_device_get_match_data, \
+		.device_dma_supported =				\
+			acpi_fwnode_device_dma_supported,		\
+		.device_get_dma_attr = acpi_fwnode_device_get_dma_attr,	\
 		.property_present = acpi_fwnode_property_present,	\
 		.property_read_int_array =				\
 			acpi_fwnode_property_read_int_array,		\
@@ -1401,6 +1437,7 @@ acpi_fwnode_device_get_match_data(const struct fwnode_handle *fwnode,
 			acpi_graph_get_remote_endpoint,			\
 		.graph_get_port_parent = acpi_fwnode_get_parent,	\
 		.graph_parse_endpoint = acpi_fwnode_graph_parse_endpoint, \
+		.irq_get = acpi_fwnode_irq_get,				\
 	};								\
 	EXPORT_SYMBOL_GPL(ops)
 

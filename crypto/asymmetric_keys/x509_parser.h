@@ -22,7 +22,7 @@ struct x509_certificate {
 	time64_t	valid_to;
 	const void	*tbs;			/* Signed data */
 	unsigned	tbs_size;		/* Size of signed data */
-	unsigned	raw_sig_size;		/* Size of sigature */
+	unsigned	raw_sig_size;		/* Size of signature */
 	const void	*raw_sig;		/* Signature data */
 	const void	*raw_serial;		/* Raw serial number in ASN.1 */
 	unsigned	raw_serial_size;
@@ -36,10 +36,18 @@ struct x509_certificate {
 	bool		seen;			/* Infinite recursion prevention */
 	bool		verified;
 	bool		self_signed;		/* T if self-signed (check unsupported_sig too) */
-	bool		unsupported_key;	/* T if key uses unsupported crypto */
 	bool		unsupported_sig;	/* T if signature uses unsupported crypto */
 	bool		blacklisted;
 };
+
+/*
+ * selftest.c
+ */
+#ifdef CONFIG_FIPS_SIGNATURE_SELFTEST
+extern int __init fips_signature_selftest(void);
+#else
+static inline int fips_signature_selftest(void) { return 0; }
+#endif
 
 /*
  * x509_cert_parser.c

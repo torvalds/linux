@@ -5,12 +5,16 @@
  */
 
 #include <linux/pagevec.h>
+#include <linux/shmem_fs.h>
 #include <linux/swap.h>
+
+#include <drm/drm_cache.h>
 
 #include "gem/i915_gem_region.h"
 #include "i915_drv.h"
-#include "i915_gemfs.h"
 #include "i915_gem_object.h"
+#include "i915_gem_tiling.h"
+#include "i915_gemfs.h"
 #include "i915_scatterlist.h"
 #include "i915_trace.h"
 
@@ -331,6 +335,21 @@ shmem_writeback(struct drm_i915_gem_object *obj)
 	__shmem_writeback(obj->base.size, obj->base.filp->f_mapping);
 }
 
+static int shmem_shrink(struct drm_i915_gem_object *obj, unsigned int flags)
+{
+	switch (obj->mm.madv) {
+	case I915_MADV_DONTNEED:
+		return i915_gem_object_truncate(obj);
+	case __I915_MADV_PURGED:
+		return 0;
+	}
+
+	if (flags & I915_GEM_OBJECT_SHRINK_WRITEBACK)
+		shmem_writeback(obj);
+
+	return 0;
+}
+
 void
 __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 				struct sg_table *pages,
@@ -390,6 +409,7 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 	     const struct drm_i915_gem_pwrite *arg)
 {
 	struct address_space *mapping = obj->base.filp->f_mapping;
+	const struct address_space_operations *aops = mapping->a_ops;
 	char __user *user_data = u64_to_user_ptr(arg->data_ptr);
 	u64 remain, offset;
 	unsigned int pg;
@@ -447,9 +467,8 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 		if (err)
 			return err;
 
-		err = pagecache_write_begin(obj->base.filp, mapping,
-					    offset, len, 0,
-					    &page, &data);
+		err = aops->write_begin(obj->base.filp, mapping, offset, len,
+					&page, &data);
 		if (err < 0)
 			return err;
 
@@ -459,9 +478,8 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 						      len);
 		kunmap_atomic(vaddr);
 
-		err = pagecache_write_end(obj->base.filp, mapping,
-					  offset, len, len - unwritten,
-					  page, data);
+		err = aops->write_end(obj->base.filp, mapping, offset, len,
+				      len - unwritten, page, data);
 		if (err < 0)
 			return err;
 
@@ -503,7 +521,7 @@ const struct drm_i915_gem_object_ops i915_gem_shmem_ops = {
 	.get_pages = shmem_get_pages,
 	.put_pages = shmem_put_pages,
 	.truncate = shmem_truncate,
-	.writeback = shmem_writeback,
+	.shrink = shmem_shrink,
 
 	.pwrite = shmem_pwrite,
 	.pread = shmem_pread,
@@ -534,6 +552,7 @@ static int __create_shmem(struct drm_i915_private *i915,
 
 static int shmem_object_init(struct intel_memory_region *mem,
 			     struct drm_i915_gem_object *obj,
+			     resource_size_t offset,
 			     resource_size_t size,
 			     resource_size_t page_size,
 			     unsigned int flags)
@@ -604,6 +623,7 @@ i915_gem_object_create_shmem_from_data(struct drm_i915_private *dev_priv,
 {
 	struct drm_i915_gem_object *obj;
 	struct file *file;
+	const struct address_space_operations *aops;
 	resource_size_t offset;
 	int err;
 
@@ -615,15 +635,15 @@ i915_gem_object_create_shmem_from_data(struct drm_i915_private *dev_priv,
 	GEM_BUG_ON(obj->write_domain != I915_GEM_DOMAIN_CPU);
 
 	file = obj->base.filp;
+	aops = file->f_mapping->a_ops;
 	offset = 0;
 	do {
 		unsigned int len = min_t(typeof(size), size, PAGE_SIZE);
 		struct page *page;
 		void *pgdata, *vaddr;
 
-		err = pagecache_write_begin(file, file->f_mapping,
-					    offset, len, 0,
-					    &page, &pgdata);
+		err = aops->write_begin(file, file->f_mapping, offset, len,
+					&page, &pgdata);
 		if (err < 0)
 			goto fail;
 
@@ -631,9 +651,8 @@ i915_gem_object_create_shmem_from_data(struct drm_i915_private *dev_priv,
 		memcpy(vaddr, data, len);
 		kunmap(page);
 
-		err = pagecache_write_end(file, file->f_mapping,
-					  offset, len, len,
-					  page, pgdata);
+		err = aops->write_end(file, file->f_mapping, offset, len, len,
+				      page, pgdata);
 		if (err < 0)
 			goto fail;
 
@@ -681,7 +700,7 @@ struct intel_memory_region *i915_gem_shmem_setup(struct drm_i915_private *i915,
 {
 	return intel_memory_region_create(i915, 0,
 					  totalram_pages() << PAGE_SHIFT,
-					  PAGE_SIZE, 0,
+					  PAGE_SIZE, 0, 0,
 					  type, instance,
 					  &shmem_region_ops);
 }

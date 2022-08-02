@@ -87,11 +87,6 @@ base-dtb-y := $(foreach m, $(multi-dtb-y), $(firstword $(call suffix-search, $m,
 
 always-y			+= $(dtb-y)
 
-ifneq ($(CHECK_DTBS),)
-always-y += $(patsubst %.dtb,%.dt.yaml, $(real-dtb-y))
-always-y += $(patsubst %.dtbo,%.dt.yaml, $(real-dtb-y))
-endif
-
 # Add subdir path
 
 extra-y		:= $(addprefix $(obj)/,$(extra-y))
@@ -111,7 +106,7 @@ subdir-ym	:= $(addprefix $(obj)/,$(subdir-ym))
 modname-multi = $(sort $(foreach m,$(multi-obj-ym),\
 		$(if $(filter $*.o, $(call suffix-search, $m, .o, -objs -y -m)),$(m:.o=))))
 
-__modname = $(if $(modname-multi),$(modname-multi),$(basetarget))
+__modname = $(or $(modname-multi),$(basetarget))
 
 modname = $(subst $(space),:,$(__modname))
 modfile = $(addprefix $(obj)/,$(__modname))
@@ -230,36 +225,51 @@ dtc_cpp_flags  = -Wp,-MMD,$(depfile).pre.tmp -nostdinc                    \
 		 $(addprefix -I,$(DTC_INCLUDE))                          \
 		 -undef -D__DTS__
 
-ifeq ($(CONFIG_LTO_CLANG),y)
-# With CONFIG_LTO_CLANG, .o files in modules might be LLVM bitcode, so we
-# need to run LTO to compile them into native code (.lto.o) before further
-# processing.
-mod-prelink-ext := .lto
-endif
+ifdef CONFIG_OBJTOOL
+
+objtool := $(objtree)/tools/objtool/objtool
+
+objtool_args =								\
+	$(if $(CONFIG_HAVE_JUMP_LABEL_HACK), --hacks=jump_label)	\
+	$(if $(CONFIG_HAVE_NOINSTR_HACK), --hacks=noinstr)		\
+	$(if $(CONFIG_X86_KERNEL_IBT), --ibt)				\
+	$(if $(CONFIG_FTRACE_MCOUNT_USE_OBJTOOL), --mcount)		\
+	$(if $(CONFIG_UNWINDER_ORC), --orc)				\
+	$(if $(CONFIG_RETPOLINE), --retpoline)				\
+	$(if $(CONFIG_SLS), --sls)					\
+	$(if $(CONFIG_STACK_VALIDATION), --stackval)			\
+	$(if $(CONFIG_HAVE_STATIC_CALL_INLINE), --static-call)		\
+	$(if $(CONFIG_HAVE_UACCESS_VALIDATION), --uaccess)		\
+	$(if $(delay-objtool), --link)					\
+	$(if $(part-of-module), --module)				\
+	$(if $(CONFIG_GCOV_KERNEL), --no-unreachable)
+
+delay-objtool := $(or $(CONFIG_LTO_CLANG),$(CONFIG_X86_KERNEL_IBT))
+
+cmd_objtool = $(if $(objtool-enabled), ; $(objtool) $(objtool_args) $@)
+cmd_gen_objtooldep = $(if $(objtool-enabled), { echo ; echo '$@: $$(wildcard $(objtool))' ; } >> $(dot-target).cmd)
+
+endif # CONFIG_OBJTOOL
 
 # Useful for describing the dependency of composite objects
 # Usage:
 #   $(call multi_depend, multi_used_targets, suffix_to_remove, suffix_to_add)
 define multi_depend
-$(foreach m, $(notdir $1), \
-	$(eval $(obj)/$m: \
-	$(addprefix $(obj)/, $(foreach s, $3, $($(m:%$(strip $2)=%$(s)))))))
+$(foreach m, $1, \
+	$(eval $m: \
+	$(addprefix $(obj)/, $(call suffix-search, $(patsubst $(obj)/%,%,$m), $2, $3))))
 endef
 
-quiet_cmd_copy = COPY    $@
-      cmd_copy = cp $< $@
-
-# Shipped files
+# Copy a file
 # ===========================================================================
 # 'cp' preserves permissions. If you use it to copy a file in read-only srctree,
 # the copy would be read-only as well, leading to an error when executing the
 # rule next time. Use 'cat' instead in order to generate a writable file.
-
-quiet_cmd_shipped = SHIPPED $@
-cmd_shipped = cat $< > $@
+quiet_cmd_copy = COPY    $@
+      cmd_copy = cat $< > $@
 
 $(obj)/%: $(src)/%_shipped
-	$(call cmd,shipped)
+	$(call cmd,copy)
 
 # Commands useful for building a boot image
 # ===========================================================================
@@ -347,12 +357,6 @@ cmd_dtc = $(HOSTCC) -E $(dtc_cpp_flags) -x assembler-with-cpp -o $(dtc-tmp) $< ;
 		-d $(depfile).dtc.tmp $(dtc-tmp) ; \
 	cat $(depfile).pre.tmp $(depfile).dtc.tmp > $(depfile)
 
-$(obj)/%.dtb: $(src)/%.dts $(DTC) FORCE
-	$(call if_changed_dep,dtc)
-
-$(obj)/%.dtbo: $(src)/%.dts $(DTC) FORCE
-	$(call if_changed_dep,dtc)
-
 quiet_cmd_fdtoverlay = DTOVL   $@
       cmd_fdtoverlay = $(objtree)/scripts/dtc/fdtoverlay -o $@ -i $(real-prereqs)
 
@@ -360,22 +364,26 @@ $(multi-dtb-y): FORCE
 	$(call if_changed,fdtoverlay)
 $(call multi_depend, $(multi-dtb-y), .dtb, -dtbs)
 
+ifneq ($(CHECK_DTBS)$(CHECK_DT_BINDING),)
 DT_CHECKER ?= dt-validate
-DT_CHECKER_FLAGS ?= $(if $(DT_SCHEMA_FILES),,-m)
+DT_CHECKER_FLAGS ?= $(if $(DT_SCHEMA_FILES),-l $(DT_SCHEMA_FILES),-m)
 DT_BINDING_DIR := Documentation/devicetree/bindings
-# DT_TMP_SCHEMA may be overridden from Documentation/devicetree/bindings/Makefile
-DT_TMP_SCHEMA ?= $(objtree)/$(DT_BINDING_DIR)/processed-schema.json
+DT_TMP_SCHEMA := $(objtree)/$(DT_BINDING_DIR)/processed-schema.json
 
 quiet_cmd_dtb_check =	CHECK   $@
-      cmd_dtb_check =	$(DT_CHECKER) $(DT_CHECKER_FLAGS) -u $(srctree)/$(DT_BINDING_DIR) -p $(DT_TMP_SCHEMA) $@
+      cmd_dtb_check =	$(DT_CHECKER) $(DT_CHECKER_FLAGS) -u $(srctree)/$(DT_BINDING_DIR) -p $(DT_TMP_SCHEMA) $@ || true
+endif
 
 define rule_dtc
 	$(call cmd_and_fixdep,dtc)
 	$(call cmd,dtb_check)
 endef
 
-$(obj)/%.dt.yaml: $(src)/%.dts $(DTC) $(DT_TMP_SCHEMA) FORCE
+$(obj)/%.dtb: $(src)/%.dts $(DTC) $(DT_TMP_SCHEMA) FORCE
 	$(call if_changed_rule,dtc)
+
+$(obj)/%.dtbo: $(src)/%.dts $(DTC) FORCE
+	$(call if_changed_dep,dtc)
 
 dtc-tmp = $(subst $(comma),_,$(dot-target).dts.tmp)
 
@@ -438,7 +446,7 @@ MKIMAGE := $(srctree)/scripts/mkuboot.sh
 # SRCARCH just happens to match slightly more than ARCH (on sparc), so reduces
 # the number of overrides in arch makefiles
 UIMAGE_ARCH ?= $(SRCARCH)
-UIMAGE_COMPRESSION ?= $(if $(2),$(2),none)
+UIMAGE_COMPRESSION ?= $(or $(2),none)
 UIMAGE_OPTS-y ?=
 UIMAGE_TYPE ?= kernel
 UIMAGE_LOADADDR ?= arch_must_set_this

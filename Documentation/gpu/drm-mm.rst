@@ -8,7 +8,7 @@ the very dynamic nature of many of that data, managing graphics memory
 efficiently is thus crucial for the graphics stack and plays a central
 role in the DRM infrastructure.
 
-The DRM core includes two memory managers, namely Translation Table Maps
+The DRM core includes two memory managers, namely Translation Table Manager
 (TTM) and Graphics Execution Manager (GEM). TTM was the first DRM memory
 manager to be developed and tried to be a one-size-fits-them all
 solution. It provides a single userspace API to accommodate the need of
@@ -464,6 +464,15 @@ DRM MM Range Allocator Function References
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_mm.c
+   :export:
+
+DRM Buddy Allocator
+===================
+
+DRM Buddy Function References
+-----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_buddy.c
    :export:
 
 DRM Cache Handling and Fast WC memcpy()

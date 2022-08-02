@@ -88,7 +88,7 @@ static const struct of_device_id ahci_of_match[] = {
 	{ .compatible = "snps,dwc-ahci", },
 	{ .compatible = "hisilicon,hisi-ahci", },
 	{ .compatible = "cavium,octeon-7130-ahci", },
-	{},
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, ahci_of_match);
 

@@ -88,6 +88,7 @@ static struct host1x_bo_mapping *tegra_bo_pin(struct device *dev, struct host1x_
 		if (IS_ERR(map->sgt)) {
 			dma_buf_detach(buf, map->attach);
 			err = PTR_ERR(map->sgt);
+			map->sgt = NULL;
 			goto free;
 		}
 
@@ -174,7 +175,7 @@ static void tegra_bo_unpin(struct host1x_bo_mapping *map)
 static void *tegra_bo_mmap(struct host1x_bo *bo)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
-	struct dma_buf_map map;
+	struct iosys_map map;
 	int ret;
 
 	if (obj->vaddr) {
@@ -191,7 +192,7 @@ static void *tegra_bo_mmap(struct host1x_bo *bo)
 static void tegra_bo_munmap(struct host1x_bo *bo, void *addr)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
-	struct dma_buf_map map = DMA_BUF_MAP_INIT_VADDR(addr);
+	struct iosys_map map = IOSYS_MAP_INIT_VADDR(addr);
 
 	if (obj->vaddr)
 		return;
@@ -699,17 +700,17 @@ static int tegra_gem_prime_mmap(struct dma_buf *buf, struct vm_area_struct *vma)
 	return __tegra_gem_mmap(gem, vma);
 }
 
-static int tegra_gem_prime_vmap(struct dma_buf *buf, struct dma_buf_map *map)
+static int tegra_gem_prime_vmap(struct dma_buf *buf, struct iosys_map *map)
 {
 	struct drm_gem_object *gem = buf->priv;
 	struct tegra_bo *bo = to_tegra_bo(gem);
 
-	dma_buf_map_set_vaddr(map, bo->vaddr);
+	iosys_map_set_vaddr(map, bo->vaddr);
 
 	return 0;
 }
 
-static void tegra_gem_prime_vunmap(struct dma_buf *buf, struct dma_buf_map *map)
+static void tegra_gem_prime_vunmap(struct dma_buf *buf, struct iosys_map *map)
 {
 }
 

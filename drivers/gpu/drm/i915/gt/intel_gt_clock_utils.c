@@ -4,8 +4,10 @@
  */
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_gt.h"
 #include "intel_gt_clock_utils.h"
+#include "intel_gt_regs.h"
 
 static u32 read_reference_ts_freq(struct intel_uncore *uncore)
 {
@@ -158,6 +160,10 @@ void intel_gt_init_clock_frequency(struct intel_gt *gt)
 	gt->clock_frequency = read_clock_frequency(gt->uncore);
 	if (gt->clock_frequency)
 		gt->clock_period_ns = intel_gt_clock_interval_to_ns(gt, 1);
+
+	/* Icelake appears to use another fixed frequency for CTX_TIMESTAMP */
+	if (GRAPHICS_VER(gt->i915) == 11)
+		gt->clock_period_ns = NSEC_PER_SEC / 13750000;
 
 	GT_TRACE(gt,
 		 "Using clock frequency: %dkHz, period: %dns, wrap: %lldms\n",

@@ -30,7 +30,6 @@
 #include <linux/mtd/sharpsl.h>
 #include <linux/memblock.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
 #include <asm/setup.h>
@@ -40,11 +39,13 @@
 #include <asm/mach/irq.h>
 
 #include "pxa25x.h"
-#include <linux/platform_data/mmc-pxamci.h>
 #include "udc.h"
+#include "poodle.h"
+
+#include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/irda-pxaficp.h>
-#include <mach/poodle.h>
 #include <linux/platform_data/video-pxafb.h>
+#include <linux/platform_data/asoc-poodle.h>
 
 #include <asm/hardware/scoop.h>
 #include <asm/hardware/locomo.h>
@@ -156,12 +157,6 @@ static struct scoop_pcmcia_config poodle_pcmcia_config = {
 
 EXPORT_SYMBOL(poodle_scoop_device);
 
-
-static struct platform_device poodle_audio_device = {
-	.name	= "poodle-audio",
-	.id	= -1,
-};
-
 /* LoCoMo device */
 static struct resource locomo_resources[] = {
 	[0] = {
@@ -180,7 +175,7 @@ static struct locomo_platform_data locomo_info = {
 	.irq_base	= IRQ_BOARD_START,
 };
 
-struct platform_device poodle_locomo_device = {
+static struct platform_device poodle_locomo_device = {
 	.name		= "locomo",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(locomo_resources),
@@ -190,11 +185,33 @@ struct platform_device poodle_locomo_device = {
 	},
 };
 
-EXPORT_SYMBOL(poodle_locomo_device);
+static struct poodle_audio_platform_data poodle_audio_pdata = {
+	.locomo_dev	= &poodle_locomo_device.dev,
+
+	.gpio_amp_on   	= POODLE_LOCOMO_GPIO_AMP_ON,
+	.gpio_mute_l   	= POODLE_LOCOMO_GPIO_MUTE_L,
+	.gpio_mute_r   	= POODLE_LOCOMO_GPIO_MUTE_R,
+	.gpio_232vcc_on	= POODLE_LOCOMO_GPIO_232VCC_ON,
+	.gpio_jk_b     	= POODLE_LOCOMO_GPIO_JK_B,
+};
+
+static struct platform_device poodle_audio_device = {
+	.name	= "poodle-audio",
+	.id	= -1,
+	.dev.platform_data = &poodle_audio_pdata,
+};
 
 #if defined(CONFIG_SPI_PXA2XX) || defined(CONFIG_SPI_PXA2XX_MODULE)
 static struct pxa2xx_spi_controller poodle_spi_info = {
 	.num_chipselect	= 1,
+};
+
+static struct gpiod_lookup_table poodle_spi_gpio_table = {
+	.dev_id = "pxa2xx-spi.1",
+	.table = {
+		GPIO_LOOKUP_IDX("gpio-pxa", POODLE_GPIO_TP_CS, "cs", 0, GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct ads7846_platform_data poodle_ads7846_info = {
@@ -205,23 +222,19 @@ static struct ads7846_platform_data poodle_ads7846_info = {
 	.gpio_pendown		= POODLE_GPIO_TP_INT,
 };
 
-static struct pxa2xx_spi_chip poodle_ads7846_chip = {
-	.gpio_cs		= POODLE_GPIO_TP_CS,
-};
-
 static struct spi_board_info poodle_spi_devices[] = {
 	{
 		.modalias	= "ads7846",
 		.max_speed_hz	= 10000,
 		.bus_num	= 1,
 		.platform_data	= &poodle_ads7846_info,
-		.controller_data= &poodle_ads7846_chip,
 		.irq		= PXA_GPIO_TO_IRQ(POODLE_GPIO_TP_INT),
 	},
 };
 
 static void __init poodle_init_spi(void)
 {
+	gpiod_add_lookup_table(&poodle_spi_gpio_table);
 	pxa2xx_set_spi_info(1, &poodle_spi_info);
 	spi_register_board_info(ARRAY_AND_SIZE(poodle_spi_devices));
 }

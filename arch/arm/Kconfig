@@ -5,6 +5,7 @@ config ARM
 	select ARCH_32BIT_OFF_T
 	select ARCH_CORRECT_STACKTRACE_ON_KRETPROBE if HAVE_KRETPROBES && FRAME_POINTER && !ARM_UNWIND
 	select ARCH_HAS_BINFMT_FLAT
+	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DEBUG_VIRTUAL if MMU
 	select ARCH_HAS_DMA_WRITE_COMBINE if !ARM_DMA_MEM_BUFFERABLE
 	select ARCH_HAS_ELF_RANDOMIZE
@@ -37,6 +38,7 @@ config ARM
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select ARCH_USE_MEMTEST
 	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT if MMU
+	select ARCH_WANT_GENERAL_HUGETLB
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select ARCH_WANT_LD_ORPHAN_WARN
 	select BINFMT_FLAT_ARGVP_ENVP_ON_STACK
@@ -47,7 +49,7 @@ config ARM
 	select DMA_DECLARE_COHERENT
 	select DMA_GLOBAL_POOL if !MMU
 	select DMA_OPS
-	select DMA_REMAP if MMU
+	select DMA_NONCOHERENT_MMAP if MMU
 	select EDAC_SUPPORT
 	select EDAC_ATOMIC_SCRUB
 	select GENERIC_ALLOCATOR
@@ -58,6 +60,7 @@ config ARM
 	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_EARLY_IOREMAP
 	select GENERIC_IDLE_POLL_SETUP
+	select GENERIC_IRQ_MULTI_HANDLER
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_IRQ_SHOW_LEVEL
@@ -92,8 +95,8 @@ config ARM
 	select HAVE_EXIT_THREAD
 	select HAVE_FAST_GUP if ARM_LPAE
 	select HAVE_FTRACE_MCOUNT_RECORD if !XIP_KERNEL
-	select HAVE_FUNCTION_GRAPH_TRACER if !THUMB2_KERNEL && !CC_IS_CLANG
-	select HAVE_FUNCTION_TRACER if !XIP_KERNEL && !(THUMB2_KERNEL && CC_IS_CLANG)
+	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_FUNCTION_TRACER if !XIP_KERNEL
 	select HAVE_GCC_PLUGINS
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS && (CPU_V6 || CPU_V6K || CPU_V7)
 	select HAVE_IRQ_TIME_ACCOUNTING
@@ -127,7 +130,8 @@ config ARM
 	select PERF_USE_VMALLOC
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
-	select THREAD_INFO_IN_TASK if CURRENT_POINTER_IN_TPIDRURO
+	select THREAD_INFO_IN_TASK
+	select HAVE_ARCH_VMAP_STACK if MMU && ARM_HAS_GROUP_RELOCS
 	select TRACE_IRQFLAGS_SUPPORT if !CPU_V7M
 	# Above selects are sorted alphabetically; please add new ones
 	# according to that.  Thanks.
@@ -138,6 +142,17 @@ config ARM
 	  manufactured, but legacy ARM-based PC hardware remains popular in
 	  Europe.  There is an ARM Linux project with a web page at
 	  <http://www.arm.linux.org.uk/>.
+
+config ARM_HAS_GROUP_RELOCS
+	def_bool y
+	depends on !LD_IS_LLD || LLD_VERSION >= 140000
+	depends on !COMPILE_TEST
+	help
+	  Whether or not to use R_ARM_ALU_PC_Gn or R_ARM_LDR_PC_Gn group
+	  relocations, which have been around for a long time, but were not
+	  supported in LLD until version 14. The combined range is -/+ 256 MiB,
+	  which is usually sufficient, but not for allyesconfig, so we disable
+	  this feature when doing compile testing.
 
 config ARM_HAS_SG_CHAIN
 	bool
@@ -218,16 +233,10 @@ config ARCH_MAY_HAVE_PC_FDC
 config ARCH_SUPPORTS_UPROBES
 	def_bool y
 
-config ARCH_HAS_DMA_SET_COHERENT_MASK
-	bool
-
 config GENERIC_ISA_DMA
 	bool
 
 config FIQ
-	bool
-
-config NEED_RET_TO_USER
 	bool
 
 config ARCH_MTD_XIP
@@ -267,7 +276,7 @@ config PHYS_OFFSET
 	hex "Physical address of main memory" if MMU
 	depends on !ARM_PATCH_PHYS_VIRT
 	default DRAM_BASE if !MMU
-	default 0x00000000 if ARCH_FOOTBRIDGE || ARCH_IXP4XX
+	default 0x00000000 if ARCH_FOOTBRIDGE
 	default 0x10000000 if ARCH_OMAP1 || ARCH_RPC
 	default 0x30000000 if ARCH_S3C24XX
 	default 0xa0000000 if ARCH_IOP32X || ARCH_PXA
@@ -295,6 +304,17 @@ config MMU
 	  Select if you want MMU-based virtualised addressing space
 	  support by paged memory management. If unsure, say 'Y'.
 
+config ARM_SINGLE_ARMV7M
+	def_bool !MMU
+	select ARM_NVIC
+	select AUTO_ZRELADDR
+	select TIMER_OF
+	select COMMON_CLK
+	select CPU_V7M
+	select NO_IOPORT_MAP
+	select SPARSE_IRQ
+	select USE_OF
+
 config ARCH_MMAP_RND_BITS_MIN
 	default 8
 
@@ -309,12 +329,11 @@ config ARCH_MMAP_RND_BITS_MAX
 #
 choice
 	prompt "ARM system type"
-	default ARM_SINGLE_ARMV7M if !MMU
-	default ARCH_MULTIPLATFORM if MMU
+	depends on MMU
+	default ARCH_MULTIPLATFORM
 
 config ARCH_MULTIPLATFORM
 	bool "Allow multiple platforms to be selected"
-	depends on MMU
 	select ARCH_FLATMEM_ENABLE
 	select ARCH_SPARSEMEM_ENABLE
 	select ARCH_SELECT_MEMORY_MODEL
@@ -323,121 +342,25 @@ config ARCH_MULTIPLATFORM
 	select AUTO_ZRELADDR
 	select TIMER_OF
 	select COMMON_CLK
-	select GENERIC_IRQ_MULTI_HANDLER
 	select HAVE_PCI
 	select PCI_DOMAINS_GENERIC if PCI
 	select SPARSE_IRQ
 	select USE_OF
 
-config ARM_SINGLE_ARMV7M
-	bool "ARMv7-M based platforms (Cortex-M0/M3/M4)"
-	depends on !MMU
-	select ARM_NVIC
-	select AUTO_ZRELADDR
-	select TIMER_OF
-	select COMMON_CLK
-	select CPU_V7M
-	select NO_IOPORT_MAP
-	select SPARSE_IRQ
-	select USE_OF
-
-config ARCH_EP93XX
-	bool "EP93xx-based"
-	select ARCH_SPARSEMEM_ENABLE
-	select ARM_AMBA
-	imply ARM_PATCH_PHYS_VIRT
-	select ARM_VIC
-	select GENERIC_IRQ_MULTI_HANDLER
-	select AUTO_ZRELADDR
-	select CLKSRC_MMIO
-	select CPU_ARM920T
-	select GPIOLIB
-	select COMMON_CLK
-	help
-	  This enables support for the Cirrus EP93xx series of CPUs.
-
 config ARCH_FOOTBRIDGE
 	bool "FootBridge"
+	depends on CPU_LITTLE_ENDIAN
 	select CPU_SA110
 	select FOOTBRIDGE
-	select NEED_MACH_IO_H if !MMU
 	select NEED_MACH_MEMORY_H
 	help
 	  Support for systems based on the DC21285 companion chip
 	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
 
-config ARCH_IOP32X
-	bool "IOP32x-based"
-	depends on MMU
-	select CPU_XSCALE
-	select GPIO_IOP
-	select GPIOLIB
-	select NEED_RET_TO_USER
-	select FORCE_PCI
-	select PLAT_IOP
-	help
-	  Support for Intel's 80219 and IOP32X (XScale) family of
-	  processors.
-
-config ARCH_IXP4XX
-	bool "IXP4xx-based"
-	depends on MMU
-	select ARCH_HAS_DMA_SET_COHERENT_MASK
-	select ARCH_SUPPORTS_BIG_ENDIAN
-	select CPU_XSCALE
-	select DMABOUNCE if PCI
-	select GENERIC_IRQ_MULTI_HANDLER
-	select GPIO_IXP4XX
-	select GPIOLIB
-	select HAVE_PCI
-	select IXP4XX_IRQ
-	select IXP4XX_TIMER
-	# With the new PCI driver this is not needed
-	select NEED_MACH_IO_H if IXP4XX_PCI_LEGACY
-	select USB_EHCI_BIG_ENDIAN_DESC
-	select USB_EHCI_BIG_ENDIAN_MMIO
-	help
-	  Support for Intel's IXP4XX (XScale) family of processors.
-
-config ARCH_DOVE
-	bool "Marvell Dove"
-	select CPU_PJ4
-	select GENERIC_IRQ_MULTI_HANDLER
-	select GPIOLIB
-	select HAVE_PCI
-	select MVEBU_MBUS
-	select PINCTRL
-	select PINCTRL_DOVE
-	select PLAT_ORION_LEGACY
-	select SPARSE_IRQ
-	select PM_GENERIC_DOMAINS if PM
-	help
-	  Support for the Marvell Dove SoC 88AP510
-
-config ARCH_PXA
-	bool "PXA2xx/PXA3xx-based"
-	depends on MMU
-	select ARCH_MTD_XIP
-	select ARM_CPU_SUSPEND if PM
-	select AUTO_ZRELADDR
-	select COMMON_CLK
-	select CLKSRC_PXA
-	select CLKSRC_MMIO
-	select TIMER_OF
-	select CPU_XSCALE if !CPU_XSC3
-	select GENERIC_IRQ_MULTI_HANDLER
-	select GPIO_PXA
-	select GPIOLIB
-	select IRQ_DOMAIN
-	select PLAT_PXA
-	select SPARSE_IRQ
-	help
-	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
-
 config ARCH_RPC
 	bool "RiscPC"
-	depends on MMU
 	depends on !CC_IS_CLANG && GCC_VERSION < 90100 && GCC_VERSION >= 60000
+	depends on CPU_LITTLE_ENDIAN
 	select ARCH_ACORN
 	select ARCH_MAY_HAVE_PC_FDC
 	select ARCH_SPARSEMEM_ENABLE
@@ -456,6 +379,7 @@ config ARCH_RPC
 
 config ARCH_SA1100
 	bool "SA1100-based"
+	depends on CPU_LITTLE_ENDIAN
 	select ARCH_MTD_XIP
 	select ARCH_SPARSEMEM_ENABLE
 	select CLKSRC_MMIO
@@ -464,7 +388,6 @@ config ARCH_SA1100
 	select COMMON_CLK
 	select CPU_FREQ
 	select CPU_SA1100
-	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIOLIB
 	select IRQ_DOMAIN
 	select ISA
@@ -472,40 +395,6 @@ config ARCH_SA1100
 	select SPARSE_IRQ
 	help
 	  Support for StrongARM 11x0 based boards.
-
-config ARCH_S3C24XX
-	bool "Samsung S3C24XX SoCs"
-	select ATAGS
-	select CLKSRC_SAMSUNG_PWM
-	select GPIO_SAMSUNG
-	select GPIOLIB
-	select GENERIC_IRQ_MULTI_HANDLER
-	select NEED_MACH_IO_H
-	select S3C2410_WATCHDOG
-	select SAMSUNG_ATAGS
-	select USE_OF
-	select WATCHDOG
-	help
-	  Samsung S3C2410, S3C2412, S3C2413, S3C2416, S3C2440, S3C2442, S3C2443
-	  and S3C2450 SoCs based systems, such as the Simtec Electronics BAST
-	  (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or the
-	  Samsung SMDK2410 development board (and derivatives).
-
-config ARCH_OMAP1
-	bool "TI OMAP1"
-	depends on MMU
-	select ARCH_OMAP
-	select CLKSRC_MMIO
-	select GENERIC_IRQ_CHIP
-	select GENERIC_IRQ_MULTI_HANDLER
-	select GPIOLIB
-	select HAVE_LEGACY_CLK
-	select IRQ_DOMAIN
-	select NEED_MACH_IO_H if PCCARD
-	select NEED_MACH_MEMORY_H
-	select SPARSE_IRQ
-	help
-	  Support for older TI OMAP1 (omap7xx, omap15xx or omap16xx)
 
 endchoice
 
@@ -571,7 +460,18 @@ config ARCH_VIRT
 	select ARM_GIC_V3_ITS if PCI
 	select ARM_PSCI
 	select HAVE_ARM_ARCH_TIMER
-	select ARCH_SUPPORTS_BIG_ENDIAN
+
+config ARCH_AIROHA
+	bool "Airoha SoC Support"
+	depends on ARCH_MULTI_V7
+	select ARM_AMBA
+	select ARM_GIC
+	select ARM_GIC_V3
+	select ARM_PSCI
+	select HAVE_ARM_ARCH_TIMER
+	select COMMON_CLK
+	help
+	  Support for Airoha EN7523 SoCs
 
 #
 # This is sorted alphabetically by mach-* pathname.  However, plat-*
@@ -618,9 +518,9 @@ source "arch/arm/mach-highbank/Kconfig"
 
 source "arch/arm/mach-hisi/Kconfig"
 
-source "arch/arm/mach-imx/Kconfig"
+source "arch/arm/mach-hpe/Kconfig"
 
-source "arch/arm/mach-integrator/Kconfig"
+source "arch/arm/mach-imx/Kconfig"
 
 source "arch/arm/mach-iop32x/Kconfig"
 
@@ -654,8 +554,6 @@ source "arch/arm/mach-npcm/Kconfig"
 
 source "arch/arm/mach-nspire/Kconfig"
 
-source "arch/arm/plat-omap/Kconfig"
-
 source "arch/arm/mach-omap1/Kconfig"
 
 source "arch/arm/mach-omap2/Kconfig"
@@ -665,15 +563,12 @@ source "arch/arm/mach-orion5x/Kconfig"
 source "arch/arm/mach-oxnas/Kconfig"
 
 source "arch/arm/mach-pxa/Kconfig"
-source "arch/arm/plat-pxa/Kconfig"
 
 source "arch/arm/mach-qcom/Kconfig"
 
 source "arch/arm/mach-rda/Kconfig"
 
 source "arch/arm/mach-realtek/Kconfig"
-
-source "arch/arm/mach-realview/Kconfig"
 
 source "arch/arm/mach-rockchip/Kconfig"
 
@@ -702,8 +597,6 @@ source "arch/arm/mach-uniphier/Kconfig"
 source "arch/arm/mach-ux500/Kconfig"
 
 source "arch/arm/mach-versatile/Kconfig"
-
-source "arch/arm/mach-vexpress/Kconfig"
 
 source "arch/arm/mach-vt8500/Kconfig"
 
@@ -737,9 +630,6 @@ config ARCH_MPS2
 config ARCH_ACORN
 	bool
 
-config PLAT_IOP
-	bool
-
 config PLAT_ORION
 	bool
 	select CLKSRC_MMIO
@@ -750,9 +640,6 @@ config PLAT_ORION
 config PLAT_ORION_LEGACY
 	bool
 	select PLAT_ORION
-
-config PLAT_PXA
-	bool
 
 config PLAT_VERSATILE
 	bool
@@ -970,6 +857,17 @@ config ARM_ERRATA_764369
 	  relevant cache maintenance functions and sets a specific bit
 	  in the diagnostic control register of the SCU.
 
+config ARM_ERRATA_764319
+	bool "ARM errata: Read to DBGPRSR and DBGOSLSR may generate Undefined instruction"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 764319 Cortex A-9 erratum.
+	  CP14 read accesses to the DBGPRSR and DBGOSLSR registers generate an
+	  unexpected Undefined Instruction exception when the DBGSWENABLE
+	  external pin is set to 0, even when the CP14 accesses are performed
+	  from a privileged mode. This work around catches the exception in a
+	  way the kernel does not stop execution.
+
 config ARM_ERRATA_775420
        bool "ARM errata: A data cache maintenance operation which aborts, might lead to deadlock"
        depends on CPU_V7
@@ -1164,7 +1062,12 @@ config SMP_ON_UP
 
 config CURRENT_POINTER_IN_TPIDRURO
 	def_bool y
-	depends on SMP && CPU_32v6K && !CPU_V6
+	depends on CPU_32v6K && !CPU_V6
+
+config IRQSTACKS
+	def_bool y
+	select HAVE_IRQ_EXIT_ON_IRQ_STACK
+	select HAVE_SOFTIRQ_ON_OWN_STACK
 
 config ARM_CPU_TOPOLOGY
 	bool "Support cpu topology definition"
@@ -1508,9 +1411,6 @@ config HW_PERF_EVENTS
 	def_bool y
 	depends on ARM_PMU
 
-config ARCH_WANT_GENERAL_HUGETLB
-	def_bool y
-
 config ARM_MODULE_PLTS
 	bool "Use PLTs to allow module memory to spill over into vmalloc area"
 	depends on MODULES
@@ -1608,10 +1508,14 @@ config XEN
 	help
 	  Say Y if you want to run Linux in a Virtual Machine on Xen on ARM.
 
+config CC_HAVE_STACKPROTECTOR_TLS
+	def_bool $(cc-option,-mtp=cp15 -mstack-protector-guard=tls -mstack-protector-guard-offset=0)
+
 config STACKPROTECTOR_PER_TASK
 	bool "Use a unique stack canary value for each task"
-	depends on GCC_PLUGINS && STACKPROTECTOR && THREAD_INFO_IN_TASK && !XIP_DEFLATED_DATA
-	select GCC_PLUGIN_ARM_SSP_PER_TASK
+	depends on STACKPROTECTOR && CURRENT_POINTER_IN_TPIDRURO && !XIP_DEFLATED_DATA
+	depends on GCC_PLUGINS || CC_HAVE_STACKPROTECTOR_TLS
+	select GCC_PLUGIN_ARM_SSP_PER_TASK if !CC_HAVE_STACKPROTECTOR_TLS
 	default y
 	help
 	  Due to the fact that GCC uses an ordinary symbol reference from

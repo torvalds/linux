@@ -24,46 +24,17 @@ MODULE_PARM_DESC(force_legacy,
 		 "Force legacy mode for transitional virtio 1 devices");
 #endif
 
-/* disable irq handlers */
-void vp_disable_cbs(struct virtio_device *vdev)
+/* wait for pending irq handlers */
+void vp_synchronize_vectors(struct virtio_device *vdev)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	int i;
 
-	if (vp_dev->intx_enabled) {
-		/*
-		 * The below synchronize() guarantees that any
-		 * interrupt for this line arriving after
-		 * synchronize_irq() has completed is guaranteed to see
-		 * intx_soft_enabled == false.
-		 */
-		WRITE_ONCE(vp_dev->intx_soft_enabled, false);
+	if (vp_dev->intx_enabled)
 		synchronize_irq(vp_dev->pci_dev->irq);
-	}
 
 	for (i = 0; i < vp_dev->msix_vectors; ++i)
-		disable_irq(pci_irq_vector(vp_dev->pci_dev, i));
-}
-
-/* enable irq handlers */
-void vp_enable_cbs(struct virtio_device *vdev)
-{
-	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
-	int i;
-
-	if (vp_dev->intx_enabled) {
-		disable_irq(vp_dev->pci_dev->irq);
-		/*
-		 * The above disable_irq() provides TSO ordering and
-		 * as such promotes the below store to store-release.
-		 */
-		WRITE_ONCE(vp_dev->intx_soft_enabled, true);
-		enable_irq(vp_dev->pci_dev->irq);
-		return;
-	}
-
-	for (i = 0; i < vp_dev->msix_vectors; ++i)
-		enable_irq(pci_irq_vector(vp_dev->pci_dev, i));
+		synchronize_irq(pci_irq_vector(vp_dev->pci_dev, i));
 }
 
 /* the notify function used when creating a virt queue */
@@ -113,9 +84,6 @@ static irqreturn_t vp_interrupt(int irq, void *opaque)
 	struct virtio_pci_device *vp_dev = opaque;
 	u8 isr;
 
-	if (!READ_ONCE(vp_dev->intx_soft_enabled))
-		return IRQ_NONE;
-
 	/* reading the ISR has the effect of also clearing it so it's very
 	 * important to save off the value. */
 	isr = ioread8(vp_dev->isr);
@@ -136,8 +104,8 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	const char *name = dev_name(&vp_dev->vdev.dev);
-	unsigned flags = PCI_IRQ_MSIX;
-	unsigned i, v;
+	unsigned int flags = PCI_IRQ_MSIX;
+	unsigned int i, v;
 	int err = -ENOMEM;
 
 	vp_dev->msix_vectors = nvectors;
@@ -173,8 +141,7 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 	snprintf(vp_dev->msix_names[v], sizeof *vp_dev->msix_names,
 		 "%s-config", name);
 	err = request_irq(pci_irq_vector(vp_dev->pci_dev, v),
-			  vp_config_changed, IRQF_NO_AUTOEN,
-			  vp_dev->msix_names[v],
+			  vp_config_changed, 0, vp_dev->msix_names[v],
 			  vp_dev);
 	if (err)
 		goto error;
@@ -193,8 +160,7 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 		snprintf(vp_dev->msix_names[v], sizeof *vp_dev->msix_names,
 			 "%s-virtqueues", name);
 		err = request_irq(pci_irq_vector(vp_dev->pci_dev, v),
-				  vp_vring_interrupt, IRQF_NO_AUTOEN,
-				  vp_dev->msix_names[v],
+				  vp_vring_interrupt, 0, vp_dev->msix_names[v],
 				  vp_dev);
 		if (err)
 			goto error;
@@ -205,7 +171,7 @@ error:
 	return err;
 }
 
-static struct virtqueue *vp_setup_vq(struct virtio_device *vdev, unsigned index,
+static struct virtqueue *vp_setup_vq(struct virtio_device *vdev, unsigned int index,
 				     void (*callback)(struct virtqueue *vq),
 				     const char *name,
 				     bool ctx,
@@ -288,8 +254,7 @@ void vp_del_vqs(struct virtio_device *vdev)
 
 	if (vp_dev->msix_affinity_masks) {
 		for (i = 0; i < vp_dev->msix_vectors; i++)
-			if (vp_dev->msix_affinity_masks[i])
-				free_cpumask_var(vp_dev->msix_affinity_masks[i]);
+			free_cpumask_var(vp_dev->msix_affinity_masks[i]);
 	}
 
 	if (vp_dev->msix_enabled) {
@@ -310,7 +275,7 @@ void vp_del_vqs(struct virtio_device *vdev)
 	vp_dev->vqs = NULL;
 }
 
-static int vp_find_vqs_msix(struct virtio_device *vdev, unsigned nvqs,
+static int vp_find_vqs_msix(struct virtio_device *vdev, unsigned int nvqs,
 		struct virtqueue *vqs[], vq_callback_t *callbacks[],
 		const char * const names[], bool per_vq_vectors,
 		const bool *ctx,
@@ -371,7 +336,7 @@ static int vp_find_vqs_msix(struct virtio_device *vdev, unsigned nvqs,
 			 "%s-%s",
 			 dev_name(&vp_dev->vdev.dev), names[i]);
 		err = request_irq(pci_irq_vector(vp_dev->pci_dev, msix_vec),
-				  vring_interrupt, IRQF_NO_AUTOEN,
+				  vring_interrupt, 0,
 				  vp_dev->msix_names[msix_vec],
 				  vqs[i]);
 		if (err)
@@ -384,7 +349,7 @@ error_find:
 	return err;
 }
 
-static int vp_find_vqs_intx(struct virtio_device *vdev, unsigned nvqs,
+static int vp_find_vqs_intx(struct virtio_device *vdev, unsigned int nvqs,
 		struct virtqueue *vqs[], vq_callback_t *callbacks[],
 		const char * const names[], const bool *ctx)
 {
@@ -423,7 +388,7 @@ out_del_vqs:
 }
 
 /* the config->find_vqs() implementation */
-int vp_find_vqs(struct virtio_device *vdev, unsigned nvqs,
+int vp_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 		struct virtqueue *vqs[], vq_callback_t *callbacks[],
 		const char * const names[], const bool *ctx,
 		struct irq_affinity *desc)

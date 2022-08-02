@@ -23,19 +23,19 @@
 #include <linux/console.h>
 #include <linux/screen_info.h>
 #include <linux/root_dev.h>
-#include <linux/notifier.h>
 #include <linux/cpu.h>
 #include <linux/unistd.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
 #include <linux/percpu.h>
 #include <linux/memblock.h>
+#include <linux/of_irq.h>
+#include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <linux/hugetlb.h>
 #include <linux/pgtable.h>
 #include <asm/io.h>
 #include <asm/paca.h>
-#include <asm/prom.h>
 #include <asm/processor.h>
 #include <asm/vdso_datapage.h>
 #include <asm/smp.h>
@@ -161,9 +161,7 @@ void machine_restart(char *cmd)
 void machine_power_off(void)
 {
 	machine_shutdown();
-	if (pm_power_off)
-		pm_power_off();
-
+	do_kernel_power_off();
 	smp_send_stop();
 	machine_hang();
 }
@@ -279,7 +277,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			   proc_freq / 1000000, proc_freq % 1000000);
 
 	/* If we are a Freescale core do a simple check so
-	 * we dont have to keep adding cases in the future */
+	 * we don't have to keep adding cases in the future */
 	if (PVR_VER(pvr) & 0x8000) {
 		switch (PVR_VER(pvr)) {
 		case 0x8000:	/* 7441/7450/7451, Voyager */
@@ -456,8 +454,8 @@ void __init smp_setup_cpu_maps(void)
 		intserv = of_get_property(dn, "ibm,ppc-interrupt-server#s",
 				&len);
 		if (intserv) {
-			DBG("    ibm,ppc-interrupt-server#s -> %d threads\n",
-			    nthreads);
+			DBG("    ibm,ppc-interrupt-server#s -> %lu threads\n",
+			    (len / sizeof(int)));
 		} else {
 			DBG("    no ibm,ppc-interrupt-server#s -> 1 thread\n");
 			intserv = of_get_property(dn, "reg", &len);
@@ -680,8 +678,25 @@ int check_legacy_ioport(unsigned long base_port)
 }
 EXPORT_SYMBOL(check_legacy_ioport);
 
-static int ppc_panic_event(struct notifier_block *this,
-                             unsigned long event, void *ptr)
+/*
+ * Panic notifiers setup
+ *
+ * We have 3 notifiers for powerpc, each one from a different "nature":
+ *
+ * - ppc_panic_fadump_handler() is a hypervisor notifier, which hard-disables
+ *   IRQs and deal with the Firmware-Assisted dump, when it is configured;
+ *   should run early in the panic path.
+ *
+ * - dump_kernel_offset() is an informative notifier, just showing the KASLR
+ *   offset if we have RANDOMIZE_BASE set.
+ *
+ * - ppc_panic_platform_handler() is a low-level handler that's registered
+ *   only if the platform wishes to perform final actions in the panic path,
+ *   hence it should run late and might not even return. Currently, only
+ *   pseries and ps3 platforms register callbacks.
+ */
+static int ppc_panic_fadump_handler(struct notifier_block *this,
+				    unsigned long event, void *ptr)
 {
 	/*
 	 * panic does a local_irq_disable, but we really
@@ -691,45 +706,63 @@ static int ppc_panic_event(struct notifier_block *this,
 
 	/*
 	 * If firmware-assisted dump has been registered then trigger
-	 * firmware-assisted dump and let firmware handle everything else.
+	 * its callback and let the firmware handles everything else.
 	 */
 	crash_fadump(NULL, ptr);
-	if (ppc_md.panic)
-		ppc_md.panic(ptr);  /* May not return */
+
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block ppc_panic_block = {
-	.notifier_call = ppc_panic_event,
-	.priority = INT_MIN /* may not return; must be done last */
-};
-
-/*
- * Dump out kernel offset information on panic.
- */
 static int dump_kernel_offset(struct notifier_block *self, unsigned long v,
 			      void *p)
 {
 	pr_emerg("Kernel Offset: 0x%lx from 0x%lx\n",
 		 kaslr_offset(), KERNELBASE);
 
-	return 0;
+	return NOTIFY_DONE;
 }
 
+static int ppc_panic_platform_handler(struct notifier_block *this,
+				      unsigned long event, void *ptr)
+{
+	/*
+	 * This handler is only registered if we have a panic callback
+	 * on ppc_md, hence NULL check is not needed.
+	 * Also, it may not return, so it runs really late on panic path.
+	 */
+	ppc_md.panic(ptr);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block ppc_fadump_block = {
+	.notifier_call = ppc_panic_fadump_handler,
+	.priority = INT_MAX, /* run early, to notify the firmware ASAP */
+};
+
 static struct notifier_block kernel_offset_notifier = {
-	.notifier_call = dump_kernel_offset
+	.notifier_call = dump_kernel_offset,
+};
+
+static struct notifier_block ppc_panic_block = {
+	.notifier_call = ppc_panic_platform_handler,
+	.priority = INT_MIN, /* may not return; must be done last */
 };
 
 void __init setup_panic(void)
 {
+	/* Hard-disables IRQs + deal with FW-assisted dump (fadump) */
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &ppc_fadump_block);
+
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && kaslr_offset() > 0)
 		atomic_notifier_chain_register(&panic_notifier_list,
 					       &kernel_offset_notifier);
 
-	/* PPC64 always does a hard irq disable in its panic handler */
-	if (!IS_ENABLED(CONFIG_PPC64) && !ppc_md.panic)
-		return;
-	atomic_notifier_chain_register(&panic_notifier_list, &ppc_panic_block);
+	/* Low-level platform-specific routines that should run on panic */
+	if (ppc_md.panic)
+		atomic_notifier_chain_register(&panic_notifier_list,
+					       &ppc_panic_block);
 }
 
 #ifdef CONFIG_CHECK_CACHE_COHERENCY
@@ -902,12 +935,6 @@ void __init setup_arch(char **cmdline_p)
 	/* Print various info about the machine that has been gathered so far. */
 	print_system_info();
 
-	/* Reserve large chunks of memory for use by CMA for KVM. */
-	kvm_cma_reserve();
-
-	/*  Reserve large chunks of memory for us by CMA for hugetlb */
-	gigantic_hugetlb_cma_reserve();
-
 	klp_init_thread_info(&init_task);
 
 	setup_initial_init_mm(_stext, _etext, _edata, _end);
@@ -921,6 +948,13 @@ void __init setup_arch(char **cmdline_p)
 	smp_release_cpus();
 
 	initmem_init();
+
+	/*
+	 * Reserve large chunks of memory for use by CMA for KVM and hugetlb. These must
+	 * be called after initmem_init(), so that pageblock_order is initialised.
+	 */
+	kvm_cma_reserve();
+	gigantic_hugetlb_cma_reserve();
 
 	early_memtest(min_low_pfn << PAGE_SHIFT, max_low_pfn << PAGE_SHIFT);
 

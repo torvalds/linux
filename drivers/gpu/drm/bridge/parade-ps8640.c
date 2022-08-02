@@ -13,9 +13,9 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
+#include <drm/display/drm_dp_aux_bus.h>
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm_bridge.h>
-#include <drm/drm_dp_aux_bus.h>
-#include <drm/drm_dp_helper.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
@@ -102,6 +102,7 @@ struct ps8640 {
 	struct regulator_bulk_data supplies[2];
 	struct gpio_desc *gpio_reset;
 	struct gpio_desc *gpio_powerdown;
+	struct device_link *link;
 	bool pre_enabled;
 };
 
@@ -456,14 +457,36 @@ static int ps8640_bridge_attach(struct drm_bridge *bridge,
 		return ret;
 	}
 
+	ps_bridge->link = device_link_add(bridge->dev->dev, dev, DL_FLAG_STATELESS);
+	if (!ps_bridge->link) {
+		dev_err(dev, "failed to create device link");
+		ret = -EINVAL;
+		goto err_devlink;
+	}
+
 	/* Attach the panel-bridge to the dsi bridge */
-	return drm_bridge_attach(bridge->encoder, ps_bridge->panel_bridge,
-				 &ps_bridge->bridge, flags);
+	ret = drm_bridge_attach(bridge->encoder, ps_bridge->panel_bridge,
+				&ps_bridge->bridge, flags);
+	if (ret)
+		goto err_bridge_attach;
+
+	return 0;
+
+err_bridge_attach:
+	device_link_del(ps_bridge->link);
+err_devlink:
+	drm_dp_aux_unregister(&ps_bridge->aux);
+
+	return ret;
 }
 
 static void ps8640_bridge_detach(struct drm_bridge *bridge)
 {
-	drm_dp_aux_unregister(&bridge_to_ps8640(bridge)->aux);
+	struct ps8640 *ps_bridge = bridge_to_ps8640(bridge);
+
+	drm_dp_aux_unregister(&ps_bridge->aux);
+	if (ps_bridge->link)
+		device_link_del(ps_bridge->link);
 }
 
 static struct edid *ps8640_bridge_get_edid(struct drm_bridge *bridge,
@@ -566,7 +589,6 @@ static int ps8640_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	struct device_node *np = dev->of_node;
 	struct ps8640 *ps_bridge;
-	struct drm_panel *panel;
 	int ret;
 	u32 i;
 
@@ -651,13 +673,7 @@ static int ps8640_probe(struct i2c_client *client)
 	devm_of_dp_aux_populate_ep_devices(&ps_bridge->aux);
 
 	/* port@1 is ps8640 output port */
-	ret = drm_of_find_panel_or_bridge(np, 1, 0, &panel, NULL);
-	if (ret < 0)
-		return ret;
-	if (!panel)
-		return -ENODEV;
-
-	ps_bridge->panel_bridge = devm_drm_panel_bridge_add(dev, panel);
+	ps_bridge->panel_bridge = devm_drm_of_get_bridge(dev, np, 1, 0);
 	if (IS_ERR(ps_bridge->panel_bridge))
 		return PTR_ERR(ps_bridge->panel_bridge);
 

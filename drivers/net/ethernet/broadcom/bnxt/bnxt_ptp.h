@@ -31,7 +31,7 @@ struct pps_pin {
 	u8 state;
 };
 
-#define TSIO_PIN_VALID(pin) ((pin) < (BNXT_MAX_TSIO_PINS))
+#define TSIO_PIN_VALID(pin) ((pin) >= 0 && (pin) < (BNXT_MAX_TSIO_PINS))
 
 #define EVENT_DATA2_PPS_EVENT_TYPE(data2)				\
 	((data2) & ASYNC_EVENT_CMPL_PPS_TIMESTAMP_EVENT_DATA2_EVENT_TYPE)
@@ -113,6 +113,7 @@ struct bnxt_ptp_cfg {
 					 BNXT_PTP_MSG_PDELAY_RESP)
 	u8			tx_tstamp_en:1;
 	int			rx_filter;
+	u32			tstamp_filters;
 
 	u32			refclk_regs[2];
 	u32			refclk_mapped_regs[2];
@@ -131,12 +132,16 @@ do {						\
 #endif
 
 int bnxt_ptp_parse(struct sk_buff *skb, u16 *seq_id, u16 *hdr_off);
+void bnxt_ptp_update_current_time(struct bnxt *bp);
 void bnxt_ptp_pps_event(struct bnxt *bp, u32 data1, u32 data2);
+void bnxt_ptp_cfg_tstamp_filters(struct bnxt *bp);
 void bnxt_ptp_reapply_pps(struct bnxt *bp);
 int bnxt_hwtstamp_set(struct net_device *dev, struct ifreq *ifr);
 int bnxt_hwtstamp_get(struct net_device *dev, struct ifreq *ifr);
 int bnxt_get_tx_ts_p5(struct bnxt *bp, struct sk_buff *skb);
 int bnxt_get_rx_ts_p5(struct bnxt *bp, u64 *ts, u32 pkt_ts);
-int bnxt_ptp_init(struct bnxt *bp);
+void bnxt_ptp_rtc_timecounter_init(struct bnxt_ptp_cfg *ptp, u64 ns);
+int bnxt_ptp_init_rtc(struct bnxt *bp, bool phc_cfg);
+int bnxt_ptp_init(struct bnxt *bp, bool phc_cfg);
 void bnxt_ptp_clear(struct bnxt *bp);
 #endif

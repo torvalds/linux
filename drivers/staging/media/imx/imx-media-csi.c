@@ -718,9 +718,10 @@ static int csi_setup(struct csi_priv *priv)
 
 	/* compose mbus_config from the upstream endpoint */
 	mbus_cfg.type = priv->upstream_ep.bus_type;
-	mbus_cfg.flags = is_parallel_bus(&priv->upstream_ep) ?
-		priv->upstream_ep.bus.parallel.flags :
-		priv->upstream_ep.bus.mipi_csi2.flags;
+	if (is_parallel_bus(&priv->upstream_ep))
+		mbus_cfg.bus.parallel = priv->upstream_ep.bus.parallel;
+	else
+		mbus_cfg.bus.mipi_csi2 = priv->upstream_ep.bus.mipi_csi2;
 
 	if_fmt = *infmt;
 	crop = priv->crop;

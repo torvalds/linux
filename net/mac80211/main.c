@@ -287,8 +287,8 @@ static void ieee80211_restart_work(struct work_struct *work)
 			if (sdata->vif.csa_active) {
 				sdata_lock(sdata);
 				ieee80211_sta_connection_lost(sdata,
-							      sdata->u.mgd.associated->bssid,
-							      WLAN_REASON_UNSPECIFIED, false);
+							      WLAN_REASON_UNSPECIFIED,
+							      false);
 				sdata_unlock(sdata);
 			}
 		}
@@ -909,7 +909,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	int result, i;
 	enum nl80211_band band;
 	int channels, max_bitrates;
-	bool supp_ht, supp_vht, supp_he;
+	bool supp_ht, supp_vht, supp_he, supp_eht;
 	struct cfg80211_chan_def dflt_chandef = {};
 
 	if (ieee80211_hw_check(hw, QUEUE_CONTROL) &&
@@ -978,6 +978,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	supp_ht = false;
 	supp_vht = false;
 	supp_he = false;
+	supp_eht = false;
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		struct ieee80211_supported_band *sband;
 
@@ -1021,11 +1022,16 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			iftd = &sband->iftype_data[i];
 
 			supp_he = supp_he || iftd->he_cap.has_he;
+			supp_eht = supp_eht || iftd->eht_cap.has_eht;
 		}
 
 		/* HT, VHT, HE require QoS, thus >= 4 queues */
 		if (WARN_ON(local->hw.queues < IEEE80211_NUM_ACS &&
 			    (supp_ht || supp_vht || supp_he)))
+			return -EINVAL;
+
+		/* EHT requires HE support */
+		if (WARN_ON(supp_eht && !supp_he))
 			return -EINVAL;
 
 		if (!sband->ht_cap.ht_supported)
@@ -1138,6 +1144,12 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			3 + sizeof(struct ieee80211_he_cap_elem) +
 			sizeof(struct ieee80211_he_mcs_nss_supp) +
 			IEEE80211_HE_PPE_THRES_MAX_LEN;
+
+		if (supp_eht)
+			local->scan_ies_len +=
+				3 + sizeof(struct ieee80211_eht_cap_elem) +
+				sizeof(struct ieee80211_eht_mcs_nss_supp) +
+				IEEE80211_EHT_PPE_THRES_MAX_LEN;
 	}
 
 	if (!local->ops->hw_scan) {

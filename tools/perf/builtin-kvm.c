@@ -24,6 +24,7 @@
 #include "util/ordered-events.h"
 #include "util/kvm-stat.h"
 #include "ui/ui.h"
+#include "util/string2.h"
 
 #include <sys/prctl.h>
 #ifdef HAVE_TIMERFD_SUPPORT
@@ -771,7 +772,7 @@ static s64 perf_kvm__mmap_read_idx(struct perf_kvm_stat *kvm, int idx,
 			return -1;
 		}
 
-		err = perf_session__queue_event(kvm->session, event, timestamp, 0);
+		err = perf_session__queue_event(kvm->session, event, timestamp, 0, NULL);
 		/*
 		 * FIXME: Here we can't consume the event, as perf_session__queue_event will
 		 *        point to it, and it'll get possibly overwritten by the kernel.
@@ -1500,10 +1501,10 @@ static int kvm_cmd_stat(const char *file_name, int argc, const char **argv)
 		goto perf_stat;
 	}
 
-	if (!strncmp(argv[1], "rec", 3))
+	if (strlen(argv[1]) > 2 && strstarts("record", argv[1]))
 		return kvm_events_record(&kvm, argc - 1, argv + 1);
 
-	if (!strncmp(argv[1], "rep", 3))
+	if (strlen(argv[1]) > 2 && strstarts("report", argv[1]))
 		return kvm_events_report(&kvm, argc - 1 , argv + 1);
 
 #ifdef HAVE_TIMERFD_SUPPORT
@@ -1602,6 +1603,8 @@ int cmd_kvm(int argc, const char **argv)
 			   "file", "file saving guest os /proc/kallsyms"),
 		OPT_STRING(0, "guestmodules", &symbol_conf.default_guest_modules,
 			   "file", "file saving guest os /proc/modules"),
+		OPT_BOOLEAN(0, "guest-code", &symbol_conf.guest_code,
+			    "Guest code can be found in hypervisor process"),
 		OPT_INCR('v', "verbose", &verbose,
 			    "be more verbose (show counter open errors, etc)"),
 		OPT_END()
@@ -1631,9 +1634,9 @@ int cmd_kvm(int argc, const char **argv)
 		}
 	}
 
-	if (!strncmp(argv[0], "rec", 3))
+	if (strlen(argv[0]) > 2 && strstarts("record", argv[0]))
 		return __cmd_record(file_name, argc, argv);
-	else if (!strncmp(argv[0], "rep", 3))
+	else if (strlen(argv[0]) > 2 && strstarts("report", argv[0]))
 		return __cmd_report(file_name, argc, argv);
 	else if (!strncmp(argv[0], "diff", 4))
 		return cmd_diff(argc, argv);

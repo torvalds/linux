@@ -138,6 +138,10 @@ static bool dmub_psr_set_version(struct dmub_psr *dmub, struct dc_stream_state *
 		cmd.psr_set_version.psr_set_version_data.version = PSR_VERSION_UNSUPPORTED;
 		break;
 	}
+
+	if (cmd.psr_set_version.psr_set_version_data.version == PSR_VERSION_UNSUPPORTED)
+		return false;
+
 	cmd.psr_set_version.psr_set_version_data.cmd_version = DMUB_CMD_PSR_CONTROL_VERSION_1;
 	cmd.psr_set_version.psr_set_version_data.panel_inst = panel_inst;
 	cmd.psr_set_version.header.payload_bytes = sizeof(struct dmub_cmd_psr_set_version_data);
@@ -227,7 +231,7 @@ static void dmub_psr_set_level(struct dmub_psr *dmub, uint16_t psr_level, uint8_
 	dc_dmub_srv_wait_idle(dc->dmub_srv);
 }
 
-/**
+/*
  * Set PSR power optimization flags.
  */
 static void dmub_psr_set_power_opt(struct dmub_psr *dmub, unsigned int power_opt, uint8_t panel_inst)
@@ -316,6 +320,7 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 		copy_settings_data->otg_inst			= 0;
 
 	// Misc
+	copy_settings_data->use_phy_fsm             = link->ctx->dc->debug.psr_power_use_phy_fsm;
 	copy_settings_data->psr_level				= psr_context->psr_level.u32all;
 	copy_settings_data->smu_optimizations_en		= psr_context->allow_smu_optimizations;
 	copy_settings_data->multi_disp_optimizations_en	= psr_context->allow_multi_disp_optimizations;

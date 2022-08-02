@@ -2256,7 +2256,7 @@ int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 	 * guaranteed to satisfy the second as we only attempt TSO if
 	 * inner_network_header <= 208.
 	 */
-	ip_tot_len = -EFX_TSO2_MAX_HDRLEN;
+	ip_tot_len = 0x10000 - EFX_TSO2_MAX_HDRLEN;
 	EFX_WARN_ON_ONCE_PARANOID(mss + EFX_TSO2_MAX_HDRLEN +
 				  (tcp->doff << 2u) > ip_tot_len);
 
@@ -3579,6 +3579,11 @@ static int efx_ef10_mtd_probe(struct efx_nic *efx)
 		n_parts++;
 	}
 
+	if (!n_parts) {
+		kfree(parts);
+		return 0;
+	}
+
 	rc = efx_mtd_add(efx, &parts[0].common, n_parts, sizeof(*parts));
 fail:
 	if (rc)
@@ -3990,6 +3995,30 @@ static unsigned int ef10_check_caps(const struct efx_nic *efx,
 	}
 }
 
+static unsigned int efx_ef10_recycle_ring_size(const struct efx_nic *efx)
+{
+	unsigned int ret = EFX_RECYCLE_RING_SIZE_10G;
+
+	/* There is no difference between PFs and VFs. The side is based on
+	 * the maximum link speed of a given NIC.
+	 */
+	switch (efx->pci_dev->device & 0xfff) {
+	case 0x0903:	/* Farmingdale can do up to 10G */
+		break;
+	case 0x0923:	/* Greenport can do up to 40G */
+	case 0x0a03:	/* Medford can do up to 40G */
+		ret *= 4;
+		break;
+	default:	/* Medford2 can do up to 100G */
+		ret *= 10;
+	}
+
+	if (IS_ENABLED(CONFIG_PPC64))
+		ret *= 4;
+
+	return ret;
+}
+
 #define EF10_OFFLOAD_FEATURES		\
 	(NETIF_F_IP_CSUM |		\
 	 NETIF_F_HW_VLAN_CTAG_FILTER |	\
@@ -4106,6 +4135,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.check_caps = ef10_check_caps,
 	.print_additional_fwver = efx_ef10_print_additional_fwver,
 	.sensor_event = efx_mcdi_sensor_event,
+	.rx_recycle_ring_size = efx_ef10_recycle_ring_size,
 };
 
 const struct efx_nic_type efx_hunt_a0_nic_type = {
@@ -4243,4 +4273,5 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.check_caps = ef10_check_caps,
 	.print_additional_fwver = efx_ef10_print_additional_fwver,
 	.sensor_event = efx_mcdi_sensor_event,
+	.rx_recycle_ring_size = efx_ef10_recycle_ring_size,
 };

@@ -7,6 +7,8 @@
 #ifndef HAVE_IDT82P33_REG
 #define HAVE_IDT82P33_REG
 
+#define REG_ADDR(page, offset) (((page) << 0x7) | ((offset) & 0x7f))
+
 /* Register address */
 #define DPLL1_TOD_CNFG 0x134
 #define DPLL2_TOD_CNFG 0x1B4
@@ -41,6 +43,7 @@
 #define REG_SOFT_RESET 0X381
 
 #define OUT_MUX_CNFG(outn) REG_ADDR(0x6, (0xC * (outn)))
+#define TOD_TRIGGER(wr_trig, rd_trig) ((wr_trig & 0xf) << 4 | (rd_trig & 0xf))
 
 /* Register bit definitions */
 #define SYNC_TOD BIT(1)

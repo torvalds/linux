@@ -3,9 +3,11 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "helpers/helpers.h"
 #include "helpers/sysfs.h"
+#include "cpufreq.h"
 
 #if defined(__i386__) || defined(__x86_64__)
 
@@ -39,6 +41,8 @@ int cpufreq_has_boost_support(unsigned int cpu, int *support, int *active,
 			if (ret)
 				return ret;
 		}
+	} else if (cpupower_cpu_info.caps & CPUPOWER_CAP_AMD_PSTATE) {
+		amd_pstate_boost_init(cpu, support, active);
 	} else if (cpupower_cpu_info.caps & CPUPOWER_CAP_INTEL_IDA)
 		*support = *active = 1;
 	return 0;
@@ -81,6 +85,22 @@ int cpupower_intel_set_perf_bias(unsigned int cpu, unsigned int val)
 		return -1;
 
 	return 0;
+}
+
+bool cpupower_amd_pstate_enabled(void)
+{
+	char *driver = cpufreq_get_driver(0);
+	bool ret = false;
+
+	if (!driver)
+		return ret;
+
+	if (!strcmp(driver, "amd-pstate"))
+		ret = true;
+
+	cpufreq_put_driver(driver);
+
+	return ret;
 }
 
 #endif /* #if defined(__i386__) || defined(__x86_64__) */
@@ -142,5 +162,45 @@ void print_offline_cpus(void)
 		bitmask_displaylist(offline_cpus_str, str_len, offline_cpus);
 		printf(_("Following CPUs are offline:\n%s\n"), offline_cpus_str);
 		printf(_("cpupower set operation was not performed on them\n"));
+	}
+}
+
+/*
+ * print_speed
+ *
+ * Print the exact CPU frequency with appropriate unit
+ */
+void print_speed(unsigned long speed, int no_rounding)
+{
+	unsigned long tmp;
+
+	if (no_rounding) {
+		if (speed > 1000000)
+			printf("%u.%06u GHz", ((unsigned int)speed / 1000000),
+			       ((unsigned int)speed % 1000000));
+		else if (speed > 1000)
+			printf("%u.%03u MHz", ((unsigned int)speed / 1000),
+			       (unsigned int)(speed % 1000));
+		else
+			printf("%lu kHz", speed);
+	} else {
+		if (speed > 1000000) {
+			tmp = speed % 10000;
+			if (tmp >= 5000)
+				speed += 10000;
+			printf("%u.%02u GHz", ((unsigned int)speed / 1000000),
+			       ((unsigned int)(speed % 1000000) / 10000));
+		} else if (speed > 100000) {
+			tmp = speed % 1000;
+			if (tmp >= 500)
+				speed += 1000;
+			printf("%u MHz", ((unsigned int)speed / 1000));
+		} else if (speed > 1000) {
+			tmp = speed % 100;
+			if (tmp >= 50)
+				speed += 100;
+			printf("%u.%01u MHz", ((unsigned int)speed / 1000),
+			       ((unsigned int)(speed % 1000) / 100));
+		}
 	}
 }

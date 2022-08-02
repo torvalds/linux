@@ -4,11 +4,16 @@
  */
 
 #include <linux/pm_runtime.h>
+#include <linux/string_helpers.h>
 
+#include "gem/i915_gem_region.h"
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "i915_vgpu.h"
+#include "intel_engine_regs.h"
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
+#include "intel_gt_regs.h"
 #include "intel_pcode.h"
 #include "intel_rc6.h"
 
@@ -267,8 +272,7 @@ static void gen6_rc6_enable(struct intel_rc6 *rc6)
 	    GEN6_RC_CTL_HW_ENABLE;
 
 	rc6vids = 0;
-	ret = sandybridge_pcode_read(i915, GEN6_PCODE_READ_RC6VIDS,
-				     &rc6vids, NULL);
+	ret = snb_pcode_read(i915, GEN6_PCODE_READ_RC6VIDS, &rc6vids, NULL);
 	if (GRAPHICS_VER(i915) == 6 && ret) {
 		drm_dbg(&i915->drm, "Couldn't check for BIOS workaround\n");
 	} else if (GRAPHICS_VER(i915) == 6 &&
@@ -278,7 +282,7 @@ static void gen6_rc6_enable(struct intel_rc6 *rc6)
 			GEN6_DECODE_RC6_VID(rc6vids & 0xff), 450);
 		rc6vids &= 0xffff00;
 		rc6vids |= GEN6_ENCODE_RC6_VID(450);
-		ret = sandybridge_pcode_write(i915, GEN6_PCODE_WRITE_RC6VIDS, rc6vids);
+		ret = snb_pcode_write(i915, GEN6_PCODE_WRITE_RC6VIDS, rc6vids);
 		if (ret)
 			drm_err(&i915->drm,
 				"Couldn't fix incorrect rc6 voltage\n");
@@ -322,9 +326,10 @@ static int vlv_rc6_init(struct intel_rc6 *rc6)
 		resource_size_t pcbr_offset;
 
 		pcbr_offset = (pcbr & ~4095) - i915->dsm.start;
-		pctx = i915_gem_object_create_stolen_for_preallocated(i915,
-								      pcbr_offset,
-								      pctx_size);
+		pctx = i915_gem_object_create_region_at(i915->mm.stolen_region,
+							pcbr_offset,
+							pctx_size,
+							0);
 		if (IS_ERR(pctx))
 			return PTR_ERR(pctx);
 
@@ -428,8 +433,8 @@ static bool bxt_check_bios_rc6_setup(struct intel_rc6 *rc6)
 	rc_sw_target >>= RC_SW_TARGET_STATE_SHIFT;
 	drm_dbg(&i915->drm, "BIOS enabled RC states: "
 			 "HW_CTRL %s HW_RC6 %s SW_TARGET_STATE %x\n",
-			 onoff(rc_ctl & GEN6_RC_CTL_HW_ENABLE),
-			 onoff(rc_ctl & GEN6_RC_CTL_RC6_ENABLE),
+			 str_on_off(rc_ctl & GEN6_RC_CTL_HW_ENABLE),
+			 str_on_off(rc_ctl & GEN6_RC_CTL_RC6_ENABLE),
 			 rc_sw_target);
 
 	if (!(intel_uncore_read(uncore, RC6_LOCATION) & RC6_CTX_IN_DRAM)) {
@@ -449,10 +454,10 @@ static bool bxt_check_bios_rc6_setup(struct intel_rc6 *rc6)
 		enable_rc6 = false;
 	}
 
-	if (!((intel_uncore_read(uncore, PWRCTX_MAXCNT_RCSUNIT) & IDLE_TIME_MASK) > 1 &&
-	      (intel_uncore_read(uncore, PWRCTX_MAXCNT_VCSUNIT0) & IDLE_TIME_MASK) > 1 &&
-	      (intel_uncore_read(uncore, PWRCTX_MAXCNT_BCSUNIT) & IDLE_TIME_MASK) > 1 &&
-	      (intel_uncore_read(uncore, PWRCTX_MAXCNT_VECSUNIT) & IDLE_TIME_MASK) > 1)) {
+	if (!((intel_uncore_read(uncore, PWRCTX_MAXCNT(RENDER_RING_BASE)) & IDLE_TIME_MASK) > 1 &&
+	      (intel_uncore_read(uncore, PWRCTX_MAXCNT(GEN6_BSD_RING_BASE)) & IDLE_TIME_MASK) > 1 &&
+	      (intel_uncore_read(uncore, PWRCTX_MAXCNT(BLT_RING_BASE)) & IDLE_TIME_MASK) > 1 &&
+	      (intel_uncore_read(uncore, PWRCTX_MAXCNT(VEBOX_RING_BASE)) & IDLE_TIME_MASK) > 1)) {
 		drm_dbg(&i915->drm,
 			"Engine Idle wait time not set properly.\n");
 		enable_rc6 = false;

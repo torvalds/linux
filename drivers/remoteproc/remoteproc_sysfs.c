@@ -194,23 +194,12 @@ static ssize_t state_store(struct device *dev,
 	int ret = 0;
 
 	if (sysfs_streq(buf, "start")) {
-		if (rproc->state == RPROC_RUNNING ||
-		    rproc->state == RPROC_ATTACHED)
-			return -EBUSY;
-
 		ret = rproc_boot(rproc);
 		if (ret)
 			dev_err(&rproc->dev, "Boot failed: %d\n", ret);
 	} else if (sysfs_streq(buf, "stop")) {
-		if (rproc->state != RPROC_RUNNING &&
-		    rproc->state != RPROC_ATTACHED)
-			return -EINVAL;
-
-		rproc_shutdown(rproc);
+		ret = rproc_shutdown(rproc);
 	} else if (sysfs_streq(buf, "detach")) {
-		if (rproc->state != RPROC_ATTACHED)
-			return -EINVAL;
-
 		ret = rproc_detach(rproc);
 	} else {
 		dev_err(&rproc->dev, "Unrecognised option: %s\n", buf);
@@ -230,6 +219,22 @@ static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(name);
 
+static umode_t rproc_is_visible(struct kobject *kobj, struct attribute *attr,
+				int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct rproc *rproc = to_rproc(dev);
+	umode_t mode = attr->mode;
+
+	if (rproc->sysfs_read_only && (attr == &dev_attr_recovery.attr ||
+				       attr == &dev_attr_firmware.attr ||
+				       attr == &dev_attr_state.attr ||
+				       attr == &dev_attr_coredump.attr))
+		mode = 0444;
+
+	return mode;
+}
+
 static struct attribute *rproc_attrs[] = {
 	&dev_attr_coredump.attr,
 	&dev_attr_recovery.attr,
@@ -240,7 +245,8 @@ static struct attribute *rproc_attrs[] = {
 };
 
 static const struct attribute_group rproc_devgroup = {
-	.attrs = rproc_attrs
+	.attrs = rproc_attrs,
+	.is_visible = rproc_is_visible,
 };
 
 static const struct attribute_group *rproc_devgroups[] = {

@@ -508,26 +508,6 @@ static void repaper_get_temperature(struct repaper_epd *epd)
 	epd->factored_stage_time = epd->stage_time * factor10x / 10;
 }
 
-static void repaper_gray8_to_mono_reversed(u8 *buf, u32 width, u32 height)
-{
-	u8 *gray8 = buf, *mono = buf;
-	int y, xb, i;
-
-	for (y = 0; y < height; y++)
-		for (xb = 0; xb < width / 8; xb++) {
-			u8 byte = 0x00;
-
-			for (i = 0; i < 8; i++) {
-				int x = xb * 8 + i;
-
-				byte >>= 1;
-				if (gray8[y * width + x] >> 7)
-					byte |= BIT(7);
-			}
-			*mono++ = byte;
-		}
-}
-
 static int repaper_fb_dirty(struct drm_framebuffer *fb)
 {
 	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
@@ -560,11 +540,9 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb)
 	if (ret)
 		goto out_free;
 
-	drm_fb_xrgb8888_to_gray8(buf, 0, cma_obj->vaddr, fb, &clip);
+	drm_fb_xrgb8888_to_mono(buf, 0, cma_obj->vaddr, fb, &clip);
 
 	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
-
-	repaper_gray8_to_mono_reversed(buf, fb->width, fb->height);
 
 	if (epd->partial) {
 		repaper_frame_data_repeat(epd, buf, epd->current_frame,
@@ -1140,14 +1118,12 @@ static int repaper_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int repaper_remove(struct spi_device *spi)
+static void repaper_remove(struct spi_device *spi)
 {
 	struct drm_device *drm = spi_get_drvdata(spi);
 
 	drm_dev_unplug(drm);
 	drm_atomic_helper_shutdown(drm);
-
-	return 0;
 }
 
 static void repaper_shutdown(struct spi_device *spi)

@@ -402,12 +402,11 @@ static int ml26124_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	unsigned char mode;
 	struct snd_soc_component *component = codec_dai->component;
 
-	/* set master/slave audio interface */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		mode = 1;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		mode = 0;
 		break;
 	default:
@@ -551,8 +550,7 @@ static const struct regmap_config ml26124_i2c_regmap = {
 	.write_flag_mask = 0x01,
 };
 
-static int ml26124_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int ml26124_i2c_probe(struct i2c_client *i2c)
 {
 	struct ml26124_priv *priv;
 	int ret;
@@ -584,7 +582,7 @@ static struct i2c_driver ml26124_i2c_driver = {
 	.driver = {
 		.name = "ml26124",
 	},
-	.probe = ml26124_i2c_probe,
+	.probe_new = ml26124_i2c_probe,
 	.id_table = ml26124_i2c_id,
 };
 

@@ -825,8 +825,7 @@ static void create_ptd_atl(struct isp1760_qh *qh,
 	memset(ptd, 0, sizeof(*ptd));
 
 	/* according to 3.6.2, max packet len can not be > 0x400 */
-	maxpacket = usb_maxpacket(qtd->urb->dev, qtd->urb->pipe,
-						usb_pipeout(qtd->urb->pipe));
+	maxpacket = usb_maxpacket(qtd->urb->dev, qtd->urb->pipe);
 	multi =  1 + ((maxpacket >> 11) & 0x3);
 	maxpacket &= 0x7ff;
 
@@ -1768,7 +1767,6 @@ static void qtd_list_free(struct list_head *qtd_list)
  * Packetize urb->transfer_buffer into list of packets of size wMaxPacketSize.
  * Also calculate the PID type (SETUP/IN/OUT) for each packet.
  */
-#define max_packet(wMaxPacketSize) ((wMaxPacketSize) & 0x07ff)
 static void packetize_urb(struct usb_hcd *hcd,
 		struct urb *urb, struct list_head *head, gfp_t flags)
 {
@@ -1809,8 +1807,7 @@ static void packetize_urb(struct usb_hcd *hcd,
 			packet_type = IN_PID;
 	}
 
-	maxpacketsize = max_packet(usb_maxpacket(urb->dev, urb->pipe,
-						usb_pipeout(urb->pipe)));
+	maxpacketsize = usb_maxpacket(urb->dev, urb->pipe);
 
 	/*
 	 * buffer gets wrapped in one or more qtds;

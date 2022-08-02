@@ -40,7 +40,8 @@ i915_gem_object_wait_reservation(struct dma_resv *resv,
 	struct dma_fence *fence;
 	long ret = timeout ?: 1;
 
-	dma_resv_iter_begin(&cursor, resv, flags & I915_WAIT_ALL);
+	dma_resv_iter_begin(&cursor, resv,
+			    dma_resv_usage_rw(flags & I915_WAIT_ALL));
 	dma_resv_for_each_fence_unlocked(&cursor, fence) {
 		ret = i915_gem_object_wait_fence(fence, flags, timeout);
 		if (ret <= 0)
@@ -117,7 +118,8 @@ i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
 	struct dma_resv_iter cursor;
 	struct dma_fence *fence;
 
-	dma_resv_iter_begin(&cursor, obj->base.resv, flags & I915_WAIT_ALL);
+	dma_resv_iter_begin(&cursor, obj->base.resv,
+			    dma_resv_usage_rw(flags & I915_WAIT_ALL));
 	dma_resv_for_each_fence_unlocked(&cursor, fence)
 		i915_gem_fence_wait_priority(fence, attr);
 	dma_resv_iter_end(&cursor);

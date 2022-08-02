@@ -285,7 +285,8 @@ static acpi_status acpi_register_phy(acpi_handle handle, u32 lvl,
 	const union acpi_object *obj;
 	u32 phy_addr;
 
-	if (acpi_bus_get_device(handle, &adev))
+	adev = acpi_fetch_acpi_dev(handle);
+	if (!adev)
 		return AE_OK;
 
 	if (acpi_dev_get_property(adev, "phy-channel", ACPI_TYPE_INTEGER, &obj))

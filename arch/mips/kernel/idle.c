@@ -36,13 +36,6 @@ static void __cpuidle r3081_wait(void)
 	raw_local_irq_enable();
 }
 
-static void __cpuidle r39xx_wait(void)
-{
-	if (!need_resched())
-		write_c0_conf(read_c0_conf() | TX39_CONF_HALT);
-	raw_local_irq_enable();
-}
-
 void __cpuidle r4k_wait(void)
 {
 	raw_local_irq_enable();
@@ -147,9 +140,6 @@ void __init check_wait(void)
 	case CPU_R3081E:
 		cpu_wait = r3081_wait;
 		break;
-	case CPU_TX3927:
-		cpu_wait = r39xx_wait;
-		break;
 	case CPU_R4200:
 /*	case CPU_R4300: */
 	case CPU_R4600:
@@ -238,7 +228,7 @@ void __init check_wait(void)
 			break;
 
 		/*
-		 * Another rev is incremeting c0_count at a reduced clock
+		 * Another rev is incrementing c0_count at a reduced clock
 		 * rate while in WAIT mode.  So we basically have the choice
 		 * between using the cp0 timer as clocksource or avoiding
 		 * the WAIT instruction.  Until more details are known,

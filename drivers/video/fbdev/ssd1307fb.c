@@ -368,10 +368,10 @@ static const struct fb_ops ssd1307fb_ops = {
 	.fb_fillrect	= ssd1307fb_fillrect,
 	.fb_copyarea	= ssd1307fb_copyarea,
 	.fb_imageblit	= ssd1307fb_imageblit,
+	.fb_mmap	= fb_deferred_io_mmap,
 };
 
-static void ssd1307fb_deferred_io(struct fb_info *info,
-				struct list_head *pagelist)
+static void ssd1307fb_deferred_io(struct fb_info *info, struct list_head *pagereflist)
 {
 	ssd1307fb_update_display(info->par);
 }
@@ -658,9 +658,8 @@ static int ssd1307fb_probe(struct i2c_client *client)
 
 	par->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(par->reset)) {
-		dev_err(dev, "failed to get reset gpio: %ld\n",
-			PTR_ERR(par->reset));
-		ret = PTR_ERR(par->reset);
+		ret = dev_err_probe(dev, PTR_ERR(par->reset),
+				    "failed to get reset gpio\n");
 		goto fb_alloc_error;
 	}
 
@@ -670,7 +669,7 @@ static int ssd1307fb_probe(struct i2c_client *client)
 		if (ret == -ENODEV) {
 			par->vbat_reg = NULL;
 		} else {
-			dev_err(dev, "failed to get VBAT regulator: %d\n", ret);
+			dev_err_probe(dev, ret, "failed to get VBAT regulator\n");
 			goto fb_alloc_error;
 		}
 	}

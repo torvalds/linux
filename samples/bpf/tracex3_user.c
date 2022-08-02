@@ -7,7 +7,6 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <string.h>
-#include <sys/resource.h>
 
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>

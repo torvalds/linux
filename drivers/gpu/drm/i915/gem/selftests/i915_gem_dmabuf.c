@@ -88,7 +88,7 @@ out:
 static int igt_dmabuf_import_same_driver_lmem(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct intel_memory_region *lmem = i915->mm.regions[INTEL_REGION_LMEM];
+	struct intel_memory_region *lmem = i915->mm.regions[INTEL_REGION_LMEM_0];
 	struct drm_i915_gem_object *obj;
 	struct drm_gem_object *import;
 	struct dma_buf *dmabuf;
@@ -219,7 +219,8 @@ static int igt_dmabuf_import_same_driver(struct drm_i915_private *i915,
 		goto out_detach;
 	}
 
-	timeout = dma_resv_wait_timeout(dmabuf->resv, false, true, 5 * HZ);
+	timeout = dma_resv_wait_timeout(dmabuf->resv, DMA_RESV_USAGE_WRITE,
+					true, 5 * HZ);
 	if (!timeout) {
 		pr_err("dmabuf wait for exclusive fence timed out.\n");
 		timeout = -ETIME;
@@ -252,10 +253,10 @@ static int igt_dmabuf_import_same_driver_lmem_smem(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct intel_memory_region *regions[2];
 
-	if (!i915->mm.regions[INTEL_REGION_LMEM])
+	if (!i915->mm.regions[INTEL_REGION_LMEM_0])
 		return 0;
 
-	regions[0] = i915->mm.regions[INTEL_REGION_LMEM];
+	regions[0] = i915->mm.regions[INTEL_REGION_LMEM_0];
 	regions[1] = i915->mm.regions[INTEL_REGION_SMEM];
 	return igt_dmabuf_import_same_driver(i915, regions, 2);
 }
@@ -266,7 +267,7 @@ static int igt_dmabuf_import(void *arg)
 	struct drm_i915_gem_object *obj;
 	struct dma_buf *dmabuf;
 	void *obj_map, *dma_map;
-	struct dma_buf_map map;
+	struct iosys_map map;
 	u32 pattern[] = { 0, 0xaa, 0xcc, 0x55, 0xff };
 	int err, i;
 
@@ -349,7 +350,7 @@ static int igt_dmabuf_import_ownership(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct drm_i915_gem_object *obj;
 	struct dma_buf *dmabuf;
-	struct dma_buf_map map;
+	struct iosys_map map;
 	void *ptr;
 	int err;
 
@@ -400,7 +401,7 @@ static int igt_dmabuf_export_vmap(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct drm_i915_gem_object *obj;
 	struct dma_buf *dmabuf;
-	struct dma_buf_map map;
+	struct iosys_map map;
 	void *ptr;
 	int err;
 

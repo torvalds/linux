@@ -11,7 +11,7 @@
 #include <dt-bindings/pinctrl/am43xx.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pwm/pwm.h>
-#include <dt-bindings/sound/tlv320aic31xx-micbias.h>
+#include <dt-bindings/sound/tlv320aic31xx.h>
 
 / {
 	model = "TI AM43x EPOS EVM";
@@ -902,7 +902,7 @@
 	pinctrl-1 = <&qspi1_pins_sleep>;
 
 	spi-max-frequency = <48000000>;
-	m25p80@0 {
+	flash@0 {
 		compatible = "mx66l51235l";
 		spi-max-frequency = <48000000>;
 		reg = <0>;
@@ -1017,6 +1017,10 @@
 
 &cpu {
 	cpu0-supply = <&dcdc2>;
+};
+
+&wkup_m3_ipc {
+	firmware-name = "am43x-evm-scale-data.bin";
 };
 
 &pruss1_mdio {

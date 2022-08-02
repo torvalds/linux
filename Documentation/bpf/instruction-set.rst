@@ -22,7 +22,13 @@ necessary across calls.
 Instruction encoding
 ====================
 
-eBPF uses 64-bit instructions with the following encoding:
+eBPF has two instruction encodings:
+
+ * the basic instruction encoding, which uses 64 bits to encode an instruction
+ * the wide instruction encoding, which appends a second 64-bit immediate value
+   (imm64) after the basic instruction for a total of 128 bits.
+
+The basic instruction encoding looks as follows:
 
  =============  =======  ===============  ====================  ============
  32 bits (MSB)  16 bits  4 bits           4 bits                8 bits (LSB)
@@ -82,9 +88,9 @@ BPF_ALU uses 32-bit wide operands while BPF_ALU64 uses 64-bit wide operands for
 otherwise identical operations.
 The code field encodes the operation as below:
 
-  ========  =====  ==========================
+  ========  =====  =================================================
   code      value  description
-  ========  =====  ==========================
+  ========  =====  =================================================
   BPF_ADD   0x00   dst += src
   BPF_SUB   0x10   dst -= src
   BPF_MUL   0x20   dst \*= src
@@ -98,8 +104,8 @@ The code field encodes the operation as below:
   BPF_XOR   0xa0   dst ^= src
   BPF_MOV   0xb0   dst = src
   BPF_ARSH  0xc0   sign extending shift right
-  BPF_END   0xd0   endianness conversion
-  ========  =====  ==========================
+  BPF_END   0xd0   byte swap operations (see separate section below)
+  ========  =====  =================================================
 
 BPF_ADD | BPF_X | BPF_ALU means::
 
@@ -116,6 +122,42 @@ BPF_XOR | BPF_K | BPF_ALU means::
 BPF_XOR | BPF_K | BPF_ALU64 means::
 
   src_reg = src_reg ^ imm32
+
+
+Byte swap instructions
+----------------------
+
+The byte swap instructions use an instruction class of ``BFP_ALU`` and a 4-bit
+code field of ``BPF_END``.
+
+The byte swap instructions operate on the destination register
+only and do not use a separate source register or immediate value.
+
+The 1-bit source operand field in the opcode is used to to select what byte
+order the operation convert from or to:
+
+  =========  =====  =================================================
+  source     value  description
+  =========  =====  =================================================
+  BPF_TO_LE  0x00   convert between host byte order and little endian
+  BPF_TO_BE  0x08   convert between host byte order and big endian
+  =========  =====  =================================================
+
+The imm field encodes the width of the swap operations.  The following widths
+are supported: 16, 32 and 64.
+
+Examples:
+
+``BPF_ALU | BPF_TO_LE | BPF_END`` with imm = 16 means::
+
+  dst_reg = htole16(dst_reg)
+
+``BPF_ALU | BPF_TO_BE | BPF_END`` with imm = 64 means::
+
+  dst_reg = htobe64(dst_reg)
+
+``BPF_FROM_LE`` and ``BPF_FROM_BE`` exist as aliases for ``BPF_TO_LE`` and
+``BPF_TO_BE`` respectively.
 
 
 Jump instructions
@@ -176,63 +218,96 @@ The mode modifier is one of:
   =============  =====  ====================================
   mode modifier  value  description
   =============  =====  ====================================
-  BPF_IMM        0x00   used for 64-bit mov
-  BPF_ABS        0x20   legacy BPF packet access
-  BPF_IND        0x40   legacy BPF packet access
-  BPF_MEM        0x60   all normal load and store operations
+  BPF_IMM        0x00   64-bit immediate instructions
+  BPF_ABS        0x20   legacy BPF packet access (absolute)
+  BPF_IND        0x40   legacy BPF packet access (indirect)
+  BPF_MEM        0x60   regular load and store operations
   BPF_ATOMIC     0xc0   atomic operations
   =============  =====  ====================================
 
-BPF_MEM | <size> | BPF_STX means::
+
+Regular load and store operations
+---------------------------------
+
+The ``BPF_MEM`` mode modifier is used to encode regular load and store
+instructions that transfer data between a register and memory.
+
+``BPF_MEM | <size> | BPF_STX`` means::
 
   *(size *) (dst_reg + off) = src_reg
 
-BPF_MEM | <size> | BPF_ST means::
+``BPF_MEM | <size> | BPF_ST`` means::
 
   *(size *) (dst_reg + off) = imm32
 
-BPF_MEM | <size> | BPF_LDX means::
+``BPF_MEM | <size> | BPF_LDX`` means::
 
   dst_reg = *(size *) (src_reg + off)
 
-Where size is one of: BPF_B or BPF_H or BPF_W or BPF_DW.
+Where size is one of: ``BPF_B``, ``BPF_H``, ``BPF_W``, or ``BPF_DW``.
 
 Atomic operations
 -----------------
 
-eBPF includes atomic operations, which use the immediate field for extra
-encoding::
+Atomic operations are operations that operate on memory and can not be
+interrupted or corrupted by other access to the same memory region
+by other eBPF programs or means outside of this specification.
 
-   .imm = BPF_ADD, .code = BPF_ATOMIC | BPF_W  | BPF_STX: lock xadd *(u32 *)(dst_reg + off16) += src_reg
-   .imm = BPF_ADD, .code = BPF_ATOMIC | BPF_DW | BPF_STX: lock xadd *(u64 *)(dst_reg + off16) += src_reg
+All atomic operations supported by eBPF are encoded as store operations
+that use the ``BPF_ATOMIC`` mode modifier as follows:
 
-The basic atomic operations supported are::
+  * ``BPF_ATOMIC | BPF_W | BPF_STX`` for 32-bit operations
+  * ``BPF_ATOMIC | BPF_DW | BPF_STX`` for 64-bit operations
+  * 8-bit and 16-bit wide atomic operations are not supported.
 
-    BPF_ADD
-    BPF_AND
-    BPF_OR
-    BPF_XOR
+The imm field is used to encode the actual atomic operation.
+Simple atomic operation use a subset of the values defined to encode
+arithmetic operations in the imm field to encode the atomic operation:
 
-Each having equivalent semantics with the ``BPF_ADD`` example, that is: the
-memory location addresed by ``dst_reg + off`` is atomically modified, with
-``src_reg`` as the other operand. If the ``BPF_FETCH`` flag is set in the
-immediate, then these operations also overwrite ``src_reg`` with the
-value that was in memory before it was modified.
+  ========  =====  ===========
+  imm       value  description
+  ========  =====  ===========
+  BPF_ADD   0x00   atomic add
+  BPF_OR    0x40   atomic or
+  BPF_AND   0x50   atomic and
+  BPF_XOR   0xa0   atomic xor
+  ========  =====  ===========
 
-The more special operations are::
 
-    BPF_XCHG
+``BPF_ATOMIC | BPF_W  | BPF_STX`` with imm = BPF_ADD means::
 
-This atomically exchanges ``src_reg`` with the value addressed by ``dst_reg +
-off``. ::
+  *(u32 *)(dst_reg + off16) += src_reg
 
-    BPF_CMPXCHG
+``BPF_ATOMIC | BPF_DW | BPF_STX`` with imm = BPF ADD means::
 
-This atomically compares the value addressed by ``dst_reg + off`` with
-``R0``. If they match it is replaced with ``src_reg``. In either case, the
-value that was there before is zero-extended and loaded back to ``R0``.
+  *(u64 *)(dst_reg + off16) += src_reg
 
-Note that 1 and 2 byte atomic operations are not supported.
+``BPF_XADD`` is a deprecated name for ``BPF_ATOMIC | BPF_ADD``.
+
+In addition to the simple atomic operations, there also is a modifier and
+two complex atomic operations:
+
+  ===========  ================  ===========================
+  imm          value             description
+  ===========  ================  ===========================
+  BPF_FETCH    0x01              modifier: return old value
+  BPF_XCHG     0xe0 | BPF_FETCH  atomic exchange
+  BPF_CMPXCHG  0xf0 | BPF_FETCH  atomic compare and exchange
+  ===========  ================  ===========================
+
+The ``BPF_FETCH`` modifier is optional for simple atomic operations, and
+always set for the complex atomic operations.  If the ``BPF_FETCH`` flag
+is set, then the operation also overwrites ``src_reg`` with the value that
+was in memory before it was modified.
+
+The ``BPF_XCHG`` operation atomically exchanges ``src_reg`` with the value
+addressed by ``dst_reg + off``.
+
+The ``BPF_CMPXCHG`` operation atomically compares the value addressed by
+``dst_reg + off`` with ``R0``. If they match, the value addressed by
+``dst_reg + off`` is replaced with ``src_reg``. In either case, the
+value that was at ``dst_reg + off`` before the operation is zero-extended
+and loaded back to ``R0``.
 
 Clang can generate atomic instructions by default when ``-mcpu=v3`` is
 enabled. If a lower version for ``-mcpu`` is set, the only atomic instruction
@@ -240,40 +315,52 @@ Clang can generate is ``BPF_ADD`` *without* ``BPF_FETCH``. If you need to enable
 the atomics features, while keeping a lower ``-mcpu`` version, you can use
 ``-Xclang -target-feature -Xclang +alu32``.
 
-You may encounter ``BPF_XADD`` - this is a legacy name for ``BPF_ATOMIC``,
-referring to the exclusive-add operation encoded when the immediate field is
-zero.
+64-bit immediate instructions
+-----------------------------
 
-16-byte instructions
---------------------
+Instructions with the ``BPF_IMM`` mode modifier use the wide instruction
+encoding for an extra imm64 value.
 
-eBPF has one 16-byte instruction: ``BPF_LD | BPF_DW | BPF_IMM`` which consists
-of two consecutive ``struct bpf_insn`` 8-byte blocks and interpreted as single
-instruction that loads 64-bit immediate value into a dst_reg.
+There is currently only one such instruction.
 
-Packet access instructions
---------------------------
+``BPF_LD | BPF_DW | BPF_IMM`` means::
 
-eBPF has two non-generic instructions: (BPF_ABS | <size> | BPF_LD) and
-(BPF_IND | <size> | BPF_LD) which are used to access packet data.
+  dst_reg = imm64
 
-They had to be carried over from classic BPF to have strong performance of
-socket filters running in eBPF interpreter. These instructions can only
-be used when interpreter context is a pointer to ``struct sk_buff`` and
-have seven implicit operands. Register R6 is an implicit input that must
-contain pointer to sk_buff. Register R0 is an implicit output which contains
-the data fetched from the packet. Registers R1-R5 are scratch registers
-and must not be used to store the data across BPF_ABS | BPF_LD or
-BPF_IND | BPF_LD instructions.
 
-These instructions have implicit program exit condition as well. When
-eBPF program is trying to access the data beyond the packet boundary,
-the interpreter will abort the execution of the program. JIT compilers
-therefore must preserve this property. src_reg and imm32 fields are
-explicit inputs to these instructions.
+Legacy BPF Packet access instructions
+-------------------------------------
 
-For example, BPF_IND | BPF_W | BPF_LD means::
+eBPF has special instructions for access to packet data that have been
+carried over from classic BPF to retain the performance of legacy socket
+filters running in the eBPF interpreter.
+
+The instructions come in two forms: ``BPF_ABS | <size> | BPF_LD`` and
+``BPF_IND | <size> | BPF_LD``.
+
+These instructions are used to access packet data and can only be used when
+the program context is a pointer to networking packet.  ``BPF_ABS``
+accesses packet data at an absolute offset specified by the immediate data
+and ``BPF_IND`` access packet data at an offset that includes the value of
+a register in addition to the immediate data.
+
+These instructions have seven implicit operands:
+
+ * Register R6 is an implicit input that must contain pointer to a
+   struct sk_buff.
+ * Register R0 is an implicit output which contains the data fetched from
+   the packet.
+ * Registers R1-R5 are scratch registers that are clobbered after a call to
+   ``BPF_ABS | BPF_LD`` or ``BPF_IND`` | BPF_LD instructions.
+
+These instructions have an implicit program exit condition as well. When an
+eBPF program is trying to access the data beyond the packet boundary, the
+program execution will be aborted.
+
+``BPF_ABS | BPF_W | BPF_LD`` means::
+
+  R0 = ntohl(*(u32 *) (((struct sk_buff *) R6)->data + imm32))
+
+``BPF_IND | BPF_W | BPF_LD`` means::
 
   R0 = ntohl(*(u32 *) (((struct sk_buff *) R6)->data + src_reg + imm32))
-
-and R1 - R5 are clobbered.

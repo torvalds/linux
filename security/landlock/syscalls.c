@@ -43,9 +43,10 @@
  * @src: User space pointer or NULL.
  * @usize: (Alleged) size of the data pointed to by @src.
  */
-static __always_inline int copy_min_struct_from_user(void *const dst,
-		const size_t ksize, const size_t ksize_min,
-		const void __user *const src, const size_t usize)
+static __always_inline int
+copy_min_struct_from_user(void *const dst, const size_t ksize,
+			  const size_t ksize_min, const void __user *const src,
+			  const size_t usize)
 {
 	/* Checks buffer inconsistencies. */
 	BUILD_BUG_ON(!dst);
@@ -93,7 +94,7 @@ static void build_check_abi(void)
 /* Ruleset handling */
 
 static int fop_ruleset_release(struct inode *const inode,
-		struct file *const filp)
+			       struct file *const filp)
 {
 	struct landlock_ruleset *ruleset = filp->private_data;
 
@@ -102,15 +103,15 @@ static int fop_ruleset_release(struct inode *const inode,
 }
 
 static ssize_t fop_dummy_read(struct file *const filp, char __user *const buf,
-		const size_t size, loff_t *const ppos)
+			      const size_t size, loff_t *const ppos)
 {
 	/* Dummy handler to enable FMODE_CAN_READ. */
 	return -EINVAL;
 }
 
 static ssize_t fop_dummy_write(struct file *const filp,
-		const char __user *const buf, const size_t size,
-		loff_t *const ppos)
+			       const char __user *const buf, const size_t size,
+			       loff_t *const ppos)
 {
 	/* Dummy handler to enable FMODE_CAN_WRITE. */
 	return -EINVAL;
@@ -128,7 +129,7 @@ static const struct file_operations ruleset_fops = {
 	.write = fop_dummy_write,
 };
 
-#define LANDLOCK_ABI_VERSION	1
+#define LANDLOCK_ABI_VERSION 2
 
 /**
  * sys_landlock_create_ruleset - Create a new ruleset
@@ -168,22 +169,23 @@ SYSCALL_DEFINE3(landlock_create_ruleset,
 		return -EOPNOTSUPP;
 
 	if (flags) {
-		if ((flags == LANDLOCK_CREATE_RULESET_VERSION)
-				&& !attr && !size)
+		if ((flags == LANDLOCK_CREATE_RULESET_VERSION) && !attr &&
+		    !size)
 			return LANDLOCK_ABI_VERSION;
 		return -EINVAL;
 	}
 
 	/* Copies raw user space buffer. */
 	err = copy_min_struct_from_user(&ruleset_attr, sizeof(ruleset_attr),
-			offsetofend(typeof(ruleset_attr), handled_access_fs),
-			attr, size);
+					offsetofend(typeof(ruleset_attr),
+						    handled_access_fs),
+					attr, size);
 	if (err)
 		return err;
 
 	/* Checks content (and 32-bits cast). */
 	if ((ruleset_attr.handled_access_fs | LANDLOCK_MASK_ACCESS_FS) !=
-			LANDLOCK_MASK_ACCESS_FS)
+	    LANDLOCK_MASK_ACCESS_FS)
 		return -EINVAL;
 
 	/* Checks arguments and transforms to kernel struct. */
@@ -192,8 +194,8 @@ SYSCALL_DEFINE3(landlock_create_ruleset,
 		return PTR_ERR(ruleset);
 
 	/* Creates anonymous FD referring to the ruleset. */
-	ruleset_fd = anon_inode_getfd("landlock-ruleset", &ruleset_fops,
-			ruleset, O_RDWR | O_CLOEXEC);
+	ruleset_fd = anon_inode_getfd("[landlock-ruleset]", &ruleset_fops,
+				      ruleset, O_RDWR | O_CLOEXEC);
 	if (ruleset_fd < 0)
 		landlock_put_ruleset(ruleset);
 	return ruleset_fd;
@@ -204,7 +206,7 @@ SYSCALL_DEFINE3(landlock_create_ruleset,
  * landlock_put_ruleset() on the return value.
  */
 static struct landlock_ruleset *get_ruleset_from_fd(const int fd,
-		const fmode_t mode)
+						    const fmode_t mode)
 {
 	struct fd ruleset_f;
 	struct landlock_ruleset *ruleset;
@@ -244,8 +246,8 @@ static int get_path_from_fd(const s32 fd, struct path *const path)
 	struct fd f;
 	int err = 0;
 
-	BUILD_BUG_ON(!__same_type(fd,
-		((struct landlock_path_beneath_attr *)NULL)->parent_fd));
+	BUILD_BUG_ON(!__same_type(
+		fd, ((struct landlock_path_beneath_attr *)NULL)->parent_fd));
 
 	/* Handles O_PATH. */
 	f = fdget_raw(fd);
@@ -257,10 +259,10 @@ static int get_path_from_fd(const s32 fd, struct path *const path)
 	 * pipefs).
 	 */
 	if ((f.file->f_op == &ruleset_fops) ||
-			(f.file->f_path.mnt->mnt_flags & MNT_INTERNAL) ||
-			(f.file->f_path.dentry->d_sb->s_flags & SB_NOUSER) ||
-			d_is_negative(f.file->f_path.dentry) ||
-			IS_PRIVATE(d_backing_inode(f.file->f_path.dentry))) {
+	    (f.file->f_path.mnt->mnt_flags & MNT_INTERNAL) ||
+	    (f.file->f_path.dentry->d_sb->s_flags & SB_NOUSER) ||
+	    d_is_negative(f.file->f_path.dentry) ||
+	    IS_PRIVATE(d_backing_inode(f.file->f_path.dentry))) {
 		err = -EBADFD;
 		goto out_fdput;
 	}
@@ -290,19 +292,18 @@ out_fdput:
  *
  * - EOPNOTSUPP: Landlock is supported by the kernel but disabled at boot time;
  * - EINVAL: @flags is not 0, or inconsistent access in the rule (i.e.
- *   &landlock_path_beneath_attr.allowed_access is not a subset of the rule's
- *   accesses);
+ *   &landlock_path_beneath_attr.allowed_access is not a subset of the
+ *   ruleset handled accesses);
  * - ENOMSG: Empty accesses (e.g. &landlock_path_beneath_attr.allowed_access);
  * - EBADF: @ruleset_fd is not a file descriptor for the current thread, or a
  *   member of @rule_attr is not a file descriptor as expected;
  * - EBADFD: @ruleset_fd is not a ruleset file descriptor, or a member of
- *   @rule_attr is not the expected file descriptor type (e.g. file open
- *   without O_PATH);
+ *   @rule_attr is not the expected file descriptor type;
  * - EPERM: @ruleset_fd has no write access to the underlying ruleset;
  * - EFAULT: @rule_attr inconsistency.
  */
-SYSCALL_DEFINE4(landlock_add_rule,
-		const int, ruleset_fd, const enum landlock_rule_type, rule_type,
+SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
+		const enum landlock_rule_type, rule_type,
 		const void __user *const, rule_attr, const __u32, flags)
 {
 	struct landlock_path_beneath_attr path_beneath_attr;
@@ -317,19 +318,23 @@ SYSCALL_DEFINE4(landlock_add_rule,
 	if (flags)
 		return -EINVAL;
 
-	if (rule_type != LANDLOCK_RULE_PATH_BENEATH)
-		return -EINVAL;
-
-	/* Copies raw user space buffer, only one type for now. */
-	res = copy_from_user(&path_beneath_attr, rule_attr,
-			sizeof(path_beneath_attr));
-	if (res)
-		return -EFAULT;
-
 	/* Gets and checks the ruleset. */
 	ruleset = get_ruleset_from_fd(ruleset_fd, FMODE_CAN_WRITE);
 	if (IS_ERR(ruleset))
 		return PTR_ERR(ruleset);
+
+	if (rule_type != LANDLOCK_RULE_PATH_BENEATH) {
+		err = -EINVAL;
+		goto out_put_ruleset;
+	}
+
+	/* Copies raw user space buffer, only one type for now. */
+	res = copy_from_user(&path_beneath_attr, rule_attr,
+			     sizeof(path_beneath_attr));
+	if (res) {
+		err = -EFAULT;
+		goto out_put_ruleset;
+	}
 
 	/*
 	 * Informs about useless rule: empty allowed_access (i.e. deny rules)
@@ -344,7 +349,7 @@ SYSCALL_DEFINE4(landlock_add_rule,
 	 * (ruleset->fs_access_masks[0] is automatically upgraded to 64-bits).
 	 */
 	if ((path_beneath_attr.allowed_access | ruleset->fs_access_masks[0]) !=
-			ruleset->fs_access_masks[0]) {
+	    ruleset->fs_access_masks[0]) {
 		err = -EINVAL;
 		goto out_put_ruleset;
 	}
@@ -356,7 +361,7 @@ SYSCALL_DEFINE4(landlock_add_rule,
 
 	/* Imports the new rule. */
 	err = landlock_append_fs_rule(ruleset, &path,
-			path_beneath_attr.allowed_access);
+				      path_beneath_attr.allowed_access);
 	path_put(&path);
 
 out_put_ruleset:
@@ -389,8 +394,8 @@ out_put_ruleset:
  * - E2BIG: The maximum number of stacked rulesets is reached for the current
  *   thread.
  */
-SYSCALL_DEFINE2(landlock_restrict_self,
-		const int, ruleset_fd, const __u32, flags)
+SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
+		flags)
 {
 	struct landlock_ruleset *new_dom, *ruleset;
 	struct cred *new_cred;
@@ -400,17 +405,17 @@ SYSCALL_DEFINE2(landlock_restrict_self,
 	if (!landlock_initialized)
 		return -EOPNOTSUPP;
 
-	/* No flag for now. */
-	if (flags)
-		return -EINVAL;
-
 	/*
 	 * Similar checks as for seccomp(2), except that an -EPERM may be
 	 * returned.
 	 */
 	if (!task_no_new_privs(current) &&
-			!ns_capable_noaudit(current_user_ns(), CAP_SYS_ADMIN))
+	    !ns_capable_noaudit(current_user_ns(), CAP_SYS_ADMIN))
 		return -EPERM;
+
+	/* No flag for now. */
+	if (flags)
+		return -EINVAL;
 
 	/* Gets and checks the ruleset. */
 	ruleset = get_ruleset_from_fd(ruleset_fd, FMODE_CAN_READ);

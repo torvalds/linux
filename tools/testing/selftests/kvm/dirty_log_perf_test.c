@@ -19,6 +19,41 @@
 #include "perf_test_util.h"
 #include "guest_modes.h"
 
+#ifdef __aarch64__
+#include "aarch64/vgic.h"
+
+#define GICD_BASE_GPA			0x8000000ULL
+#define GICR_BASE_GPA			0x80A0000ULL
+
+static int gic_fd;
+
+static void arch_setup_vm(struct kvm_vm *vm, unsigned int nr_vcpus)
+{
+	/*
+	 * The test can still run even if hardware does not support GICv3, as it
+	 * is only an optimization to reduce guest exits.
+	 */
+	gic_fd = vgic_v3_setup(vm, nr_vcpus, 64, GICD_BASE_GPA, GICR_BASE_GPA);
+}
+
+static void arch_cleanup_vm(struct kvm_vm *vm)
+{
+	if (gic_fd > 0)
+		close(gic_fd);
+}
+
+#else /* __aarch64__ */
+
+static void arch_setup_vm(struct kvm_vm *vm, unsigned int nr_vcpus)
+{
+}
+
+static void arch_cleanup_vm(struct kvm_vm *vm)
+{
+}
+
+#endif
+
 /* How many host loops to run by default (one KVM_GET_DIRTY_LOG for each loop)*/
 #define TEST_HOST_LOOP_N		2UL
 
@@ -200,6 +235,8 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		vm_enable_cap(vm, &cap);
 	}
 
+	arch_setup_vm(vm, nr_vcpus);
+
 	/* Start the iterations */
 	iteration = 0;
 	host_quit = false;
@@ -292,21 +329,29 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	}
 
 	free_bitmaps(bitmaps, p->slots);
+	arch_cleanup_vm(vm);
 	perf_test_destroy_vm(vm);
 }
 
 static void help(char *name)
 {
 	puts("");
-	printf("usage: %s [-h] [-i iterations] [-p offset] "
-	       "[-m mode] [-b vcpu bytes] [-v vcpus] [-o] [-s mem type]"
+	printf("usage: %s [-h] [-i iterations] [-p offset] [-g] "
+	       "[-m mode] [-n] [-b vcpu bytes] [-v vcpus] [-o] [-s mem type]"
 	       "[-x memslots]\n", name);
 	puts("");
 	printf(" -i: specify iteration counts (default: %"PRIu64")\n",
 	       TEST_HOST_LOOP_N);
+	printf(" -g: Do not enable KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2. This\n"
+	       "     makes KVM_GET_DIRTY_LOG clear the dirty log (i.e.\n"
+	       "     KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE is not enabled)\n"
+	       "     and writes will be tracked as soon as dirty logging is\n"
+	       "     enabled on the memslot (i.e. KVM_DIRTY_LOG_INITIALLY_SET\n"
+	       "     is not enabled).\n");
 	printf(" -p: specify guest physical test memory offset\n"
 	       "     Warning: a low offset can conflict with the loaded test code.\n");
 	guest_modes_help();
+	printf(" -n: Run the vCPUs in nested mode (L2)\n");
 	printf(" -b: specify the size of the memory region which should be\n"
 	       "     dirtied by each vCPU. e.g. 10M or 3G.\n"
 	       "     (default: 1G)\n");
@@ -343,8 +388,11 @@ int main(int argc, char *argv[])
 
 	guest_modes_append_default();
 
-	while ((opt = getopt(argc, argv, "hi:p:m:b:f:v:os:x:")) != -1) {
+	while ((opt = getopt(argc, argv, "ghi:p:m:nb:f:v:os:x:")) != -1) {
 		switch (opt) {
+		case 'g':
+			dirty_log_manual_caps = 0;
+			break;
 		case 'i':
 			p.iterations = atoi(optarg);
 			break;
@@ -353,6 +401,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'm':
 			guest_modes_cmdline(optarg);
+			break;
+		case 'n':
+			perf_test_args.nested = true;
 			break;
 		case 'b':
 			guest_percpu_mem_size = parse_size(optarg);

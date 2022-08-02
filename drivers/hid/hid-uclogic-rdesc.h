@@ -104,36 +104,60 @@ enum uclogic_rdesc_pen_ph_id {
 	UCLOGIC_RDESC_PH_HEAD, UCLOGIC_RDESC_PEN_PH_ID_##_ID
 
 /* Report ID for v1 pen reports */
-#define UCLOGIC_RDESC_PEN_V1_ID	0x07
+#define UCLOGIC_RDESC_V1_PEN_ID	0x07
 
 /* Fixed report descriptor template for (tweaked) v1 pen reports */
-extern const __u8 uclogic_rdesc_pen_v1_template_arr[];
-extern const size_t uclogic_rdesc_pen_v1_template_size;
+extern const __u8 uclogic_rdesc_v1_pen_template_arr[];
+extern const size_t uclogic_rdesc_v1_pen_template_size;
 
 /* Report ID for v2 pen reports */
-#define UCLOGIC_RDESC_PEN_V2_ID	0x08
+#define UCLOGIC_RDESC_V2_PEN_ID	0x08
 
 /* Fixed report descriptor template for (tweaked) v2 pen reports */
-extern const __u8 uclogic_rdesc_pen_v2_template_arr[];
-extern const size_t uclogic_rdesc_pen_v2_template_size;
+extern const __u8 uclogic_rdesc_v2_pen_template_arr[];
+extern const size_t uclogic_rdesc_v2_pen_template_size;
 
-/* Fixed report descriptor for (tweaked) v1 buttonpad reports */
-extern const __u8 uclogic_rdesc_buttonpad_v1_arr[];
-extern const size_t uclogic_rdesc_buttonpad_v1_size;
+/* Report ID for tweaked v1 frame reports */
+#define UCLOGIC_RDESC_V1_FRAME_ID 0xf7
 
-/* Report ID for tweaked v1 buttonpad reports */
-#define UCLOGIC_RDESC_BUTTONPAD_V1_ID 0xf7
+/* Fixed report descriptor for (tweaked) v1 frame reports */
+extern const __u8 uclogic_rdesc_v1_frame_arr[];
+extern const size_t uclogic_rdesc_v1_frame_size;
 
-/* Fixed report descriptor for (tweaked) v2 buttonpad reports */
-extern const __u8 uclogic_rdesc_buttonpad_v2_arr[];
-extern const size_t uclogic_rdesc_buttonpad_v2_size;
+/* Report ID for tweaked v2 frame button reports */
+#define UCLOGIC_RDESC_V2_FRAME_BUTTONS_ID 0xf7
 
-/* Report ID for tweaked v2 buttonpad reports */
-#define UCLOGIC_RDESC_BUTTONPAD_V2_ID 0xf7
+/* Fixed report descriptor for (tweaked) v2 frame button reports */
+extern const __u8 uclogic_rdesc_v2_frame_buttons_arr[];
+extern const size_t uclogic_rdesc_v2_frame_buttons_size;
 
-/* Fixed report descriptor for Ugee EX07 buttonpad */
-extern const __u8 uclogic_rdesc_ugee_ex07_buttonpad_arr[];
-extern const size_t uclogic_rdesc_ugee_ex07_buttonpad_size;
+/* Report ID for tweaked v2 frame touch ring/strip reports */
+#define UCLOGIC_RDESC_V2_FRAME_TOUCH_ID 0xf8
+
+/* Fixed report descriptor for (tweaked) v2 frame touch ring reports */
+extern const __u8 uclogic_rdesc_v2_frame_touch_ring_arr[];
+extern const size_t uclogic_rdesc_v2_frame_touch_ring_size;
+
+/* Fixed report descriptor for (tweaked) v2 frame touch strip reports */
+extern const __u8 uclogic_rdesc_v2_frame_touch_strip_arr[];
+extern const size_t uclogic_rdesc_v2_frame_touch_strip_size;
+
+/* Device ID byte offset in v2 frame touch ring/strip reports */
+#define UCLOGIC_RDESC_V2_FRAME_TOUCH_DEV_ID_BYTE	0x4
+
+/* Report ID for tweaked v2 frame dial reports */
+#define UCLOGIC_RDESC_V2_FRAME_DIAL_ID 0xf9
+
+/* Fixed report descriptor for (tweaked) v2 frame dial reports */
+extern const __u8 uclogic_rdesc_v2_frame_dial_arr[];
+extern const size_t uclogic_rdesc_v2_frame_dial_size;
+
+/* Device ID byte offset in v2 frame dial reports */
+#define UCLOGIC_RDESC_V2_FRAME_DIAL_DEV_ID_BYTE	0x4
+
+/* Fixed report descriptor for Ugee EX07 frame */
+extern const __u8 uclogic_rdesc_ugee_ex07_frame_arr[];
+extern const size_t uclogic_rdesc_ugee_ex07_frame_size;
 
 /* Fixed report descriptor for XP-Pen Deco 01 frame controls */
 extern const __u8 uclogic_rdesc_xppen_deco01_frame_arr[];

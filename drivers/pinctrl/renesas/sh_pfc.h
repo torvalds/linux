@@ -49,15 +49,34 @@ struct sh_pfc_pin {
 	u16 enum_id;
 };
 
-#define SH_PFC_PIN_GROUP_ALIAS(alias, n)		\
-	{						\
-		.name = #alias,				\
-		.pins = n##_pins,			\
-		.mux = n##_mux,				\
-		.nr_pins = ARRAY_SIZE(n##_pins) +	\
-		BUILD_BUG_ON_ZERO(sizeof(n##_pins) != sizeof(n##_mux)), \
-	}
-#define SH_PFC_PIN_GROUP(n)	SH_PFC_PIN_GROUP_ALIAS(n, n)
+#define SH_PFC_PIN_GROUP_ALIAS(alias, _name) {				\
+	.name = #alias,							\
+	.pins = _name##_pins,						\
+	.mux = _name##_mux,						\
+	.nr_pins = ARRAY_SIZE(_name##_pins) +				\
+	BUILD_BUG_ON_ZERO(sizeof(_name##_pins) != sizeof(_name##_mux)),	\
+}
+#define SH_PFC_PIN_GROUP(name)	SH_PFC_PIN_GROUP_ALIAS(name, name)
+
+/*
+ * Define a pin group referring to a subset of an array of pins.
+ */
+#define SH_PFC_PIN_GROUP_SUBSET(_name, data, first, n) {		\
+	.name = #_name,							\
+	.pins = data##_pins + first,					\
+	.mux = data##_mux + first,					\
+	.nr_pins = n +							\
+	BUILD_BUG_ON_ZERO(first + n > ARRAY_SIZE(data##_pins)) +	\
+	BUILD_BUG_ON_ZERO(first + n > ARRAY_SIZE(data##_mux)),		\
+}
+
+/*
+ * Define a pin group for the data pins of a resizable bus.
+ * An optional 'suffix' argument is accepted, to be used when the same group
+ * can appear on a different set of pins.
+ */
+#define BUS_DATA_PIN_GROUP(base, n, ...)				\
+	SH_PFC_PIN_GROUP_SUBSET(base##n##__VA_ARGS__, base##__VA_ARGS__, 0, n)
 
 struct sh_pfc_pin_group {
 	const char *name;
@@ -66,49 +85,11 @@ struct sh_pfc_pin_group {
 	unsigned int nr_pins;
 };
 
-/*
- * Using union vin_data{,12,16} saves memory occupied by the VIN data pins.
- * VIN_DATA_PIN_GROUP() is a macro used to describe the VIN pin groups
- * in this case. It accepts an optional 'version' argument used when the
- * same group can appear on a different set of pins.
- */
-#define VIN_DATA_PIN_GROUP(n, s, ...)					\
-	{								\
-		.name = #n#s#__VA_ARGS__,				\
-		.pins = n##__VA_ARGS__##_pins.data##s,			\
-		.mux = n##__VA_ARGS__##_mux.data##s,			\
-		.nr_pins = ARRAY_SIZE(n##__VA_ARGS__##_pins.data##s),	\
-	}
-
-union vin_data12 {
-	unsigned int data12[12];
-	unsigned int data10[10];
-	unsigned int data8[8];
-};
-
-union vin_data16 {
-	unsigned int data16[16];
-	unsigned int data12[12];
-	unsigned int data10[10];
-	unsigned int data8[8];
-};
-
-union vin_data {
-	unsigned int data24[24];
-	unsigned int data20[20];
-	unsigned int data16[16];
-	unsigned int data12[12];
-	unsigned int data10[10];
-	unsigned int data8[8];
-	unsigned int data4[4];
-};
-
-#define SH_PFC_FUNCTION(n)				\
-	{						\
-		.name = #n,				\
-		.groups = n##_groups,			\
-		.nr_groups = ARRAY_SIZE(n##_groups),	\
-	}
+#define SH_PFC_FUNCTION(n) {						\
+	.name = #n,							\
+	.groups = n##_groups,						\
+	.nr_groups = ARRAY_SIZE(n##_groups),				\
+}
 
 struct sh_pfc_function {
 	const char *name;
@@ -131,7 +112,7 @@ struct pinmux_cfg_reg {
 #define SET_NR_ENUM_IDS(n)
 #endif
 	const u16 *enum_ids;
-	const u8 *var_field_width;
+	const s8 *var_field_width;
 };
 
 #define GROUP(...)	__VA_ARGS__
@@ -151,9 +132,8 @@ struct pinmux_cfg_reg {
 	.reg = r, .reg_width = r_width,					\
 	.field_width = f_width + BUILD_BUG_ON_ZERO(r_width % f_width) +	\
 	BUILD_BUG_ON_ZERO(sizeof((const u16 []) { ids }) / sizeof(u16) != \
-			  (r_width / f_width) * (1 << f_width)),	\
-	.enum_ids = (const u16 [(r_width / f_width) * (1 << f_width)])	\
-		{ ids }
+			  (r_width / f_width) << f_width),		\
+	.enum_ids = (const u16 [(r_width / f_width) << f_width]) { ids }
 
 /*
  * Describe a config register consisting of several fields of different widths
@@ -162,14 +142,15 @@ struct pinmux_cfg_reg {
  *   - r_width: Width of the register (in bits)
  *   - f_widths: List of widths of the register fields (in bits), from left
  *               to right (i.e. MSB to LSB), wrapped using the GROUP() macro.
- *   - ids: For each register field (from left to right, i.e. MSB to LSB),
- *          2^f_widths[i] enum IDs must be specified, one for each possible
- *          combination of the register field bit values, all wrapped using
- *          the GROUP() macro.
+ *               Reserved fields are indicated by negating the field width.
+ *   - ids: For each non-reserved register field (from left to right, i.e. MSB
+ *          to LSB), 2^f_widths[i] enum IDs must be specified, one for each
+ *          possible combination of the register field bit values, all wrapped
+ *          using the GROUP() macro.
  */
 #define PINMUX_CFG_REG_VAR(name, r, r_width, f_widths, ids)		\
 	.reg = r, .reg_width = r_width,					\
-	.var_field_width = (const u8 []) { f_widths, 0 },		\
+	.var_field_width = (const s8 []) { f_widths, 0 },		\
 	SET_NR_ENUM_IDS(sizeof((const u16 []) { ids }) / sizeof(u16))	\
 	.enum_ids = (const u16 []) { ids }
 
@@ -181,7 +162,7 @@ struct pinmux_drive_reg_field {
 
 struct pinmux_drive_reg {
 	u32 reg;
-	const struct pinmux_drive_reg_field fields[8];
+	const struct pinmux_drive_reg_field fields[10];
 };
 
 #define PINMUX_DRIVE_REG(name, r) \
@@ -231,8 +212,9 @@ struct pinmux_irq {
  * Describe the mapping from GPIOs to a single IRQ
  *   - ids...: List of GPIOs that are mapped to the same IRQ
  */
-#define PINMUX_IRQ(ids...)			   \
-	{ .gpios = (const short []) { ids, -1 } }
+#define PINMUX_IRQ(ids...) {						\
+	.gpios = (const short []) { ids, -1 }				\
+}
 
 struct pinmux_range {
 	u16 begin;
@@ -272,8 +254,8 @@ struct sh_pfc_soc_operations {
 	unsigned int (*get_bias)(struct sh_pfc *pfc, unsigned int pin);
 	void (*set_bias)(struct sh_pfc *pfc, unsigned int pin,
 			 unsigned int bias);
-	int (*pin_to_pocctrl)(struct sh_pfc *pfc, unsigned int pin, u32 *pocctrl);
-	void __iomem * (*pin_to_portcr)(struct sh_pfc *pfc, unsigned int pin);
+	int (*pin_to_pocctrl)(unsigned int pin, u32 *pocctrl);
+	int (*pin_to_portcr)(unsigned int pin);
 };
 
 struct sh_pfc_soc_info {
@@ -342,6 +324,7 @@ extern const struct sh_pfc_soc_info r8a77980_pinmux_info;
 extern const struct sh_pfc_soc_info r8a77990_pinmux_info;
 extern const struct sh_pfc_soc_info r8a77995_pinmux_info;
 extern const struct sh_pfc_soc_info r8a779a0_pinmux_info;
+extern const struct sh_pfc_soc_info r8a779f0_pinmux_info;
 extern const struct sh_pfc_soc_info sh7203_pinmux_info;
 extern const struct sh_pfc_soc_info sh7264_pinmux_info;
 extern const struct sh_pfc_soc_info sh7269_pinmux_info;
@@ -535,9 +518,13 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 	PORT_GP_CFG_1(bank, 17, fn, sfx, cfg)
 #define PORT_GP_18(bank, fn, sfx)	PORT_GP_CFG_18(bank, fn, sfx, 0)
 
-#define PORT_GP_CFG_20(bank, fn, sfx, cfg)				\
+#define PORT_GP_CFG_19(bank, fn, sfx, cfg)				\
 	PORT_GP_CFG_18(bank, fn, sfx, cfg),				\
-	PORT_GP_CFG_1(bank, 18, fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 18, fn, sfx, cfg)
+#define PORT_GP_19(bank, fn, sfx)	PORT_GP_CFG_19(bank, fn, sfx, 0)
+
+#define PORT_GP_CFG_20(bank, fn, sfx, cfg)				\
+	PORT_GP_CFG_19(bank, fn, sfx, cfg),				\
 	PORT_GP_CFG_1(bank, 19, fn, sfx, cfg)
 #define PORT_GP_20(bank, fn, sfx)	PORT_GP_CFG_20(bank, fn, sfx, 0)
 
@@ -624,13 +611,12 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 #define GP_ALL(str)			CPU_ALL_GP(_GP_ALL, str)
 
 /* PINMUX_GPIO_GP_ALL - Expand to a list of sh_pfc_pin entries */
-#define _GP_GPIO(bank, _pin, _name, sfx, cfg)				\
-	{								\
-		.pin = (bank * 32) + _pin,				\
-		.name = __stringify(_name),				\
-		.enum_id = _name##_DATA,				\
-		.configs = cfg,						\
-	}
+#define _GP_GPIO(bank, _pin, _name, sfx, cfg) {				\
+	.pin = (bank * 32) + _pin,					\
+	.name = __stringify(_name),					\
+	.enum_id = _name##_DATA,					\
+	.configs = cfg,							\
+}
 #define PINMUX_GPIO_GP_ALL()		CPU_ALL_GP(_GP_GPIO, unused)
 
 /* PINMUX_DATA_GP_ALL -  Expand to a list of name_DATA, name_FN marks */
@@ -688,13 +674,12 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 	}
 
 /* SH_PFC_PIN_CFG - Expand to a sh_pfc_pin entry (named PORT#) with config */
-#define SH_PFC_PIN_CFG(_pin, cfgs)					\
-	{								\
-		.pin = _pin,						\
-		.name = __stringify(PORT##_pin),			\
-		.enum_id = PORT##_pin##_DATA,				\
-		.configs = cfgs,					\
-	}
+#define SH_PFC_PIN_CFG(_pin, cfgs) {					\
+	.pin = _pin,							\
+	.name = __stringify(PORT##_pin),				\
+	.enum_id = PORT##_pin##_DATA,					\
+	.configs = cfgs,						\
+}
 
 /* PINMUX_DATA_ALL - Expand to a list of PORT_name_DATA, PORT_name_FN0,
  *		     PORT_name_OUT, PORT_name_IN marks
@@ -743,35 +728,30 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 #define NOGP_ALL()				CPU_ALL_NOGP(_NOGP_ALL)
 
 /* PINMUX_NOGP_ALL - Expand to a list of sh_pfc_pin entries */
-#define _NOGP_PINMUX(_pin, _name, cfg)					\
-	{								\
-		.pin = PIN_##_pin,					\
-		.name = "PIN_" _name,					\
-		.configs = SH_PFC_PIN_CFG_NO_GPIO | cfg,		\
-	}
+#define _NOGP_PINMUX(_pin, _name, cfg) {				\
+	.pin = PIN_##_pin,						\
+	.name = "PIN_" _name,						\
+	.configs = SH_PFC_PIN_CFG_NO_GPIO | cfg,			\
+}
 #define PINMUX_NOGP_ALL()		CPU_ALL_NOGP(_NOGP_PINMUX)
 
 /*
  * PORTnCR helper macro for SH-Mobile/R-Mobile
  */
-#define PORTCR(nr, reg)							\
-	{								\
-		PINMUX_CFG_REG_VAR("PORT" nr "CR", reg, 8,		\
-				   GROUP(2, 2, 1, 3),			\
-				   GROUP(				\
-			/* PULMD[1:0], handled by .set_bias() */	\
-			0, 0, 0, 0,					\
-			/* IE and OE */					\
-			0, PORT##nr##_OUT, PORT##nr##_IN, 0,		\
-			/* SEC, not supported */			\
-			0, 0,						\
-			/* PTMD[2:0] */					\
-			PORT##nr##_FN0, PORT##nr##_FN1,			\
-			PORT##nr##_FN2, PORT##nr##_FN3,			\
-			PORT##nr##_FN4, PORT##nr##_FN5,			\
-			PORT##nr##_FN6, PORT##nr##_FN7			\
-		))							\
-	}
+#define PORTCR(nr, reg) {						\
+	PINMUX_CFG_REG_VAR("PORT" nr "CR", reg, 8, GROUP(-2, 2, -1, 3),	\
+			   GROUP(					\
+		/* PULMD[1:0], handled by .set_bias() */		\
+		/* IE and OE */						\
+		0, PORT##nr##_OUT, PORT##nr##_IN, 0,			\
+		/* SEC, not supported */				\
+		/* PTMD[2:0] */						\
+		PORT##nr##_FN0, PORT##nr##_FN1,				\
+		PORT##nr##_FN2, PORT##nr##_FN3,				\
+		PORT##nr##_FN4, PORT##nr##_FN5,				\
+		PORT##nr##_FN6, PORT##nr##_FN7				\
+	))								\
+}
 
 /*
  * GPIO number helper macro for R-Car
@@ -782,7 +762,7 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
  * Bias helpers
  */
 const struct pinmux_bias_reg *
-rcar_pin_to_bias_reg(const struct sh_pfc *pfc, unsigned int pin,
+rcar_pin_to_bias_reg(const struct sh_pfc_soc_info *info, unsigned int pin,
 		     unsigned int *bit);
 unsigned int rcar_pinmux_get_bias(struct sh_pfc *pfc, unsigned int pin);
 void rcar_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,

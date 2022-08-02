@@ -14,17 +14,15 @@
 #include <net/netfilter/nf_conntrack_extend.h>
 
 enum nf_ct_ecache_state {
-	NFCT_ECACHE_UNKNOWN,		/* destroy event not sent */
 	NFCT_ECACHE_DESTROY_FAIL,	/* tried but failed to send destroy event */
 	NFCT_ECACHE_DESTROY_SENT,	/* sent destroy event after failure */
 };
 
 struct nf_conntrack_ecache {
 	unsigned long cache;		/* bitops want long */
-	u16 missed;			/* missed events */
 	u16 ctmask;			/* bitmask of ct events to be delivered */
 	u16 expmask;			/* bitmask of expect events to be delivered */
-	enum nf_ct_ecache_state state:8;/* ecache state */
+	u32 missed;			/* missed events */
 	u32 portid;			/* netlink portid of destroyer */
 };
 
@@ -38,28 +36,12 @@ nf_ct_ecache_find(const struct nf_conn *ct)
 #endif
 }
 
-static inline struct nf_conntrack_ecache *
-nf_ct_ecache_ext_add(struct nf_conn *ct, u16 ctmask, u16 expmask, gfp_t gfp)
+static inline bool nf_ct_ecache_exist(const struct nf_conn *ct)
 {
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-	struct net *net = nf_ct_net(ct);
-	struct nf_conntrack_ecache *e;
-
-	if (!ctmask && !expmask && net->ct.sysctl_events) {
-		ctmask = ~0;
-		expmask = ~0;
-	}
-	if (!ctmask && !expmask)
-		return NULL;
-
-	e = nf_ct_ext_add(ct, NF_CT_EXT_ECACHE, gfp);
-	if (e) {
-		e->ctmask  = ctmask;
-		e->expmask = expmask;
-	}
-	return e;
+	return nf_ct_ext_exist(ct, NF_CT_EXT_ECACHE);
 #else
-	return NULL;
+	return false;
 #endif
 }
 
@@ -91,6 +73,7 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct);
 int nf_conntrack_eventmask_report(unsigned int eventmask, struct nf_conn *ct,
 				  u32 portid, int report);
 
+bool nf_ct_ecache_ext_add(struct nf_conn *ct, u16 ctmask, u16 expmask, gfp_t gfp);
 #else
 
 static inline void nf_ct_deliver_cached_events(const struct nf_conn *ct)
@@ -105,6 +88,10 @@ static inline int nf_conntrack_eventmask_report(unsigned int eventmask,
 	return 0;
 }
 
+static inline bool nf_ct_ecache_ext_add(struct nf_conn *ct, u16 ctmask, u16 expmask, gfp_t gfp)
+{
+	return false;
+}
 #endif
 
 static inline void
@@ -130,30 +117,20 @@ nf_conntrack_event_report(enum ip_conntrack_events event, struct nf_conn *ct,
 			  u32 portid, int report)
 {
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-	const struct net *net = nf_ct_net(ct);
-
-	if (!rcu_access_pointer(net->ct.nf_conntrack_event_cb))
-		return 0;
-
-	return nf_conntrack_eventmask_report(1 << event, ct, portid, report);
-#else
-	return 0;
+	if (nf_ct_ecache_exist(ct))
+		return nf_conntrack_eventmask_report(1 << event, ct, portid, report);
 #endif
+	return 0;
 }
 
 static inline int
 nf_conntrack_event(enum ip_conntrack_events event, struct nf_conn *ct)
 {
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-	const struct net *net = nf_ct_net(ct);
-
-	if (!rcu_access_pointer(net->ct.nf_conntrack_event_cb))
-		return 0;
-
-	return nf_conntrack_eventmask_report(1 << event, ct, 0, 0);
-#else
-	return 0;
+	if (nf_ct_ecache_exist(ct))
+		return nf_conntrack_eventmask_report(1 << event, ct, 0, 0);
 #endif
+	return 0;
 }
 
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
@@ -166,8 +143,7 @@ void nf_conntrack_ecache_work(struct net *net, enum nf_ct_ecache_state state);
 void nf_conntrack_ecache_pernet_init(struct net *net);
 void nf_conntrack_ecache_pernet_fini(struct net *net);
 
-int nf_conntrack_ecache_init(void);
-void nf_conntrack_ecache_fini(void);
+struct nf_conntrack_net_ecache *nf_conn_pernet_ecache(const struct net *net);
 
 static inline bool nf_conntrack_ecache_dwork_pending(const struct net *net)
 {
@@ -194,16 +170,6 @@ static inline void nf_conntrack_ecache_pernet_init(struct net *net)
 static inline void nf_conntrack_ecache_pernet_fini(struct net *net)
 {
 }
-
-static inline int nf_conntrack_ecache_init(void)
-{
-	return 0;
-}
-
-static inline void nf_conntrack_ecache_fini(void)
-{
-}
-
 static inline bool nf_conntrack_ecache_dwork_pending(const struct net *net) { return false; }
 #endif /* CONFIG_NF_CONNTRACK_EVENTS */
 #endif /*_NF_CONNTRACK_ECACHE_H*/

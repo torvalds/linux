@@ -161,7 +161,7 @@ finally:
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -409,134 +409,24 @@ latex_elements = {
 
     # Additional stuff for the LaTeX preamble.
     'preamble': '''
-	% Prevent column squeezing of tabulary.
-	\\setlength{\\tymin}{20em}
         % Use some font with UTF-8 support with XeLaTeX
         \\usepackage{fontspec}
         \\setsansfont{DejaVu Sans}
         \\setromanfont{DejaVu Serif}
         \\setmonofont{DejaVu Sans Mono}
-        % Adjust \\headheight for fancyhdr
-        \\addtolength{\\headheight}{1.6pt}
-        \\addtolength{\\topmargin}{-1.6pt}
-     ''',
+    ''',
 }
-
-# Translations have Asian (CJK) characters which are only displayed if
-# xeCJK is used
-
-latex_elements['preamble']  += '''
-    \\IfFontExistsTF{Noto Sans CJK SC}{
-	% This is needed for translations
-	\\usepackage{xeCJK}
-	\\IfFontExistsTF{Noto Serif CJK SC}{
-	    \\setCJKmainfont{Noto Serif CJK SC}[AutoFakeSlant]
-	}{
-	    \\setCJKmainfont{Noto Sans CJK SC}[AutoFakeSlant]
-	}
-	\\setCJKsansfont{Noto Sans CJK SC}[AutoFakeSlant]
-	\\setCJKmonofont{Noto Sans Mono CJK SC}[AutoFakeSlant]
-	% CJK Language-specific font choices
-	\\IfFontExistsTF{Noto Serif CJK SC}{
-	    \\newCJKfontfamily[SCmain]\\scmain{Noto Serif CJK SC}[AutoFakeSlant]
-	    \\newCJKfontfamily[SCserif]\\scserif{Noto Serif CJK SC}[AutoFakeSlant]
-	}{
-	    \\newCJKfontfamily[SCmain]\\scmain{Noto Sans CJK SC}[AutoFakeSlant]
-	    \\newCJKfontfamily[SCserif]\\scserif{Noto Sans CJK SC}[AutoFakeSlant]
-	}
-	\\newCJKfontfamily[SCsans]\\scsans{Noto Sans CJK SC}[AutoFakeSlant]
-	\\newCJKfontfamily[SCmono]\\scmono{Noto Sans Mono CJK SC}[AutoFakeSlant]
-	\\IfFontExistsTF{Noto Serif CJK TC}{
-	    \\newCJKfontfamily[TCmain]\\tcmain{Noto Serif CJK TC}[AutoFakeSlant]
-	    \\newCJKfontfamily[TCserif]\\tcserif{Noto Serif CJK TC}[AutoFakeSlant]
-	}{
-	    \\newCJKfontfamily[TCmain]\\tcmain{Noto Sans CJK TC}[AutoFakeSlant]
-	    \\newCJKfontfamily[TCserif]\\tcserif{Noto Sans CJK TC}[AutoFakeSlant]
-	}
-	\\newCJKfontfamily[TCsans]\\tcsans{Noto Sans CJK TC}[AutoFakeSlant]
-	\\newCJKfontfamily[TCmono]\\tcmono{Noto Sans Mono CJK TC}[AutoFakeSlant]
-	\\IfFontExistsTF{Noto Serif CJK KR}{
-	    \\newCJKfontfamily[KRmain]\\krmain{Noto Serif CJK KR}[AutoFakeSlant]
-	    \\newCJKfontfamily[KRserif]\\krserif{Noto Serif CJK KR}[AutoFakeSlant]
-	}{
-	    \\newCJKfontfamily[KRmain]\\krmain{Noto Sans CJK KR}[AutoFakeSlant]
-	    \\newCJKfontfamily[KRserif]\\krserif{Noto Sans CJK KR}[AutoFakeSlant]
-	}
-	\\newCJKfontfamily[KRsans]\\krsans{Noto Sans CJK KR}[AutoFakeSlant]
-	\\newCJKfontfamily[KRmono]\\krmono{Noto Sans Mono CJK KR}[AutoFakeSlant]
-	\\IfFontExistsTF{Noto Serif CJK JP}{
-	    \\newCJKfontfamily[JPmain]\\jpmain{Noto Serif CJK JP}[AutoFakeSlant]
-	    \\newCJKfontfamily[JPserif]\\jpserif{Noto Serif CJK JP}[AutoFakeSlant]
-	}{
-	    \\newCJKfontfamily[JPmain]\\jpmain{Noto Sans CJK JP}[AutoFakeSlant]
-	    \\newCJKfontfamily[JPserif]\\jpserif{Noto Sans CJK JP}[AutoFakeSlant]
-	}
-	\\newCJKfontfamily[JPsans]\\jpsans{Noto Sans CJK JP}[AutoFakeSlant]
-	\\newCJKfontfamily[JPmono]\\jpmono{Noto Sans Mono CJK JP}[AutoFakeSlant]
-	% Dummy commands for Sphinx < 2.3 (no 'extrapackages' support)
-	\\providecommand{\\onehalfspacing}{}
-	\\providecommand{\\singlespacing}{}
-	% Define custom macros to on/off CJK
-	\\newcommand{\\kerneldocCJKon}{\\makexeCJKactive\\onehalfspacing}
-	\\newcommand{\\kerneldocCJKoff}{\\makexeCJKinactive\\singlespacing}
-	\\newcommand{\\kerneldocBeginSC}{%
-	    \\begingroup%
-	    \\scmain%
-	}
-	\\newcommand{\\kerneldocEndSC}{\\endgroup}
-	\\newcommand{\\kerneldocBeginTC}{%
-	    \\begingroup%
-	    \\tcmain%
-	    \\renewcommand{\\CJKrmdefault}{TCserif}%
-	    \\renewcommand{\\CJKsfdefault}{TCsans}%
-	    \\renewcommand{\\CJKttdefault}{TCmono}%
-	}
-	\\newcommand{\\kerneldocEndTC}{\\endgroup}
-	\\newcommand{\\kerneldocBeginKR}{%
-	    \\begingroup%
-	    \\xeCJKDeclareCharClass{HalfLeft}{`“,`‘}%
-	    \\xeCJKDeclareCharClass{HalfRight}{`”,`’}%
-	    \\krmain%
-	    \\renewcommand{\\CJKrmdefault}{KRserif}%
-	    \\renewcommand{\\CJKsfdefault}{KRsans}%
-	    \\renewcommand{\\CJKttdefault}{KRmono}%
-	    \\xeCJKsetup{CJKspace = true} % For inter-phrase space
-	}
-	\\newcommand{\\kerneldocEndKR}{\\endgroup}
-	\\newcommand{\\kerneldocBeginJP}{%
-	    \\begingroup%
-	    \\xeCJKDeclareCharClass{HalfLeft}{`“,`‘}%
-	    \\xeCJKDeclareCharClass{HalfRight}{`”,`’}%
-	    \\jpmain%
-	    \\renewcommand{\\CJKrmdefault}{JPserif}%
-	    \\renewcommand{\\CJKsfdefault}{JPsans}%
-	    \\renewcommand{\\CJKttdefault}{JPmono}%
-	}
-	\\newcommand{\\kerneldocEndJP}{\\endgroup}
-	% Single spacing in literal blocks
-	\\fvset{baselinestretch=1}
-	% To customize \\sphinxtableofcontents
-	\\usepackage{etoolbox}
-	% Inactivate CJK after tableofcontents
-	\\apptocmd{\\sphinxtableofcontents}{\\kerneldocCJKoff}{}{}
-    }{ % No CJK font found
-	% Custom macros to on/off CJK (Dummy)
-	\\newcommand{\\kerneldocCJKon}{}
-	\\newcommand{\\kerneldocCJKoff}{}
-	\\newcommand{\\kerneldocBeginSC}{}
-	\\newcommand{\\kerneldocEndSC}{}
-	\\newcommand{\\kerneldocBeginTC}{}
-	\\newcommand{\\kerneldocEndTC}{}
-	\\newcommand{\\kerneldocBeginKR}{}
-	\\newcommand{\\kerneldocEndKR}{}
-	\\newcommand{\\kerneldocBeginJP}{}
-	\\newcommand{\\kerneldocEndJP}{}
-    }
-'''
 
 # Fix reference escape troubles with Sphinx 1.4.x
 if major == 1:
     latex_elements['preamble']  += '\\renewcommand*{\\DUrole}[2]{ #2 }\n'
+
+
+# Load kerneldoc specific LaTeX settings
+latex_elements['preamble'] += '''
+        % Load kerneldoc specific LaTeX settings
+	\\input{kerneldoc-preamble.sty}
+'''
 
 # With Sphinx 1.6, it is possible to change the Bg color directly
 # by using:
@@ -598,6 +488,11 @@ for fn in os.listdir('.'):
 
 # If false, no module index is generated.
 #latex_domain_indices = True
+
+# Additional LaTeX stuff to be copied to build directory
+latex_additional_files = [
+    'sphinx/kerneldoc-preamble.sty',
+]
 
 
 # -- Options for manual page output ---------------------------------------

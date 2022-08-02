@@ -208,7 +208,7 @@ static bool sanity_check_pmu(struct kvm_vm *vm)
 	return success;
 }
 
-static struct kvm_pmu_event_filter *make_pmu_event_filter(uint32_t nevents)
+static struct kvm_pmu_event_filter *alloc_pmu_event_filter(uint32_t nevents)
 {
 	struct kvm_pmu_event_filter *f;
 	int size = sizeof(*f) + nevents * sizeof(f->events[0]);
@@ -220,17 +220,27 @@ static struct kvm_pmu_event_filter *make_pmu_event_filter(uint32_t nevents)
 	return f;
 }
 
-static struct kvm_pmu_event_filter *event_filter(uint32_t action)
+
+static struct kvm_pmu_event_filter *
+create_pmu_event_filter(const uint64_t event_list[],
+			int nevents, uint32_t action)
 {
 	struct kvm_pmu_event_filter *f;
 	int i;
 
-	f = make_pmu_event_filter(ARRAY_SIZE(event_list));
+	f = alloc_pmu_event_filter(nevents);
 	f->action = action;
-	for (i = 0; i < ARRAY_SIZE(event_list); i++)
+	for (i = 0; i < nevents; i++)
 		f->events[i] = event_list[i];
 
 	return f;
+}
+
+static struct kvm_pmu_event_filter *event_filter(uint32_t action)
+{
+	return create_pmu_event_filter(event_list,
+				       ARRAY_SIZE(event_list),
+				       action);
 }
 
 /*
@@ -269,6 +279,22 @@ static uint64_t test_with_filter(struct kvm_vm *vm,
 {
 	vm_ioctl(vm, KVM_SET_PMU_EVENT_FILTER, (void *)f);
 	return run_vm_to_sync(vm);
+}
+
+static void test_amd_deny_list(struct kvm_vm *vm)
+{
+	uint64_t event = EVENT(0x1C2, 0);
+	struct kvm_pmu_event_filter *f;
+	uint64_t count;
+
+	f = create_pmu_event_filter(&event, 1, KVM_PMU_EVENT_DENY);
+	count = test_with_filter(vm, f);
+
+	free(f);
+	if (count != NUM_BRANCHES)
+		pr_info("%s: Branch instructions retired = %lu (expected %u)\n",
+			__func__, count, NUM_BRANCHES);
+	TEST_ASSERT(count, "Allowed PMU event is not counting");
 }
 
 static void test_member_deny_list(struct kvm_vm *vm)
@@ -323,6 +349,37 @@ static void test_not_member_allow_list(struct kvm_vm *vm)
 		pr_info("%s: Branch instructions retired = %lu (expected 0)\n",
 			__func__, count);
 	TEST_ASSERT(!count, "Disallowed PMU Event is counting");
+}
+
+/*
+ * Verify that setting KVM_PMU_CAP_DISABLE prevents the use of the PMU.
+ *
+ * Note that KVM_CAP_PMU_CAPABILITY must be invoked prior to creating VCPUs.
+ */
+static void test_pmu_config_disable(void (*guest_code)(void))
+{
+	int r;
+	struct kvm_vm *vm;
+	struct kvm_enable_cap cap = { 0 };
+
+	r = kvm_check_cap(KVM_CAP_PMU_CAPABILITY);
+	if (!(r & KVM_PMU_CAP_DISABLE))
+		return;
+
+	vm = vm_create_without_vcpus(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES);
+
+	cap.cap = KVM_CAP_PMU_CAPABILITY;
+	cap.args[0] = KVM_PMU_CAP_DISABLE;
+	TEST_ASSERT(!vm_enable_cap(vm, &cap), "Failed to set KVM_PMU_CAP_DISABLE.");
+
+	vm_vcpu_add_default(vm, VCPU_ID, guest_code);
+	vm_init_descriptor_tables(vm);
+	vcpu_init_descriptor_tables(vm, VCPU_ID);
+
+	TEST_ASSERT(!sanity_check_pmu(vm),
+		    "Guest should not be able to use disabled PMU.");
+
+	kvm_vm_free(vm);
 }
 
 /*
@@ -422,6 +479,9 @@ int main(int argc, char *argv[])
 		exit(KSFT_SKIP);
 	}
 
+	if (use_amd_pmu())
+		test_amd_deny_list(vm);
+
 	test_without_filter(vm);
 	test_member_deny_list(vm);
 	test_member_allow_list(vm);
@@ -429,6 +489,8 @@ int main(int argc, char *argv[])
 	test_not_member_allow_list(vm);
 
 	kvm_vm_free(vm);
+
+	test_pmu_config_disable(guest_code);
 
 	return 0;
 }

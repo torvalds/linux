@@ -1219,16 +1219,11 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_omap_host *omap_host;
 	struct mmc_host *mmc;
-	const struct of_device_id *match;
-	struct sdhci_omap_data *data;
+	const struct sdhci_omap_data *data;
 	const struct soc_device_attribute *soc;
 	struct resource *regs;
 
-	match = of_match_device(omap_sdhci_match, dev);
-	if (!match)
-		return -EINVAL;
-
-	data = (struct sdhci_omap_data *)match->data;
+	data = of_device_get_match_data(&pdev->dev);
 	if (!data) {
 		dev_err(dev, "no sdhci omap data\n");
 		return -EINVAL;

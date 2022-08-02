@@ -375,7 +375,7 @@ config RTC_DRV_MAX8997
 
 config RTC_DRV_MAX77686
 	tristate "Maxim MAX77686"
-	depends on MFD_MAX77686 || MFD_MAX77620 || COMPILE_TEST
+	depends on MFD_MAX77686 || MFD_MAX77620 || MFD_MAX77714 || COMPILE_TEST
 	help
 	  If you say yes here you will get support for the
 	  RTC of Maxim MAX77686/MAX77620/MAX77802 PMIC.
@@ -1293,6 +1293,16 @@ config RTC_DRV_OPAL
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-opal.
 
+config RTC_DRV_OPTEE
+	tristate "OP-TEE based RTC driver"
+	depends on OPTEE
+	help
+	  Select this to get support for OP-TEE based RTC control on SoCs where
+	  RTC are not accessible to the normal world (Linux).
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-optee.
+
 config RTC_DRV_ZYNQMP
 	tristate "Xilinx Zynq Ultrascale+ MPSoC RTC"
 	depends on OF && HAS_IOMEM
@@ -1537,6 +1547,13 @@ config RTC_DRV_RS5C313
 	depends on SH_LANDISK
 	help
 	  If you say yes here you get support for the Ricoh RS5C313 RTC chips.
+
+config RTC_DRV_RZN1
+	tristate "Renesas RZ/N1 RTC"
+	depends on ARCH_RZN1 || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	help
+	  If you say yes here you get support for the Renesas RZ/N1 RTC.
 
 config RTC_DRV_GENERIC
 	tristate "Generic RTC support"

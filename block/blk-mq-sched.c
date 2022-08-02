@@ -180,11 +180,18 @@ static int __blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 
 static int blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 {
+	unsigned long end = jiffies + HZ;
 	int ret;
 
 	do {
 		ret = __blk_mq_do_dispatch_sched(hctx);
-	} while (ret == 1);
+		if (ret != 1)
+			break;
+		if (need_resched() || time_is_before_jiffies(end)) {
+			blk_mq_delay_run_hw_queue(hctx, 0);
+			break;
+		}
+	} while (1);
 
 	return ret;
 }
@@ -515,7 +522,7 @@ static void blk_mq_exit_sched_shared_tags(struct request_queue *queue)
 static void blk_mq_sched_tags_teardown(struct request_queue *q, unsigned int flags)
 {
 	struct blk_mq_hw_ctx *hctx;
-	int i;
+	unsigned long i;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (hctx->sched_tags) {
@@ -550,12 +557,14 @@ static int blk_mq_init_sched_shared_tags(struct request_queue *queue)
 
 int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 {
-	unsigned int i, flags = q->tag_set->flags;
+	unsigned int flags = q->tag_set->flags;
 	struct blk_mq_hw_ctx *hctx;
 	struct elevator_queue *eq;
+	unsigned long i;
 	int ret;
 
 	if (!e) {
+		blk_queue_flag_clear(QUEUE_FLAG_SQ_SCHED, q);
 		q->elevator = NULL;
 		q->nr_requests = q->tag_set->queue_depth;
 		return 0;
@@ -585,7 +594,9 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 	if (ret)
 		goto err_free_map_and_rqs;
 
+	mutex_lock(&q->debugfs_mutex);
 	blk_mq_debugfs_register_sched(q);
+	mutex_unlock(&q->debugfs_mutex);
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (e->ops.init_hctx) {
@@ -598,7 +609,9 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 				return ret;
 			}
 		}
+		mutex_lock(&q->debugfs_mutex);
 		blk_mq_debugfs_register_sched_hctx(q, hctx);
+		mutex_unlock(&q->debugfs_mutex);
 	}
 
 	return 0;
@@ -618,7 +631,7 @@ err_free_map_and_rqs:
 void blk_mq_sched_free_rqs(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
-	int i;
+	unsigned long i;
 
 	if (blk_mq_is_shared_tags(q->tag_set->flags)) {
 		blk_mq_free_rqs(q->tag_set, q->sched_shared_tags,
@@ -635,18 +648,25 @@ void blk_mq_sched_free_rqs(struct request_queue *q)
 void blk_mq_exit_sched(struct request_queue *q, struct elevator_queue *e)
 {
 	struct blk_mq_hw_ctx *hctx;
-	unsigned int i;
+	unsigned long i;
 	unsigned int flags = 0;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
+		mutex_lock(&q->debugfs_mutex);
 		blk_mq_debugfs_unregister_sched_hctx(hctx);
+		mutex_unlock(&q->debugfs_mutex);
+
 		if (e->type->ops.exit_hctx && hctx->sched_data) {
 			e->type->ops.exit_hctx(hctx, i);
 			hctx->sched_data = NULL;
 		}
 		flags = hctx->flags;
 	}
+
+	mutex_lock(&q->debugfs_mutex);
 	blk_mq_debugfs_unregister_sched(q);
+	mutex_unlock(&q->debugfs_mutex);
+
 	if (e->type->ops.exit_sched)
 		e->type->ops.exit_sched(e);
 	blk_mq_sched_tags_teardown(q, flags);

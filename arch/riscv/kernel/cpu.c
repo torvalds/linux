@@ -6,6 +6,7 @@
 #include <linux/init.h>
 #include <linux/seq_file.h>
 #include <linux/of.h>
+#include <asm/hwcap.h>
 #include <asm/smp.h>
 #include <asm/pgtable.h>
 
@@ -63,12 +64,74 @@ int riscv_of_parent_hartid(struct device_node *node)
 }
 
 #ifdef CONFIG_PROC_FS
+#define __RISCV_ISA_EXT_DATA(UPROP, EXTID) \
+	{							\
+		.uprop = #UPROP,				\
+		.isa_ext_id = EXTID,				\
+	}
+/*
+ * Here are the ordering rules of extension naming defined by RISC-V
+ * specification :
+ * 1. All extensions should be separated from other multi-letter extensions
+ *    by an underscore.
+ * 2. The first letter following the 'Z' conventionally indicates the most
+ *    closely related alphabetical extension category, IMAFDQLCBKJTPVH.
+ *    If multiple 'Z' extensions are named, they should be ordered first
+ *    by category, then alphabetically within a category.
+ * 3. Standard supervisor-level extensions (starts with 'S') should be
+ *    listed after standard unprivileged extensions.  If multiple
+ *    supervisor-level extensions are listed, they should be ordered
+ *    alphabetically.
+ * 4. Non-standard extensions (starts with 'X') must be listed after all
+ *    standard extensions. They must be separated from other multi-letter
+ *    extensions by an underscore.
+ */
+static struct riscv_isa_ext_data isa_ext_arr[] = {
+	__RISCV_ISA_EXT_DATA(sscofpmf, RISCV_ISA_EXT_SSCOFPMF),
+	__RISCV_ISA_EXT_DATA(svpbmt, RISCV_ISA_EXT_SVPBMT),
+	__RISCV_ISA_EXT_DATA("", RISCV_ISA_EXT_MAX),
+};
+
+static void print_isa_ext(struct seq_file *f)
+{
+	struct riscv_isa_ext_data *edata;
+	int i = 0, arr_sz;
+
+	arr_sz = ARRAY_SIZE(isa_ext_arr) - 1;
+
+	/* No extension support available */
+	if (arr_sz <= 0)
+		return;
+
+	for (i = 0; i <= arr_sz; i++) {
+		edata = &isa_ext_arr[i];
+		if (!__riscv_isa_extension_available(NULL, edata->isa_ext_id))
+			continue;
+		seq_printf(f, "_%s", edata->uprop);
+	}
+}
+
+/*
+ * These are the only valid base (single letter) ISA extensions as per the spec.
+ * It also specifies the canonical order in which it appears in the spec.
+ * Some of the extension may just be a place holder for now (B, K, P, J).
+ * This should be updated once corresponding extensions are ratified.
+ */
+static const char base_riscv_exts[13] = "imafdqcbkjpvh";
 
 static void print_isa(struct seq_file *f, const char *isa)
 {
-	/* Print the entire ISA as it is */
+	int i;
+
 	seq_puts(f, "isa\t\t: ");
-	seq_write(f, isa, strlen(isa));
+	/* Print the rv[64/32] part */
+	seq_write(f, isa, 4);
+	for (i = 0; i < sizeof(base_riscv_exts); i++) {
+		if (__riscv_isa_extension_available(NULL, base_riscv_exts[i] - 'a'))
+			/* Print only enabled the base ISA extensions */
+			seq_write(f, &base_riscv_exts[i], 1);
+	}
+	print_isa_ext(f);
 	seq_puts(f, "\n");
 }
 
@@ -76,14 +139,20 @@ static void print_mmu(struct seq_file *f)
 {
 	char sv_type[16];
 
+#ifdef CONFIG_MMU
 #if defined(CONFIG_32BIT)
 	strncpy(sv_type, "sv32", 5);
 #elif defined(CONFIG_64BIT)
-	if (pgtable_l4_enabled)
+	if (pgtable_l5_enabled)
+		strncpy(sv_type, "sv57", 5);
+	else if (pgtable_l4_enabled)
 		strncpy(sv_type, "sv48", 5);
 	else
 		strncpy(sv_type, "sv39", 5);
 #endif
+#else
+	strncpy(sv_type, "none", 5);
+#endif /* CONFIG_MMU */
 	seq_printf(f, "mmu\t\t: %s\n", sv_type);
 }
 

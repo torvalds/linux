@@ -37,6 +37,7 @@ struct iommu_group;
 struct bus_type;
 struct device;
 struct iommu_domain;
+struct iommu_domain_ops;
 struct notifier_block;
 struct iommu_sva;
 struct iommu_fault_event;
@@ -88,7 +89,7 @@ struct iommu_domain_geometry {
 
 struct iommu_domain {
 	unsigned type;
-	const struct iommu_ops *ops;
+	const struct iommu_domain_ops *ops;
 	unsigned long pgsize_bitmap;	/* Bitmap of page sizes in use */
 	iommu_fault_handler_t handler;
 	void *handler_token;
@@ -102,10 +103,11 @@ static inline bool iommu_is_dma_domain(struct iommu_domain *domain)
 }
 
 enum iommu_cap {
-	IOMMU_CAP_CACHE_COHERENCY,	/* IOMMU can enforce cache coherent DMA
-					   transactions */
+	IOMMU_CAP_CACHE_COHERENCY,	/* IOMMU_CACHE is supported */
 	IOMMU_CAP_INTR_REMAP,		/* IOMMU supports interrupt isolation */
 	IOMMU_CAP_NOEXEC,		/* IOMMU_NOEXEC flag */
+	IOMMU_CAP_PRE_BOOT_PROTECTION,	/* Firmware says it used the IOMMU for
+					   DMA protection and we should too */
 };
 
 /* These are the possible reserved region types */
@@ -144,7 +146,6 @@ struct iommu_resv_region {
 
 /**
  * enum iommu_dev_features - Per device IOMMU features
- * @IOMMU_DEV_FEAT_AUX: Auxiliary domain feature
  * @IOMMU_DEV_FEAT_SVA: Shared Virtual Addresses
  * @IOMMU_DEV_FEAT_IOPF: I/O Page Faults such as PRI or Stall. Generally
  *			 enabling %IOMMU_DEV_FEAT_SVA requires
@@ -157,7 +158,6 @@ struct iommu_resv_region {
  * iommu_dev_has_feature(), and enable it using iommu_dev_enable_feature().
  */
 enum iommu_dev_features {
-	IOMMU_DEV_FEAT_AUX,
 	IOMMU_DEV_FEAT_SVA,
 	IOMMU_DEV_FEAT_IOPF,
 };
@@ -194,9 +194,75 @@ struct iommu_iotlb_gather {
  * struct iommu_ops - iommu ops and capabilities
  * @capable: check capability
  * @domain_alloc: allocate iommu domain
- * @domain_free: free iommu domain
- * @attach_dev: attach device to an iommu domain
- * @detach_dev: detach device from an iommu domain
+ * @probe_device: Add device to iommu driver handling
+ * @release_device: Remove device from iommu driver handling
+ * @probe_finalize: Do final setup work after the device is added to an IOMMU
+ *                  group and attached to the groups domain
+ * @device_group: find iommu group for a particular device
+ * @get_resv_regions: Request list of reserved regions for a device
+ * @put_resv_regions: Free list of reserved regions for a device
+ * @of_xlate: add OF master IDs to iommu grouping
+ * @is_attach_deferred: Check if domain attach should be deferred from iommu
+ *                      driver init to device driver init (default no)
+ * @dev_has/enable/disable_feat: per device entries to check/enable/disable
+ *                               iommu specific features.
+ * @dev_feat_enabled: check enabled feature
+ * @sva_bind: Bind process address space to device
+ * @sva_unbind: Unbind process address space from device
+ * @sva_get_pasid: Get PASID associated to a SVA handle
+ * @page_response: handle page request response
+ * @def_domain_type: device default domain type, return value:
+ *		- IOMMU_DOMAIN_IDENTITY: must use an identity domain
+ *		- IOMMU_DOMAIN_DMA: must use a dma domain
+ *		- 0: use the default setting
+ * @default_domain_ops: the default ops for domains
+ * @pgsize_bitmap: bitmap of all possible supported page sizes
+ * @owner: Driver module providing these ops
+ */
+struct iommu_ops {
+	bool (*capable)(enum iommu_cap);
+
+	/* Domain allocation and freeing by the iommu driver */
+	struct iommu_domain *(*domain_alloc)(unsigned iommu_domain_type);
+
+	struct iommu_device *(*probe_device)(struct device *dev);
+	void (*release_device)(struct device *dev);
+	void (*probe_finalize)(struct device *dev);
+	struct iommu_group *(*device_group)(struct device *dev);
+
+	/* Request/Free a list of reserved regions for a device */
+	void (*get_resv_regions)(struct device *dev, struct list_head *list);
+	void (*put_resv_regions)(struct device *dev, struct list_head *list);
+
+	int (*of_xlate)(struct device *dev, struct of_phandle_args *args);
+	bool (*is_attach_deferred)(struct device *dev);
+
+	/* Per device IOMMU features */
+	bool (*dev_has_feat)(struct device *dev, enum iommu_dev_features f);
+	bool (*dev_feat_enabled)(struct device *dev, enum iommu_dev_features f);
+	int (*dev_enable_feat)(struct device *dev, enum iommu_dev_features f);
+	int (*dev_disable_feat)(struct device *dev, enum iommu_dev_features f);
+
+	struct iommu_sva *(*sva_bind)(struct device *dev, struct mm_struct *mm,
+				      void *drvdata);
+	void (*sva_unbind)(struct iommu_sva *handle);
+	u32 (*sva_get_pasid)(struct iommu_sva *handle);
+
+	int (*page_response)(struct device *dev,
+			     struct iommu_fault_event *evt,
+			     struct iommu_page_response *msg);
+
+	int (*def_domain_type)(struct device *dev);
+
+	const struct iommu_domain_ops *default_domain_ops;
+	unsigned long pgsize_bitmap;
+	struct module *owner;
+};
+
+/**
+ * struct iommu_domain_ops - domain specific operations
+ * @attach_dev: attach an iommu domain to a device
+ * @detach_dev: detach an iommu domain from a device
  * @map: map a physically contiguous memory region to an iommu domain
  * @map_pages: map a physically contiguous set of pages of the same size to
  *             an iommu domain.
@@ -207,111 +273,43 @@ struct iommu_iotlb_gather {
  * @iotlb_sync: Flush all queued ranges from the hardware TLBs and empty flush
  *            queue
  * @iova_to_phys: translate iova to physical address
- * @probe_device: Add device to iommu driver handling
- * @release_device: Remove device from iommu driver handling
- * @probe_finalize: Do final setup work after the device is added to an IOMMU
- *                  group and attached to the groups domain
- * @device_group: find iommu group for a particular device
+ * @enforce_cache_coherency: Prevent any kind of DMA from bypassing IOMMU_CACHE,
+ *                           including no-snoop TLPs on PCIe or other platform
+ *                           specific mechanisms.
  * @enable_nesting: Enable nesting
  * @set_pgtable_quirks: Set io page table quirks (IO_PGTABLE_QUIRK_*)
- * @get_resv_regions: Request list of reserved regions for a device
- * @put_resv_regions: Free list of reserved regions for a device
- * @apply_resv_region: Temporary helper call-back for iova reserved ranges
- * @of_xlate: add OF master IDs to iommu grouping
- * @is_attach_deferred: Check if domain attach should be deferred from iommu
- *                      driver init to device driver init (default no)
- * @dev_has/enable/disable_feat: per device entries to check/enable/disable
- *                               iommu specific features.
- * @dev_feat_enabled: check enabled feature
- * @aux_attach/detach_dev: aux-domain specific attach/detach entries.
- * @aux_get_pasid: get the pasid given an aux-domain
- * @sva_bind: Bind process address space to device
- * @sva_unbind: Unbind process address space from device
- * @sva_get_pasid: Get PASID associated to a SVA handle
- * @page_response: handle page request response
- * @cache_invalidate: invalidate translation caches
- * @sva_bind_gpasid: bind guest pasid and mm
- * @sva_unbind_gpasid: unbind guest pasid and mm
- * @def_domain_type: device default domain type, return value:
- *		- IOMMU_DOMAIN_IDENTITY: must use an identity domain
- *		- IOMMU_DOMAIN_DMA: must use a dma domain
- *		- 0: use the default setting
- * @pgsize_bitmap: bitmap of all possible supported page sizes
- * @owner: Driver module providing these ops
+ * @free: Release the domain after use.
  */
-struct iommu_ops {
-	bool (*capable)(enum iommu_cap);
-
-	/* Domain allocation and freeing by the iommu driver */
-	struct iommu_domain *(*domain_alloc)(unsigned iommu_domain_type);
-	void (*domain_free)(struct iommu_domain *);
-
+struct iommu_domain_ops {
 	int (*attach_dev)(struct iommu_domain *domain, struct device *dev);
 	void (*detach_dev)(struct iommu_domain *domain, struct device *dev);
+
 	int (*map)(struct iommu_domain *domain, unsigned long iova,
 		   phys_addr_t paddr, size_t size, int prot, gfp_t gfp);
 	int (*map_pages)(struct iommu_domain *domain, unsigned long iova,
 			 phys_addr_t paddr, size_t pgsize, size_t pgcount,
 			 int prot, gfp_t gfp, size_t *mapped);
 	size_t (*unmap)(struct iommu_domain *domain, unsigned long iova,
-		     size_t size, struct iommu_iotlb_gather *iotlb_gather);
+			size_t size, struct iommu_iotlb_gather *iotlb_gather);
 	size_t (*unmap_pages)(struct iommu_domain *domain, unsigned long iova,
 			      size_t pgsize, size_t pgcount,
 			      struct iommu_iotlb_gather *iotlb_gather);
+
 	void (*flush_iotlb_all)(struct iommu_domain *domain);
 	void (*iotlb_sync_map)(struct iommu_domain *domain, unsigned long iova,
 			       size_t size);
 	void (*iotlb_sync)(struct iommu_domain *domain,
 			   struct iommu_iotlb_gather *iotlb_gather);
-	phys_addr_t (*iova_to_phys)(struct iommu_domain *domain, dma_addr_t iova);
-	struct iommu_device *(*probe_device)(struct device *dev);
-	void (*release_device)(struct device *dev);
-	void (*probe_finalize)(struct device *dev);
-	struct iommu_group *(*device_group)(struct device *dev);
+
+	phys_addr_t (*iova_to_phys)(struct iommu_domain *domain,
+				    dma_addr_t iova);
+
+	bool (*enforce_cache_coherency)(struct iommu_domain *domain);
 	int (*enable_nesting)(struct iommu_domain *domain);
 	int (*set_pgtable_quirks)(struct iommu_domain *domain,
 				  unsigned long quirks);
 
-	/* Request/Free a list of reserved regions for a device */
-	void (*get_resv_regions)(struct device *dev, struct list_head *list);
-	void (*put_resv_regions)(struct device *dev, struct list_head *list);
-	void (*apply_resv_region)(struct device *dev,
-				  struct iommu_domain *domain,
-				  struct iommu_resv_region *region);
-
-	int (*of_xlate)(struct device *dev, struct of_phandle_args *args);
-	bool (*is_attach_deferred)(struct iommu_domain *domain, struct device *dev);
-
-	/* Per device IOMMU features */
-	bool (*dev_has_feat)(struct device *dev, enum iommu_dev_features f);
-	bool (*dev_feat_enabled)(struct device *dev, enum iommu_dev_features f);
-	int (*dev_enable_feat)(struct device *dev, enum iommu_dev_features f);
-	int (*dev_disable_feat)(struct device *dev, enum iommu_dev_features f);
-
-	/* Aux-domain specific attach/detach entries */
-	int (*aux_attach_dev)(struct iommu_domain *domain, struct device *dev);
-	void (*aux_detach_dev)(struct iommu_domain *domain, struct device *dev);
-	int (*aux_get_pasid)(struct iommu_domain *domain, struct device *dev);
-
-	struct iommu_sva *(*sva_bind)(struct device *dev, struct mm_struct *mm,
-				      void *drvdata);
-	void (*sva_unbind)(struct iommu_sva *handle);
-	u32 (*sva_get_pasid)(struct iommu_sva *handle);
-
-	int (*page_response)(struct device *dev,
-			     struct iommu_fault_event *evt,
-			     struct iommu_page_response *msg);
-	int (*cache_invalidate)(struct iommu_domain *domain, struct device *dev,
-				struct iommu_cache_invalidate_info *inv_info);
-	int (*sva_bind_gpasid)(struct iommu_domain *domain,
-			struct device *dev, struct iommu_gpasid_bind_data *data);
-
-	int (*sva_unbind_gpasid)(struct device *dev, u32 pasid);
-
-	int (*def_domain_type)(struct device *dev);
-
-	unsigned long pgsize_bitmap;
-	struct module *owner;
+	void (*free)(struct iommu_domain *domain);
 };
 
 /**
@@ -403,16 +401,21 @@ static inline void iommu_iotlb_gather_init(struct iommu_iotlb_gather *gather)
 	};
 }
 
-#define IOMMU_GROUP_NOTIFY_ADD_DEVICE		1 /* Device added */
-#define IOMMU_GROUP_NOTIFY_DEL_DEVICE		2 /* Pre Device removed */
-#define IOMMU_GROUP_NOTIFY_BIND_DRIVER		3 /* Pre Driver bind */
-#define IOMMU_GROUP_NOTIFY_BOUND_DRIVER		4 /* Post Driver bind */
-#define IOMMU_GROUP_NOTIFY_UNBIND_DRIVER	5 /* Pre Driver unbind */
-#define IOMMU_GROUP_NOTIFY_UNBOUND_DRIVER	6 /* Post Driver unbind */
+static inline const struct iommu_ops *dev_iommu_ops(struct device *dev)
+{
+	/*
+	 * Assume that valid ops must be installed if iommu_probe_device()
+	 * has succeeded. The device ops are essentially for internal use
+	 * within the IOMMU subsystem itself, so we should be able to trust
+	 * ourselves not to misuse the helper.
+	 */
+	return dev->iommu->iommu_dev->ops;
+}
 
 extern int bus_set_iommu(struct bus_type *bus, const struct iommu_ops *ops);
 extern int bus_iommu_probe(struct bus_type *bus);
 extern bool iommu_present(struct bus_type *bus);
+extern bool device_iommu_capable(struct device *dev, enum iommu_cap cap);
 extern bool iommu_capable(struct bus_type *bus, enum iommu_cap cap);
 extern struct iommu_domain *iommu_domain_alloc(struct bus_type *bus);
 extern struct iommu_group *iommu_group_get_by_id(int id);
@@ -421,14 +424,6 @@ extern int iommu_attach_device(struct iommu_domain *domain,
 			       struct device *dev);
 extern void iommu_detach_device(struct iommu_domain *domain,
 				struct device *dev);
-extern int iommu_uapi_cache_invalidate(struct iommu_domain *domain,
-				       struct device *dev,
-				       void __user *uinfo);
-
-extern int iommu_uapi_sva_bind_gpasid(struct iommu_domain *domain,
-				      struct device *dev, void __user *udata);
-extern int iommu_uapi_sva_unbind_gpasid(struct iommu_domain *domain,
-					struct device *dev, void __user *udata);
 extern int iommu_sva_unbind_gpasid(struct iommu_domain *domain,
 				   struct device *dev, ioasid_t pasid);
 extern struct iommu_domain *iommu_get_domain_for_dev(struct device *dev);
@@ -482,10 +477,6 @@ extern int iommu_group_for_each_dev(struct iommu_group *group, void *data,
 extern struct iommu_group *iommu_group_get(struct device *dev);
 extern struct iommu_group *iommu_group_ref_get(struct iommu_group *group);
 extern void iommu_group_put(struct iommu_group *group);
-extern int iommu_group_register_notifier(struct iommu_group *group,
-					 struct notifier_block *nb);
-extern int iommu_group_unregister_notifier(struct iommu_group *group,
-					   struct notifier_block *nb);
 extern int iommu_register_device_fault_handler(struct device *dev,
 					iommu_dev_fault_handler_t handler,
 					void *data);
@@ -672,15 +663,19 @@ void iommu_release_device(struct device *dev);
 int iommu_dev_enable_feature(struct device *dev, enum iommu_dev_features f);
 int iommu_dev_disable_feature(struct device *dev, enum iommu_dev_features f);
 bool iommu_dev_feature_enabled(struct device *dev, enum iommu_dev_features f);
-int iommu_aux_attach_device(struct iommu_domain *domain, struct device *dev);
-void iommu_aux_detach_device(struct iommu_domain *domain, struct device *dev);
-int iommu_aux_get_pasid(struct iommu_domain *domain, struct device *dev);
 
 struct iommu_sva *iommu_sva_bind_device(struct device *dev,
 					struct mm_struct *mm,
 					void *drvdata);
 void iommu_sva_unbind_device(struct iommu_sva *handle);
 u32 iommu_sva_get_pasid(struct iommu_sva *handle);
+
+int iommu_device_use_default_domain(struct device *dev);
+void iommu_device_unuse_default_domain(struct device *dev);
+
+int iommu_group_claim_dma_owner(struct iommu_group *group, void *owner);
+void iommu_group_release_dma_owner(struct iommu_group *group);
+bool iommu_group_dma_owner_claimed(struct iommu_group *group);
 
 #else /* CONFIG_IOMMU_API */
 
@@ -692,6 +687,11 @@ struct iommu_fault_param {};
 struct iommu_iotlb_gather {};
 
 static inline bool iommu_present(struct bus_type *bus)
+{
+	return false;
+}
+
+static inline bool device_iommu_capable(struct device *dev, enum iommu_cap cap)
 {
 	return false;
 }
@@ -878,18 +878,6 @@ static inline void iommu_group_put(struct iommu_group *group)
 {
 }
 
-static inline int iommu_group_register_notifier(struct iommu_group *group,
-						struct notifier_block *nb)
-{
-	return -ENODEV;
-}
-
-static inline int iommu_group_unregister_notifier(struct iommu_group *group,
-						  struct notifier_block *nb)
-{
-	return 0;
-}
-
 static inline
 int iommu_register_device_fault_handler(struct device *dev,
 					iommu_dev_fault_handler_t handler,
@@ -1019,23 +1007,6 @@ iommu_dev_disable_feature(struct device *dev, enum iommu_dev_features feat)
 	return -ENODEV;
 }
 
-static inline int
-iommu_aux_attach_device(struct iommu_domain *domain, struct device *dev)
-{
-	return -ENODEV;
-}
-
-static inline void
-iommu_aux_detach_device(struct iommu_domain *domain, struct device *dev)
-{
-}
-
-static inline int
-iommu_aux_get_pasid(struct iommu_domain *domain, struct device *dev)
-{
-	return -ENODEV;
-}
-
 static inline struct iommu_sva *
 iommu_sva_bind_device(struct device *dev, struct mm_struct *mm, void *drvdata)
 {
@@ -1051,36 +1022,33 @@ static inline u32 iommu_sva_get_pasid(struct iommu_sva *handle)
 	return IOMMU_PASID_INVALID;
 }
 
-static inline int
-iommu_uapi_cache_invalidate(struct iommu_domain *domain,
-			    struct device *dev,
-			    struct iommu_cache_invalidate_info *inv_info)
-{
-	return -ENODEV;
-}
-
-static inline int iommu_uapi_sva_bind_gpasid(struct iommu_domain *domain,
-					     struct device *dev, void __user *udata)
-{
-	return -ENODEV;
-}
-
-static inline int iommu_uapi_sva_unbind_gpasid(struct iommu_domain *domain,
-					       struct device *dev, void __user *udata)
-{
-	return -ENODEV;
-}
-
-static inline int iommu_sva_unbind_gpasid(struct iommu_domain *domain,
-					  struct device *dev,
-					  ioasid_t pasid)
-{
-	return -ENODEV;
-}
-
 static inline struct iommu_fwspec *dev_iommu_fwspec_get(struct device *dev)
 {
 	return NULL;
+}
+
+static inline int iommu_device_use_default_domain(struct device *dev)
+{
+	return 0;
+}
+
+static inline void iommu_device_unuse_default_domain(struct device *dev)
+{
+}
+
+static inline int
+iommu_group_claim_dma_owner(struct iommu_group *group, void *owner)
+{
+	return -ENODEV;
+}
+
+static inline void iommu_group_release_dma_owner(struct iommu_group *group)
+{
+}
+
+static inline bool iommu_group_dma_owner_claimed(struct iommu_group *group)
+{
+	return false;
 }
 #endif /* CONFIG_IOMMU_API */
 

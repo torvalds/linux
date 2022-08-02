@@ -5,10 +5,11 @@
 
 #include <linux/backing-dev.h>
 #include <linux/moduleparam.h>
+#include <linux/vmalloc.h>
 #include <trace/events/block.h>
 #include "nvme.h"
 
-static bool multipath = true;
+bool multipath = true;
 module_param(multipath, bool, 0444);
 MODULE_PARM_DESC(multipath,
 	"turn on native support for multiple controllers per subsystem");
@@ -77,28 +78,6 @@ void nvme_mpath_start_freeze(struct nvme_subsystem *subsys)
 	list_for_each_entry(h, &subsys->nsheads, entry)
 		if (h->disk)
 			blk_freeze_queue_start(h->disk->queue);
-}
-
-/*
- * If multipathing is enabled we need to always use the subsystem instance
- * number for numbering our devices to avoid conflicts between subsystems that
- * have multiple controllers and thus use the multipath-aware subsystem node
- * and those that have a single controller and use the controller node
- * directly.
- */
-bool nvme_mpath_set_disk_name(struct nvme_ns *ns, char *disk_name, int *flags)
-{
-	if (!multipath)
-		return false;
-	if (!ns->head->disk) {
-		sprintf(disk_name, "nvme%dn%d", ns->ctrl->subsys->instance,
-			ns->head->instance);
-		return true;
-	}
-	sprintf(disk_name, "nvme%dc%dn%d", ns->ctrl->subsys->instance,
-		ns->ctrl->instance, ns->head->instance);
-	*flags = GENHD_FL_HIDDEN;
-	return true;
 }
 
 void nvme_failover_req(struct request *req)
@@ -386,8 +365,7 @@ static void nvme_ns_head_submit_bio(struct bio *bio)
 	} else {
 		dev_warn_ratelimited(dev, "no available path - failing I/O\n");
 
-		bio->bi_status = BLK_STS_IOERR;
-		bio_endio(bio);
+		bio_io_error(bio);
 	}
 
 	srcu_read_unlock(&head->srcu, srcu_idx);
@@ -459,6 +437,7 @@ static const struct file_operations nvme_ns_head_chr_fops = {
 	.release	= nvme_ns_head_chr_release,
 	.unlocked_ioctl	= nvme_ns_head_chr_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
+	.uring_cmd	= nvme_ns_head_chr_uring_cmd,
 };
 
 static int nvme_add_ns_head_cdev(struct nvme_ns_head *head)
@@ -504,10 +483,11 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
 
 	/*
 	 * Add a multipath node if the subsystems supports multiple controllers.
-	 * We also do this for private namespaces as the namespace sharing data could
-	 * change after a rescan.
+	 * We also do this for private namespaces as the namespace sharing flag
+	 * could change after a rescan.
 	 */
-	if (!(ctrl->subsys->cmic & NVME_CTRL_CMIC_MULTI_CTRL) || !multipath)
+	if (!(ctrl->subsys->cmic & NVME_CTRL_CMIC_MULTI_CTRL) ||
+	    !nvme_is_unique_nsid(ctrl, head) || !multipath)
 		return 0;
 
 	head->disk = blk_alloc_disk(ctrl->numa_node);
@@ -634,8 +614,17 @@ static void nvme_update_ns_ana_state(struct nvme_ana_group_desc *desc,
 	ns->ana_grpid = le32_to_cpu(desc->grpid);
 	ns->ana_state = desc->state;
 	clear_bit(NVME_NS_ANA_PENDING, &ns->flags);
-
-	if (nvme_state_is_live(ns->ana_state))
+	/*
+	 * nvme_mpath_set_live() will trigger I/O to the multipath path device
+	 * and in turn to this path device.  However we cannot accept this I/O
+	 * if the controller is not live.  This may deadlock if called from
+	 * nvme_mpath_init_identify() and the ctrl will never complete
+	 * initialization, preventing I/O from completing.  For this case we
+	 * will reprocess the ANA log page in nvme_mpath_update() once the
+	 * controller is ready.
+	 */
+	if (nvme_state_is_live(ns->ana_state) &&
+	    ns->ctrl->state == NVME_CTRL_LIVE)
 		nvme_mpath_set_live(ns);
 }
 
@@ -720,6 +709,18 @@ static void nvme_ana_work(struct work_struct *work)
 		return;
 
 	nvme_read_ana_log(ctrl);
+}
+
+void nvme_mpath_update(struct nvme_ctrl *ctrl)
+{
+	u32 nr_change_groups = 0;
+
+	if (!ctrl->ana_log_buf)
+		return;
+
+	mutex_lock(&ctrl->ana_lock);
+	nvme_parse_ana_log(ctrl, &nr_change_groups, nvme_update_ana_state);
+	mutex_unlock(&ctrl->ana_lock);
 }
 
 static void nvme_anatt_timeout(struct timer_list *t)
@@ -898,7 +899,7 @@ int nvme_mpath_init_identify(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 	if (ana_log_size > ctrl->ana_log_size) {
 		nvme_mpath_stop(ctrl);
 		nvme_mpath_uninit(ctrl);
-		ctrl->ana_log_buf = kmalloc(ana_log_size, GFP_KERNEL);
+		ctrl->ana_log_buf = kvmalloc(ana_log_size, GFP_KERNEL);
 		if (!ctrl->ana_log_buf)
 			return -ENOMEM;
 	}
@@ -915,7 +916,7 @@ out_uninit:
 
 void nvme_mpath_uninit(struct nvme_ctrl *ctrl)
 {
-	kfree(ctrl->ana_log_buf);
+	kvfree(ctrl->ana_log_buf);
 	ctrl->ana_log_buf = NULL;
 	ctrl->ana_log_size = 0;
 }

@@ -8,25 +8,6 @@
 #include "../include/rtw_iol.h"
 #include "../include/rtl8188e_hal.h"
 
-/*---------------------------Define Local Constant---------------------------*/
-/* Channel switch:The size of command tables for switch channel*/
-#define MAX_PRECMD_CNT 16
-#define MAX_RFDEPENDCMD_CNT 16
-#define MAX_POSTCMD_CNT 16
-
-#define MAX_DOZE_WAITING_TIMES_9x 64
-
-/*---------------------------Define Local Constant---------------------------*/
-
-/*------------------------Define global variable-----------------------------*/
-
-/*------------------------Define local variable------------------------------*/
-
-/*--------------------Define export function prototype-----------------------*/
-/*  Please refer to header file */
-/*--------------------Define export function prototype-----------------------*/
-
-/*----------------------------Function Body----------------------------------*/
 /*  */
 /*  1. BB register R/W API */
 /*  */
@@ -123,7 +104,6 @@ void rtl8188e_PHY_SetBBReg(struct adapter *Adapter, u32 RegAddr, u32 BitMask, u3
 *
 * Input:
 *			struct adapter *Adapter,
-*			enum rf_radio_path eRFPath,	Radio path of A/B/C/D
 *			u32			Offset,		The target address to be read
 *
 * Output:	None
@@ -138,13 +118,12 @@ void rtl8188e_PHY_SetBBReg(struct adapter *Adapter, u32 RegAddr, u32 BitMask, u3
 static	u32
 phy_RFSerialRead(
 		struct adapter *Adapter,
-		enum rf_radio_path eRFPath,
 		u32 Offset
 	)
 {
 	u32 retValue = 0;
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
-	struct bb_reg_def *pPhyReg = &pHalData->PHYRegDef[eRFPath];
+	struct bb_reg_def *pPhyReg = &pHalData->PHYRegDef;
 	u32 NewOffset;
 	u32 tmplong, tmplong2;
 	u8 	RfPiEnable = 0;
@@ -162,10 +141,7 @@ phy_RFSerialRead(
 	/*  For RF A/B write 0x824/82c(does not work in the future) */
 	/*  We must use 0x824 for RF A and B to execute read trigger */
 	tmplong = rtl8188e_PHY_QueryBBReg(Adapter, rFPGA0_XA_HSSIParameter2, bMaskDWord);
-	if (eRFPath == RF_PATH_A)
-		tmplong2 = tmplong;
-	else
-		tmplong2 = rtl8188e_PHY_QueryBBReg(Adapter, pPhyReg->rfHSSIPara2, bMaskDWord);
+	tmplong2 = tmplong;
 
 	tmplong2 = (tmplong2 & (~bLSSIReadAddress)) | (NewOffset << 23) | bLSSIReadEdge;	/* T65 RF */
 
@@ -177,10 +153,7 @@ phy_RFSerialRead(
 
 	udelay(10);/* PlatformStallExecution(10); */
 
-	if (eRFPath == RF_PATH_A)
-		RfPiEnable = (u8)rtl8188e_PHY_QueryBBReg(Adapter, rFPGA0_XA_HSSIParameter1, BIT(8));
-	else if (eRFPath == RF_PATH_B)
-		RfPiEnable = (u8)rtl8188e_PHY_QueryBBReg(Adapter, rFPGA0_XB_HSSIParameter1, BIT(8));
+	RfPiEnable = (u8)rtl8188e_PHY_QueryBBReg(Adapter, rFPGA0_XA_HSSIParameter1, BIT(8));
 
 	if (RfPiEnable) {	/*  Read from BBreg8b8, 12 bits for 8190, 20bits for T65 RF */
 		retValue = rtl8188e_PHY_QueryBBReg(Adapter, pPhyReg->rfLSSIReadBackPi, bLSSIReadBackData);
@@ -236,14 +209,13 @@ phy_RFSerialRead(
 static	void
 phy_RFSerialWrite(
 		struct adapter *Adapter,
-		enum rf_radio_path eRFPath,
 		u32 Offset,
 		u32 Data
 	)
 {
 	u32 DataAndAddr = 0;
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
-	struct bb_reg_def *pPhyReg = &pHalData->PHYRegDef[eRFPath];
+	struct bb_reg_def *pPhyReg = &pHalData->PHYRegDef;
 	u32 NewOffset;
 
 	/*  2009/06/17 MH We can not execute IO for power save or other accident mode. */
@@ -273,7 +245,6 @@ phy_RFSerialWrite(
 *
 * Input:
 *			struct adapter *Adapter,
-*			enum rf_radio_path eRFPath,	Radio path of A/B/C/D
 *			u32			RegAddr,	The target address to be read
 *			u32			BitMask		The target bit position in the target address
 *									to be read
@@ -282,12 +253,11 @@ phy_RFSerialWrite(
 * Return:		u32			Readback value
 * Note:		This function is equal to "GetRFRegSetting" in PHY programming guide
 */
-u32 rtl8188e_PHY_QueryRFReg(struct adapter *Adapter, enum rf_radio_path eRFPath,
-			    u32 RegAddr, u32 BitMask)
+u32 rtl8188e_PHY_QueryRFReg(struct adapter *Adapter, u32 RegAddr, u32 BitMask)
 {
 	u32 Original_Value, Readback_Value, BitShift;
 
-	Original_Value = phy_RFSerialRead(Adapter, eRFPath, RegAddr);
+	Original_Value = phy_RFSerialRead(Adapter, RegAddr);
 
 	BitShift =  phy_CalculateBitShift(BitMask);
 	Readback_Value = (Original_Value & BitMask) >> BitShift;
@@ -301,7 +271,6 @@ u32 rtl8188e_PHY_QueryRFReg(struct adapter *Adapter, enum rf_radio_path eRFPath,
 *
 * Input:
 *			struct adapter *Adapter,
-*			enum rf_radio_path eRFPath,	Radio path of A/B/C/D
 *			u32			RegAddr,	The target address to be modified
 *			u32			BitMask		The target bit position in the target address
 *									to be modified
@@ -315,7 +284,6 @@ u32 rtl8188e_PHY_QueryRFReg(struct adapter *Adapter, enum rf_radio_path eRFPath,
 void
 rtl8188e_PHY_SetRFReg(
 		struct adapter *Adapter,
-		enum rf_radio_path eRFPath,
 		u32 RegAddr,
 		u32 BitMask,
 		u32 Data
@@ -325,12 +293,12 @@ rtl8188e_PHY_SetRFReg(
 
 	/*  RF data is 12 bits only */
 	if (BitMask != bRFRegOffsetMask) {
-		Original_Value = phy_RFSerialRead(Adapter, eRFPath, RegAddr);
+		Original_Value = phy_RFSerialRead(Adapter, RegAddr);
 		BitShift =  phy_CalculateBitShift(BitMask);
 		Data = ((Original_Value & (~BitMask)) | (Data << BitShift));
 	}
 
-	phy_RFSerialWrite(Adapter, eRFPath, RegAddr, Data);
+	phy_RFSerialWrite(Adapter, RegAddr, Data);
 }
 
 /*  */
@@ -361,7 +329,7 @@ s32 PHY_MACConfig8188E(struct adapter *Adapter)
 	/*  */
 	/*  Config MAC */
 	/*  */
-	if (HAL_STATUS_FAILURE == ODM_ConfigMACWithHeaderFile(&pHalData->odmpriv))
+	if (HAL_STATUS_FAILURE == ODM_ReadAndConfig_MAC_REG_8188E(&pHalData->odmpriv))
 		rtStatus = _FAIL;
 
 	/*  2010.07.13 AMPDU aggregation number B */
@@ -390,76 +358,58 @@ phy_InitBBRFRegisterDefinition(
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
 
 	/*  RF Interface Sowrtware Control */
-	pHalData->PHYRegDef[RF_PATH_A].rfintfs = rFPGA0_XAB_RFInterfaceSW; /*  16 LSBs if read 32-bit from 0x870 */
-	pHalData->PHYRegDef[RF_PATH_B].rfintfs = rFPGA0_XAB_RFInterfaceSW; /*  16 MSBs if read 32-bit from 0x870 (16-bit for 0x872) */
+	pHalData->PHYRegDef.rfintfs = rFPGA0_XAB_RFInterfaceSW; /*  16 LSBs if read 32-bit from 0x870 */
 
 	/*  RF Interface Readback Value */
-	pHalData->PHYRegDef[RF_PATH_A].rfintfi = rFPGA0_XAB_RFInterfaceRB; /*  16 LSBs if read 32-bit from 0x8E0 */
-	pHalData->PHYRegDef[RF_PATH_B].rfintfi = rFPGA0_XAB_RFInterfaceRB;/*  16 MSBs if read 32-bit from 0x8E0 (16-bit for 0x8E2) */
+	pHalData->PHYRegDef.rfintfi = rFPGA0_XAB_RFInterfaceRB; /*  16 LSBs if read 32-bit from 0x8E0 */
 
 	/*  RF Interface Output (and Enable) */
-	pHalData->PHYRegDef[RF_PATH_A].rfintfo = rFPGA0_XA_RFInterfaceOE; /*  16 LSBs if read 32-bit from 0x860 */
-	pHalData->PHYRegDef[RF_PATH_B].rfintfo = rFPGA0_XB_RFInterfaceOE; /*  16 LSBs if read 32-bit from 0x864 */
+	pHalData->PHYRegDef.rfintfo = rFPGA0_XA_RFInterfaceOE; /*  16 LSBs if read 32-bit from 0x860 */
 
 	/*  RF Interface (Output and)  Enable */
-	pHalData->PHYRegDef[RF_PATH_A].rfintfe = rFPGA0_XA_RFInterfaceOE; /*  16 MSBs if read 32-bit from 0x860 (16-bit for 0x862) */
-	pHalData->PHYRegDef[RF_PATH_B].rfintfe = rFPGA0_XB_RFInterfaceOE; /*  16 MSBs if read 32-bit from 0x864 (16-bit for 0x866) */
+	pHalData->PHYRegDef.rfintfe = rFPGA0_XA_RFInterfaceOE; /*  16 MSBs if read 32-bit from 0x860 (16-bit for 0x862) */
 
 	/* Addr of LSSI. Wirte RF register by driver */
-	pHalData->PHYRegDef[RF_PATH_A].rf3wireOffset = rFPGA0_XA_LSSIParameter; /* LSSI Parameter */
-	pHalData->PHYRegDef[RF_PATH_B].rf3wireOffset = rFPGA0_XB_LSSIParameter;
+	pHalData->PHYRegDef.rf3wireOffset = rFPGA0_XA_LSSIParameter; /* LSSI Parameter */
 
 	/*  RF parameter */
-	pHalData->PHYRegDef[RF_PATH_A].rfLSSI_Select = rFPGA0_XAB_RFParameter;  /* BB Band Select */
-	pHalData->PHYRegDef[RF_PATH_B].rfLSSI_Select = rFPGA0_XAB_RFParameter;
+	pHalData->PHYRegDef.rfLSSI_Select = rFPGA0_XAB_RFParameter;  /* BB Band Select */
 
 	/*  Tx AGC Gain Stage (same for all path. Should we remove this?) */
-	pHalData->PHYRegDef[RF_PATH_A].rfTxGainStage = rFPGA0_TxGainStage; /* Tx gain stage */
-	pHalData->PHYRegDef[RF_PATH_B].rfTxGainStage = rFPGA0_TxGainStage; /* Tx gain stage */
+	pHalData->PHYRegDef.rfTxGainStage = rFPGA0_TxGainStage; /* Tx gain stage */
 
-	/*  Tranceiver A~D HSSI Parameter-1 */
-	pHalData->PHYRegDef[RF_PATH_A].rfHSSIPara1 = rFPGA0_XA_HSSIParameter1;  /* wire control parameter1 */
-	pHalData->PHYRegDef[RF_PATH_B].rfHSSIPara1 = rFPGA0_XB_HSSIParameter1;  /* wire control parameter1 */
+	/*  Transceiver A~D HSSI Parameter-1 */
+	pHalData->PHYRegDef.rfHSSIPara1 = rFPGA0_XA_HSSIParameter1;  /* wire control parameter1 */
 
-	/*  Tranceiver A~D HSSI Parameter-2 */
-	pHalData->PHYRegDef[RF_PATH_A].rfHSSIPara2 = rFPGA0_XA_HSSIParameter2;  /* wire control parameter2 */
-	pHalData->PHYRegDef[RF_PATH_B].rfHSSIPara2 = rFPGA0_XB_HSSIParameter2;  /* wire control parameter2 */
+	/*  Transceiver A~D HSSI Parameter-2 */
+	pHalData->PHYRegDef.rfHSSIPara2 = rFPGA0_XA_HSSIParameter2;  /* wire control parameter2 */
 
 	/*  RF switch Control */
-	pHalData->PHYRegDef[RF_PATH_A].rfSwitchControl = rFPGA0_XAB_SwitchControl; /* TR/Ant switch control */
-	pHalData->PHYRegDef[RF_PATH_B].rfSwitchControl = rFPGA0_XAB_SwitchControl;
+	pHalData->PHYRegDef.rfSwitchControl = rFPGA0_XAB_SwitchControl; /* TR/Ant switch control */
 
 	/*  AGC control 1 */
-	pHalData->PHYRegDef[RF_PATH_A].rfAGCControl1 = rOFDM0_XAAGCCore1;
-	pHalData->PHYRegDef[RF_PATH_B].rfAGCControl1 = rOFDM0_XBAGCCore1;
+	pHalData->PHYRegDef.rfAGCControl1 = rOFDM0_XAAGCCore1;
 
 	/*  AGC control 2 */
-	pHalData->PHYRegDef[RF_PATH_A].rfAGCControl2 = rOFDM0_XAAGCCore2;
-	pHalData->PHYRegDef[RF_PATH_B].rfAGCControl2 = rOFDM0_XBAGCCore2;
+	pHalData->PHYRegDef.rfAGCControl2 = rOFDM0_XAAGCCore2;
 
 	/*  RX AFE control 1 */
-	pHalData->PHYRegDef[RF_PATH_A].rfRxIQImbalance = rOFDM0_XARxIQImbalance;
-	pHalData->PHYRegDef[RF_PATH_B].rfRxIQImbalance = rOFDM0_XBRxIQImbalance;
+	pHalData->PHYRegDef.rfRxIQImbalance = rOFDM0_XARxIQImbalance;
 
 	/*  RX AFE control 1 */
-	pHalData->PHYRegDef[RF_PATH_A].rfRxAFE = rOFDM0_XARxAFE;
-	pHalData->PHYRegDef[RF_PATH_B].rfRxAFE = rOFDM0_XBRxAFE;
+	pHalData->PHYRegDef.rfRxAFE = rOFDM0_XARxAFE;
 
 	/*  Tx AFE control 1 */
-	pHalData->PHYRegDef[RF_PATH_A].rfTxIQImbalance = rOFDM0_XATxIQImbalance;
-	pHalData->PHYRegDef[RF_PATH_B].rfTxIQImbalance = rOFDM0_XBTxIQImbalance;
+	pHalData->PHYRegDef.rfTxIQImbalance = rOFDM0_XATxIQImbalance;
 
 	/*  Tx AFE control 2 */
-	pHalData->PHYRegDef[RF_PATH_A].rfTxAFE = rOFDM0_XATxAFE;
-	pHalData->PHYRegDef[RF_PATH_B].rfTxAFE = rOFDM0_XBTxAFE;
+	pHalData->PHYRegDef.rfTxAFE = rOFDM0_XATxAFE;
 
-	/*  Tranceiver LSSI Readback SI mode */
-	pHalData->PHYRegDef[RF_PATH_A].rfLSSIReadBack = rFPGA0_XA_LSSIReadBack;
-	pHalData->PHYRegDef[RF_PATH_B].rfLSSIReadBack = rFPGA0_XB_LSSIReadBack;
+	/*  Transceiver LSSI Readback SI mode */
+	pHalData->PHYRegDef.rfLSSIReadBack = rFPGA0_XA_LSSIReadBack;
 
-	/*  Tranceiver LSSI Readback PI mode */
-	pHalData->PHYRegDef[RF_PATH_A].rfLSSIReadBackPi = TransceiverA_HSPI_Readback;
-	pHalData->PHYRegDef[RF_PATH_B].rfLSSIReadBackPi = TransceiverB_HSPI_Readback;
+	/*  Transceiver LSSI Readback PI mode */
+	pHalData->PHYRegDef.rfLSSIReadBackPi = TransceiverA_HSPI_Readback;
 }
 
 void storePwrIndexDiffRateOffset(struct adapter *Adapter, u32 RegAddr, u32 BitMask, u32 Data)
@@ -506,38 +456,25 @@ static	int phy_BB8188E_Config_ParaFile(struct adapter *Adapter)
 {
 	struct eeprom_priv *pEEPROM = &Adapter->eeprompriv;
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
-	int			rtStatus = _SUCCESS;
 
 	/*  */
 	/*  1. Read PHY_REG.TXT BB INIT!! */
 	/*  We will separate as 88C / 92C according to chip version */
 	/*  */
-	if (HAL_STATUS_FAILURE == ODM_ConfigBBWithHeaderFile(&pHalData->odmpriv, CONFIG_BB_PHY_REG))
-		rtStatus = _FAIL;
-	if (rtStatus != _SUCCESS)
-		goto phy_BB8190_Config_ParaFile_Fail;
+	if (HAL_STATUS_FAILURE == ODM_ReadAndConfig_PHY_REG_1T_8188E(&pHalData->odmpriv))
+		return _FAIL;
 
 	/*  2. If EEPROM or EFUSE autoload OK, We must config by PHY_REG_PG.txt */
 	if (!pEEPROM->bautoload_fail_flag) {
 		pHalData->pwrGroupCnt = 0;
-
-		if (HAL_STATUS_FAILURE == ODM_ConfigBBWithHeaderFile(&pHalData->odmpriv, CONFIG_BB_PHY_REG_PG))
-			rtStatus = _FAIL;
+		ODM_ReadAndConfig_PHY_REG_PG_8188E(&pHalData->odmpriv);
 	}
 
-	if (rtStatus != _SUCCESS)
-		goto phy_BB8190_Config_ParaFile_Fail;
-
 	/*  3. BB AGC table Initialization */
-	if (HAL_STATUS_FAILURE == ODM_ConfigBBWithHeaderFile(&pHalData->odmpriv,  CONFIG_BB_AGC_TAB))
-		rtStatus = _FAIL;
+	if (HAL_STATUS_FAILURE == ODM_ReadAndConfig_AGC_TAB_1T_8188E(&pHalData->odmpriv))
+		return _FAIL;
 
-	if (rtStatus != _SUCCESS)
-		goto phy_BB8190_Config_ParaFile_Fail;
-
-phy_BB8190_Config_ParaFile_Fail:
-
-	return rtStatus;
+	return _SUCCESS;
 }
 
 int
@@ -600,17 +537,6 @@ static void getTxPowerIndex88E(struct adapter *Adapter, u8 channel, u8 *cckPower
 	BW40PowerLevel[RF_PATH_A] = pHalData->Index24G_BW40_Base[index];
 }
 
-static void phy_PowerIndexCheck88E(struct adapter *Adapter, u8 channel, u8 *cckPowerLevel,
-				   u8 *ofdmPowerLevel, u8 *BW20PowerLevel, u8 *BW40PowerLevel)
-{
-	struct hal_data_8188e *pHalData = &Adapter->haldata;
-
-	pHalData->CurrentCckTxPwrIdx = cckPowerLevel[0];
-	pHalData->CurrentOfdm24GTxPwrIdx = ofdmPowerLevel[0];
-	pHalData->CurrentBW2024GTxPwrIdx = BW20PowerLevel[0];
-	pHalData->CurrentBW4024GTxPwrIdx = BW40PowerLevel[0];
-}
-
 /*-----------------------------------------------------------------------------
  * Function:    SetTxPowerLevel8190()
  *
@@ -640,8 +566,6 @@ PHY_SetTxPowerLevel8188E(
 	u8 BW40PowerLevel[MAX_TX_COUNT] = {0};
 
 	getTxPowerIndex88E(Adapter, channel, &cckPowerLevel[0], &ofdmPowerLevel[0], &BW20PowerLevel[0], &BW40PowerLevel[0]);
-
-	phy_PowerIndexCheck88E(Adapter, channel, &cckPowerLevel[0], &ofdmPowerLevel[0], &BW20PowerLevel[0], &BW40PowerLevel[0]);
 
 	rtl8188e_PHY_RF6052SetCckTxPower(Adapter, &cckPowerLevel[0]);
 	rtl8188e_PHY_RF6052SetOFDMTxPower(Adapter, &ofdmPowerLevel[0], &BW20PowerLevel[0], &BW40PowerLevel[0], channel);
@@ -757,12 +681,8 @@ void PHY_SetBWMode8188E(struct adapter *Adapter, enum ht_channel_width Bandwidth
 
 static void _PHY_SwChnl8192C(struct adapter *Adapter, u8 channel)
 {
-	u8 eRFPath = 0;
 	u32 param1, param2;
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
-
-	if (Adapter->bNotifyChannelChange)
-		DBG_88E("[%s] ch = %d\n", __func__, channel);
 
 	/* s1. pre common command - CmdID_SetTxPowerLevel */
 	PHY_SetTxPowerLevel8188E(Adapter, channel);
@@ -770,8 +690,8 @@ static void _PHY_SwChnl8192C(struct adapter *Adapter, u8 channel)
 	/* s2. RF dependent command - CmdID_RF_WriteReg, param1=RF_CHNLBW, param2=channel */
 	param1 = RF_CHNLBW;
 	param2 = channel;
-	pHalData->RfRegChnlVal[eRFPath] = ((pHalData->RfRegChnlVal[eRFPath] & 0xfffffc00) | param2);
-	rtl8188e_PHY_SetRFReg(Adapter, (enum rf_radio_path)eRFPath, param1, bRFRegOffsetMask, pHalData->RfRegChnlVal[eRFPath]);
+	pHalData->RfRegChnlVal = ((pHalData->RfRegChnlVal & 0xfffffc00) | param2);
+	rtl8188e_PHY_SetRFReg(Adapter, param1, bRFRegOffsetMask, pHalData->RfRegChnlVal);
 }
 
 void PHY_SwChnl8188E(struct adapter *Adapter, u8 channel)

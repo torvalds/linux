@@ -601,14 +601,14 @@ static int journal_list_still_alive(struct super_block *s,
  */
 static void release_buffer_page(struct buffer_head *bh)
 {
-	struct page *page = bh->b_page;
-	if (!page->mapping && trylock_page(page)) {
-		get_page(page);
+	struct folio *folio = page_folio(bh->b_page);
+	if (!folio->mapping && folio_trylock(folio)) {
+		folio_get(folio);
 		put_bh(bh);
-		if (!page->mapping)
-			try_to_free_buffers(page);
-		unlock_page(page);
-		put_page(page);
+		if (!folio->mapping)
+			try_to_free_buffers(folio);
+		folio_unlock(folio);
+		folio_put(folio);
 	} else {
 		put_bh(bh);
 	}
@@ -858,8 +858,8 @@ loop_next:
 			ret = -EIO;
 		}
 		/*
-		 * ugly interaction with invalidatepage here.
-		 * reiserfs_invalidate_page will pin any buffer that has a
+		 * ugly interaction with invalidate_folio here.
+		 * reiserfs_invalidate_folio will pin any buffer that has a
 		 * valid journal head from an older transaction.  If someone
 		 * else sets our buffer dirty after we write it in the first
 		 * loop, and then someone truncates the page away, nobody

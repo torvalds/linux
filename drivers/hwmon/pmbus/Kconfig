@@ -174,6 +174,13 @@ config SENSORS_LM25066
 	  This driver can also be built as a module. If so, the module will
 	  be called lm25066.
 
+config SENSORS_LM25066_REGULATOR
+	bool "Regulator support for LM25066 and compatibles"
+	depends on SENSORS_LM25066 && REGULATOR
+	help
+	  If you say yes here you get regulator support for National
+	  Semiconductor LM25066, LM5064, and LM5066.
+
 config SENSORS_LTC2978
 	tristate "Linear Technologies LTC2978 and compatibles"
 	help
@@ -189,8 +196,8 @@ config SENSORS_LTC2978_REGULATOR
 	depends on SENSORS_LTC2978 && REGULATOR
 	help
 	  If you say yes here you get regulator support for Linear Technology
-	  LTC3880, LTC3883, LTC3884, LTC3886, LTC3887, LTC3889, LTC7880, 
-	  LTM4644, LTM4675, LTM4676, LTM4677, LTM4678, LTM4680, LTM4686, 
+	  LTC3880, LTC3883, LTC3884, LTC3886, LTC3887, LTC3889, LTC7880,
+	  LTM4644, LTM4675, LTM4676, LTM4677, LTM4678, LTM4680, LTM4686,
 	  and LTM4700.
 
 config SENSORS_LTC3815
@@ -221,10 +228,10 @@ config SENSORS_MAX16064
 	  be called max16064.
 
 config SENSORS_MAX16601
-	tristate "Maxim MAX16508, MAX16601"
+	tristate "Maxim MAX16508, MAX16601, MAX16602"
 	help
 	  If you say yes here you get hardware monitoring support for Maxim
-	  MAX16508 and MAX16601.
+	  MAX16508, MAX16601 and MAX16602.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called max16601.
@@ -310,6 +317,22 @@ config SENSORS_PIM4328
 	  This driver can also be built as a module. If so, the module will
 	  be called pim4328.
 
+config SENSORS_PLI1209BC
+	tristate "Vicor PLI1209BC"
+	help
+	  If you say yes here you get hardware monitoring support for Vicor
+	  PLI1209BC Digital Supervisor.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called pli1209bc.
+
+config SENSORS_PLI1209BC_REGULATOR
+	bool "Regulator support for PLI1209BC"
+	depends on SENSORS_PLI1209BC && REGULATOR
+	help
+	  If you say yes here you get regulator support for Vicor PLI1209BC
+	  Digital Supervisor.
+
 config SENSORS_PM6764TR
 	tristate "ST PM6764TR"
 	help
@@ -385,6 +408,15 @@ config SENSORS_UCD9200
 	  This driver can also be built as a module. If so, the module will
 	  be called ucd9200.
 
+config SENSORS_XDPE152
+	tristate "Infineon XDPE152 family"
+	help
+	  If you say yes here you get hardware monitoring support for Infineon
+	  XDPE15284, XDPE152C4, device.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called xdpe152c4.
+
 config SENSORS_XDPE122
 	tristate "Infineon XDPE122 family"
 	help
@@ -393,6 +425,12 @@ config SENSORS_XDPE122
 
 	  This driver can also be built as a module. If so, the module will
 	  be called xdpe12284.
+
+config SENSORS_XDPE122_REGULATOR
+	bool "Regulator support for XDPE122 and compatibles"
+	depends on SENSORS_XDPE122 && REGULATOR
+	help
+	  Uses the xdpe12284 or compatible as regulator.
 
 config SENSORS_ZL6100
 	tristate "Intersil ZL6100 and compatibles"

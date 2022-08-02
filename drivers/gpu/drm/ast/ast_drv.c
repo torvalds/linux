@@ -34,6 +34,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_gem_vram_helper.h>
+#include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
 
 #include "ast_drv.h"
@@ -158,15 +159,10 @@ static int ast_drm_thaw(struct drm_device *dev)
 
 static int ast_drm_resume(struct drm_device *dev)
 {
-	int ret;
-
 	if (pci_enable_device(to_pci_dev(dev->dev)))
 		return -EIO;
 
-	ret = ast_drm_thaw(dev);
-	if (ret)
-		return ret;
-	return 0;
+	return ast_drm_thaw(dev);
 }
 
 static int ast_pm_suspend(struct device *dev)
@@ -230,22 +226,7 @@ static struct pci_driver ast_pci_driver = {
 	.driver.pm = &ast_pm_ops,
 };
 
-static int __init ast_init(void)
-{
-	if (drm_firmware_drivers_only() && ast_modeset == -1)
-		return -EINVAL;
-
-	if (ast_modeset == 0)
-		return -EINVAL;
-	return pci_register_driver(&ast_pci_driver);
-}
-static void __exit ast_exit(void)
-{
-	pci_unregister_driver(&ast_pci_driver);
-}
-
-module_init(ast_init);
-module_exit(ast_exit);
+drm_module_pci_driver_if_modeset(ast_pci_driver, ast_modeset);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

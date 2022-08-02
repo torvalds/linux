@@ -99,7 +99,7 @@ static inline enum resp_states get_req(struct rxe_qp *qp,
 
 	if (qp->resp.state == QP_STATE_ERROR) {
 		while ((skb = skb_dequeue(&qp->req_pkts))) {
-			rxe_drop_ref(qp);
+			rxe_put(qp);
 			kfree_skb(skb);
 			ib_device_put(qp->ibqp.device);
 		}
@@ -277,7 +277,6 @@ static enum resp_states check_op_valid(struct rxe_qp *qp,
 		break;
 
 	case IB_QPT_UD:
-	case IB_QPT_SMI:
 	case IB_QPT_GSI:
 		break;
 
@@ -297,21 +296,22 @@ static enum resp_states get_srq_wqe(struct rxe_qp *qp)
 	struct ib_event ev;
 	unsigned int count;
 	size_t size;
+	unsigned long flags;
 
 	if (srq->error)
 		return RESPST_ERR_RNR;
 
-	spin_lock_bh(&srq->rq.consumer_lock);
+	spin_lock_irqsave(&srq->rq.consumer_lock, flags);
 
 	wqe = queue_head(q, QUEUE_TYPE_FROM_CLIENT);
 	if (!wqe) {
-		spin_unlock_bh(&srq->rq.consumer_lock);
+		spin_unlock_irqrestore(&srq->rq.consumer_lock, flags);
 		return RESPST_ERR_RNR;
 	}
 
 	/* don't trust user space data */
 	if (unlikely(wqe->dma.num_sge > srq->rq.max_sge)) {
-		spin_unlock_bh(&srq->rq.consumer_lock);
+		spin_unlock_irqrestore(&srq->rq.consumer_lock, flags);
 		pr_warn("%s: invalid num_sge in SRQ entry\n", __func__);
 		return RESPST_ERR_MALFORMED_WQE;
 	}
@@ -327,11 +327,11 @@ static enum resp_states get_srq_wqe(struct rxe_qp *qp)
 		goto event;
 	}
 
-	spin_unlock_bh(&srq->rq.consumer_lock);
+	spin_unlock_irqrestore(&srq->rq.consumer_lock, flags);
 	return RESPST_CHK_LENGTH;
 
 event:
-	spin_unlock_bh(&srq->rq.consumer_lock);
+	spin_unlock_irqrestore(&srq->rq.consumer_lock, flags);
 	ev.device = qp->ibqp.device;
 	ev.element.srq = qp->ibqp.srq;
 	ev.event = IB_EVENT_SRQ_LIMIT_REACHED;
@@ -463,8 +463,8 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 		if (mw->access & IB_ZERO_BASED)
 			qp->resp.offset = mw->addr;
 
-		rxe_drop_ref(mw);
-		rxe_add_ref(mr);
+		rxe_put(mw);
+		rxe_get(mr);
 	} else {
 		mr = lookup_mr(qp->pd, access, rkey, RXE_LOOKUP_REMOTE);
 		if (!mr) {
@@ -507,9 +507,9 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 
 err:
 	if (mr)
-		rxe_drop_ref(mr);
+		rxe_put(mr);
 	if (mw)
-		rxe_drop_ref(mw);
+		rxe_put(mw);
 
 	return state;
 }
@@ -576,8 +576,7 @@ static enum resp_states process_atomic(struct rxe_qp *qp,
 
 	qp->resp.atomic_orig = *vaddr;
 
-	if (pkt->opcode == IB_OPCODE_RC_COMPARE_SWAP ||
-	    pkt->opcode == IB_OPCODE_RD_COMPARE_SWAP) {
+	if (pkt->opcode == IB_OPCODE_RC_COMPARE_SWAP) {
 		if (*vaddr == atmeth_comp(pkt))
 			*vaddr = atmeth_swap_add(pkt);
 	} else {
@@ -632,13 +631,94 @@ static struct sk_buff *prepare_ack_packet(struct rxe_qp *qp,
 	if (ack->mask & RXE_ATMACK_MASK)
 		atmack_set_orig(ack, qp->resp.atomic_orig);
 
-	err = rxe_prepare(ack, skb);
+	err = rxe_prepare(&qp->pri_av, ack, skb);
 	if (err) {
 		kfree_skb(skb);
 		return NULL;
 	}
 
 	return skb;
+}
+
+static struct resp_res *rxe_prepare_read_res(struct rxe_qp *qp,
+					struct rxe_pkt_info *pkt)
+{
+	struct resp_res *res;
+	u32 pkts;
+
+	res = &qp->resp.resources[qp->resp.res_head];
+	rxe_advance_resp_resource(qp);
+	free_rd_atomic_resource(qp, res);
+
+	res->type = RXE_READ_MASK;
+	res->replay = 0;
+	res->read.va = qp->resp.va + qp->resp.offset;
+	res->read.va_org = qp->resp.va + qp->resp.offset;
+	res->read.resid = qp->resp.resid;
+	res->read.length = qp->resp.resid;
+	res->read.rkey = qp->resp.rkey;
+
+	pkts = max_t(u32, (reth_len(pkt) + qp->mtu - 1)/qp->mtu, 1);
+	res->first_psn = pkt->psn;
+	res->cur_psn = pkt->psn;
+	res->last_psn = (pkt->psn + pkts - 1) & BTH_PSN_MASK;
+
+	res->state = rdatm_res_state_new;
+
+	return res;
+}
+
+/**
+ * rxe_recheck_mr - revalidate MR from rkey and get a reference
+ * @qp: the qp
+ * @rkey: the rkey
+ *
+ * This code allows the MR to be invalidated or deregistered or
+ * the MW if one was used to be invalidated or deallocated.
+ * It is assumed that the access permissions if originally good
+ * are OK and the mappings to be unchanged.
+ *
+ * TODO: If someone reregisters an MR to change its size or
+ * access permissions during the processing of an RDMA read
+ * we should kill the responder resource and complete the
+ * operation with an error.
+ *
+ * Return: mr on success else NULL
+ */
+static struct rxe_mr *rxe_recheck_mr(struct rxe_qp *qp, u32 rkey)
+{
+	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
+	struct rxe_mr *mr;
+	struct rxe_mw *mw;
+
+	if (rkey_is_mw(rkey)) {
+		mw = rxe_pool_get_index(&rxe->mw_pool, rkey >> 8);
+		if (!mw)
+			return NULL;
+
+		mr = mw->mr;
+		if (mw->rkey != rkey || mw->state != RXE_MW_STATE_VALID ||
+		    !mr || mr->state != RXE_MR_STATE_VALID) {
+			rxe_put(mw);
+			return NULL;
+		}
+
+		rxe_get(mr);
+		rxe_put(mw);
+
+		return mr;
+	}
+
+	mr = rxe_pool_get_index(&rxe->mr_pool, rkey >> 8);
+	if (!mr)
+		return NULL;
+
+	if (mr->rkey != rkey || mr->state != RXE_MR_STATE_VALID) {
+		rxe_put(mr);
+		return NULL;
+	}
+
+	return mr;
 }
 
 /* RDMA read response. If res is not NULL, then we have a current RDMA request
@@ -655,53 +735,32 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 	int opcode;
 	int err;
 	struct resp_res *res = qp->resp.res;
+	struct rxe_mr *mr;
 
 	if (!res) {
-		/* This is the first time we process that request. Get a
-		 * resource
-		 */
-		res = &qp->resp.resources[qp->resp.res_head];
-
-		free_rd_atomic_resource(qp, res);
-		rxe_advance_resp_resource(qp);
-
-		res->type		= RXE_READ_MASK;
-		res->replay		= 0;
-
-		res->read.va		= qp->resp.va +
-					  qp->resp.offset;
-		res->read.va_org	= qp->resp.va +
-					  qp->resp.offset;
-
-		res->first_psn		= req_pkt->psn;
-
-		if (reth_len(req_pkt)) {
-			res->last_psn	= (req_pkt->psn +
-					   (reth_len(req_pkt) + mtu - 1) /
-					   mtu - 1) & BTH_PSN_MASK;
-		} else {
-			res->last_psn	= res->first_psn;
-		}
-		res->cur_psn		= req_pkt->psn;
-
-		res->read.resid		= qp->resp.resid;
-		res->read.length	= qp->resp.resid;
-		res->read.rkey		= qp->resp.rkey;
-
-		/* note res inherits the reference to mr from qp */
-		res->read.mr		= qp->resp.mr;
-		qp->resp.mr		= NULL;
-
-		qp->resp.res		= res;
-		res->state		= rdatm_res_state_new;
+		res = rxe_prepare_read_res(qp, req_pkt);
+		qp->resp.res = res;
 	}
 
 	if (res->state == rdatm_res_state_new) {
+		if (!res->replay) {
+			mr = qp->resp.mr;
+			qp->resp.mr = NULL;
+		} else {
+			mr = rxe_recheck_mr(qp, res->read.rkey);
+			if (!mr)
+				return RESPST_ERR_RKEY_VIOLATION;
+		}
+
 		if (res->read.resid <= mtu)
 			opcode = IB_OPCODE_RC_RDMA_READ_RESPONSE_ONLY;
 		else
 			opcode = IB_OPCODE_RC_RDMA_READ_RESPONSE_FIRST;
 	} else {
+		mr = rxe_recheck_mr(qp, res->read.rkey);
+		if (!mr)
+			return RESPST_ERR_RKEY_VIOLATION;
+
 		if (res->read.resid > mtu)
 			opcode = IB_OPCODE_RC_RDMA_READ_RESPONSE_MIDDLE;
 		else
@@ -717,10 +776,12 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 	if (!skb)
 		return RESPST_ERR_RNR;
 
-	err = rxe_mr_copy(res->read.mr, res->read.va, payload_addr(&ack_pkt),
+	err = rxe_mr_copy(mr, res->read.va, payload_addr(&ack_pkt),
 			  payload, RXE_FROM_MR_OBJ);
 	if (err)
 		pr_err("Failed copying memory\n");
+	if (mr)
+		rxe_put(mr);
 
 	if (bth_pad(&ack_pkt)) {
 		u8 *pad = payload_addr(&ack_pkt) + payload;
@@ -771,7 +832,6 @@ static enum resp_states execute(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
 
 	if (pkt->mask & RXE_SEND_MASK) {
 		if (qp_type(qp) == IB_QPT_UD ||
-		    qp_type(qp) == IB_QPT_SMI ||
 		    qp_type(qp) == IB_QPT_GSI) {
 			if (skb->protocol == htons(ETH_P_IP)) {
 				memset(&hdr.reserved, 0,
@@ -814,6 +874,10 @@ static enum resp_states execute(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
 			return RESPST_ERR_INVALIDATE_RKEY;
 	}
 
+	if (pkt->mask & RXE_END_MASK)
+		/* We successfully processed this new request. */
+		qp->resp.msn++;
+
 	/* next expected psn, read handles this separately */
 	qp->resp.psn = (pkt->psn + 1) & BTH_PSN_MASK;
 	qp->resp.ack_psn = qp->resp.psn;
@@ -821,11 +885,9 @@ static enum resp_states execute(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
 	qp->resp.opcode = pkt->opcode;
 	qp->resp.status = IB_WC_SUCCESS;
 
-	if (pkt->mask & RXE_COMP_MASK) {
-		/* We successfully processed this new request. */
-		qp->resp.msn++;
+	if (pkt->mask & RXE_COMP_MASK)
 		return RESPST_COMPLETE;
-	} else if (qp_type(qp) == IB_QPT_RC)
+	else if (qp_type(qp) == IB_QPT_RC)
 		return RESPST_ACKNOWLEDGE;
 	else
 		return RESPST_CLEANUP;
@@ -987,7 +1049,7 @@ static int send_atomic_ack(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
 	rc = rxe_xmit_packet(qp, &ack_pkt, skb);
 	if (rc) {
 		pr_err_ratelimited("Failed sending ack\n");
-		rxe_drop_ref(qp);
+		rxe_put(qp);
 	}
 out:
 	return rc;
@@ -1016,13 +1078,13 @@ static enum resp_states cleanup(struct rxe_qp *qp,
 
 	if (pkt) {
 		skb = skb_dequeue(&qp->req_pkts);
-		rxe_drop_ref(qp);
+		rxe_put(qp);
 		kfree_skb(skb);
 		ib_device_put(qp->ibqp.device);
 	}
 
 	if (qp->resp.mr) {
-		rxe_drop_ref(qp->resp.mr);
+		rxe_put(qp->resp.mr);
 		qp->resp.mr = NULL;
 	}
 
@@ -1166,7 +1228,7 @@ static enum resp_states do_class_d1e_error(struct rxe_qp *qp)
 		}
 
 		if (qp->resp.mr) {
-			rxe_drop_ref(qp->resp.mr);
+			rxe_put(qp->resp.mr);
 			qp->resp.mr = NULL;
 		}
 
@@ -1180,7 +1242,7 @@ static void rxe_drain_req_pkts(struct rxe_qp *qp, bool notify)
 	struct rxe_queue *q = qp->rq.queue;
 
 	while ((skb = skb_dequeue(&qp->req_pkts))) {
-		rxe_drop_ref(qp);
+		rxe_put(qp);
 		kfree_skb(skb);
 		ib_device_put(qp->ibqp.device);
 	}
@@ -1200,7 +1262,8 @@ int rxe_responder(void *arg)
 	struct rxe_pkt_info *pkt = NULL;
 	int ret = 0;
 
-	rxe_add_ref(qp);
+	if (!rxe_get(qp))
+		return -EAGAIN;
 
 	qp->resp.aeth_syndrome = AETH_ACK_UNLIMITED;
 
@@ -1387,6 +1450,6 @@ int rxe_responder(void *arg)
 exit:
 	ret = -EAGAIN;
 done:
-	rxe_drop_ref(qp);
+	rxe_put(qp);
 	return ret;
 }

@@ -1005,7 +1005,7 @@ retry_private:
 	rt_mutex_init_waiter(&rt_waiter);
 
 	/*
-	 * On PREEMPT_RT_FULL, when hb->lock becomes an rt_mutex, we must not
+	 * On PREEMPT_RT, when hb->lock becomes an rt_mutex, we must not
 	 * hold it while doing rt_mutex_start_proxy(), because then it will
 	 * include hb->lock in the blocking chain, even through we'll not in
 	 * fact hold it while blocking. This will lead it to report -EDEADLK

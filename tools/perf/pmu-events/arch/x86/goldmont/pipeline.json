@@ -1,452 +1,411 @@
 [
     {
-        "PublicDescription": "Counts the number of instructions that retire execution. For instructions that consist of multiple uops, this event counts the retirement of the last uop of the instruction. The counter continues counting during hardware interrupts, traps, and inside interrupt handlers.  This event uses fixed counter 0.  You cannot collect a PEBs record for this event.",
-        "Counter": "Fixed counter 0",
-        "UMask": "0x1",
-        "EventName": "INST_RETIRED.ANY",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Instructions retired (Fixed event)"
-    },
-    {
-        "PublicDescription": "Counts the number of core cycles while the core is not in a halt state.  The core enters the halt state when it is running the HLT instruction. In mobile systems the core frequency may change from time to time. For this reason this event may have a changing ratio with regards to time.  This event uses fixed counter 1.  You cannot collect a PEBs record for this event.",
-        "Counter": "Fixed counter 1",
-        "UMask": "0x2",
-        "EventName": "CPU_CLK_UNHALTED.CORE",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Core cycles when core is not halted  (Fixed event)"
-    },
-    {
-        "PublicDescription": "Counts the number of reference cycles that the core is not in a halt state. The core enters the halt state when it is running the HLT instruction.  In mobile systems the core frequency may change from time.  This event is not affected by core frequency changes but counts as if the core is running at the maximum frequency all the time.  This event uses fixed counter 2.  You cannot collect a PEBs record for this event.",
-        "Counter": "Fixed counter 2",
-        "UMask": "0x3",
-        "EventName": "CPU_CLK_UNHALTED.REF_TSC",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Reference cycles when core is not halted  (Fixed event)"
-    },
-    {
-        "PEBS": "2",
+        "BriefDescription": "Retired branch instructions (Precise event capable)",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts a load blocked from using a store forward, but did not occur because the store data was not available at the right time.  The forward might occur subsequently when the data is available.",
-        "EventCode": "0x03",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "LD_BLOCKS.DATA_UNKNOWN",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Loads blocked due to store data not ready (Precise event capable)"
-    },
-    {
-        "PEBS": "2",
-        "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts a load blocked from using a store forward because of an address/size mismatch, only one of the loads blocked from each store will be counted.",
-        "EventCode": "0x03",
-        "Counter": "0,1,2,3",
-        "UMask": "0x2",
-        "EventName": "LD_BLOCKS.STORE_FORWARD",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Loads blocked due to store forward restriction (Precise event capable)"
-    },
-    {
-        "PEBS": "2",
-        "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts loads that block because their address modulo 4K matches a pending store.",
-        "EventCode": "0x03",
-        "Counter": "0,1,2,3",
-        "UMask": "0x4",
-        "EventName": "LD_BLOCKS.4K_ALIAS",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Loads blocked because address has 4k partial address false dependence (Precise event capable)"
-    },
-    {
-        "PEBS": "2",
-        "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts loads blocked because they are unable to find their physical address in the micro TLB (UTLB).",
-        "EventCode": "0x03",
-        "Counter": "0,1,2,3",
-        "UMask": "0x8",
-        "EventName": "LD_BLOCKS.UTLB_MISS",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Loads blocked because address in not in the UTLB (Precise event capable)"
-    },
-    {
-        "PEBS": "2",
-        "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts anytime a load that retires is blocked for any reason.",
-        "EventCode": "0x03",
-        "Counter": "0,1,2,3",
-        "UMask": "0x10",
-        "EventName": "LD_BLOCKS.ALL_BLOCK",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Loads blocked (Precise event capable)"
-    },
-    {
-        "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts uops issued by the front end and allocated into the back end of the machine.  This event counts uops that retire as well as uops that were speculatively executed but didn't retire. The sort of speculative uops that might be counted includes, but is not limited to those uops issued in the shadow of a miss-predicted branch, those uops that are inserted during an assist (such as for a denormal floating point result), and (previously allocated) uops that might be canceled during a machine clear.",
-        "EventCode": "0x0E",
-        "Counter": "0,1,2,3",
-        "UMask": "0x0",
-        "EventName": "UOPS_ISSUED.ANY",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Uops issued to the back end per cycle"
-    },
-    {
-        "CollectPEBSRecord": "1",
-        "PublicDescription": "Core cycles when core is not halted.  This event uses a (_P)rogrammable general purpose performance counter.",
-        "EventCode": "0x3C",
-        "Counter": "0,1,2,3",
-        "UMask": "0x0",
-        "EventName": "CPU_CLK_UNHALTED.CORE_P",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Core cycles when core is not halted"
-    },
-    {
-        "CollectPEBSRecord": "1",
-        "PublicDescription": "Reference cycles when core is not halted.  This event uses a programmable general purpose performance counter.",
-        "EventCode": "0x3C",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "CPU_CLK_UNHALTED.REF",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Reference cycles when core is not halted"
-    },
-    {
-        "CollectPEBSRecord": "1",
-        "PublicDescription": "This event used to measure front-end inefficiencies. I.e. when front-end of the machine is not delivering uops to the back-end and the back-end has is not stalled. This event can be used to identify if the machine is truly front-end bound.  When this event occurs, it is an indication that the front-end of the machine is operating at less than its theoretical peak performance. Background: We can think of the processor pipeline as being divided into 2 broader parts: Front-end and Back-end. Front-end is responsible for fetching the instruction, decoding into uops in machine understandable format and putting them into a uop queue to be consumed by back end. The back-end then takes these uops, allocates the required resources.  When all resources are ready, uops are executed. If the back-end is not ready to accept uops from the front-end, then we do not want to count these as front-end bottlenecks.  However, whenever we have bottlenecks in the back-end, we will have allocation unit stalls and eventually forcing the front-end to wait until the back-end is ready to receive more uops. This event counts only when back-end is requesting more uops and front-end is not able to provide them. When 3 uops are requested and no uops are delivered, the event counts 3. When 3 are requested, and only 1 is delivered, the event counts 2. When only 2 are delivered, the event counts 1. Alternatively stated, the event will not count if 3 uops are delivered, or if the back end is stalled and not requesting any uops at all.  Counts indicate missed opportunities for the front-end to deliver a uop to the back end. Some examples of conditions that cause front-end efficiencies are: ICache misses, ITLB misses, and decoder restrictions that limit the front-end bandwidth. Known Issues: Some uops require multiple allocation slots.  These uops will not be charged as a front end 'not delivered' opportunity, and will be regarded as a back end problem. For example, the INC instruction has one uop that requires 2 issue slots.  A stream of INC instructions will not count as UOPS_NOT_DELIVERED, even though only one instruction can be issued per clock.  The low uop issue rate for a stream of INC instructions is considered to be a back end issue.",
-        "EventCode": "0x9C",
-        "Counter": "0,1,2,3",
-        "UMask": "0x0",
-        "EventName": "UOPS_NOT_DELIVERED.ANY",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Uops requested but not-delivered to the back-end per cycle"
-    },
-    {
-        "PEBS": "2",
-        "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts the number of instructions that retire execution. For instructions that consist of multiple uops, this event counts the retirement of the last uop of the instruction. The event continues counting during hardware interrupts, traps, and inside interrupt handlers.  This is an architectural performance event.  This event uses a (_P)rogrammable general purpose performance counter. *This event is Precise Event capable:  The EventingRIP field in the PEBS record is precise to the address of the instruction which caused the event.  Note: Because PEBS records can be collected only on IA32_PMC0, only one event can use the PEBS facility at a time.",
-        "EventCode": "0xC0",
-        "Counter": "0,1,2,3",
-        "UMask": "0x0",
-        "EventName": "INST_RETIRED.ANY_P",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Instructions retired (Precise event capable)"
-    },
-    {
-        "PEBS": "2",
-        "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts uops which retired.",
-        "EventCode": "0xC2",
-        "Counter": "0,1,2,3",
-        "UMask": "0x0",
-        "EventName": "UOPS_RETIRED.ANY",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Uops retired (Precise event capable)"
-    },
-    {
-        "PEBS": "2",
-        "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts uops retired that are from the complex flows issued by the micro-sequencer (MS).  Counts both the uops from a micro-coded instruction, and the uops that might be generated from a micro-coded assist.",
-        "EventCode": "0xC2",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "UOPS_RETIRED.MS",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "MS uops retired (Precise event capable)"
-    },
-    {
-        "PEBS": "2",
-        "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts the number of floating point divide uops retired.",
-        "EventCode": "0xC2",
-        "Counter": "0,1,2,3",
-        "UMask": "0x8",
-        "EventName": "UOPS_RETIRED.FPDIV",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Floating point divide uops retired. (Precise Event Capable)"
-    },
-    {
-        "PEBS": "2",
-        "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts the number of integer divide uops retired.",
-        "EventCode": "0xC2",
-        "Counter": "0,1,2,3",
-        "UMask": "0x10",
-        "EventName": "UOPS_RETIRED.IDIV",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Integer divide uops retired. (Precise Event Capable)"
-    },
-    {
-        "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts machine clears for any reason.",
-        "EventCode": "0xC3",
-        "Counter": "0,1,2,3",
-        "UMask": "0x0",
-        "EventName": "MACHINE_CLEARS.ALL",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "All machine clears"
-    },
-    {
-        "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts the number of times that the processor detects that a program is writing to a code section and has to perform a machine clear because of that modification.  Self-modifying code (SMC) causes a severe penalty in all Intel\u00ae architecture processors.",
-        "EventCode": "0xC3",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "MACHINE_CLEARS.SMC",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Self-Modifying Code detected"
-    },
-    {
-        "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts machine clears due to floating point (FP) operations needing assists.  For instance, if the result was a floating point denormal, the hardware clears the pipeline and reissues uops to produce the correct IEEE compliant denormal result.",
-        "EventCode": "0xC3",
-        "Counter": "0,1,2,3",
-        "UMask": "0x4",
-        "EventName": "MACHINE_CLEARS.FP_ASSIST",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Machine clears due to FP assists"
-    },
-    {
-        "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts machine clears due to memory disambiguation.  Memory disambiguation happens when a load which has been issued conflicts with a previous unretired store in the pipeline whose address was not known at issue time, but is later resolved to be the same as the load address.",
-        "EventCode": "0xC3",
-        "Counter": "0,1,2,3",
-        "UMask": "0x8",
-        "EventName": "MACHINE_CLEARS.DISAMBIGUATION",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Machine clears due to memory disambiguation"
-    },
-    {
-        "PEBS": "2",
-        "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts branch instructions retired for all branch types.  This is an architectural performance event.",
         "EventCode": "0xC4",
-        "Counter": "0,1,2,3",
-        "UMask": "0x0",
         "EventName": "BR_INST_RETIRED.ALL_BRANCHES",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Retired branch instructions (Precise event capable)"
+        "PEBS": "2",
+        "PublicDescription": "Counts branch instructions retired for all branch types.  This is an architectural performance event.",
+        "SampleAfterValue": "200003"
     },
     {
-        "PEBS": "2",
-        "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts retired Jcc (Jump on Conditional Code/Jump if Condition is Met) branch instructions retired, including both when the branch was taken and when it was not taken.",
-        "EventCode": "0xC4",
-        "Counter": "0,1,2,3",
-        "UMask": "0x7e",
-        "EventName": "BR_INST_RETIRED.JCC",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Retired conditional branch instructions (Precise event capable)"
-    },
-    {
-        "PEBS": "2",
+        "BriefDescription": "Retired taken branch instructions (Precise event capable)",
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts the number of taken branch instructions retired.",
-        "EventCode": "0xC4",
         "Counter": "0,1,2,3",
-        "UMask": "0x80",
+        "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.ALL_TAKEN_BRANCHES",
+        "PEBS": "2",
+        "PublicDescription": "Counts the number of taken branch instructions retired.",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Retired taken branch instructions (Precise event capable)"
+        "UMask": "0x80"
     },
     {
-        "PEBS": "2",
+        "BriefDescription": "Retired near call instructions (Precise event capable)",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts far branch instructions retired.  This includes far jump, far call and return, and Interrupt call and return.",
-        "EventCode": "0xC4",
         "Counter": "0,1,2,3",
-        "UMask": "0xbf",
-        "EventName": "BR_INST_RETIRED.FAR_BRANCH",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Retired far branch instructions (Precise event capable)"
-    },
-    {
-        "PEBS": "2",
-        "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts near indirect call or near indirect jmp branch instructions retired.",
         "EventCode": "0xC4",
-        "Counter": "0,1,2,3",
-        "UMask": "0xeb",
-        "EventName": "BR_INST_RETIRED.NON_RETURN_IND",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Retired instructions of near indirect Jmp or call (Precise event capable)"
-    },
-    {
-        "PEBS": "2",
-        "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts near return branch instructions retired.",
-        "EventCode": "0xC4",
-        "Counter": "0,1,2,3",
-        "UMask": "0xf7",
-        "EventName": "BR_INST_RETIRED.RETURN",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Retired near return instructions (Precise event capable)"
-    },
-    {
-        "PEBS": "2",
-        "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts near CALL branch instructions retired.",
-        "EventCode": "0xC4",
-        "Counter": "0,1,2,3",
-        "UMask": "0xf9",
         "EventName": "BR_INST_RETIRED.CALL",
+        "PEBS": "2",
+        "PublicDescription": "Counts near CALL branch instructions retired.",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Retired near call instructions (Precise event capable)"
+        "UMask": "0xf9"
     },
     {
-        "PEBS": "2",
+        "BriefDescription": "Retired far branch instructions (Precise event capable)",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts near indirect CALL branch instructions retired.",
-        "EventCode": "0xC4",
         "Counter": "0,1,2,3",
-        "UMask": "0xfb",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.FAR_BRANCH",
+        "PEBS": "2",
+        "PublicDescription": "Counts far branch instructions retired.  This includes far jump, far call and return, and Interrupt call and return.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xbf"
+    },
+    {
+        "BriefDescription": "Retired near indirect call instructions (Precise event capable)",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.IND_CALL",
+        "PEBS": "2",
+        "PublicDescription": "Counts near indirect CALL branch instructions retired.",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Retired near indirect call instructions (Precise event capable)"
+        "UMask": "0xfb"
     },
     {
-        "PEBS": "2",
+        "BriefDescription": "Retired conditional branch instructions (Precise event capable)",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts near relative CALL branch instructions retired.",
-        "EventCode": "0xC4",
         "Counter": "0,1,2,3",
-        "UMask": "0xfd",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.JCC",
+        "PEBS": "2",
+        "PublicDescription": "Counts retired Jcc (Jump on Conditional Code/Jump if Condition is Met) branch instructions retired, including both when the branch was taken and when it was not taken.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x7e"
+    },
+    {
+        "BriefDescription": "Retired instructions of near indirect Jmp or call (Precise event capable)",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.NON_RETURN_IND",
+        "PEBS": "2",
+        "PublicDescription": "Counts near indirect call or near indirect jmp branch instructions retired.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xeb"
+    },
+    {
+        "BriefDescription": "Retired near relative call instructions (Precise event capable)",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.REL_CALL",
+        "PEBS": "2",
+        "PublicDescription": "Counts near relative CALL branch instructions retired.",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Retired near relative call instructions (Precise event capable)"
+        "UMask": "0xfd"
     },
     {
-        "PEBS": "2",
+        "BriefDescription": "Retired near return instructions (Precise event capable)",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts Jcc (Jump on Conditional Code/Jump if Condition is Met) branch instructions retired that were taken and does not count when the Jcc branch instruction were not taken.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.RETURN",
+        "PEBS": "2",
+        "PublicDescription": "Counts near return branch instructions retired.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xf7"
+    },
+    {
+        "BriefDescription": "Retired conditional branch instructions that were taken (Precise event capable)",
+        "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
-        "UMask": "0xfe",
+        "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.TAKEN_JCC",
+        "PEBS": "2",
+        "PublicDescription": "Counts Jcc (Jump on Conditional Code/Jump if Condition is Met) branch instructions retired that were taken and does not count when the Jcc branch instruction were not taken.",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Retired conditional branch instructions that were taken (Precise event capable)"
+        "UMask": "0xfe"
     },
     {
-        "PEBS": "2",
+        "BriefDescription": "Retired mispredicted branch instructions (Precise event capable)",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts mispredicted branch instructions retired including all branch types.",
-        "EventCode": "0xC5",
         "Counter": "0,1,2,3",
-        "UMask": "0x0",
+        "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.ALL_BRANCHES",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Retired mispredicted branch instructions (Precise event capable)"
+        "PEBS": "2",
+        "PublicDescription": "Counts mispredicted branch instructions retired including all branch types.",
+        "SampleAfterValue": "200003"
     },
     {
-        "PEBS": "2",
+        "BriefDescription": "Retired mispredicted near indirect call instructions (Precise event capable)",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts mispredicted retired Jcc (Jump on Conditional Code/Jump if Condition is Met) branch instructions retired, including both when the branch was supposed to be taken and when it was not supposed to be taken (but the processor predicted the opposite condition).",
-        "EventCode": "0xC5",
         "Counter": "0,1,2,3",
-        "UMask": "0x7e",
-        "EventName": "BR_MISP_RETIRED.JCC",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Retired mispredicted conditional branch instructions (Precise event capable)"
-    },
-    {
-        "PEBS": "2",
-        "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts mispredicted branch instructions retired that were near indirect call or near indirect jmp, where the target address taken was not what the processor predicted.",
         "EventCode": "0xC5",
-        "Counter": "0,1,2,3",
-        "UMask": "0xeb",
-        "EventName": "BR_MISP_RETIRED.NON_RETURN_IND",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Retired mispredicted instructions of near indirect Jmp or near indirect call. (Precise event capable)"
-    },
-    {
-        "PEBS": "2",
-        "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts mispredicted near RET branch instructions retired, where the return address taken was not what the processor predicted.",
-        "EventCode": "0xC5",
-        "Counter": "0,1,2,3",
-        "UMask": "0xf7",
-        "EventName": "BR_MISP_RETIRED.RETURN",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Retired mispredicted near return instructions (Precise event capable)"
-    },
-    {
-        "PEBS": "2",
-        "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts mispredicted near indirect CALL branch instructions retired, where the target address taken was not what the processor predicted.",
-        "EventCode": "0xC5",
-        "Counter": "0,1,2,3",
-        "UMask": "0xfb",
         "EventName": "BR_MISP_RETIRED.IND_CALL",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Retired mispredicted near indirect call instructions (Precise event capable)"
-    },
-    {
         "PEBS": "2",
+        "PublicDescription": "Counts mispredicted near indirect CALL branch instructions retired, where the target address taken was not what the processor predicted.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xfb"
+    },
+    {
+        "BriefDescription": "Retired mispredicted conditional branch instructions (Precise event capable)",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts mispredicted retired Jcc (Jump on Conditional Code/Jump if Condition is Met) branch instructions retired that were supposed to be taken but the processor predicted that it would not be taken.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC5",
+        "EventName": "BR_MISP_RETIRED.JCC",
+        "PEBS": "2",
+        "PublicDescription": "Counts mispredicted retired Jcc (Jump on Conditional Code/Jump if Condition is Met) branch instructions retired, including both when the branch was supposed to be taken and when it was not supposed to be taken (but the processor predicted the opposite condition).",
+        "SampleAfterValue": "200003",
+        "UMask": "0x7e"
+    },
+    {
+        "BriefDescription": "Retired mispredicted instructions of near indirect Jmp or near indirect call. (Precise event capable)",
+        "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
-        "UMask": "0xfe",
+        "EventCode": "0xC5",
+        "EventName": "BR_MISP_RETIRED.NON_RETURN_IND",
+        "PEBS": "2",
+        "PublicDescription": "Counts mispredicted branch instructions retired that were near indirect call or near indirect jmp, where the target address taken was not what the processor predicted.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xeb"
+    },
+    {
+        "BriefDescription": "Retired mispredicted near return instructions (Precise event capable)",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC5",
+        "EventName": "BR_MISP_RETIRED.RETURN",
+        "PEBS": "2",
+        "PublicDescription": "Counts mispredicted near RET branch instructions retired, where the return address taken was not what the processor predicted.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xf7"
+    },
+    {
+        "BriefDescription": "Retired mispredicted conditional branch instructions that were taken (Precise event capable)",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.TAKEN_JCC",
+        "PEBS": "2",
+        "PublicDescription": "Counts mispredicted retired Jcc (Jump on Conditional Code/Jump if Condition is Met) branch instructions retired that were supposed to be taken but the processor predicted that it would not be taken.",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Retired mispredicted conditional branch instructions that were taken (Precise event capable)"
+        "UMask": "0xfe"
     },
     {
-        "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts core cycles if either divide unit is busy.",
-        "EventCode": "0xCD",
-        "Counter": "0,1,2,3",
-        "UMask": "0x0",
-        "EventName": "CYCLES_DIV_BUSY.ALL",
+        "BriefDescription": "Core cycles when core is not halted  (Fixed event)",
+        "Counter": "Fixed counter 1",
+        "EventName": "CPU_CLK_UNHALTED.CORE",
+        "PublicDescription": "Counts the number of core cycles while the core is not in a halt state.  The core enters the halt state when it is running the HLT instruction. In mobile systems the core frequency may change from time to time. For this reason this event may have a changing ratio with regards to time.  This event uses fixed counter 1.  You cannot collect a PEBs record for this event.",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles a divider is busy"
+        "UMask": "0x2"
     },
     {
+        "BriefDescription": "Core cycles when core is not halted",
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts core cycles the integer divide unit is busy.",
-        "EventCode": "0xCD",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0x3C",
+        "EventName": "CPU_CLK_UNHALTED.CORE_P",
+        "PublicDescription": "Core cycles when core is not halted.  This event uses a (_P)rogrammable general purpose performance counter.",
+        "SampleAfterValue": "2000003"
+    },
+    {
+        "BriefDescription": "Reference cycles when core is not halted",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3C",
+        "EventName": "CPU_CLK_UNHALTED.REF",
+        "PublicDescription": "Reference cycles when core is not halted.  This event uses a programmable general purpose performance counter.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Reference cycles when core is not halted  (Fixed event)",
+        "Counter": "Fixed counter 2",
+        "EventName": "CPU_CLK_UNHALTED.REF_TSC",
+        "PublicDescription": "Counts the number of reference cycles that the core is not in a halt state. The core enters the halt state when it is running the HLT instruction.  In mobile systems the core frequency may change from time.  This event is not affected by core frequency changes but counts as if the core is running at the maximum frequency all the time.  This event uses fixed counter 2.  You cannot collect a PEBs record for this event.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x3"
+    },
+    {
+        "BriefDescription": "Cycles a divider is busy",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xCD",
+        "EventName": "CYCLES_DIV_BUSY.ALL",
+        "PublicDescription": "Counts core cycles if either divide unit is busy.",
+        "SampleAfterValue": "2000003"
+    },
+    {
+        "BriefDescription": "Cycles the integer divide unit is busy",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xCD",
         "EventName": "CYCLES_DIV_BUSY.IDIV",
+        "PublicDescription": "Counts core cycles the integer divide unit is busy.",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Cycles the integer divide unit is busy"
+        "UMask": "0x1"
     },
     {
-        "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts core cycles the floating point divide unit is busy.",
-        "EventCode": "0xCD",
-        "Counter": "0,1,2,3",
-        "UMask": "0x2",
-        "EventName": "CYCLES_DIV_BUSY.FPDIV",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Cycles the FP divide unit is busy"
+        "BriefDescription": "Instructions retired (Fixed event)",
+        "Counter": "Fixed counter 0",
+        "EventName": "INST_RETIRED.ANY",
+        "PublicDescription": "Counts the number of instructions that retire execution. For instructions that consist of multiple uops, this event counts the retirement of the last uop of the instruction. The counter continues counting during hardware interrupts, traps, and inside interrupt handlers.  This event uses fixed counter 0.  You cannot collect a PEBs record for this event.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
     },
     {
+        "BriefDescription": "Instructions retired (Precise event capable)",
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts the number of times a BACLEAR is signaled for any reason, including, but not limited to indirect branch/call,  Jcc (Jump on Conditional Code/Jump if Condition is Met) branch, unconditional branch/call, and returns.",
-        "EventCode": "0xE6",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "BACLEARS.ALL",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "BACLEARs asserted for any branch type"
+        "EventCode": "0xC0",
+        "EventName": "INST_RETIRED.ANY_P",
+        "PEBS": "2",
+        "PublicDescription": "Counts the number of instructions that retire execution. For instructions that consist of multiple uops, this event counts the retirement of the last uop of the instruction. The event continues counting during hardware interrupts, traps, and inside interrupt handlers.  This is an architectural performance event.  This event uses a (_P)rogrammable general purpose performance counter. *This event is Precise Event capable:  The EventingRIP field in the PEBS record is precise to the address of the instruction which caused the event.  Note: Because PEBS records can be collected only on IA32_PMC0, only one event can use the PEBS facility at a time.",
+        "SampleAfterValue": "2000003"
     },
     {
+        "BriefDescription": "Unfilled issue slots per cycle",
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts BACLEARS on return instructions.",
-        "EventCode": "0xE6",
         "Counter": "0,1,2,3",
-        "UMask": "0x8",
-        "EventName": "BACLEARS.RETURN",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "BACLEARs asserted for return branch"
+        "EventCode": "0xCA",
+        "EventName": "ISSUE_SLOTS_NOT_CONSUMED.ANY",
+        "PublicDescription": "Counts the number of issue slots per core cycle that were not consumed by the backend due to either a full resource  in the backend (RESOURCE_FULL) or due to the processor recovering from some event (RECOVERY).",
+        "SampleAfterValue": "200003"
     },
     {
+        "BriefDescription": "Unfilled issue slots per cycle to recover",
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts BACLEARS on Jcc (Jump on Conditional Code/Jump if Condition is Met) branches.",
-        "EventCode": "0xE6",
         "Counter": "0,1,2,3",
-        "UMask": "0x10",
-        "EventName": "BACLEARS.COND",
+        "EventCode": "0xCA",
+        "EventName": "ISSUE_SLOTS_NOT_CONSUMED.RECOVERY",
+        "PublicDescription": "Counts the number of issue slots per core cycle that were not consumed by the backend because allocation is stalled waiting for a mispredicted jump to retire or other branch-like conditions (e.g. the event is relevant during certain microcode flows).   Counts all issue slots blocked while within this window including slots where uops were not available in the Instruction Queue.",
         "SampleAfterValue": "200003",
-        "BriefDescription": "BACLEARs asserted for conditional branch"
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Unfilled issue slots per cycle because of a full resource in the backend",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xCA",
+        "EventName": "ISSUE_SLOTS_NOT_CONSUMED.RESOURCE_FULL",
+        "PublicDescription": "Counts the number of issue slots per core cycle that were not consumed because of a full resource in the backend.  Including but not limited to resources such as the Re-order Buffer (ROB), reservation stations (RS), load/store buffers, physical registers, or any other needed machine resource that is currently unavailable.   Note that uops must be available for consumption in order for this event to fire.  If a uop is not available (Instruction Queue is empty), this event will not count.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Loads blocked because address has 4k partial address false dependence (Precise event capable)",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "LD_BLOCKS.4K_ALIAS",
+        "PEBS": "2",
+        "PublicDescription": "Counts loads that block because their address modulo 4K matches a pending store.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Loads blocked (Precise event capable)",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "LD_BLOCKS.ALL_BLOCK",
+        "PEBS": "2",
+        "PublicDescription": "Counts anytime a load that retires is blocked for any reason.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "Loads blocked due to store data not ready (Precise event capable)",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "LD_BLOCKS.DATA_UNKNOWN",
+        "PEBS": "2",
+        "PublicDescription": "Counts a load blocked from using a store forward, but did not occur because the store data was not available at the right time.  The forward might occur subsequently when the data is available.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Loads blocked due to store forward restriction (Precise event capable)",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "LD_BLOCKS.STORE_FORWARD",
+        "PEBS": "2",
+        "PublicDescription": "Counts a load blocked from using a store forward because of an address/size mismatch, only one of the loads blocked from each store will be counted.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Loads blocked because address in not in the UTLB (Precise event capable)",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "LD_BLOCKS.UTLB_MISS",
+        "PEBS": "2",
+        "PublicDescription": "Counts loads blocked because they are unable to find their physical address in the micro TLB (UTLB).",
+        "SampleAfterValue": "200003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "All machine clears",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC3",
+        "EventName": "MACHINE_CLEARS.ALL",
+        "PublicDescription": "Counts machine clears for any reason.",
+        "SampleAfterValue": "200003"
+    },
+    {
+        "BriefDescription": "Machine clears due to memory disambiguation",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC3",
+        "EventName": "MACHINE_CLEARS.DISAMBIGUATION",
+        "PublicDescription": "Counts machine clears due to memory disambiguation.  Memory disambiguation happens when a load which has been issued conflicts with a previous unretired store in the pipeline whose address was not known at issue time, but is later resolved to be the same as the load address.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Self-Modifying Code detected",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC3",
+        "EventName": "MACHINE_CLEARS.SMC",
+        "PublicDescription": "Counts the number of times that the processor detects that a program is writing to a code section and has to perform a machine clear because of that modification.  Self-modifying code (SMC) causes a severe penalty in all Intel architecture processors.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Uops issued to the back end per cycle",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x0E",
+        "EventName": "UOPS_ISSUED.ANY",
+        "PublicDescription": "Counts uops issued by the front end and allocated into the back end of the machine.  This event counts uops that retire as well as uops that were speculatively executed but didn't retire. The sort of speculative uops that might be counted includes, but is not limited to those uops issued in the shadow of a miss-predicted branch, those uops that are inserted during an assist (such as for a denormal floating point result), and (previously allocated) uops that might be canceled during a machine clear.",
+        "SampleAfterValue": "200003"
+    },
+    {
+        "BriefDescription": "Uops requested but not-delivered to the back-end per cycle",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x9C",
+        "EventName": "UOPS_NOT_DELIVERED.ANY",
+        "PublicDescription": "This event used to measure front-end inefficiencies. I.e. when front-end of the machine is not delivering uops to the back-end and the back-end has is not stalled. This event can be used to identify if the machine is truly front-end bound.  When this event occurs, it is an indication that the front-end of the machine is operating at less than its theoretical peak performance. Background: We can think of the processor pipeline as being divided into 2 broader parts: Front-end and Back-end. Front-end is responsible for fetching the instruction, decoding into uops in machine understandable format and putting them into a uop queue to be consumed by back end. The back-end then takes these uops, allocates the required resources.  When all resources are ready, uops are executed. If the back-end is not ready to accept uops from the front-end, then we do not want to count these as front-end bottlenecks.  However, whenever we have bottlenecks in the back-end, we will have allocation unit stalls and eventually forcing the front-end to wait until the back-end is ready to receive more uops. This event counts only when back-end is requesting more uops and front-end is not able to provide them. When 3 uops are requested and no uops are delivered, the event counts 3. When 3 are requested, and only 1 is delivered, the event counts 2. When only 2 are delivered, the event counts 1. Alternatively stated, the event will not count if 3 uops are delivered, or if the back end is stalled and not requesting any uops at all.  Counts indicate missed opportunities for the front-end to deliver a uop to the back end. Some examples of conditions that cause front-end efficiencies are: ICache misses, ITLB misses, and decoder restrictions that limit the front-end bandwidth. Known Issues: Some uops require multiple allocation slots.  These uops will not be charged as a front end 'not delivered' opportunity, and will be regarded as a back end problem. For example, the INC instruction has one uop that requires 2 issue slots.  A stream of INC instructions will not count as UOPS_NOT_DELIVERED, even though only one instruction can be issued per clock.  The low uop issue rate for a stream of INC instructions is considered to be a back end issue.",
+        "SampleAfterValue": "200003"
+    },
+    {
+        "BriefDescription": "Uops retired (Precise event capable)",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC2",
+        "EventName": "UOPS_RETIRED.ANY",
+        "PEBS": "2",
+        "PublicDescription": "Counts uops which retired.",
+        "SampleAfterValue": "2000003"
+    },
+    {
+        "BriefDescription": "Integer divide uops retired. (Precise Event Capable)",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC2",
+        "EventName": "UOPS_RETIRED.IDIV",
+        "PEBS": "2",
+        "PublicDescription": "Counts the number of integer divide uops retired.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "MS uops retired (Precise event capable)",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC2",
+        "EventName": "UOPS_RETIRED.MS",
+        "PEBS": "2",
+        "PublicDescription": "Counts uops retired that are from the complex flows issued by the micro-sequencer (MS).  Counts both the uops from a micro-coded instruction, and the uops that might be generated from a micro-coded assist.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
     }
 ]

@@ -14,21 +14,40 @@
 #include "node.h"
 #include <trace/events/f2fs.h>
 
-bool f2fs_may_inline_data(struct inode *inode)
+static bool support_inline_data(struct inode *inode)
 {
 	if (f2fs_is_atomic_file(inode))
 		return false;
-
 	if (!S_ISREG(inode->i_mode) && !S_ISLNK(inode->i_mode))
 		return false;
-
 	if (i_size_read(inode) > MAX_INLINE_DATA(inode))
 		return false;
+	return true;
+}
 
-	if (f2fs_post_read_required(inode))
+bool f2fs_may_inline_data(struct inode *inode)
+{
+	if (!support_inline_data(inode))
 		return false;
 
-	return true;
+	return !f2fs_post_read_required(inode);
+}
+
+bool f2fs_sanity_check_inline_data(struct inode *inode)
+{
+	if (!f2fs_has_inline_data(inode))
+		return false;
+
+	if (!support_inline_data(inode))
+		return true;
+
+	/*
+	 * used by sanity_check_inode(), when disk layout fields has not
+	 * been synchronized to inmem fields.
+	 */
+	return (S_ISREG(inode->i_mode) &&
+		(file_is_encrypt(inode) || file_is_verity(inode) ||
+		(F2FS_I(inode)->i_flags & F2FS_COMPR_FL)));
 }
 
 bool f2fs_may_inline_dentry(struct inode *inode)
@@ -629,7 +648,7 @@ int f2fs_add_inline_entry(struct inode *dir, const struct f2fs_filename *fname,
 	}
 
 	if (inode) {
-		down_write(&F2FS_I(inode)->i_sem);
+		f2fs_down_write(&F2FS_I(inode)->i_sem);
 		page = f2fs_init_inode_metadata(inode, dir, fname, ipage);
 		if (IS_ERR(page)) {
 			err = PTR_ERR(page);
@@ -658,7 +677,7 @@ int f2fs_add_inline_entry(struct inode *dir, const struct f2fs_filename *fname,
 	f2fs_update_parent_metadata(dir, inode, 0);
 fail:
 	if (inode)
-		up_write(&F2FS_I(inode)->i_sem);
+		f2fs_up_write(&F2FS_I(inode)->i_sem);
 out:
 	f2fs_put_page(ipage, 1);
 	return err;

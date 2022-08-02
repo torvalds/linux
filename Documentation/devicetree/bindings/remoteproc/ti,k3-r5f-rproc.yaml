@@ -95,8 +95,7 @@ patternProperties:
       addresses. Cache and memory access settings are provided through a
       Memory Protection Unit (MPU), programmable only from the R5Fs.
 
-    allOf:
-      - $ref: /schemas/arm/keystone/ti,k3-sci-common.yaml#
+    $ref: /schemas/arm/keystone/ti,k3-sci-common.yaml#
 
     properties:
       compatible:
@@ -189,6 +188,8 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/phandle-array
         minItems: 1
         maxItems: 4
+        items:
+          maxItems: 1
         description: |
           phandles to one or more reserved on-chip SRAM regions. The regions
           should be defined as child nodes of the respective SRAM node, and
@@ -235,6 +236,14 @@ examples:
     soc {
         #address-cells = <2>;
         #size-cells = <2>;
+
+        mailbox0: mailbox-0 {
+            #mbox-cells = <1>;
+        };
+
+        mailbox1: mailbox-1 {
+            #mbox-cells = <1>;
+        };
 
         bus@100000 {
             compatible = "simple-bus";

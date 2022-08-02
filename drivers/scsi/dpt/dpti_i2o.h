@@ -123,7 +123,7 @@ struct i2o_sys_tbl
 	u32	change_ind;
 	u32	reserved2;
 	u32	reserved3;
-	struct i2o_sys_tbl_entry iops[0];
+	struct i2o_sys_tbl_entry iops[];
 };
 
 /*

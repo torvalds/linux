@@ -25,7 +25,7 @@
 
 #include <linux/crc32.h>
 #include <linux/delay.h>
-#include <linux/dma-buf-map.h>
+#include <linux/iosys-map.h>
 
 #include <drm/drm_drv.h>
 #include <drm/drm_atomic.h>
@@ -34,6 +34,7 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
+#include <drm/drm_gem_atomic_helper.h>
 
 #include "qxl_drv.h"
 #include "qxl_object.h"
@@ -566,8 +567,8 @@ static struct qxl_bo *qxl_create_cursor(struct qxl_device *qdev,
 {
 	static const u32 size = 64 * 64 * 4;
 	struct qxl_bo *cursor_bo;
-	struct dma_buf_map cursor_map;
-	struct dma_buf_map user_map;
+	struct iosys_map cursor_map;
+	struct iosys_map user_map;
 	struct qxl_cursor cursor;
 	int ret;
 
@@ -829,6 +830,7 @@ static int qxl_plane_prepare_fb(struct drm_plane *plane,
 	struct qxl_device *qdev = to_qxl(plane->dev);
 	struct drm_gem_object *obj;
 	struct qxl_bo *user_bo;
+	int ret;
 
 	if (!new_state->fb)
 		return 0;
@@ -852,7 +854,11 @@ static int qxl_plane_prepare_fb(struct drm_plane *plane,
 		qxl_free_cursor(old_cursor_bo);
 	}
 
-	return qxl_bo_pin(user_bo);
+	ret = qxl_bo_pin(user_bo);
+	if (ret)
+		return ret;
+
+	return drm_gem_plane_helper_prepare_fb(plane, new_state);
 }
 
 static void qxl_plane_cleanup_fb(struct drm_plane *plane,
@@ -1183,7 +1189,7 @@ int qxl_create_monitors_object(struct qxl_device *qdev)
 {
 	int ret;
 	struct drm_gem_object *gobj;
-	struct dma_buf_map map;
+	struct iosys_map map;
 	int monitors_config_size = sizeof(struct qxl_monitors_config) +
 		qxl_num_crtc * sizeof(struct qxl_head);
 

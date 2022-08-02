@@ -6,12 +6,6 @@ config VIRTIO
 	  bus, such as CONFIG_VIRTIO_PCI, CONFIG_VIRTIO_MMIO, CONFIG_RPMSG
 	  or CONFIG_S390_GUEST.
 
-config ARCH_HAS_RESTRICTED_VIRTIO_MEMORY_ACCESS
-	bool
-	help
-	  This option is selected if the architecture may need to enforce
-	  VIRTIO_F_ACCESS_PLATFORM
-
 config VIRTIO_PCI_LIB
 	tristate
 	help
@@ -34,6 +28,19 @@ menuconfig VIRTIO_MENU
 	default y
 
 if VIRTIO_MENU
+
+config VIRTIO_HARDEN_NOTIFICATION
+        bool "Harden virtio notification"
+        help
+          Enable this to harden the device notifications and suppress
+          those that happen at a time where notifications are illegal.
+
+          Experimental: Note that several drivers still have bugs that
+          may cause crashes or hangs when correct handling of
+          notifications is enforced; depending on the subset of
+          drivers and devices you use, this may or may not work.
+
+          If unsure, say N.
 
 config VIRTIO_PCI
 	tristate "PCI driver for virtio devices"
@@ -105,7 +112,7 @@ config VIRTIO_BALLOON
 
 config VIRTIO_MEM
 	tristate "Virtio mem driver"
-	depends on X86_64
+	depends on X86_64 || ARM64
 	depends on VIRTIO
 	depends on MEMORY_HOTPLUG
 	depends on MEMORY_HOTREMOVE
@@ -115,8 +122,9 @@ config VIRTIO_MEM
 	 This driver provides access to virtio-mem paravirtualized memory
 	 devices, allowing to hotplug and hotunplug memory.
 
-	 This driver was only tested under x86-64, but should theoretically
-	 work on all architectures that support memory hotplug and hotremove.
+	 This driver was only tested under x86-64 and arm64, but should
+	 theoretically work on all architectures that support memory hotplug
+	 and hotremove.
 
 	 If unsure, say M.
 

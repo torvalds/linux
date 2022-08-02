@@ -794,7 +794,7 @@ static void regmap_ibt_free_context(void *context)
 	kfree(context);
 }
 
-static struct regmap_bus regmap_ibt = {
+static const struct regmap_bus regmap_ibt = {
 	.read = regmap_ibt_read,
 	.write = regmap_ibt_write,
 	.gather_write = regmap_ibt_gather_write,
@@ -2428,10 +2428,15 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 
 			/* Apply the device specific HCI quirks
 			 *
-			 * WBS for SdP - SdP and Stp have a same hw_varaint but
-			 * different fw_variant
+			 * WBS for SdP - For the Legacy ROM products, only SdP
+			 * supports the WBS. But the version information is not
+			 * enough to use here because the StP2 and SdP have same
+			 * hw_variant and fw_variant. So, this flag is set by
+			 * the transport driver (btusb) based on the HW info
+			 * (idProduct)
 			 */
-			if (ver.hw_variant == 0x08 && ver.fw_variant == 0x22)
+			if (!btintel_test_flag(hdev,
+					       INTEL_ROM_LEGACY_NO_WBS_SUPPORT))
 				set_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED,
 					&hdev->quirks);
 

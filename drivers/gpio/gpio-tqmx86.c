@@ -281,7 +281,6 @@ static int tqmx86_gpio_probe(struct platform_device *pdev)
 		u8 irq_status;
 
 		irq_chip->name = chip->label;
-		irq_chip->parent_device = &pdev->dev;
 		irq_chip->irq_mask = tqmx86_gpio_irq_mask;
 		irq_chip->irq_unmask = tqmx86_gpio_irq_unmask;
 		irq_chip->irq_set_type = tqmx86_gpio_irq_set_type;
@@ -315,6 +314,8 @@ static int tqmx86_gpio_probe(struct platform_device *pdev)
 		dev_err(dev, "Could not register GPIO chip\n");
 		goto out_pm_dis;
 	}
+
+	irq_domain_set_pm_device(girq->domain, dev);
 
 	dev_info(dev, "GPIO functionality initialized with %d pins\n",
 		 chip->ngpio);

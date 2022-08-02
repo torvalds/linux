@@ -6,6 +6,7 @@
 #include <linux/psi_types.h>
 #include <linux/sched.h>
 #include <linux/poll.h>
+#include <linux/cgroup-defs.h>
 
 struct seq_file;
 struct css_set;

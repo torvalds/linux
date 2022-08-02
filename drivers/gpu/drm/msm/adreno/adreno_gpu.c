@@ -14,6 +14,7 @@
 #include <linux/pm_opp.h>
 #include <linux/slab.h>
 #include <linux/soc/qcom/mdt_loader.h>
+#include <linux/nvmem-consumer.h>
 #include <soc/qcom/ocmem.h>
 #include "adreno_gpu.h"
 #include "a6xx_gpu.h"
@@ -227,9 +228,14 @@ adreno_iommu_create_address_space(struct msm_gpu *gpu,
 	return aspace;
 }
 
-int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
+int adreno_get_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
+		     uint32_t param, uint64_t *value, uint32_t *len)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+
+	/* No pointer params yet */
+	if (*len != 0)
+		return -EINVAL;
 
 	switch (param) {
 	case MSM_PARAM_GPU_ID:
@@ -242,10 +248,12 @@ int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 		*value = !adreno_is_a650_family(adreno_gpu) ? 0x100000 : 0;
 		return 0;
 	case MSM_PARAM_CHIP_ID:
-		*value = adreno_gpu->rev.patchid |
-				(adreno_gpu->rev.minor << 8) |
-				(adreno_gpu->rev.major << 16) |
-				(adreno_gpu->rev.core << 24);
+		*value =  (uint64_t)adreno_gpu->rev.patchid |
+			 ((uint64_t)adreno_gpu->rev.minor << 8) |
+			 ((uint64_t)adreno_gpu->rev.major << 16) |
+			 ((uint64_t)adreno_gpu->rev.core  << 24);
+		if (!adreno_gpu->info->revn)
+			*value |= ((uint64_t) adreno_gpu->speedbin) << 32;
 		return 0;
 	case MSM_PARAM_MAX_FREQ:
 		*value = adreno_gpu->base.fast_rate;
@@ -268,11 +276,79 @@ int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 		*value = 0;
 		return 0;
 	case MSM_PARAM_FAULTS:
-		*value = gpu->global_faults;
+		if (ctx->aspace)
+			*value = gpu->global_faults + ctx->aspace->faults;
+		else
+			*value = gpu->global_faults;
 		return 0;
 	case MSM_PARAM_SUSPENDS:
 		*value = gpu->suspend_count;
 		return 0;
+	case MSM_PARAM_VA_START:
+		if (ctx->aspace == gpu->aspace)
+			return -EINVAL;
+		*value = ctx->aspace->va_start;
+		return 0;
+	case MSM_PARAM_VA_SIZE:
+		if (ctx->aspace == gpu->aspace)
+			return -EINVAL;
+		*value = ctx->aspace->va_size;
+		return 0;
+	default:
+		DBG("%s: invalid param: %u", gpu->name, param);
+		return -EINVAL;
+	}
+}
+
+int adreno_set_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
+		     uint32_t param, uint64_t value, uint32_t len)
+{
+	switch (param) {
+	case MSM_PARAM_COMM:
+	case MSM_PARAM_CMDLINE:
+		/* kstrdup_quotable_cmdline() limits to PAGE_SIZE, so
+		 * that should be a reasonable upper bound
+		 */
+		if (len > PAGE_SIZE)
+			return -EINVAL;
+		break;
+	default:
+		if (len != 0)
+			return -EINVAL;
+	}
+
+	switch (param) {
+	case MSM_PARAM_COMM:
+	case MSM_PARAM_CMDLINE: {
+		char *str, **paramp;
+
+		str = kmalloc(len + 1, GFP_KERNEL);
+		if (!str)
+			return -ENOMEM;
+
+		if (copy_from_user(str, u64_to_user_ptr(value), len)) {
+			kfree(str);
+			return -EFAULT;
+		}
+
+		/* Ensure string is null terminated: */
+		str[len] = '\0';
+
+		if (param == MSM_PARAM_COMM) {
+			paramp = &ctx->comm;
+		} else {
+			paramp = &ctx->cmdline;
+		}
+
+		kfree(*paramp);
+		*paramp = str;
+
+		return 0;
+	}
+	case MSM_PARAM_SYSPROF:
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+		return msm_file_private_set_sysprof(ctx, gpu, value);
 	default:
 		DBG("%s: invalid param: %u", gpu->name, param);
 		return -EINVAL;
@@ -422,10 +498,15 @@ int adreno_hw_init(struct msm_gpu *gpu)
 
 		ring->cur = ring->start;
 		ring->next = ring->start;
-
-		/* reset completed fence seqno: */
-		ring->memptrs->fence = ring->fctx->completed_fence;
 		ring->memptrs->rptr = 0;
+
+		/* Detect and clean up an impossible fence, ie. if GPU managed
+		 * to scribble something invalid, we don't want that to confuse
+		 * us into mistakingly believing that submits have completed.
+		 */
+		if (fence_before(ring->fctx->last_fence, ring->memptrs->fence)) {
+			ring->memptrs->fence = ring->fctx->last_fence;
+		}
 	}
 
 	return 0;
@@ -515,7 +596,7 @@ int adreno_gpu_state_get(struct msm_gpu *gpu, struct msm_gpu_state *state)
 
 		state->ring[i].fence = gpu->rb[i]->memptrs->fence;
 		state->ring[i].iova = gpu->rb[i]->iova;
-		state->ring[i].seqno = gpu->rb[i]->seqno;
+		state->ring[i].seqno = gpu->rb[i]->fctx->last_fence;
 		state->ring[i].rptr = get_rptr(adreno_gpu, gpu->rb[i]);
 		state->ring[i].wptr = get_wptr(gpu->rb[i]);
 
@@ -765,7 +846,7 @@ void adreno_dump_info(struct msm_gpu *gpu)
 
 		printk("rb %d: fence:    %d/%d\n", i,
 			ring->memptrs->fence,
-			ring->seqno);
+			ring->fctx->last_fence);
 
 		printk("rptr:     %d\n", get_rptr(adreno_gpu, ring));
 		printk("rb wptr:  %d\n", get_wptr(ring));
@@ -921,6 +1002,11 @@ void adreno_gpu_ocmem_cleanup(struct adreno_ocmem *adreno_ocmem)
 			   adreno_ocmem->hdl);
 }
 
+int adreno_read_speedbin(struct device *dev, u32 *speedbin)
+{
+	return nvmem_cell_read_variable_le_u32(dev, "speed_bin", speedbin);
+}
+
 int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		struct adreno_gpu *adreno_gpu,
 		const struct adreno_gpu_funcs *funcs, int nr_rings)
@@ -929,12 +1015,28 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	struct adreno_platform_config *config = dev->platform_data;
 	struct msm_gpu_config adreno_gpu_config  = { 0 };
 	struct msm_gpu *gpu = &adreno_gpu->base;
+	struct adreno_rev *rev = &config->rev;
+	const char *gpu_name;
+	u32 speedbin;
 
 	adreno_gpu->funcs = funcs;
 	adreno_gpu->info = adreno_info(config->rev);
 	adreno_gpu->gmem = adreno_gpu->info->gmem;
 	adreno_gpu->revn = adreno_gpu->info->revn;
-	adreno_gpu->rev = config->rev;
+	adreno_gpu->rev = *rev;
+
+	if (adreno_read_speedbin(dev, &speedbin) || !speedbin)
+		speedbin = 0xffff;
+	adreno_gpu->speedbin = (uint16_t) (0xffff & speedbin);
+
+	gpu_name = adreno_gpu->info->name;
+	if (!gpu_name) {
+		gpu_name = devm_kasprintf(dev, GFP_KERNEL, "%d.%d.%d.%d",
+				rev->core, rev->major, rev->minor,
+				rev->patchid);
+		if (!gpu_name)
+			return -ENOMEM;
+	}
 
 	adreno_gpu_config.ioname = "kgsl_3d0_reg_memory";
 
@@ -948,7 +1050,7 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	pm_runtime_enable(dev);
 
 	return msm_gpu_init(drm, pdev, &adreno_gpu->base, &funcs->base,
-			adreno_gpu->info->name, &adreno_gpu_config);
+			gpu_name, &adreno_gpu_config);
 }
 
 void adreno_gpu_cleanup(struct adreno_gpu *adreno_gpu)
@@ -960,7 +1062,8 @@ void adreno_gpu_cleanup(struct adreno_gpu *adreno_gpu)
 	for (i = 0; i < ARRAY_SIZE(adreno_gpu->info->fw); i++)
 		release_firmware(adreno_gpu->fw[i]);
 
-	pm_runtime_disable(&priv->gpu_pdev->dev);
+	if (pm_runtime_enabled(&priv->gpu_pdev->dev))
+		pm_runtime_disable(&priv->gpu_pdev->dev);
 
 	msm_gpu_cleanup(&adreno_gpu->base);
 }

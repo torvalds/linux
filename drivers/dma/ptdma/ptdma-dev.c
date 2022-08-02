@@ -100,6 +100,7 @@ int pt_core_perform_passthru(struct pt_cmd_queue *cmd_q,
 			     struct pt_passthru_engine *pt_engine)
 {
 	struct ptdma_desc desc;
+	struct pt_device *pt = container_of(cmd_q, struct pt_device, cmd_q);
 
 	cmd_q->cmd_error = 0;
 	cmd_q->total_pt_ops++;
@@ -111,17 +112,12 @@ int pt_core_perform_passthru(struct pt_cmd_queue *cmd_q,
 	desc.dst_lo = lower_32_bits(pt_engine->dst_dma);
 	desc.dw5.dst_hi = upper_32_bits(pt_engine->dst_dma);
 
+	if (cmd_q->int_en)
+		pt_core_enable_queue_interrupts(pt);
+	else
+		pt_core_disable_queue_interrupts(pt);
+
 	return pt_core_execute_cmd(&desc, cmd_q);
-}
-
-static inline void pt_core_disable_queue_interrupts(struct pt_device *pt)
-{
-	iowrite32(0, pt->cmd_q.reg_control + 0x000C);
-}
-
-static inline void pt_core_enable_queue_interrupts(struct pt_device *pt)
-{
-	iowrite32(SUPPORTED_INTERRUPTS, pt->cmd_q.reg_control + 0x000C);
 }
 
 static void pt_do_cmd_complete(unsigned long data)
@@ -144,14 +140,10 @@ static void pt_do_cmd_complete(unsigned long data)
 	cmd->pt_cmd_callback(cmd->data, cmd->ret);
 }
 
-static irqreturn_t pt_core_irq_handler(int irq, void *data)
+void pt_check_status_trans(struct pt_device *pt, struct pt_cmd_queue *cmd_q)
 {
-	struct pt_device *pt = data;
-	struct pt_cmd_queue *cmd_q = &pt->cmd_q;
 	u32 status;
 
-	pt_core_disable_queue_interrupts(pt);
-	pt->total_interrupts++;
 	status = ioread32(cmd_q->reg_control + 0x0010);
 	if (status) {
 		cmd_q->int_status = status;
@@ -162,11 +154,21 @@ static irqreturn_t pt_core_irq_handler(int irq, void *data)
 		if ((status & INT_ERROR) && !cmd_q->cmd_error)
 			cmd_q->cmd_error = CMD_Q_ERROR(cmd_q->q_status);
 
-		/* Acknowledge the interrupt */
+		/* Acknowledge the completion */
 		iowrite32(status, cmd_q->reg_control + 0x0010);
-		pt_core_enable_queue_interrupts(pt);
 		pt_do_cmd_complete((ulong)&pt->tdata);
 	}
+}
+
+static irqreturn_t pt_core_irq_handler(int irq, void *data)
+{
+	struct pt_device *pt = data;
+	struct pt_cmd_queue *cmd_q = &pt->cmd_q;
+
+	pt_core_disable_queue_interrupts(pt);
+	pt->total_interrupts++;
+	pt_check_status_trans(pt, cmd_q);
+	pt_core_enable_queue_interrupts(pt);
 	return IRQ_HANDLED;
 }
 

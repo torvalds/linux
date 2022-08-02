@@ -87,21 +87,25 @@ class HeaderParser(object):
         self.line = ''
         self.helpers = []
         self.commands = []
+        self.desc_unique_helpers = set()
+        self.define_unique_helpers = []
+        self.desc_syscalls = []
+        self.enum_syscalls = []
 
     def parse_element(self):
         proto    = self.parse_symbol()
-        desc     = self.parse_desc()
-        ret      = self.parse_ret()
+        desc     = self.parse_desc(proto)
+        ret      = self.parse_ret(proto)
         return APIElement(proto=proto, desc=desc, ret=ret)
 
     def parse_helper(self):
         proto    = self.parse_proto()
-        desc     = self.parse_desc()
-        ret      = self.parse_ret()
+        desc     = self.parse_desc(proto)
+        ret      = self.parse_ret(proto)
         return Helper(proto=proto, desc=desc, ret=ret)
 
     def parse_symbol(self):
-        p = re.compile(' \* ?(.+)$')
+        p = re.compile(' \* ?(BPF\w+)$')
         capture = p.match(self.line)
         if not capture:
             raise NoSyscallCommandFound
@@ -127,16 +131,15 @@ class HeaderParser(object):
         self.line = self.reader.readline()
         return capture.group(1)
 
-    def parse_desc(self):
+    def parse_desc(self, proto):
         p = re.compile(' \* ?(?:\t| {5,8})Description$')
         capture = p.match(self.line)
         if not capture:
-            # Helper can have empty description and we might be parsing another
-            # attribute: return but do not consume.
-            return ''
+            raise Exception("No description section found for " + proto)
         # Description can be several lines, some of them possibly empty, and it
         # stops when another subsection title is met.
         desc = ''
+        desc_present = False
         while True:
             self.line = self.reader.readline()
             if self.line == ' *\n':
@@ -145,21 +148,24 @@ class HeaderParser(object):
                 p = re.compile(' \* ?(?:\t| {5,8})(?:\t| {8})(.*)')
                 capture = p.match(self.line)
                 if capture:
+                    desc_present = True
                     desc += capture.group(1) + '\n'
                 else:
                     break
+
+        if not desc_present:
+            raise Exception("No description found for " + proto)
         return desc
 
-    def parse_ret(self):
+    def parse_ret(self, proto):
         p = re.compile(' \* ?(?:\t| {5,8})Return$')
         capture = p.match(self.line)
         if not capture:
-            # Helper can have empty retval and we might be parsing another
-            # attribute: return but do not consume.
-            return ''
+            raise Exception("No return section found for " + proto)
         # Return value description can be several lines, some of them possibly
         # empty, and it stops when another subsection title is met.
         ret = ''
+        ret_present = False
         while True:
             self.line = self.reader.readline()
             if self.line == ' *\n':
@@ -168,44 +174,101 @@ class HeaderParser(object):
                 p = re.compile(' \* ?(?:\t| {5,8})(?:\t| {8})(.*)')
                 capture = p.match(self.line)
                 if capture:
+                    ret_present = True
                     ret += capture.group(1) + '\n'
                 else:
                     break
+
+        if not ret_present:
+            raise Exception("No return found for " + proto)
         return ret
 
-    def seek_to(self, target, help_message):
+    def seek_to(self, target, help_message, discard_lines = 1):
         self.reader.seek(0)
         offset = self.reader.read().find(target)
         if offset == -1:
             raise Exception(help_message)
         self.reader.seek(offset)
         self.reader.readline()
-        self.reader.readline()
+        for _ in range(discard_lines):
+            self.reader.readline()
         self.line = self.reader.readline()
 
-    def parse_syscall(self):
+    def parse_desc_syscall(self):
         self.seek_to('* DOC: eBPF Syscall Commands',
                      'Could not find start of eBPF syscall descriptions list')
         while True:
             try:
                 command = self.parse_element()
                 self.commands.append(command)
+                self.desc_syscalls.append(command.proto)
+
             except NoSyscallCommandFound:
                 break
 
-    def parse_helpers(self):
+    def parse_enum_syscall(self):
+        self.seek_to('enum bpf_cmd {',
+                     'Could not find start of bpf_cmd enum', 0)
+        # Searches for either one or more BPF\w+ enums
+        bpf_p = re.compile('\s*(BPF\w+)+')
+        # Searches for an enum entry assigned to another entry,
+        # for e.g. BPF_PROG_RUN = BPF_PROG_TEST_RUN, which is
+        # not documented hence should be skipped in check to
+        # determine if the right number of syscalls are documented
+        assign_p = re.compile('\s*(BPF\w+)\s*=\s*(BPF\w+)')
+        bpf_cmd_str = ''
+        while True:
+            capture = assign_p.match(self.line)
+            if capture:
+                # Skip line if an enum entry is assigned to another entry
+                self.line = self.reader.readline()
+                continue
+            capture = bpf_p.match(self.line)
+            if capture:
+                bpf_cmd_str += self.line
+            else:
+                break
+            self.line = self.reader.readline()
+        # Find the number of occurences of BPF\w+
+        self.enum_syscalls = re.findall('(BPF\w+)+', bpf_cmd_str)
+
+    def parse_desc_helpers(self):
         self.seek_to('* Start of BPF helper function descriptions:',
                      'Could not find start of eBPF helper descriptions list')
         while True:
             try:
                 helper = self.parse_helper()
                 self.helpers.append(helper)
+                proto = helper.proto_break_down()
+                self.desc_unique_helpers.add(proto['name'])
             except NoHelperFound:
                 break
 
+    def parse_define_helpers(self):
+        # Parse the number of FN(...) in #define __BPF_FUNC_MAPPER to compare
+        # later with the number of unique function names present in description.
+        # Note: seek_to(..) discards the first line below the target search text,
+        # resulting in FN(unspec) being skipped and not added to self.define_unique_helpers.
+        self.seek_to('#define __BPF_FUNC_MAPPER(FN)',
+                     'Could not find start of eBPF helper definition list')
+        # Searches for either one or more FN(\w+) defines or a backslash for newline
+        p = re.compile('\s*(FN\(\w+\))+|\\\\')
+        fn_defines_str = ''
+        while True:
+            capture = p.match(self.line)
+            if capture:
+                fn_defines_str += self.line
+            else:
+                break
+            self.line = self.reader.readline()
+        # Find the number of occurences of FN(\w+)
+        self.define_unique_helpers = re.findall('FN\(\w+\)', fn_defines_str)
+
     def run(self):
-        self.parse_syscall()
-        self.parse_helpers()
+        self.parse_desc_syscall()
+        self.parse_enum_syscall()
+        self.parse_desc_helpers()
+        self.parse_define_helpers()
         self.reader.close()
 
 ###############################################################################
@@ -235,6 +298,25 @@ class Printer(object):
             self.print_one(elem)
         self.print_footer()
 
+    def elem_number_check(self, desc_unique_elem, define_unique_elem, type, instance):
+        """
+        Checks the number of helpers/syscalls documented within the header file
+        description with those defined as part of enum/macro and raise an
+        Exception if they don't match.
+        """
+        nr_desc_unique_elem = len(desc_unique_elem)
+        nr_define_unique_elem = len(define_unique_elem)
+        if nr_desc_unique_elem != nr_define_unique_elem:
+            exception_msg = '''
+The number of unique %s in description (%d) doesn\'t match the number of unique %s defined in %s (%d)
+''' % (type, nr_desc_unique_elem, type, instance, nr_define_unique_elem)
+            if nr_desc_unique_elem < nr_define_unique_elem:
+                # Function description is parsed until no helper is found (which can be due to
+                # misformatting). Hence, only print the first missing/misformatted helper/enum.
+                exception_msg += '''
+The description for %s is not present or formatted correctly.
+''' % (define_unique_elem[nr_desc_unique_elem])
+            raise Exception(exception_msg)
 
 class PrinterRST(Printer):
     """
@@ -295,7 +377,6 @@ class PrinterRST(Printer):
 
         print('')
 
-
 class PrinterHelpersRST(PrinterRST):
     """
     A printer for dumping collected information about helpers as a ReStructured
@@ -305,6 +386,7 @@ class PrinterHelpersRST(PrinterRST):
     """
     def __init__(self, parser):
         self.elements = parser.helpers
+        self.elem_number_check(parser.desc_unique_helpers, parser.define_unique_helpers, 'helper', '__BPF_FUNC_MAPPER')
 
     def print_header(self):
         header = '''\
@@ -478,6 +560,7 @@ class PrinterSyscallRST(PrinterRST):
     """
     def __init__(self, parser):
         self.elements = parser.commands
+        self.elem_number_check(parser.desc_syscalls, parser.enum_syscalls, 'syscall', 'bpf_cmd')
 
     def print_header(self):
         header = '''\
@@ -509,6 +592,7 @@ class PrinterHelpers(Printer):
     """
     def __init__(self, parser):
         self.elements = parser.helpers
+        self.elem_number_check(parser.desc_unique_helpers, parser.define_unique_helpers, 'helper', '__BPF_FUNC_MAPPER')
 
     type_fwds = [
             'struct bpf_fib_lookup',
@@ -549,6 +633,8 @@ class PrinterHelpers(Printer):
             'struct socket',
             'struct file',
             'struct bpf_timer',
+            'struct mptcp_sock',
+            'struct bpf_dynptr',
     ]
     known_types = {
             '...',
@@ -598,6 +684,8 @@ class PrinterHelpers(Printer):
             'struct socket',
             'struct file',
             'struct bpf_timer',
+            'struct mptcp_sock',
+            'struct bpf_dynptr',
     }
     mapped_types = {
             'u8': '__u8',

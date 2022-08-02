@@ -26,10 +26,9 @@ static int pcm512x_spi_probe(struct spi_device *spi)
 	return pcm512x_probe(&spi->dev, regmap);
 }
 
-static int pcm512x_spi_remove(struct spi_device *spi)
+static void pcm512x_spi_remove(struct spi_device *spi)
 {
 	pcm512x_remove(&spi->dev);
-	return 0;
 }
 
 static const struct spi_device_id pcm512x_spi_id[] = {

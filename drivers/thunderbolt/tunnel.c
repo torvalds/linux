@@ -102,8 +102,11 @@ static unsigned int tb_available_credits(const struct tb_port *port,
 		 * Maximum number of DP streams possible through the
 		 * lane adapter.
 		 */
-		ndp = (credits - (usb3 + pcie + spare)) /
-		      (sw->min_dp_aux_credits + sw->min_dp_main_credits);
+		if (sw->min_dp_aux_credits + sw->min_dp_main_credits)
+			ndp = (credits - (usb3 + pcie + spare)) /
+			      (sw->min_dp_aux_credits + sw->min_dp_main_credits);
+		else
+			ndp = 0;
 	} else {
 		ndp = 0;
 	}
@@ -580,6 +583,16 @@ static int tb_dp_xchg_caps(struct tb_tunnel *tunnel)
 		out_dp_cap = tb_dp_cap_set_lanes(out_dp_cap, new_lanes);
 	}
 
+	/*
+	 * Titan Ridge does not disable AUX timers when it gets
+	 * SET_CONFIG with SET_LTTPR_MODE set. This causes problems with
+	 * DP tunneling.
+	 */
+	if (tb_route(out->sw) && tb_switch_is_titan_ridge(out->sw)) {
+		out_dp_cap |= DP_COMMON_CAP_LTTPR_NS;
+		tb_port_dbg(out, "disabling LTTPR\n");
+	}
+
 	return tb_port_write(in, &out_dp_cap, TB_CFG_PORT,
 			     in->cap_adap + DP_REMOTE_CAP, 1);
 }
@@ -848,6 +861,7 @@ err_free:
  * @tb: Pointer to the domain structure
  * @in: DP in adapter port
  * @out: DP out adapter port
+ * @link_nr: Preferred lane adapter when the link is not bonded
  * @max_up: Maximum available upstream bandwidth for the DP tunnel (%0
  *	    if not limited)
  * @max_down: Maximum available downstream bandwidth for the DP tunnel
@@ -859,8 +873,8 @@ err_free:
  * Return: Returns a tb_tunnel on success or NULL on failure.
  */
 struct tb_tunnel *tb_tunnel_alloc_dp(struct tb *tb, struct tb_port *in,
-				     struct tb_port *out, int max_up,
-				     int max_down)
+				     struct tb_port *out, int link_nr,
+				     int max_up, int max_down)
 {
 	struct tb_tunnel *tunnel;
 	struct tb_path **paths;
@@ -884,21 +898,21 @@ struct tb_tunnel *tb_tunnel_alloc_dp(struct tb *tb, struct tb_port *in,
 	paths = tunnel->paths;
 
 	path = tb_path_alloc(tb, in, TB_DP_VIDEO_HOPID, out, TB_DP_VIDEO_HOPID,
-			     1, "Video");
+			     link_nr, "Video");
 	if (!path)
 		goto err_free;
 	tb_dp_init_video_path(path);
 	paths[TB_DP_VIDEO_PATH_OUT] = path;
 
 	path = tb_path_alloc(tb, in, TB_DP_AUX_TX_HOPID, out,
-			     TB_DP_AUX_TX_HOPID, 1, "AUX TX");
+			     TB_DP_AUX_TX_HOPID, link_nr, "AUX TX");
 	if (!path)
 		goto err_free;
 	tb_dp_init_aux_path(path);
 	paths[TB_DP_AUX_PATH_OUT] = path;
 
 	path = tb_path_alloc(tb, out, TB_DP_AUX_RX_HOPID, in,
-			     TB_DP_AUX_RX_HOPID, 1, "AUX RX");
+			     TB_DP_AUX_RX_HOPID, link_nr, "AUX RX");
 	if (!path)
 		goto err_free;
 	tb_dp_init_aux_path(path);

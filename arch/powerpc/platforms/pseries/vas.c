@@ -26,9 +26,11 @@
 
 static struct vas_all_caps caps_all;
 static bool copypaste_feat;
+static struct hv_vas_cop_feat_caps hv_cop_caps;
 
 static struct vas_caps vascaps[VAS_MAX_FEAT_TYPE];
 static DEFINE_MUTEX(vas_pseries_mutex);
+static bool migration_in_progress;
 
 static long hcall_return_busy_check(long rc)
 {
@@ -107,7 +109,6 @@ static int h_deallocate_vas_window(u64 winid)
 static int h_modify_vas_window(struct pseries_vas_window *win)
 {
 	long rc;
-	u32 lpid = mfspr(SPRN_PID);
 
 	/*
 	 * AMR value is not supported in Linux VAS implementation.
@@ -115,7 +116,7 @@ static int h_modify_vas_window(struct pseries_vas_window *win)
 	 */
 	do {
 		rc = plpar_hcall_norets(H_MODIFY_VAS_WINDOW,
-					win->vas_win.winid, lpid, 0,
+					win->vas_win.winid, win->pid, 0,
 					VAS_MOD_WIN_FLAGS, 0);
 
 		rc = hcall_return_busy_check(rc);
@@ -124,8 +125,8 @@ static int h_modify_vas_window(struct pseries_vas_window *win)
 	if (rc == H_SUCCESS)
 		return 0;
 
-	pr_err("H_MODIFY_VAS_WINDOW error: %ld, winid %u lpid %u\n",
-			rc, win->vas_win.winid, lpid);
+	pr_err("H_MODIFY_VAS_WINDOW error: %ld, winid %u pid %u\n",
+			rc, win->vas_win.winid, win->pid);
 	return -EIO;
 }
 
@@ -310,8 +311,8 @@ static struct vas_window *vas_allocate_window(int vas_id, u64 flags,
 
 	cop_feat_caps = &caps->caps;
 
-	if (atomic_inc_return(&cop_feat_caps->used_lpar_creds) >
-			atomic_read(&cop_feat_caps->target_lpar_creds)) {
+	if (atomic_inc_return(&cop_feat_caps->nr_used_credits) >
+			atomic_read(&cop_feat_caps->nr_total_credits)) {
 		pr_err("Credits are not available to allocate window\n");
 		rc = -EINVAL;
 		goto out;
@@ -338,6 +339,8 @@ static struct vas_window *vas_allocate_window(int vas_id, u64 flags,
 		}
 	}
 
+	txwin->pid = mfspr(SPRN_PID);
+
 	/*
 	 * Allocate / Deallocate window hcalls and setup / free IRQs
 	 * have to be protected with mutex.
@@ -354,7 +357,10 @@ static struct vas_window *vas_allocate_window(int vas_id, u64 flags,
 	 * same fault IRQ is not freed by the OS before.
 	 */
 	mutex_lock(&vas_pseries_mutex);
-	rc = allocate_setup_window(txwin, (u64 *)&domain[0],
+	if (migration_in_progress)
+		rc = -EBUSY;
+	else
+		rc = allocate_setup_window(txwin, (u64 *)&domain[0],
 				   cop_feat_caps->win_type);
 	mutex_unlock(&vas_pseries_mutex);
 	if (rc)
@@ -369,13 +375,28 @@ static struct vas_window *vas_allocate_window(int vas_id, u64 flags,
 	if (rc)
 		goto out_free;
 
-	vas_user_win_add_mm_context(&txwin->vas_win.task_ref);
 	txwin->win_type = cop_feat_caps->win_type;
 	mutex_lock(&vas_pseries_mutex);
-	list_add(&txwin->win_list, &caps->list);
+	/*
+	 * Possible to lose the acquired credit with DLPAR core
+	 * removal after the window is opened. So if there are any
+	 * closed windows (means with lost credits), do not give new
+	 * window to user space. New windows will be opened only
+	 * after the existing windows are reopened when credits are
+	 * available.
+	 */
+	if (!caps->nr_close_wins) {
+		list_add(&txwin->win_list, &caps->list);
+		caps->nr_open_windows++;
+		mutex_unlock(&vas_pseries_mutex);
+		vas_user_win_add_mm_context(&txwin->vas_win.task_ref);
+		return &txwin->vas_win;
+	}
 	mutex_unlock(&vas_pseries_mutex);
 
-	return &txwin->vas_win;
+	put_vas_user_win_ref(&txwin->vas_win.task_ref);
+	rc = -EBUSY;
+	pr_err("No credit is available to allocate window\n");
 
 out_free:
 	/*
@@ -385,7 +406,7 @@ out_free:
 	free_irq_setup(txwin);
 	h_deallocate_vas_window(txwin->vas_win.winid);
 out:
-	atomic_dec(&cop_feat_caps->used_lpar_creds);
+	atomic_dec(&cop_feat_caps->nr_used_credits);
 	kfree(txwin);
 	return ERR_PTR(rc);
 }
@@ -438,14 +459,25 @@ static int vas_deallocate_window(struct vas_window *vwin)
 
 	caps = &vascaps[win->win_type].caps;
 	mutex_lock(&vas_pseries_mutex);
-	rc = deallocate_free_window(win);
-	if (rc) {
-		mutex_unlock(&vas_pseries_mutex);
-		return rc;
-	}
+	/*
+	 * VAS window is already closed in the hypervisor when
+	 * lost the credit or with migration. So just remove the entry
+	 * from the list, remove task references and free vas_window
+	 * struct.
+	 */
+	if (!(win->vas_win.status & VAS_WIN_NO_CRED_CLOSE) &&
+		!(win->vas_win.status & VAS_WIN_MIGRATE_CLOSE)) {
+		rc = deallocate_free_window(win);
+		if (rc) {
+			mutex_unlock(&vas_pseries_mutex);
+			return rc;
+		}
+	} else
+		vascaps[win->win_type].nr_close_wins--;
 
 	list_del(&win->win_list);
-	atomic_dec(&caps->used_lpar_creds);
+	atomic_dec(&caps->nr_used_credits);
+	vascaps[win->win_type].nr_open_windows--;
 	mutex_unlock(&vas_pseries_mutex);
 
 	put_vas_user_win_ref(&vwin->task_ref);
@@ -500,6 +532,7 @@ static int __init get_vas_capabilities(u8 feat, enum vas_cop_feat_type type,
 	memset(vcaps, 0, sizeof(*vcaps));
 	INIT_LIST_HEAD(&vcaps->list);
 
+	vcaps->feat = feat;
 	caps = &vcaps->caps;
 
 	rc = h_query_vas_capabilities(H_QUERY_VAS_CAPABILITIES, feat,
@@ -521,7 +554,7 @@ static int __init get_vas_capabilities(u8 feat, enum vas_cop_feat_type type,
 	}
 	caps->max_lpar_creds = be16_to_cpu(hv_caps->max_lpar_creds);
 	caps->max_win_creds = be16_to_cpu(hv_caps->max_win_creds);
-	atomic_set(&caps->target_lpar_creds,
+	atomic_set(&caps->nr_total_credits,
 		   be16_to_cpu(hv_caps->target_lpar_creds));
 	if (feat == VAS_GZIP_DEF_FEAT) {
 		caps->def_lpar_creds = be16_to_cpu(hv_caps->def_lpar_creds);
@@ -533,16 +566,410 @@ static int __init get_vas_capabilities(u8 feat, enum vas_cop_feat_type type,
 		}
 	}
 
+	rc = sysfs_add_vas_caps(caps);
+	if (rc)
+		return rc;
+
 	copypaste_feat = true;
 
 	return 0;
 }
 
+/*
+ * VAS windows can be closed due to lost credits when the core is
+ * removed. So reopen them if credits are available due to DLPAR
+ * core add and set the window active status. When NX sees the page
+ * fault on the unmapped paste address, the kernel handles the fault
+ * by setting the remapping to new paste address if the window is
+ * active.
+ */
+static int reconfig_open_windows(struct vas_caps *vcaps, int creds,
+				 bool migrate)
+{
+	long domain[PLPAR_HCALL9_BUFSIZE] = {VAS_DEFAULT_DOMAIN_ID};
+	struct vas_cop_feat_caps *caps = &vcaps->caps;
+	struct pseries_vas_window *win = NULL, *tmp;
+	int rc, mv_ents = 0;
+	int flag;
+
+	/*
+	 * Nothing to do if there are no closed windows.
+	 */
+	if (!vcaps->nr_close_wins)
+		return 0;
+
+	/*
+	 * For the core removal, the hypervisor reduces the credits
+	 * assigned to the LPAR and the kernel closes VAS windows
+	 * in the hypervisor depends on reduced credits. The kernel
+	 * uses LIFO (the last windows that are opened will be closed
+	 * first) and expects to open in the same order when credits
+	 * are available.
+	 * For example, 40 windows are closed when the LPAR lost 2 cores
+	 * (dedicated). If 1 core is added, this LPAR can have 20 more
+	 * credits. It means the kernel can reopen 20 windows. So move
+	 * 20 entries in the VAS windows lost and reopen next 20 windows.
+	 * For partition migration, reopen all windows that are closed
+	 * during resume.
+	 */
+	if ((vcaps->nr_close_wins > creds) && !migrate)
+		mv_ents = vcaps->nr_close_wins - creds;
+
+	list_for_each_entry_safe(win, tmp, &vcaps->list, win_list) {
+		if (!mv_ents)
+			break;
+
+		mv_ents--;
+	}
+
+	/*
+	 * Open windows if they are closed only with migration or
+	 * DLPAR (lost credit) before.
+	 */
+	if (migrate)
+		flag = VAS_WIN_MIGRATE_CLOSE;
+	else
+		flag = VAS_WIN_NO_CRED_CLOSE;
+
+	list_for_each_entry_safe_from(win, tmp, &vcaps->list, win_list) {
+		/*
+		 * This window is closed with DLPAR and migration events.
+		 * So reopen the window with the last event.
+		 * The user space is not suspended with the current
+		 * migration notifier. So the user space can issue DLPAR
+		 * CPU hotplug while migration in progress. In this case
+		 * this window will be opened with the last event.
+		 */
+		if ((win->vas_win.status & VAS_WIN_NO_CRED_CLOSE) &&
+			(win->vas_win.status & VAS_WIN_MIGRATE_CLOSE)) {
+			win->vas_win.status &= ~flag;
+			continue;
+		}
+
+		/*
+		 * Nothing to do on this window if it is not closed
+		 * with this flag
+		 */
+		if (!(win->vas_win.status & flag))
+			continue;
+
+		rc = allocate_setup_window(win, (u64 *)&domain[0],
+					   caps->win_type);
+		if (rc)
+			return rc;
+
+		rc = h_modify_vas_window(win);
+		if (rc)
+			goto out;
+
+		mutex_lock(&win->vas_win.task_ref.mmap_mutex);
+		/*
+		 * Set window status to active
+		 */
+		win->vas_win.status &= ~flag;
+		mutex_unlock(&win->vas_win.task_ref.mmap_mutex);
+		win->win_type = caps->win_type;
+		if (!--vcaps->nr_close_wins)
+			break;
+	}
+
+	return 0;
+out:
+	/*
+	 * Window modify HCALL failed. So close the window to the
+	 * hypervisor and return.
+	 */
+	free_irq_setup(win);
+	h_deallocate_vas_window(win->vas_win.winid);
+	return rc;
+}
+
+/*
+ * The hypervisor reduces the available credits if the LPAR lost core. It
+ * means the excessive windows should not be active and the user space
+ * should not be using these windows to send compression requests to NX.
+ * So the kernel closes the excessive windows and unmap the paste address
+ * such that the user space receives paste instruction failure. Then up to
+ * the user space to fall back to SW compression and manage with the
+ * existing windows.
+ */
+static int reconfig_close_windows(struct vas_caps *vcap, int excess_creds,
+									bool migrate)
+{
+	struct pseries_vas_window *win, *tmp;
+	struct vas_user_win_ref *task_ref;
+	struct vm_area_struct *vma;
+	int rc = 0, flag;
+
+	if (migrate)
+		flag = VAS_WIN_MIGRATE_CLOSE;
+	else
+		flag = VAS_WIN_NO_CRED_CLOSE;
+
+	list_for_each_entry_safe(win, tmp, &vcap->list, win_list) {
+		/*
+		 * This window is already closed due to lost credit
+		 * or for migration before. Go for next window.
+		 * For migration, nothing to do since this window
+		 * closed for DLPAR and will be reopened even on
+		 * the destination system with other DLPAR operation.
+		 */
+		if ((win->vas_win.status & VAS_WIN_MIGRATE_CLOSE) ||
+			(win->vas_win.status & VAS_WIN_NO_CRED_CLOSE)) {
+			win->vas_win.status |= flag;
+			continue;
+		}
+
+		task_ref = &win->vas_win.task_ref;
+		mutex_lock(&task_ref->mmap_mutex);
+		vma = task_ref->vma;
+		/*
+		 * Number of available credits are reduced, So select
+		 * and close windows.
+		 */
+		win->vas_win.status |= flag;
+
+		mmap_write_lock(task_ref->mm);
+		/*
+		 * vma is set in the original mapping. But this mapping
+		 * is done with mmap() after the window is opened with ioctl.
+		 * so we may not see the original mapping if the core remove
+		 * is done before the original mmap() and after the ioctl.
+		 */
+		if (vma)
+			zap_page_range(vma, vma->vm_start,
+					vma->vm_end - vma->vm_start);
+
+		mmap_write_unlock(task_ref->mm);
+		mutex_unlock(&task_ref->mmap_mutex);
+		/*
+		 * Close VAS window in the hypervisor, but do not
+		 * free vas_window struct since it may be reused
+		 * when the credit is available later (DLPAR with
+		 * adding cores). This struct will be used
+		 * later when the process issued with close(FD).
+		 */
+		rc = deallocate_free_window(win);
+		/*
+		 * This failure is from the hypervisor.
+		 * No way to stop migration for these failures.
+		 * So ignore error and continue closing other windows.
+		 */
+		if (rc && !migrate)
+			return rc;
+
+		vcap->nr_close_wins++;
+
+		/*
+		 * For migration, do not depend on lpar_creds in case if
+		 * mismatch with the hypervisor value (should not happen).
+		 * So close all active windows in the list and will be
+		 * reopened windows based on the new lpar_creds on the
+		 * destination system during resume.
+		 */
+		if (!migrate && !--excess_creds)
+			break;
+	}
+
+	return 0;
+}
+
+/*
+ * Get new VAS capabilities when the core add/removal configuration
+ * changes. Reconfig window configurations based on the credits
+ * availability from this new capabilities.
+ */
+int vas_reconfig_capabilties(u8 type, int new_nr_creds)
+{
+	struct vas_cop_feat_caps *caps;
+	int old_nr_creds;
+	struct vas_caps *vcaps;
+	int rc = 0, nr_active_wins;
+
+	if (type >= VAS_MAX_FEAT_TYPE) {
+		pr_err("Invalid credit type %d\n", type);
+		return -EINVAL;
+	}
+
+	vcaps = &vascaps[type];
+	caps = &vcaps->caps;
+
+	mutex_lock(&vas_pseries_mutex);
+
+	old_nr_creds = atomic_read(&caps->nr_total_credits);
+
+	atomic_set(&caps->nr_total_credits, new_nr_creds);
+	/*
+	 * The total number of available credits may be decreased or
+	 * increased with DLPAR operation. Means some windows have to be
+	 * closed / reopened. Hold the vas_pseries_mutex so that the
+	 * the user space can not open new windows.
+	 */
+	if (old_nr_creds <  new_nr_creds) {
+		/*
+		 * If the existing target credits is less than the new
+		 * target, reopen windows if they are closed due to
+		 * the previous DLPAR (core removal).
+		 */
+		rc = reconfig_open_windows(vcaps, new_nr_creds - old_nr_creds,
+					   false);
+	} else {
+		/*
+		 * # active windows is more than new LPAR available
+		 * credits. So close the excessive windows.
+		 * On pseries, each window will have 1 credit.
+		 */
+		nr_active_wins = vcaps->nr_open_windows - vcaps->nr_close_wins;
+		if (nr_active_wins > new_nr_creds)
+			rc = reconfig_close_windows(vcaps,
+					nr_active_wins - new_nr_creds,
+					false);
+	}
+
+	mutex_unlock(&vas_pseries_mutex);
+	return rc;
+}
+/*
+ * Total number of default credits available (target_credits)
+ * in LPAR depends on number of cores configured. It varies based on
+ * whether processors are in shared mode or dedicated mode.
+ * Get the notifier when CPU configuration is changed with DLPAR
+ * operation so that get the new target_credits (vas default capabilities)
+ * and then update the existing windows usage if needed.
+ */
+static int pseries_vas_notifier(struct notifier_block *nb,
+				unsigned long action, void *data)
+{
+	struct of_reconfig_data *rd = data;
+	struct device_node *dn = rd->dn;
+	const __be32 *intserv = NULL;
+	int new_nr_creds, len, rc = 0;
+
+	if ((action == OF_RECONFIG_ATTACH_NODE) ||
+		(action == OF_RECONFIG_DETACH_NODE))
+		intserv = of_get_property(dn, "ibm,ppc-interrupt-server#s",
+					  &len);
+	/*
+	 * Processor config is not changed
+	 */
+	if (!intserv)
+		return NOTIFY_OK;
+
+	rc = h_query_vas_capabilities(H_QUERY_VAS_CAPABILITIES,
+					vascaps[VAS_GZIP_DEF_FEAT_TYPE].feat,
+					(u64)virt_to_phys(&hv_cop_caps));
+	if (!rc) {
+		new_nr_creds = be16_to_cpu(hv_cop_caps.target_lpar_creds);
+		rc = vas_reconfig_capabilties(VAS_GZIP_DEF_FEAT_TYPE,
+						new_nr_creds);
+	}
+
+	if (rc)
+		pr_err("Failed reconfig VAS capabilities with DLPAR\n");
+
+	return rc;
+}
+
+static struct notifier_block pseries_vas_nb = {
+	.notifier_call = pseries_vas_notifier,
+};
+
+/*
+ * For LPM, all windows have to be closed on the source partition
+ * before migration and reopen them on the destination partition
+ * after migration. So closing windows during suspend and
+ * reopen them during resume.
+ */
+int vas_migration_handler(int action)
+{
+	struct vas_cop_feat_caps *caps;
+	int old_nr_creds, new_nr_creds = 0;
+	struct vas_caps *vcaps;
+	int i, rc = 0;
+
+	/*
+	 * NX-GZIP is not enabled. Nothing to do for migration.
+	 */
+	if (!copypaste_feat)
+		return rc;
+
+	mutex_lock(&vas_pseries_mutex);
+
+	if (action == VAS_SUSPEND)
+		migration_in_progress = true;
+	else
+		migration_in_progress = false;
+
+	for (i = 0; i < VAS_MAX_FEAT_TYPE; i++) {
+		vcaps = &vascaps[i];
+		caps = &vcaps->caps;
+		old_nr_creds = atomic_read(&caps->nr_total_credits);
+
+		rc = h_query_vas_capabilities(H_QUERY_VAS_CAPABILITIES,
+					      vcaps->feat,
+					      (u64)virt_to_phys(&hv_cop_caps));
+		if (!rc) {
+			new_nr_creds = be16_to_cpu(hv_cop_caps.target_lpar_creds);
+			/*
+			 * Should not happen. But incase print messages, close
+			 * all windows in the list during suspend and reopen
+			 * windows based on new lpar_creds on the destination
+			 * system.
+			 */
+			if (old_nr_creds != new_nr_creds) {
+				pr_err("Target credits mismatch with the hypervisor\n");
+				pr_err("state(%d): lpar creds: %d HV lpar creds: %d\n",
+					action, old_nr_creds, new_nr_creds);
+				pr_err("Used creds: %d, Active creds: %d\n",
+					atomic_read(&caps->nr_used_credits),
+					vcaps->nr_open_windows - vcaps->nr_close_wins);
+			}
+		} else {
+			pr_err("state(%d): Get VAS capabilities failed with %d\n",
+				action, rc);
+			/*
+			 * We can not stop migration with the current lpm
+			 * implementation. So continue closing all windows in
+			 * the list (during suspend) and return without
+			 * opening windows (during resume) if VAS capabilities
+			 * HCALL failed.
+			 */
+			if (action == VAS_RESUME)
+				goto out;
+		}
+
+		switch (action) {
+		case VAS_SUSPEND:
+			rc = reconfig_close_windows(vcaps, vcaps->nr_open_windows,
+							true);
+			break;
+		case VAS_RESUME:
+			atomic_set(&caps->nr_total_credits, new_nr_creds);
+			rc = reconfig_open_windows(vcaps, new_nr_creds, true);
+			break;
+		default:
+			/* should not happen */
+			pr_err("Invalid migration action %d\n", action);
+			rc = -EINVAL;
+			goto out;
+		}
+
+		/*
+		 * Ignore errors during suspend and return for resume.
+		 */
+		if (rc && (action == VAS_RESUME))
+			goto out;
+	}
+
+out:
+	mutex_unlock(&vas_pseries_mutex);
+	return rc;
+}
+
 static int __init pseries_vas_init(void)
 {
-	struct hv_vas_cop_feat_caps *hv_cop_caps;
 	struct hv_vas_all_caps *hv_caps;
-	int rc;
+	int rc = 0;
 
 	/*
 	 * Linux supports user space COPY/PASTE only with Radix
@@ -566,35 +993,39 @@ static int __init pseries_vas_init(void)
 	caps_all.descriptor = be64_to_cpu(hv_caps->descriptor);
 	caps_all.feat_type = be64_to_cpu(hv_caps->feat_type);
 
-	hv_cop_caps = kmalloc(sizeof(*hv_cop_caps), GFP_KERNEL);
-	if (!hv_cop_caps) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	sysfs_pseries_vas_init(&caps_all);
+
 	/*
 	 * QOS capabilities available
 	 */
 	if (caps_all.feat_type & VAS_GZIP_QOS_FEAT_BIT) {
 		rc = get_vas_capabilities(VAS_GZIP_QOS_FEAT,
-					  VAS_GZIP_QOS_FEAT_TYPE, hv_cop_caps);
+					  VAS_GZIP_QOS_FEAT_TYPE, &hv_cop_caps);
 
 		if (rc)
-			goto out_cop;
+			goto out;
 	}
 	/*
 	 * Default capabilities available
 	 */
-	if (caps_all.feat_type & VAS_GZIP_DEF_FEAT_BIT) {
+	if (caps_all.feat_type & VAS_GZIP_DEF_FEAT_BIT)
 		rc = get_vas_capabilities(VAS_GZIP_DEF_FEAT,
-					  VAS_GZIP_DEF_FEAT_TYPE, hv_cop_caps);
-		if (rc)
-			goto out_cop;
+					  VAS_GZIP_DEF_FEAT_TYPE, &hv_cop_caps);
+
+	if (!rc && copypaste_feat) {
+		if (firmware_has_feature(FW_FEATURE_LPAR))
+			of_reconfig_notifier_register(&pseries_vas_nb);
+
+		pr_info("GZIP feature is available\n");
+	} else {
+		/*
+		 * Should not happen, but only when get default
+		 * capabilities HCALL failed. So disable copy paste
+		 * feature.
+		 */
+		copypaste_feat = false;
 	}
 
-	pr_info("GZIP feature is available\n");
-
-out_cop:
-	kfree(hv_cop_caps);
 out:
 	kfree(hv_caps);
 	return rc;

@@ -49,7 +49,7 @@ static void cifs_set_ops(struct inode *inode)
 			inode->i_fop = &cifs_file_ops;
 		}
 
-		/* check if server can support readpages */
+		/* check if server can support readahead */
 		if (cifs_sb_master_tcon(cifs_sb)->ses->server->max_read <
 				PAGE_SIZE + MAX_CIFS_HDR_SIZE)
 			inode->i_data.a_ops = &cifs_addr_ops_smallbuf;
@@ -115,7 +115,7 @@ cifs_revalidate_cache(struct inode *inode, struct cifs_fattr *fattr)
 		 __func__, cifs_i->uniqueid);
 	set_bit(CIFS_INO_INVALID_MAPPING, &cifs_i->flags);
 	/* Invalidate fscache cookie */
-	cifs_fscache_fill_coherency(&cifs_i->vfs_inode, &cd);
+	cifs_fscache_fill_coherency(&cifs_i->netfs.inode, &cd);
 	fscache_invalidate(cifs_inode_cookie(inode), &cd, i_size_read(inode), 0);
 }
 
@@ -2499,7 +2499,7 @@ int cifs_fiemap(struct inode *inode, struct fiemap_extent_info *fei, u64 start,
 		u64 len)
 {
 	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
-	struct cifs_sb_info *cifs_sb = CIFS_SB(cifs_i->vfs_inode.i_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(cifs_i->netfs.inode.i_sb);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifsFileInfo *cfile;

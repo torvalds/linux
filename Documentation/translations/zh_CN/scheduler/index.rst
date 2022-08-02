@@ -5,6 +5,7 @@
 :翻译:
 
  司延腾 Yanteng Si <siyanteng@loongson.cn>
+ 唐艺舟 Tang Yizhou <tangyeechou@gmail.com>
 
 :校译:
 
@@ -23,16 +24,16 @@ Linux调度器
     sched-design-CFS
     sched-domains
     sched-capacity
-
+    sched-energy
+    schedutil
+    sched-nice-design
+    sched-stats
+    sched-debug
 
 TODOList:
 
-    sched-bwc
     sched-deadline
-    sched-energy
-    sched-nice-design
     sched-rt-group
-    sched-stats
 
     text_files
 

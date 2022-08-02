@@ -5,14 +5,12 @@
 /* that's kernel internal BPF_MAX_TRAMP_PROGS define */
 #define CNT 38
 
-void test_fexit_stress(void)
+void serial_test_fexit_stress(void)
 {
 	char test_skb[128] = {};
 	int fexit_fd[CNT] = {};
 	int link_fd[CNT] = {};
-	__u32 duration = 0;
 	char error[4096];
-	__u32 prog_ret;
 	int err, i, filter_fd;
 
 	const struct bpf_insn trace_program[] = {
@@ -36,9 +34,15 @@ void test_fexit_stress(void)
 		.log_size = sizeof(error),
 	);
 
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = test_skb,
+		.data_size_in = sizeof(test_skb),
+		.repeat = 1,
+	);
+
 	err = libbpf_find_vmlinux_btf_id("bpf_fentry_test1",
 					 trace_opts.expected_attach_type);
-	if (CHECK(err <= 0, "find_vmlinux_btf_id", "failed: %d\n", err))
+	if (!ASSERT_GT(err, 0, "find_vmlinux_btf_id"))
 		goto out;
 	trace_opts.attach_btf_id = err;
 
@@ -47,24 +51,20 @@ void test_fexit_stress(void)
 					    trace_program,
 					    sizeof(trace_program) / sizeof(struct bpf_insn),
 					    &trace_opts);
-		if (CHECK(fexit_fd[i] < 0, "fexit loaded",
-			  "failed: %d errno %d\n", fexit_fd[i], errno))
+		if (!ASSERT_GE(fexit_fd[i], 0, "fexit load"))
 			goto out;
-		link_fd[i] = bpf_raw_tracepoint_open(NULL, fexit_fd[i]);
-		if (CHECK(link_fd[i] < 0, "fexit attach failed",
-			  "prog %d failed: %d err %d\n", i, link_fd[i], errno))
+		link_fd[i] = bpf_link_create(fexit_fd[i], 0, BPF_TRACE_FEXIT, NULL);
+		if (!ASSERT_GE(link_fd[i], 0, "fexit attach"))
 			goto out;
 	}
 
 	filter_fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL",
 				  skb_program, sizeof(skb_program) / sizeof(struct bpf_insn),
 				  &skb_opts);
-	if (CHECK(filter_fd < 0, "test_program_loaded", "failed: %d errno %d\n",
-		  filter_fd, errno))
+	if (!ASSERT_GE(filter_fd, 0, "test_program_loaded"))
 		goto out;
 
-	err = bpf_prog_test_run(filter_fd, 1, test_skb, sizeof(test_skb), 0,
-				0, &prog_ret, 0);
+	err = bpf_prog_test_run_opts(filter_fd, &topts);
 	close(filter_fd);
 	CHECK_FAIL(err);
 out:

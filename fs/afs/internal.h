@@ -207,7 +207,7 @@ struct afs_read {
 	loff_t			file_size;	/* File size returned by server */
 	struct key		*key;		/* The key to use to reissue the read */
 	struct afs_vnode	*vnode;		/* The file being read into. */
-	struct netfs_read_subrequest *subreq;	/* Fscache helper read request this belongs to */
+	struct netfs_io_subrequest *subreq;	/* Fscache helper read request this belongs to */
 	afs_dataversion_t	data_version;	/* Version number returned by server */
 	refcount_t		usage;
 	unsigned int		call_debug_id;
@@ -311,7 +311,7 @@ struct afs_net {
 	atomic_t		n_lookup;	/* Number of lookups done */
 	atomic_t		n_reval;	/* Number of dentries needing revalidation */
 	atomic_t		n_inval;	/* Number of invalidations by the server */
-	atomic_t		n_relpg;	/* Number of invalidations by releasepage */
+	atomic_t		n_relpg;	/* Number of invalidations by release_folio */
 	atomic_t		n_read_dir;	/* Number of directory pages read */
 	atomic_t		n_dir_cr;	/* Number of directory entry creation edits */
 	atomic_t		n_dir_rm;	/* Number of directory entry removal edits */
@@ -619,15 +619,11 @@ enum afs_lock_state {
  * leak from one inode to another.
  */
 struct afs_vnode {
-	struct inode		vfs_inode;	/* the VFS's inode record */
-
+	struct netfs_inode	netfs;		/* Netfslib context and vfs inode */
 	struct afs_volume	*volume;	/* volume on which vnode resides */
 	struct afs_fid		fid;		/* the file identifier for this inode */
 	struct afs_file_status	status;		/* AFS status info for this file */
 	afs_dataversion_t	invalid_before;	/* Child dentries are invalid before this */
-#ifdef CONFIG_AFS_FSCACHE
-	struct fscache_cookie	*cache;		/* caching cookie */
-#endif
 	struct afs_permits __rcu *permit_cache;	/* cache of permits so far obtained */
 	struct mutex		io_lock;	/* Lock for serialising I/O on this mutex */
 	struct rw_semaphore	validate_lock;	/* lock for validating this vnode */
@@ -674,9 +670,17 @@ struct afs_vnode {
 static inline struct fscache_cookie *afs_vnode_cache(struct afs_vnode *vnode)
 {
 #ifdef CONFIG_AFS_FSCACHE
-	return vnode->cache;
+	return netfs_i_cookie(&vnode->netfs);
 #else
 	return NULL;
+#endif
+}
+
+static inline void afs_vnode_set_cache(struct afs_vnode *vnode,
+				       struct fscache_cookie *cookie)
+{
+#ifdef CONFIG_AFS_FSCACHE
+	vnode->netfs.cache = cookie;
 #endif
 }
 
@@ -883,7 +887,7 @@ static inline void afs_invalidate_cache(struct afs_vnode *vnode, unsigned int fl
 
 	afs_set_cache_aux(vnode, &aux);
 	fscache_invalidate(afs_vnode_cache(vnode), &aux,
-			   i_size_read(&vnode->vfs_inode), flags);
+			   i_size_read(&vnode->netfs.inode), flags);
 }
 
 /*
@@ -1063,7 +1067,7 @@ extern const struct address_space_operations afs_file_aops;
 extern const struct address_space_operations afs_symlink_aops;
 extern const struct inode_operations afs_file_inode_operations;
 extern const struct file_operations afs_file_operations;
-extern const struct netfs_read_request_ops afs_req_ops;
+extern const struct netfs_request_ops afs_req_ops;
 
 extern int afs_cache_wb_key(struct afs_vnode *, struct afs_file *);
 extern void afs_put_wb_key(struct afs_wb_key *);
@@ -1208,7 +1212,7 @@ static inline struct afs_net *afs_i2net(struct inode *inode)
 
 static inline struct afs_net *afs_v2net(struct afs_vnode *vnode)
 {
-	return afs_i2net(&vnode->vfs_inode);
+	return afs_i2net(&vnode->netfs.inode);
 }
 
 static inline struct afs_net *afs_sock2net(struct sock *sk)
@@ -1521,12 +1525,12 @@ extern int afs_check_volume_status(struct afs_volume *, struct afs_operation *);
  * write.c
  */
 #ifdef CONFIG_AFS_FSCACHE
-extern int afs_set_page_dirty(struct page *);
+bool afs_dirty_folio(struct address_space *, struct folio *);
 #else
-#define afs_set_page_dirty __set_page_dirty_nobuffers
+#define afs_dirty_folio filemap_dirty_folio
 #endif
 extern int afs_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
+			loff_t pos, unsigned len,
 			struct page **pagep, void **fsdata);
 extern int afs_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
@@ -1537,7 +1541,7 @@ extern ssize_t afs_file_write(struct kiocb *, struct iov_iter *);
 extern int afs_fsync(struct file *, loff_t, loff_t, int);
 extern vm_fault_t afs_page_mkwrite(struct vm_fault *vmf);
 extern void afs_prune_wb_keys(struct afs_vnode *);
-extern int afs_launder_page(struct page *);
+int afs_launder_folio(struct folio *);
 
 /*
  * xattr.c
@@ -1584,12 +1588,12 @@ extern void yfs_fs_store_opaque_acl2(struct afs_operation *);
  */
 static inline struct afs_vnode *AFS_FS_I(struct inode *inode)
 {
-	return container_of(inode, struct afs_vnode, vfs_inode);
+	return container_of(inode, struct afs_vnode, netfs.inode);
 }
 
 static inline struct inode *AFS_VNODE_TO_I(struct afs_vnode *vnode)
 {
-	return &vnode->vfs_inode;
+	return &vnode->netfs.inode;
 }
 
 /*
@@ -1612,8 +1616,8 @@ static inline void afs_update_dentry_version(struct afs_operation *op,
  */
 static inline void afs_set_i_size(struct afs_vnode *vnode, u64 size)
 {
-	i_size_write(&vnode->vfs_inode, size);
-	vnode->vfs_inode.i_blocks = ((size + 1023) >> 10) << 1;
+	i_size_write(&vnode->netfs.inode, size);
+	vnode->netfs.inode.i_blocks = ((size + 1023) >> 10) << 1;
 }
 
 /*

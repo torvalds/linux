@@ -362,6 +362,12 @@ int dw_pcie_host_init(struct pcie_port *pp)
 			if (ret < 0)
 				return ret;
 		} else if (pp->has_msi_ctrl) {
+			u32 ctrl, num_ctrls;
+
+			num_ctrls = pp->num_vectors / MAX_MSI_IRQS_PER_CTRL;
+			for (ctrl = 0; ctrl < num_ctrls; ctrl++)
+				pp->irq_mask[ctrl] = ~0;
+
 			if (!pp->msi_irq) {
 				pp->msi_irq = platform_get_irq_byname_optional(pdev, "msi");
 				if (pp->msi_irq < 0) {
@@ -390,7 +396,8 @@ int dw_pcie_host_init(struct pcie_port *pp)
 						      sizeof(pp->msi_msg),
 						      DMA_FROM_DEVICE,
 						      DMA_ATTR_SKIP_CPU_SYNC);
-			if (dma_mapping_error(pci->dev, pp->msi_data)) {
+			ret = dma_mapping_error(pci->dev, pp->msi_data);
+			if (ret) {
 				dev_err(pci->dev, "Failed to map MSI data\n");
 				pp->msi_data = 0;
 				goto err_free_msi;
@@ -541,7 +548,6 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 
 		/* Initialize IRQ Status array */
 		for (ctrl = 0; ctrl < num_ctrls; ctrl++) {
-			pp->irq_mask[ctrl] = ~0;
 			dw_pcie_writel_dbi(pci, PCIE_MSI_INTR0_MASK +
 					    (ctrl * MSI_REG_CTRL_BLOCK_SIZE),
 					    pp->irq_mask[ctrl]);

@@ -66,14 +66,6 @@
 		__builtin_unreachable();	\
 	} while (0)
 
-#if defined(RANDSTRUCT_PLUGIN) && !defined(__CHECKER__)
-#define __randomize_layout __attribute__((randomize_layout))
-#define __no_randomize_layout __attribute__((no_randomize_layout))
-/* This anon struct can add padding, so only enable it under randstruct. */
-#define randomized_struct_fields_start	struct {
-#define randomized_struct_fields_end	} __randomize_layout;
-#endif
-
 /*
  * GCC 'asm goto' miscompiles certain code sequences:
  *
@@ -95,6 +87,10 @@
 #define KASAN_ABI_VERSION 5
 #else
 #define KASAN_ABI_VERSION 4
+#endif
+
+#ifdef CONFIG_SHADOW_CALL_STACK
+#define __noscs __attribute__((__no_sanitize__("shadow-call-stack")))
 #endif
 
 #if __has_attribute(__no_sanitize_address__)
@@ -150,6 +146,9 @@
 #else
 #define __diag_GCC_8(s)
 #endif
+
+#define __diag_ignore_all(option, comment) \
+	__diag_GCC(8, ignore, option)
 
 /*
  * Prior to 9.1, -Wno-alloc-size-larger-than (and therefore the "alloc_size"

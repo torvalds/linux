@@ -46,7 +46,7 @@ struct rcu_tasks_percpu {
 
 /**
  * struct rcu_tasks - Definition for a Tasks-RCU-like mechanism.
- * @cbs_wq: Wait queue allowing new callback to get kthread's attention.
+ * @cbs_wait: RCU wait allowing a new callback to get kthread's attention.
  * @cbs_gbl_lock: Lock protecting callback list.
  * @kthread_ptr: This flavor's grace-period/callback-invocation kthread.
  * @gp_func: This flavor's grace-period-wait function.
@@ -77,7 +77,7 @@ struct rcu_tasks_percpu {
  * @kname: This flavor's kthread name.
  */
 struct rcu_tasks {
-	struct wait_queue_head cbs_wq;
+	struct rcuwait cbs_wait;
 	raw_spinlock_t cbs_gbl_lock;
 	int gp_state;
 	int gp_sleep;
@@ -113,17 +113,17 @@ static void call_rcu_tasks_iw_wakeup(struct irq_work *iwp);
 #define DEFINE_RCU_TASKS(rt_name, gp, call, n)						\
 static DEFINE_PER_CPU(struct rcu_tasks_percpu, rt_name ## __percpu) = {			\
 	.lock = __RAW_SPIN_LOCK_UNLOCKED(rt_name ## __percpu.cbs_pcpu_lock),		\
-	.rtp_irq_work = IRQ_WORK_INIT(call_rcu_tasks_iw_wakeup),			\
+	.rtp_irq_work = IRQ_WORK_INIT_HARD(call_rcu_tasks_iw_wakeup),			\
 };											\
 static struct rcu_tasks rt_name =							\
 {											\
-	.cbs_wq = __WAIT_QUEUE_HEAD_INITIALIZER(rt_name.cbs_wq),			\
+	.cbs_wait = __RCUWAIT_INITIALIZER(rt_name.wait),				\
 	.cbs_gbl_lock = __RAW_SPIN_LOCK_UNLOCKED(rt_name.cbs_gbl_lock),			\
 	.gp_func = gp,									\
 	.call_func = call,								\
 	.rtpcpu = &rt_name ## __percpu,							\
 	.name = n,									\
-	.percpu_enqueue_shift = ilog2(CONFIG_NR_CPUS) + 1,				\
+	.percpu_enqueue_shift = order_base_2(CONFIG_NR_CPUS),				\
 	.percpu_enqueue_lim = 1,							\
 	.percpu_dequeue_lim = 1,							\
 	.barrier_q_mutex = __MUTEX_INITIALIZER(rt_name.barrier_q_mutex),		\
@@ -143,6 +143,11 @@ module_param(rcu_task_ipi_delay, int, 0644);
 #define RCU_TASK_STALL_TIMEOUT (HZ * 60 * 10)
 static int rcu_task_stall_timeout __read_mostly = RCU_TASK_STALL_TIMEOUT;
 module_param(rcu_task_stall_timeout, int, 0644);
+#define RCU_TASK_STALL_INFO (HZ * 10)
+static int rcu_task_stall_info __read_mostly = RCU_TASK_STALL_INFO;
+module_param(rcu_task_stall_info, int, 0644);
+static int rcu_task_stall_info_mult __read_mostly = 3;
+module_param(rcu_task_stall_info_mult, int, 0444);
 
 static int rcu_task_enqueue_lim __read_mostly = -1;
 module_param(rcu_task_enqueue_lim, int, 0444);
@@ -261,14 +266,16 @@ static void call_rcu_tasks_iw_wakeup(struct irq_work *iwp)
 	struct rcu_tasks_percpu *rtpcp = container_of(iwp, struct rcu_tasks_percpu, rtp_irq_work);
 
 	rtp = rtpcp->rtpp;
-	wake_up(&rtp->cbs_wq);
+	rcuwait_wake_up(&rtp->cbs_wait);
 }
 
 // Enqueue a callback for the specified flavor of Tasks RCU.
 static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 				   struct rcu_tasks *rtp)
 {
+	int chosen_cpu;
 	unsigned long flags;
+	int ideal_cpu;
 	unsigned long j;
 	bool needadjust = false;
 	bool needwake;
@@ -278,8 +285,9 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 	rhp->func = func;
 	local_irq_save(flags);
 	rcu_read_lock();
-	rtpcp = per_cpu_ptr(rtp->rtpcpu,
-			    smp_processor_id() >> READ_ONCE(rtp->percpu_enqueue_shift));
+	ideal_cpu = smp_processor_id() >> READ_ONCE(rtp->percpu_enqueue_shift);
+	chosen_cpu = cpumask_next(ideal_cpu - 1, cpu_possible_mask);
+	rtpcp = per_cpu_ptr(rtp->rtpcpu, chosen_cpu);
 	if (!raw_spin_trylock_rcu_node(rtpcp)) { // irqs already disabled.
 		raw_spin_lock_rcu_node(rtpcp); // irqs already disabled.
 		j = jiffies;
@@ -302,7 +310,7 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 	if (unlikely(needadjust)) {
 		raw_spin_lock_irqsave(&rtp->cbs_gbl_lock, flags);
 		if (rtp->percpu_enqueue_lim != nr_cpu_ids) {
-			WRITE_ONCE(rtp->percpu_enqueue_shift, ilog2(nr_cpu_ids) + 1);
+			WRITE_ONCE(rtp->percpu_enqueue_shift, 0);
 			WRITE_ONCE(rtp->percpu_dequeue_lim, nr_cpu_ids);
 			smp_store_release(&rtp->percpu_enqueue_lim, nr_cpu_ids);
 			pr_info("Switching %s to per-CPU callback queuing.\n", rtp->name);
@@ -417,7 +425,7 @@ static int rcu_tasks_need_gpcb(struct rcu_tasks *rtp)
 	if (rcu_task_cb_adjust && ncbs <= rcu_task_collapse_lim) {
 		raw_spin_lock_irqsave(&rtp->cbs_gbl_lock, flags);
 		if (rtp->percpu_enqueue_lim > 1) {
-			WRITE_ONCE(rtp->percpu_enqueue_shift, ilog2(nr_cpu_ids) + 1);
+			WRITE_ONCE(rtp->percpu_enqueue_shift, order_base_2(nr_cpu_ids));
 			smp_store_release(&rtp->percpu_enqueue_lim, 1);
 			rtp->percpu_dequeue_gpseq = get_state_synchronize_rcu();
 			pr_info("Starting switch %s to CPU-0 callback queuing.\n", rtp->name);
@@ -460,7 +468,7 @@ static void rcu_tasks_invoke_cbs(struct rcu_tasks *rtp, struct rcu_tasks_percpu 
 		}
 	}
 
-	if (rcu_segcblist_empty(&rtpcp->cblist))
+	if (rcu_segcblist_empty(&rtpcp->cblist) || !cpu_possible(cpu))
 		return;
 	raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
 	rcu_segcblist_advance(&rtpcp->cblist, rcu_seq_current(&rtp->tasks_gp_seq));
@@ -496,7 +504,7 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 	struct rcu_tasks *rtp = arg;
 
 	/* Run on housekeeping CPUs by default.  Sysadm can move if desired. */
-	housekeeping_affine(current, HK_FLAG_RCU);
+	housekeeping_affine(current, HK_TYPE_RCU);
 	WRITE_ONCE(rtp->kthread_ptr, current); // Let GPs start!
 
 	/*
@@ -509,7 +517,9 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 		set_tasks_gp_state(rtp, RTGS_WAIT_CBS);
 
 		/* If there were none, wait a bit and start over. */
-		wait_event_idle(rtp->cbs_wq, (needgpcb = rcu_tasks_need_gpcb(rtp)));
+		rcuwait_wait_event(&rtp->cbs_wait,
+				   (needgpcb = rcu_tasks_need_gpcb(rtp)),
+				   TASK_IDLE);
 
 		if (needgpcb & 0x2) {
 			// Wait for one grace period.
@@ -548,8 +558,15 @@ static void __init rcu_spawn_tasks_kthread_generic(struct rcu_tasks *rtp)
 static void __init rcu_tasks_bootup_oddness(void)
 {
 #if defined(CONFIG_TASKS_RCU) || defined(CONFIG_TASKS_TRACE_RCU)
+	int rtsimc;
+
 	if (rcu_task_stall_timeout != RCU_TASK_STALL_TIMEOUT)
 		pr_info("\tTasks-RCU CPU stall warnings timeout set to %d (rcu_task_stall_timeout).\n", rcu_task_stall_timeout);
+	rtsimc = clamp(rcu_task_stall_info_mult, 1, 10);
+	if (rtsimc != rcu_task_stall_info_mult) {
+		pr_info("\tTasks-RCU CPU stall info multiplier clamped to %d (rcu_task_stall_info_mult).\n", rtsimc);
+		rcu_task_stall_info_mult = rtsimc;
+	}
 #endif /* #ifdef CONFIG_TASKS_RCU */
 #ifdef CONFIG_TASKS_RCU
 	pr_info("\tTrampoline variant of Tasks RCU enabled.\n");
@@ -568,7 +585,17 @@ static void __init rcu_tasks_bootup_oddness(void)
 /* Dump out rcutorture-relevant state common to all RCU-tasks flavors. */
 static void show_rcu_tasks_generic_gp_kthread(struct rcu_tasks *rtp, char *s)
 {
-	struct rcu_tasks_percpu *rtpcp = per_cpu_ptr(rtp->rtpcpu, 0); // for_each...
+	int cpu;
+	bool havecbs = false;
+
+	for_each_possible_cpu(cpu) {
+		struct rcu_tasks_percpu *rtpcp = per_cpu_ptr(rtp->rtpcpu, cpu);
+
+		if (!data_race(rcu_segcblist_empty(&rtpcp->cblist))) {
+			havecbs = true;
+			break;
+		}
+	}
 	pr_info("%s: %s(%d) since %lu g:%lu i:%lu/%lu %c%c %s\n",
 		rtp->kname,
 		tasks_gp_state_getname(rtp), data_race(rtp->gp_state),
@@ -576,7 +603,7 @@ static void show_rcu_tasks_generic_gp_kthread(struct rcu_tasks *rtp, char *s)
 		data_race(rcu_seq_current(&rtp->tasks_gp_seq)),
 		data_race(rtp->n_ipis_fails), data_race(rtp->n_ipis),
 		".k"[!!data_race(rtp->kthread_ptr)],
-		".C"[!data_race(rcu_segcblist_empty(&rtpcp->cblist))],
+		".C"[havecbs],
 		s);
 }
 #endif // #ifndef CONFIG_TINY_RCU
@@ -592,10 +619,15 @@ static void exit_tasks_rcu_finish_trace(struct task_struct *t);
 /* Wait for one RCU-tasks grace period. */
 static void rcu_tasks_wait_gp(struct rcu_tasks *rtp)
 {
-	struct task_struct *g, *t;
-	unsigned long lastreport;
-	LIST_HEAD(holdouts);
+	struct task_struct *g;
 	int fract;
+	LIST_HEAD(holdouts);
+	unsigned long j;
+	unsigned long lastinfo;
+	unsigned long lastreport;
+	bool reported = false;
+	int rtsi;
+	struct task_struct *t;
 
 	set_tasks_gp_state(rtp, RTGS_PRE_WAIT_GP);
 	rtp->pregp_func();
@@ -621,30 +653,50 @@ static void rcu_tasks_wait_gp(struct rcu_tasks *rtp)
 	 * is empty, we are done.
 	 */
 	lastreport = jiffies;
+	lastinfo = lastreport;
+	rtsi = READ_ONCE(rcu_task_stall_info);
 
 	// Start off with initial wait and slowly back off to 1 HZ wait.
 	fract = rtp->init_fract;
 
 	while (!list_empty(&holdouts)) {
+		ktime_t exp;
 		bool firstreport;
 		bool needreport;
 		int rtst;
 
-		/* Slowly back off waiting for holdouts */
+		// Slowly back off waiting for holdouts
 		set_tasks_gp_state(rtp, RTGS_WAIT_SCAN_HOLDOUTS);
-		schedule_timeout_idle(fract);
+		if (!IS_ENABLED(CONFIG_PREEMPT_RT)) {
+			schedule_timeout_idle(fract);
+		} else {
+			exp = jiffies_to_nsecs(fract);
+			__set_current_state(TASK_IDLE);
+			schedule_hrtimeout_range(&exp, jiffies_to_nsecs(HZ / 2), HRTIMER_MODE_REL_HARD);
+		}
 
 		if (fract < HZ)
 			fract++;
 
 		rtst = READ_ONCE(rcu_task_stall_timeout);
 		needreport = rtst > 0 && time_after(jiffies, lastreport + rtst);
-		if (needreport)
+		if (needreport) {
 			lastreport = jiffies;
+			reported = true;
+		}
 		firstreport = true;
 		WARN_ON(signal_pending(current));
 		set_tasks_gp_state(rtp, RTGS_SCAN_HOLDOUTS);
 		rtp->holdouts_func(&holdouts, needreport, &firstreport);
+
+		// Print pre-stall informational messages if needed.
+		j = jiffies;
+		if (rtsi > 0 && !reported && time_after(j, lastinfo + rtsi)) {
+			lastinfo = j;
+			rtsi = rtsi * rcu_task_stall_info_mult;
+			pr_info("%s: %s grace period %lu is %lu jiffies old.\n",
+				__func__, rtp->kname, rtp->tasks_gp_seq, j - rtp->gp_start);
+		}
 	}
 
 	set_tasks_gp_state(rtp, RTGS_POST_GP);
@@ -950,6 +1002,9 @@ static void rcu_tasks_be_rude(struct work_struct *work)
 // Wait for one rude RCU-tasks grace period.
 static void rcu_tasks_rude_wait_gp(struct rcu_tasks *rtp)
 {
+	if (num_online_cpus() <= 1)
+		return;	// Fastpath for only one CPU.
+
 	rtp->n_ipis += cpumask_weight(cpu_online_mask);
 	schedule_on_each_cpu(rcu_tasks_be_rude);
 }

@@ -19,7 +19,7 @@
 #include "hyperv_drm.h"
 
 static int hyperv_blit_to_vram_rect(struct drm_framebuffer *fb,
-				    const struct dma_buf_map *map,
+				    const struct iosys_map *map,
 				    struct drm_rect *rect)
 {
 	struct hyperv_drm_device *hv = to_hv(fb->dev);
@@ -38,7 +38,8 @@ static int hyperv_blit_to_vram_rect(struct drm_framebuffer *fb,
 	return 0;
 }
 
-static int hyperv_blit_to_vram_fullscreen(struct drm_framebuffer *fb, const struct dma_buf_map *map)
+static int hyperv_blit_to_vram_fullscreen(struct drm_framebuffer *fb,
+					  const struct iosys_map *map)
 {
 	struct drm_rect fullscreen = {
 		.x1 = 0,
@@ -122,8 +123,11 @@ static int hyperv_pipe_check(struct drm_simple_display_pipe *pipe,
 	if (fb->format->format != DRM_FORMAT_XRGB8888)
 		return -EINVAL;
 
-	if (fb->pitches[0] * fb->height > hv->fb_size)
+	if (fb->pitches[0] * fb->height > hv->fb_size) {
+		drm_err(&hv->dev, "fb size requested by %s for %dX%d (pitch %d) greater than %ld\n",
+			current->comm, fb->width, fb->height, fb->pitches[0], hv->fb_size);
 		return -EINVAL;
+	}
 
 	return 0;
 }

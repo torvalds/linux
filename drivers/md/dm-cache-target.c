@@ -744,21 +744,14 @@ static void check_if_tick_bio_needed(struct cache *cache, struct bio *bio)
 	spin_unlock_irq(&cache->lock);
 }
 
-static void __remap_to_origin_clear_discard(struct cache *cache, struct bio *bio,
-					    dm_oblock_t oblock, bool bio_has_pbd)
-{
-	if (bio_has_pbd)
-		check_if_tick_bio_needed(cache, bio);
-	remap_to_origin(cache, bio);
-	if (bio_data_dir(bio) == WRITE)
-		clear_discard(cache, oblock_to_dblock(cache, oblock));
-}
-
 static void remap_to_origin_clear_discard(struct cache *cache, struct bio *bio,
 					  dm_oblock_t oblock)
 {
 	// FIXME: check_if_tick_bio_needed() is called way too much through this interface
-	__remap_to_origin_clear_discard(cache, bio, oblock, true);
+	check_if_tick_bio_needed(cache, bio);
+	remap_to_origin(cache, bio);
+	if (bio_data_dir(bio) == WRITE)
+		clear_discard(cache, oblock_to_dblock(cache, oblock));
 }
 
 static void remap_to_cache_dirty(struct cache *cache, struct bio *bio,
@@ -810,7 +803,7 @@ static void accounted_complete(struct cache *cache, struct bio *bio)
 static void accounted_request(struct cache *cache, struct bio *bio)
 {
 	accounted_begin(cache, bio);
-	submit_bio_noacct(bio);
+	dm_submit_bio_remap(bio, NULL);
 }
 
 static void issue_op(struct bio *bio, void *context)
@@ -826,16 +819,15 @@ static void issue_op(struct bio *bio, void *context)
 static void remap_to_origin_and_cache(struct cache *cache, struct bio *bio,
 				      dm_oblock_t oblock, dm_cblock_t cblock)
 {
-	struct bio *origin_bio = bio_clone_fast(bio, GFP_NOIO, &cache->bs);
+	struct bio *origin_bio = bio_alloc_clone(cache->origin_dev->bdev, bio,
+						 GFP_NOIO, &cache->bs);
 
 	BUG_ON(!origin_bio);
 
 	bio_chain(origin_bio, bio);
-	/*
-	 * Passing false to __remap_to_origin_clear_discard() skips
-	 * all code that might use per_bio_data (since clone doesn't have it)
-	 */
-	__remap_to_origin_clear_discard(cache, origin_bio, oblock, false);
+
+	if (bio_data_dir(origin_bio) == WRITE)
+		clear_discard(cache, oblock_to_dblock(cache, oblock));
 	submit_bio(origin_bio);
 
 	remap_to_cache(cache, bio, cblock);
@@ -1716,7 +1708,7 @@ static bool process_bio(struct cache *cache, struct bio *bio)
 	bool commit_needed;
 
 	if (map_bio(cache, bio, get_bio_block(cache, bio), &commit_needed) == DM_MAPIO_REMAPPED)
-		submit_bio_noacct(bio);
+		dm_submit_bio_remap(bio, NULL);
 
 	return commit_needed;
 }
@@ -1782,7 +1774,7 @@ static bool process_discard_bio(struct cache *cache, struct bio *bio)
 
 	if (cache->features.discard_passdown) {
 		remap_to_origin(cache, bio);
-		submit_bio_noacct(bio);
+		dm_submit_bio_remap(bio, NULL);
 	} else
 		bio_endio(bio);
 
@@ -2023,7 +2015,6 @@ static int parse_metadata_dev(struct cache_args *ca, struct dm_arg_set *as,
 {
 	int r;
 	sector_t metadata_dev_size;
-	char b[BDEVNAME_SIZE];
 
 	if (!at_least_one_arg(as, error))
 		return -EINVAL;
@@ -2037,8 +2028,8 @@ static int parse_metadata_dev(struct cache_args *ca, struct dm_arg_set *as,
 
 	metadata_dev_size = get_dev_size(ca->metadata_dev);
 	if (metadata_dev_size > DM_CACHE_METADATA_MAX_SECTORS_WARNING)
-		DMWARN("Metadata device %s is larger than %u sectors: excess space will not be used.",
-		       bdevname(ca->metadata_dev->bdev, b), THIN_METADATA_MAX_SECTORS);
+		DMWARN("Metadata device %pg is larger than %u sectors: excess space will not be used.",
+		       ca->metadata_dev->bdev, THIN_METADATA_MAX_SECTORS);
 
 	return 0;
 }
@@ -2365,6 +2356,7 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 
 	cache->ti = ca->ti;
 	ti->private = cache;
+	ti->accounts_remapped_io = true;
 	ti->num_flush_bios = 2;
 	ti->flush_supported = true;
 
@@ -3337,13 +3329,6 @@ static int cache_iterate_devices(struct dm_target *ti,
 	return r;
 }
 
-static bool origin_dev_supports_discard(struct block_device *origin_bdev)
-{
-	struct request_queue *q = bdev_get_queue(origin_bdev);
-
-	return blk_queue_discard(q);
-}
-
 /*
  * If discard_passdown was enabled verify that the origin device
  * supports discards.  Disable discard_passdown if not.
@@ -3353,20 +3338,19 @@ static void disable_passdown_if_not_supported(struct cache *cache)
 	struct block_device *origin_bdev = cache->origin_dev->bdev;
 	struct queue_limits *origin_limits = &bdev_get_queue(origin_bdev)->limits;
 	const char *reason = NULL;
-	char buf[BDEVNAME_SIZE];
 
 	if (!cache->features.discard_passdown)
 		return;
 
-	if (!origin_dev_supports_discard(origin_bdev))
+	if (!bdev_max_discard_sectors(origin_bdev))
 		reason = "discard unsupported";
 
 	else if (origin_limits->max_discard_sectors < cache->sectors_per_block)
 		reason = "max discard sectors smaller than a block";
 
 	if (reason) {
-		DMWARN("Origin device (%s) %s: Disabling discard passdown.",
-		       bdevname(origin_bdev, buf), reason);
+		DMWARN("Origin device (%pg) %s: Disabling discard passdown.",
+		       origin_bdev, reason);
 		cache->features.discard_passdown = false;
 	}
 }

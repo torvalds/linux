@@ -87,11 +87,11 @@ static int byt_cht_cx2072x_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	ret = snd_soc_card_jack_new(card, "Headset",
-				    SND_JACK_HEADSET | SND_JACK_BTN_0,
-				    &byt_cht_cx2072x_headset,
-				    byt_cht_cx2072x_headset_pins,
-				    ARRAY_SIZE(byt_cht_cx2072x_headset_pins));
+	ret = snd_soc_card_jack_new_pins(card, "Headset",
+					 SND_JACK_HEADSET | SND_JACK_BTN_0,
+					 &byt_cht_cx2072x_headset,
+					 byt_cht_cx2072x_headset_pins,
+					 ARRAY_SIZE(byt_cht_cx2072x_headset_pins));
 	if (ret)
 		return ret;
 
@@ -257,7 +257,7 @@ static int snd_byt_cht_cx2072x_probe(struct platform_device *pdev)
 		byt_cht_cx2072x_dais[dai_index].codecs->name = codec_name;
 	}
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	ret = snd_soc_fixup_dai_links_platform_name(&byt_cht_cx2072x_card,
 						    mach->mach_params.platform);
 	if (ret)

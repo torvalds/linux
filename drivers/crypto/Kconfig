@@ -216,9 +216,9 @@ config CRYPTO_AES_S390
 config CRYPTO_CHACHA_S390
 	tristate "ChaCha20 stream cipher"
 	depends on S390
-	select CRYPTO_ALGAPI
 	select CRYPTO_SKCIPHER
-	select CRYPTO_CHACHA20
+	select CRYPTO_LIB_CHACHA_GENERIC
+	select CRYPTO_ARCH_HAVE_LIB_CHACHA
 	help
 	  This is the s390 SIMD implementation of the ChaCha20 stream
 	  cipher (RFC 7539).
@@ -807,6 +807,16 @@ config CRYPTO_DEV_ZYNQMP_AES
 	  encryption and decryption. This driver interfaces with AES hw
 	  accelerator. Select this if you want to use the ZynqMP module
 	  for AES algorithms.
+
+config CRYPTO_DEV_ZYNQMP_SHA3
+	tristate "Support for Xilinx ZynqMP SHA3 hardware accelerator"
+	depends on ZYNQMP_FIRMWARE || COMPILE_TEST
+	select CRYPTO_SHA3
+	help
+	  Xilinx ZynqMP has SHA3 engine used for secure hash calculation.
+	  This driver interfaces with SHA3 hardware engine.
+	  Select this if you want to use the ZynqMP module
+	  for SHA3 hash computation.
 
 source "drivers/crypto/chelsio/Kconfig"
 

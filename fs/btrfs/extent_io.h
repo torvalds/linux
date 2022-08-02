@@ -7,14 +7,8 @@
 #include <linux/refcount.h>
 #include <linux/fiemap.h>
 #include <linux/btrfs_tree.h>
+#include "compression.h"
 #include "ulist.h"
-
-/*
- * flags for bio submission. The high bits indicate the compression
- * type for this bio
- */
-#define EXTENT_BIO_COMPRESSED 1
-#define EXTENT_BIO_FLAG_SHIFT 16
 
 enum {
 	EXTENT_BUFFER_UPTODATE,
@@ -32,7 +26,6 @@ enum {
 	/* write IO error */
 	EXTENT_BUFFER_WRITE_ERR,
 	EXTENT_BUFFER_NO_CHECK,
-	EXTENT_BUFFER_ZONE_FINISH,
 };
 
 /* these are flags for __process_pages_contig */
@@ -71,9 +64,9 @@ struct btrfs_fs_info;
 struct io_failure_record;
 struct extent_io_tree;
 
-typedef blk_status_t (submit_bio_hook_t)(struct inode *inode, struct bio *bio,
+typedef void (submit_bio_hook_t)(struct inode *inode, struct bio *bio,
 					 int mirror_num,
-					 unsigned long bio_flags);
+					 enum btrfs_compression_type compress_type);
 
 typedef blk_status_t (extent_submit_bio_start_t)(struct inode *inode,
 		struct bio *bio, u64 dio_file_offset);
@@ -103,22 +96,11 @@ struct extent_buffer {
 };
 
 /*
- * Structure to record info about the bio being assembled, and other info like
- * how many bytes are there before stripe/ordered extent boundary.
- */
-struct btrfs_bio_ctrl {
-	struct bio *bio;
-	unsigned long bio_flags;
-	u32 len_to_stripe_boundary;
-	u32 len_to_oe_boundary;
-};
-
-/*
  * Structure to record how many bytes and which ranges are set/cleared
  */
 struct extent_changeset {
 	/* How many bytes are set/cleared in this operation */
-	unsigned int bytes_changed;
+	u64 bytes_changed;
 
 	/* Changed ranges */
 	struct ulist range_changed;
@@ -158,17 +140,6 @@ static inline void extent_changeset_free(struct extent_changeset *changeset)
 	kfree(changeset);
 }
 
-static inline void extent_set_compress_type(unsigned long *bio_flags,
-					    int compress_type)
-{
-	*bio_flags |= compress_type << EXTENT_BIO_FLAG_SHIFT;
-}
-
-static inline int extent_compress_type(unsigned long bio_flags)
-{
-	return bio_flags >> EXTENT_BIO_FLAG_SHIFT;
-}
-
 struct extent_map_tree;
 
 typedef struct extent_map *(get_extent_t)(struct btrfs_inode *inode,
@@ -178,11 +149,7 @@ typedef struct extent_map *(get_extent_t)(struct btrfs_inode *inode,
 int try_release_extent_mapping(struct page *page, gfp_t mask);
 int try_release_extent_buffer(struct page *page);
 
-int __must_check submit_one_bio(struct bio *bio, int mirror_num,
-				unsigned long bio_flags);
-int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
-		      struct btrfs_bio_ctrl *bio_ctrl,
-		      unsigned int read_flags, u64 *prev_em_start);
+int btrfs_read_folio(struct file *file, struct folio *folio);
 int extent_write_full_page(struct page *page, struct writeback_control *wbc);
 int extent_write_locked_range(struct inode *inode, u64 start, u64 end);
 int extent_writepages(struct address_space *mapping,
@@ -277,8 +244,10 @@ void extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end);
 void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 				  struct page *locked_page,
 				  u32 bits_to_clear, unsigned long page_ops);
+
+int btrfs_alloc_page_array(unsigned int nr_pages, struct page **page_array);
 struct bio *btrfs_bio_alloc(unsigned int nr_iovecs);
-struct bio *btrfs_bio_clone(struct bio *bio);
+struct bio *btrfs_bio_clone(struct block_device *bdev, struct bio *bio);
 struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size);
 
 void end_extent_writepage(struct page *page, int err, u64 start, u64 end);
@@ -297,7 +266,7 @@ struct io_failure_record {
 	u64 start;
 	u64 len;
 	u64 logical;
-	unsigned long bio_flags;
+	enum btrfs_compression_type compress_type;
 	int this_mirror;
 	int failed_mirror;
 };

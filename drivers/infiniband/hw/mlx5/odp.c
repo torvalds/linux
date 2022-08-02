@@ -38,6 +38,7 @@
 
 #include "mlx5_ib.h"
 #include "cmd.h"
+#include "umr.h"
 #include "qp.h"
 
 #include <linux/mlx5/eq.h>
@@ -117,7 +118,7 @@ static void populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
 	 *
 	 *    xa_store()
 	 *    mutex_lock(umem_mutex)
-	 *     mlx5_ib_update_xlt()
+	 *     mlx5r_umr_update_xlt()
 	 *    mutex_unlock(umem_mutex)
 	 *    destroy lkey
 	 *
@@ -198,9 +199,9 @@ static void free_implicit_child_mr_work(struct work_struct *work)
 	mlx5r_deref_wait_odp_mkey(&mr->mmkey);
 
 	mutex_lock(&odp_imr->umem_mutex);
-	mlx5_ib_update_xlt(mr->parent, ib_umem_start(odp) >> MLX5_IMR_MTT_SHIFT,
-			   1, 0,
-			   MLX5_IB_UPD_XLT_INDIRECT | MLX5_IB_UPD_XLT_ATOMIC);
+	mlx5r_umr_update_xlt(mr->parent,
+			     ib_umem_start(odp) >> MLX5_IMR_MTT_SHIFT, 1, 0,
+			     MLX5_IB_UPD_XLT_INDIRECT | MLX5_IB_UPD_XLT_ATOMIC);
 	mutex_unlock(&odp_imr->umem_mutex);
 	mlx5_ib_dereg_mr(&mr->ibmr, NULL);
 
@@ -282,19 +283,19 @@ static bool mlx5_ib_invalidate_range(struct mmu_interval_notifier *mni,
 			u64 umr_offset = idx & umr_block_mask;
 
 			if (in_block && umr_offset == 0) {
-				mlx5_ib_update_xlt(mr, blk_start_idx,
-						   idx - blk_start_idx, 0,
-						   MLX5_IB_UPD_XLT_ZAP |
-						   MLX5_IB_UPD_XLT_ATOMIC);
+				mlx5r_umr_update_xlt(mr, blk_start_idx,
+						     idx - blk_start_idx, 0,
+						     MLX5_IB_UPD_XLT_ZAP |
+						     MLX5_IB_UPD_XLT_ATOMIC);
 				in_block = 0;
 			}
 		}
 	}
 	if (in_block)
-		mlx5_ib_update_xlt(mr, blk_start_idx,
-				   idx - blk_start_idx + 1, 0,
-				   MLX5_IB_UPD_XLT_ZAP |
-				   MLX5_IB_UPD_XLT_ATOMIC);
+		mlx5r_umr_update_xlt(mr, blk_start_idx,
+				     idx - blk_start_idx + 1, 0,
+				     MLX5_IB_UPD_XLT_ZAP |
+				     MLX5_IB_UPD_XLT_ATOMIC);
 
 	mlx5_update_odp_stats(mr, invalidations, invalidations);
 
@@ -323,8 +324,7 @@ static void internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 
 	memset(caps, 0, sizeof(*caps));
 
-	if (!MLX5_CAP_GEN(dev->mdev, pg) ||
-	    !mlx5_ib_can_load_pas_with_umr(dev, 0))
+	if (!MLX5_CAP_GEN(dev->mdev, pg) || !mlx5r_umr_can_load_pas(dev, 0))
 		return;
 
 	caps->general_caps = IB_ODP_SUPPORT;
@@ -407,6 +407,7 @@ static void mlx5_ib_page_fault_resume(struct mlx5_ib_dev *dev,
 static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 						unsigned long idx)
 {
+	struct mlx5_ib_dev *dev = mr_to_mdev(imr);
 	struct ib_umem_odp *odp;
 	struct mlx5_ib_mr *mr;
 	struct mlx5_ib_mr *ret;
@@ -418,13 +419,14 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 	if (IS_ERR(odp))
 		return ERR_CAST(odp);
 
-	mr = mlx5_mr_cache_alloc(
-		mr_to_mdev(imr), MLX5_IMR_MTT_CACHE_ENTRY, imr->access_flags);
+	mr = mlx5_mr_cache_alloc(dev, &dev->cache.ent[MLX5_IMR_MTT_CACHE_ENTRY],
+				 imr->access_flags);
 	if (IS_ERR(mr)) {
 		ib_umem_odp_release(odp);
 		return mr;
 	}
 
+	mr->access_flags = imr->access_flags;
 	mr->ibmr.pd = imr->ibmr.pd;
 	mr->ibmr.device = &mr_to_mdev(imr)->ib_dev;
 	mr->umem = &odp->umem;
@@ -440,11 +442,11 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 	 */
 	refcount_set(&mr->mmkey.usecount, 2);
 
-	err = mlx5_ib_update_xlt(mr, 0,
-				 MLX5_IMR_MTT_ENTRIES,
-				 PAGE_SHIFT,
-				 MLX5_IB_UPD_XLT_ZAP |
-				 MLX5_IB_UPD_XLT_ENABLE);
+	err = mlx5r_umr_update_xlt(mr, 0,
+				   MLX5_IMR_MTT_ENTRIES,
+				   PAGE_SHIFT,
+				   MLX5_IB_UPD_XLT_ZAP |
+				   MLX5_IB_UPD_XLT_ENABLE);
 	if (err) {
 		ret = ERR_PTR(err);
 		goto out_mr;
@@ -485,36 +487,37 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	struct mlx5_ib_mr *imr;
 	int err;
 
-	if (!mlx5_ib_can_load_pas_with_umr(dev,
-					   MLX5_IMR_MTT_ENTRIES * PAGE_SIZE))
+	if (!mlx5r_umr_can_load_pas(dev, MLX5_IMR_MTT_ENTRIES * PAGE_SIZE))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	umem_odp = ib_umem_odp_alloc_implicit(&dev->ib_dev, access_flags);
 	if (IS_ERR(umem_odp))
 		return ERR_CAST(umem_odp);
 
-	imr = mlx5_mr_cache_alloc(dev, MLX5_IMR_KSM_CACHE_ENTRY, access_flags);
+	imr = mlx5_mr_cache_alloc(dev,
+				  &dev->cache.ent[MLX5_IMR_KSM_CACHE_ENTRY],
+				  access_flags);
 	if (IS_ERR(imr)) {
 		ib_umem_odp_release(umem_odp);
 		return imr;
 	}
 
+	imr->access_flags = access_flags;
 	imr->ibmr.pd = &pd->ibpd;
 	imr->ibmr.iova = 0;
 	imr->umem = &umem_odp->umem;
 	imr->ibmr.lkey = imr->mmkey.key;
 	imr->ibmr.rkey = imr->mmkey.key;
 	imr->ibmr.device = &dev->ib_dev;
-	imr->umem = &umem_odp->umem;
 	imr->is_odp_implicit = true;
 	xa_init(&imr->implicit_children);
 
-	err = mlx5_ib_update_xlt(imr, 0,
-				 mlx5_imr_ksm_entries,
-				 MLX5_KSM_PAGE_SHIFT,
-				 MLX5_IB_UPD_XLT_INDIRECT |
-				 MLX5_IB_UPD_XLT_ZAP |
-				 MLX5_IB_UPD_XLT_ENABLE);
+	err = mlx5r_umr_update_xlt(imr, 0,
+				   mlx5_imr_ksm_entries,
+				   MLX5_KSM_PAGE_SHIFT,
+				   MLX5_IB_UPD_XLT_INDIRECT |
+				   MLX5_IB_UPD_XLT_ZAP |
+				   MLX5_IB_UPD_XLT_ENABLE);
 	if (err)
 		goto out_mr;
 
@@ -577,7 +580,7 @@ static int pagefault_real_mr(struct mlx5_ib_mr *mr, struct ib_umem_odp *odp,
 	 * No need to check whether the MTTs really belong to this MR, since
 	 * ib_umem_odp_map_dma_and_lock already checks this.
 	 */
-	ret = mlx5_ib_update_xlt(mr, start_idx, np, page_shift, xlt_flags);
+	ret = mlx5r_umr_update_xlt(mr, start_idx, np, page_shift, xlt_flags);
 	mutex_unlock(&odp->umem_mutex);
 
 	if (ret < 0) {
@@ -675,9 +678,9 @@ out:
 	 * next pagefault handler will see the new information.
 	 */
 	mutex_lock(&odp_imr->umem_mutex);
-	err = mlx5_ib_update_xlt(imr, upd_start_idx, upd_len, 0,
-				 MLX5_IB_UPD_XLT_INDIRECT |
-					 MLX5_IB_UPD_XLT_ATOMIC);
+	err = mlx5r_umr_update_xlt(imr, upd_start_idx, upd_len, 0,
+				   MLX5_IB_UPD_XLT_INDIRECT |
+					  MLX5_IB_UPD_XLT_ATOMIC);
 	mutex_unlock(&odp_imr->umem_mutex);
 	if (err) {
 		mlx5_ib_err(mr_to_mdev(imr), "Failed to update PAS\n");
@@ -711,7 +714,7 @@ static int pagefault_dmabuf_mr(struct mlx5_ib_mr *mr, size_t bcnt,
 		ib_umem_dmabuf_unmap_pages(umem_dmabuf);
 		err = -EINVAL;
 	} else {
-		err = mlx5_ib_update_mr_pas(mr, xlt_flags);
+		err = mlx5r_umr_update_mr_pas(mr, xlt_flags);
 	}
 	dma_resv_unlock(umem_dmabuf->attach->dmabuf->resv);
 
@@ -1593,18 +1596,14 @@ void mlx5_odp_init_mr_cache_entry(struct mlx5_cache_ent *ent)
 	switch (ent->order - 2) {
 	case MLX5_IMR_MTT_CACHE_ENTRY:
 		ent->page = PAGE_SHIFT;
-		ent->xlt = MLX5_IMR_MTT_ENTRIES *
-			   sizeof(struct mlx5_mtt) /
-			   MLX5_IB_UMR_OCTOWORD;
+		ent->ndescs = MLX5_IMR_MTT_ENTRIES;
 		ent->access_mode = MLX5_MKC_ACCESS_MODE_MTT;
 		ent->limit = 0;
 		break;
 
 	case MLX5_IMR_KSM_CACHE_ENTRY:
 		ent->page = MLX5_KSM_PAGE_SHIFT;
-		ent->xlt = mlx5_imr_ksm_entries *
-			   sizeof(struct mlx5_klm) /
-			   MLX5_IB_UMR_OCTOWORD;
+		ent->ndescs = mlx5_imr_ksm_entries;
 		ent->access_mode = MLX5_MKC_ACCESS_MODE_KSM;
 		ent->limit = 0;
 		break;

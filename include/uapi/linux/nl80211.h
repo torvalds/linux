@@ -11,7 +11,7 @@
  * Copyright 2008 Jouni Malinen <jouni.malinen@atheros.com>
  * Copyright 2008 Colin McCabe <colin@cozybit.com>
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -2659,6 +2659,10 @@ enum nl80211_commands {
  *	enumerated in &enum nl80211_ap_settings_flags. This attribute shall be
  *	used with %NL80211_CMD_START_AP request.
  *
+ * @NL80211_ATTR_EHT_CAPABILITY: EHT Capability information element (from
+ *	association request when used with NL80211_CMD_NEW_STATION). Can be set
+ *	only if %NL80211_STA_FLAG_WME is set.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -3169,6 +3173,10 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_AP_SETTINGS_FLAGS,
 
+	NL80211_ATTR_EHT_CAPABILITY,
+
+	NL80211_ATTR_DISABLE_EHT,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
@@ -3224,6 +3232,8 @@ enum nl80211_attrs {
 #define NL80211_HE_MAX_CAPABILITY_LEN           54
 #define NL80211_MAX_NR_CIPHER_SUITES		5
 #define NL80211_MAX_NR_AKM_SUITES		2
+#define NL80211_EHT_MIN_CAPABILITY_LEN          13
+#define NL80211_EHT_MAX_CAPABILITY_LEN          51
 
 #define NL80211_MIN_REMAIN_ON_CHANNEL_TIME	10
 
@@ -3251,7 +3261,7 @@ enum nl80211_attrs {
  *	and therefore can't be created in the normal ways, use the
  *	%NL80211_CMD_START_P2P_DEVICE and %NL80211_CMD_STOP_P2P_DEVICE
  *	commands to create and destroy one
- * @NL80211_IF_TYPE_OCB: Outside Context of a BSS
+ * @NL80211_IFTYPE_OCB: Outside Context of a BSS
  *	This mode corresponds to the MIB variable dot11OCBActivated=true
  * @NL80211_IFTYPE_NAN: NAN device interface type (not a netdev)
  * @NL80211_IFTYPE_MAX: highest interface type number currently defined
@@ -3393,6 +3403,56 @@ enum nl80211_he_ru_alloc {
 };
 
 /**
+ * enum nl80211_eht_gi - EHT guard interval
+ * @NL80211_RATE_INFO_EHT_GI_0_8: 0.8 usec
+ * @NL80211_RATE_INFO_EHT_GI_1_6: 1.6 usec
+ * @NL80211_RATE_INFO_EHT_GI_3_2: 3.2 usec
+ */
+enum nl80211_eht_gi {
+	NL80211_RATE_INFO_EHT_GI_0_8,
+	NL80211_RATE_INFO_EHT_GI_1_6,
+	NL80211_RATE_INFO_EHT_GI_3_2,
+};
+
+/**
+ * enum nl80211_eht_ru_alloc - EHT RU allocation values
+ * @NL80211_RATE_INFO_EHT_RU_ALLOC_26: 26-tone RU allocation
+ * @NL80211_RATE_INFO_EHT_RU_ALLOC_52: 52-tone RU allocation
+ * @NL80211_RATE_INFO_EHT_RU_ALLOC_52P26: 52+26-tone RU allocation
+ * @NL80211_RATE_INFO_EHT_RU_ALLOC_106: 106-tone RU allocation
+ * @NL80211_RATE_INFO_EHT_RU_ALLOC_106P26: 106+26 tone RU allocation
+ * @NL80211_RATE_INFO_EHT_RU_ALLOC_242: 242-tone RU allocation
+ * @NL80211_RATE_INFO_EHT_RU_ALLOC_484: 484-tone RU allocation
+ * @NL80211_RATE_INFO_EHT_RU_ALLOC_484P242: 484+242 tone RU allocation
+ * @NL80211_RATE_INFO_EHT_RU_ALLOC_996: 996-tone RU allocation
+ * @NL80211_RATE_INFO_EHT_RU_ALLOC_996P484: 996+484 tone RU allocation
+ * @NL80211_RATE_INFO_EHT_RU_ALLOC_996P484P242: 996+484+242 tone RU allocation
+ * @NL80211_RATE_INFO_EHT_RU_ALLOC_2x996: 2x996-tone RU allocation
+ * @NL80211_RATE_INFO_EHT_RU_ALLOC_2x996P484: 2x996+484 tone RU allocation
+ * @NL80211_RATE_INFO_EHT_RU_ALLOC_3x996: 3x996-tone RU allocation
+ * @NL80211_RATE_INFO_EHT_RU_ALLOC_3x996P484: 3x996+484 tone RU allocation
+ * @NL80211_RATE_INFO_EHT_RU_ALLOC_4x996: 4x996-tone RU allocation
+ */
+enum nl80211_eht_ru_alloc {
+	NL80211_RATE_INFO_EHT_RU_ALLOC_26,
+	NL80211_RATE_INFO_EHT_RU_ALLOC_52,
+	NL80211_RATE_INFO_EHT_RU_ALLOC_52P26,
+	NL80211_RATE_INFO_EHT_RU_ALLOC_106,
+	NL80211_RATE_INFO_EHT_RU_ALLOC_106P26,
+	NL80211_RATE_INFO_EHT_RU_ALLOC_242,
+	NL80211_RATE_INFO_EHT_RU_ALLOC_484,
+	NL80211_RATE_INFO_EHT_RU_ALLOC_484P242,
+	NL80211_RATE_INFO_EHT_RU_ALLOC_996,
+	NL80211_RATE_INFO_EHT_RU_ALLOC_996P484,
+	NL80211_RATE_INFO_EHT_RU_ALLOC_996P484P242,
+	NL80211_RATE_INFO_EHT_RU_ALLOC_2x996,
+	NL80211_RATE_INFO_EHT_RU_ALLOC_2x996P484,
+	NL80211_RATE_INFO_EHT_RU_ALLOC_3x996,
+	NL80211_RATE_INFO_EHT_RU_ALLOC_3x996P484,
+	NL80211_RATE_INFO_EHT_RU_ALLOC_4x996,
+};
+
+/**
  * enum nl80211_rate_info - bitrate information
  *
  * These attribute types are used with %NL80211_STA_INFO_TXRATE
@@ -3431,6 +3491,13 @@ enum nl80211_he_ru_alloc {
  * @NL80211_RATE_INFO_HE_DCM: HE DCM value (u8, 0/1)
  * @NL80211_RATE_INFO_RU_ALLOC: HE RU allocation, if not present then
  *	non-OFDMA was used (u8, see &enum nl80211_he_ru_alloc)
+ * @NL80211_RATE_INFO_320_MHZ_WIDTH: 320 MHz bitrate
+ * @NL80211_RATE_INFO_EHT_MCS: EHT MCS index (u8, 0-15)
+ * @NL80211_RATE_INFO_EHT_NSS: EHT NSS value (u8, 1-8)
+ * @NL80211_RATE_INFO_EHT_GI: EHT guard interval identifier
+ *	(u8, see &enum nl80211_eht_gi)
+ * @NL80211_RATE_INFO_EHT_RU_ALLOC: EHT RU allocation, if not present then
+ *	non-OFDMA was used (u8, see &enum nl80211_eht_ru_alloc)
  * @__NL80211_RATE_INFO_AFTER_LAST: internal use
  */
 enum nl80211_rate_info {
@@ -3452,6 +3519,11 @@ enum nl80211_rate_info {
 	NL80211_RATE_INFO_HE_GI,
 	NL80211_RATE_INFO_HE_DCM,
 	NL80211_RATE_INFO_HE_RU_ALLOC,
+	NL80211_RATE_INFO_320_MHZ_WIDTH,
+	NL80211_RATE_INFO_EHT_MCS,
+	NL80211_RATE_INFO_EHT_NSS,
+	NL80211_RATE_INFO_EHT_GI,
+	NL80211_RATE_INFO_EHT_RU_ALLOC,
 
 	/* keep last */
 	__NL80211_RATE_INFO_AFTER_LAST,
@@ -3766,6 +3838,14 @@ enum nl80211_mpath_info {
  *	given for all 6 GHz band channels
  * @NL80211_BAND_IFTYPE_ATTR_VENDOR_ELEMS: vendor element capabilities that are
  *	advertised on this band/for this iftype (binary)
+ * @NL80211_BAND_IFTYPE_ATTR_EHT_CAP_MAC: EHT MAC capabilities as in EHT
+ *	capabilities element
+ * @NL80211_BAND_IFTYPE_ATTR_EHT_CAP_PHY: EHT PHY capabilities as in EHT
+ *	capabilities element
+ * @NL80211_BAND_IFTYPE_ATTR_EHT_CAP_MCS_SET: EHT supported NSS/MCS as in EHT
+ *	capabilities element
+ * @NL80211_BAND_IFTYPE_ATTR_EHT_CAP_PPE: EHT PPE thresholds information as
+ *	defined in EHT capabilities element
  * @__NL80211_BAND_IFTYPE_ATTR_AFTER_LAST: internal use
  * @NL80211_BAND_IFTYPE_ATTR_MAX: highest band attribute currently defined
  */
@@ -3779,6 +3859,10 @@ enum nl80211_band_iftype_attr {
 	NL80211_BAND_IFTYPE_ATTR_HE_CAP_PPE,
 	NL80211_BAND_IFTYPE_ATTR_HE_6GHZ_CAPA,
 	NL80211_BAND_IFTYPE_ATTR_VENDOR_ELEMS,
+	NL80211_BAND_IFTYPE_ATTR_EHT_CAP_MAC,
+	NL80211_BAND_IFTYPE_ATTR_EHT_CAP_PHY,
+	NL80211_BAND_IFTYPE_ATTR_EHT_CAP_MCS_SET,
+	NL80211_BAND_IFTYPE_ATTR_EHT_CAP_PPE,
 
 	/* keep last */
 	__NL80211_BAND_IFTYPE_ATTR_AFTER_LAST,
@@ -3923,6 +4007,10 @@ enum nl80211_wmm_rule {
  *	on this channel in current regulatory domain.
  * @NL80211_FREQUENCY_ATTR_16MHZ: 16 MHz operation is allowed
  *	on this channel in current regulatory domain.
+ * @NL80211_FREQUENCY_ATTR_NO_320MHZ: any 320 MHz channel using this channel
+ *	as the primary or any of the secondary channels isn't possible
+ * @NL80211_FREQUENCY_ATTR_NO_EHT: EHT operation is not allowed on this channel
+ *	in current regulatory domain.
  * @NL80211_FREQUENCY_ATTR_MAX: highest frequency attribute number
  *	currently defined
  * @__NL80211_FREQUENCY_ATTR_AFTER_LAST: internal use
@@ -3959,6 +4047,8 @@ enum nl80211_frequency_attr {
 	NL80211_FREQUENCY_ATTR_4MHZ,
 	NL80211_FREQUENCY_ATTR_8MHZ,
 	NL80211_FREQUENCY_ATTR_16MHZ,
+	NL80211_FREQUENCY_ATTR_NO_320MHZ,
+	NL80211_FREQUENCY_ATTR_NO_EHT,
 
 	/* keep last */
 	__NL80211_FREQUENCY_ATTR_AFTER_LAST,
@@ -4157,6 +4247,7 @@ enum nl80211_sched_scan_match_attr {
  * @NL80211_RRF_NO_80MHZ: 80MHz operation not allowed
  * @NL80211_RRF_NO_160MHZ: 160MHz operation not allowed
  * @NL80211_RRF_NO_HE: HE operation not allowed
+ * @NL80211_RRF_NO_320MHZ: 320MHz operation not allowed
  */
 enum nl80211_reg_rule_flags {
 	NL80211_RRF_NO_OFDM		= 1<<0,
@@ -4175,6 +4266,7 @@ enum nl80211_reg_rule_flags {
 	NL80211_RRF_NO_80MHZ		= 1<<15,
 	NL80211_RRF_NO_160MHZ		= 1<<16,
 	NL80211_RRF_NO_HE		= 1<<17,
+	NL80211_RRF_NO_320MHZ		= 1<<18,
 };
 
 #define NL80211_RRF_PASSIVE_SCAN	NL80211_RRF_NO_IR
@@ -4672,6 +4764,8 @@ enum nl80211_key_mode {
  * @NL80211_CHAN_WIDTH_4: 4 MHz OFDM channel
  * @NL80211_CHAN_WIDTH_8: 8 MHz OFDM channel
  * @NL80211_CHAN_WIDTH_16: 16 MHz OFDM channel
+ * @NL80211_CHAN_WIDTH_320: 320 MHz channel, the %NL80211_ATTR_CENTER_FREQ1
+ *	attribute must be provided as well
  */
 enum nl80211_chan_width {
 	NL80211_CHAN_WIDTH_20_NOHT,
@@ -4687,6 +4781,7 @@ enum nl80211_chan_width {
 	NL80211_CHAN_WIDTH_4,
 	NL80211_CHAN_WIDTH_8,
 	NL80211_CHAN_WIDTH_16,
+	NL80211_CHAN_WIDTH_320,
 };
 
 /**

@@ -28,6 +28,7 @@
 #include <linux/power_supply.h>
 #include <linux/reboot.h>
 #include <linux/regmap.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/moduleparam.h>
 
 #include <linux/iio/consumer.h>
@@ -72,6 +73,9 @@
 #define CPCAP_REG_CCCC2_ENABLE		BIT(3)
 
 #define CPCAP_BATTERY_CC_SAMPLE_PERIOD_MS	250
+
+#define CPCAP_BATTERY_EB41_HW4X_ID 0x9E
+#define CPCAP_BATTERY_BW8X_ID 0x98
 
 enum {
 	CPCAP_BATTERY_IIO_BATTDET,
@@ -138,6 +142,7 @@ struct cpcap_battery_ddata {
 	int charge_full;
 	int status;
 	u16 vendor;
+	bool check_nvmem;
 	unsigned int is_full:1;
 };
 
@@ -352,6 +357,88 @@ cpcap_battery_read_accumulated(struct cpcap_battery_ddata *ddata,
 				       ccd->sample,
 				       ccd->accumulator,
 				       ccd->offset);
+}
+
+
+/*
+ * Based on the values from Motorola mapphone Linux kernel for the
+ * stock Droid 4 battery eb41. In the Motorola mapphone Linux
+ * kernel tree the value for pm_cd_factor is passed to the kernel
+ * via device tree. If it turns out to be something device specific
+ * we can consider that too later. These values are also fine for
+ * Bionic's hw4x.
+ *
+ * And looking at the battery full and shutdown values for the stock
+ * kernel on droid 4, full is 4351000 and software initiates shutdown
+ * at 3078000. The device will die around 2743000.
+ */
+static const struct cpcap_battery_config cpcap_battery_eb41_data = {
+	.cd_factor = 0x3cc,
+	.info.technology = POWER_SUPPLY_TECHNOLOGY_LION,
+	.info.voltage_max_design = 4351000,
+	.info.voltage_min_design = 3100000,
+	.info.charge_full_design = 1740000,
+	.bat.constant_charge_voltage_max_uv = 4200000,
+};
+
+/* Values for the extended Droid Bionic battery bw8x. */
+static const struct cpcap_battery_config cpcap_battery_bw8x_data = {
+	.cd_factor = 0x3cc,
+	.info.technology = POWER_SUPPLY_TECHNOLOGY_LION,
+	.info.voltage_max_design = 4200000,
+	.info.voltage_min_design = 3200000,
+	.info.charge_full_design = 2760000,
+	.bat.constant_charge_voltage_max_uv = 4200000,
+};
+
+/*
+ * Safe values for any lipo battery likely to fit into a mapphone
+ * battery bay.
+ */
+static const struct cpcap_battery_config cpcap_battery_unkown_data = {
+	.cd_factor = 0x3cc,
+	.info.technology = POWER_SUPPLY_TECHNOLOGY_LION,
+	.info.voltage_max_design = 4200000,
+	.info.voltage_min_design = 3200000,
+	.info.charge_full_design = 3000000,
+	.bat.constant_charge_voltage_max_uv = 4200000,
+};
+
+static int cpcap_battery_match_nvmem(struct device *dev, const void *data)
+{
+	if (strcmp(dev_name(dev), "89-500029ba0f73") == 0)
+		return 1;
+	else
+		return 0;
+}
+
+static void cpcap_battery_detect_battery_type(struct cpcap_battery_ddata *ddata)
+{
+	struct nvmem_device *nvmem;
+	u8 battery_id = 0;
+
+	ddata->check_nvmem = false;
+
+	nvmem = nvmem_device_find(NULL, &cpcap_battery_match_nvmem);
+	if (IS_ERR_OR_NULL(nvmem)) {
+		ddata->check_nvmem = true;
+		dev_info_once(ddata->dev, "Can not find battery nvmem device. Assuming generic lipo battery\n");
+	} else if (nvmem_device_read(nvmem, 2, 1, &battery_id) < 0) {
+		battery_id = 0;
+		ddata->check_nvmem = true;
+		dev_warn(ddata->dev, "Can not read battery nvmem device. Assuming generic lipo battery\n");
+	}
+
+	switch (battery_id) {
+	case CPCAP_BATTERY_EB41_HW4X_ID:
+		ddata->config = cpcap_battery_eb41_data;
+		break;
+	case CPCAP_BATTERY_BW8X_ID:
+		ddata->config = cpcap_battery_bw8x_data;
+		break;
+	default:
+		ddata->config = cpcap_battery_unkown_data;
+	}
 }
 
 /**
@@ -570,6 +657,9 @@ static int cpcap_battery_get_property(struct power_supply *psy,
 
 	latest = cpcap_battery_latest(ddata);
 	previous = cpcap_battery_previous(ddata);
+
+	if (ddata->check_nvmem)
+		cpcap_battery_detect_battery_type(ddata);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_PRESENT:
@@ -982,30 +1072,10 @@ restore:
 	return error;
 }
 
-/*
- * Based on the values from Motorola mapphone Linux kernel. In the
- * the Motorola mapphone Linux kernel tree the value for pm_cd_factor
- * is passed to the kernel via device tree. If it turns out to be
- * something device specific we can consider that too later.
- *
- * And looking at the battery full and shutdown values for the stock
- * kernel on droid 4, full is 4351000 and software initiates shutdown
- * at 3078000. The device will die around 2743000.
- */
-static const struct cpcap_battery_config cpcap_battery_default_data = {
-	.cd_factor = 0x3cc,
-	.info.technology = POWER_SUPPLY_TECHNOLOGY_LION,
-	.info.voltage_max_design = 4351000,
-	.info.voltage_min_design = 3100000,
-	.info.charge_full_design = 1740000,
-	.bat.constant_charge_voltage_max_uv = 4200000,
-};
-
 #ifdef CONFIG_OF
 static const struct of_device_id cpcap_battery_id_table[] = {
 	{
 		.compatible = "motorola,cpcap-battery",
-		.data = &cpcap_battery_default_data,
 	},
 	{},
 };
@@ -1028,19 +1098,15 @@ static int cpcap_battery_probe(struct platform_device *pdev)
 	struct cpcap_battery_ddata *ddata;
 	struct power_supply_config psy_cfg = {};
 	int error;
-	const struct cpcap_battery_config *cfg;
-
-	cfg = device_get_match_data(&pdev->dev);
-	if (!cfg)
-		return -ENODEV;
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
 		return -ENOMEM;
 
+	cpcap_battery_detect_battery_type(ddata);
+
 	INIT_LIST_HEAD(&ddata->irq_list);
 	ddata->dev = &pdev->dev;
-	memcpy(&ddata->config, cfg, sizeof(ddata->config));
 
 	ddata->reg = dev_get_regmap(ddata->dev->parent, NULL);
 	if (!ddata->reg)

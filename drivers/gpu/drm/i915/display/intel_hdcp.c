@@ -12,7 +12,7 @@
 #include <linux/i2c.h>
 #include <linux/random.h>
 
-#include <drm/drm_hdcp.h>
+#include <drm/display/drm_hdcp_helper.h>
 #include <drm/i915_component.h>
 
 #include "i915_drv.h"
@@ -20,6 +20,7 @@
 #include "intel_connector.h"
 #include "intel_de.h"
 #include "intel_display_power.h"
+#include "intel_display_power_well.h"
 #include "intel_display_types.h"
 #include "intel_hdcp.h"
 #include "intel_pcode.h"
@@ -297,8 +298,7 @@ static int intel_hdcp_load_keys(struct drm_i915_private *dev_priv)
 	 * Mailbox interface.
 	 */
 	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv)) {
-		ret = sandybridge_pcode_write(dev_priv,
-					      SKL_PCODE_LOAD_HDCP_KEYS, 1);
+		ret = snb_pcode_write(dev_priv, SKL_PCODE_LOAD_HDCP_KEYS, 1);
 		if (ret) {
 			drm_err(&dev_priv->drm,
 				"Failed to initiate HDCP key load (%d)\n",

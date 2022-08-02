@@ -26,7 +26,6 @@
 /*
  * Pre-requisites: headers required by header of this unit
  */
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 #include "hw_translate_dcn30.h"
 
 #include "dm_services.h"
@@ -40,8 +39,8 @@
 
 #include "nbio/nbio_7_4_offset.h"
 
-#include "dcn/dpcs_3_0_0_offset.h"
-#include "dcn/dpcs_3_0_0_sh_mask.h"
+#include "dpcs/dpcs_3_0_0_offset.h"
+#include "dpcs/dpcs_3_0_0_sh_mask.h"
 
 #include "mmhub/mmhub_2_0_0_offset.h"
 #include "mmhub/mmhub_2_0_0_sh_mask.h"
@@ -384,4 +383,3 @@ void dal_hw_translate_dcn30_init(struct hw_translate *tr)
 	tr->funcs = &funcs;
 }
 
-#endif

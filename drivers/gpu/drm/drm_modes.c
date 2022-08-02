@@ -35,6 +35,7 @@
 #include <linux/list_sort.h>
 #include <linux/export.h>
 
+#include <video/of_display_timing.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
 
@@ -127,7 +128,7 @@ EXPORT_SYMBOL(drm_mode_probed_add);
  * according to the hdisplay, vdisplay, vrefresh.
  * It is based from the VESA(TM) Coordinated Video Timing Generator by
  * Graham Loveridge April 9, 2003 available at
- * http://www.elo.utfsm.cl/~elo212/docs/CVTd6r1.xls 
+ * http://www.elo.utfsm.cl/~elo212/docs/CVTd6r1.xls
  *
  * And it is copied from xf86CVTmode in xserver/hw/xfree86/modes/xf86cvt.c.
  * What I have done is to translate it by using integer calculation.
@@ -727,6 +728,54 @@ int of_get_drm_display_mode(struct device_node *np,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_get_drm_display_mode);
+
+/**
+ * of_get_drm_panel_display_mode - get a panel-timing drm_display_mode from devicetree
+ * @np: device_node with the panel-timing specification
+ * @dmode: will be set to the return value
+ * @bus_flags: information about pixelclk, sync and DE polarity
+ *
+ * The mandatory Device Tree properties width-mm and height-mm
+ * are read and set on the display mode.
+ *
+ * Returns:
+ * Zero on success, negative error code on failure.
+ */
+int of_get_drm_panel_display_mode(struct device_node *np,
+				  struct drm_display_mode *dmode, u32 *bus_flags)
+{
+	u32 width_mm = 0, height_mm = 0;
+	struct display_timing timing;
+	struct videomode vm;
+	int ret;
+
+	ret = of_get_display_timing(np, "panel-timing", &timing);
+	if (ret)
+		return ret;
+
+	videomode_from_timing(&timing, &vm);
+
+	memset(dmode, 0, sizeof(*dmode));
+	drm_display_mode_from_videomode(&vm, dmode);
+	if (bus_flags)
+		drm_bus_flags_from_videomode(&vm, bus_flags);
+
+	ret = of_property_read_u32(np, "width-mm", &width_mm);
+	if (ret)
+		return ret;
+
+	ret = of_property_read_u32(np, "height-mm", &height_mm);
+	if (ret)
+		return ret;
+
+	dmode->width_mm = width_mm;
+	dmode->height_mm = height_mm;
+
+	drm_mode_debug_printmodeline(dmode);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(of_get_drm_panel_display_mode);
 #endif /* CONFIG_OF */
 #endif /* CONFIG_VIDEOMODE_HELPERS */
 
@@ -788,7 +837,9 @@ EXPORT_SYMBOL(drm_mode_vrefresh);
 void drm_mode_get_hv_timing(const struct drm_display_mode *mode,
 			    int *hdisplay, int *vdisplay)
 {
-	struct drm_display_mode adjusted = *mode;
+	struct drm_display_mode adjusted;
+
+	drm_mode_init(&adjusted, mode);
 
 	drm_mode_set_crtcinfo(&adjusted, CRTC_STEREO_DOUBLE_ONLY);
 	*hdisplay = adjusted.crtc_hdisplay;
@@ -880,7 +931,7 @@ EXPORT_SYMBOL(drm_mode_set_crtcinfo);
  * @dst: mode to overwrite
  * @src: mode to copy
  *
- * Copy an existing mode into another mode, preserving the object id and
+ * Copy an existing mode into another mode, preserving the
  * list head of the destination mode.
  */
 void drm_mode_copy(struct drm_display_mode *dst, const struct drm_display_mode *src)
@@ -891,6 +942,23 @@ void drm_mode_copy(struct drm_display_mode *dst, const struct drm_display_mode *
 	dst->head = head;
 }
 EXPORT_SYMBOL(drm_mode_copy);
+
+/**
+ * drm_mode_init - initialize the mode from another mode
+ * @dst: mode to overwrite
+ * @src: mode to copy
+ *
+ * Copy an existing mode into another mode, zeroing the
+ * list head of the destination mode. Typically used
+ * to guarantee the list head is not left with stack
+ * garbage in on-stack modes.
+ */
+void drm_mode_init(struct drm_display_mode *dst, const struct drm_display_mode *src)
+{
+	memset(dst, 0, sizeof(*dst));
+	drm_mode_copy(dst, src);
+}
+EXPORT_SYMBOL(drm_mode_init);
 
 /**
  * drm_mode_duplicate - allocate and duplicate an existing mode

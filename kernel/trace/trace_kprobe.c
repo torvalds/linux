@@ -1433,7 +1433,7 @@ __kretprobe_trace_func(struct trace_kprobe *tk, struct kretprobe_instance *ri,
 	fbuffer.regs = regs;
 	entry = fbuffer.entry = ring_buffer_event_data(fbuffer.event);
 	entry->func = (unsigned long)tk->rp.kp.addr;
-	entry->ret_ip = (unsigned long)ri->ret_addr;
+	entry->ret_ip = get_kretprobe_retaddr(ri);
 	store_trace_args(&entry[1], &tk->tp, regs, sizeof(*entry), dsize);
 
 	trace_event_buffer_commit(&fbuffer);
@@ -1628,7 +1628,7 @@ kretprobe_perf_func(struct trace_kprobe *tk, struct kretprobe_instance *ri,
 		return;
 
 	entry->func = (unsigned long)tk->rp.kp.addr;
-	entry->ret_ip = (unsigned long)ri->ret_addr;
+	entry->ret_ip = get_kretprobe_retaddr(ri);
 	store_trace_args(&entry[1], &tk->tp, regs, sizeof(*entry), dsize);
 	perf_trace_buf_submit(entry, size, rctx, call->event.type, 1, regs,
 			      head, NULL);
@@ -1718,8 +1718,17 @@ static int
 kretprobe_dispatcher(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	struct kretprobe *rp = get_kretprobe(ri);
-	struct trace_kprobe *tk = container_of(rp, struct trace_kprobe, rp);
+	struct trace_kprobe *tk;
 
+	/*
+	 * There is a small chance that get_kretprobe(ri) returns NULL when
+	 * the kretprobe is unregister on another CPU between kretprobe's
+	 * trampoline_handler and this function.
+	 */
+	if (unlikely(!rp))
+		return 0;
+
+	tk = container_of(rp, struct trace_kprobe, rp);
 	raw_cpu_inc(*tk->nhit);
 
 	if (trace_probe_test_flag(&tk->tp, TP_FLAG_TRACE))
@@ -1907,25 +1916,18 @@ core_initcall(init_kprobe_trace_early);
 static __init int init_kprobe_trace(void)
 {
 	int ret;
-	struct dentry *entry;
 
 	ret = tracing_init_dentry();
 	if (ret)
 		return 0;
 
-	entry = tracefs_create_file("kprobe_events", TRACE_MODE_WRITE,
-				    NULL, NULL, &kprobe_events_ops);
-
 	/* Event list interface */
-	if (!entry)
-		pr_warn("Could not create tracefs 'kprobe_events' entry\n");
+	trace_create_file("kprobe_events", TRACE_MODE_WRITE,
+			  NULL, NULL, &kprobe_events_ops);
 
 	/* Profile interface */
-	entry = tracefs_create_file("kprobe_profile", TRACE_MODE_READ,
-				    NULL, NULL, &kprobe_profile_ops);
-
-	if (!entry)
-		pr_warn("Could not create tracefs 'kprobe_profile' entry\n");
+	trace_create_file("kprobe_profile", TRACE_MODE_READ,
+			  NULL, NULL, &kprobe_profile_ops);
 
 	setup_boot_kprobe_events();
 

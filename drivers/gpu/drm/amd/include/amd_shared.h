@@ -83,6 +83,7 @@ enum amd_apu_flags {
 * @AMD_IP_BLOCK_TYPE_VCN: Video Core/Codec Next
 * @AMD_IP_BLOCK_TYPE_MES: Micro-Engine Scheduler
 * @AMD_IP_BLOCK_TYPE_JPEG: JPEG Engine
+* @AMD_IP_BLOCK_TYPE_NUM: Total number of IP block types
 */
 enum amd_ip_block_type {
 	AMD_IP_BLOCK_TYPE_COMMON,
@@ -115,38 +116,40 @@ enum amd_powergating_state {
 
 
 /* CG flags */
-#define AMD_CG_SUPPORT_GFX_MGCG			(1 << 0)
-#define AMD_CG_SUPPORT_GFX_MGLS			(1 << 1)
-#define AMD_CG_SUPPORT_GFX_CGCG			(1 << 2)
-#define AMD_CG_SUPPORT_GFX_CGLS			(1 << 3)
-#define AMD_CG_SUPPORT_GFX_CGTS			(1 << 4)
-#define AMD_CG_SUPPORT_GFX_CGTS_LS		(1 << 5)
-#define AMD_CG_SUPPORT_GFX_CP_LS		(1 << 6)
-#define AMD_CG_SUPPORT_GFX_RLC_LS		(1 << 7)
-#define AMD_CG_SUPPORT_MC_LS			(1 << 8)
-#define AMD_CG_SUPPORT_MC_MGCG			(1 << 9)
-#define AMD_CG_SUPPORT_SDMA_LS			(1 << 10)
-#define AMD_CG_SUPPORT_SDMA_MGCG		(1 << 11)
-#define AMD_CG_SUPPORT_BIF_LS			(1 << 12)
-#define AMD_CG_SUPPORT_UVD_MGCG			(1 << 13)
-#define AMD_CG_SUPPORT_VCE_MGCG			(1 << 14)
-#define AMD_CG_SUPPORT_HDP_LS			(1 << 15)
-#define AMD_CG_SUPPORT_HDP_MGCG			(1 << 16)
-#define AMD_CG_SUPPORT_ROM_MGCG			(1 << 17)
-#define AMD_CG_SUPPORT_DRM_LS			(1 << 18)
-#define AMD_CG_SUPPORT_BIF_MGCG			(1 << 19)
-#define AMD_CG_SUPPORT_GFX_3D_CGCG		(1 << 20)
-#define AMD_CG_SUPPORT_GFX_3D_CGLS		(1 << 21)
-#define AMD_CG_SUPPORT_DRM_MGCG			(1 << 22)
-#define AMD_CG_SUPPORT_DF_MGCG			(1 << 23)
-#define AMD_CG_SUPPORT_VCN_MGCG			(1 << 24)
-#define AMD_CG_SUPPORT_HDP_DS			(1 << 25)
-#define AMD_CG_SUPPORT_HDP_SD			(1 << 26)
-#define AMD_CG_SUPPORT_IH_CG			(1 << 27)
-#define AMD_CG_SUPPORT_ATHUB_LS			(1 << 28)
-#define AMD_CG_SUPPORT_ATHUB_MGCG		(1 << 29)
-#define AMD_CG_SUPPORT_JPEG_MGCG		(1 << 30)
-#define AMD_CG_SUPPORT_GFX_FGCG			(1 << 31)
+#define AMD_CG_SUPPORT_GFX_MGCG			(1ULL << 0)
+#define AMD_CG_SUPPORT_GFX_MGLS			(1ULL << 1)
+#define AMD_CG_SUPPORT_GFX_CGCG			(1ULL << 2)
+#define AMD_CG_SUPPORT_GFX_CGLS			(1ULL << 3)
+#define AMD_CG_SUPPORT_GFX_CGTS			(1ULL << 4)
+#define AMD_CG_SUPPORT_GFX_CGTS_LS		(1ULL << 5)
+#define AMD_CG_SUPPORT_GFX_CP_LS		(1ULL << 6)
+#define AMD_CG_SUPPORT_GFX_RLC_LS		(1ULL << 7)
+#define AMD_CG_SUPPORT_MC_LS			(1ULL << 8)
+#define AMD_CG_SUPPORT_MC_MGCG			(1ULL << 9)
+#define AMD_CG_SUPPORT_SDMA_LS			(1ULL << 10)
+#define AMD_CG_SUPPORT_SDMA_MGCG		(1ULL << 11)
+#define AMD_CG_SUPPORT_BIF_LS			(1ULL << 12)
+#define AMD_CG_SUPPORT_UVD_MGCG			(1ULL << 13)
+#define AMD_CG_SUPPORT_VCE_MGCG			(1ULL << 14)
+#define AMD_CG_SUPPORT_HDP_LS			(1ULL << 15)
+#define AMD_CG_SUPPORT_HDP_MGCG			(1ULL << 16)
+#define AMD_CG_SUPPORT_ROM_MGCG			(1ULL << 17)
+#define AMD_CG_SUPPORT_DRM_LS			(1ULL << 18)
+#define AMD_CG_SUPPORT_BIF_MGCG			(1ULL << 19)
+#define AMD_CG_SUPPORT_GFX_3D_CGCG		(1ULL << 20)
+#define AMD_CG_SUPPORT_GFX_3D_CGLS		(1ULL << 21)
+#define AMD_CG_SUPPORT_DRM_MGCG			(1ULL << 22)
+#define AMD_CG_SUPPORT_DF_MGCG			(1ULL << 23)
+#define AMD_CG_SUPPORT_VCN_MGCG			(1ULL << 24)
+#define AMD_CG_SUPPORT_HDP_DS			(1ULL << 25)
+#define AMD_CG_SUPPORT_HDP_SD			(1ULL << 26)
+#define AMD_CG_SUPPORT_IH_CG			(1ULL << 27)
+#define AMD_CG_SUPPORT_ATHUB_LS			(1ULL << 28)
+#define AMD_CG_SUPPORT_ATHUB_MGCG		(1ULL << 29)
+#define AMD_CG_SUPPORT_JPEG_MGCG		(1ULL << 30)
+#define AMD_CG_SUPPORT_GFX_FGCG			(1ULL << 31)
+#define AMD_CG_SUPPORT_REPEATER_FGCG		(1ULL << 32)
+#define AMD_CG_SUPPORT_GFX_PERF_CLK		(1ULL << 33)
 /* PG flags */
 #define AMD_PG_SUPPORT_GFX_PG			(1 << 0)
 #define AMD_PG_SUPPORT_GFX_SMG			(1 << 1)
@@ -166,6 +169,7 @@ enum amd_powergating_state {
 #define AMD_PG_SUPPORT_VCN_DPG			(1 << 15)
 #define AMD_PG_SUPPORT_ATHUB			(1 << 16)
 #define AMD_PG_SUPPORT_JPEG			(1 << 17)
+#define AMD_PG_SUPPORT_IH_SRAM_PG		(1 << 18)
 
 /**
  * enum PP_FEATURE_MASK - Used to mask power play features.
@@ -233,6 +237,8 @@ enum DC_FEATURE_MASK {
 	DC_EDP_NO_POWER_SEQUENCING = (1 << 4), //0x10, disabled by default
 	DC_DISABLE_LTTPR_DP1_4A = (1 << 5), //0x20, disabled by default
 	DC_DISABLE_LTTPR_DP2_0 = (1 << 6), //0x40, disabled by default
+	DC_PSR_ALLOW_SMU_OPT = (1 << 7), //0x80, disabled by default
+	DC_PSR_ALLOW_MULTI_DISP_OPT = (1 << 8), //0x100, disabled by default
 };
 
 enum DC_DEBUG_MASK {
@@ -268,7 +274,6 @@ enum amd_dpm_forced_level;
  * @set_clockgating_state: enable/disable cg for the IP block
  * @set_powergating_state: enable/disable pg for the IP block
  * @get_clockgating_state: get current clockgating status
- * @enable_umd_pstate: enable UMD powerstate
  *
  * These hooks provide an interface for controlling the operational state
  * of IP blocks. After acquiring a list of IP blocks for the GPU in use,
@@ -298,8 +303,7 @@ struct amd_ip_funcs {
 				     enum amd_clockgating_state state);
 	int (*set_powergating_state)(void *handle,
 				     enum amd_powergating_state state);
-	void (*get_clockgating_state)(void *handle, u32 *flags);
-	int (*enable_umd_pstate)(void *handle, enum amd_dpm_forced_level *level);
+	void (*get_clockgating_state)(void *handle, u64 *flags);
 };
 
 

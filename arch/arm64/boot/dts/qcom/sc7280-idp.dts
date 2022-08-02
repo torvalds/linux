@@ -56,6 +56,10 @@
 	};
 };
 
+&bluetooth {
+	vddio-supply = <&vreg_l19b_1p8>;
+};
+
 &ipa {
 	status = "okay";
 	modem-init;
@@ -79,4 +83,20 @@
 		label = "pmr735a_die_temp";
 		qcom,pre-scaling = <1 1>;
 	};
+};
+
+&usb_2 {
+	status = "okay";
+};
+
+&usb_2_dwc3 {
+	dr_mode = "otg";
+};
+
+&usb_2_hsphy {
+	status = "okay";
+
+	vdda-pll-supply = <&vreg_l10c_0p8>;
+	vdda33-supply = <&vreg_l2b_3p0>;
+	vdda18-supply = <&vreg_l1c_1p8>;
 };

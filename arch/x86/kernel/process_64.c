@@ -681,7 +681,7 @@ void set_personality_64bit(void)
 
 static void __set_personality_x32(void)
 {
-#ifdef CONFIG_X86_X32
+#ifdef CONFIG_X86_X32_ABI
 	if (current->mm)
 		current->mm->context.flags = 0;
 
@@ -844,7 +844,7 @@ SYSCALL_DEFINE2(arch_prctl, int, option, unsigned long, arg2)
 
 	ret = do_arch_prctl_64(current, option, arg2);
 	if (ret == -EINVAL)
-		ret = do_arch_prctl_common(current, option, arg2);
+		ret = do_arch_prctl_common(option, arg2);
 
 	return ret;
 }
@@ -852,7 +852,7 @@ SYSCALL_DEFINE2(arch_prctl, int, option, unsigned long, arg2)
 #ifdef CONFIG_IA32_EMULATION
 COMPAT_SYSCALL_DEFINE2(arch_prctl, int, option, unsigned long, arg2)
 {
-	return do_arch_prctl_common(current, option, arg2);
+	return do_arch_prctl_common(option, arg2);
 }
 #endif
 

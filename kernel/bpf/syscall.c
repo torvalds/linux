@@ -6,6 +6,7 @@
 #include <linux/bpf_trace.h>
 #include <linux/bpf_lirc.h>
 #include <linux/bpf_verifier.h>
+#include <linux/bsearch.h>
 #include <linux/btf.h>
 #include <linux/syscalls.h>
 #include <linux/slab.h>
@@ -29,9 +30,11 @@
 #include <linux/pgtable.h>
 #include <linux/bpf_lsm.h>
 #include <linux/poll.h>
+#include <linux/sort.h>
 #include <linux/bpf-netns.h>
 #include <linux/rcupdate_trace.h>
 #include <linux/memcontrol.h>
+#include <linux/trace_events.h>
 
 #define IS_FD_ARRAY(map) ((map)->map_type == BPF_MAP_TYPE_PERF_EVENT_ARRAY || \
 			  (map)->map_type == BPF_MAP_TYPE_CGROUP_ARRAY || \
@@ -472,14 +475,128 @@ static void bpf_map_release_memcg(struct bpf_map *map)
 }
 #endif
 
+static int bpf_map_kptr_off_cmp(const void *a, const void *b)
+{
+	const struct bpf_map_value_off_desc *off_desc1 = a, *off_desc2 = b;
+
+	if (off_desc1->offset < off_desc2->offset)
+		return -1;
+	else if (off_desc1->offset > off_desc2->offset)
+		return 1;
+	return 0;
+}
+
+struct bpf_map_value_off_desc *bpf_map_kptr_off_contains(struct bpf_map *map, u32 offset)
+{
+	/* Since members are iterated in btf_find_field in increasing order,
+	 * offsets appended to kptr_off_tab are in increasing order, so we can
+	 * do bsearch to find exact match.
+	 */
+	struct bpf_map_value_off *tab;
+
+	if (!map_value_has_kptrs(map))
+		return NULL;
+	tab = map->kptr_off_tab;
+	return bsearch(&offset, tab->off, tab->nr_off, sizeof(tab->off[0]), bpf_map_kptr_off_cmp);
+}
+
+void bpf_map_free_kptr_off_tab(struct bpf_map *map)
+{
+	struct bpf_map_value_off *tab = map->kptr_off_tab;
+	int i;
+
+	if (!map_value_has_kptrs(map))
+		return;
+	for (i = 0; i < tab->nr_off; i++) {
+		if (tab->off[i].kptr.module)
+			module_put(tab->off[i].kptr.module);
+		btf_put(tab->off[i].kptr.btf);
+	}
+	kfree(tab);
+	map->kptr_off_tab = NULL;
+}
+
+struct bpf_map_value_off *bpf_map_copy_kptr_off_tab(const struct bpf_map *map)
+{
+	struct bpf_map_value_off *tab = map->kptr_off_tab, *new_tab;
+	int size, i;
+
+	if (!map_value_has_kptrs(map))
+		return ERR_PTR(-ENOENT);
+	size = offsetof(struct bpf_map_value_off, off[tab->nr_off]);
+	new_tab = kmemdup(tab, size, GFP_KERNEL | __GFP_NOWARN);
+	if (!new_tab)
+		return ERR_PTR(-ENOMEM);
+	/* Do a deep copy of the kptr_off_tab */
+	for (i = 0; i < tab->nr_off; i++) {
+		btf_get(tab->off[i].kptr.btf);
+		if (tab->off[i].kptr.module && !try_module_get(tab->off[i].kptr.module)) {
+			while (i--) {
+				if (tab->off[i].kptr.module)
+					module_put(tab->off[i].kptr.module);
+				btf_put(tab->off[i].kptr.btf);
+			}
+			kfree(new_tab);
+			return ERR_PTR(-ENXIO);
+		}
+	}
+	return new_tab;
+}
+
+bool bpf_map_equal_kptr_off_tab(const struct bpf_map *map_a, const struct bpf_map *map_b)
+{
+	struct bpf_map_value_off *tab_a = map_a->kptr_off_tab, *tab_b = map_b->kptr_off_tab;
+	bool a_has_kptr = map_value_has_kptrs(map_a), b_has_kptr = map_value_has_kptrs(map_b);
+	int size;
+
+	if (!a_has_kptr && !b_has_kptr)
+		return true;
+	if (a_has_kptr != b_has_kptr)
+		return false;
+	if (tab_a->nr_off != tab_b->nr_off)
+		return false;
+	size = offsetof(struct bpf_map_value_off, off[tab_a->nr_off]);
+	return !memcmp(tab_a, tab_b, size);
+}
+
+/* Caller must ensure map_value_has_kptrs is true. Note that this function can
+ * be called on a map value while the map_value is visible to BPF programs, as
+ * it ensures the correct synchronization, and we already enforce the same using
+ * the bpf_kptr_xchg helper on the BPF program side for referenced kptrs.
+ */
+void bpf_map_free_kptrs(struct bpf_map *map, void *map_value)
+{
+	struct bpf_map_value_off *tab = map->kptr_off_tab;
+	unsigned long *btf_id_ptr;
+	int i;
+
+	for (i = 0; i < tab->nr_off; i++) {
+		struct bpf_map_value_off_desc *off_desc = &tab->off[i];
+		unsigned long old_ptr;
+
+		btf_id_ptr = map_value + off_desc->offset;
+		if (off_desc->type == BPF_KPTR_UNREF) {
+			u64 *p = (u64 *)btf_id_ptr;
+
+			WRITE_ONCE(p, 0);
+			continue;
+		}
+		old_ptr = xchg(btf_id_ptr, 0);
+		off_desc->kptr.dtor((void *)old_ptr);
+	}
+}
+
 /* called from workqueue */
 static void bpf_map_free_deferred(struct work_struct *work)
 {
 	struct bpf_map *map = container_of(work, struct bpf_map, work);
 
 	security_bpf_map_free(map);
+	kfree(map->off_arr);
 	bpf_map_release_memcg(map);
-	/* implementation dependent freeing */
+	/* implementation dependent freeing, map_free callback also does
+	 * bpf_map_free_kptr_off_tab, if needed.
+	 */
 	map->ops->map_free(map);
 }
 
@@ -556,16 +673,14 @@ static unsigned long bpf_map_memory_footprint(const struct bpf_map *map)
 
 static void bpf_map_show_fdinfo(struct seq_file *m, struct file *filp)
 {
-	const struct bpf_map *map = filp->private_data;
-	const struct bpf_array *array;
+	struct bpf_map *map = filp->private_data;
 	u32 type = 0, jited = 0;
 
-	if (map->map_type == BPF_MAP_TYPE_PROG_ARRAY) {
-		array = container_of(map, struct bpf_array, map);
-		spin_lock(&array->aux->owner.lock);
-		type  = array->aux->owner.type;
-		jited = array->aux->owner.jited;
-		spin_unlock(&array->aux->owner.lock);
+	if (map_type_contains_progs(map)) {
+		spin_lock(&map->owner.lock);
+		type  = map->owner.type;
+		jited = map->owner.jited;
+		spin_unlock(&map->owner.lock);
 	}
 
 	seq_printf(m,
@@ -641,7 +756,7 @@ static int bpf_map_mmap(struct file *filp, struct vm_area_struct *vma)
 	int err;
 
 	if (!map->ops->map_mmap || map_value_has_spin_lock(map) ||
-	    map_value_has_timer(map))
+	    map_value_has_timer(map) || map_value_has_kptrs(map))
 		return -ENOTSUPP;
 
 	if (!(vma->vm_flags & VM_SHARED))
@@ -768,6 +883,84 @@ int map_check_no_btf(const struct bpf_map *map,
 	return -ENOTSUPP;
 }
 
+static int map_off_arr_cmp(const void *_a, const void *_b, const void *priv)
+{
+	const u32 a = *(const u32 *)_a;
+	const u32 b = *(const u32 *)_b;
+
+	if (a < b)
+		return -1;
+	else if (a > b)
+		return 1;
+	return 0;
+}
+
+static void map_off_arr_swap(void *_a, void *_b, int size, const void *priv)
+{
+	struct bpf_map *map = (struct bpf_map *)priv;
+	u32 *off_base = map->off_arr->field_off;
+	u32 *a = _a, *b = _b;
+	u8 *sz_a, *sz_b;
+
+	sz_a = map->off_arr->field_sz + (a - off_base);
+	sz_b = map->off_arr->field_sz + (b - off_base);
+
+	swap(*a, *b);
+	swap(*sz_a, *sz_b);
+}
+
+static int bpf_map_alloc_off_arr(struct bpf_map *map)
+{
+	bool has_spin_lock = map_value_has_spin_lock(map);
+	bool has_timer = map_value_has_timer(map);
+	bool has_kptrs = map_value_has_kptrs(map);
+	struct bpf_map_off_arr *off_arr;
+	u32 i;
+
+	if (!has_spin_lock && !has_timer && !has_kptrs) {
+		map->off_arr = NULL;
+		return 0;
+	}
+
+	off_arr = kmalloc(sizeof(*map->off_arr), GFP_KERNEL | __GFP_NOWARN);
+	if (!off_arr)
+		return -ENOMEM;
+	map->off_arr = off_arr;
+
+	off_arr->cnt = 0;
+	if (has_spin_lock) {
+		i = off_arr->cnt;
+
+		off_arr->field_off[i] = map->spin_lock_off;
+		off_arr->field_sz[i] = sizeof(struct bpf_spin_lock);
+		off_arr->cnt++;
+	}
+	if (has_timer) {
+		i = off_arr->cnt;
+
+		off_arr->field_off[i] = map->timer_off;
+		off_arr->field_sz[i] = sizeof(struct bpf_timer);
+		off_arr->cnt++;
+	}
+	if (has_kptrs) {
+		struct bpf_map_value_off *tab = map->kptr_off_tab;
+		u32 *off = &off_arr->field_off[off_arr->cnt];
+		u8 *sz = &off_arr->field_sz[off_arr->cnt];
+
+		for (i = 0; i < tab->nr_off; i++) {
+			*off++ = tab->off[i].offset;
+			*sz++ = sizeof(u64);
+		}
+		off_arr->cnt += tab->nr_off;
+	}
+
+	if (off_arr->cnt == 1)
+		return 0;
+	sort_r(off_arr->field_off, off_arr->cnt, sizeof(off_arr->field_off[0]),
+	       map_off_arr_cmp, map_off_arr_swap, map);
+	return 0;
+}
+
 static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 			 u32 btf_key_id, u32 btf_value_id)
 {
@@ -821,9 +1014,33 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 			return -EOPNOTSUPP;
 	}
 
-	if (map->ops->map_check_btf)
-		ret = map->ops->map_check_btf(map, btf, key_type, value_type);
+	map->kptr_off_tab = btf_parse_kptrs(btf, value_type);
+	if (map_value_has_kptrs(map)) {
+		if (!bpf_capable()) {
+			ret = -EPERM;
+			goto free_map_tab;
+		}
+		if (map->map_flags & (BPF_F_RDONLY_PROG | BPF_F_WRONLY_PROG)) {
+			ret = -EACCES;
+			goto free_map_tab;
+		}
+		if (map->map_type != BPF_MAP_TYPE_HASH &&
+		    map->map_type != BPF_MAP_TYPE_LRU_HASH &&
+		    map->map_type != BPF_MAP_TYPE_ARRAY) {
+			ret = -EOPNOTSUPP;
+			goto free_map_tab;
+		}
+	}
 
+	if (map->ops->map_check_btf) {
+		ret = map->ops->map_check_btf(map, btf, key_type, value_type);
+		if (ret < 0)
+			goto free_map_tab;
+	}
+
+	return ret;
+free_map_tab:
+	bpf_map_free_kptr_off_tab(map);
 	return ret;
 }
 
@@ -874,6 +1091,7 @@ static int map_create(union bpf_attr *attr)
 	atomic64_set(&map->refcnt, 1);
 	atomic64_set(&map->usercnt, 1);
 	mutex_init(&map->freeze_mutex);
+	spin_lock_init(&map->owner.lock);
 
 	map->spin_lock_off = -EINVAL;
 	map->timer_off = -EINVAL;
@@ -912,9 +1130,13 @@ static int map_create(union bpf_attr *attr)
 			attr->btf_vmlinux_value_type_id;
 	}
 
-	err = security_bpf_map_alloc(map);
+	err = bpf_map_alloc_off_arr(map);
 	if (err)
 		goto free_map;
+
+	err = security_bpf_map_alloc(map);
+	if (err)
+		goto free_map_off_arr;
 
 	err = bpf_map_alloc_id(map);
 	if (err)
@@ -938,6 +1160,8 @@ static int map_create(union bpf_attr *attr)
 
 free_map_sec:
 	security_bpf_map_free(map);
+free_map_off_arr:
+	kfree(map->off_arr);
 free_map:
 	btf_put(map->btf);
 	map->ops->map_free(map);
@@ -986,6 +1210,7 @@ struct bpf_map *bpf_map_get(u32 ufd)
 
 	return map;
 }
+EXPORT_SYMBOL(bpf_map_get);
 
 struct bpf_map *bpf_map_get_with_uref(u32 ufd)
 {
@@ -1352,7 +1577,6 @@ int generic_map_delete_batch(struct bpf_map *map,
 		err = map->ops->map_delete_elem(map, key);
 		rcu_read_unlock();
 		bpf_enable_instrumentation();
-		maybe_wait_bpf_programs(map);
 		if (err)
 			break;
 		cond_resched();
@@ -1361,6 +1585,8 @@ int generic_map_delete_batch(struct bpf_map *map,
 		err = -EFAULT;
 
 	kvfree(key);
+
+	maybe_wait_bpf_programs(map);
 	return err;
 }
 
@@ -1637,7 +1863,7 @@ static int map_freeze(const union bpf_attr *attr)
 		return PTR_ERR(map);
 
 	if (map->map_type == BPF_MAP_TYPE_STRUCT_OPS ||
-	    map_value_has_timer(map)) {
+	    map_value_has_timer(map) || map_value_has_kptrs(map)) {
 		fdput(f);
 		return -ENOTSUPP;
 	}
@@ -2220,7 +2446,8 @@ static int bpf_prog_load(union bpf_attr *attr, bpfptr_t uattr)
 				 BPF_F_ANY_ALIGNMENT |
 				 BPF_F_TEST_STATE_FREQ |
 				 BPF_F_SLEEPABLE |
-				 BPF_F_TEST_RND_HI32))
+				 BPF_F_TEST_RND_HI32 |
+				 BPF_F_XDP_HAS_FRAGS))
 		return -EINVAL;
 
 	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) &&
@@ -2306,6 +2533,7 @@ static int bpf_prog_load(union bpf_attr *attr, bpfptr_t uattr)
 	prog->aux->dst_prog = dst_prog;
 	prog->aux->offload_requested = !!attr->prog_ifindex;
 	prog->aux->sleepable = attr->prog_flags & BPF_F_SLEEPABLE;
+	prog->aux->xdp_has_frags = attr->prog_flags & BPF_F_XDP_HAS_FRAGS;
 
 	err = security_bpf_prog_alloc(prog->aux);
 	if (err)
@@ -2491,6 +2719,7 @@ void bpf_link_put(struct bpf_link *link)
 		bpf_link_free(link);
 	}
 }
+EXPORT_SYMBOL(bpf_link_put);
 
 static int bpf_link_release(struct inode *inode, struct file *filp)
 {
@@ -2562,7 +2791,7 @@ static int bpf_link_alloc_id(struct bpf_link *link)
  * pre-allocated resources are to be freed with bpf_cleanup() call. All the
  * transient state is passed around in struct bpf_link_primer.
  * This is preferred way to create and initialize bpf_link, especially when
- * there are complicated and expensive operations inbetween creating bpf_link
+ * there are complicated and expensive operations in between creating bpf_link
  * itself and attaching it to BPF hook. By using bpf_link_prime() and
  * bpf_link_settle() kernel code using bpf_link doesn't have to perform
  * expensive (and potentially failing) roll back operations in a rare case
@@ -2633,20 +2862,14 @@ struct bpf_link *bpf_link_get_from_fd(u32 ufd)
 
 	return link;
 }
-
-struct bpf_tracing_link {
-	struct bpf_link link;
-	enum bpf_attach_type attach_type;
-	struct bpf_trampoline *trampoline;
-	struct bpf_prog *tgt_prog;
-};
+EXPORT_SYMBOL(bpf_link_get_from_fd);
 
 static void bpf_tracing_link_release(struct bpf_link *link)
 {
 	struct bpf_tracing_link *tr_link =
-		container_of(link, struct bpf_tracing_link, link);
+		container_of(link, struct bpf_tracing_link, link.link);
 
-	WARN_ON_ONCE(bpf_trampoline_unlink_prog(link->prog,
+	WARN_ON_ONCE(bpf_trampoline_unlink_prog(&tr_link->link,
 						tr_link->trampoline));
 
 	bpf_trampoline_put(tr_link->trampoline);
@@ -2659,7 +2882,7 @@ static void bpf_tracing_link_release(struct bpf_link *link)
 static void bpf_tracing_link_dealloc(struct bpf_link *link)
 {
 	struct bpf_tracing_link *tr_link =
-		container_of(link, struct bpf_tracing_link, link);
+		container_of(link, struct bpf_tracing_link, link.link);
 
 	kfree(tr_link);
 }
@@ -2668,7 +2891,7 @@ static void bpf_tracing_link_show_fdinfo(const struct bpf_link *link,
 					 struct seq_file *seq)
 {
 	struct bpf_tracing_link *tr_link =
-		container_of(link, struct bpf_tracing_link, link);
+		container_of(link, struct bpf_tracing_link, link.link);
 
 	seq_printf(seq,
 		   "attach_type:\t%d\n",
@@ -2679,7 +2902,7 @@ static int bpf_tracing_link_fill_link_info(const struct bpf_link *link,
 					   struct bpf_link_info *info)
 {
 	struct bpf_tracing_link *tr_link =
-		container_of(link, struct bpf_tracing_link, link);
+		container_of(link, struct bpf_tracing_link, link.link);
 
 	info->tracing.attach_type = tr_link->attach_type;
 	bpf_trampoline_unpack_key(tr_link->trampoline->key,
@@ -2698,7 +2921,8 @@ static const struct bpf_link_ops bpf_tracing_link_lops = {
 
 static int bpf_tracing_prog_attach(struct bpf_prog *prog,
 				   int tgt_prog_fd,
-				   u32 btf_id)
+				   u32 btf_id,
+				   u64 bpf_cookie)
 {
 	struct bpf_link_primer link_primer;
 	struct bpf_prog *tgt_prog = NULL;
@@ -2760,9 +2984,10 @@ static int bpf_tracing_prog_attach(struct bpf_prog *prog,
 		err = -ENOMEM;
 		goto out_put_prog;
 	}
-	bpf_link_init(&link->link, BPF_LINK_TYPE_TRACING,
+	bpf_link_init(&link->link.link, BPF_LINK_TYPE_TRACING,
 		      &bpf_tracing_link_lops, prog);
 	link->attach_type = prog->expected_attach_type;
+	link->link.cookie = bpf_cookie;
 
 	mutex_lock(&prog->aux->dst_mutex);
 
@@ -2830,11 +3055,11 @@ static int bpf_tracing_prog_attach(struct bpf_prog *prog,
 		tgt_prog = prog->aux->dst_prog;
 	}
 
-	err = bpf_link_prime(&link->link, &link_primer);
+	err = bpf_link_prime(&link->link.link, &link_primer);
 	if (err)
 		goto out_unlock;
 
-	err = bpf_trampoline_link_prog(prog, tr);
+	err = bpf_trampoline_link_prog(&link->link, tr);
 	if (err) {
 		bpf_link_cleanup(&link_primer);
 		link = NULL;
@@ -3017,68 +3242,52 @@ out_put_file:
 	fput(perf_file);
 	return err;
 }
+#else
+static int bpf_perf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
+{
+	return -EOPNOTSUPP;
+}
 #endif /* CONFIG_PERF_EVENTS */
 
-#define BPF_RAW_TRACEPOINT_OPEN_LAST_FIELD raw_tracepoint.prog_fd
-
-static int bpf_raw_tracepoint_open(const union bpf_attr *attr)
+static int bpf_raw_tp_link_attach(struct bpf_prog *prog,
+				  const char __user *user_tp_name)
 {
 	struct bpf_link_primer link_primer;
 	struct bpf_raw_tp_link *link;
 	struct bpf_raw_event_map *btp;
-	struct bpf_prog *prog;
 	const char *tp_name;
 	char buf[128];
 	int err;
-
-	if (CHECK_ATTR(BPF_RAW_TRACEPOINT_OPEN))
-		return -EINVAL;
-
-	prog = bpf_prog_get(attr->raw_tracepoint.prog_fd);
-	if (IS_ERR(prog))
-		return PTR_ERR(prog);
 
 	switch (prog->type) {
 	case BPF_PROG_TYPE_TRACING:
 	case BPF_PROG_TYPE_EXT:
 	case BPF_PROG_TYPE_LSM:
-		if (attr->raw_tracepoint.name) {
+		if (user_tp_name)
 			/* The attach point for this category of programs
 			 * should be specified via btf_id during program load.
 			 */
-			err = -EINVAL;
-			goto out_put_prog;
-		}
+			return -EINVAL;
 		if (prog->type == BPF_PROG_TYPE_TRACING &&
 		    prog->expected_attach_type == BPF_TRACE_RAW_TP) {
 			tp_name = prog->aux->attach_func_name;
 			break;
 		}
-		err = bpf_tracing_prog_attach(prog, 0, 0);
-		if (err >= 0)
-			return err;
-		goto out_put_prog;
+		return bpf_tracing_prog_attach(prog, 0, 0, 0);
 	case BPF_PROG_TYPE_RAW_TRACEPOINT:
 	case BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE:
-		if (strncpy_from_user(buf,
-				      u64_to_user_ptr(attr->raw_tracepoint.name),
-				      sizeof(buf) - 1) < 0) {
-			err = -EFAULT;
-			goto out_put_prog;
-		}
+		if (strncpy_from_user(buf, user_tp_name, sizeof(buf) - 1) < 0)
+			return -EFAULT;
 		buf[sizeof(buf) - 1] = 0;
 		tp_name = buf;
 		break;
 	default:
-		err = -EINVAL;
-		goto out_put_prog;
+		return -EINVAL;
 	}
 
 	btp = bpf_get_raw_tracepoint(tp_name);
-	if (!btp) {
-		err = -ENOENT;
-		goto out_put_prog;
-	}
+	if (!btp)
+		return -ENOENT;
 
 	link = kzalloc(sizeof(*link), GFP_USER);
 	if (!link) {
@@ -3105,9 +3314,27 @@ static int bpf_raw_tracepoint_open(const union bpf_attr *attr)
 
 out_put_btp:
 	bpf_put_raw_tracepoint(btp);
-out_put_prog:
-	bpf_prog_put(prog);
 	return err;
+}
+
+#define BPF_RAW_TRACEPOINT_OPEN_LAST_FIELD raw_tracepoint.prog_fd
+
+static int bpf_raw_tracepoint_open(const union bpf_attr *attr)
+{
+	struct bpf_prog *prog;
+	int fd;
+
+	if (CHECK_ATTR(BPF_RAW_TRACEPOINT_OPEN))
+		return -EINVAL;
+
+	prog = bpf_prog_get(attr->raw_tracepoint.prog_fd);
+	if (IS_ERR(prog))
+		return PTR_ERR(prog);
+
+	fd = bpf_raw_tp_link_attach(prog, u64_to_user_ptr(attr->raw_tracepoint.name));
+	if (fd < 0)
+		bpf_prog_put(prog);
+	return fd;
 }
 
 static int bpf_prog_attach_check_attach_type(const struct bpf_prog *prog,
@@ -3178,7 +3405,13 @@ attach_type_to_prog_type(enum bpf_attach_type attach_type)
 	case BPF_CGROUP_SETSOCKOPT:
 		return BPF_PROG_TYPE_CGROUP_SOCKOPT;
 	case BPF_TRACE_ITER:
+	case BPF_TRACE_RAW_TP:
+	case BPF_TRACE_FENTRY:
+	case BPF_TRACE_FEXIT:
+	case BPF_MODIFY_RETURN:
 		return BPF_PROG_TYPE_TRACING;
+	case BPF_LSM_MAC:
+		return BPF_PROG_TYPE_LSM;
 	case BPF_SK_LOOKUP:
 		return BPF_PROG_TYPE_SK_LOOKUP;
 	case BPF_XDP:
@@ -3321,12 +3554,17 @@ static int bpf_prog_query(const union bpf_attr *attr,
 	case BPF_FLOW_DISSECTOR:
 	case BPF_SK_LOOKUP:
 		return netns_bpf_prog_query(attr, uattr);
+	case BPF_SK_SKB_STREAM_PARSER:
+	case BPF_SK_SKB_STREAM_VERDICT:
+	case BPF_SK_MSG_VERDICT:
+	case BPF_SK_SKB_VERDICT:
+		return sock_map_bpf_prog_query(attr, uattr);
 	default:
 		return -EINVAL;
 	}
 }
 
-#define BPF_PROG_TEST_RUN_LAST_FIELD test.cpu
+#define BPF_PROG_TEST_RUN_LAST_FIELD test.batch_size
 
 static int bpf_prog_test_run(const union bpf_attr *attr,
 			     union bpf_attr __user *uattr)
@@ -4230,22 +4468,7 @@ err_put:
 	return err;
 }
 
-static int tracing_bpf_link_attach(const union bpf_attr *attr, bpfptr_t uattr,
-				   struct bpf_prog *prog)
-{
-	if (attr->link_create.attach_type != prog->expected_attach_type)
-		return -EINVAL;
-
-	if (prog->expected_attach_type == BPF_TRACE_ITER)
-		return bpf_iter_link_attach(attr, uattr, prog);
-	else if (prog->type == BPF_PROG_TYPE_EXT)
-		return bpf_tracing_prog_attach(prog,
-					       attr->link_create.target_fd,
-					       attr->link_create.target_btf_id);
-	return -EINVAL;
-}
-
-#define BPF_LINK_CREATE_LAST_FIELD link_create.iter_info_len
+#define BPF_LINK_CREATE_LAST_FIELD link_create.kprobe_multi.cookies
 static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 {
 	enum bpf_prog_type ptype;
@@ -4266,16 +4489,20 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 
 	switch (prog->type) {
 	case BPF_PROG_TYPE_EXT:
-		ret = tracing_bpf_link_attach(attr, uattr, prog);
-		goto out;
+		break;
 	case BPF_PROG_TYPE_PERF_EVENT:
-	case BPF_PROG_TYPE_KPROBE:
 	case BPF_PROG_TYPE_TRACEPOINT:
 		if (attr->link_create.attach_type != BPF_PERF_EVENT) {
 			ret = -EINVAL;
 			goto out;
 		}
-		ptype = prog->type;
+		break;
+	case BPF_PROG_TYPE_KPROBE:
+		if (attr->link_create.attach_type != BPF_PERF_EVENT &&
+		    attr->link_create.attach_type != BPF_TRACE_KPROBE_MULTI) {
+			ret = -EINVAL;
+			goto out;
+		}
 		break;
 	default:
 		ptype = attach_type_to_prog_type(attr->link_create.attach_type);
@@ -4286,7 +4513,7 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 		break;
 	}
 
-	switch (ptype) {
+	switch (prog->type) {
 	case BPF_PROG_TYPE_CGROUP_SKB:
 	case BPF_PROG_TYPE_CGROUP_SOCK:
 	case BPF_PROG_TYPE_CGROUP_SOCK_ADDR:
@@ -4296,8 +4523,27 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 	case BPF_PROG_TYPE_CGROUP_SOCKOPT:
 		ret = cgroup_bpf_link_attach(attr, prog);
 		break;
+	case BPF_PROG_TYPE_EXT:
+		ret = bpf_tracing_prog_attach(prog,
+					      attr->link_create.target_fd,
+					      attr->link_create.target_btf_id,
+					      attr->link_create.tracing.cookie);
+		break;
+	case BPF_PROG_TYPE_LSM:
 	case BPF_PROG_TYPE_TRACING:
-		ret = tracing_bpf_link_attach(attr, uattr, prog);
+		if (attr->link_create.attach_type != prog->expected_attach_type) {
+			ret = -EINVAL;
+			goto out;
+		}
+		if (prog->expected_attach_type == BPF_TRACE_RAW_TP)
+			ret = bpf_raw_tp_link_attach(prog, NULL);
+		else if (prog->expected_attach_type == BPF_TRACE_ITER)
+			ret = bpf_iter_link_attach(attr, uattr, prog);
+		else
+			ret = bpf_tracing_prog_attach(prog,
+						      attr->link_create.target_fd,
+						      attr->link_create.target_btf_id,
+						      attr->link_create.tracing.cookie);
 		break;
 	case BPF_PROG_TYPE_FLOW_DISSECTOR:
 	case BPF_PROG_TYPE_SK_LOOKUP:
@@ -4308,13 +4554,16 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 		ret = bpf_xdp_link_attach(attr, prog);
 		break;
 #endif
-#ifdef CONFIG_PERF_EVENTS
 	case BPF_PROG_TYPE_PERF_EVENT:
 	case BPF_PROG_TYPE_TRACEPOINT:
-	case BPF_PROG_TYPE_KPROBE:
 		ret = bpf_perf_link_attach(attr, prog);
 		break;
-#endif
+	case BPF_PROG_TYPE_KPROBE:
+		if (attr->link_create.attach_type == BPF_PERF_EVENT)
+			ret = bpf_perf_link_attach(attr, prog);
+		else
+			ret = bpf_kprobe_multi_link_attach(attr, prog);
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -4425,6 +4674,25 @@ struct bpf_link *bpf_link_by_id(u32 id)
 		link = ERR_PTR(-ENOENT);
 	}
 	spin_unlock_bh(&link_idr_lock);
+	return link;
+}
+
+struct bpf_link *bpf_link_get_curr_or_next(u32 *id)
+{
+	struct bpf_link *link;
+
+	spin_lock_bh(&link_idr_lock);
+again:
+	link = idr_get_next(&link_idr, id);
+	if (link) {
+		link = bpf_link_inc_not_zero(link);
+		if (IS_ERR(link)) {
+			(*id)++;
+			goto again;
+		}
+	}
+	spin_unlock_bh(&link_idr_lock);
+
 	return link;
 }
 
@@ -4595,9 +4863,21 @@ out_prog_put:
 static int __sys_bpf(int cmd, bpfptr_t uattr, unsigned int size)
 {
 	union bpf_attr attr;
+	bool capable;
 	int err;
 
-	if (sysctl_unprivileged_bpf_disabled && !bpf_capable())
+	capable = bpf_capable() || !sysctl_unprivileged_bpf_disabled;
+
+	/* Intent here is for unprivileged_bpf_disabled to block key object
+	 * creation commands for unprivileged users; other actions depend
+	 * of fd availability and access to bpffs, so are dependent on
+	 * object creation success.  Capabilities are later verified for
+	 * operations such as load and map create, so even with unprivileged
+	 * BPF disabled, capability checks are still carried out for these
+	 * and other operations.
+	 */
+	if (!capable &&
+	    (cmd == BPF_MAP_CREATE || cmd == BPF_PROG_LOAD))
 		return -EPERM;
 
 	err = bpf_check_uarg_tail_zero(uattr, sizeof(attr), size);
@@ -4753,23 +5033,55 @@ static bool syscall_prog_is_valid_access(int off, int size,
 	return true;
 }
 
-BPF_CALL_3(bpf_sys_bpf, int, cmd, void *, attr, u32, attr_size)
+BPF_CALL_3(bpf_sys_bpf, int, cmd, union bpf_attr *, attr, u32, attr_size)
 {
+	struct bpf_prog * __maybe_unused prog;
+	struct bpf_tramp_run_ctx __maybe_unused run_ctx;
+
 	switch (cmd) {
 	case BPF_MAP_CREATE:
 	case BPF_MAP_UPDATE_ELEM:
 	case BPF_MAP_FREEZE:
 	case BPF_PROG_LOAD:
 	case BPF_BTF_LOAD:
+	case BPF_LINK_CREATE:
+	case BPF_RAW_TRACEPOINT_OPEN:
 		break;
-	/* case BPF_PROG_TEST_RUN:
-	 * is not part of this list to prevent recursive test_run
-	 */
+#ifdef CONFIG_BPF_JIT /* __bpf_prog_enter_sleepable used by trampoline and JIT */
+	case BPF_PROG_TEST_RUN:
+		if (attr->test.data_in || attr->test.data_out ||
+		    attr->test.ctx_out || attr->test.duration ||
+		    attr->test.repeat || attr->test.flags)
+			return -EINVAL;
+
+		prog = bpf_prog_get_type(attr->test.prog_fd, BPF_PROG_TYPE_SYSCALL);
+		if (IS_ERR(prog))
+			return PTR_ERR(prog);
+
+		if (attr->test.ctx_size_in < prog->aux->max_ctx_offset ||
+		    attr->test.ctx_size_in > U16_MAX) {
+			bpf_prog_put(prog);
+			return -EINVAL;
+		}
+
+		run_ctx.bpf_cookie = 0;
+		run_ctx.saved_run_ctx = NULL;
+		if (!__bpf_prog_enter_sleepable(prog, &run_ctx)) {
+			/* recursion detected */
+			bpf_prog_put(prog);
+			return -EBUSY;
+		}
+		attr->test.retval = bpf_prog_run(prog, (void *) (long) attr->test.ctx_in);
+		__bpf_prog_exit_sleepable(prog, 0 /* bpf_prog_run does runtime stats */, &run_ctx);
+		bpf_prog_put(prog);
+		return 0;
+#endif
 	default:
 		return -EINVAL;
 	}
 	return __sys_bpf(cmd, KERNEL_BPFPTR(attr), attr_size);
 }
+EXPORT_SYMBOL(bpf_sys_bpf);
 
 static const struct bpf_func_proto bpf_sys_bpf_proto = {
 	.func		= bpf_sys_bpf,
@@ -4853,3 +5165,90 @@ const struct bpf_verifier_ops bpf_syscall_verifier_ops = {
 const struct bpf_prog_ops bpf_syscall_prog_ops = {
 	.test_run = bpf_prog_test_run_syscall,
 };
+
+#ifdef CONFIG_SYSCTL
+static int bpf_stats_handler(struct ctl_table *table, int write,
+			     void *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct static_key *key = (struct static_key *)table->data;
+	static int saved_val;
+	int val, ret;
+	struct ctl_table tmp = {
+		.data   = &val,
+		.maxlen = sizeof(val),
+		.mode   = table->mode,
+		.extra1 = SYSCTL_ZERO,
+		.extra2 = SYSCTL_ONE,
+	};
+
+	if (write && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	mutex_lock(&bpf_stats_enabled_mutex);
+	val = saved_val;
+	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	if (write && !ret && val != saved_val) {
+		if (val)
+			static_key_slow_inc(key);
+		else
+			static_key_slow_dec(key);
+		saved_val = val;
+	}
+	mutex_unlock(&bpf_stats_enabled_mutex);
+	return ret;
+}
+
+void __weak unpriv_ebpf_notify(int new_state)
+{
+}
+
+static int bpf_unpriv_handler(struct ctl_table *table, int write,
+			      void *buffer, size_t *lenp, loff_t *ppos)
+{
+	int ret, unpriv_enable = *(int *)table->data;
+	bool locked_state = unpriv_enable == 1;
+	struct ctl_table tmp = *table;
+
+	if (write && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	tmp.data = &unpriv_enable;
+	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	if (write && !ret) {
+		if (locked_state && unpriv_enable != 1)
+			return -EPERM;
+		*(int *)table->data = unpriv_enable;
+	}
+
+	unpriv_ebpf_notify(unpriv_enable);
+
+	return ret;
+}
+
+static struct ctl_table bpf_syscall_table[] = {
+	{
+		.procname	= "unprivileged_bpf_disabled",
+		.data		= &sysctl_unprivileged_bpf_disabled,
+		.maxlen		= sizeof(sysctl_unprivileged_bpf_disabled),
+		.mode		= 0644,
+		.proc_handler	= bpf_unpriv_handler,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_TWO,
+	},
+	{
+		.procname	= "bpf_stats_enabled",
+		.data		= &bpf_stats_enabled_key.key,
+		.maxlen		= sizeof(bpf_stats_enabled_key),
+		.mode		= 0644,
+		.proc_handler	= bpf_stats_handler,
+	},
+	{ }
+};
+
+static int __init bpf_syscall_sysctl_init(void)
+{
+	register_sysctl_init("kernel", bpf_syscall_table);
+	return 0;
+}
+late_initcall(bpf_syscall_sysctl_init);
+#endif /* CONFIG_SYSCTL */

@@ -25,6 +25,7 @@
 #include <net/geneve.h>
 #include <net/vxlan.h>
 #include <net/erspan.h>
+#include <net/gtp.h>
 
 #include <net/dst.h>
 #include <net/dst_metadata.h>
@@ -71,6 +72,7 @@ struct fl_flow_key {
 	} tp_range;
 	struct flow_dissector_key_ct ct;
 	struct flow_dissector_key_hash hash;
+	struct flow_dissector_key_num_of_vlans num_of_vlans;
 } __aligned(BITS_PER_LONG / 8); /* Ensure that we can do comparisons as longs. */
 
 struct fl_flow_mask_range {
@@ -463,14 +465,12 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 	cls_flower.rule->match.key = &f->mkey;
 	cls_flower.classid = f->res.classid;
 
-	err = tc_setup_offload_action(&cls_flower.rule->action, &f->exts);
+	err = tc_setup_offload_action(&cls_flower.rule->action, &f->exts,
+				      cls_flower.common.extack);
 	if (err) {
 		kfree(cls_flower.rule);
-		if (skip_sw) {
-			NL_SET_ERR_MSG_MOD(extack, "Failed to setup flow action");
-			return err;
-		}
-		return 0;
+
+		return skip_sw ? err : 0;
 	}
 
 	err = tc_setup_cb_add(block, tp, TC_SETUP_CLSFLOWER, &cls_flower,
@@ -713,6 +713,7 @@ static const struct nla_policy fl_policy[TCA_FLOWER_MAX + 1] = {
 	[TCA_FLOWER_FLAGS]		= { .type = NLA_U32 },
 	[TCA_FLOWER_KEY_HASH]		= { .type = NLA_U32 },
 	[TCA_FLOWER_KEY_HASH_MASK]	= { .type = NLA_U32 },
+	[TCA_FLOWER_KEY_NUM_OF_VLANS]	= { .type = NLA_U8 },
 
 };
 
@@ -723,6 +724,7 @@ enc_opts_policy[TCA_FLOWER_KEY_ENC_OPTS_MAX + 1] = {
 	[TCA_FLOWER_KEY_ENC_OPTS_GENEVE]        = { .type = NLA_NESTED },
 	[TCA_FLOWER_KEY_ENC_OPTS_VXLAN]         = { .type = NLA_NESTED },
 	[TCA_FLOWER_KEY_ENC_OPTS_ERSPAN]        = { .type = NLA_NESTED },
+	[TCA_FLOWER_KEY_ENC_OPTS_GTP]		= { .type = NLA_NESTED },
 };
 
 static const struct nla_policy
@@ -744,6 +746,12 @@ erspan_opt_policy[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_MAX + 1] = {
 	[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_INDEX]      = { .type = NLA_U32 },
 	[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_DIR]        = { .type = NLA_U8 },
 	[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_HWID]       = { .type = NLA_U8 },
+};
+
+static const struct nla_policy
+gtp_opt_policy[TCA_FLOWER_KEY_ENC_OPT_GTP_MAX + 1] = {
+	[TCA_FLOWER_KEY_ENC_OPT_GTP_PDU_TYPE]	   = { .type = NLA_U8 },
+	[TCA_FLOWER_KEY_ENC_OPT_GTP_QFI]	   = { .type = NLA_U8 },
 };
 
 static const struct nla_policy
@@ -1005,6 +1013,7 @@ static int fl_set_key_mpls(struct nlattr **tb,
 static void fl_set_key_vlan(struct nlattr **tb,
 			    __be16 ethertype,
 			    int vlan_id_key, int vlan_prio_key,
+			    int vlan_next_eth_type_key,
 			    struct flow_dissector_key_vlan *key_val,
 			    struct flow_dissector_key_vlan *key_mask)
 {
@@ -1021,8 +1030,15 @@ static void fl_set_key_vlan(struct nlattr **tb,
 			VLAN_PRIORITY_MASK;
 		key_mask->vlan_priority = VLAN_PRIORITY_MASK;
 	}
-	key_val->vlan_tpid = ethertype;
-	key_mask->vlan_tpid = cpu_to_be16(~0);
+	if (ethertype) {
+		key_val->vlan_tpid = ethertype;
+		key_mask->vlan_tpid = cpu_to_be16(~0);
+	}
+	if (tb[vlan_next_eth_type_key]) {
+		key_val->vlan_eth_type =
+			nla_get_be16(tb[vlan_next_eth_type_key]);
+		key_mask->vlan_eth_type = cpu_to_be16(~0);
+	}
 }
 
 static void fl_set_key_flag(u32 flower_key, u32 flower_mask,
@@ -1262,6 +1278,49 @@ static int fl_set_erspan_opt(const struct nlattr *nla, struct fl_flow_key *key,
 	return sizeof(*md);
 }
 
+static int fl_set_gtp_opt(const struct nlattr *nla, struct fl_flow_key *key,
+			  int depth, int option_len,
+			  struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[TCA_FLOWER_KEY_ENC_OPT_GTP_MAX + 1];
+	struct gtp_pdu_session_info *sinfo;
+	u8 len = key->enc_opts.len;
+	int err;
+
+	sinfo = (struct gtp_pdu_session_info *)&key->enc_opts.data[len];
+	memset(sinfo, 0xff, option_len);
+
+	if (!depth)
+		return sizeof(*sinfo);
+
+	if (nla_type(nla) != TCA_FLOWER_KEY_ENC_OPTS_GTP) {
+		NL_SET_ERR_MSG_MOD(extack, "Non-gtp option type for mask");
+		return -EINVAL;
+	}
+
+	err = nla_parse_nested(tb, TCA_FLOWER_KEY_ENC_OPT_GTP_MAX, nla,
+			       gtp_opt_policy, extack);
+	if (err < 0)
+		return err;
+
+	if (!option_len &&
+	    (!tb[TCA_FLOWER_KEY_ENC_OPT_GTP_PDU_TYPE] ||
+	     !tb[TCA_FLOWER_KEY_ENC_OPT_GTP_QFI])) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Missing tunnel key gtp option pdu type or qfi");
+		return -EINVAL;
+	}
+
+	if (tb[TCA_FLOWER_KEY_ENC_OPT_GTP_PDU_TYPE])
+		sinfo->pdu_type =
+			nla_get_u8(tb[TCA_FLOWER_KEY_ENC_OPT_GTP_PDU_TYPE]);
+
+	if (tb[TCA_FLOWER_KEY_ENC_OPT_GTP_QFI])
+		sinfo->qfi = nla_get_u8(tb[TCA_FLOWER_KEY_ENC_OPT_GTP_QFI]);
+
+	return sizeof(*sinfo);
+}
+
 static int fl_set_enc_opt(struct nlattr **tb, struct fl_flow_key *key,
 			  struct fl_flow_key *mask,
 			  struct netlink_ext_ack *extack)
@@ -1386,6 +1445,38 @@ static int fl_set_enc_opt(struct nlattr **tb, struct fl_flow_key *key,
 				return -EINVAL;
 			}
 			break;
+		case TCA_FLOWER_KEY_ENC_OPTS_GTP:
+			if (key->enc_opts.dst_opt_type) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Duplicate type for gtp options");
+				return -EINVAL;
+			}
+			option_len = 0;
+			key->enc_opts.dst_opt_type = TUNNEL_GTP_OPT;
+			option_len = fl_set_gtp_opt(nla_opt_key, key,
+						    key_depth, option_len,
+						    extack);
+			if (option_len < 0)
+				return option_len;
+
+			key->enc_opts.len += option_len;
+			/* At the same time we need to parse through the mask
+			 * in order to verify exact and mask attribute lengths.
+			 */
+			mask->enc_opts.dst_opt_type = TUNNEL_GTP_OPT;
+			option_len = fl_set_gtp_opt(nla_opt_msk, mask,
+						    msk_depth, option_len,
+						    extack);
+			if (option_len < 0)
+				return option_len;
+
+			mask->enc_opts.len += option_len;
+			if (key->enc_opts.len != mask->enc_opts.len) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Key and mask miss aligned");
+				return -EINVAL;
+			}
+			break;
 		default:
 			NL_SET_ERR_MSG(extack, "Unknown tunnel option type");
 			return -EINVAL;
@@ -1492,6 +1583,26 @@ static int fl_set_key_ct(struct nlattr **tb,
 	return 0;
 }
 
+static bool is_vlan_key(struct nlattr *tb, __be16 *ethertype,
+			struct fl_flow_key *key, struct fl_flow_key *mask,
+			int vthresh)
+{
+	const bool good_num_of_vlans = key->num_of_vlans.num_of_vlans > vthresh;
+
+	if (!tb) {
+		*ethertype = 0;
+		return good_num_of_vlans;
+	}
+
+	*ethertype = nla_get_be16(tb);
+	if (good_num_of_vlans || eth_type_vlan(*ethertype))
+		return true;
+
+	key->basic.n_proto = *ethertype;
+	mask->basic.n_proto = cpu_to_be16(~0);
+	return false;
+}
+
 static int fl_set_key(struct net *net, struct nlattr **tb,
 		      struct fl_flow_key *key, struct fl_flow_key *mask,
 		      struct netlink_ext_ack *extack)
@@ -1513,35 +1624,30 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 	fl_set_key_val(tb, key->eth.src, TCA_FLOWER_KEY_ETH_SRC,
 		       mask->eth.src, TCA_FLOWER_KEY_ETH_SRC_MASK,
 		       sizeof(key->eth.src));
+	fl_set_key_val(tb, &key->num_of_vlans,
+		       TCA_FLOWER_KEY_NUM_OF_VLANS,
+		       &mask->num_of_vlans,
+		       TCA_FLOWER_UNSPEC,
+		       sizeof(key->num_of_vlans));
 
-	if (tb[TCA_FLOWER_KEY_ETH_TYPE]) {
-		ethertype = nla_get_be16(tb[TCA_FLOWER_KEY_ETH_TYPE]);
+	if (is_vlan_key(tb[TCA_FLOWER_KEY_ETH_TYPE], &ethertype, key, mask, 0)) {
+		fl_set_key_vlan(tb, ethertype, TCA_FLOWER_KEY_VLAN_ID,
+				TCA_FLOWER_KEY_VLAN_PRIO,
+				TCA_FLOWER_KEY_VLAN_ETH_TYPE,
+				&key->vlan, &mask->vlan);
 
-		if (eth_type_vlan(ethertype)) {
-			fl_set_key_vlan(tb, ethertype, TCA_FLOWER_KEY_VLAN_ID,
-					TCA_FLOWER_KEY_VLAN_PRIO, &key->vlan,
-					&mask->vlan);
-
-			if (tb[TCA_FLOWER_KEY_VLAN_ETH_TYPE]) {
-				ethertype = nla_get_be16(tb[TCA_FLOWER_KEY_VLAN_ETH_TYPE]);
-				if (eth_type_vlan(ethertype)) {
-					fl_set_key_vlan(tb, ethertype,
-							TCA_FLOWER_KEY_CVLAN_ID,
-							TCA_FLOWER_KEY_CVLAN_PRIO,
-							&key->cvlan, &mask->cvlan);
-					fl_set_key_val(tb, &key->basic.n_proto,
-						       TCA_FLOWER_KEY_CVLAN_ETH_TYPE,
-						       &mask->basic.n_proto,
-						       TCA_FLOWER_UNSPEC,
-						       sizeof(key->basic.n_proto));
-				} else {
-					key->basic.n_proto = ethertype;
-					mask->basic.n_proto = cpu_to_be16(~0);
-				}
-			}
-		} else {
-			key->basic.n_proto = ethertype;
-			mask->basic.n_proto = cpu_to_be16(~0);
+		if (is_vlan_key(tb[TCA_FLOWER_KEY_VLAN_ETH_TYPE],
+				&ethertype, key, mask, 1)) {
+			fl_set_key_vlan(tb, ethertype,
+					TCA_FLOWER_KEY_CVLAN_ID,
+					TCA_FLOWER_KEY_CVLAN_PRIO,
+					TCA_FLOWER_KEY_CVLAN_ETH_TYPE,
+					&key->cvlan, &mask->cvlan);
+			fl_set_key_val(tb, &key->basic.n_proto,
+				       TCA_FLOWER_KEY_CVLAN_ETH_TYPE,
+				       &mask->basic.n_proto,
+				       TCA_FLOWER_UNSPEC,
+				       sizeof(key->basic.n_proto));
 		}
 	}
 
@@ -1815,6 +1921,8 @@ static void fl_init_dissector(struct flow_dissector *dissector,
 			     FLOW_DISSECTOR_KEY_CT, ct);
 	FL_KEY_SET_IF_MASKED(mask, keys, cnt,
 			     FLOW_DISSECTOR_KEY_HASH, hash);
+	FL_KEY_SET_IF_MASKED(mask, keys, cnt,
+			     FLOW_DISSECTOR_KEY_NUM_OF_VLANS, num_of_vlans);
 
 	skb_flow_dissector_init(dissector, keys, cnt);
 }
@@ -2271,11 +2379,11 @@ static int fl_reoffload(struct tcf_proto *tp, bool add, flow_setup_cb_t *cb,
 		cls_flower.rule->match.mask = &f->mask->key;
 		cls_flower.rule->match.key = &f->mkey;
 
-		err = tc_setup_offload_action(&cls_flower.rule->action, &f->exts);
+		err = tc_setup_offload_action(&cls_flower.rule->action, &f->exts,
+					      cls_flower.common.extack);
 		if (err) {
 			kfree(cls_flower.rule);
 			if (tc_skip_sw(f->flags)) {
-				NL_SET_ERR_MSG_MOD(extack, "Failed to setup flow action");
 				__fl_put(f);
 				return err;
 			}
@@ -2761,6 +2869,34 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static int fl_dump_key_gtp_opt(struct sk_buff *skb,
+			       struct flow_dissector_key_enc_opts *enc_opts)
+
+{
+	struct gtp_pdu_session_info *session_info;
+	struct nlattr *nest;
+
+	nest = nla_nest_start_noflag(skb, TCA_FLOWER_KEY_ENC_OPTS_GTP);
+	if (!nest)
+		goto nla_put_failure;
+
+	session_info = (struct gtp_pdu_session_info *)&enc_opts->data[0];
+
+	if (nla_put_u8(skb, TCA_FLOWER_KEY_ENC_OPT_GTP_PDU_TYPE,
+		       session_info->pdu_type))
+		goto nla_put_failure;
+
+	if (nla_put_u8(skb, TCA_FLOWER_KEY_ENC_OPT_GTP_QFI, session_info->qfi))
+		goto nla_put_failure;
+
+	nla_nest_end(skb, nest);
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(skb, nest);
+	return -EMSGSIZE;
+}
+
 static int fl_dump_key_ct(struct sk_buff *skb,
 			  struct flow_dissector_key_ct *key,
 			  struct flow_dissector_key_ct *mask)
@@ -2824,6 +2960,11 @@ static int fl_dump_key_options(struct sk_buff *skb, int enc_opt_type,
 		if (err)
 			goto nla_put_failure;
 		break;
+	case TUNNEL_GTP_OPT:
+		err = fl_dump_key_gtp_opt(skb, enc_opts);
+		if (err)
+			goto nla_put_failure;
+		break;
 	default:
 		goto nla_put_failure;
 	}
@@ -2870,6 +3011,11 @@ static int fl_dump_key(struct sk_buff *skb, struct net *net,
 			    sizeof(key->basic.n_proto)))
 		goto nla_put_failure;
 
+	if (mask->num_of_vlans.num_of_vlans) {
+		if (nla_put_u8(skb, TCA_FLOWER_KEY_NUM_OF_VLANS, key->num_of_vlans.num_of_vlans))
+			goto nla_put_failure;
+	}
+
 	if (fl_dump_key_mpls(skb, &key->mpls, &mask->mpls))
 		goto nla_put_failure;
 
@@ -2886,13 +3032,13 @@ static int fl_dump_key(struct sk_buff *skb, struct net *net,
 		goto nla_put_failure;
 
 	if (mask->basic.n_proto) {
-		if (mask->cvlan.vlan_tpid) {
+		if (mask->cvlan.vlan_eth_type) {
 			if (nla_put_be16(skb, TCA_FLOWER_KEY_CVLAN_ETH_TYPE,
 					 key->basic.n_proto))
 				goto nla_put_failure;
-		} else if (mask->vlan.vlan_tpid) {
+		} else if (mask->vlan.vlan_eth_type) {
 			if (nla_put_be16(skb, TCA_FLOWER_KEY_VLAN_ETH_TYPE,
-					 key->basic.n_proto))
+					 key->vlan.vlan_eth_type))
 				goto nla_put_failure;
 		}
 	}

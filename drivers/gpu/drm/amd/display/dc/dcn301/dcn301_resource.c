@@ -73,13 +73,15 @@
 
 #include "nbio/nbio_7_2_0_offset.h"
 
-#include "dcn/dpcs_3_0_0_offset.h"
-#include "dcn/dpcs_3_0_0_sh_mask.h"
+#include "dpcs/dpcs_3_0_0_offset.h"
+#include "dpcs/dpcs_3_0_0_sh_mask.h"
 
 #include "reg_helper.h"
 #include "dce/dmub_abm.h"
 #include "dce/dce_aux.h"
 #include "dce/dce_i2c.h"
+
+#include "dml/dcn30/dcn30_fpu.h"
 
 #include "dml/dcn30/display_mode_vba_30.h"
 #include "dml/dcn301/dcn301_fpu.h"

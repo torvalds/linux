@@ -47,7 +47,6 @@
 #include <asm/unaligned.h>
 
 #if defined(CONFIG_PPC_PMAC)
-#include <asm/prom.h>
 #include "../macmodes.h"
 #endif
 

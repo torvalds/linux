@@ -1156,20 +1156,18 @@ static int max98088_dai1_set_fmt(struct snd_soc_dai *codec_dai,
        if (fmt != cdata->fmt) {
                cdata->fmt = fmt;
 
-               switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-               case SND_SOC_DAIFMT_CBS_CFS:
-                       /* Slave mode PLL */
+               switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+               case SND_SOC_DAIFMT_CBC_CFC:
+                       /* Consumer mode PLL */
                        snd_soc_component_write(component, M98088_REG_12_DAI1_CLKCFG_HI,
                                0x80);
                        snd_soc_component_write(component, M98088_REG_13_DAI1_CLKCFG_LO,
                                0x00);
                        break;
-               case SND_SOC_DAIFMT_CBM_CFM:
-                       /* Set to master mode */
+               case SND_SOC_DAIFMT_CBP_CFP:
+                       /* Set to provider mode */
                        reg14val |= M98088_DAI_MAS;
                        break;
-               case SND_SOC_DAIFMT_CBS_CFM:
-               case SND_SOC_DAIFMT_CBM_CFS:
                default:
                        dev_err(component->dev, "Clock mode unsupported");
                        return -EINVAL;
@@ -1227,20 +1225,18 @@ static int max98088_dai2_set_fmt(struct snd_soc_dai *codec_dai,
        if (fmt != cdata->fmt) {
                cdata->fmt = fmt;
 
-               switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-               case SND_SOC_DAIFMT_CBS_CFS:
-                       /* Slave mode PLL */
+               switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+               case SND_SOC_DAIFMT_CBC_CFC:
+                       /* Consumer mode PLL */
                        snd_soc_component_write(component, M98088_REG_1A_DAI2_CLKCFG_HI,
                                0x80);
                        snd_soc_component_write(component, M98088_REG_1B_DAI2_CLKCFG_LO,
                                0x00);
                        break;
-               case SND_SOC_DAIFMT_CBM_CFM:
-                       /* Set to master mode */
+               case SND_SOC_DAIFMT_CBP_CFP:
+                       /* Set to provider mode */
                        reg1Cval |= M98088_DAI_MAS;
                        break;
-               case SND_SOC_DAIFMT_CBS_CFM:
-               case SND_SOC_DAIFMT_CBM_CFS:
                default:
                        dev_err(component->dev, "Clock mode unsupported");
                        return -EINVAL;
@@ -1741,11 +1737,18 @@ static const struct snd_soc_component_driver soc_component_dev_max98088 = {
 	.non_legacy_dai_naming	= 1,
 };
 
-static int max98088_i2c_probe(struct i2c_client *i2c,
-			      const struct i2c_device_id *id)
+static const struct i2c_device_id max98088_i2c_id[] = {
+       { "max98088", MAX98088 },
+       { "max98089", MAX98089 },
+       { }
+};
+MODULE_DEVICE_TABLE(i2c, max98088_i2c_id);
+
+static int max98088_i2c_probe(struct i2c_client *i2c)
 {
        struct max98088_priv *max98088;
        int ret;
+       const struct i2c_device_id *id;
 
        max98088 = devm_kzalloc(&i2c->dev, sizeof(struct max98088_priv),
 			       GFP_KERNEL);
@@ -1761,6 +1764,7 @@ static int max98088_i2c_probe(struct i2c_client *i2c,
 		if (PTR_ERR(max98088->mclk) == -EPROBE_DEFER)
 			return PTR_ERR(max98088->mclk);
 
+	id = i2c_match_id(max98088_i2c_id, i2c);
        max98088->devtype = id->driver_data;
 
        i2c_set_clientdata(i2c, max98088);
@@ -1770,13 +1774,6 @@ static int max98088_i2c_probe(struct i2c_client *i2c,
                        &soc_component_dev_max98088, &max98088_dai[0], 2);
        return ret;
 }
-
-static const struct i2c_device_id max98088_i2c_id[] = {
-       { "max98088", MAX98088 },
-       { "max98089", MAX98089 },
-       { }
-};
-MODULE_DEVICE_TABLE(i2c, max98088_i2c_id);
 
 #if defined(CONFIG_OF)
 static const struct of_device_id max98088_of_match[] = {
@@ -1792,7 +1789,7 @@ static struct i2c_driver max98088_i2c_driver = {
 		.name = "max98088",
 		.of_match_table = of_match_ptr(max98088_of_match),
 	},
-	.probe  = max98088_i2c_probe,
+	.probe_new = max98088_i2c_probe,
 	.id_table = max98088_i2c_id,
 };
 

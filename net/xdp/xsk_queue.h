@@ -205,11 +205,11 @@ static inline bool xskq_cons_read_desc(struct xsk_queue *q,
 	return false;
 }
 
-static inline u32 xskq_cons_read_desc_batch(struct xsk_queue *q,
-					    struct xdp_desc *descs,
-					    struct xsk_buff_pool *pool, u32 max)
+static inline u32 xskq_cons_read_desc_batch(struct xsk_queue *q, struct xsk_buff_pool *pool,
+					    u32 max)
 {
 	u32 cached_cons = q->cached_cons, nb_entries = 0;
+	struct xdp_desc *descs = pool->tx_descs;
 
 	while (cached_cons != q->cached_prod && nb_entries < max) {
 		struct xdp_rxtx_ring *ring = (struct xdp_rxtx_ring *)q->ring;
@@ -263,7 +263,7 @@ static inline u32 xskq_cons_nb_entries(struct xsk_queue *q, u32 max)
 
 static inline bool xskq_cons_has_entries(struct xsk_queue *q, u32 cnt)
 {
-	return xskq_cons_nb_entries(q, cnt) >= cnt ? true : false;
+	return xskq_cons_nb_entries(q, cnt) >= cnt;
 }
 
 static inline bool xskq_cons_peek_addr_unchecked(struct xsk_queue *q, u64 *addr)
@@ -282,14 +282,6 @@ static inline bool xskq_cons_peek_desc(struct xsk_queue *q,
 	return xskq_cons_read_desc(q, desc, pool);
 }
 
-static inline u32 xskq_cons_peek_desc_batch(struct xsk_queue *q, struct xdp_desc *descs,
-					    struct xsk_buff_pool *pool, u32 max)
-{
-	u32 entries = xskq_cons_nb_entries(q, max);
-
-	return xskq_cons_read_desc_batch(q, descs, pool, entries);
-}
-
 /* To improve performance in the xskq_cons_release functions, only update local state here.
  * Reflect this to global state when we get new entries from the ring in
  * xskq_cons_get_entries() and whenever Rx or Tx processing are completed in the NAPI loop.
@@ -302,13 +294,6 @@ static inline void xskq_cons_release(struct xsk_queue *q)
 static inline void xskq_cons_release_n(struct xsk_queue *q, u32 cnt)
 {
 	q->cached_cons += cnt;
-}
-
-static inline bool xskq_cons_is_full(struct xsk_queue *q)
-{
-	/* No barriers needed since data is not accessed */
-	return READ_ONCE(q->ring->producer) - READ_ONCE(q->ring->consumer) ==
-		q->nentries;
 }
 
 static inline u32 xskq_cons_present_entries(struct xsk_queue *q)
@@ -389,7 +374,7 @@ static inline int xskq_prod_reserve_desc(struct xsk_queue *q,
 	u32 idx;
 
 	if (xskq_prod_is_full(q))
-		return -ENOSPC;
+		return -ENOBUFS;
 
 	/* A, matches D */
 	idx = q->cached_prod++ & q->ring_mask;

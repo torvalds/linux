@@ -43,6 +43,12 @@ enum nvme_ctrl_type {
 	NVME_CTRL_ADMIN	= 3,		/* Administrative controller */
 };
 
+enum nvme_dctype {
+	NVME_DCTYPE_NOT_REPORTED	= 0,
+	NVME_DCTYPE_DDC			= 1, /* Direct Discovery Controller */
+	NVME_DCTYPE_CDC			= 2, /* Central Discovery Controller */
+};
+
 /* Address Family codes for Discovery Log Page entry ADRFAM field */
 enum {
 	NVMF_ADDR_FAMILY_PCI	= 0,	/* PCIe */
@@ -131,6 +137,7 @@ enum {
 	NVME_REG_CMBMSC = 0x0050,	/* Controller Memory Buffer Memory
 					 * Space Control
 					 */
+	NVME_REG_CRTO	= 0x0068,	/* Controller Ready Timeouts */
 	NVME_REG_PMRCAP	= 0x0e00,	/* Persistent Memory Capabilities */
 	NVME_REG_PMRCTL	= 0x0e04,	/* Persistent Memory Region Control */
 	NVME_REG_PMRSTS	= 0x0e08,	/* Persistent Memory Region Status */
@@ -154,6 +161,9 @@ enum {
 
 #define NVME_CMB_BIR(cmbloc)	((cmbloc) & 0x7)
 #define NVME_CMB_OFST(cmbloc)	(((cmbloc) >> 12) & 0xfffff)
+
+#define NVME_CRTO_CRIMT(crto)	((crto) >> 16)
+#define NVME_CRTO_CRWMT(crto)	((crto) & 0xffff)
 
 enum {
 	NVME_CMBSZ_SQS		= 1 << 0,
@@ -198,8 +208,10 @@ enum {
 	NVME_CC_SHN_MASK	= 3 << NVME_CC_SHN_SHIFT,
 	NVME_CC_IOSQES		= NVME_NVM_IOSQES << NVME_CC_IOSQES_SHIFT,
 	NVME_CC_IOCQES		= NVME_NVM_IOCQES << NVME_CC_IOCQES_SHIFT,
-	NVME_CAP_CSS_NVM	= 1 << 0,
-	NVME_CAP_CSS_CSI	= 1 << 6,
+	NVME_CC_CRIME		= 1 << 24,
+};
+
+enum {
 	NVME_CSTS_RDY		= 1 << 0,
 	NVME_CSTS_CFS		= 1 << 1,
 	NVME_CSTS_NSSRO		= 1 << 4,
@@ -208,8 +220,21 @@ enum {
 	NVME_CSTS_SHST_OCCUR	= 1 << 2,
 	NVME_CSTS_SHST_CMPLT	= 2 << 2,
 	NVME_CSTS_SHST_MASK	= 3 << 2,
+};
+
+enum {
 	NVME_CMBMSC_CRE		= 1 << 0,
 	NVME_CMBMSC_CMSE	= 1 << 1,
+};
+
+enum {
+	NVME_CAP_CSS_NVM	= 1 << 0,
+	NVME_CAP_CSS_CSI	= 1 << 6,
+};
+
+enum {
+	NVME_CAP_CRMS_CRWMS	= 1ULL << 59,
+	NVME_CAP_CRMS_CRIMS	= 1ULL << 60,
 };
 
 struct nvme_id_power_state {
@@ -238,6 +263,7 @@ enum {
 enum nvme_ctrl_attr {
 	NVME_CTRL_ATTR_HID_128_BIT	= (1 << 0),
 	NVME_CTRL_ATTR_TBKAS		= (1 << 6),
+	NVME_CTRL_ATTR_ELBAS		= (1 << 15),
 };
 
 struct nvme_id_ctrl {
@@ -320,7 +346,9 @@ struct nvme_id_ctrl {
 	__le16			icdoff;
 	__u8			ctrattr;
 	__u8			msdbd;
-	__u8			rsvd1804[244];
+	__u8			rsvd1804[2];
+	__u8			dctype;
+	__u8			rsvd1807[241];
 	struct nvme_id_power_state	psd[32];
 	__u8			vs[1024];
 };
@@ -337,6 +365,7 @@ enum {
 	NVME_CTRL_ONCS_TIMESTAMP		= 1 << 6,
 	NVME_CTRL_VWC_PRESENT			= 1 << 0,
 	NVME_CTRL_OACS_SEC_SUPP                 = 1 << 0,
+	NVME_CTRL_OACS_NS_MNGT_SUPP		= 1 << 3,
 	NVME_CTRL_OACS_DIRECTIVES		= 1 << 5,
 	NVME_CTRL_OACS_DBBUF_SUPP		= 1 << 8,
 	NVME_CTRL_LPA_CMD_EFFECTS_LOG		= 1 << 1,
@@ -391,9 +420,23 @@ struct nvme_id_ns {
 	__le16			endgid;
 	__u8			nguid[16];
 	__u8			eui64[8];
-	struct nvme_lbaf	lbaf[16];
-	__u8			rsvd192[192];
+	struct nvme_lbaf	lbaf[64];
 	__u8			vs[3712];
+};
+
+/* I/O Command Set Independent Identify Namespace Data Structure */
+struct nvme_id_ns_cs_indep {
+	__u8			nsfeat;
+	__u8			nmic;
+	__u8			rescap;
+	__u8			fpi;
+	__le32			anagrpid;
+	__u8			nsattr;
+	__u8			rsvd9;
+	__le16			nvmsetid;
+	__le16			endgid;
+	__u8			nstat;
+	__u8			rsvd15[4081];
 };
 
 struct nvme_zns_lbafe {
@@ -410,8 +453,7 @@ struct nvme_id_ns_zns {
 	__le32			rrl;
 	__le32			frl;
 	__u8			rsvd20[2796];
-	struct nvme_zns_lbafe	lbafe[16];
-	__u8			rsvd3072[768];
+	struct nvme_zns_lbafe	lbafe[64];
 	__u8			vs[256];
 };
 
@@ -419,6 +461,30 @@ struct nvme_id_ctrl_zns {
 	__u8	zasl;
 	__u8	rsvd1[4095];
 };
+
+struct nvme_id_ns_nvm {
+	__le64	lbstm;
+	__u8	pic;
+	__u8	rsvd9[3];
+	__le32	elbaf[64];
+	__u8	rsvd268[3828];
+};
+
+enum {
+	NVME_ID_NS_NVM_STS_MASK		= 0x3f,
+	NVME_ID_NS_NVM_GUARD_SHIFT	= 7,
+	NVME_ID_NS_NVM_GUARD_MASK	= 0x3,
+};
+
+static inline __u8 nvme_elbaf_sts(__u32 elbaf)
+{
+	return elbaf & NVME_ID_NS_NVM_STS_MASK;
+}
+
+static inline __u8 nvme_elbaf_guard_type(__u32 elbaf)
+{
+	return (elbaf >> NVME_ID_NS_NVM_GUARD_SHIFT) & NVME_ID_NS_NVM_GUARD_MASK;
+}
 
 struct nvme_id_ctrl_nvm {
 	__u8	vsl;
@@ -437,6 +503,7 @@ enum {
 	NVME_ID_CNS_NS_DESC_LIST	= 0x03,
 	NVME_ID_CNS_CS_NS		= 0x05,
 	NVME_ID_CNS_CS_CTRL		= 0x06,
+	NVME_ID_CNS_NS_CS_INDEP		= 0x08,
 	NVME_ID_CNS_NS_PRESENT_LIST	= 0x10,
 	NVME_ID_CNS_NS_PRESENT		= 0x11,
 	NVME_ID_CNS_CTRL_NS_LIST	= 0x12,
@@ -470,6 +537,8 @@ enum {
 	NVME_NS_FEAT_IO_OPT	= 1 << 4,
 	NVME_NS_ATTR_RO		= 1 << 0,
 	NVME_NS_FLBAS_LBA_MASK	= 0xf,
+	NVME_NS_FLBAS_LBA_UMASK	= 0x60,
+	NVME_NS_FLBAS_LBA_SHIFT	= 1,
 	NVME_NS_FLBAS_META_EXT	= 0x10,
 	NVME_NS_NMIC_SHARED	= 1 << 0,
 	NVME_LBAF_RP_BEST	= 0,
@@ -487,6 +556,22 @@ enum {
 	NVME_NS_DPS_PI_TYPE2	= 2,
 	NVME_NS_DPS_PI_TYPE3	= 3,
 };
+
+enum {
+	NVME_NSTAT_NRDY		= 1 << 0,
+};
+
+enum {
+	NVME_NVM_NS_16B_GUARD	= 0,
+	NVME_NVM_NS_32B_GUARD	= 1,
+	NVME_NVM_NS_64B_GUARD	= 2,
+};
+
+static inline __u8 nvme_lbaf_index(__u8 flbas)
+{
+	return (flbas & NVME_NS_FLBAS_LBA_MASK) |
+		((flbas & NVME_NS_FLBAS_LBA_UMASK) >> NVME_NS_FLBAS_LBA_SHIFT);
+}
 
 /* Identify Namespace Metadata Capabilities (MC): */
 enum {
@@ -834,7 +919,8 @@ struct nvme_rw_command {
 	__u8			flags;
 	__u16			command_id;
 	__le32			nsid;
-	__u64			rsvd2;
+	__le32			cdw2;
+	__le32			cdw3;
 	__le64			metadata;
 	union nvme_data_ptr	dptr;
 	__le64			slba;
@@ -988,11 +1074,14 @@ enum {
 
 struct nvme_feat_host_behavior {
 	__u8 acre;
-	__u8 resv1[511];
+	__u8 etdas;
+	__u8 lbafee;
+	__u8 resv1[509];
 };
 
 enum {
 	NVME_ENABLE_ACRE	= 1,
+	NVME_ENABLE_LBAFEE	= 1,
 };
 
 /* Admin commands */
@@ -1533,6 +1622,7 @@ enum {
 	NVME_SC_NS_WRITE_PROTECTED	= 0x20,
 	NVME_SC_CMD_INTERRUPTED		= 0x21,
 	NVME_SC_TRANSIENT_TR_ERR	= 0x22,
+	NVME_SC_ADMIN_COMMAND_MEDIA_NOT_READY = 0x24,
 	NVME_SC_INVALID_IO_CMD_SET	= 0x2C,
 
 	NVME_SC_LBA_RANGE		= 0x80,
@@ -1629,13 +1719,16 @@ enum {
 	/*
 	 * Path-related Errors:
 	 */
+	NVME_SC_INTERNAL_PATH_ERROR	= 0x300,
 	NVME_SC_ANA_PERSISTENT_LOSS	= 0x301,
 	NVME_SC_ANA_INACCESSIBLE	= 0x302,
 	NVME_SC_ANA_TRANSITION		= 0x303,
+	NVME_SC_CTRL_PATH_ERROR		= 0x360,
 	NVME_SC_HOST_PATH_ERROR		= 0x370,
 	NVME_SC_HOST_ABORTED_CMD	= 0x371,
 
 	NVME_SC_CRD			= 0x1800,
+	NVME_SC_MORE			= 0x2000,
 	NVME_SC_DNR			= 0x4000,
 };
 

@@ -779,6 +779,9 @@ static int ufx_ops_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
 	unsigned long page, pos;
 
+	if (info->fbdefio)
+		return fb_deferred_io_mmap(info, vma);
+
 	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
 		return -EINVAL;
 	if (size > info->fix.smem_len)
@@ -952,12 +955,10 @@ static void ufx_ops_fillrect(struct fb_info *info,
  *   Touching ANY framebuffer memory that triggers a page fault
  *   in fb_defio will cause a deadlock, when it also tries to
  *   grab the same mutex. */
-static void ufx_dpy_deferred_io(struct fb_info *info,
-				struct list_head *pagelist)
+static void ufx_dpy_deferred_io(struct fb_info *info, struct list_head *pagereflist)
 {
-	struct page *cur;
-	struct fb_deferred_io *fbdefio = info->fbdefio;
 	struct ufx_data *dev = info->par;
+	struct fb_deferred_io_pageref *pageref;
 
 	if (!fb_defio)
 		return;
@@ -966,12 +967,12 @@ static void ufx_dpy_deferred_io(struct fb_info *info,
 		return;
 
 	/* walk the written page list and render each to device */
-	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
+	list_for_each_entry(pageref, pagereflist, list) {
 		/* create a rectangle of full screen width that encloses the
 		 * entire dirty framebuffer page */
 		const int x = 0;
 		const int width = dev->info->var.xres;
-		const int y = (cur->index << PAGE_SHIFT) / (width * 2);
+		const int y = pageref->offset / (width * 2);
 		int height = (PAGE_SIZE / (width * 2)) + 1;
 		height = min(height, (int)(dev->info->var.yres - y));
 
@@ -1656,6 +1657,7 @@ static int ufx_usb_probe(struct usb_interface *interface,
 	info->par = dev;
 	info->pseudo_palette = dev->pseudo_palette;
 	info->fbops = &ufx_ops;
+	INIT_LIST_HEAD(&info->modelist);
 
 	retval = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (retval < 0) {
@@ -1665,8 +1667,6 @@ static int ufx_usb_probe(struct usb_interface *interface,
 
 	INIT_DELAYED_WORK(&dev->free_framebuffer_work,
 			  ufx_free_framebuffer_work);
-
-	INIT_LIST_HEAD(&info->modelist);
 
 	retval = ufx_reg_read(dev, 0x3000, &id_rev);
 	check_warn_goto_error(retval, "error %d reading 0x3000 register from device", retval);

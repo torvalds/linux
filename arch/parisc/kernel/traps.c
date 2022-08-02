@@ -302,7 +302,10 @@ static void handle_break(struct pt_regs *regs)
 		parisc_kprobe_break_handler(regs);
 		return;
 	}
-
+	if (unlikely(iir == PARISC_KPROBES_BREAK_INSN2)) {
+		parisc_kprobe_ss_handler(regs);
+		return;
+	}
 #endif
 
 #ifdef CONFIG_KGDB
@@ -466,7 +469,7 @@ void parisc_terminate(char *msg, struct pt_regs *regs, int code, unsigned long o
 	 * panic notifiers, and we should call panic
 	 * directly from the location that we wish. 
 	 * e.g. We should not call panic from
-	 * parisc_terminate, but rather the oter way around.
+	 * parisc_terminate, but rather the other way around.
 	 * This hack works, prints the panic message twice,
 	 * and it enables reboot timers!
 	 */
@@ -538,11 +541,6 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	case  3:
 		/* Recovery counter trap */
 		regs->gr[0] &= ~PSW_R;
-
-#ifdef CONFIG_KPROBES
-		if (parisc_kprobe_ss_handler(regs))
-			return;
-#endif
 
 #ifdef CONFIG_KGDB
 		if (kgdb_single_step) {
@@ -662,6 +660,8 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 			 by hand. Technically we need to emulate:
 			 fdc,fdce,pdc,"fic,4f",prober,probeir,probew, probeiw
 		*/
+		if (code == 17 && handle_nadtlb_fault(regs))
+			return;
 		fault_address = regs->ior;
 		fault_space = regs->isr;
 		break;

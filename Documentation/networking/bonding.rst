@@ -313,6 +313,17 @@ arp_ip_target
 	maximum number of targets that can be specified is 16.  The
 	default value is no IP addresses.
 
+ns_ip6_target
+
+	Specifies the IPv6 addresses to use as IPv6 monitoring peers when
+	arp_interval is > 0.  These are the targets of the NS request
+	sent to determine the health of the link to the targets.
+	Specify these values in ffff:ffff::ffff:ffff format.  Multiple IPv6
+	addresses must be separated by a comma.  At least one IPv6
+	address must be given for NS/NA monitoring to function.  The
+	maximum number of targets that can be specified is 16.  The
+	default value is no IPv6 addresses.
+
 arp_validate
 
 	Specifies whether or not ARP probes and replies should be
@@ -883,7 +894,7 @@ xmit_hash_policy
 		Uses XOR of hardware MAC addresses and packet type ID
 		field to generate the hash. The formula is
 
-		hash = source MAC XOR destination MAC XOR packet type ID
+		hash = source MAC[5] XOR destination MAC[5] XOR packet type ID
 		slave number = hash modulo slave count
 
 		This algorithm will place all traffic to a particular
@@ -899,7 +910,7 @@ xmit_hash_policy
 		Uses XOR of hardware MAC addresses and IP addresses to
 		generate the hash.  The formula is
 
-		hash = source MAC XOR destination MAC XOR packet type ID
+		hash = source MAC[5] XOR destination MAC[5] XOR packet type ID
 		hash = hash XOR source IP XOR destination IP
 		hash = hash XOR (hash RSHIFT 16)
 		hash = hash XOR (hash RSHIFT 8)

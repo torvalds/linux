@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2021 HabanaLabs, Ltd.
+ * Copyright 2016-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -18,8 +18,9 @@
 static char *extract_fw_ver_from_str(const char *fw_str)
 {
 	char *str, *fw_ver, *whitespace;
+	u32 ver_offset;
 
-	fw_ver = kmalloc(16, GFP_KERNEL);
+	fw_ver = kmalloc(VERSION_MAX_LEN, GFP_KERNEL);
 	if (!fw_ver)
 		return NULL;
 
@@ -29,9 +30,10 @@ static char *extract_fw_ver_from_str(const char *fw_str)
 
 	/* Skip the fw- part */
 	str += 3;
+	ver_offset = str - fw_str;
 
 	/* Copy until the next whitespace */
-	whitespace =  strnstr(str, " ", 15);
+	whitespace =  strnstr(str, " ", VERSION_MAX_LEN - ver_offset);
 	if (!whitespace)
 		goto free_fw_ver;
 
@@ -214,7 +216,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	dma_addr_t pkt_dma_addr;
 	struct hl_bd *sent_bd;
 	u32 tmp, expected_ack_val, pi;
-	int rc = 0;
+	int rc;
 
 	pkt = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev, len,
 								&pkt_dma_addr);
@@ -228,8 +230,11 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 
 	mutex_lock(&hdev->send_cpu_message_lock);
 
-	if (hdev->disabled)
+	/* CPU-CP messages can be sent during soft-reset */
+	if (hdev->disabled && !hdev->reset_info.is_in_soft_reset) {
+		rc = 0;
 		goto out;
+	}
 
 	if (hdev->device_cpu_disabled) {
 		rc = -EIO;
@@ -816,6 +821,54 @@ out:
 	return rc;
 }
 
+int hl_fw_get_monitor_dump(struct hl_device *hdev, void *data)
+{
+	struct cpucp_monitor_dump *mon_dump_cpu_addr;
+	dma_addr_t mon_dump_dma_addr;
+	struct cpucp_packet pkt = {};
+	size_t data_size;
+	__le32 *src_ptr;
+	u32 *dst_ptr;
+	u64 result;
+	int i, rc;
+
+	data_size = sizeof(struct cpucp_monitor_dump);
+	mon_dump_cpu_addr = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev, data_size,
+										&mon_dump_dma_addr);
+	if (!mon_dump_cpu_addr) {
+		dev_err(hdev->dev,
+			"Failed to allocate DMA memory for CPU-CP monitor-dump packet\n");
+		return -ENOMEM;
+	}
+
+	memset(mon_dump_cpu_addr, 0, data_size);
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_MONITOR_DUMP_GET << CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.addr = cpu_to_le64(mon_dump_dma_addr);
+	pkt.data_max_size = cpu_to_le32(data_size);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+							HL_CPUCP_MON_DUMP_TIMEOUT_USEC, &result);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to handle CPU-CP monitor-dump packet, error %d\n", rc);
+		goto out;
+	}
+
+	/* result contains the actual size */
+	src_ptr = (__le32 *) mon_dump_cpu_addr;
+	dst_ptr = data;
+	for (i = 0; i < (data_size / sizeof(u32)); i++) {
+		*dst_ptr = le32_to_cpu(*src_ptr);
+		src_ptr++;
+		dst_ptr++;
+	}
+
+out:
+	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev, data_size, mon_dump_cpu_addr);
+
+	return rc;
+}
+
 int hl_fw_cpucp_pci_counters_get(struct hl_device *hdev,
 		struct hl_info_pci_counters *counters)
 {
@@ -958,15 +1011,17 @@ int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, u32 pll_index,
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 			HL_CPUCP_INFO_TIMEOUT_USEC, &result);
-	if (rc)
+	if (rc) {
 		dev_err(hdev->dev, "Failed to read PLL info, error %d\n", rc);
+		return rc;
+	}
 
 	pll_freq_arr[0] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT0_MASK, result);
 	pll_freq_arr[1] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT1_MASK, result);
 	pll_freq_arr[2] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT2_MASK, result);
 	pll_freq_arr[3] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT3_MASK, result);
 
-	return rc;
+	return 0;
 }
 
 int hl_fw_cpucp_power_get(struct hl_device *hdev, u64 *power)
@@ -1202,8 +1257,6 @@ static int hl_fw_read_preboot_caps(struct hl_device *hdev,
 		hdev,
 		cpu_boot_status_reg,
 		status,
-		(status == CPU_BOOT_STATUS_IN_UBOOT) ||
-		(status == CPU_BOOT_STATUS_DRAM_RDY) ||
 		(status == CPU_BOOT_STATUS_NIC_FW_RDY) ||
 		(status == CPU_BOOT_STATUS_READY_TO_BOOT) ||
 		(status == CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT),
@@ -1536,7 +1589,7 @@ static int hl_fw_dynamic_wait_for_status(struct hl_device *hdev,
 		le32_to_cpu(dyn_regs->cpu_cmd_status_to_host),
 		status,
 		FIELD_GET(COMMS_STATUS_STATUS_MASK, status) == expected_status,
-		hdev->fw_poll_interval_usec,
+		hdev->fw_comms_poll_interval_usec,
 		timeout);
 
 	if (rc) {
@@ -1906,7 +1959,7 @@ static int hl_fw_dynamic_request_descriptor(struct hl_device *hdev,
  * @fwc: the firmware component
  * @fw_version: fw component's version string
  */
-static void hl_fw_dynamic_read_device_fw_version(struct hl_device *hdev,
+static int hl_fw_dynamic_read_device_fw_version(struct hl_device *hdev,
 					enum hl_fw_component fwc,
 					const char *fw_version)
 {
@@ -1930,23 +1983,33 @@ static void hl_fw_dynamic_read_device_fw_version(struct hl_device *hdev,
 						VERSION_MAX_LEN);
 		if (preboot_ver && preboot_ver != prop->preboot_ver) {
 			strscpy(btl_ver, prop->preboot_ver,
-				min((int) (preboot_ver - prop->preboot_ver),
-									31));
+				min((int) (preboot_ver - prop->preboot_ver), 31));
 			dev_info(hdev->dev, "%s\n", btl_ver);
 		}
 
 		preboot_ver = extract_fw_ver_from_str(prop->preboot_ver);
 		if (preboot_ver) {
-			dev_info(hdev->dev, "preboot version %s\n",
-								preboot_ver);
+			char major[8];
+			int rc;
+
+			dev_info(hdev->dev, "preboot version %s\n", preboot_ver);
+			sprintf(major, "%.2s", preboot_ver);
 			kfree(preboot_ver);
+
+			rc = kstrtou32(major, 10, &hdev->fw_major_version);
+			if (rc) {
+				dev_err(hdev->dev, "Error %d parsing preboot major version\n", rc);
+				return rc;
+			}
 		}
 
 		break;
 	default:
 		dev_warn(hdev->dev, "Undefined FW component: %d\n", fwc);
-		return;
+		return -EINVAL;
 	}
+
+	return 0;
 }
 
 /**
@@ -2118,9 +2181,10 @@ static int hl_fw_dynamic_load_image(struct hl_device *hdev,
 		goto release_fw;
 
 	/* read preboot version */
-	hl_fw_dynamic_read_device_fw_version(hdev, cur_fwc,
+	rc = hl_fw_dynamic_read_device_fw_version(hdev, cur_fwc,
 				fw_loader->dynamic_loader.comm_desc.cur_fw_ver);
-
+	if (rc)
+		goto release_fw;
 
 	/* update state according to boot stage */
 	if (cur_fwc == FW_COMP_BOOT_FIT) {
@@ -2387,9 +2451,8 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 			goto protocol_err;
 
 		/* read preboot version */
-		hl_fw_dynamic_read_device_fw_version(hdev, FW_COMP_PREBOOT,
+		return hl_fw_dynamic_read_device_fw_version(hdev, FW_COMP_PREBOOT,
 				fw_loader->dynamic_loader.comm_desc.cur_fw_ver);
-		return 0;
 	}
 
 	/* load boot fit to FW */
@@ -2681,4 +2744,139 @@ int hl_fw_init_cpu(struct hl_device *hdev)
 	return  prop->dynamic_fw_load ?
 			hl_fw_dynamic_init_cpu(hdev, fw_loader) :
 			hl_fw_static_init_cpu(hdev, fw_loader);
+}
+
+void hl_fw_set_pll_profile(struct hl_device *hdev)
+{
+	hl_fw_set_frequency(hdev, hdev->asic_prop.clk_pll_index,
+				hdev->asic_prop.max_freq_value);
+}
+
+int hl_fw_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk)
+{
+	long value;
+
+	if (!hl_device_operational(hdev, NULL))
+		return -ENODEV;
+
+	if (!hdev->pdev) {
+		*cur_clk = 0;
+		*max_clk = 0;
+		return 0;
+	}
+
+	value = hl_fw_get_frequency(hdev, hdev->asic_prop.clk_pll_index, false);
+
+	if (value < 0) {
+		dev_err(hdev->dev, "Failed to retrieve device max clock %ld\n", value);
+		return value;
+	}
+
+	*max_clk = (value / 1000 / 1000);
+
+	value = hl_fw_get_frequency(hdev, hdev->asic_prop.clk_pll_index, true);
+
+	if (value < 0) {
+		dev_err(hdev->dev, "Failed to retrieve device current clock %ld\n", value);
+		return value;
+	}
+
+	*cur_clk = (value / 1000 / 1000);
+
+	return 0;
+}
+
+long hl_fw_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr)
+{
+	struct cpucp_packet pkt;
+	u32 used_pll_idx;
+	u64 result;
+	int rc;
+
+	rc = get_used_pll_index(hdev, pll_index, &used_pll_idx);
+	if (rc)
+		return rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	if (curr)
+		pkt.ctl = cpu_to_le32(CPUCP_PACKET_FREQUENCY_CURR_GET <<
+						CPUCP_PKT_CTL_OPCODE_SHIFT);
+	else
+		pkt.ctl = cpu_to_le32(CPUCP_PACKET_FREQUENCY_GET << CPUCP_PKT_CTL_OPCODE_SHIFT);
+
+	pkt.pll_index = cpu_to_le32((u32)used_pll_idx);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt), 0, &result);
+
+	if (rc) {
+		dev_err(hdev->dev, "Failed to get frequency of PLL %d, error %d\n",
+			used_pll_idx, rc);
+		return rc;
+	}
+
+	return (long) result;
+}
+
+void hl_fw_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq)
+{
+	struct cpucp_packet pkt;
+	u32 used_pll_idx;
+	int rc;
+
+	rc = get_used_pll_index(hdev, pll_index, &used_pll_idx);
+	if (rc)
+		return;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_FREQUENCY_SET << CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.pll_index = cpu_to_le32((u32)used_pll_idx);
+	pkt.value = cpu_to_le64(freq);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt), 0, NULL);
+
+	if (rc)
+		dev_err(hdev->dev, "Failed to set frequency to PLL %d, error %d\n",
+			used_pll_idx, rc);
+}
+
+long hl_fw_get_max_power(struct hl_device *hdev)
+{
+	struct cpucp_packet pkt;
+	u64 result;
+	int rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_MAX_POWER_GET << CPUCP_PKT_CTL_OPCODE_SHIFT);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt), 0, &result);
+
+	if (rc) {
+		dev_err(hdev->dev, "Failed to get max power, error %d\n", rc);
+		return rc;
+	}
+
+	return result;
+}
+
+void hl_fw_set_max_power(struct hl_device *hdev)
+{
+	struct cpucp_packet pkt;
+	int rc;
+
+	/* TODO: remove this after simulator supports this packet */
+	if (!hdev->pdev)
+		return;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_MAX_POWER_SET << CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.value = cpu_to_le64(hdev->max_power);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt), 0, NULL);
+
+	if (rc)
+		dev_err(hdev->dev, "Failed to set max power, error %d\n", rc);
 }

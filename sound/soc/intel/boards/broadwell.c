@@ -69,7 +69,7 @@ static int broadwell_rt286_codec_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
 	int ret = 0;
-	ret = snd_soc_card_jack_new(rtd->card, "Headset",
+	ret = snd_soc_card_jack_new_pins(rtd->card, "Headset",
 		SND_JACK_HEADSET | SND_JACK_BTN_0, &broadwell_headset,
 		broadwell_headset_pins, ARRAY_SIZE(broadwell_headset_pins));
 	if (ret)
@@ -292,7 +292,7 @@ static int broadwell_audio_probe(struct platform_device *pdev)
 
 	broadwell_rt286.dev = &pdev->dev;
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	mach = pdev->dev.platform_data;
 	ret = snd_soc_fixup_dai_links_platform_name(&broadwell_rt286,
 						    mach->mach_params.platform);

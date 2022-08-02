@@ -22,6 +22,8 @@
 #include <linux/interrupt.h>
 #include <linux/memblock.h>
 #include <linux/log2.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
@@ -29,7 +31,6 @@
 #include <linux/uaccess.h>
 
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 #include <asm/machdep.h>
@@ -55,7 +56,7 @@ static void quirk_fsl_pcie_early(struct pci_dev *dev)
 	if ((hdr_type & 0x7f) != PCI_HEADER_TYPE_BRIDGE)
 		return;
 
-	dev->class = PCI_CLASS_BRIDGE_PCI << 8;
+	dev->class = PCI_CLASS_BRIDGE_PCI_NORMAL;
 	fsl_pcie_bus_fixup = 1;
 	return;
 }
@@ -218,7 +219,7 @@ static void setup_pci_atmu(struct pci_controller *hose)
 		 * windows have implemented the default target value as 0xf
 		 * for CCSR space.In all Freescale legacy devices the target
 		 * of 0xf is reserved for local memory space. 9132 Rev1.0
-		 * now has local mempry space mapped to target 0x0 instead of
+		 * now has local memory space mapped to target 0x0 instead of
 		 * 0xf. Hence adding a workaround to remove the target 0xf
 		 * defined for memory space from Inbound window attributes.
 		 */

@@ -26,6 +26,7 @@ properties:
       - enum:
           - nvidia,tegra210-ahub
           - nvidia,tegra186-ahub
+          - nvidia,tegra234-ahub
       - items:
           - const: nvidia,tegra194-ahub
           - const: nvidia,tegra186-ahub
@@ -104,6 +105,10 @@ patternProperties:
   '^amixer@[0-9a-f]+$':
     type: object
     $ref: nvidia,tegra210-mixer.yaml#
+
+  '^asrc@[0-9a-f]+$':
+    type: object
+    $ref: nvidia,tegra186-asrc.yaml#
 
 required:
   - compatible

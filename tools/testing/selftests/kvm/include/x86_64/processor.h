@@ -60,6 +60,23 @@
 /* CPUID.0x8000_0001.EDX */
 #define CPUID_GBPAGES		(1ul << 26)
 
+/* Page table bitfield declarations */
+#define PTE_PRESENT_MASK        BIT_ULL(0)
+#define PTE_WRITABLE_MASK       BIT_ULL(1)
+#define PTE_USER_MASK           BIT_ULL(2)
+#define PTE_ACCESSED_MASK       BIT_ULL(5)
+#define PTE_DIRTY_MASK          BIT_ULL(6)
+#define PTE_LARGE_MASK          BIT_ULL(7)
+#define PTE_GLOBAL_MASK         BIT_ULL(8)
+#define PTE_NX_MASK             BIT_ULL(63)
+
+#define PAGE_SHIFT		12
+#define PAGE_SIZE		(1ULL << PAGE_SHIFT)
+#define PAGE_MASK		(~(PAGE_SIZE-1))
+
+#define PHYSICAL_PAGE_MASK      GENMASK_ULL(51, 12)
+#define PTE_GET_PFN(pte)        (((pte) & PHYSICAL_PAGE_MASK) >> PAGE_SHIFT)
+
 /* General Registers in 64-Bit Mode */
 struct gpr64_regs {
 	u64 rax;
@@ -363,6 +380,11 @@ static inline unsigned long get_xmm(int n)
 	return 0;
 }
 
+static inline void cpu_relax(void)
+{
+	asm volatile("rep; nop" ::: "memory");
+}
+
 bool is_intel_cpu(void);
 bool is_amd_cpu(void);
 
@@ -460,13 +482,23 @@ void vcpu_set_hv_cpuid(struct kvm_vm *vm, uint32_t vcpuid);
 struct kvm_cpuid2 *vcpu_get_supported_hv_cpuid(struct kvm_vm *vm, uint32_t vcpuid);
 void vm_xsave_req_perm(int bit);
 
-enum x86_page_size {
-	X86_PAGE_SIZE_4K = 0,
-	X86_PAGE_SIZE_2M,
-	X86_PAGE_SIZE_1G,
+enum pg_level {
+	PG_LEVEL_NONE,
+	PG_LEVEL_4K,
+	PG_LEVEL_2M,
+	PG_LEVEL_1G,
+	PG_LEVEL_512G,
+	PG_LEVEL_NUM
 };
-void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
-		   enum x86_page_size page_size);
+
+#define PG_LEVEL_SHIFT(_level) ((_level - 1) * 9 + 12)
+#define PG_LEVEL_SIZE(_level) (1ull << PG_LEVEL_SHIFT(_level))
+
+#define PG_SIZE_4K PG_LEVEL_SIZE(PG_LEVEL_4K)
+#define PG_SIZE_2M PG_LEVEL_SIZE(PG_LEVEL_2M)
+#define PG_SIZE_1G PG_LEVEL_SIZE(PG_LEVEL_1G)
+
+void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr, int level);
 
 /*
  * Basic CPU control in CR0
@@ -482,9 +514,6 @@ void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 #define X86_CR0_NW          (1UL<<29) /* Not Write-through */
 #define X86_CR0_CD          (1UL<<30) /* Cache Disable */
 #define X86_CR0_PG          (1UL<<31) /* Paging */
-
-/* VMX_EPT_VPID_CAP bits */
-#define VMX_EPT_VPID_CAP_AD_BITS       (1ULL << 21)
 
 #define XSTATE_XTILE_CFG_BIT		17
 #define XSTATE_XTILE_DATA_BIT		18

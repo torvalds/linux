@@ -41,25 +41,37 @@ static int event_manager_availability = -EACCES;
 static DEFINE_HASHTABLE(reg_driver_map, REGISTERED_DRIVER_MAX_ORDER);
 static int sgi_num = XLNX_EVENT_SGI_NUM;
 
+static bool is_need_to_unregister;
+
+/**
+ * struct agent_cb - Registered callback function and private data.
+ * @agent_data:		Data passed back to handler function.
+ * @eve_cb:		Function pointer to store the callback function.
+ * @list:		member to create list.
+ */
+struct agent_cb {
+	void *agent_data;
+	event_cb_func_t eve_cb;
+	struct list_head list;
+};
+
 /**
  * struct registered_event_data - Registered Event Data.
  * @key:		key is the combine id(Node-Id | Event-Id) of type u64
  *			where upper u32 for Node-Id and lower u32 for Event-Id,
  *			And this used as key to index into hashmap.
- * @agent_data:		Data passed back to handler function.
  * @cb_type:		Type of Api callback, like PM_NOTIFY_CB, etc.
- * @eve_cb:		Function pointer to store the callback function.
- * @wake:		If this flag set, firmware will wakeup processor if is
+ * @wake:		If this flag set, firmware will wake up processor if is
  *			in sleep or power down state.
+ * @cb_list_head:	Head of call back data list which contain the information
+ *			about registered handler and private data.
  * @hentry:		hlist_node that hooks this entry into hashtable.
  */
 struct registered_event_data {
 	u64 key;
 	enum pm_api_cb_id cb_type;
-	void *agent_data;
-
-	event_cb_func_t eve_cb;
 	bool wake;
+	struct list_head cb_list_head;
 	struct hlist_node hentry;
 };
 
@@ -78,29 +90,60 @@ static int xlnx_add_cb_for_notify_event(const u32 node_id, const u32 event, cons
 					event_cb_func_t cb_fun,	void *data)
 {
 	u64 key = 0;
+	bool present_in_hash = false;
 	struct registered_event_data *eve_data;
+	struct agent_cb *cb_data;
+	struct agent_cb *cb_pos;
+	struct agent_cb *cb_next;
 
 	key = ((u64)node_id << 32U) | (u64)event;
 	/* Check for existing entry in hash table for given key id */
 	hash_for_each_possible(reg_driver_map, eve_data, hentry, key) {
 		if (eve_data->key == key) {
-			pr_err("Found as already registered\n");
-			return -EINVAL;
+			present_in_hash = true;
+			break;
 		}
 	}
 
-	/* Add new entry if not present */
-	eve_data = kmalloc(sizeof(*eve_data), GFP_KERNEL);
-	if (!eve_data)
-		return -ENOMEM;
+	if (!present_in_hash) {
+		/* Add new entry if not present in HASH table */
+		eve_data = kmalloc(sizeof(*eve_data), GFP_KERNEL);
+		if (!eve_data)
+			return -ENOMEM;
+		eve_data->key = key;
+		eve_data->cb_type = PM_NOTIFY_CB;
+		eve_data->wake = wake;
+		INIT_LIST_HEAD(&eve_data->cb_list_head);
 
-	eve_data->key = key;
-	eve_data->cb_type = PM_NOTIFY_CB;
-	eve_data->eve_cb = cb_fun;
-	eve_data->wake = wake;
-	eve_data->agent_data = data;
+		cb_data = kmalloc(sizeof(*cb_data), GFP_KERNEL);
+		if (!cb_data)
+			return -ENOMEM;
+		cb_data->eve_cb = cb_fun;
+		cb_data->agent_data = data;
 
-	hash_add(reg_driver_map, &eve_data->hentry, key);
+		/* Add into callback list */
+		list_add(&cb_data->list, &eve_data->cb_list_head);
+
+		/* Add into HASH table */
+		hash_add(reg_driver_map, &eve_data->hentry, key);
+	} else {
+		/* Search for callback function and private data in list */
+		list_for_each_entry_safe(cb_pos, cb_next, &eve_data->cb_list_head, list) {
+			if (cb_pos->eve_cb == cb_fun &&
+			    cb_pos->agent_data == data) {
+				return 0;
+			}
+		}
+
+		/* Add multiple handler and private data in list */
+		cb_data = kmalloc(sizeof(*cb_data), GFP_KERNEL);
+		if (!cb_data)
+			return -ENOMEM;
+		cb_data->eve_cb = cb_fun;
+		cb_data->agent_data = data;
+
+		list_add(&cb_data->list, &eve_data->cb_list_head);
+	}
 
 	return 0;
 }
@@ -108,6 +151,7 @@ static int xlnx_add_cb_for_notify_event(const u32 node_id, const u32 event, cons
 static int xlnx_add_cb_for_suspend(event_cb_func_t cb_fun, void *data)
 {
 	struct registered_event_data *eve_data;
+	struct agent_cb *cb_data;
 
 	/* Check for existing entry in hash table for given cb_type */
 	hash_for_each_possible(reg_driver_map, eve_data, hentry, PM_INIT_SUSPEND_CB) {
@@ -124,8 +168,16 @@ static int xlnx_add_cb_for_suspend(event_cb_func_t cb_fun, void *data)
 
 	eve_data->key = 0;
 	eve_data->cb_type = PM_INIT_SUSPEND_CB;
-	eve_data->eve_cb = cb_fun;
-	eve_data->agent_data = data;
+	INIT_LIST_HEAD(&eve_data->cb_list_head);
+
+	cb_data = kmalloc(sizeof(*cb_data), GFP_KERNEL);
+	if (!cb_data)
+		return -ENOMEM;
+	cb_data->eve_cb = cb_fun;
+	cb_data->agent_data = data;
+
+	/* Add into callback list */
+	list_add(&cb_data->list, &eve_data->cb_list_head);
 
 	hash_add(reg_driver_map, &eve_data->hentry, PM_INIT_SUSPEND_CB);
 
@@ -136,15 +188,26 @@ static int xlnx_remove_cb_for_suspend(event_cb_func_t cb_fun)
 {
 	bool is_callback_found = false;
 	struct registered_event_data *eve_data;
+	struct agent_cb *cb_pos;
+	struct agent_cb *cb_next;
+
+	is_need_to_unregister = false;
 
 	/* Check for existing entry in hash table for given cb_type */
 	hash_for_each_possible(reg_driver_map, eve_data, hentry, PM_INIT_SUSPEND_CB) {
-		if (eve_data->cb_type == PM_INIT_SUSPEND_CB &&
-		    eve_data->eve_cb == cb_fun) {
-			is_callback_found = true;
+		if (eve_data->cb_type == PM_INIT_SUSPEND_CB) {
+			/* Delete the list of callback */
+			list_for_each_entry_safe(cb_pos, cb_next, &eve_data->cb_list_head, list) {
+				if (cb_pos->eve_cb == cb_fun) {
+					is_callback_found = true;
+					list_del_init(&cb_pos->list);
+					kfree(cb_pos);
+				}
+			}
 			/* remove an object from a hashtable */
 			hash_del(&eve_data->hentry);
 			kfree(eve_data);
+			is_need_to_unregister = true;
 		}
 	}
 	if (!is_callback_found) {
@@ -156,20 +219,36 @@ static int xlnx_remove_cb_for_suspend(event_cb_func_t cb_fun)
 }
 
 static int xlnx_remove_cb_for_notify_event(const u32 node_id, const u32 event,
-					   event_cb_func_t cb_fun)
+					   event_cb_func_t cb_fun, void *data)
 {
 	bool is_callback_found = false;
 	struct registered_event_data *eve_data;
 	u64 key = ((u64)node_id << 32U) | (u64)event;
+	struct agent_cb *cb_pos;
+	struct agent_cb *cb_next;
+
+	is_need_to_unregister = false;
 
 	/* Check for existing entry in hash table for given key id */
 	hash_for_each_possible(reg_driver_map, eve_data, hentry, key) {
-		if (eve_data->key == key &&
-		    eve_data->eve_cb == cb_fun) {
-			is_callback_found = true;
-			/* remove an object from a hashtable */
-			hash_del(&eve_data->hentry);
-			kfree(eve_data);
+		if (eve_data->key == key) {
+			/* Delete the list of callback */
+			list_for_each_entry_safe(cb_pos, cb_next, &eve_data->cb_list_head, list) {
+				if (cb_pos->eve_cb == cb_fun &&
+				    cb_pos->agent_data == data) {
+					is_callback_found = true;
+					list_del_init(&cb_pos->list);
+					kfree(cb_pos);
+				}
+			}
+
+			/* Remove HASH table if callback list is empty */
+			if (list_empty(&eve_data->cb_list_head)) {
+				/* remove an object from a HASH table */
+				hash_del(&eve_data->hentry);
+				kfree(eve_data);
+				is_need_to_unregister = true;
+			}
 		}
 	}
 	if (!is_callback_found) {
@@ -241,7 +320,7 @@ int xlnx_register_event(const enum pm_api_cb_id cb_type, const u32 node_id, cons
 					eve = event & (1 << pos);
 					if (!eve)
 						continue;
-					xlnx_remove_cb_for_notify_event(node_id, eve, cb_fun);
+					xlnx_remove_cb_for_notify_event(node_id, eve, cb_fun, data);
 				}
 			}
 		}
@@ -263,10 +342,10 @@ int xlnx_register_event(const enum pm_api_cb_id cb_type, const u32 node_id, cons
 					eve = event & (1 << pos);
 					if (!eve)
 						continue;
-					xlnx_remove_cb_for_notify_event(node_id, eve, cb_fun);
+					xlnx_remove_cb_for_notify_event(node_id, eve, cb_fun, data);
 				}
 			} else {
-				xlnx_remove_cb_for_notify_event(node_id, event, cb_fun);
+				xlnx_remove_cb_for_notify_event(node_id, event, cb_fun, data);
 			}
 			return ret;
 		}
@@ -284,14 +363,17 @@ EXPORT_SYMBOL_GPL(xlnx_register_event);
  * @node_id:	Node-Id related to event.
  * @event:	Event Mask for the Error Event.
  * @cb_fun:	Function pointer of callback function.
+ * @data:	Pointer of agent's private data.
  *
  * Return:	Returns 0 on successful unregistration else error code.
  */
 int xlnx_unregister_event(const enum pm_api_cb_id cb_type, const u32 node_id, const u32 event,
-			  event_cb_func_t cb_fun)
+			  event_cb_func_t cb_fun, void *data)
 {
-	int ret;
+	int ret = 0;
 	u32 eve, pos;
+
+	is_need_to_unregister = false;
 
 	if (event_manager_availability)
 		return event_manager_availability;
@@ -309,23 +391,26 @@ int xlnx_unregister_event(const enum pm_api_cb_id cb_type, const u32 node_id, co
 	} else {
 		/* Remove Node-Id/Event from hash table */
 		if (!xlnx_is_error_event(node_id)) {
-			xlnx_remove_cb_for_notify_event(node_id, event, cb_fun);
+			xlnx_remove_cb_for_notify_event(node_id, event, cb_fun, data);
 		} else {
 			for (pos = 0; pos < MAX_BITS; pos++) {
 				eve = event & (1 << pos);
 				if (!eve)
 					continue;
 
-				xlnx_remove_cb_for_notify_event(node_id, eve, cb_fun);
+				xlnx_remove_cb_for_notify_event(node_id, eve, cb_fun, data);
 			}
 		}
 
-		/* Un-register for Node-Id/Event combination */
-		ret = zynqmp_pm_register_notifier(node_id, event, false, false);
-		if (ret) {
-			pr_err("%s() failed for 0x%x and 0x%x: %d\n",
-			       __func__, node_id, event, ret);
-			return ret;
+		/* Un-register if list is empty */
+		if (is_need_to_unregister) {
+			/* Un-register for Node-Id/Event combination */
+			ret = zynqmp_pm_register_notifier(node_id, event, false, false);
+			if (ret) {
+				pr_err("%s() failed for 0x%x and 0x%x: %d\n",
+				       __func__, node_id, event, ret);
+				return ret;
+			}
 		}
 	}
 
@@ -338,12 +423,16 @@ static void xlnx_call_suspend_cb_handler(const u32 *payload)
 	bool is_callback_found = false;
 	struct registered_event_data *eve_data;
 	u32 cb_type = payload[0];
+	struct agent_cb *cb_pos;
+	struct agent_cb *cb_next;
 
 	/* Check for existing entry in hash table for given cb_type */
 	hash_for_each_possible(reg_driver_map, eve_data, hentry, cb_type) {
 		if (eve_data->cb_type == cb_type) {
-			eve_data->eve_cb(&payload[0], eve_data->agent_data);
-			is_callback_found = true;
+			list_for_each_entry_safe(cb_pos, cb_next, &eve_data->cb_list_head, list) {
+				cb_pos->eve_cb(&payload[0], cb_pos->agent_data);
+				is_callback_found = true;
+			}
 		}
 	}
 	if (!is_callback_found)
@@ -356,12 +445,16 @@ static void xlnx_call_notify_cb_handler(const u32 *payload)
 	struct registered_event_data *eve_data;
 	u64 key = ((u64)payload[1] << 32U) | (u64)payload[2];
 	int ret;
+	struct agent_cb *cb_pos;
+	struct agent_cb *cb_next;
 
 	/* Check for existing entry in hash table for given key id */
 	hash_for_each_possible(reg_driver_map, eve_data, hentry, key) {
 		if (eve_data->key == key) {
-			eve_data->eve_cb(&payload[0], eve_data->agent_data);
-			is_callback_found = true;
+			list_for_each_entry_safe(cb_pos, cb_next, &eve_data->cb_list_head, list) {
+				cb_pos->eve_cb(&payload[0], cb_pos->agent_data);
+				is_callback_found = true;
+			}
 
 			/* re register with firmware to get future events */
 			ret = zynqmp_pm_register_notifier(payload[1], payload[2],
@@ -369,9 +462,13 @@ static void xlnx_call_notify_cb_handler(const u32 *payload)
 			if (ret) {
 				pr_err("%s() failed for 0x%x and 0x%x: %d\r\n", __func__,
 				       payload[1], payload[2], ret);
-				/* Remove already registered event from hash table */
-				xlnx_remove_cb_for_notify_event(payload[1], payload[2],
-								eve_data->eve_cb);
+				list_for_each_entry_safe(cb_pos, cb_next, &eve_data->cb_list_head,
+							 list) {
+					/* Remove already registered event from hash table */
+					xlnx_remove_cb_for_notify_event(payload[1], payload[2],
+									cb_pos->eve_cb,
+									cb_pos->agent_data);
+				}
 			}
 		}
 	}
@@ -572,8 +669,14 @@ static int xlnx_event_manager_remove(struct platform_device *pdev)
 	struct registered_event_data *eve_data;
 	struct hlist_node *tmp;
 	int ret;
+	struct agent_cb *cb_pos;
+	struct agent_cb *cb_next;
 
 	hash_for_each_safe(reg_driver_map, i, tmp, eve_data, hentry) {
+		list_for_each_entry_safe(cb_pos, cb_next, &eve_data->cb_list_head, list) {
+			list_del_init(&cb_pos->list);
+			kfree(cb_pos);
+		}
 		hash_del(&eve_data->hentry);
 		kfree(eve_data);
 	}

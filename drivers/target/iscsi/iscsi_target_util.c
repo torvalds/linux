@@ -32,7 +32,7 @@ extern struct list_head g_tiqn_list;
 extern spinlock_t tiqn_lock;
 
 int iscsit_add_r2t_to_list(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	u32 offset,
 	u32 xfer_len,
 	int recovery,
@@ -65,7 +65,7 @@ int iscsit_add_r2t_to_list(
 }
 
 struct iscsi_r2t *iscsit_get_r2t_for_eos(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	u32 offset,
 	u32 length)
 {
@@ -86,7 +86,7 @@ struct iscsi_r2t *iscsit_get_r2t_for_eos(
 	return NULL;
 }
 
-struct iscsi_r2t *iscsit_get_r2t_from_list(struct iscsi_cmd *cmd)
+struct iscsi_r2t *iscsit_get_r2t_from_list(struct iscsit_cmd *cmd)
 {
 	struct iscsi_r2t *r2t;
 
@@ -104,7 +104,7 @@ struct iscsi_r2t *iscsit_get_r2t_from_list(struct iscsi_cmd *cmd)
 	return NULL;
 }
 
-void iscsit_free_r2t(struct iscsi_r2t *r2t, struct iscsi_cmd *cmd)
+void iscsit_free_r2t(struct iscsi_r2t *r2t, struct iscsit_cmd *cmd)
 {
 	lockdep_assert_held(&cmd->r2t_lock);
 
@@ -112,7 +112,7 @@ void iscsit_free_r2t(struct iscsi_r2t *r2t, struct iscsi_cmd *cmd)
 	kmem_cache_free(lio_r2t_cache, r2t);
 }
 
-void iscsit_free_r2ts_from_list(struct iscsi_cmd *cmd)
+void iscsit_free_r2ts_from_list(struct iscsit_cmd *cmd)
 {
 	struct iscsi_r2t *r2t, *r2t_tmp;
 
@@ -152,9 +152,9 @@ static int iscsit_wait_for_tag(struct se_session *se_sess, int state, int *cpup)
  * May be called from software interrupt (timer) context for allocating
  * iSCSI NopINs.
  */
-struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, int state)
+struct iscsit_cmd *iscsit_allocate_cmd(struct iscsit_conn *conn, int state)
 {
-	struct iscsi_cmd *cmd;
+	struct iscsit_cmd *cmd;
 	struct se_session *se_sess = conn->sess->se_sess;
 	int size, tag, cpu;
 
@@ -164,8 +164,8 @@ struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, int state)
 	if (tag < 0)
 		return NULL;
 
-	size = sizeof(struct iscsi_cmd) + conn->conn_transport->priv_size;
-	cmd = (struct iscsi_cmd *)(se_sess->sess_cmd_map + (tag * size));
+	size = sizeof(struct iscsit_cmd) + conn->conn_transport->priv_size;
+	cmd = (struct iscsit_cmd *)(se_sess->sess_cmd_map + (tag * size));
 	memset(cmd, 0, size);
 
 	cmd->se_cmd.map_tag = tag;
@@ -187,7 +187,7 @@ struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, int state)
 EXPORT_SYMBOL(iscsit_allocate_cmd);
 
 struct iscsi_seq *iscsit_get_seq_holder_for_datain(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	u32 seq_send_order)
 {
 	u32 i;
@@ -199,12 +199,12 @@ struct iscsi_seq *iscsit_get_seq_holder_for_datain(
 	return NULL;
 }
 
-struct iscsi_seq *iscsit_get_seq_holder_for_r2t(struct iscsi_cmd *cmd)
+struct iscsi_seq *iscsit_get_seq_holder_for_r2t(struct iscsit_cmd *cmd)
 {
 	u32 i;
 
 	if (!cmd->seq_list) {
-		pr_err("struct iscsi_cmd->seq_list is NULL!\n");
+		pr_err("struct iscsit_cmd->seq_list is NULL!\n");
 		return NULL;
 	}
 
@@ -221,7 +221,7 @@ struct iscsi_seq *iscsit_get_seq_holder_for_r2t(struct iscsi_cmd *cmd)
 }
 
 struct iscsi_r2t *iscsit_get_holder_for_r2tsn(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	u32 r2t_sn)
 {
 	struct iscsi_r2t *r2t;
@@ -238,7 +238,7 @@ struct iscsi_r2t *iscsit_get_holder_for_r2tsn(
 	return NULL;
 }
 
-static inline int iscsit_check_received_cmdsn(struct iscsi_session *sess, u32 cmdsn)
+static inline int iscsit_check_received_cmdsn(struct iscsit_session *sess, u32 cmdsn)
 {
 	u32 max_cmdsn;
 	int ret;
@@ -282,7 +282,7 @@ static inline int iscsit_check_received_cmdsn(struct iscsi_session *sess, u32 cm
  * Commands may be received out of order if MC/S is in use.
  * Ensure they are executed in CmdSN order.
  */
-int iscsit_sequence_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
+int iscsit_sequence_cmd(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
 			unsigned char *buf, __be32 cmdsn)
 {
 	int ret, cmdsn_ret;
@@ -333,9 +333,9 @@ int iscsit_sequence_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 }
 EXPORT_SYMBOL(iscsit_sequence_cmd);
 
-int iscsit_check_unsolicited_dataout(struct iscsi_cmd *cmd, unsigned char *buf)
+int iscsit_check_unsolicited_dataout(struct iscsit_cmd *cmd, unsigned char *buf)
 {
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 	struct iscsi_data *hdr = (struct iscsi_data *) buf;
 	u32 payload_length = ntoh24(hdr->dlength);
@@ -377,11 +377,11 @@ int iscsit_check_unsolicited_dataout(struct iscsi_cmd *cmd, unsigned char *buf)
 	return 0;
 }
 
-struct iscsi_cmd *iscsit_find_cmd_from_itt(
-	struct iscsi_conn *conn,
+struct iscsit_cmd *iscsit_find_cmd_from_itt(
+	struct iscsit_conn *conn,
 	itt_t init_task_tag)
 {
-	struct iscsi_cmd *cmd;
+	struct iscsit_cmd *cmd;
 
 	spin_lock_bh(&conn->cmd_lock);
 	list_for_each_entry(cmd, &conn->conn_cmd_list, i_conn_node) {
@@ -398,12 +398,12 @@ struct iscsi_cmd *iscsit_find_cmd_from_itt(
 }
 EXPORT_SYMBOL(iscsit_find_cmd_from_itt);
 
-struct iscsi_cmd *iscsit_find_cmd_from_itt_or_dump(
-	struct iscsi_conn *conn,
+struct iscsit_cmd *iscsit_find_cmd_from_itt_or_dump(
+	struct iscsit_conn *conn,
 	itt_t init_task_tag,
 	u32 length)
 {
-	struct iscsi_cmd *cmd;
+	struct iscsit_cmd *cmd;
 
 	spin_lock_bh(&conn->cmd_lock);
 	list_for_each_entry(cmd, &conn->conn_cmd_list, i_conn_node) {
@@ -425,11 +425,11 @@ struct iscsi_cmd *iscsit_find_cmd_from_itt_or_dump(
 }
 EXPORT_SYMBOL(iscsit_find_cmd_from_itt_or_dump);
 
-struct iscsi_cmd *iscsit_find_cmd_from_ttt(
-	struct iscsi_conn *conn,
+struct iscsit_cmd *iscsit_find_cmd_from_ttt(
+	struct iscsit_conn *conn,
 	u32 targ_xfer_tag)
 {
-	struct iscsi_cmd *cmd = NULL;
+	struct iscsit_cmd *cmd = NULL;
 
 	spin_lock_bh(&conn->cmd_lock);
 	list_for_each_entry(cmd, &conn->conn_cmd_list, i_conn_node) {
@@ -446,12 +446,12 @@ struct iscsi_cmd *iscsit_find_cmd_from_ttt(
 }
 
 int iscsit_find_cmd_for_recovery(
-	struct iscsi_session *sess,
-	struct iscsi_cmd **cmd_ptr,
+	struct iscsit_session *sess,
+	struct iscsit_cmd **cmd_ptr,
 	struct iscsi_conn_recovery **cr_ptr,
 	itt_t init_task_tag)
 {
-	struct iscsi_cmd *cmd = NULL;
+	struct iscsit_cmd *cmd = NULL;
 	struct iscsi_conn_recovery *cr;
 	/*
 	 * Scan through the inactive connection recovery list's command list.
@@ -498,8 +498,8 @@ int iscsit_find_cmd_for_recovery(
 }
 
 void iscsit_add_cmd_to_immediate_queue(
-	struct iscsi_cmd *cmd,
-	struct iscsi_conn *conn,
+	struct iscsit_cmd *cmd,
+	struct iscsit_conn *conn,
 	u8 state)
 {
 	struct iscsi_queue_req *qr;
@@ -524,7 +524,7 @@ void iscsit_add_cmd_to_immediate_queue(
 }
 EXPORT_SYMBOL(iscsit_add_cmd_to_immediate_queue);
 
-struct iscsi_queue_req *iscsit_get_cmd_from_immediate_queue(struct iscsi_conn *conn)
+struct iscsi_queue_req *iscsit_get_cmd_from_immediate_queue(struct iscsit_conn *conn)
 {
 	struct iscsi_queue_req *qr;
 
@@ -545,8 +545,8 @@ struct iscsi_queue_req *iscsit_get_cmd_from_immediate_queue(struct iscsi_conn *c
 }
 
 static void iscsit_remove_cmd_from_immediate_queue(
-	struct iscsi_cmd *cmd,
-	struct iscsi_conn *conn)
+	struct iscsit_cmd *cmd,
+	struct iscsit_conn *conn)
 {
 	struct iscsi_queue_req *qr, *qr_tmp;
 
@@ -574,8 +574,8 @@ static void iscsit_remove_cmd_from_immediate_queue(
 }
 
 int iscsit_add_cmd_to_response_queue(
-	struct iscsi_cmd *cmd,
-	struct iscsi_conn *conn,
+	struct iscsit_cmd *cmd,
+	struct iscsit_conn *conn,
 	u8 state)
 {
 	struct iscsi_queue_req *qr;
@@ -599,7 +599,7 @@ int iscsit_add_cmd_to_response_queue(
 	return 0;
 }
 
-struct iscsi_queue_req *iscsit_get_cmd_from_response_queue(struct iscsi_conn *conn)
+struct iscsi_queue_req *iscsit_get_cmd_from_response_queue(struct iscsit_conn *conn)
 {
 	struct iscsi_queue_req *qr;
 
@@ -621,8 +621,8 @@ struct iscsi_queue_req *iscsit_get_cmd_from_response_queue(struct iscsi_conn *co
 }
 
 static void iscsit_remove_cmd_from_response_queue(
-	struct iscsi_cmd *cmd,
-	struct iscsi_conn *conn)
+	struct iscsit_cmd *cmd,
+	struct iscsit_conn *conn)
 {
 	struct iscsi_queue_req *qr, *qr_tmp;
 
@@ -650,7 +650,7 @@ static void iscsit_remove_cmd_from_response_queue(
 	}
 }
 
-bool iscsit_conn_all_queues_empty(struct iscsi_conn *conn)
+bool iscsit_conn_all_queues_empty(struct iscsit_conn *conn)
 {
 	bool empty;
 
@@ -668,7 +668,7 @@ bool iscsit_conn_all_queues_empty(struct iscsi_conn *conn)
 	return empty;
 }
 
-void iscsit_free_queue_reqs_for_conn(struct iscsi_conn *conn)
+void iscsit_free_queue_reqs_for_conn(struct iscsit_conn *conn)
 {
 	struct iscsi_queue_req *qr, *qr_tmp;
 
@@ -694,9 +694,9 @@ void iscsit_free_queue_reqs_for_conn(struct iscsi_conn *conn)
 	spin_unlock_bh(&conn->response_queue_lock);
 }
 
-void iscsit_release_cmd(struct iscsi_cmd *cmd)
+void iscsit_release_cmd(struct iscsit_cmd *cmd)
 {
-	struct iscsi_session *sess;
+	struct iscsit_session *sess;
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 
 	WARN_ON(!list_empty(&cmd->i_conn_node));
@@ -720,9 +720,9 @@ void iscsit_release_cmd(struct iscsi_cmd *cmd)
 }
 EXPORT_SYMBOL(iscsit_release_cmd);
 
-void __iscsit_free_cmd(struct iscsi_cmd *cmd, bool check_queues)
+void __iscsit_free_cmd(struct iscsit_cmd *cmd, bool check_queues)
 {
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 
 	WARN_ON(!list_empty(&cmd->i_conn_node));
 
@@ -742,7 +742,7 @@ void __iscsit_free_cmd(struct iscsi_cmd *cmd, bool check_queues)
 		conn->conn_transport->iscsit_unmap_cmd(conn, cmd);
 }
 
-void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
+void iscsit_free_cmd(struct iscsit_cmd *cmd, bool shutdown)
 {
 	struct se_cmd *se_cmd = cmd->se_cmd.se_tfo ? &cmd->se_cmd : NULL;
 	int rc;
@@ -762,7 +762,7 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 }
 EXPORT_SYMBOL(iscsit_free_cmd);
 
-bool iscsit_check_session_usage_count(struct iscsi_session *sess,
+bool iscsit_check_session_usage_count(struct iscsit_session *sess,
 				      bool can_sleep)
 {
 	spin_lock_bh(&sess->session_usage_lock);
@@ -780,7 +780,7 @@ bool iscsit_check_session_usage_count(struct iscsi_session *sess,
 	return false;
 }
 
-void iscsit_dec_session_usage_count(struct iscsi_session *sess)
+void iscsit_dec_session_usage_count(struct iscsit_session *sess)
 {
 	spin_lock_bh(&sess->session_usage_lock);
 	sess->session_usage_count--;
@@ -791,16 +791,16 @@ void iscsit_dec_session_usage_count(struct iscsi_session *sess)
 	spin_unlock_bh(&sess->session_usage_lock);
 }
 
-void iscsit_inc_session_usage_count(struct iscsi_session *sess)
+void iscsit_inc_session_usage_count(struct iscsit_session *sess)
 {
 	spin_lock_bh(&sess->session_usage_lock);
 	sess->session_usage_count++;
 	spin_unlock_bh(&sess->session_usage_lock);
 }
 
-struct iscsi_conn *iscsit_get_conn_from_cid(struct iscsi_session *sess, u16 cid)
+struct iscsit_conn *iscsit_get_conn_from_cid(struct iscsit_session *sess, u16 cid)
 {
-	struct iscsi_conn *conn;
+	struct iscsit_conn *conn;
 
 	spin_lock_bh(&sess->conn_lock);
 	list_for_each_entry(conn, &sess->sess_conn_list, conn_list) {
@@ -816,9 +816,9 @@ struct iscsi_conn *iscsit_get_conn_from_cid(struct iscsi_session *sess, u16 cid)
 	return NULL;
 }
 
-struct iscsi_conn *iscsit_get_conn_from_cid_rcfr(struct iscsi_session *sess, u16 cid)
+struct iscsit_conn *iscsit_get_conn_from_cid_rcfr(struct iscsit_session *sess, u16 cid)
 {
-	struct iscsi_conn *conn;
+	struct iscsit_conn *conn;
 
 	spin_lock_bh(&sess->conn_lock);
 	list_for_each_entry(conn, &sess->sess_conn_list, conn_list) {
@@ -836,7 +836,7 @@ struct iscsi_conn *iscsit_get_conn_from_cid_rcfr(struct iscsi_session *sess, u16
 	return NULL;
 }
 
-void iscsit_check_conn_usage_count(struct iscsi_conn *conn)
+void iscsit_check_conn_usage_count(struct iscsit_conn *conn)
 {
 	spin_lock_bh(&conn->conn_usage_lock);
 	if (conn->conn_usage_count != 0) {
@@ -849,7 +849,7 @@ void iscsit_check_conn_usage_count(struct iscsi_conn *conn)
 	spin_unlock_bh(&conn->conn_usage_lock);
 }
 
-void iscsit_dec_conn_usage_count(struct iscsi_conn *conn)
+void iscsit_dec_conn_usage_count(struct iscsit_conn *conn)
 {
 	spin_lock_bh(&conn->conn_usage_lock);
 	conn->conn_usage_count--;
@@ -860,17 +860,17 @@ void iscsit_dec_conn_usage_count(struct iscsi_conn *conn)
 	spin_unlock_bh(&conn->conn_usage_lock);
 }
 
-void iscsit_inc_conn_usage_count(struct iscsi_conn *conn)
+void iscsit_inc_conn_usage_count(struct iscsit_conn *conn)
 {
 	spin_lock_bh(&conn->conn_usage_lock);
 	conn->conn_usage_count++;
 	spin_unlock_bh(&conn->conn_usage_lock);
 }
 
-static int iscsit_add_nopin(struct iscsi_conn *conn, int want_response)
+static int iscsit_add_nopin(struct iscsit_conn *conn, int want_response)
 {
 	u8 state;
-	struct iscsi_cmd *cmd;
+	struct iscsit_cmd *cmd;
 
 	cmd = iscsit_allocate_cmd(conn, TASK_RUNNING);
 	if (!cmd)
@@ -895,8 +895,8 @@ static int iscsit_add_nopin(struct iscsi_conn *conn, int want_response)
 
 void iscsit_handle_nopin_response_timeout(struct timer_list *t)
 {
-	struct iscsi_conn *conn = from_timer(conn, t, nopin_response_timer);
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_conn *conn = from_timer(conn, t, nopin_response_timer);
+	struct iscsit_session *sess = conn->sess;
 
 	iscsit_inc_conn_usage_count(conn);
 
@@ -919,9 +919,9 @@ void iscsit_handle_nopin_response_timeout(struct timer_list *t)
 	iscsit_dec_conn_usage_count(conn);
 }
 
-void iscsit_mod_nopin_response_timer(struct iscsi_conn *conn)
+void iscsit_mod_nopin_response_timer(struct iscsit_conn *conn)
 {
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
 
 	spin_lock_bh(&conn->nopin_timer_lock);
@@ -935,9 +935,9 @@ void iscsit_mod_nopin_response_timer(struct iscsi_conn *conn)
 	spin_unlock_bh(&conn->nopin_timer_lock);
 }
 
-void iscsit_start_nopin_response_timer(struct iscsi_conn *conn)
+void iscsit_start_nopin_response_timer(struct iscsit_conn *conn)
 {
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
 
 	spin_lock_bh(&conn->nopin_timer_lock);
@@ -956,7 +956,7 @@ void iscsit_start_nopin_response_timer(struct iscsi_conn *conn)
 	spin_unlock_bh(&conn->nopin_timer_lock);
 }
 
-void iscsit_stop_nopin_response_timer(struct iscsi_conn *conn)
+void iscsit_stop_nopin_response_timer(struct iscsit_conn *conn)
 {
 	spin_lock_bh(&conn->nopin_timer_lock);
 	if (!(conn->nopin_response_timer_flags & ISCSI_TF_RUNNING)) {
@@ -975,7 +975,7 @@ void iscsit_stop_nopin_response_timer(struct iscsi_conn *conn)
 
 void iscsit_handle_nopin_timeout(struct timer_list *t)
 {
-	struct iscsi_conn *conn = from_timer(conn, t, nopin_timer);
+	struct iscsit_conn *conn = from_timer(conn, t, nopin_timer);
 
 	iscsit_inc_conn_usage_count(conn);
 
@@ -992,9 +992,9 @@ void iscsit_handle_nopin_timeout(struct timer_list *t)
 	iscsit_dec_conn_usage_count(conn);
 }
 
-void __iscsit_start_nopin_timer(struct iscsi_conn *conn)
+void __iscsit_start_nopin_timer(struct iscsit_conn *conn)
 {
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
 
 	lockdep_assert_held(&conn->nopin_timer_lock);
@@ -1016,14 +1016,14 @@ void __iscsit_start_nopin_timer(struct iscsi_conn *conn)
 		" interval\n", conn->cid, na->nopin_timeout);
 }
 
-void iscsit_start_nopin_timer(struct iscsi_conn *conn)
+void iscsit_start_nopin_timer(struct iscsit_conn *conn)
 {
 	spin_lock_bh(&conn->nopin_timer_lock);
 	__iscsit_start_nopin_timer(conn);
 	spin_unlock_bh(&conn->nopin_timer_lock);
 }
 
-void iscsit_stop_nopin_timer(struct iscsi_conn *conn)
+void iscsit_stop_nopin_timer(struct iscsit_conn *conn)
 {
 	spin_lock_bh(&conn->nopin_timer_lock);
 	if (!(conn->nopin_timer_flags & ISCSI_TF_RUNNING)) {
@@ -1041,8 +1041,8 @@ void iscsit_stop_nopin_timer(struct iscsi_conn *conn)
 }
 
 int iscsit_send_tx_data(
-	struct iscsi_cmd *cmd,
-	struct iscsi_conn *conn,
+	struct iscsit_cmd *cmd,
+	struct iscsit_conn *conn,
 	int use_misc)
 {
 	int tx_sent, tx_size;
@@ -1074,8 +1074,8 @@ send_data:
 }
 
 int iscsit_fe_sendpage_sg(
-	struct iscsi_cmd *cmd,
-	struct iscsi_conn *conn)
+	struct iscsit_cmd *cmd,
+	struct iscsit_conn *conn)
 {
 	struct scatterlist *sg = cmd->first_data_sg;
 	struct kvec iov;
@@ -1179,7 +1179,7 @@ send_datacrc:
  *      Parameters:     iSCSI Connection, Status Class, Status Detail.
  *      Returns:        0 on success, -1 on error.
  */
-int iscsit_tx_login_rsp(struct iscsi_conn *conn, u8 status_class, u8 status_detail)
+int iscsit_tx_login_rsp(struct iscsit_conn *conn, u8 status_class, u8 status_detail)
 {
 	struct iscsi_login_rsp *hdr;
 	struct iscsi_login *login = conn->conn_login;
@@ -1198,9 +1198,9 @@ int iscsit_tx_login_rsp(struct iscsi_conn *conn, u8 status_class, u8 status_deta
 	return conn->conn_transport->iscsit_put_login_tx(conn, login, 0);
 }
 
-void iscsit_print_session_params(struct iscsi_session *sess)
+void iscsit_print_session_params(struct iscsit_session *sess)
 {
-	struct iscsi_conn *conn;
+	struct iscsit_conn *conn;
 
 	pr_debug("-----------------------------[Session Params for"
 		" SID: %u]-----------------------------\n", sess->sid);
@@ -1213,7 +1213,7 @@ void iscsit_print_session_params(struct iscsi_session *sess)
 }
 
 int rx_data(
-	struct iscsi_conn *conn,
+	struct iscsit_conn *conn,
 	struct kvec *iov,
 	int iov_count,
 	int data)
@@ -1243,7 +1243,7 @@ int rx_data(
 }
 
 int tx_data(
-	struct iscsi_conn *conn,
+	struct iscsit_conn *conn,
 	struct kvec *iov,
 	int iov_count,
 	int data)
@@ -1279,7 +1279,7 @@ int tx_data(
 }
 
 void iscsit_collect_login_stats(
-	struct iscsi_conn *conn,
+	struct iscsit_conn *conn,
 	u8 status_class,
 	u8 status_detail)
 {
@@ -1334,7 +1334,7 @@ void iscsit_collect_login_stats(
 	spin_unlock(&ls->lock);
 }
 
-struct iscsi_tiqn *iscsit_snmp_get_tiqn(struct iscsi_conn *conn)
+struct iscsi_tiqn *iscsit_snmp_get_tiqn(struct iscsit_conn *conn)
 {
 	struct iscsi_portal_group *tpg;
 
@@ -1351,7 +1351,7 @@ struct iscsi_tiqn *iscsit_snmp_get_tiqn(struct iscsi_conn *conn)
 	return tpg->tpg_tiqn;
 }
 
-void iscsit_fill_cxn_timeout_err_stats(struct iscsi_session *sess)
+void iscsit_fill_cxn_timeout_err_stats(struct iscsit_session *sess)
 {
 	struct iscsi_portal_group *tpg = sess->tpg;
 	struct iscsi_tiqn *tiqn = tpg->tpg_tiqn;

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019 Facebook  */
 
+#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/bpf_verifier.h>
 #include <linux/bpf.h>
@@ -95,12 +96,14 @@ static int bpf_tcp_ca_btf_struct_access(struct bpf_verifier_log *log,
 					const struct btf *btf,
 					const struct btf_type *t, int off,
 					int size, enum bpf_access_type atype,
-					u32 *next_btf_id)
+					u32 *next_btf_id,
+					enum bpf_type_flag *flag)
 {
 	size_t end;
 
 	if (atype == BPF_READ)
-		return btf_struct_access(log, btf, t, off, size, atype, next_btf_id);
+		return btf_struct_access(log, btf, t, off, size, atype, next_btf_id,
+					 flag);
 
 	if (t != tcp_sock_type) {
 		bpf_log(log, "only read is supported\n");
@@ -212,26 +215,23 @@ bpf_tcp_ca_get_func_proto(enum bpf_func_id func_id,
 	}
 }
 
-BTF_SET_START(bpf_tcp_ca_kfunc_ids)
+BTF_SET_START(bpf_tcp_ca_check_kfunc_ids)
 BTF_ID(func, tcp_reno_ssthresh)
 BTF_ID(func, tcp_reno_cong_avoid)
 BTF_ID(func, tcp_reno_undo_cwnd)
 BTF_ID(func, tcp_slow_start)
 BTF_ID(func, tcp_cong_avoid_ai)
-BTF_SET_END(bpf_tcp_ca_kfunc_ids)
+BTF_SET_END(bpf_tcp_ca_check_kfunc_ids)
 
-static bool bpf_tcp_ca_check_kfunc_call(u32 kfunc_btf_id, struct module *owner)
-{
-	if (btf_id_set_contains(&bpf_tcp_ca_kfunc_ids, kfunc_btf_id))
-		return true;
-	return bpf_check_mod_kfunc_call(&bpf_tcp_ca_kfunc_list, kfunc_btf_id, owner);
-}
+static const struct btf_kfunc_id_set bpf_tcp_ca_kfunc_set = {
+	.owner     = THIS_MODULE,
+	.check_set = &bpf_tcp_ca_check_kfunc_ids,
+};
 
 static const struct bpf_verifier_ops bpf_tcp_ca_verifier_ops = {
 	.get_func_proto		= bpf_tcp_ca_get_func_proto,
 	.is_valid_access	= bpf_tcp_ca_is_valid_access,
 	.btf_struct_access	= bpf_tcp_ca_btf_struct_access,
-	.check_kfunc_call	= bpf_tcp_ca_check_kfunc_call,
 };
 
 static int bpf_tcp_ca_init_member(const struct btf_type *t,
@@ -300,3 +300,9 @@ struct bpf_struct_ops bpf_tcp_congestion_ops = {
 	.init = bpf_tcp_ca_init,
 	.name = "tcp_congestion_ops",
 };
+
+static int __init bpf_tcp_ca_kfunc_init(void)
+{
+	return register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS, &bpf_tcp_ca_kfunc_set);
+}
+late_initcall(bpf_tcp_ca_kfunc_init);

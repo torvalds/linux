@@ -1635,7 +1635,7 @@ static int hub_configure(struct usb_hub *hub,
 	 * maxpktsize is defined in hcd.c's fake endpoint descriptors
 	 * to be big enough for at least USB_MAXCHILDREN ports. */
 	pipe = usb_rcvintpipe(hdev, endpoint->bEndpointAddress);
-	maxp = usb_maxpacket(hdev, pipe, usb_pipeout(pipe));
+	maxp = usb_maxpacket(hdev, pipe);
 
 	if (maxp > sizeof(*hub->buffer))
 		maxp = sizeof(*hub->buffer);
@@ -2983,8 +2983,12 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 						status);
 		}
 
-		/* Check for disconnect or reset */
-		if (status == 0 || status == -ENOTCONN || status == -ENODEV) {
+		/*
+		 * Check for disconnect or reset, and bail out after several
+		 * reset attempts to avoid warm reset loop.
+		 */
+		if (status == 0 || status == -ENOTCONN || status == -ENODEV ||
+		    (status == -EBUSY && i == PORT_RESET_TRIES - 1)) {
 			usb_clear_port_feature(hub->hdev, port1,
 					USB_PORT_FEAT_C_RESET);
 
@@ -5005,6 +5009,7 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 		retval = usb_get_bos_descriptor(udev);
 		if (!retval) {
 			udev->lpm_capable = usb_device_supports_lpm(udev);
+			udev->lpm_disable_count = 1;
 			usb_set_lpm_parameters(udev);
 		}
 	}
@@ -5506,7 +5511,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 /* Handle notifying userspace about hub over-current events */
 static void port_over_current_notify(struct usb_port *port_dev)
 {
-	char *envp[3];
+	char *envp[3] = { NULL, NULL, NULL };
 	struct device *hub_dev;
 	char *port_dev_path;
 
@@ -5523,20 +5528,18 @@ static void port_over_current_notify(struct usb_port *port_dev)
 
 	envp[0] = kasprintf(GFP_KERNEL, "OVER_CURRENT_PORT=%s", port_dev_path);
 	if (!envp[0])
-		goto exit_path;
+		goto exit;
 
 	envp[1] = kasprintf(GFP_KERNEL, "OVER_CURRENT_COUNT=%u",
 			port_dev->over_current_count);
 	if (!envp[1])
 		goto exit;
 
-	envp[2] = NULL;
 	kobject_uevent_env(&hub_dev->kobj, KOBJ_CHANGE, envp);
 
-	kfree(envp[1]);
 exit:
+	kfree(envp[1]);
 	kfree(envp[0]);
-exit_path:
 	kfree(port_dev_path);
 }
 
@@ -5928,16 +5931,6 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 	 */
 	usb_disable_usb2_hardware_lpm(udev);
 
-	/* Disable LPM while we reset the device and reinstall the alt settings.
-	 * Device-initiated LPM, and system exit latency settings are cleared
-	 * when the device is reset, so we have to set them up again.
-	 */
-	ret = usb_unlocked_disable_lpm(udev);
-	if (ret) {
-		dev_err(&udev->dev, "%s Failed to disable LPM\n", __func__);
-		goto re_enumerate_no_bos;
-	}
-
 	bos = udev->bos;
 	udev->bos = NULL;
 
@@ -6042,8 +6035,6 @@ done:
 re_enumerate:
 	usb_release_bos_descriptor(udev);
 	udev->bos = bos;
-re_enumerate_no_bos:
-	/* LPM state doesn't matter when we're about to destroy the device. */
 	hub_port_logical_disconnect(parent_hub, port1);
 	return -ENODEV;
 }

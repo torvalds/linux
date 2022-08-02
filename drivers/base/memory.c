@@ -215,6 +215,7 @@ static int memory_block_online(struct memory_block *mem)
 		adjust_present_page_count(pfn_to_page(start_pfn), mem->group,
 					  nr_vmemmap_pages);
 
+	mem->zone = zone;
 	return ret;
 }
 
@@ -225,6 +226,9 @@ static int memory_block_offline(struct memory_block *mem)
 	unsigned long nr_vmemmap_pages = mem->nr_vmemmap_pages;
 	int ret;
 
+	if (!mem->zone)
+		return -EINVAL;
+
 	/*
 	 * Unaccount before offlining, such that unpopulated zone and kthreads
 	 * can properly be torn down in offline_pages().
@@ -234,7 +238,7 @@ static int memory_block_offline(struct memory_block *mem)
 					  -nr_vmemmap_pages);
 
 	ret = offline_pages(start_pfn + nr_vmemmap_pages,
-			    nr_pages - nr_vmemmap_pages, mem->group);
+			    nr_pages - nr_vmemmap_pages, mem->zone, mem->group);
 	if (ret) {
 		/* offline_pages() failed. Account back. */
 		if (nr_vmemmap_pages)
@@ -246,6 +250,7 @@ static int memory_block_offline(struct memory_block *mem)
 	if (nr_vmemmap_pages)
 		mhp_deinit_memmap_on_memory(start_pfn, nr_vmemmap_pages);
 
+	mem->zone = NULL;
 	return ret;
 }
 
@@ -411,11 +416,10 @@ static ssize_t valid_zones_show(struct device *dev,
 	 */
 	if (mem->state == MEM_ONLINE) {
 		/*
-		 * The block contains more than one zone can not be offlined.
-		 * This can happen e.g. for ZONE_DMA and ZONE_DMA32
+		 * If !mem->zone, the memory block spans multiple zones and
+		 * cannot get offlined.
 		 */
-		default_zone = test_pages_in_a_zone(start_pfn,
-						    start_pfn + nr_pages);
+		default_zone = mem->zone;
 		if (!default_zone)
 			return sysfs_emit(buf, "%s\n", "none");
 		len += sysfs_emit_at(buf, len, "%s", default_zone->name);
@@ -554,7 +558,9 @@ static ssize_t hard_offline_page_store(struct device *dev,
 	if (kstrtoull(buf, 0, &pfn) < 0)
 		return -EINVAL;
 	pfn >>= PAGE_SHIFT;
-	ret = memory_failure(pfn, 0);
+	ret = memory_failure(pfn, MF_SW_SIMULATED);
+	if (ret == -EOPNOTSUPP)
+		ret = 0;
 	return ret ? ret : count;
 }
 
@@ -613,11 +619,7 @@ static const struct attribute_group *memory_memblk_attr_groups[] = {
 	NULL,
 };
 
-/*
- * register_memory - Setup a sysfs device for a memory block
- */
-static
-int register_memory(struct memory_block *memory)
+static int __add_memory_block(struct memory_block *memory)
 {
 	int ret;
 
@@ -634,16 +636,91 @@ int register_memory(struct memory_block *memory)
 	}
 	ret = xa_err(xa_store(&memory_blocks, memory->dev.id, memory,
 			      GFP_KERNEL));
-	if (ret) {
-		put_device(&memory->dev);
+	if (ret)
 		device_unregister(&memory->dev);
-	}
+
 	return ret;
 }
 
-static int init_memory_block(unsigned long block_id, unsigned long state,
-			     unsigned long nr_vmemmap_pages,
-			     struct memory_group *group)
+static struct zone *early_node_zone_for_memory_block(struct memory_block *mem,
+						     int nid)
+{
+	const unsigned long start_pfn = section_nr_to_pfn(mem->start_section_nr);
+	const unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
+	struct zone *zone, *matching_zone = NULL;
+	pg_data_t *pgdat = NODE_DATA(nid);
+	int i;
+
+	/*
+	 * This logic only works for early memory, when the applicable zones
+	 * already span the memory block. We don't expect overlapping zones on
+	 * a single node for early memory. So if we're told that some PFNs
+	 * of a node fall into this memory block, we can assume that all node
+	 * zones that intersect with the memory block are actually applicable.
+	 * No need to look at the memmap.
+	 */
+	for (i = 0; i < MAX_NR_ZONES; i++) {
+		zone = pgdat->node_zones + i;
+		if (!populated_zone(zone))
+			continue;
+		if (!zone_intersects(zone, start_pfn, nr_pages))
+			continue;
+		if (!matching_zone) {
+			matching_zone = zone;
+			continue;
+		}
+		/* Spans multiple zones ... */
+		matching_zone = NULL;
+		break;
+	}
+	return matching_zone;
+}
+
+#ifdef CONFIG_NUMA
+/**
+ * memory_block_add_nid() - Indicate that system RAM falling into this memory
+ *			    block device (partially) belongs to the given node.
+ * @mem: The memory block device.
+ * @nid: The node id.
+ * @context: The memory initialization context.
+ *
+ * Indicate that system RAM falling into this memory block (partially) belongs
+ * to the given node. If the context indicates ("early") that we are adding the
+ * node during node device subsystem initialization, this will also properly
+ * set/adjust mem->zone based on the zone ranges of the given node.
+ */
+void memory_block_add_nid(struct memory_block *mem, int nid,
+			  enum meminit_context context)
+{
+	if (context == MEMINIT_EARLY && mem->nid != nid) {
+		/*
+		 * For early memory we have to determine the zone when setting
+		 * the node id and handle multiple nodes spanning a single
+		 * memory block by indicate via zone == NULL that we're not
+		 * dealing with a single zone. So if we're setting the node id
+		 * the first time, determine if there is a single zone. If we're
+		 * setting the node id a second time to a different node,
+		 * invalidate the single detected zone.
+		 */
+		if (mem->nid == NUMA_NO_NODE)
+			mem->zone = early_node_zone_for_memory_block(mem, nid);
+		else
+			mem->zone = NULL;
+	}
+
+	/*
+	 * If this memory block spans multiple nodes, we only indicate
+	 * the last processed node. If we span multiple nodes (not applicable
+	 * to hotplugged memory), zone == NULL will prohibit memory offlining
+	 * and consequently unplug.
+	 */
+	mem->nid = nid;
+}
+#endif
+
+static int add_memory_block(unsigned long block_id, unsigned long state,
+			    unsigned long nr_vmemmap_pages,
+			    struct memory_group *group)
 {
 	struct memory_block *mem;
 	int ret = 0;
@@ -663,17 +740,30 @@ static int init_memory_block(unsigned long block_id, unsigned long state,
 	mem->nr_vmemmap_pages = nr_vmemmap_pages;
 	INIT_LIST_HEAD(&mem->group_next);
 
+#ifndef CONFIG_NUMA
+	if (state == MEM_ONLINE)
+		/*
+		 * MEM_ONLINE at this point implies early memory. With NUMA,
+		 * we'll determine the zone when setting the node id via
+		 * memory_block_add_nid(). Memory hotplug updated the zone
+		 * manually when memory onlining/offlining succeeds.
+		 */
+		mem->zone = early_node_zone_for_memory_block(mem, NUMA_NO_NODE);
+#endif /* CONFIG_NUMA */
+
+	ret = __add_memory_block(mem);
+	if (ret)
+		return ret;
+
 	if (group) {
 		mem->group = group;
 		list_add(&mem->group_next, &group->memory_blocks);
 	}
 
-	ret = register_memory(mem);
-
-	return ret;
+	return 0;
 }
 
-static int add_memory_block(unsigned long base_section_nr)
+static int __init add_boot_memory_block(unsigned long base_section_nr)
 {
 	int section_count = 0;
 	unsigned long nr;
@@ -685,11 +775,18 @@ static int add_memory_block(unsigned long base_section_nr)
 
 	if (section_count == 0)
 		return 0;
-	return init_memory_block(memory_block_id(base_section_nr),
-				 MEM_ONLINE, 0,  NULL);
+	return add_memory_block(memory_block_id(base_section_nr),
+				MEM_ONLINE, 0,  NULL);
 }
 
-static void unregister_memory(struct memory_block *memory)
+static int add_hotplug_memory_block(unsigned long block_id,
+				    unsigned long nr_vmemmap_pages,
+				    struct memory_group *group)
+{
+	return add_memory_block(block_id, MEM_OFFLINE, nr_vmemmap_pages, group);
+}
+
+static void remove_memory_block(struct memory_block *memory)
 {
 	if (WARN_ON_ONCE(memory->dev.bus != &memory_subsys))
 		return;
@@ -728,8 +825,7 @@ int create_memory_block_devices(unsigned long start, unsigned long size,
 		return -EINVAL;
 
 	for (block_id = start_block_id; block_id != end_block_id; block_id++) {
-		ret = init_memory_block(block_id, MEM_OFFLINE, vmemmap_pages,
-					group);
+		ret = add_hotplug_memory_block(block_id, vmemmap_pages, group);
 		if (ret)
 			break;
 	}
@@ -740,7 +836,7 @@ int create_memory_block_devices(unsigned long start, unsigned long size,
 			mem = find_memory_block_by_id(block_id);
 			if (WARN_ON_ONCE(!mem))
 				continue;
-			unregister_memory(mem);
+			remove_memory_block(mem);
 		}
 	}
 	return ret;
@@ -769,7 +865,7 @@ void remove_memory_block_devices(unsigned long start, unsigned long size)
 		if (WARN_ON_ONCE(!mem))
 			continue;
 		unregister_memory_block_under_nodes(mem);
-		unregister_memory(mem);
+		remove_memory_block(mem);
 	}
 }
 
@@ -829,7 +925,7 @@ void __init memory_dev_init(void)
 	 */
 	for (nr = 0; nr <= __highest_present_section_nr;
 	     nr += sections_per_block) {
-		ret = add_memory_block(nr);
+		ret = add_boot_memory_block(nr);
 		if (ret)
 			panic("%s() failed to add memory block: %d\n", __func__,
 			      ret);

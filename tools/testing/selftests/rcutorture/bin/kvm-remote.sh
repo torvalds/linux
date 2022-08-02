@@ -19,8 +19,8 @@ then
 	exit 1
 fi
 
-KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
-PATH=${KVM}/bin:$PATH; export PATH
+RCUTORTURE="`pwd`/tools/testing/selftests/rcutorture"; export RCUTORTURE
+PATH=${RCUTORTURE}/bin:$PATH; export PATH
 . functions.sh
 
 starttime="`get_starttime`"
@@ -108,8 +108,8 @@ else
 		cat $T/kvm-again.sh.out | tee -a "$oldrun/remote-log"
 		exit 2
 	fi
-	cp -a "$rundir" "$KVM/res/"
-	oldrun="$KVM/res/$ds"
+	cp -a "$rundir" "$RCUTORTURE/res/"
+	oldrun="$RCUTORTURE/res/$ds"
 fi
 echo | tee -a "$oldrun/remote-log"
 echo " ----" kvm-again.sh output: "(`date`)" | tee -a "$oldrun/remote-log"
@@ -138,14 +138,14 @@ chmod +x $T/bin/kvm-remote-*.sh
 # Check first to avoid the need for cleanup for system-name typos
 for i in $systems
 do
-	ncpus="`ssh $i getconf _NPROCESSORS_ONLN 2> /dev/null`"
-	echo $i: $ncpus CPUs " " `date` | tee -a "$oldrun/remote-log"
+	ncpus="`ssh -o BatchMode=yes $i getconf _NPROCESSORS_ONLN 2> /dev/null`"
 	ret=$?
 	if test "$ret" -ne 0
 	then
 		echo System $i unreachable, giving up. | tee -a "$oldrun/remote-log"
 		exit 4
 	fi
+	echo $i: $ncpus CPUs " " `date` | tee -a "$oldrun/remote-log"
 done
 
 # Download and expand the tarball on all systems.
@@ -153,20 +153,25 @@ echo Build-products tarball: `du -h $T/binres.tgz` | tee -a "$oldrun/remote-log"
 for i in $systems
 do
 	echo Downloading tarball to $i `date` | tee -a "$oldrun/remote-log"
-	cat $T/binres.tgz | ssh $i "cd /tmp; tar -xzf -"
+	cat $T/binres.tgz | ssh -o BatchMode=yes $i "cd /tmp; tar -xzf -"
 	ret=$?
-	if test "$ret" -ne 0
-	then
-		echo Unable to download $T/binres.tgz to system $i, waiting and then retrying. | tee -a "$oldrun/remote-log"
+	tries=0
+	while test "$ret" -ne 0
+	do
+		echo Unable to download $T/binres.tgz to system $i, waiting and then retrying.  $tries prior retries. | tee -a "$oldrun/remote-log"
 		sleep 60
-		cat $T/binres.tgz | ssh $i "cd /tmp; tar -xzf -"
+		cat $T/binres.tgz | ssh -o BatchMode=yes $i "cd /tmp; tar -xzf -"
 		ret=$?
 		if test "$ret" -ne 0
 		then
-			echo Unable to download $T/binres.tgz to system $i, giving up. | tee -a "$oldrun/remote-log"
-			exit 10
+			if test "$tries" > 5
+			then
+				echo Unable to download $T/binres.tgz to system $i, giving up. | tee -a "$oldrun/remote-log"
+				exit 10
+			fi
 		fi
-	fi
+		tries=$((tries+1))
+	done
 done
 
 # Function to check for presence of a file on the specified system.
@@ -180,7 +185,7 @@ checkremotefile () {
 
 	while :
 	do
-		ssh $1 "test -f \"$2\""
+		ssh -o BatchMode=yes $1 "test -f \"$2\""
 		ret=$?
 		if test "$ret" -eq 255
 		then
@@ -223,7 +228,7 @@ startbatches () {
 		then
 			continue # System still running last test, skip.
 		fi
-		ssh "$i" "cd \"$resdir/$ds\"; touch remote.run; PATH=\"$T/bin:$PATH\" nohup kvm-remote-$curbatch.sh > kvm-remote-$curbatch.sh.out 2>&1 &" 1>&2
+		ssh -o BatchMode=yes "$i" "cd \"$resdir/$ds\"; touch remote.run; PATH=\"$T/bin:$PATH\" nohup kvm-remote-$curbatch.sh > kvm-remote-$curbatch.sh.out 2>&1 &" 1>&2
 		ret=$?
 		if test "$ret" -ne 0
 		then
@@ -262,7 +267,7 @@ do
 		sleep 30
 	done
 	echo " ---" Collecting results from $i `date` | tee -a "$oldrun/remote-log"
-	( cd "$oldrun"; ssh $i "cd $rundir; tar -czf - kvm-remote-*.sh.out */console.log */kvm-test-1-run*.sh.out */qemu[_-]pid */qemu-retval */qemu-affinity; rm -rf $T > /dev/null 2>&1" | tar -xzf - )
+	( cd "$oldrun"; ssh -o BatchMode=yes $i "cd $rundir; tar -czf - kvm-remote-*.sh.out */console.log */kvm-test-1-run*.sh.out */qemu[_-]pid */qemu-retval */qemu-affinity; rm -rf $T > /dev/null 2>&1" | tar -xzf - )
 done
 
 ( kvm-end-run-stats.sh "$oldrun" "$starttime"; echo $? > $T/exitcode ) | tee -a "$oldrun/remote-log"

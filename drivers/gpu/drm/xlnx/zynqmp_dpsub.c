@@ -25,6 +25,7 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_mode_config.h>
+#include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
@@ -286,7 +287,7 @@ static struct platform_driver zynqmp_dpsub_driver = {
 	},
 };
 
-module_platform_driver(zynqmp_dpsub_driver);
+drm_module_platform_driver(zynqmp_dpsub_driver);
 
 MODULE_AUTHOR("Xilinx, Inc.");
 MODULE_DESCRIPTION("ZynqMP DP Subsystem Driver");

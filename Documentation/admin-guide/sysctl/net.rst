@@ -322,6 +322,14 @@ a leaked reference faster. A larger value may be useful to prevent false
 warnings on slow/loaded systems.
 Default value is 10, minimum 1, maximum 3600.
 
+skb_defer_max
+-------------
+
+Max size (in skbs) of the per-cpu list of skbs being freed
+by the cpu which allocated them. Used by TCP stack so far.
+
+Default: 64
+
 optmem_max
 ----------
 
@@ -364,6 +372,24 @@ settings are forced to inherit from current ones in the netns where this
 new netns has been created.
 
 Default : 0  (for compatibility reasons)
+
+txrehash
+--------
+
+Controls default hash rethink behaviour on listening socket when SO_TXREHASH
+option is set to SOCK_TXREHASH_DEFAULT (i. e. not overridden by setsockopt).
+
+If set to 1 (default), hash rethink is performed on listening socket.
+If set to 0, hash rethink is not performed.
+
+gro_normal_batch
+----------------
+
+Maximum number of the segments to batch up on output of GRO. When a packet
+exits GRO, either as a coalesced superframe or as an original packet which
+GRO has decided not to coalesce, it is placed on a per-NAPI list. This
+list is then passed to the stack when the number of segments reaches the
+gro_normal_batch limit.
 
 2. /proc/sys/net/unix - Parameters for Unix domain sockets
 ----------------------------------------------------------

@@ -23,6 +23,8 @@ static const struct hns3_stats hns3_txq_stats[] = {
 	HNS3_TQP_STAT("packets", tx_pkts),
 	HNS3_TQP_STAT("bytes", tx_bytes),
 	HNS3_TQP_STAT("more", tx_more),
+	HNS3_TQP_STAT("push", tx_push),
+	HNS3_TQP_STAT("mem_doorbell", tx_mem_doorbell),
 	HNS3_TQP_STAT("wake", restart_queue),
 	HNS3_TQP_STAT("busy", tx_busy),
 	HNS3_TQP_STAT("copy", tx_copy),
@@ -651,8 +653,8 @@ static void hns3_get_ringparam(struct net_device *netdev,
 	struct hnae3_handle *h = priv->ae_handle;
 	int rx_queue_index = h->kinfo.num_tqps;
 
-	if (hns3_nic_resetting(netdev)) {
-		netdev_err(netdev, "dev resetting!");
+	if (hns3_nic_resetting(netdev) || !priv->ring) {
+		netdev_err(netdev, "failed to get ringparam value, due to dev resetting or uninited\n");
 		return;
 	}
 
@@ -662,6 +664,8 @@ static void hns3_get_ringparam(struct net_device *netdev,
 	param->tx_pending = priv->ring[0].desc_num;
 	param->rx_pending = priv->ring[rx_queue_index].desc_num;
 	kernel_param->rx_buf_len = priv->ring[rx_queue_index].buf_size;
+	kernel_param->tx_push = test_bit(HNS3_NIC_STATE_TX_PUSH_ENABLE,
+					 &priv->state);
 }
 
 static void hns3_get_pauseparam(struct net_device *netdev,
@@ -1072,8 +1076,14 @@ static int hns3_check_ringparam(struct net_device *ndev,
 {
 #define RX_BUF_LEN_2K 2048
 #define RX_BUF_LEN_4K 4096
-	if (hns3_nic_resetting(ndev))
+
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+
+	if (hns3_nic_resetting(ndev) || !priv->ring) {
+		netdev_err(ndev, "failed to set ringparam value, due to dev resetting or uninited\n");
 		return -EBUSY;
+	}
+
 
 	if (param->rx_mini_pending || param->rx_jumbo_pending)
 		return -EINVAL;
@@ -1096,6 +1106,36 @@ static int hns3_check_ringparam(struct net_device *ndev,
 	return 0;
 }
 
+static bool
+hns3_is_ringparam_changed(struct net_device *ndev,
+			  struct ethtool_ringparam *param,
+			  struct kernel_ethtool_ringparam *kernel_param,
+			  struct hns3_ring_param *old_ringparam,
+			  struct hns3_ring_param *new_ringparam)
+{
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+	struct hnae3_handle *h = priv->ae_handle;
+	u16 queue_num = h->kinfo.num_tqps;
+
+	new_ringparam->tx_desc_num = ALIGN(param->tx_pending,
+					   HNS3_RING_BD_MULTIPLE);
+	new_ringparam->rx_desc_num = ALIGN(param->rx_pending,
+					   HNS3_RING_BD_MULTIPLE);
+	old_ringparam->tx_desc_num = priv->ring[0].desc_num;
+	old_ringparam->rx_desc_num = priv->ring[queue_num].desc_num;
+	old_ringparam->rx_buf_len = priv->ring[queue_num].buf_size;
+	new_ringparam->rx_buf_len = kernel_param->rx_buf_len;
+
+	if (old_ringparam->tx_desc_num == new_ringparam->tx_desc_num &&
+	    old_ringparam->rx_desc_num == new_ringparam->rx_desc_num &&
+	    old_ringparam->rx_buf_len == new_ringparam->rx_buf_len) {
+		netdev_info(ndev, "descriptor number and rx buffer length not changed\n");
+		return false;
+	}
+
+	return true;
+}
+
 static int hns3_change_rx_buf_len(struct net_device *ndev, u32 rx_buf_len)
 {
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
@@ -1112,62 +1152,80 @@ static int hns3_change_rx_buf_len(struct net_device *ndev, u32 rx_buf_len)
 	return 0;
 }
 
+static int hns3_set_tx_push(struct net_device *netdev, u32 tx_push)
+{
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
+	u32 old_state = test_bit(HNS3_NIC_STATE_TX_PUSH_ENABLE, &priv->state);
+
+	if (!test_bit(HNAE3_DEV_SUPPORT_TX_PUSH_B, ae_dev->caps) && tx_push)
+		return -EOPNOTSUPP;
+
+	if (tx_push == old_state)
+		return 0;
+
+	netdev_dbg(netdev, "Changing tx push from %s to %s\n",
+		   old_state ? "on" : "off", tx_push ? "on" : "off");
+
+	if (tx_push)
+		set_bit(HNS3_NIC_STATE_TX_PUSH_ENABLE, &priv->state);
+	else
+		clear_bit(HNS3_NIC_STATE_TX_PUSH_ENABLE, &priv->state);
+
+	return 0;
+}
+
 static int hns3_set_ringparam(struct net_device *ndev,
 			      struct ethtool_ringparam *param,
 			      struct kernel_ethtool_ringparam *kernel_param,
 			      struct netlink_ext_ack *extack)
 {
+	struct hns3_ring_param old_ringparam, new_ringparam;
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
 	struct hnae3_handle *h = priv->ae_handle;
 	struct hns3_enet_ring *tmp_rings;
 	bool if_running = netif_running(ndev);
-	u32 old_tx_desc_num, new_tx_desc_num;
-	u32 old_rx_desc_num, new_rx_desc_num;
-	u16 queue_num = h->kinfo.num_tqps;
-	u32 old_rx_buf_len;
 	int ret, i;
 
 	ret = hns3_check_ringparam(ndev, param, kernel_param);
 	if (ret)
 		return ret;
 
-	/* Hardware requires that its descriptors must be multiple of eight */
-	new_tx_desc_num = ALIGN(param->tx_pending, HNS3_RING_BD_MULTIPLE);
-	new_rx_desc_num = ALIGN(param->rx_pending, HNS3_RING_BD_MULTIPLE);
-	old_tx_desc_num = priv->ring[0].desc_num;
-	old_rx_desc_num = priv->ring[queue_num].desc_num;
-	old_rx_buf_len = priv->ring[queue_num].buf_size;
-	if (old_tx_desc_num == new_tx_desc_num &&
-	    old_rx_desc_num == new_rx_desc_num &&
-	    kernel_param->rx_buf_len == old_rx_buf_len)
+	ret = hns3_set_tx_push(ndev, kernel_param->tx_push);
+	if (ret)
+		return ret;
+
+	if (!hns3_is_ringparam_changed(ndev, param, kernel_param,
+				       &old_ringparam, &new_ringparam))
 		return 0;
 
 	tmp_rings = hns3_backup_ringparam(priv);
 	if (!tmp_rings) {
-		netdev_err(ndev,
-			   "backup ring param failed by allocating memory fail\n");
+		netdev_err(ndev, "backup ring param failed by allocating memory fail\n");
 		return -ENOMEM;
 	}
 
 	netdev_info(ndev,
-		    "Changing Tx/Rx ring depth from %u/%u to %u/%u, Changing rx buffer len from %d to %d\n",
-		    old_tx_desc_num, old_rx_desc_num,
-		    new_tx_desc_num, new_rx_desc_num,
-		    old_rx_buf_len, kernel_param->rx_buf_len);
+		    "Changing Tx/Rx ring depth from %u/%u to %u/%u, Changing rx buffer len from %u to %u\n",
+		    old_ringparam.tx_desc_num, old_ringparam.rx_desc_num,
+		    new_ringparam.tx_desc_num, new_ringparam.rx_desc_num,
+		    old_ringparam.rx_buf_len, new_ringparam.rx_buf_len);
 
 	if (if_running)
 		ndev->netdev_ops->ndo_stop(ndev);
 
-	hns3_change_all_ring_bd_num(priv, new_tx_desc_num, new_rx_desc_num);
-	hns3_change_rx_buf_len(ndev, kernel_param->rx_buf_len);
+	hns3_change_all_ring_bd_num(priv, new_ringparam.tx_desc_num,
+				    new_ringparam.rx_desc_num);
+	hns3_change_rx_buf_len(ndev, new_ringparam.rx_buf_len);
 	ret = hns3_init_all_ring(priv);
 	if (ret) {
 		netdev_err(ndev, "set ringparam fail, revert to old value(%d)\n",
 			   ret);
 
-		hns3_change_rx_buf_len(ndev, old_rx_buf_len);
-		hns3_change_all_ring_bd_num(priv, old_tx_desc_num,
-					    old_rx_desc_num);
+		hns3_change_rx_buf_len(ndev, old_ringparam.rx_buf_len);
+		hns3_change_all_ring_bd_num(priv, old_ringparam.tx_desc_num,
+					    old_ringparam.rx_desc_num);
 		for (i = 0; i < h->kinfo.num_tqps * 2; i++)
 			memcpy(&priv->ring[i], &tmp_rings[i],
 			       sizeof(struct hns3_enet_ring));
@@ -1377,10 +1435,32 @@ static int hns3_check_ql_coalesce_param(struct net_device *netdev,
 	return 0;
 }
 
-static int hns3_check_coalesce_para(struct net_device *netdev,
-				    struct ethtool_coalesce *cmd)
+static int
+hns3_check_cqe_coalesce_param(struct net_device *netdev,
+			      struct kernel_ethtool_coalesce *kernel_coal)
+{
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
+
+	if ((kernel_coal->use_cqe_mode_tx || kernel_coal->use_cqe_mode_rx) &&
+	    !hnae3_ae_dev_cq_supported(ae_dev)) {
+		netdev_err(netdev, "coalesced cqe mode is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int
+hns3_check_coalesce_para(struct net_device *netdev,
+			 struct ethtool_coalesce *cmd,
+			 struct kernel_ethtool_coalesce *kernel_coal)
 {
 	int ret;
+
+	ret = hns3_check_cqe_coalesce_param(netdev, kernel_coal);
+	if (ret)
+		return ret;
 
 	ret = hns3_check_gl_coalesce_para(netdev, cmd);
 	if (ret) {
@@ -1456,7 +1536,7 @@ static int hns3_set_coalesce(struct net_device *netdev,
 	if (hns3_nic_resetting(netdev))
 		return -EBUSY;
 
-	ret = hns3_check_coalesce_para(netdev, cmd);
+	ret = hns3_check_coalesce_para(netdev, cmd, kernel_coal);
 	if (ret)
 		return ret;
 
@@ -1764,9 +1844,6 @@ static int hns3_set_tx_spare_buf_size(struct net_device *netdev,
 	struct hnae3_handle *h = priv->ae_handle;
 	int ret;
 
-	if (hns3_nic_resetting(netdev))
-		return -EBUSY;
-
 	h->kinfo.tx_spare_buf_size = data;
 
 	ret = hns3_reset_notify(h, HNAE3_DOWN_CLIENT);
@@ -1797,6 +1874,11 @@ static int hns3_set_tunable(struct net_device *netdev,
 	struct hnae3_handle *h = priv->ae_handle;
 	int i, ret = 0;
 
+	if (hns3_nic_resetting(netdev) || !priv->ring) {
+		netdev_err(netdev, "failed to set tunable value, dev resetting!");
+		return -EBUSY;
+	}
+
 	switch (tuna->id) {
 	case ETHTOOL_TX_COPYBREAK:
 		priv->tx_copybreak = *(u32 *)data;
@@ -1815,22 +1897,30 @@ static int hns3_set_tunable(struct net_device *netdev,
 	case ETHTOOL_TX_COPYBREAK_BUF_SIZE:
 		old_tx_spare_buf_size = h->kinfo.tx_spare_buf_size;
 		new_tx_spare_buf_size = *(u32 *)data;
+		netdev_info(netdev, "request to set tx spare buf size from %u to %u\n",
+			    old_tx_spare_buf_size, new_tx_spare_buf_size);
 		ret = hns3_set_tx_spare_buf_size(netdev, new_tx_spare_buf_size);
-		if (ret) {
+		if (ret ||
+		    (!priv->ring->tx_spare && new_tx_spare_buf_size != 0)) {
 			int ret1;
 
-			netdev_warn(netdev,
-				    "change tx spare buf size fail, revert to old value\n");
+			netdev_warn(netdev, "change tx spare buf size fail, revert to old value\n");
 			ret1 = hns3_set_tx_spare_buf_size(netdev,
 							  old_tx_spare_buf_size);
 			if (ret1) {
-				netdev_err(netdev,
-					   "revert to old tx spare buf size fail\n");
+				netdev_err(netdev, "revert to old tx spare buf size fail\n");
 				return ret1;
 			}
 
 			return ret;
 		}
+
+		if (!priv->ring->tx_spare)
+			netdev_info(netdev, "the active tx spare buf size is 0, disable tx spare buffer\n");
+		else
+			netdev_info(netdev, "the active tx spare buf size is %u, due to page order\n",
+				    priv->ring->tx_spare->len);
+
 		break;
 	default:
 		ret = -EOPNOTSUPP;
@@ -1847,7 +1937,8 @@ static int hns3_set_tunable(struct net_device *netdev,
 				 ETHTOOL_COALESCE_MAX_FRAMES |		\
 				 ETHTOOL_COALESCE_USE_CQE)
 
-#define HNS3_ETHTOOL_RING	ETHTOOL_RING_USE_RX_BUF_LEN
+#define HNS3_ETHTOOL_RING	(ETHTOOL_RING_USE_RX_BUF_LEN |		\
+				 ETHTOOL_RING_USE_TX_PUSH)
 
 static int hns3_get_ts_info(struct net_device *netdev,
 			    struct ethtool_ts_info *info)

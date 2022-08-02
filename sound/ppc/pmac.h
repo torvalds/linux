@@ -26,6 +26,7 @@
 #include <asm/dbdma.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
+#include <asm/pmac_feature.h>
 
 /* maximum number of fragments */
 #define PMAC_MAX_FRAGS		32

@@ -534,6 +534,15 @@ typedef struct _nsp32_sync_table {
       ---PERIOD-- ---OFFSET--   */
 #define TO_SYNCREG(period, offset) (((period) & 0x0f) << 4 | ((offset) & 0x0f))
 
+struct nsp32_cmd_priv {
+	enum sam_status status;
+};
+
+static inline struct nsp32_cmd_priv *nsp32_priv(struct scsi_cmnd *cmd)
+{
+	return scsi_cmd_priv(cmd);
+}
+
 typedef struct _nsp32_target {
 	unsigned char	syncreg;	/* value for SYNCREG   */
 	unsigned char	ackwidth;	/* value for ACKWIDTH  */

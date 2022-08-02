@@ -7,6 +7,7 @@
 #include <linux/etherdevice.h>
 #include <linux/module.h>
 #include <linux/inetdevice.h>
+#include <linux/property.h>
 #include <net/cfg80211.h>
 #include <net/rtnetlink.h>
 #include <net/addrconf.h>
@@ -400,7 +401,7 @@ void brcmf_txflowblock_if(struct brcmf_if *ifp,
 	spin_unlock_irqrestore(&ifp->netif_stop_lock, flags);
 }
 
-void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb, bool inirq)
+void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb)
 {
 	/* Most of Broadcom's firmwares send 802.11f ADD frame every time a new
 	 * STA connects to the AP interface. This is an obsoleted standard most
@@ -423,15 +424,7 @@ void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb, bool inirq)
 	ifp->ndev->stats.rx_packets++;
 
 	brcmf_dbg(DATA, "rx proto=0x%X\n", ntohs(skb->protocol));
-	if (inirq) {
-		netif_rx(skb);
-	} else {
-		/* If the receive is not processed inside an ISR,
-		 * the softirqd must be woken explicitly to service
-		 * the NET_RX_SOFTIRQ.  This is handled by netif_rx_ni().
-		 */
-		netif_rx_ni(skb);
-	}
+	netif_rx(skb);
 }
 
 void brcmf_netif_mon_rx(struct brcmf_if *ifp, struct sk_buff *skb)
@@ -480,7 +473,7 @@ void brcmf_netif_mon_rx(struct brcmf_if *ifp, struct sk_buff *skb)
 	skb->pkt_type = PACKET_OTHERHOST;
 	skb->protocol = htons(ETH_P_802_2);
 
-	brcmf_netif_rx(ifp, skb, false);
+	brcmf_netif_rx(ifp, skb);
 }
 
 static int brcmf_rx_hdrpull(struct brcmf_pub *drvr, struct sk_buff *skb,
@@ -515,7 +508,7 @@ void brcmf_rx_frame(struct device *dev, struct sk_buff *skb, bool handle_event,
 		return;
 
 	if (brcmf_proto_is_reorder_skb(skb)) {
-		brcmf_proto_rxreorder(ifp, skb, inirq);
+		brcmf_proto_rxreorder(ifp, skb);
 	} else {
 		/* Process special event packets */
 		if (handle_event) {
@@ -524,7 +517,7 @@ void brcmf_rx_frame(struct device *dev, struct sk_buff *skb, bool handle_event,
 			brcmf_fweh_process_skb(ifp->drvr, skb,
 					       BCMILCP_SUBTYPE_VENDOR_LONG, gfp);
 		}
-		brcmf_netif_rx(ifp, skb, inirq);
+		brcmf_netif_rx(ifp, skb);
 	}
 }
 
@@ -1205,7 +1198,8 @@ static int brcmf_bus_started(struct brcmf_pub *drvr, struct cfg80211_ops *ops)
 	brcmf_dbg(TRACE, "\n");
 
 	/* add primary networking interface */
-	ifp = brcmf_add_if(drvr, 0, 0, false, "wlan%d", NULL);
+	ifp = brcmf_add_if(drvr, 0, 0, false, "wlan%d",
+			   is_valid_ether_addr(drvr->settings->mac) ? drvr->settings->mac : NULL);
 	if (IS_ERR(ifp))
 		return PTR_ERR(ifp);
 

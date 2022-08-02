@@ -401,8 +401,8 @@ static int es8316_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	u8 clksw;
 	u8 mask;
 
-	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS) {
-		dev_err(component->dev, "Codec driver only supports slave mode\n");
+	if ((fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) != SND_SOC_DAIFMT_CBC_CFC) {
+		dev_err(component->dev, "Codec driver only supports consumer mode\n");
 		return -EINVAL;
 	}
 
@@ -789,8 +789,7 @@ static const struct regmap_config es8316_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int es8316_i2c_probe(struct i2c_client *i2c_client,
-			    const struct i2c_device_id *id)
+static int es8316_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct device *dev = &i2c_client->dev;
 	struct es8316_priv *es8316;
@@ -852,7 +851,7 @@ static struct i2c_driver es8316_i2c_driver = {
 		.acpi_match_table	= ACPI_PTR(es8316_acpi_match),
 		.of_match_table		= of_match_ptr(es8316_of_match),
 	},
-	.probe		= es8316_i2c_probe,
+	.probe_new	= es8316_i2c_probe,
 	.id_table	= es8316_i2c_id,
 };
 module_i2c_driver(es8316_i2c_driver);

@@ -57,6 +57,12 @@ FILES=                                          \
          test-lzma.bin                          \
          test-bpf.bin                           \
          test-libbpf.bin                        \
+         test-libbpf-btf__load_from_kernel_by_id.bin	\
+         test-libbpf-bpf_prog_load.bin          \
+         test-libbpf-bpf_map_create.bin		\
+         test-libbpf-bpf_object__next_program.bin \
+         test-libbpf-bpf_object__next_map.bin   \
+         test-libbpf-btf__raw_data.bin          \
          test-get_cpuid.bin                     \
          test-sdt.bin                           \
          test-cxx.bin                           \
@@ -217,8 +223,15 @@ strip-libs = $(filter-out -l%,$(1))
 PERL_EMBED_LDOPTS = $(shell perl -MExtUtils::Embed -e ldopts 2>/dev/null)
 PERL_EMBED_LDFLAGS = $(call strip-libs,$(PERL_EMBED_LDOPTS))
 PERL_EMBED_LIBADD = $(call grep-libs,$(PERL_EMBED_LDOPTS))
-PERL_EMBED_CCOPTS = `perl -MExtUtils::Embed -e ccopts 2>/dev/null`
+PERL_EMBED_CCOPTS = $(shell perl -MExtUtils::Embed -e ccopts 2>/dev/null)
 FLAGS_PERL_EMBED=$(PERL_EMBED_CCOPTS) $(PERL_EMBED_LDOPTS)
+
+ifeq ($(CC_NO_CLANG), 0)
+  PERL_EMBED_LDOPTS := $(filter-out -specs=%,$(PERL_EMBED_LDOPTS))
+  PERL_EMBED_CCOPTS := $(filter-out -flto=auto -ffat-lto-objects, $(PERL_EMBED_CCOPTS))
+  PERL_EMBED_CCOPTS := $(filter-out -specs=%,$(PERL_EMBED_CCOPTS))
+  FLAGS_PERL_EMBED += -Wno-compound-token-split-by-macro
+endif
 
 $(OUTPUT)test-libperl.bin:
 	$(BUILD) $(FLAGS_PERL_EMBED)
@@ -278,6 +291,24 @@ $(OUTPUT)test-bpf.bin:
 	$(BUILD)
 
 $(OUTPUT)test-libbpf.bin:
+	$(BUILD) -lbpf
+
+$(OUTPUT)test-libbpf-btf__load_from_kernel_by_id.bin:
+	$(BUILD) -lbpf
+
+$(OUTPUT)test-libbpf-bpf_prog_load.bin:
+	$(BUILD) -lbpf
+
+$(OUTPUT)test-libbpf-bpf_map_create.bin:
+	$(BUILD) -lbpf
+
+$(OUTPUT)test-libbpf-bpf_object__next_program.bin:
+	$(BUILD) -lbpf
+
+$(OUTPUT)test-libbpf-bpf_object__next_map.bin:
+	$(BUILD) -lbpf
+
+$(OUTPUT)test-libbpf-btf__raw_data.bin:
 	$(BUILD) -lbpf
 
 $(OUTPUT)test-sdt.bin:

@@ -43,6 +43,8 @@
 #define AD7124_STATUS_POR_FLAG_MSK	BIT(4)
 
 /* AD7124_ADC_CONTROL */
+#define AD7124_ADC_STATUS_EN_MSK	BIT(10)
+#define AD7124_ADC_STATUS_EN(x)		FIELD_PREP(AD7124_ADC_STATUS_EN_MSK, x)
 #define AD7124_ADC_CTRL_REF_EN_MSK	BIT(8)
 #define AD7124_ADC_CTRL_REF_EN(x)	FIELD_PREP(AD7124_ADC_CTRL_REF_EN_MSK, x)
 #define AD7124_ADC_CTRL_PWR_MSK	GENMASK(7, 6)
@@ -188,7 +190,6 @@ static const struct iio_chan_spec ad7124_channel_template = {
 		.sign = 'u',
 		.realbits = 24,
 		.storagebits = 32,
-		.shift = 8,
 		.endianness = IIO_BE,
 	},
 };
@@ -501,26 +502,70 @@ static int ad7124_prepare_read(struct ad7124_state *st, int address)
 	return ad7124_enable_channel(st, &st->channels[address]);
 }
 
+static int __ad7124_set_channel(struct ad_sigma_delta *sd, unsigned int channel)
+{
+	struct ad7124_state *st = container_of(sd, struct ad7124_state, sd);
+
+	return ad7124_prepare_read(st, channel);
+}
+
 static int ad7124_set_channel(struct ad_sigma_delta *sd, unsigned int channel)
 {
 	struct ad7124_state *st = container_of(sd, struct ad7124_state, sd);
 	int ret;
 
 	mutex_lock(&st->cfgs_lock);
-	ret = ad7124_prepare_read(st, channel);
+	ret = __ad7124_set_channel(sd, channel);
 	mutex_unlock(&st->cfgs_lock);
 
 	return ret;
 }
 
+static int ad7124_append_status(struct ad_sigma_delta *sd, bool append)
+{
+	struct ad7124_state *st = container_of(sd, struct ad7124_state, sd);
+	unsigned int adc_control = st->adc_control;
+	int ret;
+
+	adc_control &= ~AD7124_ADC_STATUS_EN_MSK;
+	adc_control |= AD7124_ADC_STATUS_EN(append);
+
+	ret = ad_sd_write_reg(&st->sd, AD7124_ADC_CONTROL, 2, adc_control);
+	if (ret < 0)
+		return ret;
+
+	st->adc_control = adc_control;
+
+	return 0;
+}
+
+static int ad7124_disable_all(struct ad_sigma_delta *sd)
+{
+	struct ad7124_state *st = container_of(sd, struct ad7124_state, sd);
+	int ret;
+	int i;
+
+	for (i = 0; i < st->num_channels; i++) {
+		ret = ad7124_spi_write_mask(st, AD7124_CHANNEL(i), AD7124_CHANNEL_EN_MSK, 0, 2);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static const struct ad_sigma_delta_info ad7124_sigma_delta_info = {
 	.set_channel = ad7124_set_channel,
+	.append_status = ad7124_append_status,
+	.disable_all = ad7124_disable_all,
 	.set_mode = ad7124_set_mode,
 	.has_registers = true,
 	.addr_shift = 0,
 	.read_mask = BIT(6),
+	.status_ch_mask = GENMASK(3, 0),
 	.data_reg = AD7124_DATA,
-	.irq_flags = IRQF_TRIGGER_FALLING
+	.num_slots = 8,
+	.irq_flags = IRQF_TRIGGER_FALLING,
 };
 
 static int ad7124_read_raw(struct iio_dev *indio_dev,
@@ -670,11 +715,40 @@ static const struct attribute_group ad7124_attrs_group = {
 	.attrs = ad7124_attributes,
 };
 
+static int ad7124_update_scan_mode(struct iio_dev *indio_dev,
+				   const unsigned long *scan_mask)
+{
+	struct ad7124_state *st = iio_priv(indio_dev);
+	bool bit_set;
+	int ret;
+	int i;
+
+	mutex_lock(&st->cfgs_lock);
+	for (i = 0; i < st->num_channels; i++) {
+		bit_set = test_bit(i, scan_mask);
+		if (bit_set)
+			ret = __ad7124_set_channel(&st->sd, i);
+		else
+			ret = ad7124_spi_write_mask(st, AD7124_CHANNEL(i), AD7124_CHANNEL_EN_MSK,
+						    0, 2);
+		if (ret < 0) {
+			mutex_unlock(&st->cfgs_lock);
+
+			return ret;
+		}
+	}
+
+	mutex_unlock(&st->cfgs_lock);
+
+	return 0;
+}
+
 static const struct iio_info ad7124_info = {
 	.read_raw = ad7124_read_raw,
 	.write_raw = ad7124_write_raw,
 	.debugfs_reg_access = &ad7124_reg_access,
 	.validate_trigger = ad_sd_validate_trigger,
+	.update_scan_mode = ad7124_update_scan_mode,
 	.attrs = &ad7124_attrs_group,
 };
 
@@ -886,11 +960,13 @@ static int ad7124_probe(struct spi_device *spi)
 
 	st->chip_info = info;
 
-	ad_sd_init(&st->sd, indio_dev, spi, &ad7124_sigma_delta_info);
-
 	indio_dev->name = st->chip_info->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad7124_info;
+
+	ret = ad_sd_init(&st->sd, indio_dev, spi, &ad7124_sigma_delta_info);
+	if (ret < 0)
+		return ret;
 
 	ret = ad7124_of_parse_channel_config(indio_dev, spi->dev.of_node);
 	if (ret < 0)
@@ -970,3 +1046,4 @@ module_spi_driver(ad71124_driver);
 MODULE_AUTHOR("Stefan Popa <stefan.popa@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7124 SPI driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_AD_SIGMA_DELTA);

@@ -18,16 +18,40 @@
 struct msm_framebuffer {
 	struct drm_framebuffer base;
 	const struct msm_format *format;
+
+	/* Count of # of attached planes which need dirtyfb: */
+	refcount_t dirtyfb;
+
+	/* Framebuffer per-plane address, if pinned, else zero: */
+	uint64_t iova[DRM_FORMAT_MAX_PLANES];
+	atomic_t prepare_count;
 };
 #define to_msm_framebuffer(x) container_of(x, struct msm_framebuffer, base)
 
 static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 		const struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
 
+static int msm_framebuffer_dirtyfb(struct drm_framebuffer *fb,
+				   struct drm_file *file_priv, unsigned int flags,
+				   unsigned int color, struct drm_clip_rect *clips,
+				   unsigned int num_clips)
+{
+	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
+
+	/* If this fb is not used on any display requiring pixel data to be
+	 * flushed, then skip dirtyfb
+	 */
+	if (refcount_read(&msm_fb->dirtyfb) == 1)
+		return 0;
+
+	return drm_atomic_helper_dirtyfb(fb, file_priv, flags, color,
+					 clips, num_clips);
+}
+
 static const struct drm_framebuffer_funcs msm_framebuffer_funcs = {
 	.create_handle = drm_gem_fb_create_handle,
 	.destroy = drm_gem_fb_destroy,
-	.dirty = drm_atomic_helper_dirtyfb,
+	.dirty = msm_framebuffer_dirtyfb,
 };
 
 #ifdef CONFIG_DEBUG_FS
@@ -48,20 +72,24 @@ void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 }
 #endif
 
-/* prepare/pin all the fb's bo's for scanout.  Note that it is not valid
- * to prepare an fb more multiple different initiator 'id's.  But that
- * should be fine, since only the scanout (mdpN) side of things needs
- * this, the gpu doesn't care about fb's.
+/* prepare/pin all the fb's bo's for scanout.
  */
 int msm_framebuffer_prepare(struct drm_framebuffer *fb,
-		struct msm_gem_address_space *aspace)
+		struct msm_gem_address_space *aspace,
+		bool needs_dirtyfb)
 {
+	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
 	int ret, i, n = fb->format->num_planes;
-	uint64_t iova;
+
+	if (needs_dirtyfb)
+		refcount_inc(&msm_fb->dirtyfb);
+
+	atomic_inc(&msm_fb->prepare_count);
 
 	for (i = 0; i < n; i++) {
-		ret = msm_gem_get_and_pin_iova(fb->obj[i], aspace, &iova);
-		drm_dbg_state(fb->dev, "FB[%u]: iova[%d]: %08llx (%d)", fb->base.id, i, iova, ret);
+		ret = msm_gem_get_and_pin_iova(fb->obj[i], aspace, &msm_fb->iova[i]);
+		drm_dbg_state(fb->dev, "FB[%u]: iova[%d]: %08llx (%d)",
+			      fb->base.id, i, msm_fb->iova[i], ret);
 		if (ret)
 			return ret;
 	}
@@ -70,20 +98,27 @@ int msm_framebuffer_prepare(struct drm_framebuffer *fb,
 }
 
 void msm_framebuffer_cleanup(struct drm_framebuffer *fb,
-		struct msm_gem_address_space *aspace)
+		struct msm_gem_address_space *aspace,
+		bool needed_dirtyfb)
 {
+	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
 	int i, n = fb->format->num_planes;
+
+	if (needed_dirtyfb)
+		refcount_dec(&msm_fb->dirtyfb);
 
 	for (i = 0; i < n; i++)
 		msm_gem_unpin_iova(fb->obj[i], aspace);
+
+	if (!atomic_dec_return(&msm_fb->prepare_count))
+		memset(msm_fb->iova, 0, sizeof(msm_fb->iova));
 }
 
 uint32_t msm_framebuffer_iova(struct drm_framebuffer *fb,
 		struct msm_gem_address_space *aspace, int plane)
 {
-	if (!fb->obj[plane])
-		return 0;
-	return msm_gem_iova(fb->obj[plane], aspace) + fb->offsets[plane];
+	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
+	return msm_fb->iova[plane] + fb->offsets[plane];
 }
 
 struct drm_gem_object *msm_framebuffer_bo(struct drm_framebuffer *fb, int plane)
@@ -193,6 +228,8 @@ static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 		DRM_DEV_ERROR(dev->dev, "framebuffer init failed: %d\n", ret);
 		goto fail;
 	}
+
+	refcount_set(&msm_fb->dirtyfb, 1);
 
 	drm_dbg_state(dev, "create: FB ID: %d (%p)", fb->base.id, fb);
 

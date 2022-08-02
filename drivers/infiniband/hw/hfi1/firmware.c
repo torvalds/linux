@@ -5,7 +5,6 @@
 
 #include <linux/firmware.h>
 #include <linux/mutex.h>
-#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/crc32.h>
 

@@ -123,7 +123,7 @@ static struct snd_soc_acpi_mach *amd_sof_machine_select(struct snd_sof_dev *sdev
 }
 
 /* AMD Renoir DSP ops */
-const struct snd_sof_dsp_ops sof_renoir_ops = {
+struct snd_sof_dsp_ops sof_renoir_ops = {
 	/* probe and remove */
 	.probe			= amd_sof_acp_probe,
 	.remove			= amd_sof_acp_remove,
@@ -136,9 +136,6 @@ const struct snd_sof_dsp_ops sof_renoir_ops = {
 	.block_read		= acp_dsp_block_read,
 	.block_write		= acp_dsp_block_write,
 
-	/* Module loading */
-	.load_module		= snd_sof_parse_module_memcpy,
-
 	/*Firmware loading */
 	.load_firmware		= snd_sof_load_firmware_memcpy,
 	.pre_fw_run		= acp_dsp_pre_fw_run,
@@ -150,10 +147,8 @@ const struct snd_sof_dsp_ops sof_renoir_ops = {
 	/*IPC */
 	.send_msg		= acp_sof_ipc_send_msg,
 	.ipc_msg_data		= acp_sof_ipc_msg_data,
-	.ipc_pcm_params		= acp_sof_ipc_pcm_params,
 	.get_mailbox_offset	= acp_sof_ipc_get_mailbox_offset,
 	.irq_thread		= acp_sof_ipc_irq_thread,
-	.fw_ready		= sof_fw_ready,
 
 	/* DAI drivers */
 	.drv			= renoir_sof_dai,

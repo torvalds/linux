@@ -155,10 +155,14 @@ static int inet_csk_bind_conflict(const struct sock *sk,
 	 */
 
 	sk_for_each_bound(sk2, &tb->owners) {
-		if (sk != sk2 &&
-		    (!sk->sk_bound_dev_if ||
-		     !sk2->sk_bound_dev_if ||
-		     sk->sk_bound_dev_if == sk2->sk_bound_dev_if)) {
+		int bound_dev_if2;
+
+		if (sk == sk2)
+			continue;
+		bound_dev_if2 = READ_ONCE(sk2->sk_bound_dev_if);
+		if ((!sk->sk_bound_dev_if ||
+		     !bound_dev_if2 ||
+		     sk->sk_bound_dev_if == bound_dev_if2)) {
 			if (reuse && sk2->sk_reuse &&
 			    sk2->sk_state != TCP_LISTEN) {
 				if ((!relax ||
@@ -866,12 +870,9 @@ static void reqsk_timer_handler(struct timer_list *t)
 	    (!resend ||
 	     !inet_rtx_syn_ack(sk_listener, req) ||
 	     inet_rsk(req)->acked)) {
-		unsigned long timeo;
-
 		if (req->num_timeout++ == 0)
 			atomic_dec(&queue->young);
-		timeo = min(TCP_TIMEOUT_INIT << req->num_timeout, TCP_RTO_MAX);
-		mod_timer(&req->rsk_timer, jiffies + timeo);
+		mod_timer(&req->rsk_timer, jiffies + reqsk_timeout(req, TCP_RTO_MAX));
 
 		if (!nreq)
 			return;
@@ -1045,6 +1046,9 @@ int inet_csk_listen_start(struct sock *sk)
 
 	sk->sk_ack_backlog = 0;
 	inet_csk_delack_init(sk);
+
+	if (sk->sk_txrehash == SOCK_TXREHASH_DEFAULT)
+		sk->sk_txrehash = READ_ONCE(sock_net(sk)->core.sysctl_txrehash);
 
 	/* There is race window here: we announce ourselves listening,
 	 * but this transition is still not validated by get_port().

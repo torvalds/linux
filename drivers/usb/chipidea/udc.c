@@ -1048,6 +1048,9 @@ isr_setup_status_complete(struct usb_ep *ep, struct usb_request *req)
 	struct ci_hdrc *ci = req->context;
 	unsigned long flags;
 
+	if (req->status < 0)
+		return;
+
 	if (ci->setaddr) {
 		hw_usb_set_address(ci, ci->address);
 		ci->setaddr = false;
@@ -2152,7 +2155,7 @@ static void udc_id_switch_for_host(struct ci_hdrc *ci)
 {
 	/*
 	 * host doesn't care B_SESSION_VALID event
-	 * so clear and disbale BSV irq
+	 * so clear and disable BSV irq
 	 */
 	if (ci->is_otg)
 		hw_write_otgsc(ci, OTGSC_BSVIE | OTGSC_BSVIS, OTGSC_BSVIS);

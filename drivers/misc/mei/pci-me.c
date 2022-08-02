@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 
@@ -113,6 +114,9 @@ static const struct pci_device_id mei_me_pci_tbl[] = {
 	{MEI_PCI_DEVICE(MEI_DEV_ID_ADP_S, MEI_ME_PCH15_CFG)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_ADP_LP, MEI_ME_PCH15_CFG)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_ADP_P, MEI_ME_PCH15_CFG)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_ADP_N, MEI_ME_PCH15_CFG)},
+
+	{MEI_PCI_DEVICE(MEI_DEV_ID_RPL_S, MEI_ME_PCH15_CFG)},
 
 	/* required last entry */
 	{0, }
@@ -192,14 +196,7 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto end;
 	}
 
-	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(64)) ||
-	    dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64))) {
-
-		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
-		if (err)
-			err = dma_set_coherent_mask(&pdev->dev,
-						    DMA_BIT_MASK(32));
-	}
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
 		dev_err(&pdev->dev, "No usable DMA configuration, aborting\n");
 		goto end;

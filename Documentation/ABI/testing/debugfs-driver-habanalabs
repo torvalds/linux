@@ -12,24 +12,7 @@ What:           /sys/kernel/debug/habanalabs/hl<n>/clk_gate
 Date:           May 2020
 KernelVersion:  5.8
 Contact:        ogabbay@kernel.org
-Description:    Allow the root user to disable/enable in runtime the clock
-                gating mechanism in Gaudi. Due to how Gaudi is built, the
-                clock gating needs to be disabled in order to access the
-                registers of the TPC and MME engines. This is sometimes needed
-                during debug by the user and hence the user needs this option.
-                The user can supply a bitmask value, each bit represents
-                a different engine to disable/enable its clock gating feature.
-                The bitmask is composed of 20 bits:
-
-                =======   ============
-                0  -  7   DMA channels
-                8  - 11   MME engines
-                12 - 19   TPC engines
-                =======   ============
-
-                The bit's location of a specific engine can be determined
-                using (1 << GAUDI_ENGINE_ID_*). GAUDI_ENGINE_ID_* values
-                are defined in uapi habanalabs.h file in enum gaudi_engine_id
+Description:    This setting is now deprecated as clock gating is handled solely by the f/w
 
 What:           /sys/kernel/debug/habanalabs/hl<n>/command_buffers
 Date:           Jan 2019
@@ -187,6 +170,20 @@ KernelVersion:  5.1
 Contact:        ogabbay@kernel.org
 Description:    Sets the state of the third S/W led on the device
 
+What:           /sys/kernel/debug/habanalabs/hl<n>/memory_scrub
+Date:           May 2022
+KernelVersion:  5.19
+Contact:        dhirschfeld@habana.ai
+Description:    Allows the root user to scrub the dram memory. The scrubbing
+                value can be set using the debugfs file memory_scrub_val.
+
+What:           /sys/kernel/debug/habanalabs/hl<n>/memory_scrub_val
+Date:           May 2022
+KernelVersion:  5.19
+Contact:        dhirschfeld@habana.ai
+Description:    The value to which the dram will be set to when the user
+                scrubs the dram using 'memory_scrub' debugfs file
+
 What:           /sys/kernel/debug/habanalabs/hl<n>/mmu
 Date:           Jan 2019
 KernelVersion:  5.1
@@ -206,6 +203,30 @@ Description:    Check and display page fault or access violation mmu errors for
                 e.g. to display error info for MMU hw cap bit 9, you need to do:
                 echo "0x200" > /sys/kernel/debug/habanalabs/hl0/mmu_error
                 cat /sys/kernel/debug/habanalabs/hl0/mmu_error
+
+What:           /sys/kernel/debug/habanalabs/hl<n>/monitor_dump
+Date:           Mar 2022
+KernelVersion:  5.19
+Contact:        osharabi@habana.ai
+Description:    Allows the root user to dump monitors status from the device's
+                protected config space.
+                This property is a binary blob that contains the result of the
+                monitors registers dump.
+                This custom interface is needed (instead of using the generic
+                Linux user-space PCI mapping) because this space is protected
+                and cannot be accessed using PCI read.
+                This interface doesn't support concurrency in the same device.
+                Only supported on GAUDI.
+
+What:           /sys/kernel/debug/habanalabs/hl<n>/monitor_dump_trig
+Date:           Mar 2022
+KernelVersion:  5.19
+Contact:        osharabi@habana.ai
+Description:    Triggers dump of monitor data. The value to trigger the operation
+                must be 1. Triggering the monitor dump operation initiates dump of
+                current registers values of all monitors.
+                When the write is finished, the user can read the "monitor_dump"
+                blob
 
 What:           /sys/kernel/debug/habanalabs/hl<n>/set_power_state
 Date:           Jan 2019
@@ -239,6 +260,7 @@ KernelVersion:  5.6
 Contact:        ogabbay@kernel.org
 Description:    Sets the stop-on_error option for the device engines. Value of
                 "0" is for disable, otherwise enable.
+                Relevant only for GOYA and GAUDI.
 
 What:           /sys/kernel/debug/habanalabs/hl<n>/timeout_locked
 Date:           Sep 2021

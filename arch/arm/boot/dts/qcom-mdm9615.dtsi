@@ -139,6 +139,7 @@
 		gcc: clock-controller@900000 {
 			compatible = "qcom,gcc-mdm9615";
 			#clock-cells = <1>;
+			#power-domain-cells = <1>;
 			#reset-cells = <1>;
 			reg = <0x900000 0x4000>;
 		};
@@ -151,7 +152,7 @@
 		};
 
 		l2cc: clock-controller@2011000 {
-			compatible = "syscon";
+			compatible = "qcom,kpss-gcc", "syscon";
 			reg = <0x02011000 0x1000>;
 		};
 
@@ -329,7 +330,7 @@
 			};
 		};
 
-		sdcc1bam: dma@12182000{
+		sdcc1bam: dma-controller@12182000{
 			compatible = "qcom,bam-v1.3.0";
 			reg = <0x12182000 0x8000>;
 			interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
@@ -339,7 +340,7 @@
 			qcom,ee = <0>;
 		};
 
-		sdcc2bam: dma@12142000{
+		sdcc2bam: dma-controller@12142000{
 			compatible = "qcom,bam-v1.3.0";
 			reg = <0x12142000 0x8000>;
 			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;

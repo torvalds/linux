@@ -170,6 +170,18 @@ struct gfx_firmware_header_v1_0 {
 	uint32_t jt_size;  /* size of jt */
 };
 
+/* version_major=2, version_minor=0 */
+struct gfx_firmware_header_v2_0 {
+	struct common_firmware_header header;
+	uint32_t ucode_feature_version;
+	uint32_t ucode_size_bytes;
+	uint32_t ucode_offset_bytes;
+	uint32_t data_size_bytes;
+	uint32_t data_offset_bytes;
+	uint32_t ucode_start_addr_lo;
+	uint32_t ucode_start_addr_hi;
+};
+
 /* version_major=1, version_minor=0 */
 struct mes_firmware_header_v1_0 {
 	struct common_firmware_header header;
@@ -236,13 +248,22 @@ struct rlc_firmware_header_v2_1 {
 	uint32_t save_restore_list_srm_offset_bytes;
 };
 
-/* version_major=2, version_minor=1 */
+/* version_major=2, version_minor=2 */
 struct rlc_firmware_header_v2_2 {
 	struct rlc_firmware_header_v2_1 v2_1;
 	uint32_t rlc_iram_ucode_size_bytes;
 	uint32_t rlc_iram_ucode_offset_bytes;
 	uint32_t rlc_dram_ucode_size_bytes;
 	uint32_t rlc_dram_ucode_offset_bytes;
+};
+
+/* version_major=2, version_minor=3 */
+struct rlc_firmware_header_v2_3 {
+    struct rlc_firmware_header_v2_2 v2_2;
+    uint32_t rlcp_ucode_size_bytes;
+    uint32_t rlcp_ucode_offset_bytes;
+    uint32_t rlcv_ucode_size_bytes;
+    uint32_t rlcv_ucode_offset_bytes;
 };
 
 /* version_major=1, version_minor=0 */
@@ -258,6 +279,19 @@ struct sdma_firmware_header_v1_0 {
 struct sdma_firmware_header_v1_1 {
 	struct sdma_firmware_header_v1_0 v1_0;
 	uint32_t digest_size;
+};
+
+/* version_major=2, version_minor=0 */
+struct sdma_firmware_header_v2_0 {
+	struct common_firmware_header header;
+	uint32_t ucode_feature_version;
+	uint32_t ctx_ucode_size_bytes; /* context thread ucode size */
+	uint32_t ctx_jt_offset; /* context thread jt location */
+	uint32_t ctx_jt_size; /* context thread size of jt */
+	uint32_t ctl_ucode_offset;
+	uint32_t ctl_ucode_size_bytes; /* control thread ucode size */
+	uint32_t ctl_jt_offset; /* control thread jt location */
+	uint32_t ctl_jt_size; /* control thread size of jt */
 };
 
 /* gpu info payload */
@@ -313,6 +347,15 @@ struct dmcub_firmware_header_v1_0 {
 	uint32_t bss_data_bytes; /* size of bss/data region, in bytes */
 };
 
+/* version_major=1, version_minor=0 */
+struct imu_firmware_header_v1_0 {
+    struct common_firmware_header header;
+    uint32_t imu_iram_ucode_size_bytes;
+    uint32_t imu_iram_ucode_offset_bytes;
+    uint32_t imu_dram_ucode_size_bytes;
+    uint32_t imu_dram_ucode_offset_bytes;
+};
+
 /* header is fixed size */
 union amdgpu_firmware_header {
 	struct common_firmware_header common;
@@ -326,14 +369,19 @@ union amdgpu_firmware_header {
 	struct ta_firmware_header_v1_0 ta;
 	struct ta_firmware_header_v2_0 ta_v2_0;
 	struct gfx_firmware_header_v1_0 gfx;
+	struct gfx_firmware_header_v2_0 gfx_v2_0;
 	struct rlc_firmware_header_v1_0 rlc;
 	struct rlc_firmware_header_v2_0 rlc_v2_0;
 	struct rlc_firmware_header_v2_1 rlc_v2_1;
+	struct rlc_firmware_header_v2_2 rlc_v2_2;
+	struct rlc_firmware_header_v2_3 rlc_v2_3;
 	struct sdma_firmware_header_v1_0 sdma;
 	struct sdma_firmware_header_v1_1 sdma_v1_1;
+	struct sdma_firmware_header_v2_0 sdma_v2_0;
 	struct gpu_info_firmware_header_v1_0 gpu_info;
 	struct dmcu_firmware_header_v1_0 dmcu;
 	struct dmcub_firmware_header_v1_0 dmcub;
+	struct imu_firmware_header_v1_0 imu;
 	uint8_t raw[0x100];
 };
 
@@ -343,7 +391,8 @@ union amdgpu_firmware_header {
  * fw loading support
  */
 enum AMDGPU_UCODE_ID {
-	AMDGPU_UCODE_ID_SDMA0 = 0,
+	AMDGPU_UCODE_ID_CAP = 0,
+	AMDGPU_UCODE_ID_SDMA0,
 	AMDGPU_UCODE_ID_SDMA1,
 	AMDGPU_UCODE_ID_SDMA2,
 	AMDGPU_UCODE_ID_SDMA3,
@@ -351,23 +400,43 @@ enum AMDGPU_UCODE_ID {
 	AMDGPU_UCODE_ID_SDMA5,
 	AMDGPU_UCODE_ID_SDMA6,
 	AMDGPU_UCODE_ID_SDMA7,
+	AMDGPU_UCODE_ID_SDMA_UCODE_TH0,
+	AMDGPU_UCODE_ID_SDMA_UCODE_TH1,
 	AMDGPU_UCODE_ID_CP_CE,
 	AMDGPU_UCODE_ID_CP_PFP,
 	AMDGPU_UCODE_ID_CP_ME,
+	AMDGPU_UCODE_ID_CP_RS64_PFP,
+	AMDGPU_UCODE_ID_CP_RS64_ME,
+	AMDGPU_UCODE_ID_CP_RS64_MEC,
+	AMDGPU_UCODE_ID_CP_RS64_PFP_P0_STACK,
+	AMDGPU_UCODE_ID_CP_RS64_PFP_P1_STACK,
+	AMDGPU_UCODE_ID_CP_RS64_ME_P0_STACK,
+	AMDGPU_UCODE_ID_CP_RS64_ME_P1_STACK,
+	AMDGPU_UCODE_ID_CP_RS64_MEC_P0_STACK,
+	AMDGPU_UCODE_ID_CP_RS64_MEC_P1_STACK,
+	AMDGPU_UCODE_ID_CP_RS64_MEC_P2_STACK,
+	AMDGPU_UCODE_ID_CP_RS64_MEC_P3_STACK,
 	AMDGPU_UCODE_ID_CP_MEC1,
 	AMDGPU_UCODE_ID_CP_MEC1_JT,
 	AMDGPU_UCODE_ID_CP_MEC2,
 	AMDGPU_UCODE_ID_CP_MEC2_JT,
 	AMDGPU_UCODE_ID_CP_MES,
 	AMDGPU_UCODE_ID_CP_MES_DATA,
+	AMDGPU_UCODE_ID_CP_MES1,
+	AMDGPU_UCODE_ID_CP_MES1_DATA,
+	AMDGPU_UCODE_ID_IMU_I,
+	AMDGPU_UCODE_ID_IMU_D,
 	AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL,
 	AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM,
 	AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM,
 	AMDGPU_UCODE_ID_RLC_IRAM,
 	AMDGPU_UCODE_ID_RLC_DRAM,
+	AMDGPU_UCODE_ID_RLC_P,
+	AMDGPU_UCODE_ID_RLC_V,
 	AMDGPU_UCODE_ID_RLC_G,
 	AMDGPU_UCODE_ID_STORAGE,
 	AMDGPU_UCODE_ID_SMC,
+	AMDGPU_UCODE_ID_PPTABLE,
 	AMDGPU_UCODE_ID_UVD,
 	AMDGPU_UCODE_ID_UVD1,
 	AMDGPU_UCODE_ID_VCE,
@@ -390,8 +459,8 @@ enum AMDGPU_UCODE_STATUS {
 
 enum amdgpu_firmware_load_type {
 	AMDGPU_FW_LOAD_DIRECT = 0,
-	AMDGPU_FW_LOAD_SMU,
 	AMDGPU_FW_LOAD_PSP,
+	AMDGPU_FW_LOAD_SMU,
 	AMDGPU_FW_LOAD_RLC_BACKDOOR_AUTO,
 };
 
@@ -461,5 +530,7 @@ enum amdgpu_firmware_load_type
 amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type);
 
 const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id);
+
+void amdgpu_ucode_ip_version_decode(struct amdgpu_device *adev, int block_type, char *ucode_prefix, int len);
 
 #endif

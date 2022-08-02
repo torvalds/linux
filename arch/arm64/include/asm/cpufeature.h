@@ -356,6 +356,7 @@ struct arm64_cpu_capabilities {
 		struct {	/* Feature register checking */
 			u32 sys_reg;
 			u8 field_pos;
+			u8 field_width;
 			u8 min_field_value;
 			u8 hwcap_type;
 			bool sign;
@@ -576,6 +577,8 @@ static inline u64 arm64_ftr_reg_user_value(const struct arm64_ftr_reg *reg)
 static inline int __attribute_const__
 cpuid_feature_extract_field_width(u64 features, int field, int width, bool sign)
 {
+	if (WARN_ON_ONCE(!width))
+		width = 4;
 	return (sign) ?
 		cpuid_feature_extract_signed_field_width(features, field, width) :
 		cpuid_feature_extract_unsigned_field_width(features, field, width);
@@ -615,6 +618,13 @@ static inline bool id_aa64pfr0_32bit_el0(u64 pfr0)
 static inline bool id_aa64pfr0_sve(u64 pfr0)
 {
 	u32 val = cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_SVE_SHIFT);
+
+	return val > 0;
+}
+
+static inline bool id_aa64pfr1_sme(u64 pfr1)
+{
+	u32 val = cpuid_feature_extract_unsigned_field(pfr1, ID_AA64PFR1_SME_SHIFT);
 
 	return val > 0;
 }
@@ -756,6 +766,23 @@ static __always_inline bool system_supports_sve(void)
 		cpus_have_const_cap(ARM64_SVE);
 }
 
+static __always_inline bool system_supports_sme(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_SME) &&
+		cpus_have_const_cap(ARM64_SME);
+}
+
+static __always_inline bool system_supports_fa64(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_SME) &&
+		cpus_have_const_cap(ARM64_SME_FA64);
+}
+
+static __always_inline bool system_supports_tpidr2(void)
+{
+	return system_supports_sme();
+}
+
 static __always_inline bool system_supports_cnp(void)
 {
 	return IS_ENABLED(CONFIG_ARM64_CNP) &&
@@ -883,6 +910,7 @@ static inline unsigned int get_vmid_bits(u64 mmfr1)
 extern struct arm64_ftr_override id_aa64mmfr1_override;
 extern struct arm64_ftr_override id_aa64pfr1_override;
 extern struct arm64_ftr_override id_aa64isar1_override;
+extern struct arm64_ftr_override id_aa64isar2_override;
 
 u32 get_kvm_ipa_limit(void);
 void dump_cpu_features(void);

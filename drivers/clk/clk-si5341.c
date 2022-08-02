@@ -655,7 +655,7 @@ static unsigned long si5341_synth_clk_recalc_rate(struct clk_hw *hw,
 	f = synth->data->freq_vco;
 	f *= n_den >> 4;
 
-	/* Now we need to to 64-bit division: f/n_num */
+	/* Now we need to do 64-bit division: f/n_num */
 	/* And compensate for the 4 bits we dropped */
 	f = div64_u64(f, (n_num >> 4));
 
@@ -798,6 +798,15 @@ static unsigned long si5341_output_clk_recalc_rate(struct clk_hw *hw,
 	u32 r_divider;
 	u8 r[3];
 
+	err = regmap_read(output->data->regmap,
+			SI5341_OUT_CONFIG(output), &val);
+	if (err < 0)
+		return err;
+
+	/* If SI5341_OUT_CFG_RDIV_FORCE2 is set, r_divider is 2 */
+	if (val & SI5341_OUT_CFG_RDIV_FORCE2)
+		return parent_rate / 2;
+
 	err = regmap_bulk_read(output->data->regmap,
 			SI5341_OUT_R_REG(output), r, 3);
 	if (err < 0)
@@ -814,13 +823,6 @@ static unsigned long si5341_output_clk_recalc_rate(struct clk_hw *hw,
 	r_divider += 1;
 	r_divider <<= 1;
 
-	err = regmap_read(output->data->regmap,
-			SI5341_OUT_CONFIG(output), &val);
-	if (err < 0)
-		return err;
-
-	if (val & SI5341_OUT_CFG_RDIV_FORCE2)
-		r_divider = 2;
 
 	return parent_rate / r_divider;
 }
@@ -1468,7 +1470,7 @@ static ssize_t input_present_show(struct device *dev,
 	if (res < 0)
 		return res;
 	res = !(status & SI5341_STATUS_LOSREF);
-	return snprintf(buf, PAGE_SIZE, "%d\n", res);
+	return sysfs_emit(buf, "%d\n", res);
 }
 static DEVICE_ATTR_RO(input_present);
 
@@ -1483,7 +1485,7 @@ static ssize_t input_present_sticky_show(struct device *dev,
 	if (res < 0)
 		return res;
 	res = !(status & SI5341_STATUS_LOSREF);
-	return snprintf(buf, PAGE_SIZE, "%d\n", res);
+	return sysfs_emit(buf, "%d\n", res);
 }
 static DEVICE_ATTR_RO(input_present_sticky);
 
@@ -1498,7 +1500,7 @@ static ssize_t pll_locked_show(struct device *dev,
 	if (res < 0)
 		return res;
 	res = !(status & SI5341_STATUS_LOL);
-	return snprintf(buf, PAGE_SIZE, "%d\n", res);
+	return sysfs_emit(buf, "%d\n", res);
 }
 static DEVICE_ATTR_RO(pll_locked);
 
@@ -1513,7 +1515,7 @@ static ssize_t pll_locked_sticky_show(struct device *dev,
 	if (res < 0)
 		return res;
 	res = !(status & SI5341_STATUS_LOL);
-	return snprintf(buf, PAGE_SIZE, "%d\n", res);
+	return sysfs_emit(buf, "%d\n", res);
 }
 static DEVICE_ATTR_RO(pll_locked_sticky);
 
@@ -1545,8 +1547,7 @@ static const struct attribute *si5341_attributes[] = {
 	NULL
 };
 
-static int si5341_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int si5341_probe(struct i2c_client *client)
 {
 	struct clk_si5341 *data;
 	struct clk_init_data init;
@@ -1835,7 +1836,7 @@ static struct i2c_driver si5341_driver = {
 		.name = "si5341",
 		.of_match_table = clk_si5341_of_match,
 	},
-	.probe		= si5341_probe,
+	.probe_new	= si5341_probe,
 	.remove		= si5341_remove,
 	.id_table	= si5341_id,
 };

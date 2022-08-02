@@ -18,6 +18,7 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 
+#include "dev.h"
 
 enum lw_bits {
 	LW_URGENT = 0,
@@ -166,10 +167,10 @@ static void linkwatch_do_dev(struct net_device *dev)
 
 		netdev_state_change(dev);
 	}
-	/* Note: our callers are responsible for
-	 * calling netdev_tracker_free().
+	/* Note: our callers are responsible for calling netdev_tracker_free().
+	 * This is the reason we use __dev_put() instead of dev_put().
 	 */
-	dev_put(dev);
+	__dev_put(dev);
 }
 
 static void __linkwatch_run_queue(int urgent_only)

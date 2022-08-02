@@ -320,6 +320,17 @@ gsi_trans_tre_release(struct gsi_trans_info *trans_info, u32 tre_count)
 	atomic_add(tre_count, &trans_info->tre_avail);
 }
 
+/* Return true if no transactions are allocated, false otherwise */
+bool gsi_channel_trans_idle(struct gsi *gsi, u32 channel_id)
+{
+	u32 tre_max = gsi_channel_tre_max(gsi, channel_id);
+	struct gsi_trans_info *trans_info;
+
+	trans_info = &gsi->channel[channel_id].trans_info;
+
+	return atomic_read(&trans_info->tre_avail) == tre_max;
+}
+
 /* Allocate a GSI transaction on a channel */
 struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 					  u32 tre_count,
@@ -399,10 +410,8 @@ void gsi_trans_free(struct gsi_trans *trans)
 
 /* Add an immediate command to a transaction */
 void gsi_trans_cmd_add(struct gsi_trans *trans, void *buf, u32 size,
-		       dma_addr_t addr, enum dma_data_direction direction,
-		       enum ipa_cmd_opcode opcode)
+		       dma_addr_t addr, enum ipa_cmd_opcode opcode)
 {
-	struct ipa_cmd_info *info;
 	u32 which = trans->used++;
 	struct scatterlist *sg;
 
@@ -427,9 +436,7 @@ void gsi_trans_cmd_add(struct gsi_trans *trans, void *buf, u32 size,
 	sg_dma_address(sg) = addr;
 	sg_dma_len(sg) = size;
 
-	info = &trans->info[which];
-	info->opcode = opcode;
-	info->direction = direction;
+	trans->cmd_opcode[which] = opcode;
 }
 
 /* Add a page transfer to a transaction.  It will fill the only TRE. */
@@ -545,10 +552,10 @@ static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 	struct gsi_ring *ring = &channel->tre_ring;
 	enum ipa_cmd_opcode opcode = IPA_CMD_NONE;
 	bool bei = channel->toward_ipa;
-	struct ipa_cmd_info *info;
 	struct gsi_tre *dest_tre;
 	struct scatterlist *sg;
 	u32 byte_count = 0;
+	u8 *cmd_opcode;
 	u32 avail;
 	u32 i;
 
@@ -559,7 +566,7 @@ static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 	 * If there is no info array we're doing a simple data
 	 * transfer request, whose opcode is IPA_CMD_NONE.
 	 */
-	info = trans->info ? &trans->info[0] : NULL;
+	cmd_opcode = channel->command ? &trans->cmd_opcode[0] : NULL;
 	avail = ring->count - ring->index % ring->count;
 	dest_tre = gsi_ring_virt(ring, ring->index);
 	for_each_sg(trans->sgl, sg, trans->used, i) {
@@ -570,8 +577,8 @@ static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 		byte_count += len;
 		if (!avail--)
 			dest_tre = gsi_ring_virt(ring, 0);
-		if (info)
-			opcode = info++->opcode;
+		if (cmd_opcode)
+			opcode = *cmd_opcode++;
 
 		gsi_trans_tre_fill(dest_tre, addr, len, last_tre, bei, opcode);
 		dest_tre++;
@@ -624,28 +631,6 @@ void gsi_trans_commit_wait(struct gsi_trans *trans)
 
 out_trans_free:
 	gsi_trans_free(trans);
-}
-
-/* Commit a GSI transaction and wait for it to complete, with timeout */
-int gsi_trans_commit_wait_timeout(struct gsi_trans *trans,
-				  unsigned long timeout)
-{
-	unsigned long timeout_jiffies = msecs_to_jiffies(timeout);
-	unsigned long remaining = 1;	/* In case of empty transaction */
-
-	if (!trans->used)
-		goto out_trans_free;
-
-	refcount_inc(&trans->refcount);
-
-	__gsi_trans_commit(trans, true);
-
-	remaining = wait_for_completion_timeout(&trans->completion,
-						timeout_jiffies);
-out_trans_free:
-	gsi_trans_free(trans);
-
-	return remaining ? 0 : -ETIMEDOUT;
 }
 
 /* Process the completion of a transaction; called while polling */

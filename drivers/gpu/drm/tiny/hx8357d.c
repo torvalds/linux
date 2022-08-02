@@ -263,14 +263,12 @@ static int hx8357d_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int hx8357d_remove(struct spi_device *spi)
+static void hx8357d_remove(struct spi_device *spi)
 {
 	struct drm_device *drm = spi_get_drvdata(spi);
 
 	drm_dev_unplug(drm);
 	drm_atomic_helper_shutdown(drm);
-
-	return 0;
 }
 
 static void hx8357d_shutdown(struct spi_device *spi)

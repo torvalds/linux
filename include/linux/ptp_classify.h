@@ -43,6 +43,9 @@
 #define OFF_PTP_SOURCE_UUID	22 /* PTPv1 only */
 #define OFF_PTP_SEQUENCE_ID	30
 
+/* PTP header flag fields */
+#define PTP_FLAG_TWOSTEP	BIT(1)
+
 /* Below defines should actually be removed at some point in time. */
 #define IP6_HLEN	40
 #define UDP_HLEN	8
@@ -126,6 +129,17 @@ static inline u8 ptp_get_msgtype(const struct ptp_header *hdr,
 	return msgtype;
 }
 
+/**
+ * ptp_msg_is_sync - Evaluates whether the given skb is a PTP Sync message
+ * @skb: packet buffer
+ * @type: type of the packet (see ptp_classify_raw())
+ *
+ * This function evaluates whether the given skb is a PTP Sync message.
+ *
+ * Return: true if sync message, false otherwise
+ */
+bool ptp_msg_is_sync(struct sk_buff *skb, unsigned int type);
+
 void __init ptp_classifier_init(void);
 #else
 static inline void ptp_classifier_init(void)
@@ -147,6 +161,10 @@ static inline u8 ptp_get_msgtype(const struct ptp_header *hdr,
 	 * executed since no available header from ptp_parse_header.
 	 */
 	return PTP_MSGTYPE_SYNC;
+}
+static inline bool ptp_msg_is_sync(struct sk_buff *skb, unsigned int type)
+{
+	return false;
 }
 #endif
 #endif /* _PTP_CLASSIFY_H_ */

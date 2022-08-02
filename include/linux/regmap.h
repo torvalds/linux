@@ -237,6 +237,10 @@ typedef void (*regmap_unlock)(void *);
  * @reg_stride: The register address stride. Valid register addresses are a
  *              multiple of this value. If set to 0, a value of 1 will be
  *              used.
+ * @reg_downshift: The number of bits to downshift the register before
+ *		   performing any operations.
+ * @reg_base: Value to be added to every register address before performing any
+ *	      operation.
  * @pad_bits: Number of bits of padding between register and value.
  * @val_bits: Number of bits in a register value, mandatory.
  *
@@ -295,6 +299,12 @@ typedef void (*regmap_unlock)(void *);
  *		     if the function require special handling with lock and reg
  *		     handling and the operation cannot be represented as a simple
  *		     update_bits operation on a bus such as SPI, I2C, etc.
+ * @read: Optional callback that if filled will be used to perform all the
+ *        bulk reads from the registers. Data is returned in the buffer used
+ *        to transmit data.
+ * @write: Same as above for writing.
+ * @max_raw_read: Max raw read size that can be used on the device.
+ * @max_raw_write: Max raw write size that can be used on the device.
  * @fast_io:	  Register IO is fast. Use a spinlock instead of a mutex
  *	     	  to perform locking. This field is ignored if custom lock/unlock
  *	     	  functions are used (see fields lock/unlock of struct regmap_config).
@@ -360,6 +370,8 @@ struct regmap_config {
 
 	int reg_bits;
 	int reg_stride;
+	int reg_downshift;
+	unsigned int reg_base;
 	int pad_bits;
 	int val_bits;
 
@@ -379,6 +391,12 @@ struct regmap_config {
 	int (*reg_write)(void *context, unsigned int reg, unsigned int val);
 	int (*reg_update_bits)(void *context, unsigned int reg,
 			       unsigned int mask, unsigned int val);
+	/* Bulk read/write */
+	int (*read)(void *context, const void *reg_buf, size_t reg_size,
+		    void *val_buf, size_t val_size);
+	int (*write)(void *context, const void *data, size_t count);
+	size_t max_raw_read;
+	size_t max_raw_write;
 
 	bool fast_io;
 

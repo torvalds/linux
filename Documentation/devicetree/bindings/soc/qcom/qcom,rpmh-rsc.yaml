@@ -1,0 +1,272 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/qcom/qcom,rpmh-rsc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm RPMH RSC
+
+maintainers:
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
+
+description: |
+  Resource Power Manager Hardened (RPMH) is the mechanism for communicating
+  with the hardened resource accelerators on Qualcomm SoCs. Requests to the
+  resources can be written to the Trigger Command Set (TCS)  registers and
+  using a (addr, val) pair and triggered. Messages in the TCS are then sent in
+  sequence over an internal bus.
+
+  The hardware block (Direct Resource Voter or DRV) is a part of the h/w entity
+  (Resource State Coordinator a.k.a RSC) that can handle multiple sleep and
+  active/wake resource requests. Multiple such DRVs can exist in a SoC and can
+  be written to from Linux. The structure of each DRV follows the same template
+  with a few variations that are captured by the properties here.
+
+  A TCS may be triggered from Linux or triggered by the F/W after all the CPUs
+  have powered off to facilitate idle power saving. TCS could be classified as::
+    ACTIVE  - Triggered by Linux
+    SLEEP   - Triggered by F/W
+    WAKE    - Triggered by F/W
+    CONTROL - Triggered by F/W
+  See also:: <dt-bindings/soc/qcom,rpmh-rsc.h>
+
+  The order in which they are described in the DT, should match the hardware
+  configuration.
+
+  Requests can be made for the state of a resource, when the subsystem is
+  active or idle. When all subsystems like Modem, GPU, CPU are idle, the
+  resource state will be an aggregate of the sleep votes from each of those
+  subsystems. Clients may request a sleep value for their shared resources in
+  addition to the active mode requests.
+
+  Drivers that want to use the RSC to communicate with RPMH must specify their
+  bindings as child nodes of the RSC controllers they wish to communicate with.
+
+properties:
+  compatible:
+    const: qcom,rpmh-rsc
+
+  interrupts:
+    minItems: 1
+    maxItems: 4
+    description:
+      The interrupt that trips when a message complete/response is received for
+      this DRV from the accelerators.
+      Number of interrupts must match number of DRV blocks.
+
+  label:
+    description:
+      Name for the RSC. The name would be used in trace logs.
+
+  qcom,drv-id:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      The ID of the DRV in the RSC block that will be used by this controller.
+
+  qcom,tcs-config:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    items:
+      - items:
+          - description: TCS type
+            enum: [ 0, 1, 2, 3 ]
+          - description: Number of TCS
+      - items:
+          - description: TCS type
+            enum: [ 0, 1, 2, 3 ]
+          - description: Number of TCS
+      - items:
+          - description: TCS type
+            enum: [ 0, 1, 2, 3]
+          - description: Numbe r of TCS
+      - items:
+          - description: TCS type
+            enum: [ 0, 1, 2, 3 ]
+          - description: Number of TCS
+    description: |
+      The tuple defining the configuration of TCS. Must have two cells which
+      describe each TCS type.  The order of the TCS must match the hardware
+      configuration.
+      Cell 1 (TCS Type):: TCS types to be specified::
+       - ACTIVE_TCS
+       - SLEEP_TCS
+       - WAKE_TCS
+       - CONTROL_TCS
+      Cell 2 (Number of TCS):: <u32>
+
+  qcom,tcs-offset:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      The offset of the TCS blocks.
+
+  reg:
+    minItems: 1
+    maxItems: 4
+
+  reg-names:
+    minItems: 1
+    items:
+      - const: drv-0
+      - const: drv-1
+      - const: drv-2
+      - const: drv-3
+
+  bcm-voter:
+    $ref: /schemas/interconnect/qcom,bcm-voter.yaml#
+
+  clock-controller:
+    $ref: /schemas/clock/qcom,rpmhcc.yaml#
+
+  power-controller:
+    $ref: /schemas/power/qcom,rpmpd.yaml#
+
+patternProperties:
+  '-regulators$':
+    $ref: /schemas/regulator/qcom,rpmh-regulator.yaml#
+
+required:
+  - compatible
+  - interrupts
+  - qcom,drv-id
+  - qcom,tcs-config
+  - qcom,tcs-offset
+  - reg
+  - reg-names
+
+additionalProperties: false
+
+examples:
+  - |
+    // For a TCS whose RSC base address is 0x179C0000 and is at a DRV id of
+    // 2, the register offsets for DRV2 start at 0D00, the register
+    // calculations are like this::
+    // DRV0: 0x179C0000
+    // DRV2: 0x179C0000 + 0x10000 = 0x179D0000
+    // DRV2: 0x179C0000 + 0x10000 * 2 = 0x179E0000
+    // TCS-OFFSET: 0xD00
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/soc/qcom,rpmh-rsc.h>
+
+    rsc@179c0000 {
+        compatible = "qcom,rpmh-rsc";
+        reg = <0x179c0000 0x10000>,
+              <0x179d0000 0x10000>,
+              <0x179e0000 0x10000>;
+        reg-names = "drv-0", "drv-1", "drv-2";
+        interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
+        label = "apps_rsc";
+        qcom,tcs-offset = <0xd00>;
+        qcom,drv-id = <2>;
+        qcom,tcs-config = <ACTIVE_TCS  2>,
+                          <SLEEP_TCS   3>,
+                          <WAKE_TCS    3>,
+                          <CONTROL_TCS 1>;
+      };
+
+  - |
+    // For a TCS whose RSC base address is 0xAF20000 and is at DRV id of 0, the
+    // register offsets for DRV0 start at 01C00, the register calculations are
+    // like this::
+    // DRV0: 0xAF20000
+    // TCS-OFFSET: 0x1C00
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/soc/qcom,rpmh-rsc.h>
+
+    rsc@af20000 {
+        compatible = "qcom,rpmh-rsc";
+        reg = <0xaf20000 0x10000>;
+        reg-names = "drv-0";
+        interrupts = <GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>;
+        label = "disp_rsc";
+        qcom,tcs-offset = <0x1c00>;
+        qcom,drv-id = <0>;
+        qcom,tcs-config = <ACTIVE_TCS  0>,
+                          <SLEEP_TCS   1>,
+                          <WAKE_TCS    1>,
+                          <CONTROL_TCS 0>;
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/soc/qcom,rpmh-rsc.h>
+    #include <dt-bindings/power/qcom-rpmpd.h>
+
+    rsc@18200000 {
+        compatible = "qcom,rpmh-rsc";
+        reg = <0x18200000 0x10000>,
+              <0x18210000 0x10000>,
+              <0x18220000 0x10000>;
+        reg-names = "drv-0", "drv-1", "drv-2";
+        interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
+        label = "apps_rsc";
+        qcom,tcs-offset = <0xd00>;
+        qcom,drv-id = <2>;
+        qcom,tcs-config = <ACTIVE_TCS  2>,
+                          <SLEEP_TCS   3>,
+                          <WAKE_TCS    3>,
+                          <CONTROL_TCS 0>;
+
+        clock-controller {
+            compatible = "qcom,sm8350-rpmh-clk";
+            #clock-cells = <1>;
+            clock-names = "xo";
+            clocks = <&xo_board>;
+        };
+
+        power-controller {
+            compatible = "qcom,sm8350-rpmhpd";
+            #power-domain-cells = <1>;
+            operating-points-v2 = <&rpmhpd_opp_table>;
+
+            rpmhpd_opp_table: opp-table {
+                compatible = "operating-points-v2";
+
+                rpmhpd_opp_ret: opp1 {
+                    opp-level = <RPMH_REGULATOR_LEVEL_RETENTION>;
+                };
+
+                rpmhpd_opp_min_svs: opp2 {
+                    opp-level = <RPMH_REGULATOR_LEVEL_MIN_SVS>;
+                };
+
+                rpmhpd_opp_low_svs: opp3 {
+                    opp-level = <RPMH_REGULATOR_LEVEL_LOW_SVS>;
+                };
+
+                rpmhpd_opp_svs: opp4 {
+                    opp-level = <RPMH_REGULATOR_LEVEL_SVS>;
+                };
+
+                rpmhpd_opp_svs_l1: opp5 {
+                    opp-level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
+                };
+
+                rpmhpd_opp_nom: opp6 {
+                    opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
+                };
+
+                rpmhpd_opp_nom_l1: opp7 {
+                    opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
+                };
+
+                rpmhpd_opp_nom_l2: opp8 {
+                    opp-level = <RPMH_REGULATOR_LEVEL_NOM_L2>;
+                };
+
+                rpmhpd_opp_turbo: opp9 {
+                    opp-level = <RPMH_REGULATOR_LEVEL_TURBO>;
+                };
+
+                rpmhpd_opp_turbo_l1: opp10 {
+                    opp-level = <RPMH_REGULATOR_LEVEL_TURBO_L1>;
+                };
+            };
+        };
+
+        bcm-voter {
+            compatible = "qcom,bcm-voter";
+        };
+    };

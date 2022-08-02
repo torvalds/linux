@@ -5,9 +5,9 @@
 
 #include <linux/bitfield.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
-#include <linux/delay.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx7-iomuxc-gpr.h>
 #include <linux/module.h>
@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+
 #include <dt-bindings/phy/phy-imx8-pcie.h>
 
 #define IMX8MM_PCIE_PHY_CMN_REG061	0x184
@@ -93,15 +94,21 @@ static int imx8_pcie_phy_init(struct phy *phy)
 			   IMX8MM_GPR_PCIE_CMN_RST);
 	usleep_range(200, 500);
 
-	if (pad_mode == IMX8_PCIE_REFCLK_PAD_INPUT) {
+	if (pad_mode == IMX8_PCIE_REFCLK_PAD_INPUT ||
+	    pad_mode == IMX8_PCIE_REFCLK_PAD_UNUSED) {
 		/* Configure the pad as input */
 		val = readl(imx8_phy->base + IMX8MM_PCIE_PHY_CMN_REG061);
 		writel(val & ~ANA_PLL_CLK_OUT_TO_EXT_IO_EN,
 		       imx8_phy->base + IMX8MM_PCIE_PHY_CMN_REG061);
-	} else if (pad_mode == IMX8_PCIE_REFCLK_PAD_OUTPUT) {
+	} else {
 		/* Configure the PHY to output the refclock via pad */
 		writel(ANA_PLL_CLK_OUT_TO_EXT_IO_EN,
 		       imx8_phy->base + IMX8MM_PCIE_PHY_CMN_REG061);
+	}
+
+	if (pad_mode == IMX8_PCIE_REFCLK_PAD_OUTPUT ||
+	    pad_mode == IMX8_PCIE_REFCLK_PAD_UNUSED) {
+		/* Source clock from SoC internal PLL */
 		writel(ANA_PLL_CLK_OUT_TO_EXT_IO_SEL,
 		       imx8_phy->base + IMX8MM_PCIE_PHY_CMN_REG062);
 		writel(AUX_PLL_REFCLK_SEL_SYS_PLL,

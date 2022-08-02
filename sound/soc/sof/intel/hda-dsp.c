@@ -363,9 +363,8 @@ static int hda_dsp_send_pm_gate_ipc(struct snd_sof_dev *sdev, u32 flags)
 	pm_gate.flags = flags;
 
 	/* send pm_gate ipc to dsp */
-	return sof_ipc_tx_message_no_pm(sdev->ipc, pm_gate.hdr.cmd,
-					&pm_gate, sizeof(pm_gate), &reply,
-					sizeof(reply));
+	return sof_ipc_tx_message_no_pm(sdev->ipc, &pm_gate, sizeof(pm_gate),
+					&reply, sizeof(reply));
 }
 
 static int hda_dsp_update_d0i3c_register(struct snd_sof_dev *sdev, u8 value)
@@ -433,7 +432,7 @@ static int hda_dsp_set_D0_state(struct snd_sof_dev *sdev,
 		 * when the DSP enters D0I3 while the system is in S0
 		 * for debug purpose.
 		 */
-		if (!sdev->dtrace_is_supported ||
+		if (!sdev->fw_trace_is_supported ||
 		    !hda_enable_trace_D0I3_S0 ||
 		    sdev->system_suspend_target != SOF_SUSPEND_NONE)
 			flags = HDA_PM_NO_DMA_TRACE;
@@ -498,14 +497,8 @@ static void hda_dsp_state_log(struct snd_sof_dev *sdev)
 	case SOF_DSP_PM_D2:
 		dev_dbg(sdev->dev, "Current DSP power state: D2\n");
 		break;
-	case SOF_DSP_PM_D3_HOT:
-		dev_dbg(sdev->dev, "Current DSP power state: D3_HOT\n");
-		break;
 	case SOF_DSP_PM_D3:
 		dev_dbg(sdev->dev, "Current DSP power state: D3\n");
-		break;
-	case SOF_DSP_PM_D3_COLD:
-		dev_dbg(sdev->dev, "Current DSP power state: D3_COLD\n");
 		break;
 	default:
 		dev_dbg(sdev->dev, "Unknown DSP power state: %d\n",
@@ -901,44 +894,14 @@ int hda_dsp_shutdown(struct snd_sof_dev *sdev)
 
 int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 {
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	struct hdac_bus *bus = sof_to_bus(sdev);
-	struct snd_soc_pcm_runtime *rtd;
-	struct hdac_ext_stream *stream;
-	struct hdac_ext_link *link;
-	struct hdac_stream *s;
-	const char *name;
-	int stream_tag;
+	int ret;
 
-	/* set internal flag for BE */
-	list_for_each_entry(s, &bus->stream_list, list) {
-		stream = stream_to_hdac_ext_stream(s);
+	/* make sure all DAI resources are freed */
+	ret = hda_dsp_dais_suspend(sdev);
+	if (ret < 0)
+		dev_warn(sdev->dev, "%s: failure in hda_dsp_dais_suspend\n", __func__);
 
-		/*
-		 * clear stream. This should already be taken care for running
-		 * streams when the SUSPEND trigger is called. But paused
-		 * streams do not get suspended, so this needs to be done
-		 * explicitly during suspend.
-		 */
-		if (stream->link_substream) {
-			rtd = asoc_substream_to_rtd(stream->link_substream);
-			name = asoc_rtd_to_codec(rtd, 0)->component->name;
-			link = snd_hdac_ext_bus_get_link(bus, name);
-			if (!link)
-				return -EINVAL;
-
-			stream->link_prepared = 0;
-
-			if (hdac_stream(stream)->direction ==
-				SNDRV_PCM_STREAM_CAPTURE)
-				continue;
-
-			stream_tag = hdac_stream(stream)->stream_tag;
-			snd_hdac_ext_link_clear_stream_id(link, stream_tag);
-		}
-	}
-#endif
-	return 0;
+	return ret;
 }
 
 void hda_dsp_d0i3_work(struct work_struct *work)
@@ -991,8 +954,7 @@ int hda_dsp_core_get(struct snd_sof_dev *sdev, int core)
 		return 0;
 
 	/* Now notify DSP for secondary cores */
-	ret = sof_ipc_tx_message(sdev->ipc, pm_core_config.hdr.cmd,
-				 &pm_core_config, sizeof(pm_core_config),
+	ret = sof_ipc_tx_message(sdev->ipc, &pm_core_config, sizeof(pm_core_config),
 				 &pm_core_config, sizeof(pm_core_config));
 	if (ret < 0) {
 		dev_err(sdev->dev, "failed to enable secondary core '%d' failed with %d\n",

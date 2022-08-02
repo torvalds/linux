@@ -406,7 +406,7 @@ static struct sti_gdp_node_list *sti_gdp_get_free_nodes(struct sti_gdp *gdp)
 		    (hw_nvn != gdp->node_list[i].top_field_paddr))
 			return &gdp->node_list[i];
 
-	/* in hazardious cases restart with the first node */
+	/* in hazardous cases restart with the first node */
 	DRM_ERROR("inconsistent NVN for %s: 0x%08X\n",
 			sti_plane_to_str(&gdp->plane), hw_nvn);
 
@@ -905,7 +905,7 @@ static const struct drm_plane_funcs sti_gdp_plane_helpers_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = drm_plane_cleanup,
-	.reset = sti_plane_reset,
+	.reset = drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 	.late_register = sti_gdp_late_register,

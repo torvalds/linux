@@ -124,6 +124,7 @@ static struct scsi_host_template fnic_host_template = {
 	.max_sectors = 0xffff,
 	.shost_groups = fnic_host_groups,
 	.track_queue_depth = 1,
+	.cmd_size = sizeof(struct fnic_cmd_priv),
 };
 
 static void
@@ -611,10 +612,10 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_master(pdev);
 
 	/* Query PCI controller on system for DMA addressing
-	 * limitation for the device.  Try 64-bit first, and
-	 * fail to 32-bit.
+	 * limitation for the device.  Try 47-bit first, and
+	 * fail to 32-bit. Cisco VIC supports 47 bits only.
 	 */
-	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(47));
 	if (err) {
 		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
@@ -1145,10 +1146,8 @@ static void __exit fnic_cleanup_module(void)
 {
 	pci_unregister_driver(&fnic_driver);
 	destroy_workqueue(fnic_event_queue);
-	if (fnic_fip_queue) {
-		flush_workqueue(fnic_fip_queue);
+	if (fnic_fip_queue)
 		destroy_workqueue(fnic_fip_queue);
-	}
 	kmem_cache_destroy(fnic_sgl_cache[FNIC_SGL_CACHE_MAX]);
 	kmem_cache_destroy(fnic_sgl_cache[FNIC_SGL_CACHE_DFLT]);
 	kmem_cache_destroy(fnic_io_req_cache);

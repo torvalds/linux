@@ -213,6 +213,7 @@
 #define  GSWIP_MAC_CTRL_0_GMII_MII	0x0001
 #define  GSWIP_MAC_CTRL_0_GMII_RGMII	0x0002
 #define GSWIP_MAC_CTRL_2p(p)		(0x905 + ((p) * 0xC))
+#define GSWIP_MAC_CTRL_2_LCHKL		BIT(2) /* Frame Length Check Long Enable */
 #define GSWIP_MAC_CTRL_2_MLEN		BIT(3) /* Maximum Untagged Frame Lnegth */
 
 /* Ethernet Switch Fetch DMA Port Control Register */
@@ -238,6 +239,15 @@
 #define  GSWIP_TABLE_MAC_BRIDGE_STATIC	0x01	/* Static not, aging entry */
 
 #define XRX200_GPHY_FW_ALIGN	(16 * 1024)
+
+/* Maximum packet size supported by the switch. In theory this should be 10240,
+ * but long packets currently cause lock-ups with an MTU of over 2526. Medium
+ * packets are sometimes dropped (e.g. TCP over 2477, UDP over 2516-2519, ICMP
+ * over 2526), hence an MTU value of 2400 seems safe. This issue only affects
+ * packet reception. This is probably caused by the PPA engine, which is on the
+ * RX part of the device. Packet transmission works properly up to 10240.
+ */
+#define GSWIP_MAX_PACKET_LENGTH	2400
 
 struct gswip_hw_info {
 	int max_ports;
@@ -863,10 +873,6 @@ static int gswip_setup(struct dsa_switch *ds)
 	gswip_switch_mask(priv, 0, GSWIP_PCE_PCTRL_0_INGRESS,
 			  GSWIP_PCE_PCTRL_0p(cpu_port));
 
-	gswip_switch_mask(priv, 0, GSWIP_MAC_CTRL_2_MLEN,
-			  GSWIP_MAC_CTRL_2p(cpu_port));
-	gswip_switch_w(priv, VLAN_ETH_FRAME_LEN + 8 + ETH_FCS_LEN,
-		       GSWIP_MAC_FLEN);
 	gswip_switch_mask(priv, 0, GSWIP_BM_QUEUE_GCTRL_GL_MOD,
 			  GSWIP_BM_QUEUE_GCTRL);
 
@@ -882,6 +888,8 @@ static int gswip_setup(struct dsa_switch *ds)
 		dev_err(priv->dev, "MAC flushing didn't finish\n");
 		return err;
 	}
+
+	ds->mtu_enforcement_ingress = true;
 
 	gswip_port_enable(ds, cpu_port, NULL);
 
@@ -1152,7 +1160,8 @@ static int gswip_vlan_remove(struct gswip_priv *priv,
 
 static int gswip_port_bridge_join(struct dsa_switch *ds, int port,
 				  struct dsa_bridge bridge,
-				  bool *tx_fwd_offload)
+				  bool *tx_fwd_offload,
+				  struct netlink_ext_ack *extack)
 {
 	struct net_device *br = bridge.dev;
 	struct gswip_priv *priv = ds->priv;
@@ -1351,7 +1360,7 @@ static int gswip_port_fdb(struct dsa_switch *ds, int port,
 	struct net_device *bridge = dsa_port_bridge_dev_get(dsa_to_port(ds, port));
 	struct gswip_priv *priv = ds->priv;
 	struct gswip_pce_table_entry mac_bridge = {0,};
-	unsigned int cpu_port = priv->hw_info->cpu_port;
+	unsigned int max_ports = priv->hw_info->max_ports;
 	int fid = -1;
 	int i;
 	int err;
@@ -1359,7 +1368,7 @@ static int gswip_port_fdb(struct dsa_switch *ds, int port,
 	if (!bridge)
 		return -EINVAL;
 
-	for (i = cpu_port; i < ARRAY_SIZE(priv->vlans); i++) {
+	for (i = max_ports; i < ARRAY_SIZE(priv->vlans); i++) {
 		if (priv->vlans[i].bridge == bridge) {
 			fid = priv->vlans[i].fid;
 			break;
@@ -1389,13 +1398,15 @@ static int gswip_port_fdb(struct dsa_switch *ds, int port,
 }
 
 static int gswip_port_fdb_add(struct dsa_switch *ds, int port,
-			      const unsigned char *addr, u16 vid)
+			      const unsigned char *addr, u16 vid,
+			      struct dsa_db db)
 {
 	return gswip_port_fdb(ds, port, addr, vid, true);
 }
 
 static int gswip_port_fdb_del(struct dsa_switch *ds, int port,
-			      const unsigned char *addr, u16 vid)
+			      const unsigned char *addr, u16 vid,
+			      struct dsa_db db)
 {
 	return gswip_port_fdb(ds, port, addr, vid, false);
 }
@@ -1415,8 +1426,9 @@ static int gswip_port_fdb_dump(struct dsa_switch *ds, int port,
 
 		err = gswip_pce_table_entry_read(priv, &mac_bridge);
 		if (err) {
-			dev_err(priv->dev, "failed to write mac bridge: %d\n",
-				err);
+			dev_err(priv->dev,
+				"failed to read mac bridge entry %d: %d\n",
+				i, err);
 			return err;
 		}
 
@@ -1443,6 +1455,39 @@ static int gswip_port_fdb_dump(struct dsa_switch *ds, int port,
 			}
 		}
 	}
+	return 0;
+}
+
+static int gswip_port_max_mtu(struct dsa_switch *ds, int port)
+{
+	/* Includes 8 bytes for special header. */
+	return GSWIP_MAX_PACKET_LENGTH - VLAN_ETH_HLEN - ETH_FCS_LEN;
+}
+
+static int gswip_port_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
+{
+	struct gswip_priv *priv = ds->priv;
+	int cpu_port = priv->hw_info->cpu_port;
+
+	/* CPU port always has maximum mtu of user ports, so use it to set
+	 * switch frame size, including 8 byte special header.
+	 */
+	if (port == cpu_port) {
+		new_mtu += 8;
+		gswip_switch_w(priv, VLAN_ETH_HLEN + new_mtu + ETH_FCS_LEN,
+			       GSWIP_MAC_FLEN);
+	}
+
+	/* Enable MLEN for ports with non-standard MTUs, including the special
+	 * header on the CPU port added above.
+	 */
+	if (new_mtu != ETH_DATA_LEN)
+		gswip_switch_mask(priv, 0, GSWIP_MAC_CTRL_2_MLEN,
+				  GSWIP_MAC_CTRL_2p(port));
+	else
+		gswip_switch_mask(priv, GSWIP_MAC_CTRL_2_MLEN, 0,
+				  GSWIP_MAC_CTRL_2p(port));
+
 	return 0;
 }
 
@@ -1637,9 +1682,6 @@ static void gswip_phylink_mac_config(struct dsa_switch *ds, int port,
 		break;
 	case PHY_INTERFACE_MODE_RMII:
 		miicfg |= GSWIP_MII_CFG_MODE_RMIIM;
-
-		/* Configure the RMII clock as output: */
-		miicfg |= GSWIP_MII_CFG_RMII_CLK;
 		break;
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
@@ -1791,6 +1833,8 @@ static const struct dsa_switch_ops gswip_xrx200_switch_ops = {
 	.port_fdb_add		= gswip_port_fdb_add,
 	.port_fdb_del		= gswip_port_fdb_del,
 	.port_fdb_dump		= gswip_port_fdb_dump,
+	.port_change_mtu	= gswip_port_change_mtu,
+	.port_max_mtu		= gswip_port_max_mtu,
 	.phylink_get_caps	= gswip_xrx200_phylink_get_caps,
 	.phylink_mac_config	= gswip_phylink_mac_config,
 	.phylink_mac_link_down	= gswip_phylink_mac_link_down,
@@ -1815,6 +1859,8 @@ static const struct dsa_switch_ops gswip_xrx300_switch_ops = {
 	.port_fdb_add		= gswip_port_fdb_add,
 	.port_fdb_del		= gswip_port_fdb_del,
 	.port_fdb_dump		= gswip_port_fdb_dump,
+	.port_change_mtu	= gswip_port_change_mtu,
+	.port_max_mtu		= gswip_port_max_mtu,
 	.phylink_get_caps	= gswip_xrx300_phylink_get_caps,
 	.phylink_mac_config	= gswip_phylink_mac_config,
 	.phylink_mac_link_down	= gswip_phylink_mac_link_down,
@@ -2024,8 +2070,10 @@ static int gswip_gphy_fw_list(struct gswip_priv *priv,
 	for_each_available_child_of_node(gphy_fw_list_np, gphy_fw_np) {
 		err = gswip_gphy_fw_probe(priv, &priv->gphy_fw[i],
 					  gphy_fw_np, i);
-		if (err)
+		if (err) {
+			of_node_put(gphy_fw_np);
 			goto remove_gphy;
+		}
 		i++;
 	}
 

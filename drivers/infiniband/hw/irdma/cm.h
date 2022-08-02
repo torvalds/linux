@@ -384,6 +384,13 @@ int irdma_schedule_cm_timer(struct irdma_cm_node *cm_node,
 			    struct irdma_puda_buf *sqbuf,
 			    enum irdma_timer_type type, int send_retrans,
 			    int close_when_complete);
+
+static inline u8 irdma_tos2dscp(u8 tos)
+{
+#define IRDMA_DSCP_VAL GENMASK(7, 2)
+	return (u8)FIELD_GET(IRDMA_DSCP_VAL, tos);
+}
+
 int irdma_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
 int irdma_reject(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len);
 int irdma_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);

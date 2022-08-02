@@ -678,7 +678,7 @@ config MAX63XX_WATCHDOG
 
 config MAX77620_WATCHDOG
 	tristate "Maxim Max77620 Watchdog Timer"
-	depends on MFD_MAX77620 || COMPILE_TEST
+	depends on MFD_MAX77620 || MFD_MAX77714 || COMPILE_TEST
 	select WATCHDOG_CORE
 	help
 	  This is the driver for the Max77620 watchdog timer.
@@ -883,6 +883,14 @@ config RENESAS_RZAWDT
 	  This driver adds watchdog support for the integrated watchdogs in the
 	  Renesas RZ/A SoCs. These watchdogs can be used to reset a system.
 
+config RENESAS_RZN1WDT
+	tristate "Renesas RZ/N1 watchdog"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  This driver adds watchdog support for the integrated watchdogs in the
+	  Renesas RZ/N1 SoCs. These watchdogs can be used to reset a system.
+
 config RENESAS_RZG2LWDT
 	tristate "Renesas RZ/G2L WDT Watchdog"
 	depends on ARCH_RENESAS || COMPILE_TEST
@@ -1010,6 +1018,17 @@ config APPLE_WATCHDOG
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called apple_wdt.
+
+config SUNPLUS_WATCHDOG
+	tristate "Sunplus watchdog support"
+	depends on ARCH_SUNPLUS || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support for the watchdog timer
+	  in Sunplus SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sunplus_wdt.
 
 # X86 (i386 + ia64 + x86_64) Architecture
 
@@ -1718,7 +1737,7 @@ config AR7_WDT
 
 config TXX9_WDT
 	tristate "Toshiba TXx9 Watchdog Timer"
-	depends on CPU_TX39XX || CPU_TX49XX || (MIPS && COMPILE_TEST)
+	depends on CPU_TX49XX || (MIPS && COMPILE_TEST)
 	select WATCHDOG_CORE
 	help
 	  Hardware driver for the built-in watchdog timer on TXx9 MIPS SoCs.
@@ -1779,7 +1798,7 @@ config BCM7038_WDT
 	tristate "BCM63xx/BCM7038 Watchdog"
 	select WATCHDOG_CORE
 	depends on HAS_IOMEM
-	depends on ARCH_BRCMSTB || BMIPS_GENERIC || BCM63XX || COMPILE_TEST
+	depends on ARCH_BCM4908 || ARCH_BRCMSTB || BMIPS_GENERIC || BCM63XX || COMPILE_TEST
 	help
 	  Watchdog driver for the built-in hardware in Broadcom 7038 and
 	  later SoCs used in set-top boxes.  BCM7038 was made public
@@ -1819,6 +1838,17 @@ config RALINK_WDT
 	depends on RALINK
 	help
 	  Hardware driver for the Ralink SoC Watchdog Timer.
+
+config GXP_WATCHDOG
+	tristate "HPE GXP watchdog support"
+	depends on ARCH_HPE_GXP
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support for the watchdog timer
+	  in HPE GXP SoCs.
+
+	  To compile this driver as a module, choose M here.
+	  The module will be called gxp-wdt.
 
 config MT7621_WDT
 	tristate "Mediatek SoC watchdog"

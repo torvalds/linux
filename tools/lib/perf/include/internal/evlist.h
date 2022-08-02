@@ -19,7 +19,12 @@ struct perf_evlist {
 	int			 nr_entries;
 	int			 nr_groups;
 	bool			 has_user_cpus;
-	struct perf_cpu_map	*cpus;
+	/**
+	 * The cpus passed from the command line or all online CPUs by
+	 * default.
+	 */
+	struct perf_cpu_map	*user_requested_cpus;
+	/** The union of all evsel cpu maps. */
 	struct perf_cpu_map	*all_cpus;
 	struct perf_thread_map	*threads;
 	int			 nr_mmaps;
@@ -33,7 +38,8 @@ struct perf_evlist {
 };
 
 typedef void
-(*perf_evlist_mmap__cb_idx_t)(struct perf_evlist*, struct perf_mmap_param*, int, bool);
+(*perf_evlist_mmap__cb_idx_t)(struct perf_evlist*, struct perf_evsel*,
+			      struct perf_mmap_param*, int);
 typedef struct perf_mmap*
 (*perf_evlist_mmap__cb_get_t)(struct perf_evlist*, bool, int);
 typedef int

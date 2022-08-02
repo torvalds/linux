@@ -481,7 +481,7 @@ static bool hci_setup_sync_conn(struct hci_conn *conn, __u16 handle)
 
 bool hci_setup_sync(struct hci_conn *conn, __u16 handle)
 {
-	if (enhanced_sco_capable(conn->hdev))
+	if (enhanced_sync_conn_capable(conn->hdev))
 		return hci_enhanced_setup_sync_conn(conn, handle);
 
 	return hci_setup_sync_conn(conn, handle);
@@ -669,7 +669,9 @@ static void le_conn_timeout(struct work_struct *work)
 	if (conn->role == HCI_ROLE_SLAVE) {
 		/* Disable LE Advertising */
 		le_disable_advertising(hdev);
-		hci_le_conn_failed(conn, HCI_ERROR_ADVERTISING_TIMEOUT);
+		hci_dev_lock(hdev);
+		hci_conn_failed(conn, HCI_ERROR_ADVERTISING_TIMEOUT);
+		hci_dev_unlock(hdev);
 		return;
 	}
 
@@ -689,6 +691,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst,
 
 	bacpy(&conn->dst, dst);
 	bacpy(&conn->src, &hdev->bdaddr);
+	conn->handle = HCI_CONN_HANDLE_UNSET;
 	conn->hdev  = hdev;
 	conn->type  = type;
 	conn->role  = role;
@@ -870,7 +873,7 @@ struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src, uint8_t src_type)
 EXPORT_SYMBOL(hci_get_route);
 
 /* This function requires the caller holds hdev->lock */
-void hci_le_conn_failed(struct hci_conn *conn, u8 status)
+static void hci_le_conn_failed(struct hci_conn *conn, u8 status)
 {
 	struct hci_dev *hdev = conn->hdev;
 	struct hci_conn_params *params;
@@ -883,8 +886,6 @@ void hci_le_conn_failed(struct hci_conn *conn, u8 status)
 		params->conn = NULL;
 	}
 
-	conn->state = BT_CLOSED;
-
 	/* If the status indicates successful cancellation of
 	 * the attempt (i.e. Unknown Connection Id) there's no point of
 	 * notifying failure since we'll go back to keep trying to
@@ -896,10 +897,6 @@ void hci_le_conn_failed(struct hci_conn *conn, u8 status)
 		mgmt_connect_failed(hdev, &conn->dst, conn->type,
 				    conn->dst_type, status);
 
-	hci_connect_cfm(conn, status);
-
-	hci_conn_del(conn);
-
 	/* Since we may have temporarily stopped the background scanning in
 	 * favor of connection establishment, we should restart it.
 	 */
@@ -909,6 +906,28 @@ void hci_le_conn_failed(struct hci_conn *conn, u8 status)
 	 * attempt as a peripheral.
 	 */
 	hci_enable_advertising(hdev);
+}
+
+/* This function requires the caller holds hdev->lock */
+void hci_conn_failed(struct hci_conn *conn, u8 status)
+{
+	struct hci_dev *hdev = conn->hdev;
+
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
+
+	switch (conn->type) {
+	case LE_LINK:
+		hci_le_conn_failed(conn, status);
+		break;
+	case ACL_LINK:
+		mgmt_connect_failed(hdev, &conn->dst, conn->type,
+				    conn->dst_type, status);
+		break;
+	}
+
+	conn->state = BT_CLOSED;
+	hci_connect_cfm(conn, status);
+	hci_conn_del(conn);
 }
 
 static void create_le_conn_complete(struct hci_dev *hdev, void *data, int err)
@@ -924,10 +943,11 @@ static void create_le_conn_complete(struct hci_dev *hdev, void *data, int err)
 
 	bt_dev_err(hdev, "request failed to create LE connection: err %d", err);
 
-	if (!conn)
+	/* Check if connection is still pending */
+	if (conn != hci_lookup_le_connect(hdev))
 		goto done;
 
-	hci_le_conn_failed(conn, err);
+	hci_conn_failed(conn, err);
 
 done:
 	hci_dev_unlock(hdev);

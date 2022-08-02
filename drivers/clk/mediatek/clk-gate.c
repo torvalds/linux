@@ -4,17 +4,29 @@
  * Author: James Liao <jamesjj.liao@mediatek.com>
  */
 
-#include <linux/of.h>
-#include <linux/of_address.h>
-
-#include <linux/io.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/clkdev.h>
+#include <linux/clk-provider.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
+#include <linux/printk.h>
+#include <linux/regmap.h>
+#include <linux/slab.h>
+#include <linux/types.h>
 
-#include "clk-mtk.h"
 #include "clk-gate.h"
+
+struct mtk_clk_gate {
+	struct clk_hw	hw;
+	struct regmap	*regmap;
+	int		set_ofs;
+	int		clr_ofs;
+	int		sta_ofs;
+	u8		bit;
+};
+
+static inline struct mtk_clk_gate *to_mtk_clk_gate(struct clk_hw *hw)
+{
+	return container_of(hw, struct mtk_clk_gate, hw);
+}
 
 static u32 mtk_get_clockgating(struct clk_hw *hw)
 {
@@ -140,20 +152,15 @@ const struct clk_ops mtk_clk_gate_ops_no_setclr_inv = {
 };
 EXPORT_SYMBOL_GPL(mtk_clk_gate_ops_no_setclr_inv);
 
-struct clk *mtk_clk_register_gate(
-		const char *name,
-		const char *parent_name,
-		struct regmap *regmap,
-		int set_ofs,
-		int clr_ofs,
-		int sta_ofs,
-		u8 bit,
-		const struct clk_ops *ops,
-		unsigned long flags,
-		struct device *dev)
+static struct clk_hw *mtk_clk_register_gate(const char *name,
+					 const char *parent_name,
+					 struct regmap *regmap, int set_ofs,
+					 int clr_ofs, int sta_ofs, u8 bit,
+					 const struct clk_ops *ops,
+					 unsigned long flags, struct device *dev)
 {
 	struct mtk_clk_gate *cg;
-	struct clk *clk;
+	int ret;
 	struct clk_init_data init = {};
 
 	cg = kzalloc(sizeof(*cg), GFP_KERNEL);
@@ -174,12 +181,113 @@ struct clk *mtk_clk_register_gate(
 
 	cg->hw.init = &init;
 
-	clk = clk_register(dev, &cg->hw);
-	if (IS_ERR(clk))
+	ret = clk_hw_register(dev, &cg->hw);
+	if (ret) {
 		kfree(cg);
+		return ERR_PTR(ret);
+	}
 
-	return clk;
+	return &cg->hw;
 }
-EXPORT_SYMBOL_GPL(mtk_clk_register_gate);
+
+static void mtk_clk_unregister_gate(struct clk_hw *hw)
+{
+	struct mtk_clk_gate *cg;
+	if (!hw)
+		return;
+
+	cg = to_mtk_clk_gate(hw);
+
+	clk_hw_unregister(hw);
+	kfree(cg);
+}
+
+int mtk_clk_register_gates_with_dev(struct device_node *node,
+				    const struct mtk_gate *clks, int num,
+				    struct clk_hw_onecell_data *clk_data,
+				    struct device *dev)
+{
+	int i;
+	struct clk_hw *hw;
+	struct regmap *regmap;
+
+	if (!clk_data)
+		return -ENOMEM;
+
+	regmap = device_node_to_regmap(node);
+	if (IS_ERR(regmap)) {
+		pr_err("Cannot find regmap for %pOF: %pe\n", node, regmap);
+		return PTR_ERR(regmap);
+	}
+
+	for (i = 0; i < num; i++) {
+		const struct mtk_gate *gate = &clks[i];
+
+		if (!IS_ERR_OR_NULL(clk_data->hws[gate->id])) {
+			pr_warn("%pOF: Trying to register duplicate clock ID: %d\n",
+				node, gate->id);
+			continue;
+		}
+
+		hw = mtk_clk_register_gate(gate->name, gate->parent_name,
+					    regmap,
+					    gate->regs->set_ofs,
+					    gate->regs->clr_ofs,
+					    gate->regs->sta_ofs,
+					    gate->shift, gate->ops,
+					    gate->flags, dev);
+
+		if (IS_ERR(hw)) {
+			pr_err("Failed to register clk %s: %pe\n", gate->name,
+			       hw);
+			goto err;
+		}
+
+		clk_data->hws[gate->id] = hw;
+	}
+
+	return 0;
+
+err:
+	while (--i >= 0) {
+		const struct mtk_gate *gate = &clks[i];
+
+		if (IS_ERR_OR_NULL(clk_data->hws[gate->id]))
+			continue;
+
+		mtk_clk_unregister_gate(clk_data->hws[gate->id]);
+		clk_data->hws[gate->id] = ERR_PTR(-ENOENT);
+	}
+
+	return PTR_ERR(hw);
+}
+
+int mtk_clk_register_gates(struct device_node *node,
+			   const struct mtk_gate *clks, int num,
+			   struct clk_hw_onecell_data *clk_data)
+{
+	return mtk_clk_register_gates_with_dev(node, clks, num, clk_data, NULL);
+}
+EXPORT_SYMBOL_GPL(mtk_clk_register_gates);
+
+void mtk_clk_unregister_gates(const struct mtk_gate *clks, int num,
+			      struct clk_hw_onecell_data *clk_data)
+{
+	int i;
+
+	if (!clk_data)
+		return;
+
+	for (i = num; i > 0; i--) {
+		const struct mtk_gate *gate = &clks[i - 1];
+
+		if (IS_ERR_OR_NULL(clk_data->hws[gate->id]))
+			continue;
+
+		mtk_clk_unregister_gate(clk_data->hws[gate->id]);
+		clk_data->hws[gate->id] = ERR_PTR(-ENOENT);
+	}
+}
+EXPORT_SYMBOL_GPL(mtk_clk_unregister_gates);
 
 MODULE_LICENSE("GPL");

@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
@@ -32,8 +33,9 @@
 #define PCIE_DEV_REV_OFF	0x0008
 #define PCIE_BAR_LO_OFF(n)	(0x0010 + ((n) << 3))
 #define PCIE_BAR_HI_OFF(n)	(0x0014 + ((n) << 3))
+#define PCIE_SSDEV_ID_OFF	0x002c
 #define PCIE_CAP_PCIEXP		0x0060
-#define PCIE_HEADER_LOG_4_OFF	0x0128
+#define PCIE_CAP_PCIERR_OFF	0x0100
 #define PCIE_BAR_CTRL_OFF(n)	(0x1804 + (((n) - 1) * 4))
 #define PCIE_WIN04_CTRL_OFF(n)	(0x1820 + ((n) << 4))
 #define PCIE_WIN04_BASE_OFF(n)	(0x1824 + ((n) << 4))
@@ -53,9 +55,10 @@
 	 PCIE_CONF_ADDR_EN)
 #define PCIE_CONF_DATA_OFF	0x18fc
 #define PCIE_INT_CAUSE_OFF	0x1900
+#define PCIE_INT_UNMASK_OFF	0x1910
+#define  PCIE_INT_INTX(i)		BIT(24+i)
 #define  PCIE_INT_PM_PME		BIT(28)
-#define PCIE_MASK_OFF		0x1910
-#define  PCIE_MASK_ENABLE_INTS          0x0f000000
+#define  PCIE_INT_ALL_MASK		GENMASK(31, 0)
 #define PCIE_CTRL_OFF		0x1a00
 #define  PCIE_CTRL_X1_MODE		0x0001
 #define  PCIE_CTRL_RC_MODE		BIT(1)
@@ -64,6 +67,12 @@
 #define  PCIE_STAT_BUS                  0xff00
 #define  PCIE_STAT_DEV                  0x1f0000
 #define  PCIE_STAT_LINK_DOWN		BIT(0)
+#define PCIE_SSPL_OFF		0x1a0c
+#define  PCIE_SSPL_VALUE_SHIFT		0
+#define  PCIE_SSPL_VALUE_MASK		GENMASK(7, 0)
+#define  PCIE_SSPL_SCALE_SHIFT		8
+#define  PCIE_SSPL_SCALE_MASK		GENMASK(9, 8)
+#define  PCIE_SSPL_ENABLE		BIT(16)
 #define PCIE_RC_RTSTA		0x1a14
 #define PCIE_DEBUG_CTRL         0x1a60
 #define  PCIE_DEBUG_SOFT_RESET		BIT(20)
@@ -93,6 +102,7 @@ struct mvebu_pcie_port {
 	void __iomem *base;
 	u32 port;
 	u32 lane;
+	bool is_x4;
 	int devfn;
 	unsigned int mem_target;
 	unsigned int mem_attr;
@@ -108,6 +118,11 @@ struct mvebu_pcie_port {
 	struct mvebu_pcie_window iowin;
 	u32 saved_pcie_stat;
 	struct resource regs;
+	u8 slot_power_limit_value;
+	u8 slot_power_limit_scale;
+	struct irq_domain *intx_irq_domain;
+	raw_spinlock_t irq_lock;
+	int intx_irq;
 };
 
 static inline void mvebu_writel(struct mvebu_pcie_port *port, u32 val, u32 reg)
@@ -233,12 +248,24 @@ static void mvebu_pcie_setup_wins(struct mvebu_pcie_port *port)
 
 static void mvebu_pcie_setup_hw(struct mvebu_pcie_port *port)
 {
-	u32 ctrl, cmd, dev_rev, mask;
+	u32 ctrl, lnkcap, cmd, dev_rev, unmask, sspl;
 
 	/* Setup PCIe controller to Root Complex mode. */
 	ctrl = mvebu_readl(port, PCIE_CTRL_OFF);
 	ctrl |= PCIE_CTRL_RC_MODE;
 	mvebu_writel(port, ctrl, PCIE_CTRL_OFF);
+
+	/*
+	 * Set Maximum Link Width to X1 or X4 in Root Port's PCIe Link
+	 * Capability register. This register is defined by PCIe specification
+	 * as read-only but this mvebu controller has it as read-write and must
+	 * be set to number of SerDes PCIe lanes (1 or 4). If this register is
+	 * not set correctly then link with endpoint card is not established.
+	 */
+	lnkcap = mvebu_readl(port, PCIE_CAP_PCIEXP + PCI_EXP_LNKCAP);
+	lnkcap &= ~PCI_EXP_LNKCAP_MLW;
+	lnkcap |= (port->is_x4 ? 4 : 1) << 4;
+	mvebu_writel(port, lnkcap, PCIE_CAP_PCIEXP + PCI_EXP_LNKCAP);
 
 	/* Disable Root Bridge I/O space, memory space and bus mastering. */
 	cmd = mvebu_readl(port, PCIE_CMD_OFF);
@@ -268,23 +295,71 @@ static void mvebu_pcie_setup_hw(struct mvebu_pcie_port *port)
 	 */
 	dev_rev = mvebu_readl(port, PCIE_DEV_REV_OFF);
 	dev_rev &= ~0xffffff00;
-	dev_rev |= (PCI_CLASS_BRIDGE_PCI << 8) << 8;
+	dev_rev |= PCI_CLASS_BRIDGE_PCI_NORMAL << 8;
 	mvebu_writel(port, dev_rev, PCIE_DEV_REV_OFF);
 
 	/* Point PCIe unit MBUS decode windows to DRAM space. */
 	mvebu_pcie_setup_wins(port);
 
-	/* Enable interrupt lines A-D. */
-	mask = mvebu_readl(port, PCIE_MASK_OFF);
-	mask |= PCIE_MASK_ENABLE_INTS;
-	mvebu_writel(port, mask, PCIE_MASK_OFF);
+	/*
+	 * Program Root Port to automatically send Set_Slot_Power_Limit
+	 * PCIe Message when changing status from Dl_Down to Dl_Up and valid
+	 * slot power limit was specified.
+	 */
+	sspl = mvebu_readl(port, PCIE_SSPL_OFF);
+	sspl &= ~(PCIE_SSPL_VALUE_MASK | PCIE_SSPL_SCALE_MASK | PCIE_SSPL_ENABLE);
+	if (port->slot_power_limit_value) {
+		sspl |= port->slot_power_limit_value << PCIE_SSPL_VALUE_SHIFT;
+		sspl |= port->slot_power_limit_scale << PCIE_SSPL_SCALE_SHIFT;
+		sspl |= PCIE_SSPL_ENABLE;
+	}
+	mvebu_writel(port, sspl, PCIE_SSPL_OFF);
+
+	/* Mask all interrupt sources. */
+	mvebu_writel(port, ~PCIE_INT_ALL_MASK, PCIE_INT_UNMASK_OFF);
+
+	/* Clear all interrupt causes. */
+	mvebu_writel(port, ~PCIE_INT_ALL_MASK, PCIE_INT_CAUSE_OFF);
+
+	/* Check if "intx" interrupt was specified in DT. */
+	if (port->intx_irq > 0)
+		return;
+
+	/*
+	 * Fallback code when "intx" interrupt was not specified in DT:
+	 * Unmask all legacy INTx interrupts as driver does not provide a way
+	 * for masking and unmasking of individual legacy INTx interrupts.
+	 * Legacy INTx are reported via one shared GIC source and therefore
+	 * kernel cannot distinguish which individual legacy INTx was triggered.
+	 * These interrupts are shared, so it should not cause any issue. Just
+	 * performance penalty as every PCIe interrupt handler needs to be
+	 * called when some interrupt is triggered.
+	 */
+	unmask = mvebu_readl(port, PCIE_INT_UNMASK_OFF);
+	unmask |= PCIE_INT_INTX(0) | PCIE_INT_INTX(1) |
+		  PCIE_INT_INTX(2) | PCIE_INT_INTX(3);
+	mvebu_writel(port, unmask, PCIE_INT_UNMASK_OFF);
 }
 
-static int mvebu_pcie_hw_rd_conf(struct mvebu_pcie_port *port,
-				 struct pci_bus *bus,
-				 u32 devfn, int where, int size, u32 *val)
+static struct mvebu_pcie_port *mvebu_pcie_find_port(struct mvebu_pcie *pcie,
+						    struct pci_bus *bus,
+						    int devfn);
+
+static int mvebu_pcie_child_rd_conf(struct pci_bus *bus, u32 devfn, int where,
+				    int size, u32 *val)
 {
-	void __iomem *conf_data = port->base + PCIE_CONF_DATA_OFF;
+	struct mvebu_pcie *pcie = bus->sysdata;
+	struct mvebu_pcie_port *port;
+	void __iomem *conf_data;
+
+	port = mvebu_pcie_find_port(pcie, bus, devfn);
+	if (!port)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	if (!mvebu_pcie_link_up(port))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	conf_data = port->base + PCIE_CONF_DATA_OFF;
 
 	mvebu_writel(port, PCIE_CONF_ADDR(bus->number, devfn, where),
 		     PCIE_CONF_ADDR_OFF);
@@ -300,18 +375,27 @@ static int mvebu_pcie_hw_rd_conf(struct mvebu_pcie_port *port,
 		*val = readl_relaxed(conf_data);
 		break;
 	default:
-		*val = 0xffffffff;
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 	}
 
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int mvebu_pcie_hw_wr_conf(struct mvebu_pcie_port *port,
-				 struct pci_bus *bus,
-				 u32 devfn, int where, int size, u32 val)
+static int mvebu_pcie_child_wr_conf(struct pci_bus *bus, u32 devfn,
+				    int where, int size, u32 val)
 {
-	void __iomem *conf_data = port->base + PCIE_CONF_DATA_OFF;
+	struct mvebu_pcie *pcie = bus->sysdata;
+	struct mvebu_pcie_port *port;
+	void __iomem *conf_data;
+
+	port = mvebu_pcie_find_port(pcie, bus, devfn);
+	if (!port)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	if (!mvebu_pcie_link_up(port))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	conf_data = port->base + PCIE_CONF_DATA_OFF;
 
 	mvebu_writel(port, PCIE_CONF_ADDR(bus->number, devfn, where),
 		     PCIE_CONF_ADDR_OFF);
@@ -332,6 +416,11 @@ static int mvebu_pcie_hw_wr_conf(struct mvebu_pcie_port *port,
 
 	return PCIBIOS_SUCCESSFUL;
 }
+
+static struct pci_ops mvebu_pcie_child_ops = {
+	.read = mvebu_pcie_child_rd_conf,
+	.write = mvebu_pcie_child_wr_conf,
+};
 
 /*
  * Remove windows, starting from the largest ones to the smallest
@@ -437,12 +526,6 @@ static int mvebu_pcie_handle_iobase_change(struct mvebu_pcie_port *port)
 	    conf->iolimitupper < conf->iobaseupper)
 		return mvebu_pcie_set_window(port, port->io_target, port->io_attr,
 					     &desired, &port->iowin);
-
-	if (!mvebu_has_ioport(port)) {
-		dev_WARN(&port->pcie->pdev->dev,
-			 "Attempt to set IO when IO is disabled\n");
-		return -EOPNOTSUPP;
-	}
 
 	/*
 	 * We read the PCI-to-PCI bridge emulated registers, and
@@ -552,20 +635,40 @@ mvebu_pci_bridge_emul_pcie_conf_read(struct pci_bridge_emul *bridge,
 
 	case PCI_EXP_LNKCAP:
 		/*
-		 * PCIe requires the clock power management capability to be
-		 * hard-wired to zero for downstream ports
+		 * PCIe requires that the Clock Power Management capability bit
+		 * is hard-wired to zero for downstream ports but HW returns 1.
+		 * Additionally enable Data Link Layer Link Active Reporting
+		 * Capable bit as DL_Active indication is provided too.
 		 */
-		*value = mvebu_readl(port, PCIE_CAP_PCIEXP + PCI_EXP_LNKCAP) &
-			 ~PCI_EXP_LNKCAP_CLKPM;
+		*value = (mvebu_readl(port, PCIE_CAP_PCIEXP + PCI_EXP_LNKCAP) &
+			  ~PCI_EXP_LNKCAP_CLKPM) | PCI_EXP_LNKCAP_DLLLARC;
 		break;
 
 	case PCI_EXP_LNKCTL:
-		*value = mvebu_readl(port, PCIE_CAP_PCIEXP + PCI_EXP_LNKCTL);
+		/* DL_Active indication is provided via PCIE_STAT_OFF */
+		*value = mvebu_readl(port, PCIE_CAP_PCIEXP + PCI_EXP_LNKCTL) |
+			 (mvebu_pcie_link_up(port) ?
+			  (PCI_EXP_LNKSTA_DLLLA << 16) : 0);
 		break;
 
-	case PCI_EXP_SLTCTL:
-		*value = PCI_EXP_SLTSTA_PDS << 16;
+	case PCI_EXP_SLTCTL: {
+		u16 slotctl = le16_to_cpu(bridge->pcie_conf.slotctl);
+		u16 slotsta = le16_to_cpu(bridge->pcie_conf.slotsta);
+		u32 val = 0;
+		/*
+		 * When slot power limit was not specified in DT then
+		 * ASPL_DISABLE bit is stored only in emulated config space.
+		 * Otherwise reflect status of PCIE_SSPL_ENABLE bit in HW.
+		 */
+		if (!port->slot_power_limit_value)
+			val |= slotctl & PCI_EXP_SLTCTL_ASPL_DISABLE;
+		else if (!(mvebu_readl(port, PCIE_SSPL_OFF) & PCIE_SSPL_ENABLE))
+			val |= PCI_EXP_SLTCTL_ASPL_DISABLE;
+		/* This callback is 32-bit and in high bits is slot status. */
+		val |= slotsta << 16;
+		*value = val;
 		break;
+	}
 
 	case PCI_EXP_RTSTA:
 		*value = mvebu_readl(port, PCIE_RC_RTSTA);
@@ -590,6 +693,37 @@ mvebu_pci_bridge_emul_pcie_conf_read(struct pci_bridge_emul *bridge,
 	return PCI_BRIDGE_EMUL_HANDLED;
 }
 
+static pci_bridge_emul_read_status_t
+mvebu_pci_bridge_emul_ext_conf_read(struct pci_bridge_emul *bridge,
+				    int reg, u32 *value)
+{
+	struct mvebu_pcie_port *port = bridge->data;
+
+	switch (reg) {
+	case 0:
+	case PCI_ERR_UNCOR_STATUS:
+	case PCI_ERR_UNCOR_MASK:
+	case PCI_ERR_UNCOR_SEVER:
+	case PCI_ERR_COR_STATUS:
+	case PCI_ERR_COR_MASK:
+	case PCI_ERR_CAP:
+	case PCI_ERR_HEADER_LOG+0:
+	case PCI_ERR_HEADER_LOG+4:
+	case PCI_ERR_HEADER_LOG+8:
+	case PCI_ERR_HEADER_LOG+12:
+	case PCI_ERR_ROOT_COMMAND:
+	case PCI_ERR_ROOT_STATUS:
+	case PCI_ERR_ROOT_ERR_SRC:
+		*value = mvebu_readl(port, PCIE_CAP_PCIERR_OFF + reg);
+		break;
+
+	default:
+		return PCI_BRIDGE_EMUL_NOT_HANDLED;
+	}
+
+	return PCI_BRIDGE_EMUL_HANDLED;
+}
+
 static void
 mvebu_pci_bridge_emul_base_conf_write(struct pci_bridge_emul *bridge,
 				      int reg, u32 old, u32 new, u32 mask)
@@ -599,24 +733,18 @@ mvebu_pci_bridge_emul_base_conf_write(struct pci_bridge_emul *bridge,
 
 	switch (reg) {
 	case PCI_COMMAND:
-		if (!mvebu_has_ioport(port)) {
-			conf->command = cpu_to_le16(
-				le16_to_cpu(conf->command) & ~PCI_COMMAND_IO);
-			new &= ~PCI_COMMAND_IO;
-		}
-
 		mvebu_writel(port, new, PCIE_CMD_OFF);
 		break;
 
 	case PCI_IO_BASE:
-		if ((mask & 0xffff) && mvebu_pcie_handle_iobase_change(port)) {
+		if ((mask & 0xffff) && mvebu_has_ioport(port) &&
+		    mvebu_pcie_handle_iobase_change(port)) {
 			/* On error disable IO range */
 			conf->iobase &= ~0xf0;
 			conf->iolimit &= ~0xf0;
+			conf->iobase |= 0xf0;
 			conf->iobaseupper = cpu_to_le16(0x0000);
 			conf->iolimitupper = cpu_to_le16(0x0000);
-			if (mvebu_has_ioport(port))
-				conf->iobase |= 0xf0;
 		}
 		break;
 
@@ -630,14 +758,14 @@ mvebu_pci_bridge_emul_base_conf_write(struct pci_bridge_emul *bridge,
 		break;
 
 	case PCI_IO_BASE_UPPER16:
-		if (mvebu_pcie_handle_iobase_change(port)) {
+		if (mvebu_has_ioport(port) &&
+		    mvebu_pcie_handle_iobase_change(port)) {
 			/* On error disable IO range */
 			conf->iobase &= ~0xf0;
 			conf->iolimit &= ~0xf0;
+			conf->iobase |= 0xf0;
 			conf->iobaseupper = cpu_to_le16(0x0000);
 			conf->iolimitupper = cpu_to_le16(0x0000);
-			if (mvebu_has_ioport(port))
-				conf->iobase |= 0xf0;
 		}
 		break;
 
@@ -675,14 +803,29 @@ mvebu_pci_bridge_emul_pcie_conf_write(struct pci_bridge_emul *bridge,
 
 	case PCI_EXP_LNKCTL:
 		/*
-		 * If we don't support CLKREQ, we must ensure that the
-		 * CLKREQ enable bit always reads zero.  Since we haven't
-		 * had this capability, and it's dependent on board wiring,
-		 * disable it for the time being.
+		 * PCIe requires that the Enable Clock Power Management bit
+		 * is hard-wired to zero for downstream ports but HW allows
+		 * to change it.
 		 */
 		new &= ~PCI_EXP_LNKCTL_CLKREQ_EN;
 
 		mvebu_writel(port, new, PCIE_CAP_PCIEXP + PCI_EXP_LNKCTL);
+		break;
+
+	case PCI_EXP_SLTCTL:
+		/*
+		 * Allow to change PCIE_SSPL_ENABLE bit only when slot power
+		 * limit was specified in DT and configured into HW.
+		 */
+		if ((mask & PCI_EXP_SLTCTL_ASPL_DISABLE) &&
+		    port->slot_power_limit_value) {
+			u32 sspl = mvebu_readl(port, PCIE_SSPL_OFF);
+			if (new & PCI_EXP_SLTCTL_ASPL_DISABLE)
+				sspl &= ~PCIE_SSPL_ENABLE;
+			else
+				sspl |= PCIE_SSPL_ENABLE;
+			mvebu_writel(port, sspl, PCIE_SSPL_OFF);
+		}
 		break;
 
 	case PCI_EXP_RTSTA:
@@ -709,11 +852,45 @@ mvebu_pci_bridge_emul_pcie_conf_write(struct pci_bridge_emul *bridge,
 	}
 }
 
-static struct pci_bridge_emul_ops mvebu_pci_bridge_emul_ops = {
+static void
+mvebu_pci_bridge_emul_ext_conf_write(struct pci_bridge_emul *bridge,
+				     int reg, u32 old, u32 new, u32 mask)
+{
+	struct mvebu_pcie_port *port = bridge->data;
+
+	switch (reg) {
+	/* These are W1C registers, so clear other bits */
+	case PCI_ERR_UNCOR_STATUS:
+	case PCI_ERR_COR_STATUS:
+	case PCI_ERR_ROOT_STATUS:
+		new &= mask;
+		fallthrough;
+
+	case PCI_ERR_UNCOR_MASK:
+	case PCI_ERR_UNCOR_SEVER:
+	case PCI_ERR_COR_MASK:
+	case PCI_ERR_CAP:
+	case PCI_ERR_HEADER_LOG+0:
+	case PCI_ERR_HEADER_LOG+4:
+	case PCI_ERR_HEADER_LOG+8:
+	case PCI_ERR_HEADER_LOG+12:
+	case PCI_ERR_ROOT_COMMAND:
+	case PCI_ERR_ROOT_ERR_SRC:
+		mvebu_writel(port, new, PCIE_CAP_PCIERR_OFF + reg);
+		break;
+
+	default:
+		break;
+	}
+}
+
+static const struct pci_bridge_emul_ops mvebu_pci_bridge_emul_ops = {
 	.read_base = mvebu_pci_bridge_emul_base_conf_read,
 	.write_base = mvebu_pci_bridge_emul_base_conf_write,
 	.read_pcie = mvebu_pci_bridge_emul_pcie_conf_read,
 	.write_pcie = mvebu_pci_bridge_emul_pcie_conf_write,
+	.read_ext = mvebu_pci_bridge_emul_ext_conf_read,
+	.write_ext = mvebu_pci_bridge_emul_ext_conf_write,
 };
 
 /*
@@ -722,32 +899,57 @@ static struct pci_bridge_emul_ops mvebu_pci_bridge_emul_ops = {
  */
 static int mvebu_pci_bridge_emul_init(struct mvebu_pcie_port *port)
 {
+	unsigned int bridge_flags = PCI_BRIDGE_EMUL_NO_PREFMEM_FORWARD;
 	struct pci_bridge_emul *bridge = &port->bridge;
+	u32 dev_id = mvebu_readl(port, PCIE_DEV_ID_OFF);
+	u32 dev_rev = mvebu_readl(port, PCIE_DEV_REV_OFF);
+	u32 ssdev_id = mvebu_readl(port, PCIE_SSDEV_ID_OFF);
 	u32 pcie_cap = mvebu_readl(port, PCIE_CAP_PCIEXP);
 	u8 pcie_cap_ver = ((pcie_cap >> 16) & PCI_EXP_FLAGS_VERS);
 
-	bridge->conf.vendor = PCI_VENDOR_ID_MARVELL;
-	bridge->conf.device = mvebu_readl(port, PCIE_DEV_ID_OFF) >> 16;
-	bridge->conf.class_revision =
-		mvebu_readl(port, PCIE_DEV_REV_OFF) & 0xff;
+	bridge->conf.vendor = cpu_to_le16(dev_id & 0xffff);
+	bridge->conf.device = cpu_to_le16(dev_id >> 16);
+	bridge->conf.class_revision = cpu_to_le32(dev_rev & 0xff);
 
 	if (mvebu_has_ioport(port)) {
 		/* We support 32 bits I/O addressing */
 		bridge->conf.iobase = PCI_IO_RANGE_TYPE_32;
 		bridge->conf.iolimit = PCI_IO_RANGE_TYPE_32;
+	} else {
+		bridge_flags |= PCI_BRIDGE_EMUL_NO_IO_FORWARD;
 	}
 
 	/*
 	 * Older mvebu hardware provides PCIe Capability structure only in
 	 * version 1. New hardware provides it in version 2.
+	 * Enable slot support which is emulated.
 	 */
-	bridge->pcie_conf.cap = cpu_to_le16(pcie_cap_ver);
+	bridge->pcie_conf.cap = cpu_to_le16(pcie_cap_ver | PCI_EXP_FLAGS_SLOT);
 
+	/*
+	 * Set Presence Detect State bit permanently as there is no support for
+	 * unplugging PCIe card from the slot. Assume that PCIe card is always
+	 * connected in slot.
+	 *
+	 * Set physical slot number to port+1 as mvebu ports are indexed from
+	 * zero and zero value is reserved for ports within the same silicon
+	 * as Root Port which is not mvebu case.
+	 *
+	 * Also set correct slot power limit.
+	 */
+	bridge->pcie_conf.slotcap = cpu_to_le32(
+		FIELD_PREP(PCI_EXP_SLTCAP_SPLV, port->slot_power_limit_value) |
+		FIELD_PREP(PCI_EXP_SLTCAP_SPLS, port->slot_power_limit_scale) |
+		FIELD_PREP(PCI_EXP_SLTCAP_PSN, port->port+1));
+	bridge->pcie_conf.slotsta = cpu_to_le16(PCI_EXP_SLTSTA_PDS);
+
+	bridge->subsystem_vendor_id = ssdev_id & 0xffff;
+	bridge->subsystem_id = ssdev_id >> 16;
 	bridge->has_pcie = true;
 	bridge->data = port;
 	bridge->ops = &mvebu_pci_bridge_emul_ops;
 
-	return pci_bridge_emul_init(bridge, PCI_BRIDGE_EMUL_NO_PREFETCHABLE_BAR);
+	return pci_bridge_emul_init(bridge, bridge_flags);
 }
 
 static inline struct mvebu_pcie *sys_to_pcie(struct pci_sys_data *sys)
@@ -784,25 +986,12 @@ static int mvebu_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 {
 	struct mvebu_pcie *pcie = bus->sysdata;
 	struct mvebu_pcie_port *port;
-	int ret;
 
 	port = mvebu_pcie_find_port(pcie, bus, devfn);
 	if (!port)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	/* Access the emulated PCI-to-PCI bridge */
-	if (bus->number == 0)
-		return pci_bridge_emul_conf_write(&port->bridge, where,
-						  size, val);
-
-	if (!mvebu_pcie_link_up(port))
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	/* Access the real PCIe interface */
-	ret = mvebu_pcie_hw_wr_conf(port, bus, devfn,
-				    where, size, val);
-
-	return ret;
+	return pci_bridge_emul_conf_write(&port->bridge, where, size, val);
 }
 
 /* PCI configuration space read function */
@@ -811,31 +1000,120 @@ static int mvebu_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 {
 	struct mvebu_pcie *pcie = bus->sysdata;
 	struct mvebu_pcie_port *port;
-	int ret;
 
 	port = mvebu_pcie_find_port(pcie, bus, devfn);
 	if (!port)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	/* Access the emulated PCI-to-PCI bridge */
-	if (bus->number == 0)
-		return pci_bridge_emul_conf_read(&port->bridge, where,
-						 size, val);
-
-	if (!mvebu_pcie_link_up(port))
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	/* Access the real PCIe interface */
-	ret = mvebu_pcie_hw_rd_conf(port, bus, devfn,
-				    where, size, val);
-
-	return ret;
+	return pci_bridge_emul_conf_read(&port->bridge, where, size, val);
 }
 
 static struct pci_ops mvebu_pcie_ops = {
 	.read = mvebu_pcie_rd_conf,
 	.write = mvebu_pcie_wr_conf,
 };
+
+static void mvebu_pcie_intx_irq_mask(struct irq_data *d)
+{
+	struct mvebu_pcie_port *port = d->domain->host_data;
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+	unsigned long flags;
+	u32 unmask;
+
+	raw_spin_lock_irqsave(&port->irq_lock, flags);
+	unmask = mvebu_readl(port, PCIE_INT_UNMASK_OFF);
+	unmask &= ~PCIE_INT_INTX(hwirq);
+	mvebu_writel(port, unmask, PCIE_INT_UNMASK_OFF);
+	raw_spin_unlock_irqrestore(&port->irq_lock, flags);
+}
+
+static void mvebu_pcie_intx_irq_unmask(struct irq_data *d)
+{
+	struct mvebu_pcie_port *port = d->domain->host_data;
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+	unsigned long flags;
+	u32 unmask;
+
+	raw_spin_lock_irqsave(&port->irq_lock, flags);
+	unmask = mvebu_readl(port, PCIE_INT_UNMASK_OFF);
+	unmask |= PCIE_INT_INTX(hwirq);
+	mvebu_writel(port, unmask, PCIE_INT_UNMASK_OFF);
+	raw_spin_unlock_irqrestore(&port->irq_lock, flags);
+}
+
+static struct irq_chip intx_irq_chip = {
+	.name = "mvebu-INTx",
+	.irq_mask = mvebu_pcie_intx_irq_mask,
+	.irq_unmask = mvebu_pcie_intx_irq_unmask,
+};
+
+static int mvebu_pcie_intx_irq_map(struct irq_domain *h,
+				   unsigned int virq, irq_hw_number_t hwirq)
+{
+	struct mvebu_pcie_port *port = h->host_data;
+
+	irq_set_status_flags(virq, IRQ_LEVEL);
+	irq_set_chip_and_handler(virq, &intx_irq_chip, handle_level_irq);
+	irq_set_chip_data(virq, port);
+
+	return 0;
+}
+
+static const struct irq_domain_ops mvebu_pcie_intx_irq_domain_ops = {
+	.map = mvebu_pcie_intx_irq_map,
+	.xlate = irq_domain_xlate_onecell,
+};
+
+static int mvebu_pcie_init_irq_domain(struct mvebu_pcie_port *port)
+{
+	struct device *dev = &port->pcie->pdev->dev;
+	struct device_node *pcie_intc_node;
+
+	raw_spin_lock_init(&port->irq_lock);
+
+	pcie_intc_node = of_get_next_child(port->dn, NULL);
+	if (!pcie_intc_node) {
+		dev_err(dev, "No PCIe Intc node found for %s\n", port->name);
+		return -ENODEV;
+	}
+
+	port->intx_irq_domain = irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
+						      &mvebu_pcie_intx_irq_domain_ops,
+						      port);
+	of_node_put(pcie_intc_node);
+	if (!port->intx_irq_domain) {
+		dev_err(dev, "Failed to get INTx IRQ domain for %s\n", port->name);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void mvebu_pcie_irq_handler(struct irq_desc *desc)
+{
+	struct mvebu_pcie_port *port = irq_desc_get_handler_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct device *dev = &port->pcie->pdev->dev;
+	u32 cause, unmask, status;
+	int i;
+
+	chained_irq_enter(chip, desc);
+
+	cause = mvebu_readl(port, PCIE_INT_CAUSE_OFF);
+	unmask = mvebu_readl(port, PCIE_INT_UNMASK_OFF);
+	status = cause & unmask;
+
+	/* Process legacy INTx interrupts */
+	for (i = 0; i < PCI_NUM_INTX; i++) {
+		if (!(status & PCIE_INT_INTX(i)))
+			continue;
+
+		if (generic_handle_domain_irq(port->intx_irq_domain, i) == -EINVAL)
+			dev_err_ratelimited(dev, "unexpected INT%c IRQ\n", (char)i+'A');
+	}
+
+	chained_irq_exit(chip, desc);
+}
 
 static int mvebu_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
@@ -985,7 +1263,9 @@ static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
 {
 	struct device *dev = &pcie->pdev->dev;
 	enum of_gpio_flags flags;
+	u32 slot_power_limit;
 	int reset_gpio, ret;
+	u32 num_lanes;
 
 	port->pcie = pcie;
 
@@ -997,6 +1277,9 @@ static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
 
 	if (of_property_read_u32(child, "marvell,pcie-lane", &port->lane))
 		port->lane = 0;
+
+	if (!of_property_read_u32(child, "num-lanes", &num_lanes) && num_lanes == 4)
+		port->is_x4 = true;
 
 	port->name = devm_kasprintf(dev, GFP_KERNEL, "pcie%d.%d", port->port,
 				    port->lane);
@@ -1028,6 +1311,21 @@ static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
 	} else {
 		port->io_target = -1;
 		port->io_attr = -1;
+	}
+
+	/*
+	 * Old DT bindings do not contain "intx" interrupt
+	 * so do not fail probing driver when interrupt does not exist.
+	 */
+	port->intx_irq = of_irq_get_byname(child, "intx");
+	if (port->intx_irq == -EPROBE_DEFER) {
+		ret = port->intx_irq;
+		goto err;
+	}
+	if (port->intx_irq <= 0) {
+		dev_warn(dev, "%s: legacy INTx interrupts cannot be masked individually, "
+			      "%pOF does not contain intx interrupt\n",
+			 port->name, child);
 	}
 
 	reset_gpio = of_get_named_gpio_flags(child, "reset-gpios", 0, &flags);
@@ -1065,6 +1363,15 @@ static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
 
 		port->reset_gpio = gpio_to_desc(reset_gpio);
 	}
+
+	slot_power_limit = of_pci_get_slot_power_limit(child,
+				&port->slot_power_limit_value,
+				&port->slot_power_limit_scale);
+	if (slot_power_limit)
+		dev_info(dev, "%s: Slot power limit %u.%uW\n",
+			 port->name,
+			 slot_power_limit / 1000,
+			 (slot_power_limit / 100) % 10);
 
 	port->clk = of_clk_get_by_name(child, NULL);
 	if (IS_ERR(port->clk)) {
@@ -1226,6 +1533,7 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 
 	for (i = 0; i < pcie->nports; i++) {
 		struct mvebu_pcie_port *port = &pcie->ports[i];
+		int irq = port->intx_irq;
 
 		child = port->dn;
 		if (!child)
@@ -1251,6 +1559,22 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 			port->base = NULL;
 			mvebu_pcie_powerdown(port);
 			continue;
+		}
+
+		if (irq > 0) {
+			ret = mvebu_pcie_init_irq_domain(port);
+			if (ret) {
+				dev_err(dev, "%s: cannot init irq domain\n",
+					port->name);
+				pci_bridge_emul_cleanup(&port->bridge);
+				devm_iounmap(dev, port->base);
+				port->base = NULL;
+				mvebu_pcie_powerdown(port);
+				continue;
+			}
+			irq_set_chained_handler_and_data(irq,
+							 mvebu_pcie_irq_handler,
+							 port);
 		}
 
 		/*
@@ -1333,10 +1657,9 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 		mvebu_pcie_set_local_bus_nr(port, 0);
 	}
 
-	pcie->nports = i;
-
 	bridge->sysdata = pcie;
 	bridge->ops = &mvebu_pcie_ops;
+	bridge->child_ops = &mvebu_pcie_child_ops;
 	bridge->align_resource = mvebu_pcie_align_resource;
 	bridge->map_irq = mvebu_pcie_map_irq;
 
@@ -1347,7 +1670,7 @@ static int mvebu_pcie_remove(struct platform_device *pdev)
 {
 	struct mvebu_pcie *pcie = platform_get_drvdata(pdev);
 	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(pcie);
-	u32 cmd;
+	u32 cmd, sspl;
 	int i;
 
 	/* Remove PCI bus with all devices. */
@@ -1358,6 +1681,7 @@ static int mvebu_pcie_remove(struct platform_device *pdev)
 
 	for (i = 0; i < pcie->nports; i++) {
 		struct mvebu_pcie_port *port = &pcie->ports[i];
+		int irq = port->intx_irq;
 
 		if (!port->base)
 			continue;
@@ -1368,10 +1692,25 @@ static int mvebu_pcie_remove(struct platform_device *pdev)
 		mvebu_writel(port, cmd, PCIE_CMD_OFF);
 
 		/* Mask all interrupt sources. */
-		mvebu_writel(port, 0, PCIE_MASK_OFF);
+		mvebu_writel(port, ~PCIE_INT_ALL_MASK, PCIE_INT_UNMASK_OFF);
+
+		/* Clear all interrupt causes. */
+		mvebu_writel(port, ~PCIE_INT_ALL_MASK, PCIE_INT_CAUSE_OFF);
+
+		if (irq > 0)
+			irq_set_chained_handler_and_data(irq, NULL, NULL);
+
+		/* Remove IRQ domains. */
+		if (port->intx_irq_domain)
+			irq_domain_remove(port->intx_irq_domain);
 
 		/* Free config space for emulated root bridge. */
 		pci_bridge_emul_cleanup(&port->bridge);
+
+		/* Disable sending Set_Slot_Power_Limit PCIe Message. */
+		sspl = mvebu_readl(port, PCIE_SSPL_OFF);
+		sspl &= ~(PCIE_SSPL_VALUE_MASK | PCIE_SSPL_SCALE_MASK | PCIE_SSPL_ENABLE);
+		mvebu_writel(port, sspl, PCIE_SSPL_OFF);
 
 		/* Disable and clear BARs and windows. */
 		mvebu_pcie_disable_wins(port);

@@ -742,7 +742,7 @@ static void nvt_handle_rx_fifo_overrun(struct nvt_dev *nvt)
 
 	nvt->pkts = 0;
 	nvt_clear_cir_fifo(nvt);
-	ir_raw_event_reset(nvt->rdev);
+	ir_raw_event_overflow(nvt->rdev);
 }
 
 /* copy data from hardware rx fifo into driver buffer */

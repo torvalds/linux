@@ -5,7 +5,7 @@
 	\renewcommand\thesection*
 	\renewcommand\thesubsection*
 	\kerneldocCJKon
-	\kerneldocBeginSC
+	\kerneldocBeginSC{
 
 .. _linux_doc_zh:
 
@@ -56,10 +56,14 @@ TODOList:
 
 下列文档描述了内核需要的平台固件相关信息。
 
+.. toctree::
+   :maxdepth: 2
+
+   devicetree/index
+
 TODOList:
 
 * firmware-guide/index
-* devicetree/index
 
 应用程序开发人员文档
 --------------------
@@ -104,19 +108,22 @@ TODOList:
    :maxdepth: 2
 
    core-api/index
+   locking/index
+   accounting/index
    cpu-freq/index
    iio/index
+   infiniband/index
+   power/index
+   virt/index
    sound/index
    filesystems/index
-   virt/index
-   infiniband/index
-   accounting/index
    scheduler/index
+   vm/index
+   peci/index
 
 TODOList:
 
 * driver-api/index
-* locking/index
 * block/index
 * cdrom/index
 * ide/index
@@ -129,7 +136,6 @@ TODOList:
 * netlabel/index
 * networking/index
 * pcmcia/index
-* power/index
 * target/index
 * timers/index
 * spi/index
@@ -140,7 +146,6 @@ TODOList:
 * gpu/index
 * security/index
 * crypto/index
-* vm/index
 * bpf/index
 * usb/index
 * PCI/index
@@ -166,6 +171,7 @@ TODOList:
    riscv/index
    openrisc/index
    parisc/index
+   loongarch/index
 
 TODOList:
 
@@ -198,4 +204,4 @@ TODOList:
 
 .. raw:: latex
 
-	\kerneldocEndSC
+	}\kerneldocEndSC

@@ -21,8 +21,10 @@ struct otx2_flow {
 	u16 entry;
 	bool is_vf;
 	u8 rss_ctx_id;
+#define DMAC_FILTER_RULE		BIT(0)
+#define PFC_FLOWCTRL_RULE		BIT(1)
+	u16 rule_type;
 	int vf;
-	bool dmac_filter;
 };
 
 enum dmac_req {
@@ -353,7 +355,7 @@ int otx2_add_macfilter(struct net_device *netdev, const u8 *mac)
 {
 	struct otx2_nic *pf = netdev_priv(netdev);
 
-	if (bitmap_weight(&pf->flow_cfg->dmacflt_bmap,
+	if (!bitmap_empty(&pf->flow_cfg->dmacflt_bmap,
 			  pf->flow_cfg->dmacflt_max_flows))
 		netdev_warn(netdev,
 			    "Add %pM to CGX/RPM DMAC filters list as well\n",
@@ -436,7 +438,7 @@ int otx2_get_maxflows(struct otx2_flow_config *flow_cfg)
 		return 0;
 
 	if (flow_cfg->nr_flows == flow_cfg->max_flows ||
-	    bitmap_weight(&flow_cfg->dmacflt_bmap,
+	    !bitmap_empty(&flow_cfg->dmacflt_bmap,
 			  flow_cfg->dmacflt_max_flows))
 		return flow_cfg->max_flows + flow_cfg->dmacflt_max_flows;
 	else
@@ -899,6 +901,9 @@ static int otx2_is_flow_rule_dmacfilter(struct otx2_nic *pfvf,
 static int otx2_add_flow_msg(struct otx2_nic *pfvf, struct otx2_flow *flow)
 {
 	u64 ring_cookie = flow->flow_spec.ring_cookie;
+#ifdef CONFIG_DCB
+	int vlan_prio, qidx, pfc_rule = 0;
+#endif
 	struct npc_install_flow_req *req;
 	int err, vf = 0;
 
@@ -940,6 +945,24 @@ static int otx2_add_flow_msg(struct otx2_nic *pfvf, struct otx2_flow *flow)
 			mutex_unlock(&pfvf->mbox.lock);
 			return -EINVAL;
 		}
+
+#ifdef CONFIG_DCB
+		/* Identify PFC rule if PFC enabled and ntuple rule is vlan */
+		if (!vf && (req->features & BIT_ULL(NPC_OUTER_VID)) &&
+		    pfvf->pfc_en && req->op != NIX_RX_ACTIONOP_RSS) {
+			vlan_prio = ntohs(req->packet.vlan_tci) &
+				    ntohs(req->mask.vlan_tci);
+
+			/* Get the priority */
+			vlan_prio >>= 13;
+			flow->rule_type |= PFC_FLOWCTRL_RULE;
+			/* Check if PFC enabled for this priority */
+			if (pfvf->pfc_en & BIT(vlan_prio)) {
+				pfc_rule = true;
+				qidx = req->index;
+			}
+		}
+#endif
 	}
 
 	/* ethtool ring_cookie has (VF + 1) for VF */
@@ -951,6 +974,12 @@ static int otx2_add_flow_msg(struct otx2_nic *pfvf, struct otx2_flow *flow)
 
 	/* Send message to AF */
 	err = otx2_sync_mbox_msg(&pfvf->mbox);
+
+#ifdef CONFIG_DCB
+	if (!err && pfc_rule)
+		otx2_update_bpid_in_rqctx(pfvf, vlan_prio, qidx, true);
+#endif
+
 	mutex_unlock(&pfvf->mbox.lock);
 	return err;
 }
@@ -966,7 +995,7 @@ static int otx2_add_flow_with_pfmac(struct otx2_nic *pfvf,
 		return -ENOMEM;
 
 	pf_mac->entry = 0;
-	pf_mac->dmac_filter = true;
+	pf_mac->rule_type |= DMAC_FILTER_RULE;
 	pf_mac->location = pfvf->flow_cfg->max_flows;
 	memcpy(&pf_mac->flow_spec, &flow->flow_spec,
 	       sizeof(struct ethtool_rx_flow_spec));
@@ -1031,7 +1060,7 @@ int otx2_add_flow(struct otx2_nic *pfvf, struct ethtool_rxnfc *nfc)
 		eth_hdr = &flow->flow_spec.h_u.ether_spec;
 
 		/* Sync dmac filter table with updated fields */
-		if (flow->dmac_filter)
+		if (flow->rule_type & DMAC_FILTER_RULE)
 			return otx2_dmacflt_update(pfvf, eth_hdr->h_dest,
 						   flow->entry);
 
@@ -1052,7 +1081,7 @@ int otx2_add_flow(struct otx2_nic *pfvf, struct ethtool_rxnfc *nfc)
 		if (!test_bit(0, &flow_cfg->dmacflt_bmap))
 			otx2_add_flow_with_pfmac(pfvf, flow);
 
-		flow->dmac_filter = true;
+		flow->rule_type |= DMAC_FILTER_RULE;
 		flow->entry = find_first_zero_bit(&flow_cfg->dmacflt_bmap,
 						  flow_cfg->dmacflt_max_flows);
 		fsp->location = flow_cfg->max_flows + flow->entry;
@@ -1120,7 +1149,7 @@ static void otx2_update_rem_pfmac(struct otx2_nic *pfvf, int req)
 	bool found = false;
 
 	list_for_each_entry(iter, &pfvf->flow_cfg->flow_list, list) {
-		if (iter->dmac_filter && iter->entry == 0) {
+		if ((iter->rule_type & DMAC_FILTER_RULE) && iter->entry == 0) {
 			eth_hdr = &iter->flow_spec.h_u.ether_spec;
 			if (req == DMAC_ADDR_DEL) {
 				otx2_dmacflt_remove(pfvf, eth_hdr->h_dest,
@@ -1156,7 +1185,7 @@ int otx2_remove_flow(struct otx2_nic *pfvf, u32 location)
 	if (!flow)
 		return -ENOENT;
 
-	if (flow->dmac_filter) {
+	if (flow->rule_type & DMAC_FILTER_RULE) {
 		struct ethhdr *eth_hdr = &flow->flow_spec.h_u.ether_spec;
 
 		/* user not allowed to remove dmac filter with interface mac */
@@ -1174,6 +1203,13 @@ int otx2_remove_flow(struct otx2_nic *pfvf, u32 location)
 				  flow_cfg->dmacflt_max_flows) == 1)
 			otx2_update_rem_pfmac(pfvf, DMAC_ADDR_DEL);
 	} else {
+#ifdef CONFIG_DCB
+		if (flow->rule_type & PFC_FLOWCTRL_RULE)
+			otx2_update_bpid_in_rqctx(pfvf, 0,
+						  flow->flow_spec.ring_cookie,
+						  false);
+#endif
+
 		err = otx2_remove_flow_msg(pfvf, flow->entry, false);
 	}
 
@@ -1383,7 +1419,7 @@ void otx2_dmacflt_reinstall_flows(struct otx2_nic *pf)
 	struct ethhdr *eth_hdr;
 
 	list_for_each_entry(iter, &pf->flow_cfg->flow_list, list) {
-		if (iter->dmac_filter) {
+		if (iter->rule_type & DMAC_FILTER_RULE) {
 			eth_hdr = &iter->flow_spec.h_u.ether_spec;
 			otx2_dmacflt_add(pf, eth_hdr->h_dest,
 					 iter->entry);

@@ -52,24 +52,6 @@ struct svc_pool {
 	unsigned long		sp_flags;
 } ____cacheline_aligned_in_smp;
 
-struct svc_serv;
-
-struct svc_serv_ops {
-	/* Callback to use when last thread exits. */
-	void		(*svo_shutdown)(struct svc_serv *, struct net *);
-
-	/* function for service threads to run */
-	int		(*svo_function)(void *);
-
-	/* queue up a transport for servicing */
-	void		(*svo_enqueue_xprt)(struct svc_xprt *);
-
-	/* optional module to count when adding threads.
-	 * Thread function must call module_put_and_kthread_exit() to exit.
-	 */
-	struct module	*svo_module;
-};
-
 /*
  * RPC service.
  *
@@ -102,7 +84,8 @@ struct svc_serv {
 
 	unsigned int		sv_nrpools;	/* number of thread pools */
 	struct svc_pool *	sv_pools;	/* array of thread pools */
-	const struct svc_serv_ops *sv_ops;	/* server operations */
+	int			(*sv_threadfn)(void *data);
+
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
 	struct list_head	sv_cb_list;	/* queue for callback requests
 						 * that arrive over the same
@@ -274,7 +257,6 @@ struct svc_rqst {
 	void *			rq_xprt_ctxt;	/* transport specific context ptr */
 	struct svc_deferred_req*rq_deferred;	/* deferred request we are replaying */
 
-	size_t			rq_xprt_hlen;	/* xprt header len */
 	struct xdr_buf		rq_arg;
 	struct xdr_stream	rq_arg_stream;
 	struct xdr_stream	rq_res_stream;
@@ -412,8 +394,8 @@ struct svc_deferred_req {
 	size_t			addrlen;
 	struct sockaddr_storage	daddr;	/* where reply must come from */
 	size_t			daddrlen;
+	void			*xprt_ctxt;
 	struct cache_deferred_req handle;
-	size_t			xprt_hlen;
 	int			argslen;
 	__be32			args[];
 };
@@ -503,7 +485,7 @@ int svc_rpcb_setup(struct svc_serv *serv, struct net *net);
 void svc_rpcb_cleanup(struct svc_serv *serv, struct net *net);
 int svc_bind(struct svc_serv *serv, struct net *net);
 struct svc_serv *svc_create(struct svc_program *, unsigned int,
-			    const struct svc_serv_ops *);
+			    int (*threadfn)(void *data));
 struct svc_rqst *svc_rqst_alloc(struct svc_serv *serv,
 					struct svc_pool *pool, int node);
 void		   svc_rqst_replace_page(struct svc_rqst *rqstp,
@@ -511,10 +493,9 @@ void		   svc_rqst_replace_page(struct svc_rqst *rqstp,
 void		   svc_rqst_free(struct svc_rqst *);
 void		   svc_exit_thread(struct svc_rqst *);
 struct svc_serv *  svc_create_pooled(struct svc_program *, unsigned int,
-			const struct svc_serv_ops *);
+				     int (*threadfn)(void *data));
 int		   svc_set_num_threads(struct svc_serv *, struct svc_pool *, int);
 int		   svc_pool_stats_open(struct svc_serv *serv, struct file *file);
-void		   svc_shutdown_net(struct svc_serv *, struct net *);
 int		   svc_process(struct svc_rqst *);
 int		   bc_svc_process(struct svc_serv *, struct rpc_rqst *,
 			struct svc_rqst *);
@@ -523,7 +504,7 @@ int		   svc_register(const struct svc_serv *, struct net *, const int,
 
 void		   svc_wake_up(struct svc_serv *);
 void		   svc_reserve(struct svc_rqst *rqstp, int space);
-struct svc_pool *  svc_pool_for_cpu(struct svc_serv *serv, int cpu);
+struct svc_pool   *svc_pool_for_cpu(struct svc_serv *serv);
 char *		   svc_print_addr(struct svc_rqst *, char *, size_t);
 const char *	   svc_proc_name(const struct svc_rqst *rqstp);
 int		   svc_encode_result_payload(struct svc_rqst *rqstp,

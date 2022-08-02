@@ -77,4 +77,6 @@ struct perf_debuginfod {
 	bool		 set;
 };
 void perf_debuginfod_setup(struct perf_debuginfod *di);
+
+char *filename_with_chroot(int pid, const char *filename);
 #endif /* GIT_COMPAT_UTIL_H */

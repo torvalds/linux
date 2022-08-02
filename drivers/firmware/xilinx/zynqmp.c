@@ -36,10 +36,28 @@
 /* BOOT_PIN_CTRL_MASK- out_val[11:8], out_en[3:0] */
 #define CRL_APB_BOOTPIN_CTRL_MASK	0xF0FU
 
+/* IOCTL/QUERY feature payload size */
+#define FEATURE_PAYLOAD_SIZE		2
+
+/* Firmware feature check version mask */
+#define FIRMWARE_VERSION_MASK		GENMASK(15, 0)
+
 static bool feature_check_enabled;
 static DEFINE_HASHTABLE(pm_api_features_map, PM_API_FEATURE_CHECK_MAX_ORDER);
+static u32 ioctl_features[FEATURE_PAYLOAD_SIZE];
+static u32 query_features[FEATURE_PAYLOAD_SIZE];
 
 static struct platform_device *em_dev;
+
+/**
+ * struct zynqmp_devinfo - Structure for Zynqmp device instance
+ * @dev:		Device Pointer
+ * @feature_conf_id:	Feature conf id
+ */
+struct zynqmp_devinfo {
+	struct device *dev;
+	u32 feature_conf_id;
+};
 
 /**
  * struct pm_api_feature_data - PM API Feature data
@@ -157,21 +175,28 @@ static noinline int do_fw_call_hvc(u64 arg0, u64 arg1, u64 arg2,
 	return zynqmp_pm_ret_code((enum pm_ret_status)res.a0);
 }
 
-/**
- * zynqmp_pm_feature() - Check weather given feature is supported or not
- * @api_id:		API ID to check
- *
- * Return: Returns status, either success or error+reason
- */
-int zynqmp_pm_feature(const u32 api_id)
+static int __do_feature_check_call(const u32 api_id, u32 *ret_payload)
+{
+	int ret;
+	u64 smc_arg[2];
+
+	smc_arg[0] = PM_SIP_SVC | PM_FEATURE_CHECK;
+	smc_arg[1] = api_id;
+
+	ret = do_fw_call(smc_arg[0], smc_arg[1], 0, ret_payload);
+	if (ret)
+		ret = -EOPNOTSUPP;
+	else
+		ret = ret_payload[1];
+
+	return ret;
+}
+
+static int do_feature_check_call(const u32 api_id)
 {
 	int ret;
 	u32 ret_payload[PAYLOAD_ARG_CNT];
-	u64 smc_arg[2];
 	struct pm_api_feature_data *feature_data;
-
-	if (!feature_check_enabled)
-		return 0;
 
 	/* Check for existing entry in hash table for given api */
 	hash_for_each_possible(pm_api_features_map, feature_data, hentry,
@@ -186,21 +211,84 @@ int zynqmp_pm_feature(const u32 api_id)
 		return -ENOMEM;
 
 	feature_data->pm_api_id = api_id;
-	smc_arg[0] = PM_SIP_SVC | PM_FEATURE_CHECK;
-	smc_arg[1] = api_id;
-
-	ret = do_fw_call(smc_arg[0], smc_arg[1], 0, ret_payload);
-	if (ret)
-		ret = -EOPNOTSUPP;
-	else
-		ret = ret_payload[1];
+	ret = __do_feature_check_call(api_id, ret_payload);
 
 	feature_data->feature_status = ret;
 	hash_add(pm_api_features_map, &feature_data->hentry, api_id);
 
+	if (api_id == PM_IOCTL)
+		/* Store supported IOCTL IDs mask */
+		memcpy(ioctl_features, &ret_payload[2], FEATURE_PAYLOAD_SIZE * 4);
+	else if (api_id == PM_QUERY_DATA)
+		/* Store supported QUERY IDs mask */
+		memcpy(query_features, &ret_payload[2], FEATURE_PAYLOAD_SIZE * 4);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(zynqmp_pm_feature);
+
+/**
+ * zynqmp_pm_feature() - Check whether given feature is supported or not and
+ *			 store supported IOCTL/QUERY ID mask
+ * @api_id:		API ID to check
+ *
+ * Return: Returns status, either success or error+reason
+ */
+int zynqmp_pm_feature(const u32 api_id)
+{
+	int ret;
+
+	if (!feature_check_enabled)
+		return 0;
+
+	ret = do_feature_check_call(api_id);
+
+	return ret;
+}
+
+/**
+ * zynqmp_pm_is_function_supported() - Check whether given IOCTL/QUERY function
+ *				       is supported or not
+ * @api_id:		PM_IOCTL or PM_QUERY_DATA
+ * @id:			IOCTL or QUERY function IDs
+ *
+ * Return: Returns status, either success or error+reason
+ */
+int zynqmp_pm_is_function_supported(const u32 api_id, const u32 id)
+{
+	int ret;
+	u32 *bit_mask;
+
+	/* Input arguments validation */
+	if (id >= 64 || (api_id != PM_IOCTL && api_id != PM_QUERY_DATA))
+		return -EINVAL;
+
+	/* Check feature check API version */
+	ret = do_feature_check_call(PM_FEATURE_CHECK);
+	if (ret < 0)
+		return ret;
+
+	/* Check if feature check version 2 is supported or not */
+	if ((ret & FIRMWARE_VERSION_MASK) == PM_API_VERSION_2) {
+		/*
+		 * Call feature check for IOCTL/QUERY API to get IOCTL ID or
+		 * QUERY ID feature status.
+		 */
+		ret = do_feature_check_call(api_id);
+		if (ret < 0)
+			return ret;
+
+		bit_mask = (api_id == PM_IOCTL) ? ioctl_features : query_features;
+
+		if ((bit_mask[(id / 32)] & BIT((id % 32))) == 0U)
+			return -EOPNOTSUPP;
+	} else {
+		return -ENODATA;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(zynqmp_pm_is_function_supported);
 
 /**
  * zynqmp_pm_invoke_fn() - Invoke the system-level platform management layer
@@ -1121,6 +1209,32 @@ int zynqmp_pm_aes_engine(const u64 address, u32 *out)
 EXPORT_SYMBOL_GPL(zynqmp_pm_aes_engine);
 
 /**
+ * zynqmp_pm_sha_hash - Access the SHA engine to calculate the hash
+ * @address:	Address of the data/ Address of output buffer where
+ *		hash should be stored.
+ * @size:	Size of the data.
+ * @flags:
+ *	BIT(0) - for initializing csudma driver and SHA3(Here address
+ *		 and size inputs can be NULL).
+ *	BIT(1) - to call Sha3_Update API which can be called multiple
+ *		 times when data is not contiguous.
+ *	BIT(2) - to get final hash of the whole updated data.
+ *		 Hash will be overwritten at provided address with
+ *		 48 bytes.
+ *
+ * Return:	Returns status, either success or error code.
+ */
+int zynqmp_pm_sha_hash(const u64 address, const u32 size, const u32 flags)
+{
+	u32 lower_addr = lower_32_bits(address);
+	u32 upper_addr = upper_32_bits(address);
+
+	return zynqmp_pm_invoke_fn(PM_SECURE_SHA, upper_addr, lower_addr,
+				   size, flags, NULL);
+}
+EXPORT_SYMBOL_GPL(zynqmp_pm_sha_hash);
+
+/**
  * zynqmp_pm_register_notifier() - PM API for register a subsystem
  *                                to be notified about specific
  *                                event/error.
@@ -1154,6 +1268,33 @@ int zynqmp_pm_system_shutdown(const u32 type, const u32 subtype)
 {
 	return zynqmp_pm_invoke_fn(PM_SYSTEM_SHUTDOWN, type, subtype,
 				   0, 0, NULL);
+}
+
+/**
+ * zynqmp_pm_set_feature_config - PM call to request IOCTL for feature config
+ * @id:         The config ID of the feature to be configured
+ * @value:      The config value of the feature to be configured
+ *
+ * Return:      Returns 0 on success or error value on failure.
+ */
+int zynqmp_pm_set_feature_config(enum pm_feature_config_id id, u32 value)
+{
+	return zynqmp_pm_invoke_fn(PM_IOCTL, 0, IOCTL_SET_FEATURE_CONFIG,
+				   id, value, NULL);
+}
+
+/**
+ * zynqmp_pm_get_feature_config - PM call to get value of configured feature
+ * @id:         The config id of the feature to be queried
+ * @payload:    Returned value array
+ *
+ * Return:      Returns 0 on success or error value on failure.
+ */
+int zynqmp_pm_get_feature_config(enum pm_feature_config_id id,
+				 u32 *payload)
+{
+	return zynqmp_pm_invoke_fn(PM_IOCTL, 0, IOCTL_GET_FEATURE_CONFIG,
+				   id, 0, payload);
 }
 
 /**
@@ -1424,6 +1565,78 @@ static DEVICE_ATTR_RW(pggs1);
 static DEVICE_ATTR_RW(pggs2);
 static DEVICE_ATTR_RW(pggs3);
 
+static ssize_t feature_config_id_show(struct device *device,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct zynqmp_devinfo *devinfo = dev_get_drvdata(device);
+
+	return sysfs_emit(buf, "%d\n", devinfo->feature_conf_id);
+}
+
+static ssize_t feature_config_id_store(struct device *device,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
+{
+	u32 config_id;
+	int ret;
+	struct zynqmp_devinfo *devinfo = dev_get_drvdata(device);
+
+	if (!buf)
+		return -EINVAL;
+
+	ret = kstrtou32(buf, 10, &config_id);
+	if (ret)
+		return ret;
+
+	devinfo->feature_conf_id = config_id;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(feature_config_id);
+
+static ssize_t feature_config_value_show(struct device *device,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	int ret;
+	u32 ret_payload[PAYLOAD_ARG_CNT];
+	struct zynqmp_devinfo *devinfo = dev_get_drvdata(device);
+
+	ret = zynqmp_pm_get_feature_config(devinfo->feature_conf_id,
+					   ret_payload);
+	if (ret)
+		return ret;
+
+	return sysfs_emit(buf, "%d\n", ret_payload[1]);
+}
+
+static ssize_t feature_config_value_store(struct device *device,
+					  struct device_attribute *attr,
+					  const char *buf, size_t count)
+{
+	u32 value;
+	int ret;
+	struct zynqmp_devinfo *devinfo = dev_get_drvdata(device);
+
+	if (!buf)
+		return -EINVAL;
+
+	ret = kstrtou32(buf, 10, &value);
+	if (ret)
+		return ret;
+
+	ret = zynqmp_pm_set_feature_config(devinfo->feature_conf_id,
+					   value);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(feature_config_value);
+
 static struct attribute *zynqmp_firmware_attrs[] = {
 	&dev_attr_ggs0.attr,
 	&dev_attr_ggs1.attr,
@@ -1435,6 +1648,8 @@ static struct attribute *zynqmp_firmware_attrs[] = {
 	&dev_attr_pggs3.attr,
 	&dev_attr_shutdown_scope.attr,
 	&dev_attr_health_status.attr,
+	&dev_attr_feature_config_id.attr,
+	&dev_attr_feature_config_value.attr,
 	NULL,
 };
 
@@ -1444,7 +1659,12 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np;
+	struct zynqmp_devinfo *devinfo;
 	int ret;
+
+	ret = get_set_conduit_method(dev->of_node);
+	if (ret)
+		return ret;
 
 	np = of_find_compatible_node(NULL, NULL, "xlnx,zynqmp");
 	if (!np) {
@@ -1454,11 +1674,22 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 
 		feature_check_enabled = true;
 	}
+
+	if (!feature_check_enabled) {
+		ret = do_feature_check_call(PM_FEATURE_CHECK);
+		if (ret >= 0)
+			feature_check_enabled = true;
+	}
+
 	of_node_put(np);
 
-	ret = get_set_conduit_method(dev->of_node);
-	if (ret)
-		return ret;
+	devinfo = devm_kzalloc(dev, sizeof(*devinfo), GFP_KERNEL);
+	if (!devinfo)
+		return -ENOMEM;
+
+	devinfo->dev = dev;
+
+	platform_set_drvdata(pdev, devinfo);
 
 	/* Check PM API version number */
 	ret = zynqmp_pm_get_api_version(&pm_api_version);

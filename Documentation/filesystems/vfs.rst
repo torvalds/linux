@@ -620,9 +620,9 @@ Writeback.
 The first can be used independently to the others.  The VM can try to
 either write dirty pages in order to clean them, or release clean pages
 in order to reuse them.  To do this it can call the ->writepage method
-on dirty pages, and ->releasepage on clean pages with PagePrivate set.
-Clean pages without PagePrivate and with no external references will be
-released without notice being given to the address_space.
+on dirty pages, and ->release_folio on clean folios with the private
+flag set.  Clean pages without PagePrivate and with no external references
+will be released without notice being given to the address_space.
 
 To achieve this functionality, pages need to be placed on an LRU with
 lru_cache_add and mark_page_active needs to be called whenever the page
@@ -656,9 +656,9 @@ by memory-mapping the page.  Data is written into the address space by
 the application, and then written-back to storage typically in whole
 pages, however the address_space has finer control of write sizes.
 
-The read process essentially only requires 'readpage'.  The write
+The read process essentially only requires 'read_folio'.  The write
 process is more complicated and uses write_begin/write_end or
-set_page_dirty to write data into the address_space, and writepage and
+dirty_folio to write data into the address_space, and writepage and
 writepages to writeback data to storage.
 
 Adding and removing pages to/from an address_space is protected by the
@@ -722,22 +722,20 @@ cache in your filesystem.  The following members are defined:
 
 	struct address_space_operations {
 		int (*writepage)(struct page *page, struct writeback_control *wbc);
-		int (*readpage)(struct file *, struct page *);
+		int (*read_folio)(struct file *, struct folio *);
 		int (*writepages)(struct address_space *, struct writeback_control *);
-		int (*set_page_dirty)(struct page *page);
+		bool (*dirty_folio)(struct address_space *, struct folio *);
 		void (*readahead)(struct readahead_control *);
-		int (*readpages)(struct file *filp, struct address_space *mapping,
-				 struct list_head *pages, unsigned nr_pages);
 		int (*write_begin)(struct file *, struct address_space *mapping,
-				   loff_t pos, unsigned len, unsigned flags,
+				   loff_t pos, unsigned len,
 				struct page **pagep, void **fsdata);
 		int (*write_end)(struct file *, struct address_space *mapping,
 				 loff_t pos, unsigned len, unsigned copied,
 				 struct page *page, void *fsdata);
 		sector_t (*bmap)(struct address_space *, sector_t);
-		void (*invalidatepage) (struct page *, unsigned int, unsigned int);
-		int (*releasepage) (struct page *, int);
-		void (*freepage)(struct page *);
+		void (*invalidate_folio) (struct folio *, size_t start, size_t len);
+		bool (*release_folio)(struct folio *, gfp_t);
+		void (*free_folio)(struct folio *);
 		ssize_t (*direct_IO)(struct kiocb *, struct iov_iter *iter);
 		/* isolate a page for migration */
 		bool (*isolate_page) (struct page *, isolate_mode_t);
@@ -745,14 +743,15 @@ cache in your filesystem.  The following members are defined:
 		int (*migratepage) (struct page *, struct page *);
 		/* put migration-failed page back to right list */
 		void (*putback_page) (struct page *);
-		int (*launder_page) (struct page *);
+		int (*launder_folio) (struct folio *);
 
-		int (*is_partially_uptodate) (struct page *, unsigned long,
-					      unsigned long);
-		void (*is_dirty_writeback) (struct page *, bool *, bool *);
+		bool (*is_partially_uptodate) (struct folio *, size_t from,
+					       size_t count);
+		void (*is_dirty_writeback)(struct folio *, bool *, bool *);
 		int (*error_remove_page) (struct mapping *mapping, struct page *page);
-		int (*swap_activate)(struct file *);
+		int (*swap_activate)(struct swap_info_struct *sis, struct file *f, sector_t *span)
 		int (*swap_deactivate)(struct file *);
+		int (*swap_rw)(struct kiocb *iocb, struct iov_iter *iter);
 	};
 
 ``writepage``
@@ -774,14 +773,14 @@ cache in your filesystem.  The following members are defined:
 
 	See the file "Locking" for more details.
 
-``readpage``
-	called by the VM to read a page from backing store.  The page
-	will be Locked when readpage is called, and should be unlocked
-	and marked uptodate once the read completes.  If ->readpage
-	discovers that it needs to unlock the page for some reason, it
-	can do so, and then return AOP_TRUNCATED_PAGE.  In this case,
-	the page will be relocated, relocked and if that all succeeds,
-	->readpage will be called again.
+``read_folio``
+	called by the VM to read a folio from backing store.  The folio
+	will be locked when read_folio is called, and should be unlocked
+	and marked uptodate once the read completes.  If ->read_folio
+	discovers that it cannot perform the I/O at this time, it can
+        unlock the folio and return AOP_TRUNCATED_PAGE.  In this case,
+	the folio will be looked up again, relocked and if that all succeeds,
+	->read_folio will be called again.
 
 ``writepages``
 	called by the VM to write out pages associated with the
@@ -793,34 +792,29 @@ cache in your filesystem.  The following members are defined:
 	This will choose pages from the address space that are tagged as
 	DIRTY and will pass them to ->writepage.
 
-``set_page_dirty``
-	called by the VM to set a page dirty.  This is particularly
-	needed if an address space attaches private data to a page, and
-	that data needs to be updated when a page is dirtied.  This is
+``dirty_folio``
+	called by the VM to mark a folio as dirty.  This is particularly
+	needed if an address space attaches private data to a folio, and
+	that data needs to be updated when a folio is dirtied.  This is
 	called, for example, when a memory mapped page gets modified.
-	If defined, it should set the PageDirty flag, and the
-	PAGECACHE_TAG_DIRTY tag in the radix tree.
+	If defined, it should set the folio dirty flag, and the
+	PAGECACHE_TAG_DIRTY search mark in i_pages.
 
 ``readahead``
 	Called by the VM to read pages associated with the address_space
 	object.  The pages are consecutive in the page cache and are
 	locked.  The implementation should decrement the page refcount
 	after starting I/O on each page.  Usually the page will be
-	unlocked by the I/O completion handler.  If the filesystem decides
-	to stop attempting I/O before reaching the end of the readahead
-	window, it can simply return.  The caller will decrement the page
-	refcount and unlock the remaining pages for you.  Set PageUptodate
-	if the I/O completes successfully.  Setting PageError on any page
-	will be ignored; simply unlock the page if an I/O error occurs.
-
-``readpages``
-	called by the VM to read pages associated with the address_space
-	object.  This is essentially just a vector version of readpage.
-	Instead of just one page, several pages are requested.
-	readpages is only used for read-ahead, so read errors are
-	ignored.  If anything goes wrong, feel free to give up.
-	This interface is deprecated and will be removed by the end of
-	2020; implement readahead instead.
+	unlocked by the I/O completion handler.  The set of pages are
+	divided into some sync pages followed by some async pages,
+	rac->ra->async_size gives the number of async pages.  The
+	filesystem should attempt to read all sync pages but may decide
+	to stop once it reaches the async pages.  If it does decide to
+	stop attempting I/O, it can simply return.  The caller will
+	remove the remaining pages from the address space, unlock them
+	and decrement the page refcount.  Set PageUptodate if the I/O
+	completes successfully.  Setting PageError on any page will be
+	ignored; simply unlock the page if an I/O error occurs.
 
 ``write_begin``
 	Called by the generic buffered write code to ask the filesystem
@@ -838,9 +832,6 @@ cache in your filesystem.  The following members are defined:
 	It must be able to cope with short writes (where the length
 	passed to write_begin is greater than the number of bytes copied
 	into the page).
-
-	flags is a field for AOP_FLAG_xxx flags, described in
-	include/linux/fs.h.
 
 	A void * may be returned in fsdata, which then gets passed into
 	write_end.
@@ -868,42 +859,41 @@ cache in your filesystem.  The following members are defined:
 	to find out where the blocks in the file are and uses those
 	addresses directly.
 
-``invalidatepage``
-	If a page has PagePrivate set, then invalidatepage will be
-	called when part or all of the page is to be removed from the
+``invalidate_folio``
+	If a folio has private data, then invalidate_folio will be
+	called when part or all of the folio is to be removed from the
 	address space.  This generally corresponds to either a
 	truncation, punch hole or a complete invalidation of the address
 	space (in the latter case 'offset' will always be 0 and 'length'
-	will be PAGE_SIZE).  Any private data associated with the page
+	will be folio_size()).  Any private data associated with the folio
 	should be updated to reflect this truncation.  If offset is 0
-	and length is PAGE_SIZE, then the private data should be
-	released, because the page must be able to be completely
-	discarded.  This may be done by calling the ->releasepage
+	and length is folio_size(), then the private data should be
+	released, because the folio must be able to be completely
+	discarded.  This may be done by calling the ->release_folio
 	function, but in this case the release MUST succeed.
 
-``releasepage``
-	releasepage is called on PagePrivate pages to indicate that the
-	page should be freed if possible.  ->releasepage should remove
-	any private data from the page and clear the PagePrivate flag.
-	If releasepage() fails for some reason, it must indicate failure
-	with a 0 return value.  releasepage() is used in two distinct
-	though related cases.  The first is when the VM finds a clean
-	page with no active users and wants to make it a free page.  If
-	->releasepage succeeds, the page will be removed from the
-	address_space and become free.
+``release_folio``
+	release_folio is called on folios with private data to tell the
+	filesystem that the folio is about to be freed.  ->release_folio
+	should remove any private data from the folio and clear the
+	private flag.  If release_folio() fails, it should return false.
+	release_folio() is used in two distinct though related cases.
+	The first is when the VM wants to free a clean folio with no
+	active users.  If ->release_folio succeeds, the folio will be
+	removed from the address_space and be freed.
 
 	The second case is when a request has been made to invalidate
-	some or all pages in an address_space.  This can happen through
-	the fadvise(POSIX_FADV_DONTNEED) system call or by the
-	filesystem explicitly requesting it as nfs and 9fs do (when they
+	some or all folios in an address_space.  This can happen
+	through the fadvise(POSIX_FADV_DONTNEED) system call or by the
+	filesystem explicitly requesting it as nfs and 9p do (when they
 	believe the cache may be out of date with storage) by calling
 	invalidate_inode_pages2().  If the filesystem makes such a call,
-	and needs to be certain that all pages are invalidated, then its
-	releasepage will need to ensure this.  Possibly it can clear the
-	PageUptodate bit if it cannot free private data yet.
+	and needs to be certain that all folios are invalidated, then
+	its release_folio will need to ensure this.  Possibly it can
+	clear the uptodate flag if it cannot free private data yet.
 
-``freepage``
-	freepage is called once the page is no longer visible in the
+``free_folio``
+	free_folio is called once the folio is no longer visible in the
 	page cache in order to allow the cleanup of any private data.
 	Since it may be called by the memory reclaimer, it should not
 	assume that the original address_space mapping still exists, and
@@ -930,26 +920,26 @@ cache in your filesystem.  The following members are defined:
 ``putback_page``
 	Called by the VM when isolated page's migration fails.
 
-``launder_page``
-	Called before freeing a page - it writes back the dirty page.
-	To prevent redirtying the page, it is kept locked during the
+``launder_folio``
+	Called before freeing a folio - it writes back the dirty folio.
+	To prevent redirtying the folio, it is kept locked during the
 	whole operation.
 
 ``is_partially_uptodate``
 	Called by the VM when reading a file through the pagecache when
-	the underlying blocksize != pagesize.  If the required block is
-	up to date then the read can complete without needing the IO to
-	bring the whole page up to date.
+	the underlying blocksize is smaller than the size of the folio.
+	If the required block is up to date then the read can complete
+	without needing I/O to bring the whole page up to date.
 
 ``is_dirty_writeback``
-	Called by the VM when attempting to reclaim a page.  The VM uses
+	Called by the VM when attempting to reclaim a folio.  The VM uses
 	dirty and writeback information to determine if it needs to
 	stall to allow flushers a chance to complete some IO.
-	Ordinarily it can use PageDirty and PageWriteback but some
-	filesystems have more complex state (unstable pages in NFS
+	Ordinarily it can use folio_test_dirty and folio_test_writeback but
+	some filesystems have more complex state (unstable folios in NFS
 	prevent reclaim) or do not set those flags due to locking
 	problems.  This callback allows a filesystem to indicate to the
-	VM if a page should be treated as dirty or writeback for the
+	VM if a folio should be treated as dirty or writeback for the
 	purposes of stalling.
 
 ``error_remove_page``
@@ -959,15 +949,21 @@ cache in your filesystem.  The following members are defined:
 	unless you have them locked or reference counts increased.
 
 ``swap_activate``
-	Called when swapon is used on a file to allocate space if
-	necessary and pin the block lookup information in memory.  A
-	return value of zero indicates success, in which case this file
-	can be used to back swapspace.
+
+	Called to prepare the given file for swap.  It should perform
+	any validation and preparation necessary to ensure that writes
+	can be performed with minimal memory allocation.  It should call
+	add_swap_extent(), or the helper iomap_swapfile_activate(), and
+	return the number of extents added.  If IO should be submitted
+	through ->swap_rw(), it should set SWP_FS_OPS, otherwise IO will
+	be submitted directly to the block device ``sis->bdev``.
 
 ``swap_deactivate``
 	Called during swapoff on files where swap_activate was
 	successful.
 
+``swap_rw``
+	Called to read or write swap pages when SWP_FS_OPS is set.
 
 The File Object
 ===============

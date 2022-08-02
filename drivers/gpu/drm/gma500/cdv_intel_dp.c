@@ -29,9 +29,9 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_dp_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
 #include "gma_display.h"
@@ -82,7 +82,6 @@ i2c_algo_dp_aux_address(struct i2c_adapter *adapter, u16 address, bool reading)
 {
 	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
 	int mode = MODE_I2C_START;
-	int ret;
 
 	if (reading)
 		mode |= MODE_I2C_READ;
@@ -90,8 +89,7 @@ i2c_algo_dp_aux_address(struct i2c_adapter *adapter, u16 address, bool reading)
 		mode |= MODE_I2C_WRITE;
 	algo_data->address = address;
 	algo_data->running = true;
-	ret = i2c_algo_dp_aux_transaction(adapter, mode, 0, NULL);
-	return ret;
+	return i2c_algo_dp_aux_transaction(adapter, mode, 0, NULL);
 }
 
 /*
@@ -122,13 +120,11 @@ static int
 i2c_algo_dp_aux_put_byte(struct i2c_adapter *adapter, u8 byte)
 {
 	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
-	int ret;
 
 	if (!algo_data->running)
 		return -EIO;
 
-	ret = i2c_algo_dp_aux_transaction(adapter, MODE_I2C_WRITE, byte, NULL);
-	return ret;
+	return i2c_algo_dp_aux_transaction(adapter, MODE_I2C_WRITE, byte, NULL);
 }
 
 /*
@@ -139,13 +135,11 @@ static int
 i2c_algo_dp_aux_get_byte(struct i2c_adapter *adapter, u8 *byte_ret)
 {
 	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
-	int ret;
 
 	if (!algo_data->running)
 		return -EIO;
 
-	ret = i2c_algo_dp_aux_transaction(adapter, MODE_I2C_READ, 0, byte_ret);
-	return ret;
+	return i2c_algo_dp_aux_transaction(adapter, MODE_I2C_READ, 0, byte_ret);
 }
 
 static int
@@ -1863,6 +1857,7 @@ done:
 static void
 cdv_intel_dp_destroy(struct drm_connector *connector)
 {
+	struct gma_connector *gma_connector = to_gma_connector(connector);
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 	struct cdv_intel_dp *intel_dp = gma_encoder->dev_priv;
 
@@ -1872,9 +1867,8 @@ cdv_intel_dp_destroy(struct drm_connector *connector)
 		intel_dp->panel_fixed_mode = NULL;
 	}
 	i2c_del_adapter(&intel_dp->adapter);
-	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
-	kfree(connector);
+	kfree(gma_connector);
 }
 
 static const struct drm_encoder_helper_funcs cdv_intel_dp_helper_funcs = {
@@ -1995,8 +1989,6 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
-
-	drm_connector_register(connector);
 
 	/* Set up the DDC bus. */
 	switch (output_reg) {

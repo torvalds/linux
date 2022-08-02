@@ -3,7 +3,7 @@
 #ifndef __DRM_GEM_ATOMIC_HELPER_H__
 #define __DRM_GEM_ATOMIC_HELPER_H__
 
-#include <linux/dma-buf-map.h>
+#include <linux/iosys-map.h>
 
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane.h>
@@ -59,7 +59,7 @@ struct drm_shadow_plane_state {
 	 * The memory mappings stored in map should be established in the plane's
 	 * prepare_fb callback and removed in the cleanup_fb callback.
 	 */
-	struct dma_buf_map map[DRM_FORMAT_MAX_PLANES];
+	struct iosys_map map[DRM_FORMAT_MAX_PLANES];
 
 	/**
 	 * @data: Address of each framebuffer BO's data
@@ -67,7 +67,7 @@ struct drm_shadow_plane_state {
 	 * The address of the data stored in each mapping. This is different
 	 * for framebuffers with non-zero offset fields.
 	 */
-	struct dma_buf_map data[DRM_FORMAT_MAX_PLANES];
+	struct iosys_map data[DRM_FORMAT_MAX_PLANES];
 };
 
 /**

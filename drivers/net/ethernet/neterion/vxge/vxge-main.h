@@ -167,8 +167,6 @@ struct macInfo {
 struct vxge_config {
 	int		tx_pause_enable;
 	int		rx_pause_enable;
-
-#define	NEW_NAPI_WEIGHT	64
 	int		napi_weight;
 	int		intr_type;
 #define INTA	0

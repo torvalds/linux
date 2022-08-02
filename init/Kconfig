@@ -62,13 +62,13 @@ config LLD_VERSION
 
 config CC_CAN_LINK
 	bool
-	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(m64-flag)) if 64BIT
-	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(m32-flag))
+	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(USERCFLAGS) $(USERLDFLAGS) $(m64-flag)) if 64BIT
+	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(USERCFLAGS) $(USERLDFLAGS) $(m32-flag))
 
 config CC_CAN_LINK_STATIC
 	bool
-	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(m64-flag) -static) if 64BIT
-	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(m32-flag) -static)
+	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(USERCFLAGS) $(USERLDFLAGS) $(m64-flag) -static) if 64BIT
+	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(USERCFLAGS) $(USERLDFLAGS) $(m32-flag) -static)
 
 config CC_HAS_ASM_GOTO
 	def_bool $(success,$(srctree)/scripts/gcc-goto.sh $(CC))
@@ -76,6 +76,11 @@ config CC_HAS_ASM_GOTO
 config CC_HAS_ASM_GOTO_OUTPUT
 	depends on CC_HAS_ASM_GOTO
 	def_bool $(success,echo 'int foo(int x) { asm goto ("": "=r"(x) ::: bar); return x; bar: return 0; }' | $(CC) -x c - -c -o /dev/null)
+
+config CC_HAS_ASM_GOTO_TIED_OUTPUT
+	depends on CC_HAS_ASM_GOTO_OUTPUT
+	# Detect buggy gcc and clang, fixed in gcc-11 clang-14.
+	def_bool $(success,echo 'int foo(int *x) { asm goto (".long (%l[bar]) - .\n": "+m"(*x) ::: bar); return *x; bar: return 0; }' | $CC -x c - -c -o /dev/null)
 
 config TOOLS_SUPPORT_RELR
 	def_bool $(success,env "CC=$(CC)" "LD=$(LD)" "NM=$(NM)" "OBJCOPY=$(OBJCOPY)" $(srctree)/scripts/tools-support-relr.sh)
@@ -85,6 +90,10 @@ config CC_HAS_ASM_INLINE
 
 config CC_HAS_NO_PROFILE_FN_ATTR
 	def_bool $(success,echo '__attribute__((no_profile_instrument_function)) int x();' | $(CC) -x c - -c -o /dev/null -Werror)
+
+config PAHOLE_VERSION
+	int
+	default $(shell,$(srctree)/scripts/pahole-version.sh $(PAHOLE))
 
 config CONSTRUCTORS
 	bool
@@ -348,23 +357,6 @@ config DEFAULT_HOSTNAME
 	  but you may wish to use a different default here to make a minimal
 	  system more usable with less configuration.
 
-#
-# For some reason microblaze and nios2 hard code SWAP=n.  Hopefully we can
-# add proper SWAP support to them, in which case this can be remove.
-#
-config ARCH_NO_SWAP
-	bool
-
-config SWAP
-	bool "Support for paging of anonymous memory (swap)"
-	depends on MMU && BLOCK && !ARCH_NO_SWAP
-	default y
-	help
-	  This option allows you to choose whether you want to have support
-	  for so called swap devices or swap files in your kernel that are
-	  used to provide more virtual memory than the actual RAM present
-	  in your computer.  If unsure say Y.
-
 config SYSVIPC
 	bool "System V IPC"
 	help
@@ -385,6 +377,10 @@ config SYSVIPC_SYSCTL
 	depends on SYSVIPC
 	depends on SYSCTL
 	default y
+
+config SYSVIPC_COMPAT
+	def_bool y
+	depends on COMPAT && SYSVIPC
 
 config POSIX_MQUEUE
 	bool "POSIX Message Queues"
@@ -431,8 +427,8 @@ config CROSS_MEMORY_ATTACH
 	  See the man page for more details.
 
 config USELIB
-	bool "uselib syscall"
-	def_bool ALPHA || M68K || SPARC || X86_32 || IA32_EMULATION
+	bool "uselib syscall (for libc5 and earlier)"
+	default ALPHA || M68K || SPARC
 	help
 	  This option enables the uselib syscall, a system call used in the
 	  dynamic linker from libc5 and earlier.  glibc does not use this
@@ -711,8 +707,7 @@ config IKHEADERS
 
 config LOG_BUF_SHIFT
 	int "Kernel log buffer size (16 => 64KB, 17 => 128KB)"
-	range 12 25 if !H8300
-	range 12 19 if H8300
+	range 12 25
 	default 17
 	depends on PRINTK
 	help
@@ -889,6 +884,15 @@ config CC_IMPLICIT_FALLTHROUGH
 	string
 	default "-Wimplicit-fallthrough=5" if CC_IS_GCC && $(cc-option,-Wimplicit-fallthrough=5)
 	default "-Wimplicit-fallthrough" if CC_IS_CLANG && $(cc-option,-Wunreachable-code-fallthrough)
+
+# Currently, disable gcc-12 array-bounds globally.
+# We may want to target only particular configurations some day.
+config GCC12_NO_ARRAY_BOUNDS
+	def_bool y
+
+config CC_NO_ARRAY_BOUNDS
+	bool
+	default y if CC_IS_GCC && GCC_VERSION >= 120000 && GCC_VERSION < 130000 && GCC12_NO_ARRAY_BOUNDS
 
 #
 # For architectures that know their GCC __int128 support is sound
@@ -1347,13 +1351,42 @@ endif
 
 config BOOT_CONFIG
 	bool "Boot config support"
-	select BLK_DEV_INITRD
+	select BLK_DEV_INITRD if !BOOT_CONFIG_EMBED
 	help
 	  Extra boot config allows system admin to pass a config file as
 	  complemental extension of kernel cmdline when booting.
 	  The boot config file must be attached at the end of initramfs
 	  with checksum, size and magic word.
 	  See <file:Documentation/admin-guide/bootconfig.rst> for details.
+
+	  If unsure, say Y.
+
+config BOOT_CONFIG_EMBED
+	bool "Embed bootconfig file in the kernel"
+	depends on BOOT_CONFIG
+	help
+	  Embed a bootconfig file given by BOOT_CONFIG_EMBED_FILE in the
+	  kernel. Usually, the bootconfig file is loaded with the initrd
+	  image. But if the system doesn't support initrd, this option will
+	  help you by embedding a bootconfig file while building the kernel.
+
+	  If unsure, say N.
+
+config BOOT_CONFIG_EMBED_FILE
+	string "Embedded bootconfig file path"
+	depends on BOOT_CONFIG_EMBED
+	help
+	  Specify a bootconfig file which will be embedded to the kernel.
+	  This bootconfig will be used if there is no initrd or no other
+	  bootconfig in the initrd.
+
+config INITRAMFS_PRESERVE_MTIME
+	bool "Preserve cpio archive mtimes in initramfs"
+	default y
+	help
+	  Each entry in an initramfs cpio archive carries an mtime value. When
+	  enabled, extracted cpio items take this mtime, with directory mtime
+	  setting deferred until after creation of any child entries.
 
 	  If unsure, say Y.
 
@@ -1663,16 +1696,6 @@ config ADVISE_SYSCALLS
 	  applications use these syscalls, you can disable this option to save
 	  space.
 
-config HAVE_ARCH_USERFAULTFD_WP
-	bool
-	help
-	  Arch has userfaultfd write protection support
-
-config HAVE_ARCH_USERFAULTFD_MINOR
-	bool
-	help
-	  Arch has userfaultfd minor fault support
-
 config MEMBARRIER
 	bool "Enable membarrier() system call" if EXPERT
 	default y
@@ -1736,13 +1759,6 @@ config KALLSYMS_BASE_RELATIVE
 # end of the "standard kernel features (expert users)" menu
 
 # syscall, maps, verifier
-
-config USERFAULTFD
-	bool "Enable userfaultfd() system call"
-	depends on MMU
-	help
-	  Enable the userfaultfd() system call that allows to intercept and
-	  handle page faults in userland.
 
 config ARCH_HAS_MEMBARRIER_CALLBACKS
 	bool
@@ -1858,165 +1874,6 @@ config DEBUG_PERF_USE_VMALLOC
 
 endmenu
 
-config VM_EVENT_COUNTERS
-	default y
-	bool "Enable VM event counters for /proc/vmstat" if EXPERT
-	help
-	  VM event counters are needed for event counts to be shown.
-	  This option allows the disabling of the VM event counters
-	  on EXPERT systems.  /proc/vmstat will only show page counts
-	  if VM event counters are disabled.
-
-config SLUB_DEBUG
-	default y
-	bool "Enable SLUB debugging support" if EXPERT
-	depends on SLUB && SYSFS
-	help
-	  SLUB has extensive debug support features. Disabling these can
-	  result in significant savings in code size. This also disables
-	  SLUB sysfs support. /sys/slab will not exist and there will be
-	  no support for cache validation etc.
-
-config COMPAT_BRK
-	bool "Disable heap randomization"
-	default y
-	help
-	  Randomizing heap placement makes heap exploits harder, but it
-	  also breaks ancient binaries (including anything libc5 based).
-	  This option changes the bootup default to heap randomization
-	  disabled, and can be overridden at runtime by setting
-	  /proc/sys/kernel/randomize_va_space to 2.
-
-	  On non-ancient distros (post-2000 ones) N is usually a safe choice.
-
-choice
-	prompt "Choose SLAB allocator"
-	default SLUB
-	help
-	   This option allows to select a slab allocator.
-
-config SLAB
-	bool "SLAB"
-	depends on !PREEMPT_RT
-	select HAVE_HARDENED_USERCOPY_ALLOCATOR
-	help
-	  The regular slab allocator that is established and known to work
-	  well in all environments. It organizes cache hot objects in
-	  per cpu and per node queues.
-
-config SLUB
-	bool "SLUB (Unqueued Allocator)"
-	select HAVE_HARDENED_USERCOPY_ALLOCATOR
-	help
-	   SLUB is a slab allocator that minimizes cache line usage
-	   instead of managing queues of cached objects (SLAB approach).
-	   Per cpu caching is realized using slabs of objects instead
-	   of queues of objects. SLUB can use memory efficiently
-	   and has enhanced diagnostics. SLUB is the default choice for
-	   a slab allocator.
-
-config SLOB
-	depends on EXPERT
-	bool "SLOB (Simple Allocator)"
-	depends on !PREEMPT_RT
-	help
-	   SLOB replaces the stock allocator with a drastically simpler
-	   allocator. SLOB is generally more space efficient but
-	   does not perform as well on large systems.
-
-endchoice
-
-config SLAB_MERGE_DEFAULT
-	bool "Allow slab caches to be merged"
-	default y
-	depends on SLAB || SLUB
-	help
-	  For reduced kernel memory fragmentation, slab caches can be
-	  merged when they share the same size and other characteristics.
-	  This carries a risk of kernel heap overflows being able to
-	  overwrite objects from merged caches (and more easily control
-	  cache layout), which makes such heap attacks easier to exploit
-	  by attackers. By keeping caches unmerged, these kinds of exploits
-	  can usually only damage objects in the same cache. To disable
-	  merging at runtime, "slab_nomerge" can be passed on the kernel
-	  command line.
-
-config SLAB_FREELIST_RANDOM
-	bool "Randomize slab freelist"
-	depends on SLAB || SLUB
-	help
-	  Randomizes the freelist order used on creating new pages. This
-	  security feature reduces the predictability of the kernel slab
-	  allocator against heap overflows.
-
-config SLAB_FREELIST_HARDENED
-	bool "Harden slab freelist metadata"
-	depends on SLAB || SLUB
-	help
-	  Many kernel heap attacks try to target slab cache metadata and
-	  other infrastructure. This options makes minor performance
-	  sacrifices to harden the kernel slab allocator against common
-	  freelist exploit methods. Some slab implementations have more
-	  sanity-checking than others. This option is most effective with
-	  CONFIG_SLUB.
-
-config SHUFFLE_PAGE_ALLOCATOR
-	bool "Page allocator randomization"
-	default SLAB_FREELIST_RANDOM && ACPI_NUMA
-	help
-	  Randomization of the page allocator improves the average
-	  utilization of a direct-mapped memory-side-cache. See section
-	  5.2.27 Heterogeneous Memory Attribute Table (HMAT) in the ACPI
-	  6.2a specification for an example of how a platform advertises
-	  the presence of a memory-side-cache. There are also incidental
-	  security benefits as it reduces the predictability of page
-	  allocations to compliment SLAB_FREELIST_RANDOM, but the
-	  default granularity of shuffling on the "MAX_ORDER - 1" i.e,
-	  10th order of pages is selected based on cache utilization
-	  benefits on x86.
-
-	  While the randomization improves cache utilization it may
-	  negatively impact workloads on platforms without a cache. For
-	  this reason, by default, the randomization is enabled only
-	  after runtime detection of a direct-mapped memory-side-cache.
-	  Otherwise, the randomization may be force enabled with the
-	  'page_alloc.shuffle' kernel command line parameter.
-
-	  Say Y if unsure.
-
-config SLUB_CPU_PARTIAL
-	default y
-	depends on SLUB && SMP
-	bool "SLUB per cpu partial cache"
-	help
-	  Per cpu partial caches accelerate objects allocation and freeing
-	  that is local to a processor at the price of more indeterminism
-	  in the latency of the free. On overflow these caches will be cleared
-	  which requires the taking of locks that may cause latency spikes.
-	  Typically one would choose no for a realtime system.
-
-config MMAP_ALLOW_UNINITIALIZED
-	bool "Allow mmapped anonymous memory to be uninitialized"
-	depends on EXPERT && !MMU
-	default n
-	help
-	  Normally, and according to the Linux spec, anonymous memory obtained
-	  from mmap() has its contents cleared before it is passed to
-	  userspace.  Enabling this config option allows you to request that
-	  mmap() skip that if it is given an MAP_UNINITIALIZED flag, thus
-	  providing a huge performance boost.  If this option is not enabled,
-	  then the flag will be ignored.
-
-	  This is taken advantage of by uClibc's malloc(), and also by
-	  ELF-FDPIC binfmt's brk and stack allocator.
-
-	  Because of the obvious security issues, this option should only be
-	  enabled on embedded devices where you control what is run in
-	  userspace.  Since that isn't generally a problem on no-MMU systems,
-	  it is normally safe to say Y here.
-
-	  See Documentation/admin-guide/mm/nommu-mmap.rst for more information.
-
 config SYSTEM_DATA_VERIFICATION
 	def_bool n
 	select SYSTEM_TRUSTED_KEYRING
@@ -2054,6 +1911,7 @@ source "arch/Kconfig"
 
 config RT_MUTEXES
 	bool
+	default y if PREEMPT_RT
 
 config BASE_SMALL
 	int
@@ -2113,6 +1971,17 @@ config MODULE_FORCE_UNLOAD
 	  rmmod).  This is mainly for kernel developers and desperate users.
 	  If unsure, say N.
 
+config MODULE_UNLOAD_TAINT_TRACKING
+	bool "Tainted module unload tracking"
+	depends on MODULE_UNLOAD
+	default n
+	help
+	  This option allows you to maintain a record of each unloaded
+	  module that tainted the kernel. In addition to displaying a
+	  list of linked (or loaded) modules e.g. on detection of a bad
+	  page (see bad_page()), the aforementioned details are also
+	  shown. If unsure, say N.
+
 config MODVERSIONS
 	bool "Module versioning support"
 	help
@@ -2130,10 +1999,6 @@ config ASM_MODVERSIONS
 	  This enables module versioning for exported symbols also from
 	  assembly. This can be enabled only when the target architecture
 	  supports it.
-
-config MODULE_REL_CRCS
-	bool
-	depends on MODVERSIONS
 
 config MODULE_SRCVERSION_ALL
 	bool "Source checksum for all modules"

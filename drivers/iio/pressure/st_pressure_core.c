@@ -560,16 +560,12 @@ static int st_press_write_raw(struct iio_dev *indio_dev,
 			      int val2,
 			      long mask)
 {
-	int err;
-
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		if (val2)
 			return -EINVAL;
-		mutex_lock(&indio_dev->mlock);
-		err = st_sensors_set_odr(indio_dev, val);
-		mutex_unlock(&indio_dev->mlock);
-		return err;
+
+		return st_sensors_set_odr(indio_dev, val);
 	default:
 		return -EINVAL;
 	}
@@ -672,7 +668,7 @@ const struct st_sensor_settings *st_press_get_settings(const char *name)
 
 	return &st_press_sensors_settings[index];
 }
-EXPORT_SYMBOL(st_press_get_settings);
+EXPORT_SYMBOL_NS(st_press_get_settings, IIO_ST_SENSORS);
 
 int st_press_common_probe(struct iio_dev *indio_dev)
 {
@@ -724,8 +720,9 @@ int st_press_common_probe(struct iio_dev *indio_dev)
 
 	return devm_iio_device_register(parent, indio_dev);
 }
-EXPORT_SYMBOL(st_press_common_probe);
+EXPORT_SYMBOL_NS(st_press_common_probe, IIO_ST_SENSORS);
 
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics pressures driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_ST_SENSORS);

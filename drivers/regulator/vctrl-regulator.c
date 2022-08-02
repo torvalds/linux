@@ -185,10 +185,7 @@ static int vctrl_set_voltage_sel(struct regulator_dev *rdev,
 		unsigned int next_sel;
 		int delay;
 
-		if (selector >= vctrl->vtable[vctrl->sel].ovp_min_sel)
-			next_sel = selector;
-		else
-			next_sel = vctrl->vtable[vctrl->sel].ovp_min_sel;
+		next_sel = max_t(unsigned int, selector, vctrl->vtable[vctrl->sel].ovp_min_sel);
 
 		ret = regulator_set_voltage_rdev(rdev->supply->rdev,
 					    vctrl->vtable[next_sel].ctrl,

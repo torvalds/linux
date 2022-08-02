@@ -24,6 +24,24 @@
 		compatible = "samsung,eb535151vu";
 	};
 
+	thermal-zones {
+		battery-thermal {
+			/* This zone will be polled by the battery temperature code */
+			polling-delay = <0>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&bat_therm>;
+		};
+	};
+
+	bat_therm: thermistor {
+		compatible = "samsung,1404-001221";
+		io-channels = <&gpadc 0x02>; /* BatTemp */
+		pullup-uv = <1800000>;
+		pullup-ohm = <230000>;
+		pulldown-ohm = <0>;
+		#thermal-sensor-cells = <0>;
+	};
+
 	/* External LDO for eMMC LDO VMEM_3V3 controlled by GPIO6 */
 	ldo_3v3_reg: regulator-gpio-ldo-3v3 {
 		compatible = "regulator-fixed";
@@ -467,7 +485,26 @@
 			/* CTS/RTS is not used, CTS is repurposed as GPIO */
 			pinctrl-0 = <&u1rxtx_a_1_default>;
 			pinctrl-1 = <&u1rxtx_a_1_sleep>;
-			/* FIXME: add a device for the GPS here */
+
+			gnss {
+				/*
+				 * The Low Noise Amplifier (LNA) power and enablement is controlled
+				 * autonomously by the GSD4t.
+				 * Janice has a SiRFstarIV-based GSD4t
+				 * Golden has a SiRFstarV 5t-based CSRG05TA03-ICJE-R.
+				 */
+				compatible = "csr,gsd4t";
+				/* GPS_RSTN on GPIO21 */
+				reset-gpios = <&gpio0 21 GPIO_ACTIVE_LOW>;
+				/* GPS_ON_OFF on GPIO96 */
+				sirf,onoff-gpios = <&gpio3 0 GPIO_ACTIVE_HIGH>;
+				/* GPS_1V8 (VSMPS2) */
+				vcc-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&gsd4t_janice_default>;
+				/* According to /etc/sirfgps.conf */
+				current-speed = <460800>;
+			};
 		};
 
 		/* Debugging console UART connected to TSU6111RSVR (FSA880) */
@@ -480,13 +517,17 @@
 
 		prcmu@80157000 {
 			ab8500 {
-				ab8500_usb {
+				phy {
 					pinctrl-names = "default", "sleep";
 					pinctrl-0 = <&usb_a_1_default>;
 					pinctrl-1 = <&usb_a_1_sleep>;
 				};
 
-				ab8500-regulators {
+				ab8500_fg {
+					line-impedance-micro-ohms = <15000>;
+				};
+
+				regulator {
 					ab8500_ldo_aux1 {
 						/* Used for VDD for sensors */
 						regulator-name = "V-SENSORS-VDD";
@@ -594,7 +635,7 @@
 						reg = <0x08>;
 						mount-matrix = "0", "1", "0",
 							       "-1", "0", "0",
-							       "0", "0", "-1";
+							       "0", "0", "1";
 						vddio-supply = <&ab8500_ldo_aux2_reg>; // 1.8V
 						vdd-supply = <&ab8500_ldo_aux1_reg>; // 3V
 					};
@@ -920,6 +961,25 @@
 			janice_cfg2 {
 				pins = "GPIO31_V3", "GPIO88_C4";
 				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+	gsd4t {
+		gsd4t_janice_default: gsd4t_janice {
+			/* Reset line, start out asserted */
+			janice_cfg1 {
+				pins = "GPIO21_AB3";
+				ste,config = <&gpio_out_lo>;
+			};
+			/* GPS_ON_OFF, start out deasserted (off) */
+			janice_cfg2 {
+				pins = "GPIO96_D8";
+				ste,config = <&gpio_out_lo>;
+			};
+			/* Unused power enablement line, used in R0.0 and R0.1 boards */
+			janice_cfg3 {
+				pins = "GPIO86_C6";
+				ste,config = <&gpio_in_pd>;
 			};
 		};
 	};

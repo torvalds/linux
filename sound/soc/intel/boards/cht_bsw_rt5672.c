@@ -221,12 +221,12 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 	if (ret)
 		return ret;
 
-        ret = snd_soc_card_jack_new(runtime->card, "Headset",
-				    SND_JACK_HEADSET | SND_JACK_BTN_0 |
-				    SND_JACK_BTN_1 | SND_JACK_BTN_2,
-				    &ctx->headset,
-				    cht_bsw_headset_pins,
-				    ARRAY_SIZE(cht_bsw_headset_pins));
+	ret = snd_soc_card_jack_new_pins(runtime->card, "Headset",
+					 SND_JACK_HEADSET | SND_JACK_BTN_0 |
+					 SND_JACK_BTN_1 | SND_JACK_BTN_2,
+					 &ctx->headset,
+					 cht_bsw_headset_pins,
+					 ARRAY_SIZE(cht_bsw_headset_pins));
         if (ret)
                 return ret;
 
@@ -483,7 +483,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 		drv->use_ssp0 = true;
 	}
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	snd_soc_card_cht.dev = &pdev->dev;
 	platform_name = mach->mach_params.platform;
 

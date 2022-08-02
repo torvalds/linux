@@ -546,7 +546,7 @@ static int mmhub_v1_0_set_clockgating(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void mmhub_v1_0_get_clockgating(struct amdgpu_device *adev, u32 *flags)
+static void mmhub_v1_0_get_clockgating(struct amdgpu_device *adev, u64 *flags)
 {
 	int data, data1;
 
@@ -774,11 +774,15 @@ static void mmhub_v1_0_reset_ras_error_count(struct amdgpu_device *adev)
 	}
 }
 
-const struct amdgpu_mmhub_ras_funcs mmhub_v1_0_ras_funcs = {
-	.ras_late_init = amdgpu_mmhub_ras_late_init,
-	.ras_fini = amdgpu_mmhub_ras_fini,
+struct amdgpu_ras_block_hw_ops mmhub_v1_0_ras_hw_ops = {
 	.query_ras_error_count = mmhub_v1_0_query_ras_error_count,
 	.reset_ras_error_count = mmhub_v1_0_reset_ras_error_count,
+};
+
+struct amdgpu_mmhub_ras mmhub_v1_0_ras = {
+	.ras_block = {
+		.hw_ops = &mmhub_v1_0_ras_hw_ops,
+	},
 };
 
 const struct amdgpu_mmhub_funcs mmhub_v1_0_funcs = {

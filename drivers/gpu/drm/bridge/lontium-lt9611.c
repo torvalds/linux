@@ -700,7 +700,9 @@ lt9611_connector_mode_valid(struct drm_connector *connector,
 }
 
 /* bridge funcs */
-static void lt9611_bridge_enable(struct drm_bridge *bridge)
+static void
+lt9611_bridge_atomic_enable(struct drm_bridge *bridge,
+			    struct drm_bridge_state *old_bridge_state)
 {
 	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
 
@@ -721,7 +723,9 @@ static void lt9611_bridge_enable(struct drm_bridge *bridge)
 	regmap_write(lt9611->regmap, 0x8130, 0xea);
 }
 
-static void lt9611_bridge_disable(struct drm_bridge *bridge)
+static void
+lt9611_bridge_atomic_disable(struct drm_bridge *bridge,
+			     struct drm_bridge_state *old_bridge_state)
 {
 	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
 	int ret;
@@ -856,7 +860,9 @@ static void lt9611_bridge_pre_enable(struct drm_bridge *bridge)
 	lt9611->sleep = false;
 }
 
-static void lt9611_bridge_post_disable(struct drm_bridge *bridge)
+static void
+lt9611_bridge_atomic_post_disable(struct drm_bridge *bridge,
+				  struct drm_bridge_state *old_bridge_state)
 {
 	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
 
@@ -916,16 +922,47 @@ static void lt9611_bridge_hpd_enable(struct drm_bridge *bridge)
 	lt9611_enable_hpd_interrupts(lt9611);
 }
 
+#define MAX_INPUT_SEL_FORMATS	1
+
+static u32 *
+lt9611_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
+				 struct drm_bridge_state *bridge_state,
+				 struct drm_crtc_state *crtc_state,
+				 struct drm_connector_state *conn_state,
+				 u32 output_fmt,
+				 unsigned int *num_input_fmts)
+{
+	u32 *input_fmts;
+
+	*num_input_fmts = 0;
+
+	input_fmts = kcalloc(MAX_INPUT_SEL_FORMATS, sizeof(*input_fmts),
+			     GFP_KERNEL);
+	if (!input_fmts)
+		return NULL;
+
+	/* This is the DSI-end bus format */
+	input_fmts[0] = MEDIA_BUS_FMT_RGB888_1X24;
+	*num_input_fmts = 1;
+
+	return input_fmts;
+}
+
 static const struct drm_bridge_funcs lt9611_bridge_funcs = {
 	.attach = lt9611_bridge_attach,
 	.mode_valid = lt9611_bridge_mode_valid,
-	.enable = lt9611_bridge_enable,
-	.disable = lt9611_bridge_disable,
-	.post_disable = lt9611_bridge_post_disable,
 	.mode_set = lt9611_bridge_mode_set,
 	.detect = lt9611_bridge_detect,
 	.get_edid = lt9611_bridge_get_edid,
 	.hpd_enable = lt9611_bridge_hpd_enable,
+
+	.atomic_enable = lt9611_bridge_atomic_enable,
+	.atomic_disable = lt9611_bridge_atomic_disable,
+	.atomic_post_disable = lt9611_bridge_atomic_post_disable,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_get_input_bus_fmts = lt9611_atomic_get_input_bus_fmts,
 };
 
 static int lt9611_parse_dt(struct device *dev,
@@ -1090,7 +1127,7 @@ static int lt9611_probe(struct i2c_client *client,
 	if (!lt9611)
 		return -ENOMEM;
 
-	lt9611->dev = &client->dev;
+	lt9611->dev = dev;
 	lt9611->client = client;
 	lt9611->sleep = false;
 
@@ -1100,7 +1137,7 @@ static int lt9611_probe(struct i2c_client *client,
 		return PTR_ERR(lt9611->regmap);
 	}
 
-	ret = lt9611_parse_dt(&client->dev, lt9611);
+	ret = lt9611_parse_dt(dev, lt9611);
 	if (ret) {
 		dev_err(dev, "failed to parse device tree\n");
 		return ret;
@@ -1164,7 +1201,11 @@ static int lt9611_probe(struct i2c_client *client,
 
 	lt9611_enable_hpd_interrupts(lt9611);
 
-	return lt9611_audio_init(dev, lt9611);
+	ret = lt9611_audio_init(dev, lt9611);
+	if (ret)
+		goto err_remove_bridge;
+
+	return 0;
 
 err_remove_bridge:
 	drm_bridge_remove(&lt9611->bridge);

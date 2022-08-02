@@ -15,9 +15,8 @@ static bool disable_usb_sg;
 module_param_named(disable_usb_sg, disable_usb_sg, bool, 0644);
 MODULE_PARM_DESC(disable_usb_sg, "Disable usb scatter-gather support");
 
-static int __mt76u_vendor_request(struct mt76_dev *dev, u8 req,
-				  u8 req_type, u16 val, u16 offset,
-				  void *buf, size_t len)
+int __mt76u_vendor_request(struct mt76_dev *dev, u8 req, u8 req_type,
+			   u16 val, u16 offset, void *buf, size_t len)
 {
 	struct usb_interface *uintf = to_usb_interface(dev->dev);
 	struct usb_device *udev = interface_to_usbdev(uintf);
@@ -45,6 +44,7 @@ static int __mt76u_vendor_request(struct mt76_dev *dev, u8 req,
 		req, offset, ret);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(__mt76u_vendor_request);
 
 int mt76u_vendor_request(struct mt76_dev *dev, u8 req,
 			 u8 req_type, u16 val, u16 offset,
@@ -62,22 +62,21 @@ int mt76u_vendor_request(struct mt76_dev *dev, u8 req,
 }
 EXPORT_SYMBOL_GPL(mt76u_vendor_request);
 
-static u32 ___mt76u_rr(struct mt76_dev *dev, u8 req, u32 addr)
+u32 ___mt76u_rr(struct mt76_dev *dev, u8 req, u8 req_type, u32 addr)
 {
 	struct mt76_usb *usb = &dev->usb;
 	u32 data = ~0;
 	int ret;
 
-	ret = __mt76u_vendor_request(dev, req,
-				     USB_DIR_IN | USB_TYPE_VENDOR,
-				     addr >> 16, addr, usb->data,
-				     sizeof(__le32));
+	ret = __mt76u_vendor_request(dev, req, req_type, addr >> 16,
+				     addr, usb->data, sizeof(__le32));
 	if (ret == sizeof(__le32))
 		data = get_unaligned_le32(usb->data);
 	trace_usb_reg_rr(dev, addr, data);
 
 	return data;
 }
+EXPORT_SYMBOL_GPL(___mt76u_rr);
 
 static u32 __mt76u_rr(struct mt76_dev *dev, u32 addr)
 {
@@ -95,7 +94,8 @@ static u32 __mt76u_rr(struct mt76_dev *dev, u32 addr)
 		break;
 	}
 
-	return ___mt76u_rr(dev, req, addr & ~MT_VEND_TYPE_MASK);
+	return ___mt76u_rr(dev, req, USB_DIR_IN | USB_TYPE_VENDOR,
+			   addr & ~MT_VEND_TYPE_MASK);
 }
 
 static u32 mt76u_rr(struct mt76_dev *dev, u32 addr)
@@ -109,29 +109,17 @@ static u32 mt76u_rr(struct mt76_dev *dev, u32 addr)
 	return ret;
 }
 
-static u32 mt76u_rr_ext(struct mt76_dev *dev, u32 addr)
-{
-	u32 ret;
-
-	mutex_lock(&dev->usb.usb_ctrl_mtx);
-	ret = ___mt76u_rr(dev, MT_VEND_READ_EXT, addr);
-	mutex_unlock(&dev->usb.usb_ctrl_mtx);
-
-	return ret;
-}
-
-static void ___mt76u_wr(struct mt76_dev *dev, u8 req,
-			u32 addr, u32 val)
+void ___mt76u_wr(struct mt76_dev *dev, u8 req, u8 req_type,
+		 u32 addr, u32 val)
 {
 	struct mt76_usb *usb = &dev->usb;
 
 	put_unaligned_le32(val, usb->data);
-	__mt76u_vendor_request(dev, req,
-			       USB_DIR_OUT | USB_TYPE_VENDOR,
-			       addr >> 16, addr, usb->data,
-			       sizeof(__le32));
+	__mt76u_vendor_request(dev, req, req_type, addr >> 16,
+			       addr, usb->data, sizeof(__le32));
 	trace_usb_reg_wr(dev, addr, val);
 }
+EXPORT_SYMBOL_GPL(___mt76u_wr);
 
 static void __mt76u_wr(struct mt76_dev *dev, u32 addr, u32 val)
 {
@@ -145,7 +133,8 @@ static void __mt76u_wr(struct mt76_dev *dev, u32 addr, u32 val)
 		req = MT_VEND_MULTI_WRITE;
 		break;
 	}
-	___mt76u_wr(dev, req, addr & ~MT_VEND_TYPE_MASK, val);
+	___mt76u_wr(dev, req, USB_DIR_OUT | USB_TYPE_VENDOR,
+		    addr & ~MT_VEND_TYPE_MASK, val);
 }
 
 static void mt76u_wr(struct mt76_dev *dev, u32 addr, u32 val)
@@ -155,30 +144,12 @@ static void mt76u_wr(struct mt76_dev *dev, u32 addr, u32 val)
 	mutex_unlock(&dev->usb.usb_ctrl_mtx);
 }
 
-static void mt76u_wr_ext(struct mt76_dev *dev, u32 addr, u32 val)
-{
-	mutex_lock(&dev->usb.usb_ctrl_mtx);
-	___mt76u_wr(dev, MT_VEND_WRITE_EXT, addr, val);
-	mutex_unlock(&dev->usb.usb_ctrl_mtx);
-}
-
 static u32 mt76u_rmw(struct mt76_dev *dev, u32 addr,
 		     u32 mask, u32 val)
 {
 	mutex_lock(&dev->usb.usb_ctrl_mtx);
 	val |= __mt76u_rr(dev, addr) & ~mask;
 	__mt76u_wr(dev, addr, val);
-	mutex_unlock(&dev->usb.usb_ctrl_mtx);
-
-	return val;
-}
-
-static u32 mt76u_rmw_ext(struct mt76_dev *dev, u32 addr,
-			 u32 mask, u32 val)
-{
-	mutex_lock(&dev->usb.usb_ctrl_mtx);
-	val |= ___mt76u_rr(dev, MT_VEND_READ_EXT, addr) & ~mask;
-	___mt76u_wr(dev, MT_VEND_WRITE_EXT, addr, val);
 	mutex_unlock(&dev->usb.usb_ctrl_mtx);
 
 	return val;
@@ -216,33 +187,8 @@ static void mt76u_copy(struct mt76_dev *dev, u32 offset,
 	mutex_unlock(&usb->usb_ctrl_mtx);
 }
 
-static void mt76u_copy_ext(struct mt76_dev *dev, u32 offset,
-			   const void *data, int len)
-{
-	struct mt76_usb *usb = &dev->usb;
-	int ret, i = 0, batch_len;
-	const u8 *val = data;
-
-	len = round_up(len, 4);
-	mutex_lock(&usb->usb_ctrl_mtx);
-	while (i < len) {
-		batch_len = min_t(int, usb->data_len, len - i);
-		memcpy(usb->data, val + i, batch_len);
-		ret = __mt76u_vendor_request(dev, MT_VEND_WRITE_EXT,
-					     USB_DIR_OUT | USB_TYPE_VENDOR,
-					     (offset + i) >> 16, offset + i,
-					     usb->data, batch_len);
-		if (ret < 0)
-			break;
-
-		i += batch_len;
-	}
-	mutex_unlock(&usb->usb_ctrl_mtx);
-}
-
-static void
-mt76u_read_copy_ext(struct mt76_dev *dev, u32 offset,
-		    void *data, int len)
+void mt76u_read_copy(struct mt76_dev *dev, u32 offset,
+		     void *data, int len)
 {
 	struct mt76_usb *usb = &dev->usb;
 	int i = 0, batch_len, ret;
@@ -264,6 +210,7 @@ mt76u_read_copy_ext(struct mt76_dev *dev, u32 offset,
 	}
 	mutex_unlock(&usb->usb_ctrl_mtx);
 }
+EXPORT_SYMBOL_GPL(mt76u_read_copy);
 
 void mt76u_single_wr(struct mt76_dev *dev, const u8 req,
 		     const u16 offset, const u32 val)
@@ -1112,27 +1059,16 @@ static const struct mt76_queue_ops usb_queue_ops = {
 	.kick = mt76u_tx_kick,
 };
 
-int mt76u_init(struct mt76_dev *dev,
-	       struct usb_interface *intf, bool ext)
+int __mt76u_init(struct mt76_dev *dev, struct usb_interface *intf,
+		 struct mt76_bus_ops *ops)
 {
-	static struct mt76_bus_ops mt76u_ops = {
-		.read_copy = mt76u_read_copy_ext,
-		.wr_rp = mt76u_wr_rp,
-		.rd_rp = mt76u_rd_rp,
-		.type = MT76_BUS_USB,
-	};
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct mt76_usb *usb = &dev->usb;
 	int err;
 
-	mt76u_ops.rr = ext ? mt76u_rr_ext : mt76u_rr;
-	mt76u_ops.wr = ext ? mt76u_wr_ext : mt76u_wr;
-	mt76u_ops.rmw = ext ? mt76u_rmw_ext : mt76u_rmw;
-	mt76u_ops.write_copy = ext ? mt76u_copy_ext : mt76u_copy;
-
 	INIT_WORK(&usb->stat_work, mt76u_tx_status_data);
 
-	usb->data_len = usb_maxpacket(udev, usb_sndctrlpipe(udev, 0), 1);
+	usb->data_len = usb_maxpacket(udev, usb_sndctrlpipe(udev, 0));
 	if (usb->data_len < 32)
 		usb->data_len = 32;
 
@@ -1141,7 +1077,7 @@ int mt76u_init(struct mt76_dev *dev,
 		return -ENOMEM;
 
 	mutex_init(&usb->usb_ctrl_mtx);
-	dev->bus = &mt76u_ops;
+	dev->bus = ops;
 	dev->queue_ops = &usb_queue_ops;
 
 	dev_set_drvdata(&udev->dev, dev);
@@ -1166,6 +1102,23 @@ int mt76u_init(struct mt76_dev *dev,
 	sched_set_fifo_low(usb->status_worker.task);
 
 	return 0;
+}
+EXPORT_SYMBOL_GPL(__mt76u_init);
+
+int mt76u_init(struct mt76_dev *dev, struct usb_interface *intf)
+{
+	static struct mt76_bus_ops bus_ops = {
+		.rr = mt76u_rr,
+		.wr = mt76u_wr,
+		.rmw = mt76u_rmw,
+		.read_copy = mt76u_read_copy,
+		.write_copy = mt76u_copy,
+		.wr_rp = mt76u_wr_rp,
+		.rd_rp = mt76u_rd_rp,
+		.type = MT76_BUS_USB,
+	};
+
+	return __mt76u_init(dev, intf, &bus_ops);
 }
 EXPORT_SYMBOL_GPL(mt76u_init);
 

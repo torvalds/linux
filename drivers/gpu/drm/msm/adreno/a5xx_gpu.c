@@ -1235,7 +1235,7 @@ static void a5xx_fault_detect_irq(struct msm_gpu *gpu)
 		return;
 
 	DRM_DEV_ERROR(dev->dev, "gpu fault ring %d fence %x status %8.8X rb %4.4x/%4.4x ib1 %16.16llX/%4.4x ib2 %16.16llX/%4.4x\n",
-		ring ? ring->id : -1, ring ? ring->seqno : 0,
+		ring ? ring->id : -1, ring ? ring->fctx->last_fence : 0,
 		gpu_read(gpu, REG_A5XX_RBBM_STATUS),
 		gpu_read(gpu, REG_A5XX_CP_RB_RPTR),
 		gpu_read(gpu, REG_A5XX_CP_RB_WPTR),
@@ -1662,28 +1662,23 @@ static struct msm_ringbuffer *a5xx_active_ring(struct msm_gpu *gpu)
 	return a5xx_gpu->cur_ring;
 }
 
-static unsigned long a5xx_gpu_busy(struct msm_gpu *gpu)
+static u64 a5xx_gpu_busy(struct msm_gpu *gpu, unsigned long *out_sample_rate)
 {
-	u64 busy_cycles, busy_time;
+	u64 busy_cycles;
 
 	/* Only read the gpu busy if the hardware is already active */
-	if (pm_runtime_get_if_in_use(&gpu->pdev->dev) == 0)
+	if (pm_runtime_get_if_in_use(&gpu->pdev->dev) == 0) {
+		*out_sample_rate = 1;
 		return 0;
+	}
 
 	busy_cycles = gpu_read64(gpu, REG_A5XX_RBBM_PERFCTR_RBBM_0_LO,
 			REG_A5XX_RBBM_PERFCTR_RBBM_0_HI);
-
-	busy_time = busy_cycles - gpu->devfreq.busy_cycles;
-	do_div(busy_time, clk_get_rate(gpu->core_clk) / 1000000);
-
-	gpu->devfreq.busy_cycles = busy_cycles;
+	*out_sample_rate = clk_get_rate(gpu->core_clk);
 
 	pm_runtime_put(&gpu->pdev->dev);
 
-	if (WARN_ON(busy_time > ~0LU))
-		return ~0LU;
-
-	return (unsigned long)busy_time;
+	return busy_cycles;
 }
 
 static uint32_t a5xx_get_rptr(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
@@ -1700,6 +1695,7 @@ static uint32_t a5xx_get_rptr(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 static const struct adreno_gpu_funcs funcs = {
 	.base = {
 		.get_param = adreno_get_param,
+		.set_param = adreno_set_param,
 		.hw_init = a5xx_hw_init,
 		.pm_suspend = a5xx_pm_suspend,
 		.pm_resume = a5xx_pm_resume,

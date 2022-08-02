@@ -9,6 +9,7 @@
 
 #include <linux/trace_recursion.h>
 #include <linux/trace_clock.h>
+#include <linux/jump_label.h>
 #include <linux/kallsyms.h>
 #include <linux/linkage.h>
 #include <linux/bitops.h>
@@ -28,6 +29,12 @@
  */
 #ifndef ARCH_SUPPORTS_FTRACE_OPS
 #define ARCH_SUPPORTS_FTRACE_OPS 0
+#endif
+
+#ifdef CONFIG_TRACING
+extern void ftrace_boot_snapshot(void);
+#else
+static inline void ftrace_boot_snapshot(void) { }
 #endif
 
 #ifdef CONFIG_FUNCTION_TRACER
@@ -94,9 +101,6 @@ static inline int ftrace_mod_get_kallsym(unsigned int symnum, unsigned long *val
 #ifdef CONFIG_FUNCTION_TRACER
 
 extern int ftrace_enabled;
-extern int
-ftrace_enable_sysctl(struct ctl_table *table, int write,
-		     void *buffer, size_t *lenp, loff_t *ppos);
 
 #ifndef CONFIG_HAVE_DYNAMIC_FTRACE_WITH_ARGS
 
@@ -215,7 +219,10 @@ struct ftrace_ops_hash {
 void ftrace_free_init_mem(void);
 void ftrace_free_mem(struct module *mod, void *start, void *end);
 #else
-static inline void ftrace_free_init_mem(void) { }
+static inline void ftrace_free_init_mem(void)
+{
+	ftrace_boot_snapshot();
+}
 static inline void ftrace_free_mem(struct module *mod, void *start, void *end) { }
 #endif
 
@@ -293,6 +300,8 @@ int unregister_ftrace_function(struct ftrace_ops *ops);
 extern void ftrace_stub(unsigned long a0, unsigned long a1,
 			struct ftrace_ops *op, struct ftrace_regs *fregs);
 
+
+int ftrace_lookup_symbols(const char **sorted_syms, size_t cnt, unsigned long *addrs);
 #else /* !CONFIG_FUNCTION_TRACER */
 /*
  * (un)register_ftrace_function must be a macro since the ops parameter
@@ -303,6 +312,10 @@ extern void ftrace_stub(unsigned long a0, unsigned long a1,
 static inline void ftrace_kill(void) { }
 static inline void ftrace_free_init_mem(void) { }
 static inline void ftrace_free_mem(struct module *mod, void *start, void *end) { }
+static inline int ftrace_lookup_symbols(const char **sorted_syms, size_t cnt, unsigned long *addrs)
+{
+	return -EOPNOTSUPP;
+}
 #endif /* CONFIG_FUNCTION_TRACER */
 
 struct ftrace_func_entry {
@@ -439,8 +452,8 @@ static inline void stack_tracer_enable(void) { }
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
-int ftrace_arch_code_modify_prepare(void);
-int ftrace_arch_code_modify_post_process(void);
+void ftrace_arch_code_modify_prepare(void);
+void ftrace_arch_code_modify_post_process(void);
 
 enum ftrace_bug_type {
 	FTRACE_BUG_UNKNOWN,
@@ -512,6 +525,8 @@ struct dyn_ftrace {
 
 int ftrace_set_filter_ip(struct ftrace_ops *ops, unsigned long ip,
 			 int remove, int reset);
+int ftrace_set_filter_ips(struct ftrace_ops *ops, unsigned long *ips,
+			  unsigned int cnt, int remove, int reset);
 int ftrace_set_filter(struct ftrace_ops *ops, unsigned char *buf,
 		       int len, int reset);
 int ftrace_set_notrace(struct ftrace_ops *ops, unsigned char *buf,
@@ -802,6 +817,7 @@ static inline unsigned long ftrace_location(unsigned long ip)
 #define ftrace_regex_open(ops, flag, inod, file) ({ -ENODEV; })
 #define ftrace_set_early_filter(ops, buf, enable) do { } while (0)
 #define ftrace_set_filter_ip(ops, ip, remove, reset) ({ -ENODEV; })
+#define ftrace_set_filter_ips(ops, ips, cnt, remove, reset) ({ -ENODEV; })
 #define ftrace_set_filter(ops, buf, len, reset) ({ -ENODEV; })
 #define ftrace_set_notrace(ops, buf, len, reset) ({ -ENODEV; })
 #define ftrace_free_filter(ops) do { } while (0)
@@ -1006,7 +1022,20 @@ unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
 extern int register_ftrace_graph(struct fgraph_ops *ops);
 extern void unregister_ftrace_graph(struct fgraph_ops *ops);
 
-extern bool ftrace_graph_is_dead(void);
+/**
+ * ftrace_graph_is_dead - returns true if ftrace_graph_stop() was called
+ *
+ * ftrace_graph_stop() is called when a severe error is detected in
+ * the function graph tracing. This function is called by the critical
+ * paths of function graph to keep those paths from doing any more harm.
+ */
+DECLARE_STATIC_KEY_FALSE(kill_ftrace_graph);
+
+static inline bool ftrace_graph_is_dead(void)
+{
+	return static_branch_unlikely(&kill_ftrace_graph);
+}
+
 extern void ftrace_graph_stop(void);
 
 /* The current handlers in use */

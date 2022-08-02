@@ -554,8 +554,9 @@
 	extrd,s		\pte,63,25,\pte
 	.endm
 
-	/* The alias region is an 8MB aligned 16MB to do clear and
-	 * copy user pages at addresses congruent with the user
+	/* The alias region is comprised of a pair of 4 MB regions
+	 * aligned to 8 MB. It is used to clear/copy/flush user pages
+	 * using kernel virtual addresses congruent with the user
 	 * virtual address.
 	 *
 	 * To use the alias page, you set %r26 up with the to TLB
@@ -565,13 +566,8 @@
 	.macro		do_alias	spc,tmp,tmp1,va,pte,prot,fault,patype
 	cmpib,COND(<>),n 0,\spc,\fault
 	ldil		L%(TMPALIAS_MAP_START),\tmp
-#if defined(CONFIG_64BIT) && (TMPALIAS_MAP_START >= 0x80000000)
-	/* on LP64, ldi will sign extend into the upper 32 bits,
-	 * which is behaviour we don't want */
-	depdi		0,31,32,\tmp
-#endif
 	copy		\va,\tmp1
-	depi		0,31,23,\tmp1
+	depi_safe	0,31,TMPALIAS_SIZE_BITS+1,\tmp1
 	cmpb,COND(<>),n	\tmp,\tmp1,\fault
 	mfctl		%cr19,\tmp	/* iir */
 	/* get the opcode (first six bits) into \tmp */
@@ -604,13 +600,13 @@
 	 * OK, it is in the temp alias region, check whether "from" or "to".
 	 * Check "subtle" note in pacache.S re: r23/r26.
 	 */
-#ifdef CONFIG_64BIT
-	extrd,u,*=	\va,41,1,%r0
-#else
-	extrw,u,=	\va,9,1,%r0
-#endif
+	extrw,u,=	\va,31-TMPALIAS_SIZE_BITS,1,%r0
 	or,COND(tr)	%r23,%r0,\pte
 	or		%r26,%r0,\pte
+
+	/* convert phys addr in \pte (from r23 or r26) to tlb insert format */
+	SHRREG		\pte,PAGE_SHIFT+PAGE_ADD_SHIFT-5, \pte
+	depi_safe	_PAGE_SIZE_ENCODING_DEFAULT, 31,5, \pte
 	.endm 
 
 
@@ -1288,74 +1284,12 @@ nadtlb_check_alias_20:
 nadtlb_emulate:
 
 	/*
-	 * Non access misses can be caused by fdc,fic,pdc,lpa,probe and
-	 * probei instructions. We don't want to fault for these
-	 * instructions (not only does it not make sense, it can cause
-	 * deadlocks, since some flushes are done with the mmap
-	 * semaphore held). If the translation doesn't exist, we can't
-	 * insert a translation, so have to emulate the side effects
-	 * of the instruction. Since we don't insert a translation
-	 * we can get a lot of faults during a flush loop, so it makes
-	 * sense to try to do it here with minimum overhead. We only
-	 * emulate fdc,fic,pdc,probew,prober instructions whose base 
-	 * and index registers are not shadowed. We defer everything 
-	 * else to the "slow" path.
+	 * Non-access misses can be caused by fdc,fic,pdc,lpa,probe and
+	 * probei instructions. The kernel no longer faults doing flushes.
+	 * Use of lpa and probe instructions is rare. Given the issue
+	 * with shadow registers, we defer everything to the "slow" path.
 	 */
-
-	mfctl           %cr19,%r9 /* Get iir */
-
-	/* PA 2.0 Arch Ref. Book pg 382 has a good description of the insn bits.
-	   Checks for fdc,fdce,pdc,"fic,4f",prober,probeir,probew, probeiw */
-
-	/* Checks for fdc,fdce,pdc,"fic,4f" only */
-	ldi             0x280,%r16
-	and             %r9,%r16,%r17
-	cmpb,<>,n       %r16,%r17,nadtlb_probe_check
-	bb,>=,n         %r9,26,nadtlb_nullify  /* m bit not set, just nullify */
-	BL		get_register,%r25
-	extrw,u         %r9,15,5,%r8           /* Get index register # */
-	cmpib,COND(=),n        -1,%r1,nadtlb_fault    /* have to use slow path */
-	copy            %r1,%r24
-	BL		get_register,%r25
-	extrw,u         %r9,10,5,%r8           /* Get base register # */
-	cmpib,COND(=),n        -1,%r1,nadtlb_fault    /* have to use slow path */
-	BL		set_register,%r25
-	add,l           %r1,%r24,%r1           /* doesn't affect c/b bits */
-
-nadtlb_nullify:
-	mfctl           %ipsw,%r8
-	ldil            L%PSW_N,%r9
-	or              %r8,%r9,%r8            /* Set PSW_N */
-	mtctl           %r8,%ipsw
-
-	rfir
-	nop
-
-	/* 
-		When there is no translation for the probe address then we
-		must nullify the insn and return zero in the target register.
-		This will indicate to the calling code that it does not have 
-		write/read privileges to this address.
-
-		This should technically work for prober and probew in PA 1.1,
-		and also probe,r and probe,w in PA 2.0
-
-		WARNING: USE ONLY NON-SHADOW REGISTERS WITH PROBE INSN!
-		THE SLOW-PATH EMULATION HAS NOT BEEN WRITTEN YET.
-
-	*/
-nadtlb_probe_check:
-	ldi             0x80,%r16
-	and             %r9,%r16,%r17
-	cmpb,<>,n       %r16,%r17,nadtlb_fault /* Must be probe,[rw]*/
-	BL              get_register,%r25      /* Find the target register */
-	extrw,u         %r9,31,5,%r8           /* Get target register */
-	cmpib,COND(=),n        -1,%r1,nadtlb_fault    /* have to use slow path */
-	BL		set_register,%r25
-	copy            %r0,%r1                /* Write zero to target register */
-	b nadtlb_nullify                       /* Nullify return insn */
-	nop
-
+	b,n		nadtlb_fault
 
 #ifdef CONFIG_64BIT
 itlb_miss_20w:

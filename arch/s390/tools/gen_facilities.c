@@ -27,24 +27,16 @@ static struct facility_def facility_defs[] = {
 		 */
 		.name = "FACILITIES_ALS",
 		.bits = (int[]){
-#ifdef CONFIG_HAVE_MARCH_Z900_FEATURES
 			0,  /* N3 instructions */
 			1,  /* z/Arch mode installed */
-#endif
-#ifdef CONFIG_HAVE_MARCH_Z990_FEATURES
 			18, /* long displacement facility */
-#endif
-#ifdef CONFIG_HAVE_MARCH_Z9_109_FEATURES
 			21, /* extended-immediate facility */
 			25, /* store clock fast */
-#endif
-#ifdef CONFIG_HAVE_MARCH_Z10_FEATURES
 			27, /* mvcos */
 			32, /* compare and swap and store */
 			33, /* compare and swap and store 2 */
 			34, /* general instructions extension */
 			35, /* execute extensions */
-#endif
 #ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
 			45, /* fast-BCR, etc. */
 #endif

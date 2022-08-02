@@ -15,26 +15,49 @@ struct drm_i915_private;
 struct intel_gt;
 struct drm_printer;
 
-#define GEN_MAX_SLICES		(3) /* SKL upper bound */
-#define GEN_MAX_SUBSLICES	(32) /* XEHPSDV upper bound */
-#define GEN_SSEU_STRIDE(max_entries) DIV_ROUND_UP(max_entries, BITS_PER_BYTE)
-#define GEN_MAX_SUBSLICE_STRIDE GEN_SSEU_STRIDE(GEN_MAX_SUBSLICES)
-#define GEN_MAX_EUS		(16) /* TGL upper bound */
-#define GEN_MAX_EU_STRIDE GEN_SSEU_STRIDE(GEN_MAX_EUS)
+/*
+ * Maximum number of slices on older platforms.  Slices no longer exist
+ * starting on Xe_HP ("gslices," "cslices," etc. are a different concept and
+ * are not expressed through fusing).
+ */
+#define GEN_MAX_HSW_SLICES		3
+
+/*
+ * Maximum number of subslices that can exist within a HSW-style slice.  This
+ * is only relevant to pre-Xe_HP platforms (Xe_HP and beyond use the
+ * GEN_MAX_DSS value below).
+ */
+#define GEN_MAX_SS_PER_HSW_SLICE	6
+
+/* Maximum number of DSS on newer platforms (Xe_HP and beyond). */
+#define GEN_MAX_DSS			32
+
+/* Maximum number of EUs that can exist within a subslice or DSS. */
+#define GEN_MAX_EUS_PER_SS		16
+
+#define SSEU_MAX(a, b)			((a) > (b) ? (a) : (b))
+
+/* The maximum number of bits needed to express each subslice/DSS independently */
+#define GEN_SS_MASK_SIZE		SSEU_MAX(GEN_MAX_DSS, \
+						 GEN_MAX_HSW_SLICES * GEN_MAX_SS_PER_HSW_SLICE)
+
+#define GEN_SSEU_STRIDE(max_entries)	DIV_ROUND_UP(max_entries, BITS_PER_BYTE)
+#define GEN_MAX_SUBSLICE_STRIDE		GEN_SSEU_STRIDE(GEN_SS_MASK_SIZE)
+#define GEN_MAX_EU_STRIDE		GEN_SSEU_STRIDE(GEN_MAX_EUS_PER_SS)
 
 #define GEN_DSS_PER_GSLICE	4
 #define GEN_DSS_PER_CSLICE	8
 #define GEN_DSS_PER_MSLICE	8
 
-#define GEN_MAX_GSLICES		(GEN_MAX_SUBSLICES / GEN_DSS_PER_GSLICE)
-#define GEN_MAX_CSLICES		(GEN_MAX_SUBSLICES / GEN_DSS_PER_CSLICE)
+#define GEN_MAX_GSLICES		(GEN_MAX_DSS / GEN_DSS_PER_GSLICE)
+#define GEN_MAX_CSLICES		(GEN_MAX_DSS / GEN_DSS_PER_CSLICE)
 
 struct sseu_dev_info {
 	u8 slice_mask;
-	u8 subslice_mask[GEN_MAX_SLICES * GEN_MAX_SUBSLICE_STRIDE];
-	u8 geometry_subslice_mask[GEN_MAX_SLICES * GEN_MAX_SUBSLICE_STRIDE];
-	u8 compute_subslice_mask[GEN_MAX_SLICES * GEN_MAX_SUBSLICE_STRIDE];
-	u8 eu_mask[GEN_MAX_SLICES * GEN_MAX_SUBSLICES * GEN_MAX_EU_STRIDE];
+	u8 subslice_mask[GEN_SS_MASK_SIZE];
+	u8 geometry_subslice_mask[GEN_SS_MASK_SIZE];
+	u8 compute_subslice_mask[GEN_SS_MASK_SIZE];
+	u8 eu_mask[GEN_SS_MASK_SIZE * GEN_MAX_EU_STRIDE];
 	u16 eu_total;
 	u8 eu_per_subslice;
 	u8 min_eu_in_pool;
@@ -103,7 +126,9 @@ intel_sseu_subslice_total(const struct sseu_dev_info *sseu);
 unsigned int
 intel_sseu_subslices_per_slice(const struct sseu_dev_info *sseu, u8 slice);
 
-u32  intel_sseu_get_subslices(const struct sseu_dev_info *sseu, u8 slice);
+u32 intel_sseu_get_subslices(const struct sseu_dev_info *sseu, u8 slice);
+
+u32 intel_sseu_get_compute_subslices(const struct sseu_dev_info *sseu);
 
 void intel_sseu_set_subslices(struct sseu_dev_info *sseu, int slice,
 			      u8 *subslice_mask, u32 ss_mask);
@@ -114,7 +139,8 @@ u32 intel_sseu_make_rpcs(struct intel_gt *gt,
 			 const struct intel_sseu *req_sseu);
 
 void intel_sseu_dump(const struct sseu_dev_info *sseu, struct drm_printer *p);
-void intel_sseu_print_topology(const struct sseu_dev_info *sseu,
+void intel_sseu_print_topology(struct drm_i915_private *i915,
+			       const struct sseu_dev_info *sseu,
 			       struct drm_printer *p);
 
 u16 intel_slicemask_from_dssmask(u64 dss_mask, int dss_per_slice);

@@ -30,6 +30,8 @@
 #include <linux/property.h>
 #include <linux/kmemleak.h>
 #include <linux/types.h>
+#include <linux/iommu.h>
+#include <linux/dma-map-ops.h>
 
 #include "base.h"
 #include "power/power.h"
@@ -231,7 +233,8 @@ int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
 out_not_found:
 	ret = -ENXIO;
 out:
-	WARN(ret == 0, "0 is an invalid IRQ number\n");
+	if (WARN(!ret, "0 is an invalid IRQ number\n"))
+		return -EINVAL;
 	return ret;
 }
 EXPORT_SYMBOL_GPL(platform_get_irq_optional);
@@ -446,7 +449,8 @@ static int __platform_get_irq_byname(struct platform_device *dev,
 
 	r = platform_get_resource_byname(dev, IORESOURCE_IRQ, name);
 	if (r) {
-		WARN(r->start == 0, "0 is an invalid IRQ number\n");
+		if (WARN(!r->start, "0 is an invalid IRQ number\n"))
+			return -EINVAL;
 		return r->start;
 	}
 
@@ -467,9 +471,9 @@ int platform_get_irq_byname(struct platform_device *dev, const char *name)
 	int ret;
 
 	ret = __platform_get_irq_byname(dev, name);
-	if (ret < 0 && ret != -EPROBE_DEFER)
-		dev_err(&dev->dev, "IRQ %s not found\n", name);
-
+	if (ret < 0)
+		return dev_err_probe(&dev->dev, ret, "IRQ %s not found\n",
+				     name);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(platform_get_irq_byname);
@@ -1275,31 +1279,11 @@ static ssize_t driver_override_store(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	char *driver_override, *old, *cp;
+	int ret;
 
-	/* We need to keep extra room for a newline */
-	if (count >= (PAGE_SIZE - 1))
-		return -EINVAL;
-
-	driver_override = kstrndup(buf, count, GFP_KERNEL);
-	if (!driver_override)
-		return -ENOMEM;
-
-	cp = strchr(driver_override, '\n');
-	if (cp)
-		*cp = '\0';
-
-	device_lock(dev);
-	old = pdev->driver_override;
-	if (strlen(driver_override)) {
-		pdev->driver_override = driver_override;
-	} else {
-		kfree(driver_override);
-		pdev->driver_override = NULL;
-	}
-	device_unlock(dev);
-
-	kfree(old);
+	ret = driver_set_override(dev, &pdev->driver_override, buf, count);
+	if (ret)
+		return ret;
 
 	return count;
 }
@@ -1454,9 +1438,9 @@ static void platform_shutdown(struct device *_dev)
 		drv->shutdown(dev);
 }
 
-
-int platform_dma_configure(struct device *dev)
+static int platform_dma_configure(struct device *dev)
 {
+	struct platform_driver *drv = to_platform_driver(dev->driver);
 	enum dev_dma_attr attr;
 	int ret = 0;
 
@@ -1467,7 +1451,21 @@ int platform_dma_configure(struct device *dev)
 		ret = acpi_dma_configure(dev, attr);
 	}
 
+	if (!ret && !drv->driver_managed_dma) {
+		ret = iommu_device_use_default_domain(dev);
+		if (ret)
+			arch_teardown_dma_ops(dev);
+	}
+
 	return ret;
+}
+
+static void platform_dma_cleanup(struct device *dev)
+{
+	struct platform_driver *drv = to_platform_driver(dev->driver);
+
+	if (!drv->driver_managed_dma)
+		iommu_device_unuse_default_domain(dev);
 }
 
 static const struct dev_pm_ops platform_dev_pm_ops = {
@@ -1484,6 +1482,7 @@ struct bus_type platform_bus_type = {
 	.remove		= platform_remove,
 	.shutdown	= platform_shutdown,
 	.dma_configure	= platform_dma_configure,
+	.dma_cleanup	= platform_dma_cleanup,
 	.pm		= &platform_dev_pm_ops,
 };
 EXPORT_SYMBOL_GPL(platform_bus_type);

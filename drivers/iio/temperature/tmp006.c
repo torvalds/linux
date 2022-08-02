@@ -261,7 +261,6 @@ static int tmp006_probe(struct i2c_client *client,
 	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int tmp006_suspend(struct device *dev)
 {
 	return tmp006_power(dev, false);
@@ -271,9 +270,8 @@ static int tmp006_resume(struct device *dev)
 {
 	return tmp006_power(dev, true);
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(tmp006_pm_ops, tmp006_suspend, tmp006_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(tmp006_pm_ops, tmp006_suspend, tmp006_resume);
 
 static const struct i2c_device_id tmp006_id[] = {
 	{ "tmp006", 0 },
@@ -284,7 +282,7 @@ MODULE_DEVICE_TABLE(i2c, tmp006_id);
 static struct i2c_driver tmp006_driver = {
 	.driver = {
 		.name	= "tmp006",
-		.pm	= &tmp006_pm_ops,
+		.pm	= pm_sleep_ptr(&tmp006_pm_ops),
 	},
 	.probe = tmp006_probe,
 	.id_table = tmp006_id,

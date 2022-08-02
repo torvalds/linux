@@ -459,6 +459,51 @@ done:
 	return err;
 }
 
+static const char sysfs_vmlinux[] = "/sys/kernel/btf/vmlinux";
+
+static struct btf *get_vmlinux_btf_from_sysfs(void)
+{
+	struct btf *base;
+
+	base = btf__parse(sysfs_vmlinux, NULL);
+	if (libbpf_get_error(base)) {
+		p_err("failed to parse vmlinux BTF at '%s': %ld\n",
+		      sysfs_vmlinux, libbpf_get_error(base));
+		base = NULL;
+	}
+
+	return base;
+}
+
+#define BTF_NAME_BUFF_LEN 64
+
+static bool btf_is_kernel_module(__u32 btf_id)
+{
+	struct bpf_btf_info btf_info = {};
+	char btf_name[BTF_NAME_BUFF_LEN];
+	int btf_fd;
+	__u32 len;
+	int err;
+
+	btf_fd = bpf_btf_get_fd_by_id(btf_id);
+	if (btf_fd < 0) {
+		p_err("can't get BTF object by id (%u): %s", btf_id, strerror(errno));
+		return false;
+	}
+
+	len = sizeof(btf_info);
+	btf_info.name = ptr_to_u64(btf_name);
+	btf_info.name_len = sizeof(btf_name);
+	err = bpf_obj_get_info_by_fd(btf_fd, &btf_info, &len);
+	close(btf_fd);
+	if (err) {
+		p_err("can't get BTF (ID %u) object info: %s", btf_id, strerror(errno));
+		return false;
+	}
+
+	return btf_info.kernel_btf && strncmp(btf_name, "vmlinux", sizeof(btf_name)) != 0;
+}
+
 static int do_dump(int argc, char **argv)
 {
 	struct btf *btf = NULL, *base = NULL;
@@ -536,18 +581,11 @@ static int do_dump(int argc, char **argv)
 		NEXT_ARG();
 	} else if (is_prefix(src, "file")) {
 		const char sysfs_prefix[] = "/sys/kernel/btf/";
-		const char sysfs_vmlinux[] = "/sys/kernel/btf/vmlinux";
 
 		if (!base_btf &&
 		    strncmp(*argv, sysfs_prefix, sizeof(sysfs_prefix) - 1) == 0 &&
-		    strcmp(*argv, sysfs_vmlinux) != 0) {
-			base = btf__parse(sysfs_vmlinux, NULL);
-			if (libbpf_get_error(base)) {
-				p_err("failed to parse vmlinux BTF at '%s': %ld\n",
-				      sysfs_vmlinux, libbpf_get_error(base));
-				base = NULL;
-			}
-		}
+		    strcmp(*argv, sysfs_vmlinux) != 0)
+			base = get_vmlinux_btf_from_sysfs();
 
 		btf = btf__parse_split(*argv, base ?: base_btf);
 		err = libbpf_get_error(btf);
@@ -591,6 +629,12 @@ static int do_dump(int argc, char **argv)
 	}
 
 	if (!btf) {
+		if (!base_btf && btf_is_kernel_module(btf_id)) {
+			p_info("Warning: valid base BTF was not specified with -B option, falling back to standard base BTF (%s)",
+			       sysfs_vmlinux);
+			base_btf = get_vmlinux_btf_from_sysfs();
+		}
+
 		btf = btf__load_from_kernel_by_id_split(btf_id, base_btf);
 		err = libbpf_get_error(btf);
 		if (err) {
@@ -902,7 +946,7 @@ static int do_show(int argc, char **argv)
 				      equal_fn_for_key_as_id, NULL);
 	btf_map_table = hashmap__new(hash_fn_for_key_as_id,
 				     equal_fn_for_key_as_id, NULL);
-	if (!btf_prog_table || !btf_map_table) {
+	if (IS_ERR(btf_prog_table) || IS_ERR(btf_map_table)) {
 		hashmap__free(btf_prog_table);
 		hashmap__free(btf_map_table);
 		if (fd >= 0)

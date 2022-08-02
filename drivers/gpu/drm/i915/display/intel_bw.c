@@ -5,10 +5,13 @@
 
 #include <drm/drm_atomic_state_helper.h>
 
+#include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_bw.h"
 #include "intel_cdclk.h"
 #include "intel_display_types.h"
+#include "intel_mchbar_regs.h"
 #include "intel_pcode.h"
 #include "intel_pm.h"
 
@@ -75,10 +78,9 @@ static int icl_pcode_read_qgv_point_info(struct drm_i915_private *dev_priv,
 	u16 dclk;
 	int ret;
 
-	ret = sandybridge_pcode_read(dev_priv,
-				     ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
-				     ICL_PCODE_MEM_SS_READ_QGV_POINT_INFO(point),
-				     &val, &val2);
+	ret = snb_pcode_read(dev_priv, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
+			     ICL_PCODE_MEM_SS_READ_QGV_POINT_INFO(point),
+			     &val, &val2);
 	if (ret)
 		return ret;
 
@@ -102,10 +104,8 @@ static int adls_pcode_read_psf_gv_point_info(struct drm_i915_private *dev_priv,
 	int ret;
 	int i;
 
-	ret = sandybridge_pcode_read(dev_priv,
-				     ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
-				     ADL_PCODE_MEM_SS_READ_PSF_GV_INFO,
-				     &val, NULL);
+	ret = snb_pcode_read(dev_priv, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
+			     ADL_PCODE_MEM_SS_READ_PSF_GV_INFO, &val, NULL);
 	if (ret)
 		return ret;
 
@@ -125,8 +125,8 @@ int icl_pcode_restrict_qgv_points(struct drm_i915_private *dev_priv,
 	/* bspec says to keep retrying for at least 1 ms */
 	ret = skl_pcode_request(dev_priv, ICL_PCODE_SAGV_DE_MEM_SS_CONFIG,
 				points_mask,
-				ICL_PCODE_POINTS_RESTRICTED_MASK,
-				ICL_PCODE_POINTS_RESTRICTED,
+				ICL_PCODE_REP_QGV_MASK | ADLS_PCODE_REP_PSF_MASK,
+				ICL_PCODE_REP_QGV_SAFE | ADLS_PCODE_REP_PSF_SAFE,
 				1);
 
 	if (ret < 0) {
@@ -465,20 +465,25 @@ static int tgl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 
 static void dg2_get_bw_info(struct drm_i915_private *i915)
 {
-	struct intel_bw_info *bi = &i915->max_bw[0];
+	unsigned int deratedbw = IS_DG2_G11(i915) ? 38000 : 50000;
+	int num_groups = ARRAY_SIZE(i915->max_bw);
+	int i;
 
 	/*
 	 * DG2 doesn't have SAGV or QGV points, just a constant max bandwidth
-	 * that doesn't depend on the number of planes enabled.  Create a
-	 * single dummy QGV point to reflect that.  DG2-G10 platforms have a
-	 * constant 50 GB/s bandwidth, whereas DG2-G11 platforms have 38 GB/s.
+	 * that doesn't depend on the number of planes enabled. So fill all the
+	 * plane group with constant bw information for uniformity with other
+	 * platforms. DG2-G10 platforms have a constant 50 GB/s bandwidth,
+	 * whereas DG2-G11 platforms have 38 GB/s.
 	 */
-	bi->num_planes = 1;
-	bi->num_qgv_points = 1;
-	if (IS_DG2_G11(i915))
-		bi->deratedbw[0] = 38000;
-	else
-		bi->deratedbw[0] = 50000;
+	for (i = 0; i < num_groups; i++) {
+		struct intel_bw_info *bi = &i915->max_bw[i];
+
+		bi->num_planes = 1;
+		/* Need only one dummy QGV point per group */
+		bi->num_qgv_points = 1;
+		bi->deratedbw[0] = deratedbw;
+	}
 
 	i915->sagv_status = I915_SAGV_NOT_CONTROLLED;
 }
@@ -579,6 +584,7 @@ static unsigned int intel_bw_crtc_num_active_planes(const struct intel_crtc_stat
 static unsigned int intel_bw_crtc_data_rate(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	unsigned int data_rate = 0;
 	enum plane_id plane_id;
 
@@ -591,9 +597,24 @@ static unsigned int intel_bw_crtc_data_rate(const struct intel_crtc_state *crtc_
 			continue;
 
 		data_rate += crtc_state->data_rate[plane_id];
+
+		if (DISPLAY_VER(i915) < 11)
+			data_rate += crtc_state->data_rate_y[plane_id];
 	}
 
 	return data_rate;
+}
+
+/* "Maximum Pipe Read Bandwidth" */
+static int intel_bw_crtc_min_cdclk(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+
+	if (DISPLAY_VER(i915) < 12)
+		return 0;
+
+	return DIV_ROUND_UP_ULL(mul_u32_u32(intel_bw_crtc_data_rate(crtc_state), 10), 512);
 }
 
 void intel_bw_crtc_update(struct intel_bw_state *bw_state,
@@ -634,8 +655,8 @@ static unsigned int intel_bw_data_rate(struct drm_i915_private *dev_priv,
 	for_each_pipe(dev_priv, pipe)
 		data_rate += bw_state->data_rate[pipe];
 
-	if (DISPLAY_VER(dev_priv) >= 13 && intel_vtd_active(dev_priv))
-		data_rate = data_rate * 105 / 100;
+	if (DISPLAY_VER(dev_priv) >= 13 && i915_vtd_active(dev_priv))
+		data_rate = DIV_ROUND_UP(data_rate * 105, 100);
 
 	return data_rate;
 }
@@ -675,108 +696,144 @@ intel_atomic_get_bw_state(struct intel_atomic_state *state)
 	return to_intel_bw_state(bw_state);
 }
 
-int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
+static bool intel_bw_state_changed(struct drm_i915_private *i915,
+				   const struct intel_bw_state *old_bw_state,
+				   const struct intel_bw_state *new_bw_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_bw_state *new_bw_state = NULL;
-	struct intel_bw_state *old_bw_state = NULL;
-	const struct intel_crtc_state *crtc_state;
-	struct intel_crtc *crtc;
-	int max_bw = 0;
 	enum pipe pipe;
-	int i;
 
-	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
-		enum plane_id plane_id;
-		struct intel_dbuf_bw *crtc_bw;
-
-		new_bw_state = intel_atomic_get_bw_state(state);
-		if (IS_ERR(new_bw_state))
-			return PTR_ERR(new_bw_state);
-
-		old_bw_state = intel_atomic_get_old_bw_state(state);
-
-		crtc_bw = &new_bw_state->dbuf_bw[crtc->pipe];
-
-		memset(&crtc_bw->used_bw, 0, sizeof(crtc_bw->used_bw));
-
-		if (!crtc_state->hw.active)
-			continue;
-
-		for_each_plane_id_on_crtc(crtc, plane_id) {
-			const struct skl_ddb_entry *plane_alloc =
-				&crtc_state->wm.skl.plane_ddb_y[plane_id];
-			const struct skl_ddb_entry *uv_plane_alloc =
-				&crtc_state->wm.skl.plane_ddb_uv[plane_id];
-			unsigned int data_rate = crtc_state->data_rate[plane_id];
-			unsigned int dbuf_mask = 0;
-			enum dbuf_slice slice;
-
-			dbuf_mask |= skl_ddb_dbuf_slice_mask(dev_priv, plane_alloc);
-			dbuf_mask |= skl_ddb_dbuf_slice_mask(dev_priv, uv_plane_alloc);
-
-			/*
-			 * FIXME: To calculate that more properly we probably
-			 * need to to split per plane data_rate into data_rate_y
-			 * and data_rate_uv for multiplanar formats in order not
-			 * to get accounted those twice if they happen to reside
-			 * on different slices.
-			 * However for pre-icl this would work anyway because
-			 * we have only single slice and for icl+ uv plane has
-			 * non-zero data rate.
-			 * So in worst case those calculation are a bit
-			 * pessimistic, which shouldn't pose any significant
-			 * problem anyway.
-			 */
-			for_each_dbuf_slice_in_mask(dev_priv, slice, dbuf_mask)
-				crtc_bw->used_bw[slice] += data_rate;
-		}
-	}
-
-	if (!old_bw_state)
-		return 0;
-
-	for_each_pipe(dev_priv, pipe) {
-		struct intel_dbuf_bw *crtc_bw;
+	for_each_pipe(i915, pipe) {
+		const struct intel_dbuf_bw *old_crtc_bw =
+			&old_bw_state->dbuf_bw[pipe];
+		const struct intel_dbuf_bw *new_crtc_bw =
+			&new_bw_state->dbuf_bw[pipe];
 		enum dbuf_slice slice;
 
-		crtc_bw = &new_bw_state->dbuf_bw[pipe];
-
-		for_each_dbuf_slice(dev_priv, slice) {
-			/*
-			 * Current experimental observations show that contrary
-			 * to BSpec we get underruns once we exceed 64 * CDCLK
-			 * for slices in total.
-			 * As a temporary measure in order not to keep CDCLK
-			 * bumped up all the time we calculate CDCLK according
-			 * to this formula for  overall bw consumed by slices.
-			 */
-			max_bw += crtc_bw->used_bw[slice];
+		for_each_dbuf_slice(i915, slice) {
+			if (old_crtc_bw->max_bw[slice] != new_crtc_bw->max_bw[slice] ||
+			    old_crtc_bw->active_planes[slice] != new_crtc_bw->active_planes[slice])
+				return true;
 		}
+
+		if (old_bw_state->min_cdclk[pipe] != new_bw_state->min_cdclk[pipe])
+			return true;
 	}
 
-	new_bw_state->min_cdclk = max_bw / 64;
-
-	if (new_bw_state->min_cdclk != old_bw_state->min_cdclk) {
-		int ret = intel_atomic_lock_global_state(&new_bw_state->base);
-
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return false;
 }
 
-int intel_bw_calc_min_cdclk(struct intel_atomic_state *state)
+static void skl_plane_calc_dbuf_bw(struct intel_bw_state *bw_state,
+				   struct intel_crtc *crtc,
+				   enum plane_id plane_id,
+				   const struct skl_ddb_entry *ddb,
+				   unsigned int data_rate)
+{
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_dbuf_bw *crtc_bw = &bw_state->dbuf_bw[crtc->pipe];
+	unsigned int dbuf_mask = skl_ddb_dbuf_slice_mask(i915, ddb);
+	enum dbuf_slice slice;
+
+	/*
+	 * The arbiter can only really guarantee an
+	 * equal share of the total bw to each plane.
+	 */
+	for_each_dbuf_slice_in_mask(i915, slice, dbuf_mask) {
+		crtc_bw->max_bw[slice] = max(crtc_bw->max_bw[slice], data_rate);
+		crtc_bw->active_planes[slice] |= BIT(plane_id);
+	}
+}
+
+static void skl_crtc_calc_dbuf_bw(struct intel_bw_state *bw_state,
+				  const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_dbuf_bw *crtc_bw = &bw_state->dbuf_bw[crtc->pipe];
+	enum plane_id plane_id;
+
+	memset(crtc_bw, 0, sizeof(*crtc_bw));
+
+	if (!crtc_state->hw.active)
+		return;
+
+	for_each_plane_id_on_crtc(crtc, plane_id) {
+		/*
+		 * We assume cursors are small enough
+		 * to not cause bandwidth problems.
+		 */
+		if (plane_id == PLANE_CURSOR)
+			continue;
+
+		skl_plane_calc_dbuf_bw(bw_state, crtc, plane_id,
+				       &crtc_state->wm.skl.plane_ddb[plane_id],
+				       crtc_state->data_rate[plane_id]);
+
+		if (DISPLAY_VER(i915) < 11)
+			skl_plane_calc_dbuf_bw(bw_state, crtc, plane_id,
+					       &crtc_state->wm.skl.plane_ddb_y[plane_id],
+					       crtc_state->data_rate[plane_id]);
+	}
+}
+
+/* "Maximum Data Buffer Bandwidth" */
+static int
+intel_bw_dbuf_min_cdclk(struct drm_i915_private *i915,
+			const struct intel_bw_state *bw_state)
+{
+	unsigned int total_max_bw = 0;
+	enum dbuf_slice slice;
+
+	for_each_dbuf_slice(i915, slice) {
+		int num_active_planes = 0;
+		unsigned int max_bw = 0;
+		enum pipe pipe;
+
+		/*
+		 * The arbiter can only really guarantee an
+		 * equal share of the total bw to each plane.
+		 */
+		for_each_pipe(i915, pipe) {
+			const struct intel_dbuf_bw *crtc_bw = &bw_state->dbuf_bw[pipe];
+
+			max_bw = max(crtc_bw->max_bw[slice], max_bw);
+			num_active_planes += hweight8(crtc_bw->active_planes[slice]);
+		}
+		max_bw *= num_active_planes;
+
+		total_max_bw = max(total_max_bw, max_bw);
+	}
+
+	return DIV_ROUND_UP(total_max_bw, 64);
+}
+
+int intel_bw_min_cdclk(struct drm_i915_private *i915,
+		       const struct intel_bw_state *bw_state)
+{
+	enum pipe pipe;
+	int min_cdclk;
+
+	min_cdclk = intel_bw_dbuf_min_cdclk(i915, bw_state);
+
+	for_each_pipe(i915, pipe)
+		min_cdclk = max(bw_state->min_cdclk[pipe], min_cdclk);
+
+	return min_cdclk;
+}
+
+int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
+			    bool *need_cdclk_calc)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_bw_state *new_bw_state = NULL;
-	struct intel_bw_state *old_bw_state = NULL;
+	const struct intel_bw_state *old_bw_state = NULL;
+	const struct intel_cdclk_state *cdclk_state;
 	const struct intel_crtc_state *crtc_state;
+	int old_min_cdclk, new_min_cdclk;
 	struct intel_crtc *crtc;
-	int min_cdclk = 0;
-	enum pipe pipe;
 	int i;
+
+	if (DISPLAY_VER(dev_priv) < 9)
+		return 0;
 
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
 		new_bw_state = intel_atomic_get_bw_state(state);
@@ -784,53 +841,64 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state)
 			return PTR_ERR(new_bw_state);
 
 		old_bw_state = intel_atomic_get_old_bw_state(state);
+
+		skl_crtc_calc_dbuf_bw(new_bw_state, crtc_state);
+
+		new_bw_state->min_cdclk[crtc->pipe] =
+			intel_bw_crtc_min_cdclk(crtc_state);
 	}
 
 	if (!old_bw_state)
 		return 0;
 
-	for_each_pipe(dev_priv, pipe) {
-		struct intel_cdclk_state *cdclk_state;
-
-		cdclk_state = intel_atomic_get_new_cdclk_state(state);
-		if (!cdclk_state)
-			return 0;
-
-		min_cdclk = max(cdclk_state->min_cdclk[pipe], min_cdclk);
-	}
-
-	new_bw_state->min_cdclk = min_cdclk;
-
-	if (new_bw_state->min_cdclk != old_bw_state->min_cdclk) {
+	if (intel_bw_state_changed(dev_priv, old_bw_state, new_bw_state)) {
 		int ret = intel_atomic_lock_global_state(&new_bw_state->base);
-
 		if (ret)
 			return ret;
 	}
 
+	old_min_cdclk = intel_bw_min_cdclk(dev_priv, old_bw_state);
+	new_min_cdclk = intel_bw_min_cdclk(dev_priv, new_bw_state);
+
+	/*
+	 * No need to check against the cdclk state if
+	 * the min cdclk doesn't increase.
+	 *
+	 * Ie. we only ever increase the cdclk due to bandwidth
+	 * requirements. This can reduce back and forth
+	 * display blinking due to constant cdclk changes.
+	 */
+	if (new_min_cdclk <= old_min_cdclk)
+		return 0;
+
+	cdclk_state = intel_atomic_get_cdclk_state(state);
+	if (IS_ERR(cdclk_state))
+		return PTR_ERR(cdclk_state);
+
+	/*
+	 * No need to recalculate the cdclk state if
+	 * the min cdclk doesn't increase.
+	 *
+	 * Ie. we only ever increase the cdclk due to bandwidth
+	 * requirements. This can reduce back and forth
+	 * display blinking due to constant cdclk changes.
+	 */
+	if (new_min_cdclk <= cdclk_state->bw_min_cdclk)
+		return 0;
+
+	drm_dbg_kms(&dev_priv->drm,
+		    "new bandwidth min cdclk (%d kHz) > old min cdclk (%d kHz)\n",
+		    new_min_cdclk, cdclk_state->bw_min_cdclk);
+	*need_cdclk_calc = true;
+
 	return 0;
 }
 
-int intel_bw_atomic_check(struct intel_atomic_state *state)
+static u16 icl_qgv_points_mask(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_crtc_state *new_crtc_state, *old_crtc_state;
-	struct intel_bw_state *new_bw_state = NULL;
-	const struct intel_bw_state *old_bw_state = NULL;
-	unsigned int data_rate;
-	unsigned int num_active_planes;
-	struct intel_crtc *crtc;
-	int i, ret;
-	u32 allowed_points = 0;
-	unsigned int max_bw_point = 0, max_bw = 0;
-	unsigned int num_qgv_points = dev_priv->max_bw[0].num_qgv_points;
-	unsigned int num_psf_gv_points = dev_priv->max_bw[0].num_psf_gv_points;
-	bool changed = false;
-	u32 mask = 0;
-
-	/* FIXME earlier gens need some checks too */
-	if (DISPLAY_VER(dev_priv) < 11)
-		return 0;
+	unsigned int num_psf_gv_points = i915->max_bw[0].num_psf_gv_points;
+	unsigned int num_qgv_points = i915->max_bw[0].num_qgv_points;
+	u16 qgv_points = 0, psf_points = 0;
 
 	/*
 	 * We can _not_ use the whole ADLS_QGV_PT_MASK here, as PCode rejects
@@ -838,10 +906,20 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 	 * So need to operate only with those returned from PCode.
 	 */
 	if (num_qgv_points > 0)
-		mask |= REG_GENMASK(num_qgv_points - 1, 0);
+		qgv_points = GENMASK(num_qgv_points - 1, 0);
 
 	if (num_psf_gv_points > 0)
-		mask |= REG_GENMASK(num_psf_gv_points - 1, 0) << ADLS_PSF_PT_SHIFT;
+		psf_points = GENMASK(num_psf_gv_points - 1, 0);
+
+	return ICL_PCODE_REQ_QGV_PT(qgv_points) | ADLS_PCODE_REQ_PSF_PT(psf_points);
+}
+
+static int intel_bw_check_data_rate(struct intel_atomic_state *state, bool *changed)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_crtc_state *new_crtc_state, *old_crtc_state;
+	struct intel_crtc *crtc;
+	int i;
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
@@ -853,6 +931,7 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 			intel_bw_crtc_num_active_planes(old_crtc_state);
 		unsigned int new_active_planes =
 			intel_bw_crtc_num_active_planes(new_crtc_state);
+		struct intel_bw_state *new_bw_state;
 
 		/*
 		 * Avoid locking the bw state when
@@ -869,14 +948,39 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 		new_bw_state->data_rate[crtc->pipe] = new_data_rate;
 		new_bw_state->num_active_planes[crtc->pipe] = new_active_planes;
 
-		changed = true;
+		*changed = true;
 
-		drm_dbg_kms(&dev_priv->drm,
-			    "pipe %c data rate %u num active planes %u\n",
-			    pipe_name(crtc->pipe),
+		drm_dbg_kms(&i915->drm,
+			    "[CRTC:%d:%s] data rate %u num active planes %u\n",
+			    crtc->base.base.id, crtc->base.name,
 			    new_bw_state->data_rate[crtc->pipe],
 			    new_bw_state->num_active_planes[crtc->pipe]);
 	}
+
+	return 0;
+}
+
+int intel_bw_atomic_check(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	const struct intel_bw_state *old_bw_state;
+	struct intel_bw_state *new_bw_state;
+	unsigned int data_rate;
+	unsigned int num_active_planes;
+	int i, ret;
+	u16 qgv_points = 0, psf_points = 0;
+	unsigned int max_bw_point = 0, max_bw = 0;
+	unsigned int num_qgv_points = dev_priv->max_bw[0].num_qgv_points;
+	unsigned int num_psf_gv_points = dev_priv->max_bw[0].num_psf_gv_points;
+	bool changed = false;
+
+	/* FIXME earlier gens need some checks too */
+	if (DISPLAY_VER(dev_priv) < 11)
+		return 0;
+
+	ret = intel_bw_check_data_rate(state, &changed);
+	if (ret)
+		return ret;
 
 	old_bw_state = intel_atomic_get_old_bw_state(state);
 	new_bw_state = intel_atomic_get_new_bw_state(state);
@@ -922,7 +1026,7 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 			max_bw = max_data_rate;
 		}
 		if (max_data_rate >= data_rate)
-			allowed_points |= REG_FIELD_PREP(ADLS_QGV_PT_MASK, BIT(i));
+			qgv_points |= BIT(i);
 
 		drm_dbg_kms(&dev_priv->drm, "QGV point %d: max bw %d required %d\n",
 			    i, max_data_rate, data_rate);
@@ -932,7 +1036,7 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 		unsigned int max_data_rate = adl_psf_bw(dev_priv, i);
 
 		if (max_data_rate >= data_rate)
-			allowed_points |= REG_FIELD_PREP(ADLS_PSF_PT_MASK, BIT(i));
+			psf_points |= BIT(i);
 
 		drm_dbg_kms(&dev_priv->drm, "PSF GV point %d: max bw %d"
 			    " required %d\n",
@@ -944,20 +1048,18 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 	 * left, so if we couldn't - simply reject the configuration for obvious
 	 * reasons.
 	 */
-	if ((allowed_points & ADLS_QGV_PT_MASK) == 0) {
+	if (qgv_points == 0) {
 		drm_dbg_kms(&dev_priv->drm, "No QGV points provide sufficient memory"
 			    " bandwidth %d for display configuration(%d active planes).\n",
 			    data_rate, num_active_planes);
 		return -EINVAL;
 	}
 
-	if (num_psf_gv_points > 0) {
-		if ((allowed_points & ADLS_PSF_PT_MASK) == 0) {
-			drm_dbg_kms(&dev_priv->drm, "No PSF GV points provide sufficient memory"
-				    " bandwidth %d for display configuration(%d active planes).\n",
-				    data_rate, num_active_planes);
-			return -EINVAL;
-		}
+	if (num_psf_gv_points > 0 && psf_points == 0) {
+		drm_dbg_kms(&dev_priv->drm, "No PSF GV points provide sufficient memory"
+			    " bandwidth %d for display configuration(%d active planes).\n",
+			    data_rate, num_active_planes);
+		return -EINVAL;
 	}
 
 	/*
@@ -966,15 +1068,19 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 	 * cause.
 	 */
 	if (!intel_can_enable_sagv(dev_priv, new_bw_state)) {
-		allowed_points = BIT(max_bw_point);
+		qgv_points = BIT(max_bw_point);
 		drm_dbg_kms(&dev_priv->drm, "No SAGV, using single QGV point %d\n",
 			    max_bw_point);
 	}
+
 	/*
 	 * We store the ones which need to be masked as that is what PCode
 	 * actually accepts as a parameter.
 	 */
-	new_bw_state->qgv_points_mask = ~allowed_points & mask;
+	new_bw_state->qgv_points_mask =
+		~(ICL_PCODE_REQ_QGV_PT(qgv_points) |
+		  ADLS_PCODE_REQ_PSF_PT(psf_points)) &
+		icl_qgv_points_mask(dev_priv);
 
 	/*
 	 * If the actual mask had changed we need to make sure that

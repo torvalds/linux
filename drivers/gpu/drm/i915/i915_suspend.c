@@ -25,13 +25,13 @@
  */
 
 #include "display/intel_de.h"
-#include "display/intel_fbc.h"
 #include "display/intel_gmbus.h"
 #include "display/intel_vga.h"
 
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i915_suspend.h"
+#include "intel_pci_config.h"
 
 static void intel_save_swf(struct drm_i915_private *dev_priv)
 {
@@ -117,9 +117,6 @@ void i915_restore_display(struct drm_i915_private *dev_priv)
 	/* Display arbitration */
 	if (GRAPHICS_VER(dev_priv) <= 4)
 		intel_de_write(dev_priv, DSPARB, dev_priv->regfile.saveDSPARB);
-
-	/* only restore FBC info on the platform that supports FBC*/
-	intel_fbc_global_disable(dev_priv);
 
 	intel_vga_redisable(dev_priv);
 

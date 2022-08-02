@@ -32,6 +32,10 @@ properties:
           - const: mediatek,mt6580
       - items:
           - enum:
+              - prestigio,pmt5008-3g
+          - const: mediatek,mt6582
+      - items:
+          - enum:
               - fairphone,fp1
               - mundoreader,bq-aquaris5
           - const: mediatek,mt6589
@@ -129,6 +133,11 @@ properties:
           - const: mediatek,mt8183
       - items:
           - enum:
+              - mediatek,mt8192-evb
+          - const: mediatek,mt8192
+      - items:
+          - enum:
+              - mediatek,mt8195-demo
               - mediatek,mt8195-evb
           - const: mediatek,mt8195
       - description: Google Burnet (HP Chromebook x360 11MK G3 EE)

@@ -149,12 +149,6 @@ static unsigned int qcom_geni_serial_tx_empty(struct uart_port *port);
 static void qcom_geni_serial_stop_rx(struct uart_port *uport);
 static void qcom_geni_serial_handle_rx(struct uart_port *uport, bool drop);
 
-static const unsigned long root_freq[] = {7372800, 14745600, 19200000, 29491200,
-					32000000, 48000000, 51200000, 64000000,
-					80000000, 96000000, 100000000,
-					102400000, 112000000, 120000000,
-					128000000};
-
 #define to_dev_port(ptr, member) \
 		container_of(ptr, struct qcom_geni_serial_port, member)
 
@@ -397,7 +391,7 @@ static void qcom_geni_serial_poll_put_char(struct uart_port *uport,
 #endif
 
 #ifdef CONFIG_SERIAL_QCOM_GENI_CONSOLE
-static void qcom_geni_serial_wr_char(struct uart_port *uport, int ch)
+static void qcom_geni_serial_wr_char(struct uart_port *uport, unsigned char ch)
 {
 	struct qcom_geni_private_data *private_data = uport->private_data;
 
@@ -507,7 +501,7 @@ static void qcom_geni_serial_console_write(struct console *co, const char *s,
 		 */
 		qcom_geni_serial_poll_tx_done(uport);
 
-		if (uart_circ_chars_pending(&uport->state->xmit)) {
+		if (!uart_circ_empty(&uport->state->xmit)) {
 			irq_en = readl(uport->membase + SE_GENI_M_IRQ_EN);
 			writel(irq_en | M_TX_FIFO_WATERMARK_EN,
 					uport->membase + SE_GENI_M_IRQ_EN);
@@ -946,25 +940,43 @@ static int qcom_geni_serial_startup(struct uart_port *uport)
 	return 0;
 }
 
-static unsigned long get_clk_cfg(unsigned long clk_freq)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(root_freq); i++) {
-		if (!(root_freq[i] % clk_freq))
-			return root_freq[i];
-	}
-	return 0;
-}
-
-static unsigned long get_clk_div_rate(unsigned int baud,
+static unsigned long get_clk_div_rate(struct clk *clk, unsigned int baud,
 			unsigned int sampling_rate, unsigned int *clk_div)
 {
 	unsigned long ser_clk;
 	unsigned long desired_clk;
+	unsigned long freq, prev;
+	unsigned long div, maxdiv;
+	int64_t mult;
 
 	desired_clk = baud * sampling_rate;
-	ser_clk = get_clk_cfg(desired_clk);
+	if (!desired_clk) {
+		pr_err("%s: Invalid frequency\n", __func__);
+		return 0;
+	}
+
+	maxdiv = CLK_DIV_MSK >> CLK_DIV_SHFT;
+	prev = 0;
+
+	for (div = 1; div <= maxdiv; div++) {
+		mult = div * desired_clk;
+		if (mult > ULONG_MAX)
+			break;
+
+		freq = clk_round_rate(clk, (unsigned long)mult);
+		if (!(freq % desired_clk)) {
+			ser_clk = freq;
+			break;
+		}
+
+		if (!prev)
+			ser_clk = freq;
+		else if (prev == freq)
+			break;
+
+		prev = freq;
+	}
+
 	if (!ser_clk) {
 		pr_err("%s: Can't find matching DFS entry for baud %d\n",
 								__func__, baud);
@@ -972,6 +984,9 @@ static unsigned long get_clk_div_rate(unsigned int baud,
 	}
 
 	*clk_div = ser_clk / desired_clk;
+	if (!(*clk_div))
+		*clk_div = 1;
+
 	return ser_clk;
 }
 
@@ -1003,7 +1018,8 @@ static void qcom_geni_serial_set_termios(struct uart_port *uport,
 	if (ver >= QUP_SE_VERSION_2_5)
 		sampling_rate /= 2;
 
-	clk_rate = get_clk_div_rate(baud, sampling_rate, &clk_div);
+	clk_rate = get_clk_div_rate(port->se.clk, baud,
+		sampling_rate, &clk_div);
 	if (!clk_rate)
 		goto out_restart_rx;
 
@@ -1290,6 +1306,7 @@ static const struct uart_ops qcom_geni_console_pops = {
 	.stop_tx = qcom_geni_serial_stop_tx,
 	.start_tx = qcom_geni_serial_start_tx,
 	.stop_rx = qcom_geni_serial_stop_rx,
+	.start_rx = qcom_geni_serial_start_rx,
 	.set_termios = qcom_geni_serial_set_termios,
 	.startup = qcom_geni_serial_startup,
 	.request_port = qcom_geni_serial_request_port,

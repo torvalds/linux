@@ -15,9 +15,9 @@
 #include <linux/refcount.h>
 #include <linux/jump_label_ratelimit.h>
 #include <net/if_inet6.h>
-#include <net/ndisc.h>
 #include <net/flow.h>
 #include <net/flow_dissector.h>
+#include <net/inet_dscp.h>
 #include <net/snmp.h>
 #include <net/netns/hash.h>
 
@@ -149,6 +149,17 @@ struct frag_hdr {
 	__u8	reserved;
 	__be16	frag_off;
 	__be32	identification;
+};
+
+/*
+ * Jumbo payload option, as described in RFC 2675 2.
+ */
+struct hop_jumbo_hdr {
+	u8	nexthdr;
+	u8	hdrlen;
+	u8	tlv_type;	/* IPV6_TLV_JUMBO, 0xC2 */
+	u8	tlv_len;	/* 4 */
+	__be32	jumbo_payload_len;
 };
 
 #define	IP6_MF		0x0001
@@ -440,13 +451,54 @@ struct ipv6_txoptions *ipv6_renew_options(struct sock *sk,
 					  struct ipv6_txoptions *opt,
 					  int newtype,
 					  struct ipv6_opt_hdr *newopt);
-struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
-					  struct ipv6_txoptions *opt);
+struct ipv6_txoptions *__ipv6_fixup_options(struct ipv6_txoptions *opt_space,
+					    struct ipv6_txoptions *opt);
+
+static inline struct ipv6_txoptions *
+ipv6_fixup_options(struct ipv6_txoptions *opt_space, struct ipv6_txoptions *opt)
+{
+	if (!opt)
+		return NULL;
+	return __ipv6_fixup_options(opt_space, opt);
+}
 
 bool ipv6_opt_accepted(const struct sock *sk, const struct sk_buff *skb,
 		       const struct inet6_skb_parm *opt);
 struct ipv6_txoptions *ipv6_update_options(struct sock *sk,
 					   struct ipv6_txoptions *opt);
+
+/* This helper is specialized for BIG TCP needs.
+ * It assumes the hop_jumbo_hdr will immediately follow the IPV6 header.
+ * It assumes headers are already in skb->head.
+ * Returns 0, or IPPROTO_TCP if a BIG TCP packet is there.
+ */
+static inline int ipv6_has_hopopt_jumbo(const struct sk_buff *skb)
+{
+	const struct hop_jumbo_hdr *jhdr;
+	const struct ipv6hdr *nhdr;
+
+	if (likely(skb->len <= GRO_LEGACY_MAX_SIZE))
+		return 0;
+
+	if (skb->protocol != htons(ETH_P_IPV6))
+		return 0;
+
+	if (skb_network_offset(skb) +
+	    sizeof(struct ipv6hdr) +
+	    sizeof(struct hop_jumbo_hdr) > skb_headlen(skb))
+		return 0;
+
+	nhdr = ipv6_hdr(skb);
+
+	if (nhdr->nexthdr != NEXTHDR_HOP)
+		return 0;
+
+	jhdr = (const struct hop_jumbo_hdr *) (nhdr + 1);
+	if (jhdr->tlv_type != IPV6_TLV_JUMBO || jhdr->hdrlen != 0 ||
+	    jhdr->nexthdr != IPPROTO_TCP)
+		return 0;
+	return jhdr->nexthdr;
+}
 
 static inline bool ipv6_accept_ra(struct inet6_dev *idev)
 {
@@ -970,6 +1022,11 @@ static inline u8 ip6_tclass(__be32 flowinfo)
 	return ntohl(flowinfo & IPV6_TCLASS_MASK) >> IPV6_TCLASS_SHIFT;
 }
 
+static inline dscp_t ip6_dscp(__be32 flowinfo)
+{
+	return inet_dsfield_to_dscp(ip6_tclass(flowinfo));
+}
+
 static inline __be32 ip6_make_flowinfo(unsigned int tclass, __be32 flowlabel)
 {
 	return htonl(tclass << IPV6_TCLASS_SHIFT) | flowlabel;
@@ -1006,7 +1063,7 @@ int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr);
 int ip6_append_data(struct sock *sk,
 		    int getfrag(void *from, char *to, int offset, int len,
 				int odd, struct sk_buff *skb),
-		    void *from, int length, int transhdrlen,
+		    void *from, size_t length, int transhdrlen,
 		    struct ipcm6_cookie *ipc6, struct flowi6 *fl6,
 		    struct rt6_info *rt, unsigned int flags);
 
@@ -1022,8 +1079,8 @@ struct sk_buff *__ip6_make_skb(struct sock *sk, struct sk_buff_head *queue,
 struct sk_buff *ip6_make_skb(struct sock *sk,
 			     int getfrag(void *from, char *to, int offset,
 					 int len, int odd, struct sk_buff *skb),
-			     void *from, int length, int transhdrlen,
-			     struct ipcm6_cookie *ipc6, struct flowi6 *fl6,
+			     void *from, size_t length, int transhdrlen,
+			     struct ipcm6_cookie *ipc6,
 			     struct rt6_info *rt, unsigned int flags,
 			     struct inet_cork_full *cork);
 

@@ -6,9 +6,9 @@
  * Sean Paul <seanpaul@chromium.org>
  */
 
-#include <drm/drm_dp_helper.h>
-#include <drm/drm_dp_mst_helper.h>
-#include <drm/drm_hdcp.h>
+#include <drm/display/drm_dp_helper.h>
+#include <drm/display/drm_dp_mst_helper.h>
+#include <drm/display/drm_hdcp_helper.h>
 #include <drm/drm_print.h>
 
 #include "intel_ddi.h"

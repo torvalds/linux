@@ -5,7 +5,6 @@
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
  */
 
-#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/iio/qcom,spmi-adc7-pmk8350.h>
 #include <dt-bindings/input/linux-event-codes.h>
 #include "sc7280.dtsi"
@@ -13,7 +12,14 @@
 #include "pm8350c.dtsi"
 #include "pmk8350.dtsi"
 
+#include "sc7280-chrome-common.dtsi"
+
 / {
+	aliases {
+		bluetooth0 = &bluetooth;
+		serial1 = &uart7;
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		label = "gpio-keys";
@@ -42,58 +48,6 @@
 		enable-active-high;
 		pinctrl-names = "default";
 		pinctrl-0 = <&nvme_pwren>;
-	};
-};
-
-/*
- * Reserved memory changes
- *
- * Delete all unused memory nodes and define the peripheral memory regions
- * required by the board dts.
- *
- */
-
-/delete-node/ &hyp_mem;
-/delete-node/ &xbl_mem;
-/delete-node/ &reserved_xbl_uefi_log;
-/delete-node/ &sec_apps_mem;
-
-/* Increase the size from 2.5MB to 8MB */
-&rmtfs_mem {
-	reg = <0x0 0x9c900000 0x0 0x800000>;
-};
-
-/ {
-	reserved-memory {
-		adsp_mem: memory@86700000 {
-			reg = <0x0 0x86700000 0x0 0x2800000>;
-			no-map;
-		};
-
-		camera_mem: memory@8ad00000 {
-			reg = <0x0 0x8ad00000 0x0 0x500000>;
-			no-map;
-		};
-
-		venus_mem: memory@8b200000 {
-			reg = <0x0 0x8b200000 0x0 0x500000>;
-			no-map;
-		};
-
-		mpss_mem: memory@8b800000 {
-			reg = <0x0 0x8b800000 0x0 0xf600000>;
-			no-map;
-		};
-
-		wpss_mem: memory@9ae00000 {
-			reg = <0x0 0x9ae00000 0x0 0x1900000>;
-			no-map;
-		};
-
-		mba_mem: memory@9c700000 {
-			reg = <0x0 0x9c700000 0x0 0x200000>;
-			no-map;
-		};
 	};
 };
 
@@ -279,6 +233,14 @@
 	};
 };
 
+&gpi_dma0 {
+	status = "okay";
+};
+
+&gpi_dma1 {
+	status = "okay";
+};
+
 &ipa {
 	status = "okay";
 	modem-init;
@@ -313,20 +275,6 @@
 	vcc-supply = <&vreg_l1c_1p8>;
 };
 
-&qspi {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&qspi_clk>, <&qspi_cs0>, <&qspi_data01>;
-
-	flash@0 {
-		compatible = "jedec,spi-nor";
-		reg = <0>;
-		spi-max-frequency = <37500000>;
-		spi-tx-bus-width = <2>;
-		spi-rx-bus-width = <2>;
-	};
-};
-
 &qupv3_id_0 {
 	status = "okay";
 };
@@ -335,19 +283,8 @@
 	status = "okay";
 };
 
-&remoteproc_mpss {
-	status = "okay";
-	compatible = "qcom,sc7280-mss-pil";
-	iommus = <&apps_smmu 0x124 0x0>, <&apps_smmu 0x488 0x7>;
-	memory-region = <&mba_mem &mpss_mem>;
-};
-
 &sdhc_1 {
 	status = "okay";
-
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc1_on>;
-	pinctrl-1 = <&sdc1_off>;
 
 	non-removable;
 	no-sd;
@@ -360,9 +297,8 @@
 &sdhc_2 {
 	status = "okay";
 
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc2_on>;
-	pinctrl-1 = <&sdc2_off>;
+	pinctrl-0 = <&sdc2_clk>, <&sdc2_cmd>, <&sdc2_data>, <&sd_cd>;
+	pinctrl-1 = <&sdc2_clk_sleep>, <&sdc2_cmd_sleep>, <&sdc2_data_sleep>, <&sd_cd>;
 
 	vmmc-supply = <&vreg_l9c_2p9>;
 	vqmmc-supply = <&vreg_l6c_2p9>;
@@ -398,22 +334,6 @@
 	vdda-pll-supply = <&vreg_l1b_0p8>;
 };
 
-&usb_2 {
-	status = "okay";
-};
-
-&usb_2_dwc3 {
-	dr_mode = "peripheral";
-};
-
-&usb_2_hsphy {
-	status = "okay";
-
-	vdda-pll-supply = <&vreg_l10c_0p8>;
-	vdda33-supply = <&vreg_l2b_3p0>;
-	vdda18-supply = <&vreg_l1c_1p8>;
-};
-
 &uart7 {
 	status = "okay";
 
@@ -422,9 +342,30 @@
 				<&tlmm 31 IRQ_TYPE_EDGE_FALLING>;
 	pinctrl-names = "default", "sleep";
 	pinctrl-1 = <&qup_uart7_sleep_cts>, <&qup_uart7_sleep_rts>, <&qup_uart7_sleep_tx>, <&qup_uart7_sleep_rx>;
+
+	bluetooth: bluetooth {
+		compatible = "qcom,wcn6750-bt";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bt_en>, <&sw_ctrl>;
+		enable-gpios = <&tlmm 85 GPIO_ACTIVE_HIGH>;
+		swctrl-gpios = <&tlmm 86 GPIO_ACTIVE_HIGH>;
+		vddaon-supply = <&vreg_s7b_0p9>;
+		vddbtcxmx-supply = <&vreg_s7b_0p9>;
+		vddrfacmn-supply = <&vreg_s7b_0p9>;
+		vddrfa0p8-supply = <&vreg_s7b_0p9>;
+		vddrfa1p7-supply = <&vreg_s1b_1p8>;
+		vddrfa1p2-supply = <&vreg_s8b_1p2>;
+		vddrfa2p2-supply = <&vreg_s1c_2p2>;
+		vddasd-supply = <&vreg_l11c_2p8>;
+		max-speed = <3200000>;
+	};
 };
 
 /* PINCTRL - additions to nodes defined in sc7280.dtsi */
+
+&dp_hot_plug_det {
+	bias-disable;
+};
 
 &pm7325_gpios {
 	key_vol_up_default: key-vol-up-default {
@@ -435,6 +376,11 @@
 		power-source = <0>;
 		qcom,drive-strength = <3>;
 	};
+};
+
+&pcie1_clkreq_n {
+	bias-pull-up;
+	drive-strength = <2>;
 };
 
 &qspi_cs0 {
@@ -462,10 +408,13 @@
 
 &qup_uart7_cts {
 	/*
-	 * Configure a pull-down on CTS to match the pull of
-	 * the Bluetooth module.
+	 * Configure a bias-bus-hold on CTS to lower power
+	 * usage when Bluetooth is turned off. Bus hold will
+	 * maintain a low power state regardless of whether
+	 * the Bluetooth module drives the pin in either
+	 * direction or leaves the pin fully unpowered.
 	 */
-	bias-pull-down;
+	bias-bus-hold;
 };
 
 &qup_uart7_rts {
@@ -490,7 +439,48 @@
 	bias-pull-up;
 };
 
+&sdc1_clk {
+	bias-disable;
+	drive-strength = <16>;
+};
+
+&sdc1_cmd {
+	bias-pull-up;
+	drive-strength = <10>;
+};
+
+&sdc1_data {
+	bias-pull-up;
+	drive-strength = <10>;
+};
+
+&sdc1_rclk {
+	bias-pull-down;
+};
+
+&sdc2_clk {
+	bias-disable;
+	drive-strength = <16>;
+};
+
+&sdc2_cmd {
+	bias-pull-up;
+	drive-strength = <10>;
+};
+
+&sdc2_data {
+	bias-pull-up;
+	drive-strength = <10>;
+};
+
 &tlmm {
+	bt_en: bt-en {
+		pins = "gpio85";
+		function = "gpio";
+		output-low;
+		bias-disable;
+	};
+
 	nvme_pwren: nvme-pwren {
 		function = "gpio";
 	};
@@ -516,10 +506,13 @@
 		pins = "gpio28";
 		function = "gpio";
 		/*
-		 * Configure a pull-down on CTS to match the pull of
-		 * the Bluetooth module.
+		 * Configure a bias-bus-hold on CTS to lower power
+		 * usage when Bluetooth is turned off. Bus hold will
+		 * maintain a low power state regardless of whether
+		 * the Bluetooth module drives the pin in either
+		 * direction or leaves the pin fully unpowered.
 		 */
-		bias-pull-down;
+		bias-bus-hold;
 	};
 
 	qup_uart7_sleep_rts: qup-uart7-sleep-rts {
@@ -554,47 +547,27 @@
 		 */
 		bias-pull-up;
 	};
-};
 
-&sdc1_on {
-	clk {
-		bias-disable;
-		drive-strength = <16>;
-	};
-
-	cmd {
+	sd_cd: sd-cd {
+		pins = "gpio91";
+		function = "gpio";
 		bias-pull-up;
-		drive-strength = <10>;
 	};
 
-	data {
-		bias-pull-up;
-		drive-strength = <10>;
-	};
-
-	rclk {
+	sw_ctrl: sw-ctrl {
+		pins = "gpio86";
+		function = "gpio";
 		bias-pull-down;
 	};
 };
 
-&sdc2_on {
-	clk {
-		bias-disable;
-		drive-strength = <16>;
-	};
+&remoteproc_wpss {
+	status = "okay";
+};
 
-	cmd {
-		bias-pull-up;
-		drive-strength = <10>;
-	};
-
-	data {
-		bias-pull-up;
-		drive-strength = <10>;
-	};
-
-	sd-cd {
-		pins = "gpio91";
-		bias-pull-up;
+&wifi {
+	status = "okay";
+	wifi-firmware {
+		iommus = <&apps_smmu 0x1c02 0x1>;
 	};
 };

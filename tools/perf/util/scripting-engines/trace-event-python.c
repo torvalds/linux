@@ -392,6 +392,18 @@ static const char *get_dsoname(struct map *map)
 	return dsoname;
 }
 
+static unsigned long get_offset(struct symbol *sym, struct addr_location *al)
+{
+	unsigned long offset;
+
+	if (al->addr < sym->end)
+		offset = al->addr - sym->start;
+	else
+		offset = al->addr - al->map->start - sym->start;
+
+	return offset;
+}
+
 static PyObject *python_process_callchain(struct perf_sample *sample,
 					 struct evsel *evsel,
 					 struct addr_location *al)
@@ -443,6 +455,25 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 					_PyUnicode_FromStringAndSize(node->ms.sym->name,
 							node->ms.sym->namelen));
 			pydict_set_item_string_decref(pyelem, "sym", pysym);
+
+			if (node->ms.map) {
+				struct map *map = node->ms.map;
+				struct addr_location node_al;
+				unsigned long offset;
+
+				node_al.addr = map->map_ip(map, node->ip);
+				node_al.map  = map;
+				offset = get_offset(node->ms.sym, &node_al);
+
+				pydict_set_item_string_decref(
+					pyelem, "sym_off",
+					PyLong_FromUnsignedLongLong(offset));
+			}
+			if (node->srcline && strcmp(":0", node->srcline)) {
+				pydict_set_item_string_decref(
+					pyelem, "sym_srcline",
+					_PyUnicode_FromString(node->srcline));
+			}
 		}
 
 		if (node->ms.map) {
@@ -518,18 +549,6 @@ static PyObject *python_process_brstack(struct perf_sample *sample,
 
 exit:
 	return pylist;
-}
-
-static unsigned long get_offset(struct symbol *sym, struct addr_location *al)
-{
-	unsigned long offset;
-
-	if (al->addr < sym->end)
-		offset = al->addr - sym->start;
-	else
-		offset = al->addr - al->map->start - sym->start;
-
-	return offset;
 }
 
 static int get_symoff(struct symbol *sym, struct addr_location *al,
@@ -736,12 +755,22 @@ static void set_regs_in_dict(PyObject *dict,
 }
 
 static void set_sym_in_dict(PyObject *dict, struct addr_location *al,
-			    const char *dso_field, const char *sym_field,
-			    const char *symoff_field)
+			    const char *dso_field, const char *dso_bid_field,
+			    const char *dso_map_start, const char *dso_map_end,
+			    const char *sym_field, const char *symoff_field)
 {
+	char sbuild_id[SBUILD_ID_SIZE];
+
 	if (al->map) {
 		pydict_set_item_string_decref(dict, dso_field,
 			_PyUnicode_FromString(al->map->dso->name));
+		build_id__sprintf(&al->map->dso->bid, sbuild_id);
+		pydict_set_item_string_decref(dict, dso_bid_field,
+			_PyUnicode_FromString(sbuild_id));
+		pydict_set_item_string_decref(dict, dso_map_start,
+			PyLong_FromUnsignedLong(al->map->start));
+		pydict_set_item_string_decref(dict, dso_map_end,
+			PyLong_FromUnsignedLong(al->map->end));
 	}
 	if (al->sym) {
 		pydict_set_item_string_decref(dict, sym_field,
@@ -821,7 +850,8 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 			(const char *)sample->raw_data, sample->raw_size));
 	pydict_set_item_string_decref(dict, "comm",
 			_PyUnicode_FromString(thread__comm_str(al->thread)));
-	set_sym_in_dict(dict, al, "dso", "symbol", "symoff");
+	set_sym_in_dict(dict, al, "dso", "dso_bid", "dso_map_start", "dso_map_end",
+			"symbol", "symoff");
 
 	pydict_set_item_string_decref(dict, "callchain", callchain);
 
@@ -837,7 +867,9 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 	if (addr_al) {
 		pydict_set_item_string_decref(dict_sample, "addr_correlates_sym",
 			PyBool_FromLong(1));
-		set_sym_in_dict(dict_sample, addr_al, "addr_dso", "addr_symbol", "addr_symoff");
+		set_sym_in_dict(dict_sample, addr_al, "addr_dso", "addr_dso_bid",
+				"addr_dso_map_start", "addr_dso_map_end",
+				"addr_symbol", "addr_symoff");
 	}
 
 	if (sample->flags)
@@ -1216,7 +1248,7 @@ static void python_export_sample_table(struct db_export *dbe,
 	struct tables *tables = container_of(dbe, struct tables, dbe);
 	PyObject *t;
 
-	t = tuple_new(24);
+	t = tuple_new(25);
 
 	tuple_set_d64(t, 0, es->db_id);
 	tuple_set_d64(t, 1, es->evsel->db_id);
@@ -1242,6 +1274,7 @@ static void python_export_sample_table(struct db_export *dbe,
 	tuple_set_d64(t, 21, es->call_path_id);
 	tuple_set_d64(t, 22, es->sample->insn_cnt);
 	tuple_set_d64(t, 23, es->sample->cyc_cnt);
+	tuple_set_s32(t, 24, es->sample->flags);
 
 	call_object(tables->sample_handler, t, "sample_table");
 
@@ -2073,7 +2106,11 @@ static int python_generate_script(struct tep_handle *pevent, const char *outfile
 
 		fprintf(ofp, "\t\tfor node in common_callchain:");
 		fprintf(ofp, "\n\t\t\tif 'sym' in node:");
-		fprintf(ofp, "\n\t\t\t\tprint(\"\\t[%%x] %%s\" %% (node['ip'], node['sym']['name']))");
+		fprintf(ofp, "\n\t\t\t\tprint(\"\t[%%x] %%s%%s%%s%%s\" %% (");
+		fprintf(ofp, "\n\t\t\t\t\tnode['ip'], node['sym']['name'],");
+		fprintf(ofp, "\n\t\t\t\t\t\"+0x{:x}\".format(node['sym_off']) if 'sym_off' in node else \"\",");
+		fprintf(ofp, "\n\t\t\t\t\t\" ({})\".format(node['dso'])  if 'dso' in node else \"\",");
+		fprintf(ofp, "\n\t\t\t\t\t\" \" + node['sym_srcline'] if 'sym_srcline' in node else \"\"))");
 		fprintf(ofp, "\n\t\t\telse:");
 		fprintf(ofp, "\n\t\t\t\tprint(\"\t[%%x]\" %% (node['ip']))\n\n");
 		fprintf(ofp, "\t\tprint()\n\n");

@@ -34,7 +34,6 @@ static int check_type_state(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 		}
 		break;
 	case IB_QPT_UD:
-	case IB_QPT_SMI:
 	case IB_QPT_GSI:
 		if (unlikely(pkt_type != IB_OPCODE_UD)) {
 			pr_warn_ratelimited("bad qp type\n");
@@ -217,7 +216,7 @@ static int hdr_check(struct rxe_pkt_info *pkt)
 	return 0;
 
 err2:
-	rxe_drop_ref(qp);
+	rxe_put(qp);
 err1:
 	return -EINVAL;
 }
@@ -233,8 +232,8 @@ static inline void rxe_rcv_pkt(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 {
 	struct rxe_pkt_info *pkt = SKB_TO_PKT(skb);
-	struct rxe_mc_grp *mcg;
-	struct rxe_mc_elem *mce;
+	struct rxe_mcg *mcg;
+	struct rxe_mca *mca;
 	struct rxe_qp *qp;
 	union ib_gid dgid;
 	int err;
@@ -246,19 +245,19 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 		memcpy(&dgid, &ipv6_hdr(skb)->daddr, sizeof(dgid));
 
 	/* lookup mcast group corresponding to mgid, takes a ref */
-	mcg = rxe_pool_get_key(&rxe->mc_grp_pool, &dgid);
+	mcg = rxe_lookup_mcg(rxe, &dgid);
 	if (!mcg)
 		goto drop;	/* mcast group not registered */
 
-	spin_lock_bh(&mcg->mcg_lock);
+	spin_lock_bh(&rxe->mcg_lock);
 
 	/* this is unreliable datagram service so we let
 	 * failures to deliver a multicast packet to a
 	 * single QP happen and just move on and try
 	 * the rest of them on the list
 	 */
-	list_for_each_entry(mce, &mcg->qp_list, qp_list) {
-		qp = mce->qp;
+	list_for_each_entry(mca, &mcg->qp_list, qp_list) {
+		qp = mca->qp;
 
 		/* validate qp for incoming packet */
 		err = check_type_state(rxe, pkt, qp);
@@ -273,7 +272,7 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 		 * skb and pass to the QP. Pass the original skb to
 		 * the last QP in the list.
 		 */
-		if (mce->qp_list.next != &mcg->qp_list) {
+		if (mca->qp_list.next != &mcg->qp_list) {
 			struct sk_buff *cskb;
 			struct rxe_pkt_info *cpkt;
 
@@ -288,19 +287,19 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 
 			cpkt = SKB_TO_PKT(cskb);
 			cpkt->qp = qp;
-			rxe_add_ref(qp);
+			rxe_get(qp);
 			rxe_rcv_pkt(cpkt, cskb);
 		} else {
 			pkt->qp = qp;
-			rxe_add_ref(qp);
+			rxe_get(qp);
 			rxe_rcv_pkt(pkt, skb);
 			skb = NULL;	/* mark consumed */
 		}
 	}
 
-	spin_unlock_bh(&mcg->mcg_lock);
+	spin_unlock_bh(&rxe->mcg_lock);
 
-	rxe_drop_ref(mcg);	/* drop ref from rxe_pool_get_key. */
+	kref_put(&mcg->ref_cnt, rxe_cleanup_mcg);
 
 	if (likely(!skb))
 		return;
@@ -397,7 +396,7 @@ void rxe_rcv(struct sk_buff *skb)
 
 drop:
 	if (pkt->qp)
-		rxe_drop_ref(pkt->qp);
+		rxe_put(pkt->qp);
 
 	kfree_skb(skb);
 	ib_device_put(&rxe->ib_dev);

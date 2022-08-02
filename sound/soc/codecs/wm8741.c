@@ -565,8 +565,7 @@ static int wm8741_set_pdata(struct device *dev, struct wm8741_priv *wm8741)
 }
 
 #if IS_ENABLED(CONFIG_I2C)
-static int wm8741_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8741_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8741_priv *wm8741;
 	int ret, i;
@@ -618,7 +617,7 @@ static struct i2c_driver wm8741_i2c_driver = {
 		.name = "wm8741",
 		.of_match_table = wm8741_of_match,
 	},
-	.probe =    wm8741_i2c_probe,
+	.probe_new = wm8741_i2c_probe,
 	.id_table = wm8741_i2c_id,
 };
 #endif

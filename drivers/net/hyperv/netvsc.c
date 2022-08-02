@@ -20,6 +20,7 @@
 #include <linux/vmalloc.h>
 #include <linux/rtnetlink.h>
 #include <linux/prefetch.h>
+#include <linux/filter.h>
 
 #include <asm/sync_bitops.h>
 #include <asm/mshyperv.h>
@@ -154,19 +155,15 @@ static void free_netvsc_device(struct rcu_head *head)
 
 	kfree(nvdev->extension);
 
-	if (nvdev->recv_original_buf) {
-		hv_unmap_memory(nvdev->recv_buf);
+	if (nvdev->recv_original_buf)
 		vfree(nvdev->recv_original_buf);
-	} else {
+	else
 		vfree(nvdev->recv_buf);
-	}
 
-	if (nvdev->send_original_buf) {
-		hv_unmap_memory(nvdev->send_buf);
+	if (nvdev->send_original_buf)
 		vfree(nvdev->send_original_buf);
-	} else {
+	else
 		vfree(nvdev->send_buf);
-	}
 
 	bitmap_free(nvdev->send_section_map);
 
@@ -765,6 +762,12 @@ void netvsc_device_remove(struct hv_device *device)
 		netvsc_teardown_send_gpadl(device, net_device, ndev);
 	}
 
+	if (net_device->recv_original_buf)
+		hv_unmap_memory(net_device->recv_buf);
+
+	if (net_device->send_original_buf)
+		hv_unmap_memory(net_device->send_buf);
+
 	/* Release all resources */
 	free_netvsc_device_rcu(net_device);
 }
@@ -790,9 +793,9 @@ static void netvsc_send_tx_complete(struct net_device *ndev,
 	int queue_sends;
 	u64 cmd_rqst;
 
-	cmd_rqst = channel->request_addr_callback(channel, (u64)desc->trans_id);
+	cmd_rqst = channel->request_addr_callback(channel, desc->trans_id);
 	if (cmd_rqst == VMBUS_RQST_ERROR) {
-		netdev_err(ndev, "Incorrect transaction id\n");
+		netdev_err(ndev, "Invalid transaction ID %llx\n", desc->trans_id);
 		return;
 	}
 
@@ -803,7 +806,7 @@ static void netvsc_send_tx_complete(struct net_device *ndev,
 		struct hv_netvsc_packet *packet
 			= (struct hv_netvsc_packet *)skb->cb;
 		u32 send_index = packet->send_buf_index;
-		struct netvsc_stats *tx_stats;
+		struct netvsc_stats_tx *tx_stats;
 
 		if (send_index != NETVSC_INVALID_INDEX)
 			netvsc_free_send_slot(net_device, send_index);
@@ -852,9 +855,9 @@ static void netvsc_send_completion(struct net_device *ndev,
 	/* First check if this is a VMBUS completion without data payload */
 	if (!msglen) {
 		cmd_rqst = incoming_channel->request_addr_callback(incoming_channel,
-								   (u64)desc->trans_id);
+								   desc->trans_id);
 		if (cmd_rqst == VMBUS_RQST_ERROR) {
-			netdev_err(ndev, "Invalid transaction id\n");
+			netdev_err(ndev, "Invalid transaction ID %llx\n", desc->trans_id);
 			return;
 		}
 
@@ -1628,7 +1631,6 @@ static int netvsc_process_raw_pkt(struct hv_device *device,
 
 	case VM_PKT_DATA_USING_XFER_PAGES:
 		return netvsc_receive(ndev, net_device, nvchan, desc);
-		break;
 
 	case VM_PKT_DATA_INBAND:
 		netvsc_receive_inband(ndev, net_device, desc);
@@ -1669,11 +1671,16 @@ int netvsc_poll(struct napi_struct *napi, int budget)
 	if (!nvchan->desc)
 		nvchan->desc = hv_pkt_iter_first(channel);
 
+	nvchan->xdp_flush = false;
+
 	while (nvchan->desc && work_done < budget) {
 		work_done += netvsc_process_raw_pkt(device, nvchan, net_device,
 						    ndev, nvchan->desc, budget);
 		nvchan->desc = hv_pkt_iter_next(channel, nvchan->desc);
 	}
+
+	if (nvchan->xdp_flush)
+		xdp_do_flush();
 
 	/* Send any pending receive completions */
 	ret = send_recv_completions(ndev, net_device, nvchan);
@@ -1821,6 +1828,12 @@ cleanup:
 	netif_napi_del(&net_device->chan_table[0].napi);
 
 cleanup2:
+	if (net_device->recv_original_buf)
+		hv_unmap_memory(net_device->recv_buf);
+
+	if (net_device->send_original_buf)
+		hv_unmap_memory(net_device->send_buf);
+
 	free_netvsc_device(&net_device->rcu);
 
 	return ERR_PTR(ret);

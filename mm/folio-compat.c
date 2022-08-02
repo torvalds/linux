@@ -7,6 +7,7 @@
 #include <linux/migrate.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>
+#include "internal.h"
 
 struct address_space *page_mapping(struct page *page)
 {
@@ -130,12 +131,10 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t index,
 EXPORT_SYMBOL(pagecache_get_page);
 
 struct page *grab_cache_page_write_begin(struct address_space *mapping,
-					pgoff_t index, unsigned flags)
+					pgoff_t index)
 {
 	unsigned fgp_flags = FGP_LOCK | FGP_WRITE | FGP_CREAT | FGP_STABLE;
 
-	if (flags & AOP_FLAG_NOFS)
-		fgp_flags |= FGP_NOFS;
 	return pagecache_get_page(mapping, index, fgp_flags,
 			mapping_gfp_mask(mapping));
 }
@@ -151,3 +150,15 @@ int try_to_release_page(struct page *page, gfp_t gfp)
 	return filemap_release_folio(page_folio(page), gfp);
 }
 EXPORT_SYMBOL(try_to_release_page);
+
+int isolate_lru_page(struct page *page)
+{
+	if (WARN_RATELIMIT(PageTail(page), "trying to isolate tail page"))
+		return -EBUSY;
+	return folio_isolate_lru((struct folio *)page);
+}
+
+void putback_lru_page(struct page *page)
+{
+	folio_putback_lru(page_folio(page));
+}

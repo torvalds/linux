@@ -173,6 +173,7 @@ static void __init of_dra7_atl_clock_setup(struct device_node *node)
 	struct dra7_atl_desc *clk_hw = NULL;
 	struct clk_init_data init = { NULL };
 	const char **parent_names = NULL;
+	const char *name;
 	struct clk *clk;
 
 	clk_hw = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
@@ -183,7 +184,8 @@ static void __init of_dra7_atl_clock_setup(struct device_node *node)
 
 	clk_hw->hw.init = &init;
 	clk_hw->divider = 1;
-	init.name = node->name;
+	name = ti_dt_clk_name(node);
+	init.name = name;
 	init.ops = &atl_clk_ops;
 	init.flags = CLK_IGNORE_UNUSED;
 	init.num_parents = of_clk_get_parent_count(node);
@@ -203,7 +205,7 @@ static void __init of_dra7_atl_clock_setup(struct device_node *node)
 
 	init.parent_names = parent_names;
 
-	clk = ti_clk_register(NULL, &clk_hw->hw, node->name);
+	clk = ti_clk_register(NULL, &clk_hw->hw, name);
 
 	if (!IS_ERR(clk)) {
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);

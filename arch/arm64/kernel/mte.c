@@ -15,6 +15,7 @@
 #include <linux/swapops.h>
 #include <linux/thread_info.h>
 #include <linux/types.h>
+#include <linux/uaccess.h>
 #include <linux/uio.h>
 
 #include <asm/barrier.h>
@@ -76,6 +77,9 @@ void mte_sync_tags(pte_t old_pte, pte_t pte)
 			mte_sync_page_tags(page, old_pte, check_swap,
 					   pte_is_tagged);
 	}
+
+	/* ensure the tags are visible before the PTE is set */
+	smp_wmb();
 }
 
 int memcmp_pages(struct page *page1, struct page *page2)
@@ -106,7 +110,8 @@ int memcmp_pages(struct page *page1, struct page *page2)
 static inline void __mte_enable_kernel(const char *mode, unsigned long tcf)
 {
 	/* Enable MTE Sync Mode for EL1. */
-	sysreg_clear_set(sctlr_el1, SCTLR_ELx_TCF_MASK, tcf);
+	sysreg_clear_set(sctlr_el1, SCTLR_EL1_TCF_MASK,
+			 SYS_FIELD_PREP(SCTLR_EL1, TCF, tcf));
 	isb();
 
 	pr_info_once("MTE: enabled in %s mode at EL1\n", mode);
@@ -122,12 +127,12 @@ void mte_enable_kernel_sync(void)
 	WARN_ONCE(system_uses_mte_async_or_asymm_mode(),
 			"MTE async mode enabled system wide!");
 
-	__mte_enable_kernel("synchronous", SCTLR_ELx_TCF_SYNC);
+	__mte_enable_kernel("synchronous", SCTLR_EL1_TCF_SYNC);
 }
 
 void mte_enable_kernel_async(void)
 {
-	__mte_enable_kernel("asynchronous", SCTLR_ELx_TCF_ASYNC);
+	__mte_enable_kernel("asynchronous", SCTLR_EL1_TCF_ASYNC);
 
 	/*
 	 * MTE async mode is set system wide by the first PE that
@@ -144,7 +149,7 @@ void mte_enable_kernel_async(void)
 void mte_enable_kernel_asymm(void)
 {
 	if (cpus_have_cap(ARM64_MTE_ASYMM)) {
-		__mte_enable_kernel("asymmetric", SCTLR_ELx_TCF_ASYMM);
+		__mte_enable_kernel("asymmetric", SCTLR_EL1_TCF_ASYMM);
 
 		/*
 		 * MTE asymm mode behaves as async mode for store
@@ -186,6 +191,11 @@ void mte_check_tfsr_el1(void)
 }
 #endif
 
+/*
+ * This is where we actually resolve the system and process MTE mode
+ * configuration into an actual value in SCTLR_EL1 that affects
+ * userspace.
+ */
 static void mte_update_sctlr_user(struct task_struct *task)
 {
 	/*
@@ -199,12 +209,23 @@ static void mte_update_sctlr_user(struct task_struct *task)
 	unsigned long pref, resolved_mte_tcf;
 
 	pref = __this_cpu_read(mte_tcf_preferred);
+	/*
+	 * If there is no overlap between the system preferred and
+	 * program requested values go with what was requested.
+	 */
 	resolved_mte_tcf = (mte_ctrl & pref) ? pref : mte_ctrl;
 	sctlr &= ~SCTLR_EL1_TCF0_MASK;
-	if (resolved_mte_tcf & MTE_CTRL_TCF_ASYNC)
-		sctlr |= SCTLR_EL1_TCF0_ASYNC;
+	/*
+	 * Pick an actual setting. The order in which we check for
+	 * set bits and map into register values determines our
+	 * default order.
+	 */
+	if (resolved_mte_tcf & MTE_CTRL_TCF_ASYMM)
+		sctlr |= SYS_FIELD_PREP_ENUM(SCTLR_EL1, TCF0, ASYMM);
+	else if (resolved_mte_tcf & MTE_CTRL_TCF_ASYNC)
+		sctlr |= SYS_FIELD_PREP_ENUM(SCTLR_EL1, TCF0, ASYNC);
 	else if (resolved_mte_tcf & MTE_CTRL_TCF_SYNC)
-		sctlr |= SCTLR_EL1_TCF0_SYNC;
+		sctlr |= SYS_FIELD_PREP_ENUM(SCTLR_EL1, TCF0, SYNC);
 	task->thread.sctlr_user = sctlr;
 }
 
@@ -223,6 +244,11 @@ static void mte_update_gcr_excl(struct task_struct *task)
 		SYS_GCR_EL1);
 }
 
+#ifdef CONFIG_KASAN_HW_TAGS
+/* Only called from assembly, silence sparse */
+void __init kasan_hw_tags_enable(struct alt_instr *alt, __le32 *origptr,
+				 __le32 *updptr, int nr_inst);
+
 void __init kasan_hw_tags_enable(struct alt_instr *alt, __le32 *origptr,
 				 __le32 *updptr, int nr_inst)
 {
@@ -231,6 +257,7 @@ void __init kasan_hw_tags_enable(struct alt_instr *alt, __le32 *origptr,
 	if (kasan_hw_tags_enabled())
 		*updptr = cpu_to_le32(aarch64_insn_gen_nop());
 }
+#endif
 
 void mte_thread_init_user(void)
 {
@@ -252,6 +279,9 @@ void mte_thread_switch(struct task_struct *next)
 
 	mte_update_sctlr_user(next);
 	mte_update_gcr_excl(next);
+
+	/* TCO may not have been disabled on exception entry for the current task. */
+	mte_disable_tco_entry(next);
 
 	/*
 	 * Check if an async tag exception occurred at EL1.
@@ -292,6 +322,17 @@ long set_mte_ctrl(struct task_struct *task, unsigned long arg)
 		mte_ctrl |= MTE_CTRL_TCF_ASYNC;
 	if (arg & PR_MTE_TCF_SYNC)
 		mte_ctrl |= MTE_CTRL_TCF_SYNC;
+
+	/*
+	 * If the system supports it and both sync and async modes are
+	 * specified then implicitly enable asymmetric mode.
+	 * Userspace could see a mix of both sync and async anyway due
+	 * to differing or changing defaults on CPUs.
+	 */
+	if (cpus_have_cap(ARM64_MTE_ASYMM) &&
+	    (arg & PR_MTE_TCF_ASYNC) &&
+	    (arg & PR_MTE_TCF_SYNC))
+		mte_ctrl |= MTE_CTRL_TCF_ASYMM;
 
 	task->thread.mte_ctrl = mte_ctrl;
 	if (task == current) {
@@ -467,6 +508,8 @@ static ssize_t mte_tcf_preferred_show(struct device *dev,
 		return sysfs_emit(buf, "async\n");
 	case MTE_CTRL_TCF_SYNC:
 		return sysfs_emit(buf, "sync\n");
+	case MTE_CTRL_TCF_ASYMM:
+		return sysfs_emit(buf, "asymm\n");
 	default:
 		return sysfs_emit(buf, "???\n");
 	}
@@ -482,6 +525,8 @@ static ssize_t mte_tcf_preferred_store(struct device *dev,
 		tcf = MTE_CTRL_TCF_ASYNC;
 	else if (sysfs_streq(buf, "sync"))
 		tcf = MTE_CTRL_TCF_SYNC;
+	else if (cpus_have_cap(ARM64_MTE_ASYMM) && sysfs_streq(buf, "asymm"))
+		tcf = MTE_CTRL_TCF_ASYMM;
 	else
 		return -EINVAL;
 
@@ -509,3 +554,32 @@ static int register_mte_tcf_preferred_sysctl(void)
 	return 0;
 }
 subsys_initcall(register_mte_tcf_preferred_sysctl);
+
+/*
+ * Return 0 on success, the number of bytes not probed otherwise.
+ */
+size_t mte_probe_user_range(const char __user *uaddr, size_t size)
+{
+	const char __user *end = uaddr + size;
+	int err = 0;
+	char val;
+
+	__raw_get_user(val, uaddr, err);
+	if (err)
+		return size;
+
+	uaddr = PTR_ALIGN(uaddr, MTE_GRANULE_SIZE);
+	while (uaddr < end) {
+		/*
+		 * A read is sufficient for mte, the caller should have probed
+		 * for the pte write permission if required.
+		 */
+		__raw_get_user(val, uaddr, err);
+		if (err)
+			return end - uaddr;
+		uaddr += MTE_GRANULE_SIZE;
+	}
+	(void)val;
+
+	return 0;
+}

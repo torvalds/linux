@@ -18,6 +18,7 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/thermal.h>
+#include "../thermal_hwmon.h"
 #include "tsens.h"
 
 /**
@@ -979,6 +980,9 @@ static const struct of_device_id tsens_table[] = {
 		.compatible = "qcom,msm8939-tsens",
 		.data = &data_8939,
 	}, {
+		.compatible = "qcom,msm8960-tsens",
+		.data = &data_8960,
+	}, {
 		.compatible = "qcom,msm8974-tsens",
 		.data = &data_8974,
 	}, {
@@ -1060,6 +1064,10 @@ static int tsens_register(struct tsens_priv *priv)
 		priv->sensor[i].tzd = tzd;
 		if (priv->ops->enable)
 			priv->ops->enable(priv, i);
+
+		if (devm_thermal_add_hwmon_sysfs(tzd))
+			dev_warn(priv->dev,
+				 "Failed to add hwmon sysfs attributes\n");
 	}
 
 	/* VER_0 require to set MIN and MAX THRESH

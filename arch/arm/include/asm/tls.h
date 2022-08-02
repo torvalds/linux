@@ -18,21 +18,32 @@
 	.endm
 
 	.macro switch_tls_v6, base, tp, tpuser, tmp1, tmp2
-	ldr	\tmp1, =elf_hwcap
-	ldr	\tmp1, [\tmp1, #0]
+#ifdef CONFIG_SMP
+ALT_SMP(nop)
+ALT_UP_B(.L0_\@)
+	.subsection 1
+#endif
+.L0_\@:
+	ldr_va	\tmp1, elf_hwcap
 	mov	\tmp2, #0xffff0fff
 	tst	\tmp1, #HWCAP_TLS		@ hardware TLS available?
 	streq	\tp, [\tmp2, #-15]		@ set TLS value at 0xffff0ff0
-	mrcne	p15, 0, \tmp2, c13, c0, 2	@ get the user r/w register
-	mcrne	p15, 0, \tp, c13, c0, 3		@ yes, set TLS register
-	mcrne	p15, 0, \tpuser, c13, c0, 2	@ set user r/w register
-	strne	\tmp2, [\base, #TI_TP_VALUE + 4] @ save it
+	beq	.L2_\@
+	mcr	p15, 0, \tp, c13, c0, 3		@ yes, set TLS register
+#ifdef CONFIG_SMP
+	b	.L1_\@
+	.previous
+#endif
+.L1_\@: switch_tls_v6k \base, \tp, \tpuser, \tmp1, \tmp2
+.L2_\@:
 	.endm
 
 	.macro switch_tls_software, base, tp, tpuser, tmp1, tmp2
 	mov	\tmp1, #0xffff0fff
 	str	\tp, [\tmp1, #-15]		@ set TLS value at 0xffff0ff0
 	.endm
+#else
+#include <asm/smp_plat.h>
 #endif
 
 #ifdef CONFIG_TLS_REG_EMUL
@@ -43,7 +54,7 @@
 #elif defined(CONFIG_CPU_V6)
 #define tls_emu		0
 #define has_tls_reg		(elf_hwcap & HWCAP_TLS)
-#define defer_tls_reg_update	0
+#define defer_tls_reg_update	is_smp()
 #define switch_tls	switch_tls_v6
 #elif defined(CONFIG_CPU_32v6K)
 #define tls_emu		0
@@ -81,11 +92,11 @@ static inline void set_tls(unsigned long val)
 	 */
 	barrier();
 
-	if (!tls_emu && !defer_tls_reg_update) {
-		if (has_tls_reg) {
+	if (!tls_emu) {
+		if (has_tls_reg && !defer_tls_reg_update) {
 			asm("mcr p15, 0, %0, c13, c0, 3"
 			    : : "r" (val));
-		} else {
+		} else if (!has_tls_reg) {
 #ifdef CONFIG_KUSER_HELPERS
 			/*
 			 * User space must never try to access this

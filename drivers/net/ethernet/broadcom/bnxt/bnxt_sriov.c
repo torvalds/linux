@@ -846,7 +846,7 @@ void bnxt_sriov_disable(struct bnxt *bp)
 		return;
 
 	/* synchronize VF and VF-rep create and destroy */
-	mutex_lock(&bp->sriov_lock);
+	devl_lock(bp->dl);
 	bnxt_vf_reps_destroy(bp);
 
 	if (pci_vfs_assigned(bp->pdev)) {
@@ -859,7 +859,7 @@ void bnxt_sriov_disable(struct bnxt *bp)
 		/* Free the HW resources reserved for various VF's */
 		bnxt_hwrm_func_vf_resource_free(bp, num_vfs);
 	}
-	mutex_unlock(&bp->sriov_lock);
+	devl_unlock(bp->dl);
 
 	bnxt_free_vf_resources(bp);
 

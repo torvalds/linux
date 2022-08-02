@@ -1171,7 +1171,7 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb,
 			neigh->updated = jiffies;
 			write_unlock_bh(&neigh->lock);
 
-			kfree_skb(skb);
+			kfree_skb_reason(skb, SKB_DROP_REASON_NEIGH_FAILED);
 			return 1;
 		}
 	} else if (neigh->nud_state & NUD_STALE) {
@@ -1193,7 +1193,7 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb,
 				if (!buff)
 					break;
 				neigh->arp_queue_len_bytes -= buff->truesize;
-				kfree_skb(buff);
+				kfree_skb_reason(buff, SKB_DROP_REASON_NEIGH_QUEUEFULL);
 				NEIGH_CACHE_STAT_INC(neigh->tbl, unres_discards);
 			}
 			skb_dst_force(skb);
@@ -1215,7 +1215,7 @@ out_dead:
 	if (neigh->nud_state & NUD_STALE)
 		goto out_unlock_bh;
 	write_unlock_bh(&neigh->lock);
-	kfree_skb(skb);
+	kfree_skb_reason(skb, SKB_DROP_REASON_NEIGH_DEAD);
 	trace_neigh_event_send_dead(neigh, 1);
 	return 1;
 }
@@ -1579,7 +1579,7 @@ static void neigh_managed_work(struct work_struct *work)
 	list_for_each_entry(neigh, &tbl->managed_list, managed_list)
 		neigh_event_send_probe(neigh, NULL, false);
 	queue_delayed_work(system_power_efficient_wq, &tbl->managed_work,
-			   NEIGH_VAR(&tbl->parms, DELAY_PROBE_TIME));
+			   max(NEIGH_VAR(&tbl->parms, DELAY_PROBE_TIME), HZ));
 	write_unlock_bh(&tbl->lock);
 }
 
@@ -3728,7 +3728,7 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 	char neigh_path[ sizeof("net//neigh/") + IFNAMSIZ + IFNAMSIZ ];
 	char *p_name;
 
-	t = kmemdup(&neigh_sysctl_template, sizeof(*t), GFP_KERNEL);
+	t = kmemdup(&neigh_sysctl_template, sizeof(*t), GFP_KERNEL_ACCOUNT);
 	if (!t)
 		goto err;
 

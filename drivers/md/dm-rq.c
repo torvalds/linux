@@ -217,9 +217,6 @@ static void dm_done(struct request *clone, blk_status_t error, bool mapped)
 		if (req_op(clone) == REQ_OP_DISCARD &&
 		    !clone->q->limits.max_discard_sectors)
 			disable_discard(tio->md);
-		else if (req_op(clone) == REQ_OP_WRITE_SAME &&
-			 !clone->q->limits.max_write_same_sectors)
-			disable_write_same(tio->md);
 		else if (req_op(clone) == REQ_OP_WRITE_ZEROES &&
 			 !clone->q->limits.max_write_zeroes_sectors)
 			disable_write_zeroes(tio->md);
@@ -303,21 +300,6 @@ static void end_clone_request(struct request *clone, blk_status_t error)
 	dm_complete_request(tio->orig, error);
 }
 
-static blk_status_t dm_dispatch_clone_request(struct request *clone, struct request *rq)
-{
-	blk_status_t r;
-
-	if (blk_queue_io_stat(clone->q))
-		clone->rq_flags |= RQF_IO_STAT;
-
-	clone->start_time_ns = ktime_get_ns();
-	r = blk_insert_cloned_request(clone->q, clone);
-	if (r != BLK_STS_OK && r != BLK_STS_RESOURCE && r != BLK_STS_DEV_RESOURCE)
-		/* must complete clone in terms of original request */
-		dm_complete_request(rq, r);
-	return r;
-}
-
 static int dm_rq_bio_constructor(struct bio *bio, struct bio *bio_orig,
 				 void *data)
 {
@@ -337,7 +319,7 @@ static int setup_clone(struct request *clone, struct request *rq,
 {
 	int r;
 
-	r = blk_rq_prep_clone(clone, rq, &tio->md->bs, gfp_mask,
+	r = blk_rq_prep_clone(clone, rq, &tio->md->mempools->bs, gfp_mask,
 			      dm_rq_bio_constructor, tio);
 	if (r)
 		return r;
@@ -398,13 +380,20 @@ static int map_request(struct dm_rq_target_io *tio)
 		/* The target has remapped the I/O so dispatch it */
 		trace_block_rq_remap(clone, disk_devt(dm_disk(md)),
 				     blk_rq_pos(rq));
-		ret = dm_dispatch_clone_request(clone, rq);
-		if (ret == BLK_STS_RESOURCE || ret == BLK_STS_DEV_RESOURCE) {
+		ret = blk_insert_cloned_request(clone);
+		switch (ret) {
+		case BLK_STS_OK:
+			break;
+		case BLK_STS_RESOURCE:
+		case BLK_STS_DEV_RESOURCE:
 			blk_rq_unprep_clone(clone);
 			blk_mq_cleanup_rq(clone);
 			tio->ti->type->release_clone_rq(clone, &tio->info);
 			tio->clone = NULL;
 			return DM_MAPIO_REQUEUE;
+		default:
+			/* must complete clone in terms of original request */
+			dm_complete_request(rq, ret);
 		}
 		break;
 	case DM_MAPIO_REQUEUE:
@@ -499,8 +488,13 @@ static blk_status_t dm_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	if (unlikely(!ti)) {
 		int srcu_idx;
-		struct dm_table *map = dm_get_live_table(md, &srcu_idx);
+		struct dm_table *map;
 
+		map = dm_get_live_table(md, &srcu_idx);
+		if (unlikely(!map)) {
+			dm_put_live_table(md, srcu_idx);
+			return BLK_STS_RESOURCE;
+		}
 		ti = dm_table_find_target(map, 0);
 		dm_put_live_table(md, srcu_idx);
 	}

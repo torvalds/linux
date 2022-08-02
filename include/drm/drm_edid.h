@@ -121,7 +121,7 @@ struct detailed_data_monitor_range {
 			u8 supported_scalings;
 			u8 preferred_refresh;
 		} __attribute__((packed)) cvt;
-	} formula;
+	} __attribute__((packed)) formula;
 } __attribute__((packed));
 
 struct detailed_data_wpindex {
@@ -154,7 +154,7 @@ struct detailed_non_pixel {
 		struct detailed_data_wpindex color;
 		struct std_timing timings[6];
 		struct cvt_timing cvt[4];
-	} data;
+	} __attribute__((packed)) data;
 } __attribute__((packed));
 
 #define EDID_DETAIL_EST_TIMINGS 0xf7
@@ -172,7 +172,7 @@ struct detailed_timing {
 	union {
 		struct detailed_pixel_timing pixel_data;
 		struct detailed_non_pixel other_data;
-	} data;
+	} __attribute__((packed)) data;
 } __attribute__((packed));
 
 #define DRM_EDID_INPUT_SERRATION_VSYNC (1 << 0)
@@ -372,8 +372,8 @@ struct drm_connector;
 struct drm_connector_state;
 struct drm_display_mode;
 
-int drm_edid_to_sad(struct edid *edid, struct cea_sad **sads);
-int drm_edid_to_speaker_allocation(struct edid *edid, u8 **sadb);
+int drm_edid_to_sad(const struct edid *edid, struct cea_sad **sads);
+int drm_edid_to_speaker_allocation(const struct edid *edid, u8 **sadb);
 int drm_av_sync_delay(struct drm_connector *connector,
 		      const struct drm_display_mode *mode);
 
@@ -401,22 +401,10 @@ drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
 					    const struct drm_display_mode *mode);
 
 void
-drm_hdmi_avi_infoframe_colorspace(struct hdmi_avi_infoframe *frame,
-				  const struct drm_connector_state *conn_state);
-
-void
-drm_hdmi_avi_infoframe_bars(struct hdmi_avi_infoframe *frame,
-			    const struct drm_connector_state *conn_state);
-
-void
 drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 				   const struct drm_connector *connector,
 				   const struct drm_display_mode *mode,
 				   enum hdmi_quantization_range rgb_quant_range);
-
-int
-drm_hdmi_infoframe_set_hdr_metadata(struct hdmi_drm_infoframe *frame,
-				    const struct drm_connector_state *conn_state);
 
 /**
  * drm_eld_mnl - Get ELD monitor name length in bytes.
@@ -569,8 +557,8 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
 int drm_add_override_edid_modes(struct drm_connector *connector);
 
 u8 drm_match_cea_mode(const struct drm_display_mode *to_match);
-bool drm_detect_hdmi_monitor(struct edid *edid);
-bool drm_detect_monitor_audio(struct edid *edid);
+bool drm_detect_hdmi_monitor(const struct edid *edid);
+bool drm_detect_monitor_audio(const struct edid *edid);
 enum hdmi_quantization_range
 drm_default_rgb_quant_range(const struct drm_display_mode *mode);
 int drm_add_modes_noedid(struct drm_connector *connector,
@@ -578,11 +566,11 @@ int drm_add_modes_noedid(struct drm_connector *connector,
 void drm_set_preferred_mode(struct drm_connector *connector,
 			    int hpref, int vpref);
 
-int drm_edid_header_is_valid(const u8 *raw_edid);
+int drm_edid_header_is_valid(const void *edid);
 bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 			  bool *edid_corrupt);
 bool drm_edid_is_valid(struct edid *edid);
-void drm_edid_get_monitor_name(struct edid *edid, char *name,
+void drm_edid_get_monitor_name(const struct edid *edid, char *name,
 			       int buflen);
 struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 					   int hsize, int vsize, int fresh,

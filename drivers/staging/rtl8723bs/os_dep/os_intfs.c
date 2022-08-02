@@ -389,7 +389,7 @@ static int rtw_ndev_notifier_call(struct notifier_block *nb, unsigned long state
 	if (dev->netdev_ops->ndo_do_ioctl != rtw_ioctl)
 		return NOTIFY_DONE;
 
-	netdev_info(dev, FUNC_NDEV_FMT " state:%lu\n", FUNC_NDEV_ARG(dev),
+	netdev_dbg(dev, FUNC_NDEV_FMT " state:%lu\n", FUNC_NDEV_ARG(dev),
 		    state);
 
 	return NOTIFY_DONE;
@@ -922,11 +922,7 @@ netdev_open_error:
 
 int rtw_ips_pwr_up(struct adapter *padapter)
 {
-	int result;
-
-	result = ips_netdrv_open(padapter);
-
-	return result;
+	return ips_netdrv_open(padapter);
 }
 
 void rtw_ips_pwr_down(struct adapter *padapter)

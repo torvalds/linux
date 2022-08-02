@@ -67,7 +67,10 @@ properties:
                 maxItems: 1
 
               data-lanes:
-                maxItems: 1
+                minItems: 1
+                maxItems: 4
+                items:
+                  maximum: 4
 
             required:
               - clock-lanes

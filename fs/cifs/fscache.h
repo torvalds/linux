@@ -52,16 +52,16 @@ void cifs_fscache_fill_coherency(struct inode *inode,
 	struct cifsInodeInfo *cifsi = CIFS_I(inode);
 
 	memset(cd, 0, sizeof(*cd));
-	cd->last_write_time_sec   = cpu_to_le64(cifsi->vfs_inode.i_mtime.tv_sec);
-	cd->last_write_time_nsec  = cpu_to_le32(cifsi->vfs_inode.i_mtime.tv_nsec);
-	cd->last_change_time_sec  = cpu_to_le64(cifsi->vfs_inode.i_ctime.tv_sec);
-	cd->last_change_time_nsec = cpu_to_le32(cifsi->vfs_inode.i_ctime.tv_nsec);
+	cd->last_write_time_sec   = cpu_to_le64(cifsi->netfs.inode.i_mtime.tv_sec);
+	cd->last_write_time_nsec  = cpu_to_le32(cifsi->netfs.inode.i_mtime.tv_nsec);
+	cd->last_change_time_sec  = cpu_to_le64(cifsi->netfs.inode.i_ctime.tv_sec);
+	cd->last_change_time_nsec = cpu_to_le32(cifsi->netfs.inode.i_ctime.tv_nsec);
 }
 
 
 static inline struct fscache_cookie *cifs_inode_cookie(struct inode *inode)
 {
-	return CIFS_I(inode)->fscache;
+	return netfs_i_cookie(&CIFS_I(inode)->netfs);
 }
 
 static inline void cifs_invalidate_cache(struct inode *inode, unsigned int flags)

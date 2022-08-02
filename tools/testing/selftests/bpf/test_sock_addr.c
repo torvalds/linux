@@ -19,7 +19,6 @@
 #include <bpf/libbpf.h>
 
 #include "cgroup_helpers.h"
-#include "bpf_rlimit.h"
 #include "bpf_util.h"
 
 #ifndef ENOTSUPP
@@ -723,7 +722,7 @@ static int xmsg_ret_only_prog_load(const struct sock_addr_test *test,
 		BPF_MOV64_IMM(BPF_REG_0, rc),
 		BPF_EXIT_INSN(),
 	};
-	return load_insns(test, insns, sizeof(insns) / sizeof(struct bpf_insn));
+	return load_insns(test, insns, ARRAY_SIZE(insns));
 }
 
 static int sendmsg_allow_prog_load(const struct sock_addr_test *test)
@@ -795,7 +794,7 @@ static int sendmsg4_rw_asm_prog_load(const struct sock_addr_test *test)
 		BPF_EXIT_INSN(),
 	};
 
-	return load_insns(test, insns, sizeof(insns) / sizeof(struct bpf_insn));
+	return load_insns(test, insns, ARRAY_SIZE(insns));
 }
 
 static int recvmsg4_rw_c_prog_load(const struct sock_addr_test *test)
@@ -858,7 +857,7 @@ static int sendmsg6_rw_dst_asm_prog_load(const struct sock_addr_test *test,
 		BPF_EXIT_INSN(),
 	};
 
-	return load_insns(test, insns, sizeof(insns) / sizeof(struct bpf_insn));
+	return load_insns(test, insns, ARRAY_SIZE(insns));
 }
 
 static int sendmsg6_rw_asm_prog_load(const struct sock_addr_test *test)
@@ -1417,6 +1416,9 @@ int main(int argc, char **argv)
 	cgfd = cgroup_setup_and_join(CG_PATH);
 	if (cgfd < 0)
 		goto err;
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	if (run_tests(cgfd))
 		goto err;

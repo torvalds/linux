@@ -26,7 +26,7 @@
 #include <asm/memory.h>
 #include <asm/extable.h>
 
-#define HAVE_GET_KERNEL_NOFAULT
+static inline int __access_ok(const void __user *ptr, unsigned long size);
 
 /*
  * Test whether a block of memory is a valid user space address.
@@ -35,10 +35,8 @@
  * This is equivalent to the following test:
  * (u65)addr + (u65)size <= (u65)TASK_SIZE_MAX
  */
-static inline unsigned long __range_ok(const void __user *addr, unsigned long size)
+static inline int access_ok(const void __user *addr, unsigned long size)
 {
-	unsigned long ret, limit = TASK_SIZE_MAX - 1;
-
 	/*
 	 * Asynchronous I/O running in a kernel thread does not have the
 	 * TIF_TAGGED_ADDR flag of the process owning the mm, so always untag
@@ -48,28 +46,11 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
 	    (current->flags & PF_KTHREAD || test_thread_flag(TIF_TAGGED_ADDR)))
 		addr = untagged_addr(addr);
 
-	__chk_user_ptr(addr);
-	asm volatile(
-	// A + B <= C + 1 for all A,B,C, in four easy steps:
-	// 1: X = A + B; X' = X % 2^64
-	"	adds	%0, %3, %2\n"
-	// 2: Set C = 0 if X > 2^64, to guarantee X' > C in step 4
-	"	csel	%1, xzr, %1, hi\n"
-	// 3: Set X' = ~0 if X >= 2^64. For X == 2^64, this decrements X'
-	//    to compensate for the carry flag being set in step 4. For
-	//    X > 2^64, X' merely has to remain nonzero, which it does.
-	"	csinv	%0, %0, xzr, cc\n"
-	// 4: For X < 2^64, this gives us X' - C - 1 <= 0, where the -1
-	//    comes from the carry in being clear. Otherwise, we are
-	//    testing X' - C == 0, subject to the previous adjustments.
-	"	sbcs	xzr, %0, %1\n"
-	"	cset	%0, ls\n"
-	: "=&r" (ret), "+r" (limit) : "Ir" (size), "0" (addr) : "cc");
-
-	return ret;
+	return likely(__access_ok(addr, size));
 }
+#define access_ok access_ok
 
-#define access_ok(addr, size)	__range_ok(addr, size)
+#include <asm-generic/access_ok.h>
 
 /*
  * User access enabling/disabling.
@@ -478,5 +459,20 @@ static inline int __copy_from_user_flushcache(void *dst, const void __user *src,
 	return __copy_user_flushcache(dst, __uaccess_mask_ptr(src), size);
 }
 #endif
+
+#ifdef CONFIG_ARCH_HAS_SUBPAGE_FAULTS
+
+/*
+ * Return 0 on success, the number of bytes not probed otherwise.
+ */
+static inline size_t probe_subpage_writeable(const char __user *uaddr,
+					     size_t size)
+{
+	if (!system_supports_mte())
+		return 0;
+	return mte_probe_user_range(uaddr, size);
+}
+
+#endif /* CONFIG_ARCH_HAS_SUBPAGE_FAULTS */
 
 #endif /* __ASM_UACCESS_H */

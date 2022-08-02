@@ -2,86 +2,98 @@
 /*
  * Scheduler internal types and methods:
  */
-#include <linux/sched.h>
+#ifndef _KERNEL_SCHED_SCHED_H
+#define _KERNEL_SCHED_SCHED_H
 
+#include <linux/sched/affinity.h>
 #include <linux/sched/autogroup.h>
-#include <linux/sched/clock.h>
-#include <linux/sched/coredump.h>
 #include <linux/sched/cpufreq.h>
-#include <linux/sched/cputime.h>
 #include <linux/sched/deadline.h>
-#include <linux/sched/debug.h>
-#include <linux/sched/hotplug.h>
-#include <linux/sched/idle.h>
-#include <linux/sched/init.h>
-#include <linux/sched/isolation.h>
-#include <linux/sched/jobctl.h>
+#include <linux/sched.h>
 #include <linux/sched/loadavg.h>
 #include <linux/sched/mm.h>
-#include <linux/sched/nohz.h>
-#include <linux/sched/numa_balancing.h>
-#include <linux/sched/prio.h>
-#include <linux/sched/rt.h>
+#include <linux/sched/rseq_api.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/smt.h>
 #include <linux/sched/stat.h>
 #include <linux/sched/sysctl.h>
+#include <linux/sched/task_flags.h>
 #include <linux/sched/task.h>
-#include <linux/sched/task_stack.h>
 #include <linux/sched/topology.h>
-#include <linux/sched/user.h>
-#include <linux/sched/wake_q.h>
-#include <linux/sched/xacct.h>
 
-#include <uapi/linux/sched/types.h>
-
-#include <linux/binfmts.h>
-#include <linux/bitops.h>
-#include <linux/compat.h>
-#include <linux/context_tracking.h>
+#include <linux/atomic.h>
+#include <linux/bitmap.h>
+#include <linux/bug.h>
+#include <linux/capability.h>
+#include <linux/cgroup_api.h>
+#include <linux/cgroup.h>
 #include <linux/cpufreq.h>
-#include <linux/cpuidle.h>
-#include <linux/cpuset.h>
+#include <linux/cpumask_api.h>
 #include <linux/ctype.h>
-#include <linux/debugfs.h>
-#include <linux/delayacct.h>
-#include <linux/energy_model.h>
-#include <linux/init_task.h>
-#include <linux/kprobes.h>
+#include <linux/file.h>
+#include <linux/fs_api.h>
+#include <linux/hrtimer_api.h>
+#include <linux/interrupt.h>
+#include <linux/irq_work.h>
+#include <linux/jiffies.h>
+#include <linux/kref_api.h>
 #include <linux/kthread.h>
-#include <linux/membarrier.h>
-#include <linux/migrate.h>
-#include <linux/mmu_context.h>
-#include <linux/nmi.h>
+#include <linux/ktime_api.h>
+#include <linux/lockdep_api.h>
+#include <linux/lockdep.h>
+#include <linux/minmax.h>
+#include <linux/mm.h>
+#include <linux/module.h>
+#include <linux/mutex_api.h>
+#include <linux/plist.h>
+#include <linux/poll.h>
 #include <linux/proc_fs.h>
-#include <linux/prefetch.h>
 #include <linux/profile.h>
 #include <linux/psi.h>
-#include <linux/ratelimit.h>
-#include <linux/rcupdate_wait.h>
-#include <linux/security.h>
+#include <linux/rcupdate.h>
+#include <linux/seq_file.h>
+#include <linux/seqlock.h>
+#include <linux/softirq.h>
+#include <linux/spinlock_api.h>
+#include <linux/static_key.h>
 #include <linux/stop_machine.h>
-#include <linux/suspend.h>
-#include <linux/swait.h>
+#include <linux/syscalls_api.h>
 #include <linux/syscalls.h>
-#include <linux/task_work.h>
-#include <linux/tsacct_kern.h>
+#include <linux/tick.h>
+#include <linux/topology.h>
+#include <linux/types.h>
+#include <linux/u64_stats_sync_api.h>
+#include <linux/uaccess.h>
+#include <linux/wait_api.h>
+#include <linux/wait_bit.h>
+#include <linux/workqueue_api.h>
 
-#include <asm/tlb.h>
+#include <trace/events/power.h>
+#include <trace/events/sched.h>
+
+#include "../workqueue_internal.h"
+
+#ifdef CONFIG_CGROUP_SCHED
+#include <linux/cgroup.h>
+#include <linux/psi.h>
+#endif
+
+#ifdef CONFIG_SCHED_DEBUG
+# include <linux/static_key.h>
+#endif
 
 #ifdef CONFIG_PARAVIRT
 # include <asm/paravirt.h>
+# include <asm/paravirt_api_clock.h>
 #endif
 
 #include "cpupri.h"
 #include "cpudeadline.h"
 
-#include <trace/events/sched.h>
-
 #ifdef CONFIG_SCHED_DEBUG
-# define SCHED_WARN_ON(x)	WARN_ONCE(x, #x)
+# define SCHED_WARN_ON(x)      WARN_ONCE(x, #x)
 #else
-# define SCHED_WARN_ON(x)	({ (void)(x), 0; })
+# define SCHED_WARN_ON(x)      ({ (void)(x), 0; })
 #endif
 
 struct rq;
@@ -96,10 +108,17 @@ extern __read_mostly int scheduler_running;
 extern unsigned long calc_load_update;
 extern atomic_long_t calc_load_tasks;
 
+extern unsigned int sysctl_sched_child_runs_first;
+
 extern void calc_global_load_tick(struct rq *this_rq);
 extern long calc_load_fold_active(struct rq *this_rq, long adjust);
 
 extern void call_trace_sched_update_nr_running(struct rq *rq, int count);
+
+extern unsigned int sysctl_sched_rt_period;
+extern int sysctl_sched_rt_runtime;
+extern int sched_rr_timeslice;
+
 /*
  * Helpers for converting nanosecond timing to jiffy resolution
  */
@@ -301,29 +320,6 @@ struct dl_bw {
 	u64			total_bw;
 };
 
-static inline void __dl_update(struct dl_bw *dl_b, s64 bw);
-
-static inline
-void __dl_sub(struct dl_bw *dl_b, u64 tsk_bw, int cpus)
-{
-	dl_b->total_bw -= tsk_bw;
-	__dl_update(dl_b, (s32)tsk_bw / cpus);
-}
-
-static inline
-void __dl_add(struct dl_bw *dl_b, u64 tsk_bw, int cpus)
-{
-	dl_b->total_bw += tsk_bw;
-	__dl_update(dl_b, -((s32)tsk_bw / cpus));
-}
-
-static inline bool __dl_overflow(struct dl_bw *dl_b, unsigned long cap,
-				 u64 old_bw, u64 new_bw)
-{
-	return dl_b->bw != -1 &&
-	       cap_scale(dl_b->bw, cap) < dl_b->total_bw - old_bw + new_bw;
-}
-
 /*
  * Verify the fitness of task @p to run on @cpu taking into account the
  * CPU original capacity and the runtime/deadline ratio of the task.
@@ -347,14 +343,10 @@ extern void __setparam_dl(struct task_struct *p, const struct sched_attr *attr);
 extern void __getparam_dl(struct task_struct *p, struct sched_attr *attr);
 extern bool __checkparam_dl(const struct sched_attr *attr);
 extern bool dl_param_changed(struct task_struct *p, const struct sched_attr *attr);
-extern int  dl_task_can_attach(struct task_struct *p, const struct cpumask *cs_cpus_allowed);
 extern int  dl_cpuset_cpumask_can_shrink(const struct cpumask *cur, const struct cpumask *trial);
-extern bool dl_cpu_busy(unsigned int cpu);
+extern int  dl_cpu_busy(int cpu, struct task_struct *p);
 
 #ifdef CONFIG_CGROUP_SCHED
-
-#include <linux/cgroup.h>
-#include <linux/psi.h>
 
 struct cfs_rq;
 struct rt_rq;
@@ -618,8 +610,8 @@ struct cfs_rq {
 	s64			runtime_remaining;
 
 	u64			throttled_clock;
-	u64			throttled_clock_task;
-	u64			throttled_clock_task_time;
+	u64			throttled_clock_pelt;
+	u64			throttled_clock_pelt_time;
 	int			throttled;
 	int			throttle_count;
 	struct list_head	throttled_list;
@@ -1247,8 +1239,6 @@ static inline bool sched_group_cookie_match(struct rq *rq,
 	return false;
 }
 
-extern void queue_core_balance(struct rq *rq);
-
 static inline bool sched_core_enqueued(struct task_struct *p)
 {
 	return !RB_EMPTY_NODE(&p->core_node);
@@ -1280,10 +1270,6 @@ static inline raw_spinlock_t *rq_lockp(struct rq *rq)
 static inline raw_spinlock_t *__rq_lockp(struct rq *rq)
 {
 	return &rq->__lock;
-}
-
-static inline void queue_core_balance(struct rq *rq)
-{
 }
 
 static inline bool sched_cpu_cookie_match(struct rq *rq, struct task_struct *p)
@@ -1662,12 +1648,14 @@ enum numa_topology_type {
 extern enum numa_topology_type sched_numa_topology_type;
 extern int sched_max_numa_distance;
 extern bool find_numa_distance(int distance);
-extern void sched_init_numa(void);
+extern void sched_init_numa(int offline_node);
+extern void sched_update_numa(int cpu, bool online);
 extern void sched_domains_numa_masks_set(unsigned int cpu);
 extern void sched_domains_numa_masks_clear(unsigned int cpu);
 extern int sched_numa_find_closest(const struct cpumask *cpus, int cpu);
 #else
-static inline void sched_init_numa(void) { }
+static inline void sched_init_numa(int offline_node) { }
+static inline void sched_update_numa(int cpu, bool online) { }
 static inline void sched_domains_numa_masks_set(unsigned int cpu) { }
 static inline void sched_domains_numa_masks_clear(unsigned int cpu) { }
 static inline int sched_numa_find_closest(const struct cpumask *cpus, int cpu)
@@ -1705,6 +1693,11 @@ queue_balance_callback(struct rq *rq,
 {
 	lockdep_assert_rq_held(rq);
 
+	/*
+	 * Don't (re)queue an already queued item; nor queue anything when
+	 * balance_push() is active, see the comment with
+	 * balance_push_callback.
+	 */
 	if (unlikely(head->next || rq->balance_callback == &balance_push_callback))
 		return;
 
@@ -1846,15 +1839,9 @@ static inline void dirty_sched_domain_sysctl(int cpu)
 #endif
 
 extern int sched_update_scaling(void);
-
-extern void flush_smp_call_function_from_idle(void);
-
-#else /* !CONFIG_SMP: */
-static inline void flush_smp_call_function_from_idle(void) { }
-#endif
+#endif /* CONFIG_SMP */
 
 #include "stats.h"
-#include "autogroup.h"
 
 #if defined(CONFIG_SCHED_CORE) && defined(CONFIG_SCHEDSTATS)
 
@@ -1950,7 +1937,6 @@ static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
  * Tunables that become constants when CONFIG_SCHED_DEBUG is off:
  */
 #ifdef CONFIG_SCHED_DEBUG
-# include <linux/static_key.h>
 # define const_debug __read_mostly
 #else
 # define const_debug const
@@ -2203,6 +2189,8 @@ static inline void set_next_task(struct rq *rq, struct task_struct *next)
  *
  *   include/asm-generic/vmlinux.lds.h
  *
+ * *CAREFUL* they are laid out in *REVERSE* order!!!
+ *
  * Also enforce alignment on the instance, not the type, to guarantee layout.
  */
 #define DEFINE_SCHED_CLASS(name) \
@@ -2211,17 +2199,16 @@ const struct sched_class name##_sched_class \
 	__section("__" #name "_sched_class")
 
 /* Defined in include/asm-generic/vmlinux.lds.h */
-extern struct sched_class __begin_sched_classes[];
-extern struct sched_class __end_sched_classes[];
-
-#define sched_class_highest (__end_sched_classes - 1)
-#define sched_class_lowest  (__begin_sched_classes - 1)
+extern struct sched_class __sched_class_highest[];
+extern struct sched_class __sched_class_lowest[];
 
 #define for_class_range(class, _from, _to) \
-	for (class = (_from); class != (_to); class--)
+	for (class = (_from); class < (_to); class++)
 
 #define for_each_class(class) \
-	for_class_range(class, sched_class_highest, sched_class_lowest)
+	for_class_range(class, __sched_class_highest, __sched_class_lowest)
+
+#define sched_class_above(_a, _b)	((_a) < (_b))
 
 extern const struct sched_class stop_sched_class;
 extern const struct sched_class dl_sched_class;
@@ -2330,8 +2317,8 @@ extern void resched_cpu(int cpu);
 
 extern struct rt_bandwidth def_rt_bandwidth;
 extern void init_rt_bandwidth(struct rt_bandwidth *rt_b, u64 period, u64 runtime);
+extern bool sched_rt_bandwidth_account(struct rt_rq *rt_rq);
 
-extern struct dl_bandwidth def_dl_bandwidth;
 extern void init_dl_bandwidth(struct dl_bandwidth *dl_b, u64 period, u64 runtime);
 extern void init_dl_task_timer(struct sched_dl_entity *dl_se);
 extern void init_dl_inactive_task_timer(struct sched_dl_entity *dl_se);
@@ -2500,6 +2487,24 @@ unsigned long arch_scale_freq_capacity(int cpu)
 }
 #endif
 
+#ifdef CONFIG_SCHED_DEBUG
+/*
+ * In double_lock_balance()/double_rq_lock(), we use raw_spin_rq_lock() to
+ * acquire rq lock instead of rq_lock(). So at the end of these two functions
+ * we need to call double_rq_clock_clear_update() to clear RQCF_UPDATED of
+ * rq->clock_update_flags to avoid the WARN_DOUBLE_CLOCK warning.
+ */
+static inline void double_rq_clock_clear_update(struct rq *rq1, struct rq *rq2)
+{
+	rq1->clock_update_flags &= (RQCF_REQ_SKIP|RQCF_ACT_SKIP);
+	/* rq1 == rq2 for !CONFIG_SMP, so just clear RQCF_UPDATED once. */
+#ifdef CONFIG_SMP
+	rq2->clock_update_flags &= (RQCF_REQ_SKIP|RQCF_ACT_SKIP);
+#endif
+}
+#else
+static inline void double_rq_clock_clear_update(struct rq *rq1, struct rq *rq2) {}
+#endif
 
 #ifdef CONFIG_SMP
 
@@ -2565,14 +2570,15 @@ static inline int _double_lock_balance(struct rq *this_rq, struct rq *busiest)
 	__acquires(busiest->lock)
 	__acquires(this_rq->lock)
 {
-	if (__rq_lockp(this_rq) == __rq_lockp(busiest))
+	if (__rq_lockp(this_rq) == __rq_lockp(busiest) ||
+	    likely(raw_spin_rq_trylock(busiest))) {
+		double_rq_clock_clear_update(this_rq, busiest);
 		return 0;
-
-	if (likely(raw_spin_rq_trylock(busiest)))
-		return 0;
+	}
 
 	if (rq_order_less(this_rq, busiest)) {
 		raw_spin_rq_lock_nested(busiest, SINGLE_DEPTH_NESTING);
+		double_rq_clock_clear_update(this_rq, busiest);
 		return 0;
 	}
 
@@ -2666,6 +2672,7 @@ static inline void double_rq_lock(struct rq *rq1, struct rq *rq2)
 	BUG_ON(rq1 != rq2);
 	raw_spin_rq_lock(rq1);
 	__acquire(rq2->lock);	/* Fake it out ;) */
+	double_rq_clock_clear_update(rq1, rq2);
 }
 
 /*
@@ -2747,32 +2754,6 @@ extern void nohz_run_idle_balance(int cpu);
 static inline void nohz_run_idle_balance(int cpu) { }
 #endif
 
-#ifdef CONFIG_SMP
-static inline
-void __dl_update(struct dl_bw *dl_b, s64 bw)
-{
-	struct root_domain *rd = container_of(dl_b, struct root_domain, dl_bw);
-	int i;
-
-	RCU_LOCKDEP_WARN(!rcu_read_lock_sched_held(),
-			 "sched RCU must be held");
-	for_each_cpu_and(i, rd->span, cpu_active_mask) {
-		struct rq *rq = cpu_rq(i);
-
-		rq->dl.extra_bw += bw;
-	}
-}
-#else
-static inline
-void __dl_update(struct dl_bw *dl_b, s64 bw)
-{
-	struct dl_rq *dl = container_of(dl_b, struct dl_rq, dl_bw);
-
-	dl->extra_bw += bw;
-}
-#endif
-
-
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
 struct irqtime {
 	u64			total;
@@ -2840,88 +2821,6 @@ static inline void cpufreq_update_util(struct rq *rq, unsigned int flags)
 #else
 static inline void cpufreq_update_util(struct rq *rq, unsigned int flags) {}
 #endif /* CONFIG_CPU_FREQ */
-
-#ifdef CONFIG_UCLAMP_TASK
-unsigned long uclamp_eff_value(struct task_struct *p, enum uclamp_id clamp_id);
-
-/**
- * uclamp_rq_util_with - clamp @util with @rq and @p effective uclamp values.
- * @rq:		The rq to clamp against. Must not be NULL.
- * @util:	The util value to clamp.
- * @p:		The task to clamp against. Can be NULL if you want to clamp
- *		against @rq only.
- *
- * Clamps the passed @util to the max(@rq, @p) effective uclamp values.
- *
- * If sched_uclamp_used static key is disabled, then just return the util
- * without any clamping since uclamp aggregation at the rq level in the fast
- * path is disabled, rendering this operation a NOP.
- *
- * Use uclamp_eff_value() if you don't care about uclamp values at rq level. It
- * will return the correct effective uclamp value of the task even if the
- * static key is disabled.
- */
-static __always_inline
-unsigned long uclamp_rq_util_with(struct rq *rq, unsigned long util,
-				  struct task_struct *p)
-{
-	unsigned long min_util = 0;
-	unsigned long max_util = 0;
-
-	if (!static_branch_likely(&sched_uclamp_used))
-		return util;
-
-	if (p) {
-		min_util = uclamp_eff_value(p, UCLAMP_MIN);
-		max_util = uclamp_eff_value(p, UCLAMP_MAX);
-
-		/*
-		 * Ignore last runnable task's max clamp, as this task will
-		 * reset it. Similarly, no need to read the rq's min clamp.
-		 */
-		if (rq->uclamp_flags & UCLAMP_FLAG_IDLE)
-			goto out;
-	}
-
-	min_util = max_t(unsigned long, min_util, READ_ONCE(rq->uclamp[UCLAMP_MIN].value));
-	max_util = max_t(unsigned long, max_util, READ_ONCE(rq->uclamp[UCLAMP_MAX].value));
-out:
-	/*
-	 * Since CPU's {min,max}_util clamps are MAX aggregated considering
-	 * RUNNABLE tasks with _different_ clamps, we can end up with an
-	 * inversion. Fix it now when the clamps are applied.
-	 */
-	if (unlikely(min_util >= max_util))
-		return min_util;
-
-	return clamp(util, min_util, max_util);
-}
-
-/*
- * When uclamp is compiled in, the aggregation at rq level is 'turned off'
- * by default in the fast path and only gets turned on once userspace performs
- * an operation that requires it.
- *
- * Returns true if userspace opted-in to use uclamp and aggregation at rq level
- * hence is active.
- */
-static inline bool uclamp_is_used(void)
-{
-	return static_branch_likely(&sched_uclamp_used);
-}
-#else /* CONFIG_UCLAMP_TASK */
-static inline
-unsigned long uclamp_rq_util_with(struct rq *rq, unsigned long util,
-				  struct task_struct *p)
-{
-	return util;
-}
-
-static inline bool uclamp_is_used(void)
-{
-	return false;
-}
-#endif /* CONFIG_UCLAMP_TASK */
 
 #ifdef arch_scale_freq_capacity
 # ifndef arch_scale_freq_invariant
@@ -3019,6 +2918,105 @@ static inline unsigned long cpu_util_rt(struct rq *rq)
 	return READ_ONCE(rq->avg_rt.util_avg);
 }
 #endif
+
+#ifdef CONFIG_UCLAMP_TASK
+unsigned long uclamp_eff_value(struct task_struct *p, enum uclamp_id clamp_id);
+
+/**
+ * uclamp_rq_util_with - clamp @util with @rq and @p effective uclamp values.
+ * @rq:		The rq to clamp against. Must not be NULL.
+ * @util:	The util value to clamp.
+ * @p:		The task to clamp against. Can be NULL if you want to clamp
+ *		against @rq only.
+ *
+ * Clamps the passed @util to the max(@rq, @p) effective uclamp values.
+ *
+ * If sched_uclamp_used static key is disabled, then just return the util
+ * without any clamping since uclamp aggregation at the rq level in the fast
+ * path is disabled, rendering this operation a NOP.
+ *
+ * Use uclamp_eff_value() if you don't care about uclamp values at rq level. It
+ * will return the correct effective uclamp value of the task even if the
+ * static key is disabled.
+ */
+static __always_inline
+unsigned long uclamp_rq_util_with(struct rq *rq, unsigned long util,
+				  struct task_struct *p)
+{
+	unsigned long min_util = 0;
+	unsigned long max_util = 0;
+
+	if (!static_branch_likely(&sched_uclamp_used))
+		return util;
+
+	if (p) {
+		min_util = uclamp_eff_value(p, UCLAMP_MIN);
+		max_util = uclamp_eff_value(p, UCLAMP_MAX);
+
+		/*
+		 * Ignore last runnable task's max clamp, as this task will
+		 * reset it. Similarly, no need to read the rq's min clamp.
+		 */
+		if (rq->uclamp_flags & UCLAMP_FLAG_IDLE)
+			goto out;
+	}
+
+	min_util = max_t(unsigned long, min_util, READ_ONCE(rq->uclamp[UCLAMP_MIN].value));
+	max_util = max_t(unsigned long, max_util, READ_ONCE(rq->uclamp[UCLAMP_MAX].value));
+out:
+	/*
+	 * Since CPU's {min,max}_util clamps are MAX aggregated considering
+	 * RUNNABLE tasks with _different_ clamps, we can end up with an
+	 * inversion. Fix it now when the clamps are applied.
+	 */
+	if (unlikely(min_util >= max_util))
+		return min_util;
+
+	return clamp(util, min_util, max_util);
+}
+
+/* Is the rq being capped/throttled by uclamp_max? */
+static inline bool uclamp_rq_is_capped(struct rq *rq)
+{
+	unsigned long rq_util;
+	unsigned long max_util;
+
+	if (!static_branch_likely(&sched_uclamp_used))
+		return false;
+
+	rq_util = cpu_util_cfs(cpu_of(rq)) + cpu_util_rt(rq);
+	max_util = READ_ONCE(rq->uclamp[UCLAMP_MAX].value);
+
+	return max_util != SCHED_CAPACITY_SCALE && rq_util >= max_util;
+}
+
+/*
+ * When uclamp is compiled in, the aggregation at rq level is 'turned off'
+ * by default in the fast path and only gets turned on once userspace performs
+ * an operation that requires it.
+ *
+ * Returns true if userspace opted-in to use uclamp and aggregation at rq level
+ * hence is active.
+ */
+static inline bool uclamp_is_used(void)
+{
+	return static_branch_likely(&sched_uclamp_used);
+}
+#else /* CONFIG_UCLAMP_TASK */
+static inline
+unsigned long uclamp_rq_util_with(struct rq *rq, unsigned long util,
+				  struct task_struct *p)
+{
+	return util;
+}
+
+static inline bool uclamp_rq_is_capped(struct rq *rq) { return false; }
+
+static inline bool uclamp_is_used(void)
+{
+	return false;
+}
+#endif /* CONFIG_UCLAMP_TASK */
 
 #ifdef CONFIG_HAVE_SCHED_AVG_IRQ
 static inline unsigned long cpu_util_irq(struct rq *rq)
@@ -3118,3 +3116,4 @@ extern int sched_dynamic_mode(const char *str);
 extern void sched_dynamic_update(int mode);
 #endif
 
+#endif /* _KERNEL_SCHED_SCHED_H */

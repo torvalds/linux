@@ -1,4 +1,19 @@
 # SPDX-License-Identifier: GPL-2.0-only
+menuconfig ARCH_PXA
+	bool "PXA2xx/PXA3xx-based"
+	depends on ARCH_MULTI_V5
+	depends on CPU_LITTLE_ENDIAN
+	select ARM_CPU_SUSPEND if PM
+	select CLKSRC_PXA
+	select CLKSRC_MMIO
+	select TIMER_OF
+	select CPU_XSCALE if !CPU_XSC3
+	select GPIO_PXA
+	select GPIOLIB
+	select PLAT_PXA
+	help
+	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
+
 if ARCH_PXA
 
 menu "Intel PXA2xx/PXA3xx Implementations"
@@ -152,16 +167,6 @@ config GUMSTIX_AM300EPD
 	bool "Enable AM300EPD board support"
 
 endchoice
-
-config MACH_INTELMOTE2
-	bool "Intel Mote 2 Platform"
-	select IWMMXT
-	select PXA27x
-
-config MACH_STARGATE2
-	bool "Intel Stargate 2 Platform"
-	select IWMMXT
-	select PXA27x
 
 config MACH_XCEP
 	bool "Iskratel Electronics XCEP"

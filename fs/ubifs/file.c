@@ -31,9 +31,9 @@
  * in the "sys_write -> alloc_pages -> direct reclaim path". So, in
  * 'ubifs_writepage()' we are only guaranteed that the page is locked.
  *
- * Similarly, @i_mutex is not always locked in 'ubifs_readpage()', e.g., the
+ * Similarly, @i_mutex is not always locked in 'ubifs_read_folio()', e.g., the
  * read-ahead path does not lock it ("sys_read -> generic_file_aio_read ->
- * ondemand_readahead -> readpage"). In case of readahead, @I_SYNC flag is not
+ * ondemand_readahead -> read_folio"). In case of readahead, @I_SYNC flag is not
  * set as well. However, UBIFS disables readahead.
  */
 
@@ -215,8 +215,7 @@ static void release_existing_page_budget(struct ubifs_info *c)
 }
 
 static int write_begin_slow(struct address_space *mapping,
-			    loff_t pos, unsigned len, struct page **pagep,
-			    unsigned flags)
+			    loff_t pos, unsigned len, struct page **pagep)
 {
 	struct inode *inode = mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
@@ -244,7 +243,7 @@ static int write_begin_slow(struct address_space *mapping,
 	if (unlikely(err))
 		return err;
 
-	page = grab_cache_page_write_begin(mapping, index, flags);
+	page = grab_cache_page_write_begin(mapping, index);
 	if (unlikely(!page)) {
 		ubifs_release_budget(c, &req);
 		return -ENOMEM;
@@ -419,7 +418,7 @@ static int allocate_budget(struct ubifs_info *c, struct page *page,
  * without forcing write-back. The slow path does not make this assumption.
  */
 static int ubifs_write_begin(struct file *file, struct address_space *mapping,
-			     loff_t pos, unsigned len, unsigned flags,
+			     loff_t pos, unsigned len,
 			     struct page **pagep, void **fsdata)
 {
 	struct inode *inode = mapping->host;
@@ -437,7 +436,7 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 		return -EROFS;
 
 	/* Try out the fast-path part first */
-	page = grab_cache_page_write_begin(mapping, index, flags);
+	page = grab_cache_page_write_begin(mapping, index);
 	if (unlikely(!page))
 		return -ENOMEM;
 
@@ -493,7 +492,7 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 		unlock_page(page);
 		put_page(page);
 
-		return write_begin_slow(mapping, pos, len, pagep, flags);
+		return write_begin_slow(mapping, pos, len, pagep);
 	}
 
 	/*
@@ -570,7 +569,7 @@ static int ubifs_write_end(struct file *file, struct address_space *mapping,
 	}
 
 	if (!PagePrivate(page)) {
-		SetPagePrivate(page);
+		attach_page_private(page, (void *)1);
 		atomic_long_inc(&c->dirty_pg_cnt);
 		__set_page_dirty_nobuffers(page);
 	}
@@ -890,12 +889,14 @@ out_unlock:
 	return err;
 }
 
-static int ubifs_readpage(struct file *file, struct page *page)
+static int ubifs_read_folio(struct file *file, struct folio *folio)
 {
+	struct page *page = &folio->page;
+
 	if (ubifs_bulk_read(page))
 		return 0;
 	do_readpage(page);
-	unlock_page(page);
+	folio_unlock(folio);
 	return 0;
 }
 
@@ -947,7 +948,7 @@ static int do_writepage(struct page *page, int len)
 		release_existing_page_budget(c);
 
 	atomic_long_dec(&c->dirty_pg_cnt);
-	ClearPagePrivate(page);
+	detach_page_private(page);
 	ClearPageChecked(page);
 
 	kunmap(page);
@@ -1287,25 +1288,25 @@ int ubifs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	return err;
 }
 
-static void ubifs_invalidatepage(struct page *page, unsigned int offset,
-				 unsigned int length)
+static void ubifs_invalidate_folio(struct folio *folio, size_t offset,
+				 size_t length)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 
-	ubifs_assert(c, PagePrivate(page));
-	if (offset || length < PAGE_SIZE)
-		/* Partial page remains dirty */
+	ubifs_assert(c, folio_test_private(folio));
+	if (offset || length < folio_size(folio))
+		/* Partial folio remains dirty */
 		return;
 
-	if (PageChecked(page))
+	if (folio_test_checked(folio))
 		release_new_page_budget(c);
 	else
 		release_existing_page_budget(c);
 
 	atomic_long_dec(&c->dirty_pg_cnt);
-	ClearPagePrivate(page);
-	ClearPageChecked(page);
+	folio_detach_private(folio);
+	folio_clear_checked(folio);
 }
 
 int ubifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
@@ -1445,18 +1446,18 @@ static ssize_t ubifs_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	return generic_file_write_iter(iocb, from);
 }
 
-static int ubifs_set_page_dirty(struct page *page)
+static bool ubifs_dirty_folio(struct address_space *mapping,
+		struct folio *folio)
 {
-	int ret;
-	struct inode *inode = page->mapping->host;
-	struct ubifs_info *c = inode->i_sb->s_fs_info;
+	bool ret;
+	struct ubifs_info *c = mapping->host->i_sb->s_fs_info;
 
-	ret = __set_page_dirty_nobuffers(page);
+	ret = filemap_dirty_folio(mapping, folio);
 	/*
 	 * An attempt to dirty a page without budgeting for it - should not
 	 * happen.
 	 */
-	ubifs_assert(c, ret == 0);
+	ubifs_assert(c, ret == false);
 	return ret;
 }
 
@@ -1471,8 +1472,8 @@ static int ubifs_migrate_page(struct address_space *mapping,
 		return rc;
 
 	if (PagePrivate(page)) {
-		ClearPagePrivate(page);
-		SetPagePrivate(newpage);
+		detach_page_private(page);
+		attach_page_private(newpage, (void *)1);
 	}
 
 	if (mode != MIGRATE_SYNC_NO_COPY)
@@ -1483,22 +1484,22 @@ static int ubifs_migrate_page(struct address_space *mapping,
 }
 #endif
 
-static int ubifs_releasepage(struct page *page, gfp_t unused_gfp_flags)
+static bool ubifs_release_folio(struct folio *folio, gfp_t unused_gfp_flags)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 
 	/*
 	 * An attempt to release a dirty page without budgeting for it - should
 	 * not happen.
 	 */
-	if (PageWriteback(page))
-		return 0;
-	ubifs_assert(c, PagePrivate(page));
+	if (folio_test_writeback(folio))
+		return false;
+	ubifs_assert(c, folio_test_private(folio));
 	ubifs_assert(c, 0);
-	ClearPagePrivate(page);
-	ClearPageChecked(page);
-	return 1;
+	folio_detach_private(folio);
+	folio_clear_checked(folio);
+	return true;
 }
 
 /*
@@ -1567,7 +1568,7 @@ static vm_fault_t ubifs_vm_page_mkwrite(struct vm_fault *vmf)
 	else {
 		if (!PageChecked(page))
 			ubifs_convert_page_budget(c);
-		SetPagePrivate(page);
+		attach_page_private(page, (void *)1);
 		atomic_long_inc(&c->dirty_pg_cnt);
 		__set_page_dirty_nobuffers(page);
 	}
@@ -1642,16 +1643,16 @@ static int ubifs_symlink_getattr(struct user_namespace *mnt_userns,
 }
 
 const struct address_space_operations ubifs_file_address_operations = {
-	.readpage       = ubifs_readpage,
+	.read_folio     = ubifs_read_folio,
 	.writepage      = ubifs_writepage,
 	.write_begin    = ubifs_write_begin,
 	.write_end      = ubifs_write_end,
-	.invalidatepage = ubifs_invalidatepage,
-	.set_page_dirty = ubifs_set_page_dirty,
+	.invalidate_folio = ubifs_invalidate_folio,
+	.dirty_folio	= ubifs_dirty_folio,
 #ifdef CONFIG_MIGRATION
 	.migratepage	= ubifs_migrate_page,
 #endif
-	.releasepage    = ubifs_releasepage,
+	.release_folio    = ubifs_release_folio,
 };
 
 const struct inode_operations ubifs_file_inode_operations = {

@@ -369,30 +369,28 @@ static int optee_ffa_shm_unregister_supp(struct tee_context *ctx,
  * The main function is optee_ffa_shm_pool_alloc_pages().
  */
 
-static int pool_ffa_op_alloc(struct tee_shm_pool_mgr *poolm,
-			     struct tee_shm *shm, size_t size)
+static int pool_ffa_op_alloc(struct tee_shm_pool *pool,
+			     struct tee_shm *shm, size_t size, size_t align)
 {
-	return optee_pool_op_alloc_helper(poolm, shm, size,
+	return optee_pool_op_alloc_helper(pool, shm, size, align,
 					  optee_ffa_shm_register);
 }
 
-static void pool_ffa_op_free(struct tee_shm_pool_mgr *poolm,
+static void pool_ffa_op_free(struct tee_shm_pool *pool,
 			     struct tee_shm *shm)
 {
-	optee_ffa_shm_unregister(shm->ctx, shm);
-	free_pages((unsigned long)shm->kaddr, get_order(shm->size));
-	shm->kaddr = NULL;
+	optee_pool_op_free_helper(pool, shm, optee_ffa_shm_unregister);
 }
 
-static void pool_ffa_op_destroy_poolmgr(struct tee_shm_pool_mgr *poolm)
+static void pool_ffa_op_destroy_pool(struct tee_shm_pool *pool)
 {
-	kfree(poolm);
+	kfree(pool);
 }
 
-static const struct tee_shm_pool_mgr_ops pool_ffa_ops = {
+static const struct tee_shm_pool_ops pool_ffa_ops = {
 	.alloc = pool_ffa_op_alloc,
 	.free = pool_ffa_op_free,
-	.destroy_poolmgr = pool_ffa_op_destroy_poolmgr,
+	.destroy_pool = pool_ffa_op_destroy_pool,
 };
 
 /**
@@ -401,16 +399,16 @@ static const struct tee_shm_pool_mgr_ops pool_ffa_ops = {
  * This pool is used with OP-TEE over FF-A. In this case command buffers
  * and such are allocated from kernel's own memory.
  */
-static struct tee_shm_pool_mgr *optee_ffa_shm_pool_alloc_pages(void)
+static struct tee_shm_pool *optee_ffa_shm_pool_alloc_pages(void)
 {
-	struct tee_shm_pool_mgr *mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
+	struct tee_shm_pool *pool = kzalloc(sizeof(*pool), GFP_KERNEL);
 
-	if (!mgr)
+	if (!pool)
 		return ERR_PTR(-ENOMEM);
 
-	mgr->ops = &pool_ffa_ops;
+	pool->ops = &pool_ffa_ops;
 
-	return mgr;
+	return pool;
 }
 
 /*
@@ -440,8 +438,8 @@ static void handle_ffa_rpc_func_cmd_shm_alloc(struct tee_context *ctx,
 		shm = optee_rpc_cmd_alloc_suppl(ctx, arg->params[0].u.value.b);
 		break;
 	case OPTEE_RPC_SHM_TYPE_KERNEL:
-		shm = tee_shm_alloc(optee->ctx, arg->params[0].u.value.b,
-				    TEE_SHM_MAPPED | TEE_SHM_PRIV);
+		shm = tee_shm_alloc_priv_buf(optee->ctx,
+					     arg->params[0].u.value.b);
 		break;
 	default:
 		arg->ret = TEEC_ERROR_BAD_PARAMETERS;
@@ -603,6 +601,7 @@ done:
  * optee_ffa_do_call_with_arg() - Do a FF-A call to enter OP-TEE in secure world
  * @ctx:	calling context
  * @shm:	shared memory holding the message to pass to secure world
+ * @offs:	offset of the message in @shm
  *
  * Does a FF-A call to OP-TEE in secure world and handles eventual resulting
  * Remote Procedure Calls (RPC) from OP-TEE.
@@ -611,24 +610,33 @@ done:
  */
 
 static int optee_ffa_do_call_with_arg(struct tee_context *ctx,
-				      struct tee_shm *shm)
+				      struct tee_shm *shm, u_int offs)
 {
 	struct ffa_send_direct_data data = {
 		.data0 = OPTEE_FFA_YIELDING_CALL_WITH_ARG,
 		.data1 = (u32)shm->sec_world_id,
 		.data2 = (u32)(shm->sec_world_id >> 32),
-		.data3 = shm->offset,
+		.data3 = offs,
 	};
 	struct optee_msg_arg *arg;
 	unsigned int rpc_arg_offs;
 	struct optee_msg_arg *rpc_arg;
 
-	arg = tee_shm_get_va(shm, 0);
+	/*
+	 * The shared memory object has to start on a page when passed as
+	 * an argument struct. This is also what the shm pool allocator
+	 * returns, but check this before calling secure world to catch
+	 * eventual errors early in case something changes.
+	 */
+	if (shm->offset)
+		return -EINVAL;
+
+	arg = tee_shm_get_va(shm, offs);
 	if (IS_ERR(arg))
 		return PTR_ERR(arg);
 
 	rpc_arg_offs = OPTEE_MSG_GET_ARG_SIZE(arg->num_params);
-	rpc_arg = tee_shm_get_va(shm, rpc_arg_offs);
+	rpc_arg = tee_shm_get_va(shm, offs + rpc_arg_offs);
 	if (IS_ERR(rpc_arg))
 		return PTR_ERR(rpc_arg);
 
@@ -680,7 +688,8 @@ static bool optee_ffa_api_is_compatbile(struct ffa_device *ffa_dev,
 
 static bool optee_ffa_exchange_caps(struct ffa_device *ffa_dev,
 				    const struct ffa_dev_ops *ops,
-				    unsigned int *rpc_arg_count)
+				    u32 *sec_caps,
+				    unsigned int *rpc_param_count)
 {
 	struct ffa_send_direct_data data = { OPTEE_FFA_EXCHANGE_CAPABILITIES };
 	int rc;
@@ -695,36 +704,10 @@ static bool optee_ffa_exchange_caps(struct ffa_device *ffa_dev,
 		return false;
 	}
 
-	*rpc_arg_count = (u8)data.data1;
+	*rpc_param_count = (u8)data.data1;
+	*sec_caps = data.data2;
 
 	return true;
-}
-
-static struct tee_shm_pool *optee_ffa_config_dyn_shm(void)
-{
-	struct tee_shm_pool_mgr *priv_mgr;
-	struct tee_shm_pool_mgr *dmabuf_mgr;
-	void *rc;
-
-	rc = optee_ffa_shm_pool_alloc_pages();
-	if (IS_ERR(rc))
-		return rc;
-	priv_mgr = rc;
-
-	rc = optee_ffa_shm_pool_alloc_pages();
-	if (IS_ERR(rc)) {
-		tee_shm_pool_mgr_destroy(priv_mgr);
-		return rc;
-	}
-	dmabuf_mgr = rc;
-
-	rc = tee_shm_pool_alloc(priv_mgr, dmabuf_mgr);
-	if (IS_ERR(rc)) {
-		tee_shm_pool_mgr_destroy(priv_mgr);
-		tee_shm_pool_mgr_destroy(dmabuf_mgr);
-	}
-
-	return rc;
 }
 
 static void optee_ffa_get_version(struct tee_device *teedev,
@@ -788,7 +771,7 @@ static const struct optee_ops optee_ffa_ops = {
 
 static void optee_ffa_remove(struct ffa_device *ffa_dev)
 {
-	struct optee *optee = ffa_dev->dev.driver_data;
+	struct optee *optee = ffa_dev_get_drvdata(ffa_dev);
 
 	optee_remove_common(optee);
 
@@ -801,11 +784,13 @@ static void optee_ffa_remove(struct ffa_device *ffa_dev)
 static int optee_ffa_probe(struct ffa_device *ffa_dev)
 {
 	const struct ffa_dev_ops *ffa_ops;
-	unsigned int rpc_arg_count;
+	unsigned int rpc_param_count;
 	struct tee_shm_pool *pool;
 	struct tee_device *teedev;
 	struct tee_context *ctx;
+	u32 arg_cache_flags = 0;
 	struct optee *optee;
+	u32 sec_caps;
 	int rc;
 
 	ffa_ops = ffa_dev_ops_get(ffa_dev);
@@ -817,14 +802,17 @@ static int optee_ffa_probe(struct ffa_device *ffa_dev)
 	if (!optee_ffa_api_is_compatbile(ffa_dev, ffa_ops))
 		return -EINVAL;
 
-	if (!optee_ffa_exchange_caps(ffa_dev, ffa_ops, &rpc_arg_count))
+	if (!optee_ffa_exchange_caps(ffa_dev, ffa_ops, &sec_caps,
+				     &rpc_param_count))
 		return -EINVAL;
+	if (sec_caps & OPTEE_FFA_SEC_CAP_ARG_OFFSET)
+		arg_cache_flags |= OPTEE_SHM_ARG_SHARED;
 
 	optee = kzalloc(sizeof(*optee), GFP_KERNEL);
 	if (!optee)
 		return -ENOMEM;
 
-	pool = optee_ffa_config_dyn_shm();
+	pool = optee_ffa_shm_pool_alloc_pages();
 	if (IS_ERR(pool)) {
 		rc = PTR_ERR(pool);
 		goto err_free_optee;
@@ -834,7 +822,7 @@ static int optee_ffa_probe(struct ffa_device *ffa_dev)
 	optee->ops = &optee_ffa_ops;
 	optee->ffa.ffa_dev = ffa_dev;
 	optee->ffa.ffa_ops = ffa_ops;
-	optee->rpc_arg_count = rpc_arg_count;
+	optee->rpc_param_count = rpc_param_count;
 
 	teedev = tee_device_alloc(&optee_ffa_clnt_desc, NULL, optee->pool,
 				  optee);
@@ -867,6 +855,7 @@ static int optee_ffa_probe(struct ffa_device *ffa_dev)
 	mutex_init(&optee->call_queue.mutex);
 	INIT_LIST_HEAD(&optee->call_queue.waiters);
 	optee_supp_init(&optee->supp);
+	optee_shm_arg_cache_init(optee, arg_cache_flags);
 	ffa_dev_set_drvdata(ffa_dev, optee);
 	ctx = teedev_open(optee->teedev);
 	if (IS_ERR(ctx)) {
@@ -894,6 +883,7 @@ err_rhashtable_free:
 	rhashtable_free_and_destroy(&optee->ffa.global_ids, rh_free_fn, NULL);
 	optee_supp_uninit(&optee->supp);
 	mutex_destroy(&optee->call_queue.mutex);
+	mutex_destroy(&optee->ffa.mutex);
 err_unreg_supp_teedev:
 	tee_device_unregister(optee->supp_teedev);
 err_unreg_teedev:

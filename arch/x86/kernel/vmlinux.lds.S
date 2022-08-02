@@ -285,6 +285,15 @@ SECTIONS
 	}
 #endif
 
+#ifdef CONFIG_X86_KERNEL_IBT
+	. = ALIGN(8);
+	.ibt_endbr_seal : AT(ADDR(.ibt_endbr_seal) - LOAD_OFFSET) {
+		__ibt_endbr_seal = .;
+		*(.ibt_endbr_seal)
+		__ibt_endbr_seal_end = .;
+	}
+#endif
+
 	/*
 	 * struct alt_inst entries. From the header (alternative.h):
 	 * "Alternative instructions for different CPU types or capabilities"
@@ -304,18 +313,6 @@ SECTIONS
 	 */
 	.altinstr_replacement : AT(ADDR(.altinstr_replacement) - LOAD_OFFSET) {
 		*(.altinstr_replacement)
-	}
-
-	/*
-	 * struct iommu_table_entry entries are injected in this section.
-	 * It is an array of IOMMUs which during run time gets sorted depending
-	 * on its dependency order. After rootfs_initcall is complete
-	 * this section can be safely removed.
-	 */
-	.iommu_table : AT(ADDR(.iommu_table) - LOAD_OFFSET) {
-		__iommu_table = .;
-		*(.iommu_table)
-		__iommu_table_end = .;
 	}
 
 	. = ALIGN(8);
@@ -388,10 +385,10 @@ SECTIONS
 	__end_of_kernel_reserve = .;
 
 	. = ALIGN(PAGE_SIZE);
-	.brk : AT(ADDR(.brk) - LOAD_OFFSET) {
+	.brk (NOLOAD) : AT(ADDR(.brk) - LOAD_OFFSET) {
 		__brk_base = .;
 		. += 64 * 1024;		/* 64k alignment slop space */
-		*(.brk_reservation)	/* areas brk users have reserved */
+		*(.bss..brk)		/* areas brk users have reserved */
 		__brk_limit = .;
 	}
 

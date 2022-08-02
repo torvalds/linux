@@ -28,7 +28,18 @@
  * this.
  */
 static bool enabled __read_mostly;
-module_param(enabled, bool, 0600);
+
+/*
+ * Make DAMON_RECLAIM reads the input parameters again, except ``enabled``.
+ *
+ * Input parameters that updated while DAMON_RECLAIM is running are not applied
+ * by default.  Once this parameter is set as ``Y``, DAMON_RECLAIM reads values
+ * of parametrs except ``enabled`` again.  Once the re-reading is done, this
+ * parameter is set as ``N``.  If invalid parameters are found while the
+ * re-reading, DAMON_RECLAIM will be disabled.
+ */
+static bool commit_inputs __read_mostly;
+module_param(commit_inputs, bool, 0600);
 
 /*
  * Time threshold for cold memory regions identification in microseconds.
@@ -227,7 +238,7 @@ static int walk_system_ram(struct resource *res, void *arg)
 {
 	struct damon_reclaim_ram_walk_arg *a = arg;
 
-	if (a->end - a->start < res->end - res->start) {
+	if (a->end - a->start < resource_size(res)) {
 		a->start = res->start;
 		a->end = res->end;
 	}
@@ -290,21 +301,22 @@ static struct damos *damon_reclaim_new_scheme(void)
 	return scheme;
 }
 
-static int damon_reclaim_turn(bool on)
+static int damon_reclaim_apply_parameters(void)
 {
-	struct damon_region *region;
 	struct damos *scheme;
-	int err;
-
-	if (!on) {
-		err = damon_stop(&ctx, 1);
-		if (!err)
-			kdamond_pid = -1;
-		return err;
-	}
+	struct damon_addr_range addr_range;
+	int err = 0;
 
 	err = damon_set_attrs(ctx, sample_interval, aggr_interval, 0,
 			min_nr_regions, max_nr_regions);
+	if (err)
+		return err;
+
+	/* Will be freed by next 'damon_set_schemes()' below */
+	scheme = damon_reclaim_new_scheme();
+	if (!scheme)
+		return -ENOMEM;
+	err = damon_set_schemes(ctx, &scheme, 1);
 	if (err)
 		return err;
 
@@ -314,33 +326,31 @@ static int damon_reclaim_turn(bool on)
 			!get_monitoring_region(&monitor_region_start,
 				&monitor_region_end))
 		return -EINVAL;
-	/* DAMON will free this on its own when finish monitoring */
-	region = damon_new_region(monitor_region_start, monitor_region_end);
-	if (!region)
-		return -ENOMEM;
-	damon_add_region(region, target);
+	addr_range.start = monitor_region_start;
+	addr_range.end = monitor_region_end;
+	return damon_set_regions(target, &addr_range, 1);
+}
 
-	/* Will be freed by 'damon_set_schemes()' below */
-	scheme = damon_reclaim_new_scheme();
-	if (!scheme) {
-		err = -ENOMEM;
-		goto free_region_out;
+static int damon_reclaim_turn(bool on)
+{
+	int err;
+
+	if (!on) {
+		err = damon_stop(&ctx, 1);
+		if (!err)
+			kdamond_pid = -1;
+		return err;
 	}
-	err = damon_set_schemes(ctx, &scheme, 1);
+
+	err = damon_reclaim_apply_parameters();
 	if (err)
-		goto free_scheme_out;
+		return err;
 
-	err = damon_start(&ctx, 1);
-	if (!err) {
-		kdamond_pid = ctx->kdamond->pid;
-		return 0;
-	}
-
-free_scheme_out:
-	damon_destroy_scheme(scheme);
-free_region_out:
-	damon_destroy_region(region, target);
-	return err;
+	err = damon_start(&ctx, 1, true);
+	if (err)
+		return err;
+	kdamond_pid = ctx->kdamond->pid;
+	return 0;
 }
 
 #define ENABLE_CHECK_INTERVAL_MS	1000
@@ -358,14 +368,45 @@ static void damon_reclaim_timer_fn(struct work_struct *work)
 			enabled = last_enabled;
 	}
 
-	schedule_delayed_work(&damon_reclaim_timer,
+	if (enabled)
+		schedule_delayed_work(&damon_reclaim_timer,
 			msecs_to_jiffies(ENABLE_CHECK_INTERVAL_MS));
 }
 static DECLARE_DELAYED_WORK(damon_reclaim_timer, damon_reclaim_timer_fn);
 
+static bool damon_reclaim_initialized;
+
+static int enabled_store(const char *val,
+		const struct kernel_param *kp)
+{
+	int rc = param_set_bool(val, kp);
+
+	if (rc < 0)
+		return rc;
+
+	/* system_wq might not initialized yet */
+	if (!damon_reclaim_initialized)
+		return rc;
+
+	if (enabled)
+		schedule_delayed_work(&damon_reclaim_timer, 0);
+
+	return 0;
+}
+
+static const struct kernel_param_ops enabled_param_ops = {
+	.set = enabled_store,
+	.get = param_get_bool,
+};
+
+module_param_cb(enabled, &enabled_param_ops, &enabled, 0600);
+MODULE_PARM_DESC(enabled,
+	"Enable or disable DAMON_RECLAIM (default: disabled)");
+
 static int damon_reclaim_after_aggregation(struct damon_ctx *c)
 {
 	struct damos *s;
+	int err = 0;
 
 	/* update the stats parameter */
 	damon_for_each_scheme(s, c) {
@@ -375,7 +416,23 @@ static int damon_reclaim_after_aggregation(struct damon_ctx *c)
 		bytes_reclaimed_regions = s->stat.sz_applied;
 		nr_quota_exceeds = s->stat.qt_exceeds;
 	}
-	return 0;
+
+	if (commit_inputs) {
+		err = damon_reclaim_apply_parameters();
+		commit_inputs = false;
+	}
+	return err;
+}
+
+static int damon_reclaim_after_wmarks_check(struct damon_ctx *c)
+{
+	int err = 0;
+
+	if (commit_inputs) {
+		err = damon_reclaim_apply_parameters();
+		commit_inputs = false;
+	}
+	return err;
 }
 
 static int __init damon_reclaim_init(void)
@@ -384,11 +441,13 @@ static int __init damon_reclaim_init(void)
 	if (!ctx)
 		return -ENOMEM;
 
-	damon_pa_set_primitives(ctx);
+	if (damon_select_ops(ctx, DAMON_OPS_PADDR))
+		return -EINVAL;
+
+	ctx->callback.after_wmarks_check = damon_reclaim_after_wmarks_check;
 	ctx->callback.after_aggregation = damon_reclaim_after_aggregation;
 
-	/* 4242 means nothing but fun */
-	target = damon_new_target(4242);
+	target = damon_new_target();
 	if (!target) {
 		damon_destroy_ctx(ctx);
 		return -ENOMEM;
@@ -396,6 +455,8 @@ static int __init damon_reclaim_init(void)
 	damon_add_target(ctx, target);
 
 	schedule_delayed_work(&damon_reclaim_timer, 0);
+
+	damon_reclaim_initialized = true;
 	return 0;
 }
 

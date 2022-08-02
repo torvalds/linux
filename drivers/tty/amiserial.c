@@ -538,10 +538,8 @@ static void shutdown(struct tty_struct *tty, struct serial_state *info)
 	 */
 	free_irq(IRQ_AMIGA_VERTB, info);
 
-	if (info->xmit.buf) {
-		free_page((unsigned long) info->xmit.buf);
-		info->xmit.buf = NULL;
-	}
+	free_page((unsigned long)info->xmit.buf);
+	info->xmit.buf = NULL;
 
 	info->IER = 0;
 	amiga_custom.intena = IF_RBF | IF_TBE;
@@ -590,10 +588,8 @@ static void change_speed(struct tty_struct *tty, struct serial_state *info,
 	}
 	if (!(cflag & PARODD))
 		cval |= UART_LCR_EPAR;
-#ifdef CMSPAR
 	if (cflag & CMSPAR)
 		cval |= UART_LCR_SPAR;
-#endif
 
 	/* Determine divisor based on baud rate */
 	baud = tty_get_baud_rate(tty);

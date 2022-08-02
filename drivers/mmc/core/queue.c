@@ -183,14 +183,15 @@ static void mmc_queue_setup_discard(struct request_queue *q,
 	if (!max_discard)
 		return;
 
-	blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
 	blk_queue_max_discard_sectors(q, max_discard);
 	q->limits.discard_granularity = card->pref_erase << 9;
 	/* granularity must not be greater than max. discard */
 	if (card->pref_erase > max_discard)
 		q->limits.discard_granularity = SECTOR_SIZE;
 	if (mmc_can_secure_erase_trim(card))
-		blk_queue_flag_set(QUEUE_FLAG_SECERASE, q);
+		blk_queue_max_secure_erase_sectors(q, max_discard);
+	if (mmc_can_trim(card) && card->erased_byte == 0)
+		blk_queue_max_write_zeroes_sectors(q, max_discard);
 }
 
 static unsigned short mmc_get_max_segments(struct mmc_host *host)

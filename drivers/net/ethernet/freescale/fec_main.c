@@ -2797,7 +2797,7 @@ static int fec_enet_eee_mode_set(struct net_device *ndev, bool enable)
 	int ret = 0;
 
 	if (enable) {
-		ret = phy_init_eee(ndev->phydev, 0);
+		ret = phy_init_eee(ndev->phydev, false);
 		if (ret)
 			return ret;
 
@@ -3076,7 +3076,7 @@ fec_enet_alloc_rxq_buffers(struct net_device *ndev, unsigned int queue)
 	rxq = fep->rx_queue[queue];
 	bdp = rxq->bd.base;
 	for (i = 0; i < rxq->bd.ring_size; i++) {
-		skb = netdev_alloc_skb(ndev, FEC_ENET_RX_FRSIZE);
+		skb = __netdev_alloc_skb(ndev, FEC_ENET_RX_FRSIZE, GFP_KERNEL);
 		if (!skb)
 			goto err_alloc;
 
@@ -3566,7 +3566,7 @@ static int fec_enet_init(struct net_device *ndev)
 		ndev->features |= NETIF_F_HW_VLAN_CTAG_RX;
 
 	if (fep->quirks & FEC_QUIRK_HAS_CSUM) {
-		netif_set_gso_max_segs(ndev, FEC_MAX_TSO_SEGS);
+		netif_set_tso_max_segs(ndev, FEC_MAX_TSO_SEGS);
 
 		/* enable hw accelerator */
 		ndev->features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM
@@ -3731,7 +3731,7 @@ static int fec_enet_init_stop_mode(struct fec_enet_private *fep,
 					 ARRAY_SIZE(out_val));
 	if (ret) {
 		dev_dbg(&fep->pdev->dev, "no stop mode property\n");
-		return ret;
+		goto out;
 	}
 
 	fep->stop_gpr.gpr = syscon_node_to_regmap(gpr_np);
@@ -3866,17 +3866,21 @@ fec_probe(struct platform_device *pdev)
 	fep->itr_clk_rate = clk_get_rate(fep->clk_ahb);
 
 	/* enet_out is optional, depends on board */
-	fep->clk_enet_out = devm_clk_get(&pdev->dev, "enet_out");
-	if (IS_ERR(fep->clk_enet_out))
-		fep->clk_enet_out = NULL;
+	fep->clk_enet_out = devm_clk_get_optional(&pdev->dev, "enet_out");
+	if (IS_ERR(fep->clk_enet_out)) {
+		ret = PTR_ERR(fep->clk_enet_out);
+		goto failed_clk;
+	}
 
 	fep->ptp_clk_on = false;
 	mutex_init(&fep->ptp_clk_mutex);
 
 	/* clk_ref is optional, depends on board */
-	fep->clk_ref = devm_clk_get(&pdev->dev, "enet_clk_ref");
-	if (IS_ERR(fep->clk_ref))
-		fep->clk_ref = NULL;
+	fep->clk_ref = devm_clk_get_optional(&pdev->dev, "enet_clk_ref");
+	if (IS_ERR(fep->clk_ref)) {
+		ret = PTR_ERR(fep->clk_ref);
+		goto failed_clk;
+	}
 	fep->clk_ref_rate = clk_get_rate(fep->clk_ref);
 
 	/* clk_2x_txclk is optional, depends on board */

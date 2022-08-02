@@ -6,6 +6,7 @@
  */
 
 #include <linux/context_tracking.h>
+#include <linux/kasan.h>
 #include <linux/linkage.h>
 #include <linux/lockdep.h>
 #include <linux/ptrace.h>
@@ -56,6 +57,7 @@ static void noinstr enter_from_kernel_mode(struct pt_regs *regs)
 {
 	__enter_from_kernel_mode(regs);
 	mte_check_tfsr_entry();
+	mte_disable_tco_entry(current);
 }
 
 /*
@@ -73,7 +75,7 @@ static __always_inline void __exit_to_kernel_mode(struct pt_regs *regs)
 	if (interrupts_enabled(regs)) {
 		if (regs->exit_rcu) {
 			trace_hardirqs_on_prepare();
-			lockdep_hardirqs_on_prepare(CALLER_ADDR0);
+			lockdep_hardirqs_on_prepare();
 			rcu_irq_exit();
 			lockdep_hardirqs_on(CALLER_ADDR0);
 			return;
@@ -103,6 +105,7 @@ static __always_inline void __enter_from_user_mode(void)
 	CT_WARN_ON(ct_state() != CONTEXT_USER);
 	user_exit_irqoff();
 	trace_hardirqs_off_finish();
+	mte_disable_tco_entry(current);
 }
 
 static __always_inline void enter_from_user_mode(struct pt_regs *regs)
@@ -118,7 +121,7 @@ static __always_inline void enter_from_user_mode(struct pt_regs *regs)
 static __always_inline void __exit_to_user_mode(void)
 {
 	trace_hardirqs_on_prepare();
-	lockdep_hardirqs_on_prepare(CALLER_ADDR0);
+	lockdep_hardirqs_on_prepare();
 	user_enter_irqoff();
 	lockdep_hardirqs_on(CALLER_ADDR0);
 }
@@ -176,7 +179,7 @@ static void noinstr arm64_exit_nmi(struct pt_regs *regs)
 	ftrace_nmi_exit();
 	if (restore) {
 		trace_hardirqs_on_prepare();
-		lockdep_hardirqs_on_prepare(CALLER_ADDR0);
+		lockdep_hardirqs_on_prepare();
 	}
 
 	rcu_nmi_exit();
@@ -212,7 +215,7 @@ static void noinstr arm64_exit_el1_dbg(struct pt_regs *regs)
 
 	if (restore) {
 		trace_hardirqs_on_prepare();
-		lockdep_hardirqs_on_prepare(CALLER_ADDR0);
+		lockdep_hardirqs_on_prepare();
 	}
 
 	rcu_nmi_exit();
@@ -220,9 +223,26 @@ static void noinstr arm64_exit_el1_dbg(struct pt_regs *regs)
 		lockdep_hardirqs_on(CALLER_ADDR0);
 }
 
+#ifdef CONFIG_PREEMPT_DYNAMIC
+DEFINE_STATIC_KEY_TRUE(sk_dynamic_irqentry_exit_cond_resched);
+#define need_irq_preemption() \
+	(static_branch_unlikely(&sk_dynamic_irqentry_exit_cond_resched))
+#else
+#define need_irq_preemption()	(IS_ENABLED(CONFIG_PREEMPTION))
+#endif
+
 static void __sched arm64_preempt_schedule_irq(void)
 {
-	lockdep_assert_irqs_disabled();
+	if (!need_irq_preemption())
+		return;
+
+	/*
+	 * Note: thread_info::preempt_count includes both thread_info::count
+	 * and thread_info::need_resched, and is not equivalent to
+	 * preempt_count().
+	 */
+	if (READ_ONCE(current_thread_info()->preempt_count) != 0)
+		return;
 
 	/*
 	 * DAIF.DA are cleared at the start of IRQ/FIQ handling, and when GIC
@@ -262,13 +282,13 @@ extern void (*handle_arch_irq)(struct pt_regs *);
 extern void (*handle_arch_fiq)(struct pt_regs *);
 
 static void noinstr __panic_unhandled(struct pt_regs *regs, const char *vector,
-				      unsigned int esr)
+				      unsigned long esr)
 {
 	arm64_enter_nmi(regs);
 
 	console_verbose();
 
-	pr_crit("Unhandled %s exception on CPU%d, ESR 0x%08x -- %s\n",
+	pr_crit("Unhandled %s exception on CPU%d, ESR 0x%016lx -- %s\n",
 		vector, smp_processor_id(), esr,
 		esr_get_class_string(esr));
 
@@ -438,14 +458,7 @@ static __always_inline void __el1_irq(struct pt_regs *regs,
 	do_interrupt_handler(regs, handler);
 	irq_exit_rcu();
 
-	/*
-	 * Note: thread_info::preempt_count includes both thread_info::count
-	 * and thread_info::need_resched, and is not equivalent to
-	 * preempt_count().
-	 */
-	if (IS_ENABLED(CONFIG_PREEMPTION) &&
-	    READ_ONCE(current_thread_info()->preempt_count) == 0)
-		arm64_preempt_schedule_irq();
+	arm64_preempt_schedule_irq();
 
 	exit_to_kernel_mode(regs);
 }
@@ -521,6 +534,14 @@ static void noinstr el0_sve_acc(struct pt_regs *regs, unsigned long esr)
 	enter_from_user_mode(regs);
 	local_daif_restore(DAIF_PROCCTX);
 	do_sve_acc(esr, regs);
+	exit_to_user_mode(regs);
+}
+
+static void noinstr el0_sme_acc(struct pt_regs *regs, unsigned long esr)
+{
+	enter_from_user_mode(regs);
+	local_daif_restore(DAIF_PROCCTX);
+	do_sme_acc(esr, regs);
 	exit_to_user_mode(regs);
 }
 
@@ -631,6 +652,9 @@ asmlinkage void noinstr el0t_64_sync_handler(struct pt_regs *regs)
 		break;
 	case ESR_ELx_EC_SVE:
 		el0_sve_acc(regs, esr);
+		break;
+	case ESR_ELx_EC_SME:
+		el0_sme_acc(regs, esr);
 		break;
 	case ESR_ELx_EC_FP_EXC64:
 		el0_fpsimd_exc(regs, esr);
@@ -805,7 +829,7 @@ UNHANDLED(el0t, 32, error)
 #ifdef CONFIG_VMAP_STACK
 asmlinkage void noinstr handle_bad_stack(struct pt_regs *regs)
 {
-	unsigned int esr = read_sysreg(esr_el1);
+	unsigned long esr = read_sysreg(esr_el1);
 	unsigned long far = read_sysreg(far_el1);
 
 	arm64_enter_nmi(regs);

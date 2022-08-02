@@ -57,11 +57,9 @@ static int zpa2326_probe_spi(struct spi_device *spi)
 			     spi->irq, ZPA2326_DEVICE_ID, regmap);
 }
 
-static int zpa2326_remove_spi(struct spi_device *spi)
+static void zpa2326_remove_spi(struct spi_device *spi)
 {
 	zpa2326_remove(&spi->dev);
-
-	return 0;
 }
 
 static const struct spi_device_id zpa2326_spi_ids[] = {
@@ -91,3 +89,4 @@ module_spi_driver(zpa2326_spi_driver);
 MODULE_AUTHOR("Gregor Boirie <gregor.boirie@parrot.com>");
 MODULE_DESCRIPTION("SPI driver for Murata ZPA2326 pressure sensor");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_ZPA2326);

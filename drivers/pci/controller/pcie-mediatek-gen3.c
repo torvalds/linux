@@ -292,7 +292,7 @@ static int mtk_pcie_startup_port(struct mtk_gen3_pcie *pcie)
 	/* Set class code */
 	val = readl_relaxed(pcie->base + PCIE_PCI_IDS_1);
 	val &= ~GENMASK(31, 8);
-	val |= PCI_CLASS(PCI_CLASS_BRIDGE_PCI << 8);
+	val |= PCI_CLASS(PCI_CLASS_BRIDGE_PCI_NORMAL);
 	writel_relaxed(val, pcie->base + PCIE_PCI_IDS_1);
 
 	/* Mask all INTx interrupts */
@@ -837,6 +837,14 @@ static int mtk_pcie_setup(struct mtk_gen3_pcie *pcie)
 	err = mtk_pcie_parse_port(pcie);
 	if (err)
 		return err;
+
+	/*
+	 * The controller may have been left out of reset by the bootloader
+	 * so make sure that we get a clean start by asserting resets here.
+	 */
+	reset_control_assert(pcie->phy_reset);
+	reset_control_assert(pcie->mac_reset);
+	usleep_range(10, 20);
 
 	/* Don't touch the hardware registers before power up */
 	err = mtk_pcie_power_up(pcie);

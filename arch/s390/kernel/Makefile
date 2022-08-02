@@ -33,7 +33,7 @@ CFLAGS_stacktrace.o	+= -fno-optimize-sibling-calls
 CFLAGS_dumpstack.o	+= -fno-optimize-sibling-calls
 CFLAGS_unwind_bc.o	+= -fno-optimize-sibling-calls
 
-obj-y	:= traps.o time.o process.o base.o early.o setup.o idle.o vtime.o
+obj-y	:= traps.o time.o process.o earlypgm.o early.o setup.o idle.o vtime.o
 obj-y	+= processor.o syscall.o ptrace.o signal.o cpcmd.o ebcdic.o nmi.o
 obj-y	+= debug.o irq.o ipl.o dis.o diag.o vdso.o
 obj-y	+= sysinfo.o lgr.o os_info.o machine_kexec.o
@@ -57,7 +57,9 @@ obj-$(CONFIG_COMPAT)		+= $(compat-obj-y)
 obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 obj-$(CONFIG_KPROBES)		+= kprobes_insn_page.o
-obj-$(CONFIG_FUNCTION_TRACER)	+= mcount.o ftrace.o
+obj-$(CONFIG_KPROBES)		+= mcount.o
+obj-$(CONFIG_FUNCTION_TRACER)	+= ftrace.o
+obj-$(CONFIG_FUNCTION_TRACER)	+= mcount.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
 obj-$(CONFIG_UPROBES)		+= uprobes.o
 obj-$(CONFIG_JUMP_LABEL)	+= jump_label.o
@@ -70,6 +72,7 @@ obj-$(CONFIG_IMA_SECURE_AND_OR_TRUSTED_BOOT)	+= ima_arch.o
 obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_cpum_cf_common.o
 obj-$(CONFIG_PERF_EVENTS)	+= perf_cpum_cf.o perf_cpum_sf.o
 obj-$(CONFIG_PERF_EVENTS)	+= perf_cpum_cf_events.o perf_regs.o
+obj-$(CONFIG_PERF_EVENTS)	+= perf_pai_crypto.o
 
 obj-$(CONFIG_TRACEPOINTS)	+= trace.o
 obj-$(findstring y, $(CONFIG_PROTECTED_VIRTUALIZATION_GUEST) $(CONFIG_PGSTE))	+= uv.o

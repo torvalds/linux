@@ -8,8 +8,6 @@ ifdef CONFIG_GCC_PLUGIN_LATENT_ENTROPY
 endif
 export DISABLE_LATENT_ENTROPY_PLUGIN
 
-gcc-plugin-$(CONFIG_GCC_PLUGIN_SANCOV)		+= sancov_plugin.so
-
 gcc-plugin-$(CONFIG_GCC_PLUGIN_STRUCTLEAK)	+= structleak_plugin.so
 gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_STRUCTLEAK_VERBOSE)	\
 		+= -fplugin-arg-structleak_plugin-verbose
@@ -24,12 +22,6 @@ export DISABLE_STRUCTLEAK_PLUGIN
 gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_STRUCTLEAK)		\
 		+= -DSTRUCTLEAK_PLUGIN
 
-gcc-plugin-$(CONFIG_GCC_PLUGIN_RANDSTRUCT)	+= randomize_layout_plugin.so
-gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_RANDSTRUCT)		\
-		+= -DRANDSTRUCT_PLUGIN
-gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_RANDSTRUCT_PERFORMANCE)	\
-		+= -fplugin-arg-randomize_layout_plugin-performance-mode
-
 gcc-plugin-$(CONFIG_GCC_PLUGIN_STACKLEAK)	+= stackleak_plugin.so
 gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_STACKLEAK)		\
 		+= -DSTACKLEAK_PLUGIN
@@ -37,6 +29,8 @@ gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_STACKLEAK)		\
 		+= -fplugin-arg-stackleak_plugin-track-min-size=$(CONFIG_STACKLEAK_TRACK_MIN_SIZE)
 gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_STACKLEAK)		\
 		+= -fplugin-arg-stackleak_plugin-arch=$(SRCARCH)
+gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_STACKLEAK_VERBOSE)	\
+		+= -fplugin-arg-stackleak_plugin-verbose
 ifdef CONFIG_GCC_PLUGIN_STACKLEAK
     DISABLE_STACKLEAK_PLUGIN += -fplugin-arg-stackleak_plugin-disable
 endif
@@ -51,13 +45,19 @@ export DISABLE_ARM_SSP_PER_TASK_PLUGIN
 # All the plugin CFLAGS are collected here in case a build target needs to
 # filter them out of the KBUILD_CFLAGS.
 GCC_PLUGINS_CFLAGS := $(strip $(addprefix -fplugin=$(objtree)/scripts/gcc-plugins/, $(gcc-plugin-y)) $(gcc-plugin-cflags-y))
-# The sancov_plugin.so is included via CFLAGS_KCOV, so it is removed here.
-GCC_PLUGINS_CFLAGS := $(filter-out %/sancov_plugin.so, $(GCC_PLUGINS_CFLAGS))
 export GCC_PLUGINS_CFLAGS
 
 # Add the flags to the build!
 KBUILD_CFLAGS += $(GCC_PLUGINS_CFLAGS)
 
-# All enabled GCC plugins are collected here for building below.
-GCC_PLUGIN := $(gcc-plugin-y)
+# Some plugins are enabled outside of this Makefile, but they still need to
+# be included in GCC_PLUGIN so they can get built.
+gcc-plugin-external-$(CONFIG_GCC_PLUGIN_SANCOV)			\
+	+= sancov_plugin.so
+gcc-plugin-external-$(CONFIG_GCC_PLUGIN_RANDSTRUCT)		\
+	+= randomize_layout_plugin.so
+
+# All enabled GCC plugins are collected here for building in
+# scripts/gcc-scripts/Makefile.
+GCC_PLUGIN := $(gcc-plugin-y) $(gcc-plugin-external-y)
 export GCC_PLUGIN

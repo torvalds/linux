@@ -109,7 +109,7 @@ static void process_ir_data(struct iguanair *ir, unsigned len)
 			break;
 		case CMD_RX_OVERFLOW:
 			dev_warn(ir->dev, "receive overflow\n");
-			ir_raw_event_reset(ir->rc);
+			ir_raw_event_overflow(ir->rc);
 			break;
 		default:
 			dev_warn(ir->dev, "control code %02x received\n",

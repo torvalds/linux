@@ -1,11 +1,6 @@
 #
 # (c) Copyright 2020 Advanced Micro Devices, Inc. All the rights reserved
 #
-#  All rights reserved.  This notice is intended as a precaution against
-#  inadvertent publication and does not imply publication or any waiver
-#  of confidentiality.  The year included in the foregoing notice is the
-#  year of creation of the work.
-#
 #  Authors: AMD
 #
 # Makefile for dcn302.
@@ -18,13 +13,6 @@ endif
 
 ifdef CONFIG_PPC64
 CFLAGS_$(AMDDALPATH)/dc/dcn302/dcn302_resource.o := -mhard-float -maltivec
-endif
-
-ifdef CONFIG_CC_IS_GCC
-ifeq ($(call cc-ifversion, -lt, 0701, y), y)
-IS_OLD_GCC = 1
-endif
-CFLAGS_$(AMDDALPATH)/dc/dcn302/dcn302_resource.o += -mhard-float
 endif
 
 ifdef CONFIG_X86

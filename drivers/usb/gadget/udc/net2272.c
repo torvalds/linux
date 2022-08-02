@@ -71,7 +71,7 @@ static ushort dma_ep = 1;
 module_param(dma_ep, ushort, 0644);
 
 /*
- * dma_mode: net2272 dma mode setting (see LOCCTL1 definiton):
+ * dma_mode: net2272 dma mode setting (see LOCCTL1 definition):
  *	mode 0 == Slow DREQ mode
  *	mode 1 == Fast DREQ mode
  *	mode 2 == Burst mode
@@ -97,7 +97,7 @@ module_param(fifo_mode, ushort, 0644);
 /*
  * enable_suspend: When enabled, the driver will respond to
  * USB suspend requests by powering down the NET2272.  Otherwise,
- * USB suspend requests will be ignored.  This is acceptible for
+ * USB suspend requests will be ignored.  This is acceptable for
  * self-powered devices.  For bus powered devices set this to 1.
  */
 static ushort enable_suspend = 0;
@@ -288,7 +288,7 @@ static void net2272_ep_reset(struct net2272_ep *ep)
 			  | (1 << LOCAL_OUT_ZLP)
 			  | (1 << BUFFER_FLUSH));
 
-	/* fifo size is handled seperately */
+	/* fifo size is handled separately */
 }
 
 static int net2272_disable(struct usb_ep *_ep)
@@ -926,7 +926,7 @@ static int
 net2272_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
 	struct net2272_ep *ep;
-	struct net2272_request *req;
+	struct net2272_request *req = NULL, *iter;
 	unsigned long flags;
 	int stopped;
 
@@ -939,11 +939,13 @@ net2272_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	ep->stopped = 1;
 
 	/* make sure it's still queued on this endpoint */
-	list_for_each_entry(req, &ep->queue, queue) {
-		if (&req->req == _req)
-			break;
+	list_for_each_entry(iter, &ep->queue, queue) {
+		if (&iter->req != _req)
+			continue;
+		req = iter;
+		break;
 	}
-	if (&req->req != _req) {
+	if (!req) {
 		ep->stopped = stopped;
 		spin_unlock_irqrestore(&ep->dev->lock, flags);
 		return -EINVAL;
@@ -954,7 +956,6 @@ net2272_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 		dev_dbg(ep->dev->dev, "unlink (%s) pio\n", _ep->name);
 		net2272_done(ep, req, -ECONNRESET);
 	}
-	req = NULL;
 	ep->stopped = stopped;
 
 	spin_unlock_irqrestore(&ep->dev->lock, flags);

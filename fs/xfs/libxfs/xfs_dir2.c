@@ -19,7 +19,11 @@
 #include "xfs_error.h"
 #include "xfs_trace.h"
 
-struct xfs_name xfs_name_dotdot = { (unsigned char *)"..", 2, XFS_DIR3_FT_DIR };
+const struct xfs_name xfs_name_dotdot = {
+	.name	= (const unsigned char *)"..",
+	.len	= 2,
+	.type	= XFS_DIR3_FT_DIR,
+};
 
 /*
  * Convert inode mode to directory entry filetype
@@ -54,10 +58,10 @@ xfs_mode_to_ftype(
  */
 xfs_dahash_t
 xfs_ascii_ci_hashname(
-	struct xfs_name	*name)
+	const struct xfs_name	*name)
 {
-	xfs_dahash_t	hash;
-	int		i;
+	xfs_dahash_t		hash;
+	int			i;
 
 	for (i = 0, hash = 0; i < name->len; i++)
 		hash = tolower(name->name[i]) ^ rol32(hash, 7);
@@ -146,6 +150,8 @@ xfs_da_mount(
 	dageo->freeblk = xfs_dir2_byte_to_da(dageo, XFS_DIR2_FREE_OFFSET);
 	dageo->node_ents = (dageo->blksize - dageo->node_hdr_size) /
 				(uint)sizeof(xfs_da_node_entry_t);
+	dageo->max_extents = (XFS_DIR2_MAX_SPACES * XFS_DIR2_SPACE_SIZE) >>
+					mp->m_sb.sb_blocklog;
 	dageo->magicpct = (dageo->blksize * 37) / 100;
 
 	/* set up attribute geometry - single fsb only */
@@ -157,6 +163,12 @@ xfs_da_mount(
 	dageo->node_hdr_size = mp->m_dir_geo->node_hdr_size;
 	dageo->node_ents = (dageo->blksize - dageo->node_hdr_size) /
 				(uint)sizeof(xfs_da_node_entry_t);
+
+	if (xfs_has_large_extent_counts(mp))
+		dageo->max_extents = XFS_MAX_EXTCNT_ATTR_FORK_LARGE;
+	else
+		dageo->max_extents = XFS_MAX_EXTCNT_ATTR_FORK_SMALL;
+
 	dageo->magicpct = (dageo->blksize * 37) / 100;
 	return 0;
 }
@@ -243,7 +255,7 @@ int
 xfs_dir_createname(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*dp,
-	struct xfs_name		*name,
+	const struct xfs_name	*name,
 	xfs_ino_t		inum,		/* new entry inode number */
 	xfs_extlen_t		total)		/* bmap's total block count */
 {
@@ -337,16 +349,16 @@ xfs_dir_cilookup_result(
 
 int
 xfs_dir_lookup(
-	xfs_trans_t	*tp,
-	xfs_inode_t	*dp,
-	struct xfs_name	*name,
-	xfs_ino_t	*inum,		/* out: inode number */
-	struct xfs_name *ci_name)	/* out: actual name if CI match */
+	struct xfs_trans	*tp,
+	struct xfs_inode	*dp,
+	const struct xfs_name	*name,
+	xfs_ino_t		*inum,	  /* out: inode number */
+	struct xfs_name		*ci_name) /* out: actual name if CI match */
 {
-	struct xfs_da_args *args;
-	int		rval;
-	int		v;		/* type-checking value */
-	int		lock_mode;
+	struct xfs_da_args	*args;
+	int			rval;
+	int			v;	  /* type-checking value */
+	int			lock_mode;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	XFS_STATS_INC(dp->i_mount, xs_dir_lookup);
@@ -475,7 +487,7 @@ int
 xfs_dir_replace(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*dp,
-	struct xfs_name		*name,		/* name of entry to replace */
+	const struct xfs_name	*name,		/* name of entry to replace */
 	xfs_ino_t		inum,		/* new inode number */
 	xfs_extlen_t		total)		/* bmap's total block count */
 {
@@ -728,7 +740,7 @@ xfs_dir2_namecheck(
 xfs_dahash_t
 xfs_dir2_hashname(
 	struct xfs_mount	*mp,
-	struct xfs_name		*name)
+	const struct xfs_name	*name)
 {
 	if (unlikely(xfs_has_asciici(mp)))
 		return xfs_ascii_ci_hashname(name);

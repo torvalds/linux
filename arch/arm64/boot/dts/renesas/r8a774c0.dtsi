@@ -145,6 +145,7 @@
 			compatible = "renesas,r8a774c0-wdt",
 				     "renesas,rcar-gen3-wdt";
 			reg = <0 0xe6020000 0 0x0c>;
+			interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 402>;
 			power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;
 			resets = <&cpg 402>;
@@ -1008,6 +1009,7 @@
 			reg = <0 0xe66c0000 0 0x8000>;
 			interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "ch_int", "g_int";
 			clocks = <&cpg CPG_MOD 914>,
 				 <&cpg CPG_CORE R8A774C0_CLK_CANFD>,
 				 <&can_clk>;
@@ -1328,11 +1330,11 @@
 			 */
 			compatible = "renesas,rcar_sound-r8a774c0",
 				     "renesas,rcar_sound-gen3";
-			reg =	<0 0xec500000 0 0x1000>, /* SCU */
-				<0 0xec5a0000 0 0x100>,  /* ADG */
-				<0 0xec540000 0 0x1000>, /* SSIU */
-				<0 0xec541000 0 0x280>,  /* SSI */
-				<0 0xec760000 0 0x200>;  /* Audio DMAC peri peri*/
+			reg = <0 0xec500000 0 0x1000>, /* SCU */
+			      <0 0xec5a0000 0 0x100>,  /* ADG */
+			      <0 0xec540000 0 0x1000>, /* SSIU */
+			      <0 0xec541000 0 0x280>,  /* SSI */
+			      <0 0xec760000 0 0x200>;  /* Audio DMAC peri peri*/
 			reg-names = "scu", "adg", "ssiu", "ssi", "audmapp";
 
 			clocks = <&cpg CPG_MOD 1005>,
@@ -1870,8 +1872,6 @@
 
 				port@0 {
 					reg = <0>;
-					du_out_rgb: endpoint {
-					};
 				};
 
 				port@1 {
@@ -1913,8 +1913,6 @@
 
 				port@1 {
 					reg = <1>;
-					lvds0_out: endpoint {
-					};
 				};
 			};
 		};
@@ -1940,8 +1938,6 @@
 
 				port@1 {
 					reg = <1>;
-					lvds1_out: endpoint {
-					};
 				};
 			};
 		};

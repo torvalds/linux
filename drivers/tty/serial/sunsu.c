@@ -798,10 +798,8 @@ sunsu_change_speed(struct uart_port *port, unsigned int cflag,
 		cval |= UART_LCR_PARITY;
 	if (!(cflag & PARODD))
 		cval |= UART_LCR_EPAR;
-#ifdef CMSPAR
 	if (cflag & CMSPAR)
 		cval |= UART_LCR_SPAR;
-#endif
 
 	/*
 	 * Work around a bug in the Oxford Semiconductor 952 rev B
@@ -1281,7 +1279,7 @@ static void wait_for_xmitr(struct uart_sunsu_port *up)
 	}
 }
 
-static void sunsu_console_putchar(struct uart_port *port, int ch)
+static void sunsu_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	struct uart_sunsu_port *up =
 		container_of(port, struct uart_sunsu_port, port);

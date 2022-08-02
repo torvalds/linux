@@ -1873,7 +1873,7 @@ dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	else
 		gadgetfs_driver.max_speed = USB_SPEED_FULL;
 
-	value = usb_gadget_probe_driver(&gadgetfs_driver);
+	value = usb_gadget_register_driver(&gadgetfs_driver);
 	if (value != 0) {
 		spin_lock_irq(&dev->lock);
 		goto fail;
@@ -2101,7 +2101,7 @@ MODULE_ALIAS_FS("gadgetfs");
 
 /*----------------------------------------------------------------------*/
 
-static int __init init (void)
+static int __init gadgetfs_init (void)
 {
 	int status;
 
@@ -2111,12 +2111,12 @@ static int __init init (void)
 			shortname, driver_desc);
 	return status;
 }
-module_init (init);
+module_init (gadgetfs_init);
 
-static void __exit cleanup (void)
+static void __exit gadgetfs_cleanup (void)
 {
 	pr_debug ("unregister %s\n", shortname);
 	unregister_filesystem (&gadgetfs_type);
 }
-module_exit (cleanup);
+module_exit (gadgetfs_cleanup);
 

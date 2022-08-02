@@ -66,6 +66,14 @@ config PHY_ROCKCHIP_INNO_DSIDPHY
 	  Enable this to support the Rockchip MIPI/LVDS/TTL PHY with
 	  Innosilicon IP block.
 
+config PHY_ROCKCHIP_NANENG_COMBO_PHY
+	tristate "Rockchip NANENG COMBO PHY Driver"
+	depends on ARCH_ROCKCHIP && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip PCIe/USB3.0/SATA/QSGMII
+	  combo PHY with NaNeng IP block.
+
 config PHY_ROCKCHIP_PCIE
 	tristate "Rockchip PCIe PHY Driver"
 	depends on (ARCH_ROCKCHIP && OF) || COMPILE_TEST

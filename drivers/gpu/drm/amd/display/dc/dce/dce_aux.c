@@ -87,7 +87,8 @@ static void release_engine(
 
 	engine->ddc = NULL;
 
-	REG_UPDATE(AUX_ARB_CONTROL, AUX_SW_DONE_USING_AUX_REG, 1);
+	REG_UPDATE_2(AUX_ARB_CONTROL, AUX_SW_DONE_USING_AUX_REG, 1,
+		AUX_SW_USE_AUX_REG_REQ, 0);
 }
 
 #define SW_CAN_ACCESS_AUX 1
@@ -413,7 +414,8 @@ static bool acquire(
 		return false;
 
 	if (!acquire_engine(engine)) {
-		dal_ddc_close(ddc);
+		engine->ddc = ddc;
+		release_engine(engine);
 		return false;
 	}
 
@@ -564,13 +566,11 @@ int dce_aux_transfer_raw(struct ddc_service *ddc,
 	struct ddc *ddc_pin = ddc->ddc_pin;
 	struct dce_aux *aux_engine;
 	struct aux_request_transaction_data aux_req;
-	struct aux_reply_transaction_data aux_rep;
 	uint8_t returned_bytes = 0;
 	int res = -1;
 	uint32_t status;
 
 	memset(&aux_req, 0, sizeof(aux_req));
-	memset(&aux_rep, 0, sizeof(aux_rep));
 
 	aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
 	if (!acquire(aux_engine, ddc_pin)) {
@@ -878,7 +878,7 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 			default:
 				DC_TRACE_LEVEL_MESSAGE(DAL_TRACE_LEVEL_ERROR,
 							LOG_FLAG_Error_I2cAux,
-							"dce_aux_transfer_with_retries: AUX_RET_SUCCESS: FAILURE: AUX_TRANSACTION_REPLY_* unknown, default case.");
+							"dce_aux_transfer_with_retries: AUX_RET_SUCCESS: FAILURE: AUX_TRANSACTION_REPLY_* unknown, default case. Reply: %d", *payload->reply);
 				goto fail;
 			}
 			break;

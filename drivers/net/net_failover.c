@@ -89,7 +89,7 @@ static int net_failover_close(struct net_device *dev)
 static netdev_tx_t net_failover_drop_xmit(struct sk_buff *skb,
 					  struct net_device *dev)
 {
-	atomic_long_inc(&dev->tx_dropped);
+	dev_core_stats_tx_dropped_inc(dev);
 	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }

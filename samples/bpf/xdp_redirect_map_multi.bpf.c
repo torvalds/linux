@@ -53,7 +53,7 @@ int xdp_redirect_map_native(struct xdp_md *ctx)
 	return xdp_redirect_map(ctx, &forward_map_native);
 }
 
-SEC("xdp_devmap/egress")
+SEC("xdp/devmap")
 int xdp_devmap_prog(struct xdp_md *ctx)
 {
 	void *data_end = (void *)(long)ctx->data_end;

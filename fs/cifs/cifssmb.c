@@ -75,12 +75,11 @@ cifs_mark_open_files_invalid(struct cifs_tcon *tcon)
 
 	/* only send once per connect */
 	spin_lock(&cifs_tcp_ses_lock);
-	if (tcon->ses->status != CifsGood ||
-	    tcon->tidStatus != CifsNeedReconnect) {
+	if ((tcon->ses->ses_status != SES_GOOD) || (tcon->status != TID_NEED_RECON)) {
 		spin_unlock(&cifs_tcp_ses_lock);
 		return;
 	}
-	tcon->tidStatus = CifsInFilesInvalidate;
+	tcon->status = TID_IN_FILES_INVALIDATE;
 	spin_unlock(&cifs_tcp_ses_lock);
 
 	/* list all files open on tree connection and mark them invalid */
@@ -100,8 +99,8 @@ cifs_mark_open_files_invalid(struct cifs_tcon *tcon)
 	mutex_unlock(&tcon->crfid.fid_mutex);
 
 	spin_lock(&cifs_tcp_ses_lock);
-	if (tcon->tidStatus == CifsInFilesInvalidate)
-		tcon->tidStatus = CifsNeedTcon;
+	if (tcon->status == TID_IN_FILES_INVALIDATE)
+		tcon->status = TID_NEED_TCON;
 	spin_unlock(&cifs_tcp_ses_lock);
 
 	/*
@@ -136,7 +135,7 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 	 * have tcon) are allowed as we start force umount
 	 */
 	spin_lock(&cifs_tcp_ses_lock);
-	if (tcon->tidStatus == CifsExiting) {
+	if (tcon->status == TID_EXITING) {
 		if (smb_command != SMB_COM_WRITE_ANDX &&
 		    smb_command != SMB_COM_OPEN_ANDX &&
 		    smb_command != SMB_COM_TREE_DISCONNECT) {
@@ -597,7 +596,7 @@ CIFSSMBNegotiate(const unsigned int xid,
 	set_credits(server, server->maxReq);
 	/* probably no need to store and check maxvcs */
 	server->maxBuf = le32_to_cpu(pSMBr->MaxBufferSize);
-	/* set up max_read for readpages check */
+	/* set up max_read for readahead check */
 	server->max_read = server->maxBuf;
 	server->max_rw = le32_to_cpu(pSMBr->MaxRawSize);
 	cifs_dbg(NOISY, "Max buf = %d\n", ses->server->maxBuf);
@@ -2559,7 +2558,8 @@ CIFSSMBPosixLock(const unsigned int xid, struct cifs_tcon *tcon,
 
 			pLockData->fl_start = le64_to_cpu(parm_data->start);
 			pLockData->fl_end = pLockData->fl_start +
-					le64_to_cpu(parm_data->length) - 1;
+				(le64_to_cpu(parm_data->length) ?
+				 le64_to_cpu(parm_data->length) - 1 : 0);
 			pLockData->fl_pid = -le32_to_cpu(parm_data->pid);
 		}
 	}

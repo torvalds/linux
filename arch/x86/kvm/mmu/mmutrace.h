@@ -54,6 +54,7 @@
 	{ PFERR_RSVD_MASK, "RSVD" },	\
 	{ PFERR_FETCH_MASK, "F" }
 
+TRACE_DEFINE_ENUM(RET_PF_CONTINUE);
 TRACE_DEFINE_ENUM(RET_PF_RETRY);
 TRACE_DEFINE_ENUM(RET_PF_EMULATE);
 TRACE_DEFINE_ENUM(RET_PF_INVALID);
@@ -414,6 +415,29 @@ TRACE_EVENT(
 		  __entry->as_id, __entry->gfn, __entry->level,
 		  __entry->old_spte, __entry->new_spte
 	)
+);
+
+TRACE_EVENT(
+	kvm_mmu_split_huge_page,
+	TP_PROTO(u64 gfn, u64 spte, int level, int errno),
+	TP_ARGS(gfn, spte, level, errno),
+
+	TP_STRUCT__entry(
+		__field(u64, gfn)
+		__field(u64, spte)
+		__field(int, level)
+		__field(int, errno)
+	),
+
+	TP_fast_assign(
+		__entry->gfn = gfn;
+		__entry->spte = spte;
+		__entry->level = level;
+		__entry->errno = errno;
+	),
+
+	TP_printk("gfn %llx spte %llx level %d errno %d",
+		  __entry->gfn, __entry->spte, __entry->level, __entry->errno)
 );
 
 #endif /* _TRACE_KVMMMU_H */

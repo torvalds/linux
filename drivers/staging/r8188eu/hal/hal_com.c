@@ -20,23 +20,31 @@ void dump_chip_info(struct HAL_VERSION	chip_vers)
 		       "Normal_Chip" : "Test_Chip");
 	cnt += sprintf((buf + cnt), "%s_", IS_CHIP_VENDOR_TSMC(chip_vers) ?
 		       "TSMC" : "UMC");
-	if (IS_A_CUT(chip_vers))
+
+	switch (chip_vers.CUTVersion) {
+	case A_CUT_VERSION:
 		cnt += sprintf((buf + cnt), "A_CUT_");
-	else if (IS_B_CUT(chip_vers))
+		break;
+	case B_CUT_VERSION:
 		cnt += sprintf((buf + cnt), "B_CUT_");
-	else if (IS_C_CUT(chip_vers))
+		break;
+	case C_CUT_VERSION:
 		cnt += sprintf((buf + cnt), "C_CUT_");
-	else if (IS_D_CUT(chip_vers))
+		break;
+	case D_CUT_VERSION:
 		cnt += sprintf((buf + cnt), "D_CUT_");
-	else if (IS_E_CUT(chip_vers))
+		break;
+	case E_CUT_VERSION:
 		cnt += sprintf((buf + cnt), "E_CUT_");
-	else
-		cnt += sprintf((buf + cnt), "UNKNOWN_CUT(%d)_",
-			       chip_vers.CUTVersion);
+		break;
+	default:
+		cnt += sprintf((buf + cnt), "UNKNOWN_CUT(%d)_", chip_vers.CUTVersion);
+		break;
+	}
 
 	cnt += sprintf((buf + cnt), "1T1R_");
 
-	cnt += sprintf((buf + cnt), "RomVer(%d)\n", chip_vers.ROMVer);
+	cnt += sprintf((buf + cnt), "RomVer(%d)\n", 0);
 
 	pr_info("%s", buf);
 }
@@ -259,7 +267,7 @@ static void three_out_pipe(struct adapter *adapter, bool wifi_cfg)
 bool Hal_MappingOutPipe(struct adapter *adapter, u8 numoutpipe)
 {
 	struct registry_priv *pregistrypriv = &adapter->registrypriv;
-	bool  wifi_cfg = (pregistrypriv->wifi_spec) ? true : false;
+	bool wifi_cfg = pregistrypriv->wifi_spec;
 	bool result = true;
 
 	switch (numoutpipe) {
@@ -279,21 +287,11 @@ bool Hal_MappingOutPipe(struct adapter *adapter, u8 numoutpipe)
 	return result;
 }
 
-void hal_init_macaddr(struct adapter *adapter)
-{
-	SetHwReg8188EU(adapter, HW_VAR_MAC_ADDR, adapter->eeprompriv.mac_addr);
-}
-
 /*
 * C2H event format:
 * Field	 TRIGGER		CONTENT	   CMD_SEQ	CMD_LEN		 CMD_ID
 * BITS	 [127:120]	[119:16]      [15:8]		  [7:4]		   [3:0]
 */
-
-void c2h_evt_clear(struct adapter *adapter)
-{
-	rtw_write8(adapter, REG_C2HEVT_CLEAR, C2H_EVT_HOST_CLOSE);
-}
 
 s32 c2h_evt_read(struct adapter *adapter, u8 *buf)
 {
@@ -332,7 +330,7 @@ clear_evt:
 	* If this field isn't clear, the FW won't update the next
 	* command message.
 	*/
-	c2h_evt_clear(adapter);
+	rtw_write8(adapter, REG_C2HEVT_CLEAR, C2H_EVT_HOST_CLOSE);
 exit:
 	return ret;
 }

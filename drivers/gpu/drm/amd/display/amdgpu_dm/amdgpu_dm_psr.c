@@ -27,51 +27,8 @@
 #include "dc.h"
 #include "dm_helpers.h"
 #include "amdgpu_dm.h"
+#include "modules/power/power_helpers.h"
 
-static bool link_get_psr_caps(struct dc_link *link)
-{
-	uint8_t psr_dpcd_data[EDP_PSR_RECEIVER_CAP_SIZE];
-	uint8_t edp_rev_dpcd_data;
-
-
-
-	if (!dm_helpers_dp_read_dpcd(NULL, link, DP_PSR_SUPPORT,
-				    psr_dpcd_data, sizeof(psr_dpcd_data)))
-		return false;
-
-	if (!dm_helpers_dp_read_dpcd(NULL, link, DP_EDP_DPCD_REV,
-				    &edp_rev_dpcd_data, sizeof(edp_rev_dpcd_data)))
-		return false;
-
-	link->dpcd_caps.psr_caps.psr_version = psr_dpcd_data[0];
-	link->dpcd_caps.psr_caps.edp_revision = edp_rev_dpcd_data;
-
-#ifdef CONFIG_DRM_AMD_DC_DCN
-	if (link->dpcd_caps.psr_caps.psr_version > 0x1) {
-		uint8_t alpm_dpcd_data;
-		uint8_t su_granularity_dpcd_data;
-
-		if (!dm_helpers_dp_read_dpcd(NULL, link, DP_RECEIVER_ALPM_CAP,
-						&alpm_dpcd_data, sizeof(alpm_dpcd_data)))
-			return false;
-
-		if (!dm_helpers_dp_read_dpcd(NULL, link, DP_PSR2_SU_Y_GRANULARITY,
-						&su_granularity_dpcd_data, sizeof(su_granularity_dpcd_data)))
-			return false;
-
-		link->dpcd_caps.psr_caps.y_coordinate_required = psr_dpcd_data[1] & DP_PSR2_SU_Y_COORDINATE_REQUIRED;
-		link->dpcd_caps.psr_caps.su_granularity_required = psr_dpcd_data[1] & DP_PSR2_SU_GRANULARITY_REQUIRED;
-
-		link->dpcd_caps.psr_caps.alpm_cap = alpm_dpcd_data & DP_ALPM_CAP;
-		link->dpcd_caps.psr_caps.standby_support = alpm_dpcd_data & (1 << 1);
-
-		link->dpcd_caps.psr_caps.su_y_granularity = su_granularity_dpcd_data;
-	}
-#endif
-	return true;
-}
-
-#ifdef CONFIG_DRM_AMD_DC_DCN
 static bool link_supports_psrsu(struct dc_link *link)
 {
 	struct dc *dc = link->ctx->dc;
@@ -82,17 +39,19 @@ static bool link_supports_psrsu(struct dc_link *link)
 	if (dc->ctx->dce_version < DCN_VERSION_3_1)
 		return false;
 
-	if (!link->dpcd_caps.psr_caps.alpm_cap ||
-	    !link->dpcd_caps.psr_caps.y_coordinate_required)
+	if (!is_psr_su_specific_panel(link))
 		return false;
 
-	if (link->dpcd_caps.psr_caps.su_granularity_required &&
-	    !link->dpcd_caps.psr_caps.su_y_granularity)
+	if (!link->dpcd_caps.alpm_caps.bits.AUX_WAKE_ALPM_CAP ||
+	    !link->dpcd_caps.psr_info.psr_dpcd_caps.bits.Y_COORDINATE_REQUIRED)
+		return false;
+
+	if (link->dpcd_caps.psr_info.psr_dpcd_caps.bits.SU_GRANULARITY_REQUIRED &&
+	    !link->dpcd_caps.psr_info.psr2_su_y_granularity_cap)
 		return false;
 
 	return true;
 }
-#endif
 
 /*
  * amdgpu_dm_set_psr_caps() - set link psr capabilities
@@ -107,27 +66,23 @@ void amdgpu_dm_set_psr_caps(struct dc_link *link)
 	if (link->type == dc_connection_none)
 		return;
 
-	if (!link_get_psr_caps(link)) {
-		DRM_ERROR("amdgpu: Failed to read PSR Caps!\n");
-		return;
-	}
-
-	if (link->dpcd_caps.psr_caps.psr_version == 0) {
+	if (link->dpcd_caps.psr_info.psr_version == 0) {
 		link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
 		link->psr_settings.psr_feature_enabled = false;
 
 	} else {
-#ifdef CONFIG_DRM_AMD_DC_DCN
 		if (link_supports_psrsu(link))
 			link->psr_settings.psr_version = DC_PSR_VERSION_SU_1;
 		else
-#endif
 			link->psr_settings.psr_version = DC_PSR_VERSION_1;
 
 		link->psr_settings.psr_feature_enabled = true;
 	}
 
-	DRM_INFO("PSR support:%d\n", link->psr_settings.psr_feature_enabled);
+	DRM_INFO("PSR support %d, DC PSR ver %d, sink PSR ver %d\n",
+		link->psr_settings.psr_feature_enabled,
+		link->psr_settings.psr_version,
+		link->dpcd_caps.psr_info.psr_version);
 
 }
 
@@ -149,10 +104,8 @@ bool amdgpu_dm_link_setup_psr(struct dc_stream_state *stream)
 
 	link = stream->link;
 
-	psr_config.psr_version = link->dpcd_caps.psr_caps.psr_version;
-
-	if (psr_config.psr_version > 0) {
-		psr_config.psr_exit_link_training_required = 0x1;
+	if (link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED) {
+		psr_config.psr_version = link->psr_settings.psr_version;
 		psr_config.psr_frame_capture_indication_req = 0;
 		psr_config.psr_rfb_setup_time = 0x37;
 		psr_config.psr_sdp_transmit_line_num_deadline = 0x20;

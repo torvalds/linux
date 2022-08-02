@@ -181,6 +181,12 @@ void btrfs_clear_space_info_full(struct btrfs_fs_info *info)
 		found->full = 0;
 }
 
+/*
+ * Block groups with more than this value (percents) of unusable space will be
+ * scheduled for background reclaim.
+ */
+#define BTRFS_DEFAULT_ZONED_RECLAIM_THRESH			(75)
+
 static int create_space_info(struct btrfs_fs_info *info, u64 flags)
 {
 
@@ -202,6 +208,9 @@ static int create_space_info(struct btrfs_fs_info *info, u64 flags)
 	INIT_LIST_HEAD(&space_info->tickets);
 	INIT_LIST_HEAD(&space_info->priority_tickets);
 	space_info->clamp = 1;
+
+	if (btrfs_is_zoned(info))
+		space_info->bg_reclaim_threshold = BTRFS_DEFAULT_ZONED_RECLAIM_THRESH;
 
 	ret = btrfs_sysfs_add_space_info_type(info, space_info);
 	if (ret)
@@ -519,7 +528,7 @@ static void shrink_delalloc(struct btrfs_fs_info *fs_info,
 		items = calc_reclaim_items_nr(fs_info, to_reclaim) * 2;
 	}
 
-	trans = (struct btrfs_trans_handle *)current->journal_info;
+	trans = current->journal_info;
 
 	/*
 	 * If we are doing more ordered than delalloc we need to just wait on
@@ -736,6 +745,8 @@ static bool need_preemptive_reclaim(struct btrfs_fs_info *fs_info,
 	u64 ordered, delalloc;
 	u64 thresh = div_factor_fine(space_info->total_bytes, 90);
 	u64 used;
+
+	lockdep_assert_held(&space_info->lock);
 
 	/* If we're just plain full then async reclaim just slows us down. */
 	if ((space_info->bytes_used + space_info->bytes_reserved +
@@ -1061,7 +1072,6 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
 			trans_rsv->reserved;
 		if (block_rsv_size < space_info->bytes_may_use)
 			delalloc_size = space_info->bytes_may_use - block_rsv_size;
-		spin_unlock(&space_info->lock);
 
 		/*
 		 * We don't want to include the global_rsv in our calculation,
@@ -1091,6 +1101,8 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
 			to_reclaim = delayed_refs_rsv->reserved;
 			flush = FLUSH_DELAYED_REFS_NR;
 		}
+
+		spin_unlock(&space_info->lock);
 
 		/*
 		 * We don't want to reclaim everything, just a portion, so scale

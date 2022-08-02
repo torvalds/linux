@@ -132,6 +132,9 @@ extern int SendReceiveBlockingLock(const unsigned int xid,
 			struct smb_hdr *out_buf,
 			int *bytes_returned);
 void
+cifs_signal_cifsd_for_reconnect(struct TCP_Server_Info *server,
+				      bool all_channels);
+void
 cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 				      bool mark_smb_session);
 extern int cifs_reconnect(struct TCP_Server_Info *server,
@@ -616,6 +619,15 @@ unsigned int
 cifs_ses_get_chan_index(struct cifs_ses *ses,
 			struct TCP_Server_Info *server);
 void
+cifs_chan_set_in_reconnect(struct cifs_ses *ses,
+			     struct TCP_Server_Info *server);
+void
+cifs_chan_clear_in_reconnect(struct cifs_ses *ses,
+			       struct TCP_Server_Info *server);
+bool
+cifs_chan_in_reconnect(struct cifs_ses *ses,
+			  struct TCP_Server_Info *server);
+void
 cifs_chan_set_need_reconnect(struct cifs_ses *ses,
 			     struct TCP_Server_Info *server);
 void
@@ -624,6 +636,13 @@ cifs_chan_clear_need_reconnect(struct cifs_ses *ses,
 bool
 cifs_chan_needs_reconnect(struct cifs_ses *ses,
 			  struct TCP_Server_Info *server);
+bool
+cifs_chan_is_iface_active(struct cifs_ses *ses,
+			  struct TCP_Server_Info *server);
+int
+cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server);
+int
+SMB3_request_interfaces(const unsigned int xid, struct cifs_tcon *tcon);
 
 void extract_unc_hostname(const char *unc, const char **h, size_t *len);
 int copy_path_name(char *dst, const char *src);

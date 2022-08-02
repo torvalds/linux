@@ -25,15 +25,15 @@ LANG=en_US.UTF-8; export LANG
 
 dur=$((30*60))
 dryrun=""
-KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
-PATH=${KVM}/bin:$PATH; export PATH
+RCUTORTURE="`pwd`/tools/testing/selftests/rcutorture"; export RCUTORTURE
+PATH=${RCUTORTURE}/bin:$PATH; export PATH
 . functions.sh
 
 TORTURE_ALLOTED_CPUS="`identify_qemu_vcpus`"
 TORTURE_DEFCONFIG=defconfig
 TORTURE_BOOT_IMAGE=""
 TORTURE_BUILDONLY=
-TORTURE_INITRD="$KVM/initrd"; export TORTURE_INITRD
+TORTURE_INITRD="$RCUTORTURE/initrd"; export TORTURE_INITRD
 TORTURE_KCONFIG_ARG=""
 TORTURE_KCONFIG_GDB_ARG=""
 TORTURE_BOOT_GDB_ARG=""
@@ -44,6 +44,7 @@ TORTURE_KCONFIG_KASAN_ARG=""
 TORTURE_KCONFIG_KCSAN_ARG=""
 TORTURE_KMAKE_ARG=""
 TORTURE_QEMU_MEM=512
+torture_qemu_mem_default=1
 TORTURE_REMOTE=
 TORTURE_SHUTDOWN_GRACE=180
 TORTURE_SUITE=rcu
@@ -86,7 +87,7 @@ usage () {
 	echo "       --remote"
 	echo "       --results absolute-pathname"
 	echo "       --shutdown-grace seconds"
-	echo "       --torture lock|rcu|rcuscale|refscale|scf"
+	echo "       --torture lock|rcu|rcuscale|refscale|scf|X*"
 	echo "       --trust-make"
 	exit 1
 }
@@ -180,6 +181,10 @@ do
 		;;
 	--kasan)
 		TORTURE_KCONFIG_KASAN_ARG="CONFIG_DEBUG_INFO=y CONFIG_KASAN=y"; export TORTURE_KCONFIG_KASAN_ARG
+		if test -n "$torture_qemu_mem_default"
+		then
+			TORTURE_QEMU_MEM=2G
+		fi
 		;;
 	--kconfig|--kconfigs)
 		checkarg --kconfig "(Kconfig options)" $# "$2" '^CONFIG_[A-Z0-9_]\+=\([ynm]\|[0-9]\+\)\( CONFIG_[A-Z0-9_]\+=\([ynm]\|[0-9]\+\)\)*$' '^error$'
@@ -202,6 +207,7 @@ do
 	--memory)
 		checkarg --memory "(memory size)" $# "$2" '^[0-9]\+[MG]\?$' error
 		TORTURE_QEMU_MEM=$2
+		torture_qemu_mem_default=
 		shift
 		;;
 	--no-initrd)
@@ -231,7 +237,7 @@ do
 		shift
 		;;
 	--torture)
-		checkarg --torture "(suite name)" "$#" "$2" '^\(lock\|rcu\|rcuscale\|refscale\|scf\)$' '^--'
+		checkarg --torture "(suite name)" "$#" "$2" '^\(lock\|rcu\|rcuscale\|refscale\|scf\|X.*\)$' '^--'
 		TORTURE_SUITE=$2
 		TORTURE_MOD="`echo $TORTURE_SUITE | sed -e 's/^\(lock\|rcu\|scf\)$/\1torture/'`"
 		shift
@@ -262,7 +268,7 @@ else
 	exit 1
 fi
 
-CONFIGFRAG=${KVM}/configs/${TORTURE_SUITE}; export CONFIGFRAG
+CONFIGFRAG=${RCUTORTURE}/configs/${TORTURE_SUITE}; export CONFIGFRAG
 
 defaultconfigs="`tr '\012' ' ' < $CONFIGFRAG/CFLIST`"
 if test -z "$configs"
@@ -272,7 +278,7 @@ fi
 
 if test -z "$resdir"
 then
-	resdir=$KVM/res
+	resdir=$RCUTORTURE/res
 fi
 
 # Create a file of test-name/#cpus pairs, sorted by decreasing #cpus.
@@ -280,7 +286,7 @@ configs_derep=
 for CF in $configs
 do
 	case $CF in
-	[0-9]\**|[0-9][0-9]\**|[0-9][0-9][0-9]\**)
+	[0-9]\**|[0-9][0-9]\**|[0-9][0-9][0-9]\**|[0-9][0-9][0-9][0-9]\**)
 		config_reps=`echo $CF | sed -e 's/\*.*$//'`
 		CF1=`echo $CF | sed -e 's/^[^*]*\*//'`
 		;;
@@ -386,7 +392,7 @@ END {
 # Generate a script to execute the tests in appropriate batches.
 cat << ___EOF___ > $T/script
 CONFIGFRAG="$CONFIGFRAG"; export CONFIGFRAG
-KVM="$KVM"; export KVM
+RCUTORTURE="$RCUTORTURE"; export RCUTORTURE
 PATH="$PATH"; export PATH
 TORTURE_ALLOTED_CPUS="$TORTURE_ALLOTED_CPUS"; export TORTURE_ALLOTED_CPUS
 TORTURE_BOOT_IMAGE="$TORTURE_BOOT_IMAGE"; export TORTURE_BOOT_IMAGE
@@ -569,7 +575,7 @@ ___EOF___
 awk < $T/cfgcpu.pack \
 	-v TORTURE_BUILDONLY="$TORTURE_BUILDONLY" \
 	-v CONFIGDIR="$CONFIGFRAG/" \
-	-v KVM="$KVM" \
+	-v RCUTORTURE="$RCUTORTURE" \
 	-v ncpus=$cpus \
 	-v jitter="$jitter" \
 	-v rd=$resdir/$ds/ \

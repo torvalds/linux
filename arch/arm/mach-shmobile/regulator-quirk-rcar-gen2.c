@@ -67,7 +67,7 @@ static const struct of_device_id rcar_gen2_quirk_match[] = {
 	{ .compatible = "dlg,da9063", .data = &da9063_msg },
 	{ .compatible = "dlg,da9063l", .data = &da9063_msg },
 	{ .compatible = "dlg,da9210", .data = &da9210_msg },
-	{},
+	{ /* sentinel */ }
 };
 
 static int regulator_quirk_notify(struct notifier_block *nb,

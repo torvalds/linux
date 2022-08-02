@@ -5,22 +5,26 @@ $id: http://devicetree.org/schemas/net/can/microchip,mcp251xfd.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title:
-  Microchip MCP2517FD and MCP2518FD stand-alone CAN controller device tree
-  bindings
+  Microchip MCP2517FD, MCP2518FD and MCP251863 stand-alone CAN
+  controller device tree bindings
 
 maintainers:
   - Marc Kleine-Budde <mkl@pengutronix.de>
 
+allOf:
+  - $ref: can-controller.yaml#
+
 properties:
   compatible:
     oneOf:
-      - const: microchip,mcp2517fd
-        description: for MCP2517FD
-      - const: microchip,mcp2518fd
-        description: for MCP2518FD
-      - const: microchip,mcp251xfd
-        description: to autodetect chip variant
-
+      - enum:
+          - microchip,mcp2517fd
+          - microchip,mcp2518fd
+          - microchip,mcp251xfd
+      - items:
+          - enum:
+              - microchip,mcp251863
+          - const: microchip,mcp2518fd
   reg:
     maxItems: 1
 

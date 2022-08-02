@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/genhd.h>
+#include <linux/blkdev.h>
 #include <linux/slab.h>
 
 struct bd_holder_disk {
@@ -78,10 +78,6 @@ int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk)
 	mutex_lock(&disk->open_mutex);
 
 	WARN_ON_ONCE(!bdev->bd_holder);
-
-	/* FIXME: remove the following once add_disk() handles errors */
-	if (WARN_ON(!bdev->bd_holder_dir))
-		goto out_unlock;
 
 	holder = bd_find_holder_disk(bdev, disk);
 	if (holder) {

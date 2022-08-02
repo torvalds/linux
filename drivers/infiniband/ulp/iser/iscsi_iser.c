@@ -650,7 +650,7 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 						   SHOST_DIX_GUARD_CRC);
 		}
 
-		if (!(ib_dev->attrs.device_cap_flags & IB_DEVICE_SG_GAPS_REG))
+		if (!(ib_dev->attrs.kernel_cap_flags & IBK_SG_GAPS_REG))
 			shost->virt_boundary_mask = SZ_4K - 1;
 
 		if (iscsi_host_add(shost, ib_dev->dev.parent)) {
@@ -971,6 +971,7 @@ static struct scsi_host_template iscsi_iser_sht = {
 	.proc_name              = "iscsi_iser",
 	.this_id                = -1,
 	.track_queue_depth	= 1,
+	.cmd_size		= sizeof(struct iscsi_cmd),
 };
 
 static struct iscsi_transport iscsi_iser_transport = {

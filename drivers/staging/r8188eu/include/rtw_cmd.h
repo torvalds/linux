@@ -55,8 +55,6 @@ struct	evt_priv {
 	#define C2H_QUEUE_MAX_LEN 10
 	atomic_t event_seq;
 	u8	*evt_buf;	/* shall be non-paged, and 4 bytes aligned */
-	u8	*evt_allocated_buf;
-	u32	evt_done_cnt;
 };
 
 #define init_h2fwcmd_w_parm_no_rsp(pcmd, pparm, code) \
@@ -73,7 +71,7 @@ struct c2h_evt_hdr {
 	u8 id:4;
 	u8 plen:4;
 	u8 seq;
-	u8 payload[0];
+	u8 payload[];
 };
 
 #define c2h_evt_exist(c2h_evt) ((c2h_evt)->id || (c2h_evt)->plen)
@@ -122,18 +120,6 @@ enum RFINTFS {
 	SWSI,
 	HWSI,
 	HWPI,
-};
-
-/*
-Caller Mode: Infra, Ad-HoC(C)
-
-Notes: To enter USB suspend mode
-
-Command Mode
-
-*/
-struct usb_suspend_parm {
-	u32 action;/*  1: sleep, 0:resume */
 };
 
 /*
@@ -662,25 +648,25 @@ struct getcurtxpwrlevel_rspi {
 struct setprobereqextraie_parm {
 	unsigned char e_id;
 	unsigned char ie_len;
-	unsigned char ie[0];
+	unsigned char ie[];
 };
 
 struct setassocreqextraie_parm {
 	unsigned char e_id;
 	unsigned char ie_len;
-	unsigned char ie[0];
+	unsigned char ie[];
 };
 
 struct setproberspextraie_parm {
 	unsigned char e_id;
 	unsigned char ie_len;
-	unsigned char ie[0];
+	unsigned char ie[];
 };
 
 struct setassocrspextraie_parm {
 	unsigned char e_id;
 	unsigned char ie_len;
-	unsigned char ie[0];
+	unsigned char ie[];
 };
 
 struct addBaReq_parm {
@@ -772,7 +758,7 @@ u8 rtw_ps_cmd(struct adapter*padapter);
 
 u8 rtw_chk_hi_queue_cmd(struct adapter*padapter);
 
-u8 rtw_set_chplan_cmd(struct adapter*padapter, u8 chplan, u8 enqueue);
+u8 rtw_set_chplan_cmd(struct adapter *padapter, u8 chplan);
 
 u8 rtw_c2h_wk_cmd(struct adapter *padapter, u8 *c2h_evt);
 

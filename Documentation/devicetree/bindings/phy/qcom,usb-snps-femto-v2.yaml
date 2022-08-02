@@ -7,7 +7,7 @@ $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 title: Qualcomm Synopsys Femto High-Speed USB PHY V2
 
 maintainers:
-  - Wesley Cheng <wcheng@codeaurora.org>
+  - Wesley Cheng <quic_wcheng@quicinc.com>
 
 description: |
   Qualcomm High-Speed USB PHY
@@ -15,8 +15,11 @@ description: |
 properties:
   compatible:
     enum:
+      - qcom,usb-snps-hs-5nm-phy
       - qcom,usb-snps-hs-7nm-phy
       - qcom,sc7280-usb-hs-phy
+      - qcom,sc8180x-usb-hs-phy
+      - qcom,sc8280xp-usb-hs-phy
       - qcom,sm8150-usb-hs-phy
       - qcom,sm8250-usb-hs-phy
       - qcom,sm8350-usb-hs-phy

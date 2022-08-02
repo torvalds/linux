@@ -30,12 +30,12 @@ static struct drbd_request *drbd_req_new(struct drbd_device *device, struct bio 
 		return NULL;
 	memset(req, 0, sizeof(*req));
 
-	req->private_bio = bio_clone_fast(bio_src, GFP_NOIO, &drbd_io_bio_set);
+	req->private_bio = bio_alloc_clone(device->ldev->backing_bdev, bio_src,
+					   GFP_NOIO, &drbd_io_bio_set);
 	req->private_bio->bi_private = req;
 	req->private_bio->bi_end_io = drbd_request_endio;
 
 	req->rq_state = (bio_data_dir(bio_src) == WRITE ? RQ_WRITE : 0)
-		      | (bio_op(bio_src) == REQ_OP_WRITE_SAME ? RQ_WSAME : 0)
 		      | (bio_op(bio_src) == REQ_OP_WRITE_ZEROES ? RQ_ZEROES : 0)
 		      | (bio_op(bio_src) == REQ_OP_DISCARD ? RQ_UNMAP : 0);
 	req->device = device;
@@ -180,7 +180,8 @@ void start_new_tl_epoch(struct drbd_connection *connection)
 void complete_master_bio(struct drbd_device *device,
 		struct bio_and_error *m)
 {
-	m->bio->bi_status = errno_to_blk_status(m->error);
+	if (unlikely(m->error))
+		m->bio->bi_status = errno_to_blk_status(m->error);
 	bio_endio(m->bio);
 	dec_ap_bio(device);
 }
@@ -332,17 +333,21 @@ static void set_if_null_req_next(struct drbd_peer_device *peer_device, struct dr
 static void advance_conn_req_next(struct drbd_peer_device *peer_device, struct drbd_request *req)
 {
 	struct drbd_connection *connection = peer_device ? peer_device->connection : NULL;
+	struct drbd_request *iter = req;
 	if (!connection)
 		return;
 	if (connection->req_next != req)
 		return;
-	list_for_each_entry_continue(req, &connection->transfer_log, tl_requests) {
-		const unsigned s = req->rq_state;
-		if (s & RQ_NET_QUEUED)
+
+	req = NULL;
+	list_for_each_entry_continue(iter, &connection->transfer_log, tl_requests) {
+		const unsigned int s = iter->rq_state;
+
+		if (s & RQ_NET_QUEUED) {
+			req = iter;
 			break;
+		}
 	}
-	if (&req->tl_requests == &connection->transfer_log)
-		req = NULL;
 	connection->req_next = req;
 }
 
@@ -358,17 +363,21 @@ static void set_if_null_req_ack_pending(struct drbd_peer_device *peer_device, st
 static void advance_conn_req_ack_pending(struct drbd_peer_device *peer_device, struct drbd_request *req)
 {
 	struct drbd_connection *connection = peer_device ? peer_device->connection : NULL;
+	struct drbd_request *iter = req;
 	if (!connection)
 		return;
 	if (connection->req_ack_pending != req)
 		return;
-	list_for_each_entry_continue(req, &connection->transfer_log, tl_requests) {
-		const unsigned s = req->rq_state;
-		if ((s & RQ_NET_SENT) && (s & RQ_NET_PENDING))
+
+	req = NULL;
+	list_for_each_entry_continue(iter, &connection->transfer_log, tl_requests) {
+		const unsigned int s = iter->rq_state;
+
+		if ((s & RQ_NET_SENT) && (s & RQ_NET_PENDING)) {
+			req = iter;
 			break;
+		}
 	}
-	if (&req->tl_requests == &connection->transfer_log)
-		req = NULL;
 	connection->req_ack_pending = req;
 }
 
@@ -384,17 +393,21 @@ static void set_if_null_req_not_net_done(struct drbd_peer_device *peer_device, s
 static void advance_conn_req_not_net_done(struct drbd_peer_device *peer_device, struct drbd_request *req)
 {
 	struct drbd_connection *connection = peer_device ? peer_device->connection : NULL;
+	struct drbd_request *iter = req;
 	if (!connection)
 		return;
 	if (connection->req_not_net_done != req)
 		return;
-	list_for_each_entry_continue(req, &connection->transfer_log, tl_requests) {
-		const unsigned s = req->rq_state;
-		if ((s & RQ_NET_SENT) && !(s & RQ_NET_DONE))
+
+	req = NULL;
+	list_for_each_entry_continue(iter, &connection->transfer_log, tl_requests) {
+		const unsigned int s = iter->rq_state;
+
+		if ((s & RQ_NET_SENT) && !(s & RQ_NET_DONE)) {
+			req = iter;
 			break;
+		}
 	}
-	if (&req->tl_requests == &connection->transfer_log)
-		req = NULL;
 	connection->req_not_net_done = req;
 }
 
@@ -909,8 +922,7 @@ static bool remote_due_to_read_balancing(struct drbd_device *device, sector_t se
 
 	switch (rbm) {
 	case RB_CONGESTED_REMOTE:
-		return bdi_read_congested(
-			device->ldev->backing_bdev->bd_disk->bdi);
+		return false;
 	case RB_LEAST_PENDING:
 		return atomic_read(&device->local_cnt) >
 			atomic_read(&device->ap_pending_cnt) + atomic_read(&device->rs_pending_cnt);
@@ -1150,8 +1162,6 @@ drbd_submit_req_private_bio(struct drbd_request *req)
 		type = DRBD_FAULT_DT_RA;
 	else
 		type = DRBD_FAULT_DT_RD;
-
-	bio_set_dev(bio, device->ldev->backing_bdev);
 
 	/* State may have changed since we grabbed our reference on the
 	 * ->ldev member. Double check, and short-circuit to endio.

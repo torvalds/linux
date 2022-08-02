@@ -9,6 +9,7 @@
  * See Documentation/core-api/xarray.rst for how to use the XArray.
  */
 
+#include <linux/bitmap.h>
 #include <linux/bug.h>
 #include <linux/compiler.h>
 #include <linux/gfp.h>
@@ -1317,6 +1318,7 @@ struct xa_state {
 	struct xa_node *xa_node;
 	struct xa_node *xa_alloc;
 	xa_update_node_t xa_update;
+	struct list_lru *xa_lru;
 };
 
 /*
@@ -1336,7 +1338,8 @@ struct xa_state {
 	.xa_pad = 0,					\
 	.xa_node = XAS_RESTART,				\
 	.xa_alloc = NULL,				\
-	.xa_update = NULL				\
+	.xa_update = NULL,				\
+	.xa_lru = NULL,					\
 }
 
 /**
@@ -1505,6 +1508,7 @@ void *xas_find_marked(struct xa_state *, unsigned long max, xa_mark_t);
 void xas_init_marks(const struct xa_state *);
 
 bool xas_nomem(struct xa_state *, gfp_t);
+void xas_destroy(struct xa_state *);
 void xas_pause(struct xa_state *);
 
 void xas_create_range(struct xa_state *);
@@ -1629,6 +1633,11 @@ static inline void xas_set_order(struct xa_state *xas, unsigned long index,
 static inline void xas_set_update(struct xa_state *xas, xa_update_node_t update)
 {
 	xas->xa_update = update;
+}
+
+static inline void xas_set_lru(struct xa_state *xas, struct list_lru *lru)
+{
+	xas->xa_lru = lru;
 }
 
 /**

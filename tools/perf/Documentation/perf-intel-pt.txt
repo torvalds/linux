@@ -108,9 +108,10 @@ displayed as follows:
 
 	perf script --itrace=ibxwpe -F+flags
 
-The flags are "bcrosyiABExgh" which stand for branch, call, return, conditional,
+The flags are "bcrosyiABExghDt" which stand for branch, call, return, conditional,
 system, asynchronous, interrupt, transaction abort, trace begin, trace end,
-in transaction, VM-entry, and VM-exit respectively.
+in transaction, VM-entry, VM-exit, interrupt disabled, and interrupt disable
+toggle respectively.
 
 perf script also supports higher level ways to dump instruction traces:
 
@@ -467,6 +468,8 @@ ptw		Enable PTWRITE packets which are produced when a ptwrite instruction
 		which contains "1" if the feature is supported and
 		"0" otherwise.
 
+		As an alternative, refer to "Emulated PTWRITE" further below.
+
 fup_on_ptw	Enable a FUP packet to follow the PTWRITE packet.  The FUP packet
 		provides the address of the ptwrite instruction.  In the absence of
 		fup_on_ptw, the decoder will use the address of the previous branch
@@ -479,6 +482,30 @@ pwr_evt		Enable power events.  The power events provide information about
 		Support for this feature is indicated by:
 
 			/sys/bus/event_source/devices/intel_pt/caps/power_event_trace
+
+		which contains "1" if the feature is supported and
+		"0" otherwise.
+
+event		Enable Event Trace.  The events provide information about asynchronous
+		events.
+
+		Support for this feature is indicated by:
+
+			/sys/bus/event_source/devices/intel_pt/caps/event_trace
+
+		which contains "1" if the feature is supported and
+		"0" otherwise.
+
+notnt		Disable TNT packets.  Without TNT packets, it is not possible to walk
+		executable code to reconstruct control flow, however FUP, TIP, TIP.PGE
+		and TIP.PGD packets still indicate asynchronous control flow, and (if
+		return compression is disabled - see noretcomp) return statements.
+		The advantage of eliminating TNT packets is reducing the size of the
+		trace and corresponding tracing overhead.
+
+		Support for this feature is indicated by:
+
+			/sys/bus/event_source/devices/intel_pt/caps/tnt_disable
 
 		which contains "1" if the feature is supported and
 		"0" otherwise.
@@ -876,6 +903,8 @@ The letters are:
 	p	synthesize "power" events (incl. PSB events)
 	c	synthesize branches events (calls only)
 	r	synthesize branches events (returns only)
+	o	synthesize PEBS-via-PT events
+	I	synthesize Event Trace events
 	e	synthesize tracing error events
 	d	create a debug log
 	g	synthesize a call chain (use with i or x)
@@ -1370,6 +1399,242 @@ There were none.
           :17006 17006 [001] 11500.262869216:  ffffffff8220116d error_entry+0xd ([guest.kernel.kallsyms])               pushq  %rcx
           :17006 17006 [001] 11500.262869216:  ffffffff8220116e error_entry+0xe ([guest.kernel.kallsyms])               pushq  %rax
 
+
+Tracing Virtual Machines - Guest Code
+-------------------------------------
+
+A common case for KVM test programs is that the test program acts as the
+hypervisor, creating, running and destroying the virtual machine, and
+providing the guest object code from its own object code. In this case,
+the VM is not running an OS, but only the functions loaded into it by the
+hypervisor test program, and conveniently, loaded at the same virtual
+addresses. To support that, option "--guest-code" has been added to perf script
+and perf kvm report.
+
+Here is an example tracing a test program from the kernel's KVM selftests:
+
+ # perf record --kcore -e intel_pt/cyc/ -- tools/testing/selftests/kselftest_install/kvm/tsc_msrs_test
+ [ perf record: Woken up 1 times to write data ]
+ [ perf record: Captured and wrote 0.280 MB perf.data ]
+ # perf script --guest-code --itrace=bep --ns -F-period,+addr,+flags
+ [SNIP]
+   tsc_msrs_test 18436 [007] 10897.962087733:      branches:   call                   ffffffffc13b2ff5 __vmx_vcpu_run+0x15 (vmlinux) => ffffffffc13b2f50 vmx_update_host_rsp+0x0 (vmlinux)
+   tsc_msrs_test 18436 [007] 10897.962087733:      branches:   return                 ffffffffc13b2f5d vmx_update_host_rsp+0xd (vmlinux) => ffffffffc13b2ffa __vmx_vcpu_run+0x1a (vmlinux)
+   tsc_msrs_test 18436 [007] 10897.962087733:      branches:   call                   ffffffffc13b303b __vmx_vcpu_run+0x5b (vmlinux) => ffffffffc13b2f80 vmx_vmenter+0x0 (vmlinux)
+   tsc_msrs_test 18436 [007] 10897.962087836:      branches:   vmentry                ffffffffc13b2f82 vmx_vmenter+0x2 (vmlinux) =>                0 [unknown] ([unknown])
+   [guest/18436] 18436 [007] 10897.962087836:      branches:   vmentry                               0 [unknown] ([unknown]) =>           402c81 guest_code+0x131 (/home/user/git/work/tools/testing/selftests/kselftest_install/kvm/tsc_msrs_test)
+   [guest/18436] 18436 [007] 10897.962087836:      branches:   call                             402c81 guest_code+0x131 (/home/user/git/work/tools/testing/selftests/kselftest_install/kvm/tsc_msrs_test) =>           40dba0 ucall+0x0 (/home/user/git/work/tools/testing/selftests/kselftest_install/kvm/tsc_msrs_test)
+   [guest/18436] 18436 [007] 10897.962088248:      branches:   vmexit                           40dba0 ucall+0x0 (/home/user/git/work/tools/testing/selftests/kselftest_install/kvm/tsc_msrs_test) =>                0 [unknown] ([unknown])
+   tsc_msrs_test 18436 [007] 10897.962088248:      branches:   vmexit                                0 [unknown] ([unknown]) => ffffffffc13b2fa0 vmx_vmexit+0x0 (vmlinux)
+   tsc_msrs_test 18436 [007] 10897.962088248:      branches:   jmp                    ffffffffc13b2fa0 vmx_vmexit+0x0 (vmlinux) => ffffffffc13b2fd2 vmx_vmexit+0x32 (vmlinux)
+   tsc_msrs_test 18436 [007] 10897.962088256:      branches:   return                 ffffffffc13b2fd2 vmx_vmexit+0x32 (vmlinux) => ffffffffc13b3040 __vmx_vcpu_run+0x60 (vmlinux)
+   tsc_msrs_test 18436 [007] 10897.962088270:      branches:   return                 ffffffffc13b30b6 __vmx_vcpu_run+0xd6 (vmlinux) => ffffffffc13b2f2e vmx_vcpu_enter_exit+0x4e (vmlinux)
+ [SNIP]
+   tsc_msrs_test 18436 [007] 10897.962089321:      branches:   call                   ffffffffc13b2ff5 __vmx_vcpu_run+0x15 (vmlinux) => ffffffffc13b2f50 vmx_update_host_rsp+0x0 (vmlinux)
+   tsc_msrs_test 18436 [007] 10897.962089321:      branches:   return                 ffffffffc13b2f5d vmx_update_host_rsp+0xd (vmlinux) => ffffffffc13b2ffa __vmx_vcpu_run+0x1a (vmlinux)
+   tsc_msrs_test 18436 [007] 10897.962089321:      branches:   call                   ffffffffc13b303b __vmx_vcpu_run+0x5b (vmlinux) => ffffffffc13b2f80 vmx_vmenter+0x0 (vmlinux)
+   tsc_msrs_test 18436 [007] 10897.962089424:      branches:   vmentry                ffffffffc13b2f82 vmx_vmenter+0x2 (vmlinux) =>                0 [unknown] ([unknown])
+   [guest/18436] 18436 [007] 10897.962089424:      branches:   vmentry                               0 [unknown] ([unknown]) =>           40dba0 ucall+0x0 (/home/user/git/work/tools/testing/selftests/kselftest_install/kvm/tsc_msrs_test)
+   [guest/18436] 18436 [007] 10897.962089701:      branches:   jmp                              40dc1b ucall+0x7b (/home/user/git/work/tools/testing/selftests/kselftest_install/kvm/tsc_msrs_test) =>           40dc39 ucall+0x99 (/home/user/git/work/tools/testing/selftests/kselftest_install/kvm/tsc_msrs_test)
+   [guest/18436] 18436 [007] 10897.962089701:      branches:   jcc                              40dc3c ucall+0x9c (/home/user/git/work/tools/testing/selftests/kselftest_install/kvm/tsc_msrs_test) =>           40dc20 ucall+0x80 (/home/user/git/work/tools/testing/selftests/kselftest_install/kvm/tsc_msrs_test)
+   [guest/18436] 18436 [007] 10897.962089701:      branches:   jcc                              40dc3c ucall+0x9c (/home/user/git/work/tools/testing/selftests/kselftest_install/kvm/tsc_msrs_test) =>           40dc20 ucall+0x80 (/home/user/git/work/tools/testing/selftests/kselftest_install/kvm/tsc_msrs_test)
+   [guest/18436] 18436 [007] 10897.962089701:      branches:   jcc                              40dc37 ucall+0x97 (/home/user/git/work/tools/testing/selftests/kselftest_install/kvm/tsc_msrs_test) =>           40dc50 ucall+0xb0 (/home/user/git/work/tools/testing/selftests/kselftest_install/kvm/tsc_msrs_test)
+   [guest/18436] 18436 [007] 10897.962089878:      branches:   vmexit                           40dc55 ucall+0xb5 (/home/user/git/work/tools/testing/selftests/kselftest_install/kvm/tsc_msrs_test) =>                0 [unknown] ([unknown])
+   tsc_msrs_test 18436 [007] 10897.962089878:      branches:   vmexit                                0 [unknown] ([unknown]) => ffffffffc13b2fa0 vmx_vmexit+0x0 (vmlinux)
+   tsc_msrs_test 18436 [007] 10897.962089878:      branches:   jmp                    ffffffffc13b2fa0 vmx_vmexit+0x0 (vmlinux) => ffffffffc13b2fd2 vmx_vmexit+0x32 (vmlinux)
+   tsc_msrs_test 18436 [007] 10897.962089887:      branches:   return                 ffffffffc13b2fd2 vmx_vmexit+0x32 (vmlinux) => ffffffffc13b3040 __vmx_vcpu_run+0x60 (vmlinux)
+   tsc_msrs_test 18436 [007] 10897.962089901:      branches:   return                 ffffffffc13b30b6 __vmx_vcpu_run+0xd6 (vmlinux) => ffffffffc13b2f2e vmx_vcpu_enter_exit+0x4e (vmlinux)
+ [SNIP]
+
+ # perf kvm --guest-code --guest --host report -i perf.data --stdio | head -20
+
+ # To display the perf.data header info, please use --header/--header-only options.
+ #
+ #
+ # Total Lost Samples: 0
+ #
+ # Samples: 12  of event 'instructions'
+ # Event count (approx.): 2274583
+ #
+ # Children      Self  Command        Shared Object         Symbol
+ # ........  ........  .............  ....................  ...........................................
+ #
+    54.70%     0.00%  tsc_msrs_test  [kernel.vmlinux]      [k] entry_SYSCALL_64_after_hwframe
+            |
+            ---entry_SYSCALL_64_after_hwframe
+               do_syscall_64
+               |
+               |--29.44%--syscall_exit_to_user_mode
+               |          exit_to_user_mode_prepare
+               |          task_work_run
+               |          __fput
+
+
+Event Trace
+-----------
+
+Event Trace records information about asynchronous events, for example interrupts,
+faults, VM exits and entries.  The information is recorded in CFE and EVD packets,
+and also the Interrupt Flag is recorded on the MODE.Exec packet.  The CFE packet
+contains a type field to identify one of the following:
+
+	 1	INTR		interrupt, fault, exception, NMI
+	 2	IRET		interrupt return
+	 3	SMI		system management interrupt
+	 4	RSM		resume from system management mode
+	 5	SIPI		startup interprocessor interrupt
+	 6	INIT		INIT signal
+	 7	VMENTRY		VM-Entry
+	 8	VMEXIT		VM-Entry
+	 9	VMEXIT_INTR	VM-Exit due to interrupt
+	10	SHUTDOWN	Shutdown
+
+For more details, refer to the Intel 64 and IA-32 Architectures Software
+Developer Manuals (version 076 or later).
+
+The capability to do Event Trace is indicated by the
+/sys/bus/event_source/devices/intel_pt/caps/event_trace file.
+
+Event trace is selected for recording using the "event" config term. e.g.
+
+	perf record -e intel_pt/event/u uname
+
+Event trace events are output using the --itrace I option. e.g.
+
+	perf script --itrace=Ie
+
+perf script displays events containing CFE type, vector and event data,
+in the form:
+
+	  evt:   hw int            (t)  cfe: INTR IP: 1 vector: 3 PFA: 0x8877665544332211
+
+The IP flag indicates if the event binds to an IP, which includes any case where
+flow control packet generation is enabled, as well as when CFE packet IP bit is
+set.
+
+perf script displays events containing changes to the Interrupt Flag in the form:
+
+	iflag:   t                      IFLAG: 1->0 via branch
+
+where "via branch" indicates a branch (interrupt or return from interrupt) and
+"non branch" indicates an instruction such as CFI, STI or POPF).
+
+In addition, the current state of the interrupt flag is indicated by the presence
+or absence of the "D" (interrupt disabled) perf script flag.  If the interrupt
+flag is changed, then the "t" flag is also included i.e.
+
+		no flag, interrupts enabled IF=1
+	t	interrupts become disabled IF=1 -> IF=0
+	D	interrupts are disabled IF=0
+	Dt	interrupts become enabled  IF=0 -> IF=1
+
+The intel-pt-events.py script illustrates how to access Event Trace information
+using a Python script.
+
+
+TNT Disable
+-----------
+
+TNT packets are disabled using the "notnt" config term. e.g.
+
+	perf record -e intel_pt/notnt/u uname
+
+In that case the --itrace q option is forced because walking executable code
+to reconstruct the control flow is not possible.
+
+
+Emulated PTWRITE
+----------------
+
+Later perf tools support a method to emulate the ptwrite instruction, which
+can be useful if hardware does not support the ptwrite instruction.
+
+Instead of using the ptwrite instruction, a function is used which produces
+a trace that encodes the payload data into TNT packets.  Here is an example
+of the function:
+
+ #include <stdint.h>
+
+ void perf_emulate_ptwrite(uint64_t x)
+ __attribute__((externally_visible, noipa, no_instrument_function, naked));
+
+ #define PERF_EMULATE_PTWRITE_8_BITS \
+                 "1: shl %rax\n"     \
+                 "   jc 1f\n"        \
+                 "1: shl %rax\n"     \
+                 "   jc 1f\n"        \
+                 "1: shl %rax\n"     \
+                 "   jc 1f\n"        \
+                 "1: shl %rax\n"     \
+                 "   jc 1f\n"        \
+                 "1: shl %rax\n"     \
+                 "   jc 1f\n"        \
+                 "1: shl %rax\n"     \
+                 "   jc 1f\n"        \
+                 "1: shl %rax\n"     \
+                 "   jc 1f\n"        \
+                 "1: shl %rax\n"     \
+                 "   jc 1f\n"
+
+ /* Undefined instruction */
+ #define PERF_EMULATE_PTWRITE_UD2        ".byte 0x0f, 0x0b\n"
+
+ #define PERF_EMULATE_PTWRITE_MAGIC        PERF_EMULATE_PTWRITE_UD2 ".ascii \"perf,ptwrite  \"\n"
+
+ void perf_emulate_ptwrite(uint64_t x __attribute__ ((__unused__)))
+ {
+          /* Assumes SysV ABI : x passed in rdi */
+         __asm__ volatile (
+                 "jmp 1f\n"
+                 PERF_EMULATE_PTWRITE_MAGIC
+                 "1: mov %rdi, %rax\n"
+                 PERF_EMULATE_PTWRITE_8_BITS
+                 PERF_EMULATE_PTWRITE_8_BITS
+                 PERF_EMULATE_PTWRITE_8_BITS
+                 PERF_EMULATE_PTWRITE_8_BITS
+                 PERF_EMULATE_PTWRITE_8_BITS
+                 PERF_EMULATE_PTWRITE_8_BITS
+                 PERF_EMULATE_PTWRITE_8_BITS
+                 PERF_EMULATE_PTWRITE_8_BITS
+                 "1: ret\n"
+         );
+ }
+
+For example, a test program with the function above:
+
+ #include <stdio.h>
+ #include <stdint.h>
+ #include <stdlib.h>
+
+ #include "perf_emulate_ptwrite.h"
+
+ int main(int argc, char *argv[])
+ {
+         uint64_t x = 0;
+
+         if (argc > 1)
+                 x = strtoull(argv[1], NULL, 0);
+         perf_emulate_ptwrite(x);
+         return 0;
+ }
+
+Can be compiled and traced:
+
+ $ gcc -Wall -Wextra -O3 -g -o eg_ptw eg_ptw.c
+ $ perf record -e intel_pt//u ./eg_ptw 0x1234567890abcdef
+ [ perf record: Woken up 1 times to write data ]
+ [ perf record: Captured and wrote 0.017 MB perf.data ]
+ $ perf script --itrace=ew
+           eg_ptw 19875 [007]  8061.235912:     ptwrite:  IP: 0 payload: 0x1234567890abcdef      55701249a196 perf_emulate_ptwrite+0x16 (/home/user/eg_ptw)
+ $
+
+
+EXAMPLE
+-------
+
+Examples can be found on perf wiki page "Perf tools support for Intel® Processor Trace":
+
+https://perf.wiki.kernel.org/index.php/Perf_tools_support_for_Intel%C2%AE_Processor_Trace
 
 
 SEE ALSO

@@ -234,7 +234,7 @@ static int broxton_da7219_codec_init(struct snd_soc_pcm_runtime *rtd)
 	ret = snd_soc_card_jack_new(rtd->card, "Headset Jack",
 			SND_JACK_HEADSET | SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 			SND_JACK_BTN_2 | SND_JACK_BTN_3 | SND_JACK_LINEOUT,
-			&broxton_headset, NULL, 0);
+			&broxton_headset);
 	if (ret) {
 		dev_err(rtd->dev, "Headset Jack creation failed: %d\n", ret);
 		return ret;
@@ -720,8 +720,7 @@ static int bxt_card_late_probe(struct snd_soc_card *card)
 		snprintf(jack_name, sizeof(jack_name),
 			"HDMI/DP, pcm=%d Jack", pcm->device);
 		err = snd_soc_card_jack_new(card, jack_name,
-					SND_JACK_AVOUT, &broxton_hdmi[i],
-					NULL, 0);
+					SND_JACK_AVOUT, &broxton_hdmi[i]);
 
 		if (err)
 			return err;
@@ -825,7 +824,7 @@ static int broxton_audio_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	mach = pdev->dev.platform_data;
 	platform_name = mach->mach_params.platform;
 

@@ -14,6 +14,7 @@
 
 #include <linux/errno.h>
 #include <linux/slab.h>
+#include <linux/jiffies.h>
 
 #include "ext4_jbd2.h"
 
@@ -51,6 +52,16 @@ int ext4_resize_begin(struct super_block *sb)
 
 	if (!capable(CAP_SYS_RESOURCE))
 		return -EPERM;
+
+	/*
+	 * If the reserved GDT blocks is non-zero, the resize_inode feature
+	 * should always be set.
+	 */
+	if (EXT4_SB(sb)->s_es->s_reserved_gdt_blocks &&
+	    !ext4_has_feature_resize_inode(sb)) {
+		ext4_error(sb, "resize_inode disabled but reserved GDT blocks non-zero");
+		return -EFSCORRUPTED;
+	}
 
 	/*
 	 * If we are not using the primary superblock/GDT copy don't resize,
@@ -483,7 +494,7 @@ static int set_flexbg_block_bitmap(struct super_block *sb, handle_t *handle,
 		}
 		ext4_debug("mark block bitmap %#04llx (+%llu/%u)\n",
 			   first_cluster, first_cluster - start, count2);
-		ext4_set_bits(bh->b_data, first_cluster - start, count2);
+		mb_set_bits(bh->b_data, first_cluster - start, count2);
 
 		err = ext4_handle_dirty_metadata(handle, NULL, bh);
 		brelse(bh);
@@ -632,7 +643,7 @@ handle_bb:
 		if (overhead != 0) {
 			ext4_debug("mark backup superblock %#04llx (+0)\n",
 				   start);
-			ext4_set_bits(bh->b_data, 0,
+			mb_set_bits(bh->b_data, 0,
 				      EXT4_NUM_B2C(sbi, overhead));
 		}
 		ext4_mark_bitmap_end(EXT4_B2C(sbi, group_data[i].blocks_count),
@@ -2100,7 +2111,7 @@ retry:
 	 */
 	while (ext4_setup_next_flex_gd(sb, flex_gd, n_blocks_count,
 					      flexbg_size)) {
-		if (jiffies - last_update_time > HZ * 10) {
+		if (time_is_before_jiffies(last_update_time + HZ * 10)) {
 			if (last_update_time)
 				ext4_msg(sb, KERN_INFO,
 					 "resized to %llu blocks",

@@ -30,9 +30,14 @@ struct perf_test_vcpu_args {
 
 struct perf_test_args {
 	struct kvm_vm *vm;
+	/* The starting address and size of the guest test region. */
 	uint64_t gpa;
+	uint64_t size;
 	uint64_t guest_page_size;
 	int wr_fract;
+
+	/* Run vCPUs in L2 instead of L1, if the architecture supports it. */
+	bool nested;
 
 	struct perf_test_vcpu_args vcpu_args[KVM_MAX_VCPUS];
 };
@@ -49,5 +54,9 @@ void perf_test_set_wr_fract(struct kvm_vm *vm, int wr_fract);
 
 void perf_test_start_vcpu_threads(int vcpus, void (*vcpu_fn)(struct perf_test_vcpu_args *));
 void perf_test_join_vcpu_threads(int vcpus);
+void perf_test_guest_code(uint32_t vcpu_id);
+
+uint64_t perf_test_nested_pages(int nr_vcpus);
+void perf_test_setup_nested(struct kvm_vm *vm, int nr_vcpus);
 
 #endif /* SELFTEST_KVM_PERF_TEST_UTIL_H */

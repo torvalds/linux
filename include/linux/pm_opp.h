@@ -32,14 +32,17 @@ enum dev_pm_opp_event {
  * @u_volt_min:	Minimum voltage in microvolts corresponding to this OPP
  * @u_volt_max:	Maximum voltage in microvolts corresponding to this OPP
  * @u_amp:	Maximum current drawn by the device in microamperes
+ * @u_watt:	Power used by the device in microwatts
  *
- * This structure stores the voltage/current values for a single power supply.
+ * This structure stores the voltage/current/power values for a single power
+ * supply.
  */
 struct dev_pm_opp_supply {
 	unsigned long u_volt;
 	unsigned long u_volt_min;
 	unsigned long u_volt_max;
 	unsigned long u_amp;
+	unsigned long u_watt;
 };
 
 /**
@@ -94,6 +97,8 @@ void dev_pm_opp_put_opp_table(struct opp_table *opp_table);
 
 unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp);
 
+unsigned long dev_pm_opp_get_power(struct dev_pm_opp *opp);
+
 unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp);
 
 unsigned int dev_pm_opp_get_level(struct dev_pm_opp *opp);
@@ -112,18 +117,25 @@ unsigned long dev_pm_opp_get_suspend_opp_freq(struct device *dev);
 struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 					      unsigned long freq,
 					      bool available);
-struct dev_pm_opp *dev_pm_opp_find_level_exact(struct device *dev,
-					       unsigned int level);
-struct dev_pm_opp *dev_pm_opp_find_level_ceil(struct device *dev,
-					      unsigned int *level);
-
 struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 					      unsigned long *freq);
 struct dev_pm_opp *dev_pm_opp_find_freq_ceil_by_volt(struct device *dev,
 						     unsigned long u_volt);
 
+struct dev_pm_opp *dev_pm_opp_find_level_exact(struct device *dev,
+					       unsigned int level);
+struct dev_pm_opp *dev_pm_opp_find_level_ceil(struct device *dev,
+					      unsigned int *level);
+
 struct dev_pm_opp *dev_pm_opp_find_freq_ceil(struct device *dev,
 					     unsigned long *freq);
+
+struct dev_pm_opp *dev_pm_opp_find_bw_ceil(struct device *dev,
+					   unsigned int *bw, int index);
+
+struct dev_pm_opp *dev_pm_opp_find_bw_floor(struct device *dev,
+					   unsigned int *bw, int index);
+
 void dev_pm_opp_put(struct dev_pm_opp *opp);
 
 int dev_pm_opp_add(struct device *dev, unsigned long freq,
@@ -186,6 +198,11 @@ static inline unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp)
 	return 0;
 }
 
+static inline unsigned long dev_pm_opp_get_power(struct dev_pm_opp *opp)
+{
+	return 0;
+}
+
 static inline unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp)
 {
 	return 0;
@@ -233,12 +250,6 @@ static inline unsigned long dev_pm_opp_get_suspend_opp_freq(struct device *dev)
 	return 0;
 }
 
-static inline struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
-					unsigned long freq, bool available)
-{
-	return ERR_PTR(-EOPNOTSUPP);
-}
-
 static inline struct dev_pm_opp *dev_pm_opp_find_level_exact(struct device *dev,
 					unsigned int level)
 {
@@ -247,6 +258,12 @@ static inline struct dev_pm_opp *dev_pm_opp_find_level_exact(struct device *dev,
 
 static inline struct dev_pm_opp *dev_pm_opp_find_level_ceil(struct device *dev,
 					unsigned int *level)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
+					unsigned long freq, bool available)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }
@@ -265,6 +282,18 @@ static inline struct dev_pm_opp *dev_pm_opp_find_freq_ceil_by_volt(struct device
 
 static inline struct dev_pm_opp *dev_pm_opp_find_freq_ceil(struct device *dev,
 					unsigned long *freq)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline struct dev_pm_opp *dev_pm_opp_find_bw_ceil(struct device *dev,
+					unsigned int *bw, int index)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline struct dev_pm_opp *dev_pm_opp_find_bw_floor(struct device *dev,
+					unsigned int *bw, int index)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }

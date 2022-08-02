@@ -63,10 +63,7 @@ void __show_regs(struct pt_regs *regs, enum show_regs_mode mode,
 	unsigned long d0, d1, d2, d3, d6, d7;
 	unsigned short gs;
 
-	if (user_mode(regs))
-		gs = get_user_gs(regs);
-	else
-		savesegment(gs, gs);
+	savesegment(gs, gs);
 
 	show_ip(regs, log_lvl);
 
@@ -114,7 +111,7 @@ void release_thread(struct task_struct *dead_task)
 void
 start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 {
-	set_user_gs(regs, 0);
+	loadsegment(gs, 0);
 	regs->fs		= 0;
 	regs->ds		= __USER_DS;
 	regs->es		= __USER_DS;
@@ -177,7 +174,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 * used %fs or %gs (it does not today), or if the kernel is
 	 * running inside of a hypervisor layer.
 	 */
-	lazy_save_gs(prev->gs);
+	savesegment(gs, prev->gs);
 
 	/*
 	 * Load the per-thread Thread-Local Storage descriptor.
@@ -208,7 +205,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 * Restore %gs if needed (which is common)
 	 */
 	if (prev->gs | next->gs)
-		lazy_load_gs(next->gs);
+		loadsegment(gs, next->gs);
 
 	this_cpu_write(current_task, next_p);
 
@@ -222,5 +219,5 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 
 SYSCALL_DEFINE2(arch_prctl, int, option, unsigned long, arg2)
 {
-	return do_arch_prctl_common(current, option, arg2);
+	return do_arch_prctl_common(option, arg2);
 }

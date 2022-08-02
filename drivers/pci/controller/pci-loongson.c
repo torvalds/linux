@@ -35,7 +35,7 @@ struct loongson_pci {
 /* Fixup wrong class code in PCIe bridges */
 static void bridge_class_quirk(struct pci_dev *dev)
 {
-	dev->class = PCI_CLASS_BRIDGE_PCI << 8;
+	dev->class = PCI_CLASS_BRIDGE_PCI_NORMAL;
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_LOONGSON,
 			DEV_PCIE_PORT_0, bridge_class_quirk);

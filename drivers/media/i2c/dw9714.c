@@ -5,6 +5,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
@@ -36,6 +37,7 @@ struct dw9714_device {
 	struct v4l2_ctrl_handler ctrls_vcm;
 	struct v4l2_subdev sd;
 	u16 current_val;
+	struct regulator *vcc;
 };
 
 static inline struct dw9714_device *to_dw9714_vcm(struct v4l2_ctrl *ctrl)
@@ -145,6 +147,16 @@ static int dw9714_probe(struct i2c_client *client)
 	if (dw9714_dev == NULL)
 		return -ENOMEM;
 
+	dw9714_dev->vcc = devm_regulator_get(&client->dev, "vcc");
+	if (IS_ERR(dw9714_dev->vcc))
+		return PTR_ERR(dw9714_dev->vcc);
+
+	rval = regulator_enable(dw9714_dev->vcc);
+	if (rval < 0) {
+		dev_err(&client->dev, "failed to enable vcc: %d\n", rval);
+		return rval;
+	}
+
 	v4l2_i2c_subdev_init(&dw9714_dev->sd, client, &dw9714_ops);
 	dw9714_dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
 				V4L2_SUBDEV_FL_HAS_EVENTS;
@@ -171,6 +183,7 @@ static int dw9714_probe(struct i2c_client *client)
 	return 0;
 
 err_cleanup:
+	regulator_disable(dw9714_dev->vcc);
 	v4l2_ctrl_handler_free(&dw9714_dev->ctrls_vcm);
 	media_entity_cleanup(&dw9714_dev->sd.entity);
 
@@ -181,8 +194,17 @@ static int dw9714_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct dw9714_device *dw9714_dev = sd_to_dw9714_vcm(sd);
+	int ret;
 
 	pm_runtime_disable(&client->dev);
+	if (!pm_runtime_status_suspended(&client->dev)) {
+		ret = regulator_disable(dw9714_dev->vcc);
+		if (ret) {
+			dev_err(&client->dev,
+				"Failed to disable vcc: %d\n", ret);
+		}
+	}
+	pm_runtime_set_suspended(&client->dev);
 	dw9714_subdev_cleanup(dw9714_dev);
 
 	return 0;
@@ -200,6 +222,9 @@ static int __maybe_unused dw9714_vcm_suspend(struct device *dev)
 	struct dw9714_device *dw9714_dev = sd_to_dw9714_vcm(sd);
 	int ret, val;
 
+	if (pm_runtime_suspended(&client->dev))
+		return 0;
+
 	for (val = dw9714_dev->current_val & ~(DW9714_CTRL_STEPS - 1);
 	     val >= 0; val -= DW9714_CTRL_STEPS) {
 		ret = dw9714_i2c_write(client,
@@ -208,7 +233,12 @@ static int __maybe_unused dw9714_vcm_suspend(struct device *dev)
 			dev_err_once(dev, "%s I2C failure: %d", __func__, ret);
 		usleep_range(DW9714_CTRL_DELAY_US, DW9714_CTRL_DELAY_US + 10);
 	}
-	return 0;
+
+	ret = regulator_disable(dw9714_dev->vcc);
+	if (ret)
+		dev_err(dev, "Failed to disable vcc: %d\n", ret);
+
+	return ret;
 }
 
 /*
@@ -223,6 +253,16 @@ static int  __maybe_unused dw9714_vcm_resume(struct device *dev)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct dw9714_device *dw9714_dev = sd_to_dw9714_vcm(sd);
 	int ret, val;
+
+	if (pm_runtime_suspended(&client->dev))
+		return 0;
+
+	ret = regulator_enable(dw9714_dev->vcc);
+	if (ret) {
+		dev_err(dev, "Failed to enable vcc: %d\n", ret);
+		return ret;
+	}
+	usleep_range(1000, 2000);
 
 	for (val = dw9714_dev->current_val % DW9714_CTRL_STEPS;
 	     val < dw9714_dev->current_val + DW9714_CTRL_STEPS - 1;

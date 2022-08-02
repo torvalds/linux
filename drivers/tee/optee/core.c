@@ -18,8 +18,8 @@
 #include <linux/workqueue.h>
 #include "optee_private.h"
 
-int optee_pool_op_alloc_helper(struct tee_shm_pool_mgr *poolm,
-			       struct tee_shm *shm, size_t size,
+int optee_pool_op_alloc_helper(struct tee_shm_pool *pool, struct tee_shm *shm,
+			       size_t size, size_t align,
 			       int (*shm_register)(struct tee_context *ctx,
 						   struct tee_shm *shm,
 						   struct page **pages,
@@ -30,6 +30,10 @@ int optee_pool_op_alloc_helper(struct tee_shm_pool_mgr *poolm,
 	struct page *page;
 	int rc = 0;
 
+	/*
+	 * Ignore alignment since this is already going to be page aligned
+	 * and there's no need for any larger alignment.
+	 */
 	page = alloc_pages(GFP_KERNEL | __GFP_ZERO, order);
 	if (!page)
 		return -ENOMEM;
@@ -51,7 +55,6 @@ int optee_pool_op_alloc_helper(struct tee_shm_pool_mgr *poolm,
 		for (i = 0; i < nr_pages; i++)
 			pages[i] = page + i;
 
-		shm->flags |= TEE_SHM_REGISTER;
 		rc = shm_register(shm->ctx, shm, pages, nr_pages,
 				  (unsigned long)shm->kaddr);
 		kfree(pages);
@@ -62,8 +65,18 @@ int optee_pool_op_alloc_helper(struct tee_shm_pool_mgr *poolm,
 	return 0;
 
 err:
-	__free_pages(page, order);
+	free_pages((unsigned long)shm->kaddr, order);
 	return rc;
+}
+
+void optee_pool_op_free_helper(struct tee_shm_pool *pool, struct tee_shm *shm,
+			       int (*shm_unregister)(struct tee_context *ctx,
+						     struct tee_shm *shm))
+{
+	if (shm_unregister)
+		shm_unregister(shm->ctx, shm);
+	free_pages((unsigned long)shm->kaddr, get_order(shm->size));
+	shm->kaddr = NULL;
 }
 
 static void optee_bus_scan(struct work_struct *work)
@@ -158,6 +171,7 @@ void optee_remove_common(struct optee *optee)
 	optee_unregister_devices();
 
 	optee_notif_uninit(optee);
+	optee_shm_arg_cache_uninit(optee);
 	teedev_close_context(optee->ctx);
 	/*
 	 * The two devices have to be unregistered before we can free the

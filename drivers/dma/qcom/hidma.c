@@ -431,6 +431,7 @@ hidma_prep_dma_memset(struct dma_chan *dmach, dma_addr_t dest, int value,
 	struct hidma_desc *mdesc = NULL;
 	struct hidma_dev *mdma = mchan->dmadev;
 	unsigned long irqflags;
+	u64 byte_pattern, fill_pattern;
 
 	/* Get free descriptor */
 	spin_lock_irqsave(&mchan->lock, irqflags);
@@ -443,9 +444,19 @@ hidma_prep_dma_memset(struct dma_chan *dmach, dma_addr_t dest, int value,
 	if (!mdesc)
 		return NULL;
 
+	byte_pattern = (char)value;
+	fill_pattern =	(byte_pattern << 56) |
+			(byte_pattern << 48) |
+			(byte_pattern << 40) |
+			(byte_pattern << 32) |
+			(byte_pattern << 24) |
+			(byte_pattern << 16) |
+			(byte_pattern << 8) |
+			byte_pattern;
+
 	mdesc->desc.flags = flags;
 	hidma_ll_set_transfer_params(mdma->lldev, mdesc->tre_ch,
-				     value, dest, len, flags,
+				     fill_pattern, dest, len, flags,
 				     HIDMA_TRE_MEMSET);
 
 	/* Place descriptor in prepared list */
@@ -838,9 +849,7 @@ static int hidma_probe(struct platform_device *pdev)
 	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (rc) {
 		dev_warn(&pdev->dev, "unable to set coherent mask to 64");
-		rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-		if (rc)
-			goto dmafree;
+		goto dmafree;
 	}
 
 	dmadev->lldev = hidma_ll_init(dmadev->ddev.dev,

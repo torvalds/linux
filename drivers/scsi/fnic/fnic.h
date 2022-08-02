@@ -39,7 +39,7 @@
 
 #define DRV_NAME		"fnic"
 #define DRV_DESCRIPTION		"Cisco FCoE HBA Driver"
-#define DRV_VERSION		"1.6.0.53"
+#define DRV_VERSION		"1.6.0.54"
 #define PFX			DRV_NAME ": "
 #define DFX                     DRV_NAME "%d: "
 
@@ -89,15 +89,28 @@
 #define FNIC_DEV_RST_ABTS_PENDING       BIT(21)
 
 /*
- * Usage of the scsi_cmnd scratchpad.
+ * fnic private data per SCSI command.
  * These fields are locked by the hashed io_req_lock.
  */
-#define CMD_SP(Cmnd)		((Cmnd)->SCp.ptr)
-#define CMD_STATE(Cmnd)		((Cmnd)->SCp.phase)
-#define CMD_ABTS_STATUS(Cmnd)	((Cmnd)->SCp.Message)
-#define CMD_LR_STATUS(Cmnd)	((Cmnd)->SCp.have_data_in)
-#define CMD_TAG(Cmnd)           ((Cmnd)->SCp.sent_command)
-#define CMD_FLAGS(Cmnd)         ((Cmnd)->SCp.Status)
+struct fnic_cmd_priv {
+	struct fnic_io_req *io_req;
+	enum fnic_ioreq_state state;
+	u32 flags;
+	u16 abts_status;
+	u16 lr_status;
+};
+
+static inline struct fnic_cmd_priv *fnic_priv(struct scsi_cmnd *cmd)
+{
+	return scsi_cmd_priv(cmd);
+}
+
+static inline u64 fnic_flags_and_state(struct scsi_cmnd *cmd)
+{
+	struct fnic_cmd_priv *fcmd = fnic_priv(cmd);
+
+	return ((u64)fcmd->flags << 32) | fcmd->state;
+}
 
 #define FCPIO_INVALID_CODE 0x100 /* hdr_status value unused by firmware */
 

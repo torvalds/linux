@@ -48,6 +48,7 @@
 			       X86_CR4_SMEP | X86_CR4_SMAP | X86_CR4_PKE)
 
 #define KVM_MMU_CR0_ROLE_BITS (X86_CR0_PG | X86_CR0_WP)
+#define KVM_MMU_EFER_ROLE_BITS (EFER_LME | EFER_NX)
 
 static __always_inline u64 rsvd_bits(int s, int e)
 {
@@ -64,7 +65,51 @@ static __always_inline u64 rsvd_bits(int s, int e)
 	return ((2ULL << (e - s)) - 1) << s;
 }
 
+/*
+ * The number of non-reserved physical address bits irrespective of features
+ * that repurpose legal bits, e.g. MKTME.
+ */
+extern u8 __read_mostly shadow_phys_bits;
+
+static inline gfn_t kvm_mmu_max_gfn(void)
+{
+	/*
+	 * Note that this uses the host MAXPHYADDR, not the guest's.
+	 * EPT/NPT cannot support GPAs that would exceed host.MAXPHYADDR;
+	 * assuming KVM is running on bare metal, guest accesses beyond
+	 * host.MAXPHYADDR will hit a #PF(RSVD) and never cause a vmexit
+	 * (either EPT Violation/Misconfig or #NPF), and so KVM will never
+	 * install a SPTE for such addresses.  If KVM is running as a VM
+	 * itself, on the other hand, it might see a MAXPHYADDR that is less
+	 * than hardware's real MAXPHYADDR.  Using the host MAXPHYADDR
+	 * disallows such SPTEs entirely and simplifies the TDP MMU.
+	 */
+	int max_gpa_bits = likely(tdp_enabled) ? shadow_phys_bits : 52;
+
+	return (1ULL << (max_gpa_bits - PAGE_SHIFT)) - 1;
+}
+
+static inline u8 kvm_get_shadow_phys_bits(void)
+{
+	/*
+	 * boot_cpu_data.x86_phys_bits is reduced when MKTME or SME are detected
+	 * in CPU detection code, but the processor treats those reduced bits as
+	 * 'keyID' thus they are not reserved bits. Therefore KVM needs to look at
+	 * the physical address bits reported by CPUID.
+	 */
+	if (likely(boot_cpu_data.extended_cpuid_level >= 0x80000008))
+		return cpuid_eax(0x80000008) & 0xff;
+
+	/*
+	 * Quite weird to have VMX or SVM but not MAXPHYADDR; probably a VM with
+	 * custom CPUID.  Proceed with whatever the kernel found since these features
+	 * aren't virtualizable (SME/SEV also require CPUIDs higher than 0x80000008).
+	 */
+	return boot_cpu_data.x86_phys_bits;
+}
+
 void kvm_mmu_set_mmio_spte_mask(u64 mmio_value, u64 mmio_mask, u64 access_mask);
+void kvm_mmu_set_me_spte_mask(u64 me_value, u64 me_mask);
 void kvm_mmu_set_ept_masks(bool has_ad_bits, bool has_exec_only);
 
 void kvm_init_mmu(struct kvm_vcpu *vcpu);
@@ -79,12 +124,13 @@ int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
 
 int kvm_mmu_load(struct kvm_vcpu *vcpu);
 void kvm_mmu_unload(struct kvm_vcpu *vcpu);
+void kvm_mmu_free_obsolete_roots(struct kvm_vcpu *vcpu);
 void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu);
 void kvm_mmu_sync_prev_roots(struct kvm_vcpu *vcpu);
 
 static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
 {
-	if (likely(vcpu->arch.mmu->root_hpa != INVALID_PAGE))
+	if (likely(vcpu->arch.mmu->root.hpa != INVALID_PAGE))
 		return 0;
 
 	return kvm_mmu_load(vcpu);
@@ -106,138 +152,13 @@ static inline unsigned long kvm_get_active_pcid(struct kvm_vcpu *vcpu)
 
 static inline void kvm_mmu_load_pgd(struct kvm_vcpu *vcpu)
 {
-	u64 root_hpa = vcpu->arch.mmu->root_hpa;
+	u64 root_hpa = vcpu->arch.mmu->root.hpa;
 
 	if (!VALID_PAGE(root_hpa))
 		return;
 
 	static_call(kvm_x86_load_mmu_pgd)(vcpu, root_hpa,
-					  vcpu->arch.mmu->shadow_root_level);
-}
-
-struct kvm_page_fault {
-	/* arguments to kvm_mmu_do_page_fault.  */
-	const gpa_t addr;
-	const u32 error_code;
-	const bool prefetch;
-
-	/* Derived from error_code.  */
-	const bool exec;
-	const bool write;
-	const bool present;
-	const bool rsvd;
-	const bool user;
-
-	/* Derived from mmu and global state.  */
-	const bool is_tdp;
-	const bool nx_huge_page_workaround_enabled;
-
-	/*
-	 * Whether a >4KB mapping can be created or is forbidden due to NX
-	 * hugepages.
-	 */
-	bool huge_page_disallowed;
-
-	/*
-	 * Maximum page size that can be created for this fault; input to
-	 * FNAME(fetch), __direct_map and kvm_tdp_mmu_map.
-	 */
-	u8 max_level;
-
-	/*
-	 * Page size that can be created based on the max_level and the
-	 * page size used by the host mapping.
-	 */
-	u8 req_level;
-
-	/*
-	 * Page size that will be created based on the req_level and
-	 * huge_page_disallowed.
-	 */
-	u8 goal_level;
-
-	/* Shifted addr, or result of guest page table walk if addr is a gva.  */
-	gfn_t gfn;
-
-	/* The memslot containing gfn. May be NULL. */
-	struct kvm_memory_slot *slot;
-
-	/* Outputs of kvm_faultin_pfn.  */
-	kvm_pfn_t pfn;
-	hva_t hva;
-	bool map_writable;
-};
-
-int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault);
-
-extern int nx_huge_pages;
-static inline bool is_nx_huge_page_enabled(void)
-{
-	return READ_ONCE(nx_huge_pages);
-}
-
-static inline int kvm_mmu_do_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
-					u32 err, bool prefetch)
-{
-	struct kvm_page_fault fault = {
-		.addr = cr2_or_gpa,
-		.error_code = err,
-		.exec = err & PFERR_FETCH_MASK,
-		.write = err & PFERR_WRITE_MASK,
-		.present = err & PFERR_PRESENT_MASK,
-		.rsvd = err & PFERR_RSVD_MASK,
-		.user = err & PFERR_USER_MASK,
-		.prefetch = prefetch,
-		.is_tdp = likely(vcpu->arch.mmu->page_fault == kvm_tdp_page_fault),
-		.nx_huge_page_workaround_enabled = is_nx_huge_page_enabled(),
-
-		.max_level = KVM_MAX_HUGEPAGE_LEVEL,
-		.req_level = PG_LEVEL_4K,
-		.goal_level = PG_LEVEL_4K,
-	};
-#ifdef CONFIG_RETPOLINE
-	if (fault.is_tdp)
-		return kvm_tdp_page_fault(vcpu, &fault);
-#endif
-	return vcpu->arch.mmu->page_fault(vcpu, &fault);
-}
-
-/*
- * Currently, we have two sorts of write-protection, a) the first one
- * write-protects guest page to sync the guest modification, b) another one is
- * used to sync dirty bitmap when we do KVM_GET_DIRTY_LOG. The differences
- * between these two sorts are:
- * 1) the first case clears MMU-writable bit.
- * 2) the first case requires flushing tlb immediately avoiding corrupting
- *    shadow page table between all vcpus so it should be in the protection of
- *    mmu-lock. And the another case does not need to flush tlb until returning
- *    the dirty bitmap to userspace since it only write-protects the page
- *    logged in the bitmap, that means the page in the dirty bitmap is not
- *    missed, so it can flush tlb out of mmu-lock.
- *
- * So, there is the problem: the first case can meet the corrupted tlb caused
- * by another case which write-protects pages but without flush tlb
- * immediately. In order to making the first case be aware this problem we let
- * it flush tlb if we try to write-protect a spte whose MMU-writable bit
- * is set, it works since another case never touches MMU-writable bit.
- *
- * Anyway, whenever a spte is updated (only permission and status bits are
- * changed) we need to check whether the spte with MMU-writable becomes
- * readonly, if that happens, we need to flush tlb. Fortunately,
- * mmu_spte_update() has already handled it perfectly.
- *
- * The rules to use MMU-writable and PT_WRITABLE_MASK:
- * - if we want to see if it has writable tlb entry or if the spte can be
- *   writable on the mmu mapping, check MMU-writable, this is the most
- *   case, otherwise
- * - if we fix page fault on the spte or do write-protection by dirty logging,
- *   check PT_WRITABLE_MASK.
- *
- * TODO: introduce APIs to split these two cases.
- */
-static inline bool is_writable_pte(unsigned long pte)
-{
-	return pte & PT_WRITABLE_MASK;
+					  vcpu->arch.mmu->root_role.level);
 }
 
 /*
@@ -250,27 +171,27 @@ static inline bool is_writable_pte(unsigned long pte)
  */
 static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 				  unsigned pte_access, unsigned pte_pkey,
-				  unsigned pfec)
+				  u64 access)
 {
-	int cpl = static_call(kvm_x86_get_cpl)(vcpu);
+	/* strip nested paging fault error codes */
+	unsigned int pfec = access;
 	unsigned long rflags = static_call(kvm_x86_get_rflags)(vcpu);
 
 	/*
-	 * If CPL < 3, SMAP prevention are disabled if EFLAGS.AC = 1.
+	 * For explicit supervisor accesses, SMAP is disabled if EFLAGS.AC = 1.
+	 * For implicit supervisor accesses, SMAP cannot be overridden.
 	 *
-	 * If CPL = 3, SMAP applies to all supervisor-mode data accesses
-	 * (these are implicit supervisor accesses) regardless of the value
-	 * of EFLAGS.AC.
+	 * SMAP works on supervisor accesses only, and not_smap can
+	 * be set or not set when user access with neither has any bearing
+	 * on the result.
 	 *
-	 * This computes (cpl < 3) && (rflags & X86_EFLAGS_AC), leaving
-	 * the result in X86_EFLAGS_AC. We then insert it in place of
-	 * the PFERR_RSVD_MASK bit; this bit will always be zero in pfec,
-	 * but it will be one in index if SMAP checks are being overridden.
-	 * It is important to keep this branchless.
+	 * We put the SMAP checking bit in place of the PFERR_RSVD_MASK bit;
+	 * this bit will always be zero in pfec, but it will be one in index
+	 * if SMAP checks are being disabled.
 	 */
-	unsigned long smap = (cpl - 3) & (rflags & X86_EFLAGS_AC);
-	int index = (pfec >> 1) +
-		    (smap >> (X86_EFLAGS_AC_BIT - PFERR_RSVD_BIT + 1));
+	u64 implicit_access = access & PFERR_IMPLICIT_ACCESS;
+	bool not_smap = ((rflags & X86_EFLAGS_AC) | implicit_access) == X86_EFLAGS_AC;
+	int index = (pfec + (not_smap << PFERR_RSVD_BIT)) >> 1;
 	bool fault = (mmu->permissions[index] >> pte_access) & 1;
 	u32 errcode = PFERR_PRESENT_MASK;
 
@@ -353,12 +274,12 @@ static inline void kvm_update_page_stats(struct kvm *kvm, int level, int count)
 	atomic64_add(count, &kvm->stat.pages[level - 1]);
 }
 
-gpa_t translate_nested_gpa(struct kvm_vcpu *vcpu, gpa_t gpa, u32 access,
+gpa_t translate_nested_gpa(struct kvm_vcpu *vcpu, gpa_t gpa, u64 access,
 			   struct x86_exception *exception);
 
 static inline gpa_t kvm_translate_gpa(struct kvm_vcpu *vcpu,
 				      struct kvm_mmu *mmu,
-				      gpa_t gpa, u32 access,
+				      gpa_t gpa, u64 access,
 				      struct x86_exception *exception)
 {
 	if (mmu != &vcpu->arch.nested_mmu)

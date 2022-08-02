@@ -19,7 +19,7 @@
 #include <asm/memtype.h>
 #include <asm/vmx.h>
 
-static bool __read_mostly enable_mmio_caching = true;
+bool __read_mostly enable_mmio_caching = true;
 module_param_named(mmio_caching, enable_mmio_caching, bool, 0444);
 
 u64 __read_mostly shadow_host_writable_mask;
@@ -33,6 +33,7 @@ u64 __read_mostly shadow_mmio_value;
 u64 __read_mostly shadow_mmio_mask;
 u64 __read_mostly shadow_mmio_access_mask;
 u64 __read_mostly shadow_present_mask;
+u64 __read_mostly shadow_me_value;
 u64 __read_mostly shadow_me_mask;
 u64 __read_mostly shadow_acc_track_mask;
 
@@ -90,6 +91,34 @@ static bool kvm_is_mmio_pfn(kvm_pfn_t pfn)
 				     E820_TYPE_RAM);
 }
 
+/*
+ * Returns true if the SPTE has bits that may be set without holding mmu_lock.
+ * The caller is responsible for checking if the SPTE is shadow-present, and
+ * for determining whether or not the caller cares about non-leaf SPTEs.
+ */
+bool spte_has_volatile_bits(u64 spte)
+{
+	/*
+	 * Always atomically update spte if it can be updated
+	 * out of mmu-lock, it can ensure dirty bit is not lost,
+	 * also, it can help us to get a stable is_writable_pte()
+	 * to ensure tlb flush is not missed.
+	 */
+	if (!is_writable_pte(spte) && is_mmu_writable_spte(spte))
+		return true;
+
+	if (is_access_track_spte(spte))
+		return true;
+
+	if (spte_ad_enabled(spte)) {
+		if (!(spte & shadow_accessed_mask) ||
+		    (is_writable_pte(spte) && !(spte & shadow_dirty_mask)))
+			return true;
+	}
+
+	return false;
+}
+
 bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	       const struct kvm_memory_slot *slot,
 	       unsigned int pte_access, gfn_t gfn, kvm_pfn_t pfn,
@@ -139,8 +168,8 @@ bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	else
 		pte_access &= ~ACC_WRITE_MASK;
 
-	if (!kvm_is_mmio_pfn(pfn))
-		spte |= shadow_me_mask;
+	if (shadow_me_value && !kvm_is_mmio_pfn(pfn))
+		spte |= shadow_me_value;
 
 	spte |= (u64)pfn << PAGE_SHIFT;
 
@@ -192,12 +221,71 @@ out:
 	return wrprot;
 }
 
+static u64 make_spte_executable(u64 spte)
+{
+	bool is_access_track = is_access_track_spte(spte);
+
+	if (is_access_track)
+		spte = restore_acc_track_spte(spte);
+
+	spte &= ~shadow_nx_mask;
+	spte |= shadow_x_mask;
+
+	if (is_access_track)
+		spte = mark_spte_for_access_track(spte);
+
+	return spte;
+}
+
+/*
+ * Construct an SPTE that maps a sub-page of the given huge page SPTE where
+ * `index` identifies which sub-page.
+ *
+ * This is used during huge page splitting to build the SPTEs that make up the
+ * new page table.
+ */
+u64 make_huge_page_split_spte(u64 huge_spte, int huge_level, int index)
+{
+	u64 child_spte;
+	int child_level;
+
+	if (WARN_ON_ONCE(!is_shadow_present_pte(huge_spte)))
+		return 0;
+
+	if (WARN_ON_ONCE(!is_large_pte(huge_spte)))
+		return 0;
+
+	child_spte = huge_spte;
+	child_level = huge_level - 1;
+
+	/*
+	 * The child_spte already has the base address of the huge page being
+	 * split. So we just have to OR in the offset to the page at the next
+	 * lower level for the given index.
+	 */
+	child_spte |= (index * KVM_PAGES_PER_HPAGE(child_level)) << PAGE_SHIFT;
+
+	if (child_level == PG_LEVEL_4K) {
+		child_spte &= ~PT_PAGE_SIZE_MASK;
+
+		/*
+		 * When splitting to a 4K page, mark the page executable as the
+		 * NX hugepage mitigation no longer applies.
+		 */
+		if (is_nx_huge_page_enabled())
+			child_spte = make_spte_executable(child_spte);
+	}
+
+	return child_spte;
+}
+
+
 u64 make_nonleaf_spte(u64 *child_pt, bool ad_disabled)
 {
 	u64 spte = SPTE_MMU_PRESENT_MASK;
 
 	spte |= __pa(child_pt) | shadow_present_mask | PT_WRITABLE_MASK |
-		shadow_user_mask | shadow_x_mask | shadow_me_mask;
+		shadow_user_mask | shadow_x_mask | shadow_me_value;
 
 	if (ad_disabled)
 		spte |= SPTE_TDP_AD_DISABLED_MASK;
@@ -223,25 +311,6 @@ u64 kvm_mmu_changed_pte_notifier_make_spte(u64 old_spte, kvm_pfn_t new_pfn)
 	return new_spte;
 }
 
-static u8 kvm_get_shadow_phys_bits(void)
-{
-	/*
-	 * boot_cpu_data.x86_phys_bits is reduced when MKTME or SME are detected
-	 * in CPU detection code, but the processor treats those reduced bits as
-	 * 'keyID' thus they are not reserved bits. Therefore KVM needs to look at
-	 * the physical address bits reported by CPUID.
-	 */
-	if (likely(boot_cpu_data.extended_cpuid_level >= 0x80000008))
-		return cpuid_eax(0x80000008) & 0xff;
-
-	/*
-	 * Quite weird to have VMX or SVM but not MAXPHYADDR; probably a VM with
-	 * custom CPUID.  Proceed with whatever the kernel found since these features
-	 * aren't virtualizable (SME/SEV also require CPUIDs higher than 0x80000008).
-	 */
-	return boot_cpu_data.x86_phys_bits;
-}
-
 u64 mark_spte_for_access_track(u64 spte)
 {
 	if (spte_ad_enabled(spte))
@@ -250,14 +319,7 @@ u64 mark_spte_for_access_track(u64 spte)
 	if (is_access_track_spte(spte))
 		return spte;
 
-	/*
-	 * Making an Access Tracking PTE will result in removal of write access
-	 * from the PTE. So, verify that we will be able to restore the write
-	 * access in the fast page fault path later on.
-	 */
-	WARN_ONCE((spte & PT_WRITABLE_MASK) &&
-		  !spte_can_locklessly_be_made_writable(spte),
-		  "kvm: Writable SPTE is not locklessly dirty-trackable\n");
+	check_spte_writable_invariants(spte);
 
 	WARN_ONCE(spte & (SHADOW_ACC_TRACK_SAVED_BITS_MASK <<
 			  SHADOW_ACC_TRACK_SAVED_BITS_SHIFT),
@@ -299,11 +361,25 @@ void kvm_mmu_set_mmio_spte_mask(u64 mmio_value, u64 mmio_mask, u64 access_mask)
 	    WARN_ON(mmio_value && (REMOVED_SPTE & mmio_mask) == mmio_value))
 		mmio_value = 0;
 
+	if (!mmio_value)
+		enable_mmio_caching = false;
+
 	shadow_mmio_value = mmio_value;
 	shadow_mmio_mask  = mmio_mask;
 	shadow_mmio_access_mask = access_mask;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_set_mmio_spte_mask);
+
+void kvm_mmu_set_me_spte_mask(u64 me_value, u64 me_mask)
+{
+	/* shadow_me_value must be a subset of shadow_me_mask */
+	if (WARN_ON(me_value & ~me_mask))
+		me_value = me_mask = 0;
+
+	shadow_me_value = me_value;
+	shadow_me_mask = me_mask;
+}
+EXPORT_SYMBOL_GPL(kvm_mmu_set_me_spte_mask);
 
 void kvm_mmu_set_ept_masks(bool has_ad_bits, bool has_exec_only)
 {
@@ -314,8 +390,6 @@ void kvm_mmu_set_ept_masks(bool has_ad_bits, bool has_exec_only)
 	shadow_x_mask		= VMX_EPT_EXECUTABLE_MASK;
 	shadow_present_mask	= has_exec_only ? 0ull : VMX_EPT_READABLE_MASK;
 	shadow_acc_track_mask	= VMX_EPT_RWX_MASK;
-	shadow_me_mask		= 0ull;
-
 	shadow_host_writable_mask = EPT_SPTE_HOST_WRITABLE;
 	shadow_mmu_writable_mask  = EPT_SPTE_MMU_WRITABLE;
 
@@ -366,10 +440,11 @@ void kvm_mmu_reset_all_pte_masks(void)
 	shadow_x_mask		= 0;
 	shadow_present_mask	= PT_PRESENT_MASK;
 	shadow_acc_track_mask	= 0;
-	shadow_me_mask		= sme_me_mask;
+	shadow_me_mask		= 0;
+	shadow_me_value		= 0;
 
-	shadow_host_writable_mask = DEFAULT_SPTE_HOST_WRITEABLE;
-	shadow_mmu_writable_mask  = DEFAULT_SPTE_MMU_WRITEABLE;
+	shadow_host_writable_mask = DEFAULT_SPTE_HOST_WRITABLE;
+	shadow_mmu_writable_mask  = DEFAULT_SPTE_MMU_WRITABLE;
 
 	/*
 	 * Set a reserved PA bit in MMIO SPTEs to generate page faults with

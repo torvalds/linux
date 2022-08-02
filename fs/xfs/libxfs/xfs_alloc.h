@@ -88,7 +88,6 @@ typedef struct xfs_alloc_arg {
 #define XFS_ALLOC_NOBUSY		(1 << 2)/* Busy extents not allowed */
 
 /* freespace limit calculations */
-#define XFS_ALLOC_AGFL_RESERVE	4
 unsigned int xfs_alloc_set_aside(struct xfs_mount *mp);
 unsigned int xfs_alloc_ag_max_usable(struct xfs_mount *mp);
 
@@ -122,7 +121,7 @@ void
 xfs_alloc_log_agf(
 	struct xfs_trans *tp,	/* transaction pointer */
 	struct xfs_buf	*bp,	/* buffer for a.g. freelist header */
-	int		fields);/* mask of fields to be logged (XFS_AGF_...) */
+	uint32_t	fields);/* mask of fields to be logged (XFS_AGF_...) */
 
 /*
  * Interface for inode allocation to force the pag data to be initialized.

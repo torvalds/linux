@@ -204,7 +204,6 @@ static int alloc_command_queues(struct otx_cptvf *cptvf,
 
 	/* per queue initialization */
 	for (i = 0; i < cptvf->num_queues; i++) {
-		c_size = 0;
 		rem_q_size = q_size;
 		first = NULL;
 		last = NULL;

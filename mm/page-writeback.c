@@ -70,30 +70,30 @@ static long ratelimit_pages = 32;
 /*
  * Start background writeback (via writeback threads) at this percentage
  */
-int dirty_background_ratio = 10;
+static int dirty_background_ratio = 10;
 
 /*
  * dirty_background_bytes starts at 0 (disabled) so that it is a function of
  * dirty_background_ratio * the amount of dirtyable memory
  */
-unsigned long dirty_background_bytes;
+static unsigned long dirty_background_bytes;
 
 /*
  * free highmem will not be subtracted from the total free memory
  * for calculating free ratios if vm_highmem_is_dirtyable is true
  */
-int vm_highmem_is_dirtyable;
+static int vm_highmem_is_dirtyable;
 
 /*
  * The generator of dirty data starts writeback at this percentage
  */
-int vm_dirty_ratio = 20;
+static int vm_dirty_ratio = 20;
 
 /*
  * vm_dirty_bytes starts at 0 (disabled) so that it is a function of
  * vm_dirty_ratio * the amount of dirtyable memory
  */
-unsigned long vm_dirty_bytes;
+static unsigned long vm_dirty_bytes;
 
 /*
  * The interval between `kupdate'-style writebacks
@@ -324,18 +324,6 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
 	}
 
 	/*
-	 * Unreclaimable memory (kernel memory or anonymous memory
-	 * without swap) can bring down the dirtyable pages below
-	 * the zone's dirty balance reserve and the above calculation
-	 * will underflow.  However we still want to add in nodes
-	 * which are below threshold (negative values) to get a more
-	 * accurate calculation but make sure that the total never
-	 * underflows.
-	 */
-	if ((long)x < 0)
-		x = 0;
-
-	/*
 	 * Make sure that the number of highmem pages is never larger
 	 * than the number of the total dirtyable memory. This can only
 	 * occur in very strange VM situations but we want to make sure
@@ -503,7 +491,8 @@ bool node_dirty_ok(struct pglist_data *pgdat)
 	return nr_pages <= limit;
 }
 
-int dirty_background_ratio_handler(struct ctl_table *table, int write,
+#ifdef CONFIG_SYSCTL
+static int dirty_background_ratio_handler(struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
@@ -514,7 +503,7 @@ int dirty_background_ratio_handler(struct ctl_table *table, int write,
 	return ret;
 }
 
-int dirty_background_bytes_handler(struct ctl_table *table, int write,
+static int dirty_background_bytes_handler(struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
@@ -525,7 +514,7 @@ int dirty_background_bytes_handler(struct ctl_table *table, int write,
 	return ret;
 }
 
-int dirty_ratio_handler(struct ctl_table *table, int write, void *buffer,
+static int dirty_ratio_handler(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
 	int old_ratio = vm_dirty_ratio;
@@ -539,7 +528,7 @@ int dirty_ratio_handler(struct ctl_table *table, int write, void *buffer,
 	return ret;
 }
 
-int dirty_bytes_handler(struct ctl_table *table, int write,
+static int dirty_bytes_handler(struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	unsigned long old_bytes = vm_dirty_bytes;
@@ -552,6 +541,7 @@ int dirty_bytes_handler(struct ctl_table *table, int write,
 	}
 	return ret;
 }
+#endif
 
 static unsigned long wp_next_time(unsigned long cur_time)
 {
@@ -662,18 +652,25 @@ static unsigned int bdi_min_ratio;
 
 int bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio)
 {
+	unsigned int delta;
 	int ret = 0;
 
 	spin_lock_bh(&bdi_lock);
 	if (min_ratio > bdi->max_ratio) {
 		ret = -EINVAL;
 	} else {
-		min_ratio -= bdi->min_ratio;
-		if (bdi_min_ratio + min_ratio < 100) {
-			bdi_min_ratio += min_ratio;
-			bdi->min_ratio += min_ratio;
+		if (min_ratio < bdi->min_ratio) {
+			delta = bdi->min_ratio - min_ratio;
+			bdi_min_ratio -= delta;
+			bdi->min_ratio = min_ratio;
 		} else {
-			ret = -EINVAL;
+			delta = min_ratio - bdi->min_ratio;
+			if (bdi_min_ratio + delta < 100) {
+				bdi_min_ratio += delta;
+				bdi->min_ratio = min_ratio;
+			} else {
+				ret = -EINVAL;
+			}
 		}
 	}
 	spin_unlock_bh(&bdi_lock);
@@ -1993,10 +1990,11 @@ bool wb_over_bg_thresh(struct bdi_writeback *wb)
 	return false;
 }
 
+#ifdef CONFIG_SYSCTL
 /*
  * sysctl handler for /proc/sys/vm/dirty_writeback_centisecs
  */
-int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
+static int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
 		void *buffer, size_t *length, loff_t *ppos)
 {
 	unsigned int old_interval = dirty_writeback_interval;
@@ -2017,6 +2015,7 @@ int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
 
 	return ret;
 }
+#endif
 
 void laptop_mode_timer_fn(struct timer_list *t)
 {
@@ -2081,6 +2080,83 @@ static int page_writeback_cpu_online(unsigned int cpu)
 	return 0;
 }
 
+#ifdef CONFIG_SYSCTL
+
+/* this is needed for the proc_doulongvec_minmax of vm_dirty_bytes */
+static const unsigned long dirty_bytes_min = 2 * PAGE_SIZE;
+
+static struct ctl_table vm_page_writeback_sysctls[] = {
+	{
+		.procname   = "dirty_background_ratio",
+		.data       = &dirty_background_ratio,
+		.maxlen     = sizeof(dirty_background_ratio),
+		.mode       = 0644,
+		.proc_handler   = dirty_background_ratio_handler,
+		.extra1     = SYSCTL_ZERO,
+		.extra2     = SYSCTL_ONE_HUNDRED,
+	},
+	{
+		.procname   = "dirty_background_bytes",
+		.data       = &dirty_background_bytes,
+		.maxlen     = sizeof(dirty_background_bytes),
+		.mode       = 0644,
+		.proc_handler   = dirty_background_bytes_handler,
+		.extra1     = SYSCTL_LONG_ONE,
+	},
+	{
+		.procname   = "dirty_ratio",
+		.data       = &vm_dirty_ratio,
+		.maxlen     = sizeof(vm_dirty_ratio),
+		.mode       = 0644,
+		.proc_handler   = dirty_ratio_handler,
+		.extra1     = SYSCTL_ZERO,
+		.extra2     = SYSCTL_ONE_HUNDRED,
+	},
+	{
+		.procname   = "dirty_bytes",
+		.data       = &vm_dirty_bytes,
+		.maxlen     = sizeof(vm_dirty_bytes),
+		.mode       = 0644,
+		.proc_handler   = dirty_bytes_handler,
+		.extra1     = (void *)&dirty_bytes_min,
+	},
+	{
+		.procname   = "dirty_writeback_centisecs",
+		.data       = &dirty_writeback_interval,
+		.maxlen     = sizeof(dirty_writeback_interval),
+		.mode       = 0644,
+		.proc_handler   = dirty_writeback_centisecs_handler,
+	},
+	{
+		.procname   = "dirty_expire_centisecs",
+		.data       = &dirty_expire_interval,
+		.maxlen     = sizeof(dirty_expire_interval),
+		.mode       = 0644,
+		.proc_handler   = proc_dointvec_minmax,
+		.extra1     = SYSCTL_ZERO,
+	},
+#ifdef CONFIG_HIGHMEM
+	{
+		.procname	= "highmem_is_dirtyable",
+		.data		= &vm_highmem_is_dirtyable,
+		.maxlen		= sizeof(vm_highmem_is_dirtyable),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
+	},
+#endif
+	{
+		.procname	= "laptop_mode",
+		.data		= &laptop_mode,
+		.maxlen		= sizeof(laptop_mode),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{}
+};
+#endif
+
 /*
  * Called early on to tune the page writeback dirty limits.
  *
@@ -2105,6 +2181,9 @@ void __init page_writeback_init(void)
 			  page_writeback_cpu_online, NULL);
 	cpuhp_setup_state(CPUHP_MM_WRITEBACK_DEAD, "mm/writeback:dead", NULL,
 			  page_writeback_cpu_online);
+#ifdef CONFIG_SYSCTL
+	register_sysctl_init("vm", vm_page_writeback_sysctls);
+#endif
 }
 
 /**
@@ -2430,13 +2509,13 @@ EXPORT_SYMBOL(folio_write_one);
 /*
  * For address_spaces which do not use buffers nor write back.
  */
-int __set_page_dirty_no_writeback(struct page *page)
+bool noop_dirty_folio(struct address_space *mapping, struct folio *folio)
 {
-	if (!PageDirty(page))
-		return !TestSetPageDirty(page);
-	return 0;
+	if (!folio_test_dirty(folio))
+		return !folio_test_set_dirty(folio);
+	return false;
 }
-EXPORT_SYMBOL(__set_page_dirty_no_writeback);
+EXPORT_SYMBOL(noop_dirty_folio);
 
 /*
  * Helper function for set_page_dirty family.
@@ -2477,16 +2556,14 @@ static void folio_account_dirtied(struct folio *folio,
  *
  * Caller must hold lock_page_memcg().
  */
-void folio_account_cleaned(struct folio *folio, struct address_space *mapping,
-			  struct bdi_writeback *wb)
+void folio_account_cleaned(struct folio *folio, struct bdi_writeback *wb)
 {
-	if (mapping_can_writeback(mapping)) {
-		long nr = folio_nr_pages(folio);
-		lruvec_stat_mod_folio(folio, NR_FILE_DIRTY, -nr);
-		zone_stat_mod_folio(folio, NR_ZONE_WRITE_PENDING, -nr);
-		wb_stat_mod(wb, WB_RECLAIMABLE, -nr);
-		task_io_account_cancelled_write(nr * PAGE_SIZE);
-	}
+	long nr = folio_nr_pages(folio);
+
+	lruvec_stat_mod_folio(folio, NR_FILE_DIRTY, -nr);
+	zone_stat_mod_folio(folio, NR_ZONE_WRITE_PENDING, -nr);
+	wb_stat_mod(wb, WB_RECLAIMABLE, -nr);
+	task_io_account_cancelled_write(nr * PAGE_SIZE);
 }
 
 /*
@@ -2530,7 +2607,7 @@ void __folio_mark_dirty(struct folio *folio, struct address_space *mapping,
  * This is also sometimes used by filesystems which use buffer_heads when
  * a single buffer is being dirtied: we want to set the folio dirty in
  * that case, but not all the buffers.  This is a "bottom-up" dirtying,
- * whereas __set_page_dirty_buffers() is a "top-down" dirtying.
+ * whereas block_dirty_folio() is a "top-down" dirtying.
  *
  * The caller must ensure this doesn't race with truncation.  Most will
  * simply hold the folio lock, but e.g. zap_pte_range() calls with the
@@ -2616,10 +2693,12 @@ EXPORT_SYMBOL(folio_redirty_for_writepage);
  * folio_mark_dirty - Mark a folio as being modified.
  * @folio: The folio.
  *
- * For folios with a mapping this should be done under the page lock
- * for the benefit of asynchronous memory errors who prefer a consistent
- * dirty state. This rule can be broken in some special cases,
- * but should be better not to.
+ * The folio may not be truncated while this function is running.
+ * Holding the folio lock is sufficient to prevent truncation, but some
+ * callers cannot acquire a sleeping lock.  These callers instead hold
+ * the page table lock for a page table which contains at least one page
+ * in this folio.  Truncation will block on the page table lock as it
+ * unmaps pages before removing the folio from its mapping.
  *
  * Return: True if the folio was newly dirtied, false if it was already dirty.
  */
@@ -2630,23 +2709,21 @@ bool folio_mark_dirty(struct folio *folio)
 	if (likely(mapping)) {
 		/*
 		 * readahead/lru_deactivate_page could remain
-		 * PG_readahead/PG_reclaim due to race with end_page_writeback
-		 * About readahead, if the page is written, the flags would be
+		 * PG_readahead/PG_reclaim due to race with folio_end_writeback
+		 * About readahead, if the folio is written, the flags would be
 		 * reset. So no problem.
-		 * About lru_deactivate_page, if the page is redirty, the flag
-		 * will be reset. So no problem. but if the page is used by readahead
-		 * it will confuse readahead and make it restart the size rampup
-		 * process. But it's a trivial problem.
+		 * About lru_deactivate_page, if the folio is redirtied,
+		 * the flag will be reset. So no problem. but if the
+		 * folio is used by readahead it will confuse readahead
+		 * and make it restart the size rampup process. But it's
+		 * a trivial problem.
 		 */
 		if (folio_test_reclaim(folio))
 			folio_clear_reclaim(folio);
-		return mapping->a_ops->set_page_dirty(&folio->page);
+		return mapping->a_ops->dirty_folio(mapping, folio);
 	}
-	if (!folio_test_dirty(folio)) {
-		if (!folio_test_set_dirty(folio))
-			return true;
-	}
-	return false;
+
+	return noop_dirty_folio(mapping, folio);
 }
 EXPORT_SYMBOL(folio_mark_dirty);
 
@@ -2697,7 +2774,7 @@ void __folio_cancel_dirty(struct folio *folio)
 		wb = unlocked_inode_to_wb_begin(inode, &cookie);
 
 		if (folio_test_clear_dirty(folio))
-			folio_account_cleaned(folio, mapping, wb);
+			folio_account_cleaned(folio, wb);
 
 		unlocked_inode_to_wb_end(inode, &cookie);
 		folio_memcg_unlock(folio);

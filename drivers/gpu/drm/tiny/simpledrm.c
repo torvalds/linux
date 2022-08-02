@@ -526,19 +526,31 @@ static int simpledrm_device_init_mm(struct simpledrm_device *sdev)
 {
 	struct drm_device *dev = &sdev->dev;
 	struct platform_device *pdev = sdev->pdev;
-	struct resource *mem;
+	struct resource *res, *mem;
 	void __iomem *screen_base;
 	int ret;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem)
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
 		return -EINVAL;
 
-	ret = devm_aperture_acquire_from_firmware(dev, mem->start, resource_size(mem));
+	ret = devm_aperture_acquire_from_firmware(dev, res->start, resource_size(res));
 	if (ret) {
 		drm_err(dev, "could not acquire memory range %pr: error %d\n",
-			mem, ret);
+			res, ret);
 		return ret;
+	}
+
+	mem = devm_request_mem_region(&pdev->dev, res->start, resource_size(res),
+				      sdev->dev.driver->name);
+	if (!mem) {
+		/*
+		 * We cannot make this fatal. Sometimes this comes from magic
+		 * spaces our resource handlers simply don't know about. Use
+		 * the I/O-memory resource as-is and try to map that instead.
+		 */
+		drm_warn(dev, "could not acquire memory region %pr\n", res);
+		mem = res;
 	}
 
 	screen_base = devm_ioremap_wc(&pdev->dev, mem->start,
@@ -789,7 +801,6 @@ static int simpledrm_device_init_modeset(struct simpledrm_device *sdev)
 	dev->mode_config.max_width = max_width;
 	dev->mode_config.min_height = mode->vdisplay;
 	dev->mode_config.max_height = max_height;
-	dev->mode_config.prefer_shadow_fbdev = true;
 	dev->mode_config.preferred_depth = sdev->format->cpp[0] * 8;
 	dev->mode_config.funcs = &simpledrm_mode_config_funcs;
 
@@ -798,6 +809,9 @@ static int simpledrm_device_init_modeset(struct simpledrm_device *sdev)
 	if (ret)
 		return ret;
 	drm_connector_helper_add(connector, &simpledrm_connector_helper_funcs);
+	drm_connector_set_panel_orientation_with_quirk(connector,
+						       DRM_MODE_PANEL_ORIENTATION_UNKNOWN,
+						       mode->hdisplay, mode->vdisplay);
 
 	formats = simpledrm_device_formats(sdev, &nformats);
 

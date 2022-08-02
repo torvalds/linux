@@ -247,6 +247,16 @@ config GPIO_EM
 	help
 	  Say yes here to support GPIO on Renesas Emma Mobile SoCs.
 
+config GPIO_EN7523
+	tristate "Airoha GPIO support"
+	depends on ARCH_AIROHA
+	default ARCH_AIROHA
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y or M here to support the GPIO controller block on the
+	  Airoha EN7523 SoC. It supports two banks of 32 GPIOs.
+
 config GPIO_EP93XX
 	def_bool y
 	depends on ARCH_EP93XX
@@ -343,8 +353,8 @@ config GPIO_IOP
 
 config GPIO_IXP4XX
 	bool "Intel IXP4xx GPIO"
-	depends on ARM # For <asm/mach-types.h>
 	depends on ARCH_IXP4XX
+	depends on OF
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN_HIERARCHY
@@ -353,6 +363,7 @@ config GPIO_IXP4XX
 	  IXP4xx series of chips.
 
 	  If unsure, say N.
+
 config GPIO_LOGICVC
 	tristate "Xylon LogiCVC GPIO support"
 	depends on MFD_SYSCON && OF
@@ -664,10 +675,10 @@ config GPIO_UNIPHIER
 
 config GPIO_VF610
 	def_bool y
-	depends on ARCH_MXC && SOC_VF610
+	depends on ARCH_MXC
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to support Vybrid vf610 GPIOs.
+	  Say yes here to support i.MX or Vybrid vf610 GPIOs.
 
 config GPIO_VISCONTI
 	tristate "Toshiba Visconti GPIO support"
@@ -1346,6 +1357,18 @@ config GPIO_TIMBERDALE
 	help
 	Add support for the GPIO IP in the timberdale FPGA.
 
+config GPIO_TN48M_CPLD
+	tristate "Delta Networks TN48M switch CPLD GPIO driver"
+	depends on MFD_TN48M_CPLD
+	select GPIO_REGMAP
+	help
+	  This enables support for the GPIOs found on the Delta
+	  Networks TN48M switch Lattice CPLD. It provides 12 pins in total,
+	  they are input-only or output-only type.
+
+	  This driver can also be built as a module. If so, the
+	  module will be called gpio-tn48m.
+
 config GPIO_TPS65086
 	tristate "TI TPS65086 GPO"
 	depends on MFD_TPS65086
@@ -1380,7 +1403,7 @@ config GPIO_TPS65912
 	  This driver supports TPS65912 GPIO chip.
 
 config GPIO_TPS68470
-	bool "TPS68470 GPIO"
+	tristate "TPS68470 GPIO"
 	depends on INTEL_SKL_INT3472
 	help
 	  Select this option to enable GPIO driver for the TPS68470
@@ -1389,10 +1412,6 @@ config GPIO_TPS68470
 	  by the TPS68470. While the 7 GPIOs can be configured as
 	  input or output as appropriate, the sensor related GPIOs
 	  are "output only" GPIOs.
-
-	  This driver config is bool, as the GPIO functionality
-	  of the TPS68470 must be available before dependent
-	  drivers are loaded.
 
 config GPIO_TQMX86
 	tristate "TQ-Systems QTMX86 GPIO"

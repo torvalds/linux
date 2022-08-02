@@ -12,14 +12,10 @@
 /**
  * struct noon010pc30_platform_data - platform data
  * @clk_rate: the clock frequency in Hz
- * @gpio_nreset: GPIO driving nRESET pin
- * @gpio_nstby: GPIO driving nSTBY pin
  */
 
 struct noon010pc30_platform_data {
 	unsigned long clk_rate;
-	int gpio_nreset;
-	int gpio_nstby;
 };
 
 #endif /* NOON010PC30_H */

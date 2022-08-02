@@ -71,16 +71,19 @@
 			pcie@1,0 {
 				/* Port 0, Lane 0 */
 				status = "okay";
+				slot-power-limit-milliwatt = <10000>;
 			};
 
 			pcie@2,0 {
 				/* Port 1, Lane 0 */
 				status = "okay";
+				slot-power-limit-milliwatt = <10000>;
 			};
 
 			pcie@3,0 {
 				/* Port 2, Lane 0 */
 				status = "okay";
+				slot-power-limit-milliwatt = <10000>;
 			};
 		};
 	};
@@ -345,7 +348,11 @@
 			#size-cells = <0>;
 			reg = <5>;
 
-			/* ATSHA204A at address 0x64 */
+			/* ATSHA204A-MAHDA-T crypto module */
+			crypto@64 {
+				compatible = "atmel,atsha204a";
+				reg = <0x64>;
+			};
 		};
 
 		i2c@6 {
@@ -482,7 +489,7 @@
 	pinctrl-0 = <&spi0_pins &spi0cs0_pins>;
 	status = "okay";
 
-	spi-nor@0 {
+	flash@0 {
 		compatible = "spansion,s25fl164k", "jedec,spi-nor";
 		#address-cells = <1>;
 		#size-cells = <1>;

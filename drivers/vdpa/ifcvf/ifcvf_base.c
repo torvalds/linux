@@ -10,45 +10,29 @@
 
 #include "ifcvf_base.h"
 
-static inline u8 ifc_ioread8(u8 __iomem *addr)
-{
-	return ioread8(addr);
-}
-static inline u16 ifc_ioread16 (__le16 __iomem *addr)
-{
-	return ioread16(addr);
-}
-
-static inline u32 ifc_ioread32(__le32 __iomem *addr)
-{
-	return ioread32(addr);
-}
-
-static inline void ifc_iowrite8(u8 value, u8 __iomem *addr)
-{
-	iowrite8(value, addr);
-}
-
-static inline void ifc_iowrite16(u16 value, __le16 __iomem *addr)
-{
-	iowrite16(value, addr);
-}
-
-static inline void ifc_iowrite32(u32 value, __le32 __iomem *addr)
-{
-	iowrite32(value, addr);
-}
-
-static void ifc_iowrite64_twopart(u64 val,
-				  __le32 __iomem *lo, __le32 __iomem *hi)
-{
-	ifc_iowrite32((u32)val, lo);
-	ifc_iowrite32(val >> 32, hi);
-}
-
 struct ifcvf_adapter *vf_to_adapter(struct ifcvf_hw *hw)
 {
 	return container_of(hw, struct ifcvf_adapter, vf);
+}
+
+u16 ifcvf_set_vq_vector(struct ifcvf_hw *hw, u16 qid, int vector)
+{
+	struct virtio_pci_common_cfg __iomem *cfg = hw->common_cfg;
+
+	vp_iowrite16(qid, &cfg->queue_select);
+	vp_iowrite16(vector, &cfg->queue_msix_vector);
+
+	return vp_ioread16(&cfg->queue_msix_vector);
+}
+
+u16 ifcvf_set_config_vector(struct ifcvf_hw *hw, int vector)
+{
+	struct virtio_pci_common_cfg __iomem *cfg = hw->common_cfg;
+
+	cfg = hw->common_cfg;
+	vp_iowrite16(vector,  &cfg->msix_config);
+
+	return vp_ioread16(&cfg->msix_config);
 }
 
 static void __iomem *get_cap_addr(struct ifcvf_hw *hw,
@@ -158,15 +142,16 @@ next:
 		return -EIO;
 	}
 
-	hw->nr_vring = ifc_ioread16(&hw->common_cfg->num_queues);
+	hw->nr_vring = vp_ioread16(&hw->common_cfg->num_queues);
 
 	for (i = 0; i < hw->nr_vring; i++) {
-		ifc_iowrite16(i, &hw->common_cfg->queue_select);
-		notify_off = ifc_ioread16(&hw->common_cfg->queue_notify_off);
+		vp_iowrite16(i, &hw->common_cfg->queue_select);
+		notify_off = vp_ioread16(&hw->common_cfg->queue_notify_off);
 		hw->vring[i].notify_addr = hw->notify_base +
 			notify_off * hw->notify_off_multiplier;
 		hw->vring[i].notify_pa = hw->notify_base_pa +
 			notify_off * hw->notify_off_multiplier;
+		hw->vring[i].irq = -EINVAL;
 	}
 
 	hw->lm_cfg = hw->base[IFCVF_LM_BAR];
@@ -176,17 +161,20 @@ next:
 		  hw->common_cfg, hw->notify_base, hw->isr,
 		  hw->dev_cfg, hw->notify_off_multiplier);
 
+	hw->vqs_reused_irq = -EINVAL;
+	hw->config_irq = -EINVAL;
+
 	return 0;
 }
 
 u8 ifcvf_get_status(struct ifcvf_hw *hw)
 {
-	return ifc_ioread8(&hw->common_cfg->device_status);
+	return vp_ioread8(&hw->common_cfg->device_status);
 }
 
 void ifcvf_set_status(struct ifcvf_hw *hw, u8 status)
 {
-	ifc_iowrite8(status, &hw->common_cfg->device_status);
+	vp_iowrite8(status, &hw->common_cfg->device_status);
 }
 
 void ifcvf_reset(struct ifcvf_hw *hw)
@@ -214,11 +202,11 @@ u64 ifcvf_get_hw_features(struct ifcvf_hw *hw)
 	u32 features_lo, features_hi;
 	u64 features;
 
-	ifc_iowrite32(0, &cfg->device_feature_select);
-	features_lo = ifc_ioread32(&cfg->device_feature);
+	vp_iowrite32(0, &cfg->device_feature_select);
+	features_lo = vp_ioread32(&cfg->device_feature);
 
-	ifc_iowrite32(1, &cfg->device_feature_select);
-	features_hi = ifc_ioread32(&cfg->device_feature);
+	vp_iowrite32(1, &cfg->device_feature_select);
+	features_hi = vp_ioread32(&cfg->device_feature);
 
 	features = ((u64)features_hi << 32) | features_lo;
 
@@ -271,12 +259,12 @@ void ifcvf_read_dev_config(struct ifcvf_hw *hw, u64 offset,
 
 	WARN_ON(offset + length > hw->config_size);
 	do {
-		old_gen = ifc_ioread8(&hw->common_cfg->config_generation);
+		old_gen = vp_ioread8(&hw->common_cfg->config_generation);
 		p = dst;
 		for (i = 0; i < length; i++)
-			*p++ = ifc_ioread8(hw->dev_cfg + offset + i);
+			*p++ = vp_ioread8(hw->dev_cfg + offset + i);
 
-		new_gen = ifc_ioread8(&hw->common_cfg->config_generation);
+		new_gen = vp_ioread8(&hw->common_cfg->config_generation);
 	} while (old_gen != new_gen);
 }
 
@@ -289,18 +277,18 @@ void ifcvf_write_dev_config(struct ifcvf_hw *hw, u64 offset,
 	p = src;
 	WARN_ON(offset + length > hw->config_size);
 	for (i = 0; i < length; i++)
-		ifc_iowrite8(*p++, hw->dev_cfg + offset + i);
+		vp_iowrite8(*p++, hw->dev_cfg + offset + i);
 }
 
 static void ifcvf_set_features(struct ifcvf_hw *hw, u64 features)
 {
 	struct virtio_pci_common_cfg __iomem *cfg = hw->common_cfg;
 
-	ifc_iowrite32(0, &cfg->guest_feature_select);
-	ifc_iowrite32((u32)features, &cfg->guest_feature);
+	vp_iowrite32(0, &cfg->guest_feature_select);
+	vp_iowrite32((u32)features, &cfg->guest_feature);
 
-	ifc_iowrite32(1, &cfg->guest_feature_select);
-	ifc_iowrite32(features >> 32, &cfg->guest_feature);
+	vp_iowrite32(1, &cfg->guest_feature_select);
+	vp_iowrite32(features >> 32, &cfg->guest_feature);
 }
 
 static int ifcvf_config_features(struct ifcvf_hw *hw)
@@ -329,7 +317,7 @@ u16 ifcvf_get_vq_state(struct ifcvf_hw *hw, u16 qid)
 	ifcvf_lm = (struct ifcvf_lm_cfg __iomem *)hw->lm_cfg;
 	q_pair_id = qid / hw->nr_vring;
 	avail_idx_addr = &ifcvf_lm->vring_lm_cfg[q_pair_id].idx_addr[qid % 2];
-	last_avail_idx = ifc_ioread16(avail_idx_addr);
+	last_avail_idx = vp_ioread16(avail_idx_addr);
 
 	return last_avail_idx;
 }
@@ -344,7 +332,7 @@ int ifcvf_set_vq_state(struct ifcvf_hw *hw, u16 qid, u16 num)
 	q_pair_id = qid / hw->nr_vring;
 	avail_idx_addr = &ifcvf_lm->vring_lm_cfg[q_pair_id].idx_addr[qid % 2];
 	hw->vring[qid].last_avail_idx = num;
-	ifc_iowrite16(num, avail_idx_addr);
+	vp_iowrite16(num, avail_idx_addr);
 
 	return 0;
 }
@@ -352,41 +340,23 @@ int ifcvf_set_vq_state(struct ifcvf_hw *hw, u16 qid, u16 num)
 static int ifcvf_hw_enable(struct ifcvf_hw *hw)
 {
 	struct virtio_pci_common_cfg __iomem *cfg;
-	struct ifcvf_adapter *ifcvf;
 	u32 i;
 
-	ifcvf = vf_to_adapter(hw);
 	cfg = hw->common_cfg;
-	ifc_iowrite16(IFCVF_MSI_CONFIG_OFF, &cfg->msix_config);
-
-	if (ifc_ioread16(&cfg->msix_config) == VIRTIO_MSI_NO_VECTOR) {
-		IFCVF_ERR(ifcvf->pdev, "No msix vector for device config\n");
-		return -EINVAL;
-	}
-
 	for (i = 0; i < hw->nr_vring; i++) {
 		if (!hw->vring[i].ready)
 			break;
 
-		ifc_iowrite16(i, &cfg->queue_select);
-		ifc_iowrite64_twopart(hw->vring[i].desc, &cfg->queue_desc_lo,
+		vp_iowrite16(i, &cfg->queue_select);
+		vp_iowrite64_twopart(hw->vring[i].desc, &cfg->queue_desc_lo,
 				     &cfg->queue_desc_hi);
-		ifc_iowrite64_twopart(hw->vring[i].avail, &cfg->queue_avail_lo,
+		vp_iowrite64_twopart(hw->vring[i].avail, &cfg->queue_avail_lo,
 				      &cfg->queue_avail_hi);
-		ifc_iowrite64_twopart(hw->vring[i].used, &cfg->queue_used_lo,
+		vp_iowrite64_twopart(hw->vring[i].used, &cfg->queue_used_lo,
 				     &cfg->queue_used_hi);
-		ifc_iowrite16(hw->vring[i].size, &cfg->queue_size);
-		ifc_iowrite16(i + IFCVF_MSI_QUEUE_OFF, &cfg->queue_msix_vector);
-
-		if (ifc_ioread16(&cfg->queue_msix_vector) ==
-		    VIRTIO_MSI_NO_VECTOR) {
-			IFCVF_ERR(ifcvf->pdev,
-				  "No msix vector for queue %u\n", i);
-			return -EINVAL;
-		}
-
+		vp_iowrite16(hw->vring[i].size, &cfg->queue_size);
 		ifcvf_set_vq_state(hw, i, hw->vring[i].last_avail_idx);
-		ifc_iowrite16(1, &cfg->queue_enable);
+		vp_iowrite16(1, &cfg->queue_enable);
 	}
 
 	return 0;
@@ -394,18 +364,12 @@ static int ifcvf_hw_enable(struct ifcvf_hw *hw)
 
 static void ifcvf_hw_disable(struct ifcvf_hw *hw)
 {
-	struct virtio_pci_common_cfg __iomem *cfg;
 	u32 i;
 
-	cfg = hw->common_cfg;
-	ifc_iowrite16(VIRTIO_MSI_NO_VECTOR, &cfg->msix_config);
-
+	ifcvf_set_config_vector(hw, VIRTIO_MSI_NO_VECTOR);
 	for (i = 0; i < hw->nr_vring; i++) {
-		ifc_iowrite16(i, &cfg->queue_select);
-		ifc_iowrite16(VIRTIO_MSI_NO_VECTOR, &cfg->queue_msix_vector);
+		ifcvf_set_vq_vector(hw, i, VIRTIO_MSI_NO_VECTOR);
 	}
-
-	ifc_ioread16(&cfg->queue_msix_vector);
 }
 
 int ifcvf_start_hw(struct ifcvf_hw *hw)
@@ -433,5 +397,5 @@ void ifcvf_stop_hw(struct ifcvf_hw *hw)
 
 void ifcvf_notify_queue(struct ifcvf_hw *hw, u16 qid)
 {
-	ifc_iowrite16(qid, hw->vring[qid].notify_addr);
+	vp_iowrite16(qid, hw->vring[qid].notify_addr);
 }

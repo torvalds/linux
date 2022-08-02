@@ -7,15 +7,13 @@
 #ifndef __DRV_CLK_MTK_MUX_H
 #define __DRV_CLK_MTK_MUX_H
 
-#include <linux/clk-provider.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
 
-struct mtk_clk_mux {
-	struct clk_hw hw;
-	struct regmap *regmap;
-	const struct mtk_mux *data;
-	spinlock_t *lock;
-	bool reparent;
-};
+struct clk;
+struct clk_hw_onecell_data;
+struct clk_ops;
+struct device_node;
 
 struct mtk_mux {
 	int id;
@@ -86,6 +84,9 @@ extern const struct clk_ops mtk_mux_gate_clr_set_upd_ops;
 int mtk_clk_register_muxes(const struct mtk_mux *muxes,
 			   int num, struct device_node *node,
 			   spinlock_t *lock,
-			   struct clk_onecell_data *clk_data);
+			   struct clk_hw_onecell_data *clk_data);
+
+void mtk_clk_unregister_muxes(const struct mtk_mux *muxes, int num,
+			      struct clk_hw_onecell_data *clk_data);
 
 #endif /* __DRV_CLK_MTK_MUX_H */

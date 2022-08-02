@@ -1907,10 +1907,10 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 
 	netif_keep_dst(card->dev);
 	if (card->dev->hw_features & (NETIF_F_TSO | NETIF_F_TSO6))
-		netif_set_gso_max_size(card->dev,
+		netif_set_tso_max_size(card->dev,
 				       PAGE_SIZE * (QETH_MAX_BUFFER_ELEMENTS(card) - 1));
 
-	netif_napi_add(card->dev, &card->napi, qeth_poll, QETH_NAPI_WEIGHT);
+	netif_napi_add(card->dev, &card->napi, qeth_poll, NAPI_POLL_WEIGHT);
 	return register_netdev(card->dev);
 }
 
@@ -1961,7 +1961,6 @@ static void qeth_l3_remove_device(struct ccwgroup_device *cgdev)
 	if (card->dev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(card->dev);
 
-	flush_workqueue(card->cmd_wq);
 	destroy_workqueue(card->cmd_wq);
 	qeth_l3_clear_ip_htable(card, 0);
 	qeth_l3_clear_ipato_list(card);

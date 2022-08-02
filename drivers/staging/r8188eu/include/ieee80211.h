@@ -11,7 +11,6 @@
 
 #define MGMT_QUEUE_NUM 5
 
-#define ETH_ALEN	6
 #define ETH_TYPE_LEN		2
 #define PAYLOAD_TYPE_LEN	1
 
@@ -124,24 +123,6 @@ enum NETWORK_TYPE {
 	WIRELESS_11BG_24N = (WIRELESS_11B | WIRELESS_11G | WIRELESS_11_24N),
 };
 
-#define SUPPORTED_24G_NETTYPE_MSK				\
-	 (WIRELESS_11B | WIRELESS_11G | WIRELESS_11_24N)
-
-#define IsSupported24G(NetType)					\
-	((NetType) & SUPPORTED_24G_NETTYPE_MSK ? true : false)
-
-#define IsEnableHWCCK(NetType)					\
-	IsSupported24G(NetType)
-
-#define IsSupportedRxCCK(NetType) IsEnableHWCCK(NetType)
-
-#define IsSupportedTxCCK(NetType)				\
-	((NetType) & (WIRELESS_11B) ? true : false)
-#define IsSupportedTxOFDM(NetType)				\
-	((NetType) & (WIRELESS_11G) ? true : false)
-#define IsSupportedTxMCS(NetType)				\
-	((NetType) & (WIRELESS_11_24N) ? true : false)
-
 struct ieee_param {
 	u32 cmd;
 	u8 sta_addr[ETH_ALEN];
@@ -182,28 +163,6 @@ struct ieee_param {
 	} u;
 };
 
-struct ieee_param_ex {
-	u32 cmd;
-	u8 sta_addr[ETH_ALEN];
-	u8 data[0];
-};
-
-struct sta_data {
-	u16 aid;
-	u16 capability;
-	int flags;
-	u32 sta_set;
-	u8 tx_supp_rates[16];
-	u32 tx_supp_rates_len;
-	struct ieee80211_ht_cap ht_cap;
-	u64	rx_pkts;
-	u64	rx_bytes;
-	u64	rx_drops;
-	u64	tx_pkts;
-	u64	tx_bytes;
-	u64	tx_drops;
-};
-
 #define IEEE80211_DATA_LEN		2304
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
    6.2.1.1.2.
@@ -218,70 +177,6 @@ struct sta_data {
 
 /* this is stolen from ipw2200 driver */
 #define IEEE_IBSS_MAC_HASH_SIZE 31
-
-struct ieee_ibss_seq {
-	u8 mac[ETH_ALEN];
-	u16 seq_num;
-	u16 frag_num;
-	unsigned long packet_time;
-	struct list_head list;
-};
-
-struct rtw_ieee80211_hdr {
-	__le16 frame_ctl;
-	__le16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
-	u8 addr4[ETH_ALEN];
-} __packed;
-
-struct rtw_ieee80211_hdr_3addr {
-	__le16 frame_ctl;
-	__le16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
-} __packed;
-
-struct rtw_ieee80211_hdr_qos {
-	__le16 frame_ctl;
-	__le16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
-	u8 addr4[ETH_ALEN];
-	u16	qc;
-}  __packed;
-
-struct rtw_ieee80211_hdr_3addr_qos {
-	__le16 frame_ctl;
-	__le16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
-	u16     qc;
-}  __packed;
-
-struct eapol {
-	u8 snap[6];
-	u16 ethertype;
-	u8 version;
-	u8 type;
-	u16 length;
-} __packed;
-
-enum eap_type {
-	EAP_PACKET = 0,
-	EAPOL_START,
-	EAPOL_LOGOFF,
-	EAPOL_KEY,
-	EAPOL_ENCAP_ASF_ALERT
-};
 
 #define IEEE80211_3ADDR_LEN 24
 #define IEEE80211_4ADDR_LEN 30
@@ -557,82 +452,11 @@ struct ieee80211_snap_hdr {
 #define IEEE80211_NUM_CCK_RATES		4
 #define IEEE80211_OFDM_SHIFT_MASK_A	4
 
-/* NOTE: This data is for statistical purposes; not all hardware provides this
- *       information for frames received.  Not setting these will not cause
- *       any adverse affects. */
-struct ieee80211_rx_stats {
-	/* u32 mac_time[2]; */
-	s8 rssi;
-	u8 signal;
-	u8 noise;
-	u8 received_channel;
-	u16 rate; /* in 100 kbps */
-	/* u8 control; */
-	u8 mask;
-	u8 freq;
-	u16 len;
-};
-
 /* IEEE 802.11 requires that STA supports concurrent reception of at least
  * three fragmented frames. This define can be increased to support more
  * concurrent frames, but it should be noted that each entry can consume about
  * 2 kB of RAM and increasing cache size will slow down frame reassembly. */
 #define IEEE80211_FRAG_CACHE_LEN 4
-
-struct ieee80211_frag_entry {
-	u32 first_frag_time;
-	uint seq;
-	uint last_frag;
-	uint qos;   /* jackson */
-	uint tid;	/* jackson */
-	struct sk_buff *skb;
-	u8 src_addr[ETH_ALEN];
-	u8 dst_addr[ETH_ALEN];
-};
-
-struct ieee80211_stats {
-	uint tx_unicast_frames;
-	uint tx_multicast_frames;
-	uint tx_fragments;
-	uint tx_unicast_octets;
-	uint tx_multicast_octets;
-	uint tx_deferred_transmissions;
-	uint tx_single_retry_frames;
-	uint tx_multiple_retry_frames;
-	uint tx_retry_limit_exceeded;
-	uint tx_discards;
-	uint rx_unicast_frames;
-	uint rx_multicast_frames;
-	uint rx_fragments;
-	uint rx_unicast_octets;
-	uint rx_multicast_octets;
-	uint rx_fcs_errors;
-	uint rx_discards_no_buffer;
-	uint tx_discards_wrong_sa;
-	uint rx_discards_undecryptable;
-	uint rx_message_in_msg_fragments;
-	uint rx_message_in_bad_msg_fragments;
-};
-
-struct ieee80211_softmac_stats {
-	uint rx_ass_ok;
-	uint rx_ass_err;
-	uint rx_probe_rq;
-	uint tx_probe_rs;
-	uint tx_beacons;
-	uint rx_auth_rq;
-	uint rx_auth_rs_ok;
-	uint rx_auth_rs_err;
-	uint tx_auth_rq;
-	uint no_auth_rs;
-	uint no_ass_rs;
-	uint tx_ass_rq;
-	uint rx_ass_rq;
-	uint tx_probe_rq;
-	uint reassoc;
-	uint swtxstop;
-	uint swtxawake;
-};
 
 #define SEC_KEY_1	(1<<0)
 #define SEC_KEY_2	(1<<1)
@@ -653,18 +477,6 @@ struct ieee80211_softmac_stats {
 #define WEP_KEYS 4
 #define WEP_KEY_LEN 13
 
-struct ieee80211_security {
-	u16 active_key:2,
-	enabled:1,
-	auth_mode:2,
-	auth_algo:4,
-	unicast_uses_group:1;
-	u8 key_sizes[WEP_KEYS];
-	u8 keys[WEP_KEYS][WEP_KEY_LEN];
-	u8 level;
-	u16 flags;
-} __packed;
-
 /*
 
  802.11 data frame from AP
@@ -679,15 +491,6 @@ Desc. | ctrl | dura |  DA/RA  |   TA    |    SA   | Sequ |  frame  |  fcs |
 Total: 28-2340 bytes
 
 */
-
-struct ieee80211_header_data {
-	u16 frame_ctl;
-	u16 duration_id;
-	u8 addr1[6];
-	u8 addr2[6];
-	u8 addr3[6];
-	u16 seq_ctrl;
-};
 
 #define BEACON_PROBE_SSID_ID_POSITION 12
 
@@ -704,17 +507,6 @@ struct ieee80211_header_data {
 #define MFIE_TYPE_RSN		48
 #define MFIE_TYPE_RATES_EX	50
 #define MFIE_TYPE_GENERIC	221
-
-struct ieee80211_info_element_hdr {
-	u8 id;
-	u8 len;
-} __packed;
-
-struct ieee80211_info_element {
-	u8 id;
-	u8 len;
-	u8 data[0];
-} __packed;
 
 /*
  * These are the data types that can make up management packets
@@ -735,49 +527,6 @@ struct ieee80211_info_element {
 
 #define IEEE80211_DEFAULT_TX_ESSID "Penguin"
 #define IEEE80211_DEFAULT_BASIC_RATE 10
-
-struct ieee80211_authentication {
-	struct ieee80211_header_data header;
-	u16 algorithm;
-	u16 transaction;
-	u16 status;
-	/* struct ieee80211_info_element_hdr info_element; */
-} __packed;
-
-struct ieee80211_probe_response {
-	struct ieee80211_header_data header;
-	u32 time_stamp[2];
-	u16 beacon_interval;
-	u16 capability;
-	struct ieee80211_info_element info_element;
-} __packed;
-
-struct ieee80211_probe_request {
-	struct ieee80211_header_data header;
-} __packed;
-
-struct ieee80211_assoc_request_frame {
-	struct rtw_ieee80211_hdr_3addr header;
-	u16 capability;
-	u16 listen_interval;
-	struct ieee80211_info_element_hdr info_element;
-} __packed;
-
-struct ieee80211_assoc_response_frame {
-	struct rtw_ieee80211_hdr_3addr header;
-	u16 capability;
-	u16 status;
-	u16 aid;
-} __packed;
-
-struct ieee80211_txb {
-	u8 nr_frags;
-	u8 encrypted;
-	u16 reserved;
-	u16 frag_size;
-	u16 payload_size;
-	struct sk_buff *fragments[0];
-};
 
 /* SWEEP TABLE ENTRIES NUMBER*/
 #define MAX_SWEEP_TAB_ENTRIES		  42
@@ -821,44 +570,6 @@ join_res:
 > 0: TID
 */
 
-enum ieee80211_state {
-	/* the card is not linked at all */
-	IEEE80211_NOLINK = 0,
-
-	/* IEEE80211_ASSOCIATING* are for BSS client mode
-	 * the driver shall not perform RX filtering unless
-	 * the state is LINKED.
-	 * The driver shall just check for the state LINKED and
-	 * defaults to NOLINK for ALL the other states (including
-	 * LINKED_SCANNING)
-	 */
-
-	/* the association procedure will start (wq scheduling)*/
-	IEEE80211_ASSOCIATING,
-	IEEE80211_ASSOCIATING_RETRY,
-
-	/* the association procedure is sending AUTH request*/
-	IEEE80211_ASSOCIATING_AUTHENTICATING,
-
-	/* the association procedure has successfully authentcated
-	 * and is sending association request
-	 */
-	IEEE80211_ASSOCIATING_AUTHENTICATED,
-
-	/* the link is ok. the card associated to a BSS or linked
-	 * to a ibss cell or acting as an AP and creating the bss
-	 */
-	IEEE80211_LINKED,
-
-	/* same as LINKED, but the driver shall apply RX filter
-	 * rules as we are in NO_LINK mode. As the card is still
-	 * logically linked, but it is doing a syncro site survey
-	 * then it will be back to LINKED state.
-	 */
-	IEEE80211_LINKED_SCANNING,
-
-};
-
 #define DEFAULT_MAX_SCAN_AGE (15 * HZ)
 #define DEFAULT_FTS 2346
 
@@ -876,31 +587,10 @@ static inline int is_broadcast_mac_addr(const u8 *addr)
 #define CFG_IEEE80211_RESERVE_FCS (1<<0)
 #define CFG_IEEE80211_COMPUTE_FCS (1<<1)
 
-struct tx_pending {
-	int frag;
-	struct ieee80211_txb *txb;
-};
-
 #define MAXTID	16
-
-#define IEEE_A	    (1<<0)
-#define IEEE_B	    (1<<1)
-#define IEEE_G	    (1<<2)
-#define IEEE_MODE_MASK    (IEEE_A|IEEE_B|IEEE_G)
 
 /* Action category code */
 enum rtw_ieee80211_category {
-	RTW_WLAN_CATEGORY_SPECTRUM_MGMT = 0,
-	RTW_WLAN_CATEGORY_QOS = 1,
-	RTW_WLAN_CATEGORY_DLS = 2,
-	RTW_WLAN_CATEGORY_BACK = 3,
-	RTW_WLAN_CATEGORY_PUBLIC = 4, /* IEEE 802.11 public action frames */
-	RTW_WLAN_CATEGORY_RADIO_MEASUREMENT  = 5,
-	RTW_WLAN_CATEGORY_FT = 6,
-	RTW_WLAN_CATEGORY_HT = 7,
-	RTW_WLAN_CATEGORY_SA_QUERY = 8,
-	RTW_WLAN_CATEGORY_TDLS = 12,
-	RTW_WLAN_CATEGORY_WMM = 17,
 	RTW_WLAN_CATEGORY_P2P = 0x7f,/* P2P action frames */
 };
 
@@ -939,26 +629,6 @@ enum rtw_ieee80211_back_actioncode {
 	RTW_WLAN_ACTION_ADDBA_REQ = 0,
 	RTW_WLAN_ACTION_ADDBA_RESP = 1,
 	RTW_WLAN_ACTION_DELBA = 2,
-};
-
-/* HT features action code */
-enum rtw_ieee80211_ht_actioncode {
-	RTW_WLAN_ACTION_NOTIFY_CH_WIDTH = 0,
-	RTW_WLAN_ACTION_SM_PS = 1,
-	RTW_WLAN_ACTION_PSPM = 2,
-	RTW_WLAN_ACTION_PCO_PHASE = 3,
-	RTW_WLAN_ACTION_MIMO_CSI_MX = 4,
-	RTW_WLAN_ACTION_MIMO_NONCP_BF = 5,
-	RTW_WLAN_ACTION_MIMP_CP_BF = 6,
-	RTW_WLAN_ACTION_ASEL_INDICATES_FB = 7,
-	RTW_WLAN_ACTION_HI_INFO_EXCHG = 8,
-};
-
-/* BACK (block-ack) parties */
-enum rtw_ieee80211_back_parties {
-	RTW_WLAN_BACK_RECIPIENT = 0,
-	RTW_WLAN_BACK_INITIATOR = 1,
-	RTW_WLAN_BACK_TIMER = 2,
 };
 
 #define OUI_MICROSOFT 0x0050f2 /* Microsoft (also used in Wi-Fi specs)
@@ -1139,9 +809,9 @@ int rtw_generate_ie(struct registry_priv *pregistrypriv);
 
 int rtw_get_bit_value_from_ieee_value(u8 val);
 
-uint	rtw_is_cckrates_included(u8 *rate);
+bool	rtw_is_cckrates_included(u8 *rate);
 
-uint	rtw_is_cckratesonly_included(u8 *rate);
+bool	rtw_is_cckratesonly_included(u8 *rate);
 
 int rtw_check_network_type(unsigned char *rate, int ratelen, int channel);
 

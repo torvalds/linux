@@ -17,17 +17,51 @@ extern struct mutex uuid_mutex;
 
 #define BTRFS_STRIPE_LEN	SZ_64K
 
+/* Used by sanity check for btrfs_raid_types. */
+#define const_ffs(n) (__builtin_ctzll(n) + 1)
+
+/*
+ * The conversion from BTRFS_BLOCK_GROUP_* bits to btrfs_raid_type requires
+ * RAID0 always to be the lowest profile bit.
+ * Although it's part of on-disk format and should never change, do extra
+ * compile-time sanity checks.
+ */
+static_assert(const_ffs(BTRFS_BLOCK_GROUP_RAID0) <
+	      const_ffs(BTRFS_BLOCK_GROUP_PROFILE_MASK & ~BTRFS_BLOCK_GROUP_RAID0));
+static_assert(const_ilog2(BTRFS_BLOCK_GROUP_RAID0) >
+	      ilog2(BTRFS_BLOCK_GROUP_TYPE_MASK));
+
+/* ilog2() can handle both constants and variables */
+#define BTRFS_BG_FLAG_TO_INDEX(profile)					\
+	ilog2((profile) >> (ilog2(BTRFS_BLOCK_GROUP_RAID0) - 1))
+
+enum btrfs_raid_types {
+	/* SINGLE is the special one as it doesn't have on-disk bit. */
+	BTRFS_RAID_SINGLE  = 0,
+
+	BTRFS_RAID_RAID0   = BTRFS_BG_FLAG_TO_INDEX(BTRFS_BLOCK_GROUP_RAID0),
+	BTRFS_RAID_RAID1   = BTRFS_BG_FLAG_TO_INDEX(BTRFS_BLOCK_GROUP_RAID1),
+	BTRFS_RAID_DUP	   = BTRFS_BG_FLAG_TO_INDEX(BTRFS_BLOCK_GROUP_DUP),
+	BTRFS_RAID_RAID10  = BTRFS_BG_FLAG_TO_INDEX(BTRFS_BLOCK_GROUP_RAID10),
+	BTRFS_RAID_RAID5   = BTRFS_BG_FLAG_TO_INDEX(BTRFS_BLOCK_GROUP_RAID5),
+	BTRFS_RAID_RAID6   = BTRFS_BG_FLAG_TO_INDEX(BTRFS_BLOCK_GROUP_RAID6),
+	BTRFS_RAID_RAID1C3 = BTRFS_BG_FLAG_TO_INDEX(BTRFS_BLOCK_GROUP_RAID1C3),
+	BTRFS_RAID_RAID1C4 = BTRFS_BG_FLAG_TO_INDEX(BTRFS_BLOCK_GROUP_RAID1C4),
+
+	BTRFS_NR_RAID_TYPES
+};
+
 struct btrfs_io_geometry {
 	/* remaining bytes before crossing a stripe */
 	u64 len;
 	/* offset of logical address in chunk */
 	u64 offset;
 	/* length of single IO stripe */
-	u64 stripe_len;
+	u32 stripe_len;
+	/* offset of address in stripe */
+	u32 stripe_offset;
 	/* number of stripe where address falls */
 	u64 stripe_nr;
-	/* offset of address in stripe */
-	u64 stripe_offset;
 	/* offset of raid56 stripe into the chunk */
 	u64 raid56_stripe_offset;
 };
@@ -72,6 +106,11 @@ struct btrfs_device {
 	/* the mode sent to blkdev_get */
 	fmode_t mode;
 
+	/*
+	 * Device's major-minor number. Must be set even if the device is not
+	 * opened (bdev == NULL), unless the device is missing.
+	 */
+	dev_t devt;
 	unsigned long dev_state;
 	blk_status_t last_flush_error;
 
@@ -116,8 +155,8 @@ struct btrfs_device {
 	/* bytes used on the current transaction */
 	u64 commit_bytes_used;
 
-	/* for sending down flush barriers */
-	struct bio *flush_bio;
+	/* Bio used for flushing device barriers */
+	struct bio flush_bio;
 	struct completion flush_wait;
 
 	/* per-device scrub information */
@@ -323,6 +362,9 @@ struct btrfs_fs_devices {
 struct btrfs_bio {
 	unsigned int mirror_num;
 
+	/* for direct I/O */
+	u64 file_offset;
+
 	/* @device is for stripe IO submission. */
 	struct btrfs_device *device;
 	u8 *csum;
@@ -422,7 +464,7 @@ struct map_lookup {
 	u64 type;
 	int io_align;
 	int io_width;
-	u64 stripe_len;
+	u32 stripe_len;
 	int num_stripes;
 	int sub_stripes;
 	int verified_stripes; /* For mount time dev extent verification */
@@ -505,7 +547,7 @@ int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		       fmode_t flags, void *holder);
 struct btrfs_device *btrfs_scan_one_device(const char *path,
 					   fmode_t flags, void *holder);
-int btrfs_forget_devices(const char *path);
+int btrfs_forget_devices(dev_t devt);
 void btrfs_close_devices(struct btrfs_fs_devices *fs_devices);
 void btrfs_free_extra_devids(struct btrfs_fs_devices *fs_devices);
 void btrfs_assign_next_active_device(struct btrfs_device *device,

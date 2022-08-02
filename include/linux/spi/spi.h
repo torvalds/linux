@@ -16,6 +16,7 @@
 #include <linux/gpio/consumer.h>
 
 #include <uapi/linux/spi/spi.h>
+#include <linux/acpi.h>
 
 struct dma_chan;
 struct software_node;
@@ -23,6 +24,7 @@ struct ptp_system_timestamp;
 struct spi_controller;
 struct spi_transfer;
 struct spi_controller_mem_ops;
+struct spi_controller_mem_caps;
 
 /*
  * INTERFACES between SPI master-side drivers and SPI slave protocol handlers,
@@ -136,9 +138,8 @@ extern int spi_delay_exec(struct spi_delay *_delay, struct spi_transfer *xfer);
  *	for driver coldplugging, and in uevents used for hotplugging
  * @driver_override: If the name of a driver is written to this attribute, then
  *	the device will bind to the named driver and only the named driver.
- * @cs_gpio: LEGACY: gpio number of the chipselect line (optional, -ENOENT when
- *	not using a GPIO line) use cs_gpiod in new drivers by opting in on
- *	the spi_master.
+ *	Do not set directly, because core frees it; use driver_set_override() to
+ *	set or clear it.
  * @cs_gpiod: gpio descriptor of the chipselect line (optional, NULL when
  *	not using a GPIO line)
  * @word_delay: delay to be inserted between consecutive
@@ -185,7 +186,6 @@ struct spi_device {
 	void			*controller_data;
 	char			modalias[SPI_NAME_SIZE];
 	const char		*driver_override;
-	int			cs_gpio;	/* LEGACY: chip select gpio */
 	struct gpio_desc	*cs_gpiod;	/* chip select gpio desc */
 	struct spi_delay	word_delay; /* inter-word delay */
 	/* CS delays */
@@ -280,7 +280,7 @@ struct spi_message;
 struct spi_driver {
 	const struct spi_device_id *id_table;
 	int			(*probe)(struct spi_device *spi);
-	int			(*remove)(struct spi_device *spi);
+	void			(*remove)(struct spi_device *spi);
 	void			(*shutdown)(struct spi_device *spi);
 	struct device_driver	driver;
 };
@@ -349,6 +349,7 @@ extern struct spi_device *spi_new_ancillary_device(struct spi_device *spi, u8 ch
  * @max_message_size: function that returns the max message size for
  *	a &spi_device; may be %NULL, so the default %SIZE_MAX will be used.
  * @io_mutex: mutex for physical bus access
+ * @add_lock: mutex to avoid adding devices to the same chipselect
  * @bus_lock_spinlock: spinlock for SPI bus locking
  * @bus_lock_mutex: mutex for exclusion of multiple callers
  * @bus_lock_flag: indicates that the SPI bus is locked for exclusive use
@@ -363,6 +364,7 @@ extern struct spi_device *spi_new_ancillary_device(struct spi_device *spi, u8 ch
  * @transfer: adds a message to the controller's transfer queue.
  * @cleanup: frees controller-specific state
  * @can_dma: determine whether this controller supports DMA
+ * @dma_map_dev: device which can be used for DMA mapping
  * @queued: whether this controller is providing an internal message queue
  * @kworker: pointer to thread struct for message pump
  * @pump_messages: work struct for scheduling work to the message pump
@@ -373,7 +375,8 @@ extern struct spi_device *spi_new_ancillary_device(struct spi_device *spi, u8 ch
  * @cur_msg_prepared: spi_prepare_message was called for the currently
  *                    in-flight message
  * @cur_msg_mapped: message has been mapped for DMA
- * @last_cs_enable: was enable true on the last call to set_cs.
+ * @last_cs: the last chip_select that is recorded by set_cs, -1 on non chip
+ *           selected
  * @last_cs_mode_high: was (mode & SPI_CS_HIGH) true on the last call to set_cs.
  * @xfer_completion: used by core transfer_one_message()
  * @busy: message pump is busy
@@ -415,19 +418,15 @@ extern struct spi_device *spi_new_ancillary_device(struct spi_device *spi, u8 ch
  * @mem_ops: optimized/dedicated operations for interactions with SPI memory.
  *	     This field is optional and should only be implemented if the
  *	     controller has native support for memory like operations.
+ * @mem_caps: controller capabilities for the handling of memory operations.
  * @unprepare_message: undo any work done by prepare_message().
  * @slave_abort: abort the ongoing transfer request on an SPI slave controller
- * @cs_gpios: LEGACY: array of GPIO descs to use as chip select lines; one per
- *	CS number. Any individual value may be -ENOENT for CS lines that
- *	are not GPIOs (driven by the SPI controller itself). Use the cs_gpiods
- *	in new drivers.
  * @cs_gpiods: Array of GPIO descs to use as chip select lines; one per CS
  *	number. Any individual value may be NULL for CS lines that
  *	are not GPIOs (driven by the SPI controller itself).
  * @use_gpio_descriptors: Turns on the code in the SPI core to parse and grab
- *	GPIO descriptors rather than using global GPIO numbers grabbed by the
- *	driver. This will fill in @cs_gpiods and @cs_gpios should not be used,
- *	and SPI devices will have the cs_gpiod assigned rather than cs_gpio.
+ *	GPIO descriptors. This will fill in @cs_gpiods and SPI devices will have
+ *	the cs_gpiod assigned if a GPIO line is found for the chipselect.
  * @unused_native_cs: When cs_gpiods is used, spi_register_controller() will
  *	fill in this field with the first unused native CS, to be used by SPI
  *	controller drivers that need to drive a native CS when using GPIO CS.
@@ -611,7 +610,7 @@ struct spi_controller {
 	bool				auto_runtime_pm;
 	bool                            cur_msg_prepared;
 	bool				cur_msg_mapped;
-	bool				last_cs_enable;
+	char				last_cs;
 	bool				last_cs_mode_high;
 	bool                            fallback;
 	struct completion               xfer_completion;
@@ -639,9 +638,9 @@ struct spi_controller {
 
 	/* Optimized handlers for SPI memory-like operations. */
 	const struct spi_controller_mem_ops *mem_ops;
+	const struct spi_controller_mem_caps *mem_caps;
 
 	/* gpio chip select */
-	int			*cs_gpios;
 	struct gpio_desc	**cs_gpiods;
 	bool			use_gpio_descriptors;
 	s8			unused_native_cs;
@@ -758,6 +757,13 @@ extern int spi_register_controller(struct spi_controller *ctlr);
 extern int devm_spi_register_controller(struct device *dev,
 					struct spi_controller *ctlr);
 extern void spi_unregister_controller(struct spi_controller *ctlr);
+
+#if IS_ENABLED(CONFIG_ACPI)
+extern struct spi_device *acpi_spi_device_alloc(struct spi_controller *ctlr,
+						struct acpi_device *adev,
+						int index);
+int acpi_spi_count_resources(struct acpi_device *adev);
+#endif
 
 /*
  * SPI resource management while processing a SPI message
@@ -1452,7 +1458,19 @@ spi_register_board_info(struct spi_board_info const *info, unsigned n)
  * use spi_new_device() to describe each device.  You can also call
  * spi_unregister_device() to start making that device vanish, but
  * normally that would be handled by spi_unregister_controller().
+ *
+ * You can also use spi_alloc_device() and spi_add_device() to use a two
+ * stage registration sequence for each spi_device. This gives the caller
+ * some more control over the spi_device structure before it is registered,
+ * but requires that caller to initialize fields that would otherwise
+ * be defined using the board info.
  */
+extern struct spi_device *
+spi_alloc_device(struct spi_controller *ctlr);
+
+extern int
+spi_add_device(struct spi_device *spi);
+
 extern struct spi_device *
 spi_new_device(struct spi_controller *, struct spi_board_info *);
 

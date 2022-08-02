@@ -513,6 +513,26 @@ out:
 	return rc;
 }
 
+static int do_tls_getsockopt_tx_zc(struct sock *sk, char __user *optval,
+				   int __user *optlen)
+{
+	struct tls_context *ctx = tls_get_ctx(sk);
+	unsigned int value;
+	int len;
+
+	if (get_user(len, optlen))
+		return -EFAULT;
+
+	if (len != sizeof(value))
+		return -EINVAL;
+
+	value = ctx->zerocopy_sendfile;
+	if (copy_to_user(optval, &value, sizeof(value)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int do_tls_getsockopt(struct sock *sk, int optname,
 			     char __user *optval, int __user *optlen)
 {
@@ -523,6 +543,9 @@ static int do_tls_getsockopt(struct sock *sk, int optname,
 	case TLS_RX:
 		rc = do_tls_getsockopt_conf(sk, optval, optlen,
 					    optname == TLS_TX);
+		break;
+	case TLS_TX_ZEROCOPY_RO:
+		rc = do_tls_getsockopt_tx_zc(sk, optval, optlen);
 		break;
 	default:
 		rc = -ENOPROTOOPT;
@@ -553,10 +576,8 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 	int rc = 0;
 	int conf;
 
-	if (sockptr_is_null(optval) || (optlen < sizeof(*crypto_info))) {
-		rc = -EINVAL;
-		goto out;
-	}
+	if (sockptr_is_null(optval) || (optlen < sizeof(*crypto_info)))
+		return -EINVAL;
 
 	if (tx) {
 		crypto_info = &ctx->crypto_send.info;
@@ -567,10 +588,8 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 	}
 
 	/* Currently we don't support set crypto info more than one time */
-	if (TLS_CRYPTO_INFO_READY(crypto_info)) {
-		rc = -EBUSY;
-		goto out;
-	}
+	if (TLS_CRYPTO_INFO_READY(crypto_info))
+		return -EBUSY;
 
 	rc = copy_from_sockptr(crypto_info, optval, sizeof(*crypto_info));
 	if (rc) {
@@ -672,12 +691,31 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 		ctx->sk_write_space = sk->sk_write_space;
 		sk->sk_write_space = tls_write_space;
 	}
-	goto out;
+	return 0;
 
 err_crypto_info:
 	memzero_explicit(crypto_info, sizeof(union tls_crypto_context));
-out:
 	return rc;
+}
+
+static int do_tls_setsockopt_tx_zc(struct sock *sk, sockptr_t optval,
+				   unsigned int optlen)
+{
+	struct tls_context *ctx = tls_get_ctx(sk);
+	unsigned int value;
+
+	if (sockptr_is_null(optval) || optlen != sizeof(value))
+		return -EINVAL;
+
+	if (copy_from_sockptr(&value, optval, sizeof(value)))
+		return -EFAULT;
+
+	if (value > 1)
+		return -EINVAL;
+
+	ctx->zerocopy_sendfile = value;
+
+	return 0;
 }
 
 static int do_tls_setsockopt(struct sock *sk, int optname, sockptr_t optval,
@@ -691,6 +729,11 @@ static int do_tls_setsockopt(struct sock *sk, int optname, sockptr_t optval,
 		lock_sock(sk);
 		rc = do_tls_setsockopt_conf(sk, optval, optlen,
 					    optname == TLS_TX);
+		release_sock(sk);
+		break;
+	case TLS_TX_ZEROCOPY_RO:
+		lock_sock(sk);
+		rc = do_tls_setsockopt_tx_zc(sk, optval, optlen);
 		release_sock(sk);
 		break;
 	default:
@@ -878,6 +921,8 @@ static void tls_update(struct sock *sk, struct proto *p,
 {
 	struct tls_context *ctx;
 
+	WARN_ON_ONCE(sk->sk_prot == p);
+
 	ctx = tls_get_ctx(sk);
 	if (likely(ctx)) {
 		ctx->sk_write_space = write_space;
@@ -926,6 +971,12 @@ static int tls_get_info(const struct sock *sk, struct sk_buff *skb)
 	if (err)
 		goto nla_failure;
 
+	if (ctx->tx_conf == TLS_HW && ctx->zerocopy_sendfile) {
+		err = nla_put_flag(skb, TLS_INFO_ZC_RO_TX);
+		if (err)
+			goto nla_failure;
+	}
+
 	rcu_read_unlock();
 	nla_nest_end(skb, start);
 	return 0;
@@ -945,6 +996,7 @@ static size_t tls_get_info_size(const struct sock *sk)
 		nla_total_size(sizeof(u16)) +	/* TLS_INFO_CIPHER */
 		nla_total_size(sizeof(u16)) +	/* TLS_INFO_RXCONF */
 		nla_total_size(sizeof(u16)) +	/* TLS_INFO_TXCONF */
+		nla_total_size(0) +		/* TLS_INFO_ZC_RO_TX */
 		0;
 
 	return size;

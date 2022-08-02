@@ -312,7 +312,7 @@ static ssize_t iwl_mei_write_cyclic_buf(struct mei_cl_device *cldev,
 		memcpy(q_head + wr, hdr, tx_sz);
 	} else {
 		memcpy(q_head + wr, hdr, q_sz - wr);
-		memcpy(q_head, (u8 *)hdr + q_sz - wr, tx_sz - (q_sz - wr));
+		memcpy(q_head, (const u8 *)hdr + q_sz - wr, tx_sz - (q_sz - wr));
 	}
 
 	WRITE_ONCE(notif_q->wr_ptr, cpu_to_le32((wr + tx_sz) % q_sz));
@@ -432,7 +432,7 @@ void iwl_mei_add_data_to_ring(struct sk_buff *skb, bool cb_tx)
 	u32 q_sz;
 	u32 rd;
 	u32 wr;
-	void *q_head;
+	u8 *q_head;
 
 	if (!iwl_mei_global_cldev)
 		return;
@@ -493,6 +493,7 @@ void iwl_mei_add_data_to_ring(struct sk_buff *skb, bool cb_tx)
 	if (cb_tx) {
 		struct iwl_sap_cb_data *cb_hdr = skb_push(skb, sizeof(*cb_hdr));
 
+		memset(cb_hdr, 0, sizeof(*cb_hdr));
 		cb_hdr->hdr.type = cpu_to_le16(SAP_MSG_CB_DATA_PACKET);
 		cb_hdr->hdr.len = cpu_to_le16(skb->len - sizeof(cb_hdr->hdr));
 		cb_hdr->hdr.seq_num = cpu_to_le32(atomic_inc_return(&mei->sap_seq_no));
@@ -1019,6 +1020,8 @@ static void iwl_mei_handle_sap_data(struct mei_cl_device *cldev,
 
 		/* We need enough room for the WiFi header + SNAP + IV */
 		skb = netdev_alloc_skb(netdev, len + QOS_HDR_IV_SNAP_LEN);
+		if (!skb)
+			continue;
 
 		skb_reserve(skb, QOS_HDR_IV_SNAP_LEN);
 		ethhdr = skb_push(skb, sizeof(*ethhdr));
@@ -2003,7 +2006,11 @@ static void iwl_mei_remove(struct mei_cl_device *cldev)
 }
 
 static const struct mei_cl_device_id iwl_mei_tbl[] = {
-	{ KBUILD_MODNAME, MEI_WLAN_UUID, MEI_CL_VERSION_ANY},
+	{
+		.name = KBUILD_MODNAME,
+		.uuid = MEI_WLAN_UUID,
+		.version = MEI_CL_VERSION_ANY,
+	},
 
 	/* required last entry */
 	{ }

@@ -14,7 +14,6 @@
 #include <linux/pagemap.h>
 #include <linux/mempool.h>
 #include <linux/blkdev.h>
-#include <linux/blk-cgroup.h>
 #include <linux/backing-dev.h>
 #include <linux/init.h>
 #include <linux/hash.h>
@@ -24,6 +23,7 @@
 
 #include <trace/events/block.h>
 #include "blk.h"
+#include "blk-cgroup.h"
 
 #define POOL_SIZE	64
 #define ISA_POOL_SIZE	16
@@ -162,17 +162,13 @@ static struct bio *bounce_clone_bio(struct bio *bio_src)
 	 *    that does not own the bio - reason being drivers don't use it for
 	 *    iterating over the biovec anymore, so expecting it to be kept up
 	 *    to date (i.e. for clones that share the parent biovec) is just
-	 *    asking for trouble and would force extra work on
-	 *    __bio_clone_fast() anyways.
+	 *    asking for trouble and would force extra work.
 	 */
-	bio = bio_alloc_bioset(GFP_NOIO, bio_segments(bio_src),
-			       &bounce_bio_set);
-	bio->bi_bdev		= bio_src->bi_bdev;
+	bio = bio_alloc_bioset(bio_src->bi_bdev, bio_segments(bio_src),
+			       bio_src->bi_opf, GFP_NOIO, &bounce_bio_set);
 	if (bio_flagged(bio_src, BIO_REMAPPED))
 		bio_set_flag(bio, BIO_REMAPPED);
-	bio->bi_opf		= bio_src->bi_opf;
 	bio->bi_ioprio		= bio_src->bi_ioprio;
-	bio->bi_write_hint	= bio_src->bi_write_hint;
 	bio->bi_iter.bi_sector	= bio_src->bi_iter.bi_sector;
 	bio->bi_iter.bi_size	= bio_src->bi_iter.bi_size;
 
@@ -180,9 +176,6 @@ static struct bio *bounce_clone_bio(struct bio *bio_src)
 	case REQ_OP_DISCARD:
 	case REQ_OP_SECURE_ERASE:
 	case REQ_OP_WRITE_ZEROES:
-		break;
-	case REQ_OP_WRITE_SAME:
-		bio->bi_io_vec[bio->bi_vcnt++] = bio_src->bi_io_vec[0];
 		break;
 	default:
 		bio_for_each_segment(bv, bio_src, iter)
@@ -198,7 +191,6 @@ static struct bio *bounce_clone_bio(struct bio *bio_src)
 		goto err_put;
 
 	bio_clone_blkg_association(bio, bio_src);
-	blkcg_bio_issue_init(bio);
 
 	return bio;
 

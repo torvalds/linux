@@ -26,6 +26,7 @@
  *          Jerome Glisse
  */
 
+#include <linux/iosys-map.h>
 #include <linux/pci.h>
 
 #include <drm/drm_device.h>
@@ -161,7 +162,9 @@ static int radeon_gem_set_domain(struct drm_gem_object *gobj,
 	}
 	if (domain == RADEON_GEM_DOMAIN_CPU) {
 		/* Asking for cpu access wait for object idle */
-		r = dma_resv_wait_timeout(robj->tbo.base.resv, true, true, 30 * HZ);
+		r = dma_resv_wait_timeout(robj->tbo.base.resv,
+					  DMA_RESV_USAGE_BOOKKEEP,
+					  true, 30 * HZ);
 		if (!r)
 			r = -EBUSY;
 
@@ -523,7 +526,7 @@ int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 	}
 	robj = gem_to_radeon_bo(gobj);
 
-	r = dma_resv_test_signaled(robj->tbo.base.resv, true);
+	r = dma_resv_test_signaled(robj->tbo.base.resv, DMA_RESV_USAGE_READ);
 	if (r == 0)
 		r = -EBUSY;
 	else
@@ -552,7 +555,8 @@ int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 	}
 	robj = gem_to_radeon_bo(gobj);
 
-	ret = dma_resv_wait_timeout(robj->tbo.base.resv, true, true, 30 * HZ);
+	ret = dma_resv_wait_timeout(robj->tbo.base.resv, DMA_RESV_USAGE_READ,
+				    true, 30 * HZ);
 	if (ret == 0)
 		r = -EBUSY;
 	else if (ret < 0)

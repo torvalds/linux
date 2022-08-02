@@ -60,6 +60,10 @@
 #define EM_RISCV	243
 #endif
 
+#ifndef EM_LOONGARCH
+#define EM_LOONGARCH	258
+#endif
+
 static uint32_t (*r)(const uint32_t *);
 static uint16_t (*r2)(const uint16_t *);
 static uint64_t (*r8)(const uint64_t *);
@@ -261,45 +265,6 @@ static void sort_relative_table_with_data(char *extab_image, int image_size)
 	}
 }
 
-static void s390_sort_relative_table(char *extab_image, int image_size)
-{
-	int i;
-
-	for (i = 0; i < image_size; i += 16) {
-		char *loc = extab_image + i;
-		uint64_t handler;
-
-		w(r((uint32_t *)loc) + i, (uint32_t *)loc);
-		w(r((uint32_t *)(loc + 4)) + (i + 4), (uint32_t *)(loc + 4));
-		/*
-		 * 0 is a special self-relative handler value, which means that
-		 * handler should be ignored. It is safe, because it means that
-		 * handler field points to itself, which should never happen.
-		 * When creating extable-relative values, keep it as 0, since
-		 * this should never occur either: it would mean that handler
-		 * field points to the first extable entry.
-		 */
-		handler = r8((uint64_t *)(loc + 8));
-		if (handler)
-			handler += i + 8;
-		w8(handler, (uint64_t *)(loc + 8));
-	}
-
-	qsort(extab_image, image_size / 16, 16, compare_relative_table);
-
-	for (i = 0; i < image_size; i += 16) {
-		char *loc = extab_image + i;
-		uint64_t handler;
-
-		w(r((uint32_t *)loc) - i, (uint32_t *)loc);
-		w(r((uint32_t *)(loc + 4)) - (i + 4), (uint32_t *)(loc + 4));
-		handler = r8((uint64_t *)(loc + 8));
-		if (handler)
-			handler -= i + 8;
-		w8(handler, (uint64_t *)(loc + 8));
-	}
-}
-
 static int do_file(char const *const fname, void *addr)
 {
 	int rc = -1;
@@ -340,11 +305,9 @@ static int do_file(char const *const fname, void *addr)
 	case EM_386:
 	case EM_AARCH64:
 	case EM_RISCV:
+	case EM_S390:
 	case EM_X86_64:
 		custom_sort = sort_relative_table_with_data;
-		break;
-	case EM_S390:
-		custom_sort = s390_sort_relative_table;
 		break;
 	case EM_PARISC:
 	case EM_PPC:
@@ -354,6 +317,7 @@ static int do_file(char const *const fname, void *addr)
 	case EM_ARCOMPACT:
 	case EM_ARCV2:
 	case EM_ARM:
+	case EM_LOONGARCH:
 	case EM_MICROBLAZE:
 	case EM_MIPS:
 	case EM_XTENSA:

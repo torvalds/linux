@@ -13,6 +13,11 @@
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
 
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+
 struct aspeed_wdt {
 	struct watchdog_device	wdd;
 	void __iomem		*base;
@@ -265,6 +270,8 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 
 	wdt->wdd.timeout = WDT_DEFAULT_TIMEOUT;
 	watchdog_init_timeout(&wdt->wdd, 0, dev);
+
+	watchdog_set_nowayout(&wdt->wdd, nowayout);
 
 	np = dev->of_node;
 

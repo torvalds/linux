@@ -123,7 +123,7 @@ static ssize_t ti_dac_write_powerdown(struct iio_dev *indio_dev,
 	u8 power;
 	int ret;
 
-	ret = strtobool(buf, &powerdown);
+	ret = kstrtobool(buf, &powerdown);
 	if (ret)
 		return ret;
 
@@ -292,7 +292,7 @@ err:
 	return ret;
 }
 
-static int ti_dac_remove(struct spi_device *spi)
+static void ti_dac_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ti_dac_chip *ti_dac = iio_priv(indio_dev);
@@ -300,7 +300,6 @@ static int ti_dac_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	mutex_destroy(&ti_dac->lock);
 	regulator_disable(ti_dac->vref);
-	return 0;
 }
 
 static const struct of_device_id ti_dac_of_id[] = {

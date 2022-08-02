@@ -27,6 +27,7 @@
 #include <linux/kthread.h>
 #include <linux/capability.h>
 #include <trace/events/xdp.h>
+#include <linux/btf_ids.h>
 
 #include <linux/netdevice.h>   /* netif_receive_skb_list */
 #include <linux/etherdevice.h> /* eth_type_trans */
@@ -397,7 +398,8 @@ static int cpu_map_kthread_run(void *data)
 	return 0;
 }
 
-static int __cpu_map_load_bpf_program(struct bpf_cpu_map_entry *rcpu, int fd)
+static int __cpu_map_load_bpf_program(struct bpf_cpu_map_entry *rcpu,
+				      struct bpf_map *map, int fd)
 {
 	struct bpf_prog *prog;
 
@@ -405,7 +407,8 @@ static int __cpu_map_load_bpf_program(struct bpf_cpu_map_entry *rcpu, int fd)
 	if (IS_ERR(prog))
 		return PTR_ERR(prog);
 
-	if (prog->expected_attach_type != BPF_XDP_CPUMAP) {
+	if (prog->expected_attach_type != BPF_XDP_CPUMAP ||
+	    !bpf_prog_map_compatible(map, prog)) {
 		bpf_prog_put(prog);
 		return -EINVAL;
 	}
@@ -457,7 +460,7 @@ __cpu_map_entry_alloc(struct bpf_map *map, struct bpf_cpumap_val *value,
 	rcpu->map_id = map->id;
 	rcpu->value.qsize  = value->qsize;
 
-	if (fd > 0 && __cpu_map_load_bpf_program(rcpu, fd))
+	if (fd > 0 && __cpu_map_load_bpf_program(rcpu, map, fd))
 		goto free_ptr_ring;
 
 	/* Setup kthread */
@@ -671,7 +674,7 @@ static int cpu_map_redirect(struct bpf_map *map, u32 ifindex, u64 flags)
 				      __cpu_map_lookup_elem);
 }
 
-static int cpu_map_btf_id;
+BTF_ID_LIST_SINGLE(cpu_map_btf_ids, struct, bpf_cpu_map)
 const struct bpf_map_ops cpu_map_ops = {
 	.map_meta_equal		= bpf_map_meta_equal,
 	.map_alloc		= cpu_map_alloc,
@@ -681,8 +684,7 @@ const struct bpf_map_ops cpu_map_ops = {
 	.map_lookup_elem	= cpu_map_lookup_elem,
 	.map_get_next_key	= cpu_map_get_next_key,
 	.map_check_btf		= map_check_no_btf,
-	.map_btf_name		= "bpf_cpu_map",
-	.map_btf_id		= &cpu_map_btf_id,
+	.map_btf_id		= &cpu_map_btf_ids[0],
 	.map_redirect		= cpu_map_redirect,
 };
 

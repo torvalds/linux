@@ -104,7 +104,7 @@ static void ar5523_cmd_rx_cb(struct urb *urb)
 	}
 
 	if (urb->actual_length < sizeof(struct ar5523_cmd_hdr)) {
-		ar5523_err(ar, "RX USB to short.\n");
+		ar5523_err(ar, "RX USB too short.\n");
 		goto skip;
 	}
 
@@ -1160,7 +1160,7 @@ static int ar5523_get_wlan_mode(struct ar5523 *ar,
 		ar5523_info(ar, "STA not found!\n");
 		return WLAN_MODE_11b;
 	}
-	sta_rate_set = sta->supp_rates[ar->hw->conf.chandef.chan->band];
+	sta_rate_set = sta->deflink.supp_rates[ar->hw->conf.chandef.chan->band];
 
 	for (bit = 0; bit < band->n_bitrates; bit++) {
 		if (sta_rate_set & 1) {
@@ -1198,7 +1198,7 @@ static void ar5523_create_rateset(struct ar5523 *ar,
 		ar5523_info(ar, "STA not found. Cannot set rates\n");
 		sta_rate_set = bss_conf->basic_rates;
 	} else
-		sta_rate_set = sta->supp_rates[ar->hw->conf.chandef.chan->band];
+		sta_rate_set = sta->deflink.supp_rates[ar->hw->conf.chandef.chan->band];
 
 	ar5523_dbg(ar, "sta rate_set = %08x\n", sta_rate_set);
 
@@ -1500,7 +1500,7 @@ static int ar5523_load_firmware(struct usb_device *dev)
 		return -ENOENT;
 	}
 
-	txblock = kmalloc(sizeof(*txblock), GFP_KERNEL);
+	txblock = kzalloc(sizeof(*txblock), GFP_KERNEL);
 	if (!txblock)
 		goto out;
 
@@ -1512,7 +1512,6 @@ static int ar5523_load_firmware(struct usb_device *dev)
 	if (!fwbuf)
 		goto out_free_rxblock;
 
-	memset(txblock, 0, sizeof(struct ar5523_fwblock));
 	txblock->flags = cpu_to_be32(AR5523_WRITE_BLOCK);
 	txblock->total = cpu_to_be32(fw->size);
 

@@ -375,9 +375,9 @@ static int affs_writepage(struct page *page, struct writeback_control *wbc)
 	return block_write_full_page(page, affs_get_block, wbc);
 }
 
-static int affs_readpage(struct file *file, struct page *page)
+static int affs_read_folio(struct file *file, struct folio *folio)
 {
-	return block_read_full_page(page, affs_get_block);
+	return block_read_full_folio(folio, affs_get_block);
 }
 
 static void affs_write_failed(struct address_space *mapping, loff_t to)
@@ -414,13 +414,13 @@ affs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 }
 
 static int affs_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
+			loff_t pos, unsigned len,
 			struct page **pagep, void **fsdata)
 {
 	int ret;
 
 	*pagep = NULL;
-	ret = cont_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+	ret = cont_write_begin(file, mapping, pos, len, pagep, fsdata,
 				affs_get_block,
 				&AFFS_I(mapping->host)->mmu_private);
 	if (unlikely(ret))
@@ -453,8 +453,9 @@ static sector_t _affs_bmap(struct address_space *mapping, sector_t block)
 }
 
 const struct address_space_operations affs_aops = {
-	.set_page_dirty	= __set_page_dirty_buffers,
-	.readpage = affs_readpage,
+	.dirty_folio	= block_dirty_folio,
+	.invalidate_folio = block_invalidate_folio,
+	.read_folio = affs_read_folio,
 	.writepage = affs_writepage,
 	.write_begin = affs_write_begin,
 	.write_end = affs_write_end,
@@ -628,8 +629,9 @@ out:
 }
 
 static int
-affs_readpage_ofs(struct file *file, struct page *page)
+affs_read_folio_ofs(struct file *file, struct folio *folio)
 {
+	struct page *page = &folio->page;
 	struct inode *inode = page->mapping->host;
 	u32 to;
 	int err;
@@ -649,7 +651,7 @@ affs_readpage_ofs(struct file *file, struct page *page)
 }
 
 static int affs_write_begin_ofs(struct file *file, struct address_space *mapping,
-				loff_t pos, unsigned len, unsigned flags,
+				loff_t pos, unsigned len,
 				struct page **pagep, void **fsdata)
 {
 	struct inode *inode = mapping->host;
@@ -669,7 +671,7 @@ static int affs_write_begin_ofs(struct file *file, struct address_space *mapping
 	}
 
 	index = pos >> PAGE_SHIFT;
-	page = grab_cache_page_write_begin(mapping, index, flags);
+	page = grab_cache_page_write_begin(mapping, index);
 	if (!page)
 		return -ENOMEM;
 	*pagep = page;
@@ -834,8 +836,9 @@ err_bh:
 }
 
 const struct address_space_operations affs_aops_ofs = {
-	.set_page_dirty	= __set_page_dirty_buffers,
-	.readpage = affs_readpage_ofs,
+	.dirty_folio	= block_dirty_folio,
+	.invalidate_folio = block_invalidate_folio,
+	.read_folio = affs_read_folio_ofs,
 	//.writepage = affs_writepage_ofs,
 	.write_begin = affs_write_begin_ofs,
 	.write_end = affs_write_end_ofs
@@ -885,7 +888,7 @@ affs_truncate(struct inode *inode)
 		loff_t isize = inode->i_size;
 		int res;
 
-		res = mapping->a_ops->write_begin(NULL, mapping, isize, 0, 0, &page, &fsdata);
+		res = mapping->a_ops->write_begin(NULL, mapping, isize, 0, &page, &fsdata);
 		if (!res)
 			res = mapping->a_ops->write_end(NULL, mapping, isize, 0, 0, page, fsdata);
 		else

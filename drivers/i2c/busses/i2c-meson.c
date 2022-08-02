@@ -30,18 +30,21 @@
 #define REG_TOK_RDATA1		0x1c
 
 /* Control register fields */
-#define REG_CTRL_START		BIT(0)
-#define REG_CTRL_ACK_IGNORE	BIT(1)
-#define REG_CTRL_STATUS		BIT(2)
-#define REG_CTRL_ERROR		BIT(3)
-#define REG_CTRL_CLKDIV		GENMASK(21, 12)
-#define REG_CTRL_CLKDIVEXT	GENMASK(29, 28)
+#define REG_CTRL_START			BIT(0)
+#define REG_CTRL_ACK_IGNORE		BIT(1)
+#define REG_CTRL_STATUS			BIT(2)
+#define REG_CTRL_ERROR			BIT(3)
+#define REG_CTRL_CLKDIV_SHIFT		12
+#define REG_CTRL_CLKDIV_MASK		GENMASK(21, REG_CTRL_CLKDIV_SHIFT)
+#define REG_CTRL_CLKDIVEXT_SHIFT	28
+#define REG_CTRL_CLKDIVEXT_MASK		GENMASK(29, REG_CTRL_CLKDIVEXT_SHIFT)
 
-#define REG_SLV_ADDR		GENMASK(7, 0)
-#define REG_SLV_SDA_FILTER	GENMASK(10, 8)
-#define REG_SLV_SCL_FILTER	GENMASK(13, 11)
-#define REG_SLV_SCL_LOW		GENMASK(27, 16)
-#define REG_SLV_SCL_LOW_EN	BIT(28)
+#define REG_SLV_ADDR_MASK		GENMASK(7, 0)
+#define REG_SLV_SDA_FILTER_MASK		GENMASK(10, 8)
+#define REG_SLV_SCL_FILTER_MASK		GENMASK(13, 11)
+#define REG_SLV_SCL_LOW_SHIFT		16
+#define REG_SLV_SCL_LOW_MASK		GENMASK(27, REG_SLV_SCL_LOW_SHIFT)
+#define REG_SLV_SCL_LOW_EN		BIT(28)
 
 #define I2C_TIMEOUT_MS		500
 #define FILTER_DELAY		15
@@ -62,10 +65,6 @@ enum {
 	STATE_WRITE,
 };
 
-struct meson_i2c_data {
-	unsigned char div_factor;
-};
-
 /**
  * struct meson_i2c - Meson I2C device private data
  *
@@ -83,7 +82,7 @@ struct meson_i2c_data {
  * @done:	Completion used to wait for transfer termination
  * @tokens:	Sequence of tokens to be written to the device
  * @num_tokens:	Number of tokens
- * @data:	Pointer to the controlller's platform data
+ * @data:	Pointer to the controller's platform data
  */
 struct meson_i2c {
 	struct i2c_adapter	adap;
@@ -104,6 +103,10 @@ struct meson_i2c {
 	int			num_tokens;
 
 	const struct meson_i2c_data *data;
+};
+
+struct meson_i2c_data {
+	void (*set_clk_div)(struct meson_i2c *i2c, unsigned int freq);
 };
 
 static void meson_i2c_set_mask(struct meson_i2c *i2c, int reg, u32 mask,
@@ -134,14 +137,62 @@ static void meson_i2c_add_token(struct meson_i2c *i2c, int token)
 	i2c->num_tokens++;
 }
 
-static void meson_i2c_set_clk_div(struct meson_i2c *i2c, unsigned int freq)
+static void meson_gxbb_axg_i2c_set_clk_div(struct meson_i2c *i2c, unsigned int freq)
+{
+	unsigned long clk_rate = clk_get_rate(i2c->clk);
+	unsigned int div_h, div_l;
+
+	/* According to I2C-BUS Spec 2.1, in FAST-MODE, the minimum LOW period is 1.3uS, and
+	 * minimum HIGH is least 0.6us.
+	 * For 400000 freq, the period is 2.5us. To keep within the specs, give 40% of period to
+	 * HIGH and 60% to LOW. This means HIGH at 1.0us and LOW 1.5us.
+	 * The same applies for Fast-mode plus, where LOW is 0.5us and HIGH is 0.26us.
+	 * Duty = H/(H + L) = 2/5
+	 */
+	if (freq <= I2C_MAX_STANDARD_MODE_FREQ) {
+		div_h = DIV_ROUND_UP(clk_rate, freq);
+		div_l = DIV_ROUND_UP(div_h, 4);
+		div_h = DIV_ROUND_UP(div_h, 2) - FILTER_DELAY;
+	} else {
+		div_h = DIV_ROUND_UP(clk_rate * 2, freq * 5) - FILTER_DELAY;
+		div_l = DIV_ROUND_UP(clk_rate * 3, freq * 5 * 2);
+	}
+
+	/* clock divider has 12 bits */
+	if (div_h > GENMASK(11, 0)) {
+		dev_err(i2c->dev, "requested bus frequency too low\n");
+		div_h = GENMASK(11, 0);
+	}
+	if (div_l > GENMASK(11, 0)) {
+		dev_err(i2c->dev, "requested bus frequency too low\n");
+		div_l = GENMASK(11, 0);
+	}
+
+	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_CLKDIV_MASK,
+			   FIELD_PREP(REG_CTRL_CLKDIV_MASK, div_h & GENMASK(9, 0)));
+
+	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_CLKDIVEXT_MASK,
+			   FIELD_PREP(REG_CTRL_CLKDIVEXT_MASK, div_h >> 10));
+
+	/* set SCL low delay */
+	meson_i2c_set_mask(i2c, REG_SLAVE_ADDR, REG_SLV_SCL_LOW_MASK,
+			   FIELD_PREP(REG_SLV_SCL_LOW_MASK, div_l));
+
+	/* Enable HIGH/LOW mode */
+	meson_i2c_set_mask(i2c, REG_SLAVE_ADDR, REG_SLV_SCL_LOW_EN, REG_SLV_SCL_LOW_EN);
+
+	dev_dbg(i2c->dev, "%s: clk %lu, freq %u, divh %u, divl %u\n", __func__,
+		clk_rate, freq, div_h, div_l);
+}
+
+static void meson6_i2c_set_clk_div(struct meson_i2c *i2c, unsigned int freq)
 {
 	unsigned long clk_rate = clk_get_rate(i2c->clk);
 	unsigned int div;
 
 	div = DIV_ROUND_UP(clk_rate, freq);
 	div -= FILTER_DELAY;
-	div = DIV_ROUND_UP(div, i2c->data->div_factor);
+	div = DIV_ROUND_UP(div, 4);
 
 	/* clock divider has 12 bits */
 	if (div > GENMASK(11, 0)) {
@@ -149,11 +200,11 @@ static void meson_i2c_set_clk_div(struct meson_i2c *i2c, unsigned int freq)
 		div = GENMASK(11, 0);
 	}
 
-	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_CLKDIV,
-			   FIELD_PREP(REG_CTRL_CLKDIV, div & GENMASK(9, 0)));
+	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_CLKDIV_MASK,
+			   FIELD_PREP(REG_CTRL_CLKDIV_MASK, div & GENMASK(9, 0)));
 
-	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_CLKDIVEXT,
-			   FIELD_PREP(REG_CTRL_CLKDIVEXT, div >> 10));
+	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_CLKDIVEXT_MASK,
+			   FIELD_PREP(REG_CTRL_CLKDIVEXT_MASK, div >> 10));
 
 	/* Disable HIGH/LOW mode */
 	meson_i2c_set_mask(i2c, REG_SLAVE_ADDR, REG_SLV_SCL_LOW_EN, 0);
@@ -292,8 +343,8 @@ static void meson_i2c_do_start(struct meson_i2c *i2c, struct i2c_msg *msg)
 		TOKEN_SLAVE_ADDR_WRITE;
 
 
-	meson_i2c_set_mask(i2c, REG_SLAVE_ADDR, REG_SLV_ADDR,
-			   FIELD_PREP(REG_SLV_ADDR, msg->addr << 1));
+	meson_i2c_set_mask(i2c, REG_SLAVE_ADDR, REG_SLV_ADDR_MASK,
+			   FIELD_PREP(REG_SLV_ADDR_MASK, msg->addr << 1));
 
 	meson_i2c_add_token(i2c, TOKEN_START);
 	meson_i2c_add_token(i2c, token);
@@ -465,17 +516,21 @@ static int meson_i2c_probe(struct platform_device *pdev)
 	 */
 	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_START, 0);
 
+	/* Disable filtering */
+	meson_i2c_set_mask(i2c, REG_SLAVE_ADDR,
+			   REG_SLV_SDA_FILTER_MASK | REG_SLV_SCL_FILTER_MASK, 0);
+
+	if (!i2c->data->set_clk_div) {
+		clk_disable_unprepare(i2c->clk);
+		return -EINVAL;
+	}
+	i2c->data->set_clk_div(i2c, timings.bus_freq_hz);
+
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret < 0) {
 		clk_disable_unprepare(i2c->clk);
 		return ret;
 	}
-
-	/* Disable filtering */
-	meson_i2c_set_mask(i2c, REG_SLAVE_ADDR,
-			   REG_SLV_SDA_FILTER | REG_SLV_SCL_FILTER, 0);
-
-	meson_i2c_set_clk_div(i2c, timings.bus_freq_hz);
 
 	return 0;
 }
@@ -491,15 +546,15 @@ static int meson_i2c_remove(struct platform_device *pdev)
 }
 
 static const struct meson_i2c_data i2c_meson6_data = {
-	.div_factor = 4,
+	.set_clk_div = meson6_i2c_set_clk_div,
 };
 
 static const struct meson_i2c_data i2c_gxbb_data = {
-	.div_factor = 4,
+	.set_clk_div = meson_gxbb_axg_i2c_set_clk_div,
 };
 
 static const struct meson_i2c_data i2c_axg_data = {
-	.div_factor = 3,
+	.set_clk_div = meson_gxbb_axg_i2c_set_clk_div,
 };
 
 static const struct of_device_id meson_i2c_match[] = {

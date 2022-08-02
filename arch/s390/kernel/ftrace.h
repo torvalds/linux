@@ -16,8 +16,6 @@ extern struct ftrace_hotpatch_trampoline __ftrace_hotpatch_trampolines_start[];
 extern struct ftrace_hotpatch_trampoline __ftrace_hotpatch_trampolines_end[];
 extern const char ftrace_shared_hotpatch_trampoline_br[];
 extern const char ftrace_shared_hotpatch_trampoline_br_end[];
-extern const char ftrace_shared_hotpatch_trampoline_ex[];
-extern const char ftrace_shared_hotpatch_trampoline_ex_end[];
 extern const char ftrace_shared_hotpatch_trampoline_exrl[];
 extern const char ftrace_shared_hotpatch_trampoline_exrl_end[];
 extern const char ftrace_plt_template[];

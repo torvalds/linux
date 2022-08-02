@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/bpf-cgroup.h>
 #include <linux/bpf.h>
 #include <linux/bpf_local_storage.h>
@@ -9,6 +9,7 @@
 #include <linux/rbtree.h>
 #include <linux/slab.h>
 #include <uapi/linux/btf.h>
+#include <linux/btf_ids.h>
 
 #ifdef CONFIG_CGROUP_BPF
 
@@ -446,7 +447,8 @@ static void cgroup_storage_seq_show_elem(struct bpf_map *map, void *key,
 	rcu_read_unlock();
 }
 
-static int cgroup_storage_map_btf_id;
+BTF_ID_LIST_SINGLE(cgroup_storage_map_btf_ids, struct,
+		   bpf_cgroup_storage_map)
 const struct bpf_map_ops cgroup_storage_map_ops = {
 	.map_alloc = cgroup_storage_map_alloc,
 	.map_free = cgroup_storage_map_free,
@@ -456,8 +458,7 @@ const struct bpf_map_ops cgroup_storage_map_ops = {
 	.map_delete_elem = cgroup_storage_delete_elem,
 	.map_check_btf = cgroup_storage_check_btf,
 	.map_seq_show_elem = cgroup_storage_seq_show_elem,
-	.map_btf_name = "bpf_cgroup_storage_map",
-	.map_btf_id = &cgroup_storage_map_btf_id,
+	.map_btf_id = &cgroup_storage_map_btf_ids[0],
 };
 
 int bpf_cgroup_storage_assign(struct bpf_prog_aux *aux, struct bpf_map *_map)

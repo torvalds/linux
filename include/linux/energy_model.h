@@ -67,11 +67,16 @@ struct em_perf_domain {
  *
  *  EM_PERF_DOMAIN_SKIP_INEFFICIENCIES: Skip inefficient states when estimating
  *  energy consumption.
+ *
+ *  EM_PERF_DOMAIN_ARTIFICIAL: The power values are artificial and might be
+ *  created by platform missing real power information
  */
 #define EM_PERF_DOMAIN_MILLIWATTS BIT(0)
 #define EM_PERF_DOMAIN_SKIP_INEFFICIENCIES BIT(1)
+#define EM_PERF_DOMAIN_ARTIFICIAL BIT(2)
 
 #define em_span_cpus(em) (to_cpumask((em)->cpus))
+#define em_is_artificial(em) ((em)->flags & EM_PERF_DOMAIN_ARTIFICIAL)
 
 #ifdef CONFIG_ENERGY_MODEL
 #define EM_MAX_POWER 0xFFFF
@@ -96,11 +101,11 @@ struct em_data_callback {
 	/**
 	 * active_power() - Provide power at the next performance state of
 	 *		a device
+	 * @dev		: Device for which we do this operation (can be a CPU)
 	 * @power	: Active power at the performance state
 	 *		(modified)
 	 * @freq	: Frequency at the performance state in kHz
 	 *		(modified)
-	 * @dev		: Device for which we do this operation (can be a CPU)
 	 *
 	 * active_power() must find the lowest performance state of 'dev' above
 	 * 'freq' and update 'power' and 'freq' to the matching active power
@@ -112,10 +117,32 @@ struct em_data_callback {
 	 *
 	 * Return 0 on success.
 	 */
-	int (*active_power)(unsigned long *power, unsigned long *freq,
-			    struct device *dev);
+	int (*active_power)(struct device *dev, unsigned long *power,
+			    unsigned long *freq);
+
+	/**
+	 * get_cost() - Provide the cost at the given performance state of
+	 *		a device
+	 * @dev		: Device for which we do this operation (can be a CPU)
+	 * @freq	: Frequency at the performance state in kHz
+	 * @cost	: The cost value for the performance state
+	 *		(modified)
+	 *
+	 * In case of CPUs, the cost is the one of a single CPU in the domain.
+	 * It is expected to fit in the [0, EM_MAX_POWER] range due to internal
+	 * usage in EAS calculation.
+	 *
+	 * Return 0 on success, or appropriate error value in case of failure.
+	 */
+	int (*get_cost)(struct device *dev, unsigned long freq,
+			unsigned long *cost);
 };
-#define EM_DATA_CB(_active_power_cb) { .active_power = &_active_power_cb }
+#define EM_SET_ACTIVE_POWER_CB(em_cb, cb) ((em_cb).active_power = cb)
+#define EM_ADV_DATA_CB(_active_power_cb, _cost_cb)	\
+	{ .active_power = _active_power_cb,		\
+	  .get_cost = _cost_cb }
+#define EM_DATA_CB(_active_power_cb)			\
+		EM_ADV_DATA_CB(_active_power_cb, NULL)
 
 struct em_perf_domain *em_cpu_get(int cpu);
 struct em_perf_domain *em_pd_get(struct device *dev);
@@ -263,7 +290,9 @@ static inline int em_pd_nr_perf_states(struct em_perf_domain *pd)
 
 #else
 struct em_data_callback {};
+#define EM_ADV_DATA_CB(_active_power_cb, _cost_cb) { }
 #define EM_DATA_CB(_active_power_cb) { }
+#define EM_SET_ACTIVE_POWER_CB(em_cb, cb) do { } while (0)
 
 static inline
 int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,

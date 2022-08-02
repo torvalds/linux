@@ -207,6 +207,9 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	else
 		clear_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags);
 
+	rtw_coex_wl_status_check(rtwdev);
+	rtw_coex_query_bt_hid_list(rtwdev);
+
 	if (busy_traffic != test_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags))
 		rtw_coex_wl_status_change_notify(rtwdev, 0);
 
@@ -272,6 +275,16 @@ static void rtw_c2h_work(struct work_struct *work)
 	}
 }
 
+static void rtw_ips_work(struct work_struct *work)
+{
+	struct rtw_dev *rtwdev = container_of(work, struct rtw_dev, ips_work);
+
+	mutex_lock(&rtwdev->mutex);
+	if (rtwdev->hw->conf.flags & IEEE80211_CONF_IDLE)
+		rtw_enter_ips(rtwdev);
+	mutex_unlock(&rtwdev->mutex);
+}
+
 static u8 rtw_acquire_macid(struct rtw_dev *rtwdev)
 {
 	unsigned long mac_id;
@@ -300,13 +313,13 @@ int rtw_sta_add(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
 		rtw_txq_init(rtwdev, sta->txq[i]);
 
-	rtw_update_sta_info(rtwdev, si);
+	rtw_update_sta_info(rtwdev, si, true);
 	rtw_fw_media_status_report(rtwdev, si->mac_id, true);
 
 	rtwdev->sta_cnt++;
 	rtwdev->beacon_loss = false;
-	rtw_info(rtwdev, "sta %pM joined with macid %d\n",
-		 sta->addr, si->mac_id);
+	rtw_dbg(rtwdev, RTW_DBG_STATE, "sta %pM joined with macid %d\n",
+		sta->addr, si->mac_id);
 
 	return 0;
 }
@@ -327,8 +340,8 @@ void rtw_sta_remove(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 	kfree(si->mask);
 
 	rtwdev->sta_cnt--;
-	rtw_info(rtwdev, "sta %pM with macid %d left\n",
-		 sta->addr, si->mac_id);
+	rtw_dbg(rtwdev, RTW_DBG_STATE, "sta %pM with macid %d left\n",
+		sta->addr, si->mac_id);
 }
 
 struct rtw_fwcd_hdr {
@@ -651,6 +664,12 @@ void rtw_set_rx_freq_band(struct rtw_rx_pkt_stat *pkt_stat, u8 channel)
 }
 EXPORT_SYMBOL(rtw_set_rx_freq_band);
 
+void rtw_set_dtim_period(struct rtw_dev *rtwdev, int dtim_period)
+{
+	rtw_write32_set(rtwdev, REG_TCR, BIT_TCR_UPDATE_TIMIE);
+	rtw_write8(rtwdev, REG_DTIM_COUNTER_ROOT, dtim_period - 1);
+}
+
 void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 			    struct rtw_channel_params *chan_params)
 {
@@ -891,7 +910,7 @@ static void rtw_hw_config_rf_ant_num(struct rtw_dev *rtwdev, u8 hw_ant_num)
 static u64 get_vht_ra_mask(struct ieee80211_sta *sta)
 {
 	u64 ra_mask = 0;
-	u16 mcs_map = le16_to_cpu(sta->vht_cap.vht_mcs.rx_mcs_map);
+	u16 mcs_map = le16_to_cpu(sta->deflink.vht_cap.vht_mcs.rx_mcs_map);
 	u8 vht_mcs_cap;
 	int i, nss;
 
@@ -1011,37 +1030,52 @@ static u8 get_rate_id(u8 wireless_set, enum rtw_bandwidth bw_mode, u8 tx_num)
 #define RA_MASK_VHT_RATES	(RA_MASK_VHT_RATES_1SS | \
 				 RA_MASK_VHT_RATES_2SS | \
 				 RA_MASK_VHT_RATES_3SS)
+#define RA_MASK_CCK_IN_BG	0x00005
 #define RA_MASK_CCK_IN_HT	0x00005
 #define RA_MASK_CCK_IN_VHT	0x00005
 #define RA_MASK_OFDM_IN_VHT	0x00010
 #define RA_MASK_OFDM_IN_HT_2G	0x00010
 #define RA_MASK_OFDM_IN_HT_5G	0x00030
 
-static u64 rtw_update_rate_mask(struct rtw_dev *rtwdev,
-				struct rtw_sta_info *si,
-				u64 ra_mask, bool is_vht_enable,
-				u8 wireless_set)
+static u64 rtw_rate_mask_rssi(struct rtw_sta_info *si, u8 wireless_set)
+{
+	u8 rssi_level = si->rssi_level;
+
+	if (wireless_set == WIRELESS_CCK)
+		return 0xffffffffffffffffULL;
+
+	if (rssi_level == 0)
+		return 0xffffffffffffffffULL;
+	else if (rssi_level == 1)
+		return 0xfffffffffffffff0ULL;
+	else if (rssi_level == 2)
+		return 0xffffffffffffefe0ULL;
+	else if (rssi_level == 3)
+		return 0xffffffffffffcfc0ULL;
+	else if (rssi_level == 4)
+		return 0xffffffffffff8f80ULL;
+	else
+		return 0xffffffffffff0f00ULL;
+}
+
+static u64 rtw_rate_mask_recover(u64 ra_mask, u64 ra_mask_bak)
+{
+	if ((ra_mask & ~(RA_MASK_CCK_RATES | RA_MASK_OFDM_RATES)) == 0)
+		ra_mask |= (ra_mask_bak & ~(RA_MASK_CCK_RATES | RA_MASK_OFDM_RATES));
+
+	if (ra_mask == 0)
+		ra_mask |= (ra_mask_bak & (RA_MASK_CCK_RATES | RA_MASK_OFDM_RATES));
+
+	return ra_mask;
+}
+
+static u64 rtw_rate_mask_cfg(struct rtw_dev *rtwdev, struct rtw_sta_info *si,
+			     u64 ra_mask, bool is_vht_enable)
 {
 	struct rtw_hal *hal = &rtwdev->hal;
 	const struct cfg80211_bitrate_mask *mask = si->mask;
 	u64 cfg_mask = GENMASK_ULL(63, 0);
-	u8 rssi_level, band;
-
-	if (wireless_set != WIRELESS_CCK) {
-		rssi_level = si->rssi_level;
-		if (rssi_level == 0)
-			ra_mask &= 0xffffffffffffffffULL;
-		else if (rssi_level == 1)
-			ra_mask &= 0xfffffffffffffff0ULL;
-		else if (rssi_level == 2)
-			ra_mask &= 0xffffffffffffefe0ULL;
-		else if (rssi_level == 3)
-			ra_mask &= 0xffffffffffffcfc0ULL;
-		else if (rssi_level == 4)
-			ra_mask &= 0xffffffffffff8f80ULL;
-		else if (rssi_level >= 5)
-			ra_mask &= 0xffffffffffff0f00ULL;
-	}
+	u8 band;
 
 	if (!si->use_cfg_mask)
 		return ra_mask;
@@ -1077,7 +1111,8 @@ static u64 rtw_update_rate_mask(struct rtw_dev *rtwdev,
 	return ra_mask;
 }
 
-void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
+void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si,
+			 bool reset_ra_mask)
 {
 	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
 	struct ieee80211_sta *sta = si->sta;
@@ -1091,34 +1126,36 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 	u8 ldpc_en = 0;
 	u8 tx_num = 1;
 	u64 ra_mask = 0;
+	u64 ra_mask_bak = 0;
 	bool is_vht_enable = false;
 	bool is_support_sgi = false;
 
-	if (sta->vht_cap.vht_supported) {
+	if (sta->deflink.vht_cap.vht_supported) {
 		is_vht_enable = true;
 		ra_mask |= get_vht_ra_mask(sta);
-		if (sta->vht_cap.cap & IEEE80211_VHT_CAP_RXSTBC_MASK)
+		if (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_RXSTBC_MASK)
 			stbc_en = VHT_STBC_EN;
-		if (sta->vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC)
+		if (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC)
 			ldpc_en = VHT_LDPC_EN;
-	} else if (sta->ht_cap.ht_supported) {
-		ra_mask |= (sta->ht_cap.mcs.rx_mask[1] << 20) |
-			   (sta->ht_cap.mcs.rx_mask[0] << 12);
-		if (sta->ht_cap.cap & IEEE80211_HT_CAP_RX_STBC)
+	} else if (sta->deflink.ht_cap.ht_supported) {
+		ra_mask |= (sta->deflink.ht_cap.mcs.rx_mask[1] << 20) |
+			   (sta->deflink.ht_cap.mcs.rx_mask[0] << 12);
+		if (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_RX_STBC)
 			stbc_en = HT_STBC_EN;
-		if (sta->ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING)
+		if (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING)
 			ldpc_en = HT_LDPC_EN;
 	}
 
-	if (efuse->hw_cap.nss == 1)
+	if (efuse->hw_cap.nss == 1 || rtwdev->hal.txrx_1ss)
 		ra_mask &= RA_MASK_VHT_RATES_1SS | RA_MASK_HT_RATES_1SS;
 
 	if (hal->current_band_type == RTW_BAND_5G) {
-		ra_mask |= (u64)sta->supp_rates[NL80211_BAND_5GHZ] << 4;
-		if (sta->vht_cap.vht_supported) {
+		ra_mask |= (u64)sta->deflink.supp_rates[NL80211_BAND_5GHZ] << 4;
+		ra_mask_bak = ra_mask;
+		if (sta->deflink.vht_cap.vht_supported) {
 			ra_mask &= RA_MASK_VHT_RATES | RA_MASK_OFDM_IN_VHT;
 			wireless_set = WIRELESS_OFDM | WIRELESS_VHT;
-		} else if (sta->ht_cap.ht_supported) {
+		} else if (sta->deflink.ht_cap.ht_supported) {
 			ra_mask &= RA_MASK_HT_RATES | RA_MASK_OFDM_IN_HT_5G;
 			wireless_set = WIRELESS_OFDM | WIRELESS_HT;
 		} else {
@@ -1126,58 +1163,62 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 		}
 		dm_info->rrsr_val_init = RRSR_INIT_5G;
 	} else if (hal->current_band_type == RTW_BAND_2G) {
-		ra_mask |= sta->supp_rates[NL80211_BAND_2GHZ];
-		if (sta->vht_cap.vht_supported) {
+		ra_mask |= sta->deflink.supp_rates[NL80211_BAND_2GHZ];
+		ra_mask_bak = ra_mask;
+		if (sta->deflink.vht_cap.vht_supported) {
 			ra_mask &= RA_MASK_VHT_RATES | RA_MASK_CCK_IN_VHT |
 				   RA_MASK_OFDM_IN_VHT;
 			wireless_set = WIRELESS_CCK | WIRELESS_OFDM |
 				       WIRELESS_HT | WIRELESS_VHT;
-		} else if (sta->ht_cap.ht_supported) {
+		} else if (sta->deflink.ht_cap.ht_supported) {
 			ra_mask &= RA_MASK_HT_RATES | RA_MASK_CCK_IN_HT |
 				   RA_MASK_OFDM_IN_HT_2G;
 			wireless_set = WIRELESS_CCK | WIRELESS_OFDM |
 				       WIRELESS_HT;
-		} else if (sta->supp_rates[0] <= 0xf) {
+		} else if (sta->deflink.supp_rates[0] <= 0xf) {
 			wireless_set = WIRELESS_CCK;
 		} else {
+			ra_mask &= RA_MASK_OFDM_RATES | RA_MASK_CCK_IN_BG;
 			wireless_set = WIRELESS_CCK | WIRELESS_OFDM;
 		}
 		dm_info->rrsr_val_init = RRSR_INIT_2G;
 	} else {
 		rtw_err(rtwdev, "Unknown band type\n");
+		ra_mask_bak = ra_mask;
 		wireless_set = 0;
 	}
 
-	switch (sta->bandwidth) {
+	switch (sta->deflink.bandwidth) {
 	case IEEE80211_STA_RX_BW_80:
 		bw_mode = RTW_CHANNEL_WIDTH_80;
-		is_support_sgi = sta->vht_cap.vht_supported &&
-				 (sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80);
+		is_support_sgi = sta->deflink.vht_cap.vht_supported &&
+				 (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80);
 		break;
 	case IEEE80211_STA_RX_BW_40:
 		bw_mode = RTW_CHANNEL_WIDTH_40;
-		is_support_sgi = sta->ht_cap.ht_supported &&
-				 (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40);
+		is_support_sgi = sta->deflink.ht_cap.ht_supported &&
+				 (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_40);
 		break;
 	default:
 		bw_mode = RTW_CHANNEL_WIDTH_20;
-		is_support_sgi = sta->ht_cap.ht_supported &&
-				 (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20);
+		is_support_sgi = sta->deflink.ht_cap.ht_supported &&
+				 (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_20);
 		break;
 	}
 
-	if (sta->vht_cap.vht_supported && ra_mask & 0xffc00000) {
+	if (sta->deflink.vht_cap.vht_supported && ra_mask & 0xffc00000) {
 		tx_num = 2;
 		rf_type = RF_2T2R;
-	} else if (sta->ht_cap.ht_supported && ra_mask & 0xfff00000) {
+	} else if (sta->deflink.ht_cap.ht_supported && ra_mask & 0xfff00000) {
 		tx_num = 2;
 		rf_type = RF_2T2R;
 	}
 
 	rate_id = get_rate_id(wireless_set, bw_mode, tx_num);
 
-	ra_mask = rtw_update_rate_mask(rtwdev, si, ra_mask, is_vht_enable,
-				       wireless_set);
+	ra_mask &= rtw_rate_mask_rssi(si, wireless_set);
+	ra_mask = rtw_rate_mask_recover(ra_mask, ra_mask_bak);
+	ra_mask = rtw_rate_mask_cfg(rtwdev, si, ra_mask, is_vht_enable);
 
 	si->bw_mode = bw_mode;
 	si->stbc_en = stbc_en;
@@ -1189,7 +1230,7 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 	si->ra_mask = ra_mask;
 	si->rate_id = rate_id;
 
-	rtw_fw_send_ra_info(rtwdev, si);
+	rtw_fw_send_ra_info(rtwdev, si, reset_ra_mask);
 }
 
 static int rtw_wait_firmware_completion(struct rtw_dev *rtwdev)
@@ -1320,7 +1361,7 @@ void rtw_core_scan_start(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif,
 
 	rtw_leave_lps(rtwdev);
 
-	if (hw_scan && rtwvif->net_type == RTW_NET_NO_LINK) {
+	if (hw_scan && (rtwdev->hw->conf.flags & IEEE80211_CONF_IDLE)) {
 		ret = rtw_leave_ips(rtwdev);
 		if (ret) {
 			rtw_err(rtwdev, "failed to leave idle state\n");
@@ -1339,7 +1380,8 @@ void rtw_core_scan_start(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif,
 	set_bit(RTW_FLAG_SCANNING, rtwdev->flags);
 }
 
-void rtw_core_scan_complete(struct rtw_dev *rtwdev, struct ieee80211_vif *vif)
+void rtw_core_scan_complete(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
+			    bool hw_scan)
 {
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
 	u32 config = 0;
@@ -1354,6 +1396,9 @@ void rtw_core_scan_complete(struct rtw_dev *rtwdev, struct ieee80211_vif *vif)
 	rtw_vif_port_config(rtwdev, rtwvif, config);
 
 	rtw_coex_scan_notify(rtwdev, COEX_SCAN_FINISH);
+
+	if (hw_scan && (rtwdev->hw->conf.flags & IEEE80211_CONF_IDLE))
+		ieee80211_queue_work(rtwdev->hw, &rtwdev->ips_work);
 }
 
 int rtw_core_start(struct rtw_dev *rtwdev)
@@ -1397,6 +1442,7 @@ void rtw_core_stop(struct rtw_dev *rtwdev)
 	mutex_unlock(&rtwdev->mutex);
 
 	cancel_work_sync(&rtwdev->c2h_work);
+	cancel_work_sync(&rtwdev->update_beacon_work);
 	cancel_delayed_work_sync(&rtwdev->watch_dog_work);
 	cancel_delayed_work_sync(&coex->bt_relink_work);
 	cancel_delayed_work_sync(&coex->bt_reenable_work);
@@ -1416,6 +1462,7 @@ static void rtw_init_ht_cap(struct rtw_dev *rtwdev,
 			    struct ieee80211_sta_ht_cap *ht_cap)
 {
 	struct rtw_efuse *efuse = &rtwdev->efuse;
+	struct rtw_chip_info *chip = rtwdev->chip;
 
 	ht_cap->ht_supported = true;
 	ht_cap->cap = 0;
@@ -1433,7 +1480,7 @@ static void rtw_init_ht_cap(struct rtw_dev *rtwdev,
 				IEEE80211_HT_CAP_DSSSCCK40 |
 				IEEE80211_HT_CAP_SGI_40;
 	ht_cap->ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
-	ht_cap->ampdu_density = IEEE80211_HT_MPDU_DENSITY_16;
+	ht_cap->ampdu_density = chip->ampdu_density;
 	ht_cap->mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 	if (efuse->hw_cap.nss > 1) {
 		ht_cap->mcs.rx_mask[0] = 0xFF;
@@ -1534,6 +1581,37 @@ static void rtw_unset_supported_band(struct ieee80211_hw *hw,
 {
 	kfree(hw->wiphy->bands[NL80211_BAND_2GHZ]);
 	kfree(hw->wiphy->bands[NL80211_BAND_5GHZ]);
+}
+
+static void rtw_vif_smps_iter(void *data, u8 *mac,
+			      struct ieee80211_vif *vif)
+{
+	struct rtw_dev *rtwdev = (struct rtw_dev *)data;
+
+	if (vif->type != NL80211_IFTYPE_STATION || !vif->bss_conf.assoc)
+		return;
+
+	if (rtwdev->hal.txrx_1ss)
+		ieee80211_request_smps(vif, IEEE80211_SMPS_STATIC);
+	else
+		ieee80211_request_smps(vif, IEEE80211_SMPS_OFF);
+}
+
+void rtw_set_txrx_1ss(struct rtw_dev *rtwdev, bool txrx_1ss)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_hal *hal = &rtwdev->hal;
+
+	if (!chip->ops->config_txrx_mode || rtwdev->hal.txrx_1ss == txrx_1ss)
+		return;
+
+	rtwdev->hal.txrx_1ss = txrx_1ss;
+	if (txrx_1ss)
+		chip->ops->config_txrx_mode(rtwdev, BB_PATH_A, BB_PATH_A, false);
+	else
+		chip->ops->config_txrx_mode(rtwdev, hal->antenna_tx,
+					    hal->antenna_rx, false);
+	rtw_iterate_vifs_atomic(rtwdev, rtw_vif_smps_iter, rtwdev);
 }
 
 static void __update_firmware_feature(struct rtw_dev *rtwdev,
@@ -1919,7 +1997,9 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 	INIT_DELAYED_WORK(&coex->wl_ccklock_work, rtw_coex_wl_ccklock_work);
 	INIT_WORK(&rtwdev->tx_work, rtw_tx_work);
 	INIT_WORK(&rtwdev->c2h_work, rtw_c2h_work);
+	INIT_WORK(&rtwdev->ips_work, rtw_ips_work);
 	INIT_WORK(&rtwdev->fw_recovery_work, rtw_fw_recovery_work);
+	INIT_WORK(&rtwdev->update_beacon_work, rtw_fw_update_beacon_work);
 	INIT_WORK(&rtwdev->ba_work, rtw_txq_ba_work);
 	skb_queue_head_init(&rtwdev->c2h_queue);
 	skb_queue_head_init(&rtwdev->coex.queue);

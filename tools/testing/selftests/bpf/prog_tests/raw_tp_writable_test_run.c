@@ -56,21 +56,23 @@ void serial_test_raw_tp_writable_test_run(void)
 		0,
 	};
 
-	__u32 prog_ret;
-	int err = bpf_prog_test_run(filter_fd, 1, test_skb, sizeof(test_skb), 0,
-				    0, &prog_ret, 0);
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = test_skb,
+		.data_size_in = sizeof(test_skb),
+		.repeat = 1,
+	);
+	int err = bpf_prog_test_run_opts(filter_fd, &topts);
 	CHECK(err != 42, "test_run",
 	      "tracepoint did not modify return value\n");
-	CHECK(prog_ret != 0, "test_run_ret",
+	CHECK(topts.retval != 0, "test_run_ret",
 	      "socket_filter did not return 0\n");
 
 	close(tp_fd);
 
-	err = bpf_prog_test_run(filter_fd, 1, test_skb, sizeof(test_skb), 0, 0,
-				&prog_ret, 0);
+	err = bpf_prog_test_run_opts(filter_fd, &topts);
 	CHECK(err != 0, "test_run_notrace",
 	      "test_run failed with %d errno %d\n", err, errno);
-	CHECK(prog_ret != 0, "test_run_ret_notrace",
+	CHECK(topts.retval != 0, "test_run_ret_notrace",
 	      "socket_filter did not return 0\n");
 
 out_filterfd:

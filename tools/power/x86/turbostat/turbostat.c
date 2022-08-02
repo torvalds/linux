@@ -3,7 +3,7 @@
  * turbostat -- show CPU frequency and C-state residency
  * on modern Intel and AMD processors.
  *
- * Copyright (c) 2021 Intel Corporation.
+ * Copyright (c) 2022 Intel Corporation.
  * Len Brown <len.brown@intel.com>
  */
 
@@ -37,6 +37,171 @@
 #include <asm/unistd.h>
 #include <stdbool.h>
 
+#define UNUSED(x) (void)(x)
+
+/*
+ * This list matches the column headers, except
+ * 1. built-in only, the sysfs counters are not here -- we learn of those at run-time
+ * 2. Core and CPU are moved to the end, we can't have strings that contain them
+ *    matching on them for --show and --hide.
+ */
+
+/*
+ * buffer size used by sscanf() for added column names
+ * Usually truncated to 7 characters, but also handles 18 columns for raw 64-bit counters
+ */
+#define	NAME_BYTES 20
+#define PATH_BYTES 128
+
+enum counter_scope { SCOPE_CPU, SCOPE_CORE, SCOPE_PACKAGE };
+enum counter_type { COUNTER_ITEMS, COUNTER_CYCLES, COUNTER_SECONDS, COUNTER_USEC };
+enum counter_format { FORMAT_RAW, FORMAT_DELTA, FORMAT_PERCENT };
+
+struct msr_counter {
+	unsigned int msr_num;
+	char name[NAME_BYTES];
+	char path[PATH_BYTES];
+	unsigned int width;
+	enum counter_type type;
+	enum counter_format format;
+	struct msr_counter *next;
+	unsigned int flags;
+#define	FLAGS_HIDE	(1 << 0)
+#define	FLAGS_SHOW	(1 << 1)
+#define	SYSFS_PERCPU	(1 << 1)
+};
+
+struct msr_counter bic[] = {
+	{ 0x0, "usec", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Time_Of_Day_Seconds", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Package", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Node", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Avg_MHz", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Busy%", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Bzy_MHz", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "TSC_MHz", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "IRQ", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "SMI", "", 32, 0, FORMAT_DELTA, NULL, 0 },
+	{ 0x0, "sysfs", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU%c1", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU%c3", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU%c6", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU%c7", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "ThreadC", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "CoreTmp", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "CoreCnt", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "PkgTmp", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "GFX%rc6", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "GFXMHz", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg%pc2", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg%pc3", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg%pc6", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg%pc7", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg%pc8", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg%pc9", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pk%pc10", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU%LPI", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "SYS%LPI", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "PkgWatt", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "CorWatt", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "GFXWatt", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "PkgCnt", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "RAMWatt", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "PKG_%", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "RAM_%", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg_J", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Cor_J", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "GFX_J", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "RAM_J", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Mod%c6", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Totl%C0", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Any%C0", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "GFX%C0", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPUGFX%", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Core", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "APIC", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "X2APIC", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "Die", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "GFXAMHz", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "IPC", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "CoreThr", "", 0, 0, 0, NULL, 0 },
+};
+
+#define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
+#define	BIC_USEC	(1ULL << 0)
+#define	BIC_TOD		(1ULL << 1)
+#define	BIC_Package	(1ULL << 2)
+#define	BIC_Node	(1ULL << 3)
+#define	BIC_Avg_MHz	(1ULL << 4)
+#define	BIC_Busy	(1ULL << 5)
+#define	BIC_Bzy_MHz	(1ULL << 6)
+#define	BIC_TSC_MHz	(1ULL << 7)
+#define	BIC_IRQ		(1ULL << 8)
+#define	BIC_SMI		(1ULL << 9)
+#define	BIC_sysfs	(1ULL << 10)
+#define	BIC_CPU_c1	(1ULL << 11)
+#define	BIC_CPU_c3	(1ULL << 12)
+#define	BIC_CPU_c6	(1ULL << 13)
+#define	BIC_CPU_c7	(1ULL << 14)
+#define	BIC_ThreadC	(1ULL << 15)
+#define	BIC_CoreTmp	(1ULL << 16)
+#define	BIC_CoreCnt	(1ULL << 17)
+#define	BIC_PkgTmp	(1ULL << 18)
+#define	BIC_GFX_rc6	(1ULL << 19)
+#define	BIC_GFXMHz	(1ULL << 20)
+#define	BIC_Pkgpc2	(1ULL << 21)
+#define	BIC_Pkgpc3	(1ULL << 22)
+#define	BIC_Pkgpc6	(1ULL << 23)
+#define	BIC_Pkgpc7	(1ULL << 24)
+#define	BIC_Pkgpc8	(1ULL << 25)
+#define	BIC_Pkgpc9	(1ULL << 26)
+#define	BIC_Pkgpc10	(1ULL << 27)
+#define BIC_CPU_LPI	(1ULL << 28)
+#define BIC_SYS_LPI	(1ULL << 29)
+#define	BIC_PkgWatt	(1ULL << 30)
+#define	BIC_CorWatt	(1ULL << 31)
+#define	BIC_GFXWatt	(1ULL << 32)
+#define	BIC_PkgCnt	(1ULL << 33)
+#define	BIC_RAMWatt	(1ULL << 34)
+#define	BIC_PKG__	(1ULL << 35)
+#define	BIC_RAM__	(1ULL << 36)
+#define	BIC_Pkg_J	(1ULL << 37)
+#define	BIC_Cor_J	(1ULL << 38)
+#define	BIC_GFX_J	(1ULL << 39)
+#define	BIC_RAM_J	(1ULL << 40)
+#define	BIC_Mod_c6	(1ULL << 41)
+#define	BIC_Totl_c0	(1ULL << 42)
+#define	BIC_Any_c0	(1ULL << 43)
+#define	BIC_GFX_c0	(1ULL << 44)
+#define	BIC_CPUGFX	(1ULL << 45)
+#define	BIC_Core	(1ULL << 46)
+#define	BIC_CPU		(1ULL << 47)
+#define	BIC_APIC	(1ULL << 48)
+#define	BIC_X2APIC	(1ULL << 49)
+#define	BIC_Die		(1ULL << 50)
+#define	BIC_GFXACTMHz	(1ULL << 51)
+#define	BIC_IPC		(1ULL << 52)
+#define	BIC_CORE_THROT_CNT	(1ULL << 53)
+
+#define BIC_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die )
+#define BIC_THERMAL_PWR ( BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__)
+#define BIC_FREQUENCY ( BIC_Avg_MHz | BIC_Busy | BIC_Bzy_MHz | BIC_TSC_MHz | BIC_GFXMHz | BIC_GFXACTMHz )
+#define BIC_IDLE ( BIC_sysfs | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX)
+#define BIC_OTHER ( BIC_IRQ | BIC_SMI | BIC_ThreadC | BIC_CoreTmp | BIC_IPC)
+
+#define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC)
+
+unsigned long long bic_enabled = (0xFFFFFFFFFFFFFFFFULL & ~BIC_DISABLED_BY_DEFAULT);
+unsigned long long bic_present = BIC_USEC | BIC_TOD | BIC_sysfs | BIC_APIC | BIC_X2APIC;
+
+#define DO_BIC(COUNTER_NAME) (bic_enabled & bic_present & COUNTER_NAME)
+#define DO_BIC_READ(COUNTER_NAME) (bic_present & COUNTER_NAME)
+#define ENABLE_BIC(COUNTER_NAME) (bic_enabled |= COUNTER_NAME)
+#define BIC_PRESENT(COUNTER_BIT) (bic_present |= COUNTER_BIT)
+#define BIC_NOT_PRESENT(COUNTER_BIT) (bic_present &= ~COUNTER_BIT)
+#define BIC_IS_ENABLED(COUNTER_BIT) (bic_enabled & COUNTER_BIT)
+
 char *proc_stat = "/proc/stat";
 FILE *outf;
 int *fd_percpu;
@@ -48,6 +213,7 @@ struct timespec interval_ts = { 5, 0 };
 unsigned int model_orig;
 
 unsigned int num_iterations;
+unsigned int header_iterations;
 unsigned int debug;
 unsigned int quiet;
 unsigned int shown;
@@ -159,13 +325,6 @@ int ignore_stdin;
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-/*
- * buffer size used by sscanf() for added column names
- * Usually truncated to 7 characters, but also handles 18 columns for raw 64-bit counters
- */
-#define	NAME_BYTES 20
-#define PATH_BYTES 128
-
 int backwards_count;
 char *progname;
 
@@ -205,6 +364,7 @@ struct core_data {
 	unsigned int core_temp_c;
 	unsigned int core_energy;	/* MSR_CORE_ENERGY_STAT */
 	unsigned int core_id;
+	unsigned long long core_throt_cnt;
 	unsigned long long counter[MAX_ADDED_COUNTERS];
 } *core_even, *core_odd;
 
@@ -254,24 +414,6 @@ struct pkg_data {
 	 (core_no))
 
 #define GET_PKG(pkg_base, pkg_no) (pkg_base + pkg_no)
-
-enum counter_scope { SCOPE_CPU, SCOPE_CORE, SCOPE_PACKAGE };
-enum counter_type { COUNTER_ITEMS, COUNTER_CYCLES, COUNTER_SECONDS, COUNTER_USEC };
-enum counter_format { FORMAT_RAW, FORMAT_DELTA, FORMAT_PERCENT };
-
-struct msr_counter {
-	unsigned int msr_num;
-	char name[NAME_BYTES];
-	char path[PATH_BYTES];
-	unsigned int width;
-	enum counter_type type;
-	enum counter_format format;
-	struct msr_counter *next;
-	unsigned int flags;
-#define	FLAGS_HIDE	(1 << 0)
-#define	FLAGS_SHOW	(1 << 1)
-#define	SYSFS_PERCPU	(1 << 1)
-};
 
 /*
  * The accumulated sum of MSR is defined as a monotonic
@@ -522,8 +664,10 @@ static int perf_instr_count_open(int cpu_num)
 
 	/* counter for cpu_num, including user + kernel and all processes */
 	fd = perf_event_open(&pea, -1, cpu_num, -1, 0);
-	if (fd == -1)
-		err(-1, "cpu%d: perf instruction counter\n", cpu_num);
+	if (fd == -1) {
+		warn("cpu%d: perf instruction counter", cpu_num);
+		BIC_NOT_PRESENT(BIC_IPC);
+	}
 
 	return fd;
 }
@@ -550,143 +694,10 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 	return 0;
 }
 
-/*
- * This list matches the column headers, except
- * 1. built-in only, the sysfs counters are not here -- we learn of those at run-time
- * 2. Core and CPU are moved to the end, we can't have strings that contain them
- *    matching on them for --show and --hide.
- */
-struct msr_counter bic[] = {
-	{ 0x0, "usec" },
-	{ 0x0, "Time_Of_Day_Seconds" },
-	{ 0x0, "Package" },
-	{ 0x0, "Node" },
-	{ 0x0, "Avg_MHz" },
-	{ 0x0, "Busy%" },
-	{ 0x0, "Bzy_MHz" },
-	{ 0x0, "TSC_MHz" },
-	{ 0x0, "IRQ" },
-	{ 0x0, "SMI", "", 32, 0, FORMAT_DELTA, NULL },
-	{ 0x0, "sysfs" },
-	{ 0x0, "CPU%c1" },
-	{ 0x0, "CPU%c3" },
-	{ 0x0, "CPU%c6" },
-	{ 0x0, "CPU%c7" },
-	{ 0x0, "ThreadC" },
-	{ 0x0, "CoreTmp" },
-	{ 0x0, "CoreCnt" },
-	{ 0x0, "PkgTmp" },
-	{ 0x0, "GFX%rc6" },
-	{ 0x0, "GFXMHz" },
-	{ 0x0, "Pkg%pc2" },
-	{ 0x0, "Pkg%pc3" },
-	{ 0x0, "Pkg%pc6" },
-	{ 0x0, "Pkg%pc7" },
-	{ 0x0, "Pkg%pc8" },
-	{ 0x0, "Pkg%pc9" },
-	{ 0x0, "Pk%pc10" },
-	{ 0x0, "CPU%LPI" },
-	{ 0x0, "SYS%LPI" },
-	{ 0x0, "PkgWatt" },
-	{ 0x0, "CorWatt" },
-	{ 0x0, "GFXWatt" },
-	{ 0x0, "PkgCnt" },
-	{ 0x0, "RAMWatt" },
-	{ 0x0, "PKG_%" },
-	{ 0x0, "RAM_%" },
-	{ 0x0, "Pkg_J" },
-	{ 0x0, "Cor_J" },
-	{ 0x0, "GFX_J" },
-	{ 0x0, "RAM_J" },
-	{ 0x0, "Mod%c6" },
-	{ 0x0, "Totl%C0" },
-	{ 0x0, "Any%C0" },
-	{ 0x0, "GFX%C0" },
-	{ 0x0, "CPUGFX%" },
-	{ 0x0, "Core" },
-	{ 0x0, "CPU" },
-	{ 0x0, "APIC" },
-	{ 0x0, "X2APIC" },
-	{ 0x0, "Die" },
-	{ 0x0, "GFXAMHz" },
-	{ 0x0, "IPC" },
-};
-
-#define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
-#define	BIC_USEC	(1ULL << 0)
-#define	BIC_TOD		(1ULL << 1)
-#define	BIC_Package	(1ULL << 2)
-#define	BIC_Node	(1ULL << 3)
-#define	BIC_Avg_MHz	(1ULL << 4)
-#define	BIC_Busy	(1ULL << 5)
-#define	BIC_Bzy_MHz	(1ULL << 6)
-#define	BIC_TSC_MHz	(1ULL << 7)
-#define	BIC_IRQ		(1ULL << 8)
-#define	BIC_SMI		(1ULL << 9)
-#define	BIC_sysfs	(1ULL << 10)
-#define	BIC_CPU_c1	(1ULL << 11)
-#define	BIC_CPU_c3	(1ULL << 12)
-#define	BIC_CPU_c6	(1ULL << 13)
-#define	BIC_CPU_c7	(1ULL << 14)
-#define	BIC_ThreadC	(1ULL << 15)
-#define	BIC_CoreTmp	(1ULL << 16)
-#define	BIC_CoreCnt	(1ULL << 17)
-#define	BIC_PkgTmp	(1ULL << 18)
-#define	BIC_GFX_rc6	(1ULL << 19)
-#define	BIC_GFXMHz	(1ULL << 20)
-#define	BIC_Pkgpc2	(1ULL << 21)
-#define	BIC_Pkgpc3	(1ULL << 22)
-#define	BIC_Pkgpc6	(1ULL << 23)
-#define	BIC_Pkgpc7	(1ULL << 24)
-#define	BIC_Pkgpc8	(1ULL << 25)
-#define	BIC_Pkgpc9	(1ULL << 26)
-#define	BIC_Pkgpc10	(1ULL << 27)
-#define BIC_CPU_LPI	(1ULL << 28)
-#define BIC_SYS_LPI	(1ULL << 29)
-#define	BIC_PkgWatt	(1ULL << 30)
-#define	BIC_CorWatt	(1ULL << 31)
-#define	BIC_GFXWatt	(1ULL << 32)
-#define	BIC_PkgCnt	(1ULL << 33)
-#define	BIC_RAMWatt	(1ULL << 34)
-#define	BIC_PKG__	(1ULL << 35)
-#define	BIC_RAM__	(1ULL << 36)
-#define	BIC_Pkg_J	(1ULL << 37)
-#define	BIC_Cor_J	(1ULL << 38)
-#define	BIC_GFX_J	(1ULL << 39)
-#define	BIC_RAM_J	(1ULL << 40)
-#define	BIC_Mod_c6	(1ULL << 41)
-#define	BIC_Totl_c0	(1ULL << 42)
-#define	BIC_Any_c0	(1ULL << 43)
-#define	BIC_GFX_c0	(1ULL << 44)
-#define	BIC_CPUGFX	(1ULL << 45)
-#define	BIC_Core	(1ULL << 46)
-#define	BIC_CPU		(1ULL << 47)
-#define	BIC_APIC	(1ULL << 48)
-#define	BIC_X2APIC	(1ULL << 49)
-#define	BIC_Die		(1ULL << 50)
-#define	BIC_GFXACTMHz	(1ULL << 51)
-#define	BIC_IPC		(1ULL << 52)
-
-#define BIC_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die )
-#define BIC_THERMAL_PWR ( BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__)
-#define BIC_FREQUENCY ( BIC_Avg_MHz | BIC_Busy | BIC_Bzy_MHz | BIC_TSC_MHz | BIC_GFXMHz | BIC_GFXACTMHz )
-#define BIC_IDLE ( BIC_sysfs | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX)
-#define BIC_OTHER ( BIC_IRQ | BIC_SMI | BIC_ThreadC | BIC_CoreTmp | BIC_IPC)
-
-#define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC)
-
-unsigned long long bic_enabled = (0xFFFFFFFFFFFFFFFFULL & ~BIC_DISABLED_BY_DEFAULT);
-unsigned long long bic_present = BIC_USEC | BIC_TOD | BIC_sysfs | BIC_APIC | BIC_X2APIC;
-
-#define DO_BIC(COUNTER_NAME) (bic_enabled & bic_present & COUNTER_NAME)
-#define DO_BIC_READ(COUNTER_NAME) (bic_present & COUNTER_NAME)
-#define ENABLE_BIC(COUNTER_NAME) (bic_enabled |= COUNTER_NAME)
-#define BIC_PRESENT(COUNTER_BIT) (bic_present |= COUNTER_BIT)
-#define BIC_NOT_PRESENT(COUNTER_BIT) (bic_present &= ~COUNTER_BIT)
-#define BIC_IS_ENABLED(COUNTER_BIT) (bic_enabled & COUNTER_BIT)
-
 #define MAX_DEFERRED 16
+char *deferred_add_names[MAX_DEFERRED];
 char *deferred_skip_names[MAX_DEFERRED];
+int deferred_add_index;
 int deferred_skip_index;
 
 /*
@@ -720,6 +731,8 @@ void help(void)
 		"  -l, --list	list column headers only\n"
 		"  -n, --num_iterations num\n"
 		"		number of the measurement iterations\n"
+		"  -N, --header_iterations num\n"
+		"		print header every num iterations\n"
 		"  -o, --out file\n"
 		"		create or truncate \"file\" for all output\n"
 		"  -q, --quiet	skip decoding system configuration header\n"
@@ -741,7 +754,7 @@ void help(void)
  */
 unsigned long long bic_lookup(char *name_list, enum show_hide_mode mode)
 {
-	int i;
+	unsigned int i;
 	unsigned long long retval = 0;
 
 	while (name_list) {
@@ -752,40 +765,51 @@ unsigned long long bic_lookup(char *name_list, enum show_hide_mode mode)
 		if (comma)
 			*comma = '\0';
 
-		if (!strcmp(name_list, "all"))
-			return ~0;
-		if (!strcmp(name_list, "topology"))
-			return BIC_TOPOLOGY;
-		if (!strcmp(name_list, "power"))
-			return BIC_THERMAL_PWR;
-		if (!strcmp(name_list, "idle"))
-			return BIC_IDLE;
-		if (!strcmp(name_list, "frequency"))
-			return BIC_FREQUENCY;
-		if (!strcmp(name_list, "other"))
-			return BIC_OTHER;
-		if (!strcmp(name_list, "all"))
-			return 0;
-
 		for (i = 0; i < MAX_BIC; ++i) {
 			if (!strcmp(name_list, bic[i].name)) {
 				retval |= (1ULL << i);
 				break;
 			}
+			if (!strcmp(name_list, "all")) {
+				retval |= ~0;
+				break;
+			} else if (!strcmp(name_list, "topology")) {
+				retval |= BIC_TOPOLOGY;
+				break;
+			} else if (!strcmp(name_list, "power")) {
+				retval |= BIC_THERMAL_PWR;
+				break;
+			} else if (!strcmp(name_list, "idle")) {
+				retval |= BIC_IDLE;
+				break;
+			} else if (!strcmp(name_list, "frequency")) {
+				retval |= BIC_FREQUENCY;
+				break;
+			} else if (!strcmp(name_list, "other")) {
+				retval |= BIC_OTHER;
+				break;
+			}
+
 		}
 		if (i == MAX_BIC) {
 			if (mode == SHOW_LIST) {
-				fprintf(stderr, "Invalid counter name: %s\n", name_list);
-				exit(-1);
-			}
-			deferred_skip_names[deferred_skip_index++] = name_list;
-			if (debug)
-				fprintf(stderr, "deferred \"%s\"\n", name_list);
-			if (deferred_skip_index >= MAX_DEFERRED) {
-				fprintf(stderr, "More than max %d un-recognized --skip options '%s'\n",
-					MAX_DEFERRED, name_list);
-				help();
-				exit(1);
+				deferred_add_names[deferred_add_index++] = name_list;
+				if (deferred_add_index >= MAX_DEFERRED) {
+					fprintf(stderr, "More than max %d un-recognized --add options '%s'\n",
+						MAX_DEFERRED, name_list);
+					help();
+					exit(1);
+				}
+			} else {
+				deferred_skip_names[deferred_skip_index++] = name_list;
+				if (debug)
+					fprintf(stderr, "deferred \"%s\"\n", name_list);
+				if (deferred_skip_index >= MAX_DEFERRED) {
+					fprintf(stderr, "More than max %d un-recognized --skip options '%s'\n",
+						MAX_DEFERRED, name_list);
+					help();
+					exit(1);
+				}
 			}
 		}
 
@@ -871,6 +895,9 @@ void print_header(char *delim)
 
 	if (DO_BIC(BIC_CoreTmp))
 		outp += sprintf(outp, "%sCoreTmp", (printed++ ? delim : ""));
+
+	if (DO_BIC(BIC_CORE_THROT_CNT))
+		outp += sprintf(outp, "%sCoreThr", (printed++ ? delim : ""));
 
 	if (do_rapl && !rapl_joules) {
 		if (DO_BIC(BIC_CorWatt) && (do_rapl & RAPL_PER_CORE_ENERGY))
@@ -1011,6 +1038,7 @@ int dump_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p
 		outp += sprintf(outp, "c6: %016llX\n", c->c6);
 		outp += sprintf(outp, "c7: %016llX\n", c->c7);
 		outp += sprintf(outp, "DTS: %dC\n", c->core_temp_c);
+		outp += sprintf(outp, "cpu_throt_count: %016llX\n", c->core_throt_cnt);
 		outp += sprintf(outp, "Joules: %0X\n", c->core_energy);
 
 		for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
@@ -1225,6 +1253,10 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	if (DO_BIC(BIC_CoreTmp))
 		outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), c->core_temp_c);
 
+	/* Core throttle count */
+	if (DO_BIC(BIC_CORE_THROT_CNT))
+		outp += sprintf(outp, "%s%lld", (printed++ ? delim : ""), c->core_throt_cnt);
+
 	for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW) {
 			if (mp->width == 32)
@@ -1311,6 +1343,7 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	if (DO_BIC(BIC_PkgWatt))
 		outp +=
 		    sprintf(outp, fmt8, (printed++ ? delim : ""), p->energy_pkg * rapl_energy_units / interval_float);
+
 	if (DO_BIC(BIC_CorWatt) && !(do_rapl & RAPL_PER_CORE_ENERGY))
 		outp +=
 		    sprintf(outp, fmt8, (printed++ ? delim : ""), p->energy_cores * rapl_energy_units / interval_float);
@@ -1386,14 +1419,14 @@ void flush_output_stderr(void)
 
 void format_all_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
-	static int printed;
+	static int count;
 
-	if (!printed || !summary_only)
+	if ((!count || (header_iterations && !(count % header_iterations))) || !summary_only)
 		print_header("\t");
 
 	format_counters(&average.threads, &average.cores, &average.packages);
 
-	printed = 1;
+	count++;
 
 	if (summary_only)
 		return;
@@ -1467,6 +1500,7 @@ void delta_core(struct core_data *new, struct core_data *old)
 	old->c6 = new->c6 - old->c6;
 	old->c7 = new->c7 - old->c7;
 	old->core_temp_c = new->core_temp_c;
+	old->core_throt_cnt = new->core_throt_cnt;
 	old->mc6_us = new->mc6_us - old->mc6_us;
 
 	DELTA_WRAP32(new->core_energy, old->core_energy);
@@ -1626,6 +1660,7 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	c->mc6_us = 0;
 	c->core_temp_c = 0;
 	c->core_energy = 0;
+	c->core_throt_cnt = 0;
 
 	p->pkg_wtd_core_c0 = 0;
 	p->pkg_any_core_c0 = 0;
@@ -1710,6 +1745,7 @@ int sum_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	average.cores.mc6_us += c->mc6_us;
 
 	average.cores.core_temp_c = MAX(average.cores.core_temp_c, c->core_temp_c);
+	average.cores.core_throt_cnt = MAX(average.cores.core_throt_cnt, c->core_throt_cnt);
 
 	average.cores.core_energy += c->core_energy;
 
@@ -1987,6 +2023,26 @@ void get_apic_id(struct thread_data *t)
 		fprintf(outf, "cpu%d: BIOS BUG: apic 0x%x x2apic 0x%x\n", t->cpu_id, t->apic_id, t->x2apic_id);
 }
 
+int get_core_throt_cnt(int cpu, unsigned long long *cnt)
+{
+	char path[128 + PATH_BYTES];
+	unsigned long long tmp;
+	FILE *fp;
+	int ret;
+
+	sprintf(path, "/sys/devices/system/cpu/cpu%d/thermal_throttle/core_throttle_count", cpu);
+	fp = fopen(path, "r");
+	if (!fp)
+		return -1;
+	ret = fscanf(fp, "%lld", &tmp);
+	if (ret != 1)
+		return -1;
+	fclose(fp);
+	*cnt = tmp;
+
+	return 0;
+}
+
 /*
  * get_counters(...)
  * migrate to cpu
@@ -2128,6 +2184,9 @@ retry:
 			return -9;
 		c->core_temp_c = tj_max - ((msr >> 16) & 0x7F);
 	}
+
+	if (DO_BIC(BIC_CORE_THROT_CNT))
+		get_core_throt_cnt(cpu, &c->core_throt_cnt);
 
 	if (do_rapl & RAPL_AMD_F17H) {
 		if (get_msr(cpu, MSR_CORE_ENERGY_STAT, &msr))
@@ -2323,7 +2382,7 @@ int skx_pkg_cstate_limits[16] =
 };
 
 int icx_pkg_cstate_limits[16] =
-    { PCL__0, PCL__2, PCL__6, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV,
+    { PCL__0, PCL__2, PCL__6, PCL__6, PCLRSV, PCLRSV, PCLRSV, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV,
 	PCLRSV, PCLRSV
 };
 
@@ -2428,6 +2487,9 @@ int has_turbo_ratio_group_limits(int family, int model)
 	if (!genuine_intel)
 		return 0;
 
+	if (family != 6)
+		return 0;
+
 	switch (model) {
 	case INTEL_FAM6_ATOM_GOLDMONT:
 	case INTEL_FAM6_SKYLAKE_X:
@@ -2435,8 +2497,9 @@ int has_turbo_ratio_group_limits(int family, int model)
 	case INTEL_FAM6_ATOM_GOLDMONT_D:
 	case INTEL_FAM6_ATOM_TREMONT_D:
 		return 1;
+	default:
+		return 0;
 	}
-	return 0;
 }
 
 static void dump_turbo_ratio_limits(int family, int model)
@@ -3027,6 +3090,8 @@ void set_max_cpu_num(void)
  */
 int count_cpus(int cpu)
 {
+	UNUSED(cpu);
+
 	topo.num_cpus++;
 	return 0;
 }
@@ -3361,6 +3426,9 @@ static int update_msr_sum(struct thread_data *t, struct core_data *c, struct pkg
 	int i, ret;
 	int cpu = t->cpu_id;
 
+	UNUSED(c);
+	UNUSED(p);
+
 	for (i = IDX_PKG_ENERGY; i < IDX_COUNT; i++) {
 		unsigned long long msr_cur, msr_last;
 		off_t offset;
@@ -3387,6 +3455,8 @@ static int update_msr_sum(struct thread_data *t, struct core_data *c, struct pkg
 
 static void msr_record_handler(union sigval v)
 {
+	UNUSED(v);
+
 	for_all_cpus(update_msr_sum, EVEN_COUNTERS);
 }
 
@@ -3439,6 +3509,9 @@ release_msr:
 /*
  * set_my_sched_priority(pri)
  * return previous
+ *
+ * if non-root, do this:
+ * # /sbin/setcap cap_sys_rawio,cap_sys_nice=+ep /usr/bin/turbostat
  */
 int set_my_sched_priority(int priority)
 {
@@ -3457,7 +3530,7 @@ int set_my_sched_priority(int priority)
 	errno = 0;
 	retval = getpriority(PRIO_PROCESS, 0);
 	if (retval != priority)
-		err(-1, "getpriority(%d) != setpriority(%d)", retval, priority);
+		err(retval, "getpriority(%d) != setpriority(%d)", retval, priority);
 
 	return original_priority;
 }
@@ -3466,7 +3539,7 @@ void turbostat_loop()
 {
 	int retval;
 	int restarted = 0;
-	int done_iters = 0;
+	unsigned int done_iters = 0;
 
 	setup_signal_handler();
 
@@ -3678,6 +3751,7 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 		break;
 	case INTEL_FAM6_ATOM_SILVERMONT:	/* BYT */
 		no_MSR_MISC_PWR_MGMT = 1;
+		/* FALLTHRU */
 	case INTEL_FAM6_ATOM_SILVERMONT_D:	/* AVN */
 		pkg_cstate_limits = slv_pkg_cstate_limits;
 		break;
@@ -3721,6 +3795,9 @@ int has_slv_msrs(unsigned int family, unsigned int model)
 	if (!genuine_intel)
 		return 0;
 
+	if (family != 6)
+		return 0;
+
 	switch (model) {
 	case INTEL_FAM6_ATOM_SILVERMONT:
 	case INTEL_FAM6_ATOM_SILVERMONT_MID:
@@ -3736,6 +3813,9 @@ int is_dnv(unsigned int family, unsigned int model)
 	if (!genuine_intel)
 		return 0;
 
+	if (family != 6)
+		return 0;
+
 	switch (model) {
 	case INTEL_FAM6_ATOM_GOLDMONT_D:
 		return 1;
@@ -3747,6 +3827,9 @@ int is_bdx(unsigned int family, unsigned int model)
 {
 
 	if (!genuine_intel)
+		return 0;
+
+	if (family != 6)
 		return 0;
 
 	switch (model) {
@@ -3762,6 +3845,9 @@ int is_skx(unsigned int family, unsigned int model)
 	if (!genuine_intel)
 		return 0;
 
+	if (family != 6)
+		return 0;
+
 	switch (model) {
 	case INTEL_FAM6_SKYLAKE_X:
 		return 1;
@@ -3773,6 +3859,9 @@ int is_icx(unsigned int family, unsigned int model)
 {
 
 	if (!genuine_intel)
+		return 0;
+
+	if (family != 6)
 		return 0;
 
 	switch (model) {
@@ -3787,6 +3876,9 @@ int is_ehl(unsigned int family, unsigned int model)
 	if (!genuine_intel)
 		return 0;
 
+	if (family != 6)
+		return 0;
+
 	switch (model) {
 	case INTEL_FAM6_ATOM_TREMONT:
 		return 1;
@@ -3799,6 +3891,9 @@ int is_jvl(unsigned int family, unsigned int model)
 	if (!genuine_intel)
 		return 0;
 
+	if (family != 6)
+		return 0;
+
 	switch (model) {
 	case INTEL_FAM6_ATOM_TREMONT_D:
 		return 1;
@@ -3809,6 +3904,9 @@ int is_jvl(unsigned int family, unsigned int model)
 int has_turbo_ratio_limit(unsigned int family, unsigned int model)
 {
 	if (has_slv_msrs(family, model))
+		return 0;
+
+	if (family != 6)
 		return 0;
 
 	switch (model) {
@@ -4125,6 +4223,9 @@ int print_epb(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	char *epb_string;
 	int cpu, epb;
 
+	UNUSED(c);
+	UNUSED(p);
+
 	if (!has_epb)
 		return 0;
 
@@ -4170,6 +4271,9 @@ int print_hwp(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	unsigned long long msr;
 	int cpu;
+
+	UNUSED(c);
+	UNUSED(p);
 
 	if (!has_hwp)
 		return 0;
@@ -4253,6 +4357,9 @@ int print_perf_limit(struct thread_data *t, struct core_data *c, struct pkg_data
 {
 	unsigned long long msr;
 	int cpu;
+
+	UNUSED(c);
+	UNUSED(p);
 
 	cpu = t->cpu_id;
 
@@ -4359,6 +4466,8 @@ double get_tdp_intel(unsigned int model)
 
 double get_tdp_amd(unsigned int family)
 {
+	UNUSED(family);
+
 	/* This is the max stock TDP of HEDT/Server Fam17h+ chips */
 	return 280.0;
 }
@@ -4376,6 +4485,7 @@ static double rapl_dram_energy_units_probe(int model, double rapl_energy_units)
 	case INTEL_FAM6_BROADWELL_X:	/* BDX */
 	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
 	case INTEL_FAM6_XEON_PHI_KNL:	/* KNL */
+	case INTEL_FAM6_ICELAKE_X:	/* ICX */
 		return (rapl_dram_energy_units = 15.3 / 1000000);
 	default:
 		return (rapl_energy_units);
@@ -4559,6 +4669,8 @@ void rapl_probe_amd(unsigned int family, unsigned int model)
 	unsigned int has_rapl = 0;
 	double tdp;
 
+	UNUSED(model);
+
 	if (max_extended_level >= 0x80000007) {
 		__cpuid(0x80000007, eax, ebx, ecx, edx);
 		/* RAPL (Fam 17h+) */
@@ -4617,6 +4729,7 @@ void perf_limit_reasons_probe(unsigned int family, unsigned int model)
 	case INTEL_FAM6_HASWELL_L:	/* HSW */
 	case INTEL_FAM6_HASWELL_G:	/* HSW */
 		do_gfx_perf_limit_reasons = 1;
+		/* FALLTHRU */
 	case INTEL_FAM6_HASWELL_X:	/* HSX */
 		do_core_perf_limit_reasons = 1;
 		do_ring_perf_limit_reasons = 1;
@@ -4642,6 +4755,9 @@ int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p
 	unsigned long long msr;
 	unsigned int dts, dts2;
 	int cpu;
+
+	UNUSED(c);
+	UNUSED(p);
 
 	if (!(do_dts || do_ptm))
 		return 0;
@@ -4698,7 +4814,7 @@ int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p
 
 void print_power_limit_msr(int cpu, unsigned long long msr, char *label)
 {
-	fprintf(outf, "cpu%d: %s: %sabled (%f Watts, %f sec, clamp %sabled)\n",
+	fprintf(outf, "cpu%d: %s: %sabled (%0.3f Watts, %f sec, clamp %sabled)\n",
 		cpu, label,
 		((msr >> 15) & 1) ? "EN" : "DIS",
 		((msr >> 0) & 0x7FFF) * rapl_power_units,
@@ -4713,6 +4829,9 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	unsigned long long msr;
 	const char *msr_name;
 	int cpu;
+
+	UNUSED(c);
+	UNUSED(p);
 
 	if (!do_rapl)
 		return 0;
@@ -4762,12 +4881,19 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 			cpu, msr, (msr >> 63) & 1 ? "" : "UN");
 
 		print_power_limit_msr(cpu, msr, "PKG Limit #1");
-		fprintf(outf, "cpu%d: PKG Limit #2: %sabled (%f Watts, %f* sec, clamp %sabled)\n",
+		fprintf(outf, "cpu%d: PKG Limit #2: %sabled (%0.3f Watts, %f* sec, clamp %sabled)\n",
 			cpu,
 			((msr >> 47) & 1) ? "EN" : "DIS",
 			((msr >> 32) & 0x7FFF) * rapl_power_units,
 			(1.0 + (((msr >> 54) & 0x3) / 4.0)) * (1 << ((msr >> 49) & 0x1F)) * rapl_time_units,
 			((msr >> 48) & 1) ? "EN" : "DIS");
+
+		if (get_msr(cpu, MSR_VR_CURRENT_CONFIG, &msr))
+			return -9;
+
+		fprintf(outf, "cpu%d: MSR_VR_CURRENT_CONFIG: 0x%08llx\n", cpu, msr);
+		fprintf(outf, "cpu%d: PKG Limit #4: %f Watts (%slocked)\n",
+			cpu, ((msr >> 0) & 0x1FFF) * rapl_power_units, (msr >> 31) & 1 ? "" : "UN");
 	}
 
 	if (do_rapl & RAPL_DRAM_POWER_INFO) {
@@ -4830,6 +4956,9 @@ int has_snb_msrs(unsigned int family, unsigned int model)
 	if (!genuine_intel)
 		return 0;
 
+	if (family != 6)
+		return 0;
+
 	switch (model) {
 	case INTEL_FAM6_SANDYBRIDGE:
 	case INTEL_FAM6_SANDYBRIDGE_X:
@@ -4873,6 +5002,9 @@ int has_c8910_msrs(unsigned int family, unsigned int model)
 	if (!genuine_intel)
 		return 0;
 
+	if (family != 6)
+		return 0;
+
 	switch (model) {
 	case INTEL_FAM6_HASWELL_L:	/* HSW */
 	case INTEL_FAM6_BROADWELL:	/* BDW */
@@ -4899,6 +5031,9 @@ int has_skl_msrs(unsigned int family, unsigned int model)
 	if (!genuine_intel)
 		return 0;
 
+	if (family != 6)
+		return 0;
+
 	switch (model) {
 	case INTEL_FAM6_SKYLAKE_L:	/* SKL */
 	case INTEL_FAM6_CANNONLAKE_L:	/* CNL */
@@ -4911,6 +5046,10 @@ int is_slm(unsigned int family, unsigned int model)
 {
 	if (!genuine_intel)
 		return 0;
+
+	if (family != 6)
+		return 0;
+
 	switch (model) {
 	case INTEL_FAM6_ATOM_SILVERMONT:	/* BYT */
 	case INTEL_FAM6_ATOM_SILVERMONT_D:	/* AVN */
@@ -4923,6 +5062,10 @@ int is_knl(unsigned int family, unsigned int model)
 {
 	if (!genuine_intel)
 		return 0;
+
+	if (family != 6)
+		return 0;
+
 	switch (model) {
 	case INTEL_FAM6_XEON_PHI_KNL:	/* KNL */
 		return 1;
@@ -4933,6 +5076,9 @@ int is_knl(unsigned int family, unsigned int model)
 int is_cnl(unsigned int family, unsigned int model)
 {
 	if (!genuine_intel)
+		return 0;
+
+	if (family != 6)
 		return 0;
 
 	switch (model) {
@@ -4989,6 +5135,9 @@ int get_cpu_type(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	unsigned int eax, ebx, ecx, edx;
 
+	UNUSED(c);
+	UNUSED(p);
+
 	if (!genuine_intel)
 		return 0;
 
@@ -5024,6 +5173,9 @@ int set_temperature_target(struct thread_data *t, struct core_data *c, struct pk
 	unsigned long long msr;
 	unsigned int tcc_default, tcc_offset;
 	int cpu;
+
+	UNUSED(c);
+	UNUSED(p);
 
 	/* tj_max is used only for dts or ptm */
 	if (!(do_dts || do_ptm))
@@ -5572,6 +5724,11 @@ void process_cpuid()
 	else
 		BIC_NOT_PRESENT(BIC_CPU_LPI);
 
+	if (!access("/sys/devices/system/cpu/cpu0/thermal_throttle/core_throttle_count", R_OK))
+		BIC_PRESENT(BIC_CORE_THROT_CNT);
+	else
+		BIC_NOT_PRESENT(BIC_CORE_THROT_CNT);
+
 	if (!access(sys_lpi_file_sysfs, R_OK)) {
 		sys_lpi_file = sys_lpi_file_sysfs;
 		BIC_PRESENT(BIC_SYS_LPI);
@@ -5599,11 +5756,6 @@ int dir_filter(const struct dirent *dirp)
 		return 1;
 	else
 		return 0;
-}
-
-int open_dev_cpu_msr(int dummy1)
-{
-	return 0;
 }
 
 void topology_probe()
@@ -5896,6 +6048,9 @@ void turbostat_init()
 
 	if (!quiet && do_irtl_snb)
 		print_irtl();
+
+	if (DO_BIC(BIC_IPC))
+		(void)get_instr_count_fd(base_cpu);
 }
 
 int fork_it(char **argv)
@@ -5973,7 +6128,7 @@ int get_and_dump_counters(void)
 
 void print_version()
 {
-	fprintf(outf, "turbostat version 21.05.04" " - Len Brown <lenb@kernel.org>\n");
+	fprintf(outf, "turbostat version 2022.04.16 - Len Brown <lenb@kernel.org>\n");
 }
 
 int add_counter(unsigned int msr_num, char *path, char *name,
@@ -6138,6 +6293,16 @@ next:
 	}
 }
 
+int is_deferred_add(char *name)
+{
+	int i;
+
+	for (i = 0; i < deferred_add_index; ++i)
+		if (!strcmp(name, deferred_add_names[i]))
+			return 1;
+	return 0;
+}
+
 int is_deferred_skip(char *name)
 {
 	int i;
@@ -6155,9 +6320,6 @@ void probe_sysfs(void)
 	FILE *input;
 	int state;
 	char *sp;
-
-	if (!DO_BIC(BIC_sysfs))
-		return;
 
 	for (state = 10; state >= 0; --state) {
 
@@ -6180,6 +6342,9 @@ void probe_sysfs(void)
 		fclose(input);
 
 		sprintf(path, "cpuidle/state%d/time", state);
+
+		if (!DO_BIC(BIC_sysfs) && !is_deferred_add(name_buf))
+			continue;
 
 		if (is_deferred_skip(name_buf))
 			continue;
@@ -6205,6 +6370,9 @@ void probe_sysfs(void)
 		remove_underbar(name_buf);
 
 		sprintf(path, "cpuidle/state%d/usage", state);
+
+		if (!DO_BIC(BIC_sysfs) && !is_deferred_add(name_buf))
+			continue;
 
 		if (is_deferred_skip(name_buf))
 			continue;
@@ -6313,6 +6481,7 @@ void cmdline(int argc, char **argv)
 		{ "interval", required_argument, 0, 'i' },
 		{ "IPC", no_argument, 0, 'I' },
 		{ "num_iterations", required_argument, 0, 'n' },
+		{ "header_iterations", required_argument, 0, 'N' },
 		{ "help", no_argument, 0, 'h' },
 		{ "hide", required_argument, 0, 'H' },	// meh, -h taken by --help
 		{ "Joules", no_argument, 0, 'J' },
@@ -6394,6 +6563,14 @@ void cmdline(int argc, char **argv)
 				exit(2);
 			}
 			break;
+		case 'N':
+			header_iterations = strtod(optarg, NULL);
+
+			if (header_iterations <= 0) {
+				fprintf(outf, "iterations %d should be positive number\n", header_iterations);
+				exit(2);
+			}
+			break;
 		case 's':
 			/*
 			 * --show: show only those specified
@@ -6432,6 +6609,8 @@ int main(int argc, char **argv)
 
 	turbostat_init();
 
+	msr_sum_record();
+
 	/* dump counters and exit */
 	if (dump_only)
 		return get_and_dump_counters();
@@ -6443,7 +6622,6 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
-	msr_sum_record();
 	/*
 	 * if any params left, it must be a command to fork
 	 */

@@ -4,8 +4,11 @@
  * Copyright © 2020 Intel Corporation
  */
 
+#include <linux/string_helpers.h>
+
 #include "i915_drv.h"
 #include "intel_gt_debugfs.h"
+#include "intel_gt_regs.h"
 #include "intel_sseu_debugfs.h"
 
 static void sseu_copy_subslices(const struct sseu_dev_info *sseu,
@@ -225,16 +228,16 @@ static void i915_print_sseu_info(struct seq_file *m,
 	if (!is_available_info)
 		return;
 
-	seq_printf(m, "  Has Pooled EU: %s\n", yesno(has_pooled_eu));
+	seq_printf(m, "  Has Pooled EU: %s\n", str_yes_no(has_pooled_eu));
 	if (has_pooled_eu)
 		seq_printf(m, "  Min EU in pool: %u\n", sseu->min_eu_in_pool);
 
 	seq_printf(m, "  Has Slice Power Gating: %s\n",
-		   yesno(sseu->has_slice_pg));
+		   str_yes_no(sseu->has_slice_pg));
 	seq_printf(m, "  Has Subslice Power Gating: %s\n",
-		   yesno(sseu->has_subslice_pg));
+		   str_yes_no(sseu->has_subslice_pg));
 	seq_printf(m, "  Has EU Power Gating: %s\n",
-		   yesno(sseu->has_eu_pg));
+		   str_yes_no(sseu->has_eu_pg));
 }
 
 /*
@@ -245,7 +248,7 @@ int intel_sseu_status(struct seq_file *m, struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
 	const struct intel_gt_info *info = &gt->info;
-	struct sseu_dev_info sseu;
+	struct sseu_dev_info *sseu;
 	intel_wakeref_t wakeref;
 
 	if (GRAPHICS_VER(i915) < 8)
@@ -255,23 +258,29 @@ int intel_sseu_status(struct seq_file *m, struct intel_gt *gt)
 	i915_print_sseu_info(m, true, HAS_POOLED_EU(i915), &info->sseu);
 
 	seq_puts(m, "SSEU Device Status\n");
-	memset(&sseu, 0, sizeof(sseu));
-	intel_sseu_set_info(&sseu, info->sseu.max_slices,
+
+	sseu = kzalloc(sizeof(*sseu), GFP_KERNEL);
+	if (!sseu)
+		return -ENOMEM;
+
+	intel_sseu_set_info(sseu, info->sseu.max_slices,
 			    info->sseu.max_subslices,
 			    info->sseu.max_eus_per_subslice);
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
 		if (IS_CHERRYVIEW(i915))
-			cherryview_sseu_device_status(gt, &sseu);
+			cherryview_sseu_device_status(gt, sseu);
 		else if (IS_BROADWELL(i915))
-			bdw_sseu_device_status(gt, &sseu);
+			bdw_sseu_device_status(gt, sseu);
 		else if (GRAPHICS_VER(i915) == 9)
-			gen9_sseu_device_status(gt, &sseu);
+			gen9_sseu_device_status(gt, sseu);
 		else if (GRAPHICS_VER(i915) >= 11)
-			gen11_sseu_device_status(gt, &sseu);
+			gen11_sseu_device_status(gt, sseu);
 	}
 
-	i915_print_sseu_info(m, false, HAS_POOLED_EU(i915), &sseu);
+	i915_print_sseu_info(m, false, HAS_POOLED_EU(i915), sseu);
+
+	kfree(sseu);
 
 	return 0;
 }
@@ -284,22 +293,22 @@ static int sseu_status_show(struct seq_file *m, void *unused)
 }
 DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(sseu_status);
 
-static int rcs_topology_show(struct seq_file *m, void *unused)
+static int sseu_topology_show(struct seq_file *m, void *unused)
 {
 	struct intel_gt *gt = m->private;
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	intel_sseu_print_topology(&gt->info.sseu, &p);
+	intel_sseu_print_topology(gt->i915, &gt->info.sseu, &p);
 
 	return 0;
 }
-DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(rcs_topology);
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(sseu_topology);
 
 void intel_sseu_debugfs_register(struct intel_gt *gt, struct dentry *root)
 {
 	static const struct intel_gt_debugfs_file files[] = {
 		{ "sseu_status", &sseu_status_fops, NULL },
-		{ "rcs_topology", &rcs_topology_fops, NULL },
+		{ "sseu_topology", &sseu_topology_fops, NULL },
 	};
 
 	intel_gt_debugfs_register_files(root, files, ARRAY_SIZE(files), gt);

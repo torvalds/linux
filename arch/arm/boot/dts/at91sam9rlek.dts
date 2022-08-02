@@ -180,7 +180,7 @@
 			spi0: spi@fffcc000 {
 				status = "okay";
 				cs-gpios = <&pioA 28 0>, <0>, <0>, <0>;
-				mtd_dataflash@0 {
+				flash@0 {
 					compatible = "atmel,at45", "atmel,dataflash";
 					spi-max-frequency = <15000000>;
 					reg = <0>;
@@ -210,6 +210,10 @@
 
 			watchdog@fffffd40 {
 				status = "okay";
+			};
+
+			rtc@fffffd20 {
+				atmel,rtt-rtc-time-reg = <&gpbr 0x0>;
 			};
 
 			rtc@fffffe00 {

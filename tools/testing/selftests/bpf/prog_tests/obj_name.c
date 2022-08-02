@@ -20,7 +20,7 @@ void test_obj_name(void)
 	__u32 duration = 0;
 	int i;
 
-	for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		size_t name_len = strlen(tests[i].name) + 1;
 		union bpf_attr attr;
 		size_t ncopy;

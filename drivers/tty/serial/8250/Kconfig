@@ -380,7 +380,7 @@ config SERIAL_8250_DW
 config SERIAL_8250_EM
 	tristate "Support for Emma Mobile integrated serial port"
 	depends on SERIAL_8250 && HAVE_CLK
-	depends on (ARM && ARCH_RENESAS) || COMPILE_TEST
+	depends on ARCH_RENESAS || COMPILE_TEST
 	help
 	  Selecting this option will add support for the integrated serial
 	  port hardware found on the Emma Mobile line of processors.
@@ -479,11 +479,12 @@ config SERIAL_8250_LPSS
 	select DW_DMAC_PCI if (SERIAL_8250_DMA && X86_INTEL_LPSS)
 	select RATIONAL
 	help
-	  Selecting this option will enable handling of the extra features
-	  present on the UART found on various Intel platforms such as:
+	  Selecting this option will enable handling of the UART found on
+	  various Intel platforms such as:
 	    - Intel Baytrail SoC
 	    - Intel Braswell SoC
 	    - Intel Quark X1000 SoC
+	  that are not covered by the more generic SERIAL_8250_PCI option.
 
 config SERIAL_8250_MID
 	tristate "Support for serial ports on Intel MID platforms"
@@ -494,17 +495,18 @@ config SERIAL_8250_MID
 	select HSU_DMA_PCI if (HSU_DMA && X86_INTEL_MID)
 	select RATIONAL
 	help
-	  Selecting this option will enable handling of the extra features
-	  present on the UART found on Intel Medfield SOC and various other
-	  Intel platforms.
+	  Selecting this option will enable handling of the UART found on
+	  Intel Medfield SOC and various other Intel platforms that is not
+	  covered by the more generic SERIAL_8250_PCI option.
 
 config SERIAL_8250_PERICOM
 	tristate "Support for Pericom and Acces I/O serial ports"
 	default SERIAL_8250
 	depends on SERIAL_8250 && PCI
 	help
-	  Selecting this option will enable handling of the extra features
-	  present on the Pericom and Acces I/O UARTs.
+	  Selecting this option will enable handling of the Pericom and Acces
+	  I/O UARTs that are not covered by the more generic SERIAL_8250_PCI
+	  option.
 
 config SERIAL_8250_PXA
 	tristate "PXA serial port support"

@@ -250,7 +250,7 @@ static int rtllib_is_eapol_frame(struct rtllib_device *ieee,
 	if (skb->len < 24)
 		return 0;
 
-	hdr = (struct rtllib_hdr_4addr *) skb->data;
+	hdr = (struct rtllib_hdr_4addr *)skb->data;
 	fc = le16_to_cpu(hdr->frame_ctl);
 
 	/* check that the frame is unicast frame to us */
@@ -299,7 +299,7 @@ rtllib_rx_frame_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 			tcb_desc->bHwSec = 0;
 	}
 
-	hdr = (struct rtllib_hdr_4addr *) skb->data;
+	hdr = (struct rtllib_hdr_4addr *)skb->data;
 	hdrlen = rtllib_get_hdrlen(le16_to_cpu(hdr->frame_ctl));
 
 	atomic_inc(&crypt->refcnt);
@@ -339,7 +339,7 @@ rtllib_rx_frame_decrypt_msdu(struct rtllib_device *ieee, struct sk_buff *skb,
 			tcb_desc->bHwSec = 0;
 	}
 
-	hdr = (struct rtllib_hdr_4addr *) skb->data;
+	hdr = (struct rtllib_hdr_4addr *)skb->data;
 	hdrlen = rtllib_get_hdrlen(le16_to_cpu(hdr->frame_ctl));
 
 	atomic_inc(&crypt->refcnt);
@@ -936,7 +936,7 @@ static int rtllib_rx_check_duplicate(struct rtllib_device *ieee,
 	} else {
 		struct rx_ts_record *pRxTS = NULL;
 
-		if (GetTs(ieee, (struct ts_common_info **) &pRxTS, hdr->addr2,
+		if (GetTs(ieee, (struct ts_common_info **)&pRxTS, hdr->addr2,
 			(u8)Frame_QoSTID((u8 *)(skb->data)), RX_DIR, true)) {
 			if ((fc & (1<<11)) && (frag == pRxTS->rx_last_frag_num) &&
 			    (WLAN_GET_SEQ_SEQ(sc) == pRxTS->rx_last_seq_num))
@@ -1100,7 +1100,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		return -1;
 	}
 
-	hdr = (struct rtllib_hdr_4addr *) skb->data;
+	hdr = (struct rtllib_hdr_4addr *)skb->data;
 	if ((frag != 0 || (fc & RTLLIB_FCTL_MOREFRAGS))) {
 		int flen;
 		struct sk_buff *frag_skb = rtllib_frag_cache_get(ieee, hdr);
@@ -1152,7 +1152,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		 * delivered, so remove skb from fragment cache
 		 */
 		skb = frag_skb;
-		hdr = (struct rtllib_hdr_4addr *) skb->data;
+		hdr = (struct rtllib_hdr_4addr *)skb->data;
 		rtllib_frag_cache_invalidate(ieee, hdr);
 	}
 
@@ -1165,7 +1165,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		return -1;
 	}
 
-	hdr = (struct rtllib_hdr_4addr *) skb->data;
+	hdr = (struct rtllib_hdr_4addr *)skb->data;
 	if (crypt && !(fc & RTLLIB_FCTL_WEP) && !ieee->open_wep) {
 		if (/*ieee->ieee802_1x &&*/
 		    rtllib_is_eapol_frame(ieee, skb, hdrlen)) {
@@ -1397,13 +1397,13 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 		goto rx_exit;
 
 	/* Get TS for Rx Reorder  */
-	hdr = (struct rtllib_hdr_4addr *) skb->data;
+	hdr = (struct rtllib_hdr_4addr *)skb->data;
 	if (ieee->current_network.qos_data.active && IsQoSDataFrame(skb->data)
 		&& !is_multicast_ether_addr(hdr->addr1)
 		&& (!bToOtherSTA)) {
 		TID = Frame_QoSTID(skb->data);
 		SeqNum = WLAN_GET_SEQ_SEQ(sc);
-		GetTs(ieee, (struct ts_common_info **) &pTS, hdr->addr2, TID,
+		GetTs(ieee, (struct ts_common_info **)&pTS, hdr->addr2, TID,
 		      RX_DIR, true);
 		if (TID != 0 && TID != 3)
 			ieee->bis_any_nonbepkts = true;
@@ -2053,7 +2053,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 			}
 
 			network->ssid_len = min(info_element->len,
-						(u8) IW_ESSID_MAX_SIZE);
+						(u8)IW_ESSID_MAX_SIZE);
 			memcpy(network->ssid, info_element->data,
 			       network->ssid_len);
 			if (network->ssid_len < IW_ESSID_MAX_SIZE)
@@ -2721,7 +2721,7 @@ static void rtllib_rx_mgt(struct rtllib_device *ieee,
 		if (ieee->sta_sleep || (ieee->ps != RTLLIB_PS_DISABLED &&
 		    ieee->iw_mode == IW_MODE_INFRA &&
 		    ieee->state == RTLLIB_LINKED))
-			tasklet_schedule(&ieee->ps_task);
+			schedule_work(&ieee->ps_task);
 
 		break;
 
@@ -2732,7 +2732,7 @@ static void rtllib_rx_mgt(struct rtllib_device *ieee,
 			      (struct rtllib_probe_response *)header, stats);
 		break;
 	case RTLLIB_STYPE_PROBE_REQ:
-		netdev_dbg(ieee->dev, "received PROBE RESQUEST (%d)\n",
+		netdev_dbg(ieee->dev, "received PROBE REQUEST (%d)\n",
 			   WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)));
 		if ((ieee->softmac_features & IEEE_SOFTMAC_PROBERS) &&
 		    ((ieee->iw_mode == IW_MODE_ADHOC ||

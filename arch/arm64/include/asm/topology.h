@@ -24,6 +24,10 @@ void update_freq_counters_refs(void);
 #define arch_scale_freq_capacity topology_get_freq_scale
 #define arch_scale_freq_invariant topology_scale_freq_invariant
 
+#ifdef CONFIG_ACPI_CPPC_LIB
+#define arch_init_invariance_cppc topology_init_cpu_capacity_cppc
+#endif
+
 /* Replace task scheduler's default cpu-invariant accounting */
 #define arch_scale_cpu_capacity topology_get_cpu_scale
 

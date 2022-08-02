@@ -75,7 +75,7 @@ void hashmap__clear(struct hashmap *map)
 
 void hashmap__free(struct hashmap *map)
 {
-	if (!map)
+	if (IS_ERR_OR_NULL(map))
 		return;
 
 	hashmap__clear(map);
@@ -238,4 +238,3 @@ bool hashmap__delete(struct hashmap *map, const void *key,
 
 	return true;
 }
-

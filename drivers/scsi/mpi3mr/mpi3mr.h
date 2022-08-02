@@ -2,7 +2,7 @@
 /*
  * Driver for Broadcom MPI3 Storage Controllers
  *
- * Copyright (C) 2017-2021 Broadcom Inc.
+ * Copyright (C) 2017-2022 Broadcom Inc.
  *  (mailto: mpi3mr-linuxdrv.pdl@broadcom.com)
  *
  */
@@ -38,6 +38,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
+#include <uapi/scsi/scsi_bsg_mpi3mr.h>
 
 #include "mpi/mpi30_transport.h"
 #include "mpi/mpi30_cnfg.h"
@@ -52,9 +53,10 @@
 extern spinlock_t mrioc_list_lock;
 extern struct list_head mrioc_list;
 extern int prot_mask;
+extern atomic64_t event_counter;
 
-#define MPI3MR_DRIVER_VERSION	"8.0.0.61.0"
-#define MPI3MR_DRIVER_RELDATE	"20-December-2021"
+#define MPI3MR_DRIVER_VERSION	"8.0.0.69.0"
+#define MPI3MR_DRIVER_RELDATE	"16-March-2022"
 
 #define MPI3MR_DRIVER_NAME	"mpi3mr"
 #define MPI3MR_DRIVER_LICENSE	"GPL"
@@ -89,7 +91,9 @@ extern int prot_mask;
 /* Reserved Host Tag definitions */
 #define MPI3MR_HOSTTAG_INVALID		0xFFFF
 #define MPI3MR_HOSTTAG_INITCMDS		1
-#define MPI3MR_HOSTTAG_IOCTLCMDS	2
+#define MPI3MR_HOSTTAG_BSG_CMDS		2
+#define MPI3MR_HOSTTAG_PEL_ABORT	3
+#define MPI3MR_HOSTTAG_PEL_WAIT		4
 #define MPI3MR_HOSTTAG_BLK_TMS		5
 
 #define MPI3MR_NUM_DEVRMCMD		16
@@ -120,6 +124,9 @@ extern int prot_mask;
 
 #define MPI3MR_WATCHDOG_INTERVAL		1000 /* in milli seconds */
 
+#define MPI3MR_SCMD_TIMEOUT    (60 * HZ)
+#define MPI3MR_EH_SCMD_TIMEOUT (60 * HZ)
+
 /* Internal admin command state definitions*/
 #define MPI3MR_CMD_NOTUSED	0x8000
 #define MPI3MR_CMD_COMPLETE	0x0001
@@ -148,8 +155,10 @@ extern int prot_mask;
 
 #define MPI3MR_DEFAULT_MDTS	(128 * 1024)
 #define MPI3MR_DEFAULT_PGSZEXP         (12)
+
 /* Command retry count definitions */
 #define MPI3MR_DEV_RMHS_RETRY_COUNT 3
+#define MPI3MR_PEL_RETRY_COUNT 3
 
 /* Default target device queue depth */
 #define MPI3MR_DEFAULT_SDEV_QD	32
@@ -175,6 +184,57 @@ extern int prot_mask;
 /* MSI Index from Reply Queue Index */
 #define REPLY_QUEUE_IDX_TO_MSIX_IDX(qidx, offset)	(qidx + offset)
 
+/*
+ * Maximum data transfer size definitions for management
+ * application commands
+ */
+#define MPI3MR_MAX_APP_XFER_SIZE	(1 * 1024 * 1024)
+#define MPI3MR_MAX_APP_XFER_SEGMENTS	512
+/*
+ * 2048 sectors are for data buffers and additional 512 sectors for
+ * other buffers
+ */
+#define MPI3MR_MAX_APP_XFER_SECTORS	(2048 + 512)
+
+/**
+ * struct mpi3mr_nvme_pt_sge -  Structure to store SGEs for NVMe
+ * Encapsulated commands.
+ *
+ * @base_addr: Physical address
+ * @length: SGE length
+ * @rsvd: Reserved
+ * @rsvd1: Reserved
+ * @sgl_type: sgl type
+ */
+struct mpi3mr_nvme_pt_sge {
+	u64 base_addr;
+	u32 length;
+	u16 rsvd;
+	u8 rsvd1;
+	u8 sgl_type;
+};
+
+/**
+ * struct mpi3mr_buf_map -  local structure to
+ * track kernel and user buffers associated with an BSG
+ * structure.
+ *
+ * @bsg_buf: BSG buffer virtual address
+ * @bsg_buf_len:  BSG buffer length
+ * @kern_buf: Kernel buffer virtual address
+ * @kern_buf_len: Kernel buffer length
+ * @kern_buf_dma: Kernel buffer DMA address
+ * @data_dir: Data direction.
+ */
+struct mpi3mr_buf_map {
+	void *bsg_buf;
+	u32 bsg_buf_len;
+	void *kern_buf;
+	u32 kern_buf_len;
+	dma_addr_t kern_buf_dma;
+	u8 data_dir;
+};
+
 /* IOC State definitions */
 enum mpi3mr_iocstate {
 	MRIOC_STATE_READY = 1,
@@ -189,10 +249,10 @@ enum mpi3mr_iocstate {
 enum mpi3mr_reset_reason {
 	MPI3MR_RESET_FROM_BRINGUP = 1,
 	MPI3MR_RESET_FROM_FAULT_WATCH = 2,
-	MPI3MR_RESET_FROM_IOCTL = 3,
+	MPI3MR_RESET_FROM_APP = 3,
 	MPI3MR_RESET_FROM_EH_HOS = 4,
 	MPI3MR_RESET_FROM_TM_TIMEOUT = 5,
-	MPI3MR_RESET_FROM_IOCTL_TIMEOUT = 6,
+	MPI3MR_RESET_FROM_APP_TIMEOUT = 6,
 	MPI3MR_RESET_FROM_MUR_FAILURE = 7,
 	MPI3MR_RESET_FROM_CTLR_CLEANUP = 8,
 	MPI3MR_RESET_FROM_CIACTIV_FAULT = 9,
@@ -543,6 +603,7 @@ struct mpi3mr_sdev_priv_data {
  * @ioc_status: IOC status from the firmware
  * @ioc_loginfo:IOC log info from the firmware
  * @is_waiting: Is the command issued in block mode
+ * @is_sense: Is Sense data present
  * @retry_count: Retry count for retriable commands
  * @host_tag: Host tag used by the command
  * @callback: Callback for non blocking commands
@@ -558,6 +619,7 @@ struct mpi3mr_drv_cmd {
 	u16 ioc_status;
 	u32 ioc_loginfo;
 	u8 is_waiting;
+	u8 is_sense;
 	u8 retry_count;
 	u16 host_tag;
 
@@ -685,6 +747,7 @@ struct scmd_priv {
  * @chain_bitmap_sz: Chain buffer allocator bitmap size
  * @chain_bitmap: Chain buffer allocator bitmap
  * @chain_buf_lock: Chain buffer list lock
+ * @bsg_cmds: Command tracker for BSG command
  * @host_tm_cmds: Command tracker for task management commands
  * @dev_rmhs_cmds: Command tracker for device removal commands
  * @evtack_cmds: Command tracker for event ack commands
@@ -704,16 +767,35 @@ struct scmd_priv {
  * @reset_waitq: Controller reset  wait queue
  * @prepare_for_reset: Prepare for reset event received
  * @prepare_for_reset_timeout_counter: Prepare for reset timeout
+ * @prp_list_virt: NVMe encapsulated PRP list virtual base
+ * @prp_list_dma: NVMe encapsulated PRP list DMA
+ * @prp_sz: NVME encapsulated PRP list size
  * @diagsave_timeout: Diagnostic information save timeout
  * @logging_level: Controller debug logging level
  * @flush_io_count: I/O count to flush after reset
  * @current_event: Firmware event currently in process
  * @driver_info: Driver, Kernel, OS information to firmware
  * @change_count: Topology change count
+ * @pel_enabled: Persistent Event Log(PEL) enabled or not
+ * @pel_abort_requested: PEL abort is requested or not
+ * @pel_class: PEL Class identifier
+ * @pel_locale: PEL Locale identifier
+ * @pel_cmds: Command tracker for PEL wait command
+ * @pel_abort_cmd: Command tracker for PEL abort command
+ * @pel_newest_seqnum: Newest PEL sequenece number
+ * @pel_seqnum_virt: PEL sequence number virtual address
+ * @pel_seqnum_dma: PEL sequence number DMA address
+ * @pel_seqnum_sz: PEL sequenece number size
  * @op_reply_q_offset: Operational reply queue offset with MSIx
  * @default_qcount: Total Default queues
  * @active_poll_qcount: Currently active poll queue count
  * @requested_poll_qcount: User requested poll queue count
+ * @bsg_dev: BSG device structure
+ * @bsg_queue: Request queue for BSG device
+ * @stop_bsgs: Stop BSG request flag
+ * @logdata_buf: Circular buffer to store log data entries
+ * @logdata_buf_idx: Index of entry in buffer to store
+ * @logdata_entry_sz: log data entry size
  */
 struct mpi3mr_ioc {
 	struct list_head list;
@@ -820,6 +902,7 @@ struct mpi3mr_ioc {
 	void *chain_bitmap;
 	spinlock_t chain_buf_lock;
 
+	struct mpi3mr_drv_cmd bsg_cmds;
 	struct mpi3mr_drv_cmd host_tm_cmds;
 	struct mpi3mr_drv_cmd dev_rmhs_cmds[MPI3MR_NUM_DEVRMCMD];
 	struct mpi3mr_drv_cmd evtack_cmds[MPI3MR_NUM_EVTACKCMD];
@@ -842,6 +925,10 @@ struct mpi3mr_ioc {
 	u8 prepare_for_reset;
 	u16 prepare_for_reset_timeout_counter;
 
+	void *prp_list_virt;
+	dma_addr_t prp_list_dma;
+	u32 prp_sz;
+
 	u16 diagsave_timeout;
 	int logging_level;
 	u16 flush_io_count;
@@ -849,11 +936,30 @@ struct mpi3mr_ioc {
 	struct mpi3mr_fwevt *current_event;
 	struct mpi3_driver_info_layout driver_info;
 	u16 change_count;
-	u16 op_reply_q_offset;
 
+	u8 pel_enabled;
+	u8 pel_abort_requested;
+	u8 pel_class;
+	u16 pel_locale;
+	struct mpi3mr_drv_cmd pel_cmds;
+	struct mpi3mr_drv_cmd pel_abort_cmd;
+
+	u32 pel_newest_seqnum;
+	void *pel_seqnum_virt;
+	dma_addr_t pel_seqnum_dma;
+	u32 pel_seqnum_sz;
+
+	u16 op_reply_q_offset;
 	u16 default_qcount;
 	u16 active_poll_qcount;
 	u16 requested_poll_qcount;
+
+	struct device bsg_dev;
+	struct request_queue *bsg_queue;
+	u8 stop_bsgs;
+	u8 *logdata_buf;
+	u16 logdata_buf_idx;
+	u16 logdata_entry_sz;
 };
 
 /**
@@ -866,6 +972,9 @@ struct mpi3mr_ioc {
  * @send_ack: Event acknowledgment required or not
  * @process_evt: Bottomhalf processing required or not
  * @evt_ctx: Event context to send in Ack
+ * @event_data_size: size of the event data in bytes
+ * @pending_at_sml: waiting for device add/remove API to complete
+ * @discard: discard this event
  * @ref_count: kref count
  * @event_data: Actual MPI3 event data
  */
@@ -877,8 +986,11 @@ struct mpi3mr_fwevt {
 	bool send_ack;
 	bool process_evt;
 	u32 evt_ctx;
+	u16 event_data_size;
+	bool pending_at_sml;
+	bool discard;
 	struct kref ref_count;
-	char event_data[0] __aligned(4);
+	char event_data[] __aligned(4);
 };
 
 
@@ -958,5 +1070,20 @@ void mpi3mr_check_rh_fault_ioc(struct mpi3mr_ioc *mrioc, u32 reason_code);
 int mpi3mr_process_op_reply_q(struct mpi3mr_ioc *mrioc,
 	struct op_reply_qinfo *op_reply_q);
 int mpi3mr_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num);
-
+void mpi3mr_bsg_init(struct mpi3mr_ioc *mrioc);
+void mpi3mr_bsg_exit(struct mpi3mr_ioc *mrioc);
+int mpi3mr_issue_tm(struct mpi3mr_ioc *mrioc, u8 tm_type,
+	u16 handle, uint lun, u16 htag, ulong timeout,
+	struct mpi3mr_drv_cmd *drv_cmd,
+	u8 *resp_code, struct scsi_cmnd *scmd);
+struct mpi3mr_tgt_dev *mpi3mr_get_tgtdev_by_handle(
+	struct mpi3mr_ioc *mrioc, u16 handle);
+void mpi3mr_pel_get_seqnum_complete(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_drv_cmd *drv_cmd);
+int mpi3mr_pel_get_seqnum_post(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_drv_cmd *drv_cmd);
+void mpi3mr_app_save_logdata(struct mpi3mr_ioc *mrioc, char *event_data,
+	u16 event_data_size);
+extern const struct attribute_group *mpi3mr_host_groups[];
+extern const struct attribute_group *mpi3mr_dev_groups[];
 #endif /*MPI3MR_H_INCLUDED*/

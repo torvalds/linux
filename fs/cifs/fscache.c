@@ -101,13 +101,13 @@ void cifs_fscache_get_inode_cookie(struct inode *inode)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 
-	cifs_fscache_fill_coherency(&cifsi->vfs_inode, &cd);
+	cifs_fscache_fill_coherency(&cifsi->netfs.inode, &cd);
 
-	cifsi->fscache =
+	cifsi->netfs.cache =
 		fscache_acquire_cookie(tcon->fscache, 0,
 				       &cifsi->uniqueid, sizeof(cifsi->uniqueid),
 				       &cd, sizeof(cd),
-				       i_size_read(&cifsi->vfs_inode));
+				       i_size_read(&cifsi->netfs.inode));
 }
 
 void cifs_fscache_unuse_inode_cookie(struct inode *inode, bool update)
@@ -126,20 +126,13 @@ void cifs_fscache_unuse_inode_cookie(struct inode *inode, bool update)
 void cifs_fscache_release_inode_cookie(struct inode *inode)
 {
 	struct cifsInodeInfo *cifsi = CIFS_I(inode);
+	struct fscache_cookie *cookie = cifs_inode_cookie(inode);
 
-	if (cifsi->fscache) {
-		cifs_dbg(FYI, "%s: (0x%p)\n", __func__, cifsi->fscache);
-		fscache_relinquish_cookie(cifsi->fscache, false);
-		cifsi->fscache = NULL;
+	if (cookie) {
+		cifs_dbg(FYI, "%s: (0x%p)\n", __func__, cookie);
+		fscache_relinquish_cookie(cookie, false);
+		cifsi->netfs.cache = NULL;
 	}
-}
-
-static inline void fscache_end_operation(struct netfs_cache_resources *cres)
-{
-	const struct netfs_cache_ops *ops = fscache_operation_valid(cres);
-
-	if (ops)
-		ops->end_operation(cres);
 }
 
 /*

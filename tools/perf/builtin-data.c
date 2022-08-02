@@ -62,10 +62,17 @@ static int cmd_data_convert(int argc, const char **argv)
 		pr_err("You cannot specify both --to-ctf and --to-json.\n");
 		return -1;
 	}
+#ifdef HAVE_LIBBABELTRACE_SUPPORT
 	if (!to_json && !to_ctf) {
 		pr_err("You must specify one of --to-ctf or --to-json.\n");
 		return -1;
 	}
+#else
+	if (!to_json) {
+		pr_err("You must specify --to-json.\n");
+	return -1;
+}
+#endif
 
 	if (to_json)
 		return bt_convert__perf2json(input_name, to_json, &opts);

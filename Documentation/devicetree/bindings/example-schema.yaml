@@ -162,6 +162,16 @@ properties:
       don't need a type.
     enum: [ 100, 200, 300 ]
 
+  vendor,int-array-variable-length-and-constrained-values:
+    description: Array might define what type of elements might be used (e.g.
+      their range).
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 2
+    maxItems: 3
+    items:
+      minimum: 0
+      maximum: 8
+
   child-node:
     description: Child nodes are just another property from a json-schema
       perspective.
@@ -207,6 +217,10 @@ allOf:
     then:
       required:
         - foo-supply
+    else:
+      # If otherwise the property is not allowed:
+      properties:
+        foo-supply: false
   # Altering schema depending on presence of properties is usually done by
   # dependencies (see above), however some adjustments might require if:
   - if:
@@ -235,13 +249,13 @@ examples:
   # be overridden or an appropriate parent bus node should be shown (such as on
   # i2c buses).
   #
-  # Any includes used have to be explicitly included.
+  # Any includes used have to be explicitly included. Use 4-space indentation.
   - |
     node@1000 {
-          compatible = "vendor,soc4-ip", "vendor,soc1-ip";
-          reg = <0x1000 0x80>,
-                <0x3000 0x80>;
-          reg-names = "core", "aux";
-          interrupts = <10>;
-          interrupt-controller;
+        compatible = "vendor,soc4-ip", "vendor,soc1-ip";
+        reg = <0x1000 0x80>,
+              <0x3000 0x80>;
+        reg-names = "core", "aux";
+        interrupts = <10>;
+        interrupt-controller;
     };

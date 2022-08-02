@@ -1910,7 +1910,7 @@ static int ican3_probe(struct platform_device *pdev)
 	mod = netdev_priv(ndev);
 	mod->ndev = ndev;
 	mod->num = pdata->modno;
-	netif_napi_add(ndev, &mod->napi, ican3_napi, ICAN3_RX_BUFFERS);
+	netif_napi_add_weight(ndev, &mod->napi, ican3_napi, ICAN3_RX_BUFFERS);
 	skb_queue_head_init(&mod->echoq);
 	spin_lock_init(&mod->lock);
 	init_completion(&mod->termination_comp);

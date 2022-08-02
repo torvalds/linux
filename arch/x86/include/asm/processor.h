@@ -119,6 +119,8 @@ struct cpuinfo_x86 {
 	int			x86_cache_mbm_width_offset;
 	int			x86_power;
 	unsigned long		loops_per_jiffy;
+	/* protected processor identification number */
+	u64			ppin;
 	/* cpuid returned max cores value: */
 	u16			x86_max_cores;
 	u16			apicid;
@@ -557,7 +559,7 @@ static __always_inline void native_swapgs(void)
 #endif
 }
 
-static inline unsigned long current_top_of_stack(void)
+static __always_inline unsigned long current_top_of_stack(void)
 {
 	/*
 	 *  We can't read directly from tss.sp0: sp0 on x86_32 is special in
@@ -567,7 +569,7 @@ static inline unsigned long current_top_of_stack(void)
 	return this_cpu_read_stable(cpu_current_top_of_stack);
 }
 
-static inline bool on_thread_stack(void)
+static __always_inline bool on_thread_stack(void)
 {
 	return (unsigned long)(current_top_of_stack() -
 			       current_stack_pointer) < THREAD_SIZE;
@@ -835,7 +837,7 @@ bool xen_set_default_idle(void);
 #define xen_set_default_idle 0
 #endif
 
-void stop_this_cpu(void *dummy);
+void __noreturn stop_this_cpu(void *dummy);
 void microcode_check(void);
 
 enum l1tf_mitigations {

@@ -4,8 +4,7 @@
  *
  * Copyright IBM Corp. 2009,2014
  *
- *   Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>,
- *		Martin Schwidefsky <schwidefsky@de.ibm.com>
+ *   Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
 #include <linux/moduleloader.h>
@@ -61,18 +60,9 @@ asm(
 #ifdef CONFIG_EXPOLINE
 asm(
 	"	.align 16\n"
-	"ftrace_shared_hotpatch_trampoline_ex:\n"
-	"	lmg	%r0,%r1,2(%r1)\n"
-	"	ex	%r0," __stringify(__LC_BR_R1) "(%r0)\n"
-	"	j	.\n"
-	"ftrace_shared_hotpatch_trampoline_ex_end:\n"
-);
-
-asm(
-	"	.align 16\n"
 	"ftrace_shared_hotpatch_trampoline_exrl:\n"
 	"	lmg	%r0,%r1,2(%r1)\n"
-	"	.insn	ril,0xc60000000000,%r0,0f\n" /* exrl */
+	"	exrl	%r0,0f\n"
 	"	j	.\n"
 	"0:	br	%r1\n"
 	"ftrace_shared_hotpatch_trampoline_exrl_end:\n"
@@ -91,12 +81,8 @@ static const char *ftrace_shared_hotpatch_trampoline(const char **end)
 	tend = ftrace_shared_hotpatch_trampoline_br_end;
 #ifdef CONFIG_EXPOLINE
 	if (!nospec_disable) {
-		tstart = ftrace_shared_hotpatch_trampoline_ex;
-		tend = ftrace_shared_hotpatch_trampoline_ex_end;
-		if (test_facility(35)) { /* exrl */
-			tstart = ftrace_shared_hotpatch_trampoline_exrl;
-			tend = ftrace_shared_hotpatch_trampoline_exrl_end;
-		}
+		tstart = ftrace_shared_hotpatch_trampoline_exrl;
+		tend = ftrace_shared_hotpatch_trampoline_exrl_end;
 	}
 #endif /* CONFIG_EXPOLINE */
 	if (end)
@@ -194,25 +180,26 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 	return 0;
 }
 
-static void brcl_disable(void *brcl)
+static int ftrace_patch_branch_mask(void *addr, u16 expected, bool enable)
 {
-	u8 op = 0x04; /* set mask field to zero */
+	u16 old;
+	u8 op;
 
-	s390_kernel_write((char *)brcl + 1, &op, sizeof(op));
+	if (get_kernel_nofault(old, addr))
+		return -EFAULT;
+	if (old != expected)
+		return -EINVAL;
+	/* set mask field to all ones or zeroes */
+	op = enable ? 0xf4 : 0x04;
+	s390_kernel_write((char *)addr + 1, &op, sizeof(op));
+	return 0;
 }
 
 int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 		    unsigned long addr)
 {
-	brcl_disable((void *)rec->ip);
-	return 0;
-}
-
-static void brcl_enable(void *brcl)
-{
-	u8 op = 0xf4; /* set mask field to all ones */
-
-	s390_kernel_write((char *)brcl + 1, &op, sizeof(op));
+	/* Expect brcl 0xf,... */
+	return ftrace_patch_branch_mask((void *)rec->ip, 0xc0f4, false);
 }
 
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
@@ -223,8 +210,8 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	if (IS_ERR(trampoline))
 		return PTR_ERR(trampoline);
 	s390_kernel_write(&trampoline->interceptor, &addr, sizeof(addr));
-	brcl_enable((void *)rec->ip);
-	return 0;
+	/* Expect brcl 0x0,... */
+	return ftrace_patch_branch_mask((void *)rec->ip, 0xc004, true);
 }
 
 int ftrace_update_ftrace_func(ftrace_func_t func)
@@ -238,14 +225,13 @@ void arch_ftrace_update_code(int command)
 	ftrace_modify_all_code(command);
 }
 
-int ftrace_arch_code_modify_post_process(void)
+void ftrace_arch_code_modify_post_process(void)
 {
 	/*
 	 * Flush any pre-fetched instructions on all
 	 * CPUs to make the new code visible.
 	 */
 	text_poke_sync_lock();
-	return 0;
 }
 
 #ifdef CONFIG_MODULES
@@ -297,14 +283,24 @@ NOKPROBE_SYMBOL(prepare_ftrace_return);
  */
 int ftrace_enable_ftrace_graph_caller(void)
 {
-	brcl_disable(ftrace_graph_caller);
+	int rc;
+
+	/* Expect brc 0xf,... */
+	rc = ftrace_patch_branch_mask(ftrace_graph_caller, 0xa7f4, false);
+	if (rc)
+		return rc;
 	text_poke_sync_lock();
 	return 0;
 }
 
 int ftrace_disable_ftrace_graph_caller(void)
 {
-	brcl_enable(ftrace_graph_caller);
+	int rc;
+
+	/* Expect brc 0x0,... */
+	rc = ftrace_patch_branch_mask(ftrace_graph_caller, 0xa704, true);
+	if (rc)
+		return rc;
 	text_poke_sync_lock();
 	return 0;
 }

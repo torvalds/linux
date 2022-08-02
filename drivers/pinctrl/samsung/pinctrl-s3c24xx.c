@@ -525,7 +525,7 @@ static int s3c24xx_eint_init(struct samsung_pinctrl_drv_data *d)
 		ops = (bank->eint_offset == 0) ? &s3c24xx_gpf_irq_ops
 					       : &s3c24xx_gpg_irq_ops;
 
-		bank->irq_domain = irq_domain_add_linear(bank->of_node,
+		bank->irq_domain = irq_domain_create_linear(bank->fwnode,
 				bank->nr_pins, ops, ddata);
 		if (!bank->irq_domain) {
 			dev_err(dev, "wkup irq domain add failed\n");

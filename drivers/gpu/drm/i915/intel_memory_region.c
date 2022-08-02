@@ -5,6 +5,8 @@
 
 #include <linux/prandom.h>
 
+#include <uapi/drm/i915_drm.h>
+
 #include "intel_memory_region.h"
 #include "i915_drv.h"
 #include "i915_ttm_buddy_manager.h"
@@ -17,7 +19,7 @@ static const struct {
 		.class = INTEL_MEMORY_SYSTEM,
 		.instance = 0,
 	},
-	[INTEL_REGION_LMEM] = {
+	[INTEL_REGION_LMEM_0] = {
 		.class = INTEL_MEMORY_LOCAL,
 		.instance = 0,
 	},
@@ -97,9 +99,13 @@ static int iomemtest(struct intel_memory_region *mem,
 		     bool test_all,
 		     const void *caller)
 {
-	resource_size_t last = resource_size(&mem->region) - PAGE_SIZE;
-	resource_size_t page;
+	resource_size_t last, page;
 	int err;
+
+	if (mem->io_size < PAGE_SIZE)
+		return 0;
+
+	last = mem->io_size - PAGE_SIZE;
 
 	/*
 	 * Quick test to check read/write access to the iomap (backing store).
@@ -217,6 +223,7 @@ intel_memory_region_create(struct drm_i915_private *i915,
 			   resource_size_t size,
 			   resource_size_t min_page_size,
 			   resource_size_t io_start,
+			   resource_size_t io_size,
 			   u16 type,
 			   u16 instance,
 			   const struct intel_memory_region_ops *ops)
@@ -231,6 +238,7 @@ intel_memory_region_create(struct drm_i915_private *i915,
 	mem->i915 = i915;
 	mem->region = (struct resource)DEFINE_RES_MEM(start, size);
 	mem->io_start = io_start;
+	mem->io_size = io_size;
 	mem->min_page_size = min_page_size;
 	mem->ops = ops;
 	mem->total = size;

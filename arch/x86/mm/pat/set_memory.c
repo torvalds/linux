@@ -19,6 +19,7 @@
 #include <linux/vmstat.h>
 #include <linux/kernel.h>
 #include <linux/cc_platform.h>
+#include <linux/set_memory.h>
 
 #include <asm/e820/api.h>
 #include <asm/processor.h>
@@ -29,7 +30,6 @@
 #include <asm/pgalloc.h>
 #include <asm/proto.h>
 #include <asm/memtype.h>
-#include <asm/set_memory.h>
 #include <asm/hyperv-tlfs.h>
 #include <asm/mshyperv.h>
 
@@ -637,17 +637,6 @@ pte_t *lookup_address(unsigned long address, unsigned int *level)
 	return lookup_address_in_pgd(pgd_offset_k(address), address, level);
 }
 EXPORT_SYMBOL_GPL(lookup_address);
-
-/*
- * Lookup the page table entry for a virtual address in a given mm. Return a
- * pointer to the entry and the level of the mapping.
- */
-pte_t *lookup_address_in_mm(struct mm_struct *mm, unsigned long address,
-			    unsigned int *level)
-{
-	return lookup_address_in_pgd(pgd_offset(mm, address), address, level);
-}
-EXPORT_SYMBOL_GPL(lookup_address_in_mm);
 
 static pte_t *_lookup_address_cpa(struct cpa_data *cpa, unsigned long address,
 				  unsigned int *level)
@@ -1816,7 +1805,7 @@ static inline int cpa_clear_pages_array(struct page **pages, int numpages,
 }
 
 /*
- * _set_memory_prot is an internal helper for callers that have been passed
+ * __set_memory_prot is an internal helper for callers that have been passed
  * a pgprot_t value from upper layers and a reservation has already been taken.
  * If you want to set the pgprot to a specific page protocol, use the
  * set_memory_xx() functions.
@@ -1925,6 +1914,51 @@ int set_memory_wb(unsigned long addr, int numpages)
 }
 EXPORT_SYMBOL(set_memory_wb);
 
+/* Prevent speculative access to a page by marking it not-present */
+#ifdef CONFIG_X86_64
+int set_mce_nospec(unsigned long pfn)
+{
+	unsigned long decoy_addr;
+	int rc;
+
+	/* SGX pages are not in the 1:1 map */
+	if (arch_is_platform_page(pfn << PAGE_SHIFT))
+		return 0;
+	/*
+	 * We would like to just call:
+	 *      set_memory_XX((unsigned long)pfn_to_kaddr(pfn), 1);
+	 * but doing that would radically increase the odds of a
+	 * speculative access to the poison page because we'd have
+	 * the virtual address of the kernel 1:1 mapping sitting
+	 * around in registers.
+	 * Instead we get tricky.  We create a non-canonical address
+	 * that looks just like the one we want, but has bit 63 flipped.
+	 * This relies on set_memory_XX() properly sanitizing any __pa()
+	 * results with __PHYSICAL_MASK or PTE_PFN_MASK.
+	 */
+	decoy_addr = (pfn << PAGE_SHIFT) + (PAGE_OFFSET ^ BIT(63));
+
+	rc = set_memory_np(decoy_addr, 1);
+	if (rc)
+		pr_warn("Could not invalidate pfn=0x%lx from 1:1 map\n", pfn);
+	return rc;
+}
+
+static int set_memory_present(unsigned long *addr, int numpages)
+{
+	return change_page_attr_set(addr, numpages, __pgprot(_PAGE_PRESENT), 0);
+}
+
+/* Restore full speculative operation to the pfn. */
+int clear_mce_nospec(unsigned long pfn)
+{
+	unsigned long addr = (unsigned long) pfn_to_kaddr(pfn);
+
+	return set_memory_present(&addr, 1);
+}
+EXPORT_SYMBOL_GPL(clear_mce_nospec);
+#endif /* CONFIG_X86_64 */
+
 int set_memory_x(unsigned long addr, int numpages)
 {
 	if (!(__supported_pte_mask & _PAGE_NX))
@@ -1989,6 +2023,7 @@ int set_memory_global(unsigned long addr, int numpages)
  */
 static int __set_memory_enc_pgtable(unsigned long addr, int numpages, bool enc)
 {
+	pgprot_t empty = __pgprot(0);
 	struct cpa_data cpa;
 	int ret;
 
@@ -1999,18 +2034,20 @@ static int __set_memory_enc_pgtable(unsigned long addr, int numpages, bool enc)
 	memset(&cpa, 0, sizeof(cpa));
 	cpa.vaddr = &addr;
 	cpa.numpages = numpages;
-	cpa.mask_set = enc ? __pgprot(_PAGE_ENC) : __pgprot(0);
-	cpa.mask_clr = enc ? __pgprot(0) : __pgprot(_PAGE_ENC);
+	cpa.mask_set = enc ? pgprot_encrypted(empty) : pgprot_decrypted(empty);
+	cpa.mask_clr = enc ? pgprot_decrypted(empty) : pgprot_encrypted(empty);
 	cpa.pgd = init_mm.pgd;
 
 	/* Must avoid aliasing mappings in the highmem code */
 	kmap_flush_unused();
 	vm_unmap_aliases();
 
-	/*
-	 * Before changing the encryption attribute, we need to flush caches.
-	 */
-	cpa_flush(&cpa, !this_cpu_has(X86_FEATURE_SME_COHERENT));
+	/* Flush the caches as needed before changing the encryption attribute. */
+	if (x86_platform.guest.enc_tlb_flush_required(enc))
+		cpa_flush(&cpa, x86_platform.guest.enc_cache_flush_required());
+
+	/* Notify hypervisor that we are about to set/clr encryption attribute. */
+	x86_platform.guest.enc_status_change_prepare(addr, numpages, enc);
 
 	ret = __change_page_attr_set_clr(&cpa, 1);
 
@@ -2023,11 +2060,11 @@ static int __set_memory_enc_pgtable(unsigned long addr, int numpages, bool enc)
 	 */
 	cpa_flush(&cpa, 0);
 
-	/*
-	 * Notify hypervisor that a given memory range is mapped encrypted
-	 * or decrypted.
-	 */
-	notify_range_enc_status_changed(addr, numpages, enc);
+	/* Notify hypervisor that we have successfully set/clr encryption attribute. */
+	if (!ret) {
+		if (!x86_platform.guest.enc_status_change_finish(addr, numpages, enc))
+			ret = -EIO;
+	}
 
 	return ret;
 }
@@ -2120,12 +2157,6 @@ int set_pages_array_wc(struct page **pages, int numpages)
 	return _set_pages_array(pages, numpages, _PAGE_CACHE_MODE_WC);
 }
 EXPORT_SYMBOL(set_pages_array_wc);
-
-int set_pages_array_wt(struct page **pages, int numpages)
-{
-	return _set_pages_array(pages, numpages, _PAGE_CACHE_MODE_WT);
-}
-EXPORT_SYMBOL_GPL(set_pages_array_wt);
 
 int set_pages_wb(struct page *page, int numpages)
 {

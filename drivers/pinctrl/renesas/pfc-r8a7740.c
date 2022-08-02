@@ -1638,33 +1638,14 @@ static const struct sh_pfc_pin pinmux_pins[] = {
 };
 
 /* - BSC -------------------------------------------------------------------- */
-static const unsigned int bsc_data8_pins[] = {
-	/* D[0:7] */
-	157, 156, 155, 154, 153, 152, 151, 150,
-};
-static const unsigned int bsc_data8_mux[] = {
-	D0_NAF0_MARK, D1_NAF1_MARK, D2_NAF2_MARK, D3_NAF3_MARK,
-	D4_NAF4_MARK, D5_NAF5_MARK, D6_NAF6_MARK, D7_NAF7_MARK,
-};
-static const unsigned int bsc_data16_pins[] = {
-	/* D[0:15] */
-	157, 156, 155, 154, 153, 152, 151, 150,
-	149, 148, 147, 146, 145, 144, 143, 142,
-};
-static const unsigned int bsc_data16_mux[] = {
-	D0_NAF0_MARK, D1_NAF1_MARK, D2_NAF2_MARK, D3_NAF3_MARK,
-	D4_NAF4_MARK, D5_NAF5_MARK, D6_NAF6_MARK, D7_NAF7_MARK,
-	D8_NAF8_MARK, D9_NAF9_MARK, D10_NAF10_MARK, D11_NAF11_MARK,
-	D12_NAF12_MARK, D13_NAF13_MARK, D14_NAF14_MARK, D15_NAF15_MARK,
-};
-static const unsigned int bsc_data32_pins[] = {
+static const unsigned int bsc_data_pins[] = {
 	/* D[0:31] */
 	157, 156, 155, 154, 153, 152, 151, 150,
 	149, 148, 147, 146, 145, 144, 143, 142,
 	171, 170, 169, 168, 167, 166, 173, 172,
 	165, 164, 163, 162, 161, 160, 159, 158,
 };
-static const unsigned int bsc_data32_mux[] = {
+static const unsigned int bsc_data_mux[] = {
 	D0_NAF0_MARK, D1_NAF1_MARK, D2_NAF2_MARK, D3_NAF3_MARK,
 	D4_NAF4_MARK, D5_NAF5_MARK, D6_NAF6_MARK, D7_NAF7_MARK,
 	D8_NAF8_MARK, D9_NAF9_MARK, D10_NAF10_MARK, D11_NAF11_MARK,
@@ -1723,25 +1704,11 @@ static const unsigned int bsc_cs6a_pins[] = {
 static const unsigned int bsc_cs6a_mux[] = {
 	CS6A_MARK,
 };
-static const unsigned int bsc_rd_we8_pins[] = {
-	/* RD, WE[0] */
-	115, 113,
-};
-static const unsigned int bsc_rd_we8_mux[] = {
-	RD_FSC_MARK, WE0_FWE_MARK,
-};
-static const unsigned int bsc_rd_we16_pins[] = {
-	/* RD, WE[0:1] */
-	115, 113, 112,
-};
-static const unsigned int bsc_rd_we16_mux[] = {
-	RD_FSC_MARK, WE0_FWE_MARK, WE1_MARK,
-};
-static const unsigned int bsc_rd_we32_pins[] = {
+static const unsigned int bsc_rd_we_pins[] = {
 	/* RD, WE[0:3] */
 	115, 113, 112, 108, 107,
 };
-static const unsigned int bsc_rd_we32_mux[] = {
+static const unsigned int bsc_rd_we_mux[] = {
 	RD_FSC_MARK, WE0_FWE_MARK, WE1_MARK, WE2_ICIORD_MARK, WE3_ICIOWR_MARK,
 };
 static const unsigned int bsc_bs_pins[] = {
@@ -2064,58 +2031,6 @@ IRQC_PINS_MUX(31, 0, 41);
 IRQC_PINS_MUX(31, 1, 167);
 
 /* - LCD0 ------------------------------------------------------------------- */
-static const unsigned int lcd0_data8_pins[] = {
-	/* D[0:7] */
-	58, 57, 56, 55, 54, 53, 52, 51,
-};
-static const unsigned int lcd0_data8_mux[] = {
-	LCD0_D0_MARK, LCD0_D1_MARK, LCD0_D2_MARK, LCD0_D3_MARK,
-	LCD0_D4_MARK, LCD0_D5_MARK, LCD0_D6_MARK, LCD0_D7_MARK,
-};
-static const unsigned int lcd0_data9_pins[] = {
-	/* D[0:8] */
-	58, 57, 56, 55, 54, 53, 52, 51,
-	50,
-};
-static const unsigned int lcd0_data9_mux[] = {
-	LCD0_D0_MARK, LCD0_D1_MARK, LCD0_D2_MARK, LCD0_D3_MARK,
-	LCD0_D4_MARK, LCD0_D5_MARK, LCD0_D6_MARK, LCD0_D7_MARK,
-	LCD0_D8_MARK,
-};
-static const unsigned int lcd0_data12_pins[] = {
-	/* D[0:11] */
-	58, 57, 56, 55, 54, 53, 52, 51,
-	50, 49, 48, 47,
-};
-static const unsigned int lcd0_data12_mux[] = {
-	LCD0_D0_MARK, LCD0_D1_MARK, LCD0_D2_MARK, LCD0_D3_MARK,
-	LCD0_D4_MARK, LCD0_D5_MARK, LCD0_D6_MARK, LCD0_D7_MARK,
-	LCD0_D8_MARK, LCD0_D9_MARK, LCD0_D10_MARK, LCD0_D11_MARK,
-};
-static const unsigned int lcd0_data16_pins[] = {
-	/* D[0:15] */
-	58, 57, 56, 55, 54, 53, 52, 51,
-	50, 49, 48, 47, 46, 45, 44, 43,
-};
-static const unsigned int lcd0_data16_mux[] = {
-	LCD0_D0_MARK, LCD0_D1_MARK, LCD0_D2_MARK, LCD0_D3_MARK,
-	LCD0_D4_MARK, LCD0_D5_MARK, LCD0_D6_MARK, LCD0_D7_MARK,
-	LCD0_D8_MARK, LCD0_D9_MARK, LCD0_D10_MARK, LCD0_D11_MARK,
-	LCD0_D12_MARK, LCD0_D13_MARK, LCD0_D14_MARK, LCD0_D15_MARK,
-};
-static const unsigned int lcd0_data18_pins[] = {
-	/* D[0:17] */
-	58, 57, 56, 55, 54, 53, 52, 51,
-	50, 49, 48, 47, 46, 45, 44, 43,
-	42, 41,
-};
-static const unsigned int lcd0_data18_mux[] = {
-	LCD0_D0_MARK, LCD0_D1_MARK, LCD0_D2_MARK, LCD0_D3_MARK,
-	LCD0_D4_MARK, LCD0_D5_MARK, LCD0_D6_MARK, LCD0_D7_MARK,
-	LCD0_D8_MARK, LCD0_D9_MARK, LCD0_D10_MARK, LCD0_D11_MARK,
-	LCD0_D12_MARK, LCD0_D13_MARK, LCD0_D14_MARK, LCD0_D15_MARK,
-	LCD0_D16_MARK, LCD0_D17_MARK,
-};
 static const unsigned int lcd0_data24_0_pins[] = {
 	/* D[0:23] */
 	58, 57, 56, 55, 54, 53, 52, 51,
@@ -2182,65 +2097,13 @@ static const unsigned int lcd0_sys_mux[] = {
 	LCD0_CS_MARK, LCD0_WR_MARK, LCD0_RD_MARK, LCD0_RS_MARK,
 };
 /* - LCD1 ------------------------------------------------------------------- */
-static const unsigned int lcd1_data8_pins[] = {
-	/* D[0:7] */
-	4, 3, 2, 1, 0, 91, 92, 23,
-};
-static const unsigned int lcd1_data8_mux[] = {
-	LCD1_D0_MARK, LCD1_D1_MARK, LCD1_D2_MARK, LCD1_D3_MARK,
-	LCD1_D4_MARK, LCD1_D5_MARK, LCD1_D6_MARK, LCD1_D7_MARK,
-};
-static const unsigned int lcd1_data9_pins[] = {
-	/* D[0:8] */
-	4, 3, 2, 1, 0, 91, 92, 23,
-	93,
-};
-static const unsigned int lcd1_data9_mux[] = {
-	LCD1_D0_MARK, LCD1_D1_MARK, LCD1_D2_MARK, LCD1_D3_MARK,
-	LCD1_D4_MARK, LCD1_D5_MARK, LCD1_D6_MARK, LCD1_D7_MARK,
-	LCD1_D8_MARK,
-};
-static const unsigned int lcd1_data12_pins[] = {
-	/* D[0:11] */
-	4, 3, 2, 1, 0, 91, 92, 23,
-	93, 94, 21, 201,
-};
-static const unsigned int lcd1_data12_mux[] = {
-	LCD1_D0_MARK, LCD1_D1_MARK, LCD1_D2_MARK, LCD1_D3_MARK,
-	LCD1_D4_MARK, LCD1_D5_MARK, LCD1_D6_MARK, LCD1_D7_MARK,
-	LCD1_D8_MARK, LCD1_D9_MARK, LCD1_D10_MARK, LCD1_D11_MARK,
-};
-static const unsigned int lcd1_data16_pins[] = {
-	/* D[0:15] */
-	4, 3, 2, 1, 0, 91, 92, 23,
-	93, 94, 21, 201, 200, 199, 196, 195,
-};
-static const unsigned int lcd1_data16_mux[] = {
-	LCD1_D0_MARK, LCD1_D1_MARK, LCD1_D2_MARK, LCD1_D3_MARK,
-	LCD1_D4_MARK, LCD1_D5_MARK, LCD1_D6_MARK, LCD1_D7_MARK,
-	LCD1_D8_MARK, LCD1_D9_MARK, LCD1_D10_MARK, LCD1_D11_MARK,
-	LCD1_D12_MARK, LCD1_D13_MARK, LCD1_D14_MARK, LCD1_D15_MARK,
-};
-static const unsigned int lcd1_data18_pins[] = {
-	/* D[0:17] */
-	4, 3, 2, 1, 0, 91, 92, 23,
-	93, 94, 21, 201, 200, 199, 196, 195,
-	194, 193,
-};
-static const unsigned int lcd1_data18_mux[] = {
-	LCD1_D0_MARK, LCD1_D1_MARK, LCD1_D2_MARK, LCD1_D3_MARK,
-	LCD1_D4_MARK, LCD1_D5_MARK, LCD1_D6_MARK, LCD1_D7_MARK,
-	LCD1_D8_MARK, LCD1_D9_MARK, LCD1_D10_MARK, LCD1_D11_MARK,
-	LCD1_D12_MARK, LCD1_D13_MARK, LCD1_D14_MARK, LCD1_D15_MARK,
-	LCD1_D16_MARK, LCD1_D17_MARK,
-};
-static const unsigned int lcd1_data24_pins[] = {
+static const unsigned int lcd1_data_pins[] = {
 	/* D[0:23] */
 	4, 3, 2, 1, 0, 91, 92, 23,
 	93, 94, 21, 201, 200, 199, 196, 195,
 	194, 193, 198, 197, 75, 74, 15, 14,
 };
-static const unsigned int lcd1_data24_mux[] = {
+static const unsigned int lcd1_data_mux[] = {
 	LCD1_D0_MARK, LCD1_D1_MARK, LCD1_D2_MARK, LCD1_D3_MARK,
 	LCD1_D4_MARK, LCD1_D5_MARK, LCD1_D6_MARK, LCD1_D7_MARK,
 	LCD1_D8_MARK, LCD1_D9_MARK, LCD1_D10_MARK, LCD1_D11_MARK,
@@ -2277,25 +2140,11 @@ static const unsigned int lcd1_sys_mux[] = {
 	LCD1_CS_MARK, LCD1_WR_MARK, LCD1_RD_MARK, LCD1_RS_MARK,
 };
 /* - MMCIF ------------------------------------------------------------------ */
-static const unsigned int mmc0_data1_0_pins[] = {
-	/* D[0] */
-	68,
-};
-static const unsigned int mmc0_data1_0_mux[] = {
-	MMC0_D0_PORT68_MARK,
-};
-static const unsigned int mmc0_data4_0_pins[] = {
-	/* D[0:3] */
-	68, 69, 70, 71,
-};
-static const unsigned int mmc0_data4_0_mux[] = {
-	MMC0_D0_PORT68_MARK, MMC0_D1_PORT69_MARK, MMC0_D2_PORT70_MARK, MMC0_D3_PORT71_MARK,
-};
-static const unsigned int mmc0_data8_0_pins[] = {
+static const unsigned int mmc0_data_0_pins[] = {
 	/* D[0:7] */
 	68, 69, 70, 71, 72, 73, 74, 75,
 };
-static const unsigned int mmc0_data8_0_mux[] = {
+static const unsigned int mmc0_data_0_mux[] = {
 	MMC0_D0_PORT68_MARK, MMC0_D1_PORT69_MARK, MMC0_D2_PORT70_MARK, MMC0_D3_PORT71_MARK,
 	MMC0_D4_PORT72_MARK, MMC0_D5_PORT73_MARK, MMC0_D6_PORT74_MARK, MMC0_D7_PORT75_MARK,
 };
@@ -2307,25 +2156,11 @@ static const unsigned int mmc0_ctrl_0_mux[] = {
 	MMC0_CMD_PORT67_MARK, MMC0_CLK_PORT66_MARK,
 };
 
-static const unsigned int mmc0_data1_1_pins[] = {
-	/* D[0] */
-	149,
-};
-static const unsigned int mmc0_data1_1_mux[] = {
-	MMC1_D0_PORT149_MARK,
-};
-static const unsigned int mmc0_data4_1_pins[] = {
-	/* D[0:3] */
-	149, 148, 147, 146,
-};
-static const unsigned int mmc0_data4_1_mux[] = {
-	MMC1_D0_PORT149_MARK, MMC1_D1_PORT148_MARK, MMC1_D2_PORT147_MARK, MMC1_D3_PORT146_MARK,
-};
-static const unsigned int mmc0_data8_1_pins[] = {
+static const unsigned int mmc0_data_1_pins[] = {
 	/* D[0:7] */
 	149, 148, 147, 146, 145, 144, 143, 142,
 };
-static const unsigned int mmc0_data8_1_mux[] = {
+static const unsigned int mmc0_data_1_mux[] = {
 	MMC1_D0_PORT149_MARK, MMC1_D1_PORT148_MARK, MMC1_D2_PORT147_MARK, MMC1_D3_PORT146_MARK,
 	MMC1_D4_PORT145_MARK, MMC1_D5_PORT144_MARK, MMC1_D6_PORT143_MARK, MMC1_D7_PORT142_MARK,
 };
@@ -2591,18 +2426,11 @@ static const unsigned int scifb_ctrl_1_mux[] = {
 	SCIFB_RTS_PORT172_MARK, SCIFB_CTS_PORT173_MARK,
 };
 /* - SDHI0 ------------------------------------------------------------------ */
-static const unsigned int sdhi0_data1_pins[] = {
-	/* D0 */
-	77,
-};
-static const unsigned int sdhi0_data1_mux[] = {
-	SDHI0_D0_MARK,
-};
-static const unsigned int sdhi0_data4_pins[] = {
+static const unsigned int sdhi0_data_pins[] = {
 	/* D[0:3] */
 	77, 78, 79, 80,
 };
-static const unsigned int sdhi0_data4_mux[] = {
+static const unsigned int sdhi0_data_mux[] = {
 	SDHI0_D0_MARK, SDHI0_D1_MARK, SDHI0_D2_MARK, SDHI0_D3_MARK,
 };
 static const unsigned int sdhi0_ctrl_pins[] = {
@@ -2627,18 +2455,11 @@ static const unsigned int sdhi0_wp_mux[] = {
 	SDHI0_WP_MARK,
 };
 /* - SDHI1 ------------------------------------------------------------------ */
-static const unsigned int sdhi1_data1_pins[] = {
-	/* D0 */
-	68,
-};
-static const unsigned int sdhi1_data1_mux[] = {
-	SDHI1_D0_MARK,
-};
-static const unsigned int sdhi1_data4_pins[] = {
+static const unsigned int sdhi1_data_pins[] = {
 	/* D[0:3] */
 	68, 69, 70, 71,
 };
-static const unsigned int sdhi1_data4_mux[] = {
+static const unsigned int sdhi1_data_mux[] = {
 	SDHI1_D0_MARK, SDHI1_D1_MARK, SDHI1_D2_MARK, SDHI1_D3_MARK,
 };
 static const unsigned int sdhi1_ctrl_pins[] = {
@@ -2663,18 +2484,11 @@ static const unsigned int sdhi1_wp_mux[] = {
 	SDHI1_WP_MARK,
 };
 /* - SDHI2 ------------------------------------------------------------------ */
-static const unsigned int sdhi2_data1_pins[] = {
-	/* D0 */
-	205,
-};
-static const unsigned int sdhi2_data1_mux[] = {
-	SDHI2_D0_MARK,
-};
-static const unsigned int sdhi2_data4_pins[] = {
+static const unsigned int sdhi2_data_pins[] = {
 	/* D[0:3] */
 	205, 206, 207, 208,
 };
-static const unsigned int sdhi2_data4_mux[] = {
+static const unsigned int sdhi2_data_mux[] = {
 	SDHI2_D0_MARK, SDHI2_D1_MARK, SDHI2_D2_MARK, SDHI2_D3_MARK,
 };
 static const unsigned int sdhi2_ctrl_pins[] = {
@@ -2750,9 +2564,9 @@ static const unsigned int tpu0_to3_mux[] = {
 };
 
 static const struct sh_pfc_pin_group pinmux_groups[] = {
-	SH_PFC_PIN_GROUP(bsc_data8),
-	SH_PFC_PIN_GROUP(bsc_data16),
-	SH_PFC_PIN_GROUP(bsc_data32),
+	BUS_DATA_PIN_GROUP(bsc_data, 8),
+	BUS_DATA_PIN_GROUP(bsc_data, 16),
+	BUS_DATA_PIN_GROUP(bsc_data, 32),
 	SH_PFC_PIN_GROUP(bsc_cs0),
 	SH_PFC_PIN_GROUP(bsc_cs2),
 	SH_PFC_PIN_GROUP(bsc_cs4),
@@ -2760,9 +2574,9 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(bsc_cs5a_1),
 	SH_PFC_PIN_GROUP(bsc_cs5b),
 	SH_PFC_PIN_GROUP(bsc_cs6a),
-	SH_PFC_PIN_GROUP(bsc_rd_we8),
-	SH_PFC_PIN_GROUP(bsc_rd_we16),
-	SH_PFC_PIN_GROUP(bsc_rd_we32),
+	SH_PFC_PIN_GROUP_SUBSET(bsc_rd_we8, bsc_rd_we, 0, 2),
+	SH_PFC_PIN_GROUP_SUBSET(bsc_rd_we16, bsc_rd_we, 0, 3),
+	SH_PFC_PIN_GROUP_SUBSET(bsc_rd_we32, bsc_rd_we, 0, 5),
 	SH_PFC_PIN_GROUP(bsc_bs),
 	SH_PFC_PIN_GROUP(bsc_rdwr),
 	SH_PFC_PIN_GROUP(ceu0_data_0_7),
@@ -2847,11 +2661,11 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(intc_irq30_1),
 	SH_PFC_PIN_GROUP(intc_irq31_0),
 	SH_PFC_PIN_GROUP(intc_irq31_1),
-	SH_PFC_PIN_GROUP(lcd0_data8),
-	SH_PFC_PIN_GROUP(lcd0_data9),
-	SH_PFC_PIN_GROUP(lcd0_data12),
-	SH_PFC_PIN_GROUP(lcd0_data16),
-	SH_PFC_PIN_GROUP(lcd0_data18),
+	SH_PFC_PIN_GROUP_SUBSET(lcd0_data8, lcd0_data24_0, 0, 8),
+	SH_PFC_PIN_GROUP_SUBSET(lcd0_data9, lcd0_data24_0, 0, 9),
+	SH_PFC_PIN_GROUP_SUBSET(lcd0_data12, lcd0_data24_0, 0, 12),
+	SH_PFC_PIN_GROUP_SUBSET(lcd0_data16, lcd0_data24_0, 0, 16),
+	SH_PFC_PIN_GROUP_SUBSET(lcd0_data18, lcd0_data24_0, 0, 18),
 	SH_PFC_PIN_GROUP(lcd0_data24_0),
 	SH_PFC_PIN_GROUP(lcd0_data24_1),
 	SH_PFC_PIN_GROUP(lcd0_display),
@@ -2859,23 +2673,23 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(lcd0_lclk_1),
 	SH_PFC_PIN_GROUP(lcd0_sync),
 	SH_PFC_PIN_GROUP(lcd0_sys),
-	SH_PFC_PIN_GROUP(lcd1_data8),
-	SH_PFC_PIN_GROUP(lcd1_data9),
-	SH_PFC_PIN_GROUP(lcd1_data12),
-	SH_PFC_PIN_GROUP(lcd1_data16),
-	SH_PFC_PIN_GROUP(lcd1_data18),
-	SH_PFC_PIN_GROUP(lcd1_data24),
+	BUS_DATA_PIN_GROUP(lcd1_data, 8),
+	BUS_DATA_PIN_GROUP(lcd1_data, 9),
+	BUS_DATA_PIN_GROUP(lcd1_data, 12),
+	BUS_DATA_PIN_GROUP(lcd1_data, 16),
+	BUS_DATA_PIN_GROUP(lcd1_data, 18),
+	BUS_DATA_PIN_GROUP(lcd1_data, 24),
 	SH_PFC_PIN_GROUP(lcd1_display),
 	SH_PFC_PIN_GROUP(lcd1_lclk),
 	SH_PFC_PIN_GROUP(lcd1_sync),
 	SH_PFC_PIN_GROUP(lcd1_sys),
-	SH_PFC_PIN_GROUP(mmc0_data1_0),
-	SH_PFC_PIN_GROUP(mmc0_data4_0),
-	SH_PFC_PIN_GROUP(mmc0_data8_0),
+	BUS_DATA_PIN_GROUP(mmc0_data, 1, _0),
+	BUS_DATA_PIN_GROUP(mmc0_data, 4, _0),
+	BUS_DATA_PIN_GROUP(mmc0_data, 8, _0),
 	SH_PFC_PIN_GROUP(mmc0_ctrl_0),
-	SH_PFC_PIN_GROUP(mmc0_data1_1),
-	SH_PFC_PIN_GROUP(mmc0_data4_1),
-	SH_PFC_PIN_GROUP(mmc0_data8_1),
+	BUS_DATA_PIN_GROUP(mmc0_data, 1, _1),
+	BUS_DATA_PIN_GROUP(mmc0_data, 4, _1),
+	BUS_DATA_PIN_GROUP(mmc0_data, 8, _1),
 	SH_PFC_PIN_GROUP(mmc0_ctrl_1),
 	SH_PFC_PIN_GROUP(scifa0_data),
 	SH_PFC_PIN_GROUP(scifa0_clk),
@@ -2912,18 +2726,18 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(scifb_data_1),
 	SH_PFC_PIN_GROUP(scifb_clk_1),
 	SH_PFC_PIN_GROUP(scifb_ctrl_1),
-	SH_PFC_PIN_GROUP(sdhi0_data1),
-	SH_PFC_PIN_GROUP(sdhi0_data4),
+	BUS_DATA_PIN_GROUP(sdhi0_data, 1),
+	BUS_DATA_PIN_GROUP(sdhi0_data, 4),
 	SH_PFC_PIN_GROUP(sdhi0_ctrl),
 	SH_PFC_PIN_GROUP(sdhi0_cd),
 	SH_PFC_PIN_GROUP(sdhi0_wp),
-	SH_PFC_PIN_GROUP(sdhi1_data1),
-	SH_PFC_PIN_GROUP(sdhi1_data4),
+	BUS_DATA_PIN_GROUP(sdhi1_data, 1),
+	BUS_DATA_PIN_GROUP(sdhi1_data, 4),
 	SH_PFC_PIN_GROUP(sdhi1_ctrl),
 	SH_PFC_PIN_GROUP(sdhi1_cd),
 	SH_PFC_PIN_GROUP(sdhi1_wp),
-	SH_PFC_PIN_GROUP(sdhi2_data1),
-	SH_PFC_PIN_GROUP(sdhi2_data4),
+	BUS_DATA_PIN_GROUP(sdhi2_data, 1),
+	BUS_DATA_PIN_GROUP(sdhi2_data, 4),
 	SH_PFC_PIN_GROUP(sdhi2_ctrl),
 	SH_PFC_PIN_GROUP(sdhi2_cd_0),
 	SH_PFC_PIN_GROUP(sdhi2_wp_0),
@@ -3436,89 +3250,93 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	PORTCR(210,	0xe60530d2), /* PORT210CR */
 	PORTCR(211,	0xe60530d3), /* PORT211CR */
 
-	{ PINMUX_CFG_REG("MSEL1CR", 0xe605800c, 32, 1, GROUP(
+	{ PINMUX_CFG_REG_VAR("MSEL1CR", 0xe605800c, 32,
+			    GROUP(1, 1, 1, 1, 1, 1, -9, 1, 1, 1, 1, 1,
+				  -2, 1, -1, 1, 1, 1, 1, 1, 1, -1, 1),
+			    GROUP(
 			MSEL1CR_31_0,	MSEL1CR_31_1,
 			MSEL1CR_30_0,	MSEL1CR_30_1,
 			MSEL1CR_29_0,	MSEL1CR_29_1,
 			MSEL1CR_28_0,	MSEL1CR_28_1,
 			MSEL1CR_27_0,	MSEL1CR_27_1,
 			MSEL1CR_26_0,	MSEL1CR_26_1,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0,
+			/* RESERVED [9] */
 			MSEL1CR_16_0,	MSEL1CR_16_1,
 			MSEL1CR_15_0,	MSEL1CR_15_1,
 			MSEL1CR_14_0,	MSEL1CR_14_1,
 			MSEL1CR_13_0,	MSEL1CR_13_1,
 			MSEL1CR_12_0,	MSEL1CR_12_1,
-			0, 0, 0, 0,
+			/* RESERVED [2] */
 			MSEL1CR_9_0,	MSEL1CR_9_1,
-			0, 0,
+			/* RESERVED [1] */
 			MSEL1CR_7_0,	MSEL1CR_7_1,
 			MSEL1CR_6_0,	MSEL1CR_6_1,
 			MSEL1CR_5_0,	MSEL1CR_5_1,
 			MSEL1CR_4_0,	MSEL1CR_4_1,
 			MSEL1CR_3_0,	MSEL1CR_3_1,
 			MSEL1CR_2_0,	MSEL1CR_2_1,
-			0, 0,
+			/* RESERVED [1] */
 			MSEL1CR_0_0,	MSEL1CR_0_1,
 		))
 	},
-	{ PINMUX_CFG_REG("MSEL3CR", 0xE6058020, 32, 1, GROUP(
-			0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0,
+	{ PINMUX_CFG_REG_VAR("MSEL3CR", 0xE6058020, 32,
+			     GROUP(-16, 1, -8, 1, -6),
+			     GROUP(
+			/* RESERVED [16] */
 			MSEL3CR_15_0,	MSEL3CR_15_1,
-			0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0,
+			/* RESERVED [8] */
 			MSEL3CR_6_0,	MSEL3CR_6_1,
-			0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0,
+			/* RESERVED [6] */
 			))
 	},
-	{ PINMUX_CFG_REG("MSEL4CR", 0xE6058024, 32, 1, GROUP(
-			0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0,
+	{ PINMUX_CFG_REG_VAR("MSEL4CR", 0xE6058024, 32,
+			     GROUP(-12, 1, 1, -2, 1, -4, 1, -3, 1, -1, 1, -2,
+				   1, -1),
+			     GROUP(
+			/* RESERVED [12] */
 			MSEL4CR_19_0,	MSEL4CR_19_1,
 			MSEL4CR_18_0,	MSEL4CR_18_1,
-			0, 0, 0, 0,
+			/* RESERVED [2] */
 			MSEL4CR_15_0,	MSEL4CR_15_1,
-			0, 0, 0, 0, 0, 0, 0, 0,
+			/* RESERVED [4] */
 			MSEL4CR_10_0,	MSEL4CR_10_1,
-			0, 0, 0, 0, 0, 0,
+			/* RESERVED [3] */
 			MSEL4CR_6_0,	MSEL4CR_6_1,
-			0, 0,
+			/* RESERVED [1] */
 			MSEL4CR_4_0,	MSEL4CR_4_1,
-			0, 0, 0, 0,
+			/* RESERVED [2] */
 			MSEL4CR_1_0,	MSEL4CR_1_1,
-			0, 0,
+			/* RESERVED [1] */
 		))
 	},
-	{ PINMUX_CFG_REG("MSEL5CR", 0xE6058028, 32, 1, GROUP(
+	{ PINMUX_CFG_REG_VAR("MSEL5CR", 0xE6058028, 32,
+			     GROUP(1, 1, 1, -1, 1, -1, 1, -1, 1, -1, 1,
+				   -1, 1, -1, 1, -1, 1, 1, 1, 1, 1, 1,
+				   -1, 1, 1, 1, 1, 1, 1, 1, -1, 1),
+			     GROUP(
 			MSEL5CR_31_0,	MSEL5CR_31_1,
 			MSEL5CR_30_0,	MSEL5CR_30_1,
 			MSEL5CR_29_0,	MSEL5CR_29_1,
-			0, 0,
+			/* RESERVED [1] */
 			MSEL5CR_27_0,	MSEL5CR_27_1,
-			0, 0,
+			/* RESERVED [1] */
 			MSEL5CR_25_0,	MSEL5CR_25_1,
-			0, 0,
+			/* RESERVED [1] */
 			MSEL5CR_23_0,	MSEL5CR_23_1,
-			0, 0,
+			/* RESERVED [1] */
 			MSEL5CR_21_0,	MSEL5CR_21_1,
-			0, 0,
+			/* RESERVED [1] */
 			MSEL5CR_19_0,	MSEL5CR_19_1,
-			0, 0,
+			/* RESERVED [1] */
 			MSEL5CR_17_0,	MSEL5CR_17_1,
-			0, 0,
+			/* RESERVED [1] */
 			MSEL5CR_15_0,	MSEL5CR_15_1,
 			MSEL5CR_14_0,	MSEL5CR_14_1,
 			MSEL5CR_13_0,	MSEL5CR_13_1,
 			MSEL5CR_12_0,	MSEL5CR_12_1,
 			MSEL5CR_11_0,	MSEL5CR_11_1,
 			MSEL5CR_10_0,	MSEL5CR_10_1,
-			0, 0,
+			/* RESERVED [1] */
 			MSEL5CR_8_0,	MSEL5CR_8_1,
 			MSEL5CR_7_0,	MSEL5CR_7_1,
 			MSEL5CR_6_0,	MSEL5CR_6_1,
@@ -3526,7 +3344,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 			MSEL5CR_4_0,	MSEL5CR_4_1,
 			MSEL5CR_3_0,	MSEL5CR_3_1,
 			MSEL5CR_2_0,	MSEL5CR_2_1,
-			0, 0,
+			/* RESERVED [1] */
 			MSEL5CR_0_0,	MSEL5CR_0_1,
 		))
 	},
@@ -3681,7 +3499,7 @@ static const struct r8a7740_portcr_group r8a7740_portcr_offsets[] = {
 	{ 83, 0x0000 }, { 114, 0x1000 }, { 209, 0x2000 }, { 211, 0x3000 },
 };
 
-static void __iomem *r8a7740_pin_to_portcr(struct sh_pfc *pfc, unsigned int pin)
+static int r8a7740_pin_to_portcr(unsigned int pin)
 {
 	unsigned int i;
 
@@ -3690,10 +3508,10 @@ static void __iomem *r8a7740_pin_to_portcr(struct sh_pfc *pfc, unsigned int pin)
 			&r8a7740_portcr_offsets[i];
 
 		if (pin <= group->end_pin)
-			return pfc->windows->virt + group->offset + pin;
+			return group->offset + pin;
 	}
 
-	return NULL;
+	return -1;
 }
 
 static const struct sh_pfc_soc_operations r8a7740_pfc_ops = {

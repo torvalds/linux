@@ -484,7 +484,7 @@ size_t perf_event__fprintf_text_poke(union perf_event *event, struct machine *ma
 	if (machine) {
 		struct addr_location al;
 
-		al.map = maps__find(&machine->kmaps, tp->addr);
+		al.map = maps__find(machine__kernel_maps(machine), tp->addr);
 		if (al.map && map__load(al.map) >= 0) {
 			al.addr = al.map->map_ip(al.map, tp->addr);
 			al.sym = map__find_symbol(al.map, al.addr);
@@ -587,13 +587,13 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 
 	if (cpumode == PERF_RECORD_MISC_KERNEL && perf_host) {
 		al->level = 'k';
-		al->maps = maps = &machine->kmaps;
+		al->maps = maps = machine__kernel_maps(machine);
 		load_map = true;
 	} else if (cpumode == PERF_RECORD_MISC_USER && perf_host) {
 		al->level = '.';
 	} else if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL && perf_guest) {
 		al->level = 'g';
-		al->maps = maps = &machine->kmaps;
+		al->maps = maps = machine__kernel_maps(machine);
 		load_map = true;
 	} else if (cpumode == PERF_RECORD_MISC_GUEST_USER && perf_guest) {
 		al->level = 'u';
@@ -683,9 +683,12 @@ static bool check_address_range(struct intlist *addr_list, int addr_range,
 int machine__resolve(struct machine *machine, struct addr_location *al,
 		     struct perf_sample *sample)
 {
-	struct thread *thread = machine__findnew_thread(machine, sample->pid,
-							sample->tid);
+	struct thread *thread;
 
+	if (symbol_conf.guest_code && !machine__is_host(machine))
+		thread = machine__findnew_guest_code(machine, sample->pid);
+	else
+		thread = machine__findnew_thread(machine, sample->pid, sample->tid);
 	if (thread == NULL)
 		return -1;
 

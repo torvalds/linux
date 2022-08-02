@@ -168,9 +168,6 @@ struct vchiq_mmal_instance {
 	/* ensure serialised access to service */
 	struct mutex vchiq_mutex;
 
-	/* vmalloc page to receive scratch bulk xfers into */
-	void *bulk_scratch;
-
 	struct idr context_map;
 	/* protect accesses to context_map */
 	struct mutex context_map_lock;
@@ -747,9 +744,9 @@ static void dump_port_info(struct vchiq_mmal_port *port)
 			 port->es.video.crop.y,
 			 port->es.video.crop.width, port->es.video.crop.height);
 		pr_debug("		 : framerate %d/%d  aspect %d/%d\n",
-			 port->es.video.frame_rate.num,
-			 port->es.video.frame_rate.den,
-			 port->es.video.par.num, port->es.video.par.den);
+			 port->es.video.frame_rate.numerator,
+			 port->es.video.frame_rate.denominator,
+			 port->es.video.par.numerator, port->es.video.par.denominator);
 	}
 }
 
@@ -1552,8 +1549,8 @@ int vchiq_mmal_port_connect_tunnel(struct vchiq_mmal_instance *instance,
 	dst->es.video.crop.y = src->es.video.crop.y;
 	dst->es.video.crop.width = src->es.video.crop.width;
 	dst->es.video.crop.height = src->es.video.crop.height;
-	dst->es.video.frame_rate.num = src->es.video.frame_rate.num;
-	dst->es.video.frame_rate.den = src->es.video.frame_rate.den;
+	dst->es.video.frame_rate.numerator = src->es.video.frame_rate.numerator;
+	dst->es.video.frame_rate.denominator = src->es.video.frame_rate.denominator;
 
 	/* set new format */
 	ret = port_info_set(instance, dst);
@@ -1844,10 +1841,7 @@ int vchiq_mmal_finalise(struct vchiq_mmal_instance *instance)
 	mutex_unlock(&instance->vchiq_mutex);
 
 	vchiq_shutdown(instance->vchiq_instance);
-	flush_workqueue(instance->bulk_wq);
 	destroy_workqueue(instance->bulk_wq);
-
-	vfree(instance->bulk_scratch);
 
 	idr_destroy(&instance->context_map);
 
@@ -1908,7 +1902,6 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 
 	mutex_init(&instance->vchiq_mutex);
 
-	instance->bulk_scratch = vmalloc(PAGE_SIZE);
 	instance->vchiq_instance = vchiq_instance;
 
 	mutex_init(&instance->context_map_lock);
@@ -1939,7 +1932,6 @@ err_close_services:
 	vchiq_close_service(instance->service_handle);
 	destroy_workqueue(instance->bulk_wq);
 err_free:
-	vfree(instance->bulk_scratch);
 	kfree(instance);
 err_shutdown_vchiq:
 	vchiq_shutdown(vchiq_instance);

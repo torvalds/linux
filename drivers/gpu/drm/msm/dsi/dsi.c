@@ -4,6 +4,7 @@
  */
 
 #include "dsi.h"
+#include "dsi_cfg.h"
 
 struct drm_encoder *msm_dsi_get_encoder(struct msm_dsi *msm_dsi)
 {
@@ -18,6 +19,11 @@ bool msm_dsi_is_cmd_mode(struct msm_dsi *msm_dsi)
 	unsigned long host_flags = msm_dsi_host_get_mode_flags(msm_dsi->host);
 
 	return !(host_flags & MIPI_DSI_MODE_VIDEO);
+}
+
+struct msm_display_dsc_config *msm_dsi_get_dsc_config(struct msm_dsi *msm_dsi)
+{
+	return msm_dsi_host_get_dsc_config(msm_dsi->host);
 }
 
 static int dsi_get_phy(struct msm_dsi *msm_dsi)
@@ -175,7 +181,8 @@ static int dsi_dev_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id dt_match[] = {
-	{ .compatible = "qcom,mdss-dsi-ctrl" },
+	{ .compatible = "qcom,mdss-dsi-ctrl", .data = NULL /* autodetect cfg */ },
+	{ .compatible = "qcom,dsi-ctrl-6g-qcm2290", .data = &qcm2290_dsi_cfg_handler },
 	{}
 };
 
@@ -271,7 +278,6 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 	}
 
 	priv->bridges[priv->num_bridges++]       = msm_dsi->bridge;
-	priv->connectors[priv->num_connectors++] = msm_dsi->connector;
 
 	return 0;
 fail:

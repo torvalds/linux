@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2014-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -99,7 +100,8 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 {
 	struct kfd_cu_info cu_info;
 	uint32_t cu_per_sh[KFD_MAX_NUM_SE][KFD_MAX_NUM_SH_PER_SE] = {0};
-	int i, se, sh, cu;
+	int i, se, sh, cu, cu_bitmap_sh_mul;
+
 	amdgpu_amdkfd_get_cu_info(mm->dev->adev, &cu_info);
 
 	if (cu_mask_count > cu_info.cu_active_number)
@@ -118,6 +120,10 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 			cu_info.num_shader_arrays_per_engine * cu_info.num_shader_engines);
 		return;
 	}
+
+	cu_bitmap_sh_mul = (KFD_GC_VERSION(mm->dev) >= IP_VERSION(11, 0, 0) &&
+			    KFD_GC_VERSION(mm->dev) < IP_VERSION(12, 0, 0)) ? 2 : 1;
+
 	/* Count active CUs per SH.
 	 *
 	 * Some CUs in an SH may be disabled.	HW expects disabled CUs to be
@@ -127,10 +133,12 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 	 * Each half of se_mask must be filled only on bits 0-cu_per_sh[se][sh]-1.
 	 *
 	 * See note on Arcturus cu_bitmap layout in gfx_v9_0_get_cu_info.
+	 * See note on GFX11 cu_bitmap layout in gfx_v11_0_get_cu_info.
 	 */
 	for (se = 0; se < cu_info.num_shader_engines; se++)
 		for (sh = 0; sh < cu_info.num_shader_arrays_per_engine; sh++)
-			cu_per_sh[se][sh] = hweight32(cu_info.cu_bitmap[se % 4][sh + (se / 4)]);
+			cu_per_sh[se][sh] = hweight32(
+				cu_info.cu_bitmap[se % 4][sh + (se / 4) * cu_bitmap_sh_mul]);
 
 	/* Symmetrically map cu_mask to all SEs & SHs:
 	 * se_mask programs up to 2 SH in the upper and lower 16 bits.
@@ -172,4 +180,67 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 			}
 		}
 	}
+}
+
+int kfd_hiq_load_mqd_kiq(struct mqd_manager *mm, void *mqd,
+		     uint32_t pipe_id, uint32_t queue_id,
+		     struct queue_properties *p, struct mm_struct *mms)
+{
+	return mm->dev->kfd2kgd->hiq_mqd_load(mm->dev->adev, mqd, pipe_id,
+					      queue_id, p->doorbell_off);
+}
+
+int kfd_destroy_mqd_cp(struct mqd_manager *mm, void *mqd,
+		enum kfd_preempt_type type, unsigned int timeout,
+		uint32_t pipe_id, uint32_t queue_id)
+{
+	return mm->dev->kfd2kgd->hqd_destroy(mm->dev->adev, mqd, type, timeout,
+						pipe_id, queue_id);
+}
+
+void kfd_free_mqd_cp(struct mqd_manager *mm, void *mqd,
+	      struct kfd_mem_obj *mqd_mem_obj)
+{
+	if (mqd_mem_obj->gtt_mem) {
+		amdgpu_amdkfd_free_gtt_mem(mm->dev->adev, mqd_mem_obj->gtt_mem);
+		kfree(mqd_mem_obj);
+	} else {
+		kfd_gtt_sa_free(mm->dev, mqd_mem_obj);
+	}
+}
+
+bool kfd_is_occupied_cp(struct mqd_manager *mm, void *mqd,
+		 uint64_t queue_address, uint32_t pipe_id,
+		 uint32_t queue_id)
+{
+	return mm->dev->kfd2kgd->hqd_is_occupied(mm->dev->adev, queue_address,
+						pipe_id, queue_id);
+}
+
+int kfd_load_mqd_sdma(struct mqd_manager *mm, void *mqd,
+		  uint32_t pipe_id, uint32_t queue_id,
+		  struct queue_properties *p, struct mm_struct *mms)
+{
+	return mm->dev->kfd2kgd->hqd_sdma_load(mm->dev->adev, mqd,
+						(uint32_t __user *)p->write_ptr,
+						mms);
+}
+
+/*
+ * preempt type here is ignored because there is only one way
+ * to preempt sdma queue
+ */
+int kfd_destroy_mqd_sdma(struct mqd_manager *mm, void *mqd,
+		     enum kfd_preempt_type type,
+		     unsigned int timeout, uint32_t pipe_id,
+		     uint32_t queue_id)
+{
+	return mm->dev->kfd2kgd->hqd_sdma_destroy(mm->dev->adev, mqd, timeout);
+}
+
+bool kfd_is_occupied_sdma(struct mqd_manager *mm, void *mqd,
+		      uint64_t queue_address, uint32_t pipe_id,
+		      uint32_t queue_id)
+{
+	return mm->dev->kfd2kgd->hqd_sdma_is_occupied(mm->dev->adev, mqd);
 }

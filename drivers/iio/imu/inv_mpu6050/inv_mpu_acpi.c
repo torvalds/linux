@@ -127,15 +127,14 @@ static int inv_mpu_process_acpi_config(struct i2c_client *client,
 int inv_mpu_acpi_create_mux_client(struct i2c_client *client)
 {
 	struct inv_mpu6050_state *st = iio_priv(dev_get_drvdata(&client->dev));
+	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
 
 	st->mux_client = NULL;
-	if (ACPI_HANDLE(&client->dev)) {
+	if (adev) {
 		struct i2c_board_info info;
 		struct i2c_client *mux_client;
-		struct acpi_device *adev;
 		int ret = -1;
 
-		adev = ACPI_COMPANION(&client->dev);
 		memset(&info, 0, sizeof(info));
 
 		dmi_check_system(inv_mpu_dev_list);

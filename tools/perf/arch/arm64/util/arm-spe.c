@@ -144,10 +144,11 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 			container_of(itr, struct arm_spe_recording, itr);
 	struct perf_pmu *arm_spe_pmu = sper->arm_spe_pmu;
 	struct evsel *evsel, *arm_spe_evsel = NULL;
-	struct perf_cpu_map *cpus = evlist->core.cpus;
+	struct perf_cpu_map *cpus = evlist->core.user_requested_cpus;
 	bool privileged = perf_event_paranoid_check(-1);
 	struct evsel *tracking_evsel;
 	int err;
+	u64 bit;
 
 	sper->evlist = evlist;
 
@@ -158,7 +159,8 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 				return -EINVAL;
 			}
 			evsel->core.attr.freq = 0;
-			evsel->core.attr.sample_period = 1;
+			evsel->core.attr.sample_period = arm_spe_pmu->default_config->sample_period;
+			evsel->needs_auxtrace_mmap = true;
 			arm_spe_evsel = evsel;
 			opts->full_auxtrace = true;
 		}
@@ -238,6 +240,21 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 		evsel__set_sample_bit(arm_spe_evsel, CPU);
 		arm_spe_set_timestamp(itr, arm_spe_evsel);
 	}
+
+	/*
+	 * Set this only so that perf report knows that SPE generates memory info. It has no effect
+	 * on the opening of the event or the SPE data produced.
+	 */
+	evsel__set_sample_bit(arm_spe_evsel, DATA_SRC);
+
+	/*
+	 * The PHYS_ADDR flag does not affect the driver behaviour, it is used to
+	 * inform that the resulting output's SPE samples contain physical addresses
+	 * where applicable.
+	 */
+	bit = perf_pmu__format_bits(&arm_spe_pmu->format, "pa_enable");
+	if (arm_spe_evsel->core.attr.config & bit)
+		evsel__set_sample_bit(arm_spe_evsel, PHYS_ADDR);
 
 	/* Add dummy event to keep tracking */
 	err = parse_events(evlist, "dummy:u", NULL);

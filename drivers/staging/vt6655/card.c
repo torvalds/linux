@@ -11,7 +11,7 @@
  *      CARDbAddBasicRate - Add to BasicRateSet
  *      CARDbIsOFDMinBasicRate - Check if any OFDM rate is in BasicRateSet
  *      CARDqGetTSFOffset - Calculate TSFOffset
- *      CARDbGetCurrentTSF - Read Current NIC TSF counter
+ *      vt6655_get_current_tsf - Read Current NIC TSF counter
  *      CARDqGetNextTBTT - Calculate Next Beacon TSF counter
  *      CARDvSetFirstNextTBTT - Set NIC Beacon time
  *      CARDvUpdateNextTBTT - Sync. NIC Beacon time
@@ -24,7 +24,6 @@
  *
  */
 
-#include "tmacro.h"
 #include "card.h"
 #include "baseband.h"
 #include "mac.h"
@@ -183,32 +182,11 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 	unsigned char bySlot = 0;
 	unsigned char bySIFS = 0;
 	unsigned char byDIFS = 0;
-	unsigned char data;
 	int i;
 
 	/* Set SIFS, DIFS, EIFS, SlotTime, CwMin */
 	if (bb_type == BB_TYPE_11A) {
-		if (priv->byRFType == RF_AIROHA7230) {
-			/* AL7230 use single PAPE and connect to PAPE_2.4G */
-			MACvSetBBType(priv->port_offset, BB_TYPE_11G);
-			priv->abyBBVGA[0] = 0x20;
-			priv->abyBBVGA[2] = 0x10;
-			priv->abyBBVGA[3] = 0x10;
-			bb_read_embedded(priv, 0xE7, &data);
-			if (data == 0x1C)
-				bb_write_embedded(priv, 0xE7, priv->abyBBVGA[0]);
-
-		} else if (priv->byRFType == RF_UW2452) {
-			MACvSetBBType(priv->port_offset, BB_TYPE_11A);
-			priv->abyBBVGA[0] = 0x18;
-			bb_read_embedded(priv, 0xE7, &data);
-			if (data == 0x14) {
-				bb_write_embedded(priv, 0xE7, priv->abyBBVGA[0]);
-				bb_write_embedded(priv, 0xE1, 0x57);
-			}
-		} else {
-			MACvSetBBType(priv->port_offset, BB_TYPE_11A);
-		}
+		MACvSetBBType(priv->port_offset, BB_TYPE_11A);
 		bb_write_embedded(priv, 0x88, 0x03);
 		bySlot = C_SLOT_SHORT;
 		bySIFS = C_SIFS_A;
@@ -216,22 +194,6 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 		byCWMaxMin = 0xA4;
 	} else if (bb_type == BB_TYPE_11B) {
 		MACvSetBBType(priv->port_offset, BB_TYPE_11B);
-		if (priv->byRFType == RF_AIROHA7230) {
-			priv->abyBBVGA[0] = 0x1C;
-			priv->abyBBVGA[2] = 0x00;
-			priv->abyBBVGA[3] = 0x00;
-			bb_read_embedded(priv, 0xE7, &data);
-			if (data == 0x20)
-				bb_write_embedded(priv, 0xE7, priv->abyBBVGA[0]);
-
-		} else if (priv->byRFType == RF_UW2452) {
-			priv->abyBBVGA[0] = 0x14;
-			bb_read_embedded(priv, 0xE7, &data);
-			if (data == 0x18) {
-				bb_write_embedded(priv, 0xE7, priv->abyBBVGA[0]);
-				bb_write_embedded(priv, 0xE1, 0xD3);
-			}
-		}
 		bb_write_embedded(priv, 0x88, 0x02);
 		bySlot = C_SLOT_LONG;
 		bySIFS = C_SIFS_BG;
@@ -239,22 +201,6 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 		byCWMaxMin = 0xA5;
 	} else { /* PK_TYPE_11GA & PK_TYPE_11GB */
 		MACvSetBBType(priv->port_offset, BB_TYPE_11G);
-		if (priv->byRFType == RF_AIROHA7230) {
-			priv->abyBBVGA[0] = 0x1C;
-			priv->abyBBVGA[2] = 0x00;
-			priv->abyBBVGA[3] = 0x00;
-			bb_read_embedded(priv, 0xE7, &data);
-			if (data == 0x20)
-				bb_write_embedded(priv, 0xE7, priv->abyBBVGA[0]);
-
-		} else if (priv->byRFType == RF_UW2452) {
-			priv->abyBBVGA[0] = 0x14;
-			bb_read_embedded(priv, 0xE7, &data);
-			if (data == 0x18) {
-				bb_write_embedded(priv, 0xE7, priv->abyBBVGA[0]);
-				bb_write_embedded(priv, 0xE1, 0xD3);
-			}
-		}
 		bb_write_embedded(priv, 0x88, 0x08);
 		bySIFS = C_SIFS_BG;
 
@@ -292,26 +238,25 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 
 	if (priv->bySIFS != bySIFS) {
 		priv->bySIFS = bySIFS;
-		VNSvOutPortB(priv->port_offset + MAC_REG_SIFS, priv->bySIFS);
+		iowrite8(priv->bySIFS, priv->port_offset + MAC_REG_SIFS);
 	}
 	if (priv->byDIFS != byDIFS) {
 		priv->byDIFS = byDIFS;
-		VNSvOutPortB(priv->port_offset + MAC_REG_DIFS, priv->byDIFS);
+		iowrite8(priv->byDIFS, priv->port_offset + MAC_REG_DIFS);
 	}
 	if (priv->byEIFS != C_EIFS) {
 		priv->byEIFS = C_EIFS;
-		VNSvOutPortB(priv->port_offset + MAC_REG_EIFS, priv->byEIFS);
+		iowrite8(priv->byEIFS, priv->port_offset + MAC_REG_EIFS);
 	}
 	if (priv->bySlot != bySlot) {
 		priv->bySlot = bySlot;
-		VNSvOutPortB(priv->port_offset + MAC_REG_SLOT, priv->bySlot);
+		iowrite8(priv->bySlot, priv->port_offset + MAC_REG_SLOT);
 
 		bb_set_short_slot_time(priv);
 	}
 	if (priv->byCWMaxMin != byCWMaxMin) {
 		priv->byCWMaxMin = byCWMaxMin;
-		VNSvOutPortB(priv->port_offset + MAC_REG_CWMAXMIN0,
-			     priv->byCWMaxMin);
+		iowrite8(priv->byCWMaxMin, priv->port_offset + MAC_REG_CWMAXMIN0);
 	}
 
 	priv->byPacketType = CARDbyGetPktType(priv);
@@ -342,7 +287,7 @@ bool CARDbUpdateTSF(struct vnt_private *priv, unsigned char byRxRate,
 	u64 local_tsf;
 	u64 qwTSFOffset = 0;
 
-	CARDbGetCurrentTSF(priv, &local_tsf);
+	local_tsf = vt6655_get_current_tsf(priv);
 
 	if (qwBSSTimestamp != local_tsf) {
 		qwTSFOffset = CARDqGetTSFOffset(byRxRate, qwBSSTimestamp,
@@ -374,9 +319,9 @@ bool CARDbUpdateTSF(struct vnt_private *priv, unsigned char byRxRate,
 bool CARDbSetBeaconPeriod(struct vnt_private *priv,
 			  unsigned short wBeaconInterval)
 {
-	u64 qwNextTBTT = 0;
+	u64 qwNextTBTT;
 
-	CARDbGetCurrentTSF(priv, &qwNextTBTT); /* Get Local TSF counter */
+	qwNextTBTT = vt6655_get_current_tsf(priv); /* Get Local TSF counter */
 
 	qwNextTBTT = CARDqGetNextTBTT(qwNextTBTT, wBeaconInterval);
 
@@ -417,7 +362,6 @@ void CARDbRadioPowerOff(struct vnt_private *priv)
 
 	case RF_AIROHA:
 	case RF_AL2230S:
-	case RF_AIROHA7230:
 		MACvWordRegBitsOff(priv->port_offset, MAC_REG_SOFTPWRCTL,
 				   SOFTPWRCTL_SWPE2);
 		MACvWordRegBitsOff(priv->port_offset, MAC_REG_SOFTPWRCTL,
@@ -794,24 +738,24 @@ u64 CARDqGetTSFOffset(unsigned char byRxRate, u64 qwTSF1, u64 qwTSF2)
  *
  * Return Value: true if success; otherwise false
  */
-bool CARDbGetCurrentTSF(struct vnt_private *priv, u64 *pqwCurrTSF)
+u64 vt6655_get_current_tsf(struct vnt_private *priv)
 {
 	void __iomem *iobase = priv->port_offset;
 	unsigned short ww;
 	unsigned char data;
+	u32 low, high;
 
 	MACvRegBitsOn(iobase, MAC_REG_TFTCTL, TFTCTL_TSFCNTRRD);
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
-		VNSvInPortB(iobase + MAC_REG_TFTCTL, &data);
+		data = ioread8(iobase + MAC_REG_TFTCTL);
 		if (!(data & TFTCTL_TSFCNTRRD))
 			break;
 	}
 	if (ww == W_MAX_TIMEOUT)
-		return false;
-	VNSvInPortD(iobase + MAC_REG_TSFCNTR, (u32 *)pqwCurrTSF);
-	VNSvInPortD(iobase + MAC_REG_TSFCNTR + 4, (u32 *)pqwCurrTSF + 1);
-
-	return true;
+		return 0;
+	low = ioread32(iobase + MAC_REG_TSFCNTR);
+	high = ioread32(iobase + MAC_REG_TSFCNTR + 4);
+	return le64_to_cpu(low + ((u64)high << 32));
 }
 
 /*
@@ -858,9 +802,9 @@ void CARDvSetFirstNextTBTT(struct vnt_private *priv,
 			   unsigned short wBeaconInterval)
 {
 	void __iomem *iobase = priv->port_offset;
-	u64 qwNextTBTT = 0;
+	u64 qwNextTBTT;
 
-	CARDbGetCurrentTSF(priv, &qwNextTBTT); /* Get Local TSF counter */
+	qwNextTBTT = vt6655_get_current_tsf(priv); /* Get Local TSF counter */
 
 	qwNextTBTT = CARDqGetNextTBTT(qwNextTBTT, wBeaconInterval);
 	/* Set NextTBTT */

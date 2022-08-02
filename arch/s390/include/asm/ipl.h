@@ -133,12 +133,18 @@ int ipl_report_add_certificate(struct ipl_report *report, void *key,
  * DIAG 308 support
  */
 enum diag308_subcode  {
+	DIAG308_CLEAR_RESET = 0,
+	DIAG308_LOAD_NORMAL_RESET = 1,
 	DIAG308_REL_HSA = 2,
 	DIAG308_LOAD_CLEAR = 3,
 	DIAG308_LOAD_NORMAL_DUMP = 4,
 	DIAG308_SET = 5,
 	DIAG308_STORE = 6,
 	DIAG308_LOAD_NORMAL = 7,
+};
+
+enum diag308_subcode_flags {
+	DIAG308_FLAG_EI = 1UL << 16,
 };
 
 enum diag308_rc {

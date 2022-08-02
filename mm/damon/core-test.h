@@ -24,7 +24,7 @@ static void damon_test_regions(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 2ul, r->ar.end);
 	KUNIT_EXPECT_EQ(test, 0u, r->nr_accesses);
 
-	t = damon_new_target(42);
+	t = damon_new_target();
 	KUNIT_EXPECT_EQ(test, 0u, damon_nr_regions(t));
 
 	damon_add_region(r, t);
@@ -52,8 +52,7 @@ static void damon_test_target(struct kunit *test)
 	struct damon_ctx *c = damon_new_ctx();
 	struct damon_target *t;
 
-	t = damon_new_target(42);
-	KUNIT_EXPECT_EQ(test, 42ul, t->id);
+	t = damon_new_target();
 	KUNIT_EXPECT_EQ(test, 0u, nr_damon_targets(c));
 
 	damon_add_target(c, t);
@@ -78,7 +77,6 @@ static void damon_test_target(struct kunit *test)
 static void damon_test_aggregate(struct kunit *test)
 {
 	struct damon_ctx *ctx = damon_new_ctx();
-	unsigned long target_ids[] = {1, 2, 3};
 	unsigned long saddr[][3] = {{10, 20, 30}, {5, 42, 49}, {13, 33, 55} };
 	unsigned long eaddr[][3] = {{15, 27, 40}, {31, 45, 55}, {23, 44, 66} };
 	unsigned long accesses[][3] = {{42, 95, 84}, {10, 20, 30}, {0, 1, 2} };
@@ -86,7 +84,10 @@ static void damon_test_aggregate(struct kunit *test)
 	struct damon_region *r;
 	int it, ir;
 
-	damon_set_targets(ctx, target_ids, 3);
+	for (it = 0; it < 3; it++) {
+		t = damon_new_target();
+		damon_add_target(ctx, t);
+	}
 
 	it = 0;
 	damon_for_each_target(t, ctx) {
@@ -122,7 +123,7 @@ static void damon_test_split_at(struct kunit *test)
 	struct damon_target *t;
 	struct damon_region *r;
 
-	t = damon_new_target(42);
+	t = damon_new_target();
 	r = damon_new_region(0, 100);
 	damon_add_region(r, t);
 	damon_split_region_at(c, t, r, 25);
@@ -143,7 +144,7 @@ static void damon_test_merge_two(struct kunit *test)
 	struct damon_region *r, *r2, *r3;
 	int i;
 
-	t = damon_new_target(42);
+	t = damon_new_target();
 	r = damon_new_region(0, 100);
 	r->nr_accesses = 10;
 	damon_add_region(r, t);
@@ -191,7 +192,7 @@ static void damon_test_merge_regions_of(struct kunit *test)
 	unsigned long eaddrs[] = {112, 130, 156, 170, 230};
 	int i;
 
-	t = damon_new_target(42);
+	t = damon_new_target();
 	for (i = 0; i < ARRAY_SIZE(sa); i++) {
 		r = damon_new_region(sa[i], ea[i]);
 		r->nr_accesses = nrs[i];
@@ -215,20 +216,55 @@ static void damon_test_split_regions_of(struct kunit *test)
 	struct damon_target *t;
 	struct damon_region *r;
 
-	t = damon_new_target(42);
+	t = damon_new_target();
 	r = damon_new_region(0, 22);
 	damon_add_region(r, t);
 	damon_split_regions_of(c, t, 2);
 	KUNIT_EXPECT_LE(test, damon_nr_regions(t), 2u);
 	damon_free_target(t);
 
-	t = damon_new_target(42);
+	t = damon_new_target();
 	r = damon_new_region(0, 220);
 	damon_add_region(r, t);
 	damon_split_regions_of(c, t, 4);
 	KUNIT_EXPECT_LE(test, damon_nr_regions(t), 4u);
 	damon_free_target(t);
 	damon_destroy_ctx(c);
+}
+
+static void damon_test_ops_registration(struct kunit *test)
+{
+	struct damon_ctx *c = damon_new_ctx();
+	struct damon_operations ops, bak;
+
+	/* DAMON_OPS_{V,P}ADDR are registered on subsys_initcall */
+	KUNIT_EXPECT_EQ(test, damon_select_ops(c, DAMON_OPS_VADDR), 0);
+	KUNIT_EXPECT_EQ(test, damon_select_ops(c, DAMON_OPS_PADDR), 0);
+
+	/* Double-registration is prohibited */
+	ops.id = DAMON_OPS_VADDR;
+	KUNIT_EXPECT_EQ(test, damon_register_ops(&ops), -EINVAL);
+	ops.id = DAMON_OPS_PADDR;
+	KUNIT_EXPECT_EQ(test, damon_register_ops(&ops), -EINVAL);
+
+	/* Unknown ops id cannot be registered */
+	KUNIT_EXPECT_EQ(test, damon_select_ops(c, NR_DAMON_OPS), -EINVAL);
+
+	/* Registration should success after unregistration */
+	mutex_lock(&damon_ops_lock);
+	bak = damon_registered_ops[DAMON_OPS_VADDR];
+	damon_registered_ops[DAMON_OPS_VADDR] = (struct damon_operations){};
+	mutex_unlock(&damon_ops_lock);
+
+	ops.id = DAMON_OPS_VADDR;
+	KUNIT_EXPECT_EQ(test, damon_register_ops(&ops), 0);
+
+	mutex_lock(&damon_ops_lock);
+	damon_registered_ops[DAMON_OPS_VADDR] = bak;
+	mutex_unlock(&damon_ops_lock);
+
+	/* Check double-registration failure again */
+	KUNIT_EXPECT_EQ(test, damon_register_ops(&ops), -EINVAL);
 }
 
 static struct kunit_case damon_test_cases[] = {
@@ -239,6 +275,7 @@ static struct kunit_case damon_test_cases[] = {
 	KUNIT_CASE(damon_test_merge_two),
 	KUNIT_CASE(damon_test_merge_regions_of),
 	KUNIT_CASE(damon_test_split_regions_of),
+	KUNIT_CASE(damon_test_ops_registration),
 	{},
 };
 

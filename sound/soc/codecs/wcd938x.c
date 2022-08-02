@@ -6,6 +6,7 @@
 #include <linux/platform_device.h>
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
 #include <linux/pm_runtime.h>
 #include <linux/component.h>
@@ -194,6 +195,7 @@ struct wcd938x_priv {
 	int ear_rx_path;
 	int variant;
 	int reset_gpio;
+	struct gpio_desc *us_euro_gpio;
 	u32 micb1_mv;
 	u32 micb2_mv;
 	u32 micb3_mv;
@@ -2504,7 +2506,7 @@ static int wcd938x_tx_mode_get(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	int path = e->shift_l;
 
-	ucontrol->value.integer.value[0] = wcd938x->tx_mode[path];
+	ucontrol->value.enumerated.item[0] = wcd938x->tx_mode[path];
 
 	return 0;
 }
@@ -2528,7 +2530,7 @@ static int wcd938x_rx_hph_mode_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct wcd938x_priv *wcd938x = snd_soc_component_get_drvdata(component);
 
-	ucontrol->value.integer.value[0] = wcd938x->hph_mode;
+	ucontrol->value.enumerated.item[0] = wcd938x->hph_mode;
 
 	return 0;
 }
@@ -3575,14 +3577,14 @@ static int wcd938x_hph_impedance_get(struct snd_kcontrol *kcontrol,
 }
 
 static const struct snd_kcontrol_new hph_type_detect_controls[] = {
-	SOC_SINGLE_EXT("HPH Type", 0, 0, UINT_MAX, 0,
+	SOC_SINGLE_EXT("HPH Type", 0, 0, WCD_MBHC_HPH_STEREO, 0,
 		       wcd938x_get_hph_type, NULL),
 };
 
 static const struct snd_kcontrol_new impedance_detect_controls[] = {
-	SOC_SINGLE_EXT("HPHL Impedance", 0, 0, UINT_MAX, 0,
+	SOC_SINGLE_EXT("HPHL Impedance", 0, 0, INT_MAX, 0,
 		       wcd938x_hph_impedance_get, NULL),
-	SOC_SINGLE_EXT("HPHR Impedance", 0, 1, UINT_MAX, 0,
+	SOC_SINGLE_EXT("HPHR Impedance", 0, 1, INT_MAX, 0,
 		       wcd938x_hph_impedance_get, NULL),
 };
 
@@ -4166,6 +4168,7 @@ static const struct snd_soc_component_driver soc_codec_dev_wcd938x = {
 	.dapm_routes = wcd938x_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(wcd938x_audio_map),
 	.set_jack = wcd938x_codec_set_jack,
+	.endianness = 1,
 };
 
 static void wcd938x_dt_parse_micbias_info(struct device *dev, struct wcd938x_priv *wcd)
@@ -4199,6 +4202,22 @@ static void wcd938x_dt_parse_micbias_info(struct device *dev, struct wcd938x_pri
 		dev_info(dev, "%s: Micbias4 DT property not found\n", __func__);
 }
 
+static bool wcd938x_swap_gnd_mic(struct snd_soc_component *component, bool active)
+{
+	int value;
+
+	struct wcd938x_priv *wcd938x;
+
+	wcd938x = snd_soc_component_get_drvdata(component);
+
+	value = gpiod_get_value(wcd938x->us_euro_gpio);
+
+	gpiod_set_value(wcd938x->us_euro_gpio, !value);
+
+	return true;
+}
+
+
 static int wcd938x_populate_dt_data(struct wcd938x_priv *wcd938x, struct device *dev)
 {
 	struct wcd_mbhc_config *cfg = &wcd938x->mbhc_cfg;
@@ -4210,6 +4229,15 @@ static int wcd938x_populate_dt_data(struct wcd938x_priv *wcd938x, struct device 
 			wcd938x->reset_gpio);
 		return wcd938x->reset_gpio;
 	}
+
+	wcd938x->us_euro_gpio = devm_gpiod_get_optional(dev, "us-euro",
+						GPIOD_OUT_LOW);
+	if (IS_ERR(wcd938x->us_euro_gpio)) {
+		dev_err(dev, "us-euro swap Control GPIO not found\n");
+		return PTR_ERR(wcd938x->us_euro_gpio);
+	}
+
+	cfg->swap_gnd_mic = wcd938x_swap_gnd_mic;
 
 	wcd938x->supplies[0].supply = "vdd-rxtx";
 	wcd938x->supplies[1].supply = "vdd-io";
@@ -4420,16 +4448,6 @@ static const struct component_master_ops wcd938x_comp_ops = {
 	.unbind = wcd938x_unbind,
 };
 
-static int wcd938x_compare_of(struct device *dev, void *data)
-{
-	return dev->of_node == data;
-}
-
-static void wcd938x_release_of(struct device *dev, void *data)
-{
-	of_node_put(data);
-}
-
 static int wcd938x_add_slave_components(struct wcd938x_priv *wcd938x,
 					struct device *dev,
 					struct component_match **matchptr)
@@ -4445,8 +4463,8 @@ static int wcd938x_add_slave_components(struct wcd938x_priv *wcd938x,
 	}
 
 	of_node_get(wcd938x->rxnode);
-	component_match_add_release(dev, matchptr, wcd938x_release_of,
-				    wcd938x_compare_of,	wcd938x->rxnode);
+	component_match_add_release(dev, matchptr, component_release_of,
+				    component_compare_of, wcd938x->rxnode);
 
 	wcd938x->txnode = of_parse_phandle(np, "qcom,tx-device", 0);
 	if (!wcd938x->txnode) {
@@ -4454,8 +4472,8 @@ static int wcd938x_add_slave_components(struct wcd938x_priv *wcd938x,
 		return -ENODEV;
 	}
 	of_node_get(wcd938x->txnode);
-	component_match_add_release(dev, matchptr, wcd938x_release_of,
-				    wcd938x_compare_of,	wcd938x->txnode);
+	component_match_add_release(dev, matchptr, component_release_of,
+				    component_compare_of, wcd938x->txnode);
 	return 0;
 }
 

@@ -38,9 +38,12 @@
  * forcibly disable it to allow proper screen updates.
  */
 
+#include <linux/string_helpers.h>
+
 #include <drm/drm_fourcc.h>
 
 #include "i915_drv.h"
+#include "i915_utils.h"
 #include "i915_vgpu.h"
 #include "intel_cdclk.h"
 #include "intel_de.h"
@@ -48,6 +51,14 @@
 #include "intel_display_types.h"
 #include "intel_fbc.h"
 #include "intel_frontbuffer.h"
+
+#define for_each_fbc_id(__dev_priv, __fbc_id) \
+	for ((__fbc_id) = INTEL_FBC_A; (__fbc_id) < I915_MAX_FBCS; (__fbc_id)++) \
+		for_each_if(INTEL_INFO(__dev_priv)->display.fbc_mask & BIT(__fbc_id))
+
+#define for_each_intel_fbc(__dev_priv, __fbc, __fbc_id) \
+	for_each_fbc_id((__dev_priv), (__fbc_id)) \
+		for_each_if((__fbc) = (__dev_priv)->fbc[(__fbc_id)])
 
 struct intel_fbc_funcs {
 	void (*activate)(struct intel_fbc *fbc);
@@ -79,11 +90,12 @@ struct intel_fbc {
 	 * with stolen_lock.
 	 */
 	struct mutex lock;
-	unsigned int possible_framebuffer_bits;
 	unsigned int busy_bits;
 
 	struct drm_mm_node compressed_fb;
 	struct drm_mm_node compressed_llb;
+
+	enum intel_fbc_id id;
 
 	u8 limit;
 
@@ -454,10 +466,10 @@ static void ilk_fbc_activate(struct intel_fbc *fbc)
 	struct intel_fbc_state *fbc_state = &fbc->state;
 	struct drm_i915_private *i915 = fbc->i915;
 
-	intel_de_write(i915, ILK_DPFC_FENCE_YOFF,
+	intel_de_write(i915, ILK_DPFC_FENCE_YOFF(fbc->id),
 		       fbc_state->fence_y_offset);
 
-	intel_de_write(i915, ILK_DPFC_CONTROL,
+	intel_de_write(i915, ILK_DPFC_CONTROL(fbc->id),
 		       DPFC_CTL_EN | g4x_dpfc_ctl(fbc));
 }
 
@@ -467,28 +479,28 @@ static void ilk_fbc_deactivate(struct intel_fbc *fbc)
 	u32 dpfc_ctl;
 
 	/* Disable compression */
-	dpfc_ctl = intel_de_read(i915, ILK_DPFC_CONTROL);
+	dpfc_ctl = intel_de_read(i915, ILK_DPFC_CONTROL(fbc->id));
 	if (dpfc_ctl & DPFC_CTL_EN) {
 		dpfc_ctl &= ~DPFC_CTL_EN;
-		intel_de_write(i915, ILK_DPFC_CONTROL, dpfc_ctl);
+		intel_de_write(i915, ILK_DPFC_CONTROL(fbc->id), dpfc_ctl);
 	}
 }
 
 static bool ilk_fbc_is_active(struct intel_fbc *fbc)
 {
-	return intel_de_read(fbc->i915, ILK_DPFC_CONTROL) & DPFC_CTL_EN;
+	return intel_de_read(fbc->i915, ILK_DPFC_CONTROL(fbc->id)) & DPFC_CTL_EN;
 }
 
 static bool ilk_fbc_is_compressing(struct intel_fbc *fbc)
 {
-	return intel_de_read(fbc->i915, ILK_DPFC_STATUS) & DPFC_COMP_SEG_MASK;
+	return intel_de_read(fbc->i915, ILK_DPFC_STATUS(fbc->id)) & DPFC_COMP_SEG_MASK;
 }
 
 static void ilk_fbc_program_cfb(struct intel_fbc *fbc)
 {
 	struct drm_i915_private *i915 = fbc->i915;
 
-	intel_de_write(i915, ILK_DPFC_CB_BASE, fbc->compressed_fb.start);
+	intel_de_write(i915, ILK_DPFC_CB_BASE(fbc->id), fbc->compressed_fb.start);
 }
 
 static const struct intel_fbc_funcs ilk_fbc_funcs = {
@@ -524,8 +536,8 @@ static void snb_fbc_nuke(struct intel_fbc *fbc)
 {
 	struct drm_i915_private *i915 = fbc->i915;
 
-	intel_de_write(i915, MSG_FBC_REND_STATE, FBC_REND_NUKE);
-	intel_de_posting_read(i915, MSG_FBC_REND_STATE);
+	intel_de_write(i915, MSG_FBC_REND_STATE(fbc->id), FBC_REND_NUKE);
+	intel_de_posting_read(i915, MSG_FBC_REND_STATE(fbc->id));
 }
 
 static const struct intel_fbc_funcs snb_fbc_funcs = {
@@ -547,7 +559,7 @@ static void glk_fbc_program_cfb_stride(struct intel_fbc *fbc)
 		val |= FBC_STRIDE_OVERRIDE |
 			FBC_STRIDE(fbc_state->override_cfb_stride / fbc->limit);
 
-	intel_de_write(i915, GLK_FBC_STRIDE, val);
+	intel_de_write(i915, GLK_FBC_STRIDE(fbc->id), val);
 }
 
 static void skl_fbc_program_cfb_stride(struct intel_fbc *fbc)
@@ -595,22 +607,22 @@ static void ivb_fbc_activate(struct intel_fbc *fbc)
 	else if (DISPLAY_VER(i915) == 9)
 		skl_fbc_program_cfb_stride(fbc);
 
-	if (i915->ggtt.num_fences)
+	if (to_gt(i915)->ggtt->num_fences)
 		snb_fbc_program_fence(fbc);
 
-	intel_de_write(i915, ILK_DPFC_CONTROL,
+	intel_de_write(i915, ILK_DPFC_CONTROL(fbc->id),
 		       DPFC_CTL_EN | ivb_dpfc_ctl(fbc));
 }
 
 static bool ivb_fbc_is_compressing(struct intel_fbc *fbc)
 {
-	return intel_de_read(fbc->i915, ILK_DPFC_STATUS2) & DPFC_COMP_SEG_MASK_IVB;
+	return intel_de_read(fbc->i915, ILK_DPFC_STATUS2(fbc->id)) & DPFC_COMP_SEG_MASK_IVB;
 }
 
 static void ivb_fbc_set_false_color(struct intel_fbc *fbc,
 				    bool enable)
 {
-	intel_de_rmw(fbc->i915, ILK_DPFC_CONTROL,
+	intel_de_rmw(fbc->i915, ILK_DPFC_CONTROL(fbc->id),
 		     DPFC_CTL_FALSE_COLOR, enable ? DPFC_CTL_FALSE_COLOR : 0);
 }
 
@@ -655,6 +667,10 @@ static bool intel_fbc_is_compressing(struct intel_fbc *fbc)
 
 static void intel_fbc_nuke(struct intel_fbc *fbc)
 {
+	struct drm_i915_private *i915 = fbc->i915;
+
+	drm_WARN_ON(&i915->drm, fbc->flip_pending);
+
 	trace_intel_fbc_nuke(fbc->state.plane);
 
 	fbc->funcs->nuke(fbc);
@@ -795,6 +811,14 @@ static void intel_fbc_program_cfb(struct intel_fbc *fbc)
 	fbc->funcs->program_cfb(fbc);
 }
 
+static void intel_fbc_program_workarounds(struct intel_fbc *fbc)
+{
+	/* Wa_22014263786:icl,jsl,tgl,dg1,rkl,adls,dg2,adlp */
+	if (DISPLAY_VER(fbc->i915) >= 11)
+		intel_de_rmw(fbc->i915, ILK_DPFC_CHICKEN(fbc->id), 0,
+			     DPFC_CHICKEN_FORCE_SLB_INVALIDATION);
+}
+
 static void __intel_fbc_cleanup_cfb(struct intel_fbc *fbc)
 {
 	struct drm_i915_private *i915 = fbc->i915;
@@ -810,16 +834,16 @@ static void __intel_fbc_cleanup_cfb(struct intel_fbc *fbc)
 
 void intel_fbc_cleanup(struct drm_i915_private *i915)
 {
-	struct intel_fbc *fbc = i915->fbc;
+	struct intel_fbc *fbc;
+	enum intel_fbc_id fbc_id;
 
-	if (!fbc)
-		return;
+	for_each_intel_fbc(i915, fbc, fbc_id) {
+		mutex_lock(&fbc->lock);
+		__intel_fbc_cleanup_cfb(fbc);
+		mutex_unlock(&fbc->lock);
 
-	mutex_lock(&fbc->lock);
-	__intel_fbc_cleanup_cfb(fbc);
-	mutex_unlock(&fbc->lock);
-
-	kfree(fbc);
+		kfree(fbc);
+	}
 }
 
 static bool stride_is_valid(const struct intel_plane_state *plane_state)
@@ -936,6 +960,7 @@ static bool tiling_is_valid(const struct intel_plane_state *plane_state)
 	case I915_FORMAT_MOD_Y_TILED:
 	case I915_FORMAT_MOD_Yf_TILED:
 		return DISPLAY_VER(i915) >= 9;
+	case I915_FORMAT_MOD_4_TILED:
 	case I915_FORMAT_MOD_X_TILED:
 		return true;
 	default:
@@ -956,6 +981,7 @@ static void intel_fbc_update_state(struct intel_atomic_state *state,
 	struct intel_fbc_state *fbc_state = &fbc->state;
 
 	WARN_ON(plane_state->no_fbc_reason);
+	WARN_ON(fbc_state->plane && fbc_state->plane != plane);
 
 	fbc_state->plane = plane;
 
@@ -1027,7 +1053,7 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 	struct intel_plane_state *plane_state =
 		intel_atomic_get_new_plane_state(state, plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	struct intel_crtc *crtc = to_intel_crtc(plane_state->uapi.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(plane_state->hw.crtc);
 	const struct intel_crtc_state *crtc_state;
 	struct intel_fbc *fbc = plane->fbc;
 
@@ -1068,7 +1094,7 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 	 */
 	if (DISPLAY_VER(i915) >= 12 && crtc_state->has_psr2) {
 		plane_state->no_fbc_reason = "PSR2 enabled";
-		return false;
+		return 0;
 	}
 
 	if (!pixel_format_is_valid(plane_state)) {
@@ -1094,7 +1120,7 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 	if (plane_state->hw.pixel_blend_mode != DRM_MODE_BLEND_PIXEL_NONE &&
 	    fb->format->has_alpha) {
 		plane_state->no_fbc_reason = "per-pixel alpha not supported";
-		return false;
+		return 0;
 	}
 
 	if (!intel_fbc_hw_tracking_covers_screen(plane_state)) {
@@ -1110,7 +1136,7 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 	if (DISPLAY_VER(i915) >= 9 &&
 	    plane_state->view.color_plane[0].y & 3) {
 		plane_state->no_fbc_reason = "plane start Y offset misaligned";
-		return false;
+		return 0;
 	}
 
 	/* Wa_22010751166: icl, ehl, tgl, dg1, rkl */
@@ -1118,7 +1144,7 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 	    (plane_state->view.color_plane[0].y +
 	     (drm_rect_height(&plane_state->uapi.src) >> 16)) & 3) {
 		plane_state->no_fbc_reason = "plane end Y offset misaligned";
-		return false;
+		return 0;
 	}
 
 	/* WaFbcExceedCdClockThreshold:hsw,bdw */
@@ -1260,6 +1286,8 @@ static void __intel_fbc_disable(struct intel_fbc *fbc)
 	__intel_fbc_cleanup_cfb(fbc);
 
 	fbc->state.plane = NULL;
+	fbc->flip_pending = false;
+	fbc->busy_bits = 0;
 }
 
 static void __intel_fbc_post_update(struct intel_fbc *fbc)
@@ -1303,56 +1331,77 @@ static unsigned int intel_fbc_get_frontbuffer_bit(struct intel_fbc *fbc)
 	if (fbc->state.plane)
 		return fbc->state.plane->frontbuffer_bit;
 	else
-		return fbc->possible_framebuffer_bits;
+		return 0;
+}
+
+static void __intel_fbc_invalidate(struct intel_fbc *fbc,
+				   unsigned int frontbuffer_bits,
+				   enum fb_op_origin origin)
+{
+	if (origin == ORIGIN_FLIP || origin == ORIGIN_CURSOR_UPDATE)
+		return;
+
+	mutex_lock(&fbc->lock);
+
+	frontbuffer_bits &= intel_fbc_get_frontbuffer_bit(fbc);
+	if (!frontbuffer_bits)
+		goto out;
+
+	fbc->busy_bits |= frontbuffer_bits;
+	intel_fbc_deactivate(fbc, "frontbuffer write");
+
+out:
+	mutex_unlock(&fbc->lock);
 }
 
 void intel_fbc_invalidate(struct drm_i915_private *i915,
 			  unsigned int frontbuffer_bits,
 			  enum fb_op_origin origin)
 {
-	struct intel_fbc *fbc = i915->fbc;
+	struct intel_fbc *fbc;
+	enum intel_fbc_id fbc_id;
 
-	if (!fbc)
-		return;
+	for_each_intel_fbc(i915, fbc, fbc_id)
+		__intel_fbc_invalidate(fbc, frontbuffer_bits, origin);
 
-	if (origin == ORIGIN_FLIP || origin == ORIGIN_CURSOR_UPDATE)
-		return;
-
-	mutex_lock(&fbc->lock);
-
-	fbc->busy_bits |= intel_fbc_get_frontbuffer_bit(fbc) & frontbuffer_bits;
-
-	if (fbc->state.plane && fbc->busy_bits)
-		intel_fbc_deactivate(fbc, "frontbuffer write");
-
-	mutex_unlock(&fbc->lock);
 }
 
-void intel_fbc_flush(struct drm_i915_private *i915,
-		     unsigned int frontbuffer_bits, enum fb_op_origin origin)
+static void __intel_fbc_flush(struct intel_fbc *fbc,
+			      unsigned int frontbuffer_bits,
+			      enum fb_op_origin origin)
 {
-	struct intel_fbc *fbc = i915->fbc;
-
-	if (!fbc)
-		return;
-
 	mutex_lock(&fbc->lock);
+
+	frontbuffer_bits &= intel_fbc_get_frontbuffer_bit(fbc);
+	if (!frontbuffer_bits)
+		goto out;
 
 	fbc->busy_bits &= ~frontbuffer_bits;
 
 	if (origin == ORIGIN_FLIP || origin == ORIGIN_CURSOR_UPDATE)
 		goto out;
 
-	if (!fbc->busy_bits && fbc->state.plane &&
-	    (frontbuffer_bits & intel_fbc_get_frontbuffer_bit(fbc))) {
-		if (fbc->active)
-			intel_fbc_nuke(fbc);
-		else if (!fbc->flip_pending)
-			__intel_fbc_post_update(fbc);
-	}
+	if (fbc->busy_bits || fbc->flip_pending)
+		goto out;
+
+	if (fbc->active)
+		intel_fbc_nuke(fbc);
+	else
+		intel_fbc_activate(fbc);
 
 out:
 	mutex_unlock(&fbc->lock);
+}
+
+void intel_fbc_flush(struct drm_i915_private *i915,
+		     unsigned int frontbuffer_bits,
+		     enum fb_op_origin origin)
+{
+	struct intel_fbc *fbc;
+	enum intel_fbc_id fbc_id;
+
+	for_each_intel_fbc(i915, fbc, fbc_id)
+		__intel_fbc_flush(fbc, frontbuffer_bits, origin);
 }
 
 int intel_fbc_atomic_check(struct intel_atomic_state *state)
@@ -1421,6 +1470,7 @@ static void __intel_fbc_enable(struct intel_atomic_state *state,
 
 	intel_fbc_update_state(state, crtc, plane);
 
+	intel_fbc_program_workarounds(fbc);
 	intel_fbc_program_cfb(fbc);
 }
 
@@ -1476,25 +1526,6 @@ void intel_fbc_update(struct intel_atomic_state *state,
 	}
 }
 
-/**
- * intel_fbc_global_disable - globally disable FBC
- * @i915: i915 device instance
- *
- * This function disables FBC regardless of which CRTC is associated with it.
- */
-void intel_fbc_global_disable(struct drm_i915_private *i915)
-{
-	struct intel_fbc *fbc = i915->fbc;
-
-	if (!fbc)
-		return;
-
-	mutex_lock(&fbc->lock);
-	if (fbc->state.plane)
-		__intel_fbc_disable(fbc);
-	mutex_unlock(&fbc->lock);
-}
-
 static void intel_fbc_underrun_work_fn(struct work_struct *work)
 {
 	struct intel_fbc *fbc = container_of(work, typeof(*fbc), underrun_work);
@@ -1517,19 +1548,9 @@ out:
 	mutex_unlock(&fbc->lock);
 }
 
-/*
- * intel_fbc_reset_underrun - reset FBC fifo underrun status.
- * @i915: the i915 device
- *
- * See intel_fbc_handle_fifo_underrun_irq(). For automated testing we
- * want to re-enable FBC after an underrun to increase test coverage.
- */
-void intel_fbc_reset_underrun(struct drm_i915_private *i915)
+static void __intel_fbc_reset_underrun(struct intel_fbc *fbc)
 {
-	struct intel_fbc *fbc = i915->fbc;
-
-	if (!fbc)
-		return;
+	struct drm_i915_private *i915 = fbc->i915;
 
 	cancel_work_sync(&fbc->underrun_work);
 
@@ -1543,6 +1564,38 @@ void intel_fbc_reset_underrun(struct drm_i915_private *i915)
 
 	fbc->underrun_detected = false;
 	mutex_unlock(&fbc->lock);
+}
+
+/*
+ * intel_fbc_reset_underrun - reset FBC fifo underrun status.
+ * @i915: the i915 device
+ *
+ * See intel_fbc_handle_fifo_underrun_irq(). For automated testing we
+ * want to re-enable FBC after an underrun to increase test coverage.
+ */
+void intel_fbc_reset_underrun(struct drm_i915_private *i915)
+{
+	struct intel_fbc *fbc;
+	enum intel_fbc_id fbc_id;
+
+	for_each_intel_fbc(i915, fbc, fbc_id)
+		__intel_fbc_reset_underrun(fbc);
+}
+
+static void __intel_fbc_handle_fifo_underrun_irq(struct intel_fbc *fbc)
+{
+	/*
+	 * There's no guarantee that underrun_detected won't be set to true
+	 * right after this check and before the work is scheduled, but that's
+	 * not a problem since we'll check it again under the work function
+	 * while FBC is locked. This check here is just to prevent us from
+	 * unnecessarily scheduling the work, and it relies on the fact that we
+	 * never switch underrun_detect back to false after it's true.
+	 */
+	if (READ_ONCE(fbc->underrun_detected))
+		return;
+
+	schedule_work(&fbc->underrun_work);
 }
 
 /**
@@ -1561,21 +1614,11 @@ void intel_fbc_reset_underrun(struct drm_i915_private *i915)
  */
 void intel_fbc_handle_fifo_underrun_irq(struct drm_i915_private *i915)
 {
-	struct intel_fbc *fbc = i915->fbc;
+	struct intel_fbc *fbc;
+	enum intel_fbc_id fbc_id;
 
-	if (!fbc)
-		return;
-
-	/* There's no guarantee that underrun_detected won't be set to true
-	 * right after this check and before the work is scheduled, but that's
-	 * not a problem since we'll check it again under the work function
-	 * while FBC is locked. This check here is just to prevent us from
-	 * unnecessarily scheduling the work, and it relies on the fact that we
-	 * never switch underrun_detect back to false after it's true. */
-	if (READ_ONCE(fbc->underrun_detected))
-		return;
-
-	schedule_work(&fbc->underrun_work);
+	for_each_intel_fbc(i915, fbc, fbc_id)
+		__intel_fbc_handle_fifo_underrun_irq(fbc);
 }
 
 /*
@@ -1604,7 +1647,7 @@ static int intel_sanitize_fbc_option(struct drm_i915_private *i915)
 static bool need_fbc_vtd_wa(struct drm_i915_private *i915)
 {
 	/* WaFbcTurnOffFbcWhenHyperVisorIsUsed:skl,bxt */
-	if (intel_vtd_active(i915) &&
+	if (i915_vtd_active(i915) &&
 	    (IS_SKYLAKE(i915) || IS_BROXTON(i915))) {
 		drm_info(&i915->drm,
 			 "Disabling framebuffer compression (FBC) to prevent screen flicker with VT-d enabled\n");
@@ -1616,14 +1659,11 @@ static bool need_fbc_vtd_wa(struct drm_i915_private *i915)
 
 void intel_fbc_add_plane(struct intel_fbc *fbc, struct intel_plane *plane)
 {
-	if (!fbc)
-		return;
-
 	plane->fbc = fbc;
-	fbc->possible_framebuffer_bits |= plane->frontbuffer_bit;
 }
 
-static struct intel_fbc *intel_fbc_create(struct drm_i915_private *i915)
+static struct intel_fbc *intel_fbc_create(struct drm_i915_private *i915,
+					  enum intel_fbc_id fbc_id)
 {
 	struct intel_fbc *fbc;
 
@@ -1631,6 +1671,7 @@ static struct intel_fbc *intel_fbc_create(struct drm_i915_private *i915)
 	if (!fbc)
 		return NULL;
 
+	fbc->id = fbc_id;
 	fbc->i915 = i915;
 	INIT_WORK(&fbc->underrun_work, intel_fbc_underrun_work_fn);
 	mutex_init(&fbc->lock);
@@ -1659,32 +1700,39 @@ static struct intel_fbc *intel_fbc_create(struct drm_i915_private *i915)
  */
 void intel_fbc_init(struct drm_i915_private *i915)
 {
-	struct intel_fbc *fbc;
+	enum intel_fbc_id fbc_id;
 
 	if (!drm_mm_initialized(&i915->mm.stolen))
-		mkwrite_device_info(i915)->display.has_fbc = false;
+		mkwrite_device_info(i915)->display.fbc_mask = 0;
 
 	if (need_fbc_vtd_wa(i915))
-		mkwrite_device_info(i915)->display.has_fbc = false;
+		mkwrite_device_info(i915)->display.fbc_mask = 0;
 
 	i915->params.enable_fbc = intel_sanitize_fbc_option(i915);
 	drm_dbg_kms(&i915->drm, "Sanitized enable_fbc value: %d\n",
 		    i915->params.enable_fbc);
 
-	if (!HAS_FBC(i915))
-		return;
+	for_each_fbc_id(i915, fbc_id)
+		i915->fbc[fbc_id] = intel_fbc_create(i915, fbc_id);
+}
 
-	fbc = intel_fbc_create(i915);
-	if (!fbc)
-		return;
+/**
+ * intel_fbc_sanitize - Sanitize FBC
+ * @i915: the i915 device
+ *
+ * Make sure FBC is initially disabled since we have no
+ * idea eg. into which parts of stolen it might be scribbling
+ * into.
+ */
+void intel_fbc_sanitize(struct drm_i915_private *i915)
+{
+	struct intel_fbc *fbc;
+	enum intel_fbc_id fbc_id;
 
-	/* We still don't have any sort of hardware state readout for FBC, so
-	 * deactivate it in case the BIOS activated it to make sure software
-	 * matches the hardware state. */
-	if (intel_fbc_hw_is_active(fbc))
-		intel_fbc_hw_deactivate(fbc);
-
-	i915->fbc = fbc;
+	for_each_intel_fbc(i915, fbc, fbc_id) {
+		if (intel_fbc_hw_is_active(fbc))
+			intel_fbc_hw_deactivate(fbc);
+	}
 }
 
 static int intel_fbc_debugfs_status_show(struct seq_file *m, void *unused)
@@ -1702,7 +1750,7 @@ static int intel_fbc_debugfs_status_show(struct seq_file *m, void *unused)
 	if (fbc->active) {
 		seq_puts(m, "FBC enabled\n");
 		seq_printf(m, "Compressing: %s\n",
-			   yesno(intel_fbc_is_compressing(fbc)));
+			   str_yes_no(intel_fbc_is_compressing(fbc)));
 	} else {
 		seq_printf(m, "FBC disabled: %s\n", fbc->no_fbc_reason);
 	}
@@ -1760,25 +1808,32 @@ DEFINE_SIMPLE_ATTRIBUTE(intel_fbc_debugfs_false_color_fops,
 			intel_fbc_debugfs_false_color_set,
 			"%llu\n");
 
-static void intel_fbc_debugfs_add(struct intel_fbc *fbc)
+static void intel_fbc_debugfs_add(struct intel_fbc *fbc,
+				  struct dentry *parent)
 {
-	struct drm_i915_private *i915 = fbc->i915;
-	struct drm_minor *minor = i915->drm.primary;
-
-	debugfs_create_file("i915_fbc_status", 0444,
-			    minor->debugfs_root, fbc,
-			    &intel_fbc_debugfs_status_fops);
+	debugfs_create_file("i915_fbc_status", 0444, parent,
+			    fbc, &intel_fbc_debugfs_status_fops);
 
 	if (fbc->funcs->set_false_color)
-		debugfs_create_file("i915_fbc_false_color", 0644,
-				    minor->debugfs_root, fbc,
-				    &intel_fbc_debugfs_false_color_fops);
+		debugfs_create_file("i915_fbc_false_color", 0644, parent,
+				    fbc, &intel_fbc_debugfs_false_color_fops);
 }
 
+void intel_fbc_crtc_debugfs_add(struct intel_crtc *crtc)
+{
+	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
+
+	if (plane->fbc)
+		intel_fbc_debugfs_add(plane->fbc, crtc->base.debugfs_entry);
+}
+
+/* FIXME: remove this once igt is on board with per-crtc stuff */
 void intel_fbc_debugfs_register(struct drm_i915_private *i915)
 {
-	struct intel_fbc *fbc = i915->fbc;
+	struct drm_minor *minor = i915->drm.primary;
+	struct intel_fbc *fbc;
 
+	fbc = i915->fbc[INTEL_FBC_A];
 	if (fbc)
-		intel_fbc_debugfs_add(fbc);
+		intel_fbc_debugfs_add(fbc, minor->debugfs_root);
 }

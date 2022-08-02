@@ -22,15 +22,13 @@
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 
-#include <asm/mach/map.h>
-
-#include <mach/common.h>
-#include <mach/cputype.h>
-#include <mach/mux.h>
-#include <mach/serial.h>
-
 #include <clocksource/timer-davinci.h>
 
+#include <asm/mach/map.h>
+
+#include "common.h"
+#include "cputype.h"
+#include "serial.h"
 #include "asp.h"
 #include "davinci.h"
 #include "irqs.h"

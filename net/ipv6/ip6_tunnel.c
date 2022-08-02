@@ -257,8 +257,6 @@ static int ip6_tnl_create2(struct net_device *dev)
 	struct ip6_tnl_net *ip6n = net_generic(net, ip6_tnl_net_id);
 	int err;
 
-	t = netdev_priv(dev);
-
 	dev->rtnl_link_ops = &ip6_link_ops;
 	err = register_netdevice(dev);
 	if (err < 0)
@@ -1121,6 +1119,14 @@ int ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev, __u8 dsfield,
 
 			memcpy(&fl6->daddr, addr6, sizeof(fl6->daddr));
 			neigh_release(neigh);
+		} else if (skb->protocol == htons(ETH_P_IP)) {
+			const struct rtable *rt = skb_rtable(skb);
+
+			if (!rt)
+				goto tx_err_link_failure;
+
+			if (rt->rt_gw_family == AF_INET6)
+				memcpy(&fl6->daddr, &rt->rt_gw6, sizeof(fl6->daddr));
 		}
 	} else if (t->parms.proto != 0 && !(t->parms.flags &
 					    (IP6_TNL_F_USE_ORIG_TCLASS |

@@ -379,6 +379,9 @@ int hci_cmd_sync_queue(struct hci_dev *hdev, hci_cmd_sync_work_func_t func,
 {
 	struct hci_cmd_sync_work_entry *entry;
 
+	if (hci_dev_test_flag(hdev, HCI_UNREGISTER))
+		return -ENODEV;
+
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
@@ -1634,7 +1637,7 @@ static int hci_le_set_privacy_mode_sync(struct hci_dev *hdev,
 	 * indicates that LL Privacy has been enabled and
 	 * HCI_OP_LE_SET_PRIVACY_MODE is supported.
 	 */
-	if (!test_bit(HCI_CONN_FLAG_DEVICE_PRIVACY, params->flags))
+	if (!(params->flags & HCI_CONN_FLAG_DEVICE_PRIVACY))
 		return 0;
 
 	irk = hci_find_irk_by_addr(hdev, &params->addr, params->addr_type);
@@ -1661,20 +1664,19 @@ static int hci_le_add_accept_list_sync(struct hci_dev *hdev,
 	struct hci_cp_le_add_to_accept_list cp;
 	int err;
 
+	/* During suspend, only wakeable devices can be in acceptlist */
+	if (hdev->suspended &&
+	    !(params->flags & HCI_CONN_FLAG_REMOTE_WAKEUP))
+		return 0;
+
 	/* Select filter policy to accept all advertising */
 	if (*num_entries >= hdev->le_accept_list_size)
 		return -ENOSPC;
 
 	/* Accept list can not be used with RPAs */
 	if (!use_ll_privacy(hdev) &&
-	    hci_find_irk_by_addr(hdev, &params->addr, params->addr_type)) {
+	    hci_find_irk_by_addr(hdev, &params->addr, params->addr_type))
 		return -EINVAL;
-	}
-
-	/* During suspend, only wakeable devices can be in acceptlist */
-	if (hdev->suspended &&
-	    !test_bit(HCI_CONN_FLAG_REMOTE_WAKEUP, params->flags))
-		return 0;
 
 	/* Attempt to program the device in the resolving list first to avoid
 	 * having to rollback in case it fails since the resolving list is
@@ -2806,6 +2808,9 @@ static int hci_set_event_filter_sync(struct hci_dev *hdev, u8 flt_type,
 	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
 		return 0;
 
+	if (test_bit(HCI_QUIRK_BROKEN_FILTER_CLEAR_ALL, &hdev->quirks))
+		return 0;
+
 	memset(&cp, 0, sizeof(cp));
 	cp.flt_type = flt_type;
 
@@ -2824,6 +2829,13 @@ static int hci_set_event_filter_sync(struct hci_dev *hdev, u8 flt_type,
 static int hci_clear_event_filter_sync(struct hci_dev *hdev)
 {
 	if (!hci_dev_test_flag(hdev, HCI_EVENT_FILTER_CONFIGURED))
+		return 0;
+
+	/* In theory the state machine should not reach here unless
+	 * a hci_set_event_filter_sync() call succeeds, but we do
+	 * the check both for parity and as a future reminder.
+	 */
+	if (test_bit(HCI_QUIRK_BROKEN_FILTER_CLEAR_ALL, &hdev->quirks))
 		return 0;
 
 	return hci_set_event_filter_sync(hdev, HCI_FLT_CLEAR_ALL, 0x00,
@@ -3812,6 +3824,30 @@ static int hci_init_sync(struct hci_dev *hdev)
 	return 0;
 }
 
+#define HCI_QUIRK_BROKEN(_quirk, _desc) { HCI_QUIRK_BROKEN_##_quirk, _desc }
+
+static const struct {
+	unsigned long quirk;
+	const char *desc;
+} hci_broken_table[] = {
+	HCI_QUIRK_BROKEN(LOCAL_COMMANDS,
+			 "HCI Read Local Supported Commands not supported"),
+	HCI_QUIRK_BROKEN(STORED_LINK_KEY,
+			 "HCI Delete Stored Link Key command is advertised, "
+			 "but not supported."),
+	HCI_QUIRK_BROKEN(ERR_DATA_REPORTING,
+			 "HCI Read Default Erroneous Data Reporting command is "
+			 "advertised, but not supported."),
+	HCI_QUIRK_BROKEN(READ_TRANSMIT_POWER,
+			 "HCI Read Transmit Power Level command is advertised, "
+			 "but not supported."),
+	HCI_QUIRK_BROKEN(FILTER_CLEAR_ALL,
+			 "HCI Set Event Filter command not supported."),
+	HCI_QUIRK_BROKEN(ENHANCED_SETUP_SYNC_CONN,
+			 "HCI Enhanced Setup Synchronous Connection command is "
+			 "advertised, but not supported.")
+};
+
 int hci_dev_open_sync(struct hci_dev *hdev)
 {
 	int ret = 0;
@@ -3873,11 +3909,18 @@ int hci_dev_open_sync(struct hci_dev *hdev)
 	if (hci_dev_test_flag(hdev, HCI_SETUP) ||
 	    test_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks)) {
 		bool invalid_bdaddr;
+		size_t i;
 
 		hci_sock_dev_event(hdev, HCI_DEV_SETUP);
 
 		if (hdev->setup)
 			ret = hdev->setup(hdev);
+
+		for (i = 0; i < ARRAY_SIZE(hci_broken_table); i++) {
+			if (test_bit(hci_broken_table[i].quirk, &hdev->quirks))
+				bt_dev_warn(hdev, "%s",
+					    hci_broken_table[i].desc);
+		}
 
 		/* The transport driver can set the quirk to mark the
 		 * BD_ADDR invalid before creating the HCI device or in
@@ -4045,6 +4088,7 @@ int hci_dev_close_sync(struct hci_dev *hdev)
 
 	bt_dev_dbg(hdev, "");
 
+	cancel_work_sync(&hdev->power_on);
 	cancel_delayed_work(&hdev->power_off);
 	cancel_delayed_work(&hdev->ncmd_timer);
 
@@ -4395,12 +4439,21 @@ static int hci_reject_conn_sync(struct hci_dev *hdev, struct hci_conn *conn,
 static int hci_abort_conn_sync(struct hci_dev *hdev, struct hci_conn *conn,
 			       u8 reason)
 {
+	int err;
+
 	switch (conn->state) {
 	case BT_CONNECTED:
 	case BT_CONFIG:
 		return hci_disconnect_sync(hdev, conn, reason);
 	case BT_CONNECT:
-		return hci_connect_cancel_sync(hdev, conn);
+		err = hci_connect_cancel_sync(hdev, conn);
+		/* Cleanup hci_conn object if it cannot be cancelled as it
+		 * likelly means the controller and host stack are out of sync.
+		 */
+		if (err)
+			hci_conn_failed(conn, err);
+
+		return err;
 	case BT_CONNECT2:
 		return hci_reject_conn_sync(hdev, conn, reason);
 	default:
@@ -4422,7 +4475,7 @@ static int hci_disconnect_all_sync(struct hci_dev *hdev, u8 reason)
 			return err;
 	}
 
-	return err;
+	return 0;
 }
 
 /* This function perform power off HCI command sequence as follows:
@@ -4825,11 +4878,17 @@ static int hci_update_event_filter_sync(struct hci_dev *hdev)
 	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
 		return 0;
 
+	/* Some fake CSR controllers lock up after setting this type of
+	 * filter, so avoid sending the request altogether.
+	 */
+	if (test_bit(HCI_QUIRK_BROKEN_FILTER_CLEAR_ALL, &hdev->quirks))
+		return 0;
+
 	/* Always clear event filter when starting */
 	hci_clear_event_filter_sync(hdev);
 
 	list_for_each_entry(b, &hdev->accept_list, list) {
-		if (!test_bit(HCI_CONN_FLAG_REMOTE_WAKEUP, b->flags))
+		if (!(b->flags & HCI_CONN_FLAG_REMOTE_WAKEUP))
 			continue;
 
 		bt_dev_dbg(hdev, "Adding event filters for %pMR", &b->bdaddr);
@@ -4853,10 +4912,28 @@ static int hci_update_event_filter_sync(struct hci_dev *hdev)
 	return 0;
 }
 
+/* This function disables scan (BR and LE) and mark it as paused */
+static int hci_pause_scan_sync(struct hci_dev *hdev)
+{
+	if (hdev->scanning_paused)
+		return 0;
+
+	/* Disable page scan if enabled */
+	if (test_bit(HCI_PSCAN, &hdev->flags))
+		hci_write_scan_enable_sync(hdev, SCAN_DISABLED);
+
+	hci_scan_disable_sync(hdev);
+
+	hdev->scanning_paused = true;
+
+	return 0;
+}
+
 /* This function performs the HCI suspend procedures in the follow order:
  *
  * Pause discovery (active scanning/inquiry)
  * Pause Directed Advertising/Advertising
+ * Pause Scanning (passive scanning in case discovery was not active)
  * Disconnect all connections
  * Set suspend_status to BT_SUSPEND_DISCONNECT if hdev cannot wakeup
  * otherwise:
@@ -4882,15 +4959,11 @@ int hci_suspend_sync(struct hci_dev *hdev)
 	/* Pause other advertisements */
 	hci_pause_advertising_sync(hdev);
 
-	/* Disable page scan if enabled */
-	if (test_bit(HCI_PSCAN, &hdev->flags))
-		hci_write_scan_enable_sync(hdev, SCAN_DISABLED);
-
 	/* Suspend monitor filters */
 	hci_suspend_monitor_sync(hdev);
 
 	/* Prevent disconnects from causing scanning to be re-enabled */
-	hdev->scanning_paused = true;
+	hci_pause_scan_sync(hdev);
 
 	/* Soft disconnect everything (power off) */
 	err = hci_disconnect_all_sync(hdev, HCI_ERROR_REMOTE_POWER_OFF);
@@ -4961,6 +5034,22 @@ static void hci_resume_monitor_sync(struct hci_dev *hdev)
 	}
 }
 
+/* This function resume scan and reset paused flag */
+static int hci_resume_scan_sync(struct hci_dev *hdev)
+{
+	if (!hdev->scanning_paused)
+		return 0;
+
+	hci_update_scan_sync(hdev);
+
+	/* Reset passive scanning to normal */
+	hci_update_passive_scan_sync(hdev);
+
+	hdev->scanning_paused = false;
+
+	return 0;
+}
+
 /* This function performs the HCI suspend procedures in the follow order:
  *
  * Restore event mask
@@ -4983,10 +5072,9 @@ int hci_resume_sync(struct hci_dev *hdev)
 
 	/* Clear any event filters and restore scan state */
 	hci_clear_event_filter_sync(hdev);
-	hci_update_scan_sync(hdev);
 
-	/* Reset passive scanning to normal */
-	hci_update_passive_scan_sync(hdev);
+	/* Resume scanning */
+	hci_resume_scan_sync(hdev);
 
 	/* Resume monitor filters */
 	hci_resume_monitor_sync(hdev);
@@ -5140,8 +5228,8 @@ static void set_ext_conn_params(struct hci_conn *conn,
 	p->max_ce_len = cpu_to_le16(0x0000);
 }
 
-int hci_le_ext_create_conn_sync(struct hci_dev *hdev, struct hci_conn *conn,
-				u8 own_addr_type)
+static int hci_le_ext_create_conn_sync(struct hci_dev *hdev,
+				       struct hci_conn *conn, u8 own_addr_type)
 {
 	struct hci_cp_le_ext_create_conn *cp;
 	struct hci_cp_le_ext_conn_param *p;

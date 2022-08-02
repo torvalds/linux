@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2014-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -57,14 +58,14 @@ int kfd_interrupt_init(struct kfd_dev *kfd)
 		KFD_IH_NUM_ENTRIES * kfd->device_info.ih_ring_entry_size,
 		GFP_KERNEL);
 	if (r) {
-		dev_err(kfd_chardev(), "Failed to allocate IH fifo\n");
+		dev_err(kfd->adev->dev, "Failed to allocate IH fifo\n");
 		return r;
 	}
 
 	kfd->ih_wq = alloc_workqueue("KFD IH", WQ_HIGHPRI, 1);
 	if (unlikely(!kfd->ih_wq)) {
 		kfifo_free(&kfd->ih_fifo);
-		dev_err(kfd_chardev(), "Failed to allocate KFD IH workqueue\n");
+		dev_err(kfd->adev->dev, "Failed to allocate KFD IH workqueue\n");
 		return -ENOMEM;
 	}
 	spin_lock_init(&kfd->interrupt_lock);
@@ -116,7 +117,7 @@ bool enqueue_ih_ring_entry(struct kfd_dev *kfd,	const void *ih_ring_entry)
 	count = kfifo_in(&kfd->ih_fifo, ih_ring_entry,
 				kfd->device_info.ih_ring_entry_size);
 	if (count != kfd->device_info.ih_ring_entry_size) {
-		dev_err_ratelimited(kfd_chardev(),
+		dev_dbg_ratelimited(kfd->adev->dev,
 			"Interrupt ring overflow, dropping interrupt %d\n",
 			count);
 		return false;
@@ -145,15 +146,24 @@ static void interrupt_wq(struct work_struct *work)
 	struct kfd_dev *dev = container_of(work, struct kfd_dev,
 						interrupt_work);
 	uint32_t ih_ring_entry[KFD_MAX_RING_ENTRY_SIZE];
+	long start_jiffies = jiffies;
 
 	if (dev->device_info.ih_ring_entry_size > sizeof(ih_ring_entry)) {
-		dev_err_once(kfd_chardev(), "Ring entry too small\n");
+		dev_err_once(dev->adev->dev, "Ring entry too small\n");
 		return;
 	}
 
-	while (dequeue_ih_ring_entry(dev, ih_ring_entry))
+	while (dequeue_ih_ring_entry(dev, ih_ring_entry)) {
 		dev->device_info.event_interrupt_class->interrupt_wq(dev,
 								ih_ring_entry);
+		if (jiffies - start_jiffies > HZ) {
+			/* If we spent more than a second processing signals,
+			 * reschedule the worker to avoid soft-lockup warnings
+			 */
+			queue_work(dev->ih_wq, &dev->interrupt_work);
+			break;
+		}
+	}
 }
 
 bool interrupt_is_wanted(struct kfd_dev *dev,

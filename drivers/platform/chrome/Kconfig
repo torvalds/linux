@@ -15,6 +15,17 @@ menuconfig CHROME_PLATFORMS
 
 if CHROME_PLATFORMS
 
+config CHROMEOS_ACPI
+	tristate "ChromeOS specific ACPI extensions"
+	depends on ACPI
+	help
+	  This driver provides the firmware interface for the services
+	  exported through the ChromeOS interfaces when using ChromeOS
+	  ACPI firmware.
+
+	  If you have an ACPI-compatible Chromebook, say Y or M here.
+	  The module will be called chromeos_acpi.
+
 config CHROMEOS_LAPTOP
 	tristate "Chrome OS Laptop"
 	depends on I2C && DMI && X86
@@ -242,6 +253,17 @@ config CROS_USBPD_NOTIFY
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_usbpd_notify.
+
+config CHROMEOS_PRIVACY_SCREEN
+	tristate "ChromeOS Privacy Screen support"
+	depends on ACPI
+	depends on DRM
+	select DRM_PRIVACY_SCREEN
+	help
+	  This driver provides the support needed for the in-built electronic
+	  privacy screen that is present on some ChromeOS devices. When enabled,
+	  this should probably always be built into the kernel to avoid or
+	  minimize drm probe deferral.
 
 source "drivers/platform/chrome/wilco_ec/Kconfig"
 

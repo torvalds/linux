@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <linux/blkdev.h>
 #include <linux/wait.h>
 #include <linux/rbtree.h>
 #include <linux/kthread.h>
@@ -230,20 +231,13 @@ static __init int bdi_class_init(void)
 }
 postcore_initcall(bdi_class_init);
 
-static int bdi_init(struct backing_dev_info *bdi);
-
 static int __init default_bdi_init(void)
 {
-	int err;
-
 	bdi_wq = alloc_workqueue("writeback", WQ_MEM_RECLAIM | WQ_UNBOUND |
 				 WQ_SYSFS, 0);
 	if (!bdi_wq)
 		return -ENOMEM;
-
-	err = bdi_init(&noop_backing_dev_info);
-
-	return err;
+	return 0;
 }
 subsys_initcall(default_bdi_init);
 
@@ -390,7 +384,6 @@ static void cgwb_release_workfn(struct work_struct *work)
 {
 	struct bdi_writeback *wb = container_of(work, struct bdi_writeback,
 						release_work);
-	struct blkcg *blkcg = css_to_blkcg(wb->blkcg_css);
 	struct backing_dev_info *bdi = wb->bdi;
 
 	mutex_lock(&wb->bdi->cgwb_release_mutex);
@@ -401,7 +394,7 @@ static void cgwb_release_workfn(struct work_struct *work)
 	mutex_unlock(&wb->bdi->cgwb_release_mutex);
 
 	/* triggers blkg destruction if no online users left */
-	blkcg_unpin_online(blkcg);
+	blkcg_unpin_online(wb->blkcg_css);
 
 	fprop_local_destroy_percpu(&wb->memcg_completions);
 
@@ -446,7 +439,6 @@ static int cgwb_create(struct backing_dev_info *bdi,
 {
 	struct mem_cgroup *memcg;
 	struct cgroup_subsys_state *blkcg_css;
-	struct blkcg *blkcg;
 	struct list_head *memcg_cgwb_list, *blkcg_cgwb_list;
 	struct bdi_writeback *wb;
 	unsigned long flags;
@@ -454,9 +446,8 @@ static int cgwb_create(struct backing_dev_info *bdi,
 
 	memcg = mem_cgroup_from_css(memcg_css);
 	blkcg_css = cgroup_get_e_css(memcg_css->cgroup, &io_cgrp_subsys);
-	blkcg = css_to_blkcg(blkcg_css);
 	memcg_cgwb_list = &memcg->cgwb_list;
-	blkcg_cgwb_list = &blkcg->cgwb_list;
+	blkcg_cgwb_list = blkcg_get_cgwb_list(blkcg_css);
 
 	/* look up again under lock and discard on blkcg mismatch */
 	spin_lock_irqsave(&cgwb_lock, flags);
@@ -511,7 +502,7 @@ static int cgwb_create(struct backing_dev_info *bdi,
 			list_add_tail_rcu(&wb->bdi_node, &bdi->wb_list);
 			list_add(&wb->memcg_node, memcg_cgwb_list);
 			list_add(&wb->blkcg_node, blkcg_cgwb_list);
-			blkcg_pin_online(blkcg);
+			blkcg_pin_online(blkcg_css);
 			css_get(memcg_css);
 			css_get(blkcg_css);
 		}
@@ -724,18 +715,19 @@ void wb_memcg_offline(struct mem_cgroup *memcg)
 
 /**
  * wb_blkcg_offline - kill all wb's associated with a blkcg being offlined
- * @blkcg: blkcg being offlined
+ * @css: blkcg being offlined
  *
  * Also prevents creation of any new wb's associated with @blkcg.
  */
-void wb_blkcg_offline(struct blkcg *blkcg)
+void wb_blkcg_offline(struct cgroup_subsys_state *css)
 {
 	struct bdi_writeback *wb, *next;
+	struct list_head *list = blkcg_get_cgwb_list(css);
 
 	spin_lock_irq(&cgwb_lock);
-	list_for_each_entry_safe(wb, next, &blkcg->cgwb_list, blkcg_node)
+	list_for_each_entry_safe(wb, next, list, blkcg_node)
 		cgwb_kill(wb);
-	blkcg->cgwb_list.next = NULL;	/* prevent new wb's */
+	list->next = NULL;	/* prevent new wb's */
 	spin_unlock_irq(&cgwb_lock);
 }
 
@@ -782,7 +774,7 @@ static void cgwb_remove_from_bdi_list(struct bdi_writeback *wb)
 
 #endif	/* CONFIG_CGROUP_WRITEBACK */
 
-static int bdi_init(struct backing_dev_info *bdi)
+int bdi_init(struct backing_dev_info *bdi)
 {
 	int ret;
 
@@ -1005,60 +997,3 @@ const char *bdi_dev_name(struct backing_dev_info *bdi)
 	return bdi->dev_name;
 }
 EXPORT_SYMBOL_GPL(bdi_dev_name);
-
-static wait_queue_head_t congestion_wqh[2] = {
-		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),
-		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[1])
-	};
-static atomic_t nr_wb_congested[2];
-
-void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
-{
-	wait_queue_head_t *wqh = &congestion_wqh[sync];
-	enum wb_congested_state bit;
-
-	bit = sync ? WB_sync_congested : WB_async_congested;
-	if (test_and_clear_bit(bit, &bdi->wb.congested))
-		atomic_dec(&nr_wb_congested[sync]);
-	smp_mb__after_atomic();
-	if (waitqueue_active(wqh))
-		wake_up(wqh);
-}
-EXPORT_SYMBOL(clear_bdi_congested);
-
-void set_bdi_congested(struct backing_dev_info *bdi, int sync)
-{
-	enum wb_congested_state bit;
-
-	bit = sync ? WB_sync_congested : WB_async_congested;
-	if (!test_and_set_bit(bit, &bdi->wb.congested))
-		atomic_inc(&nr_wb_congested[sync]);
-}
-EXPORT_SYMBOL(set_bdi_congested);
-
-/**
- * congestion_wait - wait for a backing_dev to become uncongested
- * @sync: SYNC or ASYNC IO
- * @timeout: timeout in jiffies
- *
- * Waits for up to @timeout jiffies for a backing_dev (any backing_dev) to exit
- * write congestion.  If no backing_devs are congested then just wait for the
- * next write to be completed.
- */
-long congestion_wait(int sync, long timeout)
-{
-	long ret;
-	unsigned long start = jiffies;
-	DEFINE_WAIT(wait);
-	wait_queue_head_t *wqh = &congestion_wqh[sync];
-
-	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
-	ret = io_schedule_timeout(timeout);
-	finish_wait(wqh, &wait);
-
-	trace_writeback_congestion_wait(jiffies_to_usecs(timeout),
-					jiffies_to_usecs(jiffies - start));
-
-	return ret;
-}
-EXPORT_SYMBOL(congestion_wait);

@@ -26,7 +26,7 @@
 #ifndef __DAL_DPCD_DEFS_H__
 #define __DAL_DPCD_DEFS_H__
 
-#include <drm/drm_dp_helper.h>
+#include <drm/display/drm_dp_helper.h>
 #ifndef DP_SINK_HW_REVISION_START // can remove this once the define gets into linux drm_dp_helper.h
 #define DP_SINK_HW_REVISION_START 0x409
 #endif
@@ -144,14 +144,10 @@ enum dpcd_training_patterns {
 	DPCD_TRAINING_PATTERN_1,
 	DPCD_TRAINING_PATTERN_2,
 	DPCD_TRAINING_PATTERN_3,
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	DPCD_TRAINING_PATTERN_4 = 7,
 	DPCD_128b_132b_TPS1 = 1,
 	DPCD_128b_132b_TPS2 = 2,
 	DPCD_128b_132b_TPS2_CDS = 3,
-#else
-	DPCD_TRAINING_PATTERN_4 = 7
-#endif
 };
 
 /* This enum is for use with PsrSinkPsrStatus.bits.sinkSelfRefreshStatus

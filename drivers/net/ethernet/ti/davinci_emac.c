@@ -113,7 +113,6 @@ static const char emac_version_string[] = "TI DaVinci EMAC Linux v6.1";
 #define EMAC_DEF_RX_NUM_DESC		(128)
 #define EMAC_DEF_MAX_TX_CH		(1) /* Max TX channels configured */
 #define EMAC_DEF_MAX_RX_CH		(1) /* Max RX channels configured */
-#define EMAC_POLL_WEIGHT		(64) /* Default NAPI poll weight */
 
 /* Buffer descriptor parameters */
 #define EMAC_DEF_TX_MAX_SERVICE		(32) /* TX max service BD's */
@@ -1422,9 +1421,8 @@ static int emac_dev_open(struct net_device *ndev)
 	struct phy_device *phydev = NULL;
 	struct device *phy = NULL;
 
-	ret = pm_runtime_get_sync(&priv->pdev->dev);
+	ret = pm_runtime_resume_and_get(&priv->pdev->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(&priv->pdev->dev);
 		dev_err(&priv->pdev->dev, "%s: failed to get_sync(%d)\n",
 			__func__, ret);
 		return ret;
@@ -1604,6 +1602,7 @@ static int emac_dev_stop(struct net_device *ndev)
 	int irq_num;
 	struct emac_priv *priv = netdev_priv(ndev);
 	struct device *emac_dev = &ndev->dev;
+	int ret = 0;
 
 	/* inform the upper layers. */
 	netif_stop_queue(ndev);
@@ -1618,17 +1617,31 @@ static int emac_dev_stop(struct net_device *ndev)
 		phy_disconnect(ndev->phydev);
 
 	/* Free IRQ */
-	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, i))) {
-		for (irq_num = res->start; irq_num <= res->end; irq_num++)
-			free_irq(irq_num, priv->ndev);
-		i++;
+	if (dev_of_node(&priv->pdev->dev)) {
+		do {
+			ret = platform_get_irq_optional(priv->pdev, i);
+			if (ret < 0 && ret != -ENXIO)
+				break;
+			if (ret > 0) {
+				free_irq(ret, priv->ndev);
+			} else {
+				ret = 0;
+				break;
+			}
+		} while (++i);
+	} else {
+		while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, i))) {
+			for (irq_num = res->start; irq_num <= res->end; irq_num++)
+				free_irq(irq_num, priv->ndev);
+			i++;
+		}
 	}
 
 	if (netif_msg_drv(priv))
 		dev_notice(emac_dev, "DaVinci EMAC: %s stopped\n", ndev->name);
 
 	pm_runtime_put(&priv->pdev->dev);
-	return 0;
+	return ret;
 }
 
 /**
@@ -1646,9 +1659,8 @@ static struct net_device_stats *emac_dev_getnetstats(struct net_device *ndev)
 	u32 stats_clear_mask;
 	int err;
 
-	err = pm_runtime_get_sync(&priv->pdev->dev);
+	err = pm_runtime_resume_and_get(&priv->pdev->dev);
 	if (err < 0) {
-		pm_runtime_put_noidle(&priv->pdev->dev);
 		dev_err(&priv->pdev->dev, "%s: failed to get_sync(%d)\n",
 			__func__, err);
 		return &ndev->stats;
@@ -1936,12 +1948,11 @@ static int davinci_emac_probe(struct platform_device *pdev)
 
 	ndev->netdev_ops = &emac_netdev_ops;
 	ndev->ethtool_ops = &ethtool_ops;
-	netif_napi_add(ndev, &priv->napi, emac_poll, EMAC_POLL_WEIGHT);
+	netif_napi_add(ndev, &priv->napi, emac_poll, NAPI_POLL_WEIGHT);
 
 	pm_runtime_enable(&pdev->dev);
-	rc = pm_runtime_get_sync(&pdev->dev);
+	rc = pm_runtime_resume_and_get(&pdev->dev);
 	if (rc < 0) {
-		pm_runtime_put_noidle(&pdev->dev);
 		dev_err(&pdev->dev, "%s: failed to get_sync(%d)\n",
 			__func__, rc);
 		goto err_napi_del;

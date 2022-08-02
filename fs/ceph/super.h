@@ -17,12 +17,10 @@
 #include <linux/posix_acl.h>
 #include <linux/refcount.h>
 #include <linux/security.h>
+#include <linux/netfs.h>
+#include <linux/fscache.h>
 
 #include <linux/ceph/libceph.h>
-
-#ifdef CONFIG_CEPH_FSCACHE
-#include <linux/fscache.h>
-#endif
 
 /* large granularity for statfs utilization stats to facilitate
  * large volume sizes on 32-bit machines. */
@@ -121,6 +119,7 @@ struct ceph_fs_client {
 	struct ceph_mds_client *mdsc;
 
 	atomic_long_t writeback_count;
+	bool write_congested;
 
 	struct workqueue_struct *inode_wq;
 	struct workqueue_struct *cap_wq;
@@ -230,7 +229,7 @@ static inline void ceph_put_cap_snap(struct ceph_cap_snap *capsnap)
 	if (refcount_dec_and_test(&capsnap->nref)) {
 		if (capsnap->xattr_blob)
 			ceph_buffer_put(capsnap->xattr_blob);
-		kfree(capsnap);
+		kmem_cache_free(ceph_cap_snap_cachep, capsnap);
 	}
 }
 
@@ -317,6 +316,7 @@ struct ceph_inode_xattrs_info {
  * Ceph inode.
  */
 struct ceph_inode_info {
+	struct netfs_inode netfs; /* Netfslib context and vfs inode */
 	struct ceph_vino i_vino;   /* ceph ino + snap */
 
 	spinlock_t i_ceph_lock;
@@ -427,17 +427,12 @@ struct ceph_inode_info {
 
 	struct work_struct i_work;
 	unsigned long  i_work_mask;
-
-#ifdef CONFIG_CEPH_FSCACHE
-	struct fscache_cookie *fscache;
-#endif
-	struct inode vfs_inode; /* at end */
 };
 
 static inline struct ceph_inode_info *
 ceph_inode(const struct inode *inode)
 {
-	return container_of(inode, struct ceph_inode_info, vfs_inode);
+	return container_of(inode, struct ceph_inode_info, netfs.inode);
 }
 
 static inline struct ceph_fs_client *
@@ -883,6 +878,8 @@ struct ceph_snap_realm {
 
 	struct list_head dirty_item;     /* if realm needs new context */
 
+	struct list_head rebuild_item;   /* rebuild snap realms _downward_ in hierarchy */
+
 	/* the current set of snaps for this realm */
 	struct ceph_snap_context *cached_context;
 
@@ -938,7 +935,7 @@ extern void ceph_handle_snap(struct ceph_mds_client *mdsc,
 			     struct ceph_msg *msg);
 extern int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 				  struct ceph_cap_snap *capsnap);
-extern void ceph_cleanup_empty_realms(struct ceph_mds_client *mdsc);
+extern void ceph_cleanup_global_and_empty_realms(struct ceph_mds_client *mdsc);
 
 extern struct ceph_snapid_map *ceph_get_snapid_map(struct ceph_mds_client *mdsc,
 						   u64 snap);
@@ -1021,6 +1018,7 @@ static inline void ceph_queue_flush_snaps(struct inode *inode)
 	ceph_queue_inode_work(inode, CEPH_I_WORK_FLUSH_SNAPS);
 }
 
+extern int ceph_try_to_choose_auth_mds(struct inode *inode, int mask);
 extern int __ceph_do_getattr(struct inode *inode, struct page *locked_page,
 			     int mask, bool force);
 static inline int ceph_do_getattr(struct inode *inode, int mask, bool force)
@@ -1048,6 +1046,7 @@ static inline bool ceph_inode_is_shutdown(struct inode *inode)
 
 /* xattr.c */
 int __ceph_setxattr(struct inode *, const char *, const void *, size_t, int);
+int ceph_do_getvxattr(struct inode *inode, const char *name, void *value, size_t size);
 ssize_t __ceph_getxattr(struct inode *, const char *, void *, size_t);
 extern ssize_t ceph_listxattr(struct dentry *, char *, size_t);
 extern struct ceph_buffer *__ceph_build_xattrs_blob(struct ceph_inode_info *ci);
@@ -1212,8 +1211,9 @@ extern void __ceph_touch_fmode(struct ceph_inode_info *ci,
 
 /* addr.c */
 extern const struct address_space_operations ceph_aops;
+extern const struct netfs_request_ops ceph_netfs_ops;
 extern int ceph_mmap(struct file *file, struct vm_area_struct *vma);
-extern int ceph_uninline_data(struct file *filp, struct page *locked_page);
+extern int ceph_uninline_data(struct file *file);
 extern int ceph_pool_perm_check(struct inode *inode, int need);
 extern void ceph_pool_perm_destroy(struct ceph_mds_client* mdsc);
 int ceph_purge_inode_cap(struct inode *inode, struct ceph_cap *cap, bool *invalidate);
@@ -1275,9 +1275,29 @@ extern void ceph_fs_debugfs_init(struct ceph_fs_client *client);
 extern void ceph_fs_debugfs_cleanup(struct ceph_fs_client *client);
 
 /* quota.c */
-static inline bool __ceph_has_any_quota(struct ceph_inode_info *ci)
+
+enum quota_get_realm {
+	QUOTA_GET_MAX_FILES,
+	QUOTA_GET_MAX_BYTES,
+	QUOTA_GET_ANY
+};
+
+static inline bool __ceph_has_quota(struct ceph_inode_info *ci,
+				    enum quota_get_realm which)
 {
-	return ci->i_max_files || ci->i_max_bytes;
+	bool has_quota = false;
+
+	switch (which) {
+	case QUOTA_GET_MAX_BYTES:
+		has_quota = !!ci->i_max_bytes;
+		break;
+	case QUOTA_GET_MAX_FILES:
+		has_quota = !!ci->i_max_files;
+		break;
+	default:
+		has_quota = !!(ci->i_max_files || ci->i_max_bytes);
+	}
+	return has_quota;
 }
 
 extern void ceph_adjust_quota_realms_count(struct inode *inode, bool inc);
@@ -1286,13 +1306,13 @@ static inline void __ceph_update_quota(struct ceph_inode_info *ci,
 				       u64 max_bytes, u64 max_files)
 {
 	bool had_quota, has_quota;
-	had_quota = __ceph_has_any_quota(ci);
+	had_quota = __ceph_has_quota(ci, QUOTA_GET_ANY);
 	ci->i_max_bytes = max_bytes;
 	ci->i_max_files = max_files;
-	has_quota = __ceph_has_any_quota(ci);
+	has_quota = __ceph_has_quota(ci, QUOTA_GET_ANY);
 
 	if (had_quota != has_quota)
-		ceph_adjust_quota_realms_count(&ci->vfs_inode, has_quota);
+		ceph_adjust_quota_realms_count(&ci->netfs.inode, has_quota);
 }
 
 extern void ceph_handle_quota(struct ceph_mds_client *mdsc,

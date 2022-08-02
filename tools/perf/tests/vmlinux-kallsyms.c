@@ -114,12 +114,12 @@ static bool is_ignored_symbol(const char *name, char type)
 static int test__vmlinux_matches_kallsyms(struct test_suite *test __maybe_unused,
 					int subtest __maybe_unused)
 {
-	int err = -1;
+	int err = TEST_FAIL;
 	struct rb_node *nd;
 	struct symbol *sym;
 	struct map *kallsyms_map, *vmlinux_map, *map;
 	struct machine kallsyms, vmlinux;
-	struct maps *maps = machine__kernel_maps(&vmlinux);
+	struct maps *maps;
 	u64 mem_start, mem_end;
 	bool header_printed;
 
@@ -132,6 +132,8 @@ static int test__vmlinux_matches_kallsyms(struct test_suite *test __maybe_unused
 	machine__init(&kallsyms, "", HOST_KERNEL_ID);
 	machine__init(&vmlinux, "", HOST_KERNEL_ID);
 
+	maps = machine__kernel_maps(&vmlinux);
+
 	/*
 	 * Step 2:
 	 *
@@ -140,7 +142,8 @@ static int test__vmlinux_matches_kallsyms(struct test_suite *test __maybe_unused
 	 * and find the .ko files that match them in /lib/modules/`uname -r`/.
 	 */
 	if (machine__create_kernel_maps(&kallsyms) < 0) {
-		pr_debug("machine__create_kernel_maps ");
+		pr_debug("machine__create_kernel_maps failed");
+		err = TEST_SKIP;
 		goto out;
 	}
 
@@ -156,7 +159,8 @@ static int test__vmlinux_matches_kallsyms(struct test_suite *test __maybe_unused
 	 * code and with the one got from /proc/modules from the "kallsyms" code.
 	 */
 	if (machine__load_kallsyms(&kallsyms, "/proc/kallsyms") <= 0) {
-		pr_debug("dso__load_kallsyms ");
+		pr_debug("machine__load_kallsyms failed");
+		err = TEST_SKIP;
 		goto out;
 	}
 
@@ -176,7 +180,7 @@ static int test__vmlinux_matches_kallsyms(struct test_suite *test __maybe_unused
 	 * Now repeat step 2, this time for the vmlinux file we'll auto-locate.
 	 */
 	if (machine__create_kernel_maps(&vmlinux) < 0) {
-		pr_debug("machine__create_kernel_maps ");
+		pr_info("machine__create_kernel_maps failed");
 		goto out;
 	}
 
@@ -194,7 +198,7 @@ static int test__vmlinux_matches_kallsyms(struct test_suite *test __maybe_unused
 	 * to fixup the symbols.
 	 */
 	if (machine__load_vmlinux_path(&vmlinux) <= 0) {
-		pr_debug("Couldn't find a vmlinux that matches the kernel running on this machine, skipping test\n");
+		pr_info("Couldn't find a vmlinux that matches the kernel running on this machine, skipping test\n");
 		err = TEST_SKIP;
 		goto out;
 	}
@@ -293,7 +297,7 @@ next_pair:
 		 * so use the short name, less descriptive but the same ("[kernel]" in
 		 * both cases.
 		 */
-		pair = maps__find_by_name(&kallsyms.kmaps, (map->dso->kernel ?
+		pair = maps__find_by_name(kallsyms.kmaps, (map->dso->kernel ?
 								map->dso->short_name :
 								map->dso->name));
 		if (pair) {
@@ -315,7 +319,7 @@ next_pair:
 		mem_start = vmlinux_map->unmap_ip(vmlinux_map, map->start);
 		mem_end = vmlinux_map->unmap_ip(vmlinux_map, map->end);
 
-		pair = maps__find(&kallsyms.kmaps, mem_start);
+		pair = maps__find(kallsyms.kmaps, mem_start);
 		if (pair == NULL || pair->priv)
 			continue;
 

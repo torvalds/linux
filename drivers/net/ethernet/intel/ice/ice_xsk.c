@@ -41,8 +41,10 @@ static void ice_qp_reset_stats(struct ice_vsi *vsi, u16 q_idx)
 static void ice_qp_clean_rings(struct ice_vsi *vsi, u16 q_idx)
 {
 	ice_clean_tx_ring(vsi->tx_rings[q_idx]);
-	if (ice_is_xdp_ena_vsi(vsi))
+	if (ice_is_xdp_ena_vsi(vsi)) {
+		synchronize_rcu();
 		ice_clean_tx_ring(vsi->xdp_rings[q_idx]);
+	}
 	ice_clean_rx_ring(vsi->rx_rings[q_idx]);
 }
 
@@ -327,6 +329,13 @@ int ice_xsk_pool_setup(struct ice_vsi *vsi, struct xsk_buff_pool *pool, u16 qid)
 	bool if_running, pool_present = !!pool;
 	int ret = 0, pool_failure = 0;
 
+	if (!is_power_of_2(vsi->rx_rings[qid]->count) ||
+	    !is_power_of_2(vsi->tx_rings[qid]->count)) {
+		netdev_err(vsi->netdev, "Please align ring sizes to power of 2\n");
+		pool_failure = -EINVAL;
+		goto failure;
+	}
+
 	if_running = netif_running(vsi->netdev) && ice_is_xdp_ena_vsi(vsi);
 
 	if (if_running) {
@@ -349,6 +358,7 @@ xsk_pool_if_up:
 			netdev_err(vsi->netdev, "ice_qp_ena error = %d\n", ret);
 	}
 
+failure:
 	if (pool_failure) {
 		netdev_err(vsi->netdev, "Could not %sable buffer pool, error = %d\n",
 			   pool_present ? "en" : "dis", pool_failure);
@@ -359,33 +369,28 @@ xsk_pool_if_up:
 }
 
 /**
- * ice_alloc_rx_bufs_zc - allocate a number of Rx buffers
- * @rx_ring: Rx ring
+ * ice_fill_rx_descs - pick buffers from XSK buffer pool and use it
+ * @pool: XSK Buffer pool to pull the buffers from
+ * @xdp: SW ring of xdp_buff that will hold the buffers
+ * @rx_desc: Pointer to Rx descriptors that will be filled
  * @count: The number of buffers to allocate
  *
  * This function allocates a number of Rx buffers from the fill ring
  * or the internal recycle mechanism and places them on the Rx ring.
  *
- * Returns true if all allocations were successful, false if any fail.
+ * Note that ring wrap should be handled by caller of this function.
+ *
+ * Returns the amount of allocated Rx descriptors
  */
-bool ice_alloc_rx_bufs_zc(struct ice_rx_ring *rx_ring, u16 count)
+static u16 ice_fill_rx_descs(struct xsk_buff_pool *pool, struct xdp_buff **xdp,
+			     union ice_32b_rx_flex_desc *rx_desc, u16 count)
 {
-	union ice_32b_rx_flex_desc *rx_desc;
-	u16 ntu = rx_ring->next_to_use;
-	struct xdp_buff **xdp;
-	u32 nb_buffs, i;
 	dma_addr_t dma;
+	u16 buffs;
+	int i;
 
-	rx_desc = ICE_RX_DESC(rx_ring, ntu);
-	xdp = ice_xdp_buf(rx_ring, ntu);
-
-	nb_buffs = min_t(u16, count, rx_ring->count - ntu);
-	nb_buffs = xsk_buff_alloc_batch(rx_ring->xsk_pool, xdp, nb_buffs);
-	if (!nb_buffs)
-		return false;
-
-	i = nb_buffs;
-	while (i--) {
+	buffs = xsk_buff_alloc_batch(pool, xdp, count);
+	for (i = 0; i < buffs; i++) {
 		dma = xsk_buff_xdp_get_dma(*xdp);
 		rx_desc->read.pkt_addr = cpu_to_le64(dma);
 		rx_desc->wb.status_error0 = 0;
@@ -394,13 +399,82 @@ bool ice_alloc_rx_bufs_zc(struct ice_rx_ring *rx_ring, u16 count)
 		xdp++;
 	}
 
+	return buffs;
+}
+
+/**
+ * __ice_alloc_rx_bufs_zc - allocate a number of Rx buffers
+ * @rx_ring: Rx ring
+ * @count: The number of buffers to allocate
+ *
+ * Place the @count of descriptors onto Rx ring. Handle the ring wrap
+ * for case where space from next_to_use up to the end of ring is less
+ * than @count. Finally do a tail bump.
+ *
+ * Returns true if all allocations were successful, false if any fail.
+ */
+static bool __ice_alloc_rx_bufs_zc(struct ice_rx_ring *rx_ring, u16 count)
+{
+	u32 nb_buffs_extra = 0, nb_buffs = 0;
+	union ice_32b_rx_flex_desc *rx_desc;
+	u16 ntu = rx_ring->next_to_use;
+	u16 total_count = count;
+	struct xdp_buff **xdp;
+
+	rx_desc = ICE_RX_DESC(rx_ring, ntu);
+	xdp = ice_xdp_buf(rx_ring, ntu);
+
+	if (ntu + count >= rx_ring->count) {
+		nb_buffs_extra = ice_fill_rx_descs(rx_ring->xsk_pool, xdp,
+						   rx_desc,
+						   rx_ring->count - ntu);
+		if (nb_buffs_extra != rx_ring->count - ntu) {
+			ntu += nb_buffs_extra;
+			goto exit;
+		}
+		rx_desc = ICE_RX_DESC(rx_ring, 0);
+		xdp = ice_xdp_buf(rx_ring, 0);
+		ntu = 0;
+		count -= nb_buffs_extra;
+		ice_release_rx_desc(rx_ring, 0);
+	}
+
+	nb_buffs = ice_fill_rx_descs(rx_ring->xsk_pool, xdp, rx_desc, count);
+
 	ntu += nb_buffs;
 	if (ntu == rx_ring->count)
 		ntu = 0;
 
-	ice_release_rx_desc(rx_ring, ntu);
+exit:
+	if (rx_ring->next_to_use != ntu)
+		ice_release_rx_desc(rx_ring, ntu);
 
-	return count == nb_buffs;
+	return total_count == (nb_buffs_extra + nb_buffs);
+}
+
+/**
+ * ice_alloc_rx_bufs_zc - allocate a number of Rx buffers
+ * @rx_ring: Rx ring
+ * @count: The number of buffers to allocate
+ *
+ * Wrapper for internal allocation routine; figure out how many tail
+ * bumps should take place based on the given threshold
+ *
+ * Returns true if all calls to internal alloc routine succeeded
+ */
+bool ice_alloc_rx_bufs_zc(struct ice_rx_ring *rx_ring, u16 count)
+{
+	u16 rx_thresh = ICE_RING_QUARTER(rx_ring);
+	u16 batched, leftover, i, tail_bumps;
+
+	batched = ALIGN_DOWN(count, rx_thresh);
+	tail_bumps = batched / rx_thresh;
+	leftover = count & (rx_thresh - 1);
+
+	for (i = 0; i < tail_bumps; i++)
+		if (!__ice_alloc_rx_bufs_zc(rx_ring, rx_thresh))
+			return false;
+	return __ice_alloc_rx_bufs_zc(rx_ring, leftover);
 }
 
 /**
@@ -428,20 +502,24 @@ static void ice_bump_ntc(struct ice_rx_ring *rx_ring)
 static struct sk_buff *
 ice_construct_skb_zc(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp)
 {
-	unsigned int datasize_hard = xdp->data_end - xdp->data_hard_start;
+	unsigned int totalsize = xdp->data_end - xdp->data_meta;
 	unsigned int metasize = xdp->data - xdp->data_meta;
-	unsigned int datasize = xdp->data_end - xdp->data;
 	struct sk_buff *skb;
 
-	skb = __napi_alloc_skb(&rx_ring->q_vector->napi, datasize_hard,
+	net_prefetch(xdp->data_meta);
+
+	skb = __napi_alloc_skb(&rx_ring->q_vector->napi, totalsize,
 			       GFP_ATOMIC | __GFP_NOWARN);
 	if (unlikely(!skb))
 		return NULL;
 
-	skb_reserve(skb, xdp->data - xdp->data_hard_start);
-	memcpy(__skb_put(skb, datasize), xdp->data, datasize);
-	if (metasize)
+	memcpy(__skb_put(skb, totalsize), xdp->data_meta,
+	       ALIGN(totalsize, sizeof(long)));
+
+	if (metasize) {
 		skb_metadata_set(skb, metasize);
+		__skb_pull(skb, metasize);
+	}
 
 	xsk_buff_free(xdp);
 	return skb;
@@ -467,9 +545,13 @@ ice_run_xdp_zc(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp,
 
 	if (likely(act == XDP_REDIRECT)) {
 		err = xdp_do_redirect(rx_ring->netdev, xdp, xdp_prog);
-		if (err)
-			goto out_failure;
-		return ICE_XDP_REDIR;
+		if (!err)
+			return ICE_XDP_REDIR;
+		if (xsk_uses_need_wakeup(rx_ring->xsk_pool) && err == -ENOBUFS)
+			result = ICE_XDP_EXIT;
+		else
+			result = ICE_XDP_CONSUMED;
+		goto out_failure;
 	}
 
 	switch (act) {
@@ -480,15 +562,16 @@ ice_run_xdp_zc(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp,
 		if (result == ICE_XDP_CONSUMED)
 			goto out_failure;
 		break;
+	case XDP_DROP:
+		result = ICE_XDP_CONSUMED;
+		break;
 	default:
 		bpf_warn_invalid_xdp_action(rx_ring->netdev, xdp_prog, act);
 		fallthrough;
 	case XDP_ABORTED:
+		result = ICE_XDP_CONSUMED;
 out_failure:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
-		fallthrough;
-	case XDP_DROP:
-		result = ICE_XDP_CONSUMED;
 		break;
 	}
 
@@ -509,6 +592,7 @@ int ice_clean_rx_irq_zc(struct ice_rx_ring *rx_ring, int budget)
 	unsigned int xdp_xmit = 0;
 	struct bpf_prog *xdp_prog;
 	bool failure = false;
+	int entries_to_alloc;
 
 	/* ZC patch is enabled only when XDP program is set,
 	 * so here it can not be NULL
@@ -528,7 +612,7 @@ int ice_clean_rx_irq_zc(struct ice_rx_ring *rx_ring, int budget)
 		rx_desc = ICE_RX_DESC(rx_ring, rx_ring->next_to_clean);
 
 		stat_err_bits = BIT(ICE_RX_FLEX_DESC_STATUS0_DD_S);
-		if (!ice_test_staterr(rx_desc, stat_err_bits))
+		if (!ice_test_staterr(rx_desc->wb.status_error0, stat_err_bits))
 			break;
 
 		/* This memory barrier is needed to keep us from reading
@@ -536,6 +620,9 @@ int ice_clean_rx_irq_zc(struct ice_rx_ring *rx_ring, int budget)
 		 * verified the descriptor has been written back.
 		 */
 		dma_rmb();
+
+		if (unlikely(rx_ring->next_to_clean == rx_ring->next_to_use))
+			break;
 
 		xdp = *ice_xdp_buf(rx_ring, rx_ring->next_to_clean);
 
@@ -553,18 +640,23 @@ int ice_clean_rx_irq_zc(struct ice_rx_ring *rx_ring, int budget)
 		xsk_buff_dma_sync_for_cpu(xdp, rx_ring->xsk_pool);
 
 		xdp_res = ice_run_xdp_zc(rx_ring, xdp, xdp_prog, xdp_ring);
-		if (xdp_res) {
-			if (xdp_res & (ICE_XDP_TX | ICE_XDP_REDIR))
-				xdp_xmit |= xdp_res;
-			else
-				xsk_buff_free(xdp);
-
-			total_rx_bytes += size;
-			total_rx_packets++;
-
-			ice_bump_ntc(rx_ring);
-			continue;
+		if (likely(xdp_res & (ICE_XDP_TX | ICE_XDP_REDIR))) {
+			xdp_xmit |= xdp_res;
+		} else if (xdp_res == ICE_XDP_EXIT) {
+			failure = true;
+			break;
+		} else if (xdp_res == ICE_XDP_CONSUMED) {
+			xsk_buff_free(xdp);
+		} else if (xdp_res == ICE_XDP_PASS) {
+			goto construct_skb;
 		}
+
+		total_rx_bytes += size;
+		total_rx_packets++;
+
+		ice_bump_ntc(rx_ring);
+		continue;
+
 construct_skb:
 		/* XDP_PASS path */
 		skb = ice_construct_skb_zc(rx_ring, xdp);
@@ -583,9 +675,7 @@ construct_skb:
 		total_rx_bytes += skb->len;
 		total_rx_packets++;
 
-		stat_err_bits = BIT(ICE_RX_FLEX_DESC_STATUS0_L2TAG1P_S);
-		if (ice_test_staterr(rx_desc, stat_err_bits))
-			vlan_tag = le16_to_cpu(rx_desc->wb.l2tag1);
+		vlan_tag = ice_get_vlan_tag_from_rx_desc(rx_desc);
 
 		rx_ptype = le16_to_cpu(rx_desc->wb.ptype_flex_flags0) &
 				       ICE_RX_FLEX_DESC_PTYPE_M;
@@ -594,7 +684,9 @@ construct_skb:
 		ice_receive_skb(rx_ring, skb, vlan_tag);
 	}
 
-	failure = !ice_alloc_rx_bufs_zc(rx_ring, ICE_DESC_UNUSED(rx_ring));
+	entries_to_alloc = ICE_DESC_UNUSED(rx_ring);
+	if (entries_to_alloc > ICE_RING_QUARTER(rx_ring))
+		failure |= !ice_alloc_rx_bufs_zc(rx_ring, entries_to_alloc);
 
 	ice_finalize_xdp_rx(xdp_ring, xdp_xmit);
 	ice_update_rx_ring_stats(rx_ring, total_rx_packets, total_rx_bytes);
@@ -612,58 +704,6 @@ construct_skb:
 }
 
 /**
- * ice_xmit_zc - Completes AF_XDP entries, and cleans XDP entries
- * @xdp_ring: XDP Tx ring
- * @budget: max number of frames to xmit
- *
- * Returns true if cleanup/transmission is done.
- */
-static bool ice_xmit_zc(struct ice_tx_ring *xdp_ring, int budget)
-{
-	struct ice_tx_desc *tx_desc = NULL;
-	bool work_done = true;
-	struct xdp_desc desc;
-	dma_addr_t dma;
-
-	while (likely(budget-- > 0)) {
-		struct ice_tx_buf *tx_buf;
-
-		if (unlikely(!ICE_DESC_UNUSED(xdp_ring))) {
-			xdp_ring->tx_stats.tx_busy++;
-			work_done = false;
-			break;
-		}
-
-		tx_buf = &xdp_ring->tx_buf[xdp_ring->next_to_use];
-
-		if (!xsk_tx_peek_desc(xdp_ring->xsk_pool, &desc))
-			break;
-
-		dma = xsk_buff_raw_get_dma(xdp_ring->xsk_pool, desc.addr);
-		xsk_buff_raw_dma_sync_for_device(xdp_ring->xsk_pool, dma,
-						 desc.len);
-
-		tx_buf->bytecount = desc.len;
-
-		tx_desc = ICE_TX_DESC(xdp_ring, xdp_ring->next_to_use);
-		tx_desc->buf_addr = cpu_to_le64(dma);
-		tx_desc->cmd_type_offset_bsz =
-			ice_build_ctob(ICE_TXD_LAST_DESC_CMD, 0, desc.len, 0);
-
-		xdp_ring->next_to_use++;
-		if (xdp_ring->next_to_use == xdp_ring->count)
-			xdp_ring->next_to_use = 0;
-	}
-
-	if (tx_desc) {
-		ice_xdp_ring_update_tail(xdp_ring);
-		xsk_tx_release(xdp_ring->xsk_pool);
-	}
-
-	return budget > 0 && work_done;
-}
-
-/**
  * ice_clean_xdp_tx_buf - Free and unmap XDP Tx buffer
  * @xdp_ring: XDP Tx ring
  * @tx_buf: Tx buffer to clean
@@ -672,74 +712,213 @@ static void
 ice_clean_xdp_tx_buf(struct ice_tx_ring *xdp_ring, struct ice_tx_buf *tx_buf)
 {
 	xdp_return_frame((struct xdp_frame *)tx_buf->raw_buf);
+	xdp_ring->xdp_tx_active--;
 	dma_unmap_single(xdp_ring->dev, dma_unmap_addr(tx_buf, dma),
 			 dma_unmap_len(tx_buf, len), DMA_TO_DEVICE);
 	dma_unmap_len_set(tx_buf, len, 0);
 }
 
 /**
- * ice_clean_tx_irq_zc - Completes AF_XDP entries, and cleans XDP entries
- * @xdp_ring: XDP Tx ring
- * @budget: NAPI budget
+ * ice_clean_xdp_irq_zc - Reclaim resources after transmit completes on XDP ring
+ * @xdp_ring: XDP ring to clean
+ * @napi_budget: amount of descriptors that NAPI allows us to clean
  *
- * Returns true if cleanup/tranmission is done.
+ * Returns count of cleaned descriptors
  */
-bool ice_clean_tx_irq_zc(struct ice_tx_ring *xdp_ring, int budget)
+static u16 ice_clean_xdp_irq_zc(struct ice_tx_ring *xdp_ring, int napi_budget)
 {
-	int total_packets = 0, total_bytes = 0;
-	s16 ntc = xdp_ring->next_to_clean;
-	struct ice_tx_desc *tx_desc;
-	struct ice_tx_buf *tx_buf;
-	u32 xsk_frames = 0;
-	bool xmit_done;
-
-	tx_desc = ICE_TX_DESC(xdp_ring, ntc);
-	tx_buf = &xdp_ring->tx_buf[ntc];
-	ntc -= xdp_ring->count;
+	u16 tx_thresh = ICE_RING_QUARTER(xdp_ring);
+	int budget = napi_budget / tx_thresh;
+	u16 next_dd = xdp_ring->next_dd;
+	u16 ntc, cleared_dds = 0;
 
 	do {
-		if (!(tx_desc->cmd_type_offset_bsz &
-		      cpu_to_le64(ICE_TX_DESC_DTYPE_DESC_DONE)))
+		struct ice_tx_desc *next_dd_desc;
+		u16 desc_cnt = xdp_ring->count;
+		struct ice_tx_buf *tx_buf;
+		u32 xsk_frames;
+		u16 i;
+
+		next_dd_desc = ICE_TX_DESC(xdp_ring, next_dd);
+		if (!(next_dd_desc->cmd_type_offset_bsz &
+		    cpu_to_le64(ICE_TX_DESC_DTYPE_DESC_DONE)))
 			break;
 
-		total_bytes += tx_buf->bytecount;
-		total_packets++;
-
-		if (tx_buf->raw_buf) {
-			ice_clean_xdp_tx_buf(xdp_ring, tx_buf);
-			tx_buf->raw_buf = NULL;
-		} else {
-			xsk_frames++;
+		cleared_dds++;
+		xsk_frames = 0;
+		if (likely(!xdp_ring->xdp_tx_active)) {
+			xsk_frames = tx_thresh;
+			goto skip;
 		}
 
-		tx_desc->cmd_type_offset_bsz = 0;
-		tx_buf++;
-		tx_desc++;
-		ntc++;
+		ntc = xdp_ring->next_to_clean;
 
-		if (unlikely(!ntc)) {
-			ntc -= xdp_ring->count;
-			tx_buf = xdp_ring->tx_buf;
-			tx_desc = ICE_TX_DESC(xdp_ring, 0);
+		for (i = 0; i < tx_thresh; i++) {
+			tx_buf = &xdp_ring->tx_buf[ntc];
+
+			if (tx_buf->raw_buf) {
+				ice_clean_xdp_tx_buf(xdp_ring, tx_buf);
+				tx_buf->raw_buf = NULL;
+			} else {
+				xsk_frames++;
+			}
+
+			ntc++;
+			if (ntc >= xdp_ring->count)
+				ntc = 0;
 		}
+skip:
+		xdp_ring->next_to_clean += tx_thresh;
+		if (xdp_ring->next_to_clean >= desc_cnt)
+			xdp_ring->next_to_clean -= desc_cnt;
+		if (xsk_frames)
+			xsk_tx_completed(xdp_ring->xsk_pool, xsk_frames);
+		next_dd_desc->cmd_type_offset_bsz = 0;
+		next_dd = next_dd + tx_thresh;
+		if (next_dd >= desc_cnt)
+			next_dd = tx_thresh - 1;
+	} while (--budget);
 
-		prefetch(tx_desc);
+	xdp_ring->next_dd = next_dd;
 
-	} while (likely(--budget));
+	return cleared_dds * tx_thresh;
+}
 
-	ntc += xdp_ring->count;
-	xdp_ring->next_to_clean = ntc;
+/**
+ * ice_xmit_pkt - produce a single HW Tx descriptor out of AF_XDP descriptor
+ * @xdp_ring: XDP ring to produce the HW Tx descriptor on
+ * @desc: AF_XDP descriptor to pull the DMA address and length from
+ * @total_bytes: bytes accumulator that will be used for stats update
+ */
+static void ice_xmit_pkt(struct ice_tx_ring *xdp_ring, struct xdp_desc *desc,
+			 unsigned int *total_bytes)
+{
+	struct ice_tx_desc *tx_desc;
+	dma_addr_t dma;
 
-	if (xsk_frames)
-		xsk_tx_completed(xdp_ring->xsk_pool, xsk_frames);
+	dma = xsk_buff_raw_get_dma(xdp_ring->xsk_pool, desc->addr);
+	xsk_buff_raw_dma_sync_for_device(xdp_ring->xsk_pool, dma, desc->len);
+
+	tx_desc = ICE_TX_DESC(xdp_ring, xdp_ring->next_to_use++);
+	tx_desc->buf_addr = cpu_to_le64(dma);
+	tx_desc->cmd_type_offset_bsz = ice_build_ctob(ICE_TX_DESC_CMD_EOP,
+						      0, desc->len, 0);
+
+	*total_bytes += desc->len;
+}
+
+/**
+ * ice_xmit_pkt_batch - produce a batch of HW Tx descriptors out of AF_XDP descriptors
+ * @xdp_ring: XDP ring to produce the HW Tx descriptors on
+ * @descs: AF_XDP descriptors to pull the DMA addresses and lengths from
+ * @total_bytes: bytes accumulator that will be used for stats update
+ */
+static void ice_xmit_pkt_batch(struct ice_tx_ring *xdp_ring, struct xdp_desc *descs,
+			       unsigned int *total_bytes)
+{
+	u16 tx_thresh = ICE_RING_QUARTER(xdp_ring);
+	u16 ntu = xdp_ring->next_to_use;
+	struct ice_tx_desc *tx_desc;
+	u32 i;
+
+	loop_unrolled_for(i = 0; i < PKTS_PER_BATCH; i++) {
+		dma_addr_t dma;
+
+		dma = xsk_buff_raw_get_dma(xdp_ring->xsk_pool, descs[i].addr);
+		xsk_buff_raw_dma_sync_for_device(xdp_ring->xsk_pool, dma, descs[i].len);
+
+		tx_desc = ICE_TX_DESC(xdp_ring, ntu++);
+		tx_desc->buf_addr = cpu_to_le64(dma);
+		tx_desc->cmd_type_offset_bsz = ice_build_ctob(ICE_TX_DESC_CMD_EOP,
+							      0, descs[i].len, 0);
+
+		*total_bytes += descs[i].len;
+	}
+
+	xdp_ring->next_to_use = ntu;
+
+	if (xdp_ring->next_to_use > xdp_ring->next_rs) {
+		tx_desc = ICE_TX_DESC(xdp_ring, xdp_ring->next_rs);
+		tx_desc->cmd_type_offset_bsz |=
+			cpu_to_le64(ICE_TX_DESC_CMD_RS << ICE_TXD_QW1_CMD_S);
+		xdp_ring->next_rs += tx_thresh;
+	}
+}
+
+/**
+ * ice_fill_tx_hw_ring - produce the number of Tx descriptors onto ring
+ * @xdp_ring: XDP ring to produce the HW Tx descriptors on
+ * @descs: AF_XDP descriptors to pull the DMA addresses and lengths from
+ * @nb_pkts: count of packets to be send
+ * @total_bytes: bytes accumulator that will be used for stats update
+ */
+static void ice_fill_tx_hw_ring(struct ice_tx_ring *xdp_ring, struct xdp_desc *descs,
+				u32 nb_pkts, unsigned int *total_bytes)
+{
+	u16 tx_thresh = ICE_RING_QUARTER(xdp_ring);
+	u32 batched, leftover, i;
+
+	batched = ALIGN_DOWN(nb_pkts, PKTS_PER_BATCH);
+	leftover = nb_pkts & (PKTS_PER_BATCH - 1);
+	for (i = 0; i < batched; i += PKTS_PER_BATCH)
+		ice_xmit_pkt_batch(xdp_ring, &descs[i], total_bytes);
+	for (; i < batched + leftover; i++)
+		ice_xmit_pkt(xdp_ring, &descs[i], total_bytes);
+
+	if (xdp_ring->next_to_use > xdp_ring->next_rs) {
+		struct ice_tx_desc *tx_desc;
+
+		tx_desc = ICE_TX_DESC(xdp_ring, xdp_ring->next_rs);
+		tx_desc->cmd_type_offset_bsz |=
+			cpu_to_le64(ICE_TX_DESC_CMD_RS << ICE_TXD_QW1_CMD_S);
+		xdp_ring->next_rs += tx_thresh;
+	}
+}
+
+/**
+ * ice_xmit_zc - take entries from XSK Tx ring and place them onto HW Tx ring
+ * @xdp_ring: XDP ring to produce the HW Tx descriptors on
+ * @budget: number of free descriptors on HW Tx ring that can be used
+ * @napi_budget: amount of descriptors that NAPI allows us to clean
+ *
+ * Returns true if there is no more work that needs to be done, false otherwise
+ */
+bool ice_xmit_zc(struct ice_tx_ring *xdp_ring, u32 budget, int napi_budget)
+{
+	struct xdp_desc *descs = xdp_ring->xsk_pool->tx_descs;
+	u16 tx_thresh = ICE_RING_QUARTER(xdp_ring);
+	u32 nb_pkts, nb_processed = 0;
+	unsigned int total_bytes = 0;
+
+	if (budget < tx_thresh)
+		budget += ice_clean_xdp_irq_zc(xdp_ring, napi_budget);
+
+	nb_pkts = xsk_tx_peek_release_desc_batch(xdp_ring->xsk_pool, budget);
+	if (!nb_pkts)
+		return true;
+
+	if (xdp_ring->next_to_use + nb_pkts >= xdp_ring->count) {
+		struct ice_tx_desc *tx_desc;
+
+		nb_processed = xdp_ring->count - xdp_ring->next_to_use;
+		ice_fill_tx_hw_ring(xdp_ring, descs, nb_processed, &total_bytes);
+		tx_desc = ICE_TX_DESC(xdp_ring, xdp_ring->next_rs);
+		tx_desc->cmd_type_offset_bsz |=
+			cpu_to_le64(ICE_TX_DESC_CMD_RS << ICE_TXD_QW1_CMD_S);
+		xdp_ring->next_rs = tx_thresh - 1;
+		xdp_ring->next_to_use = 0;
+	}
+
+	ice_fill_tx_hw_ring(xdp_ring, &descs[nb_processed], nb_pkts - nb_processed,
+			    &total_bytes);
+
+	ice_xdp_ring_update_tail(xdp_ring);
+	ice_update_tx_ring_stats(xdp_ring, nb_pkts, total_bytes);
 
 	if (xsk_uses_need_wakeup(xdp_ring->xsk_pool))
 		xsk_set_tx_need_wakeup(xdp_ring->xsk_pool);
 
-	ice_update_tx_ring_stats(xdp_ring, total_packets, total_bytes);
-	xmit_done = ice_xmit_zc(xdp_ring, ICE_DFLT_IRQ_WORK);
-
-	return budget > 0 && xmit_done;
+	return nb_pkts < budget;
 }
 
 /**
@@ -759,17 +938,17 @@ ice_xsk_wakeup(struct net_device *netdev, u32 queue_id,
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_tx_ring *ring;
 
-	if (test_bit(ICE_DOWN, vsi->state))
+	if (test_bit(ICE_VSI_DOWN, vsi->state))
 		return -ENETDOWN;
 
 	if (!ice_is_xdp_ena_vsi(vsi))
-		return -ENXIO;
+		return -EINVAL;
 
 	if (queue_id >= vsi->num_txq)
-		return -ENXIO;
+		return -EINVAL;
 
 	if (!vsi->xdp_rings[queue_id]->xsk_pool)
-		return -ENXIO;
+		return -EINVAL;
 
 	ring = vsi->xdp_rings[queue_id];
 

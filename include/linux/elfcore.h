@@ -84,15 +84,6 @@ static inline void elf_core_copy_regs(elf_gregset_t *elfregs, struct pt_regs *re
 #endif
 }
 
-static inline void elf_core_copy_kernel_regs(elf_gregset_t *elfregs, struct pt_regs *regs)
-{
-#ifdef ELF_CORE_COPY_KERNEL_REGS
-	ELF_CORE_COPY_KERNEL_REGS((*elfregs), regs);
-#else
-	elf_core_copy_regs(elfregs, regs);
-#endif
-}
-
 static inline int elf_core_copy_task_regs(struct task_struct *t, elf_gregset_t* elfregs)
 {
 #if defined (ELF_CORE_COPY_TASK_REGS)
@@ -114,7 +105,7 @@ static inline int elf_core_copy_task_fpregs(struct task_struct *t, struct pt_reg
 #endif
 }
 
-#if (defined(CONFIG_UML) && defined(CONFIG_X86_32)) || defined(CONFIG_IA64)
+#ifdef CONFIG_ARCH_BINFMT_ELF_EXTRA_PHDRS
 /*
  * These functions parameterize elf_core_dump in fs/binfmt_elf.c to write out
  * extra segments containing the gate DSO contents.  Dumping its
@@ -149,6 +140,6 @@ static inline size_t elf_core_extra_data_size(void)
 {
 	return 0;
 }
-#endif
+#endif /* CONFIG_ARCH_BINFMT_ELF_EXTRA_PHDRS */
 
 #endif /* _LINUX_ELFCORE_H */

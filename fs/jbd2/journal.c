@@ -86,7 +86,7 @@ EXPORT_SYMBOL(jbd2_journal_start_commit);
 EXPORT_SYMBOL(jbd2_journal_force_commit_nested);
 EXPORT_SYMBOL(jbd2_journal_wipe);
 EXPORT_SYMBOL(jbd2_journal_blocks_per_page);
-EXPORT_SYMBOL(jbd2_journal_invalidatepage);
+EXPORT_SYMBOL(jbd2_journal_invalidate_folio);
 EXPORT_SYMBOL(jbd2_journal_try_to_free_buffers);
 EXPORT_SYMBOL(jbd2_journal_force_commit);
 EXPORT_SYMBOL(jbd2_journal_inode_ranged_write);
@@ -1762,7 +1762,6 @@ static int __jbd2_journal_erase(journal_t *journal, unsigned int flags)
 	unsigned long block, log_offset; /* logical */
 	unsigned long long phys_block, block_start, block_stop; /* physical */
 	loff_t byte_start, byte_stop, byte_count;
-	struct request_queue *q = bdev_get_queue(journal->j_dev);
 
 	/* flags must be set to either discard or zeroout */
 	if ((flags & ~JBD2_JOURNAL_FLUSH_VALID) || !flags ||
@@ -1770,10 +1769,8 @@ static int __jbd2_journal_erase(journal_t *journal, unsigned int flags)
 			(flags & JBD2_JOURNAL_FLUSH_ZEROOUT)))
 		return -EINVAL;
 
-	if (!q)
-		return -ENXIO;
-
-	if ((flags & JBD2_JOURNAL_FLUSH_DISCARD) && !blk_queue_discard(q))
+	if ((flags & JBD2_JOURNAL_FLUSH_DISCARD) &&
+	    !bdev_max_discard_sectors(journal->j_dev))
 		return -EOPNOTSUPP;
 
 	/*
@@ -1828,7 +1825,7 @@ static int __jbd2_journal_erase(journal_t *journal, unsigned int flags)
 			err = blkdev_issue_discard(journal->j_dev,
 					byte_start >> SECTOR_SHIFT,
 					byte_count >> SECTOR_SHIFT,
-					GFP_NOFS, 0);
+					GFP_NOFS);
 		} else if (flags & JBD2_JOURNAL_FLUSH_ZEROOUT) {
 			err = blkdev_issue_zeroout(journal->j_dev,
 					byte_start >> SECTOR_SHIFT,

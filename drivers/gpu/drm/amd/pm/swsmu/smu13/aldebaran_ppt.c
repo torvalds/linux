@@ -25,6 +25,7 @@
 
 #include <linux/firmware.h>
 #include "amdgpu.h"
+#include "amdgpu_dpm.h"
 #include "amdgpu_smu.h"
 #include "atomfirmware.h"
 #include "amdgpu_atomfirmware.h"
@@ -33,7 +34,6 @@
 #include "smu13_driver_if_aldebaran.h"
 #include "soc15_common.h"
 #include "atom.h"
-#include "power_state.h"
 #include "aldebaran_ppt.h"
 #include "smu_v13_0_pptable.h"
 #include "aldebaran_ppsmc.h"
@@ -56,8 +56,6 @@
 #undef pr_warn
 #undef pr_info
 #undef pr_debug
-
-#define to_amdgpu_device(x) (container_of(x, struct amdgpu_device, pm.smu_i2c))
 
 #define ALDEBARAN_FEA_MAP(smu_feature, aldebaran_feature) \
 	[smu_feature] = {1, (aldebaran_feature)}
@@ -83,6 +81,12 @@
  * use this to check ECCTALE feature whether support
  */
 #define SUPPORT_ECCTABLE_SMU_VERSION 0x00442a00
+
+/*
+ * SMU support BAD CHENNEL info MSG since version 68.51.00,
+ * use this to check ECCTALE feature whether support
+ */
+#define SUPPORT_BAD_CHANNEL_INFO_MSG_VERSION 0x00443300
 
 static const struct smu_temperature_range smu13_thermal_policy[] =
 {
@@ -142,6 +146,7 @@ static const struct cmn2asic_msg_mapping aldebaran_message_map[SMU_MSG_MAX_COUNT
 	MSG_MAP(GfxDriverResetRecovery,		     PPSMC_MSG_GfxDriverResetRecovery,		0),
 	MSG_MAP(BoardPowerCalibration,		     PPSMC_MSG_BoardPowerCalibration,		0),
 	MSG_MAP(HeavySBR,                            PPSMC_MSG_HeavySBR,                        0),
+	MSG_MAP(SetBadHBMPagesRetiredFlagsPerChannel,	PPSMC_MSG_SetBadHBMPagesRetiredFlagsPerChannel,	0),
 };
 
 static const struct cmn2asic_mapping aldebaran_clk_map[SMU_CLK_COUNT] = {
@@ -572,15 +577,11 @@ static int aldebaran_get_smu_metrics_data(struct smu_context *smu,
 	SmuMetrics_t *metrics = (SmuMetrics_t *)smu_table->metrics_table;
 	int ret = 0;
 
-	mutex_lock(&smu->metrics_lock);
-
-	ret = smu_cmn_get_metrics_table_locked(smu,
-					       NULL,
-					       false);
-	if (ret) {
-		mutex_unlock(&smu->metrics_lock);
+	ret = smu_cmn_get_metrics_table(smu,
+					NULL,
+					false);
+	if (ret)
 		return ret;
-	}
 
 	switch (member) {
 	case METRICS_CURR_GFXCLK:
@@ -649,12 +650,16 @@ static int aldebaran_get_smu_metrics_data(struct smu_context *smu,
 	case METRICS_THROTTLER_STATUS:
 		*value = metrics->ThrottlerStatus;
 		break;
+	case METRICS_UNIQUE_ID_UPPER32:
+		*value = metrics->PublicSerialNumUpper32;
+		break;
+	case METRICS_UNIQUE_ID_LOWER32:
+		*value = metrics->PublicSerialNumLower32;
+		break;
 	default:
 		*value = UINT_MAX;
 		break;
 	}
-
-	mutex_unlock(&smu->metrics_lock);
 
 	return ret;
 }
@@ -1148,7 +1153,6 @@ static int aldebaran_read_sensor(struct smu_context *smu,
 	if (!data || !size)
 		return -EINVAL;
 
-	mutex_lock(&smu->sensor_lock);
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_MEM_LOAD:
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
@@ -1187,7 +1191,6 @@ static int aldebaran_read_sensor(struct smu_context *smu,
 		ret = -EOPNOTSUPP;
 		break;
 	}
-	mutex_unlock(&smu->sensor_lock);
 
 	return ret;
 }
@@ -1460,32 +1463,34 @@ static int aldebaran_usr_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_
 static bool aldebaran_is_dpm_running(struct smu_context *smu)
 {
 	int ret;
-	uint32_t feature_mask[2];
-	unsigned long feature_enabled;
+	uint64_t feature_enabled;
 
-	ret = smu_cmn_get_enabled_mask(smu, feature_mask, 2);
+	ret = smu_cmn_get_enabled_mask(smu, &feature_enabled);
 	if (ret)
 		return false;
-	feature_enabled = (unsigned long)((uint64_t)feature_mask[0] |
-					  ((uint64_t)feature_mask[1] << 32));
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
 static int aldebaran_i2c_xfer(struct i2c_adapter *i2c_adap,
 			      struct i2c_msg *msg, int num_msgs)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(i2c_adap);
-	struct smu_table_context *smu_table = &adev->smu.smu_table;
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(i2c_adap);
+	struct amdgpu_device *adev = smu_i2c->adev;
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *table = &smu_table->driver_table;
 	SwI2cRequest_t *req, *res = (SwI2cRequest_t *)table->cpu_addr;
 	int i, j, r, c;
 	u16 dir;
 
+	if (!adev->pm.dpm_enabled)
+		return -EBUSY;
+
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
 
-	req->I2CcontrollerPort = 0;
+	req->I2CcontrollerPort = smu_i2c->port;
 	req->I2CSpeed = I2C_SPEED_FAST_400K;
 	req->SlaveAddress = msg[0].addr << 1; /* wants an 8-bit address */
 	dir = msg[0].flags & I2C_M_RD;
@@ -1521,9 +1526,9 @@ static int aldebaran_i2c_xfer(struct i2c_adapter *i2c_adap,
 			}
 		}
 	}
-	mutex_lock(&adev->smu.mutex);
-	r = smu_cmn_update_table(&adev->smu, SMU_TABLE_I2C_COMMANDS, 0, req, true);
-	mutex_unlock(&adev->smu.mutex);
+	mutex_lock(&adev->pm.mutex);
+	r = smu_cmn_update_table(smu, SMU_TABLE_I2C_COMMANDS, 0, req, true);
+	mutex_unlock(&adev->pm.mutex);
 	if (r)
 		goto fail;
 
@@ -1563,48 +1568,66 @@ static const struct i2c_adapter_quirks aldebaran_i2c_control_quirks = {
 	.max_comb_2nd_msg_len = MAX_SW_I2C_COMMANDS - 2,
 };
 
-static int aldebaran_i2c_control_init(struct smu_context *smu, struct i2c_adapter *control)
+static int aldebaran_i2c_control_init(struct smu_context *smu)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_device *adev = smu->adev;
+	struct amdgpu_smu_i2c_bus *smu_i2c = &adev->pm.smu_i2c[0];
+	struct i2c_adapter *control = &smu_i2c->adapter;
 	int res;
 
+	smu_i2c->adev = adev;
+	smu_i2c->port = 0;
+	mutex_init(&smu_i2c->mutex);
 	control->owner = THIS_MODULE;
 	control->class = I2C_CLASS_SPD;
 	control->dev.parent = &adev->pdev->dev;
 	control->algo = &aldebaran_i2c_algo;
-	snprintf(control->name, sizeof(control->name), "AMDGPU SMU");
+	snprintf(control->name, sizeof(control->name), "AMDGPU SMU 0");
 	control->quirks = &aldebaran_i2c_control_quirks;
+	i2c_set_adapdata(control, smu_i2c);
 
 	res = i2c_add_adapter(control);
-	if (res)
+	if (res) {
 		DRM_ERROR("Failed to register hw i2c, err: %d\n", res);
+		goto Out_err;
+	}
+
+	adev->pm.ras_eeprom_i2c_bus = &adev->pm.smu_i2c[0].adapter;
+	adev->pm.fru_eeprom_i2c_bus = &adev->pm.smu_i2c[0].adapter;
+
+	return 0;
+Out_err:
+	i2c_del_adapter(control);
 
 	return res;
 }
 
-static void aldebaran_i2c_control_fini(struct smu_context *smu, struct i2c_adapter *control)
+static void aldebaran_i2c_control_fini(struct smu_context *smu)
 {
-	i2c_del_adapter(control);
+	struct amdgpu_device *adev = smu->adev;
+	int i;
+
+	for (i = 0; i < MAX_SMU_I2C_BUSES; i++) {
+		struct amdgpu_smu_i2c_bus *smu_i2c = &adev->pm.smu_i2c[i];
+		struct i2c_adapter *control = &smu_i2c->adapter;
+
+		i2c_del_adapter(control);
+	}
+	adev->pm.ras_eeprom_i2c_bus = NULL;
+	adev->pm.fru_eeprom_i2c_bus = NULL;
 }
 
 static void aldebaran_get_unique_id(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	SmuMetrics_t *metrics = smu->smu_table.metrics_table;
 	uint32_t upper32 = 0, lower32 = 0;
-	int ret;
 
-	mutex_lock(&smu->metrics_lock);
-	ret = smu_cmn_get_metrics_table_locked(smu, NULL, false);
-	if (ret)
-		goto out_unlock;
+	if (aldebaran_get_smu_metrics_data(smu, METRICS_UNIQUE_ID_UPPER32, &upper32))
+		goto out;
+	if (aldebaran_get_smu_metrics_data(smu, METRICS_UNIQUE_ID_LOWER32, &lower32))
+		goto out;
 
-	upper32 = metrics->PublicSerialNumUpper32;
-	lower32 = metrics->PublicSerialNumLower32;
-
-out_unlock:
-	mutex_unlock(&smu->metrics_lock);
-
+out:
 	adev->unique_id = ((uint64_t)upper32 << 32) | lower32;
 	if (adev->serial[0] == '\0')
 		sprintf(adev->serial, "%016llx", adev->unique_id);
@@ -1643,6 +1666,7 @@ static const struct throttling_logging_label {
 	uint32_t feature_mask;
 	const char *label;
 } logging_label[] = {
+	{(1U << THROTTLER_TEMP_GPU_BIT), "GPU"},
 	{(1U << THROTTLER_TEMP_MEM_BIT), "HBM"},
 	{(1U << THROTTLER_TEMP_VR_GFX_BIT), "VR of GFX rail"},
 	{(1U << THROTTLER_TEMP_VR_MEM_BIT), "VR of HBM rail"},
@@ -1983,6 +2007,41 @@ static int aldebaran_smu_send_hbm_bad_page_num(struct smu_context *smu,
 	return ret;
 }
 
+static int aldebaran_check_bad_channel_info_support(struct smu_context *smu)
+{
+	uint32_t if_version = 0xff, smu_version = 0xff;
+	int ret = 0;
+
+	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
+	if (ret) {
+		/* return not support if failed get smu_version */
+		ret = -EOPNOTSUPP;
+	}
+
+	if (smu_version < SUPPORT_BAD_CHANNEL_INFO_MSG_VERSION)
+		ret = -EOPNOTSUPP;
+
+	return ret;
+}
+
+static int aldebaran_send_hbm_bad_channel_flag(struct smu_context *smu,
+		uint32_t size)
+{
+	int ret = 0;
+
+	ret = aldebaran_check_bad_channel_info_support(smu);
+	if (ret)
+		return ret;
+
+	/* message SMU to update the bad channel info on SMUBUS */
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetBadHBMPagesRetiredFlagsPerChannel, size, NULL);
+	if (ret)
+		dev_err(smu->adev->dev, "[%s] failed to message SMU to update HBM bad channel info\n",
+				__func__);
+
+	return ret;
+}
+
 static const struct pptable_funcs aldebaran_ppt_funcs = {
 	/* init dpm */
 	.get_allowed_feature_mask = aldebaran_get_allowed_feature_mask,
@@ -2048,6 +2107,7 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.i2c_fini = aldebaran_i2c_control_fini,
 	.send_hbm_bad_pages_num = aldebaran_smu_send_hbm_bad_page_num,
 	.get_ecc_info = aldebaran_get_ecc_info,
+	.send_hbm_bad_channel_flag = aldebaran_send_hbm_bad_channel_flag,
 };
 
 void aldebaran_set_ppt_funcs(struct smu_context *smu)

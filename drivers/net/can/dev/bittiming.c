@@ -24,7 +24,7 @@
  */
 static int
 can_update_sample_point(const struct can_bittiming_const *btc,
-			unsigned int sample_point_nominal, unsigned int tseg,
+			const unsigned int sample_point_nominal, const unsigned int tseg,
 			unsigned int *tseg1_ptr, unsigned int *tseg2_ptr,
 			unsigned int *sample_point_error_ptr)
 {
@@ -63,7 +63,7 @@ can_update_sample_point(const struct can_bittiming_const *btc,
 	return best_sample_point;
 }
 
-int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
+int can_calc_bittiming(const struct net_device *dev, struct can_bittiming *bt,
 		       const struct can_bittiming_const *btc)
 {
 	struct can_priv *priv = netdev_priv(dev);
@@ -116,7 +116,7 @@ int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 
 		can_update_sample_point(btc, sample_point_nominal, tseg / 2,
 					&tseg1, &tseg2, &sample_point_error);
-		if (sample_point_error > best_sample_point_error)
+		if (sample_point_error >= best_sample_point_error)
 			continue;
 
 		best_sample_point_error = sample_point_error;
@@ -208,10 +208,10 @@ void can_calc_tdco(struct can_tdc *tdc, const struct can_tdc_const *tdc_const,
  * prescaler value brp. You can find more information in the header
  * file linux/can/netlink.h.
  */
-static int can_fixup_bittiming(struct net_device *dev, struct can_bittiming *bt,
+static int can_fixup_bittiming(const struct net_device *dev, struct can_bittiming *bt,
 			       const struct can_bittiming_const *btc)
 {
-	struct can_priv *priv = netdev_priv(dev);
+	const struct can_priv *priv = netdev_priv(dev);
 	unsigned int tseg1, alltseg;
 	u64 brp64;
 
@@ -244,25 +244,21 @@ static int can_fixup_bittiming(struct net_device *dev, struct can_bittiming *bt,
 
 /* Checks the validity of predefined bitrate settings */
 static int
-can_validate_bitrate(struct net_device *dev, struct can_bittiming *bt,
+can_validate_bitrate(const struct net_device *dev, const struct can_bittiming *bt,
 		     const u32 *bitrate_const,
 		     const unsigned int bitrate_const_cnt)
 {
-	struct can_priv *priv = netdev_priv(dev);
 	unsigned int i;
 
 	for (i = 0; i < bitrate_const_cnt; i++) {
 		if (bt->bitrate == bitrate_const[i])
-			break;
+			return 0;
 	}
 
-	if (i >= priv->bitrate_const_cnt)
-		return -EINVAL;
-
-	return 0;
+	return -EINVAL;
 }
 
-int can_get_bittiming(struct net_device *dev, struct can_bittiming *bt,
+int can_get_bittiming(const struct net_device *dev, struct can_bittiming *bt,
 		      const struct can_bittiming_const *btc,
 		      const u32 *bitrate_const,
 		      const unsigned int bitrate_const_cnt)

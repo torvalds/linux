@@ -100,12 +100,17 @@ static struct pt_dma_desc *pt_handle_active_desc(struct pt_dma_chan *chan,
 		spin_lock_irqsave(&chan->vc.lock, flags);
 
 		if (desc) {
-			if (desc->status != DMA_ERROR)
-				desc->status = DMA_COMPLETE;
+			if (desc->status != DMA_COMPLETE) {
+				if (desc->status != DMA_ERROR)
+					desc->status = DMA_COMPLETE;
 
-			dma_cookie_complete(tx_desc);
-			dma_descriptor_unmap(tx_desc);
-			list_del(&desc->vd.node);
+				dma_cookie_complete(tx_desc);
+				dma_descriptor_unmap(tx_desc);
+				list_del(&desc->vd.node);
+			} else {
+				/* Don't handle it twice */
+				tx_desc = NULL;
+			}
 		}
 
 		desc = pt_next_dma_desc(chan);
@@ -166,6 +171,7 @@ static struct pt_dma_desc *pt_alloc_dma_desc(struct pt_dma_chan *chan,
 	vchan_tx_prep(&chan->vc, &desc->vd, flags);
 
 	desc->pt = chan->pt;
+	desc->pt->cmd_q.int_en = !!(flags & DMA_PREP_INTERRUPT);
 	desc->issued_to_hw = 0;
 	desc->status = DMA_IN_PROGRESS;
 
@@ -233,8 +239,13 @@ static void pt_issue_pending(struct dma_chan *dma_chan)
 	struct pt_dma_chan *chan = to_pt_chan(dma_chan);
 	struct pt_dma_desc *desc;
 	unsigned long flags;
+	bool engine_is_idle = true;
 
 	spin_lock_irqsave(&chan->vc.lock, flags);
+
+	desc = pt_next_dma_desc(chan);
+	if (desc)
+		engine_is_idle = false;
 
 	vchan_issue_pending(&chan->vc);
 
@@ -243,8 +254,19 @@ static void pt_issue_pending(struct dma_chan *dma_chan)
 	spin_unlock_irqrestore(&chan->vc.lock, flags);
 
 	/* If there was nothing active, start processing */
-	if (desc)
+	if (engine_is_idle)
 		pt_cmd_callback(desc, 0);
+}
+
+static enum dma_status
+pt_tx_status(struct dma_chan *c, dma_cookie_t cookie,
+		struct dma_tx_state *txstate)
+{
+	struct pt_device *pt = to_pt_chan(c)->pt;
+	struct pt_cmd_queue *cmd_q = &pt->cmd_q;
+
+	pt_check_status_trans(pt, cmd_q);
+	return dma_cookie_status(c, cookie, txstate);
 }
 
 static int pt_pause(struct dma_chan *dma_chan)
@@ -281,8 +303,10 @@ static int pt_terminate_all(struct dma_chan *dma_chan)
 {
 	struct pt_dma_chan *chan = to_pt_chan(dma_chan);
 	unsigned long flags;
+	struct pt_cmd_queue *cmd_q = &chan->pt->cmd_q;
 	LIST_HEAD(head);
 
+	iowrite32(SUPPORTED_INTERRUPTS, cmd_q->reg_control + 0x0010);
 	spin_lock_irqsave(&chan->vc.lock, flags);
 	vchan_get_all_descriptors(&chan->vc, &head);
 	spin_unlock_irqrestore(&chan->vc.lock, flags);
@@ -352,7 +376,7 @@ int pt_dmaengine_register(struct pt_device *pt)
 	dma_dev->device_prep_dma_memcpy = pt_prep_dma_memcpy;
 	dma_dev->device_prep_dma_interrupt = pt_prep_dma_interrupt;
 	dma_dev->device_issue_pending = pt_issue_pending;
-	dma_dev->device_tx_status = dma_cookie_status;
+	dma_dev->device_tx_status = pt_tx_status;
 	dma_dev->device_pause = pt_pause;
 	dma_dev->device_resume = pt_resume;
 	dma_dev->device_terminate_all = pt_terminate_all;

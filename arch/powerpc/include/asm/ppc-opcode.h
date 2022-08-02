@@ -127,8 +127,53 @@
 
 
 /* opcode and xopcode for instructions */
-#define OP_TRAP 3
-#define OP_TRAP_64 2
+#define OP_PREFIX	1
+#define OP_TRAP_64	2
+#define OP_TRAP		3
+#define OP_SC		17
+#define OP_19		19
+#define OP_31		31
+#define OP_LWZ		32
+#define OP_LWZU		33
+#define OP_LBZ		34
+#define OP_LBZU		35
+#define OP_STW		36
+#define OP_STWU		37
+#define OP_STB		38
+#define OP_STBU		39
+#define OP_LHZ		40
+#define OP_LHZU		41
+#define OP_LHA		42
+#define OP_LHAU		43
+#define OP_STH		44
+#define OP_STHU		45
+#define OP_LMW		46
+#define OP_STMW		47
+#define OP_LFS		48
+#define OP_LFSU		49
+#define OP_LFD		50
+#define OP_LFDU		51
+#define OP_STFS		52
+#define OP_STFSU	53
+#define OP_STFD		54
+#define OP_STFDU	55
+#define OP_LQ		56
+#define OP_LD		58
+#define OP_STD		62
+
+#define OP_19_XOP_RFID		18
+#define OP_19_XOP_RFMCI		38
+#define OP_19_XOP_RFDI		39
+#define OP_19_XOP_RFI		50
+#define OP_19_XOP_RFCI		51
+#define OP_19_XOP_RFSCV		82
+#define OP_19_XOP_HRFID		274
+#define OP_19_XOP_URFID		306
+#define OP_19_XOP_STOP		370
+#define OP_19_XOP_DOZE		402
+#define OP_19_XOP_NAP		434
+#define OP_19_XOP_SLEEP		466
+#define OP_19_XOP_RVWINKLE	498
 
 #define OP_31_XOP_TRAP      4
 #define OP_31_XOP_LDX       21
@@ -150,6 +195,8 @@
 #define OP_31_XOP_LHZUX     311
 #define OP_31_XOP_MSGSNDP   142
 #define OP_31_XOP_MSGCLRP   174
+#define OP_31_XOP_MTMSR     146
+#define OP_31_XOP_MTMSRD    178
 #define OP_31_XOP_TLBIE     306
 #define OP_31_XOP_MFSPR     339
 #define OP_31_XOP_LWAX      341
@@ -208,42 +255,6 @@
 /* VMX Vector Store Instructions */
 #define OP_31_XOP_STVX          231
 
-/* Prefixed Instructions */
-#define OP_PREFIX		1
-
-#define OP_31   31
-#define OP_LWZ  32
-#define OP_STFS 52
-#define OP_STFSU 53
-#define OP_STFD 54
-#define OP_STFDU 55
-#define OP_LD   58
-#define OP_LWZU 33
-#define OP_LBZ  34
-#define OP_LBZU 35
-#define OP_STW  36
-#define OP_STWU 37
-#define OP_STD  62
-#define OP_STB  38
-#define OP_STBU 39
-#define OP_LHZ  40
-#define OP_LHZU 41
-#define OP_LHA  42
-#define OP_LHAU 43
-#define OP_STH  44
-#define OP_STHU 45
-#define OP_LMW  46
-#define OP_STMW 47
-#define OP_LFS  48
-#define OP_LFSU 49
-#define OP_LFD  50
-#define OP_LFDU 51
-#define OP_STFS 52
-#define OP_STFSU 53
-#define OP_STFD  54
-#define OP_STFDU 55
-#define OP_LQ    56
-
 /* sorted alphabetically */
 #define PPC_INST_BCCTR_FLUSH		0x4c400420
 #define PPC_INST_COPY			0x7c20060c
@@ -262,6 +273,8 @@
 #define PPC_INST_MFSPR_PVR		0x7c1f42a6
 #define PPC_INST_MFSPR_PVR_MASK		0xfc1ffffe
 #define PPC_INST_MTMSRD			0x7c000164
+#define PPC_INST_PASTE			0x7c20070d
+#define PPC_INST_PASTE_MASK		0xfc2007ff
 #define PPC_INST_POPCNTB		0x7c0000f4
 #define PPC_INST_POPCNTB_MASK		0xfc0007fe
 #define PPC_INST_RFEBB			0x4c000124
@@ -283,13 +296,6 @@
 #define PPC_INST_TRECHKPT		0x7c0007dd
 #define PPC_INST_TRECLAIM		0x7c00075d
 #define PPC_INST_TSR			0x7c0005dd
-#define PPC_INST_LD			0xe8000000
-#define PPC_INST_STD			0xf8000000
-#define PPC_INST_ADDIS			0x3c000000
-#define PPC_INST_ADD			0x7c000214
-#define PPC_INST_DIVD			0x7c0003d2
-#define PPC_INST_BRANCH			0x48000000
-#define PPC_INST_BL			0x48000001
 #define PPC_INST_BRANCH_COND		0x40800000
 
 /* Prefixes */
@@ -349,6 +355,10 @@
 #define PPC_HA(v)	PPC_HI((v) + 0x8000)
 #define PPC_HIGHER(v)	(((v) >> 32) & 0xffff)
 #define PPC_HIGHEST(v)	(((v) >> 48) & 0xffff)
+
+/* LI Field */
+#define PPC_LI_MASK	0x03fffffc
+#define PPC_LI(v)	((v) & PPC_LI_MASK)
 
 /*
  * Only use the larx hint bit on 64bit CPUs. e500v1/v2 based CPUs will treat a
@@ -458,10 +468,10 @@
 	(0x100000c7 | ___PPC_RT(vrt) | ___PPC_RA(vra) | ___PPC_RB(vrb) | __PPC_RC21)
 #define PPC_RAW_VCMPEQUB_RC(vrt, vra, vrb) \
 	(0x10000006 | ___PPC_RT(vrt) | ___PPC_RA(vra) | ___PPC_RB(vrb) | __PPC_RC21)
-#define PPC_RAW_LD(r, base, i)		(PPC_INST_LD | ___PPC_RT(r) | ___PPC_RA(base) | IMM_DS(i))
+#define PPC_RAW_LD(r, base, i)		(0xe8000000 | ___PPC_RT(r) | ___PPC_RA(base) | IMM_DS(i))
 #define PPC_RAW_LWZ(r, base, i)		(0x80000000 | ___PPC_RT(r) | ___PPC_RA(base) | IMM_L(i))
 #define PPC_RAW_LWZX(t, a, b)		(0x7c00002e | ___PPC_RT(t) | ___PPC_RA(a) | ___PPC_RB(b))
-#define PPC_RAW_STD(r, base, i)		(PPC_INST_STD | ___PPC_RS(r) | ___PPC_RA(base) | IMM_DS(i))
+#define PPC_RAW_STD(r, base, i)		(0xf8000000 | ___PPC_RS(r) | ___PPC_RA(base) | IMM_DS(i))
 #define PPC_RAW_STDCX(s, a, b)		(0x7c0001ad | ___PPC_RS(s) | ___PPC_RA(a) | ___PPC_RB(b))
 #define PPC_RAW_LFSX(t, a, b)		(0x7c00042e | ___PPC_RT(t) | ___PPC_RA(a) | ___PPC_RB(b))
 #define PPC_RAW_STFSX(s, a, b)		(0x7c00052e | ___PPC_RS(s) | ___PPC_RA(a) | ___PPC_RB(b))
@@ -472,8 +482,8 @@
 #define PPC_RAW_ADDE(t, a, b)		(0x7c000114 | ___PPC_RT(t) | ___PPC_RA(a) | ___PPC_RB(b))
 #define PPC_RAW_ADDZE(t, a)		(0x7c000194 | ___PPC_RT(t) | ___PPC_RA(a))
 #define PPC_RAW_ADDME(t, a)		(0x7c0001d4 | ___PPC_RT(t) | ___PPC_RA(a))
-#define PPC_RAW_ADD(t, a, b)		(PPC_INST_ADD | ___PPC_RT(t) | ___PPC_RA(a) | ___PPC_RB(b))
-#define PPC_RAW_ADD_DOT(t, a, b)	(PPC_INST_ADD | ___PPC_RT(t) | ___PPC_RA(a) | ___PPC_RB(b) | 0x1)
+#define PPC_RAW_ADD(t, a, b)		(0x7c000214 | ___PPC_RT(t) | ___PPC_RA(a) | ___PPC_RB(b))
+#define PPC_RAW_ADD_DOT(t, a, b)	(0x7c000214 | ___PPC_RT(t) | ___PPC_RA(a) | ___PPC_RB(b) | 0x1)
 #define PPC_RAW_ADDC(t, a, b)		(0x7c000014 | ___PPC_RT(t) | ___PPC_RA(a) | ___PPC_RB(b))
 #define PPC_RAW_ADDC_DOT(t, a, b)	(0x7c000014 | ___PPC_RT(t) | ___PPC_RA(a) | ___PPC_RB(b) | 0x1)
 #define PPC_RAW_NOP()			PPC_RAW_ORI(0, 0, 0)
@@ -569,7 +579,8 @@
 #define PPC_RAW_MTSPR(spr, d)		(0x7c0003a6 | ___PPC_RS(d) | __PPC_SPR(spr))
 #define PPC_RAW_EIEIO()			(0x7c0006ac)
 
-#define PPC_RAW_BRANCH(addr)		(PPC_INST_BRANCH | ((addr) & 0x03fffffc))
+#define PPC_RAW_BRANCH(offset)		(0x48000000 | PPC_LI(offset))
+#define PPC_RAW_BL(offset)		(0x48000001 | PPC_LI(offset))
 
 /* Deal with instructions that older assemblers aren't aware of */
 #define	PPC_BCCTR_FLUSH		stringify_in_c(.long PPC_INST_BCCTR_FLUSH)

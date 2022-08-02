@@ -40,7 +40,7 @@ MODULE_LICENSE("GPL");
 
 static int befs_readdir(struct file *, struct dir_context *);
 static int befs_get_block(struct inode *, sector_t, struct buffer_head *, int);
-static int befs_readpage(struct file *file, struct page *page);
+static int befs_read_folio(struct file *file, struct folio *folio);
 static sector_t befs_bmap(struct address_space *mapping, sector_t block);
 static struct dentry *befs_lookup(struct inode *, struct dentry *,
 				  unsigned int);
@@ -48,7 +48,7 @@ static struct inode *befs_iget(struct super_block *, unsigned long);
 static struct inode *befs_alloc_inode(struct super_block *sb);
 static void befs_free_inode(struct inode *inode);
 static void befs_destroy_inodecache(void);
-static int befs_symlink_readpage(struct file *, struct page *);
+static int befs_symlink_read_folio(struct file *, struct folio *);
 static int befs_utf2nls(struct super_block *sb, const char *in, int in_len,
 			char **out, int *out_len);
 static int befs_nls2utf(struct super_block *sb, const char *in, int in_len,
@@ -87,12 +87,12 @@ static const struct inode_operations befs_dir_inode_operations = {
 };
 
 static const struct address_space_operations befs_aops = {
-	.readpage	= befs_readpage,
+	.read_folio	= befs_read_folio,
 	.bmap		= befs_bmap,
 };
 
 static const struct address_space_operations befs_symlink_aops = {
-	.readpage	= befs_symlink_readpage,
+	.read_folio	= befs_symlink_read_folio,
 };
 
 static const struct export_operations befs_export_operations = {
@@ -102,16 +102,16 @@ static const struct export_operations befs_export_operations = {
 };
 
 /*
- * Called by generic_file_read() to read a page of data
+ * Called by generic_file_read() to read a folio of data
  *
  * In turn, simply calls a generic block read function and
  * passes it the address of befs_get_block, for mapping file
  * positions to disk blocks.
  */
 static int
-befs_readpage(struct file *file, struct page *page)
+befs_read_folio(struct file *file, struct folio *folio)
 {
-	return block_read_full_page(page, befs_get_block);
+	return block_read_full_folio(folio, befs_get_block);
 }
 
 static sector_t
@@ -277,7 +277,7 @@ befs_alloc_inode(struct super_block *sb)
 {
 	struct befs_inode_info *bi;
 
-	bi = kmem_cache_alloc(befs_inode_cachep, GFP_KERNEL);
+	bi = alloc_inode_sb(sb, befs_inode_cachep, GFP_KERNEL);
 	if (!bi)
 		return NULL;
 	return &bi->vfs_inode;
@@ -468,8 +468,9 @@ befs_destroy_inodecache(void)
  * The data stream become link name. Unless the LONG_SYMLINK
  * flag is set.
  */
-static int befs_symlink_readpage(struct file *unused, struct page *page)
+static int befs_symlink_read_folio(struct file *unused, struct folio *folio)
 {
+	struct page *page = &folio->page;
 	struct inode *inode = page->mapping->host;
 	struct super_block *sb = inode->i_sb;
 	struct befs_inode_info *befs_ino = BEFS_I(inode);

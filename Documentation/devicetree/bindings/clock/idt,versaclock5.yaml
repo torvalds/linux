@@ -45,7 +45,7 @@ description: |
   The case where SH and SP are both 1 is likely not very interesting.
 
 maintainers:
-  - Luca Ceresoli <luca@lucaceresoli.net>
+  - Luca Ceresoli <luca.ceresoli@bootlin.com>
 
 properties:
   compatible:
@@ -189,13 +189,6 @@ examples:
                 idt,mode = <VC5_LVDS>;
             };
         };
-    };
-
-    /* Consumer referencing the 5P49V5923 pin OUT1 */
-    consumer {
-        /* ... */
-        clocks = <&vc5 1>;
-        /* ... */
     };
 
 ...

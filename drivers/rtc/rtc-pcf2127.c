@@ -374,7 +374,8 @@ static int pcf2127_watchdog_init(struct device *dev, struct pcf2127 *pcf2127)
 static int pcf2127_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct pcf2127 *pcf2127 = dev_get_drvdata(dev);
-	unsigned int buf[5], ctrl2;
+	u8 buf[5];
+	unsigned int ctrl2;
 	int ret;
 
 	ret = regmap_read(pcf2127->regmap, PCF2127_REG_CTRL2, &ctrl2);
@@ -655,13 +656,25 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	pcf2127->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	pcf2127->rtc->range_max = RTC_TIMESTAMP_END_2099;
 	pcf2127->rtc->set_start_time = true; /* Sets actual start to 1970 */
-	pcf2127->rtc->uie_unsupported = 1;
+	set_bit(RTC_FEATURE_ALARM_RES_2S, pcf2127->rtc->features);
+	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, pcf2127->rtc->features);
 	clear_bit(RTC_FEATURE_ALARM, pcf2127->rtc->features);
 
 	if (alarm_irq > 0) {
+		unsigned long flags;
+
+		/*
+		 * If flags = 0, devm_request_threaded_irq() will use IRQ flags
+		 * obtained from device tree.
+		 */
+		if (dev_fwnode(dev))
+			flags = 0;
+		else
+			flags = IRQF_TRIGGER_LOW;
+
 		ret = devm_request_threaded_irq(dev, alarm_irq, NULL,
 						pcf2127_rtc_irq,
-						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+						flags | IRQF_ONESHOT,
 						dev_name(dev), dev);
 		if (ret) {
 			dev_err(dev, "failed to request alarm irq\n");

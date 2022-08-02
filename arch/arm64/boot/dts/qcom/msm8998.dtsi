@@ -138,14 +138,8 @@
 			cpu-idle-states = <&LITTLE_CPU_SLEEP_0 &LITTLE_CPU_SLEEP_1>;
 			next-level-cache = <&L2_0>;
 			L2_0: l2-cache {
-				compatible = "arm,arch-cache";
+				compatible = "cache";
 				cache-level = <2>;
-			};
-			L1_I_0: l1-icache {
-				compatible = "arm,arch-cache";
-			};
-			L1_D_0: l1-dcache {
-				compatible = "arm,arch-cache";
 			};
 		};
 
@@ -157,12 +151,6 @@
 			capacity-dmips-mhz = <1024>;
 			cpu-idle-states = <&LITTLE_CPU_SLEEP_0 &LITTLE_CPU_SLEEP_1>;
 			next-level-cache = <&L2_0>;
-			L1_I_1: l1-icache {
-				compatible = "arm,arch-cache";
-			};
-			L1_D_1: l1-dcache {
-				compatible = "arm,arch-cache";
-			};
 		};
 
 		CPU2: cpu@2 {
@@ -173,12 +161,6 @@
 			capacity-dmips-mhz = <1024>;
 			cpu-idle-states = <&LITTLE_CPU_SLEEP_0 &LITTLE_CPU_SLEEP_1>;
 			next-level-cache = <&L2_0>;
-			L1_I_2: l1-icache {
-				compatible = "arm,arch-cache";
-			};
-			L1_D_2: l1-dcache {
-				compatible = "arm,arch-cache";
-			};
 		};
 
 		CPU3: cpu@3 {
@@ -189,12 +171,6 @@
 			capacity-dmips-mhz = <1024>;
 			cpu-idle-states = <&LITTLE_CPU_SLEEP_0 &LITTLE_CPU_SLEEP_1>;
 			next-level-cache = <&L2_0>;
-			L1_I_3: l1-icache {
-				compatible = "arm,arch-cache";
-			};
-			L1_D_3: l1-dcache {
-				compatible = "arm,arch-cache";
-			};
 		};
 
 		CPU4: cpu@100 {
@@ -206,14 +182,8 @@
 			cpu-idle-states = <&BIG_CPU_SLEEP_0 &BIG_CPU_SLEEP_1>;
 			next-level-cache = <&L2_1>;
 			L2_1: l2-cache {
-				compatible = "arm,arch-cache";
+				compatible = "cache";
 				cache-level = <2>;
-			};
-			L1_I_100: l1-icache {
-				compatible = "arm,arch-cache";
-			};
-			L1_D_100: l1-dcache {
-				compatible = "arm,arch-cache";
 			};
 		};
 
@@ -225,12 +195,6 @@
 			capacity-dmips-mhz = <1536>;
 			cpu-idle-states = <&BIG_CPU_SLEEP_0 &BIG_CPU_SLEEP_1>;
 			next-level-cache = <&L2_1>;
-			L1_I_101: l1-icache {
-				compatible = "arm,arch-cache";
-			};
-			L1_D_101: l1-dcache {
-				compatible = "arm,arch-cache";
-			};
 		};
 
 		CPU6: cpu@102 {
@@ -241,12 +205,6 @@
 			capacity-dmips-mhz = <1536>;
 			cpu-idle-states = <&BIG_CPU_SLEEP_0 &BIG_CPU_SLEEP_1>;
 			next-level-cache = <&L2_1>;
-			L1_I_102: l1-icache {
-				compatible = "arm,arch-cache";
-			};
-			L1_D_102: l1-dcache {
-				compatible = "arm,arch-cache";
-			};
 		};
 
 		CPU7: cpu@103 {
@@ -257,12 +215,6 @@
 			capacity-dmips-mhz = <1536>;
 			cpu-idle-states = <&BIG_CPU_SLEEP_0 &BIG_CPU_SLEEP_1>;
 			next-level-cache = <&L2_1>;
-			L1_I_103: l1-icache {
-				compatible = "arm,arch-cache";
-			};
-			L1_D_103: l1-dcache {
-				compatible = "arm,arch-cache";
-			};
 		};
 
 		cpu-map {
@@ -674,7 +626,7 @@
 			};
 		};
 
-		gpu-thermal-bottom {
+		gpu-bottom-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
@@ -689,7 +641,7 @@
 			};
 		};
 
-		gpu-thermal-top {
+		gpu-top-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
@@ -863,6 +815,21 @@
 
 			clock-names = "xo", "sleep_clk";
 			clocks = <&xo>, <&sleep_clk>;
+
+			/*
+			 * The hypervisor typically configures the memory region where these clocks
+			 * reside as read-only for the HLOS. If the HLOS tried to enable or disable
+			 * these clocks on a device with such configuration (e.g. because they are
+			 * enabled but unused during boot-up), the device will most likely decide
+			 * to reboot.
+			 * In light of that, we are conservative here and we list all such clocks
+			 * as protected. The board dts (or a user-supplied dts) can override the
+			 * list of protected clocks if it differs from the norm, and it is in fact
+			 * desired for the HLOS to manage these clocks
+			 */
+			protected-clocks = <AGGRE2_SNOC_NORTH_AXI>,
+					   <SSC_XO>,
+					   <SSC_CNOC_AHBS_CLK>;
 		};
 
 		rpm_msg_ram: sram@778000 {
@@ -2056,10 +2023,13 @@
 			clocks = <&gcc GCC_CFG_NOC_USB3_AXI_CLK>,
 				 <&gcc GCC_USB30_MASTER_CLK>,
 				 <&gcc GCC_AGGRE1_USB3_AXI_CLK>,
-				 <&gcc GCC_USB30_MOCK_UTMI_CLK>,
-				 <&gcc GCC_USB30_SLEEP_CLK>;
-			clock-names = "cfg_noc", "core", "iface", "mock_utmi",
-				      "sleep";
+				 <&gcc GCC_USB30_SLEEP_CLK>,
+				 <&gcc GCC_USB30_MOCK_UTMI_CLK>;
+			clock-names = "cfg_noc",
+				      "core",
+				      "iface",
+				      "sleep",
+				      "mock_utmi";
 
 			assigned-clocks = <&gcc GCC_USB30_MOCK_UTMI_CLK>,
 					  <&gcc GCC_USB30_MASTER_CLK>;
@@ -2073,7 +2043,7 @@
 
 			resets = <&gcc GCC_USB_30_BCR>;
 
-			usb3_dwc3: dwc3@a800000 {
+			usb3_dwc3: usb@a800000 {
 				compatible = "snps,dwc3";
 				reg = <0x0a800000 0xcd00>;
 				interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;

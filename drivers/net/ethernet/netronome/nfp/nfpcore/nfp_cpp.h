@@ -13,28 +13,38 @@
 #include <linux/ctype.h>
 #include <linux/types.h>
 #include <linux/sizes.h>
+#include <linux/stringify.h>
 
 #ifndef NFP_SUBSYS
 #define NFP_SUBSYS "nfp"
 #endif
 
-#define nfp_err(cpp, fmt, args...) \
+#define string_format(x) __FILE__ ":" __stringify(__LINE__) ": " x
+
+#define __nfp_err(cpp, fmt, args...) \
 	dev_err(nfp_cpp_device(cpp)->parent, NFP_SUBSYS ": " fmt, ## args)
-#define nfp_warn(cpp, fmt, args...) \
+#define __nfp_warn(cpp, fmt, args...) \
 	dev_warn(nfp_cpp_device(cpp)->parent, NFP_SUBSYS ": " fmt, ## args)
-#define nfp_info(cpp, fmt, args...) \
+#define __nfp_info(cpp, fmt, args...) \
 	dev_info(nfp_cpp_device(cpp)->parent, NFP_SUBSYS ": " fmt, ## args)
-#define nfp_dbg(cpp, fmt, args...) \
+#define __nfp_dbg(cpp, fmt, args...) \
 	dev_dbg(nfp_cpp_device(cpp)->parent, NFP_SUBSYS ": " fmt, ## args)
+#define __nfp_printk(level, cpp, fmt, args...) \
+	dev_printk(level, nfp_cpp_device(cpp)->parent,  \
+		   NFP_SUBSYS ": " fmt, ## args)
+
+#define nfp_err(cpp, fmt, args...) \
+	__nfp_err(cpp, string_format(fmt), ## args)
+#define nfp_warn(cpp, fmt, args...) \
+	__nfp_warn(cpp, string_format(fmt), ## args)
+#define nfp_info(cpp, fmt, args...) \
+	__nfp_info(cpp, string_format(fmt), ## args)
+#define nfp_dbg(cpp, fmt, args...) \
+	__nfp_dbg(cpp, string_format(fmt), ## args)
 #define nfp_printk(level, cpp, fmt, args...) \
-	dev_printk(level, nfp_cpp_device(cpp)->parent,	\
-		   NFP_SUBSYS ": " fmt,	## args)
+	__nfp_printk(level, cpp, string_format(fmt), ## args)
 
 #define PCI_64BIT_BAR_COUNT             3
-
-/* NFP hardware vendor/device ids.
- */
-#define PCI_DEVICE_ID_NETRONOME_NFP3800	0x3800
 
 #define NFP_CPP_NUM_TARGETS             16
 /* Max size of area it should be safe to request */

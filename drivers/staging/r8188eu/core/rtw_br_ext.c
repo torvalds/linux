@@ -53,7 +53,8 @@ static unsigned char *__nat25_find_pppoe_tag(struct pppoe_hdr *ph, unsigned shor
 	unsigned char *cur_ptr, *start_ptr;
 	unsigned short tagLen, tagType;
 
-	start_ptr = cur_ptr = (unsigned char *)ph->tag;
+	start_ptr = (unsigned char *)ph->tag;
+	cur_ptr = (unsigned char *)ph->tag;
 	while ((cur_ptr - start_ptr) < ntohs(ph->length)) {
 		/*  prevent un-alignment access */
 		tagType = (unsigned short)((cur_ptr[0] << 8) + cur_ptr[1]);
@@ -70,11 +71,9 @@ static int __nat25_add_pppoe_tag(struct sk_buff *skb, struct pppoe_tag *tag)
 	struct pppoe_hdr *ph = (struct pppoe_hdr *)(skb->data + ETH_HLEN);
 	int data_len;
 
-	data_len = tag->tag_len + TAG_HDR_LEN;
-	if (skb_tailroom(skb) < data_len) {
-		_DEBUG_ERR("skb_tailroom() failed in add SID tag!\n");
+	data_len = be16_to_cpu(tag->tag_len) + TAG_HDR_LEN;
+	if (skb_tailroom(skb) < data_len)
 		return -1;
-	}
 
 	skb_put(skb, data_len);
 	/*  have a room for new tag */
@@ -89,24 +88,23 @@ static int skb_pull_and_merge(struct sk_buff *skb, unsigned char *src, int len)
 	int tail_len;
 	unsigned long end, tail;
 
-	if ((src+len) > skb_tail_pointer(skb) || skb->len < len)
+	if ((src + len) > skb_tail_pointer(skb) || skb->len < len)
 		return -1;
 
 	tail = (unsigned long)skb_tail_pointer(skb);
-	end = (unsigned long)src+len;
+	end = (unsigned long)src + len;
 	if (tail < end)
 		return -1;
 
-	tail_len = (int)(tail-end);
+	tail_len = (int)(tail - end);
 	if (tail_len > 0)
-		memmove(src, src+len, tail_len);
+		memmove(src, src + len, tail_len);
 
-	skb_trim(skb, skb->len-len);
+	skb_trim(skb, skb->len - len);
 	return 0;
 }
 
-static int  __nat25_has_expired(struct adapter *priv,
-				struct nat25_network_db_entry *fdb)
+static int  __nat25_has_expired(struct nat25_network_db_entry *fdb)
 {
 	if (time_before_eq(fdb->ageing_timer, jiffies - NAT25_AGEING_TIME * HZ))
 		return 1;
@@ -120,7 +118,7 @@ static void __nat25_generate_ipv4_network_addr(unsigned char *networkAddr,
 	memset(networkAddr, 0, MAX_NETWORK_ADDR_LEN);
 
 	networkAddr[0] = NAT25_IPV4;
-	memcpy(networkAddr+7, (unsigned char *)ipAddr, 4);
+	memcpy(networkAddr + 7, (unsigned char *)ipAddr, 4);
 }
 
 static void __nat25_generate_pppoe_network_addr(unsigned char *networkAddr,
@@ -129,8 +127,8 @@ static void __nat25_generate_pppoe_network_addr(unsigned char *networkAddr,
 	memset(networkAddr, 0, MAX_NETWORK_ADDR_LEN);
 
 	networkAddr[0] = NAT25_PPPOE;
-	memcpy(networkAddr+1, (unsigned char *)sid, 2);
-	memcpy(networkAddr+3, (unsigned char *)ac_mac, 6);
+	memcpy(networkAddr + 1, (unsigned char *)sid, 2);
+	memcpy(networkAddr + 3, (unsigned char *)ac_mac, 6);
 }
 
 static  void __nat25_generate_ipv6_network_addr(unsigned char *networkAddr,
@@ -139,17 +137,17 @@ static  void __nat25_generate_ipv6_network_addr(unsigned char *networkAddr,
 	memset(networkAddr, 0, MAX_NETWORK_ADDR_LEN);
 
 	networkAddr[0] = NAT25_IPV6;
-	memcpy(networkAddr+1, (unsigned char *)ipAddr, 16);
+	memcpy(networkAddr + 1, (unsigned char *)ipAddr, 16);
 }
 
 static unsigned char *scan_tlv(unsigned char *data, int len, unsigned char tag, unsigned char len8b)
 {
 	while (len > 0) {
-		if (*data == tag && *(data+1) == len8b && len >= len8b*8)
-			return data+2;
+		if (*data == tag && *(data + 1) == len8b && len >= len8b * 8)
+			return data + 2;
 
-		len -= (*(data+1))*8;
-		data += (*(data+1))*8;
+		len -= (*(data + 1)) * 8;
+		data += (*(data + 1)) * 8;
 	}
 	return NULL;
 }
@@ -161,55 +159,40 @@ static int update_nd_link_layer_addr(unsigned char *data, int len, unsigned char
 
 	if (icmphdr->icmp6_type == NDISC_ROUTER_SOLICITATION) {
 		if (len >= 8) {
-			mac = scan_tlv(&data[8], len-8, 1, 1);
+			mac = scan_tlv(&data[8], len - 8, 1, 1);
 			if (mac) {
-				_DEBUG_INFO("Router Solicitation, replace MAC From: %02x:%02x:%02x:%02x:%02x:%02x, To: %02x:%02x:%02x:%02x:%02x:%02x\n",
-					mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-					replace_mac[0], replace_mac[1], replace_mac[2], replace_mac[3], replace_mac[4], replace_mac[5]);
 				memcpy(mac, replace_mac, 6);
 				return 1;
 			}
 		}
 	} else if (icmphdr->icmp6_type == NDISC_ROUTER_ADVERTISEMENT) {
 		if (len >= 16) {
-			mac = scan_tlv(&data[16], len-16, 1, 1);
+			mac = scan_tlv(&data[16], len - 16, 1, 1);
 			if (mac) {
-				_DEBUG_INFO("Router Advertisement, replace MAC From: %02x:%02x:%02x:%02x:%02x:%02x, To: %02x:%02x:%02x:%02x:%02x:%02x\n",
-					mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-					replace_mac[0], replace_mac[1], replace_mac[2], replace_mac[3], replace_mac[4], replace_mac[5]);
 				memcpy(mac, replace_mac, 6);
 				return 1;
 			}
 		}
 	} else if (icmphdr->icmp6_type == NDISC_NEIGHBOUR_SOLICITATION) {
 		if (len >= 24) {
-			mac = scan_tlv(&data[24], len-24, 1, 1);
+			mac = scan_tlv(&data[24], len - 24, 1, 1);
 			if (mac) {
-				_DEBUG_INFO("Neighbor Solicitation, replace MAC From: %02x:%02x:%02x:%02x:%02x:%02x, To: %02x:%02x:%02x:%02x:%02x:%02x\n",
-					mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-					replace_mac[0], replace_mac[1], replace_mac[2], replace_mac[3], replace_mac[4], replace_mac[5]);
 				memcpy(mac, replace_mac, 6);
 				return 1;
 			}
 		}
 	} else if (icmphdr->icmp6_type == NDISC_NEIGHBOUR_ADVERTISEMENT) {
 		if (len >= 24) {
-			mac = scan_tlv(&data[24], len-24, 2, 1);
+			mac = scan_tlv(&data[24], len - 24, 2, 1);
 			if (mac) {
-				_DEBUG_INFO("Neighbor Advertisement, replace MAC From: %02x:%02x:%02x:%02x:%02x:%02x, To: %02x:%02x:%02x:%02x:%02x:%02x\n",
-					mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-					replace_mac[0], replace_mac[1], replace_mac[2], replace_mac[3], replace_mac[4], replace_mac[5]);
 				memcpy(mac, replace_mac, 6);
 				return 1;
 			}
 		}
 	} else if (icmphdr->icmp6_type == NDISC_REDIRECT) {
 		if (len >= 40) {
-			mac = scan_tlv(&data[40], len-40, 2, 1);
+			mac = scan_tlv(&data[40], len - 40, 2, 1);
 			if (mac) {
-				_DEBUG_INFO("Redirect,  replace MAC From: %02x:%02x:%02x:%02x:%02x:%02x, To: %02x:%02x:%02x:%02x:%02x:%02x\n",
-					mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-					replace_mac[0], replace_mac[1], replace_mac[2], replace_mac[3], replace_mac[4], replace_mac[5]);
 				memcpy(mac, replace_mac, 6);
 				return 1;
 			}
@@ -319,10 +302,6 @@ static void __nat25_db_network_insert(struct adapter *priv,
 	spin_unlock_bh(&priv->br_ext_lock);
 }
 
-static void __nat25_db_print(struct adapter *priv)
-{
-}
-
 /*
  *	NAT2.5 interface
  */
@@ -335,6 +314,7 @@ void nat25_db_cleanup(struct adapter *priv)
 
 	for (i = 0; i < NAT25_HASH_SIZE; i++) {
 		struct nat25_network_db_entry *f;
+
 		f = priv->nethash[i];
 		while (f) {
 			struct nat25_network_db_entry *g;
@@ -361,13 +341,13 @@ void nat25_db_expire(struct adapter *priv)
 
 	for (i = 0; i < NAT25_HASH_SIZE; i++) {
 		struct nat25_network_db_entry *f;
-		f = priv->nethash[i];
 
+		f = priv->nethash[i];
 		while (f) {
 			struct nat25_network_db_entry *g;
-			g = f->next_hash;
 
-			if (__nat25_has_expired(priv, f)) {
+			g = f->next_hash;
+			if (__nat25_has_expired(f)) {
 				if (atomic_dec_and_test(&f->use_count)) {
 					if (priv->scdb_entry == f) {
 						memset(priv->scdb_mac, 0, ETH_ALEN);
@@ -404,10 +384,8 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 	if (protocol == ETH_P_IP) {
 		struct iphdr *iph = (struct iphdr *)(skb->data + ETH_HLEN);
 
-		if (((unsigned char *)(iph) + (iph->ihl<<2)) >= (skb->data + ETH_HLEN + skb->len)) {
-			DEBUG_WARN("NAT25: malformed IP packet !\n");
+		if (((unsigned char *)(iph) + (iph->ihl << 2)) >= (skb->data + ETH_HLEN + skb->len))
 			return -1;
-		}
 
 		switch (method) {
 		case NAT25_CHECK:
@@ -418,12 +396,9 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 			if (iph->saddr == 0)
 				return 0;
 			tmp = be32_to_cpu(iph->saddr);
-			DEBUG_INFO("NAT25: Insert IP, SA =%08x, DA =%08x\n", tmp, iph->daddr);
 			__nat25_generate_ipv4_network_addr(networkAddr, &tmp);
 			/* record source IP address and , source mac address into db */
-			__nat25_db_network_insert(priv, skb->data+ETH_ALEN, networkAddr);
-
-			__nat25_db_print(priv);
+			__nat25_db_network_insert(priv, skb->data + ETH_ALEN, networkAddr);
 			return 0;
 		default:
 			return -1;
@@ -436,25 +411,19 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 		unsigned char *arp_ptr = (unsigned char *)(arp + 1);
 		unsigned int *sender;
 
-		if (arp->ar_pro != __constant_htons(ETH_P_IP)) {
-			DEBUG_WARN("NAT25: arp protocol unknown (%4x)!\n", be16_to_cpu(arp->ar_pro));
+		if (arp->ar_pro != htons(ETH_P_IP))
 			return -1;
-		}
 
 		switch (method) {
 		case NAT25_CHECK:
 			return 0;	/*  skb_copy for all ARP frame */
 		case NAT25_INSERT:
-			DEBUG_INFO("NAT25: Insert ARP, MAC =%02x%02x%02x%02x%02x%02x\n", arp_ptr[0],
-				arp_ptr[1], arp_ptr[2], arp_ptr[3], arp_ptr[4], arp_ptr[5]);
-
 			/*  change to ARP sender mac address to wlan STA address */
 			memcpy(arp_ptr, GET_MY_HWADDR(priv), ETH_ALEN);
 			arp_ptr += arp->ar_hln;
 			sender = (unsigned int *)arp_ptr;
 			__nat25_generate_ipv4_network_addr(networkAddr, sender);
-			__nat25_db_network_insert(priv, skb->data+ETH_ALEN, networkAddr);
-			__nat25_db_print(priv);
+			__nat25_db_network_insert(priv, skb->data + ETH_ALEN, networkAddr);
 			return 0;
 		default:
 			return -1;
@@ -465,7 +434,7 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 		/*                Handle PPPoE frame                 */
 		/*---------------------------------------------------*/
 		struct pppoe_hdr *ph = (struct pppoe_hdr *)(skb->data + ETH_HLEN);
-		unsigned short *pMagic;
+		__be16 *pMagic;
 
 		switch (method) {
 		case NAT25_CHECK:
@@ -484,44 +453,42 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 						pOldTag = (struct pppoe_tag *)__nat25_find_pppoe_tag(ph, ntohs(PTT_RELAY_SID));
 						if (pOldTag) { /*  if SID existed, copy old value and delete it */
 							old_tag_len = ntohs(pOldTag->tag_len);
-							if (old_tag_len+TAG_HDR_LEN+MAGIC_CODE_LEN+RTL_RELAY_TAG_LEN > sizeof(tag_buf)) {
-								DEBUG_ERR("SID tag length too long!\n");
+							if (old_tag_len +
+							    TAG_HDR_LEN +
+							    MAGIC_CODE_LEN +
+							    RTL_RELAY_TAG_LEN >
+							    sizeof(tag_buf))
 								return -1;
-							}
 
-							memcpy(tag->tag_data+MAGIC_CODE_LEN+RTL_RELAY_TAG_LEN,
+							memcpy(tag->tag_data + MAGIC_CODE_LEN + RTL_RELAY_TAG_LEN,
 								pOldTag->tag_data, old_tag_len);
 
-							if (skb_pull_and_merge(skb, (unsigned char *)pOldTag, TAG_HDR_LEN+old_tag_len) < 0) {
-								DEBUG_ERR("call skb_pull_and_merge() failed in PADI/R packet!\n");
+							if (skb_pull_and_merge(skb, (unsigned char *)pOldTag, TAG_HDR_LEN + old_tag_len) < 0)
 								return -1;
-							}
-							ph->length = htons(ntohs(ph->length)-TAG_HDR_LEN-old_tag_len);
+
+							ph->length = htons(ntohs(ph->length) - TAG_HDR_LEN - old_tag_len);
 						}
 
 						tag->tag_type = PTT_RELAY_SID;
-						tag->tag_len = htons(MAGIC_CODE_LEN+RTL_RELAY_TAG_LEN+old_tag_len);
+						tag->tag_len = htons(MAGIC_CODE_LEN + RTL_RELAY_TAG_LEN + old_tag_len);
 
 						/*  insert the magic_code+client mac in relay tag */
-						pMagic = (unsigned short *)tag->tag_data;
+						pMagic = (__be16 *)tag->tag_data;
 						*pMagic = htons(MAGIC_CODE);
-						memcpy(tag->tag_data+MAGIC_CODE_LEN, skb->data+ETH_ALEN, ETH_ALEN);
+						memcpy(tag->tag_data + MAGIC_CODE_LEN, skb->data + ETH_ALEN, ETH_ALEN);
 
 						/* Add relay tag */
 						if (__nat25_add_pppoe_tag(skb, tag) < 0)
 							return -1;
-
-						DEBUG_INFO("NAT25: Insert PPPoE, forward %s packet\n",
-										(ph->code == PADI_CODE ? "PADI" : "PADR"));
 					} else { /*  not add relay tag */
 						if (priv->pppoe_connection_in_progress &&
-								memcmp(skb->data+ETH_ALEN, priv->pppoe_addr, ETH_ALEN))	 {
-							DEBUG_ERR("Discard PPPoE packet due to another PPPoE connection is in progress!\n");
+						    memcmp(skb->data + ETH_ALEN,
+							   priv->pppoe_addr,
+							   ETH_ALEN))
 							return -2;
-						}
 
 						if (priv->pppoe_connection_in_progress == 0)
-							memcpy(priv->pppoe_addr, skb->data+ETH_ALEN, ETH_ALEN);
+							memcpy(priv->pppoe_addr, skb->data + ETH_ALEN, ETH_ALEN);
 
 						priv->pppoe_connection_in_progress = WAIT_TIME_PPPOE;
 					}
@@ -529,17 +496,13 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 					return -1;
 				}
 			} else {	/*  session phase */
-				DEBUG_INFO("NAT25: Insert PPPoE, insert session packet to %s\n", skb->dev->name);
-
 				__nat25_generate_pppoe_network_addr(networkAddr, skb->data, &ph->sid);
 
-				__nat25_db_network_insert(priv, skb->data+ETH_ALEN, networkAddr);
-
-				__nat25_db_print(priv);
+				__nat25_db_network_insert(priv, skb->data + ETH_ALEN, networkAddr);
 
 				if (!priv->ethBrExtInfo.addPPPoETag &&
 				    priv->pppoe_connection_in_progress &&
-				    !memcmp(skb->data+ETH_ALEN, priv->pppoe_addr, ETH_ALEN))
+				    !memcmp(skb->data + ETH_ALEN, priv->pppoe_addr, ETH_ALEN))
 					priv->pppoe_connection_in_progress = 0;
 			}
 			return 0;
@@ -576,10 +539,8 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 		/*------------------------------------------------*/
 		struct ipv6hdr *iph = (struct ipv6hdr *)(skb->data + ETH_HLEN);
 
-		if (sizeof(*iph) >= (skb->len - ETH_HLEN)) {
-			DEBUG_WARN("NAT25: malformed IPv6 packet !\n");
+		if (sizeof(*iph) >= (skb->len - ETH_HLEN))
 			return -1;
-		}
 
 		switch (method) {
 		case NAT25_CHECK:
@@ -587,17 +548,9 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 				return 0;
 			return -1;
 		case NAT25_INSERT:
-			DEBUG_INFO("NAT25: Insert IP, SA =%4x:%4x:%4x:%4x:%4x:%4x:%4x:%4x,"
-							" DA =%4x:%4x:%4x:%4x:%4x:%4x:%4x:%4x\n",
-				iph->saddr.s6_addr16[0], iph->saddr.s6_addr16[1], iph->saddr.s6_addr16[2], iph->saddr.s6_addr16[3],
-				iph->saddr.s6_addr16[4], iph->saddr.s6_addr16[5], iph->saddr.s6_addr16[6], iph->saddr.s6_addr16[7],
-				iph->daddr.s6_addr16[0], iph->daddr.s6_addr16[1], iph->daddr.s6_addr16[2], iph->daddr.s6_addr16[3],
-				iph->daddr.s6_addr16[4], iph->daddr.s6_addr16[5], iph->daddr.s6_addr16[6], iph->daddr.s6_addr16[7]);
-
 			if (memcmp(&iph->saddr, "\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0", 16)) {
 				__nat25_generate_ipv6_network_addr(networkAddr, (unsigned int *)&iph->saddr);
-				__nat25_db_network_insert(priv, skb->data+ETH_ALEN, networkAddr);
-				__nat25_db_print(priv);
+				__nat25_db_network_insert(priv, skb->data + ETH_ALEN, networkAddr);
 
 				if (iph->nexthdr == IPPROTO_ICMPV6 &&
 						skb->len > (ETH_HLEN +  sizeof(*iph) + 4)) {
@@ -606,9 +559,11 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 						struct icmp6hdr  *hdr = (struct icmp6hdr *)(skb->data + ETH_HLEN + sizeof(*iph));
 						hdr->icmp6_cksum = 0;
 						hdr->icmp6_cksum = csum_ipv6_magic(&iph->saddr, &iph->daddr,
-										iph->payload_len,
+										be16_to_cpu(iph->payload_len),
 										IPPROTO_ICMPV6,
-										csum_partial((__u8 *)hdr, iph->payload_len, 0));
+										csum_partial((__u8 *)hdr,
+										be16_to_cpu(iph->payload_len),
+										0));
 					}
 				}
 			}
@@ -669,7 +624,6 @@ void dhcp_flag_bcast(struct adapter *priv, struct sk_buff *skb)
 							/*  if not broadcast */
 							register int sum = 0;
 
-							DEBUG_INFO("DHCP: change flag of DHCP request to broadcast.\n");
 							/*  or BROADCAST flag */
 							dhcph->flags |= htons(BROADCAST_FLAG);
 							/*  recalculate checksum */

@@ -44,7 +44,7 @@ description: |
   compatibility.
 
 allOf:
-  - $ref: /spi/spi-controller.yaml#
+  - $ref: /schemas/spi/spi-controller.yaml#
 
 properties:
   compatible:

@@ -535,8 +535,12 @@ void dcn30_init_hw(struct dc *dc)
 
 		/* Check for enabled DIG to identify enabled display */
 		if (link->link_enc->funcs->is_dig_enabled &&
-			link->link_enc->funcs->is_dig_enabled(link->link_enc))
+			link->link_enc->funcs->is_dig_enabled(link->link_enc)) {
 			link->link_status.link_active = true;
+			if (link->link_enc->funcs->fec_is_active &&
+					link->link_enc->funcs->fec_is_active(link->link_enc))
+				link->fec_state = dc_link_fec_enabled;
+		}
 	}
 
 	/* Power gate DSCs */
@@ -545,8 +549,10 @@ void dcn30_init_hw(struct dc *dc)
 			hws->funcs.dsc_pg_control(hws, res_pool->dscs[i]->inst, false);
 
 	/* we want to turn off all dp displays before doing detection */
-	if (dc->config.power_down_display_on_boot)
-		dc_link_blank_all_dp_displays(dc);
+	dc_link_blank_all_dp_displays(dc);
+
+	if (hws->funcs.enable_power_gating_plane)
+		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 
 	/* If taking control over from VBIOS, we may want to optimize our first
 	 * mode set, so we need to skip powering down pipes until we know which
@@ -554,7 +560,7 @@ void dcn30_init_hw(struct dc *dc)
 	 * Otherwise, if taking control is not possible, we need to power
 	 * everything down.
 	 */
-	if (dcb->funcs->is_accelerated_mode(dcb) || dc->config.power_down_display_on_boot) {
+	if (dcb->funcs->is_accelerated_mode(dcb) || !dc->config.seamless_boot_edp_requested) {
 		hws->funcs.init_pipes(dc, dc->current_state);
 		if (dc->res_pool->hubbub->funcs->allow_self_refresh_control)
 			dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub,
@@ -566,7 +572,7 @@ void dcn30_init_hw(struct dc *dc)
 	 * To avoid this, power down hardware on boot
 	 * if DIG is turned on and seamless boot not enabled
 	 */
-	if (dc->config.power_down_display_on_boot) {
+	if (!dc->config.seamless_boot_edp_requested) {
 		struct dc_link *edp_links[MAX_NUM_EDP];
 		struct dc_link *edp_link = NULL;
 
@@ -625,8 +631,6 @@ void dcn30_init_hw(struct dc *dc)
 
 		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
 	}
-	if (hws->funcs.enable_power_gating_plane)
-		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 
 	if (!dcb->funcs->is_accelerated_mode(dcb) && dc->res_pool->hubbub->funcs->init_watermarks)
 		dc->res_pool->hubbub->funcs->init_watermarks(dc->res_pool->hubbub);

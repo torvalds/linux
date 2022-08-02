@@ -381,7 +381,7 @@ static int stm32_dfsdm_core_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused stm32_dfsdm_core_suspend(struct device *dev)
+static int stm32_dfsdm_core_suspend(struct device *dev)
 {
 	struct stm32_dfsdm *dfsdm = dev_get_drvdata(dev);
 	struct dfsdm_priv *priv = to_stm32_dfsdm_priv(dfsdm);
@@ -397,7 +397,7 @@ static int __maybe_unused stm32_dfsdm_core_suspend(struct device *dev)
 	return pinctrl_pm_select_sleep_state(dev);
 }
 
-static int __maybe_unused stm32_dfsdm_core_resume(struct device *dev)
+static int stm32_dfsdm_core_resume(struct device *dev)
 {
 	struct stm32_dfsdm *dfsdm = dev_get_drvdata(dev);
 	struct dfsdm_priv *priv = to_stm32_dfsdm_priv(dfsdm);
@@ -414,7 +414,7 @@ static int __maybe_unused stm32_dfsdm_core_resume(struct device *dev)
 	return pm_runtime_force_resume(dev);
 }
 
-static int __maybe_unused stm32_dfsdm_core_runtime_suspend(struct device *dev)
+static int stm32_dfsdm_core_runtime_suspend(struct device *dev)
 {
 	struct stm32_dfsdm *dfsdm = dev_get_drvdata(dev);
 
@@ -423,7 +423,7 @@ static int __maybe_unused stm32_dfsdm_core_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused stm32_dfsdm_core_runtime_resume(struct device *dev)
+static int stm32_dfsdm_core_runtime_resume(struct device *dev)
 {
 	struct stm32_dfsdm *dfsdm = dev_get_drvdata(dev);
 
@@ -431,11 +431,10 @@ static int __maybe_unused stm32_dfsdm_core_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops stm32_dfsdm_core_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(stm32_dfsdm_core_suspend,
-				stm32_dfsdm_core_resume)
-	SET_RUNTIME_PM_OPS(stm32_dfsdm_core_runtime_suspend,
-			   stm32_dfsdm_core_runtime_resume,
-			   NULL)
+	SYSTEM_SLEEP_PM_OPS(stm32_dfsdm_core_suspend, stm32_dfsdm_core_resume)
+	RUNTIME_PM_OPS(stm32_dfsdm_core_runtime_suspend,
+		       stm32_dfsdm_core_runtime_resume,
+		       NULL)
 };
 
 static struct platform_driver stm32_dfsdm_driver = {
@@ -444,7 +443,7 @@ static struct platform_driver stm32_dfsdm_driver = {
 	.driver = {
 		.name = "stm32-dfsdm",
 		.of_match_table = stm32_dfsdm_of_match,
-		.pm = &stm32_dfsdm_core_pm_ops,
+		.pm = pm_ptr(&stm32_dfsdm_core_pm_ops),
 	},
 };
 

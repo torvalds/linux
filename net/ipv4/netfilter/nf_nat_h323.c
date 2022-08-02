@@ -580,7 +580,7 @@ static struct nf_ct_helper_expectfn callforwarding_nat = {
 };
 
 /****************************************************************************/
-static int __init init(void)
+static int __init nf_nat_h323_init(void)
 {
 	BUG_ON(set_h245_addr_hook != NULL);
 	BUG_ON(set_h225_addr_hook != NULL);
@@ -607,7 +607,7 @@ static int __init init(void)
 }
 
 /****************************************************************************/
-static void __exit fini(void)
+static void __exit nf_nat_h323_fini(void)
 {
 	RCU_INIT_POINTER(set_h245_addr_hook, NULL);
 	RCU_INIT_POINTER(set_h225_addr_hook, NULL);
@@ -624,8 +624,8 @@ static void __exit fini(void)
 }
 
 /****************************************************************************/
-module_init(init);
-module_exit(fini);
+module_init(nf_nat_h323_init);
+module_exit(nf_nat_h323_fini);
 
 MODULE_AUTHOR("Jing Min Zhao <zhaojingmin@users.sourceforge.net>");
 MODULE_DESCRIPTION("H.323 NAT helper");

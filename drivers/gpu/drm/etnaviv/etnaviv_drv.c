@@ -574,18 +574,6 @@ static const struct component_master_ops etnaviv_master_ops = {
 	.unbind = etnaviv_unbind,
 };
 
-static int compare_of(struct device *dev, void *data)
-{
-	struct device_node *np = data;
-
-	return dev->of_node == np;
-}
-
-static int compare_str(struct device *dev, void *data)
-{
-	return !strcmp(dev_name(dev), data);
-}
-
 static int etnaviv_pdev_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -603,14 +591,14 @@ static int etnaviv_pdev_probe(struct platform_device *pdev)
 				first_node = core_node;
 
 			drm_of_component_match_add(&pdev->dev, &match,
-						   compare_of, core_node);
+						   component_compare_of, core_node);
 		}
 	} else {
 		char **names = dev->platform_data;
 		unsigned i;
 
 		for (i = 0; names[i]; i++)
-			component_match_add(dev, &match, compare_str, names[i]);
+			component_match_add(dev, &match, component_compare_dev_name, names[i]);
 	}
 
 	/*

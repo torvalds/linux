@@ -321,7 +321,7 @@ static int nand_isbad_bbm(struct nand_chip *chip, loff_t ofs)
 	if (nand_region_is_secured(chip, ofs, mtd->erasesize))
 		return -EIO;
 
-	if (WARN_ONCE(mtd_expert_analysis_mode, mtd_expert_analysis_warning))
+	if (mtd_check_expert_analysis_mode())
 		return 0;
 
 	if (chip->legacy.block_bad)
@@ -338,16 +338,19 @@ static int nand_isbad_bbm(struct nand_chip *chip, loff_t ofs)
  *
  * Return: -EBUSY if the chip has been suspended, 0 otherwise
  */
-static int nand_get_device(struct nand_chip *chip)
+static void nand_get_device(struct nand_chip *chip)
 {
-	mutex_lock(&chip->lock);
-	if (chip->suspended) {
+	/* Wait until the device is resumed. */
+	while (1) {
+		mutex_lock(&chip->lock);
+		if (!chip->suspended) {
+			mutex_lock(&chip->controller->lock);
+			return;
+		}
 		mutex_unlock(&chip->lock);
-		return -EBUSY;
-	}
-	mutex_lock(&chip->controller->lock);
 
-	return 0;
+		wait_event(chip->resume_wq, !chip->suspended);
+	}
 }
 
 /**
@@ -576,9 +579,7 @@ static int nand_block_markbad_lowlevel(struct nand_chip *chip, loff_t ofs)
 		nand_erase_nand(chip, &einfo, 0);
 
 		/* Write bad block marker to OOB */
-		ret = nand_get_device(chip);
-		if (ret)
-			return ret;
+		nand_get_device(chip);
 
 		ret = nand_markbad_bbm(chip, ofs);
 		nand_release_device(chip);
@@ -3826,9 +3827,7 @@ static int nand_read_oob(struct mtd_info *mtd, loff_t from,
 	    ops->mode != MTD_OPS_RAW)
 		return -ENOTSUPP;
 
-	ret = nand_get_device(chip);
-	if (ret)
-		return ret;
+	nand_get_device(chip);
 
 	if (!ops->datbuf)
 		ret = nand_do_read_oob(chip, from, ops);
@@ -4415,13 +4414,11 @@ static int nand_write_oob(struct mtd_info *mtd, loff_t to,
 			  struct mtd_oob_ops *ops)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
-	int ret;
+	int ret = 0;
 
 	ops->retlen = 0;
 
-	ret = nand_get_device(chip);
-	if (ret)
-		return ret;
+	nand_get_device(chip);
 
 	switch (ops->mode) {
 	case MTD_OPS_PLACE_OOB:
@@ -4481,9 +4478,7 @@ int nand_erase_nand(struct nand_chip *chip, struct erase_info *instr,
 		return -EIO;
 
 	/* Grab the lock and see if the device is available */
-	ret = nand_get_device(chip);
-	if (ret)
-		return ret;
+	nand_get_device(chip);
 
 	/* Shift to get first page */
 	page = (int)(instr->addr >> chip->page_shift);
@@ -4507,11 +4502,13 @@ int nand_erase_nand(struct nand_chip *chip, struct erase_info *instr,
 	len = instr->len;
 
 	while (len) {
+		loff_t ofs = (loff_t)page << chip->page_shift;
+
 		/* Check if we have a bad block, we do not erase bad blocks! */
 		if (nand_block_checkbad(chip, ((loff_t) page) <<
 					chip->page_shift, allowbbt)) {
-			pr_warn("%s: attempt to erase a bad block at page 0x%08x\n",
-				    __func__, page);
+			pr_warn("%s: attempt to erase a bad block at 0x%08llx\n",
+				    __func__, (unsigned long long)ofs);
 			ret = -EIO;
 			goto erase_exit;
 		}
@@ -4529,8 +4526,7 @@ int nand_erase_nand(struct nand_chip *chip, struct erase_info *instr,
 		if (ret) {
 			pr_debug("%s: failed erase, page 0x%08x\n",
 					__func__, page);
-			instr->fail_addr =
-				((loff_t)page << chip->page_shift);
+			instr->fail_addr = ofs;
 			goto erase_exit;
 		}
 
@@ -4570,7 +4566,7 @@ static void nand_sync(struct mtd_info *mtd)
 	pr_debug("%s: called\n", __func__);
 
 	/* Grab the lock and see if the device is available */
-	WARN_ON(nand_get_device(chip));
+	nand_get_device(chip);
 	/* Release it and go back */
 	nand_release_device(chip);
 }
@@ -4587,9 +4583,7 @@ static int nand_block_isbad(struct mtd_info *mtd, loff_t offs)
 	int ret;
 
 	/* Select the NAND device */
-	ret = nand_get_device(chip);
-	if (ret)
-		return ret;
+	nand_get_device(chip);
 
 	nand_select_target(chip, chipnr);
 
@@ -4660,6 +4654,8 @@ static void nand_resume(struct mtd_info *mtd)
 			__func__);
 	}
 	mutex_unlock(&chip->lock);
+
+	wake_up_all(&chip->resume_wq);
 }
 
 /**
@@ -5274,25 +5270,24 @@ static void of_get_nand_ecc_legacy_user_config(struct nand_chip *chip)
 		user_conf->placement = of_get_rawnand_ecc_placement_legacy(dn);
 }
 
-static int of_get_nand_bus_width(struct device_node *np)
+static int of_get_nand_bus_width(struct nand_chip *chip)
 {
+	struct device_node *dn = nand_get_flash_node(chip);
 	u32 val;
+	int ret;
 
-	if (of_property_read_u32(np, "nand-bus-width", &val))
-		return 8;
+	ret = of_property_read_u32(dn, "nand-bus-width", &val);
+	if (ret == -EINVAL)
+		/* Buswidth defaults to 8 if the property does not exist .*/
+		return 0;
+	else if (ret)
+		return ret;
 
-	switch (val) {
-	case 8:
-	case 16:
-		return val;
-	default:
-		return -EIO;
-	}
-}
-
-static bool of_get_nand_on_flash_bbt(struct device_node *np)
-{
-	return of_property_read_bool(np, "nand-on-flash-bbt");
+	if (val == 16)
+		chip->options |= NAND_BUSWIDTH_16;
+	else if (val != 8)
+		return -EINVAL;
+	return 0;
 }
 
 static int of_get_nand_secure_regions(struct nand_chip *chip)
@@ -5368,17 +5363,19 @@ static int rawnand_dt_init(struct nand_chip *chip)
 {
 	struct nand_device *nand = mtd_to_nanddev(nand_to_mtd(chip));
 	struct device_node *dn = nand_get_flash_node(chip);
+	int ret;
 
 	if (!dn)
 		return 0;
 
-	if (of_get_nand_bus_width(dn) == 16)
-		chip->options |= NAND_BUSWIDTH_16;
+	ret = of_get_nand_bus_width(chip);
+	if (ret)
+		return ret;
 
 	if (of_property_read_bool(dn, "nand-is-boot-medium"))
 		chip->options |= NAND_IS_BOOT_MEDIUM;
 
-	if (of_get_nand_on_flash_bbt(dn))
+	if (of_property_read_bool(dn, "nand-on-flash-bbt"))
 		chip->bbt_options |= NAND_BBT_USE_FLASH;
 
 	of_get_nand_ecc_user_config(nand);
@@ -5437,6 +5434,7 @@ static int nand_scan_ident(struct nand_chip *chip, unsigned int maxchips,
 	chip->cur_cs = -1;
 
 	mutex_init(&chip->lock);
+	init_waitqueue_head(&chip->resume_wq);
 
 	/* Enforce the right timings for reset/detection */
 	chip->current_interface_config = nand_get_reset_interface_config();

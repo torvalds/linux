@@ -14,6 +14,8 @@ INIT_NETNS_NAME="init"
 
 PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
 
+TESTS="init testns mix"
+
 log_test()
 {
 	local rc=$1
@@ -262,6 +264,8 @@ cleanup()
 
 vrf_strict_mode_tests_init()
 {
+	log_section "VRF strict_mode test on init network namespace"
+
 	vrf_strict_mode_check_support init
 
 	strict_mode_check_default init
@@ -292,6 +296,8 @@ vrf_strict_mode_tests_init()
 
 vrf_strict_mode_tests_testns()
 {
+	log_section "VRF strict_mode test on testns network namespace"
+
 	vrf_strict_mode_check_support testns
 
 	strict_mode_check_default testns
@@ -318,6 +324,8 @@ vrf_strict_mode_tests_testns()
 
 vrf_strict_mode_tests_mix()
 {
+	log_section "VRF strict_mode test mixing init and testns network namespaces"
+
 	read_strict_mode_compare_and_check init 1
 
 	read_strict_mode_compare_and_check testns 0
@@ -341,17 +349,29 @@ vrf_strict_mode_tests_mix()
 	read_strict_mode_compare_and_check testns 0
 }
 
-vrf_strict_mode_tests()
+################################################################################
+# usage
+
+usage()
 {
-	log_section "VRF strict_mode test on init network namespace"
-	vrf_strict_mode_tests_init
+	cat <<EOF
+usage: ${0##*/} OPTS
 
-	log_section "VRF strict_mode test on testns network namespace"
-	vrf_strict_mode_tests_testns
-
-	log_section "VRF strict_mode test mixing init and testns network namespaces"
-	vrf_strict_mode_tests_mix
+	-t <test>	Test(s) to run (default: all)
+			(options: $TESTS)
+EOF
 }
+
+################################################################################
+# main
+
+while getopts ":t:h" opt; do
+	case $opt in
+		t) TESTS=$OPTARG;;
+		h) usage; exit 0;;
+		*) usage; exit 1;;
+	esac
+done
 
 vrf_strict_mode_check_support()
 {
@@ -391,7 +411,17 @@ fi
 cleanup &> /dev/null
 
 setup
-vrf_strict_mode_tests
+for t in $TESTS
+do
+	case $t in
+	vrf_strict_mode_tests_init|init) vrf_strict_mode_tests_init;;
+	vrf_strict_mode_tests_testns|testns) vrf_strict_mode_tests_testns;;
+	vrf_strict_mode_tests_mix|mix) vrf_strict_mode_tests_mix;;
+
+	help) echo "Test names: $TESTS"; exit 0;;
+
+	esac
+done
 cleanup
 
 print_log_test_results

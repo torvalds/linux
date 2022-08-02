@@ -391,6 +391,11 @@ properties:
           - const: libretech,all-h5-cc-h5
           - const: allwinner,sun50i-h5
 
+      - description: Lichee Pi Nano
+        items:
+          - const: licheepi,licheepi-nano
+          - const: allwinner,suniv-f1c100s
+
       - description: Lichee Pi One
         items:
           - const: licheepi,licheepi-one
@@ -443,6 +448,11 @@ properties:
         items:
           - const: haoyu,a10-marsboard
           - const: allwinner,sun4i-a10
+
+      - description: HAOYU Electronics Marsboard A20
+        items:
+          - const: haoyu,a20-marsboard
+          - const: allwinner,sun7i-a20
 
       - description: MapleBoard MP130
         items:

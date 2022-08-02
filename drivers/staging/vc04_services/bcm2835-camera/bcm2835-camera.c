@@ -33,8 +33,6 @@
 #include "mmal-parameters.h"
 #include "bcm2835-camera.h"
 
-#define BM2835_MMAL_VERSION "0.0.2"
-#define BM2835_MMAL_MODULE_NAME "bcm2835-v4l2"
 #define MIN_WIDTH 32
 #define MIN_HEIGHT 32
 #define MIN_BUFFER_SIZE (80 * 1024)
@@ -1035,9 +1033,9 @@ static int mmal_setup_video_component(struct bcm2835_mmal_dev *dev,
 	preview_port->es.video.crop.y = 0;
 	preview_port->es.video.crop.width = f->fmt.pix.width;
 	preview_port->es.video.crop.height = f->fmt.pix.height;
-	preview_port->es.video.frame_rate.num =
+	preview_port->es.video.frame_rate.numerator =
 				  dev->capture.timeperframe.denominator;
-	preview_port->es.video.frame_rate.den =
+	preview_port->es.video.frame_rate.denominator =
 				  dev->capture.timeperframe.numerator;
 	ret = vchiq_mmal_port_set_format(dev->instance, preview_port);
 
@@ -1086,9 +1084,9 @@ static int mmal_setup_encode_component(struct bcm2835_mmal_dev *dev,
 	port->es.video.crop.y = 0;
 	port->es.video.crop.width = f->fmt.pix.width;
 	port->es.video.crop.height = f->fmt.pix.height;
-	port->es.video.frame_rate.num =
+	port->es.video.frame_rate.numerator =
 		  dev->capture.timeperframe.denominator;
-	port->es.video.frame_rate.den =
+	port->es.video.frame_rate.denominator =
 		  dev->capture.timeperframe.numerator;
 
 	port->format.encoding = mfmt->mmal;
@@ -1227,8 +1225,8 @@ static int mmal_setup_components(struct bcm2835_mmal_dev *dev,
 	camera_port->es.video.crop.y = 0;
 	camera_port->es.video.crop.width = f->fmt.pix.width;
 	camera_port->es.video.crop.height = f->fmt.pix.height;
-	camera_port->es.video.frame_rate.num = 0;
-	camera_port->es.video.frame_rate.den = 1;
+	camera_port->es.video.frame_rate.numerator = 0;
+	camera_port->es.video.frame_rate.denominator = 1;
 	camera_port->es.video.color_space = MMAL_COLOR_SPACE_JPEG_JFIF;
 
 	ret = vchiq_mmal_port_set_format(dev->instance, camera_port);
@@ -1631,8 +1629,8 @@ static int mmal_init(struct bcm2835_mmal_dev *dev)
 	format->es->video.crop.y = 0;
 	format->es->video.crop.width = 1024;
 	format->es->video.crop.height = 768;
-	format->es->video.frame_rate.num = 0; /* Rely on fps_range */
-	format->es->video.frame_rate.den = 1;
+	format->es->video.frame_rate.numerator = 0; /* Rely on fps_range */
+	format->es->video.frame_rate.denominator = 1;
 
 	format = &camera->output[CAM_PORT_VIDEO].format;
 
@@ -1645,8 +1643,8 @@ static int mmal_init(struct bcm2835_mmal_dev *dev)
 	format->es->video.crop.y = 0;
 	format->es->video.crop.width = 1024;
 	format->es->video.crop.height = 768;
-	format->es->video.frame_rate.num = 0; /* Rely on fps_range */
-	format->es->video.frame_rate.den = 1;
+	format->es->video.frame_rate.numerator = 0; /* Rely on fps_range */
+	format->es->video.frame_rate.denominator = 1;
 
 	format = &camera->output[CAM_PORT_CAPTURE].format;
 
@@ -1658,8 +1656,8 @@ static int mmal_init(struct bcm2835_mmal_dev *dev)
 	format->es->video.crop.y = 0;
 	format->es->video.crop.width = 2592;
 	format->es->video.crop.height = 1944;
-	format->es->video.frame_rate.num = 0; /* Rely on fps_range */
-	format->es->video.frame_rate.den = 1;
+	format->es->video.frame_rate.numerator = 0; /* Rely on fps_range */
+	format->es->video.frame_rate.denominator = 1;
 
 	dev->capture.width = format->es->video.width;
 	dev->capture.height = format->es->video.height;
@@ -1894,8 +1892,7 @@ static int bcm2835_mmal_probe(struct platform_device *pdev)
 		dev->capture.fmt = &formats[3]; /* JPEG */
 
 		/* v4l device registration */
-		dev->camera_num = v4l2_device_set_name(&dev->v4l2_dev,
-						       BM2835_MMAL_MODULE_NAME,
+		dev->camera_num = v4l2_device_set_name(&dev->v4l2_dev, KBUILD_MODNAME,
 						       &camera_instance);
 		ret = v4l2_device_register(NULL, &dev->v4l2_dev);
 		if (ret) {
@@ -1954,9 +1951,7 @@ static int bcm2835_mmal_probe(struct platform_device *pdev)
 			goto unreg_dev;
 		}
 
-		v4l2_info(&dev->v4l2_dev,
-			  "Broadcom 2835 MMAL video capture ver %s loaded.\n",
-			  BM2835_MMAL_VERSION);
+		v4l2_info(&dev->v4l2_dev, "Broadcom 2835 MMAL video capture loaded.\n");
 
 		gdev[camera] = dev;
 	}
@@ -2008,5 +2003,4 @@ module_platform_driver(bcm2835_camera_driver)
 MODULE_DESCRIPTION("Broadcom 2835 MMAL video capture");
 MODULE_AUTHOR("Vincent Sanders");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(BM2835_MMAL_VERSION);
 MODULE_ALIAS("platform:bcm2835-camera");

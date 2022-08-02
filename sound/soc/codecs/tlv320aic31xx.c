@@ -32,7 +32,7 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
-#include <dt-bindings/sound/tlv320aic31xx-micbias.h>
+#include <dt-bindings/sound/tlv320aic31xx.h>
 
 #include "tlv320aic31xx.h"
 
@@ -1628,11 +1628,24 @@ static void aic31xx_configure_ocmv(struct aic31xx_priv *priv)
 	}
 }
 
-static int aic31xx_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static const struct i2c_device_id aic31xx_i2c_id[] = {
+	{ "tlv320aic310x", AIC3100 },
+	{ "tlv320aic311x", AIC3110 },
+	{ "tlv320aic3100", AIC3100 },
+	{ "tlv320aic3110", AIC3110 },
+	{ "tlv320aic3120", AIC3120 },
+	{ "tlv320aic3111", AIC3111 },
+	{ "tlv320dac3100", DAC3100 },
+	{ "tlv320dac3101", DAC3101 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, aic31xx_i2c_id);
+
+static int aic31xx_i2c_probe(struct i2c_client *i2c)
 {
 	struct aic31xx_priv *aic31xx;
 	unsigned int micbias_value = MICBIAS_2_0V;
+	const struct i2c_device_id *id = i2c_match_id(aic31xx_i2c_id, i2c);
 	int i, ret;
 
 	dev_dbg(&i2c->dev, "## %s: %s codec_type = %d\n", __func__,
@@ -1729,26 +1742,13 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c,
 				ARRAY_SIZE(aic31xx_dai_driver));
 }
 
-static const struct i2c_device_id aic31xx_i2c_id[] = {
-	{ "tlv320aic310x", AIC3100 },
-	{ "tlv320aic311x", AIC3110 },
-	{ "tlv320aic3100", AIC3100 },
-	{ "tlv320aic3110", AIC3110 },
-	{ "tlv320aic3120", AIC3120 },
-	{ "tlv320aic3111", AIC3111 },
-	{ "tlv320dac3100", DAC3100 },
-	{ "tlv320dac3101", DAC3101 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, aic31xx_i2c_id);
-
 static struct i2c_driver aic31xx_i2c_driver = {
 	.driver = {
 		.name	= "tlv320aic31xx-codec",
 		.of_match_table = of_match_ptr(tlv320aic31xx_of_match),
 		.acpi_match_table = ACPI_PTR(aic31xx_acpi_match),
 	},
-	.probe		= aic31xx_i2c_probe,
+	.probe_new	= aic31xx_i2c_probe,
 	.id_table	= aic31xx_i2c_id,
 };
 module_i2c_driver(aic31xx_i2c_driver);

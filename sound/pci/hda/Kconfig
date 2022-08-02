@@ -102,6 +102,7 @@ config SND_HDA_SCODEC_CS35L41_I2C
 	select SND_HDA_GENERIC
 	select SND_SOC_CS35L41_LIB
 	select SND_HDA_SCODEC_CS35L41
+	select REGMAP_IRQ
 	help
 	  Say Y or M here to include CS35L41 I2C HD-audio side codec support
 	  in snd-hda-intel driver, such as ALC287.
@@ -117,6 +118,7 @@ config SND_HDA_SCODEC_CS35L41_SPI
 	select SND_HDA_GENERIC
 	select SND_SOC_CS35L41_LIB
 	select SND_HDA_SCODEC_CS35L41
+	select REGMAP_IRQ
 	help
 	  Say Y or M here to include CS35L41 SPI HD-audio side codec support
 	  in snd-hda-intel driver, such as ALC287.
@@ -285,15 +287,16 @@ config SND_HDA_INTEL_HDMI_SILENT_STREAM
 	bool "Enable Silent Stream always for HDMI"
 	depends on SND_HDA_INTEL
 	help
-	  Intel hardware has a feature called 'silent stream', that
-	  keeps external HDMI receiver's analog circuitry powered on
-	  avoiding 2-3 sec silence during playback start. This mechanism
-	  relies on setting channel_id as 0xf, sending info packet and
-	  preventing codec D3 entry (increasing  platform static power
-	  consumption when HDMI receiver is plugged-in). 2-3 sec silence
-	  at the playback start is expected whenever there is format change.
-	  (default is 2 channel format).
-	  Say Y to enable Silent Stream feature.
+	  Say Y to enable HD-Audio Keep Alive (KAE) aka Silent Stream
+	  for HDMI on hardware that supports the feature.
+
+	  When enabled, the HDMI/DisplayPort codec will continue to provide
+	  a continuous clock and a valid but silent data stream to
+	  any connected external receiver. This allows to avoid gaps
+	  at start of playback. Many receivers require multiple seconds
+	  to start playing audio after the clock has been stopped.
+	  This feature can impact power consumption as resources
+	  are kept reserved both at transmitter and receiver.
 
 endif
 

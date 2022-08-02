@@ -51,7 +51,19 @@ config CRYPTO_SM4_ARM64_CE
 	tristate "SM4 symmetric cipher (ARMv8.2 Crypto Extensions)"
 	depends on KERNEL_MODE_NEON
 	select CRYPTO_ALGAPI
-	select CRYPTO_LIB_SM4
+	select CRYPTO_SM4
+
+config CRYPTO_SM4_ARM64_CE_BLK
+	tristate "SM4 in ECB/CBC/CFB/CTR modes using ARMv8 Crypto Extensions"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_SKCIPHER
+	select CRYPTO_SM4
+
+config CRYPTO_SM4_ARM64_NEON_BLK
+	tristate "SM4 in ECB/CBC/CFB/CTR modes using NEON instructions"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_SKCIPHER
+	select CRYPTO_SM4
 
 config CRYPTO_GHASH_ARM64_CE
 	tristate "GHASH/AES-GCM using ARMv8 Crypto Extensions"

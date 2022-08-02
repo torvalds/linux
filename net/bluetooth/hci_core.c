@@ -2153,7 +2153,7 @@ int hci_bdaddr_list_add_with_flags(struct list_head *list, bdaddr_t *bdaddr,
 
 	bacpy(&entry->bdaddr, bdaddr);
 	entry->bdaddr_type = type;
-	bitmap_from_u64(entry->flags, flags);
+	entry->flags = flags;
 
 	list_add(&entry->list, list);
 
@@ -2503,6 +2503,7 @@ struct hci_dev *hci_alloc_dev_priv(int sizeof_priv)
 	INIT_LIST_HEAD(&hdev->conn_hash.list);
 	INIT_LIST_HEAD(&hdev->adv_instances);
 	INIT_LIST_HEAD(&hdev->blocked_keys);
+	INIT_LIST_HEAD(&hdev->monitored_devices);
 
 	INIT_LIST_HEAD(&hdev->local_codecs);
 	INIT_WORK(&hdev->rx_work, hci_rx_work);
@@ -2554,10 +2555,10 @@ int hci_register_dev(struct hci_dev *hdev)
 	 */
 	switch (hdev->dev_type) {
 	case HCI_PRIMARY:
-		id = ida_simple_get(&hci_index_ida, 0, 0, GFP_KERNEL);
+		id = ida_simple_get(&hci_index_ida, 0, HCI_MAX_ID, GFP_KERNEL);
 		break;
 	case HCI_AMP:
-		id = ida_simple_get(&hci_index_ida, 1, 0, GFP_KERNEL);
+		id = ida_simple_get(&hci_index_ida, 1, HCI_MAX_ID, GFP_KERNEL);
 		break;
 	default:
 		return -EINVAL;
@@ -2566,7 +2567,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	if (id < 0)
 		return id;
 
-	sprintf(hdev->name, "hci%d", id);
+	snprintf(hdev->name, sizeof(hdev->name), "hci%d", id);
 	hdev->id = id;
 
 	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
@@ -2633,7 +2634,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	 * callback.
 	 */
 	if (hdev->wakeup)
-		set_bit(HCI_CONN_FLAG_REMOTE_WAKEUP, hdev->conn_flags);
+		hdev->conn_flags |= HCI_CONN_FLAG_REMOTE_WAKEUP;
 
 	hci_sock_dev_event(hdev, HCI_DEV_REG);
 	hci_dev_hold(hdev);
@@ -2673,8 +2674,6 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	write_lock(&hci_dev_list_lock);
 	list_del(&hdev->list);
 	write_unlock(&hci_dev_list_lock);
-
-	cancel_work_sync(&hdev->power_on);
 
 	hci_cmd_sync_clear(hdev);
 
@@ -3667,8 +3666,8 @@ static void hci_scodata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 		sco_recv_scodata(conn, skb);
 		return;
 	} else {
-		bt_dev_err(hdev, "SCO packet for unknown connection handle %d",
-			   handle);
+		bt_dev_err_ratelimited(hdev, "SCO packet for unknown connection handle %d",
+				       handle);
 	}
 
 	kfree_skb(skb);

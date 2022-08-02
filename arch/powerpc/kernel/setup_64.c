@@ -31,11 +31,12 @@
 #include <linux/memory.h>
 #include <linux/nmi.h>
 #include <linux/pgtable.h>
+#include <linux/of.h>
+#include <linux/of_fdt.h>
 
 #include <asm/kvm_guest.h>
 #include <asm/io.h>
 #include <asm/kdump.h>
-#include <asm/prom.h>
 #include <asm/processor.h>
 #include <asm/smp.h>
 #include <asm/elf.h>
@@ -59,7 +60,7 @@
 #include <asm/udbg.h>
 #include <asm/kexec.h>
 #include <asm/code-patching.h>
-#include <asm/livepatch.h>
+#include <asm/ftrace.h>
 #include <asm/opal.h>
 #include <asm/cputhreads.h>
 #include <asm/hw_irq.h>
@@ -67,7 +68,6 @@
 #include <asm/kup.h>
 #include <asm/early_ioremap.h>
 #include <asm/pgalloc.h>
-#include <asm/asm-prototypes.h>
 
 #include "setup.h"
 
@@ -197,6 +197,34 @@ static void __init configure_exceptions(void)
 
 	/* Under a PAPR hypervisor, we need hypercalls */
 	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
+		/*
+		 * - PR KVM does not support AIL mode interrupts in the host
+		 *   while a PR guest is running.
+		 *
+		 * - SCV system call interrupt vectors are only implemented for
+		 *   AIL mode interrupts.
+		 *
+		 * - On pseries, AIL mode can only be enabled and disabled
+		 *   system-wide so when a PR VM is created on a pseries host,
+		 *   all CPUs of the host are set to AIL=0 mode.
+		 *
+		 * - Therefore host CPUs must not execute scv while a PR VM
+		 *   exists.
+		 *
+		 * - SCV support can not be disabled dynamically because the
+		 *   feature is advertised to host userspace. Disabling the
+		 *   facility and emulating it would be possible but is not
+		 *   implemented.
+		 *
+		 * - So SCV support is blanket disabled if PR KVM could possibly
+		 *   run. That is, PR support compiled in, booting on pseries
+		 *   with hash MMU.
+		 */
+		if (IS_ENABLED(CONFIG_KVM_BOOK3S_PR_POSSIBLE) && !radix_enabled()) {
+			init_task.thread.fscr &= ~FSCR_SCV;
+			cur_cpu_spec->cpu_user_features2 &= ~PPC_FEATURE2_SCV;
+		}
+
 		/* Enable AIL if possible */
 		if (!pseries_enable_reloc_on_exc()) {
 			init_task.thread.fscr &= ~FSCR_SCV;

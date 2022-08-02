@@ -38,10 +38,10 @@ send_nt_cancel(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 	in_buf->WordCount = 0;
 	put_bcc(0, in_buf);
 
-	mutex_lock(&server->srv_mutex);
+	cifs_server_lock(server);
 	rc = cifs_sign_smb(in_buf, server, &mid->sequence_number);
 	if (rc) {
-		mutex_unlock(&server->srv_mutex);
+		cifs_server_unlock(server);
 		return rc;
 	}
 
@@ -55,7 +55,7 @@ send_nt_cancel(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 	if (rc < 0)
 		server->sequence_number--;
 
-	mutex_unlock(&server->srv_mutex);
+	cifs_server_unlock(server);
 
 	cifs_dbg(FYI, "issued NT_CANCEL for mid %u, rc = %d\n",
 		 get_mid(in_buf), rc);
@@ -228,7 +228,7 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 	spin_unlock(&GlobalMid_Lock);
 
 	if (reconnect) {
-		cifs_mark_tcp_ses_conns_for_reconnect(server, false);
+		cifs_signal_cifsd_for_reconnect(server, false);
 	}
 
 	return mid;

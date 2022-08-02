@@ -459,7 +459,7 @@ int copy_data(
 
 		if (offset >= sge->length) {
 			if (mr) {
-				rxe_drop_ref(mr);
+				rxe_put(mr);
 				mr = NULL;
 			}
 			sge++;
@@ -504,13 +504,13 @@ int copy_data(
 	dma->resid	= resid;
 
 	if (mr)
-		rxe_drop_ref(mr);
+		rxe_put(mr);
 
 	return 0;
 
 err2:
 	if (mr)
-		rxe_drop_ref(mr);
+		rxe_put(mr);
 err1:
 	return err;
 }
@@ -569,7 +569,7 @@ struct rxe_mr *lookup_mr(struct rxe_pd *pd, int access, u32 key,
 		     (type == RXE_LOOKUP_REMOTE && mr->rkey != key) ||
 		     mr_pd(mr) != pd || (access && !(access & mr->access)) ||
 		     mr->state != RXE_MR_STATE_VALID)) {
-		rxe_drop_ref(mr);
+		rxe_put(mr);
 		mr = NULL;
 	}
 
@@ -613,7 +613,7 @@ int rxe_invalidate_mr(struct rxe_qp *qp, u32 rkey)
 	ret = 0;
 
 err_drop_ref:
-	rxe_drop_ref(mr);
+	rxe_put(mr);
 err:
 	return ret;
 }
@@ -683,16 +683,11 @@ int rxe_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 {
 	struct rxe_mr *mr = to_rmr(ibmr);
 
-	if (atomic_read(&mr->num_mw) > 0) {
-		pr_warn("%s: Attempt to deregister an MR while bound to MWs\n",
-			__func__);
+	/* See IBA 10.6.7.2.6 */
+	if (atomic_read(&mr->num_mw) > 0)
 		return -EINVAL;
-	}
 
-	mr->state = RXE_MR_STATE_INVALID;
-	rxe_drop_ref(mr_pd(mr));
-	rxe_drop_index(mr);
-	rxe_drop_ref(mr);
+	rxe_put(mr);
 
 	return 0;
 }
@@ -700,6 +695,8 @@ int rxe_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 void rxe_mr_cleanup(struct rxe_pool_elem *elem)
 {
 	struct rxe_mr *mr = container_of(elem, typeof(*mr), elem);
+
+	rxe_put(mr_pd(mr));
 
 	ib_umem_release(mr->umem);
 

@@ -490,7 +490,7 @@ static int unix_dgram_peer_wake_me(struct sock *sk, struct sock *other)
 	 * -ECONNREFUSED. Otherwise, if we haven't queued any skbs
 	 * to other and its full, we will hang waiting for POLLOUT.
 	 */
-	if (unix_recvq_full(other) && !sock_flag(other, SOCK_DEAD))
+	if (unix_recvq_full_lockless(other) && !sock_flag(other, SOCK_DEAD))
 		return 1;
 
 	if (connected)
@@ -1643,7 +1643,8 @@ static int unix_accept(struct socket *sock, struct socket *newsock, int flags,
 	 * so that no locks are necessary.
 	 */
 
-	skb = skb_recv_datagram(sk, 0, flags&O_NONBLOCK, &err);
+	skb = skb_recv_datagram(sk, (flags & O_NONBLOCK) ? MSG_DONTWAIT : 0,
+				&err);
 	if (!skb) {
 		/* This means receive shutdown. */
 		if (err == 0)
@@ -1808,11 +1809,9 @@ static int maybe_init_creds(struct scm_cookie *scm,
 static bool unix_skb_scm_eq(struct sk_buff *skb,
 			    struct scm_cookie *scm)
 {
-	const struct unix_skb_parms *u = &UNIXCB(skb);
-
-	return u->pid == scm->pid &&
-	       uid_eq(u->uid, scm->creds.uid) &&
-	       gid_eq(u->gid, scm->creds.gid) &&
+	return UNIXCB(skb).pid == scm->pid &&
+	       uid_eq(UNIXCB(skb).uid, scm->creds.uid) &&
+	       gid_eq(UNIXCB(skb).gid, scm->creds.gid) &&
 	       unix_secdata_eq(scm, skb);
 }
 
@@ -2049,7 +2048,7 @@ out:
  */
 #define UNIX_SKB_FRAGS_SZ (PAGE_SIZE << get_order(32768))
 
-#if (IS_ENABLED(CONFIG_AF_UNIX_OOB))
+#if IS_ENABLED(CONFIG_AF_UNIX_OOB)
 static int queue_oob(struct socket *sock, struct msghdr *msg, struct sock *other)
 {
 	struct unix_sock *ousk = unix_sk(other);
@@ -2084,7 +2083,7 @@ static int queue_oob(struct socket *sock, struct msghdr *msg, struct sock *other
 	if (ousk->oob_skb)
 		consume_skb(ousk->oob_skb);
 
-	ousk->oob_skb = skb;
+	WRITE_ONCE(ousk->oob_skb, skb);
 
 	scm_stat_add(other, skb);
 	skb_queue_tail(&other->sk_receive_queue, skb);
@@ -2115,7 +2114,7 @@ static int unix_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 
 	err = -EOPNOTSUPP;
 	if (msg->msg_flags & MSG_OOB) {
-#if (IS_ENABLED(CONFIG_AF_UNIX_OOB))
+#if IS_ENABLED(CONFIG_AF_UNIX_OOB)
 		if (len)
 			len--;
 		else
@@ -2186,7 +2185,7 @@ static int unix_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 		sent += size;
 	}
 
-#if (IS_ENABLED(CONFIG_AF_UNIX_OOB))
+#if IS_ENABLED(CONFIG_AF_UNIX_OOB)
 	if (msg->msg_flags & MSG_OOB) {
 		err = queue_oob(sock, msg, other);
 		if (err)
@@ -2483,8 +2482,7 @@ static int unix_dgram_recvmsg(struct socket *sock, struct msghdr *msg, size_t si
 	const struct proto *prot = READ_ONCE(sk->sk_prot);
 
 	if (prot != &unix_dgram_proto)
-		return prot->recvmsg(sk, msg, size, flags & MSG_DONTWAIT,
-					    flags & ~MSG_DONTWAIT, NULL);
+		return prot->recvmsg(sk, msg, size, flags, NULL);
 #endif
 	return __unix_dgram_recvmsg(sk, msg, size, flags);
 }
@@ -2500,7 +2498,7 @@ static int unix_read_sock(struct sock *sk, read_descriptor_t *desc,
 		int used, err;
 
 		mutex_lock(&u->iolock);
-		skb = skb_recv_datagram(sk, 0, 1, &err);
+		skb = skb_recv_datagram(sk, MSG_DONTWAIT, &err);
 		mutex_unlock(&u->iolock);
 		if (!skb)
 			return err;
@@ -2602,9 +2600,8 @@ static int unix_stream_recv_urg(struct unix_stream_read_state *state)
 
 	oob_skb = u->oob_skb;
 
-	if (!(state->flags & MSG_PEEK)) {
-		u->oob_skb = NULL;
-	}
+	if (!(state->flags & MSG_PEEK))
+		WRITE_ONCE(u->oob_skb, NULL);
 
 	unix_state_unlock(sk);
 
@@ -2639,7 +2636,7 @@ static struct sk_buff *manage_oob(struct sk_buff *skb, struct sock *sk,
 				skb = NULL;
 			} else if (sock_flag(sk, SOCK_URGINLINE)) {
 				if (!(flags & MSG_PEEK)) {
-					u->oob_skb = NULL;
+					WRITE_ONCE(u->oob_skb, NULL);
 					consume_skb(skb);
 				}
 			} else if (!(flags & MSG_PEEK)) {
@@ -2917,8 +2914,7 @@ static int unix_stream_recvmsg(struct socket *sock, struct msghdr *msg,
 	const struct proto *prot = READ_ONCE(sk->sk_prot);
 
 	if (prot != &unix_stream_proto)
-		return prot->recvmsg(sk, msg, size, flags & MSG_DONTWAIT,
-					    flags & ~MSG_DONTWAIT, NULL);
+		return prot->recvmsg(sk, msg, size, flags, NULL);
 #endif
 	return unix_stream_read_generic(&state, true);
 }
@@ -3094,11 +3090,10 @@ static int unix_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	case SIOCATMARK:
 		{
 			struct sk_buff *skb;
-			struct unix_sock *u = unix_sk(sk);
 			int answ = 0;
 
 			skb = skb_peek(&sk->sk_receive_queue);
-			if (skb && skb == u->oob_skb)
+			if (skb && skb == READ_ONCE(unix_sk(sk)->oob_skb))
 				answ = 1;
 			err = put_user(answ, (int __user *)arg);
 		}
@@ -3139,6 +3134,10 @@ static __poll_t unix_poll(struct file *file, struct socket *sock, poll_table *wa
 		mask |= EPOLLIN | EPOLLRDNORM;
 	if (sk_is_readable(sk))
 		mask |= EPOLLIN | EPOLLRDNORM;
+#if IS_ENABLED(CONFIG_AF_UNIX_OOB)
+	if (READ_ONCE(unix_sk(sk)->oob_skb))
+		mask |= EPOLLPRI;
+#endif
 
 	/* Connection-based need to check for termination and startup */
 	if ((sk->sk_type == SOCK_STREAM || sk->sk_type == SOCK_SEQPACKET) &&
@@ -3240,32 +3239,40 @@ static struct sock *unix_from_bucket(struct seq_file *seq, loff_t *pos)
 	return sk;
 }
 
-static struct sock *unix_next_socket(struct seq_file *seq,
-				     struct sock *sk,
-				     loff_t *pos)
+static struct sock *unix_get_first(struct seq_file *seq, loff_t *pos)
 {
 	unsigned long bucket = get_bucket(*pos);
+	struct sock *sk;
 
-	while (sk > (struct sock *)SEQ_START_TOKEN) {
-		sk = sk_next(sk);
-		if (!sk)
-			goto next_bucket;
-		if (sock_net(sk) == seq_file_net(seq))
-			return sk;
-	}
-
-	do {
+	while (bucket < ARRAY_SIZE(unix_socket_table)) {
 		spin_lock(&unix_table_locks[bucket]);
+
 		sk = unix_from_bucket(seq, pos);
 		if (sk)
 			return sk;
 
-next_bucket:
-		spin_unlock(&unix_table_locks[bucket++]);
-		*pos = set_bucket_offset(bucket, 1);
-	} while (bucket < ARRAY_SIZE(unix_socket_table));
+		spin_unlock(&unix_table_locks[bucket]);
+
+		*pos = set_bucket_offset(++bucket, 1);
+	}
 
 	return NULL;
+}
+
+static struct sock *unix_get_next(struct seq_file *seq, struct sock *sk,
+				  loff_t *pos)
+{
+	unsigned long bucket = get_bucket(*pos);
+
+	for (sk = sk_next(sk); sk; sk = sk_next(sk))
+		if (sock_net(sk) == seq_file_net(seq))
+			return sk;
+
+	spin_unlock(&unix_table_locks[bucket]);
+
+	*pos = set_bucket_offset(++bucket, 1);
+
+	return unix_get_first(seq, pos);
 }
 
 static void *unix_seq_start(struct seq_file *seq, loff_t *pos)
@@ -3273,16 +3280,17 @@ static void *unix_seq_start(struct seq_file *seq, loff_t *pos)
 	if (!*pos)
 		return SEQ_START_TOKEN;
 
-	if (get_bucket(*pos) >= ARRAY_SIZE(unix_socket_table))
-		return NULL;
-
-	return unix_next_socket(seq, NULL, pos);
+	return unix_get_first(seq, pos);
 }
 
 static void *unix_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	++*pos;
-	return unix_next_socket(seq, v, pos);
+
+	if (v == SEQ_START_TOKEN)
+		return unix_get_first(seq, pos);
+
+	return unix_get_next(seq, v, pos);
 }
 
 static void unix_seq_stop(struct seq_file *seq, void *v)
@@ -3347,6 +3355,15 @@ static const struct seq_operations unix_seq_ops = {
 };
 
 #if IS_BUILTIN(CONFIG_UNIX) && defined(CONFIG_BPF_SYSCALL)
+struct bpf_unix_iter_state {
+	struct seq_net_private p;
+	unsigned int cur_sk;
+	unsigned int end_sk;
+	unsigned int max_sk;
+	struct sock **batch;
+	bool st_bucket_done;
+};
+
 struct bpf_iter__unix {
 	__bpf_md_ptr(struct bpf_iter_meta *, meta);
 	__bpf_md_ptr(struct unix_sock *, unix_sk);
@@ -3365,24 +3382,156 @@ static int unix_prog_seq_show(struct bpf_prog *prog, struct bpf_iter_meta *meta,
 	return bpf_iter_run_prog(prog, &ctx);
 }
 
+static int bpf_iter_unix_hold_batch(struct seq_file *seq, struct sock *start_sk)
+
+{
+	struct bpf_unix_iter_state *iter = seq->private;
+	unsigned int expected = 1;
+	struct sock *sk;
+
+	sock_hold(start_sk);
+	iter->batch[iter->end_sk++] = start_sk;
+
+	for (sk = sk_next(start_sk); sk; sk = sk_next(sk)) {
+		if (sock_net(sk) != seq_file_net(seq))
+			continue;
+
+		if (iter->end_sk < iter->max_sk) {
+			sock_hold(sk);
+			iter->batch[iter->end_sk++] = sk;
+		}
+
+		expected++;
+	}
+
+	spin_unlock(&unix_table_locks[start_sk->sk_hash]);
+
+	return expected;
+}
+
+static void bpf_iter_unix_put_batch(struct bpf_unix_iter_state *iter)
+{
+	while (iter->cur_sk < iter->end_sk)
+		sock_put(iter->batch[iter->cur_sk++]);
+}
+
+static int bpf_iter_unix_realloc_batch(struct bpf_unix_iter_state *iter,
+				       unsigned int new_batch_sz)
+{
+	struct sock **new_batch;
+
+	new_batch = kvmalloc(sizeof(*new_batch) * new_batch_sz,
+			     GFP_USER | __GFP_NOWARN);
+	if (!new_batch)
+		return -ENOMEM;
+
+	bpf_iter_unix_put_batch(iter);
+	kvfree(iter->batch);
+	iter->batch = new_batch;
+	iter->max_sk = new_batch_sz;
+
+	return 0;
+}
+
+static struct sock *bpf_iter_unix_batch(struct seq_file *seq,
+					loff_t *pos)
+{
+	struct bpf_unix_iter_state *iter = seq->private;
+	unsigned int expected;
+	bool resized = false;
+	struct sock *sk;
+
+	if (iter->st_bucket_done)
+		*pos = set_bucket_offset(get_bucket(*pos) + 1, 1);
+
+again:
+	/* Get a new batch */
+	iter->cur_sk = 0;
+	iter->end_sk = 0;
+
+	sk = unix_get_first(seq, pos);
+	if (!sk)
+		return NULL; /* Done */
+
+	expected = bpf_iter_unix_hold_batch(seq, sk);
+
+	if (iter->end_sk == expected) {
+		iter->st_bucket_done = true;
+		return sk;
+	}
+
+	if (!resized && !bpf_iter_unix_realloc_batch(iter, expected * 3 / 2)) {
+		resized = true;
+		goto again;
+	}
+
+	return sk;
+}
+
+static void *bpf_iter_unix_seq_start(struct seq_file *seq, loff_t *pos)
+{
+	if (!*pos)
+		return SEQ_START_TOKEN;
+
+	/* bpf iter does not support lseek, so it always
+	 * continue from where it was stop()-ped.
+	 */
+	return bpf_iter_unix_batch(seq, pos);
+}
+
+static void *bpf_iter_unix_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	struct bpf_unix_iter_state *iter = seq->private;
+	struct sock *sk;
+
+	/* Whenever seq_next() is called, the iter->cur_sk is
+	 * done with seq_show(), so advance to the next sk in
+	 * the batch.
+	 */
+	if (iter->cur_sk < iter->end_sk)
+		sock_put(iter->batch[iter->cur_sk++]);
+
+	++*pos;
+
+	if (iter->cur_sk < iter->end_sk)
+		sk = iter->batch[iter->cur_sk];
+	else
+		sk = bpf_iter_unix_batch(seq, pos);
+
+	return sk;
+}
+
 static int bpf_iter_unix_seq_show(struct seq_file *seq, void *v)
 {
 	struct bpf_iter_meta meta;
 	struct bpf_prog *prog;
 	struct sock *sk = v;
 	uid_t uid;
+	bool slow;
+	int ret;
 
 	if (v == SEQ_START_TOKEN)
 		return 0;
 
+	slow = lock_sock_fast(sk);
+
+	if (unlikely(sk_unhashed(sk))) {
+		ret = SEQ_SKIP;
+		goto unlock;
+	}
+
 	uid = from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk));
 	meta.seq = seq;
 	prog = bpf_iter_get_info(&meta, false);
-	return unix_prog_seq_show(prog, &meta, v, uid);
+	ret = unix_prog_seq_show(prog, &meta, v, uid);
+unlock:
+	unlock_sock_fast(sk, slow);
+	return ret;
 }
 
 static void bpf_iter_unix_seq_stop(struct seq_file *seq, void *v)
 {
+	struct bpf_unix_iter_state *iter = seq->private;
 	struct bpf_iter_meta meta;
 	struct bpf_prog *prog;
 
@@ -3393,12 +3542,13 @@ static void bpf_iter_unix_seq_stop(struct seq_file *seq, void *v)
 			(void)unix_prog_seq_show(prog, &meta, v, 0);
 	}
 
-	unix_seq_stop(seq, v);
+	if (iter->cur_sk < iter->end_sk)
+		bpf_iter_unix_put_batch(iter);
 }
 
 static const struct seq_operations bpf_iter_unix_seq_ops = {
-	.start	= unix_seq_start,
-	.next	= unix_seq_next,
+	.start	= bpf_iter_unix_seq_start,
+	.next	= bpf_iter_unix_seq_next,
 	.stop	= bpf_iter_unix_seq_stop,
 	.show	= bpf_iter_unix_seq_show,
 };
@@ -3447,12 +3597,54 @@ static struct pernet_operations unix_net_ops = {
 DEFINE_BPF_ITER_FUNC(unix, struct bpf_iter_meta *meta,
 		     struct unix_sock *unix_sk, uid_t uid)
 
+#define INIT_BATCH_SZ 16
+
+static int bpf_iter_init_unix(void *priv_data, struct bpf_iter_aux_info *aux)
+{
+	struct bpf_unix_iter_state *iter = priv_data;
+	int err;
+
+	err = bpf_iter_init_seq_net(priv_data, aux);
+	if (err)
+		return err;
+
+	err = bpf_iter_unix_realloc_batch(iter, INIT_BATCH_SZ);
+	if (err) {
+		bpf_iter_fini_seq_net(priv_data);
+		return err;
+	}
+
+	return 0;
+}
+
+static void bpf_iter_fini_unix(void *priv_data)
+{
+	struct bpf_unix_iter_state *iter = priv_data;
+
+	bpf_iter_fini_seq_net(priv_data);
+	kvfree(iter->batch);
+}
+
 static const struct bpf_iter_seq_info unix_seq_info = {
 	.seq_ops		= &bpf_iter_unix_seq_ops,
-	.init_seq_private	= bpf_iter_init_seq_net,
-	.fini_seq_private	= bpf_iter_fini_seq_net,
-	.seq_priv_size		= sizeof(struct seq_net_private),
+	.init_seq_private	= bpf_iter_init_unix,
+	.fini_seq_private	= bpf_iter_fini_unix,
+	.seq_priv_size		= sizeof(struct bpf_unix_iter_state),
 };
+
+static const struct bpf_func_proto *
+bpf_iter_unix_get_func_proto(enum bpf_func_id func_id,
+			     const struct bpf_prog *prog)
+{
+	switch (func_id) {
+	case BPF_FUNC_setsockopt:
+		return &bpf_sk_setsockopt_proto;
+	case BPF_FUNC_getsockopt:
+		return &bpf_sk_getsockopt_proto;
+	default:
+		return NULL;
+	}
+}
 
 static struct bpf_iter_reg unix_reg_info = {
 	.target			= "unix",
@@ -3461,6 +3653,7 @@ static struct bpf_iter_reg unix_reg_info = {
 		{ offsetof(struct bpf_iter__unix, unix_sk),
 		  PTR_TO_BTF_ID_OR_NULL },
 	},
+	.get_func_proto         = bpf_iter_unix_get_func_proto,
 	.seq_info		= &unix_seq_info,
 };
 

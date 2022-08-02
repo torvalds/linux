@@ -44,6 +44,7 @@ config SND_SOC_AMD_RV_RT5682_MACH
 
 config SND_SOC_AMD_RENOIR
 	tristate "AMD Audio Coprocessor - Renoir support"
+	select SND_AMD_ACP_CONFIG
 	depends on X86 && PCI
 	help
 	 This option enables ACP support for Renoir platform

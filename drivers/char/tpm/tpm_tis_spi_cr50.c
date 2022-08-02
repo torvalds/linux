@@ -222,13 +222,13 @@ static int tpm_tis_spi_cr50_transfer(struct tpm_tis_data *data, u32 addr, u16 le
 }
 
 static int tpm_tis_spi_cr50_read_bytes(struct tpm_tis_data *data, u32 addr,
-				       u16 len, u8 *result)
+				       u16 len, u8 *result, enum tpm_tis_io_mode io_mode)
 {
 	return tpm_tis_spi_cr50_transfer(data, addr, len, result, NULL);
 }
 
 static int tpm_tis_spi_cr50_write_bytes(struct tpm_tis_data *data, u32 addr,
-					u16 len, const u8 *value)
+					u16 len, const u8 *value, enum tpm_tis_io_mode io_mode)
 {
 	return tpm_tis_spi_cr50_transfer(data, addr, len, NULL, value);
 }
@@ -236,9 +236,6 @@ static int tpm_tis_spi_cr50_write_bytes(struct tpm_tis_data *data, u32 addr,
 static const struct tpm_tis_phy_ops tpm_spi_cr50_phy_ops = {
 	.read_bytes = tpm_tis_spi_cr50_read_bytes,
 	.write_bytes = tpm_tis_spi_cr50_write_bytes,
-	.read16 = tpm_tis_spi_read16,
-	.read32 = tpm_tis_spi_read32,
-	.write32 = tpm_tis_spi_write32,
 };
 
 static void cr50_print_fw_version(struct tpm_tis_data *data)

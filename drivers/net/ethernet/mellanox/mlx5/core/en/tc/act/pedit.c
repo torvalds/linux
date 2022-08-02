@@ -42,12 +42,11 @@ out_err:
 	return -EOPNOTSUPP;
 }
 
-static int
-parse_pedit_to_modify_hdr(struct mlx5e_priv *priv,
-			  const struct flow_action_entry *act, int namespace,
-			  struct mlx5e_tc_flow_parse_attr *parse_attr,
-			  struct pedit_headers_action *hdrs,
-			  struct netlink_ext_ack *extack)
+int
+mlx5e_tc_act_pedit_parse_action(struct mlx5e_priv *priv,
+				const struct flow_action_entry *act, int namespace,
+				struct pedit_headers_action *hdrs,
+				struct netlink_ext_ack *extack)
 {
 	u8 cmd = (act->id == FLOW_ACTION_MANGLE) ? 0 : 1;
 	u8 htype = act->mangle.htype;
@@ -79,51 +78,11 @@ out_err:
 	return err;
 }
 
-static int
-parse_pedit_to_reformat(const struct flow_action_entry *act,
-			struct mlx5e_tc_flow_parse_attr *parse_attr,
-			struct netlink_ext_ack *extack)
-{
-	u32 mask, val, offset;
-	u32 *p;
-
-	if (act->id != FLOW_ACTION_MANGLE) {
-		NL_SET_ERR_MSG_MOD(extack, "Unsupported action id");
-		return -EOPNOTSUPP;
-	}
-
-	if (act->mangle.htype != FLOW_ACT_MANGLE_HDR_TYPE_ETH) {
-		NL_SET_ERR_MSG_MOD(extack, "Only Ethernet modification is supported");
-		return -EOPNOTSUPP;
-	}
-
-	mask = ~act->mangle.mask;
-	val = act->mangle.val;
-	offset = act->mangle.offset;
-	p = (u32 *)&parse_attr->eth;
-	*(p + (offset >> 2)) |= (val & mask);
-
-	return 0;
-}
-
-int
-mlx5e_tc_act_pedit_parse_action(struct mlx5e_priv *priv,
-				const struct flow_action_entry *act, int namespace,
-				struct mlx5e_tc_flow_parse_attr *parse_attr,
-				struct pedit_headers_action *hdrs,
-				struct mlx5e_tc_flow *flow,
-				struct netlink_ext_ack *extack)
-{
-	if (flow && flow_flag_test(flow, L3_TO_L2_DECAP))
-		return parse_pedit_to_reformat(act, parse_attr, extack);
-
-	return parse_pedit_to_modify_hdr(priv, act, namespace, parse_attr, hdrs, extack);
-}
-
 static bool
 tc_act_can_offload_pedit(struct mlx5e_tc_act_parse_state *parse_state,
 			 const struct flow_action_entry *act,
-			 int act_index)
+			 int act_index,
+			 struct mlx5_flow_attr *attr)
 {
 	return true;
 }
@@ -141,21 +100,16 @@ tc_act_parse_pedit(struct mlx5e_tc_act_parse_state *parse_state,
 
 	ns_type = mlx5e_get_flow_namespace(flow);
 
-	err = mlx5e_tc_act_pedit_parse_action(flow->priv, act, ns_type,
-					      attr->parse_attr, parse_state->hdrs,
-					      flow, parse_state->extack);
+	err = mlx5e_tc_act_pedit_parse_action(flow->priv, act, ns_type, attr->parse_attr->hdrs,
+					      parse_state->extack);
 	if (err)
 		return err;
-
-	if (flow_flag_test(flow, L3_TO_L2_DECAP))
-		goto out;
 
 	attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 
 	if (ns_type == MLX5_FLOW_NAMESPACE_FDB)
 		esw_attr->split_count = esw_attr->out_count;
 
-out:
 	return 0;
 }
 

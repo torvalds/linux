@@ -44,7 +44,7 @@ mt7603_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	mutex_lock(&dev->mt76.mutex);
 
-	mvif->idx = ffs(~dev->mt76.vif_mask) - 1;
+	mvif->idx = __ffs64(~dev->mt76.vif_mask);
 	if (mvif->idx >= MT7603_MAX_INTERFACES) {
 		ret = -ENOSPC;
 		goto out;
@@ -65,7 +65,7 @@ mt7603_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	}
 
 	idx = MT7603_WTBL_RESERVED - 1 - mvif->idx;
-	dev->mt76.vif_mask |= BIT(mvif->idx);
+	dev->mt76.vif_mask |= BIT_ULL(mvif->idx);
 	INIT_LIST_HEAD(&mvif->sta.poll_list);
 	mvif->sta.wcid.idx = idx;
 	mvif->sta.wcid.hw_key_idx = -1;
@@ -75,7 +75,7 @@ mt7603_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	mt7603_wtbl_init(dev, idx, mvif->idx, bc_addr);
 
 	mtxq = (struct mt76_txq *)vif->txq->drv_priv;
-	mtxq->wcid = &mvif->sta.wcid;
+	mtxq->wcid = idx;
 	rcu_assign_pointer(dev->mt76.wcid[idx], &mvif->sta.wcid);
 
 out:
@@ -106,7 +106,7 @@ mt7603_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	spin_unlock_bh(&dev->sta_poll_lock);
 
 	mutex_lock(&dev->mt76.mutex);
-	dev->mt76.vif_mask &= ~BIT(mvif->idx);
+	dev->mt76.vif_mask &= ~BIT_ULL(mvif->idx);
 	mutex_unlock(&dev->mt76.mutex);
 
 	mt76_packet_id_flush(&dev->mt76, &mvif->sta.wcid);
@@ -640,6 +640,9 @@ mt7603_sta_rate_tbl_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt7603_sta *msta = (struct mt7603_sta *)sta->drv_priv;
 	struct ieee80211_sta_rates *sta_rates = rcu_dereference(sta->rates);
 	int i;
+
+	if (!sta_rates)
+		return;
 
 	spin_lock_bh(&dev->mt76.lock);
 	for (i = 0; i < ARRAY_SIZE(msta->rates); i++) {

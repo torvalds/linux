@@ -839,7 +839,12 @@ fl_pnfs_update_layout(struct inode *ino,
 
 	lseg = pnfs_update_layout(ino, ctx, pos, count, iomode, strict_iomode,
 				  gfp_flags);
-	if (IS_ERR_OR_NULL(lseg))
+	if (IS_ERR(lseg)) {
+		/* Fall back to MDS on recoverable errors */
+		if (!nfs_error_is_fatal_on_server(PTR_ERR(lseg)))
+			lseg = NULL;
+		goto out;
+	} else if (!lseg)
 		goto out;
 
 	lo = NFS_I(ino)->layout;
@@ -1075,7 +1080,7 @@ filelayout_setup_ds_info(struct pnfs_ds_commit_info *fl_cinfo,
 	unsigned int size = (fl->stripe_type == STRIPE_SPARSE) ?
 		fl->dsaddr->ds_num : fl->dsaddr->stripe_count;
 
-	new = pnfs_alloc_commit_array(size, GFP_NOIO);
+	new = pnfs_alloc_commit_array(size, nfs_io_gfp_mask());
 	if (new) {
 		spin_lock(&inode->i_lock);
 		array = pnfs_add_commit_array(fl_cinfo, new, lseg);

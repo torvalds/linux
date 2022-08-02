@@ -228,16 +228,13 @@ struct inode *v9fs_alloc_inode(struct super_block *sb)
 {
 	struct v9fs_inode *v9inode;
 
-	v9inode = kmem_cache_alloc(v9fs_inode_cache, GFP_KERNEL);
+	v9inode = alloc_inode_sb(sb, v9fs_inode_cache, GFP_KERNEL);
 	if (!v9inode)
 		return NULL;
-#ifdef CONFIG_9P_FSCACHE
-	v9inode->fscache = NULL;
-#endif
 	v9inode->writeback_fid = NULL;
 	v9inode->cache_validity = 0;
 	mutex_init(&v9inode->v_mutex);
-	return &v9inode->vfs_inode;
+	return &v9inode->netfs.inode;
 }
 
 /**
@@ -248,6 +245,15 @@ struct inode *v9fs_alloc_inode(struct super_block *sb)
 void v9fs_free_inode(struct inode *inode)
 {
 	kmem_cache_free(v9fs_inode_cache, V9FS_I(inode));
+}
+
+/*
+ * Set parameters for the netfs library
+ */
+static void v9fs_set_netfs_context(struct inode *inode)
+{
+	struct v9fs_inode *v9inode = V9FS_I(inode);
+	netfs_inode_init(&v9inode->netfs, &v9fs_req_ops);
 }
 
 int v9fs_init_inode(struct v9fs_session_info *v9ses,
@@ -338,6 +344,8 @@ int v9fs_init_inode(struct v9fs_session_info *v9ses,
 		err = -EINVAL;
 		goto error;
 	}
+
+	v9fs_set_netfs_context(inode);
 error:
 	return err;
 
@@ -1243,14 +1251,14 @@ static const char *v9fs_vfs_get_link(struct dentry *dentry,
 		return ERR_PTR(-ECHILD);
 
 	v9ses = v9fs_dentry2v9ses(dentry);
-	fid = v9fs_fid_lookup(dentry);
+	if (!v9fs_proto_dotu(v9ses))
+		return ERR_PTR(-EBADF);
+
 	p9_debug(P9_DEBUG_VFS, "%pd\n", dentry);
+	fid = v9fs_fid_lookup(dentry);
 
 	if (IS_ERR(fid))
 		return ERR_CAST(fid);
-
-	if (!v9fs_proto_dotu(v9ses))
-		return ERR_PTR(-EBADF);
 
 	st = p9_client_stat(fid);
 	p9_client_clunk(fid);

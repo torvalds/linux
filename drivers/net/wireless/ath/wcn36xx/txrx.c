@@ -23,6 +23,11 @@ static inline int get_rssi0(struct wcn36xx_rx_bd *bd)
 	return 100 - ((bd->phy_stat0 >> 24) & 0xff);
 }
 
+static inline int get_snr(struct wcn36xx_rx_bd *bd)
+{
+	return ((bd->phy_stat1 >> 24) & 0xff);
+}
+
 struct wcn36xx_rate {
 	u16 bitrate;
 	u16 mcs_or_legacy_index;
@@ -266,6 +271,34 @@ static void __skb_queue_purge_irq(struct sk_buff_head *list)
 		dev_kfree_skb_irq(skb);
 }
 
+static void wcn36xx_update_survey(struct wcn36xx *wcn, int rssi, int snr,
+				  int band, int freq)
+{
+	static struct ieee80211_channel *channel;
+	struct ieee80211_supported_band *sband;
+	int idx;
+	int i;
+
+	idx = 0;
+	if (band == NL80211_BAND_5GHZ)
+		idx = wcn->hw->wiphy->bands[NL80211_BAND_2GHZ]->n_channels;
+
+	sband = wcn->hw->wiphy->bands[band];
+	channel = sband->channels;
+
+	for (i = 0; i < sband->n_channels; i++, channel++) {
+		if (channel->center_freq == freq) {
+			idx += i;
+			break;
+		}
+	}
+
+	spin_lock(&wcn->survey_lock);
+	wcn->chan_survey[idx].rssi = rssi;
+	wcn->chan_survey[idx].snr = snr;
+	spin_unlock(&wcn->survey_lock);
+}
+
 int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 {
 	struct ieee80211_rx_status status;
@@ -342,6 +375,9 @@ int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 		status.band = WCN36XX_BAND(wcn);
 		status.freq = WCN36XX_CENTER_FREQ(wcn);
 	}
+
+	wcn36xx_update_survey(wcn, status.signal, get_snr(bd),
+			      status.band, status.freq);
 
 	if (bd->rate_id < ARRAY_SIZE(wcn36xx_rate_table)) {
 		rate = &wcn36xx_rate_table[bd->rate_id];
@@ -662,4 +698,33 @@ int wcn36xx_start_tx(struct wcn36xx *wcn,
 	}
 
 	return ret;
+}
+
+void wcn36xx_process_tx_rate(struct ani_global_class_a_stats_info *stats, struct rate_info *info)
+{
+	/* tx_rate is in units of 500kbps; mac80211 wants them in 100kbps */
+	if (stats->tx_rate_flags & HAL_TX_RATE_LEGACY)
+		info->legacy = stats->tx_rate * 5;
+
+	info->flags = 0;
+	info->mcs = stats->mcs_index;
+	info->nss = 1;
+
+	if (stats->tx_rate_flags & (HAL_TX_RATE_HT20 | HAL_TX_RATE_HT40))
+		info->flags |= RATE_INFO_FLAGS_MCS;
+
+	if (stats->tx_rate_flags & (HAL_TX_RATE_VHT20 | HAL_TX_RATE_VHT40 | HAL_TX_RATE_VHT80))
+		info->flags |= RATE_INFO_FLAGS_VHT_MCS;
+
+	if (stats->tx_rate_flags & HAL_TX_RATE_SGI)
+		info->flags |= RATE_INFO_FLAGS_SHORT_GI;
+
+	if (stats->tx_rate_flags & (HAL_TX_RATE_HT20 | HAL_TX_RATE_VHT20))
+		info->bw = RATE_INFO_BW_20;
+
+	if (stats->tx_rate_flags & (HAL_TX_RATE_HT40 | HAL_TX_RATE_VHT40))
+		info->bw = RATE_INFO_BW_40;
+
+	if (stats->tx_rate_flags & HAL_TX_RATE_VHT80)
+		info->bw = RATE_INFO_BW_80;
 }

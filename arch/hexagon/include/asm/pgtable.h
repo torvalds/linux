@@ -236,6 +236,11 @@ static inline int pmd_bad(pmd_t pmd)
 }
 
 /*
+ * pmd_pfn - converts a PMD entry to a page frame number
+ */
+#define pmd_pfn(pmd)  (pmd_val(pmd) >> PAGE_SHIFT)
+
+/*
  * pmd_page - converts a PMD entry to a page pointer
  */
 #define pmd_page(pmd)  (pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))

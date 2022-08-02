@@ -57,41 +57,7 @@ static void rts5261_fill_driving(struct rtsx_pcr *pcr, u8 voltage)
 			 0xFF, driving[drive_sel][2]);
 }
 
-static void rtsx5261_fetch_vendor_settings(struct rtsx_pcr *pcr)
-{
-	struct pci_dev *pdev = pcr->pci;
-	u32 reg;
-
-	/* 0x814~0x817 */
-	pci_read_config_dword(pdev, PCR_SETTING_REG2, &reg);
-	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG2, reg);
-
-	if (!rts5261_vendor_setting_valid(reg)) {
-		/* Not support MMC default */
-		pcr->extra_caps |= EXTRA_CAPS_NO_MMC;
-		pcr_dbg(pcr, "skip fetch vendor setting\n");
-		return;
-	}
-
-	if (!rts5261_reg_check_mmc_support(reg))
-		pcr->extra_caps |= EXTRA_CAPS_NO_MMC;
-
-	/* TO do: need to add rtd3 function */
-	pcr->rtd3_en = rts5261_reg_to_rtd3(reg);
-
-	if (rts5261_reg_check_reverse_socket(reg))
-		pcr->flags |= PCR_REVERSE_SOCKET;
-
-	/* 0x724~0x727 */
-	pci_read_config_dword(pdev, PCR_SETTING_REG1, &reg);
-	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG1, reg);
-
-	pcr->aspm_en = rts5261_reg_to_aspm(reg);
-	pcr->sd30_drive_sel_1v8 = rts5261_reg_to_sd30_drive_sel_1v8(reg);
-	pcr->sd30_drive_sel_3v3 = rts5261_reg_to_sd30_drive_sel_3v3(reg);
-}
-
-static void rts5261_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
+static void rts5261_force_power_down(struct rtsx_pcr *pcr, u8 pm_state, bool runtime)
 {
 	/* Set relink_time to 0 */
 	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 1, MASK_8_BIT_DEF, 0);
@@ -102,6 +68,24 @@ static void rts5261_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
 	if (pm_state == HOST_ENTER_S3)
 		rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3,
 					D3_DELINK_MODE_EN, D3_DELINK_MODE_EN);
+
+	if (!runtime) {
+		rtsx_pci_write_register(pcr, RTS5261_AUTOLOAD_CFG1,
+				CD_RESUME_EN_MASK, 0);
+		rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3, 0x01, 0x00);
+		rtsx_pci_write_register(pcr, RTS5261_REG_PME_FORCE_CTL,
+				FORCE_PM_CONTROL | FORCE_PM_VALUE, FORCE_PM_CONTROL);
+
+	} else {
+		rtsx_pci_write_register(pcr, RTS5261_REG_PME_FORCE_CTL,
+				FORCE_PM_CONTROL | FORCE_PM_VALUE, 0);
+
+		rtsx_pci_write_register(pcr, RTS5261_FW_CTL,
+				RTS5261_INFORM_RTD3_COLD, RTS5261_INFORM_RTD3_COLD);
+		rtsx_pci_write_register(pcr, RTS5261_AUTOLOAD_CFG4,
+				RTS5261_FORCE_PRSNT_LOW, RTS5261_FORCE_PRSNT_LOW);
+
+	}
 
 	rtsx_pci_write_register(pcr, RTS5261_REG_FPDCTL,
 		SSC_POWER_DOWN, SSC_POWER_DOWN);
@@ -373,11 +357,11 @@ static void rts5261_process_ocp(struct rtsx_pcr *pcr)
 
 }
 
-static int rts5261_init_from_hw(struct rtsx_pcr *pcr)
+static void rts5261_init_from_hw(struct rtsx_pcr *pcr)
 {
 	struct pci_dev *pdev = pcr->pci;
-	int retval;
-	u32 lval, i;
+	u32 lval1, lval2, i;
+	u16 setting_reg1, setting_reg2;
 	u8 valid, efuse_valid, tmp;
 
 	rtsx_pci_write_register(pcr, RTS5261_REG_PME_FORCE_CTL,
@@ -400,26 +384,72 @@ static int rts5261_init_from_hw(struct rtsx_pcr *pcr)
 	efuse_valid = ((tmp & 0x0C) >> 2);
 	pcr_dbg(pcr, "Load efuse valid: 0x%x\n", efuse_valid);
 
-	if (efuse_valid == 0) {
-		retval = pci_read_config_dword(pdev, PCR_SETTING_REG2, &lval);
-		if (retval != 0)
-			pcr_dbg(pcr, "read 0x814 DW fail\n");
-		pcr_dbg(pcr, "DW from 0x814: 0x%x\n", lval);
-		/* 0x816 */
-		valid = (u8)((lval >> 16) & 0x03);
-		pcr_dbg(pcr, "0x816: %d\n", valid);
-	}
+	pci_read_config_dword(pdev, PCR_SETTING_REG2, &lval2);
+	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG2, lval2);
+	/* 0x816 */
+	valid = (u8)((lval2 >> 16) & 0x03);
+
 	rtsx_pci_write_register(pcr, RTS5261_REG_PME_FORCE_CTL,
 		REG_EFUSE_POR, 0);
 	pcr_dbg(pcr, "Disable efuse por!\n");
 
-	pci_read_config_dword(pdev, PCR_SETTING_REG2, &lval);
-	lval = lval & 0x00FFFFFF;
-	retval = pci_write_config_dword(pdev, PCR_SETTING_REG2, lval);
-	if (retval != 0)
-		pcr_dbg(pcr, "write config fail\n");
+	if (efuse_valid == 2 || efuse_valid == 3) {
+		if (valid == 3) {
+			/* Bypass efuse */
+			setting_reg1 = PCR_SETTING_REG1;
+			setting_reg2 = PCR_SETTING_REG2;
+		} else {
+			/* Use efuse data */
+			setting_reg1 = PCR_SETTING_REG4;
+			setting_reg2 = PCR_SETTING_REG5;
+		}
+	} else if (efuse_valid == 0) {
+		// default
+		setting_reg1 = PCR_SETTING_REG1;
+		setting_reg2 = PCR_SETTING_REG2;
+	} else {
+		return;
+	}
 
-	return retval;
+	pci_read_config_dword(pdev, setting_reg2, &lval2);
+	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", setting_reg2, lval2);
+
+	if (!rts5261_vendor_setting_valid(lval2)) {
+		/* Not support MMC default */
+		pcr->extra_caps |= EXTRA_CAPS_NO_MMC;
+		pcr_dbg(pcr, "skip fetch vendor setting\n");
+		return;
+	}
+
+	if (!rts5261_reg_check_mmc_support(lval2))
+		pcr->extra_caps |= EXTRA_CAPS_NO_MMC;
+
+	pcr->rtd3_en = rts5261_reg_to_rtd3(lval2);
+
+	if (rts5261_reg_check_reverse_socket(lval2))
+		pcr->flags |= PCR_REVERSE_SOCKET;
+
+	pci_read_config_dword(pdev, setting_reg1, &lval1);
+	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", setting_reg1, lval1);
+
+	pcr->aspm_en = rts5261_reg_to_aspm(lval1);
+	pcr->sd30_drive_sel_1v8 = rts5261_reg_to_sd30_drive_sel_1v8(lval1);
+	pcr->sd30_drive_sel_3v3 = rts5261_reg_to_sd30_drive_sel_3v3(lval1);
+
+	if (setting_reg1 == PCR_SETTING_REG1) {
+		/* store setting */
+		rtsx_pci_write_register(pcr, 0xFF0C, 0xFF, (u8)(lval1 & 0xFF));
+		rtsx_pci_write_register(pcr, 0xFF0D, 0xFF, (u8)((lval1 >> 8) & 0xFF));
+		rtsx_pci_write_register(pcr, 0xFF0E, 0xFF, (u8)((lval1 >> 16) & 0xFF));
+		rtsx_pci_write_register(pcr, 0xFF0F, 0xFF, (u8)((lval1 >> 24) & 0xFF));
+		rtsx_pci_write_register(pcr, 0xFF10, 0xFF, (u8)(lval2 & 0xFF));
+		rtsx_pci_write_register(pcr, 0xFF11, 0xFF, (u8)((lval2 >> 8) & 0xFF));
+		rtsx_pci_write_register(pcr, 0xFF12, 0xFF, (u8)((lval2 >> 16) & 0xFF));
+
+		pci_write_config_dword(pdev, PCR_SETTING_REG4, lval1);
+		lval2 = lval2 & 0x00FFFFFF;
+		pci_write_config_dword(pdev, PCR_SETTING_REG5, lval2);
+	}
 }
 
 static void rts5261_init_from_cfg(struct rtsx_pcr *pcr)
@@ -536,9 +566,18 @@ static int rts5261_extra_init_hw(struct rtsx_pcr *pcr)
 				 FORCE_CLKREQ_DELINK_MASK, FORCE_CLKREQ_HIGH);
 
 	rtsx_pci_write_register(pcr, PWD_SUSPEND_EN, 0xFF, 0xFB);
-	rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3, 0x10, 0x00);
-	rtsx_pci_write_register(pcr, RTS5261_REG_PME_FORCE_CTL,
-			FORCE_PM_CONTROL | FORCE_PM_VALUE, FORCE_PM_CONTROL);
+
+	if (pcr->rtd3_en) {
+		rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3, 0x01, 0x01);
+		rtsx_pci_write_register(pcr, RTS5261_REG_PME_FORCE_CTL,
+				FORCE_PM_CONTROL | FORCE_PM_VALUE,
+				FORCE_PM_CONTROL | FORCE_PM_VALUE);
+	} else {
+		rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3, 0x01, 0x00);
+		rtsx_pci_write_register(pcr, RTS5261_REG_PME_FORCE_CTL,
+				FORCE_PM_CONTROL | FORCE_PM_VALUE, FORCE_PM_CONTROL);
+	}
+	rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3, D3_DELINK_MODE_EN, 0x00);
 
 	/* Clear Enter RTD3_cold Information*/
 	rtsx_pci_write_register(pcr, RTS5261_FW_CTL,
@@ -609,7 +648,6 @@ static void rts5261_set_l1off_cfg_sub_d0(struct rtsx_pcr *pcr, int active)
 }
 
 static const struct pcr_ops rts5261_pcr_ops = {
-	.fetch_vendor_settings = rtsx5261_fetch_vendor_settings,
 	.turn_on_led = rts5261_turn_on_led,
 	.turn_off_led = rts5261_turn_off_led,
 	.extra_init_hw = rts5261_extra_init_hw,

@@ -27,7 +27,7 @@ static irqreturn_t ifcvf_config_changed(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ifcvf_intr_handler(int irq, void *arg)
+static irqreturn_t ifcvf_vq_intr_handler(int irq, void *arg)
 {
 	struct vring_info *vring = arg;
 
@@ -37,75 +37,323 @@ static irqreturn_t ifcvf_intr_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t ifcvf_vqs_reused_intr_handler(int irq, void *arg)
+{
+	struct ifcvf_hw *vf = arg;
+	struct vring_info *vring;
+	int i;
+
+	for (i = 0; i < vf->nr_vring; i++) {
+		vring = &vf->vring[i];
+		if (vring->cb.callback)
+			vring->cb.callback(vring->cb.private);
+	}
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t ifcvf_dev_intr_handler(int irq, void *arg)
+{
+	struct ifcvf_hw *vf = arg;
+	u8 isr;
+
+	isr = vp_ioread8(vf->isr);
+	if (isr & VIRTIO_PCI_ISR_CONFIG)
+		ifcvf_config_changed(irq, arg);
+
+	return ifcvf_vqs_reused_intr_handler(irq, arg);
+}
+
 static void ifcvf_free_irq_vectors(void *data)
 {
 	pci_free_irq_vectors(data);
 }
 
-static void ifcvf_free_irq(struct ifcvf_adapter *adapter, int queues)
+static void ifcvf_free_per_vq_irq(struct ifcvf_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	struct ifcvf_hw *vf = &adapter->vf;
 	int i;
 
-
-	for (i = 0; i < queues; i++) {
-		devm_free_irq(&pdev->dev, vf->vring[i].irq, &vf->vring[i]);
-		vf->vring[i].irq = -EINVAL;
+	for (i = 0; i < vf->nr_vring; i++) {
+		if (vf->vring[i].irq != -EINVAL) {
+			devm_free_irq(&pdev->dev, vf->vring[i].irq, &vf->vring[i]);
+			vf->vring[i].irq = -EINVAL;
+		}
 	}
-
-	devm_free_irq(&pdev->dev, vf->config_irq, vf);
-	ifcvf_free_irq_vectors(pdev);
 }
 
-static int ifcvf_request_irq(struct ifcvf_adapter *adapter)
+static void ifcvf_free_vqs_reused_irq(struct ifcvf_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	struct ifcvf_hw *vf = &adapter->vf;
-	int vector, i, ret, irq;
-	u16 max_intr;
+
+	if (vf->vqs_reused_irq != -EINVAL) {
+		devm_free_irq(&pdev->dev, vf->vqs_reused_irq, vf);
+		vf->vqs_reused_irq = -EINVAL;
+	}
+
+}
+
+static void ifcvf_free_vq_irq(struct ifcvf_adapter *adapter)
+{
+	struct ifcvf_hw *vf = &adapter->vf;
+
+	if (vf->msix_vector_status == MSIX_VECTOR_PER_VQ_AND_CONFIG)
+		ifcvf_free_per_vq_irq(adapter);
+	else
+		ifcvf_free_vqs_reused_irq(adapter);
+}
+
+static void ifcvf_free_config_irq(struct ifcvf_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	struct ifcvf_hw *vf = &adapter->vf;
+
+	if (vf->config_irq == -EINVAL)
+		return;
+
+	/* If the irq is shared by all vqs and the config interrupt,
+	 * it is already freed in ifcvf_free_vq_irq, so here only
+	 * need to free config irq when msix_vector_status != MSIX_VECTOR_DEV_SHARED
+	 */
+	if (vf->msix_vector_status != MSIX_VECTOR_DEV_SHARED) {
+		devm_free_irq(&pdev->dev, vf->config_irq, vf);
+		vf->config_irq = -EINVAL;
+	}
+}
+
+static void ifcvf_free_irq(struct ifcvf_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+
+	ifcvf_free_vq_irq(adapter);
+	ifcvf_free_config_irq(adapter);
+	ifcvf_free_irq_vectors(pdev);
+}
+
+/* ifcvf MSIX vectors allocator, this helper tries to allocate
+ * vectors for all virtqueues and the config interrupt.
+ * It returns the number of allocated vectors, negative
+ * return value when fails.
+ */
+static int ifcvf_alloc_vectors(struct ifcvf_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	struct ifcvf_hw *vf = &adapter->vf;
+	int max_intr, ret;
 
 	/* all queues and config interrupt  */
 	max_intr = vf->nr_vring + 1;
+	ret = pci_alloc_irq_vectors(pdev, 1, max_intr, PCI_IRQ_MSIX | PCI_IRQ_AFFINITY);
 
-	ret = pci_alloc_irq_vectors(pdev, max_intr,
-				    max_intr, PCI_IRQ_MSIX);
 	if (ret < 0) {
 		IFCVF_ERR(pdev, "Failed to alloc IRQ vectors\n");
 		return ret;
 	}
 
+	if (ret < max_intr)
+		IFCVF_INFO(pdev,
+			   "Requested %u vectors, however only %u allocated, lower performance\n",
+			   max_intr, ret);
+
+	return ret;
+}
+
+static int ifcvf_request_per_vq_irq(struct ifcvf_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	struct ifcvf_hw *vf = &adapter->vf;
+	int i, vector, ret, irq;
+
+	vf->vqs_reused_irq = -EINVAL;
+	for (i = 0; i < vf->nr_vring; i++) {
+		snprintf(vf->vring[i].msix_name, 256, "ifcvf[%s]-%d\n", pci_name(pdev), i);
+		vector = i;
+		irq = pci_irq_vector(pdev, vector);
+		ret = devm_request_irq(&pdev->dev, irq,
+				       ifcvf_vq_intr_handler, 0,
+				       vf->vring[i].msix_name,
+				       &vf->vring[i]);
+		if (ret) {
+			IFCVF_ERR(pdev, "Failed to request irq for vq %d\n", i);
+			goto err;
+		}
+
+		vf->vring[i].irq = irq;
+		ret = ifcvf_set_vq_vector(vf, i, vector);
+		if (ret == VIRTIO_MSI_NO_VECTOR) {
+			IFCVF_ERR(pdev, "No msix vector for vq %u\n", i);
+			goto err;
+		}
+	}
+
+	return 0;
+err:
+	ifcvf_free_irq(adapter);
+
+	return -EFAULT;
+}
+
+static int ifcvf_request_vqs_reused_irq(struct ifcvf_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	struct ifcvf_hw *vf = &adapter->vf;
+	int i, vector, ret, irq;
+
+	vector = 0;
+	snprintf(vf->vring[0].msix_name, 256, "ifcvf[%s]-vqs-reused-irq\n", pci_name(pdev));
+	irq = pci_irq_vector(pdev, vector);
+	ret = devm_request_irq(&pdev->dev, irq,
+			       ifcvf_vqs_reused_intr_handler, 0,
+			       vf->vring[0].msix_name, vf);
+	if (ret) {
+		IFCVF_ERR(pdev, "Failed to request reused irq for the device\n");
+		goto err;
+	}
+
+	vf->vqs_reused_irq = irq;
+	for (i = 0; i < vf->nr_vring; i++) {
+		vf->vring[i].irq = -EINVAL;
+		ret = ifcvf_set_vq_vector(vf, i, vector);
+		if (ret == VIRTIO_MSI_NO_VECTOR) {
+			IFCVF_ERR(pdev, "No msix vector for vq %u\n", i);
+			goto err;
+		}
+	}
+
+	return 0;
+err:
+	ifcvf_free_irq(adapter);
+
+	return -EFAULT;
+}
+
+static int ifcvf_request_dev_irq(struct ifcvf_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	struct ifcvf_hw *vf = &adapter->vf;
+	int i, vector, ret, irq;
+
+	vector = 0;
+	snprintf(vf->vring[0].msix_name, 256, "ifcvf[%s]-dev-irq\n", pci_name(pdev));
+	irq = pci_irq_vector(pdev, vector);
+	ret = devm_request_irq(&pdev->dev, irq,
+			       ifcvf_dev_intr_handler, 0,
+			       vf->vring[0].msix_name, vf);
+	if (ret) {
+		IFCVF_ERR(pdev, "Failed to request irq for the device\n");
+		goto err;
+	}
+
+	vf->vqs_reused_irq = irq;
+	for (i = 0; i < vf->nr_vring; i++) {
+		vf->vring[i].irq = -EINVAL;
+		ret = ifcvf_set_vq_vector(vf, i, vector);
+		if (ret == VIRTIO_MSI_NO_VECTOR) {
+			IFCVF_ERR(pdev, "No msix vector for vq %u\n", i);
+			goto err;
+		}
+	}
+
+	vf->config_irq = irq;
+	ret = ifcvf_set_config_vector(vf, vector);
+	if (ret == VIRTIO_MSI_NO_VECTOR) {
+		IFCVF_ERR(pdev, "No msix vector for device config\n");
+		goto err;
+	}
+
+	return 0;
+err:
+	ifcvf_free_irq(adapter);
+
+	return -EFAULT;
+
+}
+
+static int ifcvf_request_vq_irq(struct ifcvf_adapter *adapter)
+{
+	struct ifcvf_hw *vf = &adapter->vf;
+	int ret;
+
+	if (vf->msix_vector_status == MSIX_VECTOR_PER_VQ_AND_CONFIG)
+		ret = ifcvf_request_per_vq_irq(adapter);
+	else
+		ret = ifcvf_request_vqs_reused_irq(adapter);
+
+	return ret;
+}
+
+static int ifcvf_request_config_irq(struct ifcvf_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	struct ifcvf_hw *vf = &adapter->vf;
+	int config_vector, ret;
+
+	if (vf->msix_vector_status == MSIX_VECTOR_PER_VQ_AND_CONFIG)
+		config_vector = vf->nr_vring;
+	else if (vf->msix_vector_status ==  MSIX_VECTOR_SHARED_VQ_AND_CONFIG)
+		/* vector 0 for vqs and 1 for config interrupt */
+		config_vector = 1;
+	else if (vf->msix_vector_status == MSIX_VECTOR_DEV_SHARED)
+		/* re-use the vqs vector */
+		return 0;
+	else
+		return -EINVAL;
+
 	snprintf(vf->config_msix_name, 256, "ifcvf[%s]-config\n",
 		 pci_name(pdev));
-	vector = 0;
-	vf->config_irq = pci_irq_vector(pdev, vector);
+	vf->config_irq = pci_irq_vector(pdev, config_vector);
 	ret = devm_request_irq(&pdev->dev, vf->config_irq,
 			       ifcvf_config_changed, 0,
 			       vf->config_msix_name, vf);
 	if (ret) {
 		IFCVF_ERR(pdev, "Failed to request config irq\n");
+		goto err;
+	}
+
+	ret = ifcvf_set_config_vector(vf, config_vector);
+	if (ret == VIRTIO_MSI_NO_VECTOR) {
+		IFCVF_ERR(pdev, "No msix vector for device config\n");
+		goto err;
+	}
+
+	return 0;
+err:
+	ifcvf_free_irq(adapter);
+
+	return -EFAULT;
+}
+
+static int ifcvf_request_irq(struct ifcvf_adapter *adapter)
+{
+	struct ifcvf_hw *vf = &adapter->vf;
+	int nvectors, ret, max_intr;
+
+	nvectors = ifcvf_alloc_vectors(adapter);
+	if (nvectors <= 0)
+		return -EFAULT;
+
+	vf->msix_vector_status = MSIX_VECTOR_PER_VQ_AND_CONFIG;
+	max_intr = vf->nr_vring + 1;
+	if (nvectors < max_intr)
+		vf->msix_vector_status = MSIX_VECTOR_SHARED_VQ_AND_CONFIG;
+
+	if (nvectors == 1) {
+		vf->msix_vector_status = MSIX_VECTOR_DEV_SHARED;
+		ret = ifcvf_request_dev_irq(adapter);
+
 		return ret;
 	}
 
-	for (i = 0; i < vf->nr_vring; i++) {
-		snprintf(vf->vring[i].msix_name, 256, "ifcvf[%s]-%d\n",
-			 pci_name(pdev), i);
-		vector = i + IFCVF_MSI_QUEUE_OFF;
-		irq = pci_irq_vector(pdev, vector);
-		ret = devm_request_irq(&pdev->dev, irq,
-				       ifcvf_intr_handler, 0,
-				       vf->vring[i].msix_name,
-				       &vf->vring[i]);
-		if (ret) {
-			IFCVF_ERR(pdev,
-				  "Failed to request irq for vq %d\n", i);
-			ifcvf_free_irq(adapter, i);
+	ret = ifcvf_request_vq_irq(adapter);
+	if (ret)
+		return ret;
 
-			return ret;
-		}
+	ret = ifcvf_request_config_irq(adapter);
 
-		vf->vring[i].irq = irq;
-	}
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -263,7 +511,7 @@ static int ifcvf_vdpa_reset(struct vdpa_device *vdpa_dev)
 
 	if (status_old & VIRTIO_CONFIG_S_DRIVER_OK) {
 		ifcvf_stop_datapath(adapter);
-		ifcvf_free_irq(adapter, vf->nr_vring);
+		ifcvf_free_irq(adapter);
 	}
 
 	ifcvf_reset_vring(adapter);
@@ -348,7 +596,7 @@ static u32 ifcvf_vdpa_get_generation(struct vdpa_device *vdpa_dev)
 {
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
 
-	return ioread8(&vf->common_cfg->config_generation);
+	return vp_ioread8(&vf->common_cfg->config_generation);
 }
 
 static u32 ifcvf_vdpa_get_device_id(struct vdpa_device *vdpa_dev)
@@ -376,6 +624,11 @@ static size_t ifcvf_vdpa_get_config_size(struct vdpa_device *vdpa_dev)
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
 
 	return  vf->config_size;
+}
+
+static u32 ifcvf_vdpa_get_vq_group(struct vdpa_device *vdpa, u16 idx)
+{
+	return 0;
 }
 
 static void ifcvf_vdpa_get_config(struct vdpa_device *vdpa_dev,
@@ -410,7 +663,10 @@ static int ifcvf_vdpa_get_vq_irq(struct vdpa_device *vdpa_dev,
 {
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
 
-	return vf->vring[qid].irq;
+	if (vf->vqs_reused_irq < 0)
+		return vf->vring[qid].irq;
+	else
+		return -EINVAL;
 }
 
 static struct vdpa_notification_area ifcvf_get_vq_notification(struct vdpa_device *vdpa_dev,
@@ -453,6 +709,7 @@ static const struct vdpa_config_ops ifc_vdpa_ops = {
 	.get_device_id	= ifcvf_vdpa_get_device_id,
 	.get_vendor_id	= ifcvf_vdpa_get_vendor_id,
 	.get_vq_align	= ifcvf_vdpa_get_vq_align,
+	.get_vq_group	= ifcvf_vdpa_get_vq_group,
 	.get_config_size	= ifcvf_vdpa_get_config_size,
 	.get_config	= ifcvf_vdpa_get_config,
 	.set_config	= ifcvf_vdpa_set_config,
@@ -507,14 +764,13 @@ static int ifcvf_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	pdev = ifcvf_mgmt_dev->pdev;
 	dev = &pdev->dev;
 	adapter = vdpa_alloc_device(struct ifcvf_adapter, vdpa,
-				    dev, &ifc_vdpa_ops, name, false);
+				    dev, &ifc_vdpa_ops, 1, 1, name, false);
 	if (IS_ERR(adapter)) {
 		IFCVF_ERR(pdev, "Failed to allocate vDPA structure");
 		return PTR_ERR(adapter);
 	}
 
 	ifcvf_mgmt_dev->adapter = adapter;
-	pci_set_drvdata(pdev, ifcvf_mgmt_dev);
 
 	vf = &adapter->vf;
 	vf->dev_type = get_dev_type(pdev);
@@ -628,6 +884,8 @@ static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			  "Failed to initialize the management interfaces\n");
 		goto err;
 	}
+
+	pci_set_drvdata(pdev, ifcvf_mgmt_dev);
 
 	return 0;
 

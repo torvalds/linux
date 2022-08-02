@@ -19,7 +19,7 @@ struct max9867_priv {
 	struct regmap *regmap;
 	const struct snd_pcm_hw_constraint_list *constraints;
 	unsigned int sysclk, pclk;
-	bool master, dsp_a;
+	bool provider, dsp_a;
 	unsigned int adc_dac_active;
 };
 
@@ -335,7 +335,7 @@ static int max9867_dai_hw_params(struct snd_pcm_substream *substream,
 		MAX9867_NI_HIGH_MASK, (0xFF00 & ni) >> 8);
 	regmap_update_bits(max9867->regmap, MAX9867_AUDIOCLKLOW,
 		MAX9867_NI_LOW_MASK, 0x00FF & ni);
-	if (max9867->master) {
+	if (max9867->provider) {
 		if (max9867->dsp_a) {
 			value = MAX9867_IFC1B_48X;
 		} else {
@@ -442,14 +442,14 @@ static int max9867_dai_set_fmt(struct snd_soc_dai *codec_dai,
 	struct max9867_priv *max9867 = snd_soc_component_get_drvdata(component);
 	u8 iface1A, iface1B;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
-		max9867->master = true;
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
+		max9867->provider = true;
 		iface1A = MAX9867_MASTER;
 		iface1B = MAX9867_IFC1B_48X;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
-		max9867->master = false;
+	case SND_SOC_DAIFMT_CBC_CFC:
+		max9867->provider = false;
 		iface1A = iface1B = 0;
 		break;
 	default:
@@ -613,8 +613,7 @@ static const struct regmap_config max9867_regmap = {
 	.cache_type	= REGCACHE_RBTREE,
 };
 
-static int max9867_i2c_probe(struct i2c_client *i2c,
-		const struct i2c_device_id *id)
+static int max9867_i2c_probe(struct i2c_client *i2c)
 {
 	struct max9867_priv *max9867;
 	int ret, reg;
@@ -662,7 +661,7 @@ static struct i2c_driver max9867_i2c_driver = {
 		.name = "max9867",
 		.of_match_table = of_match_ptr(max9867_of_match),
 	},
-	.probe  = max9867_i2c_probe,
+	.probe_new  = max9867_i2c_probe,
 	.id_table = max9867_i2c_id,
 };
 

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 config PARISC
 	def_bool y
+	select ALTERNATE_USER_ADDRESS_SPACE
 	select ARCH_32BIT_OFF_T if !64BIT
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select HAVE_FUNCTION_TRACER
@@ -9,11 +10,14 @@ config PARISC
 	select ARCH_WANT_FRAME_POINTERS
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_STRICT_KERNEL_RWX
+	select ARCH_HAS_STRICT_MODULE_RWX
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
+	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_NO_SG_CHAIN
 	select ARCH_SUPPORTS_HUGETLBFS if PA20
 	select ARCH_SUPPORTS_MEMORY_FAILURE
 	select ARCH_STACKWALK
+	select ARCH_HAS_DEBUG_VM_PGTABLE
 	select HAVE_RELIABLE_STACKTRACE
 	select DMA_OPS
 	select RTC_CLASS
@@ -34,7 +38,8 @@ config PARISC
 	select GENERIC_PCI_IOMAP
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_SMP_IDLE_THREAD
-	select GENERIC_CPU_DEVICES
+	select GENERIC_ARCH_TOPOLOGY if SMP
+	select GENERIC_CPU_DEVICES if !SMP
 	select GENERIC_LIB_DEVMEM_IS_ALLOWED
 	select SYSCTL_ARCH_UNALIGN_ALLOW
 	select SYSCTL_EXCEPTION_TRACE
@@ -53,6 +58,7 @@ config PARISC
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select GENERIC_SCHED_CLOCK
+	select GENERIC_IRQ_MIGRATION if SMP
 	select HAVE_UNSTABLE_SCHED_CLOCK if SMP
 	select LEGACY_TIMER_TICK
 	select CPU_NO_EFFICIENT_FFS
@@ -69,6 +75,7 @@ config PARISC
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_SOFTIRQ_ON_OWN_STACK if IRQSTACKS
 	select TRACE_IRQFLAGS_SUPPORT
+	select HAVE_FUNCTION_DESCRIPTORS if 64BIT
 
 	help
 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used
@@ -259,18 +266,6 @@ config PARISC_PAGE_SIZE_64KB
 
 endchoice
 
-config PARISC_SELF_EXTRACT
-	bool "Build kernel as self-extracting executable"
-	default y
-	help
-	  Say Y if you want to build the parisc kernel as a kind of
-	  self-extracting executable.
-
-	  If you say N here, the kernel will be compressed with gzip
-	  which can be loaded by the palo bootloader directly too.
-
-	  If you don't know what to do here, say Y.
-
 config SMP
 	bool "Symmetric multi-processing support"
 	help
@@ -287,16 +282,9 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
-config PARISC_CPU_TOPOLOGY
-	bool "Support cpu topology definition"
-	depends on SMP
-	default y
-	help
-	  Support PARISC cpu topology definition.
-
 config SCHED_MC
 	bool "Multi-core scheduler support"
-	depends on PARISC_CPU_TOPOLOGY && PA8X00
+	depends on GENERIC_ARCH_TOPOLOGY && PA8X00
 	help
 	  Multi-core scheduler support improves the CPU scheduler's decision
 	  making when dealing with multi-core CPU chips at a cost of slightly
@@ -344,10 +332,6 @@ source "kernel/Kconfig.hz"
 config COMPAT
 	def_bool y
 	depends on 64BIT
-
-config SYSVIPC_COMPAT
-	def_bool y
-	depends on COMPAT && SYSVIPC
 
 config AUDIT_ARCH
 	def_bool y

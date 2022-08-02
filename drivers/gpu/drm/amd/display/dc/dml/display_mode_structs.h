@@ -141,6 +141,7 @@ struct _vcs_dpi_ip_params_st {
 	unsigned int odm_capable;
 	unsigned int rob_buffer_size_kbytes;
 	unsigned int det_buffer_size_kbytes;
+	unsigned int min_comp_buffer_size_kbytes;
 	unsigned int dpte_buffer_size_in_pte_reqs_luma;
 	unsigned int dpte_buffer_size_in_pte_reqs_chroma;
 	unsigned int pde_proc_buffer_size_64k_reqs;
@@ -445,6 +446,8 @@ struct _vcs_dpi_display_dlg_regs_st {
 	unsigned int refcyc_h_blank_end;
 	unsigned int dlg_vblank_end;
 	unsigned int min_dst_y_next_start;
+	unsigned int optimized_min_dst_y_next_start;
+	unsigned int optimized_min_dst_y_next_start_us;
 	unsigned int refcyc_per_htotal;
 	unsigned int refcyc_x_after_scaler;
 	unsigned int dst_y_after_scaler;

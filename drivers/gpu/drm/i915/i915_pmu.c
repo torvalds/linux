@@ -8,8 +8,10 @@
 
 #include "gt/intel_engine.h"
 #include "gt/intel_engine_pm.h"
+#include "gt/intel_engine_regs.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt_pm.h"
+#include "gt/intel_gt_regs.h"
 #include "gt/intel_rc6.h"
 #include "gt/intel_rps.h"
 
@@ -146,10 +148,7 @@ static u64 __get_rc6(struct intel_gt *gt)
 	struct drm_i915_private *i915 = gt->i915;
 	u64 val;
 
-	val = intel_rc6_residency_ns(&gt->rc6,
-				     IS_VALLEYVIEW(i915) ?
-				     VLV_GT_RENDER_RC6 :
-				     GEN6_GT_GFX_RC6);
+	val = intel_rc6_residency_ns(&gt->rc6, GEN6_GT_GFX_RC6);
 
 	if (HAS_RC6p(i915))
 		val += intel_rc6_residency_ns(&gt->rc6, GEN6_GT_GFX_RC6p);
@@ -1048,7 +1047,7 @@ static int i915_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
 	GEM_BUG_ON(!pmu->base.event_init);
 
 	/* Select the first online CPU as a designated reader. */
-	if (!cpumask_weight(&i915_pmu_cpumask))
+	if (cpumask_empty(&i915_pmu_cpumask))
 		cpumask_set_cpu(cpu, &i915_pmu_cpumask);
 
 	return 0;

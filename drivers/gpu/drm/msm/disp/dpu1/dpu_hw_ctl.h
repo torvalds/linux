@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _DPU_HW_CTL_H
@@ -40,13 +41,16 @@ struct dpu_hw_stage_cfg {
  * @merge_3d:              3d merge block used
  * @intf_mode_sel:         Interface mode, cmd / vid
  * @stream_sel:            Stream selection for multi-stream interfaces
+ * @dsc:                   DSC BIT masks used
  */
 struct dpu_hw_intf_cfg {
 	enum dpu_intf intf;
+	enum dpu_wb wb;
 	enum dpu_3d_blend_mode mode_3d;
 	enum dpu_merge_3d merge_3d;
 	enum dpu_ctl_mode_sel intf_mode_sel;
 	int stream_sel;
+	unsigned int dsc;
 };
 
 /**
@@ -60,6 +64,13 @@ struct dpu_hw_ctl_ops {
 	 * @ctx       : ctl path ctx pointer
 	 */
 	void (*trigger_start)(struct dpu_hw_ctl *ctx);
+
+	/**
+	 * check if the ctl is started
+	 * @ctx       : ctl path ctx pointer
+	 * @Return: true if started, false if stopped
+	 */
+	bool (*is_started)(struct dpu_hw_ctl *ctx);
 
 	/**
 	 * kickoff prepare is in progress hw operation for sw
@@ -91,6 +102,15 @@ struct dpu_hw_ctl_ops {
 	 */
 	void (*update_pending_flush)(struct dpu_hw_ctl *ctx,
 		u32 flushbits);
+
+	/**
+	 * OR in the given flushbits to the cached pending_(wb_)flush_mask
+	 * No effect on hardware
+	 * @ctx       : ctl path ctx pointer
+	 * @blk       : writeback block index
+	 */
+	void (*update_pending_flush_wb)(struct dpu_hw_ctl *ctx,
+		enum dpu_wb blk);
 
 	/**
 	 * OR in the given flushbits to the cached pending_(intf_)flush_mask
@@ -130,6 +150,14 @@ struct dpu_hw_ctl_ops {
 	 */
 	void (*setup_intf_cfg)(struct dpu_hw_ctl *ctx,
 		struct dpu_hw_intf_cfg *cfg);
+
+	/**
+	 * reset ctl_path interface config
+	 * @ctx    : ctl path ctx pointer
+	 * @cfg    : interface config structure pointer
+	 */
+	void (*reset_intf_cfg)(struct dpu_hw_ctl *ctx,
+			struct dpu_hw_intf_cfg *cfg);
 
 	int (*reset)(struct dpu_hw_ctl *c);
 
@@ -182,6 +210,7 @@ struct dpu_hw_ctl_ops {
  * @mixer_hw_caps: mixer hardware capabilities
  * @pending_flush_mask: storage for pending ctl_flush managed via ops
  * @pending_intf_flush_mask: pending INTF flush
+ * @pending_wb_flush_mask: pending WB flush
  * @ops: operation list
  */
 struct dpu_hw_ctl {
@@ -195,6 +224,7 @@ struct dpu_hw_ctl {
 	const struct dpu_lm_cfg *mixer_hw_caps;
 	u32 pending_flush_mask;
 	u32 pending_intf_flush_mask;
+	u32 pending_wb_flush_mask;
 	u32 pending_merge_3d_flush_mask;
 
 	/* ops */

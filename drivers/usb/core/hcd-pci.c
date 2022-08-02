@@ -15,7 +15,6 @@
 #ifdef CONFIG_PPC_PMAC
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
-#include <asm/prom.h>
 #endif
 
 #include "usb.h"
@@ -248,7 +247,7 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id,
 					hcd->rsrc_len, driver->description))
 				break;
 		}
-		if (region == PCI_ROM_RESOURCE) {
+		if (region == PCI_STD_NUM_BARS) {
 			dev_dbg(&dev->dev, "no i/o regions available\n");
 			retval = -EBUSY;
 			goto put_hcd;
@@ -446,7 +445,7 @@ static int suspend_common(struct device *dev, bool do_wakeup)
 				HCD_WAKEUP_PENDING(hcd->shared_hcd))
 			return -EBUSY;
 		retval = hcd->driver->pci_suspend(hcd, do_wakeup);
-		suspend_report_result(hcd->driver->pci_suspend, retval);
+		suspend_report_result(dev, hcd->driver->pci_suspend, retval);
 
 		/* Check again in case wakeup raced with pci_suspend */
 		if ((retval == 0 && do_wakeup && HCD_WAKEUP_PENDING(hcd)) ||
@@ -556,7 +555,7 @@ static int hcd_pci_suspend_noirq(struct device *dev)
 		dev_dbg(dev, "--> PCI %s\n",
 				pci_power_name(pci_dev->current_state));
 	} else {
-		suspend_report_result(pci_prepare_to_sleep, retval);
+		suspend_report_result(dev, pci_prepare_to_sleep, retval);
 		return retval;
 	}
 
@@ -616,10 +615,10 @@ const struct dev_pm_ops usb_hcd_pci_pm_ops = {
 	.suspend_noirq	= hcd_pci_suspend_noirq,
 	.resume_noirq	= hcd_pci_resume_noirq,
 	.resume		= hcd_pci_resume,
-	.freeze		= check_root_hub_suspended,
+	.freeze		= hcd_pci_suspend,
 	.freeze_noirq	= check_root_hub_suspended,
 	.thaw_noirq	= NULL,
-	.thaw		= NULL,
+	.thaw		= hcd_pci_resume,
 	.poweroff	= hcd_pci_suspend,
 	.poweroff_noirq	= hcd_pci_suspend_noirq,
 	.restore_noirq	= hcd_pci_resume_noirq,

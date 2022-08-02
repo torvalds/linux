@@ -5,11 +5,6 @@
  * Copyright 2020 Google LLC.
  */
 
-#include "sc7180.dtsi"
-
-ap_ec_spi: &spi6 {};
-ap_h1_spi: &spi0 {};
-
 #include "sc7180-trogdor.dtsi"
 #include "sc7180-trogdor-ti-sn65dsi86.dtsi"
 
@@ -33,7 +28,11 @@ ap_h1_spi: &spi0 {};
 };
 
 &alc5682 {
-	realtek,dmic-clk-driving-high = "true";
+	realtek,dmic-clk-driving-high;
+};
+
+&ap_tp_i2c {
+	status = "okay";
 };
 
 &cpu6_alert0 {

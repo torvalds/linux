@@ -148,7 +148,7 @@ static int intel_guc_steal_guc_ids(void *arg)
 	struct i915_request *spin_rq = NULL, *rq, *last = NULL;
 	int number_guc_id_stolen = guc->number_guc_id_stolen;
 
-	ce = kzalloc(sizeof(*ce) * GUC_MAX_LRC_DESCRIPTORS, GFP_KERNEL);
+	ce = kcalloc(GUC_MAX_CONTEXT_ID, sizeof(*ce), GFP_KERNEL);
 	if (!ce) {
 		pr_err("Context array allocation failed\n");
 		return -ENOMEM;
@@ -157,7 +157,7 @@ static int intel_guc_steal_guc_ids(void *arg)
 	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
 	engine = intel_selftest_find_any_engine(gt);
 	sv = guc->submission_state.num_guc_ids;
-	guc->submission_state.num_guc_ids = 4096;
+	guc->submission_state.num_guc_ids = 512;
 
 	/* Create spinner to block requests in below loop */
 	ce[context_index] = intel_context_create(engine);

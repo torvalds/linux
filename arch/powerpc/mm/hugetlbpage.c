@@ -542,40 +542,6 @@ retry:
 	return page;
 }
 
-#ifdef HAVE_ARCH_HUGETLB_UNMAPPED_AREA
-static inline int file_to_psize(struct file *file)
-{
-	struct hstate *hstate = hstate_file(file);
-	return shift_to_mmu_psize(huge_page_shift(hstate));
-}
-
-unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
-					unsigned long len, unsigned long pgoff,
-					unsigned long flags)
-{
-#ifdef CONFIG_PPC_RADIX_MMU
-	if (radix_enabled())
-		return radix__hugetlb_get_unmapped_area(file, addr, len,
-						       pgoff, flags);
-#endif
-#ifdef CONFIG_PPC_MM_SLICES
-	return slice_get_unmapped_area(addr, len, flags, file_to_psize(file), 1);
-#endif
-	BUG();
-}
-#endif
-
-unsigned long vma_mmu_pagesize(struct vm_area_struct *vma)
-{
-	/* With radix we don't use slice, so derive it from vma*/
-	if (IS_ENABLED(CONFIG_PPC_MM_SLICES) && !radix_enabled()) {
-		unsigned int psize = get_slice_psize(vma->vm_mm, vma->vm_start);
-
-		return 1UL << mmu_psize_to_shift(psize);
-	}
-	return vma_kernel_pagesize(vma);
-}
-
 bool __init arch_hugetlb_valid_size(unsigned long size)
 {
 	int shift = __ffs(size);
@@ -664,10 +630,7 @@ static int __init hugetlbpage_init(void)
 		configured = true;
 	}
 
-	if (configured) {
-		if (IS_ENABLED(CONFIG_HUGETLB_PAGE_SIZE_VARIABLE))
-			hugetlbpage_init_default();
-	} else
+	if (!configured)
 		pr_info("Failed to initialize. Disabling HugeTLB");
 
 	return 0;

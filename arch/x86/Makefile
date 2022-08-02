@@ -36,7 +36,7 @@ endif
 
 # How to compile the 16-bit code.  Note we always compile for -march=i386;
 # that way we can complain to the user if the CPU is insufficient.
-REALMODE_CFLAGS	:= -m16 -g -Os -DDISABLE_BRANCH_PROFILING \
+REALMODE_CFLAGS	:= -m16 -g -Os -DDISABLE_BRANCH_PROFILING -D__DISABLE_EXPORTS \
 		   -Wall -Wstrict-prototypes -march=i386 -mregparm=3 \
 		   -fno-strict-aliasing -fomit-frame-pointer -fno-pic \
 		   -mno-mmx -mno-sse $(call cc-option,-fcf-protection=none)
@@ -62,8 +62,20 @@ export BITS
 #
 KBUILD_CFLAGS += -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx
 
-# Intel CET isn't enabled in the kernel
+ifeq ($(CONFIG_X86_KERNEL_IBT),y)
+#
+# Kernel IBT has S_CET.NOTRACK_EN=0, as such the compilers must not generate
+# NOTRACK prefixes. Current generation compilers unconditionally employ NOTRACK
+# for jump-tables, as such, disable jump-tables for now.
+#
+# (jump-tables are implicitly disabled by RETPOLINE)
+#
+#   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104816
+#
+KBUILD_CFLAGS += $(call cc-option,-fcf-protection=branch -fno-jump-tables)
+else
 KBUILD_CFLAGS += $(call cc-option,-fcf-protection=none)
+endif
 
 ifeq ($(CONFIG_X86_32),y)
         BITS := 32
@@ -139,22 +151,6 @@ else
         KBUILD_CFLAGS += -mno-red-zone
         KBUILD_CFLAGS += -mcmodel=kernel
 endif
-
-ifdef CONFIG_X86_X32
-	x32_ld_ok := $(call try-run,\
-			/bin/echo -e '1: .quad 1b' | \
-			$(CC) $(KBUILD_AFLAGS) -c -x assembler -o "$$TMP" - && \
-			$(OBJCOPY) -O elf32-x86-64 "$$TMP" "$$TMP.o" && \
-			$(LD) -m elf32_x86_64 "$$TMP.o" -o "$$TMP",y,n)
-        ifeq ($(x32_ld_ok),y)
-                CONFIG_X86_X32_ABI := y
-                KBUILD_AFLAGS += -DCONFIG_X86_X32_ABI
-                KBUILD_CFLAGS += -DCONFIG_X86_X32_ABI
-        else
-                $(warning CONFIG_X86_X32 enabled but no binutils support)
-        endif
-endif
-export CONFIG_X86_X32_ABI
 
 #
 # If the function graph tracer is used with mcount instead of fentry,
@@ -275,8 +271,7 @@ $(BOOT_TARGETS): vmlinux
 
 PHONY += install
 install:
-	$(CONFIG_SHELL) $(srctree)/$(boot)/install.sh $(KERNELRELEASE) \
-		$(KBUILD_IMAGE) System.map "$(INSTALL_PATH)"
+	$(call cmd,install)
 
 PHONY += vdso_install
 vdso_install:
@@ -317,5 +312,6 @@ define archhelp
   echo  ''
   echo  '  kvm_guest.config	- Enable Kconfig items for running this kernel as a KVM guest'
   echo  '  xen.config		- Enable Kconfig items for running this kernel as a Xen guest'
+  echo  '  x86_debug.config	- Enable tip tree debugging options for testing'
 
 endef

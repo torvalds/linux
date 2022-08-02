@@ -23,7 +23,12 @@
 
 #include <linux/module.h>
 
+#ifdef CONFIG_X86
+#include <asm/hypervisor.h>
+#endif
+
 #include <drm/drm_drv.h>
+#include <xen/xen.h>
 
 #include "amdgpu.h"
 #include "amdgpu_ras.h"
@@ -575,8 +580,10 @@ static int amdgpu_virt_write_vf2pf_data(struct amdgpu_device *adev)
 	vf2pf_info->driver_cert = 0;
 	vf2pf_info->os_info.all = 0;
 
-	vf2pf_info->fb_usage = amdgpu_vram_mgr_usage(&adev->mman.vram_mgr) >> 20;
-	vf2pf_info->fb_vis_usage = amdgpu_vram_mgr_vis_usage(&adev->mman.vram_mgr) >> 20;
+	vf2pf_info->fb_usage =
+		ttm_resource_manager_usage(&adev->mman.vram_mgr.manager) >> 20;
+	vf2pf_info->fb_vis_usage =
+		amdgpu_vram_mgr_vis_usage(&adev->mman.vram_mgr) >> 20;
 	vf2pf_info->fb_size = adev->gmc.real_vram_size >> 20;
 	vf2pf_info->fb_vis_size = adev->gmc.visible_vram_size >> 20;
 
@@ -708,7 +715,8 @@ void amdgpu_detect_virtualization(struct amdgpu_device *adev)
 		adev->virt.caps |= AMDGPU_SRIOV_CAPS_ENABLE_IOV;
 
 	if (!reg) {
-		if (is_virtual_machine())	/* passthrough mode exclus sriov mod */
+		/* passthrough mode exclus sriov mod */
+		if (is_virtual_machine() && !xen_initial_domain())
 			adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
 	}
 
@@ -721,8 +729,12 @@ void amdgpu_detect_virtualization(struct amdgpu_device *adev)
 			break;
 		case CHIP_VEGA10:
 			soc15_set_virt_ops(adev);
-			/* send a dummy GPU_INIT_DATA request to host on vega10 */
-			amdgpu_virt_request_init_data(adev);
+#ifdef CONFIG_X86
+			/* not send GPU_INIT_DATA with MS_HYPERV*/
+			if (!hypervisor_is_type(X86_HYPER_MS_HYPERV))
+#endif
+				/* send a dummy GPU_INIT_DATA request to host on vega10 */
+				amdgpu_virt_request_init_data(adev);
 			break;
 		case CHIP_VEGA20:
 		case CHIP_ARCTURUS:
@@ -819,4 +831,149 @@ void amdgpu_virt_update_sriov_video_codec(struct amdgpu_device *adev,
 				decode[i].max_height = 0;
 		}
 	}
+}
+
+static bool amdgpu_virt_get_rlcg_reg_access_flag(struct amdgpu_device *adev,
+						 u32 acc_flags, u32 hwip,
+						 bool write, u32 *rlcg_flag)
+{
+	bool ret = false;
+
+	switch (hwip) {
+	case GC_HWIP:
+		if (amdgpu_sriov_reg_indirect_gc(adev)) {
+			*rlcg_flag =
+				write ? AMDGPU_RLCG_GC_WRITE : AMDGPU_RLCG_GC_READ;
+			ret = true;
+		/* only in new version, AMDGPU_REGS_NO_KIQ and
+		 * AMDGPU_REGS_RLC are enabled simultaneously */
+		} else if ((acc_flags & AMDGPU_REGS_RLC) &&
+				!(acc_flags & AMDGPU_REGS_NO_KIQ) && write) {
+			*rlcg_flag = AMDGPU_RLCG_GC_WRITE_LEGACY;
+			ret = true;
+		}
+		break;
+	case MMHUB_HWIP:
+		if (amdgpu_sriov_reg_indirect_mmhub(adev) &&
+		    (acc_flags & AMDGPU_REGS_RLC) && write) {
+			*rlcg_flag = AMDGPU_RLCG_MMHUB_WRITE;
+			ret = true;
+		}
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+
+static u32 amdgpu_virt_rlcg_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v, u32 flag)
+{
+	struct amdgpu_rlcg_reg_access_ctrl *reg_access_ctrl;
+	uint32_t timeout = 50000;
+	uint32_t i, tmp;
+	uint32_t ret = 0;
+	void *scratch_reg0;
+	void *scratch_reg1;
+	void *scratch_reg2;
+	void *scratch_reg3;
+	void *spare_int;
+
+	if (!adev->gfx.rlc.rlcg_reg_access_supported) {
+		dev_err(adev->dev,
+			"indirect registers access through rlcg is not available\n");
+		return 0;
+	}
+
+	reg_access_ctrl = &adev->gfx.rlc.reg_access_ctrl;
+	scratch_reg0 = (void __iomem *)adev->rmmio + 4 * reg_access_ctrl->scratch_reg0;
+	scratch_reg1 = (void __iomem *)adev->rmmio + 4 * reg_access_ctrl->scratch_reg1;
+	scratch_reg2 = (void __iomem *)adev->rmmio + 4 * reg_access_ctrl->scratch_reg2;
+	scratch_reg3 = (void __iomem *)adev->rmmio + 4 * reg_access_ctrl->scratch_reg3;
+	if (reg_access_ctrl->spare_int)
+		spare_int = (void __iomem *)adev->rmmio + 4 * reg_access_ctrl->spare_int;
+
+	if (offset == reg_access_ctrl->grbm_cntl) {
+		/* if the target reg offset is grbm_cntl, write to scratch_reg2 */
+		writel(v, scratch_reg2);
+		writel(v, ((void __iomem *)adev->rmmio) + (offset * 4));
+	} else if (offset == reg_access_ctrl->grbm_idx) {
+		/* if the target reg offset is grbm_idx, write to scratch_reg3 */
+		writel(v, scratch_reg3);
+		writel(v, ((void __iomem *)adev->rmmio) + (offset * 4));
+	} else {
+		/*
+		 * SCRATCH_REG0 	= read/write value
+		 * SCRATCH_REG1[30:28]	= command
+		 * SCRATCH_REG1[19:0]	= address in dword
+		 * SCRATCH_REG1[26:24]	= Error reporting
+		 */
+		writel(v, scratch_reg0);
+		writel((offset | flag), scratch_reg1);
+		if (reg_access_ctrl->spare_int)
+			writel(1, spare_int);
+
+		for (i = 0; i < timeout; i++) {
+			tmp = readl(scratch_reg1);
+			if (!(tmp & AMDGPU_RLCG_SCRATCH1_ADDRESS_MASK))
+				break;
+			udelay(10);
+		}
+
+		if (i >= timeout) {
+			if (amdgpu_sriov_rlcg_error_report_enabled(adev)) {
+				if (tmp & AMDGPU_RLCG_VFGATE_DISABLED) {
+					dev_err(adev->dev,
+						"vfgate is disabled, rlcg failed to program reg: 0x%05x\n", offset);
+				} else if (tmp & AMDGPU_RLCG_WRONG_OPERATION_TYPE) {
+					dev_err(adev->dev,
+						"wrong operation type, rlcg failed to program reg: 0x%05x\n", offset);
+				} else if (tmp & AMDGPU_RLCG_REG_NOT_IN_RANGE) {
+					dev_err(adev->dev,
+						"register is not in range, rlcg failed to program reg: 0x%05x\n", offset);
+				} else {
+					dev_err(adev->dev,
+						"unknown error type, rlcg failed to program reg: 0x%05x\n", offset);
+				}
+			} else {
+				dev_err(adev->dev,
+					"timeout: rlcg faled to program reg: 0x%05x\n", offset);
+			}
+		}
+	}
+
+	ret = readl(scratch_reg0);
+	return ret;
+}
+
+void amdgpu_sriov_wreg(struct amdgpu_device *adev,
+		       u32 offset, u32 value,
+		       u32 acc_flags, u32 hwip)
+{
+	u32 rlcg_flag;
+
+	if (!amdgpu_sriov_runtime(adev) &&
+		amdgpu_virt_get_rlcg_reg_access_flag(adev, acc_flags, hwip, true, &rlcg_flag)) {
+		amdgpu_virt_rlcg_reg_rw(adev, offset, value, rlcg_flag);
+		return;
+	}
+
+	if (acc_flags & AMDGPU_REGS_NO_KIQ)
+		WREG32_NO_KIQ(offset, value);
+	else
+		WREG32(offset, value);
+}
+
+u32 amdgpu_sriov_rreg(struct amdgpu_device *adev,
+		      u32 offset, u32 acc_flags, u32 hwip)
+{
+	u32 rlcg_flag;
+
+	if (!amdgpu_sriov_runtime(adev) &&
+		amdgpu_virt_get_rlcg_reg_access_flag(adev, acc_flags, hwip, false, &rlcg_flag))
+		return amdgpu_virt_rlcg_reg_rw(adev, offset, 0, rlcg_flag);
+
+	if (acc_flags & AMDGPU_REGS_NO_KIQ)
+		return RREG32_NO_KIQ(offset);
+	else
+		return RREG32(offset);
 }

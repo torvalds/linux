@@ -36,6 +36,9 @@
 /* HCI priority */
 #define HCI_PRIO_MAX	7
 
+/* HCI maximum id value */
+#define HCI_MAX_ID 10000
+
 /* HCI Core structures */
 struct inquiry_data {
 	bdaddr_t	bdaddr;
@@ -152,21 +155,18 @@ struct bdaddr_list_with_irk {
 	u8 local_irk[16];
 };
 
+/* Bitmask of connection flags */
 enum hci_conn_flags {
-	HCI_CONN_FLAG_REMOTE_WAKEUP,
-	HCI_CONN_FLAG_DEVICE_PRIVACY,
-
-	__HCI_CONN_NUM_FLAGS,
+	HCI_CONN_FLAG_REMOTE_WAKEUP = 1,
+	HCI_CONN_FLAG_DEVICE_PRIVACY = 2,
 };
-
-/* Make sure number of flags doesn't exceed sizeof(current_flags) */
-static_assert(__HCI_CONN_NUM_FLAGS < 32);
+typedef u8 hci_conn_flags_t;
 
 struct bdaddr_list_with_flags {
 	struct list_head list;
 	bdaddr_t bdaddr;
 	u8 bdaddr_type;
-	DECLARE_BITMAP(flags, __HCI_CONN_NUM_FLAGS);
+	hci_conn_flags_t flags;
 };
 
 struct bt_uuid {
@@ -258,6 +258,15 @@ struct adv_info {
 
 #define HCI_ADV_TX_POWER_NO_PREFERENCE 0x7F
 
+struct monitored_device {
+	struct list_head list;
+
+	bdaddr_t bdaddr;
+	__u8     addr_type;
+	__u16    handle;
+	bool     notified;
+};
+
 struct adv_pattern {
 	struct list_head list;
 	__u8 ad_type;
@@ -293,6 +302,9 @@ struct adv_monitor {
 #define HCI_ADV_MONITOR_EXT_MSFT		2
 
 #define HCI_MAX_SHORT_NAME_LENGTH	10
+
+#define HCI_CONN_HANDLE_UNSET		0xffff
+#define HCI_CONN_HANDLE_MAX		0x0eff
 
 /* Min encryption key size to match with SMP */
 #define HCI_MIN_ENC_KEY_SIZE		7
@@ -561,7 +573,7 @@ struct hci_dev {
 	struct rfkill		*rfkill;
 
 	DECLARE_BITMAP(dev_flags, __HCI_NUM_FLAGS);
-	DECLARE_BITMAP(conn_flags, __HCI_CONN_NUM_FLAGS);
+	hci_conn_flags_t	conn_flags;
 
 	__s8			adv_tx_power;
 	__u8			adv_data[HCI_MAX_EXT_AD_LENGTH];
@@ -590,6 +602,9 @@ struct hci_dev {
 	} interleave_scan_state;
 
 	struct delayed_work	interleave_scan;
+
+	struct list_head	monitored_devices;
+	bool			advmon_pend_notify;
 
 #if IS_ENABLED(CONFIG_BT_LEDS)
 	struct led_trigger	*power_led;
@@ -757,7 +772,7 @@ struct hci_conn_params {
 
 	struct hci_conn *conn;
 	bool explicit_connect;
-	DECLARE_BITMAP(flags, __HCI_CONN_NUM_FLAGS);
+	hci_conn_flags_t flags;
 	u8  privacy_mode;
 };
 
@@ -1141,7 +1156,7 @@ int hci_conn_switch_role(struct hci_conn *conn, __u8 role);
 
 void hci_conn_enter_active_mode(struct hci_conn *conn, __u8 force_active);
 
-void hci_le_conn_failed(struct hci_conn *conn, u8 status);
+void hci_conn_failed(struct hci_conn *conn, u8 status);
 
 /*
  * hci_conn_get() and hci_conn_put() are used to control the life-time of an
@@ -1477,8 +1492,12 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define privacy_mode_capable(dev) (use_ll_privacy(dev) && \
 				   (hdev->commands[39] & 0x04))
 
-/* Use enhanced synchronous connection if command is supported */
-#define enhanced_sco_capable(dev) ((dev)->commands[29] & 0x08)
+/* Use enhanced synchronous connection if command is supported and its quirk
+ * has not been set.
+ */
+#define enhanced_sync_conn_capable(dev) \
+	(((dev)->commands[29] & 0x08) && \
+	 !test_bit(HCI_QUIRK_BROKEN_ENHANCED_SETUP_SYNC_CONN, &(dev)->quirks))
 
 /* Use ext scanning if set ext scan param and ext scan enable is supported */
 #define use_ext_scan(dev) (((dev)->commands[37] & 0x20) && \
@@ -1855,6 +1874,8 @@ void mgmt_adv_monitor_removed(struct hci_dev *hdev, u16 handle);
 int mgmt_phy_configuration_changed(struct hci_dev *hdev, struct sock *skip);
 int mgmt_add_adv_patterns_monitor_complete(struct hci_dev *hdev, u8 status);
 int mgmt_remove_adv_monitor_complete(struct hci_dev *hdev, u8 status);
+void mgmt_adv_monitor_device_lost(struct hci_dev *hdev, u16 handle,
+				  bdaddr_t *bdaddr, u8 addr_type);
 
 u8 hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max, u16 latency,
 		      u16 to_multiplier);

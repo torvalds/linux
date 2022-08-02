@@ -30,7 +30,7 @@
  *
  * where "vas_copy" and "vas_paste" are defined in copy-paste.h.
  * copy/paste returns to the user space directly. So refer NX hardware
- * documententation for exact copy/paste usage and completion / error
+ * documentation for exact copy/paste usage and completion / error
  * conditions.
  */
 
@@ -316,6 +316,7 @@ static int coproc_ioc_tx_win_open(struct file *fp, unsigned long arg)
 		return PTR_ERR(txwin);
 	}
 
+	mutex_init(&txwin->task_ref.mmap_mutex);
 	cp_inst->txwin = txwin;
 
 	return 0;
@@ -350,6 +351,124 @@ static int coproc_release(struct inode *inode, struct file *fp)
 	return 0;
 }
 
+/*
+ * If the executed instruction that caused the fault was a paste, then
+ * clear regs CR0[EQ], advance NIP, and return 0. Else return error code.
+ */
+static int do_fail_paste(void)
+{
+	struct pt_regs *regs = current->thread.regs;
+	u32 instword;
+
+	if (WARN_ON_ONCE(!regs))
+		return -EINVAL;
+
+	if (WARN_ON_ONCE(!user_mode(regs)))
+		return -EINVAL;
+
+	/*
+	 * If we couldn't translate the instruction, the driver should
+	 * return success without handling the fault, it will be retried
+	 * or the instruction fetch will fault.
+	 */
+	if (get_user(instword, (u32 __user *)(regs->nip)))
+		return -EAGAIN;
+
+	/*
+	 * Not a paste instruction, driver may fail the fault.
+	 */
+	if ((instword & PPC_INST_PASTE_MASK) != PPC_INST_PASTE)
+		return -ENOENT;
+
+	regs->ccr &= ~0xe0000000;	/* Clear CR0[0-2] to fail paste */
+	regs_add_return_ip(regs, 4);	/* Emulate the paste */
+
+	return 0;
+}
+
+/*
+ * This fault handler is invoked when the core generates page fault on
+ * the paste address. Happens if the kernel closes window in hypervisor
+ * (on pseries) due to lost credit or the paste address is not mapped.
+ */
+static vm_fault_t vas_mmap_fault(struct vm_fault *vmf)
+{
+	struct vm_area_struct *vma = vmf->vma;
+	struct file *fp = vma->vm_file;
+	struct coproc_instance *cp_inst = fp->private_data;
+	struct vas_window *txwin;
+	vm_fault_t fault;
+	u64 paste_addr;
+	int ret;
+
+	/*
+	 * window is not opened. Shouldn't expect this error.
+	 */
+	if (!cp_inst || !cp_inst->txwin) {
+		pr_err("%s(): Unexpected fault on paste address with TX window closed\n",
+				__func__);
+		return VM_FAULT_SIGBUS;
+	}
+
+	txwin = cp_inst->txwin;
+	/*
+	 * When the LPAR lost credits due to core removal or during
+	 * migration, invalidate the existing mapping for the current
+	 * paste addresses and set windows in-active (zap_page_range in
+	 * reconfig_close_windows()).
+	 * New mapping will be done later after migration or new credits
+	 * available. So continue to receive faults if the user space
+	 * issue NX request.
+	 */
+	if (txwin->task_ref.vma != vmf->vma) {
+		pr_err("%s(): No previous mapping with paste address\n",
+			__func__);
+		return VM_FAULT_SIGBUS;
+	}
+
+	mutex_lock(&txwin->task_ref.mmap_mutex);
+	/*
+	 * The window may be inactive due to lost credit (Ex: core
+	 * removal with DLPAR). If the window is active again when
+	 * the credit is available, map the new paste address at the
+	 * the window virtual address.
+	 */
+	if (txwin->status == VAS_WIN_ACTIVE) {
+		paste_addr = cp_inst->coproc->vops->paste_addr(txwin);
+		if (paste_addr) {
+			fault = vmf_insert_pfn(vma, vma->vm_start,
+					(paste_addr >> PAGE_SHIFT));
+			mutex_unlock(&txwin->task_ref.mmap_mutex);
+			return fault;
+		}
+	}
+	mutex_unlock(&txwin->task_ref.mmap_mutex);
+
+	/*
+	 * Received this fault due to closing the actual window.
+	 * It can happen during migration or lost credits.
+	 * Since no mapping, return the paste instruction failure
+	 * to the user space.
+	 */
+	ret = do_fail_paste();
+	/*
+	 * The user space can retry several times until success (needed
+	 * for migration) or should fallback to SW compression or
+	 * manage with the existing open windows if available.
+	 * Looking at sysfs interface, it can determine whether these
+	 * failures are coming during migration or core removal:
+	 * nr_used_credits > nr_total_credits when lost credits
+	 */
+	if (!ret || (ret == -EAGAIN))
+		return VM_FAULT_NOPAGE;
+
+	return VM_FAULT_SIGBUS;
+}
+
+static const struct vm_operations_struct vas_vm_ops = {
+	.fault = vas_mmap_fault,
+};
+
 static int coproc_mmap(struct file *fp, struct vm_area_struct *vma)
 {
 	struct coproc_instance *cp_inst = fp->private_data;
@@ -378,10 +497,29 @@ static int coproc_mmap(struct file *fp, struct vm_area_struct *vma)
 		return -EACCES;
 	}
 
+	/*
+	 * The initial mmap is done after the window is opened
+	 * with ioctl. But before mmap(), this window can be closed in
+	 * the hypervisor due to lost credit (core removal on pseries).
+	 * So if the window is not active, return mmap() failure with
+	 * -EACCES and expects the user space reissue mmap() when it
+	 * is active again or open new window when the credit is available.
+	 * mmap_mutex protects the paste address mmap() with DLPAR
+	 * close/open event and allows mmap() only when the window is
+	 * active.
+	 */
+	mutex_lock(&txwin->task_ref.mmap_mutex);
+	if (txwin->status != VAS_WIN_ACTIVE) {
+		pr_err("%s(): Window is not active\n", __func__);
+		rc = -EACCES;
+		goto out;
+	}
+
 	paste_addr = cp_inst->coproc->vops->paste_addr(txwin);
 	if (!paste_addr) {
 		pr_err("%s(): Window paste address failed\n", __func__);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto out;
 	}
 
 	pfn = paste_addr >> PAGE_SHIFT;
@@ -398,6 +536,11 @@ static int coproc_mmap(struct file *fp, struct vm_area_struct *vma)
 	pr_devel("%s(): paste addr %llx at %lx, rc %d\n", __func__,
 			paste_addr, vma->vm_start, rc);
 
+	txwin->task_ref.vma = vma;
+	vma->vm_ops = &vas_vm_ops;
+
+out:
+	mutex_unlock(&txwin->task_ref.mmap_mutex);
 	return rc;
 }
 

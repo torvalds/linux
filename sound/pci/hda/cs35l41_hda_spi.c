@@ -28,11 +28,9 @@ static int cs35l41_hda_spi_probe(struct spi_device *spi)
 				 devm_regmap_init_spi(spi, &cs35l41_regmap_spi));
 }
 
-static int cs35l41_hda_spi_remove(struct spi_device *spi)
+static void cs35l41_hda_spi_remove(struct spi_device *spi)
 {
 	cs35l41_hda_remove(&spi->dev);
-
-	return 0;
 }
 
 static const struct spi_device_id cs35l41_hda_spi_id[] = {
@@ -50,7 +48,7 @@ MODULE_DEVICE_TABLE(acpi, cs35l41_acpi_hda_match);
 
 static struct spi_driver cs35l41_spi_driver = {
 	.driver = {
-		.name		= "cs35l41_hda",
+		.name		= "cs35l41-hda",
 		.acpi_match_table = ACPI_PTR(cs35l41_acpi_hda_match),
 	},
 	.id_table	= cs35l41_hda_spi_id,

@@ -29,10 +29,7 @@ static void get_stack_print_output(void *ctx, int cpu, void *data, __u32 size)
 	 */
 	struct get_stack_trace_t e;
 	int i, num_stack;
-	static __u64 cnt;
 	struct ksym *ks;
-
-	cnt++;
 
 	memset(&e, 0, sizeof(e));
 	memcpy(&e, data, size <= sizeof(e) ? size : sizeof(e));

@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2014-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,7 +41,6 @@ struct mm_struct;
 
 #include "kfd_priv.h"
 #include "kfd_device_queue_manager.h"
-#include "kfd_dbgmgr.h"
 #include "kfd_iommu.h"
 #include "kfd_svm.h"
 
@@ -64,7 +64,8 @@ static struct workqueue_struct *kfd_process_wq;
  */
 static struct workqueue_struct *kfd_restore_wq;
 
-static struct kfd_process *find_process(const struct task_struct *thread);
+static struct kfd_process *find_process(const struct task_struct *thread,
+					bool ref);
 static void kfd_process_ref_release(struct kref *ref);
 static struct kfd_process *create_process(const struct task_struct *thread);
 static int kfd_process_init_cwsr_apu(struct kfd_process *p, struct file *filep);
@@ -715,12 +716,13 @@ static int kfd_process_alloc_gpuvm(struct kfd_process_device *pdd,
 	int err;
 
 	err = amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(kdev->adev, gpu_va, size,
-						 pdd->drm_priv, mem, NULL, flags);
+						 pdd->drm_priv, mem, NULL,
+						 flags, false);
 	if (err)
 		goto err_alloc_mem;
 
 	err = amdgpu_amdkfd_gpuvm_map_memory_to_gpu(kdev->adev, *mem,
-			pdd->drm_priv, NULL);
+			pdd->drm_priv);
 	if (err)
 		goto err_map_mem;
 
@@ -816,7 +818,7 @@ struct kfd_process *kfd_create_process(struct file *filep)
 	mutex_lock(&kfd_processes_mutex);
 
 	/* A prior open of /dev/kfd could have already created the process. */
-	process = find_process(thread);
+	process = find_process(thread, false);
 	if (process) {
 		pr_debug("Process already found\n");
 	} else {
@@ -884,7 +886,7 @@ struct kfd_process *kfd_get_process(const struct task_struct *thread)
 	if (thread->group_leader->mm != thread->mm)
 		return ERR_PTR(-EINVAL);
 
-	process = find_process(thread);
+	process = find_process(thread, false);
 	if (!process)
 		return ERR_PTR(-EINVAL);
 
@@ -903,13 +905,16 @@ static struct kfd_process *find_process_by_mm(const struct mm_struct *mm)
 	return NULL;
 }
 
-static struct kfd_process *find_process(const struct task_struct *thread)
+static struct kfd_process *find_process(const struct task_struct *thread,
+					bool ref)
 {
 	struct kfd_process *p;
 	int idx;
 
 	idx = srcu_read_lock(&kfd_processes_srcu);
 	p = find_process_by_mm(thread->mm);
+	if (p && ref)
+		kref_get(&p->ref);
 	srcu_read_unlock(&kfd_processes_srcu, idx);
 
 	return p;
@@ -920,6 +925,26 @@ void kfd_unref_process(struct kfd_process *p)
 	kref_put(&p->ref, kfd_process_ref_release);
 }
 
+/* This increments the process->ref counter. */
+struct kfd_process *kfd_lookup_process_by_pid(struct pid *pid)
+{
+	struct task_struct *task = NULL;
+	struct kfd_process *p    = NULL;
+
+	if (!pid) {
+		task = current;
+		get_task_struct(task);
+	} else {
+		task = get_pid_task(pid, PIDTYPE_PID);
+	}
+
+	if (task) {
+		p = find_process(task, true);
+		put_task_struct(task);
+	}
+
+	return p;
+}
 
 static void kfd_process_device_free_bos(struct kfd_process_device *pdd)
 {
@@ -1016,6 +1041,9 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 
 		kfd_free_process_doorbells(pdd->dev, pdd->doorbell_index);
 
+		if (pdd->dev->shared_resources.enable_mes)
+			amdgpu_amdkfd_free_gtt_mem(pdd->dev->adev,
+						   pdd->proc_ctx_bo);
 		/*
 		 * before destroying pdd, make sure to report availability
 		 * for auto suspend
@@ -1133,7 +1161,6 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 					struct mm_struct *mm)
 {
 	struct kfd_process *p;
-	int i;
 
 	/*
 	 * The kfd_process structure can not be free because the
@@ -1150,26 +1177,8 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 
 	cancel_delayed_work_sync(&p->eviction_work);
 	cancel_delayed_work_sync(&p->restore_work);
-	cancel_delayed_work_sync(&p->svms.restore_work);
 
 	mutex_lock(&p->mutex);
-
-	/* Iterate over all process device data structures and if the
-	 * pdd is in debug mode, we should first force unregistration,
-	 * then we will be able to destroy the queues
-	 */
-	for (i = 0; i < p->n_pdds; i++) {
-		struct kfd_dev *dev = p->pdds[i]->dev;
-
-		mutex_lock(kfd_get_dbgmgr_mutex());
-		if (dev && dev->dbgmgr && dev->dbgmgr->pasid == p->pasid) {
-			if (!kfd_dbgmgr_unregister(dev->dbgmgr, p)) {
-				kfd_dbgmgr_destroy(dev->dbgmgr);
-				dev->dbgmgr = NULL;
-			}
-		}
-		mutex_unlock(kfd_get_dbgmgr_mutex());
-	}
 
 	kfd_process_dequeue_from_all_devices(p);
 	pqm_uninit(&p->pqm);
@@ -1360,15 +1369,20 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 	process->mm = thread->mm;
 	process->lead_thread = thread->group_leader;
 	process->n_pdds = 0;
+	process->queues_paused = false;
 	INIT_DELAYED_WORK(&process->eviction_work, evict_process_worker);
 	INIT_DELAYED_WORK(&process->restore_work, restore_process_worker);
 	process->last_restore_timestamp = get_jiffies_64();
-	kfd_event_init_process(process);
+	err = kfd_event_init_process(process);
+	if (err)
+		goto err_event_init;
 	process->is_32bit_user_mode = in_compat_syscall();
 
 	process->pasid = kfd_pasid_alloc();
-	if (process->pasid == 0)
+	if (process->pasid == 0) {
+		err = -ENOSPC;
 		goto err_alloc_pasid;
+	}
 
 	err = pqm_init(&process->pqm, process);
 	if (err != 0)
@@ -1417,6 +1431,8 @@ err_init_apertures:
 err_process_pqm_init:
 	kfd_pasid_free(process->pasid);
 err_alloc_pasid:
+	kfd_event_free_process(process);
+err_event_init:
 	mutex_destroy(&process->mutex);
 	kfree(process);
 err_alloc_process:
@@ -1471,6 +1487,7 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 							struct kfd_process *p)
 {
 	struct kfd_process_device *pdd = NULL;
+	int retval = 0;
 
 	if (WARN_ON_ONCE(p->n_pdds >= MAX_GPU_INSTANCE))
 		return NULL;
@@ -1501,7 +1518,23 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 	pdd->runtime_inuse = false;
 	pdd->vram_usage = 0;
 	pdd->sdma_past_activity_counter = 0;
+	pdd->user_gpu_id = dev->id;
 	atomic64_set(&pdd->evict_duration_counter, 0);
+
+	if (dev->shared_resources.enable_mes) {
+		retval = amdgpu_amdkfd_alloc_gtt_mem(dev->adev,
+						AMDGPU_MES_PROC_CTX_SIZE,
+						&pdd->proc_ctx_bo,
+						&pdd->proc_ctx_gpu_addr,
+						&pdd->proc_ctx_cpu_ptr,
+						false);
+		if (retval) {
+			pr_err("failed to allocate process context bo\n");
+			goto err_free_pdd;
+		}
+		memset(pdd->proc_ctx_cpu_ptr, 0, AMDGPU_MES_PROC_CTX_SIZE);
+	}
+
 	p->pdds[p->n_pdds++] = pdd;
 
 	/* Init idr used for memory handle translation */
@@ -1552,6 +1585,7 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 		return ret;
 	}
 	pdd->drm_priv = drm_file->private_data;
+	atomic64_set(&pdd->tlb_seq, 0);
 
 	ret = kfd_process_device_reserve_ib_mem(pdd);
 	if (ret)
@@ -1771,7 +1805,7 @@ int kfd_process_gpuidx_from_gpuid(struct kfd_process *p, uint32_t gpu_id)
 	int i;
 
 	for (i = 0; i < p->n_pdds; i++)
-		if (p->pdds[i] && gpu_id == p->pdds[i]->dev->id)
+		if (p->pdds[i] && gpu_id == p->pdds[i]->user_gpu_id)
 			return i;
 	return -EINVAL;
 }
@@ -1784,7 +1818,7 @@ kfd_process_gpuid_from_adev(struct kfd_process *p, struct amdgpu_device *adev,
 
 	for (i = 0; i < p->n_pdds; i++)
 		if (p->pdds[i] && p->pdds[i]->dev->adev == adev) {
-			*gpuid = p->pdds[i]->dev->id;
+			*gpuid = p->pdds[i]->user_gpu_id;
 			*gpuidx = i;
 			return 0;
 		}
@@ -1941,7 +1975,17 @@ int kfd_reserved_mem_mmap(struct kfd_dev *dev, struct kfd_process *process,
 
 void kfd_flush_tlb(struct kfd_process_device *pdd, enum TLB_FLUSH_TYPE type)
 {
+	struct amdgpu_vm *vm = drm_priv_to_vm(pdd->drm_priv);
+	uint64_t tlb_seq = amdgpu_vm_tlb_seq(vm);
 	struct kfd_dev *dev = pdd->dev;
+
+	/*
+	 * It can be that we race and lose here, but that is extremely unlikely
+	 * and the worst thing which could happen is that we flush the changes
+	 * into the TLB once more which is harmless.
+	 */
+	if (atomic64_xchg(&pdd->tlb_seq, tlb_seq) == tlb_seq)
+		return;
 
 	if (dev->dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS) {
 		/* Nothing to flush until a VMID is assigned, which
@@ -1954,6 +1998,37 @@ void kfd_flush_tlb(struct kfd_process_device *pdd, enum TLB_FLUSH_TYPE type)
 		amdgpu_amdkfd_flush_gpu_tlb_pasid(dev->adev,
 					pdd->process->pasid, type);
 	}
+}
+
+struct kfd_process_device *kfd_process_device_data_by_id(struct kfd_process *p, uint32_t gpu_id)
+{
+	int i;
+
+	if (gpu_id) {
+		for (i = 0; i < p->n_pdds; i++) {
+			struct kfd_process_device *pdd = p->pdds[i];
+
+			if (pdd->user_gpu_id == gpu_id)
+				return pdd;
+		}
+	}
+	return NULL;
+}
+
+int kfd_process_get_user_gpu_id(struct kfd_process *p, uint32_t actual_gpu_id)
+{
+	int i;
+
+	if (!actual_gpu_id)
+		return 0;
+
+	for (i = 0; i < p->n_pdds; i++) {
+		struct kfd_process_device *pdd = p->pdds[i];
+
+		if (pdd->dev->id == actual_gpu_id)
+			return pdd->user_gpu_id;
+	}
+	return -EINVAL;
 }
 
 #if defined(CONFIG_DEBUG_FS)

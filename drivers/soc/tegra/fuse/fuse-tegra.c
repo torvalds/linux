@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2013-2014, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2013-2022, NVIDIA CORPORATION.  All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -162,6 +162,12 @@ static const struct nvmem_cell_info tegra_fuse_cells[] = {
 		.bit_offset = 0,
 		.nbits = 32,
 	}, {
+		.name = "gpu-gcplex-config-fuse",
+		.offset = 0x1c8,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
 		.name = "tsensor-realignment",
 		.offset = 0x1fc,
 		.bytes = 4,
@@ -179,13 +185,25 @@ static const struct nvmem_cell_info tegra_fuse_cells[] = {
 		.bytes = 4,
 		.bit_offset = 0,
 		.nbits = 32,
+	}, {
+		.name = "gpu-pdi0",
+		.offset = 0x300,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "gpu-pdi1",
+		.offset = 0x304,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
 	},
 };
 
 static void tegra_fuse_restore(void *base)
 {
+	fuse->base = (void __iomem *)base;
 	fuse->clk = NULL;
-	fuse->base = base;
 }
 
 static int tegra_fuse_probe(struct platform_device *pdev)
@@ -195,7 +213,7 @@ static int tegra_fuse_probe(struct platform_device *pdev)
 	struct resource *res;
 	int err;
 
-	err = devm_add_action(&pdev->dev, tegra_fuse_restore, base);
+	err = devm_add_action(&pdev->dev, tegra_fuse_restore, (void __force *)base);
 	if (err)
 		return err;
 

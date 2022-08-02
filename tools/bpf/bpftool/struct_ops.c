@@ -480,7 +480,6 @@ static int do_unregister(int argc, char **argv)
 static int do_register(int argc, char **argv)
 {
 	LIBBPF_OPTS(bpf_object_open_opts, open_opts);
-	const struct bpf_map_def *def;
 	struct bpf_map_info info = {};
 	__u32 info_len = sizeof(info);
 	int nr_errs = 0, nr_maps = 0;
@@ -502,16 +501,13 @@ static int do_register(int argc, char **argv)
 	if (libbpf_get_error(obj))
 		return -1;
 
-	set_max_rlimit();
-
 	if (bpf_object__load(obj)) {
 		bpf_object__close(obj);
 		return -1;
 	}
 
 	bpf_object__for_each_map(map, obj) {
-		def = bpf_map__def(map);
-		if (def->type != BPF_MAP_TYPE_STRUCT_OPS)
+		if (bpf_map__type(map) != BPF_MAP_TYPE_STRUCT_OPS)
 			continue;
 
 		link = bpf_map__attach_struct_ops(map);

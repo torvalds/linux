@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "misc.h"
-#include <linux/efi.h>
 #include <asm/e820/types.h>
 #include <asm/processor.h>
-#include <asm/efi.h>
 #include "pgtable.h"
 #include "../string.h"
+#include "efi.h"
 
 #define BIOS_START_MIN		0x20000U	/* 128K, less than this is insane */
 #define BIOS_START_MAX		0x9f000U	/* 640K, absolute maximum */

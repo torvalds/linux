@@ -66,16 +66,42 @@ static int simplefb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	return 0;
 }
 
-struct simplefb_par;
+struct simplefb_par {
+	u32 palette[PSEUDO_PALETTE_SIZE];
+	struct resource *mem;
+#if defined CONFIG_OF && defined CONFIG_COMMON_CLK
+	bool clks_enabled;
+	unsigned int clk_count;
+	struct clk **clks;
+#endif
+#if defined CONFIG_OF && defined CONFIG_REGULATOR
+	bool regulators_enabled;
+	u32 regulator_count;
+	struct regulator **regulators;
+#endif
+};
+
 static void simplefb_clocks_destroy(struct simplefb_par *par);
 static void simplefb_regulators_destroy(struct simplefb_par *par);
 
+/*
+ * fb_ops.fb_destroy is called by the last put_fb_info() call at the end
+ * of unregister_framebuffer() or fb_release(). Do any cleanup here.
+ */
 static void simplefb_destroy(struct fb_info *info)
 {
+	struct simplefb_par *par = info->par;
+	struct resource *mem = par->mem;
+
 	simplefb_regulators_destroy(info->par);
 	simplefb_clocks_destroy(info->par);
 	if (info->screen_base)
 		iounmap(info->screen_base);
+
+	framebuffer_release(info);
+
+	if (mem)
+		release_mem_region(mem->start, resource_size(mem));
 }
 
 static const struct fb_ops simplefb_ops = {
@@ -169,20 +195,6 @@ static int simplefb_parse_pd(struct platform_device *pdev,
 	return 0;
 }
 
-struct simplefb_par {
-	u32 palette[PSEUDO_PALETTE_SIZE];
-#if defined CONFIG_OF && defined CONFIG_COMMON_CLK
-	bool clks_enabled;
-	unsigned int clk_count;
-	struct clk **clks;
-#endif
-#if defined CONFIG_OF && defined CONFIG_REGULATOR
-	bool regulators_enabled;
-	u32 regulator_count;
-	struct regulator **regulators;
-#endif
-};
-
 #if defined CONFIG_OF && defined CONFIG_COMMON_CLK
 /*
  * Clock handling code.
@@ -225,8 +237,7 @@ static int simplefb_clocks_get(struct simplefb_par *par,
 		if (IS_ERR(clock)) {
 			if (PTR_ERR(clock) == -EPROBE_DEFER) {
 				while (--i >= 0) {
-					if (par->clks[i])
-						clk_put(par->clks[i]);
+					clk_put(par->clks[i]);
 				}
 				kfree(par->clks);
 				return -EPROBE_DEFER;
@@ -405,7 +416,7 @@ static int simplefb_probe(struct platform_device *pdev)
 	struct simplefb_params params;
 	struct fb_info *info;
 	struct simplefb_par *par;
-	struct resource *mem;
+	struct resource *res, *mem;
 
 	/*
 	 * Generic drivers must not be registered if a framebuffer exists.
@@ -430,15 +441,28 @@ static int simplefb_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
 		dev_err(&pdev->dev, "No memory resource\n");
 		return -EINVAL;
 	}
 
+	mem = request_mem_region(res->start, resource_size(res), "simplefb");
+	if (!mem) {
+		/*
+		 * We cannot make this fatal. Sometimes this comes from magic
+		 * spaces our resource handlers simply don't know about. Use
+		 * the I/O-memory resource as-is and try to map that instead.
+		 */
+		dev_warn(&pdev->dev, "simplefb: cannot reserve video memory at %pR\n", res);
+		mem = res;
+	}
+
 	info = framebuffer_alloc(sizeof(struct simplefb_par), &pdev->dev);
-	if (!info)
-		return -ENOMEM;
+	if (!info) {
+		ret = -ENOMEM;
+		goto error_release_mem_region;
+	}
 	platform_set_drvdata(pdev, info);
 
 	par = info->par;
@@ -495,6 +519,9 @@ static int simplefb_probe(struct platform_device *pdev)
 			     info->var.xres, info->var.yres,
 			     info->var.bits_per_pixel, info->fix.line_length);
 
+	if (mem != res)
+		par->mem = mem; /* release in clean-up handler */
+
 	ret = register_framebuffer(info);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Unable to register simplefb: %d\n", ret);
@@ -513,6 +540,9 @@ error_unmap:
 	iounmap(info->screen_base);
 error_fb_release:
 	framebuffer_release(info);
+error_release_mem_region:
+	if (mem != res)
+		release_mem_region(mem->start, resource_size(mem));
 	return ret;
 }
 
@@ -520,8 +550,8 @@ static int simplefb_remove(struct platform_device *pdev)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
 
+	/* simplefb_destroy takes care of info cleanup */
 	unregister_framebuffer(info);
-	framebuffer_release(info);
 
 	return 0;
 }

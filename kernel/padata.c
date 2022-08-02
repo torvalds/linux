@@ -181,7 +181,7 @@ int padata_do_parallel(struct padata_shell *ps,
 		goto out;
 
 	if (!cpumask_test_cpu(*cb_cpu, pd->cpumask.cbcpu)) {
-		if (!cpumask_weight(pd->cpumask.cbcpu))
+		if (cpumask_empty(pd->cpumask.cbcpu))
 			goto out;
 
 		/* Select an alternate fallback CPU and notify the caller. */

@@ -42,6 +42,16 @@ static inline bool nfs_lookup_is_soft_revalidate(const struct dentry *dentry)
 	return true;
 }
 
+static inline fmode_t flags_to_mode(int flags)
+{
+	fmode_t res = (__force fmode_t)flags & FMODE_EXEC;
+	if ((flags & O_ACCMODE) != O_WRONLY)
+		res |= FMODE_READ;
+	if ((flags & O_ACCMODE) != O_RDONLY)
+		res |= FMODE_WRITE;
+	return res;
+}
+
 /*
  * Note: RFC 1813 doesn't limit the number of auth flavors that
  * a server can return, so make something up.
@@ -366,8 +376,8 @@ extern struct nfs_client *nfs_init_client(struct nfs_client *clp,
 			   const struct nfs_client_initdata *);
 
 /* dir.c */
-extern void nfs_advise_use_readdirplus(struct inode *dir);
-extern void nfs_force_use_readdirplus(struct inode *dir);
+extern void nfs_readdir_record_entry_cache_hit(struct inode *dir);
+extern void nfs_readdir_record_entry_cache_miss(struct inode *dir);
 extern unsigned long nfs_access_cache_count(struct shrinker *shrink,
 					    struct shrink_control *sc);
 extern unsigned long nfs_access_cache_scan(struct shrinker *shrink,
@@ -387,6 +397,20 @@ int nfs_mknod(struct user_namespace *, struct inode *, struct dentry *, umode_t,
 	      dev_t);
 int nfs_rename(struct user_namespace *, struct inode *, struct dentry *,
 	       struct inode *, struct dentry *, unsigned int);
+
+#ifdef CONFIG_NFS_V4_2
+static inline __u32 nfs_access_xattr_mask(const struct nfs_server *server)
+{
+	if (!(server->caps & NFS_CAP_XATTR))
+		return 0;
+	return NFS4_ACCESS_XAREAD | NFS4_ACCESS_XAWRITE | NFS4_ACCESS_XALIST;
+}
+#else
+static inline __u32 nfs_access_xattr_mask(const struct nfs_server *server)
+{
+	return 0;
+}
+#endif
 
 /* file.c */
 int nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync);
@@ -571,6 +595,13 @@ nfs_write_match_verf(const struct nfs_writeverf *verf,
 {
 	return verf->committed > NFS_UNSTABLE &&
 		!nfs_write_verifier_cmp(&req->wb_verf, &verf->verifier);
+}
+
+static inline gfp_t nfs_io_gfp_mask(void)
+{
+	if (current->flags & PF_WQ_WORKER)
+		return GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN;
+	return GFP_KERNEL;
 }
 
 /* unlink.c */
@@ -810,6 +841,7 @@ static inline bool nfs_error_is_fatal_on_server(int err)
 	case 0:
 	case -ERESTARTSYS:
 	case -EINTR:
+	case -ENOMEM:
 		return false;
 	}
 	return nfs_error_is_fatal(err);

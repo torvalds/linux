@@ -24,9 +24,9 @@
 
 	memory@30000000 {
 		device_type = "memory";
-		reg = <0x30000000 0x05000000
-			0x40000000 0x10000000
-			0x50000000 0x08000000>;
+		reg = <0x30000000 0x05000000>,
+			<0x40000000 0x10000000>,
+			<0x50000000 0x08000000>;
 	};
 
 	reserved-memory {
@@ -564,7 +564,6 @@
 			reset-gpios = <&mp05 5 GPIO_ACTIVE_LOW>;
 			vdd3-supply = <&ldo7_reg>;
 			vci-supply = <&ldo17_reg>;
-			spi-cs-high;
 			spi-max-frequency = <1200000>;
 
 			pinctrl-names = "default";
@@ -636,7 +635,7 @@
 };
 
 &i2s0 {
-	dmas = <&pdma0 9>, <&pdma0 10>, <&pdma0 11>;
+	dmas = <&pdma0 10>, <&pdma0 9>, <&pdma0 11>;
 	status = "okay";
 };
 
@@ -645,21 +644,21 @@
 };
 
 &pinctrl0 {
-	bt_reset: bt-reset {
+	bt_reset: bt-reset-pins {
 		samsung,pins = "gpb-3";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	wlan_bt_en: wlan-bt-en {
+	wlan_bt_en: wlan-bt-en-pins {
 		samsung,pins = "gpb-5";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-val = <1>;
 	};
 
-	codec_ldo: codec-ldo {
+	codec_ldo: codec-ldo-pins {
 		samsung,pins = "gpf3-4";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
@@ -671,19 +670,19 @@
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	wlan_gpio_rst: wlan-gpio-rst {
+	wlan_gpio_rst: wlan-gpio-rst-pins {
 		samsung,pins = "gpg1-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 	};
 
-	bt_wake: bt-wake {
+	bt_wake: bt-wake-pins {
 		samsung,pins = "gpg3-4";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 	};
 
-	gp2a_irq: gp2a-irq {
+	gp2a_irq: gp2a-irq-pins {
 		samsung,pins = "gph0-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_DOWN>;
@@ -698,67 +697,67 @@
 		samsung,pin-val = <0>;
 	};
 
-	pmic_irq: pmic-irq {
+	pmic_irq: pmic-irq-pins {
 		samsung,pins = "gph0-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	wifi_host_wake: wifi-host-wake {
+	wifi_host_wake: wifi-host-wake-pins {
 		samsung,pins = "gph2-4";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_DOWN>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	bt_host_wake: bt-host-wake {
+	bt_host_wake: bt-host-wake-pins {
 		samsung,pins = "gph2-5";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_DOWN>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	musb_irq: musq-irq {
+	musb_irq: musq-irq-pins {
 		samsung,pins = "gph2-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	tf_detect: tf-detect {
+	tf_detect: tf-detect-pins {
 		samsung,pins = "gph3-4";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_DOWN>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	wifi_wake: wifi-wake {
+	wifi_wake: wifi-wake-pins {
 		samsung,pins = "gph3-5";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 	};
 
-	magnetometer_i2c_pins: yas529-i2c-pins {
+	magnetometer_i2c_pins: yas529-i2c-pins-pins {
 		samsung,pins = "gpj0-0", "gpj0-1";
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	ts_irq: ts-irq {
+	ts_irq: ts-irq-pins {
 		samsung,pins = "gpj0-5";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	vibrator_ena: vibrator-ena {
+	vibrator_ena: vibrator-ena-pins {
 		samsung,pins = "gpj1-1";
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	gp2a_power: gp2a-power {
+	gp2a_power: gp2a-power-pins {
 		samsung,pins = "gpj1-4";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
@@ -771,7 +770,7 @@
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	touchkey_vdd_ena: touchkey-vdd-ena {
+	touchkey_vdd_ena: touchkey-vdd-ena-pins {
 		samsung,pins = "gpj3-2";
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
@@ -789,13 +788,13 @@
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	pmic_i2c_pins: pmic-i2c-pins {
+	pmic_i2c_pins: pmic-i2c-pins-pins {
 		samsung,pins = "gpj4-0", "gpj4-3";
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	touchkey_irq: touchkey-irq {
+	touchkey_irq: touchkey-irq-pins {
 		samsung,pins = "gpj4-1";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_UP>;
@@ -820,7 +819,7 @@
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	panel_rst: panel-rst {
+	panel_rst: panel-rst-pins {
 		samsung,pins = "mp05-5";
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
@@ -895,7 +894,7 @@
 		device-wakeup-gpios = <&gpg3 4 GPIO_ACTIVE_HIGH>;
 		interrupt-parent = <&gph2>;
 		interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "host-wake";
+		interrupt-names = "host-wakeup";
 	};
 };
 

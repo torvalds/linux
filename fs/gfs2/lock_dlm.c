@@ -261,6 +261,7 @@ static int gdlm_lock(struct gfs2_glock *gl, unsigned int req_state,
 	int req;
 	u32 lkf;
 	char strname[GDLM_STRNAME_BYTES] = "";
+	int error;
 
 	req = make_mode(gl->gl_name.ln_sbd, req_state);
 	lkf = make_flags(gl, flags, req);
@@ -279,8 +280,14 @@ static int gdlm_lock(struct gfs2_glock *gl, unsigned int req_state,
 	 * Submit the actual lock request.
 	 */
 
-	return dlm_lock(ls->ls_dlm, req, &gl->gl_lksb, lkf, strname,
+again:
+	error = dlm_lock(ls->ls_dlm, req, &gl->gl_lksb, lkf, strname,
 			GDLM_STRNAME_BYTES - 1, 0, gdlm_ast, gl, gdlm_bast);
+	if (error == -EBUSY) {
+		msleep(20);
+		goto again;
+	}
+	return error;
 }
 
 static void gdlm_put_lock(struct gfs2_glock *gl)
@@ -312,8 +319,14 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 		return;
 	}
 
+again:
 	error = dlm_unlock(ls->ls_dlm, gl->gl_lksb.sb_lkid, DLM_LKF_VALBLK,
 			   NULL, gl);
+	if (error == -EBUSY) {
+		msleep(20);
+		goto again;
+	}
+
 	if (error) {
 		fs_err(sdp, "gdlm_unlock %x,%llx err=%d\n",
 		       gl->gl_name.ln_type,

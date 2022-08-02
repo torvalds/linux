@@ -69,6 +69,12 @@ KernelVersion:  5.1
 Contact:        ogabbay@kernel.org
 Description:    Displays the device's version from the eFuse
 
+What:           /sys/class/habanalabs/hl<n>/fw_os_ver
+Date:           Dec 2021
+KernelVersion:  5.18
+Contact:        ogabbay@kernel.org
+Description:    Version of the firmware OS running on the device's CPU
+
 What:           /sys/class/habanalabs/hl<n>/hard_reset
 Date:           Jan 2019
 KernelVersion:  5.1
@@ -115,7 +121,7 @@ What:           /sys/class/habanalabs/hl<n>/infineon_ver
 Date:           Jan 2019
 KernelVersion:  5.1
 Contact:        ogabbay@kernel.org
-Description:    Version of the Device's power supply F/W code
+Description:    Version of the Device's power supply F/W code. Relevant only to GOYA and GAUDI
 
 What:           /sys/class/habanalabs/hl<n>/max_power
 Date:           Jan 2019
@@ -221,3 +227,9 @@ Date:           Jan 2019
 KernelVersion:  5.1
 Contact:        ogabbay@kernel.org
 Description:    Version of the u-boot running on the device's CPU
+
+What:           /sys/class/habanalabs/hl<n>/vrm_ver
+Date:           Jan 2022
+KernelVersion:  not yet upstreamed
+Contact:        ogabbay@kernel.org
+Description:    Version of the Device's Voltage Regulator Monitor F/W code. N/A to GOYA and GAUDI

@@ -74,7 +74,7 @@ int do_linkat(int olddfd, struct filename *old, int newdfd,
  * namespace.c
  */
 extern struct vfsmount *lookup_mnt(const struct path *);
-extern int finish_automount(struct vfsmount *, struct path *);
+extern int finish_automount(struct vfsmount *, const struct path *);
 
 extern int sb_prepare_remount_readonly(struct super_block *);
 
@@ -84,6 +84,7 @@ extern int __mnt_want_write_file(struct file *);
 extern void __mnt_drop_write_file(struct file *);
 
 extern void dissolve_on_fput(struct vfsmount *);
+extern bool may_mount(void);
 
 int path_mount(const char *dev_name, struct path *path,
 		const char *type_page, unsigned long flags, void *data_page);
@@ -125,7 +126,7 @@ extern struct file *do_file_open_root(const struct path *,
 		const char *, const struct open_flags *);
 extern struct open_how build_open_how(int flags, umode_t mode);
 extern int build_open_flags(const struct open_how *how, struct open_flags *op);
-extern int __close_fd_get_file(unsigned int fd, struct file **res);
+extern struct file *__close_fd_get_file(unsigned int fd);
 
 long do_sys_ftruncate(unsigned int fd, loff_t length, int small);
 int chmod_common(const struct path *path, umode_t mode);
@@ -158,11 +159,6 @@ extern void dput_to_list(struct dentry *, struct list_head *);
 extern void shrink_dentry_list(struct list_head *);
 
 /*
- * read_write.c
- */
-extern int rw_verify_area(int, struct file *, const loff_t *, size_t);
-
-/*
  * pipe.c
  */
 extern const struct file_operations pipefifo_fops;
@@ -184,7 +180,9 @@ int sb_init_dio_done_wq(struct super_block *sb);
 /*
  * fs/stat.c:
  */
-int do_statx(int dfd, const char __user *filename, unsigned flags,
+
+int getname_statx_lookup_flags(int flags);
+int do_statx(int dfd, struct filename *filename, unsigned int flags,
 	     unsigned int mask, struct statx __user *buffer);
 
 /*
@@ -194,3 +192,32 @@ long splice_file_to_pipe(struct file *in,
 			 struct pipe_inode_info *opipe,
 			 loff_t *offset,
 			 size_t len, unsigned int flags);
+
+/*
+ * fs/xattr.c:
+ */
+struct xattr_name {
+	char name[XATTR_NAME_MAX + 1];
+};
+
+struct xattr_ctx {
+	/* Value of attribute */
+	union {
+		const void __user *cvalue;
+		void __user *value;
+	};
+	void *kvalue;
+	size_t size;
+	/* Attribute name */
+	struct xattr_name *kname;
+	unsigned int flags;
+};
+
+
+ssize_t do_getxattr(struct user_namespace *mnt_userns,
+		    struct dentry *d,
+		    struct xattr_ctx *ctx);
+
+int setxattr_copy(const char __user *name, struct xattr_ctx *ctx);
+int do_setxattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		struct xattr_ctx *ctx);

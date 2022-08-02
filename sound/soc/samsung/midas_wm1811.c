@@ -6,6 +6,7 @@
 // Copyright (C) 2020 Samsung Electronics Co., Ltd.
 
 #include <linux/clk.h>
+#include <linux/gpio/consumer.h>
 #include <linux/mfd/wm8994/registers.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -308,7 +309,7 @@ static int midas_late_probe(struct snd_soc_card *card)
 			SND_JACK_HEADSET | SND_JACK_MECHANICAL |
 			SND_JACK_BTN_0 | SND_JACK_BTN_1 | SND_JACK_BTN_2 |
 			SND_JACK_BTN_3 | SND_JACK_BTN_4 | SND_JACK_BTN_5,
-			&priv->headset_jack, NULL, 0);
+			&priv->headset_jack);
 	if (ret)
 		return ret;
 

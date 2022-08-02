@@ -10,17 +10,20 @@
  */
 
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_regs.h"
 #include "intel_guc_fw.h"
 #include "i915_drv.h"
 
 static void guc_prepare_xfer(struct intel_uncore *uncore)
 {
-	u32 shim_flags = GUC_DISABLE_SRAM_INIT_TO_ZEROES |
-			 GUC_ENABLE_READ_CACHE_LOGIC |
-			 GUC_ENABLE_MIA_CACHING |
+	u32 shim_flags = GUC_ENABLE_READ_CACHE_LOGIC |
 			 GUC_ENABLE_READ_CACHE_FOR_SRAM_DATA |
 			 GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA |
 			 GUC_ENABLE_MIA_CLOCK_GATING;
+
+	if (GRAPHICS_VER_FULL(uncore->i915) < IP_VER(12, 50))
+		shim_flags |= GUC_DISABLE_SRAM_INIT_TO_ZEROES |
+			      GUC_ENABLE_MIA_CACHING;
 
 	/* Must program this register before loading the ucode with DMA */
 	intel_uncore_write(uncore, GUC_SHIM_CONTROL, shim_flags);
@@ -90,11 +93,10 @@ static int guc_xfer_rsa(struct intel_uc_fw *guc_fw,
 static inline bool guc_ready(struct intel_uncore *uncore, u32 *status)
 {
 	u32 val = intel_uncore_read(uncore, GUC_STATUS);
-	u32 uk_val = val & GS_UKERNEL_MASK;
+	u32 uk_val = REG_FIELD_GET(GS_UKERNEL_MASK, val);
 
 	*status = val;
-	return (uk_val == GS_UKERNEL_READY) ||
-		((val & GS_MIA_CORE_STATE) && (uk_val == GS_UKERNEL_LAPIC_DONE));
+	return uk_val == INTEL_GUC_LOAD_STATUS_READY;
 }
 
 static int guc_wait_ucode(struct intel_uncore *uncore)
@@ -105,17 +107,26 @@ static int guc_wait_ucode(struct intel_uncore *uncore)
 	/*
 	 * Wait for the GuC to start up.
 	 * NB: Docs recommend not using the interrupt for completion.
-	 * Measurements indicate this should take no more than 20ms, so a
+	 * Measurements indicate this should take no more than 20ms
+	 * (assuming the GT clock is at maximum frequency). So, a
 	 * timeout here indicates that the GuC has failed and is unusable.
 	 * (Higher levels of the driver may decide to reset the GuC and
 	 * attempt the ucode load again if this happens.)
+	 *
+	 * FIXME: There is a known (but exceedingly unlikely) race condition
+	 * where the asynchronous frequency management code could reduce
+	 * the GT clock while a GuC reload is in progress (during a full
+	 * GT reset). A fix is in progress but there are complex locking
+	 * issues to be resolved. In the meantime bump the timeout to
+	 * 200ms. Even at slowest clock, this should be sufficient. And
+	 * in the working case, a larger timeout makes no difference.
 	 */
-	ret = wait_for(guc_ready(uncore, &status), 100);
+	ret = wait_for(guc_ready(uncore, &status), 200);
 	if (ret) {
 		struct drm_device *drm = &uncore->i915->drm;
 
-		drm_dbg(drm, "GuC load failed: status = 0x%08X\n", status);
-		drm_dbg(drm, "GuC load failed: status: Reset = %d, "
+		drm_info(drm, "GuC load failed: status = 0x%08X\n", status);
+		drm_info(drm, "GuC load failed: status: Reset = %d, "
 			"BootROM = 0x%02X, UKernel = 0x%02X, "
 			"MIA = 0x%02X, Auth = 0x%02X\n",
 			REG_FIELD_GET(GS_MIA_IN_RESET, status),
@@ -125,13 +136,13 @@ static int guc_wait_ucode(struct intel_uncore *uncore)
 			REG_FIELD_GET(GS_AUTH_STATUS_MASK, status));
 
 		if ((status & GS_BOOTROM_MASK) == GS_BOOTROM_RSA_FAILED) {
-			drm_dbg(drm, "GuC firmware signature verification failed\n");
+			drm_info(drm, "GuC firmware signature verification failed\n");
 			ret = -ENOEXEC;
 		}
 
-		if ((status & GS_UKERNEL_MASK) == GS_UKERNEL_EXCEPTION) {
-			drm_dbg(drm, "GuC firmware exception. EIP: %#x\n",
-				intel_uncore_read(uncore, SOFT_SCRATCH(13)));
+		if (REG_FIELD_GET(GS_UKERNEL_MASK, status) == INTEL_GUC_LOAD_STATUS_EXCEPTION) {
+			drm_info(drm, "GuC firmware exception. EIP: %#x\n",
+				 intel_uncore_read(uncore, SOFT_SCRATCH(13)));
 			ret = -ENXIO;
 		}
 	}

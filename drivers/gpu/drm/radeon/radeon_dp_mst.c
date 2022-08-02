@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-#include <drm/drm_dp_mst_helper.h>
+#include <drm/display/drm_dp_mst_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
 #include <drm/drm_probe_helper.h>

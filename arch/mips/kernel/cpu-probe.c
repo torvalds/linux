@@ -156,7 +156,7 @@ static inline void check_errata(void)
 		/*
 		 * Erratum "RPS May Cause Incorrect Instruction Execution"
 		 * This code only handles VPE0, any SMP/RTOS code
-		 * making use of VPE1 will be responsable for that VPE.
+		 * making use of VPE1 will be responsible for that VPE.
 		 */
 		if ((c->processor_id & PRID_REV_MASK) <= PRID_REV_34K_V1_0_2)
 			write_c0_config7(read_c0_config7() | MIPS_CONF7_RPS);
@@ -1189,29 +1189,6 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		c->tlbsize = 48;
 		break;
 	#endif
-	case PRID_IMP_TX39:
-		c->fpu_msk31 |= FPU_CSR_CONDX | FPU_CSR_FS;
-		c->options = MIPS_CPU_TLB | MIPS_CPU_TX39_CACHE;
-
-		if ((c->processor_id & 0xf0) == (PRID_REV_TX3927 & 0xf0)) {
-			c->cputype = CPU_TX3927;
-			__cpu_name[cpu] = "TX3927";
-			c->tlbsize = 64;
-		} else {
-			switch (c->processor_id & PRID_REV_MASK) {
-			case PRID_REV_TX3912:
-				c->cputype = CPU_TX3912;
-				__cpu_name[cpu] = "TX3912";
-				c->tlbsize = 32;
-				break;
-			case PRID_REV_TX3922:
-				c->cputype = CPU_TX3922;
-				__cpu_name[cpu] = "TX3922";
-				c->tlbsize = 64;
-				break;
-			}
-		}
-		break;
 	case PRID_IMP_R4700:
 		c->cputype = CPU_R4700;
 		__cpu_name[cpu] = "R4700";

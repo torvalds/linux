@@ -794,7 +794,7 @@ Current IOREG MAP
 /* 2 MCUFWDL */
 #define MCUFWDL_EN			BIT(0)
 #define MCUFWDL_RDY			BIT(1)
-#define FWDL_ChkSum_rpt			BIT(2)
+#define FWDL_CHKSUM_RPT			BIT(2)
 #define MACINI_RDY			BIT(3)
 #define BBINI_RDY			BIT(4)
 #define RFINI_RDY			BIT(5)
@@ -998,13 +998,9 @@ Current IOREG MAP
 #define STOP_BCNQ		BIT(6)
 
 /* 2 ACMHWCTRL */
-#define	AcmHw_HwEn		BIT(0)
-#define	AcmHw_BeqEn		BIT(1)
-#define	AcmHw_ViqEn		BIT(2)
-#define	AcmHw_VoqEn		BIT(3)
-#define	AcmHw_BeqStatus		BIT(4)
-#define	AcmHw_ViqStatus		BIT(5)
-#define	AcmHw_VoqStatus		BIT(6)
+#define ACMHW_BEQEN		BIT(1)
+#define ACMHW_VIQEN		BIT(2)
+#define ACMHW_VOQEN		BIT(3)
 
 /* 	0x0600h ~ 0x07FFh	WMAC Configuration */
 /* 2APSD_CTRL */

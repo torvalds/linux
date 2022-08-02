@@ -24,7 +24,7 @@ struct btrfs_free_cluster;
 struct map_lookup;
 struct extent_buffer;
 struct btrfs_work;
-struct __btrfs_workqueue;
+struct btrfs_workqueue;
 struct btrfs_qgroup_extent_record;
 struct btrfs_qgroup;
 struct extent_io_tree;
@@ -53,6 +53,7 @@ struct btrfs_space_info;
 		{ BTRFS_TREE_RELOC_OBJECTID,	"TREE_RELOC"	},	\
 		{ BTRFS_UUID_TREE_OBJECTID,	"UUID_TREE"	},	\
 		{ BTRFS_FREE_SPACE_TREE_OBJECTID, "FREE_SPACE_TREE" },	\
+		{ BTRFS_BLOCK_GROUP_TREE_OBJECTID, "BLOCK_GROUP_TREE" },\
 		{ BTRFS_DATA_RELOC_TREE_OBJECTID, "DATA_RELOC_TREE" })
 
 #define show_root_type(obj)						\
@@ -1343,13 +1344,13 @@ TRACE_EVENT(alloc_extent_state,
 
 	TP_STRUCT__entry(
 		__field(const struct extent_state *, state)
-		__field(gfp_t, mask)
+		__field(unsigned long, mask)
 		__field(const void*, ip)
 	),
 
 	TP_fast_assign(
 		__entry->state	= state,
-		__entry->mask	= mask,
+		__entry->mask	= (__force unsigned long)mask,
 		__entry->ip	= (const void *)IP
 	),
 
@@ -1456,42 +1457,36 @@ DEFINE_EVENT(btrfs__work, btrfs_ordered_sched,
 	TP_ARGS(work)
 );
 
-DECLARE_EVENT_CLASS(btrfs__workqueue,
+DECLARE_EVENT_CLASS(btrfs_workqueue,
 
-	TP_PROTO(const struct __btrfs_workqueue *wq,
-		 const char *name, int high),
+	TP_PROTO(const struct btrfs_workqueue *wq, const char *name),
 
-	TP_ARGS(wq, name, high),
+	TP_ARGS(wq, name),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	const void *,	wq			)
 		__string(	name,	name			)
-		__field(	int ,	high			)
 	),
 
 	TP_fast_assign_btrfs(btrfs_workqueue_owner(wq),
 		__entry->wq		= wq;
 		__assign_str(name, name);
-		__entry->high		= high;
 	),
 
-	TP_printk_btrfs("name=%s%s wq=%p", __get_str(name),
-		  __print_flags(__entry->high, "",
-				{(WQ_HIGHPRI),	"-high"}),
+	TP_printk_btrfs("name=%s wq=%p", __get_str(name),
 		  __entry->wq)
 );
 
-DEFINE_EVENT(btrfs__workqueue, btrfs_workqueue_alloc,
+DEFINE_EVENT(btrfs_workqueue, btrfs_workqueue_alloc,
 
-	TP_PROTO(const struct __btrfs_workqueue *wq,
-		 const char *name, int high),
+	TP_PROTO(const struct btrfs_workqueue *wq, const char *name),
 
-	TP_ARGS(wq, name, high)
+	TP_ARGS(wq, name)
 );
 
-DECLARE_EVENT_CLASS(btrfs__workqueue_done,
+DECLARE_EVENT_CLASS(btrfs_workqueue_done,
 
-	TP_PROTO(const struct __btrfs_workqueue *wq),
+	TP_PROTO(const struct btrfs_workqueue *wq),
 
 	TP_ARGS(wq),
 
@@ -1506,9 +1501,9 @@ DECLARE_EVENT_CLASS(btrfs__workqueue_done,
 	TP_printk_btrfs("wq=%p", __entry->wq)
 );
 
-DEFINE_EVENT(btrfs__workqueue_done, btrfs_workqueue_destroy,
+DEFINE_EVENT(btrfs_workqueue_done, btrfs_workqueue_destroy,
 
-	TP_PROTO(const struct __btrfs_workqueue *wq),
+	TP_PROTO(const struct btrfs_workqueue *wq),
 
 	TP_ARGS(wq)
 );

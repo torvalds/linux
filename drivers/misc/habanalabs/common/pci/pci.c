@@ -338,10 +338,7 @@ int hl_pci_set_outbound_region(struct hl_device *hdev,
 				lower_32_bits(outbound_region_end_address));
 	rc |= hl_pci_iatu_write(hdev, 0x014, 0);
 
-	if ((hdev->power9_64bit_dma_enable) && (hdev->dma_mask == 64))
-		rc |= hl_pci_iatu_write(hdev, 0x018, 0x08000000);
-	else
-		rc |= hl_pci_iatu_write(hdev, 0x018, 0);
+	rc |= hl_pci_iatu_write(hdev, 0x018, 0);
 
 	rc |= hl_pci_iatu_write(hdev, 0x020,
 				upper_32_bits(outbound_region_end_address));
@@ -395,6 +392,7 @@ enum pci_region hl_get_pci_memory_region(struct hl_device *hdev, u64 addr)
  */
 int hl_pci_init(struct hl_device *hdev)
 {
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct pci_dev *pdev = hdev->pdev;
 	int rc;
 
@@ -411,28 +409,25 @@ int hl_pci_init(struct hl_device *hdev)
 
 	rc = hdev->asic_funcs->pci_bars_map(hdev);
 	if (rc) {
-		dev_err(hdev->dev, "Failed to initialize PCI BARs\n");
+		dev_err(hdev->dev, "Failed to map PCI BAR addresses\n");
 		goto disable_device;
 	}
 
 	rc = hdev->asic_funcs->init_iatu(hdev);
 	if (rc) {
-		dev_err(hdev->dev, "Failed to initialize iATU\n");
+		dev_err(hdev->dev, "PCI controller was not initialized successfully\n");
 		goto unmap_pci_bars;
 	}
 
 	/* Driver must sleep in order for FW to finish the iATU configuration */
-	if (hdev->asic_prop.iatu_done_by_fw) {
+	if (hdev->asic_prop.iatu_done_by_fw)
 		usleep_range(2000, 3000);
-		hdev->asic_funcs->set_dma_mask_from_fw(hdev);
-	}
 
-	rc = dma_set_mask_and_coherent(&pdev->dev,
-					DMA_BIT_MASK(hdev->dma_mask));
+	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(prop->dma_mask));
 	if (rc) {
 		dev_err(hdev->dev,
 			"Failed to set dma mask to %d bits, error %d\n",
-			hdev->dma_mask, rc);
+			prop->dma_mask, rc);
 		goto unmap_pci_bars;
 	}
 

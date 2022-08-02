@@ -59,6 +59,15 @@ config LMK04832
 	  Say yes here to build support for Texas Instruments' LMK04832 Ultra
 	  Low-Noise JESD204B Compliant Clock Jitter Cleaner With Dual Loop PLLs
 
+config COMMON_CLK_APPLE_NCO
+	tristate "Clock driver for Apple SoC NCOs"
+	depends on ARCH_APPLE || COMPILE_TEST
+	default ARCH_APPLE
+	help
+	  This driver supports NCO (Numerically Controlled Oscillator) blocks
+	  found on Apple SoCs such as t8103 (M1). The blocks are typically
+	  generators of audio clocks.
+
 config COMMON_CLK_MAX77686
 	tristate "Clock driver for Maxim 77620/77686/77802 MFD"
 	depends on MFD_MAX77686 || MFD_MAX77620 || COMPILE_TEST
@@ -197,8 +206,18 @@ config COMMON_CLK_CDCE925
 config COMMON_CLK_CS2000_CP
 	tristate "Clock driver for CS2000 Fractional-N Clock Synthesizer & Clock Multiplier"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  If you say yes here you get support for the CS2000 clock multiplier.
+
+config COMMON_CLK_EN7523
+	bool "Clock driver for Airoha EN7523 SoC system clocks"
+	depends on OF
+	depends on ARCH_AIROHA || COMPILE_TEST
+	default ARCH_AIROHA
+	help
+	  This driver provides the fixed clocks and gates present on Airoha
+	  ARM silicon.
 
 config COMMON_CLK_FSL_FLEXSPI
 	tristate "Clock driver for FlexSPI on Layerscape SoCs"
@@ -233,6 +252,7 @@ config COMMON_CLK_LAN966X
 	bool "Generic Clock Controller driver for LAN966X SoC"
 	depends on HAS_IOMEM
 	depends on OF
+	depends on SOC_LAN966 || COMPILE_TEST
 	help
 	  This driver provides support for Generic Clock Controller(GCK) on
 	  LAN966X SoC. GCK generates and supplies clock to various peripherals
@@ -332,15 +352,21 @@ config COMMON_CLK_PXA
 	help
 	  Support for the Marvell PXA SoC.
 
-config COMMON_CLK_PIC32
-	def_bool COMMON_CLK && MACH_PIC32
-
 config COMMON_CLK_OXNAS
 	bool "Clock driver for the OXNAS SoC Family"
 	depends on ARCH_OXNAS || COMPILE_TEST
 	select MFD_SYSCON
 	help
 	  Support for the OXNAS SoC Family clocks.
+
+config COMMON_CLK_RS9_PCIE
+	tristate "Clock driver for Renesas 9-series PCIe clock generators"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	  This driver supports the Renesas 9-series PCIe clock generator
+	  models 9FGV/9DBV/9DMV/9FGL/9DML/9QXL/9SQ.
 
 config COMMON_CLK_VC5
 	tristate "Clock driver for IDT VersaClock 5,6 devices"
@@ -350,6 +376,11 @@ config COMMON_CLK_VC5
 	help
 	  This driver supports the IDT VersaClock 5 and VersaClock 6
 	  programmable clock generators.
+
+config COMMON_CLK_STM32MP135
+	def_bool COMMON_CLK && MACH_STM32MP13
+	help
+	  Support for stm32mp135 SoC family clocks
 
 config COMMON_CLK_STM32MP157
 	def_bool COMMON_CLK && MACH_STM32MP157
@@ -409,6 +440,7 @@ source "drivers/clk/keystone/Kconfig"
 source "drivers/clk/mediatek/Kconfig"
 source "drivers/clk/meson/Kconfig"
 source "drivers/clk/mstar/Kconfig"
+source "drivers/clk/microchip/Kconfig"
 source "drivers/clk/mvebu/Kconfig"
 source "drivers/clk/pistachio/Kconfig"
 source "drivers/clk/qcom/Kconfig"
@@ -429,5 +461,20 @@ source "drivers/clk/visconti/Kconfig"
 source "drivers/clk/x86/Kconfig"
 source "drivers/clk/xilinx/Kconfig"
 source "drivers/clk/zynqmp/Kconfig"
+
+# Kunit test cases
+config CLK_KUNIT_TEST
+	tristate "Basic Clock Framework Kunit Tests" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Kunit tests for the common clock framework.
+
+config CLK_GATE_KUNIT_TEST
+	tristate "Basic gate type Kunit test" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Kunit test for the basic clk gate type.
 
 endif

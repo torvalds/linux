@@ -14,6 +14,7 @@
 
 static const struct pci_device_id adf_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, ADF_4XXX_PCI_DEVICE_ID), },
+	{ PCI_VDEVICE(INTEL, ADF_401XX_PCI_DEVICE_ID), },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, adf_pci_tbl);

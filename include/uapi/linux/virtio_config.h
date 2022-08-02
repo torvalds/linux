@@ -83,6 +83,12 @@
 #define VIRTIO_F_RING_PACKED		34
 
 /*
+ * Inorder feature indicates that all buffers are used by the device
+ * in the same order in which they have been made available.
+ */
+#define VIRTIO_F_IN_ORDER		35
+
+/*
  * This feature indicates that memory accesses by the driver and the
  * device are ordered in a way described by the platform.
  */

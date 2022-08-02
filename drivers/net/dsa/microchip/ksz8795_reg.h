@@ -160,9 +160,6 @@
 #define PORT_DISCARD_NON_VID		BIT(5)
 #define PORT_FORCE_FLOW_CTRL		BIT(4)
 #define PORT_BACK_PRESSURE		BIT(3)
-#define PORT_TX_ENABLE			BIT(2)
-#define PORT_RX_ENABLE			BIT(1)
-#define PORT_LEARN_DISABLE		BIT(0)
 
 #define REG_PORT_1_CTRL_3		0x13
 #define REG_PORT_2_CTRL_3		0x23
@@ -811,6 +808,10 @@
 #define S_IPV6_MLD_CTRL			REG_SW_CTRL_21
 
 #define IND_ACC_TABLE(table)		((table) << 8)
+
+/* */
+#define REG_IND_EEE_GLOB2_LO		0x34
+#define REG_IND_EEE_GLOB2_HI		0x35
 
 /* Driver set switch broadcast storm protection at 10% rate. */
 #define BROADCAST_STORM_PROT_RATE	10

@@ -21,7 +21,6 @@ static int mdp4_hw_init(struct msm_kms *kms)
 	struct drm_device *dev = mdp4_kms->dev;
 	u32 dmap_cfg, vg_cfg;
 	unsigned long clk;
-	int ret = 0;
 
 	pm_runtime_get_sync(dev->dev);
 
@@ -72,7 +71,7 @@ static int mdp4_hw_init(struct msm_kms *kms)
 
 	pm_runtime_put_sync(dev->dev);
 
-	return ret;
+	return 0;
 }
 
 static void mdp4_enable_commit(struct msm_kms *kms)
@@ -217,6 +216,7 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 		encoder = mdp4_lcdc_encoder_init(dev, panel_node);
 		if (IS_ERR(encoder)) {
 			DRM_DEV_ERROR(dev->dev, "failed to construct LCDC encoder\n");
+			of_node_put(panel_node);
 			return PTR_ERR(encoder);
 		}
 
@@ -226,11 +226,9 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 		connector = mdp4_lvds_connector_init(dev, panel_node, encoder);
 		if (IS_ERR(connector)) {
 			DRM_DEV_ERROR(dev->dev, "failed to initialize LVDS connector\n");
+			of_node_put(panel_node);
 			return PTR_ERR(connector);
 		}
-
-		priv->encoders[priv->num_encoders++] = encoder;
-		priv->connectors[priv->num_connectors++] = connector;
 
 		break;
 	case DRM_MODE_ENCODER_TMDS:
@@ -252,8 +250,6 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 			}
 		}
 
-		priv->encoders[priv->num_encoders++] = encoder;
-
 		break;
 	case DRM_MODE_ENCODER_DSI:
 		/* only DSI1 supported for now */
@@ -272,7 +268,6 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 
 		/* TODO: Add DMA_S later? */
 		encoder->possible_crtcs = 1 << DMA_P;
-		priv->encoders[priv->num_encoders++] = encoder;
 
 		ret = msm_dsi_modeset_init(priv->dsi[dsi_id], dev, encoder);
 		if (ret) {
@@ -324,7 +319,6 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 			ret = PTR_ERR(plane);
 			goto fail;
 		}
-		priv->planes[priv->num_planes++] = plane;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(mdp4_crtcs); i++) {
@@ -389,7 +383,7 @@ static void read_mdp_hw_revision(struct mdp4_kms *mdp4_kms,
 	DRM_DEV_INFO(dev->dev, "MDP4 version v%d.%d", *major, *minor);
 }
 
-struct msm_kms *mdp4_kms_init(struct drm_device *dev)
+static int mdp4_kms_init(struct drm_device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev->dev);
 	struct mdp4_platform_config *config = mdp4_get_config(pdev);
@@ -403,8 +397,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	mdp4_kms = kzalloc(sizeof(*mdp4_kms), GFP_KERNEL);
 	if (!mdp4_kms) {
 		DRM_DEV_ERROR(dev->dev, "failed to allocate kms\n");
-		ret = -ENOMEM;
-		goto fail;
+		return -ENOMEM;
 	}
 
 	ret = mdp_kms_init(&mdp4_kms->base, &kms_funcs);
@@ -418,7 +411,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 
 	mdp4_kms->dev = dev;
 
-	mdp4_kms->mmio = msm_ioremap(pdev, NULL, "MDP4");
+	mdp4_kms->mmio = msm_ioremap(pdev, NULL);
 	if (IS_ERR(mdp4_kms->mmio)) {
 		ret = PTR_ERR(mdp4_kms->mmio);
 		goto fail;
@@ -551,12 +544,13 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	dev->mode_config.max_width = 2048;
 	dev->mode_config.max_height = 2048;
 
-	return kms;
+	return 0;
 
 fail:
 	if (kms)
 		mdp4_destroy(kms);
-	return ERR_PTR(ret);
+
+	return ret;
 }
 
 static struct mdp4_platform_config *mdp4_get_config(struct platform_device *dev)
@@ -568,4 +562,48 @@ static struct mdp4_platform_config *mdp4_get_config(struct platform_device *dev)
 	config.iommu = iommu_domain_alloc(&platform_bus_type);
 
 	return &config;
+}
+
+static const struct dev_pm_ops mdp4_pm_ops = {
+	.prepare = msm_pm_prepare,
+	.complete = msm_pm_complete,
+};
+
+static int mdp4_probe(struct platform_device *pdev)
+{
+	return msm_drv_probe(&pdev->dev, mdp4_kms_init);
+}
+
+static int mdp4_remove(struct platform_device *pdev)
+{
+	component_master_del(&pdev->dev, &msm_drm_ops);
+
+	return 0;
+}
+
+static const struct of_device_id mdp4_dt_match[] = {
+	{ .compatible = "qcom,mdp4" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, mdp4_dt_match);
+
+static struct platform_driver mdp4_platform_driver = {
+	.probe      = mdp4_probe,
+	.remove     = mdp4_remove,
+	.shutdown   = msm_drv_shutdown,
+	.driver     = {
+		.name   = "mdp4",
+		.of_match_table = mdp4_dt_match,
+		.pm     = &mdp4_pm_ops,
+	},
+};
+
+void __init msm_mdp4_register(void)
+{
+	platform_driver_register(&mdp4_platform_driver);
+}
+
+void __exit msm_mdp4_unregister(void)
+{
+	platform_driver_unregister(&mdp4_platform_driver);
 }

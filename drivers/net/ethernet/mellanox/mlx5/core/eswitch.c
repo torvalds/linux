@@ -1569,9 +1569,7 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	ida_init(&esw->offloads.vport_metadata_ida);
 	xa_init_flags(&esw->offloads.vhca_map, XA_FLAGS_ALLOC);
 	mutex_init(&esw->state_lock);
-	lockdep_register_key(&esw->mode_lock_key);
 	init_rwsem(&esw->mode_lock);
-	lockdep_set_class(&esw->mode_lock, &esw->mode_lock_key);
 	refcount_set(&esw->qos.refcnt, 0);
 
 	esw->enabled_vports = 0;
@@ -1582,6 +1580,9 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 		esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_BASIC;
 	else
 		esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_NONE;
+	if (MLX5_ESWITCH_MANAGER(dev) &&
+	    mlx5_esw_vport_match_metadata_supported(esw))
+		esw->flags |= MLX5_ESWITCH_VPORT_MATCH_METADATA;
 
 	dev->priv.eswitch = esw;
 	BLOCKING_INIT_NOTIFIER_HEAD(&esw->n_head);
@@ -1612,7 +1613,6 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 	esw->dev->priv.eswitch = NULL;
 	destroy_workqueue(esw->work_queue);
 	WARN_ON(refcount_read(&esw->qos.refcnt));
-	lockdep_unregister_key(&esw->mode_lock_key);
 	mutex_destroy(&esw->state_lock);
 	WARN_ON(!xa_empty(&esw->offloads.vhca_map));
 	xa_destroy(&esw->offloads.vhca_map);
@@ -1890,17 +1890,6 @@ mlx5_eswitch_get_encap_mode(const struct mlx5_core_dev *dev)
 }
 EXPORT_SYMBOL(mlx5_eswitch_get_encap_mode);
 
-bool mlx5_esw_lag_prereq(struct mlx5_core_dev *dev0, struct mlx5_core_dev *dev1)
-{
-	if ((dev0->priv.eswitch->mode == MLX5_ESWITCH_NONE &&
-	     dev1->priv.eswitch->mode == MLX5_ESWITCH_NONE) ||
-	    (dev0->priv.eswitch->mode == MLX5_ESWITCH_OFFLOADS &&
-	     dev1->priv.eswitch->mode == MLX5_ESWITCH_OFFLOADS))
-		return true;
-
-	return false;
-}
-
 bool mlx5_esw_multipath_prereq(struct mlx5_core_dev *dev0,
 			       struct mlx5_core_dev *dev1)
 {
@@ -2009,17 +1998,6 @@ void mlx5_esw_unlock(struct mlx5_eswitch *esw)
 	if (!mlx5_esw_allowed(esw))
 		return;
 	up_write(&esw->mode_lock);
-}
-
-/**
- * mlx5_esw_lock() - Take write lock on esw mode lock
- * @esw: eswitch device.
- */
-void mlx5_esw_lock(struct mlx5_eswitch *esw)
-{
-	if (!mlx5_esw_allowed(esw))
-		return;
-	down_write(&esw->mode_lock);
 }
 
 /**

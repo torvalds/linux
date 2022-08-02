@@ -535,7 +535,7 @@ static int clk_sama5d4_slow_osc_prepare(struct clk_hw *hw)
 
 	/*
 	 * Assume that if it has already been selected (for example by the
-	 * bootloader), enough time has aready passed.
+	 * bootloader), enough time has already passed.
 	 */
 	if ((readl(osc->sckcr) & osc->bits->cr_oscsel)) {
 		osc->prepared = true;

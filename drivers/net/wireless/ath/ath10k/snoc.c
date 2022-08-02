@@ -1243,7 +1243,7 @@ static int ath10k_snoc_napi_poll(struct napi_struct *ctx, int budget)
 static void ath10k_snoc_init_napi(struct ath10k *ar)
 {
 	netif_napi_add(&ar->napi_dev, &ar->napi, ath10k_snoc_napi_poll,
-		       ATH10K_NAPI_BUDGET);
+		       NAPI_POLL_WEIGHT);
 }
 
 static int ath10k_snoc_request_irq(struct ath10k *ar)
@@ -1306,13 +1306,10 @@ static int ath10k_snoc_resource_init(struct ath10k *ar)
 	}
 
 	for (i = 0; i < CE_COUNT; i++) {
-		res = platform_get_resource(ar_snoc->dev, IORESOURCE_IRQ, i);
-		if (!res) {
-			ath10k_err(ar, "failed to get IRQ%d\n", i);
-			ret = -ENODEV;
-			goto out;
-		}
-		ar_snoc->ce_irqs[i].irq_line = res->start;
+		ret = platform_get_irq(ar_snoc->dev, i);
+		if (ret < 0)
+			return ret;
+		ar_snoc->ce_irqs[i].irq_line = ret;
 	}
 
 	ret = device_property_read_u32(&pdev->dev, "qcom,xo-cal-data",
@@ -1323,10 +1320,8 @@ static int ath10k_snoc_resource_init(struct ath10k *ar)
 		ath10k_dbg(ar, ATH10K_DBG_SNOC, "xo cal data %x\n",
 			   ar_snoc->xo_cal_data);
 	}
-	ret = 0;
 
-out:
-	return ret;
+	return 0;
 }
 
 static void ath10k_snoc_quirks_init(struct ath10k *ar)
@@ -1556,11 +1551,11 @@ static int ath10k_setup_msa_resources(struct ath10k *ar, u32 msa_size)
 	node = of_parse_phandle(dev->of_node, "memory-region", 0);
 	if (node) {
 		ret = of_address_to_resource(node, 0, &r);
+		of_node_put(node);
 		if (ret) {
 			dev_err(dev, "failed to resolve msa fixed region\n");
 			return ret;
 		}
-		of_node_put(node);
 
 		ar->msa.paddr = r.start;
 		ar->msa.mem_size = resource_size(&r);

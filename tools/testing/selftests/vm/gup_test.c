@@ -1,7 +1,9 @@
 #include <fcntl.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <dirent.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -9,13 +11,17 @@
 #include <pthread.h>
 #include <assert.h>
 #include "../../../../mm/gup_test.h"
+#include "../kselftest.h"
+
+#include "util.h"
 
 #define MB (1UL << 20)
-#define PAGE_SIZE sysconf(_SC_PAGESIZE)
 
 /* Just the flags we need, copied from mm.h: */
 #define FOLL_WRITE	0x01	/* check pte is writable */
 #define FOLL_TOUCH	0x02	/* mark page accessed */
+
+#define GUP_TEST_FILE "/sys/kernel/debug/gup_test"
 
 static unsigned long cmd = GUP_FAST_BENCHMARK;
 static int gup_fd, repeats = 1;
@@ -203,10 +209,25 @@ int main(int argc, char **argv)
 	if (write)
 		gup.gup_flags |= FOLL_WRITE;
 
-	gup_fd = open("/sys/kernel/debug/gup_test", O_RDWR);
+	gup_fd = open(GUP_TEST_FILE, O_RDWR);
 	if (gup_fd == -1) {
-		perror("open");
-		exit(1);
+		switch (errno) {
+		case EACCES:
+			if (getuid())
+				printf("Please run this test as root\n");
+			break;
+		case ENOENT:
+			if (opendir("/sys/kernel/debug") == NULL) {
+				printf("mount debugfs at /sys/kernel/debug\n");
+				break;
+			}
+			printf("check if CONFIG_GUP_TEST is enabled in kernel config\n");
+			break;
+		default:
+			perror("failed to open " GUP_TEST_FILE);
+			break;
+		}
+		exit(KSFT_SKIP);
 	}
 
 	p = mmap(NULL, size, PROT_READ | PROT_WRITE, flags, filed, 0);

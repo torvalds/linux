@@ -43,7 +43,7 @@
 #include <linux/tty.h>
 #include <linux/binfmts.h>
 #include <linux/extable.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 
 #include <asm/setup.h>
 #include <linux/uaccess.h>
@@ -625,6 +625,7 @@ static inline void siginfo_build_tests(void)
 	/* _sigfault._perf */
 	BUILD_BUG_ON(offsetof(siginfo_t, si_perf_data) != 0x10);
 	BUILD_BUG_ON(offsetof(siginfo_t, si_perf_type) != 0x14);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_perf_flags) != 0x18);
 
 	/* _sigpoll */
 	BUILD_BUG_ON(offsetof(siginfo_t, si_band)   != 0x0c);
@@ -1109,5 +1110,5 @@ void do_notify_resume(struct pt_regs *regs)
 		do_signal(regs);
 
 	if (test_thread_flag(TIF_NOTIFY_RESUME))
-		tracehook_notify_resume(regs);
+		resume_user_mode_work(regs);
 }

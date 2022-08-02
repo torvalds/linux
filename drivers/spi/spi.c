@@ -18,7 +18,6 @@
 #include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-mem.h>
-#include <linux/of_gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
@@ -72,29 +71,11 @@ static ssize_t driver_override_store(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct spi_device *spi = to_spi_device(dev);
-	const char *end = memchr(buf, '\n', count);
-	const size_t len = end ? end - buf : count;
-	const char *driver_override, *old;
+	int ret;
 
-	/* We need to keep extra room for a newline when displaying value */
-	if (len >= (PAGE_SIZE - 1))
-		return -EINVAL;
-
-	driver_override = kstrndup(buf, len, GFP_KERNEL);
-	if (!driver_override)
-		return -ENOMEM;
-
-	device_lock(dev);
-	old = spi->driver_override;
-	if (len) {
-		spi->driver_override = driver_override;
-	} else {
-		/* Empty string, disable driver override */
-		spi->driver_override = NULL;
-		kfree(driver_override);
-	}
-	device_unlock(dev);
-	kfree(old);
+	ret = driver_set_override(dev, &spi->driver_override, buf, count);
+	if (ret)
+		return ret;
 
 	return count;
 }
@@ -144,7 +125,7 @@ static ssize_t spi_statistics_##name##_show(struct spi_statistics *stat, \
 	unsigned long flags;						\
 	ssize_t len;							\
 	spin_lock_irqsave(&stat->lock, flags);				\
-	len = sprintf(buf, format_string, stat->field);			\
+	len = sysfs_emit(buf, format_string "\n", stat->field);		\
 	spin_unlock_irqrestore(&stat->lock, flags);			\
 	return len;							\
 }									\
@@ -404,15 +385,8 @@ static void spi_remove(struct device *dev)
 {
 	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
 
-	if (sdrv->remove) {
-		int ret;
-
-		ret = sdrv->remove(to_spi_device(dev));
-		if (ret)
-			dev_warn(dev,
-				 "Failed to unbind driver (%pe), ignoring\n",
-				 ERR_PTR(ret));
-	}
+	if (sdrv->remove)
+		sdrv->remove(to_spi_device(dev));
 
 	dev_pm_domain_detach(dev, true);
 }
@@ -532,7 +506,7 @@ static DEFINE_MUTEX(board_lock);
  *
  * Return: a pointer to the new device, or NULL.
  */
-static struct spi_device *spi_alloc_device(struct spi_controller *ctlr)
+struct spi_device *spi_alloc_device(struct spi_controller *ctlr)
 {
 	struct spi_device	*spi;
 
@@ -549,7 +523,6 @@ static struct spi_device *spi_alloc_device(struct spi_controller *ctlr)
 	spi->dev.parent = &ctlr->dev;
 	spi->dev.bus = &spi_bus_type;
 	spi->dev.release = spidev_release;
-	spi->cs_gpio = -ENOENT;
 	spi->mode = ctlr->buswidth_override_bits;
 
 	spin_lock_init(&spi->statistics.lock);
@@ -557,6 +530,7 @@ static struct spi_device *spi_alloc_device(struct spi_controller *ctlr)
 	device_initialize(&spi->dev);
 	return spi;
 }
+EXPORT_SYMBOL_GPL(spi_alloc_device);
 
 static void spi_dev_set_name(struct spi_device *spi)
 {
@@ -612,11 +586,8 @@ static int __spi_add_device(struct spi_device *spi)
 		return -ENODEV;
 	}
 
-	/* Descriptors take precedence */
 	if (ctlr->cs_gpiods)
 		spi->cs_gpiod = ctlr->cs_gpiods[spi->chip_select];
-	else if (ctlr->cs_gpios)
-		spi->cs_gpio = ctlr->cs_gpios[spi->chip_select];
 
 	/*
 	 * Drivers may modify this initial i/o setup, but will
@@ -652,7 +623,7 @@ static int __spi_add_device(struct spi_device *spi)
  *
  * Return: 0 on success; negative errno on failure
  */
-static int spi_add_device(struct spi_device *spi)
+int spi_add_device(struct spi_device *spi)
 {
 	struct spi_controller *ctlr = spi->controller;
 	struct device *dev = ctlr->dev.parent;
@@ -673,6 +644,7 @@ static int spi_add_device(struct spi_device *spi)
 	mutex_unlock(&ctlr->add_lock);
 	return status;
 }
+EXPORT_SYMBOL_GPL(spi_add_device);
 
 static int spi_add_device_locked(struct spi_device *spi)
 {
@@ -936,48 +908,40 @@ static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 	 * Avoid calling into the driver (or doing delays) if the chip select
 	 * isn't actually changing from the last time this was called.
 	 */
-	if (!force && (spi->controller->last_cs_enable == enable) &&
+	if (!force && ((enable && spi->controller->last_cs == spi->chip_select) ||
+				(!enable && spi->controller->last_cs != spi->chip_select)) &&
 	    (spi->controller->last_cs_mode_high == (spi->mode & SPI_CS_HIGH)))
 		return;
 
 	trace_spi_set_cs(spi, activate);
 
-	spi->controller->last_cs_enable = enable;
+	spi->controller->last_cs = enable ? spi->chip_select : -1;
 	spi->controller->last_cs_mode_high = spi->mode & SPI_CS_HIGH;
 
-	if ((spi->cs_gpiod || gpio_is_valid(spi->cs_gpio) ||
-	    !spi->controller->set_cs_timing) && !activate) {
+	if ((spi->cs_gpiod || !spi->controller->set_cs_timing) && !activate) {
 		spi_delay_exec(&spi->cs_hold, NULL);
 	}
 
 	if (spi->mode & SPI_CS_HIGH)
 		enable = !enable;
 
-	if (spi->cs_gpiod || gpio_is_valid(spi->cs_gpio)) {
+	if (spi->cs_gpiod) {
 		if (!(spi->mode & SPI_NO_CS)) {
-			if (spi->cs_gpiod) {
-				/*
-				 * Historically ACPI has no means of the GPIO polarity and
-				 * thus the SPISerialBus() resource defines it on the per-chip
-				 * basis. In order to avoid a chain of negations, the GPIO
-				 * polarity is considered being Active High. Even for the cases
-				 * when _DSD() is involved (in the updated versions of ACPI)
-				 * the GPIO CS polarity must be defined Active High to avoid
-				 * ambiguity. That's why we use enable, that takes SPI_CS_HIGH
-				 * into account.
-				 */
-				if (has_acpi_companion(&spi->dev))
-					gpiod_set_value_cansleep(spi->cs_gpiod, !enable);
-				else
-					/* Polarity handled by GPIO library */
-					gpiod_set_value_cansleep(spi->cs_gpiod, activate);
-			} else {
-				/*
-				 * Invert the enable line, as active low is
-				 * default for SPI.
-				 */
-				gpio_set_value_cansleep(spi->cs_gpio, !enable);
-			}
+			/*
+			 * Historically ACPI has no means of the GPIO polarity and
+			 * thus the SPISerialBus() resource defines it on the per-chip
+			 * basis. In order to avoid a chain of negations, the GPIO
+			 * polarity is considered being Active High. Even for the cases
+			 * when _DSD() is involved (in the updated versions of ACPI)
+			 * the GPIO CS polarity must be defined Active High to avoid
+			 * ambiguity. That's why we use enable, that takes SPI_CS_HIGH
+			 * into account.
+			 */
+			if (has_acpi_companion(&spi->dev))
+				gpiod_set_value_cansleep(spi->cs_gpiod, !enable);
+			else
+				/* Polarity handled by GPIO library */
+				gpiod_set_value_cansleep(spi->cs_gpiod, activate);
 		}
 		/* Some SPI masters need both GPIO CS & slave_select */
 		if ((spi->controller->flags & SPI_MASTER_GPIO_SS) &&
@@ -987,8 +951,7 @@ static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 		spi->controller->set_cs(spi, !enable);
 	}
 
-	if (spi->cs_gpiod || gpio_is_valid(spi->cs_gpio) ||
-	    !spi->controller->set_cs_timing) {
+	if (spi->cs_gpiod || !spi->controller->set_cs_timing) {
 		if (activate)
 			spi_delay_exec(&spi->cs_setup, NULL);
 		else
@@ -1019,10 +982,10 @@ int spi_map_buf(struct spi_controller *ctlr, struct device *dev,
 	int i, ret;
 
 	if (vmalloced_buf || kmap_buf) {
-		desc_len = min_t(unsigned int, max_seg_size, PAGE_SIZE);
+		desc_len = min_t(unsigned long, max_seg_size, PAGE_SIZE);
 		sgs = DIV_ROUND_UP(len + offset_in_page(buf), desc_len);
 	} else if (virt_addr_valid(buf)) {
-		desc_len = min_t(unsigned int, max_seg_size, ctlr->max_dma_len);
+		desc_len = min_t(size_t, max_seg_size, ctlr->max_dma_len);
 		sgs = DIV_ROUND_UP(len, desc_len);
 	} else {
 		return -EINVAL;
@@ -1149,11 +1112,15 @@ static int __spi_unmap_msg(struct spi_controller *ctlr, struct spi_message *msg)
 
 	if (ctlr->dma_tx)
 		tx_dev = ctlr->dma_tx->device->dev;
+	else if (ctlr->dma_map_dev)
+		tx_dev = ctlr->dma_map_dev;
 	else
 		tx_dev = ctlr->dev.parent;
 
 	if (ctlr->dma_rx)
 		rx_dev = ctlr->dma_rx->device->dev;
+	else if (ctlr->dma_map_dev)
+		rx_dev = ctlr->dma_map_dev;
 	else
 		rx_dev = ctlr->dev.parent;
 
@@ -1626,9 +1593,8 @@ static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 	mutex_lock(&ctlr->io_mutex);
 
 	if (!was_busy && ctlr->auto_runtime_pm) {
-		ret = pm_runtime_get_sync(ctlr->dev.parent);
+		ret = pm_runtime_resume_and_get(ctlr->dev.parent);
 		if (ret < 0) {
-			pm_runtime_put_noidle(ctlr->dev.parent);
 			dev_err(&ctlr->dev, "Failed to power device: %d\n",
 				ret);
 			mutex_unlock(&ctlr->io_mutex);
@@ -1688,7 +1654,8 @@ static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 	ret = ctlr->transfer_one_message(ctlr, msg);
 	if (ret) {
 		dev_err(&ctlr->dev,
-			"failed to transfer one message from queue\n");
+			"failed to transfer one message from queue: %d\n",
+			ret);
 		goto out;
 	}
 
@@ -2318,7 +2285,49 @@ struct acpi_spi_lookup {
 	int			irq;
 	u8			bits_per_word;
 	u8			chip_select;
+	int			n;
+	int			index;
 };
+
+static int acpi_spi_count(struct acpi_resource *ares, void *data)
+{
+	struct acpi_resource_spi_serialbus *sb;
+	int *count = data;
+
+	if (ares->type != ACPI_RESOURCE_TYPE_SERIAL_BUS)
+		return 1;
+
+	sb = &ares->data.spi_serial_bus;
+	if (sb->type != ACPI_RESOURCE_SERIAL_TYPE_SPI)
+		return 1;
+
+	*count = *count + 1;
+
+	return 1;
+}
+
+/**
+ * acpi_spi_count_resources - Count the number of SpiSerialBus resources
+ * @adev:	ACPI device
+ *
+ * Returns the number of SpiSerialBus resources in the ACPI-device's
+ * resource-list; or a negative error code.
+ */
+int acpi_spi_count_resources(struct acpi_device *adev)
+{
+	LIST_HEAD(r);
+	int count = 0;
+	int ret;
+
+	ret = acpi_dev_get_resources(adev, &r, acpi_spi_count, &count);
+	if (ret < 0)
+		return ret;
+
+	acpi_dev_free_resource_list(&r);
+
+	return count;
+}
+EXPORT_SYMBOL_GPL(acpi_spi_count_resources);
 
 static void acpi_spi_parse_apple_properties(struct acpi_device *dev,
 					    struct acpi_spi_lookup *lookup)
@@ -2349,6 +2358,8 @@ static void acpi_spi_parse_apple_properties(struct acpi_device *dev,
 		lookup->mode |= SPI_CPHA;
 }
 
+static struct spi_controller *acpi_spi_find_controller_by_adev(struct acpi_device *adev);
+
 static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)
 {
 	struct acpi_spi_lookup *lookup = data;
@@ -2362,13 +2373,35 @@ static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)
 		sb = &ares->data.spi_serial_bus;
 		if (sb->type == ACPI_RESOURCE_SERIAL_TYPE_SPI) {
 
+			if (lookup->index != -1 && lookup->n++ != lookup->index)
+				return 1;
+
+			if (lookup->index == -1 && !ctlr)
+				return -ENODEV;
+
 			status = acpi_get_handle(NULL,
 						 sb->resource_source.string_ptr,
 						 &parent_handle);
 
-			if (ACPI_FAILURE(status) ||
-			    ACPI_HANDLE(ctlr->dev.parent) != parent_handle)
+			if (ACPI_FAILURE(status))
 				return -ENODEV;
+
+			if (ctlr) {
+				if (ACPI_HANDLE(ctlr->dev.parent) != parent_handle)
+					return -ENODEV;
+			} else {
+				struct acpi_device *adev;
+
+				adev = acpi_fetch_acpi_dev(parent_handle);
+				if (!adev)
+					return -ENODEV;
+
+				ctlr = acpi_spi_find_controller_by_adev(adev);
+				if (!ctlr)
+					return -ENODEV;
+
+				lookup->ctlr = ctlr;
+			}
 
 			/*
 			 * ACPI DeviceSelection numbering is handled by the
@@ -2408,8 +2441,25 @@ static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)
 	return 1;
 }
 
-static acpi_status acpi_register_spi_device(struct spi_controller *ctlr,
-					    struct acpi_device *adev)
+/**
+ * acpi_spi_device_alloc - Allocate a spi device, and fill it in with ACPI information
+ * @ctlr: controller to which the spi device belongs
+ * @adev: ACPI Device for the spi device
+ * @index: Index of the spi resource inside the ACPI Node
+ *
+ * This should be used to allocate a new spi device from and ACPI Node.
+ * The caller is responsible for calling spi_add_device to register the spi device.
+ *
+ * If ctlr is set to NULL, the Controller for the spi device will be looked up
+ * using the resource.
+ * If index is set to -1, index is not used.
+ * Note: If index is -1, ctlr must be set.
+ *
+ * Return: a pointer to the new device, or ERR_PTR on error.
+ */
+struct spi_device *acpi_spi_device_alloc(struct spi_controller *ctlr,
+					 struct acpi_device *adev,
+					 int index)
 {
 	acpi_handle parent_handle = NULL;
 	struct list_head resource_list;
@@ -2417,12 +2467,13 @@ static acpi_status acpi_register_spi_device(struct spi_controller *ctlr,
 	struct spi_device *spi;
 	int ret;
 
-	if (acpi_bus_get_status(adev) || !adev->status.present ||
-	    acpi_device_enumerated(adev))
-		return AE_OK;
+	if (!ctlr && index == -1)
+		return ERR_PTR(-EINVAL);
 
 	lookup.ctlr		= ctlr;
 	lookup.irq		= -1;
+	lookup.index		= index;
+	lookup.n		= 0;
 
 	INIT_LIST_HEAD(&resource_list);
 	ret = acpi_dev_get_resources(adev, &resource_list,
@@ -2431,25 +2482,24 @@ static acpi_status acpi_register_spi_device(struct spi_controller *ctlr,
 
 	if (ret < 0)
 		/* found SPI in _CRS but it points to another controller */
-		return AE_OK;
+		return ERR_PTR(-ENODEV);
 
 	if (!lookup.max_speed_hz &&
 	    ACPI_SUCCESS(acpi_get_parent(adev->handle, &parent_handle)) &&
-	    ACPI_HANDLE(ctlr->dev.parent) == parent_handle) {
+	    ACPI_HANDLE(lookup.ctlr->dev.parent) == parent_handle) {
 		/* Apple does not use _CRS but nested devices for SPI slaves */
 		acpi_spi_parse_apple_properties(adev, &lookup);
 	}
 
 	if (!lookup.max_speed_hz)
-		return AE_OK;
+		return ERR_PTR(-ENODEV);
 
-	spi = spi_alloc_device(ctlr);
+	spi = spi_alloc_device(lookup.ctlr);
 	if (!spi) {
-		dev_err(&ctlr->dev, "failed to allocate SPI device for %s\n",
+		dev_err(&lookup.ctlr->dev, "failed to allocate SPI device for %s\n",
 			dev_name(&adev->dev));
-		return AE_NO_MEMORY;
+		return ERR_PTR(-ENOMEM);
 	}
-
 
 	ACPI_COMPANION_SET(&spi->dev, adev);
 	spi->max_speed_hz	= lookup.max_speed_hz;
@@ -2457,6 +2507,27 @@ static acpi_status acpi_register_spi_device(struct spi_controller *ctlr,
 	spi->irq		= lookup.irq;
 	spi->bits_per_word	= lookup.bits_per_word;
 	spi->chip_select	= lookup.chip_select;
+
+	return spi;
+}
+EXPORT_SYMBOL_GPL(acpi_spi_device_alloc);
+
+static acpi_status acpi_register_spi_device(struct spi_controller *ctlr,
+					    struct acpi_device *adev)
+{
+	struct spi_device *spi;
+
+	if (acpi_bus_get_status(adev) || !adev->status.present ||
+	    acpi_device_enumerated(adev))
+		return AE_OK;
+
+	spi = acpi_spi_device_alloc(ctlr, adev, -1);
+	if (IS_ERR(spi)) {
+		if (PTR_ERR(spi) == -ENOMEM)
+			return AE_NO_MEMORY;
+		else
+			return AE_OK;
+	}
 
 	acpi_set_modalias(adev, acpi_device_hid(adev), spi->modalias,
 			  sizeof(spi->modalias));
@@ -2480,10 +2551,10 @@ static acpi_status acpi_register_spi_device(struct spi_controller *ctlr,
 static acpi_status acpi_spi_add_device(acpi_handle handle, u32 level,
 				       void *data, void **return_value)
 {
+	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 	struct spi_controller *ctlr = data;
-	struct acpi_device *adev;
 
-	if (acpi_bus_get_device(handle, &adev))
+	if (!adev)
 		return AE_OK;
 
 	return acpi_register_spi_device(ctlr, adev);
@@ -2729,46 +2800,6 @@ struct spi_controller *__devm_spi_alloc_controller(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(__devm_spi_alloc_controller);
 
-#ifdef CONFIG_OF
-static int of_spi_get_gpio_numbers(struct spi_controller *ctlr)
-{
-	int nb, i, *cs;
-	struct device_node *np = ctlr->dev.of_node;
-
-	if (!np)
-		return 0;
-
-	nb = of_gpio_named_count(np, "cs-gpios");
-	ctlr->num_chipselect = max_t(int, nb, ctlr->num_chipselect);
-
-	/* Return error only for an incorrectly formed cs-gpios property */
-	if (nb == 0 || nb == -ENOENT)
-		return 0;
-	else if (nb < 0)
-		return nb;
-
-	cs = devm_kcalloc(&ctlr->dev, ctlr->num_chipselect, sizeof(int),
-			  GFP_KERNEL);
-	ctlr->cs_gpios = cs;
-
-	if (!ctlr->cs_gpios)
-		return -ENOMEM;
-
-	for (i = 0; i < ctlr->num_chipselect; i++)
-		cs[i] = -ENOENT;
-
-	for (i = 0; i < nb; i++)
-		cs[i] = of_get_named_gpio(np, "cs-gpios", i);
-
-	return 0;
-}
-#else
-static int of_spi_get_gpio_numbers(struct spi_controller *ctlr)
-{
-	return 0;
-}
-#endif
-
 /**
  * spi_get_gpio_descs() - grab chip select GPIOs for the master
  * @ctlr: The SPI master to grab GPIO descriptors for
@@ -2953,22 +2984,15 @@ int spi_register_controller(struct spi_controller *ctlr)
 	 */
 	dev_set_name(&ctlr->dev, "spi%u", ctlr->bus_num);
 
-	if (!spi_controller_is_slave(ctlr)) {
-		if (ctlr->use_gpio_descriptors) {
-			status = spi_get_gpio_descs(ctlr);
-			if (status)
-				goto free_bus_id;
-			/*
-			 * A controller using GPIO descriptors always
-			 * supports SPI_CS_HIGH if need be.
-			 */
-			ctlr->mode_bits |= SPI_CS_HIGH;
-		} else {
-			/* Legacy code path for GPIOs from DT */
-			status = of_spi_get_gpio_numbers(ctlr);
-			if (status)
-				goto free_bus_id;
-		}
+	if (!spi_controller_is_slave(ctlr) && ctlr->use_gpio_descriptors) {
+		status = spi_get_gpio_descs(ctlr);
+		if (status)
+			goto free_bus_id;
+		/*
+		 * A controller using GPIO descriptors always
+		 * supports SPI_CS_HIGH if need be.
+		 */
+		ctlr->mode_bits |= SPI_CS_HIGH;
 	}
 
 	/*
@@ -2979,6 +3003,9 @@ int spi_register_controller(struct spi_controller *ctlr)
 		status = -EINVAL;
 		goto free_bus_id;
 	}
+
+	/* setting last_cs to -1 means no chip selected */
+	ctlr->last_cs = -1;
 
 	status = device_add(&ctlr->dev);
 	if (status < 0)
@@ -3430,7 +3457,7 @@ static int __spi_validate_bits_per_word(struct spi_controller *ctlr,
 int spi_setup(struct spi_device *spi)
 {
 	unsigned	bad_bits, ugly_bits;
-	int		status;
+	int		status = 0;
 
 	/*
 	 * Check mode to prevent that any two of DUAL, QUAD and NO_MOSI/MISO
@@ -3457,12 +3484,6 @@ int spi_setup(struct spi_device *spi)
 	 */
 	bad_bits = spi->mode & ~(spi->controller->mode_bits | SPI_CS_WORD |
 				 SPI_NO_TX | SPI_NO_RX);
-	/*
-	 * Nothing prevents from working with active-high CS in case if it
-	 * is driven by GPIO.
-	 */
-	if (gpio_is_valid(spi->cs_gpio))
-		bad_bits &= ~SPI_CS_HIGH;
 	ugly_bits = bad_bits &
 		    (SPI_TX_DUAL | SPI_TX_QUAD | SPI_TX_OCTAL |
 		     SPI_RX_DUAL | SPI_RX_QUAD | SPI_RX_OCTAL);
@@ -3479,13 +3500,18 @@ int spi_setup(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	if (!spi->bits_per_word)
+	if (!spi->bits_per_word) {
 		spi->bits_per_word = 8;
-
-	status = __spi_validate_bits_per_word(spi->controller,
-					      spi->bits_per_word);
-	if (status)
-		return status;
+	} else {
+		/*
+		 * Some controllers may not support the default 8 bits-per-word
+		 * so only perform the check when this is explicitly provided.
+		 */
+		status = __spi_validate_bits_per_word(spi->controller,
+						      spi->bits_per_word);
+		if (status)
+			return status;
+	}
 
 	if (spi->controller->max_speed_hz &&
 	    (!spi->max_speed_hz ||
@@ -3505,10 +3531,9 @@ int spi_setup(struct spi_device *spi)
 	}
 
 	if (spi->controller->auto_runtime_pm && spi->controller->set_cs) {
-		status = pm_runtime_get_sync(spi->controller->dev.parent);
+		status = pm_runtime_resume_and_get(spi->controller->dev.parent);
 		if (status < 0) {
 			mutex_unlock(&spi->controller->io_mutex);
-			pm_runtime_put_noidle(spi->controller->dev.parent);
 			dev_err(&spi->controller->dev, "Failed to power device: %d\n",
 				status);
 			return status;
@@ -3588,8 +3613,7 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 	 * cs_change is set for each transfer.
 	 */
 	if ((spi->mode & SPI_CS_WORD) && (!(ctlr->mode_bits & SPI_CS_WORD) ||
-					  spi->cs_gpiod ||
-					  gpio_is_valid(spi->cs_gpio))) {
+					  spi->cs_gpiod)) {
 		size_t maxsize;
 		int ret;
 

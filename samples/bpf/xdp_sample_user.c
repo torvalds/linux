@@ -25,7 +25,6 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <sys/resource.h>
 #include <sys/signalfd.h>
 #include <sys/sysinfo.h>
 #include <sys/timerfd.h>
@@ -1218,7 +1217,7 @@ int sample_setup_maps(struct bpf_map **maps)
 		default:
 			return -EINVAL;
 		}
-		if (bpf_map__resize(sample_map[i], sample_map_count[i]) < 0)
+		if (bpf_map__set_max_entries(sample_map[i], sample_map_count[i]) < 0)
 			return -errno;
 	}
 	sample_map[MAP_DEVMAP_XMIT_MULTI] = maps[MAP_DEVMAP_XMIT_MULTI];
@@ -1265,7 +1264,7 @@ static int __sample_remove_xdp(int ifindex, __u32 prog_id, int xdp_flags)
 	int ret;
 
 	if (prog_id) {
-		ret = bpf_get_link_xdp_id(ifindex, &cur_prog_id, xdp_flags);
+		ret = bpf_xdp_query_id(ifindex, xdp_flags, &cur_prog_id);
 		if (ret < 0)
 			return -errno;
 
@@ -1278,7 +1277,7 @@ static int __sample_remove_xdp(int ifindex, __u32 prog_id, int xdp_flags)
 		}
 	}
 
-	return bpf_set_link_xdp_fd(ifindex, -1, xdp_flags);
+	return bpf_xdp_detach(ifindex, xdp_flags, NULL);
 }
 
 int sample_install_xdp(struct bpf_program *xdp_prog, int ifindex, bool generic,
@@ -1295,8 +1294,7 @@ int sample_install_xdp(struct bpf_program *xdp_prog, int ifindex, bool generic,
 
 	xdp_flags |= !force ? XDP_FLAGS_UPDATE_IF_NOEXIST : 0;
 	xdp_flags |= generic ? XDP_FLAGS_SKB_MODE : XDP_FLAGS_DRV_MODE;
-	ret = bpf_set_link_xdp_fd(ifindex, bpf_program__fd(xdp_prog),
-				  xdp_flags);
+	ret = bpf_xdp_attach(ifindex, bpf_program__fd(xdp_prog), xdp_flags, NULL);
 	if (ret < 0) {
 		ret = -errno;
 		fprintf(stderr,
@@ -1308,7 +1306,7 @@ int sample_install_xdp(struct bpf_program *xdp_prog, int ifindex, bool generic,
 		return ret;
 	}
 
-	ret = bpf_get_link_xdp_id(ifindex, &prog_id, xdp_flags);
+	ret = bpf_xdp_query_id(ifindex, xdp_flags, &prog_id);
 	if (ret < 0) {
 		ret = -errno;
 		fprintf(stderr,

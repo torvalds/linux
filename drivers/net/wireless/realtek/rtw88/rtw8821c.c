@@ -499,7 +499,7 @@ static s8 get_cck_rx_pwr(struct rtw_dev *rtwdev, u8 lna_idx, u8 vga_idx)
 	}
 
 	if (lna_idx >= lna_gain_table_size) {
-		rtw_info(rtwdev, "incorrect lna index (%d)\n", lna_idx);
+		rtw_warn(rtwdev, "incorrect lna index (%d)\n", lna_idx);
 		return -120;
 	}
 
@@ -512,6 +512,7 @@ static s8 get_cck_rx_pwr(struct rtw_dev *rtwdev, u8 lna_idx, u8 vga_idx)
 static void query_phy_status_page0(struct rtw_dev *rtwdev, u8 *phy_status,
 				   struct rtw_rx_pkt_stat *pkt_stat)
 {
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
 	s8 rx_power;
 	u8 lna_idx = 0;
 	u8 vga_idx = 0;
@@ -523,6 +524,7 @@ static void query_phy_status_page0(struct rtw_dev *rtwdev, u8 *phy_status,
 
 	pkt_stat->rx_power[RF_PATH_A] = rx_power;
 	pkt_stat->rssi = rtw_phy_rf_power_2_rssi(pkt_stat->rx_power, 1);
+	dm_info->rssi[RF_PATH_A] = pkt_stat->rssi;
 	pkt_stat->bw = RTW_CHANNEL_WIDTH_20;
 	pkt_stat->signal_power = rx_power;
 }
@@ -530,6 +532,7 @@ static void query_phy_status_page0(struct rtw_dev *rtwdev, u8 *phy_status,
 static void query_phy_status_page1(struct rtw_dev *rtwdev, u8 *phy_status,
 				   struct rtw_rx_pkt_stat *pkt_stat)
 {
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
 	u8 rxsc, bw;
 	s8 min_rx_power = -120;
 
@@ -549,6 +552,7 @@ static void query_phy_status_page1(struct rtw_dev *rtwdev, u8 *phy_status,
 
 	pkt_stat->rx_power[RF_PATH_A] = GET_PHY_STAT_P1_PWDB_A(phy_status) - 110;
 	pkt_stat->rssi = rtw_phy_rf_power_2_rssi(pkt_stat->rx_power, 1);
+	dm_info->rssi[RF_PATH_A] = pkt_stat->rssi;
 	pkt_stat->bw = bw;
 	pkt_stat->signal_power = max(pkt_stat->rx_power[RF_PATH_A],
 				     min_rx_power);
@@ -1514,6 +1518,7 @@ static const struct rtw_rfe_def rtw8821c_rfe_defs[] = {
 	[0] = RTW_DEF_RFE(8821c, 0, 0),
 	[2] = RTW_DEF_RFE_EXT(8821c, 0, 0, 2),
 	[4] = RTW_DEF_RFE_EXT(8821c, 0, 0, 2),
+	[6] = RTW_DEF_RFE(8821c, 0, 0),
 };
 
 static struct rtw_hw_reg rtw8821c_dig[] = {
@@ -1918,12 +1923,14 @@ struct rtw_chip_info rtw8821c_hw_spec = {
 	.iqk_threshold = 8,
 	.bfer_su_max_num = 2,
 	.bfer_mu_max_num = 1,
+	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_2,
 
 	.coex_para_ver = 0x19092746,
 	.bt_desired_ver = 0x46,
 	.scbd_support = true,
 	.new_scbd10_def = false,
 	.ble_hid_profile_support = false,
+	.wl_mimo_ps_support = false,
 	.pstdma_type = COEX_PSTDMA_FORCE_LPSOFF,
 	.bt_rssi_type = COEX_BTRSSI_RATIO,
 	.ant_isolation = 15,

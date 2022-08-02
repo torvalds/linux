@@ -10,7 +10,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
@@ -130,8 +130,8 @@ struct noon010_info {
 	struct media_pad pad;
 	struct v4l2_ctrl_handler hdl;
 	struct regulator_bulk_data supply[NOON010_NUM_SUPPLIES];
-	u32 gpio_nreset;
-	u32 gpio_nstby;
+	struct gpio_desc *reset;
+	struct gpio_desc *stby;
 
 	/* Protects the struct members below */
 	struct mutex lock;
@@ -393,29 +393,33 @@ static int power_enable(struct noon010_info *info)
 		return 0;
 	}
 
-	if (gpio_is_valid(info->gpio_nstby))
-		gpio_set_value(info->gpio_nstby, 0);
+	/* Assert standby: line should be flagged active low in descriptor */
+	if (info->stby)
+		gpiod_set_value(info->stby, 1);
 
-	if (gpio_is_valid(info->gpio_nreset))
-		gpio_set_value(info->gpio_nreset, 0);
+	/* Assert reset: line should be flagged active low in descriptor */
+	if (info->reset)
+		gpiod_set_value(info->reset, 1);
 
 	ret = regulator_bulk_enable(NOON010_NUM_SUPPLIES, info->supply);
 	if (ret)
 		return ret;
 
-	if (gpio_is_valid(info->gpio_nreset)) {
+	/* De-assert reset and standby */
+	if (info->reset) {
 		msleep(50);
-		gpio_set_value(info->gpio_nreset, 1);
+		gpiod_set_value(info->reset, 0);
 	}
-	if (gpio_is_valid(info->gpio_nstby)) {
+	if (info->stby) {
 		udelay(1000);
-		gpio_set_value(info->gpio_nstby, 1);
+		gpiod_set_value(info->stby, 0);
 	}
-	if (gpio_is_valid(info->gpio_nreset)) {
+	/* Cycle reset: assert and deassert */
+	if (info->reset) {
 		udelay(1000);
-		gpio_set_value(info->gpio_nreset, 0);
+		gpiod_set_value(info->reset, 1);
 		msleep(100);
-		gpio_set_value(info->gpio_nreset, 1);
+		gpiod_set_value(info->reset, 0);
 		msleep(20);
 	}
 	info->power = 1;
@@ -438,11 +442,12 @@ static int power_disable(struct noon010_info *info)
 	if (ret)
 		return ret;
 
-	if (gpio_is_valid(info->gpio_nstby))
-		gpio_set_value(info->gpio_nstby, 0);
+	/* Assert standby and reset */
+	if (info->stby)
+		gpiod_set_value(info->stby, 1);
 
-	if (gpio_is_valid(info->gpio_nreset))
-		gpio_set_value(info->gpio_nreset, 0);
+	if (info->reset)
+		gpiod_set_value(info->reset, 1);
 
 	info->power = 0;
 
@@ -741,34 +746,24 @@ static int noon010_probe(struct i2c_client *client,
 		goto np_err;
 
 	info->i2c_reg_page	= -1;
-	info->gpio_nreset	= -EINVAL;
-	info->gpio_nstby	= -EINVAL;
 	info->curr_fmt		= &noon010_formats[0];
 	info->curr_win		= &noon010_sizes[0];
 
-	if (gpio_is_valid(pdata->gpio_nreset)) {
-		ret = devm_gpio_request_one(&client->dev, pdata->gpio_nreset,
-					    GPIOF_OUT_INIT_LOW,
-					    "NOON010PC30 NRST");
-		if (ret) {
-			dev_err(&client->dev, "GPIO request error: %d\n", ret);
-			goto np_err;
-		}
-		info->gpio_nreset = pdata->gpio_nreset;
-		gpio_export(info->gpio_nreset, 0);
+	/* Request reset asserted so we get put into reset */
+	info->reset = devm_gpiod_get(&client->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(info->reset)) {
+		ret = PTR_ERR(info->reset);
+		goto np_err;
 	}
+	gpiod_set_consumer_name(info->reset, "NOON010PC30 NRST");
 
-	if (gpio_is_valid(pdata->gpio_nstby)) {
-		ret = devm_gpio_request_one(&client->dev, pdata->gpio_nstby,
-					    GPIOF_OUT_INIT_LOW,
-					    "NOON010PC30 NSTBY");
-		if (ret) {
-			dev_err(&client->dev, "GPIO request error: %d\n", ret);
-			goto np_err;
-		}
-		info->gpio_nstby = pdata->gpio_nstby;
-		gpio_export(info->gpio_nstby, 0);
+	/* Request standby asserted so we get put into standby */
+	info->stby = devm_gpiod_get(&client->dev, "standby", GPIOD_OUT_HIGH);
+	if (IS_ERR(info->stby)) {
+		ret = PTR_ERR(info->stby);
+		goto np_err;
 	}
+	gpiod_set_consumer_name(info->reset, "NOON010PC30 STBY");
 
 	for (i = 0; i < NOON010_NUM_SUPPLIES; i++)
 		info->supply[i].supply = noon010_supply_name[i];

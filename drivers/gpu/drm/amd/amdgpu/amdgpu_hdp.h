@@ -22,13 +22,10 @@
  */
 #ifndef __AMDGPU_HDP_H__
 #define __AMDGPU_HDP_H__
+#include "amdgpu_ras.h"
 
-struct amdgpu_hdp_ras_funcs {
-	int (*ras_late_init)(struct amdgpu_device *adev);
-	void (*ras_fini)(struct amdgpu_device *adev);
-	void (*query_ras_error_count)(struct amdgpu_device *adev,
-				      void *ras_error_status);
-	void (*reset_ras_error_count)(struct amdgpu_device *adev);
+struct amdgpu_hdp_ras {
+	struct amdgpu_ras_block_object ras_block;
 };
 
 struct amdgpu_hdp_funcs {
@@ -36,16 +33,15 @@ struct amdgpu_hdp_funcs {
 	void (*invalidate_hdp)(struct amdgpu_device *adev,
 			       struct amdgpu_ring *ring);
 	void (*update_clock_gating)(struct amdgpu_device *adev, bool enable);
-	void (*get_clock_gating_state)(struct amdgpu_device *adev, u32 *flags);
+	void (*get_clock_gating_state)(struct amdgpu_device *adev, u64 *flags);
 	void (*init_registers)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_hdp {
 	struct ras_common_if			*ras_if;
 	const struct amdgpu_hdp_funcs		*funcs;
-	const struct amdgpu_hdp_ras_funcs	*ras_funcs;
+	struct amdgpu_hdp_ras	*ras;
 };
 
-int amdgpu_hdp_ras_late_init(struct amdgpu_device *adev);
-void amdgpu_hdp_ras_fini(struct amdgpu_device *adev);
+int amdgpu_hdp_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block);
 #endif /* __AMDGPU_HDP_H__ */

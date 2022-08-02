@@ -35,6 +35,7 @@ Required properties:
                    "qcom,pm8916",
                    "qcom,pm8941",
                    "qcom,pm8950",
+                   "qcom,pm8953",
                    "qcom,pm8994",
                    "qcom,pm8998",
                    "qcom,pma8084",
@@ -58,7 +59,7 @@ Required properties for peripheral child nodes:
 Optional properties for peripheral child nodes:
 - interrupts:      Interrupts are specified as a 4-tuple. For more information
                    see:
-                   Documentation/devicetree/bindings/spmi/qcom,spmi-pmic-arb.txt
+                   Documentation/devicetree/bindings/spmi/qcom,spmi-pmic-arb.yaml
 - interrupt-names: Corresponding interrupt name to the interrupts property
 
 Each child node of SPMI slave id represents a function of the PMIC. In the

@@ -23,7 +23,7 @@ int mlx5e_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 	c = priv->channels.c[ix];
 
 	if (unlikely(!test_bit(MLX5E_CHANNEL_STATE_XSK, c->state)))
-		return -ENXIO;
+		return -EINVAL;
 
 	if (!napi_if_scheduled_mark_missed(&c->napi)) {
 		/* To avoid WQE overrun, don't post a NOP if async_icosq is not
@@ -103,12 +103,15 @@ bool mlx5e_xsk_tx(struct mlx5e_xdpsq *sq, unsigned int budget)
 		xsk_buff_raw_dma_sync_for_device(pool, xdptxd.dma_addr, xdptxd.len);
 
 		ret = INDIRECT_CALL_2(sq->xmit_xdp_frame, mlx5e_xmit_xdp_frame_mpwqe,
-				      mlx5e_xmit_xdp_frame, sq, &xdptxd, &xdpi, check_result);
+				      mlx5e_xmit_xdp_frame, sq, &xdptxd, NULL,
+				      check_result);
 		if (unlikely(!ret)) {
 			if (sq->mpwqe.wqe)
 				mlx5e_xdp_mpwqe_complete(sq);
 
 			mlx5e_xsk_tx_post_err(sq, &xdpi);
+		} else {
+			mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo, &xdpi);
 		}
 
 		flush = true;

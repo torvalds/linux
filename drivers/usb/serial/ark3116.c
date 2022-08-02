@@ -200,31 +200,17 @@ static void ark3116_set_termios(struct tty_struct *tty,
 	__u8 lcr, hcr, eval;
 
 	/* set data bit count */
-	switch (cflag & CSIZE) {
-	case CS5:
-		lcr = UART_LCR_WLEN5;
-		break;
-	case CS6:
-		lcr = UART_LCR_WLEN6;
-		break;
-	case CS7:
-		lcr = UART_LCR_WLEN7;
-		break;
-	default:
-	case CS8:
-		lcr = UART_LCR_WLEN8;
-		break;
-	}
+	lcr = UART_LCR_WLEN(tty_get_char_size(cflag));
+
 	if (cflag & CSTOPB)
 		lcr |= UART_LCR_STOP;
 	if (cflag & PARENB)
 		lcr |= UART_LCR_PARITY;
 	if (!(cflag & PARODD))
 		lcr |= UART_LCR_EPAR;
-#ifdef CMSPAR
 	if (cflag & CMSPAR)
 		lcr |= UART_LCR_SPAR;
-#endif
+
 	/* handshake control */
 	hcr = (cflag & CRTSCTS) ? 0x03 : 0x00;
 

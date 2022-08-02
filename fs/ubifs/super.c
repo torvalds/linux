@@ -268,7 +268,7 @@ static struct inode *ubifs_alloc_inode(struct super_block *sb)
 {
 	struct ubifs_inode *ui;
 
-	ui = kmem_cache_alloc(ubifs_inode_slab, GFP_NOFS);
+	ui = alloc_inode_sb(sb, ubifs_inode_slab, GFP_NOFS);
 	if (!ui)
 		return NULL;
 
@@ -2191,7 +2191,7 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 
 	/*
 	 * UBIFS provides 'backing_dev_info' in order to disable read-ahead. For
-	 * UBIFS, I/O is not deferred, it is done immediately in readpage,
+	 * UBIFS, I/O is not deferred, it is done immediately in read_folio,
 	 * which means the user would have to wait not just for their own I/O
 	 * but the read-ahead I/O as well i.e. completely pointless.
 	 *

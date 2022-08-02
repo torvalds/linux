@@ -10,6 +10,7 @@ config ARM64
 	select ACPI_SPCR_TABLE if ACPI
 	select ACPI_PPTT if ACPI
 	select ARCH_HAS_DEBUG_WX
+	select ARCH_BINFMT_ELF_EXTRA_PHDRS
 	select ARCH_BINFMT_ELF_STATE
 	select ARCH_CORRECT_STACKTRACE_ON_KRETPROBE
 	select ARCH_ENABLE_HUGEPAGE_MIGRATION if HUGETLB_PAGE && MIGRATION
@@ -18,6 +19,7 @@ config ARM64
 	select ARCH_ENABLE_SPLIT_PMD_PTLOCK if PGTABLE_LEVELS > 2
 	select ARCH_ENABLE_THP_MIGRATION if TRANSPARENT_HUGEPAGE
 	select ARCH_HAS_CACHE_LINE_SIZE
+	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DEBUG_VIRTUAL
 	select ARCH_HAS_DEBUG_VM_PGTABLE
 	select ARCH_HAS_DMA_PREP_COHERENT
@@ -43,6 +45,7 @@ config ARM64
 	select ARCH_HAS_SYSCALL_WRAPPER
 	select ARCH_HAS_TEARDOWN_DMA_OPS if IOMMU_SUPPORT
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
+	select ARCH_HAS_VM_GET_PAGE_PROT
 	select ARCH_HAS_ZONE_DMA_SET if EXPERT
 	select ARCH_HAVE_ELF_PROT
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
@@ -89,11 +92,13 @@ config ARM64
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_SUPPORTS_INT128 if CC_HAS_INT128
 	select ARCH_SUPPORTS_NUMA_BALANCING
+	select ARCH_SUPPORTS_PAGE_TABLE_CHECK
 	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION if COMPAT
 	select ARCH_WANT_DEFAULT_BPF_JIT
 	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
 	select ARCH_WANT_FRAME_POINTERS
 	select ARCH_WANT_HUGE_PMD_SHARE if ARM64_4K_PAGES || (ARM64_16K_PAGES && !ARM64_VA_BITS_36)
+	select ARCH_WANT_HUGETLB_PAGE_OPTIMIZE_VMEMMAP
 	select ARCH_WANT_LD_ORPHAN_WARN
 	select ARCH_WANTS_NO_INSTR
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
@@ -173,8 +178,6 @@ config ARM64
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
-	select HAVE_DYNAMIC_FTRACE_WITH_REGS \
-		if $(cc-option,-fpatchable-function-entry=2)
 	select FTRACE_MCOUNT_USE_PATCHABLE_FUNCTION_ENTRY \
 		if DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
@@ -192,6 +195,7 @@ config ARM64
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
+	select HAVE_PREEMPT_DYNAMIC_KEY
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_POSIX_CPU_TIMERS_TASK_WORK
 	select HAVE_FUNCTION_ARG_ACCESS_API
@@ -205,7 +209,7 @@ config ARM64
 	select IOMMU_DMA if IOMMU_SUPPORT
 	select IRQ_DOMAIN
 	select IRQ_FORCED_THREADING
-	select KASAN_VMALLOC if KASAN_GENERIC
+	select KASAN_VMALLOC if KASAN
 	select MODULES_USE_ELF_RELA
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
@@ -224,6 +228,17 @@ config ARM64
 	select TRACE_IRQFLAGS_SUPPORT
 	help
 	  ARM 64-bit (AArch64) Linux support.
+
+config CLANG_SUPPORTS_DYNAMIC_FTRACE_WITH_REGS
+	def_bool CC_IS_CLANG
+	# https://github.com/ClangBuiltLinux/linux/issues/1507
+	depends on AS_IS_GNU || (AS_IS_LLVM && (LD_IS_LLD || LD_VERSION >= 23600))
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS
+
+config GCC_SUPPORTS_DYNAMIC_FTRACE_WITH_REGS
+	def_bool CC_IS_GCC
+	depends on $(cc-option,-fpatchable-function-entry=2)
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 
 config 64BIT
 	def_bool y
@@ -250,31 +265,31 @@ config ARM64_CONT_PMD_SHIFT
 	default 4
 
 config ARCH_MMAP_RND_BITS_MIN
-       default 14 if ARM64_64K_PAGES
-       default 16 if ARM64_16K_PAGES
-       default 18
+	default 14 if ARM64_64K_PAGES
+	default 16 if ARM64_16K_PAGES
+	default 18
 
 # max bits determined by the following formula:
 #  VA_BITS - PAGE_SHIFT - 3
 config ARCH_MMAP_RND_BITS_MAX
-       default 19 if ARM64_VA_BITS=36
-       default 24 if ARM64_VA_BITS=39
-       default 27 if ARM64_VA_BITS=42
-       default 30 if ARM64_VA_BITS=47
-       default 29 if ARM64_VA_BITS=48 && ARM64_64K_PAGES
-       default 31 if ARM64_VA_BITS=48 && ARM64_16K_PAGES
-       default 33 if ARM64_VA_BITS=48
-       default 14 if ARM64_64K_PAGES
-       default 16 if ARM64_16K_PAGES
-       default 18
+	default 19 if ARM64_VA_BITS=36
+	default 24 if ARM64_VA_BITS=39
+	default 27 if ARM64_VA_BITS=42
+	default 30 if ARM64_VA_BITS=47
+	default 29 if ARM64_VA_BITS=48 && ARM64_64K_PAGES
+	default 31 if ARM64_VA_BITS=48 && ARM64_16K_PAGES
+	default 33 if ARM64_VA_BITS=48
+	default 14 if ARM64_64K_PAGES
+	default 16 if ARM64_16K_PAGES
+	default 18
 
 config ARCH_MMAP_RND_COMPAT_BITS_MIN
-       default 7 if ARM64_64K_PAGES
-       default 9 if ARM64_16K_PAGES
-       default 11
+	default 7 if ARM64_64K_PAGES
+	default 9 if ARM64_16K_PAGES
+	default 11
 
 config ARCH_MMAP_RND_COMPAT_BITS_MAX
-       default 16
+	default 16
 
 config NO_IOPORT_MAP
 	def_bool y if !PCI
@@ -301,7 +316,7 @@ config GENERIC_HWEIGHT
 	def_bool y
 
 config GENERIC_CSUM
-        def_bool y
+	def_bool y
 
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
@@ -675,7 +690,7 @@ config ARM64_ERRATUM_2051678
 	default y
 	help
 	  This options adds the workaround for ARM Cortex-A510 erratum ARM64_ERRATUM_2051678.
-	  Affected Coretex-A510 might not respect the ordering rules for
+	  Affected Cortex-A510 might not respect the ordering rules for
 	  hardware update of the page table's dirty bit. The workaround
 	  is to not enable the feature on affected CPUs.
 
@@ -683,6 +698,7 @@ config ARM64_ERRATUM_2051678
 
 config ARM64_ERRATUM_2077057
 	bool "Cortex-A510: 2077057: workaround software-step corrupting SPSR_EL2"
+	default y
 	help
 	  This option adds the workaround for ARM Cortex-A510 erratum 2077057.
 	  Affected Cortex-A510 may corrupt SPSR_EL2 when the a step exception is
@@ -807,7 +823,7 @@ config ARM64_ERRATUM_2224489
 
 config ARM64_ERRATUM_2064142
 	bool "Cortex-A510: 2064142: workaround TRBE register writes while disabled"
-	depends on COMPILE_TEST # Until the CoreSight TRBE driver changes are in
+	depends on CORESIGHT_TRBE
 	default y
 	help
 	  This option adds the workaround for ARM Cortex-A510 erratum 2064142.
@@ -825,7 +841,7 @@ config ARM64_ERRATUM_2064142
 
 config ARM64_ERRATUM_2038923
 	bool "Cortex-A510: 2038923: workaround TRBE corruption with enable"
-	depends on COMPILE_TEST # Until the CoreSight TRBE driver changes are in
+	depends on CORESIGHT_TRBE
 	default y
 	help
 	  This option adds the workaround for ARM Cortex-A510 erratum 2038923.
@@ -848,7 +864,7 @@ config ARM64_ERRATUM_2038923
 
 config ARM64_ERRATUM_1902691
 	bool "Cortex-A510: 1902691: workaround TRBE trace corruption"
-	depends on COMPILE_TEST # Until the CoreSight TRBE driver changes are in
+	depends on CORESIGHT_TRBE
 	default y
 	help
 	  This option adds the workaround for ARM Cortex-A510 erratum 1902691.
@@ -891,12 +907,16 @@ config CAVIUM_ERRATUM_23144
 	  If unsure, say Y.
 
 config CAVIUM_ERRATUM_23154
-	bool "Cavium erratum 23154: Access to ICC_IAR1_EL1 is not sync'ed"
+	bool "Cavium errata 23154 and 38545: GICv3 lacks HW synchronisation"
 	default y
 	help
-	  The gicv3 of ThunderX requires a modified version for
+	  The ThunderX GICv3 implementation requires a modified version for
 	  reading the IAR status to ensure data synchronization
 	  (access to icc_iar1_el1 is not sync'ed before and after).
+
+	  It also suffers from erratum 38545 (also present on Marvell's
+	  OcteonTX and OcteonTX2), resulting in deactivated interrupts being
+	  spuriously presented to the CPU interface.
 
 	  If unsure, say Y.
 
@@ -1029,8 +1049,7 @@ config SOCIONEXT_SYNQUACER_PREITS
 
 	  If unsure, say Y.
 
-endmenu
-
+endmenu # "ARM errata workarounds via the alternatives framework"
 
 choice
 	prompt "Page size"
@@ -1252,7 +1271,7 @@ config HW_PERF_EVENTS
 	def_bool y
 	depends on ARM_PMU
 
-# Supported by clang >= 7.0
+# Supported by clang >= 7.0 or GCC >= 12.0.0
 config CC_HAVE_SHADOW_CALL_STACK
 	def_bool $(cc-option, -fsanitize=shadow-call-stack -ffixed-x18)
 
@@ -1558,9 +1577,9 @@ config SETEND_EMULATION
 	  be unexpected results in the applications.
 
 	  If unsure, say Y
-endif
+endif # ARMV8_DEPRECATED
 
-endif
+endif # COMPAT
 
 menu "ARMv8.1 architectural features"
 
@@ -1585,15 +1604,15 @@ config ARM64_PAN
 	bool "Enable support for Privileged Access Never (PAN)"
 	default y
 	help
-	 Privileged Access Never (PAN; part of the ARMv8.1 Extensions)
-	 prevents the kernel or hypervisor from accessing user-space (EL0)
-	 memory directly.
+	  Privileged Access Never (PAN; part of the ARMv8.1 Extensions)
+	  prevents the kernel or hypervisor from accessing user-space (EL0)
+	  memory directly.
 
-	 Choosing this option will cause any unprotected (not using
-	 copy_to_user et al) memory access to fail with a permission fault.
+	  Choosing this option will cause any unprotected (not using
+	  copy_to_user et al) memory access to fail with a permission fault.
 
-	 The feature is detected at runtime, and will remain as a 'nop'
-	 instruction if the cpu does not implement the feature.
+	  The feature is detected at runtime, and will remain as a 'nop'
+	  instruction if the cpu does not implement the feature.
 
 config AS_HAS_LDAPR
 	def_bool $(as-instr,.arch_extension rcpc)
@@ -1621,15 +1640,15 @@ config ARM64_USE_LSE_ATOMICS
 	  built with binutils >= 2.25 in order for the new instructions
 	  to be used.
 
-endmenu
+endmenu # "ARMv8.1 architectural features"
 
 menu "ARMv8.2 architectural features"
 
 config AS_HAS_ARMV8_2
-       def_bool $(cc-option,-Wa$(comma)-march=armv8.2-a)
+	def_bool $(cc-option,-Wa$(comma)-march=armv8.2-a)
 
 config AS_HAS_SHA3
-       def_bool $(as-instr,.arch armv8.2-a+sha3)
+	def_bool $(as-instr,.arch armv8.2-a+sha3)
 
 config ARM64_PMEM
 	bool "Enable support for persistent memory"
@@ -1673,7 +1692,7 @@ config ARM64_CNP
 	  at runtime, and does not affect PEs that do not implement
 	  this feature.
 
-endmenu
+endmenu # "ARMv8.2 architectural features"
 
 menu "ARMv8.3 architectural features"
 
@@ -1736,7 +1755,7 @@ config AS_HAS_PAC
 config AS_HAS_CFI_NEGATE_RA_STATE
 	def_bool $(as-instr,.cfi_startproc\n.cfi_negate_ra_state\n.cfi_endproc\n)
 
-endmenu
+endmenu # "ARMv8.3 architectural features"
 
 menu "ARMv8.4 architectural features"
 
@@ -1777,7 +1796,7 @@ config ARM64_TLB_RANGE
 	  The feature introduces new assembly instructions, and they were
 	  support when binutils >= 2.30.
 
-endmenu
+endmenu # "ARMv8.4 architectural features"
 
 menu "ARMv8.5 architectural features"
 
@@ -1863,6 +1882,7 @@ config ARM64_MTE
 	depends on AS_HAS_LSE_ATOMICS
 	# Required for tag checking in the uaccess routines
 	depends on ARM64_PAN
+	select ARCH_HAS_SUBPAGE_FAULTS
 	select ARCH_USES_HIGH_VMA_FLAGS
 	help
 	  Memory Tagging (part of the ARMv8.5 Extensions) provides
@@ -1884,7 +1904,7 @@ config ARM64_MTE
 
 	  Documentation/arm64/memory-tagging-extension.rst.
 
-endmenu
+endmenu # "ARMv8.5 architectural features"
 
 menu "ARMv8.7 architectural features"
 
@@ -1893,12 +1913,12 @@ config ARM64_EPAN
 	default y
 	depends on ARM64_PAN
 	help
-	 Enhanced Privileged Access Never (EPAN) allows Privileged
-	 Access Never to be used with Execute-only mappings.
+	  Enhanced Privileged Access Never (EPAN) allows Privileged
+	  Access Never to be used with Execute-only mappings.
 
-	 The feature is detected at runtime, and will remain disabled
-	 if the cpu does not implement the feature.
-endmenu
+	  The feature is detected at runtime, and will remain disabled
+	  if the cpu does not implement the feature.
+endmenu # "ARMv8.7 architectural features"
 
 config ARM64_SVE
 	bool "ARM Scalable Vector Extension support"
@@ -1930,6 +1950,17 @@ config ARM64_SVE
 	  fixed.  Otherwise, you may experience firmware panics or lockups when
 	  booting the kernel.  If unsure and you are not observing these
 	  symptoms, you should assume that it is safe to say Y.
+
+config ARM64_SME
+	bool "ARM Scalable Matrix Extension support"
+	default y
+	depends on ARM64_SVE
+	help
+	  The Scalable Matrix Extension (SME) is an extension to the AArch64
+	  execution state which utilises a substantial subset of the SVE
+	  instruction set, together with the addition of new architectural
+	  register state capable of holding two dimensional matrix tiles to
+	  enable various matrix operations.
 
 config ARM64_MODULE_PLTS
 	bool "Use PLTs to allow module memory to spill over into vmalloc area"
@@ -1974,7 +2005,7 @@ config ARM64_DEBUG_PRIORITY_MASKING
 	  the validity of ICC_PMR_EL1 when calling concerned functions.
 
 	  If unsure, say N
-endif
+endif # ARM64_PSEUDO_NMI
 
 config RELOCATABLE
 	bool "Build a relocatable kernel image" if EXPERT
@@ -2033,7 +2064,19 @@ config STACKPROTECTOR_PER_TASK
 	def_bool y
 	depends on STACKPROTECTOR && CC_HAVE_STACKPROTECTOR_SYSREG
 
-endmenu
+# The GPIO number here must be sorted by descending number. In case of
+# a multiplatform kernel, we just want the highest value required by the
+# selected platforms.
+config ARCH_NR_GPIO
+        int
+        default 2048 if ARCH_APPLE
+        default 0
+        help
+          Maximum number of GPIOs in the system.
+
+          If unsure, leave the default value.
+
+endmenu # "Kernel Features"
 
 menu "Boot options"
 
@@ -2097,7 +2140,7 @@ config EFI
 	help
 	  This option provides support for runtime services provided
 	  by UEFI firmware (such as non-volatile variables, realtime
-          clock, and platform reset). A UEFI stub is also provided to
+	  clock, and platform reset). A UEFI stub is also provided to
 	  allow the kernel to be booted as an EFI application. This
 	  is only useful on systems that have UEFI firmware.
 
@@ -2112,11 +2155,7 @@ config DMI
 	  However, even with this option, the resultant kernel should
 	  continue to boot on existing non-UEFI platforms.
 
-endmenu
-
-config SYSVIPC_COMPAT
-	def_bool y
-	depends on COMPAT && SYSVIPC
+endmenu # "Boot options"
 
 menu "Power management options"
 
@@ -2133,7 +2172,7 @@ config ARCH_HIBERNATION_HEADER
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
 
-endmenu
+endmenu # "Power management options"
 
 menu "CPU Power Management"
 
@@ -2141,7 +2180,7 @@ source "drivers/cpuidle/Kconfig"
 
 source "drivers/cpufreq/Kconfig"
 
-endmenu
+endmenu # "CPU Power Management"
 
 source "drivers/acpi/Kconfig"
 
@@ -2149,4 +2188,4 @@ source "arch/arm64/kvm/Kconfig"
 
 if CRYPTO
 source "arch/arm64/crypto/Kconfig"
-endif
+endif # CRYPTO

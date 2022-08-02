@@ -90,12 +90,28 @@ bool venus_helper_check_codec(struct venus_inst *inst, u32 v4l2_pixfmt)
 }
 EXPORT_SYMBOL_GPL(venus_helper_check_codec);
 
+static void free_dpb_buf(struct venus_inst *inst, struct intbuf *buf)
+{
+	ida_free(&inst->dpb_ids, buf->dpb_out_tag);
+
+	list_del_init(&buf->list);
+	dma_free_attrs(inst->core->dev, buf->size, buf->va, buf->da,
+		       buf->attrs);
+	kfree(buf);
+}
+
 int venus_helper_queue_dpb_bufs(struct venus_inst *inst)
 {
-	struct intbuf *buf;
+	struct intbuf *buf, *next;
+	unsigned int dpb_size = 0;
 	int ret = 0;
 
-	list_for_each_entry(buf, &inst->dpbbufs, list) {
+	if (inst->dpb_buftype == HFI_BUFFER_OUTPUT)
+		dpb_size = inst->output_buf_size;
+	else if (inst->dpb_buftype == HFI_BUFFER_OUTPUT2)
+		dpb_size = inst->output2_buf_size;
+
+	list_for_each_entry_safe(buf, next, &inst->dpbbufs, list) {
 		struct hfi_frame_data fdata;
 
 		memset(&fdata, 0, sizeof(fdata));
@@ -105,6 +121,12 @@ int venus_helper_queue_dpb_bufs(struct venus_inst *inst)
 
 		if (buf->owned_by == FIRMWARE)
 			continue;
+
+		/* free buffer from previous sequence which was released later */
+		if (dpb_size > buf->size) {
+			free_dpb_buf(inst, buf);
+			continue;
+		}
 
 		fdata.clnt_data = buf->dpb_out_tag;
 
@@ -127,13 +149,7 @@ int venus_helper_free_dpb_bufs(struct venus_inst *inst)
 	list_for_each_entry_safe(buf, n, &inst->dpbbufs, list) {
 		if (buf->owned_by == FIRMWARE)
 			continue;
-
-		ida_free(&inst->dpb_ids, buf->dpb_out_tag);
-
-		list_del_init(&buf->list);
-		dma_free_attrs(inst->core->dev, buf->size, buf->va, buf->da,
-			       buf->attrs);
-		kfree(buf);
+		free_dpb_buf(inst, buf);
 	}
 
 	if (list_empty(&inst->dpbbufs))
@@ -189,7 +205,6 @@ int venus_helper_alloc_dpb_bufs(struct venus_inst *inst)
 		buf->va = dma_alloc_attrs(dev, buf->size, &buf->da, GFP_KERNEL,
 					  buf->attrs);
 		if (!buf->va) {
-			kfree(buf);
 			ret = -ENOMEM;
 			goto fail;
 		}
@@ -209,6 +224,7 @@ int venus_helper_alloc_dpb_bufs(struct venus_inst *inst)
 	return 0;
 
 fail:
+	kfree(buf);
 	venus_helper_free_dpb_bufs(inst);
 	return ret;
 }
@@ -592,6 +608,10 @@ static u32 to_hfi_raw_fmt(u32 v4l2_fmt)
 		return HFI_COLOR_FORMAT_NV12;
 	case V4L2_PIX_FMT_NV21:
 		return HFI_COLOR_FORMAT_NV21;
+	case V4L2_PIX_FMT_QC08C:
+		return HFI_COLOR_FORMAT_NV12_UBWC;
+	case V4L2_PIX_FMT_QC10C:
+		return HFI_COLOR_FORMAT_YUV420_TP10_UBWC;
 	default:
 		break;
 	}
@@ -1174,7 +1194,8 @@ int venus_helper_set_format_constraints(struct venus_inst *inst)
 	if (!IS_V6(inst->core))
 		return 0;
 
-	if (inst->opb_fmt == HFI_COLOR_FORMAT_NV12_UBWC)
+	if (inst->opb_fmt == HFI_COLOR_FORMAT_NV12_UBWC ||
+	    inst->opb_fmt == HFI_COLOR_FORMAT_YUV420_TP10_UBWC)
 		return 0;
 
 	pconstraint.buffer_type = HFI_BUFFER_OUTPUT2;
@@ -1745,27 +1766,6 @@ int venus_helper_get_out_fmts(struct venus_inst *inst, u32 v4l2_fmt,
 	if (!caps)
 		return -EINVAL;
 
-	if (inst->bit_depth == VIDC_BITDEPTH_10 &&
-	    inst->session_type == VIDC_SESSION_TYPE_DEC) {
-		found_ubwc =
-			find_fmt_from_caps(caps, HFI_BUFFER_OUTPUT,
-					   HFI_COLOR_FORMAT_YUV420_TP10_UBWC);
-		found = find_fmt_from_caps(caps, HFI_BUFFER_OUTPUT2,
-					   HFI_COLOR_FORMAT_NV12);
-		if (found_ubwc && found) {
-			/*
-			 * Hard-code DPB buffers to be 10bit UBWC and decoder
-			 * output buffers in 8bit NV12 until V4L2 is able to
-			 * expose compressed/tiled formats to applications.
-			 */
-			*out_fmt = HFI_COLOR_FORMAT_YUV420_TP10_UBWC;
-			*out2_fmt = HFI_COLOR_FORMAT_NV12;
-			return 0;
-		}
-
-		return -EINVAL;
-	}
-
 	if (ubwc) {
 		ubwc_fmt = fmt | HFI_COLOR_FORMAT_UBWC_BASE;
 		found_ubwc = find_fmt_from_caps(caps, HFI_BUFFER_OUTPUT,
@@ -1796,6 +1796,29 @@ int venus_helper_get_out_fmts(struct venus_inst *inst, u32 v4l2_fmt,
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(venus_helper_get_out_fmts);
+
+bool venus_helper_check_format(struct venus_inst *inst, u32 v4l2_pixfmt)
+{
+	struct venus_core *core = inst->core;
+	u32 fmt = to_hfi_raw_fmt(v4l2_pixfmt);
+	struct hfi_plat_caps *caps;
+	u32 buftype;
+
+	if (!fmt)
+		return false;
+
+	caps = venus_caps_by_codec(core, inst->hfi_codec, inst->session_type);
+	if (!caps)
+		return false;
+
+	if (inst->session_type == VIDC_SESSION_TYPE_DEC)
+		buftype = HFI_BUFFER_OUTPUT2;
+	else
+		buftype = HFI_BUFFER_OUTPUT;
+
+	return find_fmt_from_caps(caps, buftype, fmt);
+}
+EXPORT_SYMBOL_GPL(venus_helper_check_format);
 
 int venus_helper_set_stride(struct venus_inst *inst,
 			    unsigned int width, unsigned int height)

@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2015-2017 Advanced Micro Devices, Inc.
+ * Copyright 2015-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -1055,7 +1056,7 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 	 * table, add corresponded reversed direction link now.
 	 */
 	if (props && (iolink->flags & CRAT_IOLINK_FLAGS_BI_DIRECTIONAL)) {
-		to_dev = kfd_topology_device_by_proximity_domain(id_to);
+		to_dev = kfd_topology_device_by_proximity_domain_no_lock(id_to);
 		if (!to_dev)
 			return -ENODEV;
 		/* same everything but the other direction */
@@ -1314,6 +1315,80 @@ static int fill_in_l2_l3_pcache(struct crat_subtype_cache *pcache,
 	return 1;
 }
 
+#define KFD_MAX_CACHE_TYPES 6
+
+static int kfd_fill_gpu_cache_info_from_gfx_config(struct kfd_dev *kdev,
+						   struct kfd_gpu_cache_info *pcache_info)
+{
+	struct amdgpu_device *adev = kdev->adev;
+	int i = 0;
+
+	/* TCP L1 Cache per CU */
+	if (adev->gfx.config.gc_tcp_l1_size) {
+		pcache_info[i].cache_size = adev->gfx.config.gc_tcp_l1_size;
+		pcache_info[i].cache_level = 1;
+		pcache_info[i].flags = (CRAT_CACHE_FLAGS_ENABLED |
+					CRAT_CACHE_FLAGS_DATA_CACHE |
+					CRAT_CACHE_FLAGS_SIMD_CACHE);
+		pcache_info[0].num_cu_shared = adev->gfx.config.gc_num_tcp_per_wpg / 2;
+		i++;
+	}
+	/* Scalar L1 Instruction Cache per SQC */
+	if (adev->gfx.config.gc_l1_instruction_cache_size_per_sqc) {
+		pcache_info[i].cache_size =
+			adev->gfx.config.gc_l1_instruction_cache_size_per_sqc;
+		pcache_info[i].cache_level = 1;
+		pcache_info[i].flags = (CRAT_CACHE_FLAGS_ENABLED |
+					CRAT_CACHE_FLAGS_INST_CACHE |
+					CRAT_CACHE_FLAGS_SIMD_CACHE);
+		pcache_info[i].num_cu_shared = adev->gfx.config.gc_num_sqc_per_wgp * 2;
+		i++;
+	}
+	/* Scalar L1 Data Cache per SQC */
+	if (adev->gfx.config.gc_l1_data_cache_size_per_sqc) {
+		pcache_info[i].cache_size = adev->gfx.config.gc_l1_data_cache_size_per_sqc;
+		pcache_info[i].cache_level = 1;
+		pcache_info[i].flags = (CRAT_CACHE_FLAGS_ENABLED |
+					CRAT_CACHE_FLAGS_DATA_CACHE |
+					CRAT_CACHE_FLAGS_SIMD_CACHE);
+		pcache_info[i].num_cu_shared = adev->gfx.config.gc_num_sqc_per_wgp * 2;
+		i++;
+	}
+	/* GL1 Data Cache per SA */
+	if (adev->gfx.config.gc_gl1c_per_sa &&
+	    adev->gfx.config.gc_gl1c_size_per_instance) {
+		pcache_info[i].cache_size = adev->gfx.config.gc_gl1c_per_sa *
+			adev->gfx.config.gc_gl1c_size_per_instance;
+		pcache_info[i].cache_level = 1;
+		pcache_info[i].flags = (CRAT_CACHE_FLAGS_ENABLED |
+					CRAT_CACHE_FLAGS_DATA_CACHE |
+					CRAT_CACHE_FLAGS_SIMD_CACHE);
+		pcache_info[i].num_cu_shared = adev->gfx.config.max_cu_per_sh;
+		i++;
+	}
+	/* L2 Data Cache per GPU (Total Tex Cache) */
+	if (adev->gfx.config.gc_gl2c_per_gpu) {
+		pcache_info[i].cache_size = adev->gfx.config.gc_gl2c_per_gpu;
+		pcache_info[i].cache_level = 2;
+		pcache_info[i].flags = (CRAT_CACHE_FLAGS_ENABLED |
+					CRAT_CACHE_FLAGS_DATA_CACHE |
+					CRAT_CACHE_FLAGS_SIMD_CACHE);
+		pcache_info[i].num_cu_shared = adev->gfx.config.max_cu_per_sh;
+		i++;
+	}
+	/* L3 Data Cache per GPU */
+	if (adev->gmc.mall_size) {
+		pcache_info[i].cache_size = adev->gmc.mall_size / 1024;
+		pcache_info[i].cache_level = 3;
+		pcache_info[i].flags = (CRAT_CACHE_FLAGS_ENABLED |
+					CRAT_CACHE_FLAGS_DATA_CACHE |
+					CRAT_CACHE_FLAGS_SIMD_CACHE);
+		pcache_info[i].num_cu_shared = adev->gfx.config.max_cu_per_sh;
+		i++;
+	}
+	return i;
+}
+
 /* kfd_fill_gpu_cache_info - Fill GPU cache info using kfd_gpu_cache_info
  * tables
  *
@@ -1335,6 +1410,7 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 			int *num_of_entries)
 {
 	struct kfd_gpu_cache_info *pcache_info;
+	struct kfd_gpu_cache_info cache_info[KFD_MAX_CACHE_TYPES];
 	int num_of_cache_types = 0;
 	int i, j, k;
 	int ct = 0;
@@ -1381,7 +1457,7 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 		num_of_cache_types = ARRAY_SIZE(vegam_cache_info);
 		break;
 	default:
-		switch(KFD_GC_VERSION(kdev)) {
+		switch (KFD_GC_VERSION(kdev)) {
 		case IP_VERSION(9, 0, 1):
 			pcache_info = vega10_cache_info;
 			num_of_cache_types = ARRAY_SIZE(vega10_cache_info);
@@ -1411,6 +1487,7 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 		case IP_VERSION(10, 1, 10):
 		case IP_VERSION(10, 1, 2):
 		case IP_VERSION(10, 1, 3):
+		case IP_VERSION(10, 1, 4):
 			pcache_info = navi10_cache_info;
 			num_of_cache_types = ARRAY_SIZE(navi10_cache_info);
 			break;
@@ -1439,8 +1516,17 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 			num_of_cache_types = ARRAY_SIZE(beige_goby_cache_info);
 			break;
 		case IP_VERSION(10, 3, 3):
+		case IP_VERSION(10, 3, 6): /* TODO: Double check these on production silicon */
+		case IP_VERSION(10, 3, 7): /* TODO: Double check these on production silicon */
 			pcache_info = yellow_carp_cache_info;
 			num_of_cache_types = ARRAY_SIZE(yellow_carp_cache_info);
+			break;
+		case IP_VERSION(11, 0, 0):
+		case IP_VERSION(11, 0, 1):
+		case IP_VERSION(11, 0, 2):
+			pcache_info = cache_info;
+			num_of_cache_types =
+				kfd_fill_gpu_cache_info_from_gfx_config(kdev, pcache_info);
 			break;
 		default:
 			return -EINVAL;
@@ -1567,7 +1653,7 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 	/* Fetch the CRAT table from ACPI */
 	status = acpi_get_table(CRAT_SIGNATURE, 0, &crat_table);
 	if (status == AE_NOT_FOUND) {
-		pr_warn("CRAT table not found\n");
+		pr_info("CRAT table not found\n");
 		return -ENODATA;
 	} else if (ACPI_FAILURE(status)) {
 		const char *err = acpi_format_exception(status);
@@ -2150,7 +2236,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	 * report the total FB size (public+private) as a single
 	 * private heap.
 	 */
-	amdgpu_amdkfd_get_local_mem_info(kdev->adev, &local_mem_info);
+	local_mem_info = kdev->local_mem_info;
 	sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
 			sub_type_hdr->length);
 
@@ -2223,7 +2309,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	 */
 	if (kdev->hive_id) {
 		for (nid = 0; nid < proximity_domain; ++nid) {
-			peer_dev = kfd_topology_device_by_proximity_domain(nid);
+			peer_dev = kfd_topology_device_by_proximity_domain_no_lock(nid);
 			if (!peer_dev->gpu)
 				continue;
 			if (peer_dev->gpu->hive_id != kdev->hive_id)

@@ -4,10 +4,13 @@
  */
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_display.h"
+#include "intel_display_power_map.h"
 #include "intel_display_types.h"
 #include "intel_dp_mst.h"
 #include "intel_tc.h"
+#include "intel_tc_phy_regs.h"
 
 static const char *tc_port_mode_name(enum tc_port_mode mode)
 {
@@ -59,10 +62,12 @@ bool intel_tc_cold_requires_aux_pw(struct intel_digital_port *dig_port)
 static enum intel_display_power_domain
 tc_cold_get_power_domain(struct intel_digital_port *dig_port, enum tc_port_mode mode)
 {
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+
 	if (mode == TC_PORT_TBT_ALT || !intel_tc_cold_requires_aux_pw(dig_port))
 		return POWER_DOMAIN_TC_COLD_OFF;
 
-	return intel_legacy_aux_to_power_domain(dig_port->aux_ch);
+	return intel_display_power_legacy_aux_domain(i915, dig_port->aux_ch);
 }
 
 static intel_wakeref_t

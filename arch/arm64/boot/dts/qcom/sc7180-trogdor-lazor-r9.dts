@@ -7,7 +7,7 @@
 
 /dts-v1/;
 
-#include "sc7180.dtsi"
+#include "sc7180-trogdor.dtsi"
 #include "sc7180-trogdor-parade-ps8640.dtsi"
 #include "sc7180-trogdor-lazor.dtsi"
 #include "sc7180-lite.dtsi"
