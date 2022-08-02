@@ -110,9 +110,114 @@ static int rk1608_sensor_power(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
+#define RK1608_MAX_BITRATE (1500000000)
+static int rk1608_get_link_sensor_timing(struct rk1608_dphy *pdata)
+{
+	int ret = 0;
+	u32 i;
+	u32 idx = pdata->fmt_inf_idx;
+	struct rk1608_fmt_inf *fmt_inf = &pdata->fmt_inf[idx];
+	int sub_sensor_num = pdata->sub_sensor_num;
+	u32 width = 0, height = 0, out_width, out_height;
+	struct v4l2_subdev *link_sensor;
+	u32 id = pdata->sd.grp_id;
+	struct v4l2_subdev_frame_interval fi;
+	int max_fps = 30;
+	u64 bps;
+
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.pad = 0,
+	};
+
+	if (!IS_ERR_OR_NULL(pdata->link_sensor_client)) {
+
+		link_sensor = i2c_get_clientdata(
+				pdata->link_sensor_client);
+		if (IS_ERR_OR_NULL(link_sensor)) {
+			dev_err(pdata->dev, "can not get link sensor i2c client\n");
+			return -EINVAL;
+		}
+
+		ret = v4l2_subdev_call(link_sensor, pad, get_fmt, NULL, &fmt);
+		if (ret) {
+			dev_info(pdata->dev, "get link fmt fail\n");
+			return -EINVAL;
+		}
+
+		width = fmt.format.width;
+		height = fmt.format.height;
+		dev_info(pdata->dev, "phy[%d] get fmt w:%d h:%d\n",
+				id, width, height);
+
+		memset(&fi, 0, sizeof(fi));
+		ret = v4l2_subdev_call(link_sensor, video, g_frame_interval, &fi);
+		if (ret) {
+			dev_info(pdata->dev, "get link interval fail\n");
+			return -EINVAL;
+		}
+
+		max_fps = fi.interval.denominator / fi.interval.numerator;
+		dev_info(pdata->dev, "phy[%d] get fps:%d (%d/%d)\n",
+				id, max_fps, fi.interval.denominator, fi.interval.numerator);
+
+	} else {
+		width = fmt_inf->mf.width;
+		height = fmt_inf->mf.height;
+		dev_info(pdata->dev, "phy[%d] no link sensor\n", id);
+	}
+
+	if (!width || !height) {
+		dev_err(pdata->dev, "phy[%d] get fmt error!\n", id);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < 4; i++) {
+		if (fmt_inf->in_ch[i].width == 0)
+			break;
+
+		fmt_inf->in_ch[i].width = width;
+		fmt_inf->in_ch[i].height = height;
+	}
+
+	out_width = width;
+	out_height = height * (sub_sensor_num + 1); /* sub add main */
+	for (i = 0; i < 4; i++) {
+		if (fmt_inf->out_ch[i].width == 0)
+			break;
+
+		fmt_inf->out_ch[i].width = out_width;
+		fmt_inf->out_ch[i].height = out_height;
+	}
+
+	fmt_inf->hactive = out_width;
+	fmt_inf->vactive = out_height;
+	fmt_inf->htotal = out_width + (width * 1 / 3); //1.33
+	fmt_inf->vtotal = out_height + (height >> 4);
+
+	/* max 30 fps, raw 10 */
+	bps = fmt_inf->htotal * fmt_inf->vtotal
+		/ fmt_inf->mipi_lane_out * 10 * max_fps;
+
+	/* add extra timing */
+	bps = bps * 105;
+	do_div(bps, 100);
+
+	if (bps > RK1608_MAX_BITRATE)
+		bps = RK1608_MAX_BITRATE;
+
+	pdata->link_freqs = (u32)(bps/2);
+	dev_info(pdata->dev, "target mipi bps:%lld\n", bps);
+
+	return 0;
+}
+
 static int rk1608_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct rk1608_dphy *pdata = to_state(sd);
+
+	if (enable && pdata->sub_sensor_num)
+		rk1608_get_link_sensor_timing(pdata);
 
 	pdata->rk1608_sd->grp_id = sd->grp_id;
 	v4l2_subdev_call(pdata->rk1608_sd, video, s_stream, enable);
@@ -160,12 +265,43 @@ static int rk1608_get_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *mf = &fmt->format;
 	struct rk1608_dphy *pdata = to_state(sd);
 	u32 idx = pdata->fmt_inf_idx;
+	struct v4l2_subdev *link_sensor;
+	int ret = -1;
 
-	mf->code = pdata->fmt_inf[idx].mf.code;
-	mf->width = pdata->fmt_inf[idx].mf.width;
-	mf->height = pdata->fmt_inf[idx].mf.height;
-	mf->field = pdata->fmt_inf[idx].mf.field;
-	mf->colorspace = pdata->fmt_inf[idx].mf.colorspace;
+	if (!IS_ERR_OR_NULL(pdata->link_sensor_client)) {
+		link_sensor = i2c_get_clientdata(pdata->link_sensor_client);
+		if (IS_ERR_OR_NULL(link_sensor)) {
+			dev_err(pdata->dev, "can not get link sensor i2c client\n");
+			goto exit;
+		}
+
+		ret = v4l2_subdev_call(link_sensor, pad, get_fmt, NULL, fmt);
+		if (ret) {
+			dev_info(pdata->dev, "get link fmt fail\n");
+			goto exit;
+		}
+
+		dev_info(pdata->dev, "use link sensor fmt w:%d h:%d code:%d\n",
+				mf->width, mf->height, mf->code);
+	}
+
+exit:
+	if (ret || !mf->width || !mf->height) {
+		mf->code = pdata->fmt_inf[idx].mf.code;
+		mf->width = pdata->fmt_inf[idx].mf.width;
+		mf->height = pdata->fmt_inf[idx].mf.height;
+		mf->field = pdata->fmt_inf[idx].mf.field;
+		mf->colorspace = pdata->fmt_inf[idx].mf.colorspace;
+	} else {
+		pdata->fmt_inf[idx].mf.code   = mf->code;
+		pdata->fmt_inf[idx].mf.width  = mf->width;
+		pdata->fmt_inf[idx].mf.height = mf->height;
+		pdata->fmt_inf[idx].mf.field  = mf->field;
+		pdata->fmt_inf[idx].mf.colorspace = mf->colorspace;
+	}
+
+	if (pdata->sub_sensor_num)
+		rk1608_get_link_sensor_timing(pdata);
 
 	return 0;
 }
@@ -234,6 +370,25 @@ static int rk1608_g_frame_interval(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct rk1608_dphy *pdata = to_state(sd);
+	struct v4l2_subdev *link_sensor;
+	int ret = 0;
+
+	if (!IS_ERR_OR_NULL(pdata->link_sensor_client)) {
+		link_sensor = i2c_get_clientdata(pdata->link_sensor_client);
+		if (IS_ERR_OR_NULL(link_sensor)) {
+			dev_err(pdata->dev, "can not get link sensor i2c client\n");
+			return -EINVAL;
+		}
+
+		ret = v4l2_subdev_call(link_sensor,
+				video,
+				g_frame_interval,
+				fi);
+		if (ret)
+			dev_info(pdata->dev, "get link interval fail\n");
+		else
+			return ret;
+	}
 
 	if (!(pdata->rk1608_sd)) {
 		dev_info(pdata->dev, "pdata->rk1608_sd NULL\n");
@@ -406,10 +561,25 @@ static int rk1608_get_selection(struct v4l2_subdev *sd,
 	u32 idx = pdata->fmt_inf_idx;
 	u32 width = pdata->fmt_inf[idx].mf.width;
 	u32 height = pdata->fmt_inf[idx].mf.height;
+	struct v4l2_subdev *link_sensor;
+	int ret = -EINVAL;
 
 	if (sel->target != V4L2_SEL_TGT_CROP_BOUNDS)
 		return -EINVAL;
 
+	if (!IS_ERR_OR_NULL(pdata->link_sensor_client)) {
+		link_sensor = i2c_get_clientdata(pdata->link_sensor_client);
+		if (IS_ERR_OR_NULL(link_sensor)) {
+			dev_err(pdata->dev, "can not get link sensor i2c client\n");
+			goto err;
+		}
+
+		ret = v4l2_subdev_call(link_sensor, pad, get_selection, NULL, sel);
+		if (!ret)
+			return 0;
+	}
+
+err:
 	if (pdata->fmt_inf[idx].hcrop && pdata->fmt_inf[idx].vcrop) {
 		width = pdata->fmt_inf[idx].hcrop;
 		height = pdata->fmt_inf[idx].vcrop;
@@ -434,7 +604,24 @@ static int rk1608_enum_frame_interval(struct v4l2_subdev *sd,
 		.numerator = 10000,
 		.denominator = 300000,
 	};
+	struct v4l2_subdev *link_sensor;
 
+	if (!IS_ERR_OR_NULL(pdata->link_sensor_client)) {
+		link_sensor = i2c_get_clientdata(pdata->link_sensor_client);
+		if (IS_ERR_OR_NULL(link_sensor)) {
+			dev_err(pdata->dev, "can not get link sensor i2c client\n");
+			goto err;
+		}
+
+		ret = v4l2_subdev_call(link_sensor,
+				pad,
+				enum_frame_interval,
+				NULL,
+				fie);
+		return ret;
+	}
+
+err:
 	if (fie->index >= pdata->fmt_inf_num)
 		return -EINVAL;
 
@@ -600,6 +787,7 @@ static int rk1608_dphy_dt_property(struct rk1608_dphy *dphy)
 	struct device_node *node = dphy->dev->of_node;
 	struct device_node *parent_node = of_node_get(node);
 	struct device_node *prev_node = NULL;
+	struct i2c_client *link_sensor_client;
 	u32 idx = 0;
 	u32 sub_idx = 0;
 
@@ -804,6 +992,22 @@ static int rk1608_dphy_dt_property(struct rk1608_dphy *dphy)
 		prev_node = node;
 	}
 	dphy->sub_sensor_num = sub_idx;
+
+	node = of_parse_phandle(parent_node, "link-sensor", 0);
+	if (node) {
+		dev_info(dphy->dev, "get link sensor node:%s\n", node->full_name);
+		link_sensor_client =
+			of_find_i2c_device_by_node(node);
+		of_node_put(node);
+		if (IS_ERR_OR_NULL(link_sensor_client)) {
+			dev_err(dphy->dev, "can not get link sensor node\n");
+		} else {
+			dphy->link_sensor_client = link_sensor_client;
+			dev_info(dphy->dev, "get link sensor client\n");
+		}
+	} else {
+		dev_err(dphy->dev, "can not get link-sensor node\n");
+	}
 	/* get virtual sub sensor end */
 
 	of_node_put(prev_node);
