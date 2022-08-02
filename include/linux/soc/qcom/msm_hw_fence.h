@@ -262,8 +262,17 @@ int msm_hw_fence_destroy_with_handle(void *client_handle, u64 handle);
  * @handles: Optional pointer to an array of handles of 'fences'.
  *           If non-null, these handles are filled by the function.
  *           This list must have the same size as 'fences' if present.
- * @num_fences: Number of elements in the 'fences' list (and 'handles',
- *              if present).
+ * @client_data_list: Optional pointer to an array of u64 client_data
+ *                    values for each fence in 'fences'.
+ *                    If non-null, this list must have the same size as
+ *                    the 'fences' list. This client registers each fence
+ *                    with the client_data value at the same index so that
+ *                    this value is returned to the client upon signaling
+ *                    of the fence.
+ *                    If a null pointer is provided, a default value of
+ *                    zero is registered as the client_data of each fence.
+ * @num_fences: Number of elements in the 'fences' list (and 'handles' and
+ *              'client_data_list' if either or both are present).
  * @reg: Boolean to indicate if register or unregister for waiting on
  *            the hw-fence.
  *
@@ -287,7 +296,7 @@ int msm_hw_fence_destroy_with_handle(void *client_handle, u64 handle);
  * Return: 0 on success or negative errno (-EINVAL)
  */
 int msm_hw_fence_wait_update_v2(void *client_handle,
-	struct dma_fence **fences, u64 *handles, u32 num_fences, bool reg);
+	struct dma_fence **fences, u64 *handles, u64 *client_data_list, u32 num_fences, bool reg);
 
 /**
  * msm_hw_fence_wait_update() - Register or unregister the Client with the
@@ -429,7 +438,7 @@ static inline int msm_hw_fence_destroy_with_handle(void *client_handle, u64 hand
 }
 
 static inline int msm_hw_fence_wait_update_v2(void *client_handle,
-	struct dma_fence **fences, u64 *handles, u32 num_fences, bool reg)
+	struct dma_fence **fences, u64 *handles, u64 *client_data_list, u32 num_fences, bool reg)
 {
 	return -EINVAL;
 }
