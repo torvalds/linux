@@ -1309,6 +1309,8 @@ rcu_torture_writer(void *arg)
 			atomic_inc(&rcu_torture_wcount[i]);
 			WRITE_ONCE(old_rp->rtort_pipe_count,
 				   old_rp->rtort_pipe_count + 1);
+
+			// Make sure readers block polled grace periods.
 			if (cur_ops->get_gp_state && cur_ops->poll_gp_state) {
 				idx = cur_ops->readlock();
 				cookie = cur_ops->get_gp_state();
@@ -1325,9 +1327,20 @@ rcu_torture_writer(void *arg)
 				}
 				cur_ops->readunlock(idx);
 			}
-			if (cur_ops->get_gp_completed_full && cur_ops->poll_gp_state_full) {
-				cur_ops->get_gp_completed_full(&cookie_full);
-				WARN_ON_ONCE(!cur_ops->poll_gp_state_full(&cookie_full));
+			if (cur_ops->get_gp_state_full && cur_ops->poll_gp_state_full) {
+				idx = cur_ops->readlock();
+				cur_ops->get_gp_state_full(&cookie_full);
+				WARN_ONCE(cur_ops->poll_gp_state_full(&cookie_full),
+					  "%s: Cookie check 5 failed %s(%d) online %*pbl\n",
+					  __func__,
+					  rcu_torture_writer_state_getname(),
+					  rcu_torture_writer_state,
+					  cpumask_pr_args(cpu_online_mask));
+				if (cur_ops->get_gp_completed_full) {
+					cur_ops->get_gp_completed_full(&cookie_full);
+					WARN_ON_ONCE(!cur_ops->poll_gp_state_full(&cookie_full));
+				}
+				cur_ops->readunlock(idx);
 			}
 			switch (synctype[torture_random(&rand) % nsynctypes]) {
 			case RTWS_DEF_FREE:
