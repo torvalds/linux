@@ -987,11 +987,30 @@ static int cxl_port_setup_targets(struct cxl_port *port,
 		parent_iw = parent_cxld->interleave_ways;
 	}
 
-	granularity_to_cxl(parent_ig, &peig);
-	ways_to_cxl(parent_iw, &peiw);
+	rc = granularity_to_cxl(parent_ig, &peig);
+	if (rc) {
+		dev_dbg(&cxlr->dev, "%s:%s: invalid parent granularity: %d\n",
+			dev_name(parent_port->uport),
+			dev_name(&parent_port->dev), parent_ig);
+		return rc;
+	}
+
+	rc = ways_to_cxl(parent_iw, &peiw);
+	if (rc) {
+		dev_dbg(&cxlr->dev, "%s:%s: invalid parent interleave: %d\n",
+			dev_name(parent_port->uport),
+			dev_name(&parent_port->dev), parent_iw);
+		return rc;
+	}
 
 	iw = cxl_rr->nr_targets;
-	ways_to_cxl(iw, &eiw);
+	rc = ways_to_cxl(iw, &eiw);
+	if (rc) {
+		dev_dbg(&cxlr->dev, "%s:%s: invalid port interleave: %d\n",
+			dev_name(port->uport), dev_name(&port->dev), iw);
+		return rc;
+	}
+
 	if (cxl_rr->nr_targets > 1) {
 		u32 address_bit = max(peig + peiw, eiw + peig);
 
