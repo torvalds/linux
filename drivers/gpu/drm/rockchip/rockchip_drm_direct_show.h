@@ -56,8 +56,8 @@ int rockchip_drm_direct_show_alloc_buffer(struct drm_device *drm,
 					  struct rockchip_drm_direct_show_buffer *buffer);
 void rockchip_drm_direct_show_free_buffer(struct drm_device *drm,
 					  struct rockchip_drm_direct_show_buffer *buffer);
-struct drm_crtc *rockchip_drm_direct_show_get_crtc(struct drm_device *drm);
-struct drm_plane *rockchip_drm_direct_show_get_plane(struct drm_device *drm, char *name);
+struct drm_crtc *rockchip_drm_direct_show_get_crtc(struct drm_device *drm, const char *name);
+struct drm_plane *rockchip_drm_direct_show_get_plane(struct drm_device *drm, const char *name);
 int rockchip_drm_direct_show_commit(struct drm_device *drm,
 				    struct rockchip_drm_direct_show_commit_info *commit_info);
 int rockchip_drm_direct_show_disable_plane(struct drm_device *drm, struct drm_plane *plane);

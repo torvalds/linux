@@ -145,7 +145,7 @@ static void rockchip_drm_self_test_commit(struct work_struct *work)
 	rockchip_drm_draw_color_bar(self_test->drm_buffer[1]);
 
 	/* get crtc and plane */
-	self_test->crtc = rockchip_drm_direct_show_get_crtc(self_test->dev);
+	self_test->crtc = rockchip_drm_direct_show_get_crtc(self_test->dev, NULL);
 	if (self_test->crtc == NULL) {
 		pr_info("error: failed to get crtc\n");
 		goto free_buffer;

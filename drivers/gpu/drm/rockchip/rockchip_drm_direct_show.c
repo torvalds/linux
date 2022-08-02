@@ -172,7 +172,7 @@ void rockchip_drm_direct_show_free_buffer(struct drm_device *drm,
 	drm_gem_object_put(obj);
 }
 
-struct drm_plane *rockchip_drm_direct_show_get_plane(struct drm_device *drm, char *name)
+struct drm_plane *rockchip_drm_direct_show_get_plane(struct drm_device *drm, const char *name)
 {
 	struct drm_plane *plane;
 
@@ -190,15 +190,23 @@ struct drm_plane *rockchip_drm_direct_show_get_plane(struct drm_device *drm, cha
 	return plane;
 }
 
-struct drm_crtc *rockchip_drm_direct_show_get_crtc(struct drm_device *drm)
+struct drm_crtc *rockchip_drm_direct_show_get_crtc(struct drm_device *drm, const char *name)
 {
 	struct drm_crtc *crtc = NULL;
 	bool crtc_active = false;
 
 	drm_for_each_crtc(crtc, drm) {
-		if (crtc->state && crtc->state->active) {
-			crtc_active = true;
-			break;
+		if (name == NULL) {
+			if (crtc->state && crtc->state->active) {
+				crtc_active = true;
+				break;
+			}
+		} else {
+			if (crtc->state && crtc->state->active &&
+			    !strncmp(crtc->name, name, DRM_PROP_NAME_LEN)) {
+				crtc_active = true;
+				break;
+			}
 		}
 	}
 
