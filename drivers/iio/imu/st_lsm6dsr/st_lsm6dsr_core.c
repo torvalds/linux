@@ -282,11 +282,9 @@ const struct ucf_line_t flat_roll_inward_x_y[] = {
 	{.address = 0x09, .data = 0x00,},
 	{.address = 0x0A, .data = 0x00,},
 	{.address = 0x0B, .data = 0x00,},
-	{.address = 0x0D, .data = 0x00,},
 	{.address = 0x0E, .data = 0x00,},
 	{.address = 0x10, .data = 0x52,},
 	{.address = 0x11, .data = 0x50,},
-	{.address = 0x12, .data = 0x64,},
 	{.address = 0x13, .data = 0x02,},
 	{.address = 0x14, .data = 0x00,},
 	{.address = 0x15, .data = 0x06,},
@@ -1623,7 +1621,7 @@ static int st_lsm6dsr_init_device(struct st_lsm6dsr_hw *hw)
 	/* enable Block Data Update */
 	err = st_lsm6dsr_write_with_mask(hw,
 					 ST_LSM6DSR_REG_CTRL3_C_ADDR,
-					 ST_LSM6DSR_REG_BDU_MASK, 0);
+					 ST_LSM6DSR_REG_BDU_MASK, 1);
 	if (err < 0)
 		return err;
 

@@ -430,6 +430,122 @@ static int st_lsm6dsr_read_fifo(struct st_lsm6dsr_hw *hw)
 }
 
 /**
+ * Report events after WTM FIFO irq fired interrupt
+ *
+ * @param hw: ST IMU MEMS hw instance
+ * @return 0 if OK, non zero for error
+ */
+static int st_lsm6dsr_report_events(struct st_lsm6dsr_hw *hw)
+{
+	struct iio_dev *iio_dev;
+	u8 status[3];
+	s64 event;
+	int err;
+
+	if (hw->enable_mask & (BIT(ST_LSM6DSR_ID_STEP_DETECTOR) |
+			       BIT(ST_LSM6DSR_ID_SIGN_MOTION) |
+			       BIT(ST_LSM6DSR_ID_TILT) |
+			       BIT(ST_LSM6DSR_ID_MOTION) |
+			       BIT(ST_LSM6DSR_ID_NO_MOTION) |
+			       BIT(ST_LSM6DSR_ID_WAKEUP) |
+			       BIT(ST_LSM6DSR_ID_PICKUP) |
+			       BIT(ST_LSM6DSR_ID_ORIENTATION) |
+			       BIT(ST_LSM6DSR_ID_WRIST_TILT) |
+			       BIT(ST_LSM6DSR_ID_GLANCE))) {
+
+		err = hw->tf->read(hw->dev,
+				   ST_LSM6DSR_REG_EMB_FUNC_STATUS_MAINPAGE,
+				   sizeof(status), status);
+		if (err < 0)
+			return err;
+
+		/* embedded function sensors */
+		if (status[0] & ST_LSM6DSR_REG_INT_STEP_DET_MASK) {
+			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_STEP_DETECTOR];
+			event = IIO_UNMOD_EVENT_CODE(IIO_STEP_DETECTOR, -1,
+						     IIO_EV_TYPE_THRESH,
+						     IIO_EV_DIR_RISING);
+			iio_push_event(iio_dev, event,
+				       st_lsm6dsr_get_time_ns());
+		}
+		if (status[0] & ST_LSM6DSR_REG_INT_SIGMOT_MASK) {
+			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_SIGN_MOTION];
+			event = IIO_UNMOD_EVENT_CODE(IIO_SIGN_MOTION, -1,
+						     IIO_EV_TYPE_THRESH,
+						     IIO_EV_DIR_RISING);
+			iio_push_event(iio_dev, event,
+				       st_lsm6dsr_get_time_ns());
+		}
+		if (status[0] & ST_LSM6DSR_REG_INT_TILT_MASK) {
+			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_TILT];
+			event = IIO_UNMOD_EVENT_CODE(IIO_TILT, -1,
+						     IIO_EV_TYPE_THRESH,
+						     IIO_EV_DIR_RISING);
+			iio_push_event(iio_dev, event,
+				       st_lsm6dsr_get_time_ns());
+		}
+		/*  fsm sensors */
+		if (status[1] & ST_LSM6DSR_REG_INT_GLANCE_MASK) {
+			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_GLANCE];
+			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
+						     IIO_EV_TYPE_THRESH,
+						     IIO_EV_DIR_RISING);
+			iio_push_event(iio_dev, event,
+				       st_lsm6dsr_get_time_ns());
+		}
+		if (status[1] & ST_LSM6DSR_REG_INT_MOTION_MASK) {
+			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_MOTION];
+			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
+						     IIO_EV_TYPE_THRESH,
+						     IIO_EV_DIR_RISING);
+			iio_push_event(iio_dev, event,
+				       st_lsm6dsr_get_time_ns());
+		}
+		if (status[1] & ST_LSM6DSR_REG_INT_NO_MOTION_MASK) {
+			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_NO_MOTION];
+			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
+						     IIO_EV_TYPE_THRESH,
+						     IIO_EV_DIR_RISING);
+			iio_push_event(iio_dev, event,
+				       st_lsm6dsr_get_time_ns());
+		}
+		if (status[1] & ST_LSM6DSR_REG_INT_WAKEUP_MASK) {
+			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_WAKEUP];
+			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
+						     IIO_EV_TYPE_THRESH,
+						     IIO_EV_DIR_RISING);
+			iio_push_event(iio_dev, event,
+				       st_lsm6dsr_get_time_ns());
+		}
+		if (status[1] & ST_LSM6DSR_REG_INT_PICKUP_MASK) {
+			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_PICKUP];
+			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
+						     IIO_EV_TYPE_THRESH,
+						     IIO_EV_DIR_RISING);
+			iio_push_event(iio_dev, event,
+				       st_lsm6dsr_get_time_ns());
+		}
+		if (status[1] & ST_LSM6DSR_REG_INT_ORIENTATION_MASK) {
+			struct st_lsm6dsr_sensor *sensor;
+
+			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_ORIENTATION];
+			sensor = iio_priv(iio_dev);
+			iio_trigger_poll_chained(sensor->trig);
+		}
+		if (status[1] & ST_LSM6DSR_REG_INT_WRIST_MASK) {
+			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_WRIST_TILT];
+			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
+						     IIO_EV_TYPE_THRESH,
+						     IIO_EV_DIR_RISING);
+			iio_push_event(iio_dev, event,
+				       st_lsm6dsr_get_time_ns());
+		}
+	}
+
+	return 0;
+}
+
+/**
  * Return the max FIFO watermark level accepted
  *
  * @param  dev: Linux Device
@@ -746,109 +862,7 @@ static irqreturn_t st_lsm6dsr_handler_thread(int irq, void *private)
 	clear_bit(ST_LSM6DSR_HW_FLUSH, &hw->state);
 	mutex_unlock(&hw->fifo_lock);
 
-	if (hw->enable_mask & (BIT(ST_LSM6DSR_ID_STEP_DETECTOR) |
-			       BIT(ST_LSM6DSR_ID_SIGN_MOTION) |
-			       BIT(ST_LSM6DSR_ID_TILT) |
-			       BIT(ST_LSM6DSR_ID_MOTION) |
-			       BIT(ST_LSM6DSR_ID_NO_MOTION) |
-			       BIT(ST_LSM6DSR_ID_WAKEUP) |
-			       BIT(ST_LSM6DSR_ID_PICKUP) |
-			       BIT(ST_LSM6DSR_ID_ORIENTATION) |
-			       BIT(ST_LSM6DSR_ID_WRIST_TILT) |
-			       BIT(ST_LSM6DSR_ID_GLANCE))) {
-		struct iio_dev *iio_dev;
-		u8 status[3];
-		s64 event;
-		int err;
-
-		err = hw->tf->read(hw->dev,
-				   ST_LSM6DSR_REG_EMB_FUNC_STATUS_MAINPAGE,
-				   sizeof(status), status);
-		if (err < 0)
-			return IRQ_HANDLED;
-
-		/* embedded function sensors */
-		if (status[0] & ST_LSM6DSR_REG_INT_STEP_DET_MASK) {
-			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_STEP_DETECTOR];
-			event = IIO_UNMOD_EVENT_CODE(IIO_STEP_DETECTOR, -1,
-						     IIO_EV_TYPE_THRESH,
-						     IIO_EV_DIR_RISING);
-			iio_push_event(iio_dev, event,
-				       st_lsm6dsr_get_time_ns());
-		}
-		if (status[0] & ST_LSM6DSR_REG_INT_SIGMOT_MASK) {
-			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_SIGN_MOTION];
-			event = IIO_UNMOD_EVENT_CODE(IIO_SIGN_MOTION, -1,
-						     IIO_EV_TYPE_THRESH,
-						     IIO_EV_DIR_RISING);
-			iio_push_event(iio_dev, event,
-				       st_lsm6dsr_get_time_ns());
-		}
-		if (status[0] & ST_LSM6DSR_REG_INT_TILT_MASK) {
-			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_TILT];
-			event = IIO_UNMOD_EVENT_CODE(IIO_TILT, -1,
-						     IIO_EV_TYPE_THRESH,
-						     IIO_EV_DIR_RISING);
-			iio_push_event(iio_dev, event,
-				       st_lsm6dsr_get_time_ns());
-		}
-		/*  fsm sensors */
-		if (status[1] & ST_LSM6DSR_REG_INT_GLANCE_MASK) {
-			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_GLANCE];
-			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
-						     IIO_EV_TYPE_THRESH,
-						     IIO_EV_DIR_RISING);
-			iio_push_event(iio_dev, event,
-				       st_lsm6dsr_get_time_ns());
-		}
-		if (status[1] & ST_LSM6DSR_REG_INT_MOTION_MASK) {
-			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_MOTION];
-			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
-						     IIO_EV_TYPE_THRESH,
-						     IIO_EV_DIR_RISING);
-			iio_push_event(iio_dev, event,
-				       st_lsm6dsr_get_time_ns());
-		}
-		if (status[1] & ST_LSM6DSR_REG_INT_NO_MOTION_MASK) {
-			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_NO_MOTION];
-			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
-						     IIO_EV_TYPE_THRESH,
-						     IIO_EV_DIR_RISING);
-			iio_push_event(iio_dev, event,
-				       st_lsm6dsr_get_time_ns());
-		}
-		if (status[1] & ST_LSM6DSR_REG_INT_WAKEUP_MASK) {
-			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_WAKEUP];
-			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
-						     IIO_EV_TYPE_THRESH,
-						     IIO_EV_DIR_RISING);
-			iio_push_event(iio_dev, event,
-				       st_lsm6dsr_get_time_ns());
-		}
-		if (status[1] & ST_LSM6DSR_REG_INT_PICKUP_MASK) {
-			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_PICKUP];
-			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
-						     IIO_EV_TYPE_THRESH,
-						     IIO_EV_DIR_RISING);
-			iio_push_event(iio_dev, event,
-				       st_lsm6dsr_get_time_ns());
-		}
-		if (status[1] & ST_LSM6DSR_REG_INT_ORIENTATION_MASK) {
-			struct st_lsm6dsr_sensor *sensor;
-
-			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_ORIENTATION];
-			sensor = iio_priv(iio_dev);
-			iio_trigger_poll_chained(sensor->trig);
-		}
-		if (status[1] & ST_LSM6DSR_REG_INT_WRIST_MASK) {
-			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_WRIST_TILT];
-			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
-						     IIO_EV_TYPE_THRESH,
-						     IIO_EV_DIR_RISING);
-			iio_push_event(iio_dev, event,
-				       st_lsm6dsr_get_time_ns());
-		}
-	}
+	st_lsm6dsr_report_events(hw);
 
 	return IRQ_HANDLED;
 }
@@ -924,7 +938,6 @@ static const struct iio_buffer_setup_ops st_lsm6dsr_buffer_ops = {
  */
 int st_lsm6dsr_irq_setup(struct st_lsm6dsr_hw *hw)
 {
-	struct device_node *np = hw->dev->of_node;
 	unsigned long irq_type;
 	bool irq_active_low;
 	int err;
@@ -953,13 +966,10 @@ int st_lsm6dsr_irq_setup(struct st_lsm6dsr_hw *hw)
 	if (err < 0)
 		return err;
 
-	if (np && of_property_read_bool(np, "drive-open-drain")) {
-		err = st_lsm6dsr_write_with_mask(hw,
-						 ST_LSM6DSR_REG_CTRL3_C_ADDR,
-						 ST_LSM6DSR_REG_PP_OD_MASK, 1);
-		if (err < 0)
-			return err;
-	}
+	err = st_lsm6dsr_write_with_mask(hw, ST_LSM6DSR_REG_INT1_CTRL_ADDR,
+					 ST_LSM6DSR_REG_INT_FIFO_TH_MASK, 1);
+	if (err < 0)
+		return err;
 
 	return 0;
 }
@@ -972,6 +982,7 @@ int st_lsm6dsr_irq_setup(struct st_lsm6dsr_hw *hw)
  */
 int st_lsm6dsr_buffers_setup(struct st_lsm6dsr_hw *hw)
 {
+	struct device_node *np = hw->dev->of_node;
 	struct st_lsm6dsr_sensor *sensor;
 	struct iio_buffer *buffer;
 	struct iio_dev *iio_dev;
@@ -985,6 +996,16 @@ int st_lsm6dsr_buffers_setup(struct st_lsm6dsr_hw *hw)
 	irq_type = irqd_get_trigger_type(irq_get_irq_data(hw->irq));
 	if (irq_type == IRQF_TRIGGER_NONE)
 		irq_type = IRQF_TRIGGER_HIGH;
+
+	if (np && of_property_read_bool(np, "drive-open-drain")) {
+		err = st_lsm6dsr_write_with_mask(hw,
+						 ST_LSM6DSR_REG_CTRL3_C_ADDR,
+						 ST_LSM6DSR_REG_PP_OD_MASK, 1);
+		if (err < 0)
+			return err;
+
+		irq_type |= IRQF_SHARED;
+	}
 
 	err = devm_request_threaded_irq(hw->dev, hw->irq,
 					st_lsm6dsr_handler_irq,
