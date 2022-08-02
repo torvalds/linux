@@ -23,6 +23,24 @@
 #include "mesh.h"
 #include "wme.h"
 
+static struct ieee80211_link_data *
+ieee80211_link_or_deflink(struct ieee80211_sub_if_data *sdata, int link_id)
+{
+	struct ieee80211_link_data *link;
+
+	if (link_id < 0) {
+		if (sdata->vif.valid_links)
+			return ERR_PTR(-EINVAL);
+
+		return &sdata->deflink;
+	}
+
+	link = sdata_dereference(sdata->link[link_id], sdata);
+	if (!link)
+		return ERR_PTR(-ENOLINK);
+	return link;
+}
+
 static void ieee80211_set_mu_mimo_follow(struct ieee80211_sub_if_data *sdata,
 					 struct vif_params *params)
 {
@@ -2568,7 +2586,8 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_link_data *link = &sdata->deflink;
+	struct ieee80211_link_data *link =
+		ieee80211_link_or_deflink(sdata, params->link_id);
 	struct ieee80211_tx_queue_params p;
 
 	if (!local->ops->conf_tx)
@@ -2576,6 +2595,9 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 
 	if (local->hw.queues < IEEE80211_NUM_ACS)
 		return -EOPNOTSUPP;
+
+	if (IS_ERR(link))
+		return PTR_ERR(link);
 
 	memset(&p, 0, sizeof(p));
 	p.aifs = params->aifs;
