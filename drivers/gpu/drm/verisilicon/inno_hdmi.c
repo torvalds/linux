@@ -553,7 +553,7 @@ static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 	hdmi_writeb(hdmi, 0x1be, 0x70);
 	inno_hdmi_tx_phy_power_down(hdmi);
 
-	hdmi_writeb(hdmi, 0xC9, 0x40);
+	//hdmi_writeb(hdmi, 0xC9, 0x40);
 	inno_hdmi_tx_ctrl(hdmi);
 
 	//hdmi_writeb(hdmi, 0x100, 0x02);

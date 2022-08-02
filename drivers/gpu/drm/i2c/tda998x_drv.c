@@ -1392,6 +1392,12 @@ static enum drm_mode_status tda998x_bridge_mode_valid(struct drm_bridge *bridge,
 		return MODE_BAD_HVALUE;
 	if (mode->vtotal >= BIT(11))
 		return MODE_BAD_VVALUE;
+	//u32 vic = drm_match_cea_mode(mode);
+
+	//if (vic >= 1)
+	//	return MODE_OK;
+	//else
+	//	return MODE_BAD;
 	return MODE_OK;
 }
 
@@ -1599,12 +1605,16 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 	 * TDA19988 requires high-active sync at input stage,
 	 * so invert low-active sync provided by master encoder here
 	 */
-	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
+	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
 		reg |= VIP_CNTRL_3_H_TGL;
-	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
+	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
 		reg |= VIP_CNTRL_3_V_TGL;
 	reg_write(priv, REG_VIP_CNTRL_3, reg);
-
+	
+	printk("REG_VIP_CNTRL_3 = %02x\n",reg);
+	//reg_write(priv, REG_VIP_CNTRL_3, 0x26);
+	//reg_write(priv, REG_VIDFORMAT, 0x06);
+	
 	reg_write(priv, REG_VIDFORMAT, 0x00);
 	reg_write16(priv, REG_REFPIX_MSB, ref_pix);
 	reg_write16(priv, REG_REFLINE_MSB, ref_line);
@@ -1637,11 +1647,13 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 	 * revert input stage toggled sync at output stage
 	 */
 	reg = TBG_CNTRL_1_DWIN_DIS | TBG_CNTRL_1_TGL_EN;
-	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
+	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
 		reg |= TBG_CNTRL_1_H_TGL;
-	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
+	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
 		reg |= TBG_CNTRL_1_V_TGL;
 	reg_write(priv, REG_TBG_CNTRL_1, reg);
+	printk("REG_TBG_CNTRL_1 = %02x\n",reg);
+	//reg_write(priv, REG_TBG_CNTRL_1, 0x46);
 
 	/* must be last register set: */
 	reg_write(priv, REG_TBG_CNTRL_0, 0);
