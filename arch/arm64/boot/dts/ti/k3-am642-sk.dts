@@ -607,3 +607,7 @@
 &main_mcan1 {
 	status = "disabled";
 };
+
+&gpmc0 {
+	status = "disabled";
+};
