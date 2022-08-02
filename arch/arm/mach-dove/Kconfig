@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 menuconfig ARCH_DOVE
 	bool "Marvell Dove" if ARCH_MULTI_V7
+	depends on ATAGS
 	select CPU_PJ4
 	select GPIOLIB
 	select MVEBU_MBUS
