@@ -353,6 +353,7 @@ struct dc_config {
 	bool use_pipe_ctx_sync_logic;
 	bool ignore_dpref_ss;
 	bool enable_mipi_converter_optimization;
+	bool use_default_clock_table;
 };
 
 enum visual_confirm {
