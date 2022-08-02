@@ -14,6 +14,7 @@
  *
  */
 
+#include <dt-bindings/gpio/gpio.h>
 #include "qcom-ipq4019.dtsi"
 
 / {
@@ -72,7 +73,7 @@
 			pinctrl-0 = <&spi_0_pins>;
 			pinctrl-names = "default";
 			status = "okay";
-			cs-gpios = <&tlmm 54 0>;
+			cs-gpios = <&tlmm 54 GPIO_ACTIVE_HIGH>;
 
 			mx25l25635e@0 {
 				#address-cells = <1>;
