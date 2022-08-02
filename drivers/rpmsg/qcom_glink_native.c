@@ -1777,6 +1777,29 @@ static void qcom_glink_work(struct work_struct *work)
 	}
 }
 
+void qcom_glink_early_ssr_notify(void *data)
+{
+	struct qcom_glink *glink = data;
+	struct glink_channel *channel;
+	unsigned long flags;
+	int cid;
+
+	if (!glink)
+		return;
+	atomic_inc(&glink->in_reset);
+
+	/* To wakeup any blocking writers */
+	wake_up_all(&glink->tx_avail_notify);
+
+	spin_lock_irqsave(&glink->idr_lock, flags);
+	idr_for_each_entry(&glink->lcids, channel, cid) {
+		wake_up(&channel->intent_req_ack);
+		wake_up(&channel->intent_req_comp);
+	}
+	spin_unlock_irqrestore(&glink->idr_lock, flags);
+}
+EXPORT_SYMBOL(qcom_glink_early_ssr_notify);
+
 static void qcom_glink_cancel_rx_work(struct qcom_glink *glink)
 {
 	struct glink_defer_cmd *dcmd;
@@ -1895,6 +1918,7 @@ struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 	}
 
 	scnprintf(glink->irqname, 32, "glink-native-%s", glink->name);
+
 	irq = of_irq_get(dev->of_node, 0);
 	ret = devm_request_irq(dev, irq,
 			       qcom_glink_native_intr,
@@ -1929,21 +1953,12 @@ static int qcom_glink_remove_device(struct device *dev, void *data)
 void qcom_glink_native_remove(struct qcom_glink *glink)
 {
 	struct glink_channel *channel;
-	unsigned long flags;
 	int cid;
 	int ret;
 
-	atomic_inc(&glink->in_reset);
+	qcom_glink_early_ssr_notify(glink);
 	disable_irq(glink->irq);
 	qcom_glink_cancel_rx_work(glink);
-
-	/* Signal all threads to cancel tx */
-	spin_lock_irqsave(&glink->idr_lock, flags);
-	idr_for_each_entry(&glink->lcids, channel, cid) {
-		wake_up(&channel->intent_req_ack);
-		wake_up(&channel->intent_req_comp);
-	}
-	spin_unlock_irqrestore(&glink->idr_lock, flags);
 
 	ret = device_for_each_child(glink->dev, NULL, qcom_glink_remove_device);
 	if (ret)
