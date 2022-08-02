@@ -35,6 +35,7 @@ struct max96745_bridge {
 	struct {
 		struct gpio_desc *gpio;
 		int irq;
+		bool irq_enabled;
 		atomic_t triggered;
 	} lock;
 	struct extcon_dev *extcon;
@@ -137,6 +138,7 @@ static int max96745_bridge_attach(struct drm_bridge *bridge,
 		connector->status = connector_status_connected;
 		extcon_set_state(ser->extcon, EXTCON_JACK_VIDEO_OUT, true);
 		enable_irq(ser->lock.irq);
+		ser->lock.irq_enabled = true;
 	} else {
 		connector->status = connector_status_disconnected;
 		extcon_set_state(ser->extcon, EXTCON_JACK_VIDEO_OUT, false);
@@ -167,14 +169,20 @@ static void max96745_bridge_enable(struct drm_bridge *bridge)
 
 	extcon_set_state_sync(ser->extcon, EXTCON_JACK_VIDEO_OUT, true);
 
-	enable_irq(ser->lock.irq);
+	if (!ser->lock.irq_enabled) {
+		enable_irq(ser->lock.irq);
+		ser->lock.irq_enabled = true;
+	}
 }
 
 static void max96745_bridge_disable(struct drm_bridge *bridge)
 {
 	struct max96745_bridge *ser = to_max96745_bridge(bridge);
 
-	disable_irq(ser->lock.irq);
+	if (ser->lock.irq_enabled) {
+		disable_irq(ser->lock.irq);
+		ser->lock.irq_enabled = false;
+	}
 
 	extcon_set_state_sync(ser->extcon, EXTCON_JACK_VIDEO_OUT, false);
 
