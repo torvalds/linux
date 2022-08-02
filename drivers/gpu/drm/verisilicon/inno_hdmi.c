@@ -137,7 +137,6 @@ static inline u8 hdmi_readb(struct inno_hdmi *hdmi, u16 offset)
 
 static inline void hdmi_writeb(struct inno_hdmi *hdmi, u16 offset, u32 val)
 {
-	printk("write: addr 0x%02x, val 0x%02x\n",offset,val);
 	writel_relaxed(val, hdmi->regs + (offset) * 0x04);
 }
 
@@ -533,8 +532,6 @@ static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 
 	val = readl_relaxed(hdmi->regs + (0x1b0) * 0x04);
 	val |= 0x4;
-	//writel_relaxed(val, hdmi->regs + (0x1b0) * 0x04);
-	//writel_relaxed(0xf, hdmi->regs + (0x1cc) * 0x04);
 	hdmi_writeb(hdmi, 0x1b0, val);
 	hdmi_writeb(hdmi, 0x1cc, 0xf);
 	hdmi->hdmi_data.vic = drm_match_cea_mode(mode);
@@ -553,13 +550,7 @@ static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 	hdmi_writeb(hdmi, 0x1be, 0x70);
 	inno_hdmi_tx_phy_power_down(hdmi);
 
-	//hdmi_writeb(hdmi, 0xC9, 0x40);
 	inno_hdmi_tx_ctrl(hdmi);
-
-	//hdmi_writeb(hdmi, 0x100, 0x02);
-
-	//drm_scdc_set_high_tmds_clock_ratio(hdmi->ddc, true);
-	//drm_scdc_set_scrambling(hdmi->ddc, true);
 
 	hdmi_writeb(hdmi, 0x35, 0x01);
 	hdmi_writeb(hdmi, 0x38, 0x04);
@@ -621,11 +612,6 @@ inno_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
 			       struct drm_crtc_state *crtc_state,
 			       struct drm_connector_state *conn_state)
 {
-	//struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
-
-	//s->output_mode = ROCKCHIP_OUT_MODE_P888;
-	//s->output_type = DRM_MODE_CONNECTOR_HDMIA;
-
 	return 0;
 }
 
@@ -773,10 +759,6 @@ inno_hdmi_connector_mode_valid(struct drm_connector *connector,
 	return (valid) ? MODE_OK : MODE_BAD;
 #endif
 	u32 vic = drm_match_cea_mode(mode);
-	struct drm_display_info *display = &connector->display_info;
-	printk("vic ======== %d-------display->hdmi.scdc.supported = %d",vic,display->hdmi.scdc.supported);
-	
-	printk("display->hdmi.scdc.scrambling.supported = %d",display->hdmi.scdc.scrambling.supported);
 
 	if (vic >= 1)
 		return MODE_OK;
