@@ -606,8 +606,7 @@ void rkcif_write_register(struct rkcif_device *dev,
 			csi_offset = dev->csi_host_idx * 0x200;
 	}
 	if (index < CIF_REG_INDEX_MAX) {
-		if (index == CIF_REG_DVP_CTRL ||
-		    (index != CIF_REG_DVP_CTRL && reg->offset != 0x0))
+		if (index == CIF_REG_DVP_CTRL || reg->offset != 0x0)
 			write_cif_reg(base, reg->offset + csi_offset, val);
 		else
 			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
@@ -634,8 +633,7 @@ void rkcif_write_register_or(struct rkcif_device *dev,
 	}
 
 	if (index < CIF_REG_INDEX_MAX) {
-		if (index == CIF_REG_DVP_CTRL ||
-		    (index != CIF_REG_DVP_CTRL && reg->offset != 0x0)) {
+		if (index == CIF_REG_DVP_CTRL || reg->offset != 0x0) {
 			reg_val = read_cif_reg(base, reg->offset + csi_offset);
 			reg_val |= val;
 			write_cif_reg(base, reg->offset + csi_offset, reg_val);
@@ -665,8 +663,7 @@ void rkcif_write_register_and(struct rkcif_device *dev,
 	}
 
 	if (index < CIF_REG_INDEX_MAX) {
-		if (index == CIF_REG_DVP_CTRL ||
-		    (index != CIF_REG_DVP_CTRL && reg->offset != 0x0)) {
+		if (index == CIF_REG_DVP_CTRL || reg->offset != 0x0) {
 			reg_val = read_cif_reg(base, reg->offset + csi_offset);
 			reg_val &= val;
 			write_cif_reg(base, reg->offset + csi_offset, reg_val);
@@ -696,8 +693,7 @@ unsigned int rkcif_read_register(struct rkcif_device *dev,
 	}
 
 	if (index < CIF_REG_INDEX_MAX) {
-		if (index == CIF_REG_DVP_CTRL ||
-		    (index != CIF_REG_DVP_CTRL && reg->offset != 0x0))
+		if (index == CIF_REG_DVP_CTRL || reg->offset != 0x0)
 			val = read_cif_reg(base, reg->offset + csi_offset);
 		else
 			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
