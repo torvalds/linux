@@ -3546,8 +3546,10 @@ static bool commit_minimal_transition_state(struct dc *dc,
 	if (!transition_context)
 		return false;
 
-	tmp_policy = dc->debug.pipe_split_policy;
-	dc->debug.pipe_split_policy = MPC_SPLIT_AVOID;
+	if (!dc->config.is_vmin_only_asic) {
+		tmp_policy = dc->debug.pipe_split_policy;
+		dc->debug.pipe_split_policy = MPC_SPLIT_AVOID;
+	}
 
 	dc_resource_state_copy_construct(transition_base_context, transition_context);
 
@@ -3573,7 +3575,8 @@ static bool commit_minimal_transition_state(struct dc *dc,
 	dc_release_state(transition_context);
 
 	//restore previous pipe split policy
-	dc->debug.pipe_split_policy = tmp_policy;
+	if (!dc->config.is_vmin_only_asic)
+		dc->debug.pipe_split_policy = tmp_policy;
 
 	if (ret != DC_OK) {
 		//this should never happen

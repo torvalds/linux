@@ -1495,6 +1495,24 @@ static bool dcn10_resource_construct(
 	/* Other architectures we build for build this with soft-float */
 	dcn10_resource_construct_fp(dc);
 
+	if (!dc->config.is_vmin_only_asic)
+		if (ASICREV_IS_RAVEN2(dc->ctx->asic_id.hw_internal_rev))
+			switch (dc->ctx->asic_id.pci_revision_id) {
+			case PRID_DALI_DE:
+			case PRID_DALI_DF:
+			case PRID_DALI_E3:
+			case PRID_DALI_E4:
+			case PRID_POLLOCK_94:
+			case PRID_POLLOCK_95:
+			case PRID_POLLOCK_E9:
+			case PRID_POLLOCK_EA:
+			case PRID_POLLOCK_EB:
+				dc->config.is_vmin_only_asic = true;
+				break;
+			default:
+				break;
+			}
+
 	pool->base.pp_smu = dcn10_pp_smu_create(ctx);
 
 	/*
