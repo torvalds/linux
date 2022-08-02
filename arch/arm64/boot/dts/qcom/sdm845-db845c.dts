@@ -1228,8 +1228,6 @@
 		 * both have to be enabled through the power management
 		 * gpios.
 		 */
-		power-domains = <&clock_camcc TITAN_TOP_GDSC>;
-
 		dovdd-supply = <&vreg_lvs1a_1p8>;
 		avdd-supply = <&cam0_avdd_2v8>;
 		dvdd-supply = <&cam0_dvdd_1v2>;
@@ -1273,8 +1271,6 @@
 		 *
 		 * No 1.2V vddd-supply regulator is used.
 		 */
-		power-domains = <&clock_camcc TITAN_TOP_GDSC>;
-
 		vdddo-supply = <&vreg_lvs1a_1p8>;
 		vdda-supply = <&cam3_avdd_2v8>;
 
