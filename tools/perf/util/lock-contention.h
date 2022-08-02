@@ -112,6 +112,7 @@ struct lock_contention {
 	struct target *target;
 	struct machine *machine;
 	struct hlist_head *result;
+	unsigned long map_nr_entries;
 };
 
 #ifdef HAVE_BPF_SKEL

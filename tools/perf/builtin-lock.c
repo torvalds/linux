@@ -56,6 +56,7 @@ static struct rb_root		thread_stats;
 static bool combine_locks;
 static bool show_thread_stats;
 static bool use_bpf;
+static unsigned long bpf_map_entries = 10240;
 
 static enum {
 	LOCK_AGGR_ADDR,
@@ -1598,6 +1599,7 @@ static int __cmd_contention(int argc, const char **argv)
 	struct lock_contention con = {
 		.target = &target,
 		.result = &lockhash_table[0],
+		.map_nr_entries = bpf_map_entries,
 	};
 
 	session = perf_session__new(use_bpf ? NULL : &data, &eops);
@@ -1787,6 +1789,24 @@ setup_args:
 	return ret;
 }
 
+static int parse_map_entry(const struct option *opt, const char *str,
+			    int unset __maybe_unused)
+{
+	unsigned long *len = (unsigned long *)opt->value;
+	unsigned long val;
+	char *endptr;
+
+	errno = 0;
+	val = strtoul(str, &endptr, 0);
+	if (*endptr != '\0' || errno != 0) {
+		pr_err("invalid BPF map length: %s\n", str);
+		return -1;
+	}
+
+	*len = val;
+	return 0;
+}
+
 int cmd_lock(int argc, const char **argv)
 {
 	const struct option lock_options[] = {
@@ -1836,9 +1856,10 @@ int cmd_lock(int argc, const char **argv)
 		    "List of cpus to monitor"),
 	OPT_STRING('p', "pid", &target.pid, "pid",
 		   "Trace on existing process id"),
-	/* TODO: Add short option -t after -t/--tracer can be removed. */
 	OPT_STRING(0, "tid", &target.tid, "tid",
 		   "Trace on existing thread id (exclusive to --pid)"),
+	OPT_CALLBACK(0, "map-nr-entries", &bpf_map_entries, "num",
+		     "Max number of BPF map entries", parse_map_entry),
 	OPT_PARENT(lock_options)
 	};
 

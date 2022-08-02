@@ -40,6 +40,9 @@ int lock_contention_prepare(struct lock_contention *con)
 		return -1;
 	}
 
+	bpf_map__set_max_entries(skel->maps.stacks, con->map_nr_entries);
+	bpf_map__set_max_entries(skel->maps.lock_stat, con->map_nr_entries);
+
 	if (target__has_cpu(target))
 		ncpus = perf_cpu_map__nr(evlist->core.user_requested_cpus);
 	if (target__has_task(target))
