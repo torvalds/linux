@@ -53,7 +53,8 @@ static unsigned long get_entry_num_slots(efi_memory_desc_t *md,
 efi_status_t efi_random_alloc(unsigned long size,
 			      unsigned long align,
 			      unsigned long *addr,
-			      unsigned long random_seed)
+			      unsigned long random_seed,
+			      int memory_type)
 {
 	unsigned long total_slots = 0, target_slot;
 	unsigned long total_mirrored_slots = 0;
@@ -118,7 +119,7 @@ efi_status_t efi_random_alloc(unsigned long size,
 		pages = size / EFI_PAGE_SIZE;
 
 		status = efi_bs_call(allocate_pages, EFI_ALLOCATE_ADDRESS,
-				     EFI_LOADER_DATA, pages, &target);
+				     memory_type, pages, &target);
 		if (status == EFI_SUCCESS)
 			*addr = target;
 		break;

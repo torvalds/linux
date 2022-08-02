@@ -91,7 +91,8 @@ efi_status_t efi_allocate_pages(unsigned long size, unsigned long *addr,
 
 	if (EFI_ALLOC_ALIGN > EFI_PAGE_SIZE)
 		return efi_allocate_pages_aligned(size, addr, max,
-						  EFI_ALLOC_ALIGN);
+						  EFI_ALLOC_ALIGN,
+						  EFI_LOADER_DATA);
 
 	alloc_addr = ALIGN_DOWN(max + 1, EFI_ALLOC_ALIGN) - 1;
 	status = efi_bs_call(allocate_pages, EFI_ALLOCATE_MAX_ADDRESS,

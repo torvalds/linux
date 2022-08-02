@@ -880,7 +880,8 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 efi_status_t efi_get_random_bytes(unsigned long size, u8 *out);
 
 efi_status_t efi_random_alloc(unsigned long size, unsigned long align,
-			      unsigned long *addr, unsigned long random_seed);
+			      unsigned long *addr, unsigned long random_seed,
+			      int memory_type);
 
 efi_status_t efi_random_get_seed(void);
 
@@ -907,7 +908,8 @@ efi_status_t efi_allocate_pages(unsigned long size, unsigned long *addr,
 				unsigned long max);
 
 efi_status_t efi_allocate_pages_aligned(unsigned long size, unsigned long *addr,
-					unsigned long max, unsigned long align);
+					unsigned long max, unsigned long align,
+					int memory_type);
 
 efi_status_t efi_low_alloc_above(unsigned long size, unsigned long align,
 				 unsigned long *addr, unsigned long min);
