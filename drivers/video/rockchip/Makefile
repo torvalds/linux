@@ -6,3 +6,4 @@ obj-$(CONFIG_ROCKCHIP_RVE) += rve/
 obj-$(CONFIG_IEP) += iep/
 obj-$(CONFIG_ROCKCHIP_MPP_SERVICE) += mpp/
 obj-$(CONFIG_ROCKCHIP_DVBM) += dvbm/
+obj-$(CONFIG_VIDEO_REVERSE_IMAGE) += vehicle/

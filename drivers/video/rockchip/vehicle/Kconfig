@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: GPL-2.0
+config VIDEO_REVERSE_IMAGE
+	bool "Rockchip Fast Reverse Image driver"
+	depends on ARCH_ROCKCHIP && ROCKCHIP_DRM_DIRECT_SHOW
+	depends on VIDEO_ROCKCHIP_CIF && PHY_ROCKCHIP_CSI2_DPHY
+	help
+	  fast reverse Image module.
+
+if VIDEO_REVERSE_IMAGE
+
+config VIDEO_REVERSE_NVP6324
+	bool "nvp6324 for reverse sensor"
+	help
+	  Say y if use nvp6324.
+
+config VIDEO_REVERSE_NVP6188
+	bool "nvp6188 for reverse sensor"
+	help
+	  Say y if use nvp6188.
+
+config VIDEO_REVERSE_MAX96714
+	bool "max96714 for reverse sensor"
+	help
+	  Say y if use max96714.
+
+config VIDEO_REVERSE_GC2145
+	bool "gc2145 for reverse sensor"
+	help
+	  Say y if use gc2145.
+
+config VIDEO_REVERSE_TP2825
+	bool "tp2825 for reverse sensor"
+	help
+	  Say y if use tp2825.
+
+config VIDEO_REVERSE_AD7181
+	bool "ad7181 for reverse sensor"
+	help
+	  Say y if use ad7181.
+
+endif
