@@ -1,0 +1,247 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+&csi2_dphy_hw {
+	status = "okay";
+};
+
+/*
+ * csi2_dphy1 & csi2_dphy2 used for split mode,
+ * csi2_dphy0 used for full mode,
+ * full mode and split mode are mutually exclusive
+ */
+&csi2_dphy0 {
+	status = "disabled";
+	/delete-node/ ports;
+};
+
+&csi2_dphy1 {
+	status = "okay";
+	/*
+	 * dphy1 only used for split mode,
+	 * can be used  concurrently  with dphy2
+	 * full mode and split mode are mutually exclusive
+	 */
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_gc2093_rgb: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&gc2093_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy1_out: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&mipi_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dphy2 {
+	status = "okay";
+	/*
+	 * dphy2 only used for split mode,
+	 * can be used  concurrently  with dphy1
+	 * full mode and split mode are mutually exclusive
+	 */
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_gc2053_ir: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&gc2053_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy2_out: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&isp_in1>;
+			};
+		};
+	};
+};
+
+&mipi_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&dphy1_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&i2c4 {
+	status = "okay";
+
+	/delete-node/ gc8034@37;
+	/delete-node/ os04a10@36;
+	/delete-node/ ov5695@36;
+
+	gc2053: gc2053@37 {
+		status = "okay";
+		compatible = "galaxycore,gc2053";
+		reg = <0x37>;
+		clocks = <&pmucru CLK_WIFI>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3568_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&refclk_pins>;
+		reset-gpios = <&gpio3 RK_PB5 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio4 RK_PB5 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "DW-RV2093-V1.0";
+		rockchip,camera-module-lens-name = "JZ-7070AS-A3";
+		port {
+			gc2053_out: endpoint {
+				remote-endpoint = <&mipi_in_gc2053_ir>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	gc2093: gc2093@7e {
+		status = "okay";
+		compatible = "galaxycore,gc2093";
+		reg = <0x7e>;
+		clocks = <&cru CLK_CIF_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3568_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cif_clk>;
+		reset-gpios = <&gpio3 RK_PB6 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio4 RK_PB4 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "DW-RV2093-V1.0";
+		rockchip,camera-module-lens-name = "JZ-7070AS-A1";
+		port {
+			gc2093_out: endpoint {
+				remote-endpoint = <&mipi_in_gc2093_rgb>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	port {
+		cif_mipi_in: endpoint {
+			remote-endpoint = <&mipi_csi2_output>;
+			data-lanes = <1 2>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds_sditf {
+	status = "okay";
+
+	port {
+		mipi_lvds_sditf: endpoint {
+			remote-endpoint = <&isp_in2>;
+			data-lanes = <1 2>;
+		 };
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+
+&rkisp {
+	status = "okay";
+	max-input = <3840 2160 30>;
+};
+
+&rkisp_mmu {
+	status = "okay";
+};
+
+&rkisp_vir0 {
+	status = "okay";
+	/* gc2053-ir->dphy2->isp_vir0 */
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_in1: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dphy2_out>;
+		};
+	};
+};
+
+&rkisp_vir1 {
+	status = "okay";
+	/* gc2093-rgb->dphy1->csi2->vicap */
+	/* vicap sditf->isp_vir1 */
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_in2: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds_sditf>;
+		};
+	};
+};
