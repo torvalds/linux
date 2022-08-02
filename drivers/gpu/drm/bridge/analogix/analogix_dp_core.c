@@ -1927,6 +1927,7 @@ static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 	struct video_info *video_info = &dp->video_info;
 	struct property *prop;
 	int ret, len, num_lanes;
+	u32 max_link_rate;
 
 	switch (dp->plat_data->dev_type) {
 	case RK3288_DP:
@@ -1953,6 +1954,25 @@ static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 		of_property_read_u32(dp_node, "samsung,lane-count",
 				     &video_info->max_lane_count);
 		break;
+	}
+
+	if (!of_property_read_u32(dp_node, "max-link-rate", &max_link_rate)) {
+		switch (max_link_rate) {
+		case 1620:
+		case 2700:
+		case 5400:
+			break;
+		default:
+			dev_err(dp->dev, "invalid max-link-rate value: %d\n",
+				max_link_rate);
+			return -EINVAL;
+		}
+
+		max_link_rate *= 100;
+
+		if (max_link_rate < drm_dp_bw_code_to_link_rate(video_info->max_link_rate))
+			video_info->max_link_rate =
+				drm_dp_link_rate_to_bw_code(max_link_rate);
 	}
 
 	video_info->video_bist_enable =
