@@ -252,26 +252,29 @@ static void qcom_cc_set_critical(struct device *dev, struct qcom_cc *cc)
 	}
 
 	of_property_for_each_u32(dev->of_node, "qcom,critical-devices", prop, p, i) {
-		np = of_find_node_by_phandle(i);
-		if (!np)
-			continue;
-
-		cnt = of_count_phandle_with_args(np, "clocks", "#clock-cells");
-
-		for (i = 0; i < cnt; i++) {
-			of_parse_phandle_with_args(np, "clocks", "#clock-cells",
-						   i, &args);
-			clock_idx = args.args[0];
-
-			if (args.np != dev->of_node || clock_idx >= cc->num_rclks)
+		for (np = of_find_node_by_phandle(i); np; np = of_get_parent(np)) {
+			if (!of_property_read_bool(np, "clocks")) {
+				of_node_put(np);
 				continue;
+			}
 
-			if (cc->rclks[clock_idx])
-				cc->rclks[clock_idx]->flags |= QCOM_CLK_IS_CRITICAL;
-			of_node_put(args.np);
+			cnt = of_count_phandle_with_args(np, "clocks", "#clock-cells");
+
+			for (i = 0; i < cnt; i++) {
+				of_parse_phandle_with_args(np, "clocks", "#clock-cells",
+							   i, &args);
+				clock_idx = args.args[0];
+
+				if (args.np != dev->of_node || clock_idx >= cc->num_rclks)
+					continue;
+
+				if (cc->rclks[clock_idx])
+					cc->rclks[clock_idx]->flags |= QCOM_CLK_IS_CRITICAL;
+				of_node_put(args.np);
+			}
+
+			of_node_put(np);
 		}
-
-		of_node_put(np);
 	}
 }
 
