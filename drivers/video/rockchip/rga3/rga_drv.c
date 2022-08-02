@@ -1689,6 +1689,8 @@ static void __exit rga_exit(void)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
 #ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
 module_init(rga_init);
+#elif defined CONFIG_VIDEO_REVERSE_IMAGE
+fs_initcall(rga_init);
 #else
 late_initcall(rga_init);
 #endif
