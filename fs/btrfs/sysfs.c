@@ -1150,25 +1150,6 @@ static ssize_t btrfs_generation_show(struct kobject *kobj,
 }
 BTRFS_ATTR(, generation, btrfs_generation_show);
 
-/*
- * Look for an exact string @string in @buffer with possible leading or
- * trailing whitespace
- */
-static bool strmatch(const char *buffer, const char *string)
-{
-	const size_t len = strlen(string);
-
-	/* Skip leading whitespace */
-	buffer = skip_spaces(buffer);
-
-	/* Match entire string, check if the rest is whitespace or empty */
-	if (strncmp(string, buffer, len) == 0 &&
-	    strlen(skip_spaces(buffer + len)) == 0)
-		return true;
-
-	return false;
-}
-
 static const char * const btrfs_read_policy_name[] = { "pid" };
 
 static ssize_t btrfs_read_policy_show(struct kobject *kobj,
@@ -1202,7 +1183,7 @@ static ssize_t btrfs_read_policy_store(struct kobject *kobj,
 	int i;
 
 	for (i = 0; i < BTRFS_NR_READ_POLICY; i++) {
-		if (strmatch(buf, btrfs_read_policy_name[i])) {
+		if (sysfs_streq(buf, btrfs_read_policy_name[i])) {
 			if (i != fs_devices->read_policy) {
 				fs_devices->read_policy = i;
 				btrfs_info(fs_devices->fs_info,
