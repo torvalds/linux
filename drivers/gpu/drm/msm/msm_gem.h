@@ -197,8 +197,8 @@ msm_gem_unlock(struct drm_gem_object *obj)
 	dma_resv_unlock(obj->resv);
 }
 
-static inline bool
-msm_gem_is_locked(struct drm_gem_object *obj)
+static inline void
+msm_gem_assert_locked(struct drm_gem_object *obj)
 {
 	/*
 	 * Destroying the object is a special case.. msm_gem_free_object()
@@ -212,13 +212,10 @@ msm_gem_is_locked(struct drm_gem_object *obj)
 	 * Unfortunately lockdep is not aware of this detail.  So when the
 	 * refcount drops to zero, we pretend it is already locked.
 	 */
-	return dma_resv_is_locked(obj->resv) || (kref_read(&obj->refcount) == 0);
-}
-
-static inline void
-msm_gem_assert_locked(struct drm_gem_object *obj)
-{
-	GEM_WARN_ON(!msm_gem_is_locked(obj));
+	lockdep_assert_once(
+		(kref_read(&obj->refcount) == 0) ||
+		(lockdep_is_held(&obj->resv->lock.base) != LOCK_STATE_NOT_HELD)
+	);
 }
 
 /* imported/exported objects are not purgeable: */
