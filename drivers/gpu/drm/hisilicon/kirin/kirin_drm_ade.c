@@ -551,10 +551,10 @@ static void ade_rdma_set(void __iomem *base, struct drm_framebuffer *fb,
 	struct drm_gem_dma_object *obj = drm_fb_dma_get_gem_obj(fb, 0);
 	u32 reg_ctrl, reg_addr, reg_size, reg_stride, reg_space, reg_en;
 	u32 stride = fb->pitches[0];
-	u32 addr = (u32)obj->paddr + y * stride;
+	u32 addr = (u32) obj->dma_addr + y * stride;
 
 	DRM_DEBUG_DRIVER("rdma%d: (y=%d, height=%d), stride=%d, paddr=0x%x\n",
-			 ch + 1, y, in_h, stride, (u32)obj->paddr);
+			 ch + 1, y, in_h, stride, (u32) obj->dma_addr);
 	DRM_DEBUG_DRIVER("addr=0x%x, fb:%dx%d, pixel_format=%d(%p4cc)\n",
 			 addr, fb->width, fb->height, fmt,
 			 &fb->format->format);

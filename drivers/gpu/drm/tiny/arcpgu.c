@@ -227,7 +227,7 @@ static void arc_pgu_update(struct drm_simple_display_pipe *pipe,
 
 	arcpgu = pipe_to_arcpgu_priv(pipe);
 	gem = drm_fb_dma_get_gem_obj(pipe->plane.state->fb, 0);
-	arc_pgu_write(arcpgu, ARCPGU_REG_BUF0_ADDR, gem->paddr);
+	arc_pgu_write(arcpgu, ARCPGU_REG_BUF0_ADDR, gem->dma_addr);
 }
 
 static const struct drm_simple_display_pipe_funcs arc_pgu_pipe_funcs = {

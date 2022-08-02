@@ -145,11 +145,12 @@ struct drm_gem_dma_object *drm_gem_dma_create(struct drm_device *drm,
 
 	if (dma_obj->map_noncoherent) {
 		dma_obj->vaddr = dma_alloc_noncoherent(drm->dev, size,
-						       &dma_obj->paddr,
+						       &dma_obj->dma_addr,
 						       DMA_TO_DEVICE,
 						       GFP_KERNEL | __GFP_NOWARN);
 	} else {
-		dma_obj->vaddr = dma_alloc_wc(drm->dev, size, &dma_obj->paddr,
+		dma_obj->vaddr = dma_alloc_wc(drm->dev, size,
+					      &dma_obj->dma_addr,
 					      GFP_KERNEL | __GFP_NOWARN);
 	}
 	if (!dma_obj->vaddr) {
@@ -234,11 +235,11 @@ void drm_gem_dma_free(struct drm_gem_dma_object *dma_obj)
 	} else if (dma_obj->vaddr) {
 		if (dma_obj->map_noncoherent)
 			dma_free_noncoherent(gem_obj->dev->dev, dma_obj->base.size,
-					     dma_obj->vaddr, dma_obj->paddr,
+					     dma_obj->vaddr, dma_obj->dma_addr,
 					     DMA_TO_DEVICE);
 		else
 			dma_free_wc(gem_obj->dev->dev, dma_obj->base.size,
-				    dma_obj->vaddr, dma_obj->paddr);
+				    dma_obj->vaddr, dma_obj->dma_addr);
 	}
 
 	drm_gem_object_release(gem_obj);
@@ -396,12 +397,12 @@ EXPORT_SYMBOL_GPL(drm_gem_dma_get_unmapped_area);
  * @p: DRM printer
  * @indent: Tab indentation level
  *
- * This function prints paddr and vaddr for use in e.g. debugfs output.
+ * This function prints dma_addr and vaddr for use in e.g. debugfs output.
  */
 void drm_gem_dma_print_info(const struct drm_gem_dma_object *dma_obj,
 			    struct drm_printer *p, unsigned int indent)
 {
-	drm_printf_indent(p, indent, "paddr=%pad\n", &dma_obj->paddr);
+	drm_printf_indent(p, indent, "dma_addr=%pad\n", &dma_obj->dma_addr);
 	drm_printf_indent(p, indent, "vaddr=%p\n", dma_obj->vaddr);
 }
 EXPORT_SYMBOL(drm_gem_dma_print_info);
@@ -428,7 +429,7 @@ struct sg_table *drm_gem_dma_get_sg_table(struct drm_gem_dma_object *dma_obj)
 		return ERR_PTR(-ENOMEM);
 
 	ret = dma_get_sgtable(obj->dev->dev, sgt, dma_obj->vaddr,
-			      dma_obj->paddr, obj->size);
+			      dma_obj->dma_addr, obj->size);
 	if (ret < 0)
 		goto out;
 
@@ -473,10 +474,11 @@ drm_gem_dma_prime_import_sg_table(struct drm_device *dev,
 	if (IS_ERR(dma_obj))
 		return ERR_CAST(dma_obj);
 
-	dma_obj->paddr = sg_dma_address(sgt->sgl);
+	dma_obj->dma_addr = sg_dma_address(sgt->sgl);
 	dma_obj->sgt = sgt;
 
-	DRM_DEBUG_PRIME("dma_addr = %pad, size = %zu\n", &dma_obj->paddr, attach->dmabuf->size);
+	DRM_DEBUG_PRIME("dma_addr = %pad, size = %zu\n", &dma_obj->dma_addr,
+			attach->dmabuf->size);
 
 	return &dma_obj->base;
 }
@@ -539,7 +541,8 @@ int drm_gem_dma_mmap(struct drm_gem_dma_object *dma_obj, struct vm_area_struct *
 				     virt_to_page(dma_obj->vaddr));
 	} else {
 		ret = dma_mmap_wc(dma_obj->base.dev->dev, vma, dma_obj->vaddr,
-				  dma_obj->paddr, vma->vm_end - vma->vm_start);
+				  dma_obj->dma_addr,
+				  vma->vm_end - vma->vm_start);
 	}
 	if (ret)
 		drm_gem_vm_close(vma);

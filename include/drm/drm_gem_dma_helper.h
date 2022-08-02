@@ -11,7 +11,7 @@ struct drm_mode_create_dumb;
 /**
  * struct drm_gem_dma_object - GEM object backed by DMA memory allocations
  * @base: base GEM object
- * @paddr: DMA address of the backing memory
+ * @dma_addr: DMA address of the backing memory
  * @sgt: scatter/gather table for imported PRIME buffers. The table can have
  *       more than one entry but they are guaranteed to have contiguous
  *       DMA addresses.
@@ -20,7 +20,7 @@ struct drm_mode_create_dumb;
  */
 struct drm_gem_dma_object {
 	struct drm_gem_object base;
-	dma_addr_t paddr;
+	dma_addr_t dma_addr;
 	struct sg_table *sgt;
 
 	/* For objects with DMA memory allocated by GEM DMA */

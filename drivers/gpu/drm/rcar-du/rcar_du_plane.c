@@ -351,7 +351,7 @@ static void rcar_du_plane_setup_scanout(struct rcar_du_group *rgrp,
 
 		for (i = 0; i < state->format->planes; ++i) {
 			gem = drm_fb_dma_get_gem_obj(fb, i);
-			dma[i] = gem->paddr + fb->offsets[i];
+			dma[i] = gem->dma_addr + fb->offsets[i];
 		}
 	} else {
 		pitch = drm_rect_width(&state->state.src) >> 16;

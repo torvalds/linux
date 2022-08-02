@@ -341,7 +341,7 @@ static void sprd_dpu_layer(struct sprd_dpu *dpu, struct drm_plane_state *state)
 
 	for (i = 0; i < fb->format->num_planes; i++) {
 		dma_obj = drm_fb_dma_get_gem_obj(fb, i);
-		addr = dma_obj->paddr + fb->offsets[i];
+		addr = dma_obj->dma_addr + fb->offsets[i];
 
 		if (i == 0)
 			layer_reg_wr(ctx, REG_LAY_BASE_ADDR0, addr, index);

@@ -224,20 +224,20 @@ static void dcss_plane_atomic_set_base(struct dcss_plane *dcss_plane)
 	if (!format->is_yuv ||
 	    format->format == DRM_FORMAT_NV12 ||
 	    format->format == DRM_FORMAT_NV21)
-		p1_ba = dma_obj->paddr + fb->offsets[0] +
+		p1_ba = dma_obj->dma_addr + fb->offsets[0] +
 			fb->pitches[0] * (state->src.y1 >> 16) +
 			format->char_per_block[0] * (state->src.x1 >> 16);
 	else if (format->format == DRM_FORMAT_UYVY ||
 		 format->format == DRM_FORMAT_VYUY ||
 		 format->format == DRM_FORMAT_YUYV ||
 		 format->format == DRM_FORMAT_YVYU)
-		p1_ba = dma_obj->paddr + fb->offsets[0] +
+		p1_ba = dma_obj->dma_addr + fb->offsets[0] +
 			fb->pitches[0] * (state->src.y1 >> 16) +
 			2 * format->char_per_block[0] * (state->src.x1 >> 17);
 
 	if (format->format == DRM_FORMAT_NV12 ||
 	    format->format == DRM_FORMAT_NV21)
-		p2_ba = dma_obj->paddr + fb->offsets[1] +
+		p2_ba = dma_obj->dma_addr + fb->offsets[1] +
 			(((fb->pitches[1] >> 1) * (state->src.y1 >> 17) +
 			(state->src.x1 >> 17)) << 1);
 

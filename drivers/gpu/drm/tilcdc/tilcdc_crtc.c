@@ -70,7 +70,7 @@ static void set_scanout(struct drm_crtc *crtc, struct drm_framebuffer *fb)
 
 	gem = drm_fb_dma_get_gem_obj(fb, 0);
 
-	start = gem->paddr + fb->offsets[0] +
+	start = gem->dma_addr + fb->offsets[0] +
 		crtc->y * fb->pitches[0] +
 		crtc->x * fb->format->cpp[0];
 

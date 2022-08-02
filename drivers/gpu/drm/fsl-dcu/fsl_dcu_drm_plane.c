@@ -136,7 +136,7 @@ static void fsl_dcu_drm_plane_atomic_update(struct drm_plane *plane,
 		     DCU_LAYER_POSY(new_state->crtc_y) |
 		     DCU_LAYER_POSX(new_state->crtc_x));
 	regmap_write(fsl_dev->regmap,
-		     DCU_CTRLDESCLN(index, 3), gem->paddr);
+		     DCU_CTRLDESCLN(index, 3), gem->dma_addr);
 	regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 4),
 		     DCU_LAYER_EN |
 		     DCU_LAYER_TRANS(0xff) |

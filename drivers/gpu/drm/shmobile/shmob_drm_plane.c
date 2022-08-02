@@ -46,13 +46,13 @@ static void shmob_drm_plane_compute_base(struct shmob_drm_plane *splane,
 
 	bpp = splane->format->yuv ? 8 : splane->format->bpp;
 	gem = drm_fb_dma_get_gem_obj(fb, 0);
-	splane->dma[0] = gem->paddr + fb->offsets[0]
+	splane->dma[0] = gem->dma_addr + fb->offsets[0]
 		       + y * fb->pitches[0] + x * bpp / 8;
 
 	if (splane->format->yuv) {
 		bpp = splane->format->bpp - 8;
 		gem = drm_fb_dma_get_gem_obj(fb, 1);
-		splane->dma[1] = gem->paddr + fb->offsets[1]
+		splane->dma[1] = gem->dma_addr + fb->offsets[1]
 			       + y / (bpp == 4 ? 2 : 1) * fb->pitches[1]
 			       + x * (bpp == 16 ? 2 : 1);
 	}

@@ -72,7 +72,7 @@ dma_addr_t drm_fb_dma_get_gem_addr(struct drm_framebuffer *fb,
 				   unsigned int plane)
 {
 	struct drm_gem_dma_object *obj;
-	dma_addr_t paddr;
+	dma_addr_t dma_addr;
 	u8 h_div = 1, v_div = 1;
 	u32 block_w = drm_format_info_block_width(fb->format, plane);
 	u32 block_h = drm_format_info_block_height(fb->format, plane);
@@ -86,7 +86,7 @@ dma_addr_t drm_fb_dma_get_gem_addr(struct drm_framebuffer *fb,
 	if (!obj)
 		return 0;
 
-	paddr = obj->paddr + fb->offsets[plane];
+	dma_addr = obj->dma_addr + fb->offsets[plane];
 
 	if (plane > 0) {
 		h_div = fb->format->hsub;
@@ -98,10 +98,10 @@ dma_addr_t drm_fb_dma_get_gem_addr(struct drm_framebuffer *fb,
 	block_start_y = (sample_y / block_h) * block_h;
 	num_hblocks = sample_x / block_w;
 
-	paddr += fb->pitches[plane] * block_start_y;
-	paddr += block_size * num_hblocks;
+	dma_addr += fb->pitches[plane] * block_start_y;
+	dma_addr += block_size * num_hblocks;
 
-	return paddr;
+	return dma_addr;
 }
 EXPORT_SYMBOL_GPL(drm_fb_dma_get_gem_addr);
 

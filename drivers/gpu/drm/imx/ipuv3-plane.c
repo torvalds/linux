@@ -132,7 +132,7 @@ drm_plane_state_to_eba(struct drm_plane_state *state, int plane)
 	dma_obj = drm_fb_dma_get_gem_obj(fb, plane);
 	BUG_ON(!dma_obj);
 
-	return dma_obj->paddr + fb->offsets[plane] + fb->pitches[plane] * y +
+	return dma_obj->dma_addr + fb->offsets[plane] + fb->pitches[plane] * y +
 	       fb->format->cpp[plane] * x;
 }
 
@@ -151,7 +151,7 @@ drm_plane_state_to_ubo(struct drm_plane_state *state)
 	x /= fb->format->hsub;
 	y /= fb->format->vsub;
 
-	return dma_obj->paddr + fb->offsets[1] + fb->pitches[1] * y +
+	return dma_obj->dma_addr + fb->offsets[1] + fb->pitches[1] * y +
 	       fb->format->cpp[1] * x - eba;
 }
 
@@ -170,7 +170,7 @@ drm_plane_state_to_vbo(struct drm_plane_state *state)
 	x /= fb->format->hsub;
 	y /= fb->format->vsub;
 
-	return dma_obj->paddr + fb->offsets[2] + fb->pitches[2] * y +
+	return dma_obj->dma_addr + fb->offsets[2] + fb->pitches[2] * y +
 	       fb->format->cpp[2] * x - eba;
 }
 

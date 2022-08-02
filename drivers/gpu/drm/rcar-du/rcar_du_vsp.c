@@ -212,7 +212,7 @@ int rcar_du_vsp_map_fb(struct rcar_du_vsp *vsp, struct drm_framebuffer *fb,
 			}
 		} else {
 			ret = dma_get_sgtable(rcdu->dev, sgt, gem->vaddr,
-					      gem->paddr, gem->base.size);
+					      gem->dma_addr, gem->base.size);
 			if (ret)
 				goto fail;
 		}

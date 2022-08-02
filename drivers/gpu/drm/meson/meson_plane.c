@@ -367,7 +367,7 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 	/* Update Canvas with buffer address */
 	gem = drm_fb_dma_get_gem_obj(fb, 0);
 
-	priv->viu.osd1_addr = gem->paddr;
+	priv->viu.osd1_addr = gem->dma_addr;
 	priv->viu.osd1_stride = fb->pitches[0];
 	priv->viu.osd1_height = fb->height;
 	priv->viu.osd1_width = fb->width;

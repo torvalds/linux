@@ -293,13 +293,13 @@ static void shmob_drm_crtc_compute_base(struct shmob_drm_crtc *scrtc,
 
 	bpp = scrtc->format->yuv ? 8 : scrtc->format->bpp;
 	gem = drm_fb_dma_get_gem_obj(fb, 0);
-	scrtc->dma[0] = gem->paddr + fb->offsets[0]
+	scrtc->dma[0] = gem->dma_addr + fb->offsets[0]
 		      + y * fb->pitches[0] + x * bpp / 8;
 
 	if (scrtc->format->yuv) {
 		bpp = scrtc->format->bpp - 8;
 		gem = drm_fb_dma_get_gem_obj(fb, 1);
-		scrtc->dma[1] = gem->paddr + fb->offsets[1]
+		scrtc->dma[1] = gem->dma_addr + fb->offsets[1]
 			      + y / (bpp == 4 ? 2 : 1) * fb->pitches[1]
 			      + x * (bpp == 16 ? 2 : 1);
 	}

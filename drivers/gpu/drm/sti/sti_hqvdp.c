@@ -1182,11 +1182,11 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 
 	DRM_DEBUG_DRIVER("drm FB:%d format:%.4s phys@:0x%lx\n", fb->base.id,
 			 (char *)&fb->format->format,
-			 (unsigned long)dma_obj->paddr);
+			 (unsigned long) dma_obj->dma_addr);
 
 	/* Buffer planes address */
-	cmd->top.current_luma = (u32)dma_obj->paddr + fb->offsets[0];
-	cmd->top.current_chroma = (u32)dma_obj->paddr + fb->offsets[1];
+	cmd->top.current_luma = (u32) dma_obj->dma_addr + fb->offsets[0];
+	cmd->top.current_chroma = (u32) dma_obj->dma_addr + fb->offsets[1];
 
 	/* Pitches */
 	cmd->top.luma_processed_pitch = fb->pitches[0];

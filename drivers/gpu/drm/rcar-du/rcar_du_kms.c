@@ -365,7 +365,7 @@ struct drm_gem_object *rcar_du_gem_prime_import_sg_table(struct drm_device *dev,
 		return ERR_PTR(ret);
 	}
 
-	dma_obj->paddr = 0;
+	dma_obj->dma_addr = 0;
 	dma_obj->sgt = sgt;
 
 	return gem_obj;

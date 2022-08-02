@@ -782,11 +782,11 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 
 	DRM_DEBUG_DRIVER("drm FB:%d format:%.4s phys@:0x%lx\n", fb->base.id,
 			 (char *)&fb->format->format,
-			 (unsigned long)dma_obj->paddr);
+			 (unsigned long) dma_obj->dma_addr);
 
 	/* pixel memory location */
 	bpp = fb->format->cpp[0];
-	top_field->gam_gdp_pml = (u32)dma_obj->paddr + fb->offsets[0];
+	top_field->gam_gdp_pml = (u32) dma_obj->dma_addr + fb->offsets[0];
 	top_field->gam_gdp_pml += src_x * bpp;
 	top_field->gam_gdp_pml += src_y * fb->pitches[0];
 
@@ -831,7 +831,7 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 	dev_dbg(gdp->dev, "Current NVN:0x%X\n",
 		readl(gdp->regs + GAM_GDP_NVN_OFFSET));
 	dev_dbg(gdp->dev, "Posted buff: %lx current buff: %x\n",
-		(unsigned long)dma_obj->paddr,
+		(unsigned long) dma_obj->dma_addr,
 		readl(gdp->regs + GAM_GDP_PML_OFFSET));
 
 	if (!curr_list) {

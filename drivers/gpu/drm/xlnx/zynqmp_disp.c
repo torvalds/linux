@@ -1098,14 +1098,14 @@ static int zynqmp_disp_layer_update(struct zynqmp_disp_layer *layer,
 		unsigned int height = state->crtc_h / (i ? info->vsub : 1);
 		struct zynqmp_disp_layer_dma *dma = &layer->dmas[i];
 		struct dma_async_tx_descriptor *desc;
-		dma_addr_t paddr;
+		dma_addr_t dma_addr;
 
-		paddr = drm_fb_dma_get_gem_addr(state->fb, state, i);
+		dma_addr = drm_fb_dma_get_gem_addr(state->fb, state, i);
 
 		dma->xt.numf = height;
 		dma->sgl.size = width * info->cpp[i];
 		dma->sgl.icg = state->fb->pitches[i] - dma->sgl.size;
-		dma->xt.src_start = paddr;
+		dma->xt.src_start = dma_addr;
 		dma->xt.frame_size = 1;
 		dma->xt.dir = DMA_MEM_TO_DEV;
 		dma->xt.src_sgl = true;
