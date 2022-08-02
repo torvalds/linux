@@ -619,10 +619,29 @@ static const struct i2c_device_id ucs12cm0_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ucs12cm0_id);
 
+static int ucs12cm0_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct ucs12cm0_data *data = iio_priv(indio_dev);
+	int ret;
+
+	ret = ucs12cm0_init(data);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static const struct dev_pm_ops ucs12cm0_pm_ops = {
+	.resume  = ucs12cm0_resume,
+};
+
 static struct i2c_driver ucs12cm0_driver = {
 	.driver = {
 		.name = "ucs12cm0",
 		.of_match_table = ucs12cm0_of_match,
+		.pm = &ucs12cm0_pm_ops,
 	},
 	.probe  = ucs12cm0_probe,
 	.id_table = ucs12cm0_id,
