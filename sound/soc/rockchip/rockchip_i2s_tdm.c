@@ -44,6 +44,7 @@
 #define MAXBURST_PER_FIFO			8
 
 #define QUIRK_ALWAYS_ON				BIT(0)
+#define QUIRK_HDMI_PATH				BIT(1)
 
 struct txrx_config {
 	u32 addr;
@@ -120,6 +121,10 @@ static struct i2s_of_quirks {
 	{
 		.quirk = "rockchip,always-on",
 		.id = QUIRK_ALWAYS_ON,
+	},
+	{
+		.quirk = "rockchip,hdmi-path",
+		.id = QUIRK_HDMI_PATH,
 	},
 };
 
@@ -413,10 +418,33 @@ reset:
 	return 0;
 }
 
+/*
+ * HDMI controller ignores the first FRAME_SYNC cycle, Lost one frame is no big deal
+ * for LPCM, but it does matter for Bitstream (NLPCM/HBR), So, padding one frame
+ * before xfer the real data to fix it.
+ */
+static void rockchip_i2s_tdm_tx_fifo_padding(struct rk_i2s_tdm_dev *i2s_tdm, bool en)
+{
+	unsigned int val, w, c, i;
+
+	if (!en)
+		return;
+
+	regmap_read(i2s_tdm->regmap, I2S_TXCR, &val);
+	w = ((val & I2S_TXCR_VDW_MASK) >> I2S_TXCR_VDW_SHIFT) + 1;
+	c = to_ch_num(val & I2S_TXCR_CSR_MASK) * w / 32;
+
+	for (i = 0; i < c; i++)
+		regmap_write(i2s_tdm->regmap, I2S_TXDR, 0x0);
+}
+
 static void rockchip_i2s_tdm_dma_ctrl(struct rk_i2s_tdm_dev *i2s_tdm,
 				      int stream, bool en)
 {
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (i2s_tdm->quirks & QUIRK_HDMI_PATH)
+			rockchip_i2s_tdm_tx_fifo_padding(i2s_tdm, en);
+
 		regmap_update_bits(i2s_tdm->regmap, I2S_DMACR,
 				   I2S_DMACR_TDE_MASK,
 				   I2S_DMACR_TDE(en));
@@ -1433,7 +1461,26 @@ static int rockchip_dai_tdm_slot(struct snd_soc_dai *dai,
 	return 0;
 }
 
+static int rockchip_i2s_tdm_startup(struct snd_pcm_substream *substream,
+				    struct snd_soc_dai *dai)
+{
+	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_dai_get_drvdata(dai);
+
+	/*
+	 * Suggested to stop audio source before HDMI configure to make
+	 * sure audio data integrity on HDMI-PATH-ALWAYS-ON situation.
+	 */
+	if ((i2s_tdm->quirks & QUIRK_HDMI_PATH) &&
+	    (i2s_tdm->quirks & QUIRK_ALWAYS_ON) &&
+	    (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)) {
+		rockchip_i2s_tdm_xfer_stop(i2s_tdm, substream->stream, true);
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops rockchip_i2s_tdm_dai_ops = {
+	.startup = rockchip_i2s_tdm_startup,
 	.hw_params = rockchip_i2s_tdm_hw_params,
 	.set_sysclk = rockchip_i2s_tdm_set_sysclk,
 	.set_fmt = rockchip_i2s_tdm_set_fmt,
