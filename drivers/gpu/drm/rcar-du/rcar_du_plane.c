@@ -15,7 +15,7 @@
 #include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 
 #include "rcar_du_drv.h"
 #include "rcar_du_group.h"
@@ -341,7 +341,7 @@ static void rcar_du_plane_setup_scanout(struct rcar_du_group *rgrp,
 
 	if (state->source == RCAR_DU_PLANE_MEMORY) {
 		struct drm_framebuffer *fb = state->state.fb;
-		struct drm_gem_cma_object *gem;
+		struct drm_gem_dma_object *gem;
 		unsigned int i;
 
 		if (state->format->planes == 2)

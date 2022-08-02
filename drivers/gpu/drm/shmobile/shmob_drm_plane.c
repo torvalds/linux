@@ -12,7 +12,7 @@
 #include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 
 #include "shmob_drm_drv.h"
 #include "shmob_drm_kms.h"
@@ -41,7 +41,7 @@ static void shmob_drm_plane_compute_base(struct shmob_drm_plane *splane,
 					 struct drm_framebuffer *fb,
 					 int x, int y)
 {
-	struct drm_gem_cma_object *gem;
+	struct drm_gem_dma_object *gem;
 	unsigned int bpp;
 
 	bpp = splane->format->yuv ? 8 : splane->format->bpp;

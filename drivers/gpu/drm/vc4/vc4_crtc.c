@@ -823,9 +823,9 @@ static void vc4_async_page_flip_seqno_complete(struct vc4_seqno_cb *cb)
 	struct vc4_bo *bo = NULL;
 
 	if (flip_state->old_fb) {
-		struct drm_gem_cma_object *cma_bo =
+		struct drm_gem_dma_object *dma_bo =
 			drm_fb_dma_get_gem_obj(flip_state->old_fb, 0);
-		bo = to_vc4_bo(&cma_bo->base);
+		bo = to_vc4_bo(&dma_bo->base);
 	}
 
 	vc4_async_page_flip_complete(flip_state);
@@ -857,19 +857,19 @@ static int vc4_async_set_fence_cb(struct drm_device *dev,
 				  struct vc4_async_flip_state *flip_state)
 {
 	struct drm_framebuffer *fb = flip_state->fb;
-	struct drm_gem_cma_object *cma_bo = drm_fb_dma_get_gem_obj(fb, 0);
+	struct drm_gem_dma_object *dma_bo = drm_fb_dma_get_gem_obj(fb, 0);
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct dma_fence *fence;
 	int ret;
 
 	if (!vc4->is_vc5) {
-		struct vc4_bo *bo = to_vc4_bo(&cma_bo->base);
+		struct vc4_bo *bo = to_vc4_bo(&dma_bo->base);
 
 		return vc4_queue_seqno_cb(dev, &flip_state->cb.seqno, bo->seqno,
 					  vc4_async_page_flip_seqno_complete);
 	}
 
-	ret = dma_resv_get_singleton(cma_bo->base.resv, DMA_RESV_USAGE_READ, &fence);
+	ret = dma_resv_get_singleton(dma_bo->base.resv, DMA_RESV_USAGE_READ, &fence);
 	if (ret)
 		return ret;
 
@@ -945,8 +945,8 @@ static int vc4_async_page_flip(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct drm_gem_cma_object *cma_bo = drm_fb_dma_get_gem_obj(fb, 0);
-	struct vc4_bo *bo = to_vc4_bo(&cma_bo->base);
+	struct drm_gem_dma_object *dma_bo = drm_fb_dma_get_gem_obj(fb, 0);
+	struct vc4_bo *bo = to_vc4_bo(&dma_bo->base);
 	int ret;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))

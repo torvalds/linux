@@ -13,7 +13,7 @@
 #include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane.h>
 #include <linux/dma-mapping.h>
@@ -35,15 +35,15 @@
  */
 
 /**
- * drm_fb_dma_get_gem_obj() - Get CMA GEM object for framebuffer
+ * drm_fb_dma_get_gem_obj() - Get DMA GEM object for framebuffer
  * @fb: The framebuffer
  * @plane: Which plane
  *
- * Return the CMA GEM object for given framebuffer.
+ * Return the DMA GEM object for given framebuffer.
  *
  * This function will usually be called from the CRTC callback functions.
  */
-struct drm_gem_cma_object *drm_fb_dma_get_gem_obj(struct drm_framebuffer *fb,
+struct drm_gem_dma_object *drm_fb_dma_get_gem_obj(struct drm_framebuffer *fb,
 						  unsigned int plane)
 {
 	struct drm_gem_object *gem;
@@ -52,7 +52,7 @@ struct drm_gem_cma_object *drm_fb_dma_get_gem_obj(struct drm_framebuffer *fb,
 	if (!gem)
 		return NULL;
 
-	return to_drm_gem_cma_obj(gem);
+	return to_drm_gem_dma_obj(gem);
 }
 EXPORT_SYMBOL_GPL(drm_fb_dma_get_gem_obj);
 
@@ -71,7 +71,7 @@ dma_addr_t drm_fb_dma_get_gem_addr(struct drm_framebuffer *fb,
 				   struct drm_plane_state *state,
 				   unsigned int plane)
 {
-	struct drm_gem_cma_object *obj;
+	struct drm_gem_dma_object *obj;
 	dma_addr_t paddr;
 	u8 h_div = 1, v_div = 1;
 	u32 block_w = drm_format_info_block_width(fb->format, plane);
@@ -113,7 +113,7 @@ EXPORT_SYMBOL_GPL(drm_fb_dma_get_gem_addr);
  * @state: New plane state
  *
  * This function can be used by drivers that use damage clips and have
- * CMA GEM objects backed by non-coherent memory. Calling this function
+ * DMA GEM objects backed by non-coherent memory. Calling this function
  * in a plane's .atomic_update ensures that all the data in the backing
  * memory have been written to RAM.
  */
@@ -123,15 +123,15 @@ void drm_fb_dma_sync_non_coherent(struct drm_device *drm,
 {
 	const struct drm_format_info *finfo = state->fb->format;
 	struct drm_atomic_helper_damage_iter iter;
-	const struct drm_gem_cma_object *cma_obj;
+	const struct drm_gem_dma_object *dma_obj;
 	unsigned int offset, i;
 	struct drm_rect clip;
 	dma_addr_t daddr;
 	size_t nb_bytes;
 
 	for (i = 0; i < finfo->num_planes; i++) {
-		cma_obj = drm_fb_dma_get_gem_obj(state->fb, i);
-		if (!cma_obj->map_noncoherent)
+		dma_obj = drm_fb_dma_get_gem_obj(state->fb, i);
+		if (!dma_obj->map_noncoherent)
 			continue;
 
 		daddr = drm_fb_dma_get_gem_addr(state->fb, state, i);

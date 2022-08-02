@@ -16,7 +16,7 @@
 #include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_print.h>
 
@@ -333,15 +333,15 @@ static bool malidp_check_pages_threshold(struct malidp_plane_state *ms,
 
 	for (i = 0; i < ms->n_planes; i++) {
 		struct drm_gem_object *obj;
-		struct drm_gem_cma_object *cma_obj;
+		struct drm_gem_dma_object *dma_obj;
 		struct sg_table *sgt;
 		struct scatterlist *sgl;
 
 		obj = drm_gem_fb_get_obj(ms->base.fb, i);
-		cma_obj = to_drm_gem_cma_obj(obj);
+		dma_obj = to_drm_gem_dma_obj(obj);
 
-		if (cma_obj->sgt)
-			sgt = cma_obj->sgt;
+		if (dma_obj->sgt)
+			sgt = dma_obj->sgt;
 		else
 			sgt = obj->funcs->get_sg_table(obj);
 
@@ -352,14 +352,14 @@ static bool malidp_check_pages_threshold(struct malidp_plane_state *ms,
 
 		while (sgl) {
 			if (sgl->length < pgsize) {
-				if (!cma_obj->sgt)
+				if (!dma_obj->sgt)
 					kfree(sgt);
 				return false;
 			}
 
 			sgl = sg_next(sgl);
 		}
-		if (!cma_obj->sgt)
+		if (!dma_obj->sgt)
 			kfree(sgt);
 	}
 
@@ -732,7 +732,7 @@ static void malidp_set_plane_base_addr(struct drm_framebuffer *fb,
 		paddr = drm_fb_dma_get_gem_addr(fb, plane->state,
 						plane_index);
 	} else {
-		struct drm_gem_cma_object *obj;
+		struct drm_gem_dma_object *obj;
 
 		obj = drm_fb_dma_get_gem_obj(fb, plane_index);
 

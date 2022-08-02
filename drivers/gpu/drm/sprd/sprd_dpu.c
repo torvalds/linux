@@ -21,7 +21,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_framebuffer.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 
 #include "sprd_drm.h"
@@ -323,7 +323,7 @@ static u32 drm_blend_to_dpu(struct drm_plane_state *state)
 static void sprd_dpu_layer(struct sprd_dpu *dpu, struct drm_plane_state *state)
 {
 	struct dpu_context *ctx = &dpu->ctx;
-	struct drm_gem_cma_object *cma_obj;
+	struct drm_gem_dma_object *dma_obj;
 	struct drm_framebuffer *fb = state->fb;
 	u32 addr, size, offset, pitch, blend, format, rotation;
 	u32 src_x = state->src_x >> 16;
@@ -340,8 +340,8 @@ static void sprd_dpu_layer(struct sprd_dpu *dpu, struct drm_plane_state *state)
 	size = (src_w & 0xffff) | (src_h << 16);
 
 	for (i = 0; i < fb->format->num_planes; i++) {
-		cma_obj = drm_fb_dma_get_gem_obj(fb, i);
-		addr = cma_obj->paddr + fb->offsets[i];
+		dma_obj = drm_fb_dma_get_gem_obj(fb, i);
+		addr = dma_obj->paddr + fb->offsets[i];
 
 		if (i == 0)
 			layer_reg_wr(ctx, REG_LAY_BASE_ADDR0, addr, index);

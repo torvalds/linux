@@ -10,7 +10,7 @@
 #include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_probe_helper.h>
 
 #include "sun8i_csc.h"
@@ -308,7 +308,7 @@ static int sun8i_vi_layer_update_buffer(struct sun8i_mixer *mixer, int channel,
 	struct drm_plane_state *state = plane->state;
 	struct drm_framebuffer *fb = state->fb;
 	const struct drm_format_info *format = fb->format;
-	struct drm_gem_cma_object *gem;
+	struct drm_gem_dma_object *gem;
 	u32 dx, dy, src_x, src_y;
 	dma_addr_t paddr;
 	u32 ch_base;

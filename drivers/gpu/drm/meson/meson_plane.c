@@ -19,7 +19,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 
 #include "meson_plane.h"
 #include "meson_registers.h"
@@ -139,7 +139,7 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 	struct drm_rect dest = drm_plane_state_dest(new_state);
 	struct meson_drm *priv = meson_plane->priv;
 	struct drm_framebuffer *fb = new_state->fb;
-	struct drm_gem_cma_object *gem;
+	struct drm_gem_dma_object *gem;
 	unsigned long flags;
 	int vsc_ini_rcv_num, vsc_ini_rpt_p0_num;
 	int vsc_bot_rcv_num, vsc_bot_rpt_p0_num;

@@ -71,7 +71,7 @@
 #include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_of.h>
@@ -198,7 +198,7 @@ static int mcde_modeset_init(struct drm_device *drm)
 	return 0;
 }
 
-DEFINE_DRM_GEM_CMA_FOPS(drm_fops);
+DEFINE_DRM_GEM_DMA_FOPS(drm_fops);
 
 static const struct drm_driver mcde_drm_driver = {
 	.driver_features =
@@ -212,7 +212,7 @@ static const struct drm_driver mcde_drm_driver = {
 	.major = 1,
 	.minor = 0,
 	.patchlevel = 0,
-	DRM_GEM_CMA_DRIVER_OPS,
+	DRM_GEM_DMA_DRIVER_OPS,
 };
 
 static int mcde_drm_bind(struct device *dev)

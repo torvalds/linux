@@ -15,7 +15,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_module.h>
 #include <drm/drm_of.h>
@@ -220,7 +220,7 @@ static void arc_pgu_update(struct drm_simple_display_pipe *pipe,
 			   struct drm_plane_state *state)
 {
 	struct arcpgu_drm_private *arcpgu;
-	struct drm_gem_cma_object *gem;
+	struct drm_gem_dma_object *gem;
 
 	if (!pipe->plane.state->fb)
 		return;
@@ -243,7 +243,7 @@ static const struct drm_mode_config_funcs arcpgu_drm_modecfg_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
-DEFINE_DRM_GEM_CMA_FOPS(arcpgu_drm_ops);
+DEFINE_DRM_GEM_DMA_FOPS(arcpgu_drm_ops);
 
 static int arcpgu_load(struct arcpgu_drm_private *arcpgu)
 {
@@ -370,7 +370,7 @@ static const struct drm_driver arcpgu_drm_driver = {
 	.minor = 0,
 	.patchlevel = 0,
 	.fops = &arcpgu_drm_ops,
-	DRM_GEM_CMA_DRIVER_OPS,
+	DRM_GEM_DMA_DRIVER_OPS,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init = arcpgu_debugfs_init,
 #endif

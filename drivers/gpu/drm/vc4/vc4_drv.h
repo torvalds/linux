@@ -14,7 +14,7 @@
 #include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
 #include <drm/drm_encoder.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_mm.h>
 #include <drm/drm_modeset_lock.h>
@@ -239,7 +239,7 @@ to_vc4_dev(struct drm_device *dev)
 }
 
 struct vc4_bo {
-	struct drm_gem_cma_object base;
+	struct drm_gem_dma_object base;
 
 	/* seqno of the last job to render using this BO. */
 	uint64_t seqno;
@@ -288,7 +288,7 @@ struct vc4_bo {
 static inline struct vc4_bo *
 to_vc4_bo(struct drm_gem_object *bo)
 {
-	return container_of(to_drm_gem_cma_obj(bo), struct vc4_bo, base);
+	return container_of(to_drm_gem_dma_obj(bo), struct vc4_bo, base);
 }
 
 struct vc4_fence {
@@ -602,14 +602,14 @@ struct vc4_exec_info {
 	/* This is the array of BOs that were looked up at the start of exec.
 	 * Command validation will use indices into this array.
 	 */
-	struct drm_gem_cma_object **bo;
+	struct drm_gem_dma_object **bo;
 	uint32_t bo_count;
 
 	/* List of BOs that are being written by the RCL.  Other than
 	 * the binner temporary storage, this is all the BOs written
 	 * by the job.
 	 */
-	struct drm_gem_cma_object *rcl_write_bo[4];
+	struct drm_gem_dma_object *rcl_write_bo[4];
 	uint32_t rcl_write_bo_count;
 
 	/* Pointers for our position in vc4->job_list */
@@ -628,7 +628,7 @@ struct vc4_exec_info {
 	/* This is the BO where we store the validated command lists, shader
 	 * records, and uniforms.
 	 */
-	struct drm_gem_cma_object *exec_bo;
+	struct drm_gem_dma_object *exec_bo;
 
 	/**
 	 * This tracks the per-shader-record state (packet 64) that
@@ -989,19 +989,19 @@ vc4_validate_bin_cl(struct drm_device *dev,
 int
 vc4_validate_shader_recs(struct drm_device *dev, struct vc4_exec_info *exec);
 
-struct drm_gem_cma_object *vc4_use_bo(struct vc4_exec_info *exec,
+struct drm_gem_dma_object *vc4_use_bo(struct vc4_exec_info *exec,
 				      uint32_t hindex);
 
 int vc4_get_rcl(struct drm_device *dev, struct vc4_exec_info *exec);
 
 bool vc4_check_tex_size(struct vc4_exec_info *exec,
-			struct drm_gem_cma_object *fbo,
+			struct drm_gem_dma_object *fbo,
 			uint32_t offset, uint8_t tiling_format,
 			uint32_t width, uint32_t height, uint8_t cpp);
 
 /* vc4_validate_shader.c */
 struct vc4_validated_shader_info *
-vc4_validate_shader(struct drm_gem_cma_object *shader_obj);
+vc4_validate_shader(struct drm_gem_dma_object *shader_obj);
 
 /* vc4_perfmon.c */
 void vc4_perfmon_get(struct vc4_perfmon *perfmon);

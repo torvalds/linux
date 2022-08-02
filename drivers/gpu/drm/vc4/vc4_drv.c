@@ -85,7 +85,7 @@ static int vc5_dumb_create(struct drm_file *file_priv,
 	if (ret)
 		return ret;
 
-	return drm_gem_cma_dumb_create_internal(file_priv, dev, args);
+	return drm_gem_dma_dumb_create_internal(file_priv, dev, args);
 }
 
 static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
@@ -211,7 +211,7 @@ static const struct drm_driver vc4_drm_driver = {
 
 	.gem_create_object = vc4_create_object,
 
-	DRM_GEM_CMA_DRIVER_OPS_WITH_DUMB_CREATE(vc4_bo_dumb_create),
+	DRM_GEM_DMA_DRIVER_OPS_WITH_DUMB_CREATE(vc4_bo_dumb_create),
 
 	.ioctls = vc4_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(vc4_drm_ioctls),
@@ -234,7 +234,7 @@ static const struct drm_driver vc5_drm_driver = {
 	.debugfs_init = vc4_debugfs_init,
 #endif
 
-	DRM_GEM_CMA_DRIVER_OPS_WITH_DUMB_CREATE(vc5_dumb_create),
+	DRM_GEM_DMA_DRIVER_OPS_WITH_DUMB_CREATE(vc5_dumb_create),
 
 	.fops = &vc4_drm_fops,
 

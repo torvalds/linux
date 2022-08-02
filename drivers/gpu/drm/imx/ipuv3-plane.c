@@ -12,7 +12,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_managed.h>
 
 #include <video/imx-ipu-v3.h>
@@ -125,14 +125,14 @@ static inline unsigned long
 drm_plane_state_to_eba(struct drm_plane_state *state, int plane)
 {
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_cma_object *cma_obj;
+	struct drm_gem_dma_object *dma_obj;
 	int x = state->src.x1 >> 16;
 	int y = state->src.y1 >> 16;
 
-	cma_obj = drm_fb_dma_get_gem_obj(fb, plane);
-	BUG_ON(!cma_obj);
+	dma_obj = drm_fb_dma_get_gem_obj(fb, plane);
+	BUG_ON(!dma_obj);
 
-	return cma_obj->paddr + fb->offsets[plane] + fb->pitches[plane] * y +
+	return dma_obj->paddr + fb->offsets[plane] + fb->pitches[plane] * y +
 	       fb->format->cpp[plane] * x;
 }
 
@@ -140,18 +140,18 @@ static inline unsigned long
 drm_plane_state_to_ubo(struct drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_cma_object *cma_obj;
+	struct drm_gem_dma_object *dma_obj;
 	unsigned long eba = drm_plane_state_to_eba(state, 0);
 	int x = state->src.x1 >> 16;
 	int y = state->src.y1 >> 16;
 
-	cma_obj = drm_fb_dma_get_gem_obj(fb, 1);
-	BUG_ON(!cma_obj);
+	dma_obj = drm_fb_dma_get_gem_obj(fb, 1);
+	BUG_ON(!dma_obj);
 
 	x /= fb->format->hsub;
 	y /= fb->format->vsub;
 
-	return cma_obj->paddr + fb->offsets[1] + fb->pitches[1] * y +
+	return dma_obj->paddr + fb->offsets[1] + fb->pitches[1] * y +
 	       fb->format->cpp[1] * x - eba;
 }
 
@@ -159,18 +159,18 @@ static inline unsigned long
 drm_plane_state_to_vbo(struct drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_cma_object *cma_obj;
+	struct drm_gem_dma_object *dma_obj;
 	unsigned long eba = drm_plane_state_to_eba(state, 0);
 	int x = state->src.x1 >> 16;
 	int y = state->src.y1 >> 16;
 
-	cma_obj = drm_fb_dma_get_gem_obj(fb, 2);
-	BUG_ON(!cma_obj);
+	dma_obj = drm_fb_dma_get_gem_obj(fb, 2);
+	BUG_ON(!dma_obj);
 
 	x /= fb->format->hsub;
 	y /= fb->format->vsub;
 
-	return cma_obj->paddr + fb->offsets[2] + fb->pitches[2] * y +
+	return dma_obj->paddr + fb->offsets[2] + fb->pitches[2] * y +
 	       fb->format->cpp[2] * x - eba;
 }
 

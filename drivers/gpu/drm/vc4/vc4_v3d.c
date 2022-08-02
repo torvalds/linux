@@ -231,7 +231,7 @@ try_again:
  * if it doesn't fit within the buffer that we allocated up front.
  * However, it turns out that 16MB is "enough for anybody", and
  * real-world applications run into allocation failures from the
- * overall CMA pool before they make scenes complicated enough to run
+ * overall DMA pool before they make scenes complicated enough to run
  * out of bin space.
  */
 static int bin_bo_alloc(struct vc4_dev *vc4)
@@ -261,7 +261,7 @@ static int bin_bo_alloc(struct vc4_dev *vc4)
 
 			dev_err(&v3d->pdev->dev,
 				"Failed to allocate memory for tile binning: "
-				"%d. You may need to enable CMA or give it "
+				"%d. You may need to enable DMA or give it "
 				"more memory.",
 				ret);
 			break;

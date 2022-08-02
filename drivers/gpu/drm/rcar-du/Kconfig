@@ -5,7 +5,7 @@ config DRM_RCAR_DU
 	depends on ARM || ARM64
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select DRM_KMS_HELPER
-	select DRM_GEM_CMA_HELPER
+	select DRM_GEM_DMA_HELPER
 	select VIDEOMODE_HELPERS
 	help
 	  Choose this option if you have an R-Car chipset.

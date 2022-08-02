@@ -30,7 +30,7 @@
 #include <drm/drm_format_helper.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_modes.h>
@@ -511,7 +511,7 @@ static void repaper_get_temperature(struct repaper_epd *epd)
 
 static int repaper_fb_dirty(struct drm_framebuffer *fb)
 {
-	struct drm_gem_cma_object *cma_obj = drm_fb_dma_get_gem_obj(fb, 0);
+	struct drm_gem_dma_object *dma_obj = drm_fb_dma_get_gem_obj(fb, 0);
 	struct repaper_epd *epd = drm_to_epd(fb->dev);
 	struct drm_rect clip;
 	int idx, ret = 0;
@@ -541,7 +541,7 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb)
 	if (ret)
 		goto out_free;
 
-	drm_fb_xrgb8888_to_mono(buf, 0, cma_obj->vaddr, fb, &clip);
+	drm_fb_xrgb8888_to_mono(buf, 0, dma_obj->vaddr, fb, &clip);
 
 	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
 
@@ -903,12 +903,12 @@ static const struct drm_display_mode repaper_e2271cs021_mode = {
 static const u8 repaper_e2271cs021_cs[] = { 0x00, 0x00, 0x00, 0x7f,
 					    0xff, 0xfe, 0x00, 0x00 };
 
-DEFINE_DRM_GEM_CMA_FOPS(repaper_fops);
+DEFINE_DRM_GEM_DMA_FOPS(repaper_fops);
 
 static const struct drm_driver repaper_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &repaper_fops,
-	DRM_GEM_CMA_DRIVER_OPS_VMAP,
+	DRM_GEM_DMA_DRIVER_OPS_VMAP,
 	.name			= "repaper",
 	.desc			= "Pervasive Displays RePaper e-ink panels",
 	.date			= "20170405",

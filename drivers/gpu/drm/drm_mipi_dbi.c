@@ -1136,7 +1136,7 @@ int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *dbi,
 	/*
 	 * Even though it's not the SPI device that does DMA (the master does),
 	 * the dma mask is necessary for the dma_alloc_wc() in the GEM code
-	 * (e.g., drm_gem_cma_create()). The dma_addr returned will be a physical
+	 * (e.g., drm_gem_dma_create()). The dma_addr returned will be a physical
 	 * address which might be different from the bus address, but this is
 	 * not a problem since the address will not be used.
 	 * The virtual address is used in the transfer and the SPI core

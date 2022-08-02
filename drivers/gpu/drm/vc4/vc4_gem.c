@@ -764,7 +764,7 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 	}
 
 	exec->bo = kvmalloc_array(exec->bo_count,
-				    sizeof(struct drm_gem_cma_object *),
+				    sizeof(struct drm_gem_dma_object *),
 				    GFP_KERNEL | __GFP_ZERO);
 	if (!exec->bo) {
 		DRM_ERROR("Failed to allocate validated BO pointers\n");
@@ -797,7 +797,7 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 		}
 
 		drm_gem_object_get(bo);
-		exec->bo[i] = (struct drm_gem_cma_object *)bo;
+		exec->bo[i] = (struct drm_gem_dma_object *)bo;
 	}
 	spin_unlock(&file_priv->table_lock);
 

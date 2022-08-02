@@ -40,14 +40,14 @@
 #include "vc4_packet.h"
 
 struct vc4_rcl_setup {
-	struct drm_gem_cma_object *color_read;
-	struct drm_gem_cma_object *color_write;
-	struct drm_gem_cma_object *zs_read;
-	struct drm_gem_cma_object *zs_write;
-	struct drm_gem_cma_object *msaa_color_write;
-	struct drm_gem_cma_object *msaa_zs_write;
+	struct drm_gem_dma_object *color_read;
+	struct drm_gem_dma_object *color_write;
+	struct drm_gem_dma_object *zs_read;
+	struct drm_gem_dma_object *zs_write;
+	struct drm_gem_dma_object *msaa_color_write;
+	struct drm_gem_dma_object *msaa_zs_write;
 
-	struct drm_gem_cma_object *rcl;
+	struct drm_gem_dma_object *rcl;
 	u32 next_offset;
 
 	u32 next_write_bo_index;
@@ -97,7 +97,7 @@ static void vc4_store_before_load(struct vc4_rcl_setup *setup)
  * coordinates packet, and instead just store to the address given.
  */
 static uint32_t vc4_full_res_offset(struct vc4_exec_info *exec,
-				    struct drm_gem_cma_object *bo,
+				    struct drm_gem_dma_object *bo,
 				    struct drm_vc4_submit_rcl_surface *surf,
 				    uint8_t x, uint8_t y)
 {
@@ -381,7 +381,7 @@ static int vc4_create_rcl_bo(struct drm_device *dev, struct vc4_exec_info *exec,
 }
 
 static int vc4_full_res_bounds_check(struct vc4_exec_info *exec,
-				     struct drm_gem_cma_object *obj,
+				     struct drm_gem_dma_object *obj,
 				     struct drm_vc4_submit_rcl_surface *surf)
 {
 	struct drm_vc4_submit_cl *args = exec->args;
@@ -407,7 +407,7 @@ static int vc4_full_res_bounds_check(struct vc4_exec_info *exec,
 }
 
 static int vc4_rcl_msaa_surface_setup(struct vc4_exec_info *exec,
-				      struct drm_gem_cma_object **obj,
+				      struct drm_gem_dma_object **obj,
 				      struct drm_vc4_submit_rcl_surface *surf)
 {
 	if (surf->flags != 0 || surf->bits != 0) {
@@ -433,7 +433,7 @@ static int vc4_rcl_msaa_surface_setup(struct vc4_exec_info *exec,
 }
 
 static int vc4_rcl_surface_setup(struct vc4_exec_info *exec,
-				 struct drm_gem_cma_object **obj,
+				 struct drm_gem_dma_object **obj,
 				 struct drm_vc4_submit_rcl_surface *surf,
 				 bool is_write)
 {
@@ -533,7 +533,7 @@ static int vc4_rcl_surface_setup(struct vc4_exec_info *exec,
 static int
 vc4_rcl_render_config_surface_setup(struct vc4_exec_info *exec,
 				    struct vc4_rcl_setup *setup,
-				    struct drm_gem_cma_object **obj,
+				    struct drm_gem_dma_object **obj,
 				    struct drm_vc4_submit_rcl_surface *surf)
 {
 	uint8_t tiling = VC4_GET_FIELD(surf->bits,

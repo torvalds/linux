@@ -131,7 +131,7 @@ bool drm_dev_needs_global_mutex(struct drm_device *dev)
  *     };
  *
  * For plain GEM based drivers there is the DEFINE_DRM_GEM_FOPS() macro, and for
- * CMA based drivers there is the DEFINE_DRM_GEM_CMA_FOPS() macro to make this
+ * DMA based drivers there is the DEFINE_DRM_GEM_DMA_FOPS() macro to make this
  * simpler.
  *
  * The driver's &file_operations must be stored in &drm_driver.fops.

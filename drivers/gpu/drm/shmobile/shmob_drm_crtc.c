@@ -15,7 +15,7 @@
 #include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 #include <drm/drm_vblank.h>
@@ -288,7 +288,7 @@ static void shmob_drm_crtc_compute_base(struct shmob_drm_crtc *scrtc,
 {
 	struct drm_crtc *crtc = &scrtc->crtc;
 	struct drm_framebuffer *fb = crtc->primary->fb;
-	struct drm_gem_cma_object *gem;
+	struct drm_gem_dma_object *gem;
 	unsigned int bpp;
 
 	bpp = scrtc->format->yuv ? 8 : scrtc->format->bpp;

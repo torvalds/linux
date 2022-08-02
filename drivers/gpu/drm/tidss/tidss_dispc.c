@@ -26,7 +26,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_framebuffer.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_panel.h>
 
 #include "tidss_crtc.h"
@@ -1957,7 +1957,7 @@ static
 dma_addr_t dispc_plane_state_paddr(const struct drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_cma_object *gem;
+	struct drm_gem_dma_object *gem;
 	u32 x = state->src_x >> 16;
 	u32 y = state->src_y >> 16;
 
@@ -1971,7 +1971,7 @@ static
 dma_addr_t dispc_plane_state_p_uv_addr(const struct drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_cma_object *gem;
+	struct drm_gem_dma_object *gem;
 	u32 x = state->src_x >> 16;
 	u32 y = state->src_y >> 16;
 
