@@ -15,12 +15,14 @@
 #include "io_uring.h"
 #include "openclose.h"
 #include "rsrc.h"
+#include "notif.h"
 
 struct io_rsrc_update {
 	struct file			*file;
 	u64				arg;
 	u32				nr_args;
 	u32				offset;
+	int				type;
 };
 
 static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
@@ -42,16 +44,12 @@ void io_rsrc_refs_drop(struct io_ring_ctx *ctx)
 	}
 }
 
-static inline void __io_unaccount_mem(struct user_struct *user,
-				      unsigned long nr_pages)
-{
-	atomic_long_sub(nr_pages, &user->locked_vm);
-}
-
-static inline int __io_account_mem(struct user_struct *user,
-				   unsigned long nr_pages)
+int __io_account_mem(struct user_struct *user, unsigned long nr_pages)
 {
 	unsigned long page_limit, cur_pages, new_pages;
+
+	if (!nr_pages)
+		return 0;
 
 	/* Don't allow more pages than we can safely lock */
 	page_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
@@ -657,7 +655,7 @@ __cold int io_register_rsrc(struct io_ring_ctx *ctx, void __user *arg,
 	return -EINVAL;
 }
 
-int io_files_update_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+int io_rsrc_update_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_rsrc_update *up = io_kiocb_to_cmd(req);
 
@@ -671,6 +669,7 @@ int io_files_update_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (!up->nr_args)
 		return -EINVAL;
 	up->arg = READ_ONCE(sqe->addr);
+	up->type = READ_ONCE(sqe->ioprio);
 	return 0;
 }
 
@@ -713,7 +712,7 @@ static int io_files_update_with_index_alloc(struct io_kiocb *req,
 	return ret;
 }
 
-int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
+static int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_rsrc_update *up = io_kiocb_to_cmd(req);
 	struct io_ring_ctx *ctx = req->ctx;
@@ -740,6 +739,54 @@ int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
 	return IOU_OK;
+}
+
+static int io_notif_update(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_rsrc_update *up = io_kiocb_to_cmd(req);
+	struct io_ring_ctx *ctx = req->ctx;
+	unsigned len = up->nr_args;
+	unsigned idx_end, idx = up->offset;
+	int ret = 0;
+
+	io_ring_submit_lock(ctx, issue_flags);
+	if (unlikely(check_add_overflow(idx, len, &idx_end))) {
+		ret = -EOVERFLOW;
+		goto out;
+	}
+	if (unlikely(idx_end > ctx->nr_notif_slots)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	for (; idx < idx_end; idx++) {
+		struct io_notif_slot *slot = &ctx->notif_slots[idx];
+
+		if (!slot->notif)
+			continue;
+		if (up->arg)
+			slot->tag = up->arg;
+		io_notif_slot_flush_submit(slot, issue_flags);
+	}
+out:
+	io_ring_submit_unlock(ctx, issue_flags);
+	if (ret < 0)
+		req_set_fail(req);
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
+}
+
+int io_rsrc_update(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_rsrc_update *up = io_kiocb_to_cmd(req);
+
+	switch (up->type) {
+	case IORING_RSRC_UPDATE_FILES:
+		return io_files_update(req, issue_flags);
+	case IORING_RSRC_UPDATE_NOTIF:
+		return io_notif_update(req, issue_flags);
+	}
+	return -EINVAL;
 }
 
 int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,

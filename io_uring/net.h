@@ -52,6 +52,9 @@ int io_connect_prep_async(struct io_kiocb *req);
 int io_connect_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 int io_connect(struct io_kiocb *req, unsigned int issue_flags);
 
+int io_sendzc(struct io_kiocb *req, unsigned int issue_flags);
+int io_sendzc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
+
 void io_netmsg_cache_free(struct io_cache_entry *entry);
 #else
 static inline void io_netmsg_cache_free(struct io_cache_entry *entry)

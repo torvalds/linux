@@ -33,6 +33,8 @@ void io_req_complete_post(struct io_kiocb *req);
 void __io_req_complete_post(struct io_kiocb *req);
 bool io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags,
 		     bool allow_overflow);
+bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags,
+		     bool allow_overflow);
 void __io_commit_cqring_flush(struct io_ring_ctx *ctx);
 
 struct page **io_pin_pages(unsigned long ubuf, unsigned long len, int *npages);
@@ -71,6 +73,9 @@ void io_wq_submit_work(struct io_wq_work *work);
 
 void io_free_req(struct io_kiocb *req);
 void io_queue_next(struct io_kiocb *req);
+void __io_put_task(struct task_struct *task, int nr);
+void io_task_refs_refill(struct io_uring_task *tctx);
+bool __io_alloc_req_refill(struct io_ring_ctx *ctx);
 
 bool io_match_task_safe(struct io_kiocb *head, struct task_struct *task,
 			bool cancel_all);
@@ -256,6 +261,44 @@ static inline void io_commit_cqring_flush(struct io_ring_ctx *ctx)
 {
 	if (unlikely(ctx->off_timeout_used || ctx->drain_active || ctx->has_evfd))
 		__io_commit_cqring_flush(ctx);
+}
+
+/* must to be called somewhat shortly after putting a request */
+static inline void io_put_task(struct task_struct *task, int nr)
+{
+	if (likely(task == current))
+		task->io_uring->cached_refs += nr;
+	else
+		__io_put_task(task, nr);
+}
+
+static inline void io_get_task_refs(int nr)
+{
+	struct io_uring_task *tctx = current->io_uring;
+
+	tctx->cached_refs -= nr;
+	if (unlikely(tctx->cached_refs < 0))
+		io_task_refs_refill(tctx);
+}
+
+static inline bool io_req_cache_empty(struct io_ring_ctx *ctx)
+{
+	return !ctx->submit_state.free_list.next;
+}
+
+static inline bool io_alloc_req_refill(struct io_ring_ctx *ctx)
+{
+	if (unlikely(io_req_cache_empty(ctx)))
+		return __io_alloc_req_refill(ctx);
+	return true;
+}
+
+static inline struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
+{
+	struct io_wq_work_node *node;
+
+	node = wq_stack_extract(&ctx->submit_state.free_list);
+	return container_of(node, struct io_kiocb, comp_list);
 }
 
 #endif

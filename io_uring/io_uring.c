@@ -90,6 +90,7 @@
 #include "rsrc.h"
 #include "cancel.h"
 #include "net.h"
+#include "notif.h"
 
 #include "timeout.h"
 #include "poll.h"
@@ -608,7 +609,7 @@ static bool io_cqring_overflow_flush(struct io_ring_ctx *ctx)
 	return ret;
 }
 
-static void __io_put_task(struct task_struct *task, int nr)
+void __io_put_task(struct task_struct *task, int nr)
 {
 	struct io_uring_task *tctx = task->io_uring;
 
@@ -618,31 +619,13 @@ static void __io_put_task(struct task_struct *task, int nr)
 	put_task_struct_many(task, nr);
 }
 
-/* must to be called somewhat shortly after putting a request */
-static inline void io_put_task(struct task_struct *task, int nr)
-{
-	if (likely(task == current))
-		task->io_uring->cached_refs += nr;
-	else
-		__io_put_task(task, nr);
-}
-
-static void io_task_refs_refill(struct io_uring_task *tctx)
+void io_task_refs_refill(struct io_uring_task *tctx)
 {
 	unsigned int refill = -tctx->cached_refs + IO_TCTX_REFS_CACHE_NR;
 
 	percpu_counter_add(&tctx->inflight, refill);
 	refcount_add(refill, &current->usage);
 	tctx->cached_refs += refill;
-}
-
-static inline void io_get_task_refs(int nr)
-{
-	struct io_uring_task *tctx = current->io_uring;
-
-	tctx->cached_refs -= nr;
-	if (unlikely(tctx->cached_refs < 0))
-		io_task_refs_refill(tctx);
 }
 
 static __cold void io_uring_drop_tctx_refs(struct task_struct *task)
@@ -741,9 +724,8 @@ struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx)
 	return &rings->cqes[off];
 }
 
-static bool io_fill_cqe_aux(struct io_ring_ctx *ctx,
-			    u64 user_data, s32 res, u32 cflags,
-			    bool allow_overflow)
+bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags,
+		     bool allow_overflow)
 {
 	struct io_uring_cqe *cqe;
 
@@ -868,18 +850,13 @@ static void io_flush_cached_locked_reqs(struct io_ring_ctx *ctx,
 	spin_unlock(&ctx->completion_lock);
 }
 
-static inline bool io_req_cache_empty(struct io_ring_ctx *ctx)
-{
-	return !ctx->submit_state.free_list.next;
-}
-
 /*
  * A request might get retired back into the request caches even before opcode
  * handlers and io_issue_sqe() are done with it, e.g. inline completion path.
  * Because of that, io_alloc_req() should be called only under ->uring_lock
  * and with extra caution to not get a request that is still worked on.
  */
-static __cold bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
+__cold bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
 	__must_hold(&ctx->uring_lock)
 {
 	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
@@ -918,21 +895,6 @@ static __cold bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
 		io_req_add_to_cache(req, ctx);
 	}
 	return true;
-}
-
-static inline bool io_alloc_req_refill(struct io_ring_ctx *ctx)
-{
-	if (unlikely(io_req_cache_empty(ctx)))
-		return __io_alloc_req_refill(ctx);
-	return true;
-}
-
-static inline struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
-{
-	struct io_wq_work_node *node;
-
-	node = wq_stack_extract(&ctx->submit_state.free_list);
-	return container_of(node, struct io_kiocb, comp_list);
 }
 
 static inline void io_dismantle_req(struct io_kiocb *req)
@@ -2500,6 +2462,7 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	}
 #endif
 	WARN_ON_ONCE(!list_empty(&ctx->ltimeout_list));
+	WARN_ON_ONCE(ctx->notif_slots || ctx->nr_notif_slots);
 
 	io_mem_free(ctx->rings);
 	io_mem_free(ctx->sq_sqes);
@@ -2676,6 +2639,7 @@ static __cold void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 		io_unregister_personality(ctx, index);
 	if (ctx->rings)
 		io_poll_remove_all(ctx, NULL, true);
+	io_notif_unregister(ctx);
 	mutex_unlock(&ctx->uring_lock);
 
 	/* failed during ring init, it couldn't have issued any requests */
@@ -3873,6 +3837,15 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		if (!arg || nr_args)
 			break;
 		ret = io_register_file_alloc_range(ctx, arg);
+		break;
+	case IORING_REGISTER_NOTIFIERS:
+		ret = io_notif_register(ctx, arg, nr_args);
+		break;
+	case IORING_UNREGISTER_NOTIFIERS:
+		ret = -EINVAL;
+		if (arg || nr_args)
+			break;
+		ret = io_notif_unregister(ctx);
 		break;
 	default:
 		ret = -EINVAL;

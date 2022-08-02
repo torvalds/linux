@@ -14,6 +14,8 @@
 #include "kbuf.h"
 #include "alloc_cache.h"
 #include "net.h"
+#include "notif.h"
+#include "rsrc.h"
 
 #if defined(CONFIG_NET)
 struct io_shutdown {
@@ -53,10 +55,21 @@ struct io_sr_msg {
 		struct user_msghdr __user	*umsg;
 		void __user			*buf;
 	};
-	int				msg_flags;
+	unsigned			msg_flags;
+	unsigned			flags;
 	size_t				len;
 	size_t				done_io;
-	unsigned int			flags;
+};
+
+struct io_sendzc {
+	struct file			*file;
+	void __user			*buf;
+	size_t				len;
+	u16				slot_idx;
+	unsigned			msg_flags;
+	unsigned			flags;
+	unsigned			addr_len;
+	void __user			*addr;
 };
 
 #define IO_APOLL_MULTI_POLLED (REQ_F_APOLL_MULTISHOT | REQ_F_POLLED)
@@ -294,6 +307,7 @@ int io_send(struct io_kiocb *req, unsigned int issue_flags)
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
 	msg.msg_namelen = 0;
+	msg.msg_ubuf = NULL;
 
 	flags = sr->msg_flags;
 	if (issue_flags & IO_URING_F_NONBLOCK)
@@ -783,6 +797,7 @@ retry_multishot:
 	msg.msg_flags = 0;
 	msg.msg_controllen = 0;
 	msg.msg_iocb = NULL;
+	msg.msg_ubuf = NULL;
 
 	flags = sr->msg_flags;
 	if (force_nonblock)
@@ -830,6 +845,180 @@ out_free:
 		goto retry_multishot;
 
 	return ret;
+}
+
+int io_sendzc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	struct io_sendzc *zc = io_kiocb_to_cmd(req);
+	struct io_ring_ctx *ctx = req->ctx;
+
+	if (READ_ONCE(sqe->__pad2[0]) || READ_ONCE(sqe->addr3))
+		return -EINVAL;
+
+	zc->flags = READ_ONCE(sqe->ioprio);
+	if (zc->flags & ~(IORING_RECVSEND_POLL_FIRST |
+			  IORING_RECVSEND_FIXED_BUF | IORING_RECVSEND_NOTIF_FLUSH))
+		return -EINVAL;
+	if (zc->flags & IORING_RECVSEND_FIXED_BUF) {
+		unsigned idx = READ_ONCE(sqe->buf_index);
+
+		if (unlikely(idx >= ctx->nr_user_bufs))
+			return -EFAULT;
+		idx = array_index_nospec(idx, ctx->nr_user_bufs);
+		req->imu = READ_ONCE(ctx->user_bufs[idx]);
+		io_req_set_rsrc_node(req, ctx, 0);
+	}
+
+	zc->buf = u64_to_user_ptr(READ_ONCE(sqe->addr));
+	zc->len = READ_ONCE(sqe->len);
+	zc->msg_flags = READ_ONCE(sqe->msg_flags) | MSG_NOSIGNAL;
+	zc->slot_idx = READ_ONCE(sqe->notification_idx);
+	if (zc->msg_flags & MSG_DONTWAIT)
+		req->flags |= REQ_F_NOWAIT;
+
+	zc->addr = u64_to_user_ptr(READ_ONCE(sqe->addr2));
+	zc->addr_len = READ_ONCE(sqe->addr_len);
+
+#ifdef CONFIG_COMPAT
+	if (req->ctx->compat)
+		zc->msg_flags |= MSG_CMSG_COMPAT;
+#endif
+	return 0;
+}
+
+static int io_sg_from_iter(struct sock *sk, struct sk_buff *skb,
+			   struct iov_iter *from, size_t length)
+{
+	struct skb_shared_info *shinfo = skb_shinfo(skb);
+	int frag = shinfo->nr_frags;
+	int ret = 0;
+	struct bvec_iter bi;
+	ssize_t copied = 0;
+	unsigned long truesize = 0;
+
+	if (!shinfo->nr_frags)
+		shinfo->flags |= SKBFL_MANAGED_FRAG_REFS;
+
+	if (!skb_zcopy_managed(skb) || !iov_iter_is_bvec(from)) {
+		skb_zcopy_downgrade_managed(skb);
+		return __zerocopy_sg_from_iter(NULL, sk, skb, from, length);
+	}
+
+	bi.bi_size = min(from->count, length);
+	bi.bi_bvec_done = from->iov_offset;
+	bi.bi_idx = 0;
+
+	while (bi.bi_size && frag < MAX_SKB_FRAGS) {
+		struct bio_vec v = mp_bvec_iter_bvec(from->bvec, bi);
+
+		copied += v.bv_len;
+		truesize += PAGE_ALIGN(v.bv_len + v.bv_offset);
+		__skb_fill_page_desc_noacc(shinfo, frag++, v.bv_page,
+					   v.bv_offset, v.bv_len);
+		bvec_iter_advance_single(from->bvec, &bi, v.bv_len);
+	}
+	if (bi.bi_size)
+		ret = -EMSGSIZE;
+
+	shinfo->nr_frags = frag;
+	from->bvec += bi.bi_idx;
+	from->nr_segs -= bi.bi_idx;
+	from->count = bi.bi_size;
+	from->iov_offset = bi.bi_bvec_done;
+
+	skb->data_len += copied;
+	skb->len += copied;
+	skb->truesize += truesize;
+
+	if (sk && sk->sk_type == SOCK_STREAM) {
+		sk_wmem_queued_add(sk, truesize);
+		if (!skb_zcopy_pure(skb))
+			sk_mem_charge(sk, truesize);
+	} else {
+		refcount_add(truesize, &skb->sk->sk_wmem_alloc);
+	}
+	return ret;
+}
+
+int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct sockaddr_storage address;
+	struct io_ring_ctx *ctx = req->ctx;
+	struct io_sendzc *zc = io_kiocb_to_cmd(req);
+	struct io_notif_slot *notif_slot;
+	struct io_kiocb *notif;
+	struct msghdr msg;
+	struct iovec iov;
+	struct socket *sock;
+	unsigned msg_flags;
+	int ret, min_ret = 0;
+
+	if (!(req->flags & REQ_F_POLLED) &&
+	    (zc->flags & IORING_RECVSEND_POLL_FIRST))
+		return -EAGAIN;
+
+	if (issue_flags & IO_URING_F_UNLOCKED)
+		return -EAGAIN;
+	sock = sock_from_file(req->file);
+	if (unlikely(!sock))
+		return -ENOTSOCK;
+
+	notif_slot = io_get_notif_slot(ctx, zc->slot_idx);
+	if (!notif_slot)
+		return -EINVAL;
+	notif = io_get_notif(ctx, notif_slot);
+	if (!notif)
+		return -ENOMEM;
+
+	msg.msg_name = NULL;
+	msg.msg_control = NULL;
+	msg.msg_controllen = 0;
+	msg.msg_namelen = 0;
+
+	if (zc->flags & IORING_RECVSEND_FIXED_BUF) {
+		ret = io_import_fixed(WRITE, &msg.msg_iter, req->imu,
+					(u64)(uintptr_t)zc->buf, zc->len);
+		if (unlikely(ret))
+				return ret;
+	} else {
+		ret = import_single_range(WRITE, zc->buf, zc->len, &iov,
+					  &msg.msg_iter);
+		if (unlikely(ret))
+			return ret;
+		ret = io_notif_account_mem(notif, zc->len);
+		if (unlikely(ret))
+			return ret;
+	}
+
+	if (zc->addr) {
+		ret = move_addr_to_kernel(zc->addr, zc->addr_len, &address);
+		if (unlikely(ret < 0))
+			return ret;
+		msg.msg_name = (struct sockaddr *)&address;
+		msg.msg_namelen = zc->addr_len;
+	}
+
+	msg_flags = zc->msg_flags | MSG_ZEROCOPY;
+	if (issue_flags & IO_URING_F_NONBLOCK)
+		msg_flags |= MSG_DONTWAIT;
+	if (msg_flags & MSG_WAITALL)
+		min_ret = iov_iter_count(&msg.msg_iter);
+
+	msg.msg_flags = msg_flags;
+	msg.msg_ubuf = &io_notif_to_data(notif)->uarg;
+	msg.sg_from_iter = io_sg_from_iter;
+	ret = sock_sendmsg(sock, &msg);
+
+	if (unlikely(ret < min_ret)) {
+		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
+			return -EAGAIN;
+		return ret == -ERESTARTSYS ? -EINTR : ret;
+	}
+
+	if (zc->flags & IORING_RECVSEND_NOTIF_FLUSH)
+		io_notif_slot_flush_submit(notif_slot, 0);
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 int io_accept_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
