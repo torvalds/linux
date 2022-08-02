@@ -2316,6 +2316,7 @@ struct ocb_setup {
  * @cwmax: Maximum contention window [a value of the form 2^n-1 in the range
  *	1..32767]
  * @aifs: Arbitration interframe space [0..255]
+ * @link_id: link_id or -1 for non-MLD
  */
 struct ieee80211_txq_params {
 	enum nl80211_ac ac;
@@ -2323,6 +2324,7 @@ struct ieee80211_txq_params {
 	u16 cwmin;
 	u16 cwmax;
 	u8 aifs;
+	int link_id;
 };
 
 /**

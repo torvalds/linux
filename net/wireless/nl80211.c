@@ -3476,8 +3476,21 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 			if (result)
 				goto out;
 
-			result = rdev_set_txq_params(rdev, netdev,
-						     &txq_params);
+			txq_params.link_id =
+				nl80211_link_id_or_invalid(info->attrs);
+
+			wdev_lock(netdev->ieee80211_ptr);
+			if (txq_params.link_id >= 0 &&
+			    !(netdev->ieee80211_ptr->valid_links &
+			      BIT(txq_params.link_id)))
+				result = -ENOLINK;
+			else if (txq_params.link_id >= 0 &&
+				 !netdev->ieee80211_ptr->valid_links)
+				result = -EINVAL;
+			else
+				result = rdev_set_txq_params(rdev, netdev,
+							     &txq_params);
+			wdev_unlock(netdev->ieee80211_ptr);
 			if (result)
 				goto out;
 		}
