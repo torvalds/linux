@@ -108,6 +108,21 @@ void amd_pmf_trans_automode(struct amd_pmf_dev *dev, int socket_power, ktime_t t
 	}
 }
 
+void amd_pmf_update_2_cql(struct amd_pmf_dev *dev, bool is_cql_event)
+{
+	int mode = config_store.current_mode;
+
+	config_store.transition[AUTO_TRANSITION_TO_PERFORMANCE].target_mode =
+				   is_cql_event ? AUTO_PERFORMANCE_ON_LAP : AUTO_PERFORMANCE;
+
+	if ((mode == AUTO_PERFORMANCE || mode == AUTO_PERFORMANCE_ON_LAP) &&
+	    mode != config_store.transition[AUTO_TRANSITION_TO_PERFORMANCE].target_mode) {
+		mode = config_store.transition[AUTO_TRANSITION_TO_PERFORMANCE].target_mode;
+		amd_pmf_set_automode(dev, mode, NULL);
+	}
+	dev_dbg(dev->dev, "updated CQL thermals\n");
+}
+
 static void amd_pmf_get_power_threshold(void)
 {
 	config_store.transition[AUTO_TRANSITION_TO_QUIET].power_threshold =
@@ -247,6 +262,29 @@ static void amd_pmf_load_defaults_auto_mode(struct amd_pmf_dev *dev)
 	/* set to initial default values */
 	config_store.current_mode = AUTO_BALANCE;
 	dev->socket_power_history_idx = -1;
+}
+
+void amd_pmf_reset_amt(struct amd_pmf_dev *dev)
+{
+	/*
+	 * OEM BIOS implementation guide says that if the auto mode is enabled
+	 * the platform_profile registration shall be done by the OEM driver.
+	 * There could be cases where both static slider and auto mode BIOS
+	 * functions are enabled, in that case enable static slider updates
+	 * only if it advertised as supported.
+	 */
+
+	if (is_apmf_func_supported(dev, APMF_FUNC_STATIC_SLIDER_GRANULAR)) {
+		u8 mode = amd_pmf_get_pprof_modes(dev);
+
+		dev_dbg(dev->dev, "resetting AMT thermals\n");
+		amd_pmf_update_slider(dev, SLIDER_OP_SET, mode, NULL);
+	}
+}
+
+void amd_pmf_handle_amt(struct amd_pmf_dev *dev)
+{
+	amd_pmf_set_automode(dev, config_store.current_mode, NULL);
 }
 
 void amd_pmf_deinit_auto_mode(struct amd_pmf_dev *dev)

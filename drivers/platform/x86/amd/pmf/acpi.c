@@ -11,6 +11,9 @@
 #include <linux/acpi.h>
 #include "pmf.h"
 
+#define APMF_CQL_NOTIFICATION  2
+#define APMF_AMT_NOTIFICATION  3
+
 static union acpi_object *apmf_if_call(struct amd_pmf_dev *pdev, int fn, struct acpi_buffer *param)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -149,6 +152,48 @@ int apmf_get_auto_mode_def(struct amd_pmf_dev *pdev, struct apmf_auto_mode *data
 	return apmf_if_call_store_buffer(pdev, APMF_FUNC_AUTO_MODE, data, sizeof(*data));
 }
 
+int apmf_get_sbios_requests(struct amd_pmf_dev *pdev, struct apmf_sbios_req *req)
+{
+	return apmf_if_call_store_buffer(pdev, APMF_FUNC_SBIOS_REQUESTS,
+									 req, sizeof(*req));
+}
+
+static void apmf_event_handler(acpi_handle handle, u32 event, void *data)
+{
+	struct amd_pmf_dev *pmf_dev = data;
+	struct apmf_sbios_req req;
+	int ret;
+
+	mutex_lock(&pmf_dev->update_mutex);
+	ret = apmf_get_sbios_requests(pmf_dev, &req);
+	if (ret) {
+		dev_err(pmf_dev->dev, "Failed to get SBIOS requests:%d\n", ret);
+		goto out;
+	}
+
+	if (req.pending_req & BIT(APMF_AMT_NOTIFICATION)) {
+		dev_dbg(pmf_dev->dev, "AMT is supported and notifications %s\n",
+			req.amt_event ? "Enabled" : "Disabled");
+		pmf_dev->amt_enabled = !!req.amt_event;
+
+		if (pmf_dev->amt_enabled)
+			amd_pmf_handle_amt(pmf_dev);
+		else
+			amd_pmf_reset_amt(pmf_dev);
+	}
+
+	if (req.pending_req & BIT(APMF_CQL_NOTIFICATION)) {
+		dev_dbg(pmf_dev->dev, "CQL is supported and notifications %s\n",
+			req.cql_event ? "Enabled" : "Disabled");
+
+		/* update the target mode information */
+		if (pmf_dev->amt_enabled)
+			amd_pmf_update_2_cql(pmf_dev, req.cql_event);
+	}
+out:
+	mutex_unlock(&pmf_dev->update_mutex);
+}
+
 static int apmf_if_verify_interface(struct amd_pmf_dev *pdev)
 {
 	struct apmf_verify_interface output;
@@ -190,12 +235,20 @@ static int apmf_get_system_params(struct amd_pmf_dev *dev)
 
 void apmf_acpi_deinit(struct amd_pmf_dev *pmf_dev)
 {
+	acpi_handle ahandle = ACPI_HANDLE(pmf_dev->dev);
+
 	if (pmf_dev->hb_interval)
 		cancel_delayed_work_sync(&pmf_dev->heart_beat);
+
+	if (is_apmf_func_supported(pmf_dev, APMF_FUNC_AUTO_MODE) &&
+	    is_apmf_func_supported(pmf_dev, APMF_FUNC_SBIOS_REQUESTS))
+		acpi_remove_notify_handler(ahandle, ACPI_ALL_NOTIFY, apmf_event_handler);
 }
 
 int apmf_acpi_init(struct amd_pmf_dev *pmf_dev)
 {
+	acpi_handle ahandle = ACPI_HANDLE(pmf_dev->dev);
+	acpi_status status;
 	int ret;
 
 	ret = apmf_if_verify_interface(pmf_dev);
@@ -214,6 +267,20 @@ int apmf_acpi_init(struct amd_pmf_dev *pmf_dev)
 		/* send heartbeats only if the interval is not zero */
 		INIT_DELAYED_WORK(&pmf_dev->heart_beat, apmf_sbios_heartbeat_notify);
 		schedule_delayed_work(&pmf_dev->heart_beat, 0);
+	}
+
+	/* Install the APMF Notify handler */
+	if (is_apmf_func_supported(pmf_dev, APMF_FUNC_AUTO_MODE) &&
+	    is_apmf_func_supported(pmf_dev, APMF_FUNC_SBIOS_REQUESTS)) {
+		status = acpi_install_notify_handler(ahandle,
+						     ACPI_ALL_NOTIFY,
+						     apmf_event_handler, pmf_dev);
+		if (ACPI_FAILURE(status)) {
+			dev_err(pmf_dev->dev, "failed to install notify handler\n");
+			return -ENODEV;
+		}
+		/* Call the handler once manually to catch up with possibly missed notifies. */
+		apmf_event_handler(ahandle, 0, pmf_dev);
 	}
 
 out:

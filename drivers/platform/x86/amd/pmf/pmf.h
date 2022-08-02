@@ -17,6 +17,7 @@
 /* APMF Functions */
 #define APMF_FUNC_VERIFY_INTERFACE			0
 #define APMF_FUNC_GET_SYS_PARAMS			1
+#define APMF_FUNC_SBIOS_REQUESTS			2
 #define APMF_FUNC_SBIOS_HEARTBEAT			4
 #define APMF_FUNC_AUTO_MODE					5
 #define APMF_FUNC_SET_FAN_IDX				7
@@ -61,6 +62,21 @@ struct apmf_system_params {
 	u32 flags;
 	u8 command_code;
 	u32 heartbeat_int;
+} __packed;
+
+struct apmf_sbios_req {
+	u16 size;
+	u32 pending_req;
+	u8 rsd;
+	u8 cql_event;
+	u8 amt_event;
+	u32 fppt;
+	u32 sppt;
+	u32 fppt_apu_only;
+	u32 spl;
+	u32 stt_min_limit;
+	u8 skin_temp_apu;
+	u8 skin_temp_hs2;
 } __packed;
 
 struct apmf_fan_idx {
@@ -147,6 +163,8 @@ struct amd_pmf_dev {
 	ktime_t start_time;
 	int socket_power_history[AVG_SAMPLE_SIZE];
 	int socket_power_history_idx;
+	bool amt_enabled;
+	struct mutex update_mutex; /* protects race between ACPI handler and metrics thread */
 };
 
 struct apmf_sps_prop_granular {
@@ -301,5 +319,9 @@ int apmf_get_auto_mode_def(struct amd_pmf_dev *pdev, struct apmf_auto_mode *data
 void amd_pmf_init_auto_mode(struct amd_pmf_dev *dev);
 void amd_pmf_deinit_auto_mode(struct amd_pmf_dev *dev);
 void amd_pmf_trans_automode(struct amd_pmf_dev *dev, int socket_power, ktime_t time_elapsed_ms);
+int apmf_get_sbios_requests(struct amd_pmf_dev *pdev, struct apmf_sbios_req *req);
 
+void amd_pmf_update_2_cql(struct amd_pmf_dev *dev, bool is_cql_event);
+void amd_pmf_reset_amt(struct amd_pmf_dev *dev);
+void amd_pmf_handle_amt(struct amd_pmf_dev *dev);
 #endif /* PMF_H */
