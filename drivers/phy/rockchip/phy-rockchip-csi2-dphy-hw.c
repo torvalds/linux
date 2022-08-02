@@ -979,15 +979,18 @@ static struct platform_driver rockchip_csi2_dphy_hw_driver = {
 		.of_match_table = rockchip_csi2_dphy_hw_match_id,
 	},
 };
-#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) && !defined(CONFIG_INITCALL_ASYNC)
-static int __init rockchip_csi2_dphy_hw_init(void)
+
+int rockchip_csi2_dphy_hw_init(void)
 {
 	return platform_driver_register(&rockchip_csi2_dphy_hw_driver);
 }
 
+#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) && !defined(CONFIG_INITCALL_ASYNC)
 subsys_initcall(rockchip_csi2_dphy_hw_init);
 #else
+#if !defined(CONFIG_VIDEO_REVERSE_IMAGE)
 module_platform_driver(rockchip_csi2_dphy_hw_driver);
+#endif
 #endif
 
 MODULE_AUTHOR("Rockchip Camera/ISP team");

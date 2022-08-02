@@ -120,4 +120,7 @@ struct csi2_dphy_hw {
 	void (*ttl_mode_disable)(struct csi2_dphy_hw *hw);
 };
 
+int rockchip_csi2_dphy_hw_init(void);
+int rockchip_csi2_dphy_init(void);
+
 #endif
