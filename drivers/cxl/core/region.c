@@ -1255,6 +1255,9 @@ static int cxl_region_attach(struct cxl_region *cxlr,
 		p->state = CXL_CONFIG_ACTIVE;
 	}
 
+	cxled->cxld.interleave_ways = p->interleave_ways;
+	cxled->cxld.interleave_granularity = p->interleave_granularity;
+
 	return 0;
 
 err_decrement:
