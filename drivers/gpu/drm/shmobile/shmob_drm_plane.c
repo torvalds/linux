@@ -9,7 +9,7 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_cma_helper.h>
@@ -45,13 +45,13 @@ static void shmob_drm_plane_compute_base(struct shmob_drm_plane *splane,
 	unsigned int bpp;
 
 	bpp = splane->format->yuv ? 8 : splane->format->bpp;
-	gem = drm_fb_cma_get_gem_obj(fb, 0);
+	gem = drm_fb_dma_get_gem_obj(fb, 0);
 	splane->dma[0] = gem->paddr + fb->offsets[0]
 		       + y * fb->pitches[0] + x * bpp / 8;
 
 	if (splane->format->yuv) {
 		bpp = splane->format->bpp - 8;
-		gem = drm_fb_cma_get_gem_obj(fb, 1);
+		gem = drm_fb_dma_get_gem_obj(fb, 1);
 		splane->dma[1] = gem->paddr + fb->offsets[1]
 			       + y / (bpp == 4 ? 2 : 1) * fb->pitches[1]
 			       + x * (bpp == 16 ? 2 : 1);

@@ -12,7 +12,7 @@
 #include <drm/drm_blend.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_cma_helper.h>
@@ -350,7 +350,7 @@ static void rcar_du_plane_setup_scanout(struct rcar_du_group *rgrp,
 			pitch = fb->pitches[0] * 8 / state->format->bpp;
 
 		for (i = 0; i < state->format->planes; ++i) {
-			gem = drm_fb_cma_get_gem_obj(fb, i);
+			gem = drm_fb_dma_get_gem_obj(fb, i);
 			dma[i] = gem->paddr + fb->offsets[i];
 		}
 	} else {

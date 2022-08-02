@@ -54,7 +54,7 @@ static int drm_fb_xfrm(void *dst, unsigned long dst_pitch, unsigned long dst_pix
 	const void *sbuf;
 
 	/*
-	 * Some source buffers, such as CMA memory, use write-combine
+	 * Some source buffers, such as DMA memory, use write-combine
 	 * caching, so reads are uncached. Speed up access by fetching
 	 * one line at a time.
 	 */
@@ -676,7 +676,7 @@ void drm_fb_xrgb8888_to_mono(void *dst, unsigned int dst_pitch, const void *vadd
 		dst_pitch = DIV_ROUND_UP(linepixels, 8);
 
 	/*
-	 * The cma memory is write-combined so reads are uncached.
+	 * The dma memory is write-combined so reads are uncached.
 	 * Speed up by fetching one line at a time.
 	 *
 	 * Also, format conversion from XR24 to monochrome are done

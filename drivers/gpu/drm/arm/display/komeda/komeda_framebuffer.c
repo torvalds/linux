@@ -5,7 +5,7 @@
  *
  */
 #include <drm/drm_device.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
@@ -247,7 +247,7 @@ komeda_fb_get_pixel_addr(struct komeda_fb *kfb, int x, int y, int plane)
 		return -EINVAL;
 	}
 
-	obj = drm_fb_cma_get_gem_obj(fb, plane);
+	obj = drm_fb_dma_get_gem_obj(fb, plane);
 
 	offset = fb->offsets[plane];
 	if (!fb->modifier) {

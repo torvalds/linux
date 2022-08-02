@@ -37,7 +37,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_uapi.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
@@ -824,7 +824,7 @@ static void vc4_async_page_flip_seqno_complete(struct vc4_seqno_cb *cb)
 
 	if (flip_state->old_fb) {
 		struct drm_gem_cma_object *cma_bo =
-			drm_fb_cma_get_gem_obj(flip_state->old_fb, 0);
+			drm_fb_dma_get_gem_obj(flip_state->old_fb, 0);
 		bo = to_vc4_bo(&cma_bo->base);
 	}
 
@@ -857,7 +857,7 @@ static int vc4_async_set_fence_cb(struct drm_device *dev,
 				  struct vc4_async_flip_state *flip_state)
 {
 	struct drm_framebuffer *fb = flip_state->fb;
-	struct drm_gem_cma_object *cma_bo = drm_fb_cma_get_gem_obj(fb, 0);
+	struct drm_gem_cma_object *cma_bo = drm_fb_dma_get_gem_obj(fb, 0);
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct dma_fence *fence;
 	int ret;
@@ -945,7 +945,7 @@ static int vc4_async_page_flip(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct drm_gem_cma_object *cma_bo = drm_fb_cma_get_gem_obj(fb, 0);
+	struct drm_gem_cma_object *cma_bo = drm_fb_dma_get_gem_obj(fb, 0);
 	struct vc4_bo *bo = to_vc4_bo(&cma_bo->base);
 	int ret;
 

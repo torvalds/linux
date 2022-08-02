@@ -15,7 +15,7 @@
 #include <drm/drm_blend.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_managed.h>
@@ -1100,7 +1100,7 @@ static int zynqmp_disp_layer_update(struct zynqmp_disp_layer *layer,
 		struct dma_async_tx_descriptor *desc;
 		dma_addr_t paddr;
 
-		paddr = drm_fb_cma_get_gem_addr(state->fb, state, i);
+		paddr = drm_fb_dma_get_gem_addr(state->fb, state, i);
 
 		dma->xt.numf = height;
 		dma->sgl.size = width * info->cpp[i];

@@ -11,7 +11,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_blend.h>
 #include <drm/drm_device.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
@@ -650,7 +650,7 @@ static void meson_overlay_atomic_update(struct drm_plane *plane,
 
 	switch (priv->viu.vd1_planes) {
 	case 3:
-		gem = drm_fb_cma_get_gem_obj(fb, 2);
+		gem = drm_fb_dma_get_gem_obj(fb, 2);
 		priv->viu.vd1_addr2 = gem->paddr + fb->offsets[2];
 		priv->viu.vd1_stride2 = fb->pitches[2];
 		priv->viu.vd1_height2 =
@@ -662,7 +662,7 @@ static void meson_overlay_atomic_update(struct drm_plane *plane,
 			 priv->viu.vd1_height2);
 		fallthrough;
 	case 2:
-		gem = drm_fb_cma_get_gem_obj(fb, 1);
+		gem = drm_fb_dma_get_gem_obj(fb, 1);
 		priv->viu.vd1_addr1 = gem->paddr + fb->offsets[1];
 		priv->viu.vd1_stride1 = fb->pitches[1];
 		priv->viu.vd1_height1 =
@@ -674,7 +674,7 @@ static void meson_overlay_atomic_update(struct drm_plane *plane,
 			 priv->viu.vd1_height1);
 		fallthrough;
 	case 1:
-		gem = drm_fb_cma_get_gem_obj(fb, 0);
+		gem = drm_fb_dma_get_gem_obj(fb, 0);
 		priv->viu.vd1_addr0 = gem->paddr + fb->offsets[0];
 		priv->viu.vd1_stride0 = fb->pitches[0];
 		priv->viu.vd1_height0 =

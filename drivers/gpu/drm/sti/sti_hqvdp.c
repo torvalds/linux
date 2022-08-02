@@ -16,7 +16,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_device.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_cma_helper.h>
@@ -1055,7 +1055,7 @@ static int sti_hqvdp_atomic_check(struct drm_plane *drm_plane,
 		return -EINVAL;
 	}
 
-	if (!drm_fb_cma_get_gem_obj(fb, 0)) {
+	if (!drm_fb_dma_get_gem_obj(fb, 0)) {
 		DRM_ERROR("Can't get CMA GEM object for fb\n");
 		return -EINVAL;
 	}
@@ -1178,7 +1178,7 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 	cmd->iqi.sat_gain = IQI_SAT_GAIN_DFLT;
 	cmd->iqi.pxf_conf = IQI_PXF_CONF_DFLT;
 
-	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
+	cma_obj = drm_fb_dma_get_gem_obj(fb, 0);
 
 	DRM_DEBUG_DRIVER("drm FB:%d format:%.4s phys@:0x%lx\n", fb->base.id,
 			 (char *)&fb->format->format,

@@ -7,7 +7,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_blend.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_cma_helper.h>
@@ -322,7 +322,7 @@ static int sun8i_vi_layer_update_buffer(struct sun8i_mixer *mixer, int channel,
 
 	for (i = 0; i < format->num_planes; i++) {
 		/* Get the physical address of the buffer in memory */
-		gem = drm_fb_cma_get_gem_obj(fb, i);
+		gem = drm_fb_dma_get_gem_obj(fb, i);
 
 		DRM_DEBUG_DRIVER("Using GEM @ %pad\n", &gem->paddr);
 
