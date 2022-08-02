@@ -113,6 +113,7 @@ struct lock_contention {
 	struct machine *machine;
 	struct hlist_head *result;
 	unsigned long map_nr_entries;
+	unsigned long lost;
 };
 
 #ifdef HAVE_BPF_SKEL

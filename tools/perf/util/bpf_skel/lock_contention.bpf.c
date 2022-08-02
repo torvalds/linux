@@ -12,7 +12,7 @@
 #define MAX_ENTRIES  10240
 
 struct contention_key {
-	__u32 stack_id;
+	__s32 stack_id;
 };
 
 struct contention_data {
@@ -27,7 +27,7 @@ struct tstamp_data {
 	__u64 timestamp;
 	__u64 lock;
 	__u32 flags;
-	__u32 stack_id;
+	__s32 stack_id;
 };
 
 /* callstack storage  */
@@ -73,6 +73,9 @@ int enabled;
 int has_cpu;
 int has_task;
 
+/* error stat */
+unsigned long lost;
+
 static inline int can_record(void)
 {
 	if (has_cpu) {
@@ -116,6 +119,8 @@ int contention_begin(u64 *ctx)
 	pelem->flags = (__u32)ctx[1];
 	pelem->stack_id = bpf_get_stackid(ctx, &stacks, BPF_F_FAST_STACK_CMP);
 
+	if (pelem->stack_id < 0)
+		lost++;
 	return 0;
 }
 

@@ -16,7 +16,7 @@ static struct lock_contention_bpf *skel;
 
 /* should be same as bpf_skel/lock_contention.bpf.c */
 struct lock_contention_key {
-	u32 stack_id;
+	s32 stack_id;
 };
 
 struct lock_contention_data {
@@ -110,7 +110,7 @@ int lock_contention_stop(void)
 int lock_contention_read(struct lock_contention *con)
 {
 	int fd, stack;
-	u32 prev_key, key;
+	s32 prev_key, key;
 	struct lock_contention_data data;
 	struct lock_stat *st;
 	struct machine *machine = con->machine;
@@ -118,6 +118,8 @@ int lock_contention_read(struct lock_contention *con)
 
 	fd = bpf_map__fd(skel->maps.lock_stat);
 	stack = bpf_map__fd(skel->maps.stacks);
+
+	con->lost = skel->bss->lost;
 
 	prev_key = 0;
 	while (!bpf_map_get_next_key(fd, &prev_key, &key)) {

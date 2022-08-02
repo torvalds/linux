@@ -1472,8 +1472,11 @@ static void print_contention_result(void)
 		pr_info("  %10s   %s\n\n", "type", "caller");
 
 	bad = total = 0;
+	if (use_bpf)
+		bad = bad_hist[BROKEN_CONTENDED];
+
 	while ((st = pop_from_result())) {
-		total++;
+		total += use_bpf ? st->nr_contended : 1;
 		if (st->broken)
 			bad++;
 
@@ -1687,6 +1690,9 @@ static int __cmd_contention(int argc, const char **argv)
 
 		lock_contention_stop();
 		lock_contention_read(&con);
+
+		/* abuse bad hist stats for lost entries */
+		bad_hist[BROKEN_CONTENDED] = con.lost;
 	} else {
 		err = perf_session__process_events(session);
 		if (err)
