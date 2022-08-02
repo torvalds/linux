@@ -427,6 +427,7 @@ static void verbose_invalid_scalar(struct bpf_verifier_env *env,
 
 static bool type_is_pkt_pointer(enum bpf_reg_type type)
 {
+	type = base_type(type);
 	return type == PTR_TO_PACKET ||
 	       type == PTR_TO_PACKET_META;
 }
@@ -456,10 +457,9 @@ static bool reg_may_point_to_spin_lock(const struct bpf_reg_state *reg)
 
 static bool reg_type_may_be_refcounted_or_null(enum bpf_reg_type type)
 {
-	return base_type(type) == PTR_TO_SOCKET ||
-		base_type(type) == PTR_TO_TCP_SOCK ||
-		base_type(type) == PTR_TO_MEM ||
-		base_type(type) == PTR_TO_BTF_ID;
+	type = base_type(type);
+	return type == PTR_TO_SOCKET || type == PTR_TO_TCP_SOCK ||
+		type == PTR_TO_MEM || type == PTR_TO_BTF_ID;
 }
 
 static bool type_is_rdonly_mem(u32 type)
@@ -6498,8 +6498,7 @@ static bool check_btf_id_ok(const struct bpf_func_proto *fn)
 	return true;
 }
 
-static int check_func_proto(const struct bpf_func_proto *fn, int func_id,
-			    struct bpf_call_arg_meta *meta)
+static int check_func_proto(const struct bpf_func_proto *fn, int func_id)
 {
 	return check_raw_mode_ok(fn) &&
 	       check_arg_pair_ok(fn) &&
@@ -7218,7 +7217,7 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 	memset(&meta, 0, sizeof(meta));
 	meta.pkt_access = fn->pkt_access;
 
-	err = check_func_proto(fn, func_id, &meta);
+	err = check_func_proto(fn, func_id);
 	if (err) {
 		verbose(env, "kernel subsystem misconfigured func %s#%d\n",
 			func_id_name(func_id), func_id);
@@ -7359,13 +7358,17 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 
 	/* update return register (already marked as written above) */
 	ret_type = fn->ret_type;
-	ret_flag = type_flag(fn->ret_type);
-	if (ret_type == RET_INTEGER) {
+	ret_flag = type_flag(ret_type);
+
+	switch (base_type(ret_type)) {
+	case RET_INTEGER:
 		/* sets type to SCALAR_VALUE */
 		mark_reg_unknown(env, regs, BPF_REG_0);
-	} else if (ret_type == RET_VOID) {
+		break;
+	case RET_VOID:
 		regs[BPF_REG_0].type = NOT_INIT;
-	} else if (base_type(ret_type) == RET_PTR_TO_MAP_VALUE) {
+		break;
+	case RET_PTR_TO_MAP_VALUE:
 		/* There is no offset yet applied, variable or fixed */
 		mark_reg_known_zero(env, regs, BPF_REG_0);
 		/* remember map_ptr, so that check_map_access()
@@ -7384,20 +7387,26 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 		    map_value_has_spin_lock(meta.map_ptr)) {
 			regs[BPF_REG_0].id = ++env->id_gen;
 		}
-	} else if (base_type(ret_type) == RET_PTR_TO_SOCKET) {
+		break;
+	case RET_PTR_TO_SOCKET:
 		mark_reg_known_zero(env, regs, BPF_REG_0);
 		regs[BPF_REG_0].type = PTR_TO_SOCKET | ret_flag;
-	} else if (base_type(ret_type) == RET_PTR_TO_SOCK_COMMON) {
+		break;
+	case RET_PTR_TO_SOCK_COMMON:
 		mark_reg_known_zero(env, regs, BPF_REG_0);
 		regs[BPF_REG_0].type = PTR_TO_SOCK_COMMON | ret_flag;
-	} else if (base_type(ret_type) == RET_PTR_TO_TCP_SOCK) {
+		break;
+	case RET_PTR_TO_TCP_SOCK:
 		mark_reg_known_zero(env, regs, BPF_REG_0);
 		regs[BPF_REG_0].type = PTR_TO_TCP_SOCK | ret_flag;
-	} else if (base_type(ret_type) == RET_PTR_TO_ALLOC_MEM) {
+		break;
+	case RET_PTR_TO_ALLOC_MEM:
 		mark_reg_known_zero(env, regs, BPF_REG_0);
 		regs[BPF_REG_0].type = PTR_TO_MEM | ret_flag;
 		regs[BPF_REG_0].mem_size = meta.mem_size;
-	} else if (base_type(ret_type) == RET_PTR_TO_MEM_OR_BTF_ID) {
+		break;
+	case RET_PTR_TO_MEM_OR_BTF_ID:
+	{
 		const struct btf_type *t;
 
 		mark_reg_known_zero(env, regs, BPF_REG_0);
@@ -7429,7 +7438,10 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 			regs[BPF_REG_0].btf = meta.ret_btf;
 			regs[BPF_REG_0].btf_id = meta.ret_btf_id;
 		}
-	} else if (base_type(ret_type) == RET_PTR_TO_BTF_ID) {
+		break;
+	}
+	case RET_PTR_TO_BTF_ID:
+	{
 		struct btf *ret_btf;
 		int ret_btf_id;
 
@@ -7450,7 +7462,9 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 		}
 		regs[BPF_REG_0].btf = ret_btf;
 		regs[BPF_REG_0].btf_id = ret_btf_id;
-	} else {
+		break;
+	}
+	default:
 		verbose(env, "unknown return type %u of func %s#%d\n",
 			base_type(ret_type), func_id_name(func_id), func_id);
 		return -EINVAL;
