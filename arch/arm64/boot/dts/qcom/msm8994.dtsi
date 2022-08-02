@@ -6,6 +6,7 @@
 #include <dt-bindings/clock/qcom,gcc-msm8994.h>
 #include <dt-bindings/clock/qcom,mmcc-msm8994.h>
 #include <dt-bindings/clock/qcom,rpmcc.h>
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/power/qcom-rpmpd.h>
 
 / {
@@ -502,7 +503,7 @@
 			pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on>;
 			pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off>;
 
-			cd-gpios = <&tlmm 100 0>;
+			cd-gpios = <&tlmm 100 GPIO_ACTIVE_HIGH>;
 			bus-width = <4>;
 			status = "disabled";
 		};
