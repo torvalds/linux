@@ -27,6 +27,9 @@ description:
   For pm2250, s1, s2, s3, s4, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11,
   l12, l13, l14, l15, l16, l17, l18, l19, l20, l21, l22
 
+  For pm6125 s1, s2, s3, s4, s5, s6, s7, s8, l1, l2, l3, l5, l6, l7, l8, l9,
+  l10, l22, l12, l13, l14, l15, l16, l17, l18, l19, l20, l21, l22, l23, l24
+
   For pm660, s1, s2, s3, s4, s5, s6, l1, l2, l3, l5, l6, l7, l8, l9, l10, l22,
   l12, l13, l14, l15, l16, l17, l18, l19
 
@@ -80,6 +83,7 @@ properties:
     enum:
       - qcom,rpm-mp5496-regulators
       - qcom,rpm-pm2250-regulators
+      - qcom,rpm-pm6125-regulators
       - qcom,rpm-pm660-regulators
       - qcom,rpm-pm660l-regulators
       - qcom,rpm-pm8226-regulators
