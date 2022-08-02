@@ -99,6 +99,7 @@ enum spmi_regulator_logical_type {
 	SPMI_REGULATOR_LOGICAL_TYPE_ULT_LDO,
 	SPMI_REGULATOR_LOGICAL_TYPE_FTSMPS426,
 	SPMI_REGULATOR_LOGICAL_TYPE_HFS430,
+	SPMI_REGULATOR_LOGICAL_TYPE_HFSMPS,
 };
 
 enum spmi_regulator_type {
@@ -166,6 +167,7 @@ enum spmi_regulator_subtype {
 	SPMI_REGULATOR_SUBTYPE_HFS430		= 0x0a,
 	SPMI_REGULATOR_SUBTYPE_HT_P150		= 0x35,
 	SPMI_REGULATOR_SUBTYPE_HT_P600		= 0x3d,
+	SPMI_REGULATOR_SUBTYPE_HFSMPS_510	= 0x0a,
 };
 
 enum spmi_common_regulator_registers {
@@ -191,6 +193,14 @@ enum spmi_ftsmps426_regulator_registers {
 	SPMI_FTSMPS426_REG_VOLTAGE_MSB		= 0x41,
 	SPMI_FTSMPS426_REG_VOLTAGE_ULS_LSB	= 0x68,
 	SPMI_FTSMPS426_REG_VOLTAGE_ULS_MSB	= 0x69,
+};
+
+/*
+ * Third common register layout
+ */
+enum spmi_hfsmps_regulator_registers {
+	SPMI_HFSMPS_REG_STEP_CTRL		= 0x3c,
+	SPMI_HFSMPS_REG_PULL_DOWN		= 0xa0,
 };
 
 enum spmi_vs_registers {
@@ -260,6 +270,15 @@ enum spmi_common_control_register_index {
 
 #define SPMI_FTSMPS426_MODE_MASK		0x07
 
+/* Third common regulator mode register values */
+#define SPMI_HFSMPS_MODE_BYPASS_MASK		2
+#define SPMI_HFSMPS_MODE_RETENTION_MASK		3
+#define SPMI_HFSMPS_MODE_LPM_MASK		4
+#define SPMI_HFSMPS_MODE_AUTO_MASK		6
+#define SPMI_HFSMPS_MODE_HPM_MASK		7
+
+#define SPMI_HFSMPS_MODE_MASK			0x07
+
 /* Common regulator pull down control register layout */
 #define SPMI_COMMON_PULL_DOWN_ENABLE_MASK	0x80
 
@@ -304,6 +323,9 @@ enum spmi_common_control_register_index {
  */
 #define SPMI_FTSMPS_STEP_MARGIN_NUM	4
 #define SPMI_FTSMPS_STEP_MARGIN_DEN	5
+
+/* slew_rate has units of uV/us. */
+#define SPMI_HFSMPS_SLEW_RATE_38p4 38400
 
 #define SPMI_FTSMPS426_STEP_CTRL_DELAY_MASK	0x03
 #define SPMI_FTSMPS426_STEP_CTRL_DELAY_SHIFT	0
@@ -1062,6 +1084,23 @@ static unsigned int spmi_regulator_ftsmps426_get_mode(struct regulator_dev *rdev
 	}
 }
 
+static unsigned int spmi_regulator_hfsmps_get_mode(struct regulator_dev *rdev)
+{
+	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
+	u8 reg;
+
+	spmi_vreg_read(vreg, SPMI_COMMON_REG_MODE, &reg, 1);
+
+	switch (reg) {
+	case SPMI_HFSMPS_MODE_HPM_MASK:
+		return REGULATOR_MODE_NORMAL;
+	case SPMI_HFSMPS_MODE_AUTO_MASK:
+		return REGULATOR_MODE_FAST;
+	default:
+		return REGULATOR_MODE_IDLE;
+	}
+}
+
 static int
 spmi_regulator_common_set_mode(struct regulator_dev *rdev, unsigned int mode)
 {
@@ -1109,6 +1148,30 @@ spmi_regulator_ftsmps426_set_mode(struct regulator_dev *rdev, unsigned int mode)
 }
 
 static int
+spmi_regulator_hfsmps_set_mode(struct regulator_dev *rdev, unsigned int mode)
+{
+	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
+	u8 mask = SPMI_HFSMPS_MODE_MASK;
+	u8 val;
+
+	switch (mode) {
+	case REGULATOR_MODE_NORMAL:
+		val = SPMI_HFSMPS_MODE_HPM_MASK;
+		break;
+	case REGULATOR_MODE_FAST:
+		val = SPMI_HFSMPS_MODE_AUTO_MASK;
+		break;
+	case REGULATOR_MODE_IDLE:
+		val = SPMI_HFSMPS_MODE_LPM_MASK;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return spmi_vreg_update_bits(vreg, SPMI_COMMON_REG_MODE, val, mask);
+}
+
+static int
 spmi_regulator_common_set_load(struct regulator_dev *rdev, int load_uA)
 {
 	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
@@ -1128,6 +1191,15 @@ static int spmi_regulator_common_set_pull_down(struct regulator_dev *rdev)
 	unsigned int mask = SPMI_COMMON_PULL_DOWN_ENABLE_MASK;
 
 	return spmi_vreg_update_bits(vreg, SPMI_COMMON_REG_PULL_DOWN,
+				     mask, mask);
+}
+
+static int spmi_regulator_hfsmps_set_pull_down(struct regulator_dev *rdev)
+{
+	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
+	unsigned int mask = SPMI_COMMON_PULL_DOWN_ENABLE_MASK;
+
+	return spmi_vreg_update_bits(vreg, SPMI_HFSMPS_REG_PULL_DOWN,
 				     mask, mask);
 }
 
@@ -1465,6 +1537,21 @@ static const struct regulator_ops spmi_hfs430_ops = {
 	.get_mode		= spmi_regulator_ftsmps426_get_mode,
 };
 
+static const struct regulator_ops spmi_hfsmps_ops = {
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.set_voltage_sel	= spmi_regulator_ftsmps426_set_voltage,
+	.set_voltage_time_sel	= spmi_regulator_set_voltage_time_sel,
+	.get_voltage_sel	= spmi_regulator_ftsmps426_get_voltage,
+	.map_voltage		= spmi_regulator_single_map_voltage,
+	.list_voltage		= spmi_regulator_common_list_voltage,
+	.set_mode		= spmi_regulator_hfsmps_set_mode,
+	.get_mode		= spmi_regulator_hfsmps_get_mode,
+	.set_load		= spmi_regulator_common_set_load,
+	.set_pull_down		= spmi_regulator_hfsmps_set_pull_down,
+};
+
 /* Maximum possible digital major revision value */
 #define INF 0xFF
 
@@ -1473,7 +1560,8 @@ static const struct spmi_regulator_mapping supported_regulators[] = {
 	SPMI_VREG(LDO,   HT_P600,  0, INF, HFS430, hfs430, ht_p600, 10000),
 	SPMI_VREG(LDO,   HT_P150,  0, INF, HFS430, hfs430, ht_p150, 10000),
 	SPMI_VREG(BUCK,  GP_CTL,   0, INF, SMPS,   smps,   smps,   100000),
-	SPMI_VREG(BUCK,  HFS430,   0, INF, HFS430, hfs430, hfs430,  10000),
+	SPMI_VREG(BUCK,  HFS430,   0,   3, HFS430, hfs430, hfs430,  10000),
+	SPMI_VREG(BUCK,  HFSMPS_510, 4, INF, HFSMPS, hfsmps, hfs430, 100000),
 	SPMI_VREG(LDO,   N300,     0, INF, LDO,    ldo,    nldo1,   10000),
 	SPMI_VREG(LDO,   N600,     0,   0, LDO,    ldo,    nldo2,   10000),
 	SPMI_VREG(LDO,   N1200,    0,   0, LDO,    ldo,    nldo2,   10000),
@@ -1696,6 +1784,26 @@ static int spmi_regulator_init_slew_rate_ftsmps426(struct spmi_regulator *vreg,
 	return ret;
 }
 
+static int spmi_regulator_init_slew_rate_hfsmps(struct spmi_regulator *vreg)
+{
+	int ret;
+	u8 reg = 0;
+	int delay;
+
+	ret = spmi_vreg_read(vreg, SPMI_HFSMPS_REG_STEP_CTRL, &reg, 1);
+	if (ret) {
+		dev_err(vreg->dev, "spmi read failed, ret=%d\n", ret);
+		return ret;
+	}
+
+	delay = reg & SPMI_FTSMPS426_STEP_CTRL_DELAY_MASK;
+	delay >>= SPMI_FTSMPS426_STEP_CTRL_DELAY_SHIFT;
+
+	vreg->slew_rate = SPMI_HFSMPS_SLEW_RATE_38p4 >> delay;
+
+	return ret;
+}
+
 static int spmi_regulator_init_registers(struct spmi_regulator *vreg,
 				const struct spmi_regulator_init_data *data)
 {
@@ -1843,6 +1951,11 @@ static int spmi_regulator_of_parse(struct device_node *node,
 	case SPMI_REGULATOR_LOGICAL_TYPE_HFS430:
 		ret = spmi_regulator_init_slew_rate_ftsmps426(vreg,
 							SPMI_HFS430_CLOCK_RATE);
+		if (ret)
+			return ret;
+		break;
+	case SPMI_REGULATOR_LOGICAL_TYPE_HFSMPS:
+		ret = spmi_regulator_init_slew_rate_hfsmps(vreg);
 		if (ret)
 			return ret;
 		break;
