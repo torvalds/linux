@@ -240,10 +240,10 @@ EXPORT_SYMBOL_GPL(start_poll_synchronize_srcu);
  */
 bool poll_state_synchronize_srcu(struct srcu_struct *ssp, unsigned long cookie)
 {
-	bool ret = USHORT_CMP_GE(READ_ONCE(ssp->srcu_idx), cookie);
+	unsigned short cur_s = READ_ONCE(ssp->srcu_idx);
 
 	barrier();
-	return ret;
+	return USHORT_CMP_GE(cur_s, cookie) || USHORT_CMP_LT(cur_s, cookie - 3);
 }
 EXPORT_SYMBOL_GPL(poll_state_synchronize_srcu);
 
