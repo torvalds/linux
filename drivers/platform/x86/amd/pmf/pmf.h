@@ -90,6 +90,7 @@ struct amd_pmf_dev {
 	u32 supported_func;
 	enum platform_profile_option current_profile;
 	struct platform_profile_handler pprof;
+	struct dentry *dbgfs_dir;
 };
 
 struct apmf_sps_prop_granular {
