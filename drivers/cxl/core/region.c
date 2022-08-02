@@ -159,7 +159,7 @@ static int cxl_region_decode_reset(struct cxl_region *cxlr, int count)
 static int cxl_region_decode_commit(struct cxl_region *cxlr)
 {
 	struct cxl_region_params *p = &cxlr->params;
-	int i, rc;
+	int i, rc = 0;
 
 	for (i = 0; i < p->nr_targets; i++) {
 		struct cxl_endpoint_decoder *cxled = p->targets[i];
@@ -179,27 +179,23 @@ static int cxl_region_decode_commit(struct cxl_region *cxlr)
 				break;
 		}
 
-		/* success, all decoders up to the root are programmed */
-		if (is_cxl_root(iter))
-			continue;
+		if (rc) {
+			/* programming @iter failed, teardown */
+			for (ep = cxl_ep_load(iter, cxlmd); ep && iter;
+			     iter = ep->next, ep = cxl_ep_load(iter, cxlmd)) {
+				cxl_rr = cxl_rr_load(iter, cxlr);
+				cxld = cxl_rr->decoder;
+				cxld->reset(cxld);
+			}
 
-		/* programming @iter failed, teardown */
-		for (ep = cxl_ep_load(iter, cxlmd); ep && iter;
-		     iter = ep->next, ep = cxl_ep_load(iter, cxlmd)) {
-			cxl_rr = cxl_rr_load(iter, cxlr);
-			cxld = cxl_rr->decoder;
-			cxld->reset(cxld);
+			cxled->cxld.reset(&cxled->cxld);
+			goto err;
 		}
-
-		cxled->cxld.reset(&cxled->cxld);
-		if (i == 0)
-			return rc;
-		break;
 	}
 
-	if (i >= p->nr_targets)
-		return 0;
+	return 0;
 
+err:
 	/* undo the targets that were successfully committed */
 	cxl_region_decode_reset(cxlr, i);
 	return rc;
