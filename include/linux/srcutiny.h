@@ -82,10 +82,12 @@ static inline void srcu_torture_stats_print(struct srcu_struct *ssp,
 	int idx;
 
 	idx = ((data_race(READ_ONCE(ssp->srcu_idx)) + 1) & 0x2) >> 1;
-	pr_alert("%s%s Tiny SRCU per-CPU(idx=%d): (%hd,%hd)\n",
+	pr_alert("%s%s Tiny SRCU per-CPU(idx=%d): (%hd,%hd) gp: %hu->%hu\n",
 		 tt, tf, idx,
 		 data_race(READ_ONCE(ssp->srcu_lock_nesting[!idx])),
-		 data_race(READ_ONCE(ssp->srcu_lock_nesting[idx])));
+		 data_race(READ_ONCE(ssp->srcu_lock_nesting[idx])),
+		 data_race(READ_ONCE(ssp->srcu_idx)),
+		 data_race(READ_ONCE(ssp->srcu_idx_max)));
 }
 
 #endif
