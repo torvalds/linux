@@ -156,7 +156,7 @@
 
 	firmware {
 		scm {
-			compatible = "qcom,scm-ipq4019";
+			compatible = "qcom,scm-ipq4019", "qcom,scm";
 		};
 	};
 
@@ -221,7 +221,7 @@
 			status = "disabled";
 		};
 
-		sdhci: sdhci@7824900 {
+		sdhci: mmc@7824900 {
 			compatible = "qcom,sdhci-msm-v4";
 			reg = <0x7824900 0x11c>, <0x7824000 0x800>;
 			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;

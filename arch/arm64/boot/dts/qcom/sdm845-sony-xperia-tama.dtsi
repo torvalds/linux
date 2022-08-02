@@ -19,7 +19,7 @@
 
 		/* Neither Camera Focus, nor Camera Shutter seem to work... */
 
-		vol-down {
+		key-vol-down {
 			label = "volume_down";
 			gpios = <&pm8998_gpio 5 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;

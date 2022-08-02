@@ -38,6 +38,8 @@
  * throughput and memory controller power.
  */
 #define TEGRA234_CLK_EMC			31U
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_HOST1X */
+#define TEGRA234_CLK_HOST1X                     46U
 /** @brief output of gate CLK_ENB_FUSE */
 #define TEGRA234_CLK_FUSE			40U
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_I2C1 */
@@ -132,6 +134,8 @@
 #define TEGRA234_CLK_UARTA			155U
 /** @brief output of gate CLK_ENB_PEX1_CORE_6 */
 #define TEGRA234_CLK_PEX1_C6_CORE		161U
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_VIC */
+#define TEGRA234_CLK_VIC                        167U
 /** @brief output of gate CLK_ENB_PEX2_CORE_7 */
 #define TEGRA234_CLK_PEX2_C7_CORE		171U
 /** @brief output of gate CLK_ENB_PEX2_CORE_8 */

@@ -10,7 +10,8 @@
 			compatible = "st,stm32mp1-cryp";
 			reg = <0x54002000 0x400>;
 			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk_axi>;
+			clocks = <&rcc CRYP1>;
+			resets = <&rcc CRYP1_R>;
 			status = "disabled";
 		};
 	};
