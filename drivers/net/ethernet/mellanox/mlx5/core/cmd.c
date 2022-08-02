@@ -95,6 +95,21 @@ static u16 in_to_opcode(void *in)
 	return MLX5_GET(mbox_in, in, opcode);
 }
 
+/* Returns true for opcodes that might be triggered very frequently and throttle
+ * the command interface. Limit their command slots usage.
+ */
+static bool mlx5_cmd_is_throttle_opcode(u16 op)
+{
+	switch (op) {
+	case MLX5_CMD_OP_CREATE_GENERAL_OBJECT:
+	case MLX5_CMD_OP_DESTROY_GENERAL_OBJECT:
+	case MLX5_CMD_OP_MODIFY_GENERAL_OBJECT:
+	case MLX5_CMD_OP_QUERY_GENERAL_OBJECT:
+		return true;
+	}
+	return false;
+}
+
 static struct mlx5_cmd_work_ent *
 cmd_alloc_ent(struct mlx5_cmd *cmd, struct mlx5_cmd_msg *in,
 	      struct mlx5_cmd_msg *out, void *uout, int uout_size,
@@ -1826,6 +1841,7 @@ static int cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 {
 	struct mlx5_cmd_msg *inb, *outb;
 	u16 opcode = in_to_opcode(in);
+	bool throttle_op;
 	int pages_queue;
 	gfp_t gfp;
 	u8 token;
@@ -1834,13 +1850,21 @@ static int cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 	if (mlx5_cmd_is_down(dev) || !opcode_allowed(&dev->cmd, opcode))
 		return -ENXIO;
 
+	throttle_op = mlx5_cmd_is_throttle_opcode(opcode);
+	if (throttle_op) {
+		/* atomic context may not sleep */
+		if (callback)
+			return -EINVAL;
+		down(&dev->cmd.throttle_sem);
+	}
+
 	pages_queue = is_manage_pages(in);
 	gfp = callback ? GFP_ATOMIC : GFP_KERNEL;
 
 	inb = alloc_msg(dev, in_size, gfp);
 	if (IS_ERR(inb)) {
 		err = PTR_ERR(inb);
-		return err;
+		goto out_up;
 	}
 
 	token = alloc_token(&dev->cmd);
@@ -1874,6 +1898,9 @@ out_out:
 	mlx5_free_cmd_msg(dev, outb);
 out_in:
 	free_msg(dev, inb);
+out_up:
+	if (throttle_op)
+		up(&dev->cmd.throttle_sem);
 	return err;
 }
 
@@ -2218,6 +2245,7 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 
 	sema_init(&cmd->sem, cmd->max_reg_cmds);
 	sema_init(&cmd->pages_sem, 1);
+	sema_init(&cmd->throttle_sem, DIV_ROUND_UP(cmd->max_reg_cmds, 2));
 
 	cmd_h = (u32)((u64)(cmd->dma) >> 32);
 	cmd_l = (u32)(cmd->dma);

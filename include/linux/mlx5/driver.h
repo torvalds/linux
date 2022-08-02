@@ -308,6 +308,7 @@ struct mlx5_cmd {
 	struct workqueue_struct *wq;
 	struct semaphore sem;
 	struct semaphore pages_sem;
+	struct semaphore throttle_sem;
 	int	mode;
 	u16     allowed_opcode;
 	struct mlx5_cmd_work_ent *ent_arr[MLX5_MAX_COMMANDS];
