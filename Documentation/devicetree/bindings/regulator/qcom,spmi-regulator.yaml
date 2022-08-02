@@ -12,6 +12,7 @@ maintainers:
 properties:
   compatible:
     enum:
+      - qcom,pm6125-regulators
       - qcom,pm660-regulators
       - qcom,pm660l-regulators
       - qcom,pm8004-regulators
@@ -106,6 +107,25 @@ required:
   - compatible
 
 allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm6125-regulators
+    then:
+      properties:
+        vdd_l1_l7_l17_l18-supply: true
+        vdd_l2_l3_l4-supply: true
+        vdd_l5_l15_l19_l20_l21_l22-supply: true
+        vdd_l6_l8-supply: true
+        vdd_l9_l11-supply: true
+        vdd_l10_l13_l14-supply: true
+        vdd_l12_l16-supply: true
+        vdd_l23_l24-supply: true
+      patternProperties:
+        "^vdd_s[1-8]-supply$": true
+
   - if:
       properties:
         compatible:
