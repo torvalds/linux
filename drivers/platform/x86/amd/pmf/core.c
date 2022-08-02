@@ -39,6 +39,7 @@
 #define AMD_PMF_RESULT_FAILED                0xFF
 
 /* List of supported CPU ids */
+#define AMD_CPU_ID_RMB			0x14b5
 #define AMD_CPU_ID_PS			0x14e8
 
 #define PMF_MSG_DELAY_MIN_US		50
@@ -51,6 +52,11 @@
 static int metrics_table_loop_ms = 1000;
 module_param(metrics_table_loop_ms, int, 0644);
 MODULE_PARM_DESC(metrics_table_loop_ms, "Metrics Table sample size time (default = 1000ms)");
+
+/* Force load on supported older platforms */
+static bool force_load;
+module_param(force_load, bool, 0444);
+MODULE_PARM_DESC(force_load, "Force load this driver on supported older platforms (experimental)");
 
 static int current_power_limits_show(struct seq_file *seq, void *unused)
 {
@@ -208,6 +214,7 @@ out_unlock:
 }
 
 static const struct pci_device_id pmf_pci_ids[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, AMD_CPU_ID_RMB) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, AMD_CPU_ID_PS) },
 	{ }
 };
@@ -265,6 +272,7 @@ static void amd_pmf_deinit_features(struct amd_pmf_dev *dev)
 }
 
 static const struct acpi_device_id amd_pmf_acpi_ids[] = {
+	{"AMDI0100", 0x100},
 	{"AMDI0102", 0},
 	{ }
 };
@@ -272,6 +280,7 @@ MODULE_DEVICE_TABLE(acpi, amd_pmf_acpi_ids);
 
 static int amd_pmf_probe(struct platform_device *pdev)
 {
+	const struct acpi_device_id *id;
 	struct amd_pmf_dev *dev;
 	struct pci_dev *rdev;
 	u32 base_addr_lo;
@@ -279,6 +288,13 @@ static int amd_pmf_probe(struct platform_device *pdev)
 	u64 base_addr;
 	u32 val;
 	int err;
+
+	id = acpi_match_device(amd_pmf_acpi_ids, &pdev->dev);
+	if (!id)
+		return -ENODEV;
+
+	if (id->driver_data == 0x100 && !force_load)
+		return -ENODEV;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
