@@ -3359,7 +3359,7 @@ static int calc_bio_boundaries(struct btrfs_bio_ctrl *bio_ctrl,
 static int alloc_new_bio(struct btrfs_inode *inode,
 			 struct btrfs_bio_ctrl *bio_ctrl,
 			 struct writeback_control *wbc,
-			 unsigned int opf,
+			 blk_opf_t opf,
 			 bio_end_io_t end_io_func,
 			 u64 disk_bytenr, u32 offset, u64 file_offset,
 			 enum btrfs_compression_type compress_type)
@@ -3439,7 +3439,7 @@ error:
  * @prev_bio_flags:  flags of previous bio to see if we can merge the current one
  * @compress_type:   compress type for current bio
  */
-static int submit_extent_page(unsigned int opf,
+static int submit_extent_page(blk_opf_t opf,
 			      struct writeback_control *wbc,
 			      struct btrfs_bio_ctrl *bio_ctrl,
 			      struct page *page, u64 disk_bytenr,
@@ -3617,7 +3617,7 @@ __get_extent_map(struct inode *inode, struct page *page, size_t pg_offset,
  */
 static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 		      struct btrfs_bio_ctrl *bio_ctrl,
-		      unsigned int read_flags, u64 *prev_em_start)
+		      blk_opf_t read_flags, u64 *prev_em_start)
 {
 	struct inode *inode = page->mapping->host;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
@@ -3985,8 +3985,8 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 	int saved_ret = 0;
 	int ret = 0;
 	int nr = 0;
-	u32 opf = REQ_OP_WRITE;
-	const unsigned int write_flags = wbc_to_write_flags(wbc);
+	enum req_op op = REQ_OP_WRITE;
+	const blk_opf_t write_flags = wbc_to_write_flags(wbc);
 	bool has_error = false;
 	bool compressed;
 
@@ -4060,7 +4060,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		iosize = min(min(em_end, end + 1), dirty_range_end) - cur;
 
 		if (btrfs_use_zone_append(inode, em->block_start))
-			opf = REQ_OP_ZONE_APPEND;
+			op = REQ_OP_ZONE_APPEND;
 
 		free_extent_map(em);
 		em = NULL;
@@ -4096,7 +4096,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		 */
 		btrfs_page_clear_dirty(fs_info, page, cur, iosize);
 
-		ret = submit_extent_page(opf | write_flags, wbc,
+		ret = submit_extent_page(op | write_flags, wbc,
 					 &epd->bio_ctrl, page,
 					 disk_bytenr, iosize,
 					 cur - page_offset(page),
@@ -4577,7 +4577,7 @@ static int write_one_subpage_eb(struct extent_buffer *eb,
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct page *page = eb->pages[0];
-	unsigned int write_flags = wbc_to_write_flags(wbc) | REQ_META;
+	blk_opf_t write_flags = wbc_to_write_flags(wbc) | REQ_META;
 	bool no_dirty_ebs = false;
 	int ret;
 
@@ -4622,7 +4622,7 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 {
 	u64 disk_bytenr = eb->start;
 	int i, num_pages;
-	unsigned int write_flags = wbc_to_write_flags(wbc) | REQ_META;
+	blk_opf_t write_flags = wbc_to_write_flags(wbc) | REQ_META;
 	int ret = 0;
 
 	prepare_eb_write(eb);
