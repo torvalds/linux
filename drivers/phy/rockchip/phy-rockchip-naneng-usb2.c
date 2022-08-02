@@ -1673,6 +1673,11 @@ static int rv1126_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 		ret = regmap_write(rphy->grf, 0x1028c, 0x0f0f0100);
 		if (ret)
 			goto out;
+
+		/* Enable host port wakeup irq */
+		ret = regmap_write(rphy->grf, 0x0000, 0x00040004);
+		if (ret)
+			goto out;
 	}
 
 out:
