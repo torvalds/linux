@@ -26,6 +26,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
+#include "max96714.h"
 
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
 
@@ -1089,17 +1090,20 @@ static struct i2c_driver max96714_i2c_driver = {
 	.id_table	= max96714_match_id,
 };
 
-static int __init sensor_mod_init(void)
+int max96714_sensor_mod_init(void)
 {
 	return i2c_add_driver(&max96714_i2c_driver);
 }
+
+#ifndef CONFIG_VIDEO_REVERSE_IMAGE
+device_initcall_sync(max96714_sensor_mod_init);
+#endif
 
 static void __exit sensor_mod_exit(void)
 {
 	i2c_del_driver(&max96714_i2c_driver);
 }
 
-device_initcall_sync(sensor_mod_init);
 module_exit(sensor_mod_exit);
 
 MODULE_DESCRIPTION("Maxim max96714 sensor driver");

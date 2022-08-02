@@ -39,6 +39,7 @@
 #include "jaguar1_video_eq.h"
 #include "jaguar1_mipi.h"
 #include "jaguar1_drv.h"
+#include "jaguar1_v4l2.h"
 
 #define DRIVER_VERSION				KERNEL_VERSION(0, 0x01, 0x1)
 
@@ -987,6 +988,8 @@ static int jaguar1_probe(struct i2c_client *client,
 	pm_runtime_enable(dev);
 	pm_runtime_idle(dev);
 
+	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
+			client->addr << 1, client->adapter->name);
 	return 0;
 
 err_power_off:
@@ -1041,17 +1044,20 @@ static struct i2c_driver jaguar1_i2c_driver = {
 	.id_table	= jaguar1_match_id,
 };
 
-static int __init sensor_mod_init(void)
+int nvp6324_sensor_mod_init(void)
 {
 	return i2c_add_driver(&jaguar1_i2c_driver);
 }
+
+#ifndef CONFIG_VIDEO_REVERSE_IMAGE
+device_initcall_sync(nvp6324_sensor_mod_init);
+#endif
 
 static void __exit sensor_mod_exit(void)
 {
 	i2c_del_driver(&jaguar1_i2c_driver);
 }
 
-device_initcall_sync(sensor_mod_init);
 module_exit(sensor_mod_exit);
 
 MODULE_DESCRIPTION("jaguar1 sensor driver");

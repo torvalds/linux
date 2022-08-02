@@ -42,6 +42,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/input.h>
+#include "nvp6188.h"
 
 #define DRIVER_VERSION				KERNEL_VERSION(0, 0x01, 0x2)
 
@@ -2743,17 +2744,20 @@ static struct i2c_driver nvp6188_i2c_driver = {
 	.id_table	= nvp6188_match_id,
 };
 
-static int __init sensor_mod_init(void)
+int nvp6188_sensor_mod_init(void)
 {
 	return i2c_add_driver(&nvp6188_i2c_driver);
 }
+
+#ifndef CONFIG_VIDEO_REVERSE_IMAGE
+device_initcall_sync(nvp6188_sensor_mod_init);
+#endif
 
 static void __exit sensor_mod_exit(void)
 {
 	i2c_del_driver(&nvp6188_i2c_driver);
 }
 
-device_initcall_sync(sensor_mod_init);
 module_exit(sensor_mod_exit);
 
 MODULE_AUTHOR("Vicent Chi <vicent.chi@rock-chips.com>");
