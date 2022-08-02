@@ -1121,7 +1121,7 @@
 
 /{
 	mipidphy0: mipidphy0 {
-	compatible =  "rockchip,rk1608-dphy";
+		compatible =  "rockchip,rk1608-dphy";
 		status = "okay";
 		//rockchip,grf = <&grf>;
 		id = <0>;
@@ -1131,8 +1131,9 @@
 		out_mipi = <0>;
 		link-freqs = /bits/ 64 <LINK_FREQ>;
 
-		sensor_i2c_bus = <5>;
-		sensor_i2c_addr = <0x1a>;
+		/* rk1608 i2c mode */
+		sensor_i2c_bus = <3>;
+		sensor_i2c_addr = <0x36>;
 		sensor-name = "IMX464";
 
 		rockchip,camera-module-index = <9>;
@@ -1141,6 +1142,7 @@
 		rockchip,camera-module-lens-name = "CHT842-MD";
 
 		/* virtual-sensor mode */
+		link-sensor = <&imx464_7>;
 		virtual-sub-sensor-config-0 {
 			id = <1>;
 			in_mipi = <2>;
