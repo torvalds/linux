@@ -103,6 +103,22 @@ int apmf_get_static_slider_granular(struct amd_pmf_dev *pdev,
 									 data, sizeof(*data));
 }
 
+static void apmf_sbios_heartbeat_notify(struct work_struct *work)
+{
+	struct amd_pmf_dev *dev = container_of(work, struct amd_pmf_dev, heart_beat.work);
+	union acpi_object *info;
+
+	dev_dbg(dev->dev, "Sending heartbeat to SBIOS\n");
+	info = apmf_if_call(dev, APMF_FUNC_SBIOS_HEARTBEAT, NULL);
+	if (!info)
+		goto out;
+
+	schedule_delayed_work(&dev->heart_beat, msecs_to_jiffies(dev->hb_interval * 1000));
+
+out:
+	kfree(info);
+}
+
 static int apmf_if_verify_interface(struct amd_pmf_dev *pdev)
 {
 	struct apmf_verify_interface output;
@@ -131,13 +147,21 @@ static int apmf_get_system_params(struct amd_pmf_dev *dev)
 	if (err)
 		return err;
 
-	dev_dbg(dev->dev, "system params mask:0x%x flags:0x%x cmd_code:0x%x\n",
+	dev_dbg(dev->dev, "system params mask:0x%x flags:0x%x cmd_code:0x%x heartbeat:%d\n",
 		params.valid_mask,
 		params.flags,
-		params.command_code);
+		params.command_code,
+		params.heartbeat_int);
 	params.flags = params.flags & params.valid_mask;
+	dev->hb_interval = params.heartbeat_int;
 
 	return 0;
+}
+
+void apmf_acpi_deinit(struct amd_pmf_dev *pmf_dev)
+{
+	if (pmf_dev->hb_interval)
+		cancel_delayed_work_sync(&pmf_dev->heart_beat);
 }
 
 int apmf_acpi_init(struct amd_pmf_dev *pmf_dev)
@@ -154,6 +178,12 @@ int apmf_acpi_init(struct amd_pmf_dev *pmf_dev)
 	if (ret) {
 		dev_err(pmf_dev->dev, "APMF apmf_get_system_params failed :%d\n", ret);
 		goto out;
+	}
+
+	if (pmf_dev->hb_interval) {
+		/* send heartbeats only if the interval is not zero */
+		INIT_DELAYED_WORK(&pmf_dev->heart_beat, apmf_sbios_heartbeat_notify);
+		schedule_delayed_work(&pmf_dev->heart_beat, 0);
 	}
 
 out:
