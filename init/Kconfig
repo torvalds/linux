@@ -945,6 +945,16 @@ if CGROUPS
 config PAGE_COUNTER
 	bool
 
+config CGROUP_FAVOR_DYNMODS
+        bool "Favor dynamic modification latency reduction by default"
+        help
+          This option enables the "favordynmods" mount option by default
+          which reduces the latencies of dynamic cgroup modifications such
+          as task migrations and controller on/offs at the cost of making
+          hot path operations such as forks and exits more expensive.
+
+          Say N if unsure.
+
 config MEMCG
 	bool "Memory controller"
 	select PAGE_COUNTER

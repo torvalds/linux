@@ -674,7 +674,7 @@ static inline void pr_cont_cgroup_path(struct cgroup *cgrp)
 
 static inline struct psi_group *cgroup_psi(struct cgroup *cgrp)
 {
-	return &cgrp->psi;
+	return cgrp->psi;
 }
 
 bool cgroup_psi_enabled(void);
