@@ -467,16 +467,12 @@ static ssize_t efivar_delete(struct file *filp, struct kobject *kobj,
 	else if (__efivar_entry_delete(entry))
 		err = -EIO;
 
-	if (err) {
-		efivar_entry_iter_end();
-		return err;
-	}
+	efivar_entry_iter_end();
 
-	if (!entry->scanning) {
-		efivar_entry_iter_end();
-		efivar_unregister(entry);
-	} else
-		efivar_entry_iter_end();
+	if (err)
+		return err;
+
+	efivar_unregister(entry);
 
 	/* It's dead Jim.... */
 	return count;
@@ -527,10 +523,7 @@ efivar_create_sysfs_entry(struct efivar_entry *new_var)
 	}
 
 	kobject_uevent(&new_var->kobj, KOBJ_ADD);
-	if (efivar_entry_add(new_var, &efivar_sysfs_list)) {
-		efivar_unregister(new_var);
-		return -EINTR;
-	}
+	__efivar_entry_add(new_var, &efivar_sysfs_list);
 
 	return 0;
 }
@@ -609,10 +602,7 @@ static int efivars_sysfs_callback(efi_char16_t *name, efi_guid_t vendor,
 
 static int efivar_sysfs_destroy(struct efivar_entry *entry, void *data)
 {
-	int err = efivar_entry_remove(entry);
-
-	if (err)
-		return err;
+	efivar_entry_remove(entry);
 	efivar_unregister(entry);
 	return 0;
 }
@@ -622,8 +612,7 @@ static void efivars_sysfs_exit(void)
 	/* Remove all entries and destroy */
 	int err;
 
-	err = __efivar_entry_iter(efivar_sysfs_destroy, &efivar_sysfs_list,
-				  NULL, NULL);
+	err = efivar_entry_iter(efivar_sysfs_destroy, &efivar_sysfs_list, NULL);
 	if (err) {
 		pr_err("efivars: Failed to destroy sysfs entries\n");
 		return;
