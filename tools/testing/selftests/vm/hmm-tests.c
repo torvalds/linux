@@ -1604,7 +1604,7 @@ TEST_F(hmm2, double_map)
 		ASSERT_EQ(ptr[i], i);
 
 	/* Migrate pages to device 1 and try to read from device 0. */
-	ret = hmm_dmirror_cmd(self->fd1, HMM_DMIRROR_MIGRATE, buffer, npages);
+	ret = hmm_migrate_sys_to_dev(self->fd1, buffer, npages);
 	ASSERT_EQ(ret, 0);
 	ASSERT_EQ(buffer->cpages, npages);
 
