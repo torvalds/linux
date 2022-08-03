@@ -583,6 +583,24 @@ static void hdmirx_get_pix_fmt(struct rk_hdmirx_dev *hdmirx_dev)
 		break;
 	}
 
+	/*
+	 * set avmute value to black
+	 * RGB:    R:bit[47:40],  G:bit[31:24],  B:bit[15:8]
+	 * YUV444: Y:bit[47:40],  U:bit[31:24],  V:bit[15:8]
+	 * YUV422: Y:bit[47:40], UV:bit[15:8]
+	 * YUV420: Y:bit[47:40],  Y:bit[31:24], UV:bit[15:8]
+	 */
+	if (hdmirx_dev->pix_fmt == HDMIRX_RGB888) {
+		hdmirx_writel(hdmirx_dev, VIDEO_MUTE_VALUE_H, 0x0);
+		hdmirx_writel(hdmirx_dev, VIDEO_MUTE_VALUE_L, 0x0);
+	} else if (hdmirx_dev->pix_fmt == HDMIRX_YUV444) {
+		hdmirx_writel(hdmirx_dev, VIDEO_MUTE_VALUE_H, 0x0);
+		hdmirx_writel(hdmirx_dev, VIDEO_MUTE_VALUE_L, 0x80008000);
+	} else {
+		hdmirx_writel(hdmirx_dev, VIDEO_MUTE_VALUE_H, 0x0);
+		hdmirx_writel(hdmirx_dev, VIDEO_MUTE_VALUE_L, 0x00008000);
+	}
+
 	v4l2_dbg(1, debug, v4l2_dev, "%s: pix_fmt: %s\n", __func__,
 			pix_fmt_str[hdmirx_dev->pix_fmt]);
 }
