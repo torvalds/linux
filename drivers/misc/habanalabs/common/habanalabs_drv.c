@@ -58,14 +58,12 @@ MODULE_PARM_DESC(boot_error_status_mask,
 #define PCI_IDS_GAUDI_SEC		0x1010
 
 #define PCI_IDS_GAUDI2			0x1020
-#define PCI_IDS_GAUDI2_SEC		0x1030
 
 static const struct pci_device_id ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HABANALABS, PCI_IDS_GOYA), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_HABANALABS, PCI_IDS_GAUDI), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_HABANALABS, PCI_IDS_GAUDI_SEC), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_HABANALABS, PCI_IDS_GAUDI2), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_HABANALABS, PCI_IDS_GAUDI2_SEC), },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, ids);
@@ -95,9 +93,6 @@ static enum hl_asic_type get_asic_type(u16 device)
 	case PCI_IDS_GAUDI2:
 		asic_type = ASIC_GAUDI2;
 		break;
-	case PCI_IDS_GAUDI2_SEC:
-		asic_type = ASIC_GAUDI2_SEC;
-		break;
 	default:
 		asic_type = ASIC_INVALID;
 		break;
@@ -110,7 +105,6 @@ static bool is_asic_secured(enum hl_asic_type asic_type)
 {
 	switch (asic_type) {
 	case ASIC_GAUDI_SEC:
-	case ASIC_GAUDI2_SEC:
 		return true;
 	default:
 		return false;
