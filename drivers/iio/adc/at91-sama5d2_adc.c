@@ -304,11 +304,6 @@ static const struct at91_adc_reg_layout sama7g5_layout = {
 #define AT91_HWFIFO_MAX_SIZE_STR	"128"
 #define AT91_HWFIFO_MAX_SIZE		128
 
-/* Possible values for oversampling ratio */
-#define AT91_OSR_1SAMPLES		1
-#define AT91_OSR_4SAMPLES		4
-#define AT91_OSR_16SAMPLES		16
-
 #define AT91_SAMA5D2_CHAN_SINGLE(index, num, addr)			\
 	{								\
 		.type = IIO_VOLTAGE,					\
@@ -743,15 +738,15 @@ static int at91_adc_config_emr(struct at91_adc_state *st,
 
 	/* select oversampling ratio from configuration */
 	switch (oversampling_ratio) {
-	case AT91_OSR_1SAMPLES:
+	case 1:
 		emr |= AT91_SAMA5D2_EMR_OSR(AT91_SAMA5D2_EMR_OSR_1SAMPLES,
 					    osr_mask);
 		break;
-	case AT91_OSR_4SAMPLES:
+	case 4:
 		emr |= AT91_SAMA5D2_EMR_OSR(AT91_SAMA5D2_EMR_OSR_4SAMPLES,
 					    osr_mask);
 		break;
-	case AT91_OSR_16SAMPLES:
+	case 16:
 		emr |= AT91_SAMA5D2_EMR_OSR(AT91_SAMA5D2_EMR_OSR_16SAMPLES,
 					    osr_mask);
 		break;
@@ -766,13 +761,13 @@ static int at91_adc_config_emr(struct at91_adc_state *st,
 
 static int at91_adc_adjust_val_osr(struct at91_adc_state *st, int *val)
 {
-	if (st->oversampling_ratio == AT91_OSR_1SAMPLES) {
+	if (st->oversampling_ratio == 1) {
 		/*
 		 * in this case we only have 12 bits of real data, but channel
 		 * is registered as 14 bits, so shift left two bits
 		 */
 		*val <<= 2;
-	} else if (st->oversampling_ratio == AT91_OSR_4SAMPLES) {
+	} else if (st->oversampling_ratio == 4) {
 		/*
 		 * in this case we have 13 bits of real data, but channel
 		 * is registered as 14 bits, so left shift one bit
@@ -1875,9 +1870,9 @@ static IIO_CONST_ATTR(hwfifo_watermark_min, "2");
 static IIO_CONST_ATTR(hwfifo_watermark_max, AT91_HWFIFO_MAX_SIZE_STR);
 
 static IIO_CONST_ATTR(oversampling_ratio_available,
-		      __stringify(AT91_OSR_1SAMPLES) " "
-		      __stringify(AT91_OSR_4SAMPLES) " "
-		      __stringify(AT91_OSR_16SAMPLES));
+		      __stringify(1) " "
+		      __stringify(4) " "
+		      __stringify(16));
 
 static struct attribute *at91_adc_attributes[] = {
 	&iio_const_attr_oversampling_ratio_available.dev_attr.attr,
@@ -1973,7 +1968,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 	bitmap_set(&st->touch_st.channels_bitmask,
 		   st->soc_info.platform->touch_chan_p, 1);
 
-	st->oversampling_ratio = AT91_OSR_1SAMPLES;
+	st->oversampling_ratio = 1;
 
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "atmel,min-sample-rate-hz",
