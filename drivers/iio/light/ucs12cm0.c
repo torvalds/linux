@@ -554,6 +554,7 @@ static int ucs12cm0_probe(struct i2c_client *client,
 	struct ucs12cm0_data *data;
 	struct iio_dev *indio_dev;
 	struct iio_buffer *buffer;
+	u32 type;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
@@ -586,10 +587,17 @@ static int ucs12cm0_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
+	type = irqd_get_trigger_type(irq_get_irq_data(client->irq));
+	if (type != IRQF_TRIGGER_LOW && type != IRQF_TRIGGER_FALLING) {
+		dev_err(&client->dev,
+			"unsupported IRQ trigger specified (%x)\n", type);
+		return -EINVAL;
+	}
+
 	ret = devm_request_threaded_irq(&client->dev, client->irq,
 					NULL, ucs12cm0_interrupt_handler,
-					IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-					"ucs12cm0_irq", indio_dev);
+					type | IRQF_ONESHOT, "ucs12cm0_irq",
+					indio_dev);
 	if (ret) {
 		dev_err(&client->dev, "request irq (%d) failed\n",
 			client->irq);
