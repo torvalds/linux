@@ -1582,6 +1582,7 @@ static irqreturn_t at91_adc_interrupt(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
+/* This needs to be called with direct mode claimed and st->lock locked. */
 static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
 				  struct iio_chan_spec const *chan, int *val)
 {
@@ -1594,44 +1595,25 @@ static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
 	 * if external trigger is enabled
 	 */
 	if (chan->type == IIO_POSITIONRELATIVE) {
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
-		mutex_lock(&st->lock);
-
 		ret = at91_adc_read_position(st, chan->channel,
 					     &tmp_val);
 		*val = tmp_val;
 		if (ret > 0)
 			ret = at91_adc_adjust_val_osr(st, val);
-		mutex_unlock(&st->lock);
-		iio_device_release_direct_mode(indio_dev);
 
 		return ret;
 	}
 	if (chan->type == IIO_PRESSURE) {
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
-		mutex_lock(&st->lock);
-
 		ret = at91_adc_read_pressure(st, chan->channel,
 					     &tmp_val);
 		*val = tmp_val;
 		if (ret > 0)
 			ret = at91_adc_adjust_val_osr(st, val);
-		mutex_unlock(&st->lock);
-		iio_device_release_direct_mode(indio_dev);
 
 		return ret;
 	}
 
 	/* in this case we have a voltage channel */
-
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
-	mutex_lock(&st->lock);
 
 	st->chan = chan;
 
@@ -1661,9 +1643,25 @@ static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
 	/* Needed to ACK the DRDY interruption */
 	at91_adc_readl(st, LCDR);
 
+	return ret;
+}
+
+static int at91_adc_read_info_locked(struct iio_dev *indio_dev,
+				     struct iio_chan_spec const *chan, int *val)
+{
+	struct at91_adc_state *st = iio_priv(indio_dev);
+	int ret;
+
+	ret = iio_device_claim_direct_mode(indio_dev);
+	if (ret)
+		return ret;
+
+	mutex_lock(&st->lock);
+	ret = at91_adc_read_info_raw(indio_dev, chan, val);
 	mutex_unlock(&st->lock);
 
 	iio_device_release_direct_mode(indio_dev);
+
 	return ret;
 }
 
@@ -1675,7 +1673,8 @@ static int at91_adc_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		return at91_adc_read_info_raw(indio_dev, chan, val);
+		return at91_adc_read_info_locked(indio_dev, chan, val);
+
 	case IIO_CHAN_INFO_SCALE:
 		*val = st->vref_uv / 1000;
 		if (chan->differential)
