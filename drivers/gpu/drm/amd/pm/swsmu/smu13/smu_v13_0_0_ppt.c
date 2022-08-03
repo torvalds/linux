@@ -239,6 +239,7 @@ smu_v13_0_0_get_allowed_feature_mask(struct smu_context *smu,
 				  uint32_t *feature_mask, uint32_t num)
 {
 	struct amdgpu_device *adev = smu->adev;
+	u32 smu_version;
 
 	if (num > 2)
 		return -EINVAL;
@@ -262,10 +263,11 @@ smu_v13_0_0_get_allowed_feature_mask(struct smu_context *smu,
 	if (adev->pm.pp_feature & PP_SOCCLK_DPM_MASK)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT);
 
-#if 0
-	if (adev->pm.pp_feature & PP_GFXOFF_MASK)
+	/* PMFW 78.58 contains a critical fix for gfxoff feature */
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+	if ((smu_version >= 0x004e3a00) &&
+	    (adev->pm.pp_feature & PP_GFXOFF_MASK))
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFXOFF_BIT);
-#endif
 
 	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_THROTTLERS_BIT);
 	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_FAN_CONTROL_BIT);
