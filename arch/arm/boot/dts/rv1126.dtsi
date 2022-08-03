@@ -1168,13 +1168,14 @@
 	};
 
 	mipi_dphy: mipi-dphy@ff4d0000 {
-		compatible = "rockchip,rv1126-mipi-dphy", "rockchip,rk1808-mipi-dphy";
-		reg = <0xff4d0000 0x500>;
+		compatible = "rockchip,rv1126-mipi-dphy", "rockchip,rk3568-video-phy";
+		reg = <0xff4d0000 0x500>, <0xffb30000 0x500>;
+		reg-names = "phy", "host";
 		assigned-clocks = <&pmucru CLK_MIPIDSIPHY_REF>;
 		assigned-clock-rates = <24000000>;
-		clocks = <&pmucru CLK_MIPIDSIPHY_REF>, <&cru PCLK_DSIPHY>;
-		clock-names = "ref", "pclk";
-		clock-output-names = "mipi_dphy_pll";
+		clocks = <&pmucru CLK_MIPIDSIPHY_REF>,
+			 <&cru PCLK_DSIPHY>, <&cru PCLK_DSIHOST>;
+		clock-names = "ref", "pclk", "pclk_host";
 		#clock-cells = <0>;
 		resets = <&cru SRST_DSIPHY_P>;
 		reset-names = "apb";
@@ -1909,12 +1910,12 @@
 		compatible = "rockchip,rv1126-mipi-dsi";
 		reg = <0xffb30000 0x500>;
 		interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru PCLK_DSIHOST>, <&mipi_dphy>;
-		clock-names = "pclk", "hs_clk";
+		clocks = <&cru PCLK_DSIHOST>, <&cru HCLK_PDVO>;
+		clock-names = "pclk", "hclk";
 		resets = <&cru SRST_DSIHOST_P>;
 		reset-names = "apb";
 		phys = <&mipi_dphy>;
-		phy-names = "mipi_dphy";
+		phy-names = "dphy";
 		rockchip,grf = <&grf>;
 		#address-cells = <1>;
 		#size-cells = <0>;
