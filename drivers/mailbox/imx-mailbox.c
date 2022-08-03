@@ -26,6 +26,8 @@
 #define IMX_MU_S4_CHANS		2
 #define IMX_MU_CHAN_NAME_SIZE	20
 
+#define IMX_MU_NUM_RR		4
+
 #define IMX_MU_SECO_TX_TOUT (msecs_to_jiffies(3000))
 #define IMX_MU_SECO_RX_TOUT (msecs_to_jiffies(3000))
 
@@ -711,6 +713,7 @@ static struct mbox_chan *imx_mu_seco_xlate(struct mbox_controller *mbox,
 static void imx_mu_init_generic(struct imx_mu_priv *priv)
 {
 	unsigned int i;
+	unsigned int val;
 
 	for (i = 0; i < IMX_MU_CHANS; i++) {
 		struct imx_mu_con_priv *cp = &priv->con_priv[i];
@@ -732,6 +735,14 @@ static void imx_mu_init_generic(struct imx_mu_priv *priv)
 	/* Set default MU configuration */
 	for (i = 0; i < IMX_MU_xCR_MAX; i++)
 		imx_mu_write(priv, 0, priv->dcfg->xCR[i]);
+
+	/* Clear any pending GIP */
+	val = imx_mu_read(priv, priv->dcfg->xSR[IMX_MU_GSR]);
+	imx_mu_write(priv, val, priv->dcfg->xSR[IMX_MU_GSR]);
+
+	/* Clear any pending RSR */
+	for (i = 0; i < IMX_MU_NUM_RR; i++)
+		imx_mu_read(priv, priv->dcfg->xRR + (i % 4) * 4);
 }
 
 static void imx_mu_init_specific(struct imx_mu_priv *priv)
