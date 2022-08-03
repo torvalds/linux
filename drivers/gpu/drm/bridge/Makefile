@@ -8,6 +8,7 @@ obj-$(CONFIG_DRM_LVDS_CODEC) += lvds-codec.o
 obj-$(CONFIG_DRM_MAXIM_MAX96745) += maxim-max96745.o
 obj-$(CONFIG_DRM_MAXIM_MAX96752F) += maxim-max96752f.o
 obj-$(CONFIG_DRM_MAXIM_MAX96755F) += maxim-max96755f.o
+obj-$(CONFIG_DRM_MAXIM_MAX96776) += maxim-max96776.o
 obj-$(CONFIG_DRM_MEGACHIPS_STDPXXXX_GE_B850V3_FW) += megachips-stdpxxxx-ge-b850v3-fw.o
 obj-$(CONFIG_DRM_NXP_PTN3460) += nxp-ptn3460.o
 obj-$(CONFIG_DRM_PARADE_PS8622) += parade-ps8622.o
@@ -30,7 +31,6 @@ obj-$(CONFIG_DRM_TI_SN65DSI86) += ti-sn65dsi86.o
 obj-$(CONFIG_DRM_TI_TFP410) += ti-tfp410.o
 obj-$(CONFIG_DRM_TI_TPD12S015) += ti-tpd12s015.o
 obj-$(CONFIG_DRM_NWL_MIPI_DSI) += nwl-dsi.o
-
 obj-y += analogix/
 obj-y += cadence/
 obj-y += synopsys/
