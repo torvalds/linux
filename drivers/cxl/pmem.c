@@ -525,8 +525,8 @@ static int cxl_pmem_region_probe(struct device *dev)
 
 	cxlr_pmem->nd_region =
 		nvdimm_pmem_region_create(cxl_nvb->nvdimm_bus, &ndr_desc);
-	if (IS_ERR(cxlr_pmem->nd_region)) {
-		rc = PTR_ERR(cxlr_pmem->nd_region);
+	if (!cxlr_pmem->nd_region) {
+		rc = -ENOMEM;
 		goto err;
 	}
 
