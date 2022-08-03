@@ -1641,6 +1641,7 @@ static int at91_adc_write_raw(struct iio_dev *indio_dev,
 			      int val, int val2, long mask)
 {
 	struct at91_adc_state *st = iio_priv(indio_dev);
+	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
@@ -1650,20 +1651,29 @@ static int at91_adc_write_raw(struct iio_dev *indio_dev,
 		/* if no change, optimize out */
 		if (val == st->oversampling_ratio)
 			return 0;
+
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
 		mutex_lock(&st->lock);
 		st->oversampling_ratio = val;
 		/* update ratio */
 		at91_adc_config_emr(st);
 		mutex_unlock(&st->lock);
+		iio_device_release_direct_mode(indio_dev);
 		return 0;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		if (val < st->soc_info.min_sample_rate ||
 		    val > st->soc_info.max_sample_rate)
 			return -EINVAL;
 
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
 		mutex_lock(&st->lock);
 		at91_adc_setup_samp_freq(indio_dev, val);
 		mutex_unlock(&st->lock);
+		iio_device_release_direct_mode(indio_dev);
 		return 0;
 	default:
 		return -EINVAL;
