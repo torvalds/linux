@@ -422,6 +422,42 @@ static ssize_t rga_dump_image_write(struct file *file, const char __user *ubuf,
 	return len;
 }
 
+static int rga_hardware_show(struct seq_file *m, void *data)
+{
+	struct rga_scheduler_t *scheduler = NULL;
+	const struct rga_hw_data *hw_data = NULL;
+	int i;
+
+	seq_puts(m, "===================================\n");
+
+	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
+		scheduler = rga_drvdata->scheduler[i];
+		hw_data = scheduler->data;
+
+		seq_printf(m, "%s, core %d: version: %s\n",
+			   dev_driver_string(scheduler->dev),
+			   scheduler->core, scheduler->version.str);
+		seq_printf(m, "input range: %dx%d ~ %dx%d\n",
+			   hw_data->input_range.min.width, hw_data->input_range.min.height,
+			   hw_data->input_range.max.width, hw_data->input_range.max.height);
+		seq_printf(m, "output range: %dx%d ~ %dx%d\n",
+			   hw_data->output_range.min.width, hw_data->output_range.min.height,
+			   hw_data->output_range.max.width, hw_data->output_range.max.height);
+		seq_printf(m, "scale limit: 1/%d ~ %d\n",
+			   (1 << hw_data->max_downscale_factor),
+			   (1 << hw_data->max_upscale_factor));
+		seq_printf(m, "byte_stride_align: %d\n", hw_data->byte_stride_align);
+		seq_printf(m, "max_byte_stride: %d\n", hw_data->max_byte_stride);
+		seq_printf(m, "csc: RGB2YUV 0x%x YUV2RGB 0x%x\n",
+			   hw_data->csc_r2y_mode, hw_data->csc_y2r_mode);
+		seq_printf(m, "feature: 0x%x\n", hw_data->feature);
+		seq_printf(m, "mmu: %s\n", rga_get_mmu_type_str(hw_data->mmu));
+		seq_puts(m, "-----------------------------------\n");
+	}
+
+	return 0;
+}
+
 static struct rga_debugger_list rga_debugger_root_list[] = {
 	{"debug", rga_debug_show, rga_debug_write, NULL},
 	{"driver_version", rga_version_show, NULL, NULL},
@@ -431,6 +467,7 @@ static struct rga_debugger_list rga_debugger_root_list[] = {
 	{"request_manager", rga_request_manager_show, NULL, NULL},
 	{"dump_path", rga_dump_path_show, rga_dump_path_write, NULL},
 	{"dump_image", rga_dump_image_show, rga_dump_image_write, NULL},
+	{"hardware", rga_hardware_show, NULL, NULL},
 };
 
 static ssize_t rga_debugger_write(struct file *file, const char __user *ubuf,
