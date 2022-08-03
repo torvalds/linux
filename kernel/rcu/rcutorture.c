@@ -89,6 +89,7 @@ torture_param(bool, gp_normal, false, "Use normal (non-expedited) GP wait primit
 torture_param(bool, gp_poll, false, "Use polling GP wait primitives");
 torture_param(bool, gp_poll_exp, false, "Use polling expedited GP wait primitives");
 torture_param(bool, gp_poll_full, false, "Use polling full-state GP wait primitives");
+torture_param(bool, gp_poll_exp_full, false, "Use polling full-state expedited GP wait primitives");
 torture_param(bool, gp_sync, false, "Use synchronous GP wait primitives");
 torture_param(int, irqreader, 1, "Allow RCU readers from irq handlers");
 torture_param(int, leakpointer, 0, "Leak pointer dereferences from readers");
@@ -201,12 +202,14 @@ static int rcu_torture_writer_state;
 #define RTWS_POLL_GET		9
 #define RTWS_POLL_GET_FULL	10
 #define RTWS_POLL_GET_EXP	11
-#define RTWS_POLL_WAIT		12
-#define RTWS_POLL_WAIT_FULL	13
-#define RTWS_POLL_WAIT_EXP	14
-#define RTWS_SYNC		15
-#define RTWS_STUTTER		16
-#define RTWS_STOPPING		17
+#define RTWS_POLL_GET_EXP_FULL	12
+#define RTWS_POLL_WAIT		13
+#define RTWS_POLL_WAIT_FULL	14
+#define RTWS_POLL_WAIT_EXP	15
+#define RTWS_POLL_WAIT_EXP_FULL	16
+#define RTWS_SYNC		17
+#define RTWS_STUTTER		18
+#define RTWS_STOPPING		19
 static const char * const rcu_torture_writer_state_names[] = {
 	"RTWS_FIXED_DELAY",
 	"RTWS_DELAY",
@@ -220,9 +223,11 @@ static const char * const rcu_torture_writer_state_names[] = {
 	"RTWS_POLL_GET",
 	"RTWS_POLL_GET_FULL",
 	"RTWS_POLL_GET_EXP",
+	"RTWS_POLL_GET_EXP_FULL",
 	"RTWS_POLL_WAIT",
 	"RTWS_POLL_WAIT_FULL",
 	"RTWS_POLL_WAIT_EXP",
+	"RTWS_POLL_WAIT_EXP_FULL",
 	"RTWS_SYNC",
 	"RTWS_STUTTER",
 	"RTWS_STOPPING",
@@ -337,6 +342,7 @@ struct rcu_torture_ops {
 	void (*exp_sync)(void);
 	unsigned long (*get_gp_state_exp)(void);
 	unsigned long (*start_gp_poll_exp)(void);
+	void (*start_gp_poll_exp_full)(struct rcu_gp_oldstate *rgosp);
 	bool (*poll_gp_state_exp)(unsigned long oldstate);
 	void (*cond_sync_exp)(unsigned long oldstate);
 	unsigned long (*get_gp_state)(void);
@@ -528,6 +534,7 @@ static struct rcu_torture_ops rcu_ops = {
 	.cond_sync		= cond_synchronize_rcu,
 	.get_gp_state_exp	= get_state_synchronize_rcu,
 	.start_gp_poll_exp	= start_poll_synchronize_rcu_expedited,
+	.start_gp_poll_exp_full	= start_poll_synchronize_rcu_expedited_full,
 	.poll_gp_state_exp	= poll_state_synchronize_rcu,
 	.cond_sync_exp		= cond_synchronize_rcu_expedited,
 	.call			= call_rcu,
@@ -1169,13 +1176,14 @@ static int nsynctypes;
 static void rcu_torture_write_types(void)
 {
 	bool gp_cond1 = gp_cond, gp_cond_exp1 = gp_cond_exp, gp_exp1 = gp_exp;
-	bool gp_poll_exp1 = gp_poll_exp, gp_normal1 = gp_normal, gp_poll1 = gp_poll;
-	bool gp_poll_full1 = gp_poll_full, gp_sync1 = gp_sync;
+	bool gp_poll_exp1 = gp_poll_exp, gp_poll_exp_full1 = gp_poll_exp_full;
+	bool gp_normal1 = gp_normal, gp_poll1 = gp_poll, gp_poll_full1 = gp_poll_full;
+	bool gp_sync1 = gp_sync;
 
 	/* Initialize synctype[] array.  If none set, take default. */
-	if (!gp_cond1 && !gp_cond_exp1 && !gp_exp1 && !gp_poll_exp &&
+	if (!gp_cond1 && !gp_cond_exp1 && !gp_exp1 && !gp_poll_exp && !gp_poll_exp_full1 &&
 	    !gp_normal1 && !gp_poll1 && !gp_poll_full1 && !gp_sync1)
-		gp_cond1 = gp_cond_exp1 = gp_exp1 = gp_poll_exp1 =
+		gp_cond1 = gp_cond_exp1 = gp_exp1 = gp_poll_exp1 = gp_poll_exp_full1 =
 			   gp_normal1 = gp_poll1 = gp_poll_full1 = gp_sync1 = true;
 	if (gp_cond1 && cur_ops->get_gp_state && cur_ops->cond_sync) {
 		synctype[nsynctypes++] = RTWS_COND_GET;
@@ -1218,6 +1226,13 @@ static void rcu_torture_write_types(void)
 		pr_info("%s: Testing polling expedited GPs.\n", __func__);
 	} else if (gp_poll_exp && (!cur_ops->start_gp_poll_exp || !cur_ops->poll_gp_state_exp)) {
 		pr_alert("%s: gp_poll_exp without primitives.\n", __func__);
+	}
+	if (gp_poll_exp_full1 && cur_ops->start_gp_poll_exp_full && cur_ops->poll_gp_state_full) {
+		synctype[nsynctypes++] = RTWS_POLL_GET_EXP_FULL;
+		pr_info("%s: Testing polling full-state expedited GPs.\n", __func__);
+	} else if (gp_poll_exp_full &&
+		   (!cur_ops->start_gp_poll_exp_full || !cur_ops->poll_gp_state_full)) {
+		pr_alert("%s: gp_poll_exp_full without primitives.\n", __func__);
 	}
 	if (gp_sync1 && cur_ops->sync) {
 		synctype[nsynctypes++] = RTWS_SYNC;
@@ -1408,6 +1423,15 @@ rcu_torture_writer(void *arg)
 								  &rand);
 				rcu_torture_pipe_update(old_rp);
 				break;
+			case RTWS_POLL_GET_EXP_FULL:
+				rcu_torture_writer_state = RTWS_POLL_GET_EXP_FULL;
+				cur_ops->start_gp_poll_exp_full(&gp_snap_full);
+				rcu_torture_writer_state = RTWS_POLL_WAIT_EXP_FULL;
+				while (!cur_ops->poll_gp_state_full(&gp_snap_full))
+					torture_hrtimeout_jiffies(torture_random(&rand) % 16,
+								  &rand);
+				rcu_torture_pipe_update(old_rp);
+				break;
 			case RTWS_SYNC:
 				rcu_torture_writer_state = RTWS_SYNC;
 				do_rtws_sync(&rand, cur_ops->sync);
@@ -1533,6 +1557,13 @@ rcu_torture_fakewriter(void *arg)
 			case RTWS_POLL_GET_EXP:
 				gp_snap = cur_ops->start_gp_poll_exp();
 				while (!cur_ops->poll_gp_state_exp(gp_snap)) {
+					torture_hrtimeout_jiffies(torture_random(&rand) % 16,
+								  &rand);
+				}
+				break;
+			case RTWS_POLL_GET_EXP_FULL:
+				cur_ops->start_gp_poll_exp_full(&gp_snap_full);
+				while (!cur_ops->poll_gp_state_full(&gp_snap_full)) {
 					torture_hrtimeout_jiffies(torture_random(&rand) % 16,
 								  &rand);
 				}

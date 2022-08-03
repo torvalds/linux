@@ -49,6 +49,11 @@ static inline unsigned long start_poll_synchronize_rcu_expedited(void)
 	return start_poll_synchronize_rcu();
 }
 
+static inline void start_poll_synchronize_rcu_expedited_full(struct rcu_gp_oldstate *rgosp)
+{
+	rgosp->rgos_norm = start_poll_synchronize_rcu_expedited();
+}
+
 static inline void cond_synchronize_rcu_expedited(unsigned long oldstate)
 {
 	cond_synchronize_rcu(oldstate);

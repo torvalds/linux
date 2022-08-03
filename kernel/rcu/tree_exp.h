@@ -1028,6 +1028,24 @@ unsigned long start_poll_synchronize_rcu_expedited(void)
 EXPORT_SYMBOL_GPL(start_poll_synchronize_rcu_expedited);
 
 /**
+ * start_poll_synchronize_rcu_expedited_full - Take a full snapshot and start expedited grace period
+ * @rgosp: Place to put snapshot of grace-period state
+ *
+ * Places the normal and expedited grace-period states in rgosp.  This
+ * state value can be passed to a later call to cond_synchronize_rcu_full()
+ * or poll_state_synchronize_rcu_full() to determine whether or not a
+ * grace period (whether normal or expedited) has elapsed in the meantime.
+ * If the needed expedited grace period is not already slated to start,
+ * initiates that grace period.
+ */
+void start_poll_synchronize_rcu_expedited_full(struct rcu_gp_oldstate *rgosp)
+{
+	get_state_synchronize_rcu_full(rgosp);
+	(void)start_poll_synchronize_rcu_expedited();
+}
+EXPORT_SYMBOL_GPL(start_poll_synchronize_rcu_expedited_full);
+
+/**
  * cond_synchronize_rcu_expedited - Conditionally wait for an expedited RCU grace period
  *
  * @oldstate: value from get_state_synchronize_rcu(), start_poll_synchronize_rcu(), or start_poll_synchronize_rcu_expedited()
