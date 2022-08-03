@@ -46,7 +46,7 @@ void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, ssize_t res2)
 	if (ret < 0)
 		req_set_fail(req);
 
-	io_req_set_res(req, 0, ret);
+	io_req_set_res(req, ret, 0);
 	if (req->ctx->flags & IORING_SETUP_CQE32)
 		io_req_set_cqe32_extra(req, res2, 0);
 	__io_req_complete(req, 0);
