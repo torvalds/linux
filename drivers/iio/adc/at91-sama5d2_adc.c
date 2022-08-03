@@ -138,8 +138,7 @@ struct at91_adc_reg_layout {
 /* Extended Mode Register */
 	u16				EMR;
 /* Extended Mode Register - Oversampling rate */
-#define AT91_SAMA5D2_EMR_OSR(V)			((V) << 16)
-#define AT91_SAMA5D2_EMR_OSR_MASK		GENMASK(17, 16)
+#define AT91_SAMA5D2_EMR_OSR(V, M)		(((V) << 16) & (M))
 #define AT91_SAMA5D2_EMR_OSR_1SAMPLES		0
 #define AT91_SAMA5D2_EMR_OSR_4SAMPLES		1
 #define AT91_SAMA5D2_EMR_OSR_16SAMPLES		2
@@ -403,6 +402,7 @@ static const struct at91_adc_reg_layout sama7g5_layout = {
  * @max_index:		highest channel index (highest index may be higher
  *			than the total channel number)
  * @hw_trig_cnt:	number of possible hardware triggers
+ * @osr_mask:		oversampling ratio bitmask on EMR register
  */
 struct at91_adc_platform {
 	const struct at91_adc_reg_layout	*layout;
@@ -414,6 +414,7 @@ struct at91_adc_platform {
 	unsigned int				max_channels;
 	unsigned int				max_index;
 	unsigned int				hw_trig_cnt;
+	unsigned int				osr_mask;
 };
 
 /**
@@ -612,6 +613,7 @@ static const struct at91_adc_platform sama5d2_platform = {
 	.max_index = AT91_SAMA5D2_MAX_CHAN_IDX,
 #define AT91_SAMA5D2_HW_TRIG_CNT	3
 	.hw_trig_cnt = AT91_SAMA5D2_HW_TRIG_CNT,
+	.osr_mask = GENMASK(17, 16),
 };
 
 static const struct at91_adc_platform sama7g5_platform = {
@@ -627,6 +629,7 @@ static const struct at91_adc_platform sama7g5_platform = {
 	.max_index = AT91_SAMA7G5_MAX_CHAN_IDX,
 #define AT91_SAMA7G5_HW_TRIG_CNT	3
 	.hw_trig_cnt = AT91_SAMA7G5_HW_TRIG_CNT,
+	.osr_mask = GENMASK(18, 16),
 };
 
 static int at91_adc_chan_xlate(struct iio_dev *indio_dev, int chan)
@@ -725,30 +728,32 @@ static void at91_adc_eoc_ena(struct at91_adc_state *st, unsigned int channel)
 		at91_adc_writel(st, EOC_IER, BIT(channel));
 }
 
-static void at91_adc_config_emr(struct at91_adc_state *st)
+static void at91_adc_config_emr(struct at91_adc_state *st,
+				u32 oversampling_ratio)
 {
 	/* configure the extended mode register */
 	unsigned int emr = at91_adc_readl(st, EMR);
+	unsigned int osr_mask = st->soc_info.platform->osr_mask;
 
 	/* select oversampling per single trigger event */
 	emr |= AT91_SAMA5D2_EMR_ASTE(1);
 
 	/* delete leftover content if it's the case */
-	emr &= ~AT91_SAMA5D2_EMR_OSR_MASK;
+	emr &= ~osr_mask;
 
 	/* select oversampling ratio from configuration */
-	switch (st->oversampling_ratio) {
+	switch (oversampling_ratio) {
 	case AT91_OSR_1SAMPLES:
-		emr |= AT91_SAMA5D2_EMR_OSR(AT91_SAMA5D2_EMR_OSR_1SAMPLES) &
-		       AT91_SAMA5D2_EMR_OSR_MASK;
+		emr |= AT91_SAMA5D2_EMR_OSR(AT91_SAMA5D2_EMR_OSR_1SAMPLES,
+					    osr_mask);
 		break;
 	case AT91_OSR_4SAMPLES:
-		emr |= AT91_SAMA5D2_EMR_OSR(AT91_SAMA5D2_EMR_OSR_4SAMPLES) &
-		       AT91_SAMA5D2_EMR_OSR_MASK;
+		emr |= AT91_SAMA5D2_EMR_OSR(AT91_SAMA5D2_EMR_OSR_4SAMPLES,
+					    osr_mask);
 		break;
 	case AT91_OSR_16SAMPLES:
-		emr |= AT91_SAMA5D2_EMR_OSR(AT91_SAMA5D2_EMR_OSR_16SAMPLES) &
-		       AT91_SAMA5D2_EMR_OSR_MASK;
+		emr |= AT91_SAMA5D2_EMR_OSR(AT91_SAMA5D2_EMR_OSR_16SAMPLES,
+					    osr_mask);
 		break;
 	}
 
@@ -1658,7 +1663,7 @@ static int at91_adc_write_raw(struct iio_dev *indio_dev,
 		mutex_lock(&st->lock);
 		st->oversampling_ratio = val;
 		/* update ratio */
-		at91_adc_config_emr(st);
+		at91_adc_config_emr(st, val);
 		mutex_unlock(&st->lock);
 		iio_device_release_direct_mode(indio_dev);
 		return 0;
@@ -1838,7 +1843,7 @@ static void at91_adc_hw_init(struct iio_dev *indio_dev)
 	at91_adc_setup_samp_freq(indio_dev, st->soc_info.min_sample_rate);
 
 	/* configure extended mode register */
-	at91_adc_config_emr(st);
+	at91_adc_config_emr(st, st->oversampling_ratio);
 }
 
 static ssize_t at91_adc_get_fifo_state(struct device *dev,
