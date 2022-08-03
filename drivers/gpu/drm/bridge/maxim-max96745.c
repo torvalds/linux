@@ -101,6 +101,19 @@ static bool max96745_bridge_link_locked(struct max96745_bridge *ser)
 	return true;
 }
 
+static bool max96745_bridge_vid_tx_active(struct max96745_bridge *ser)
+{
+	u32 val;
+
+	if (regmap_read(ser->regmap, 0x0107, &val))
+		return false;
+
+	if (!FIELD_GET(VID_TX_ACTIVE_A | VID_TX_ACTIVE_B, val))
+		return false;
+
+	return true;
+}
+
 static int max96745_bridge_attach(struct drm_bridge *bridge,
 				  enum drm_bridge_attach_flags flags)
 {
@@ -134,13 +147,16 @@ static int max96745_bridge_attach(struct drm_bridge *bridge,
 		return ret;
 	}
 
-	if (max96745_bridge_link_locked(ser)) {
+	if (max96745_bridge_link_locked(ser))
 		connector->status = connector_status_connected;
+	else
+		connector->status = connector_status_disconnected;
+
+	if (max96745_bridge_vid_tx_active(ser)) {
 		extcon_set_state(ser->extcon, EXTCON_JACK_VIDEO_OUT, true);
 		enable_irq(ser->lock.irq);
 		ser->lock.irq_enabled = true;
 	} else {
-		connector->status = connector_status_disconnected;
 		extcon_set_state(ser->extcon, EXTCON_JACK_VIDEO_OUT, false);
 	}
 
@@ -163,6 +179,7 @@ static void max96745_bridge_enable(struct drm_bridge *bridge)
 
 	regmap_update_bits(ser->regmap, 0x0100, VID_TX_EN,
 			   FIELD_PREP(VID_TX_EN, 1));
+	msleep(50);
 
 	if (ser->panel)
 		drm_panel_enable(ser->panel);
