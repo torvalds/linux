@@ -23,6 +23,7 @@
 #include <linux/vmalloc.h>
 #include <asm/setup.h>
 #include <asm/drmem.h>
+#include <asm/firmware.h>
 #include <asm/kexec_ranges.h>
 #include <asm/crashdump-ppc64.h>
 
