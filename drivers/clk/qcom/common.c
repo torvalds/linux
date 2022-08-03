@@ -17,6 +17,7 @@
 #include <linux/interconnect.h>
 #include <linux/pm_clock.h>
 #include <linux/pm_runtime.h>
+#include <linux/mfd/syscon.h>
 
 #include "common.h"
 #include "clk-opp.h"
@@ -34,6 +35,73 @@ struct qcom_cc {
 	struct clk_hw **clk_hws;
 	size_t num_clk_hws;
 };
+
+int qcom_clk_crm_init(struct device *dev, struct clk_crm *crm)
+{
+	char prop_name[32];
+
+	if (!crm)
+		return -EINVAL;
+
+	if (!crm->initialized) {
+		snprintf(prop_name, sizeof(prop_name), "qcom,%s-crmc", crm->name);
+
+		if (of_find_property(dev->of_node, prop_name, NULL)) {
+			crm->regmap_crmc =
+				syscon_regmap_lookup_by_phandle(dev->of_node,
+								prop_name);
+			if (IS_ERR(crm->regmap_crmc)) {
+				dev_err(dev, "%s regmap error\n", prop_name);
+				return PTR_ERR(crm->regmap_crmc);
+			}
+		}
+
+		if (crm->name) {
+			crm->dev = crm_get_device(crm->name);
+			if (IS_ERR(crm->dev)) {
+				pr_err("%s Failed to get crm dev=%s, ret=%d\n",
+				       __func__, crm->name, PTR_ERR(crm->dev));
+				return PTR_ERR(crm->dev);
+			}
+		}
+
+		crm->initialized = true;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(qcom_clk_crm_init);
+
+static int qcom_find_freq_index(const struct freq_tbl *f, unsigned long rate)
+{
+	int index;
+
+	for (index = 0; f->freq; f++, index++) {
+		if (rate <= f->freq)
+			return index;
+	}
+
+	return index - 1;
+}
+
+int qcom_find_crm_freq_index(const struct freq_tbl *f, unsigned long rate)
+{
+	if (!f || !f->freq)
+		return -EINVAL;
+
+	/*
+	 * If rate is 0 return PERF_OL 0 index
+	 */
+	if (!rate)
+		return 0;
+
+	/*
+	 * Return PERF_OL index + 1 as PERF_OL 0 is
+	 * treated as CLK OFF as per LUT population
+	 */
+	return qcom_find_freq_index(f, rate) + 1;
+}
+EXPORT_SYMBOL(qcom_find_crm_freq_index);
 
 const
 struct freq_tbl *qcom_find_freq(const struct freq_tbl *f, unsigned long rate)
@@ -432,6 +500,35 @@ void qcom_cc_sync_state(struct device *dev, const struct qcom_cc_desc *desc)
 	clk_vdd_proxy_unvote(dev, desc);
 }
 EXPORT_SYMBOL(qcom_cc_sync_state);
+
+int qcom_clk_crm_set_rate(struct clk *clk,
+			  enum crm_drv_type client_type, u32 client_idx,
+			  u32 pwr_st, unsigned long rate)
+{
+	struct clk_hw *hw;
+	int ret;
+
+	if (!clk)
+		return -EINVAL;
+
+	do {
+		hw = __clk_get_hw(clk);
+
+		if (clk_is_regmap_clk(hw)) {
+			struct clk_regmap *rclk = to_clk_regmap(hw);
+
+			if (rclk->ops && rclk->ops->set_crm_rate) {
+				ret = rclk->ops->set_crm_rate(hw, client_type,
+							      client_idx, pwr_st, rate);
+				return ret;
+			}
+		}
+
+	} while ((clk = clk_get_parent(hw->clk)));
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL(qcom_clk_crm_set_rate);
 
 int qcom_clk_get_voltage(struct clk *clk, unsigned long rate)
 {

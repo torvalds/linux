@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2014, 2019-2021, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #ifndef __QCOM_CLK_REGMAP_H__
 #define __QCOM_CLK_REGMAP_H__
@@ -7,6 +8,7 @@
 #include <linux/clk-provider.h>
 #include <linux/debugfs.h>
 #include "vdd-class.h"
+#include <soc/qcom/crm.h>
 
 struct regmap;
 
@@ -22,6 +24,11 @@ struct regmap;
  *
  * @set_flags: Set custom flags which deal with hardware specifics. Returns 0
  *		on success, error otherwise.
+ *
+ * @calc_pll: On success returns pll output frequency. Returns 0
+ *		on success, error otherwise.
+ * @set_crm_rate: Set crmc/crmb clk frequency. Returns 0
+ *		on success, error otherwise.
  */
 struct clk_regmap_ops {
 	void	(*list_registers)(struct seq_file *f,
@@ -29,6 +36,9 @@ struct clk_regmap_ops {
 	long	(*list_rate)(struct clk_hw *hw, unsigned int n,
 			     unsigned long rate_max);
 	int	(*set_flags)(struct clk_hw *clk, unsigned long flags);
+	unsigned long	(*calc_pll)(struct clk_hw *hw, u32 l, u64 a);
+	unsigned long	(*set_crm_rate)(struct clk_hw *hw, enum crm_drv_type client_type,
+					u32 client_idx, u32 pwr_st, unsigned long rate);
 };
 
 /**
@@ -41,6 +51,7 @@ struct clk_regmap_ops {
  *                      when using clock_enable_regmap and friends APIs.
  * @vdd_data:	struct containing vdd-class data for this clock
  * @ops: operations this clk_regmap supports
+ * @crm: clk crm regmap
  */
 
 struct clk_regmap {
@@ -53,6 +64,8 @@ struct clk_regmap {
 	struct clk_regmap_ops *ops;
 	struct list_head list_node;
 	struct device *dev;
+	struct clk_crm *crm;
+	u8 crm_vcd;
 #define QCOM_CLK_IS_CRITICAL BIT(0)
 #define QCOM_CLK_BOOT_CRITICAL BIT(1)
 	unsigned long flags;

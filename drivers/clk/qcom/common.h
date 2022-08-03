@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2014, 2018, 2020, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #ifndef __QCOM_CLK_COMMON_H__
 #define __QCOM_CLK_COMMON_H__
@@ -52,10 +53,26 @@ struct clk_dummy {
 	unsigned long rrate;
 };
 
+/**
+ * struct clk_crm - clk crm
+ *
+ * @crm_name: crm instance name
+ * @regmap_crmc: corresponds to crmc instance
+ * @crm_dev: crm dev
+ * @crm_initialized: crm init flag
+ */
+struct clk_crm {
+	const char *name;
+	struct regmap *regmap_crmc;
+	const struct device *dev;
+	bool initialized;
+};
+
 extern const struct freq_tbl *qcom_find_freq(const struct freq_tbl *f,
 					     unsigned long rate);
 extern const struct freq_tbl *qcom_find_freq_floor(const struct freq_tbl *f,
 						   unsigned long rate);
+int qcom_find_crm_freq_index(const struct freq_tbl *f, unsigned long rate);
 extern void
 qcom_pll_set_fsm_mode(struct regmap *m, u32 reg, u8 bias_count, u8 lock_count);
 extern int qcom_find_src_index(struct clk_hw *hw, const struct parent_map *map,
@@ -83,7 +100,7 @@ int qcom_cc_runtime_init(struct platform_device *pdev,
 			 struct qcom_cc_desc *desc);
 int qcom_cc_runtime_suspend(struct device *dev);
 int qcom_cc_runtime_resume(struct device *dev);
-
+int qcom_clk_crm_init(struct device *dev, struct clk_crm *crm);
 static inline const char *qcom_clk_hw_get_name(const struct clk_hw *hw)
 {
 	return hw->init ? hw->init->name : clk_hw_get_name(hw);

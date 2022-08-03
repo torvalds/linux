@@ -345,6 +345,13 @@ const struct clk_ops clk_branch2_ops = {
 };
 EXPORT_SYMBOL_GPL(clk_branch2_ops);
 
+const struct clk_ops clk_branch2_crm_ops = {
+	.is_enabled = clk_is_enabled_regmap,
+	.init = clk_branch2_init,
+	.debug_init = clk_branch_debug_init,
+};
+EXPORT_SYMBOL(clk_branch2_crm_ops);
+
 const struct clk_ops clk_branch2_aon_ops = {
 	.enable = clk_branch2_enable,
 	.is_enabled = clk_is_enabled_regmap,
