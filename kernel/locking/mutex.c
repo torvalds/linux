@@ -171,8 +171,10 @@ static __always_inline bool __mutex_trylock_fast(struct mutex *lock)
 	unsigned long curr = (unsigned long)current;
 	unsigned long zero = 0UL;
 
-	if (atomic_long_try_cmpxchg_acquire(&lock->owner, &zero, curr))
+	if (atomic_long_try_cmpxchg_acquire(&lock->owner, &zero, curr)) {
+		trace_android_vh_record_mutex_lock_starttime(current, jiffies);
 		return true;
+	}
 
 	return false;
 }
@@ -539,6 +541,7 @@ static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigne
  */
 void __sched mutex_unlock(struct mutex *lock)
 {
+	trace_android_vh_record_mutex_lock_starttime(current, 0);
 #ifndef CONFIG_DEBUG_LOCK_ALLOC
 	if (__mutex_unlock_fast(lock))
 		return;
@@ -613,6 +616,7 @@ __mutex_lock_common(struct mutex *lock, unsigned int state, unsigned int subclas
 		if (ww_ctx)
 			ww_mutex_set_context_fastpath(ww, ww_ctx);
 		trace_contention_end(lock, 0);
+		trace_android_vh_record_mutex_lock_starttime(current, jiffies);
 		preempt_enable();
 		return 0;
 	}
@@ -731,6 +735,7 @@ skip_wait:
 
 	raw_spin_unlock(&lock->wait_lock);
 	preempt_enable();
+	trace_android_vh_record_mutex_lock_starttime(current, jiffies);
 	return 0;
 
 err:
@@ -1091,8 +1096,10 @@ int __sched mutex_trylock(struct mutex *lock)
 	MUTEX_WARN_ON(lock->magic != lock);
 
 	locked = __mutex_trylock(lock);
-	if (locked)
+	if (locked) {
+		trace_android_vh_record_mutex_lock_starttime(current, jiffies);
 		mutex_acquire(&lock->dep_map, 0, 1, _RET_IP_);
+	}
 
 	return locked;
 }
