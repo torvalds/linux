@@ -142,6 +142,8 @@ struct at91_adc_reg_layout {
 #define AT91_SAMA5D2_EMR_OSR_1SAMPLES		0
 #define AT91_SAMA5D2_EMR_OSR_4SAMPLES		1
 #define AT91_SAMA5D2_EMR_OSR_16SAMPLES		2
+#define AT91_SAMA5D2_EMR_OSR_64SAMPLES		3
+#define AT91_SAMA5D2_EMR_OSR_256SAMPLES		4
 
 /* Extended Mode Register - Averaging on single trigger event */
 #define AT91_SAMA5D2_EMR_ASTE(V)		((V) << 20)
@@ -421,7 +423,7 @@ struct at91_adc_platform {
 	unsigned int				max_index;
 	unsigned int				hw_trig_cnt;
 	unsigned int				osr_mask;
-	unsigned int				oversampling_avail[3];
+	unsigned int				oversampling_avail[5];
 	unsigned int				oversampling_avail_no;
 	unsigned int				chan_realbits;
 };
@@ -642,8 +644,8 @@ static const struct at91_adc_platform sama7g5_platform = {
 #define AT91_SAMA7G5_HW_TRIG_CNT	3
 	.hw_trig_cnt = AT91_SAMA7G5_HW_TRIG_CNT,
 	.osr_mask = GENMASK(18, 16),
-	.oversampling_avail = { 1, 4, 16, },
-	.oversampling_avail_no = 3,
+	.oversampling_avail = { 1, 4, 16, 64, 256, },
+	.oversampling_avail_no = 5,
 	.chan_realbits = 16,
 };
 
@@ -749,6 +751,15 @@ static int at91_adc_config_emr(struct at91_adc_state *st,
 	/* configure the extended mode register */
 	unsigned int emr = at91_adc_readl(st, EMR);
 	unsigned int osr_mask = st->soc_info.platform->osr_mask;
+	int i;
+
+	/* Check against supported oversampling values. */
+	for (i = 0; i < st->soc_info.platform->oversampling_avail_no; i++) {
+		if (oversampling_ratio == st->soc_info.platform->oversampling_avail[i])
+			break;
+	}
+	if (i == st->soc_info.platform->oversampling_avail_no)
+		return -EINVAL;
 
 	/* select oversampling per single trigger event */
 	emr |= AT91_SAMA5D2_EMR_ASTE(1);
@@ -770,8 +781,14 @@ static int at91_adc_config_emr(struct at91_adc_state *st,
 		emr |= AT91_SAMA5D2_EMR_OSR(AT91_SAMA5D2_EMR_OSR_16SAMPLES,
 					    osr_mask);
 		break;
-	default:
-		return -EINVAL;
+	case 64:
+		emr |= AT91_SAMA5D2_EMR_OSR(AT91_SAMA5D2_EMR_OSR_64SAMPLES,
+					    osr_mask);
+		break;
+	case 256:
+		emr |= AT91_SAMA5D2_EMR_OSR(AT91_SAMA5D2_EMR_OSR_256SAMPLES,
+					    osr_mask);
+		break;
 	}
 
 	at91_adc_writel(st, EMR, emr);
@@ -789,6 +806,10 @@ static int at91_adc_adjust_val_osr(struct at91_adc_state *st, int *val)
 		nbits = 13;
 	else if (st->oversampling_ratio == 16)
 		nbits = 14;
+	else if (st->oversampling_ratio == 64)
+		nbits = 15;
+	else if (st->oversampling_ratio == 256)
+		nbits = 16;
 	else
 		/* Should not happen. */
 		return -EINVAL;
