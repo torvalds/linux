@@ -167,6 +167,9 @@
 #define RKMODULE_SET_SENSOR_INFOS       \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 35, struct rkmodule_sensor_infos)
 
+#define RKMODULE_GET_READOUT_LINE_CNT_PER_LINE  \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 36, __u32)
+
 struct rkmodule_i2cdev_info {
 	u8 slave_addr;
 } __attribute__ ((packed));
