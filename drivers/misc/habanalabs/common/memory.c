@@ -1442,6 +1442,13 @@ static void hw_block_vm_close(struct vm_area_struct *vma)
 	struct hl_vm_hw_block_list_node *lnode =
 		(struct hl_vm_hw_block_list_node *) vma->vm_private_data;
 	struct hl_ctx *ctx = lnode->ctx;
+	long new_mmap_size;
+
+	new_mmap_size = lnode->mapped_size - (vma->vm_end - vma->vm_start);
+	if (new_mmap_size > 0) {
+		lnode->mapped_size = new_mmap_size;
+		return;
+	}
 
 	mutex_lock(&ctx->hw_block_list_lock);
 	list_del(&lnode->node);
@@ -1502,7 +1509,8 @@ int hl_hw_block_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 
 	lnode->ctx = ctx;
 	lnode->vaddr = vma->vm_start;
-	lnode->size = block_size;
+	lnode->block_size = block_size;
+	lnode->mapped_size = lnode->block_size;
 	lnode->id = block_id;
 
 	vma->vm_private_data = lnode;

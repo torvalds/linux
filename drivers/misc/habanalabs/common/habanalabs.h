@@ -2063,14 +2063,16 @@ struct hl_vm_hash_node {
  * @node: node to hang on the list in context object.
  * @ctx: the context this node belongs to.
  * @vaddr: virtual address of the HW block.
- * @size: size of the block.
+ * @block_size: size of the block.
+ * @mapped_size: size of the block which is mapped. May change if partial un-mappings are done.
  * @id: HW block id (handle).
  */
 struct hl_vm_hw_block_list_node {
 	struct list_head	node;
 	struct hl_ctx		*ctx;
 	unsigned long		vaddr;
-	u32			size;
+	u32			block_size;
+	u32			mapped_size;
 	u32			id;
 };
 

@@ -291,14 +291,16 @@ static int vm_show(struct seq_file *s, void *data)
 		if (ctx->asid != HL_KERNEL_ASID_ID &&
 		    !list_empty(&ctx->hw_block_mem_list)) {
 			seq_puts(s, "\nhw_block mappings:\n\n");
-			seq_puts(s, "    virtual address    size    HW block id\n");
-			seq_puts(s, "-------------------------------------------\n");
+			seq_puts(s,
+				"    virtual address    block size    mapped size    HW block id\n");
+			seq_puts(s,
+				"---------------------------------------------------------------\n");
 			mutex_lock(&ctx->hw_block_list_lock);
-			list_for_each_entry(lnode, &ctx->hw_block_mem_list,
-					    node) {
+			list_for_each_entry(lnode, &ctx->hw_block_mem_list, node) {
 				seq_printf(s,
-					"    0x%-14lx   %-6u      %-9u\n",
-					lnode->vaddr, lnode->size, lnode->id);
+					"    0x%-14lx   %-6u        %-6u             %-9u\n",
+					lnode->vaddr, lnode->block_size, lnode->mapped_size,
+					lnode->id);
 			}
 			mutex_unlock(&ctx->hw_block_list_lock);
 		}
