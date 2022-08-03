@@ -497,39 +497,52 @@ static void qcom_glink_send_close_ack(struct qcom_glink *glink,
 	qcom_glink_tx(glink, &req, sizeof(req), NULL, 0, true);
 }
 
+static int __qcom_glink_rx_done(struct qcom_glink *glink,
+				struct glink_channel *channel,
+				struct glink_core_rx_intent *intent,
+				bool wait)
+{
+	struct {
+		u16 id;
+		u16 lcid;
+		u32 liid;
+	} __packed cmd;
+	unsigned int cid = channel->lcid;
+	unsigned int iid = intent->id;
+	bool reuse = intent->reuse;
+	int ret;
+
+	cmd.id = reuse ? RPM_CMD_RX_DONE_W_REUSE : RPM_CMD_RX_DONE;
+	cmd.lcid = cid;
+	cmd.liid = iid;
+
+	ret = qcom_glink_tx(glink, &cmd, sizeof(cmd), NULL, 0, wait);
+	if (ret)
+		return ret;
+
+	if (!reuse) {
+		kfree(intent->data);
+		kfree(intent);
+	}
+
+	return 0;
+}
+
 static void qcom_glink_rx_done_work(struct work_struct *work)
 {
 	struct glink_channel *channel = container_of(work, struct glink_channel,
 						     intent_work);
 	struct qcom_glink *glink = channel->glink;
 	struct glink_core_rx_intent *intent, *tmp;
-	struct {
-		u16 id;
-		u16 lcid;
-		u32 liid;
-	} __packed cmd;
-
-	unsigned int cid = channel->lcid;
-	unsigned int iid;
-	bool reuse;
 	unsigned long flags;
 
 	spin_lock_irqsave(&channel->intent_lock, flags);
 	list_for_each_entry_safe(intent, tmp, &channel->done_intents, node) {
 		list_del(&intent->node);
 		spin_unlock_irqrestore(&channel->intent_lock, flags);
-		iid = intent->id;
-		reuse = intent->reuse;
 
-		cmd.id = reuse ? RPM_CMD_RX_DONE_W_REUSE : RPM_CMD_RX_DONE;
-		cmd.lcid = cid;
-		cmd.liid = iid;
+		__qcom_glink_rx_done(glink, channel, intent, true);
 
-		qcom_glink_tx(glink, &cmd, sizeof(cmd), NULL, 0, true);
-		if (!reuse) {
-			kfree(intent->data);
-			kfree(intent);
-		}
 		spin_lock_irqsave(&channel->intent_lock, flags);
 	}
 	spin_unlock_irqrestore(&channel->intent_lock, flags);
@@ -539,6 +552,8 @@ static void qcom_glink_rx_done(struct qcom_glink *glink,
 			       struct glink_channel *channel,
 			       struct glink_core_rx_intent *intent)
 {
+	int ret = -EAGAIN;
+
 	/* We don't send RX_DONE to intentless systems */
 	if (glink->intentless) {
 		kfree(intent->data);
@@ -555,10 +570,14 @@ static void qcom_glink_rx_done(struct qcom_glink *glink,
 
 	/* Schedule the sending of a rx_done indication */
 	spin_lock(&channel->intent_lock);
-	list_add_tail(&intent->node, &channel->done_intents);
-	spin_unlock(&channel->intent_lock);
+	if (list_empty(&channel->done_intents))
+		ret = __qcom_glink_rx_done(glink, channel, intent, false);
 
-	schedule_work(&channel->intent_work);
+	if (ret) {
+		list_add_tail(&intent->node, &channel->done_intents);
+		schedule_work(&channel->intent_work);
+	}
+	spin_unlock(&channel->intent_lock);
 }
 
 /**
