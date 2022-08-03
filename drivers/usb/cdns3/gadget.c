@@ -2293,15 +2293,19 @@ static int cdns3_gadget_ep_enable(struct usb_ep *ep,
 	int ret = 0;
 	int val;
 
-	priv_ep = ep_to_cdns3_ep(ep);
-
-	if (!ep || !desc || desc->bDescriptorType != USB_DT_ENDPOINT) {
-		dev_dbg(priv_dev->dev, "usbss: invalid parameters\n");
+	if (!ep) {
+		pr_debug("usbss: ep not configured?\n");
 		return -EINVAL;
 	}
 
-	comp_desc = priv_ep->endpoint.comp_desc;
+	priv_ep = ep_to_cdns3_ep(ep);
 	priv_dev = priv_ep->cdns3_dev;
+	comp_desc = priv_ep->endpoint.comp_desc;
+
+	if (!desc || desc->bDescriptorType != USB_DT_ENDPOINT) {
+		dev_dbg(priv_dev->dev, "usbss: invalid parameters\n");
+		return -EINVAL;
+	}
 
 	if (!desc->wMaxPacketSize) {
 		dev_err(priv_dev->dev, "usbss: missing wMaxPacketSize\n");
