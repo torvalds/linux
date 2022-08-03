@@ -3662,11 +3662,10 @@ EXPORT_SYMBOL_GPL(start_poll_synchronize_rcu_full);
 
 /**
  * poll_state_synchronize_rcu - Has the specified RCU grace period completed?
- *
  * @oldstate: value from get_state_synchronize_rcu() or start_poll_synchronize_rcu()
  *
  * If a full RCU grace period has elapsed since the earlier call from
- * which oldstate was obtained, return @true, otherwise return @false.
+ * which @oldstate was obtained, return @true, otherwise return @false.
  * If @false is returned, it is the caller's responsibility to invoke this
  * function later on until it does return @true.  Alternatively, the caller
  * can explicitly wait for a grace period, for example, by passing @oldstate
@@ -3675,7 +3674,7 @@ EXPORT_SYMBOL_GPL(start_poll_synchronize_rcu_full);
  * Yes, this function does not take counter wrap into account.
  * But counter wrap is harmless.  If the counter wraps, we have waited for
  * more than a billion grace periods (and way more on a 64-bit system!).
- * Those needing to keep oldstate values for very long time periods
+ * Those needing to keep old state values for very long time periods
  * (many hours even on 32-bit systems) should check them occasionally and
  * either refresh them or set a flag indicating that the grace period has
  * completed.  Alternatively, they can use get_completed_synchronize_rcu()
