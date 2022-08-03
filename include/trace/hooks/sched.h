@@ -104,10 +104,6 @@ DECLARE_RESTRICTED_HOOK(android_rvh_migrate_queued_task,
 		 int *detached),
 	TP_ARGS(rq, rf, p, new_cpu, detached), 1);
 
-DECLARE_RESTRICTED_HOOK(android_rvh_find_energy_efficient_cpu,
-	TP_PROTO(struct task_struct *p, int prev_cpu, int sync, int *new_cpu),
-	TP_ARGS(p, prev_cpu, sync, new_cpu), 1);
-
 DECLARE_RESTRICTED_HOOK(android_rvh_cpu_overutilized,
 	TP_PROTO(int cpu, int *overutilized),
 	TP_ARGS(cpu, overutilized), 1);
