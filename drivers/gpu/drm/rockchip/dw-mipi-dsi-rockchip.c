@@ -180,6 +180,11 @@
 #define RK3568_DSI_TURNDISABLE		(0x1 << 2)
 #define RK3568_DSI_FORCERXMODE		(0x1 << 0)
 
+#define RV1126_GRF_DSIPHY_CON		0x10220
+#define RV1126_DSI_FORCETXSTOPMODE	(0xf << 4)
+#define RV1126_DSI_TURNDISABLE		(0x1 << 2)
+#define RV1126_DSI_FORCERXMODE		(0x1 << 0)
+
 #define HIWORD_UPDATE(val, mask)	(val | (mask) << 16)
 
 #define to_dsi(nm)	container_of(nm, struct dw_mipi_dsi_rockchip, nm)
@@ -211,6 +216,7 @@ enum soc_type {
 	RK3288,
 	RK3399,
 	RK3568,
+	RV1126,
 };
 
 struct cmd_header {
@@ -1379,6 +1385,22 @@ static const struct rockchip_dw_dsi_chip_data rk3568_chip_data[] = {
 	{ /* sentinel */ }
 };
 
+static const struct rockchip_dw_dsi_chip_data rv1126_chip_data[] = {
+	{
+		.reg = 0xffb30000,
+
+		.lanecfg1_grf_reg = RV1126_GRF_DSIPHY_CON,
+		.lanecfg1 = HIWORD_UPDATE(0, RV1126_DSI_TURNDISABLE |
+					     RV1126_DSI_FORCERXMODE |
+					     RV1126_DSI_FORCETXSTOPMODE),
+		.flags = DW_MIPI_NEEDS_HCLK,
+		.max_data_lanes = 4,
+		.max_bit_rate_per_lane = 1000000000UL,
+		.soc_type = RV1126,
+	},
+	{ /* sentinel */ }
+};
+
 static const struct of_device_id dw_mipi_dsi_rockchip_dt_ids[] = {
 	{
 	 .compatible = "rockchip,px30-mipi-dsi",
@@ -1392,6 +1414,9 @@ static const struct of_device_id dw_mipi_dsi_rockchip_dt_ids[] = {
 	}, {
 	 .compatible = "rockchip,rk3568-mipi-dsi",
 	 .data = &rk3568_chip_data,
+	}, {
+	 .compatible = "rockchip,rv1126-mipi-dsi",
+	 .data = &rv1126_chip_data,
 	},
 	{ /* sentinel */ }
 };
