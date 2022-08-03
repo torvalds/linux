@@ -548,17 +548,18 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		}
 
 		/* for data sync or sync, we need sync completion processing */
-		if (iocb->ki_flags & IOCB_DSYNC)
+		if (iocb_is_dsync(iocb) && !(dio_flags & IOMAP_DIO_NOSYNC)) {
 			dio->flags |= IOMAP_DIO_NEED_SYNC;
 
-		/*
-		 * For datasync only writes, we optimistically try using FUA for
-		 * this IO.  Any non-FUA write that occurs will clear this flag,
-		 * hence we know before completion whether a cache flush is
-		 * necessary.
-		 */
-		if ((iocb->ki_flags & (IOCB_DSYNC | IOCB_SYNC)) == IOCB_DSYNC)
-			dio->flags |= IOMAP_DIO_WRITE_FUA;
+		       /*
+			* For datasync only writes, we optimistically try
+			* using FUA for this IO.  Any non-FUA write that
+			* occurs will clear this flag, hence we know before
+			* completion whether a cache flush is necessary.
+			*/
+			if (!(iocb->ki_flags & IOCB_SYNC))
+				dio->flags |= IOMAP_DIO_WRITE_FUA;
+		}
 	}
 
 	if (dio_flags & IOMAP_DIO_OVERWRITE_ONLY) {

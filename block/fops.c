@@ -37,7 +37,7 @@ static blk_opf_t dio_bio_write_op(struct kiocb *iocb)
 	blk_opf_t opf = REQ_OP_WRITE | REQ_SYNC | REQ_IDLE;
 
 	/* avoid the need for a I/O completion work item */
-	if (iocb->ki_flags & IOCB_DSYNC)
+	if (iocb_is_dsync(iocb))
 		opf |= REQ_FUA;
 	return opf;
 }
