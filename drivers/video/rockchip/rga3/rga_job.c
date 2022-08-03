@@ -833,10 +833,6 @@ int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job
 	spin_unlock_irqrestore(&request->lock, flags);
 
 	if ((failed_count + finished_count) >= request->task_count) {
-		rga_dma_fence_signal(request->release_fence);
-
-		wake_up(&request->finished_wq);
-
 		spin_lock_irqsave(&request->lock, flags);
 
 		request->is_running = false;
@@ -845,6 +841,9 @@ int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job
 		rga_request_put_current_mm(request);
 
 		spin_unlock_irqrestore(&request->lock, flags);
+
+		rga_dma_fence_signal(request->release_fence);
+		wake_up(&request->finished_wq);
 
 		if (DEBUGGER_EN(MSG))
 			pr_info("request[%d] finished %d failed %d\n",
