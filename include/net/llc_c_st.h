@@ -11,6 +11,10 @@
  *
  * See the GNU General Public License for more details.
  */
+
+#include <net/llc_c_ac.h>
+#include <net/llc_c_ev.h>
+
 /* Connection component state management */
 /* connection states */
 #define LLC_CONN_OUT_OF_SVC		 0	/* prior to allocation */

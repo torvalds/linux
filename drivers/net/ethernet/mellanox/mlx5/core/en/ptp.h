@@ -17,6 +17,7 @@ struct mlx5e_ptpsq {
 	u16                      skb_fifo_pc;
 	struct mlx5e_skb_fifo    skb_fifo;
 	struct mlx5e_ptp_cq_stats *cq_stats;
+	u16                      ts_cqe_ctr_mask;
 };
 
 enum {

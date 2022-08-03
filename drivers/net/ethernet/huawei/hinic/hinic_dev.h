@@ -95,9 +95,6 @@ struct hinic_dev {
 	u16				sq_depth;
 	u16				rq_depth;
 
-	struct hinic_txq_stats          tx_stats;
-	struct hinic_rxq_stats          rx_stats;
-
 	u8				rss_tmpl_idx;
 	u8				rss_hash_engine;
 	u16				num_rss;

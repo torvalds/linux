@@ -444,15 +444,10 @@ static int tja11xx_hwmon_register(struct phy_device *phydev,
 				  struct tja11xx_priv *priv)
 {
 	struct device *dev = &phydev->mdio.dev;
-	int i;
 
-	priv->hwmon_name = devm_kstrdup(dev, dev_name(dev), GFP_KERNEL);
-	if (!priv->hwmon_name)
-		return -ENOMEM;
-
-	for (i = 0; priv->hwmon_name[i]; i++)
-		if (hwmon_is_bad_char(priv->hwmon_name[i]))
-			priv->hwmon_name[i] = '_';
+	priv->hwmon_name = devm_hwmon_sanitize_name(dev, dev_name(dev));
+	if (IS_ERR(priv->hwmon_name))
+		return PTR_ERR(priv->hwmon_name);
 
 	priv->hwmon_dev =
 		devm_hwmon_device_register_with_info(dev, priv->hwmon_name,

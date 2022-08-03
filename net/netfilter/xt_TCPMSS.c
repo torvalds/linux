@@ -239,8 +239,8 @@ tcpmss_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 		oldlen = ipv6h->payload_len;
 		newlen = htons(ntohs(oldlen) + ret);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			skb->csum = csum_add(csum_sub(skb->csum, oldlen),
-					     newlen);
+			skb->csum = csum_add(csum_sub(skb->csum, (__force __wsum)oldlen),
+					     (__force __wsum)newlen);
 		ipv6h->payload_len = newlen;
 	}
 	return XT_CONTINUE;

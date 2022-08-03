@@ -2,6 +2,10 @@
 #ifndef _LINUX_IF_HSR_H_
 #define _LINUX_IF_HSR_H_
 
+#include <linux/types.h>
+
+struct net_device;
+
 /* used to differentiate various protocols */
 enum hsr_version {
 	HSR_V0 = 0,

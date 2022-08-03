@@ -11,6 +11,7 @@ void eir_create(struct hci_dev *hdev, u8 *data);
 
 u8 eir_create_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr);
 u8 eir_create_scan_rsp(struct hci_dev *hdev, u8 instance, u8 *ptr);
+u8 eir_create_per_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr);
 
 u8 eir_append_local_name(struct hci_dev *hdev, u8 *eir, u8 ad_len);
 u8 eir_append_appearance(struct hci_dev *hdev, u8 *ptr, u8 ad_len);

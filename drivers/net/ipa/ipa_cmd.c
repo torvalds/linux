@@ -353,13 +353,13 @@ int ipa_cmd_pool_init(struct gsi_channel *channel, u32 tre_max)
 	/* This is as good a place as any to validate build constants */
 	ipa_cmd_validate_build();
 
-	/* Even though command payloads are allocated one at a time,
-	 * a single transaction can require up to tlv_count of them,
-	 * so we treat them as if that many can be allocated at once.
+	/* Command payloads are allocated one at a time, but a single
+	 * transaction can require up to the maximum supported by the
+	 * channel; treat them as if they were allocated all at once.
 	 */
 	return gsi_trans_pool_init_dma(dev, &trans_info->cmd_pool,
 				       sizeof(union ipa_cmd_payload),
-				       tre_max, channel->tlv_count);
+				       tre_max, channel->trans_tre_max);
 }
 
 void ipa_cmd_pool_exit(struct gsi_channel *channel)

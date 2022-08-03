@@ -199,7 +199,6 @@ static bool ice_is_dvm_supported(struct ice_hw *hw)
 #define ICE_SW_LKUP_VLAN_PKT_FLAGS_LKUP_IDX		2
 #define ICE_SW_LKUP_PROMISC_VLAN_LOC_LKUP_IDX		2
 #define ICE_PKT_FLAGS_0_TO_15_FV_IDX			1
-#define ICE_PKT_FLAGS_0_TO_15_VLAN_FLAGS_MASK		0xD000
 static struct ice_update_recipe_lkup_idx_params ice_dvm_dflt_recipes[] = {
 	{
 		/* Update recipe ICE_SW_LKUP_VLAN to filter based on the

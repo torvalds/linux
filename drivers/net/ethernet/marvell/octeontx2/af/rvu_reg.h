@@ -565,7 +565,13 @@
 #define NPC_AF_PCK_DEF_OIP4		(0x00620)
 #define NPC_AF_PCK_DEF_OIP6		(0x00630)
 #define NPC_AF_PCK_DEF_IIP4		(0x00640)
+#define NPC_AF_INTFX_HASHX_RESULT_CTRL(a, b)	(0x006c0 | (a) << 4 | (b) << 3)
+#define NPC_AF_INTFX_HASHX_MASKX(a, b, c)  (0x00700 | (a) << 5 | (b) << 4 | (c) << 3)
 #define NPC_AF_KEX_LDATAX_FLAGS_CFG(a)	(0x00800 | (a) << 3)
+#define NPC_AF_INTFX_HASHX_CFG(a, b)  (0x00b00 | (a) << 6 | (b) << 4)
+#define NPC_AF_INTFX_SECRET_KEY0(a)	(0x00e00 | (a) << 3)
+#define NPC_AF_INTFX_SECRET_KEY1(a)	(0x00e20 | (a) << 3)
+#define NPC_AF_INTFX_SECRET_KEY2(a)	(0x00e40 | (a) << 3)
 #define NPC_AF_INTFX_KEX_CFG(a)		(0x01010 | (a) << 8)
 #define NPC_AF_PKINDX_ACTION0(a)	(0x80000ull | (a) << 6)
 #define NPC_AF_PKINDX_ACTION1(a)	(0x80008ull | (a) << 6)
@@ -598,6 +604,15 @@
 #define NPC_AF_MCAM_DBG			(0x3001000)
 #define NPC_AF_DBG_DATAX(a)		(0x3001400 | (a) << 4)
 #define NPC_AF_DBG_RESULTX(a)		(0x3001800 | (a) << 4)
+
+#define NPC_AF_EXACT_MEM_ENTRY(a, b)	(0x300000 | (a) << 15 | (b) << 3)
+#define NPC_AF_EXACT_CAM_ENTRY(a)	(0xC00 | (a) << 3)
+#define NPC_AF_INTFX_EXACT_MASK(a)	(0x660 | (a) << 3)
+#define NPC_AF_INTFX_EXACT_RESULT_CTL(a)(0x680 | (a) << 3)
+#define NPC_AF_INTFX_EXACT_CFG(a)	(0xA00 | (a) << 3)
+#define NPC_AF_INTFX_EXACT_SECRET0(a)	(0xE00 | (a) << 3)
+#define NPC_AF_INTFX_EXACT_SECRET1(a)	(0xE20 | (a) << 3)
+#define NPC_AF_INTFX_EXACT_SECRET2(a)	(0xE40 | (a) << 3)
 
 #define NPC_AF_MCAMEX_BANKX_CAMX_INTF(a, b, c) ({			   \
 	u64 offset;							   \

@@ -149,6 +149,7 @@ static DEFINE_RWLOCK(dn_hash_lock);
 static struct hlist_head dn_sk_hash[DN_SK_HASH_SIZE];
 static struct hlist_head dn_wild_sk;
 static atomic_long_t decnet_memory_allocated;
+static DEFINE_PER_CPU(int, decnet_memory_per_cpu_fw_alloc);
 
 static int __dn_setsockopt(struct socket *sock, int level, int optname,
 		sockptr_t optval, unsigned int optlen, int flags);
@@ -454,7 +455,10 @@ static struct proto dn_proto = {
 	.owner			= THIS_MODULE,
 	.enter_memory_pressure	= dn_enter_memory_pressure,
 	.memory_pressure	= &dn_memory_pressure,
+
 	.memory_allocated	= &decnet_memory_allocated,
+	.per_cpu_fw_alloc	= &decnet_memory_per_cpu_fw_alloc,
+
 	.sysctl_mem		= sysctl_decnet_mem,
 	.sysctl_wmem		= sysctl_decnet_wmem,
 	.sysctl_rmem		= sysctl_decnet_rmem,
