@@ -1499,11 +1499,6 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 	if (!pdd)
 		return NULL;
 
-	if (kfd_alloc_process_doorbells(dev, &pdd->doorbell_index) < 0) {
-		pr_err("Failed to alloc doorbell for pdd\n");
-		goto err_free_pdd;
-	}
-
 	if (init_doorbell_bitmap(&pdd->qpd, dev)) {
 		pr_err("Failed to init doorbell for process\n");
 		goto err_free_pdd;
