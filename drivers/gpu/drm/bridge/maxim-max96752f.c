@@ -141,6 +141,19 @@ max96752f_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 	return out_bus_fmts;
 }
 
+static bool max96752f_bridge_video_locked(struct max96752f_bridge *des)
+{
+	u32 val;
+
+	if (regmap_read(des->regmap, 0x0003, &val))
+		return false;
+
+	if (!FIELD_GET(VIDEO_LOCK, val))
+		return false;
+
+	return true;
+}
+
 static int max96752f_bridge_attach(struct drm_bridge *bridge,
 				   enum drm_bridge_attach_flags flags)
 {
@@ -151,6 +164,13 @@ static int max96752f_bridge_attach(struct drm_bridge *bridge,
 					  &des->next_bridge);
 	if (ret)
 		return ret;
+
+	if (max96752f_bridge_video_locked(des)) {
+		if (des->panel) {
+			drm_panel_prepare(des->panel);
+			drm_panel_enable(des->panel);
+		}
+	}
 
 	if (des->next_bridge)
 		return drm_bridge_attach(bridge->encoder, des->next_bridge,
