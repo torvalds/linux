@@ -1451,12 +1451,16 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 
 	if (!completion_done(&dev->cmpl_ntf))
 		complete(&dev->cmpl_ntf);
-	ret = v4l2_subdev_call(dev->active_sensor->sd,
-			       core, ioctl,
-			       RKCIF_CMD_SET_CSI_IDX,
-			       &dev->csi_host_idx);
-	if (ret)
-		v4l2_err(&dev->v4l2_dev, "set csi idx %d fail\n", dev->csi_host_idx);
+	if (dev->active_sensor &&
+	    (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ||
+	     dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_CPHY)) {
+		ret = v4l2_subdev_call(dev->active_sensor->sd,
+				       core, ioctl,
+				       RKCIF_CMD_SET_CSI_IDX,
+				       &dev->csi_host_idx);
+		if (ret)
+			v4l2_err(&dev->v4l2_dev, "set csi idx %d fail\n", dev->csi_host_idx);
+	}
 	v4l2_info(&dev->v4l2_dev, "Async subdev notifier completed\n");
 
 	return ret;
