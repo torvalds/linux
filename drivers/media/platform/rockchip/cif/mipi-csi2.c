@@ -812,6 +812,11 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 			snprintf(err_str, CSI_ERRSTR_LEN, "%s(ecc2)", err_str);
 		}
 
+		if (val & CSIHOST_ERR1_ERR_CTRL) {
+			csi2_find_err_vc((val >> 16) & 0xf, vc_info);
+			snprintf(err_str, CSI_ERRSTR_LEN, "%s(ctrl,vc:%s) ", err_str, vc_info);
+		}
+
 		pr_err("%s ERR1:0x%x %s\n", csi2->dev_name, val, err_str);
 
 		if (is_add_cnt) {
@@ -919,6 +924,11 @@ static const struct csi2_match_data rk3588_csi2_match_data = {
 	.num_pads = CSI2_NUM_PADS_MAX,
 };
 
+static const struct csi2_match_data rk3562_csi2_match_data = {
+	.chip_id = CHIP_RK3562_CSI2,
+	.num_pads = CSI2_NUM_PADS_MAX,
+};
+
 static const struct of_device_id csi2_dt_ids[] = {
 	{
 		.compatible = "rockchip,rk1808-mipi-csi2",
@@ -939,6 +949,10 @@ static const struct of_device_id csi2_dt_ids[] = {
 	{
 		.compatible = "rockchip,rk3588-mipi-csi2",
 		.data = &rk3588_csi2_match_data,
+	},
+	{
+		.compatible = "rockchip,rk3562-mipi-csi2",
+		.data = &rk3562_csi2_match_data,
 	},
 	{ /* sentinel */ }
 };
