@@ -2583,6 +2583,8 @@ static int os04a10_initialize_controls(struct os04a10 *os04a10)
 	os04a10->long_hcg = false;
 	os04a10->middle_hcg = false;
 	os04a10->short_hcg = false;
+	if (!os04a10->is_thunderboot)
+		os04a10->is_thunderboot_ng = true;
 
 	return 0;
 
