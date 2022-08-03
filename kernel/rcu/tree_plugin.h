@@ -870,7 +870,7 @@ void rcu_all_qs(void)
 
 	if (!raw_cpu_read(rcu_data.rcu_urgent_qs))
 		return;
-	preempt_disable();
+	preempt_disable();  // For CONFIG_PREEMPT_COUNT=y kernels
 	/* Load rcu_urgent_qs before other flags. */
 	if (!smp_load_acquire(this_cpu_ptr(&rcu_data.rcu_urgent_qs))) {
 		preempt_enable();
