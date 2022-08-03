@@ -1091,9 +1091,6 @@ static int omap_des_remove(struct platform_device *pdev)
 	struct omap_des_dev *dd = platform_get_drvdata(pdev);
 	int i, j;
 
-	if (!dd)
-		return -ENODEV;
-
 	spin_lock_bh(&list_lock);
 	list_del(&dd->list);
 	spin_unlock_bh(&list_lock);
@@ -1106,7 +1103,6 @@ static int omap_des_remove(struct platform_device *pdev)
 	tasklet_kill(&dd->done_task);
 	omap_des_dma_cleanup(dd);
 	pm_runtime_disable(dd->dev);
-	dd = NULL;
 
 	return 0;
 }

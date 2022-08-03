@@ -9079,15 +9079,24 @@ S:	Supported
 F:	Documentation/admin-guide/perf/hns3-pmu.rst
 F:	drivers/perf/hisilicon/hns3_pmu.c
 
-HISILICON QM AND ZIP Controller DRIVER
+HISILICON QM DRIVER
+M:	Weili Qian <qianweili@huawei.com>
+M:	Zhou Wang <wangzhou1@hisilicon.com>
+L:	linux-crypto@vger.kernel.org
+S:	Maintained
+F:	drivers/crypto/hisilicon/Kconfig
+F:	drivers/crypto/hisilicon/Makefile
+F:	drivers/crypto/hisilicon/qm.c
+F:	drivers/crypto/hisilicon/sgl.c
+F:	include/linux/hisi_acc_qm.h
+
+HISILICON ZIP Controller DRIVER
+M:	Yang Shen <shenyang39@huawei.com>
 M:	Zhou Wang <wangzhou1@hisilicon.com>
 L:	linux-crypto@vger.kernel.org
 S:	Maintained
 F:	Documentation/ABI/testing/debugfs-hisi-zip
-F:	drivers/crypto/hisilicon/qm.c
-F:	drivers/crypto/hisilicon/sgl.c
 F:	drivers/crypto/hisilicon/zip/
-F:	include/linux/hisi_acc_qm.h
 
 HISILICON ROCE DRIVER
 M:	Wenpeng Liang <liangwenpeng@huawei.com>
