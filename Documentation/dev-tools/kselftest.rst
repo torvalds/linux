@@ -208,6 +208,14 @@ In general, the rules for selftests are
 Contributing new tests (details)
 ================================
 
+ * In your Makefile, use facilities from lib.mk by including it instead of
+   reinventing the wheel. Specify flags and binaries generation flags on
+   need basis before including lib.mk. ::
+
+    CFLAGS = $(KHDR_INCLUDES)
+    TEST_GEN_PROGS := close_range_test
+    include ../lib.mk
+
  * Use TEST_GEN_XXX if such binaries or files are generated during
    compiling.
 
@@ -230,12 +238,29 @@ Contributing new tests (details)
  * First use the headers inside the kernel source and/or git repo, and then the
    system headers.  Headers for the kernel release as opposed to headers
    installed by the distro on the system should be the primary focus to be able
-   to find regressions.
+   to find regressions. Use KHDR_INCLUDES in Makefile to include headers from
+   the kernel source.
 
  * If a test needs specific kernel config options enabled, add a config file in
    the test directory to enable them.
 
    e.g: tools/testing/selftests/android/config
+
+ * Create a .gitignore file inside test directory and add all generated objects
+   in it.
+
+ * Add new test name in TARGETS in selftests/Makefile::
+
+    TARGETS += android
+
+ * All changes should pass::
+
+    kselftest-{all,install,clean,gen_tar}
+    kselftest-{all,install,clean,gen_tar} O=abo_path
+    kselftest-{all,install,clean,gen_tar} O=rel_path
+    make -C tools/testing/selftests {all,install,clean,gen_tar}
+    make -C tools/testing/selftests {all,install,clean,gen_tar} O=abs_path
+    make -C tools/testing/selftests {all,install,clean,gen_tar} O=rel_path
 
 Test Module
 ===========

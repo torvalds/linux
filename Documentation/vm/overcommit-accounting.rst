@@ -1,5 +1,3 @@
-.. _overcommit_accounting:
-
 =====================
 Overcommit Accounting
 =====================

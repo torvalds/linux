@@ -25,6 +25,7 @@ my $need_sphinx = 0;
 my $need_pip = 0;
 my $need_virtualenv = 0;
 my $rec_sphinx_upgrade = 0;
+my $verbose_warn_install = 1;
 my $install = "";
 my $virtenv_dir = "";
 my $python_cmd = "";
@@ -103,10 +104,12 @@ sub check_missing(%)
 			next;
 		}
 
-		if ($is_optional) {
-			print "Warning: better to also install \"$prog\".\n";
-		} else {
-			print "ERROR: please install \"$prog\", otherwise, build won't work.\n";
+		if ($verbose_warn_install) {
+			if ($is_optional) {
+				print "Warning: better to also install \"$prog\".\n";
+			} else {
+				print "ERROR: please install \"$prog\", otherwise, build won't work.\n";
+			}
 		}
 		if (defined($map{$prog})) {
 			$install .= " " . $map{$prog};
@@ -386,7 +389,8 @@ sub give_debian_hints()
 	check_missing(\%map);
 
 	return if (!$need && !$optional);
-	printf("You should run:\n\n\tsudo apt-get install $install\n");
+	printf("You should run:\n") if ($verbose_warn_install);
+	printf("\n\tsudo apt-get install $install\n");
 }
 
 sub give_redhat_hints()
@@ -458,10 +462,12 @@ sub give_redhat_hints()
 
 	if (!$old) {
 		# dnf, for Fedora 18+
-		printf("You should run:\n\n\tsudo dnf install -y $install\n");
+		printf("You should run:\n") if ($verbose_warn_install);
+		printf("\n\tsudo dnf install -y $install\n");
 	} else {
 		# yum, for RHEL (and clones) or Fedora version < 18
-		printf("You should run:\n\n\tsudo yum install -y $install\n");
+		printf("You should run:\n") if ($verbose_warn_install);
+		printf("\n\tsudo yum install -y $install\n");
 	}
 }
 
@@ -509,7 +515,8 @@ sub give_opensuse_hints()
 	check_missing(\%map);
 
 	return if (!$need && !$optional);
-	printf("You should run:\n\n\tsudo zypper install --no-recommends $install\n");
+	printf("You should run:\n") if ($verbose_warn_install);
+	printf("\n\tsudo zypper install --no-recommends $install\n");
 }
 
 sub give_mageia_hints()
@@ -553,7 +560,8 @@ sub give_mageia_hints()
 	check_missing(\%map);
 
 	return if (!$need && !$optional);
-	printf("You should run:\n\n\tsudo $packager_cmd $install\n");
+	printf("You should run:\n") if ($verbose_warn_install);
+	printf("\n\tsudo $packager_cmd $install\n");
 }
 
 sub give_arch_linux_hints()
@@ -583,7 +591,8 @@ sub give_arch_linux_hints()
 	check_missing(\%map);
 
 	return if (!$need && !$optional);
-	printf("You should run:\n\n\tsudo pacman -S $install\n");
+	printf("You should run:\n") if ($verbose_warn_install);
+	printf("\n\tsudo pacman -S $install\n");
 }
 
 sub give_gentoo_hints()
@@ -610,7 +619,8 @@ sub give_gentoo_hints()
 
 	return if (!$need && !$optional);
 
-	printf("You should run:\n\n");
+	printf("You should run:\n") if ($verbose_warn_install);
+	printf("\n");
 
 	my $imagemagick = "media-gfx/imagemagick svg png";
 	my $cairo = "media-gfx/graphviz cairo pdf";
@@ -700,7 +710,7 @@ sub check_distros()
 
 sub deactivate_help()
 {
-	printf "\nIf you want to exit the virtualenv, you can use:\n";
+	printf "\n    If you want to exit the virtualenv, you can use:\n";
 	printf "\tdeactivate\n";
 }
 
@@ -720,6 +730,12 @@ sub get_virtenv()
 		next if (! -f $sphinx_cmd);
 
 		my $ver = get_sphinx_version($sphinx_cmd);
+
+		if (!$ver) {
+			$f =~ s#/bin/activate##;
+			print("Warning: virtual environment $f is not working.\nPython version upgrade? Remove it with:\n\n\trm -rf $f\n\n");
+		}
+
 		if ($need_sphinx && ($ver ge $min_version)) {
 			return ($f, $ver);
 		} elsif ($ver gt $cur_version) {
@@ -741,7 +757,7 @@ sub recommend_sphinx_upgrade()
 
 	# Get the highest version from sphinx_*/bin/sphinx-build and the
 	# corresponding command to activate the venv/virtenv
-	$activate_cmd = get_virtenv();
+	($activate_cmd, $venv_ver) = get_virtenv();
 
 	# Store the highest version from Sphinx existing virtualenvs
 	if (($activate_cmd ne "") && ($venv_ver gt $cur_version)) {
@@ -759,10 +775,14 @@ sub recommend_sphinx_upgrade()
 	# Either there are already a virtual env or a new one should be created
 	$need_pip = 1;
 
+	return if (!$latest_avail_ver);
+
 	# Return if the reason is due to an upgrade or not
 	if ($latest_avail_ver lt $rec_version) {
 		$rec_sphinx_upgrade = 1;
 	}
+
+	return $latest_avail_ver;
 }
 
 #
@@ -775,12 +795,13 @@ sub recommend_sphinx_version($)
 {
 	my $virtualenv_cmd = shift;
 
-	if ($latest_avail_ver lt $min_pdf_version) {
-		print "note: If you want pdf, you need at least Sphinx $min_pdf_version.\n";
-	}
-
 	# Version is OK. Nothing to do.
-	return if ($cur_version && ($cur_version ge $rec_version));
+	if ($cur_version && ($cur_version ge $rec_version)) {
+		if ($cur_version lt $min_pdf_version) {
+			print "note: If you want pdf, you need at least Sphinx $min_pdf_version.\n";
+		}
+		return;
+	};
 
 	if (!$need_sphinx) {
 		# sphinx-build is present and its version is >= $min_version
@@ -820,12 +841,16 @@ sub recommend_sphinx_version($)
 	}
 
 	# Suggest newer versions if current ones are too old
-	if ($latest_avail_ver && $cur_version ge $min_version) {
+	if ($latest_avail_ver && $latest_avail_ver ge $min_version) {
 		# If there's a good enough version, ask the user to enable it
 		if ($latest_avail_ver ge $rec_version) {
 			printf "\nNeed to activate Sphinx (version $latest_avail_ver) on virtualenv with:\n";
 			printf "\t. $activate_cmd\n";
 			deactivate_help();
+
+			if ($latest_avail_ver lt $min_pdf_version) {
+				print "note: If you want pdf, you need at least Sphinx $min_pdf_version.\n";
+			}
 
 			return;
 		}
@@ -848,7 +873,7 @@ sub recommend_sphinx_version($)
 			print "To upgrade Sphinx, use:\n\n";
 		}
 	} else {
-		print "Sphinx needs to be installed either as a package or via pip/pypi with:\n";
+		print "\nSphinx needs to be installed either:\n1) via pip/pypi with:\n\n";
 	}
 
 	$python_cmd = find_python_no_venv();
@@ -858,6 +883,29 @@ sub recommend_sphinx_version($)
 	printf "\t. $virtenv_dir/bin/activate\n";
 	printf "\tpip install -r $requirement_file\n";
 	deactivate_help();
+
+	printf "\n2) As a package with:\n";
+
+	my $old_need = $need;
+	my $old_optional = $optional;
+	%missing = ();
+	$pdf = 0;
+	$optional = 0;
+	$install = "";
+	$verbose_warn_install = 0;
+
+	add_package("python-sphinx", 0);
+	check_python_module("sphinx_rtd_theme", 1);
+
+	check_distros();
+
+	$need = $old_need;
+	$optional = $old_optional;
+
+	printf "\n    Please note that Sphinx >= 3.0 will currently produce false-positive\n";
+	printf "   warning when the same name is used for more than one type (functions,\n";
+	printf "   structs, enums,...). This is known Sphinx bug. For more details, see:\n";
+	printf "\thttps://github.com/sphinx-doc/sphinx/pull/8313\n";
 }
 
 sub check_needs()
@@ -897,7 +945,7 @@ sub check_needs()
 		}
 	}
 
-	recommend_sphinx_upgrade();
+	my $venv_ver = recommend_sphinx_upgrade();
 
 	my $virtualenv_cmd;
 

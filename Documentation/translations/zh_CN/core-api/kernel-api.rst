@@ -5,6 +5,7 @@
 :翻译:
 
  司延腾 Yanteng Si <siyanteng@loongson.cn>
+ 周彬彬 Binbin Zhou <zhoubinbin@loongson.cn>
 
 .. _cn_kernel-api.rst:
 
@@ -281,6 +282,8 @@ kernel/acct.c
 ======
 
 该API在以下内核代码中:
+
+include/linux/bio.h
 
 block/blk-core.c
 
