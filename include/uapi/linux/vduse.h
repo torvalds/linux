@@ -233,6 +233,30 @@ struct vduse_iova_umem {
 /* De-register the userspace memory. Caller should set iova and size field. */
 #define VDUSE_IOTLB_DEREG_UMEM	_IOW(VDUSE_BASE, 0x19, struct vduse_iova_umem)
 
+/**
+ * struct vduse_iova_info - information of one IOVA region
+ * @start: start of the IOVA region
+ * @last: last of the IOVA region
+ * @capability: capability of the IOVA regsion
+ * @reserved: for future use, needs to be initialized to zero
+ *
+ * Structure used by VDUSE_IOTLB_GET_INFO ioctl to get information of
+ * one IOVA region.
+ */
+struct vduse_iova_info {
+	__u64 start;
+	__u64 last;
+#define VDUSE_IOVA_CAP_UMEM (1 << 0)
+	__u64 capability;
+	__u64 reserved[3];
+};
+
+/*
+ * Find the first IOVA region that overlaps with the range [start, last]
+ * and return some information on it. Caller should set start and last fields.
+ */
+#define VDUSE_IOTLB_GET_INFO	_IOWR(VDUSE_BASE, 0x1a, struct vduse_iova_info)
+
 /* The control messages definition for read(2)/write(2) on /dev/vduse/$NAME */
 
 /**

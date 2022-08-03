@@ -1228,6 +1228,45 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 					   umem.size);
 		break;
 	}
+	case VDUSE_IOTLB_GET_INFO: {
+		struct vduse_iova_info info;
+		struct vhost_iotlb_map *map;
+		struct vduse_iova_domain *domain = dev->domain;
+
+		ret = -EFAULT;
+		if (copy_from_user(&info, argp, sizeof(info)))
+			break;
+
+		ret = -EINVAL;
+		if (info.start > info.last)
+			break;
+
+		if (!is_mem_zero((const char *)info.reserved,
+				 sizeof(info.reserved)))
+			break;
+
+		spin_lock(&domain->iotlb_lock);
+		map = vhost_iotlb_itree_first(domain->iotlb,
+					      info.start, info.last);
+		if (map) {
+			info.start = map->start;
+			info.last = map->last;
+			info.capability = 0;
+			if (domain->bounce_map && map->start == 0 &&
+			    map->last == domain->bounce_size - 1)
+				info.capability |= VDUSE_IOVA_CAP_UMEM;
+		}
+		spin_unlock(&domain->iotlb_lock);
+		if (!map)
+			break;
+
+		ret = -EFAULT;
+		if (copy_to_user(argp, &info, sizeof(info)))
+			break;
+
+		ret = 0;
+		break;
+	}
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
