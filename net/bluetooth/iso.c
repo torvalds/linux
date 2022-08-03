@@ -1251,7 +1251,7 @@ static int iso_sock_getsockopt(struct socket *sock, int level, int optname,
 
 	switch (optname) {
 	case BT_DEFER_SETUP:
-		if (sk->sk_state != BT_BOUND && sk->sk_state != BT_LISTEN) {
+		if (sk->sk_state == BT_CONNECTED) {
 			err = -EINVAL;
 			break;
 		}
