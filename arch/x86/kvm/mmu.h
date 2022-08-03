@@ -6,6 +6,8 @@
 #include "kvm_cache_regs.h"
 #include "cpuid.h"
 
+extern bool __read_mostly enable_mmio_caching;
+
 #define PT_WRITABLE_SHIFT 1
 #define PT_USER_SHIFT 2
 
