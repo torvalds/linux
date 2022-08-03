@@ -139,17 +139,7 @@ static inline int ovl_do_notify_change(struct ovl_fs *ofs,
 				       struct dentry *upperdentry,
 				       struct iattr *attr)
 {
-	struct user_namespace *upper_mnt_userns = ovl_upper_mnt_userns(ofs);
-	struct user_namespace *fs_userns = i_user_ns(d_inode(upperdentry));
-
-	if (attr->ia_valid & ATTR_UID)
-		attr->ia_uid = mapped_kuid_user(upper_mnt_userns,
-						fs_userns, attr->ia_uid);
-	if (attr->ia_valid & ATTR_GID)
-		attr->ia_gid = mapped_kgid_user(upper_mnt_userns,
-						fs_userns, attr->ia_gid);
-
-	return notify_change(upper_mnt_userns, upperdentry, attr, NULL);
+	return notify_change(ovl_upper_mnt_userns(ofs), upperdentry, attr, NULL);
 }
 
 static inline int ovl_do_rmdir(struct ovl_fs *ofs,
