@@ -1019,6 +1019,8 @@ int svm_migrate_init(struct amdgpu_device *adev)
 
 	amdgpu_amdkfd_reserve_system_mem(SVM_HMM_PAGE_STRUCT_SIZE(size));
 
+	svm_range_set_max_pages(adev);
+
 	pr_info("HMM registered %ldMB device memory\n", size >> 20);
 
 	return 0;

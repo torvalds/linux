@@ -48,11 +48,6 @@ struct dc_stream_status {
 	bool is_abm_supported;
 };
 
-// TODO: References to this needs to be removed..
-struct freesync_context {
-	bool dummy;
-};
-
 enum hubp_dmdata_mode {
 	DMDATA_SW_MODE,
 	DMDATA_HW_MODE
@@ -183,9 +178,6 @@ struct dc_stream_state {
 	uint8_t dsc_packed_pps[128];
 	struct rect src; /* composition area */
 	struct rect dst; /* stream addressable area */
-
-	// TODO: References to this needs to be removed..
-	struct freesync_context freesync_ctx;
 
 	struct audio_info audio_info;
 

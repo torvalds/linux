@@ -1361,6 +1361,15 @@ static int smu_hw_init(void *handle)
 	}
 
 	if (smu->is_apu) {
+		if ((smu->ppt_funcs->set_gfx_power_up_by_imu) &&
+				likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)) {
+			ret = smu->ppt_funcs->set_gfx_power_up_by_imu(smu);
+			if (ret) {
+				dev_err(adev->dev, "Failed to Enable gfx imu!\n");
+				return ret;
+			}
+		}
+
 		smu_dpm_set_vcn_enable(smu, true);
 		smu_dpm_set_jpeg_enable(smu, true);
 		smu_set_gfx_cgpg(smu, true);

@@ -710,10 +710,10 @@ void dml32_CalculateSwathWidth(
 	unsigned int k, j;
 	enum odm_combine_mode MainSurfaceODMMode;
 
-    unsigned int surface_width_ub_l;
-    unsigned int surface_height_ub_l;
-    unsigned int surface_width_ub_c;
-    unsigned int surface_height_ub_c;
+	unsigned int surface_width_ub_l;
+	unsigned int surface_height_ub_l;
+	unsigned int surface_width_ub_c;
+	unsigned int surface_height_ub_c;
 
 #ifdef __DML_VBA_DEBUG__
 	dml_print("DML::%s: ForceSingleDPP = %d\n", __func__, ForceSingleDPP);

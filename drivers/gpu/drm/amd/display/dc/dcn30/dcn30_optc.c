@@ -180,19 +180,8 @@ void optc3_set_dsc_config(struct timing_generator *optc,
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
-	optc2_set_dsc_config(optc, dsc_mode, dsc_bytes_per_pixel,
-		dsc_slice_width);
-
-		REG_UPDATE(OTG_V_SYNC_A_CNTL, OTG_V_SYNC_MODE, 0);
-
-}
-
-void optc3_set_vrr_m_const(struct timing_generator *optc,
-		double vtotal_avg)
-{
-	DC_FP_START();
-	optc3_fpu_set_vrr_m_const(optc, vtotal_avg);
-	DC_FP_END();
+	optc2_set_dsc_config(optc, dsc_mode, dsc_bytes_per_pixel, dsc_slice_width);
+	REG_UPDATE(OTG_V_SYNC_A_CNTL, OTG_V_SYNC_MODE, 0);
 }
 
 void optc3_set_odm_bypass(struct timing_generator *optc,

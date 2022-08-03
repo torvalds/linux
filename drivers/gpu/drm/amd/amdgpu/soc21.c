@@ -80,6 +80,7 @@ static int soc21_query_video_codecs(struct amdgpu_device *adev, bool encode,
 	switch (adev->ip_versions[UVD_HWIP][0]) {
 
 	case IP_VERSION(4, 0, 0):
+	case IP_VERSION(4, 0, 2):
 		if (encode)
 			*codecs = &vcn_4_0_0_video_codecs_encode;
 		else
@@ -584,8 +585,11 @@ static int soc21_common_early_init(void *handle)
 		adev->external_rev_id = adev->rev_id + 0x10;
 		break;
 	case IP_VERSION(11, 0, 1):
-		adev->cg_flags = 0;
-		adev->pg_flags = 0;
+		adev->cg_flags =
+			AMD_CG_SUPPORT_VCN_MGCG |
+			AMD_CG_SUPPORT_JPEG_MGCG;
+		adev->pg_flags =
+			AMD_PG_SUPPORT_JPEG;
 		adev->external_rev_id = adev->rev_id + 0x1;
 		break;
 	default:
