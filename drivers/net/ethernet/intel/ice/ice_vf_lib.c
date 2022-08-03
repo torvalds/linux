@@ -764,13 +764,16 @@ static int ice_cfg_mac_antispoof(struct ice_vsi *vsi, bool enable)
 static int ice_vsi_ena_spoofchk(struct ice_vsi *vsi)
 {
 	struct ice_vsi_vlan_ops *vlan_ops;
-	int err;
+	int err = 0;
 
 	vlan_ops = ice_get_compat_vsi_vlan_ops(vsi);
 
-	err = vlan_ops->ena_tx_filtering(vsi);
-	if (err)
-		return err;
+	/* Allow VF with VLAN 0 only to send all tagged traffic */
+	if (vsi->type != ICE_VSI_VF || ice_vsi_has_non_zero_vlans(vsi)) {
+		err = vlan_ops->ena_tx_filtering(vsi);
+		if (err)
+			return err;
+	}
 
 	return ice_cfg_mac_antispoof(vsi, true);
 }
