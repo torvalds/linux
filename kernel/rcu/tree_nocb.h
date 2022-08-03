@@ -1111,7 +1111,7 @@ int rcu_nocb_cpu_deoffload(int cpu)
 			if (!ret)
 				cpumask_clear_cpu(cpu, rcu_nocb_mask);
 		} else {
-			pr_info("NOCB: Can't CB-deoffload an offline CPU\n");
+			pr_info("NOCB: Cannot CB-deoffload offline CPU %d\n", rdp->cpu);
 			ret = -EINVAL;
 		}
 	}
@@ -1196,7 +1196,7 @@ int rcu_nocb_cpu_offload(int cpu)
 			if (!ret)
 				cpumask_set_cpu(cpu, rcu_nocb_mask);
 		} else {
-			pr_info("NOCB: Can't CB-offload an offline CPU\n");
+			pr_info("NOCB: Cannot CB-offload offline CPU %d\n", rdp->cpu);
 			ret = -EINVAL;
 		}
 	}
