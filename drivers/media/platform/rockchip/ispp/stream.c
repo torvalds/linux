@@ -1412,7 +1412,20 @@ static int rkispp_enum_fmt_vid_mplane(struct file *file, void *priv,
 
 	fmt = &stream->config->fmts[f->index];
 	f->pixelformat = fmt->fourcc;
-
+	switch (f->pixelformat) {
+	case V4L2_PIX_FMT_FBC2:
+		strscpy(f->description,
+			"Rockchip yuv422sp fbc encoder",
+			sizeof(f->description));
+		break;
+	case V4L2_PIX_FMT_FBC0:
+		strscpy(f->description,
+			"Rockchip yuv420sp fbc encoder",
+			sizeof(f->description));
+		break;
+	default:
+		break;
+	}
 	return 0;
 }
 
