@@ -193,7 +193,7 @@ static struct page *ufs_get_page(struct inode *dir, unsigned long n)
 	if (!IS_ERR(page)) {
 		kmap(page);
 		if (unlikely(!PageChecked(page))) {
-			if (PageError(page) || !ufs_check_page(page))
+			if (!ufs_check_page(page))
 				goto fail;
 		}
 	}

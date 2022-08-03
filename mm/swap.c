@@ -1086,35 +1086,6 @@ void folio_batch_remove_exceptionals(struct folio_batch *fbatch)
 	fbatch->nr = j;
 }
 
-/**
- * pagevec_lookup_range - gang pagecache lookup
- * @pvec:	Where the resulting pages are placed
- * @mapping:	The address_space to search
- * @start:	The starting page index
- * @end:	The final page index
- *
- * pagevec_lookup_range() will search for & return a group of up to PAGEVEC_SIZE
- * pages in the mapping starting from index @start and upto index @end
- * (inclusive).  The pages are placed in @pvec.  pagevec_lookup() takes a
- * reference against the pages in @pvec.
- *
- * The search returns a group of mapping-contiguous pages with ascending
- * indexes.  There may be holes in the indices due to not-present pages. We
- * also update @start to index the next page for the traversal.
- *
- * pagevec_lookup_range() returns the number of pages which were found. If this
- * number is smaller than PAGEVEC_SIZE, the end of specified range has been
- * reached.
- */
-unsigned pagevec_lookup_range(struct pagevec *pvec,
-		struct address_space *mapping, pgoff_t *start, pgoff_t end)
-{
-	pvec->nr = find_get_pages_range(mapping, start, end, PAGEVEC_SIZE,
-					pvec->pages);
-	return pagevec_count(pvec);
-}
-EXPORT_SYMBOL(pagevec_lookup_range);
-
 unsigned pagevec_lookup_range_tag(struct pagevec *pvec,
 		struct address_space *mapping, pgoff_t *index, pgoff_t end,
 		xa_mark_t tag)

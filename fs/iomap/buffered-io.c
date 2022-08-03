@@ -162,9 +162,6 @@ static void iomap_iop_set_range_uptodate(struct folio *folio,
 static void iomap_set_range_uptodate(struct folio *folio,
 		struct iomap_page *iop, size_t off, size_t len)
 {
-	if (folio_test_error(folio))
-		return;
-
 	if (iop)
 		iomap_iop_set_range_uptodate(folio, iop, off, len);
 	else
@@ -499,31 +496,6 @@ void iomap_invalidate_folio(struct folio *folio, size_t offset, size_t len)
 	}
 }
 EXPORT_SYMBOL_GPL(iomap_invalidate_folio);
-
-#ifdef CONFIG_MIGRATION
-int
-iomap_migrate_page(struct address_space *mapping, struct page *newpage,
-		struct page *page, enum migrate_mode mode)
-{
-	struct folio *folio = page_folio(page);
-	struct folio *newfolio = page_folio(newpage);
-	int ret;
-
-	ret = folio_migrate_mapping(mapping, newfolio, folio, 0);
-	if (ret != MIGRATEPAGE_SUCCESS)
-		return ret;
-
-	if (folio_test_private(folio))
-		folio_attach_private(newfolio, folio_detach_private(folio));
-
-	if (mode != MIGRATE_SYNC_NO_COPY)
-		folio_migrate_copy(newfolio, folio);
-	else
-		folio_migrate_flags(newfolio, folio);
-	return MIGRATEPAGE_SUCCESS;
-}
-EXPORT_SYMBOL_GPL(iomap_migrate_page);
-#endif /* CONFIG_MIGRATION */
 
 static void
 iomap_write_failed(struct inode *inode, loff_t pos, unsigned len)
