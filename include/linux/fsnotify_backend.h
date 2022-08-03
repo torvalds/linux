@@ -518,8 +518,8 @@ struct fsnotify_mark {
 	struct hlist_node obj_list;
 	/* Head of list of marks for an object [mark ref] */
 	struct fsnotify_mark_connector *connector;
-	/* Events types to ignore [mark->lock, group->mark_mutex] */
-	__u32 ignored_mask;
+	/* Events types and flags to ignore [mark->lock, group->mark_mutex] */
+	__u32 ignore_mask;
 	/* General fsnotify mark flags */
 #define FSNOTIFY_MARK_FLAG_ALIVE		0x0001
 #define FSNOTIFY_MARK_FLAG_ATTACHED		0x0002
@@ -529,6 +529,7 @@ struct fsnotify_mark {
 	/* fanotify mark flags */
 #define FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY	0x0100
 #define FSNOTIFY_MARK_FLAG_NO_IREF		0x0200
+#define FSNOTIFY_MARK_FLAG_HAS_IGNORE_FLAGS	0x0400
 	unsigned int flags;		/* flags [mark->lock] */
 };
 
@@ -655,15 +656,91 @@ extern void fsnotify_remove_queued_event(struct fsnotify_group *group,
 
 /* functions used to manipulate the marks attached to inodes */
 
-/* Get mask for calculating object interest taking ignored mask into account */
+/*
+ * Canonical "ignore mask" including event flags.
+ *
+ * Note the subtle semantic difference from the legacy ->ignored_mask.
+ * ->ignored_mask traditionally only meant which events should be ignored,
+ * while ->ignore_mask also includes flags regarding the type of objects on
+ * which events should be ignored.
+ */
+static inline __u32 fsnotify_ignore_mask(struct fsnotify_mark *mark)
+{
+	__u32 ignore_mask = mark->ignore_mask;
+
+	/* The event flags in ignore mask take effect */
+	if (mark->flags & FSNOTIFY_MARK_FLAG_HAS_IGNORE_FLAGS)
+		return ignore_mask;
+
+	/*
+	 * Legacy behavior:
+	 * - Always ignore events on dir
+	 * - Ignore events on child if parent is watching children
+	 */
+	ignore_mask |= FS_ISDIR;
+	ignore_mask &= ~FS_EVENT_ON_CHILD;
+	ignore_mask |= mark->mask & FS_EVENT_ON_CHILD;
+
+	return ignore_mask;
+}
+
+/* Legacy ignored_mask - only event types to ignore */
+static inline __u32 fsnotify_ignored_events(struct fsnotify_mark *mark)
+{
+	return mark->ignore_mask & ALL_FSNOTIFY_EVENTS;
+}
+
+/*
+ * Check if mask (or ignore mask) should be applied depending if victim is a
+ * directory and whether it is reported to a watching parent.
+ */
+static inline bool fsnotify_mask_applicable(__u32 mask, bool is_dir,
+					    int iter_type)
+{
+	/* Should mask be applied to a directory? */
+	if (is_dir && !(mask & FS_ISDIR))
+		return false;
+
+	/* Should mask be applied to a child? */
+	if (iter_type == FSNOTIFY_ITER_TYPE_PARENT &&
+	    !(mask & FS_EVENT_ON_CHILD))
+		return false;
+
+	return true;
+}
+
+/*
+ * Effective ignore mask taking into account if event victim is a
+ * directory and whether it is reported to a watching parent.
+ */
+static inline __u32 fsnotify_effective_ignore_mask(struct fsnotify_mark *mark,
+						   bool is_dir, int iter_type)
+{
+	__u32 ignore_mask = fsnotify_ignored_events(mark);
+
+	if (!ignore_mask)
+		return 0;
+
+	/* For non-dir and non-child, no need to consult the event flags */
+	if (!is_dir && iter_type != FSNOTIFY_ITER_TYPE_PARENT)
+		return ignore_mask;
+
+	ignore_mask = fsnotify_ignore_mask(mark);
+	if (!fsnotify_mask_applicable(ignore_mask, is_dir, iter_type))
+		return 0;
+
+	return ignore_mask & ALL_FSNOTIFY_EVENTS;
+}
+
+/* Get mask for calculating object interest taking ignore mask into account */
 static inline __u32 fsnotify_calc_mask(struct fsnotify_mark *mark)
 {
 	__u32 mask = mark->mask;
 
-	if (!mark->ignored_mask)
+	if (!fsnotify_ignored_events(mark))
 		return mask;
 
-	/* Interest in FS_MODIFY may be needed for clearing ignored mask */
+	/* Interest in FS_MODIFY may be needed for clearing ignore mask */
 	if (!(mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY))
 		mask |= FS_MODIFY;
 
@@ -671,7 +748,7 @@ static inline __u32 fsnotify_calc_mask(struct fsnotify_mark *mark)
 	 * If mark is interested in ignoring events on children, the object must
 	 * show interest in those events for fsnotify_parent() to notice it.
 	 */
-	return mask | (mark->ignored_mask & ALL_FSNOTIFY_EVENTS);
+	return mask | mark->ignore_mask;
 }
 
 /* Get mask of events for a list of marks */
