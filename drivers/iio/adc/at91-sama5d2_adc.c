@@ -793,6 +793,8 @@ static int at91_adc_config_emr(struct at91_adc_state *st,
 
 	at91_adc_writel(st, EMR, emr);
 
+	st->oversampling_ratio = oversampling_ratio;
+
 	return 0;
 }
 
@@ -1705,8 +1707,6 @@ static int at91_adc_write_raw(struct iio_dev *indio_dev,
 		mutex_lock(&st->lock);
 		/* update ratio */
 		ret = at91_adc_config_emr(st, val);
-		if (!ret)
-			st->oversampling_ratio = val;
 		mutex_unlock(&st->lock);
 		iio_device_release_direct_mode(indio_dev);
 		return ret;
