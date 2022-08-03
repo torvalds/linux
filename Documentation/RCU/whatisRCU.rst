@@ -1057,13 +1057,19 @@ SRCU: Initialization/cleanup::
 	init_srcu_struct
 	cleanup_srcu_struct
 
-All: lockdep-checked RCU-protected pointer access::
+All: lockdep-checked RCU utility APIs::
 
-	rcu_access_pointer
-	rcu_dereference_raw
 	RCU_LOCKDEP_WARN
 	rcu_sleep_check
 	RCU_NONIDLE
+
+All: Unchecked RCU-protected pointer access::
+
+	rcu_dereference_raw
+
+All: Unchecked RCU-protected pointer access with dereferencing prohibited::
+
+	rcu_access_pointer
 
 See the comment headers in the source code (or the docbook generated
 from them) for more information.
