@@ -550,90 +550,6 @@ out_err:
 	return err;
 }
 
-/**
- * p9_check_zc_errors - check 9p packet for error return and process it
- * @c: current client instance
- * @req: request to parse and check for error conditions
- * @uidata: external buffer containing error
- * @in_hdrlen: Size of response protocol buffer.
- *
- * returns error code if one is discovered, otherwise returns 0
- *
- * this will have to be more complicated if we have multiple
- * error packet types
- */
-
-static int p9_check_zc_errors(struct p9_client *c, struct p9_req_t *req,
-			      struct iov_iter *uidata, int in_hdrlen)
-{
-	int err;
-	int ecode;
-	s8 type;
-	char *ename = NULL;
-
-	err = p9_parse_header(&req->rc, NULL, &type, NULL, 0);
-	/* dump the response from server
-	 * This should be after parse_header which poplulate pdu_fcall.
-	 */
-	trace_9p_protocol_dump(c, &req->rc);
-	if (err) {
-		p9_debug(P9_DEBUG_ERROR, "couldn't parse header %d\n", err);
-		return err;
-	}
-
-	if (type != P9_RERROR && type != P9_RLERROR)
-		return 0;
-
-	if (!p9_is_proto_dotl(c)) {
-		/* Error is reported in string format */
-		int len;
-		/* 7 = header size for RERROR; */
-		int inline_len = in_hdrlen - 7;
-
-		len = req->rc.size - req->rc.offset;
-		if (len > (P9_ZC_HDR_SZ - 7)) {
-			err = -EFAULT;
-			goto out_err;
-		}
-
-		ename = &req->rc.sdata[req->rc.offset];
-		if (len > inline_len) {
-			/* We have error in external buffer */
-			if (!copy_from_iter_full(ename + inline_len,
-						 len - inline_len, uidata)) {
-				err = -EFAULT;
-				goto out_err;
-			}
-		}
-		ename = NULL;
-		err = p9pdu_readf(&req->rc, c->proto_version, "s?d",
-				  &ename, &ecode);
-		if (err)
-			goto out_err;
-
-		if (p9_is_proto_dotu(c) && ecode < 512)
-			err = -ecode;
-
-		if (!err) {
-			err = p9_errstr2errno(ename, strlen(ename));
-
-			p9_debug(P9_DEBUG_9P, "<<< RERROR (%d) %s\n",
-				 -ecode, ename);
-		}
-		kfree(ename);
-	} else {
-		err = p9pdu_readf(&req->rc, c->proto_version, "d", &ecode);
-		err = -ecode;
-
-		p9_debug(P9_DEBUG_9P, "<<< RLERROR (%d)\n", -ecode);
-	}
-	return err;
-
-out_err:
-	p9_debug(P9_DEBUG_ERROR, "couldn't parse error%d\n", err);
-	return err;
-}
-
 static struct p9_req_t *
 p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...);
 
@@ -874,7 +790,7 @@ recalc_sigpending:
 	if (err < 0)
 		goto reterr;
 
-	err = p9_check_zc_errors(c, req, uidata, in_hdrlen);
+	err = p9_check_errors(c, req);
 	trace_9p_client_res(c, type, req->rc.tag, err);
 	if (!err)
 		return req;
