@@ -968,7 +968,7 @@ static int mtk_dai_i2s_config(struct mtk_base_afe *afe,
 	}
 
 	/* set share i2s */
-	if (i2s_priv && i2s_priv->share_i2s_id >= 0) {
+	if (i2s_priv->share_i2s_id >= 0) {
 		ret = mtk_dai_i2s_config(afe, params, i2s_priv->share_i2s_id);
 		if (ret)
 			return ret;
