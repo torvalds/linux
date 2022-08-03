@@ -795,7 +795,7 @@ static int video_enum_framesizes(struct file *file, void *fh,
 
 	if (support_selection) {
 		if (fsize->index)
-			return -ENOTTY;
+			return -EINVAL;
 		fsize->type = V4L2_FRMSIZE_TYPE_CONTINUOUS;
 		fsize->stepwise.min_width = STFCAMSS_FRAME_MIN_WIDTH;
 		fsize->stepwise.max_width = STFCAMSS_FRAME_MAX_WIDTH;
