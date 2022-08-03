@@ -681,6 +681,11 @@ int msm_minidump_add_region(const struct md_region *entry)
 		md_add_elf_header(entry);
 		/* Ensure that init completes before register region */
 	} else if (is_rm_minidump && smp_load_acquire(&md_init_done)) {
+		if (md_rm_entry_num(entry) >= 0) {
+			printk_deferred("Entry name already exist\n");
+			ret = -EEXIST;
+			goto out;
+		}
 		ret = md_rm_add_region(entry);
 		if (ret)
 			goto out;
