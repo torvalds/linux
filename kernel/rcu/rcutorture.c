@@ -88,6 +88,7 @@ torture_param(bool, gp_exp, false, "Use expedited GP wait primitives");
 torture_param(bool, gp_normal, false, "Use normal (non-expedited) GP wait primitives");
 torture_param(bool, gp_poll, false, "Use polling GP wait primitives");
 torture_param(bool, gp_poll_exp, false, "Use polling expedited GP wait primitives");
+torture_param(bool, gp_poll_full, false, "Use polling full-state GP wait primitives");
 torture_param(bool, gp_sync, false, "Use synchronous GP wait primitives");
 torture_param(int, irqreader, 1, "Allow RCU readers from irq handlers");
 torture_param(int, leakpointer, 0, "Leak pointer dereferences from readers");
@@ -198,12 +199,14 @@ static int rcu_torture_writer_state;
 #define RTWS_COND_SYNC		7
 #define RTWS_COND_SYNC_EXP	8
 #define RTWS_POLL_GET		9
-#define RTWS_POLL_GET_EXP	10
-#define RTWS_POLL_WAIT		11
-#define RTWS_POLL_WAIT_EXP	12
-#define RTWS_SYNC		13
-#define RTWS_STUTTER		14
-#define RTWS_STOPPING		15
+#define RTWS_POLL_GET_FULL	10
+#define RTWS_POLL_GET_EXP	11
+#define RTWS_POLL_WAIT		12
+#define RTWS_POLL_WAIT_FULL	13
+#define RTWS_POLL_WAIT_EXP	14
+#define RTWS_SYNC		15
+#define RTWS_STUTTER		16
+#define RTWS_STOPPING		17
 static const char * const rcu_torture_writer_state_names[] = {
 	"RTWS_FIXED_DELAY",
 	"RTWS_DELAY",
@@ -215,8 +218,10 @@ static const char * const rcu_torture_writer_state_names[] = {
 	"RTWS_COND_SYNC",
 	"RTWS_COND_SYNC_EXP",
 	"RTWS_POLL_GET",
+	"RTWS_POLL_GET_FULL",
 	"RTWS_POLL_GET_EXP",
 	"RTWS_POLL_WAIT",
+	"RTWS_POLL_WAIT_FULL",
 	"RTWS_POLL_WAIT_EXP",
 	"RTWS_SYNC",
 	"RTWS_STUTTER",
@@ -339,6 +344,7 @@ struct rcu_torture_ops {
 	unsigned long (*get_gp_completed)(void);
 	void (*get_gp_completed_full)(struct rcu_gp_oldstate *rgosp);
 	unsigned long (*start_gp_poll)(void);
+	void (*start_gp_poll_full)(struct rcu_gp_oldstate *rgosp);
 	bool (*poll_gp_state)(unsigned long oldstate);
 	bool (*poll_gp_state_full)(struct rcu_gp_oldstate *rgosp);
 	bool (*poll_need_2gp)(bool poll, bool poll_full);
@@ -515,6 +521,7 @@ static struct rcu_torture_ops rcu_ops = {
 	.get_gp_completed	= get_completed_synchronize_rcu,
 	.get_gp_completed_full	= get_completed_synchronize_rcu_full,
 	.start_gp_poll		= start_poll_synchronize_rcu,
+	.start_gp_poll_full	= start_poll_synchronize_rcu_full,
 	.poll_gp_state		= poll_state_synchronize_rcu,
 	.poll_gp_state_full	= poll_state_synchronize_rcu_full,
 	.poll_need_2gp		= rcu_poll_need_2gp,
@@ -1163,13 +1170,13 @@ static void rcu_torture_write_types(void)
 {
 	bool gp_cond1 = gp_cond, gp_cond_exp1 = gp_cond_exp, gp_exp1 = gp_exp;
 	bool gp_poll_exp1 = gp_poll_exp, gp_normal1 = gp_normal, gp_poll1 = gp_poll;
-	bool gp_sync1 = gp_sync;
+	bool gp_poll_full1 = gp_poll_full, gp_sync1 = gp_sync;
 
 	/* Initialize synctype[] array.  If none set, take default. */
 	if (!gp_cond1 && !gp_cond_exp1 && !gp_exp1 && !gp_poll_exp &&
-	    !gp_normal1 && !gp_poll1 && !gp_sync1)
+	    !gp_normal1 && !gp_poll1 && !gp_poll_full1 && !gp_sync1)
 		gp_cond1 = gp_cond_exp1 = gp_exp1 = gp_poll_exp1 =
-			   gp_normal1 = gp_poll1 = gp_sync1 = true;
+			   gp_normal1 = gp_poll1 = gp_poll_full1 = gp_sync1 = true;
 	if (gp_cond1 && cur_ops->get_gp_state && cur_ops->cond_sync) {
 		synctype[nsynctypes++] = RTWS_COND_GET;
 		pr_info("%s: Testing conditional GPs.\n", __func__);
@@ -1199,6 +1206,12 @@ static void rcu_torture_write_types(void)
 		pr_info("%s: Testing polling GPs.\n", __func__);
 	} else if (gp_poll && (!cur_ops->start_gp_poll || !cur_ops->poll_gp_state)) {
 		pr_alert("%s: gp_poll without primitives.\n", __func__);
+	}
+	if (gp_poll_full1 && cur_ops->start_gp_poll_full && cur_ops->poll_gp_state_full) {
+		synctype[nsynctypes++] = RTWS_POLL_GET_FULL;
+		pr_info("%s: Testing polling full-state GPs.\n", __func__);
+	} else if (gp_poll_full && (!cur_ops->start_gp_poll_full || !cur_ops->poll_gp_state_full)) {
+		pr_alert("%s: gp_poll_full without primitives.\n", __func__);
 	}
 	if (gp_poll_exp1 && cur_ops->start_gp_poll_exp && cur_ops->poll_gp_state_exp) {
 		synctype[nsynctypes++] = RTWS_POLL_GET_EXP;
@@ -1262,6 +1275,7 @@ rcu_torture_writer(void *arg)
 	struct rcu_gp_oldstate cookie_full;
 	int expediting = 0;
 	unsigned long gp_snap;
+	struct rcu_gp_oldstate gp_snap_full;
 	int i;
 	int idx;
 	int oldnice = task_nice(current);
@@ -1376,6 +1390,15 @@ rcu_torture_writer(void *arg)
 								  &rand);
 				rcu_torture_pipe_update(old_rp);
 				break;
+			case RTWS_POLL_GET_FULL:
+				rcu_torture_writer_state = RTWS_POLL_GET_FULL;
+				cur_ops->start_gp_poll_full(&gp_snap_full);
+				rcu_torture_writer_state = RTWS_POLL_WAIT_FULL;
+				while (!cur_ops->poll_gp_state_full(&gp_snap_full))
+					torture_hrtimeout_jiffies(torture_random(&rand) % 16,
+								  &rand);
+				rcu_torture_pipe_update(old_rp);
+				break;
 			case RTWS_POLL_GET_EXP:
 				rcu_torture_writer_state = RTWS_POLL_GET_EXP;
 				gp_snap = cur_ops->start_gp_poll_exp();
@@ -1454,6 +1477,7 @@ static int
 rcu_torture_fakewriter(void *arg)
 {
 	unsigned long gp_snap;
+	struct rcu_gp_oldstate gp_snap_full;
 	DEFINE_TORTURE_RANDOM(rand);
 
 	VERBOSE_TOROUT_STRING("rcu_torture_fakewriter task started");
@@ -1495,6 +1519,13 @@ rcu_torture_fakewriter(void *arg)
 			case RTWS_POLL_GET:
 				gp_snap = cur_ops->start_gp_poll();
 				while (!cur_ops->poll_gp_state(gp_snap)) {
+					torture_hrtimeout_jiffies(torture_random(&rand) % 16,
+								  &rand);
+				}
+				break;
+			case RTWS_POLL_GET_FULL:
+				cur_ops->start_gp_poll_full(&gp_snap_full);
+				while (!cur_ops->poll_gp_state_full(&gp_snap_full)) {
 					torture_hrtimeout_jiffies(torture_random(&rand) % 16,
 								  &rand);
 				}

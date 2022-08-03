@@ -3589,22 +3589,13 @@ void get_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)
 }
 EXPORT_SYMBOL_GPL(get_state_synchronize_rcu_full);
 
-/**
- * start_poll_synchronize_rcu - Snapshot and start RCU grace period
- *
- * Returns a cookie that is used by a later call to cond_synchronize_rcu()
- * or poll_state_synchronize_rcu() to determine whether or not a full
- * grace period has elapsed in the meantime.  If the needed grace period
- * is not already slated to start, notifies RCU core of the need for that
- * grace period.
- *
- * Interrupts must be enabled for the case where it is necessary to awaken
- * the grace-period kthread.
+/*
+ * Helper function for start_poll_synchronize_rcu() and
+ * start_poll_synchronize_rcu_full().
  */
-unsigned long start_poll_synchronize_rcu(void)
+static void start_poll_synchronize_rcu_common(void)
 {
 	unsigned long flags;
-	unsigned long gp_seq = get_state_synchronize_rcu();
 	bool needwake;
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
@@ -3624,9 +3615,50 @@ unsigned long start_poll_synchronize_rcu(void)
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	if (needwake)
 		rcu_gp_kthread_wake();
+}
+
+/**
+ * start_poll_synchronize_rcu - Snapshot and start RCU grace period
+ *
+ * Returns a cookie that is used by a later call to cond_synchronize_rcu()
+ * or poll_state_synchronize_rcu() to determine whether or not a full
+ * grace period has elapsed in the meantime.  If the needed grace period
+ * is not already slated to start, notifies RCU core of the need for that
+ * grace period.
+ *
+ * Interrupts must be enabled for the case where it is necessary to awaken
+ * the grace-period kthread.
+ */
+unsigned long start_poll_synchronize_rcu(void)
+{
+	unsigned long gp_seq = get_state_synchronize_rcu();
+
+	start_poll_synchronize_rcu_common();
 	return gp_seq;
 }
 EXPORT_SYMBOL_GPL(start_poll_synchronize_rcu);
+
+/**
+ * start_poll_synchronize_rcu_full - Take a full snapshot and start RCU grace period
+ * @rgosp: value from get_state_synchronize_rcu_full() or start_poll_synchronize_rcu_full()
+ *
+ * Places the normal and expedited grace-period states in *@rgos.  This
+ * state value can be passed to a later call to cond_synchronize_rcu_full()
+ * or poll_state_synchronize_rcu_full() to determine whether or not a
+ * grace period (whether normal or expedited) has elapsed in the meantime.
+ * If the needed grace period is not already slated to start, notifies
+ * RCU core of the need for that grace period.
+ *
+ * Interrupts must be enabled for the case where it is necessary to awaken
+ * the grace-period kthread.
+ */
+void start_poll_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)
+{
+	get_state_synchronize_rcu_full(rgosp);
+
+	start_poll_synchronize_rcu_common();
+}
+EXPORT_SYMBOL_GPL(start_poll_synchronize_rcu_full);
 
 /**
  * poll_state_synchronize_rcu - Has the specified RCU grace period completed?

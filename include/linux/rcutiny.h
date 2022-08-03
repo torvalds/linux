@@ -26,6 +26,12 @@ static inline void get_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)
 }
 
 unsigned long start_poll_synchronize_rcu(void);
+
+static inline void start_poll_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)
+{
+	rgosp->rgos_norm = start_poll_synchronize_rcu();
+}
+
 bool poll_state_synchronize_rcu(unsigned long oldstate);
 
 static inline bool poll_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)

@@ -52,6 +52,7 @@ void cond_synchronize_rcu_expedited(unsigned long oldstate);
 unsigned long get_state_synchronize_rcu(void);
 void get_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
 unsigned long start_poll_synchronize_rcu(void);
+void start_poll_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
 bool poll_state_synchronize_rcu(unsigned long oldstate);
 bool poll_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
 void cond_synchronize_rcu(unsigned long oldstate);
