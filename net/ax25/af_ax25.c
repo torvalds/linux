@@ -1066,7 +1066,7 @@ static int ax25_release(struct socket *sock)
 			del_timer_sync(&ax25->t3timer);
 			del_timer_sync(&ax25->idletimer);
 		}
-		netdev_put(ax25_dev->dev, &ax25_dev->dev_tracker);
+		netdev_put(ax25_dev->dev, &ax25->dev_tracker);
 		ax25_dev_put(ax25_dev);
 	}
 
@@ -1147,7 +1147,7 @@ static int ax25_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 
 	if (ax25_dev) {
 		ax25_fillin_cb(ax25, ax25_dev);
-		netdev_hold(ax25_dev->dev, &ax25_dev->dev_tracker, GFP_ATOMIC);
+		netdev_hold(ax25_dev->dev, &ax25->dev_tracker, GFP_ATOMIC);
 	}
 
 done:
