@@ -3536,7 +3536,8 @@ int btrfs_find_space_cluster(struct btrfs_block_group *block_group,
 	 * data, keep it dense.
 	 */
 	if (btrfs_test_opt(fs_info, SSD_SPREAD)) {
-		cont1_bytes = min_bytes = bytes + empty_size;
+		cont1_bytes = bytes + empty_size;
+		min_bytes = cont1_bytes;
 	} else if (block_group->flags & BTRFS_BLOCK_GROUP_METADATA) {
 		cont1_bytes = bytes;
 		min_bytes = fs_info->sectorsize;
