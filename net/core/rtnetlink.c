@@ -3442,26 +3442,15 @@ replay:
 
 	dev->ifindex = ifm->ifi_index;
 
-	if (ops->newlink) {
+	if (ops->newlink)
 		err = ops->newlink(link_net ? : net, dev, tb, data, extack);
-		/* Drivers should call free_netdev() in ->destructor
-		 * and unregister it on failure after registration
-		 * so that device could be finally freed in rtnl_unlock.
-		 */
-		if (err < 0) {
-			/* If device is not registered at all, free it now */
-			if (dev->reg_state == NETREG_UNINITIALIZED ||
-			    dev->reg_state == NETREG_UNREGISTERED)
-				free_netdev(dev);
-			goto out;
-		}
-	} else {
+	else
 		err = register_netdevice(dev);
-		if (err < 0) {
-			free_netdev(dev);
-			goto out;
-		}
+	if (err < 0) {
+		free_netdev(dev);
+		goto out;
 	}
+
 	err = rtnl_configure_link(dev, ifm);
 	if (err < 0)
 		goto out_unregister;
