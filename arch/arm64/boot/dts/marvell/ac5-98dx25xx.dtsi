@@ -95,6 +95,36 @@
 				status = "okay";
 			};
 
+			uart1: serial@12100 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0x11000 0x100>;
+				reg-shift = <2>;
+				interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
+				reg-io-width = <1>;
+				clocks = <&cnm_clock>;
+				status = "disabled";
+			};
+
+			uart2: serial@12200 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0x12200 0x100>;
+				reg-shift = <2>;
+				interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+				reg-io-width = <1>;
+				clocks = <&cnm_clock>;
+				status = "disabled";
+			};
+
+			uart3: serial@12300 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0x12300 0x100>;
+				reg-shift = <2>;
+				interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+				reg-io-width = <1>;
+				clocks = <&cnm_clock>;
+				status = "disabled";
+			};
+
 			mdio: mdio@22004 {
 				#address-cells = <1>;
 				#size-cells = <0>;
