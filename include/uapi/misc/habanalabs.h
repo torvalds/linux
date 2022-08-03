@@ -840,6 +840,7 @@ enum hl_server_type {
  * @tpc_enabled_mask: Bit-mask that represents which TPCs are enabled. Relevant
  *                    for Goya/Gaudi only.
  * @dram_enabled: Whether the DRAM is enabled.
+ * @security_enabled: Whether security is enabled on device.
  * @mme_master_slave_mode: Indicate whether the MME is working in master/slave
  *                         configuration. Relevant for Greco and later.
  * @cpucp_version: The CPUCP f/w version.
@@ -871,7 +872,7 @@ struct hl_info_hw_ip_info {
 	__u32 psoc_pci_pll_div_factor;
 	__u8 tpc_enabled_mask;
 	__u8 dram_enabled;
-	__u8 reserved;
+	__u8 security_enabled;
 	__u8 mme_master_slave_mode;
 	__u8 cpucp_version[HL_INFO_VERSION_MAX_LEN];
 	__u8 card_name[HL_INFO_CARD_NAME_MAX_LEN];
