@@ -319,6 +319,8 @@ static const struct at91_adc_reg_layout sama7g5_layout = {
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
 		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ)|\
 				BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),	\
+		.info_mask_shared_by_all_available =			\
+				BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),	\
 		.datasheet_name = "CH"#num,				\
 		.indexed = 1,						\
 	}
@@ -340,6 +342,8 @@ static const struct at91_adc_reg_layout sama7g5_layout = {
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
 		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ)|\
 				BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),	\
+		.info_mask_shared_by_all_available =			\
+				BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),	\
 		.datasheet_name = "CH"#num"-CH"#num2,			\
 		.indexed = 1,						\
 	}
@@ -359,6 +363,8 @@ static const struct at91_adc_reg_layout sama7g5_layout = {
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
 		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ)|\
 				BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),	\
+		.info_mask_shared_by_all_available =			\
+				BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),	\
 		.datasheet_name = name,					\
 	}
 #define AT91_SAMA5D2_CHAN_PRESSURE(num, name)				\
@@ -373,6 +379,8 @@ static const struct at91_adc_reg_layout sama7g5_layout = {
 		},							\
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
 		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ)|\
+				BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),	\
+		.info_mask_shared_by_all_available =			\
 				BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),	\
 		.datasheet_name = name,					\
 	}
@@ -398,6 +406,8 @@ static const struct at91_adc_reg_layout sama7g5_layout = {
  *			than the total channel number)
  * @hw_trig_cnt:	number of possible hardware triggers
  * @osr_mask:		oversampling ratio bitmask on EMR register
+ * @oversampling_avail:	available oversampling values
+ * @oversampling_avail_no: number of available oversampling values
  */
 struct at91_adc_platform {
 	const struct at91_adc_reg_layout	*layout;
@@ -410,6 +420,8 @@ struct at91_adc_platform {
 	unsigned int				max_index;
 	unsigned int				hw_trig_cnt;
 	unsigned int				osr_mask;
+	unsigned int				oversampling_avail[3];
+	unsigned int				oversampling_avail_no;
 };
 
 /**
@@ -609,6 +621,8 @@ static const struct at91_adc_platform sama5d2_platform = {
 #define AT91_SAMA5D2_HW_TRIG_CNT	3
 	.hw_trig_cnt = AT91_SAMA5D2_HW_TRIG_CNT,
 	.osr_mask = GENMASK(17, 16),
+	.oversampling_avail = { 1, 4, 16, },
+	.oversampling_avail_no = 3,
 };
 
 static const struct at91_adc_platform sama7g5_platform = {
@@ -625,6 +639,8 @@ static const struct at91_adc_platform sama7g5_platform = {
 #define AT91_SAMA7G5_HW_TRIG_CNT	3
 	.hw_trig_cnt = AT91_SAMA7G5_HW_TRIG_CNT,
 	.osr_mask = GENMASK(18, 16),
+	.oversampling_avail = { 1, 4, 16, },
+	.oversampling_avail_no = 3,
 };
 
 static int at91_adc_chan_xlate(struct iio_dev *indio_dev, int chan)
@@ -1682,6 +1698,24 @@ static int at91_adc_write_raw(struct iio_dev *indio_dev,
 	}
 }
 
+static int at91_adc_read_avail(struct iio_dev *indio_dev,
+			       struct iio_chan_spec const *chan,
+			       const int **vals, int *type, int *length,
+			       long mask)
+{
+	struct at91_adc_state *st = iio_priv(indio_dev);
+
+	switch (mask) {
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		*vals = (int *)st->soc_info.platform->oversampling_avail;
+		*type = IIO_VAL_INT;
+		*length = st->soc_info.platform->oversampling_avail_no;
+		return IIO_AVAIL_LIST;
+	default:
+		return -EINVAL;
+	}
+}
+
 static void at91_adc_dma_init(struct at91_adc_state *st)
 {
 	struct device *dev = &st->indio_dev->dev;
@@ -1869,20 +1903,6 @@ static IIO_DEVICE_ATTR(hwfifo_watermark, 0444,
 static IIO_CONST_ATTR(hwfifo_watermark_min, "2");
 static IIO_CONST_ATTR(hwfifo_watermark_max, AT91_HWFIFO_MAX_SIZE_STR);
 
-static IIO_CONST_ATTR(oversampling_ratio_available,
-		      __stringify(1) " "
-		      __stringify(4) " "
-		      __stringify(16));
-
-static struct attribute *at91_adc_attributes[] = {
-	&iio_const_attr_oversampling_ratio_available.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group at91_adc_attribute_group = {
-	.attrs = at91_adc_attributes,
-};
-
 static const struct attribute *at91_adc_fifo_attributes[] = {
 	&iio_const_attr_hwfifo_watermark_min.dev_attr.attr,
 	&iio_const_attr_hwfifo_watermark_max.dev_attr.attr,
@@ -1892,7 +1912,7 @@ static const struct attribute *at91_adc_fifo_attributes[] = {
 };
 
 static const struct iio_info at91_adc_info = {
-	.attrs = &at91_adc_attribute_group,
+	.read_avail = &at91_adc_read_avail,
 	.read_raw = &at91_adc_read_raw,
 	.write_raw = &at91_adc_write_raw,
 	.update_scan_mode = &at91_adc_update_scan_mode,
