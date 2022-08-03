@@ -10,6 +10,8 @@ CPU       Architecture version
 Power10   Power ISA v3.1
 Power9    Power ISA v3.0B
 Power8    Power ISA v2.07
+e6500     Power ISA v2.06 with some exceptions
+e5500     Power ISA v2.06 with some exceptions, no Altivec
 Power7    Power ISA v2.06
 Power6    Power ISA v2.05
 PA6T      Power ISA v2.04
@@ -36,6 +38,8 @@ CPU        VMX (aka. Altivec)
 Power10    Yes
 Power9     Yes
 Power8     Yes
+e6500      Yes
+e5500      No
 Power7     Yes
 Power6     Yes
 PA6T       Yes
@@ -52,6 +56,8 @@ CPU        VSX
 Power10    Yes
 Power9     Yes
 Power8     Yes
+e6500      No
+e5500      No
 Power7     Yes
 Power6     No
 PA6T       No
@@ -68,6 +74,8 @@ CPU        Transactional Memory
 Power10    No  (* see Power ISA v3.1, "Appendix A. Notes on the Removal of Transactional Memory from the Architecture")
 Power9     Yes (* see transactional_memory.txt)
 Power8     Yes
+e6500      No
+e5500      No
 Power7     No
 Power6     No
 PA6T       No
