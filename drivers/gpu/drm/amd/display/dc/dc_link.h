@@ -113,6 +113,15 @@ struct psr_settings {
 	unsigned int psr_power_opt;
 };
 
+/* To split out "global" and "per-panel" config settings.
+ * Add a struct dc_panel_config under dc_link
+ */
+struct dc_panel_config {
+	struct dsc {
+		bool disable_dsc_edp;
+		unsigned int force_dsc_edp_policy;
+	} dsc;
+};
 /*
  * A link contains one or more sinks and their connected status.
  * The currently active signal type (HDMI, DP-SST, DP-MST) is also reported.
@@ -233,6 +242,7 @@ struct dc_link {
 
 	struct gpio *hpd_gpio;
 	enum dc_link_fec_state fec_state;
+	struct dc_panel_config panel_config;
 	enum phy_state phy_state;
 };
 

@@ -1529,7 +1529,6 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	if (amdgpu_dc_debug_mask & DC_DISABLE_DSC) {
 		adev->dm.dc->debug.disable_dsc = true;
-		adev->dm.dc->debug.disable_dsc_edp = true;
 	}
 
 	if (amdgpu_dc_debug_mask & DC_DISABLE_CLOCK_GATING)
@@ -5629,7 +5628,8 @@ static void apply_dsc_policy_for_stream(struct amdgpu_dm_connector *aconnector,
 	dc_dsc_policy_set_enable_dsc_when_not_needed(
 		aconnector->dsc_settings.dsc_force_enable == DSC_CLK_FORCE_ENABLE);
 
-	if (aconnector->dc_link && sink->sink_signal == SIGNAL_TYPE_EDP && !dc->debug.disable_dsc_edp &&
+	if (aconnector->dc_link && sink->sink_signal == SIGNAL_TYPE_EDP &&
+	    !aconnector->dc_link->panel_config.dsc.disable_dsc_edp &&
 	    dc->caps.edp_dsc_support && aconnector->dsc_settings.dsc_force_enable != DSC_CLK_FORCE_DISABLE) {
 
 		apply_dsc_policy_for_edp(aconnector, sink, stream, dsc_caps, max_dsc_target_bpp_limit_override);

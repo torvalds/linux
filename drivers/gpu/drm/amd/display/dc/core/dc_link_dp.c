@@ -3743,7 +3743,7 @@ static bool decide_edp_link_settings_with_dsc(struct dc_link *link,
 
 	unsigned int policy = 0;
 
-	policy = link->ctx->dc->debug.force_dsc_edp_policy;
+	policy = link->panel_config.dsc.force_dsc_edp_policy;
 	if (max_link_rate == LINK_RATE_UNKNOWN)
 		max_link_rate = link->verified_link_cap.link_rate;
 	/*
@@ -3909,7 +3909,7 @@ bool decide_link_settings(struct dc_stream_state *stream,
 		if (stream->timing.flags.DSC) {
 			enum dc_link_rate max_link_rate = LINK_RATE_UNKNOWN;
 
-			if (link->ctx->dc->debug.force_dsc_edp_policy) {
+			if (link->panel_config.dsc.force_dsc_edp_policy) {
 				/* calculate link max link rate cap*/
 				struct dc_link_settings tmp_link_setting;
 				struct dc_crtc_timing tmp_timing = stream->timing;

@@ -1311,6 +1311,14 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 				sink->edid_caps.audio_modes[i].sample_rate,
 				sink->edid_caps.audio_modes[i].sample_size);
 		}
+
+		if (link->connector_signal == SIGNAL_TYPE_EDP) {
+			// Init dc_panel_config
+			dm_helpers_init_panel_settings(dc_ctx, &link->panel_config);
+			// Override dc_panel_config if system has specific settings
+			dm_helpers_override_panel_settings(dc_ctx, &link->panel_config);
+		}
+
 	} else {
 		/* From Connected-to-Disconnected. */
 		link->type = dc_connection_none;
@@ -4736,7 +4744,7 @@ bool dc_link_should_enable_fec(const struct dc_link *link)
 	else if (link->connector_signal == SIGNAL_TYPE_EDP
 			&& (link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.
 			 dsc_support.DSC_SUPPORT == false
-				|| link->dc->debug.disable_dsc_edp
+				|| link->panel_config.dsc.disable_dsc_edp
 				|| !link->dc->caps.edp_dsc_support))
 		force_disable = true;
 

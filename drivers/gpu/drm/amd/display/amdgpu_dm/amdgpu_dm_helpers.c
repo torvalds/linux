@@ -916,6 +916,25 @@ void dm_helpers_smu_timeout(struct dc_context *ctx, unsigned int msg_id, unsigne
 	//amdgpu_device_gpu_recover(dc_context->driver-context, NULL);
 }
 
+void dm_helpers_init_panel_settings(
+	struct dc_context *ctx,
+	struct dc_panel_config *panel_config)
+{
+	// Feature DSC
+	panel_config->dsc.disable_dsc_edp = false;
+	panel_config->dsc.force_dsc_edp_policy = 0;
+}
+
+void dm_helpers_override_panel_settings(
+	struct dc_context *ctx,
+	struct dc_panel_config *panel_config)
+{
+	// Feature DSC
+	if (amdgpu_dc_debug_mask & DC_DISABLE_DSC) {
+		panel_config->dsc.disable_dsc_edp = true;
+	}
+}
+
 void *dm_helpers_allocate_gpu_mem(
 		struct dc_context *ctx,
 		enum dc_gpu_mem_alloc_type type,
