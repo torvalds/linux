@@ -11,7 +11,6 @@ PROGS := $(patsubst %.c,%,$(SRCS))
 TEST_GEN_PROGS := $(notdir $(PROGS))
 
 # Get Kernel headers installed and use them.
-KSFT_KHDR_INSTALL := 1
 
 # Including KSFT lib.mk here will also mangle the TEST_GEN_PROGS list
 # to account for any OUTPUT target-dirs optionally provided by

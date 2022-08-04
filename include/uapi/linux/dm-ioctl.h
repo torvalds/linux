@@ -182,7 +182,7 @@ struct dm_target_spec {
 struct dm_target_deps {
 	__u32 count;	/* Array size */
 	__u32 padding;	/* unused */
-	__u64 dev[0];	/* out */
+	__u64 dev[];	/* out */
 };
 
 /*
@@ -192,7 +192,7 @@ struct dm_name_list {
 	__u64 dev;
 	__u32 next;		/* offset to the next record from
 				   the _start_ of this */
-	char name[0];
+	char name[];
 
 	/*
 	 * The following members can be accessed by taking a pointer that
@@ -216,7 +216,7 @@ struct dm_target_versions {
         __u32 next;
         __u32 version[3];
 
-        char name[0];
+        char name[];
 };
 
 /*
@@ -225,7 +225,7 @@ struct dm_target_versions {
 struct dm_target_msg {
 	__u64 sector;	/* Device sector */
 
-	char message[0];
+	char message[];
 };
 
 /*
