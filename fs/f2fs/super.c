@@ -1411,8 +1411,7 @@ static int f2fs_drop_inode(struct inode *inode)
 			atomic_inc(&inode->i_count);
 			spin_unlock(&inode->i_lock);
 
-			if (f2fs_is_atomic_file(inode))
-				f2fs_abort_atomic_write(inode, true);
+			f2fs_abort_atomic_write(inode, true);
 
 			/* should remain fi->extent_tree for writepage */
 			f2fs_destroy_extent_node(inode);
