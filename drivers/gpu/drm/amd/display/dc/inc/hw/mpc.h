@@ -22,6 +22,16 @@
  *
  */
 
+/**
+ * DOC: mpc-overview
+ *
+ * Multiple Pipe/Plane Combined (MPC) is a component in the hardware pipeline
+ * that performs blending of multiple planes, using global and per-pixel alpha.
+ * It also performs post-blending color correction operations according to the
+ * hardware capabilities, such as color transformation matrix and gamma 1D and
+ * 3D LUT.
+ */
+
 #ifndef __DC_MPCC_H__
 #define __DC_MPCC_H__
 
@@ -48,14 +58,39 @@ enum mpcc_blend_mode {
 	MPCC_BLEND_MODE_TOP_BOT_BLENDING
 };
 
+/**
+ * enum mpcc_alpha_blend_mode - define the alpha blend mode regarding pixel
+ * alpha and plane alpha values
+ */
 enum mpcc_alpha_blend_mode {
+	/**
+	 * @MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA: per pixel alpha using DPP
+	 * alpha value
+	 */
 	MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA,
+	/**
+	 * @MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA_COMBINED_GLOBAL_GAIN: per
+	 * pixel alpha using DPP alpha value multiplied by a global gain (plane
+	 * alpha)
+	 */
 	MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA_COMBINED_GLOBAL_GAIN,
+	/**
+	 * @MPCC_ALPHA_BLEND_MODE_GLOBAL_ALPHA: global alpha value, ignores
+	 * pixel alpha and consider only plane alpha
+	 */
 	MPCC_ALPHA_BLEND_MODE_GLOBAL_ALPHA
 };
 
-/*
- * MPCC blending configuration
+/**
+ * struct mpcc_blnd_cfg - MPCC blending configuration
+ *
+ * @black_color: background color
+ * @alpha_mode: alpha blend mode (MPCC_ALPHA_BLND_MODE)
+ * @pre_multiplied_alpha: whether pixel color values were pre-multiplied by the
+ * alpha channel (MPCC_ALPHA_MULTIPLIED_MODE)
+ * @global_gain: used when blend mode considers both pixel alpha and plane
+ * alpha value and assumes the global alpha value.
+ * @global_alpha: plane alpha value
  */
 struct mpcc_blnd_cfg {
 	struct tg_color black_color;	/* background color */
@@ -107,8 +142,15 @@ struct mpc_dwb_flow_control {
 	int flow_ctrl_cnt1;
 };
 
-/*
- * MPCC connection and blending configuration for a single MPCC instance.
+/**
+ * struct mpcc - MPCC connection and blending configuration for a single MPCC instance.
+ * @mpcc_id: MPCC physical instance
+ * @dpp_id: DPP input to this MPCC
+ * @mpcc_bot: pointer to bottom layer MPCC. NULL when not connected.
+ * @blnd_cfg: the blending configuration for this MPCC
+ * @sm_cfg: stereo mix setting for this MPCC
+ * @shared_bottom: if MPCC output to both OPP and DWB endpoints, true. Otherwise, false.
+ *
  * This struct is used as a node in an MPC tree.
  */
 struct mpcc {
@@ -120,8 +162,12 @@ struct mpcc {
 	bool shared_bottom;		/* TRUE if MPCC output to both OPP and DWB endpoints, else FALSE */
 };
 
-/*
- * MPC tree represents all MPCC connections for a pipe.
+/**
+ * struct mpc_tree - MPC tree represents all MPCC connections for a pipe.
+ *
+ * @opp_id: the OPP instance that owns this MPC tree
+ * @opp_list: the top MPCC layer of the MPC tree that outputs to OPP endpoint
+ *
  */
 struct mpc_tree {
 	int opp_id;			/* The OPP instance that owns this MPC tree */
@@ -149,13 +195,18 @@ struct mpcc_state {
 	uint32_t busy;
 };
 
+/**
+ * struct mpc_funcs - funcs
+ */
 struct mpc_funcs {
 	void (*read_mpcc_state)(
 			struct mpc *mpc,
 			int mpcc_inst,
 			struct mpcc_state *s);
 
-	/*
+	/**
+	 * @insert_plane:
+	 *
 	 * Insert DPP into MPC tree based on specified blending position.
 	 * Only used for planes that are part of blending chain for OPP output
 	 *
@@ -180,7 +231,9 @@ struct mpc_funcs {
 			int dpp_id,
 			int mpcc_id);
 
-	/*
+	/**
+	 * @remove_mpcc:
+	 *
 	 * Remove a specified MPCC from the MPC tree.
 	 *
 	 * Parameters:
@@ -195,7 +248,9 @@ struct mpc_funcs {
 			struct mpc_tree *tree,
 			struct mpcc *mpcc);
 
-	/*
+	/**
+	 * @mpc_init:
+	 *
 	 * Reset the MPCC HW status by disconnecting all muxes.
 	 *
 	 * Parameters:
@@ -208,7 +263,9 @@ struct mpc_funcs {
 			struct mpc *mpc,
 			unsigned int mpcc_id);
 
-	/*
+	/**
+	 * @update_blending:
+	 *
 	 * Update the blending configuration for a specified MPCC.
 	 *
 	 * Parameters:
@@ -223,7 +280,9 @@ struct mpc_funcs {
 		struct mpcc_blnd_cfg *blnd_cfg,
 		int mpcc_id);
 
-	/*
+	/**
+	 * @cursor_lock:
+	 *
 	 * Lock cursor updates for the specified OPP.
 	 * OPP defines the set of MPCC that are locked together for cursor.
 	 *
@@ -239,8 +298,10 @@ struct mpc_funcs {
 			int opp_id,
 			bool lock);
 
-	/*
-	 * Add DPP into 'secondary' MPC tree based on specified blending position.
+	/**
+	 * @insert_plane_to_secondary:
+	 *
+	 * Add DPP into secondary MPC tree based on specified blending position.
 	 * Only used for planes that are part of blending chain for DWB output
 	 *
 	 * Parameters:
@@ -264,7 +325,9 @@ struct mpc_funcs {
 			int dpp_id,
 			int mpcc_id);
 
-	/*
+	/**
+	 * @remove_mpcc_from_secondary:
+	 *
 	 * Remove a specified DPP from the 'secondary' MPC tree.
 	 *
 	 * Parameters:
