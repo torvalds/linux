@@ -176,7 +176,7 @@ config ARM64
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
-	select HAVE_CONTEXT_TRACKING
+	select HAVE_CONTEXT_TRACKING_USER
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
@@ -1894,14 +1894,6 @@ config ARM64_E0PD
 	  kernel memory such as SPE.
 
 	  This option enables E0PD for TTBR1 where available.
-
-config ARCH_RANDOM
-	bool "Enable support for random number generation"
-	default y
-	help
-	  Random number generation (part of the ARMv8.5 Extensions)
-	  provides a high bandwidth, cryptographically secure
-	  hardware random number generator.
 
 config ARM64_AS_HAS_MTE
 	# Initial support for MTE went in binutils 2.32.0, checked with

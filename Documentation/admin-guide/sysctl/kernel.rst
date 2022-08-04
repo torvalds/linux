@@ -38,8 +38,8 @@ acct
 
 If BSD-style process accounting is enabled these values control
 its behaviour. If free space on filesystem where the log lives
-goes below ``lowwater``% accounting suspends. If free space gets
-above ``highwater``% accounting resumes. ``frequency`` determines
+goes below ``lowwater``\ % accounting suspends. If free space gets
+above ``highwater``\ % accounting resumes. ``frequency`` determines
 how often do we check the amount of free space (value is in
 seconds). Default:
 

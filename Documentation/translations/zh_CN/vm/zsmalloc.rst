@@ -1,4 +1,4 @@
-:Original: Documentation/vm/zs_malloc.rst
+:Original: Documentation/vm/zsmalloc.rst
 
 :翻译:
 

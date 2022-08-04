@@ -1,3 +1,5 @@
+.. title:: Kernel-doc comments
+
 ===========================
 Writing kernel-doc comments
 ===========================
