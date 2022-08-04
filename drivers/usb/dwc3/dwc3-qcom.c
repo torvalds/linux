@@ -17,7 +17,6 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/phy/phy.h>
-#include <linux/pm_domain.h>
 #include <linux/usb/of.h>
 #include <linux/reset.h>
 #include <linux/iopoll.h>
@@ -757,13 +756,12 @@ dwc3_qcom_create_urs_usb_platdev(struct device *dev)
 
 static int dwc3_qcom_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device *dev = &pdev->dev;
-	struct dwc3_qcom *qcom;
-	struct resource	*res, *parent_res = NULL;
-	int ret, i;
-	bool ignore_pipe_clk;
-	struct generic_pm_domain *genpd;
+	struct device_node	*np = pdev->dev.of_node;
+	struct device		*dev = &pdev->dev;
+	struct dwc3_qcom	*qcom;
+	struct resource		*res, *parent_res = NULL;
+	int			ret, i;
+	bool			ignore_pipe_clk;
 
 	qcom = devm_kzalloc(&pdev->dev, sizeof(*qcom), GFP_KERNEL);
 	if (!qcom)
@@ -771,8 +769,6 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, qcom);
 	qcom->dev = &pdev->dev;
-
-	genpd = pd_to_genpd(qcom->dev->pm_domain);
 
 	if (has_acpi_companion(dev)) {
 		qcom->acpi_pdata = acpi_device_get_match_data(dev);
@@ -881,17 +877,7 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 	if (ret)
 		goto interconnect_exit;
 
-	if (device_can_wakeup(&qcom->dwc3->dev)) {
-		/*
-		 * Setting GENPD_FLAG_ALWAYS_ON flag takes care of keeping
-		 * genpd on in both runtime suspend and system suspend cases.
-		 */
-		genpd->flags |= GENPD_FLAG_ALWAYS_ON;
-		device_init_wakeup(&pdev->dev, true);
-	} else {
-		genpd->flags |= GENPD_FLAG_RPM_ALWAYS_ON;
-	}
-
+	device_init_wakeup(&pdev->dev, 1);
 	qcom->is_suspended = false;
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
