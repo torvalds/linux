@@ -260,7 +260,8 @@ int udl_submit_urb(struct drm_device *dev, struct urb *urb, size_t len)
 	struct udl_device *udl = to_udl(dev);
 	int ret;
 
-	BUG_ON(len > udl->urbs.size);
+	if (WARN_ON(len > udl->urbs.size))
+		return -EINVAL;
 
 	urb->transfer_buffer_length = len; /* set to actual payload len */
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
