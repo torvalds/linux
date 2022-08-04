@@ -2,7 +2,7 @@
 #ifndef _VME_BRIDGE_H_
 #define _VME_BRIDGE_H_
 
-#include <linux/vme.h>
+#include "vme.h"
 
 #define VME_CRCSR_BUF_SIZE (508*1024)
 /*
