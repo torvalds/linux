@@ -1,7 +1,7 @@
 #ifndef _ASM_LKL_PAGE_H
 #define _ASM_LKL_PAGE_H
 
-#define CONFIG_KERNEL_RAM_BASE_ADDRESS memory_start
+#define ARCH_PFN_OFFSET	(memory_start >> PAGE_SHIFT)
 
 #ifndef __ASSEMBLY__
 void free_mem(void);
