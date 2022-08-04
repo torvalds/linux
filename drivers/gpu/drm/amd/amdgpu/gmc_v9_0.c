@@ -1624,12 +1624,15 @@ static int gmc_v9_0_sw_init(void *handle)
 			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 47);
 		else
 			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
+		if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2))
+			adev->gmc.translate_further = adev->vm_manager.num_level > 1;
 		break;
 	case IP_VERSION(9, 4, 1):
 		adev->num_vmhubs = 3;
 
 		/* Keep the vm size same with Vega20 */
 		amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
+		adev->gmc.translate_further = adev->vm_manager.num_level > 1;
 		break;
 	default:
 		break;
