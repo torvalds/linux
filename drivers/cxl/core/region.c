@@ -739,11 +739,14 @@ static int cxl_rr_ep_add(struct cxl_region_ref *cxl_rr,
  * in particular decoder target lists.
  *
  * The steps are:
+ *
  * - validate that there are no other regions with a higher HPA already
  *   associated with @port
  * - establish a region reference if one is not already present
+ *
  *   - additionally allocate a decoder instance that will host @cxlr on
  *     @port
+ *
  * - pin the region reference by the endpoint
  * - account for how many entries in @port's target list are needed to
  *   cover all of the added endpoints.
