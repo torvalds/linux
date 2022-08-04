@@ -244,7 +244,7 @@ enum {
 #define ASICREV_IS_GC_10_3_7(eChipRev) ((eChipRev >= GC_10_3_7_A0) && (eChipRev < GC_10_3_7_UNKNOWN))
 
 #define AMDGPU_FAMILY_GC_11_0_0 145
-#define AMDGPU_FAMILY_GC_11_0_2 148
+#define AMDGPU_FAMILY_GC_11_0_1 148
 #define GC_11_0_0_A0 0x1
 #define GC_11_0_2_A0 0x10
 #define GC_11_UNKNOWN 0xFF
