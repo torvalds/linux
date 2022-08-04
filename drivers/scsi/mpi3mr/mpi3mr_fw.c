@@ -5039,3 +5039,598 @@ out:
 	mpi3mr_free_config_dma_memory(mrioc, &mem_desc);
 	return retval;
 }
+
+/**
+ * mpi3mr_cfg_get_dev_pg0 - Read current device page0
+ * @mrioc: Adapter instance reference
+ * @ioc_status: Pointer to return ioc status
+ * @dev_pg0: Pointer to return device page 0
+ * @pg_sz: Size of the memory allocated to the page pointer
+ * @form: The form to be used for addressing the page
+ * @form_spec: Form specific information like device handle
+ *
+ * This is handler for config page read for a specific device
+ * page0. The ioc_status has the controller returned ioc_status.
+ * This routine doesn't check ioc_status to decide whether the
+ * page read is success or not and it is the callers
+ * responsibility.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_get_dev_pg0(struct mpi3mr_ioc *mrioc, u16 *ioc_status,
+	struct mpi3_device_page0 *dev_pg0, u16 pg_sz, u32 form, u32 form_spec)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u32 page_address;
+
+	memset(dev_pg0, 0, pg_sz);
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_DEVICE;
+	cfg_req.page_number = 0;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "device page0 header read failed\n");
+		goto out_failed;
+	}
+	if (*ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "device page0 header read failed with ioc_status(0x%04x)\n",
+		    *ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+	page_address = ((form & MPI3_DEVICE_PGAD_FORM_MASK) |
+	    (form_spec & MPI3_DEVICE_PGAD_HANDLE_MASK));
+	cfg_req.page_address = cpu_to_le32(page_address);
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, dev_pg0, pg_sz)) {
+		ioc_err(mrioc, "device page0 read failed\n");
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
+
+
+/**
+ * mpi3mr_cfg_get_sas_phy_pg0 - Read current SAS Phy page0
+ * @mrioc: Adapter instance reference
+ * @ioc_status: Pointer to return ioc status
+ * @phy_pg0: Pointer to return SAS Phy page 0
+ * @pg_sz: Size of the memory allocated to the page pointer
+ * @form: The form to be used for addressing the page
+ * @form_spec: Form specific information like phy number
+ *
+ * This is handler for config page read for a specific SAS Phy
+ * page0. The ioc_status has the controller returned ioc_status.
+ * This routine doesn't check ioc_status to decide whether the
+ * page read is success or not and it is the callers
+ * responsibility.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_get_sas_phy_pg0(struct mpi3mr_ioc *mrioc, u16 *ioc_status,
+	struct mpi3_sas_phy_page0 *phy_pg0, u16 pg_sz, u32 form,
+	u32 form_spec)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u32 page_address;
+
+	memset(phy_pg0, 0, pg_sz);
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_SAS_PHY;
+	cfg_req.page_number = 0;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "sas phy page0 header read failed\n");
+		goto out_failed;
+	}
+	if (*ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "sas phy page0 header read failed with ioc_status(0x%04x)\n",
+		    *ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+	page_address = ((form & MPI3_SAS_PHY_PGAD_FORM_MASK) |
+	    (form_spec & MPI3_SAS_PHY_PGAD_PHY_NUMBER_MASK));
+	cfg_req.page_address = cpu_to_le32(page_address);
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, phy_pg0, pg_sz)) {
+		ioc_err(mrioc, "sas phy page0 read failed\n");
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
+
+/**
+ * mpi3mr_cfg_get_sas_phy_pg1 - Read current SAS Phy page1
+ * @mrioc: Adapter instance reference
+ * @ioc_status: Pointer to return ioc status
+ * @phy_pg1: Pointer to return SAS Phy page 1
+ * @pg_sz: Size of the memory allocated to the page pointer
+ * @form: The form to be used for addressing the page
+ * @form_spec: Form specific information like phy number
+ *
+ * This is handler for config page read for a specific SAS Phy
+ * page1. The ioc_status has the controller returned ioc_status.
+ * This routine doesn't check ioc_status to decide whether the
+ * page read is success or not and it is the callers
+ * responsibility.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_get_sas_phy_pg1(struct mpi3mr_ioc *mrioc, u16 *ioc_status,
+	struct mpi3_sas_phy_page1 *phy_pg1, u16 pg_sz, u32 form,
+	u32 form_spec)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u32 page_address;
+
+	memset(phy_pg1, 0, pg_sz);
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_SAS_PHY;
+	cfg_req.page_number = 1;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "sas phy page1 header read failed\n");
+		goto out_failed;
+	}
+	if (*ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "sas phy page1 header read failed with ioc_status(0x%04x)\n",
+		    *ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+	page_address = ((form & MPI3_SAS_PHY_PGAD_FORM_MASK) |
+	    (form_spec & MPI3_SAS_PHY_PGAD_PHY_NUMBER_MASK));
+	cfg_req.page_address = cpu_to_le32(page_address);
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, phy_pg1, pg_sz)) {
+		ioc_err(mrioc, "sas phy page1 read failed\n");
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
+
+
+/**
+ * mpi3mr_cfg_get_sas_exp_pg0 - Read current SAS Expander page0
+ * @mrioc: Adapter instance reference
+ * @ioc_status: Pointer to return ioc status
+ * @exp_pg0: Pointer to return SAS Expander page 0
+ * @pg_sz: Size of the memory allocated to the page pointer
+ * @form: The form to be used for addressing the page
+ * @form_spec: Form specific information like device handle
+ *
+ * This is handler for config page read for a specific SAS
+ * Expander page0. The ioc_status has the controller returned
+ * ioc_status. This routine doesn't check ioc_status to decide
+ * whether the page read is success or not and it is the callers
+ * responsibility.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_get_sas_exp_pg0(struct mpi3mr_ioc *mrioc, u16 *ioc_status,
+	struct mpi3_sas_expander_page0 *exp_pg0, u16 pg_sz, u32 form,
+	u32 form_spec)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u32 page_address;
+
+	memset(exp_pg0, 0, pg_sz);
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_SAS_EXPANDER;
+	cfg_req.page_number = 0;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "expander page0 header read failed\n");
+		goto out_failed;
+	}
+	if (*ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "expander page0 header read failed with ioc_status(0x%04x)\n",
+		    *ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+	page_address = ((form & MPI3_SAS_EXPAND_PGAD_FORM_MASK) |
+	    (form_spec & (MPI3_SAS_EXPAND_PGAD_PHYNUM_MASK |
+	    MPI3_SAS_EXPAND_PGAD_HANDLE_MASK)));
+	cfg_req.page_address = cpu_to_le32(page_address);
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, exp_pg0, pg_sz)) {
+		ioc_err(mrioc, "expander page0 read failed\n");
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
+
+/**
+ * mpi3mr_cfg_get_sas_exp_pg1 - Read current SAS Expander page1
+ * @mrioc: Adapter instance reference
+ * @ioc_status: Pointer to return ioc status
+ * @exp_pg1: Pointer to return SAS Expander page 1
+ * @pg_sz: Size of the memory allocated to the page pointer
+ * @form: The form to be used for addressing the page
+ * @form_spec: Form specific information like phy number
+ *
+ * This is handler for config page read for a specific SAS
+ * Expander page1. The ioc_status has the controller returned
+ * ioc_status. This routine doesn't check ioc_status to decide
+ * whether the page read is success or not and it is the callers
+ * responsibility.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_get_sas_exp_pg1(struct mpi3mr_ioc *mrioc, u16 *ioc_status,
+	struct mpi3_sas_expander_page1 *exp_pg1, u16 pg_sz, u32 form,
+	u32 form_spec)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u32 page_address;
+
+	memset(exp_pg1, 0, pg_sz);
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_SAS_EXPANDER;
+	cfg_req.page_number = 1;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "expander page1 header read failed\n");
+		goto out_failed;
+	}
+	if (*ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "expander page1 header read failed with ioc_status(0x%04x)\n",
+		    *ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+	page_address = ((form & MPI3_SAS_EXPAND_PGAD_FORM_MASK) |
+	    (form_spec & (MPI3_SAS_EXPAND_PGAD_PHYNUM_MASK |
+	    MPI3_SAS_EXPAND_PGAD_HANDLE_MASK)));
+	cfg_req.page_address = cpu_to_le32(page_address);
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, exp_pg1, pg_sz)) {
+		ioc_err(mrioc, "expander page1 read failed\n");
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
+
+/**
+ * mpi3mr_cfg_get_enclosure_pg0 - Read current Enclosure page0
+ * @mrioc: Adapter instance reference
+ * @ioc_status: Pointer to return ioc status
+ * @encl_pg0: Pointer to return Enclosure page 0
+ * @pg_sz: Size of the memory allocated to the page pointer
+ * @form: The form to be used for addressing the page
+ * @form_spec: Form specific information like device handle
+ *
+ * This is handler for config page read for a specific Enclosure
+ * page0. The ioc_status has the controller returned ioc_status.
+ * This routine doesn't check ioc_status to decide whether the
+ * page read is success or not and it is the callers
+ * responsibility.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_get_enclosure_pg0(struct mpi3mr_ioc *mrioc, u16 *ioc_status,
+	struct mpi3_enclosure_page0 *encl_pg0, u16 pg_sz, u32 form,
+	u32 form_spec)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u32 page_address;
+
+	memset(encl_pg0, 0, pg_sz);
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_ENCLOSURE;
+	cfg_req.page_number = 0;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "enclosure page0 header read failed\n");
+		goto out_failed;
+	}
+	if (*ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "enclosure page0 header read failed with ioc_status(0x%04x)\n",
+		    *ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+	page_address = ((form & MPI3_ENCLOS_PGAD_FORM_MASK) |
+	    (form_spec & MPI3_ENCLOS_PGAD_HANDLE_MASK));
+	cfg_req.page_address = cpu_to_le32(page_address);
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, encl_pg0, pg_sz)) {
+		ioc_err(mrioc, "enclosure page0 read failed\n");
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
+
+
+/**
+ * mpi3mr_cfg_get_sas_io_unit_pg0 - Read current SASIOUnit page0
+ * @mrioc: Adapter instance reference
+ * @sas_io_unit_pg0: Pointer to return SAS IO Unit page 0
+ * @pg_sz: Size of the memory allocated to the page pointer
+ *
+ * This is handler for config page read for the SAS IO Unit
+ * page0. This routine checks ioc_status to decide whether the
+ * page read is success or not.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_get_sas_io_unit_pg0(struct mpi3mr_ioc *mrioc,
+	struct mpi3_sas_io_unit_page0 *sas_io_unit_pg0, u16 pg_sz)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u16 ioc_status = 0;
+
+	memset(sas_io_unit_pg0, 0, pg_sz);
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_SAS_IO_UNIT;
+	cfg_req.page_number = 0;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "sas io unit page0 header read failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "sas io unit page0 header read failed with ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, sas_io_unit_pg0, pg_sz)) {
+		ioc_err(mrioc, "sas io unit page0 read failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "sas io unit page0 read failed with ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
+
+/**
+ * mpi3mr_cfg_get_sas_io_unit_pg1 - Read current SASIOUnit page1
+ * @mrioc: Adapter instance reference
+ * @sas_io_unit_pg1: Pointer to return SAS IO Unit page 1
+ * @pg_sz: Size of the memory allocated to the page pointer
+ *
+ * This is handler for config page read for the SAS IO Unit
+ * page1. This routine checks ioc_status to decide whether the
+ * page read is success or not.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_get_sas_io_unit_pg1(struct mpi3mr_ioc *mrioc,
+	struct mpi3_sas_io_unit_page1 *sas_io_unit_pg1, u16 pg_sz)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u16 ioc_status = 0;
+
+	memset(sas_io_unit_pg1, 0, pg_sz);
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_SAS_IO_UNIT;
+	cfg_req.page_number = 1;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "sas io unit page1 header read failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "sas io unit page1 header read failed with ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, sas_io_unit_pg1, pg_sz)) {
+		ioc_err(mrioc, "sas io unit page1 read failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "sas io unit page1 read failed with ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
+
+/**
+ * mpi3mr_cfg_set_sas_io_unit_pg1 - Write SASIOUnit page1
+ * @mrioc: Adapter instance reference
+ * @sas_io_unit_pg1: Pointer to the SAS IO Unit page 1 to write
+ * @pg_sz: Size of the memory allocated to the page pointer
+ *
+ * This is handler for config page write for the SAS IO Unit
+ * page1. This routine checks ioc_status to decide whether the
+ * page read is success or not. This will modify both current
+ * and persistent page.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_set_sas_io_unit_pg1(struct mpi3mr_ioc *mrioc,
+	struct mpi3_sas_io_unit_page1 *sas_io_unit_pg1, u16 pg_sz)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u16 ioc_status = 0;
+
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_SAS_IO_UNIT;
+	cfg_req.page_number = 1;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "sas io unit page1 header read failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "sas io unit page1 header read failed with ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_WRITE_CURRENT;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, sas_io_unit_pg1, pg_sz)) {
+		ioc_err(mrioc, "sas io unit page1 write current failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "sas io unit page1 write current failed with ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+
+	cfg_req.action = MPI3_CONFIG_ACTION_WRITE_PERSISTENT;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, sas_io_unit_pg1, pg_sz)) {
+		ioc_err(mrioc, "sas io unit page1 write persistent failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "sas io unit page1 write persistent failed with ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
+
+/**
+ * mpi3mr_cfg_get_driver_pg1 - Read current Driver page1
+ * @mrioc: Adapter instance reference
+ * @driver_pg1: Pointer to return Driver page 1
+ * @pg_sz: Size of the memory allocated to the page pointer
+ *
+ * This is handler for config page read for the Driver page1.
+ * This routine checks ioc_status to decide whether the page
+ * read is success or not.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_get_driver_pg1(struct mpi3mr_ioc *mrioc,
+	struct mpi3_driver_page1 *driver_pg1, u16 pg_sz)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u16 ioc_status = 0;
+
+	memset(driver_pg1, 0, pg_sz);
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_DRIVER;
+	cfg_req.page_number = 1;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "driver page1 header read failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "driver page1 header read failed with ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, driver_pg1, pg_sz)) {
+		ioc_err(mrioc, "driver page1 read failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "driver page1 read failed with ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
