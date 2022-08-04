@@ -782,6 +782,7 @@
   __iowrite32_copy
   ipi_desc_get
   iput
+  __irq_apply_affinity_hint
   irq_check_status_bit
   irq_chip_ack_parent
   irq_chip_disable_parent
@@ -1228,6 +1229,7 @@
   platform_get_irq
   platform_get_irq_byname
   platform_get_irq_byname_optional
+  platform_get_irq_optional
   platform_get_resource
   platform_get_resource_byname
   platform_irqchip_probe
@@ -1448,6 +1450,7 @@
   request_firmware_into_buf
   __request_module
   __request_percpu_irq
+  __request_region
   request_threaded_irq
   resched_curr
   reset_control_assert
@@ -1721,6 +1724,7 @@
   time64_to_tm
   timer_unstable_counter_workaround
   topology_clear_scale_freq_source
+  topology_update_thermal_pressure
   _totalram_pages
   __trace_bprintk
   trace_clock_local
