@@ -36,8 +36,7 @@
  * @channel_template:	channel specification template
  * @num_channels:	number of channels
  * @int_vref:		internal vref in uV
-*/
-
+ */
 struct ad5380_chip_info {
 	struct iio_chan_spec	channel_template;
 	unsigned int		num_channels;
@@ -53,7 +52,6 @@ struct ad5380_chip_info {
  * @pwr_down:		whether the chip is currently in power down mode
  * @lock:		lock to protect the data buffer during regmap ops
  */
-
 struct ad5380_state {
 	struct regmap			*regmap;
 	const struct ad5380_chip_info	*chip_info;

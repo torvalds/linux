@@ -167,6 +167,16 @@ static const struct __extcon_info {
 		.id = EXTCON_DISP_HMD,
 		.name = "HMD",
 	},
+	[EXTCON_DISP_CVBS] = {
+		.type = EXTCON_TYPE_DISP,
+		.id = EXTCON_DISP_CVBS,
+		.name = "CVBS",
+	},
+	[EXTCON_DISP_EDP] = {
+		.type = EXTCON_TYPE_DISP,
+		.id = EXTCON_DISP_EDP,
+		.name = "EDP",
+	},
 
 	/* Miscellaneous external connector */
 	[EXTCON_DOCK] = {
@@ -247,7 +257,7 @@ static int find_cable_index_by_id(struct extcon_dev *edev, const unsigned int id
 {
 	int i;
 
-	/* Find the the index of extcon cable in edev->supported_cable */
+	/* Find the index of extcon cable in edev->supported_cable */
 	for (i = 0; i < edev->max_supported; i++) {
 		if (edev->supported_cable[i] == id)
 			return i;

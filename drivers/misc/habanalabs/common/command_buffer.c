@@ -143,8 +143,7 @@ static void cb_fini(struct hl_device *hdev, struct hl_cb *cb)
 		gen_pool_free(hdev->internal_cb_pool,
 				(uintptr_t)cb->kernel_address, cb->size);
 	else
-		hdev->asic_funcs->asic_dma_free_coherent(hdev, cb->size,
-				cb->kernel_address, cb->bus_address);
+		hl_asic_dma_free_coherent(hdev, cb->size, cb->kernel_address, cb->bus_address);
 
 	kfree(cb);
 }
@@ -195,14 +194,11 @@ static struct hl_cb *hl_cb_alloc(struct hl_device *hdev, u32 cb_size,
 		cb->is_internal = true;
 		cb->bus_address =  hdev->internal_cb_va_base + cb_offset;
 	} else if (ctx_id == HL_KERNEL_ASID_ID) {
-		p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev, cb_size,
-						&cb->bus_address, GFP_ATOMIC);
+		p = hl_asic_dma_alloc_coherent(hdev, cb_size, &cb->bus_address, GFP_ATOMIC);
 		if (!p)
-			p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev,
-					cb_size, &cb->bus_address, GFP_KERNEL);
+			p = hl_asic_dma_alloc_coherent(hdev, cb_size, &cb->bus_address, GFP_KERNEL);
 	} else {
-		p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev, cb_size,
-						&cb->bus_address,
+		p = hl_asic_dma_alloc_coherent(hdev, cb_size, &cb->bus_address,
 						GFP_USER | __GFP_ZERO);
 	}
 

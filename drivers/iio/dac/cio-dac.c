@@ -16,6 +16,7 @@
 #include <linux/isa.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/types.h>
 
 #define CIO_DAC_NUM_CHAN 16
 
@@ -37,11 +38,11 @@ MODULE_PARM_DESC(base, "Measurement Computing CIO-DAC base addresses");
 /**
  * struct cio_dac_iio - IIO device private data structure
  * @chan_out_states:	channels' output states
- * @base:		base port address of the IIO device
+ * @base:		base memory address of the DAC device
  */
 struct cio_dac_iio {
 	int chan_out_states[CIO_DAC_NUM_CHAN];
-	unsigned int base;
+	u16 __iomem *base;
 };
 
 static int cio_dac_read_raw(struct iio_dev *indio_dev,
@@ -61,7 +62,6 @@ static int cio_dac_write_raw(struct iio_dev *indio_dev,
 	struct iio_chan_spec const *chan, int val, int val2, long mask)
 {
 	struct cio_dac_iio *const priv = iio_priv(indio_dev);
-	const unsigned int chan_addr_offset = 2 * chan->channel;
 
 	if (mask != IIO_CHAN_INFO_RAW)
 		return -EINVAL;
@@ -71,7 +71,7 @@ static int cio_dac_write_raw(struct iio_dev *indio_dev,
 		return -EINVAL;
 
 	priv->chan_out_states[chan->channel] = val;
-	outw(val, priv->base + chan_addr_offset);
+	iowrite16(val, priv->base + chan->channel);
 
 	return 0;
 }
@@ -105,18 +105,20 @@ static int cio_dac_probe(struct device *dev, unsigned int id)
 		return -EBUSY;
 	}
 
+	priv = iio_priv(indio_dev);
+	priv->base = devm_ioport_map(dev, base[id], CIO_DAC_EXTENT);
+	if (!priv->base)
+		return -ENOMEM;
+
 	indio_dev->info = &cio_dac_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = cio_dac_channels;
 	indio_dev->num_channels = CIO_DAC_NUM_CHAN;
 	indio_dev->name = dev_name(dev);
 
-	priv = iio_priv(indio_dev);
-	priv->base = base[id];
-
 	/* initialize DAC outputs to 0V */
-	for (i = 0; i < 32; i += 2)
-		outw(0, base[id] + i);
+	for (i = 0; i < CIO_DAC_NUM_CHAN; i++)
+		iowrite16(0, priv->base + i);
 
 	return devm_iio_device_register(dev, indio_dev);
 }

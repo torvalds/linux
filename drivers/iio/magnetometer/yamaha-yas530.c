@@ -965,7 +965,7 @@ static int yas5xx_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-static int __maybe_unused yas5xx_runtime_suspend(struct device *dev)
+static int yas5xx_runtime_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct yas5xx *yas5xx = iio_priv(indio_dev);
@@ -976,7 +976,7 @@ static int __maybe_unused yas5xx_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused yas5xx_runtime_resume(struct device *dev)
+static int yas5xx_runtime_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct yas5xx *yas5xx = iio_priv(indio_dev);
@@ -1011,12 +1011,8 @@ out_reset:
 	return ret;
 }
 
-static const struct dev_pm_ops yas5xx_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(yas5xx_runtime_suspend,
-			   yas5xx_runtime_resume, NULL)
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(yas5xx_dev_pm_ops, yas5xx_runtime_suspend,
+				 yas5xx_runtime_resume, NULL);
 
 static const struct i2c_device_id yas5xx_id[] = {
 	{"yas530", },
@@ -1038,7 +1034,7 @@ static struct i2c_driver yas5xx_driver = {
 	.driver	 = {
 		.name	= "yas5xx",
 		.of_match_table = yas5xx_of_match,
-		.pm = &yas5xx_dev_pm_ops,
+		.pm = pm_ptr(&yas5xx_dev_pm_ops),
 	},
 	.probe	  = yas5xx_probe,
 	.remove	  = yas5xx_remove,
