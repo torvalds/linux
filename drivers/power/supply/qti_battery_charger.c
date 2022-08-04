@@ -494,6 +494,11 @@ static void battery_chg_state_cb(void *priv, enum pmic_glink_state state)
 
 	pr_debug("state: %d\n", state);
 
+	if (!bcdev->initialized) {
+		pr_warn("Driver not initialized, pmic_glink state %d\n", state);
+		return;
+	}
+
 	atomic_set(&bcdev->state, state);
 	if (state == PMIC_GLINK_STATE_UP)
 		schedule_work(&bcdev->subsys_up_work);
