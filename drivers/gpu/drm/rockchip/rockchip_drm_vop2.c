@@ -503,6 +503,7 @@ struct vop2_video_port {
 	struct clk *dclk_parent;
 	uint8_t id;
 	bool layer_sel_update;
+	bool xmirror_en;
 	const struct vop2_video_port_regs *regs;
 
 	struct completion dsp_hold_completion;
@@ -6852,6 +6853,9 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		act_end = vact_end;
 	}
 
+	if (vp->xmirror_en)
+		VOP_MODULE_SET(vop2, vp, dsp_x_mir_en, 1);
+
 	VOP_INTR_SET(vop2, intr, line_flag_num[0], act_end);
 	VOP_INTR_SET(vop2, intr, line_flag_num[1], act_end);
 
@@ -9651,6 +9655,8 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 				vop2->vps[vp_id].primary_plane_phy_id = primary_plane_phy_id;
 			else
 				vop2->vps[vp_id].primary_plane_phy_id = ROCKCHIP_VOP2_PHY_ID_INVALID;
+
+			vop2->vps[vp_id].xmirror_en = of_property_read_bool(child, "xmirror-enable");
 
 			ret = of_clk_set_defaults(child, false);
 			if (ret) {

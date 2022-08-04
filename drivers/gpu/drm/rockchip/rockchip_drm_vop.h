@@ -635,6 +635,7 @@ struct vop2_video_port_regs {
 	struct vop_reg dsp_interlace;
 	struct vop_reg dsp_filed_pol;
 	struct vop_reg dsp_data_swap;
+	struct vop_reg dsp_x_mir_en;
 	struct vop_reg post_dsp_out_r2y;
 	struct vop_reg pre_scan_htiming;
 	struct vop_reg htotal_pw;
