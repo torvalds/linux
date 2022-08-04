@@ -1730,7 +1730,9 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	char *name;
 	bool add_cdev_sysfs_on_err = false;
 
-	name = kasprintf(GFP_KERNEL, "hl%d", hdev->id / 2);
+	hdev->cdev_idx = hdev->id / 2;
+
+	name = kasprintf(GFP_KERNEL, "hl%d", hdev->cdev_idx);
 	if (!name) {
 		rc = -ENOMEM;
 		goto out_disabled;
@@ -1745,7 +1747,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	if (rc)
 		goto out_disabled;
 
-	name = kasprintf(GFP_KERNEL, "hl_controlD%d", hdev->id / 2);
+	name = kasprintf(GFP_KERNEL, "hl_controlD%d", hdev->cdev_idx);
 	if (!name) {
 		rc = -ENOMEM;
 		goto free_dev;
@@ -2023,10 +2025,10 @@ out_disabled:
 	if (hdev->pdev)
 		dev_err(&hdev->pdev->dev,
 			"Failed to initialize hl%d. Device is NOT usable !\n",
-			hdev->id / 2);
+			hdev->cdev_idx);
 	else
 		pr_err("Failed to initialize hl%d. Device is NOT usable !\n",
-			hdev->id / 2);
+			hdev->cdev_idx);
 
 	return rc;
 }

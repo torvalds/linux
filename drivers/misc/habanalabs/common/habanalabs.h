@@ -3129,7 +3129,8 @@ struct hl_reset_info {
  * @edma_binning: contains mask of edma engines that is received from the f/w which
  *                   indicates which edma engines are binned-out
  * @id: device minor.
- * @id_control: minor of the control device
+ * @id_control: minor of the control device.
+ * @cdev_idx: char device index. Used for setting its name.
  * @cpu_pci_msb_addr: 50-bit extension bits for the device CPU's 40-bit
  *                    addresses.
  * @is_in_dram_scrub: true if dram scrub operation is on going.
@@ -3289,6 +3290,7 @@ struct hl_device {
 	u32				edma_binning;
 	u16				id;
 	u16				id_control;
+	u16				cdev_idx;
 	u16				cpu_pci_msb_addr;
 	u8				is_in_dram_scrub;
 	u8				disabled;
