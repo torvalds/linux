@@ -70,6 +70,7 @@ struct io_sendzc {
 	unsigned			flags;
 	unsigned			addr_len;
 	void __user			*addr;
+	size_t				done_io;
 };
 
 #define IO_APOLL_MULTI_POLLED (REQ_F_APOLL_MULTISHOT | REQ_F_POLLED)
@@ -878,6 +879,7 @@ int io_sendzc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	zc->addr = u64_to_user_ptr(READ_ONCE(sqe->addr2));
 	zc->addr_len = READ_ONCE(sqe->addr_len);
+	zc->done_io = 0;
 
 #ifdef CONFIG_COMPAT
 	if (req->ctx->compat)
@@ -1012,11 +1014,23 @@ int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 	if (unlikely(ret < min_ret)) {
 		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
 			return -EAGAIN;
-		return ret == -ERESTARTSYS ? -EINTR : ret;
+		if (ret > 0 && io_net_retry(sock, msg.msg_flags)) {
+			zc->len -= ret;
+			zc->buf += ret;
+			zc->done_io += ret;
+			req->flags |= REQ_F_PARTIAL_IO;
+			return -EAGAIN;
+		}
+		if (ret == -ERESTARTSYS)
+			ret = -EINTR;
+	} else if (zc->flags & IORING_RECVSEND_NOTIF_FLUSH) {
+		io_notif_slot_flush_submit(notif_slot, 0);
 	}
 
-	if (zc->flags & IORING_RECVSEND_NOTIF_FLUSH)
-		io_notif_slot_flush_submit(notif_slot, 0);
+	if (ret >= 0)
+		ret += zc->done_io;
+	else if (zc->done_io)
+		ret = zc->done_io;
 	io_req_set_res(req, ret, 0);
 	return IOU_OK;
 }
