@@ -107,6 +107,7 @@ class JsonEvent:
           'iMPH-U': 'uncore_arb',
           'CPU-M-CF': 'cpum_cf',
           'CPU-M-SF': 'cpum_sf',
+          'PAI-CRYPTO' : 'pai_crypto',
           'UPI LL': 'uncore_upi',
           'hisi_sicl,cpa': 'hisi_sicl,cpa',
           'hisi_sccl,ddrc': 'hisi_sccl,ddrc',
