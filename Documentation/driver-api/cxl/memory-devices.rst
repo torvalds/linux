@@ -364,9 +364,6 @@ CXL Core
 
 CXL Regions
 -----------
-.. kernel-doc:: drivers/cxl/region.h
-   :identifiers:
-
 .. kernel-doc:: drivers/cxl/core/region.c
    :doc: cxl core region
 
