@@ -108,7 +108,7 @@ struct msm_dsi_host {
 
 	void __iomem *ctrl_base;
 	phys_addr_t ctrl_size;
-	struct regulator_bulk_data supplies[DSI_DEV_REGULATOR_MAX];
+	struct regulator_bulk_data *supplies;
 
 	int num_bus_clks;
 	struct clk_bulk_data bus_clks[DSI_BUS_CLK_MAX];
@@ -253,28 +253,6 @@ exit:
 static inline struct msm_dsi_host *to_msm_dsi_host(struct mipi_dsi_host *host)
 {
 	return container_of(host, struct msm_dsi_host, base);
-}
-
-static int dsi_regulator_init(struct msm_dsi_host *msm_host)
-{
-	struct regulator_bulk_data *s = msm_host->supplies;
-	const struct dsi_reg_entry *regs = msm_host->cfg_hnd->cfg->reg_cfg.regs;
-	int num = msm_host->cfg_hnd->cfg->reg_cfg.num;
-	int i, ret;
-
-	for (i = 0; i < num; i++) {
-		s[i].supply = regs[i].name;
-		s[i].init_load_uA = regs[i].enable_load;
-	}
-
-	ret = devm_regulator_bulk_get(&msm_host->pdev->dev, num, s);
-	if (ret < 0) {
-		pr_err("%s: failed to init regulator, ret=%d\n",
-						__func__, ret);
-		return ret;
-	}
-
-	return 0;
 }
 
 int dsi_clk_init_v2(struct msm_dsi_host *msm_host)
@@ -1977,6 +1955,7 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 {
 	struct msm_dsi_host *msm_host = NULL;
 	struct platform_device *pdev = msm_dsi->pdev;
+	const struct msm_dsi_config *cfg;
 	int ret;
 
 	msm_host = devm_kzalloc(&pdev->dev, sizeof(*msm_host), GFP_KERNEL);
@@ -2009,6 +1988,7 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 		pr_err("%s: get config failed\n", __func__);
 		goto fail;
 	}
+	cfg = msm_host->cfg_hnd->cfg;
 
 	msm_host->id = dsi_host_get_id(msm_host);
 	if (msm_host->id < 0) {
@@ -2018,13 +1998,13 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 	}
 
 	/* fixup base address by io offset */
-	msm_host->ctrl_base += msm_host->cfg_hnd->cfg->io_offset;
+	msm_host->ctrl_base += cfg->io_offset;
 
-	ret = dsi_regulator_init(msm_host);
-	if (ret) {
-		pr_err("%s: regulator init failed\n", __func__);
+	ret = devm_regulator_bulk_get_const(&pdev->dev, cfg->num_regulators,
+					    cfg->regulator_data,
+					    &msm_host->supplies);
+	if (ret)
 		goto fail;
-	}
 
 	ret = dsi_clk_init(msm_host);
 	if (ret) {
@@ -2496,7 +2476,7 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host,
 
 	msm_dsi_sfpb_config(msm_host, true);
 
-	ret = regulator_bulk_enable(msm_host->cfg_hnd->cfg->reg_cfg.num,
+	ret = regulator_bulk_enable(msm_host->cfg_hnd->cfg->num_regulators,
 				    msm_host->supplies);
 	if (ret) {
 		pr_err("%s:Failed to enable vregs.ret=%d\n",
@@ -2537,7 +2517,7 @@ fail_disable_clk:
 	cfg_hnd->ops->link_clk_disable(msm_host);
 	pm_runtime_put(&msm_host->pdev->dev);
 fail_disable_reg:
-	regulator_bulk_disable(msm_host->cfg_hnd->cfg->reg_cfg.num,
+	regulator_bulk_disable(msm_host->cfg_hnd->cfg->num_regulators,
 			       msm_host->supplies);
 unlock_ret:
 	mutex_unlock(&msm_host->dev_mutex);
@@ -2565,7 +2545,7 @@ int msm_dsi_host_power_off(struct mipi_dsi_host *host)
 	cfg_hnd->ops->link_clk_disable(msm_host);
 	pm_runtime_put(&msm_host->pdev->dev);
 
-	regulator_bulk_disable(msm_host->cfg_hnd->cfg->reg_cfg.num,
+	regulator_bulk_disable(msm_host->cfg_hnd->cfg->num_regulators,
 			       msm_host->supplies);
 
 	msm_dsi_sfpb_config(msm_host, false);

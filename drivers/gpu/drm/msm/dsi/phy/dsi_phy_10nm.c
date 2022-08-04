@@ -1019,14 +1019,14 @@ static int dsi_10nm_phy_parse_dt(struct msm_dsi_phy *phy)
 	return 0;
 }
 
+static const struct regulator_bulk_data dsi_phy_10nm_regulators[] = {
+	{ .supply = "vdds", .init_load_uA = 36000 },
+};
+
 const struct msm_dsi_phy_cfg dsi_phy_10nm_cfgs = {
 	.has_phy_lane = true,
-	.reg_cfg = {
-		.num = 1,
-		.regs = {
-			{"vdds", 36000},
-		},
-	},
+	.regulator_data = dsi_phy_10nm_regulators,
+	.num_regulators = ARRAY_SIZE(dsi_phy_10nm_regulators),
 	.ops = {
 		.enable = dsi_10nm_phy_enable,
 		.disable = dsi_10nm_phy_disable,
@@ -1043,12 +1043,8 @@ const struct msm_dsi_phy_cfg dsi_phy_10nm_cfgs = {
 
 const struct msm_dsi_phy_cfg dsi_phy_10nm_8998_cfgs = {
 	.has_phy_lane = true,
-	.reg_cfg = {
-		.num = 1,
-		.regs = {
-			{"vdds", 36000},
-		},
-	},
+	.regulator_data = dsi_phy_10nm_regulators,
+	.num_regulators = ARRAY_SIZE(dsi_phy_10nm_regulators),
 	.ops = {
 		.enable = dsi_10nm_phy_enable,
 		.disable = dsi_10nm_phy_disable,

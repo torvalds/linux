@@ -764,14 +764,14 @@ static void dsi_28nm_phy_disable(struct msm_dsi_phy *phy)
 	wmb();
 }
 
+static const struct regulator_bulk_data dsi_phy_28nm_regulators[] = {
+	{ .supply = "vddio", .init_load_uA = 100000 },
+};
+
 const struct msm_dsi_phy_cfg dsi_phy_28nm_hpm_cfgs = {
 	.has_phy_regulator = true,
-	.reg_cfg = {
-		.num = 1,
-		.regs = {
-			{"vddio", 100000},
-		},
-	},
+	.regulator_data = dsi_phy_28nm_regulators,
+	.num_regulators = ARRAY_SIZE(dsi_phy_28nm_regulators),
 	.ops = {
 		.enable = dsi_28nm_phy_enable,
 		.disable = dsi_28nm_phy_disable,
@@ -787,12 +787,8 @@ const struct msm_dsi_phy_cfg dsi_phy_28nm_hpm_cfgs = {
 
 const struct msm_dsi_phy_cfg dsi_phy_28nm_hpm_famb_cfgs = {
 	.has_phy_regulator = true,
-	.reg_cfg = {
-		.num = 1,
-		.regs = {
-			{"vddio", 100000},
-		},
-	},
+	.regulator_data = dsi_phy_28nm_regulators,
+	.num_regulators = ARRAY_SIZE(dsi_phy_28nm_regulators),
 	.ops = {
 		.enable = dsi_28nm_phy_enable,
 		.disable = dsi_28nm_phy_disable,
@@ -808,12 +804,8 @@ const struct msm_dsi_phy_cfg dsi_phy_28nm_hpm_famb_cfgs = {
 
 const struct msm_dsi_phy_cfg dsi_phy_28nm_lp_cfgs = {
 	.has_phy_regulator = true,
-	.reg_cfg = {
-		.num = 1,
-		.regs = {
-			{"vddio", 100000},	/* 1.8 V */
-		},
-	},
+	.regulator_data = dsi_phy_28nm_regulators,
+	.num_regulators = ARRAY_SIZE(dsi_phy_28nm_regulators),
 	.ops = {
 		.enable = dsi_28nm_phy_enable,
 		.disable = dsi_28nm_phy_disable,

@@ -1023,14 +1023,18 @@ static void dsi_14nm_phy_disable(struct msm_dsi_phy *phy)
 	wmb();
 }
 
+static const struct regulator_bulk_data dsi_phy_14nm_17mA_regulators[] = {
+	{ .supply = "vcca", .init_load_uA = 17000 },
+};
+
+static const struct regulator_bulk_data dsi_phy_14nm_73p4mA_regulators[] = {
+	{ .supply = "vcca", .init_load_uA = 73400 },
+};
+
 const struct msm_dsi_phy_cfg dsi_phy_14nm_cfgs = {
 	.has_phy_lane = true,
-	.reg_cfg = {
-		.num = 1,
-		.regs = {
-			{"vcca", 17000},
-		},
-	},
+	.regulator_data = dsi_phy_14nm_17mA_regulators,
+	.num_regulators = ARRAY_SIZE(dsi_phy_14nm_17mA_regulators),
 	.ops = {
 		.enable = dsi_14nm_phy_enable,
 		.disable = dsi_14nm_phy_disable,
@@ -1046,12 +1050,8 @@ const struct msm_dsi_phy_cfg dsi_phy_14nm_cfgs = {
 
 const struct msm_dsi_phy_cfg dsi_phy_14nm_660_cfgs = {
 	.has_phy_lane = true,
-	.reg_cfg = {
-		.num = 1,
-		.regs = {
-			{"vcca", 73400},
-		},
-	},
+	.regulator_data = dsi_phy_14nm_73p4mA_regulators,
+	.num_regulators = ARRAY_SIZE(dsi_phy_14nm_73p4mA_regulators),
 	.ops = {
 		.enable = dsi_14nm_phy_enable,
 		.disable = dsi_14nm_phy_disable,
@@ -1067,12 +1067,8 @@ const struct msm_dsi_phy_cfg dsi_phy_14nm_660_cfgs = {
 
 const struct msm_dsi_phy_cfg dsi_phy_14nm_8953_cfgs = {
 	.has_phy_lane = true,
-	.reg_cfg = {
-		.num = 1,
-		.regs = {
-			{"vcca", 17000},
-		},
-	},
+	.regulator_data = dsi_phy_14nm_17mA_regulators,
+	.num_regulators = ARRAY_SIZE(dsi_phy_14nm_17mA_regulators),
 	.ops = {
 		.enable = dsi_14nm_phy_enable,
 		.disable = dsi_14nm_phy_disable,

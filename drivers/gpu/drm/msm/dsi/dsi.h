@@ -30,19 +30,7 @@ enum msm_dsi_phy_usecase {
 	MSM_DSI_PHY_SLAVE,
 };
 
-#define DSI_DEV_REGULATOR_MAX	8
 #define DSI_BUS_CLK_MAX		4
-
-/* Regulators for DSI devices */
-struct dsi_reg_entry {
-	char name[32];
-	int enable_load;
-};
-
-struct dsi_reg_config {
-	int num;
-	struct dsi_reg_entry regs[DSI_DEV_REGULATOR_MAX];
-};
 
 struct msm_dsi {
 	struct drm_device *dev;

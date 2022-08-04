@@ -507,33 +507,6 @@ int msm_dsi_cphy_timing_calc_v4(struct msm_dsi_dphy_timing *timing,
 	return 0;
 }
 
-static int dsi_phy_regulator_init(struct msm_dsi_phy *phy)
-{
-	struct regulator_bulk_data *s = phy->supplies;
-	const struct dsi_reg_entry *regs = phy->cfg->reg_cfg.regs;
-	struct device *dev = &phy->pdev->dev;
-	int num = phy->cfg->reg_cfg.num;
-	int i, ret;
-
-	for (i = 0; i < num; i++) {
-		s[i].supply = regs[i].name;
-		s[i].init_load_uA = regs[i].enable_load;
-	}
-
-	ret = devm_regulator_bulk_get(dev, num, s);
-	if (ret < 0) {
-		if (ret != -EPROBE_DEFER) {
-			DRM_DEV_ERROR(dev,
-				      "%s: failed to init regulator, ret=%d\n",
-				      __func__, ret);
-		}
-
-		return ret;
-	}
-
-	return 0;
-}
-
 static int dsi_phy_enable_resource(struct msm_dsi_phy *phy)
 {
 	struct device *dev = &phy->pdev->dev;
@@ -698,7 +671,9 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 			goto fail;
 	}
 
-	ret = dsi_phy_regulator_init(phy);
+	ret = devm_regulator_bulk_get_const(dev, phy->cfg->num_regulators,
+					    phy->cfg->regulator_data,
+					    &phy->supplies);
 	if (ret)
 		goto fail;
 
@@ -780,7 +755,7 @@ int msm_dsi_phy_enable(struct msm_dsi_phy *phy,
 		goto res_en_fail;
 	}
 
-	ret = regulator_bulk_enable(phy->cfg->reg_cfg.num, phy->supplies);
+	ret = regulator_bulk_enable(phy->cfg->num_regulators, phy->supplies);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "%s: regulator enable failed, %d\n",
 			__func__, ret);
@@ -817,7 +792,7 @@ pll_restor_fail:
 	if (phy->cfg->ops.disable)
 		phy->cfg->ops.disable(phy);
 phy_en_fail:
-	regulator_bulk_disable(phy->cfg->reg_cfg.num, phy->supplies);
+	regulator_bulk_disable(phy->cfg->num_regulators, phy->supplies);
 reg_en_fail:
 	dsi_phy_disable_resource(phy);
 res_en_fail:
@@ -831,7 +806,7 @@ void msm_dsi_phy_disable(struct msm_dsi_phy *phy)
 
 	phy->cfg->ops.disable(phy);
 
-	regulator_bulk_disable(phy->cfg->reg_cfg.num, phy->supplies);
+	regulator_bulk_disable(phy->cfg->num_regulators, phy->supplies);
 	dsi_phy_disable_resource(phy);
 }
 
