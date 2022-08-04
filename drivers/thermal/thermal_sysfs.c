@@ -115,7 +115,7 @@ trip_point_temp_store(struct device *dev, struct device_attribute *attr,
 	int temperature, hyst = 0;
 	enum thermal_trip_type type;
 
-	if (!tz->ops->set_trip_temp)
+	if (!tz->ops->set_trip_temp && !tz->trips)
 		return -EPERM;
 
 	if (sscanf(attr->attr.name, "trip_point_%d_temp", &trip) != 1)
@@ -127,6 +127,9 @@ trip_point_temp_store(struct device *dev, struct device_attribute *attr,
 	ret = tz->ops->set_trip_temp(tz, trip, temperature);
 	if (ret)
 		return ret;
+
+	if (tz->trips)
+		tz->trips[trip].temperature = temperature;
 
 	if (tz->ops->get_trip_hyst) {
 		ret = tz->ops->get_trip_hyst(tz, trip, &hyst);
