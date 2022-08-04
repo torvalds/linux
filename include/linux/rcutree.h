@@ -57,6 +57,7 @@ void start_poll_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
 bool poll_state_synchronize_rcu(unsigned long oldstate);
 bool poll_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
 void cond_synchronize_rcu(unsigned long oldstate);
+void cond_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
 
 bool rcu_is_idle_cpu(int cpu);
 
