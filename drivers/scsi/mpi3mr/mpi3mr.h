@@ -99,9 +99,10 @@ extern atomic64_t event_counter;
 #define MPI3MR_HOSTTAG_PEL_WAIT		4
 #define MPI3MR_HOSTTAG_BLK_TMS		5
 #define MPI3MR_HOSTTAG_CFG_CMDS		6
+#define MPI3MR_HOSTTAG_TRANSPORT_CMDS	7
 
 #define MPI3MR_NUM_DEVRMCMD		16
-#define MPI3MR_HOSTTAG_DEVRMCMD_MIN	(MPI3MR_HOSTTAG_BLK_TMS + 1)
+#define MPI3MR_HOSTTAG_DEVRMCMD_MIN	(MPI3MR_HOSTTAG_TRANSPORT_CMDS + 1)
 #define MPI3MR_HOSTTAG_DEVRMCMD_MAX	(MPI3MR_HOSTTAG_DEVRMCMD_MIN + \
 						MPI3MR_NUM_DEVRMCMD - 1)
 
@@ -279,6 +280,7 @@ enum mpi3mr_reset_reason {
 	MPI3MR_RESET_FROM_SYSFS_TIMEOUT = 24,
 	MPI3MR_RESET_FROM_FIRMWARE = 27,
 	MPI3MR_RESET_FROM_CFG_REQ_TIMEOUT = 29,
+	MPI3MR_RESET_FROM_SAS_TRANSPORT_TIMEOUT = 30,
 };
 
 /* Queue type definitions */
@@ -1004,6 +1006,7 @@ struct scmd_priv {
  * @cfg_page_sz: Default configuration page memory size
  * @sas_transport_enabled: SAS transport enabled or not
  * @scsi_device_channel: Channel ID for SCSI devices
+ * @transport_cmds: Command tracker for SAS transport commands
  * @sas_hba: SAS node for the controller
  * @sas_expander_list: SAS node list of expanders
  * @sas_node_lock: Lock to protect SAS node list
@@ -1188,6 +1191,7 @@ struct mpi3mr_ioc {
 
 	u8 sas_transport_enabled;
 	u8 scsi_device_channel;
+	struct mpi3mr_drv_cmd transport_cmds;
 	struct mpi3mr_sas_node sas_hba;
 	struct list_head sas_expander_list;
 	spinlock_t sas_node_lock;

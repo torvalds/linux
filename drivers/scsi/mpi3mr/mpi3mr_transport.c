@@ -10,6 +10,225 @@
 #include "mpi3mr.h"
 
 /**
+ * mpi3mr_post_transport_req - Issue transport requests and wait
+ * @mrioc: Adapter instance reference
+ * @request: Properly populated MPI3 request
+ * @request_sz: Size of the MPI3 request
+ * @reply: Pointer to return MPI3 reply
+ * @reply_sz: Size of the MPI3 reply buffer
+ * @timeout: Timeout in seconds
+ * @ioc_status: Pointer to return ioc status
+ *
+ * A generic function for posting MPI3 requests from the SAS
+ * transport layer that uses transport command infrastructure.
+ * This blocks for the completion of request for timeout seconds
+ * and if the request times out this function faults the
+ * controller with proper reason code.
+ *
+ * On successful completion of the request this function returns
+ * appropriate ioc status from the firmware back to the caller.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+static int mpi3mr_post_transport_req(struct mpi3mr_ioc *mrioc, void *request,
+	u16 request_sz, void *reply, u16 reply_sz, int timeout,
+	u16 *ioc_status)
+{
+	int retval = 0;
+
+	mutex_lock(&mrioc->transport_cmds.mutex);
+	if (mrioc->transport_cmds.state & MPI3MR_CMD_PENDING) {
+		retval = -1;
+		ioc_err(mrioc, "sending transport request failed due to command in use\n");
+		mutex_unlock(&mrioc->transport_cmds.mutex);
+		goto out;
+	}
+	mrioc->transport_cmds.state = MPI3MR_CMD_PENDING;
+	mrioc->transport_cmds.is_waiting = 1;
+	mrioc->transport_cmds.callback = NULL;
+	mrioc->transport_cmds.ioc_status = 0;
+	mrioc->transport_cmds.ioc_loginfo = 0;
+
+	init_completion(&mrioc->transport_cmds.done);
+	dprint_cfg_info(mrioc, "posting transport request\n");
+	if (mrioc->logging_level & MPI3_DEBUG_TRANSPORT_INFO)
+		dprint_dump(request, request_sz, "transport_req");
+	retval = mpi3mr_admin_request_post(mrioc, request, request_sz, 1);
+	if (retval) {
+		ioc_err(mrioc, "posting transport request failed\n");
+		goto out_unlock;
+	}
+	wait_for_completion_timeout(&mrioc->transport_cmds.done,
+	    (timeout * HZ));
+	if (!(mrioc->transport_cmds.state & MPI3MR_CMD_COMPLETE)) {
+		mpi3mr_check_rh_fault_ioc(mrioc,
+		    MPI3MR_RESET_FROM_SAS_TRANSPORT_TIMEOUT);
+		ioc_err(mrioc, "transport request timed out\n");
+		retval = -1;
+		goto out_unlock;
+	}
+	*ioc_status = mrioc->transport_cmds.ioc_status &
+		MPI3_IOCSTATUS_STATUS_MASK;
+	if ((*ioc_status) != MPI3_IOCSTATUS_SUCCESS)
+		dprint_transport_err(mrioc,
+		    "transport request returned with ioc_status(0x%04x), log_info(0x%08x)\n",
+		    *ioc_status, mrioc->transport_cmds.ioc_loginfo);
+
+	if ((reply) && (mrioc->transport_cmds.state & MPI3MR_CMD_REPLY_VALID))
+		memcpy((u8 *)reply, mrioc->transport_cmds.reply, reply_sz);
+
+out_unlock:
+	mrioc->transport_cmds.state = MPI3MR_CMD_NOTUSED;
+	mutex_unlock(&mrioc->transport_cmds.mutex);
+
+out:
+	return retval;
+}
+
+/* report manufacture request structure */
+struct rep_manu_request {
+	u8 smp_frame_type;
+	u8 function;
+	u8 reserved;
+	u8 request_length;
+};
+
+/* report manufacture reply structure */
+struct rep_manu_reply {
+	u8 smp_frame_type; /* 0x41 */
+	u8 function; /* 0x01 */
+	u8 function_result;
+	u8 response_length;
+	u16 expander_change_count;
+	u8 reserved0[2];
+	u8 sas_format;
+	u8 reserved2[3];
+	u8 vendor_id[SAS_EXPANDER_VENDOR_ID_LEN];
+	u8 product_id[SAS_EXPANDER_PRODUCT_ID_LEN];
+	u8 product_rev[SAS_EXPANDER_PRODUCT_REV_LEN];
+	u8 component_vendor_id[SAS_EXPANDER_COMPONENT_VENDOR_ID_LEN];
+	u16 component_id;
+	u8 component_revision_id;
+	u8 reserved3;
+	u8 vendor_specific[8];
+};
+
+/**
+ * mpi3mr_report_manufacture - obtain SMP report_manufacture
+ * @mrioc: Adapter instance reference
+ * @sas_address: SAS address of the expander device
+ * @edev: SAS transport layer sas_expander_device object
+ * @port_id: ID of the HBA port
+ *
+ * Fills in the sas_expander_device with manufacturing info.
+ *
+ * Return: 0 for success, non-zero for failure.
+ */
+static int mpi3mr_report_manufacture(struct mpi3mr_ioc *mrioc,
+	u64 sas_address, struct sas_expander_device *edev, u8 port_id)
+{
+	struct mpi3_smp_passthrough_request mpi_request;
+	struct mpi3_smp_passthrough_reply mpi_reply;
+	struct rep_manu_reply *manufacture_reply;
+	struct rep_manu_request *manufacture_request;
+	int rc = 0;
+	void *psge;
+	void *data_out = NULL;
+	dma_addr_t data_out_dma;
+	dma_addr_t data_in_dma;
+	size_t data_in_sz;
+	size_t data_out_sz;
+	u8 sgl_flags = MPI3MR_SGEFLAGS_SYSTEM_SIMPLE_END_OF_LIST;
+	u16 request_sz = sizeof(struct mpi3_smp_passthrough_request);
+	u16 reply_sz = sizeof(struct mpi3_smp_passthrough_reply);
+	u16 ioc_status;
+
+	if (mrioc->reset_in_progress) {
+		ioc_err(mrioc, "%s: host reset in progress!\n", __func__);
+		return -EFAULT;
+	}
+
+	data_out_sz = sizeof(struct rep_manu_request);
+	data_in_sz = sizeof(struct rep_manu_reply);
+	data_out = dma_alloc_coherent(&mrioc->pdev->dev,
+	    data_out_sz + data_in_sz, &data_out_dma, GFP_KERNEL);
+	if (!data_out) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	data_in_dma = data_out_dma + data_out_sz;
+	manufacture_reply = data_out + data_out_sz;
+
+	manufacture_request = data_out;
+	manufacture_request->smp_frame_type = 0x40;
+	manufacture_request->function = 1;
+	manufacture_request->reserved = 0;
+	manufacture_request->request_length = 0;
+
+	memset(&mpi_request, 0, request_sz);
+	memset(&mpi_reply, 0, reply_sz);
+	mpi_request.host_tag = cpu_to_le16(MPI3MR_HOSTTAG_TRANSPORT_CMDS);
+	mpi_request.function = MPI3_FUNCTION_SMP_PASSTHROUGH;
+	mpi_request.io_unit_port = (u8) port_id;
+	mpi_request.sas_address = cpu_to_le64(sas_address);
+
+	psge = &mpi_request.request_sge;
+	mpi3mr_add_sg_single(psge, sgl_flags, data_out_sz, data_out_dma);
+
+	psge = &mpi_request.response_sge;
+	mpi3mr_add_sg_single(psge, sgl_flags, data_in_sz, data_in_dma);
+
+	dprint_transport_info(mrioc,
+	    "sending report manufacturer SMP request to sas_address(0x%016llx), port(%d)\n",
+	    (unsigned long long)sas_address, port_id);
+
+	if (mpi3mr_post_transport_req(mrioc, &mpi_request, request_sz,
+	    &mpi_reply, reply_sz, MPI3MR_INTADMCMD_TIMEOUT, &ioc_status))
+		goto out;
+
+	dprint_transport_info(mrioc,
+	    "report manufacturer SMP request completed with ioc_status(0x%04x)\n",
+	    ioc_status);
+
+	if (ioc_status == MPI3_IOCSTATUS_SUCCESS) {
+		u8 *tmp;
+
+		dprint_transport_info(mrioc,
+		    "report manufacturer - reply data transfer size(%d)\n",
+		    le16_to_cpu(mpi_reply.response_data_length));
+
+		if (le16_to_cpu(mpi_reply.response_data_length) !=
+		    sizeof(struct rep_manu_reply))
+			goto out;
+
+		strscpy(edev->vendor_id, manufacture_reply->vendor_id,
+		     SAS_EXPANDER_VENDOR_ID_LEN);
+		strscpy(edev->product_id, manufacture_reply->product_id,
+		     SAS_EXPANDER_PRODUCT_ID_LEN);
+		strscpy(edev->product_rev, manufacture_reply->product_rev,
+		     SAS_EXPANDER_PRODUCT_REV_LEN);
+		edev->level = manufacture_reply->sas_format & 1;
+		if (edev->level) {
+			strscpy(edev->component_vendor_id,
+			    manufacture_reply->component_vendor_id,
+			     SAS_EXPANDER_COMPONENT_VENDOR_ID_LEN);
+			tmp = (u8 *)&manufacture_reply->component_id;
+			edev->component_id = tmp[0] << 8 | tmp[1];
+			edev->component_revision_id =
+			    manufacture_reply->component_revision_id;
+		}
+	}
+
+out:
+	if (data_out)
+		dma_free_coherent(&mrioc->pdev->dev, data_out_sz + data_in_sz,
+		    data_out, data_out_dma);
+
+	return rc;
+}
+
+/**
  * __mpi3mr_expander_find_by_handle - expander search by handle
  * @mrioc: Adapter instance reference
  * @handle: Firmware device handle of the expander
@@ -1217,6 +1436,15 @@ static struct mpi3mr_sas_port *mpi3mr_sas_port_add(struct mpi3mr_ioc *mrioc,
 		if (mrioc->current_event->discard)
 			mpi3mr_print_device_event_notice(mrioc, true);
 	}
+
+	/* fill in report manufacture */
+	if (mr_sas_port->remote_identify.device_type ==
+	    SAS_EDGE_EXPANDER_DEVICE ||
+	    mr_sas_port->remote_identify.device_type ==
+	    SAS_FANOUT_EXPANDER_DEVICE)
+		mpi3mr_report_manufacture(mrioc,
+		    mr_sas_port->remote_identify.sas_address,
+		    rphy_to_expander_device(rphy), hba_port->port_id);
 
 	return mr_sas_port;
 

@@ -312,6 +312,8 @@ mpi3mr_get_drv_cmd(struct mpi3mr_ioc *mrioc, u16 host_tag,
 		return &mrioc->pel_abort_cmd;
 	case MPI3MR_HOSTTAG_PEL_WAIT:
 		return &mrioc->pel_cmds;
+	case MPI3MR_HOSTTAG_TRANSPORT_CMDS:
+		return &mrioc->transport_cmds;
 	case MPI3MR_HOSTTAG_INVALID:
 		if (def_reply && def_reply->function ==
 		    MPI3_FUNCTION_EVENT_NOTIFICATION)
@@ -913,6 +915,7 @@ static const struct {
 	{ MPI3MR_RESET_FROM_SYSFS_TIMEOUT, "sysfs TM timeout" },
 	{ MPI3MR_RESET_FROM_FIRMWARE, "firmware asynchronous reset" },
 	{ MPI3MR_RESET_FROM_CFG_REQ_TIMEOUT, "configuration request timeout"},
+	{ MPI3MR_RESET_FROM_SAS_TRANSPORT_TIMEOUT, "timeout of a SAS transport layer request" },
 };
 
 /**
@@ -2866,6 +2869,10 @@ static int mpi3mr_alloc_reply_sense_bufs(struct mpi3mr_ioc *mrioc)
 	if (!mrioc->bsg_cmds.reply)
 		goto out_failed;
 
+	mrioc->transport_cmds.reply = kzalloc(mrioc->reply_sz, GFP_KERNEL);
+	if (!mrioc->transport_cmds.reply)
+		goto out_failed;
+
 	for (i = 0; i < MPI3MR_NUM_DEVRMCMD; i++) {
 		mrioc->dev_rmhs_cmds[i].reply = kzalloc(mrioc->reply_sz,
 		    GFP_KERNEL);
@@ -4072,6 +4079,8 @@ void mpi3mr_memset_buffers(struct mpi3mr_ioc *mrioc)
 		    sizeof(*mrioc->pel_cmds.reply));
 		memset(mrioc->pel_abort_cmd.reply, 0,
 		    sizeof(*mrioc->pel_abort_cmd.reply));
+		memset(mrioc->transport_cmds.reply, 0,
+		    sizeof(*mrioc->transport_cmds.reply));
 		for (i = 0; i < MPI3MR_NUM_DEVRMCMD; i++)
 			memset(mrioc->dev_rmhs_cmds[i].reply, 0,
 			    sizeof(*mrioc->dev_rmhs_cmds[i].reply));
@@ -4216,6 +4225,9 @@ void mpi3mr_free_mem(struct mpi3mr_ioc *mrioc)
 
 	kfree(mrioc->chain_bitmap);
 	mrioc->chain_bitmap = NULL;
+
+	kfree(mrioc->transport_cmds.reply);
+	mrioc->transport_cmds.reply = NULL;
 
 	for (i = 0; i < MPI3MR_NUM_DEVRMCMD; i++) {
 		kfree(mrioc->dev_rmhs_cmds[i].reply);
@@ -4417,6 +4429,8 @@ static void mpi3mr_flush_drv_cmds(struct mpi3mr_ioc *mrioc)
 	cmdptr = &mrioc->pel_abort_cmd;
 	mpi3mr_drv_cmd_comp_reset(mrioc, cmdptr);
 
+	cmdptr = &mrioc->transport_cmds;
+	mpi3mr_drv_cmd_comp_reset(mrioc, cmdptr);
 }
 
 /**
