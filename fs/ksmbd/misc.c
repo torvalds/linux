@@ -159,7 +159,7 @@ out:
  */
 
 char *convert_to_nt_pathname(struct ksmbd_share_config *share,
-			     struct path *path)
+			     const struct path *path)
 {
 	char *pathname, *ab_pathname, *nt_pathname;
 	int share_path_len = share->path_sz;
