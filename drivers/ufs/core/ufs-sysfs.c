@@ -272,8 +272,7 @@ static ssize_t enable_wb_buf_flush_store(struct device *dev,
 	unsigned int enable_wb_buf_flush;
 	ssize_t res;
 
-	if (!ufshcd_is_wb_allowed(hba) ||
-	    (hba->quirks & UFSHCI_QUIRK_SKIP_MANUAL_WB_FLUSH_CTRL)) {
+	if (!ufshcd_is_wb_buf_flush_allowed(hba)) {
 		dev_warn(dev, "It is not allowed to configure WB buf flushing!\n");
 		return -EOPNOTSUPP;
 	}
