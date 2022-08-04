@@ -1,14 +1,7 @@
 // SPDX-License-Identifier: MIT
 
-#include <linux/device.h>
-#include <linux/fb.h>
-#include <linux/list.h>
-#include <linux/mutex.h>
-#include <linux/pci.h>
-#include <linux/platform_device.h> /* for firmware helpers */
-#include <linux/slab.h>
-#include <linux/types.h>
-#include <linux/vgaarb.h>
+#include <linux/aperture.h>
+#include <linux/platform_device.h>
 
 #include <drm/drm_aperture.h>
 #include <drm/drm_drv.h>
@@ -126,92 +119,6 @@
  * afterwards.
  */
 
-struct drm_aperture {
-	struct drm_device *dev;
-	resource_size_t base;
-	resource_size_t size;
-	struct list_head lh;
-	void (*detach)(struct drm_device *dev);
-};
-
-static LIST_HEAD(drm_apertures);
-static DEFINE_MUTEX(drm_apertures_lock);
-
-static bool overlap(resource_size_t base1, resource_size_t end1,
-		    resource_size_t base2, resource_size_t end2)
-{
-	return (base1 < end2) && (end1 > base2);
-}
-
-static void devm_aperture_acquire_release(void *data)
-{
-	struct drm_aperture *ap = data;
-	bool detached = !ap->dev;
-
-	if (detached)
-		return;
-
-	mutex_lock(&drm_apertures_lock);
-	list_del(&ap->lh);
-	mutex_unlock(&drm_apertures_lock);
-}
-
-static int devm_aperture_acquire(struct drm_device *dev,
-				 resource_size_t base, resource_size_t size,
-				 void (*detach)(struct drm_device *))
-{
-	size_t end = base + size;
-	struct list_head *pos;
-	struct drm_aperture *ap;
-
-	mutex_lock(&drm_apertures_lock);
-
-	list_for_each(pos, &drm_apertures) {
-		ap = container_of(pos, struct drm_aperture, lh);
-		if (overlap(base, end, ap->base, ap->base + ap->size)) {
-			mutex_unlock(&drm_apertures_lock);
-			return -EBUSY;
-		}
-	}
-
-	ap = devm_kzalloc(dev->dev, sizeof(*ap), GFP_KERNEL);
-	if (!ap) {
-		mutex_unlock(&drm_apertures_lock);
-		return -ENOMEM;
-	}
-
-	ap->dev = dev;
-	ap->base = base;
-	ap->size = size;
-	ap->detach = detach;
-	INIT_LIST_HEAD(&ap->lh);
-
-	list_add(&ap->lh, &drm_apertures);
-
-	mutex_unlock(&drm_apertures_lock);
-
-	return devm_add_action_or_reset(dev->dev, devm_aperture_acquire_release, ap);
-}
-
-static void drm_aperture_detach_firmware(struct drm_device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev->dev);
-
-	/*
-	 * Remove the device from the device hierarchy. This is the right thing
-	 * to do for firmware-based DRM drivers, such as EFI, VESA or VGA. After
-	 * the new driver takes over the hardware, the firmware device's state
-	 * will be lost.
-	 *
-	 * For non-platform devices, a new callback would be required.
-	 *
-	 * If the aperture helpers ever need to handle native drivers, this call
-	 * would only have to unplug the DRM device, so that the hardware device
-	 * stays around after detachment.
-	 */
-	platform_device_unregister(pdev);
-}
-
 /**
  * devm_aperture_acquire_from_firmware - Acquires ownership of a firmware framebuffer
  *                                       on behalf of a DRM driver.
@@ -239,39 +146,16 @@ static void drm_aperture_detach_firmware(struct drm_device *dev)
 int devm_aperture_acquire_from_firmware(struct drm_device *dev, resource_size_t base,
 					resource_size_t size)
 {
+	struct platform_device *pdev;
+
 	if (drm_WARN_ON(dev, !dev_is_platform(dev->dev)))
 		return -EINVAL;
 
-	return devm_aperture_acquire(dev, base, size, drm_aperture_detach_firmware);
+	pdev = to_platform_device(dev->dev);
+
+	return devm_aperture_acquire_for_platform_device(pdev, base, size);
 }
 EXPORT_SYMBOL(devm_aperture_acquire_from_firmware);
-
-static void drm_aperture_detach_drivers(resource_size_t base, resource_size_t size)
-{
-	resource_size_t end = base + size;
-	struct list_head *pos, *n;
-
-	mutex_lock(&drm_apertures_lock);
-
-	list_for_each_safe(pos, n, &drm_apertures) {
-		struct drm_aperture *ap =
-			container_of(pos, struct drm_aperture, lh);
-		struct drm_device *dev = ap->dev;
-
-		if (WARN_ON_ONCE(!dev))
-			continue;
-
-		if (!overlap(base, end, ap->base, ap->base + ap->size))
-			continue;
-
-		ap->dev = NULL; /* detach from device */
-		list_del(&ap->lh);
-
-		ap->detach(dev);
-	}
-
-	mutex_unlock(&drm_apertures_lock);
-}
 
 /**
  * drm_aperture_remove_conflicting_framebuffers - remove existing framebuffers in the given range
@@ -289,27 +173,7 @@ static void drm_aperture_detach_drivers(resource_size_t base, resource_size_t si
 int drm_aperture_remove_conflicting_framebuffers(resource_size_t base, resource_size_t size,
 						 bool primary, const struct drm_driver *req_driver)
 {
-#if IS_REACHABLE(CONFIG_FB)
-	struct apertures_struct *a;
-	int ret;
-
-	a = alloc_apertures(1);
-	if (!a)
-		return -ENOMEM;
-
-	a->ranges[0].base = base;
-	a->ranges[0].size = size;
-
-	ret = remove_conflicting_framebuffers(a, req_driver->name, primary);
-	kfree(a);
-
-	if (ret)
-		return ret;
-#endif
-
-	drm_aperture_detach_drivers(base, size);
-
-	return 0;
+	return aperture_remove_conflicting_devices(base, size, primary, req_driver->name);
 }
 EXPORT_SYMBOL(drm_aperture_remove_conflicting_framebuffers);
 
@@ -328,30 +192,6 @@ EXPORT_SYMBOL(drm_aperture_remove_conflicting_framebuffers);
 int drm_aperture_remove_conflicting_pci_framebuffers(struct pci_dev *pdev,
 						     const struct drm_driver *req_driver)
 {
-	resource_size_t base, size;
-	int bar, ret;
-
-	/*
-	 * WARNING: Apparently we must kick fbdev drivers before vgacon,
-	 * otherwise the vga fbdev driver falls over.
-	 */
-#if IS_REACHABLE(CONFIG_FB)
-	ret = remove_conflicting_pci_framebuffers(pdev, req_driver->name);
-	if (ret)
-		return ret;
-#endif
-	ret = vga_remove_vgacon(pdev);
-	if (ret)
-		return ret;
-
-	for (bar = 0; bar < PCI_STD_NUM_BARS; ++bar) {
-		if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM))
-			continue;
-		base = pci_resource_start(pdev, bar);
-		size = pci_resource_len(pdev, bar);
-		drm_aperture_detach_drivers(base, size);
-	}
-
-	return 0;
+	return aperture_remove_conflicting_pci_devices(pdev, req_driver->name);
 }
 EXPORT_SYMBOL(drm_aperture_remove_conflicting_pci_framebuffers);

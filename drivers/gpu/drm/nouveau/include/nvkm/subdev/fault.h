@@ -1,6 +1,7 @@
 #ifndef __NVKM_FAULT_H__
 #define __NVKM_FAULT_H__
 #include <core/subdev.h>
+#include <core/event.h>
 #include <core/notify.h>
 
 struct nvkm_fault {

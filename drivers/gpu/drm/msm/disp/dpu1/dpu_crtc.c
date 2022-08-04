@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2014-2021 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
@@ -12,8 +13,10 @@
 #include <linux/bits.h>
 
 #include <drm/drm_atomic.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_flip_work.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
@@ -78,6 +81,8 @@ static enum dpu_crtc_crc_source dpu_crtc_parse_crc_source(const char *src_name)
 	if (!strcmp(src_name, "auto") ||
 	    !strcmp(src_name, "lm"))
 		return DPU_CRTC_CRC_SOURCE_LAYER_MIXER;
+	if (!strcmp(src_name, "encoder"))
+		return DPU_CRTC_CRC_SOURCE_ENCODER;
 
 	return DPU_CRTC_CRC_SOURCE_INVALID;
 }
@@ -93,10 +98,42 @@ static int dpu_crtc_verify_crc_source(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	if (source == DPU_CRTC_CRC_SOURCE_LAYER_MIXER)
+	if (source == DPU_CRTC_CRC_SOURCE_LAYER_MIXER) {
 		*values_cnt = crtc_state->num_mixers;
+	} else if (source == DPU_CRTC_CRC_SOURCE_ENCODER) {
+		struct drm_encoder *drm_enc;
+
+		*values_cnt = 0;
+
+		drm_for_each_encoder_mask(drm_enc, crtc->dev, crtc->state->encoder_mask)
+			*values_cnt += dpu_encoder_get_crc_values_cnt(drm_enc);
+	}
 
 	return 0;
+}
+
+static void dpu_crtc_setup_lm_misr(struct dpu_crtc_state *crtc_state)
+{
+	struct dpu_crtc_mixer *m;
+	int i;
+
+	for (i = 0; i < crtc_state->num_mixers; ++i) {
+		m = &crtc_state->mixers[i];
+
+		if (!m->hw_lm || !m->hw_lm->ops.setup_misr)
+			continue;
+
+		/* Calculate MISR over 1 frame */
+		m->hw_lm->ops.setup_misr(m->hw_lm, true, 1);
+	}
+}
+
+static void dpu_crtc_setup_encoder_misr(struct drm_crtc *crtc)
+{
+	struct drm_encoder *drm_enc;
+
+	drm_for_each_encoder_mask(drm_enc, crtc->dev, crtc->state->encoder_mask)
+		dpu_encoder_setup_misr(drm_enc);
 }
 
 static int dpu_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
@@ -105,11 +142,10 @@ static int dpu_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 	enum dpu_crtc_crc_source current_source;
 	struct dpu_crtc_state *crtc_state;
 	struct drm_device *drm_dev = crtc->dev;
-	struct dpu_crtc_mixer *m;
 
 	bool was_enabled;
 	bool enable = false;
-	int i, ret = 0;
+	int ret = 0;
 
 	if (source < 0) {
 		DRM_DEBUG_DRIVER("Invalid CRC source %s for CRTC%d\n", src_name, crtc->index);
@@ -146,16 +182,12 @@ static int dpu_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 
 	crtc_state->crc_frame_skip_count = 0;
 
-	for (i = 0; i < crtc_state->num_mixers; ++i) {
-		m = &crtc_state->mixers[i];
-
-		if (!m->hw_lm || !m->hw_lm->ops.setup_misr)
-			continue;
-
-		/* Calculate MISR over 1 frame */
-		m->hw_lm->ops.setup_misr(m->hw_lm, true, 1);
-	}
-
+	if (source == DPU_CRTC_CRC_SOURCE_LAYER_MIXER)
+		dpu_crtc_setup_lm_misr(crtc_state);
+	else if (source == DPU_CRTC_CRC_SOURCE_ENCODER)
+		dpu_crtc_setup_encoder_misr(crtc);
+	else
+		ret = -EINVAL;
 
 cleanup:
 	drm_modeset_unlock(&crtc->mutex);
@@ -174,25 +206,16 @@ static u32 dpu_crtc_get_vblank_counter(struct drm_crtc *crtc)
 	return dpu_encoder_get_vsync_count(encoder);
 }
 
-
-static int dpu_crtc_get_crc(struct drm_crtc *crtc)
+static int dpu_crtc_get_lm_crc(struct drm_crtc *crtc,
+		struct dpu_crtc_state *crtc_state)
 {
-	struct dpu_crtc_state *crtc_state;
 	struct dpu_crtc_mixer *m;
 	u32 crcs[CRTC_DUAL_MIXERS];
 
-	int i = 0;
 	int rc = 0;
-
-	crtc_state = to_dpu_crtc_state(crtc->state);
+	int i;
 
 	BUILD_BUG_ON(ARRAY_SIZE(crcs) != ARRAY_SIZE(crtc_state->mixers));
-
-	/* Skip first 2 frames in case of "uncooked" CRCs */
-	if (crtc_state->crc_frame_skip_count < 2) {
-		crtc_state->crc_frame_skip_count++;
-		return 0;
-	}
 
 	for (i = 0; i < crtc_state->num_mixers; ++i) {
 
@@ -212,6 +235,46 @@ static int dpu_crtc_get_crc(struct drm_crtc *crtc)
 
 	return drm_crtc_add_crc_entry(crtc, true,
 			drm_crtc_accurate_vblank_count(crtc), crcs);
+}
+
+static int dpu_crtc_get_encoder_crc(struct drm_crtc *crtc)
+{
+	struct drm_encoder *drm_enc;
+	int rc, pos = 0;
+	u32 crcs[INTF_MAX];
+
+	drm_for_each_encoder_mask(drm_enc, crtc->dev, crtc->state->encoder_mask) {
+		rc = dpu_encoder_get_crc(drm_enc, crcs, pos);
+		if (rc < 0) {
+			if (rc != -ENODATA)
+				DRM_DEBUG_DRIVER("MISR read failed\n");
+
+			return rc;
+		}
+
+		pos += rc;
+	}
+
+	return drm_crtc_add_crc_entry(crtc, true,
+			drm_crtc_accurate_vblank_count(crtc), crcs);
+}
+
+static int dpu_crtc_get_crc(struct drm_crtc *crtc)
+{
+	struct dpu_crtc_state *crtc_state = to_dpu_crtc_state(crtc->state);
+
+	/* Skip first 2 frames in case of "uncooked" CRCs */
+	if (crtc_state->crc_frame_skip_count < 2) {
+		crtc_state->crc_frame_skip_count++;
+		return 0;
+	}
+
+	if (crtc_state->crc_source == DPU_CRTC_CRC_SOURCE_LAYER_MIXER)
+		return dpu_crtc_get_lm_crc(crtc, crtc_state);
+	else if (crtc_state->crc_source == DPU_CRTC_CRC_SOURCE_ENCODER)
+		return dpu_crtc_get_encoder_crc(crtc);
+
+	return -EINVAL;
 }
 
 static bool dpu_crtc_get_scanout_position(struct drm_crtc *crtc,
@@ -359,6 +422,9 @@ static void _dpu_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		state = plane->state;
 		if (!state)
+			continue;
+
+		if (!state->visible)
 			continue;
 
 		pstate = to_dpu_plane_state(state);
@@ -1132,6 +1198,9 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 			goto end;
 		}
 		if (cnt >= DPU_STAGE_MAX * 4)
+			continue;
+
+		if (!pstate->visible)
 			continue;
 
 		pstates[cnt].dpu_pstate = dpu_pstate;

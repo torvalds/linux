@@ -309,28 +309,3 @@ nvkm_falcon_v1_disable(struct nvkm_falcon *falcon)
 	nvkm_falcon_wr32(falcon, 0x014, 0xff);
 	falcon_v1_wait_idle(falcon);
 }
-
-static const struct nvkm_falcon_func
-nvkm_falcon_v1 = {
-	.load_imem = nvkm_falcon_v1_load_imem,
-	.load_dmem = nvkm_falcon_v1_load_dmem,
-	.read_dmem = nvkm_falcon_v1_read_dmem,
-	.bind_context = nvkm_falcon_v1_bind_context,
-	.start = nvkm_falcon_v1_start,
-	.wait_for_halt = nvkm_falcon_v1_wait_for_halt,
-	.clear_interrupt = nvkm_falcon_v1_clear_interrupt,
-	.enable = nvkm_falcon_v1_enable,
-	.disable = nvkm_falcon_v1_disable,
-	.set_start_addr = nvkm_falcon_v1_set_start_addr,
-};
-
-int
-nvkm_falcon_v1_new(struct nvkm_subdev *owner, const char *name, u32 addr,
-		   struct nvkm_falcon **pfalcon)
-{
-	struct nvkm_falcon *falcon;
-	if (!(falcon = *pfalcon = kzalloc(sizeof(*falcon), GFP_KERNEL)))
-		return -ENOMEM;
-	nvkm_falcon_ctor(&nvkm_falcon_v1, owner, name, addr, falcon);
-	return 0;
-}

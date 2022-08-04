@@ -10,7 +10,6 @@
 #include <linux/phy/phy.h>
 #include <linux/phy/phy-dp.h>
 
-#include "dp_clk_util.h"
 #include "msm_drv.h"
 
 #define DP_LABEL "MDSS DP DISPLAY"
@@ -104,6 +103,11 @@ struct dp_reg_entry {
 struct dp_regulator_cfg {
 	int num;
 	struct dp_reg_entry regs[DP_DEV_REGULATOR_MAX];
+};
+
+struct dss_module_power {
+	unsigned int num_clk;
+	struct clk_bulk_data *clocks;
 };
 
 /**

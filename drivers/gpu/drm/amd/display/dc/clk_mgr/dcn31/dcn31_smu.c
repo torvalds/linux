@@ -40,6 +40,12 @@
 #define FN(reg_name, field) \
 	FD(reg_name##__##field)
 
+#include "logger_types.h"
+#undef DC_LOGGER
+#define DC_LOGGER \
+	CTX->logger
+#define smu_print(str, ...) {DC_LOG_SMU(str, ##__VA_ARGS__); }
+
 #define VBIOSSMC_MSG_TestMessage                  0x1
 #define VBIOSSMC_MSG_GetSmuVersion                0x2
 #define VBIOSSMC_MSG_PowerUpGfx                   0x3
@@ -102,7 +108,9 @@ static int dcn31_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr,
 	uint32_t result;
 
 	result = dcn31_smu_wait_for_response(clk_mgr, 10, 200000);
-	ASSERT(result == VBIOSSMC_Result_OK);
+
+	if (result != VBIOSSMC_Result_OK)
+		smu_print("SMU Response was not OK. SMU response after wait received is: %d\n", result);
 
 	if (result == VBIOSSMC_Status_BUSY) {
 		return -1;
@@ -193,6 +201,10 @@ int dcn31_smu_set_hard_min_dcfclk(struct clk_mgr_internal *clk_mgr, int requeste
 			clk_mgr,
 			VBIOSSMC_MSG_SetHardMinDcfclkByFreq,
 			khz_to_mhz_ceil(requested_dcfclk_khz));
+
+#ifdef DBG
+	smu_print("actual_dcfclk_set_mhz %d is set to : %d\n", actual_dcfclk_set_mhz, actual_dcfclk_set_mhz * 1000);
+#endif
 
 	return actual_dcfclk_set_mhz * 1000;
 }

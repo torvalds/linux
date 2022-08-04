@@ -10,6 +10,7 @@
 #include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_region.h"
 #include "gem/i915_gem_ttm.h"
+#include "gem/i915_gem_ttm_move.h"
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_gt.h"
@@ -21,6 +22,7 @@
 #include "i915_selftest.h"
 #include "selftests/i915_random.h"
 #include "selftests/igt_flush_test.h"
+#include "selftests/igt_reset.h"
 #include "selftests/igt_mmap.h"
 
 struct tile {
@@ -979,6 +981,9 @@ static int igt_mmap(void *arg)
 		};
 		int i;
 
+		if (mr->private)
+			continue;
+
 		for (i = 0; i < ARRAY_SIZE(sizes); i++) {
 			struct drm_i915_gem_object *obj;
 			int err;
@@ -1160,6 +1165,7 @@ out_unmap:
 #define IGT_MMAP_MIGRATE_FILL        (1 << 1)
 #define IGT_MMAP_MIGRATE_EVICTABLE   (1 << 2)
 #define IGT_MMAP_MIGRATE_UNFAULTABLE (1 << 3)
+#define IGT_MMAP_MIGRATE_FAIL_GPU    (1 << 4)
 static int __igt_mmap_migrate(struct intel_memory_region **placements,
 			      int n_placements,
 			      struct intel_memory_region *expected_mr,
@@ -1221,8 +1227,10 @@ static int __igt_mmap_migrate(struct intel_memory_region **placements,
 					  expand32(POISON_INUSE), &rq);
 	i915_gem_object_unpin_pages(obj);
 	if (rq) {
-		dma_resv_add_fence(obj->base.resv, &rq->fence,
-				   DMA_RESV_USAGE_KERNEL);
+		err = dma_resv_reserve_fences(obj->base.resv, 1);
+		if (!err)
+			dma_resv_add_fence(obj->base.resv, &rq->fence,
+					   DMA_RESV_USAGE_KERNEL);
 		i915_request_put(rq);
 	}
 	i915_gem_object_unlock(obj);
@@ -1232,11 +1240,60 @@ static int __igt_mmap_migrate(struct intel_memory_region **placements,
 	if (flags & IGT_MMAP_MIGRATE_EVICTABLE)
 		igt_make_evictable(&objects);
 
+	if (flags & IGT_MMAP_MIGRATE_FAIL_GPU) {
+		err = i915_gem_object_lock(obj, NULL);
+		if (err)
+			goto out_put;
+
+		/*
+		 * Ensure we only simulate the gpu failuire when faulting the
+		 * pages.
+		 */
+		err = i915_gem_object_wait_moving_fence(obj, true);
+		i915_gem_object_unlock(obj);
+		if (err)
+			goto out_put;
+		i915_ttm_migrate_set_failure_modes(true, false);
+	}
+
 	err = ___igt_mmap_migrate(i915, obj, addr,
 				  flags & IGT_MMAP_MIGRATE_UNFAULTABLE);
+
 	if (!err && obj->mm.region != expected_mr) {
 		pr_err("%s region mismatch %s\n", __func__, expected_mr->name);
 		err = -EINVAL;
+	}
+
+	if (flags & IGT_MMAP_MIGRATE_FAIL_GPU) {
+		struct intel_gt *gt;
+		unsigned int id;
+
+		i915_ttm_migrate_set_failure_modes(false, false);
+
+		for_each_gt(gt, i915, id) {
+			intel_wakeref_t wakeref;
+			bool wedged;
+
+			mutex_lock(&gt->reset.mutex);
+			wedged = test_bit(I915_WEDGED, &gt->reset.flags);
+			mutex_unlock(&gt->reset.mutex);
+			if (!wedged) {
+				pr_err("gt(%u) not wedged\n", id);
+				err = -EINVAL;
+				continue;
+			}
+
+			wakeref = intel_runtime_pm_get(gt->uncore->rpm);
+			igt_global_reset_lock(gt);
+			intel_gt_reset(gt, ALL_ENGINES, NULL);
+			igt_global_reset_unlock(gt);
+			intel_runtime_pm_put(gt->uncore->rpm, wakeref);
+		}
+
+		if (!i915_gem_object_has_unknown_state(obj)) {
+			pr_err("object missing unknown_state\n");
+			err = -EINVAL;
+		}
 	}
 
 out_put:
@@ -1318,6 +1375,23 @@ static int igt_mmap_migrate(void *arg)
 		err = __igt_mmap_migrate(single, ARRAY_SIZE(single), mr,
 					 IGT_MMAP_MIGRATE_TOPDOWN |
 					 IGT_MMAP_MIGRATE_FILL |
+					 IGT_MMAP_MIGRATE_UNFAULTABLE);
+		if (err)
+			goto out_io_size;
+
+		/*
+		 * Allocate in the non-mappable portion, but force migrating to
+		 * the mappable portion on fault (LMEM -> LMEM). We then also
+		 * simulate a gpu error when moving the pages when faulting the
+		 * pages, which should result in wedging the gpu and returning
+		 * SIGBUS in the fault handler, since we can't fallback to
+		 * memcpy.
+		 */
+		err = __igt_mmap_migrate(single, ARRAY_SIZE(single), mr,
+					 IGT_MMAP_MIGRATE_TOPDOWN |
+					 IGT_MMAP_MIGRATE_FILL |
+					 IGT_MMAP_MIGRATE_EVICTABLE |
+					 IGT_MMAP_MIGRATE_FAIL_GPU |
 					 IGT_MMAP_MIGRATE_UNFAULTABLE);
 out_io_size:
 		mr->io_size = saved_io_size;
@@ -1434,6 +1508,9 @@ static int igt_mmap_access(void *arg)
 	for_each_memory_region(mr, i915, id) {
 		struct drm_i915_gem_object *obj;
 		int err;
+
+		if (mr->private)
+			continue;
 
 		obj = __i915_gem_object_create_user(i915, PAGE_SIZE, &mr, 1);
 		if (obj == ERR_PTR(-ENODEV))
@@ -1579,6 +1656,9 @@ static int igt_mmap_gpu(void *arg)
 	for_each_memory_region(mr, i915, id) {
 		struct drm_i915_gem_object *obj;
 		int err;
+
+		if (mr->private)
+			continue;
 
 		obj = __i915_gem_object_create_user(i915, PAGE_SIZE, &mr, 1);
 		if (obj == ERR_PTR(-ENODEV))
@@ -1726,6 +1806,9 @@ static int igt_mmap_revoke(void *arg)
 	for_each_memory_region(mr, i915, id) {
 		struct drm_i915_gem_object *obj;
 		int err;
+
+		if (mr->private)
+			continue;
 
 		obj = __i915_gem_object_create_user(i915, PAGE_SIZE, &mr, 1);
 		if (obj == ERR_PTR(-ENODEV))

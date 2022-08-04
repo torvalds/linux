@@ -10,6 +10,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/aperture.h>
 #include <linux/device.h>
 #include <linux/eventfd.h>
 #include <linux/file.h>
@@ -1792,6 +1793,10 @@ static int vfio_pci_vga_init(struct vfio_pci_core_device *vdev)
 
 	if (!vfio_pci_is_vga(pdev))
 		return 0;
+
+	ret = aperture_remove_conflicting_pci_devices(pdev, vdev->vdev.ops->name);
+	if (ret)
+		return ret;
 
 	ret = vga_client_register(pdev, vfio_pci_set_decode);
 	if (ret)

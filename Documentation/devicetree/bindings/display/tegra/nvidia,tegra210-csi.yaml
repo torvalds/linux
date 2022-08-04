@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/tegra/nvidia,tegra210-csi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra CSI controller
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+properties:
+  $nodename:
+    pattern: "^csi@[0-9a-f]+$"
+
+  compatible:
+    enum:
+      - nvidia,tegra210-csi
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: module clock
+      - description: A/B lanes clock
+      - description: C/D lanes clock
+      - description: E lane clock
+      - description: test pattern generator clock
+
+  clock-names:
+    items:
+      - const: csi
+      - const: cilab
+      - const: cilcd
+      - const: cile
+      - const: csi_tpg
+
+  power-domains:
+    maxItems: 1
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - power-domains
+
+# see nvidia,tegra20-vi.yaml for an example

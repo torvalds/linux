@@ -1443,23 +1443,24 @@ static int anx7625_read_hpd_status_p0(struct anx7625_data *ctx)
 	return anx7625_reg_read(ctx, ctx->i2c.rx_p0_client, SYSTEM_STSTUS);
 }
 
-static void anx7625_hpd_polling(struct anx7625_data *ctx)
+static int _anx7625_hpd_polling(struct anx7625_data *ctx,
+				unsigned long wait_us)
 {
 	int ret, val;
 	struct device *dev = &ctx->client->dev;
 
 	/* Interrupt mode, no need poll HPD status, just return */
 	if (ctx->pdata.intp_irq)
-		return;
+		return 0;
 
 	ret = readx_poll_timeout(anx7625_read_hpd_status_p0,
 				 ctx, val,
 				 ((val & HPD_STATUS) || (val < 0)),
-				 5000,
-				 5000 * 100);
+				 wait_us / 100,
+				 wait_us);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "no hpd.\n");
-		return;
+		return ret;
 	}
 
 	DRM_DEV_DEBUG_DRIVER(dev, "system status: 0x%x. HPD raise up.\n", val);
@@ -1472,6 +1473,23 @@ static void anx7625_hpd_polling(struct anx7625_data *ctx)
 
 	if (!ctx->pdata.panel_bridge && ctx->bridge_attached)
 		drm_helper_hpd_irq_event(ctx->bridge.dev);
+
+	return 0;
+}
+
+static int anx7625_wait_hpd_asserted(struct drm_dp_aux *aux,
+				     unsigned long wait_us)
+{
+	struct anx7625_data *ctx = container_of(aux, struct anx7625_data, aux);
+	struct device *dev = &ctx->client->dev;
+	int ret;
+
+	pm_runtime_get_sync(dev);
+	ret = _anx7625_hpd_polling(ctx, wait_us);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+
+	return ret;
 }
 
 static void anx7625_remove_edid(struct anx7625_data *ctx)
@@ -1623,29 +1641,30 @@ static int anx7625_parse_dt(struct device *dev,
 
 	anx7625_get_swing_setting(dev, pdata);
 
-	pdata->is_dpi = 1; /* default dpi mode */
+	pdata->is_dpi = 0; /* default dsi mode */
 	pdata->mipi_host_node = of_graph_get_remote_node(np, 0, 0);
 	if (!pdata->mipi_host_node) {
 		DRM_DEV_ERROR(dev, "fail to get internal panel.\n");
 		return -ENODEV;
 	}
 
-	bus_type = V4L2_FWNODE_BUS_TYPE_PARALLEL;
+	bus_type = 0;
 	mipi_lanes = MAX_LANES_SUPPORT;
 	ep0 = of_graph_get_endpoint_by_regs(np, 0, 0);
 	if (ep0) {
 		if (of_property_read_u32(ep0, "bus-type", &bus_type))
 			bus_type = 0;
 
-		mipi_lanes = of_property_count_u32_elems(ep0, "data-lanes");
+		mipi_lanes = drm_of_get_data_lanes_count(ep0, 1, MAX_LANES_SUPPORT);
+		of_node_put(ep0);
 	}
 
-	if (bus_type == V4L2_FWNODE_BUS_TYPE_PARALLEL) /* bus type is Parallel(DSI) */
-		pdata->is_dpi = 0;
+	if (bus_type == V4L2_FWNODE_BUS_TYPE_DPI) /* bus type is DPI */
+		pdata->is_dpi = 1;
 
-	pdata->mipi_lanes = mipi_lanes;
-	if (pdata->mipi_lanes > MAX_LANES_SUPPORT || pdata->mipi_lanes <= 0)
-		pdata->mipi_lanes = MAX_LANES_SUPPORT;
+	pdata->mipi_lanes = MAX_LANES_SUPPORT;
+	if (mipi_lanes > 0)
+		pdata->mipi_lanes = mipi_lanes;
 
 	if (pdata->is_dpi)
 		DRM_DEV_DEBUG_DRIVER(dev, "found MIPI DPI host node.\n");
@@ -1657,8 +1676,10 @@ static int anx7625_parse_dt(struct device *dev,
 
 	pdata->panel_bridge = devm_drm_of_get_bridge(dev, np, 1, 0);
 	if (IS_ERR(pdata->panel_bridge)) {
-		if (PTR_ERR(pdata->panel_bridge) == -ENODEV)
+		if (PTR_ERR(pdata->panel_bridge) == -ENODEV) {
+			pdata->panel_bridge = NULL;
 			return 0;
+		}
 
 		return PTR_ERR(pdata->panel_bridge);
 	}
@@ -1738,6 +1759,7 @@ static struct edid *anx7625_get_edid(struct anx7625_data *ctx)
 	}
 
 	pm_runtime_get_sync(dev);
+	_anx7625_hpd_polling(ctx, 5000 * 100);
 	edid_num = sp_tx_edid_read(ctx, p_edid->edid_raw_data);
 	pm_runtime_put_sync(dev);
 
@@ -2375,6 +2397,7 @@ static void anx7625_bridge_atomic_enable(struct drm_bridge *bridge,
 	ctx->connector = connector;
 
 	pm_runtime_get_sync(dev);
+	_anx7625_hpd_polling(ctx, 5000 * 100);
 
 	anx7625_dp_start(ctx);
 }
@@ -2433,82 +2456,44 @@ static const struct drm_bridge_funcs anx7625_bridge_funcs = {
 static int anx7625_register_i2c_dummy_clients(struct anx7625_data *ctx,
 					      struct i2c_client *client)
 {
-	int err = 0;
+	struct device *dev = &ctx->client->dev;
 
-	ctx->i2c.tx_p0_client = i2c_new_dummy_device(client->adapter,
-						     TX_P0_ADDR >> 1);
+	ctx->i2c.tx_p0_client = devm_i2c_new_dummy_device(dev, client->adapter,
+							  TX_P0_ADDR >> 1);
 	if (IS_ERR(ctx->i2c.tx_p0_client))
 		return PTR_ERR(ctx->i2c.tx_p0_client);
 
-	ctx->i2c.tx_p1_client = i2c_new_dummy_device(client->adapter,
-						     TX_P1_ADDR >> 1);
-	if (IS_ERR(ctx->i2c.tx_p1_client)) {
-		err = PTR_ERR(ctx->i2c.tx_p1_client);
-		goto free_tx_p0;
-	}
+	ctx->i2c.tx_p1_client = devm_i2c_new_dummy_device(dev, client->adapter,
+							  TX_P1_ADDR >> 1);
+	if (IS_ERR(ctx->i2c.tx_p1_client))
+		return PTR_ERR(ctx->i2c.tx_p1_client);
 
-	ctx->i2c.tx_p2_client = i2c_new_dummy_device(client->adapter,
-						     TX_P2_ADDR >> 1);
-	if (IS_ERR(ctx->i2c.tx_p2_client)) {
-		err = PTR_ERR(ctx->i2c.tx_p2_client);
-		goto free_tx_p1;
-	}
+	ctx->i2c.tx_p2_client = devm_i2c_new_dummy_device(dev, client->adapter,
+							  TX_P2_ADDR >> 1);
+	if (IS_ERR(ctx->i2c.tx_p2_client))
+		return PTR_ERR(ctx->i2c.tx_p2_client);
 
-	ctx->i2c.rx_p0_client = i2c_new_dummy_device(client->adapter,
-						     RX_P0_ADDR >> 1);
-	if (IS_ERR(ctx->i2c.rx_p0_client)) {
-		err = PTR_ERR(ctx->i2c.rx_p0_client);
-		goto free_tx_p2;
-	}
+	ctx->i2c.rx_p0_client = devm_i2c_new_dummy_device(dev, client->adapter,
+							  RX_P0_ADDR >> 1);
+	if (IS_ERR(ctx->i2c.rx_p0_client))
+		return PTR_ERR(ctx->i2c.rx_p0_client);
 
-	ctx->i2c.rx_p1_client = i2c_new_dummy_device(client->adapter,
-						     RX_P1_ADDR >> 1);
-	if (IS_ERR(ctx->i2c.rx_p1_client)) {
-		err = PTR_ERR(ctx->i2c.rx_p1_client);
-		goto free_rx_p0;
-	}
+	ctx->i2c.rx_p1_client = devm_i2c_new_dummy_device(dev, client->adapter,
+							  RX_P1_ADDR >> 1);
+	if (IS_ERR(ctx->i2c.rx_p1_client))
+		return PTR_ERR(ctx->i2c.rx_p1_client);
 
-	ctx->i2c.rx_p2_client = i2c_new_dummy_device(client->adapter,
-						     RX_P2_ADDR >> 1);
-	if (IS_ERR(ctx->i2c.rx_p2_client)) {
-		err = PTR_ERR(ctx->i2c.rx_p2_client);
-		goto free_rx_p1;
-	}
+	ctx->i2c.rx_p2_client = devm_i2c_new_dummy_device(dev, client->adapter,
+							  RX_P2_ADDR >> 1);
+	if (IS_ERR(ctx->i2c.rx_p2_client))
+		return PTR_ERR(ctx->i2c.rx_p2_client);
 
-	ctx->i2c.tcpc_client = i2c_new_dummy_device(client->adapter,
-						    TCPC_INTERFACE_ADDR >> 1);
-	if (IS_ERR(ctx->i2c.tcpc_client)) {
-		err = PTR_ERR(ctx->i2c.tcpc_client);
-		goto free_rx_p2;
-	}
+	ctx->i2c.tcpc_client = devm_i2c_new_dummy_device(dev, client->adapter,
+							 TCPC_INTERFACE_ADDR >> 1);
+	if (IS_ERR(ctx->i2c.tcpc_client))
+		return PTR_ERR(ctx->i2c.tcpc_client);
 
 	return 0;
-
-free_rx_p2:
-	i2c_unregister_device(ctx->i2c.rx_p2_client);
-free_rx_p1:
-	i2c_unregister_device(ctx->i2c.rx_p1_client);
-free_rx_p0:
-	i2c_unregister_device(ctx->i2c.rx_p0_client);
-free_tx_p2:
-	i2c_unregister_device(ctx->i2c.tx_p2_client);
-free_tx_p1:
-	i2c_unregister_device(ctx->i2c.tx_p1_client);
-free_tx_p0:
-	i2c_unregister_device(ctx->i2c.tx_p0_client);
-
-	return err;
-}
-
-static void anx7625_unregister_i2c_dummy_clients(struct anx7625_data *ctx)
-{
-	i2c_unregister_device(ctx->i2c.tx_p0_client);
-	i2c_unregister_device(ctx->i2c.tx_p1_client);
-	i2c_unregister_device(ctx->i2c.tx_p2_client);
-	i2c_unregister_device(ctx->i2c.rx_p0_client);
-	i2c_unregister_device(ctx->i2c.rx_p1_client);
-	i2c_unregister_device(ctx->i2c.rx_p2_client);
-	i2c_unregister_device(ctx->i2c.tcpc_client);
 }
 
 static int __maybe_unused anx7625_runtime_pm_suspend(struct device *dev)
@@ -2532,45 +2517,15 @@ static int __maybe_unused anx7625_runtime_pm_resume(struct device *dev)
 	mutex_lock(&ctx->lock);
 
 	anx7625_power_on_init(ctx);
-	anx7625_hpd_polling(ctx);
 
 	mutex_unlock(&ctx->lock);
 
 	return 0;
 }
 
-static int __maybe_unused anx7625_resume(struct device *dev)
-{
-	struct anx7625_data *ctx = dev_get_drvdata(dev);
-
-	if (!ctx->pdata.intp_irq)
-		return 0;
-
-	if (!pm_runtime_enabled(dev) || !pm_runtime_suspended(dev)) {
-		enable_irq(ctx->pdata.intp_irq);
-		anx7625_runtime_pm_resume(dev);
-	}
-
-	return 0;
-}
-
-static int __maybe_unused anx7625_suspend(struct device *dev)
-{
-	struct anx7625_data *ctx = dev_get_drvdata(dev);
-
-	if (!ctx->pdata.intp_irq)
-		return 0;
-
-	if (!pm_runtime_enabled(dev) || !pm_runtime_suspended(dev)) {
-		anx7625_runtime_pm_suspend(dev);
-		disable_irq(ctx->pdata.intp_irq);
-	}
-
-	return 0;
-}
-
 static const struct dev_pm_ops anx7625_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(anx7625_suspend, anx7625_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(anx7625_runtime_pm_suspend,
 			   anx7625_runtime_pm_resume, NULL)
 };
@@ -2653,15 +2608,8 @@ static int anx7625_i2c_probe(struct i2c_client *client,
 	platform->aux.name = "anx7625-aux";
 	platform->aux.dev = dev;
 	platform->aux.transfer = anx7625_aux_transfer;
+	platform->aux.wait_hpd_asserted = anx7625_wait_hpd_asserted;
 	drm_dp_aux_init(&platform->aux);
-	devm_of_dp_aux_populate_ep_devices(&platform->aux);
-
-	ret = anx7625_parse_dt(dev, pdata);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			DRM_DEV_ERROR(dev, "fail to parse DT : %d\n", ret);
-		goto free_wq;
-	}
 
 	if (anx7625_register_i2c_dummy_clients(platform, client) != 0) {
 		ret = -ENOMEM;
@@ -2677,9 +2625,19 @@ static int anx7625_i2c_probe(struct i2c_client *client,
 	if (ret)
 		goto free_wq;
 
+	devm_of_dp_aux_populate_ep_devices(&platform->aux);
+
+	ret = anx7625_parse_dt(dev, pdata);
+	if (ret) {
+		if (ret != -EPROBE_DEFER)
+			DRM_DEV_ERROR(dev, "fail to parse DT : %d\n", ret);
+		goto free_wq;
+	}
+
 	if (!platform->pdata.low_power_mode) {
 		anx7625_disable_pd_protocol(platform);
 		pm_runtime_get_sync(dev);
+		_anx7625_hpd_polling(platform, 5000 * 100);
 	}
 
 	/* Add work function */
@@ -2720,8 +2678,6 @@ unregister_bridge:
 	if (!platform->pdata.low_power_mode)
 		pm_runtime_put_sync_suspend(&client->dev);
 
-	anx7625_unregister_i2c_dummy_clients(platform);
-
 free_wq:
 	if (platform->workqueue)
 		destroy_workqueue(platform->workqueue);
@@ -2750,8 +2706,6 @@ static int anx7625_i2c_remove(struct i2c_client *client)
 
 	if (!platform->pdata.low_power_mode)
 		pm_runtime_put_sync_suspend(&client->dev);
-
-	anx7625_unregister_i2c_dummy_clients(platform);
 
 	if (platform->pdata.audio_en)
 		anx7625_unregister_audio(platform);

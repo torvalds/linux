@@ -13,8 +13,6 @@
 #include "msm_mmu.h"
 #include "mdp4_kms.h"
 
-static struct mdp4_platform_config *mdp4_get_config(struct platform_device *dev);
-
 static int mdp4_hw_init(struct msm_kms *kms)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
@@ -386,13 +384,17 @@ static void read_mdp_hw_revision(struct mdp4_kms *mdp4_kms,
 static int mdp4_kms_init(struct drm_device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev->dev);
-	struct mdp4_platform_config *config = mdp4_get_config(pdev);
 	struct msm_drm_private *priv = dev->dev_private;
 	struct mdp4_kms *mdp4_kms;
 	struct msm_kms *kms = NULL;
+	struct iommu_domain *iommu;
 	struct msm_gem_address_space *aspace;
 	int irq, ret;
 	u32 major, minor;
+	unsigned long max_clk;
+
+	/* TODO: Chips that aren't apq8064 have a 200 Mhz max_clk */
+	max_clk = 266667000;
 
 	mdp4_kms = kzalloc(sizeof(*mdp4_kms), GFP_KERNEL);
 	if (!mdp4_kms) {
@@ -460,7 +462,7 @@ static int mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	clk_set_rate(mdp4_kms->clk, config->max_clk);
+	clk_set_rate(mdp4_kms->clk, max_clk);
 
 	read_mdp_hw_revision(mdp4_kms, &major, &minor);
 
@@ -480,7 +482,7 @@ static int mdp4_kms_init(struct drm_device *dev)
 			ret = PTR_ERR(mdp4_kms->lut_clk);
 			goto fail;
 		}
-		clk_set_rate(mdp4_kms->lut_clk, config->max_clk);
+		clk_set_rate(mdp4_kms->lut_clk, max_clk);
 	}
 
 	pm_runtime_enable(dev->dev);
@@ -497,9 +499,9 @@ static int mdp4_kms_init(struct drm_device *dev)
 	mdp4_disable(mdp4_kms);
 	mdelay(16);
 
-	if (config->iommu) {
-		struct msm_mmu *mmu = msm_iommu_new(&pdev->dev,
-			config->iommu);
+	iommu = iommu_domain_alloc(pdev->dev.bus);
+	if (iommu) {
+		struct msm_mmu *mmu = msm_iommu_new(&pdev->dev, iommu);
 
 		aspace  = msm_gem_address_space_create(mmu,
 			"mdp4", 0x1000, 0x100000000 - 0x1000);
@@ -551,17 +553,6 @@ fail:
 		mdp4_destroy(kms);
 
 	return ret;
-}
-
-static struct mdp4_platform_config *mdp4_get_config(struct platform_device *dev)
-{
-	static struct mdp4_platform_config config = {};
-
-	/* TODO: Chips that aren't apq8064 have a 200 Mhz max_clk */
-	config.max_clk = 266667000;
-	config.iommu = iommu_domain_alloc(&platform_bus_type);
-
-	return &config;
 }
 
 static const struct dev_pm_ops mdp4_pm_ops = {

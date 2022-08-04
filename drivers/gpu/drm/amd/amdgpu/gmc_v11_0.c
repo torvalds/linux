@@ -22,10 +22,13 @@
  */
 #include <linux/firmware.h>
 #include <linux/pci.h>
+
+#include <drm/drm_cache.h>
+
 #include "amdgpu.h"
 #include "amdgpu_atomfirmware.h"
 #include "gmc_v11_0.h"
-#include "umc_v8_7.h"
+#include "umc_v8_10.h"
 #include "athub/athub_3_0_0_sh_mask.h"
 #include "athub/athub_3_0_0_offset.h"
 #include "oss/osssys_6_0_0_offset.h"
@@ -37,6 +40,7 @@
 #include "nbio_v4_3.h"
 #include "gfxhub_v3_0.h"
 #include "mmhub_v3_0.h"
+#include "mmhub_v3_0_1.h"
 #include "mmhub_v3_0_2.h"
 #include "athub_v3_0.h"
 
@@ -267,7 +271,7 @@ static void gmc_v11_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	/* For SRIOV run time, driver shouldn't access the register through MMIO
 	 * Directly use kiq to do the vm invalidation instead
 	 */
-	if (adev->gfx.kiq.ring.sched.ready && !adev->enable_mes &&
+	if ((adev->gfx.kiq.ring.sched.ready || adev->mes.ring.sched.ready) &&
 	    (amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev))) {
 		struct amdgpu_vmhub *hub = &adev->vmhub[vmhub];
 		const unsigned eng = 17;
@@ -343,7 +347,6 @@ static int gmc_v11_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 				gmc_v11_0_flush_gpu_tlb(adev, vmid,
 						AMDGPU_GFXHUB_0, flush_type);
 			}
-			break;
 		}
 	}
 
@@ -537,10 +540,35 @@ static void gmc_v11_0_set_umc_funcs(struct amdgpu_device *adev)
 {
 	switch (adev->ip_versions[UMC_HWIP][0]) {
 	case IP_VERSION(8, 10, 0):
+		adev->umc.channel_inst_num = UMC_V8_10_CHANNEL_INSTANCE_NUM;
+		adev->umc.umc_inst_num = UMC_V8_10_UMC_INSTANCE_NUM;
+		adev->umc.node_inst_num = adev->gmc.num_umc;
+		adev->umc.max_ras_err_cnt_per_query = UMC_V8_10_TOTAL_CHANNEL_NUM(adev);
+		adev->umc.channel_offs = UMC_V8_10_PER_CHANNEL_OFFSET;
+		adev->umc.channel_idx_tbl = &umc_v8_10_channel_idx_tbl[0][0][0];
+		adev->umc.ras = &umc_v8_10_ras;
+		break;
 	case IP_VERSION(8, 11, 0):
 		break;
 	default:
 		break;
+	}
+
+	if (adev->umc.ras) {
+		amdgpu_ras_register_ras_block(adev, &adev->umc.ras->ras_block);
+
+		strcpy(adev->umc.ras->ras_block.ras_comm.name, "umc");
+		adev->umc.ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__UMC;
+		adev->umc.ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->umc.ras_if = &adev->umc.ras->ras_block.ras_comm;
+
+		/* If don't define special ras_late_init function, use default ras_late_init */
+		if (!adev->umc.ras->ras_block.ras_late_init)
+			adev->umc.ras->ras_block.ras_late_init = amdgpu_umc_ras_late_init;
+
+		/* If not define special ras_cb function, use default ras_cb */
+		if (!adev->umc.ras->ras_block.ras_cb)
+			adev->umc.ras->ras_block.ras_cb = amdgpu_umc_process_ras_data_cb;
 	}
 }
 
@@ -548,6 +576,9 @@ static void gmc_v11_0_set_umc_funcs(struct amdgpu_device *adev)
 static void gmc_v11_0_set_mmhub_funcs(struct amdgpu_device *adev)
 {
 	switch (adev->ip_versions[MMHUB_HWIP][0]) {
+	case IP_VERSION(3, 0, 1):
+		adev->mmhub.funcs = &mmhub_v3_0_1_funcs;
+		break;
 	case IP_VERSION(3, 0, 2):
 		adev->mmhub.funcs = &mmhub_v3_0_2_funcs;
 		break;
@@ -746,6 +777,8 @@ static int gmc_v11_0_sw_init(void *handle)
 		printk(KERN_WARNING "amdgpu: No suitable DMA available.\n");
 		return r;
 	}
+
+	adev->need_swiotlb = drm_need_swiotlb(44);
 
 	r = gmc_v11_0_mc_init(adev);
 	if (r)

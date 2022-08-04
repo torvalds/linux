@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * rcar_du_regs.h  --  R-Car Display Unit Registers Definitions
+ * R-Car Display Unit Registers Definitions
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
