@@ -39,6 +39,6 @@ int kvm_riscv_vcpu_timer_init(struct kvm_vcpu *vcpu);
 int kvm_riscv_vcpu_timer_deinit(struct kvm_vcpu *vcpu);
 int kvm_riscv_vcpu_timer_reset(struct kvm_vcpu *vcpu);
 void kvm_riscv_vcpu_timer_restore(struct kvm_vcpu *vcpu);
-int kvm_riscv_guest_timer_init(struct kvm *kvm);
+void kvm_riscv_guest_timer_init(struct kvm *kvm);
 
 #endif
