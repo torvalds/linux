@@ -1652,3 +1652,161 @@ void mpi3mr_expander_remove(struct mpi3mr_ioc *mrioc, u64 sas_address,
 		mpi3mr_expander_node_remove(mrioc, sas_expander);
 
 }
+
+/**
+ * mpi3mr_get_sas_negotiated_logical_linkrate - get linkrate
+ * @mrioc: Adapter instance reference
+ * @tgtdev: Target device
+ *
+ * This function identifies whether the target device is
+ * attached directly or through expander and issues sas phy
+ * page0 or expander phy page1 and gets the link rate, if there
+ * is any failure in reading the pages then this returns link
+ * rate of 1.5.
+ *
+ * Return: logical link rate.
+ */
+static u8 mpi3mr_get_sas_negotiated_logical_linkrate(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_tgt_dev *tgtdev)
+{
+	u8 link_rate = MPI3_SAS_NEG_LINK_RATE_1_5, phy_number;
+	struct mpi3_sas_expander_page1 expander_pg1;
+	struct mpi3_sas_phy_page0 phy_pg0;
+	u32 phynum_handle;
+	u16 ioc_status;
+
+	phy_number = tgtdev->dev_spec.sas_sata_inf.phy_id;
+	if (!(tgtdev->devpg0_flag & MPI3_DEVICE0_FLAGS_ATT_METHOD_DIR_ATTACHED)) {
+		phynum_handle = ((phy_number<<MPI3_SAS_EXPAND_PGAD_PHYNUM_SHIFT)
+				 | tgtdev->parent_handle);
+		if (mpi3mr_cfg_get_sas_exp_pg1(mrioc, &ioc_status,
+		    &expander_pg1, sizeof(expander_pg1),
+		    MPI3_SAS_EXPAND_PGAD_FORM_HANDLE_PHY_NUM,
+		    phynum_handle)) {
+			ioc_err(mrioc, "failure at %s:%d/%s()!\n",
+			    __FILE__, __LINE__, __func__);
+			goto out;
+		}
+		if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+			ioc_err(mrioc, "failure at %s:%d/%s()!\n",
+			    __FILE__, __LINE__, __func__);
+			goto out;
+		}
+		link_rate = (expander_pg1.negotiated_link_rate &
+			     MPI3_SAS_NEG_LINK_RATE_LOGICAL_MASK) >>
+			MPI3_SAS_NEG_LINK_RATE_LOGICAL_SHIFT;
+		goto out;
+	}
+	if (mpi3mr_cfg_get_sas_phy_pg0(mrioc, &ioc_status, &phy_pg0,
+	    sizeof(struct mpi3_sas_phy_page0),
+	    MPI3_SAS_PHY_PGAD_FORM_PHY_NUMBER, phy_number)) {
+		ioc_err(mrioc, "failure at %s:%d/%s()!\n",
+		    __FILE__, __LINE__, __func__);
+		goto out;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "failure at %s:%d/%s()!\n",
+		    __FILE__, __LINE__, __func__);
+		goto out;
+	}
+	link_rate = (phy_pg0.negotiated_link_rate &
+		     MPI3_SAS_NEG_LINK_RATE_LOGICAL_MASK) >>
+		MPI3_SAS_NEG_LINK_RATE_LOGICAL_SHIFT;
+out:
+	return link_rate;
+}
+
+/**
+ * mpi3mr_report_tgtdev_to_sas_transport - expose dev to SAS TL
+ * @mrioc: Adapter instance reference
+ * @tgtdev: Target device
+ *
+ * This function exposes the target device after
+ * preparing host_phy, setting up link rate etc.
+ *
+ * Return: 0 on success, non-zero for failure.
+ */
+int mpi3mr_report_tgtdev_to_sas_transport(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_tgt_dev *tgtdev)
+{
+	int retval = 0;
+	u8 link_rate, parent_phy_number;
+	u64 sas_address_parent, sas_address;
+	struct mpi3mr_hba_port *hba_port;
+	u8 port_id;
+
+	if ((tgtdev->dev_type != MPI3_DEVICE_DEVFORM_SAS_SATA) ||
+	    !mrioc->sas_transport_enabled)
+		return -1;
+
+	sas_address = tgtdev->dev_spec.sas_sata_inf.sas_address;
+	if (!mrioc->sas_hba.num_phys)
+		mpi3mr_sas_host_add(mrioc);
+	else
+		mpi3mr_sas_host_refresh(mrioc);
+
+	if (mpi3mr_get_sas_address(mrioc, tgtdev->parent_handle,
+	    &sas_address_parent) != 0) {
+		ioc_err(mrioc, "failure at %s:%d/%s()!\n",
+		    __FILE__, __LINE__, __func__);
+		return -1;
+	}
+	tgtdev->dev_spec.sas_sata_inf.sas_address_parent = sas_address_parent;
+
+	parent_phy_number = tgtdev->dev_spec.sas_sata_inf.phy_id;
+	port_id = tgtdev->io_unit_port;
+
+	hba_port = mpi3mr_get_hba_port_by_id(mrioc, port_id);
+	if (!hba_port) {
+		ioc_err(mrioc, "failure at %s:%d/%s()!\n",
+		    __FILE__, __LINE__, __func__);
+		return -1;
+	}
+	tgtdev->dev_spec.sas_sata_inf.hba_port = hba_port;
+
+	link_rate = mpi3mr_get_sas_negotiated_logical_linkrate(mrioc, tgtdev);
+
+	mpi3mr_update_links(mrioc, sas_address_parent, tgtdev->dev_handle,
+	    parent_phy_number, link_rate, hba_port);
+
+	tgtdev->host_exposed = 1;
+	if (!mpi3mr_sas_port_add(mrioc, tgtdev->dev_handle,
+	    sas_address_parent, hba_port)) {
+		tgtdev->host_exposed = 0;
+		retval = -1;
+	} else if ((!tgtdev->starget)) {
+		if (!mrioc->is_driver_loading)
+			mpi3mr_sas_port_remove(mrioc, sas_address,
+			    sas_address_parent, hba_port);
+		tgtdev->host_exposed = 0;
+		retval = -1;
+	}
+	return retval;
+}
+
+/**
+ * mpi3mr_remove_tgtdev_from_sas_transport - remove from SAS TL
+ * @mrioc: Adapter instance reference
+ * @tgtdev: Target device
+ *
+ * This function removes the target device
+ *
+ * Return: None.
+ */
+void mpi3mr_remove_tgtdev_from_sas_transport(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_tgt_dev *tgtdev)
+{
+	u64 sas_address_parent, sas_address;
+	struct mpi3mr_hba_port *hba_port;
+
+	if ((tgtdev->dev_type != MPI3_DEVICE_DEVFORM_SAS_SATA) ||
+	    !mrioc->sas_transport_enabled)
+		return;
+
+	hba_port = tgtdev->dev_spec.sas_sata_inf.hba_port;
+	sas_address = tgtdev->dev_spec.sas_sata_inf.sas_address;
+	sas_address_parent = tgtdev->dev_spec.sas_sata_inf.sas_address_parent;
+	mpi3mr_sas_port_remove(mrioc, sas_address, sas_address_parent,
+	    hba_port);
+	tgtdev->host_exposed = 0;
+}

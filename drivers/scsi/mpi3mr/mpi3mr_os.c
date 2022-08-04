@@ -828,19 +828,25 @@ void mpi3mr_remove_tgtdev_from_host(struct mpi3mr_ioc *mrioc,
 		tgt_priv->dev_handle = MPI3MR_INVALID_DEV_HANDLE;
 	}
 
-	if (tgtdev->starget) {
-		if (mrioc->current_event)
-			mrioc->current_event->pending_at_sml = 1;
-		scsi_remove_target(&tgtdev->starget->dev);
-		tgtdev->host_exposed = 0;
-		if (mrioc->current_event) {
-			mrioc->current_event->pending_at_sml = 0;
-			if (mrioc->current_event->discard) {
-				mpi3mr_print_device_event_notice(mrioc, false);
-				return;
+	if (!mrioc->sas_transport_enabled || (tgtdev->dev_type !=
+	    MPI3_DEVICE_DEVFORM_SAS_SATA) || tgtdev->non_stl) {
+		if (tgtdev->starget) {
+			if (mrioc->current_event)
+				mrioc->current_event->pending_at_sml = 1;
+			scsi_remove_target(&tgtdev->starget->dev);
+			tgtdev->host_exposed = 0;
+			if (mrioc->current_event) {
+				mrioc->current_event->pending_at_sml = 0;
+				if (mrioc->current_event->discard) {
+					mpi3mr_print_device_event_notice(mrioc,
+					    false);
+					return;
+				}
 			}
 		}
-	}
+	} else
+		mpi3mr_remove_tgtdev_from_sas_transport(mrioc, tgtdev);
+
 	ioc_info(mrioc, "%s :Removed handle(0x%04x), wwid(0x%016llx)\n",
 	    __func__, tgtdev->dev_handle, (unsigned long long)tgtdev->wwid);
 }
@@ -862,21 +868,25 @@ static int mpi3mr_report_tgtdev_to_host(struct mpi3mr_ioc *mrioc,
 	int retval = 0;
 	struct mpi3mr_tgt_dev *tgtdev;
 
+	if (mrioc->reset_in_progress)
+		return -1;
+
 	tgtdev = mpi3mr_get_tgtdev_by_perst_id(mrioc, perst_id);
 	if (!tgtdev) {
 		retval = -1;
 		goto out;
 	}
-	if (tgtdev->is_hidden) {
+	if (tgtdev->is_hidden || tgtdev->host_exposed) {
 		retval = -1;
 		goto out;
 	}
-	if (!tgtdev->host_exposed && !mrioc->reset_in_progress) {
+	if (!mrioc->sas_transport_enabled || (tgtdev->dev_type !=
+	    MPI3_DEVICE_DEVFORM_SAS_SATA) || tgtdev->non_stl){
 		tgtdev->host_exposed = 1;
 		if (mrioc->current_event)
 			mrioc->current_event->pending_at_sml = 1;
-		scsi_scan_target(&mrioc->shost->shost_gendev, 0,
-		    tgtdev->perst_id,
+		scsi_scan_target(&mrioc->shost->shost_gendev,
+		    mrioc->scsi_device_channel, tgtdev->perst_id,
 		    SCAN_WILD_CARD, SCSI_SCAN_INITIAL);
 		if (!tgtdev->starget)
 			tgtdev->host_exposed = 0;
@@ -887,7 +897,8 @@ static int mpi3mr_report_tgtdev_to_host(struct mpi3mr_ioc *mrioc,
 				goto out;
 			}
 		}
-	}
+	} else
+		mpi3mr_report_tgtdev_to_sas_transport(mrioc, tgtdev);
 out:
 	if (tgtdev)
 		mpi3mr_tgtdev_put(tgtdev);
@@ -1079,6 +1090,9 @@ static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
 		tgtdev->dev_spec.sas_sata_inf.dev_info = dev_info;
 		tgtdev->dev_spec.sas_sata_inf.sas_address =
 		    le64_to_cpu(sasinf->sas_address);
+		tgtdev->dev_spec.sas_sata_inf.phy_id = sasinf->phy_num;
+		tgtdev->dev_spec.sas_sata_inf.attached_phy_id =
+		    sasinf->attached_phy_identifier;
 		if ((dev_info & MPI3_SAS_DEVICE_INFO_DEVICE_TYPE_MASK) !=
 		    MPI3_SAS_DEVICE_INFO_DEVICE_TYPE_END_DEVICE)
 			tgtdev->is_hidden = 1;
@@ -1486,12 +1500,30 @@ static void mpi3mr_sastopochg_evt_bh(struct mpi3mr_ioc *mrioc,
 	int i;
 	u16 handle;
 	u8 reason_code;
-	u64 exp_sas_address = 0;
+	u64 exp_sas_address = 0, parent_sas_address = 0;
 	struct mpi3mr_hba_port *hba_port = NULL;
 	struct mpi3mr_tgt_dev *tgtdev = NULL;
 	struct mpi3mr_sas_node *sas_expander = NULL;
+	unsigned long flags;
+	u8 link_rate, prev_link_rate, parent_phy_number;
 
 	mpi3mr_sastopochg_evt_debug(mrioc, event_data);
+	if (mrioc->sas_transport_enabled) {
+		hba_port = mpi3mr_get_hba_port_by_id(mrioc,
+		    event_data->io_unit_port);
+		if (le16_to_cpu(event_data->expander_dev_handle)) {
+			spin_lock_irqsave(&mrioc->sas_node_lock, flags);
+			sas_expander = __mpi3mr_expander_find_by_handle(mrioc,
+			    le16_to_cpu(event_data->expander_dev_handle));
+			if (sas_expander) {
+				exp_sas_address = sas_expander->sas_address;
+				hba_port = sas_expander->hba_port;
+			}
+			spin_unlock_irqrestore(&mrioc->sas_node_lock, flags);
+			parent_sas_address = exp_sas_address;
+		} else
+			parent_sas_address = mrioc->sas_hba.sas_address;
+	}
 
 	for (i = 0; i < event_data->num_entries; i++) {
 		if (fwevt->discard)
@@ -1513,6 +1545,24 @@ static void mpi3mr_sastopochg_evt_bh(struct mpi3mr_ioc *mrioc,
 			mpi3mr_tgtdev_del_from_list(mrioc, tgtdev);
 			mpi3mr_tgtdev_put(tgtdev);
 			break;
+		case MPI3_EVENT_SAS_TOPO_PHY_RC_RESPONDING:
+		case MPI3_EVENT_SAS_TOPO_PHY_RC_PHY_CHANGED:
+		case MPI3_EVENT_SAS_TOPO_PHY_RC_NO_CHANGE:
+		{
+			if (!mrioc->sas_transport_enabled || tgtdev->non_stl
+			    || tgtdev->is_hidden)
+				break;
+			link_rate = event_data->phy_entry[i].link_rate >> 4;
+			prev_link_rate = event_data->phy_entry[i].link_rate & 0xF;
+			if (link_rate == prev_link_rate)
+				break;
+			if (!parent_sas_address)
+				break;
+			parent_phy_number = event_data->start_phy_num + i;
+			mpi3mr_update_links(mrioc, parent_sas_address, handle,
+			    parent_phy_number, link_rate, hba_port);
+			break;
+		}
 		default:
 			break;
 		}

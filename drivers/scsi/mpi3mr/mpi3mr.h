@@ -569,7 +569,10 @@ struct mpi3mr_enclosure_node {
  * information cached from firmware given data
  *
  * @sas_address: World wide unique SAS address
+ * @sas_address_parent: Sas address of parent expander or host
  * @dev_info: Device information bits
+ * @phy_id: Phy identifier provided in device page 0
+ * @attached_phy_id: Attached phy identifier provided in device page 0
  * @sas_transport_attached: Is this device exposed to transport
  * @pend_sas_rphy_add: Flag to check device is in process of add
  * @hba_port: HBA port entry
@@ -577,7 +580,10 @@ struct mpi3mr_enclosure_node {
  */
 struct tgt_dev_sas_sata {
 	u64 sas_address;
+	u64 sas_address_parent;
 	u16 dev_info;
+	u8 phy_id;
+	u8 attached_phy_id;
 	u8 sas_transport_attached;
 	u8 pend_sas_rphy_add;
 	struct mpi3mr_hba_port *hba_port;
@@ -1356,6 +1362,10 @@ void mpi3mr_update_links(struct mpi3mr_ioc *mrioc,
 	u64 sas_address_parent, u16 handle, u8 phy_number, u8 link_rate,
 	struct mpi3mr_hba_port *hba_port);
 void mpi3mr_remove_tgtdev_from_host(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_tgt_dev *tgtdev);
+int mpi3mr_report_tgtdev_to_sas_transport(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_tgt_dev *tgtdev);
+void mpi3mr_remove_tgtdev_from_sas_transport(struct mpi3mr_ioc *mrioc,
 	struct mpi3mr_tgt_dev *tgtdev);
 struct mpi3mr_tgt_dev *__mpi3mr_get_tgtdev_by_addr_and_rphy(
 	struct mpi3mr_ioc *mrioc, u64 sas_address, struct sas_rphy *rphy);
