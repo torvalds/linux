@@ -23,9 +23,6 @@
 #define WRITES_IN_FLIGHT (4)
 #define MAX_VENDOR_DESCRIPTOR_SIZE 256
 
-#define GET_URB_TIMEOUT	HZ
-#define FREE_URB_TIMEOUT (HZ*2)
-
 static int udl_parse_vendor_descriptor(struct udl_device *udl)
 {
 	struct usb_device *udev = udl_to_usb_device(udl);
@@ -119,14 +116,6 @@ static int udl_select_std_channel(struct udl_device *udl)
 	return ret < 0 ? ret : 0;
 }
 
-static void udl_release_urb_work(struct work_struct *work)
-{
-	struct urb_node *unode = container_of(work, struct urb_node,
-					      release_urb_work.work);
-
-	up(&unode->dev->urbs.limit_sem);
-}
-
 void udl_urb_completion(struct urb *urb)
 {
 	struct urb_node *unode = urb->context;
@@ -150,23 +139,13 @@ void udl_urb_completion(struct urb *urb)
 	udl->urbs.available++;
 	spin_unlock_irqrestore(&udl->urbs.lock, flags);
 
-#if 0
-	/*
-	 * When using fb_defio, we deadlock if up() is called
-	 * while another is waiting. So queue to another process.
-	 */
-	if (fb_defio)
-		schedule_delayed_work(&unode->release_urb_work, 0);
-	else
-#endif
-		up(&udl->urbs.limit_sem);
+	wake_up(&udl->urbs.sleep);
 }
 
 static void udl_free_urb_list(struct drm_device *dev)
 {
 	struct udl_device *udl = to_udl(dev);
 	int count = udl->urbs.count;
-	struct list_head *node;
 	struct urb_node *unode;
 	struct urb *urb;
 
@@ -174,23 +153,15 @@ static void udl_free_urb_list(struct drm_device *dev)
 
 	/* keep waiting and freeing, until we've got 'em all */
 	while (count--) {
-		down(&udl->urbs.limit_sem);
-
-		spin_lock_irq(&udl->urbs.lock);
-
-		node = udl->urbs.list.next; /* have reserved one with sem */
-		list_del_init(node);
-
-		spin_unlock_irq(&udl->urbs.lock);
-
-		unode = list_entry(node, struct urb_node, entry);
-		urb = unode->urb;
-
+		urb = udl_get_urb_timeout(dev, MAX_SCHEDULE_TIMEOUT);
+		if (WARN_ON(!urb))
+			break;
+		unode = urb->context;
 		/* Free each separately allocated piece */
 		usb_free_coherent(urb->dev, udl->urbs.size,
 				  urb->transfer_buffer, urb->transfer_dma);
 		usb_free_urb(urb);
-		kfree(node);
+		kfree(unode);
 	}
 	udl->urbs.count = 0;
 }
@@ -210,7 +181,7 @@ retry:
 	udl->urbs.size = size;
 	INIT_LIST_HEAD(&udl->urbs.list);
 
-	sema_init(&udl->urbs.limit_sem, 0);
+	init_waitqueue_head(&udl->urbs.sleep);
 	udl->urbs.count = 0;
 	udl->urbs.available = 0;
 
@@ -219,9 +190,6 @@ retry:
 		if (!unode)
 			break;
 		unode->dev = udl;
-
-		INIT_DELAYED_WORK(&unode->release_urb_work,
-			  udl_release_urb_work);
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
@@ -250,7 +218,6 @@ retry:
 
 		list_add_tail(&unode->entry, &udl->urbs.list);
 
-		up(&udl->urbs.limit_sem);
 		udl->urbs.count++;
 		udl->urbs.available++;
 	}
@@ -260,36 +227,31 @@ retry:
 	return udl->urbs.count;
 }
 
-struct urb *udl_get_urb(struct drm_device *dev)
+struct urb *udl_get_urb_timeout(struct drm_device *dev, long timeout)
 {
 	struct udl_device *udl = to_udl(dev);
-	int ret = 0;
-	struct list_head *entry;
-	struct urb_node *unode;
-	struct urb *urb = NULL;
+	struct urb_node *unode = NULL;
+
+	if (!udl->urbs.count)
+		return NULL;
 
 	/* Wait for an in-flight buffer to complete and get re-queued */
-	ret = down_timeout(&udl->urbs.limit_sem, GET_URB_TIMEOUT);
-	if (ret) {
-		DRM_INFO("wait for urb interrupted: %x available: %d\n",
-		       ret, udl->urbs.available);
-		goto error;
+	spin_lock_irq(&udl->urbs.lock);
+	if (!wait_event_lock_irq_timeout(udl->urbs.sleep,
+					 !list_empty(&udl->urbs.list),
+					 udl->urbs.lock, timeout)) {
+		DRM_INFO("wait for urb interrupted: available: %d\n",
+			 udl->urbs.available);
+		goto unlock;
 	}
 
-	spin_lock_irq(&udl->urbs.lock);
-
-	BUG_ON(list_empty(&udl->urbs.list)); /* reserved one with limit_sem */
-	entry = udl->urbs.list.next;
-	list_del_init(entry);
+	unode = list_first_entry(&udl->urbs.list, struct urb_node, entry);
+	list_del_init(&unode->entry);
 	udl->urbs.available--;
 
+unlock:
 	spin_unlock_irq(&udl->urbs.lock);
-
-	unode = list_entry(entry, struct urb_node, entry);
-	urb = unode->urb;
-
-error:
-	return urb;
+	return unode ? unode->urb : NULL;
 }
 
 int udl_submit_urb(struct drm_device *dev, struct urb *urb, size_t len)
