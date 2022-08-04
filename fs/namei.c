@@ -986,7 +986,7 @@ static int nd_jump_root(struct nameidata *nd)
  * Helper to directly jump to a known parsed path from ->get_link,
  * caller must have taken a reference to path beforehand.
  */
-int nd_jump_link(struct path *path)
+int nd_jump_link(const struct path *path)
 {
 	int error = -ELOOP;
 	struct nameidata *nd = current->nameidata;
