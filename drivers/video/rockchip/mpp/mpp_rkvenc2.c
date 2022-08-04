@@ -805,19 +805,30 @@ free_task:
 static void *rkvenc2_prepare(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 {
 	struct mpp_taskqueue *queue = mpp->queue;
+	unsigned long core_idle;
 	unsigned long flags;
+	u32 core_count;
 	s32 core_id;
+	u32 i;
 
 	spin_lock_irqsave(&queue->running_lock, flags);
 
-	core_id = find_first_bit(&queue->core_idle, queue->core_count);
+	core_idle = queue->core_idle;
+	core_count = queue->core_count;
 
-	if (core_id >= queue->core_count) {
+	for (i = 0; i < core_count; i++) {
+		struct mpp_dev *mpp = queue->cores[i];
+
+		if (mpp && to_rkvenc_dev(mpp)->disable_work)
+			clear_bit(i, &core_idle);
+	}
+
+	core_id = find_first_bit(&core_idle, core_count);
+
+	if (core_id >= core_count) {
 		mpp_task = NULL;
-		mpp_dbg_core("core %d all busy %lx\n", core_id, queue->core_idle);
+		mpp_dbg_core("core %d all busy %lx\n", core_id, core_idle);
 	} else {
-		unsigned long core_idle = queue->core_idle;
-
 		clear_bit(core_id, &queue->core_idle);
 		mpp_task->mpp = queue->cores[core_id];
 		mpp_task->core_id = core_id;
@@ -1433,6 +1444,8 @@ static int rkvenc_procfs_init(struct mpp_dev *mpp)
 	/* for show session info */
 	proc_create_single_data("sessions-info", 0444,
 				enc->procfs, rkvenc_show_session_info, mpp);
+	mpp_procfs_create_u32("disable_work", 0644,
+			      enc->procfs, &enc->disable_work);
 
 	return 0;
 }
@@ -1444,8 +1457,6 @@ static int rkvenc_procfs_ccu_init(struct mpp_dev *mpp)
 	if (!enc->procfs)
 		goto done;
 
-	mpp_procfs_create_u32("disable_work", 0644,
-			      enc->procfs, &enc->disable_work);
 done:
 	return 0;
 }
