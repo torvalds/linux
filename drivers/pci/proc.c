@@ -244,6 +244,7 @@ static int proc_bus_pci_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct pci_dev *dev = pde_data(file_inode(file));
 	struct pci_filp_private *fpriv = file->private_data;
+	resource_size_t start, end;
 	int i, ret, write_combine = 0, res_bit = IORESOURCE_MEM;
 
 	if (!capable(CAP_SYS_RAWIO) ||
@@ -278,7 +279,11 @@ static int proc_bus_pci_mmap(struct file *file, struct vm_area_struct *vma)
 	    iomem_is_exclusive(dev->resource[i].start))
 		return -EINVAL;
 
-	ret = pci_mmap_page_range(dev, i, vma,
+	pci_resource_to_user(dev, i, &dev->resource[i], &start, &end);
+
+	/* Adjust vm_pgoff to be the offset within the resource */
+	vma->vm_pgoff -= start >> PAGE_SHIFT;
+	ret = pci_mmap_resource_range(dev, i, vma,
 				  fpriv->mmap_state, write_combine);
 	if (ret < 0)
 		return ret;
