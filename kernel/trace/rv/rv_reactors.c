@@ -329,6 +329,7 @@ int rv_register_reactor(struct rv_reactor *reactor)
 int rv_unregister_reactor(struct rv_reactor *reactor)
 {
 	struct rv_reactor_def *ptr, *next;
+	int ret = 0;
 
 	mutex_lock(&rv_interface_lock);
 
@@ -343,13 +344,14 @@ int rv_unregister_reactor(struct rv_reactor *reactor)
 				       ptr->reactor->name, ptr->counter);
 				printk(KERN_WARNING "rv: the rv_reactor %s cannot be removed\n",
 				       ptr->reactor->name);
-				return -EBUSY;
+				ret = -EBUSY;
+				break;
 			}
 		}
 	}
 
 	mutex_unlock(&rv_interface_lock);
-	return 0;
+	return ret;
 }
 
 /*
