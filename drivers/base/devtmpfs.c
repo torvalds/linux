@@ -482,6 +482,7 @@ int __init devtmpfs_init(void)
 	if (err) {
 		printk(KERN_ERR "devtmpfs: unable to create devtmpfs %i\n", err);
 		unregister_filesystem(&dev_fs_type);
+		thread = NULL;
 		return err;
 	}
 

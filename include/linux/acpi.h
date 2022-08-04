@@ -1431,7 +1431,6 @@ int find_acpi_cpu_topology(unsigned int cpu, int level);
 int find_acpi_cpu_topology_cluster(unsigned int cpu);
 int find_acpi_cpu_topology_package(unsigned int cpu);
 int find_acpi_cpu_topology_hetero_id(unsigned int cpu);
-int find_acpi_cpu_cache_topology(unsigned int cpu, int level);
 #else
 static inline int acpi_pptt_cpu_is_thread(unsigned int cpu)
 {
@@ -1450,10 +1449,6 @@ static inline int find_acpi_cpu_topology_package(unsigned int cpu)
 	return -EINVAL;
 }
 static inline int find_acpi_cpu_topology_hetero_id(unsigned int cpu)
-{
-	return -EINVAL;
-}
-static inline int find_acpi_cpu_cache_topology(unsigned int cpu, int level)
 {
 	return -EINVAL;
 }
