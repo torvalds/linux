@@ -95,14 +95,14 @@ int jfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	if (rc)
 		return rc;
 
-	if (is_quota_modification(inode, iattr)) {
+	if (is_quota_modification(mnt_userns, inode, iattr)) {
 		rc = dquot_initialize(inode);
 		if (rc)
 			return rc;
 	}
 	if ((iattr->ia_valid & ATTR_UID && !uid_eq(iattr->ia_uid, inode->i_uid)) ||
 	    (iattr->ia_valid & ATTR_GID && !gid_eq(iattr->ia_gid, inode->i_gid))) {
-		rc = dquot_transfer(inode, iattr);
+		rc = dquot_transfer(mnt_userns, inode, iattr);
 		if (rc)
 			return rc;
 	}

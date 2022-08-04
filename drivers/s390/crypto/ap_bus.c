@@ -1435,7 +1435,7 @@ static int __verify_queue_reservations(struct device_driver *drv, void *data)
 	if (ap_drv->in_use) {
 		rc = ap_drv->in_use(ap_perms.apm, newaqm);
 		if (rc)
-			return -EBUSY;
+			rc = -EBUSY;
 	}
 
 	/* release the driver's module */

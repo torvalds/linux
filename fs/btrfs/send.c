@@ -10,6 +10,7 @@
 #include <linux/mount.h>
 #include <linux/xattr.h>
 #include <linux/posix_acl_xattr.h>
+#include <linux/radix-tree.h>
 #include <linux/vmalloc.h>
 #include <linux/string.h>
 #include <linux/compat.h>
@@ -127,7 +128,7 @@ struct send_ctx {
 	struct list_head new_refs;
 	struct list_head deleted_refs;
 
-	struct xarray name_cache;
+	struct radix_tree_root name_cache;
 	struct list_head name_cache_list;
 	int name_cache_size;
 
@@ -268,13 +269,14 @@ struct orphan_dir_info {
 struct name_cache_entry {
 	struct list_head list;
 	/*
-	 * On 32bit kernels, xarray has only 32bit indices, but we need to
-	 * handle 64bit inums. We use the lower 32bit of the 64bit inum to store
-	 * it in the tree. If more than one inum would fall into the same entry,
-	 * we use inum_aliases to store the additional entries. inum_aliases is
-	 * also used to store entries with the same inum but different generations.
+	 * radix_tree has only 32bit entries but we need to handle 64bit inums.
+	 * We use the lower 32bit of the 64bit inum to store it in the tree. If
+	 * more then one inum would fall into the same entry, we use radix_list
+	 * to store the additional entries. radix_list is also used to store
+	 * entries where two entries have the same inum but different
+	 * generations.
 	 */
-	struct list_head inum_aliases;
+	struct list_head radix_list;
 	u64 ino;
 	u64 gen;
 	u64 parent_ino;
@@ -2024,9 +2026,9 @@ out:
 }
 
 /*
- * Insert a name cache entry. On 32bit kernels the xarray index is 32bit,
+ * Insert a name cache entry. On 32bit kernels the radix tree index is 32bit,
  * so we need to do some special handling in case we have clashes. This function
- * takes care of this with the help of name_cache_entry::inum_aliases.
+ * takes care of this with the help of name_cache_entry::radix_list.
  * In case of error, nce is kfreed.
  */
 static int name_cache_insert(struct send_ctx *sctx,
@@ -2035,7 +2037,8 @@ static int name_cache_insert(struct send_ctx *sctx,
 	int ret = 0;
 	struct list_head *nce_head;
 
-	nce_head = xa_load(&sctx->name_cache, (unsigned long)nce->ino);
+	nce_head = radix_tree_lookup(&sctx->name_cache,
+			(unsigned long)nce->ino);
 	if (!nce_head) {
 		nce_head = kmalloc(sizeof(*nce_head), GFP_KERNEL);
 		if (!nce_head) {
@@ -2044,14 +2047,14 @@ static int name_cache_insert(struct send_ctx *sctx,
 		}
 		INIT_LIST_HEAD(nce_head);
 
-		ret = xa_insert(&sctx->name_cache, nce->ino, nce_head, GFP_KERNEL);
+		ret = radix_tree_insert(&sctx->name_cache, nce->ino, nce_head);
 		if (ret < 0) {
 			kfree(nce_head);
 			kfree(nce);
 			return ret;
 		}
 	}
-	list_add_tail(&nce->inum_aliases, nce_head);
+	list_add_tail(&nce->radix_list, nce_head);
 	list_add_tail(&nce->list, &sctx->name_cache_list);
 	sctx->name_cache_size++;
 
@@ -2063,14 +2066,15 @@ static void name_cache_delete(struct send_ctx *sctx,
 {
 	struct list_head *nce_head;
 
-	nce_head = xa_load(&sctx->name_cache, (unsigned long)nce->ino);
+	nce_head = radix_tree_lookup(&sctx->name_cache,
+			(unsigned long)nce->ino);
 	if (!nce_head) {
 		btrfs_err(sctx->send_root->fs_info,
 	      "name_cache_delete lookup failed ino %llu cache size %d, leaking memory",
 			nce->ino, sctx->name_cache_size);
 	}
 
-	list_del(&nce->inum_aliases);
+	list_del(&nce->radix_list);
 	list_del(&nce->list);
 	sctx->name_cache_size--;
 
@@ -2078,7 +2082,7 @@ static void name_cache_delete(struct send_ctx *sctx,
 	 * We may not get to the final release of nce_head if the lookup fails
 	 */
 	if (nce_head && list_empty(nce_head)) {
-		xa_erase(&sctx->name_cache, (unsigned long)nce->ino);
+		radix_tree_delete(&sctx->name_cache, (unsigned long)nce->ino);
 		kfree(nce_head);
 	}
 }
@@ -2089,11 +2093,11 @@ static struct name_cache_entry *name_cache_search(struct send_ctx *sctx,
 	struct list_head *nce_head;
 	struct name_cache_entry *cur;
 
-	nce_head = xa_load(&sctx->name_cache, (unsigned long)ino);
+	nce_head = radix_tree_lookup(&sctx->name_cache, (unsigned long)ino);
 	if (!nce_head)
 		return NULL;
 
-	list_for_each_entry(cur, nce_head, inum_aliases) {
+	list_for_each_entry(cur, nce_head, radix_list) {
 		if (cur->ino == ino && cur->gen == gen)
 			return cur;
 	}
@@ -7518,7 +7522,7 @@ long btrfs_ioctl_send(struct inode *inode, struct btrfs_ioctl_send_args *arg)
 
 	INIT_LIST_HEAD(&sctx->new_refs);
 	INIT_LIST_HEAD(&sctx->deleted_refs);
-	xa_init_flags(&sctx->name_cache, GFP_KERNEL);
+	INIT_RADIX_TREE(&sctx->name_cache, GFP_KERNEL);
 	INIT_LIST_HEAD(&sctx->name_cache_list);
 
 	sctx->flags = arg->flags;
