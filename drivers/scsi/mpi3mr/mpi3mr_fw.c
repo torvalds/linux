@@ -3974,6 +3974,11 @@ retry_init:
 		goto out_failed;
 	}
 
+	if (!is_resume) {
+		mrioc->device_refresh_on = 1;
+		mpi3mr_add_event_wait_for_device_refresh(mrioc);
+	}
+
 	ioc_info(mrioc, "sending port enable\n");
 	retval = mpi3mr_issue_port_enable(mrioc, 0);
 	if (retval) {
@@ -4730,6 +4735,7 @@ int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
 	ioc_info(mrioc, "controller reset is triggered by %s\n",
 	    mpi3mr_reset_rc_name(reset_reason));
 
+	mrioc->device_refresh_on = 0;
 	mrioc->reset_in_progress = 1;
 	mrioc->stop_bsgs = 1;
 	mrioc->prev_reset_result = -1;
@@ -4811,7 +4817,8 @@ out:
 			mpi3mr_pel_wait_post(mrioc, &mrioc->pel_cmds);
 		}
 
-		mpi3mr_rfresh_tgtdevs(mrioc);
+		mrioc->device_refresh_on = 0;
+
 		mrioc->ts_update_counter = 0;
 		spin_lock_irqsave(&mrioc->watchdog_lock, flags);
 		if (mrioc->watchdog_work_q)
@@ -4825,6 +4832,7 @@ out:
 	} else {
 		mpi3mr_issue_reset(mrioc,
 		    MPI3_SYSIF_HOST_DIAG_RESET_ACTION_DIAG_FAULT, reset_reason);
+		mrioc->device_refresh_on = 0;
 		mrioc->unrecoverable = 1;
 		mrioc->reset_in_progress = 0;
 		retval = -1;

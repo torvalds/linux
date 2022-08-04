@@ -9,6 +9,9 @@
 
 #include "mpi3mr.h"
 
+static void mpi3mr_expander_node_remove(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_sas_node *sas_expander);
+
 /**
  * mpi3mr_post_transport_req - Issue transport requests and wait
  * @mrioc: Adapter instance reference
@@ -596,6 +599,9 @@ static void mpi3mr_delete_sas_phy(struct mpi3mr_ioc *mrioc,
 
 	list_del(&mr_sas_phy->port_siblings);
 	mr_sas_port->num_phys--;
+	mr_sas_port->phy_mask &= ~(1 << mr_sas_phy->phy_id);
+	if (mr_sas_port->lowest_phy == mr_sas_phy->phy_id)
+		mr_sas_port->lowest_phy = ffs(mr_sas_port->phy_mask) - 1;
 	sas_port_delete_phy(mr_sas_port->port, mr_sas_phy->phy);
 	mr_sas_phy->phy_belongs_to_port = 0;
 }
@@ -620,6 +626,9 @@ static void mpi3mr_add_sas_phy(struct mpi3mr_ioc *mrioc,
 
 	list_add_tail(&mr_sas_phy->port_siblings, &mr_sas_port->phy_list);
 	mr_sas_port->num_phys++;
+	mr_sas_port->phy_mask |= (1 << mr_sas_phy->phy_id);
+	if (mr_sas_phy->phy_id < mr_sas_port->lowest_phy)
+		mr_sas_port->lowest_phy = ffs(mr_sas_port->phy_mask) - 1;
 	sas_port_add_phy(mr_sas_port->port, mr_sas_phy->phy);
 	mr_sas_phy->phy_belongs_to_port = 1;
 }
@@ -1351,6 +1360,7 @@ static struct mpi3mr_sas_port *mpi3mr_sas_port_add(struct mpi3mr_ioc *mrioc,
 		list_add_tail(&mr_sas_node->phy[i].port_siblings,
 		    &mr_sas_port->phy_list);
 		mr_sas_port->num_phys++;
+		mr_sas_port->phy_mask |= (1 << i);
 	}
 
 	if (!mr_sas_port->num_phys) {
@@ -1358,6 +1368,8 @@ static struct mpi3mr_sas_port *mpi3mr_sas_port_add(struct mpi3mr_ioc *mrioc,
 		    __FILE__, __LINE__, __func__);
 		goto out_fail;
 	}
+
+	mr_sas_port->lowest_phy = ffs(mr_sas_port->phy_mask) - 1;
 
 	if (mr_sas_port->remote_identify.device_type == SAS_END_DEVICE) {
 		tgtdev = mpi3mr_get_tgtdev_by_addr(mrioc,
@@ -1558,6 +1570,345 @@ static void mpi3mr_sas_port_remove(struct mpi3mr_ioc *mrioc, u64 sas_address,
 	}
 
 	kfree(mr_sas_port);
+}
+
+/**
+ * struct host_port - host port details
+ * @sas_address: SAS Address of the attached device
+ * @phy_mask: phy mask of host port
+ * @handle: Device Handle of attached device
+ * @iounit_port_id: port ID
+ * @used: host port is already matched with sas port from sas_port_list
+ * @lowest_phy: lowest phy ID of host port
+ */
+struct host_port {
+	u64	sas_address;
+	u32	phy_mask;
+	u16	handle;
+	u8	iounit_port_id;
+	u8	used;
+	u8	lowest_phy;
+};
+
+/**
+ * mpi3mr_update_mr_sas_port - update sas port objects during reset
+ * @mrioc: Adapter instance reference
+ * @h_port: host_port object
+ * @mr_sas_port: sas_port objects which needs to be updated
+ *
+ * Update the port ID of sas port object. Also add the phys if new phys got
+ * added to current sas port and remove the phys if some phys are moved
+ * out of the current sas port.
+ *
+ * Return: Nothing.
+ */
+static void
+mpi3mr_update_mr_sas_port(struct mpi3mr_ioc *mrioc, struct host_port *h_port,
+	struct mpi3mr_sas_port *mr_sas_port)
+{
+	struct mpi3mr_sas_phy *mr_sas_phy;
+	u32 phy_mask_xor;
+	u64 phys_to_be_added, phys_to_be_removed;
+	int i;
+
+	h_port->used = 1;
+	mr_sas_port->marked_responding = 1;
+
+	dev_info(&mr_sas_port->port->dev,
+	    "sas_address(0x%016llx), old: port_id %d phy_mask 0x%x, new: port_id %d phy_mask:0x%x\n",
+	    mr_sas_port->remote_identify.sas_address,
+	    mr_sas_port->hba_port->port_id, mr_sas_port->phy_mask,
+	    h_port->iounit_port_id, h_port->phy_mask);
+
+	mr_sas_port->hba_port->port_id = h_port->iounit_port_id;
+	mr_sas_port->hba_port->flags &= ~MPI3MR_HBA_PORT_FLAG_DIRTY;
+
+	/* Get the newly added phys bit map & removed phys bit map */
+	phy_mask_xor = mr_sas_port->phy_mask ^ h_port->phy_mask;
+	phys_to_be_added = h_port->phy_mask & phy_mask_xor;
+	phys_to_be_removed = mr_sas_port->phy_mask & phy_mask_xor;
+
+	/*
+	 * Register these new phys to current mr_sas_port's port.
+	 * if these phys are previously registered with another port
+	 * then delete these phys from that port first.
+	 */
+	for_each_set_bit(i, (ulong *) &phys_to_be_added, BITS_PER_TYPE(u32)) {
+		mr_sas_phy = &mrioc->sas_hba.phy[i];
+		if (mr_sas_phy->phy_belongs_to_port)
+			mpi3mr_del_phy_from_an_existing_port(mrioc,
+			    &mrioc->sas_hba, mr_sas_phy);
+		mpi3mr_add_phy_to_an_existing_port(mrioc,
+		    &mrioc->sas_hba, mr_sas_phy,
+		    mr_sas_port->remote_identify.sas_address,
+		    mr_sas_port->hba_port);
+	}
+
+	/* Delete the phys which are not part of current mr_sas_port's port. */
+	for_each_set_bit(i, (ulong *) &phys_to_be_removed, BITS_PER_TYPE(u32)) {
+		mr_sas_phy = &mrioc->sas_hba.phy[i];
+		if (mr_sas_phy->phy_belongs_to_port)
+			mpi3mr_del_phy_from_an_existing_port(mrioc,
+			    &mrioc->sas_hba, mr_sas_phy);
+	}
+}
+
+/**
+ * mpi3mr_refresh_sas_ports - update host's sas ports during reset
+ * @mrioc: Adapter instance reference
+ *
+ * Update the host's sas ports during reset by checking whether
+ * sas ports are still intact or not. Add/remove phys if any hba
+ * phys are (moved in)/(moved out) of sas port. Also update
+ * io_unit_port if it got changed during reset.
+ *
+ * Return: Nothing.
+ */
+void
+mpi3mr_refresh_sas_ports(struct mpi3mr_ioc *mrioc)
+{
+	struct host_port h_port[32];
+	int i, j, found, host_port_count = 0, port_idx;
+	u16 sz, attached_handle, ioc_status;
+	struct mpi3_sas_io_unit_page0 *sas_io_unit_pg0 = NULL;
+	struct mpi3_device_page0 dev_pg0;
+	struct mpi3_device0_sas_sata_format *sasinf;
+	struct mpi3mr_sas_port *mr_sas_port;
+
+	sz = offsetof(struct mpi3_sas_io_unit_page0, phy_data) +
+		(mrioc->sas_hba.num_phys *
+		 sizeof(struct mpi3_sas_io_unit0_phy_data));
+	sas_io_unit_pg0 = kzalloc(sz, GFP_KERNEL);
+	if (!sas_io_unit_pg0)
+		return;
+	if (mpi3mr_cfg_get_sas_io_unit_pg0(mrioc, sas_io_unit_pg0, sz)) {
+		ioc_err(mrioc, "failure at %s:%d/%s()!\n",
+		    __FILE__, __LINE__, __func__);
+		goto out;
+	}
+
+	/* Create a new expander port table */
+	for (i = 0; i < mrioc->sas_hba.num_phys; i++) {
+		attached_handle = le16_to_cpu(
+		    sas_io_unit_pg0->phy_data[i].attached_dev_handle);
+		if (!attached_handle)
+			continue;
+		found = 0;
+		for (j = 0; j < host_port_count; j++) {
+			if (h_port[j].handle == attached_handle) {
+				h_port[j].phy_mask |= (1 << i);
+				found = 1;
+				break;
+			}
+		}
+		if (found)
+			continue;
+		if ((mpi3mr_cfg_get_dev_pg0(mrioc, &ioc_status, &dev_pg0,
+		    sizeof(dev_pg0), MPI3_DEVICE_PGAD_FORM_HANDLE,
+		    attached_handle))) {
+			dprint_reset(mrioc,
+			    "failed to read dev_pg0 for handle(0x%04x) at %s:%d/%s()!\n",
+			    attached_handle, __FILE__, __LINE__, __func__);
+			continue;
+		}
+		if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+			dprint_reset(mrioc,
+			    "ioc_status(0x%x) while reading dev_pg0 for handle(0x%04x) at %s:%d/%s()!\n",
+			    ioc_status, attached_handle,
+			    __FILE__, __LINE__, __func__);
+			continue;
+		}
+		sasinf = &dev_pg0.device_specific.sas_sata_format;
+
+		port_idx = host_port_count;
+		h_port[port_idx].sas_address = le64_to_cpu(sasinf->sas_address);
+		h_port[port_idx].handle = attached_handle;
+		h_port[port_idx].phy_mask = (1 << i);
+		h_port[port_idx].iounit_port_id = sas_io_unit_pg0->phy_data[i].io_unit_port;
+		h_port[port_idx].lowest_phy = sasinf->phy_num;
+		h_port[port_idx].used = 0;
+		host_port_count++;
+	}
+
+	if (!host_port_count)
+		goto out;
+
+	if (mrioc->logging_level & MPI3_DEBUG_RESET) {
+		ioc_info(mrioc, "Host port details before reset\n");
+		list_for_each_entry(mr_sas_port, &mrioc->sas_hba.sas_port_list,
+		    port_list) {
+			ioc_info(mrioc,
+			    "port_id:%d, sas_address:(0x%016llx), phy_mask:(0x%x), lowest phy id:%d\n",
+			    mr_sas_port->hba_port->port_id,
+			    mr_sas_port->remote_identify.sas_address,
+			    mr_sas_port->phy_mask, mr_sas_port->lowest_phy);
+		}
+		mr_sas_port = NULL;
+		ioc_info(mrioc, "Host port details after reset\n");
+		for (i = 0; i < host_port_count; i++) {
+			ioc_info(mrioc,
+			    "port_id:%d, sas_address:(0x%016llx), phy_mask:(0x%x), lowest phy id:%d\n",
+			    h_port[i].iounit_port_id, h_port[i].sas_address,
+			    h_port[i].phy_mask, h_port[i].lowest_phy);
+		}
+	}
+
+	/* mark all host sas port entries as dirty */
+	list_for_each_entry(mr_sas_port, &mrioc->sas_hba.sas_port_list,
+	    port_list) {
+		mr_sas_port->marked_responding = 0;
+		mr_sas_port->hba_port->flags |= MPI3MR_HBA_PORT_FLAG_DIRTY;
+	}
+
+	/* First check for matching lowest phy */
+	for (i = 0; i < host_port_count; i++) {
+		mr_sas_port = NULL;
+		list_for_each_entry(mr_sas_port, &mrioc->sas_hba.sas_port_list,
+		    port_list) {
+			if (mr_sas_port->marked_responding)
+				continue;
+			if (h_port[i].sas_address != mr_sas_port->remote_identify.sas_address)
+				continue;
+			if (h_port[i].lowest_phy == mr_sas_port->lowest_phy) {
+				mpi3mr_update_mr_sas_port(mrioc, &h_port[i], mr_sas_port);
+				break;
+			}
+		}
+	}
+
+	/* In case if lowest phy is got enabled or disabled during reset */
+	for (i = 0; i < host_port_count; i++) {
+		if (h_port[i].used)
+			continue;
+		mr_sas_port = NULL;
+		list_for_each_entry(mr_sas_port, &mrioc->sas_hba.sas_port_list,
+		    port_list) {
+			if (mr_sas_port->marked_responding)
+				continue;
+			if (h_port[i].sas_address != mr_sas_port->remote_identify.sas_address)
+				continue;
+			if (h_port[i].phy_mask & mr_sas_port->phy_mask) {
+				mpi3mr_update_mr_sas_port(mrioc, &h_port[i], mr_sas_port);
+				break;
+			}
+		}
+	}
+
+	/* In case if expander cable is removed & connected to another HBA port during reset */
+	for (i = 0; i < host_port_count; i++) {
+		if (h_port[i].used)
+			continue;
+		mr_sas_port = NULL;
+		list_for_each_entry(mr_sas_port, &mrioc->sas_hba.sas_port_list,
+		    port_list) {
+			if (mr_sas_port->marked_responding)
+				continue;
+			if (h_port[i].sas_address != mr_sas_port->remote_identify.sas_address)
+				continue;
+			mpi3mr_update_mr_sas_port(mrioc, &h_port[i], mr_sas_port);
+			break;
+		}
+	}
+out:
+	kfree(sas_io_unit_pg0);
+}
+
+/**
+ * mpi3mr_refresh_expanders - Refresh expander device exposure
+ * @mrioc: Adapter instance reference
+ *
+ * This is executed post controller reset to identify any
+ * missing expander devices during reset and remove from the upper layers
+ * or expose any newly detected expander device to the upper layers.
+ *
+ * Return: Nothing.
+ */
+void
+mpi3mr_refresh_expanders(struct mpi3mr_ioc *mrioc)
+{
+	struct mpi3mr_sas_node *sas_expander, *sas_expander_next;
+	struct mpi3_sas_expander_page0 expander_pg0;
+	u16 ioc_status, handle;
+	u64 sas_address;
+	int i;
+	unsigned long flags;
+	struct mpi3mr_hba_port *hba_port;
+
+	spin_lock_irqsave(&mrioc->sas_node_lock, flags);
+	list_for_each_entry(sas_expander, &mrioc->sas_expander_list, list) {
+		sas_expander->non_responding = 1;
+	}
+	spin_unlock_irqrestore(&mrioc->sas_node_lock, flags);
+
+	sas_expander = NULL;
+
+	handle = 0xffff;
+
+	/* Search for responding expander devices and add them if they are newly got added */
+	while (true) {
+		if ((mpi3mr_cfg_get_sas_exp_pg0(mrioc, &ioc_status, &expander_pg0,
+		    sizeof(struct mpi3_sas_expander_page0),
+		    MPI3_SAS_EXPAND_PGAD_FORM_GET_NEXT_HANDLE, handle))) {
+			dprint_reset(mrioc,
+			    "failed to read exp pg0 for handle(0x%04x) at %s:%d/%s()!\n",
+			    handle, __FILE__, __LINE__, __func__);
+			break;
+		}
+
+		if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+			dprint_reset(mrioc,
+			   "ioc_status(0x%x) while reading exp pg0 for handle:(0x%04x), %s:%d/%s()!\n",
+			   ioc_status, handle, __FILE__, __LINE__, __func__);
+			break;
+		}
+
+		handle = le16_to_cpu(expander_pg0.dev_handle);
+		sas_address = le64_to_cpu(expander_pg0.sas_address);
+		hba_port = mpi3mr_get_hba_port_by_id(mrioc, expander_pg0.io_unit_port);
+
+		if (!hba_port) {
+			mpi3mr_sas_host_refresh(mrioc);
+			mpi3mr_expander_add(mrioc, handle);
+			continue;
+		}
+
+		spin_lock_irqsave(&mrioc->sas_node_lock, flags);
+		sas_expander =
+		    mpi3mr_expander_find_by_sas_address(mrioc,
+		    sas_address, hba_port);
+		spin_unlock_irqrestore(&mrioc->sas_node_lock, flags);
+
+		if (!sas_expander) {
+			mpi3mr_sas_host_refresh(mrioc);
+			mpi3mr_expander_add(mrioc, handle);
+			continue;
+		}
+
+		sas_expander->non_responding = 0;
+		if (sas_expander->handle == handle)
+			continue;
+
+		sas_expander->handle = handle;
+		for (i = 0 ; i < sas_expander->num_phys ; i++)
+			sas_expander->phy[i].handle = handle;
+	}
+
+	/*
+	 * Delete non responding expander devices and the corresponding
+	 * hba_port if the non responding expander device's parent device
+	 * is a host node.
+	 */
+	sas_expander = NULL;
+	spin_lock_irqsave(&mrioc->sas_node_lock, flags);
+	list_for_each_entry_safe_reverse(sas_expander, sas_expander_next,
+	    &mrioc->sas_expander_list, list) {
+		if (sas_expander->non_responding) {
+			spin_unlock_irqrestore(&mrioc->sas_node_lock, flags);
+			mpi3mr_expander_node_remove(mrioc, sas_expander);
+			spin_lock_irqsave(&mrioc->sas_node_lock, flags);
+		}
+	}
+	spin_unlock_irqrestore(&mrioc->sas_node_lock, flags);
 }
 
 /**

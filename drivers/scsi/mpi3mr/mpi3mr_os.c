@@ -40,6 +40,8 @@ static void mpi3mr_send_event_ack(struct mpi3mr_ioc *mrioc, u8 event,
 
 #define MPI3MR_DRIVER_EVENT_TG_QD_REDUCTION	(0xFFFF)
 
+#define MPI3_EVENT_WAIT_FOR_DEVICES_TO_REFRESH	(0xFFFE)
+
 /**
  * mpi3mr_host_tag_for_scmd - Get host tag for a scmd
  * @mrioc: Adapter instance reference
@@ -1106,6 +1108,9 @@ static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
 		    MPI3_DEVICE0_FLAGS_ATT_METHOD_VIRTUAL)) ||
 		    (tgtdev->parent_handle == 0xFFFF))
 			tgtdev->non_stl = 1;
+		if (tgtdev->dev_spec.sas_sata_inf.hba_port)
+			tgtdev->dev_spec.sas_sata_inf.hba_port->port_id =
+			    dev_pg0->io_unit_port;
 		break;
 	}
 	case MPI3_DEVICE_DEVFORM_PCIE:
@@ -1879,6 +1884,22 @@ static void mpi3mr_fwevt_bh(struct mpi3mr_ioc *mrioc,
 		}
 		break;
 	}
+	case MPI3_EVENT_WAIT_FOR_DEVICES_TO_REFRESH:
+	{
+		while (mrioc->device_refresh_on)
+			msleep(500);
+
+		dprint_event_bh(mrioc,
+		    "scan for non responding and newly added devices after soft reset started\n");
+		if (mrioc->sas_transport_enabled) {
+			mpi3mr_refresh_sas_ports(mrioc);
+			mpi3mr_refresh_expanders(mrioc);
+		}
+		mpi3mr_rfresh_tgtdevs(mrioc);
+		ioc_info(mrioc,
+		    "scan for non responding and newly added devices after soft reset completed\n");
+		break;
+	}
 	default:
 		break;
 	}
@@ -2646,6 +2667,35 @@ static void mpi3mr_cablemgmt_evt_th(struct mpi3mr_ioc *mrioc,
 	default:
 		break;
 	}
+}
+
+/**
+ * mpi3mr_add_event_wait_for_device_refresh - Add Wait for Device Refresh Event
+ * @mrioc: Adapter instance reference
+ *
+ * Add driver specific event to make sure that the driver won't process the
+ * events until all the devices are refreshed during soft reset.
+ *
+ * Return: Nothing
+ */
+void mpi3mr_add_event_wait_for_device_refresh(struct mpi3mr_ioc *mrioc)
+{
+	struct mpi3mr_fwevt *fwevt = NULL;
+
+	fwevt = mpi3mr_alloc_fwevt(0);
+	if (!fwevt) {
+		dprint_event_th(mrioc,
+		    "failed to schedule bottom half handler for event(0x%02x)\n",
+		    MPI3_EVENT_WAIT_FOR_DEVICES_TO_REFRESH);
+		return;
+	}
+	fwevt->mrioc = mrioc;
+	fwevt->event_id = MPI3_EVENT_WAIT_FOR_DEVICES_TO_REFRESH;
+	fwevt->send_ack = 0;
+	fwevt->process_evt = 1;
+	fwevt->evt_ctx = 0;
+	fwevt->event_data_size = 0;
+	mpi3mr_fwevt_add_to_list(mrioc, fwevt);
 }
 
 /**

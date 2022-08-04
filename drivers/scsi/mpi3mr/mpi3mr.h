@@ -482,6 +482,9 @@ struct mpi3mr_hba_port {
  * struct mpi3mr_sas_port - Internal SAS port information
  * @port_list: List of ports belonging to a SAS node
  * @num_phys: Number of phys associated with port
+ * @marked_responding: used while refresing the sas ports
+ * @lowest_phy: lowest phy ID of current sas port
+ * @phy_mask: phy_mask of current sas port
  * @hba_port: HBA port entry
  * @remote_identify: Attached device identification
  * @rphy: SAS transport layer rphy object
@@ -491,6 +494,9 @@ struct mpi3mr_hba_port {
 struct mpi3mr_sas_port {
 	struct list_head port_list;
 	u8 num_phys;
+	u8 marked_responding;
+	int lowest_phy;
+	u32 phy_mask;
 	struct mpi3mr_hba_port *hba_port;
 	struct sas_identify remote_identify;
 	struct sas_rphy *rphy;
@@ -939,6 +945,7 @@ struct scmd_priv {
  * @scan_started: Async scan started
  * @scan_failed: Asycn scan failed
  * @stop_drv_processing: Stop all command processing
+ * @device_refresh_on: Don't process the events until devices are refreshed
  * @max_host_ios: Maximum host I/O count
  * @chain_buf_count: Chain buffer count
  * @chain_buf_pool: Chain buffer pool
@@ -1107,6 +1114,7 @@ struct mpi3mr_ioc {
 	u8 scan_started;
 	u16 scan_failed;
 	u8 stop_drv_processing;
+	u8 device_refresh_on;
 
 	u16 max_host_ios;
 	spinlock_t tgtdev_lock;
@@ -1378,4 +1386,7 @@ struct mpi3mr_tgt_dev *__mpi3mr_get_tgtdev_by_addr_and_rphy(
 	struct mpi3mr_ioc *mrioc, u64 sas_address, struct sas_rphy *rphy);
 void mpi3mr_print_device_event_notice(struct mpi3mr_ioc *mrioc,
 	bool device_add);
+void mpi3mr_refresh_sas_ports(struct mpi3mr_ioc *mrioc);
+void mpi3mr_refresh_expanders(struct mpi3mr_ioc *mrioc);
+void mpi3mr_add_event_wait_for_device_refresh(struct mpi3mr_ioc *mrioc);
 #endif /*MPI3MR_H_INCLUDED*/
