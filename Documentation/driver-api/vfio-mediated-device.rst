@@ -1,3 +1,4 @@
+.. SPDX-License-Identifier: GPL-2.0-only
 .. include:: <isonum.txt>
 
 =====================
@@ -8,9 +9,6 @@ VFIO Mediated devices
 :Author: Neo Jia <cjia@nvidia.com>
 :Author: Kirti Wankhede <kwankhede@nvidia.com>
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License version 2 as
-published by the Free Software Foundation.
 
 
 Virtual Function I/O (VFIO) Mediated devices[1]
