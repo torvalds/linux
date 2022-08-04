@@ -85,6 +85,8 @@ torture_param(bool, fwd_progress_need_resched, 1, "Hide cond_resched() behind ne
 torture_param(bool, gp_cond, false, "Use conditional/async GP wait primitives");
 torture_param(bool, gp_cond_exp, false, "Use conditional/async expedited GP wait primitives");
 torture_param(bool, gp_cond_full, false, "Use conditional/async full-state GP wait primitives");
+torture_param(bool, gp_cond_exp_full, false,
+		    "Use conditional/async full-stateexpedited GP wait primitives");
 torture_param(bool, gp_exp, false, "Use expedited GP wait primitives");
 torture_param(bool, gp_normal, false, "Use normal (non-expedited) GP wait primitives");
 torture_param(bool, gp_poll, false, "Use polling GP wait primitives");
@@ -199,20 +201,22 @@ static int rcu_torture_writer_state;
 #define RTWS_COND_GET		5
 #define RTWS_COND_GET_FULL	6
 #define RTWS_COND_GET_EXP	7
-#define RTWS_COND_SYNC		8
-#define RTWS_COND_SYNC_FULL	9
-#define RTWS_COND_SYNC_EXP	10
-#define RTWS_POLL_GET		11
-#define RTWS_POLL_GET_FULL	12
-#define RTWS_POLL_GET_EXP	13
-#define RTWS_POLL_GET_EXP_FULL	14
-#define RTWS_POLL_WAIT		15
-#define RTWS_POLL_WAIT_FULL	16
-#define RTWS_POLL_WAIT_EXP	17
-#define RTWS_POLL_WAIT_EXP_FULL	18
-#define RTWS_SYNC		19
-#define RTWS_STUTTER		20
-#define RTWS_STOPPING		21
+#define RTWS_COND_GET_EXP_FULL	8
+#define RTWS_COND_SYNC		9
+#define RTWS_COND_SYNC_FULL	10
+#define RTWS_COND_SYNC_EXP	11
+#define RTWS_COND_SYNC_EXP_FULL	12
+#define RTWS_POLL_GET		13
+#define RTWS_POLL_GET_FULL	14
+#define RTWS_POLL_GET_EXP	15
+#define RTWS_POLL_GET_EXP_FULL	16
+#define RTWS_POLL_WAIT		17
+#define RTWS_POLL_WAIT_FULL	18
+#define RTWS_POLL_WAIT_EXP	19
+#define RTWS_POLL_WAIT_EXP_FULL	20
+#define RTWS_SYNC		21
+#define RTWS_STUTTER		22
+#define RTWS_STOPPING		23
 static const char * const rcu_torture_writer_state_names[] = {
 	"RTWS_FIXED_DELAY",
 	"RTWS_DELAY",
@@ -222,9 +226,11 @@ static const char * const rcu_torture_writer_state_names[] = {
 	"RTWS_COND_GET",
 	"RTWS_COND_GET_FULL",
 	"RTWS_COND_GET_EXP",
+	"RTWS_COND_GET_EXP_FULL",
 	"RTWS_COND_SYNC",
 	"RTWS_COND_SYNC_FULL",
 	"RTWS_COND_SYNC_EXP",
+	"RTWS_COND_SYNC_EXP_FULL",
 	"RTWS_POLL_GET",
 	"RTWS_POLL_GET_FULL",
 	"RTWS_POLL_GET_EXP",
@@ -350,6 +356,7 @@ struct rcu_torture_ops {
 	void (*start_gp_poll_exp_full)(struct rcu_gp_oldstate *rgosp);
 	bool (*poll_gp_state_exp)(unsigned long oldstate);
 	void (*cond_sync_exp)(unsigned long oldstate);
+	void (*cond_sync_exp_full)(struct rcu_gp_oldstate *rgosp);
 	unsigned long (*get_gp_state)(void);
 	void (*get_gp_state_full)(struct rcu_gp_oldstate *rgosp);
 	unsigned long (*get_gp_completed)(void);
@@ -1183,16 +1190,17 @@ static int nsynctypes;
 static void rcu_torture_write_types(void)
 {
 	bool gp_cond1 = gp_cond, gp_cond_exp1 = gp_cond_exp, gp_cond_full1 = gp_cond_full;
-	bool gp_exp1 = gp_exp, gp_poll_exp1 = gp_poll_exp, gp_poll_exp_full1 = gp_poll_exp_full;
-	bool gp_normal1 = gp_normal, gp_poll1 = gp_poll, gp_poll_full1 = gp_poll_full;
-	bool gp_sync1 = gp_sync;
+	bool gp_cond_exp_full1 = gp_cond_exp_full, gp_exp1 = gp_exp, gp_poll_exp1 = gp_poll_exp;
+	bool gp_poll_exp_full1 = gp_poll_exp_full, gp_normal1 = gp_normal, gp_poll1 = gp_poll;
+	bool gp_poll_full1 = gp_poll_full, gp_sync1 = gp_sync;
 
 	/* Initialize synctype[] array.  If none set, take default. */
-	if (!gp_cond1 && !gp_cond_exp1 && !gp_cond_full1 && !gp_exp1 && !gp_poll_exp &&
-	    !gp_poll_exp_full1 && !gp_normal1 && !gp_poll1 && !gp_poll_full1 && !gp_sync1)
-		gp_cond1 = gp_cond_exp1 = gp_cond_full1 = gp_exp1 = gp_poll_exp1 =
-			   gp_poll_exp_full1 = gp_normal1 = gp_poll1 = gp_poll_full1 =
-			   gp_sync1 = true;
+	if (!gp_cond1 && !gp_cond_exp1 && !gp_cond_full1 && !gp_cond_exp_full1 && !gp_exp1 &&
+	    !gp_poll_exp && !gp_poll_exp_full1 && !gp_normal1 && !gp_poll1 && !gp_poll_full1 &&
+	    !gp_sync1)
+		gp_cond1 = gp_cond_exp1 = gp_cond_full1 = gp_cond_exp_full1 = gp_exp1 =
+			   gp_poll_exp1 = gp_poll_exp_full1 = gp_normal1 = gp_poll1 =
+			   gp_poll_full1 = gp_sync1 = true;
 	if (gp_cond1 && cur_ops->get_gp_state && cur_ops->cond_sync) {
 		synctype[nsynctypes++] = RTWS_COND_GET;
 		pr_info("%s: Testing conditional GPs.\n", __func__);
@@ -1210,6 +1218,13 @@ static void rcu_torture_write_types(void)
 		pr_info("%s: Testing conditional full-state GPs.\n", __func__);
 	} else if (gp_cond_full && (!cur_ops->get_gp_state || !cur_ops->cond_sync_full)) {
 		pr_alert("%s: gp_cond_full without primitives.\n", __func__);
+	}
+	if (gp_cond_exp_full1 && cur_ops->get_gp_state_exp && cur_ops->cond_sync_exp_full) {
+		synctype[nsynctypes++] = RTWS_COND_GET_EXP_FULL;
+		pr_info("%s: Testing conditional full-state expedited GPs.\n", __func__);
+	} else if (gp_cond_exp_full &&
+		   (!cur_ops->get_gp_state_exp || !cur_ops->cond_sync_exp_full)) {
+		pr_alert("%s: gp_cond_exp_full without primitives.\n", __func__);
 	}
 	if (gp_exp1 && cur_ops->exp_sync) {
 		synctype[nsynctypes++] = RTWS_EXP_SYNC;
@@ -1418,6 +1433,14 @@ rcu_torture_writer(void *arg)
 				cur_ops->cond_sync_full(&gp_snap_full);
 				rcu_torture_pipe_update(old_rp);
 				break;
+			case RTWS_COND_GET_EXP_FULL:
+				rcu_torture_writer_state = RTWS_COND_GET_EXP_FULL;
+				cur_ops->get_gp_state_full(&gp_snap_full);
+				torture_hrtimeout_jiffies(torture_random(&rand) % 16, &rand);
+				rcu_torture_writer_state = RTWS_COND_SYNC_EXP_FULL;
+				cur_ops->cond_sync_exp_full(&gp_snap_full);
+				rcu_torture_pipe_update(old_rp);
+				break;
 			case RTWS_POLL_GET:
 				rcu_torture_writer_state = RTWS_POLL_GET;
 				gp_snap = cur_ops->start_gp_poll();
@@ -1566,6 +1589,11 @@ rcu_torture_fakewriter(void *arg)
 				cur_ops->get_gp_state_full(&gp_snap_full);
 				torture_hrtimeout_jiffies(torture_random(&rand) % 16, &rand);
 				cur_ops->cond_sync_full(&gp_snap_full);
+				break;
+			case RTWS_COND_GET_EXP_FULL:
+				cur_ops->get_gp_state_full(&gp_snap_full);
+				torture_hrtimeout_jiffies(torture_random(&rand) % 16, &rand);
+				cur_ops->cond_sync_exp_full(&gp_snap_full);
 				break;
 			case RTWS_POLL_GET:
 				gp_snap = cur_ops->start_gp_poll();

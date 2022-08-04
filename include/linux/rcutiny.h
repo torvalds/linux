@@ -64,6 +64,11 @@ static inline void cond_synchronize_rcu_expedited(unsigned long oldstate)
 	cond_synchronize_rcu(oldstate);
 }
 
+static inline void cond_synchronize_rcu_expedited_full(struct rcu_gp_oldstate *rgosp)
+{
+	cond_synchronize_rcu_expedited(rgosp->rgos_norm);
+}
+
 extern void rcu_barrier(void);
 
 static inline void synchronize_rcu_expedited(void)
