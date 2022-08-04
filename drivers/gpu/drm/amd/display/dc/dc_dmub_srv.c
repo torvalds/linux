@@ -29,6 +29,7 @@
 #include "dm_helpers.h"
 #include "dc_hw_types.h"
 #include "core_types.h"
+#include "../basics/conversion.h"
 
 #define CTX dc_dmub_srv->ctx
 #define DC_LOGGER CTX->logger
@@ -600,6 +601,7 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 			&cmd->fw_assisted_mclk_switch_v2.config_data.pipe_data[cmd_pipe_index];
 	struct dc_crtc_timing *main_timing = &subvp_pipe->stream->timing;
 	struct dc_crtc_timing *phantom_timing = &subvp_pipe->stream->mall_stream_config.paired_stream->timing;
+	uint32_t out_num, out_den;
 
 	pipe_data->mode = SUBVP;
 	pipe_data->pipe_config.subvp_data.pix_clk_100hz = subvp_pipe->stream->timing.pix_clk_100hz;
@@ -612,6 +614,15 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 	pipe_data->pipe_config.subvp_data.mall_region_lines = phantom_timing->v_addressable;
 	pipe_data->pipe_config.subvp_data.main_pipe_index = subvp_pipe->pipe_idx;
 	pipe_data->pipe_config.subvp_data.is_drr = subvp_pipe->stream->ignore_msa_timing_param;
+
+	/* Calculate the scaling factor from the src and dst height.
+	 * e.g. If 3840x2160 being downscaled to 1920x1080, the scaling factor is 1/2.
+	 * Reduce the fraction 1080/2160 = 1/2 for the "scaling factor"
+	 */
+	reduce_fraction(subvp_pipe->stream->src.height, subvp_pipe->stream->dst.height, &out_num, &out_den);
+	// TODO: Uncomment below lines once DMCUB include headers are promoted
+	//pipe_data->pipe_config.subvp_data.scale_factor_numerator = out_num;
+	//pipe_data->pipe_config.subvp_data.scale_factor_denominator = out_den;
 
 	// Prefetch lines is equal to VACTIVE + BP + VSYNC
 	pipe_data->pipe_config.subvp_data.prefetch_lines =
