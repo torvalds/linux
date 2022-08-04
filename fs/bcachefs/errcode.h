@@ -22,6 +22,7 @@
 	x(transaction_restart,	transaction_restart_would_deadlock)	\
 	x(transaction_restart,	transaction_restart_would_deadlock_write)\
 	x(transaction_restart,	transaction_restart_upgrade)		\
+	x(transaction_restart,	transaction_restart_key_cache_upgrade)	\
 	x(transaction_restart,	transaction_restart_key_cache_fill)	\
 	x(transaction_restart,	transaction_restart_key_cache_raced)	\
 	x(transaction_restart,	transaction_restart_key_cache_realloced)\

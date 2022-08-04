@@ -417,7 +417,7 @@ fill:
 		if (!path->locks_want &&
 		    !__bch2_btree_path_upgrade(trans, path, 1)) {
 			trace_transaction_restart_ip(trans->fn, _THIS_IP_);
-			ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_upgrade);
+			ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_upgrade);
 			goto err;
 		}
 
