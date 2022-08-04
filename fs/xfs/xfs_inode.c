@@ -2754,7 +2754,7 @@ xfs_iunpin(
 	trace_xfs_inode_unpin_nowait(ip, _RET_IP_);
 
 	/* Give the log a push to start the unpinning I/O */
-	xfs_log_force_lsn(ip->i_mount, ip->i_itemp->ili_last_lsn, 0, NULL);
+	xfs_log_force_seq(ip->i_mount, ip->i_itemp->ili_commit_seq, 0, NULL);
 
 }
 
@@ -3716,16 +3716,16 @@ int
 xfs_log_force_inode(
 	struct xfs_inode	*ip)
 {
-	xfs_lsn_t		lsn = 0;
+	xfs_csn_t		seq = 0;
 
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 	if (xfs_ipincount(ip))
-		lsn = ip->i_itemp->ili_last_lsn;
+		seq = ip->i_itemp->ili_commit_seq;
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
-	if (!lsn)
+	if (!seq)
 		return 0;
-	return xfs_log_force_lsn(ip->i_mount, lsn, XFS_LOG_SYNC, NULL);
+	return xfs_log_force_seq(ip->i_mount, seq, XFS_LOG_SYNC, NULL);
 }
 
 /*

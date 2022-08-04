@@ -617,9 +617,9 @@ xfs_inode_item_committed(
 STATIC void
 xfs_inode_item_committing(
 	struct xfs_log_item	*lip,
-	xfs_lsn_t		commit_lsn)
+	xfs_csn_t		seq)
 {
-	INODE_ITEM(lip)->ili_last_lsn = commit_lsn;
+	INODE_ITEM(lip)->ili_commit_seq = seq;
 	return xfs_inode_item_release(lip);
 }
 
