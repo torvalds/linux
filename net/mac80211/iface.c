@@ -406,9 +406,11 @@ static void ieee80211_link_init(struct ieee80211_sub_if_data *sdata,
 		case NL80211_IFTYPE_AP:
 			ether_addr_copy(link_conf->addr,
 					sdata->wdev.links[link_id].addr);
+			link_conf->bssid = link_conf->addr;
 			WARN_ON(!(sdata->wdev.valid_links & BIT(link_id)));
 			break;
 		case NL80211_IFTYPE_STATION:
+			/* station sets the bssid in ieee80211_mgd_setup_link */
 			break;
 		default:
 			WARN_ON(1);
