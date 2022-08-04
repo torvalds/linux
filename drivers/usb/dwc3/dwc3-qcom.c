@@ -310,8 +310,11 @@ static enum usb_device_speed dwc3_qcom_read_usb2_speed(struct dwc3_qcom *qcom)
 	 * currently supports only 1 port per controller. So
 	 * this is sufficient.
 	 */
+#ifdef CONFIG_USB
 	udev = usb_hub_find_child(hcd->self.root_hub, 1);
-
+#else
+	udev = NULL;
+#endif
 	if (!udev)
 		return USB_SPEED_UNKNOWN;
 
