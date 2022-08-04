@@ -97,6 +97,7 @@ extern atomic64_t event_counter;
 #define MPI3MR_HOSTTAG_PEL_ABORT	3
 #define MPI3MR_HOSTTAG_PEL_WAIT		4
 #define MPI3MR_HOSTTAG_BLK_TMS		5
+#define MPI3MR_HOSTTAG_CFG_CMDS		6
 
 #define MPI3MR_NUM_DEVRMCMD		16
 #define MPI3MR_HOSTTAG_DEVRMCMD_MIN	(MPI3MR_HOSTTAG_BLK_TMS + 1)
@@ -125,6 +126,8 @@ extern atomic64_t event_counter;
 #define MPI3MR_RESET_ACK_TIMEOUT		30
 
 #define MPI3MR_WATCHDOG_INTERVAL		1000 /* in milli seconds */
+
+#define MPI3MR_DEFAULT_CFG_PAGE_SZ		1024 /* in bytes */
 
 #define MPI3MR_SCMD_TIMEOUT    (60 * HZ)
 #define MPI3MR_EH_SCMD_TIMEOUT (60 * HZ)
@@ -274,6 +277,7 @@ enum mpi3mr_reset_reason {
 	MPI3MR_RESET_FROM_SYSFS = 23,
 	MPI3MR_RESET_FROM_SYSFS_TIMEOUT = 24,
 	MPI3MR_RESET_FROM_FIRMWARE = 27,
+	MPI3MR_RESET_FROM_CFG_REQ_TIMEOUT = 29,
 };
 
 /* Queue type definitions */
@@ -679,6 +683,21 @@ struct mpi3mr_drv_cmd {
 	    struct mpi3mr_drv_cmd *drv_cmd);
 };
 
+/**
+ * struct dma_memory_desc - memory descriptor structure to store
+ * virtual address, dma address and size for any generic dma
+ * memory allocations in the driver.
+ *
+ * @size: buffer size
+ * @addr: virtual address
+ * @dma_addr: dma address
+ */
+struct dma_memory_desc {
+	u32 size;
+	void *addr;
+	dma_addr_t dma_addr;
+};
+
 
 /**
  * struct chain_element - memory descriptor structure to store
@@ -756,6 +775,7 @@ struct scmd_priv {
  * @num_op_reply_q: Number of operational reply queues
  * @op_reply_qinfo: Operational reply queue info pointer
  * @init_cmds: Command tracker for initialization commands
+ * @cfg_cmds: Command tracker for configuration requests
  * @facts: Cached IOC facts data
  * @op_reply_desc_sz: Operational reply descriptor size
  * @num_reply_bufs: Number of reply buffers allocated
@@ -854,6 +874,9 @@ struct scmd_priv {
  * @io_throttle_low: I/O size to stop throttle in 512b blocks
  * @num_io_throttle_group: Maximum number of throttle groups
  * @throttle_groups: Pointer to throttle group info structures
+ * @cfg_page: Default memory for configuration pages
+ * @cfg_page_dma: Configuration page DMA address
+ * @cfg_page_sz: Default configuration page memory size
  */
 struct mpi3mr_ioc {
 	struct list_head list;
@@ -904,6 +927,7 @@ struct mpi3mr_ioc {
 	struct op_reply_qinfo *op_reply_qinfo;
 
 	struct mpi3mr_drv_cmd init_cmds;
+	struct mpi3mr_drv_cmd cfg_cmds;
 	struct mpi3mr_ioc_facts facts;
 	u16 op_reply_desc_sz;
 
@@ -1025,6 +1049,10 @@ struct mpi3mr_ioc {
 	u32 io_throttle_low;
 	u16 num_io_throttle_group;
 	struct mpi3mr_throttle_group_info *throttle_groups;
+
+	void *cfg_page;
+	dma_addr_t cfg_page_dma;
+	u16 cfg_page_sz;
 };
 
 /**
