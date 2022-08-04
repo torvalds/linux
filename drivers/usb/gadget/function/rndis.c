@@ -1105,7 +1105,7 @@ static int rndis_proc_show(struct seq_file *m, void *v)
 			 "used      : %s\n"
 			 "state     : %s\n"
 			 "medium    : 0x%08X\n"
-			 "speed     : %d\n"
+			 "speed     : %u\n"
 			 "cable     : %s\n"
 			 "vendor ID : 0x%08X\n"
 			 "vendor    : %s\n",
