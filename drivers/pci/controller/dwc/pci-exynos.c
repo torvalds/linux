@@ -258,9 +258,8 @@ static int exynos_pcie_host_init(struct dw_pcie_rp *pp)
 
 	exynos_pcie_assert_core_reset(ep);
 
-	phy_reset(ep->phy);
-	phy_power_on(ep->phy);
 	phy_init(ep->phy);
+	phy_power_on(ep->phy);
 
 	exynos_pcie_deassert_core_reset(ep);
 	exynos_pcie_enable_irq_pulse(ep);
