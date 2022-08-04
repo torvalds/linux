@@ -2798,6 +2798,7 @@ err_free_mutex:
 	cancel_delayed_work(&state->delayed_work_enable_hpd);
 	mutex_destroy(&state->page_lock);
 	mutex_destroy(&state->lock);
+	tda1997x_set_power(state, 0);
 err_free_state:
 	kfree(state);
 	dev_err(&client->dev, "%s failed: %d\n", __func__, ret);

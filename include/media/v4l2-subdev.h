@@ -1434,6 +1434,40 @@ extern const struct v4l2_subdev_ops v4l2_subdev_call_wrappers;
 	})
 
 /**
+ * v4l2_subdev_call_state_try - call an operation of a v4l2_subdev which
+ *				takes state as a parameter, passing the
+ *				subdev a newly allocated try state.
+ *
+ * @sd: pointer to the &struct v4l2_subdev
+ * @o: name of the element at &struct v4l2_subdev_ops that contains @f.
+ *     Each element there groups a set of callbacks functions.
+ * @f: callback function to be called.
+ *     The callback functions are defined in groups, according to
+ *     each element at &struct v4l2_subdev_ops.
+ * @args: arguments for @f.
+ *
+ * This is similar to v4l2_subdev_call_state_active(), except that as this
+ * version allocates a new state, this is only usable for
+ * V4L2_SUBDEV_FORMAT_TRY use cases.
+ *
+ * Note: only legacy non-MC drivers may need this macro.
+ */
+#define v4l2_subdev_call_state_try(sd, o, f, args...)                 \
+	({                                                            \
+		int __result;                                         \
+		static struct lock_class_key __key;                   \
+		const char *name = KBUILD_BASENAME                    \
+			":" __stringify(__LINE__) ":state->lock";     \
+		struct v4l2_subdev_state *state =                     \
+			__v4l2_subdev_state_alloc(sd, name, &__key);  \
+		v4l2_subdev_lock_state(state);                        \
+		__result = v4l2_subdev_call(sd, o, f, state, ##args); \
+		v4l2_subdev_unlock_state(state);                      \
+		__v4l2_subdev_state_free(state);                      \
+		__result;                                             \
+	})
+
+/**
  * v4l2_subdev_has_op - Checks if a subdev defines a certain operation.
  *
  * @sd: pointer to the &struct v4l2_subdev

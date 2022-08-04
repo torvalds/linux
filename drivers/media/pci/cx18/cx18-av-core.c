@@ -180,7 +180,7 @@ static void cx18_av_initialize(struct v4l2_subdev *sd)
 	 */
 	cx18_av_and_or4(cx, CXADEC_CHIP_CTRL, 0xFFFBFFFF, 0x00120000);
 
-	/* Setup the Video and and Aux/Audio PLLs */
+	/* Setup the Video and Aux/Audio PLLs */
 	cx18_av_init(cx);
 
 	/* set video to auto-detect */
