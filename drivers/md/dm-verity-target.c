@@ -498,7 +498,9 @@ static int verity_verify_io(struct dm_verity_io *io)
 {
 	bool is_zero;
 	struct dm_verity *v = io->v;
+#if defined(CONFIG_DM_VERITY_FEC)
 	struct bvec_iter start;
+#endif
 	/*
 	 * Copy the iterator in case we need to restart verification in a
 	 * work-queue.
@@ -542,7 +544,10 @@ static int verity_verify_io(struct dm_verity_io *io)
 		if (unlikely(r < 0))
 			return r;
 
-		start = iter_copy;
+#if defined(CONFIG_DM_VERITY_FEC)
+		if (verity_fec_is_enabled(v))
+			start = iter_copy;
+#endif
 		r = verity_for_io_block(v, io, &iter_copy, &wait);
 		if (unlikely(r < 0))
 			return r;
@@ -564,9 +569,11 @@ static int verity_verify_io(struct dm_verity_io *io)
 			 * tasklet since it may sleep, so fallback to work-queue.
 			 */
 			return -EAGAIN;
+#if defined(CONFIG_DM_VERITY_FEC)
 		} else if (verity_fec_decode(v, io, DM_VERITY_BLOCK_TYPE_DATA,
 					     cur_block, NULL, &start) == 0) {
 			continue;
+#endif
 		} else {
 			if (bio->bi_status) {
 				/*
