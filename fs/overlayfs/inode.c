@@ -585,7 +585,7 @@ static int ovl_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
  * Introducing security_inode_fileattr_get/set() hooks would solve this issue
  * properly.
  */
-static int ovl_security_fileattr(struct path *realpath, struct fileattr *fa,
+static int ovl_security_fileattr(const struct path *realpath, struct fileattr *fa,
 				 bool set)
 {
 	struct file *file;
@@ -607,7 +607,7 @@ static int ovl_security_fileattr(struct path *realpath, struct fileattr *fa,
 	return err;
 }
 
-int ovl_real_fileattr_set(struct path *realpath, struct fileattr *fa)
+int ovl_real_fileattr_set(const struct path *realpath, struct fileattr *fa)
 {
 	int err;
 
@@ -682,7 +682,7 @@ static void ovl_fileattr_prot_flags(struct inode *inode, struct fileattr *fa)
 	}
 }
 
-int ovl_real_fileattr_get(struct path *realpath, struct fileattr *fa)
+int ovl_real_fileattr_get(const struct path *realpath, struct fileattr *fa)
 {
 	int err;
 

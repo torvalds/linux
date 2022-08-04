@@ -44,7 +44,7 @@ static bool ovl_must_copy_xattr(const char *name)
 	       !strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN);
 }
 
-int ovl_copy_xattr(struct super_block *sb, struct path *oldpath, struct dentry *new)
+int ovl_copy_xattr(struct super_block *sb, const struct path *oldpath, struct dentry *new)
 {
 	struct dentry *old = oldpath->dentry;
 	ssize_t list_size, size, value_size = 0;
@@ -132,8 +132,8 @@ out:
 	return error;
 }
 
-static int ovl_copy_fileattr(struct inode *inode, struct path *old,
-			     struct path *new)
+static int ovl_copy_fileattr(struct inode *inode, const struct path *old,
+			     const struct path *new)
 {
 	struct fileattr oldfa = { .flags_valid = true };
 	struct fileattr newfa = { .flags_valid = true };
@@ -193,8 +193,8 @@ static int ovl_copy_fileattr(struct inode *inode, struct path *old,
 	return ovl_real_fileattr_set(new, &newfa);
 }
 
-static int ovl_copy_up_data(struct ovl_fs *ofs, struct path *old,
-			    struct path *new, loff_t len)
+static int ovl_copy_up_data(struct ovl_fs *ofs, const struct path *old,
+			    const struct path *new, loff_t len)
 {
 	struct file *old_file;
 	struct file *new_file;
@@ -872,7 +872,7 @@ static bool ovl_need_meta_copy_up(struct dentry *dentry, umode_t mode,
 	return true;
 }
 
-static ssize_t ovl_getxattr_value(struct path *path, char *name, char **value)
+static ssize_t ovl_getxattr_value(const struct path *path, char *name, char **value)
 {
 	ssize_t res;
 	char *buf;
