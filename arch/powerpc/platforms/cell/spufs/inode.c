@@ -275,7 +275,7 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 	return ret;
 }
 
-static int spufs_context_open(struct path *path)
+static int spufs_context_open(const struct path *path)
 {
 	int ret;
 	struct file *filp;
@@ -491,7 +491,7 @@ out:
 	return ret;
 }
 
-static int spufs_gang_open(struct path *path)
+static int spufs_gang_open(const struct path *path)
 {
 	int ret;
 	struct file *filp;
@@ -536,7 +536,7 @@ static int spufs_create_gang(struct inode *inode,
 
 static struct file_system_type spufs_type;
 
-long spufs_create(struct path *path, struct dentry *dentry,
+long spufs_create(const struct path *path, struct dentry *dentry,
 		unsigned int flags, umode_t mode, struct file *filp)
 {
 	struct inode *dir = d_inode(path->dentry);
