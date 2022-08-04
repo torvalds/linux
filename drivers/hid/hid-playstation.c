@@ -692,15 +692,12 @@ static ssize_t hardware_version_show(struct device *dev,
 
 static DEVICE_ATTR_RO(hardware_version);
 
-static struct attribute *ps_device_attributes[] = {
+static struct attribute *ps_device_attrs[] = {
 	&dev_attr_firmware_version.attr,
 	&dev_attr_hardware_version.attr,
 	NULL
 };
-
-static const struct attribute_group ps_device_attribute_group = {
-	.attrs = ps_device_attributes,
-};
+ATTRIBUTE_GROUPS(ps_device);
 
 static int dualsense_get_calibration_data(struct dualsense *ds)
 {
@@ -1448,12 +1445,6 @@ static int ps_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		}
 	}
 
-	ret = devm_device_add_group(&hdev->dev, &ps_device_attribute_group);
-	if (ret) {
-		hid_err(hdev, "Failed to register sysfs nodes.\n");
-		goto err_close;
-	}
-
 	return ret;
 
 err_close:
@@ -1487,6 +1478,9 @@ static struct hid_driver ps_driver = {
 	.probe		= ps_probe,
 	.remove		= ps_remove,
 	.raw_event	= ps_raw_event,
+	.driver = {
+		.dev_groups = ps_device_groups,
+	},
 };
 
 static int __init ps_init(void)
