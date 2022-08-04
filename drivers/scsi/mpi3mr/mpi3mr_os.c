@@ -4684,11 +4684,14 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	spin_lock_init(&mrioc->tgtdev_lock);
 	spin_lock_init(&mrioc->watchdog_lock);
 	spin_lock_init(&mrioc->chain_buf_lock);
+	spin_lock_init(&mrioc->sas_node_lock);
 
 	INIT_LIST_HEAD(&mrioc->fwevt_list);
 	INIT_LIST_HEAD(&mrioc->tgtdev_list);
 	INIT_LIST_HEAD(&mrioc->delayed_rmhs_list);
 	INIT_LIST_HEAD(&mrioc->delayed_evtack_cmds_list);
+	INIT_LIST_HEAD(&mrioc->sas_expander_list);
+	INIT_LIST_HEAD(&mrioc->hba_port_table_list);
 	INIT_LIST_HEAD(&mrioc->enclosure_list);
 
 	mutex_init(&mrioc->reset_mutex);

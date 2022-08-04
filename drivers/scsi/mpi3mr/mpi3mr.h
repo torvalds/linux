@@ -570,10 +570,12 @@ struct mpi3mr_enclosure_node {
  *
  * @sas_address: World wide unique SAS address
  * @dev_info: Device information bits
+ * @hba_port: HBA port entry
  */
 struct tgt_dev_sas_sata {
 	u64 sas_address;
 	u16 dev_info;
+	struct mpi3mr_hba_port *hba_port;
 };
 
 /**
@@ -984,6 +986,10 @@ struct scmd_priv {
  * @cfg_page: Default memory for configuration pages
  * @cfg_page_dma: Configuration page DMA address
  * @cfg_page_sz: Default configuration page memory size
+ * @sas_hba: SAS node for the controller
+ * @sas_expander_list: SAS node list of expanders
+ * @sas_node_lock: Lock to protect SAS node list
+ * @hba_port_table_list: List of HBA Ports
  * @enclosure_list: List of Enclosure objects
  */
 struct mpi3mr_ioc {
@@ -1162,6 +1168,10 @@ struct mpi3mr_ioc {
 	dma_addr_t cfg_page_dma;
 	u16 cfg_page_sz;
 
+	struct mpi3mr_sas_node sas_hba;
+	struct list_head sas_expander_list;
+	spinlock_t sas_node_lock;
+	struct list_head hba_port_table_list;
 	struct list_head enclosure_list;
 };
 
@@ -1317,4 +1327,8 @@ int mpi3mr_cfg_set_sas_io_unit_pg1(struct mpi3mr_ioc *mrioc,
 	struct mpi3_sas_io_unit_page1 *sas_io_unit_pg1, u16 pg_sz);
 int mpi3mr_cfg_get_driver_pg1(struct mpi3mr_ioc *mrioc,
 	struct mpi3_driver_page1 *driver_pg1, u16 pg_sz);
+
+u8 mpi3mr_is_expander_device(u16 device_info);
+struct mpi3mr_hba_port *mpi3mr_get_hba_port_by_id(struct mpi3mr_ioc *mrioc,
+	u8 port_id);
 #endif /*MPI3MR_H_INCLUDED*/

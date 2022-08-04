@@ -10,6 +10,236 @@
 #include "mpi3mr.h"
 
 /**
+ * __mpi3mr_expander_find_by_handle - expander search by handle
+ * @mrioc: Adapter instance reference
+ * @handle: Firmware device handle of the expander
+ *
+ * Context: The caller should acquire sas_node_lock
+ *
+ * This searches for expander device based on handle, then
+ * returns the sas_node object.
+ *
+ * Return: Expander sas_node object reference or NULL
+ */
+static struct mpi3mr_sas_node *__mpi3mr_expander_find_by_handle(struct mpi3mr_ioc
+	*mrioc, u16 handle)
+{
+	struct mpi3mr_sas_node *sas_expander, *r;
+
+	r = NULL;
+	list_for_each_entry(sas_expander, &mrioc->sas_expander_list, list) {
+		if (sas_expander->handle != handle)
+			continue;
+		r = sas_expander;
+		goto out;
+	}
+ out:
+	return r;
+}
+
+/**
+ * mpi3mr_is_expander_device - if device is an expander
+ * @device_info: Bitfield providing information about the device
+ *
+ * Return: 1 if the device is expander device, else 0.
+ */
+u8 mpi3mr_is_expander_device(u16 device_info)
+{
+	if ((device_info & MPI3_SAS_DEVICE_INFO_DEVICE_TYPE_MASK) ==
+	     MPI3_SAS_DEVICE_INFO_DEVICE_TYPE_EXPANDER)
+		return 1;
+	else
+		return 0;
+}
+
+/**
+ * mpi3mr_get_sas_address - retrieve sas_address for handle
+ * @mrioc: Adapter instance reference
+ * @handle: Firmware device handle
+ * @sas_address: Address to hold sas address
+ *
+ * This function issues device page0 read for a given device
+ * handle and gets the SAS address and return it back
+ *
+ * Return: 0 for success, non-zero for failure
+ */
+static int mpi3mr_get_sas_address(struct mpi3mr_ioc *mrioc, u16 handle,
+	u64 *sas_address)
+{
+	struct mpi3_device_page0 dev_pg0;
+	u16 ioc_status;
+	struct mpi3_device0_sas_sata_format *sasinf;
+
+	*sas_address = 0;
+
+	if ((mpi3mr_cfg_get_dev_pg0(mrioc, &ioc_status, &dev_pg0,
+	    sizeof(dev_pg0), MPI3_DEVICE_PGAD_FORM_HANDLE,
+	    handle))) {
+		ioc_err(mrioc, "%s: device page0 read failed\n", __func__);
+		return -ENXIO;
+	}
+
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "device page read failed for handle(0x%04x), with ioc_status(0x%04x) failure at %s:%d/%s()!\n",
+		    handle, ioc_status, __FILE__, __LINE__, __func__);
+		return -ENXIO;
+	}
+
+	if (le16_to_cpu(dev_pg0.flags) &
+	    MPI3_DEVICE0_FLAGS_CONTROLLER_DEV_HANDLE)
+		*sas_address = mrioc->sas_hba.sas_address;
+	else if (dev_pg0.device_form == MPI3_DEVICE_DEVFORM_SAS_SATA) {
+		sasinf = &dev_pg0.device_specific.sas_sata_format;
+		*sas_address = le64_to_cpu(sasinf->sas_address);
+	} else {
+		ioc_err(mrioc, "%s: device_form(%d) is not SAS_SATA\n",
+		    __func__, dev_pg0.device_form);
+		return -ENXIO;
+	}
+	return 0;
+}
+
+/**
+ * __mpi3mr_get_tgtdev_by_addr - target device search
+ * @mrioc: Adapter instance reference
+ * @sas_address: SAS address of the device
+ * @hba_port: HBA port entry
+ *
+ * This searches for target device from sas address and hba port
+ * pointer then return mpi3mr_tgt_dev object.
+ *
+ * Return: Valid tget_dev or NULL
+ */
+static struct mpi3mr_tgt_dev *__mpi3mr_get_tgtdev_by_addr(struct mpi3mr_ioc *mrioc,
+	u64 sas_address, struct mpi3mr_hba_port *hba_port)
+{
+	struct mpi3mr_tgt_dev *tgtdev;
+
+	assert_spin_locked(&mrioc->tgtdev_lock);
+
+	list_for_each_entry(tgtdev, &mrioc->tgtdev_list, list)
+		if ((tgtdev->dev_type == MPI3_DEVICE_DEVFORM_SAS_SATA) &&
+		    (tgtdev->dev_spec.sas_sata_inf.sas_address == sas_address)
+		    && (tgtdev->dev_spec.sas_sata_inf.hba_port == hba_port))
+			goto found_device;
+	return NULL;
+found_device:
+	mpi3mr_tgtdev_get(tgtdev);
+	return tgtdev;
+}
+
+/**
+ * mpi3mr_get_tgtdev_by_addr - target device search
+ * @mrioc: Adapter instance reference
+ * @sas_address: SAS address of the device
+ * @hba_port: HBA port entry
+ *
+ * This searches for target device from sas address and hba port
+ * pointer then return mpi3mr_tgt_dev object.
+ *
+ * Context: This function will acquire tgtdev_lock and will
+ * release before returning the mpi3mr_tgt_dev object.
+ *
+ * Return: Valid tget_dev or NULL
+ */
+static struct mpi3mr_tgt_dev *mpi3mr_get_tgtdev_by_addr(struct mpi3mr_ioc *mrioc,
+	u64 sas_address, struct mpi3mr_hba_port *hba_port)
+{
+	struct mpi3mr_tgt_dev *tgtdev = NULL;
+	unsigned long flags;
+
+	if (!hba_port)
+		goto out;
+
+	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
+	tgtdev = __mpi3mr_get_tgtdev_by_addr(mrioc, sas_address, hba_port);
+	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
+
+out:
+	return tgtdev;
+}
+
+/**
+ * mpi3mr_expander_find_by_sas_address - sas expander search
+ * @mrioc: Adapter instance reference
+ * @sas_address: SAS address of expander
+ * @hba_port: HBA port entry
+ *
+ * Return: A valid SAS expander node or NULL.
+ *
+ */
+static struct mpi3mr_sas_node *mpi3mr_expander_find_by_sas_address(
+	struct mpi3mr_ioc *mrioc, u64 sas_address,
+	struct mpi3mr_hba_port *hba_port)
+{
+	struct mpi3mr_sas_node *sas_expander, *r = NULL;
+
+	if (!hba_port)
+		goto out;
+
+	list_for_each_entry(sas_expander, &mrioc->sas_expander_list, list) {
+		if ((sas_expander->sas_address != sas_address) ||
+					 (sas_expander->hba_port != hba_port))
+			continue;
+		r = sas_expander;
+		goto out;
+	}
+out:
+	return r;
+}
+
+/**
+ * __mpi3mr_sas_node_find_by_sas_address - sas node search
+ * @mrioc: Adapter instance reference
+ * @sas_address: SAS address of expander or sas host
+ * @hba_port: HBA port entry
+ * Context: Caller should acquire mrioc->sas_node_lock.
+ *
+ * If the SAS address indicates the device is direct attached to
+ * the controller (controller's SAS address) then the SAS node
+ * associated with the controller is returned back else the SAS
+ * address and hba port are used to identify the exact expander
+ * and the associated sas_node object is returned. If there is
+ * no match NULL is returned.
+ *
+ * Return: A valid SAS node or NULL.
+ *
+ */
+static struct mpi3mr_sas_node *__mpi3mr_sas_node_find_by_sas_address(
+	struct mpi3mr_ioc *mrioc, u64 sas_address,
+	struct mpi3mr_hba_port *hba_port)
+{
+
+	if (mrioc->sas_hba.sas_address == sas_address)
+		return &mrioc->sas_hba;
+	return mpi3mr_expander_find_by_sas_address(mrioc, sas_address,
+	    hba_port);
+}
+
+/**
+ * mpi3mr_parent_present - Is parent present for a phy
+ * @mrioc: Adapter instance reference
+ * @phy: SAS transport layer phy object
+ *
+ * Return: 0 if parent is present else non-zero
+ */
+static int mpi3mr_parent_present(struct mpi3mr_ioc *mrioc, struct sas_phy *phy)
+{
+	unsigned long flags;
+	struct mpi3mr_hba_port *hba_port = phy->hostdata;
+
+	spin_lock_irqsave(&mrioc->sas_node_lock, flags);
+	if (__mpi3mr_sas_node_find_by_sas_address(mrioc,
+	    phy->identify.sas_address,
+	    hba_port) == NULL) {
+		spin_unlock_irqrestore(&mrioc->sas_node_lock, flags);
+		return -1;
+	}
+	spin_unlock_irqrestore(&mrioc->sas_node_lock, flags);
+	return 0;
+}
+
+/**
  * mpi3mr_convert_phy_link_rate -
  * @link_rate: link rate as defined in the MPI header
  *
@@ -427,4 +657,52 @@ static int mpi3mr_add_expander_phy(struct mpi3mr_ioc *mrioc,
 		    mr_sas_phy->remote_identify.sas_address);
 	mr_sas_phy->phy = phy;
 	return 0;
+}
+
+/**
+ * mpi3mr_alloc_hba_port - alloc hba port object
+ * @mrioc: Adapter instance reference
+ * @port_id: Port number
+ *
+ * Alloc memory for hba port object.
+ */
+static struct mpi3mr_hba_port *
+mpi3mr_alloc_hba_port(struct mpi3mr_ioc *mrioc, u16 port_id)
+{
+	struct mpi3mr_hba_port *hba_port;
+
+	hba_port = kzalloc(sizeof(struct mpi3mr_hba_port),
+	    GFP_KERNEL);
+	if (!hba_port)
+		return NULL;
+	hba_port->port_id = port_id;
+	ioc_info(mrioc, "hba_port entry: %p, port: %d is added to hba_port list\n",
+	    hba_port, hba_port->port_id);
+	list_add_tail(&hba_port->list, &mrioc->hba_port_table_list);
+	return hba_port;
+}
+
+/**
+ * mpi3mr_get_hba_port_by_id - find hba port by id
+ * @mrioc: Adapter instance reference
+ * @port_id - Port ID to search
+ *
+ * Return: mpi3mr_hba_port reference for the matched port
+ */
+
+struct mpi3mr_hba_port *mpi3mr_get_hba_port_by_id(struct mpi3mr_ioc *mrioc,
+	u8 port_id)
+{
+	struct mpi3mr_hba_port *port, *port_next;
+
+	list_for_each_entry_safe(port, port_next,
+	    &mrioc->hba_port_table_list, list) {
+		if (port->port_id != port_id)
+			continue;
+		if (port->flags & MPI3MR_HBA_PORT_FLAG_DIRTY)
+			continue;
+		return port;
+	}
+
+	return NULL;
 }
