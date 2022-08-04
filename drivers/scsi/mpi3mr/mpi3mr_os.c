@@ -816,7 +816,7 @@ void mpi3mr_print_device_event_notice(struct mpi3mr_ioc *mrioc,
  *
  * Return: 0 on success, non zero on failure.
  */
-static void mpi3mr_remove_tgtdev_from_host(struct mpi3mr_ioc *mrioc,
+void mpi3mr_remove_tgtdev_from_host(struct mpi3mr_ioc *mrioc,
 	struct mpi3mr_tgt_dev *tgtdev)
 {
 	struct mpi3mr_stgt_priv_data *tgt_priv;
@@ -1486,7 +1486,10 @@ static void mpi3mr_sastopochg_evt_bh(struct mpi3mr_ioc *mrioc,
 	int i;
 	u16 handle;
 	u8 reason_code;
+	u64 exp_sas_address = 0;
+	struct mpi3mr_hba_port *hba_port = NULL;
 	struct mpi3mr_tgt_dev *tgtdev = NULL;
+	struct mpi3mr_sas_node *sas_expander = NULL;
 
 	mpi3mr_sastopochg_evt_debug(mrioc, event_data);
 
@@ -1515,6 +1518,13 @@ static void mpi3mr_sastopochg_evt_bh(struct mpi3mr_ioc *mrioc,
 		}
 		if (tgtdev)
 			mpi3mr_tgtdev_put(tgtdev);
+	}
+
+	if (mrioc->sas_transport_enabled && (event_data->exp_status ==
+	    MPI3_EVENT_SAS_TOPO_ES_NOT_RESPONDING)) {
+		if (sas_expander)
+			mpi3mr_expander_remove(mrioc, exp_sas_address,
+			    hba_port);
 	}
 }
 
@@ -1736,7 +1746,8 @@ static void mpi3mr_fwevt_bh(struct mpi3mr_ioc *mrioc,
 	struct mpi3mr_fwevt *fwevt)
 {
 	struct mpi3_device_page0 *dev_pg0 = NULL;
-	u16 perst_id;
+	u16 perst_id, handle, dev_info;
+	struct mpi3_device0_sas_sata_format *sasinf = NULL;
 
 	mpi3mr_fwevt_del_from_list(mrioc, fwevt);
 	mrioc->current_event = fwevt;
@@ -1750,10 +1761,23 @@ static void mpi3mr_fwevt_bh(struct mpi3mr_ioc *mrioc,
 	switch (fwevt->event_id) {
 	case MPI3_EVENT_DEVICE_ADDED:
 	{
-		struct mpi3_device_page0 *dev_pg0 =
-		    (struct mpi3_device_page0 *)fwevt->event_data;
-		mpi3mr_report_tgtdev_to_host(mrioc,
-		    le16_to_cpu(dev_pg0->persistent_id));
+		dev_pg0 = (struct mpi3_device_page0 *)fwevt->event_data;
+		perst_id = le16_to_cpu(dev_pg0->persistent_id);
+		handle = le16_to_cpu(dev_pg0->dev_handle);
+		if (perst_id != MPI3_DEVICE0_PERSISTENTID_INVALID)
+			mpi3mr_report_tgtdev_to_host(mrioc, perst_id);
+		else if (mrioc->sas_transport_enabled &&
+		    (dev_pg0->device_form == MPI3_DEVICE_DEVFORM_SAS_SATA)) {
+			sasinf = &dev_pg0->device_specific.sas_sata_format;
+			dev_info = le16_to_cpu(sasinf->device_info);
+			if (!mrioc->sas_hba.num_phys)
+				mpi3mr_sas_host_add(mrioc);
+			else
+				mpi3mr_sas_host_refresh(mrioc);
+
+			if (mpi3mr_is_expander_device(dev_info))
+				mpi3mr_expander_add(mrioc, handle);
+		}
 		break;
 	}
 	case MPI3_EVENT_DEVICE_INFO_CHANGED:

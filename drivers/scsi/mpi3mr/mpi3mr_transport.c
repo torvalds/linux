@@ -21,7 +21,7 @@
  *
  * Return: Expander sas_node object reference or NULL
  */
-static struct mpi3mr_sas_node *__mpi3mr_expander_find_by_handle(struct mpi3mr_ioc
+struct mpi3mr_sas_node *__mpi3mr_expander_find_by_handle(struct mpi3mr_ioc
 	*mrioc, u16 handle)
 {
 	struct mpi3mr_sas_node *sas_expander, *r;
@@ -157,6 +157,45 @@ static struct mpi3mr_tgt_dev *mpi3mr_get_tgtdev_by_addr(struct mpi3mr_ioc *mrioc
 
 out:
 	return tgtdev;
+}
+
+/**
+ * mpi3mr_remove_device_by_sas_address - remove the device
+ * @mrioc: Adapter instance reference
+ * @sas_address: SAS address of the device
+ * @hba_port: HBA port entry
+ *
+ * This searches for target device using sas address and hba
+ * port pointer then removes it from the OS.
+ *
+ * Return: None
+ */
+static void mpi3mr_remove_device_by_sas_address(struct mpi3mr_ioc *mrioc,
+	u64 sas_address, struct mpi3mr_hba_port *hba_port)
+{
+	struct mpi3mr_tgt_dev *tgtdev = NULL;
+	unsigned long flags;
+	u8 was_on_tgtdev_list = 0;
+
+	if (!hba_port)
+		return;
+
+	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
+	tgtdev = __mpi3mr_get_tgtdev_by_addr(mrioc,
+			 sas_address, hba_port);
+	if (tgtdev) {
+		if (!list_empty(&tgtdev->list)) {
+			list_del_init(&tgtdev->list);
+			was_on_tgtdev_list = 1;
+			mpi3mr_tgtdev_put(tgtdev);
+		}
+	}
+	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
+	if (was_on_tgtdev_list) {
+		if (tgtdev->host_exposed)
+			mpi3mr_remove_tgtdev_from_host(mrioc, tgtdev);
+		mpi3mr_tgtdev_put(tgtdev);
+	}
 }
 
 /**
@@ -379,6 +418,34 @@ static void mpi3mr_add_phy_to_an_existing_port(struct mpi3mr_ioc *mrioc,
 }
 
 /**
+ * mpi3mr_delete_sas_port - helper function to removing a port
+ * @mrioc: Adapter instance reference
+ * @mr_sas_port: Internal Port object
+ *
+ * Return: None.
+ */
+static void  mpi3mr_delete_sas_port(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_sas_port *mr_sas_port)
+{
+	u64 sas_address = mr_sas_port->remote_identify.sas_address;
+	struct mpi3mr_hba_port *hba_port = mr_sas_port->hba_port;
+	enum sas_device_type device_type =
+	    mr_sas_port->remote_identify.device_type;
+
+	dev_info(&mr_sas_port->port->dev,
+	    "remove: sas_address(0x%016llx)\n",
+	    (unsigned long long) sas_address);
+
+	if (device_type == SAS_END_DEVICE)
+		mpi3mr_remove_device_by_sas_address(mrioc, sas_address,
+		    hba_port);
+
+	else if (device_type == SAS_EDGE_EXPANDER_DEVICE ||
+	    device_type == SAS_FANOUT_EXPANDER_DEVICE)
+		mpi3mr_expander_remove(mrioc, sas_address, hba_port);
+}
+
+/**
  * mpi3mr_del_phy_from_an_existing_port - del phy from a port
  * @mrioc: Adapter instance reference
  * @mr_sas_node: Internal sas node object (expander or host)
@@ -401,8 +468,12 @@ static void mpi3mr_del_phy_from_an_existing_port(struct mpi3mr_ioc *mrioc,
 		    port_siblings) {
 			if (srch_phy != mr_sas_phy)
 				continue;
-			mpi3mr_delete_sas_phy(mrioc, mr_sas_port,
-			    mr_sas_phy);
+			if ((mr_sas_port->num_phys == 1) &&
+			    !mrioc->reset_in_progress)
+				mpi3mr_delete_sas_port(mrioc, mr_sas_port);
+			else
+				mpi3mr_delete_sas_phy(mrioc, mr_sas_port,
+				    mr_sas_phy);
 			return;
 		}
 	}
@@ -1230,4 +1301,325 @@ static void mpi3mr_sas_port_remove(struct mpi3mr_ioc *mrioc, u64 sas_address,
 	}
 
 	kfree(mr_sas_port);
+}
+
+/**
+ * mpi3mr_expander_node_add - insert an expander to the list.
+ * @mrioc: Adapter instance reference
+ * @sas_expander: Expander sas node
+ * Context: This function will acquire sas_node_lock.
+ *
+ * Adding new object to the ioc->sas_expander_list.
+ *
+ * Return: None.
+ */
+static void mpi3mr_expander_node_add(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_sas_node *sas_expander)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&mrioc->sas_node_lock, flags);
+	list_add_tail(&sas_expander->list, &mrioc->sas_expander_list);
+	spin_unlock_irqrestore(&mrioc->sas_node_lock, flags);
+}
+
+/**
+ * mpi3mr_expander_add -  Create expander object
+ * @mrioc: Adapter instance reference
+ * @handle: Expander firmware device handle
+ *
+ * This function creating expander object, stored in
+ * sas_expander_list and expose it to the SAS transport
+ * layer.
+ *
+ * Return: 0 for success, non-zero for failure.
+ */
+int mpi3mr_expander_add(struct mpi3mr_ioc *mrioc, u16 handle)
+{
+	struct mpi3mr_sas_node *sas_expander;
+	struct mpi3mr_enclosure_node *enclosure_dev;
+	struct mpi3_sas_expander_page0 expander_pg0;
+	struct mpi3_sas_expander_page1 expander_pg1;
+	u16 ioc_status, parent_handle, temp_handle;
+	u64 sas_address, sas_address_parent = 0;
+	int i;
+	unsigned long flags;
+	u8 port_id, link_rate;
+	struct mpi3mr_sas_port *mr_sas_port = NULL;
+	struct mpi3mr_hba_port *hba_port;
+	u32 phynum_handle;
+	int rc = 0;
+
+	if (!handle)
+		return -1;
+
+	if (mrioc->reset_in_progress)
+		return -1;
+
+	if ((mpi3mr_cfg_get_sas_exp_pg0(mrioc, &ioc_status, &expander_pg0,
+	    sizeof(expander_pg0), MPI3_SAS_EXPAND_PGAD_FORM_HANDLE, handle))) {
+		ioc_err(mrioc, "failure at %s:%d/%s()!\n",
+		    __FILE__, __LINE__, __func__);
+		return -1;
+	}
+
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "failure at %s:%d/%s()!\n",
+		    __FILE__, __LINE__, __func__);
+		return -1;
+	}
+
+	parent_handle = le16_to_cpu(expander_pg0.parent_dev_handle);
+	if (mpi3mr_get_sas_address(mrioc, parent_handle, &sas_address_parent)
+	    != 0) {
+		ioc_err(mrioc, "failure at %s:%d/%s()!\n",
+		    __FILE__, __LINE__, __func__);
+		return -1;
+	}
+
+	port_id = expander_pg0.io_unit_port;
+	hba_port = mpi3mr_get_hba_port_by_id(mrioc, port_id);
+	if (!hba_port) {
+		ioc_err(mrioc, "failure at %s:%d/%s()!\n",
+		    __FILE__, __LINE__, __func__);
+		return -1;
+	}
+
+	if (sas_address_parent != mrioc->sas_hba.sas_address) {
+		spin_lock_irqsave(&mrioc->sas_node_lock, flags);
+		sas_expander =
+		   mpi3mr_expander_find_by_sas_address(mrioc,
+		    sas_address_parent, hba_port);
+		spin_unlock_irqrestore(&mrioc->sas_node_lock, flags);
+		if (!sas_expander) {
+			rc = mpi3mr_expander_add(mrioc, parent_handle);
+			if (rc != 0)
+				return rc;
+		} else {
+			/*
+			 * When there is a parent expander present, update it's
+			 * phys where child expander is connected with the link
+			 * speed, attached dev handle and sas address.
+			 */
+			for (i = 0 ; i < sas_expander->num_phys ; i++) {
+				phynum_handle =
+				    (i << MPI3_SAS_EXPAND_PGAD_PHYNUM_SHIFT) |
+				    parent_handle;
+				if (mpi3mr_cfg_get_sas_exp_pg1(mrioc,
+				    &ioc_status, &expander_pg1,
+				    sizeof(expander_pg1),
+				    MPI3_SAS_EXPAND_PGAD_FORM_HANDLE_PHY_NUM,
+				    phynum_handle)) {
+					ioc_err(mrioc, "failure at %s:%d/%s()!\n",
+					    __FILE__, __LINE__, __func__);
+					rc = -1;
+					return rc;
+				}
+				if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+					ioc_err(mrioc, "failure at %s:%d/%s()!\n",
+					    __FILE__, __LINE__, __func__);
+					rc = -1;
+					return rc;
+				}
+				temp_handle = le16_to_cpu(
+				    expander_pg1.attached_dev_handle);
+				if (temp_handle != handle)
+					continue;
+				link_rate = (expander_pg1.negotiated_link_rate &
+				    MPI3_SAS_NEG_LINK_RATE_LOGICAL_MASK) >>
+				    MPI3_SAS_NEG_LINK_RATE_LOGICAL_SHIFT;
+				mpi3mr_update_links(mrioc, sas_address_parent,
+				    handle, i, link_rate, hba_port);
+			}
+		}
+	}
+
+	spin_lock_irqsave(&mrioc->sas_node_lock, flags);
+	sas_address = le64_to_cpu(expander_pg0.sas_address);
+	sas_expander = mpi3mr_expander_find_by_sas_address(mrioc,
+	    sas_address, hba_port);
+	spin_unlock_irqrestore(&mrioc->sas_node_lock, flags);
+
+	if (sas_expander)
+		return 0;
+
+	sas_expander = kzalloc(sizeof(struct mpi3mr_sas_node),
+	    GFP_KERNEL);
+	if (!sas_expander)
+		return -1;
+
+	sas_expander->handle = handle;
+	sas_expander->num_phys = expander_pg0.num_phys;
+	sas_expander->sas_address_parent = sas_address_parent;
+	sas_expander->sas_address = sas_address;
+	sas_expander->hba_port = hba_port;
+
+	ioc_info(mrioc,
+	    "expander_add: handle(0x%04x), parent(0x%04x), sas_addr(0x%016llx), phys(%d)\n",
+	    handle, parent_handle, (unsigned long long)
+	    sas_expander->sas_address, sas_expander->num_phys);
+
+	if (!sas_expander->num_phys) {
+		rc = -1;
+		goto out_fail;
+	}
+	sas_expander->phy = kcalloc(sas_expander->num_phys,
+	    sizeof(struct mpi3mr_sas_phy), GFP_KERNEL);
+	if (!sas_expander->phy) {
+		rc = -1;
+		goto out_fail;
+	}
+
+	INIT_LIST_HEAD(&sas_expander->sas_port_list);
+	mr_sas_port = mpi3mr_sas_port_add(mrioc, handle, sas_address_parent,
+	    sas_expander->hba_port);
+	if (!mr_sas_port) {
+		ioc_err(mrioc, "failure at %s:%d/%s()!\n",
+		    __FILE__, __LINE__, __func__);
+		rc = -1;
+		goto out_fail;
+	}
+	sas_expander->parent_dev = &mr_sas_port->rphy->dev;
+	sas_expander->rphy = mr_sas_port->rphy;
+
+	for (i = 0 ; i < sas_expander->num_phys ; i++) {
+		phynum_handle = (i << MPI3_SAS_EXPAND_PGAD_PHYNUM_SHIFT) |
+		    handle;
+		if (mpi3mr_cfg_get_sas_exp_pg1(mrioc, &ioc_status,
+		    &expander_pg1, sizeof(expander_pg1),
+		    MPI3_SAS_EXPAND_PGAD_FORM_HANDLE_PHY_NUM,
+		    phynum_handle)) {
+			ioc_err(mrioc, "failure at %s:%d/%s()!\n",
+			    __FILE__, __LINE__, __func__);
+			rc = -1;
+			goto out_fail;
+		}
+		if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+			ioc_err(mrioc, "failure at %s:%d/%s()!\n",
+			    __FILE__, __LINE__, __func__);
+			rc = -1;
+			goto out_fail;
+		}
+
+		sas_expander->phy[i].handle = handle;
+		sas_expander->phy[i].phy_id = i;
+		sas_expander->phy[i].hba_port = hba_port;
+
+		if ((mpi3mr_add_expander_phy(mrioc, &sas_expander->phy[i],
+		    expander_pg1, sas_expander->parent_dev))) {
+			ioc_err(mrioc, "failure at %s:%d/%s()!\n",
+			    __FILE__, __LINE__, __func__);
+			rc = -1;
+			goto out_fail;
+		}
+	}
+
+	if (sas_expander->enclosure_handle) {
+		enclosure_dev =
+			mpi3mr_enclosure_find_by_handle(mrioc,
+						sas_expander->enclosure_handle);
+		if (enclosure_dev)
+			sas_expander->enclosure_logical_id = le64_to_cpu(
+			    enclosure_dev->pg0.enclosure_logical_id);
+	}
+
+	mpi3mr_expander_node_add(mrioc, sas_expander);
+	return 0;
+
+out_fail:
+
+	if (mr_sas_port)
+		mpi3mr_sas_port_remove(mrioc,
+		    sas_expander->sas_address,
+		    sas_address_parent, sas_expander->hba_port);
+	kfree(sas_expander->phy);
+	kfree(sas_expander);
+	return rc;
+}
+
+/**
+ * mpi3mr_expander_node_remove - recursive removal of expander.
+ * @mrioc: Adapter instance reference
+ * @sas_expander: Expander device object
+ *
+ * Removes expander object and freeing associated memory from
+ * the sas_expander_list and removes the same from SAS TL, if
+ * one of the attached device is an expander then it recursively
+ * removes the expander device too.
+ *
+ * Return nothing.
+ */
+static void mpi3mr_expander_node_remove(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_sas_node *sas_expander)
+{
+	struct mpi3mr_sas_port *mr_sas_port, *next;
+	unsigned long flags;
+	u8 port_id;
+
+	/* remove sibling ports attached to this expander */
+	list_for_each_entry_safe(mr_sas_port, next,
+	   &sas_expander->sas_port_list, port_list) {
+		if (mrioc->reset_in_progress)
+			return;
+		if (mr_sas_port->remote_identify.device_type ==
+		    SAS_END_DEVICE)
+			mpi3mr_remove_device_by_sas_address(mrioc,
+			    mr_sas_port->remote_identify.sas_address,
+			    mr_sas_port->hba_port);
+		else if (mr_sas_port->remote_identify.device_type ==
+		    SAS_EDGE_EXPANDER_DEVICE ||
+		    mr_sas_port->remote_identify.device_type ==
+		    SAS_FANOUT_EXPANDER_DEVICE)
+			mpi3mr_expander_remove(mrioc,
+			    mr_sas_port->remote_identify.sas_address,
+			    mr_sas_port->hba_port);
+	}
+
+	port_id = sas_expander->hba_port->port_id;
+	mpi3mr_sas_port_remove(mrioc, sas_expander->sas_address,
+	    sas_expander->sas_address_parent, sas_expander->hba_port);
+
+	ioc_info(mrioc, "expander_remove: handle(0x%04x), sas_addr(0x%016llx), port:%d\n",
+	    sas_expander->handle, (unsigned long long)
+	    sas_expander->sas_address, port_id);
+
+	spin_lock_irqsave(&mrioc->sas_node_lock, flags);
+	list_del(&sas_expander->list);
+	spin_unlock_irqrestore(&mrioc->sas_node_lock, flags);
+
+	kfree(sas_expander->phy);
+	kfree(sas_expander);
+}
+
+/**
+ * mpi3mr_expander_remove - Remove expander object
+ * @mrioc: Adapter instance reference
+ * @sas_address: Remove expander sas_address
+ * @hba_port: HBA port reference
+ *
+ * This function remove expander object, stored in
+ * mrioc->sas_expander_list and removes it from the SAS TL by
+ * calling mpi3mr_expander_node_remove().
+ *
+ * Return: None
+ */
+void mpi3mr_expander_remove(struct mpi3mr_ioc *mrioc, u64 sas_address,
+	struct mpi3mr_hba_port *hba_port)
+{
+	struct mpi3mr_sas_node *sas_expander;
+	unsigned long flags;
+
+	if (mrioc->reset_in_progress)
+		return;
+
+	if (!hba_port)
+		return;
+
+	spin_lock_irqsave(&mrioc->sas_node_lock, flags);
+	sas_expander = mpi3mr_expander_find_by_sas_address(mrioc, sas_address,
+	    hba_port);
+	spin_unlock_irqrestore(&mrioc->sas_node_lock, flags);
+	if (sas_expander)
+		mpi3mr_expander_node_remove(mrioc, sas_expander);
+
 }
