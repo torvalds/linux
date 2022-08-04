@@ -2,7 +2,7 @@
 /*
  * TDM driver for the StarFive JH7110 SoC
  *
- * Copyright (C) 2021 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 StarFive Technology Co., Ltd.
  */
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -101,7 +101,6 @@ static void sf_tdm_config(struct sf_tdm_dev *dev, struct snd_pcm_substream *subs
 {
 	u32 datarx, datatx;
 
-	sf_tdm_stop(dev, substream);
 	sf_tdm_contrl(dev);
 	sf_tdm_syncdiv(dev);
 
@@ -139,15 +138,20 @@ static int sf_tdm_hw_params(struct snd_pcm_substream *substream,
 	int channels;
 	int ret;
 
+	channels = params_channels(params);
+	data_width = params_width(params);
+
 	dev->samplerate = params_rate(params);
 	switch (dev->samplerate) {
-	/*  There is a issue with 8k sample rate  */
-/*
+	/*  There are some limitation when using 8k sample rate  */
 	case 8000:
-		mclk_rate = 11289600; //sysclk
-		dev->pcmclk = 352800; //bit clock
+		mclk_rate = 12288000;
+		dev->pcmclk = 512000;
+		if ((data_width == 16) || (channels == 1)) {
+			pr_err("TDM: not support 16bit or 1-channel when using 8k sample rate\n");
+			return -EINVAL;
+		}
 		break;
-*/
 	case 11025:
 		mclk_rate = 11289600; //sysclk
 		dev->pcmclk = 352800; //bit clock, for 16-bit
@@ -177,8 +181,6 @@ static int sf_tdm_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	data_width = params_width(params);
-	channels = params_channels(params);
 	dev->pcmclk = channels * dev->samplerate * data_width;
 
 	switch (params_format(params)) {
@@ -188,20 +190,11 @@ static int sf_tdm_hw_params(struct snd_pcm_substream *substream,
 		dma_bus_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 		break;
 
-	/*  There are some issue with 24-bit and 32-bit */
-/*
-	case SNDRV_PCM_FORMAT_S24_LE:
-		chan_wl = TDM_24BIT_WORD_LEN;
-		chan_sl = TDM_32BIT_SLOT_LEN;
-		dma_bus_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-		break;
-
 	case SNDRV_PCM_FORMAT_S32_LE:
 		chan_wl = TDM_32BIT_WORD_LEN;
 		chan_sl = TDM_32BIT_SLOT_LEN;
 		dma_bus_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		break;
-*/
 
 	default:
 		dev_err(dev->dev, "tdm: unsupported PCM fmt");
@@ -338,9 +331,7 @@ static int sf_tdm_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
-#define SF_TDM_RATES	(SNDRV_PCM_RATE_11025 | SNDRV_PCM_RATE_16000 | \
-			SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 | \
-			SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
+#define SF_TDM_RATES SNDRV_PCM_RATE_8000_48000
 
 #define SF_TDM_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | \
 			SNDRV_PCM_FMTBIT_S32_LE)
@@ -353,14 +344,14 @@ static struct snd_soc_dai_driver sf_tdm_dai = {
 		.channels_min   = 1,
 		.channels_max   = 8,
 		.rates          = SF_TDM_RATES,
-		.formats        = SNDRV_PCM_FMTBIT_S16_LE,
+		.formats        = SF_TDM_FORMATS,
 	},
 	.capture = {
 		.stream_name    = "Capture",
 		.channels_min   = 1,
 		.channels_max   = 8,
 		.rates          = SF_TDM_RATES,
-		.formats        = SNDRV_PCM_FMTBIT_S16_LE,
+		.formats        = SF_TDM_FORMATS,
 	},
 	.ops = &sf_tdm_dai_ops,
 	.probe = sf_tdm_dai_probe,
@@ -386,8 +377,6 @@ static void tdm_init_params(struct sf_tdm_dev *dev)
 	dev->rx.wl = dev->tx.wl = TDM_16BIT_WORD_LEN;
 	dev->rx.sscale = dev->tx.sscale = 2;
 	dev->rx.lrj = dev->tx.lrj = TDM_LEFT_JUSTIFT;
-	dev->samplerate = 16000;
-	dev->pcmclk = 512000;
 
 	dev->play_dma_data.addr = TDM_FIFO;
 	dev->play_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
