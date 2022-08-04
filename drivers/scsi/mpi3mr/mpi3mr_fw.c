@@ -1136,6 +1136,13 @@ mpi3mr_revalidate_factsdata(struct mpi3mr_ioc *mrioc)
 		return -EPERM;
 	}
 
+	if ((mrioc->sas_transport_enabled) && (mrioc->facts.ioc_capabilities &
+	    MPI3_IOCFACTS_CAPABILITY_MULTIPATH_ENABLED))
+		ioc_err(mrioc,
+		    "critical error: multipath capability is enabled at the\n"
+		    "\tcontroller while sas transport support is enabled at the\n"
+		    "\tdriver, please reboot the system or reload the driver\n");
+
 	dev_handle_bitmap_sz = mrioc->facts.max_devhandle / 8;
 	if (mrioc->facts.max_devhandle % 8)
 		dev_handle_bitmap_sz++;
@@ -3453,6 +3460,7 @@ static const struct {
 	char *name;
 } mpi3mr_capabilities[] = {
 	{ MPI3_IOCFACTS_CAPABILITY_RAID_CAPABLE, "RAID" },
+	{ MPI3_IOCFACTS_CAPABILITY_MULTIPATH_ENABLED, "MultiPath" },
 };
 
 /**
@@ -3733,6 +3741,11 @@ retry_init:
 	if (reset_devices)
 		mrioc->max_host_ios = min_t(int, mrioc->max_host_ios,
 		    MPI3MR_HOST_IOS_KDUMP);
+
+	if (!(mrioc->facts.ioc_capabilities &
+	    MPI3_IOCFACTS_CAPABILITY_MULTIPATH_ENABLED)) {
+		mrioc->sas_transport_enabled = 1;
+	}
 
 	mrioc->reply_sz = mrioc->facts.reply_sz;
 

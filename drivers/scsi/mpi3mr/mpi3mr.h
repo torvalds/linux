@@ -650,6 +650,8 @@ union _form_spec_inf {
  * @dev_type: SAS/SATA/PCIE device type
  * @is_hidden: Should be exposed to upper layers or not
  * @host_exposed: Already exposed to host or not
+ * @io_unit_port: IO Unit port ID
+ * @non_stl: Is this device not to be attached with SAS TL
  * @io_throttle_enabled: I/O throttling needed or not
  * @q_depth: Device specific Queue Depth
  * @wwid: World wide ID
@@ -669,6 +671,8 @@ struct mpi3mr_tgt_dev {
 	u8 dev_type;
 	u8 is_hidden;
 	u8 host_exposed;
+	u8 io_unit_port;
+	u8 non_stl;
 	u8 io_throttle_enabled;
 	u16 q_depth;
 	u64 wwid;
@@ -992,6 +996,7 @@ struct scmd_priv {
  * @cfg_page: Default memory for configuration pages
  * @cfg_page_dma: Configuration page DMA address
  * @cfg_page_sz: Default configuration page memory size
+ * @sas_transport_enabled: SAS transport enabled or not
  * @sas_hba: SAS node for the controller
  * @sas_expander_list: SAS node list of expanders
  * @sas_node_lock: Lock to protect SAS node list
@@ -1174,6 +1179,7 @@ struct mpi3mr_ioc {
 	dma_addr_t cfg_page_dma;
 	u16 cfg_page_sz;
 
+	u8 sas_transport_enabled;
 	struct mpi3mr_sas_node sas_hba;
 	struct list_head sas_expander_list;
 	spinlock_t sas_node_lock;
