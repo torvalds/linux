@@ -3423,42 +3423,20 @@ void __init kfree_rcu_scheduler_running(void)
 
 /*
  * During early boot, any blocking grace-period wait automatically
- * implies a grace period.  Later on, this is never the case for PREEMPTION.
+ * implies a grace period.
  *
- * However, because a context switch is a grace period for !PREEMPTION, any
- * blocking grace-period wait automatically implies a grace period if
- * there is only one CPU online at any point time during execution of
- * either synchronize_rcu() or synchronize_rcu_expedited().  It is OK to
- * occasionally incorrectly indicate that there are multiple CPUs online
- * when there was in fact only one the whole time, as this just adds some
- * overhead: RCU still operates correctly.
+ * Later on, this could in theory be the case for kernels built with
+ * CONFIG_SMP=y && CONFIG_PREEMPTION=y running on a single CPU, but this
+ * is not a common case.  Furthermore, this optimization would cause
+ * the rcu_gp_oldstate structure to expand by 50%, so this potential
+ * grace-period optimization is ignored once the scheduler is running.
  */
 static int rcu_blocking_is_gp(void)
 {
-	int ret;
-
-	// Invoking preempt_model_*() too early gets a splat.
-	if (rcu_scheduler_active == RCU_SCHEDULER_INACTIVE ||
-	    preempt_model_full() || preempt_model_rt())
-		return rcu_scheduler_active == RCU_SCHEDULER_INACTIVE;
+	if (rcu_scheduler_active != RCU_SCHEDULER_INACTIVE)
+		return false;
 	might_sleep();  /* Check for RCU read-side critical section. */
-	preempt_disable();
-	/*
-	 * If the rcu_state.n_online_cpus counter is equal to one,
-	 * there is only one CPU, and that CPU sees all prior accesses
-	 * made by any CPU that was online at the time of its access.
-	 * Furthermore, if this counter is equal to one, its value cannot
-	 * change until after the preempt_enable() below.
-	 *
-	 * Furthermore, if rcu_state.n_online_cpus is equal to one here,
-	 * all later CPUs (both this one and any that come online later
-	 * on) are guaranteed to see all accesses prior to this point
-	 * in the code, without the need for additional memory barriers.
-	 * Those memory barriers are provided by CPU-hotplug code.
-	 */
-	ret = READ_ONCE(rcu_state.n_online_cpus) <= 1;
-	preempt_enable();
-	return ret;
+	return true;
 }
 
 /**
