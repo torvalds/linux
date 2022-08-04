@@ -5161,18 +5161,33 @@ static int __init mpi3mr_init(void)
 	pr_info("Loading %s version %s\n", MPI3MR_DRIVER_NAME,
 	    MPI3MR_DRIVER_VERSION);
 
+	mpi3mr_transport_template =
+	    sas_attach_transport(&mpi3mr_transport_functions);
+	if (!mpi3mr_transport_template) {
+		pr_err("%s failed to load due to sas transport attach failure\n",
+		    MPI3MR_DRIVER_NAME);
+		return -ENODEV;
+	}
+
 	ret_val = pci_register_driver(&mpi3mr_pci_driver);
 	if (ret_val) {
 		pr_err("%s failed to load due to pci register driver failure\n",
 		    MPI3MR_DRIVER_NAME);
-		return ret_val;
+		goto err_pci_reg_fail;
 	}
 
 	ret_val = driver_create_file(&mpi3mr_pci_driver.driver,
 				     &driver_attr_event_counter);
 	if (ret_val)
-		pci_unregister_driver(&mpi3mr_pci_driver);
+		goto err_event_counter;
 
+	return ret_val;
+
+err_event_counter:
+	pci_unregister_driver(&mpi3mr_pci_driver);
+
+err_pci_reg_fail:
+	sas_release_transport(mpi3mr_transport_template);
 	return ret_val;
 }
 
@@ -5189,6 +5204,7 @@ static void __exit mpi3mr_exit(void)
 	driver_remove_file(&mpi3mr_pci_driver.driver,
 			   &driver_attr_event_counter);
 	pci_unregister_driver(&mpi3mr_pci_driver);
+	sas_release_transport(mpi3mr_transport_template);
 }
 
 module_init(mpi3mr_init);

@@ -1326,6 +1326,9 @@ struct mpi3mr_enclosure_node *mpi3mr_enclosure_find_by_handle(
 extern const struct attribute_group *mpi3mr_host_groups[];
 extern const struct attribute_group *mpi3mr_dev_groups[];
 
+extern struct sas_function_template mpi3mr_transport_functions;
+extern struct scsi_transport_template *mpi3mr_transport_template;
+
 int mpi3mr_cfg_get_dev_pg0(struct mpi3mr_ioc *mrioc, u16 *ioc_status,
 	struct mpi3_device_page0 *dev_pg0, u16 pg_sz, u32 form, u32 form_spec);
 int mpi3mr_cfg_get_sas_phy_pg0(struct mpi3mr_ioc *mrioc, u16 *ioc_status,
