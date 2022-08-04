@@ -220,8 +220,6 @@ extern void jump_label_lock(void);
 extern void jump_label_unlock(void);
 extern void arch_jump_label_transform(struct jump_entry *entry,
 				      enum jump_label_type type);
-extern void arch_jump_label_transform_static(struct jump_entry *entry,
-					     enum jump_label_type type);
 extern bool arch_jump_label_transform_queue(struct jump_entry *entry,
 					    enum jump_label_type type);
 extern void arch_jump_label_transform_apply(void);
@@ -230,12 +228,12 @@ extern void static_key_slow_inc(struct static_key *key);
 extern void static_key_slow_dec(struct static_key *key);
 extern void static_key_slow_inc_cpuslocked(struct static_key *key);
 extern void static_key_slow_dec_cpuslocked(struct static_key *key);
-extern void jump_label_apply_nops(struct module *mod);
 extern int static_key_count(struct static_key *key);
 extern void static_key_enable(struct static_key *key);
 extern void static_key_disable(struct static_key *key);
 extern void static_key_enable_cpuslocked(struct static_key *key);
 extern void static_key_disable_cpuslocked(struct static_key *key);
+extern enum jump_label_type jump_label_init_type(struct jump_entry *entry);
 
 /*
  * We should be using ATOMIC_INIT() for initializing .enabled, but
@@ -302,11 +300,6 @@ static inline int jump_label_text_reserved(void *start, void *end)
 
 static inline void jump_label_lock(void) {}
 static inline void jump_label_unlock(void) {}
-
-static inline int jump_label_apply_nops(struct module *mod)
-{
-	return 0;
-}
 
 static inline void static_key_enable(struct static_key *key)
 {
