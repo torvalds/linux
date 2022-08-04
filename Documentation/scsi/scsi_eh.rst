@@ -87,8 +87,7 @@ with the command.
 1.2.2 Completing a scmd w/ timeout
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The timeout handler is scsi_times_out().  When a timeout occurs, this
-function
+The timeout handler is scsi_timeout().  When a timeout occurs, this function
 
  1. invokes optional hostt->eh_timed_out() callback.  Return value can
     be one of

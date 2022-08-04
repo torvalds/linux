@@ -1310,7 +1310,7 @@ static inline blk_status_t null_handle_badblocks(struct nullb_cmd *cmd,
 }
 
 static inline blk_status_t null_handle_memory_backed(struct nullb_cmd *cmd,
-						     enum req_opf op,
+						     enum req_op op,
 						     sector_t sector,
 						     sector_t nr_sectors)
 {
@@ -1381,9 +1381,8 @@ static inline void nullb_complete_cmd(struct nullb_cmd *cmd)
 	}
 }
 
-blk_status_t null_process_cmd(struct nullb_cmd *cmd,
-			      enum req_opf op, sector_t sector,
-			      unsigned int nr_sectors)
+blk_status_t null_process_cmd(struct nullb_cmd *cmd, enum req_op op,
+			      sector_t sector, unsigned int nr_sectors)
 {
 	struct nullb_device *dev = cmd->nq->dev;
 	blk_status_t ret;
@@ -1401,7 +1400,7 @@ blk_status_t null_process_cmd(struct nullb_cmd *cmd,
 }
 
 static blk_status_t null_handle_cmd(struct nullb_cmd *cmd, sector_t sector,
-				    sector_t nr_sectors, enum req_opf op)
+				    sector_t nr_sectors, enum req_op op)
 {
 	struct nullb_device *dev = cmd->nq->dev;
 	struct nullb *nullb = dev->nullb;
@@ -1578,7 +1577,7 @@ static int null_poll(struct blk_mq_hw_ctx *hctx, struct io_comp_batch *iob)
 	return nr;
 }
 
-static enum blk_eh_timer_return null_timeout_rq(struct request *rq, bool res)
+static enum blk_eh_timer_return null_timeout_rq(struct request *rq)
 {
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(rq);
@@ -1737,7 +1736,7 @@ static void null_del_dev(struct nullb *nullb)
 		null_restart_queue_async(nullb);
 	}
 
-	blk_cleanup_disk(nullb->disk);
+	put_disk(nullb->disk);
 	if (dev->queue_mode == NULL_Q_MQ &&
 	    nullb->tag_set == &nullb->__tag_set)
 		blk_mq_free_tag_set(nullb->tag_set);
@@ -2082,7 +2081,7 @@ static int null_add_dev(struct nullb_device *dev)
 out_cleanup_zone:
 	null_free_zoned_dev(dev);
 out_cleanup_disk:
-	blk_cleanup_disk(nullb->disk);
+	put_disk(nullb->disk);
 out_cleanup_tags:
 	if (dev->queue_mode == NULL_Q_MQ && nullb->tag_set == &nullb->__tag_set)
 		blk_mq_free_tag_set(nullb->tag_set);

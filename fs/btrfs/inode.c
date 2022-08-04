@@ -485,7 +485,7 @@ struct async_chunk {
 	struct page *locked_page;
 	u64 start;
 	u64 end;
-	unsigned int write_flags;
+	blk_opf_t write_flags;
 	struct list_head extents;
 	struct cgroup_subsys_state *blkcg_css;
 	struct btrfs_work work;
@@ -1435,7 +1435,7 @@ static int cow_file_range_async(struct btrfs_inode *inode,
 	int i;
 	bool should_compress;
 	unsigned nofs_flag;
-	const unsigned int write_flags = wbc_to_write_flags(wbc);
+	const blk_opf_t write_flags = wbc_to_write_flags(wbc);
 
 	unlock_extent(&inode->io_tree, start, end);
 

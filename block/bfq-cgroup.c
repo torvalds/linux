@@ -220,46 +220,46 @@ void bfqg_stats_update_avg_queue_size(struct bfq_group *bfqg)
 }
 
 void bfqg_stats_update_io_add(struct bfq_group *bfqg, struct bfq_queue *bfqq,
-			      unsigned int op)
+			      blk_opf_t opf)
 {
-	blkg_rwstat_add(&bfqg->stats.queued, op, 1);
+	blkg_rwstat_add(&bfqg->stats.queued, opf, 1);
 	bfqg_stats_end_empty_time(&bfqg->stats);
 	if (!(bfqq == ((struct bfq_data *)bfqg->bfqd)->in_service_queue))
 		bfqg_stats_set_start_group_wait_time(bfqg, bfqq_group(bfqq));
 }
 
-void bfqg_stats_update_io_remove(struct bfq_group *bfqg, unsigned int op)
+void bfqg_stats_update_io_remove(struct bfq_group *bfqg, blk_opf_t opf)
 {
-	blkg_rwstat_add(&bfqg->stats.queued, op, -1);
+	blkg_rwstat_add(&bfqg->stats.queued, opf, -1);
 }
 
-void bfqg_stats_update_io_merged(struct bfq_group *bfqg, unsigned int op)
+void bfqg_stats_update_io_merged(struct bfq_group *bfqg, blk_opf_t opf)
 {
-	blkg_rwstat_add(&bfqg->stats.merged, op, 1);
+	blkg_rwstat_add(&bfqg->stats.merged, opf, 1);
 }
 
 void bfqg_stats_update_completion(struct bfq_group *bfqg, u64 start_time_ns,
-				  u64 io_start_time_ns, unsigned int op)
+				  u64 io_start_time_ns, blk_opf_t opf)
 {
 	struct bfqg_stats *stats = &bfqg->stats;
 	u64 now = ktime_get_ns();
 
 	if (now > io_start_time_ns)
-		blkg_rwstat_add(&stats->service_time, op,
+		blkg_rwstat_add(&stats->service_time, opf,
 				now - io_start_time_ns);
 	if (io_start_time_ns > start_time_ns)
-		blkg_rwstat_add(&stats->wait_time, op,
+		blkg_rwstat_add(&stats->wait_time, opf,
 				io_start_time_ns - start_time_ns);
 }
 
 #else /* CONFIG_BFQ_CGROUP_DEBUG */
 
 void bfqg_stats_update_io_add(struct bfq_group *bfqg, struct bfq_queue *bfqq,
-			      unsigned int op) { }
-void bfqg_stats_update_io_remove(struct bfq_group *bfqg, unsigned int op) { }
-void bfqg_stats_update_io_merged(struct bfq_group *bfqg, unsigned int op) { }
+			      blk_opf_t opf) { }
+void bfqg_stats_update_io_remove(struct bfq_group *bfqg, blk_opf_t opf) { }
+void bfqg_stats_update_io_merged(struct bfq_group *bfqg, blk_opf_t opf) { }
 void bfqg_stats_update_completion(struct bfq_group *bfqg, u64 start_time_ns,
-				  u64 io_start_time_ns, unsigned int op) { }
+				  u64 io_start_time_ns, blk_opf_t opf) { }
 void bfqg_stats_update_dequeue(struct bfq_group *bfqg) { }
 void bfqg_stats_set_start_empty_time(struct bfq_group *bfqg) { }
 void bfqg_stats_update_idle_time(struct bfq_group *bfqg) { }
@@ -706,10 +706,10 @@ void bfq_bfqq_move(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 }
 
 /**
- * __bfq_bic_change_cgroup - move @bic to @cgroup.
+ * __bfq_bic_change_cgroup - move @bic to @bfqg.
  * @bfqd: the queue descriptor.
  * @bic: the bic to move.
- * @blkcg: the blk-cgroup to move to.
+ * @bfqg: the group to move to.
  *
  * Move bic to blkcg, assuming that bfqd->lock is held; which makes
  * sure that the reference to cgroup is valid across the call (see
@@ -863,6 +863,7 @@ static void bfq_flush_idle_tree(struct bfq_service_tree *st)
  * @bfqd: the device data structure with the root group.
  * @entity: the entity to move, if entity is a leaf; or the parent entity
  *	    of an active leaf entity to move, if entity is not a leaf.
+ * @ioprio_class: I/O priority class to reparent.
  */
 static void bfq_reparent_leaf_entity(struct bfq_data *bfqd,
 				     struct bfq_entity *entity,
@@ -892,6 +893,7 @@ static void bfq_reparent_leaf_entity(struct bfq_data *bfqd,
  * @bfqd: the device data structure with the root group.
  * @bfqg: the group to move from.
  * @st: the service tree to start the search from.
+ * @ioprio_class: I/O priority class to reparent.
  */
 static void bfq_reparent_active_queues(struct bfq_data *bfqd,
 				       struct bfq_group *bfqg,
@@ -1470,8 +1472,6 @@ struct bfq_group *bfqq_group(struct bfq_queue *bfqq)
 {
 	return bfqq->bfqd->root_group;
 }
-
-void bfqg_and_blkg_get(struct bfq_group *bfqg) {}
 
 void bfqg_and_blkg_put(struct bfq_group *bfqg) {}
 

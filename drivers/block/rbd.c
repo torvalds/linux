@@ -4729,7 +4729,7 @@ static blk_status_t rbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 static void rbd_free_disk(struct rbd_device *rbd_dev)
 {
-	blk_cleanup_disk(rbd_dev->disk);
+	put_disk(rbd_dev->disk);
 	blk_mq_free_tag_set(&rbd_dev->tag_set);
 	rbd_dev->disk = NULL;
 }
