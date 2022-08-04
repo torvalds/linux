@@ -148,8 +148,19 @@ fn main() {
     let mut ts = TargetSpec::new();
 
     // `llvm-target`s are taken from `scripts/Makefile.clang`.
-    if cfg.has("DUMMY_ARCH") {
-        ts.push("arch", "dummy_arch");
+    if cfg.has("X86_64") {
+        ts.push("arch", "x86_64");
+        ts.push(
+            "data-layout",
+            "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128",
+        );
+        let mut features = "-3dnow,-3dnowa,-mmx,+soft-float".to_string();
+        if cfg.has("RETPOLINE") {
+            features += ",+retpoline-external-thunk";
+        }
+        ts.push("features", features);
+        ts.push("llvm-target", "x86_64-linux-gnu");
+        ts.push("target-pointer-width", "64");
     } else {
         panic!("Unsupported architecture");
     }
