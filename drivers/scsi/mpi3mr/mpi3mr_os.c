@@ -796,7 +796,7 @@ static void mpi3mr_set_io_divert_for_all_vd_in_tg(struct mpi3mr_ioc *mrioc,
  *
  * Return: None.
  */
-static void mpi3mr_print_device_event_notice(struct mpi3mr_ioc *mrioc,
+void mpi3mr_print_device_event_notice(struct mpi3mr_ioc *mrioc,
 	bool device_add)
 {
 	ioc_notice(mrioc, "Device %s was in progress before the reset and\n",

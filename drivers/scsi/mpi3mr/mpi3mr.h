@@ -570,12 +570,18 @@ struct mpi3mr_enclosure_node {
  *
  * @sas_address: World wide unique SAS address
  * @dev_info: Device information bits
+ * @sas_transport_attached: Is this device exposed to transport
+ * @pend_sas_rphy_add: Flag to check device is in process of add
  * @hba_port: HBA port entry
+ * @rphy: SAS transport layer rphy object
  */
 struct tgt_dev_sas_sata {
 	u64 sas_address;
 	u16 dev_info;
+	u8 sas_transport_attached;
+	u8 pend_sas_rphy_add;
 	struct mpi3mr_hba_port *hba_port;
+	struct sas_rphy *rphy;
 };
 
 /**
@@ -1331,4 +1337,11 @@ int mpi3mr_cfg_get_driver_pg1(struct mpi3mr_ioc *mrioc,
 u8 mpi3mr_is_expander_device(u16 device_info);
 struct mpi3mr_hba_port *mpi3mr_get_hba_port_by_id(struct mpi3mr_ioc *mrioc,
 	u8 port_id);
+void mpi3mr_sas_host_refresh(struct mpi3mr_ioc *mrioc);
+void mpi3mr_sas_host_add(struct mpi3mr_ioc *mrioc);
+void mpi3mr_update_links(struct mpi3mr_ioc *mrioc,
+	u64 sas_address_parent, u16 handle, u8 phy_number, u8 link_rate,
+	struct mpi3mr_hba_port *hba_port);
+void mpi3mr_print_device_event_notice(struct mpi3mr_ioc *mrioc,
+	bool device_add);
 #endif /*MPI3MR_H_INCLUDED*/
