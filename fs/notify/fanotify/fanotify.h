@@ -458,7 +458,7 @@ static inline bool fanotify_event_has_path(struct fanotify_event *event)
 		event->type == FANOTIFY_EVENT_TYPE_PATH_PERM;
 }
 
-static inline struct path *fanotify_event_path(struct fanotify_event *event)
+static inline const struct path *fanotify_event_path(struct fanotify_event *event)
 {
 	if (event->type == FANOTIFY_EVENT_TYPE_PATH)
 		return &FANOTIFY_PE(event)->path;
