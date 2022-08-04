@@ -364,6 +364,8 @@ enum cxl_config_state {
  * @interleave_ways: number of endpoints in the region
  * @interleave_granularity: capacity each endpoint contributes to a stripe
  * @res: allocated iomem capacity for this region
+ * @targets: active ordered targets in current decoder configuration
+ * @nr_targets: number of targets
  *
  * State transitions are protected by the cxl_region_rwsem
  */
