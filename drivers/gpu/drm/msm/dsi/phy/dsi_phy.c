@@ -529,58 +529,16 @@ static int dsi_phy_regulator_init(struct msm_dsi_phy *phy)
 		return ret;
 	}
 
-	return 0;
-}
-
-static void dsi_phy_regulator_disable(struct msm_dsi_phy *phy)
-{
-	struct regulator_bulk_data *s = phy->supplies;
-	const struct dsi_reg_entry *regs = phy->cfg->reg_cfg.regs;
-	int num = phy->cfg->reg_cfg.num;
-	int i;
-
-	DBG("");
-	for (i = num - 1; i >= 0; i--)
-		if (regs[i].disable_load >= 0)
-			regulator_set_load(s[i].consumer, regs[i].disable_load);
-
-	regulator_bulk_disable(num, s);
-}
-
-static int dsi_phy_regulator_enable(struct msm_dsi_phy *phy)
-{
-	struct regulator_bulk_data *s = phy->supplies;
-	const struct dsi_reg_entry *regs = phy->cfg->reg_cfg.regs;
-	struct device *dev = &phy->pdev->dev;
-	int num = phy->cfg->reg_cfg.num;
-	int ret, i;
-
-	DBG("");
 	for (i = 0; i < num; i++) {
 		if (regs[i].enable_load >= 0) {
 			ret = regulator_set_load(s[i].consumer,
 							regs[i].enable_load);
-			if (ret < 0) {
-				DRM_DEV_ERROR(dev,
-					"regulator %d set op mode failed, %d\n",
-					i, ret);
-				goto fail;
-			}
+			if (ret < 0)
+				return ret;
 		}
 	}
 
-	ret = regulator_bulk_enable(num, s);
-	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "regulator enable failed, %d\n", ret);
-		goto fail;
-	}
-
 	return 0;
-
-fail:
-	for (i--; i >= 0; i--)
-		regulator_set_load(s[i].consumer, regs[i].disable_load);
-	return ret;
 }
 
 static int dsi_phy_enable_resource(struct msm_dsi_phy *phy)
@@ -829,7 +787,7 @@ int msm_dsi_phy_enable(struct msm_dsi_phy *phy,
 		goto res_en_fail;
 	}
 
-	ret = dsi_phy_regulator_enable(phy);
+	ret = regulator_bulk_enable(phy->cfg->reg_cfg.num, phy->supplies);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "%s: regulator enable failed, %d\n",
 			__func__, ret);
@@ -866,7 +824,7 @@ pll_restor_fail:
 	if (phy->cfg->ops.disable)
 		phy->cfg->ops.disable(phy);
 phy_en_fail:
-	dsi_phy_regulator_disable(phy);
+	regulator_bulk_disable(phy->cfg->reg_cfg.num, phy->supplies);
 reg_en_fail:
 	dsi_phy_disable_resource(phy);
 res_en_fail:
@@ -880,7 +838,7 @@ void msm_dsi_phy_disable(struct msm_dsi_phy *phy)
 
 	phy->cfg->ops.disable(phy);
 
-	dsi_phy_regulator_disable(phy);
+	regulator_bulk_disable(phy->cfg->reg_cfg.num, phy->supplies);
 	dsi_phy_disable_resource(phy);
 }
 
