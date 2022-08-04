@@ -351,6 +351,8 @@ static struct pcie_port_service_driver hpdriver_portdrv = {
 	.runtime_suspend = pciehp_runtime_suspend,
 	.runtime_resume	= pciehp_runtime_resume,
 #endif	/* PM */
+
+	.slot_reset	= pciehp_slot_reset,
 };
 
 int __init pcie_hp_init(void)

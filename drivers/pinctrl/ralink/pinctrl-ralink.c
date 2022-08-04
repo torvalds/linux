@@ -19,23 +19,23 @@
 #include <asm/mach-ralink/ralink_regs.h>
 #include <asm/mach-ralink/mt7620.h>
 
-#include "pinmux.h"
+#include "pinctrl-ralink.h"
 #include "../core.h"
 #include "../pinctrl-utils.h"
 
 #define SYSC_REG_GPIO_MODE	0x60
 #define SYSC_REG_GPIO_MODE2	0x64
 
-struct rt2880_priv {
+struct ralink_priv {
 	struct device *dev;
 
 	struct pinctrl_pin_desc *pads;
 	struct pinctrl_desc *desc;
 
-	struct rt2880_pmx_func **func;
+	struct ralink_pmx_func **func;
 	int func_count;
 
-	struct rt2880_pmx_group *groups;
+	struct ralink_pmx_group *groups;
 	const char **group_names;
 	int group_count;
 
@@ -43,27 +43,27 @@ struct rt2880_priv {
 	int max_pins;
 };
 
-static int rt2880_get_group_count(struct pinctrl_dev *pctrldev)
+static int ralink_get_group_count(struct pinctrl_dev *pctrldev)
 {
-	struct rt2880_priv *p = pinctrl_dev_get_drvdata(pctrldev);
+	struct ralink_priv *p = pinctrl_dev_get_drvdata(pctrldev);
 
 	return p->group_count;
 }
 
-static const char *rt2880_get_group_name(struct pinctrl_dev *pctrldev,
+static const char *ralink_get_group_name(struct pinctrl_dev *pctrldev,
 					 unsigned int group)
 {
-	struct rt2880_priv *p = pinctrl_dev_get_drvdata(pctrldev);
+	struct ralink_priv *p = pinctrl_dev_get_drvdata(pctrldev);
 
 	return (group >= p->group_count) ? NULL : p->group_names[group];
 }
 
-static int rt2880_get_group_pins(struct pinctrl_dev *pctrldev,
+static int ralink_get_group_pins(struct pinctrl_dev *pctrldev,
 				 unsigned int group,
 				 const unsigned int **pins,
 				 unsigned int *num_pins)
 {
-	struct rt2880_priv *p = pinctrl_dev_get_drvdata(pctrldev);
+	struct ralink_priv *p = pinctrl_dev_get_drvdata(pctrldev);
 
 	if (group >= p->group_count)
 		return -EINVAL;
@@ -74,35 +74,35 @@ static int rt2880_get_group_pins(struct pinctrl_dev *pctrldev,
 	return 0;
 }
 
-static const struct pinctrl_ops rt2880_pctrl_ops = {
-	.get_groups_count	= rt2880_get_group_count,
-	.get_group_name		= rt2880_get_group_name,
-	.get_group_pins		= rt2880_get_group_pins,
+static const struct pinctrl_ops ralink_pctrl_ops = {
+	.get_groups_count	= ralink_get_group_count,
+	.get_group_name		= ralink_get_group_name,
+	.get_group_pins		= ralink_get_group_pins,
 	.dt_node_to_map		= pinconf_generic_dt_node_to_map_all,
 	.dt_free_map		= pinconf_generic_dt_free_map,
 };
 
-static int rt2880_pmx_func_count(struct pinctrl_dev *pctrldev)
+static int ralink_pmx_func_count(struct pinctrl_dev *pctrldev)
 {
-	struct rt2880_priv *p = pinctrl_dev_get_drvdata(pctrldev);
+	struct ralink_priv *p = pinctrl_dev_get_drvdata(pctrldev);
 
 	return p->func_count;
 }
 
-static const char *rt2880_pmx_func_name(struct pinctrl_dev *pctrldev,
+static const char *ralink_pmx_func_name(struct pinctrl_dev *pctrldev,
 					unsigned int func)
 {
-	struct rt2880_priv *p = pinctrl_dev_get_drvdata(pctrldev);
+	struct ralink_priv *p = pinctrl_dev_get_drvdata(pctrldev);
 
 	return p->func[func]->name;
 }
 
-static int rt2880_pmx_group_get_groups(struct pinctrl_dev *pctrldev,
+static int ralink_pmx_group_get_groups(struct pinctrl_dev *pctrldev,
 				       unsigned int func,
 				       const char * const **groups,
 				       unsigned int * const num_groups)
 {
-	struct rt2880_priv *p = pinctrl_dev_get_drvdata(pctrldev);
+	struct ralink_priv *p = pinctrl_dev_get_drvdata(pctrldev);
 
 	if (p->func[func]->group_count == 1)
 		*groups = &p->group_names[p->func[func]->groups[0]];
@@ -114,10 +114,10 @@ static int rt2880_pmx_group_get_groups(struct pinctrl_dev *pctrldev,
 	return 0;
 }
 
-static int rt2880_pmx_group_enable(struct pinctrl_dev *pctrldev,
+static int ralink_pmx_group_enable(struct pinctrl_dev *pctrldev,
 				   unsigned int func, unsigned int group)
 {
-	struct rt2880_priv *p = pinctrl_dev_get_drvdata(pctrldev);
+	struct ralink_priv *p = pinctrl_dev_get_drvdata(pctrldev);
 	u32 mode = 0;
 	u32 reg = SYSC_REG_GPIO_MODE;
 	int i;
@@ -158,11 +158,11 @@ static int rt2880_pmx_group_enable(struct pinctrl_dev *pctrldev,
 	return 0;
 }
 
-static int rt2880_pmx_group_gpio_request_enable(struct pinctrl_dev *pctrldev,
+static int ralink_pmx_group_gpio_request_enable(struct pinctrl_dev *pctrldev,
 						struct pinctrl_gpio_range *range,
 						unsigned int pin)
 {
-	struct rt2880_priv *p = pinctrl_dev_get_drvdata(pctrldev);
+	struct ralink_priv *p = pinctrl_dev_get_drvdata(pctrldev);
 
 	if (!p->gpio[pin]) {
 		dev_err(p->dev, "pin %d is not set to gpio mux\n", pin);
@@ -172,28 +172,28 @@ static int rt2880_pmx_group_gpio_request_enable(struct pinctrl_dev *pctrldev,
 	return 0;
 }
 
-static const struct pinmux_ops rt2880_pmx_group_ops = {
-	.get_functions_count	= rt2880_pmx_func_count,
-	.get_function_name	= rt2880_pmx_func_name,
-	.get_function_groups	= rt2880_pmx_group_get_groups,
-	.set_mux		= rt2880_pmx_group_enable,
-	.gpio_request_enable	= rt2880_pmx_group_gpio_request_enable,
+static const struct pinmux_ops ralink_pmx_group_ops = {
+	.get_functions_count	= ralink_pmx_func_count,
+	.get_function_name	= ralink_pmx_func_name,
+	.get_function_groups	= ralink_pmx_group_get_groups,
+	.set_mux		= ralink_pmx_group_enable,
+	.gpio_request_enable	= ralink_pmx_group_gpio_request_enable,
 };
 
-static struct pinctrl_desc rt2880_pctrl_desc = {
+static struct pinctrl_desc ralink_pctrl_desc = {
 	.owner		= THIS_MODULE,
-	.name		= "rt2880-pinmux",
-	.pctlops	= &rt2880_pctrl_ops,
-	.pmxops		= &rt2880_pmx_group_ops,
+	.name		= "ralink-pinmux",
+	.pctlops	= &ralink_pctrl_ops,
+	.pmxops		= &ralink_pmx_group_ops,
 };
 
-static struct rt2880_pmx_func gpio_func = {
+static struct ralink_pmx_func gpio_func = {
 	.name = "gpio",
 };
 
-static int rt2880_pinmux_index(struct rt2880_priv *p)
+static int ralink_pinmux_index(struct ralink_priv *p)
 {
-	struct rt2880_pmx_group *mux = p->groups;
+	struct ralink_pmx_group *mux = p->groups;
 	int i, j, c = 0;
 
 	/* count the mux functions */
@@ -248,7 +248,7 @@ static int rt2880_pinmux_index(struct rt2880_priv *p)
 	return 0;
 }
 
-static int rt2880_pinmux_pins(struct rt2880_priv *p)
+static int ralink_pinmux_pins(struct ralink_priv *p)
 {
 	int i, j;
 
@@ -266,6 +266,8 @@ static int rt2880_pinmux_pins(struct rt2880_priv *p)
 						p->func[i]->pin_count,
 						sizeof(int),
 						GFP_KERNEL);
+		if (!p->func[i]->pins)
+			return -ENOMEM;
 		for (j = 0; j < p->func[i]->pin_count; j++)
 			p->func[i]->pins[j] = p->func[i]->pin_first + j;
 
@@ -311,10 +313,10 @@ static int rt2880_pinmux_pins(struct rt2880_priv *p)
 	return 0;
 }
 
-int rt2880_pinmux_init(struct platform_device *pdev,
-		       struct rt2880_pmx_group *data)
+int ralink_pinmux_init(struct platform_device *pdev,
+		       struct ralink_pmx_group *data)
 {
-	struct rt2880_priv *p;
+	struct ralink_priv *p;
 	struct pinctrl_dev *dev;
 	int err;
 
@@ -322,23 +324,23 @@ int rt2880_pinmux_init(struct platform_device *pdev,
 		return -ENOTSUPP;
 
 	/* setup the private data */
-	p = devm_kzalloc(&pdev->dev, sizeof(struct rt2880_priv), GFP_KERNEL);
+	p = devm_kzalloc(&pdev->dev, sizeof(struct ralink_priv), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
 	p->dev = &pdev->dev;
-	p->desc = &rt2880_pctrl_desc;
+	p->desc = &ralink_pctrl_desc;
 	p->groups = data;
 	platform_set_drvdata(pdev, p);
 
 	/* init the device */
-	err = rt2880_pinmux_index(p);
+	err = ralink_pinmux_index(p);
 	if (err) {
 		dev_err(&pdev->dev, "failed to load index\n");
 		return err;
 	}
 
-	err = rt2880_pinmux_pins(p);
+	err = ralink_pinmux_pins(p);
 	if (err) {
 		dev_err(&pdev->dev, "failed to load pins\n");
 		return err;

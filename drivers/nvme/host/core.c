@@ -2475,6 +2475,34 @@ static const struct nvme_core_quirk_entry core_quirks[] = {
 		.vid = 0x14a4,
 		.fr = "22301111",
 		.quirks = NVME_QUIRK_SIMPLE_SUSPEND,
+	},
+	{
+		/*
+		 * This Kioxia CD6-V Series / HPE PE8030 device times out and
+		 * aborts I/O during any load, but more easily reproducible
+		 * with discards (fstrim).
+		 *
+		 * The device is left in a state where it is also not possible
+		 * to use "nvme set-feature" to disable APST, but booting with
+		 * nvme_core.default_ps_max_latency=0 works.
+		 */
+		.vid = 0x1e0f,
+		.mn = "KCD6XVUL6T40",
+		.quirks = NVME_QUIRK_NO_APST,
+	},
+	{
+		/*
+		 * The external Samsung X5 SSD fails initialization without a
+		 * delay before checking if it is ready and has a whole set of
+		 * other problems.  To make this even more interesting, it
+		 * shares the PCI ID with internal Samsung 970 Evo Plus that
+		 * does not need or want these quirks.
+		 */
+		.vid = 0x144d,
+		.mn = "Samsung Portable SSD X5",
+		.quirks = NVME_QUIRK_DELAY_BEFORE_CHK_RDY |
+			  NVME_QUIRK_NO_DEEPEST_PS |
+			  NVME_QUIRK_IGNORE_DEV_SUBNQN,
 	}
 };
 
@@ -3632,7 +3660,7 @@ static int nvme_add_ns_cdev(struct nvme_ns *ns)
 }
 
 static struct nvme_ns_head *nvme_alloc_ns_head(struct nvme_ctrl *ctrl,
-		unsigned nsid, struct nvme_ns_ids *ids)
+		unsigned nsid, struct nvme_ns_ids *ids, bool is_shared)
 {
 	struct nvme_ns_head *head;
 	size_t size = sizeof(*head);
@@ -3656,14 +3684,8 @@ static struct nvme_ns_head *nvme_alloc_ns_head(struct nvme_ctrl *ctrl,
 	head->subsys = ctrl->subsys;
 	head->ns_id = nsid;
 	head->ids = *ids;
+	head->shared = is_shared;
 	kref_init(&head->ref);
-
-	ret = nvme_subsys_check_duplicate_ids(ctrl->subsys, &head->ids);
-	if (ret) {
-		dev_err(ctrl->device,
-			"duplicate IDs for nsid %d\n", nsid);
-		goto out_cleanup_srcu;
-	}
 
 	if (head->ids.csi) {
 		ret = nvme_get_effects_log(ctrl, head->ids.csi, &head->effects);
@@ -3703,12 +3725,17 @@ static int nvme_init_ns_head(struct nvme_ns *ns, unsigned nsid,
 	mutex_lock(&ctrl->subsys->lock);
 	head = nvme_find_ns_head(ctrl, nsid);
 	if (!head) {
-		head = nvme_alloc_ns_head(ctrl, nsid, ids);
+		ret = nvme_subsys_check_duplicate_ids(ctrl->subsys, ids);
+		if (ret) {
+			dev_err(ctrl->device,
+				"duplicate IDs for nsid %d\n", nsid);
+			goto out_unlock;
+		}
+		head = nvme_alloc_ns_head(ctrl, nsid, ids, is_shared);
 		if (IS_ERR(head)) {
 			ret = PTR_ERR(head);
 			goto out_unlock;
 		}
-		head->shared = is_shared;
 	} else {
 		ret = -EINVAL;
 		if (!is_shared || !head->shared) {
@@ -4357,6 +4384,8 @@ void nvme_stop_ctrl(struct nvme_ctrl *ctrl)
 	nvme_stop_failfast_work(ctrl);
 	flush_work(&ctrl->async_event_work);
 	cancel_work_sync(&ctrl->fw_act_work);
+	if (ctrl->ops->stop_ctrl)
+		ctrl->ops->stop_ctrl(ctrl);
 }
 EXPORT_SYMBOL_GPL(nvme_stop_ctrl);
 

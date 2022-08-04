@@ -137,6 +137,7 @@ struct gsm_dlci {
 	int retries;
 	/* Uplink tty if active */
 	struct tty_port port;	/* The tty bound to this DLCI if there is one */
+#define TX_SIZE		4096    /* Must be power of 2. */
 	struct kfifo fifo;	/* Queue fifo for the DLCI */
 	int adaption;		/* Adaption layer in use */
 	int prev_adaption;
@@ -221,7 +222,6 @@ struct gsm_mux {
 	int encoding;
 	u8 control;
 	u8 fcs;
-	u8 received_fcs;
 	u8 *txframe;			/* TX framing buffer */
 
 	/* Method for the receiver side */
@@ -274,6 +274,10 @@ static DEFINE_SPINLOCK(gsm_mux_lock);
 
 static struct tty_driver *gsm_tty_driver;
 
+/* Save dlci open address */
+static int addr_open[256] = { 0 };
+/* Save dlci open count */
+static int addr_cnt;
 /*
  *	This section of the driver logic implements the GSM encodings
  *	both the basic and the 'advanced'. Reliable transport is not
@@ -368,6 +372,7 @@ static const u8 gsm_fcs8[256] = {
 #define GOOD_FCS	0xCF
 
 static int gsmld_output(struct gsm_mux *gsm, u8 *data, int len);
+static int gsm_modem_update(struct gsm_dlci *dlci, u8 brk);
 
 /**
  *	gsm_fcs_add	-	update FCS
@@ -466,7 +471,7 @@ static void gsm_hex_dump_bytes(const char *fname, const u8 *data,
  *	gsm_print_packet	-	display a frame for debug
  *	@hdr: header to print before decode
  *	@addr: address EA from the frame
- *	@cr: C/R bit from the frame
+ *	@cr: C/R bit seen as initiator
  *	@control: control including PF bit
  *	@data: following data bytes
  *	@dlen: length of data
@@ -566,7 +571,7 @@ static int gsm_stuff_frame(const u8 *input, u8 *output, int len)
  *	gsm_send	-	send a control frame
  *	@gsm: our GSM mux
  *	@addr: address for control frame
- *	@cr: command/response bit
+ *	@cr: command/response bit seen as initiator
  *	@control:  control byte including PF bit
  *
  *	Format up and transmit a control frame. These do not go via the
@@ -581,11 +586,15 @@ static void gsm_send(struct gsm_mux *gsm, int addr, int cr, int control)
 	int len;
 	u8 cbuf[10];
 	u8 ibuf[3];
+	int ocr;
+
+	/* toggle C/R coding if not initiator */
+	ocr = cr ^ (gsm->initiator ? 0 : 1);
 
 	switch (gsm->encoding) {
 	case 0:
 		cbuf[0] = GSM0_SOF;
-		cbuf[1] = (addr << 2) | (cr << 1) | EA;
+		cbuf[1] = (addr << 2) | (ocr << 1) | EA;
 		cbuf[2] = control;
 		cbuf[3] = EA;	/* Length of data = 0 */
 		cbuf[4] = 0xFF - gsm_fcs_add_block(INIT_FCS, cbuf + 1, 3);
@@ -595,7 +604,7 @@ static void gsm_send(struct gsm_mux *gsm, int addr, int cr, int control)
 	case 1:
 	case 2:
 		/* Control frame + packing (but not frame stuffing) in mode 1 */
-		ibuf[0] = (addr << 2) | (cr << 1) | EA;
+		ibuf[0] = (addr << 2) | (ocr << 1) | EA;
 		ibuf[1] = control;
 		ibuf[2] = 0xFF - gsm_fcs_add_block(INIT_FCS, ibuf, 2);
 		/* Stuffing may double the size worst case */
@@ -925,6 +934,66 @@ static int gsm_dlci_data_output_framed(struct gsm_mux *gsm,
 }
 
 /**
+ *	gsm_dlci_modem_output	-	try and push modem status out of a DLCI
+ *	@gsm: mux
+ *	@dlci: the DLCI to pull modem status from
+ *	@brk: break signal
+ *
+ *	Push an empty frame in to the transmit queue to update the modem status
+ *	bits and to transmit an optional break.
+ *
+ *	Caller must hold the tx_lock of the mux.
+ */
+
+static int gsm_dlci_modem_output(struct gsm_mux *gsm, struct gsm_dlci *dlci,
+				 u8 brk)
+{
+	u8 *dp = NULL;
+	struct gsm_msg *msg;
+	int size = 0;
+
+	/* for modem bits without break data */
+	switch (dlci->adaption) {
+	case 1: /* Unstructured */
+		break;
+	case 2: /* Unstructured with modem bits. */
+		size++;
+		if (brk > 0)
+			size++;
+		break;
+	default:
+		pr_err("%s: unsupported adaption %d\n", __func__,
+		       dlci->adaption);
+		return -EINVAL;
+	}
+
+	msg = gsm_data_alloc(gsm, dlci->addr, size, gsm->ftype);
+	if (!msg) {
+		pr_err("%s: gsm_data_alloc error", __func__);
+		return -ENOMEM;
+	}
+	dp = msg->data;
+	switch (dlci->adaption) {
+	case 1: /* Unstructured */
+		break;
+	case 2: /* Unstructured with modem bits. */
+		if (brk == 0) {
+			*dp++ = (gsm_encode_modem(dlci) << 1) | EA;
+		} else {
+			*dp++ = gsm_encode_modem(dlci) << 1;
+			*dp++ = (brk << 4) | 2 | EA; /* Length, Break, EA */
+		}
+		break;
+	default:
+		/* Handled above */
+		break;
+	}
+
+	__gsm_data_queue(dlci, msg);
+	return size;
+}
+
+/**
  *	gsm_dlci_data_sweep		-	look for data to send
  *	@gsm: the GSM mux
  *
@@ -1191,6 +1260,7 @@ static void gsm_control_rls(struct gsm_mux *gsm, const u8 *data, int clen)
 }
 
 static void gsm_dlci_begin_close(struct gsm_dlci *dlci);
+static void gsm_dlci_close(struct gsm_dlci *dlci);
 
 /**
  *	gsm_control_message	-	DLCI 0 control processing
@@ -1209,15 +1279,28 @@ static void gsm_control_message(struct gsm_mux *gsm, unsigned int command,
 {
 	u8 buf[1];
 	unsigned long flags;
+	struct gsm_dlci *dlci;
+	int i;
+	int address;
 
 	switch (command) {
 	case CMD_CLD: {
-		struct gsm_dlci *dlci = gsm->dlci[0];
+		if (addr_cnt > 0) {
+			for (i = 0; i < addr_cnt; i++) {
+				address = addr_open[i];
+				dlci = gsm->dlci[address];
+				gsm_dlci_close(dlci);
+				addr_open[i] = 0;
+			}
+		}
 		/* Modem wishes to close down */
+		dlci = gsm->dlci[0];
 		if (dlci) {
 			dlci->dead = true;
 			gsm->dead = true;
-			gsm_dlci_begin_close(dlci);
+			gsm_dlci_close(dlci);
+			addr_cnt = 0;
+			gsm_response(gsm, 0, UA|PF);
 		}
 		}
 		break;
@@ -1472,6 +1555,9 @@ static void gsm_dlci_open(struct gsm_dlci *dlci)
 	dlci->state = DLCI_OPEN;
 	if (debug & 8)
 		pr_debug("DLCI %d goes open.\n", dlci->addr);
+	/* Send current modem state */
+	if (dlci->addr)
+		gsm_modem_update(dlci, 0);
 	wake_up(&dlci->gsm->event);
 }
 
@@ -1677,7 +1763,7 @@ static struct gsm_dlci *gsm_dlci_alloc(struct gsm_mux *gsm, int addr)
 		return NULL;
 	spin_lock_init(&dlci->lock);
 	mutex_init(&dlci->mutex);
-	if (kfifo_alloc(&dlci->fifo, 4096, GFP_KERNEL) < 0) {
+	if (kfifo_alloc(&dlci->fifo, TX_SIZE, GFP_KERNEL) < 0) {
 		kfree(dlci);
 		return NULL;
 	}
@@ -1780,18 +1866,8 @@ static void gsm_queue(struct gsm_mux *gsm)
 	struct gsm_dlci *dlci;
 	u8 cr;
 	int address;
-	/* We have to sneak a look at the packet body to do the FCS.
-	   A somewhat layering violation in the spec */
+	int i, j, k, address_tmp;
 
-	if ((gsm->control & ~PF) == UI)
-		gsm->fcs = gsm_fcs_add_block(gsm->fcs, gsm->buf, gsm->len);
-	if (gsm->encoding == 0) {
-		/* WARNING: gsm->received_fcs is used for
-		gsm->encoding = 0 only.
-		In this case it contain the last piece of data
-		required to generate final CRC */
-		gsm->fcs = gsm_fcs_add(gsm->fcs, gsm->received_fcs);
-	}
 	if (gsm->fcs != GOOD_FCS) {
 		gsm->bad_fcs++;
 		if (debug & 4)
@@ -1803,10 +1879,10 @@ static void gsm_queue(struct gsm_mux *gsm)
 		goto invalid;
 
 	cr = gsm->address & 1;		/* C/R bit */
+	cr ^= gsm->initiator ? 0 : 1;	/* Flip so 1 always means command */
 
 	gsm_print_packet("<--", address, cr, gsm->control, gsm->buf, gsm->len);
 
-	cr ^= 1 - gsm->initiator;	/* Flip so 1 always means command */
 	dlci = gsm->dlci[address];
 
 	switch (gsm->control) {
@@ -1818,22 +1894,52 @@ static void gsm_queue(struct gsm_mux *gsm)
 		if (dlci == NULL)
 			return;
 		if (dlci->dead)
-			gsm_response(gsm, address, DM);
+			gsm_response(gsm, address, DM|PF);
 		else {
-			gsm_response(gsm, address, UA);
+			gsm_response(gsm, address, UA|PF);
 			gsm_dlci_open(dlci);
+			/* Save dlci open address */
+			if (address) {
+				addr_open[addr_cnt] = address;
+				addr_cnt++;
+			}
 		}
 		break;
 	case DISC|PF:
 		if (cr == 0)
 			goto invalid;
 		if (dlci == NULL || dlci->state == DLCI_CLOSED) {
-			gsm_response(gsm, address, DM);
+			gsm_response(gsm, address, DM|PF);
 			return;
 		}
 		/* Real close complete */
-		gsm_response(gsm, address, UA);
-		gsm_dlci_close(dlci);
+		if (!address) {
+			if (addr_cnt > 0) {
+				for (i = 0; i < addr_cnt; i++) {
+					address = addr_open[i];
+					dlci = gsm->dlci[address];
+					gsm_dlci_close(dlci);
+					addr_open[i] = 0;
+				}
+			}
+			dlci = gsm->dlci[0];
+			gsm_dlci_close(dlci);
+			addr_cnt = 0;
+			gsm_response(gsm, 0, UA|PF);
+		} else {
+			gsm_response(gsm, address, UA|PF);
+			gsm_dlci_close(dlci);
+			/* clear dlci address */
+			for (j = 0; j < addr_cnt; j++) {
+				address_tmp = addr_open[j];
+				if (address_tmp == address) {
+					for (k = j; k < addr_cnt; k++)
+						addr_open[k] = addr_open[k+1];
+				addr_cnt--;
+				break;
+				}
+			}
+		}
 		break;
 	case UA|PF:
 		if (cr == 0 || dlci == NULL)
@@ -1948,19 +2054,25 @@ static void gsm0_receive(struct gsm_mux *gsm, unsigned char c)
 		break;
 	case GSM_DATA:		/* Data */
 		gsm->buf[gsm->count++] = c;
-		if (gsm->count == gsm->len)
+		if (gsm->count == gsm->len) {
+			/* Calculate final FCS for UI frames over all data */
+			if ((gsm->control & ~PF) != UIH) {
+				gsm->fcs = gsm_fcs_add_block(gsm->fcs, gsm->buf,
+							     gsm->count);
+			}
 			gsm->state = GSM_FCS;
+		}
 		break;
 	case GSM_FCS:		/* FCS follows the packet */
-		gsm->received_fcs = c;
-		gsm_queue(gsm);
+		gsm->fcs = gsm_fcs_add(gsm->fcs, c);
 		gsm->state = GSM_SSOF;
 		break;
 	case GSM_SSOF:
-		if (c == GSM0_SOF) {
-			gsm->state = GSM_SEARCH;
-			break;
-		}
+		gsm->state = GSM_SEARCH;
+		if (c == GSM0_SOF)
+			gsm_queue(gsm);
+		else
+			gsm->bad_size++;
 		break;
 	default:
 		pr_debug("%s: unhandled state: %d\n", __func__, gsm->state);
@@ -1989,11 +2101,24 @@ static void gsm1_receive(struct gsm_mux *gsm, unsigned char c)
 		return;
 	}
 	if (c == GSM1_SOF) {
-		/* EOF is only valid in frame if we have got to the data state
-		   and received at least one byte (the FCS) */
-		if (gsm->state == GSM_DATA && gsm->count) {
-			/* Extract the FCS */
+		/* EOF is only valid in frame if we have got to the data state */
+		if (gsm->state == GSM_DATA) {
+			if (gsm->count < 1) {
+				/* Missing FSC */
+				gsm->malformed++;
+				gsm->state = GSM_START;
+				return;
+			}
+			/* Remove the FCS from data */
 			gsm->count--;
+			if ((gsm->control & ~PF) != UIH) {
+				/* Calculate final FCS for UI frames over all
+				 * data but FCS
+				 */
+				gsm->fcs = gsm_fcs_add_block(gsm->fcs, gsm->buf,
+							     gsm->count);
+			}
+			/* Add the FCS itself to test against GOOD_FCS */
 			gsm->fcs = gsm_fcs_add(gsm->fcs, gsm->buf[gsm->count]);
 			gsm->len = gsm->count;
 			gsm_queue(gsm);
@@ -2915,13 +3040,42 @@ static struct tty_ldisc_ops tty_ldisc_packet = {
  *	Virtual tty side
  */
 
-#define TX_SIZE		512
+/**
+ *	gsm_modem_upd_via_data	-	send modem bits via convergence layer
+ *	@dlci: channel
+ *	@brk: break signal
+ *
+ *	Send an empty frame to signal mobile state changes and to transmit the
+ *	break signal for adaption 2.
+ */
 
-static int gsmtty_modem_update(struct gsm_dlci *dlci, u8 brk)
+static void gsm_modem_upd_via_data(struct gsm_dlci *dlci, u8 brk)
+{
+	struct gsm_mux *gsm = dlci->gsm;
+	unsigned long flags;
+
+	if (dlci->state != DLCI_OPEN || dlci->adaption != 2)
+		return;
+
+	spin_lock_irqsave(&gsm->tx_lock, flags);
+	gsm_dlci_modem_output(gsm, dlci, brk);
+	spin_unlock_irqrestore(&gsm->tx_lock, flags);
+}
+
+/**
+ *	gsm_modem_upd_via_msc	-	send modem bits via control frame
+ *	@dlci: channel
+ *	@brk: break signal
+ */
+
+static int gsm_modem_upd_via_msc(struct gsm_dlci *dlci, u8 brk)
 {
 	u8 modembits[3];
 	struct gsm_control *ctrl;
 	int len = 2;
+
+	if (dlci->gsm->encoding != 0)
+		return 0;
 
 	modembits[0] = (dlci->addr << 2) | 2 | EA;  /* DLCI, Valid, EA */
 	if (!brk) {
@@ -2935,6 +3089,27 @@ static int gsmtty_modem_update(struct gsm_dlci *dlci, u8 brk)
 	if (ctrl == NULL)
 		return -ENOMEM;
 	return gsm_control_wait(dlci->gsm, ctrl);
+}
+
+/**
+ *	gsm_modem_update	-	send modem status line state
+ *	@dlci: channel
+ *	@brk: break signal
+ */
+
+static int gsm_modem_update(struct gsm_dlci *dlci, u8 brk)
+{
+	if (dlci->adaption == 2) {
+		/* Send convergence layer type 2 empty data frame. */
+		gsm_modem_upd_via_data(dlci, brk);
+		return 0;
+	} else if (dlci->gsm->encoding == 0) {
+		/* Send as MSC control message. */
+		return gsm_modem_upd_via_msc(dlci, brk);
+	}
+
+	/* Modem status lines are not supported. */
+	return -EPROTONOSUPPORT;
 }
 
 static int gsm_carrier_raised(struct tty_port *port)
@@ -2969,7 +3144,7 @@ static void gsm_dtr_rts(struct tty_port *port, int onoff)
 		modem_tx &= ~(TIOCM_DTR | TIOCM_RTS);
 	if (modem_tx != dlci->modem_tx) {
 		dlci->modem_tx = modem_tx;
-		gsmtty_modem_update(dlci, 0);
+		gsm_modem_update(dlci, 0);
 	}
 }
 
@@ -3102,7 +3277,7 @@ static unsigned int gsmtty_write_room(struct tty_struct *tty)
 	struct gsm_dlci *dlci = tty->driver_data;
 	if (dlci->state == DLCI_CLOSED)
 		return 0;
-	return TX_SIZE - kfifo_len(&dlci->fifo);
+	return kfifo_avail(&dlci->fifo);
 }
 
 static unsigned int gsmtty_chars_in_buffer(struct tty_struct *tty)
@@ -3158,7 +3333,7 @@ static int gsmtty_tiocmset(struct tty_struct *tty,
 
 	if (modem_tx != dlci->modem_tx) {
 		dlci->modem_tx = modem_tx;
-		return gsmtty_modem_update(dlci, 0);
+		return gsm_modem_update(dlci, 0);
 	}
 	return 0;
 }
@@ -3219,7 +3394,7 @@ static void gsmtty_throttle(struct tty_struct *tty)
 		dlci->modem_tx &= ~TIOCM_RTS;
 	dlci->throttled = true;
 	/* Send an MSC with RTS cleared */
-	gsmtty_modem_update(dlci, 0);
+	gsm_modem_update(dlci, 0);
 }
 
 static void gsmtty_unthrottle(struct tty_struct *tty)
@@ -3231,7 +3406,7 @@ static void gsmtty_unthrottle(struct tty_struct *tty)
 		dlci->modem_tx |= TIOCM_RTS;
 	dlci->throttled = false;
 	/* Send an MSC with RTS set */
-	gsmtty_modem_update(dlci, 0);
+	gsm_modem_update(dlci, 0);
 }
 
 static int gsmtty_break_ctl(struct tty_struct *tty, int state)
@@ -3249,7 +3424,7 @@ static int gsmtty_break_ctl(struct tty_struct *tty, int state)
 		if (encode > 0x0F)
 			encode = 0x0F;	/* Best effort */
 	}
-	return gsmtty_modem_update(dlci, encode);
+	return gsm_modem_update(dlci, encode);
 }
 
 static void gsmtty_cleanup(struct tty_struct *tty)

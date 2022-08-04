@@ -283,7 +283,7 @@ static int mt7921_add_interface(struct ieee80211_hw *hw,
 	rcu_assign_pointer(dev->mt76.wcid[idx], &mvif->sta.wcid);
 	if (vif->txq) {
 		mtxq = (struct mt76_txq *)vif->txq->drv_priv;
-		mtxq->wcid = &mvif->sta.wcid;
+		mtxq->wcid = idx;
 	}
 
 out:
@@ -528,36 +528,6 @@ static void mt7921_configure_filter(struct ieee80211_hw *hw,
 	mt7921_mutex_release(dev);
 }
 
-static int
-mt7921_bss_bcnft_apply(struct mt7921_dev *dev, struct ieee80211_vif *vif,
-		       bool assoc)
-{
-	int ret;
-
-	if (!dev->pm.enable)
-		return 0;
-
-	if (assoc) {
-		ret = mt7921_mcu_uni_bss_bcnft(dev, vif, true);
-		if (ret)
-			return ret;
-
-		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
-		mt76_set(dev, MT_WF_RFCR(0), MT_WF_RFCR_DROP_OTHER_BEACON);
-
-		return 0;
-	}
-
-	ret = mt7921_mcu_set_bss_pm(dev, vif, false);
-	if (ret)
-		return ret;
-
-	vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
-	mt76_clear(dev, MT_WF_RFCR(0), MT_WF_RFCR_DROP_OTHER_BEACON);
-
-	return 0;
-}
-
 static void mt7921_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *info,
@@ -587,7 +557,8 @@ static void mt7921_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ASSOC) {
 		mt7921_mcu_sta_update(dev, NULL, vif, true,
 				      MT76_STA_INFO_STATE_ASSOC);
-		mt7921_bss_bcnft_apply(dev, vif, info->assoc);
+		if (dev->pm.enable)
+			mt7921_mcu_set_beacon_filter(dev, vif, info->assoc);
 	}
 
 	if (changed & BSS_CHANGED_ARP_FILTER) {

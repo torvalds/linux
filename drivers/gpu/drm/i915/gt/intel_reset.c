@@ -293,9 +293,9 @@ static int gen6_hw_domain_reset(struct intel_gt *gt, u32 hw_domain_mask)
 	return err;
 }
 
-static int gen6_reset_engines(struct intel_gt *gt,
-			      intel_engine_mask_t engine_mask,
-			      unsigned int retry)
+static int __gen6_reset_engines(struct intel_gt *gt,
+				intel_engine_mask_t engine_mask,
+				unsigned int retry)
 {
 	static const u32 hw_engine_mask[] = {
 		[RCS0]  = GEN6_GRDOM_RENDER,
@@ -320,6 +320,20 @@ static int gen6_reset_engines(struct intel_gt *gt,
 	}
 
 	return gen6_hw_domain_reset(gt, hw_mask);
+}
+
+static int gen6_reset_engines(struct intel_gt *gt,
+			      intel_engine_mask_t engine_mask,
+			      unsigned int retry)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&gt->uncore->lock, flags);
+	ret = __gen6_reset_engines(gt, engine_mask, retry);
+	spin_unlock_irqrestore(&gt->uncore->lock, flags);
+
+	return ret;
 }
 
 static struct intel_engine_cs *find_sfc_paired_vecs_engine(struct intel_engine_cs *engine)
@@ -488,9 +502,9 @@ static void gen11_unlock_sfc(struct intel_engine_cs *engine)
 	rmw_clear_fw(uncore, sfc_lock.lock_reg, sfc_lock.lock_bit);
 }
 
-static int gen11_reset_engines(struct intel_gt *gt,
-			       intel_engine_mask_t engine_mask,
-			       unsigned int retry)
+static int __gen11_reset_engines(struct intel_gt *gt,
+				 intel_engine_mask_t engine_mask,
+				 unsigned int retry)
 {
 	static const u32 hw_engine_mask[] = {
 		[RCS0]  = GEN11_GRDOM_RENDER,
@@ -601,7 +615,10 @@ static int gen8_reset_engines(struct intel_gt *gt,
 	struct intel_engine_cs *engine;
 	const bool reset_non_ready = retry >= 1;
 	intel_engine_mask_t tmp;
+	unsigned long flags;
 	int ret;
+
+	spin_lock_irqsave(&gt->uncore->lock, flags);
 
 	for_each_engine_masked(engine, gt, engine_mask, tmp) {
 		ret = gen8_engine_reset_prepare(engine);
@@ -623,14 +640,25 @@ static int gen8_reset_engines(struct intel_gt *gt,
 		 */
 	}
 
+	/*
+	 * Wa_22011100796:dg2, whenever Full soft reset is required,
+	 * reset all individual engines firstly, and then do a full soft reset.
+	 *
+	 * This is best effort, so ignore any error from the initial reset.
+	 */
+	if (IS_DG2(gt->i915) && engine_mask == ALL_ENGINES)
+		__gen11_reset_engines(gt, gt->info.engine_mask, 0);
+
 	if (GRAPHICS_VER(gt->i915) >= 11)
-		ret = gen11_reset_engines(gt, engine_mask, retry);
+		ret = __gen11_reset_engines(gt, engine_mask, retry);
 	else
-		ret = gen6_reset_engines(gt, engine_mask, retry);
+		ret = __gen6_reset_engines(gt, engine_mask, retry);
 
 skip_reset:
 	for_each_engine_masked(engine, gt, engine_mask, tmp)
 		gen8_engine_reset_cancel(engine);
+
+	spin_unlock_irqrestore(&gt->uncore->lock, flags);
 
 	return ret;
 }

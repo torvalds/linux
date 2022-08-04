@@ -90,8 +90,7 @@ transfer_to_syscall:
 	stw	r12,8(r1)
 	stw	r2,_TRAP(r1)
 	SAVE_GPR(0, r1)
-	SAVE_4GPRS(3, r1)
-	SAVE_2GPRS(7, r1)
+	SAVE_GPRS(3, 8, r1)
 	addi	r2,r10,-THREAD
 	SAVE_NVGPRS(r1)
 
@@ -139,7 +138,7 @@ syscall_exit_finish:
 	mtxer	r5
 	lwz	r0,GPR0(r1)
 	lwz	r3,GPR3(r1)
-	REST_8GPRS(4,r1)
+	REST_GPRS(4, 11, r1)
 	lwz	r12,GPR12(r1)
 	b	1b
 
@@ -232,9 +231,9 @@ fast_exception_return:
 	beq	3f			/* if not, we've got problems */
 #endif
 
-2:	REST_4GPRS(3, r11)
+2:	REST_GPRS(3, 6, r11)
 	lwz	r10,_CCR(r11)
-	REST_2GPRS(1, r11)
+	REST_GPRS(1, 2, r11)
 	mtcr	r10
 	lwz	r10,_LINK(r11)
 	mtlr	r10
@@ -298,16 +297,14 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	 * the reliable stack unwinder later on. Clear it.
 	 */
 	stw	r0,8(r1)
-	REST_4GPRS(7, r1)
-	REST_2GPRS(11, r1)
+	REST_GPRS(7, 12, r1)
 
 	mtcr	r3
 	mtlr	r4
 	mtctr	r5
 	mtspr	SPRN_XER,r6
 
-	REST_4GPRS(2, r1)
-	REST_GPR(6, r1)
+	REST_GPRS(2, 6, r1)
 	REST_GPR(0, r1)
 	REST_GPR(1, r1)
 	rfi
@@ -341,8 +338,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	lwz	r6,_CCR(r1)
 	li	r0,0
 
-	REST_4GPRS(7, r1)
-	REST_2GPRS(11, r1)
+	REST_GPRS(7, 12, r1)
 
 	mtlr	r3
 	mtctr	r4
@@ -354,7 +350,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	 */
 	stw	r0,8(r1)
 
-	REST_4GPRS(2, r1)
+	REST_GPRS(2, 5, r1)
 
 	bne-	cr1,1f /* emulate stack store */
 	mtcr	r6
@@ -430,8 +426,7 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return)
 	bne	interrupt_return;					\
 	lwz	r0,GPR0(r1);						\
 	lwz	r2,GPR2(r1);						\
-	REST_4GPRS(3, r1);						\
-	REST_2GPRS(7, r1);						\
+	REST_GPRS(3, 8, r1);						\
 	lwz	r10,_XER(r1);						\
 	lwz	r11,_CTR(r1);						\
 	mtspr	SPRN_XER,r10;						\

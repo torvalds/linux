@@ -457,7 +457,7 @@ static int sg_io(struct scsi_device *sdev, struct gendisk *disk,
 		goto out_free_cdb;
 
 	ret = 0;
-	if (hdr->iovec_count) {
+	if (hdr->iovec_count && hdr->dxfer_len) {
 		struct iov_iter i;
 		struct iovec *iov = NULL;
 

@@ -683,6 +683,16 @@ static int rt1308_sdw_probe(struct sdw_slave *slave,
 	return 0;
 }
 
+static int rt1308_sdw_remove(struct sdw_slave *slave)
+{
+	struct rt1308_sdw_priv *rt1308 = dev_get_drvdata(&slave->dev);
+
+	if (rt1308->first_hw_init)
+		pm_runtime_disable(&slave->dev);
+
+	return 0;
+}
+
 static const struct sdw_device_id rt1308_id[] = {
 	SDW_SLAVE_ENTRY_EXT(0x025d, 0x1308, 0x2, 0, 0),
 	{},
@@ -742,6 +752,7 @@ static struct sdw_driver rt1308_sdw_driver = {
 		.pm = &rt1308_pm,
 	},
 	.probe = rt1308_sdw_probe,
+	.remove = rt1308_sdw_remove,
 	.ops = &rt1308_slave_ops,
 	.id_table = rt1308_id,
 };

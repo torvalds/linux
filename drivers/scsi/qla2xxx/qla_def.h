@@ -3759,6 +3759,7 @@ struct qla_qpair {
 	struct qla_fw_resources fwres ____cacheline_aligned;
 	u32	cmd_cnt;
 	u32	cmd_completion_cnt;
+	u32	prev_completion_cnt;
 };
 
 /* Place holder for FW buffer parameters */
@@ -4618,7 +4619,9 @@ struct qla_hw_data {
 	struct qla_chip_state_84xx *cs84xx;
 	struct isp_operations *isp_ops;
 	struct workqueue_struct *wq;
+	struct work_struct heartbeat_work;
 	struct qlfc_fw fw_buf;
+	unsigned long last_heartbeat_run_jiffies;
 
 	/* FCP_CMND priority support */
 	struct qla_fcp_prio_cfg *fcp_prio_cfg;
@@ -4719,7 +4722,6 @@ struct qla_hw_data {
 
 	struct qla_hw_data_stat stat;
 	pci_error_state_t pci_error_state;
-	u64 prev_cmd_cnt;
 	struct dma_pool *purex_dma_pool;
 	struct btree_head32 host_map;
 
@@ -4865,7 +4867,6 @@ typedef struct scsi_qla_host {
 #define SET_ZIO_THRESHOLD_NEEDED 32
 #define ISP_ABORT_TO_ROM	33
 #define VPORT_DELETE		34
-#define HEARTBEAT_CHK		38
 
 #define PROCESS_PUREX_IOCB	63
 

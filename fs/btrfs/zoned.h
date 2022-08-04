@@ -8,6 +8,7 @@
 #include "volumes.h"
 #include "disk-io.h"
 #include "block-group.h"
+#include "btrfs_inode.h"
 
 /*
  * Block groups with more than this value (percents) of unusable space will be
@@ -322,6 +323,22 @@ static inline void btrfs_clear_treelog_bg(struct btrfs_block_group *bg)
 	if (fs_info->treelog_bg == bg->start)
 		fs_info->treelog_bg = 0;
 	spin_unlock(&fs_info->treelog_bg_lock);
+}
+
+static inline void btrfs_zoned_data_reloc_lock(struct btrfs_inode *inode)
+{
+	struct btrfs_root *root = inode->root;
+
+	if (btrfs_is_data_reloc_root(root) && btrfs_is_zoned(root->fs_info))
+		mutex_lock(&root->fs_info->zoned_data_reloc_io_lock);
+}
+
+static inline void btrfs_zoned_data_reloc_unlock(struct btrfs_inode *inode)
+{
+	struct btrfs_root *root = inode->root;
+
+	if (btrfs_is_data_reloc_root(root) && btrfs_is_zoned(root->fs_info))
+		mutex_unlock(&root->fs_info->zoned_data_reloc_io_lock);
 }
 
 #endif

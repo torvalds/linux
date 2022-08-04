@@ -927,6 +927,7 @@ struct ibmvnic_adapter {
 
 	struct ibmvnic_tx_pool *tx_pool;
 	struct ibmvnic_tx_pool *tso_pool;
+	struct completion probe_done;
 	struct completion init_done;
 	int init_done_rc;
 

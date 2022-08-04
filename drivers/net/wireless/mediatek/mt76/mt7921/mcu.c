@@ -1205,8 +1205,9 @@ int mt7921_mcu_uni_bss_ps(struct mt7921_dev *dev, struct ieee80211_vif *vif)
 				 &ps_req, sizeof(ps_req), true);
 }
 
-int mt7921_mcu_uni_bss_bcnft(struct mt7921_dev *dev, struct ieee80211_vif *vif,
-			     bool enable)
+static int
+mt7921_mcu_uni_bss_bcnft(struct mt7921_dev *dev, struct ieee80211_vif *vif,
+			 bool enable)
 {
 	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
 	struct {
@@ -1240,8 +1241,9 @@ int mt7921_mcu_uni_bss_bcnft(struct mt7921_dev *dev, struct ieee80211_vif *vif,
 				 &bcnft_req, sizeof(bcnft_req), true);
 }
 
-int mt7921_mcu_set_bss_pm(struct mt7921_dev *dev, struct ieee80211_vif *vif,
-			  bool enable)
+static int
+mt7921_mcu_set_bss_pm(struct mt7921_dev *dev, struct ieee80211_vif *vif,
+		      bool enable)
 {
 	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
 	struct {
@@ -1304,7 +1306,7 @@ int mt7921_mcu_sta_update(struct mt7921_dev *dev, struct ieee80211_sta *sta,
 	return mt76_connac_mcu_sta_cmd(&dev->mphy, &info);
 }
 
-int __mt7921_mcu_drv_pmctrl(struct mt7921_dev *dev)
+int __mt7921e_mcu_drv_pmctrl(struct mt7921_dev *dev)
 {
 	int i, err = 0;
 
@@ -1323,6 +1325,26 @@ int __mt7921_mcu_drv_pmctrl(struct mt7921_dev *dev)
 	return err;
 }
 
+int __mt7921_mcu_drv_pmctrl(struct mt7921_dev *dev)
+{
+	struct mt76_phy *mphy = &dev->mt76.phy;
+	struct mt76_connac_pm *pm = &dev->pm;
+	int err;
+
+	err = __mt7921e_mcu_drv_pmctrl(dev);
+	if (err < 0)
+		goto out;
+
+	mt7921_wpdma_reinit_cond(dev);
+	clear_bit(MT76_STATE_PM, &mphy->state);
+
+	pm->stats.last_wake_event = jiffies;
+	pm->stats.doze_time += pm->stats.last_wake_event -
+			       pm->stats.last_doze_event;
+out:
+	return err;
+}
+
 int mt7921_mcu_drv_pmctrl(struct mt7921_dev *dev)
 {
 	struct mt76_phy *mphy = &dev->mt76.phy;
@@ -1335,16 +1357,6 @@ int mt7921_mcu_drv_pmctrl(struct mt7921_dev *dev)
 		goto out;
 
 	err = __mt7921_mcu_drv_pmctrl(dev);
-        if (err < 0)
-            goto out;
-
-	mt7921_wpdma_reinit_cond(dev);
-	clear_bit(MT76_STATE_PM, &mphy->state);
-
-	pm->stats.last_wake_event = jiffies;
-	pm->stats.doze_time += pm->stats.last_wake_event -
-			       pm->stats.last_doze_event;
-
 out:
 	mutex_unlock(&pm->mutex);
 
@@ -1390,31 +1402,34 @@ out:
 	return err;
 }
 
-void
-mt7921_pm_interface_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
+int mt7921_mcu_set_beacon_filter(struct mt7921_dev *dev,
+				 struct ieee80211_vif *vif,
+				 bool enable)
 {
-	struct mt7921_phy *phy = priv;
-	struct mt7921_dev *dev = phy->dev;
 	struct ieee80211_hw *hw = mt76_hw(dev);
-	int ret;
+	int err;
 
-	if (dev->pm.enable)
-		ret = mt7921_mcu_uni_bss_bcnft(dev, vif, true);
-	else
-		ret = mt7921_mcu_set_bss_pm(dev, vif, false);
+	if (enable) {
+		err = mt7921_mcu_uni_bss_bcnft(dev, vif, true);
+		if (err)
+			return err;
 
-	if (ret)
-		return;
-
-	if (dev->pm.enable) {
 		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
 		ieee80211_hw_set(hw, CONNECTION_MONITOR);
 		mt76_set(dev, MT_WF_RFCR(0), MT_WF_RFCR_DROP_OTHER_BEACON);
-	} else {
-		vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
-		__clear_bit(IEEE80211_HW_CONNECTION_MONITOR, hw->flags);
-		mt76_clear(dev, MT_WF_RFCR(0), MT_WF_RFCR_DROP_OTHER_BEACON);
+
+		return 0;
 	}
+
+	err = mt7921_mcu_set_bss_pm(dev, vif, false);
+	if (err)
+		return err;
+
+	vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
+	__clear_bit(IEEE80211_HW_CONNECTION_MONITOR, hw->flags);
+	mt76_clear(dev, MT_WF_RFCR(0), MT_WF_RFCR_DROP_OTHER_BEACON);
+
+	return 0;
 }
 
 int mt7921_get_txpwr_info(struct mt7921_dev *dev, struct mt7921_txpwr *txpwr)

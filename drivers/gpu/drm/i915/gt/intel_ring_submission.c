@@ -17,6 +17,7 @@
 #include "intel_ring.h"
 #include "shmem_utils.h"
 #include "intel_engine_heartbeat.h"
+#include "intel_engine_pm.h"
 
 /* Rough estimate of the typical request size, performing a flush,
  * set-context and then emitting the batch.
@@ -291,7 +292,9 @@ static void xcs_sanitize(struct intel_engine_cs *engine)
 	sanitize_hwsp(engine);
 
 	/* And scrub the dirty cachelines for the HWSP */
-	clflush_cache_range(engine->status_page.addr, PAGE_SIZE);
+	drm_clflush_virt_range(engine->status_page.addr, PAGE_SIZE);
+
+	intel_engine_reset_pinned_contexts(engine);
 }
 
 static void reset_prepare(struct intel_engine_cs *engine)

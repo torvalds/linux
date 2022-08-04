@@ -2787,6 +2787,8 @@ static void execlists_sanitize(struct intel_engine_cs *engine)
 
 	/* And scrub the dirty cachelines for the HWSP */
 	clflush_cache_range(engine->status_page.addr, PAGE_SIZE);
+
+	intel_engine_reset_pinned_contexts(engine);
 }
 
 static void enable_error_interrupt(struct intel_engine_cs *engine)

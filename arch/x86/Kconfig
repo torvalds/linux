@@ -459,27 +459,6 @@ config GOLDFISH
 	def_bool y
 	depends on X86_GOLDFISH
 
-config RETPOLINE
-	bool "Avoid speculative indirect branches in kernel"
-	default y
-	help
-	  Compile kernel with the retpoline compiler options to guard against
-	  kernel-to-user data leaks by avoiding speculative indirect
-	  branches. Requires a compiler with -mindirect-branch=thunk-extern
-	  support for full protection. The kernel may run slower.
-
-config CC_HAS_SLS
-	def_bool $(cc-option,-mharden-sls=all)
-
-config SLS
-	bool "Mitigate Straight-Line-Speculation"
-	depends on CC_HAS_SLS && X86_64
-	default n
-	help
-	  Compile the kernel with straight-line-speculation options to guard
-	  against straight line speculation. The kernel image might be slightly
-	  larger.
-
 config X86_CPU_RESCTRL
 	bool "x86 CPU resource control support"
 	depends on X86 && (CPU_SUP_INTEL || CPU_SUP_AMD)
@@ -2406,6 +2385,88 @@ config MODIFY_LDT_SYSCALL
 source "kernel/livepatch/Kconfig"
 
 endmenu
+
+config CC_HAS_SLS
+	def_bool $(cc-option,-mharden-sls=all)
+
+config CC_HAS_RETURN_THUNK
+	def_bool $(cc-option,-mfunction-return=thunk-extern)
+
+menuconfig SPECULATION_MITIGATIONS
+	bool "Mitigations for speculative execution vulnerabilities"
+	default y
+	help
+	  Say Y here to enable options which enable mitigations for
+	  speculative execution hardware vulnerabilities.
+
+	  If you say N, all mitigations will be disabled. You really
+	  should know what you are doing to say so.
+
+if SPECULATION_MITIGATIONS
+
+config PAGE_TABLE_ISOLATION
+	bool "Remove the kernel mapping in user mode"
+	default y
+	depends on (X86_64 || X86_PAE)
+	help
+	  This feature reduces the number of hardware side channels by
+	  ensuring that the majority of kernel addresses are not mapped
+	  into userspace.
+
+	  See Documentation/x86/pti.rst for more details.
+
+config RETPOLINE
+	bool "Avoid speculative indirect branches in kernel"
+	default y
+	help
+	  Compile kernel with the retpoline compiler options to guard against
+	  kernel-to-user data leaks by avoiding speculative indirect
+	  branches. Requires a compiler with -mindirect-branch=thunk-extern
+	  support for full protection. The kernel may run slower.
+
+config RETHUNK
+	bool "Enable return-thunks"
+	depends on RETPOLINE && CC_HAS_RETURN_THUNK
+	default y
+	help
+	  Compile the kernel with the return-thunks compiler option to guard
+	  against kernel-to-user data leaks by avoiding return speculation.
+	  Requires a compiler with -mfunction-return=thunk-extern
+	  support for full protection. The kernel may run slower.
+
+config CPU_UNRET_ENTRY
+	bool "Enable UNRET on kernel entry"
+	depends on CPU_SUP_AMD && RETHUNK
+	default y
+	help
+	  Compile the kernel with support for the retbleed=unret mitigation.
+
+config CPU_IBPB_ENTRY
+	bool "Enable IBPB on kernel entry"
+	depends on CPU_SUP_AMD
+	default y
+	help
+	  Compile the kernel with support for the retbleed=ibpb mitigation.
+
+config CPU_IBRS_ENTRY
+	bool "Enable IBRS on kernel entry"
+	depends on CPU_SUP_INTEL
+	default y
+	help
+	  Compile the kernel with support for the spectre_v2=ibrs mitigation.
+	  This mitigates both spectre_v2 and retbleed at great cost to
+	  performance.
+
+config SLS
+	bool "Mitigate Straight-Line-Speculation"
+	depends on CC_HAS_SLS && X86_64
+	default n
+	help
+	  Compile the kernel with straight-line-speculation options to guard
+	  against straight line speculation. The kernel image might be slightly
+	  larger.
+
+endif
 
 config ARCH_HAS_ADD_PAGES
 	def_bool y

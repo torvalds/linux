@@ -115,4 +115,6 @@ extern u32 pseries_security_flavor;
 void pseries_setup_security_mitigations(void);
 void pseries_lpar_read_hblkrm_characteristics(void);
 
+void pseries_rng_init(void);
+
 #endif /* _PSERIES_PSERIES_H */
