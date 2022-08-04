@@ -273,6 +273,7 @@ static inline void sft_rtc_update_pulse(struct sft_rtc *srtc)
 static irqreturn_t sft_rtc_irq_handler(int irq, void *data)
 {
 	struct sft_rtc *srtc = data;
+	struct timerqueue_node *next;
 	u32 irq_flags = 0;
 	u32 irq_mask = 0;
 	u32 val;
@@ -299,9 +300,10 @@ static irqreturn_t sft_rtc_irq_handler(int irq, void *data)
 	if (val & RTC_IRQ_ALAEM) {
 		irq_flags |= RTC_AF;
 		irq_mask |= RTC_IRQ_ALAEM;
-		/* Make sure aie_timer will pop out from timerqueue */
-		srtc->rtc_dev->aie_timer.node.expires -= 1 * NSEC_PER_SEC;
-		dev_info(&srtc->rtc_dev->dev, "alarm expires");
+
+		next = timerqueue_getnext(&srtc->rtc_dev->timerqueue);
+		if (next == &srtc->rtc_dev->aie_timer.node)
+			dev_info(&srtc->rtc_dev->dev, "alarm expires");
 	}
 
 	writel(irq_mask, srtc->regs + SFT_RTC_IRQ_EVEVT);
@@ -327,10 +329,10 @@ static int sft_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if (!sft_rtc_get_enabled(srtc))
 		return -EINVAL;
 
-	val = readl(srtc->regs + SFT_RTC_TIME_LATCH);
+	val = readl(srtc->regs + SFT_RTC_TIME);
 	sft_rtc_reg2time(tm, val);
 
-	val = readl(srtc->regs + SFT_RTC_DATE_LATCH);
+	val = readl(srtc->regs + SFT_RTC_DATE);
 	sft_rtc_reg2date(tm, val);
 
 	return 0;
