@@ -533,7 +533,7 @@ static int moxart_mac_probe(struct platform_device *pdev)
 	}
 
 	ndev->netdev_ops = &moxart_netdev_ops;
-	netif_napi_add(ndev, &priv->napi, moxart_rx_poll, RX_DESC_NUM);
+	netif_napi_add_weight(ndev, &priv->napi, moxart_rx_poll, RX_DESC_NUM);
 	ndev->priv_flags |= IFF_UNICAST_FLT;
 	ndev->irq = irq;
 

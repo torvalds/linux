@@ -13,7 +13,13 @@
 #define AQ_VEC_H
 
 #include "aq_common.h"
+#include "aq_nic.h"
+#include "aq_ring.h"
+#include "aq_hw.h"
+
 #include <linux/irqreturn.h>
+#include <linux/filter.h>
+#include <linux/netdevice.h>
 
 struct aq_hw_s;
 struct aq_hw_ops;

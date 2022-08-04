@@ -156,6 +156,11 @@ struct dc_vbios_funcs {
 	enum bp_result (*get_lttpr_interop)(
 			struct dc_bios *dcb,
 			uint8_t *dce_caps);
+
+	enum bp_result (*get_connector_speed_cap_info)(
+		struct dc_bios *bios,
+		struct graphics_object_id object_id,
+		struct bp_connector_speed_cap_info *info);
 };
 
 struct bios_registers {

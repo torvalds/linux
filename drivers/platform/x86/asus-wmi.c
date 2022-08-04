@@ -371,10 +371,14 @@ static int asus_wmi_evaluate_method_buf(u32 method_id,
 
 	switch (obj->type) {
 	case ACPI_TYPE_BUFFER:
-		if (obj->buffer.length > size)
+		if (obj->buffer.length > size) {
 			err = -ENOSPC;
-		if (obj->buffer.length == 0)
+			break;
+		}
+		if (obj->buffer.length == 0) {
 			err = -ENODATA;
+			break;
+		}
 
 		memcpy(ret_buffer, obj->buffer.pointer, obj->buffer.length);
 		break;
@@ -2223,9 +2227,10 @@ static int fan_curve_check_present(struct asus_wmi *asus, bool *available,
 
 	err = fan_curve_get_factory_default(asus, fan_dev);
 	if (err) {
-		if (err == -ENODEV || err == -ENODATA)
-			return 0;
-		return err;
+		pr_debug("fan_curve_get_factory_default(0x%08x) failed: %d\n",
+			 fan_dev, err);
+		/* Don't cause probe to fail on devices without fan-curves */
+		return 0;
 	}
 
 	*available = true;
@@ -2529,7 +2534,7 @@ static struct attribute *asus_fan_curve_attr[] = {
 static umode_t asus_fan_curve_is_visible(struct kobject *kobj,
 					 struct attribute *attr, int idx)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct asus_wmi *asus = dev_get_drvdata(dev->parent);
 
 	/*
@@ -3109,7 +3114,7 @@ static void asus_wmi_handle_event_code(int code, struct asus_wmi *asus)
 
 	if (!sparse_keymap_report_event(asus->inputdev, code,
 					key_value, autorelease))
-		pr_info("Unknown key %x pressed\n", code);
+		pr_info("Unknown key code 0x%x\n", code);
 }
 
 static void asus_wmi_notify(u32 value, void *context)

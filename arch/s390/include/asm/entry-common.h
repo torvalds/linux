@@ -9,19 +9,21 @@
 #include <linux/uaccess.h>
 #include <asm/timex.h>
 #include <asm/fpu/api.h>
+#include <asm/pai.h>
 
 #define ARCH_EXIT_TO_USER_MODE_WORK (_TIF_GUARDED_STORAGE | _TIF_PER_TRAP)
 
 void do_per_trap(struct pt_regs *regs);
 
-#ifdef CONFIG_DEBUG_ENTRY
-static __always_inline void arch_check_user_regs(struct pt_regs *regs)
+static __always_inline void arch_enter_from_user_mode(struct pt_regs *regs)
 {
-	debug_user_asce(0);
+	if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
+		debug_user_asce(0);
+
+	pai_kernel_enter(regs);
 }
 
-#define arch_check_user_regs arch_check_user_regs
-#endif /* CONFIG_DEBUG_ENTRY */
+#define arch_enter_from_user_mode arch_enter_from_user_mode
 
 static __always_inline void arch_exit_to_user_mode_work(struct pt_regs *regs,
 							unsigned long ti_work)
@@ -44,6 +46,8 @@ static __always_inline void arch_exit_to_user_mode(void)
 
 	if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
 		debug_user_asce(1);
+
+	pai_kernel_exit(current_pt_regs());
 }
 
 #define arch_exit_to_user_mode arch_exit_to_user_mode
@@ -58,7 +62,7 @@ static inline void arch_exit_to_user_mode_prepare(struct pt_regs *regs,
 
 static inline bool on_thread_stack(void)
 {
-	return !(((unsigned long)(current->stack) ^ current_stack_pointer()) & ~(THREAD_SIZE - 1));
+	return !(((unsigned long)(current->stack) ^ current_stack_pointer) & ~(THREAD_SIZE - 1));
 }
 
 #endif

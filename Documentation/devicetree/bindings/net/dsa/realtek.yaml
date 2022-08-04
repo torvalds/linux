@@ -27,32 +27,25 @@ description:
   The realtek-mdio driver is an MDIO driver and it must be inserted inside
   an MDIO node.
 
+  The compatible string is only used to identify which (silicon) family the
+  switch belongs to. Roughly speaking, a family is any set of Realtek switches
+  whose chip identification register(s) have a common location and semantics.
+  The different models in a given family can be automatically disambiguated by
+  parsing the chip identification register(s) according to the given family,
+  avoiding the need for a unique compatible string for each model.
+
 properties:
   compatible:
     enum:
       - realtek,rtl8365mb
-      - realtek,rtl8366
       - realtek,rtl8366rb
-      - realtek,rtl8366s
-      - realtek,rtl8367
-      - realtek,rtl8367b
-      - realtek,rtl8367rb
-      - realtek,rtl8367s
-      - realtek,rtl8368s
-      - realtek,rtl8369
-      - realtek,rtl8370
     description: |
-      realtek,rtl8365mb: 4+1 ports
-      realtek,rtl8366: 5+1 ports
-      realtek,rtl8366rb: 5+1 ports
-      realtek,rtl8366s: 5+1 ports
-      realtek,rtl8367:
-      realtek,rtl8367b:
-      realtek,rtl8367rb: 5+2 ports
-      realtek,rtl8367s: 5+2 ports
-      realtek,rtl8368s: 8 ports
-      realtek,rtl8369: 8+1 ports
-      realtek,rtl8370: 8+2 ports
+      realtek,rtl8365mb:
+        Use with models RTL8363NB, RTL8363NB-VB, RTL8363SC, RTL8363SC-VB,
+        RTL8364NB, RTL8364NB-VB, RTL8365MB, RTL8366SC, RTL8367RB-VB, RTL8367S,
+        RTL8367SB, RTL8370MB, RTL8310SR
+      realtek,rtl8366rb:
+        Use with models RTL8366RB, RTL8366S
 
   mdc-gpios:
     description: GPIO line for the MDC clock line.
@@ -115,6 +108,7 @@ if:
     - reg
 
 then:
+  $ref: /schemas/spi/spi-peripheral-props.yaml#
   not:
     required:
       - mdc-gpios
@@ -335,7 +329,7 @@ examples:
             #size-cells = <0>;
 
             switch@29 {
-                    compatible = "realtek,rtl8367s";
+                    compatible = "realtek,rtl8365mb";
                     reg = <29>;
 
                     reset-gpios = <&gpio2 20 GPIO_ACTIVE_LOW>;

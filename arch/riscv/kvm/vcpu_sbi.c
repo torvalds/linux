@@ -83,7 +83,7 @@ void kvm_riscv_vcpu_sbi_forward(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 void kvm_riscv_vcpu_sbi_system_reset(struct kvm_vcpu *vcpu,
 				     struct kvm_run *run,
-				     u32 type, u64 flags)
+				     u32 type, u64 reason)
 {
 	unsigned long i;
 	struct kvm_vcpu *tmp;
@@ -94,7 +94,8 @@ void kvm_riscv_vcpu_sbi_system_reset(struct kvm_vcpu *vcpu,
 
 	memset(&run->system_event, 0, sizeof(run->system_event));
 	run->system_event.type = type;
-	run->system_event.flags = flags;
+	run->system_event.ndata = 1;
+	run->system_event.data[0] = reason;
 	run->exit_reason = KVM_EXIT_SYSTEM_EVENT;
 }
 

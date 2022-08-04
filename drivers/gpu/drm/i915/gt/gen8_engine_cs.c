@@ -5,8 +5,8 @@
 
 #include "gen8_engine_cs.h"
 #include "i915_drv.h"
+#include "intel_engine_regs.h"
 #include "intel_gpu_commands.h"
-#include "intel_gt_regs.h"
 #include "intel_lrc.h"
 #include "intel_ring.h"
 
@@ -165,33 +165,9 @@ static u32 preparser_disable(bool state)
 	return MI_ARB_CHECK | 1 << 8 | state;
 }
 
-static i915_reg_t aux_inv_reg(const struct intel_engine_cs *engine)
+u32 *gen12_emit_aux_table_inv(u32 *cs, const i915_reg_t inv_reg)
 {
-	static const i915_reg_t vd[] = {
-		GEN12_VD0_AUX_NV,
-		GEN12_VD1_AUX_NV,
-		GEN12_VD2_AUX_NV,
-		GEN12_VD3_AUX_NV,
-	};
-
-	static const i915_reg_t ve[] = {
-		GEN12_VE0_AUX_NV,
-		GEN12_VE1_AUX_NV,
-	};
-
-	if (engine->class == VIDEO_DECODE_CLASS)
-		return vd[engine->instance];
-
-	if (engine->class == VIDEO_ENHANCEMENT_CLASS)
-		return ve[engine->instance];
-
-	GEM_BUG_ON("unknown aux_inv reg\n");
-	return INVALID_MMIO_REG;
-}
-
-static u32 *gen12_emit_aux_table_inv(const i915_reg_t inv_reg, u32 *cs)
-{
-	*cs++ = MI_LOAD_REGISTER_IMM(1);
+	*cs++ = MI_LOAD_REGISTER_IMM(1) | MI_LRI_MMIO_REMAP_EN;
 	*cs++ = i915_mmio_reg_offset(inv_reg);
 	*cs++ = AUX_INV;
 	*cs++ = MI_NOOP;
@@ -221,8 +197,10 @@ int gen12_emit_flush_rcs(struct i915_request *rq, u32 mode)
 
 		flags |= PIPE_CONTROL_CS_STALL;
 
-		if (engine->class == COMPUTE_CLASS)
-			flags &= ~PIPE_CONTROL_3D_FLAGS;
+		if (!HAS_3D_PIPELINE(engine->i915))
+			flags &= ~PIPE_CONTROL_3D_ARCH_FLAGS;
+		else if (engine->class == COMPUTE_CLASS)
+			flags &= ~PIPE_CONTROL_3D_ENGINE_FLAGS;
 
 		cs = intel_ring_begin(rq, 6);
 		if (IS_ERR(cs))
@@ -236,7 +214,7 @@ int gen12_emit_flush_rcs(struct i915_request *rq, u32 mode)
 
 	if (mode & EMIT_INVALIDATE) {
 		u32 flags = 0;
-		u32 *cs;
+		u32 *cs, count;
 
 		flags |= PIPE_CONTROL_COMMAND_CACHE_INVALIDATE;
 		flags |= PIPE_CONTROL_TLB_INVALIDATE;
@@ -251,10 +229,17 @@ int gen12_emit_flush_rcs(struct i915_request *rq, u32 mode)
 
 		flags |= PIPE_CONTROL_CS_STALL;
 
-		if (engine->class == COMPUTE_CLASS)
-			flags &= ~PIPE_CONTROL_3D_FLAGS;
+		if (!HAS_3D_PIPELINE(engine->i915))
+			flags &= ~PIPE_CONTROL_3D_ARCH_FLAGS;
+		else if (engine->class == COMPUTE_CLASS)
+			flags &= ~PIPE_CONTROL_3D_ENGINE_FLAGS;
 
-		cs = intel_ring_begin(rq, 8 + 4);
+		if (!HAS_FLAT_CCS(rq->engine->i915))
+			count = 8 + 4;
+		else
+			count = 8;
+
+		cs = intel_ring_begin(rq, count);
 		if (IS_ERR(cs))
 			return PTR_ERR(cs);
 
@@ -267,8 +252,10 @@ int gen12_emit_flush_rcs(struct i915_request *rq, u32 mode)
 
 		cs = gen8_emit_pipe_control(cs, flags, LRC_PPHWSP_SCRATCH_ADDR);
 
-		/* hsdes: 1809175790 */
-		cs = gen12_emit_aux_table_inv(GEN12_GFX_CCS_AUX_NV, cs);
+		if (!HAS_FLAT_CCS(rq->engine->i915)) {
+			/* hsdes: 1809175790 */
+			cs = gen12_emit_aux_table_inv(cs, GEN12_GFX_CCS_AUX_NV);
+		}
 
 		*cs++ = preparser_disable(false);
 		intel_ring_advance(rq, cs);
@@ -283,12 +270,18 @@ int gen12_emit_flush_xcs(struct i915_request *rq, u32 mode)
 	u32 cmd, *cs;
 
 	cmd = 4;
-	if (mode & EMIT_INVALIDATE)
+	if (mode & EMIT_INVALIDATE) {
 		cmd += 2;
-	if (mode & EMIT_INVALIDATE)
-		aux_inv = rq->engine->mask & ~BIT(BCS0);
-	if (aux_inv)
-		cmd += 2 * hweight32(aux_inv) + 2;
+
+		if (!HAS_FLAT_CCS(rq->engine->i915) &&
+		    (rq->engine->class == VIDEO_DECODE_CLASS ||
+		     rq->engine->class == VIDEO_ENHANCEMENT_CLASS)) {
+			aux_inv = rq->engine->mask &
+				~GENMASK(_BCS(I915_MAX_BCS - 1), BCS0);
+			if (aux_inv)
+				cmd += 4;
+		}
+	}
 
 	cs = intel_ring_begin(rq, cmd);
 	if (IS_ERR(cs))
@@ -319,15 +312,10 @@ int gen12_emit_flush_xcs(struct i915_request *rq, u32 mode)
 	*cs++ = 0; /* value */
 
 	if (aux_inv) { /* hsdes: 1809175790 */
-		struct intel_engine_cs *engine;
-		unsigned int tmp;
-
-		*cs++ = MI_LOAD_REGISTER_IMM(hweight32(aux_inv));
-		for_each_engine_masked(engine, rq->engine->gt, aux_inv, tmp) {
-			*cs++ = i915_mmio_reg_offset(aux_inv_reg(engine));
-			*cs++ = AUX_INV;
-		}
-		*cs++ = MI_NOOP;
+		if (rq->engine->class == VIDEO_DECODE_CLASS)
+			cs = gen12_emit_aux_table_inv(cs, GEN12_VD0_AUX_NV);
+		else
+			cs = gen12_emit_aux_table_inv(cs, GEN12_VE0_AUX_NV);
 	}
 
 	if (mode & EMIT_INVALIDATE)
@@ -401,6 +389,59 @@ int gen8_emit_init_breadcrumb(struct i915_request *rq)
 	__set_bit(I915_FENCE_FLAG_INITIAL_BREADCRUMB, &rq->fence.flags);
 
 	return 0;
+}
+
+static int __gen125_emit_bb_start(struct i915_request *rq,
+				  u64 offset, u32 len,
+				  const unsigned int flags,
+				  u32 arb)
+{
+	struct intel_context *ce = rq->context;
+	u32 wa_offset = lrc_indirect_bb(ce);
+	u32 *cs;
+
+	cs = intel_ring_begin(rq, 12);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	*cs++ = MI_ARB_ON_OFF | arb;
+
+	*cs++ = MI_LOAD_REGISTER_MEM_GEN8 |
+		MI_SRM_LRM_GLOBAL_GTT |
+		MI_LRI_LRM_CS_MMIO;
+	*cs++ = i915_mmio_reg_offset(RING_PREDICATE_RESULT(0));
+	*cs++ = wa_offset + DG2_PREDICATE_RESULT_WA;
+	*cs++ = 0;
+
+	*cs++ = MI_BATCH_BUFFER_START_GEN8 |
+		(flags & I915_DISPATCH_SECURE ? 0 : BIT(8));
+	*cs++ = lower_32_bits(offset);
+	*cs++ = upper_32_bits(offset);
+
+	/* Fixup stray MI_SET_PREDICATE as it prevents us executing the ring */
+	*cs++ = MI_BATCH_BUFFER_START_GEN8;
+	*cs++ = wa_offset + DG2_PREDICATE_RESULT_BB;
+	*cs++ = 0;
+
+	*cs++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
+
+	intel_ring_advance(rq, cs);
+
+	return 0;
+}
+
+int gen125_emit_bb_start_noarb(struct i915_request *rq,
+			       u64 offset, u32 len,
+			       const unsigned int flags)
+{
+	return __gen125_emit_bb_start(rq, offset, len, flags, MI_ARB_DISABLE);
+}
+
+int gen125_emit_bb_start(struct i915_request *rq,
+			 u64 offset, u32 len,
+			 const unsigned int flags)
+{
+	return __gen125_emit_bb_start(rq, offset, len, flags, MI_ARB_ENABLE);
 }
 
 int gen8_emit_bb_start_noarb(struct i915_request *rq,
@@ -601,6 +642,43 @@ static u32 *gen12_emit_preempt_busywait(struct i915_request *rq, u32 *cs)
 	return cs;
 }
 
+/* Wa_14014475959:dg2 */
+#define CCS_SEMAPHORE_PPHWSP_OFFSET	0x540
+static u32 ccs_semaphore_offset(struct i915_request *rq)
+{
+	return i915_ggtt_offset(rq->context->state) +
+		(LRC_PPHWSP_PN * PAGE_SIZE) + CCS_SEMAPHORE_PPHWSP_OFFSET;
+}
+
+/* Wa_14014475959:dg2 */
+static u32 *ccs_emit_wa_busywait(struct i915_request *rq, u32 *cs)
+{
+	int i;
+
+	*cs++ = MI_ATOMIC_INLINE | MI_ATOMIC_GLOBAL_GTT | MI_ATOMIC_CS_STALL |
+		MI_ATOMIC_MOVE;
+	*cs++ = ccs_semaphore_offset(rq);
+	*cs++ = 0;
+	*cs++ = 1;
+
+	/*
+	 * When MI_ATOMIC_INLINE_DATA set this command must be 11 DW + (1 NOP)
+	 * to align. 4 DWs above + 8 filler DWs here.
+	 */
+	for (i = 0; i < 8; ++i)
+		*cs++ = 0;
+
+	*cs++ = MI_SEMAPHORE_WAIT |
+		MI_SEMAPHORE_GLOBAL_GTT |
+		MI_SEMAPHORE_POLL |
+		MI_SEMAPHORE_SAD_EQ_SDD;
+	*cs++ = 0;
+	*cs++ = ccs_semaphore_offset(rq);
+	*cs++ = 0;
+
+	return cs;
+}
+
 static __always_inline u32*
 gen12_emit_fini_breadcrumb_tail(struct i915_request *rq, u32 *cs)
 {
@@ -610,6 +688,10 @@ gen12_emit_fini_breadcrumb_tail(struct i915_request *rq, u32 *cs)
 	if (intel_engine_has_semaphores(rq->engine) &&
 	    !intel_uc_uses_guc_submission(&rq->engine->gt->uc))
 		cs = gen12_emit_preempt_busywait(rq, cs);
+
+	/* Wa_14014475959:dg2 */
+	if (intel_engine_uses_wa_hold_ccs_switchout(rq->engine))
+		cs = ccs_emit_wa_busywait(rq, cs);
 
 	rq->tail = intel_ring_offset(rq, cs);
 	assert_ring_tail_valid(rq->ring, rq->tail);
@@ -639,8 +721,10 @@ u32 *gen12_emit_fini_breadcrumb_rcs(struct i915_request *rq, u32 *cs)
 		/* Wa_1409600907 */
 		flags |= PIPE_CONTROL_DEPTH_STALL;
 
-	if (rq->engine->class == COMPUTE_CLASS)
-		flags &= ~PIPE_CONTROL_3D_FLAGS;
+	if (!HAS_3D_PIPELINE(rq->engine->i915))
+		flags &= ~PIPE_CONTROL_3D_ARCH_FLAGS;
+	else if (rq->engine->class == COMPUTE_CLASS)
+		flags &= ~PIPE_CONTROL_3D_ENGINE_FLAGS;
 
 	cs = gen12_emit_ggtt_write_rcs(cs,
 				       rq->fence.seqno,

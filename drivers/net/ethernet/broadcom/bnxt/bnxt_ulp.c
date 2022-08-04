@@ -25,7 +25,7 @@
 #include "bnxt_hwrm.h"
 #include "bnxt_ulp.h"
 
-static int bnxt_register_dev(struct bnxt_en_dev *edev, int ulp_id,
+static int bnxt_register_dev(struct bnxt_en_dev *edev, unsigned int ulp_id,
 			     struct bnxt_ulp_ops *ulp_ops, void *handle)
 {
 	struct net_device *dev = edev->net;
@@ -62,7 +62,7 @@ static int bnxt_register_dev(struct bnxt_en_dev *edev, int ulp_id,
 	return 0;
 }
 
-static int bnxt_unregister_dev(struct bnxt_en_dev *edev, int ulp_id)
+static int bnxt_unregister_dev(struct bnxt_en_dev *edev, unsigned int ulp_id)
 {
 	struct net_device *dev = edev->net;
 	struct bnxt *bp = netdev_priv(dev);
@@ -115,7 +115,7 @@ static void bnxt_fill_msix_vecs(struct bnxt *bp, struct bnxt_msix_entry *ent)
 	}
 }
 
-static int bnxt_req_msix_vecs(struct bnxt_en_dev *edev, int ulp_id,
+static int bnxt_req_msix_vecs(struct bnxt_en_dev *edev, unsigned int ulp_id,
 			      struct bnxt_msix_entry *ent, int num_msix)
 {
 	struct net_device *dev = edev->net;
@@ -179,7 +179,7 @@ static int bnxt_req_msix_vecs(struct bnxt_en_dev *edev, int ulp_id,
 	return avail_msix;
 }
 
-static int bnxt_free_msix_vecs(struct bnxt_en_dev *edev, int ulp_id)
+static int bnxt_free_msix_vecs(struct bnxt_en_dev *edev, unsigned int ulp_id)
 {
 	struct net_device *dev = edev->net;
 	struct bnxt *bp = netdev_priv(dev);
@@ -233,7 +233,7 @@ int bnxt_get_ulp_stat_ctxs(struct bnxt *bp)
 	return 0;
 }
 
-static int bnxt_send_msg(struct bnxt_en_dev *edev, int ulp_id,
+static int bnxt_send_msg(struct bnxt_en_dev *edev, unsigned int ulp_id,
 			 struct bnxt_fw_msg *fw_msg)
 {
 	struct net_device *dev = edev->net;
@@ -447,7 +447,7 @@ void bnxt_ulp_async_events(struct bnxt *bp, struct hwrm_async_event_cmpl *cmpl)
 	rcu_read_unlock();
 }
 
-static int bnxt_register_async_events(struct bnxt_en_dev *edev, int ulp_id,
+static int bnxt_register_async_events(struct bnxt_en_dev *edev, unsigned int ulp_id,
 				      unsigned long *events_bmap, u16 max_id)
 {
 	struct net_device *dev = edev->net;

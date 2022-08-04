@@ -365,7 +365,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	spi-flash@0 {
+	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "w25q32", "jedec,spi-nor";

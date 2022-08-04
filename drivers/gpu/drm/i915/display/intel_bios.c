@@ -25,7 +25,9 @@
  *
  */
 
-#include <drm/dp/drm_dp_helper.h>
+#include <drm/drm_edid.h>
+#include <drm/display/drm_dp_helper.h>
+#include <drm/display/drm_dsc_helper.h>
 
 #include "display/intel_display.h"
 #include "display/intel_display_types.h"

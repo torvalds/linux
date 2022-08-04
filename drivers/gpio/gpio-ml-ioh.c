@@ -409,29 +409,27 @@ static int ioh_gpio_probe(struct pci_dev *pdev,
 	void *chip_save;
 	int irq_base;
 
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret) {
-		dev_err(dev, "%s : pci_enable_device failed", __func__);
-		goto err_pci_enable;
+		dev_err(dev, "%s : pcim_enable_device failed", __func__);
+		return ret;
 	}
 
-	ret = pci_request_regions(pdev, KBUILD_MODNAME);
+	ret = pcim_iomap_regions(pdev, BIT(1), KBUILD_MODNAME);
 	if (ret) {
-		dev_err(dev, "pci_request_regions failed-%d", ret);
-		goto err_request_regions;
+		dev_err(dev, "pcim_iomap_regions failed-%d", ret);
+		return ret;
 	}
 
-	base = pci_iomap(pdev, 1, 0);
+	base = pcim_iomap_table(pdev)[1];
 	if (!base) {
-		dev_err(dev, "%s : pci_iomap failed", __func__);
-		ret = -ENOMEM;
-		goto err_iomap;
+		dev_err(dev, "%s : pcim_iomap_table failed", __func__);
+		return -ENOMEM;
 	}
 
-	chip_save = kcalloc(8, sizeof(*chip), GFP_KERNEL);
+	chip_save = devm_kcalloc(dev, 8, sizeof(*chip), GFP_KERNEL);
 	if (chip_save == NULL) {
-		ret = -ENOMEM;
-		goto err_kzalloc;
+		return -ENOMEM;
 	}
 
 	chip = chip_save;
@@ -442,10 +440,10 @@ static int ioh_gpio_probe(struct pci_dev *pdev,
 		chip->ch = i;
 		spin_lock_init(&chip->spinlock);
 		ioh_gpio_setup(chip, num_ports[i]);
-		ret = gpiochip_add_data(&chip->gpio, chip);
+		ret = devm_gpiochip_add_data(dev, &chip->gpio, chip);
 		if (ret) {
 			dev_err(dev, "IOH gpio: Failed to register GPIO\n");
-			goto err_gpiochip_add;
+			return ret;
 		}
 	}
 
@@ -456,15 +454,14 @@ static int ioh_gpio_probe(struct pci_dev *pdev,
 		if (irq_base < 0) {
 			dev_warn(dev,
 				"ml_ioh_gpio: Failed to get IRQ base num\n");
-			ret = irq_base;
-			goto err_gpiochip_add;
+			return irq_base;
 		}
 		chip->irq_base = irq_base;
 
 		ret = ioh_gpio_alloc_generic_chip(chip,
 						  irq_base, num_ports[j]);
 		if (ret)
-			goto err_gpiochip_add;
+			return ret;
 	}
 
 	chip = chip_save;
@@ -472,52 +469,12 @@ static int ioh_gpio_probe(struct pci_dev *pdev,
 			       IRQF_SHARED, KBUILD_MODNAME, chip);
 	if (ret != 0) {
 		dev_err(dev, "%s request_irq failed\n", __func__);
-		goto err_gpiochip_add;
+		return ret;
 	}
 
 	pci_set_drvdata(pdev, chip);
 
 	return 0;
-
-err_gpiochip_add:
-	chip = chip_save;
-	while (--i >= 0) {
-		gpiochip_remove(&chip->gpio);
-		chip++;
-	}
-	kfree(chip_save);
-
-err_kzalloc:
-	pci_iounmap(pdev, base);
-
-err_iomap:
-	pci_release_regions(pdev);
-
-err_request_regions:
-	pci_disable_device(pdev);
-
-err_pci_enable:
-
-	dev_err(dev, "%s Failed returns %d\n", __func__, ret);
-	return ret;
-}
-
-static void ioh_gpio_remove(struct pci_dev *pdev)
-{
-	int i;
-	struct ioh_gpio *chip = pci_get_drvdata(pdev);
-	void *chip_save;
-
-	chip_save = chip;
-
-	for (i = 0; i < 8; i++, chip++)
-		gpiochip_remove(&chip->gpio);
-
-	chip = chip_save;
-	pci_iounmap(pdev, chip->base);
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
-	kfree(chip);
 }
 
 static int __maybe_unused ioh_gpio_suspend(struct device *dev)
@@ -558,7 +515,6 @@ static struct pci_driver ioh_gpio_driver = {
 	.name = "ml_ioh_gpio",
 	.id_table = ioh_gpio_pcidev_id,
 	.probe = ioh_gpio_probe,
-	.remove = ioh_gpio_remove,
 	.driver = {
 		.pm = &ioh_gpio_pm_ops,
 	},

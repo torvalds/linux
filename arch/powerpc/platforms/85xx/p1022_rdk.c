@@ -14,6 +14,7 @@
 
 #include <linux/fsl/guts.h>
 #include <linux/pci.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <asm/div64.h>
 #include <asm/mpic.h>

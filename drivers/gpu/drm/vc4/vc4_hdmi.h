@@ -8,18 +8,6 @@
 
 #include "vc4_drv.h"
 
-/* VC4 HDMI encoder KMS struct */
-struct vc4_hdmi_encoder {
-	struct vc4_encoder base;
-	bool hdmi_monitor;
-};
-
-static inline struct vc4_hdmi_encoder *
-to_vc4_hdmi_encoder(struct drm_encoder *encoder)
-{
-	return container_of(encoder, struct vc4_hdmi_encoder, base.base);
-}
-
 struct vc4_hdmi;
 struct vc4_hdmi_register;
 struct vc4_hdmi_connector_state;
@@ -135,7 +123,7 @@ struct vc4_hdmi {
 	struct platform_device *pdev;
 	const struct vc4_hdmi_variant *variant;
 
-	struct vc4_hdmi_encoder encoder;
+	struct vc4_encoder encoder;
 	struct drm_connector connector;
 
 	struct delayed_work scrambling_work;
@@ -191,6 +179,14 @@ struct vc4_hdmi {
 	struct debugfs_regset32 hdmi_regset;
 	struct debugfs_regset32 hd_regset;
 
+	/* VC5 only */
+	struct debugfs_regset32 cec_regset;
+	struct debugfs_regset32 csc_regset;
+	struct debugfs_regset32 dvp_regset;
+	struct debugfs_regset32 phy_regset;
+	struct debugfs_regset32 ram_regset;
+	struct debugfs_regset32 rm_regset;
+
 	/**
 	 * @hw_lock: Spinlock protecting device register access.
 	 */
@@ -217,10 +213,10 @@ struct vc4_hdmi {
 	struct drm_display_mode saved_adjusted_mode;
 
 	/**
-	 * @output_enabled: Is the HDMI controller currently active?
-	 * Protected by @mutex.
+	 * @packet_ram_enabled: Is the HDMI controller packet RAM currently
+	 * on? Protected by @mutex.
 	 */
-	bool output_enabled;
+	bool packet_ram_enabled;
 
 	/**
 	 * @scdc_enabled: Is the HDMI controller currently running with
@@ -250,8 +246,7 @@ connector_to_vc4_hdmi(struct drm_connector *connector)
 static inline struct vc4_hdmi *
 encoder_to_vc4_hdmi(struct drm_encoder *encoder)
 {
-	struct vc4_hdmi_encoder *_encoder = to_vc4_hdmi_encoder(encoder);
-
+	struct vc4_encoder *_encoder = to_vc4_encoder(encoder);
 	return container_of(_encoder, struct vc4_hdmi, encoder);
 }
 

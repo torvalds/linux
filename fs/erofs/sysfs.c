@@ -205,8 +205,8 @@ int erofs_register_sysfs(struct super_block *sb)
 
 	sbi->s_kobj.kset = &erofs_root;
 	init_completion(&sbi->s_kobj_unregister);
-	err = kobject_init_and_add(&sbi->s_kobj, &erofs_sb_ktype, NULL,
-				   "%s", sb->s_id);
+	err = kobject_init_and_add(&sbi->s_kobj, &erofs_sb_ktype, NULL, "%s",
+			erofs_is_fscache_mode(sb) ? sbi->opt.fsid : sb->s_id);
 	if (err)
 		goto put_sb_kobj;
 	return 0;

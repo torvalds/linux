@@ -61,9 +61,8 @@
 	.macro	pabt_helper
 	@ PABORT handler takes pt_regs in r2, fault address in r4 and psr in r5
 #ifdef MULTI_PABORT
-	ldr	ip, .LCprocfns
-	mov	lr, pc
-	ldr	pc, [ip, #PROCESSOR_PABT_FUNC]
+	ldr_va	ip, processor, offset=PROCESSOR_PABT_FUNC
+	bl_r	ip
 #else
 	bl	CPU_PABORT_HANDLER
 #endif
@@ -82,9 +81,8 @@
 	@ the fault status register in r1.  r9 must be preserved.
 	@
 #ifdef MULTI_DABORT
-	ldr	ip, .LCprocfns
-	mov	lr, pc
-	ldr	pc, [ip, #PROCESSOR_DABT_FUNC]
+	ldr_va	ip, processor, offset=PROCESSOR_DABT_FUNC
+	bl_r	ip
 #else
 	bl	CPU_DABORT_HANDLER
 #endif
@@ -302,16 +300,6 @@ __fiq_svc:
  UNWIND(.fnend		)
 ENDPROC(__fiq_svc)
 
-	.align	5
-.LCcralign:
-	.word	cr_alignment
-#ifdef MULTI_DABORT
-.LCprocfns:
-	.word	processor
-#endif
-.LCfp:
-	.word	fp_enter
-
 /*
  * Abort mode handlers
  */
@@ -370,7 +358,7 @@ ENDPROC(__fiq_abt)
  THUMB(	stmia	sp, {r0 - r12}	)
 
  ATRAP(	mrc	p15, 0, r7, c1, c0, 0)
- ATRAP(	ldr	r8, .LCcralign)
+ ATRAP(	ldr_va	r8, cr_alignment)
 
 	ldmia	r0, {r3 - r5}
 	add	r0, sp, #S_PC		@ here for interlock avoidance
@@ -378,8 +366,6 @@ ENDPROC(__fiq_abt)
 
 	str	r3, [sp]		@ save the "real" r0 copied
 					@ from the exception stack
-
- ATRAP(	ldr	r8, [r8, #0])
 
 	@
 	@ We are now ready to fill in the remaining blanks on the stack:
@@ -505,9 +491,7 @@ __und_usr_thumb:
  */
 #if __LINUX_ARM_ARCH__ < 7
 /* If the target CPU may not be Thumb-2-capable, a run-time check is needed: */
-#define NEED_CPU_ARCHITECTURE
-	ldr	r5, .LCcpu_architecture
-	ldr	r5, [r5]
+	ldr_va	r5, cpu_architecture
 	cmp	r5, #CPU_ARCH_ARMv7
 	blo	__und_usr_fault_16		@ 16bit undefined instruction
 /*
@@ -654,12 +638,6 @@ call_fpe:
 	ret.w	lr				@ CP#14 (Debug)
 	ret.w	lr				@ CP#15 (Control)
 
-#ifdef NEED_CPU_ARCHITECTURE
-	.align	2
-.LCcpu_architecture:
-	.word	__cpu_architecture
-#endif
-
 #ifdef CONFIG_NEON
 	.align	6
 
@@ -685,9 +663,8 @@ call_fpe:
 #endif
 
 do_fpe:
-	ldr	r4, .LCfp
 	add	r10, r10, #TI_FPSTATE		@ r10 = workspace
-	ldr	pc, [r4]			@ Call FP module USR entry point
+	ldr_va	pc, fp_enter, tmp=r4		@ Call FP module USR entry point
 
 /*
  * The FP module is called with these registers set:
@@ -1101,6 +1078,12 @@ __kuser_helper_end:
  */
 	.macro	vector_stub, name, mode, correction=0
 	.align	5
+#ifdef CONFIG_HARDEN_BRANCH_HISTORY
+vector_bhb_bpiall_\name:
+	mcr	p15, 0, r0, c7, c5, 6	@ BPIALL
+	@ isb not needed due to "movs pc, lr" in the vector stub
+	@ which gives a "context synchronisation".
+#endif
 
 vector_\name:
 	.if \correction
@@ -1111,7 +1094,8 @@ vector_\name:
 	stmia	sp, {r0, lr}		@ save r0, lr
 
 	@ Save spsr_<exception> (parent CPSR)
-2:	mrs	lr, spsr
+.Lvec_\name:
+	mrs	lr, spsr
 	str	lr, [sp, #8]		@ save spsr
 
 	@
@@ -1145,28 +1129,14 @@ vector_bhb_loop8_\name:
 
 	@ bhb workaround
 	mov	r0, #8
-3:	b	. + 4
+3:	W(b)	. + 4
 	subs	r0, r0, #1
 	bne	3b
-	dsb
-	isb
-	b	2b
-ENDPROC(vector_bhb_loop8_\name)
-
-vector_bhb_bpiall_\name:
-	.if \correction
-	sub	lr, lr, #\correction
-	.endif
-
-	@ Save r0, lr_<exception> (parent PC)
-	stmia	sp, {r0, lr}
-
-	@ bhb workaround
-	mcr	p15, 0, r0, c7, c5, 6	@ BPIALL
+	dsb	nsh
 	@ isb not needed due to "movs pc, lr" in the vector stub
 	@ which gives a "context synchronisation".
-	b	2b
-ENDPROC(vector_bhb_bpiall_\name)
+	b	.Lvec_\name
+ENDPROC(vector_bhb_loop8_\name)
 	.previous
 #endif
 
@@ -1176,10 +1146,15 @@ ENDPROC(vector_bhb_bpiall_\name)
 	.endm
 
 	.section .stubs, "ax", %progbits
-	@ This must be the first word
+	@ These need to remain at the start of the section so that
+	@ they are in range of the 'SWI' entries in the vector tables
+	@ located 4k down.
+.L__vector_swi:
 	.word	vector_swi
 #ifdef CONFIG_HARDEN_BRANCH_HISTORY
+.L__vector_bhb_loop8_swi:
 	.word	vector_bhb_loop8_swi
+.L__vector_bhb_bpiall_swi:
 	.word	vector_bhb_bpiall_swi
 #endif
 
@@ -1322,10 +1297,11 @@ vector_addrexcptn:
 	.globl	vector_fiq
 
 	.section .vectors, "ax", %progbits
-.L__vectors_start:
 	W(b)	vector_rst
 	W(b)	vector_und
-	W(ldr)	pc, .L__vectors_start + 0x1000
+ARM(	.reloc	., R_ARM_LDR_PC_G0, .L__vector_swi		)
+THUMB(	.reloc	., R_ARM_THM_PC12, .L__vector_swi		)
+	W(ldr)	pc, .
 	W(b)	vector_pabt
 	W(b)	vector_dabt
 	W(b)	vector_addrexcptn
@@ -1334,10 +1310,11 @@ vector_addrexcptn:
 
 #ifdef CONFIG_HARDEN_BRANCH_HISTORY
 	.section .vectors.bhb.loop8, "ax", %progbits
-.L__vectors_bhb_loop8_start:
 	W(b)	vector_rst
 	W(b)	vector_bhb_loop8_und
-	W(ldr)	pc, .L__vectors_bhb_loop8_start + 0x1004
+ARM(	.reloc	., R_ARM_LDR_PC_G0, .L__vector_bhb_loop8_swi	)
+THUMB(	.reloc	., R_ARM_THM_PC12, .L__vector_bhb_loop8_swi	)
+	W(ldr)	pc, .
 	W(b)	vector_bhb_loop8_pabt
 	W(b)	vector_bhb_loop8_dabt
 	W(b)	vector_addrexcptn
@@ -1345,10 +1322,11 @@ vector_addrexcptn:
 	W(b)	vector_bhb_loop8_fiq
 
 	.section .vectors.bhb.bpiall, "ax", %progbits
-.L__vectors_bhb_bpiall_start:
 	W(b)	vector_rst
 	W(b)	vector_bhb_bpiall_und
-	W(ldr)	pc, .L__vectors_bhb_bpiall_start + 0x1008
+ARM(	.reloc	., R_ARM_LDR_PC_G0, .L__vector_bhb_bpiall_swi	)
+THUMB(	.reloc	., R_ARM_THM_PC12, .L__vector_bhb_bpiall_swi	)
+	W(ldr)	pc, .
 	W(b)	vector_bhb_bpiall_pabt
 	W(b)	vector_bhb_bpiall_dabt
 	W(b)	vector_addrexcptn

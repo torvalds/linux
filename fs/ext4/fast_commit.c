@@ -970,7 +970,7 @@ static int ext4_fc_write_inode_data(struct inode *inode, u32 *crc)
 /* Submit data for all the fast commit inodes */
 static int ext4_fc_submit_inode_data_all(journal_t *journal)
 {
-	struct super_block *sb = (struct super_block *)(journal->j_private);
+	struct super_block *sb = journal->j_private;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_inode_info *ei;
 	int ret = 0;
@@ -1004,7 +1004,7 @@ static int ext4_fc_submit_inode_data_all(journal_t *journal)
 /* Wait for completion of data for all the fast commit inodes */
 static int ext4_fc_wait_inode_data_all(journal_t *journal)
 {
-	struct super_block *sb = (struct super_block *)(journal->j_private);
+	struct super_block *sb = journal->j_private;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_inode_info *pos, *n;
 	int ret = 0;
@@ -1031,7 +1031,7 @@ static int ext4_fc_commit_dentry_updates(journal_t *journal, u32 *crc)
 __acquires(&sbi->s_fc_lock)
 __releases(&sbi->s_fc_lock)
 {
-	struct super_block *sb = (struct super_block *)(journal->j_private);
+	struct super_block *sb = journal->j_private;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_fc_dentry_update *fc_dentry, *fc_dentry_n;
 	struct inode *inode;
@@ -1093,7 +1093,7 @@ lock_and_exit:
 
 static int ext4_fc_perform_commit(journal_t *journal)
 {
-	struct super_block *sb = (struct super_block *)(journal->j_private);
+	struct super_block *sb = journal->j_private;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_inode_info *iter;
 	struct ext4_fc_head head;
@@ -1198,7 +1198,7 @@ static void ext4_fc_update_stats(struct super_block *sb, int status,
  */
 int ext4_fc_commit(journal_t *journal, tid_t commit_tid)
 {
-	struct super_block *sb = (struct super_block *)(journal->j_private);
+	struct super_block *sb = journal->j_private;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	int nblks = 0, ret, bsize = journal->j_blocksize;
 	int subtid = atomic_read(&sbi->s_fc_subtid);
@@ -1659,8 +1659,7 @@ static int ext4_fc_replay_create(struct super_block *sb, struct ext4_fc_tl *tl,
 	set_nlink(inode, 1);
 	ext4_mark_inode_dirty(NULL, inode);
 out:
-	if (inode)
-		iput(inode);
+	iput(inode);
 	return ret;
 }
 

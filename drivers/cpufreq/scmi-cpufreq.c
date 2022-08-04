@@ -96,8 +96,8 @@ scmi_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask)
 }
 
 static int __maybe_unused
-scmi_get_cpu_power(unsigned long *power, unsigned long *KHz,
-		   struct device *cpu_dev)
+scmi_get_cpu_power(struct device *cpu_dev, unsigned long *power,
+		   unsigned long *KHz)
 {
 	unsigned long Hz;
 	int ret, domain;

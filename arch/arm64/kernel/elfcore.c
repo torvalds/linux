@@ -95,7 +95,7 @@ int elf_core_write_extra_phdrs(struct coredump_params *cprm, loff_t offset)
 	for_each_mte_vma(current, vma) {
 		struct elf_phdr phdr;
 
-		phdr.p_type = PT_ARM_MEMTAG_MTE;
+		phdr.p_type = PT_AARCH64_MEMTAG_MTE;
 		phdr.p_offset = offset;
 		phdr.p_vaddr = vma->vm_start;
 		phdr.p_paddr = 0;

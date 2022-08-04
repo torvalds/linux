@@ -71,7 +71,6 @@ allOf:
     then:
       properties:
         clock-output-names:
-          minItems: 1
           maxItems: 1
 
   - if:
@@ -102,7 +101,6 @@ allOf:
       properties:
         clock-output-names:
           minItems: 3
-          maxItems: 3
 
   - if:
       properties:
@@ -113,16 +111,12 @@ allOf:
     then:
       properties:
         clocks:
-          minItems: 3
-          maxItems: 3
           items:
             - description: Bus clock for register access
             - description: 24 MHz oscillator
             - description: 32 kHz clock from the CCU
 
         clock-names:
-          minItems: 3
-          maxItems: 3
           items:
             - const: bus
             - const: hosc
@@ -142,7 +136,6 @@ allOf:
       properties:
         clocks:
           minItems: 3
-          maxItems: 4
           items:
             - description: Bus clock for register access
             - description: 24 MHz oscillator
@@ -151,7 +144,6 @@ allOf:
 
         clock-names:
           minItems: 3
-          maxItems: 4
           items:
             - const: bus
             - const: hosc
@@ -174,14 +166,12 @@ allOf:
     then:
       properties:
         interrupts:
-          minItems: 1
           maxItems: 1
 
     else:
       properties:
         interrupts:
           minItems: 2
-          maxItems: 2
 
 required:
   - "#clock-cells"

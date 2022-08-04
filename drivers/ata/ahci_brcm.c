@@ -549,15 +549,10 @@ static int brcm_ahci_remove(struct platform_device *pdev)
 	struct ata_host *host = dev_get_drvdata(&pdev->dev);
 	struct ahci_host_priv *hpriv = host->private_data;
 	struct brcm_ahci_priv *priv = hpriv->plat_data;
-	int ret;
 
 	brcm_sata_phys_disable(priv);
 
-	ret = ata_platform_remove_one(pdev);
-	if (ret)
-		return ret;
-
-	return 0;
+	return ata_platform_remove_one(pdev);
 }
 
 static void brcm_ahci_shutdown(struct platform_device *pdev)

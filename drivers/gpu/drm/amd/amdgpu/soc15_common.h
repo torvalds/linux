@@ -45,6 +45,14 @@
 				~REG_FIELD_MASK(reg, field)) | (val) << REG_FIELD_SHIFT(reg, field), \
 			      0, ip##_HWIP)
 
+#define WREG32_FIELD15_PREREG(ip, idx, reg_name, field, val)        \
+	__WREG32_SOC15_RLC__(adev->reg_offset[ip##_HWIP][idx][reg##reg_name##_BASE_IDX] + reg##reg_name,   \
+			(__RREG32_SOC15_RLC__( \
+					adev->reg_offset[ip##_HWIP][idx][reg##reg_name##_BASE_IDX] + reg##reg_name, \
+					0, ip##_HWIP) & \
+					~REG_FIELD_MASK(reg_name, field)) | (val) << REG_FIELD_SHIFT(reg_name, field), \
+			0, ip##_HWIP)
+
 #define RREG32_SOC15(ip, inst, reg) \
 	__RREG32_SOC15_RLC__(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg, \
 			 0, ip##_HWIP)

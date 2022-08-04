@@ -104,7 +104,13 @@ def print_ptwrite(raw_buf):
 	flags = data[0]
 	payload = data[1]
 	exact_ip = flags & 1
-	print("IP: %u payload: %#x" % (exact_ip, payload), end=' ')
+	try:
+		s = payload.to_bytes(8, "little").decode("ascii").rstrip("\x00")
+		if not s.isprintable():
+			s = ""
+	except:
+		s = ""
+	print("IP: %u payload: %#x" % (exact_ip, payload), s, end=' ')
 
 def print_cbr(raw_buf):
 	data = struct.unpack_from("<BBBBII", raw_buf)

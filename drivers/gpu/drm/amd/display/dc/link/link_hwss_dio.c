@@ -40,17 +40,24 @@ void set_dio_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
 void setup_dio_stream_encoder(struct pipe_ctx *pipe_ctx)
 {
 	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(pipe_ctx->stream->link);
+	struct stream_encoder *stream_enc = pipe_ctx->stream_res.stream_enc;
 
 	link_enc->funcs->connect_dig_be_to_fe(link_enc,
 			pipe_ctx->stream_res.stream_enc->id, true);
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		dp_source_sequence_trace(pipe_ctx->stream->link,
 				DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_BE);
+	if (stream_enc->funcs->enable_fifo)
+		stream_enc->funcs->enable_fifo(stream_enc);
 }
 
 void reset_dio_stream_encoder(struct pipe_ctx *pipe_ctx)
 {
 	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(pipe_ctx->stream->link);
+	struct stream_encoder *stream_enc = pipe_ctx->stream_res.stream_enc;
+
+	if (stream_enc && stream_enc->funcs->disable_fifo)
+		stream_enc->funcs->disable_fifo(stream_enc);
 
 	link_enc->funcs->connect_dig_be_to_fe(
 			link_enc,
@@ -60,6 +67,46 @@ void reset_dio_stream_encoder(struct pipe_ctx *pipe_ctx)
 		dp_source_sequence_trace(pipe_ctx->stream->link,
 				DPCD_SOURCE_SEQ_AFTER_DISCONNECT_DIG_FE_BE);
 
+}
+
+void setup_dio_stream_attribute(struct pipe_ctx *pipe_ctx)
+{
+	struct stream_encoder *stream_encoder = pipe_ctx->stream_res.stream_enc;
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct dc_link *link = stream->link;
+
+	if (!dc_is_virtual_signal(stream->signal))
+		stream_encoder->funcs->setup_stereo_sync(
+				stream_encoder,
+				pipe_ctx->stream_res.tg->inst,
+				stream->timing.timing_3d_format != TIMING_3D_FORMAT_NONE);
+
+	if (dc_is_dp_signal(stream->signal))
+		stream_encoder->funcs->dp_set_stream_attribute(
+				stream_encoder,
+				&stream->timing,
+				stream->output_color_space,
+				stream->use_vsc_sdp_for_colorimetry,
+				link->dpcd_caps.dprx_feature.bits.SST_SPLIT_SDP_CAP);
+	else if (dc_is_hdmi_tmds_signal(stream->signal))
+		stream_encoder->funcs->hdmi_set_stream_attribute(
+				stream_encoder,
+				&stream->timing,
+				stream->phy_pix_clk,
+				pipe_ctx->stream_res.audio != NULL);
+	else if (dc_is_dvi_signal(stream->signal))
+		stream_encoder->funcs->dvi_set_stream_attribute(
+				stream_encoder,
+				&stream->timing,
+				(stream->signal == SIGNAL_TYPE_DVI_DUAL_LINK) ?
+						true : false);
+	else if (dc_is_lvds_signal(stream->signal))
+		stream_encoder->funcs->lvds_set_stream_attribute(
+				stream_encoder,
+				&stream->timing);
+
+	if (dc_is_dp_signal(stream->signal))
+		dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DP_STREAM_ATTR);
 }
 
 void enable_dio_dp_link_output(struct dc_link *link,
@@ -113,15 +160,27 @@ void set_dio_dp_lane_settings(struct dc_link *link,
 	link_enc->funcs->dp_set_lane_settings(link_enc, link_settings, lane_settings);
 }
 
+static void update_dio_stream_allocation_table(struct dc_link *link,
+		const struct link_resource *link_res,
+		const struct link_mst_stream_allocation_table *table)
+{
+	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
+
+	ASSERT(link_enc);
+	link_enc->funcs->update_mst_stream_allocation_table(link_enc, table);
+}
+
 static const struct link_hwss dio_link_hwss = {
 	.setup_stream_encoder = setup_dio_stream_encoder,
 	.reset_stream_encoder = reset_dio_stream_encoder,
+	.setup_stream_attribute = setup_dio_stream_attribute,
 	.ext = {
 		.set_throttled_vcp_size = set_dio_throttled_vcp_size,
 		.enable_dp_link_output = enable_dio_dp_link_output,
 		.disable_dp_link_output = disable_dio_dp_link_output,
 		.set_dp_link_test_pattern = set_dio_dp_link_test_pattern,
 		.set_dp_lane_settings = set_dio_dp_lane_settings,
+		.update_stream_allocation_table = update_dio_stream_allocation_table,
 	},
 };
 

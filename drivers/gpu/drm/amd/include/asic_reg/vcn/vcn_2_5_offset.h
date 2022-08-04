@@ -988,4 +988,17 @@
 #define mmMDM_WIG_PIPE_BUSY_BASE_IDX                                                                   1
 
 
+/* VCN 2_6_0 regs */
+#define mmUVD_RAS_VCPU_VCODEC_STATUS                           0x0057
+#define mmUVD_RAS_VCPU_VCODEC_STATUS_BASE_IDX                  1
+#define mmUVD_RAS_MMSCH_FATAL_ERROR                            0x0058
+#define mmUVD_RAS_MMSCH_FATAL_ERROR_BASE_IDX                   1
+
+
+/* JPEG 2_6_0 regs */
+#define mmUVD_RAS_JPEG0_STATUS                                 0x0059
+#define mmUVD_RAS_JPEG0_STATUS_BASE_IDX                        1
+#define mmUVD_RAS_JPEG1_STATUS                                 0x005a
+#define mmUVD_RAS_JPEG1_STATUS_BASE_IDX                        1
+
 #endif

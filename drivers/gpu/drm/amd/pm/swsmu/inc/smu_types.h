@@ -74,6 +74,7 @@
        __SMU_DUMMY_MAP(OverDriveSetPercentage),       \
        __SMU_DUMMY_MAP(SetMinDeepSleepDcefclk),       \
        __SMU_DUMMY_MAP(ReenableAcDcInterrupt),        \
+       __SMU_DUMMY_MAP(AllowIHHostInterrupt),        \
        __SMU_DUMMY_MAP(NotifyPowerSource),            \
        __SMU_DUMMY_MAP(SetUclkFastSwitch),            \
        __SMU_DUMMY_MAP(SetUclkDownHyst),              \
@@ -233,7 +234,8 @@
 	__SMU_DUMMY_MAP(Spare0),                  \
 	__SMU_DUMMY_MAP(UnforceGfxVid),           \
 	__SMU_DUMMY_MAP(HeavySBR),			\
-	__SMU_DUMMY_MAP(SetBadHBMPagesRetiredFlagsPerChannel),
+	__SMU_DUMMY_MAP(SetBadHBMPagesRetiredFlagsPerChannel), \
+	__SMU_DUMMY_MAP(EnableGfxImu),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type
@@ -366,6 +368,31 @@ enum smu_clk_type {
        __SMU_DUMMY_MAP(THM_CG),				\
        __SMU_DUMMY_MAP(CLK_CG),				\
        __SMU_DUMMY_MAP(DATA_CALCULATION),				\
+       __SMU_DUMMY_MAP(DPM_VCLK),			\
+       __SMU_DUMMY_MAP(DPM_DCLK),			\
+       __SMU_DUMMY_MAP(FW_DATA_READ),			\
+       __SMU_DUMMY_MAP(DPM_GFX_POWER_OPTIMIZER),	\
+       __SMU_DUMMY_MAP(DPM_DCN),			\
+       __SMU_DUMMY_MAP(VMEMP_SCALING),			\
+       __SMU_DUMMY_MAP(VDDIO_MEM_SCALING),		\
+       __SMU_DUMMY_MAP(MM_DPM),				\
+       __SMU_DUMMY_MAP(SOC_MPCLK_DS),			\
+       __SMU_DUMMY_MAP(BACO_MPCLK_DS),			\
+       __SMU_DUMMY_MAP(THROTTLERS),			\
+       __SMU_DUMMY_MAP(SMARTSHIFT),			\
+       __SMU_DUMMY_MAP(GFX_READ_MARGIN),		\
+       __SMU_DUMMY_MAP(GFX_IMU),			\
+       __SMU_DUMMY_MAP(GFX_PCC_DFLL),			\
+       __SMU_DUMMY_MAP(BOOT_TIME_CAL),			\
+       __SMU_DUMMY_MAP(BOOT_POWER_OPT),			\
+       __SMU_DUMMY_MAP(GFXCLK_SPREAD_SPECTRUM),		\
+       __SMU_DUMMY_MAP(SOC_PCC),			\
+       __SMU_DUMMY_MAP(OPTIMIZED_VMIN),			\
+       __SMU_DUMMY_MAP(CLOCK_POWER_DOWN_BYPASS),	\
+       __SMU_DUMMY_MAP(MEM_TEMP_READ),			\
+       __SMU_DUMMY_MAP(ATHUB_MMHUB_PG),			\
+       __SMU_DUMMY_MAP(BACO_CG),			\
+       __SMU_DUMMY_MAP(SOC_CG),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(feature)	SMU_FEATURE_##feature##_BIT

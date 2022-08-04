@@ -109,7 +109,6 @@ allOf:
       properties:
         clocks:
           minItems: 1
-          maxItems: 3
           items:
             - description: Functional clock
             - description: DU_DOTCLKIN0 input clock
@@ -117,7 +116,6 @@ allOf:
 
         clock-names:
           minItems: 1
-          maxItems: 3
           items:
             - const: du.0
             - pattern: '^dclkin\.[01]$'
@@ -159,7 +157,6 @@ allOf:
       properties:
         clocks:
           minItems: 2
-          maxItems: 4
           items:
             - description: Functional clock for DU0
             - description: Functional clock for DU1
@@ -168,7 +165,6 @@ allOf:
 
         clock-names:
           minItems: 2
-          maxItems: 4
           items:
             - const: du.0
             - const: du.1
@@ -216,7 +212,6 @@ allOf:
       properties:
         clocks:
           minItems: 2
-          maxItems: 4
           items:
             - description: Functional clock for DU0
             - description: Functional clock for DU1
@@ -225,7 +220,6 @@ allOf:
 
         clock-names:
           minItems: 2
-          maxItems: 4
           items:
             - const: du.0
             - const: du.1
@@ -271,7 +265,6 @@ allOf:
       properties:
         clocks:
           minItems: 2
-          maxItems: 4
           items:
             - description: Functional clock for DU0
             - description: Functional clock for DU1
@@ -280,7 +273,6 @@ allOf:
 
         clock-names:
           minItems: 2
-          maxItems: 4
           items:
             - const: du.0
             - const: du.1
@@ -327,7 +319,6 @@ allOf:
       properties:
         clocks:
           minItems: 2
-          maxItems: 4
           items:
             - description: Functional clock for DU0
             - description: Functional clock for DU1
@@ -336,7 +327,6 @@ allOf:
 
         clock-names:
           minItems: 2
-          maxItems: 4
           items:
             - const: du.0
             - const: du.1
@@ -386,7 +376,6 @@ allOf:
       properties:
         clocks:
           minItems: 3
-          maxItems: 6
           items:
             - description: Functional clock for DU0
             - description: Functional clock for DU1
@@ -397,7 +386,6 @@ allOf:
 
         clock-names:
           minItems: 3
-          maxItems: 6
           items:
             - const: du.0
             - const: du.1
@@ -448,7 +436,6 @@ allOf:
       properties:
         clocks:
           minItems: 4
-          maxItems: 8
           items:
             - description: Functional clock for DU0
             - description: Functional clock for DU1
@@ -461,7 +448,6 @@ allOf:
 
         clock-names:
           minItems: 4
-          maxItems: 8
           items:
             - const: du.0
             - const: du.1
@@ -525,7 +511,6 @@ allOf:
       properties:
         clocks:
           minItems: 3
-          maxItems: 6
           items:
             - description: Functional clock for DU0
             - description: Functional clock for DU1
@@ -536,7 +521,6 @@ allOf:
 
         clock-names:
           minItems: 3
-          maxItems: 6
           items:
             - const: du.0
             - const: du.1
@@ -596,7 +580,6 @@ allOf:
       properties:
         clocks:
           minItems: 3
-          maxItems: 6
           items:
             - description: Functional clock for DU0
             - description: Functional clock for DU1
@@ -607,7 +590,6 @@ allOf:
 
         clock-names:
           minItems: 3
-          maxItems: 6
           items:
             - const: du.0
             - const: du.1
@@ -666,14 +648,12 @@ allOf:
       properties:
         clocks:
           minItems: 1
-          maxItems: 2
           items:
             - description: Functional clock for DU0
             - description: DU_DOTCLKIN0 input clock
 
         clock-names:
           minItems: 1
-          maxItems: 2
           items:
             - const: du.0
             - const: dclkin.0
@@ -723,7 +703,6 @@ allOf:
       properties:
         clocks:
           minItems: 2
-          maxItems: 4
           items:
             - description: Functional clock for DU0
             - description: Functional clock for DU1
@@ -732,7 +711,6 @@ allOf:
 
         clock-names:
           minItems: 2
-          maxItems: 4
           items:
             - const: du.0
             - const: du.1
@@ -791,7 +769,6 @@ allOf:
             - description: Functional clock
 
         clock-names:
-          maxItems: 1
           items:
             - const: du.0
 

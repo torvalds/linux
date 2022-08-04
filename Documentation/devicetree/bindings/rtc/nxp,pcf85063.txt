@@ -2,6 +2,7 @@
 
 Required properties:
 - compatible: Should one of contain:
+	"nxp,pca85073a",
 	"nxp,pcf85063",
 	"nxp,pcf85063a",
 	"nxp,pcf85063tp",

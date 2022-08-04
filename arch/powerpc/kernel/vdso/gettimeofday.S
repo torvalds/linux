@@ -22,12 +22,15 @@
 .macro cvdso_call funct call_time=0
   .cfi_startproc
 	PPC_STLU	r1, -PPC_MIN_STKFRM(r1)
+  .cfi_adjust_cfa_offset PPC_MIN_STKFRM
 	mflr		r0
-  .cfi_register lr, r0
 	PPC_STLU	r1, -PPC_MIN_STKFRM(r1)
+  .cfi_adjust_cfa_offset PPC_MIN_STKFRM
 	PPC_STL		r0, PPC_MIN_STKFRM + PPC_LR_STKOFF(r1)
+  .cfi_rel_offset lr, PPC_MIN_STKFRM + PPC_LR_STKOFF
 #ifdef __powerpc64__
 	PPC_STL		r2, PPC_MIN_STKFRM + STK_GOT(r1)
+  .cfi_rel_offset r2, PPC_MIN_STKFRM + STK_GOT
 #endif
 	get_datapage	r5
 	.ifeq	\call_time
@@ -39,13 +42,15 @@
 	PPC_LL		r0, PPC_MIN_STKFRM + PPC_LR_STKOFF(r1)
 #ifdef __powerpc64__
 	PPC_LL		r2, PPC_MIN_STKFRM + STK_GOT(r1)
+  .cfi_restore r2
 #endif
 	.ifeq	\call_time
 	cmpwi		r3, 0
 	.endif
 	mtlr		r0
-  .cfi_restore lr
 	addi		r1, r1, 2 * PPC_MIN_STKFRM
+  .cfi_restore lr
+  .cfi_def_cfa_offset 0
 	crclr		so
 	.ifeq	\call_time
 	beqlr+

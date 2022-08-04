@@ -149,12 +149,7 @@ xfs_growfs_data_private(
 		error = xfs_resizefs_init_new_ags(tp, &id, oagcount, nagcount,
 						  delta, &lastag_extended);
 	} else {
-		static struct ratelimit_state shrink_warning = \
-			RATELIMIT_STATE_INIT("shrink_warning", 86400 * HZ, 1);
-		ratelimit_set_flags(&shrink_warning, RATELIMIT_MSG_ON_RELEASE);
-
-		if (__ratelimit(&shrink_warning))
-			xfs_alert(mp,
+		xfs_warn_mount(mp, XFS_OPSTATE_WARNED_SHRINK,
 	"EXPERIMENTAL online shrink feature in use. Use at your own risk!");
 
 		error = xfs_ag_shrink_space(mp, &tp, nagcount - 1, -delta);
@@ -349,10 +344,7 @@ xfs_fs_counts(
 	cnt->freeino = percpu_counter_read_positive(&mp->m_ifree);
 	cnt->freedata = percpu_counter_read_positive(&mp->m_fdblocks) -
 						xfs_fdblocks_unavailable(mp);
-
-	spin_lock(&mp->m_sb_lock);
-	cnt->freertx = mp->m_sb.sb_frextents;
-	spin_unlock(&mp->m_sb_lock);
+	cnt->freertx = percpu_counter_read_positive(&mp->m_frextents);
 }
 
 /*
@@ -512,7 +504,7 @@ xfs_fs_goingdown(
 void
 xfs_do_force_shutdown(
 	struct xfs_mount *mp,
-	int		flags,
+	uint32_t	flags,
 	char		*fname,
 	int		lnnum)
 {

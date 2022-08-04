@@ -27,6 +27,7 @@
 #include "dm_pp_interface.h"
 #include "dm_pp_smu.h"
 #include "smu_types.h"
+#include "linux/firmware.h"
 
 #define SMU_THERMAL_MINIMUM_ALERT_TEMP		0
 #define SMU_THERMAL_MAXIMUM_ALERT_TEMP		255
@@ -320,6 +321,7 @@ enum smu_table_id
 	SMU_TABLE_I2C_COMMANDS,
 	SMU_TABLE_PACE,
 	SMU_TABLE_ECCINFO,
+	SMU_TABLE_COMBO_PPTABLE,
 	SMU_TABLE_COUNT,
 };
 
@@ -335,7 +337,8 @@ struct smu_table_context
 
 	void				*max_sustainable_clocks;
 	struct smu_bios_boot_up_values	boot_values;
-	void                            *driver_pptable;
+	void				*driver_pptable;
+	void				*combo_pptable;
 	void                            *ecc_table;
 	void				*driver_smu_config_table;
 	struct smu_table		tables[SMU_TABLE_COUNT];
@@ -429,6 +432,7 @@ struct smu_baco_context
 {
 	uint32_t state;
 	bool platform_support;
+	bool maco_support;
 };
 
 struct smu_freq_info {
@@ -451,6 +455,7 @@ struct smu_umd_pstate_table {
 	struct pstates_clk_freq		uclk_pstate;
 	struct pstates_clk_freq		vclk_pstate;
 	struct pstates_clk_freq		dclk_pstate;
+	struct pstates_clk_freq		fclk_pstate;
 };
 
 struct cmn2asic_msg_mapping {
@@ -557,6 +562,12 @@ struct smu_context
 	struct smu_user_dpm_profile user_dpm_profile;
 
 	struct stb_context stb_context;
+
+	struct firmware pptable_firmware;
+
+	u32 param_reg;
+	u32 msg_reg;
+	u32 resp_reg;
 };
 
 struct i2c_adapter;
@@ -690,6 +701,11 @@ struct pptable_funcs {
 	 *                       management.
 	 */
 	int (*dpm_set_jpeg_enable)(struct smu_context *smu, bool enable);
+
+	/**
+	 * @set_gfx_power_up_by_imu: Enable GFX engine with IMU
+	 */
+	int (*set_gfx_power_up_by_imu)(struct smu_context *smu);
 
 	/**
 	 * @read_sensor: Read data from a sensor.
@@ -1298,6 +1314,11 @@ struct pptable_funcs {
 	 *										of SMUBUS table.
 	 */
 	int (*send_hbm_bad_channel_flag)(struct smu_context *smu, uint32_t size);
+
+	/**
+	 * @init_pptable_microcode: Prepare the pptable microcode to upload via PSP
+	 */
+	int (*init_pptable_microcode)(struct smu_context *smu);
 };
 
 typedef enum {
@@ -1317,6 +1338,8 @@ typedef enum {
 	METRICS_AVERAGE_UCLK,
 	METRICS_AVERAGE_VCLK,
 	METRICS_AVERAGE_DCLK,
+	METRICS_AVERAGE_VCLK1,
+	METRICS_AVERAGE_DCLK1,
 	METRICS_AVERAGE_GFXACTIVITY,
 	METRICS_AVERAGE_MEMACTIVITY,
 	METRICS_AVERAGE_VCNACTIVITY,
@@ -1333,6 +1356,11 @@ typedef enum {
 	METRICS_VOLTAGE_VDDGFX,
 	METRICS_SS_APU_SHARE,
 	METRICS_SS_DGPU_SHARE,
+	METRICS_UNIQUE_ID_UPPER32,
+	METRICS_UNIQUE_ID_LOWER32,
+	METRICS_PCIE_RATE,
+	METRICS_PCIE_WIDTH,
+	METRICS_CURR_FANPWM,
 } MetricsMember_t;
 
 enum smu_cmn2asic_mapping_type {
@@ -1419,6 +1447,8 @@ int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 
 int smu_set_soft_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 			    uint32_t min, uint32_t max);
+
+int smu_set_gfx_power_up_by_imu(struct smu_context *smu);
 
 int smu_set_ac_dc(struct smu_context *smu);
 

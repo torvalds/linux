@@ -26,6 +26,7 @@ enum qcom_icc_type {
  * @type: the ICC provider type
  * @qos_offset: offset to QoS registers
  * @regmap: regmap for QoS registers read/write access
+ * @bus_clk_rate: bus clock rate in Hz
  */
 struct qcom_icc_provider {
 	struct icc_provider provider;
@@ -33,6 +34,7 @@ struct qcom_icc_provider {
 	enum qcom_icc_type type;
 	struct regmap *regmap;
 	unsigned int qos_offset;
+	u64 *bus_clk_rate;
 	struct clk_bulk_data bus_clks[];
 };
 
@@ -66,7 +68,6 @@ struct qcom_icc_qos {
  * @mas_rpm_id:	RPM id for devices that are bus masters
  * @slv_rpm_id:	RPM id for devices that are bus slaves
  * @qos: NoC QoS setting parameters
- * @rate: current bus clock rate in Hz
  */
 struct qcom_icc_node {
 	unsigned char *name;
@@ -77,11 +78,10 @@ struct qcom_icc_node {
 	int mas_rpm_id;
 	int slv_rpm_id;
 	struct qcom_icc_qos qos;
-	u64 rate;
 };
 
 struct qcom_icc_desc {
-	struct qcom_icc_node **nodes;
+	struct qcom_icc_node * const *nodes;
 	size_t num_nodes;
 	const char * const *clocks;
 	size_t num_clocks;

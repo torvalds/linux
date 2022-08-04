@@ -132,6 +132,7 @@ struct amdgpu_reset_domain *amdgpu_reset_create_reset_domain(enum amdgpu_reset_d
 	}
 
 	atomic_set(&reset_domain->in_gpu_reset, 0);
+	atomic_set(&reset_domain->reset_res, 0);
 	init_rwsem(&reset_domain->sem);
 
 	return reset_domain;

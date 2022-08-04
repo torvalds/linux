@@ -8,11 +8,10 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/cpufreq.h>
+#include <linux/soc/pxa/cpu.h>
+#include <linux/clk/pxa.h>
 #include <linux/slab.h>
 #include <linux/io.h>
-
-#include <mach/generic.h>
-#include <mach/pxa3xx-regs.h>
 
 #define HSS_104M	(0)
 #define HSS_156M	(1)
@@ -33,6 +32,28 @@
 
 #define DMCFS_26M	(0)
 #define DMCFS_260M	(3)
+
+#define ACCR_XPDIS		(1 << 31)	/* Core PLL Output Disable */
+#define ACCR_SPDIS		(1 << 30)	/* System PLL Output Disable */
+#define ACCR_D0CS		(1 << 26)	/* D0 Mode Clock Select */
+#define ACCR_PCCE		(1 << 11)	/* Power Mode Change Clock Enable */
+#define ACCR_DDR_D0CS		(1 << 7)	/* DDR SDRAM clock frequency in D0CS (PXA31x only) */
+
+#define ACCR_SMCFS_MASK		(0x7 << 23)	/* Static Memory Controller Frequency Select */
+#define ACCR_SFLFS_MASK		(0x3 << 18)	/* Frequency Select for Internal Memory Controller */
+#define ACCR_XSPCLK_MASK	(0x3 << 16)	/* Core Frequency during Frequency Change */
+#define ACCR_HSS_MASK		(0x3 << 14)	/* System Bus-Clock Frequency Select */
+#define ACCR_DMCFS_MASK		(0x3 << 12)	/* Dynamic Memory Controller Clock Frequency Select */
+#define ACCR_XN_MASK		(0x7 << 8)	/* Core PLL Turbo-Mode-to-Run-Mode Ratio */
+#define ACCR_XL_MASK		(0x1f)		/* Core PLL Run-Mode-to-Oscillator Ratio */
+
+#define ACCR_SMCFS(x)		(((x) & 0x7) << 23)
+#define ACCR_SFLFS(x)		(((x) & 0x3) << 18)
+#define ACCR_XSPCLK(x)		(((x) & 0x3) << 16)
+#define ACCR_HSS(x)		(((x) & 0x3) << 14)
+#define ACCR_DMCFS(x)		(((x) & 0x3) << 12)
+#define ACCR_XN(x)		(((x) & 0x7) << 8)
+#define ACCR_XL(x)		((x) & 0x1f)
 
 struct pxa3xx_freq_info {
 	unsigned int cpufreq_mhz;
@@ -111,41 +132,29 @@ static int setup_freqs_table(struct cpufreq_policy *policy,
 
 static void __update_core_freq(struct pxa3xx_freq_info *info)
 {
-	uint32_t mask = ACCR_XN_MASK | ACCR_XL_MASK;
-	uint32_t accr = ACCR;
-	uint32_t xclkcfg;
+	u32 mask, disable, enable, xclkcfg;
 
-	accr &= ~(ACCR_XN_MASK | ACCR_XL_MASK | ACCR_XSPCLK_MASK);
-	accr |= ACCR_XN(info->core_xn) | ACCR_XL(info->core_xl);
-
+	mask	= ACCR_XN_MASK | ACCR_XL_MASK;
+	disable = mask | ACCR_XSPCLK_MASK;
+	enable  = ACCR_XN(info->core_xn) | ACCR_XL(info->core_xl);
 	/* No clock until core PLL is re-locked */
-	accr |= ACCR_XSPCLK(XSPCLK_NONE);
-
+	enable |= ACCR_XSPCLK(XSPCLK_NONE);
 	xclkcfg = (info->core_xn == 2) ? 0x3 : 0x2;	/* turbo bit */
 
-	ACCR = accr;
-	__asm__("mcr p14, 0, %0, c6, c0, 0\n" : : "r"(xclkcfg));
-
-	while ((ACSR & mask) != (accr & mask))
-		cpu_relax();
+	pxa3xx_clk_update_accr(disable, enable, xclkcfg, mask);
 }
 
 static void __update_bus_freq(struct pxa3xx_freq_info *info)
 {
-	uint32_t mask;
-	uint32_t accr = ACCR;
+	u32 mask, disable, enable;
 
-	mask = ACCR_SMCFS_MASK | ACCR_SFLFS_MASK | ACCR_HSS_MASK |
-		ACCR_DMCFS_MASK;
+	mask	= ACCR_SMCFS_MASK | ACCR_SFLFS_MASK | ACCR_HSS_MASK |
+		  ACCR_DMCFS_MASK;
+	disable = mask;
+	enable	= ACCR_SMCFS(info->smcfs) | ACCR_SFLFS(info->sflfs) |
+		  ACCR_HSS(info->hss) | ACCR_DMCFS(info->dmcfs);
 
-	accr &= ~mask;
-	accr |= ACCR_SMCFS(info->smcfs) | ACCR_SFLFS(info->sflfs) |
-		ACCR_HSS(info->hss) | ACCR_DMCFS(info->dmcfs);
-
-	ACCR = accr;
-
-	while ((ACSR & mask) != (accr & mask))
-		cpu_relax();
+	pxa3xx_clk_update_accr(disable, enable, 0, mask);
 }
 
 static unsigned int pxa3xx_cpufreq_get(unsigned int cpu)

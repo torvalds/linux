@@ -1515,7 +1515,7 @@ static int temac_probe(struct platform_device *pdev)
 				of_node_put(dma_np);
 				return PTR_ERR(lp->sdma_regs);
 			}
-			if (of_get_property(dma_np, "little-endian", NULL)) {
+			if (of_property_read_bool(dma_np, "little-endian")) {
 				lp->dma_in = temac_dma_in32_le;
 				lp->dma_out = temac_dma_out32_le;
 			} else {

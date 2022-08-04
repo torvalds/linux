@@ -10,12 +10,12 @@
 #define PHY_ID_BCM8706	0x0143bdc1
 #define PHY_ID_BCM8727	0x0143bff0
 
-#define BCM87XX_PMD_RX_SIGNAL_DETECT	(MII_ADDR_C45 | 0x1000a)
-#define BCM87XX_10GBASER_PCS_STATUS	(MII_ADDR_C45 | 0x30020)
-#define BCM87XX_XGXS_LANE_STATUS	(MII_ADDR_C45 | 0x40018)
+#define BCM87XX_PMD_RX_SIGNAL_DETECT	0x000a
+#define BCM87XX_10GBASER_PCS_STATUS	0x0020
+#define BCM87XX_XGXS_LANE_STATUS	0x0018
 
-#define BCM87XX_LASI_CONTROL (MII_ADDR_C45 | 0x39002)
-#define BCM87XX_LASI_STATUS (MII_ADDR_C45 | 0x39005)
+#define BCM87XX_LASI_CONTROL		0x9002
+#define BCM87XX_LASI_STATUS		0x9005
 
 #if IS_ENABLED(CONFIG_OF_MDIO)
 /* Set and/or override some configuration registers based on the
@@ -54,11 +54,10 @@ static int bcm87xx_of_reg_init(struct phy_device *phydev)
 		u16 reg		= be32_to_cpup(paddr++);
 		u16 mask	= be32_to_cpup(paddr++);
 		u16 val_bits	= be32_to_cpup(paddr++);
-		u32 regnum = mdiobus_c45_addr(devid, reg);
 		int val = 0;
 
 		if (mask) {
-			val = phy_read(phydev, regnum);
+			val = phy_read_mmd(phydev, devid, reg);
 			if (val < 0) {
 				ret = val;
 				goto err;
@@ -67,7 +66,7 @@ static int bcm87xx_of_reg_init(struct phy_device *phydev)
 		}
 		val |= val_bits;
 
-		ret = phy_write(phydev, regnum, val);
+		ret = phy_write_mmd(phydev, devid, reg, val);
 		if (ret < 0)
 			goto err;
 	}
@@ -104,21 +103,24 @@ static int bcm87xx_read_status(struct phy_device *phydev)
 	int pcs_status;
 	int xgxs_lane_status;
 
-	rx_signal_detect = phy_read(phydev, BCM87XX_PMD_RX_SIGNAL_DETECT);
+	rx_signal_detect = phy_read_mmd(phydev, MDIO_MMD_PMAPMD,
+					BCM87XX_PMD_RX_SIGNAL_DETECT);
 	if (rx_signal_detect < 0)
 		return rx_signal_detect;
 
 	if ((rx_signal_detect & 1) == 0)
 		goto no_link;
 
-	pcs_status = phy_read(phydev, BCM87XX_10GBASER_PCS_STATUS);
+	pcs_status = phy_read_mmd(phydev, MDIO_MMD_PCS,
+				  BCM87XX_10GBASER_PCS_STATUS);
 	if (pcs_status < 0)
 		return pcs_status;
 
 	if ((pcs_status & 1) == 0)
 		goto no_link;
 
-	xgxs_lane_status = phy_read(phydev, BCM87XX_XGXS_LANE_STATUS);
+	xgxs_lane_status = phy_read_mmd(phydev, MDIO_MMD_PHYXS,
+					BCM87XX_XGXS_LANE_STATUS);
 	if (xgxs_lane_status < 0)
 		return xgxs_lane_status;
 
@@ -139,25 +141,27 @@ static int bcm87xx_config_intr(struct phy_device *phydev)
 {
 	int reg, err;
 
-	reg = phy_read(phydev, BCM87XX_LASI_CONTROL);
+	reg = phy_read_mmd(phydev, MDIO_MMD_PCS, BCM87XX_LASI_CONTROL);
 
 	if (reg < 0)
 		return reg;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
-		err = phy_read(phydev, BCM87XX_LASI_STATUS);
+		err = phy_read_mmd(phydev, MDIO_MMD_PCS, BCM87XX_LASI_STATUS);
 		if (err)
 			return err;
 
 		reg |= 1;
-		err = phy_write(phydev, BCM87XX_LASI_CONTROL, reg);
+		err = phy_write_mmd(phydev, MDIO_MMD_PCS,
+				    BCM87XX_LASI_CONTROL, reg);
 	} else {
 		reg &= ~1;
-		err = phy_write(phydev, BCM87XX_LASI_CONTROL, reg);
+		err = phy_write_mmd(phydev, MDIO_MMD_PCS,
+				    BCM87XX_LASI_CONTROL, reg);
 		if (err)
 			return err;
 
-		err = phy_read(phydev, BCM87XX_LASI_STATUS);
+		err = phy_read_mmd(phydev, MDIO_MMD_PCS, BCM87XX_LASI_STATUS);
 	}
 
 	return err;

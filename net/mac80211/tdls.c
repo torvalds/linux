@@ -459,9 +459,9 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 		pos = skb_put(skb, sizeof(struct ieee80211_ht_cap) + 2);
 		ieee80211_ie_build_ht_cap(pos, &ht_cap, ht_cap.cap);
 	} else if (action_code == WLAN_TDLS_SETUP_RESPONSE &&
-		   ht_cap.ht_supported && sta->sta.ht_cap.ht_supported) {
+		   ht_cap.ht_supported && sta->sta.deflink.ht_cap.ht_supported) {
 		/* the peer caps are already intersected with our own */
-		memcpy(&ht_cap, &sta->sta.ht_cap, sizeof(ht_cap));
+		memcpy(&ht_cap, &sta->sta.deflink.ht_cap, sizeof(ht_cap));
 
 		pos = skb_put(skb, sizeof(struct ieee80211_ht_cap) + 2);
 		ieee80211_ie_build_ht_cap(pos, &ht_cap, ht_cap.cap);
@@ -510,9 +510,9 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 		pos = skb_put(skb, sizeof(struct ieee80211_vht_cap) + 2);
 		ieee80211_ie_build_vht_cap(pos, &vht_cap, vht_cap.cap);
 	} else if (action_code == WLAN_TDLS_SETUP_RESPONSE &&
-		   vht_cap.vht_supported && sta->sta.vht_cap.vht_supported) {
+		   vht_cap.vht_supported && sta->sta.deflink.vht_cap.vht_supported) {
 		/* the peer caps are already intersected with our own */
-		memcpy(&vht_cap, &sta->sta.vht_cap, sizeof(vht_cap));
+		memcpy(&vht_cap, &sta->sta.deflink.vht_cap, sizeof(vht_cap));
 
 		/* the AID is present only when VHT is implemented */
 		ieee80211_tdls_add_aid(sdata, skb);
@@ -603,13 +603,13 @@ ieee80211_tdls_add_setup_cfm_ies(struct ieee80211_sub_if_data *sdata,
 	 * if HT support is only added in TDLS, we need an HT-operation IE.
 	 * add the IE as required by IEEE802.11-2012 9.23.3.2.
 	 */
-	if (!ap_sta->sta.ht_cap.ht_supported && sta->sta.ht_cap.ht_supported) {
+	if (!ap_sta->sta.deflink.ht_cap.ht_supported && sta->sta.deflink.ht_cap.ht_supported) {
 		u16 prot = IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED |
 			   IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT |
 			   IEEE80211_HT_OP_MODE_NON_HT_STA_PRSNT;
 
 		pos = skb_put(skb, 2 + sizeof(struct ieee80211_ht_operation));
-		ieee80211_ie_build_ht_oper(pos, &sta->sta.ht_cap,
+		ieee80211_ie_build_ht_oper(pos, &sta->sta.deflink.ht_cap,
 					   &sdata->vif.bss_conf.chandef, prot,
 					   true);
 	}
@@ -618,7 +618,7 @@ ieee80211_tdls_add_setup_cfm_ies(struct ieee80211_sub_if_data *sdata,
 
 	/* only include VHT-operation if not on the 2.4GHz band */
 	if (sband->band != NL80211_BAND_2GHZ &&
-	    sta->sta.vht_cap.vht_supported) {
+	    sta->sta.deflink.vht_cap.vht_supported) {
 		/*
 		 * if both peers support WIDER_BW, we can expand the chandef to
 		 * a wider compatible one, up to 80MHz
@@ -627,7 +627,7 @@ ieee80211_tdls_add_setup_cfm_ies(struct ieee80211_sub_if_data *sdata,
 			ieee80211_tdls_chandef_vht_upgrade(sdata, sta);
 
 		pos = skb_put(skb, 2 + sizeof(struct ieee80211_vht_operation));
-		ieee80211_ie_build_vht_oper(pos, &sta->sta.vht_cap,
+		ieee80211_ie_build_vht_oper(pos, &sta->sta.deflink.vht_cap,
 					    &sta->tdls_chandef);
 	}
 
@@ -1269,8 +1269,8 @@ static void iee80211_tdls_recalc_chanctx(struct ieee80211_sub_if_data *sdata,
 
 			bw = ieee80211_chan_width_to_rx_bw(conf->def.width);
 			bw = min(bw, ieee80211_sta_cap_rx_bw(sta));
-			if (bw != sta->sta.bandwidth) {
-				sta->sta.bandwidth = bw;
+			if (bw != sta->sta.deflink.bandwidth) {
+				sta->sta.deflink.bandwidth = bw;
 				rate_control_rate_update(local, sband, sta,
 							 IEEE80211_RC_BW_CHANGED);
 				/*
@@ -1296,7 +1296,7 @@ static int iee80211_tdls_have_ht_peers(struct ieee80211_sub_if_data *sdata)
 		if (!sta->sta.tdls || sta->sdata != sdata || !sta->uploaded ||
 		    !test_sta_flag(sta, WLAN_STA_AUTHORIZED) ||
 		    !test_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH) ||
-		    !sta->sta.ht_cap.ht_supported)
+		    !sta->sta.deflink.ht_cap.ht_supported)
 			continue;
 		result = true;
 		break;
@@ -1321,7 +1321,7 @@ iee80211_tdls_recalc_ht_protection(struct ieee80211_sub_if_data *sdata,
 	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HT))
 		return;
 
-	tdls_ht = (sta && sta->sta.ht_cap.ht_supported) ||
+	tdls_ht = (sta && sta->sta.deflink.ht_cap.ht_supported) ||
 		  iee80211_tdls_have_ht_peers(sdata);
 
 	opmode = sdata->vif.bss_conf.ht_operation_mode;
@@ -1900,7 +1900,7 @@ ieee80211_process_tdls_channel_switch_req(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/* peer should have known better */
-	if (!sta->sta.ht_cap.ht_supported && elems->sec_chan_offs &&
+	if (!sta->sta.deflink.ht_cap.ht_supported && elems->sec_chan_offs &&
 	    elems->sec_chan_offs->sec_chan_offs) {
 		tdls_dbg(sdata, "TDLS chan switch - wide chan unsupported\n");
 		ret = -ENOTSUPP;

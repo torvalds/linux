@@ -79,10 +79,6 @@ int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk)
 
 	WARN_ON_ONCE(!bdev->bd_holder);
 
-	/* FIXME: remove the following once add_disk() handles errors */
-	if (WARN_ON(!bdev->bd_holder_dir))
-		goto out_unlock;
-
 	holder = bd_find_holder_disk(bdev, disk);
 	if (holder) {
 		holder->refcnt++;

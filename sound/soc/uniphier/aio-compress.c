@@ -139,7 +139,6 @@ static int uniphier_aio_compr_set_params(struct snd_soc_component *component,
 	struct uniphier_aio *aio = uniphier_priv(asoc_rtd_to_cpu(rtd, 0));
 	struct uniphier_aio_sub *sub = &aio->sub[cstream->direction];
 	struct device *dev = &aio->chip->pdev->dev;
-	int ret;
 
 	if (params->codec.id != SND_AUDIOCODEC_IEC61937) {
 		dev_err(dev, "Codec ID is not supported(%d)\n",
@@ -161,11 +160,7 @@ static int uniphier_aio_compr_set_params(struct snd_soc_component *component,
 	aio_port_reset(sub);
 	aio_src_reset(sub);
 
-	ret = uniphier_aio_compr_prepare(component, cstream);
-	if (ret)
-		return ret;
-
-	return 0;
+	return uniphier_aio_compr_prepare(component, cstream);
 }
 
 static int uniphier_aio_compr_hw_free(struct snd_soc_component *component,

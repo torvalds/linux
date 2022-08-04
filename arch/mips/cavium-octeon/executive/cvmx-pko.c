@@ -377,7 +377,7 @@ cvmx_pko_status_t cvmx_pko_config_port(uint64_t port, uint64_t base_queue,
 			/*
 			 * Check to make sure all static priority
 			 * queues are contiguous.  Also catches some
-			 * cases of static priorites not starting at
+			 * cases of static priorities not starting at
 			 * queue 0.
 			 */
 			if (static_priority_end != -1

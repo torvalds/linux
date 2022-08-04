@@ -1151,7 +1151,7 @@ STORE(__bch_cache)
 	if (attr == &sysfs_discard) {
 		bool v = strtoul_or_return(buf);
 
-		if (blk_queue_discard(bdev_get_queue(ca->bdev)))
+		if (bdev_max_discard_sectors(ca->bdev))
 			ca->discard = v;
 
 		if (v != CACHE_DISCARD(&ca->sb)) {

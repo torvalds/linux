@@ -226,8 +226,9 @@ int vgic_uaccess_write_cenable(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-unsigned long vgic_mmio_read_pending(struct kvm_vcpu *vcpu,
-				     gpa_t addr, unsigned int len)
+static unsigned long __read_pending(struct kvm_vcpu *vcpu,
+				    gpa_t addr, unsigned int len,
+				    bool is_user)
 {
 	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
 	u32 value = 0;
@@ -239,6 +240,15 @@ unsigned long vgic_mmio_read_pending(struct kvm_vcpu *vcpu,
 		unsigned long flags;
 		bool val;
 
+		/*
+		 * When used from userspace with a GICv3 model:
+		 *
+		 * Pending state of interrupt is latched in pending_latch
+		 * variable.  Userspace will save and restore pending state
+		 * and line_level separately.
+		 * Refer to Documentation/virt/kvm/devices/arm-vgic-v3.rst
+		 * for handling of ISPENDR and ICPENDR.
+		 */
 		raw_spin_lock_irqsave(&irq->irq_lock, flags);
 		if (irq->hw && vgic_irq_is_sgi(irq->intid)) {
 			int err;
@@ -248,10 +258,20 @@ unsigned long vgic_mmio_read_pending(struct kvm_vcpu *vcpu,
 						    IRQCHIP_STATE_PENDING,
 						    &val);
 			WARN_RATELIMIT(err, "IRQ %d", irq->host_irq);
-		} else if (vgic_irq_is_mapped_level(irq)) {
+		} else if (!is_user && vgic_irq_is_mapped_level(irq)) {
 			val = vgic_get_phys_line_level(irq);
 		} else {
-			val = irq_is_pending(irq);
+			switch (vcpu->kvm->arch.vgic.vgic_model) {
+			case KVM_DEV_TYPE_ARM_VGIC_V3:
+				if (is_user) {
+					val = irq->pending_latch;
+					break;
+				}
+				fallthrough;
+			default:
+				val = irq_is_pending(irq);
+				break;
+			}
 		}
 
 		value |= ((u32)val << i);
@@ -261,6 +281,18 @@ unsigned long vgic_mmio_read_pending(struct kvm_vcpu *vcpu,
 	}
 
 	return value;
+}
+
+unsigned long vgic_mmio_read_pending(struct kvm_vcpu *vcpu,
+				     gpa_t addr, unsigned int len)
+{
+	return __read_pending(vcpu, addr, len, false);
+}
+
+unsigned long vgic_uaccess_read_pending(struct kvm_vcpu *vcpu,
+					gpa_t addr, unsigned int len)
+{
+	return __read_pending(vcpu, addr, len, true);
 }
 
 static bool is_vgic_v2_sgi(struct kvm_vcpu *vcpu, struct vgic_irq *irq)

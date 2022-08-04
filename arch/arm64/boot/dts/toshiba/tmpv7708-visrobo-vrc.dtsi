@@ -13,7 +13,6 @@
 
 &wdt {
 	status = "okay";
-	clocks = <&wdt_clk>;
 };
 
 &gpio {
@@ -26,8 +25,6 @@
 
 &spi0 {
 	status = "okay";
-	clocks = <&clk300mhz>, <&clk150mhz>;
-	clock-names = "sspclk", "apb_pclk";
 
 	mmc-slot@0 {
 		compatible = "mmc-spi-slot";
@@ -40,5 +37,4 @@
 
 &i2c0 {
 	status = "okay";
-	clocks = <&clk150mhz>;
 };

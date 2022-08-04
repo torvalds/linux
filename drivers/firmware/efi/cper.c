@@ -211,7 +211,33 @@ const char *cper_mem_err_type_str(unsigned int etype)
 }
 EXPORT_SYMBOL_GPL(cper_mem_err_type_str);
 
-static int cper_mem_err_location(struct cper_mem_err_compact *mem, char *msg)
+const char *cper_mem_err_status_str(u64 status)
+{
+	switch ((status >> 8) & 0xff) {
+	case  1:	return "Error detected internal to the component";
+	case  4:	return "Storage error in DRAM memory";
+	case  5:	return "Storage error in TLB";
+	case  6:	return "Storage error in cache";
+	case  7:	return "Error in one or more functional units";
+	case  8:	return "Component failed self test";
+	case  9:	return "Overflow or undervalue of internal queue";
+	case 16:	return "Error detected in the bus";
+	case 17:	return "Virtual address not found on IO-TLB or IO-PDIR";
+	case 18:	return "Improper access error";
+	case 19:	return "Access to a memory address which is not mapped to any component";
+	case 20:	return "Loss of Lockstep";
+	case 21:	return "Response not associated with a request";
+	case 22:	return "Bus parity error - must also set the A, C, or D Bits";
+	case 23:	return "Detection of a protocol error";
+	case 24:	return "Detection of a PATH_ERROR";
+	case 25:	return "Bus operation timeout";
+	case 26:	return "A read was issued to data that has been poisoned";
+	default:	return "Reserved";
+	}
+}
+EXPORT_SYMBOL_GPL(cper_mem_err_status_str);
+
+int cper_mem_err_location(struct cper_mem_err_compact *mem, char *msg)
 {
 	u32 len, n;
 
@@ -221,51 +247,51 @@ static int cper_mem_err_location(struct cper_mem_err_compact *mem, char *msg)
 	n = 0;
 	len = CPER_REC_LEN;
 	if (mem->validation_bits & CPER_MEM_VALID_NODE)
-		n += scnprintf(msg + n, len - n, "node: %d ", mem->node);
+		n += scnprintf(msg + n, len - n, "node:%d ", mem->node);
 	if (mem->validation_bits & CPER_MEM_VALID_CARD)
-		n += scnprintf(msg + n, len - n, "card: %d ", mem->card);
+		n += scnprintf(msg + n, len - n, "card:%d ", mem->card);
 	if (mem->validation_bits & CPER_MEM_VALID_MODULE)
-		n += scnprintf(msg + n, len - n, "module: %d ", mem->module);
+		n += scnprintf(msg + n, len - n, "module:%d ", mem->module);
 	if (mem->validation_bits & CPER_MEM_VALID_RANK_NUMBER)
-		n += scnprintf(msg + n, len - n, "rank: %d ", mem->rank);
+		n += scnprintf(msg + n, len - n, "rank:%d ", mem->rank);
 	if (mem->validation_bits & CPER_MEM_VALID_BANK)
-		n += scnprintf(msg + n, len - n, "bank: %d ", mem->bank);
+		n += scnprintf(msg + n, len - n, "bank:%d ", mem->bank);
 	if (mem->validation_bits & CPER_MEM_VALID_BANK_GROUP)
-		n += scnprintf(msg + n, len - n, "bank_group: %d ",
+		n += scnprintf(msg + n, len - n, "bank_group:%d ",
 			       mem->bank >> CPER_MEM_BANK_GROUP_SHIFT);
 	if (mem->validation_bits & CPER_MEM_VALID_BANK_ADDRESS)
-		n += scnprintf(msg + n, len - n, "bank_address: %d ",
+		n += scnprintf(msg + n, len - n, "bank_address:%d ",
 			       mem->bank & CPER_MEM_BANK_ADDRESS_MASK);
 	if (mem->validation_bits & CPER_MEM_VALID_DEVICE)
-		n += scnprintf(msg + n, len - n, "device: %d ", mem->device);
+		n += scnprintf(msg + n, len - n, "device:%d ", mem->device);
 	if (mem->validation_bits & (CPER_MEM_VALID_ROW | CPER_MEM_VALID_ROW_EXT)) {
 		u32 row = mem->row;
 
 		row |= cper_get_mem_extension(mem->validation_bits, mem->extended);
-		n += scnprintf(msg + n, len - n, "row: %d ", row);
+		n += scnprintf(msg + n, len - n, "row:%d ", row);
 	}
 	if (mem->validation_bits & CPER_MEM_VALID_COLUMN)
-		n += scnprintf(msg + n, len - n, "column: %d ", mem->column);
+		n += scnprintf(msg + n, len - n, "column:%d ", mem->column);
 	if (mem->validation_bits & CPER_MEM_VALID_BIT_POSITION)
-		n += scnprintf(msg + n, len - n, "bit_position: %d ",
+		n += scnprintf(msg + n, len - n, "bit_position:%d ",
 			       mem->bit_pos);
 	if (mem->validation_bits & CPER_MEM_VALID_REQUESTOR_ID)
-		n += scnprintf(msg + n, len - n, "requestor_id: 0x%016llx ",
+		n += scnprintf(msg + n, len - n, "requestor_id:0x%016llx ",
 			       mem->requestor_id);
 	if (mem->validation_bits & CPER_MEM_VALID_RESPONDER_ID)
-		n += scnprintf(msg + n, len - n, "responder_id: 0x%016llx ",
+		n += scnprintf(msg + n, len - n, "responder_id:0x%016llx ",
 			       mem->responder_id);
 	if (mem->validation_bits & CPER_MEM_VALID_TARGET_ID)
-		n += scnprintf(msg + n, len - n, "target_id: 0x%016llx ",
+		n += scnprintf(msg + n, len - n, "target_id:0x%016llx ",
 			       mem->target_id);
 	if (mem->validation_bits & CPER_MEM_VALID_CHIP_ID)
-		n += scnprintf(msg + n, len - n, "chip_id: %d ",
+		n += scnprintf(msg + n, len - n, "chip_id:%d ",
 			       mem->extended >> CPER_MEM_CHIP_ID_SHIFT);
 
 	return n;
 }
 
-static int cper_dimm_err_location(struct cper_mem_err_compact *mem, char *msg)
+int cper_dimm_err_location(struct cper_mem_err_compact *mem, char *msg)
 {
 	u32 len, n;
 	const char *bank = NULL, *device = NULL;
@@ -334,7 +360,9 @@ static void cper_print_mem(const char *pfx, const struct cper_sec_mem_err *mem,
 		return;
 	}
 	if (mem->validation_bits & CPER_MEM_VALID_ERROR_STATUS)
-		printk("%s""error_status: 0x%016llx\n", pfx, mem->error_status);
+		printk("%s error_status: %s (0x%016llx)\n",
+		       pfx, cper_mem_err_status_str(mem->error_status),
+		       mem->error_status);
 	if (mem->validation_bits & CPER_MEM_VALID_PA)
 		printk("%s""physical_address: 0x%016llx\n",
 		       pfx, mem->physical_addr);

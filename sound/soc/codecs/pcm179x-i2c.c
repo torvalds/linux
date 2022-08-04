@@ -14,8 +14,7 @@
 
 #include "pcm179x.h"
 
-static int pcm179x_i2c_probe(struct i2c_client *client,
-			      const struct i2c_device_id *id)
+static int pcm179x_i2c_probe(struct i2c_client *client)
 {
 	struct regmap *regmap;
 	int ret;
@@ -50,7 +49,7 @@ static struct i2c_driver pcm179x_i2c_driver = {
 		.of_match_table = of_match_ptr(pcm179x_of_match),
 	},
 	.id_table	= pcm179x_i2c_ids,
-	.probe		= pcm179x_i2c_probe,
+	.probe_new	= pcm179x_i2c_probe,
 };
 
 module_i2c_driver(pcm179x_i2c_driver);

@@ -39,6 +39,8 @@ struct kvm_pmu_ops {
 	void (*cleanup)(struct kvm_vcpu *vcpu);
 };
 
+void kvm_pmu_ops_update(const struct kvm_pmu_ops *pmu_ops);
+
 static inline u64 pmc_bitmask(struct kvm_pmc *pmc)
 {
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
@@ -86,11 +88,6 @@ static inline bool pmc_is_fixed(struct kvm_pmc *pmc)
 	return pmc->type == KVM_PMC_FIXED;
 }
 
-static inline bool pmc_is_enabled(struct kvm_pmc *pmc)
-{
-	return kvm_x86_ops.pmu_ops->pmc_is_enabled(pmc);
-}
-
 static inline bool kvm_valid_perf_global_ctrl(struct kvm_pmu *pmu,
 						 u64 data)
 {
@@ -136,6 +133,15 @@ static inline u64 get_sample_period(struct kvm_pmc *pmc, u64 counter_value)
 	if (!sample_period)
 		sample_period = pmc_bitmask(pmc) + 1;
 	return sample_period;
+}
+
+static inline void pmc_update_sample_period(struct kvm_pmc *pmc)
+{
+	if (!pmc->perf_event || pmc->is_paused)
+		return;
+
+	perf_event_period(pmc->perf_event,
+			  get_sample_period(pmc, pmc->counter));
 }
 
 void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel);

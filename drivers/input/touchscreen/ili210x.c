@@ -756,15 +756,12 @@ static int ili251x_firmware_reset(struct i2c_client *client)
 	return ili251x_firmware_busy(client);
 }
 
-static void ili251x_hardware_reset(struct device *dev)
+static void ili210x_hardware_reset(struct gpio_desc *reset_gpio)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct ili210x *priv = i2c_get_clientdata(client);
-
 	/* Reset the controller */
-	gpiod_set_value_cansleep(priv->reset_gpio, 1);
-	usleep_range(10000, 15000);
-	gpiod_set_value_cansleep(priv->reset_gpio, 0);
+	gpiod_set_value_cansleep(reset_gpio, 1);
+	usleep_range(12000, 15000);
+	gpiod_set_value_cansleep(reset_gpio, 0);
 	msleep(300);
 }
 
@@ -773,6 +770,7 @@ static ssize_t ili210x_firmware_update_store(struct device *dev,
 					     const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
+	struct ili210x *priv = i2c_get_clientdata(client);
 	const char *fwname = ILI251X_FW_FILENAME;
 	const struct firmware *fw;
 	u16 ac_end, df_end;
@@ -803,7 +801,7 @@ static ssize_t ili210x_firmware_update_store(struct device *dev,
 
 	dev_dbg(dev, "Firmware update started, firmware=%s\n", fwname);
 
-	ili251x_hardware_reset(dev);
+	ili210x_hardware_reset(priv->reset_gpio);
 
 	error = ili251x_firmware_reset(client);
 	if (error)
@@ -858,7 +856,7 @@ static ssize_t ili210x_firmware_update_store(struct device *dev,
 	error = count;
 
 exit:
-	ili251x_hardware_reset(dev);
+	ili210x_hardware_reset(priv->reset_gpio);
 	dev_dbg(dev, "Firmware update ended, error=%i\n", error);
 	enable_irq(client->irq);
 	kfree(fwbuf);
@@ -951,9 +949,7 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 		if (error)
 			return error;
 
-		usleep_range(50, 100);
-		gpiod_set_value_cansleep(reset_gpio, 0);
-		msleep(100);
+		ili210x_hardware_reset(reset_gpio);
 	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);

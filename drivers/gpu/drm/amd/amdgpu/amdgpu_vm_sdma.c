@@ -109,7 +109,7 @@ static int amdgpu_vm_sdma_commit(struct amdgpu_vm_update_params *p,
 	if (p->unlocked) {
 		struct dma_fence *tmp = dma_fence_get(f);
 
-		swap(p->vm->last_unlocked, f);
+		swap(p->vm->last_unlocked, tmp);
 		dma_fence_put(tmp);
 	} else {
 		amdgpu_bo_fence(p->vm->root.bo, f, true);

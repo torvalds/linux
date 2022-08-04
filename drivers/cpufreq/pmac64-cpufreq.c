@@ -22,7 +22,7 @@
 #include <linux/completion.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
-#include <asm/prom.h>
+
 #include <asm/machdep.h>
 #include <asm/irq.h>
 #include <asm/sections.h>

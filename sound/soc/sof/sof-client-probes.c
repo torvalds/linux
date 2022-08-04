@@ -132,6 +132,7 @@ static int sof_probes_deinit(struct sof_client_dev *cdev)
 static int sof_probes_info(struct sof_client_dev *cdev, unsigned int cmd,
 			   void **params, size_t *num_params)
 {
+	size_t max_msg_size = sof_client_get_ipc_max_payload_size(cdev);
 	struct sof_ipc_probe_info_params msg = {{{0}}};
 	struct sof_ipc_probe_info_params *reply;
 	size_t bytes;
@@ -140,13 +141,13 @@ static int sof_probes_info(struct sof_client_dev *cdev, unsigned int cmd,
 	*params = NULL;
 	*num_params = 0;
 
-	reply = kzalloc(SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
+	reply = kzalloc(max_msg_size, GFP_KERNEL);
 	if (!reply)
 		return -ENOMEM;
 	msg.rhdr.hdr.size = sizeof(msg);
 	msg.rhdr.hdr.cmd = SOF_IPC_GLB_PROBE | cmd;
 
-	ret = sof_client_ipc_tx_message(cdev, &msg, reply, SOF_IPC_MSG_MAX_SIZE);
+	ret = sof_client_ipc_tx_message(cdev, &msg, reply, max_msg_size);
 	if (ret < 0 || reply->rhdr.error < 0)
 		goto exit;
 
@@ -503,10 +504,9 @@ static ssize_t sof_probes_dfs_points_read(struct file *file, char __user *to,
 	if (!buf)
 		return -ENOMEM;
 
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0 && ret != -EACCES) {
 		dev_err_ratelimited(dev, "debugfs read failed to resume %d\n", ret);
-		pm_runtime_put_noidle(dev);
 		goto exit;
 	}
 
@@ -568,10 +568,9 @@ sof_probes_dfs_points_write(struct file *file, const char __user *from,
 
 	desc = (struct sof_probe_point_desc *)tkns;
 
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0 && ret != -EACCES) {
 		dev_err_ratelimited(dev, "debugfs write failed to resume %d\n", ret);
-		pm_runtime_put_noidle(dev);
 		goto exit;
 	}
 
@@ -621,10 +620,9 @@ sof_probes_dfs_points_remove_write(struct file *file, const char __user *from,
 		goto exit;
 	}
 
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0) {
 		dev_err_ratelimited(dev, "debugfs write failed to resume %d\n", ret);
-		pm_runtime_put_noidle(dev);
 		goto exit;
 	}
 

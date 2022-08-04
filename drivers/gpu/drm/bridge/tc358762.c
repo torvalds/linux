@@ -61,7 +61,6 @@
 struct tc358762 {
 	struct device *dev;
 	struct drm_bridge bridge;
-	struct drm_connector connector;
 	struct regulator *regulator;
 	struct drm_bridge *panel_bridge;
 	bool pre_enabled;

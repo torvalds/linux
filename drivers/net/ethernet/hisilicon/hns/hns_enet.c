@@ -1782,7 +1782,7 @@ static int hns_nic_set_features(struct net_device *netdev,
 			priv->ops.fill_desc = fill_tso_desc;
 			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tso;
 			/* The chip only support 7*4096 */
-			netif_set_gso_max_size(netdev, 7 * 4096);
+			netif_set_tso_max_size(netdev, 7 * 4096);
 		} else {
 			priv->ops.fill_desc = fill_v2_desc;
 			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tx;
@@ -2168,7 +2168,7 @@ static void hns_nic_set_priv_ops(struct net_device *netdev)
 			priv->ops.fill_desc = fill_tso_desc;
 			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tso;
 			/* This chip only support 7*4096 */
-			netif_set_gso_max_size(netdev, 7 * 4096);
+			netif_set_tso_max_size(netdev, 7 * 4096);
 		} else {
 			priv->ops.fill_desc = fill_v2_desc;
 			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tx;

@@ -196,15 +196,7 @@ static bool
 dsa_port_tag_8021q_vlan_match(struct dsa_port *dp,
 			      struct dsa_notifier_tag_8021q_vlan_info *info)
 {
-	struct dsa_switch *ds = dp->ds;
-
-	if (dsa_port_is_dsa(dp) || dsa_port_is_cpu(dp))
-		return true;
-
-	if (ds->dst->index == info->tree_index && ds->index == info->sw_index)
-		return dp->index == info->port;
-
-	return false;
+	return dsa_port_is_dsa(dp) || dsa_port_is_cpu(dp) || dp == info->dp;
 }
 
 int dsa_switch_tag_8021q_vlan_add(struct dsa_switch *ds,

@@ -92,14 +92,14 @@ const struct address_space_operations gfs2_meta_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
 	.writepage = gfs2_aspace_writepage,
-	.releasepage = gfs2_releasepage,
+	.release_folio = gfs2_release_folio,
 };
 
 const struct address_space_operations gfs2_rgrp_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
 	.writepage = gfs2_aspace_writepage,
-	.releasepage = gfs2_releasepage,
+	.release_folio = gfs2_release_folio,
 };
 
 /**

@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <sys/sysinfo.h>
 
-#include "bpf_rlimit.h"
+#include "bpf_util.h"
 #include "cgroup_helpers.h"
 #include "testing_helpers.h"
 
@@ -44,12 +44,15 @@ int main(int argc, char **argv)
 	unsigned long long *percpu_value;
 	int cpu, nproc;
 
-	nproc = get_nprocs_conf();
+	nproc = bpf_num_possible_cpus();
 	percpu_value = malloc(sizeof(*percpu_value) * nproc);
 	if (!percpu_value) {
 		printf("Not enough memory for per-cpu area (%d cpus)\n", nproc);
 		goto err;
 	}
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	map_fd = bpf_map_create(BPF_MAP_TYPE_CGROUP_STORAGE, NULL, sizeof(key),
 				sizeof(value), 0, NULL);

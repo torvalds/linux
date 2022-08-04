@@ -469,9 +469,56 @@ static bool cal_ctx_wr_dma_stopped(struct cal_ctx *ctx)
 	return stopped;
 }
 
+static int
+cal_get_remote_frame_desc_entry(struct cal_camerarx *phy,
+				struct v4l2_mbus_frame_desc_entry *entry)
+{
+	struct v4l2_mbus_frame_desc fd;
+	int ret;
+
+	ret = cal_camerarx_get_remote_frame_desc(phy, &fd);
+	if (ret) {
+		if (ret != -ENOIOCTLCMD)
+			dev_err(phy->cal->dev,
+				"Failed to get remote frame desc: %d\n", ret);
+		return ret;
+	}
+
+	if (fd.num_entries == 0) {
+		dev_err(phy->cal->dev,
+			"No streams found in the remote frame descriptor\n");
+
+		return -ENODEV;
+	}
+
+	if (fd.num_entries > 1)
+		dev_dbg(phy->cal->dev,
+			"Multiple streams not supported in remote frame descriptor, using the first one\n");
+
+	*entry = fd.entry[0];
+
+	return 0;
+}
+
 int cal_ctx_prepare(struct cal_ctx *ctx)
 {
+	struct v4l2_mbus_frame_desc_entry entry;
 	int ret;
+
+	ret = cal_get_remote_frame_desc_entry(ctx->phy, &entry);
+
+	if (ret == -ENOIOCTLCMD) {
+		ctx->vc = 0;
+		ctx->datatype = CAL_CSI2_CTX_DT_ANY;
+	} else if (!ret) {
+		ctx_dbg(2, ctx, "Framedesc: len %u, vc %u, dt %#x\n",
+			entry.length, entry.bus.csi2.vc, entry.bus.csi2.dt);
+
+		ctx->vc = entry.bus.csi2.vc;
+		ctx->datatype = entry.bus.csi2.dt;
+	} else {
+		return ret;
+	}
 
 	ctx->use_pix_proc = !ctx->fmtinfo->meta;
 
@@ -884,8 +931,6 @@ static int cal_media_init(struct cal_dev *cal)
 	mdev->dev = cal->dev;
 	mdev->hw_revision = cal->revision;
 	strscpy(mdev->model, "CAL", sizeof(mdev->model));
-	snprintf(mdev->bus_info, sizeof(mdev->bus_info), "platform:%s",
-		 dev_name(mdev->dev));
 	media_device_init(mdev);
 
 	/*
@@ -936,8 +981,6 @@ static struct cal_ctx *cal_ctx_create(struct cal_dev *cal, int inst)
 	ctx->dma_ctx = inst;
 	ctx->csi2_ctx = inst;
 	ctx->cport = inst;
-	ctx->vc = 0;
-	ctx->datatype = CAL_CSI2_CTX_DT_ANY;
 
 	ret = cal_ctx_v4l2_init(ctx);
 	if (ret)

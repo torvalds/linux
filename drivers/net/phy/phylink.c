@@ -168,8 +168,10 @@ static void phylink_caps_to_linkmodes(unsigned long *linkmodes,
 	if (caps & MAC_10HD)
 		__set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, linkmodes);
 
-	if (caps & MAC_10FD)
+	if (caps & MAC_10FD) {
 		__set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, linkmodes);
+		__set_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT, linkmodes);
+	}
 
 	if (caps & MAC_100HD) {
 		__set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, linkmodes);
@@ -2301,8 +2303,11 @@ static int phylink_phy_read(struct phylink *pl, unsigned int phy_id,
 	if (mdio_phy_id_is_c45(phy_id)) {
 		prtad = mdio_phy_id_prtad(phy_id);
 		devad = mdio_phy_id_devad(phy_id);
-		devad = mdiobus_c45_addr(devad, reg);
-	} else if (phydev->is_c45) {
+		return mdiobus_c45_read(pl->phydev->mdio.bus, prtad, devad,
+					reg);
+	}
+
+	if (phydev->is_c45) {
 		switch (reg) {
 		case MII_BMCR:
 		case MII_BMSR:
@@ -2324,12 +2329,11 @@ static int phylink_phy_read(struct phylink *pl, unsigned int phy_id,
 			return -EINVAL;
 		}
 		prtad = phy_id;
-		devad = mdiobus_c45_addr(devad, reg);
-	} else {
-		prtad = phy_id;
-		devad = reg;
+		return mdiobus_c45_read(pl->phydev->mdio.bus, prtad, devad,
+					reg);
 	}
-	return mdiobus_read(pl->phydev->mdio.bus, prtad, devad);
+
+	return mdiobus_read(pl->phydev->mdio.bus, phy_id, reg);
 }
 
 static int phylink_phy_write(struct phylink *pl, unsigned int phy_id,
@@ -2341,8 +2345,11 @@ static int phylink_phy_write(struct phylink *pl, unsigned int phy_id,
 	if (mdio_phy_id_is_c45(phy_id)) {
 		prtad = mdio_phy_id_prtad(phy_id);
 		devad = mdio_phy_id_devad(phy_id);
-		devad = mdiobus_c45_addr(devad, reg);
-	} else if (phydev->is_c45) {
+		return mdiobus_c45_write(pl->phydev->mdio.bus, prtad, devad,
+					 reg, val);
+	}
+
+	if (phydev->is_c45) {
 		switch (reg) {
 		case MII_BMCR:
 		case MII_BMSR:
@@ -2363,14 +2370,11 @@ static int phylink_phy_write(struct phylink *pl, unsigned int phy_id,
 		default:
 			return -EINVAL;
 		}
-		prtad = phy_id;
-		devad = mdiobus_c45_addr(devad, reg);
-	} else {
-		prtad = phy_id;
-		devad = reg;
+		return mdiobus_c45_write(pl->phydev->mdio.bus, phy_id, devad,
+					 reg, val);
 	}
 
-	return mdiobus_write(phydev->mdio.bus, prtad, devad, val);
+	return mdiobus_write(phydev->mdio.bus, phy_id, reg, val);
 }
 
 static int phylink_mii_read(struct phylink *pl, unsigned int phy_id,
@@ -2777,34 +2781,6 @@ static const struct sfp_upstream_ops sfp_phylink_ops = {
 };
 
 /* Helpers for MAC drivers */
-
-/**
- * phylink_helper_basex_speed() - 1000BaseX/2500BaseX helper
- * @state: a pointer to a &struct phylink_link_state
- *
- * Inspect the interface mode, advertising mask or forced speed and
- * decide whether to run at 2.5Gbit or 1Gbit appropriately, switching
- * the interface mode to suit.  @state->interface is appropriately
- * updated, and the advertising mask has the "other" baseX_Full flag
- * cleared.
- */
-void phylink_helper_basex_speed(struct phylink_link_state *state)
-{
-	if (phy_interface_mode_is_8023z(state->interface)) {
-		bool want_2500 = state->an_enabled ?
-			phylink_test(state->advertising, 2500baseX_Full) :
-			state->speed == SPEED_2500;
-
-		if (want_2500) {
-			phylink_clear(state->advertising, 1000baseX_Full);
-			state->interface = PHY_INTERFACE_MODE_2500BASEX;
-		} else {
-			phylink_clear(state->advertising, 2500baseX_Full);
-			state->interface = PHY_INTERFACE_MODE_1000BASEX;
-		}
-	}
-}
-EXPORT_SYMBOL_GPL(phylink_helper_basex_speed);
 
 static void phylink_decode_c37_word(struct phylink_link_state *state,
 				    uint16_t config_reg, int speed)

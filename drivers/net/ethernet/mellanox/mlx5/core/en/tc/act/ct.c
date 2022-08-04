@@ -45,12 +45,41 @@ tc_act_parse_ct(struct mlx5e_tc_act_parse_state *parse_state,
 	if (mlx5e_is_eswitch_flow(parse_state->flow))
 		attr->esw_attr->split_count = attr->esw_attr->out_count;
 
-	if (!clear_action) {
+	if (clear_action) {
+		parse_state->ct_clear = true;
+	} else {
 		attr->flags |= MLX5_ATTR_FLAG_CT;
 		flow_flag_set(parse_state->flow, CT);
 		parse_state->ct = true;
 	}
-	parse_state->ct_clear = clear_action;
+
+	return 0;
+}
+
+static int
+tc_act_post_parse_ct(struct mlx5e_tc_act_parse_state *parse_state,
+		     struct mlx5e_priv *priv,
+		     struct mlx5_flow_attr *attr)
+{
+	struct mlx5e_tc_mod_hdr_acts *mod_acts = &attr->parse_attr->mod_hdr_acts;
+	int err;
+
+	/* If ct action exist, we can ignore previous ct_clear actions */
+	if (parse_state->ct)
+		return 0;
+
+	if (parse_state->ct_clear) {
+		err = mlx5_tc_ct_set_ct_clear_regs(parse_state->ct_priv, mod_acts);
+		if (err) {
+			NL_SET_ERR_MSG_MOD(parse_state->extack,
+					   "Failed to set registers for ct clear");
+			return err;
+		}
+		attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+
+		/* Prevent handling of additional, redundant clear actions */
+		parse_state->ct_clear = false;
+	}
 
 	return 0;
 }
@@ -70,5 +99,6 @@ struct mlx5e_tc_act mlx5e_tc_act_ct = {
 	.can_offload = tc_act_can_offload_ct,
 	.parse_action = tc_act_parse_ct,
 	.is_multi_table_act = tc_act_is_multi_table_act_ct,
+	.post_parse = tc_act_post_parse_ct,
 };
 

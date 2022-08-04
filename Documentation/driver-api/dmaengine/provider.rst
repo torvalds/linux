@@ -206,6 +206,12 @@ Currently, the types available are:
   - The device is able to perform parity check using RAID6 P+Q
     algorithm against a memory buffer.
 
+- DMA_MEMSET
+
+  - The device is able to fill memory with the provided pattern
+
+  - The pattern is treated as a single byte signed value.
+
 - DMA_INTERRUPT
 
   - The device is able to trigger a dummy transfer that will
@@ -457,7 +463,7 @@ supported.
   - Should use dma_set_residue to report it
 
   - In the case of a cyclic transfer, it should only take into
-    account the current period.
+    account the total size of the cyclic buffer.
 
   - Should return DMA_OUT_OF_ORDER if the device does not support in order
     completion and is completing the operation out of order.

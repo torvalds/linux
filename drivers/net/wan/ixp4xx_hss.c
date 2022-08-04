@@ -1504,7 +1504,7 @@ static int ixp4xx_hss_probe(struct platform_device *pdev)
 	port->clock_reg = CLK42X_SPEED_2048KHZ;
 	port->id = pdev->id;
 	port->dev = &pdev->dev;
-	netif_napi_add(ndev, &port->napi, hss_hdlc_poll, NAPI_WEIGHT);
+	netif_napi_add_weight(ndev, &port->napi, hss_hdlc_poll, NAPI_WEIGHT);
 
 	err = register_hdlc_device(ndev);
 	if (err)

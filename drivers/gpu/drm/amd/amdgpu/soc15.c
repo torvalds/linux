@@ -701,25 +701,12 @@ static uint32_t soc15_get_rev_id(struct amdgpu_device *adev)
 
 static void soc15_reg_base_init(struct amdgpu_device *adev)
 {
-	int r;
-
 	/* Set IP register base before any HW register access */
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 	case CHIP_RAVEN:
-		vega10_reg_base_init(adev);
-		break;
 	case CHIP_RENOIR:
-		/* It's safe to do ip discovery here for Renoir,
-		 * it doesn't support SRIOV. */
-		if (amdgpu_discovery) {
-			r = amdgpu_discovery_reg_base_init(adev);
-			if (r == 0)
-				break;
-			DRM_WARN("failed to init reg base from ip discovery table, "
-				 "fallback to legacy init method\n");
-		}
 		vega10_reg_base_init(adev);
 		break;
 	case CHIP_VEGA20:
@@ -1419,7 +1406,7 @@ static int soc15_common_set_clockgating_state(void *handle,
 	return 0;
 }
 
-static void soc15_common_get_clockgating_state(void *handle, u32 *flags)
+static void soc15_common_get_clockgating_state(void *handle, u64 *flags)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int data;

@@ -193,6 +193,23 @@ protocol. If not all packets are of equal size, the tagger can implement the
 default behavior by specifying the correct offset incurred by each individual
 RX packet. Tail taggers do not cause issues to the flow dissector.
 
+Checksum offload should work with category 1 and 2 taggers when the DSA master
+driver declares NETIF_F_HW_CSUM in vlan_features and looks at csum_start and
+csum_offset. For those cases, DSA will shift the checksum start and offset by
+the tag size. If the DSA master driver still uses the legacy NETIF_F_IP_CSUM
+or NETIF_F_IPV6_CSUM in vlan_features, the offload might only work if the
+offload hardware already expects that specific tag (perhaps due to matching
+vendors). DSA slaves inherit those flags from the master port, and it is up to
+the driver to correctly fall back to software checksum when the IP header is not
+where the hardware expects. If that check is ineffective, the packets might go
+to the network without a proper checksum (the checksum field will have the
+pseudo IP header sum). For category 3, when the offload hardware does not
+already expect the switch tag in use, the checksum must be calculated before any
+tag is inserted (i.e. inside the tagger). Otherwise, the DSA master would
+include the tail tag in the (software or hardware) checksum calculation. Then,
+when the tag gets stripped by the switch during transmission, it will leave an
+incorrect IP checksum in place.
+
 Due to various reasons (most common being category 1 taggers being associated
 with DSA-unaware masters, mangling what the master perceives as MAC DA), the
 tagging protocol may require the DSA master to operate in promiscuous mode, to

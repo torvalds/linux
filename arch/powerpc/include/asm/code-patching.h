@@ -22,10 +22,55 @@
 #define BRANCH_SET_LINK	0x1
 #define BRANCH_ABSOLUTE	0x2
 
-bool is_offset_in_branch_range(long offset);
-bool is_offset_in_cond_branch_range(long offset);
-int create_branch(ppc_inst_t *instr, const u32 *addr,
-		  unsigned long target, int flags);
+DECLARE_STATIC_KEY_FALSE(init_mem_is_free);
+
+/*
+ * Powerpc branch instruction is :
+ *
+ *  0         6                 30   31
+ *  +---------+----------------+---+---+
+ *  | opcode  |     LI         |AA |LK |
+ *  +---------+----------------+---+---+
+ *  Where AA = 0 and LK = 0
+ *
+ * LI is a signed 24 bits integer. The real branch offset is computed
+ * by: imm32 = SignExtend(LI:'0b00', 32);
+ *
+ * So the maximum forward branch should be:
+ *   (0x007fffff << 2) = 0x01fffffc =  0x1fffffc
+ * The maximum backward branch should be:
+ *   (0xff800000 << 2) = 0xfe000000 = -0x2000000
+ */
+static inline bool is_offset_in_branch_range(long offset)
+{
+	return (offset >= -0x2000000 && offset <= 0x1fffffc && !(offset & 0x3));
+}
+
+static inline bool is_offset_in_cond_branch_range(long offset)
+{
+	return offset >= -0x8000 && offset <= 0x7fff && !(offset & 0x3);
+}
+
+static inline int create_branch(ppc_inst_t *instr, const u32 *addr,
+				unsigned long target, int flags)
+{
+	long offset;
+
+	*instr = ppc_inst(0);
+	offset = target;
+	if (! (flags & BRANCH_ABSOLUTE))
+		offset = offset - (unsigned long)addr;
+
+	/* Check we can represent the target in the instruction format */
+	if (!is_offset_in_branch_range(offset))
+		return 1;
+
+	/* Mask out the flags and target, so they don't step on each other. */
+	*instr = ppc_inst(0x48000000 | (flags & 0x3) | (offset & 0x03FFFFFC));
+
+	return 0;
+}
+
 int create_cond_branch(ppc_inst_t *instr, const u32 *addr,
 		       unsigned long target, int flags);
 int patch_branch(u32 *addr, unsigned long target, int flags);
@@ -87,7 +132,7 @@ bool is_conditional_branch(ppc_inst_t instr);
 
 static inline unsigned long ppc_function_entry(void *func)
 {
-#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_PPC64_ELF_ABI_V2
 	u32 *insn = func;
 
 	/*
@@ -112,7 +157,7 @@ static inline unsigned long ppc_function_entry(void *func)
 		return (unsigned long)(insn + 2);
 	else
 		return (unsigned long)func;
-#elif defined(PPC64_ELF_ABI_v1)
+#elif defined(CONFIG_PPC64_ELF_ABI_V1)
 	/*
 	 * On PPC64 ABIv1 the function pointer actually points to the
 	 * function's descriptor. The first entry in the descriptor is the
@@ -126,7 +171,7 @@ static inline unsigned long ppc_function_entry(void *func)
 
 static inline unsigned long ppc_global_function_entry(void *func)
 {
-#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_PPC64_ELF_ABI_V2
 	/* PPC64 ABIv2 the global entry point is at the address */
 	return (unsigned long)func;
 #else
@@ -143,7 +188,7 @@ static inline unsigned long ppc_global_function_entry(void *func)
 static inline unsigned long ppc_kallsyms_lookup_name(const char *name)
 {
 	unsigned long addr;
-#ifdef PPC64_ELF_ABI_v1
+#ifdef CONFIG_PPC64_ELF_ABI_V1
 	/* check for dot variant */
 	char dot_name[1 + KSYM_NAME_LEN];
 	bool dot_appended = false;
@@ -164,7 +209,7 @@ static inline unsigned long ppc_kallsyms_lookup_name(const char *name)
 	if (!addr && dot_appended)
 		/* Let's try the original non-dot symbol lookup	*/
 		addr = kallsyms_lookup_name(name);
-#elif defined(PPC64_ELF_ABI_v2)
+#elif defined(CONFIG_PPC64_ELF_ABI_V2)
 	addr = kallsyms_lookup_name(name);
 	if (addr)
 		addr = ppc_function_entry((void *)addr);
@@ -174,14 +219,13 @@ static inline unsigned long ppc_kallsyms_lookup_name(const char *name)
 	return addr;
 }
 
-#ifdef CONFIG_PPC64
 /*
  * Some instruction encodings commonly used in dynamic ftracing
  * and function live patching.
  */
 
 /* This must match the definition of STK_GOT in <asm/ppc_asm.h> */
-#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_PPC64_ELF_ABI_V2
 #define R2_STACK_OFFSET         24
 #else
 #define R2_STACK_OFFSET         40
@@ -191,6 +235,5 @@ static inline unsigned long ppc_kallsyms_lookup_name(const char *name)
 
 /* usually preceded by a mflr r0 */
 #define PPC_INST_STD_LR		PPC_RAW_STD(_R0, _R1, PPC_LR_STKOFF)
-#endif /* CONFIG_PPC64 */
 
 #endif /* _ASM_POWERPC_CODE_PATCHING_H */

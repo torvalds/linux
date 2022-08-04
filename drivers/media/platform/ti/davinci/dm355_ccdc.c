@@ -918,8 +918,7 @@ static int dm355_ccdc_remove(struct platform_device *pdev)
 
 	iounmap(ccdc_cfg.base_addr);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res)
-		release_mem_region(res->start, resource_size(res));
+	release_mem_region(res->start, resource_size(res));
 	vpfe_unregister_ccdc_device(&ccdc_hw_dev);
 	return 0;
 }

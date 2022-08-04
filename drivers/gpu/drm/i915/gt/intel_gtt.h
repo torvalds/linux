@@ -240,15 +240,6 @@ struct i915_address_space {
 
 	unsigned int bind_async_flags;
 
-	/*
-	 * Each active user context has its own address space (in full-ppgtt).
-	 * Since the vm may be shared between multiple contexts, we count how
-	 * many contexts keep us "open". Once open hits zero, we are closed
-	 * and do not allow any new attachments, and proceed to shutdown our
-	 * vma and page directories.
-	 */
-	atomic_t open;
-
 	struct mutex mutex; /* protects vma and our lists */
 
 	struct kref resv_ref; /* kref to keep the reservation lock alive. */
@@ -263,6 +254,11 @@ struct i915_address_space {
 	 */
 	struct list_head bound_list;
 
+	/**
+	 * List of vmas not yet bound or evicted.
+	 */
+	struct list_head unbound_list;
+
 	/* Global GTT */
 	bool is_ggtt:1;
 
@@ -271,6 +267,9 @@ struct i915_address_space {
 
 	/* Some systems support read-only mappings for GGTT and/or PPGTT */
 	bool has_read_only:1;
+
+	/* Skip pte rewrite on unbind for suspend. Protected by @mutex */
+	bool skip_pte_rewrite:1;
 
 	u8 top;
 	u8 pd_shift;
@@ -307,6 +306,15 @@ struct i915_address_space {
 			       struct i915_vma_resource *vma_res,
 			       enum i915_cache_level cache_level,
 			       u32 flags);
+	void (*raw_insert_page)(struct i915_address_space *vm,
+				dma_addr_t addr,
+				u64 offset,
+				enum i915_cache_level cache_level,
+				u32 flags);
+	void (*raw_insert_entries)(struct i915_address_space *vm,
+				   struct i915_vma_resource *vma_res,
+				   enum i915_cache_level cache_level,
+				   u32 flags);
 	void (*cleanup)(struct i915_address_space *vm);
 
 	void (*foreach)(struct i915_address_space *vm,
@@ -345,6 +353,19 @@ struct i915_ggtt {
 	struct i915_ppgtt *alias;
 
 	bool do_idle_maps;
+
+	/**
+	 * @pte_lost: Are ptes lost on resume?
+	 *
+	 * Whether the system was recently restored from hibernate and
+	 * thus may have lost pte content.
+	 */
+	bool pte_lost;
+
+	/**
+	 * @probed_pte: Probed pte value on suspend. Re-checked on resume.
+	 */
+	u64 probed_pte;
 
 	int mtrr;
 
@@ -448,6 +469,17 @@ i915_vm_get(struct i915_address_space *vm)
 	return vm;
 }
 
+static inline struct i915_address_space *
+i915_vm_tryget(struct i915_address_space *vm)
+{
+	return kref_get_unless_zero(&vm->ref) ? vm : NULL;
+}
+
+static inline void assert_vm_alive(struct i915_address_space *vm)
+{
+	GEM_BUG_ON(!kref_read(&vm->ref));
+}
+
 /**
  * i915_vm_resv_get - Obtain a reference on the vm's reservation lock
  * @vm: The vm whose reservation lock we want to share.
@@ -476,34 +508,6 @@ static inline void i915_vm_put(struct i915_address_space *vm)
 static inline void i915_vm_resv_put(struct i915_address_space *vm)
 {
 	kref_put(&vm->resv_ref, i915_vm_resv_release);
-}
-
-static inline struct i915_address_space *
-i915_vm_open(struct i915_address_space *vm)
-{
-	GEM_BUG_ON(!atomic_read(&vm->open));
-	atomic_inc(&vm->open);
-	return i915_vm_get(vm);
-}
-
-static inline bool
-i915_vm_tryopen(struct i915_address_space *vm)
-{
-	if (atomic_add_unless(&vm->open, 1, 0))
-		return i915_vm_get(vm);
-
-	return false;
-}
-
-void __i915_vm_close(struct i915_address_space *vm);
-
-static inline void
-i915_vm_close(struct i915_address_space *vm)
-{
-	GEM_BUG_ON(!atomic_read(&vm->open));
-	__i915_vm_close(vm);
-
-	i915_vm_put(vm);
 }
 
 void i915_address_space_init(struct i915_address_space *vm, int subclass);
@@ -566,6 +570,13 @@ i915_page_dir_dma_addr(const struct i915_ppgtt *ppgtt, const unsigned int n)
 
 void ppgtt_init(struct i915_ppgtt *ppgtt, struct intel_gt *gt,
 		unsigned long lmem_pt_obj_flags);
+void intel_ggtt_bind_vma(struct i915_address_space *vm,
+			 struct i915_vm_pt_stash *stash,
+			 struct i915_vma_resource *vma_res,
+			 enum i915_cache_level cache_level,
+			 u32 flags);
+void intel_ggtt_unbind_vma(struct i915_address_space *vm,
+			   struct i915_vma_resource *vma_res);
 
 int i915_ggtt_probe_hw(struct drm_i915_private *i915);
 int i915_ggtt_init_hw(struct drm_i915_private *i915);
@@ -590,6 +601,17 @@ void i915_ggtt_suspend_vm(struct i915_address_space *vm);
 bool i915_ggtt_resume_vm(struct i915_address_space *vm);
 void i915_ggtt_suspend(struct i915_ggtt *gtt);
 void i915_ggtt_resume(struct i915_ggtt *ggtt);
+
+/**
+ * i915_ggtt_mark_pte_lost - Mark ggtt ptes as lost or clear such a marking
+ * @i915 The device private.
+ * @val whether the ptes should be marked as lost.
+ *
+ * In some cases pte content is retained across suspend, but typically lost
+ * across hibernate. Typically they should be marked as lost on
+ * hibernation restore and such marking cleared on suspend.
+ */
+void i915_ggtt_mark_pte_lost(struct drm_i915_private *i915, bool val);
 
 void
 fill_page_dma(struct drm_i915_gem_object *p, const u64 val, unsigned int count);

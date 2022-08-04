@@ -1107,8 +1107,7 @@ static int isif_remove(struct platform_device *pdev)
 	isif_cfg.linear_tbl1_addr = NULL;
 	while (i < 3) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
-		if (res)
-			release_mem_region(res->start, resource_size(res));
+		release_mem_region(res->start, resource_size(res));
 		i++;
 	}
 	vpfe_unregister_ccdc_device(&isif_hw_dev);

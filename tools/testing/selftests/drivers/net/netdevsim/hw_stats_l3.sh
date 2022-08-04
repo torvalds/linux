@@ -319,11 +319,11 @@ counter_test()
 	((pkts < 10))
 	check_err $? "$type stats show >= 10 packets after first enablement"
 
-	sleep 2
+	sleep 2.5
 
 	local pkts=$(get_hwstat dummy1 l3 rx.packets)
 	((pkts >= 20))
-	check_err $? "$type stats show < 20 packets after 2s passed"
+	check_err $? "$type stats show < 20 packets after 2.5s passed"
 
 	$IP stats set dev dummy1 ${type}_stats off
 

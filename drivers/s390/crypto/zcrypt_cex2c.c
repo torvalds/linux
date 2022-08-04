@@ -31,8 +31,8 @@
 #define CEX2C_MAX_MOD_SIZE	256	/* 2048 bits	*/
 #define CEX3C_MIN_MOD_SIZE	 16	/*  128 bits	*/
 #define CEX3C_MAX_MOD_SIZE	512	/* 4096 bits	*/
-#define CEX2C_MAX_XCRB_MESSAGE_SIZE (12*1024)
-#define CEX2C_CLEANUP_TIME	(15*HZ)
+#define CEX2C_MAX_XCRB_MESSAGE_SIZE (12 * 1024)
+#define CEX2C_CLEANUP_TIME	(15 * HZ)
 
 MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("CEX2C/CEX3C Cryptographic Coprocessor device driver, " \
@@ -200,11 +200,11 @@ static int zcrypt_cex2c_rng_supported(struct ap_queue *aq)
 	int rc, i;
 
 	ap_init_message(&ap_msg);
-	ap_msg.msg = (void *) get_zeroed_page(GFP_KERNEL);
+	ap_msg.msg = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!ap_msg.msg)
 		return -ENOMEM;
 
-	rng_type6CPRB_msgX(&ap_msg, 4, &domain);
+	rng_type6cprb_msgx(&ap_msg, 4, &domain);
 
 	msg = ap_msg.msg;
 	msg->cprbx.domain = AP_QID_QUEUE(aq->qid);
@@ -233,7 +233,7 @@ static int zcrypt_cex2c_rng_supported(struct ap_queue *aq)
 	else
 		rc = 0;
 out_free:
-	free_page((unsigned long) ap_msg.msg);
+	free_page((unsigned long)ap_msg.msg);
 	return rc;
 }
 

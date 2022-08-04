@@ -130,6 +130,11 @@
 	status = "okay";
 };
 
+&mss_pil {
+	firmware-name = "qcom/msm8996/gemini/mba.mbn",
+			"qcom/msm8996/gemini/modem.mbn";
+};
+
 &q6asmdai {
 	dai@0 {
 		reg = <0>;
@@ -142,6 +147,10 @@
 	dai@2 {
 		reg = <2>;
 	};
+};
+
+&slpi_pil {
+	firmware-name = "qcom/msm8996/gemini/slpi.mbn";
 };
 
 &sound {

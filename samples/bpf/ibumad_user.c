@@ -19,7 +19,6 @@
 #include <sys/types.h>
 #include <limits.h>
 
-#include <sys/resource.h>
 #include <getopt.h>
 #include <net/if.h>
 

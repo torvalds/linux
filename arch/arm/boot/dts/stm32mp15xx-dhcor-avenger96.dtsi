@@ -141,6 +141,7 @@
 		compatible = "snps,dwmac-mdio";
 		reset-gpios = <&gpioz 2 GPIO_ACTIVE_LOW>;
 		reset-delay-us = <1000>;
+		reset-post-delay-us = <1000>;
 
 		phy0: ethernet-phy@7 {
 			reg = <7>;

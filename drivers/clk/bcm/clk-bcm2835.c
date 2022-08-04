@@ -941,6 +941,7 @@ static u32 bcm2835_clock_choose_div(struct clk_hw *hw,
 	u64 temp = (u64)parent_rate << CM_DIV_FRAC_BITS;
 	u32 div, mindiv, maxdiv;
 
+	do_div(temp, rate);
 	div = temp;
 	div &= ~unused_frac_mask;
 

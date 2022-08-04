@@ -17,6 +17,7 @@
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_format_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
@@ -32,57 +33,78 @@
  * This file contains setup code for the CRTC.
  */
 
-static void mga_crtc_load_lut(struct drm_crtc *crtc)
+static void mgag200_crtc_set_gamma_linear(struct mga_device *mdev,
+					  const struct drm_format_info *format)
 {
-	struct drm_device *dev = crtc->dev;
-	struct mga_device *mdev = to_mga_device(dev);
-	struct drm_framebuffer *fb;
-	u16 *r_ptr, *g_ptr, *b_ptr;
 	int i;
-
-	if (!crtc->enabled)
-		return;
-
-	if (!mdev->display_pipe.plane.state)
-		return;
-
-	fb = mdev->display_pipe.plane.state->fb;
-
-	r_ptr = crtc->gamma_store;
-	g_ptr = r_ptr + crtc->gamma_size;
-	b_ptr = g_ptr + crtc->gamma_size;
 
 	WREG8(DAC_INDEX + MGA1064_INDEX, 0);
 
-	if (fb && fb->format->cpp[0] * 8 == 16) {
-		int inc = (fb->format->depth == 15) ? 8 : 4;
-		u8 r, b;
-		for (i = 0; i < MGAG200_LUT_SIZE; i += inc) {
-			if (fb->format->depth == 16) {
-				if (i > (MGAG200_LUT_SIZE >> 1)) {
-					r = b = 0;
-				} else {
-					r = *r_ptr++ >> 8;
-					b = *b_ptr++ >> 8;
-					r_ptr++;
-					b_ptr++;
-				}
-			} else {
-				r = *r_ptr++ >> 8;
-				b = *b_ptr++ >> 8;
-			}
-			/* VGA registers */
-			WREG8(DAC_INDEX + MGA1064_COL_PAL, r);
-			WREG8(DAC_INDEX + MGA1064_COL_PAL, *g_ptr++ >> 8);
-			WREG8(DAC_INDEX + MGA1064_COL_PAL, b);
+	switch (format->format) {
+	case DRM_FORMAT_RGB565:
+		/* Use better interpolation, to take 32 values from 0 to 255 */
+		for (i = 0; i < MGAG200_LUT_SIZE / 8; i++) {
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, i * 8 + i / 4);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, i * 4 + i / 16);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, i * 8 + i / 4);
 		}
-		return;
+		/* Green has one more bit, so add padding with 0 for red and blue. */
+		for (i = MGAG200_LUT_SIZE / 8; i < MGAG200_LUT_SIZE / 4; i++) {
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, 0);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, i * 4 + i / 16);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, 0);
+		}
+		break;
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_XRGB8888:
+		for (i = 0; i < MGAG200_LUT_SIZE; i++) {
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, i);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, i);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, i);
+		}
+		break;
+	default:
+		drm_warn_once(&mdev->base, "Unsupported format %p4cc for gamma correction\n",
+			      &format->format);
+		break;
 	}
-	for (i = 0; i < MGAG200_LUT_SIZE; i++) {
-		/* VGA registers */
-		WREG8(DAC_INDEX + MGA1064_COL_PAL, *r_ptr++ >> 8);
-		WREG8(DAC_INDEX + MGA1064_COL_PAL, *g_ptr++ >> 8);
-		WREG8(DAC_INDEX + MGA1064_COL_PAL, *b_ptr++ >> 8);
+}
+
+static void mgag200_crtc_set_gamma(struct mga_device *mdev,
+				   const struct drm_format_info *format,
+				   struct drm_color_lut *lut)
+{
+	int i;
+
+	WREG8(DAC_INDEX + MGA1064_INDEX, 0);
+
+	switch (format->format) {
+	case DRM_FORMAT_RGB565:
+		/* Use better interpolation, to take 32 values from lut[0] to lut[255] */
+		for (i = 0; i < MGAG200_LUT_SIZE / 8; i++) {
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, lut[i * 8 + i / 4].red >> 8);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, lut[i * 4 + i / 16].green >> 8);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, lut[i * 8 + i / 4].blue >> 8);
+		}
+		/* Green has one more bit, so add padding with 0 for red and blue. */
+		for (i = MGAG200_LUT_SIZE / 8; i < MGAG200_LUT_SIZE / 4; i++) {
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, 0);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, lut[i * 4 + i / 16].green >> 8);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, 0);
+		}
+		break;
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_XRGB8888:
+		for (i = 0; i < MGAG200_LUT_SIZE; i++) {
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, lut[i].red >> 8);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, lut[i].green >> 8);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, lut[i].blue >> 8);
+		}
+		break;
+	default:
+		drm_warn_once(&mdev->base, "Unsupported format %p4cc for gamma correction\n",
+			      &format->format);
+		break;
 	}
 }
 
@@ -223,6 +245,9 @@ static void mgag200_set_startadd(struct mga_device *mdev,
 
 	startadd = offset / 8;
 
+	if (startadd > 0)
+		drm_WARN_ON_ONCE(dev, mdev->info->bug_no_startadd);
+
 	/*
 	 * Can't store addresses any higher than that, but we also
 	 * don't have more than 16 MiB of memory, so it should be fine.
@@ -353,6 +378,7 @@ static void mgag200_init_regs(struct mga_device *mdev)
 static void mgag200_set_mode_regs(struct mga_device *mdev,
 				  const struct drm_display_mode *mode)
 {
+	const struct mgag200_device_info *info = mdev->info;
 	unsigned int hdisplay, hsyncstart, hsyncend, htotal;
 	unsigned int vdisplay, vsyncstart, vsyncend, vtotal;
 	u8 misc, crtcext1, crtcext2, crtcext5;
@@ -387,9 +413,9 @@ static void mgag200_set_mode_regs(struct mga_device *mdev,
 		   ((hdisplay & 0x100) >> 7) |
 		   ((hsyncstart & 0x100) >> 6) |
 		    (htotal & 0x40);
-	if (mdev->type == G200_WB || mdev->type == G200_EW3)
-		crtcext1 |= BIT(7) | /* vrsten */
-			    BIT(3); /* hrsten */
+	if (info->has_vidrst)
+		crtcext1 |= MGAREG_CRTCEXT1_VRSTEN |
+			    MGAREG_CRTCEXT1_HRSTEN;
 
 	crtcext2 = ((vtotal & 0xc00) >> 10) |
 		   ((vdisplay & 0x400) >> 8) |
@@ -559,13 +585,13 @@ static void mgag200_g200se_set_hiprilvl(struct mga_device *mdev,
 					const struct drm_display_mode *mode,
 					const struct drm_framebuffer *fb)
 {
-	u32 unique_rev_id = mdev->model.g200se.unique_rev_id;
+	struct mgag200_g200se_device *g200se = to_mgag200_g200se_device(&mdev->base);
 	unsigned int hiprilvl;
 	u8 crtcext6;
 
-	if  (unique_rev_id >= 0x04) {
+	if  (g200se->unique_rev_id >= 0x04) {
 		hiprilvl = 0;
-	} else if (unique_rev_id >= 0x02) {
+	} else if (g200se->unique_rev_id >= 0x02) {
 		unsigned int bpp;
 		unsigned long mb;
 
@@ -590,7 +616,7 @@ static void mgag200_g200se_set_hiprilvl(struct mga_device *mdev,
 		else
 			hiprilvl = 5;
 
-	} else if (unique_rev_id >= 0x01) {
+	} else if (g200se->unique_rev_id >= 0x01) {
 		hiprilvl = 3;
 	} else {
 		hiprilvl = 4;
@@ -665,99 +691,53 @@ static void mgag200_disable_display(struct mga_device *mdev)
  * Connector
  */
 
-static int mga_vga_get_modes(struct drm_connector *connector)
+static int mgag200_vga_connector_helper_get_modes(struct drm_connector *connector)
 {
-	struct mga_connector *mga_connector = to_mga_connector(connector);
-	struct edid *edid;
-	int ret = 0;
+	struct mga_device *mdev = to_mga_device(connector->dev);
+	int ret;
 
-	edid = drm_get_edid(connector, &mga_connector->i2c->adapter);
-	if (edid) {
-		drm_connector_update_edid_property(connector, edid);
-		ret = drm_add_edid_modes(connector, edid);
-		kfree(edid);
-	}
+	/*
+	 * Protect access to I/O registers from concurrent modesetting
+	 * by acquiring the I/O-register lock.
+	 */
+	mutex_lock(&mdev->rmmio_lock);
+	ret = drm_connector_helper_get_modes_from_ddc(connector);
+	mutex_unlock(&mdev->rmmio_lock);
+
 	return ret;
 }
 
-static uint32_t mga_vga_calculate_mode_bandwidth(struct drm_display_mode *mode,
-							int bits_per_pixel)
+static const struct drm_connector_helper_funcs mga_vga_connector_helper_funcs = {
+	.get_modes  = mgag200_vga_connector_helper_get_modes,
+};
+
+static const struct drm_connector_funcs mga_vga_connector_funcs = {
+	.reset                  = drm_atomic_helper_connector_reset,
+	.fill_modes             = drm_helper_probe_single_connector_modes,
+	.destroy                = drm_connector_cleanup,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state   = drm_atomic_helper_connector_destroy_state,
+};
+
+/*
+ * Simple Display Pipe
+ */
+
+static enum drm_mode_status
+mgag200_simple_display_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
+				       const struct drm_display_mode *mode)
 {
-	uint32_t total_area, divisor;
-	uint64_t active_area, pixels_per_second, bandwidth;
-	uint64_t bytes_per_pixel = (bits_per_pixel + 7) / 8;
+	struct mga_device *mdev = to_mga_device(pipe->crtc.dev);
+	const struct mgag200_device_info *info = mdev->info;
 
-	divisor = 1024;
-
-	if (!mode->htotal || !mode->vtotal || !mode->clock)
-		return 0;
-
-	active_area = mode->hdisplay * mode->vdisplay;
-	total_area = mode->htotal * mode->vtotal;
-
-	pixels_per_second = active_area * mode->clock * 1000;
-	do_div(pixels_per_second, total_area);
-
-	bandwidth = pixels_per_second * bytes_per_pixel * 100;
-	do_div(bandwidth, divisor);
-
-	return (uint32_t)(bandwidth);
-}
-
-#define MODE_BANDWIDTH	MODE_BAD
-
-static enum drm_mode_status mga_vga_mode_valid(struct drm_connector *connector,
-				 struct drm_display_mode *mode)
-{
-	struct drm_device *dev = connector->dev;
-	struct mga_device *mdev = to_mga_device(dev);
-	int bpp = 32;
-
-	if (IS_G200_SE(mdev)) {
-		u32 unique_rev_id = mdev->model.g200se.unique_rev_id;
-
-		if (unique_rev_id == 0x01) {
-			if (mode->hdisplay > 1600)
-				return MODE_VIRTUAL_X;
-			if (mode->vdisplay > 1200)
-				return MODE_VIRTUAL_Y;
-			if (mga_vga_calculate_mode_bandwidth(mode, bpp)
-				> (24400 * 1024))
-				return MODE_BANDWIDTH;
-		} else if (unique_rev_id == 0x02) {
-			if (mode->hdisplay > 1920)
-				return MODE_VIRTUAL_X;
-			if (mode->vdisplay > 1200)
-				return MODE_VIRTUAL_Y;
-			if (mga_vga_calculate_mode_bandwidth(mode, bpp)
-				> (30100 * 1024))
-				return MODE_BANDWIDTH;
-		} else {
-			if (mga_vga_calculate_mode_bandwidth(mode, bpp)
-				> (55000 * 1024))
-				return MODE_BANDWIDTH;
-		}
-	} else if (mdev->type == G200_WB) {
-		if (mode->hdisplay > 1280)
-			return MODE_VIRTUAL_X;
-		if (mode->vdisplay > 1024)
-			return MODE_VIRTUAL_Y;
-		if (mga_vga_calculate_mode_bandwidth(mode, bpp) >
-		    (31877 * 1024))
-			return MODE_BANDWIDTH;
-	} else if (mdev->type == G200_EV &&
-		(mga_vga_calculate_mode_bandwidth(mode, bpp)
-			> (32700 * 1024))) {
-		return MODE_BANDWIDTH;
-	} else if (mdev->type == G200_EH &&
-		(mga_vga_calculate_mode_bandwidth(mode, bpp)
-			> (37500 * 1024))) {
-		return MODE_BANDWIDTH;
-	} else if (mdev->type == G200_ER &&
-		(mga_vga_calculate_mode_bandwidth(mode,
-			bpp) > (55000 * 1024))) {
-		return MODE_BANDWIDTH;
-	}
+	/*
+	 * Some devices have additional limits on the size of the
+	 * display mode.
+	 */
+	if (mode->hdisplay > info->max_hdisplay)
+		return MODE_VIRTUAL_X;
+	if (mode->vdisplay > info->max_vdisplay)
+		return MODE_VIRTUAL_Y;
 
 	if ((mode->hdisplay % 8) != 0 || (mode->hsync_start % 8) != 0 ||
 	    (mode->hsync_end % 8) != 0 || (mode->htotal % 8) != 0) {
@@ -771,78 +751,6 @@ static enum drm_mode_status mga_vga_mode_valid(struct drm_connector *connector,
 		return MODE_BAD;
 	}
 
-	/* Validate the mode input by the user */
-	if (connector->cmdline_mode.specified) {
-		if (connector->cmdline_mode.bpp_specified)
-			bpp = connector->cmdline_mode.bpp;
-	}
-
-	if ((mode->hdisplay * mode->vdisplay * (bpp/8)) > mdev->vram_fb_available) {
-		if (connector->cmdline_mode.specified)
-			connector->cmdline_mode.specified = false;
-		return MODE_BAD;
-	}
-
-	return MODE_OK;
-}
-
-static void mga_connector_destroy(struct drm_connector *connector)
-{
-	struct mga_connector *mga_connector = to_mga_connector(connector);
-	mgag200_i2c_destroy(mga_connector->i2c);
-	drm_connector_cleanup(connector);
-}
-
-static const struct drm_connector_helper_funcs mga_vga_connector_helper_funcs = {
-	.get_modes  = mga_vga_get_modes,
-	.mode_valid = mga_vga_mode_valid,
-};
-
-static const struct drm_connector_funcs mga_vga_connector_funcs = {
-	.reset                  = drm_atomic_helper_connector_reset,
-	.fill_modes             = drm_helper_probe_single_connector_modes,
-	.destroy                = mga_connector_destroy,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state   = drm_atomic_helper_connector_destroy_state,
-};
-
-static int mgag200_vga_connector_init(struct mga_device *mdev)
-{
-	struct drm_device *dev = &mdev->base;
-	struct mga_connector *mconnector = &mdev->connector;
-	struct drm_connector *connector = &mconnector->base;
-	struct mga_i2c_chan *i2c;
-	int ret;
-
-	i2c = mgag200_i2c_create(dev);
-	if (!i2c)
-		drm_warn(dev, "failed to add DDC bus\n");
-
-	ret = drm_connector_init_with_ddc(dev, connector,
-					  &mga_vga_connector_funcs,
-					  DRM_MODE_CONNECTOR_VGA,
-					  &i2c->adapter);
-	if (ret)
-		goto err_mgag200_i2c_destroy;
-	drm_connector_helper_add(connector, &mga_vga_connector_helper_funcs);
-
-	mconnector->i2c = i2c;
-
-	return 0;
-
-err_mgag200_i2c_destroy:
-	mgag200_i2c_destroy(i2c);
-	return ret;
-}
-
-/*
- * Simple Display Pipe
- */
-
-static enum drm_mode_status
-mgag200_simple_display_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
-				       const struct drm_display_mode *mode)
-{
 	return MODE_OK;
 }
 
@@ -855,10 +763,6 @@ mgag200_handle_damage(struct mga_device *mdev, struct drm_framebuffer *fb,
 
 	dst += drm_fb_clip_offset(fb->pitches[0], fb->format, clip);
 	drm_fb_memcpy_toio(dst, fb->pitches[0], vmap, fb, clip);
-
-	/* Always scanout image at VRAM offset 0 */
-	mgag200_set_startadd(mdev, (u32)0);
-	mgag200_set_offset(mdev, fb);
 }
 
 static void
@@ -881,6 +785,14 @@ mgag200_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 		.y2 = fb->height,
 	};
 
+	/*
+	 * Concurrent operations could possibly trigger a call to
+	 * drm_connector_helper_funcs.get_modes by trying to read the
+	 * display modes. Protect access to I/O registers by acquiring
+	 * the I/O-register lock.
+	 */
+	mutex_lock(&mdev->rmmio_lock);
+
 	if (mdev->type == G200_WB || mdev->type == G200_EW3)
 		mgag200_g200wb_hold_bmc(mdev);
 
@@ -900,10 +812,20 @@ mgag200_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 	if (mdev->type == G200_WB || mdev->type == G200_EW3)
 		mgag200_g200wb_release_bmc(mdev);
 
-	mga_crtc_load_lut(crtc);
+	if (crtc_state->gamma_lut)
+		mgag200_crtc_set_gamma(mdev, fb->format, crtc_state->gamma_lut->data);
+	else
+		mgag200_crtc_set_gamma_linear(mdev, fb->format);
+
 	mgag200_enable_display(mdev);
 
 	mgag200_handle_damage(mdev, fb, &fullscreen, &shadow_plane_state->data[0]);
+
+	/* Always scanout image at VRAM offset 0 */
+	mgag200_set_startadd(mdev, (u32)0);
+	mgag200_set_offset(mdev, fb);
+
+	mutex_unlock(&mdev->rmmio_lock);
 }
 
 static void
@@ -945,6 +867,14 @@ mgag200_simple_display_pipe_check(struct drm_simple_display_pipe *pipe,
 			return ret;
 	}
 
+	if (crtc_state->color_mgmt_changed && crtc_state->gamma_lut) {
+		if (crtc_state->gamma_lut->length !=
+		    MGAG200_LUT_SIZE * sizeof(struct drm_color_lut)) {
+			drm_err(dev, "Wrong size for gamma_lut %zu\n",
+				crtc_state->gamma_lut->length);
+			return -EINVAL;
+		}
+	}
 	return 0;
 }
 
@@ -953,18 +883,32 @@ mgag200_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
 				   struct drm_plane_state *old_state)
 {
 	struct drm_plane *plane = &pipe->plane;
+	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_device *dev = plane->dev;
 	struct mga_device *mdev = to_mga_device(dev);
 	struct drm_plane_state *state = plane->state;
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_rect damage;
+	struct drm_atomic_helper_damage_iter iter;
 
 	if (!fb)
 		return;
 
-	if (drm_atomic_helper_damage_merged(old_state, state, &damage))
+	mutex_lock(&mdev->rmmio_lock);
+
+	if (crtc->state->color_mgmt_changed && crtc->state->gamma_lut)
+		mgag200_crtc_set_gamma(mdev, fb->format, crtc->state->gamma_lut->data);
+
+	drm_atomic_helper_damage_iter_init(&iter, old_state, state);
+	drm_atomic_for_each_plane_damage(&iter, &damage) {
 		mgag200_handle_damage(mdev, fb, &damage, &shadow_plane_state->data[0]);
+	}
+	/* Always scanout image at VRAM offset 0 */
+	mgag200_set_startadd(mdev, (u32)0);
+	mgag200_set_offset(mdev, fb);
+
+	mutex_unlock(&mdev->rmmio_lock);
 }
 
 static struct drm_crtc_state *
@@ -1042,29 +986,80 @@ static const uint64_t mgag200_simple_display_pipe_fmtmods[] = {
  * Mode config
  */
 
+/* Calculates a mode's required memory bandwidth (in KiB/sec). */
+static uint32_t mgag200_calculate_mode_bandwidth(const struct drm_display_mode *mode,
+						 unsigned int bits_per_pixel)
+{
+	uint32_t total_area, divisor;
+	uint64_t active_area, pixels_per_second, bandwidth;
+	uint64_t bytes_per_pixel = (bits_per_pixel + 7) / 8;
+
+	divisor = 1024;
+
+	if (!mode->htotal || !mode->vtotal || !mode->clock)
+		return 0;
+
+	active_area = mode->hdisplay * mode->vdisplay;
+	total_area = mode->htotal * mode->vtotal;
+
+	pixels_per_second = active_area * mode->clock * 1000;
+	do_div(pixels_per_second, total_area);
+
+	bandwidth = pixels_per_second * bytes_per_pixel * 100;
+	do_div(bandwidth, divisor);
+
+	return (uint32_t)bandwidth;
+}
+
+static enum drm_mode_status mgag200_mode_config_mode_valid(struct drm_device *dev,
+							   const struct drm_display_mode *mode)
+{
+	static const unsigned int max_bpp = 4; // DRM_FORMAT_XRGB8888
+	struct mga_device *mdev = to_mga_device(dev);
+	unsigned long fbsize, fbpages, max_fbpages;
+	const struct mgag200_device_info *info = mdev->info;
+
+	max_fbpages = mdev->vram_available >> PAGE_SHIFT;
+
+	fbsize = mode->hdisplay * mode->vdisplay * max_bpp;
+	fbpages = DIV_ROUND_UP(fbsize, PAGE_SIZE);
+
+	if (fbpages > max_fbpages)
+		return MODE_MEM;
+
+	/*
+	 * Test the mode's required memory bandwidth if the device
+	 * specifies a maximum. Not all devices do though.
+	 */
+	if (info->max_mem_bandwidth) {
+		uint32_t mode_bandwidth = mgag200_calculate_mode_bandwidth(mode, max_bpp * 8);
+
+		if (mode_bandwidth > (info->max_mem_bandwidth * 1024))
+			return MODE_BAD;
+	}
+
+	return MODE_OK;
+}
+
 static const struct drm_mode_config_funcs mgag200_mode_config_funcs = {
-	.fb_create     = drm_gem_fb_create_with_dirty,
-	.atomic_check  = drm_atomic_helper_check,
+	.fb_create = drm_gem_fb_create_with_dirty,
+	.mode_valid = mgag200_mode_config_mode_valid,
+	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
-static unsigned int mgag200_preferred_depth(struct mga_device *mdev)
-{
-	if (IS_G200_SE(mdev) && mdev->vram_fb_available < (2048*1024))
-		return 16;
-	else
-		return 32;
-}
-
-int mgag200_modeset_init(struct mga_device *mdev)
+int mgag200_modeset_init(struct mga_device *mdev, resource_size_t vram_available)
 {
 	struct drm_device *dev = &mdev->base;
-	struct drm_connector *connector = &mdev->connector.base;
+	struct mga_i2c_chan *i2c = &mdev->i2c;
+	struct drm_connector *connector = &mdev->connector;
 	struct drm_simple_display_pipe *pipe = &mdev->display_pipe;
 	size_t format_count = ARRAY_SIZE(mgag200_simple_display_pipe_formats);
 	int ret;
 
 	mgag200_init_regs(mdev);
+
+	mdev->vram_available = vram_available;
 
 	ret = drmm_mode_config_init(dev);
 	if (ret) {
@@ -1075,20 +1070,25 @@ int mgag200_modeset_init(struct mga_device *mdev)
 
 	dev->mode_config.max_width = MGAG200_MAX_FB_WIDTH;
 	dev->mode_config.max_height = MGAG200_MAX_FB_HEIGHT;
-
-	dev->mode_config.preferred_depth = mgag200_preferred_depth(mdev);
-
-	dev->mode_config.fb_base = mdev->mc.vram_base;
-
+	dev->mode_config.preferred_depth = 24;
+	dev->mode_config.fb_base = mdev->vram_res->start;
 	dev->mode_config.funcs = &mgag200_mode_config_funcs;
 
-	ret = mgag200_vga_connector_init(mdev);
+	ret = mgag200_i2c_init(mdev, i2c);
 	if (ret) {
-		drm_err(dev,
-			"mgag200_vga_connector_init() failed, error %d\n",
-			ret);
+		drm_err(dev, "failed to add DDC bus: %d\n", ret);
 		return ret;
 	}
+
+	ret = drm_connector_init_with_ddc(dev, connector,
+					  &mga_vga_connector_funcs,
+					  DRM_MODE_CONNECTOR_VGA,
+					  &i2c->adapter);
+	if (ret) {
+		drm_err(dev, "drm_connector_init_with_ddc() failed: %d\n", ret);
+		return ret;
+	}
+	drm_connector_helper_add(connector, &mga_vga_connector_helper_funcs);
 
 	ret = mgag200_pixpll_init(&mdev->pixpll, mdev);
 	if (ret)
@@ -1107,8 +1107,12 @@ int mgag200_modeset_init(struct mga_device *mdev)
 		return ret;
 	}
 
-	/* FIXME: legacy gamma tables; convert to CRTC state */
+	drm_plane_enable_fb_damage_clips(&pipe->plane);
+
+	/* FIXME: legacy gamma tables, but atomic gamma doesn't work without */
 	drm_mode_crtc_set_gamma_size(&pipe->crtc, MGAG200_LUT_SIZE);
+
+	drm_crtc_enable_color_mgmt(&pipe->crtc, 0, false, MGAG200_LUT_SIZE);
 
 	drm_mode_config_reset(dev);
 

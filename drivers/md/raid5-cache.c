@@ -1318,7 +1318,7 @@ static void r5l_write_super_and_discard_space(struct r5l_log *log,
 
 	r5l_write_super(log, end);
 
-	if (!blk_queue_discard(bdev_get_queue(bdev)))
+	if (!bdev_max_discard_sectors(bdev))
 		return;
 
 	mddev = log->rdev->mddev;
@@ -1344,14 +1344,14 @@ static void r5l_write_super_and_discard_space(struct r5l_log *log,
 	if (log->last_checkpoint < end) {
 		blkdev_issue_discard(bdev,
 				log->last_checkpoint + log->rdev->data_offset,
-				end - log->last_checkpoint, GFP_NOIO, 0);
+				end - log->last_checkpoint, GFP_NOIO);
 	} else {
 		blkdev_issue_discard(bdev,
 				log->last_checkpoint + log->rdev->data_offset,
 				log->device_size - log->last_checkpoint,
-				GFP_NOIO, 0);
+				GFP_NOIO);
 		blkdev_issue_discard(bdev, log->rdev->data_offset, end,
-				GFP_NOIO, 0);
+				GFP_NOIO);
 	}
 }
 
@@ -3064,11 +3064,10 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 {
 	struct request_queue *q = bdev_get_queue(rdev->bdev);
 	struct r5l_log *log;
-	char b[BDEVNAME_SIZE];
 	int ret;
 
-	pr_debug("md/raid:%s: using device %s as journal\n",
-		 mdname(conf->mddev), bdevname(rdev->bdev, b));
+	pr_debug("md/raid:%s: using device %pg as journal\n",
+		 mdname(conf->mddev), rdev->bdev);
 
 	if (PAGE_SIZE != 4096)
 		return -EINVAL;

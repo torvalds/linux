@@ -56,6 +56,7 @@ struct mlxsw_sp_router {
 	struct {
 		struct delayed_work dw;
 		unsigned long interval;	/* ms */
+		atomic_t neigh_count;
 	} neighs_update;
 	struct delayed_work nexthop_probe_dw;
 #define MLXSW_SP_UNRESOLVED_NH_PROBE_INTERVAL 5000 /* ms */
@@ -66,6 +67,7 @@ struct mlxsw_sp_router {
 	struct notifier_block netevent_nb;
 	struct notifier_block inetaddr_nb;
 	struct notifier_block inet6addr_nb;
+	struct notifier_block netdevice_nb;
 	const struct mlxsw_sp_rif_ops **rif_ops_arr;
 	const struct mlxsw_sp_ipip_ops **ipip_ops_arr;
 	struct mlxsw_sp_router_nve_decap nve_decap_config;

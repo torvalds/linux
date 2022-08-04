@@ -467,3 +467,39 @@ Description:	These files provide the maximum powered required for line card
 		feeding and line card configuration Id.
 
 		The files are read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/phy_reset
+Date:		May 2022
+KernelVersion:	5.19
+Contact:	Vadim Pasternak <vadimpmellanox.com>
+Description:	This file allows to reset PHY 88E1548 when attribute is set 0
+		due to some abnormal PHY behavior.
+		Expected behavior:
+		When phy_reset is written 1, all PHY 88E1548 are released
+		from the reset state, when 0 - are hold in reset state.
+
+		The files are read/write.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/mac_reset
+Date:		May 2022
+KernelVersion:	5.19
+Contact:	Vadim Pasternak <vadimpmellanox.com>
+Description:	This file allows to reset ASIC MT52132 when attribute is set 0
+		due to some abnormal ASIC behavior.
+		Expected behavior:
+		When mac_reset is written 1, the ASIC MT52132 is released
+		from the reset state, when 0 - is hold in reset state.
+
+		The files are read/write.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/qsfp_pwr_good
+Date:		May 2022
+KernelVersion:	5.19
+Contact:	Vadim Pasternak <vadimpmellanox.com>
+Description:	This file shows QSFP ports power status. The value is set to 0
+		when one of any QSFP ports is plugged. The value is set to 1 when
+		there are no any QSFP ports are plugged.
+		The possible values are:
+		0 - Power good, 1 - Not power good.
+
+		The files are read only.

@@ -19,7 +19,11 @@
 #define TASK_UNMAPPED_BASE	PAGE_ALIGN(TASK_SIZE / 3)
 
 #define STACK_TOP		TASK_SIZE
-#define STACK_TOP_MAX		STACK_TOP
+#ifdef CONFIG_64BIT
+#define STACK_TOP_MAX		TASK_SIZE_64
+#else
+#define STACK_TOP_MAX		TASK_SIZE
+#endif
 #define STACK_ALIGN		16
 
 #ifndef __ASSEMBLY__

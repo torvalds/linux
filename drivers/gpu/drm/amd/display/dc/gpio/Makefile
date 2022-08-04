@@ -73,7 +73,6 @@ AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCE120)
 ###############################################################################
 # DCN 1x
 ###############################################################################
-ifdef CONFIG_DRM_AMD_DC_DCN
 GPIO_DCN10 = hw_translate_dcn10.o hw_factory_dcn10.o
 
 AMD_DAL_GPIO_DCN10 = $(addprefix $(AMDDALPATH)/dc/gpio/dcn10/,$(GPIO_DCN10))
@@ -114,12 +113,12 @@ GPIO_DCN315 = hw_translate_dcn315.o hw_factory_dcn315.o
 AMD_DAL_GPIO_DCN315 = $(addprefix $(AMDDALPATH)/dc/gpio/dcn315/,$(GPIO_DCN315))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCN315)
-endif
-###############################################################################
-# Diagnostics on FPGA
-###############################################################################
-GPIO_DIAG_FPGA = hw_translate_diag.o hw_factory_diag.o
 
-AMD_DAL_GPIO_DIAG_FPGA = $(addprefix $(AMDDALPATH)/dc/gpio/diagnostics/,$(GPIO_DIAG_FPGA))
+###############################################################################
+# DCN 3.2
+###############################################################################
+GPIO_DCN32 = hw_translate_dcn32.o hw_factory_dcn32.o
 
-AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DIAG_FPGA)
+AMD_DAL_GPIO_DCN32 = $(addprefix $(AMDDALPATH)/dc/gpio/dcn32/,$(GPIO_DCN32))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCN32)

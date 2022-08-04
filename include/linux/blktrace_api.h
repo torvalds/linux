@@ -27,12 +27,10 @@ struct blk_trace {
 	atomic_t dropped;
 };
 
-struct blkcg;
-
 extern int blk_trace_ioctl(struct block_device *, unsigned, char __user *);
 extern void blk_trace_shutdown(struct request_queue *);
-extern __printf(3, 4)
-void __trace_note_message(struct blk_trace *, struct blkcg *blkcg, const char *fmt, ...);
+__printf(3, 4) void __blk_trace_note_message(struct blk_trace *bt,
+		struct cgroup_subsys_state *css, const char *fmt, ...);
 
 /**
  * blk_add_trace_msg - Add a (simple) message to the blktrace stream
@@ -47,14 +45,14 @@ void __trace_note_message(struct blk_trace *, struct blkcg *blkcg, const char *f
  *     NOTE: Can not use 'static inline' due to presence of var args...
  *
  **/
-#define blk_add_cgroup_trace_msg(q, cg, fmt, ...)			\
+#define blk_add_cgroup_trace_msg(q, css, fmt, ...)			\
 	do {								\
 		struct blk_trace *bt;					\
 									\
 		rcu_read_lock();					\
 		bt = rcu_dereference((q)->blk_trace);			\
 		if (unlikely(bt))					\
-			__trace_note_message(bt, cg, fmt, ##__VA_ARGS__);\
+			__blk_trace_note_message(bt, css, fmt, ##__VA_ARGS__);\
 		rcu_read_unlock();					\
 	} while (0)
 #define blk_add_trace_msg(q, fmt, ...)					\

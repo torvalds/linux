@@ -16,7 +16,7 @@
 
 static const char *const emev2_boards_compat_dt[] __initconst = {
 	"renesas,emev2",
-	NULL,
+	NULL
 };
 
 DT_MACHINE_START(EMEV2_DT, "Generic Emma Mobile EV2 (Flattened Device Tree)")

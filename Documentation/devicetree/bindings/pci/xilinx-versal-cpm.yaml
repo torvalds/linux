@@ -18,13 +18,13 @@ properties:
 
   reg:
     items:
-      - description: Configuration space region and bridge registers.
       - description: CPM system level control and status registers.
+      - description: Configuration space region and bridge registers.
 
   reg-names:
     items:
-      - const: cfg
       - const: cpm_slcr
+      - const: cfg
 
   interrupts:
     maxItems: 1
@@ -86,9 +86,9 @@ examples:
                        ranges = <0x02000000 0x0 0xe0000000 0x0 0xe0000000 0x0 0x10000000>,
                                 <0x43000000 0x80 0x00000000 0x80 0x00000000 0x0 0x80000000>;
                        msi-map = <0x0 &its_gic 0x0 0x10000>;
-                       reg = <0x6 0x00000000 0x0 0x10000000>,
-                             <0x0 0xfca10000 0x0 0x1000>;
-                       reg-names = "cfg", "cpm_slcr";
+                       reg = <0x0 0xfca10000 0x0 0x1000>,
+                             <0x6 0x00000000 0x0 0x10000000>;
+                       reg-names = "cpm_slcr", "cfg";
                        pcie_intc_0: interrupt-controller {
                                #address-cells = <0>;
                                #interrupt-cells = <1>;

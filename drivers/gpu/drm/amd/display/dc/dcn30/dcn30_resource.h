@@ -35,6 +35,9 @@ struct dc;
 struct resource_pool;
 struct _vcs_dpi_display_pipe_params_st;
 
+extern struct _vcs_dpi_ip_params_st dcn3_0_ip;
+extern struct _vcs_dpi_soc_bounding_box_st dcn3_0_soc;
+
 struct dcn30_resource_pool {
 	struct resource_pool base;
 };
@@ -95,5 +98,10 @@ enum dc_status dcn30_add_stream_to_ctx(
 		struct dc_stream_state *dc_stream);
 
 void dcn30_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params);
+
+bool dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, struct dc_state *context);
+void dcn30_setup_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, struct dc_state *context);
+int dcn30_find_dummy_latency_index_for_fw_based_mclk_switch(struct dc *dc, struct dc_state *context,
+		display_e2e_pipe_params_st *pipes, int pipe_cnt, int vlevel);
 
 #endif /* _DCN30_RESOURCE_H_ */

@@ -309,7 +309,8 @@ static int i915_gpu_info_open(struct inode *inode, struct file *file)
 
 	gpu = NULL;
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-		gpu = i915_gpu_coredump(to_gt(i915), ALL_ENGINES);
+		gpu = i915_gpu_coredump(to_gt(i915), ALL_ENGINES, CORE_DUMP_FLAG_NONE);
+
 	if (IS_ERR(gpu))
 		return PTR_ERR(gpu);
 
@@ -582,8 +583,9 @@ static int i915_wedged_get(void *data, u64 *val)
 static int i915_wedged_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
+	intel_gt_debugfs_reset_store(to_gt(i915), val);
 
-	return intel_gt_debugfs_reset_store(to_gt(i915), val);
+	return 0;
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_wedged_fops,
@@ -731,15 +733,17 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 static int i915_forcewake_open(struct inode *inode, struct file *file)
 {
 	struct drm_i915_private *i915 = inode->i_private;
+	intel_gt_pm_debugfs_forcewake_user_open(to_gt(i915));
 
-	return intel_gt_pm_debugfs_forcewake_user_open(to_gt(i915));
+	return 0;
 }
 
 static int i915_forcewake_release(struct inode *inode, struct file *file)
 {
 	struct drm_i915_private *i915 = inode->i_private;
+	intel_gt_pm_debugfs_forcewake_user_release(to_gt(i915));
 
-	return intel_gt_pm_debugfs_forcewake_user_release(to_gt(i915));
+	return 0;
 }
 
 static const struct file_operations i915_forcewake_fops = {

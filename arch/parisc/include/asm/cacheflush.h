@@ -59,20 +59,12 @@ void flush_dcache_page(struct page *page);
 	flush_kernel_icache_range_asm(s,e); 		\
 } while (0)
 
-#define copy_to_user_page(vma, page, vaddr, dst, src, len) \
-do { \
-	flush_cache_page(vma, vaddr, page_to_pfn(page)); \
-	memcpy(dst, src, len); \
-	flush_kernel_dcache_range_asm((unsigned long)dst, (unsigned long)dst + len); \
-} while (0)
-
-#define copy_from_user_page(vma, page, vaddr, dst, src, len) \
-do { \
-	flush_cache_page(vma, vaddr, page_to_pfn(page)); \
-	memcpy(dst, src, len); \
-} while (0)
-
-void flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long pfn);
+void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
+		unsigned long user_vaddr, void *dst, void *src, int len);
+void copy_from_user_page(struct vm_area_struct *vma, struct page *page,
+		unsigned long user_vaddr, void *dst, void *src, int len);
+void flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr,
+		unsigned long pfn);
 void flush_cache_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end);
 
@@ -80,16 +72,7 @@ void flush_cache_range(struct vm_area_struct *vma,
 void flush_dcache_page_asm(unsigned long phys_addr, unsigned long vaddr);
 
 #define ARCH_HAS_FLUSH_ANON_PAGE
-static inline void
-flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr)
-{
-	if (PageAnon(page)) {
-		flush_tlb_page(vma, vmaddr);
-		preempt_disable();
-		flush_dcache_page_asm(page_to_phys(page), vmaddr);
-		preempt_enable();
-	}
-}
+void flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr);
 
 #define ARCH_HAS_FLUSH_ON_KUNMAP
 static inline void kunmap_flush_on_unmap(void *addr)

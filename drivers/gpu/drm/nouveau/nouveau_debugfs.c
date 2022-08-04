@@ -255,19 +255,13 @@ nouveau_drm_debugfs_init(struct drm_minor *minor)
 int
 nouveau_debugfs_init(struct nouveau_drm *drm)
 {
-	int ret;
-
 	drm->debugfs = kzalloc(sizeof(*drm->debugfs), GFP_KERNEL);
 	if (!drm->debugfs)
 		return -ENOMEM;
 
-	ret = nvif_object_ctor(&drm->client.device.object, "debugfsCtrl", 0,
-			       NVIF_CLASS_CONTROL, NULL, 0,
-			       &drm->debugfs->ctrl);
-	if (ret)
-		return ret;
-
-	return 0;
+	return nvif_object_ctor(&drm->client.device.object, "debugfsCtrl", 0,
+				NVIF_CLASS_CONTROL, NULL, 0,
+				&drm->debugfs->ctrl);
 }
 
 void

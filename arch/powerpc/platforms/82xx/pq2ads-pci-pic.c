@@ -14,9 +14,9 @@
 #include <linux/irq.h>
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <linux/of_irq.h>
 
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/cpm2.h>
 
 #include "pq2.h"

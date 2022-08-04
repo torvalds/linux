@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <fcntl.h>
+#include <time.h>
 #include <sys/wait.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
@@ -21,6 +22,7 @@
 #include <sys/utsname.h>
 #include <sys/sendfile.h>
 #include <sys/sysmacros.h>
+#include <sys/random.h>
 #include <linux/random.h>
 #include <linux/version.h>
 
@@ -58,6 +60,8 @@ static void seed_rng(void)
 {
 	int bits = 256, fd;
 
+	if (!getrandom(NULL, 0, GRND_NONBLOCK))
+		return;
 	pretty_message("[+] Fake seeding RNG...");
 	fd = open("/dev/random", O_WRONLY);
 	if (fd < 0)
@@ -65,6 +69,15 @@ static void seed_rng(void)
 	if (ioctl(fd, RNDADDTOENTCNT, &bits) < 0)
 		panic("ioctl(RNDADDTOENTCNT)");
 	close(fd);
+}
+
+static void set_time(void)
+{
+	if (time(NULL))
+		return;
+	pretty_message("[+] Setting fake time...");
+	if (stime(&(time_t){1433512680}) < 0)
+		panic("settimeofday()");
 }
 
 static void mount_filesystems(void)
@@ -108,12 +121,6 @@ static void enable_logging(void)
 	if (fd >= 0) {
 		if (write(fd, "1\n", 2) != 2)
 			panic("write(exception-trace)");
-		close(fd);
-	}
-	fd = open("/proc/sys/kernel/panic_on_warn", O_WRONLY);
-	if (fd >= 0) {
-		if (write(fd, "1\n", 2) != 2)
-			panic("write(panic_on_warn)");
 		close(fd);
 	}
 }
@@ -262,6 +269,7 @@ int main(int argc, char *argv[])
 	print_banner();
 	mount_filesystems();
 	seed_rng();
+	set_time();
 	kmod_selftests();
 	enable_logging();
 	clear_leaks();

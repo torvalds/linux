@@ -268,6 +268,8 @@ static struct rcu_scale_ops srcud_ops = {
 	.name		= "srcud"
 };
 
+#ifdef CONFIG_TASKS_RCU
+
 /*
  * Definitions for RCU-tasks scalability testing.
  */
@@ -294,6 +296,16 @@ static struct rcu_scale_ops tasks_ops = {
 	.exp_sync	= synchronize_rcu_tasks,
 	.name		= "tasks"
 };
+
+#define TASKS_OPS &tasks_ops,
+
+#else // #ifdef CONFIG_TASKS_RCU
+
+#define TASKS_OPS
+
+#endif // #else // #ifdef CONFIG_TASKS_RCU
+
+#ifdef CONFIG_TASKS_TRACE_RCU
 
 /*
  * Definitions for RCU-tasks-trace scalability testing.
@@ -323,6 +335,14 @@ static struct rcu_scale_ops tasks_tracing_ops = {
 	.exp_sync	= synchronize_rcu_tasks_trace,
 	.name		= "tasks-tracing"
 };
+
+#define TASKS_TRACING_OPS &tasks_tracing_ops,
+
+#else // #ifdef CONFIG_TASKS_TRACE_RCU
+
+#define TASKS_TRACING_OPS
+
+#endif // #else // #ifdef CONFIG_TASKS_TRACE_RCU
 
 static unsigned long rcuscale_seq_diff(unsigned long new, unsigned long old)
 {
@@ -797,7 +817,7 @@ rcu_scale_init(void)
 	long i;
 	int firsterr = 0;
 	static struct rcu_scale_ops *scale_ops[] = {
-		&rcu_ops, &srcu_ops, &srcud_ops, &tasks_ops, &tasks_tracing_ops
+		&rcu_ops, &srcu_ops, &srcud_ops, TASKS_OPS TASKS_TRACING_OPS
 	};
 
 	if (!torture_init_begin(scale_type, verbose))

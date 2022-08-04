@@ -209,7 +209,7 @@
 		#size-cells = <0>;
 	};
 
-	ethernet: usbether@3 {
+	ethernet: ethernet@3 {
 		compatible = "usb424,9730";
 		reg = <3>;
 	};

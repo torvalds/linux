@@ -349,7 +349,7 @@
 		status = "okay";
 	};
 
-	fan: fan {
+	fan: pwm-fan {
 		compatible = "pwm-fan";
 		pwms = <&pwm4 0 45334>;
 

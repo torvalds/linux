@@ -172,6 +172,17 @@ flooding_filters_add()
 	local lsb
 	local i
 
+	# Prevent unwanted packets from entering the bridge and interfering
+	# with the test.
+	tc qdisc add dev br0 clsact
+	tc filter add dev br0 egress protocol all pref 1 handle 1 \
+		matchall skip_hw action drop
+	tc qdisc add dev $h1 clsact
+	tc filter add dev $h1 egress protocol all pref 1 handle 1 \
+		flower skip_hw dst_mac de:ad:be:ef:13:37 action pass
+	tc filter add dev $h1 egress protocol all pref 2 handle 2 \
+		matchall skip_hw action drop
+
 	tc qdisc add dev $rp2 clsact
 
 	for i in $(eval echo {1..$num_remotes}); do
@@ -194,6 +205,12 @@ flooding_filters_del()
 	done
 
 	tc qdisc del dev $rp2 clsact
+
+	tc filter del dev $h1 egress protocol all pref 2 handle 2 matchall
+	tc filter del dev $h1 egress protocol all pref 1 handle 1 flower
+	tc qdisc del dev $h1 clsact
+	tc filter del dev br0 egress protocol all pref 1 handle 1 matchall
+	tc qdisc del dev br0 clsact
 }
 
 flooding_check_packets()

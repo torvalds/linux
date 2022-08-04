@@ -77,15 +77,15 @@ struct bnxt_en_dev {
 };
 
 struct bnxt_en_ops {
-	int (*bnxt_register_device)(struct bnxt_en_dev *, int,
+	int (*bnxt_register_device)(struct bnxt_en_dev *, unsigned int,
 				    struct bnxt_ulp_ops *, void *);
-	int (*bnxt_unregister_device)(struct bnxt_en_dev *, int);
-	int (*bnxt_request_msix)(struct bnxt_en_dev *, int,
+	int (*bnxt_unregister_device)(struct bnxt_en_dev *, unsigned int);
+	int (*bnxt_request_msix)(struct bnxt_en_dev *, unsigned int,
 				 struct bnxt_msix_entry *, int);
-	int (*bnxt_free_msix)(struct bnxt_en_dev *, int);
-	int (*bnxt_send_fw_msg)(struct bnxt_en_dev *, int,
+	int (*bnxt_free_msix)(struct bnxt_en_dev *, unsigned int);
+	int (*bnxt_send_fw_msg)(struct bnxt_en_dev *, unsigned int,
 				struct bnxt_fw_msg *);
-	int (*bnxt_register_fw_async_events)(struct bnxt_en_dev *, int,
+	int (*bnxt_register_fw_async_events)(struct bnxt_en_dev *, unsigned int,
 					     unsigned long *, u16);
 };
 

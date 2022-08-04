@@ -2,7 +2,7 @@
 /*
  * System Control and Management Interface (SCMI) Sensor Protocol
  *
- * Copyright (C) 2018-2021 ARM Ltd.
+ * Copyright (C) 2018-2022 ARM Ltd.
  */
 
 #define pr_fmt(fmt) "SCMI Notifications SENSOR - " fmt
@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/scmi_protocol.h>
 
-#include "common.h"
+#include "protocols.h"
 #include "notify.h"
 
 #define SCMI_MAX_NUM_SENSOR_AXIS	63
@@ -27,6 +27,8 @@ enum scmi_sensor_protocol_cmd {
 	SENSOR_CONFIG_GET = 0x9,
 	SENSOR_CONFIG_SET = 0xA,
 	SENSOR_CONTINUOUS_UPDATE_NOTIFY = 0xB,
+	SENSOR_NAME_GET = 0xC,
+	SENSOR_AXIS_NAME_GET = 0xD,
 };
 
 struct scmi_msg_resp_sensor_attributes {
@@ -63,6 +65,10 @@ struct scmi_msg_resp_attrs {
 	__le32 max_range_high;
 };
 
+struct scmi_msg_sensor_description {
+	__le32 desc_index;
+};
+
 struct scmi_msg_resp_sensor_description {
 	__le16 num_returned;
 	__le16 num_remaining;
@@ -71,6 +77,7 @@ struct scmi_msg_resp_sensor_description {
 		__le32 attributes_low;
 /* Common attributes_low macros */
 #define SUPPORTS_ASYNC_READ(x)		FIELD_GET(BIT(31), (x))
+#define SUPPORTS_EXTENDED_NAMES(x)	FIELD_GET(BIT(29), (x))
 #define NUM_TRIP_POINTS(x)		FIELD_GET(GENMASK(7, 0), (x))
 		__le32 attributes_high;
 /* Common attributes_high macros */
@@ -78,7 +85,7 @@ struct scmi_msg_resp_sensor_description {
 #define SENSOR_SCALE_SIGN		BIT(4)
 #define SENSOR_SCALE_EXTEND		GENMASK(31, 5)
 #define SENSOR_TYPE(x)			FIELD_GET(GENMASK(7, 0), (x))
-		u8 name[SCMI_MAX_STR_SIZE];
+		u8 name[SCMI_SHORT_NAME_MAX_SIZE];
 		/* only for version > 2.0 */
 		__le32 power;
 		__le32 resolution;
@@ -111,10 +118,19 @@ struct scmi_msg_resp_sensor_axis_description {
 	struct scmi_axis_descriptor {
 		__le32 id;
 		__le32 attributes_low;
+#define SUPPORTS_EXTENDED_AXIS_NAMES(x)	FIELD_GET(BIT(9), (x))
 		__le32 attributes_high;
-		u8 name[SCMI_MAX_STR_SIZE];
+		u8 name[SCMI_SHORT_NAME_MAX_SIZE];
 		__le32 resolution;
 		struct scmi_msg_resp_attrs attrs;
+	} desc[];
+};
+
+struct scmi_msg_resp_sensor_axis_names_description {
+	__le32 num_axis_flags;
+	struct scmi_sensor_axis_name_descriptor {
+		__le32 axis_id;
+		u8 name[SCMI_MAX_STR_SIZE];
 	} desc[];
 };
 
@@ -231,333 +247,448 @@ static int scmi_sensor_attributes_get(const struct scmi_protocol_handle *ph,
 }
 
 static inline void scmi_parse_range_attrs(struct scmi_range_attrs *out,
-					  struct scmi_msg_resp_attrs *in)
+					  const struct scmi_msg_resp_attrs *in)
 {
 	out->min_range = get_unaligned_le64((void *)&in->min_range_low);
 	out->max_range = get_unaligned_le64((void *)&in->max_range_low);
 }
 
+struct scmi_sens_ipriv {
+	void *priv;
+	struct device *dev;
+};
+
+static void iter_intervals_prepare_message(void *message,
+					   unsigned int desc_index,
+					   const void *p)
+{
+	struct scmi_msg_sensor_list_update_intervals *msg = message;
+	const struct scmi_sensor_info *s;
+
+	s = ((const struct scmi_sens_ipriv *)p)->priv;
+	/* Set the number of sensors to be skipped/already read */
+	msg->id = cpu_to_le32(s->id);
+	msg->index = cpu_to_le32(desc_index);
+}
+
+static int iter_intervals_update_state(struct scmi_iterator_state *st,
+				       const void *response, void *p)
+{
+	u32 flags;
+	struct scmi_sensor_info *s = ((struct scmi_sens_ipriv *)p)->priv;
+	struct device *dev = ((struct scmi_sens_ipriv *)p)->dev;
+	const struct scmi_msg_resp_sensor_list_update_intervals *r = response;
+
+	flags = le32_to_cpu(r->num_intervals_flags);
+	st->num_returned = NUM_INTERVALS_RETURNED(flags);
+	st->num_remaining = NUM_INTERVALS_REMAINING(flags);
+
+	/*
+	 * Max intervals is not declared previously anywhere so we
+	 * assume it's returned+remaining on first call.
+	 */
+	if (!st->max_resources) {
+		s->intervals.segmented = SEGMENTED_INTVL_FORMAT(flags);
+		s->intervals.count = st->num_returned + st->num_remaining;
+		/* segmented intervals are reported in one triplet */
+		if (s->intervals.segmented &&
+		    (st->num_remaining || st->num_returned != 3)) {
+			dev_err(dev,
+				"Sensor ID:%d advertises an invalid segmented interval (%d)\n",
+				s->id, s->intervals.count);
+			s->intervals.segmented = false;
+			s->intervals.count = 0;
+			return -EINVAL;
+		}
+		/* Direct allocation when exceeding pre-allocated */
+		if (s->intervals.count >= SCMI_MAX_PREALLOC_POOL) {
+			s->intervals.desc =
+				devm_kcalloc(dev,
+					     s->intervals.count,
+					     sizeof(*s->intervals.desc),
+					     GFP_KERNEL);
+			if (!s->intervals.desc) {
+				s->intervals.segmented = false;
+				s->intervals.count = 0;
+				return -ENOMEM;
+			}
+		}
+
+		st->max_resources = s->intervals.count;
+	}
+
+	return 0;
+}
+
+static int
+iter_intervals_process_response(const struct scmi_protocol_handle *ph,
+				const void *response,
+				struct scmi_iterator_state *st, void *p)
+{
+	const struct scmi_msg_resp_sensor_list_update_intervals *r = response;
+	struct scmi_sensor_info *s = ((struct scmi_sens_ipriv *)p)->priv;
+
+	s->intervals.desc[st->desc_index + st->loop_idx] =
+		le32_to_cpu(r->intervals[st->loop_idx]);
+
+	return 0;
+}
+
 static int scmi_sensor_update_intervals(const struct scmi_protocol_handle *ph,
 					struct scmi_sensor_info *s)
 {
-	int ret, cnt;
-	u32 desc_index = 0;
-	u16 num_returned, num_remaining;
-	struct scmi_xfer *ti;
-	struct scmi_msg_resp_sensor_list_update_intervals *buf;
-	struct scmi_msg_sensor_list_update_intervals *msg;
+	void *iter;
+	struct scmi_iterator_ops ops = {
+		.prepare_message = iter_intervals_prepare_message,
+		.update_state = iter_intervals_update_state,
+		.process_response = iter_intervals_process_response,
+	};
+	struct scmi_sens_ipriv upriv = {
+		.priv = s,
+		.dev = ph->dev,
+	};
 
-	ret = ph->xops->xfer_get_init(ph, SENSOR_LIST_UPDATE_INTERVALS,
-				      sizeof(*msg), 0, &ti);
+	iter = ph->hops->iter_response_init(ph, &ops, s->intervals.count,
+					    SENSOR_LIST_UPDATE_INTERVALS,
+					    sizeof(struct scmi_msg_sensor_list_update_intervals),
+					    &upriv);
+	if (IS_ERR(iter))
+		return PTR_ERR(iter);
+
+	return ph->hops->iter_response_run(iter);
+}
+
+struct scmi_apriv {
+	bool any_axes_support_extended_names;
+	struct scmi_sensor_info *s;
+};
+
+static void iter_axes_desc_prepare_message(void *message,
+					   const unsigned int desc_index,
+					   const void *priv)
+{
+	struct scmi_msg_sensor_axis_description_get *msg = message;
+	const struct scmi_apriv *apriv = priv;
+
+	/* Set the number of sensors to be skipped/already read */
+	msg->id = cpu_to_le32(apriv->s->id);
+	msg->axis_desc_index = cpu_to_le32(desc_index);
+}
+
+static int
+iter_axes_desc_update_state(struct scmi_iterator_state *st,
+			    const void *response, void *priv)
+{
+	u32 flags;
+	const struct scmi_msg_resp_sensor_axis_description *r = response;
+
+	flags = le32_to_cpu(r->num_axis_flags);
+	st->num_returned = NUM_AXIS_RETURNED(flags);
+	st->num_remaining = NUM_AXIS_REMAINING(flags);
+	st->priv = (void *)&r->desc[0];
+
+	return 0;
+}
+
+static int
+iter_axes_desc_process_response(const struct scmi_protocol_handle *ph,
+				const void *response,
+				struct scmi_iterator_state *st, void *priv)
+{
+	u32 attrh, attrl;
+	struct scmi_sensor_axis_info *a;
+	size_t dsize = SCMI_MSG_RESP_AXIS_DESCR_BASE_SZ;
+	struct scmi_apriv *apriv = priv;
+	const struct scmi_axis_descriptor *adesc = st->priv;
+
+	attrl = le32_to_cpu(adesc->attributes_low);
+	if (SUPPORTS_EXTENDED_AXIS_NAMES(attrl))
+		apriv->any_axes_support_extended_names = true;
+
+	a = &apriv->s->axis[st->desc_index + st->loop_idx];
+	a->id = le32_to_cpu(adesc->id);
+	a->extended_attrs = SUPPORTS_EXTEND_ATTRS(attrl);
+
+	attrh = le32_to_cpu(adesc->attributes_high);
+	a->scale = S32_EXT(SENSOR_SCALE(attrh));
+	a->type = SENSOR_TYPE(attrh);
+	strscpy(a->name, adesc->name, SCMI_SHORT_NAME_MAX_SIZE);
+
+	if (a->extended_attrs) {
+		unsigned int ares = le32_to_cpu(adesc->resolution);
+
+		a->resolution = SENSOR_RES(ares);
+		a->exponent = S32_EXT(SENSOR_RES_EXP(ares));
+		dsize += sizeof(adesc->resolution);
+
+		scmi_parse_range_attrs(&a->attrs, &adesc->attrs);
+		dsize += sizeof(adesc->attrs);
+	}
+	st->priv = ((u8 *)adesc + dsize);
+
+	return 0;
+}
+
+static int
+iter_axes_extended_name_update_state(struct scmi_iterator_state *st,
+				     const void *response, void *priv)
+{
+	u32 flags;
+	const struct scmi_msg_resp_sensor_axis_names_description *r = response;
+
+	flags = le32_to_cpu(r->num_axis_flags);
+	st->num_returned = NUM_AXIS_RETURNED(flags);
+	st->num_remaining = NUM_AXIS_REMAINING(flags);
+	st->priv = (void *)&r->desc[0];
+
+	return 0;
+}
+
+static int
+iter_axes_extended_name_process_response(const struct scmi_protocol_handle *ph,
+					 const void *response,
+					 struct scmi_iterator_state *st,
+					 void *priv)
+{
+	struct scmi_sensor_axis_info *a;
+	const struct scmi_apriv *apriv = priv;
+	struct scmi_sensor_axis_name_descriptor *adesc = st->priv;
+	u32 axis_id = le32_to_cpu(adesc->axis_id);
+
+	if (axis_id >= st->max_resources)
+		return -EPROTO;
+
+	/*
+	 * Pick the corresponding descriptor based on the axis_id embedded
+	 * in the reply since the list of axes supporting extended names
+	 * can be a subset of all the axes.
+	 */
+	a = &apriv->s->axis[axis_id];
+	strscpy(a->name, adesc->name, SCMI_MAX_STR_SIZE);
+	st->priv = ++adesc;
+
+	return 0;
+}
+
+static int
+scmi_sensor_axis_extended_names_get(const struct scmi_protocol_handle *ph,
+				    struct scmi_sensor_info *s)
+{
+	int ret;
+	void *iter;
+	struct scmi_iterator_ops ops = {
+		.prepare_message = iter_axes_desc_prepare_message,
+		.update_state = iter_axes_extended_name_update_state,
+		.process_response = iter_axes_extended_name_process_response,
+	};
+	struct scmi_apriv apriv = {
+		.any_axes_support_extended_names = false,
+		.s = s,
+	};
+
+	iter = ph->hops->iter_response_init(ph, &ops, s->num_axis,
+					    SENSOR_AXIS_NAME_GET,
+					    sizeof(struct scmi_msg_sensor_axis_description_get),
+					    &apriv);
+	if (IS_ERR(iter))
+		return PTR_ERR(iter);
+
+	/*
+	 * Do not cause whole protocol initialization failure when failing to
+	 * get extended names for axes.
+	 */
+	ret = ph->hops->iter_response_run(iter);
 	if (ret)
-		return ret;
+		dev_warn(ph->dev,
+			 "Failed to get axes extended names for %s (ret:%d).\n",
+			 s->name, ret);
 
-	buf = ti->rx.buf;
-	do {
-		u32 flags;
-
-		msg = ti->tx.buf;
-		/* Set the number of sensors to be skipped/already read */
-		msg->id = cpu_to_le32(s->id);
-		msg->index = cpu_to_le32(desc_index);
-
-		ret = ph->xops->do_xfer(ph, ti);
-		if (ret)
-			break;
-
-		flags = le32_to_cpu(buf->num_intervals_flags);
-		num_returned = NUM_INTERVALS_RETURNED(flags);
-		num_remaining = NUM_INTERVALS_REMAINING(flags);
-
-		/*
-		 * Max intervals is not declared previously anywhere so we
-		 * assume it's returned+remaining.
-		 */
-		if (!s->intervals.count) {
-			s->intervals.segmented = SEGMENTED_INTVL_FORMAT(flags);
-			s->intervals.count = num_returned + num_remaining;
-			/* segmented intervals are reported in one triplet */
-			if (s->intervals.segmented &&
-			    (num_remaining || num_returned != 3)) {
-				dev_err(ph->dev,
-					"Sensor ID:%d advertises an invalid segmented interval (%d)\n",
-					s->id, s->intervals.count);
-				s->intervals.segmented = false;
-				s->intervals.count = 0;
-				ret = -EINVAL;
-				break;
-			}
-			/* Direct allocation when exceeding pre-allocated */
-			if (s->intervals.count >= SCMI_MAX_PREALLOC_POOL) {
-				s->intervals.desc =
-					devm_kcalloc(ph->dev,
-						     s->intervals.count,
-						     sizeof(*s->intervals.desc),
-						     GFP_KERNEL);
-				if (!s->intervals.desc) {
-					s->intervals.segmented = false;
-					s->intervals.count = 0;
-					ret = -ENOMEM;
-					break;
-				}
-			}
-		} else if (desc_index + num_returned > s->intervals.count) {
-			dev_err(ph->dev,
-				"No. of update intervals can't exceed %d\n",
-				s->intervals.count);
-			ret = -EINVAL;
-			break;
-		}
-
-		for (cnt = 0; cnt < num_returned; cnt++)
-			s->intervals.desc[desc_index + cnt] =
-					le32_to_cpu(buf->intervals[cnt]);
-
-		desc_index += num_returned;
-
-		ph->xops->reset_rx_to_maxsz(ph, ti);
-		/*
-		 * check for both returned and remaining to avoid infinite
-		 * loop due to buggy firmware
-		 */
-	} while (num_returned && num_remaining);
-
-	ph->xops->xfer_put(ph, ti);
-	return ret;
+	return 0;
 }
 
 static int scmi_sensor_axis_description(const struct scmi_protocol_handle *ph,
-					struct scmi_sensor_info *s)
+					struct scmi_sensor_info *s,
+					u32 version)
 {
-	int ret, cnt;
-	u32 desc_index = 0;
-	u16 num_returned, num_remaining;
-	struct scmi_xfer *te;
-	struct scmi_msg_resp_sensor_axis_description *buf;
-	struct scmi_msg_sensor_axis_description_get *msg;
+	int ret;
+	void *iter;
+	struct scmi_iterator_ops ops = {
+		.prepare_message = iter_axes_desc_prepare_message,
+		.update_state = iter_axes_desc_update_state,
+		.process_response = iter_axes_desc_process_response,
+	};
+	struct scmi_apriv apriv = {
+		.any_axes_support_extended_names = false,
+		.s = s,
+	};
 
 	s->axis = devm_kcalloc(ph->dev, s->num_axis,
 			       sizeof(*s->axis), GFP_KERNEL);
 	if (!s->axis)
 		return -ENOMEM;
 
-	ret = ph->xops->xfer_get_init(ph, SENSOR_AXIS_DESCRIPTION_GET,
-				      sizeof(*msg), 0, &te);
+	iter = ph->hops->iter_response_init(ph, &ops, s->num_axis,
+					    SENSOR_AXIS_DESCRIPTION_GET,
+					    sizeof(struct scmi_msg_sensor_axis_description_get),
+					    &apriv);
+	if (IS_ERR(iter))
+		return PTR_ERR(iter);
+
+	ret = ph->hops->iter_response_run(iter);
 	if (ret)
 		return ret;
 
-	buf = te->rx.buf;
-	do {
-		u32 flags;
-		struct scmi_axis_descriptor *adesc;
+	if (PROTOCOL_REV_MAJOR(version) >= 0x3 &&
+	    apriv.any_axes_support_extended_names)
+		ret = scmi_sensor_axis_extended_names_get(ph, s);
 
-		msg = te->tx.buf;
-		/* Set the number of sensors to be skipped/already read */
-		msg->id = cpu_to_le32(s->id);
-		msg->axis_desc_index = cpu_to_le32(desc_index);
+	return ret;
+}
 
-		ret = ph->xops->do_xfer(ph, te);
-		if (ret)
-			break;
+static void iter_sens_descr_prepare_message(void *message,
+					    unsigned int desc_index,
+					    const void *priv)
+{
+	struct scmi_msg_sensor_description *msg = message;
 
-		flags = le32_to_cpu(buf->num_axis_flags);
-		num_returned = NUM_AXIS_RETURNED(flags);
-		num_remaining = NUM_AXIS_REMAINING(flags);
+	msg->desc_index = cpu_to_le32(desc_index);
+}
 
-		if (desc_index + num_returned > s->num_axis) {
-			dev_err(ph->dev, "No. of axis can't exceed %d\n",
-				s->num_axis);
-			break;
-		}
+static int iter_sens_descr_update_state(struct scmi_iterator_state *st,
+					const void *response, void *priv)
+{
+	const struct scmi_msg_resp_sensor_description *r = response;
 
-		adesc = &buf->desc[0];
-		for (cnt = 0; cnt < num_returned; cnt++) {
-			u32 attrh, attrl;
-			struct scmi_sensor_axis_info *a;
-			size_t dsize = SCMI_MSG_RESP_AXIS_DESCR_BASE_SZ;
+	st->num_returned = le16_to_cpu(r->num_returned);
+	st->num_remaining = le16_to_cpu(r->num_remaining);
+	st->priv = (void *)&r->desc[0];
 
-			attrl = le32_to_cpu(adesc->attributes_low);
+	return 0;
+}
 
-			a = &s->axis[desc_index + cnt];
+static int
+iter_sens_descr_process_response(const struct scmi_protocol_handle *ph,
+				 const void *response,
+				 struct scmi_iterator_state *st, void *priv)
 
-			a->id = le32_to_cpu(adesc->id);
-			a->extended_attrs = SUPPORTS_EXTEND_ATTRS(attrl);
+{
+	int ret = 0;
+	u32 attrh, attrl;
+	size_t dsize = SCMI_MSG_RESP_SENS_DESCR_BASE_SZ;
+	struct scmi_sensor_info *s;
+	struct sensors_info *si = priv;
+	const struct scmi_sensor_descriptor *sdesc = st->priv;
 
-			attrh = le32_to_cpu(adesc->attributes_high);
-			a->scale = S32_EXT(SENSOR_SCALE(attrh));
-			a->type = SENSOR_TYPE(attrh);
-			strlcpy(a->name, adesc->name, SCMI_MAX_STR_SIZE);
+	s = &si->sensors[st->desc_index + st->loop_idx];
+	s->id = le32_to_cpu(sdesc->id);
 
-			if (a->extended_attrs) {
-				unsigned int ares =
-					le32_to_cpu(adesc->resolution);
+	attrl = le32_to_cpu(sdesc->attributes_low);
+	/* common bitfields parsing */
+	s->async = SUPPORTS_ASYNC_READ(attrl);
+	s->num_trip_points = NUM_TRIP_POINTS(attrl);
+	/**
+	 * only SCMIv3.0 specific bitfield below.
+	 * Such bitfields are assumed to be zeroed on non
+	 * relevant fw versions...assuming fw not buggy !
+	 */
+	s->update = SUPPORTS_UPDATE_NOTIFY(attrl);
+	s->timestamped = SUPPORTS_TIMESTAMP(attrl);
+	if (s->timestamped)
+		s->tstamp_scale = S32_EXT(SENSOR_TSTAMP_EXP(attrl));
+	s->extended_scalar_attrs = SUPPORTS_EXTEND_ATTRS(attrl);
 
-				a->resolution = SENSOR_RES(ares);
-				a->exponent =
-					S32_EXT(SENSOR_RES_EXP(ares));
-				dsize += sizeof(adesc->resolution);
-
-				scmi_parse_range_attrs(&a->attrs,
-						       &adesc->attrs);
-				dsize += sizeof(adesc->attrs);
-			}
-
-			adesc = (typeof(adesc))((u8 *)adesc + dsize);
-		}
-
-		desc_index += num_returned;
-
-		ph->xops->reset_rx_to_maxsz(ph, te);
+	attrh = le32_to_cpu(sdesc->attributes_high);
+	/* common bitfields parsing */
+	s->scale = S32_EXT(SENSOR_SCALE(attrh));
+	s->type = SENSOR_TYPE(attrh);
+	/* Use pre-allocated pool wherever possible */
+	s->intervals.desc = s->intervals.prealloc_pool;
+	if (si->version == SCMIv2_SENSOR_PROTOCOL) {
+		s->intervals.segmented = false;
+		s->intervals.count = 1;
 		/*
-		 * check for both returned and remaining to avoid infinite
-		 * loop due to buggy firmware
+		 * Convert SCMIv2.0 update interval format to
+		 * SCMIv3.0 to be used as the common exposed
+		 * descriptor, accessible via common macros.
 		 */
-	} while (num_returned && num_remaining);
+		s->intervals.desc[0] = (SENSOR_UPDATE_BASE(attrh) << 5) |
+					SENSOR_UPDATE_SCALE(attrh);
+	} else {
+		/*
+		 * From SCMIv3.0 update intervals are retrieved
+		 * via a dedicated (optional) command.
+		 * Since the command is optional, on error carry
+		 * on without any update interval.
+		 */
+		if (scmi_sensor_update_intervals(ph, s))
+			dev_dbg(ph->dev,
+				"Update Intervals not available for sensor ID:%d\n",
+				s->id);
+	}
+	/**
+	 * only > SCMIv2.0 specific bitfield below.
+	 * Such bitfields are assumed to be zeroed on non
+	 * relevant fw versions...assuming fw not buggy !
+	 */
+	s->num_axis = min_t(unsigned int,
+			    SUPPORTS_AXIS(attrh) ?
+			    SENSOR_AXIS_NUMBER(attrh) : 0,
+			    SCMI_MAX_NUM_SENSOR_AXIS);
+	strscpy(s->name, sdesc->name, SCMI_SHORT_NAME_MAX_SIZE);
 
-	ph->xops->xfer_put(ph, te);
+	/*
+	 * If supported overwrite short name with the extended
+	 * one; on error just carry on and use already provided
+	 * short name.
+	 */
+	if (PROTOCOL_REV_MAJOR(si->version) >= 0x3 &&
+	    SUPPORTS_EXTENDED_NAMES(attrl))
+		ph->hops->extended_name_get(ph, SENSOR_NAME_GET, s->id,
+					    s->name, SCMI_MAX_STR_SIZE);
+
+	if (s->extended_scalar_attrs) {
+		s->sensor_power = le32_to_cpu(sdesc->power);
+		dsize += sizeof(sdesc->power);
+
+		/* Only for sensors reporting scalar values */
+		if (s->num_axis == 0) {
+			unsigned int sres = le32_to_cpu(sdesc->resolution);
+
+			s->resolution = SENSOR_RES(sres);
+			s->exponent = S32_EXT(SENSOR_RES_EXP(sres));
+			dsize += sizeof(sdesc->resolution);
+
+			scmi_parse_range_attrs(&s->scalar_attrs,
+					       &sdesc->scalar_attrs);
+			dsize += sizeof(sdesc->scalar_attrs);
+		}
+	}
+
+	if (s->num_axis > 0)
+		ret = scmi_sensor_axis_description(ph, s, si->version);
+
+	st->priv = ((u8 *)sdesc + dsize);
+
 	return ret;
 }
 
 static int scmi_sensor_description_get(const struct scmi_protocol_handle *ph,
 				       struct sensors_info *si)
 {
-	int ret, cnt;
-	u32 desc_index = 0;
-	u16 num_returned, num_remaining;
-	struct scmi_xfer *t;
-	struct scmi_msg_resp_sensor_description *buf;
+	void *iter;
+	struct scmi_iterator_ops ops = {
+		.prepare_message = iter_sens_descr_prepare_message,
+		.update_state = iter_sens_descr_update_state,
+		.process_response = iter_sens_descr_process_response,
+	};
 
-	ret = ph->xops->xfer_get_init(ph, SENSOR_DESCRIPTION_GET,
-				      sizeof(__le32), 0, &t);
-	if (ret)
-		return ret;
+	iter = ph->hops->iter_response_init(ph, &ops, si->num_sensors,
+					    SENSOR_DESCRIPTION_GET,
+					    sizeof(__le32), si);
+	if (IS_ERR(iter))
+		return PTR_ERR(iter);
 
-	buf = t->rx.buf;
-
-	do {
-		struct scmi_sensor_descriptor *sdesc;
-
-		/* Set the number of sensors to be skipped/already read */
-		put_unaligned_le32(desc_index, t->tx.buf);
-
-		ret = ph->xops->do_xfer(ph, t);
-		if (ret)
-			break;
-
-		num_returned = le16_to_cpu(buf->num_returned);
-		num_remaining = le16_to_cpu(buf->num_remaining);
-
-		if (desc_index + num_returned > si->num_sensors) {
-			dev_err(ph->dev, "No. of sensors can't exceed %d",
-				si->num_sensors);
-			break;
-		}
-
-		sdesc = &buf->desc[0];
-		for (cnt = 0; cnt < num_returned; cnt++) {
-			u32 attrh, attrl;
-			struct scmi_sensor_info *s;
-			size_t dsize = SCMI_MSG_RESP_SENS_DESCR_BASE_SZ;
-
-			s = &si->sensors[desc_index + cnt];
-			s->id = le32_to_cpu(sdesc->id);
-
-			attrl = le32_to_cpu(sdesc->attributes_low);
-			/* common bitfields parsing */
-			s->async = SUPPORTS_ASYNC_READ(attrl);
-			s->num_trip_points = NUM_TRIP_POINTS(attrl);
-			/**
-			 * only SCMIv3.0 specific bitfield below.
-			 * Such bitfields are assumed to be zeroed on non
-			 * relevant fw versions...assuming fw not buggy !
-			 */
-			s->update = SUPPORTS_UPDATE_NOTIFY(attrl);
-			s->timestamped = SUPPORTS_TIMESTAMP(attrl);
-			if (s->timestamped)
-				s->tstamp_scale =
-					S32_EXT(SENSOR_TSTAMP_EXP(attrl));
-			s->extended_scalar_attrs =
-				SUPPORTS_EXTEND_ATTRS(attrl);
-
-			attrh = le32_to_cpu(sdesc->attributes_high);
-			/* common bitfields parsing */
-			s->scale = S32_EXT(SENSOR_SCALE(attrh));
-			s->type = SENSOR_TYPE(attrh);
-			/* Use pre-allocated pool wherever possible */
-			s->intervals.desc = s->intervals.prealloc_pool;
-			if (si->version == SCMIv2_SENSOR_PROTOCOL) {
-				s->intervals.segmented = false;
-				s->intervals.count = 1;
-				/*
-				 * Convert SCMIv2.0 update interval format to
-				 * SCMIv3.0 to be used as the common exposed
-				 * descriptor, accessible via common macros.
-				 */
-				s->intervals.desc[0] =
-					(SENSOR_UPDATE_BASE(attrh) << 5) |
-					 SENSOR_UPDATE_SCALE(attrh);
-			} else {
-				/*
-				 * From SCMIv3.0 update intervals are retrieved
-				 * via a dedicated (optional) command.
-				 * Since the command is optional, on error carry
-				 * on without any update interval.
-				 */
-				if (scmi_sensor_update_intervals(ph, s))
-					dev_dbg(ph->dev,
-						"Update Intervals not available for sensor ID:%d\n",
-						s->id);
-			}
-			/**
-			 * only > SCMIv2.0 specific bitfield below.
-			 * Such bitfields are assumed to be zeroed on non
-			 * relevant fw versions...assuming fw not buggy !
-			 */
-			s->num_axis = min_t(unsigned int,
-					    SUPPORTS_AXIS(attrh) ?
-					    SENSOR_AXIS_NUMBER(attrh) : 0,
-					    SCMI_MAX_NUM_SENSOR_AXIS);
-			strlcpy(s->name, sdesc->name, SCMI_MAX_STR_SIZE);
-
-			if (s->extended_scalar_attrs) {
-				s->sensor_power = le32_to_cpu(sdesc->power);
-				dsize += sizeof(sdesc->power);
-				/* Only for sensors reporting scalar values */
-				if (s->num_axis == 0) {
-					unsigned int sres =
-						le32_to_cpu(sdesc->resolution);
-
-					s->resolution = SENSOR_RES(sres);
-					s->exponent =
-						S32_EXT(SENSOR_RES_EXP(sres));
-					dsize += sizeof(sdesc->resolution);
-
-					scmi_parse_range_attrs(&s->scalar_attrs,
-							       &sdesc->scalar_attrs);
-					dsize += sizeof(sdesc->scalar_attrs);
-				}
-			}
-			if (s->num_axis > 0) {
-				ret = scmi_sensor_axis_description(ph, s);
-				if (ret)
-					goto out;
-			}
-
-			sdesc = (typeof(sdesc))((u8 *)sdesc + dsize);
-		}
-
-		desc_index += num_returned;
-
-		ph->xops->reset_rx_to_maxsz(ph, t);
-		/*
-		 * check for both returned and remaining to avoid infinite
-		 * loop due to buggy firmware
-		 */
-	} while (num_returned && num_remaining);
-
-out:
-	ph->xops->xfer_put(ph, t);
-	return ret;
+	return ph->hops->iter_response_run(iter);
 }
 
 static inline int
@@ -966,7 +1097,9 @@ static int scmi_sensors_protocol_init(const struct scmi_protocol_handle *ph)
 	int ret;
 	struct sensors_info *sinfo;
 
-	ph->xops->version_get(ph, &version);
+	ret = ph->xops->version_get(ph, &version);
+	if (ret)
+		return ret;
 
 	dev_dbg(ph->dev, "Sensor Version %d.%d\n",
 		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));

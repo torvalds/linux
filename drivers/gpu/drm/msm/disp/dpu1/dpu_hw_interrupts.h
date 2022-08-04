@@ -44,19 +44,21 @@ enum dpu_hw_intr_reg {
  * @save_irq_status:  array of IRQ status reg storage created during init
  * @total_irqs: total number of irq_idx mapped in the hw_interrupts
  * @irq_lock:         spinlock for accessing IRQ resources
- * @irq_cb_tbl:       array of IRQ callbacks lists
- * @irq_counts:       array of IRQ counts
+ * @irq_cb_tbl:       array of IRQ callbacks
  */
 struct dpu_hw_intr {
 	struct dpu_hw_blk_reg_map hw;
-	u32 *cache_irq_mask;
+	u32 cache_irq_mask[MDP_INTR_MAX];
 	u32 *save_irq_status;
 	u32 total_irqs;
 	spinlock_t irq_lock;
 	unsigned long irq_mask;
 
-	struct list_head *irq_cb_tbl;
-	atomic_t *irq_counts;
+	struct {
+		void (*cb)(void *arg, int irq_idx);
+		void *arg;
+		atomic_t count;
+	} irq_tbl[];
 };
 
 /**
@@ -65,7 +67,7 @@ struct dpu_hw_intr {
  * @m :   pointer to mdss catalog data
  */
 struct dpu_hw_intr *dpu_hw_intr_init(void __iomem *addr,
-		struct dpu_mdss_cfg *m);
+		const struct dpu_mdss_cfg *m);
 
 /**
  * dpu_hw_intr_destroy(): Cleanup interrutps hw object

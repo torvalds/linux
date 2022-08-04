@@ -1529,7 +1529,7 @@ extern int	 jbd2_journal_dirty_metadata (handle_t *, struct buffer_head *);
 extern int	 jbd2_journal_forget (handle_t *, struct buffer_head *);
 int jbd2_journal_invalidate_folio(journal_t *, struct folio *,
 					size_t offset, size_t length);
-extern int	 jbd2_journal_try_to_free_buffers(journal_t *journal, struct page *page);
+bool jbd2_journal_try_to_free_buffers(journal_t *journal, struct folio *folio);
 extern int	 jbd2_journal_stop(handle_t *);
 extern int	 jbd2_journal_flush(journal_t *journal, unsigned int flags);
 extern void	 jbd2_journal_lock_updates (journal_t *);

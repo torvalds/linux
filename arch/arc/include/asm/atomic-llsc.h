@@ -5,7 +5,7 @@
 
 #define arch_atomic_set(v, i) WRITE_ONCE(((v)->counter), (i))
 
-#define ATOMIC_OP(op, c_op, asm_op)					\
+#define ATOMIC_OP(op, asm_op)					\
 static inline void arch_atomic_##op(int i, atomic_t *v)			\
 {									\
 	unsigned int val;						\
@@ -21,7 +21,7 @@ static inline void arch_atomic_##op(int i, atomic_t *v)			\
 	: "cc");							\
 }									\
 
-#define ATOMIC_OP_RETURN(op, c_op, asm_op)				\
+#define ATOMIC_OP_RETURN(op, asm_op)				\
 static inline int arch_atomic_##op##_return_relaxed(int i, atomic_t *v)	\
 {									\
 	unsigned int val;						\
@@ -42,7 +42,7 @@ static inline int arch_atomic_##op##_return_relaxed(int i, atomic_t *v)	\
 #define arch_atomic_add_return_relaxed		arch_atomic_add_return_relaxed
 #define arch_atomic_sub_return_relaxed		arch_atomic_sub_return_relaxed
 
-#define ATOMIC_FETCH_OP(op, c_op, asm_op)				\
+#define ATOMIC_FETCH_OP(op, asm_op)				\
 static inline int arch_atomic_fetch_##op##_relaxed(int i, atomic_t *v)	\
 {									\
 	unsigned int val, orig;						\
@@ -69,23 +69,23 @@ static inline int arch_atomic_fetch_##op##_relaxed(int i, atomic_t *v)	\
 #define arch_atomic_fetch_or_relaxed		arch_atomic_fetch_or_relaxed
 #define arch_atomic_fetch_xor_relaxed		arch_atomic_fetch_xor_relaxed
 
-#define ATOMIC_OPS(op, c_op, asm_op)					\
-	ATOMIC_OP(op, c_op, asm_op)					\
-	ATOMIC_OP_RETURN(op, c_op, asm_op)				\
-	ATOMIC_FETCH_OP(op, c_op, asm_op)
+#define ATOMIC_OPS(op, asm_op)					\
+	ATOMIC_OP(op, asm_op)					\
+	ATOMIC_OP_RETURN(op, asm_op)				\
+	ATOMIC_FETCH_OP(op, asm_op)
 
-ATOMIC_OPS(add, +=, add)
-ATOMIC_OPS(sub, -=, sub)
+ATOMIC_OPS(add, add)
+ATOMIC_OPS(sub, sub)
 
 #undef ATOMIC_OPS
-#define ATOMIC_OPS(op, c_op, asm_op)					\
-	ATOMIC_OP(op, c_op, asm_op)					\
-	ATOMIC_FETCH_OP(op, c_op, asm_op)
+#define ATOMIC_OPS(op, asm_op)					\
+	ATOMIC_OP(op, asm_op)					\
+	ATOMIC_FETCH_OP(op, asm_op)
 
-ATOMIC_OPS(and, &=, and)
-ATOMIC_OPS(andnot, &= ~, bic)
-ATOMIC_OPS(or, |=, or)
-ATOMIC_OPS(xor, ^=, xor)
+ATOMIC_OPS(and, and)
+ATOMIC_OPS(andnot, bic)
+ATOMIC_OPS(or, or)
+ATOMIC_OPS(xor, xor)
 
 #define arch_atomic_andnot		arch_atomic_andnot
 

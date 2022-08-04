@@ -18,6 +18,8 @@
 #include <linux/regmap.h>
 #include <linux/vexpress.h>
 
+#include <drm/drm_fourcc.h>
+
 #include "pl111_versatile.h"
 #include "pl111_drm.h"
 

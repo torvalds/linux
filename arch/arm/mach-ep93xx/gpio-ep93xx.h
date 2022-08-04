@@ -4,7 +4,7 @@
 #ifndef __GPIO_EP93XX_H
 #define __GPIO_EP93XX_H
 
-#include <mach/ep93xx-regs.h>
+#include "ep93xx-regs.h"
 
 #define EP93XX_GPIO_PHYS_BASE		EP93XX_APB_PHYS(0x00040000)
 #define EP93XX_GPIO_BASE		EP93XX_APB_IOMEM(0x00040000)

@@ -689,29 +689,34 @@ void xen_free_ballooned_pages(unsigned int nr_pages, struct page **pages)
 }
 EXPORT_SYMBOL(xen_free_ballooned_pages);
 
-#if defined(CONFIG_XEN_PV) && !defined(CONFIG_XEN_UNPOPULATED_ALLOC)
-static void __init balloon_add_region(unsigned long start_pfn,
-				      unsigned long pages)
+static void __init balloon_add_regions(void)
 {
+#if defined(CONFIG_XEN_PV)
+	unsigned long start_pfn, pages;
 	unsigned long pfn, extra_pfn_end;
+	unsigned int i;
 
-	/*
-	 * If the amount of usable memory has been limited (e.g., with
-	 * the 'mem' command line parameter), don't add pages beyond
-	 * this limit.
-	 */
-	extra_pfn_end = min(max_pfn, start_pfn + pages);
+	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++) {
+		pages = xen_extra_mem[i].n_pfns;
+		if (!pages)
+			continue;
 
-	for (pfn = start_pfn; pfn < extra_pfn_end; pfn++) {
-		/* totalram_pages and totalhigh_pages do not
-		   include the boot-time balloon extension, so
-		   don't subtract from it. */
-		balloon_append(pfn_to_page(pfn));
+		start_pfn = xen_extra_mem[i].start_pfn;
+
+		/*
+		 * If the amount of usable memory has been limited (e.g., with
+		 * the 'mem' command line parameter), don't add pages beyond
+		 * this limit.
+		 */
+		extra_pfn_end = min(max_pfn, start_pfn + pages);
+
+		for (pfn = start_pfn; pfn < extra_pfn_end; pfn++)
+			balloon_append(pfn_to_page(pfn));
+
+		balloon_stats.total_pages += extra_pfn_end - start_pfn;
 	}
-
-	balloon_stats.total_pages += extra_pfn_end - start_pfn;
-}
 #endif
+}
 
 static int __init balloon_init(void)
 {
@@ -745,20 +750,7 @@ static int __init balloon_init(void)
 	register_sysctl_table(xen_root);
 #endif
 
-#if defined(CONFIG_XEN_PV) && !defined(CONFIG_XEN_UNPOPULATED_ALLOC)
-	{
-		int i;
-
-		/*
-		 * Initialize the balloon with pages from the extra memory
-		 * regions (see arch/x86/xen/setup.c).
-		 */
-		for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++)
-			if (xen_extra_mem[i].n_pfns)
-				balloon_add_region(xen_extra_mem[i].start_pfn,
-						   xen_extra_mem[i].n_pfns);
-	}
-#endif
+	balloon_add_regions();
 
 	task = kthread_run(balloon_thread, NULL, "xen-balloon");
 	if (IS_ERR(task)) {

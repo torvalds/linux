@@ -696,12 +696,12 @@ static void __init dns323_init(void)
 			pr_err("DNS-323: failed to setup power-off GPIO\n");
 		pm_power_off = dns323c_power_off;
 
-		/* Now, -this- should theorically be done by the sata_mv driver
+		/* Now, -this- should theoretically be done by the sata_mv driver
 		 * once I figure out what's going on there. Maybe the behaviour
 		 * of the LEDs should be somewhat passed via the platform_data.
 		 * for now, just whack the register and make the LEDs happy
 		 *
-		 * Note: AFAIK, rev B1 needs the same treatement but I'll let
+		 * Note: AFAIK, rev B1 needs the same treatment but I'll let
 		 * somebody else test it.
 		 */
 		writel(0x5, ORION5X_SATA_VIRT_BASE + 0x2c);

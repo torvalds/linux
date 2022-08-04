@@ -40,13 +40,11 @@ struct mlx5e_dcbx_dp {
 };
 
 void mlx5e_dcbnl_build_netdev(struct net_device *netdev);
-void mlx5e_dcbnl_build_rep_netdev(struct net_device *netdev);
 void mlx5e_dcbnl_initialize(struct mlx5e_priv *priv);
 void mlx5e_dcbnl_init_app(struct mlx5e_priv *priv);
 void mlx5e_dcbnl_delete_app(struct mlx5e_priv *priv);
 #else
 static inline void mlx5e_dcbnl_build_netdev(struct net_device *netdev) {}
-static inline void mlx5e_dcbnl_build_rep_netdev(struct net_device *netdev) {}
 static inline void mlx5e_dcbnl_initialize(struct mlx5e_priv *priv) {}
 static inline void mlx5e_dcbnl_init_app(struct mlx5e_priv *priv) {}
 static inline void mlx5e_dcbnl_delete_app(struct mlx5e_priv *priv) {}

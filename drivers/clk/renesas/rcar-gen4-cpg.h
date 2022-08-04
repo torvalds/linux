@@ -16,6 +16,7 @@ enum rcar_gen4_clk_types {
 	CLK_TYPE_GEN4_PLL2X_3X,	/* r8a779a0 only */
 	CLK_TYPE_GEN4_PLL3,
 	CLK_TYPE_GEN4_PLL5,
+	CLK_TYPE_GEN4_PLL4,
 	CLK_TYPE_GEN4_PLL6,
 	CLK_TYPE_GEN4_SDSRC,
 	CLK_TYPE_GEN4_SDH,
@@ -56,6 +57,8 @@ struct rcar_gen4_cpg_pll_config {
 	u8 pll2_div;
 	u8 pll3_mult;
 	u8 pll3_div;
+	u8 pll4_mult;
+	u8 pll4_div;
 	u8 pll5_mult;
 	u8 pll5_div;
 	u8 pll6_mult;

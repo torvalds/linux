@@ -19,6 +19,9 @@
 #include <linux/io.h>
 #include <linux/of_gpio.h>
 #include <linux/slab.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+
 #include <asm/time.h>
 #include <asm/mpc52xx.h>
 

@@ -9,7 +9,7 @@ title: |
   Controller device
 
 maintainers:
-  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
   - Lukasz Luba <lukasz.luba@arm.com>
 
 description: |

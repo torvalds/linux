@@ -246,6 +246,13 @@ extern unsigned long __get_wchan(struct task_struct *p);
 	 v; \
 	 })
 
+#define xtensa_xsr(x, sr) \
+	({ \
+	 unsigned int __v__ = (unsigned int)(x); \
+	 __asm__ __volatile__ ("xsr %0, " __stringify(sr) : "+a"(__v__)); \
+	 __v__; \
+	 })
+
 #if XCHAL_HAVE_EXTERN_REGS
 
 static inline void set_er(unsigned long value, unsigned long addr)

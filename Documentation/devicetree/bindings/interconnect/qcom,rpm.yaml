@@ -93,48 +93,48 @@ allOf:
               - qcom,sdm660-gnoc
               - qcom,sdm660-snoc
 
-      then:
-        properties:
-          clock-names:
-            items:
-              - const: bus
-              - const: bus_a
+    then:
+      properties:
+        clock-names:
+          items:
+            - const: bus
+            - const: bus_a
 
-          clocks:
-            items:
-              - description: Bus Clock
-              - description: Bus A Clock
+        clocks:
+          items:
+            - description: Bus Clock
+            - description: Bus A Clock
 
-        # Child node's properties
-        patternProperties:
-          '^interconnect-[a-z0-9]+$':
-            type: object
-            description:
-              snoc-mm is a child of snoc, sharing snoc's register address space.
+      # Child node's properties
+      patternProperties:
+        '^interconnect-[a-z0-9]+$':
+          type: object
+          description:
+            snoc-mm is a child of snoc, sharing snoc's register address space.
 
-            properties:
-              compatible:
-                enum:
-                  - qcom,msm8939-snoc-mm
+          properties:
+            compatible:
+              enum:
+                - qcom,msm8939-snoc-mm
 
-              '#interconnect-cells':
-                const: 1
+            '#interconnect-cells':
+              const: 1
 
-              clock-names:
-                items:
-                  - const: bus
-                  - const: bus_a
+            clock-names:
+              items:
+                - const: bus
+                - const: bus_a
 
-              clocks:
-                items:
-                  - description: Bus Clock
-                  - description: Bus A Clock
+            clocks:
+              items:
+                - description: Bus Clock
+                - description: Bus A Clock
 
-            required:
-              - compatible
-              - '#interconnect-cells'
-              - clock-names
-              - clocks
+          required:
+            - compatible
+            - '#interconnect-cells'
+            - clock-names
+            - clocks
 
   - if:
       properties:

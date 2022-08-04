@@ -58,6 +58,7 @@ properties:
 
             properties:
               data-lines:
+                $ref: /schemas/types.yaml#/definitions/uint32
                 enum: [ 16, 18, 24 ]
 
       port@1:

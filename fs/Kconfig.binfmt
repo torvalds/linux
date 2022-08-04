@@ -58,7 +58,7 @@ config ARCH_USE_GNU_PROPERTY
 config BINFMT_ELF_FDPIC
 	bool "Kernel support for FDPIC ELF binaries"
 	default y if !BINFMT_ELF
-	depends on (ARM || (SUPERH && !MMU))
+	depends on ARM || ((M68K || SUPERH) && !MMU)
 	select ELFCORE
 	help
 	  ELF FDPIC binaries are based on ELF, but allow the individual load
@@ -141,12 +141,6 @@ config BINFMT_ZFLAT
 	select ZLIB_INFLATE
 	help
 	  Support FLAT format compressed binaries
-
-config BINFMT_SHARED_FLAT
-	bool "Enable shared FLAT support"
-	depends on BINFMT_FLAT
-	help
-	  Support FLAT shared libraries
 
 config HAVE_AOUT
        def_bool n

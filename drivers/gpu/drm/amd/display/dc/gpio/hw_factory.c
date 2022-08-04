@@ -23,8 +23,6 @@
  *
  */
 
-#include <linux/slab.h>
-
 #include "dm_services.h"
 
 /*
@@ -48,30 +46,18 @@
 #include "dce80/hw_factory_dce80.h"
 #include "dce110/hw_factory_dce110.h"
 #include "dce120/hw_factory_dce120.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 #include "dcn10/hw_factory_dcn10.h"
 #include "dcn20/hw_factory_dcn20.h"
 #include "dcn21/hw_factory_dcn21.h"
 #include "dcn30/hw_factory_dcn30.h"
 #include "dcn315/hw_factory_dcn315.h"
-#endif
-
-#include "diagnostics/hw_factory_diag.h"
-
-/*
- * This unit
- */
+#include "dcn32/hw_factory_dcn32.h"
 
 bool dal_hw_factory_init(
 	struct hw_factory *factory,
 	enum dce_version dce_version,
 	enum dce_environment dce_environment)
 {
-	if (IS_FPGA_MAXIMUS_DC(dce_environment)) {
-		dal_hw_factory_diag_fpga_init(factory);
-		return true;
-	}
-
 	switch (dce_version) {
 #if defined(CONFIG_DRM_AMD_DC_SI)
 	case DCE_VERSION_6_0:
@@ -98,7 +84,6 @@ bool dal_hw_factory_init(
 	case DCE_VERSION_12_1:
 		dal_hw_factory_dce120_init(factory);
 		return true;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	case DCN_VERSION_1_0:
 	case DCN_VERSION_1_01:
 		dal_hw_factory_dcn10_init(factory);
@@ -115,13 +100,17 @@ bool dal_hw_factory_init(
 	case DCN_VERSION_3_02:
 	case DCN_VERSION_3_03:
 	case DCN_VERSION_3_1:
+	case DCN_VERSION_3_14:
 	case DCN_VERSION_3_16:
 		dal_hw_factory_dcn30_init(factory);
 		return true;
 	case DCN_VERSION_3_15:
 		dal_hw_factory_dcn315_init(factory);
 		return true;
-#endif
+	case DCN_VERSION_3_2:
+	case DCN_VERSION_3_21:
+		dal_hw_factory_dcn32_init(factory);
+		return true;
 	default:
 		ASSERT_CRITICAL(false);
 		return false;

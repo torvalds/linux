@@ -8,7 +8,9 @@
 #ifndef _SELINUX_XFRM_H_
 #define _SELINUX_XFRM_H_
 
+#include <linux/lsm_audit.h>
 #include <net/flow.h>
+#include <net/xfrm.h>
 
 int selinux_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp,
 			      struct xfrm_user_sec_ctx *uctx,

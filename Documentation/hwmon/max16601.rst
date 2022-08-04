@@ -21,6 +21,14 @@ Supported chips:
 
     Datasheet: Not published
 
+  * Maxim MAX16602
+
+    Prefix: 'max16602'
+
+    Addresses scanned: -
+
+    Datasheet: https://datasheets.maximintegrated.com/en/ds/MAX16602.pdf
+
 Author: Guenter Roeck <linux@roeck-us.net>
 
 

@@ -25,7 +25,6 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <sys/resource.h>
 #include <sys/signalfd.h>
 #include <sys/sysinfo.h>
 #include <sys/timerfd.h>

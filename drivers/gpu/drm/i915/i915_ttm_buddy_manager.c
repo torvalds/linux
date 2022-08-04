@@ -70,8 +70,10 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 		min_page_size = bo->page_alignment << PAGE_SHIFT;
 
 	GEM_BUG_ON(min_page_size < mm->chunk_size);
+	GEM_BUG_ON(!IS_ALIGNED(size, min_page_size));
 
-	if (place->flags & TTM_PL_FLAG_CONTIGUOUS) {
+	if (place->fpfn + bman_res->base.num_pages != place->lpfn &&
+	    place->flags & TTM_PL_FLAG_CONTIGUOUS) {
 		unsigned long pages;
 
 		size = roundup_pow_of_two(size);
@@ -102,18 +104,15 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 				     min_page_size,
 				     &bman_res->blocks,
 				     bman_res->flags);
-	mutex_unlock(&bman->lock);
 	if (unlikely(err))
 		goto err_free_blocks;
 
 	if (place->flags & TTM_PL_FLAG_CONTIGUOUS) {
 		u64 original_size = (u64)bman_res->base.num_pages << PAGE_SHIFT;
 
-		mutex_lock(&bman->lock);
 		drm_buddy_block_trim(mm,
 				     original_size,
 				     &bman_res->blocks);
-		mutex_unlock(&bman->lock);
 	}
 
 	if (lpfn <= bman->visible_size) {
@@ -135,11 +134,10 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 		}
 	}
 
-	if (bman_res->used_visible_size) {
-		mutex_lock(&bman->lock);
+	if (bman_res->used_visible_size)
 		bman->visible_avail -= bman_res->used_visible_size;
-		mutex_unlock(&bman->lock);
-	}
+
+	mutex_unlock(&bman->lock);
 
 	if (place->lpfn - place->fpfn == n_pages)
 		bman_res->base.start = place->fpfn;
@@ -152,7 +150,6 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 	return 0;
 
 err_free_blocks:
-	mutex_lock(&bman->lock);
 	drm_buddy_free_list(mm, &bman_res->blocks);
 	mutex_unlock(&bman->lock);
 err_free_res:
@@ -361,6 +358,26 @@ u64 i915_ttm_buddy_man_visible_size(struct ttm_resource_manager *man)
 	struct i915_ttm_buddy_manager *bman = to_buddy_manager(man);
 
 	return bman->visible_size;
+}
+
+/**
+ * i915_ttm_buddy_man_avail - Query the avail tracking for the manager.
+ *
+ * @man: The buddy allocator ttm manager
+ * @avail: The total available memory in pages for the entire manager.
+ * @visible_avail: The total available memory in pages for the CPU visible
+ * portion. Note that this will always give the same value as @avail on
+ * configurations that don't have a small BAR.
+ */
+void i915_ttm_buddy_man_avail(struct ttm_resource_manager *man,
+			      u64 *avail, u64 *visible_avail)
+{
+	struct i915_ttm_buddy_manager *bman = to_buddy_manager(man);
+
+	mutex_lock(&bman->lock);
+	*avail = bman->mm.avail >> PAGE_SHIFT;
+	*visible_avail = bman->visible_avail;
+	mutex_unlock(&bman->lock);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

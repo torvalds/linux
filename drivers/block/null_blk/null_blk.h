@@ -16,13 +16,15 @@
 #include <linux/mutex.h>
 
 struct nullb_cmd {
-	struct request *rq;
-	struct bio *bio;
+	union {
+		struct request *rq;
+		struct bio *bio;
+	};
 	unsigned int tag;
 	blk_status_t error;
+	bool fake_timeout;
 	struct nullb_queue *nq;
 	struct hrtimer timer;
-	bool fake_timeout;
 };
 
 struct nullb_queue {
@@ -56,6 +58,13 @@ struct nullb_zone {
 	sector_t wp;
 	unsigned int len;
 	unsigned int capacity;
+};
+
+/* Queue modes */
+enum {
+	NULL_Q_BIO	= 0,
+	NULL_Q_RQ	= 1,
+	NULL_Q_MQ	= 2,
 };
 
 struct nullb_device {

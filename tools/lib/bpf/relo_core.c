@@ -178,29 +178,28 @@ static bool core_relo_is_enumval_based(enum bpf_core_relo_kind kind)
  * Enum value-based relocations (ENUMVAL_EXISTS/ENUMVAL_VALUE) use access
  * string to specify enumerator's value index that need to be relocated.
  */
-static int bpf_core_parse_spec(const char *prog_name, const struct btf *btf,
-			       __u32 type_id,
-			       const char *spec_str,
-			       enum bpf_core_relo_kind relo_kind,
-			       struct bpf_core_spec *spec)
+int bpf_core_parse_spec(const char *prog_name, const struct btf *btf,
+			const struct bpf_core_relo *relo,
+			struct bpf_core_spec *spec)
 {
 	int access_idx, parsed_len, i;
 	struct bpf_core_accessor *acc;
 	const struct btf_type *t;
-	const char *name;
+	const char *name, *spec_str;
 	__u32 id;
 	__s64 sz;
 
+	spec_str = btf__name_by_offset(btf, relo->access_str_off);
 	if (str_is_empty(spec_str) || *spec_str == ':')
 		return -EINVAL;
 
 	memset(spec, 0, sizeof(*spec));
 	spec->btf = btf;
-	spec->root_type_id = type_id;
-	spec->relo_kind = relo_kind;
+	spec->root_type_id = relo->type_id;
+	spec->relo_kind = relo->kind;
 
 	/* type-based relocations don't have a field access string */
-	if (core_relo_is_type_based(relo_kind)) {
+	if (core_relo_is_type_based(relo->kind)) {
 		if (strcmp(spec_str, "0"))
 			return -EINVAL;
 		return 0;
@@ -221,7 +220,7 @@ static int bpf_core_parse_spec(const char *prog_name, const struct btf *btf,
 	if (spec->raw_len == 0)
 		return -EINVAL;
 
-	t = skip_mods_and_typedefs(btf, type_id, &id);
+	t = skip_mods_and_typedefs(btf, relo->type_id, &id);
 	if (!t)
 		return -EINVAL;
 
@@ -231,7 +230,7 @@ static int bpf_core_parse_spec(const char *prog_name, const struct btf *btf,
 	acc->idx = access_idx;
 	spec->len++;
 
-	if (core_relo_is_enumval_based(relo_kind)) {
+	if (core_relo_is_enumval_based(relo->kind)) {
 		if (!btf_is_enum(t) || spec->raw_len > 1 || access_idx >= btf_vlen(t))
 			return -EINVAL;
 
@@ -240,7 +239,7 @@ static int bpf_core_parse_spec(const char *prog_name, const struct btf *btf,
 		return 0;
 	}
 
-	if (!core_relo_is_field_based(relo_kind))
+	if (!core_relo_is_field_based(relo->kind))
 		return -EINVAL;
 
 	sz = btf__resolve_size(btf, id);
@@ -301,7 +300,7 @@ static int bpf_core_parse_spec(const char *prog_name, const struct btf *btf,
 			spec->bit_offset += access_idx * sz * 8;
 		} else {
 			pr_warn("prog '%s': relo for [%u] %s (at idx %d) captures type [%d] of unexpected kind %s\n",
-				prog_name, type_id, spec_str, i, id, btf_kind_str(t));
+				prog_name, relo->type_id, spec_str, i, id, btf_kind_str(t));
 			return -EINVAL;
 		}
 	}
@@ -1055,51 +1054,66 @@ poison:
  * [<type-id>] (<type-name>) + <raw-spec> => <offset>@<spec>,
  * where <spec> is a C-syntax view of recorded field access, e.g.: x.a[3].b
  */
-static void bpf_core_dump_spec(const char *prog_name, int level, const struct bpf_core_spec *spec)
+int bpf_core_format_spec(char *buf, size_t buf_sz, const struct bpf_core_spec *spec)
 {
 	const struct btf_type *t;
 	const struct btf_enum *e;
 	const char *s;
 	__u32 type_id;
-	int i;
+	int i, len = 0;
+
+#define append_buf(fmt, args...)				\
+	({							\
+		int r;						\
+		r = snprintf(buf, buf_sz, fmt, ##args);		\
+		len += r;					\
+		if (r >= buf_sz)				\
+			r = buf_sz;				\
+		buf += r;					\
+		buf_sz -= r;					\
+	})
 
 	type_id = spec->root_type_id;
 	t = btf_type_by_id(spec->btf, type_id);
 	s = btf__name_by_offset(spec->btf, t->name_off);
 
-	libbpf_print(level, "[%u] %s %s", type_id, btf_kind_str(t), str_is_empty(s) ? "<anon>" : s);
+	append_buf("<%s> [%u] %s %s",
+		   core_relo_kind_str(spec->relo_kind),
+		   type_id, btf_kind_str(t), str_is_empty(s) ? "<anon>" : s);
 
 	if (core_relo_is_type_based(spec->relo_kind))
-		return;
+		return len;
 
 	if (core_relo_is_enumval_based(spec->relo_kind)) {
 		t = skip_mods_and_typedefs(spec->btf, type_id, NULL);
 		e = btf_enum(t) + spec->raw_spec[0];
 		s = btf__name_by_offset(spec->btf, e->name_off);
 
-		libbpf_print(level, "::%s = %u", s, e->val);
-		return;
+		append_buf("::%s = %u", s, e->val);
+		return len;
 	}
 
 	if (core_relo_is_field_based(spec->relo_kind)) {
 		for (i = 0; i < spec->len; i++) {
 			if (spec->spec[i].name)
-				libbpf_print(level, ".%s", spec->spec[i].name);
+				append_buf(".%s", spec->spec[i].name);
 			else if (i > 0 || spec->spec[i].idx > 0)
-				libbpf_print(level, "[%u]", spec->spec[i].idx);
+				append_buf("[%u]", spec->spec[i].idx);
 		}
 
-		libbpf_print(level, " (");
+		append_buf(" (");
 		for (i = 0; i < spec->raw_len; i++)
-			libbpf_print(level, "%s%d", i == 0 ? "" : ":", spec->raw_spec[i]);
+			append_buf("%s%d", i == 0 ? "" : ":", spec->raw_spec[i]);
 
 		if (spec->bit_offset % 8)
-			libbpf_print(level, " @ offset %u.%u)",
-				     spec->bit_offset / 8, spec->bit_offset % 8);
+			append_buf(" @ offset %u.%u)", spec->bit_offset / 8, spec->bit_offset % 8);
 		else
-			libbpf_print(level, " @ offset %u)", spec->bit_offset / 8);
-		return;
+			append_buf(" @ offset %u)", spec->bit_offset / 8);
+		return len;
 	}
+
+	return len;
+#undef append_buf
 }
 
 /*
@@ -1167,7 +1181,7 @@ int bpf_core_calc_relo_insn(const char *prog_name,
 	const struct btf_type *local_type;
 	const char *local_name;
 	__u32 local_id;
-	const char *spec_str;
+	char spec_buf[256];
 	int i, j, err;
 
 	local_id = relo->type_id;
@@ -1176,24 +1190,20 @@ int bpf_core_calc_relo_insn(const char *prog_name,
 	if (!local_name)
 		return -EINVAL;
 
-	spec_str = btf__name_by_offset(local_btf, relo->access_str_off);
-	if (str_is_empty(spec_str))
-		return -EINVAL;
-
-	err = bpf_core_parse_spec(prog_name, local_btf, local_id, spec_str,
-				  relo->kind, local_spec);
+	err = bpf_core_parse_spec(prog_name, local_btf, relo, local_spec);
 	if (err) {
+		const char *spec_str;
+
+		spec_str = btf__name_by_offset(local_btf, relo->access_str_off);
 		pr_warn("prog '%s': relo #%d: parsing [%d] %s %s + %s failed: %d\n",
 			prog_name, relo_idx, local_id, btf_kind_str(local_type),
 			str_is_empty(local_name) ? "<anon>" : local_name,
-			spec_str, err);
+			spec_str ?: "<?>", err);
 		return -EINVAL;
 	}
 
-	pr_debug("prog '%s': relo #%d: kind <%s> (%d), spec is ", prog_name,
-		 relo_idx, core_relo_kind_str(relo->kind), relo->kind);
-	bpf_core_dump_spec(prog_name, LIBBPF_DEBUG, local_spec);
-	libbpf_print(LIBBPF_DEBUG, "\n");
+	bpf_core_format_spec(spec_buf, sizeof(spec_buf), local_spec);
+	pr_debug("prog '%s': relo #%d: %s\n", prog_name, relo_idx, spec_buf);
 
 	/* TYPE_ID_LOCAL relo is special and doesn't need candidate search */
 	if (relo->kind == BPF_CORE_TYPE_ID_LOCAL) {
@@ -1207,7 +1217,7 @@ int bpf_core_calc_relo_insn(const char *prog_name,
 	}
 
 	/* libbpf doesn't support candidate search for anonymous types */
-	if (str_is_empty(spec_str)) {
+	if (str_is_empty(local_name)) {
 		pr_warn("prog '%s': relo #%d: <%s> (%d) relocation doesn't support anonymous types\n",
 			prog_name, relo_idx, core_relo_kind_str(relo->kind), relo->kind);
 		return -EOPNOTSUPP;
@@ -1217,17 +1227,15 @@ int bpf_core_calc_relo_insn(const char *prog_name,
 		err = bpf_core_spec_match(local_spec, cands->cands[i].btf,
 					  cands->cands[i].id, cand_spec);
 		if (err < 0) {
-			pr_warn("prog '%s': relo #%d: error matching candidate #%d ",
-				prog_name, relo_idx, i);
-			bpf_core_dump_spec(prog_name, LIBBPF_WARN, cand_spec);
-			libbpf_print(LIBBPF_WARN, ": %d\n", err);
+			bpf_core_format_spec(spec_buf, sizeof(spec_buf), cand_spec);
+			pr_warn("prog '%s': relo #%d: error matching candidate #%d %s: %d\n ",
+				prog_name, relo_idx, i, spec_buf, err);
 			return err;
 		}
 
-		pr_debug("prog '%s': relo #%d: %s candidate #%d ", prog_name,
-			 relo_idx, err == 0 ? "non-matching" : "matching", i);
-		bpf_core_dump_spec(prog_name, LIBBPF_DEBUG, cand_spec);
-		libbpf_print(LIBBPF_DEBUG, "\n");
+		bpf_core_format_spec(spec_buf, sizeof(spec_buf), cand_spec);
+		pr_debug("prog '%s': relo #%d: %s candidate #%d %s\n", prog_name,
+			 relo_idx, err == 0 ? "non-matching" : "matching", i, spec_buf);
 
 		if (err == 0)
 			continue;

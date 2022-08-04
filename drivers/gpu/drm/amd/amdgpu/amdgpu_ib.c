@@ -155,12 +155,12 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		fence_ctx = 0;
 	}
 
-	if (!ring->sched.ready) {
+	if (!ring->sched.ready && !ring->is_mes_queue) {
 		dev_err(adev->dev, "couldn't schedule ib on ring <%s>\n", ring->name);
 		return -EINVAL;
 	}
 
-	if (vm && !job->vmid) {
+	if (vm && !job->vmid && !ring->is_mes_queue) {
 		dev_err(adev->dev, "VM IB without ID\n");
 		return -EINVAL;
 	}
@@ -388,6 +388,10 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 		 * to them and they have no interrupt support.
 		 */
 		if (!ring->sched.ready || !ring->funcs->test_ib)
+			continue;
+
+		if (adev->enable_mes &&
+		    ring->funcs->type == AMDGPU_RING_TYPE_KIQ)
 			continue;
 
 		/* MM engine need more time */

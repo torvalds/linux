@@ -102,7 +102,7 @@ struct mlx5_flow_handle *mlx5e_accel_fs_add_sk(struct mlx5e_priv *priv,
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
-		if (!sk->sk_ipv6only &&
+		if (!ipv6_only_sock(sk) &&
 		    ipv6_addr_type(&sk->sk_v6_daddr) == IPV6_ADDR_MAPPED) {
 			accel_fs_tcp_set_ipv4_flow(spec, sk);
 			ft = &fs_tcp->tables[ACCEL_FS_IPV4_TCP];

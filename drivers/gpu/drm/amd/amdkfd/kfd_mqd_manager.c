@@ -100,7 +100,9 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 {
 	struct kfd_cu_info cu_info;
 	uint32_t cu_per_sh[KFD_MAX_NUM_SE][KFD_MAX_NUM_SH_PER_SE] = {0};
-	int i, se, sh, cu;
+	bool wgp_mode_req = KFD_GC_VERSION(mm->dev) >= IP_VERSION(10, 0, 0);
+	uint32_t en_mask = wgp_mode_req ? 0x3 : 0x1;
+	int i, se, sh, cu, cu_bitmap_sh_mul, inc = wgp_mode_req ? 2 : 1;
 
 	amdgpu_amdkfd_get_cu_info(mm->dev->adev, &cu_info);
 
@@ -120,6 +122,10 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 			cu_info.num_shader_arrays_per_engine * cu_info.num_shader_engines);
 		return;
 	}
+
+	cu_bitmap_sh_mul = (KFD_GC_VERSION(mm->dev) >= IP_VERSION(11, 0, 0) &&
+			    KFD_GC_VERSION(mm->dev) < IP_VERSION(12, 0, 0)) ? 2 : 1;
+
 	/* Count active CUs per SH.
 	 *
 	 * Some CUs in an SH may be disabled.	HW expects disabled CUs to be
@@ -129,10 +135,12 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 	 * Each half of se_mask must be filled only on bits 0-cu_per_sh[se][sh]-1.
 	 *
 	 * See note on Arcturus cu_bitmap layout in gfx_v9_0_get_cu_info.
+	 * See note on GFX11 cu_bitmap layout in gfx_v11_0_get_cu_info.
 	 */
 	for (se = 0; se < cu_info.num_shader_engines; se++)
 		for (sh = 0; sh < cu_info.num_shader_arrays_per_engine; sh++)
-			cu_per_sh[se][sh] = hweight32(cu_info.cu_bitmap[se % 4][sh + (se / 4)]);
+			cu_per_sh[se][sh] = hweight32(
+				cu_info.cu_bitmap[se % 4][sh + (se / 4) * cu_bitmap_sh_mul]);
 
 	/* Symmetrically map cu_mask to all SEs & SHs:
 	 * se_mask programs up to 2 SH in the upper and lower 16 bits.
@@ -161,13 +169,13 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 		se_mask[i] = 0;
 
 	i = 0;
-	for (cu = 0; cu < 16; cu++) {
+	for (cu = 0; cu < 16; cu += inc) {
 		for (sh = 0; sh < cu_info.num_shader_arrays_per_engine; sh++) {
 			for (se = 0; se < cu_info.num_shader_engines; se++) {
 				if (cu_per_sh[se][sh] > cu) {
-					if (cu_mask[i / 32] & (1 << (i % 32)))
-						se_mask[se] |= 1 << (cu + sh * 16);
-					i++;
+					if (cu_mask[i / 32] & (en_mask << (i % 32)))
+						se_mask[se] |= en_mask << (cu + sh * 16);
+					i += inc;
 					if (i == cu_mask_count)
 						return;
 				}

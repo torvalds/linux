@@ -35,10 +35,10 @@ int oncpu(void *ctx)
 	long val;
 
 	val = bpf_get_stackid(ctx, &stackmap, 0);
-	if (val > 0)
+	if (val >= 0)
 		stackid_kernel = 2;
 	val = bpf_get_stackid(ctx, &stackmap, BPF_F_USER_STACK);
-	if (val > 0)
+	if (val >= 0)
 		stackid_user = 2;
 
 	trace = bpf_map_lookup_elem(&stackdata_map, &key);

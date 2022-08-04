@@ -5,7 +5,7 @@
 
 #include <asm/ia32.h>
 
-#if defined(CONFIG_KVM_GUEST) && defined(CONFIG_PARAVIRT_SPINLOCKS)
+#if defined(CONFIG_KVM_GUEST)
 #include <asm/kvm_para.h>
 #endif
 
@@ -20,7 +20,7 @@ int main(void)
 	BLANK();
 #endif
 
-#if defined(CONFIG_KVM_GUEST) && defined(CONFIG_PARAVIRT_SPINLOCKS)
+#if defined(CONFIG_KVM_GUEST)
 	OFFSET(KVM_STEAL_TIME_preempted, kvm_steal_time, preempted);
 	BLANK();
 #endif

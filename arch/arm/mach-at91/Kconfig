@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_AT91
 	bool "AT91/Microchip SoCs"
-	depends on ARCH_MULTI_V4T || ARCH_MULTI_V5 || ARCH_MULTI_V7 || ARM_SINGLE_ARMV7M
+	depends on (CPU_LITTLE_ENDIAN && (ARCH_MULTI_V4T || ARCH_MULTI_V5)) || \
+		ARCH_MULTI_V7 || ARM_SINGLE_ARMV7M
 	select ARM_CPU_SUSPEND if PM && ARCH_MULTI_V7
 	select COMMON_CLK_AT91
 	select GPIOLIB
@@ -165,6 +166,15 @@ config ATMEL_CLOCKSOURCE_TCB
 	  to make a single 32-bit timer.
 	  It can also be used as a clock event device supporting oneshot mode.
 
+config MICROCHIP_CLOCKSOURCE_PIT64B
+	bool "64-bit Periodic Interval Timer (PIT64B) support"
+	default SOC_SAM9X60 || SOC_SAMA7
+	select MICROCHIP_PIT64B
+	help
+	  Select this to get a high resolution clockevent (SAM9X60) or
+	  clocksource and clockevent (SAMA7G5) based on Microchip 64-bit
+	  Periodic Interval Timer.
+
 config HAVE_AT91_UTMI
 	bool
 
@@ -210,6 +220,15 @@ config SOC_SAMA5
 
 config ATMEL_PM
 	bool
+
+config ATMEL_SECURE_PM
+	bool "Atmel Secure PM support"
+	depends on SOC_SAMA5D2 && ATMEL_PM
+	select ARM_PSCI
+	help
+	  When running under a TEE, the suspend mode must be requested to be set
+	  at TEE level. When enable, this option will use secure monitor calls
+	  to set the suspend level. PSCI is then used to enter suspend.
 
 config SOC_SAMA7
 	bool

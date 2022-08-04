@@ -121,6 +121,23 @@ int perf_session__write_header(struct perf_session *session,
 			       int fd, bool at_exit);
 int perf_header__write_pipe(int fd);
 
+/* feat_writer writes a feature section to output */
+struct feat_writer {
+	int (*write)(struct feat_writer *fw, void *buf, size_t sz);
+};
+
+/* feat_copier copies a feature section using feat_writer to output */
+struct feat_copier {
+	int (*copy)(struct feat_copier *fc, int feat, struct feat_writer *fw);
+};
+
+int perf_session__inject_header(struct perf_session *session,
+				struct evlist *evlist,
+				int fd,
+				struct feat_copier *fc);
+
+size_t perf_session__data_offset(const struct evlist *evlist);
+
 void perf_header__set_feat(struct perf_header *header, int feat);
 void perf_header__clear_feat(struct perf_header *header, int feat);
 bool perf_header__has_feat(const struct perf_header *header, int feat);
@@ -158,6 +175,7 @@ int do_write(struct feat_fd *fd, const void *buf, size_t size);
 int write_padded(struct feat_fd *fd, const void *bf,
 		 size_t count, size_t count_aligned);
 
+int is_cpu_online(unsigned int cpu);
 /*
  * arch specific callback
  */

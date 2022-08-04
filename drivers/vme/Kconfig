@@ -15,6 +15,4 @@ source "drivers/vme/bridges/Kconfig"
 
 source "drivers/vme/boards/Kconfig"
 
-source "drivers/staging/vme/devices/Kconfig"
-
 endif # VME

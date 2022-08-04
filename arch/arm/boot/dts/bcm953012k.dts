@@ -36,7 +36,7 @@
 
 / {
 	model = "NorthStar SVK (BCM953012K)";
-	compatible = "brcm,bcm953012k", "brcm,brcm53012", "brcm,bcm4708";
+	compatible = "brcm,bcm953012k", "brcm,bcm53012", "brcm,bcm4708";
 
 	aliases {
 		serial0 = &uart0;

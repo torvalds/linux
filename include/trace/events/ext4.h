@@ -335,17 +335,15 @@ TRACE_EVENT(ext4_begin_ordered_truncate,
 
 DECLARE_EVENT_CLASS(ext4__write_begin,
 
-	TP_PROTO(struct inode *inode, loff_t pos, unsigned int len,
-		 unsigned int flags),
+	TP_PROTO(struct inode *inode, loff_t pos, unsigned int len),
 
-	TP_ARGS(inode, pos, len, flags),
+	TP_ARGS(inode, pos, len),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
 		__field(	ino_t,	ino			)
 		__field(	loff_t,	pos			)
 		__field(	unsigned int, len		)
-		__field(	unsigned int, flags		)
 	),
 
 	TP_fast_assign(
@@ -353,29 +351,26 @@ DECLARE_EVENT_CLASS(ext4__write_begin,
 		__entry->ino	= inode->i_ino;
 		__entry->pos	= pos;
 		__entry->len	= len;
-		__entry->flags	= flags;
 	),
 
-	TP_printk("dev %d,%d ino %lu pos %lld len %u flags %u",
+	TP_printk("dev %d,%d ino %lu pos %lld len %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
-		  __entry->pos, __entry->len, __entry->flags)
+		  __entry->pos, __entry->len)
 );
 
 DEFINE_EVENT(ext4__write_begin, ext4_write_begin,
 
-	TP_PROTO(struct inode *inode, loff_t pos, unsigned int len,
-		 unsigned int flags),
+	TP_PROTO(struct inode *inode, loff_t pos, unsigned int len),
 
-	TP_ARGS(inode, pos, len, flags)
+	TP_ARGS(inode, pos, len)
 );
 
 DEFINE_EVENT(ext4__write_begin, ext4_da_write_begin,
 
-	TP_PROTO(struct inode *inode, loff_t pos, unsigned int len,
-		 unsigned int flags),
+	TP_PROTO(struct inode *inode, loff_t pos, unsigned int len),
 
-	TP_ARGS(inode, pos, len, flags)
+	TP_ARGS(inode, pos, len)
 );
 
 DECLARE_EVENT_CLASS(ext4__write_end,

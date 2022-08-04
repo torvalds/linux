@@ -23,9 +23,6 @@
  *
  */
 
-#include <linux/delay.h>
-#include <linux/slab.h>
-
 #include "dm_services.h"
 #include "core_types.h"
 #include "dce_aux.h"
@@ -87,7 +84,8 @@ static void release_engine(
 
 	engine->ddc = NULL;
 
-	REG_UPDATE(AUX_ARB_CONTROL, AUX_SW_DONE_USING_AUX_REG, 1);
+	REG_UPDATE_2(AUX_ARB_CONTROL, AUX_SW_DONE_USING_AUX_REG, 1,
+		AUX_SW_USE_AUX_REG_REQ, 0);
 }
 
 #define SW_CAN_ACCESS_AUX 1
@@ -565,13 +563,16 @@ int dce_aux_transfer_raw(struct ddc_service *ddc,
 	struct ddc *ddc_pin = ddc->ddc_pin;
 	struct dce_aux *aux_engine;
 	struct aux_request_transaction_data aux_req;
-	struct aux_reply_transaction_data aux_rep;
 	uint8_t returned_bytes = 0;
 	int res = -1;
 	uint32_t status;
 
 	memset(&aux_req, 0, sizeof(aux_req));
-	memset(&aux_rep, 0, sizeof(aux_rep));
+
+	if (ddc_pin == NULL) {
+		*operation_result = AUX_RET_ERROR_ENGINE_ACQUIRE;
+		return -1;
+	}
 
 	aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
 	if (!acquire(aux_engine, ddc_pin)) {

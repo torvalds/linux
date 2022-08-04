@@ -13,6 +13,7 @@
 
 #include "clockdomain.h"
 #include "powerdomain.h"
+#include "common.h"
 
 struct pwrdm_link {
 	struct device *dev;

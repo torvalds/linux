@@ -232,6 +232,20 @@ enum finalization_type {
 	FINALIZATION_TYPE_DIGEST,	/* use digest() */
 };
 
+/*
+ * Whether the crypto operation will occur in-place, and if so whether the
+ * source and destination scatterlist pointers will coincide (req->src ==
+ * req->dst), or whether they'll merely point to two separate scatterlists
+ * (req->src != req->dst) that reference the same underlying memory.
+ *
+ * This is only relevant for algorithm types that support in-place operation.
+ */
+enum inplace_mode {
+	OUT_OF_PLACE,
+	INPLACE_ONE_SGLIST,
+	INPLACE_TWO_SGLISTS,
+};
+
 #define TEST_SG_TOTAL	10000
 
 /**
@@ -265,7 +279,7 @@ struct test_sg_division {
  * crypto test vector can be tested.
  *
  * @name: name of this config, logged for debugging purposes if a test fails
- * @inplace: operate on the data in-place, if applicable for the algorithm type?
+ * @inplace_mode: whether and how to operate on the data in-place, if applicable
  * @req_flags: extra request_flags, e.g. CRYPTO_TFM_REQ_MAY_SLEEP
  * @src_divs: description of how to arrange the source scatterlist
  * @dst_divs: description of how to arrange the dst scatterlist, if applicable
@@ -282,7 +296,7 @@ struct test_sg_division {
  */
 struct testvec_config {
 	const char *name;
-	bool inplace;
+	enum inplace_mode inplace_mode;
 	u32 req_flags;
 	struct test_sg_division src_divs[XBUFSIZE];
 	struct test_sg_division dst_divs[XBUFSIZE];
@@ -307,11 +321,16 @@ struct testvec_config {
 /* Configs for skciphers and aeads */
 static const struct testvec_config default_cipher_testvec_configs[] = {
 	{
-		.name = "in-place",
-		.inplace = true,
+		.name = "in-place (one sglist)",
+		.inplace_mode = INPLACE_ONE_SGLIST,
+		.src_divs = { { .proportion_of_total = 10000 } },
+	}, {
+		.name = "in-place (two sglists)",
+		.inplace_mode = INPLACE_TWO_SGLISTS,
 		.src_divs = { { .proportion_of_total = 10000 } },
 	}, {
 		.name = "out-of-place",
+		.inplace_mode = OUT_OF_PLACE,
 		.src_divs = { { .proportion_of_total = 10000 } },
 	}, {
 		.name = "unaligned buffer, offset=1",
@@ -349,7 +368,7 @@ static const struct testvec_config default_cipher_testvec_configs[] = {
 		.key_offset = 3,
 	}, {
 		.name = "misaligned splits crossing pages, inplace",
-		.inplace = true,
+		.inplace_mode = INPLACE_ONE_SGLIST,
 		.src_divs = {
 			{
 				.proportion_of_total = 7500,
@@ -749,18 +768,39 @@ static int build_cipher_test_sglists(struct cipher_test_sglists *tsgls,
 
 	iov_iter_kvec(&input, WRITE, inputs, nr_inputs, src_total_len);
 	err = build_test_sglist(&tsgls->src, cfg->src_divs, alignmask,
-				cfg->inplace ?
+				cfg->inplace_mode != OUT_OF_PLACE ?
 					max(dst_total_len, src_total_len) :
 					src_total_len,
 				&input, NULL);
 	if (err)
 		return err;
 
-	if (cfg->inplace) {
+	/*
+	 * In-place crypto operations can use the same scatterlist for both the
+	 * source and destination (req->src == req->dst), or can use separate
+	 * scatterlists (req->src != req->dst) which point to the same
+	 * underlying memory.  Make sure to test both cases.
+	 */
+	if (cfg->inplace_mode == INPLACE_ONE_SGLIST) {
 		tsgls->dst.sgl_ptr = tsgls->src.sgl;
 		tsgls->dst.nents = tsgls->src.nents;
 		return 0;
 	}
+	if (cfg->inplace_mode == INPLACE_TWO_SGLISTS) {
+		/*
+		 * For now we keep it simple and only test the case where the
+		 * two scatterlists have identical entries, rather than
+		 * different entries that split up the same memory differently.
+		 */
+		memcpy(tsgls->dst.sgl, tsgls->src.sgl,
+		       tsgls->src.nents * sizeof(tsgls->src.sgl[0]));
+		memcpy(tsgls->dst.sgl_saved, tsgls->src.sgl,
+		       tsgls->src.nents * sizeof(tsgls->src.sgl[0]));
+		tsgls->dst.sgl_ptr = tsgls->dst.sgl;
+		tsgls->dst.nents = tsgls->src.nents;
+		return 0;
+	}
+	/* Out of place */
 	return build_test_sglist(&tsgls->dst,
 				 cfg->dst_divs[0].proportion_of_total ?
 					cfg->dst_divs : cfg->src_divs,
@@ -995,9 +1035,19 @@ static void generate_random_testvec_config(struct testvec_config *cfg,
 
 	p += scnprintf(p, end - p, "random:");
 
-	if (prandom_u32() % 2 == 0) {
-		cfg->inplace = true;
-		p += scnprintf(p, end - p, " inplace");
+	switch (prandom_u32() % 4) {
+	case 0:
+	case 1:
+		cfg->inplace_mode = OUT_OF_PLACE;
+		break;
+	case 2:
+		cfg->inplace_mode = INPLACE_ONE_SGLIST;
+		p += scnprintf(p, end - p, " inplace_one_sglist");
+		break;
+	default:
+		cfg->inplace_mode = INPLACE_TWO_SGLISTS;
+		p += scnprintf(p, end - p, " inplace_two_sglists");
+		break;
 	}
 
 	if (prandom_u32() % 2 == 0) {
@@ -1034,7 +1084,7 @@ static void generate_random_testvec_config(struct testvec_config *cfg,
 					  cfg->req_flags);
 	p += scnprintf(p, end - p, "]");
 
-	if (!cfg->inplace && prandom_u32() % 2 == 0) {
+	if (cfg->inplace_mode == OUT_OF_PLACE && prandom_u32() % 2 == 0) {
 		p += scnprintf(p, end - p, " dst_divs=[");
 		p = generate_random_sgl_divisions(cfg->dst_divs,
 						  ARRAY_SIZE(cfg->dst_divs),
@@ -2085,7 +2135,8 @@ static int test_aead_vec_cfg(int enc, const struct aead_testvec *vec,
 	/* Check for the correct output (ciphertext or plaintext) */
 	err = verify_correct_output(&tsgls->dst, enc ? vec->ctext : vec->ptext,
 				    enc ? vec->clen : vec->plen,
-				    vec->alen, enc || !cfg->inplace);
+				    vec->alen,
+				    enc || cfg->inplace_mode == OUT_OF_PLACE);
 	if (err == -EOVERFLOW) {
 		pr_err("alg: aead: %s %s overran dst buffer on test vector %s, cfg=\"%s\"\n",
 		       driver, op, vec_name, cfg->name);

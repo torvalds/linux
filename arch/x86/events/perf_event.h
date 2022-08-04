@@ -67,22 +67,23 @@ static inline bool constraint_match(struct event_constraint *c, u64 ecode)
 /*
  * struct hw_perf_event.flags flags
  */
-#define PERF_X86_EVENT_PEBS_LDLAT	0x0001 /* ld+ldlat data address sampling */
-#define PERF_X86_EVENT_PEBS_ST		0x0002 /* st data address sampling */
-#define PERF_X86_EVENT_PEBS_ST_HSW	0x0004 /* haswell style datala, store */
-#define PERF_X86_EVENT_PEBS_LD_HSW	0x0008 /* haswell style datala, load */
-#define PERF_X86_EVENT_PEBS_NA_HSW	0x0010 /* haswell style datala, unknown */
-#define PERF_X86_EVENT_EXCL		0x0020 /* HT exclusivity on counter */
-#define PERF_X86_EVENT_DYNAMIC		0x0040 /* dynamic alloc'd constraint */
+#define PERF_X86_EVENT_PEBS_LDLAT	0x00001 /* ld+ldlat data address sampling */
+#define PERF_X86_EVENT_PEBS_ST		0x00002 /* st data address sampling */
+#define PERF_X86_EVENT_PEBS_ST_HSW	0x00004 /* haswell style datala, store */
+#define PERF_X86_EVENT_PEBS_LD_HSW	0x00008 /* haswell style datala, load */
+#define PERF_X86_EVENT_PEBS_NA_HSW	0x00010 /* haswell style datala, unknown */
+#define PERF_X86_EVENT_EXCL		0x00020 /* HT exclusivity on counter */
+#define PERF_X86_EVENT_DYNAMIC		0x00040 /* dynamic alloc'd constraint */
 
-#define PERF_X86_EVENT_EXCL_ACCT	0x0100 /* accounted EXCL event */
-#define PERF_X86_EVENT_AUTO_RELOAD	0x0200 /* use PEBS auto-reload */
-#define PERF_X86_EVENT_LARGE_PEBS	0x0400 /* use large PEBS */
-#define PERF_X86_EVENT_PEBS_VIA_PT	0x0800 /* use PT buffer for PEBS */
-#define PERF_X86_EVENT_PAIR		0x1000 /* Large Increment per Cycle */
-#define PERF_X86_EVENT_LBR_SELECT	0x2000 /* Save/Restore MSR_LBR_SELECT */
-#define PERF_X86_EVENT_TOPDOWN		0x4000 /* Count Topdown slots/metrics events */
-#define PERF_X86_EVENT_PEBS_STLAT	0x8000 /* st+stlat data address sampling */
+#define PERF_X86_EVENT_EXCL_ACCT	0x00100 /* accounted EXCL event */
+#define PERF_X86_EVENT_AUTO_RELOAD	0x00200 /* use PEBS auto-reload */
+#define PERF_X86_EVENT_LARGE_PEBS	0x00400 /* use large PEBS */
+#define PERF_X86_EVENT_PEBS_VIA_PT	0x00800 /* use PT buffer for PEBS */
+#define PERF_X86_EVENT_PAIR		0x01000 /* Large Increment per Cycle */
+#define PERF_X86_EVENT_LBR_SELECT	0x02000 /* Save/Restore MSR_LBR_SELECT */
+#define PERF_X86_EVENT_TOPDOWN		0x04000 /* Count Topdown slots/metrics events */
+#define PERF_X86_EVENT_PEBS_STLAT	0x08000 /* st+stlat data address sampling */
+#define PERF_X86_EVENT_AMD_BRS		0x10000 /* AMD Branch Sampling */
 
 static inline bool is_topdown_count(struct perf_event *event)
 {
@@ -325,6 +326,8 @@ struct cpu_hw_events {
 	 * AMD specific bits
 	 */
 	struct amd_nb			*amd_nb;
+	int				brs_active; /* BRS is enabled */
+
 	/* Inverted mask of bits to clear in the perf_ctr ctrl registers */
 	u64				perf_ctr_virt_mask;
 	int				n_pair; /* Large increment events */
@@ -1105,6 +1108,11 @@ int x86_pmu_hw_config(struct perf_event *event);
 
 void x86_pmu_disable_all(void);
 
+static inline bool has_amd_brs(struct hw_perf_event *hwc)
+{
+	return hwc->flags & PERF_X86_EVENT_AMD_BRS;
+}
+
 static inline bool is_counter_pair(struct hw_perf_event *hwc)
 {
 	return hwc->flags & PERF_X86_EVENT_PAIR;
@@ -1211,6 +1219,75 @@ static inline bool fixed_counter_disabled(int i, struct pmu *pmu)
 
 int amd_pmu_init(void);
 
+#ifdef CONFIG_PERF_EVENTS_AMD_BRS
+int amd_brs_init(void);
+void amd_brs_disable(void);
+void amd_brs_enable(void);
+void amd_brs_enable_all(void);
+void amd_brs_disable_all(void);
+void amd_brs_drain(void);
+void amd_brs_lopwr_init(void);
+void amd_brs_disable_all(void);
+int amd_brs_setup_filter(struct perf_event *event);
+void amd_brs_reset(void);
+
+static inline void amd_pmu_brs_add(struct perf_event *event)
+{
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+
+	perf_sched_cb_inc(event->ctx->pmu);
+	cpuc->lbr_users++;
+	/*
+	 * No need to reset BRS because it is reset
+	 * on brs_enable() and it is saturating
+	 */
+}
+
+static inline void amd_pmu_brs_del(struct perf_event *event)
+{
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+
+	cpuc->lbr_users--;
+	WARN_ON_ONCE(cpuc->lbr_users < 0);
+
+	perf_sched_cb_dec(event->ctx->pmu);
+}
+
+void amd_pmu_brs_sched_task(struct perf_event_context *ctx, bool sched_in);
+#else
+static inline int amd_brs_init(void)
+{
+	return 0;
+}
+static inline void amd_brs_disable(void) {}
+static inline void amd_brs_enable(void) {}
+static inline void amd_brs_drain(void) {}
+static inline void amd_brs_lopwr_init(void) {}
+static inline void amd_brs_disable_all(void) {}
+static inline int amd_brs_setup_filter(struct perf_event *event)
+{
+	return 0;
+}
+static inline void amd_brs_reset(void) {}
+
+static inline void amd_pmu_brs_add(struct perf_event *event)
+{
+}
+
+static inline void amd_pmu_brs_del(struct perf_event *event)
+{
+}
+
+static inline void amd_pmu_brs_sched_task(struct perf_event_context *ctx, bool sched_in)
+{
+}
+
+static inline void amd_brs_enable_all(void)
+{
+}
+
+#endif
+
 #else /* CONFIG_CPU_SUP_AMD */
 
 static inline int amd_pmu_init(void)
@@ -1218,6 +1295,22 @@ static inline int amd_pmu_init(void)
 	return 0;
 }
 
+static inline int amd_brs_init(void)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void amd_brs_drain(void)
+{
+}
+
+static inline void amd_brs_enable_all(void)
+{
+}
+
+static inline void amd_brs_disable_all(void)
+{
+}
 #endif /* CONFIG_CPU_SUP_AMD */
 
 static inline int is_pebs_pt(struct perf_event *event)

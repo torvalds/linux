@@ -98,7 +98,7 @@
 	pinctrl-1 = <&pinctrl_flexspi1>;
 	status = "okay";
 
-	flash0: spi-flash@0 {
+	flash0: flash@0 {
 		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;

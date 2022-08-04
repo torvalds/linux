@@ -19,38 +19,6 @@
 
 vm_vaddr_t exception_handlers;
 
-/* Virtual translation table structure declarations */
-struct pageUpperEntry {
-	uint64_t present:1;
-	uint64_t writable:1;
-	uint64_t user:1;
-	uint64_t write_through:1;
-	uint64_t cache_disable:1;
-	uint64_t accessed:1;
-	uint64_t ignored_06:1;
-	uint64_t page_size:1;
-	uint64_t ignored_11_08:4;
-	uint64_t pfn:40;
-	uint64_t ignored_62_52:11;
-	uint64_t execute_disable:1;
-};
-
-struct pageTableEntry {
-	uint64_t present:1;
-	uint64_t writable:1;
-	uint64_t user:1;
-	uint64_t write_through:1;
-	uint64_t cache_disable:1;
-	uint64_t accessed:1;
-	uint64_t dirty:1;
-	uint64_t reserved_07:1;
-	uint64_t global:1;
-	uint64_t ignored_11_09:3;
-	uint64_t pfn:40;
-	uint64_t ignored_62_52:11;
-	uint64_t execute_disable:1;
-};
-
 void regs_dump(FILE *stream, struct kvm_regs *regs,
 	       uint8_t indent)
 {
@@ -190,50 +158,47 @@ static void *virt_get_pte(struct kvm_vm *vm, uint64_t pt_pfn, uint64_t vaddr,
 			  int level)
 {
 	uint64_t *page_table = addr_gpa2hva(vm, pt_pfn << vm->page_shift);
-	int index = vaddr >> (vm->page_shift + level * 9) & 0x1ffu;
+	int index = (vaddr >> PG_LEVEL_SHIFT(level)) & 0x1ffu;
 
 	return &page_table[index];
 }
 
-static struct pageUpperEntry *virt_create_upper_pte(struct kvm_vm *vm,
-						    uint64_t pt_pfn,
-						    uint64_t vaddr,
-						    uint64_t paddr,
-						    int level,
-						    enum x86_page_size page_size)
+static uint64_t *virt_create_upper_pte(struct kvm_vm *vm,
+				       uint64_t pt_pfn,
+				       uint64_t vaddr,
+				       uint64_t paddr,
+				       int current_level,
+				       int target_level)
 {
-	struct pageUpperEntry *pte = virt_get_pte(vm, pt_pfn, vaddr, level);
+	uint64_t *pte = virt_get_pte(vm, pt_pfn, vaddr, current_level);
 
-	if (!pte->present) {
-		pte->writable = true;
-		pte->present = true;
-		pte->page_size = (level == page_size);
-		if (pte->page_size)
-			pte->pfn = paddr >> vm->page_shift;
+	if (!(*pte & PTE_PRESENT_MASK)) {
+		*pte = PTE_PRESENT_MASK | PTE_WRITABLE_MASK;
+		if (current_level == target_level)
+			*pte |= PTE_LARGE_MASK | (paddr & PHYSICAL_PAGE_MASK);
 		else
-			pte->pfn = vm_alloc_page_table(vm) >> vm->page_shift;
+			*pte |= vm_alloc_page_table(vm) & PHYSICAL_PAGE_MASK;
 	} else {
 		/*
 		 * Entry already present.  Assert that the caller doesn't want
 		 * a hugepage at this level, and that there isn't a hugepage at
 		 * this level.
 		 */
-		TEST_ASSERT(level != page_size,
+		TEST_ASSERT(current_level != target_level,
 			    "Cannot create hugepage at level: %u, vaddr: 0x%lx\n",
-			    page_size, vaddr);
-		TEST_ASSERT(!pte->page_size,
+			    current_level, vaddr);
+		TEST_ASSERT(!(*pte & PTE_LARGE_MASK),
 			    "Cannot create page table at level: %u, vaddr: 0x%lx\n",
-			    level, vaddr);
+			    current_level, vaddr);
 	}
 	return pte;
 }
 
-void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
-		   enum x86_page_size page_size)
+void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr, int level)
 {
-	const uint64_t pg_size = 1ull << ((page_size * 9) + 12);
-	struct pageUpperEntry *pml4e, *pdpe, *pde;
-	struct pageTableEntry *pte;
+	const uint64_t pg_size = PG_LEVEL_SIZE(level);
+	uint64_t *pml4e, *pdpe, *pde;
+	uint64_t *pte;
 
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K,
 		    "Unknown or unsupported guest mode, mode: 0x%x", vm->mode);
@@ -256,48 +221,46 @@ void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 	 * early if a hugepage was created.
 	 */
 	pml4e = virt_create_upper_pte(vm, vm->pgd >> vm->page_shift,
-				      vaddr, paddr, 3, page_size);
-	if (pml4e->page_size)
+				      vaddr, paddr, PG_LEVEL_512G, level);
+	if (*pml4e & PTE_LARGE_MASK)
 		return;
 
-	pdpe = virt_create_upper_pte(vm, pml4e->pfn, vaddr, paddr, 2, page_size);
-	if (pdpe->page_size)
+	pdpe = virt_create_upper_pte(vm, PTE_GET_PFN(*pml4e), vaddr, paddr, PG_LEVEL_1G, level);
+	if (*pdpe & PTE_LARGE_MASK)
 		return;
 
-	pde = virt_create_upper_pte(vm, pdpe->pfn, vaddr, paddr, 1, page_size);
-	if (pde->page_size)
+	pde = virt_create_upper_pte(vm, PTE_GET_PFN(*pdpe), vaddr, paddr, PG_LEVEL_2M, level);
+	if (*pde & PTE_LARGE_MASK)
 		return;
 
 	/* Fill in page table entry. */
-	pte = virt_get_pte(vm, pde->pfn, vaddr, 0);
-	TEST_ASSERT(!pte->present,
+	pte = virt_get_pte(vm, PTE_GET_PFN(*pde), vaddr, PG_LEVEL_4K);
+	TEST_ASSERT(!(*pte & PTE_PRESENT_MASK),
 		    "PTE already present for 4k page at vaddr: 0x%lx\n", vaddr);
-	pte->pfn = paddr >> vm->page_shift;
-	pte->writable = true;
-	pte->present = 1;
+	*pte = PTE_PRESENT_MASK | PTE_WRITABLE_MASK | (paddr & PHYSICAL_PAGE_MASK);
 }
 
 void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
 {
-	__virt_pg_map(vm, vaddr, paddr, X86_PAGE_SIZE_4K);
+	__virt_pg_map(vm, vaddr, paddr, PG_LEVEL_4K);
 }
 
-static struct pageTableEntry *_vm_get_page_table_entry(struct kvm_vm *vm, int vcpuid,
+static uint64_t *_vm_get_page_table_entry(struct kvm_vm *vm, int vcpuid,
 						       uint64_t vaddr)
 {
 	uint16_t index[4];
-	struct pageUpperEntry *pml4e, *pdpe, *pde;
-	struct pageTableEntry *pte;
+	uint64_t *pml4e, *pdpe, *pde;
+	uint64_t *pte;
 	struct kvm_cpuid_entry2 *entry;
 	struct kvm_sregs sregs;
 	int max_phy_addr;
-	/* Set the bottom 52 bits. */
-	uint64_t rsvd_mask = 0x000fffffffffffff;
+	uint64_t rsvd_mask = 0;
 
 	entry = kvm_get_supported_cpuid_index(0x80000008, 0);
 	max_phy_addr = entry->eax & 0x000000ff;
-	/* Clear the bottom bits of the reserved mask. */
-	rsvd_mask = (rsvd_mask >> max_phy_addr) << max_phy_addr;
+	/* Set the high bits in the reserved mask. */
+	if (max_phy_addr < 52)
+		rsvd_mask = GENMASK_ULL(51, max_phy_addr);
 
 	/*
 	 * SDM vol 3, fig 4-11 "Formats of CR3 and Paging-Structure Entries
@@ -307,7 +270,7 @@ static struct pageTableEntry *_vm_get_page_table_entry(struct kvm_vm *vm, int vc
 	 */
 	vcpu_sregs_get(vm, vcpuid, &sregs);
 	if ((sregs.efer & EFER_NX) == 0) {
-		rsvd_mask |= (1ull << 63);
+		rsvd_mask |= PTE_NX_MASK;
 	}
 
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
@@ -329,30 +292,29 @@ static struct pageTableEntry *_vm_get_page_table_entry(struct kvm_vm *vm, int vc
 	index[3] = (vaddr >> 39) & 0x1ffu;
 
 	pml4e = addr_gpa2hva(vm, vm->pgd);
-	TEST_ASSERT(pml4e[index[3]].present,
+	TEST_ASSERT(pml4e[index[3]] & PTE_PRESENT_MASK,
 		"Expected pml4e to be present for gva: 0x%08lx", vaddr);
-	TEST_ASSERT((*(uint64_t*)(&pml4e[index[3]]) &
-		(rsvd_mask | (1ull << 7))) == 0,
+	TEST_ASSERT((pml4e[index[3]] & (rsvd_mask | PTE_LARGE_MASK)) == 0,
 		"Unexpected reserved bits set.");
 
-	pdpe = addr_gpa2hva(vm, pml4e[index[3]].pfn * vm->page_size);
-	TEST_ASSERT(pdpe[index[2]].present,
+	pdpe = addr_gpa2hva(vm, PTE_GET_PFN(pml4e[index[3]]) * vm->page_size);
+	TEST_ASSERT(pdpe[index[2]] & PTE_PRESENT_MASK,
 		"Expected pdpe to be present for gva: 0x%08lx", vaddr);
-	TEST_ASSERT(pdpe[index[2]].page_size == 0,
+	TEST_ASSERT(!(pdpe[index[2]] & PTE_LARGE_MASK),
 		"Expected pdpe to map a pde not a 1-GByte page.");
-	TEST_ASSERT((*(uint64_t*)(&pdpe[index[2]]) & rsvd_mask) == 0,
+	TEST_ASSERT((pdpe[index[2]] & rsvd_mask) == 0,
 		"Unexpected reserved bits set.");
 
-	pde = addr_gpa2hva(vm, pdpe[index[2]].pfn * vm->page_size);
-	TEST_ASSERT(pde[index[1]].present,
+	pde = addr_gpa2hva(vm, PTE_GET_PFN(pdpe[index[2]]) * vm->page_size);
+	TEST_ASSERT(pde[index[1]] & PTE_PRESENT_MASK,
 		"Expected pde to be present for gva: 0x%08lx", vaddr);
-	TEST_ASSERT(pde[index[1]].page_size == 0,
+	TEST_ASSERT(!(pde[index[1]] & PTE_LARGE_MASK),
 		"Expected pde to map a pte not a 2-MByte page.");
-	TEST_ASSERT((*(uint64_t*)(&pde[index[1]]) & rsvd_mask) == 0,
+	TEST_ASSERT((pde[index[1]] & rsvd_mask) == 0,
 		"Unexpected reserved bits set.");
 
-	pte = addr_gpa2hva(vm, pde[index[1]].pfn * vm->page_size);
-	TEST_ASSERT(pte[index[0]].present,
+	pte = addr_gpa2hva(vm, PTE_GET_PFN(pde[index[1]]) * vm->page_size);
+	TEST_ASSERT(pte[index[0]] & PTE_PRESENT_MASK,
 		"Expected pte to be present for gva: 0x%08lx", vaddr);
 
 	return &pte[index[0]];
@@ -360,7 +322,7 @@ static struct pageTableEntry *_vm_get_page_table_entry(struct kvm_vm *vm, int vc
 
 uint64_t vm_get_page_table_entry(struct kvm_vm *vm, int vcpuid, uint64_t vaddr)
 {
-	struct pageTableEntry *pte = _vm_get_page_table_entry(vm, vcpuid, vaddr);
+	uint64_t *pte = _vm_get_page_table_entry(vm, vcpuid, vaddr);
 
 	return *(uint64_t *)pte;
 }
@@ -368,18 +330,17 @@ uint64_t vm_get_page_table_entry(struct kvm_vm *vm, int vcpuid, uint64_t vaddr)
 void vm_set_page_table_entry(struct kvm_vm *vm, int vcpuid, uint64_t vaddr,
 			     uint64_t pte)
 {
-	struct pageTableEntry *new_pte = _vm_get_page_table_entry(vm, vcpuid,
-								  vaddr);
+	uint64_t *new_pte = _vm_get_page_table_entry(vm, vcpuid, vaddr);
 
 	*(uint64_t *)new_pte = pte;
 }
 
 void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 {
-	struct pageUpperEntry *pml4e, *pml4e_start;
-	struct pageUpperEntry *pdpe, *pdpe_start;
-	struct pageUpperEntry *pde, *pde_start;
-	struct pageTableEntry *pte, *pte_start;
+	uint64_t *pml4e, *pml4e_start;
+	uint64_t *pdpe, *pdpe_start;
+	uint64_t *pde, *pde_start;
+	uint64_t *pte, *pte_start;
 
 	if (!vm->pgd_created)
 		return;
@@ -389,58 +350,58 @@ void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 	fprintf(stream, "%*s      index hvaddr         gpaddr         "
 		"addr         w exec dirty\n",
 		indent, "");
-	pml4e_start = (struct pageUpperEntry *) addr_gpa2hva(vm, vm->pgd);
+	pml4e_start = (uint64_t *) addr_gpa2hva(vm, vm->pgd);
 	for (uint16_t n1 = 0; n1 <= 0x1ffu; n1++) {
 		pml4e = &pml4e_start[n1];
-		if (!pml4e->present)
+		if (!(*pml4e & PTE_PRESENT_MASK))
 			continue;
-		fprintf(stream, "%*spml4e 0x%-3zx %p 0x%-12lx 0x%-10lx %u "
+		fprintf(stream, "%*spml4e 0x%-3zx %p 0x%-12lx 0x%-10llx %u "
 			" %u\n",
 			indent, "",
 			pml4e - pml4e_start, pml4e,
-			addr_hva2gpa(vm, pml4e), (uint64_t) pml4e->pfn,
-			pml4e->writable, pml4e->execute_disable);
+			addr_hva2gpa(vm, pml4e), PTE_GET_PFN(*pml4e),
+			!!(*pml4e & PTE_WRITABLE_MASK), !!(*pml4e & PTE_NX_MASK));
 
-		pdpe_start = addr_gpa2hva(vm, pml4e->pfn * vm->page_size);
+		pdpe_start = addr_gpa2hva(vm, *pml4e & PHYSICAL_PAGE_MASK);
 		for (uint16_t n2 = 0; n2 <= 0x1ffu; n2++) {
 			pdpe = &pdpe_start[n2];
-			if (!pdpe->present)
+			if (!(*pdpe & PTE_PRESENT_MASK))
 				continue;
-			fprintf(stream, "%*spdpe  0x%-3zx %p 0x%-12lx 0x%-10lx "
+			fprintf(stream, "%*spdpe  0x%-3zx %p 0x%-12lx 0x%-10llx "
 				"%u  %u\n",
 				indent, "",
 				pdpe - pdpe_start, pdpe,
 				addr_hva2gpa(vm, pdpe),
-				(uint64_t) pdpe->pfn, pdpe->writable,
-				pdpe->execute_disable);
+				PTE_GET_PFN(*pdpe), !!(*pdpe & PTE_WRITABLE_MASK),
+				!!(*pdpe & PTE_NX_MASK));
 
-			pde_start = addr_gpa2hva(vm, pdpe->pfn * vm->page_size);
+			pde_start = addr_gpa2hva(vm, *pdpe & PHYSICAL_PAGE_MASK);
 			for (uint16_t n3 = 0; n3 <= 0x1ffu; n3++) {
 				pde = &pde_start[n3];
-				if (!pde->present)
+				if (!(*pde & PTE_PRESENT_MASK))
 					continue;
 				fprintf(stream, "%*spde   0x%-3zx %p "
-					"0x%-12lx 0x%-10lx %u  %u\n",
+					"0x%-12lx 0x%-10llx %u  %u\n",
 					indent, "", pde - pde_start, pde,
 					addr_hva2gpa(vm, pde),
-					(uint64_t) pde->pfn, pde->writable,
-					pde->execute_disable);
+					PTE_GET_PFN(*pde), !!(*pde & PTE_WRITABLE_MASK),
+					!!(*pde & PTE_NX_MASK));
 
-				pte_start = addr_gpa2hva(vm, pde->pfn * vm->page_size);
+				pte_start = addr_gpa2hva(vm, *pde & PHYSICAL_PAGE_MASK);
 				for (uint16_t n4 = 0; n4 <= 0x1ffu; n4++) {
 					pte = &pte_start[n4];
-					if (!pte->present)
+					if (!(*pte & PTE_PRESENT_MASK))
 						continue;
 					fprintf(stream, "%*spte   0x%-3zx %p "
-						"0x%-12lx 0x%-10lx %u  %u "
+						"0x%-12lx 0x%-10llx %u  %u "
 						"    %u    0x%-10lx\n",
 						indent, "",
 						pte - pte_start, pte,
 						addr_hva2gpa(vm, pte),
-						(uint64_t) pte->pfn,
-						pte->writable,
-						pte->execute_disable,
-						pte->dirty,
+						PTE_GET_PFN(*pte),
+						!!(*pte & PTE_WRITABLE_MASK),
+						!!(*pte & PTE_NX_MASK),
+						!!(*pte & PTE_DIRTY_MASK),
 						((uint64_t) n1 << 27)
 							| ((uint64_t) n2 << 18)
 							| ((uint64_t) n3 << 9)
@@ -558,8 +519,8 @@ static void kvm_seg_set_kernel_data_64bit(struct kvm_vm *vm, uint16_t selector,
 vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 {
 	uint16_t index[4];
-	struct pageUpperEntry *pml4e, *pdpe, *pde;
-	struct pageTableEntry *pte;
+	uint64_t *pml4e, *pdpe, *pde;
+	uint64_t *pte;
 
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
 		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
@@ -572,22 +533,22 @@ vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 	if (!vm->pgd_created)
 		goto unmapped_gva;
 	pml4e = addr_gpa2hva(vm, vm->pgd);
-	if (!pml4e[index[3]].present)
+	if (!(pml4e[index[3]] & PTE_PRESENT_MASK))
 		goto unmapped_gva;
 
-	pdpe = addr_gpa2hva(vm, pml4e[index[3]].pfn * vm->page_size);
-	if (!pdpe[index[2]].present)
+	pdpe = addr_gpa2hva(vm, PTE_GET_PFN(pml4e[index[3]]) * vm->page_size);
+	if (!(pdpe[index[2]] & PTE_PRESENT_MASK))
 		goto unmapped_gva;
 
-	pde = addr_gpa2hva(vm, pdpe[index[2]].pfn * vm->page_size);
-	if (!pde[index[1]].present)
+	pde = addr_gpa2hva(vm, PTE_GET_PFN(pdpe[index[2]]) * vm->page_size);
+	if (!(pde[index[1]] & PTE_PRESENT_MASK))
 		goto unmapped_gva;
 
-	pte = addr_gpa2hva(vm, pde[index[1]].pfn * vm->page_size);
-	if (!pte[index[0]].present)
+	pte = addr_gpa2hva(vm, PTE_GET_PFN(pde[index[1]]) * vm->page_size);
+	if (!(pte[index[0]] & PTE_PRESENT_MASK))
 		goto unmapped_gva;
 
-	return (pte[index[0]].pfn * vm->page_size) + (gva & 0xfffu);
+	return (PTE_GET_PFN(pte[index[0]]) * vm->page_size) + (gva & ~PAGE_MASK);
 
 unmapped_gva:
 	TEST_FAIL("No mapping for vm virtual address, gva: 0x%lx", gva);

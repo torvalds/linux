@@ -102,11 +102,11 @@ enum mxc_jpeg_image_format {
 	MXC_JPEG_INVALID = -1,
 	MXC_JPEG_YUV420 = 0x0, /* 2 Plannar, Y=1st plane UV=2nd plane */
 	MXC_JPEG_YUV422 = 0x1, /* 1 Plannar, YUYV sequence */
-	MXC_JPEG_RGB	= 0x2, /* RGBRGB packed format */
+	MXC_JPEG_BGR	= 0x2, /* BGR packed format */
 	MXC_JPEG_YUV444	= 0x3, /* 1 Plannar, YUVYUV sequence */
 	MXC_JPEG_GRAY = 0x4, /* Y8 or Y12 or Single Component */
 	MXC_JPEG_RESERVED = 0x5,
-	MXC_JPEG_ARGB	= 0x6,
+	MXC_JPEG_ABGR	= 0x6,
 };
 
 #include "mxc-jpeg.h"

@@ -1082,7 +1082,7 @@ struct pqi_stream_data {
 };
 
 struct pqi_scsi_dev {
-	int	devtype;		/* as reported by INQUIRY commmand */
+	int	devtype;		/* as reported by INQUIRY command */
 	u8	device_type;		/* as reported by */
 					/* BMIC_IDENTIFY_PHYSICAL_DEVICE */
 					/* only valid for devtype = TYPE_DISK */

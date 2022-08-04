@@ -454,6 +454,10 @@ static int csi2dc_init_cfg(struct v4l2_subdev *csi2dc_sd,
 	return 0;
 }
 
+static const struct media_entity_operations csi2dc_entity_ops = {
+	.link_validate = v4l2_subdev_link_validate,
+};
+
 static const struct v4l2_subdev_pad_ops csi2dc_pad_ops = {
 	.enum_mbus_code = csi2dc_enum_mbus_code,
 	.set_fmt = csi2dc_set_fmt,
@@ -683,6 +687,7 @@ static int csi2dc_probe(struct platform_device *pdev)
 
 	csi2dc->csi2dc_sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	csi2dc->csi2dc_sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
+	csi2dc->csi2dc_sd.entity.ops = &csi2dc_entity_ops;
 
 	platform_set_drvdata(pdev, csi2dc);
 

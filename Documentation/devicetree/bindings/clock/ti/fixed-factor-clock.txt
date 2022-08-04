@@ -16,6 +16,7 @@ Required properties:
 - clocks: parent clock.
 
 Optional properties:
+- clock-output-names : from common clock binding.
 - ti,autoidle-shift: bit shift of the autoidle enable bit for the clock,
   see [2]
 - reg: offset for the autoidle register of this clock, see [2]

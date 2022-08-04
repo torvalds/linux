@@ -12,8 +12,9 @@
 #include <linux/buffer_head.h>
 #include "efs.h"
 
-static int efs_symlink_readpage(struct file *file, struct page *page)
+static int efs_symlink_read_folio(struct file *file, struct folio *folio)
 {
+	struct page *page = &folio->page;
 	char *link = page_address(page);
 	struct buffer_head * bh;
 	struct inode * inode = page->mapping->host;
@@ -49,5 +50,5 @@ fail:
 }
 
 const struct address_space_operations efs_symlink_aops = {
-	.readpage	= efs_symlink_readpage
+	.read_folio	= efs_symlink_read_folio
 };

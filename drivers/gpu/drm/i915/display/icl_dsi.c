@@ -25,6 +25,7 @@
  *   Jani Nikula <jani.nikula@intel.com>
  */
 
+#include <drm/display/drm_dsc_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_mipi_dsi.h>
 

@@ -90,6 +90,8 @@
 			64-bit;
 			d-cache-size = <0x1000>;
 			ibm,chip-id = <0>;
+			ibm,mmu-lpid-bits = <12>;
+			ibm,mmu-pid-bits = <20>;
 		};
 	};
 

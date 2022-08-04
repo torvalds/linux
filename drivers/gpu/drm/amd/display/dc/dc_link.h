@@ -67,13 +67,9 @@ struct link_mst_stream_allocation_table {
 	struct link_mst_stream_allocation stream_allocations[MAX_CONTROLLER_NUM];
 };
 
-struct time_stamp {
-	uint64_t edp_poweroff;
-	uint64_t edp_poweron;
-};
-
-struct link_trace {
-	struct time_stamp time_stamp;
+struct edp_trace_power_timestamps {
+	uint64_t poweroff;
+	uint64_t poweron;
 };
 
 struct dp_trace_lt_counts {
@@ -96,6 +92,7 @@ struct dp_trace {
 	struct dp_trace_lt commit_lt_trace;
 	unsigned int link_loss_count;
 	bool is_initialized;
+	struct edp_trace_power_timestamps edp_trace_power_timestamps;
 };
 
 /* PSR feature flags */
@@ -103,6 +100,7 @@ struct psr_settings {
 	bool psr_feature_enabled;		// PSR is supported by sink
 	bool psr_allow_active;			// PSR is currently active
 	enum dc_psr_version psr_version;		// Internal PSR version, determined based on DPCD
+	bool psr_vtotal_control_support;	// Vtotal control is supported by sink
 
 	/* These parameters are calculated in Driver,
 	 * based on display timing and Sink capabilities.
@@ -111,6 +109,7 @@ struct psr_settings {
 	 */
 	bool psr_frame_capture_indication_req;
 	unsigned int psr_sdp_transmit_line_num_deadline;
+	uint8_t force_ffu_mode;
 	unsigned int psr_power_opt;
 };
 
@@ -231,7 +230,6 @@ struct dc_link {
 	struct dc_link_status link_status;
 	struct dprx_states dprx_states;
 
-	struct link_trace link_trace;
 	struct gpio *hpd_gpio;
 	enum dc_link_fec_state fec_state;
 };
@@ -322,11 +320,16 @@ bool dc_link_setup_psr(struct dc_link *dc_link,
 		const struct dc_stream_state *stream, struct psr_config *psr_config,
 		struct psr_context *psr_context);
 
+bool dc_power_alpm_dpcd_enable(struct dc_link *link, bool enable);
+
 void dc_link_get_psr_residency(const struct dc_link *link, uint32_t *residency);
 
 void dc_link_blank_all_dp_displays(struct dc *dc);
+void dc_link_blank_all_edp_displays(struct dc *dc);
 
 void dc_link_blank_dp_stream(struct dc_link *link, bool hw_init);
+bool dc_link_set_sink_vtotal_in_psr_active(const struct dc_link *link,
+		uint16_t psr_vtotal_idle, uint16_t psr_vtotal_su);
 
 /* Request DC to detect if there is a Panel connected.
  * boot - If this call is during initial boot.
@@ -511,4 +514,7 @@ bool dc_dp_trace_is_logged(struct dc_link *link,
 struct dp_trace_lt_counts *dc_dp_trace_get_lt_counts(struct dc_link *link,
 		bool in_detection);
 unsigned int dc_dp_trace_get_link_loss_count(struct dc_link *link);
+
+/* Destruct the mst topology of the link and reset the allocated payload table */
+bool reset_cur_dp_mst_topology(struct dc_link *link);
 #endif /* DC_LINK_H_ */

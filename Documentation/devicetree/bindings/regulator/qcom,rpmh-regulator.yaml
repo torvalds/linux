@@ -7,7 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm Technologies, Inc. RPMh Regulators
 
 maintainers:
-  - David Collins <collinsd@codeaurora.org>
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
+  - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
 
 description: |
     rpmh-regulator devices support PMIC regulator management via the Voltage
@@ -78,7 +79,7 @@ properties:
         RPMh resource name suffix used for the regulators found
         on this PMIC.
     $ref: /schemas/types.yaml#/definitions/string
-    enum: [a, b, c, d, e, f]
+    enum: [a, b, c, d, e, f, h, k]
 
   qcom,always-wait-for-ack:
     description: |
@@ -94,34 +95,263 @@ properties:
   vdd-rgb-supply:
     description: Input supply phandle of rgb.
 
-  vin-lvs-1-2-supply:
-    description: Input supply phandle of one or more regulators.
-
-  vdd-bob-supply:
-    description: BOB regulator parent supply phandle.
-
   bob:
     type: object
     $ref: "regulator.yaml#"
     description: BOB regulator node.
 
 patternProperties:
-  "^vdd-s([0-9]+)-supply$":
-    description: Input supply phandle(s) of one or more regulators.
-
-  "^vdd-(l[0-9]+[-]){1,5}supply$":
-    description: Input supply phandle(s) of one or more regulators.
-
   "^(smps|ldo|lvs)[0-9]+$":
     type: object
     $ref: "regulator.yaml#"
     description: smps/ldo regulator nodes(s).
 
-additionalProperties: false
-
 required:
   - compatible
   - qcom,pmic-id
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pm6150-rpmh-regulators
+    then:
+      properties:
+        vdd-l2-l3-supply: true
+        vdd-l4-l7-l8-supply: true
+        vdd-l5-l16-l17-l18-l19-supply: true
+        vdd-l10-l14-l15-supply: true
+        vdd-l11-l12-l13-supply: true
+      patternProperties:
+        "^vdd-l[169]-supply$": true
+        "^vdd-s[1-5]-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pm6150l-rpmh-regulators
+    then:
+      properties:
+        vdd-bob-supply:
+          description: BOB regulator parent supply phandle.
+        vdd-l1-l8-supply: true
+        vdd-l2-l3-supply: true
+        vdd-l4-l5-l6-supply: true
+        vdd-l7-l11-supply: true
+        vdd-l9-l10-supply: true
+      patternProperties:
+        "^vdd-s[1-8]-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pm7325-rpmh-regulators
+    then:
+      properties:
+        vdd-l1-l4-l12-l15-supply: true
+        vdd-l2-l7-supply: true
+        vdd-l6-l9-l10-supply: true
+        vdd-l11-l17-l18-l19-supply: true
+        vdd-l13-supply: true
+        vdd-l14-l16-supply: true
+      patternProperties:
+        "^vdd-l[358]-supply$": true
+        "^vdd-s[1-8]-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pm8005-rpmh-regulators
+    then:
+      patternProperties:
+        "^vdd-s[1-4]-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pm8009-rpmh-regulators
+            - qcom,pm8009-1-rpmh-regulators
+    then:
+      properties:
+        vdd-l5-l6-supply: true
+      patternProperties:
+        "^vdd-l[1-47]-supply$": true
+        "^vdd-s[1-2]-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pm8150-rpmh-regulators
+            - qcom,pmm8155au-rpmh-regulators
+    then:
+      properties:
+        vdd-l1-l8-l11-supply: true
+        vdd-l2-l10-supply: true
+        vdd-l3-l4-l5-l18-supply: true
+        vdd-l6-l9-supply: true
+        vdd-l7-l12-l14-l15-supply: true
+        vdd-l13-l16-l17-supply: true
+      patternProperties:
+        "^vdd-s([1-9]|10)-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pm8150l-rpmh-regulators
+    then:
+      properties:
+        vdd-bob-supply:
+          description: BOB regulator parent supply phandle.
+        vdd-l1-l8-supply: true
+        vdd-l2-l3-supply: true
+        vdd-l4-l5-l6-supply: true
+        vdd-l7-l11-supply: true
+        vdd-l9-l10-supply: true
+      patternProperties:
+        "^vdd-s[1-8]-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pm8350-rpmh-regulators
+    then:
+      properties:
+        vdd-l1-l4-supply: true
+        vdd-l2-l7-supply: true
+        vdd-l3-l5-supply: true
+        vdd-l6-l9-l10-supply: true
+        vdd-l8-supply: true
+      patternProperties:
+        "^vdd-s([1-9]|1[0-2])-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pm8350c-rpmh-regulators
+    then:
+      properties:
+        vdd-bob-supply:
+          description: BOB regulator parent supply phandle.
+        vdd-l1-l12-supply: true
+        vdd-l2-l8-supply: true
+        vdd-l3-l4-l5-l7-l13-supply: true
+        vdd-l6-l9-l11-supply: true
+        vdd-l10-supply: true
+      patternProperties:
+        "^vdd-s([1-9]|10)-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pm8450-rpmh-regulators
+    then:
+      patternProperties:
+        "^vdd-l[1-4]-supply$": true
+        "^vdd-s[1-6]-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pm8998-rpmh-regulators
+    then:
+      properties:
+        vdd-l1-l27-supply: true
+        vdd-l2-l8-l17-supply: true
+        vdd-l3-l11-supply: true
+        vdd-l4-l5-supply: true
+        vdd-l6-supply: true
+        vdd-l7-l12-l14-l15-supply: true
+        vdd-l9-supply: true
+        vdd-l10-l23-l25-supply: true
+        vdd-l13-l19-l21-supply: true
+        vdd-l16-l28-supply: true
+        vdd-l18-l22-supply: true
+        vdd-l20-l24-supply: true
+        vdd-l26-supply: true
+        vin-lvs-1-2-supply: true
+      patternProperties:
+        "^vdd-s([1-9]|1[0-3])-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pmg1110-rpmh-regulators
+    then:
+      properties:
+        vdd-s1-supply: true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pmi8998-rpmh-regulators
+    then:
+      properties:
+        vdd-bob-supply:
+          description: BOB regulator parent supply phandle.
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pmr735a-rpmh-regulators
+    then:
+      properties:
+        vdd-l1-l2-supply: true
+        vdd-l3-supply: true
+        vdd-l4-supply: true
+        vdd-l5-l6-supply: true
+        vdd-l7-bob-supply: true
+      patternProperties:
+        "^vdd-s[1-3]-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pmx55-rpmh-regulators
+    then:
+      properties:
+        vdd-l1-l2-supply: true
+        vdd-l3-l9-supply: true
+        vdd-l4-l12-supply: true
+        vdd-l5-l6-supply: true
+        vdd-l7-l8-supply: true
+        vdd-l10-l11-l13-supply: true
+      patternProperties:
+        "^vdd-l1[4-6]-supply$": true
+        "^vdd-s[1-7]-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pmx65-rpmh-regulators
+    then:
+      properties:
+        vdd-l2-l18-supply: true
+        vdd-l5-l6-l16-supply: true
+        vdd-l8-l9-supply: true
+        vdd-l11-l13-supply: true
+      patternProperties:
+        "^vdd-l[1347]-supply$": true
+        "^vdd-l1[0245789]-supply$": true
+        "^vdd-l2[01]-supply$": true
+        "^vdd-s[1-8]-supply$": true
+
+unevaluatedProperties: false
 
 examples:
   - |

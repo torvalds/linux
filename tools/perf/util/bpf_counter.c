@@ -224,25 +224,25 @@ static int bpf_program_profiler__disable(struct evsel *evsel)
 
 static int bpf_program_profiler__read(struct evsel *evsel)
 {
-	// perf_cpu_map uses /sys/devices/system/cpu/online
-	int num_cpu = evsel__nr_cpus(evsel);
 	// BPF_MAP_TYPE_PERCPU_ARRAY uses /sys/devices/system/cpu/possible
 	// Sometimes possible > online, like on a Ryzen 3900X that has 24
 	// threads but its possible showed 0-31 -acme
 	int num_cpu_bpf = libbpf_num_possible_cpus();
 	struct bpf_perf_event_value values[num_cpu_bpf];
 	struct bpf_counter *counter;
+	struct perf_counts_values *counts;
 	int reading_map_fd;
 	__u32 key = 0;
-	int err, cpu;
+	int err, idx, bpf_cpu;
 
 	if (list_empty(&evsel->bpf_counter_list))
 		return -EAGAIN;
 
-	for (cpu = 0; cpu < num_cpu; cpu++) {
-		perf_counts(evsel->counts, cpu, 0)->val = 0;
-		perf_counts(evsel->counts, cpu, 0)->ena = 0;
-		perf_counts(evsel->counts, cpu, 0)->run = 0;
+	perf_cpu_map__for_each_idx(idx, evsel__cpus(evsel)) {
+		counts = perf_counts(evsel->counts, idx, 0);
+		counts->val = 0;
+		counts->ena = 0;
+		counts->run = 0;
 	}
 	list_for_each_entry(counter, &evsel->bpf_counter_list, list) {
 		struct bpf_prog_profiler_bpf *skel = counter->skel;
@@ -256,10 +256,15 @@ static int bpf_program_profiler__read(struct evsel *evsel)
 			return err;
 		}
 
-		for (cpu = 0; cpu < num_cpu; cpu++) {
-			perf_counts(evsel->counts, cpu, 0)->val += values[cpu].counter;
-			perf_counts(evsel->counts, cpu, 0)->ena += values[cpu].enabled;
-			perf_counts(evsel->counts, cpu, 0)->run += values[cpu].running;
+		for (bpf_cpu = 0; bpf_cpu < num_cpu_bpf; bpf_cpu++) {
+			idx = perf_cpu_map__idx(evsel__cpus(evsel),
+						(struct perf_cpu){.cpu = bpf_cpu});
+			if (idx == -1)
+				continue;
+			counts = perf_counts(evsel->counts, idx, 0);
+			counts->val += values[bpf_cpu].counter;
+			counts->ena += values[bpf_cpu].enabled;
+			counts->run += values[bpf_cpu].running;
 		}
 	}
 	return 0;
@@ -307,7 +312,10 @@ static bool bperf_attr_map_compatible(int attr_map_fd)
 		(map_info.value_size == sizeof(struct perf_event_attr_map_entry));
 }
 
-int __weak
+#ifndef HAVE_LIBBPF_BPF_MAP_CREATE
+LIBBPF_API int bpf_create_map(enum bpf_map_type map_type, int key_size,
+                              int value_size, int max_entries, __u32 map_flags);
+int
 bpf_map_create(enum bpf_map_type map_type,
 	       const char *map_name __maybe_unused,
 	       __u32 key_size,
@@ -320,6 +328,7 @@ bpf_map_create(enum bpf_map_type map_type,
 	return bpf_create_map(map_type, key_size, value_size, max_entries, 0);
 #pragma GCC diagnostic pop
 }
+#endif
 
 static int bperf_lock_attr_map(struct target *target)
 {
@@ -621,6 +630,7 @@ static int bperf__read(struct evsel *evsel)
 	struct bperf_follower_bpf *skel = evsel->follower_skel;
 	__u32 num_cpu_bpf = cpu__max_cpu().cpu;
 	struct bpf_perf_event_value values[num_cpu_bpf];
+	struct perf_counts_values *counts;
 	int reading_map_fd, err = 0;
 	__u32 i;
 	int j;
@@ -639,29 +649,32 @@ static int bperf__read(struct evsel *evsel)
 		case BPERF_FILTER_GLOBAL:
 			assert(i == 0);
 
-			perf_cpu_map__for_each_cpu(entry, j, all_cpu_map) {
-				cpu = entry.cpu;
-				perf_counts(evsel->counts, cpu, 0)->val = values[cpu].counter;
-				perf_counts(evsel->counts, cpu, 0)->ena = values[cpu].enabled;
-				perf_counts(evsel->counts, cpu, 0)->run = values[cpu].running;
+			perf_cpu_map__for_each_cpu(entry, j, evsel__cpus(evsel)) {
+				counts = perf_counts(evsel->counts, j, 0);
+				counts->val = values[entry.cpu].counter;
+				counts->ena = values[entry.cpu].enabled;
+				counts->run = values[entry.cpu].running;
 			}
 			break;
 		case BPERF_FILTER_CPU:
-			cpu = evsel->core.cpus->map[i].cpu;
-			perf_counts(evsel->counts, i, 0)->val = values[cpu].counter;
-			perf_counts(evsel->counts, i, 0)->ena = values[cpu].enabled;
-			perf_counts(evsel->counts, i, 0)->run = values[cpu].running;
+			cpu = perf_cpu_map__cpu(evsel__cpus(evsel), i).cpu;
+			assert(cpu >= 0);
+			counts = perf_counts(evsel->counts, i, 0);
+			counts->val = values[cpu].counter;
+			counts->ena = values[cpu].enabled;
+			counts->run = values[cpu].running;
 			break;
 		case BPERF_FILTER_PID:
 		case BPERF_FILTER_TGID:
-			perf_counts(evsel->counts, 0, i)->val = 0;
-			perf_counts(evsel->counts, 0, i)->ena = 0;
-			perf_counts(evsel->counts, 0, i)->run = 0;
+			counts = perf_counts(evsel->counts, 0, i);
+			counts->val = 0;
+			counts->ena = 0;
+			counts->run = 0;
 
 			for (cpu = 0; cpu < num_cpu_bpf; cpu++) {
-				perf_counts(evsel->counts, 0, i)->val += values[cpu].counter;
-				perf_counts(evsel->counts, 0, i)->ena += values[cpu].enabled;
-				perf_counts(evsel->counts, 0, i)->run += values[cpu].running;
+				counts->val += values[cpu].counter;
+				counts->ena += values[cpu].enabled;
+				counts->run += values[cpu].running;
 			}
 			break;
 		default:

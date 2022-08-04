@@ -15,14 +15,26 @@
 
 #include "adv7511.h"
 
+static const u8 ADV7511_REG_CEC_RX_FRAME_HDR[] = {
+	ADV7511_REG_CEC_RX1_FRAME_HDR,
+	ADV7511_REG_CEC_RX2_FRAME_HDR,
+	ADV7511_REG_CEC_RX3_FRAME_HDR,
+};
+
+static const u8 ADV7511_REG_CEC_RX_FRAME_LEN[] = {
+	ADV7511_REG_CEC_RX1_FRAME_LEN,
+	ADV7511_REG_CEC_RX2_FRAME_LEN,
+	ADV7511_REG_CEC_RX3_FRAME_LEN,
+};
+
 #define ADV7511_INT1_CEC_MASK \
 	(ADV7511_INT1_CEC_TX_READY | ADV7511_INT1_CEC_TX_ARBIT_LOST | \
-	 ADV7511_INT1_CEC_TX_RETRY_TIMEOUT | ADV7511_INT1_CEC_RX_READY1)
+	 ADV7511_INT1_CEC_TX_RETRY_TIMEOUT | ADV7511_INT1_CEC_RX_READY1 | \
+	 ADV7511_INT1_CEC_RX_READY2 | ADV7511_INT1_CEC_RX_READY3)
 
 static void adv_cec_tx_raw_status(struct adv7511 *adv7511, u8 tx_raw_status)
 {
-	unsigned int offset = adv7511->type == ADV7533 ?
-					ADV7533_REG_CEC_OFFSET : 0;
+	unsigned int offset = adv7511->reg_cec_offset;
 	unsigned int val;
 
 	if (regmap_read(adv7511->regmap_cec,
@@ -71,26 +83,16 @@ static void adv_cec_tx_raw_status(struct adv7511 *adv7511, u8 tx_raw_status)
 	}
 }
 
-void adv7511_cec_irq_process(struct adv7511 *adv7511, unsigned int irq1)
+static void adv7511_cec_rx(struct adv7511 *adv7511, int rx_buf)
 {
-	unsigned int offset = adv7511->type == ADV7533 ?
-					ADV7533_REG_CEC_OFFSET : 0;
-	const u32 irq_tx_mask = ADV7511_INT1_CEC_TX_READY |
-				ADV7511_INT1_CEC_TX_ARBIT_LOST |
-				ADV7511_INT1_CEC_TX_RETRY_TIMEOUT;
+	unsigned int offset = adv7511->reg_cec_offset;
 	struct cec_msg msg = {};
 	unsigned int len;
 	unsigned int val;
 	u8 i;
 
-	if (irq1 & irq_tx_mask)
-		adv_cec_tx_raw_status(adv7511, irq1);
-
-	if (!(irq1 & ADV7511_INT1_CEC_RX_READY1))
-		return;
-
 	if (regmap_read(adv7511->regmap_cec,
-			ADV7511_REG_CEC_RX_FRAME_LEN + offset, &len))
+			ADV7511_REG_CEC_RX_FRAME_LEN[rx_buf] + offset, &len))
 		return;
 
 	msg.len = len & 0x1f;
@@ -103,23 +105,80 @@ void adv7511_cec_irq_process(struct adv7511 *adv7511, unsigned int irq1)
 
 	for (i = 0; i < msg.len; i++) {
 		regmap_read(adv7511->regmap_cec,
-			    i + ADV7511_REG_CEC_RX_FRAME_HDR + offset, &val);
+			    i + ADV7511_REG_CEC_RX_FRAME_HDR[rx_buf] + offset,
+			    &val);
 		msg.msg[i] = val;
 	}
 
-	/* toggle to re-enable rx 1 */
-	regmap_write(adv7511->regmap_cec,
-		     ADV7511_REG_CEC_RX_BUFFERS + offset, 1);
-	regmap_write(adv7511->regmap_cec,
-		     ADV7511_REG_CEC_RX_BUFFERS + offset, 0);
+	/* Toggle RX Ready Clear bit to re-enable this RX buffer */
+	regmap_update_bits(adv7511->regmap_cec,
+			   ADV7511_REG_CEC_RX_BUFFERS + offset, BIT(rx_buf),
+			   BIT(rx_buf));
+	regmap_update_bits(adv7511->regmap_cec,
+			   ADV7511_REG_CEC_RX_BUFFERS + offset, BIT(rx_buf), 0);
+
 	cec_received_msg(adv7511->cec_adap, &msg);
+}
+
+void adv7511_cec_irq_process(struct adv7511 *adv7511, unsigned int irq1)
+{
+	unsigned int offset = adv7511->reg_cec_offset;
+	const u32 irq_tx_mask = ADV7511_INT1_CEC_TX_READY |
+				ADV7511_INT1_CEC_TX_ARBIT_LOST |
+				ADV7511_INT1_CEC_TX_RETRY_TIMEOUT;
+	const u32 irq_rx_mask = ADV7511_INT1_CEC_RX_READY1 |
+				ADV7511_INT1_CEC_RX_READY2 |
+				ADV7511_INT1_CEC_RX_READY3;
+	unsigned int rx_status;
+	int rx_order[3] = { -1, -1, -1 };
+	int i;
+
+	if (irq1 & irq_tx_mask)
+		adv_cec_tx_raw_status(adv7511, irq1);
+
+	if (!(irq1 & irq_rx_mask))
+		return;
+
+	if (regmap_read(adv7511->regmap_cec,
+			ADV7511_REG_CEC_RX_STATUS + offset, &rx_status))
+		return;
+
+	/*
+	 * ADV7511_REG_CEC_RX_STATUS[5:0] contains the reception order of RX
+	 * buffers 0, 1, and 2 in bits [1:0], [3:2], and [5:4] respectively.
+	 * The values are to be interpreted as follows:
+	 *
+	 *   0 = buffer unused
+	 *   1 = buffer contains oldest received frame (if applicable)
+	 *   2 = buffer contains second oldest received frame (if applicable)
+	 *   3 = buffer contains third oldest received frame (if applicable)
+	 *
+	 * Fill rx_order with the sequence of RX buffer indices to
+	 * read from in order, where -1 indicates that there are no
+	 * more buffers to process.
+	 */
+	for (i = 0; i < 3; i++) {
+		unsigned int timestamp = (rx_status >> (2 * i)) & 0x3;
+
+		if (timestamp)
+			rx_order[timestamp - 1] = i;
+	}
+
+	/* Read CEC RX buffers in the appropriate order as prescribed above */
+	for (i = 0; i < 3; i++) {
+		int rx_buf = rx_order[i];
+
+		if (rx_buf < 0)
+			break;
+
+		adv7511_cec_rx(adv7511, rx_buf);
+	}
 }
 
 static int adv7511_cec_adap_enable(struct cec_adapter *adap, bool enable)
 {
 	struct adv7511 *adv7511 = cec_get_drvdata(adap);
-	unsigned int offset = adv7511->type == ADV7533 ?
-					ADV7533_REG_CEC_OFFSET : 0;
+	unsigned int offset = adv7511->reg_cec_offset;
 
 	if (adv7511->i2c_cec == NULL)
 		return -EIO;
@@ -129,11 +188,11 @@ static int adv7511_cec_adap_enable(struct cec_adapter *adap, bool enable)
 		regmap_update_bits(adv7511->regmap_cec,
 				   ADV7511_REG_CEC_CLK_DIV + offset,
 				   0x03, 0x01);
-		/* legacy mode and clear all rx buffers */
+		/* non-legacy mode and clear all rx buffers */
 		regmap_write(adv7511->regmap_cec,
-			     ADV7511_REG_CEC_RX_BUFFERS + offset, 0x07);
+			     ADV7511_REG_CEC_RX_BUFFERS + offset, 0x0f);
 		regmap_write(adv7511->regmap_cec,
-			     ADV7511_REG_CEC_RX_BUFFERS + offset, 0);
+			     ADV7511_REG_CEC_RX_BUFFERS + offset, 0x08);
 		/* initially disable tx */
 		regmap_update_bits(adv7511->regmap_cec,
 				   ADV7511_REG_CEC_TX_ENABLE + offset, 1, 0);
@@ -141,7 +200,7 @@ static int adv7511_cec_adap_enable(struct cec_adapter *adap, bool enable)
 		/* tx: ready */
 		/* tx: arbitration lost */
 		/* tx: retry timeout */
-		/* rx: ready 1 */
+		/* rx: ready 1-3 */
 		regmap_update_bits(adv7511->regmap,
 				   ADV7511_REG_INT_ENABLE(1), 0x3f,
 				   ADV7511_INT1_CEC_MASK);
@@ -165,8 +224,7 @@ static int adv7511_cec_adap_enable(struct cec_adapter *adap, bool enable)
 static int adv7511_cec_adap_log_addr(struct cec_adapter *adap, u8 addr)
 {
 	struct adv7511 *adv7511 = cec_get_drvdata(adap);
-	unsigned int offset = adv7511->type == ADV7533 ?
-					ADV7533_REG_CEC_OFFSET : 0;
+	unsigned int offset = adv7511->reg_cec_offset;
 	unsigned int i, free_idx = ADV7511_MAX_ADDRS;
 
 	if (!adv7511->cec_enabled_adap)
@@ -235,8 +293,7 @@ static int adv7511_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 				     u32 signal_free_time, struct cec_msg *msg)
 {
 	struct adv7511 *adv7511 = cec_get_drvdata(adap);
-	unsigned int offset = adv7511->type == ADV7533 ?
-					ADV7533_REG_CEC_OFFSET : 0;
+	unsigned int offset = adv7511->reg_cec_offset;
 	u8 len = msg->len;
 	unsigned int i;
 
@@ -289,8 +346,7 @@ static int adv7511_cec_parse_dt(struct device *dev, struct adv7511 *adv7511)
 
 int adv7511_cec_init(struct device *dev, struct adv7511 *adv7511)
 {
-	unsigned int offset = adv7511->type == ADV7533 ?
-						ADV7533_REG_CEC_OFFSET : 0;
+	unsigned int offset = adv7511->reg_cec_offset;
 	int ret = adv7511_cec_parse_dt(dev, adv7511);
 
 	if (ret)
@@ -310,9 +366,9 @@ int adv7511_cec_init(struct device *dev, struct adv7511 *adv7511)
 	regmap_write(adv7511->regmap_cec,
 		     ADV7511_REG_CEC_SOFT_RESET + offset, 0x00);
 
-	/* legacy mode */
+	/* non-legacy mode - use all three RX buffers */
 	regmap_write(adv7511->regmap_cec,
-		     ADV7511_REG_CEC_RX_BUFFERS + offset, 0x00);
+		     ADV7511_REG_CEC_RX_BUFFERS + offset, 0x08);
 
 	regmap_write(adv7511->regmap_cec,
 		     ADV7511_REG_CEC_CLK_DIV + offset,

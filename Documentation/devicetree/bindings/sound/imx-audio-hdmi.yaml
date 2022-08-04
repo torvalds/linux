@@ -20,9 +20,11 @@ properties:
     description: User specified audio sound card name
 
   audio-cpu:
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: The phandle of an CPU DAI controller
 
   hdmi-out:
+    type: boolean
     description: |
       This is a boolean property. If present, the transmitting function
       of HDMI will be enabled, indicating there's a physical HDMI out
@@ -30,6 +32,7 @@ properties:
       block, such as an HDMI encoder or display-controller.
 
   hdmi-in:
+    type: boolean
     description: |
       This is a boolean property. If present, the receiving function of
       HDMI will be enabled, indicating there is a physical HDMI in

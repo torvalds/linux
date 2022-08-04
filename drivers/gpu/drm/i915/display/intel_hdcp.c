@@ -12,7 +12,7 @@
 #include <linux/i2c.h>
 #include <linux/random.h>
 
-#include <drm/drm_hdcp.h>
+#include <drm/display/drm_hdcp_helper.h>
 #include <drm/i915_component.h>
 
 #include "i915_drv.h"

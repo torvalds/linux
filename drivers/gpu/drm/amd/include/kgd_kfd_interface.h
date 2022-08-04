@@ -152,6 +152,7 @@ struct kgd2kfd_shared_resources {
 	/* Minor device number of the render node */
 	int drm_render_minor;
 
+	bool enable_mes;
 };
 
 struct tile_config {

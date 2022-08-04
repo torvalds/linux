@@ -28,22 +28,20 @@
 #include <linux/mfd/tps65010.h>
 #include <linux/smc91x.h>
 #include <linux/omapfb.h>
+#include <linux/omap-dma.h>
 #include <linux/platform_data/gpio-omap.h>
+#include <linux/platform_data/keypad-omap.h>
 #include <linux/leds.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/mux.h>
-#include <linux/omap-dma.h>
-#include <mach/tc.h>
-#include <linux/platform_data/keypad-omap.h>
+#include "tc.h"
+#include "mux.h"
 #include "flash.h"
-
-#include <mach/hardware.h>
-#include <mach/usb.h>
-
+#include "hardware.h"
+#include "usb.h"
 #include "common.h"
 #include "board-h2.h"
 

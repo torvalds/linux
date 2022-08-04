@@ -9,7 +9,7 @@
 #ifndef __ASM_ARCH_MAP_H
 #define __ASM_ARCH_MAP_H
 
-#include <mach/map-base.h>
+#include "map-base.h"
 #include "map-s3c.h"
 
 /*

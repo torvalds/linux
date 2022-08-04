@@ -310,15 +310,25 @@ static int gp8psk_usb_probe(struct usb_interface *intf,
 	return ret;
 }
 
-static struct usb_device_id gp8psk_usb_table [] = {
-	    { USB_DEVICE(USB_VID_GENPIX, USB_PID_GENPIX_8PSK_REV_1_COLD) },
-	    { USB_DEVICE(USB_VID_GENPIX, USB_PID_GENPIX_8PSK_REV_1_WARM) },
-	    { USB_DEVICE(USB_VID_GENPIX, USB_PID_GENPIX_8PSK_REV_2) },
-	    { USB_DEVICE(USB_VID_GENPIX, USB_PID_GENPIX_SKYWALKER_1) },
-	    { USB_DEVICE(USB_VID_GENPIX, USB_PID_GENPIX_SKYWALKER_2) },
-/*	    { USB_DEVICE(USB_VID_GENPIX, USB_PID_GENPIX_SKYWALKER_CW3K) }, */
-	    { 0 },
+enum {
+	GENPIX_8PSK_REV_1_COLD,
+	GENPIX_8PSK_REV_1_WARM,
+	GENPIX_8PSK_REV_2,
+	GENPIX_SKYWALKER_1,
+	GENPIX_SKYWALKER_2,
+	GENPIX_SKYWALKER_CW3K,
 };
+
+static struct usb_device_id gp8psk_usb_table[] = {
+	DVB_USB_DEV(GENPIX, GENPIX_8PSK_REV_1_COLD),
+	DVB_USB_DEV(GENPIX, GENPIX_8PSK_REV_1_WARM),
+	DVB_USB_DEV(GENPIX, GENPIX_8PSK_REV_2),
+	DVB_USB_DEV(GENPIX, GENPIX_SKYWALKER_1),
+	DVB_USB_DEV(GENPIX, GENPIX_SKYWALKER_2),
+	DVB_USB_DEV(GENPIX, GENPIX_SKYWALKER_CW3K),
+	{ }
+};
+
 MODULE_DEVICE_TABLE(usb, gp8psk_usb_table);
 
 static struct dvb_usb_device_properties gp8psk_properties = {
@@ -355,20 +365,20 @@ static struct dvb_usb_device_properties gp8psk_properties = {
 	.num_device_descs = 4,
 	.devices = {
 		{ .name = "Genpix 8PSK-to-USB2 Rev.1 DVB-S receiver",
-		  .cold_ids = { &gp8psk_usb_table[0], NULL },
-		  .warm_ids = { &gp8psk_usb_table[1], NULL },
+		  .cold_ids = { &gp8psk_usb_table[GENPIX_8PSK_REV_1_COLD], NULL },
+		  .warm_ids = { &gp8psk_usb_table[GENPIX_8PSK_REV_1_WARM], NULL },
 		},
 		{ .name = "Genpix 8PSK-to-USB2 Rev.2 DVB-S receiver",
 		  .cold_ids = { NULL },
-		  .warm_ids = { &gp8psk_usb_table[2], NULL },
+		  .warm_ids = { &gp8psk_usb_table[GENPIX_8PSK_REV_2], NULL },
 		},
 		{ .name = "Genpix SkyWalker-1 DVB-S receiver",
 		  .cold_ids = { NULL },
-		  .warm_ids = { &gp8psk_usb_table[3], NULL },
+		  .warm_ids = { &gp8psk_usb_table[GENPIX_SKYWALKER_1], NULL },
 		},
 		{ .name = "Genpix SkyWalker-2 DVB-S receiver",
 		  .cold_ids = { NULL },
-		  .warm_ids = { &gp8psk_usb_table[4], NULL },
+		  .warm_ids = { &gp8psk_usb_table[GENPIX_SKYWALKER_2], NULL },
 		},
 		{ NULL },
 	}

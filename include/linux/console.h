@@ -151,6 +151,8 @@ struct console {
 	int	cflag;
 	uint	ispeed;
 	uint	ospeed;
+	u64	seq;
+	unsigned long dropped;
 	void	*data;
 	struct	 console *next;
 };

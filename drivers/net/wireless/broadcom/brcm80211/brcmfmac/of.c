@@ -5,6 +5,7 @@
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/of_net.h>
 
 #include <defs.h>
 #include "debug.h"
@@ -98,6 +99,8 @@ void brcmf_of_probe(struct device *dev, enum brcmf_bus_type bus_type,
 	err = brcmf_of_get_country_codes(dev, settings);
 	if (err)
 		brcmf_err("failed to get OF country code map (err=%d)\n", err);
+
+	of_get_mac_address(np, settings->mac);
 
 	if (bus_type != BRCMF_BUSTYPE_SDIO)
 		return;

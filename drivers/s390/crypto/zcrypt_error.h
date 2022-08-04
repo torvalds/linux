@@ -121,10 +121,11 @@ static inline int convert_error(struct zcrypt_queue *zq,
 			ZCRYPT_DBF_WARN(
 				"%s dev=%02x.%04x RY=0x%02x apfs=0x%x => bus rescan, rc=EAGAIN\n",
 				__func__, card, queue, ehdr->reply_code, apfs);
-		} else
+		} else {
 			ZCRYPT_DBF_WARN("%s dev=%02x.%04x RY=0x%02x => bus rescan, rc=EAGAIN\n",
 					__func__, card, queue,
 					ehdr->reply_code);
+		}
 		return -EAGAIN;
 	default:
 		/* Assume request is valid and a retry will be worth it */

@@ -231,10 +231,13 @@ static ssize_t n_vclocks_store(struct device *dev,
 			*(ptp->vclock_index + ptp->n_vclocks - i) = -1;
 	}
 
-	if (num == 0)
-		dev_info(dev, "only physical clock in use now\n");
-	else
-		dev_info(dev, "guarantee physical clock free running\n");
+	/* Need to inform about changed physical clock behavior */
+	if (!ptp->has_cycles) {
+		if (num == 0)
+			dev_info(dev, "only physical clock in use now\n");
+		else
+			dev_info(dev, "guarantee physical clock free running\n");
+	}
 
 	ptp->n_vclocks = num;
 	mutex_unlock(&ptp->n_vclocks_mux);
