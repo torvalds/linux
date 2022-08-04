@@ -118,7 +118,26 @@ struct dc_plane_cap {
 	uint32_t min_height;
 };
 
-// Color management caps (DPP and MPC)
+/**
+ * DOC: color-management-caps
+ *
+ * **Color management caps (DPP and MPC)**
+ *
+ * Modules/color calculates various color operations which are translated to
+ * abstracted HW. DCE 5-12 had almost no important changes, but starting with
+ * DCN1, every new generation comes with fairly major differences in color
+ * pipeline. Therefore, we abstract color pipe capabilities so modules/DM can
+ * decide mapping to HW block based on logical capabilities.
+ */
+
+/**
+ * struct rom_curve_caps - predefined transfer function caps for degamma and regamma
+ * @srgb: RGB color space transfer func
+ * @bt2020: BT.2020 transfer func
+ * @gamma2_2: standard gamma
+ * @pq: perceptual quantizer transfer function
+ * @hlg: hybrid log–gamma transfer function
+ */
 struct rom_curve_caps {
 	uint16_t srgb : 1;
 	uint16_t bt2020 : 1;
@@ -127,36 +146,68 @@ struct rom_curve_caps {
 	uint16_t hlg : 1;
 };
 
+/**
+ * struct dpp_color_caps - color pipeline capabilities for display pipe and
+ * plane blocks
+ *
+ * @dcn_arch: all DCE generations treated the same
+ * @input_lut_shared: shared with DGAM. Input LUT is different than most LUTs,
+ * just plain 256-entry lookup
+ * @icsc: input color space conversion
+ * @dgam_ram: programmable degamma LUT
+ * @post_csc: post color space conversion, before gamut remap
+ * @gamma_corr: degamma correction
+ * @hw_3d_lut: 3D LUT support. It implies a shaper LUT before. It may be shared
+ * with MPC by setting mpc:shared_3d_lut flag
+ * @ogam_ram: programmable out/blend gamma LUT
+ * @ocsc: output color space conversion
+ * @dgam_rom_for_yuv: pre-defined degamma LUT for YUV planes
+ * @dgam_rom_caps: pre-definied curve caps for degamma 1D LUT
+ * @ogam_rom_caps: pre-definied curve caps for regamma 1D LUT
+ *
+ * Note: hdr_mult and gamut remap (CTM) are always available in DPP (in that order)
+ */
 struct dpp_color_caps {
-	uint16_t dcn_arch : 1; // all DCE generations treated the same
-	// input lut is different than most LUTs, just plain 256-entry lookup
-	uint16_t input_lut_shared : 1; // shared with DGAM
+	uint16_t dcn_arch : 1;
+	uint16_t input_lut_shared : 1;
 	uint16_t icsc : 1;
 	uint16_t dgam_ram : 1;
-	uint16_t post_csc : 1; // before gamut remap
+	uint16_t post_csc : 1;
 	uint16_t gamma_corr : 1;
-
-	// hdr_mult and gamut remap always available in DPP (in that order)
-	// 3d lut implies shaper LUT,
-	// it may be shared with MPC - check MPC:shared_3d_lut flag
 	uint16_t hw_3d_lut : 1;
-	uint16_t ogam_ram : 1; // blnd gam
+	uint16_t ogam_ram : 1;
 	uint16_t ocsc : 1;
 	uint16_t dgam_rom_for_yuv : 1;
 	struct rom_curve_caps dgam_rom_caps;
 	struct rom_curve_caps ogam_rom_caps;
 };
 
+/**
+ * struct mpc_color_caps - color pipeline capabilities for multiple pipe and
+ * plane combined blocks
+ *
+ * @gamut_remap: color transformation matrix
+ * @ogam_ram: programmable out gamma LUT
+ * @ocsc: output color space conversion matrix
+ * @num_3dluts: MPC 3D LUT; always assumes a preceding shaper LUT
+ * @shared_3d_lut: shared 3D LUT flag. Can be either DPP or MPC, but single
+ * instance
+ * @ogam_rom_caps: pre-definied curve caps for regamma 1D LUT
+ */
 struct mpc_color_caps {
 	uint16_t gamut_remap : 1;
 	uint16_t ogam_ram : 1;
 	uint16_t ocsc : 1;
-	uint16_t num_3dluts : 3; //3d lut always assumes a preceding shaper LUT
-	uint16_t shared_3d_lut:1; //can be in either DPP or MPC, but single instance
-
+	uint16_t num_3dluts : 3;
+	uint16_t shared_3d_lut:1;
 	struct rom_curve_caps ogam_rom_caps;
 };
 
+/**
+ * struct dc_color_caps - color pipes capabilities for DPP and MPC hw blocks
+ * @dpp: color pipes caps for DPP
+ * @mpc: color pipes caps for MPC
+ */
 struct dc_color_caps {
 	struct dpp_color_caps dpp;
 	struct mpc_color_caps mpc;
