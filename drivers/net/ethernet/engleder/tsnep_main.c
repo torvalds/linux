@@ -1282,7 +1282,7 @@ MODULE_DEVICE_TABLE(of, tsnep_of_match);
 static struct platform_driver tsnep_driver = {
 	.driver = {
 		.name = TSNEP,
-		.of_match_table = of_match_ptr(tsnep_of_match),
+		.of_match_table = tsnep_of_match,
 	},
 	.probe = tsnep_probe,
 	.remove = tsnep_remove,
