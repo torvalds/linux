@@ -147,6 +147,4 @@ bool rtl8188eu_xmitframe_complete(struct adapter *padapter,
 				 struct xmit_priv *pxmitpriv,
 				 struct xmit_buf *pxmitbuf);
 
-void handle_txrpt_ccx_88e(struct adapter *adapter, u8 *buf);
-
 #endif /* __RTL8188E_XMIT_H__ */
