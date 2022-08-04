@@ -39,6 +39,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
 #include <uapi/scsi/scsi_bsg_mpi3mr.h>
+#include <scsi/scsi_transport_sas.h>
 
 #include "mpi/mpi30_transport.h"
 #include "mpi/mpi30_cnfg.h"
@@ -459,6 +460,98 @@ struct mpi3mr_throttle_group_info {
 	u32 high;
 	u32 low;
 	atomic_t pend_large_data_sz;
+};
+
+/* HBA port flags */
+#define MPI3MR_HBA_PORT_FLAG_DIRTY	0x01
+
+/**
+ * struct mpi3mr_hba_port - HBA's port information
+ * @port_id: Port number
+ * @flags: HBA port flags
+ */
+struct mpi3mr_hba_port {
+	struct list_head list;
+	u8 port_id;
+	u8 flags;
+};
+
+/**
+ * struct mpi3mr_sas_port - Internal SAS port information
+ * @port_list: List of ports belonging to a SAS node
+ * @num_phys: Number of phys associated with port
+ * @hba_port: HBA port entry
+ * @remote_identify: Attached device identification
+ * @rphy: SAS transport layer rphy object
+ * @port: SAS transport layer port object
+ * @phy_list: mpi3mr_sas_phy objects belonging to this port
+ */
+struct mpi3mr_sas_port {
+	struct list_head port_list;
+	u8 num_phys;
+	struct mpi3mr_hba_port *hba_port;
+	struct sas_identify remote_identify;
+	struct sas_rphy *rphy;
+	struct sas_port *port;
+	struct list_head phy_list;
+};
+
+/**
+ * struct mpi3mr_sas_phy - Internal SAS Phy information
+ * @port_siblings: List of phys belonging to a port
+ * @identify: Phy identification
+ * @remote_identify: Attached device identification
+ * @phy: SAS transport layer Phy object
+ * @phy_id: Unique phy id within a port
+ * @handle: Firmware device handle for this phy
+ * @attached_handle: Firmware device handle for attached device
+ * @phy_belongs_to_port: Flag to indicate phy belongs to port
+   @hba_port: HBA port entry
+ */
+struct mpi3mr_sas_phy {
+	struct list_head port_siblings;
+	struct sas_identify identify;
+	struct sas_identify remote_identify;
+	struct sas_phy *phy;
+	u8 phy_id;
+	u16 handle;
+	u16 attached_handle;
+	u8 phy_belongs_to_port;
+	struct mpi3mr_hba_port *hba_port;
+};
+
+/**
+ * struct mpi3mr_sas_node - SAS host/expander information
+ * @list: List of sas nodes in a controller
+ * @parent_dev: Parent device class
+ * @num_phys: Number phys belonging to sas_node
+ * @sas_address: SAS address of sas_node
+ * @handle: Firmware device handle for this sas_host/expander
+ * @sas_address_parent: SAS address of parent expander or host
+ * @enclosure_handle: Firmware handle of enclosure of this node
+ * @device_info: Capabilities of this sas_host/expander
+ * @non_responding: used to refresh the expander devices during reset
+ * @host_node: Flag to indicate this is a host_node
+ * @hba_port: HBA port entry
+ * @phy: A list of phys that make up this sas_host/expander
+ * @sas_port_list: List of internal ports of this node
+ * @rphy: sas_rphy object of this expander node
+ */
+struct mpi3mr_sas_node {
+	struct list_head list;
+	struct device *parent_dev;
+	u8 num_phys;
+	u64 sas_address;
+	u16 handle;
+	u64 sas_address_parent;
+	u16 enclosure_handle;
+	u64 enclosure_logical_id;
+	u8 non_responding;
+	u8 host_node;
+	struct mpi3mr_hba_port *hba_port;
+	struct mpi3mr_sas_phy *phy;
+	struct list_head sas_port_list;
+	struct sas_rphy *rphy;
 };
 
 /**
