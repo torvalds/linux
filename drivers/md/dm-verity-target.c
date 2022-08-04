@@ -501,14 +501,21 @@ static int verity_verify_io(struct dm_verity_io *io)
 #if defined(CONFIG_DM_VERITY_FEC)
 	struct bvec_iter start;
 #endif
-	/*
-	 * Copy the iterator in case we need to restart verification in a
-	 * work-queue.
-	 */
-	struct bvec_iter iter_copy = io->iter;
+	struct bvec_iter iter_copy;
+	struct bvec_iter *iter;
 	struct crypto_wait wait;
 	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
 	unsigned int b;
+
+	if (static_branch_unlikely(&use_tasklet_enabled) && io->in_tasklet) {
+		/*
+		 * Copy the iterator in case we need to restart
+		 * verification in a work-queue.
+		 */
+		iter_copy = io->iter;
+		iter = &iter_copy;
+	} else
+		iter = &io->iter;
 
 	for (b = 0; b < io->n_blocks; b++) {
 		int r;
@@ -517,7 +524,7 @@ static int verity_verify_io(struct dm_verity_io *io)
 
 		if (v->validated_blocks &&
 		    likely(test_bit(cur_block, v->validated_blocks))) {
-			verity_bv_skip_block(v, io, &iter_copy);
+			verity_bv_skip_block(v, io, iter);
 			continue;
 		}
 
@@ -532,7 +539,7 @@ static int verity_verify_io(struct dm_verity_io *io)
 			 * If we expect a zero block, don't validate, just
 			 * return zeros.
 			 */
-			r = verity_for_bv_block(v, io, &iter_copy,
+			r = verity_for_bv_block(v, io, iter,
 						verity_bv_zero);
 			if (unlikely(r < 0))
 				return r;
@@ -546,9 +553,9 @@ static int verity_verify_io(struct dm_verity_io *io)
 
 #if defined(CONFIG_DM_VERITY_FEC)
 		if (verity_fec_is_enabled(v))
-			start = iter_copy;
+			start = *iter;
 #endif
-		r = verity_for_io_block(v, io, &iter_copy, &wait);
+		r = verity_for_io_block(v, io, iter, &wait);
 		if (unlikely(r < 0))
 			return r;
 
