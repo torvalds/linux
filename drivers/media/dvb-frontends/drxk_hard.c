@@ -3516,7 +3516,7 @@ static int set_dvbt_standard(struct drxk_state *state,
 	status = write16(state, IQM_AF_CLP_LEN__A, 0);
 	if (status < 0)
 		goto error;
-	/* window size for for sense pre-SAW detection */
+	/* window size for sense pre-SAW detection */
 	status = write16(state, IQM_AF_SNS_LEN__A, 0);
 	if (status < 0)
 		goto error;
