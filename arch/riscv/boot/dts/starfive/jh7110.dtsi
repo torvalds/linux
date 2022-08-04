@@ -1130,10 +1130,9 @@
 			reg = <0x0 0x100a0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_SPDIF_CLK_APB>,
 				 <&clkgen JH7110_SPDIF_CLK_CORE>,
-				 <&clkgen JH7110_APB0>,
 				 <&clkgen JH7110_AUDIO_ROOT>,
 				 <&clkgen JH7110_MCLK_INNER>;
-			clock-names = "spdif-apb", "spdif-core", "apb0",
+			clock-names = "spdif-apb", "spdif-core",
 				      "audroot", "mclk_inner";
 			resets = <&rstgen RSTN_U0_CDNS_SPDIF_APB>;
 			reset-names = "rst_apb";

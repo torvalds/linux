@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SPDIF driver for the StarFive JH7110 SoC
  *
@@ -138,6 +138,7 @@ static int sf_spdif_hw_params(struct snd_pcm_substream *substream,
 	unsigned int format;
 	unsigned int tsamplerate;
 	unsigned int mclk;
+	unsigned int audio_root;
 	int ret;
 
 	channels = params_channels(params);
@@ -145,7 +146,17 @@ static int sf_spdif_hw_params(struct snd_pcm_substream *substream,
 	format = params_format(params);
 
 	switch (channels) {
+	case 1:
+		regmap_update_bits(spdif->regmap, SPDIF_CTRL,
+			SPDIF_CHANNEL_MODE, SPDIF_CHANNEL_MODE);
+		regmap_update_bits(spdif->regmap, SPDIF_CTRL,
+			SPDIF_DUPLICATE, SPDIF_DUPLICATE);
+		spdif->channels = false;
+		break;
 	case 2:
+		regmap_update_bits(spdif->regmap, SPDIF_CTRL,
+			SPDIF_CHANNEL_MODE, 0);
+		spdif->channels = true;
 		break;
 	default:
 		dev_err(dai->dev, "invalid channels number\n");
@@ -155,6 +166,7 @@ static int sf_spdif_hw_params(struct snd_pcm_substream *substream,
 	switch (format) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 	case SNDRV_PCM_FORMAT_S24_LE:
+	case SNDRV_PCM_FORMAT_S24_3LE:
 	case SNDRV_PCM_FORMAT_S32_LE:
 		break;
 	default:
@@ -162,6 +174,7 @@ static int sf_spdif_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	audio_root = 204800000;
 	switch (rate) {
 	case 8000:
 		mclk = 4096000;
@@ -173,6 +186,7 @@ static int sf_spdif_hw_params(struct snd_pcm_substream *substream,
 		mclk = 8192000;
 		break;
 	case 22050:
+		audio_root = 153600000;
 		mclk = 11289600;
 		break;
 	default:
@@ -180,15 +194,24 @@ static int sf_spdif_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	ret = clk_set_rate(spdif->audio_root, audio_root);
+	if (ret) {
+		dev_err(dai->dev, "failed to set audio_root rate :%d\n", ret);
+		return ret;
+	}
+	dev_dbg(dai->dev, "audio_root get rate:%ld\n",
+			clk_get_rate(spdif->audio_root));
+
 	ret = clk_set_rate(spdif->mclk_inner, mclk);
 	if (ret) {
-		dev_err(dai->dev, "failed to set rate for spdif mclk_inner ret=%d\n", ret);
+		dev_err(dai->dev, "failed to set mclk_inner rate :%d\n", ret);
 		return ret;
 	}
 
+	mclk = clk_get_rate(spdif->mclk_inner);
+	dev_dbg(dai->dev, "mclk_inner get rate:%d\n", mclk);
 	/* (FCLK)4096000/128=32000 */
-	tsamplerate = (32000 + rate/2)/rate - 1;
-
+	tsamplerate = (mclk / 128 + rate / 2) / rate - 1;
 	if (tsamplerate < 3)
 		tsamplerate = 3;
 
@@ -204,7 +227,6 @@ static int sf_spdif_clks_get(struct platform_device *pdev,
 	static struct clk_bulk_data clks[] = {
 		{ .id = "spdif-apb" },		/* clock-names in dts file */
 		{ .id = "spdif-core" },
-		{ .id = "apb0" },
 		{ .id = "audroot" },
 		{ .id = "mclk_inner"},
 	};
@@ -212,9 +234,8 @@ static int sf_spdif_clks_get(struct platform_device *pdev,
 
 	spdif->spdif_apb = clks[0].clk;
 	spdif->spdif_core = clks[1].clk;
-	spdif->apb0_clk = clks[2].clk;
-	spdif->audio_root = clks[3].clk;
-	spdif->mclk_inner = clks[4].clk;
+	spdif->audio_root = clks[2].clk;
+	spdif->mclk_inner = clks[3].clk;
 	return ret;
 }
 
@@ -225,6 +246,7 @@ static int sf_spdif_resets_get(struct platform_device *pdev,
 			{ .id = "rst_apb" },
 	};
 	int ret = devm_reset_control_bulk_get_exclusive(&pdev->dev, ARRAY_SIZE(resets), resets);
+
 	if (ret)
 		return ret;
 
@@ -250,54 +272,29 @@ static int sf_spdif_clk_init(struct platform_device *pdev,
 		goto disable_core_clk;
 	}
 
-	ret = clk_prepare_enable(spdif->apb0_clk);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable apb0_clk\n");
-		goto disable_apb0_clk;
-	}
-
-	ret = clk_prepare_enable(spdif->audio_root);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable spdif->audio_root\n");
-		goto disable_audroot_clk;
-	}
-
 	ret = clk_set_rate(spdif->audio_root, 204800000);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to set rate for spdif audroot ret=%d\n", ret);
-		goto disable_audroot_clk;
-	}
-
-	ret = clk_prepare_enable(spdif->mclk_inner);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable spdif->mclk_inner\n");
-		goto disable_mclk_clk;
+		goto disable_core_clk;
 	}
 
 	ret = clk_set_rate(spdif->mclk_inner, 8192000);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to set rate for spdif mclk_inner ret=%d\n", ret);
-		goto disable_mclk_clk;
+		goto disable_core_clk;
 	}
 
 	dev_dbg(&pdev->dev, "spdif->spdif_apb = %lu\n", clk_get_rate(spdif->spdif_apb));
 	dev_dbg(&pdev->dev, "spdif->spdif_core = %lu\n", clk_get_rate(spdif->spdif_core));
-	dev_dbg(&pdev->dev, "spdif->apb0_clk = %lu\n", clk_get_rate(spdif->apb0_clk));
 
 	ret = reset_control_deassert(spdif->rst_apb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to deassert apb\n");
-		goto disable_mclk_clk;
+		goto disable_core_clk;
 	}
 
 	return 0;
 
-disable_mclk_clk:
-	clk_disable_unprepare(spdif->mclk_inner);
-disable_audroot_clk:
-	clk_disable_unprepare(spdif->audio_root);
-disable_apb0_clk:
-	clk_disable_unprepare(spdif->apb0_clk);
 disable_core_clk:
 	clk_disable_unprepare(spdif->spdif_core);
 disable_apb_clk:
@@ -377,20 +374,12 @@ static struct snd_soc_dai_driver sf_spdif_dai = {
 	.probe = sf_spdif_dai_probe,
 	.playback = {
 		.stream_name = "Playback",
-		.channels_min = 2,
+		.channels_min = 1,
 		.channels_max = 2,
 		.rates = SF_PCM_RATE_8000_22050,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE | \
-			   SNDRV_PCM_FMTBIT_S24_LE | \
-			   SNDRV_PCM_FMTBIT_S32_LE,
-	},
-	.capture =  {
-		.stream_name = "Capture",
-		.channels_min = 2,
-		.channels_max = 2,
-		.rates = SF_PCM_RATE_8000_22050,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE | \
-			   SNDRV_PCM_FMTBIT_S24_LE | \
+		.formats = SNDRV_PCM_FMTBIT_S16_LE |
+			   SNDRV_PCM_FMTBIT_S24_LE |
+			   SNDRV_PCM_FMTBIT_S24_3LE |
 			   SNDRV_PCM_FMTBIT_S32_LE,
 	},
 	.ops = &sf_spdif_dai_ops,
