@@ -4023,9 +4023,10 @@ static void mpi3mr_slave_destroy(struct scsi_device *sdev)
 	struct Scsi_Host *shost;
 	struct mpi3mr_ioc *mrioc;
 	struct mpi3mr_stgt_priv_data *scsi_tgt_priv_data;
-	struct mpi3mr_tgt_dev *tgt_dev;
+	struct mpi3mr_tgt_dev *tgt_dev = NULL;
 	unsigned long flags;
 	struct scsi_target *starget;
+	struct sas_rphy *rphy = NULL;
 
 	if (!sdev->hostdata)
 		return;
@@ -4038,7 +4039,14 @@ static void mpi3mr_slave_destroy(struct scsi_device *sdev)
 	scsi_tgt_priv_data->num_luns--;
 
 	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
-	tgt_dev = __mpi3mr_get_tgtdev_by_perst_id(mrioc, starget->id);
+	if (starget->channel == mrioc->scsi_device_channel)
+		tgt_dev = __mpi3mr_get_tgtdev_by_perst_id(mrioc, starget->id);
+	else if (mrioc->sas_transport_enabled && !starget->channel) {
+		rphy = dev_to_rphy(starget->dev.parent);
+		tgt_dev = __mpi3mr_get_tgtdev_by_addr_and_rphy(mrioc,
+		    rphy->identify.sas_address, rphy);
+	}
+
 	if (tgt_dev && (!scsi_tgt_priv_data->num_luns))
 		tgt_dev->starget = NULL;
 	if (tgt_dev)
@@ -4103,16 +4111,23 @@ static int mpi3mr_slave_configure(struct scsi_device *sdev)
 	struct scsi_target *starget;
 	struct Scsi_Host *shost;
 	struct mpi3mr_ioc *mrioc;
-	struct mpi3mr_tgt_dev *tgt_dev;
+	struct mpi3mr_tgt_dev *tgt_dev = NULL;
 	unsigned long flags;
 	int retval = 0;
+	struct sas_rphy *rphy = NULL;
 
 	starget = scsi_target(sdev);
 	shost = dev_to_shost(&starget->dev);
 	mrioc = shost_priv(shost);
 
 	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
-	tgt_dev = __mpi3mr_get_tgtdev_by_perst_id(mrioc, starget->id);
+	if (starget->channel == mrioc->scsi_device_channel)
+		tgt_dev = __mpi3mr_get_tgtdev_by_perst_id(mrioc, starget->id);
+	else if (mrioc->sas_transport_enabled && !starget->channel) {
+		rphy = dev_to_rphy(starget->dev.parent);
+		tgt_dev = __mpi3mr_get_tgtdev_by_addr_and_rphy(mrioc,
+		    rphy->identify.sas_address, rphy);
+	}
 	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
 	if (!tgt_dev)
 		return -ENXIO;
@@ -4160,11 +4175,12 @@ static int mpi3mr_slave_alloc(struct scsi_device *sdev)
 	struct Scsi_Host *shost;
 	struct mpi3mr_ioc *mrioc;
 	struct mpi3mr_stgt_priv_data *scsi_tgt_priv_data;
-	struct mpi3mr_tgt_dev *tgt_dev;
+	struct mpi3mr_tgt_dev *tgt_dev = NULL;
 	struct mpi3mr_sdev_priv_data *scsi_dev_priv_data;
 	unsigned long flags;
 	struct scsi_target *starget;
 	int retval = 0;
+	struct sas_rphy *rphy = NULL;
 
 	starget = scsi_target(sdev);
 	shost = dev_to_shost(&starget->dev);
@@ -4172,7 +4188,14 @@ static int mpi3mr_slave_alloc(struct scsi_device *sdev)
 	scsi_tgt_priv_data = starget->hostdata;
 
 	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
-	tgt_dev = __mpi3mr_get_tgtdev_by_perst_id(mrioc, starget->id);
+
+	if (starget->channel == mrioc->scsi_device_channel)
+		tgt_dev = __mpi3mr_get_tgtdev_by_perst_id(mrioc, starget->id);
+	else if (mrioc->sas_transport_enabled && !starget->channel) {
+		rphy = dev_to_rphy(starget->dev.parent);
+		tgt_dev = __mpi3mr_get_tgtdev_by_addr_and_rphy(mrioc,
+		    rphy->identify.sas_address, rphy);
+	}
 
 	if (tgt_dev) {
 		if (tgt_dev->starget == NULL)
@@ -4215,6 +4238,8 @@ static int mpi3mr_target_alloc(struct scsi_target *starget)
 	struct mpi3mr_tgt_dev *tgt_dev;
 	unsigned long flags;
 	int retval = 0;
+	struct sas_rphy *rphy = NULL;
+	bool update_stgt_priv_data = false;
 
 	scsi_tgt_priv_data = kzalloc(sizeof(*scsi_tgt_priv_data), GFP_KERNEL);
 	if (!scsi_tgt_priv_data)
@@ -4223,8 +4248,25 @@ static int mpi3mr_target_alloc(struct scsi_target *starget)
 	starget->hostdata = scsi_tgt_priv_data;
 
 	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
-	tgt_dev = __mpi3mr_get_tgtdev_by_perst_id(mrioc, starget->id);
-	if (tgt_dev && !tgt_dev->is_hidden) {
+
+	if (starget->channel == mrioc->scsi_device_channel) {
+		tgt_dev = __mpi3mr_get_tgtdev_by_perst_id(mrioc, starget->id);
+		if (tgt_dev && !tgt_dev->is_hidden)
+			update_stgt_priv_data = true;
+		else
+			retval = -ENXIO;
+	} else if (mrioc->sas_transport_enabled && !starget->channel) {
+		rphy = dev_to_rphy(starget->dev.parent);
+		tgt_dev = __mpi3mr_get_tgtdev_by_addr_and_rphy(mrioc,
+		    rphy->identify.sas_address, rphy);
+		if (tgt_dev && !tgt_dev->is_hidden && !tgt_dev->non_stl &&
+		    (tgt_dev->dev_type == MPI3_DEVICE_DEVFORM_SAS_SATA))
+			update_stgt_priv_data = true;
+		else
+			retval = -ENXIO;
+	}
+
+	if (update_stgt_priv_data) {
 		scsi_tgt_priv_data->starget = starget;
 		scsi_tgt_priv_data->dev_handle = tgt_dev->dev_handle;
 		scsi_tgt_priv_data->perst_id = tgt_dev->perst_id;
@@ -4238,8 +4280,7 @@ static int mpi3mr_target_alloc(struct scsi_target *starget)
 		if (tgt_dev->dev_type == MPI3_DEVICE_DEVFORM_VD)
 			scsi_tgt_priv_data->throttle_group =
 			    tgt_dev->dev_spec.vd_inf.tg;
-	} else
-		retval = -ENXIO;
+	}
 	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
 
 	return retval;

@@ -199,6 +199,35 @@ static void mpi3mr_remove_device_by_sas_address(struct mpi3mr_ioc *mrioc,
 }
 
 /**
+ * __mpi3mr_get_tgtdev_by_addr_and_rphy - target device search
+ * @mrioc: Adapter instance reference
+ * @sas_address: SAS address of the device
+ * @rphy: SAS transport layer rphy object
+ *
+ * This searches for target device from sas address and rphy
+ * pointer then return mpi3mr_tgt_dev object.
+ *
+ * Return: Valid tget_dev or NULL
+ */
+struct mpi3mr_tgt_dev *__mpi3mr_get_tgtdev_by_addr_and_rphy(
+	struct mpi3mr_ioc *mrioc, u64 sas_address, struct sas_rphy *rphy)
+{
+	struct mpi3mr_tgt_dev *tgtdev;
+
+	assert_spin_locked(&mrioc->tgtdev_lock);
+
+	list_for_each_entry(tgtdev, &mrioc->tgtdev_list, list)
+		if ((tgtdev->dev_type == MPI3_DEVICE_DEVFORM_SAS_SATA) &&
+		    (tgtdev->dev_spec.sas_sata_inf.sas_address == sas_address)
+		    && (tgtdev->dev_spec.sas_sata_inf.rphy == rphy))
+			goto found_device;
+	return NULL;
+found_device:
+	mpi3mr_tgtdev_get(tgtdev);
+	return tgtdev;
+}
+
+/**
  * mpi3mr_expander_find_by_sas_address - sas expander search
  * @mrioc: Adapter instance reference
  * @sas_address: SAS address of expander

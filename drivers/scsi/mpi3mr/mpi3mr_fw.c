@@ -3745,6 +3745,8 @@ retry_init:
 	if (!(mrioc->facts.ioc_capabilities &
 	    MPI3_IOCFACTS_CAPABILITY_MULTIPATH_ENABLED)) {
 		mrioc->sas_transport_enabled = 1;
+		mrioc->scsi_device_channel = 1;
+		mrioc->shost->max_channel = 1;
 	}
 
 	mrioc->reply_sz = mrioc->facts.reply_sz;
