@@ -424,6 +424,8 @@ void mpi3mr_invalidate_devhandles(struct mpi3mr_ioc *mrioc)
 			tgt_priv->io_throttle_enabled = 0;
 			tgt_priv->io_divert = 0;
 			tgt_priv->throttle_group = NULL;
+			if (tgtdev->host_exposed)
+				atomic_set(&tgt_priv->block_io, 1);
 		}
 	}
 }
@@ -827,6 +829,7 @@ void mpi3mr_remove_tgtdev_from_host(struct mpi3mr_ioc *mrioc,
 	    __func__, tgtdev->dev_handle, (unsigned long long)tgtdev->wwid);
 	if (tgtdev->starget && tgtdev->starget->hostdata) {
 		tgt_priv = tgtdev->starget->hostdata;
+		atomic_set(&tgt_priv->block_io, 0);
 		tgt_priv->dev_handle = MPI3MR_INVALID_DEV_HANDLE;
 	}
 
@@ -1069,6 +1072,8 @@ static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
 		scsi_tgt_priv_data->dev_type = tgtdev->dev_type;
 		scsi_tgt_priv_data->io_throttle_enabled =
 		    tgtdev->io_throttle_enabled;
+		if (is_added == true)
+			atomic_set(&scsi_tgt_priv_data->block_io, 0);
 	}
 
 	switch (dev_pg0->access_status) {
@@ -4569,6 +4574,16 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 
 	stgt_priv_data = sdev_priv_data->tgt_priv_data;
 
+	if (atomic_read(&stgt_priv_data->block_io)) {
+		if (mrioc->stop_drv_processing) {
+			scmd->result = DID_NO_CONNECT << 16;
+			scsi_done(scmd);
+			goto out;
+		}
+		retval = SCSI_MLQUEUE_DEVICE_BUSY;
+		goto out;
+	}
+
 	dev_handle = stgt_priv_data->dev_handle;
 	if (dev_handle == MPI3MR_INVALID_DEV_HANDLE) {
 		scmd->result = DID_NO_CONNECT << 16;
@@ -4578,16 +4593,6 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 	if (stgt_priv_data->dev_removed) {
 		scmd->result = DID_NO_CONNECT << 16;
 		scsi_done(scmd);
-		goto out;
-	}
-
-	if (atomic_read(&stgt_priv_data->block_io)) {
-		if (mrioc->stop_drv_processing) {
-			scmd->result = DID_NO_CONNECT << 16;
-			scsi_done(scmd);
-			goto out;
-		}
-		retval = SCSI_MLQUEUE_DEVICE_BUSY;
 		goto out;
 	}
 
