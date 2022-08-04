@@ -499,6 +499,8 @@ static int exfat_add_entry(struct inode *inode, const char *path,
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct exfat_uni_name uniname;
 	struct exfat_chain clu;
+	struct timespec64 ts = current_time(inode);
+	struct exfat_entry_set_cache es;
 	int clu_size = 0;
 	unsigned int start_clu = EXFAT_FREE_CLUSTER;
 
@@ -531,8 +533,14 @@ static int exfat_add_entry(struct inode *inode, const char *path,
 	/* fill the dos name directory entry information of the created file.
 	 * the first cluster is not determined yet. (0)
 	 */
-	ret = exfat_init_dir_entry(inode, p_dir, dentry, type,
-		start_clu, clu_size);
+
+	ret = exfat_get_empty_dentry_set(&es, sb, p_dir, dentry, num_entries);
+	if (ret)
+		goto out;
+
+	exfat_init_dir_entry(&es, type, start_clu, clu_size, &ts);
+
+	ret = exfat_put_dentry_set(&es, IS_DIRSYNC(inode));
 	if (ret)
 		goto out;
 

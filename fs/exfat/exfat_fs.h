@@ -480,9 +480,9 @@ int exfat_get_cluster(struct inode *inode, unsigned int cluster,
 extern const struct inode_operations exfat_dir_inode_operations;
 extern const struct file_operations exfat_dir_operations;
 unsigned int exfat_get_entry_type(struct exfat_dentry *p_entry);
-int exfat_init_dir_entry(struct inode *inode, struct exfat_chain *p_dir,
-		int entry, unsigned int type, unsigned int start_clu,
-		unsigned long long size);
+void exfat_init_dir_entry(struct exfat_entry_set_cache *es,
+		unsigned int type, unsigned int start_clu,
+		unsigned long long size, struct timespec64 *ts);
 int exfat_init_ext_entry(struct inode *inode, struct exfat_chain *p_dir,
 		int entry, int num_entries, struct exfat_uni_name *p_uniname);
 int exfat_remove_entries(struct inode *inode, struct exfat_chain *p_dir,

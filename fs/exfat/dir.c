@@ -448,53 +448,34 @@ static void exfat_init_name_entry(struct exfat_dentry *ep,
 	}
 }
 
-int exfat_init_dir_entry(struct inode *inode, struct exfat_chain *p_dir,
-		int entry, unsigned int type, unsigned int start_clu,
-		unsigned long long size)
+void exfat_init_dir_entry(struct exfat_entry_set_cache *es,
+		unsigned int type, unsigned int start_clu,
+		unsigned long long size, struct timespec64 *ts)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = es->sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	struct timespec64 ts = current_time(inode);
 	struct exfat_dentry *ep;
-	struct buffer_head *bh;
 
-	/*
-	 * We cannot use exfat_get_dentry_set here because file ep is not
-	 * initialized yet.
-	 */
-	ep = exfat_get_dentry(sb, p_dir, entry, &bh);
-	if (!ep)
-		return -EIO;
-
+	ep = exfat_get_dentry_cached(es, ES_IDX_FILE);
 	exfat_set_entry_type(ep, type);
-	exfat_set_entry_time(sbi, &ts,
+	exfat_set_entry_time(sbi, ts,
 			&ep->dentry.file.create_tz,
 			&ep->dentry.file.create_time,
 			&ep->dentry.file.create_date,
 			&ep->dentry.file.create_time_cs);
-	exfat_set_entry_time(sbi, &ts,
+	exfat_set_entry_time(sbi, ts,
 			&ep->dentry.file.modify_tz,
 			&ep->dentry.file.modify_time,
 			&ep->dentry.file.modify_date,
 			&ep->dentry.file.modify_time_cs);
-	exfat_set_entry_time(sbi, &ts,
+	exfat_set_entry_time(sbi, ts,
 			&ep->dentry.file.access_tz,
 			&ep->dentry.file.access_time,
 			&ep->dentry.file.access_date,
 			NULL);
 
-	exfat_update_bh(bh, IS_DIRSYNC(inode));
-	brelse(bh);
-
-	ep = exfat_get_dentry(sb, p_dir, entry + 1, &bh);
-	if (!ep)
-		return -EIO;
-
+	ep = exfat_get_dentry_cached(es, ES_IDX_STREAM);
 	exfat_init_stream_entry(ep, start_clu, size);
-	exfat_update_bh(bh, IS_DIRSYNC(inode));
-	brelse(bh);
-
-	return 0;
 }
 
 int exfat_update_dir_chksum(struct inode *inode, struct exfat_chain *p_dir,
