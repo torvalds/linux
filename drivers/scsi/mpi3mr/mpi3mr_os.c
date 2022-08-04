@@ -1018,6 +1018,7 @@ static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
 {
 	u16 flags = 0;
 	struct mpi3mr_stgt_priv_data *scsi_tgt_priv_data = NULL;
+	struct mpi3mr_enclosure_node *enclosure_dev = NULL;
 	u8 prot_mask = 0;
 
 	tgtdev->perst_id = le16_to_cpu(dev_pg0->persistent_id);
@@ -1028,8 +1029,17 @@ static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
 	tgtdev->slot = le16_to_cpu(dev_pg0->slot);
 	tgtdev->q_depth = le16_to_cpu(dev_pg0->queue_depth);
 	tgtdev->wwid = le64_to_cpu(dev_pg0->wwid);
+	tgtdev->devpg0_flag = le16_to_cpu(dev_pg0->flags);
 
-	flags = le16_to_cpu(dev_pg0->flags);
+	if (tgtdev->encl_handle)
+		enclosure_dev = mpi3mr_enclosure_find_by_handle(mrioc,
+		    tgtdev->encl_handle);
+	if (enclosure_dev)
+		tgtdev->enclosure_logical_id = le64_to_cpu(
+		    enclosure_dev->pg0.enclosure_logical_id);
+
+	flags = tgtdev->devpg0_flag;
+
 	tgtdev->is_hidden = (flags & MPI3_DEVICE0_FLAGS_HIDDEN);
 
 	if (is_added == true)
@@ -1255,6 +1265,116 @@ static void mpi3mr_devinfochg_evt_bh(struct mpi3mr_ioc *mrioc,
 out:
 	if (tgtdev)
 		mpi3mr_tgtdev_put(tgtdev);
+}
+
+/**
+ * mpi3mr_enclosure_find_by_handle - enclosure search by handle
+ * @mrioc: Adapter instance reference
+ * @handle: Firmware device handle of the enclosure
+ *
+ * This searches for enclosure device based on handle, then returns the
+ * enclosure object.
+ *
+ * Return: Enclosure object reference or NULL
+ */
+struct mpi3mr_enclosure_node *mpi3mr_enclosure_find_by_handle(
+	struct mpi3mr_ioc *mrioc, u16 handle)
+{
+	struct mpi3mr_enclosure_node *enclosure_dev, *r = NULL;
+
+	list_for_each_entry(enclosure_dev, &mrioc->enclosure_list, list) {
+		if (le16_to_cpu(enclosure_dev->pg0.enclosure_handle) != handle)
+			continue;
+		r = enclosure_dev;
+		goto out;
+	}
+out:
+	return r;
+}
+
+/**
+ * mpi3mr_encldev_add_chg_evt_debug - debug for enclosure event
+ * @mrioc: Adapter instance reference
+ * @encl_pg0: Enclosure page 0.
+ * @is_added: Added event or not
+ *
+ * Return nothing.
+ */
+static void mpi3mr_encldev_add_chg_evt_debug(struct mpi3mr_ioc *mrioc,
+	struct mpi3_enclosure_page0 *encl_pg0, u8 is_added)
+{
+	char *reason_str = NULL;
+
+	if (!(mrioc->logging_level & MPI3_DEBUG_EVENT_WORK_TASK))
+		return;
+
+	if (is_added)
+		reason_str = "enclosure added";
+	else
+		reason_str = "enclosure dev status changed";
+
+	ioc_info(mrioc,
+	    "%s: handle(0x%04x), enclosure logical id(0x%016llx)\n",
+	    reason_str, le16_to_cpu(encl_pg0->enclosure_handle),
+	    (unsigned long long)le64_to_cpu(encl_pg0->enclosure_logical_id));
+	ioc_info(mrioc,
+	    "number of slots(%d), port(%d), flags(0x%04x), present(%d)\n",
+	    le16_to_cpu(encl_pg0->num_slots), encl_pg0->io_unit_port,
+	    le16_to_cpu(encl_pg0->flags),
+	    ((le16_to_cpu(encl_pg0->flags) &
+	      MPI3_ENCLS0_FLAGS_ENCL_DEV_PRESENT_MASK) >> 4));
+}
+
+/**
+ * mpi3mr_encldev_add_chg_evt_bh - Enclosure evt bottomhalf
+ * @mrioc: Adapter instance reference
+ * @fwevt: Firmware event reference
+ *
+ * Prints information about the Enclosure device status or
+ * Enclosure add events if logging is enabled and add or remove
+ * the enclosure from the controller's internal list of
+ * enclosures.
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_encldev_add_chg_evt_bh(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_fwevt *fwevt)
+{
+	struct mpi3mr_enclosure_node *enclosure_dev = NULL;
+	struct mpi3_enclosure_page0 *encl_pg0;
+	u16 encl_handle;
+	u8 added, present;
+
+	encl_pg0 = (struct mpi3_enclosure_page0 *) fwevt->event_data;
+	added = (fwevt->event_id == MPI3_EVENT_ENCL_DEVICE_ADDED) ? 1 : 0;
+	mpi3mr_encldev_add_chg_evt_debug(mrioc, encl_pg0, added);
+
+
+	encl_handle = le16_to_cpu(encl_pg0->enclosure_handle);
+	present = ((le16_to_cpu(encl_pg0->flags) &
+	      MPI3_ENCLS0_FLAGS_ENCL_DEV_PRESENT_MASK) >> 4);
+
+	if (encl_handle)
+		enclosure_dev = mpi3mr_enclosure_find_by_handle(mrioc,
+		    encl_handle);
+	if (!enclosure_dev && present) {
+		enclosure_dev =
+			kzalloc(sizeof(struct mpi3mr_enclosure_node),
+			    GFP_KERNEL);
+		if (!enclosure_dev)
+			return;
+		list_add_tail(&enclosure_dev->list,
+		    &mrioc->enclosure_list);
+	}
+	if (enclosure_dev) {
+		if (!present) {
+			list_del(&enclosure_dev->list);
+			kfree(enclosure_dev);
+		} else
+			memcpy(&enclosure_dev->pg0, encl_pg0,
+			    sizeof(enclosure_dev->pg0));
+
+	}
 }
 
 /**
@@ -1633,6 +1753,13 @@ static void mpi3mr_fwevt_bh(struct mpi3mr_ioc *mrioc,
 		mpi3mr_devstatuschg_evt_bh(mrioc, fwevt);
 		break;
 	}
+	case MPI3_EVENT_ENCL_DEVICE_ADDED:
+	case MPI3_EVENT_ENCL_DEVICE_STATUS_CHANGE:
+	{
+		mpi3mr_encldev_add_chg_evt_bh(mrioc, fwevt);
+		break;
+	}
+
 	case MPI3_EVENT_SAS_TOPOLOGY_CHANGE_LIST:
 	{
 		mpi3mr_sastopochg_evt_bh(mrioc, fwevt);
@@ -2494,6 +2621,8 @@ void mpi3mr_os_handle_events(struct mpi3mr_ioc *mrioc,
 	}
 	case MPI3_EVENT_DEVICE_INFO_CHANGED:
 	case MPI3_EVENT_LOG_DATA:
+	case MPI3_EVENT_ENCL_DEVICE_STATUS_CHANGE:
+	case MPI3_EVENT_ENCL_DEVICE_ADDED:
 	{
 		process_evt_bh = 1;
 		break;
@@ -2508,7 +2637,6 @@ void mpi3mr_os_handle_events(struct mpi3mr_ioc *mrioc,
 		mpi3mr_cablemgmt_evt_th(mrioc, event_reply);
 		break;
 	}
-	case MPI3_EVENT_ENCL_DEVICE_STATUS_CHANGE:
 	case MPI3_EVENT_SAS_DISCOVERY:
 	case MPI3_EVENT_SAS_DEVICE_DISCOVERY_ERROR:
 	case MPI3_EVENT_SAS_BROADCAST_PRIMITIVE:
@@ -4561,6 +4689,7 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_LIST_HEAD(&mrioc->tgtdev_list);
 	INIT_LIST_HEAD(&mrioc->delayed_rmhs_list);
 	INIT_LIST_HEAD(&mrioc->delayed_evtack_cmds_list);
+	INIT_LIST_HEAD(&mrioc->enclosure_list);
 
 	mutex_init(&mrioc->reset_mutex);
 	mpi3mr_init_drv_cmd(&mrioc->init_cmds, MPI3MR_HOSTTAG_INITCMDS);

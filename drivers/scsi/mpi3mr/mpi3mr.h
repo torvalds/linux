@@ -462,6 +462,16 @@ struct mpi3mr_throttle_group_info {
 };
 
 /**
+ * struct mpi3mr_enclosure_node - enclosure information
+ * @list: List of enclosures
+ * @pg0: Enclosure page 0;
+ */
+struct mpi3mr_enclosure_node {
+	struct list_head list;
+	struct mpi3_enclosure_page0 pg0;
+};
+
+/**
  * struct tgt_dev_sas_sata - SAS/SATA device specific
  * information cached from firmware given data
  *
@@ -535,12 +545,14 @@ union _form_spec_inf {
  * @slot: Slot number
  * @encl_handle: FW enclosure handle
  * @perst_id: FW assigned Persistent ID
+ * @devpg0_flag: Device Page0 flag
  * @dev_type: SAS/SATA/PCIE device type
  * @is_hidden: Should be exposed to upper layers or not
  * @host_exposed: Already exposed to host or not
  * @io_throttle_enabled: I/O throttling needed or not
  * @q_depth: Device specific Queue Depth
  * @wwid: World wide ID
+ * @enclosure_logical_id: Enclosure logical identifier
  * @dev_spec: Device type specific information
  * @ref_count: Reference count
  */
@@ -552,12 +564,14 @@ struct mpi3mr_tgt_dev {
 	u16 slot;
 	u16 encl_handle;
 	u16 perst_id;
+	u16 devpg0_flag;
 	u8 dev_type;
 	u8 is_hidden;
 	u8 host_exposed;
 	u8 io_throttle_enabled;
 	u16 q_depth;
 	u64 wwid;
+	u64 enclosure_logical_id;
 	union _form_spec_inf dev_spec;
 	struct kref ref_count;
 };
@@ -877,6 +891,7 @@ struct scmd_priv {
  * @cfg_page: Default memory for configuration pages
  * @cfg_page_dma: Configuration page DMA address
  * @cfg_page_sz: Default configuration page memory size
+ * @enclosure_list: List of Enclosure objects
  */
 struct mpi3mr_ioc {
 	struct list_head list;
@@ -1053,6 +1068,8 @@ struct mpi3mr_ioc {
 	void *cfg_page;
 	dma_addr_t cfg_page_dma;
 	u16 cfg_page_sz;
+
+	struct list_head enclosure_list;
 };
 
 /**
@@ -1177,6 +1194,8 @@ int mpi3mr_pel_get_seqnum_post(struct mpi3mr_ioc *mrioc,
 	struct mpi3mr_drv_cmd *drv_cmd);
 void mpi3mr_app_save_logdata(struct mpi3mr_ioc *mrioc, char *event_data,
 	u16 event_data_size);
+struct mpi3mr_enclosure_node *mpi3mr_enclosure_find_by_handle(
+	struct mpi3mr_ioc *mrioc, u16 handle);
 extern const struct attribute_group *mpi3mr_host_groups[];
 extern const struct attribute_group *mpi3mr_dev_groups[];
 
