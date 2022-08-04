@@ -343,7 +343,7 @@ static struct platform_driver armada8k_pcie_driver = {
 	.probe		= armada8k_pcie_probe,
 	.driver = {
 		.name	= "armada8k-pcie",
-		.of_match_table = of_match_ptr(armada8k_pcie_of_match),
+		.of_match_table = armada8k_pcie_of_match,
 		.suppress_bind_attrs = true,
 	},
 };
