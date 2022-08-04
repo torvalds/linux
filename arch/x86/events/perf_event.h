@@ -270,6 +270,10 @@ struct cpu_hw_events {
 	u64			active_pebs_data_cfg;
 	int			pebs_record_size;
 
+	/* Intel Fixed counter configuration */
+	u64			fixed_ctrl_val;
+	u64			active_fixed_ctrl_val;
+
 	/*
 	 * Intel LBR bits
 	 */
