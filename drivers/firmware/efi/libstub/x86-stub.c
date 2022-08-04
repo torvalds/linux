@@ -516,6 +516,13 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	hdr->ramdisk_image = 0;
 	hdr->ramdisk_size = 0;
 
+	/*
+	 * Disregard any setup data that was provided by the bootloader:
+	 * setup_data could be pointing anywhere, and we have no way of
+	 * authenticating or validating the payload.
+	 */
+	hdr->setup_data = 0;
+
 	efi_stub_entry(handle, sys_table_arg, boot_params);
 	/* not reached */
 
