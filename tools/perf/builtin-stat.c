@@ -71,7 +71,6 @@
 #include "util/bpf_counter.h"
 #include "util/iostat.h"
 #include "util/pmu-hybrid.h"
- #include "util/topdown.h"
 #include "asm/bug.h"
 
 #include <linux/time64.h>
