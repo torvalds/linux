@@ -40,3 +40,12 @@ Atomic Implementation
 
 .. kernel-doc:: drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
    :functions: amdgpu_dm_atomic_check amdgpu_dm_atomic_commit_tail
+
+Color Management Properties
+===========================
+
+.. kernel-doc:: drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_color.c
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_color.c
+   :internal:
