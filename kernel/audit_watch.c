@@ -133,7 +133,7 @@ int audit_watch_compare(struct audit_watch *watch, unsigned long ino, dev_t dev)
 }
 
 /* Initialize a parent watch entry. */
-static struct audit_parent *audit_init_parent(struct path *path)
+static struct audit_parent *audit_init_parent(const struct path *path)
 {
 	struct inode *inode = d_backing_inode(path->dentry);
 	struct audit_parent *parent;
