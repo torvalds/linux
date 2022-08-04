@@ -83,6 +83,7 @@ static inline struct urb *udl_get_urb(struct drm_device *dev)
 }
 
 int udl_submit_urb(struct drm_device *dev, struct urb *urb, size_t len);
+int udl_sync_pending_urbs(struct drm_device *dev);
 void udl_urb_completion(struct urb *urb);
 
 int udl_init(struct udl_device *udl);
