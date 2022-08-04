@@ -630,7 +630,7 @@ static struct dma_async_tx_descriptor *bam_prep_slave_sg(struct dma_chan *chan,
 			     GFP_NOWAIT);
 
 	if (!async_desc)
-		goto err_out;
+		return NULL;
 
 	if (flags & DMA_PREP_FENCE)
 		async_desc->flags |= DESC_FLAG_NWD;
@@ -670,10 +670,6 @@ static struct dma_async_tx_descriptor *bam_prep_slave_sg(struct dma_chan *chan,
 	}
 
 	return vchan_tx_prep(&bchan->vc, &async_desc->vd, flags);
-
-err_out:
-	kfree(async_desc);
-	return NULL;
 }
 
 /**
@@ -875,7 +871,7 @@ static irqreturn_t bam_dma_irq(int irq, void *data)
 
 	ret = bam_pm_runtime_get_sync(bdev->dev);
 	if (ret < 0)
-		return ret;
+		return IRQ_NONE;
 
 	if (srcs & BAM_IRQ) {
 		clr_mask = readl_relaxed(bam_addr(bdev, 0, BAM_IRQ_STTS));

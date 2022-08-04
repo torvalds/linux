@@ -169,11 +169,10 @@ static void __wrmsr_safe_on_cpu(void *info)
 int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
 {
 	struct msr_info_completion rv;
-	call_single_data_t csd = {
-		.func	= __rdmsr_safe_on_cpu,
-		.info	= &rv,
-	};
+	call_single_data_t csd;
 	int err;
+
+	INIT_CSD(&csd, __rdmsr_safe_on_cpu, &rv);
 
 	memset(&rv, 0, sizeof(rv));
 	init_completion(&rv.done);

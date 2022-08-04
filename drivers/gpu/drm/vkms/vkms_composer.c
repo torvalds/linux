@@ -5,6 +5,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "vkms_drv.h"
@@ -129,15 +130,15 @@ static void compose_cursor(struct vkms_composer *cursor_composer,
 			   void *vaddr_out)
 {
 	struct drm_gem_object *cursor_obj;
-	struct vkms_gem_object *cursor_vkms_obj;
+	struct drm_gem_shmem_object *cursor_shmem_obj;
 
 	cursor_obj = drm_gem_fb_get_obj(&cursor_composer->fb, 0);
-	cursor_vkms_obj = drm_gem_to_vkms_gem(cursor_obj);
+	cursor_shmem_obj = to_drm_gem_shmem_obj(cursor_obj);
 
-	if (WARN_ON(!cursor_vkms_obj->vaddr))
+	if (WARN_ON(!cursor_shmem_obj->vaddr))
 		return;
 
-	blend(vaddr_out, cursor_vkms_obj->vaddr,
+	blend(vaddr_out, cursor_shmem_obj->vaddr,
 	      primary_composer, cursor_composer);
 }
 
@@ -147,20 +148,20 @@ static int compose_planes(void **vaddr_out,
 {
 	struct drm_framebuffer *fb = &primary_composer->fb;
 	struct drm_gem_object *gem_obj = drm_gem_fb_get_obj(fb, 0);
-	struct vkms_gem_object *vkms_obj = drm_gem_to_vkms_gem(gem_obj);
+	struct drm_gem_shmem_object *shmem_obj = to_drm_gem_shmem_obj(gem_obj);
 
 	if (!*vaddr_out) {
-		*vaddr_out = kzalloc(vkms_obj->gem.size, GFP_KERNEL);
+		*vaddr_out = kzalloc(shmem_obj->base.size, GFP_KERNEL);
 		if (!*vaddr_out) {
 			DRM_ERROR("Cannot allocate memory for output frame.");
 			return -ENOMEM;
 		}
 	}
 
-	if (WARN_ON(!vkms_obj->vaddr))
+	if (WARN_ON(!shmem_obj->vaddr))
 		return -EINVAL;
 
-	memcpy(*vaddr_out, vkms_obj->vaddr, vkms_obj->gem.size);
+	memcpy(*vaddr_out, shmem_obj->vaddr, shmem_obj->base.size);
 
 	if (cursor_composer)
 		compose_cursor(cursor_composer, primary_composer, *vaddr_out);

@@ -17,7 +17,6 @@
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
-#include <linux/dmapool.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/ioctl.h>
@@ -85,7 +84,6 @@
 struct gsmi_buf {
 	u8 *start;			/* start of buffer */
 	size_t length;			/* length of buffer */
-	dma_addr_t handle;		/* dma allocation handle */
 	u32 address;			/* physical address of buffer */
 };
 
@@ -97,7 +95,7 @@ static struct gsmi_device {
 	spinlock_t lock;		/* serialize access to SMIs */
 	u16 smi_cmd;			/* SMI command port */
 	int handshake_type;		/* firmware handler interlock type */
-	struct dma_pool *dma_pool;	/* DMA buffer pool */
+	struct kmem_cache *mem_pool;	/* kmem cache for gsmi_buf allocations */
 } gsmi_dev;
 
 /* Packed structures for communicating with the firmware */
@@ -157,8 +155,7 @@ static struct gsmi_buf *gsmi_buf_alloc(void)
 	}
 
 	/* allocate buffer in 32bit address space */
-	smibuf->start = dma_pool_alloc(gsmi_dev.dma_pool, GFP_KERNEL,
-				       &smibuf->handle);
+	smibuf->start = kmem_cache_alloc(gsmi_dev.mem_pool, GFP_KERNEL);
 	if (!smibuf->start) {
 		printk(KERN_ERR "gsmi: failed to allocate name buffer\n");
 		kfree(smibuf);
@@ -176,8 +173,7 @@ static void gsmi_buf_free(struct gsmi_buf *smibuf)
 {
 	if (smibuf) {
 		if (smibuf->start)
-			dma_pool_free(gsmi_dev.dma_pool, smibuf->start,
-				      smibuf->handle);
+			kmem_cache_free(gsmi_dev.mem_pool, smibuf->start);
 		kfree(smibuf);
 	}
 }
@@ -914,9 +910,20 @@ static __init int gsmi_init(void)
 	spin_lock_init(&gsmi_dev.lock);
 
 	ret = -ENOMEM;
-	gsmi_dev.dma_pool = dma_pool_create("gsmi", &gsmi_dev.pdev->dev,
-					     GSMI_BUF_SIZE, GSMI_BUF_ALIGN, 0);
-	if (!gsmi_dev.dma_pool)
+
+	/*
+	 * SLAB cache is created using SLAB_CACHE_DMA32 to ensure that the
+	 * allocations for gsmi_buf come from the DMA32 memory zone. These
+	 * buffers have nothing to do with DMA. They are required for
+	 * communication with firmware executing in SMI mode which can only
+	 * access the bottom 4GiB of physical memory. Since DMA32 memory zone
+	 * guarantees allocation under the 4GiB boundary, this driver creates
+	 * a SLAB cache with SLAB_CACHE_DMA32 flag.
+	 */
+	gsmi_dev.mem_pool = kmem_cache_create("gsmi", GSMI_BUF_SIZE,
+					      GSMI_BUF_ALIGN,
+					      SLAB_CACHE_DMA32, NULL);
+	if (!gsmi_dev.mem_pool)
 		goto out_err;
 
 	/*
@@ -1032,7 +1039,7 @@ out_err:
 	gsmi_buf_free(gsmi_dev.param_buf);
 	gsmi_buf_free(gsmi_dev.data_buf);
 	gsmi_buf_free(gsmi_dev.name_buf);
-	dma_pool_destroy(gsmi_dev.dma_pool);
+	kmem_cache_destroy(gsmi_dev.mem_pool);
 	platform_device_unregister(gsmi_dev.pdev);
 	pr_info("gsmi: failed to load: %d\n", ret);
 #ifdef CONFIG_PM
@@ -1057,7 +1064,7 @@ static void __exit gsmi_exit(void)
 	gsmi_buf_free(gsmi_dev.param_buf);
 	gsmi_buf_free(gsmi_dev.data_buf);
 	gsmi_buf_free(gsmi_dev.name_buf);
-	dma_pool_destroy(gsmi_dev.dma_pool);
+	kmem_cache_destroy(gsmi_dev.mem_pool);
 	platform_device_unregister(gsmi_dev.pdev);
 #ifdef CONFIG_PM
 	platform_driver_unregister(&gsmi_driver_info);

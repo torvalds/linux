@@ -51,7 +51,7 @@ config ARM_SCPI_PROTOCOL
 	  provides a mechanism for inter-processor communication between SCP
 	  and AP.
 
-	  SCP controls most of the power managament on the Application
+	  SCP controls most of the power management on the Application
 	  Processors. It offers control and management of: the core/cluster
 	  power states, various power domain DVFS including the core/cluster,
 	  certain system clocks configuration, thermal sensors and many

@@ -1512,7 +1512,7 @@ static void diag308_dump(void *dump_block)
 	while (1) {
 		if (diag308(DIAG308_LOAD_NORMAL_DUMP, NULL) != 0x302)
 			break;
-		udelay_simple(USEC_PER_SEC);
+		udelay(USEC_PER_SEC);
 	}
 }
 

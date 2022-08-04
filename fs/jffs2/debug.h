@@ -13,6 +13,7 @@
 #ifndef _JFFS2_DEBUG_H_
 #define _JFFS2_DEBUG_H_
 
+#include <linux/printk.h>
 #include <linux/sched.h>
 
 #ifndef CONFIG_JFFS2_FS_DEBUG
@@ -99,73 +100,73 @@ do {						\
 #ifdef JFFS2_DBG_READINODE_MESSAGES
 #define dbg_readinode(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define dbg_readinode(fmt, ...)
+#define dbg_readinode(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 #ifdef JFFS2_DBG_READINODE2_MESSAGES
 #define dbg_readinode2(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define dbg_readinode2(fmt, ...)
+#define dbg_readinode2(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 /* Fragtree build debugging messages */
 #ifdef JFFS2_DBG_FRAGTREE_MESSAGES
 #define dbg_fragtree(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define dbg_fragtree(fmt, ...)
+#define dbg_fragtree(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 #ifdef JFFS2_DBG_FRAGTREE2_MESSAGES
 #define dbg_fragtree2(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define dbg_fragtree2(fmt, ...)
+#define dbg_fragtree2(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 /* Directory entry list manilulation debugging messages */
 #ifdef JFFS2_DBG_DENTLIST_MESSAGES
 #define dbg_dentlist(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define dbg_dentlist(fmt, ...)
+#define dbg_dentlist(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 /* Print the messages about manipulating node_refs */
 #ifdef JFFS2_DBG_NODEREF_MESSAGES
 #define dbg_noderef(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define dbg_noderef(fmt, ...)
+#define dbg_noderef(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 /* Manipulations with the list of inodes (JFFS2 inocache) */
 #ifdef JFFS2_DBG_INOCACHE_MESSAGES
 #define dbg_inocache(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define dbg_inocache(fmt, ...)
+#define dbg_inocache(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 /* Summary debugging messages */
 #ifdef JFFS2_DBG_SUMMARY_MESSAGES
 #define dbg_summary(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define dbg_summary(fmt, ...)
+#define dbg_summary(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 /* File system build messages */
 #ifdef JFFS2_DBG_FSBUILD_MESSAGES
 #define dbg_fsbuild(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define dbg_fsbuild(fmt, ...)
+#define dbg_fsbuild(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 /* Watch the object allocations */
 #ifdef JFFS2_DBG_MEMALLOC_MESSAGES
 #define dbg_memalloc(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define dbg_memalloc(fmt, ...)
+#define dbg_memalloc(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 /* Watch the XATTR subsystem */
 #ifdef JFFS2_DBG_XATTR_MESSAGES
 #define dbg_xattr(fmt, ...)  JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define dbg_xattr(fmt, ...)
+#define dbg_xattr(fmt, ...)  no_printk(fmt, ##__VA_ARGS__)
 #endif 
 
 /* "Sanity" checks */

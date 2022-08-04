@@ -9,21 +9,24 @@ menuconfig VDPA
 if VDPA
 
 config VDPA_SIM
-	tristate "vDPA device simulator"
+	tristate "vDPA device simulator core"
 	depends on RUNTIME_TESTING_MENU && HAS_DMA
 	select DMA_OPS
 	select VHOST_RING
-	select GENERIC_NET_UTILS
-	default n
 	help
-	  vDPA networking device simulator which loop TX traffic back
-	  to RX. This device is used for testing, prototyping and
-	  development of vDPA.
+	  Enable this module to support vDPA device simulators. These devices
+	  are used for testing, prototyping and development of vDPA.
+
+config VDPA_SIM_NET
+	tristate "vDPA simulator for networking device"
+	depends on VDPA_SIM
+	select GENERIC_NET_UTILS
+	help
+	  vDPA networking device simulator which loops TX traffic back to RX.
 
 config IFCVF
 	tristate "Intel IFC VF vDPA driver"
 	depends on PCI_MSI
-	default n
 	help
 	  This kernel module can drive Intel IFC VF NIC to offload
 	  virtio dataplane traffic to hardware.
@@ -42,7 +45,6 @@ config MLX5_VDPA_NET
 	tristate "vDPA driver for ConnectX devices"
 	select MLX5_VDPA
 	depends on MLX5_CORE
-	default n
 	help
 	  VDPA network driver for ConnectX6 and newer. Provides offloading
 	  of virtio net datapath such that descriptors put on the ring will

@@ -21,6 +21,8 @@
 #include "vc4_drv.h"
 #include "uapi/drm/vc4_drm.h"
 
+static vm_fault_t vc4_fault(struct vm_fault *vmf);
+
 static const char * const bo_type_names[] = {
 	"kernel",
 	"V3D",
@@ -374,8 +376,22 @@ out:
 	return bo;
 }
 
+static const struct vm_operations_struct vc4_vm_ops = {
+	.fault = vc4_fault,
+	.open = drm_gem_vm_open,
+	.close = drm_gem_vm_close,
+};
+
+static const struct drm_gem_object_funcs vc4_gem_object_funcs = {
+	.free = vc4_free_object,
+	.export = vc4_prime_export,
+	.get_sg_table = drm_gem_cma_prime_get_sg_table,
+	.vmap = vc4_prime_vmap,
+	.vm_ops = &vc4_vm_ops,
+};
+
 /**
- * vc4_gem_create_object - Implementation of driver->gem_create_object.
+ * vc4_create_object - Implementation of driver->gem_create_object.
  * @dev: DRM device
  * @size: Size in bytes of the memory the object will reference
  *
@@ -399,6 +415,8 @@ struct drm_gem_object *vc4_create_object(struct drm_device *dev, size_t size)
 	vc4->bo_labels[VC4_BO_TYPE_KERNEL].num_allocated++;
 	vc4->bo_labels[VC4_BO_TYPE_KERNEL].size_allocated += size;
 	mutex_unlock(&vc4->bo_lock);
+
+	bo->base.base.funcs = &vc4_gem_object_funcs;
 
 	return &bo->base.base;
 }
@@ -684,7 +702,7 @@ struct dma_buf * vc4_prime_export(struct drm_gem_object *obj, int flags)
 	return dmabuf;
 }
 
-vm_fault_t vc4_fault(struct vm_fault *vmf)
+static vm_fault_t vc4_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj = vma->vm_private_data;
@@ -767,16 +785,16 @@ int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	return drm_gem_cma_prime_mmap(obj, vma);
 }
 
-void *vc4_prime_vmap(struct drm_gem_object *obj)
+int vc4_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 {
 	struct vc4_bo *bo = to_vc4_bo(obj);
 
 	if (bo->validated_shader) {
 		DRM_DEBUG("mmaping of shader BOs not allowed.\n");
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
-	return drm_gem_cma_prime_vmap(obj);
+	return drm_gem_cma_prime_vmap(obj, map);
 }
 
 struct drm_gem_object *

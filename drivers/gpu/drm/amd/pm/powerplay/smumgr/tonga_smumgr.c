@@ -2545,7 +2545,7 @@ static int tonga_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 					(uint32_t)sizeof(fan_table),
 					SMC_RAM_END);
 
-	return 0;
+	return res;
 }
 
 

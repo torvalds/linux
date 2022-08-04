@@ -28,10 +28,10 @@ struct ipv6_rpl_sr_hdr {
 		pad:4,
 		reserved1:16;
 #elif defined(__BIG_ENDIAN_BITFIELD)
-	__u32	reserved:20,
+	__u32	cmpri:4,
+		cmpre:4,
 		pad:4,
-		cmpri:4,
-		cmpre:4;
+		reserved:20;
 #else
 #error  "Please fix <asm/byteorder.h>"
 #endif

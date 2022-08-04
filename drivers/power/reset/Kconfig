@@ -177,6 +177,13 @@ config POWER_RESET_QNAP
 
 	  Say Y if you have a QNAP NAS.
 
+config POWER_RESET_REGULATOR
+	bool "Regulator subsystem power-off driver"
+	depends on OF && REGULATOR
+	help
+	  This driver supports turning off your board by disabling a
+	  power regulator defined in the devicetree.
+
 config POWER_RESET_RESTART
 	bool "Restart power-off driver"
 	help

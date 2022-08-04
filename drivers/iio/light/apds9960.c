@@ -561,7 +561,7 @@ static int apds9960_write_raw(struct iio_dev *indio_dev,
 		}
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }

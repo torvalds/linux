@@ -28,7 +28,6 @@ config CSKY
 	select GENERIC_LIB_UCMPDI2
 	select GENERIC_ALLOCATOR
 	select GENERIC_ATOMIC64
-	select GENERIC_CLOCKEVENTS
 	select GENERIC_CPU_DEVICES
 	select GENERIC_IRQ_CHIP
 	select GENERIC_IRQ_PROBE
@@ -286,6 +285,7 @@ config NR_CPUS
 config HIGHMEM
 	bool "High Memory Support"
 	depends on !CPU_CK610
+	select KMAP_LOCAL
 	default y
 
 config FORCE_MAX_ZONEORDER

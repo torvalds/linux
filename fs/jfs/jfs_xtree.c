@@ -3684,7 +3684,7 @@ s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int flag)
  *
  * function:
  *	Perform truncate to zero length for deleted file, leaving the
- *	the xtree and working map untouched.  This allows the file to
+ *	xtree and working map untouched.  This allows the file to
  *	be accessed via open file handles, while the delete of the file
  *	is committed to disk.
  *

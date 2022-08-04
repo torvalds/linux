@@ -1474,7 +1474,7 @@ int aq_nic_setup_tc_mqprio(struct aq_nic_s *self, u32 tcs, u8 *prio_tc_map)
 		for (i = 0; i < sizeof(cfg->prio_tc_map); i++)
 			cfg->prio_tc_map[i] = cfg->tcs * i / 8;
 
-	cfg->is_qos = (tcs != 0 ? true : false);
+	cfg->is_qos = !!tcs;
 	cfg->is_ptp = (cfg->tcs <= AQ_HW_PTP_TC);
 	if (!cfg->is_ptp)
 		netdev_warn(self->ndev, "%s\n",

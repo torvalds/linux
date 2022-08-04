@@ -279,13 +279,35 @@ struct pp_smu_funcs_rn {
 			struct dpm_clocks *clock_table);
 };
 
+struct pp_smu_funcs_vgh {
+	struct pp_smu pp_smu;
+
+	/*
+	 * reader and writer WM's are sent together as part of one table
+	 *
+	 * PPSMC_MSG_SetDriverDramAddrHigh
+	 * PPSMC_MSG_SetDriverDramAddrLow
+	 * PPSMC_MSG_TransferTableDram2Smu
+	 *
+	 */
+	// TODO: Check whether this is moved to DAL, and remove as needed
+	enum pp_smu_status (*set_wm_ranges)(struct pp_smu *pp,
+			struct pp_smu_wm_range_sets *ranges);
+
+	// TODO: Check whether this is moved to DAL, and remove as needed
+	enum pp_smu_status (*get_dpm_clock_table) (struct pp_smu *pp,
+			struct dpm_clocks *clock_table);
+
+	enum pp_smu_status (*notify_smu_timeout) (struct pp_smu *pp);
+};
+
 struct pp_smu_funcs {
 	struct pp_smu ctx;
 	union {
 		struct pp_smu_funcs_rv rv_funcs;
 		struct pp_smu_funcs_nv nv_funcs;
 		struct pp_smu_funcs_rn rn_funcs;
-
+		struct pp_smu_funcs_vgh vgh_funcs;
 	};
 };
 

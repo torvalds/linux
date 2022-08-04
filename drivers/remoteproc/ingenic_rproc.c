@@ -135,7 +135,7 @@ static void *ingenic_rproc_da_to_va(struct rproc *rproc, u64 da, size_t len)
 	return (__force void *)va;
 }
 
-static struct rproc_ops ingenic_rproc_ops = {
+static const struct rproc_ops ingenic_rproc_ops = {
 	.prepare = ingenic_rproc_prepare,
 	.unprepare = ingenic_rproc_unprepare,
 	.start = ingenic_rproc_start,

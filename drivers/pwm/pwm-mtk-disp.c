@@ -172,7 +172,6 @@ static const struct pwm_ops mtk_disp_pwm_ops = {
 static int mtk_disp_pwm_probe(struct platform_device *pdev)
 {
 	struct mtk_disp_pwm *mdp;
-	struct resource *r;
 	int ret;
 
 	mdp = devm_kzalloc(&pdev->dev, sizeof(*mdp), GFP_KERNEL);
@@ -181,8 +180,7 @@ static int mtk_disp_pwm_probe(struct platform_device *pdev)
 
 	mdp->data = of_device_get_match_data(&pdev->dev);
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mdp->base = devm_ioremap_resource(&pdev->dev, r);
+	mdp->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mdp->base))
 		return PTR_ERR(mdp->base);
 

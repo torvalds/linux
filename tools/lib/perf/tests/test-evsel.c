@@ -131,5 +131,5 @@ int main(int argc, char **argv)
 	test_stat_thread_enable();
 
 	__T_END;
-	return 0;
+	return tests_failed == 0 ? 0 : -1;
 }

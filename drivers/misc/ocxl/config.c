@@ -73,7 +73,7 @@ static int find_dvsec_afu_ctrl(struct pci_dev *dev, u8 afu_idx)
 
 /**
  * get_function_0() - Find a related PCI device (function 0)
- * @device: PCI device to match
+ * @dev: PCI device to match
  *
  * Returns a pointer to the related device, or null if not found
  */

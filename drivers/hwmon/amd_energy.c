@@ -222,7 +222,7 @@ static int amd_create_sensor(struct device *dev,
 	 */
 	cpus = num_present_cpus() / num_siblings;
 
-	s_config = devm_kcalloc(dev, cpus + sockets,
+	s_config = devm_kcalloc(dev, cpus + sockets + 1,
 				sizeof(u32), GFP_KERNEL);
 	if (!s_config)
 		return -ENOMEM;
@@ -254,6 +254,7 @@ static int amd_create_sensor(struct device *dev,
 			scnprintf(label_l[i], 10, "Esocket%u", (i - cpus));
 	}
 
+	s_config[i] = 0;
 	return 0;
 }
 
@@ -331,6 +332,7 @@ static struct platform_device *amd_energy_platdev;
 
 static const struct x86_cpu_id cpu_ids[] __initconst = {
 	X86_MATCH_VENDOR_FAM_MODEL(AMD, 0x17, 0x31, NULL),
+	X86_MATCH_VENDOR_FAM_MODEL(AMD, 0x19, 0x01, NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, cpu_ids);

@@ -155,7 +155,7 @@ struct flag_test {
 	int err;
 };
 
-#define NUM_OPENAT2_FLAG_TESTS 23
+#define NUM_OPENAT2_FLAG_TESTS 24
 
 void test_openat2_flags(void)
 {
@@ -209,6 +209,12 @@ void test_openat2_flags(void)
 		{ .name = "invalid (very large) how.mode and O_TMPFILE",
 		  .how.flags = O_TMPFILE | O_RDWR,
 		  .how.mode = 0x0000A00000000000ULL, .err = -EINVAL },
+
+		/* ->resolve flags must not conflict. */
+		{ .name = "incompatible resolve flags (BENEATH | IN_ROOT)",
+		  .how.flags = O_RDONLY,
+		  .how.resolve = RESOLVE_BENEATH | RESOLVE_IN_ROOT,
+		  .err = -EINVAL },
 
 		/* ->resolve must only contain RESOLVE_* flags. */
 		{ .name = "invalid how.resolve and O_RDONLY",

@@ -20,8 +20,10 @@
 #include "common.h"
 #include "r8a7779.h"
 
-#define AVECR IOMEM(0xfe700040)
-#define R8A7779_SCU_BASE 0xf0000000
+#define HPBREG_BASE		0xfe700000
+#define AVECR			0x0040	/* ARM Reset Vector Address Register */
+
+#define R8A7779_SCU_BASE	0xf0000000
 
 static int r8a7779_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
@@ -36,11 +38,15 @@ static int r8a7779_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init r8a7779_smp_prepare_cpus(unsigned int max_cpus)
 {
+	void __iomem *base = ioremap(HPBREG_BASE, 0x1000);
+
 	/* Map the reset vector (in headsmp-scu.S, headsmp.S) */
-	__raw_writel(__pa(shmobile_boot_vector), AVECR);
+	writel(__pa(shmobile_boot_vector), base + AVECR);
 
 	/* setup r8a7779 specific SCU bits */
 	shmobile_smp_scu_prepare_cpus(R8A7779_SCU_BASE, max_cpus);
+
+	iounmap(base);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

@@ -10,20 +10,38 @@ GCOV_PROFILE := n
 UBSAN_SANITIZE := n
 KASAN_SANITIZE := n
 
-obj-y	:= $(if $(CONFIG_KERNEL_UNCOMPRESSED),,decompressor.o) piggy.o info.o
+obj-y	:= $(if $(CONFIG_KERNEL_UNCOMPRESSED),,decompressor.o) info.o
+obj-all := $(obj-y) piggy.o syms.o
 targets	:= vmlinux.lds vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2
 targets += vmlinux.bin.xz vmlinux.bin.lzma vmlinux.bin.lzo vmlinux.bin.lz4
-targets += info.bin $(obj-y)
+targets += info.bin syms.bin vmlinux.syms $(obj-all)
 
 KBUILD_AFLAGS := $(KBUILD_AFLAGS_DECOMPRESSOR)
 KBUILD_CFLAGS := $(KBUILD_CFLAGS_DECOMPRESSOR)
 OBJCOPYFLAGS :=
 
 OBJECTS := $(addprefix $(obj)/,$(obj-y))
+OBJECTS_ALL := $(addprefix $(obj)/,$(obj-all))
 
-LDFLAGS_vmlinux := --oformat $(LD_BFD) -e startup -T
-$(obj)/vmlinux: $(obj)/vmlinux.lds $(objtree)/arch/s390/boot/startup.a $(OBJECTS) FORCE
+LDFLAGS_vmlinux := --oformat $(LD_BFD) -e startup --build-id=sha1 -T
+$(obj)/vmlinux: $(obj)/vmlinux.lds $(objtree)/arch/s390/boot/startup.a $(OBJECTS_ALL) FORCE
 	$(call if_changed,ld)
+
+LDFLAGS_vmlinux.syms := --oformat $(LD_BFD) -e startup -T
+$(obj)/vmlinux.syms: $(obj)/vmlinux.lds $(objtree)/arch/s390/boot/startup.a $(OBJECTS) FORCE
+	$(call if_changed,ld)
+
+quiet_cmd_dumpsyms = DUMPSYMS $<
+define cmd_dumpsyms
+	$(NM) -n -S --format=bsd "$<" | $(PERL) -ne '/(\w+)\s+(\w+)\s+[tT]\s+(\w+)/ and printf "%x %x %s\0",hex $$1,hex $$2,$$3' > "$@"
+endef
+
+$(obj)/syms.bin: $(obj)/vmlinux.syms FORCE
+	$(call if_changed,dumpsyms)
+
+OBJCOPYFLAGS_syms.o := -I binary -O elf64-s390 -B s390:64-bit --rename-section .data=.decompressor.syms
+$(obj)/syms.o: $(obj)/syms.bin FORCE
+	$(call if_changed,objcopy)
 
 OBJCOPYFLAGS_info.bin := -O binary --only-section=.vmlinux.info --set-section-flags .vmlinux.info=load
 $(obj)/info.bin: vmlinux FORCE

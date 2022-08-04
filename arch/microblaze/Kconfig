@@ -3,21 +3,18 @@ config MICROBLAZE
 	def_bool y
 	select ARCH_32BIT_OFF_T
 	select ARCH_NO_SWAP
-	select ARCH_HAS_BINFMT_FLAT if !MMU
 	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
-	select ARCH_HAS_DMA_SET_UNCACHED if !MMU
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_TABLE_SORT
 	select TIMER_OF
 	select CLONE_BACKWARDS3
 	select COMMON_CLK
-	select DMA_DIRECT_REMAP if MMU
+	select DMA_DIRECT_REMAP
 	select GENERIC_ATOMIC64
-	select GENERIC_CLOCKEVENTS
 	select GENERIC_CPU_DEVICES
 	select GENERIC_IDLE_POLL_SETUP
 	select GENERIC_IRQ_PROBE
@@ -45,7 +42,7 @@ config MICROBLAZE
 	select TRACING_SUPPORT
 	select VIRT_TO_BUS
 	select CPU_NO_EFFICIENT_FFS
-	select MMU_GATHER_NO_RANGE if MMU
+	select MMU_GATHER_NO_RANGE
 	select SPARSE_IRQ
 	select SET_FS
 
@@ -96,8 +93,7 @@ menu "Processor type and features"
 source "kernel/Kconfig.hz"
 
 config MMU
-	bool "MMU support"
-	default n
+	def_bool y
 
 comment "Boot options"
 
@@ -143,18 +139,9 @@ config ADVANCED_OPTIONS
 comment "Default settings for advanced configuration options are used"
 	depends on !ADVANCED_OPTIONS
 
-config XILINX_UNCACHED_SHADOW
-	bool "Are you using uncached shadow for RAM ?"
-	depends on ADVANCED_OPTIONS && !MMU
-	default n
-	help
-	  This is needed to be able to allocate uncachable memory regions.
-	  The feature requires the design to define the RAM memory controller
-	  window to be twice as large as the actual physical memory.
-
 config HIGHMEM
 	bool "High memory support"
-	depends on MMU
+	select KMAP_LOCAL
 	help
 	  The address space of Microblaze processors is only 4 Gigabytes large
 	  and it has to accommodate user address space, kernel address
@@ -167,7 +154,7 @@ config HIGHMEM
 
 config LOWMEM_SIZE_BOOL
 	bool "Set maximum low memory"
-	depends on ADVANCED_OPTIONS && MMU
+	depends on ADVANCED_OPTIONS
 	help
 	  This option allows you to set the maximum amount of memory which
 	  will be used as "low memory", that is, memory which the kernel can
@@ -205,12 +192,11 @@ config KERNEL_START_BOOL
 
 config KERNEL_START
 	hex "Virtual address of kernel base" if KERNEL_START_BOOL
-	default "0xc0000000" if MMU
-	default KERNEL_BASE_ADDR if !MMU
+	default "0xc0000000"
 
 config TASK_SIZE_BOOL
 	bool "Set custom user task size"
-	depends on ADVANCED_OPTIONS && MMU
+	depends on ADVANCED_OPTIONS
 	help
 	  This option allows you to set the amount of virtual address space
 	  allocated to user tasks.  This can be useful in optimizing the
@@ -221,33 +207,6 @@ config TASK_SIZE_BOOL
 config TASK_SIZE
 	hex "Size of user task space" if TASK_SIZE_BOOL
 	default "0x80000000"
-
-choice
-	prompt "Page size"
-	default MICROBLAZE_4K_PAGES
-	depends on ADVANCED_OPTIONS && !MMU
-	help
-	  Select the kernel logical page size. Increasing the page size
-	  will reduce software overhead at each page boundary, allow
-	  hardware prefetch mechanisms to be more effective, and allow
-	  larger dma transfers increasing IO efficiency and reducing
-	  overhead. However the utilization of memory will increase.
-	  For example, each cached file will using a multiple of the
-	  page size to hold its contents and the difference between the
-	  end of file and the end of page is wasted.
-
-	  If unsure, choose 4K_PAGES.
-
-config MICROBLAZE_4K_PAGES
-	bool "4k page size"
-
-config MICROBLAZE_16K_PAGES
-	bool "16k page size"
-
-config MICROBLAZE_64K_PAGES
-	bool "64k page size"
-
-endchoice
 
 endmenu
 

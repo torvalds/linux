@@ -9,7 +9,8 @@
 
 #include <crypto/internal/hash.h>
 #include <crypto/padlock.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>

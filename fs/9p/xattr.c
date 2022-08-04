@@ -71,14 +71,17 @@ ssize_t v9fs_xattr_get(struct dentry *dentry, const char *name,
 		       void *buffer, size_t buffer_size)
 {
 	struct p9_fid *fid;
+	int ret;
 
 	p9_debug(P9_DEBUG_VFS, "name = %s value_len = %zu\n",
 		 name, buffer_size);
 	fid = v9fs_fid_lookup(dentry);
 	if (IS_ERR(fid))
 		return PTR_ERR(fid);
+	ret = v9fs_fid_xattr_get(fid, name, buffer, buffer_size);
+	p9_client_clunk(fid);
 
-	return v9fs_fid_xattr_get(fid, name, buffer, buffer_size);
+	return ret;
 }
 
 /*
@@ -96,8 +99,15 @@ ssize_t v9fs_xattr_get(struct dentry *dentry, const char *name,
 int v9fs_xattr_set(struct dentry *dentry, const char *name,
 		   const void *value, size_t value_len, int flags)
 {
-	struct p9_fid *fid = v9fs_fid_lookup(dentry);
-	return v9fs_fid_xattr_set(fid, name, value, value_len, flags);
+	int ret;
+	struct p9_fid *fid;
+
+	fid  = v9fs_fid_lookup(dentry);
+	if (IS_ERR(fid))
+		return PTR_ERR(fid);
+	ret = v9fs_fid_xattr_set(fid, name, value, value_len, flags);
+	p9_client_clunk(fid);
+	return ret;
 }
 
 int v9fs_fid_xattr_set(struct p9_fid *fid, const char *name,

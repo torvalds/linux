@@ -325,7 +325,6 @@ static void ipmmu_tlb_flush(unsigned long iova, size_t size,
 static const struct iommu_flush_ops ipmmu_flush_ops = {
 	.tlb_flush_all = ipmmu_tlb_flush_all,
 	.tlb_flush_walk = ipmmu_tlb_flush,
-	.tlb_flush_leaf = ipmmu_tlb_flush,
 };
 
 /* -----------------------------------------------------------------------------

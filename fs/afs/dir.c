@@ -350,7 +350,7 @@ static int afs_dir_iterate_block(struct afs_vnode *dvnode,
 				 unsigned blkoff)
 {
 	union afs_xdr_dirent *dire;
-	unsigned offset, next, curr;
+	unsigned offset, next, curr, nr_slots;
 	size_t nlen;
 	int tmp;
 
@@ -363,13 +363,12 @@ static int afs_dir_iterate_block(struct afs_vnode *dvnode,
 	     offset < AFS_DIR_SLOTS_PER_BLOCK;
 	     offset = next
 	     ) {
-		next = offset + 1;
-
 		/* skip entries marked unused in the bitmap */
 		if (!(block->hdr.bitmap[offset / 8] &
 		      (1 << (offset % 8)))) {
 			_debug("ENT[%zu.%u]: unused",
 			       blkoff / sizeof(union afs_xdr_dir_block), offset);
+			next = offset + 1;
 			if (offset >= curr)
 				ctx->pos = blkoff +
 					next * sizeof(union afs_xdr_dirent);
@@ -381,35 +380,39 @@ static int afs_dir_iterate_block(struct afs_vnode *dvnode,
 		nlen = strnlen(dire->u.name,
 			       sizeof(*block) -
 			       offset * sizeof(union afs_xdr_dirent));
+		if (nlen > AFSNAMEMAX - 1) {
+			_debug("ENT[%zu]: name too long (len %u/%zu)",
+			       blkoff / sizeof(union afs_xdr_dir_block),
+			       offset, nlen);
+			return afs_bad(dvnode, afs_file_error_dir_name_too_long);
+		}
 
 		_debug("ENT[%zu.%u]: %s %zu \"%s\"",
 		       blkoff / sizeof(union afs_xdr_dir_block), offset,
 		       (offset < curr ? "skip" : "fill"),
 		       nlen, dire->u.name);
 
-		/* work out where the next possible entry is */
-		for (tmp = nlen; tmp > 15; tmp -= sizeof(union afs_xdr_dirent)) {
-			if (next >= AFS_DIR_SLOTS_PER_BLOCK) {
-				_debug("ENT[%zu.%u]:"
-				       " %u travelled beyond end dir block"
-				       " (len %u/%zu)",
+		nr_slots = afs_dir_calc_slots(nlen);
+		next = offset + nr_slots;
+		if (next > AFS_DIR_SLOTS_PER_BLOCK) {
+			_debug("ENT[%zu.%u]:"
+			       " %u extends beyond end dir block"
+			       " (len %zu)",
+			       blkoff / sizeof(union afs_xdr_dir_block),
+			       offset, next, nlen);
+			return afs_bad(dvnode, afs_file_error_dir_over_end);
+		}
+
+		/* Check that the name-extension dirents are all allocated */
+		for (tmp = 1; tmp < nr_slots; tmp++) {
+			unsigned int ix = offset + tmp;
+			if (!(block->hdr.bitmap[ix / 8] & (1 << (ix % 8)))) {
+				_debug("ENT[%zu.u]:"
+				       " %u unmarked extension (%u/%u)",
 				       blkoff / sizeof(union afs_xdr_dir_block),
-				       offset, next, tmp, nlen);
-				return afs_bad(dvnode, afs_file_error_dir_over_end);
-			}
-			if (!(block->hdr.bitmap[next / 8] &
-			      (1 << (next % 8)))) {
-				_debug("ENT[%zu.%u]:"
-				       " %u unmarked extension (len %u/%zu)",
-				       blkoff / sizeof(union afs_xdr_dir_block),
-				       offset, next, tmp, nlen);
+				       offset, tmp, nr_slots);
 				return afs_bad(dvnode, afs_file_error_dir_unmarked_ext);
 			}
-
-			_debug("ENT[%zu.%u]: ext %u/%zu",
-			       blkoff / sizeof(union afs_xdr_dir_block),
-			       next, tmp, nlen);
-			next++;
 		}
 
 		/* skip if starts before the current position */

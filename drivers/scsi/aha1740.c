@@ -152,6 +152,7 @@ static int aha1740_makecode(unchar *sense, unchar *status)
 					retval=DID_ERROR; /* It's an Overrun */
 				/* If not overrun, assume underrun and
 				 * ignore it! */
+				break;
 			case 0x00: /* No info, assume no error, should
 				    * not occur */
 				break;

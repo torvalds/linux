@@ -4,7 +4,7 @@ Boards with a SoC of the Microsemi MIPS family shall have the following
 properties:
 
 Required properties:
-- compatible: "mscc,ocelot"
+- compatible: "mscc,ocelot", "mscc,luton", "mscc,serval" or "mscc,jr2"
 
 
 * Other peripherals:

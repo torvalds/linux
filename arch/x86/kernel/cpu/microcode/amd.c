@@ -215,7 +215,6 @@ static unsigned int __verify_patch_size(u8 family, u32 sh_psize, size_t buf_size
 	default:
 		WARN(1, "%s: WTF family: 0x%x\n", __func__, family);
 		return 0;
-		break;
 	}
 
 	if (sh_psize > min_t(u32, buf_size, max_size))

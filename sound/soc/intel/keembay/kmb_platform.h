@@ -58,7 +58,7 @@
 #define PSS_CPR_CLK_CLR		0x000
 #define PSS_CPR_AUX_RST_EN	0x070
 
-#define MASTER_MODE		BIT(13)
+#define CLOCK_PROVIDER_MODE	BIT(13)
 
 /* Interrupt Flag */
 #define TX_INT_FLAG		GENMASK(5, 4)
@@ -99,8 +99,8 @@
 
 #define DWC_I2S_PLAY	BIT(0)
 #define DWC_I2S_RECORD	BIT(1)
-#define DW_I2S_SLAVE	BIT(2)
-#define DW_I2S_MASTER	BIT(3)
+#define DW_I2S_CONSUMER	BIT(2)
+#define DW_I2S_PROVIDER	BIT(3)
 
 #define I2S_RXDMA	0x01C0
 #define I2S_TXDMA	0x01C8
@@ -130,7 +130,7 @@ struct kmb_i2s_info {
 	u32 ccr;
 	u32 xfer_resolution;
 	u32 fifo_th;
-	bool master;
+	bool clock_provider;
 
 	struct i2s_clk_config_data config;
 	int (*i2s_clk_cfg)(struct i2s_clk_config_data *config);

@@ -473,11 +473,6 @@ static inline int pwmchip_add(struct pwm_chip *chip)
 	return -EINVAL;
 }
 
-static inline int pwmchip_add_inversed(struct pwm_chip *chip)
-{
-	return -EINVAL;
-}
-
 static inline int pwmchip_remove(struct pwm_chip *chip)
 {
 	return -EINVAL;

@@ -6,13 +6,62 @@
 RGB Formats
 ***********
 
-Description
-===========
+These formats encode each pixel as a triplet of RGB values. They are packed
+formats, meaning that the RGB values for one pixel are stored consecutively in
+memory and each pixel consumes an integer number of bytes. When the number of
+bits required to store a pixel is not aligned to a byte boundary, the data is
+padded with additional bits to fill the remaining byte.
 
-These formats are designed to match the pixel formats of typical PC
-graphics frame buffers. They occupy 8, 16, 24 or 32 bits per pixel.
-These are all packed-pixel formats, meaning all the data for a pixel lie
-next to each other in memory.
+The formats differ by the number of bits per RGB component (typically but not
+always the same for all components), the order of components in memory, and the
+presence of an alpha component or additional padding bits.
+
+The usage and value of the alpha bits in formats that support them (named ARGB
+or a permutation thereof, collectively referred to as alpha formats) depend on
+the device type and hardware operation. :ref:`Capture <capture>` devices
+(including capture queues of mem-to-mem devices) fill the alpha component in
+memory. When the device captures an alpha channel the alpha component will have
+a meaningful value. Otherwise, when the device doesn't capture an alpha channel
+but can set the alpha bit to a user-configurable value, the
+:ref:`V4L2_CID_ALPHA_COMPONENT <v4l2-alpha-component>` control is used to
+specify that alpha value, and the alpha component of all pixels will be set to
+the value specified by that control. Otherwise a corresponding format without
+an alpha component (XRGB or XBGR) must be used instead of an alpha format.
+
+:ref:`Output <output>` devices (including output queues of mem-to-mem devices
+and :ref:`video output overlay <osd>` devices) read the alpha component from
+memory. When the device processes the alpha channel the alpha component must be
+filled with meaningful values by applications. Otherwise a corresponding format
+without an alpha component (XRGB or XBGR) must be used instead of an alpha
+format.
+
+Formats that contain padding bits are named XRGB (or a permutation thereof).
+The padding bits contain undefined values and must be ignored by applications,
+devices and drivers, for both :ref:`capture` and :ref:`output` devices.
+
+.. note::
+
+   - In all the tables that follow, bit 7 is the most significant bit in a byte.
+   - 'r', 'g' and 'b' denote bits of the red, green and blue components
+     respectively. 'a' denotes bits of the alpha component (if supported by the
+     format), and 'x' denotes padding bits.
+
+
+Less Than 8 Bits Per Component
+==============================
+
+These formats store an RGB triplet in one, two or four bytes. They are named
+based on the order of the RGB components as seen in a 8-, 16- or 32-bit word,
+which is then stored in memory in little endian byte order (unless otherwise
+noted by the presence of bit 31 in the 4CC value), and on the number of bits
+for each component. For instance, the RGB565 format stores a pixel in a 16-bit
+word [15:0] laid out at as [R\ :sub:`4` R\ :sub:`3` R\ :sub:`2` R\ :sub:`1`
+R\ :sub:`0` G\ :sub:`5` G\ :sub:`4` G\ :sub:`3` G\ :sub:`2` G\ :sub:`1`
+G\ :sub:`0` B\ :sub:`4` B\ :sub:`3` B\ :sub:`2` B\ :sub:`1` B\ :sub:`0`], and
+stored in memory in two bytes, [R\ :sub:`4` R\ :sub:`3` R\ :sub:`2` R\ :sub:`1`
+R\ :sub:`0` G\ :sub:`5` G\ :sub:`4` G\ :sub:`3`] followed by [G\ :sub:`2`
+G\ :sub:`1` G\ :sub:`0` B\ :sub:`4` B\ :sub:`3` B\ :sub:`2` B\ :sub:`1`
+B\ :sub:`0`].
 
 .. raw:: latex
 
@@ -23,7 +72,7 @@ next to each other in memory.
 .. tabularcolumns:: |p{2.8cm}|p{2.0cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|
 
 
-.. flat-table:: RGB Image Formats
+.. flat-table:: RGB Formats With Less Than 8 Bits Per Component
     :header-rows:  2
     :stub-columns: 0
 
@@ -121,10 +170,10 @@ next to each other in memory.
       - b\ :sub:`1`
       - b\ :sub:`0`
 
-      - `-`
-      - `-`
-      - `-`
-      - `-`
+      - x
+      - x
+      - x
+      - x
       - r\ :sub:`3`
       - r\ :sub:`2`
       - r\ :sub:`1`
@@ -162,10 +211,10 @@ next to each other in memory.
       - b\ :sub:`2`
       - b\ :sub:`1`
       - b\ :sub:`0`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
+      - x
+      - x
+      - x
+      - x
 
       - r\ :sub:`3`
       - r\ :sub:`2`
@@ -213,10 +262,10 @@ next to each other in memory.
       - r\ :sub:`1`
       - r\ :sub:`0`
 
-      - `-`
-      - `-`
-      - `-`
-      - `-`
+      - x
+      - x
+      - x
+      - x
       - b\ :sub:`3`
       - b\ :sub:`2`
       - b\ :sub:`1`
@@ -254,10 +303,10 @@ next to each other in memory.
       - r\ :sub:`2`
       - r\ :sub:`1`
       - r\ :sub:`0`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
+      - x
+      - x
+      - x
+      - x
 
       - b\ :sub:`3`
       - b\ :sub:`2`
@@ -305,7 +354,7 @@ next to each other in memory.
       - b\ :sub:`1`
       - b\ :sub:`0`
 
-      - `-`
+      - x
       - r\ :sub:`4`
       - r\ :sub:`3`
       - r\ :sub:`2`
@@ -349,7 +398,7 @@ next to each other in memory.
       - b\ :sub:`2`
       - b\ :sub:`1`
       - b\ :sub:`0`
-      - `-`
+      - x
 
       - r\ :sub:`4`
       - r\ :sub:`3`
@@ -397,7 +446,7 @@ next to each other in memory.
       - r\ :sub:`1`
       - r\ :sub:`0`
 
-      - `-`
+      - x
       - b\ :sub:`4`
       - b\ :sub:`3`
       - b\ :sub:`2`
@@ -441,7 +490,7 @@ next to each other in memory.
       - r\ :sub:`2`
       - r\ :sub:`1`
       - r\ :sub:`0`
-      - `-`
+      - x
 
       - b\ :sub:`4`
       - b\ :sub:`3`
@@ -503,7 +552,7 @@ next to each other in memory.
       - ``V4L2_PIX_FMT_XRGB555X``
       - 'XR15' | (1 << 31)
 
-      - `-`
+      - x
       - r\ :sub:`4`
       - r\ :sub:`3`
       - r\ :sub:`2`
@@ -544,70 +593,6 @@ next to each other in memory.
       - b\ :sub:`1`
       - b\ :sub:`0`
       -
-    * .. _V4L2-PIX-FMT-BGR24:
-
-      - ``V4L2_PIX_FMT_BGR24``
-      - 'BGR3'
-
-      - b\ :sub:`7`
-      - b\ :sub:`6`
-      - b\ :sub:`5`
-      - b\ :sub:`4`
-      - b\ :sub:`3`
-      - b\ :sub:`2`
-      - b\ :sub:`1`
-      - b\ :sub:`0`
-
-      - g\ :sub:`7`
-      - g\ :sub:`6`
-      - g\ :sub:`5`
-      - g\ :sub:`4`
-      - g\ :sub:`3`
-      - g\ :sub:`2`
-      - g\ :sub:`1`
-      - g\ :sub:`0`
-
-      - r\ :sub:`7`
-      - r\ :sub:`6`
-      - r\ :sub:`5`
-      - r\ :sub:`4`
-      - r\ :sub:`3`
-      - r\ :sub:`2`
-      - r\ :sub:`1`
-      - r\ :sub:`0`
-      -
-    * .. _V4L2-PIX-FMT-RGB24:
-
-      - ``V4L2_PIX_FMT_RGB24``
-      - 'RGB3'
-
-      - r\ :sub:`7`
-      - r\ :sub:`6`
-      - r\ :sub:`5`
-      - r\ :sub:`4`
-      - r\ :sub:`3`
-      - r\ :sub:`2`
-      - r\ :sub:`1`
-      - r\ :sub:`0`
-
-      - g\ :sub:`7`
-      - g\ :sub:`6`
-      - g\ :sub:`5`
-      - g\ :sub:`4`
-      - g\ :sub:`3`
-      - g\ :sub:`2`
-      - g\ :sub:`1`
-      - g\ :sub:`0`
-
-      - b\ :sub:`7`
-      - b\ :sub:`6`
-      - b\ :sub:`5`
-      - b\ :sub:`4`
-      - b\ :sub:`3`
-      - b\ :sub:`2`
-      - b\ :sub:`1`
-      - b\ :sub:`0`
-      -
     * .. _V4L2-PIX-FMT-BGR666:
 
       - ``V4L2_PIX_FMT_BGR666``
@@ -633,449 +618,163 @@ next to each other in memory.
 
       - r\ :sub:`1`
       - r\ :sub:`0`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
 
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-    * .. _V4L2-PIX-FMT-ABGR32:
-
-      - ``V4L2_PIX_FMT_ABGR32``
-      - 'AR24'
-
-      - b\ :sub:`7`
-      - b\ :sub:`6`
-      - b\ :sub:`5`
-      - b\ :sub:`4`
-      - b\ :sub:`3`
-      - b\ :sub:`2`
-      - b\ :sub:`1`
-      - b\ :sub:`0`
-
-      - g\ :sub:`7`
-      - g\ :sub:`6`
-      - g\ :sub:`5`
-      - g\ :sub:`4`
-      - g\ :sub:`3`
-      - g\ :sub:`2`
-      - g\ :sub:`1`
-      - g\ :sub:`0`
-
-      - r\ :sub:`7`
-      - r\ :sub:`6`
-      - r\ :sub:`5`
-      - r\ :sub:`4`
-      - r\ :sub:`3`
-      - r\ :sub:`2`
-      - r\ :sub:`1`
-      - r\ :sub:`0`
-
-      - a\ :sub:`7`
-      - a\ :sub:`6`
-      - a\ :sub:`5`
-      - a\ :sub:`4`
-      - a\ :sub:`3`
-      - a\ :sub:`2`
-      - a\ :sub:`1`
-      - a\ :sub:`0`
-    * .. _V4L2-PIX-FMT-XBGR32:
-
-      - ``V4L2_PIX_FMT_XBGR32``
-      - 'XR24'
-
-      - b\ :sub:`7`
-      - b\ :sub:`6`
-      - b\ :sub:`5`
-      - b\ :sub:`4`
-      - b\ :sub:`3`
-      - b\ :sub:`2`
-      - b\ :sub:`1`
-      - b\ :sub:`0`
-
-      - g\ :sub:`7`
-      - g\ :sub:`6`
-      - g\ :sub:`5`
-      - g\ :sub:`4`
-      - g\ :sub:`3`
-      - g\ :sub:`2`
-      - g\ :sub:`1`
-      - g\ :sub:`0`
-
-      - r\ :sub:`7`
-      - r\ :sub:`6`
-      - r\ :sub:`5`
-      - r\ :sub:`4`
-      - r\ :sub:`3`
-      - r\ :sub:`2`
-      - r\ :sub:`1`
-      - r\ :sub:`0`
-
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-    * .. _V4L2-PIX-FMT-BGRA32:
-
-      - ``V4L2_PIX_FMT_BGRA32``
-      - 'RA24'
-
-      - a\ :sub:`7`
-      - a\ :sub:`6`
-      - a\ :sub:`5`
-      - a\ :sub:`4`
-      - a\ :sub:`3`
-      - a\ :sub:`2`
-      - a\ :sub:`1`
-      - a\ :sub:`0`
-
-      - b\ :sub:`7`
-      - b\ :sub:`6`
-      - b\ :sub:`5`
-      - b\ :sub:`4`
-      - b\ :sub:`3`
-      - b\ :sub:`2`
-      - b\ :sub:`1`
-      - b\ :sub:`0`
-
-      - g\ :sub:`7`
-      - g\ :sub:`6`
-      - g\ :sub:`5`
-      - g\ :sub:`4`
-      - g\ :sub:`3`
-      - g\ :sub:`2`
-      - g\ :sub:`1`
-      - g\ :sub:`0`
-
-      - r\ :sub:`7`
-      - r\ :sub:`6`
-      - r\ :sub:`5`
-      - r\ :sub:`4`
-      - r\ :sub:`3`
-      - r\ :sub:`2`
-      - r\ :sub:`1`
-      - r\ :sub:`0`
-    * .. _V4L2-PIX-FMT-BGRX32:
-
-      - ``V4L2_PIX_FMT_BGRX32``
-      - 'RX24'
-
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-
-      - b\ :sub:`7`
-      - b\ :sub:`6`
-      - b\ :sub:`5`
-      - b\ :sub:`4`
-      - b\ :sub:`3`
-      - b\ :sub:`2`
-      - b\ :sub:`1`
-      - b\ :sub:`0`
-
-      - g\ :sub:`7`
-      - g\ :sub:`6`
-      - g\ :sub:`5`
-      - g\ :sub:`4`
-      - g\ :sub:`3`
-      - g\ :sub:`2`
-      - g\ :sub:`1`
-      - g\ :sub:`0`
-
-      - r\ :sub:`7`
-      - r\ :sub:`6`
-      - r\ :sub:`5`
-      - r\ :sub:`4`
-      - r\ :sub:`3`
-      - r\ :sub:`2`
-      - r\ :sub:`1`
-      - r\ :sub:`0`
-    * .. _V4L2-PIX-FMT-RGBA32:
-
-      - ``V4L2_PIX_FMT_RGBA32``
-      - 'AB24'
-
-      - r\ :sub:`7`
-      - r\ :sub:`6`
-      - r\ :sub:`5`
-      - r\ :sub:`4`
-      - r\ :sub:`3`
-      - r\ :sub:`2`
-      - r\ :sub:`1`
-      - r\ :sub:`0`
-
-      - g\ :sub:`7`
-      - g\ :sub:`6`
-      - g\ :sub:`5`
-      - g\ :sub:`4`
-      - g\ :sub:`3`
-      - g\ :sub:`2`
-      - g\ :sub:`1`
-      - g\ :sub:`0`
-
-      - b\ :sub:`7`
-      - b\ :sub:`6`
-      - b\ :sub:`5`
-      - b\ :sub:`4`
-      - b\ :sub:`3`
-      - b\ :sub:`2`
-      - b\ :sub:`1`
-      - b\ :sub:`0`
-
-      - a\ :sub:`7`
-      - a\ :sub:`6`
-      - a\ :sub:`5`
-      - a\ :sub:`4`
-      - a\ :sub:`3`
-      - a\ :sub:`2`
-      - a\ :sub:`1`
-      - a\ :sub:`0`
-    * .. _V4L2-PIX-FMT-RGBX32:
-
-      - ``V4L2_PIX_FMT_RGBX32``
-      - 'XB24'
-
-      - r\ :sub:`7`
-      - r\ :sub:`6`
-      - r\ :sub:`5`
-      - r\ :sub:`4`
-      - r\ :sub:`3`
-      - r\ :sub:`2`
-      - r\ :sub:`1`
-      - r\ :sub:`0`
-
-      - g\ :sub:`7`
-      - g\ :sub:`6`
-      - g\ :sub:`5`
-      - g\ :sub:`4`
-      - g\ :sub:`3`
-      - g\ :sub:`2`
-      - g\ :sub:`1`
-      - g\ :sub:`0`
-
-      - b\ :sub:`7`
-      - b\ :sub:`6`
-      - b\ :sub:`5`
-      - b\ :sub:`4`
-      - b\ :sub:`3`
-      - b\ :sub:`2`
-      - b\ :sub:`1`
-      - b\ :sub:`0`
-
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-    * .. _V4L2-PIX-FMT-ARGB32:
-
-      - ``V4L2_PIX_FMT_ARGB32``
-      - 'BA24'
-
-      - a\ :sub:`7`
-      - a\ :sub:`6`
-      - a\ :sub:`5`
-      - a\ :sub:`4`
-      - a\ :sub:`3`
-      - a\ :sub:`2`
-      - a\ :sub:`1`
-      - a\ :sub:`0`
-
-      - r\ :sub:`7`
-      - r\ :sub:`6`
-      - r\ :sub:`5`
-      - r\ :sub:`4`
-      - r\ :sub:`3`
-      - r\ :sub:`2`
-      - r\ :sub:`1`
-      - r\ :sub:`0`
-
-      - g\ :sub:`7`
-      - g\ :sub:`6`
-      - g\ :sub:`5`
-      - g\ :sub:`4`
-      - g\ :sub:`3`
-      - g\ :sub:`2`
-      - g\ :sub:`1`
-      - g\ :sub:`0`
-
-      - b\ :sub:`7`
-      - b\ :sub:`6`
-      - b\ :sub:`5`
-      - b\ :sub:`4`
-      - b\ :sub:`3`
-      - b\ :sub:`2`
-      - b\ :sub:`1`
-      - b\ :sub:`0`
-    * .. _V4L2-PIX-FMT-XRGB32:
-
-      - ``V4L2_PIX_FMT_XRGB32``
-      - 'BX24'
-
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-
-      - r\ :sub:`7`
-      - r\ :sub:`6`
-      - r\ :sub:`5`
-      - r\ :sub:`4`
-      - r\ :sub:`3`
-      - r\ :sub:`2`
-      - r\ :sub:`1`
-      - r\ :sub:`0`
-
-      - g\ :sub:`7`
-      - g\ :sub:`6`
-      - g\ :sub:`5`
-      - g\ :sub:`4`
-      - g\ :sub:`3`
-      - g\ :sub:`2`
-      - g\ :sub:`1`
-      - g\ :sub:`0`
-
-      - b\ :sub:`7`
-      - b\ :sub:`6`
-      - b\ :sub:`5`
-      - b\ :sub:`4`
-      - b\ :sub:`3`
-      - b\ :sub:`2`
-      - b\ :sub:`1`
-      - b\ :sub:`0`
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
 
 .. raw:: latex
 
     \endgroup
 
-.. note:: Bit 7 is the most significant bit.
 
-The usage and value of the alpha bits (a) in the ARGB and ABGR formats
-(collectively referred to as alpha formats) depend on the device type
-and hardware operation. :ref:`Capture <capture>` devices (including
-capture queues of mem-to-mem devices) fill the alpha component in
-memory. When the device outputs an alpha channel the alpha component
-will have a meaningful value. Otherwise, when the device doesn't output
-an alpha channel but can set the alpha bit to a user-configurable value,
-the :ref:`V4L2_CID_ALPHA_COMPONENT <v4l2-alpha-component>` control
-is used to specify that alpha value, and the alpha component of all
-pixels will be set to the value specified by that control. Otherwise a
-corresponding format without an alpha component (XRGB or XBGR) must be
-used instead of an alpha format.
+8 Bits Per Component
+====================
 
-:ref:`Output <output>` devices (including output queues of mem-to-mem
-devices and :ref:`video output overlay <osd>` devices) read the alpha
-component from memory. When the device processes the alpha channel the
-alpha component must be filled with meaningful values by applications.
-Otherwise a corresponding format without an alpha component (XRGB or
-XBGR) must be used instead of an alpha format.
-
-The XRGB and XBGR formats contain undefined bits (-). Applications,
-devices and drivers must ignore those bits, for both
-:ref:`capture` and :ref:`output` devices.
-
-**Byte Order.**
-Each cell is one byte.
-
+These formats store an RGB triplet in three or four bytes. They are named based
+on the order of the RGB components as stored in memory, and on the total number
+of bits per pixel. For instance, RGB24 format stores a pixel with [R\ :sub:`7`
+R\ :sub:`6` R\ :sub:`5` R\ :sub:`4` R\ :sub:`3` R\ :sub:`2` R\ :sub:`1`
+R\ :sub:`0`] in the first byte, [G\ :sub:`7` G\ :sub:`6` G\ :sub:`5` G\ :sub:`4`
+G\ :sub:`3` G\ :sub:`2` G\ :sub:`1` G\ :sub:`0`] in the second byte and
+[B\ :sub:`7` B\ :sub:`6` B\ :sub:`5` B\ :sub:`4` B\ :sub:`3` B\ :sub:`2`
+B\ :sub:`1` B\ :sub:`0`] in the third byte. This differs from the DRM format
+nomenclature that instead use the order of components as seen in a 24- or
+32-bit little endian word.
 
 .. raw:: latex
 
-    \small
+    \begingroup
+    \tiny
+    \setlength{\tabcolsep}{2pt}
 
-.. tabularcolumns:: |p{3.1cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|
+.. tabularcolumns:: |p{2.8cm}|p{2.0cm}|p{2.0cm}|p{2.0cm}|p{2.0cm}|p{2.0cm}|p{2.0cm}|p{2.0cm}|
 
-.. flat-table:: RGB byte order
-    :header-rows:  0
+
+.. flat-table:: RGB Formats With 8 Bits Per Component
+    :header-rows:  1
     :stub-columns: 0
-    :widths:       11 3 3 3 3 3 3 3 3 3 3 3 3
 
-    * - start + 0:
-      - B\ :sub:`00`
-      - G\ :sub:`00`
-      - R\ :sub:`00`
-      - B\ :sub:`01`
-      - G\ :sub:`01`
-      - R\ :sub:`01`
-      - B\ :sub:`02`
-      - G\ :sub:`02`
-      - R\ :sub:`02`
-      - B\ :sub:`03`
-      - G\ :sub:`03`
-      - R\ :sub:`03`
-    * - start + 12:
-      - B\ :sub:`10`
-      - G\ :sub:`10`
-      - R\ :sub:`10`
-      - B\ :sub:`11`
-      - G\ :sub:`11`
-      - R\ :sub:`11`
-      - B\ :sub:`12`
-      - G\ :sub:`12`
-      - R\ :sub:`12`
-      - B\ :sub:`13`
-      - G\ :sub:`13`
-      - R\ :sub:`13`
-    * - start + 24:
-      - B\ :sub:`20`
-      - G\ :sub:`20`
-      - R\ :sub:`20`
-      - B\ :sub:`21`
-      - G\ :sub:`21`
-      - R\ :sub:`21`
-      - B\ :sub:`22`
-      - G\ :sub:`22`
-      - R\ :sub:`22`
-      - B\ :sub:`23`
-      - G\ :sub:`23`
-      - R\ :sub:`23`
-    * - start + 36:
-      - B\ :sub:`30`
-      - G\ :sub:`30`
-      - R\ :sub:`30`
-      - B\ :sub:`31`
-      - G\ :sub:`31`
-      - R\ :sub:`31`
-      - B\ :sub:`32`
-      - G\ :sub:`32`
-      - R\ :sub:`32`
-      - B\ :sub:`33`
-      - G\ :sub:`33`
-      - R\ :sub:`33`
+    * - Identifier
+      - Code
+      - Byte 0 in memory
+      - Byte 1
+      - Byte 2
+      - Byte 3
+    * .. _V4L2-PIX-FMT-BGR24:
+
+      - ``V4L2_PIX_FMT_BGR24``
+      - 'BGR3'
+
+      - G\ :sub:`7-0`
+      - B\ :sub:`7-0`
+      - R\ :sub:`7-0`
+      -
+    * .. _V4L2-PIX-FMT-RGB24:
+
+      - ``V4L2_PIX_FMT_RGB24``
+      - 'RGB3'
+
+      - R\ :sub:`7-0`
+      - G\ :sub:`7-0`
+      - B\ :sub:`7-0`
+      -
+    * .. _V4L2-PIX-FMT-ABGR32:
+
+      - ``V4L2_PIX_FMT_ABGR32``
+      - 'AR24'
+
+      - B\ :sub:`7-0`
+      - G\ :sub:`7-0`
+      - R\ :sub:`7-0`
+      - A\ :sub:`7-0`
+    * .. _V4L2-PIX-FMT-XBGR32:
+
+      - ``V4L2_PIX_FMT_XBGR32``
+      - 'XR24'
+
+      - B\ :sub:`7-0`
+      - G\ :sub:`7-0`
+      - R\ :sub:`7-0`
+      - X\ :sub:`7-0`
+    * .. _V4L2-PIX-FMT-BGRA32:
+
+      - ``V4L2_PIX_FMT_BGRA32``
+      - 'RA24'
+
+      - A\ :sub:`7-0`
+      - B\ :sub:`7-0`
+      - G\ :sub:`7-0`
+      - R\ :sub:`7-0`
+    * .. _V4L2-PIX-FMT-BGRX32:
+
+      - ``V4L2_PIX_FMT_BGRX32``
+      - 'RX24'
+
+      - X\ :sub:`7-0`
+      - B\ :sub:`7-0`
+      - G\ :sub:`7-0`
+      - R\ :sub:`7-0`
+    * .. _V4L2-PIX-FMT-RGBA32:
+
+      - ``V4L2_PIX_FMT_RGBA32``
+      - 'AB24'
+
+      - R\ :sub:`7-0`
+      - G\ :sub:`7-0`
+      - B\ :sub:`7-0`
+      - A\ :sub:`7-0`
+    * .. _V4L2-PIX-FMT-RGBX32:
+
+      - ``V4L2_PIX_FMT_RGBX32``
+      - 'XB24'
+
+      - R\ :sub:`7-0`
+      - G\ :sub:`7-0`
+      - B\ :sub:`7-0`
+      - X\ :sub:`7-0`
+    * .. _V4L2-PIX-FMT-ARGB32:
+
+      - ``V4L2_PIX_FMT_ARGB32``
+      - 'BA24'
+
+      - A\ :sub:`7-0`
+      - R\ :sub:`7-0`
+      - G\ :sub:`7-0`
+      - B\ :sub:`7-0`
+    * .. _V4L2-PIX-FMT-XRGB32:
+
+      - ``V4L2_PIX_FMT_XRGB32``
+      - 'BX24'
+
+      - X\ :sub:`7-0`
+      - R\ :sub:`7-0`
+      - G\ :sub:`7-0`
+      - B\ :sub:`7-0`
 
 .. raw:: latex
 
-    \normalsize
+    \endgroup
 
-Formats defined in :ref:`pixfmt-rgb-deprecated` are deprecated and
-must not be used by new drivers. They are documented here for reference.
-The meaning of their alpha bits ``(a)`` are ill-defined and interpreted as in
-either the corresponding ARGB or XRGB format, depending on the driver.
 
+Deprecated RGB Formats
+======================
+
+Formats defined in :ref:`pixfmt-rgb-deprecated` are deprecated and must not be
+used by new drivers. They are documented here for reference. The meaning of
+their alpha bits ``(a)`` is ill-defined and they are interpreted as in either
+the corresponding ARGB or XRGB format, depending on the driver.
 
 .. raw:: latex
 

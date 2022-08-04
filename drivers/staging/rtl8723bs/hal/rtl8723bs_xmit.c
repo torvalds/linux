@@ -253,7 +253,7 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 		/* because stop_sta_xmit may delete sta_plist at any time */
 		/* so we should add lock here, or while loop can not exit */
 		while (sta_phead != sta_plist) {
-			ptxservq = LIST_CONTAINOR(sta_plist, struct tx_servq, tx_pending);
+			ptxservq = container_of(sta_plist, struct tx_servq, tx_pending);
 			sta_plist = get_next(sta_plist);
 
 #ifdef DBG_XMIT_BUF
@@ -278,7 +278,7 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 
 			while (list_empty(frame_phead) == false) {
 				frame_plist = get_next(frame_phead);
-				pxmitframe = LIST_CONTAINOR(frame_plist, struct xmit_frame, list);
+				pxmitframe = container_of(frame_plist, struct xmit_frame, list);
 
 				/*  check xmit_buf size enough or not */
 				txlen = txdesc_size + rtw_wlan_pkt_size(pxmitframe);
@@ -482,7 +482,7 @@ int rtl8723bs_xmit_thread(void *context)
 	padapter = context;
 	pxmitpriv = &padapter->xmitpriv;
 
-	rtw_sprintf(thread_name, 20, "RTWHALXT-" ADPT_FMT, ADPT_ARG(padapter));
+	rtw_sprintf(thread_name, 20, "RTWHALXT-%s", ADPT_ARG(padapter));
 	thread_enter(thread_name);
 
 	DBG_871X("start "FUNC_ADPT_FMT"\n", FUNC_ADPT_ARG(padapter));
@@ -661,7 +661,7 @@ void rtl8723bs_free_xmit_priv(struct adapter *padapter)
 		plist = get_next(phead);
 		list_del_init(plist);
 
-		pxmitbuf = LIST_CONTAINOR(plist, struct xmit_buf, list);
+		pxmitbuf = container_of(plist, struct xmit_buf, list);
 		rtw_free_xmitframe(pxmitpriv, (struct xmit_frame *)pxmitbuf->priv_data);
 		pxmitbuf->priv_data = NULL;
 		rtw_free_xmitbuf(pxmitpriv, pxmitbuf);

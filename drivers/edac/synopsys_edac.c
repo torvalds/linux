@@ -1344,7 +1344,8 @@ static int mc_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_EDAC_DEBUG
 	if (priv->p_data->quirks & DDR_ECC_DATA_POISON_SUPPORT) {
-		if (edac_create_sysfs_attributes(mci)) {
+		rc = edac_create_sysfs_attributes(mci);
+		if (rc) {
 			edac_printk(KERN_ERR, EDAC_MC,
 					"Failed to create sysfs entries\n");
 			goto free_edac_mc;

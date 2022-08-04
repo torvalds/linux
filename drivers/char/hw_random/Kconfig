@@ -348,19 +348,6 @@ config HW_RANDOM_HISI
 
 	  If unsure, say Y.
 
-config HW_RANDOM_HISI_V2
-	tristate "HiSilicon True Random Number Generator V2 support"
-	depends on HW_RANDOM && ARM64 && ACPI
-	default HW_RANDOM
-	help
-	  This driver provides kernel-side support for the True Random Number
-	  Generator V2 hardware found on HiSilicon Hi1620 SoC.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called hisi-trng-v2.
-
-	  If unsure, say Y.
-
 config HW_RANDOM_ST
 	tristate "ST Microelectronics HW Random Number Generator support"
 	depends on HW_RANDOM && ARCH_STI
@@ -508,6 +495,7 @@ config HW_RANDOM_NPCM
 
 config HW_RANDOM_KEYSTONE
 	depends on ARCH_KEYSTONE || COMPILE_TEST
+	depends on HAS_IOMEM && OF
 	default HW_RANDOM
 	tristate "TI Keystone NETCP SA Hardware random number generator"
 	help
@@ -540,15 +528,15 @@ endif # HW_RANDOM
 
 config UML_RANDOM
 	depends on UML
-	tristate "Hardware random number generator"
+	select HW_RANDOM
+	tristate "UML Random Number Generator support"
 	help
 	  This option enables UML's "hardware" random number generator.  It
 	  attaches itself to the host's /dev/random, supplying as much entropy
 	  as the host has, rather than the small amount the UML gets from its
-	  own drivers.  It registers itself as a standard hardware random number
-	  generator, major 10, minor 183, and the canonical device name is
-	  /dev/hwrng.
-	  The way to make use of this is to install the rng-tools package
-	  (check your distro, or download from
-	  http://sourceforge.net/projects/gkernel/).  rngd periodically reads
-	  /dev/hwrng and injects the entropy into /dev/random.
+	  own drivers. It registers itself as a rng-core driver thus providing
+	  a device which is usually called /dev/hwrng. This hardware random
+	  number generator does feed into the kernel's random number generator
+	  entropy pool.
+
+	  If unsure, say Y.

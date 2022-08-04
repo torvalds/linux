@@ -39,6 +39,7 @@
 #include "radeon_asic.h"
 #include "radeon_audio.h"
 #include "rv770d.h"
+#include "rv770.h"
 
 #define R700_PFP_UCODE_SIZE 848
 #define R700_PM4_UCODE_SIZE 1360

@@ -1865,6 +1865,26 @@ u32 sumo_dpm_get_current_mclk(struct radeon_device *rdev)
 	return pi->sys_info.bootup_uma_clk;
 }
 
+u16 sumo_dpm_get_current_vddc(struct radeon_device *rdev)
+{
+	struct sumo_power_info *pi = sumo_get_pi(rdev);
+	struct radeon_ps *rps = &pi->current_rps;
+	struct sumo_ps *ps = sumo_get_ps(rps);
+	struct sumo_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURR_INDEX_MASK) >>
+		CURR_INDEX_SHIFT;
+
+	if (current_index == BOOST_DPM_LEVEL) {
+		pl = &pi->boost_pl;
+	} else if (current_index >= ps->num_levels) {
+		return 0;
+	} else {
+		pl = &ps->levels[current_index];
+	}
+	return sumo_convert_voltage_index_to_value(rdev, pl->vddc_index);
+}
+
 void sumo_dpm_fini(struct radeon_device *rdev)
 {
 	int i;

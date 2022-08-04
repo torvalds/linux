@@ -285,7 +285,9 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 
 /**
  * ohci_hcd_omap_probe - initialize OMAP-based HCDs
- * Context: !in_interrupt()
+ * @pdev:	USB controller to probe
+ *
+ * Context: task context, might sleep
  *
  * Allocates basic resources for this USB host controller, and
  * then invokes the start() method for the HCD associated with it
@@ -399,8 +401,9 @@ err_put_hcd:
 
 /**
  * ohci_hcd_omap_remove - shutdown processing for OMAP-based HCDs
- * @dev: USB Host Controller being removed
- * Context: !in_interrupt()
+ * @pdev: USB Host Controller being removed
+ *
+ * Context: task context, might sleep
  *
  * Reverses the effect of ohci_hcd_omap_probe(), first invoking
  * the HCD's stop() method.  It is always called from a thread

@@ -64,6 +64,7 @@ struct emac_variant {
  * @variant:	reference to the current board variant
  * @regmap:	regmap for using the syscon
  * @internal_phy_powered: Does the internal PHY is enabled
+ * @use_internal_phy: Is the internal PHY selected for use
  * @mux_handle:	Internal pointer used by mdio-mux lib
  */
 struct sunxi_priv_data {
@@ -74,6 +75,7 @@ struct sunxi_priv_data {
 	const struct emac_variant *variant;
 	struct regmap_field *regmap_field;
 	bool internal_phy_powered;
+	bool use_internal_phy;
 	void *mux_handle;
 };
 
@@ -539,8 +541,11 @@ static const struct stmmac_dma_ops sun8i_dwmac_dma_ops = {
 	.dma_interrupt = sun8i_dwmac_dma_interrupt,
 };
 
+static int sun8i_dwmac_power_internal_phy(struct stmmac_priv *priv);
+
 static int sun8i_dwmac_init(struct platform_device *pdev, void *priv)
 {
+	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct sunxi_priv_data *gmac = priv;
 	int ret;
 
@@ -554,13 +559,25 @@ static int sun8i_dwmac_init(struct platform_device *pdev, void *priv)
 
 	ret = clk_prepare_enable(gmac->tx_clk);
 	if (ret) {
-		if (gmac->regulator)
-			regulator_disable(gmac->regulator);
 		dev_err(&pdev->dev, "Could not enable AHB clock\n");
-		return ret;
+		goto err_disable_regulator;
+	}
+
+	if (gmac->use_internal_phy) {
+		ret = sun8i_dwmac_power_internal_phy(netdev_priv(ndev));
+		if (ret)
+			goto err_disable_clk;
 	}
 
 	return 0;
+
+err_disable_clk:
+	clk_disable_unprepare(gmac->tx_clk);
+err_disable_regulator:
+	if (gmac->regulator)
+		regulator_disable(gmac->regulator);
+
+	return ret;
 }
 
 static void sun8i_dwmac_core_init(struct mac_device_info *hw,
@@ -831,7 +848,6 @@ static int mdio_mux_syscon_switch_fn(int current_child, int desired_child,
 	struct sunxi_priv_data *gmac = priv->plat->bsp_priv;
 	u32 reg, val;
 	int ret = 0;
-	bool need_power_ephy = false;
 
 	if (current_child ^ desired_child) {
 		regmap_field_read(gmac->regmap_field, &reg);
@@ -839,13 +855,12 @@ static int mdio_mux_syscon_switch_fn(int current_child, int desired_child,
 		case DWMAC_SUN8I_MDIO_MUX_INTERNAL_ID:
 			dev_info(priv->device, "Switch mux to internal PHY");
 			val = (reg & ~H3_EPHY_MUX_MASK) | H3_EPHY_SELECT;
-
-			need_power_ephy = true;
+			gmac->use_internal_phy = true;
 			break;
 		case DWMAC_SUN8I_MDIO_MUX_EXTERNAL_ID:
 			dev_info(priv->device, "Switch mux to external PHY");
 			val = (reg & ~H3_EPHY_MUX_MASK) | H3_EPHY_SHUTDOWN;
-			need_power_ephy = false;
+			gmac->use_internal_phy = false;
 			break;
 		default:
 			dev_err(priv->device, "Invalid child ID %x\n",
@@ -853,7 +868,7 @@ static int mdio_mux_syscon_switch_fn(int current_child, int desired_child,
 			return -EINVAL;
 		}
 		regmap_field_write(gmac->regmap_field, val);
-		if (need_power_ephy) {
+		if (gmac->use_internal_phy) {
 			ret = sun8i_dwmac_power_internal_phy(priv);
 			if (ret)
 				return ret;
@@ -883,22 +898,23 @@ static int sun8i_dwmac_register_mdio_mux(struct stmmac_priv *priv)
 	return ret;
 }
 
-static int sun8i_dwmac_set_syscon(struct stmmac_priv *priv)
+static int sun8i_dwmac_set_syscon(struct device *dev,
+				  struct plat_stmmacenet_data *plat)
 {
-	struct sunxi_priv_data *gmac = priv->plat->bsp_priv;
-	struct device_node *node = priv->device->of_node;
+	struct sunxi_priv_data *gmac = plat->bsp_priv;
+	struct device_node *node = dev->of_node;
 	int ret;
 	u32 reg, val;
 
 	ret = regmap_field_read(gmac->regmap_field, &val);
 	if (ret) {
-		dev_err(priv->device, "Fail to read from regmap field.\n");
+		dev_err(dev, "Fail to read from regmap field.\n");
 		return ret;
 	}
 
 	reg = gmac->variant->default_syscon_value;
 	if (reg != val)
-		dev_warn(priv->device,
+		dev_warn(dev,
 			 "Current syscon value is not the default %x (expect %x)\n",
 			 val, reg);
 
@@ -911,9 +927,9 @@ static int sun8i_dwmac_set_syscon(struct stmmac_priv *priv)
 		/* Force EPHY xtal frequency to 24MHz. */
 		reg |= H3_EPHY_CLK_SEL;
 
-		ret = of_mdio_parse_addr(priv->device, priv->plat->phy_node);
+		ret = of_mdio_parse_addr(dev, plat->phy_node);
 		if (ret < 0) {
-			dev_err(priv->device, "Could not parse MDIO addr\n");
+			dev_err(dev, "Could not parse MDIO addr\n");
 			return ret;
 		}
 		/* of_mdio_parse_addr returns a valid (0 ~ 31) PHY
@@ -929,17 +945,17 @@ static int sun8i_dwmac_set_syscon(struct stmmac_priv *priv)
 
 	if (!of_property_read_u32(node, "allwinner,tx-delay-ps", &val)) {
 		if (val % 100) {
-			dev_err(priv->device, "tx-delay must be a multiple of 100\n");
+			dev_err(dev, "tx-delay must be a multiple of 100\n");
 			return -EINVAL;
 		}
 		val /= 100;
-		dev_dbg(priv->device, "set tx-delay to %x\n", val);
+		dev_dbg(dev, "set tx-delay to %x\n", val);
 		if (val <= gmac->variant->tx_delay_max) {
 			reg &= ~(gmac->variant->tx_delay_max <<
 				 SYSCON_ETXDC_SHIFT);
 			reg |= (val << SYSCON_ETXDC_SHIFT);
 		} else {
-			dev_err(priv->device, "Invalid TX clock delay: %d\n",
+			dev_err(dev, "Invalid TX clock delay: %d\n",
 				val);
 			return -EINVAL;
 		}
@@ -947,17 +963,17 @@ static int sun8i_dwmac_set_syscon(struct stmmac_priv *priv)
 
 	if (!of_property_read_u32(node, "allwinner,rx-delay-ps", &val)) {
 		if (val % 100) {
-			dev_err(priv->device, "rx-delay must be a multiple of 100\n");
+			dev_err(dev, "rx-delay must be a multiple of 100\n");
 			return -EINVAL;
 		}
 		val /= 100;
-		dev_dbg(priv->device, "set rx-delay to %x\n", val);
+		dev_dbg(dev, "set rx-delay to %x\n", val);
 		if (val <= gmac->variant->rx_delay_max) {
 			reg &= ~(gmac->variant->rx_delay_max <<
 				 SYSCON_ERXDC_SHIFT);
 			reg |= (val << SYSCON_ERXDC_SHIFT);
 		} else {
-			dev_err(priv->device, "Invalid RX clock delay: %d\n",
+			dev_err(dev, "Invalid RX clock delay: %d\n",
 				val);
 			return -EINVAL;
 		}
@@ -968,7 +984,7 @@ static int sun8i_dwmac_set_syscon(struct stmmac_priv *priv)
 	if (gmac->variant->support_rmii)
 		reg &= ~SYSCON_RMII_EN;
 
-	switch (priv->plat->interface) {
+	switch (plat->interface) {
 	case PHY_INTERFACE_MODE_MII:
 		/* default */
 		break;
@@ -982,8 +998,8 @@ static int sun8i_dwmac_set_syscon(struct stmmac_priv *priv)
 		reg |= SYSCON_RMII_EN | SYSCON_ETCS_EXT_GMII;
 		break;
 	default:
-		dev_err(priv->device, "Unsupported interface mode: %s",
-			phy_modes(priv->plat->interface));
+		dev_err(dev, "Unsupported interface mode: %s",
+			phy_modes(plat->interface));
 		return -EINVAL;
 	}
 
@@ -1004,16 +1020,9 @@ static void sun8i_dwmac_exit(struct platform_device *pdev, void *priv)
 	struct sunxi_priv_data *gmac = priv;
 
 	if (gmac->variant->soc_has_internal_phy) {
-		/* sun8i_dwmac_exit could be called with mdiomux uninit */
-		if (gmac->mux_handle)
-			mdio_mux_uninit(gmac->mux_handle);
 		if (gmac->internal_phy_powered)
 			sun8i_dwmac_unpower_internal_phy(gmac);
 	}
-
-	sun8i_dwmac_unset_syscon(gmac);
-
-	reset_control_put(gmac->rst_ephy);
 
 	clk_disable_unprepare(gmac->tx_clk);
 
@@ -1049,14 +1058,9 @@ static struct mac_device_info *sun8i_dwmac_setup(void *ppriv)
 {
 	struct mac_device_info *mac;
 	struct stmmac_priv *priv = ppriv;
-	int ret;
 
 	mac = devm_kzalloc(priv->device, sizeof(*mac), GFP_KERNEL);
 	if (!mac)
-		return NULL;
-
-	ret = sun8i_dwmac_set_syscon(priv);
-	if (ret)
 		return NULL;
 
 	mac->pcsr = priv->ioaddr;
@@ -1134,10 +1138,6 @@ static int sun8i_dwmac_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	plat_dat = stmmac_probe_config_dt(pdev, &stmmac_res.mac);
-	if (IS_ERR(plat_dat))
-		return PTR_ERR(plat_dat);
-
 	gmac = devm_kzalloc(dev, sizeof(*gmac), GFP_KERNEL);
 	if (!gmac)
 		return -ENOMEM;
@@ -1201,11 +1201,15 @@ static int sun8i_dwmac_probe(struct platform_device *pdev)
 	ret = of_get_phy_mode(dev->of_node, &interface);
 	if (ret)
 		return -EINVAL;
-	plat_dat->interface = interface;
+
+	plat_dat = stmmac_probe_config_dt(pdev, &stmmac_res.mac);
+	if (IS_ERR(plat_dat))
+		return PTR_ERR(plat_dat);
 
 	/* platform data specifying hardware features and callbacks.
 	 * hardware features were copied from Allwinner drivers.
 	 */
+	plat_dat->interface = interface;
 	plat_dat->rx_coe = STMMAC_RX_COE_TYPE2;
 	plat_dat->tx_coe = 1;
 	plat_dat->has_sun8i = true;
@@ -1214,9 +1218,13 @@ static int sun8i_dwmac_probe(struct platform_device *pdev)
 	plat_dat->exit = sun8i_dwmac_exit;
 	plat_dat->setup = sun8i_dwmac_setup;
 
+	ret = sun8i_dwmac_set_syscon(&pdev->dev, plat_dat);
+	if (ret)
+		goto dwmac_deconfig;
+
 	ret = sun8i_dwmac_init(pdev, plat_dat->bsp_priv);
 	if (ret)
-		return ret;
+		goto dwmac_syscon;
 
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 	if (ret)
@@ -1230,7 +1238,7 @@ static int sun8i_dwmac_probe(struct platform_device *pdev)
 	if (gmac->variant->soc_has_internal_phy) {
 		ret = get_ephy_nodes(priv);
 		if (ret)
-			goto dwmac_exit;
+			goto dwmac_remove;
 		ret = sun8i_dwmac_register_mdio_mux(priv);
 		if (ret) {
 			dev_err(&pdev->dev, "Failed to register mux\n");
@@ -1239,15 +1247,42 @@ static int sun8i_dwmac_probe(struct platform_device *pdev)
 	} else {
 		ret = sun8i_dwmac_reset(priv);
 		if (ret)
-			goto dwmac_exit;
+			goto dwmac_remove;
 	}
 
 	return ret;
 dwmac_mux:
-	sun8i_dwmac_unset_syscon(gmac);
+	reset_control_put(gmac->rst_ephy);
+	clk_put(gmac->ephy_clk);
+dwmac_remove:
+	stmmac_dvr_remove(&pdev->dev);
 dwmac_exit:
+	sun8i_dwmac_exit(pdev, gmac);
+dwmac_syscon:
+	sun8i_dwmac_unset_syscon(gmac);
+dwmac_deconfig:
+	stmmac_remove_config_dt(pdev, plat_dat);
+
+	return ret;
+}
+
+static int sun8i_dwmac_remove(struct platform_device *pdev)
+{
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct sunxi_priv_data *gmac = priv->plat->bsp_priv;
+
+	if (gmac->variant->soc_has_internal_phy) {
+		mdio_mux_uninit(gmac->mux_handle);
+		sun8i_dwmac_unpower_internal_phy(gmac);
+		reset_control_put(gmac->rst_ephy);
+		clk_put(gmac->ephy_clk);
+	}
+
 	stmmac_pltfr_remove(pdev);
-return ret;
+	sun8i_dwmac_unset_syscon(gmac);
+
+	return 0;
 }
 
 static const struct of_device_id sun8i_dwmac_match[] = {
@@ -1269,7 +1304,7 @@ MODULE_DEVICE_TABLE(of, sun8i_dwmac_match);
 
 static struct platform_driver sun8i_dwmac_driver = {
 	.probe  = sun8i_dwmac_probe,
-	.remove = stmmac_pltfr_remove,
+	.remove = sun8i_dwmac_remove,
 	.driver = {
 		.name           = "dwmac-sun8i",
 		.pm		= &stmmac_pltfr_pm_ops,

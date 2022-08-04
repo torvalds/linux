@@ -157,6 +157,7 @@ static const struct goodix_chip_id goodix_chip_ids[] = {
 	{ .id = "5663", .data = &gt1x_chip_data },
 	{ .id = "5688", .data = &gt1x_chip_data },
 	{ .id = "917S", .data = &gt1x_chip_data },
+	{ .id = "9286", .data = &gt1x_chip_data },
 
 	{ .id = "911", .data = &gt911_chip_data },
 	{ .id = "9271", .data = &gt911_chip_data },
@@ -576,6 +577,7 @@ static void goodix_calc_cfg_checksum_16(struct goodix_ts_data *ts)
  *
  * @ts: goodix_ts_data pointer
  * @cfg: firmware config data
+ * @len: config data length
  */
 static int goodix_check_cfg(struct goodix_ts_data *ts, const u8 *cfg, int len)
 {
@@ -594,6 +596,7 @@ static int goodix_check_cfg(struct goodix_ts_data *ts, const u8 *cfg, int len)
  *
  * @ts: goodix_ts_data pointer
  * @cfg: config firmware to write to device
+ * @len: config data length
  */
 static int goodix_send_cfg(struct goodix_ts_data *ts, const u8 *cfg, int len)
 {
@@ -1168,7 +1171,8 @@ static int goodix_configure_dev(struct goodix_ts_data *ts)
 /**
  * goodix_config_cb - Callback to finish device init
  *
- * @ts: our goodix_ts_data pointer
+ * @cfg: firmware config
+ * @ctx: our goodix_ts_data pointer
  *
  * request_firmware_wait callback that finishes
  * initialization of the device.
@@ -1445,6 +1449,7 @@ static const struct of_device_id goodix_of_match[] = {
 	{ .compatible = "goodix,gt927" },
 	{ .compatible = "goodix,gt9271" },
 	{ .compatible = "goodix,gt928" },
+	{ .compatible = "goodix,gt9286" },
 	{ .compatible = "goodix,gt967" },
 	{ }
 };

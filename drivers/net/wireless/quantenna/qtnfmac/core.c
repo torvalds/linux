@@ -126,26 +126,11 @@ qtnf_netdev_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	if (unlikely(skb->protocol == htons(ETH_P_PAE))) {
 		qtnf_packet_send_hi_pri(skb);
-		qtnf_update_tx_stats(ndev, skb);
+		dev_sw_netstats_tx_add(ndev, 1, skb->len);
 		return NETDEV_TX_OK;
 	}
 
 	return qtnf_bus_data_tx(mac->bus, skb, mac->macid, vif->vifid);
-}
-
-/* Netdev handler for getting stats.
- */
-static void qtnf_netdev_get_stats64(struct net_device *ndev,
-				    struct rtnl_link_stats64 *stats)
-{
-	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
-
-	netdev_stats_to_stats64(stats, &ndev->stats);
-
-	if (!vif->stats64)
-		return;
-
-	dev_fetch_sw_netstats(stats, vif->stats64);
 }
 
 /* Netdev handler for transmission timeout.
@@ -211,13 +196,27 @@ static int qtnf_netdev_port_parent_id(struct net_device *ndev,
 	return 0;
 }
 
+static int qtnf_netdev_alloc_pcpu_stats(struct net_device *dev)
+{
+	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
+
+	return dev->tstats ? 0 : -ENOMEM;
+}
+
+static void qtnf_netdev_free_pcpu_stats(struct net_device *dev)
+{
+	free_percpu(dev->tstats);
+}
+
 /* Network device ops handlers */
 const struct net_device_ops qtnf_netdev_ops = {
+	.ndo_init = qtnf_netdev_alloc_pcpu_stats,
+	.ndo_uninit = qtnf_netdev_free_pcpu_stats,
 	.ndo_open = qtnf_netdev_open,
 	.ndo_stop = qtnf_netdev_close,
 	.ndo_start_xmit = qtnf_netdev_hard_start_xmit,
 	.ndo_tx_timeout = qtnf_netdev_tx_timeout,
-	.ndo_get_stats64 = qtnf_netdev_get_stats64,
+	.ndo_get_stats64 = dev_get_tstats64,
 	.ndo_set_mac_address = qtnf_netdev_set_mac_address,
 	.ndo_get_port_parent_id = qtnf_netdev_port_parent_id,
 };
@@ -448,10 +447,6 @@ static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 		qtnf_sta_list_init(&vif->sta_list);
 		INIT_WORK(&vif->high_pri_tx_work, qtnf_vif_send_data_high_pri);
 		skb_queue_head_init(&vif->high_pri_tx_queue);
-		vif->stats64 = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-		if (!vif->stats64)
-			pr_warn("VIF%u.%u: per cpu stats allocation failed\n",
-				macid, i);
 	}
 
 	qtnf_mac_init_primary_intf(mac);
@@ -531,7 +526,6 @@ static void qtnf_core_mac_detach(struct qtnf_bus *bus, unsigned int macid)
 		}
 		rtnl_unlock();
 		qtnf_sta_list_free(&vif->sta_list);
-		free_percpu(vif->stats64);
 	}
 
 	if (mac->wiphy_registered)
@@ -923,46 +917,6 @@ void qtnf_wake_all_queues(struct net_device *ndev)
 	}
 }
 EXPORT_SYMBOL_GPL(qtnf_wake_all_queues);
-
-void qtnf_update_rx_stats(struct net_device *ndev, const struct sk_buff *skb)
-{
-	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
-	struct pcpu_sw_netstats *stats64;
-
-	if (unlikely(!vif || !vif->stats64)) {
-		ndev->stats.rx_packets++;
-		ndev->stats.rx_bytes += skb->len;
-		return;
-	}
-
-	stats64 = this_cpu_ptr(vif->stats64);
-
-	u64_stats_update_begin(&stats64->syncp);
-	stats64->rx_packets++;
-	stats64->rx_bytes += skb->len;
-	u64_stats_update_end(&stats64->syncp);
-}
-EXPORT_SYMBOL_GPL(qtnf_update_rx_stats);
-
-void qtnf_update_tx_stats(struct net_device *ndev, const struct sk_buff *skb)
-{
-	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
-	struct pcpu_sw_netstats *stats64;
-
-	if (unlikely(!vif || !vif->stats64)) {
-		ndev->stats.tx_packets++;
-		ndev->stats.tx_bytes += skb->len;
-		return;
-	}
-
-	stats64 = this_cpu_ptr(vif->stats64);
-
-	u64_stats_update_begin(&stats64->syncp);
-	stats64->tx_packets++;
-	stats64->tx_bytes += skb->len;
-	u64_stats_update_end(&stats64->syncp);
-}
-EXPORT_SYMBOL_GPL(qtnf_update_tx_stats);
 
 struct dentry *qtnf_get_debugfs_dir(void)
 {

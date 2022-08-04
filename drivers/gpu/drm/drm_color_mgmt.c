@@ -97,12 +97,12 @@
  * &drm_plane specific COLOR_ENCODING and COLOR_RANGE properties. They
  * are set up by calling drm_plane_create_color_properties().
  *
- * "COLOR_ENCODING"
+ * "COLOR_ENCODING":
  * 	Optional plane enum property to support different non RGB
  * 	color encodings. The driver can provide a subset of standard
  * 	enum values supported by the DRM plane.
  *
- * "COLOR_RANGE"
+ * "COLOR_RANGE":
  * 	Optional plane enum property to support different non RGB
  * 	color parameter ranges. The driver can provide a subset of
  * 	standard enum values supported by the DRM plane.

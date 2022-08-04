@@ -269,7 +269,8 @@ static int cpcap_rtc_probe(struct platform_device *pdev)
 
 	rtc->alarm_irq = platform_get_irq(pdev, 0);
 	err = devm_request_threaded_irq(dev, rtc->alarm_irq, NULL,
-					cpcap_rtc_alarm_irq, IRQF_TRIGGER_NONE,
+					cpcap_rtc_alarm_irq,
+					IRQF_TRIGGER_NONE | IRQF_ONESHOT,
 					"rtc_alarm", rtc);
 	if (err) {
 		dev_err(dev, "Could not request alarm irq: %d\n", err);
@@ -285,7 +286,8 @@ static int cpcap_rtc_probe(struct platform_device *pdev)
 	 */
 	rtc->update_irq = platform_get_irq(pdev, 1);
 	err = devm_request_threaded_irq(dev, rtc->update_irq, NULL,
-					cpcap_rtc_update_irq, IRQF_TRIGGER_NONE,
+					cpcap_rtc_update_irq,
+					IRQF_TRIGGER_NONE | IRQF_ONESHOT,
 					"rtc_1hz", rtc);
 	if (err) {
 		dev_err(dev, "Could not request update irq: %d\n", err);
@@ -299,7 +301,7 @@ static int cpcap_rtc_probe(struct platform_device *pdev)
 		/* ignore error and continue without wakeup support */
 	}
 
-	return rtc_register_device(rtc->rtc_dev);
+	return devm_rtc_register_device(rtc->rtc_dev);
 }
 
 static const struct of_device_id cpcap_rtc_of_match[] = {

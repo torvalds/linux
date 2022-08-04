@@ -383,7 +383,7 @@ static int __asv_offset_voltage(unsigned int index)
 		return 25000;
 	default:
 		return 0;
-	};
+	}
 }
 
 static void exynos5422_asv_offset_voltage_setup(struct exynos_asv *asv)

@@ -239,6 +239,7 @@ static u32 to3264(u32 timing, int bpp, int is64)
 		fallthrough;
 	case 16:
 		timing >>= 1;
+		fallthrough;
 	case 32:
 		break;
 	}

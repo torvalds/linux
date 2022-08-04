@@ -115,29 +115,50 @@ static void mt7615_stop(struct ieee80211_hw *hw)
 	mt7615_mutex_release(dev);
 }
 
-static int get_omac_idx(enum nl80211_iftype type, u32 mask)
+static inline int get_free_idx(u32 mask, u8 start, u8 end)
+{
+	return ffs(~mask & GENMASK(end, start));
+}
+
+static int get_omac_idx(enum nl80211_iftype type, u64 mask)
 {
 	int i;
 
 	switch (type) {
-	case NL80211_IFTYPE_MONITOR:
-	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_ADHOC:
-		/* ap use hw bssid 0 and ext bssid */
+	case NL80211_IFTYPE_STATION:
+		/* prefer hw bssid slot 1-3 */
+		i = get_free_idx(mask, HW_BSSID_1, HW_BSSID_3);
+		if (i)
+			return i - 1;
+
+		if (type != NL80211_IFTYPE_STATION)
+			break;
+
+		/* next, try to find a free repeater entry for the sta */
+		i = get_free_idx(mask >> REPEATER_BSSID_START, 0,
+				 REPEATER_BSSID_MAX - REPEATER_BSSID_START);
+		if (i)
+			return i + 32 - 1;
+
+		i = get_free_idx(mask, EXT_BSSID_1, EXT_BSSID_MAX);
+		if (i)
+			return i - 1;
+
 		if (~mask & BIT(HW_BSSID_0))
 			return HW_BSSID_0;
 
-		for (i = EXT_BSSID_1; i < EXT_BSSID_END; i++)
-			if (~mask & BIT(i))
-				return i;
-
 		break;
-	case NL80211_IFTYPE_STATION:
-		/* sta use hw bssid other than 0 */
-		for (i = HW_BSSID_1; i < HW_BSSID_MAX; i++)
-			if (~mask & BIT(i))
-				return i;
+	case NL80211_IFTYPE_MONITOR:
+	case NL80211_IFTYPE_AP:
+		/* ap uses hw bssid 0 and ext bssid */
+		if (~mask & BIT(HW_BSSID_0))
+			return HW_BSSID_0;
+
+		i = get_free_idx(mask, EXT_BSSID_1, EXT_BSSID_MAX);
+		if (i)
+			return i - 1;
 
 		break;
 	default:
@@ -187,8 +208,8 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 		mvif->wmm_idx = mvif->idx % MT7615_MAX_WMM_SETS;
 
 	dev->mphy.vif_mask |= BIT(mvif->idx);
-	dev->omac_mask |= BIT(mvif->omac_idx);
-	phy->omac_mask |= BIT(mvif->omac_idx);
+	dev->omac_mask |= BIT_ULL(mvif->omac_idx);
+	phy->omac_mask |= BIT_ULL(mvif->omac_idx);
 
 	mt7615_mcu_set_dbdc(dev);
 
@@ -211,15 +232,7 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 	if (ret)
 		goto out;
 
-	if (dev->pm.enable) {
-		ret = mt7615_mcu_set_bss_pm(dev, vif, true);
-		if (ret)
-			goto out;
-
-		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
-		mt76_set(dev, MT_WF_RFCR(ext_phy),
-			 MT_WF_RFCR_DROP_OTHER_BEACON);
-	}
+	mt7615_mac_set_beacon_filter(phy, vif, true);
 out:
 	mt7615_mutex_release(dev);
 
@@ -245,20 +258,14 @@ static void mt7615_remove_interface(struct ieee80211_hw *hw,
 
 	mt7615_free_pending_tx_skbs(dev, msta);
 
-	if (dev->pm.enable) {
-		bool ext_phy = phy != &dev->phy;
-
-		mt7615_mcu_set_bss_pm(dev, vif, false);
-		mt76_clear(dev, MT_WF_RFCR(ext_phy),
-			   MT_WF_RFCR_DROP_OTHER_BEACON);
-	}
+	mt7615_mac_set_beacon_filter(phy, vif, false);
 	mt7615_mcu_add_dev_info(dev, vif, false);
 
 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
 
 	dev->mphy.vif_mask &= ~BIT(mvif->idx);
-	dev->omac_mask &= ~BIT(mvif->omac_idx);
-	phy->omac_mask &= ~BIT(mvif->omac_idx);
+	dev->omac_mask &= ~BIT_ULL(mvif->omac_idx);
+	phy->omac_mask &= ~BIT_ULL(mvif->omac_idx);
 
 	mt7615_mutex_release(dev);
 
@@ -334,39 +341,6 @@ out:
 	return ret;
 }
 
-static int
-mt7615_queue_key_update(struct mt7615_dev *dev, enum set_key_cmd cmd,
-			struct mt7615_sta *msta,
-			struct ieee80211_key_conf *key)
-{
-	struct mt7615_wtbl_desc *wd;
-
-	wd = kzalloc(sizeof(*wd), GFP_KERNEL);
-	if (!wd)
-		return -ENOMEM;
-
-	wd->type = MT7615_WTBL_KEY_DESC;
-	wd->sta = msta;
-
-	wd->key.key = kmemdup(key->key, key->keylen, GFP_KERNEL);
-	if (!wd->key.key) {
-		kfree(wd);
-		return -ENOMEM;
-	}
-	wd->key.cipher = key->cipher;
-	wd->key.keyidx = key->keyidx;
-	wd->key.keylen = key->keylen;
-	wd->key.cmd = cmd;
-
-	spin_lock_bh(&dev->mt76.lock);
-	list_add_tail(&wd->node, &dev->wd_head);
-	spin_unlock_bh(&dev->mt76.lock);
-
-	queue_work(dev->mt76.wq, &dev->wtbl_work);
-
-	return 0;
-}
-
 static int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			  struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 			  struct ieee80211_key_conf *key)
@@ -393,8 +367,6 @@ static int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIE;
 		break;
-	case WLAN_CIPHER_SUITE_WEP40:
-	case WLAN_CIPHER_SUITE_WEP104:
 	case WLAN_CIPHER_SUITE_TKIP:
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_CCMP_256:
@@ -402,6 +374,8 @@ static int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case WLAN_CIPHER_SUITE_GCMP_256:
 	case WLAN_CIPHER_SUITE_SMS4:
 		break;
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -420,7 +394,7 @@ static int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (mt76_is_mmio(&dev->mt76))
 		err = mt7615_mac_wtbl_set_key(dev, wcid, key, cmd);
 	else
-		err = mt7615_queue_key_update(dev, cmd, msta, key);
+		err = __mt7615_mac_wtbl_set_key(dev, wcid, key, cmd);
 
 	mt7615_mutex_release(dev);
 
@@ -511,7 +485,6 @@ static void mt7615_configure_filter(struct ieee80211_hw *hw,
 	} while (0)
 
 	phy->rxfilter &= ~(MT_WF_RFCR_DROP_OTHER_BSS |
-			   MT_WF_RFCR_DROP_OTHER_BEACON |
 			   MT_WF_RFCR_DROP_FRAME_REPORT |
 			   MT_WF_RFCR_DROP_PROBEREQ |
 			   MT_WF_RFCR_DROP_MCAST_FILTERED |
@@ -521,6 +494,9 @@ static void mt7615_configure_filter(struct ieee80211_hw *hw,
 			   MT_WF_RFCR_DROP_A2_BSSID |
 			   MT_WF_RFCR_DROP_UNWANTED_CTL |
 			   MT_WF_RFCR_DROP_STBC_MULTI);
+
+	if (phy->n_beacon_vif || !mt7615_firmware_offload(dev))
+		phy->rxfilter &= ~MT_WF_RFCR_DROP_OTHER_BEACON;
 
 	MT76_FILTER(OTHER_BSS, MT_WF_RFCR_DROP_OTHER_TIM |
 			       MT_WF_RFCR_DROP_A3_MAC |
@@ -1127,7 +1103,6 @@ static int mt7615_suspend(struct ieee80211_hw *hw,
 {
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
-	bool ext_phy = phy != &dev->phy;
 	int err = 0;
 
 	cancel_delayed_work_sync(&dev->pm.ps_work);
@@ -1138,8 +1113,6 @@ static int mt7615_suspend(struct ieee80211_hw *hw,
 	clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 	cancel_delayed_work_sync(&phy->scan_work);
 	cancel_delayed_work_sync(&phy->mac_work);
-
-	mt76_set(dev, MT_WF_RFCR(ext_phy), MT_WF_RFCR_DROP_OTHER_BEACON);
 
 	set_bit(MT76_STATE_SUSPEND, &phy->mt76->state);
 	ieee80211_iterate_active_interfaces(hw,
@@ -1158,7 +1131,7 @@ static int mt7615_resume(struct ieee80211_hw *hw)
 {
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
-	bool running, ext_phy = phy != &dev->phy;
+	bool running;
 
 	mt7615_mutex_acquire(dev);
 
@@ -1182,7 +1155,6 @@ static int mt7615_resume(struct ieee80211_hw *hw)
 
 	ieee80211_queue_delayed_work(hw, &phy->mac_work,
 				     MT7615_WATCHDOG_TIME);
-	mt76_clear(dev, MT_WF_RFCR(ext_phy), MT_WF_RFCR_DROP_OTHER_BEACON);
 
 	mt7615_mutex_release(dev);
 

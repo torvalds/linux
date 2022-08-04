@@ -185,10 +185,6 @@ xchk_inode_flags2(
 	if ((flags & XFS_DIFLAG_REALTIME) && (flags2 & XFS_DIFLAG2_REFLINK))
 		goto bad;
 
-	/* dax and reflink make no sense, currently */
-	if ((flags2 & XFS_DIFLAG2_DAX) && (flags2 & XFS_DIFLAG2_REFLINK))
-		goto bad;
-
 	/* no bigtime iflag without the bigtime feature */
 	if (xfs_dinode_has_bigtime(dip) &&
 	    !xfs_sb_version_hasbigtime(&mp->m_sb))

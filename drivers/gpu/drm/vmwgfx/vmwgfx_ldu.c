@@ -214,7 +214,7 @@ static void vmw_ldu_crtc_mode_set_nofb(struct drm_crtc *crtc)
  * CRTC, it makes more sense to do those at plane update time.
  */
 static void vmw_ldu_crtc_atomic_enable(struct drm_crtc *crtc,
-				       struct drm_crtc_state *old_state)
+				       struct drm_atomic_state *state)
 {
 }
 
@@ -224,7 +224,7 @@ static void vmw_ldu_crtc_atomic_enable(struct drm_crtc *crtc,
  * @crtc: CRTC to be turned off
  */
 static void vmw_ldu_crtc_atomic_disable(struct drm_crtc *crtc,
-					struct drm_crtc_state *old_state)
+					struct drm_atomic_state *state)
 {
 }
 

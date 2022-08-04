@@ -1066,7 +1066,7 @@ static void tx_intr_handler(struct fifo_info *fifo_data);
 static void s2io_handle_errors(void * dev_id);
 
 static void s2io_tx_watchdog(struct net_device *dev, unsigned int txqueue);
-static void s2io_set_multicast(struct net_device *dev);
+static void s2io_set_multicast(struct net_device *dev, bool may_sleep);
 static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp);
 static void s2io_link(struct s2io_nic * sp, int link);
 static void s2io_reset(struct s2io_nic * sp);
@@ -1087,7 +1087,7 @@ static int s2io_set_swapper(struct s2io_nic * sp);
 static void s2io_card_down(struct s2io_nic *nic);
 static int s2io_card_up(struct s2io_nic *nic);
 static int wait_for_cmd_complete(void __iomem *addr, u64 busy_bit,
-					int bit_state);
+				 int bit_state, bool may_sleep);
 static int s2io_add_isr(struct s2io_nic * sp);
 static void s2io_rem_isr(struct s2io_nic * sp);
 

@@ -412,10 +412,15 @@
 		};
 	};
 
-	pwm7_pins: pwm1-2-pins {
+	pwm_pins: pwm-pins {
 		mux {
 			function = "pwm";
-			groups = "pwm_ch7_2";
+			groups = "pwm_ch1_0", /* mt7622_pwm_ch1_0_pins[] = { 51, }; */
+				 "pwm_ch2_0", /* mt7622_pwm_ch2_0_pins[] = { 52, }; */
+				 "pwm_ch3_2", /* mt7622_pwm_ch3_2_pins[] = { 97, }; */
+				 "pwm_ch4_1", /* mt7622_pwm_ch4_1_pins[] = { 67, }; */
+				 "pwm_ch5_0", /* mt7622_pwm_ch5_0_pins[] = { 68, }; */
+				 "pwm_ch6_0"; /* mt7622_pwm_ch6_0_pins[] = { 69, }; */
 		};
 	};
 
@@ -535,7 +540,7 @@
 
 &pwm {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pwm7_pins>;
+	pinctrl-0 = <&pwm_pins>;
 	status = "okay";
 };
 
@@ -563,7 +568,6 @@
 &spi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spic1_pins>;
-	status = "okay";
 };
 
 &ssusb {
@@ -585,7 +589,6 @@
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_pins>;
-	status = "okay";
 };
 
 &watchdog {

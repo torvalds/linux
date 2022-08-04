@@ -27,21 +27,21 @@ properties:
       List of device current outputs the LED is connected to. The outputs are
       identified by the numbers that must be defined in the LED device binding
       documentation.
-    $ref: /schemas/types.yaml#definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32-array
 
   function:
     description:
       LED function. Use one of the LED_FUNCTION_* prefixed definitions
       from the header include/dt-bindings/leds/common.h. If there is no
       matching LED_FUNCTION available, add a new one.
-    $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#/definitions/string
 
   color:
     description:
       Color of the LED. Use one of the LED_COLOR_ID_* prefixed definitions from
       the header include/dt-bindings/leds/common.h. If there is no matching
       LED_COLOR_ID available, add a new one.
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 9
 
@@ -49,7 +49,7 @@ properties:
     description:
       Integer to be used when more than one instance of the same function is
       needed, differing only with an ordinal number.
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   label:
     description:
@@ -66,7 +66,7 @@ properties:
       produced where the LED momentarily turns off (or on). The "keep" setting
       will keep the LED at whatever its current state is, without producing a
       glitch.
-    $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#/definitions/string
     enum:
       - on
       - off
@@ -77,7 +77,7 @@ properties:
     description:
       This parameter, if present, is a string defining the trigger assigned to
       the LED.
-    $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#/definitions/string
 
     enum:
         # LED will act as a back-light, controlled by the framebuffer system
@@ -109,7 +109,7 @@ properties:
           brightness and duration (in ms).  The exact format is
           described in:
           Documentation/devicetree/bindings/leds/leds-trigger-pattern.txt
-    $ref: /schemas/types.yaml#definitions/uint32-matrix
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
     items:
       minItems: 2
       maxItems: 2
@@ -143,7 +143,7 @@ properties:
       the device tree and be referenced by a phandle and a set of phandle
       arguments. A length of arguments should be specified by the
       #trigger-source-cells property in the source node.
-    $ref: /schemas/types.yaml#definitions/phandle-array
+    $ref: /schemas/types.yaml#/definitions/phandle-array
 
   # Required properties for flash LED child nodes:
   flash-max-microamp:

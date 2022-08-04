@@ -1717,6 +1717,34 @@ struct profile_metric {
 		.ratio_desc = "LLC misses per million insns",
 		.ratio_mul = 1e6,
 	},
+	{
+		.name = "itlb_misses",
+		.attr = {
+			.type = PERF_TYPE_HW_CACHE,
+			.config =
+				PERF_COUNT_HW_CACHE_ITLB |
+				(PERF_COUNT_HW_CACHE_OP_READ << 8) |
+				(PERF_COUNT_HW_CACHE_RESULT_MISS << 16),
+			.exclude_user = 1
+		},
+		.ratio_metric = 2,
+		.ratio_desc = "itlb misses per million insns",
+		.ratio_mul = 1e6,
+	},
+	{
+		.name = "dtlb_misses",
+		.attr = {
+			.type = PERF_TYPE_HW_CACHE,
+			.config =
+				PERF_COUNT_HW_CACHE_DTLB |
+				(PERF_COUNT_HW_CACHE_OP_READ << 8) |
+				(PERF_COUNT_HW_CACHE_RESULT_MISS << 16),
+			.exclude_user = 1
+		},
+		.ratio_metric = 2,
+		.ratio_desc = "dtlb misses per million insns",
+		.ratio_mul = 1e6,
+	},
 };
 
 static __u64 profile_total_count;
@@ -2109,7 +2137,7 @@ static int do_help(int argc, char **argv)
 		"                 struct_ops | fentry | fexit | freplace | sk_lookup }\n"
 		"       ATTACH_TYPE := { msg_verdict | stream_verdict | stream_parser |\n"
 		"                        flow_dissector }\n"
-		"       METRIC := { cycles | instructions | l1d_loads | llc_misses }\n"
+		"       METRIC := { cycles | instructions | l1d_loads | llc_misses | itlb_misses | dtlb_misses }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, argv[-2]);

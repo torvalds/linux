@@ -43,12 +43,16 @@ struct i915_pmu {
 	 */
 	struct {
 		struct hlist_node node;
-		enum cpuhp_state slot;
+		unsigned int cpu;
 	} cpuhp;
 	/**
 	 * @base: PMU base.
 	 */
 	struct pmu base;
+	/**
+	 * @closed: i915 is unregistering.
+	 */
+	bool closed;
 	/**
 	 * @name: Name as registered with perf core.
 	 */
@@ -108,6 +112,14 @@ struct i915_pmu {
 	 */
 	ktime_t sleep_last;
 	/**
+	 * @irq_count: Number of interrupts
+	 *
+	 * Intentionally unsigned long to avoid atomics or heuristics on 32bit.
+	 * 4e9 interrupts are a lot and postprocessing can really deal with an
+	 * occasional wraparound easily. It's 32bit after all.
+	 */
+	unsigned long irq_count;
+	/**
 	 * @events_attr_group: Device events attribute group.
 	 */
 	struct attribute_group events_attr_group;
@@ -122,11 +134,15 @@ struct i915_pmu {
 };
 
 #ifdef CONFIG_PERF_EVENTS
+void i915_pmu_init(void);
+void i915_pmu_exit(void);
 void i915_pmu_register(struct drm_i915_private *i915);
 void i915_pmu_unregister(struct drm_i915_private *i915);
 void i915_pmu_gt_parked(struct drm_i915_private *i915);
 void i915_pmu_gt_unparked(struct drm_i915_private *i915);
 #else
+static inline void i915_pmu_init(void) {}
+static inline void i915_pmu_exit(void) {}
 static inline void i915_pmu_register(struct drm_i915_private *i915) {}
 static inline void i915_pmu_unregister(struct drm_i915_private *i915) {}
 static inline void i915_pmu_gt_parked(struct drm_i915_private *i915) {}

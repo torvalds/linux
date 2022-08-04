@@ -127,7 +127,7 @@ static irqreturn_t ingenic_tcu_cevt_cb(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct clk * __init ingenic_tcu_get_clock(struct device_node *np, int id)
+static struct clk *ingenic_tcu_get_clock(struct device_node *np, int id)
 {
 	struct of_phandle_args args;
 

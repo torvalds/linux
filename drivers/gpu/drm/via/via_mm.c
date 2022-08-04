@@ -129,9 +129,9 @@ int via_mem_alloc(struct drm_device *dev, void *data,
 	mutex_lock(&dev->struct_mutex);
 	if (0 == ((mem->type == VIA_MEM_VIDEO) ? dev_priv->vram_initialized :
 		      dev_priv->agp_initialized)) {
+		mutex_unlock(&dev->struct_mutex);
 		DRM_ERROR
 		    ("Attempt to allocate from uninitialized memory manager.\n");
-		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 

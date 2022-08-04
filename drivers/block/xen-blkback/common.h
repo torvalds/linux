@@ -356,9 +356,7 @@ struct pending_req {
 };
 
 
-#define vbd_sz(_v)	((_v)->bdev->bd_part ? \
-			 (_v)->bdev->bd_part->nr_sects : \
-			  get_capacity((_v)->bdev->bd_disk))
+#define vbd_sz(_v)	bdev_nr_sectors((_v)->bdev)
 
 #define xen_blkif_get(_b) (atomic_inc(&(_b)->refcnt))
 #define xen_blkif_put(_b)				\

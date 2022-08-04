@@ -19,11 +19,14 @@ void snd_soc_link_shutdown(struct snd_pcm_substream *substream,
 int snd_soc_link_prepare(struct snd_pcm_substream *substream);
 int snd_soc_link_hw_params(struct snd_pcm_substream *substream,
 			   struct snd_pcm_hw_params *params);
-void snd_soc_link_hw_free(struct snd_pcm_substream *substream);
-int snd_soc_link_trigger(struct snd_pcm_substream *substream, int cmd);
+void snd_soc_link_hw_free(struct snd_pcm_substream *substream,
+			  int rollback);
 
+int snd_soc_link_trigger(struct snd_pcm_substream *substream, int cmd,
+			 int rollback);
 int snd_soc_link_compr_startup(struct snd_compr_stream *cstream);
-void snd_soc_link_compr_shutdown(struct snd_compr_stream *cstream);
+void snd_soc_link_compr_shutdown(struct snd_compr_stream *cstream,
+				 int rollback);
 int snd_soc_link_compr_set_params(struct snd_compr_stream *cstream);
 
 #endif /* __SOC_LINK_H */

@@ -10,6 +10,17 @@
 #include "sc7180-trogdor-lazor.dtsi"
 
 / {
-	model = "Google Lazor (rev1+)";
-	compatible = "google,lazor", "qcom,sc7180";
+	model = "Google Lazor (rev1 - 2)";
+	compatible = "google,lazor-rev1", "google,lazor-rev2", "qcom,sc7180";
+};
+
+&pp3300_hub {
+	/* pp3300_l7c is used to power the USB hub */
+	/delete-property/regulator-always-on;
+	/delete-property/regulator-boot-on;
+};
+
+&pp3300_l7c {
+	regulator-always-on;
+	regulator-boot-on;
 };

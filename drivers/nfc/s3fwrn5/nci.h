@@ -11,9 +11,6 @@
 
 #include "s3fwrn5.h"
 
-#define NCI_PROP_AGAIN		0x01
-
-#define NCI_PROP_GET_RFREG	0x21
 #define NCI_PROP_SET_RFREG	0x22
 
 struct nci_prop_set_rfreg_cmd {
@@ -22,23 +19,6 @@ struct nci_prop_set_rfreg_cmd {
 };
 
 struct nci_prop_set_rfreg_rsp {
-	__u8 status;
-};
-
-#define NCI_PROP_GET_RFREG_VER	0x24
-
-struct nci_prop_get_rfreg_ver_rsp {
-	__u8 status;
-	__u8 data[8];
-};
-
-#define NCI_PROP_SET_RFREG_VER	0x25
-
-struct nci_prop_set_rfreg_ver_cmd {
-	__u8 data[8];
-};
-
-struct nci_prop_set_rfreg_ver_rsp {
 	__u8 status;
 };
 
@@ -69,8 +49,6 @@ struct nci_prop_fw_cfg_cmd {
 struct nci_prop_fw_cfg_rsp {
 	__u8 status;
 };
-
-#define NCI_PROP_WR_RESET	0x2f
 
 void s3fwrn5_nci_get_prop_ops(struct nci_driver_ops **ops, size_t *n);
 int s3fwrn5_nci_rf_configure(struct s3fwrn5_info *info, const char *fw_name);

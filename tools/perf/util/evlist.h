@@ -87,8 +87,8 @@ struct evsel_str_handler {
 };
 
 struct evlist *evlist__new(void);
-struct evlist *perf_evlist__new_default(void);
-struct evlist *perf_evlist__new_dummy(void);
+struct evlist *evlist__new_default(void);
+struct evlist *evlist__new_dummy(void);
 void evlist__init(struct evlist *evlist, struct perf_cpu_map *cpus,
 		  struct perf_thread_map *threads);
 void evlist__exit(struct evlist *evlist);
@@ -112,14 +112,11 @@ int __evlist__add_default_attrs(struct evlist *evlist,
 
 int evlist__add_dummy(struct evlist *evlist);
 
-int perf_evlist__add_sb_event(struct evlist *evlist,
-			      struct perf_event_attr *attr,
-			      evsel__sb_cb_t cb,
-			      void *data);
+int evlist__add_sb_event(struct evlist *evlist, struct perf_event_attr *attr,
+			 evsel__sb_cb_t cb, void *data);
 void evlist__set_cb(struct evlist *evlist, evsel__sb_cb_t cb, void *data);
-int perf_evlist__start_sb_thread(struct evlist *evlist,
-				 struct target *target);
-void perf_evlist__stop_sb_thread(struct evlist *evlist);
+int evlist__start_sb_thread(struct evlist *evlist, struct target *target);
+void evlist__stop_sb_thread(struct evlist *evlist);
 
 int evlist__add_newtp(struct evlist *evlist, const char *sys, const char *name, void *handler);
 
@@ -130,45 +127,29 @@ int __evlist__set_tracepoints_handlers(struct evlist *evlist,
 #define evlist__set_tracepoints_handlers(evlist, array) \
 	__evlist__set_tracepoints_handlers(evlist, array, ARRAY_SIZE(array))
 
-void __perf_evlist__set_sample_bit(struct evlist *evlist,
-				   enum perf_event_sample_format bit);
-void __perf_evlist__reset_sample_bit(struct evlist *evlist,
-				     enum perf_event_sample_format bit);
+int evlist__set_tp_filter(struct evlist *evlist, const char *filter);
+int evlist__set_tp_filter_pid(struct evlist *evlist, pid_t pid);
+int evlist__set_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids);
 
-#define perf_evlist__set_sample_bit(evlist, bit) \
-	__perf_evlist__set_sample_bit(evlist, PERF_SAMPLE_##bit)
+int evlist__append_tp_filter(struct evlist *evlist, const char *filter);
 
-#define perf_evlist__reset_sample_bit(evlist, bit) \
-	__perf_evlist__reset_sample_bit(evlist, PERF_SAMPLE_##bit)
+int evlist__append_tp_filter_pid(struct evlist *evlist, pid_t pid);
+int evlist__append_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids);
 
-int perf_evlist__set_tp_filter(struct evlist *evlist, const char *filter);
-int perf_evlist__set_tp_filter_pid(struct evlist *evlist, pid_t pid);
-int perf_evlist__set_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids);
-
-int perf_evlist__append_tp_filter(struct evlist *evlist, const char *filter);
-
-int perf_evlist__append_tp_filter_pid(struct evlist *evlist, pid_t pid);
-int perf_evlist__append_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids);
-
-struct evsel *
-perf_evlist__find_tracepoint_by_id(struct evlist *evlist, int id);
-
-struct evsel *
-perf_evlist__find_tracepoint_by_name(struct evlist *evlist,
-				     const char *name);
+struct evsel *evlist__find_tracepoint_by_id(struct evlist *evlist, int id);
+struct evsel *evlist__find_tracepoint_by_name(struct evlist *evlist, const char *name);
 
 int evlist__add_pollfd(struct evlist *evlist, int fd);
 int evlist__filter_pollfd(struct evlist *evlist, short revents_and_mask);
 
 int evlist__poll(struct evlist *evlist, int timeout);
 
-struct evsel *perf_evlist__id2evsel(struct evlist *evlist, u64 id);
-struct evsel *perf_evlist__id2evsel_strict(struct evlist *evlist,
-						u64 id);
+struct evsel *evlist__id2evsel(struct evlist *evlist, u64 id);
+struct evsel *evlist__id2evsel_strict(struct evlist *evlist, u64 id);
 
-struct perf_sample_id *perf_evlist__id2sid(struct evlist *evlist, u64 id);
+struct perf_sample_id *evlist__id2sid(struct evlist *evlist, u64 id);
 
-void perf_evlist__toggle_bkw_mmap(struct evlist *evlist, enum bkw_mmap_state state);
+void evlist__toggle_bkw_mmap(struct evlist *evlist, enum bkw_mmap_state state);
 
 void evlist__mmap_consume(struct evlist *evlist, int idx);
 
@@ -177,24 +158,19 @@ void evlist__close(struct evlist *evlist);
 
 struct callchain_param;
 
-void perf_evlist__set_id_pos(struct evlist *evlist);
-void perf_evlist__config(struct evlist *evlist, struct record_opts *opts,
-			 struct callchain_param *callchain);
+void evlist__set_id_pos(struct evlist *evlist);
+void evlist__config(struct evlist *evlist, struct record_opts *opts, struct callchain_param *callchain);
 int record_opts__config(struct record_opts *opts);
 
-int perf_evlist__prepare_workload(struct evlist *evlist,
-				  struct target *target,
-				  const char *argv[], bool pipe_output,
-				  void (*exec_error)(int signo, siginfo_t *info,
-						     void *ucontext));
-int perf_evlist__start_workload(struct evlist *evlist);
+int evlist__prepare_workload(struct evlist *evlist, struct target *target,
+			     const char *argv[], bool pipe_output,
+			     void (*exec_error)(int signo, siginfo_t *info, void *ucontext));
+int evlist__start_workload(struct evlist *evlist);
 
 struct option;
 
-int __perf_evlist__parse_mmap_pages(unsigned int *mmap_pages, const char *str);
-int perf_evlist__parse_mmap_pages(const struct option *opt,
-				  const char *str,
-				  int unset);
+int __evlist__parse_mmap_pages(unsigned int *mmap_pages, const char *str);
+int evlist__parse_mmap_pages(const struct option *opt, const char *str, int unset);
 
 unsigned long perf_event_mlock_kb_in_pages(void);
 
@@ -209,41 +185,36 @@ size_t evlist__mmap_size(unsigned long pages);
 
 void evlist__disable(struct evlist *evlist);
 void evlist__enable(struct evlist *evlist);
-void perf_evlist__toggle_enable(struct evlist *evlist);
+void evlist__toggle_enable(struct evlist *evlist);
+void evlist__disable_evsel(struct evlist *evlist, char *evsel_name);
+void evlist__enable_evsel(struct evlist *evlist, char *evsel_name);
 
-int perf_evlist__enable_event_idx(struct evlist *evlist,
-				  struct evsel *evsel, int idx);
+int evlist__enable_event_idx(struct evlist *evlist, struct evsel *evsel, int idx);
 
-void perf_evlist__set_selected(struct evlist *evlist,
-			       struct evsel *evsel);
+void evlist__set_selected(struct evlist *evlist, struct evsel *evsel);
 
-int perf_evlist__create_maps(struct evlist *evlist, struct target *target);
-int perf_evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel);
+int evlist__create_maps(struct evlist *evlist, struct target *target);
+int evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel);
 
-void __perf_evlist__set_leader(struct list_head *list);
-void perf_evlist__set_leader(struct evlist *evlist);
+void __evlist__set_leader(struct list_head *list);
+void evlist__set_leader(struct evlist *evlist);
 
 u64 __evlist__combined_sample_type(struct evlist *evlist);
 u64 evlist__combined_sample_type(struct evlist *evlist);
 u64 evlist__combined_branch_type(struct evlist *evlist);
 bool evlist__sample_id_all(struct evlist *evlist);
-u16 perf_evlist__id_hdr_size(struct evlist *evlist);
+u16 evlist__id_hdr_size(struct evlist *evlist);
 
-int perf_evlist__parse_sample(struct evlist *evlist, union perf_event *event,
-			      struct perf_sample *sample);
-
-int perf_evlist__parse_sample_timestamp(struct evlist *evlist,
-					union perf_event *event,
-					u64 *timestamp);
+int evlist__parse_sample(struct evlist *evlist, union perf_event *event, struct perf_sample *sample);
+int evlist__parse_sample_timestamp(struct evlist *evlist, union perf_event *event, u64 *timestamp);
 
 bool evlist__valid_sample_type(struct evlist *evlist);
 bool evlist__valid_sample_id_all(struct evlist *evlist);
-bool perf_evlist__valid_read_format(struct evlist *evlist);
+bool evlist__valid_read_format(struct evlist *evlist);
 
-void perf_evlist__splice_list_tail(struct evlist *evlist,
-				   struct list_head *list);
+void evlist__splice_list_tail(struct evlist *evlist, struct list_head *list);
 
-static inline bool perf_evlist__empty(struct evlist *evlist)
+static inline bool evlist__empty(struct evlist *evlist)
 {
 	return list_empty(&evlist->core.entries);
 }
@@ -265,9 +236,8 @@ static inline struct evsel *evlist__last(struct evlist *evlist)
 int evlist__strerror_open(struct evlist *evlist, int err, char *buf, size_t size);
 int evlist__strerror_mmap(struct evlist *evlist, int err, char *buf, size_t size);
 
-bool perf_evlist__can_select_event(struct evlist *evlist, const char *str);
-void perf_evlist__to_front(struct evlist *evlist,
-			   struct evsel *move_evsel);
+bool evlist__can_select_event(struct evlist *evlist, const char *str);
+void evlist__to_front(struct evlist *evlist, struct evsel *move_evsel);
 
 /**
  * __evlist__for_each_entry - iterate thru all the evsels
@@ -339,27 +309,23 @@ void perf_evlist__to_front(struct evlist *evlist,
 	evlist__cpu_iter_start(evlist);			\
 	perf_cpu_map__for_each_cpu (cpu, index, (evlist)->core.all_cpus)
 
-struct evsel *perf_evlist__get_tracking_event(struct evlist *evlist);
-void perf_evlist__set_tracking_event(struct evlist *evlist,
-				     struct evsel *tracking_evsel);
+struct evsel *evlist__get_tracking_event(struct evlist *evlist);
+void evlist__set_tracking_event(struct evlist *evlist, struct evsel *tracking_evsel);
 
 void evlist__cpu_iter_start(struct evlist *evlist);
 bool evsel__cpu_iter_skip(struct evsel *ev, int cpu);
 bool evsel__cpu_iter_skip_no_inc(struct evsel *ev, int cpu);
 
-struct evsel *
-perf_evlist__find_evsel_by_str(struct evlist *evlist, const char *str);
+struct evsel *evlist__find_evsel_by_str(struct evlist *evlist, const char *str);
 
-struct evsel *perf_evlist__event2evsel(struct evlist *evlist,
-					    union perf_event *event);
+struct evsel *evlist__event2evsel(struct evlist *evlist, union perf_event *event);
 
-bool perf_evlist__exclude_kernel(struct evlist *evlist);
+bool evlist__exclude_kernel(struct evlist *evlist);
 
-void perf_evlist__force_leader(struct evlist *evlist);
+void evlist__force_leader(struct evlist *evlist);
 
-struct evsel *perf_evlist__reset_weak_group(struct evlist *evlist,
-						 struct evsel *evsel,
-						bool close);
+struct evsel *evlist__reset_weak_group(struct evlist *evlist, struct evsel *evsel, bool close);
+
 #define EVLIST_CTL_CMD_ENABLE_TAG  "enable"
 #define EVLIST_CTL_CMD_DISABLE_TAG "disable"
 #define EVLIST_CTL_CMD_ACK_TAG     "ack\n"

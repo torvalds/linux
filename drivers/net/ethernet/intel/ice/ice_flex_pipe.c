@@ -709,8 +709,7 @@ ice_acquire_global_cfg_lock(struct ice_hw *hw,
 	if (!status)
 		mutex_lock(&ice_global_cfg_lock_sw);
 	else if (status == ICE_ERR_AQ_NO_WORK)
-		ice_debug(hw, ICE_DBG_PKG,
-			  "Global config lock: No work to do\n");
+		ice_debug(hw, ICE_DBG_PKG, "Global config lock: No work to do\n");
 
 	return status;
 }
@@ -909,8 +908,7 @@ ice_update_pkg(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
 					   last, &offset, &info, NULL);
 
 		if (status) {
-			ice_debug(hw, ICE_DBG_PKG,
-				  "Update pkg failed: err %d off %d inf %d\n",
+			ice_debug(hw, ICE_DBG_PKG, "Update pkg failed: err %d off %d inf %d\n",
 				  status, offset, info);
 			break;
 		}
@@ -988,8 +986,7 @@ ice_dwnld_cfg_bufs(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
 		/* Save AQ status from download package */
 		hw->pkg_dwnld_status = hw->adminq.sq_last_status;
 		if (status) {
-			ice_debug(hw, ICE_DBG_PKG,
-				  "Pkg download failed: err %d off %d inf %d\n",
+			ice_debug(hw, ICE_DBG_PKG, "Pkg download failed: err %d off %d inf %d\n",
 				  status, offset, info);
 
 			break;
@@ -1083,8 +1080,7 @@ ice_init_pkg_info(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr)
 			  meta_seg->pkg_ver.update, meta_seg->pkg_ver.draft,
 			  meta_seg->pkg_name);
 	} else {
-		ice_debug(hw, ICE_DBG_INIT,
-			  "Did not find metadata segment in driver package\n");
+		ice_debug(hw, ICE_DBG_INIT, "Did not find metadata segment in driver package\n");
 		return ICE_ERR_CFG;
 	}
 
@@ -1101,8 +1097,7 @@ ice_init_pkg_info(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr)
 			  seg_hdr->seg_format_ver.draft,
 			  seg_hdr->seg_id);
 	} else {
-		ice_debug(hw, ICE_DBG_INIT,
-			  "Did not find ice segment in driver package\n");
+		ice_debug(hw, ICE_DBG_INIT, "Did not find ice segment in driver package\n");
 		return ICE_ERR_CFG;
 	}
 
@@ -1318,8 +1313,7 @@ ice_chk_pkg_compat(struct ice_hw *hw, struct ice_pkg_hdr *ospkg,
 		    (*seg)->hdr.seg_format_ver.minor >
 			pkg->pkg_info[i].ver.minor) {
 			status = ICE_ERR_FW_DDP_MISMATCH;
-			ice_debug(hw, ICE_DBG_INIT,
-				  "OS package is not compatible with NVM.\n");
+			ice_debug(hw, ICE_DBG_INIT, "OS package is not compatible with NVM.\n");
 		}
 		/* done processing NVM package so break */
 		break;
@@ -1387,8 +1381,7 @@ enum ice_status ice_init_pkg(struct ice_hw *hw, u8 *buf, u32 len)
 	ice_init_pkg_hints(hw, seg);
 	status = ice_download_pkg(hw, seg);
 	if (status == ICE_ERR_AQ_NO_WORK) {
-		ice_debug(hw, ICE_DBG_INIT,
-			  "package previously loaded - no work.\n");
+		ice_debug(hw, ICE_DBG_INIT, "package previously loaded - no work.\n");
 		status = 0;
 	}
 
@@ -3261,8 +3254,7 @@ ice_has_prof_vsig(struct ice_hw *hw, enum ice_block blk, u16 vsig, u64 hdl)
 		if (ent->profile_cookie == hdl)
 			return true;
 
-	ice_debug(hw, ICE_DBG_INIT,
-		  "Characteristic list for VSI group %d not found.\n",
+	ice_debug(hw, ICE_DBG_INIT, "Characteristic list for VSI group %d not found.\n",
 		  vsig);
 	return false;
 }

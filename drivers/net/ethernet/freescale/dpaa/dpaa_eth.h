@@ -68,6 +68,7 @@ struct dpaa_fq {
 	u16 channel;
 	u8 wq;
 	enum dpaa_fq_type fq_type;
+	struct xdp_rxq_info xdp_rxq;
 };
 
 struct dpaa_fq_cbs {
@@ -126,6 +127,7 @@ struct dpaa_napi_portal {
 	struct napi_struct napi;
 	struct qman_portal *p;
 	bool down;
+	int xdp_act;
 };
 
 struct dpaa_percpu_priv {
@@ -142,6 +144,15 @@ struct dpaa_percpu_priv {
 
 struct dpaa_buffer_layout {
 	u16 priv_data_size;
+};
+
+/* Information to be used on the Tx confirmation path. Stored just
+ * before the start of the transmit buffer. Maximum size allowed
+ * is DPAA_TX_PRIV_DATA_SIZE bytes.
+ */
+struct dpaa_eth_swbp {
+	struct sk_buff *skb;
+	struct xdp_frame *xdpf;
 };
 
 struct dpaa_priv {
@@ -188,6 +199,8 @@ struct dpaa_priv {
 
 	bool tx_tstamp; /* Tx timestamping enabled */
 	bool rx_tstamp; /* Rx timestamping enabled */
+
+	struct bpf_prog *xdp_prog;
 };
 
 /* from dpaa_ethtool.c */

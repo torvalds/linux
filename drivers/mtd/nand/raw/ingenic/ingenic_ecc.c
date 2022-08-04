@@ -71,8 +71,6 @@ static struct ingenic_ecc *ingenic_ecc_get(struct device_node *np)
 	if (!pdev || !platform_get_drvdata(pdev))
 		return ERR_PTR(-EPROBE_DEFER);
 
-	get_device(&pdev->dev);
-
 	ecc = platform_get_drvdata(pdev);
 	clk_prepare_enable(ecc->clk);
 

@@ -9,10 +9,9 @@
 #include "../include/gaudi/gaudi_coresight.h"
 #include "../include/gaudi/asic_reg/gaudi_regs.h"
 #include "../include/gaudi/gaudi_masks.h"
+#include "../include/gaudi/gaudi_reg_map.h"
 
 #include <uapi/misc/habanalabs.h>
-#include <linux/coresight.h>
-
 #define SPMU_SECTION_SIZE		MME0_ACC_SPMU_MAX_OFFSET
 #define SPMU_EVENT_TYPES_OFFSET		0x400
 #define SPMU_MAX_COUNTERS		6
@@ -876,7 +875,7 @@ int gaudi_debug_coresight(struct hl_device *hdev, void *data)
 	}
 
 	/* Perform read from the device to flush all configuration */
-	RREG32(mmPCIE_DBI_DEVICE_ID_VENDOR_ID_REG);
+	RREG32(mmHW_STATE);
 
 	return rc;
 }

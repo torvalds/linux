@@ -204,22 +204,45 @@ static int meson_gxl_config_intr(struct phy_device *phydev)
 	int ret;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		/* Ack any pending IRQ */
+		ret = meson_gxl_ack_interrupt(phydev);
+		if (ret)
+			return ret;
+
 		val = INTSRC_ANEG_PR
 			| INTSRC_PARALLEL_FAULT
 			| INTSRC_ANEG_LP_ACK
 			| INTSRC_LINK_DOWN
 			| INTSRC_REMOTE_FAULT
 			| INTSRC_ANEG_COMPLETE;
+		ret = phy_write(phydev, INTSRC_MASK, val);
 	} else {
 		val = 0;
+		ret = phy_write(phydev, INTSRC_MASK, val);
+
+		/* Ack any pending IRQ */
+		ret = meson_gxl_ack_interrupt(phydev);
 	}
 
-	/* Ack any pending IRQ */
-	ret = meson_gxl_ack_interrupt(phydev);
-	if (ret)
-		return ret;
+	return ret;
+}
 
-	return phy_write(phydev, INTSRC_MASK, val);
+static irqreturn_t meson_gxl_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, INTSRC_FLAG);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (irq_status == 0)
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static struct phy_driver meson_gxl_phy[] = {
@@ -231,8 +254,8 @@ static struct phy_driver meson_gxl_phy[] = {
 		.soft_reset     = genphy_soft_reset,
 		.config_init	= meson_gxl_config_init,
 		.read_status	= meson_gxl_read_status,
-		.ack_interrupt	= meson_gxl_ack_interrupt,
 		.config_intr	= meson_gxl_config_intr,
+		.handle_interrupt = meson_gxl_handle_interrupt,
 		.suspend        = genphy_suspend,
 		.resume         = genphy_resume,
 	}, {
@@ -241,8 +264,8 @@ static struct phy_driver meson_gxl_phy[] = {
 		/* PHY_BASIC_FEATURES */
 		.flags		= PHY_IS_INTERNAL,
 		.soft_reset     = genphy_soft_reset,
-		.ack_interrupt	= meson_gxl_ack_interrupt,
 		.config_intr	= meson_gxl_config_intr,
+		.handle_interrupt = meson_gxl_handle_interrupt,
 		.suspend        = genphy_suspend,
 		.resume         = genphy_resume,
 	},

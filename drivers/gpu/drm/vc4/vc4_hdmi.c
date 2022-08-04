@@ -331,9 +331,8 @@ static void vc4_hdmi_set_audio_infoframe(struct drm_encoder *encoder)
 {
 	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
 	union hdmi_infoframe frame;
-	int ret;
 
-	ret = hdmi_audio_infoframe_init(&frame.audio);
+	hdmi_audio_infoframe_init(&frame.audio);
 
 	frame.audio.coding_type = HDMI_AUDIO_CODING_TYPE_STREAM;
 	frame.audio.sample_frequency = HDMI_AUDIO_SAMPLE_FREQUENCY_STREAM;
@@ -1268,6 +1267,7 @@ static int vc4_hdmi_audio_init(struct vc4_hdmi *vc4_hdmi)
 	card->dai_link = dai_link;
 	card->num_links = 1;
 	card->name = vc4_hdmi->variant->card_name;
+	card->driver_name = "vc4-hdmi";
 	card->dev = dev;
 	card->owner = THIS_MODULE;
 

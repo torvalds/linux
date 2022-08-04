@@ -545,6 +545,7 @@ static void ifx_spi_hangup(struct tty_struct *tty)
 /**
  *	ifx_port_activate
  *	@port: our tty port
+ *	@tty: our tty device
  *
  *	tty port activate method - called for first open. Serialized
  *	with hangup and shutdown by the tty layer.
@@ -719,7 +720,7 @@ complete_exit:
 
 /**
  *	ifx_spio_io		-	I/O tasklet
- *	@data: our SPI device
+ *	@t: tasklet construct used to fetch the SPI device
  *
  *	Queue data for transmission if possible and then kick off the
  *	transfer.

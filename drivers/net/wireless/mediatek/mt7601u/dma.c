@@ -152,8 +152,7 @@ mt7601u_rx_process_entry(struct mt7601u_dev *dev, struct mt7601u_dma_buf_rx *e)
 
 	if (new_p) {
 		/* we have one extra ref from the allocator */
-		__free_pages(e->p, MT_RX_ORDER);
-
+		put_page(e->p);
 		e->p = new_p;
 	}
 }
@@ -212,9 +211,9 @@ out:
 	spin_unlock_irqrestore(&dev->rx_lock, flags);
 }
 
-static void mt7601u_rx_tasklet(unsigned long data)
+static void mt7601u_rx_tasklet(struct tasklet_struct *t)
 {
-	struct mt7601u_dev *dev = (struct mt7601u_dev *) data;
+	struct mt7601u_dev *dev = from_tasklet(dev, t, rx_tasklet);
 	struct mt7601u_dma_buf_rx *e;
 
 	while ((e = mt7601u_rx_get_pending_entry(dev))) {
@@ -266,9 +265,9 @@ out:
 	spin_unlock_irqrestore(&dev->tx_lock, flags);
 }
 
-static void mt7601u_tx_tasklet(unsigned long data)
+static void mt7601u_tx_tasklet(struct tasklet_struct *t)
 {
-	struct mt7601u_dev *dev = (struct mt7601u_dev *) data;
+	struct mt7601u_dev *dev = from_tasklet(dev, t, tx_tasklet);
 	struct sk_buff_head skbs;
 	unsigned long flags;
 
@@ -310,7 +309,6 @@ static int mt7601u_dma_submit_tx(struct mt7601u_dev *dev,
 	}
 
 	e = &q->e[q->end];
-	e->skb = skb;
 	usb_fill_bulk_urb(e->urb, usb_dev, snd_pipe, skb->data, skb->len,
 			  mt7601u_complete_tx, q);
 	ret = usb_submit_urb(e->urb, GFP_ATOMIC);
@@ -328,6 +326,7 @@ static int mt7601u_dma_submit_tx(struct mt7601u_dev *dev,
 
 	q->end = (q->end + 1) % q->entries;
 	q->used++;
+	e->skb = skb;
 
 	if (q->used >= q->entries)
 		ieee80211_stop_queue(dev->hw, skb_get_queue_mapping(skb));
@@ -507,8 +506,8 @@ int mt7601u_dma_init(struct mt7601u_dev *dev)
 {
 	int ret = -ENOMEM;
 
-	tasklet_init(&dev->tx_tasklet, mt7601u_tx_tasklet, (unsigned long) dev);
-	tasklet_init(&dev->rx_tasklet, mt7601u_rx_tasklet, (unsigned long) dev);
+	tasklet_setup(&dev->tx_tasklet, mt7601u_tx_tasklet);
+	tasklet_setup(&dev->rx_tasklet, mt7601u_rx_tasklet);
 
 	ret = mt7601u_alloc_tx(dev);
 	if (ret)

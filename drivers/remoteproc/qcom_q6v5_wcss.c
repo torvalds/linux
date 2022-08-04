@@ -390,7 +390,7 @@ static int q6v5_wcss_stop(struct rproc *rproc)
 	int ret;
 
 	/* WCSS powerdown */
-	ret = qcom_q6v5_request_stop(&wcss->q6v5);
+	ret = qcom_q6v5_request_stop(&wcss->q6v5, NULL);
 	if (ret == -ETIMEDOUT) {
 		dev_err(wcss->dev, "timed out on wait\n");
 		return ret;

@@ -263,7 +263,7 @@ long mm_iommu_put(struct mm_struct *mm, struct mm_iommu_table_group_mem_t *mem)
 		goto unlock_exit;
 
 	/* Are there still mappings? */
-	if (atomic_cmpxchg(&mem->mapped, 1, 0) != 1) {
+	if (atomic64_cmpxchg(&mem->mapped, 1, 0) != 1) {
 		++mem->used;
 		ret = -EBUSY;
 		goto unlock_exit;

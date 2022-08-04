@@ -80,6 +80,7 @@ static void library_status(void)
 	STATUS(HAVE_LIBBPF_SUPPORT, bpf);
 	STATUS(HAVE_AIO_SUPPORT, aio);
 	STATUS(HAVE_ZSTD_SUPPORT, zstd);
+	STATUS(HAVE_LIBPFM, libpfm4);
 }
 
 int cmd_version(int argc, const char **argv)

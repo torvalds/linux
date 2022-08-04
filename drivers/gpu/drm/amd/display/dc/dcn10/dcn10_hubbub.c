@@ -124,11 +124,11 @@ bool hubbub1_verify_allow_pstate_change_high(
 	 * still not asserted, we are probably stuck and going to hang
 	 *
 	 * TODO: Figure out why it takes ~100us on linux
-	 * pstate takes around ~100us on linux. Unknown currently as to
-	 * why it takes that long on linux
+	 * pstate takes around ~100us (up to 200us) on linux. Unknown currently
+	 * as to why it takes that long on linux
 	 */
 	const unsigned int pstate_wait_timeout_us = 200;
-	const unsigned int pstate_wait_expected_timeout_us = 40;
+	const unsigned int pstate_wait_expected_timeout_us = 180;
 	static unsigned int max_sampled_pstate_wait_us; /* data collection */
 	static bool forced_pstate_allow; /* help with revert wa */
 

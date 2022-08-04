@@ -335,7 +335,7 @@ static int rtc_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "Real Time Clock of NEC VR4100 series\n");
 
-	retval = rtc_register_device(rtc);
+	retval = devm_rtc_register_device(rtc);
 	if (retval)
 		goto err_iounmap_all;
 

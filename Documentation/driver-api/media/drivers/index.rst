@@ -26,6 +26,7 @@ Video4Linux (V4L) drivers
 	tuners
 	vimc-devel
 	zoran
+	ccs/ccs
 
 
 Digital TV drivers

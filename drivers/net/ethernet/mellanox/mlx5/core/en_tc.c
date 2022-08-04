@@ -67,6 +67,7 @@
 #include "lib/geneve.h"
 #include "lib/fs_chains.h"
 #include "diag/en_tc_tracepoint.h"
+#include <asm/div64.h>
 
 #define nic_chains(priv) ((priv)->fs.tc.chains)
 #define MLX5_MH_ACT_SZ MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto)
@@ -271,8 +272,6 @@ mlx5e_tc_match_to_reg_set(struct mlx5_core_dev *mdev,
 	return 0;
 }
 
-#define esw_offloads_mode(esw) (mlx5_eswitch_mode(esw) == MLX5_ESWITCH_OFFLOADS)
-
 static struct mlx5_tc_ct_priv *
 get_ct_priv(struct mlx5e_priv *priv)
 {
@@ -280,7 +279,7 @@ get_ct_priv(struct mlx5e_priv *priv)
 	struct mlx5_rep_uplink_priv *uplink_priv;
 	struct mlx5e_rep_priv *uplink_rpriv;
 
-	if (esw_offloads_mode(esw)) {
+	if (is_mdev_switchdev_mode(priv->mdev)) {
 		uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
 		uplink_priv = &uplink_rpriv->uplink_priv;
 
@@ -297,7 +296,7 @@ mlx5_tc_rule_insert(struct mlx5e_priv *priv,
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 
-	if (esw_offloads_mode(esw))
+	if (is_mdev_switchdev_mode(priv->mdev))
 		return mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
 
 	return	mlx5e_add_offloaded_nic_rule(priv, spec, attr);
@@ -310,7 +309,7 @@ mlx5_tc_rule_delete(struct mlx5e_priv *priv,
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 
-	if (esw_offloads_mode(esw)) {
+	if (is_mdev_switchdev_mode(priv->mdev)) {
 		mlx5_eswitch_del_offloaded_rule(esw, rule, attr);
 
 		return;
@@ -1164,6 +1163,9 @@ mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
 	struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts;
 	struct mlx5_flow_handle *rule;
 
+	if (attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH)
+		return mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
+
 	if (flow_flag_test(flow, CT)) {
 		mod_hdr_acts = &attr->parse_attr->mod_hdr_acts;
 
@@ -1194,6 +1196,9 @@ mlx5e_tc_unoffload_fdb_rules(struct mlx5_eswitch *esw,
 {
 	flow_flag_clear(flow, OFFLOADED);
 
+	if (attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH)
+		goto offload_rule_0;
+
 	if (flow_flag_test(flow, CT)) {
 		mlx5_tc_ct_delete_flow(get_ct_priv(flow->priv), flow, attr);
 		return;
@@ -1202,6 +1207,7 @@ mlx5e_tc_unoffload_fdb_rules(struct mlx5_eswitch *esw,
 	if (attr->esw_attr->split_count)
 		mlx5_eswitch_del_fwd_rule(esw, flow->rule[1], attr);
 
+offload_rule_0:
 	mlx5_eswitch_del_offloaded_rule(esw, flow->rule[0], attr);
 }
 
@@ -2271,8 +2277,8 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 	      BIT(FLOW_DISSECTOR_KEY_ENC_OPTS) |
 	      BIT(FLOW_DISSECTOR_KEY_MPLS))) {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported key");
-		netdev_warn(priv->netdev, "Unsupported key used: 0x%x\n",
-			    dissector->used_keys);
+		netdev_dbg(priv->netdev, "Unsupported key used: 0x%x\n",
+			   dissector->used_keys);
 		return -EOPNOTSUPP;
 	}
 
@@ -5009,13 +5015,13 @@ errout:
 	return err;
 }
 
-static int apply_police_params(struct mlx5e_priv *priv, u32 rate,
+static int apply_police_params(struct mlx5e_priv *priv, u64 rate,
 			       struct netlink_ext_ack *extack)
 {
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_eswitch *esw;
+	u32 rate_mbps = 0;
 	u16 vport_num;
-	u32 rate_mbps;
 	int err;
 
 	vport_num = rpriv->rep->vport;
@@ -5032,7 +5038,11 @@ static int apply_police_params(struct mlx5e_priv *priv, u32 rate,
 	 * Moreover, if rate is non zero we choose to configure to a minimum of
 	 * 1 mbit/sec.
 	 */
-	rate_mbps = rate ? max_t(u32, (rate * 8 + 500000) / 1000000, 1) : 0;
+	if (rate) {
+		rate = (rate * BITS_PER_BYTE) + 500000;
+		rate_mbps = max_t(u32, do_div(rate, 1000000), 1);
+	}
+
 	err = mlx5_esw_modify_vport_rate(esw, vport_num, rate_mbps);
 	if (err)
 		NL_SET_ERR_MSG_MOD(extack, "failed applying action to hardware");

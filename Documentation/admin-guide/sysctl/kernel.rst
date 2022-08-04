@@ -14,7 +14,7 @@ For general info and legal blurb, please look in :doc:`index`.
 ------------------------------------------------------------------------------
 
 This file contains documentation for the sysctl files in
-``/proc/sys/kernel/`` and is valid for Linux kernel version 2.2.
+``/proc/sys/kernel/``.
 
 The files in this directory can be used to tune and monitor
 miscellaneous and general things in the operation of the Linux
@@ -879,7 +879,7 @@ The default value is 127.
 perf_event_mlock_kb
 ===================
 
-Control size of per-cpu ring buffer not counted agains mlock limit.
+Control size of per-cpu ring buffer not counted against mlock limit.
 
 The default value is 512 + 1 page
 
@@ -1095,8 +1095,8 @@ Enables/disables scheduler statistics. Enabling this feature
 incurs a small amount of overhead in the scheduler but is
 useful for debugging and performance tuning.
 
-sched_util_clamp_min:
-=====================
+sched_util_clamp_min
+====================
 
 Max allowed *minimum* utilization.
 
@@ -1106,8 +1106,8 @@ It means that any requested uclamp.min value cannot be greater than
 sched_util_clamp_min, i.e., it is restricted to the range
 [0:sched_util_clamp_min].
 
-sched_util_clamp_max:
-=====================
+sched_util_clamp_max
+====================
 
 Max allowed *maximum* utilization.
 
@@ -1117,8 +1117,8 @@ It means that any requested uclamp.max value cannot be greater than
 sched_util_clamp_max, i.e., it is restricted to the range
 [0:sched_util_clamp_max].
 
-sched_util_clamp_min_rt_default:
-================================
+sched_util_clamp_min_rt_default
+===============================
 
 By default Linux is tuned for performance. Which means that RT tasks always run
 at the highest frequency and most capable (highest capacity) CPU (in
@@ -1336,7 +1336,7 @@ ORed together. The letters are seen in "Tainted" line of Oops reports.
 ======  =====  ==============================================================
      1  `(P)`  proprietary module was loaded
      2  `(F)`  module was force loaded
-     4  `(S)`  SMP kernel oops on an officially SMP incapable processor
+     4  `(S)`  kernel running on an out of specification system
      8  `(R)`  module was force unloaded
     16  `(M)`  processor reported a Machine Check Exception (MCE)
     32  `(B)`  bad page referenced or some unexpected page flags

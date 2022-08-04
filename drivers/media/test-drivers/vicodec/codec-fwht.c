@@ -11,6 +11,7 @@
 
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/videodev2.h>
 #include "codec-fwht.h"
 
 #define OVERFLOW_BIT BIT(14)
@@ -920,7 +921,7 @@ bool fwht_decode_frame(struct fwht_cframe *cf, u32 hdr_flags,
 	if (!decode_plane(cf, &rlco, height, width, ref->luma, ref_stride,
 			  ref->luma_alpha_step, dst->luma, dst_stride,
 			  dst->luma_alpha_step,
-			  hdr_flags & FWHT_FL_LUMA_IS_UNCOMPRESSED,
+			  hdr_flags & V4L2_FWHT_FL_LUMA_IS_UNCOMPRESSED,
 			  end_of_rlco_buf))
 		return false;
 
@@ -928,21 +929,21 @@ bool fwht_decode_frame(struct fwht_cframe *cf, u32 hdr_flags,
 		u32 h = height;
 		u32 w = width;
 
-		if (!(hdr_flags & FWHT_FL_CHROMA_FULL_HEIGHT))
+		if (!(hdr_flags & V4L2_FWHT_FL_CHROMA_FULL_HEIGHT))
 			h /= 2;
-		if (!(hdr_flags & FWHT_FL_CHROMA_FULL_WIDTH))
+		if (!(hdr_flags & V4L2_FWHT_FL_CHROMA_FULL_WIDTH))
 			w /= 2;
 
 		if (!decode_plane(cf, &rlco, h, w, ref->cb, ref_chroma_stride,
 				  ref->chroma_step, dst->cb, dst_chroma_stride,
 				  dst->chroma_step,
-				  hdr_flags & FWHT_FL_CB_IS_UNCOMPRESSED,
+				  hdr_flags & V4L2_FWHT_FL_CB_IS_UNCOMPRESSED,
 				  end_of_rlco_buf))
 			return false;
 		if (!decode_plane(cf, &rlco, h, w, ref->cr, ref_chroma_stride,
 				  ref->chroma_step, dst->cr, dst_chroma_stride,
 				  dst->chroma_step,
-				  hdr_flags & FWHT_FL_CR_IS_UNCOMPRESSED,
+				  hdr_flags & V4L2_FWHT_FL_CR_IS_UNCOMPRESSED,
 				  end_of_rlco_buf))
 			return false;
 	}
@@ -951,7 +952,7 @@ bool fwht_decode_frame(struct fwht_cframe *cf, u32 hdr_flags,
 		if (!decode_plane(cf, &rlco, height, width, ref->alpha, ref_stride,
 				  ref->luma_alpha_step, dst->alpha, dst_stride,
 				  dst->luma_alpha_step,
-				  hdr_flags & FWHT_FL_ALPHA_IS_UNCOMPRESSED,
+				  hdr_flags & V4L2_FWHT_FL_ALPHA_IS_UNCOMPRESSED,
 				  end_of_rlco_buf))
 			return false;
 	return true;

@@ -412,7 +412,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 
 	if (dump_trace) {
 		perf_session__fprintf_nr_events(session, stdout);
-		perf_evlist__fprintf_nr_events(session->evlist, stdout);
+		evlist__fprintf_nr_events(session->evlist, stdout);
 		goto out;
 	}
 
@@ -598,7 +598,7 @@ int cmd_annotate(int argc, const char **argv)
 						      HEADER_BRANCH_STACK);
 
 	if (annotate.group_set)
-		perf_evlist__force_leader(annotate.session->evlist);
+		evlist__force_leader(annotate.session->evlist);
 
 	ret = symbol__annotation_init();
 	if (ret < 0)

@@ -42,6 +42,7 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/radeon_drm.h>
 
+#include "radeon_device.h"
 #include "radeon_reg.h"
 #include "radeon.h"
 #include "atom.h"
@@ -544,21 +545,21 @@ int radeon_wb_init(struct radeon_device *rdev)
  * Note: GTT start, end, size should be initialized before calling this
  * function on AGP platform.
  *
- * Note: We don't explicitly enforce VRAM start to be aligned on VRAM size,
+ * Note 1: We don't explicitly enforce VRAM start to be aligned on VRAM size,
  * this shouldn't be a problem as we are using the PCI aperture as a reference.
  * Otherwise this would be needed for rv280, all r3xx, and all r4xx, but
  * not IGP.
  *
- * Note: we use mc_vram_size as on some board we need to program the mc to
+ * Note 2: we use mc_vram_size as on some board we need to program the mc to
  * cover the whole aperture even if VRAM size is inferior to aperture size
  * Novell bug 204882 + along with lots of ubuntu ones
  *
- * Note: when limiting vram it's safe to overwritte real_vram_size because
+ * Note 3: when limiting vram it's safe to overwritte real_vram_size because
  * we are not in case where real_vram_size is inferior to mc_vram_size (ie
  * note afected by bogus hw of Novell bug 204882 + along with lots of ubuntu
  * ones)
  *
- * Note: IGP TOM addr should be the same as the aperture addr, we don't
+ * Note 4: IGP TOM addr should be the same as the aperture addr, we don't
  * explicitly check for that thought.
  *
  * FIXME: when reducing VRAM size align new size on power of 2.
@@ -627,7 +628,7 @@ void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
  * GPU helpers function.
  */
 
-/**
+/*
  * radeon_device_is_virtual - check if we are running is a virtual environment
  *
  * Check if the asic has been passed through to a VM (all asics).
@@ -784,9 +785,9 @@ int radeon_dummy_page_init(struct radeon_device *rdev)
 	rdev->dummy_page.page = alloc_page(GFP_DMA32 | GFP_KERNEL | __GFP_ZERO);
 	if (rdev->dummy_page.page == NULL)
 		return -ENOMEM;
-	rdev->dummy_page.addr = pci_map_page(rdev->pdev, rdev->dummy_page.page,
+	rdev->dummy_page.addr = dma_map_page(&rdev->pdev->dev, rdev->dummy_page.page,
 					0, PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-	if (pci_dma_mapping_error(rdev->pdev, rdev->dummy_page.addr)) {
+	if (dma_mapping_error(&rdev->pdev->dev, rdev->dummy_page.addr)) {
 		dev_err(&rdev->pdev->dev, "Failed to DMA MAP the dummy page\n");
 		__free_page(rdev->dummy_page.page);
 		rdev->dummy_page.page = NULL;
@@ -1100,7 +1101,7 @@ static bool radeon_check_pot_argument(int arg)
 /**
  * Determine a sensible default GART size according to ASIC family.
  *
- * @family ASIC family name
+ * @family: ASIC family name
  */
 static int radeon_gart_size_auto(enum radeon_family family)
 {
@@ -1276,7 +1277,7 @@ static const struct vga_switcheroo_client_ops radeon_switcheroo_ops = {
  * radeon_device_init - initialize the driver
  *
  * @rdev: radeon_device pointer
- * @pdev: drm dev pointer
+ * @ddev: drm dev pointer
  * @pdev: pci dev pointer
  * @flags: driver flags
  *
@@ -1550,11 +1551,8 @@ void radeon_device_fini(struct radeon_device *rdev)
 /*
  * Suspend & resume.
  */
-/**
+/*
  * radeon_suspend_kms - initiate device suspend
- *
- * @pdev: drm dev pointer
- * @state: suspend state
  *
  * Puts the hw in the suspend state (all asics).
  * Returns 0 for success or an error on failure.
@@ -1656,10 +1654,8 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 	return 0;
 }
 
-/**
+/*
  * radeon_resume_kms - initiate device resume
- *
- * @pdev: drm dev pointer
  *
  * Bring the hw back to operating state (all asics).
  * Returns 0 for success or an error on failure.

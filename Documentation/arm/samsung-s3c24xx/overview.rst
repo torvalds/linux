@@ -18,7 +18,7 @@ Introduction
   versions.
 
   The S3C2416 and S3C2450 devices are very similar and S3C2450 support is
-  included under the arch/arm/mach-s3c2416 directory. Note, while core
+  included under the arch/arm/mach-s3c directory. Note, while core
   support for these SoCs is in, work on some of the extra peripherals
   and extra interrupts is still ongoing.
 
@@ -37,19 +37,11 @@ Configuration
 Layout
 ------
 
-  The core support files are located in the platform code contained in
-  arch/arm/plat-s3c24xx with headers in include/asm-arm/plat-s3c24xx.
-  This directory should be kept to items shared between the platform
-  code (arch/arm/plat-s3c24xx) and the arch/arm/mach-s3c24* code.
+  The core support files, register, kernel and paltform data are located in the
+  platform code contained in arch/arm/mach-s3c with headers in
+  arch/arm/mach-s3c/include
 
-  Each cpu has a directory with the support files for it, and the
-  machines that carry the device. For example S3C2410 is contained
-  in arch/arm/mach-s3c2410 and S3C2440 in arch/arm/mach-s3c2440
-
-  Register, kernel and platform data definitions are held in the
-  arch/arm/mach-s3c2410 directory./include/mach
-
-arch/arm/plat-s3c24xx:
+arch/arm/mach-s3c:
 
   Files in here are either common to all the s3c24xx family,
   or are common to only some of them with names to indicate this
@@ -134,7 +126,7 @@ Adding New Machines
   should keep this in mind before altering items outside of their own
   machine files.
 
-  Machine definitions should be kept in linux/arch/arm/mach-s3c2410,
+  Machine definitions should be kept in arch/arm/mach-s3c,
   and there are a number of examples that can be looked at.
 
   Read the kernel patch submission policies as well as the
@@ -293,7 +285,7 @@ Platform Data
 	}
 
 	Note, since the code is marked as __init, it should not be
-	exported outside arch/arm/mach-s3c2410/, or exported to
+	exported outside arch/arm/mach-s3c/, or exported to
 	modules via EXPORT_SYMBOL() and related functions.
 
 

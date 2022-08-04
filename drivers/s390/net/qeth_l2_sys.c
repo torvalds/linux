@@ -376,26 +376,7 @@ static struct attribute_group qeth_l2_vnicc_attr_group = {
 	.name = "vnicc",
 };
 
-static const struct attribute_group *qeth_l2_only_attr_groups[] = {
-	&qeth_l2_bridgeport_attr_group,
-	&qeth_l2_vnicc_attr_group,
-	NULL,
-};
-
-int qeth_l2_create_device_attributes(struct device *dev)
-{
-	return sysfs_create_groups(&dev->kobj, qeth_l2_only_attr_groups);
-}
-
-void qeth_l2_remove_device_attributes(struct device *dev)
-{
-	sysfs_remove_groups(&dev->kobj, qeth_l2_only_attr_groups);
-}
-
 const struct attribute_group *qeth_l2_attr_groups[] = {
-	&qeth_device_attr_group,
-	&qeth_device_blkt_group,
-	/* l2 specific, see qeth_l2_only_attr_groups: */
 	&qeth_l2_bridgeport_attr_group,
 	&qeth_l2_vnicc_attr_group,
 	NULL,

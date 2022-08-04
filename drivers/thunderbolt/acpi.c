@@ -56,7 +56,7 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 	 * managed with the xHCI and the SuperSpeed hub so we create the
 	 * link from xHCI instead.
 	 */
-	while (!dev_is_pci(dev))
+	while (dev && !dev_is_pci(dev))
 		dev = dev->parent;
 
 	if (!dev)

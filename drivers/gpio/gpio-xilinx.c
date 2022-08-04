@@ -6,13 +6,14 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/init.h>
+#include <linux/clk.h>
 #include <linux/errno.h>
+#include <linux/gpio/driver.h>
+#include <linux/init.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
-#include <linux/io.h>
-#include <linux/gpio/driver.h>
 #include <linux/slab.h>
 
 /* Register Offset Definitions */
@@ -38,6 +39,7 @@
  * @gpio_state: GPIO state shadow register
  * @gpio_dir: GPIO direction shadow register
  * @gpio_lock: Lock used for synchronization
+ * @clk: clock resource for this driver
  */
 struct xgpio_instance {
 	struct gpio_chip gc;
@@ -46,6 +48,7 @@ struct xgpio_instance {
 	u32 gpio_state[2];
 	u32 gpio_dir[2];
 	spinlock_t gpio_lock[2];
+	struct clk *clk;
 };
 
 static inline int xgpio_index(struct xgpio_instance *chip, int gpio)
@@ -257,6 +260,23 @@ static void xgpio_save_regs(struct xgpio_instance *chip)
 }
 
 /**
+ * xgpio_remove - Remove method for the GPIO device.
+ * @pdev: pointer to the platform device
+ *
+ * This function remove gpiochips and frees all the allocated resources.
+ *
+ * Return: 0 always
+ */
+static int xgpio_remove(struct platform_device *pdev)
+{
+	struct xgpio_instance *gpio = platform_get_drvdata(pdev);
+
+	clk_disable_unprepare(gpio->clk);
+
+	return 0;
+}
+
+/**
  * xgpio_of_probe - Probe method for the GPIO device.
  * @pdev: pointer to the platform device
  *
@@ -278,7 +298,8 @@ static int xgpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, chip);
 
 	/* Update GPIO state shadow register with default value */
-	of_property_read_u32(np, "xlnx,dout-default", &chip->gpio_state[0]);
+	if (of_property_read_u32(np, "xlnx,dout-default", &chip->gpio_state[0]))
+		chip->gpio_state[0] = 0x0;
 
 	/* Update GPIO direction shadow register with default value */
 	if (of_property_read_u32(np, "xlnx,tri-default", &chip->gpio_dir[0]))
@@ -298,8 +319,9 @@ static int xgpio_probe(struct platform_device *pdev)
 
 	if (is_dual) {
 		/* Update GPIO state shadow register with default value */
-		of_property_read_u32(np, "xlnx,dout-default-2",
-				     &chip->gpio_state[1]);
+		if (of_property_read_u32(np, "xlnx,dout-default-2",
+					 &chip->gpio_state[1]))
+			chip->gpio_state[1] = 0x0;
 
 		/* Update GPIO direction shadow register with default value */
 		if (of_property_read_u32(np, "xlnx,tri-default-2",
@@ -334,11 +356,25 @@ static int xgpio_probe(struct platform_device *pdev)
 		return PTR_ERR(chip->regs);
 	}
 
+	chip->clk = devm_clk_get_optional(&pdev->dev, NULL);
+	if (IS_ERR(chip->clk)) {
+		if (PTR_ERR(chip->clk) != -EPROBE_DEFER)
+			dev_dbg(&pdev->dev, "Input clock not found\n");
+		return PTR_ERR(chip->clk);
+	}
+
+	status = clk_prepare_enable(chip->clk);
+	if (status < 0) {
+		dev_err(&pdev->dev, "Failed to prepare clk\n");
+		return status;
+	}
+
 	xgpio_save_regs(chip);
 
 	status = devm_gpiochip_add_data(&pdev->dev, &chip->gc, chip);
 	if (status) {
 		dev_err(&pdev->dev, "failed to add GPIO chip\n");
+		clk_disable_unprepare(chip->clk);
 		return status;
 	}
 
@@ -354,6 +390,7 @@ MODULE_DEVICE_TABLE(of, xgpio_of_match);
 
 static struct platform_driver xgpio_plat_driver = {
 	.probe		= xgpio_probe,
+	.remove		= xgpio_remove,
 	.driver		= {
 			.name = "gpio-xilinx",
 			.of_match_table	= xgpio_of_match,

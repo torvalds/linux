@@ -631,10 +631,8 @@ static int wiphy_verify_combinations(struct wiphy *wiphy)
 				return -EINVAL;
 		}
 
-#ifndef CONFIG_WIRELESS_WDS
 		if (WARN_ON(all_iftypes & BIT(NL80211_IFTYPE_WDS)))
 			return -EINVAL;
-#endif
 
 		/* You can't even choose that many! */
 		if (WARN_ON(cnt < c->max_interfaces))
@@ -675,10 +673,8 @@ int wiphy_register(struct wiphy *wiphy)
 		     !(wiphy->nan_supported_bands & BIT(NL80211_BAND_2GHZ)))))
 		return -EINVAL;
 
-#ifndef CONFIG_WIRELESS_WDS
 	if (WARN_ON(wiphy->interface_modes & BIT(NL80211_IFTYPE_WDS)))
 		return -EINVAL;
-#endif
 
 	if (WARN_ON(wiphy->pmsr_capa && !wiphy->pmsr_capa->ftm.supported))
 		return -EINVAL;
@@ -1202,9 +1198,6 @@ void __cfg80211_leave(struct cfg80211_registered_device *rdev,
 	case NL80211_IFTYPE_OCB:
 		__cfg80211_leave_ocb(rdev, dev);
 		break;
-	case NL80211_IFTYPE_WDS:
-		/* must be handled by mac80211/driver, has no APIs */
-		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
 	case NL80211_IFTYPE_NAN:
 		/* cannot happen, has no netdev */
@@ -1214,6 +1207,7 @@ void __cfg80211_leave(struct cfg80211_registered_device *rdev,
 		/* nothing to do */
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
+	case NL80211_IFTYPE_WDS:
 	case NUM_NL80211_IFTYPES:
 		/* invalid */
 		break;

@@ -366,7 +366,7 @@ static inline void skb_frag_size_sub(skb_frag_t *frag, int delta)
 static inline bool skb_frag_must_loop(struct page *p)
 {
 #if defined(CONFIG_HIGHMEM)
-	if (PageHighMem(p))
+	if (IS_ENABLED(CONFIG_DEBUG_KMAP_LOCAL_FORCE_MAP) || PageHighMem(p))
 		return true;
 #endif
 	return false;
@@ -701,6 +701,7 @@ typedef unsigned char *sk_buff_data_t;
  *	@transport_header: Transport layer header
  *	@network_header: Network layer header
  *	@mac_header: Link layer header
+ *	@kcov_handle: KCOV remote handle for remote coverage collection
  *	@tail: Tail pointer
  *	@end: End pointer
  *	@head: Head of buffer
@@ -903,6 +904,10 @@ struct sk_buff {
 	__u16			transport_header;
 	__u16			network_header;
 	__u16			mac_header;
+
+#ifdef CONFIG_KCOV
+	u64			kcov_handle;
+#endif
 
 	/* private: */
 	__u32			headers_end[0];
@@ -1198,6 +1203,7 @@ struct skb_seq_state {
 	struct sk_buff	*root_skb;
 	struct sk_buff	*cur_skb;
 	__u8		*frag_data;
+	__u32		frag_off;
 };
 
 void skb_prepare_seq_read(struct sk_buff *skb, unsigned int from,
@@ -4602,6 +4608,23 @@ static inline void skb_reset_redirect(struct sk_buff *skb)
 {
 #ifdef CONFIG_NET_REDIRECT
 	skb->redirected = 0;
+#endif
+}
+
+static inline void skb_set_kcov_handle(struct sk_buff *skb,
+				       const u64 kcov_handle)
+{
+#ifdef CONFIG_KCOV
+	skb->kcov_handle = kcov_handle;
+#endif
+}
+
+static inline u64 skb_get_kcov_handle(struct sk_buff *skb)
+{
+#ifdef CONFIG_KCOV
+	return skb->kcov_handle;
+#else
+	return 0;
 #endif
 }
 

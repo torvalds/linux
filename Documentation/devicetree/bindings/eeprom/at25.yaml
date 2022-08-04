@@ -45,13 +45,13 @@ properties:
   spi-max-frequency: true
 
   pagesize:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [1, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072]
     description:
       Size of the eeprom page.
 
   size:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Total eeprom size in bytes.
 

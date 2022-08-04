@@ -15,7 +15,7 @@
 
 / {
 	model = "Linux Automation MC-1 board";
-	compatible = "lxa,stm32mp157c-mc1", "st,stm32mp157";
+	compatible = "lxa,stm32mp157c-mc1", "oct,stm32mp15xx-osd32", "st,stm32mp157";
 
 	aliases {
 		ethernet0 = &ethernet0;

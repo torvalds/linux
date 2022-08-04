@@ -143,7 +143,10 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 	ast_detect_config_mode(dev, &scu_rev);
 
 	/* Identify chipset */
-	if (dev->pdev->revision >= 0x40) {
+	if (dev->pdev->revision >= 0x50) {
+		ast->chip = AST2600;
+		drm_info(dev, "AST 2600 detected\n");
+	} else if (dev->pdev->revision >= 0x40) {
 		ast->chip = AST2500;
 		drm_info(dev, "AST 2500 detected\n");
 	} else if (dev->pdev->revision >= 0x30) {
@@ -392,7 +395,7 @@ static void ast_device_release(void *data)
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x04);
 }
 
-struct ast_private *ast_device_create(struct drm_driver *drv,
+struct ast_private *ast_device_create(const struct drm_driver *drv,
 				      struct pci_dev *pdev,
 				      unsigned long flags)
 {

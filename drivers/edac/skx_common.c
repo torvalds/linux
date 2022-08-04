@@ -304,14 +304,24 @@ static int skx_get_dimm_attr(u32 reg, int lobit, int hibit, int add,
 #define numcol(reg)	skx_get_dimm_attr(reg, 0, 1, 10, 0, 2, "cols")
 
 int skx_get_dimm_info(u32 mtr, u32 mcmtr, u32 amap, struct dimm_info *dimm,
-		      struct skx_imc *imc, int chan, int dimmno)
+		      struct skx_imc *imc, int chan, int dimmno,
+		      struct res_config *cfg)
 {
-	int  banks = 16, ranks, rows, cols, npages;
+	int  banks, ranks, rows, cols, npages;
+	enum mem_type mtype;
 	u64 size;
 
 	ranks = numrank(mtr);
 	rows = numrow(mtr);
 	cols = numcol(mtr);
+
+	if (cfg->support_ddr5 && (amap & 0x8)) {
+		banks = 32;
+		mtype = MEM_DDR5;
+	} else {
+		banks = 16;
+		mtype = MEM_DDR4;
+	}
 
 	/*
 	 * Compute size in 8-byte (2^3) words, then shift to MiB (2^20)
@@ -332,7 +342,7 @@ int skx_get_dimm_info(u32 mtr, u32 mcmtr, u32 amap, struct dimm_info *dimm,
 	dimm->nr_pages = npages;
 	dimm->grain = 32;
 	dimm->dtype = get_width(mtr);
-	dimm->mtype = MEM_DDR4;
+	dimm->mtype = mtype;
 	dimm->edac_mode = EDAC_SECDED; /* likely better than this */
 	snprintf(dimm->label, sizeof(dimm->label), "CPU_SrcID#%u_MC#%u_Chan#%u_DIMM#%u",
 		 imc->src_id, imc->lmc, chan, dimmno);
@@ -390,7 +400,8 @@ unknown_size:
 
 int skx_register_mci(struct skx_imc *imc, struct pci_dev *pdev,
 		     const char *ctl_name, const char *mod_str,
-		     get_dimm_config_f get_dimm_config)
+		     get_dimm_config_f get_dimm_config,
+		     struct res_config *cfg)
 {
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer layers[2];
@@ -425,13 +436,15 @@ int skx_register_mci(struct skx_imc *imc, struct pci_dev *pdev,
 	}
 
 	mci->mtype_cap = MEM_FLAG_DDR4 | MEM_FLAG_NVDIMM;
+	if (cfg->support_ddr5)
+		mci->mtype_cap |= MEM_FLAG_DDR5;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE;
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = mod_str;
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;
 
-	rc = get_dimm_config(mci);
+	rc = get_dimm_config(mci, cfg);
 	if (rc < 0)
 		goto fail;
 

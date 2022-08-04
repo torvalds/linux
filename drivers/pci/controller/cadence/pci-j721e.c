@@ -12,6 +12,7 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/mfd/syscon.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/pci.h>
@@ -153,7 +154,8 @@ static const struct cdns_pcie_ops j721e_pcie_ops = {
 	.link_up = j721e_pcie_link_up,
 };
 
-static int j721e_pcie_set_mode(struct j721e_pcie *pcie, struct regmap *syscon)
+static int j721e_pcie_set_mode(struct j721e_pcie *pcie, struct regmap *syscon,
+			       unsigned int offset)
 {
 	struct device *dev = pcie->dev;
 	u32 mask = J721E_MODE_RC;
@@ -164,7 +166,7 @@ static int j721e_pcie_set_mode(struct j721e_pcie *pcie, struct regmap *syscon)
 	if (mode == PCI_MODE_RC)
 		val = J721E_MODE_RC;
 
-	ret = regmap_update_bits(syscon, 0, mask, val);
+	ret = regmap_update_bits(syscon, offset, mask, val);
 	if (ret)
 		dev_err(dev, "failed to set pcie mode\n");
 
@@ -172,7 +174,7 @@ static int j721e_pcie_set_mode(struct j721e_pcie *pcie, struct regmap *syscon)
 }
 
 static int j721e_pcie_set_link_speed(struct j721e_pcie *pcie,
-				     struct regmap *syscon)
+				     struct regmap *syscon, unsigned int offset)
 {
 	struct device *dev = pcie->dev;
 	struct device_node *np = dev->of_node;
@@ -185,7 +187,7 @@ static int j721e_pcie_set_link_speed(struct j721e_pcie *pcie,
 		link_speed = 2;
 
 	val = link_speed - 1;
-	ret = regmap_update_bits(syscon, 0, GENERATION_SEL_MASK, val);
+	ret = regmap_update_bits(syscon, offset, GENERATION_SEL_MASK, val);
 	if (ret)
 		dev_err(dev, "failed to set link speed\n");
 
@@ -193,7 +195,7 @@ static int j721e_pcie_set_link_speed(struct j721e_pcie *pcie,
 }
 
 static int j721e_pcie_set_lane_count(struct j721e_pcie *pcie,
-				     struct regmap *syscon)
+				     struct regmap *syscon, unsigned int offset)
 {
 	struct device *dev = pcie->dev;
 	u32 lanes = pcie->num_lanes;
@@ -201,7 +203,7 @@ static int j721e_pcie_set_lane_count(struct j721e_pcie *pcie,
 	int ret;
 
 	val = LANE_COUNT(lanes - 1);
-	ret = regmap_update_bits(syscon, 0, LANE_COUNT_MASK, val);
+	ret = regmap_update_bits(syscon, offset, LANE_COUNT_MASK, val);
 	if (ret)
 		dev_err(dev, "failed to set link count\n");
 
@@ -212,6 +214,8 @@ static int j721e_pcie_ctrl_init(struct j721e_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
 	struct device_node *node = dev->of_node;
+	struct of_phandle_args args;
+	unsigned int offset = 0;
 	struct regmap *syscon;
 	int ret;
 
@@ -221,19 +225,25 @@ static int j721e_pcie_ctrl_init(struct j721e_pcie *pcie)
 		return PTR_ERR(syscon);
 	}
 
-	ret = j721e_pcie_set_mode(pcie, syscon);
+	/* Do not error out to maintain old DT compatibility */
+	ret = of_parse_phandle_with_fixed_args(node, "ti,syscon-pcie-ctrl", 1,
+					       0, &args);
+	if (!ret)
+		offset = args.args[0];
+
+	ret = j721e_pcie_set_mode(pcie, syscon, offset);
 	if (ret < 0) {
 		dev_err(dev, "Failed to set pci mode\n");
 		return ret;
 	}
 
-	ret = j721e_pcie_set_link_speed(pcie, syscon);
+	ret = j721e_pcie_set_link_speed(pcie, syscon, offset);
 	if (ret < 0) {
 		dev_err(dev, "Failed to set link speed\n");
 		return ret;
 	}
 
-	ret = j721e_pcie_set_lane_count(pcie, syscon);
+	ret = j721e_pcie_set_lane_count(pcie, syscon, offset);
 	if (ret < 0) {
 		dev_err(dev, "Failed to set num-lanes\n");
 		return ret;

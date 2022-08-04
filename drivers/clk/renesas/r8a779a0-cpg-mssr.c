@@ -26,7 +26,6 @@
 #include <dt-bindings/clock/r8a779a0-cpg-mssr.h>
 
 #include "renesas-cpg-mssr.h"
-#include "rcar-gen3-cpg.h"
 
 enum rcar_r8a779a0_clk_types {
 	CLK_TYPE_R8A779A0_MAIN = CLK_TYPE_CUSTOM,
@@ -84,6 +83,14 @@ enum clk_ids {
 	DEF_BASE(_name, _id, CLK_TYPE_R8A779A0_PLL2X_3X, CLK_MAIN, \
 		 .offset = _offset)
 
+#define DEF_MDSEL(_name, _id, _md, _parent0, _div0, _parent1, _div1) \
+	DEF_BASE(_name, _id, CLK_TYPE_R8A779A0_MDSEL,	\
+		 (_parent0) << 16 | (_parent1),		\
+		 .div = (_div0) << 16 | (_div1), .offset = _md)
+
+#define DEF_OSC(_name, _id, _parent, _div)		\
+	DEF_BASE(_name, _id, CLK_TYPE_R8A779A0_OSC, _parent, .div = _div)
+
 static const struct cpg_core_clk r8a779a0_core_clks[] __initconst = {
 	/* External Clock Inputs */
 	DEF_INPUT("extal",  CLK_EXTAL),
@@ -136,15 +143,51 @@ static const struct cpg_core_clk r8a779a0_core_clks[] __initconst = {
 	DEF_DIV6P1("canfd",	R8A779A0_CLK_CANFD,	CLK_PLL5_DIV4,	0x878),
 	DEF_DIV6P1("csi0",	R8A779A0_CLK_CSI0,	CLK_PLL5_DIV4,	0x880),
 
-	DEF_GEN3_OSC("osc",	R8A779A0_CLK_OSC,	CLK_EXTAL,	8),
-	DEF_GEN3_MDSEL("r",	R8A779A0_CLK_R, 29, CLK_EXTALR, 1, CLK_OCO, 1),
+	DEF_OSC("osc",		R8A779A0_CLK_OSC,	CLK_EXTAL,	8),
+	DEF_MDSEL("r",		R8A779A0_CLK_R, 29, CLK_EXTALR, 1, CLK_OCO, 1),
 };
 
 static const struct mssr_mod_clk r8a779a0_mod_clks[] __initconst = {
+	DEF_MOD("csi40",	331,	R8A779A0_CLK_CSI0),
+	DEF_MOD("csi41",	400,	R8A779A0_CLK_CSI0),
+	DEF_MOD("csi42",	401,	R8A779A0_CLK_CSI0),
+	DEF_MOD("csi43",	402,	R8A779A0_CLK_CSI0),
 	DEF_MOD("scif0",	702,	R8A779A0_CLK_S1D8),
 	DEF_MOD("scif1",	703,	R8A779A0_CLK_S1D8),
 	DEF_MOD("scif3",	704,	R8A779A0_CLK_S1D8),
 	DEF_MOD("scif4",	705,	R8A779A0_CLK_S1D8),
+	DEF_MOD("vin00",	730,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin01",	731,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin02",	800,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin03",	801,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin04",	802,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin05",	803,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin06",	804,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin07",	805,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin10",	806,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin11",	807,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin12",	808,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin13",	809,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin14",	810,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin15",	811,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin16",	812,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin17",	813,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin20",	814,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin21",	815,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin22",	816,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin23",	817,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin24",	818,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin25",	819,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin26",	820,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin27",	821,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin30",	822,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin31",	823,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin32",	824,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin33",	825,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin34",	826,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin35",	827,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin36",	828,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vin37",	829,	R8A779A0_CLK_S1D1),
 };
 
 static spinlock_t cpg_lock;
@@ -153,7 +196,7 @@ static const struct rcar_r8a779a0_cpg_pll_config *cpg_pll_config __initdata;
 static unsigned int cpg_clk_extalr __initdata;
 static u32 cpg_mode __initdata;
 
-struct clk * __init rcar_r8a779a0_cpg_clk_register(struct device *dev,
+static struct clk * __init rcar_r8a779a0_cpg_clk_register(struct device *dev,
 	const struct cpg_core_clk *core, const struct cpg_mssr_info *info,
 	struct clk **clks, void __iomem *base,
 	struct raw_notifier_head *notifiers)

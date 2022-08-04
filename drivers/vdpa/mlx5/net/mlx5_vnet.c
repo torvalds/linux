@@ -1,18 +1,28 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2020 Mellanox Technologies Ltd. */
 
+#include <linux/module.h>
 #include <linux/vdpa.h>
+#include <linux/vringh.h>
+#include <uapi/linux/virtio_net.h>
 #include <uapi/linux/virtio_ids.h>
 #include <linux/virtio_config.h>
+#include <linux/auxiliary_bus.h>
+#include <linux/mlx5/cq.h>
 #include <linux/mlx5/qp.h>
 #include <linux/mlx5/device.h>
+#include <linux/mlx5/driver.h>
 #include <linux/mlx5/vport.h>
 #include <linux/mlx5/fs.h>
-#include <linux/mlx5/device.h>
-#include "mlx5_vnet.h"
-#include "mlx5_vdpa_ifc.h"
+#include <linux/mlx5/mlx5_ifc_vdpa.h>
 #include "mlx5_vdpa.h"
 
+MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
+MODULE_DESCRIPTION("Mellanox VDPA driver");
+MODULE_LICENSE("Dual BSD/GPL");
+
+#define to_mlx5_vdpa_ndev(__mvdev)                                             \
+	container_of(__mvdev, struct mlx5_vdpa_net, mvdev)
 #define to_mvdev(__vdev) container_of((__vdev), struct mlx5_vdpa_dev, vdev)
 
 #define VALID_FEATURES_MASK                                                                        \
@@ -77,6 +87,7 @@ struct mlx5_vq_restore_info {
 	u64 device_addr;
 	u64 driver_addr;
 	u16 avail_index;
+	u16 used_index;
 	bool ready;
 	struct vdpa_callback cb;
 	bool restore;
@@ -111,6 +122,7 @@ struct mlx5_vdpa_virtqueue {
 	u32 virtq_id;
 	struct mlx5_vdpa_net *ndev;
 	u16 avail_idx;
+	u16 used_idx;
 	int fw_state;
 
 	/* keep last in the struct */
@@ -158,6 +170,11 @@ static bool mlx5_vdpa_debug;
 		if (status & (_status))                                                            \
 			mlx5_vdpa_info(mvdev, "%s\n", #_status);                                   \
 	} while (0)
+
+static inline u32 mlx5_vdpa_max_qps(int max_vqs)
+{
+	return max_vqs / 2;
+}
 
 static void print_status(struct mlx5_vdpa_dev *mvdev, u8 status, bool set)
 {
@@ -464,6 +481,11 @@ static int mlx5_vdpa_poll_one(struct mlx5_vdpa_cq *vcq)
 static void mlx5_vdpa_handle_completions(struct mlx5_vdpa_virtqueue *mvq, int num)
 {
 	mlx5_cq_set_ci(&mvq->cq.mcq);
+
+	/* make sure CQ cosumer update is visible to the hardware before updating
+	 * RX doorbell record.
+	 */
+	dma_wmb();
 	rx_post(&mvq->vqqp, num);
 	if (mvq->event_cb.callback)
 		mvq->event_cb.callback(mvq->event_cb.private);
@@ -784,6 +806,7 @@ static int create_virtqueue(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtque
 
 	obj_context = MLX5_ADDR_OF(create_virtio_net_q_in, in, obj_context);
 	MLX5_SET(virtio_net_q_object, obj_context, hw_available_index, mvq->avail_idx);
+	MLX5_SET(virtio_net_q_object, obj_context, hw_used_index, mvq->used_idx);
 	MLX5_SET(virtio_net_q_object, obj_context, queue_feature_bit_mask_12_3,
 		 get_features_12_3(ndev->mvdev.actual_features));
 	vq_ctx = MLX5_ADDR_OF(virtio_net_q_object, obj_context, virtio_q_context);
@@ -1002,6 +1025,7 @@ static int connect_qps(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *m
 struct mlx5_virtq_attr {
 	u8 state;
 	u16 available_index;
+	u16 used_index;
 };
 
 static int query_virtqueue(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq,
@@ -1032,6 +1056,7 @@ static int query_virtqueue(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueu
 	memset(attr, 0, sizeof(*attr));
 	attr->state = MLX5_GET(virtio_net_q_object, obj_context, state);
 	attr->available_index = MLX5_GET(virtio_net_q_object, obj_context, hw_available_index);
+	attr->used_index = MLX5_GET(virtio_net_q_object, obj_context, hw_used_index);
 	kfree(out);
 	return 0;
 
@@ -1515,6 +1540,16 @@ static void teardown_virtqueues(struct mlx5_vdpa_net *ndev)
 	}
 }
 
+static void clear_virtqueues(struct mlx5_vdpa_net *ndev)
+{
+	int i;
+
+	for (i = ndev->mvdev.max_vqs - 1; i >= 0; i--) {
+		ndev->vqs[i].avail_idx = 0;
+		ndev->vqs[i].used_idx = 0;
+	}
+}
+
 /* TODO: cross-endian support */
 static inline bool mlx5_vdpa_is_little_endian(struct mlx5_vdpa_dev *mvdev)
 {
@@ -1590,6 +1625,7 @@ static int save_channel_info(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqu
 		return err;
 
 	ri->avail_index = attr.available_index;
+	ri->used_index = attr.used_index;
 	ri->ready = mvq->ready;
 	ri->num_ent = mvq->num_ent;
 	ri->desc_addr = mvq->desc_addr;
@@ -1634,6 +1670,7 @@ static void restore_channels_info(struct mlx5_vdpa_net *ndev)
 			continue;
 
 		mvq->avail_idx = ri->avail_index;
+		mvq->used_idx = ri->used_index;
 		mvq->ready = ri->ready;
 		mvq->num_ent = ri->num_ent;
 		mvq->desc_addr = ri->desc_addr;
@@ -1748,6 +1785,7 @@ static void mlx5_vdpa_set_status(struct vdpa_device *vdev, u8 status)
 	if (!status) {
 		mlx5_vdpa_info(mvdev, "performing device reset\n");
 		teardown_driver(ndev);
+		clear_virtqueues(ndev);
 		mlx5_vdpa_destroy_mr(&ndev->mvdev);
 		ndev->mvdev.status = 0;
 		ndev->mvdev.mlx_features = 0;
@@ -1928,8 +1966,11 @@ static void init_mvqs(struct mlx5_vdpa_net *ndev)
 	}
 }
 
-void *mlx5_vdpa_add_dev(struct mlx5_core_dev *mdev)
+static int mlx5v_probe(struct auxiliary_device *adev,
+		       const struct auxiliary_device_id *id)
 {
+	struct mlx5_adev *madev = container_of(adev, struct mlx5_adev, adev);
+	struct mlx5_core_dev *mdev = madev->mdev;
 	struct virtio_net_config *config;
 	struct mlx5_vdpa_dev *mvdev;
 	struct mlx5_vdpa_net *ndev;
@@ -1943,7 +1984,7 @@ void *mlx5_vdpa_add_dev(struct mlx5_core_dev *mdev)
 	ndev = vdpa_alloc_device(struct mlx5_vdpa_net, mvdev.vdev, mdev->device, &mlx5_vdpa_ops,
 				 2 * mlx5_vdpa_max_qps(max_vqs));
 	if (IS_ERR(ndev))
-		return ndev;
+		return PTR_ERR(ndev);
 
 	ndev->mvdev.max_vqs = max_vqs;
 	mvdev = &ndev->mvdev;
@@ -1972,7 +2013,8 @@ void *mlx5_vdpa_add_dev(struct mlx5_core_dev *mdev)
 	if (err)
 		goto err_reg;
 
-	return ndev;
+	dev_set_drvdata(&adev->dev, ndev);
+	return 0;
 
 err_reg:
 	free_resources(ndev);
@@ -1981,10 +2023,28 @@ err_res:
 err_mtu:
 	mutex_destroy(&ndev->reslock);
 	put_device(&mvdev->vdev.dev);
-	return ERR_PTR(err);
+	return err;
 }
 
-void mlx5_vdpa_remove_dev(struct mlx5_vdpa_dev *mvdev)
+static void mlx5v_remove(struct auxiliary_device *adev)
 {
+	struct mlx5_vdpa_dev *mvdev = dev_get_drvdata(&adev->dev);
+
 	vdpa_unregister_device(&mvdev->vdev);
 }
+
+static const struct auxiliary_device_id mlx5v_id_table[] = {
+	{ .name = MLX5_ADEV_NAME ".vnet", },
+	{},
+};
+
+MODULE_DEVICE_TABLE(auxiliary, mlx5v_id_table);
+
+static struct auxiliary_driver mlx5v_driver = {
+	.name = "vnet",
+	.probe = mlx5v_probe,
+	.remove = mlx5v_remove,
+	.id_table = mlx5v_id_table,
+};
+
+module_auxiliary_driver(mlx5v_driver);

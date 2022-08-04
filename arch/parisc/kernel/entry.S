@@ -887,7 +887,7 @@ intr_check_sig:
 	/* As above */
 	mfctl   %cr30,%r1
 	LDREG	TI_FLAGS(%r1),%r19
-	ldi	(_TIF_SIGPENDING|_TIF_NOTIFY_RESUME), %r20
+	ldi	(_TIF_USER_WORK_MASK & ~_TIF_NEED_RESCHED), %r20
 	and,COND(<>)	%r19, %r20, %r0
 	b,n	intr_restore	/* skip past if we've nothing to do */
 
@@ -997,10 +997,17 @@ intr_do_preempt:
 	bb,<,n	%r20, 31 - PSW_SM_I, intr_restore
 	nop
 
+	/* ssm PSW_SM_I done later in intr_restore */
+#ifdef CONFIG_MLONGCALLS
+	ldil	L%intr_restore, %r2
+	load32	preempt_schedule_irq, %r1
+	bv	%r0(%r1)
+	ldo	R%intr_restore(%r2), %r2
+#else
+	ldil	L%intr_restore, %r1
 	BL	preempt_schedule_irq, %r2
-	nop
-
-	b,n	intr_restore		/* ssm PSW_SM_I done by intr_restore */
+	ldo	R%intr_restore(%r1), %r2
+#endif
 #endif /* CONFIG_PREEMPTION */
 
 	/*
@@ -1810,7 +1817,7 @@ syscall_check_resched:
 	.import do_signal,code
 syscall_check_sig:
 	LDREG	TI_FLAGS-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r19
-	ldi	(_TIF_SIGPENDING|_TIF_NOTIFY_RESUME), %r26
+	ldi	(_TIF_USER_WORK_MASK & ~_TIF_NEED_RESCHED), %r26
 	and,COND(<>)	%r19, %r26, %r0
 	b,n	syscall_restore	/* skip past if we've nothing to do */
 

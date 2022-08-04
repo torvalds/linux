@@ -31,7 +31,6 @@
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/spinlock.h>
-#include <linux/uaccess.h>
 
 /*
  * The call to use to reach the firmware.
@@ -1092,25 +1091,12 @@ int sdei_event_handler(struct pt_regs *regs,
 		       struct sdei_registered_event *arg)
 {
 	int err;
-	mm_segment_t orig_addr_limit;
 	u32 event_num = arg->event_num;
-
-	/*
-	 * Save restore 'fs'.
-	 * The architecture's entry code save/restores 'fs' when taking an
-	 * exception from the kernel. This ensures addr_limit isn't inherited
-	 * if you interrupted something that allowed the uaccess routines to
-	 * access kernel memory.
-	 * Do the same here because this doesn't come via the same entry code.
-	*/
-	orig_addr_limit = force_uaccess_begin();
 
 	err = arg->callback(event_num, regs, arg->callback_arg);
 	if (err)
 		pr_err_ratelimited("event %u on CPU %u failed with error: %d\n",
 				   event_num, smp_processor_id(), err);
-
-	force_uaccess_end(orig_addr_limit);
 
 	return err;
 }

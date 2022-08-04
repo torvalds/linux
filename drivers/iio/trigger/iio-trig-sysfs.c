@@ -160,7 +160,7 @@ static int iio_sysfs_trigger_probe(int id)
 	t->trig->dev.parent = &iio_sysfs_trig_dev;
 	iio_trigger_set_drvdata(t->trig, t);
 
-	init_irq_work(&t->work, iio_sysfs_trigger_work);
+	t->work = IRQ_WORK_INIT_HARD(iio_sysfs_trigger_work);
 
 	ret = iio_trigger_register(t->trig);
 	if (ret)

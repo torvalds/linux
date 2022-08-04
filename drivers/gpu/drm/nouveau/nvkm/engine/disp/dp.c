@@ -33,6 +33,12 @@
 
 #include <nvif/event.h>
 
+/* IED scripts are no longer used by UEFI/RM from Ampere, but have been updated for
+ * the x86 option ROM.  However, the relevant VBIOS table versions weren't modified,
+ * so we're unable to detect this in a nice way.
+ */
+#define AMPERE_IED_HACK(disp) ((disp)->engine.subdev.device->card_type >= GA100)
+
 struct lt_state {
 	struct nvkm_dp *dp;
 	u8  stat[6];
@@ -238,6 +244,19 @@ nvkm_dp_train_links(struct nvkm_dp *dp)
 		dp->dpcd[DPCD_RC02] &= ~DPCD_RC02_TPS3_SUPPORTED;
 	lt.pc2 = dp->dpcd[DPCD_RC02] & DPCD_RC02_TPS3_SUPPORTED;
 
+	if (AMPERE_IED_HACK(disp) && (lnkcmp = lt.dp->info.script[0])) {
+		/* Execute BeforeLinkTraining script from DP Info table. */
+		while (ior->dp.bw < nvbios_rd08(bios, lnkcmp))
+			lnkcmp += 3;
+		lnkcmp = nvbios_rd16(bios, lnkcmp + 1);
+
+		nvbios_init(&dp->outp.disp->engine.subdev, lnkcmp,
+			init.outp = &dp->outp.info;
+			init.or   = ior->id;
+			init.link = ior->asy.link;
+		);
+	}
+
 	/* Set desired link configuration on the source. */
 	if ((lnkcmp = lt.dp->info.lnkcmp)) {
 		if (dp->version < 0x30) {
@@ -316,12 +335,14 @@ nvkm_dp_train_init(struct nvkm_dp *dp)
 		);
 	}
 
-	/* Execute BeforeLinkTraining script from DP Info table. */
-	nvbios_init(&dp->outp.disp->engine.subdev, dp->info.script[0],
-		init.outp = &dp->outp.info;
-		init.or   = dp->outp.ior->id;
-		init.link = dp->outp.ior->asy.link;
-	);
+	if (!AMPERE_IED_HACK(dp->outp.disp)) {
+		/* Execute BeforeLinkTraining script from DP Info table. */
+		nvbios_init(&dp->outp.disp->engine.subdev, dp->info.script[0],
+			init.outp = &dp->outp.info;
+			init.or   = dp->outp.ior->id;
+			init.link = dp->outp.ior->asy.link;
+		);
+	}
 }
 
 static const struct dp_rates {

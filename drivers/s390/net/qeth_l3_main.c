@@ -104,10 +104,7 @@ static bool qeth_l3_is_addr_covered_by_ipato(struct qeth_card *card,
 		qeth_l3_convert_addr_to_bits(ipatoe->addr, ipatoe_bits,
 					  (ipatoe->proto == QETH_PROT_IPV4) ?
 					  4 : 16);
-		if (addr->proto == QETH_PROT_IPV4)
-			rc = !memcmp(addr_bits, ipatoe_bits, ipatoe->mask_bits);
-		else
-			rc = !memcmp(addr_bits, ipatoe_bits, ipatoe->mask_bits);
+		rc = !memcmp(addr_bits, ipatoe_bits, ipatoe->mask_bits);
 		if (rc)
 			break;
 	}
@@ -1816,7 +1813,7 @@ static netdev_features_t qeth_l3_osa_features_check(struct sk_buff *skb,
 						    struct net_device *dev,
 						    netdev_features_t features)
 {
-	if (qeth_get_ip_version(skb) != 4)
+	if (vlan_get_protocol(skb) != htons(ETH_P_IP))
 		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
 	return qeth_features_check(skb, dev, features);
 }
@@ -1952,7 +1949,7 @@ static int qeth_l3_probe_device(struct ccwgroup_device *gdev)
 		return -ENOMEM;
 
 	if (gdev->dev.type == &qeth_generic_devtype) {
-		rc = qeth_l3_create_device_attributes(&gdev->dev);
+		rc = device_add_groups(&gdev->dev, qeth_l3_attr_groups);
 		if (rc) {
 			destroy_workqueue(card->cmd_wq);
 			return rc;
@@ -1968,13 +1965,13 @@ static void qeth_l3_remove_device(struct ccwgroup_device *cgdev)
 	struct qeth_card *card = dev_get_drvdata(&cgdev->dev);
 
 	if (cgdev->dev.type == &qeth_generic_devtype)
-		qeth_l3_remove_device_attributes(&cgdev->dev);
+		device_remove_groups(&cgdev->dev, qeth_l3_attr_groups);
 
 	qeth_set_allowed_threads(card, 0, 1);
 	wait_event(card->wait_q, qeth_threads_running(card, 0xffffffff) == 0);
 
 	if (cgdev->state == CCWGROUP_ONLINE)
-		qeth_set_offline(card, false);
+		qeth_set_offline(card, card->discipline, false);
 
 	cancel_work_sync(&card->close_dev_work);
 	if (card->dev->reg_state == NETREG_REGISTERED)

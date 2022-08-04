@@ -63,3 +63,5 @@ bool kgd_gfx_v9_get_atc_vmid_pasid_mapping_info(struct kgd_dev *kgd,
 
 void kgd_gfx_v9_set_vm_context_page_table_base(struct kgd_dev *kgd,
 			uint32_t vmid, uint64_t page_table_base);
+void kgd_gfx_v9_get_cu_occupancy(struct kgd_dev *kgd, int pasid,
+		int *pasid_wave_cnt, int *max_waves_per_cu);

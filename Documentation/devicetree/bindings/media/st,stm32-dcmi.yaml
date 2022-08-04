@@ -44,6 +44,43 @@ properties:
       bindings defined in
       Documentation/devicetree/bindings/media/video-interfaces.txt.
 
+    properties:
+      endpoint:
+        type: object
+
+        properties:
+          bus-type:
+            enum: [5, 6]
+            default: 5
+
+          bus-width:
+            enum: [8, 10, 12, 14]
+            default: 8
+
+          remote-endpoint: true
+
+        allOf:
+          - if:
+              properties:
+                bus-type:
+                  const: 6
+
+            then:
+              properties:
+                hsync-active: false
+                vsync-active: false
+                bus-width:
+                  enum: [8]
+
+        required:
+          - remote-endpoint
+          - bus-type
+          - pclk-sample
+
+        unevaluatedProperties: false
+
+    additionalProperties: false
+
 required:
   - compatible
   - reg
@@ -75,6 +112,7 @@ examples:
         port {
              dcmi_0: endpoint {
                    remote-endpoint = <&ov5640_0>;
+                   bus-type = <5>;
                    bus-width = <8>;
                    hsync-active = <0>;
                    vsync-active = <0>;

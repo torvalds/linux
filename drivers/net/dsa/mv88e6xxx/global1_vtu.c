@@ -307,8 +307,8 @@ static int mv88e6xxx_g1_vtu_stu_get(struct mv88e6xxx_chip *chip,
 	return 0;
 }
 
-static int mv88e6xxx_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
-				    struct mv88e6xxx_vtu_entry *entry)
+int mv88e6xxx_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
+			     struct mv88e6xxx_vtu_entry *entry)
 {
 	int err;
 
@@ -348,6 +348,10 @@ int mv88e6250_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
 
 	if (entry->valid) {
 		err = mv88e6185_g1_vtu_data_read(chip, entry);
+		if (err)
+			return err;
+
+		err = mv88e6185_g1_stu_data_read(chip, entry);
 		if (err)
 			return err;
 

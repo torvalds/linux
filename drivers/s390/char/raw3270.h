@@ -199,7 +199,6 @@ struct raw3270_notifier {
 
 int raw3270_register_notifier(struct raw3270_notifier *);
 void raw3270_unregister_notifier(struct raw3270_notifier *);
-void raw3270_pm_unfreeze(struct raw3270_view *);
 
 /*
  * Little memory allocator for string objects. 

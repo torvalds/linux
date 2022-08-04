@@ -893,7 +893,7 @@ err:
 	return IRQ_HANDLED;
 }
 
-static int bmg160_trig_try_reen(struct iio_trigger *trig)
+static void bmg160_trig_reen(struct iio_trigger *trig)
 {
 	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
 	struct bmg160_data *data = iio_priv(indio_dev);
@@ -902,18 +902,14 @@ static int bmg160_trig_try_reen(struct iio_trigger *trig)
 
 	/* new data interrupts don't need ack */
 	if (data->dready_trigger_on)
-		return 0;
+		return;
 
 	/* Set latched mode interrupt and clear any latched interrupt */
 	ret = regmap_write(data->regmap, BMG160_REG_INT_RST_LATCH,
 			   BMG160_INT_MODE_LATCH_INT |
 			   BMG160_INT_MODE_LATCH_RESET);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(dev, "Error writing reg_rst_latch\n");
-		return ret;
-	}
-
-	return 0;
 }
 
 static int bmg160_data_rdy_trigger_set_state(struct iio_trigger *trig,
@@ -961,7 +957,7 @@ static int bmg160_data_rdy_trigger_set_state(struct iio_trigger *trig,
 
 static const struct iio_trigger_ops bmg160_trigger_ops = {
 	.set_trigger_state = bmg160_data_rdy_trigger_set_state,
-	.try_reenable = bmg160_trig_try_reen,
+	.reenable = bmg160_trig_reen,
 };
 
 static irqreturn_t bmg160_event_handler(int irq, void *private)

@@ -41,11 +41,11 @@ enum {
 	CHT_WC_CRIT_IRQ = 7,
 };
 
-static struct resource cht_wc_pwrsrc_resources[] = {
+static const struct resource cht_wc_pwrsrc_resources[] = {
 	DEFINE_RES_IRQ(CHT_WC_PWRSRC_IRQ),
 };
 
-static struct resource cht_wc_ext_charger_resources[] = {
+static const struct resource cht_wc_ext_charger_resources[] = {
 	DEFINE_RES_IRQ(CHT_WC_EXT_CHGR_IRQ),
 };
 

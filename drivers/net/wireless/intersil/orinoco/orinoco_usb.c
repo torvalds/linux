@@ -665,31 +665,54 @@ static void ezusb_request_in_callback(struct ezusb_priv *upriv,
 	}			/* switch */
 }
 
+typedef void (*ezusb_ctx_wait)(struct ezusb_priv *, struct request_context *);
 
-static void ezusb_req_ctx_wait(struct ezusb_priv *upriv,
-			       struct request_context *ctx)
+static void ezusb_req_ctx_wait_compl(struct ezusb_priv *upriv,
+				     struct request_context *ctx)
 {
 	switch (ctx->state) {
 	case EZUSB_CTX_QUEUED:
 	case EZUSB_CTX_REQ_SUBMITTED:
 	case EZUSB_CTX_REQ_COMPLETE:
 	case EZUSB_CTX_RESP_RECEIVED:
-		if (in_softirq()) {
-			/* If we get called from a timer, timeout timers don't
-			 * get the chance to run themselves. So we make sure
-			 * that we don't sleep for ever */
-			int msecs = DEF_TIMEOUT * (1000 / HZ);
-
-			while (!try_wait_for_completion(&ctx->done) && msecs--)
-				udelay(1000);
-		} else {
-			wait_for_completion(&ctx->done);
-		}
+		wait_for_completion(&ctx->done);
 		break;
 	default:
 		/* Done or failed - nothing to wait for */
 		break;
 	}
+}
+
+static void ezusb_req_ctx_wait_poll(struct ezusb_priv *upriv,
+				    struct request_context *ctx)
+{
+	int msecs;
+
+	switch (ctx->state) {
+	case EZUSB_CTX_QUEUED:
+	case EZUSB_CTX_REQ_SUBMITTED:
+	case EZUSB_CTX_REQ_COMPLETE:
+	case EZUSB_CTX_RESP_RECEIVED:
+		/* If we get called from a timer or with our lock acquired, then
+		 * we can't wait for the completion and have to poll. This won't
+		 * happen if the USB controller completes the URB requests in
+		 * BH.
+		 */
+		msecs = DEF_TIMEOUT * (1000 / HZ);
+
+		while (!try_wait_for_completion(&ctx->done) && msecs--)
+			udelay(1000);
+		break;
+	default:
+		/* Done or failed - nothing to wait for */
+		break;
+	}
+}
+
+static void ezusb_req_ctx_wait_skip(struct ezusb_priv *upriv,
+				    struct request_context *ctx)
+{
+	WARN(1, "Shouldn't be invoked for in_rid\n");
 }
 
 static inline u16 build_crc(struct ezusb_packet *data)
@@ -853,13 +876,12 @@ static int ezusb_firmware_download(struct ezusb_priv *upriv,
 static int ezusb_access_ltv(struct ezusb_priv *upriv,
 			    struct request_context *ctx,
 			    u16 length, const void *data, u16 frame_type,
-			    void *ans_buff, unsigned ans_size, u16 *ans_length)
+			    void *ans_buff, unsigned ans_size, u16 *ans_length,
+			    ezusb_ctx_wait ezusb_ctx_wait_func)
 {
 	int req_size;
 	int retval = 0;
 	enum ezusb_state state;
-
-	BUG_ON(in_irq());
 
 	if (!upriv->udev) {
 		retval = -ENODEV;
@@ -885,7 +907,7 @@ static int ezusb_access_ltv(struct ezusb_priv *upriv,
 	spin_unlock_bh(&upriv->reply_count_lock);
 
 	if (ctx->in_rid)
-		ezusb_req_ctx_wait(upriv, ctx);
+		ezusb_ctx_wait_func(upriv, ctx);
 
 	state = ctx->state;
 	switch (state) {
@@ -946,8 +968,9 @@ static int ezusb_access_ltv(struct ezusb_priv *upriv,
 	return retval;
 }
 
-static int ezusb_write_ltv(struct hermes *hw, int bap, u16 rid,
-			   u16 length, const void *data)
+static int __ezusb_write_ltv(struct hermes *hw, int bap, u16 rid,
+			   u16 length, const void *data,
+			   ezusb_ctx_wait ezusb_ctx_wait_func)
 {
 	struct ezusb_priv *upriv = hw->priv;
 	u16 frame_type;
@@ -973,11 +996,20 @@ static int ezusb_write_ltv(struct hermes *hw, int bap, u16 rid,
 		frame_type = EZUSB_FRAME_CONTROL;
 
 	return ezusb_access_ltv(upriv, ctx, length, data, frame_type,
-				NULL, 0, NULL);
+				NULL, 0, NULL, ezusb_ctx_wait_func);
 }
 
-static int ezusb_read_ltv(struct hermes *hw, int bap, u16 rid,
-			  unsigned bufsize, u16 *length, void *buf)
+static int ezusb_write_ltv(struct hermes *hw, int bap, u16 rid,
+			   u16 length, const void *data)
+{
+	return __ezusb_write_ltv(hw, bap, rid, length, data,
+				 ezusb_req_ctx_wait_poll);
+}
+
+static int __ezusb_read_ltv(struct hermes *hw, int bap, u16 rid,
+			    unsigned bufsize, u16 *length, void *buf,
+			    ezusb_ctx_wait ezusb_ctx_wait_func)
+
 {
 	struct ezusb_priv *upriv = hw->priv;
 	struct request_context *ctx;
@@ -990,34 +1022,33 @@ static int ezusb_read_ltv(struct hermes *hw, int bap, u16 rid,
 		return -ENOMEM;
 
 	return ezusb_access_ltv(upriv, ctx, 0, NULL, EZUSB_FRAME_CONTROL,
-				buf, bufsize, length);
+				buf, bufsize, length, ezusb_req_ctx_wait_poll);
+}
+
+static int ezusb_read_ltv(struct hermes *hw, int bap, u16 rid,
+			    unsigned bufsize, u16 *length, void *buf)
+{
+	return __ezusb_read_ltv(hw, bap, rid, bufsize, length, buf,
+				ezusb_req_ctx_wait_poll);
+}
+
+static int ezusb_read_ltv_preempt(struct hermes *hw, int bap, u16 rid,
+				  unsigned bufsize, u16 *length, void *buf)
+{
+	return __ezusb_read_ltv(hw, bap, rid, bufsize, length, buf,
+				ezusb_req_ctx_wait_compl);
 }
 
 static int ezusb_doicmd_wait(struct hermes *hw, u16 cmd, u16 parm0, u16 parm1,
 			     u16 parm2, struct hermes_response *resp)
 {
-	struct ezusb_priv *upriv = hw->priv;
-	struct request_context *ctx;
-
-	__le16 data[4] = {
-		cpu_to_le16(cmd),
-		cpu_to_le16(parm0),
-		cpu_to_le16(parm1),
-		cpu_to_le16(parm2),
-	};
-	netdev_dbg(upriv->dev,
-		   "0x%04X, parm0 0x%04X, parm1 0x%04X, parm2 0x%04X\n", cmd,
-		   parm0, parm1, parm2);
-	ctx = ezusb_alloc_ctx(upriv, EZUSB_RID_DOCMD, EZUSB_RID_ACK);
-	if (!ctx)
-		return -ENOMEM;
-
-	return ezusb_access_ltv(upriv, ctx, sizeof(data), &data,
-				EZUSB_FRAME_CONTROL, NULL, 0, NULL);
+	WARN_ON_ONCE(1);
+	return -EINVAL;
 }
 
-static int ezusb_docmd_wait(struct hermes *hw, u16 cmd, u16 parm0,
-			    struct hermes_response *resp)
+static int __ezusb_docmd_wait(struct hermes *hw, u16 cmd, u16 parm0,
+			    struct hermes_response *resp,
+			    ezusb_ctx_wait ezusb_ctx_wait_func)
 {
 	struct ezusb_priv *upriv = hw->priv;
 	struct request_context *ctx;
@@ -1034,7 +1065,14 @@ static int ezusb_docmd_wait(struct hermes *hw, u16 cmd, u16 parm0,
 		return -ENOMEM;
 
 	return ezusb_access_ltv(upriv, ctx, sizeof(data), &data,
-				EZUSB_FRAME_CONTROL, NULL, 0, NULL);
+				EZUSB_FRAME_CONTROL, NULL, 0, NULL,
+				ezusb_ctx_wait_func);
+}
+
+static int ezusb_docmd_wait(struct hermes *hw, u16 cmd, u16 parm0,
+			    struct hermes_response *resp)
+{
+	return __ezusb_docmd_wait(hw, cmd, parm0, resp, ezusb_req_ctx_wait_poll);
 }
 
 static int ezusb_bap_pread(struct hermes *hw, int bap,
@@ -1092,7 +1130,7 @@ static int ezusb_read_pda(struct hermes *hw, __le16 *pda,
 
 	return ezusb_access_ltv(upriv, ctx, sizeof(data), &data,
 				EZUSB_FRAME_CONTROL, &pda[2], pda_len - 4,
-				NULL);
+				NULL, ezusb_req_ctx_wait_compl);
 }
 
 static int ezusb_program_init(struct hermes *hw, u32 entry_point)
@@ -1106,7 +1144,8 @@ static int ezusb_program_init(struct hermes *hw, u32 entry_point)
 		return -ENOMEM;
 
 	return ezusb_access_ltv(upriv, ctx, sizeof(data), &data,
-				EZUSB_FRAME_CONTROL, NULL, 0, NULL);
+				EZUSB_FRAME_CONTROL, NULL, 0, NULL,
+				ezusb_req_ctx_wait_compl);
 }
 
 static int ezusb_program_end(struct hermes *hw)
@@ -1119,7 +1158,8 @@ static int ezusb_program_end(struct hermes *hw)
 		return -ENOMEM;
 
 	return ezusb_access_ltv(upriv, ctx, 0, NULL,
-				EZUSB_FRAME_CONTROL, NULL, 0, NULL);
+				EZUSB_FRAME_CONTROL, NULL, 0, NULL,
+				ezusb_req_ctx_wait_compl);
 }
 
 static int ezusb_program_bytes(struct hermes *hw, const char *buf,
@@ -1135,7 +1175,8 @@ static int ezusb_program_bytes(struct hermes *hw, const char *buf,
 		return -ENOMEM;
 
 	err = ezusb_access_ltv(upriv, ctx, sizeof(data), &data,
-			       EZUSB_FRAME_CONTROL, NULL, 0, NULL);
+			       EZUSB_FRAME_CONTROL, NULL, 0, NULL,
+			       ezusb_req_ctx_wait_compl);
 	if (err)
 		return err;
 
@@ -1144,7 +1185,8 @@ static int ezusb_program_bytes(struct hermes *hw, const char *buf,
 		return -ENOMEM;
 
 	return ezusb_access_ltv(upriv, ctx, len, buf,
-				EZUSB_FRAME_CONTROL, NULL, 0, NULL);
+				EZUSB_FRAME_CONTROL, NULL, 0, NULL,
+				ezusb_req_ctx_wait_compl);
 }
 
 static int ezusb_program(struct hermes *hw, const char *buf,
@@ -1223,19 +1265,19 @@ static netdev_tx_t ezusb_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (skb->len < ETH_HLEN)
 		goto drop;
 
-	ctx = ezusb_alloc_ctx(upriv, EZUSB_RID_TX, 0);
-	if (!ctx)
-		goto busy;
-
-	memset(ctx->buf, 0, BULK_BUF_SIZE);
-	buf = ctx->buf->data;
-
 	tx_control = 0;
 
 	err = orinoco_process_xmit_skb(skb, dev, priv, &tx_control,
 				       &mic[0]);
 	if (err)
 		goto drop;
+
+	ctx = ezusb_alloc_ctx(upriv, EZUSB_RID_TX, 0);
+	if (!ctx)
+		goto drop;
+
+	memset(ctx->buf, 0, BULK_BUF_SIZE);
+	buf = ctx->buf->data;
 
 	{
 		__le16 *tx_cntl = (__le16 *)buf;
@@ -1264,7 +1306,8 @@ static netdev_tx_t ezusb_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_size = ALIGN(buf - ctx->buf->data, 2);
 
 	err = ezusb_access_ltv(upriv, ctx, tx_size, NULL,
-			       EZUSB_FRAME_DATA, NULL, 0, NULL);
+			       EZUSB_FRAME_DATA, NULL, 0, NULL,
+			       ezusb_req_ctx_wait_skip);
 
 	if (err) {
 		netif_start_queue(dev);
@@ -1349,7 +1392,6 @@ static int ezusb_init(struct hermes *hw)
 	struct ezusb_priv *upriv = hw->priv;
 	int retval;
 
-	BUG_ON(in_interrupt());
 	if (!upriv)
 		return -EINVAL;
 
@@ -1362,14 +1404,16 @@ static int ezusb_init(struct hermes *hw)
 	usb_kill_urb(upriv->read_urb);
 	ezusb_submit_in_urb(upriv);
 
-	retval = ezusb_write_ltv(hw, 0, EZUSB_RID_INIT1,
-				 HERMES_BYTES_TO_RECLEN(2), "\x10\x00");
+	retval = __ezusb_write_ltv(hw, 0, EZUSB_RID_INIT1,
+				 HERMES_BYTES_TO_RECLEN(2), "\x10\x00",
+				 ezusb_req_ctx_wait_compl);
 	if (retval < 0) {
 		printk(KERN_ERR PFX "EZUSB_RID_INIT1 error %d\n", retval);
 		return retval;
 	}
 
-	retval = ezusb_docmd_wait(hw, HERMES_CMD_INIT, 0, NULL);
+	retval = __ezusb_docmd_wait(hw, HERMES_CMD_INIT, 0, NULL,
+				    ezusb_req_ctx_wait_compl);
 	if (retval < 0) {
 		printk(KERN_ERR PFX "HERMES_CMD_INIT error %d\n", retval);
 		return retval;
@@ -1448,7 +1492,6 @@ static inline void ezusb_delete(struct ezusb_priv *upriv)
 	struct list_head *tmp_item;
 	unsigned long flags;
 
-	BUG_ON(in_interrupt());
 	BUG_ON(!upriv);
 
 	mutex_lock(&upriv->mtx);
@@ -1533,6 +1576,7 @@ static const struct hermes_ops ezusb_ops = {
 	.init_cmd_wait = ezusb_doicmd_wait,
 	.allocate = ezusb_allocate,
 	.read_ltv = ezusb_read_ltv,
+	.read_ltv_pr = ezusb_read_ltv_preempt,
 	.write_ltv = ezusb_write_ltv,
 	.bap_pread = ezusb_bap_pread,
 	.read_pda = ezusb_read_pda,

@@ -519,13 +519,13 @@ static int tipc_topsrv_create_listener(struct tipc_topsrv *srv)
 		goto err;
 
 	saddr.family	                = AF_TIPC;
-	saddr.addrtype		        = TIPC_ADDR_NAMESEQ;
-	saddr.addr.nameseq.type	        = TIPC_TOP_SRV;
+	saddr.addrtype		        = TIPC_SERVICE_RANGE;
+	saddr.addr.nameseq.type	= TIPC_TOP_SRV;
 	saddr.addr.nameseq.lower	= TIPC_TOP_SRV;
 	saddr.addr.nameseq.upper	= TIPC_TOP_SRV;
 	saddr.scope			= TIPC_NODE_SCOPE;
 
-	rc = kernel_bind(lsock, (struct sockaddr *)&saddr, sizeof(saddr));
+	rc = tipc_sk_bind(lsock, (struct sockaddr *)&saddr, sizeof(saddr));
 	if (rc < 0)
 		goto err;
 	rc = kernel_listen(lsock, 0);

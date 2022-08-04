@@ -386,20 +386,32 @@ ENTRY(ce_aes_ctr_encrypt)
 .Lctrloop4x:
 	subs		r4, r4, #4
 	bmi		.Lctr1x
-	add		r6, r6, #1
+
+	/*
+	 * NOTE: the sequence below has been carefully tweaked to avoid
+	 * a silicon erratum that exists in Cortex-A57 (#1742098) and
+	 * Cortex-A72 (#1655431) cores, where AESE/AESMC instruction pairs
+	 * may produce an incorrect result if they take their input from a
+	 * register of which a single 32-bit lane has been updated the last
+	 * time it was modified. To work around this, the lanes of registers
+	 * q0-q3 below are not manipulated individually, and the different
+	 * counter values are prepared by successive manipulations of q7.
+	 */
+	add		ip, r6, #1
 	vmov		q0, q7
+	rev		ip, ip
+	add		lr, r6, #2
+	vmov		s31, ip			@ set lane 3 of q1 via q7
+	add		ip, r6, #3
+	rev		lr, lr
 	vmov		q1, q7
-	rev		ip, r6
-	add		r6, r6, #1
+	vmov		s31, lr			@ set lane 3 of q2 via q7
+	rev		ip, ip
 	vmov		q2, q7
-	vmov		s7, ip
-	rev		ip, r6
-	add		r6, r6, #1
+	vmov		s31, ip			@ set lane 3 of q3 via q7
+	add		r6, r6, #4
 	vmov		q3, q7
-	vmov		s11, ip
-	rev		ip, r6
-	add		r6, r6, #1
-	vmov		s15, ip
+
 	vld1.8		{q4-q5}, [r1]!
 	vld1.8		{q6}, [r1]!
 	vld1.8		{q15}, [r1]!

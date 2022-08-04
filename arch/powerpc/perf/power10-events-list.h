@@ -15,6 +15,9 @@ EVENT(PM_EXEC_STALL,				0x30008);
 EVENT(PM_RUN_INST_CMPL,				0x500fa);
 EVENT(PM_BR_CMPL,                               0x4d05e);
 EVENT(PM_BR_MPRED_CMPL,                         0x400f6);
+EVENT(PM_BR_FIN,				0x2f04a);
+EVENT(PM_MPRED_BR_FIN,				0x3e098);
+EVENT(PM_LD_DEMAND_MISS_L1_FIN,			0x400f0);
 
 /* All L1 D cache load references counted at finish, gated by reject */
 EVENT(PM_LD_REF_L1,				0x100fc);
@@ -36,6 +39,12 @@ EVENT(PM_IC_PREF_REQ,				0x040a0);
 EVENT(PM_DATA_FROM_L3,				0x01340000001c040);
 /* Demand LD - L3 Miss (not L2 hit and not L3 hit) */
 EVENT(PM_DATA_FROM_L3MISS,			0x300fe);
+/* All successful D-side store dispatches for this thread */
+EVENT(PM_L2_ST,					0x010000046080);
+/* All successful D-side store dispatches for this thread that were L2 Miss */
+EVENT(PM_L2_ST_MISS,				0x26880);
+/* Total HW L3 prefetches(Load+store) */
+EVENT(PM_L3_PF_MISS_L3,				0x100000016080);
 /* Data PTEG reload */
 EVENT(PM_DTLB_MISS,				0x300fc);
 /* ITLB Reloaded */

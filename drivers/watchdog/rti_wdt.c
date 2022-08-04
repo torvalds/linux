@@ -227,8 +227,10 @@ static int rti_wdt_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
-	if (ret)
+	if (ret) {
+		pm_runtime_put_noidle(dev);
 		return dev_err_probe(dev, ret, "runtime pm failed\n");
+	}
 
 	platform_set_drvdata(pdev, wdt);
 

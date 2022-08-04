@@ -239,6 +239,11 @@
 					status = "disabled";
 				};
 
+				silicon-id@7c {
+					compatible = "aspeed,ast2500-silicon-id", "aspeed,silicon-id";
+					reg = <0x7c 0x4 0x150 0x8>;
+				};
+
 				pinctrl: pinctrl@80 {
 					compatible = "aspeed,ast2500-pinctrl";
 					reg = <0x80 0x18>, <0xa0 0x10>;

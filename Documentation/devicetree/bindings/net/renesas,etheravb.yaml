@@ -163,6 +163,7 @@ allOf:
             enum:
               - renesas,etheravb-r8a774a1
               - renesas,etheravb-r8a774b1
+              - renesas,etheravb-r8a774e1
               - renesas,etheravb-r8a7795
               - renesas,etheravb-r8a7796
               - renesas,etheravb-r8a77961

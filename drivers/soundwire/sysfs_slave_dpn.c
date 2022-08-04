@@ -37,6 +37,7 @@ static int field##_attribute_alloc(struct device *dev,			\
 		return -ENOMEM;						\
 	dpn_attr->N = N;						\
 	dpn_attr->dir = dir;						\
+	sysfs_attr_init(&dpn_attr->dev_attr.attr);			\
 	dpn_attr->format_string = format_string;			\
 	dpn_attr->dev_attr.attr.name = __stringify(field);		\
 	dpn_attr->dev_attr.attr.mode = 0444;				\

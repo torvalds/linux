@@ -1090,7 +1090,7 @@ static int dr_ste_build_eth_l2_src_des_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_eth_l2_src_des(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_eth_l2_src_dst(struct mlx5dr_ste_build *sb,
 				     struct mlx5dr_match_param *mask,
 				     bool inner, bool rx)
 {
@@ -1594,9 +1594,9 @@ static int dr_ste_build_ipv6_l3_l4_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_ipv6_l3_l4(struct mlx5dr_ste_build *sb,
-				 struct mlx5dr_match_param *mask,
-				 bool inner, bool rx)
+void mlx5dr_ste_build_eth_ipv6_l3_l4(struct mlx5dr_ste_build *sb,
+				     struct mlx5dr_match_param *mask,
+				     bool inner, bool rx)
 {
 	dr_ste_build_ipv6_l3_l4_bit_mask(mask, inner, sb->bit_mask);
 
@@ -1693,8 +1693,8 @@ static int dr_ste_build_gre_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_gre(struct mlx5dr_ste_build *sb,
-			  struct mlx5dr_match_param *mask, bool inner, bool rx)
+void mlx5dr_ste_build_tnl_gre(struct mlx5dr_ste_build *sb,
+			      struct mlx5dr_match_param *mask, bool inner, bool rx)
 {
 	dr_ste_build_gre_bit_mask(mask, inner, sb->bit_mask);
 
@@ -1771,9 +1771,9 @@ static int dr_ste_build_flex_parser_0_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_flex_parser_0(struct mlx5dr_ste_build *sb,
-				    struct mlx5dr_match_param *mask,
-				    bool inner, bool rx)
+void mlx5dr_ste_build_tnl_mpls(struct mlx5dr_ste_build *sb,
+			       struct mlx5dr_match_param *mask,
+			       bool inner, bool rx)
 {
 	dr_ste_build_flex_parser_0_bit_mask(mask, inner, sb->bit_mask);
 
@@ -1792,8 +1792,8 @@ static int dr_ste_build_flex_parser_1_bit_mask(struct mlx5dr_match_param *mask,
 					       struct mlx5dr_cmd_caps *caps,
 					       u8 *bit_mask)
 {
+	bool is_ipv4_mask = DR_MASK_IS_ICMPV4_SET(&mask->misc3);
 	struct mlx5dr_match_misc3 *misc_3_mask = &mask->misc3;
-	bool is_ipv4_mask = DR_MASK_IS_FLEX_PARSER_ICMPV4_SET(misc_3_mask);
 	u32 icmp_header_data_mask;
 	u32 icmp_type_mask;
 	u32 icmp_code_mask;
@@ -1869,7 +1869,7 @@ static int dr_ste_build_flex_parser_1_tag(struct mlx5dr_match_param *value,
 	u32 icmp_code;
 	bool is_ipv4;
 
-	is_ipv4 = DR_MASK_IS_FLEX_PARSER_ICMPV4_SET(misc_3);
+	is_ipv4 = DR_MASK_IS_ICMPV4_SET(misc_3);
 	if (is_ipv4) {
 		icmp_header_data	= misc_3->icmpv4_header_data;
 		icmp_type		= misc_3->icmpv4_type;
@@ -1928,10 +1928,10 @@ static int dr_ste_build_flex_parser_1_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-int mlx5dr_ste_build_flex_parser_1(struct mlx5dr_ste_build *sb,
-				   struct mlx5dr_match_param *mask,
-				   struct mlx5dr_cmd_caps *caps,
-				   bool inner, bool rx)
+int mlx5dr_ste_build_icmp(struct mlx5dr_ste_build *sb,
+			  struct mlx5dr_match_param *mask,
+			  struct mlx5dr_cmd_caps *caps,
+			  bool inner, bool rx)
 {
 	int ret;
 
@@ -2069,9 +2069,9 @@ dr_ste_build_flex_parser_tnl_vxlan_gpe_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_flex_parser_tnl_vxlan_gpe(struct mlx5dr_ste_build *sb,
-						struct mlx5dr_match_param *mask,
-						bool inner, bool rx)
+void mlx5dr_ste_build_tnl_vxlan_gpe(struct mlx5dr_ste_build *sb,
+				    struct mlx5dr_match_param *mask,
+				    bool inner, bool rx)
 {
 	dr_ste_build_flex_parser_tnl_vxlan_gpe_bit_mask(mask, inner,
 							sb->bit_mask);
@@ -2122,9 +2122,9 @@ dr_ste_build_flex_parser_tnl_geneve_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_flex_parser_tnl_geneve(struct mlx5dr_ste_build *sb,
-					     struct mlx5dr_match_param *mask,
-					     bool inner, bool rx)
+void mlx5dr_ste_build_tnl_geneve(struct mlx5dr_ste_build *sb,
+				 struct mlx5dr_match_param *mask,
+				 bool inner, bool rx)
 {
 	dr_ste_build_flex_parser_tnl_geneve_bit_mask(mask, sb->bit_mask);
 	sb->rx = rx;

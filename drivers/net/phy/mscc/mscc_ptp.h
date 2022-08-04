@@ -436,11 +436,6 @@ enum ptp_cmd {
 	PTP_SAVE_IN_TS_FIFO = 11, /* invalid when writing in reg */
 };
 
-enum vsc85xx_ptp_msg_type {
-	PTP_MSG_TYPE_SYNC,
-	PTP_MSG_TYPE_DELAY_REQ,
-};
-
 struct vsc85xx_ptphdr {
 	u8 tsmt; /* transportSpecific | messageType */
 	u8 ver;  /* reserved0 | versionPTP */

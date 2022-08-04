@@ -1191,7 +1191,7 @@ static ssize_t ibdev_show(struct device *dev, struct device_attribute *attr,
 	if (!port)
 		return -ENODEV;
 
-	return sprintf(buf, "%s\n", dev_name(&port->ib_dev->dev));
+	return sysfs_emit(buf, "%s\n", dev_name(&port->ib_dev->dev));
 }
 static DEVICE_ATTR_RO(ibdev);
 
@@ -1203,7 +1203,7 @@ static ssize_t port_show(struct device *dev, struct device_attribute *attr,
 	if (!port)
 		return -ENODEV;
 
-	return sprintf(buf, "%d\n", port->port_num);
+	return sysfs_emit(buf, "%d\n", port->port_num);
 }
 static DEVICE_ATTR_RO(port);
 
@@ -1222,7 +1222,7 @@ static char *umad_devnode(struct device *dev, umode_t *mode)
 static ssize_t abi_version_show(struct class *class,
 				struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", IB_USER_MAD_ABI_VERSION);
+	return sysfs_emit(buf, "%d\n", IB_USER_MAD_ABI_VERSION);
 }
 static CLASS_ATTR_RO(abi_version);
 

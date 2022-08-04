@@ -66,7 +66,7 @@
 		mcde@a0350000 {
 			status = "okay";
 
-			dsi-controller@a0351000 {
+			dsi@a0351000 {
 				panel {
 					compatible = "samsung,s6d16d0";
 					reg = <0>;

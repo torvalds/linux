@@ -175,7 +175,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	codec: wm8960@1a {
+	codec: audio-codec@1a {
 		compatible = "wlf,wm8960";
 		reg = <0x1a>;
 		clocks = <&pmu_system_controller 0>;

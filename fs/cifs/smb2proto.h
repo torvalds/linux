@@ -200,8 +200,8 @@ extern int SMB2_query_info_init(struct cifs_tcon *tcon,
 				size_t input_len, void *input);
 extern void SMB2_query_info_free(struct smb_rqst *rqst);
 extern int SMB2_query_acl(const unsigned int xid, struct cifs_tcon *tcon,
-			   u64 persistent_file_id, u64 volatile_file_id,
-			   void **data, unsigned int *plen);
+			  u64 persistent_file_id, u64 volatile_file_id,
+			  void **data, unsigned int *plen, u32 info);
 extern int SMB2_get_srv_num(const unsigned int xid, struct cifs_tcon *tcon,
 			    u64 persistent_fid, u64 volatile_fid,
 			    __le64 *uniqueid);

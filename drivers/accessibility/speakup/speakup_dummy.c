@@ -80,6 +80,11 @@ static struct attribute *synth_attrs[] = {
 	NULL,	/* need to NULL terminate the list of attributes */
 };
 
+static void read_buff_add(u_char c)
+{
+	pr_info("speakup_dummy: got character %02x\n", c);
+}
+
 static struct spk_synth synth_dummy = {
 	.name = "dummy",
 	.version = DRV_VERSION,
@@ -103,7 +108,7 @@ static struct spk_synth synth_dummy = {
 	.flush = spk_synth_flush,
 	.is_alive = spk_synth_is_alive_restart,
 	.synth_adjust = NULL,
-	.read_buff_add = NULL,
+	.read_buff_add = read_buff_add,
 	.get_index = NULL,
 	.indexing = {
 		.command = NULL,

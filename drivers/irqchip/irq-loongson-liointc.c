@@ -142,8 +142,8 @@ static void liointc_resume(struct irq_chip_generic *gc)
 
 static const char * const parent_names[] = {"int0", "int1", "int2", "int3"};
 
-int __init liointc_of_init(struct device_node *node,
-				struct device_node *parent)
+static int __init liointc_of_init(struct device_node *node,
+				  struct device_node *parent)
 {
 	struct irq_chip_generic *gc;
 	struct irq_domain *domain;

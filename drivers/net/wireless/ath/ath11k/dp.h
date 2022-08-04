@@ -40,6 +40,7 @@ struct dp_rx_tid {
 
 #define DP_REO_DESC_FREE_THRESHOLD  64
 #define DP_REO_DESC_FREE_TIMEOUT_MS 1000
+#define DP_MON_PURGE_TIMEOUT_MS     100
 #define DP_MON_SERVICE_BUDGET       128
 
 struct dp_reo_cache_flush_elem {
@@ -423,7 +424,7 @@ enum htt_srng_ring_id {
  *                     Used only by Consumer ring to generate ring_sw_int_p.
  *                     Ring entries low threshold water mark, that is used
  *                     in combination with the interrupt timer as well as
- *                     the the clearing of the level interrupt.
+ *                     the clearing of the level interrupt.
  *           b'16:18 - prefetch_timer_cfg:
  *                     Used only by Consumer ring to set timer mode to
  *                     support Application prefetch handling.
@@ -1640,5 +1641,6 @@ void ath11k_dp_shadow_stop_timer(struct ath11k_base *ab,
 void ath11k_dp_shadow_init_timer(struct ath11k_base *ab,
 				 struct ath11k_hp_update_timer *update_timer,
 				 u32 interval, u32 ring_id);
+void ath11k_dp_stop_shadow_timers(struct ath11k_base *ab);
 
 #endif

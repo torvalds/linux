@@ -102,7 +102,7 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 		goto out_free_idr;
 	ns->ns.ops = &pidns_operations;
 
-	kref_init(&ns->kref);
+	refcount_set(&ns->ns.count, 1);
 	ns->level = level;
 	ns->parent = get_pid_ns(parent_pid_ns);
 	ns->user_ns = get_user_ns(user_ns);
@@ -148,22 +148,15 @@ struct pid_namespace *copy_pid_ns(unsigned long flags,
 	return create_pid_namespace(user_ns, old_ns);
 }
 
-static void free_pid_ns(struct kref *kref)
-{
-	struct pid_namespace *ns;
-
-	ns = container_of(kref, struct pid_namespace, kref);
-	destroy_pid_namespace(ns);
-}
-
 void put_pid_ns(struct pid_namespace *ns)
 {
 	struct pid_namespace *parent;
 
 	while (ns != &init_pid_ns) {
 		parent = ns->parent;
-		if (!kref_put(&ns->kref, free_pid_ns))
+		if (!refcount_dec_and_test(&ns->ns.count))
 			break;
+		destroy_pid_namespace(ns);
 		ns = parent;
 	}
 }

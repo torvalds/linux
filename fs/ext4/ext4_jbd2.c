@@ -296,8 +296,8 @@ int __ext4_forget(const char *where, unsigned int line, handle_t *handle,
 	if (err) {
 		ext4_journal_abort_handle(where, line, __func__,
 					  bh, handle, err);
-		__ext4_abort(inode->i_sb, where, line, -err,
-			   "error %d when attempting revoke", err);
+		__ext4_error(inode->i_sb, where, line, true, -err, 0,
+			     "error %d when attempting revoke", err);
 	}
 	BUFFER_TRACE(bh, "exit");
 	return err;
@@ -370,22 +370,5 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 			}
 		}
 	}
-	return err;
-}
-
-int __ext4_handle_dirty_super(const char *where, unsigned int line,
-			      handle_t *handle, struct super_block *sb)
-{
-	struct buffer_head *bh = EXT4_SB(sb)->s_sbh;
-	int err = 0;
-
-	ext4_superblock_csum_set(sb);
-	if (ext4_handle_valid(handle)) {
-		err = jbd2_journal_dirty_metadata(handle, bh);
-		if (err)
-			ext4_journal_abort_handle(where, line, __func__,
-						  bh, handle, err);
-	} else
-		mark_buffer_dirty(bh);
 	return err;
 }

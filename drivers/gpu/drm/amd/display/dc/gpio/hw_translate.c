@@ -50,8 +50,6 @@
 #include "dcn10/hw_translate_dcn10.h"
 #include "dcn20/hw_translate_dcn20.h"
 #include "dcn21/hw_translate_dcn21.h"
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 #include "dcn30/hw_translate_dcn30.h"
 #endif
 
@@ -99,16 +97,15 @@ bool dal_hw_translate_init(
 	case DCN_VERSION_1_01:
 		dal_hw_translate_dcn10_init(translate);
 		return true;
-
 	case DCN_VERSION_2_0:
 		dal_hw_translate_dcn20_init(translate);
 		return true;
 	case DCN_VERSION_2_1:
 		dal_hw_translate_dcn21_init(translate);
 		return true;
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	case DCN_VERSION_3_0:
+	case DCN_VERSION_3_01:
+	case DCN_VERSION_3_02:
 		dal_hw_translate_dcn30_init(translate);
 		return true;
 #endif

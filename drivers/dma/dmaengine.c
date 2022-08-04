@@ -1110,7 +1110,6 @@ static void __dma_async_device_channel_unregister(struct dma_device *device,
 		  "%s called while %d clients hold a reference\n",
 		  __func__, chan->client_count);
 	mutex_lock(&dma_list_mutex);
-	list_del(&chan->device_node);
 	device->chancnt--;
 	chan->dev->chan = NULL;
 	mutex_unlock(&dma_list_mutex);

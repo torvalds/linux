@@ -91,7 +91,7 @@ int ql_soft_reset_mpi_risc(struct ql_adapter *qdev)
 	return ql_write_mpi_reg(qdev, 0x00001010, 1);
 }
 
-/* Determine if we are in charge of the firwmare. If
+/* Determine if we are in charge of the firmware. If
  * we are the lower of the 2 NIC pcie functions, or if
  * we are the higher function and the lower function
  * is not enabled.

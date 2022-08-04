@@ -33,11 +33,6 @@
 #include <os.h>
 #include "vhost_user.h"
 
-/* Workaround due to a conflict between irq_user.h and irqreturn.h */
-#ifdef IRQ_NONE
-#undef IRQ_NONE
-#endif
-
 #define MAX_SUPPORTED_QUEUE_SIZE	256
 
 #define to_virtio_uml_device(_vdev) \
@@ -55,7 +50,7 @@ struct virtio_uml_device {
 	struct platform_device *pdev;
 
 	spinlock_t sock_lock;
-	int sock, req_fd;
+	int sock, req_fd, irq;
 	u64 features;
 	u64 protocol_features;
 	u8 status;
@@ -409,11 +404,13 @@ static int vhost_user_init_slave_req(struct virtio_uml_device *vu_dev)
 		return rc;
 	vu_dev->req_fd = req_fds[0];
 
-	rc = um_request_irq(VIRTIO_IRQ, vu_dev->req_fd, IRQ_READ,
+	rc = um_request_irq(UM_IRQ_ALLOC, vu_dev->req_fd, IRQ_READ,
 			    vu_req_interrupt, IRQF_SHARED,
 			    vu_dev->pdev->name, vu_dev);
-	if (rc)
+	if (rc < 0)
 		goto err_close;
+
+	vu_dev->irq = rc;
 
 	rc = vhost_user_send_no_payload_fd(vu_dev, VHOST_USER_SET_SLAVE_REQ_FD,
 					   req_fds[1]);
@@ -423,7 +420,7 @@ static int vhost_user_init_slave_req(struct virtio_uml_device *vu_dev)
 	goto out;
 
 err_free_irq:
-	um_free_irq(VIRTIO_IRQ, vu_dev);
+	um_free_irq(vu_dev->irq, vu_dev);
 err_close:
 	os_close_file(req_fds[0]);
 out:
@@ -802,7 +799,11 @@ static void vu_del_vq(struct virtqueue *vq)
 	struct virtio_uml_vq_info *info = vq->priv;
 
 	if (info->call_fd >= 0) {
-		um_free_irq(VIRTIO_IRQ, vq);
+		struct virtio_uml_device *vu_dev;
+
+		vu_dev = to_virtio_uml_device(vq->vdev);
+
+		um_free_irq(vu_dev->irq, vq);
 		os_close_file(info->call_fd);
 	}
 
@@ -852,9 +853,9 @@ static int vu_setup_vq_call_fd(struct virtio_uml_device *vu_dev,
 		return rc;
 
 	info->call_fd = call_fds[0];
-	rc = um_request_irq(VIRTIO_IRQ, info->call_fd, IRQ_READ,
+	rc = um_request_irq(vu_dev->irq, info->call_fd, IRQ_READ,
 			    vu_interrupt, IRQF_SHARED, info->name, vq);
-	if (rc)
+	if (rc < 0)
 		goto close_both;
 
 	rc = vhost_user_set_vring_call(vu_dev, vq->index, call_fds[1]);
@@ -864,7 +865,7 @@ static int vu_setup_vq_call_fd(struct virtio_uml_device *vu_dev,
 	goto out;
 
 release_irq:
-	um_free_irq(VIRTIO_IRQ, vq);
+	um_free_irq(vu_dev->irq, vq);
 close_both:
 	os_close_file(call_fds[0]);
 out:
@@ -969,7 +970,7 @@ static struct virtqueue *vu_setup_vq(struct virtio_device *vdev,
 
 error_setup:
 	if (info->call_fd >= 0) {
-		um_free_irq(VIRTIO_IRQ, vq);
+		um_free_irq(vu_dev->irq, vq);
 		os_close_file(info->call_fd);
 	}
 error_call:
@@ -1078,11 +1079,12 @@ static void virtio_uml_release_dev(struct device *d)
 
 	/* might not have been opened due to not negotiating the feature */
 	if (vu_dev->req_fd >= 0) {
-		um_free_irq(VIRTIO_IRQ, vu_dev);
+		um_free_irq(vu_dev->irq, vu_dev);
 		os_close_file(vu_dev->req_fd);
 	}
 
 	os_close_file(vu_dev->sock);
+	kfree(vu_dev);
 }
 
 /* Platform device */
@@ -1096,7 +1098,7 @@ static int virtio_uml_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -EINVAL;
 
-	vu_dev = devm_kzalloc(&pdev->dev, sizeof(*vu_dev), GFP_KERNEL);
+	vu_dev = kzalloc(sizeof(*vu_dev), GFP_KERNEL);
 	if (!vu_dev)
 		return -ENOMEM;
 

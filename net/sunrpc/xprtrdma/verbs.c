@@ -167,7 +167,7 @@ static void rpcrdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 	struct rpcrdma_xprt *r_xprt = cq->cq_context;
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
-	trace_xprtrdma_wc_send(sc, wc);
+	trace_xprtrdma_wc_send(wc, &sc->sc_cid);
 	rpcrdma_sendctx_put_locked(r_xprt, sc);
 	rpcrdma_flush_disconnect(r_xprt, wc);
 }
@@ -186,7 +186,7 @@ static void rpcrdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	struct rpcrdma_xprt *r_xprt = cq->cq_context;
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
-	trace_xprtrdma_wc_receive(wc);
+	trace_xprtrdma_wc_receive(wc, &rep->rr_cid);
 	--r_xprt->rx_ep->re_receive_count;
 	if (wc->status != IB_WC_SUCCESS)
 		goto out_flushed;
@@ -643,6 +643,9 @@ static struct rpcrdma_sendctx *rpcrdma_sendctx_create(struct rpcrdma_ep *ep)
 		return NULL;
 
 	sc->sc_cqe.done = rpcrdma_wc_send;
+	sc->sc_cid.ci_queue_id = ep->re_attr.send_cq->res.id;
+	sc->sc_cid.ci_completion_id =
+		atomic_inc_return(&ep->re_completion_ids);
 	return sc;
 }
 
@@ -972,6 +975,9 @@ struct rpcrdma_rep *rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt,
 	if (!rpcrdma_regbuf_dma_map(r_xprt, rep->rr_rdmabuf))
 		goto out_free_regbuf;
 
+	rep->rr_cid.ci_completion_id =
+		atomic_inc_return(&r_xprt->rx_ep->re_completion_ids);
+
 	xdr_buf_init(&rep->rr_hdrbuf, rdmab_data(rep->rr_rdmabuf),
 		     rdmab_length(rep->rr_rdmabuf));
 	rep->rr_cqe.done = rpcrdma_wc_receive;
@@ -1176,25 +1182,6 @@ rpcrdma_mr_get(struct rpcrdma_xprt *r_xprt)
 	mr = rpcrdma_mr_pop(&buf->rb_mrs);
 	spin_unlock(&buf->rb_lock);
 	return mr;
-}
-
-/**
- * rpcrdma_mr_put - DMA unmap an MR and release it
- * @mr: MR to release
- *
- */
-void rpcrdma_mr_put(struct rpcrdma_mr *mr)
-{
-	struct rpcrdma_xprt *r_xprt = mr->mr_xprt;
-
-	if (mr->mr_dir != DMA_NONE) {
-		trace_xprtrdma_mr_unmap(mr);
-		ib_dma_unmap_sg(r_xprt->rx_ep->re_id->device,
-				mr->mr_sg, mr->mr_nents, mr->mr_dir);
-		mr->mr_dir = DMA_NONE;
-	}
-
-	rpcrdma_mr_push(mr, &mr->mr_req->rl_free_mrs);
 }
 
 /**
@@ -1411,6 +1398,7 @@ void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
 		if (!rep)
 			break;
 
+		rep->rr_cid.ci_queue_id = ep->re_attr.recv_cq->res.id;
 		trace_xprtrdma_post_recv(rep);
 		rep->rr_recv_wr.next = wr;
 		wr = &rep->rr_recv_wr;

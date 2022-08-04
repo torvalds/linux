@@ -434,9 +434,9 @@ static void ocrdma_dealloc_ucontext_pd(struct ocrdma_ucontext *uctx)
 		pr_err("%s(%d) Freeing in use pdid=0x%x.\n",
 		       __func__, dev->id, pd->id);
 	}
-	kfree(uctx->cntxt_pd);
 	uctx->cntxt_pd = NULL;
 	_ocrdma_dealloc_pd(dev, pd);
+	kfree(pd);
 }
 
 static struct ocrdma_pd *ocrdma_get_ucontext_pd(struct ocrdma_ucontext *uctx)
@@ -974,7 +974,7 @@ int ocrdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	struct ocrdma_create_cq_ureq ureq;
 
 	if (attr->flags)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (udata) {
 		if (ib_copy_from_udata(&ureq, udata, sizeof(ureq)))
@@ -1299,6 +1299,9 @@ struct ib_qp *ocrdma_create_qp(struct ib_pd *ibpd,
 	struct ocrdma_create_qp_ureq ureq;
 	u16 dpp_credit_lmt, dpp_offset;
 
+	if (attrs->create_flags)
+		return ERR_PTR(-EOPNOTSUPP);
+
 	status = ocrdma_check_qp_params(ibpd, dev, attrs, udata);
 	if (status)
 		goto gen_err;
@@ -1390,6 +1393,9 @@ int ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	struct ocrdma_qp *qp;
 	struct ocrdma_dev *dev;
 	enum ib_qp_state old_qps, new_qps;
+
+	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
+		return -EOPNOTSUPP;
 
 	qp = get_ocrdma_qp(ibqp);
 	dev = get_ocrdma_dev(ibqp->device);
@@ -1769,6 +1775,9 @@ int ocrdma_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init_attr,
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibsrq->pd);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibsrq->device);
 	struct ocrdma_srq *srq = get_ocrdma_srq(ibsrq);
+
+	if (init_attr->srq_type != IB_SRQT_BASIC)
+		return -EOPNOTSUPP;
 
 	if (init_attr->attr.max_sge > dev->attr.max_recv_sge)
 		return -EINVAL;

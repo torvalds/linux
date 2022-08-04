@@ -270,7 +270,7 @@ static struct i2c_driver max77686_i2c_driver = {
 	.driver = {
 		   .name = "max77686",
 		   .pm = &max77686_pm,
-		   .of_match_table = of_match_ptr(max77686_pmic_dt_match),
+		   .of_match_table = max77686_pmic_dt_match,
 	},
 	.probe_new = max77686_i2c_probe,
 };

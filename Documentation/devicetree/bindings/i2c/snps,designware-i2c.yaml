@@ -66,21 +66,18 @@ properties:
     default: 400000
 
   i2c-sda-hold-time-ns:
-    maxItems: 1
     description: |
       The property should contain the SDA hold time in nanoseconds. This option
       is only supported in hardware blocks version 1.11a or newer or on
       Microsemi SoCs.
 
   i2c-scl-falling-time-ns:
-    maxItems: 1
     description: |
       The property should contain the SCL falling time in nanoseconds.
       This value is used to compute the tLOW period.
     default: 300
 
   i2c-sda-falling-time-ns:
-    maxItems: 1
     description: |
       The property should contain the SDA falling time in nanoseconds.
       This value is used to compute the tHIGH period.
@@ -101,8 +98,6 @@ unevaluatedProperties: false
 required:
   - compatible
   - reg
-  - "#address-cells"
-  - "#size-cells"
   - interrupts
 
 examples:
@@ -110,8 +105,6 @@ examples:
     i2c@f0000 {
       compatible = "snps,designware-i2c";
       reg = <0xf0000 0x1000>;
-      #address-cells = <1>;
-      #size-cells = <0>;
       interrupts = <11>;
       clock-frequency = <400000>;
     };
@@ -119,8 +112,6 @@ examples:
     i2c@1120000 {
       compatible = "snps,designware-i2c";
       reg = <0x1120000 0x1000>;
-      #address-cells = <1>;
-      #size-cells = <0>;
       interrupts = <12 1>;
       clock-frequency = <400000>;
       i2c-sda-hold-time-ns = <300>;
@@ -148,8 +139,6 @@ examples:
       reg = <0x100400 0x100>, <0x198 0x8>;
       pinctrl-0 = <&i2c_pins>;
       pinctrl-names = "default";
-      #address-cells = <1>;
-      #size-cells = <0>;
       interrupts = <8>;
       clocks = <&ahb_clk>;
     };

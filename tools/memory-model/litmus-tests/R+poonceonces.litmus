@@ -8,7 +8,10 @@ C R+poonceonces
  * store propagation delays.
  *)
 
-{}
+{
+	int x;
+	int y;
+}
 
 P0(int *x, int *y)
 {

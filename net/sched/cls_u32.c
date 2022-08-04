@@ -1171,7 +1171,6 @@ static int u32_reoffload_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 	struct tc_u_hnode *ht = rtnl_dereference(n->ht_down);
 	struct tcf_block *block = tp->chain->block;
 	struct tc_cls_u32_offload cls_u32 = {};
-	int err;
 
 	tc_cls_common_offload_init(&cls_u32.common, tp, n->flags, extack);
 	cls_u32.command = add ?
@@ -1194,13 +1193,9 @@ static int u32_reoffload_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 			cls_u32.knode.link_handle = ht->handle;
 	}
 
-	err = tc_setup_cb_reoffload(block, tp, add, cb, TC_SETUP_CLSU32,
-				    &cls_u32, cb_priv, &n->flags,
-				    &n->in_hw_count);
-	if (err)
-		return err;
-
-	return 0;
+	return tc_setup_cb_reoffload(block, tp, add, cb, TC_SETUP_CLSU32,
+				     &cls_u32, cb_priv, &n->flags,
+				     &n->in_hw_count);
 }
 
 static int u32_reoffload(struct tcf_proto *tp, bool add, flow_setup_cb_t *cb,

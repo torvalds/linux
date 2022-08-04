@@ -2862,6 +2862,8 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	jpeg->variant = jpeg_get_drv_data(&pdev->dev);
+	if (!jpeg->variant)
+		return -ENODEV;
 
 	mutex_init(&jpeg->lock);
 	spin_lock_init(&jpeg->slock);

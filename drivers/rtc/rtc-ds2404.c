@@ -234,7 +234,7 @@ static int rtc_probe(struct platform_device *pdev)
 	chip->rtc->ops = &ds2404_rtc_ops;
 	chip->rtc->range_max = U32_MAX;
 
-	retval = rtc_register_device(chip->rtc);
+	retval = devm_rtc_register_device(chip->rtc);
 	if (retval)
 		return retval;
 

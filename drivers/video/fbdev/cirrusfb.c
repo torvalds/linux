@@ -531,7 +531,7 @@ static int cirrusfb_check_var(struct fb_var_screeninfo *var,
 {
 	int yres;
 	/* memory size in pixels */
-	unsigned pixels = info->screen_size * 8 / var->bits_per_pixel;
+	unsigned int pixels;
 	struct cirrusfb_info *cinfo = info->par;
 
 	switch (var->bits_per_pixel) {
@@ -573,6 +573,7 @@ static int cirrusfb_check_var(struct fb_var_screeninfo *var,
 		return -EINVAL;
 	}
 
+	pixels = info->screen_size * 8 / var->bits_per_pixel;
 	if (var->xres_virtual < var->xres)
 		var->xres_virtual = var->xres;
 	/* use highest possible virtual resolution */

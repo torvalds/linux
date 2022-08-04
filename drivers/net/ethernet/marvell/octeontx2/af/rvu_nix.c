@@ -17,6 +17,7 @@
 #include "npc.h"
 #include "cgx.h"
 
+static void nix_free_tx_vtag_entries(struct rvu *rvu, u16 pcifunc);
 static int rvu_nix_get_bpid(struct rvu *rvu, struct nix_bp_cfg_req *req,
 			    int type, int chan_id);
 
@@ -68,6 +69,23 @@ struct mce {
 	u16			pcifunc;
 };
 
+int rvu_get_next_nix_blkaddr(struct rvu *rvu, int blkaddr)
+{
+	int i = 0;
+
+	/*If blkaddr is 0, return the first nix block address*/
+	if (blkaddr == 0)
+		return rvu->nix_blkaddr[blkaddr];
+
+	while (i + 1 < MAX_NIX_BLKS) {
+		if (rvu->nix_blkaddr[i] == blkaddr)
+			return rvu->nix_blkaddr[i + 1];
+		i++;
+	}
+
+	return 0;
+}
+
 bool is_nixlf_attached(struct rvu *rvu, u16 pcifunc)
 {
 	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
@@ -81,14 +99,16 @@ bool is_nixlf_attached(struct rvu *rvu, u16 pcifunc)
 
 int rvu_get_nixlf_count(struct rvu *rvu)
 {
+	int blkaddr = 0, max = 0;
 	struct rvu_block *block;
-	int blkaddr;
 
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, 0);
-	if (blkaddr < 0)
-		return 0;
-	block = &rvu->hw->block[blkaddr];
-	return block->lf.max;
+	blkaddr = rvu_get_next_nix_blkaddr(rvu, blkaddr);
+	while (blkaddr) {
+		block = &rvu->hw->block[blkaddr];
+		max += block->lf.max;
+		blkaddr = rvu_get_next_nix_blkaddr(rvu, blkaddr);
+	}
+	return max;
 }
 
 int nix_get_nixlf(struct rvu *rvu, u16 pcifunc, int *nixlf, int *nix_blkaddr)
@@ -130,11 +150,18 @@ static u16 nix_alloc_mce_list(struct nix_mcast *mcast, int count)
 	return idx;
 }
 
-static inline struct nix_hw *get_nix_hw(struct rvu_hwinfo *hw, int blkaddr)
+struct nix_hw *get_nix_hw(struct rvu_hwinfo *hw, int blkaddr)
 {
-	if (blkaddr == BLKADDR_NIX0 && hw->nix0)
-		return hw->nix0;
+	int nix_blkaddr = 0, i = 0;
+	struct rvu *rvu = hw->rvu;
 
+	nix_blkaddr = rvu_get_next_nix_blkaddr(rvu, nix_blkaddr);
+	while (nix_blkaddr) {
+		if (blkaddr == nix_blkaddr && hw->nix)
+			return &hw->nix[i];
+		nix_blkaddr = rvu_get_next_nix_blkaddr(rvu, nix_blkaddr);
+		i++;
+	}
 	return NULL;
 }
 
@@ -187,8 +214,8 @@ static bool is_valid_txschq(struct rvu *rvu, int blkaddr,
 static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf)
 {
 	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
+	int pkind, pf, vf, lbkid;
 	u8 cgx_id, lmac_id;
-	int pkind, pf, vf;
 	int err;
 
 	pf = rvu_get_pf(pcifunc);
@@ -221,13 +248,24 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf)
 	case NIX_INTF_TYPE_LBK:
 		vf = (pcifunc & RVU_PFVF_FUNC_MASK) - 1;
 
+		/* If NIX1 block is present on the silicon then NIXes are
+		 * assigned alternatively for lbk interfaces. NIX0 should
+		 * send packets on lbk link 1 channels and NIX1 should send
+		 * on lbk link 0 channels for the communication between
+		 * NIX0 and NIX1.
+		 */
+		lbkid = 0;
+		if (rvu->hw->lbk_links > 1)
+			lbkid = vf & 0x1 ? 0 : 1;
+
 		/* Note that AF's VFs work in pairs and talk over consecutive
 		 * loopback channels.Therefore if odd number of AF VFs are
 		 * enabled then the last VF remains with no pair.
 		 */
-		pfvf->rx_chan_base = NIX_CHAN_LBK_CHX(0, vf);
-		pfvf->tx_chan_base = vf & 0x1 ? NIX_CHAN_LBK_CHX(0, vf - 1) :
-						NIX_CHAN_LBK_CHX(0, vf + 1);
+		pfvf->rx_chan_base = NIX_CHAN_LBK_CHX(lbkid, vf);
+		pfvf->tx_chan_base = vf & 0x1 ?
+					NIX_CHAN_LBK_CHX(lbkid, vf - 1) :
+					NIX_CHAN_LBK_CHX(lbkid, vf + 1);
 		pfvf->rx_chan_cnt = 1;
 		pfvf->tx_chan_cnt = 1;
 		rvu_npc_install_promisc_entry(rvu, pcifunc, nixlf,
@@ -265,7 +303,6 @@ static void nix_interface_deinit(struct rvu *rvu, u16 pcifunc, u8 nixlf)
 
 	pfvf->maxlen = 0;
 	pfvf->minlen = 0;
-	pfvf->rxvlan = false;
 
 	/* Remove this PF_FUNC from bcast pkt replication list */
 	err = nix_update_bcast_mce_list(rvu, pcifunc, false);
@@ -612,8 +649,9 @@ static int nix_aq_enqueue_wait(struct rvu *rvu, struct rvu_block *block,
 	return 0;
 }
 
-static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
-			       struct nix_aq_enq_rsp *rsp)
+static int rvu_nix_blk_aq_enq_inst(struct rvu *rvu, struct nix_hw *nix_hw,
+				   struct nix_aq_enq_req *req,
+				   struct nix_aq_enq_rsp *rsp)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
 	u16 pcifunc = req->hdr.pcifunc;
@@ -626,10 +664,7 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 	bool ena;
 	u64 cfg;
 
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
-	if (blkaddr < 0)
-		return NIX_AF_ERR_AF_LF_INVALID;
-
+	blkaddr = nix_hw->blkaddr;
 	block = &hw->block[blkaddr];
 	aq = block->aq;
 	if (!aq) {
@@ -669,8 +704,9 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 		break;
 	case NIX_AQ_CTYPE_MCE:
 		cfg = rvu_read64(rvu, blkaddr, NIX_AF_RX_MCAST_CFG);
+
 		/* Check if index exceeds MCE list length */
-		if (!hw->nix0->mcast.mce_ctx ||
+		if (!nix_hw->mcast.mce_ctx ||
 		    (req->qidx >= (256UL << (cfg & 0xF))))
 			rc = NIX_AF_ERR_AQ_ENQUEUE;
 
@@ -830,6 +866,23 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 
 	spin_unlock(&aq->lock);
 	return 0;
+}
+
+static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
+			       struct nix_aq_enq_rsp *rsp)
+{
+	struct nix_hw *nix_hw;
+	int blkaddr;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, req->hdr.pcifunc);
+	if (blkaddr < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	nix_hw =  get_nix_hw(rvu->hw, blkaddr);
+	if (!nix_hw)
+		return -EINVAL;
+
+	return rvu_nix_blk_aq_enq_inst(rvu, nix_hw, req, rsp);
 }
 
 static const char *nix_get_ctx_name(int ctype)
@@ -1129,6 +1182,10 @@ int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 	/* Config Rx pkt length, csum checks and apad  enable / disable */
 	rvu_write64(rvu, blkaddr, NIX_AF_LFX_RX_CFG(nixlf), req->rx_cfg);
 
+	/* Configure pkind for TX parse config */
+	cfg = NPC_TX_DEF_PKIND;
+	rvu_write64(rvu, blkaddr, NIX_AF_LFX_TX_PARSE_CFG(nixlf), cfg);
+
 	intf = is_afvf(pcifunc) ? NIX_INTF_TYPE_LBK : NIX_INTF_TYPE_CGX;
 	err = nix_interface_init(rvu, pcifunc, intf, nixlf);
 	if (err)
@@ -1136,6 +1193,11 @@ int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 
 	/* Disable NPC entries as NIXLF's contexts are not initialized yet */
 	rvu_npc_disable_default_entries(rvu, pcifunc, nixlf);
+
+	/* Configure RX VTAG Type 7 (strip) for vf vlan */
+	rvu_write64(rvu, blkaddr,
+		    NIX_AF_LFX_RX_VTAG_TYPEX(nixlf, NIX_AF_LFX_RX_VTAG_TYPE7),
+		    VTAGSIZE_T4 | VTAG_STRIP);
 
 	goto exit;
 
@@ -1164,10 +1226,14 @@ exit:
 	cfg = rvu_read64(rvu, blkaddr, NIX_AF_CONST2);
 	rsp->qints = ((cfg >> 12) & 0xFFF);
 	rsp->cints = ((cfg >> 24) & 0xFFF);
+	rsp->cgx_links = hw->cgx_links;
+	rsp->lbk_links = hw->lbk_links;
+	rsp->sdp_links = hw->sdp_links;
+
 	return rc;
 }
 
-int rvu_mbox_handler_nix_lf_free(struct rvu *rvu, struct msg_req *req,
+int rvu_mbox_handler_nix_lf_free(struct rvu *rvu, struct nix_lf_free_req *req,
 				 struct msg_rsp *rsp)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
@@ -1185,6 +1251,15 @@ int rvu_mbox_handler_nix_lf_free(struct rvu *rvu, struct msg_req *req,
 	nixlf = rvu_get_lf(rvu, block, pcifunc, 0);
 	if (nixlf < 0)
 		return NIX_AF_ERR_AF_LF_INVALID;
+
+	if (req->flags & NIX_LF_DISABLE_FLOWS)
+		rvu_npc_disable_mcam_entries(rvu, pcifunc, nixlf);
+	else
+		rvu_npc_free_mcam_entries(rvu, pcifunc, nixlf);
+
+	/* Free any tx vtag def entries used by this NIX LF */
+	if (!(req->flags & NIX_LF_DONT_FREE_TX_VTAG))
+		nix_free_tx_vtag_entries(rvu, pcifunc);
 
 	nix_interface_deinit(rvu, pcifunc, nixlf);
 
@@ -1914,8 +1989,13 @@ static int nix_rx_vtag_cfg(struct rvu *rvu, int nixlf, int blkaddr,
 {
 	u64 regval = req->vtag_size;
 
-	if (req->rx.vtag_type > 7 || req->vtag_size > VTAGSIZE_T8)
+	if (req->rx.vtag_type > NIX_AF_LFX_RX_VTAG_TYPE7 ||
+	    req->vtag_size > VTAGSIZE_T8)
 		return -EINVAL;
+
+	/* RX VTAG Type 7 reserved for vf vlan */
+	if (req->rx.vtag_type == NIX_AF_LFX_RX_VTAG_TYPE7)
+		return NIX_AF_ERR_RX_VTAG_INUSE;
 
 	if (req->rx.capture_vtag)
 		regval |= BIT_ULL(5);
@@ -1927,9 +2007,149 @@ static int nix_rx_vtag_cfg(struct rvu *rvu, int nixlf, int blkaddr,
 	return 0;
 }
 
+static int nix_tx_vtag_free(struct rvu *rvu, int blkaddr,
+			    u16 pcifunc, int index)
+{
+	struct nix_hw *nix_hw = get_nix_hw(rvu->hw, blkaddr);
+	struct nix_txvlan *vlan = &nix_hw->txvlan;
+
+	if (vlan->entry2pfvf_map[index] != pcifunc)
+		return NIX_AF_ERR_PARAM;
+
+	rvu_write64(rvu, blkaddr,
+		    NIX_AF_TX_VTAG_DEFX_DATA(index), 0x0ull);
+	rvu_write64(rvu, blkaddr,
+		    NIX_AF_TX_VTAG_DEFX_CTL(index), 0x0ull);
+
+	vlan->entry2pfvf_map[index] = 0;
+	rvu_free_rsrc(&vlan->rsrc, index);
+
+	return 0;
+}
+
+static void nix_free_tx_vtag_entries(struct rvu *rvu, u16 pcifunc)
+{
+	struct nix_txvlan *vlan;
+	struct nix_hw *nix_hw;
+	int index, blkaddr;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (blkaddr < 0)
+		return;
+
+	nix_hw = get_nix_hw(rvu->hw, blkaddr);
+	vlan = &nix_hw->txvlan;
+
+	mutex_lock(&vlan->rsrc_lock);
+	/* Scan all the entries and free the ones mapped to 'pcifunc' */
+	for (index = 0; index < vlan->rsrc.max; index++) {
+		if (vlan->entry2pfvf_map[index] == pcifunc)
+			nix_tx_vtag_free(rvu, blkaddr, pcifunc, index);
+	}
+	mutex_unlock(&vlan->rsrc_lock);
+}
+
+static int nix_tx_vtag_alloc(struct rvu *rvu, int blkaddr,
+			     u64 vtag, u8 size)
+{
+	struct nix_hw *nix_hw = get_nix_hw(rvu->hw, blkaddr);
+	struct nix_txvlan *vlan = &nix_hw->txvlan;
+	u64 regval;
+	int index;
+
+	mutex_lock(&vlan->rsrc_lock);
+
+	index = rvu_alloc_rsrc(&vlan->rsrc);
+	if (index < 0) {
+		mutex_unlock(&vlan->rsrc_lock);
+		return index;
+	}
+
+	mutex_unlock(&vlan->rsrc_lock);
+
+	regval = size ? vtag : vtag << 32;
+
+	rvu_write64(rvu, blkaddr,
+		    NIX_AF_TX_VTAG_DEFX_DATA(index), regval);
+	rvu_write64(rvu, blkaddr,
+		    NIX_AF_TX_VTAG_DEFX_CTL(index), size);
+
+	return index;
+}
+
+static int nix_tx_vtag_decfg(struct rvu *rvu, int blkaddr,
+			     struct nix_vtag_config *req)
+{
+	struct nix_hw *nix_hw = get_nix_hw(rvu->hw, blkaddr);
+	struct nix_txvlan *vlan = &nix_hw->txvlan;
+	u16 pcifunc = req->hdr.pcifunc;
+	int idx0 = req->tx.vtag0_idx;
+	int idx1 = req->tx.vtag1_idx;
+	int err = 0;
+
+	if (req->tx.free_vtag0 && req->tx.free_vtag1)
+		if (vlan->entry2pfvf_map[idx0] != pcifunc ||
+		    vlan->entry2pfvf_map[idx1] != pcifunc)
+			return NIX_AF_ERR_PARAM;
+
+	mutex_lock(&vlan->rsrc_lock);
+
+	if (req->tx.free_vtag0) {
+		err = nix_tx_vtag_free(rvu, blkaddr, pcifunc, idx0);
+		if (err)
+			goto exit;
+	}
+
+	if (req->tx.free_vtag1)
+		err = nix_tx_vtag_free(rvu, blkaddr, pcifunc, idx1);
+
+exit:
+	mutex_unlock(&vlan->rsrc_lock);
+	return err;
+}
+
+static int nix_tx_vtag_cfg(struct rvu *rvu, int blkaddr,
+			   struct nix_vtag_config *req,
+			   struct nix_vtag_config_rsp *rsp)
+{
+	struct nix_hw *nix_hw = get_nix_hw(rvu->hw, blkaddr);
+	struct nix_txvlan *vlan = &nix_hw->txvlan;
+	u16 pcifunc = req->hdr.pcifunc;
+
+	if (req->tx.cfg_vtag0) {
+		rsp->vtag0_idx =
+			nix_tx_vtag_alloc(rvu, blkaddr,
+					  req->tx.vtag0, req->vtag_size);
+
+		if (rsp->vtag0_idx < 0)
+			return NIX_AF_ERR_TX_VTAG_NOSPC;
+
+		vlan->entry2pfvf_map[rsp->vtag0_idx] = pcifunc;
+	}
+
+	if (req->tx.cfg_vtag1) {
+		rsp->vtag1_idx =
+			nix_tx_vtag_alloc(rvu, blkaddr,
+					  req->tx.vtag1, req->vtag_size);
+
+		if (rsp->vtag1_idx < 0)
+			goto err_free;
+
+		vlan->entry2pfvf_map[rsp->vtag1_idx] = pcifunc;
+	}
+
+	return 0;
+
+err_free:
+	if (req->tx.cfg_vtag0)
+		nix_tx_vtag_free(rvu, blkaddr, pcifunc, rsp->vtag0_idx);
+
+	return NIX_AF_ERR_TX_VTAG_NOSPC;
+}
+
 int rvu_mbox_handler_nix_vtag_cfg(struct rvu *rvu,
 				  struct nix_vtag_config *req,
-				  struct msg_rsp *rsp)
+				  struct nix_vtag_config_rsp *rsp)
 {
 	u16 pcifunc = req->hdr.pcifunc;
 	int blkaddr, nixlf, err;
@@ -1939,19 +2159,28 @@ int rvu_mbox_handler_nix_vtag_cfg(struct rvu *rvu,
 		return err;
 
 	if (req->cfg_type) {
+		/* rx vtag configuration */
 		err = nix_rx_vtag_cfg(rvu, nixlf, blkaddr, req);
 		if (err)
 			return NIX_AF_ERR_PARAM;
 	} else {
-		/* TODO: handle tx vtag configuration */
-		return 0;
+		/* tx vtag configuration */
+		if ((req->tx.cfg_vtag0 || req->tx.cfg_vtag1) &&
+		    (req->tx.free_vtag0 || req->tx.free_vtag1))
+			return NIX_AF_ERR_PARAM;
+
+		if (req->tx.cfg_vtag0 || req->tx.cfg_vtag1)
+			return nix_tx_vtag_cfg(rvu, blkaddr, req, rsp);
+
+		if (req->tx.free_vtag0 || req->tx.free_vtag1)
+			return nix_tx_vtag_decfg(rvu, blkaddr, req);
 	}
 
 	return 0;
 }
 
-static int nix_setup_mce(struct rvu *rvu, int mce, u8 op,
-			 u16 pcifunc, int next, bool eol)
+static int nix_blk_setup_mce(struct rvu *rvu, struct nix_hw *nix_hw,
+			     int mce, u8 op, u16 pcifunc, int next, bool eol)
 {
 	struct nix_aq_enq_req aq_req;
 	int err;
@@ -1971,7 +2200,7 @@ static int nix_setup_mce(struct rvu *rvu, int mce, u8 op,
 	/* All fields valid */
 	*(u64 *)(&aq_req.mce_mask) = ~0ULL;
 
-	err = rvu_nix_aq_enq_inst(rvu, &aq_req, NULL);
+	err = rvu_nix_blk_aq_enq_inst(rvu, nix_hw, &aq_req, NULL);
 	if (err) {
 		dev_err(rvu->dev, "Failed to setup Bcast MCE for PF%d:VF%d\n",
 			rvu_get_pf(pcifunc), pcifunc & RVU_PFVF_FUNC_MASK);
@@ -2077,9 +2306,9 @@ int nix_update_bcast_mce_list(struct rvu *rvu, u16 pcifunc, bool add)
 
 		next_idx = idx + 1;
 		/* EOL should be set in last MCE */
-		err = nix_setup_mce(rvu, idx, NIX_AQ_INSTOP_WRITE,
-				    mce->pcifunc, next_idx,
-				    (next_idx > last_idx) ? true : false);
+		err = nix_blk_setup_mce(rvu, nix_hw, idx, NIX_AQ_INSTOP_WRITE,
+					mce->pcifunc, next_idx,
+					(next_idx > last_idx) ? true : false);
 		if (err)
 			goto end;
 		idx++;
@@ -2108,6 +2337,11 @@ static int nix_setup_bcast_tables(struct rvu *rvu, struct nix_hw *nix_hw)
 		numvfs = (cfg >> 12) & 0xFF;
 
 		pfvf = &rvu->pf[pf];
+
+		/* This NIX0/1 block mapped to PF ? */
+		if (pfvf->nix_blkaddr != nix_hw->blkaddr)
+			continue;
+
 		/* Save the start MCE */
 		pfvf->bcast_mce_idx = nix_alloc_mce_list(mcast, numvfs + 1);
 
@@ -2122,9 +2356,10 @@ static int nix_setup_bcast_tables(struct rvu *rvu, struct nix_hw *nix_hw)
 			 * Will be updated when a NIXLF is attached/detached to
 			 * these PF/VFs.
 			 */
-			err = nix_setup_mce(rvu, pfvf->bcast_mce_idx + idx,
-					    NIX_AQ_INSTOP_INIT,
-					    pcifunc, 0, true);
+			err = nix_blk_setup_mce(rvu, nix_hw,
+						pfvf->bcast_mce_idx + idx,
+						NIX_AQ_INSTOP_INIT,
+						pcifunc, 0, true);
 			if (err)
 				return err;
 		}
@@ -2174,6 +2409,31 @@ static int nix_setup_mcast(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 	mutex_init(&mcast->mce_lock);
 
 	return nix_setup_bcast_tables(rvu, nix_hw);
+}
+
+static int nix_setup_txvlan(struct rvu *rvu, struct nix_hw *nix_hw)
+{
+	struct nix_txvlan *vlan = &nix_hw->txvlan;
+	int err;
+
+	/* Allocate resource bimap for tx vtag def registers*/
+	vlan->rsrc.max = NIX_TX_VTAG_DEF_MAX;
+	err = rvu_alloc_bitmap(&vlan->rsrc);
+	if (err)
+		return -ENOMEM;
+
+	/* Alloc memory for saving entry to RVU PFFUNC allocation mapping */
+	vlan->entry2pfvf_map = devm_kcalloc(rvu->dev, vlan->rsrc.max,
+					    sizeof(u16), GFP_KERNEL);
+	if (!vlan->entry2pfvf_map)
+		goto free_mem;
+
+	mutex_init(&vlan->rsrc_lock);
+	return 0;
+
+free_mem:
+	kfree(vlan->rsrc.bmap);
+	return -ENOMEM;
 }
 
 static int nix_setup_txschq(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
@@ -2365,6 +2625,13 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 			field->sel_chan = true;
 			/* This should be set to 1, when SEL_CHAN is set */
 			field->bytesm1 = 1;
+			break;
+		case NIX_FLOW_KEY_TYPE_IPV4_PROTO:
+			field->lid = NPC_LID_LC;
+			field->hdr_offset = 9; /* offset */
+			field->bytesm1 = 0; /* 1 byte */
+			field->ltype_match = NPC_LT_LC_IP;
+			field->ltype_mask = 0xF;
 			break;
 		case NIX_FLOW_KEY_TYPE_IPV4:
 		case NIX_FLOW_KEY_TYPE_INNR_IPV4:
@@ -2680,6 +2947,7 @@ int rvu_mbox_handler_nix_set_mac_addr(struct rvu *rvu,
 				      struct nix_set_mac_addr *req,
 				      struct msg_rsp *rsp)
 {
+	bool from_vf = req->hdr.pcifunc & RVU_PFVF_FUNC_MASK;
 	u16 pcifunc = req->hdr.pcifunc;
 	int blkaddr, nixlf, err;
 	struct rvu_pfvf *pfvf;
@@ -2690,12 +2958,14 @@ int rvu_mbox_handler_nix_set_mac_addr(struct rvu *rvu,
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
 
+	/* VF can't overwrite admin(PF) changes */
+	if (from_vf && pfvf->pf_set_vf_cfg)
+		return -EPERM;
+
 	ether_addr_copy(pfvf->mac_addr, req->mac_addr);
 
 	rvu_npc_install_ucast_entry(rvu, pcifunc, nixlf,
 				    pfvf->rx_chan_base, req->mac_addr);
-
-	rvu_npc_update_rxvlan(rvu, pcifunc, nixlf);
 
 	return 0;
 }
@@ -2743,9 +3013,6 @@ int rvu_mbox_handler_nix_set_rx_mode(struct rvu *rvu, struct nix_rx_mode *req,
 	else
 		rvu_npc_install_promisc_entry(rvu, pcifunc, nixlf,
 					      pfvf->rx_chan_base, allmulti);
-
-	rvu_npc_update_rxvlan(rvu, pcifunc, nixlf);
-
 	return 0;
 }
 
@@ -2880,65 +3147,6 @@ linkcfg:
 	cfg |=  ((lmac_fifo_len - req->maxlen) / 16) << 12;
 	rvu_write64(rvu, blkaddr, NIX_AF_TX_LINKX_NORM_CREDIT(link), cfg);
 	return 0;
-}
-
-int rvu_mbox_handler_nix_rxvlan_alloc(struct rvu *rvu, struct msg_req *req,
-				      struct msg_rsp *rsp)
-{
-	struct npc_mcam_alloc_entry_req alloc_req = { };
-	struct npc_mcam_alloc_entry_rsp alloc_rsp = { };
-	struct npc_mcam_free_entry_req free_req = { };
-	u16 pcifunc = req->hdr.pcifunc;
-	int blkaddr, nixlf, err;
-	struct rvu_pfvf *pfvf;
-
-	/* LBK VFs do not have separate MCAM UCAST entry hence
-	 * skip allocating rxvlan for them
-	 */
-	if (is_afvf(pcifunc))
-		return 0;
-
-	pfvf = rvu_get_pfvf(rvu, pcifunc);
-	if (pfvf->rxvlan)
-		return 0;
-
-	/* alloc new mcam entry */
-	alloc_req.hdr.pcifunc = pcifunc;
-	alloc_req.count = 1;
-
-	err = rvu_mbox_handler_npc_mcam_alloc_entry(rvu, &alloc_req,
-						    &alloc_rsp);
-	if (err)
-		return err;
-
-	/* update entry to enable rxvlan offload */
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
-	if (blkaddr < 0) {
-		err = NIX_AF_ERR_AF_LF_INVALID;
-		goto free_entry;
-	}
-
-	nixlf = rvu_get_lf(rvu, &rvu->hw->block[blkaddr], pcifunc, 0);
-	if (nixlf < 0) {
-		err = NIX_AF_ERR_AF_LF_INVALID;
-		goto free_entry;
-	}
-
-	pfvf->rxvlan_index = alloc_rsp.entry_list[0];
-	/* all it means is that rxvlan_index is valid */
-	pfvf->rxvlan = true;
-
-	err = rvu_npc_update_rxvlan(rvu, pcifunc, nixlf);
-	if (err)
-		goto free_entry;
-
-	return 0;
-free_entry:
-	free_req.hdr.pcifunc = pcifunc;
-	free_req.entry = alloc_rsp.entry_list[0];
-	rvu_mbox_handler_npc_mcam_free_entry(rvu, &free_req, rsp);
-	pfvf->rxvlan = false;
-	return err;
 }
 
 int rvu_mbox_handler_nix_set_rx_cfg(struct rvu *rvu, struct nix_rx_cfg *req,
@@ -3109,17 +3317,15 @@ static int nix_aq_init(struct rvu *rvu, struct rvu_block *block)
 	return 0;
 }
 
-int rvu_nix_init(struct rvu *rvu)
+static int rvu_nix_block_init(struct rvu *rvu, struct nix_hw *nix_hw)
 {
 	const struct npc_lt_def_cfg *ltdefs;
 	struct rvu_hwinfo *hw = rvu->hw;
+	int blkaddr = nix_hw->blkaddr;
 	struct rvu_block *block;
-	int blkaddr, err;
+	int err;
 	u64 cfg;
 
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, 0);
-	if (blkaddr < 0)
-		return 0;
 	block = &hw->block[blkaddr];
 
 	if (is_rvu_96xx_B0(rvu)) {
@@ -3153,7 +3359,7 @@ int rvu_nix_init(struct rvu *rvu)
 	hw->cgx = (cfg >> 12) & 0xF;
 	hw->lmac_per_cgx = (cfg >> 8) & 0xF;
 	hw->cgx_links = hw->cgx * hw->lmac_per_cgx;
-	hw->lbk_links = 1;
+	hw->lbk_links = (cfg >> 24) & 0xF;
 	hw->sdp_links = 1;
 
 	/* Initialize admin queue */
@@ -3164,26 +3370,25 @@ int rvu_nix_init(struct rvu *rvu)
 	/* Restore CINT timer delay to HW reset values */
 	rvu_write64(rvu, blkaddr, NIX_AF_CINT_DELAY, 0x0ULL);
 
-	if (blkaddr == BLKADDR_NIX0) {
-		hw->nix0 = devm_kzalloc(rvu->dev,
-					sizeof(struct nix_hw), GFP_KERNEL);
-		if (!hw->nix0)
-			return -ENOMEM;
-
-		err = nix_setup_txschq(rvu, hw->nix0, blkaddr);
+	if (is_block_implemented(hw, blkaddr)) {
+		err = nix_setup_txschq(rvu, nix_hw, blkaddr);
 		if (err)
 			return err;
 
-		err = nix_af_mark_format_setup(rvu, hw->nix0, blkaddr);
+		err = nix_af_mark_format_setup(rvu, nix_hw, blkaddr);
 		if (err)
 			return err;
 
-		err = nix_setup_mcast(rvu, hw->nix0, blkaddr);
+		err = nix_setup_mcast(rvu, nix_hw, blkaddr);
+		if (err)
+			return err;
+
+		err = nix_setup_txvlan(rvu, nix_hw);
 		if (err)
 			return err;
 
 		/* Configure segmentation offload formats */
-		nix_setup_lso(rvu, hw->nix0, blkaddr);
+		nix_setup_lso(rvu, nix_hw, blkaddr);
 
 		/* Config Outer/Inner L2, IP, TCP, UDP and SCTP NPC layer info.
 		 * This helps HW protocol checker to identify headers
@@ -3236,23 +3441,45 @@ int rvu_nix_init(struct rvu *rvu)
 	return 0;
 }
 
-void rvu_nix_freemem(struct rvu *rvu)
+int rvu_nix_init(struct rvu *rvu)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
-	struct rvu_block *block;
+	struct nix_hw *nix_hw;
+	int blkaddr = 0, err;
+	int i = 0;
+
+	hw->nix = devm_kcalloc(rvu->dev, MAX_NIX_BLKS, sizeof(struct nix_hw),
+			       GFP_KERNEL);
+	if (!hw->nix)
+		return -ENOMEM;
+
+	blkaddr = rvu_get_next_nix_blkaddr(rvu, blkaddr);
+	while (blkaddr) {
+		nix_hw = &hw->nix[i];
+		nix_hw->rvu = rvu;
+		nix_hw->blkaddr = blkaddr;
+		err = rvu_nix_block_init(rvu, nix_hw);
+		if (err)
+			return err;
+		blkaddr = rvu_get_next_nix_blkaddr(rvu, blkaddr);
+		i++;
+	}
+
+	return 0;
+}
+
+static void rvu_nix_block_freemem(struct rvu *rvu, int blkaddr,
+				  struct rvu_block *block)
+{
 	struct nix_txsch *txsch;
 	struct nix_mcast *mcast;
+	struct nix_txvlan *vlan;
 	struct nix_hw *nix_hw;
-	int blkaddr, lvl;
+	int lvl;
 
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, 0);
-	if (blkaddr < 0)
-		return;
-
-	block = &hw->block[blkaddr];
 	rvu_aq_free(rvu, block->aq);
 
-	if (blkaddr == BLKADDR_NIX0) {
+	if (is_block_implemented(rvu->hw, blkaddr)) {
 		nix_hw = get_nix_hw(rvu->hw, blkaddr);
 		if (!nix_hw)
 			return;
@@ -3262,10 +3489,29 @@ void rvu_nix_freemem(struct rvu *rvu)
 			kfree(txsch->schq.bmap);
 		}
 
+		vlan = &nix_hw->txvlan;
+		kfree(vlan->rsrc.bmap);
+		mutex_destroy(&vlan->rsrc_lock);
+		devm_kfree(rvu->dev, vlan->entry2pfvf_map);
+
 		mcast = &nix_hw->mcast;
 		qmem_free(rvu->dev, mcast->mce_ctx);
 		qmem_free(rvu->dev, mcast->mcast_buf);
 		mutex_destroy(&mcast->mce_lock);
+	}
+}
+
+void rvu_nix_freemem(struct rvu *rvu)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	struct rvu_block *block;
+	int blkaddr = 0;
+
+	blkaddr = rvu_get_next_nix_blkaddr(rvu, blkaddr);
+	while (blkaddr) {
+		block = &hw->block[blkaddr];
+		rvu_nix_block_freemem(rvu, blkaddr, block);
+		blkaddr = rvu_get_next_nix_blkaddr(rvu, blkaddr);
 	}
 }
 
@@ -3280,6 +3526,8 @@ int rvu_mbox_handler_nix_lf_start_rx(struct rvu *rvu, struct msg_req *req,
 		return err;
 
 	rvu_npc_enable_default_entries(rvu, pcifunc, nixlf);
+
+	npc_mcam_enable_flows(rvu, pcifunc);
 
 	return rvu_cgx_start_stop_io(rvu, pcifunc, true);
 }
@@ -3296,6 +3544,8 @@ int rvu_mbox_handler_nix_lf_stop_rx(struct rvu *rvu, struct msg_req *req,
 
 	rvu_npc_disable_default_entries(rvu, pcifunc, nixlf);
 
+	npc_mcam_disable_flows(rvu, pcifunc);
+
 	return rvu_cgx_start_stop_io(rvu, pcifunc, false);
 }
 
@@ -3308,6 +3558,8 @@ void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int nixlf)
 	ctx_req.hdr.pcifunc = pcifunc;
 
 	/* Cleanup NPC MCAM entries, free Tx scheduler queues being used */
+	rvu_npc_disable_mcam_entries(rvu, pcifunc, nixlf);
+	rvu_npc_free_mcam_entries(rvu, pcifunc, nixlf);
 	nix_interface_deinit(rvu, pcifunc, nixlf);
 	nix_rx_sync(rvu, blkaddr);
 	nix_txschq_free(rvu, pcifunc);
@@ -3430,4 +3682,13 @@ int rvu_mbox_handler_nix_lso_format_cfg(struct rvu *rvu,
 			    req->fields[f]);
 
 	return 0;
+}
+
+void rvu_nix_reset_mac(struct rvu_pfvf *pfvf, int pcifunc)
+{
+	bool from_vf = !!(pcifunc & RVU_PFVF_FUNC_MASK);
+
+	/* overwrite vf mac address with default_mac */
+	if (from_vf)
+		ether_addr_copy(pfvf->mac_addr, pfvf->default_mac);
 }

@@ -94,6 +94,7 @@ static void __init hsmmc2_internal_input_clk(void)
 	omap_ctrl_writel(reg, OMAP343X_CONTROL_DEVCONF1);
 }
 
+#ifdef CONFIG_OMAP_HWMOD
 static struct iommu_platform_data omap3_iommu_pdata = {
 	.reset_name = "mmu",
 	.assert_reset = omap_device_assert_hardreset,
@@ -106,6 +107,7 @@ static struct iommu_platform_data omap3_iommu_isp_pdata = {
 	.device_enable = omap_device_enable,
 	.device_idle = omap_device_idle,
 };
+#endif
 
 static int omap3_sbc_t3730_twl_callback(struct device *dev,
 					   unsigned gpio,
@@ -272,14 +274,6 @@ static void __init omap3_pandora_legacy_init(void)
 }
 #endif /* CONFIG_ARCH_OMAP3 */
 
-#if defined(CONFIG_SOC_AM33XX) || defined(CONFIG_SOC_AM43XX)
-static struct wkup_m3_platform_data wkup_m3_data = {
-	.reset_name = "wkup_m3",
-	.assert_reset = omap_device_assert_hardreset,
-	.deassert_reset = omap_device_deassert_hardreset,
-};
-#endif
-
 #ifdef CONFIG_SOC_OMAP5
 static void __init omap5_uevm_legacy_init(void)
 {
@@ -370,6 +364,7 @@ static void ti_sysc_clkdm_allow_idle(struct device *dev,
 		clkdm_allow_idle(cookie->clkdm);
 }
 
+#ifdef CONFIG_OMAP_HWMOD
 static int ti_sysc_enable_module(struct device *dev,
 				 const struct ti_sysc_cookie *cookie)
 {
@@ -396,6 +391,7 @@ static int ti_sysc_shutdown_module(struct device *dev,
 
 	return omap_hwmod_shutdown(cookie->data);
 }
+#endif	/* CONFIG_OMAP_HWMOD */
 
 static bool ti_sysc_soc_type_gp(void)
 {
@@ -410,10 +406,12 @@ static struct ti_sysc_platform_data ti_sysc_pdata = {
 	.init_clockdomain = ti_sysc_clkdm_init,
 	.clkdm_deny_idle = ti_sysc_clkdm_deny_idle,
 	.clkdm_allow_idle = ti_sysc_clkdm_allow_idle,
+#ifdef CONFIG_OMAP_HWMOD
 	.init_module = omap_hwmod_init_module,
 	.enable_module = ti_sysc_enable_module,
 	.idle_module = ti_sysc_idle_module,
 	.shutdown_module = ti_sysc_shutdown_module,
+#endif
 };
 
 static struct pcs_pdata pcs_pdata;
@@ -501,14 +499,6 @@ static struct of_dev_auxdata omap_auxdata_lookup[] = {
 	OF_DEV_AUXDATA("ti,omap3-mcbsp", 0x49024000, "49024000.mcbsp", &mcbsp_pdata),
 #endif
 #endif
-#ifdef CONFIG_SOC_AM33XX
-	OF_DEV_AUXDATA("ti,am3352-wkup-m3", 0x44d00000, "44d00000.wkup_m3",
-		       &wkup_m3_data),
-#endif
-#ifdef CONFIG_SOC_AM43XX
-	OF_DEV_AUXDATA("ti,am4372-wkup-m3", 0x44d00000, "44d00000.wkup_m3",
-		       &wkup_m3_data),
-#endif
 #if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5)
 	OF_DEV_AUXDATA("ti,omap4-smartreflex-iva", 0x4a0db000,
 		       "4a0db000.smartreflex", &omap_sr_pdata[OMAP_SR_IVA]),
@@ -532,6 +522,7 @@ static struct of_dev_auxdata omap_auxdata_lookup[] = {
 		       &dra7_ipu1_dsp_iommu_pdata),
 #endif
 	/* Common auxdata */
+	OF_DEV_AUXDATA("simple-pm-bus", 0, NULL, omap_auxdata_lookup),
 	OF_DEV_AUXDATA("ti,sysc", 0, NULL, &ti_sysc_pdata),
 	OF_DEV_AUXDATA("pinctrl-single", 0, NULL, &pcs_pdata),
 	OF_DEV_AUXDATA("ti,omap-prm-inst", 0, NULL, &ti_prm_pdata),
@@ -580,6 +571,8 @@ static void pdata_quirks_check(struct pdata_init *quirks)
 
 void __init pdata_quirks_init(const struct of_device_id *omap_dt_match_table)
 {
+	struct device_node *np;
+
 	/*
 	 * We still need this for omap2420 and omap3 PM to work, others are
 	 * using drivers/misc/sram.c already.
@@ -591,6 +584,15 @@ void __init pdata_quirks_init(const struct of_device_id *omap_dt_match_table)
 	if (of_machine_is_compatible("ti,omap3"))
 		omap3_mcbsp_init();
 	pdata_quirks_check(auxdata_quirks);
+
+	/* Populate always-on PRCM in l4_wkup to probe l4_wkup */
+	np = of_find_node_by_name(NULL, "prcm");
+	if (!np)
+		np = of_find_node_by_name(NULL, "prm");
+	if (np)
+		of_platform_populate(np, omap_dt_match_table,
+				     omap_auxdata_lookup, NULL);
+
 	of_platform_populate(NULL, omap_dt_match_table,
 			     omap_auxdata_lookup, NULL);
 	pdata_quirks_check(pdata_quirks);

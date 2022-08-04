@@ -19,8 +19,6 @@ static void a6xx_gmu_fault(struct a6xx_gmu *gmu)
 	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
 	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
 	struct msm_gpu *gpu = &adreno_gpu->base;
-	struct drm_device *dev = gpu->dev;
-	struct msm_drm_private *priv = dev->dev_private;
 
 	/* FIXME: add a banner here */
 	gmu->hung = true;
@@ -29,7 +27,7 @@ static void a6xx_gmu_fault(struct a6xx_gmu *gmu)
 	del_timer(&gpu->hangcheck_timer);
 
 	/* Queue the GPU handler because we need to treat this as a recovery */
-	queue_work(priv->wq, &gpu->recover_work);
+	kthread_queue_work(gpu->worker, &gpu->recover_work);
 }
 
 static irqreturn_t a6xx_gmu_irq(int irq, void *data)

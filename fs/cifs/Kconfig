@@ -60,9 +60,9 @@ config CIFS_STATS2
 	  Enabling this option will allow more detailed statistics on SMB
 	  request timing to be displayed in /proc/fs/cifs/DebugData and also
 	  allow optional logging of slow responses to dmesg (depending on the
-	  value of /proc/fs/cifs/cifsFYI, see fs/cifs/README for more details).
-	  These additional statistics may have a minor effect on performance
-	  and memory utilization.
+	  value of /proc/fs/cifs/cifsFYI). See Documentation/admin-guide/cifs/usage.rst
+	  for more details. These additional statistics may have a minor effect
+	  on performance and memory utilization.
 
 	  Unless you are a developer or are doing network performance analysis
 	  or tuning, say N.
@@ -102,10 +102,10 @@ config CIFS_WEAK_PW_HASH
 	  is enabled in the kernel build, LANMAN authentication will not be
 	  used automatically. At runtime LANMAN mounts are disabled but
 	  can be set to required (or optional) either in
-	  /proc/fs/cifs (see fs/cifs/README for more detail) or via an
-	  option on the mount command. This support is disabled by
-	  default in order to reduce the possibility of a downgrade
-	  attack.
+	  /proc/fs/cifs (see Documentation/admin-guide/cifs/usage.rst for
+	  more detail) or via an option on the mount command. This support
+	  is disabled by default in order to reduce the possibility of a
+	  downgrade attack.
 
 	  If unsure, say N.
 
@@ -189,6 +189,17 @@ config CIFS_DFS_UPCALL
 	  IP addresses) which is needed in order to reconnect to
 	  servers if their addresses change or for implicit mounts of
 	  DFS junction points. If unsure, say Y.
+
+config CIFS_SWN_UPCALL
+	bool "SWN feature support"
+	depends on CIFS
+	help
+	  The Service Witness Protocol (SWN) is used to get notifications
+	  from a highly available server of resource state changes. This
+	  feature enables an upcall mechanism for CIFS which contacts a
+	  userspace daemon to establish the DCE/RPC connection to retrieve
+	  the cluster available interfaces and resource change notifications.
+	  If unsure, say Y.
 
 config CIFS_NFSD_EXPORT
 	bool "Allow nfsd to export CIFS file system"

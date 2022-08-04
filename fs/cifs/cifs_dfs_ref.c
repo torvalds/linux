@@ -23,6 +23,7 @@
 #include "cifs_debug.h"
 #include "cifs_unicode.h"
 #include "dfs_cache.h"
+#include "fs_context.h"
 
 static LIST_HEAD(cifs_dfs_automount_list);
 
@@ -124,7 +125,6 @@ cifs_build_devname(char *nodename, const char *prepath)
  * @sb_mountdata:	parent/root DFS mount options (template)
  * @fullpath:		full path in UNC format
  * @ref:		optional server's referral
- * @devname:		optional pointer for saving device name
  *
  * creates mount options for submount based on template options sb_mountdata
  * and replacing unc,ip,prefixpath options with ones we've got form ref_unc.
@@ -133,9 +133,9 @@ cifs_build_devname(char *nodename, const char *prepath)
  * Caller is responsible for freeing returned value if it is not error.
  */
 char *cifs_compose_mount_options(const char *sb_mountdata,
-				   const char *fullpath,
-				   const struct dfs_info3_param *ref,
-				   char **devname)
+				 const char *fullpath,
+				 const struct dfs_info3_param *ref,
+				 char **devname)
 {
 	int rc;
 	char *name;
@@ -258,6 +258,7 @@ compose_mount_options_err:
  * to perform failover in case we failed to connect to the first target in the
  * referral.
  *
+ * @mntpt:		directory entry for the path we are trying to automount
  * @cifs_sb:		parent/root superblock
  * @fullpath:		full path in UNC format
  */
@@ -275,8 +276,12 @@ static struct vfsmount *cifs_dfs_do_mount(struct dentry *mntpt,
 
 	convert_delimiter(devname, '/');
 
+	/* TODO: change to call fs_context_for_mount(), fill in context directly, call fc_mount */
+
+	/* See afs_mntpt_do_automount in fs/afs/mntpt.c for an example */
+
 	/* strip first '\' from fullpath */
-	mountdata = cifs_compose_mount_options(cifs_sb->mountdata,
+	mountdata = cifs_compose_mount_options(cifs_sb->ctx->mount_options,
 					       fullpath + 1, NULL, NULL);
 	if (IS_ERR(mountdata)) {
 		kfree(devname);

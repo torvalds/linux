@@ -30,6 +30,14 @@
 #include "opp.h"
 #include "color_gamma.h"
 
+/* When calculating LUT values the first region and at least one subsequent
+ * region are calculated with full precision. These defines are a demarcation
+ * of where the second region starts and ends.
+ * These are hardcoded values to avoid recalculating them in loops.
+ */
+#define PRECISE_LUT_REGION_START 224
+#define PRECISE_LUT_REGION_END 239
+
 static struct hw_x_point coordinates_x[MAX_HW_POINTS + 2];
 
 // these are helpers for calculations to reduce stack usage
@@ -151,7 +159,7 @@ static void compute_de_pq(struct fixed31_32 in_x, struct fixed31_32 *out_y)
 	div = dc_fixpt_sub(c2, dc_fixpt_mul(c3, l_pow_m1));
 
 	base2 = dc_fixpt_div(base, div);
-	//avoid complex numbers
+	// avoid complex numbers
 	if (dc_fixpt_lt(base2, dc_fixpt_zero))
 		base2 = dc_fixpt_sub(dc_fixpt_zero, base2);
 
@@ -161,7 +169,7 @@ static void compute_de_pq(struct fixed31_32 in_x, struct fixed31_32 *out_y)
 }
 
 
-/*de gamma, none linear to linear*/
+/* de gamma, non-linear to linear */
 static void compute_hlg_eotf(struct fixed31_32 in_x,
 		struct fixed31_32 *out_y,
 		uint32_t sdr_white_level, uint32_t max_luminance_nits)
@@ -193,7 +201,7 @@ static void compute_hlg_eotf(struct fixed31_32 in_x,
 
 }
 
-/*re gamma, linear to none linear*/
+/* re gamma, linear to non-linear */
 static void compute_hlg_oetf(struct fixed31_32 in_x, struct fixed31_32 *out_y,
 		uint32_t sdr_white_level, uint32_t max_luminance_nits)
 {
@@ -346,7 +354,13 @@ static struct fixed31_32 translate_from_linear_space(
 					dc_fixpt_recip(args->gamma));
 		}
 		scratch_1 = dc_fixpt_add(one, args->a3);
-		if (cal_buffer->buffer_index < 16)
+		/* In the first region (first 16 points) and in the
+		 * region delimited by START/END we calculate with
+		 * full precision to avoid error accumulation. 
+		 */
+		if ((cal_buffer->buffer_index >= PRECISE_LUT_REGION_START &&
+			cal_buffer->buffer_index <= PRECISE_LUT_REGION_END) ||
+			(cal_buffer->buffer_index < 16))
 			scratch_2 = dc_fixpt_pow(args->arg,
 					dc_fixpt_recip(args->gamma));
 		else
@@ -397,9 +411,7 @@ static struct fixed31_32 translate_from_linear_space_long(
 					dc_fixpt_recip(args->gamma))),
 					args->a2);
 	else
-		return dc_fixpt_mul(
-			args->arg,
-			args->a1);
+		return dc_fixpt_mul(args->arg, args->a1);
 }
 
 static struct fixed31_32 calculate_gamma22(struct fixed31_32 arg, bool use_eetf, struct calculate_buffer *cal_buffer)
@@ -717,7 +729,6 @@ static struct fixed31_32 calculate_mapped_value(
 		BREAK_TO_DEBUGGER();
 		result = dc_fixpt_zero;
 	} else {
-		BREAK_TO_DEBUGGER();
 		result = dc_fixpt_one;
 	}
 
@@ -830,7 +841,7 @@ static bool build_regamma(struct pwl_float_data_ex *rgb_regamma,
 
 	i = 0;
 	while (i <= hw_points_num) {
-		/*TODO use y vs r,g,b*/
+		/* TODO use y vs r,g,b */
 		rgb->r = translate_from_linear_space_ex(
 			coord_x->x, coeff, 0, cal_buffer);
 		rgb->g = rgb->r;
@@ -937,6 +948,7 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 	uint32_t i;
 	struct pwl_float_data_ex *rgb = rgb_regamma;
 	const struct hw_x_point *coord_x = coordinate_x;
+	const struct hw_x_point *prv_coord_x = coord_x;
 	struct fixed31_32 scaledX = dc_fixpt_zero;
 	struct fixed31_32 scaledX1 = dc_fixpt_zero;
 	struct fixed31_32 max_display;
@@ -947,6 +959,9 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 	bool use_eetf = false;
 	bool is_clipped = false;
 	struct fixed31_32 sdr_white_level;
+	struct fixed31_32 coordX_diff;
+	struct fixed31_32 out_dist_max;
+	struct fixed31_32 bright_norm;
 
 	if (fs_params->max_content == 0 ||
 			fs_params->max_display == 0)
@@ -972,10 +987,11 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 		cal_buffer->buffer_index = 0; // see var definition for more info
 	rgb += 32; // first 32 points have problems with fixed point, too small
 	coord_x += 32;
+
 	for (i = 32; i <= hw_points_num; i++) {
 		if (!is_clipped) {
 			if (use_eetf) {
-				/*max content is equal 1 */
+				/* max content is equal 1 */
 				scaledX1 = dc_fixpt_div(coord_x->x,
 						dc_fixpt_div(max_content, sdr_white_level));
 				hermite_spline_eetf(scaledX1, max_display, min_display,
@@ -990,21 +1006,65 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 				else
 					output = calculate_gamma22(scaledX, use_eetf, cal_buffer);
 
+				// Ensure output respects reasonable boundaries
+				output = dc_fixpt_clamp(output, dc_fixpt_zero, dc_fixpt_one);
+
 				rgb->r = output;
 				rgb->g = output;
 				rgb->b = output;
 			} else {
+				/* Here clipping happens for the first time */
 				is_clipped = true;
-				rgb->r = clip;
-				rgb->g = clip;
-				rgb->b = clip;
+
+				/* The next few lines implement the equation
+				 * output = prev_out +
+				 * (coord_x->x - prev_coord_x->x) *
+				 * (1.0 - prev_out) /
+				 * (maxDisp/sdr_white_level - prevCoordX)
+				 *
+				 * This equation interpolates the first point
+				 * after max_display/80 so that the slope from
+				 * hw_x_before_max and hw_x_after_max is such
+				 * that we hit Y=1.0 at max_display/80.
+				 */
+
+				coordX_diff = dc_fixpt_sub(coord_x->x, prv_coord_x->x);
+				out_dist_max = dc_fixpt_sub(dc_fixpt_one, output);
+				bright_norm = dc_fixpt_div(max_display, sdr_white_level);
+
+				output = dc_fixpt_add(
+					output, dc_fixpt_mul(
+						coordX_diff, dc_fixpt_div(
+							out_dist_max,
+							dc_fixpt_sub(bright_norm, prv_coord_x->x)
+						)
+					)
+				);
+
+				/* Relaxing the maximum boundary to 1.07 (instead of 1.0)
+				 * because the last point in the curve must be such that
+				 * the maximum display pixel brightness interpolates to
+				 * exactly 1.0. The worst case scenario was calculated
+				 * around 1.057, so the limit of 1.07 leaves some safety
+				 * margin.
+				 */
+				output = dc_fixpt_clamp(output, dc_fixpt_zero,
+					dc_fixpt_from_fraction(107, 100));
+
+				rgb->r = output;
+				rgb->g = output;
+				rgb->b = output;
 			}
 		} else {
+			/* Every other clipping after the first
+			 * one is dealt with here
+			 */
 			rgb->r = clip;
 			rgb->g = clip;
 			rgb->b = clip;
 		}
 
+		prv_coord_x = coord_x;
 		++coord_x;
 		++rgb;
 	}
@@ -1073,7 +1133,7 @@ static void build_hlg_degamma(struct pwl_float_data_ex *degamma,
 	const struct hw_x_point *coord_x = coordinate_x;
 
 	i = 0;
-	//check when i == 434
+	// check when i == 434
 	while (i != hw_points_num + 1) {
 		compute_hlg_eotf(coord_x->x, &rgb->r, sdr_white_level, max_luminance_nits);
 		rgb->g = rgb->r;
@@ -1097,7 +1157,7 @@ static void build_hlg_regamma(struct pwl_float_data_ex *regamma,
 
 	i = 0;
 
-	//when i == 471
+	// when i == 471
 	while (i != hw_points_num + 1) {
 		compute_hlg_oetf(coord_x->x, &rgb->r, sdr_white_level, max_luminance_nits);
 		rgb->g = rgb->r;
@@ -1331,6 +1391,8 @@ static void apply_lut_1d(
 	struct fixed31_32 lut1;
 	struct fixed31_32 lut2;
 	const int max_lut_index = 4095;
+	const struct fixed31_32 penult_lut_index_f =
+			dc_fixpt_from_int(max_lut_index-1);
 	const struct fixed31_32 max_lut_index_f =
 			dc_fixpt_from_int(max_lut_index);
 	int32_t index = 0, index_next = 0;
@@ -1355,10 +1417,21 @@ static void apply_lut_1d(
 			index = dc_fixpt_floor(norm_y);
 			index_f = dc_fixpt_from_int(index);
 
-			if (index < 0 || index > max_lut_index)
+			if (index < 0)
 				continue;
 
-			index_next = (index == max_lut_index) ? index : index+1;
+			if (index <= max_lut_index)
+				index_next = (index == max_lut_index) ? index : index+1;
+			else {
+				/* Here we are dealing with the last point in the curve,
+				 * which in some cases might exceed the range given by
+				 * max_lut_index. So we interpolate the value using
+				 * max_lut_index and max_lut_index - 1.
+				 */
+				index = max_lut_index - 1;
+				index_next = max_lut_index;
+				index_f = penult_lut_index_f;
+			}
 
 			if (color == 0) {
 				lut1 = ramp->entries.red[index];
@@ -1586,9 +1659,7 @@ static void build_new_custom_resulted_curve(
 	uint32_t hw_points_num,
 	struct dc_transfer_func_distributed_points *tf_pts)
 {
-	uint32_t i;
-
-	i = 0;
+	uint32_t i = 0;
 
 	while (i != hw_points_num + 1) {
 		tf_pts->red[i] = dc_fixpt_clamp(
@@ -1614,7 +1685,7 @@ static void apply_degamma_for_user_regamma(struct pwl_float_data_ex *rgb_regamma
 	struct pwl_float_data_ex *rgb = rgb_regamma;
 	const struct hw_x_point *coord_x = coordinates_x;
 
-	build_coefficients(&coeff, true);
+	build_coefficients(&coeff, TRANSFER_FUNCTION_SRGB);
 
 	i = 0;
 	while (i != hw_points_num + 1) {
@@ -1637,7 +1708,8 @@ static bool map_regamma_hw_to_x_user(
 	const struct pwl_float_data_ex *rgb_regamma,
 	uint32_t hw_points_num,
 	struct dc_transfer_func_distributed_points *tf_pts,
-	bool mapUserRamp)
+	bool mapUserRamp,
+	bool doClamping)
 {
 	/* setup to spare calculated ideal regamma values */
 
@@ -1665,8 +1737,10 @@ static bool map_regamma_hw_to_x_user(
 		}
 	}
 
-	/* this should be named differently, all it does is clamp to 0-1 */
-	build_new_custom_resulted_curve(hw_points_num, tf_pts);
+	if (doClamping) {
+		/* this should be named differently, all it does is clamp to 0-1 */
+		build_new_custom_resulted_curve(hw_points_num, tf_pts);
+	}
 
 	return true;
 }
@@ -1675,7 +1749,8 @@ static bool map_regamma_hw_to_x_user(
 
 bool calculate_user_regamma_coeff(struct dc_transfer_func *output_tf,
 		const struct regamma_lut *regamma,
-		struct calculate_buffer *cal_buffer)
+		struct calculate_buffer *cal_buffer,
+		const struct dc_gamma *ramp)
 {
 	struct gamma_coefficients coeff;
 	const struct hw_x_point *coord_x = coordinates_x;
@@ -1716,6 +1791,9 @@ bool calculate_user_regamma_coeff(struct dc_transfer_func *output_tf,
 		++i;
 	}
 
+	if (ramp && ramp->type == GAMMA_CS_TFM_1D)
+		apply_lut_1d(ramp, MAX_HW_POINTS, &output_tf->tf_pts);
+
 	// this function just clamps output to 0-1
 	build_new_custom_resulted_curve(MAX_HW_POINTS, &output_tf->tf_pts);
 	output_tf->type = TF_TYPE_DISTRIBUTED_POINTS;
@@ -1725,7 +1803,8 @@ bool calculate_user_regamma_coeff(struct dc_transfer_func *output_tf,
 
 bool calculate_user_regamma_ramp(struct dc_transfer_func *output_tf,
 		const struct regamma_lut *regamma,
-		struct calculate_buffer *cal_buffer)
+		struct calculate_buffer *cal_buffer,
+		const struct dc_gamma *ramp)
 {
 	struct dc_transfer_func_distributed_points *tf_pts = &output_tf->tf_pts;
 	struct dividers dividers;
@@ -1771,6 +1850,9 @@ bool calculate_user_regamma_ramp(struct dc_transfer_func *output_tf,
 	tf_pts->x_point_at_y1_red = 1;
 	tf_pts->x_point_at_y1_green = 1;
 	tf_pts->x_point_at_y1_blue = 1;
+
+	if (ramp && ramp->type == GAMMA_CS_TFM_1D)
+		apply_lut_1d(ramp, MAX_HW_POINTS, &output_tf->tf_pts);
 
 	// this function just clamps output to 0-1
 	build_new_custom_resulted_curve(MAX_HW_POINTS, tf_pts);
@@ -1914,11 +1996,12 @@ bool mod_color_calculate_degamma_params(struct dc_color_caps *dc_caps,
 			++i;
 		}
 	} else {
-		//clamps to 0-1
+		// clamps to 0-1
 		map_regamma_hw_to_x_user(ramp, coeff, rgb_user,
 				coordinates_x, axis_x, curve,
 				MAX_HW_POINTS, tf_pts,
-				mapUserRamp && ramp && ramp->type == GAMMA_RGB_256);
+				mapUserRamp && ramp && ramp->type == GAMMA_RGB_256,
+				true);
 	}
 
 
@@ -2034,6 +2117,7 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 	struct gamma_pixel *axis_x = NULL;
 	struct pixel_gamma_point *coeff = NULL;
 	enum dc_transfer_func_predefined tf = TRANSFER_FUNCTION_SRGB;
+	bool doClamping = true;
 	bool ret = false;
 
 	if (output_tf->type == TF_TYPE_BYPASS)
@@ -2100,11 +2184,15 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 			cal_buffer);
 
 	if (ret) {
+		doClamping = !(output_tf->tf == TRANSFER_FUNCTION_GAMMA22 &&
+			fs_params != NULL && fs_params->skip_tm == 0);
+
 		map_regamma_hw_to_x_user(ramp, coeff, rgb_user,
 				coordinates_x, axis_x, rgb_regamma,
 				MAX_HW_POINTS, tf_pts,
 				(mapUserRamp || (ramp && ramp->type != GAMMA_RGB_256)) &&
-				(ramp && ramp->type != GAMMA_CS_TFM_1D));
+				(ramp && ramp->type != GAMMA_CS_TFM_1D),
+				doClamping);
 
 		if (ramp && ramp->type == GAMMA_CS_TFM_1D)
 			apply_lut_1d(ramp, MAX_HW_POINTS, tf_pts);

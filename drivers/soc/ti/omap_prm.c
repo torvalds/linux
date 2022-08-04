@@ -7,6 +7,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -14,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_clock.h>
 #include <linux/pm_domain.h>
 #include <linux/reset-controller.h>
 #include <linux/delay.h>
@@ -41,6 +43,7 @@ struct omap_prm_domain {
 	u16 pwrstst;
 	const struct omap_prm_domain_map *cap;
 	u32 pwrstctrl_saved;
+	unsigned int uses_pm_clk:1;
 };
 
 struct omap_rst_map {
@@ -121,6 +124,16 @@ static const struct omap_prm_domain_map omap_prm_onoff_noauto = {
 	.statechange = 1,
 };
 
+static const struct omap_prm_domain_map omap_prm_alwon = {
+	.usable_modes = BIT(OMAP_PRMD_ON_ACTIVE),
+};
+
+static const struct omap_prm_domain_map omap_prm_reton = {
+	.usable_modes = BIT(OMAP_PRMD_ON_ACTIVE) | BIT(OMAP_PRMD_RETENTION),
+	.statechange = 1,
+	.logicretstate = 1,
+};
+
 static const struct omap_rst_map rst_map_0[] = {
 	{ .rst = 0, .st = 0 },
 	{ .rst = -1 },
@@ -140,39 +153,237 @@ static const struct omap_rst_map rst_map_012[] = {
 };
 
 static const struct omap_prm_data omap4_prm_data[] = {
-	{ .name = "tesla", .base = 0x4a306400, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01 },
+	{
+		.name = "mpu", .base = 0x4a306300,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton,
+	},
+	{
+		.name = "tesla", .base = 0x4a306400,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
+	},
 	{
 		.name = "abe", .base = 0x4a306500,
 		.pwrstctrl = 0, .pwrstst = 0x4, .dmap = &omap_prm_all,
 	},
-	{ .name = "core", .base = 0x4a306700, .rstctrl = 0x210, .rstst = 0x214, .clkdm_name = "ducati", .rstmap = rst_map_012 },
-	{ .name = "ivahd", .base = 0x4a306f00, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012 },
-	{ .name = "device", .base = 0x4a307b00, .rstctrl = 0x0, .rstst = 0x4, .rstmap = rst_map_01, .flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM },
+	{
+		.name = "always_on_core", .base = 0x4a306600,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+	},
+	{
+		.name = "core", .base = 0x4a306700,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton,
+		.rstctrl = 0x210, .rstst = 0x214, .clkdm_name = "ducati",
+		.rstmap = rst_map_012
+	},
+	{
+		.name = "ivahd", .base = 0x4a306f00,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012
+	},
+	{
+		.name = "cam", .base = 0x4a307000,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+	},
+	{
+		.name = "dss", .base = 0x4a307100,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact
+	},
+	{
+		.name = "gfx", .base = 0x4a307200,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+	},
+	{
+		.name = "l3init", .base = 0x4a307300,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton
+	},
+	{
+		.name = "l4per", .base = 0x4a307400,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton
+	},
+	{
+		.name = "cefuse", .base = 0x4a307600,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+	},
+	{
+		.name = "wkup", .base = 0x4a307700,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon
+	},
+	{
+		.name = "emu", .base = 0x4a307900,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+	},
+	{
+		.name = "device", .base = 0x4a307b00,
+		.rstctrl = 0x0, .rstst = 0x4, .rstmap = rst_map_01,
+		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM
+	},
 	{ },
 };
 
 static const struct omap_prm_data omap5_prm_data[] = {
-	{ .name = "dsp", .base = 0x4ae06400, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01 },
+	{
+		.name = "mpu", .base = 0x4ae06300,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton,
+	},
+	{
+		.name = "dsp", .base = 0x4ae06400,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
+	},
 	{
 		.name = "abe", .base = 0x4ae06500,
 		.pwrstctrl = 0, .pwrstst = 0x4, .dmap = &omap_prm_nooff,
 	},
-	{ .name = "core", .base = 0x4ae06700, .rstctrl = 0x210, .rstst = 0x214, .clkdm_name = "ipu", .rstmap = rst_map_012 },
-	{ .name = "iva", .base = 0x4ae07200, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012 },
-	{ .name = "device", .base = 0x4ae07c00, .rstctrl = 0x0, .rstst = 0x4, .rstmap = rst_map_01, .flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM },
+	{
+		.name = "coreaon", .base = 0x4ae06600,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon
+	},
+	{
+		.name = "core", .base = 0x4ae06700,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton,
+		.rstctrl = 0x210, .rstst = 0x214, .clkdm_name = "ipu",
+		.rstmap = rst_map_012
+	},
+	{
+		.name = "iva", .base = 0x4ae07200,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012
+	},
+	{
+		.name = "cam", .base = 0x4ae07300,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+	},
+	{
+		.name = "dss", .base = 0x4ae07400,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact
+	},
+	{
+		.name = "gpu", .base = 0x4ae07500,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+	},
+	{
+		.name = "l3init", .base = 0x4ae07600,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton
+	},
+	{
+		.name = "custefuse", .base = 0x4ae07700,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+	},
+	{
+		.name = "wkupaon", .base = 0x4ae07800,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon
+	},
+	{
+		.name = "emu", .base = 0x4ae07a00,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+	},
+	{
+		.name = "device", .base = 0x4ae07c00,
+		.rstctrl = 0x0, .rstst = 0x4, .rstmap = rst_map_01,
+		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM
+	},
 	{ },
 };
 
 static const struct omap_prm_data dra7_prm_data[] = {
-	{ .name = "dsp1", .base = 0x4ae06400, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01 },
-	{ .name = "ipu", .base = 0x4ae06500, .rstctrl = 0x10, .rstst = 0x14, .clkdm_name = "ipu1", .rstmap = rst_map_012 },
-	{ .name = "core", .base = 0x4ae06700, .rstctrl = 0x210, .rstst = 0x214, .clkdm_name = "ipu2", .rstmap = rst_map_012 },
-	{ .name = "iva", .base = 0x4ae06f00, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012 },
-	{ .name = "dsp2", .base = 0x4ae07b00, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01 },
-	{ .name = "eve1", .base = 0x4ae07b40, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01 },
-	{ .name = "eve2", .base = 0x4ae07b80, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01 },
-	{ .name = "eve3", .base = 0x4ae07bc0, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01 },
-	{ .name = "eve4", .base = 0x4ae07c00, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01 },
+	{
+		.name = "mpu", .base = 0x4ae06300,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton,
+	},
+	{
+		.name = "dsp1", .base = 0x4ae06400,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01,
+	},
+	{
+		.name = "ipu", .base = 0x4ae06500,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012,
+		.clkdm_name = "ipu1"
+	},
+	{
+		.name = "coreaon", .base = 0x4ae06628,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+	},
+	{
+		.name = "core", .base = 0x4ae06700,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+		.rstctrl = 0x210, .rstst = 0x214, .rstmap = rst_map_012,
+		.clkdm_name = "ipu2"
+	},
+	{
+		.name = "iva", .base = 0x4ae06f00,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012,
+	},
+	{
+		.name = "cam", .base = 0x4ae07000,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+	},
+	{
+		.name = "dss", .base = 0x4ae07100,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+	},
+	{
+		.name = "gpu", .base = 0x4ae07200,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+	},
+	{
+		.name = "l3init", .base = 0x4ae07300,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012,
+		.clkdm_name = "pcie"
+	},
+	{
+		.name = "l4per", .base = 0x4ae07400,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+	},
+	{
+		.name = "custefuse", .base = 0x4ae07600,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+	},
+	{
+		.name = "wkupaon", .base = 0x4ae07724,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+	},
+	{
+		.name = "emu", .base = 0x4ae07900,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+	},
+	{
+		.name = "dsp2", .base = 0x4ae07b00,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
+	},
+	{
+		.name = "eve1", .base = 0x4ae07b40,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
+	},
+	{
+		.name = "eve2", .base = 0x4ae07b80,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
+	},
+	{
+		.name = "eve3", .base = 0x4ae07bc0,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
+	},
+	{
+		.name = "eve4", .base = 0x4ae07c00,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
+	},
+	{
+		.name = "rtc", .base = 0x4ae07c60,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+	},
+	{
+		.name = "vpe", .base = 0x4ae07c80,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+	},
 	{ },
 };
 
@@ -187,13 +398,39 @@ static const struct omap_rst_map am3_wkup_rst_map[] = {
 };
 
 static const struct omap_prm_data am3_prm_data[] = {
-	{ .name = "per", .base = 0x44e00c00, .rstctrl = 0x0, .rstmap = am3_per_rst_map, .flags = OMAP_PRM_HAS_RSTCTRL, .clkdm_name = "pruss_ocp" },
-	{ .name = "wkup", .base = 0x44e00d00, .rstctrl = 0x0, .rstst = 0xc, .rstmap = am3_wkup_rst_map, .flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM },
-	{ .name = "device", .base = 0x44e00f00, .rstctrl = 0x0, .rstst = 0x8, .rstmap = rst_map_01, .flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM },
+	{
+		.name = "per", .base = 0x44e00c00,
+		.pwrstctrl = 0xc, .pwrstst = 0x8, .dmap = &omap_prm_noinact,
+		.rstctrl = 0x0, .rstmap = am3_per_rst_map,
+		.flags = OMAP_PRM_HAS_RSTCTRL, .clkdm_name = "pruss_ocp"
+	},
+	{
+		.name = "wkup", .base = 0x44e00d00,
+		.pwrstctrl = 0x4, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+		.rstctrl = 0x0, .rstst = 0xc, .rstmap = am3_wkup_rst_map,
+		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM
+	},
+	{
+		.name = "mpu", .base = 0x44e00e00,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+	},
+	{
+		.name = "device", .base = 0x44e00f00,
+		.rstctrl = 0x0, .rstst = 0x8, .rstmap = rst_map_01,
+		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM
+	},
+	{
+		.name = "rtc", .base = 0x44e01000,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+	},
 	{
 		.name = "gfx", .base = 0x44e01100,
 		.pwrstctrl = 0, .pwrstst = 0x10, .dmap = &omap_prm_noinact,
 		.rstctrl = 0x4, .rstst = 0x14, .rstmap = rst_map_0, .clkdm_name = "gfx_l3",
+	},
+	{
+		.name = "cefuse", .base = 0x44e01200,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
 	},
 	{ },
 };
@@ -211,13 +448,43 @@ static const struct omap_rst_map am4_device_rst_map[] = {
 
 static const struct omap_prm_data am4_prm_data[] = {
 	{
+		.name = "mpu", .base = 0x44df0300,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+	},
+	{
 		.name = "gfx", .base = 0x44df0400,
 		.pwrstctrl = 0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
 		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_0, .clkdm_name = "gfx_l3",
 	},
-	{ .name = "per", .base = 0x44df0800, .rstctrl = 0x10, .rstst = 0x14, .rstmap = am4_per_rst_map, .clkdm_name = "pruss_ocp" },
-	{ .name = "wkup", .base = 0x44df2000, .rstctrl = 0x10, .rstst = 0x14, .rstmap = am3_wkup_rst_map, .flags = OMAP_PRM_HAS_NO_CLKDM },
-	{ .name = "device", .base = 0x44df4000, .rstctrl = 0x0, .rstst = 0x4, .rstmap = am4_device_rst_map, .flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM },
+	{
+		.name = "rtc", .base = 0x44df0500,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+	},
+	{
+		.name = "tamper", .base = 0x44df0600,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+	},
+	{
+		.name = "cefuse", .base = 0x44df0700,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+	},
+	{
+		.name = "per", .base = 0x44df0800,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = am4_per_rst_map,
+		.clkdm_name = "pruss_ocp"
+	},
+	{
+		.name = "wkup", .base = 0x44df2000,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = am3_wkup_rst_map,
+		.flags = OMAP_PRM_HAS_NO_CLKDM
+	},
+	{
+		.name = "device", .base = 0x44df4000,
+		.rstctrl = 0x0, .rstst = 0x4, .rstmap = am4_device_rst_map,
+		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM
+	},
 	{ },
 };
 
@@ -325,6 +592,38 @@ static int omap_prm_domain_power_off(struct generic_pm_domain *domain)
 	return 0;
 }
 
+/*
+ * Note that ti-sysc already manages the module clocks separately so
+ * no need to manage those. Interconnect instances need clocks managed
+ * for simple-pm-bus.
+ */
+static int omap_prm_domain_attach_clock(struct device *dev,
+					struct omap_prm_domain *prmd)
+{
+	struct device_node *np = dev->of_node;
+	int error;
+
+	if (!of_device_is_compatible(np, "simple-pm-bus"))
+		return 0;
+
+	if (!of_property_read_bool(np, "clocks"))
+		return 0;
+
+	error = pm_clk_create(dev);
+	if (error)
+		return error;
+
+	error = of_pm_clk_add_clks(dev);
+	if (error < 0) {
+		pm_clk_destroy(dev);
+		return error;
+	}
+
+	prmd->uses_pm_clk = 1;
+
+	return 0;
+}
+
 static int omap_prm_domain_attach_dev(struct generic_pm_domain *domain,
 				      struct device *dev)
 {
@@ -349,6 +648,10 @@ static int omap_prm_domain_attach_dev(struct generic_pm_domain *domain,
 	genpd_data = dev_gpd_data(dev);
 	genpd_data->data = NULL;
 
+	ret = omap_prm_domain_attach_clock(dev, prmd);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
@@ -356,7 +659,11 @@ static void omap_prm_domain_detach_dev(struct generic_pm_domain *domain,
 				       struct device *dev)
 {
 	struct generic_pm_domain_data *genpd_data;
+	struct omap_prm_domain *prmd;
 
+	prmd = genpd_to_prm_domain(domain);
+	if (prmd->uses_pm_clk)
+		pm_clk_destroy(dev);
 	genpd_data = dev_gpd_data(dev);
 	genpd_data->data = NULL;
 }
@@ -393,6 +700,7 @@ static int omap_prm_domain_init(struct device *dev, struct omap_prm *prm)
 	prmd->pd.power_off = omap_prm_domain_power_off;
 	prmd->pd.attach_dev = omap_prm_domain_attach_dev;
 	prmd->pd.detach_dev = omap_prm_domain_detach_dev;
+	prmd->pd.flags = GENPD_FLAG_PM_CLK;
 
 	pm_genpd_init(&prmd->pd, NULL, true);
 	error = of_genpd_add_provider_simple(np, &prmd->pd);
@@ -484,6 +792,10 @@ static int omap_reset_deassert(struct reset_controller_dev *rcdev,
 	struct ti_prm_platform_data *pdata = dev_get_platdata(reset->dev);
 	int ret = 0;
 
+	/* Nothing to do if the reset is already deasserted */
+	if (!omap_reset_status(rcdev, id))
+		return 0;
+
 	has_rstst = reset->prm->data->rstst ||
 		(reset->prm->data->flags & OMAP_PRM_HAS_RSTST);
 
@@ -548,6 +860,7 @@ static int omap_prm_reset_init(struct platform_device *pdev,
 	const struct omap_rst_map *map;
 	struct ti_prm_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	char buf[32];
+	u32 v;
 
 	/*
 	 * Check if we have controllable resets. If either rstctrl is non-zero
@@ -593,6 +906,16 @@ static int omap_prm_reset_init(struct platform_device *pdev,
 	while (map->rst >= 0) {
 		reset->mask |= BIT(map->rst);
 		map++;
+	}
+
+	/* Quirk handling to assert rst_map_012 bits on reset and avoid errors */
+	if (prm->data->rstmap == rst_map_012) {
+		v = readl_relaxed(reset->prm->base + reset->prm->data->rstctrl);
+		if ((v & reset->mask) != reset->mask) {
+			dev_dbg(&pdev->dev, "Asserting all resets: %08x\n", v);
+			writel_relaxed(reset->mask, reset->prm->base +
+				       reset->prm->data->rstctrl);
+		}
 	}
 
 	return devm_reset_controller_register(&pdev->dev, &reset->rcdev);

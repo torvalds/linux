@@ -194,8 +194,7 @@ static void rt2x00lib_beaconupdate_iter(void *data, u8 *mac,
 
 	if (vif->type != NL80211_IFTYPE_AP &&
 	    vif->type != NL80211_IFTYPE_ADHOC &&
-	    vif->type != NL80211_IFTYPE_MESH_POINT &&
-	    vif->type != NL80211_IFTYPE_WDS)
+	    vif->type != NL80211_IFTYPE_MESH_POINT)
 		return;
 
 	/*
@@ -1436,9 +1435,6 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 		    BIT(NL80211_IFTYPE_ADHOC) |
 #ifdef CONFIG_MAC80211_MESH
 		    BIT(NL80211_IFTYPE_MESH_POINT) |
-#endif
-#ifdef CONFIG_WIRELESS_WDS
-		    BIT(NL80211_IFTYPE_WDS) |
 #endif
 		    BIT(NL80211_IFTYPE_AP);
 

@@ -256,6 +256,20 @@ extern void class_destroy(struct class *cls);
 
 /* This is a #define to keep the compiler from merging different
  * instances of the __key variable */
+
+/**
+ * class_create - create a struct class structure
+ * @owner: pointer to the module that is to "own" this struct class
+ * @name: pointer to a string for the name of this class.
+ *
+ * This is used to create a struct class pointer that can then be used
+ * in calls to device_create().
+ *
+ * Returns &struct class pointer on success, or ERR_PTR() on error.
+ *
+ * Note, the pointer created here is to be destroyed when finished by
+ * making a call to class_destroy().
+ */
 #define class_create(owner, name)		\
 ({						\
 	static struct lock_class_key __key;	\

@@ -887,15 +887,7 @@ int hdmi5_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 
 int hdmi5_core_init(struct platform_device *pdev, struct hdmi_core_data *core)
 {
-	struct resource *res;
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "core");
-	if (!res) {
-		DSSERR("can't get CORE IORESOURCE_MEM HDMI\n");
-		return -EINVAL;
-	}
-
-	core->base = devm_ioremap_resource(&pdev->dev, res);
+	core->base = devm_platform_ioremap_resource_byname(pdev, "core");
 	if (IS_ERR(core->base)) {
 		DSSERR("can't ioremap HDMI core\n");
 		return PTR_ERR(core->base);

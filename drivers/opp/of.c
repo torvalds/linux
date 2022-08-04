@@ -112,8 +112,6 @@ static struct opp_table *_find_table_of_opp_np(struct device_node *opp_np)
 	struct opp_table *opp_table;
 	struct device_node *opp_table_np;
 
-	lockdep_assert_held(&opp_table_lock);
-
 	opp_table_np = of_get_parent(opp_np);
 	if (!opp_table_np)
 		goto err;
@@ -121,12 +119,15 @@ static struct opp_table *_find_table_of_opp_np(struct device_node *opp_np)
 	/* It is safe to put the node now as all we need now is its address */
 	of_node_put(opp_table_np);
 
+	mutex_lock(&opp_table_lock);
 	list_for_each_entry(opp_table, &opp_tables, node) {
 		if (opp_table_np == opp_table->np) {
 			_get_opp_table_kref(opp_table);
+			mutex_unlock(&opp_table_lock);
 			return opp_table;
 		}
 	}
+	mutex_unlock(&opp_table_lock);
 
 err:
 	return ERR_PTR(-ENODEV);
@@ -169,7 +170,8 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 	/* Traversing the first OPP node is all we need */
 	np = of_get_next_available_child(opp_np, NULL);
 	if (!np) {
-		dev_err(dev, "Empty OPP table\n");
+		dev_warn(dev, "Empty OPP table\n");
+
 		return;
 	}
 
@@ -377,7 +379,9 @@ int dev_pm_opp_of_find_icc_paths(struct device *dev,
 	struct icc_path **paths;
 
 	ret = _bandwidth_supported(dev, opp_table);
-	if (ret <= 0)
+	if (ret == -EINVAL)
+		return 0; /* Empty OPP table is a valid corner-case, let's not fail */
+	else if (ret <= 0)
 		return ret;
 
 	ret = 0;
@@ -974,7 +978,7 @@ int dev_pm_opp_of_add_table(struct device *dev)
 	struct opp_table *opp_table;
 	int ret;
 
-	opp_table = dev_pm_opp_get_opp_table_indexed(dev, 0);
+	opp_table = _add_opp_table_indexed(dev, 0);
 	if (IS_ERR(opp_table))
 		return PTR_ERR(opp_table);
 
@@ -1029,7 +1033,7 @@ int dev_pm_opp_of_add_table_indexed(struct device *dev, int index)
 			index = 0;
 	}
 
-	opp_table = dev_pm_opp_get_opp_table_indexed(dev, index);
+	opp_table = _add_opp_table_indexed(dev, index);
 	if (IS_ERR(opp_table))
 		return PTR_ERR(opp_table);
 
@@ -1335,7 +1339,7 @@ int dev_pm_opp_of_register_em(struct device *dev, struct cpumask *cpus)
 		goto failed;
 	}
 
-	ret = em_dev_register_perf_domain(dev, nr_opp, &em_cb, cpus);
+	ret = em_dev_register_perf_domain(dev, nr_opp, &em_cb, cpus, true);
 	if (ret)
 		goto failed;
 

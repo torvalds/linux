@@ -165,9 +165,11 @@ static ssize_t state_show(struct ib_port *p, struct port_attribute *unused,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%d: %s\n", attr.state,
-		       attr.state >= 0 && attr.state < ARRAY_SIZE(state_name) ?
-		       state_name[attr.state] : "UNKNOWN");
+	return sysfs_emit(buf, "%d: %s\n", attr.state,
+			  attr.state >= 0 &&
+					  attr.state < ARRAY_SIZE(state_name) ?
+				  state_name[attr.state] :
+				  "UNKNOWN");
 }
 
 static ssize_t lid_show(struct ib_port *p, struct port_attribute *unused,
@@ -180,7 +182,7 @@ static ssize_t lid_show(struct ib_port *p, struct port_attribute *unused,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "0x%x\n", attr.lid);
+	return sysfs_emit(buf, "0x%x\n", attr.lid);
 }
 
 static ssize_t lid_mask_count_show(struct ib_port *p,
@@ -194,7 +196,7 @@ static ssize_t lid_mask_count_show(struct ib_port *p,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%d\n", attr.lmc);
+	return sysfs_emit(buf, "%d\n", attr.lmc);
 }
 
 static ssize_t sm_lid_show(struct ib_port *p, struct port_attribute *unused,
@@ -207,7 +209,7 @@ static ssize_t sm_lid_show(struct ib_port *p, struct port_attribute *unused,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "0x%x\n", attr.sm_lid);
+	return sysfs_emit(buf, "0x%x\n", attr.sm_lid);
 }
 
 static ssize_t sm_sl_show(struct ib_port *p, struct port_attribute *unused,
@@ -220,7 +222,7 @@ static ssize_t sm_sl_show(struct ib_port *p, struct port_attribute *unused,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%d\n", attr.sm_sl);
+	return sysfs_emit(buf, "%d\n", attr.sm_sl);
 }
 
 static ssize_t cap_mask_show(struct ib_port *p, struct port_attribute *unused,
@@ -233,7 +235,7 @@ static ssize_t cap_mask_show(struct ib_port *p, struct port_attribute *unused,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "0x%08x\n", attr.port_cap_flags);
+	return sysfs_emit(buf, "0x%08x\n", attr.port_cap_flags);
 }
 
 static ssize_t rate_show(struct ib_port *p, struct port_attribute *unused,
@@ -273,6 +275,10 @@ static ssize_t rate_show(struct ib_port *p, struct port_attribute *unused,
 		speed = " HDR";
 		rate = 500;
 		break;
+	case IB_SPEED_NDR:
+		speed = " NDR";
+		rate = 1000;
+		break;
 	case IB_SPEED_SDR:
 	default:		/* default to SDR for invalid rates */
 		speed = " SDR";
@@ -284,9 +290,9 @@ static ssize_t rate_show(struct ib_port *p, struct port_attribute *unused,
 	if (rate < 0)
 		return -EINVAL;
 
-	return sprintf(buf, "%d%s Gb/sec (%dX%s)\n",
-		       rate / 10, rate % 10 ? ".5" : "",
-		       ib_width_enum_to_int(attr.active_width), speed);
+	return sysfs_emit(buf, "%d%s Gb/sec (%dX%s)\n", rate / 10,
+			  rate % 10 ? ".5" : "",
+			  ib_width_enum_to_int(attr.active_width), speed);
 }
 
 static const char *phys_state_to_str(enum ib_port_phys_state phys_state)
@@ -318,21 +324,28 @@ static ssize_t phys_state_show(struct ib_port *p, struct port_attribute *unused,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%d: %s\n", attr.phys_state,
-		       phys_state_to_str(attr.phys_state));
+	return sysfs_emit(buf, "%d: %s\n", attr.phys_state,
+			  phys_state_to_str(attr.phys_state));
 }
 
 static ssize_t link_layer_show(struct ib_port *p, struct port_attribute *unused,
 			       char *buf)
 {
+	const char *output;
+
 	switch (rdma_port_get_link_layer(p->ibdev, p->port_num)) {
 	case IB_LINK_LAYER_INFINIBAND:
-		return sprintf(buf, "%s\n", "InfiniBand");
+		output = "InfiniBand";
+		break;
 	case IB_LINK_LAYER_ETHERNET:
-		return sprintf(buf, "%s\n", "Ethernet");
+		output = "Ethernet";
+		break;
 	default:
-		return sprintf(buf, "%s\n", "Unknown");
+		output = "Unknown";
+		break;
 	}
+
+	return sysfs_emit(buf, "%s\n", output);
 }
 
 static PORT_ATTR_RO(state);
@@ -358,27 +371,28 @@ static struct attribute *port_default_attrs[] = {
 	NULL
 };
 
-static size_t print_ndev(const struct ib_gid_attr *gid_attr, char *buf)
+static ssize_t print_ndev(const struct ib_gid_attr *gid_attr, char *buf)
 {
 	struct net_device *ndev;
-	size_t ret = -EINVAL;
+	int ret = -EINVAL;
 
 	rcu_read_lock();
 	ndev = rcu_dereference(gid_attr->ndev);
 	if (ndev)
-		ret = sprintf(buf, "%s\n", ndev->name);
+		ret = sysfs_emit(buf, "%s\n", ndev->name);
 	rcu_read_unlock();
 	return ret;
 }
 
-static size_t print_gid_type(const struct ib_gid_attr *gid_attr, char *buf)
+static ssize_t print_gid_type(const struct ib_gid_attr *gid_attr, char *buf)
 {
-	return sprintf(buf, "%s\n", ib_cache_gid_type_str(gid_attr->gid_type));
+	return sysfs_emit(buf, "%s\n",
+			  ib_cache_gid_type_str(gid_attr->gid_type));
 }
 
 static ssize_t _show_port_gid_attr(
 	struct ib_port *p, struct port_attribute *attr, char *buf,
-	size_t (*print)(const struct ib_gid_attr *gid_attr, char *buf))
+	ssize_t (*print)(const struct ib_gid_attr *gid_attr, char *buf))
 {
 	struct port_table_attribute *tab_attr =
 		container_of(attr, struct port_table_attribute, attr);
@@ -401,7 +415,7 @@ static ssize_t show_port_gid(struct ib_port *p, struct port_attribute *attr,
 	struct port_table_attribute *tab_attr =
 		container_of(attr, struct port_table_attribute, attr);
 	const struct ib_gid_attr *gid_attr;
-	ssize_t ret;
+	int len;
 
 	gid_attr = rdma_get_gid_attr(p->ibdev, p->port_num, tab_attr->index);
 	if (IS_ERR(gid_attr)) {
@@ -416,12 +430,12 @@ static ssize_t show_port_gid(struct ib_port *p, struct port_attribute *attr,
 		 * space throwing such error on fail to read gid, return zero
 		 * GID as before. This maintains backward compatibility.
 		 */
-		return sprintf(buf, "%pI6\n", zgid.raw);
+		return sysfs_emit(buf, "%pI6\n", zgid.raw);
 	}
 
-	ret = sprintf(buf, "%pI6\n", gid_attr->gid.raw);
+	len = sysfs_emit(buf, "%pI6\n", gid_attr->gid.raw);
 	rdma_put_gid_attr(gid_attr);
-	return ret;
+	return len;
 }
 
 static ssize_t show_port_gid_attr_ndev(struct ib_port *p,
@@ -443,13 +457,13 @@ static ssize_t show_port_pkey(struct ib_port *p, struct port_attribute *attr,
 	struct port_table_attribute *tab_attr =
 		container_of(attr, struct port_table_attribute, attr);
 	u16 pkey;
-	ssize_t ret;
+	int ret;
 
 	ret = ib_query_pkey(p->ibdev, p->port_num, tab_attr->index, &pkey);
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "0x%04x\n", pkey);
+	return sysfs_emit(buf, "0x%04x\n", pkey);
 }
 
 #define PORT_PMA_ATTR(_name, _counter, _width, _offset)			\
@@ -521,8 +535,9 @@ static ssize_t show_pma_counter(struct ib_port *p, struct port_attribute *attr,
 		container_of(attr, struct port_table_attribute, attr);
 	int offset = tab_attr->index & 0xffff;
 	int width  = (tab_attr->index >> 16) & 0xff;
-	ssize_t ret;
+	int ret;
 	u8 data[8];
+	int len;
 
 	ret = get_perf_mad(p->ibdev, p->port_num, tab_attr->attr_id, &data,
 			40 + offset / 8, sizeof(data));
@@ -531,30 +546,27 @@ static ssize_t show_pma_counter(struct ib_port *p, struct port_attribute *attr,
 
 	switch (width) {
 	case 4:
-		ret = sprintf(buf, "%u\n", (*data >>
-					    (4 - (offset % 8))) & 0xf);
+		len = sysfs_emit(buf, "%u\n",
+				 (*data >> (4 - (offset % 8))) & 0xf);
 		break;
 	case 8:
-		ret = sprintf(buf, "%u\n", *data);
+		len = sysfs_emit(buf, "%u\n", *data);
 		break;
 	case 16:
-		ret = sprintf(buf, "%u\n",
-			      be16_to_cpup((__be16 *)data));
+		len = sysfs_emit(buf, "%u\n", be16_to_cpup((__be16 *)data));
 		break;
 	case 32:
-		ret = sprintf(buf, "%u\n",
-			      be32_to_cpup((__be32 *)data));
+		len = sysfs_emit(buf, "%u\n", be32_to_cpup((__be32 *)data));
 		break;
 	case 64:
-		ret = sprintf(buf, "%llu\n",
-				be64_to_cpup((__be64 *)data));
+		len = sysfs_emit(buf, "%llu\n", be64_to_cpup((__be64 *)data));
 		break;
-
 	default:
-		ret = 0;
+		len = 0;
+		break;
 	}
 
-	return ret;
+	return len;
 }
 
 static PORT_PMA_ATTR(symbol_error		    ,  0, 16,  32);
@@ -815,12 +827,12 @@ static int update_hw_stats(struct ib_device *dev, struct rdma_hw_stats *stats,
 	return 0;
 }
 
-static ssize_t print_hw_stat(struct ib_device *dev, int port_num,
-			     struct rdma_hw_stats *stats, int index, char *buf)
+static int print_hw_stat(struct ib_device *dev, int port_num,
+			 struct rdma_hw_stats *stats, int index, char *buf)
 {
 	u64 v = rdma_counter_get_hwstat_value(dev, port_num, index);
 
-	return sprintf(buf, "%llu\n", stats->value[index] + v);
+	return sysfs_emit(buf, "%llu\n", stats->value[index] + v);
 }
 
 static ssize_t show_hw_stats(struct kobject *kobj, struct attribute *attr,
@@ -877,7 +889,7 @@ static ssize_t show_stats_lifespan(struct kobject *kobj,
 	msecs = jiffies_to_msecs(stats->lifespan);
 	mutex_unlock(&stats->lock);
 
-	return sprintf(buf, "%d\n", msecs);
+	return sysfs_emit(buf, "%d\n", msecs);
 }
 
 static ssize_t set_stats_lifespan(struct kobject *kobj,
@@ -1224,21 +1236,34 @@ err_put:
 	return ret;
 }
 
+static const char *node_type_string(int node_type)
+{
+	switch (node_type) {
+	case RDMA_NODE_IB_CA:
+		return "CA";
+	case RDMA_NODE_IB_SWITCH:
+		return "switch";
+	case RDMA_NODE_IB_ROUTER:
+		return "router";
+	case RDMA_NODE_RNIC:
+		return "RNIC";
+	case RDMA_NODE_USNIC:
+		return "usNIC";
+	case RDMA_NODE_USNIC_UDP:
+		return "usNIC UDP";
+	case RDMA_NODE_UNSPECIFIED:
+		return "unspecified";
+	}
+	return "<unknown>";
+}
+
 static ssize_t node_type_show(struct device *device,
 			      struct device_attribute *attr, char *buf)
 {
 	struct ib_device *dev = rdma_device_to_ibdev(device);
 
-	switch (dev->node_type) {
-	case RDMA_NODE_IB_CA:	  return sprintf(buf, "%d: CA\n", dev->node_type);
-	case RDMA_NODE_RNIC:	  return sprintf(buf, "%d: RNIC\n", dev->node_type);
-	case RDMA_NODE_USNIC:	  return sprintf(buf, "%d: usNIC\n", dev->node_type);
-	case RDMA_NODE_USNIC_UDP: return sprintf(buf, "%d: usNIC UDP\n", dev->node_type);
-	case RDMA_NODE_UNSPECIFIED: return sprintf(buf, "%d: unspecified\n", dev->node_type);
-	case RDMA_NODE_IB_SWITCH: return sprintf(buf, "%d: switch\n", dev->node_type);
-	case RDMA_NODE_IB_ROUTER: return sprintf(buf, "%d: router\n", dev->node_type);
-	default:		  return sprintf(buf, "%d: <unknown>\n", dev->node_type);
-	}
+	return sysfs_emit(buf, "%d: %s\n", dev->node_type,
+			  node_type_string(dev->node_type));
 }
 static DEVICE_ATTR_RO(node_type);
 
@@ -1246,12 +1271,13 @@ static ssize_t sys_image_guid_show(struct device *device,
 				   struct device_attribute *dev_attr, char *buf)
 {
 	struct ib_device *dev = rdma_device_to_ibdev(device);
+	__be16 *guid = (__be16 *)&dev->attrs.sys_image_guid;
 
-	return sprintf(buf, "%04x:%04x:%04x:%04x\n",
-		       be16_to_cpu(((__be16 *) &dev->attrs.sys_image_guid)[0]),
-		       be16_to_cpu(((__be16 *) &dev->attrs.sys_image_guid)[1]),
-		       be16_to_cpu(((__be16 *) &dev->attrs.sys_image_guid)[2]),
-		       be16_to_cpu(((__be16 *) &dev->attrs.sys_image_guid)[3]));
+	return sysfs_emit(buf, "%04x:%04x:%04x:%04x\n",
+			  be16_to_cpu(guid[0]),
+			  be16_to_cpu(guid[1]),
+			  be16_to_cpu(guid[2]),
+			  be16_to_cpu(guid[3]));
 }
 static DEVICE_ATTR_RO(sys_image_guid);
 
@@ -1259,12 +1285,13 @@ static ssize_t node_guid_show(struct device *device,
 			      struct device_attribute *attr, char *buf)
 {
 	struct ib_device *dev = rdma_device_to_ibdev(device);
+	__be16 *node_guid = (__be16 *)&dev->node_guid;
 
-	return sprintf(buf, "%04x:%04x:%04x:%04x\n",
-		       be16_to_cpu(((__be16 *) &dev->node_guid)[0]),
-		       be16_to_cpu(((__be16 *) &dev->node_guid)[1]),
-		       be16_to_cpu(((__be16 *) &dev->node_guid)[2]),
-		       be16_to_cpu(((__be16 *) &dev->node_guid)[3]));
+	return sysfs_emit(buf, "%04x:%04x:%04x:%04x\n",
+			  be16_to_cpu(node_guid[0]),
+			  be16_to_cpu(node_guid[1]),
+			  be16_to_cpu(node_guid[2]),
+			  be16_to_cpu(node_guid[3]));
 }
 static DEVICE_ATTR_RO(node_guid);
 
@@ -1273,7 +1300,7 @@ static ssize_t node_desc_show(struct device *device,
 {
 	struct ib_device *dev = rdma_device_to_ibdev(device);
 
-	return sprintf(buf, "%.64s\n", dev->node_desc);
+	return sysfs_emit(buf, "%.64s\n", dev->node_desc);
 }
 
 static ssize_t node_desc_store(struct device *device,
@@ -1300,10 +1327,11 @@ static ssize_t fw_ver_show(struct device *device, struct device_attribute *attr,
 			   char *buf)
 {
 	struct ib_device *dev = rdma_device_to_ibdev(device);
+	char version[IB_FW_VERSION_NAME_MAX] = {};
 
-	ib_get_device_fw_str(dev, buf);
-	strlcat(buf, "\n", IB_FW_VERSION_NAME_MAX);
-	return strlen(buf);
+	ib_get_device_fw_str(dev, version);
+
+	return sysfs_emit(buf, "%s\n", version);
 }
 static DEVICE_ATTR_RO(fw_ver);
 

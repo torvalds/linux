@@ -174,10 +174,12 @@ static bool wp_ro_supported(void)
 #endif
 }
 
-static void wp_ro_skip_msg(void)
+static const char *wp_ro_skip_msg(void)
 {
 #if defined (__x86_64__) || defined (__i386__)
-	pr_debug("Hardware does not support read only watchpoints.\n");
+	return "missing hardware support";
+#else
+	return NULL;
 #endif
 }
 
@@ -185,7 +187,7 @@ static struct {
 	const char *desc;
 	int (*target_func)(void);
 	bool (*is_supported)(void);
-	void (*skip_msg)(void);
+	const char *(*skip_msg)(void);
 } wp_testcase_table[] = {
 	{
 		.desc = "Read Only Watchpoint",
@@ -219,16 +221,23 @@ const char *test__wp_subtest_get_desc(int i)
 	return wp_testcase_table[i].desc;
 }
 
+const char *test__wp_subtest_skip_reason(int i)
+{
+	if (i < 0 || i >= (int)ARRAY_SIZE(wp_testcase_table))
+		return NULL;
+	if (!wp_testcase_table[i].skip_msg)
+		return NULL;
+	return wp_testcase_table[i].skip_msg();
+}
+
 int test__wp(struct test *test __maybe_unused, int i)
 {
 	if (i < 0 || i >= (int)ARRAY_SIZE(wp_testcase_table))
 		return TEST_FAIL;
 
 	if (wp_testcase_table[i].is_supported &&
-	    !wp_testcase_table[i].is_supported()) {
-		wp_testcase_table[i].skip_msg();
+	    !wp_testcase_table[i].is_supported())
 		return TEST_SKIP;
-	}
 
 	return !wp_testcase_table[i].target_func() ? TEST_OK : TEST_FAIL;
 }

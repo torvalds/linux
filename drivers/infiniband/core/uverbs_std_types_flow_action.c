@@ -39,11 +39,9 @@ static int uverbs_free_flow_action(struct ib_uobject *uobject,
 				   struct uverbs_attr_bundle *attrs)
 {
 	struct ib_flow_action *action = uobject->object;
-	int ret;
 
-	ret = ib_destroy_usecnt(&action->usecnt, why, uobject);
-	if (ret)
-		return ret;
+	if (atomic_read(&action->usecnt))
+		return -EBUSY;
 
 	return action->device->ops.destroy_flow_action(action);
 }

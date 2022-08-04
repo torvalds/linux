@@ -41,6 +41,24 @@ static inline void arch_ftrace_set_direct_caller(struct pt_regs *regs, unsigned 
 	regs->orig_ax = addr;
 }
 
+#ifdef CONFIG_HAVE_DYNAMIC_FTRACE_WITH_ARGS
+struct ftrace_regs {
+	struct pt_regs		regs;
+};
+
+static __always_inline struct pt_regs *
+arch_ftrace_get_regs(struct ftrace_regs *fregs)
+{
+	/* Only when FL_SAVE_REGS is set, cs will be non zero */
+	if (!fregs->regs.cs)
+		return NULL;
+	return &fregs->regs;
+}
+
+#define ftrace_instruction_pointer_set(fregs, _ip)	\
+	do { (fregs)->regs.ip = (_ip); } while (0)
+#endif
+
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 struct dyn_arch_ftrace {

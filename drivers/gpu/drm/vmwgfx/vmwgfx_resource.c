@@ -370,7 +370,7 @@ static int vmw_resource_buf_alloc(struct vmw_resource *res,
 
 	ret = vmw_bo_init(res->dev_priv, backup, res->backup_size,
 			      res->func->backup_placement,
-			      interruptible,
+			      interruptible, false,
 			      &vmw_bo_bo_free);
 	if (unlikely(ret != 0))
 		goto out_no_bo;
@@ -867,7 +867,7 @@ void vmw_query_move_notify(struct ttm_buffer_object *bo,
 	mutex_lock(&dev_priv->binding_mutex);
 
 	dx_query_mob = container_of(bo, struct vmw_buffer_object, base);
-	if (mem == NULL || !dx_query_mob || !dx_query_mob->dx_query_ctx) {
+	if (!dx_query_mob || !dx_query_mob->dx_query_ctx) {
 		mutex_unlock(&dev_priv->binding_mutex);
 		return;
 	}
@@ -1002,7 +1002,7 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 			vbo = res->backup;
 
 			ttm_bo_reserve(&vbo->base, interruptible, false, NULL);
-			if (!vbo->pin_count) {
+			if (!vbo->base.pin_count) {
 				ret = ttm_bo_validate
 					(&vbo->base,
 					 res->func->backup_placement,

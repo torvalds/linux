@@ -20,7 +20,7 @@
  *   coders, etc.
  *
  *   Such devices often require big memory buffers (a full HD frame
- *   is, for instance, more then 2 mega pixels large, i.e. more than 6
+ *   is, for instance, more than 2 mega pixels large, i.e. more than 6
  *   MB of memory), which makes mechanisms such as kmalloc() or
  *   alloc_page() ineffective.
  *

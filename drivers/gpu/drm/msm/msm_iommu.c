@@ -139,7 +139,6 @@ static void msm_iommu_tlb_add_page(struct iommu_iotlb_gather *gather,
 static const struct iommu_flush_ops null_tlb_ops = {
 	.tlb_flush_all = msm_iommu_tlb_flush_all,
 	.tlb_flush_walk = msm_iommu_tlb_flush_walk,
-	.tlb_flush_leaf = msm_iommu_tlb_flush_walk,
 	.tlb_add_page = msm_iommu_tlb_add_page,
 };
 

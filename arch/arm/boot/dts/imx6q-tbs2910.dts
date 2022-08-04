@@ -16,6 +16,13 @@
 		stdout-path = &uart1;
 	};
 
+	aliases {
+		mmc0 = &usdhc2;
+		mmc1 = &usdhc3;
+		mmc2 = &usdhc4;
+		/delete-property/ mmc3;
+	};
+
 	memory@10000000 {
 		device_type = "memory";
 		reg = <0x10000000 0x80000000>;

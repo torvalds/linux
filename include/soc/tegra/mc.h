@@ -6,7 +6,9 @@
 #ifndef __SOC_TEGRA_MC_H__
 #define __SOC_TEGRA_MC_H__
 
+#include <linux/bits.h>
 #include <linux/err.h>
+#include <linux/interconnect-provider.h>
 #include <linux/reset-controller.h>
 #include <linux/types.h>
 
@@ -141,6 +143,17 @@ struct tegra_mc_reset_ops {
 			    const struct tegra_mc_reset *rst);
 };
 
+#define TEGRA_MC_ICC_TAG_DEFAULT				0
+#define TEGRA_MC_ICC_TAG_ISO					BIT(0)
+
+struct tegra_mc_icc_ops {
+	int (*set)(struct icc_node *src, struct icc_node *dst);
+	int (*aggregate)(struct icc_node *node, u32 tag, u32 avg_bw,
+			 u32 peak_bw, u32 *agg_avg, u32 *agg_peak);
+	struct icc_node_data *(*xlate_extended)(struct of_phandle_args *spec,
+						void *data);
+};
+
 struct tegra_mc_soc {
 	const struct tegra_mc_client *clients;
 	unsigned int num_clients;
@@ -160,6 +173,8 @@ struct tegra_mc_soc {
 	const struct tegra_mc_reset_ops *reset_ops;
 	const struct tegra_mc_reset *resets;
 	unsigned int num_resets;
+
+	const struct tegra_mc_icc_ops *icc_ops;
 };
 
 struct tegra_mc {
@@ -178,10 +193,22 @@ struct tegra_mc {
 
 	struct reset_controller_dev reset;
 
+	struct icc_provider provider;
+
 	spinlock_t lock;
 };
 
 int tegra_mc_write_emem_configuration(struct tegra_mc *mc, unsigned long rate);
 unsigned int tegra_mc_get_emem_device_count(struct tegra_mc *mc);
+
+#ifdef CONFIG_TEGRA_MC
+struct tegra_mc *devm_tegra_memory_controller_get(struct device *dev);
+#else
+static inline struct tegra_mc *
+devm_tegra_memory_controller_get(struct device *dev)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif
 
 #endif /* __SOC_TEGRA_MC_H__ */

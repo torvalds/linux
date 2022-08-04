@@ -58,7 +58,7 @@ static struct ccw_driver dasd_fba_driver; /* see below */
 static int
 dasd_fba_probe(struct ccw_device *cdev)
 {
-	return dasd_generic_probe(cdev, &dasd_fba_discipline);
+	return dasd_generic_probe(cdev);
 }
 
 static int
@@ -79,9 +79,6 @@ static struct ccw_driver dasd_fba_driver = {
 	.set_online  = dasd_fba_set_online,
 	.notify      = dasd_generic_notify,
 	.path_event  = dasd_generic_path_event,
-	.freeze      = dasd_generic_pm_freeze,
-	.thaw	     = dasd_generic_restore_device,
-	.restore     = dasd_generic_restore_device,
 	.int_class   = IRQIO_DAS,
 };
 

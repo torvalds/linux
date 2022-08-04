@@ -255,10 +255,18 @@
 /* Bit value definition for dte irq remapping fields*/
 #define DTE_IRQ_PHYS_ADDR_MASK	(((1ULL << 45)-1) << 6)
 #define DTE_IRQ_REMAP_INTCTL_MASK	(0x3ULL << 60)
-#define DTE_IRQ_TABLE_LEN_MASK	(0xfULL << 1)
 #define DTE_IRQ_REMAP_INTCTL    (2ULL << 60)
-#define DTE_IRQ_TABLE_LEN       (9ULL << 1)
 #define DTE_IRQ_REMAP_ENABLE    1ULL
+
+/*
+ * AMD IOMMU hardware only support 512 IRTEs despite
+ * the architectural limitation of 2048 entries.
+ */
+#define DTE_INTTAB_ALIGNMENT    128
+#define DTE_INTTABLEN_VALUE     9ULL
+#define DTE_INTTABLEN           (DTE_INTTABLEN_VALUE << 1)
+#define DTE_INTTABLEN_MASK      (0xfULL << 1)
+#define MAX_IRQS_PER_TABLE      (1 << DTE_INTTABLEN_VALUE)
 
 #define PAGE_MODE_NONE    0x00
 #define PAGE_MODE_1_LEVEL 0x01
@@ -379,6 +387,10 @@
 #define IOMMU_CAP_NPCACHE 26
 #define IOMMU_CAP_EFR     27
 
+/* IOMMU IVINFO */
+#define IOMMU_IVINFO_OFFSET     36
+#define IOMMU_IVINFO_EFRSUP     BIT(0)
+
 /* IOMMU Feature Reporting Field (for IVHD type 10h */
 #define IOMMU_FEAT_GASUP_SHIFT	6
 
@@ -408,13 +420,6 @@ extern bool amd_iommu_dump;
 extern bool amd_iommu_np_cache;
 /* Only true if all IOMMUs support device IOTLBs */
 extern bool amd_iommu_iotlb_sup;
-
-/*
- * AMD IOMMU hardware only support 512 IRTEs despite
- * the architectural limitation of 2048 entries.
- */
-#define MAX_IRQS_PER_TABLE	512
-#define IRQ_TABLE_ALIGNMENT	128
 
 struct irq_remap_table {
 	raw_spinlock_t lock;
@@ -897,7 +902,7 @@ struct amd_ir_data {
 };
 
 struct amd_irte_ops {
-	void (*prepare)(void *, u32, u32, u8, u32, int);
+	void (*prepare)(void *, u32, bool, u8, u32, int);
 	void (*activate)(void *, u16, u16);
 	void (*deactivate)(void *, u16, u16);
 	void (*set_affinity)(void *, u16, u16, u8, u32);

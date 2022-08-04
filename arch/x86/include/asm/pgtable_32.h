@@ -57,19 +57,13 @@ do {						\
 #endif
 
 /*
- * This is how much memory in addition to the memory covered up to
- * and including _end we need mapped initially.
- * We need:
- *     (KERNEL_IMAGE_SIZE/4096) / 1024 pages (worst case, non PAE)
- *     (KERNEL_IMAGE_SIZE/4096) / 512 + 4 pages (worst case for PAE)
+ * This is used to calculate the .brk reservation for initial pagetables.
+ * Enough space is reserved to allocate pagetables sufficient to cover all
+ * of LOWMEM_PAGES, which is an upper bound on the size of the direct map of
+ * lowmem.
  *
- * Modulo rounding, each megabyte assigned here requires a kilobyte of
- * memory, which is currently unreclaimed.
- *
- * This should be a multiple of a page.
- *
- * KERNEL_IMAGE_SIZE should be greater than pa(_end)
- * and small than max_low_pfn, otherwise will waste some page table entries
+ * With PAE paging (PTRS_PER_PMD > 1), we allocate PTRS_PER_PGD == 4 pages for
+ * the PMD's in addition to the pages required for the last level pagetables.
  */
 #if PTRS_PER_PMD > 1
 #define PAGE_TABLE_SIZE(pages) (((pages) / PTRS_PER_PMD) + PTRS_PER_PGD)

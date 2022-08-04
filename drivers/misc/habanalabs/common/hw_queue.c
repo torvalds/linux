@@ -48,6 +48,11 @@ void hl_int_hw_queue_update_ci(struct hl_cs *cs)
 		return;
 
 	q = &hdev->kernel_queues[0];
+
+	/* There are no internal queues if H/W queues are being used */
+	if (!hdev->asic_prop.max_queues || q->queue_type == QUEUE_TYPE_HW)
+		return;
+
 	for (i = 0 ; i < hdev->asic_prop.max_queues ; i++, q++) {
 		if (q->queue_type == QUEUE_TYPE_INT)
 			atomic_add(cs->jobs_in_queue_cnt[i], &q->ci);
@@ -333,7 +338,14 @@ static void int_queue_schedule_job(struct hl_cs_job *job)
 
 	bd.ctl = 0;
 	bd.len = cpu_to_le32(job->job_cb_size);
-	bd.ptr = cpu_to_le64((u64) (uintptr_t) job->user_cb);
+
+	if (job->is_kernel_allocated_cb)
+		/* bus_address is actually a mmu mapped address
+		 * allocated from an internal pool
+		 */
+		bd.ptr = cpu_to_le64(job->user_cb->bus_address);
+	else
+		bd.ptr = cpu_to_le64((u64) (uintptr_t) job->user_cb);
 
 	pi = q->kernel_address + (q->pi & (q->int_queue_len - 1)) * sizeof(bd);
 
@@ -388,6 +400,94 @@ static void hw_queue_schedule_job(struct hl_cs_job *job)
 	ext_and_hw_queue_submit_bd(hdev, q, ctl, len, ptr);
 }
 
+static void init_signal_cs(struct hl_device *hdev,
+		struct hl_cs_job *job, struct hl_cs_compl *cs_cmpl)
+{
+	struct hl_sync_stream_properties *prop;
+	struct hl_hw_sob *hw_sob;
+	u32 q_idx;
+
+	q_idx = job->hw_queue_id;
+	prop = &hdev->kernel_queues[q_idx].sync_stream_prop;
+	hw_sob = &prop->hw_sob[prop->curr_sob_offset];
+
+	cs_cmpl->hw_sob = hw_sob;
+	cs_cmpl->sob_val = prop->next_sob_val++;
+
+	dev_dbg(hdev->dev,
+		"generate signal CB, sob_id: %d, sob val: 0x%x, q_idx: %d\n",
+		cs_cmpl->hw_sob->sob_id, cs_cmpl->sob_val, q_idx);
+
+	/* we set an EB since we must make sure all oeprations are done
+	 * when sending the signal
+	 */
+	hdev->asic_funcs->gen_signal_cb(hdev, job->patched_cb,
+				cs_cmpl->hw_sob->sob_id, 0, true);
+
+	kref_get(&hw_sob->kref);
+
+	/* check for wraparound */
+	if (prop->next_sob_val == HL_MAX_SOB_VAL) {
+		/*
+		 * Decrement as we reached the max value.
+		 * The release function won't be called here as we've
+		 * just incremented the refcount.
+		 */
+		kref_put(&hw_sob->kref, hl_sob_reset_error);
+		prop->next_sob_val = 1;
+		/* only two SOBs are currently in use */
+		prop->curr_sob_offset =
+			(prop->curr_sob_offset + 1) % HL_RSVD_SOBS;
+
+		dev_dbg(hdev->dev, "switched to SOB %d, q_idx: %d\n",
+				prop->curr_sob_offset, q_idx);
+	}
+}
+
+static void init_wait_cs(struct hl_device *hdev, struct hl_cs *cs,
+		struct hl_cs_job *job, struct hl_cs_compl *cs_cmpl)
+{
+	struct hl_cs_compl *signal_cs_cmpl;
+	struct hl_sync_stream_properties *prop;
+	struct hl_gen_wait_properties wait_prop;
+	u32 q_idx;
+
+	q_idx = job->hw_queue_id;
+	prop = &hdev->kernel_queues[q_idx].sync_stream_prop;
+
+	signal_cs_cmpl = container_of(cs->signal_fence,
+					struct hl_cs_compl,
+					base_fence);
+
+	/* copy the SOB id and value of the signal CS */
+	cs_cmpl->hw_sob = signal_cs_cmpl->hw_sob;
+	cs_cmpl->sob_val = signal_cs_cmpl->sob_val;
+
+	dev_dbg(hdev->dev,
+		"generate wait CB, sob_id: %d, sob_val: 0x%x, mon_id: %d, q_idx: %d\n",
+		cs_cmpl->hw_sob->sob_id, cs_cmpl->sob_val,
+		prop->base_mon_id, q_idx);
+
+	wait_prop.data = (void *) job->patched_cb;
+	wait_prop.sob_base = cs_cmpl->hw_sob->sob_id;
+	wait_prop.sob_mask = 0x1;
+	wait_prop.sob_val = cs_cmpl->sob_val;
+	wait_prop.mon_id = prop->base_mon_id;
+	wait_prop.q_idx = q_idx;
+	wait_prop.size = 0;
+	hdev->asic_funcs->gen_wait_cb(hdev, &wait_prop);
+
+	kref_get(&cs_cmpl->hw_sob->kref);
+	/*
+	 * Must put the signal fence after the SOB refcnt increment so
+	 * the SOB refcnt won't turn 0 and reset the SOB before the
+	 * wait CS was submitted.
+	 */
+	mb();
+	hl_fence_put(cs->signal_fence);
+	cs->signal_fence = NULL;
+}
+
 /*
  * init_signal_wait_cs - initialize a signal/wait CS
  * @cs: pointer to the signal/wait CS
@@ -398,84 +498,18 @@ static void init_signal_wait_cs(struct hl_cs *cs)
 {
 	struct hl_ctx *ctx = cs->ctx;
 	struct hl_device *hdev = ctx->hdev;
-	struct hl_hw_queue *hw_queue;
+	struct hl_cs_job *job;
 	struct hl_cs_compl *cs_cmpl =
 			container_of(cs->fence, struct hl_cs_compl, base_fence);
-
-	struct hl_hw_sob *hw_sob;
-	struct hl_cs_job *job;
-	u32 q_idx;
 
 	/* There is only one job in a signal/wait CS */
 	job = list_first_entry(&cs->job_list, struct hl_cs_job,
 				cs_node);
-	q_idx = job->hw_queue_id;
-	hw_queue = &hdev->kernel_queues[q_idx];
 
-	if (cs->type & CS_TYPE_SIGNAL) {
-		hw_sob = &hw_queue->hw_sob[hw_queue->curr_sob_offset];
-
-		cs_cmpl->hw_sob = hw_sob;
-		cs_cmpl->sob_val = hw_queue->next_sob_val++;
-
-		dev_dbg(hdev->dev,
-			"generate signal CB, sob_id: %d, sob val: 0x%x, q_idx: %d\n",
-			cs_cmpl->hw_sob->sob_id, cs_cmpl->sob_val, q_idx);
-
-		hdev->asic_funcs->gen_signal_cb(hdev, job->patched_cb,
-					cs_cmpl->hw_sob->sob_id);
-
-		kref_get(&hw_sob->kref);
-
-		/* check for wraparound */
-		if (hw_queue->next_sob_val == HL_MAX_SOB_VAL) {
-			/*
-			 * Decrement as we reached the max value.
-			 * The release function won't be called here as we've
-			 * just incremented the refcount.
-			 */
-			kref_put(&hw_sob->kref, hl_sob_reset_error);
-			hw_queue->next_sob_val = 1;
-			/* only two SOBs are currently in use */
-			hw_queue->curr_sob_offset =
-					(hw_queue->curr_sob_offset + 1) %
-						HL_RSVD_SOBS_IN_USE;
-
-			dev_dbg(hdev->dev, "switched to SOB %d, q_idx: %d\n",
-					hw_queue->curr_sob_offset, q_idx);
-		}
-	} else if (cs->type & CS_TYPE_WAIT) {
-		struct hl_cs_compl *signal_cs_cmpl;
-
-		signal_cs_cmpl = container_of(cs->signal_fence,
-						struct hl_cs_compl,
-						base_fence);
-
-		/* copy the the SOB id and value of the signal CS */
-		cs_cmpl->hw_sob = signal_cs_cmpl->hw_sob;
-		cs_cmpl->sob_val = signal_cs_cmpl->sob_val;
-
-		dev_dbg(hdev->dev,
-			"generate wait CB, sob_id: %d, sob_val: 0x%x, mon_id: %d, q_idx: %d\n",
-			cs_cmpl->hw_sob->sob_id, cs_cmpl->sob_val,
-			hw_queue->base_mon_id, q_idx);
-
-		hdev->asic_funcs->gen_wait_cb(hdev, job->patched_cb,
-						cs_cmpl->hw_sob->sob_id,
-						cs_cmpl->sob_val,
-						hw_queue->base_mon_id,
-						q_idx);
-
-		kref_get(&cs_cmpl->hw_sob->kref);
-		/*
-		 * Must put the signal fence after the SOB refcnt increment so
-		 * the SOB refcnt won't turn 0 and reset the SOB before the
-		 * wait CS was submitted.
-		 */
-		mb();
-		hl_fence_put(cs->signal_fence);
-		cs->signal_fence = NULL;
-	}
+	if (cs->type & CS_TYPE_SIGNAL)
+		init_signal_cs(hdev, job, cs_cmpl);
+	else if (cs->type & CS_TYPE_WAIT)
+		init_wait_cs(hdev, cs, job, cs_cmpl);
 }
 
 /*
@@ -484,19 +518,24 @@ static void init_signal_wait_cs(struct hl_cs *cs)
  */
 int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 {
+	enum hl_device_status status;
+	struct hl_cs_counters_atomic *cntr;
 	struct hl_ctx *ctx = cs->ctx;
 	struct hl_device *hdev = ctx->hdev;
 	struct hl_cs_job *job, *tmp;
 	struct hl_hw_queue *q;
-	u32 max_queues;
 	int rc = 0, i, cq_cnt;
+	u32 max_queues;
+
+	cntr = &hdev->aggregated_cs_counters;
 
 	hdev->asic_funcs->hw_queues_lock(hdev);
 
-	if (hl_device_disabled_or_in_reset(hdev)) {
-		ctx->cs_counters.device_in_reset_drop_cnt++;
+	if (!hl_device_operational(hdev, &status)) {
+		atomic64_inc(&cntr->device_in_reset_drop_cnt);
+		atomic64_inc(&ctx->cs_counters.device_in_reset_drop_cnt);
 		dev_err(hdev->dev,
-			"device is disabled or in reset, CS rejected!\n");
+			"device is %s, CS rejected!\n", hdev->status[status]);
 		rc = -EPERM;
 		goto out;
 	}
@@ -527,7 +566,9 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 			}
 
 			if (rc) {
-				ctx->cs_counters.queue_full_drop_cnt++;
+				atomic64_inc(
+					&ctx->cs_counters.queue_full_drop_cnt);
+				atomic64_inc(&cntr->queue_full_drop_cnt);
 				goto unroll_cq_resv;
 			}
 
@@ -538,20 +579,22 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 
 	if ((cs->type == CS_TYPE_SIGNAL) || (cs->type == CS_TYPE_WAIT))
 		init_signal_wait_cs(cs);
+	else if (cs->type == CS_TYPE_COLLECTIVE_WAIT)
+		hdev->asic_funcs->collective_wait_init_cs(cs);
 
-	spin_lock(&hdev->hw_queues_mirror_lock);
-	list_add_tail(&cs->mirror_node, &hdev->hw_queues_mirror_list);
+	spin_lock(&hdev->cs_mirror_lock);
+	list_add_tail(&cs->mirror_node, &hdev->cs_mirror_list);
 
 	/* Queue TDR if the CS is the first entry and if timeout is wanted */
 	if ((hdev->timeout_jiffies != MAX_SCHEDULE_TIMEOUT) &&
-			(list_first_entry(&hdev->hw_queues_mirror_list,
+			(list_first_entry(&hdev->cs_mirror_list,
 					struct hl_cs, mirror_node) == cs)) {
 		cs->tdr_active = true;
 		schedule_delayed_work(&cs->work_tdr, hdev->timeout_jiffies);
-		spin_unlock(&hdev->hw_queues_mirror_lock);
-	} else {
-		spin_unlock(&hdev->hw_queues_mirror_lock);
+
 	}
+
+	spin_unlock(&hdev->cs_mirror_lock);
 
 	if (!hdev->cs_active_cnt++) {
 		struct hl_device_idle_busy_ts *ts;
@@ -714,22 +757,56 @@ static int hw_queue_init(struct hl_device *hdev, struct hl_hw_queue *q)
 
 static void sync_stream_queue_init(struct hl_device *hdev, u32 q_idx)
 {
-	struct hl_hw_queue *hw_queue = &hdev->kernel_queues[q_idx];
+	struct hl_sync_stream_properties *sync_stream_prop;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct hl_hw_sob *hw_sob;
-	int sob, queue_idx = hdev->sync_stream_queue_idx++;
+	int sob, reserved_mon_idx, queue_idx;
 
-	hw_queue->base_sob_id =
-		prop->sync_stream_first_sob + queue_idx * HL_RSVD_SOBS;
-	hw_queue->base_mon_id =
-		prop->sync_stream_first_mon + queue_idx * HL_RSVD_MONS;
-	hw_queue->next_sob_val = 1;
-	hw_queue->curr_sob_offset = 0;
+	sync_stream_prop = &hdev->kernel_queues[q_idx].sync_stream_prop;
+
+	/* We use 'collective_mon_idx' as a running index in order to reserve
+	 * monitors for collective master/slave queues.
+	 * collective master queue gets 2 reserved monitors
+	 * collective slave queue gets 1 reserved monitor
+	 */
+	if (hdev->kernel_queues[q_idx].collective_mode ==
+			HL_COLLECTIVE_MASTER) {
+		reserved_mon_idx = hdev->collective_mon_idx;
+
+		/* reserve the first monitor for collective master queue */
+		sync_stream_prop->collective_mstr_mon_id[0] =
+			prop->collective_first_mon + reserved_mon_idx;
+
+		/* reserve the second monitor for collective master queue */
+		sync_stream_prop->collective_mstr_mon_id[1] =
+			prop->collective_first_mon + reserved_mon_idx + 1;
+
+		hdev->collective_mon_idx += HL_COLLECTIVE_RSVD_MSTR_MONS;
+	} else if (hdev->kernel_queues[q_idx].collective_mode ==
+			HL_COLLECTIVE_SLAVE) {
+		reserved_mon_idx = hdev->collective_mon_idx++;
+
+		/* reserve a monitor for collective slave queue */
+		sync_stream_prop->collective_slave_mon_id =
+			prop->collective_first_mon + reserved_mon_idx;
+	}
+
+	if (!hdev->kernel_queues[q_idx].supports_sync_stream)
+		return;
+
+	queue_idx = hdev->sync_stream_queue_idx++;
+
+	sync_stream_prop->base_sob_id = prop->sync_stream_first_sob +
+			(queue_idx * HL_RSVD_SOBS);
+	sync_stream_prop->base_mon_id = prop->sync_stream_first_mon +
+			(queue_idx * HL_RSVD_MONS);
+	sync_stream_prop->next_sob_val = 1;
+	sync_stream_prop->curr_sob_offset = 0;
 
 	for (sob = 0 ; sob < HL_RSVD_SOBS ; sob++) {
-		hw_sob = &hw_queue->hw_sob[sob];
+		hw_sob = &sync_stream_prop->hw_sob[sob];
 		hw_sob->hdev = hdev;
-		hw_sob->sob_id = hw_queue->base_sob_id + sob;
+		hw_sob->sob_id = sync_stream_prop->base_sob_id + sob;
 		hw_sob->q_idx = q_idx;
 		kref_init(&hw_sob->kref);
 	}
@@ -737,15 +814,16 @@ static void sync_stream_queue_init(struct hl_device *hdev, u32 q_idx)
 
 static void sync_stream_queue_reset(struct hl_device *hdev, u32 q_idx)
 {
-	struct hl_hw_queue *hw_queue = &hdev->kernel_queues[q_idx];
+	struct hl_sync_stream_properties *prop =
+			&hdev->kernel_queues[q_idx].sync_stream_prop;
 
 	/*
 	 * In case we got here due to a stuck CS, the refcnt might be bigger
 	 * than 1 and therefore we reset it.
 	 */
-	kref_init(&hw_queue->hw_sob[hw_queue->curr_sob_offset].kref);
-	hw_queue->curr_sob_offset = 0;
-	hw_queue->next_sob_val = 1;
+	kref_init(&prop->hw_sob[prop->curr_sob_offset].kref);
+	prop->curr_sob_offset = 0;
+	prop->next_sob_val = 1;
 }
 
 /*
@@ -788,8 +866,7 @@ static int queue_init(struct hl_device *hdev, struct hl_hw_queue *q,
 		break;
 	}
 
-	if (q->supports_sync_stream)
-		sync_stream_queue_init(hdev, q->hw_queue_id);
+	sync_stream_queue_init(hdev, q->hw_queue_id);
 
 	if (rc)
 		return rc;
@@ -867,6 +944,7 @@ int hl_hw_queues_create(struct hl_device *hdev)
 		q->queue_type = asic->hw_queues_props[i].type;
 		q->supports_sync_stream =
 				asic->hw_queues_props[i].supports_sync_stream;
+		q->collective_mode = asic->hw_queues_props[i].collective_mode;
 		rc = queue_init(hdev, q, i);
 		if (rc) {
 			dev_err(hdev->dev,

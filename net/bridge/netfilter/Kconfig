@@ -17,7 +17,9 @@ config NFT_BRIDGE_META
 
 config NFT_BRIDGE_REJECT
 	tristate "Netfilter nf_tables bridge reject support"
-	depends on NFT_REJECT && NFT_REJECT_IPV4 && NFT_REJECT_IPV6
+	depends on NFT_REJECT
+	depends on NF_REJECT_IPV4
+	depends on NF_REJECT_IPV6
 	help
 	  Add support to reject packets.
 

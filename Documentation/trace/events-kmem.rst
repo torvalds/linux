@@ -69,7 +69,7 @@ When pages are freed in batch, the also mm_page_free_batched is triggered.
 Broadly speaking, pages are taken off the LRU lock in bulk and
 freed in batch with a page list. Significant amounts of activity here could
 indicate that the system is under memory pressure and can also indicate
-contention on the zone->lru_lock.
+contention on the lruvec->lru_lock.
 
 4. Per-CPU Allocator Activity
 =============================

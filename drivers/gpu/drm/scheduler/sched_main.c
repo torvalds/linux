@@ -65,6 +65,7 @@ static void drm_sched_process_job(struct dma_fence *f, struct dma_fence_cb *cb);
 /**
  * drm_sched_rq_init - initialize a given run queue struct
  *
+ * @sched: scheduler instance to associate with this run queue
  * @rq: scheduler run queue
  *
  * Initializes a scheduler runqueue.
@@ -446,7 +447,7 @@ void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad)
 EXPORT_SYMBOL(drm_sched_stop);
 
 /**
- * drm_sched_job_recovery - recover jobs after a reset
+ * drm_sched_start - recover jobs after a reset
  *
  * @sched: scheduler instance
  * @full_recovery: proceed with complete sched restart

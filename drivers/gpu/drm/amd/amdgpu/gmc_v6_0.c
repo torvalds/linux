@@ -530,7 +530,7 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	 * the VMs are determined by the application and setup and assigned
 	 * on the fly in the vm part of radeon_gart.c
 	 */
-	for (i = 1; i < 16; i++) {
+	for (i = 1; i < AMDGPU_NUM_VMID; i++) {
 		if (i < 8)
 			WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + i,
 			       table_addr >> 12);
@@ -790,8 +790,6 @@ static int gmc_v6_0_early_init(void *handle)
 static int gmc_v6_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	amdgpu_bo_late_init(adev);
 
 	if (amdgpu_vm_fault_stop != AMDGPU_VM_FAULT_STOP_ALWAYS)
 		return amdgpu_irq_get(adev, &adev->gmc.vm_fault, 0);

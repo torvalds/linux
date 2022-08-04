@@ -10,6 +10,7 @@
 #ifndef ZFCP_QDIO_H
 #define ZFCP_QDIO_H
 
+#include <linux/interrupt.h>
 #include <asm/qdio.h>
 
 #define ZFCP_QDIO_SBALE_LEN	PAGE_SIZE
@@ -44,6 +45,7 @@ struct zfcp_qdio {
 	u64			req_q_util;
 	atomic_t		req_q_full;
 	wait_queue_head_t	req_q_wq;
+	struct tasklet_struct	irq_tasklet;
 	struct zfcp_adapter	*adapter;
 	u16			max_sbale_per_sbal;
 	u16			max_sbale_per_req;

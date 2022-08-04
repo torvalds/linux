@@ -44,6 +44,10 @@ properties:
               - hisilicon,peri-subctrl
               - microchip,sparx5-cpu-syscon
               - mstar,msc313-pmsleep
+              - rockchip,px30-qos
+              - rockchip,rk3066-qos
+              - rockchip,rk3288-qos
+              - rockchip,rk3399-qos
               - samsung,exynos3-sysreg
               - samsung,exynos4-sysreg
               - samsung,exynos5-sysreg

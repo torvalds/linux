@@ -6,11 +6,11 @@ Required properties:
 - reg: address on the bus
 - interrupts: GPIO interrupt to which the chip is connected
 - enable-gpios: Output GPIO pin used for enabling/disabling the chip
-- firmware-gpios: Output GPIO pin used to enter firmware download mode
 
 Optional SoC Specific Properties:
 - pinctrl-names: Contains only one value - "default".
 - pintctrl-0: Specifies the pin control groups used for this controller.
+- firmware-gpios: Output GPIO pin used to enter firmware download mode
 
 Example (for ARM-based BeagleBone with NPC100 NFC controller on I2C2):
 

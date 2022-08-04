@@ -302,6 +302,9 @@ struct amdgpu_display_funcs {
 struct amdgpu_framebuffer {
 	struct drm_framebuffer base;
 
+	uint64_t tiling_flags;
+	bool tmz_surface;
+
 	/* caching for later use */
 	uint64_t address;
 };

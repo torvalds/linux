@@ -6,6 +6,7 @@
  *   Haiyang Zhang <haiyangz@microsoft.com>
  *   Hank Janssen  <hjanssen@microsoft.com>
  */
+#include <linux/ethtool.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
@@ -508,8 +509,6 @@ static int rndis_filter_receive_data(struct net_device *ndev,
 	return ret;
 
 drop:
-	/* Drop incomplete packet */
-	nvchan->rsc.cnt = 0;
 	return NVSP_STAT_FAIL;
 }
 
@@ -1172,6 +1171,7 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 	/* Set the channel before opening.*/
 	nvchan->channel = new_sc;
 
+	new_sc->rqstor_size = netvsc_rqstor_size(netvsc_ring_bytes);
 	ret = vmbus_open(new_sc, netvsc_ring_bytes,
 			 netvsc_ring_bytes, NULL, 0,
 			 netvsc_channel_cb, nvchan);
@@ -1223,6 +1223,11 @@ int rndis_set_subchannel(struct net_device *ndev,
 		return -EIO;
 	}
 
+	/* Check that number of allocated sub channel is within the expected range */
+	if (init_packet->msg.v5_msg.subchn_comp.num_subchannels > nvdev->num_chn - 1) {
+		netdev_err(ndev, "invalid number of allocated sub channel\n");
+		return -EINVAL;
+	}
 	nvdev->num_chn = 1 +
 		init_packet->msg.v5_msg.subchn_comp.num_subchannels;
 

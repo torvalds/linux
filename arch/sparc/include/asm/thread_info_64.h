@@ -180,7 +180,7 @@ extern struct thread_info *current_thread_info(void);
 #define TIF_NOTIFY_RESUME	1	/* callback before returning to user */
 #define TIF_SIGPENDING		2	/* signal pending */
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
-/* flag bit 4 is available */
+#define TIF_NOTIFY_SIGNAL	4	/* signal notifications exist */
 #define TIF_UNALIGNED		5	/* allowed to do unaligned accesses */
 #define TIF_UPROBE		6	/* breakpointed or singlestepped */
 #define TIF_32BIT		7	/* 32-bit binary */
@@ -200,6 +200,7 @@ extern struct thread_info *current_thread_info(void);
 #define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
+#define _TIF_NOTIFY_SIGNAL	(1<<TIF_NOTIFY_SIGNAL)
 #define _TIF_UNALIGNED		(1<<TIF_UNALIGNED)
 #define _TIF_UPROBE		(1<<TIF_UPROBE)
 #define _TIF_32BIT		(1<<TIF_32BIT)
@@ -213,7 +214,8 @@ extern struct thread_info *current_thread_info(void);
 				 _TIF_DO_NOTIFY_RESUME_MASK | \
 				 _TIF_NEED_RESCHED)
 #define _TIF_DO_NOTIFY_RESUME_MASK	(_TIF_NOTIFY_RESUME | \
-					 _TIF_SIGPENDING | _TIF_UPROBE)
+					 _TIF_SIGPENDING | _TIF_UPROBE | \
+					 _TIF_NOTIFY_SIGNAL)
 
 #define is_32bit_task()	(test_thread_flag(TIF_32BIT))
 

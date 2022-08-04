@@ -979,9 +979,9 @@
 			 <&tegra_car TEGRA210_CLK_SATA_OOB>;
 		clock-names = "sata", "sata-oob";
 		resets = <&tegra_car 124>,
-			 <&tegra_car 123>,
-			 <&tegra_car 129>;
-		reset-names = "sata", "sata-oob", "sata-cold";
+			 <&tegra_car 129>,
+			 <&tegra_car 123>;
+		reset-names = "sata", "sata-cold", "sata-oob";
 		status = "disabled";
 	};
 
@@ -1040,6 +1040,7 @@
 	padctl: padctl@7009f000 {
 		compatible = "nvidia,tegra210-xusb-padctl";
 		reg = <0x0 0x7009f000 0x0 0x1000>;
+		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 		resets = <&tegra_car 142>;
 		reset-names = "padctl";
 
@@ -1344,7 +1345,7 @@
 		ranges = <0x702c0000 0x0 0x702c0000 0x00040000>;
 		status = "disabled";
 
-		adma: dma@702e2000 {
+		adma: dma-controller@702e2000 {
 			compatible = "nvidia,tegra210-adma";
 			reg = <0x702e2000 0x2000>;
 			interrupt-parent = <&agic>;
@@ -1724,6 +1725,7 @@
 			throttle_heavy: heavy {
 				nvidia,priority = <100>;
 				nvidia,cpu-throt-percent = <85>;
+				nvidia,gpu-throt-level = <TEGRA_SOCTHERM_THROT_LEVEL_HIGH>;
 
 				#cooling-cells = <2>;
 			};
@@ -1778,6 +1780,12 @@
 					temperature = <70000>;
 					hysteresis = <1000>;
 					type = "active";
+				};
+
+				mem-hot-trip {
+					temperature = <100000>;
+					hysteresis = <1000>;
+					type = "hot";
 				};
 
 				mem-shutdown-trip {
@@ -1841,6 +1849,12 @@
 					temperature = <103000>;
 					hysteresis = <0>;
 					type = "critical";
+				};
+
+				pllx-throttle-trip {
+					temperature = <100000>;
+					hysteresis = <1000>;
+					type = "hot";
 				};
 			};
 

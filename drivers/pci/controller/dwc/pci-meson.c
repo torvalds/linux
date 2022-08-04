@@ -231,7 +231,7 @@ static void meson_pcie_assert_reset(struct meson_pcie *mp)
 	gpiod_set_value_cansleep(mp->reset_gpio, 0);
 }
 
-static void meson_pcie_init_dw(struct meson_pcie *mp)
+static void meson_pcie_ltssm_enable(struct meson_pcie *mp)
 {
 	u32 val;
 
@@ -289,20 +289,14 @@ static void meson_set_max_rd_req_size(struct meson_pcie *mp, int size)
 	dw_pcie_writel_dbi(pci, offset + PCI_EXP_DEVCTL, val);
 }
 
-static int meson_pcie_establish_link(struct meson_pcie *mp)
+static int meson_pcie_start_link(struct dw_pcie *pci)
 {
-	struct dw_pcie *pci = &mp->pci;
-	struct pcie_port *pp = &pci->pp;
+	struct meson_pcie *mp = to_meson_pcie(pci);
 
-	meson_pcie_init_dw(mp);
-	meson_set_max_payload(mp, MAX_PAYLOAD_SIZE);
-	meson_set_max_rd_req_size(mp, MAX_READ_REQ_SIZE);
-
-	dw_pcie_setup_rc(pp);
-
+	meson_pcie_ltssm_enable(mp);
 	meson_pcie_assert_reset(mp);
 
-	return dw_pcie_wait_for_link(pci);
+	return 0;
 }
 
 static int meson_pcie_rd_own_conf(struct pci_bus *bus, u32 devfn,
@@ -380,15 +374,11 @@ static int meson_pcie_host_init(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct meson_pcie *mp = to_meson_pcie(pci);
-	int ret;
 
 	pp->bridge->ops = &meson_pci_ops;
 
-	ret = meson_pcie_establish_link(mp);
-	if (ret)
-		return ret;
-
-	dw_pcie_msi_init(pp);
+	meson_set_max_payload(mp, MAX_PAYLOAD_SIZE);
+	meson_set_max_rd_req_size(mp, MAX_READ_REQ_SIZE);
 
 	return 0;
 }
@@ -397,33 +387,9 @@ static const struct dw_pcie_host_ops meson_pcie_host_ops = {
 	.host_init = meson_pcie_host_init,
 };
 
-static int meson_add_pcie_port(struct meson_pcie *mp,
-			       struct platform_device *pdev)
-{
-	struct dw_pcie *pci = &mp->pci;
-	struct pcie_port *pp = &pci->pp;
-	struct device *dev = &pdev->dev;
-	int ret;
-
-	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		pp->msi_irq = platform_get_irq(pdev, 0);
-		if (pp->msi_irq < 0)
-			return pp->msi_irq;
-	}
-
-	pp->ops = &meson_pcie_host_ops;
-
-	ret = dw_pcie_host_init(pp);
-	if (ret) {
-		dev_err(dev, "failed to initialize host\n");
-		return ret;
-	}
-
-	return 0;
-}
-
 static const struct dw_pcie_ops dw_pcie_ops = {
 	.link_up = meson_pcie_link_up,
+	.start_link = meson_pcie_start_link,
 };
 
 static int meson_pcie_probe(struct platform_device *pdev)
@@ -440,6 +406,7 @@ static int meson_pcie_probe(struct platform_device *pdev)
 	pci = &mp->pci;
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
+	pci->pp.ops = &meson_pcie_host_ops;
 	pci->num_lanes = 1;
 
 	mp->phy = devm_phy_get(dev, "pcie");
@@ -486,7 +453,7 @@ static int meson_pcie_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mp);
 
-	ret = meson_add_pcie_port(mp, pdev);
+	ret = dw_pcie_host_init(&pci->pp);
 	if (ret < 0) {
 		dev_err(dev, "Add PCIe port failed, %d\n", ret);
 		goto err_phy;

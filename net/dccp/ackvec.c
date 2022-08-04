@@ -242,6 +242,8 @@ static void dccp_ackvec_add_new(struct dccp_ackvec *av, u32 num_packets,
 
 /**
  * dccp_ackvec_input  -  Register incoming packet in the buffer
+ * @av: Ack Vector to register packet to
+ * @skb: Packet to register
  */
 void dccp_ackvec_input(struct dccp_ackvec *av, struct sk_buff *skb)
 {
@@ -273,6 +275,9 @@ void dccp_ackvec_input(struct dccp_ackvec *av, struct sk_buff *skb)
 
 /**
  * dccp_ackvec_clear_state  -  Perform house-keeping / garbage-collection
+ * @av: Ack Vector record to clean
+ * @ackno: last Ack Vector which has been acknowledged
+ *
  * This routine is called when the peer acknowledges the receipt of Ack Vectors
  * up to and including @ackno. While based on section A.3 of RFC 4340, here
  * are additional precautions to prevent corrupted buffer state. In particular,

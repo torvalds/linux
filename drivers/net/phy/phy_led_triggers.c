@@ -66,11 +66,11 @@ static void phy_led_trigger_format_name(struct phy_device *phy, char *buf,
 
 static int phy_led_trigger_register(struct phy_device *phy,
 				    struct phy_led_trigger *plt,
-				    unsigned int speed)
+				    unsigned int speed,
+				    const char *suffix)
 {
 	plt->speed = speed;
-	phy_led_trigger_format_name(phy, plt->name, sizeof(plt->name),
-				    phy_speed_to_str(speed));
+	phy_led_trigger_format_name(phy, plt->name, sizeof(plt->name), suffix);
 	plt->trigger.name = plt->name;
 
 	return led_trigger_register(&plt->trigger);
@@ -99,12 +99,7 @@ int phy_led_triggers_register(struct phy_device *phy)
 		goto out_clear;
 	}
 
-	phy_led_trigger_format_name(phy, phy->led_link_trigger->name,
-				    sizeof(phy->led_link_trigger->name),
-				    "link");
-	phy->led_link_trigger->trigger.name = phy->led_link_trigger->name;
-
-	err = led_trigger_register(&phy->led_link_trigger->trigger);
+	err = phy_led_trigger_register(phy, phy->led_link_trigger, 0, "link");
 	if (err)
 		goto out_free_link;
 
@@ -119,7 +114,8 @@ int phy_led_triggers_register(struct phy_device *phy)
 
 	for (i = 0; i < phy->phy_num_led_triggers; i++) {
 		err = phy_led_trigger_register(phy, &phy->phy_led_triggers[i],
-					       speeds[i]);
+					       speeds[i],
+					       phy_speed_to_str(speeds[i]));
 		if (err)
 			goto out_unreg;
 	}

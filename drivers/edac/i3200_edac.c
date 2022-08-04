@@ -253,7 +253,6 @@ static void i3200_check(struct mem_ctl_info *mci)
 {
 	struct i3200_error_info info;
 
-	edac_dbg(1, "MC%d\n", mci->mc_idx);
 	i3200_get_and_clear_error_info(mci, &info);
 	i3200_process_error_info(mci, &info);
 }

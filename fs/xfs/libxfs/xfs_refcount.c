@@ -1179,10 +1179,6 @@ xfs_refcount_finish_one(
 			return error;
 
 		rcur = xfs_refcountbt_init_cursor(mp, tp, agbp, agno);
-		if (!rcur) {
-			error = -ENOMEM;
-			goto out_cur;
-		}
 		rcur->bc_ag.refc.nr_ops = nr_ops;
 		rcur->bc_ag.refc.shape_changes = shape_changes;
 	}
@@ -1216,11 +1212,6 @@ xfs_refcount_finish_one(
 	if (!error && *new_len > 0)
 		trace_xfs_refcount_finish_one_leftover(mp, agno, type,
 				bno, blockcount, new_agbno, *new_len);
-	return error;
-
-out_cur:
-	xfs_trans_brelse(tp, agbp);
-
 	return error;
 }
 

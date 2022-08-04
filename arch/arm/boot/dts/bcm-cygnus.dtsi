@@ -591,7 +591,6 @@
 		adc: adc@180a6000 {
 			compatible = "brcm,iproc-static-adc";
 			#io-channel-cells = <1>;
-			io-channel-ranges;
 			adc-syscon = <&ts_adc_syscon>;
 			clocks = <&asiu_clks BCM_CYGNUS_ASIU_ADC_CLK>;
 			clock-names = "tsc_clk";

@@ -71,7 +71,7 @@ core/oss
 The codes for PCM and mixer OSS emulation modules are stored in this
 directory. The rawmidi OSS emulation is included in the ALSA rawmidi
 code since it's quite small. The sequencer code is stored in
-``core/seq/oss`` directory (see `below <#core-seq-oss>`__).
+``core/seq/oss`` directory (see `below <core/seq/oss_>`__).
 
 core/seq
 ~~~~~~~~
@@ -382,7 +382,7 @@ where ``enable[dev]`` is the module option.
 Each time the ``probe`` callback is called, check the availability of
 the device. If not available, simply increment the device index and
 returns. dev will be incremented also later (`step 7
-<#set-the-pci-driver-data-and-return-zero>`__).
+<7) Set the PCI driver data and return zero._>`__).
 
 2) Create a card instance
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -450,10 +450,10 @@ field contains the information shown in ``/proc/asound/cards``.
 5) Create other components, such as mixer, MIDI, etc.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Here you define the basic components such as `PCM <#PCM-Interface>`__,
-mixer (e.g. `AC97 <#API-for-AC97-Codec>`__), MIDI (e.g.
-`MPU-401 <#MIDI-MPU401-UART-Interface>`__), and other interfaces.
-Also, if you want a `proc file <#Proc-Interface>`__, define it here,
+Here you define the basic components such as `PCM <PCM Interface_>`__,
+mixer (e.g. `AC97 <API for AC97 Codec_>`__), MIDI (e.g.
+`MPU-401 <MIDI (MPU401-UART) Interface_>`__), and other interfaces.
+Also, if you want a `proc file <Proc Interface_>`__, define it here,
 too.
 
 6) Register the card instance.
@@ -941,7 +941,7 @@ The allocation of an interrupt source is done like this:
   chip->irq = pci->irq;
 
 where :c:func:`snd_mychip_interrupt()` is the interrupt handler
-defined `later <#pcm-interface-interrupt-handler>`__. Note that
+defined `later <PCM Interrupt Handler_>`__. Note that
 ``chip->irq`` should be defined only when :c:func:`request_irq()`
 succeeded.
 
@@ -3104,7 +3104,7 @@ processing the output stream in the irq handler.
 
 If the MPU-401 interface shares its interrupt with the other logical
 devices on the card, set ``MPU401_INFO_IRQ_HOOK`` (see
-`below <#MIDI-Interrupt-Handler>`__).
+`below <MIDI Interrupt Handler_>`__).
 
 Usually, the port address corresponds to the command port and port + 1
 corresponds to the data port. If not, you may change the ``cport``

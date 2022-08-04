@@ -18,6 +18,7 @@ struct btf_show;
 
 extern const struct file_operations btf_fops;
 
+void btf_get(struct btf *btf);
 void btf_put(struct btf *btf);
 int btf_new_fd(const union bpf_attr *attr);
 struct btf *btf_get_by_fd(int fd);
@@ -88,7 +89,8 @@ int btf_type_snprintf_show(const struct btf *btf, u32 type_id, void *obj,
 			   char *buf, int len, u64 flags);
 
 int btf_get_fd_by_id(u32 id);
-u32 btf_id(const struct btf *btf);
+u32 btf_obj_id(const struct btf *btf);
+bool btf_is_kernel(const struct btf *btf);
 bool btf_member_is_reg_int(const struct btf *btf, const struct btf_type *s,
 			   const struct btf_member *m,
 			   u32 expected_offset, u32 expected_size);
@@ -206,6 +208,8 @@ static inline const struct btf_var_secinfo *btf_type_var_secinfo(
 }
 
 #ifdef CONFIG_BPF_SYSCALL
+struct bpf_prog;
+
 const struct btf_type *btf_type_by_id(const struct btf *btf, u32 type_id);
 const char *btf_name_by_offset(const struct btf *btf, u32 offset);
 struct btf *btf_parse_vmlinux(void);

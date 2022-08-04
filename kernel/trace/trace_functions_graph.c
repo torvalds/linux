@@ -957,7 +957,7 @@ print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
 
 	/* Overrun */
 	if (flags & TRACE_GRAPH_PRINT_OVERRUN)
-		trace_seq_printf(s, " (Overruns: %lu)\n",
+		trace_seq_printf(s, " (Overruns: %u)\n",
 				 trace->overrun);
 
 	print_graph_irq(iter, trace->func, TRACE_GRAPH_RET,

@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-TARGETS = android
-TARGETS += arm64
+TARGETS = arm64
 TARGETS += bpf
 TARGETS += breakpoints
 TARGETS += capabilities
@@ -50,12 +49,14 @@ TARGETS += openat2
 TARGETS += rseq
 TARGETS += rtc
 TARGETS += seccomp
+TARGETS += sgx
 TARGETS += sigaltstack
 TARGETS += size
 TARGETS += sparc64
 TARGETS += splice
 TARGETS += static_keys
 TARGETS += sync
+TARGETS += syscall_user_dispatch
 TARGETS += sysctl
 TARGETS += tc-testing
 TARGETS += timens
@@ -65,6 +66,7 @@ endif
 TARGETS += tmpfs
 TARGETS += tpm2
 TARGETS += user
+TARGETS += vDSO
 TARGETS += vm
 TARGETS += x86
 TARGETS += zram
@@ -75,8 +77,10 @@ TARGETS += zram
 TARGETS_HOTPLUG = cpu-hotplug
 TARGETS_HOTPLUG += memory-hotplug
 
-# User can optionally provide a TARGETS skiplist.
-SKIP_TARGETS ?=
+# User can optionally provide a TARGETS skiplist.  By default we skip
+# BPF since it has cutting edge build time dependencies which require
+# more effort to install.
+SKIP_TARGETS ?= bpf
 ifneq ($(SKIP_TARGETS),)
 	TMP := $(filter-out $(SKIP_TARGETS), $(TARGETS))
 	override TARGETS := $(TMP)

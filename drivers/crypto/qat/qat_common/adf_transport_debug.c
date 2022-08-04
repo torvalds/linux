@@ -42,16 +42,17 @@ static int adf_ring_show(struct seq_file *sfile, void *v)
 {
 	struct adf_etr_ring_data *ring = sfile->private;
 	struct adf_etr_bank_data *bank = ring->bank;
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(bank->accel_dev);
 	void __iomem *csr = ring->bank->csr_addr;
 
 	if (v == SEQ_START_TOKEN) {
 		int head, tail, empty;
 
-		head = READ_CSR_RING_HEAD(csr, bank->bank_number,
-					  ring->ring_number);
-		tail = READ_CSR_RING_TAIL(csr, bank->bank_number,
-					  ring->ring_number);
-		empty = READ_CSR_E_STAT(csr, bank->bank_number);
+		head = csr_ops->read_csr_ring_head(csr, bank->bank_number,
+						   ring->ring_number);
+		tail = csr_ops->read_csr_ring_tail(csr, bank->bank_number,
+						   ring->ring_number);
+		empty = csr_ops->read_csr_e_stat(csr, bank->bank_number);
 
 		seq_puts(sfile, "------- Ring configuration -------\n");
 		seq_printf(sfile, "ring name: %s\n",
@@ -117,11 +118,14 @@ void adf_ring_debugfs_rm(struct adf_etr_ring_data *ring)
 
 static void *adf_bank_start(struct seq_file *sfile, loff_t *pos)
 {
+	struct adf_etr_bank_data *bank = sfile->private;
+	u8 num_rings_per_bank = GET_NUM_RINGS_PER_BANK(bank->accel_dev);
+
 	mutex_lock(&bank_read_lock);
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
-	if (*pos >= ADF_ETR_MAX_RINGS_PER_BANK)
+	if (*pos >= num_rings_per_bank)
 		return NULL;
 
 	return pos;
@@ -129,7 +133,10 @@ static void *adf_bank_start(struct seq_file *sfile, loff_t *pos)
 
 static void *adf_bank_next(struct seq_file *sfile, void *v, loff_t *pos)
 {
-	if (++(*pos) >= ADF_ETR_MAX_RINGS_PER_BANK)
+	struct adf_etr_bank_data *bank = sfile->private;
+	u8 num_rings_per_bank = GET_NUM_RINGS_PER_BANK(bank->accel_dev);
+
+	if (++(*pos) >= num_rings_per_bank)
 		return NULL;
 
 	return pos;
@@ -138,6 +145,7 @@ static void *adf_bank_next(struct seq_file *sfile, void *v, loff_t *pos)
 static int adf_bank_show(struct seq_file *sfile, void *v)
 {
 	struct adf_etr_bank_data *bank = sfile->private;
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(bank->accel_dev);
 
 	if (v == SEQ_START_TOKEN) {
 		seq_printf(sfile, "------- Bank %d configuration -------\n",
@@ -151,11 +159,11 @@ static int adf_bank_show(struct seq_file *sfile, void *v)
 		if (!(bank->ring_mask & 1 << ring_id))
 			return 0;
 
-		head = READ_CSR_RING_HEAD(csr, bank->bank_number,
-					  ring->ring_number);
-		tail = READ_CSR_RING_TAIL(csr, bank->bank_number,
-					  ring->ring_number);
-		empty = READ_CSR_E_STAT(csr, bank->bank_number);
+		head = csr_ops->read_csr_ring_head(csr, bank->bank_number,
+						   ring->ring_number);
+		tail = csr_ops->read_csr_ring_tail(csr, bank->bank_number,
+						   ring->ring_number);
+		empty = csr_ops->read_csr_e_stat(csr, bank->bank_number);
 
 		seq_printf(sfile,
 			   "ring num %02d, head %04x, tail %04x, empty: %d\n",

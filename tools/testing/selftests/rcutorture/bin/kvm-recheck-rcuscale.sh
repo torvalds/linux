@@ -32,7 +32,7 @@ sed -e 's/^\[[^]]*]//' < $i/console.log |
 awk '
 /-scale: .* gps: .* batches:/ {
 	ngps = $9;
-	nbatches = $11;
+	nbatches = 1;
 }
 
 /-scale: .*writer-duration/ {

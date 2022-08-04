@@ -12,10 +12,9 @@
 #ifndef _K3_SA2UL_
 #define _K3_SA2UL_
 
-#include <linux/interrupt.h>
-#include <linux/skbuff.h>
-#include <linux/hw_random.h>
 #include <crypto/aes.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 
 #define SA_ENGINE_ENABLE_CONTROL	0x1000
 
@@ -311,7 +310,7 @@ struct sa_tfm_ctx {
 	struct crypto_shash	*shash;
 	/* for fallback */
 	union {
-		struct crypto_sync_skcipher	*skcipher;
+		struct crypto_skcipher		*skcipher;
 		struct crypto_ahash		*ahash;
 		struct crypto_aead		*aead;
 	} fallback;

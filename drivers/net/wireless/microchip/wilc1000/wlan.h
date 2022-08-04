@@ -207,6 +207,18 @@
 
 #define MODALIAS		"WILC_SPI"
 
+#define NQUEUES			4
+#define AC_BUFFER_SIZE		1000
+
+#define VO_AC_COUNT_FIELD		GENMASK(31, 25)
+#define VO_AC_ACM_STAT_FIELD		BIT(24)
+#define VI_AC_COUNT_FIELD		GENMASK(23, 17)
+#define VI_AC_ACM_STAT_FIELD		BIT(16)
+#define BE_AC_COUNT_FIELD		GENMASK(15, 9)
+#define BE_AC_ACM_STAT_FIELD		BIT(8)
+#define BK_AC_COUNT_FIELD		GENMASK(7, 3)
+#define BK_AC_ACM_STAT_FIELD		BIT(1)
+
 #define WILC_PKT_HDR_CONFIG_FIELD	BIT(31)
 #define WILC_PKT_HDR_OFFSET_FIELD	GENMASK(30, 22)
 #define WILC_PKT_HDR_TOTAL_LEN_FIELD	GENMASK(21, 11)
@@ -295,10 +307,17 @@
  *      Tx/Rx Queue Structure
  *
  ********************************************/
+enum ip_pkt_priority {
+	AC_VO_Q = 0,
+	AC_VI_Q = 1,
+	AC_BE_Q = 2,
+	AC_BK_Q = 3
+};
 
 struct txq_entry_t {
 	struct list_head list;
 	int type;
+	u8 q_num;
 	int ack_idx;
 	u8 *buffer;
 	int buffer_size;
@@ -306,6 +325,17 @@ struct txq_entry_t {
 	int status;
 	struct wilc_vif *vif;
 	void (*tx_complete_func)(void *priv, int status);
+};
+
+struct txq_fw_recv_queue_stat {
+	u8 acm;
+	u8 count;
+};
+
+struct txq_handle {
+	struct txq_entry_t txq_head;
+	u16 count;
+	struct txq_fw_recv_queue_stat fw;
 };
 
 struct rxq_entry_t {

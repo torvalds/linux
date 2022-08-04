@@ -133,10 +133,8 @@ mlxsw_afk_key_info_find(struct mlxsw_afk *mlxsw_afk,
 }
 
 struct mlxsw_afk_picker {
-	struct {
-		DECLARE_BITMAP(element, MLXSW_AFK_ELEMENT_MAX);
-		unsigned int total;
-	} hits[0];
+	DECLARE_BITMAP(element, MLXSW_AFK_ELEMENT_MAX);
+	unsigned int total;
 };
 
 static void mlxsw_afk_picker_count_hits(struct mlxsw_afk *mlxsw_afk,
@@ -154,8 +152,8 @@ static void mlxsw_afk_picker_count_hits(struct mlxsw_afk *mlxsw_afk,
 
 			elinst = &block->instances[j];
 			if (elinst->element == element) {
-				__set_bit(element, picker->hits[i].element);
-				picker->hits[i].total++;
+				__set_bit(element, picker[i].element);
+				picker[i].total++;
 			}
 		}
 	}
@@ -169,13 +167,13 @@ static void mlxsw_afk_picker_subtract_hits(struct mlxsw_afk *mlxsw_afk,
 	int i;
 	int j;
 
-	memcpy(&hits_element, &picker->hits[block_index].element,
+	memcpy(&hits_element, &picker[block_index].element,
 	       sizeof(hits_element));
 
 	for (i = 0; i < mlxsw_afk->blocks_count; i++) {
 		for_each_set_bit(j, hits_element, MLXSW_AFK_ELEMENT_MAX) {
-			if (__test_and_clear_bit(j, picker->hits[i].element))
-				picker->hits[i].total--;
+			if (__test_and_clear_bit(j, picker[i].element))
+				picker[i].total--;
 		}
 	}
 }
@@ -188,8 +186,8 @@ static int mlxsw_afk_picker_most_hits_get(struct mlxsw_afk *mlxsw_afk,
 	int i;
 
 	for (i = 0; i < mlxsw_afk->blocks_count; i++) {
-		if (picker->hits[i].total > most_hits) {
-			most_hits = picker->hits[i].total;
+		if (picker[i].total > most_hits) {
+			most_hits = picker[i].total;
 			most_index = i;
 		}
 	}
@@ -206,7 +204,7 @@ static int mlxsw_afk_picker_key_info_add(struct mlxsw_afk *mlxsw_afk,
 	if (key_info->blocks_count == mlxsw_afk->max_blocks)
 		return -EINVAL;
 
-	for_each_set_bit(element, picker->hits[block_index].element,
+	for_each_set_bit(element, picker[block_index].element,
 			 MLXSW_AFK_ELEMENT_MAX) {
 		key_info->element_to_block[element] = key_info->blocks_count;
 		mlxsw_afk_element_usage_add(&key_info->elusage, element);
@@ -224,11 +222,9 @@ static int mlxsw_afk_picker(struct mlxsw_afk *mlxsw_afk,
 {
 	struct mlxsw_afk_picker *picker;
 	enum mlxsw_afk_element element;
-	size_t alloc_size;
 	int err;
 
-	alloc_size = sizeof(picker->hits[0]) * mlxsw_afk->blocks_count;
-	picker = kzalloc(alloc_size, GFP_KERNEL);
+	picker = kcalloc(mlxsw_afk->blocks_count, sizeof(*picker), GFP_KERNEL);
 	if (!picker)
 		return -ENOMEM;
 

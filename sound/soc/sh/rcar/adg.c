@@ -366,25 +366,27 @@ void rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct clk *clk;
-	int i, ret;
+	int i;
 
 	for_each_rsnd_clk(clk, adg, i) {
-		ret = 0;
 		if (enable) {
-			ret = clk_prepare_enable(clk);
+			int ret = clk_prepare_enable(clk);
 
 			/*
 			 * We shouldn't use clk_get_rate() under
 			 * atomic context. Let's keep it when
 			 * rsnd_adg_clk_enable() was called
 			 */
-			adg->clk_rate[i] = clk_get_rate(adg->clk[i]);
+			adg->clk_rate[i] = 0;
+			if (ret < 0)
+				dev_warn(dev, "can't use clk %d\n", i);
+			else
+				adg->clk_rate[i] = clk_get_rate(clk);
 		} else {
-			clk_disable_unprepare(clk);
+			if (adg->clk_rate[i])
+				clk_disable_unprepare(clk);
+			adg->clk_rate[i] = 0;
 		}
-
-		if (ret < 0)
-			dev_warn(dev, "can't use clk %d\n", i);
 	}
 }
 

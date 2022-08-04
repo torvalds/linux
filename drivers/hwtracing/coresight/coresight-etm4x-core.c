@@ -3,6 +3,7 @@
  * Copyright (c) 2014, The Linux Foundation. All rights reserved.
  */
 
+#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -28,7 +29,9 @@
 #include <linux/perf_event.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
+
 #include <asm/sections.h>
+#include <asm/sysreg.h>
 #include <asm/local.h>
 #include <asm/virt.h>
 
@@ -103,6 +106,97 @@ struct etm4_enable_arg {
 	int rc;
 };
 
+#ifdef CONFIG_ETM4X_IMPDEF_FEATURE
+
+#define HISI_HIP08_AMBA_ID		0x000b6d01
+#define ETM4_AMBA_MASK			0xfffff
+#define HISI_HIP08_CORE_COMMIT_MASK	0x3000
+#define HISI_HIP08_CORE_COMMIT_SHIFT	12
+#define HISI_HIP08_CORE_COMMIT_FULL	0b00
+#define HISI_HIP08_CORE_COMMIT_LVL_1	0b01
+#define HISI_HIP08_CORE_COMMIT_REG	sys_reg(3, 1, 15, 2, 5)
+
+struct etm4_arch_features {
+	void (*arch_callback)(bool enable);
+};
+
+static bool etm4_hisi_match_pid(unsigned int id)
+{
+	return (id & ETM4_AMBA_MASK) == HISI_HIP08_AMBA_ID;
+}
+
+static void etm4_hisi_config_core_commit(bool enable)
+{
+	u8 commit = enable ? HISI_HIP08_CORE_COMMIT_LVL_1 :
+		    HISI_HIP08_CORE_COMMIT_FULL;
+	u64 val;
+
+	/*
+	 * bit 12 and 13 of HISI_HIP08_CORE_COMMIT_REG are used together
+	 * to set core-commit, 2'b00 means cpu is at full speed, 2'b01,
+	 * 2'b10, 2'b11 mean reduce pipeline speed, and 2'b01 means level-1
+	 * speed(minimun value). So bit 12 and 13 should be cleared together.
+	 */
+	val = read_sysreg_s(HISI_HIP08_CORE_COMMIT_REG);
+	val &= ~HISI_HIP08_CORE_COMMIT_MASK;
+	val |= commit << HISI_HIP08_CORE_COMMIT_SHIFT;
+	write_sysreg_s(val, HISI_HIP08_CORE_COMMIT_REG);
+}
+
+static struct etm4_arch_features etm4_features[] = {
+	[ETM4_IMPDEF_HISI_CORE_COMMIT] = {
+		.arch_callback = etm4_hisi_config_core_commit,
+	},
+	{},
+};
+
+static void etm4_enable_arch_specific(struct etmv4_drvdata *drvdata)
+{
+	struct etm4_arch_features *ftr;
+	int bit;
+
+	for_each_set_bit(bit, drvdata->arch_features, ETM4_IMPDEF_FEATURE_MAX) {
+		ftr = &etm4_features[bit];
+
+		if (ftr->arch_callback)
+			ftr->arch_callback(true);
+	}
+}
+
+static void etm4_disable_arch_specific(struct etmv4_drvdata *drvdata)
+{
+	struct etm4_arch_features *ftr;
+	int bit;
+
+	for_each_set_bit(bit, drvdata->arch_features, ETM4_IMPDEF_FEATURE_MAX) {
+		ftr = &etm4_features[bit];
+
+		if (ftr->arch_callback)
+			ftr->arch_callback(false);
+	}
+}
+
+static void etm4_check_arch_features(struct etmv4_drvdata *drvdata,
+				      unsigned int id)
+{
+	if (etm4_hisi_match_pid(id))
+		set_bit(ETM4_IMPDEF_HISI_CORE_COMMIT, drvdata->arch_features);
+}
+#else
+static void etm4_enable_arch_specific(struct etmv4_drvdata *drvdata)
+{
+}
+
+static void etm4_disable_arch_specific(struct etmv4_drvdata *drvdata)
+{
+}
+
+static void etm4_check_arch_features(struct etmv4_drvdata *drvdata,
+				     unsigned int id)
+{
+}
+#endif /* CONFIG_ETM4X_IMPDEF_FEATURE */
+
 static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 {
 	int i, rc;
@@ -110,6 +204,7 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 	struct device *etm_dev = &drvdata->csdev->dev;
 
 	CS_UNLOCK(drvdata->base);
+	etm4_enable_arch_specific(drvdata);
 
 	etm4_os_unlock(drvdata);
 
@@ -124,8 +219,8 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 	if (coresight_timeout(drvdata->base, TRCSTATR, TRCSTATR_IDLE_BIT, 1))
 		dev_err(etm_dev,
 			"timeout while waiting for Idle Trace Status\n");
-
-	writel_relaxed(config->pe_sel, drvdata->base + TRCPROCSELR);
+	if (drvdata->nr_pe)
+		writel_relaxed(config->pe_sel, drvdata->base + TRCPROCSELR);
 	writel_relaxed(config->cfg, drvdata->base + TRCCONFIGR);
 	/* nothing specific implemented */
 	writel_relaxed(0x0, drvdata->base + TRCAUXCTLR);
@@ -141,8 +236,9 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 	writel_relaxed(config->viiectlr, drvdata->base + TRCVIIECTLR);
 	writel_relaxed(config->vissctlr,
 		       drvdata->base + TRCVISSCTLR);
-	writel_relaxed(config->vipcssctlr,
-		       drvdata->base + TRCVIPCSSCTLR);
+	if (drvdata->nr_pe_cmp)
+		writel_relaxed(config->vipcssctlr,
+			       drvdata->base + TRCVIPCSSCTLR);
 	for (i = 0; i < drvdata->nrseqstate - 1; i++)
 		writel_relaxed(config->seq_ctrl[i],
 			       drvdata->base + TRCSEQEVRn(i));
@@ -187,13 +283,15 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 		writeq_relaxed(config->ctxid_pid[i],
 			       drvdata->base + TRCCIDCVRn(i));
 	writel_relaxed(config->ctxid_mask0, drvdata->base + TRCCIDCCTLR0);
-	writel_relaxed(config->ctxid_mask1, drvdata->base + TRCCIDCCTLR1);
+	if (drvdata->numcidc > 4)
+		writel_relaxed(config->ctxid_mask1, drvdata->base + TRCCIDCCTLR1);
 
 	for (i = 0; i < drvdata->numvmidc; i++)
 		writeq_relaxed(config->vmid_val[i],
 			       drvdata->base + TRCVMIDCVRn(i));
 	writel_relaxed(config->vmid_mask0, drvdata->base + TRCVMIDCCTLR0);
-	writel_relaxed(config->vmid_mask1, drvdata->base + TRCVMIDCCTLR1);
+	if (drvdata->numvmidc > 4)
+		writel_relaxed(config->vmid_mask1, drvdata->base + TRCVMIDCCTLR1);
 
 	if (!drvdata->skip_power_up) {
 		/*
@@ -476,6 +574,7 @@ static void etm4_disable_hw(void *info)
 	int i;
 
 	CS_UNLOCK(drvdata->base);
+	etm4_disable_arch_specific(drvdata);
 
 	if (!drvdata->skip_power_up) {
 		/* power can be removed from the trace unit now */
@@ -722,8 +821,13 @@ static void etm4_init_arch_data(void *info)
 	else
 		drvdata->sysstall = false;
 
-	/* NUMPROC, bits[30:28] the number of PEs available for tracing */
-	drvdata->nr_pe = BMVAL(etmidr3, 28, 30);
+	/*
+	 * NUMPROC - the number of PEs available for tracing, 5bits
+	 *         = TRCIDR3.bits[13:12]bits[30:28]
+	 *  bits[4:3] = TRCIDR3.bits[13:12] (since etm-v4.2, otherwise RES0)
+	 *  bits[3:0] = TRCIDR3.bits[30:28]
+	 */
+	drvdata->nr_pe = (BMVAL(etmidr3, 12, 13) << 3) | BMVAL(etmidr3, 28, 30);
 
 	/* NOOVERFLOW, bit[31] is trace overflow prevention supported */
 	if (BMVAL(etmidr3, 31, 31))
@@ -779,7 +883,7 @@ static void etm4_init_arch_data(void *info)
 	 * LPOVERRIDE, bit[23] implementation supports
 	 * low-power state override
 	 */
-	if (BMVAL(etmidr5, 23, 23))
+	if (BMVAL(etmidr5, 23, 23) && (!drvdata->skip_power_up))
 		drvdata->lpoverride = true;
 	else
 		drvdata->lpoverride = false;
@@ -1178,7 +1282,8 @@ static int etm4_cpu_save(struct etmv4_drvdata *drvdata)
 	state = drvdata->save_state;
 
 	state->trcprgctlr = readl(drvdata->base + TRCPRGCTLR);
-	state->trcprocselr = readl(drvdata->base + TRCPROCSELR);
+	if (drvdata->nr_pe)
+		state->trcprocselr = readl(drvdata->base + TRCPROCSELR);
 	state->trcconfigr = readl(drvdata->base + TRCCONFIGR);
 	state->trcauxctlr = readl(drvdata->base + TRCAUXCTLR);
 	state->trceventctl0r = readl(drvdata->base + TRCEVENTCTL0R);
@@ -1194,7 +1299,8 @@ static int etm4_cpu_save(struct etmv4_drvdata *drvdata)
 	state->trcvictlr = readl(drvdata->base + TRCVICTLR);
 	state->trcviiectlr = readl(drvdata->base + TRCVIIECTLR);
 	state->trcvissctlr = readl(drvdata->base + TRCVISSCTLR);
-	state->trcvipcssctlr = readl(drvdata->base + TRCVIPCSSCTLR);
+	if (drvdata->nr_pe_cmp)
+		state->trcvipcssctlr = readl(drvdata->base + TRCVIPCSSCTLR);
 	state->trcvdctlr = readl(drvdata->base + TRCVDCTLR);
 	state->trcvdsacctlr = readl(drvdata->base + TRCVDSACCTLR);
 	state->trcvdarcctlr = readl(drvdata->base + TRCVDARCCTLR);
@@ -1240,10 +1346,12 @@ static int etm4_cpu_save(struct etmv4_drvdata *drvdata)
 		state->trcvmidcvr[i] = readq(drvdata->base + TRCVMIDCVRn(i));
 
 	state->trccidcctlr0 = readl(drvdata->base + TRCCIDCCTLR0);
-	state->trccidcctlr1 = readl(drvdata->base + TRCCIDCCTLR1);
+	if (drvdata->numcidc > 4)
+		state->trccidcctlr1 = readl(drvdata->base + TRCCIDCCTLR1);
 
 	state->trcvmidcctlr0 = readl(drvdata->base + TRCVMIDCCTLR0);
-	state->trcvmidcctlr1 = readl(drvdata->base + TRCVMIDCCTLR1);
+	if (drvdata->numvmidc > 4)
+		state->trcvmidcctlr1 = readl(drvdata->base + TRCVMIDCCTLR1);
 
 	state->trcclaimset = readl(drvdata->base + TRCCLAIMCLR);
 
@@ -1283,7 +1391,8 @@ static void etm4_cpu_restore(struct etmv4_drvdata *drvdata)
 	writel_relaxed(state->trcclaimset, drvdata->base + TRCCLAIMSET);
 
 	writel_relaxed(state->trcprgctlr, drvdata->base + TRCPRGCTLR);
-	writel_relaxed(state->trcprocselr, drvdata->base + TRCPROCSELR);
+	if (drvdata->nr_pe)
+		writel_relaxed(state->trcprocselr, drvdata->base + TRCPROCSELR);
 	writel_relaxed(state->trcconfigr, drvdata->base + TRCCONFIGR);
 	writel_relaxed(state->trcauxctlr, drvdata->base + TRCAUXCTLR);
 	writel_relaxed(state->trceventctl0r, drvdata->base + TRCEVENTCTL0R);
@@ -1299,7 +1408,8 @@ static void etm4_cpu_restore(struct etmv4_drvdata *drvdata)
 	writel_relaxed(state->trcvictlr, drvdata->base + TRCVICTLR);
 	writel_relaxed(state->trcviiectlr, drvdata->base + TRCVIIECTLR);
 	writel_relaxed(state->trcvissctlr, drvdata->base + TRCVISSCTLR);
-	writel_relaxed(state->trcvipcssctlr, drvdata->base + TRCVIPCSSCTLR);
+	if (drvdata->nr_pe_cmp)
+		writel_relaxed(state->trcvipcssctlr, drvdata->base + TRCVIPCSSCTLR);
 	writel_relaxed(state->trcvdctlr, drvdata->base + TRCVDCTLR);
 	writel_relaxed(state->trcvdsacctlr, drvdata->base + TRCVDSACCTLR);
 	writel_relaxed(state->trcvdarcctlr, drvdata->base + TRCVDARCCTLR);
@@ -1350,10 +1460,12 @@ static void etm4_cpu_restore(struct etmv4_drvdata *drvdata)
 			       drvdata->base + TRCVMIDCVRn(i));
 
 	writel_relaxed(state->trccidcctlr0, drvdata->base + TRCCIDCCTLR0);
-	writel_relaxed(state->trccidcctlr1, drvdata->base + TRCCIDCCTLR1);
+	if (drvdata->numcidc > 4)
+		writel_relaxed(state->trccidcctlr1, drvdata->base + TRCCIDCCTLR1);
 
 	writel_relaxed(state->trcvmidcctlr0, drvdata->base + TRCVMIDCCTLR0);
-	writel_relaxed(state->trcvmidcctlr1, drvdata->base + TRCVMIDCCTLR1);
+	if (drvdata->numvmidc > 4)
+		writel_relaxed(state->trcvmidcctlr1, drvdata->base + TRCVMIDCCTLR1);
 
 	writel_relaxed(state->trcclaimset, drvdata->base + TRCCLAIMSET);
 
@@ -1547,6 +1659,8 @@ static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
 		drvdata->boot_enable = true;
 	}
 
+	etm4_check_arch_features(drvdata, id->id);
+
 	return 0;
 }
 
@@ -1559,14 +1673,14 @@ static struct amba_cs_uci_id uci_id_etm4[] = {
 	}
 };
 
-static void __exit clear_etmdrvdata(void *info)
+static void clear_etmdrvdata(void *info)
 {
 	int cpu = *(int *)info;
 
 	etmdrvdata[cpu] = NULL;
 }
 
-static int __exit etm4_remove(struct amba_device *adev)
+static int etm4_remove(struct amba_device *adev)
 {
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(&adev->dev);
 

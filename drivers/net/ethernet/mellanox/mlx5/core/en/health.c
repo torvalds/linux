@@ -37,13 +37,12 @@ int mlx5e_health_fmsg_named_obj_nest_end(struct devlink_fmsg *fmsg)
 
 int mlx5e_health_cq_diag_fmsg(struct mlx5e_cq *cq, struct devlink_fmsg *fmsg)
 {
-	struct mlx5e_priv *priv = cq->channel->priv;
 	u32 out[MLX5_ST_SZ_DW(query_cq_out)] = {};
 	u8 hw_status;
 	void *cqc;
 	int err;
 
-	err = mlx5_core_query_cq(priv->mdev, &cq->mcq, out);
+	err = mlx5_core_query_cq(cq->mdev, &cq->mcq, out);
 	if (err)
 		return err;
 
@@ -158,10 +157,8 @@ void mlx5e_health_channels_update(struct mlx5e_priv *priv)
 						     DEVLINK_HEALTH_REPORTER_STATE_HEALTHY);
 }
 
-int mlx5e_health_sq_to_ready(struct mlx5e_channel *channel, u32 sqn)
+int mlx5e_health_sq_to_ready(struct mlx5_core_dev *mdev, struct net_device *dev, u32 sqn)
 {
-	struct mlx5_core_dev *mdev = channel->mdev;
-	struct net_device *dev = channel->netdev;
 	struct mlx5e_modify_sq_param msp = {};
 	int err;
 
@@ -206,21 +203,22 @@ out:
 	return err;
 }
 
-int mlx5e_health_channel_eq_recover(struct mlx5_eq_comp *eq, struct mlx5e_channel *channel)
+int mlx5e_health_channel_eq_recover(struct net_device *dev, struct mlx5_eq_comp *eq,
+				    struct mlx5e_ch_stats *stats)
 {
 	u32 eqe_count;
 
-	netdev_err(channel->netdev, "EQ 0x%x: Cons = 0x%x, irqn = 0x%x\n",
+	netdev_err(dev, "EQ 0x%x: Cons = 0x%x, irqn = 0x%x\n",
 		   eq->core.eqn, eq->core.cons_index, eq->core.irqn);
 
 	eqe_count = mlx5_eq_poll_irq_disabled(eq);
 	if (!eqe_count)
 		return -EIO;
 
-	netdev_err(channel->netdev, "Recovered %d eqes on EQ 0x%x\n",
+	netdev_err(dev, "Recovered %d eqes on EQ 0x%x\n",
 		   eqe_count, eq->core.eqn);
 
-	channel->stats->eq_rearm++;
+	stats->eq_rearm++;
 	return 0;
 }
 
@@ -275,7 +273,7 @@ int mlx5e_health_rsc_fmsg_dump(struct mlx5e_priv *priv, struct mlx5_rsc_key *key
 
 	err = devlink_fmsg_binary_pair_nest_start(fmsg, "data");
 	if (err)
-		return err;
+		goto free_page;
 
 	cmd = mlx5_rsc_dump_cmd_create(mdev, key);
 	if (IS_ERR(cmd)) {

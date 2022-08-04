@@ -45,7 +45,7 @@ static struct key_tag init_net_key_domain = { .usage = REFCOUNT_INIT(1) };
 #endif
 
 struct net init_net = {
-	.count		= REFCOUNT_INIT(1),
+	.ns.count	= REFCOUNT_INIT(1),
 	.dev_base_head	= LIST_HEAD_INIT(init_net.dev_base_head),
 #ifdef CONFIG_KEYS
 	.key_domain	= &init_net_key_domain,
@@ -249,7 +249,7 @@ int peernet2id_alloc(struct net *net, struct net *peer, gfp_t gfp)
 {
 	int id;
 
-	if (refcount_read(&net->count) == 0)
+	if (refcount_read(&net->ns.count) == 0)
 		return NETNSA_NSID_NOT_ASSIGNED;
 
 	spin_lock_bh(&net->nsid_lock);
@@ -329,7 +329,7 @@ static __net_init int setup_net(struct net *net, struct user_namespace *user_ns)
 	int error = 0;
 	LIST_HEAD(net_exit_list);
 
-	refcount_set(&net->count, 1);
+	refcount_set(&net->ns.count, 1);
 	refcount_set(&net->passive, 1);
 	get_random_bytes(&net->hash_mix, sizeof(u32));
 	net->dev_base_seq = 1;

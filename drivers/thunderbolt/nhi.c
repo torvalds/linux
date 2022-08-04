@@ -494,7 +494,7 @@ err_unlock:
 
 static struct tb_ring *tb_ring_alloc(struct tb_nhi *nhi, u32 hop, int size,
 				     bool transmit, unsigned int flags,
-				     u16 sof_mask, u16 eof_mask,
+				     int e2e_tx_hop, u16 sof_mask, u16 eof_mask,
 				     void (*start_poll)(void *),
 				     void *poll_data)
 {
@@ -517,6 +517,7 @@ static struct tb_ring *tb_ring_alloc(struct tb_nhi *nhi, u32 hop, int size,
 	ring->is_tx = transmit;
 	ring->size = size;
 	ring->flags = flags;
+	ring->e2e_tx_hop = e2e_tx_hop;
 	ring->sof_mask = sof_mask;
 	ring->eof_mask = eof_mask;
 	ring->head = 0;
@@ -561,7 +562,7 @@ err_free_ring:
 struct tb_ring *tb_ring_alloc_tx(struct tb_nhi *nhi, int hop, int size,
 				 unsigned int flags)
 {
-	return tb_ring_alloc(nhi, hop, size, true, flags, 0, 0, NULL, NULL);
+	return tb_ring_alloc(nhi, hop, size, true, flags, 0, 0, 0, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(tb_ring_alloc_tx);
 
@@ -571,6 +572,7 @@ EXPORT_SYMBOL_GPL(tb_ring_alloc_tx);
  * @hop: HopID (ring) to allocate. Pass %-1 for automatic allocation.
  * @size: Number of entries in the ring
  * @flags: Flags for the ring
+ * @e2e_tx_hop: Transmit HopID when E2E is enabled in @flags
  * @sof_mask: Mask of PDF values that start a frame
  * @eof_mask: Mask of PDF values that end a frame
  * @start_poll: If not %NULL the ring will call this function when an
@@ -579,10 +581,11 @@ EXPORT_SYMBOL_GPL(tb_ring_alloc_tx);
  * @poll_data: Optional data passed to @start_poll
  */
 struct tb_ring *tb_ring_alloc_rx(struct tb_nhi *nhi, int hop, int size,
-				 unsigned int flags, u16 sof_mask, u16 eof_mask,
+				 unsigned int flags, int e2e_tx_hop,
+				 u16 sof_mask, u16 eof_mask,
 				 void (*start_poll)(void *), void *poll_data)
 {
-	return tb_ring_alloc(nhi, hop, size, false, flags, sof_mask, eof_mask,
+	return tb_ring_alloc(nhi, hop, size, false, flags, e2e_tx_hop, sof_mask, eof_mask,
 			     start_poll, poll_data);
 }
 EXPORT_SYMBOL_GPL(tb_ring_alloc_rx);
@@ -629,6 +632,31 @@ void tb_ring_start(struct tb_ring *ring)
 		ring_iowrite32options(ring, sof_eof_mask, 4);
 		ring_iowrite32options(ring, flags, 0);
 	}
+
+	/*
+	 * Now that the ring valid bit is set we can configure E2E if
+	 * enabled for the ring.
+	 */
+	if (ring->flags & RING_FLAG_E2E) {
+		if (!ring->is_tx) {
+			u32 hop;
+
+			hop = ring->e2e_tx_hop << REG_RX_OPTIONS_E2E_HOP_SHIFT;
+			hop &= REG_RX_OPTIONS_E2E_HOP_MASK;
+			flags |= hop;
+
+			dev_dbg(&ring->nhi->pdev->dev,
+				"enabling E2E for %s %d with TX HopID %d\n",
+				RING_TYPE(ring), ring->hop, ring->e2e_tx_hop);
+		} else {
+			dev_dbg(&ring->nhi->pdev->dev, "enabling E2E for %s %d\n",
+				RING_TYPE(ring), ring->hop);
+		}
+
+		flags |= RING_FLAG_E2E_FLOW_CONTROL;
+		ring_iowrite32options(ring, flags, 0);
+	}
+
 	ring_interrupt_active(ring, true);
 	ring->running = true;
 err:

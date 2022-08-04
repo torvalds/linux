@@ -438,6 +438,7 @@ static void hid_irq_out(struct urb *urb)
 		break;
 	case -ESHUTDOWN:	/* unplug */
 		unplug = 1;
+		break;
 	case -EILSEQ:		/* protocol error or unplug */
 	case -EPROTO:		/* protocol error or unplug */
 	case -ECONNRESET:	/* unlink */
@@ -489,6 +490,7 @@ static void hid_ctrl(struct urb *urb)
 		break;
 	case -ESHUTDOWN:	/* unplug */
 		unplug = 1;
+		break;
 	case -EILSEQ:		/* protocol error or unplug */
 	case -EPROTO:		/* protocol error or unplug */
 	case -ECONNRESET:	/* unlink */

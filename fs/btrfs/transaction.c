@@ -16,7 +16,6 @@
 #include "transaction.h"
 #include "locking.h"
 #include "tree-log.h"
-#include "inode-map.h"
 #include "volumes.h"
 #include "dev-replace.h"
 #include "qgroup.h"
@@ -155,6 +154,7 @@ static noinline void switch_commit_roots(struct btrfs_trans_handle *trans)
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_root *root, *tmp;
+	struct btrfs_caching_control *caching_ctl, *next;
 
 	down_write(&fs_info->commit_root_sem);
 	list_for_each_entry_safe(root, tmp, &cur_trans->switch_commits,
@@ -162,8 +162,6 @@ static noinline void switch_commit_roots(struct btrfs_trans_handle *trans)
 		list_del_init(&root->dirty_list);
 		free_extent_buffer(root->commit_root);
 		root->commit_root = btrfs_root_node(root);
-		if (is_fstree(root->root_key.objectid))
-			btrfs_unpin_free_ino(root);
 		extent_io_tree_release(&root->dirty_log_pages);
 		btrfs_qgroup_clean_swapped_blocks(root);
 	}
@@ -180,6 +178,47 @@ static noinline void switch_commit_roots(struct btrfs_trans_handle *trans)
 		spin_lock(&cur_trans->dropped_roots_lock);
 	}
 	spin_unlock(&cur_trans->dropped_roots_lock);
+
+	/*
+	 * We have to update the last_byte_to_unpin under the commit_root_sem,
+	 * at the same time we swap out the commit roots.
+	 *
+	 * This is because we must have a real view of the last spot the caching
+	 * kthreads were while caching.  Consider the following views of the
+	 * extent tree for a block group
+	 *
+	 * commit root
+	 * +----+----+----+----+----+----+----+
+	 * |\\\\|    |\\\\|\\\\|    |\\\\|\\\\|
+	 * +----+----+----+----+----+----+----+
+	 * 0    1    2    3    4    5    6    7
+	 *
+	 * new commit root
+	 * +----+----+----+----+----+----+----+
+	 * |    |    |    |\\\\|    |    |\\\\|
+	 * +----+----+----+----+----+----+----+
+	 * 0    1    2    3    4    5    6    7
+	 *
+	 * If the cache_ctl->progress was at 3, then we are only allowed to
+	 * unpin [0,1) and [2,3], because the caching thread has already
+	 * processed those extents.  We are not allowed to unpin [5,6), because
+	 * the caching thread will re-start it's search from 3, and thus find
+	 * the hole from [4,6) to add to the free space cache.
+	 */
+	spin_lock(&fs_info->block_group_cache_lock);
+	list_for_each_entry_safe(caching_ctl, next,
+				 &fs_info->caching_block_groups, list) {
+		struct btrfs_block_group *cache = caching_ctl->block_group;
+
+		if (btrfs_block_group_done(cache)) {
+			cache->last_byte_to_unpin = (u64)-1;
+			list_del_init(&caching_ctl->list);
+			btrfs_put_caching_control(caching_ctl);
+		} else {
+			cache->last_byte_to_unpin = caching_ctl->progress;
+		}
+	}
+	spin_unlock(&fs_info->block_group_cache_lock);
 	up_write(&fs_info->commit_root_sem);
 }
 
@@ -856,24 +895,24 @@ void btrfs_throttle(struct btrfs_fs_info *fs_info)
 	wait_current_trans(fs_info);
 }
 
-static int should_end_transaction(struct btrfs_trans_handle *trans)
+static bool should_end_transaction(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 
 	if (btrfs_check_space_for_delayed_refs(fs_info))
-		return 1;
+		return true;
 
 	return !!btrfs_block_rsv_check(&fs_info->global_block_rsv, 5);
 }
 
-int btrfs_should_end_transaction(struct btrfs_trans_handle *trans)
+bool btrfs_should_end_transaction(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_transaction *cur_trans = trans->transaction;
 
 	smp_mb();
 	if (cur_trans->state >= TRANS_STATE_COMMIT_START ||
 	    cur_trans->delayed_refs.flushing)
-		return 1;
+		return true;
 
 	return should_end_transaction(trans);
 }
@@ -1300,8 +1339,6 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans)
 			btrfs_free_log(trans, root);
 			btrfs_update_reloc_root(trans, root);
 
-			btrfs_save_ino_cache(root, trans);
-
 			/* see comments in should_cow_block() */
 			clear_bit(BTRFS_ROOT_FORCE_COW, &root->state);
 			smp_mb__after_atomic();
@@ -1598,8 +1635,6 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		goto fail;
 	}
 
-	btrfs_set_lock_blocking_write(old);
-
 	ret = btrfs_copy_root(trans, root, old, &tmp, objectid);
 	/* clean up in any case */
 	btrfs_tree_unlock(old);
@@ -1681,7 +1716,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 					 dentry->d_name.len * 2);
 	parent_inode->i_mtime = parent_inode->i_ctime =
 		current_time(parent_inode);
-	ret = btrfs_update_inode_fallback(trans, parent_root, parent_inode);
+	ret = btrfs_update_inode_fallback(trans, parent_root, BTRFS_I(parent_inode));
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
@@ -1761,6 +1796,8 @@ static void update_super_roots(struct btrfs_fs_info *fs_info)
 	super->root_level = root_item->level;
 	if (btrfs_test_opt(fs_info, SPACE_CACHE))
 		super->cache_generation = root_item->generation;
+	else if (test_bit(BTRFS_FS_CLEANUP_SPACE_CACHE_V1, &fs_info->flags))
+		super->cache_generation = 0;
 	if (test_bit(BTRFS_FS_UPDATE_UUID_TREE_GEN, &fs_info->flags))
 		super->uuid_tree_generation = root_item->generation;
 }
@@ -1956,10 +1993,8 @@ static void btrfs_cleanup_pending_block_groups(struct btrfs_trans_handle *trans)
        }
 }
 
-static inline int btrfs_start_delalloc_flush(struct btrfs_trans_handle *trans)
+static inline int btrfs_start_delalloc_flush(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_fs_info *fs_info = trans->fs_info;
-
 	/*
 	 * We use writeback_inodes_sb here because if we used
 	 * btrfs_start_delalloc_roots we would deadlock with fs freeze.
@@ -1969,50 +2004,15 @@ static inline int btrfs_start_delalloc_flush(struct btrfs_trans_handle *trans)
 	 * from already being in a transaction and our join_transaction doesn't
 	 * have to re-take the fs freeze lock.
 	 */
-	if (btrfs_test_opt(fs_info, FLUSHONCOMMIT)) {
+	if (btrfs_test_opt(fs_info, FLUSHONCOMMIT))
 		writeback_inodes_sb(fs_info->sb, WB_REASON_SYNC);
-	} else {
-		struct btrfs_pending_snapshot *pending;
-		struct list_head *head = &trans->transaction->pending_snapshots;
-
-		/*
-		 * Flush dellaloc for any root that is going to be snapshotted.
-		 * This is done to avoid a corrupted version of files, in the
-		 * snapshots, that had both buffered and direct IO writes (even
-		 * if they were done sequentially) due to an unordered update of
-		 * the inode's size on disk.
-		 */
-		list_for_each_entry(pending, head, list) {
-			int ret;
-
-			ret = btrfs_start_delalloc_snapshot(pending->root);
-			if (ret)
-				return ret;
-		}
-	}
 	return 0;
 }
 
-static inline void btrfs_wait_delalloc_flush(struct btrfs_trans_handle *trans)
+static inline void btrfs_wait_delalloc_flush(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_fs_info *fs_info = trans->fs_info;
-
-	if (btrfs_test_opt(fs_info, FLUSHONCOMMIT)) {
+	if (btrfs_test_opt(fs_info, FLUSHONCOMMIT))
 		btrfs_wait_ordered_roots(fs_info, U64_MAX, 0, (u64)-1);
-	} else {
-		struct btrfs_pending_snapshot *pending;
-		struct list_head *head = &trans->transaction->pending_snapshots;
-
-		/*
-		 * Wait for any dellaloc that we started previously for the roots
-		 * that are going to be snapshotted. This is to avoid a corrupted
-		 * version of files in the snapshots that had both buffered and
-		 * direct IO writes (even if they were done sequentially).
-		 */
-		list_for_each_entry(pending, head, list)
-			btrfs_wait_ordered_extents(pending->root,
-						   U64_MAX, 0, U64_MAX);
-	}
 }
 
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
@@ -2150,7 +2150,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 
 	extwriter_counter_dec(cur_trans, trans->type);
 
-	ret = btrfs_start_delalloc_flush(trans);
+	ret = btrfs_start_delalloc_flush(fs_info);
 	if (ret)
 		goto cleanup_transaction;
 
@@ -2166,7 +2166,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	if (ret)
 		goto cleanup_transaction;
 
-	btrfs_wait_delalloc_flush(trans);
+	btrfs_wait_delalloc_flush(fs_info);
 
 	/*
 	 * Wait for all ordered extents started by a fast fsync that joined this
@@ -2265,14 +2265,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	btrfs_free_log_root_tree(trans, fs_info);
 
 	/*
-	 * commit_fs_roots() can call btrfs_save_ino_cache(), which generates
-	 * new delayed refs. Must handle them or qgroup can be wrong.
-	 */
-	ret = btrfs_run_delayed_refs(trans, (unsigned long)-1);
-	if (ret)
-		goto unlock_tree_log;
-
-	/*
 	 * Since fs roots are all committed, we can get a quite accurate
 	 * new_roots. So let's do quota accounting.
 	 */
@@ -2292,8 +2284,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 		ret = cur_trans->aborted;
 		goto unlock_tree_log;
 	}
-
-	btrfs_prepare_extent_commit(fs_info);
 
 	cur_trans = fs_info->running_transaction;
 
@@ -2435,10 +2425,6 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root)
 	btrfs_debug(fs_info, "cleaner removing %llu", root->root_key.objectid);
 
 	btrfs_kill_all_delayed_nodes(root);
-	if (root->ino_cache_inode) {
-		iput(root->ino_cache_inode);
-		root->ino_cache_inode = NULL;
-	}
 
 	if (btrfs_header_backref_rev(root->node) <
 			BTRFS_MIXED_BACKREF_REV)
@@ -2458,16 +2444,6 @@ void btrfs_apply_pending_changes(struct btrfs_fs_info *fs_info)
 	prev = xchg(&fs_info->pending_changes, 0);
 	if (!prev)
 		return;
-
-	bit = 1 << BTRFS_PENDING_SET_INODE_MAP_CACHE;
-	if (prev & bit)
-		btrfs_set_opt(fs_info->mount_opt, INODE_MAP_CACHE);
-	prev &= ~bit;
-
-	bit = 1 << BTRFS_PENDING_CLEAR_INODE_MAP_CACHE;
-	if (prev & bit)
-		btrfs_clear_opt(fs_info->mount_opt, INODE_MAP_CACHE);
-	prev &= ~bit;
 
 	bit = 1 << BTRFS_PENDING_COMMIT;
 	if (prev & bit)

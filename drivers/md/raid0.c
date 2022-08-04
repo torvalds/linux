@@ -508,8 +508,8 @@ static void raid0_handle_discard(struct mddev *mddev, struct bio *bio)
 		bio_chain(discard_bio, bio);
 		bio_clone_blkg_association(discard_bio, bio);
 		if (mddev->gendisk)
-			trace_block_bio_remap(bdev_get_queue(rdev->bdev),
-				discard_bio, disk_devt(mddev->gendisk),
+			trace_block_bio_remap(discard_bio,
+				disk_devt(mddev->gendisk),
 				bio->bi_iter.bi_sector);
 		submit_bio_noacct(discard_bio);
 	}
@@ -581,8 +581,8 @@ static bool raid0_make_request(struct mddev *mddev, struct bio *bio)
 		tmp_dev->data_offset;
 
 	if (mddev->gendisk)
-		trace_block_bio_remap(bio->bi_disk->queue, bio,
-				disk_devt(mddev->gendisk), bio_sector);
+		trace_block_bio_remap(bio, disk_devt(mddev->gendisk),
+				      bio_sector);
 	mddev_check_writesame(mddev, bio);
 	mddev_check_write_zeroes(mddev, bio);
 	submit_bio_noacct(bio);

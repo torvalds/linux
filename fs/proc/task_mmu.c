@@ -1035,6 +1035,25 @@ struct clear_refs_private {
 };
 
 #ifdef CONFIG_MEM_SOFT_DIRTY
+
+#define is_cow_mapping(flags) (((flags) & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE)
+
+static inline bool pte_is_pinned(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
+{
+	struct page *page;
+
+	if (!pte_write(pte))
+		return false;
+	if (!is_cow_mapping(vma->vm_flags))
+		return false;
+	if (likely(!atomic_read(&vma->vm_mm->has_pinned)))
+		return false;
+	page = vm_normal_page(vma, addr, pte);
+	if (!page)
+		return false;
+	return page_maybe_dma_pinned(page);
+}
+
 static inline void clear_soft_dirty(struct vm_area_struct *vma,
 		unsigned long addr, pte_t *pte)
 {
@@ -1049,6 +1068,8 @@ static inline void clear_soft_dirty(struct vm_area_struct *vma,
 	if (pte_present(ptent)) {
 		pte_t old_pte;
 
+		if (pte_is_pinned(vma, addr, ptent))
+			return;
 		old_pte = ptep_modify_prot_start(vma, addr, pte);
 		ptent = pte_wrprotect(old_pte);
 		ptent = pte_clear_soft_dirty(ptent);
@@ -1215,41 +1236,26 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 			.type = type,
 		};
 
+		if (mmap_write_lock_killable(mm)) {
+			count = -EINTR;
+			goto out_mm;
+		}
 		if (type == CLEAR_REFS_MM_HIWATER_RSS) {
-			if (mmap_write_lock_killable(mm)) {
-				count = -EINTR;
-				goto out_mm;
-			}
-
 			/*
 			 * Writing 5 to /proc/pid/clear_refs resets the peak
 			 * resident set size to this mm's current rss value.
 			 */
 			reset_mm_hiwater_rss(mm);
-			mmap_write_unlock(mm);
-			goto out_mm;
+			goto out_unlock;
 		}
 
-		if (mmap_read_lock_killable(mm)) {
-			count = -EINTR;
-			goto out_mm;
-		}
 		tlb_gather_mmu(&tlb, mm, 0, -1);
 		if (type == CLEAR_REFS_SOFT_DIRTY) {
 			for (vma = mm->mmap; vma; vma = vma->vm_next) {
 				if (!(vma->vm_flags & VM_SOFTDIRTY))
 					continue;
-				mmap_read_unlock(mm);
-				if (mmap_write_lock_killable(mm)) {
-					count = -EINTR;
-					goto out_mm;
-				}
-				for (vma = mm->mmap; vma; vma = vma->vm_next) {
-					vma->vm_flags &= ~VM_SOFTDIRTY;
-					vma_set_page_prot(vma);
-				}
-				mmap_write_downgrade(mm);
-				break;
+				vma->vm_flags &= ~VM_SOFTDIRTY;
+				vma_set_page_prot(vma);
 			}
 
 			mmu_notifier_range_init(&range, MMU_NOTIFY_SOFT_DIRTY,
@@ -1261,7 +1267,8 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 		if (type == CLEAR_REFS_SOFT_DIRTY)
 			mmu_notifier_invalidate_range_end(&range);
 		tlb_finish_mmu(&tlb, 0, -1);
-		mmap_read_unlock(mm);
+out_unlock:
+		mmap_write_unlock(mm);
 out_mm:
 		mmput(mm);
 	}

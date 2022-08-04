@@ -20,6 +20,30 @@
 		serial5 = &hscif0;
 		ethernet1 = &ether;
 	};
+
+	mclk_cam1: mclk-cam1 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+	};
+
+	mclk_cam2: mclk-cam2 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+	};
+
+	mclk_cam3: mclk-cam3 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+	};
+
+	mclk_cam4: mclk-cam4 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+	};
 };
 
 &avb {
@@ -47,11 +71,112 @@
 	};
 };
 
+&gpio0 {
+	/* Disable hogging GP0_18 to output LOW */
+	/delete-node/ qspi_en;
+
+	/* Hog GP0_18 to output HIGH to enable VIN2 */
+	vin2_en {
+		gpio-hog;
+		gpios = <18 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "VIN2_EN";
+	};
+};
+
 &hscif0 {
 	pinctrl-0 = <&hscif0_pins>;
 	pinctrl-names = "default";
 	uart-has-rtscts;
 	status = "okay";
+};
+
+&i2c0 {
+	ov5640@3c {
+		compatible = "ovti,ov5640";
+		reg = <0x3c>;
+		clocks = <&mclk_cam1>;
+		clock-names = "xclk";
+
+		port {
+			ov5640_0: endpoint {
+				bus-width = <8>;
+				data-shift = <2>;
+				bus-type = <6>;
+				pclk-sample = <1>;
+				remote-endpoint = <&vin0ep>;
+			};
+		};
+	};
+};
+
+&i2c1 {
+	pinctrl-0 = <&i2c1_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+	clock-frequency = <400000>;
+
+	ov5640@3c {
+		compatible = "ovti,ov5640";
+		reg = <0x3c>;
+		clocks = <&mclk_cam2>;
+		clock-names = "xclk";
+
+		port {
+			ov5640_1: endpoint {
+				bus-width = <8>;
+				data-shift = <2>;
+				bus-type = <6>;
+				pclk-sample = <1>;
+				remote-endpoint = <&vin1ep>;
+			};
+		};
+	};
+};
+
+&i2c2 {
+	ov5640@3c {
+		compatible = "ovti,ov5640";
+		reg = <0x3c>;
+		clocks = <&mclk_cam3>;
+		clock-names = "xclk";
+
+		port {
+			ov5640_2: endpoint {
+				bus-width = <8>;
+				data-shift = <2>;
+				bus-type = <6>;
+				pclk-sample = <1>;
+				remote-endpoint = <&vin2ep>;
+			};
+		};
+	};
+};
+
+&i2c3 {
+	pinctrl-0 = <&i2c3_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+	clock-frequency = <400000>;
+
+	ov5640@3c {
+		compatible = "ovti,ov5640";
+		reg = <0x3c>;
+		clocks = <&mclk_cam4>;
+		clock-names = "xclk";
+
+		port {
+			ov5640_3: endpoint {
+				bus-width = <8>;
+				data-shift = <2>;
+				bus-type = <6>;
+				pclk-sample = <1>;
+				remote-endpoint = <&vin3ep>;
+			};
+		};
+	};
 };
 
 &pfc {
@@ -70,6 +195,16 @@
 		function = "hscif0";
 	};
 
+	i2c1_pins: i2c1 {
+		groups = "i2c1_c";
+		function = "i2c1";
+	};
+
+	i2c3_pins: i2c3 {
+		groups = "i2c3";
+		function = "i2c3";
+	};
+
 	scif0_pins: scif0 {
 		groups = "scif0_data";
 		function = "scif0";
@@ -84,6 +219,31 @@
 		groups = "scifb1_data";
 		function = "scifb1";
 	};
+
+	vin0_8bit_pins: vin0 {
+		groups = "vin0_data8", "vin0_clk", "vin0_sync";
+		function = "vin0";
+	};
+
+	vin1_8bit_pins: vin1 {
+		groups = "vin1_data8_b", "vin1_clk_b", "vin1_sync_b";
+		function = "vin1";
+	};
+
+	vin2_pins: vin2 {
+		groups = "vin2_g8", "vin2_clk";
+		function = "vin2";
+	};
+
+	vin3_pins: vin3 {
+		groups = "vin3_data8", "vin3_clk", "vin3_sync";
+		function = "vin3";
+	};
+};
+
+&qspi {
+	/* Pins shared with VIN2, keep status disabled */
+	status = "disabled";
 };
 
 &scif0 {
@@ -105,4 +265,66 @@
 
 	rts-gpios = <&gpio4 21 GPIO_ACTIVE_LOW>;
 	cts-gpios = <&gpio4 17 GPIO_ACTIVE_LOW>;
+};
+
+&vin0 {
+	/*
+	 * Set SW2 switch on the SOM to 'ON'
+	 * Set SW1 switch on camera board to 'OFF' as we are using 8bit mode
+	 */
+	status = "okay";
+	pinctrl-0 = <&vin0_8bit_pins>;
+	pinctrl-names = "default";
+
+	port {
+		vin0ep: endpoint {
+			remote-endpoint = <&ov5640_0>;
+			bus-width = <8>;
+			bus-type = <6>;
+		};
+	};
+};
+
+&vin1 {
+	/* Set SW1 switch on the SOM to 'ON' */
+	status = "okay";
+	pinctrl-0 = <&vin1_8bit_pins>;
+	pinctrl-names = "default";
+
+	port {
+		vin1ep: endpoint {
+			remote-endpoint = <&ov5640_1>;
+			bus-width = <8>;
+			bus-type = <6>;
+		};
+	};
+};
+
+&vin2 {
+	status = "okay";
+	pinctrl-0 = <&vin2_pins>;
+	pinctrl-names = "default";
+
+	port {
+		vin2ep: endpoint {
+			remote-endpoint = <&ov5640_2>;
+			bus-width = <8>;
+			data-shift = <8>;
+			bus-type = <6>;
+		};
+	};
+};
+
+&vin3 {
+	status = "okay";
+	pinctrl-0 = <&vin3_pins>;
+	pinctrl-names = "default";
+
+	port {
+		vin3ep: endpoint {
+			remote-endpoint = <&ov5640_3>;
+			bus-width = <8>;
+			bus-type = <6>;
+		};
+	};
 };

@@ -371,7 +371,7 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 		rtc->rtc->range_max = U32_MAX;
 	}
 
-	err = rtc_register_device(rtc->rtc);
+	err = devm_rtc_register_device(rtc->rtc);
 	if (err)
 		goto out_dispose2;
 

@@ -59,6 +59,7 @@ static int zero_map(struct dm_target *ti, struct bio *bio)
 static struct target_type zero_target = {
 	.name   = "zero",
 	.version = {1, 1, 0},
+	.features = DM_TARGET_NOWAIT,
 	.module = THIS_MODULE,
 	.ctr    = zero_ctr,
 	.map    = zero_map,

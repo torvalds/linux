@@ -90,7 +90,6 @@ gk104_top_oneinit(struct nvkm_top *top)
 		case 0x00000010: B_(NVDEC ); break;
 		case 0x00000013: B_(CE    ); break;
 		case 0x00000014: C_(GSP   ); break;
-			break;
 		default:
 			break;
 		}

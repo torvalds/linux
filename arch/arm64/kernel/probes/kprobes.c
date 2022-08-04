@@ -34,7 +34,7 @@ DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
 static void __kprobes
-post_kprobe_handler(struct kprobe_ctlblk *, struct pt_regs *);
+post_kprobe_handler(struct kprobe *, struct kprobe_ctlblk *, struct pt_regs *);
 
 static void __kprobes arch_prepare_ss_slot(struct kprobe *p)
 {
@@ -68,7 +68,7 @@ static void __kprobes arch_simulate_insn(struct kprobe *p, struct pt_regs *regs)
 		p->ainsn.api.handler((u32)p->opcode, (long)p->addr, regs);
 
 	/* single step simulated, now go for post processing */
-	post_kprobe_handler(kcb, regs);
+	post_kprobe_handler(p, kcb, regs);
 }
 
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
@@ -177,19 +177,6 @@ static void __kprobes kprobes_restore_local_irqflag(struct kprobe_ctlblk *kcb,
 	regs->pstate |= kcb->saved_irqflag;
 }
 
-static void __kprobes
-set_ss_context(struct kprobe_ctlblk *kcb, unsigned long addr)
-{
-	kcb->ss_ctx.ss_pending = true;
-	kcb->ss_ctx.match_addr = addr + sizeof(kprobe_opcode_t);
-}
-
-static void __kprobes clear_ss_context(struct kprobe_ctlblk *kcb)
-{
-	kcb->ss_ctx.ss_pending = false;
-	kcb->ss_ctx.match_addr = 0;
-}
-
 static void __kprobes setup_singlestep(struct kprobe *p,
 				       struct pt_regs *regs,
 				       struct kprobe_ctlblk *kcb, int reenter)
@@ -209,7 +196,6 @@ static void __kprobes setup_singlestep(struct kprobe *p,
 		/* prepare for single stepping */
 		slot = (unsigned long)p->ainsn.api.insn;
 
-		set_ss_context(kcb, slot);	/* mark pending ss */
 		kprobes_save_local_irqflag(kcb, regs);
 		instruction_pointer_set(regs, slot);
 	} else {
@@ -243,13 +229,8 @@ static int __kprobes reenter_kprobe(struct kprobe *p,
 }
 
 static void __kprobes
-post_kprobe_handler(struct kprobe_ctlblk *kcb, struct pt_regs *regs)
+post_kprobe_handler(struct kprobe *cur, struct kprobe_ctlblk *kcb, struct pt_regs *regs)
 {
-	struct kprobe *cur = kprobe_running();
-
-	if (!cur)
-		return;
-
 	/* return addr restore if non-branching insn */
 	if (cur->ainsn.api.restore != 0)
 		instruction_pointer_set(regs, cur->ainsn.api.restore);
@@ -365,32 +346,22 @@ static void __kprobes kprobe_handler(struct pt_regs *regs)
 }
 
 static int __kprobes
-kprobe_ss_hit(struct kprobe_ctlblk *kcb, unsigned long addr)
-{
-	if ((kcb->ss_ctx.ss_pending)
-	    && (kcb->ss_ctx.match_addr == addr)) {
-		clear_ss_context(kcb);	/* clear pending ss */
-		return DBG_HOOK_HANDLED;
-	}
-	/* not ours, kprobes should ignore it */
-	return DBG_HOOK_ERROR;
-}
-
-static int __kprobes
 kprobe_breakpoint_ss_handler(struct pt_regs *regs, unsigned int esr)
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-	int retval;
+	unsigned long addr = instruction_pointer(regs);
+	struct kprobe *cur = kprobe_running();
 
-	/* return error if this is not our step */
-	retval = kprobe_ss_hit(kcb, instruction_pointer(regs));
-
-	if (retval == DBG_HOOK_HANDLED) {
+	if (cur && (kcb->kprobe_status & (KPROBE_HIT_SS | KPROBE_REENTER)) &&
+	    ((unsigned long)&cur->ainsn.api.insn[1] == addr)) {
 		kprobes_restore_local_irqflag(kcb, regs);
-		post_kprobe_handler(kcb, regs);
+		post_kprobe_handler(cur, kcb, regs);
+
+		return DBG_HOOK_HANDLED;
 	}
 
-	return retval;
+	/* not ours, kprobes should ignore it */
+	return DBG_HOOK_ERROR;
 }
 
 static struct break_hook kprobes_break_ss_hook = {

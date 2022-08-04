@@ -907,6 +907,13 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 		return false;
 	}
 
+	/* Wa_22010751166: icl, ehl, tgl, dg1, rkl */
+	if (INTEL_GEN(dev_priv) >= 11 &&
+	    (cache->plane.src_h + cache->plane.adjusted_y) % 4) {
+		fbc->no_fbc_reason = "plane height + offset is non-modulo of 4";
+		return false;
+	}
+
 	return true;
 }
 

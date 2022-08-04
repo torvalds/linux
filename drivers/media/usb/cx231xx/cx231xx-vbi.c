@@ -408,9 +408,8 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 		    kzalloc(sb_size, GFP_KERNEL);
 		if (!dev->vbi_mode.bulk_ctl.transfer_buffer[i]) {
 			dev_err(dev->dev,
-				"unable to allocate %i bytes for transfer buffer %i%s\n",
-				sb_size, i,
-				in_interrupt() ? " while in int" : "");
+				"unable to allocate %i bytes for transfer buffer %i\n",
+				sb_size, i);
 			cx231xx_uninit_vbi_isoc(dev);
 			return -ENOMEM;
 		}

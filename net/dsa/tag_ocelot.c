@@ -143,13 +143,6 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 	struct ocelot_port *ocelot_port;
 	u8 *prefix, *injection;
 	u64 qos_class, rew_op;
-	int err;
-
-	err = skb_cow_head(skb, OCELOT_TOTAL_TAG_LEN);
-	if (unlikely(err < 0)) {
-		netdev_err(netdev, "Cannot make room for tag.\n");
-		return NULL;
-	}
 
 	ocelot_port = ocelot->ports[dp->index];
 

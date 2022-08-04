@@ -96,14 +96,14 @@ static int ariel_led_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	leds[0].ec_index = EC_BLUE_LED;
-	leds[0].led_cdev.name = "blue:power",
+	leds[0].led_cdev.name = "blue:power";
 	leds[0].led_cdev.default_trigger = "default-on";
 
 	leds[1].ec_index = EC_AMBER_LED;
-	leds[1].led_cdev.name = "amber:status",
+	leds[1].led_cdev.name = "amber:status";
 
 	leds[2].ec_index = EC_GREEN_LED;
-	leds[2].led_cdev.name = "green:status",
+	leds[2].led_cdev.name = "green:status";
 	leds[2].led_cdev.default_trigger = "default-on";
 
 	for (i = 0; i < NLEDS; i++) {

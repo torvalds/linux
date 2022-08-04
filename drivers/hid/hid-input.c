@@ -322,6 +322,8 @@ static const struct hid_device_id hid_battery_quirks[] = {
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_DINOVO_EDGE_KBD),
 	  HID_BATTERY_QUIRK_IGNORE },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ELAN, USB_DEVICE_ID_ASUS_UX550_TOUCHSCREEN),
+	  HID_BATTERY_QUIRK_IGNORE },
 	{}
 };
 
@@ -537,9 +539,12 @@ static void hidinput_update_battery(struct hid_device *dev, int value)
 	capacity = hidinput_scale_battery_capacity(dev, value);
 
 	if (dev->battery_status != HID_BATTERY_REPORTED ||
-	    capacity != dev->battery_capacity) {
+	    capacity != dev->battery_capacity ||
+	    ktime_after(ktime_get_coarse(), dev->battery_ratelimit_time)) {
 		dev->battery_capacity = capacity;
 		dev->battery_status = HID_BATTERY_REPORTED;
+		dev->battery_ratelimit_time =
+			ktime_add_ms(ktime_get_coarse(), 30 * 1000);
 		power_supply_changed(dev->battery);
 	}
 }
@@ -746,6 +751,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				field->flags |= HID_MAIN_ITEM_RELATIVE;
 				break;
 			}
+			goto unknown;
 
 		default: goto unknown;
 		}

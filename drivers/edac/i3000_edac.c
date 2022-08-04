@@ -273,7 +273,6 @@ static void i3000_check(struct mem_ctl_info *mci)
 {
 	struct i3000_error_info info;
 
-	edac_dbg(1, "MC%d\n", mci->mc_idx);
 	i3000_get_error_info(mci, &info);
 	i3000_process_error_info(mci, &info, 1);
 }

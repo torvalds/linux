@@ -743,18 +743,12 @@ struct phy_driver {
 	/** @read_status: Determines the negotiated speed and duplex */
 	int (*read_status)(struct phy_device *phydev);
 
-	/** @ack_interrupt: Clears any pending interrupts */
-	int (*ack_interrupt)(struct phy_device *phydev);
-
-	/** @config_intr: Enables or disables interrupts */
-	int (*config_intr)(struct phy_device *phydev);
-
 	/**
-	 * @did_interrupt: Checks if the PHY generated an interrupt.
-	 * For multi-PHY devices with shared PHY interrupt pin
-	 * Set interrupt bits have to be cleared.
+	 * @config_intr: Enables or disables interrupts.
+	 * It should also clear any pending interrupts prior to enabling the
+	 * IRQs and after disabling them.
 	 */
-	int (*did_interrupt)(struct phy_device *phydev);
+	int (*config_intr)(struct phy_device *phydev);
 
 	/** @handle_interrupt: Override default interrupt handling */
 	irqreturn_t (*handle_interrupt)(struct phy_device *phydev);
@@ -1480,16 +1474,13 @@ int genphy_suspend(struct phy_device *phydev);
 int genphy_resume(struct phy_device *phydev);
 int genphy_loopback(struct phy_device *phydev, bool enable);
 int genphy_soft_reset(struct phy_device *phydev);
+irqreturn_t genphy_handle_interrupt_no_ack(struct phy_device *phydev);
 
 static inline int genphy_config_aneg(struct phy_device *phydev)
 {
 	return __genphy_config_aneg(phydev, false);
 }
 
-static inline int genphy_no_ack_interrupt(struct phy_device *phydev)
-{
-	return 0;
-}
 static inline int genphy_no_config_intr(struct phy_device *phydev)
 {
 	return 0;
@@ -1540,8 +1531,10 @@ void phy_drivers_unregister(struct phy_driver *drv, int n);
 int phy_driver_register(struct phy_driver *new_driver, struct module *owner);
 int phy_drivers_register(struct phy_driver *new_driver, int n,
 			 struct module *owner);
+void phy_error(struct phy_device *phydev);
 void phy_state_machine(struct work_struct *work);
 void phy_queue_state_machine(struct phy_device *phydev, unsigned long jiffies);
+void phy_trigger_machine(struct phy_device *phydev);
 void phy_mac_interrupt(struct phy_device *phydev);
 void phy_start_machine(struct phy_device *phydev);
 void phy_stop_machine(struct phy_device *phydev);

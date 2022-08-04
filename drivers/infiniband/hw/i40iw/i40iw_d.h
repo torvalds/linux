@@ -40,11 +40,6 @@
 #define I40IW_DB_ADDR_OFFSET    (4 * 1024 * 1024 - 64 * 1024)
 #define I40IW_VF_DB_ADDR_OFFSET (64 * 1024)
 
-#define I40IW_PUSH_OFFSET       (4 * 1024 * 1024)
-#define I40IW_PF_FIRST_PUSH_PAGE_INDEX 16
-#define I40IW_VF_PUSH_OFFSET    ((8 + 64) * 1024)
-#define I40IW_VF_FIRST_PUSH_PAGE_INDEX 2
-
 #define I40IW_PE_DB_SIZE_4M     1
 #define I40IW_PE_DB_SIZE_8M     2
 
@@ -402,7 +397,6 @@
 #define I40IW_CQP_OP_MANAGE_LOC_MAC_IP_TABLE    0x0e
 #define I40IW_CQP_OP_MANAGE_ARP                 0x0f
 #define I40IW_CQP_OP_MANAGE_VF_PBLE_BP          0x10
-#define I40IW_CQP_OP_MANAGE_PUSH_PAGES          0x11
 #define I40IW_CQP_OP_QUERY_RDMA_FEATURES	0x12
 #define I40IW_CQP_OP_UPLOAD_CONTEXT             0x13
 #define I40IW_CQP_OP_ALLOCATE_LOC_MAC_IP_TABLE_ENTRY 0x14
@@ -843,7 +837,6 @@
 #define I40IW_CQPSQ_MVPBP_PD_PLPBA_MASK \
 	(0x1fffffffffffffffULL << I40IW_CQPSQ_MVPBP_PD_PLPBA_SHIFT)
 
-/* Manage Push Page - MPP */
 #define I40IW_INVALID_PUSH_PAGE_INDEX 0xffff
 
 #define I40IW_CQPSQ_MPP_QS_HANDLE_SHIFT 0
@@ -1352,9 +1345,6 @@
 #define I40IWQPSQ_ADDFRAGCNT_SHIFT 38
 #define I40IWQPSQ_ADDFRAGCNT_MASK (0x7ULL << I40IWQPSQ_ADDFRAGCNT_SHIFT)
 
-#define I40IWQPSQ_PUSHWQE_SHIFT 56
-#define I40IWQPSQ_PUSHWQE_MASK (1ULL << I40IWQPSQ_PUSHWQE_SHIFT)
-
 #define I40IWQPSQ_STREAMMODE_SHIFT 58
 #define I40IWQPSQ_STREAMMODE_MASK (1ULL << I40IWQPSQ_STREAMMODE_SHIFT)
 
@@ -1740,18 +1730,17 @@ enum i40iw_alignment {
 #define OP_MW_ALLOC                             20
 #define OP_QP_FLUSH_WQES                        21
 #define OP_ADD_ARP_CACHE_ENTRY                  22
-#define OP_MANAGE_PUSH_PAGE                     23
-#define OP_UPDATE_PE_SDS                        24
-#define OP_MANAGE_HMC_PM_FUNC_TABLE             25
-#define OP_SUSPEND                              26
-#define OP_RESUME                               27
-#define OP_MANAGE_VF_PBLE_BP                    28
-#define OP_QUERY_FPM_VALUES                     29
-#define OP_COMMIT_FPM_VALUES                    30
-#define OP_REQUESTED_COMMANDS                   31
-#define OP_COMPLETED_COMMANDS                   32
-#define OP_GEN_AE                               33
-#define OP_QUERY_RDMA_FEATURES                  34
-#define OP_SIZE_CQP_STAT_ARRAY			35
+#define OP_UPDATE_PE_SDS                        23
+#define OP_MANAGE_HMC_PM_FUNC_TABLE             24
+#define OP_SUSPEND                              25
+#define OP_RESUME                               26
+#define OP_MANAGE_VF_PBLE_BP                    27
+#define OP_QUERY_FPM_VALUES                     28
+#define OP_COMMIT_FPM_VALUES                    29
+#define OP_REQUESTED_COMMANDS                   30
+#define OP_COMPLETED_COMMANDS                   31
+#define OP_GEN_AE                               32
+#define OP_QUERY_RDMA_FEATURES                  33
+#define OP_SIZE_CQP_STAT_ARRAY			34
 
 #endif

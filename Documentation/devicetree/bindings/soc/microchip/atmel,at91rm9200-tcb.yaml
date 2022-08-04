@@ -59,6 +59,7 @@ patternProperties:
         items:
           - enum:
               - atmel,tcb-timer
+              - atmel,tcb-pwm
               - microchip,tcb-capture
       reg:
         description:
@@ -68,10 +69,35 @@ patternProperties:
 
         minItems: 1
         maxItems: 3
+    required:
+      - compatible
+      - reg
+
+  "^pwm@[0-2]$":
+    description: The timer block channels that are used as PWMs.
+    $ref: ../../pwm/pwm.yaml#
+    type: object
+    properties:
+      compatible:
+        const: atmel,tcb-pwm
+      reg:
+        description:
+          TCB channel to use for this PWM.
+        enum: [ 0, 1, 2 ]
+
+      "#pwm-cells":
+        description:
+          The only third cell flag supported by this binding is
+          PWM_POLARITY_INVERTED.
+        const: 3
 
     required:
       - compatible
       - reg
+      - "#pwm-cells"
+
+    additionalProperties: false
+
 
 allOf:
   - if:
@@ -158,7 +184,13 @@ examples:
                         compatible = "atmel,tcb-timer";
                         reg = <1>;
                 };
-        };
+
+                pwm@2 {
+                        compatible = "atmel,tcb-pwm";
+                        reg = <2>;
+                        #pwm-cells = <3>;
+                };
+         };
     /* TCB0 Capture with QDEC: */
         timer@f800c000 {
                 compatible = "atmel,at91rm9200-tcb", "simple-mfd", "syscon";

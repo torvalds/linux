@@ -1,12 +1,11 @@
 #!/bin/sh
 
 # Print out the KASAN_SHADOW_OFFSETS required to place the KASAN SHADOW
-# start address at the mid-point of the kernel VA space
+# start address at the top of the linear region
 
 print_kasan_offset () {
 	printf "%02d\t" $1
 	printf "0x%08x00000000\n" $(( (0xffffffff & (-1 << ($1 - 1 - 32))) \
-			+ (1 << ($1 - 32 - $2)) \
 			- (1 << (64 - 32 - $2)) ))
 }
 

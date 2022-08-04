@@ -1,0 +1,127 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Microsemi Corporation
+ */
+
+#include "serval.dtsi"
+
+/ {
+	aliases {
+		serial0 = &uart0;
+		i2c104  = &i2c104;
+		i2c105  = &i2c105;
+		i2c106  = &i2c106;
+		i2c107  = &i2c107;
+		i2c108  = &i2c108;
+		i2c109  = &i2c109;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	i2c0_imux: i2c0-imux{
+		compatible = "i2c-mux-pinctrl";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		i2c-parent = <&i2c0>;
+		pinctrl-names =
+		"i2c104", "i2c105", "i2c106", "i2c107",
+		"i2c108", "i2c109", "idle";
+		pinctrl-0 = <&i2cmux_0>;
+		pinctrl-1 = <&i2cmux_1>;
+		pinctrl-2 = <&i2cmux_2>;
+		pinctrl-3 = <&i2cmux_3>;
+		pinctrl-4 = <&i2cmux_4>;
+		pinctrl-5 = <&i2cmux_5>;
+		pinctrl-6 = <&i2cmux_pins_i>;
+		i2c104: i2c_sfp0@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+		i2c105: i2c_sfp1@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+		i2c106: i2c_sfp2@2 {
+			reg = <2>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+		i2c107: i2c_sfp3@3 {
+			reg = <3>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+		i2c108: i2c_sfp4@4 {
+			reg = <4>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+		i2c109: i2c_sfp5@5 {
+			reg = <5>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+};
+
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&gpio {
+	i2c_pins: i2c-pins {
+		pins = "GPIO_7"; /* No "default" scl for i2c0 */
+		function = "twi";
+	};
+	i2cmux_pins_i: i2cmux-pins-i {
+		pins = "GPIO_11", "GPIO_12", "GPIO_18", "GPIO_19",
+			"GPIO_20", "GPIO_21";
+		function = "twi_scl_m";
+		output-low;
+	};
+	i2cmux_0: i2cmux-0 {
+		pins = "GPIO_11";
+		function = "twi_scl_m";
+		output-high;
+	};
+	i2cmux_1: i2cmux-1 {
+		pins = "GPIO_12";
+		function = "twi_scl_m";
+		output-high;
+	};
+	i2cmux_2: i2cmux-2 {
+		pins = "GPIO_18";
+		function = "twi_scl_m";
+		output-high;
+	};
+	i2cmux_3: i2cmux-3 {
+		pins = "GPIO_19";
+		function = "twi_scl_m";
+		output-high;
+	};
+	i2cmux_4: i2cmux-4 {
+		pins = "GPIO_20";
+		function = "twi_scl_m";
+		output-high;
+	};
+	i2cmux_5: i2cmux-5 {
+		pins = "GPIO_21";
+		function = "twi_scl_m";
+		output-high;
+	};
+};
+
+&i2c0 {
+	status = "okay";
+	i2c-sda-hold-time-ns = <300>;
+};
+

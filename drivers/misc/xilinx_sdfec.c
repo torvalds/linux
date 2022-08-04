@@ -944,8 +944,8 @@ static long xsdfec_dev_ioctl(struct file *fptr, unsigned int cmd,
 			     unsigned long data)
 {
 	struct xsdfec_dev *xsdfec;
-	void __user *arg = NULL;
-	int rval = -EINVAL;
+	void __user *arg = (void __user *)data;
+	int rval;
 
 	xsdfec = container_of(fptr->private_data, struct xsdfec_dev, miscdev);
 
@@ -954,16 +954,6 @@ static long xsdfec_dev_ioctl(struct file *fptr, unsigned int cmd,
 	    (cmd != XSDFEC_SET_DEFAULT_CONFIG && cmd != XSDFEC_GET_STATUS &&
 	     cmd != XSDFEC_GET_STATS && cmd != XSDFEC_CLEAR_STATS)) {
 		return -EPERM;
-	}
-
-	if (_IOC_TYPE(cmd) != XSDFEC_MAGIC)
-		return -ENOTTY;
-
-	/* check if ioctl argument is present and valid */
-	if (_IOC_DIR(cmd) != _IOC_NONE) {
-		arg = (void __user *)data;
-		if (!arg)
-			return rval;
 	}
 
 	switch (cmd) {
@@ -1010,19 +1000,11 @@ static long xsdfec_dev_ioctl(struct file *fptr, unsigned int cmd,
 		rval = xsdfec_is_active(xsdfec, (bool __user *)arg);
 		break;
 	default:
-		/* Should not get here */
+		rval = -ENOTTY;
 		break;
 	}
 	return rval;
 }
-
-#ifdef CONFIG_COMPAT
-static long xsdfec_dev_compat_ioctl(struct file *file, unsigned int cmd,
-				    unsigned long data)
-{
-	return xsdfec_dev_ioctl(file, cmd, (unsigned long)compat_ptr(data));
-}
-#endif
 
 static __poll_t xsdfec_poll(struct file *file, poll_table *wait)
 {
@@ -1054,9 +1036,7 @@ static const struct file_operations xsdfec_fops = {
 	.release = xsdfec_dev_release,
 	.unlocked_ioctl = xsdfec_dev_ioctl,
 	.poll = xsdfec_poll,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = xsdfec_dev_compat_ioctl,
-#endif
+	.compat_ioctl = compat_ptr_ioctl,
 };
 
 static int xsdfec_parse_of(struct xsdfec_dev *xsdfec)

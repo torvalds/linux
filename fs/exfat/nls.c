@@ -659,7 +659,7 @@ static int exfat_load_upcase_table(struct super_block *sb,
 	unsigned char skip = false;
 	unsigned short *upcase_table;
 
-	upcase_table = kcalloc(UTBL_COUNT, sizeof(unsigned short), GFP_KERNEL);
+	upcase_table = kvcalloc(UTBL_COUNT, sizeof(unsigned short), GFP_KERNEL);
 	if (!upcase_table)
 		return -ENOMEM;
 
@@ -715,7 +715,7 @@ static int exfat_load_default_upcase_table(struct super_block *sb)
 	unsigned short uni = 0, *upcase_table;
 	unsigned int index = 0;
 
-	upcase_table = kcalloc(UTBL_COUNT, sizeof(unsigned short), GFP_KERNEL);
+	upcase_table = kvcalloc(UTBL_COUNT, sizeof(unsigned short), GFP_KERNEL);
 	if (!upcase_table)
 		return -ENOMEM;
 
@@ -803,5 +803,5 @@ load_default:
 
 void exfat_free_upcase_table(struct exfat_sb_info *sbi)
 {
-	kfree(sbi->vol_utbl);
+	kvfree(sbi->vol_utbl);
 }

@@ -892,7 +892,7 @@ static int abb5zes3_probe(struct i2c_client *client,
 		}
 	}
 
-	ret = rtc_register_device(data->rtc);
+	ret = devm_rtc_register_device(data->rtc);
 
 err:
 	if (ret && data->irq)

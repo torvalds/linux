@@ -17,7 +17,9 @@ allOf:
 properties:
   compatible:
     items:
-      - const: sifive,fu540-c000-uart
+      - enum:
+          - sifive,fu540-c000-uart
+          - sifive,fu740-c000-uart
       - const: sifive,uart0
 
     description:

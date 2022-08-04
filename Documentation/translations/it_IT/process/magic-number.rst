@@ -90,7 +90,6 @@ PPP_MAGIC             0x5002           ppp                      ``include/linux/
 SSTATE_MAGIC          0x5302           serial_state             ``include/linux/serial.h``
 SLIP_MAGIC            0x5302           slip                     ``drivers/net/slip.h``
 STRIP_MAGIC           0x5303           strip                    ``drivers/net/strip.c``
-X25_ASY_MAGIC         0x5303           x25_asy                  ``drivers/net/x25_asy.h``
 SIXPACK_MAGIC         0x5304           sixpack                  ``drivers/net/hamradio/6pack.h``
 AX25_MAGIC            0x5316           ax_disp                  ``drivers/net/mkiss.h``
 TTY_MAGIC             0x5401           tty_struct               ``include/linux/tty.h``

@@ -536,7 +536,6 @@ static int mdfld_chip_setup(struct drm_device *dev)
 
 const struct psb_ops mdfld_chip_ops = {
 	.name = "mdfld",
-	.accel_2d = 0,
 	.pipes = 3,
 	.crtcs = 3,
 	.lvds_mask = (1 << 1),

@@ -63,10 +63,10 @@ required:
 
 patternProperties:
   "^channel@([0-9]|1[0-5])$":
+    $ref: "adc.yaml"
     type: object
     description: |
       Represents the external channels which are connected to the ADC.
-      See Documentation/devicetree/bindings/iio/adc/adc.txt.
 
     properties:
       reg:
@@ -88,15 +88,9 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/uint32
         enum: [0, 1, 3]
 
-      diff-channels:
-        description: see Documentation/devicetree/bindings/iio/adc/adc.txt
-        items:
-          minimum: 0
-          maximum: 15
+      diff-channels: true
 
-      bipolar:
-        description: see Documentation/devicetree/bindings/iio/adc/adc.txt
-        type: boolean
+      bipolar: true
 
       adi,buffered-positive:
         description: Enable buffered mode for positive input.
@@ -109,6 +103,8 @@ patternProperties:
     required:
       - reg
       - diff-channels
+
+    additionalProperties: false
 
 additionalProperties: false
 

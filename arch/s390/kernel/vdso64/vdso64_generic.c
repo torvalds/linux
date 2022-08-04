@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "../../../../lib/vdso/gettimeofday.c"
+#include "vdso.h"
 
 int __s390_vdso_gettimeofday(struct __kernel_old_timeval *tv,
 			     struct timezone *tz)

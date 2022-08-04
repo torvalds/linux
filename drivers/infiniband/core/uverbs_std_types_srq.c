@@ -18,7 +18,7 @@ static int uverbs_free_srq(struct ib_uobject *uobject,
 	int ret;
 
 	ret = ib_destroy_srq_user(srq, &attrs->driver_udata);
-	if (ib_is_destroy_retryable(ret, why, uobject))
+	if (ret)
 		return ret;
 
 	if (srq_type == IB_SRQT_XRC) {
@@ -30,7 +30,7 @@ static int uverbs_free_srq(struct ib_uobject *uobject,
 	}
 
 	ib_uverbs_release_uevent(uevent);
-	return ret;
+	return 0;
 }
 
 static int UVERBS_HANDLER(UVERBS_METHOD_SRQ_CREATE)(

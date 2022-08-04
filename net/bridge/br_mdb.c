@@ -87,6 +87,8 @@ static void __mdb_entry_to_br_ip(struct br_mdb_entry *entry, struct br_ip *ip,
 			ip->src.ip6 = nla_get_in6_addr(mdb_attrs[MDBE_ATTR_SOURCE]);
 		break;
 #endif
+	default:
+		ether_addr_copy(ip->dst.mac_addr, entry->addr.u.mac_addr);
 	}
 
 }
@@ -174,9 +176,11 @@ static int __mdb_fill_info(struct sk_buff *skb,
 	if (mp->addr.proto == htons(ETH_P_IP))
 		e.addr.u.ip4 = mp->addr.dst.ip4;
 #if IS_ENABLED(CONFIG_IPV6)
-	if (mp->addr.proto == htons(ETH_P_IPV6))
+	else if (mp->addr.proto == htons(ETH_P_IPV6))
 		e.addr.u.ip6 = mp->addr.dst.ip6;
 #endif
+	else
+		ether_addr_copy(e.addr.u.mac_addr, mp->addr.dst.mac_addr);
 	e.addr.proto = mp->addr.proto;
 	nest_ent = nla_nest_start_noflag(skb,
 					 MDBA_MDB_ENTRY_INFO);
@@ -210,6 +214,8 @@ static int __mdb_fill_info(struct sk_buff *skb,
 		}
 		break;
 #endif
+	default:
+		ether_addr_copy(e.addr.u.mac_addr, mp->addr.dst.mac_addr);
 	}
 	if (p) {
 		if (nla_put_u8(skb, MDBA_MDB_EATTR_RTPROT, p->rt_protocol))
@@ -562,9 +568,12 @@ void br_mdb_notify(struct net_device *dev,
 		if (mp->addr.proto == htons(ETH_P_IP))
 			ip_eth_mc_map(mp->addr.dst.ip4, mdb.addr);
 #if IS_ENABLED(CONFIG_IPV6)
-		else
+		else if (mp->addr.proto == htons(ETH_P_IPV6))
 			ipv6_eth_mc_map(&mp->addr.dst.ip6, mdb.addr);
 #endif
+		else
+			ether_addr_copy(mdb.addr, mp->addr.dst.mac_addr);
+
 		mdb.obj.orig_dev = pg->key.port->dev;
 		switch (type) {
 		case RTM_NEWMDB:
@@ -693,6 +702,12 @@ static bool is_valid_mdb_entry(struct br_mdb_entry *entry,
 			return false;
 		}
 #endif
+	} else if (entry->addr.proto == 0) {
+		/* L2 mdb */
+		if (!is_multicast_ether_addr(entry->addr.u.mac_addr)) {
+			NL_SET_ERR_MSG_MOD(extack, "L2 entry group is not multicast");
+			return false;
+		}
 	} else {
 		NL_SET_ERR_MSG_MOD(extack, "Unknown entry protocol");
 		return false;
@@ -831,6 +846,7 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 	struct net_bridge_port_group __rcu **pp;
 	struct br_ip group, star_group;
 	unsigned long now = jiffies;
+	unsigned char flags = 0;
 	u8 filter_mode;
 	int err;
 
@@ -847,6 +863,11 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 			NL_SET_ERR_MSG_MOD(extack, "Groups with sources cannot be manually host joined");
 			return -EINVAL;
 		}
+	}
+
+	if (br_group_is_l2(&group) && entry->state != MDB_PERMANENT) {
+		NL_SET_ERR_MSG_MOD(extack, "Only permanent L2 entries allowed");
+		return -EINVAL;
 	}
 
 	mp = br_mdb_ip_get(br, &group);
@@ -884,7 +905,10 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 	filter_mode = br_multicast_is_star_g(&group) ? MCAST_EXCLUDE :
 						       MCAST_INCLUDE;
 
-	p = br_multicast_new_port_group(port, &group, *pp, entry->state, NULL,
+	if (entry->state == MDB_PERMANENT)
+		flags |= MDB_PG_FLAGS_PERMANENT;
+
+	p = br_multicast_new_port_group(port, &group, *pp, flags, NULL,
 					filter_mode, RTPROT_STATIC);
 	if (unlikely(!p)) {
 		NL_SET_ERR_MSG_MOD(extack, "Couldn't allocate new port group");

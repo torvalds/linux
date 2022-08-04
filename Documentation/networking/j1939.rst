@@ -69,17 +69,55 @@ J1939 concepts
 PGN
 ---
 
+The J1939 protocol uses the 29-bit CAN identifier with the following structure:
+
+  ============  ==============  ====================
+  29 bit CAN-ID
+  --------------------------------------------------
+  Bit positions within the CAN-ID
+  --------------------------------------------------
+  28 ... 26     25 ... 8        7 ... 0
+  ============  ==============  ====================
+  Priority      PGN             SA (Source Address)
+  ============  ==============  ====================
+
 The PGN (Parameter Group Number) is a number to identify a packet. The PGN
 is composed as follows:
-1 bit  : Reserved Bit
-1 bit  : Data Page
-8 bits : PF (PDU Format)
-8 bits : PS (PDU Specific)
+
+  ============  ==============  =================  =================
+  PGN
+  ------------------------------------------------------------------
+  Bit positions within the CAN-ID
+  ------------------------------------------------------------------
+  25            24              23 ... 16          15 ... 8
+  ============  ==============  =================  =================
+  R (Reserved)  DP (Data Page)  PF (PDU Format)    PS (PDU Specific)
+  ============  ==============  =================  =================
 
 In J1939-21 distinction is made between PDU1 format (where PF < 240) and PDU2
 format (where PF >= 240). Furthermore, when using the PDU2 format, the PS-field
 contains a so-called Group Extension, which is part of the PGN. When using PDU2
 format, the Group Extension is set in the PS-field.
+
+  ==============  ========================
+  PDU1 Format (specific) (peer to peer)
+  ----------------------------------------
+  Bit positions within the CAN-ID
+  ----------------------------------------
+  23 ... 16       15 ... 8
+  ==============  ========================
+  00h ... EFh     DA (Destination address)
+  ==============  ========================
+
+  ==============  ========================
+  PDU2 Format (global) (broadcast)
+  ----------------------------------------
+  Bit positions within the CAN-ID
+  ----------------------------------------
+  23 ... 16       15 ... 8
+  ==============  ========================
+  F0h ... FFh     GE (Group Extenstion)
+  ==============  ========================
 
 On the other hand, when using PDU1 format, the PS-field contains a so-called
 Destination Address, which is _not_ part of the PGN. When communicating a PGN

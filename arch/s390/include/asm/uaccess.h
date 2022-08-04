@@ -18,23 +18,7 @@
 #include <asm/extable.h>
 #include <asm/facility.h>
 
-/*
- * The fs value determines whether argument validity checking should be
- * performed or not.  If get_fs() == USER_DS, checking is performed, with
- * get_fs() == KERNEL_DS, checking is bypassed.
- *
- * For historical reasons, these macros are grossly misnamed.
- */
-
-#define KERNEL_DS	(0)
-#define KERNEL_DS_SACF	(1)
-#define USER_DS		(2)
-#define USER_DS_SACF	(3)
-
-#define get_fs()        (current->thread.mm_segment)
-#define uaccess_kernel() ((get_fs() & 2) == KERNEL_DS)
-
-void set_fs(mm_segment_t fs);
+void debug_user_asce(void);
 
 static inline int __range_ok(unsigned long addr, unsigned long size)
 {
@@ -88,7 +72,7 @@ int __get_user_bad(void) __attribute__((noreturn));
 
 static __always_inline int __put_user_fn(void *x, void __user *ptr, unsigned long size)
 {
-	unsigned long spec = 0x010000UL;
+	unsigned long spec = 0x810000UL;
 	int rc;
 
 	switch (size) {
@@ -121,7 +105,7 @@ static __always_inline int __put_user_fn(void *x, void __user *ptr, unsigned lon
 
 static __always_inline int __get_user_fn(void *x, const void __user *ptr, unsigned long size)
 {
-	unsigned long spec = 0x01UL;
+	unsigned long spec = 0x81UL;
 	int rc;
 
 	switch (size) {

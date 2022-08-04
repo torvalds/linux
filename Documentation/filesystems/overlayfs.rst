@@ -97,11 +97,13 @@ directory trees to be in the same filesystem and there is no
 requirement that the root of a filesystem be given for either upper or
 lower.
 
-The lower filesystem can be any filesystem supported by Linux and does
-not need to be writable.  The lower filesystem can even be another
-overlayfs.  The upper filesystem will normally be writable and if it
-is it must support the creation of trusted.* extended attributes, and
-must provide valid d_type in readdir responses, so NFS is not suitable.
+A wide range of filesystems supported by Linux can be the lower filesystem,
+but not all filesystems that are mountable by Linux have the features
+needed for OverlayFS to work.  The lower filesystem does not need to be
+writable.  The lower filesystem can even be another overlayfs.  The upper
+filesystem will normally be writable and if it is it must support the
+creation of trusted.* and/or user.* extended attributes, and must provide
+valid d_type in readdir responses, so NFS is not suitable.
 
 A read-only overlay of two read-only filesystems may use any
 filesystem type.
@@ -467,13 +469,17 @@ summarized in the `Inode properties`_ table above.
 Changes to underlying filesystems
 ---------------------------------
 
-Offline changes, when the overlay is not mounted, are allowed to either
-the upper or the lower trees.
-
 Changes to the underlying filesystems while part of a mounted overlay
 filesystem are not allowed.  If the underlying filesystem is changed,
 the behavior of the overlay is undefined, though it will not result in
 a crash or deadlock.
+
+Offline changes, when the overlay is not mounted, are allowed to the
+upper tree.  Offline changes to the lower tree are only allowed if the
+"metadata only copy up", "inode index", and "redirect_dir" features
+have not been used.  If the lower tree is modified and any of these
+features has been used, the behavior of the overlay is undefined,
+though it will not result in a crash or deadlock.
 
 When the overlay NFS export feature is enabled, overlay filesystems
 behavior on offline changes of the underlying lower layer is different
@@ -563,6 +569,11 @@ This verification may cause significant overhead in some cases.
 Note: the mount options index=off,nfs_export=on are conflicting for a
 read-write mount and will result in an error.
 
+Note: the mount option uuid=off can be used to replace UUID of the underlying
+filesystem in file handles with null, and effectively disable UUID checks. This
+can be useful in case the underlying disk is copied and the UUID of this copy
+is changed. This is only applicable if all lower/upper/work directories are on
+the same filesystem, otherwise it will fallback to normal behaviour.
 
 Volatile mount
 --------------
@@ -575,6 +586,14 @@ without significant effort.
 The advantage of mounting with the "volatile" option is that all forms of
 sync calls to the upper filesystem are omitted.
 
+In order to avoid a giving a false sense of safety, the syncfs (and fsync)
+semantics of volatile mounts are slightly different than that of the rest of
+VFS.  If any writeback error occurs on the upperdir's filesystem after a
+volatile mount takes place, all sync functions will return an error.  Once this
+condition is reached, the filesystem will not recover, and every subsequent sync
+call will return an error, even if the upperdir has not experience a new error
+since the last sync call.
+
 When overlay is mounted with "volatile" option, the directory
 "$workdir/work/incompat/volatile" is created.  During next mount, overlay
 checks for this directory and refuses to mount if present. This is a strong
@@ -582,6 +601,15 @@ indicator that user should throw away upper and work directories and create
 fresh one. In very limited cases where the user knows that the system has
 not crashed and contents of upperdir are intact, The "volatile" directory
 can be removed.
+
+
+User xattr
+----------
+
+The the "-o userxattr" mount option forces overlayfs to use the
+"user.overlay." xattr namespace instead of "trusted.overlay.".  This is
+useful for unprivileged mounting of overlayfs.
+
 
 Testsuite
 ---------

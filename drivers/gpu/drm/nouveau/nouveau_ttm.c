@@ -22,6 +22,10 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+#include <linux/limits.h>
+#include <linux/swiotlb.h>
+
 #include "nouveau_drv.h"
 #include "nouveau_gem.h"
 #include "nouveau_mem.h"
@@ -108,7 +112,7 @@ nv04_gart_manager_new(struct ttm_resource_manager *man,
 		return ret;
 
 	ret = nvif_vmm_get(&mem->cli->vmm.vmm, PTES, false, 12, 0,
-			   reg->num_pages << PAGE_SHIFT, &mem->vma[0]);
+			   (long)reg->num_pages << PAGE_SHIFT, &mem->vma[0]);
 	if (ret) {
 		nouveau_mem_del(reg);
 		return ret;
@@ -134,17 +138,19 @@ static vm_fault_t nouveau_ttm_fault(struct vm_fault *vmf)
 	if (ret)
 		return ret;
 
-	nouveau_bo_del_io_reserve_lru(bo);
+	ret = nouveau_ttm_fault_reserve_notify(bo);
+	if (ret)
+		goto error_unlock;
 
+	nouveau_bo_del_io_reserve_lru(bo);
 	prot = vm_get_page_prot(vma->vm_flags);
 	ret = ttm_bo_vm_fault_reserved(vmf, prot, TTM_BO_VM_NUM_PREFAULT, 1);
+	nouveau_bo_add_io_reserve_lru(bo);
 	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
 		return ret;
 
-	nouveau_bo_add_io_reserve_lru(bo);
-
+error_unlock:
 	dma_resv_unlock(bo->base.resv);
-
 	return ret;
 }
 
@@ -220,7 +226,7 @@ nouveau_ttm_fini_vram(struct nouveau_drm *drm)
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		ttm_resource_manager_set_used(man, false);
-		ttm_resource_manager_force_list_clean(&drm->ttm.bdev, man);
+		ttm_resource_manager_evict_all(&drm->ttm.bdev, man);
 		ttm_resource_manager_cleanup(man);
 		ttm_set_driver_manager(&drm->ttm.bdev, TTM_PL_VRAM, NULL);
 		kfree(man);
@@ -265,7 +271,7 @@ nouveau_ttm_fini_gtt(struct nouveau_drm *drm)
 		ttm_range_man_fini(&drm->ttm.bdev, TTM_PL_TT);
 	else {
 		ttm_resource_manager_set_used(man, false);
-		ttm_resource_manager_force_list_clean(&drm->ttm.bdev, man);
+		ttm_resource_manager_evict_all(&drm->ttm.bdev, man);
 		ttm_resource_manager_cleanup(man);
 		ttm_set_driver_manager(&drm->ttm.bdev, TTM_PL_TT, NULL);
 		kfree(man);
@@ -279,6 +285,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	struct nvkm_pci *pci = device->pci;
 	struct nvif_mmu *mmu = &drm->client.mmu;
 	struct drm_device *dev = drm->dev;
+	bool need_swiotlb = false;
 	int typei, ret;
 
 	ret = nouveau_ttm_init_host(drm, 0);
@@ -313,11 +320,14 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 		drm->agp.cma = pci->agp.cma;
 	}
 
-	ret = ttm_bo_device_init(&drm->ttm.bdev,
-				  &nouveau_bo_driver,
-				  dev->anon_inode->i_mapping,
-				  dev->vma_offset_manager,
-				  drm->client.mmu.dmabits <= 32 ? true : false);
+#if IS_ENABLED(CONFIG_SWIOTLB) && IS_ENABLED(CONFIG_X86)
+	need_swiotlb = !!swiotlb_nr_tbl();
+#endif
+
+	ret = ttm_bo_device_init(&drm->ttm.bdev, &nouveau_bo_driver,
+				 drm->dev->dev, dev->anon_inode->i_mapping,
+				 dev->vma_offset_manager, need_swiotlb,
+				 drm->client.mmu.dmabits <= 32);
 	if (ret) {
 		NV_ERROR(drm, "error initialising bo driver, %d\n", ret);
 		return ret;

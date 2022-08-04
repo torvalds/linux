@@ -318,6 +318,7 @@ void dm_dtn_log_begin(struct dc_context *ctx,
 	dm_dtn_log_append_v(ctx, log_ctx, "%s", msg);
 }
 
+__printf(3, 4)
 void dm_dtn_log_append_v(struct dc_context *ctx,
 	struct dc_log_buffer_ctx *log_ctx,
 	const char *msg, ...)
@@ -418,9 +419,10 @@ bool dm_helpers_dp_mst_start_top_mgr(
 
 void dm_helpers_dp_mst_stop_top_mgr(
 		struct dc_context *ctx,
-		const struct dc_link *link)
+		struct dc_link *link)
 {
 	struct amdgpu_dm_connector *aconnector = link->priv;
+	uint8_t i;
 
 	if (!aconnector) {
 		DRM_ERROR("Failed to find connector for link!");
@@ -430,8 +432,25 @@ void dm_helpers_dp_mst_stop_top_mgr(
 	DRM_INFO("DM_MST: stopping TM on aconnector: %p [id: %d]\n",
 			aconnector, aconnector->base.base.id);
 
-	if (aconnector->mst_mgr.mst_state == true)
+	if (aconnector->mst_mgr.mst_state == true) {
 		drm_dp_mst_topology_mgr_set_mst(&aconnector->mst_mgr, false);
+
+		for (i = 0; i < MAX_SINKS_PER_LINK; i++) {
+			if (link->remote_sinks[i] == NULL)
+				continue;
+
+			if (link->remote_sinks[i]->sink_signal ==
+			    SIGNAL_TYPE_DISPLAY_PORT_MST) {
+				dc_link_remove_remote_sink(link, link->remote_sinks[i]);
+
+				if (aconnector->dc_sink) {
+					dc_sink_release(aconnector->dc_sink);
+					aconnector->dc_sink = NULL;
+					aconnector->dc_link->cur_link_settings.lane_count = 0;
+				}
+			}
+		}
+	}
 }
 
 bool dm_helpers_dp_read_dpcd(
@@ -627,7 +646,6 @@ void dm_set_dcn_clocks(struct dc_context *ctx, struct dc_clocks *clks)
 {
 	/* TODO: something */
 }
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 
 void *dm_helpers_allocate_gpu_mem(
 		struct dc_context *ctx,
@@ -646,4 +664,3 @@ void dm_helpers_free_gpu_mem(
 {
 	// TODO
 }
-#endif

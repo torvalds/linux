@@ -4,6 +4,7 @@ menu "Xilinx SoC drivers"
 config XILINX_VCU
 	tristate "Xilinx VCU logicoreIP Init"
 	depends on HAS_IOMEM
+	select REGMAP_MMIO
 	help
 	  Provides the driver to enable and disable the isolation between the
 	  processing system and programmable logic part by using the logicoreIP

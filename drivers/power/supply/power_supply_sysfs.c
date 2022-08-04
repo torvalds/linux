@@ -402,7 +402,7 @@ void power_supply_init_attrs(struct device_type *dev_type)
 		struct device_attribute *attr;
 
 		if (!power_supply_attrs[i].prop_name) {
-			pr_warn("%s: Property %d skipped because is is missing from power_supply_attrs\n",
+			pr_warn("%s: Property %d skipped because it is missing from power_supply_attrs\n",
 				__func__, i);
 			sprintf(power_supply_attrs[i].attr_name, "_err_%d", i);
 		} else {

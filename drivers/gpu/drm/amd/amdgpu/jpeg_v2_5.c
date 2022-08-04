@@ -247,7 +247,7 @@ static int jpeg_v2_5_resume(void *handle)
 	return r;
 }
 
-static void jpeg_v2_5_disable_clock_gating(struct amdgpu_device* adev, int inst)
+static void jpeg_v2_5_disable_clock_gating(struct amdgpu_device *adev, int inst)
 {
 	uint32_t data;
 
@@ -276,7 +276,7 @@ static void jpeg_v2_5_disable_clock_gating(struct amdgpu_device* adev, int inst)
 	WREG32_SOC15(JPEG, inst, mmJPEG_CGC_CTRL, data);
 }
 
-static void jpeg_v2_5_enable_clock_gating(struct amdgpu_device* adev, int inst)
+static void jpeg_v2_5_enable_clock_gating(struct amdgpu_device *adev, int inst)
 {
 	uint32_t data;
 

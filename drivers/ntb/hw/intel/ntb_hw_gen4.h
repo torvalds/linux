@@ -35,6 +35,9 @@
 #define GEN4_IM_SPAD_SEM_OFFSET		0x00c0	/* SPAD hw semaphore */
 #define GEN4_IM_SPAD_STICKY_OFFSET	0x00c4  /* sticky SPAD */
 #define GEN4_IM_DOORBELL_OFFSET		0x0100  /* 0-31 doorbells */
+#define GEN4_LTR_SWSEL_OFFSET		0x30ec
+#define GEN4_LTR_ACTIVE_OFFSET		0x30f0
+#define GEN4_LTR_IDLE_OFFSET		0x30f4
 #define GEN4_EM_SPAD_OFFSET		0x8080
 /* note, link status is now in MMIO and not config space for NTB */
 #define GEN4_LINK_CTRL_OFFSET		0xb050
@@ -79,6 +82,18 @@
 #define NTB_CTL_LINK_DOWN		0x010000
 
 #define NTB_SJC_FORCEDETECT		0x000004
+
+#define NTB_LTR_SWSEL_ACTIVE		0x0
+#define NTB_LTR_SWSEL_IDLE		0x1
+
+#define NTB_LTR_NS_SHIFT		16
+#define NTB_LTR_ACTIVE_VAL		0x0000  /* 0 us */
+#define NTB_LTR_ACTIVE_LATSCALE		0x0800  /* 1us scale */
+#define NTB_LTR_ACTIVE_REQMNT		0x8000  /* snoop req enable */
+
+#define NTB_LTR_IDLE_VAL		0x0258  /* 600 us */
+#define NTB_LTR_IDLE_LATSCALE		0x0800  /* 1us scale */
+#define NTB_LTR_IDLE_REQMNT		0x8000  /* snoop req enable */
 
 ssize_t ndev_ntb4_debugfs_read(struct file *filp, char __user *ubuf,
 				      size_t count, loff_t *offp);

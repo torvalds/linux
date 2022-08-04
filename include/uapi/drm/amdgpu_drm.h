@@ -667,7 +667,7 @@ struct drm_amdgpu_cs_chunk_data {
 	};
 };
 
-/**
+/*
  *  Query h/w info: Flag that this is integrated (a.h.a. fusion) GPU
  *
  */
@@ -724,6 +724,8 @@ struct drm_amdgpu_cs_chunk_data {
 	#define AMDGPU_INFO_FW_TA		0x13
 	/* Subquery id: Query DMCUB firmware version */
 	#define AMDGPU_INFO_FW_DMCUB		0x14
+	/* Subquery id: Query TOC firmware version */
+	#define AMDGPU_INFO_FW_TOC		0x15
 
 /* number of bytes moved for TTM migration */
 #define AMDGPU_INFO_NUM_BYTES_MOVED		0x0f
@@ -946,6 +948,7 @@ struct drm_amdgpu_info_firmware {
 #define AMDGPU_VRAM_TYPE_DDR3  7
 #define AMDGPU_VRAM_TYPE_DDR4  8
 #define AMDGPU_VRAM_TYPE_GDDR6 9
+#define AMDGPU_VRAM_TYPE_DDR5  10
 
 struct drm_amdgpu_info_device {
 	/** PCI Device ID */
@@ -1083,6 +1086,7 @@ struct drm_amdgpu_info_vce_clock_table {
 #define AMDGPU_FAMILY_AI			141 /* Vega10 */
 #define AMDGPU_FAMILY_RV			142 /* Raven */
 #define AMDGPU_FAMILY_NV			143 /* Navi10 */
+#define AMDGPU_FAMILY_VGH			144 /* Van Gogh */
 
 #if defined(__cplusplus)
 }

@@ -1,0 +1,209 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mailbox/arm,mhuv2.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARM MHUv2 Mailbox Controller
+
+maintainers:
+  - Tushar Khandelwal <tushar.khandelwal@arm.com>
+  - Viresh Kumar <viresh.kumar@linaro.org>
+
+description: |
+  The Arm Message Handling Unit (MHU) Version 2 is a mailbox controller that has
+  between 1 and 124 channel windows (each 32-bit wide) to provide unidirectional
+  communication with remote processor(s), where the number of channel windows
+  are implementation dependent.
+
+  Given the unidirectional nature of the controller, an MHUv2 mailbox may only
+  be written to or read from. If a pair of MHU controllers is implemented
+  between two processing elements to provide bidirectional communication, these
+  must be specified as two separate mailboxes.
+
+  If the interrupts property is present in device tree node, then its treated as
+  a "receiver" mailbox, otherwise a "sender".
+
+  An MHU controller must be specified along with the supported transport
+  protocols. The transport protocols determine the method of data transmission
+  as well as the number of provided mailbox channels.
+
+  Following are the possible transport protocols.
+
+  - Data-transfer: Each transfer is made of one or more words, using one or more
+    channel windows.
+
+  - Doorbell: Each transfer is made up of single bit flag, using any one of the
+    bits in a channel window. A channel window can support up to 32 doorbells
+    and the entire window shall be used in doorbell protocol.  Optionally, data
+    may be transmitted through a shared memory region, wherein the MHU is used
+    strictly as an interrupt generation mechanism but that is out of the scope
+    of these bindings.
+
+# We need a select here so we don't match all nodes with 'arm,primecell'
+select:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - arm,mhuv2-tx
+          - arm,mhuv2-rx
+  required:
+    - compatible
+
+properties:
+  compatible:
+    oneOf:
+      - description: Sender mode
+        items:
+          - const: arm,mhuv2-tx
+          - const: arm,primecell
+
+      - description: Receiver-mode
+        items:
+          - const: arm,mhuv2-rx
+          - const: arm,primecell
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    description: |
+      The MHUv2 controller always implements an interrupt in the "receiver"
+      mode, while the interrupt in the "sender" mode was not available in the
+      version MHUv2.0, but the later versions do have it.
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    maxItems: 1
+
+  arm,mhuv2-protocols:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    description: |
+      The MHUv2 controller may contain up to 124 channel windows (each 32-bit
+      wide). The hardware and the DT bindings allows any combination of those to
+      be used for various transport protocols.
+
+      This property allows a platform to describe how these channel windows are
+      used in various transport protocols. The entries in this property shall be
+      present as an array of tuples, where each tuple describes details about
+      one of the transport protocol being implemented over some channel
+      window(s).
+
+      The first field of a tuple signifies the transfer protocol, 0 is reserved
+      for doorbell protocol, and 1 is reserved for data-transfer protocol.
+      Using any other value in the first field of a tuple makes it invalid.
+
+      The second field of a tuple signifies the number of channel windows where
+      the protocol would be used and should be set to a non zero value. For
+      doorbell protocol this field signifies the number of 32-bit channel
+      windows that implement the doorbell protocol. For data-transfer protocol,
+      this field signifies the number of 32-bit channel windows that implement
+      the data-transfer protocol.
+
+      The total number of channel windows specified here shouldn't be more than
+      the ones implemented by the platform, though one can specify lesser number
+      of windows here than what the platform implements.
+
+      mhu: mailbox@2b1f0000 {
+          ...
+
+          arm,mhuv2-protocols = <0 2>, <1 1>, <1 5>, <1 7>;
+      }
+
+      The above example defines the protocols of an ARM MHUv2 mailbox
+      controller, where a total of 15 channel windows are used. The first two
+      windows are used in doorbell protocol (64 doorbells), followed by 1, 5 and
+      7 windows (separately) used in data-transfer protocol.
+
+    minItems: 1
+    maxItems: 124
+    items:
+      items:
+        - enum: [ 0, 1 ]
+        - minimum: 0
+          maximum: 124
+
+
+  '#mbox-cells':
+    description: |
+      It is always set to 2. The first argument in the consumers 'mboxes'
+      property represents the channel window group, which may be used in
+      doorbell, or data-transfer protocol, and the second argument (only
+      relevant in doorbell protocol, should be 0 otherwise) represents the
+      doorbell number within the 32 bit wide channel window.
+
+      From the example given above for arm,mhuv2-protocols, here is how a client
+      node can reference them.
+
+      mboxes = <&mhu 0 5>; // Channel Window Group 0, doorbell 5.
+      mboxes = <&mhu 1 7>; // Channel Window Group 1, doorbell 7.
+      mboxes = <&mhu 2 0>; // Channel Window Group 2, data transfer protocol with 1 window.
+      mboxes = <&mhu 3 0>; // Channel Window Group 3, data transfer protocol with 5 windows.
+      mboxes = <&mhu 4 0>; // Channel Window Group 4, data transfer protocol with 7 windows.
+
+    const: 2
+
+if:
+  # Interrupt is compulsory for receiver
+  properties:
+    compatible:
+      contains:
+        const: arm,mhuv2-rx
+then:
+  required:
+    - interrupts
+
+required:
+  - compatible
+  - reg
+  - '#mbox-cells'
+  - arm,mhuv2-protocols
+
+additionalProperties: false
+
+examples:
+  # Multiple transport protocols implemented by the mailbox controllers
+  - |
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        mhu_tx: mailbox@2b1f0000 {
+            #mbox-cells = <2>;
+            compatible = "arm,mhuv2-tx", "arm,primecell";
+            reg = <0 0x2b1f0000 0 0x1000>;
+            clocks = <&clock 0>;
+            clock-names = "apb_pclk";
+            interrupts = <0 45 4>;
+            arm,mhuv2-protocols = <1 5>, <1 2>, <1 5>, <1 7>, <0 2>;
+        };
+
+        mhu_rx: mailbox@2b1f1000 {
+            #mbox-cells = <2>;
+            compatible = "arm,mhuv2-rx", "arm,primecell";
+            reg = <0 0x2b1f1000 0 0x1000>;
+            clocks = <&clock 0>;
+            clock-names = "apb_pclk";
+            interrupts = <0 46 4>;
+            arm,mhuv2-protocols = <1 1>, <1 7>, <0 2>;
+        };
+
+        mhu_client: scb@2e000000 {
+            compatible = "fujitsu,mb86s70-scb-1.0";
+            reg = <0 0x2e000000 0 0x4000>;
+
+            mboxes =
+                     //data-transfer protocol with 5 windows, mhu-tx
+                     <&mhu_tx 2 0>,
+                     //data-transfer protocol with 7 windows, mhu-tx
+                     <&mhu_tx 3 0>,
+                     //doorbell protocol channel 4, doorbell 27, mhu-tx
+                     <&mhu_tx 4 27>,
+                     //data-transfer protocol with 1 window, mhu-rx
+                     <&mhu_rx 0 0>;
+        };
+    };

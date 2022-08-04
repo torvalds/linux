@@ -304,7 +304,7 @@ int ath11k_dp_srng_setup(struct ath11k_base *ab, struct dp_srng *ring,
 	return 0;
 }
 
-static void ath11k_dp_stop_shadow_timers(struct ath11k_base *ab)
+void ath11k_dp_stop_shadow_timers(struct ath11k_base *ab)
 {
 	int i;
 
@@ -381,7 +381,7 @@ static int ath11k_dp_srng_common_setup(struct ath11k_base *ab)
 					   HAL_WBM2SW_RELEASE, i, 0,
 					   DP_TX_COMP_RING_SIZE);
 		if (ret) {
-			ath11k_warn(ab, "failed to set up tcl_comp ring ring (%d) :%d\n",
+			ath11k_warn(ab, "failed to set up tcl_comp ring (%d) :%d\n",
 				    i, ret);
 			goto err;
 		}

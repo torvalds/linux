@@ -207,6 +207,7 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 	int ret;
 	unsigned long tmp;
 
+	memset(&mode_cmd, 0, sizeof(mode_cmd));
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
 

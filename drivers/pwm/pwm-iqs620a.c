@@ -50,7 +50,7 @@ static int iqs620_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	int ret;
 
 	if (state->polarity != PWM_POLARITY_NORMAL)
-		return -ENOTSUPP;
+		return -EINVAL;
 
 	if (state->period < IQS620_PWM_PERIOD_NS)
 		return -EINVAL;

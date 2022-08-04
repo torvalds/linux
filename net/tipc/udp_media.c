@@ -64,6 +64,11 @@
  *
  * This is the bearer level originating address used in neighbor discovery
  * messages, and all fields should be in network byte order
+ *
+ * @proto: Ethernet protocol in use
+ * @port: port being used
+ * @ipv4: IPv4 address of neighbor
+ * @ipv6: IPv6 address of neighbor
  */
 struct udp_media_addr {
 	__be16	proto;
@@ -88,6 +93,7 @@ struct udp_replicast {
  * @ubsock:	bearer associated socket
  * @ifindex:	local address scope
  * @work:	used to schedule deferred work on a bearer
+ * @rcast:	associated udp_replicast container
  */
 struct udp_bearer {
 	struct tipc_bearer __rcu *bearer;
@@ -772,7 +778,7 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 	if (err)
 		goto free;
 
-	/**
+	/*
 	 * The bcast media address port is used for all peers and the ip
 	 * is used if it's a multicast address.
 	 */

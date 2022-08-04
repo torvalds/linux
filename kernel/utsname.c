@@ -33,7 +33,7 @@ static struct uts_namespace *create_uts_ns(void)
 
 	uts_ns = kmem_cache_alloc(uts_ns_cache, GFP_KERNEL);
 	if (uts_ns)
-		kref_init(&uts_ns->kref);
+		refcount_set(&uts_ns->ns.count, 1);
 	return uts_ns;
 }
 
@@ -103,11 +103,8 @@ struct uts_namespace *copy_utsname(unsigned long flags,
 	return new_ns;
 }
 
-void free_uts_ns(struct kref *kref)
+void free_uts_ns(struct uts_namespace *ns)
 {
-	struct uts_namespace *ns;
-
-	ns = container_of(kref, struct uts_namespace, kref);
 	dec_uts_namespaces(ns->ucounts);
 	put_user_ns(ns->user_ns);
 	ns_free_inum(&ns->ns);

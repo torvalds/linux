@@ -931,6 +931,7 @@ static int rza1_parse_pinmux_node(struct rza1_pinctrl *rza1_pctl,
 		case PIN_CONFIG_OUTPUT:	/* for DT backwards compatibility */
 		case PIN_CONFIG_OUTPUT_ENABLE:
 			pinmux_flags |= MUX_FLAGS_SWIO_OUTPUT;
+			break;
 		default:
 			break;
 

@@ -16,6 +16,14 @@
 /* Currently comes from Kconfig param as a ^2 (driver-required) */
 #define JOBR_DEPTH (1 << CONFIG_CRYPTO_DEV_FSL_CAAM_RINGSIZE)
 
+/*
+ * Maximum size for crypto-engine software queue based on Job Ring
+ * size (JOBR_DEPTH) and a THRESHOLD (reserved for the non-crypto-API
+ * requests that are not passed through crypto-engine)
+ */
+#define THRESHOLD 15
+#define CRYPTO_ENGINE_MAX_QLEN (JOBR_DEPTH - THRESHOLD)
+
 /* Kconfig params for interrupt coalescing if selected (else zero) */
 #ifdef CONFIG_CRYPTO_DEV_FSL_CAAM_INTC
 #define JOBR_INTC JRCFG_ICEN

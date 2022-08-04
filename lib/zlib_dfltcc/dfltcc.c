@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Zlib
 /* dfltcc.c - SystemZ DEFLATE CONVERSION CALL support. */
 
-#include <linux/zutil.h>
+#include <linux/export.h>
+#include <linux/module.h>
 #include "dfltcc_util.h"
 #include "dfltcc.h"
 
@@ -53,3 +54,6 @@ void dfltcc_reset(
     dfltcc_state->dht_threshold = DFLTCC_DHT_MIN_SAMPLE_SIZE;
     dfltcc_state->param.ribm = DFLTCC_RIBM;
 }
+EXPORT_SYMBOL(dfltcc_reset);
+
+MODULE_LICENSE("GPL");

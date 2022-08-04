@@ -206,7 +206,7 @@ config SERIAL_MESON
 
 config SERIAL_MESON_CONSOLE
 	bool "Support for console on meson"
-	depends on SERIAL_MESON=y
+	depends on SERIAL_MESON
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
 	help
@@ -704,22 +704,6 @@ config SERIAL_SH_SCI_DMA
 	depends on SERIAL_SH_SCI && DMA_ENGINE
 	default ARCH_RENESAS
 
-config SERIAL_PNX8XXX
-	bool "Enable PNX8XXX SoCs' UART Support"
-	depends on SOC_PNX833X
-	select SERIAL_CORE
-	help
-	  If you have a MIPS-based Philips SoC such as PNX8330 and you want
-	  to use serial ports, say Y.  Otherwise, say N.
-
-config SERIAL_PNX8XXX_CONSOLE
-	bool "Enable PNX8XX0 serial console"
-	depends on SERIAL_PNX8XXX
-	select SERIAL_CORE_CONSOLE
-	help
-	  If you have a MIPS-based Philips SoC such as PNX8330 and you want
-	  to use serial console, say Y. Otherwise, say N.
-
 config SERIAL_HS_LPC32XX
 	tristate "LPC32XX high speed serial port support"
 	depends on ARCH_LPC32XX || COMPILE_TEST
@@ -1133,7 +1117,7 @@ config SERIAL_TIMBERDALE
 config SERIAL_BCM63XX
 	tristate "Broadcom BCM63xx/BCM33xx UART support"
 	select SERIAL_CORE
-	depends on MIPS || ARM || COMPILE_TEST
+	depends on COMMON_CLK
 	help
 	  This enables the driver for the onchip UART core found on
 	  the following chipsets:
@@ -1582,6 +1566,38 @@ config SERIAL_MILBEAUT_USIO_CONSOLE
 	  SoCs as the system console (the system console is the device which
 	  receives all kernel messages and warnings and which allows logins in
 	  single user mode).
+
+config SERIAL_LITEUART
+	tristate "LiteUART serial port support"
+	depends on HAS_IOMEM
+	depends on OF || COMPILE_TEST
+	depends on LITEX
+	select SERIAL_CORE
+	help
+	  This driver is for the FPGA-based LiteUART serial controller from LiteX
+	  SoC builder.
+
+	  Say 'Y' or 'M' here if you wish to use the LiteUART serial controller.
+	  Otherwise, say 'N'.
+
+config SERIAL_LITEUART_MAX_PORTS
+	int "Maximum number of LiteUART ports"
+	depends on SERIAL_LITEUART
+	default "1"
+	help
+	  Set this to the maximum number of serial ports you want the driver
+	  to support.
+
+config SERIAL_LITEUART_CONSOLE
+	bool "LiteUART serial port console support"
+	depends on SERIAL_LITEUART=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Say 'Y' or 'M' here if you wish to use the FPGA-based LiteUART serial
+	  controller from LiteX SoC builder as the system console
+	  (the system console is the device which receives all kernel messages
+	  and warnings and which allows logins in single user mode).
+	  Otherwise, say 'N'.
 
 endmenu
 

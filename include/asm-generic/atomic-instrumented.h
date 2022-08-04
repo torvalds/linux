@@ -1642,148 +1642,192 @@ atomic64_dec_if_positive(atomic64_t *v)
 #endif
 
 #if !defined(arch_xchg_relaxed) || defined(arch_xchg)
-#define xchg(ptr, ...)						\
-({									\
-	typeof(ptr) __ai_ptr = (ptr);					\
-	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr));		\
-	arch_xchg(__ai_ptr, __VA_ARGS__);				\
+#define xchg(ptr, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr)); \
+	arch_xchg(__ai_ptr, __VA_ARGS__); \
 })
 #endif
 
 #if defined(arch_xchg_acquire)
-#define xchg_acquire(ptr, ...)						\
-({									\
-	typeof(ptr) __ai_ptr = (ptr);					\
-	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr));		\
-	arch_xchg_acquire(__ai_ptr, __VA_ARGS__);				\
+#define xchg_acquire(ptr, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr)); \
+	arch_xchg_acquire(__ai_ptr, __VA_ARGS__); \
 })
 #endif
 
 #if defined(arch_xchg_release)
-#define xchg_release(ptr, ...)						\
-({									\
-	typeof(ptr) __ai_ptr = (ptr);					\
-	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr));		\
-	arch_xchg_release(__ai_ptr, __VA_ARGS__);				\
+#define xchg_release(ptr, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr)); \
+	arch_xchg_release(__ai_ptr, __VA_ARGS__); \
 })
 #endif
 
 #if defined(arch_xchg_relaxed)
-#define xchg_relaxed(ptr, ...)						\
-({									\
-	typeof(ptr) __ai_ptr = (ptr);					\
-	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr));		\
-	arch_xchg_relaxed(__ai_ptr, __VA_ARGS__);				\
+#define xchg_relaxed(ptr, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr)); \
+	arch_xchg_relaxed(__ai_ptr, __VA_ARGS__); \
 })
 #endif
 
 #if !defined(arch_cmpxchg_relaxed) || defined(arch_cmpxchg)
-#define cmpxchg(ptr, ...)						\
-({									\
-	typeof(ptr) __ai_ptr = (ptr);					\
-	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr));		\
-	arch_cmpxchg(__ai_ptr, __VA_ARGS__);				\
+#define cmpxchg(ptr, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr)); \
+	arch_cmpxchg(__ai_ptr, __VA_ARGS__); \
 })
 #endif
 
 #if defined(arch_cmpxchg_acquire)
-#define cmpxchg_acquire(ptr, ...)						\
-({									\
-	typeof(ptr) __ai_ptr = (ptr);					\
-	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr));		\
-	arch_cmpxchg_acquire(__ai_ptr, __VA_ARGS__);				\
+#define cmpxchg_acquire(ptr, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr)); \
+	arch_cmpxchg_acquire(__ai_ptr, __VA_ARGS__); \
 })
 #endif
 
 #if defined(arch_cmpxchg_release)
-#define cmpxchg_release(ptr, ...)						\
-({									\
-	typeof(ptr) __ai_ptr = (ptr);					\
-	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr));		\
-	arch_cmpxchg_release(__ai_ptr, __VA_ARGS__);				\
+#define cmpxchg_release(ptr, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr)); \
+	arch_cmpxchg_release(__ai_ptr, __VA_ARGS__); \
 })
 #endif
 
 #if defined(arch_cmpxchg_relaxed)
-#define cmpxchg_relaxed(ptr, ...)						\
-({									\
-	typeof(ptr) __ai_ptr = (ptr);					\
-	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr));		\
-	arch_cmpxchg_relaxed(__ai_ptr, __VA_ARGS__);				\
+#define cmpxchg_relaxed(ptr, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr)); \
+	arch_cmpxchg_relaxed(__ai_ptr, __VA_ARGS__); \
 })
 #endif
 
 #if !defined(arch_cmpxchg64_relaxed) || defined(arch_cmpxchg64)
-#define cmpxchg64(ptr, ...)						\
-({									\
-	typeof(ptr) __ai_ptr = (ptr);					\
-	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr));		\
-	arch_cmpxchg64(__ai_ptr, __VA_ARGS__);				\
+#define cmpxchg64(ptr, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr)); \
+	arch_cmpxchg64(__ai_ptr, __VA_ARGS__); \
 })
 #endif
 
 #if defined(arch_cmpxchg64_acquire)
-#define cmpxchg64_acquire(ptr, ...)						\
-({									\
-	typeof(ptr) __ai_ptr = (ptr);					\
-	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr));		\
-	arch_cmpxchg64_acquire(__ai_ptr, __VA_ARGS__);				\
+#define cmpxchg64_acquire(ptr, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr)); \
+	arch_cmpxchg64_acquire(__ai_ptr, __VA_ARGS__); \
 })
 #endif
 
 #if defined(arch_cmpxchg64_release)
-#define cmpxchg64_release(ptr, ...)						\
-({									\
-	typeof(ptr) __ai_ptr = (ptr);					\
-	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr));		\
-	arch_cmpxchg64_release(__ai_ptr, __VA_ARGS__);				\
+#define cmpxchg64_release(ptr, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr)); \
+	arch_cmpxchg64_release(__ai_ptr, __VA_ARGS__); \
 })
 #endif
 
 #if defined(arch_cmpxchg64_relaxed)
-#define cmpxchg64_relaxed(ptr, ...)						\
-({									\
-	typeof(ptr) __ai_ptr = (ptr);					\
-	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr));		\
-	arch_cmpxchg64_relaxed(__ai_ptr, __VA_ARGS__);				\
+#define cmpxchg64_relaxed(ptr, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr)); \
+	arch_cmpxchg64_relaxed(__ai_ptr, __VA_ARGS__); \
 })
 #endif
 
-#define cmpxchg_local(ptr, ...)						\
-({									\
-	typeof(ptr) __ai_ptr = (ptr);					\
-	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr));		\
-	arch_cmpxchg_local(__ai_ptr, __VA_ARGS__);				\
+#if !defined(arch_try_cmpxchg_relaxed) || defined(arch_try_cmpxchg)
+#define try_cmpxchg(ptr, oldp, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	typeof(oldp) __ai_oldp = (oldp); \
+	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr)); \
+	instrument_atomic_write(__ai_oldp, sizeof(*__ai_oldp)); \
+	arch_try_cmpxchg(__ai_ptr, __ai_oldp, __VA_ARGS__); \
+})
+#endif
+
+#if defined(arch_try_cmpxchg_acquire)
+#define try_cmpxchg_acquire(ptr, oldp, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	typeof(oldp) __ai_oldp = (oldp); \
+	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr)); \
+	instrument_atomic_write(__ai_oldp, sizeof(*__ai_oldp)); \
+	arch_try_cmpxchg_acquire(__ai_ptr, __ai_oldp, __VA_ARGS__); \
+})
+#endif
+
+#if defined(arch_try_cmpxchg_release)
+#define try_cmpxchg_release(ptr, oldp, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	typeof(oldp) __ai_oldp = (oldp); \
+	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr)); \
+	instrument_atomic_write(__ai_oldp, sizeof(*__ai_oldp)); \
+	arch_try_cmpxchg_release(__ai_ptr, __ai_oldp, __VA_ARGS__); \
+})
+#endif
+
+#if defined(arch_try_cmpxchg_relaxed)
+#define try_cmpxchg_relaxed(ptr, oldp, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	typeof(oldp) __ai_oldp = (oldp); \
+	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr)); \
+	instrument_atomic_write(__ai_oldp, sizeof(*__ai_oldp)); \
+	arch_try_cmpxchg_relaxed(__ai_ptr, __ai_oldp, __VA_ARGS__); \
+})
+#endif
+
+#define cmpxchg_local(ptr, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr)); \
+	arch_cmpxchg_local(__ai_ptr, __VA_ARGS__); \
 })
 
-#define cmpxchg64_local(ptr, ...)						\
-({									\
-	typeof(ptr) __ai_ptr = (ptr);					\
-	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr));		\
-	arch_cmpxchg64_local(__ai_ptr, __VA_ARGS__);				\
+#define cmpxchg64_local(ptr, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr)); \
+	arch_cmpxchg64_local(__ai_ptr, __VA_ARGS__); \
 })
 
-#define sync_cmpxchg(ptr, ...)						\
-({									\
-	typeof(ptr) __ai_ptr = (ptr);					\
-	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr));		\
-	arch_sync_cmpxchg(__ai_ptr, __VA_ARGS__);				\
+#define sync_cmpxchg(ptr, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	instrument_atomic_write(__ai_ptr, sizeof(*__ai_ptr)); \
+	arch_sync_cmpxchg(__ai_ptr, __VA_ARGS__); \
 })
 
-#define cmpxchg_double(ptr, ...)						\
-({									\
-	typeof(ptr) __ai_ptr = (ptr);					\
-	instrument_atomic_write(__ai_ptr, 2 * sizeof(*__ai_ptr));		\
-	arch_cmpxchg_double(__ai_ptr, __VA_ARGS__);				\
+#define cmpxchg_double(ptr, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	instrument_atomic_write(__ai_ptr, 2 * sizeof(*__ai_ptr)); \
+	arch_cmpxchg_double(__ai_ptr, __VA_ARGS__); \
 })
 
 
-#define cmpxchg_double_local(ptr, ...)						\
-({									\
-	typeof(ptr) __ai_ptr = (ptr);					\
-	instrument_atomic_write(__ai_ptr, 2 * sizeof(*__ai_ptr));		\
-	arch_cmpxchg_double_local(__ai_ptr, __VA_ARGS__);				\
+#define cmpxchg_double_local(ptr, ...) \
+({ \
+	typeof(ptr) __ai_ptr = (ptr); \
+	instrument_atomic_write(__ai_ptr, 2 * sizeof(*__ai_ptr)); \
+	arch_cmpxchg_double_local(__ai_ptr, __VA_ARGS__); \
 })
 
 #endif /* _ASM_GENERIC_ATOMIC_INSTRUMENTED_H */
-// 9d5e6a315fb1335d02f0ccd3655a91c3dafcc63e
+// 4bec382e44520f4d8267e42620054db26a659ea3

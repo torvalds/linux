@@ -168,9 +168,11 @@ static const struct drm_crtc_funcs vkms_crtc_funcs = {
 };
 
 static int vkms_crtc_atomic_check(struct drm_crtc *crtc,
-				  struct drm_crtc_state *state)
+				  struct drm_atomic_state *state)
 {
-	struct vkms_crtc_state *vkms_state = to_vkms_crtc_state(state);
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
+	struct vkms_crtc_state *vkms_state = to_vkms_crtc_state(crtc_state);
 	struct drm_plane *plane;
 	struct drm_plane_state *plane_state;
 	int i = 0, ret;
@@ -178,12 +180,12 @@ static int vkms_crtc_atomic_check(struct drm_crtc *crtc,
 	if (vkms_state->active_planes)
 		return 0;
 
-	ret = drm_atomic_add_affected_planes(state->state, crtc);
+	ret = drm_atomic_add_affected_planes(crtc_state->state, crtc);
 	if (ret < 0)
 		return ret;
 
-	drm_for_each_plane_mask(plane, crtc->dev, state->plane_mask) {
-		plane_state = drm_atomic_get_existing_plane_state(state->state,
+	drm_for_each_plane_mask(plane, crtc->dev, crtc_state->plane_mask) {
+		plane_state = drm_atomic_get_existing_plane_state(crtc_state->state,
 								  plane);
 		WARN_ON(!plane_state);
 
@@ -199,8 +201,8 @@ static int vkms_crtc_atomic_check(struct drm_crtc *crtc,
 	vkms_state->num_active_planes = i;
 
 	i = 0;
-	drm_for_each_plane_mask(plane, crtc->dev, state->plane_mask) {
-		plane_state = drm_atomic_get_existing_plane_state(state->state,
+	drm_for_each_plane_mask(plane, crtc->dev, crtc_state->plane_mask) {
+		plane_state = drm_atomic_get_existing_plane_state(crtc_state->state,
 								  plane);
 
 		if (!plane_state->visible)
@@ -214,19 +216,19 @@ static int vkms_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void vkms_crtc_atomic_enable(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_state)
+				    struct drm_atomic_state *state)
 {
 	drm_crtc_vblank_on(crtc);
 }
 
 static void vkms_crtc_atomic_disable(struct drm_crtc *crtc,
-				     struct drm_crtc_state *old_state)
+				     struct drm_atomic_state *state)
 {
 	drm_crtc_vblank_off(crtc);
 }
 
 static void vkms_crtc_atomic_begin(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_crtc_state)
+				   struct drm_atomic_state *state)
 {
 	struct vkms_output *vkms_output = drm_crtc_to_vkms_output(crtc);
 
@@ -237,7 +239,7 @@ static void vkms_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void vkms_crtc_atomic_flush(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_crtc_state)
+				   struct drm_atomic_state *state)
 {
 	struct vkms_output *vkms_output = drm_crtc_to_vkms_output(crtc);
 

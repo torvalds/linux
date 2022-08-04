@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * fs/verity/open.c: opening fs-verity files
+ * Opening fs-verity files
  *
  * Copyright 2019 Google LLC
  */
@@ -124,18 +124,18 @@ out_err:
 }
 
 /*
- * Compute the file measurement by hashing the fsverity_descriptor excluding the
+ * Compute the file digest by hashing the fsverity_descriptor excluding the
  * signature and with the sig_size field set to 0.
  */
-static int compute_file_measurement(struct fsverity_hash_alg *hash_alg,
-				    struct fsverity_descriptor *desc,
-				    u8 *measurement)
+static int compute_file_digest(struct fsverity_hash_alg *hash_alg,
+			       struct fsverity_descriptor *desc,
+			       u8 *file_digest)
 {
 	__le32 sig_size = desc->sig_size;
 	int err;
 
 	desc->sig_size = 0;
-	err = fsverity_hash_buffer(hash_alg, desc, sizeof(*desc), measurement);
+	err = fsverity_hash_buffer(hash_alg, desc, sizeof(*desc), file_digest);
 	desc->sig_size = sig_size;
 
 	return err;
@@ -199,15 +199,15 @@ struct fsverity_info *fsverity_create_info(const struct inode *inode,
 
 	memcpy(vi->root_hash, desc->root_hash, vi->tree_params.digest_size);
 
-	err = compute_file_measurement(vi->tree_params.hash_alg, desc,
-				       vi->measurement);
+	err = compute_file_digest(vi->tree_params.hash_alg, desc,
+				  vi->file_digest);
 	if (err) {
-		fsverity_err(inode, "Error %d computing file measurement", err);
+		fsverity_err(inode, "Error %d computing file digest", err);
 		goto out;
 	}
-	pr_debug("Computed file measurement: %s:%*phN\n",
+	pr_debug("Computed file digest: %s:%*phN\n",
 		 vi->tree_params.hash_alg->name,
-		 vi->tree_params.digest_size, vi->measurement);
+		 vi->tree_params.digest_size, vi->file_digest);
 
 	err = fsverity_verify_signature(vi, desc, desc_size);
 out:
@@ -354,7 +354,7 @@ int __init fsverity_init_info_cache(void)
 {
 	fsverity_info_cachep = KMEM_CACHE_USERCOPY(fsverity_info,
 						   SLAB_RECLAIM_ACCOUNT,
-						   measurement);
+						   file_digest);
 	if (!fsverity_info_cachep)
 		return -ENOMEM;
 	return 0;

@@ -74,10 +74,6 @@ static inline struct list_head	*get_list_head(struct __queue	*queue)
 	return (&(queue->queue));
 }
 
-
-#define LIST_CONTAINOR(ptr, type, member) \
-	container_of(ptr, type, member)
-
 static inline void _set_timer(_timer *ptimer, u32 delay_time)
 {
 	mod_timer(ptimer, (jiffies + (delay_time * HZ / 1000)));
@@ -123,9 +119,7 @@ static inline void rtw_netif_stop_queue(struct net_device *pnetdev)
 
 #define rtw_signal_process(pid, sig) kill_pid(find_vpid((pid)), (sig), 1)
 
-#define NDEV_FMT "%s"
 #define NDEV_ARG(ndev) ndev->name
-#define ADPT_FMT "%s"
 #define ADPT_ARG(adapter) adapter->pnetdev->name
 #define FUNC_NDEV_FMT "%s(%s)"
 #define FUNC_NDEV_ARG(ndev) __func__, ndev->name

@@ -1444,7 +1444,7 @@ static void octeon_irq_setup_secondary_ciu2(void)
 static int __init octeon_irq_init_ciu(
 	struct device_node *ciu_node, struct device_node *parent)
 {
-	unsigned int i, r;
+	int i, r;
 	struct irq_chip *chip;
 	struct irq_chip *chip_edge;
 	struct irq_chip *chip_mbox;
@@ -1505,10 +1505,20 @@ static int __init octeon_irq_init_ciu(
 			goto err;
 	}
 
+	r = irq_alloc_desc_at(OCTEON_IRQ_MBOX0, -1);
+	if (r < 0) {
+		pr_err("Failed to allocate desc for %s\n", "OCTEON_IRQ_MBOX0");
+		goto err;
+	}
 	r = octeon_irq_set_ciu_mapping(
 		OCTEON_IRQ_MBOX0, 0, 32, 0, chip_mbox, handle_percpu_irq);
 	if (r)
 		goto err;
+	r = irq_alloc_desc_at(OCTEON_IRQ_MBOX1, -1);
+	if (r < 0) {
+		pr_err("Failed to allocate desc for %s\n", "OCTEON_IRQ_MBOX1");
+		goto err;
+	}
 	r = octeon_irq_set_ciu_mapping(
 		OCTEON_IRQ_MBOX1, 0, 33, 0, chip_mbox, handle_percpu_irq);
 	if (r)
@@ -1546,6 +1556,11 @@ static int __init octeon_irq_init_ciu(
 	if (r)
 		goto err;
 
+	r = irq_alloc_descs(OCTEON_IRQ_WDOG0, OCTEON_IRQ_WDOG0, 16, -1);
+	if (r < 0) {
+		pr_err("Failed to allocate desc for %s\n", "OCTEON_IRQ_WDOGx");
+		goto err;
+	}
 	/* CIU_1 */
 	for (i = 0; i < 16; i++) {
 		r = octeon_irq_set_ciu_mapping(

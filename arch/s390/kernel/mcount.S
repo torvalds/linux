@@ -33,11 +33,6 @@ ENDPROC(ftrace_stub)
 #define TRACED_FUNC_FRAME_SIZE	STACK_FRAME_OVERHEAD
 #endif
 
-ENTRY(_mcount)
-	BR_EX	%r14
-ENDPROC(_mcount)
-EXPORT_SYMBOL(_mcount)
-
 ENTRY(ftrace_caller)
 	.globl	ftrace_regs_caller
 	.set	ftrace_regs_caller,ftrace_caller
@@ -46,9 +41,6 @@ ENTRY(ftrace_caller)
 	ipm	%r14				# don't put any instructions
 	sllg	%r14,%r14,16			# clobbering CC before this point
 	lgr	%r1,%r15
-#if !(defined(CC_USING_HOTPATCH) || defined(CC_USING_NOP_MCOUNT))
-	aghi	%r0,MCOUNT_RETURN_FIXUP
-#endif
 	# allocate stack frame for ftrace_caller to contain traced function
 	aghi	%r15,-TRACED_FUNC_FRAME_SIZE
 	stg	%r1,__SF_BACKCHAIN(%r15)

@@ -25,10 +25,10 @@
 #define BITS_SHIFT_NEXT_LEVEL(eax)	((eax) & 0x1f)
 #define LEVEL_MAX_SIBLINGS(ebx)		((ebx) & 0xffff)
 
-#ifdef CONFIG_SMP
 unsigned int __max_die_per_package __read_mostly = 1;
 EXPORT_SYMBOL(__max_die_per_package);
 
+#ifdef CONFIG_SMP
 /*
  * Check if given CPUID extended toplogy "leaf" is implemented
  */
@@ -96,6 +96,7 @@ int detect_extended_topology(struct cpuinfo_x86 *c)
 	unsigned int ht_mask_width, core_plus_mask_width, die_plus_mask_width;
 	unsigned int core_select_mask, core_level_siblings;
 	unsigned int die_select_mask, die_level_siblings;
+	bool die_level_present = false;
 	int leaf;
 
 	leaf = detect_extended_topology_leaf(c);
@@ -126,6 +127,7 @@ int detect_extended_topology(struct cpuinfo_x86 *c)
 			die_plus_mask_width = BITS_SHIFT_NEXT_LEVEL(eax);
 		}
 		if (LEAFB_SUBTYPE(ecx) == DIE_TYPE) {
+			die_level_present = true;
 			die_level_siblings = LEVEL_MAX_SIBLINGS(ebx);
 			die_plus_mask_width = BITS_SHIFT_NEXT_LEVEL(eax);
 		}
@@ -139,8 +141,12 @@ int detect_extended_topology(struct cpuinfo_x86 *c)
 
 	c->cpu_core_id = apic->phys_pkg_id(c->initial_apicid,
 				ht_mask_width) & core_select_mask;
-	c->cpu_die_id = apic->phys_pkg_id(c->initial_apicid,
-				core_plus_mask_width) & die_select_mask;
+
+	if (die_level_present) {
+		c->cpu_die_id = apic->phys_pkg_id(c->initial_apicid,
+					core_plus_mask_width) & die_select_mask;
+	}
+
 	c->phys_proc_id = apic->phys_pkg_id(c->initial_apicid,
 				die_plus_mask_width);
 	/*

@@ -418,7 +418,7 @@ static int coresight_enable_source(struct coresight_device *csdev, u32 mode)
 			if (ret) {
 				coresight_control_assoc_ectdev(csdev, false);
 				return ret;
-			};
+			}
 		}
 		csdev->enable = true;
 	}
@@ -432,7 +432,7 @@ static int coresight_enable_source(struct coresight_device *csdev, u32 mode)
  *  coresight_disable_source - Drop the reference count by 1 and disable
  *  the device if there are no users left.
  *
- *  @csdev - The coresight device to disable
+ *  @csdev: The coresight device to disable
  *
  *  Returns true if the device has been disabled.
  */
@@ -663,6 +663,9 @@ struct coresight_device *coresight_get_sink_by_id(u32 id)
 /**
  * coresight_get_ref- Helper function to increase reference count to module
  * and device.
+ *
+ * @csdev: The coresight device to get a reference on.
+ *
  * Return true in successful case and power up the device.
  * Return false when failed to get reference of module.
  */
@@ -682,6 +685,8 @@ static inline bool coresight_get_ref(struct coresight_device *csdev)
 /**
  * coresight_put_ref- Helper function to decrease reference count to module
  * and device. Power off the device.
+ *
+ * @csdev: The coresight device to decrement a reference from.
  */
 static inline void coresight_put_ref(struct coresight_device *csdev)
 {
@@ -744,6 +749,7 @@ static void coresight_drop_device(struct coresight_device *csdev)
 /**
  * _coresight_build_path - recursively build a path from a @csdev to a sink.
  * @csdev:	The device to start from.
+ * @sink:	The final sink we want in this path.
  * @path:	The list to add devices to.
  *
  * The tree of Coresight device is traversed until an activated sink is

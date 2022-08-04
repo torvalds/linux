@@ -32,6 +32,7 @@
 #include "chtls.h"
 #include "chtls_cm.h"
 #include "clip_tbl.h"
+#include "t4_tcb.h"
 
 /*
  * State transitions and actions for close.  Note that if we are in SYN_SENT
@@ -267,7 +268,9 @@ static void chtls_send_reset(struct sock *sk, int mode, struct sk_buff *skb)
 	if (sk->sk_state != TCP_SYN_RECV)
 		chtls_send_abort(sk, mode, skb);
 	else
-		goto out;
+		chtls_set_tcb_field_rpl_skb(sk, TCB_T_FLAGS_W,
+					    TCB_T_FLAGS_V(TCB_T_FLAGS_M), 0,
+					    TCB_FIELD_COOKIE_TFLAG, 1);
 
 	return;
 out:
@@ -621,7 +624,7 @@ static void chtls_reset_synq(struct listen_ctx *listen_ctx)
 
 	while (!skb_queue_empty(&listen_ctx->synq)) {
 		struct chtls_sock *csk =
-			container_of((struct synq *)__skb_dequeue
+			container_of((struct synq *)skb_peek
 				(&listen_ctx->synq), struct chtls_sock, synq);
 		struct sock *child = csk->sk;
 
@@ -1109,6 +1112,7 @@ static struct sock *chtls_recv_sock(struct sock *lsk,
 				    const struct cpl_pass_accept_req *req,
 				    struct chtls_dev *cdev)
 {
+	struct adapter *adap = pci_get_drvdata(cdev->pdev);
 	struct neighbour *n = NULL;
 	struct inet_sock *newinet;
 	const struct iphdr *iph;
@@ -1118,9 +1122,10 @@ static struct sock *chtls_recv_sock(struct sock *lsk,
 	struct dst_entry *dst;
 	struct tcp_sock *tp;
 	struct sock *newsk;
+	bool found = false;
 	u16 port_id;
 	int rxq_idx;
-	int step;
+	int step, i;
 
 	iph = (const struct iphdr *)network_hdr;
 	newsk = tcp_create_openreq_child(lsk, oreq, cdev->askb);
@@ -1145,21 +1150,26 @@ static struct sock *chtls_recv_sock(struct sock *lsk,
 		fl6.daddr = ip6h->saddr;
 		fl6.fl6_dport = inet_rsk(oreq)->ir_rmt_port;
 		fl6.fl6_sport = htons(inet_rsk(oreq)->ir_num);
-		security_req_classify_flow(oreq, flowi6_to_flowi(&fl6));
+		security_req_classify_flow(oreq, flowi6_to_flowi_common(&fl6));
 		dst = ip6_dst_lookup_flow(sock_net(lsk), lsk, &fl6, NULL);
 		if (IS_ERR(dst))
 			goto free_sk;
 		n = dst_neigh_lookup(dst, &ip6h->saddr);
 #endif
 	}
-	if (!n)
-		goto free_sk;
+	if (!n || !n->dev)
+		goto free_dst;
 
 	ndev = n->dev;
-	if (!ndev)
-		goto free_dst;
 	if (is_vlan_dev(ndev))
 		ndev = vlan_dev_real_dev(ndev);
+
+	for_each_port(adap, i)
+		if (cdev->ports[i] == ndev)
+			found = true;
+
+	if (!found)
+		goto free_dst;
 
 	port_id = cxgb4_port_idx(ndev);
 
@@ -1218,8 +1228,9 @@ static struct sock *chtls_recv_sock(struct sock *lsk,
 	csk->sndbuf = csk->snd_win;
 	csk->ulp_mode = ULP_MODE_TLS;
 	step = cdev->lldi->nrxq / cdev->lldi->nchan;
-	csk->rss_qid = cdev->lldi->rxq_ids[port_id * step];
 	rxq_idx = port_id * step;
+	rxq_idx += cdev->round_robin_cnt++ % step;
+	csk->rss_qid = cdev->lldi->rxq_ids[rxq_idx];
 	csk->txq_idx = (rxq_idx < cdev->lldi->ntxq) ? rxq_idx :
 			port_id * step;
 	csk->sndbuf = newsk->sk_sndbuf;
@@ -1237,6 +1248,8 @@ static struct sock *chtls_recv_sock(struct sock *lsk,
 free_csk:
 	chtls_sock_release(&csk->kref);
 free_dst:
+	if (n)
+		neigh_release(n);
 	dst_release(dst);
 free_sk:
 	inet_csk_prepare_forced_close(newsk);
@@ -1386,7 +1399,7 @@ static void chtls_pass_accept_request(struct sock *sk,
 
 	newsk = chtls_recv_sock(sk, oreq, network_hdr, req, cdev);
 	if (!newsk)
-		goto free_oreq;
+		goto reject;
 
 	if (chtls_get_module(newsk))
 		goto reject;
@@ -1402,8 +1415,6 @@ static void chtls_pass_accept_request(struct sock *sk,
 	kfree_skb(skb);
 	return;
 
-free_oreq:
-	chtls_reqsk_free(oreq);
 reject:
 	mk_tid_release(reply_skb, 0, tid);
 	cxgb4_ofld_send(cdev->lldi->ports[0], reply_skb);
@@ -1588,6 +1599,11 @@ static int chtls_pass_establish(struct chtls_dev *cdev, struct sk_buff *skb)
 			sk_wake_async(sk, 0, POLL_OUT);
 
 		data = lookup_stid(cdev->tids, stid);
+		if (!data) {
+			/* listening server close */
+			kfree_skb(skb);
+			goto unlock;
+		}
 		lsk = ((struct listen_ctx *)data)->lsk;
 
 		bh_lock_sock(lsk);
@@ -1935,6 +1951,8 @@ static void chtls_close_con_rpl(struct sock *sk, struct sk_buff *skb)
 		else if (tcp_sk(sk)->linger2 < 0 &&
 			 !csk_flag_nochk(csk, CSK_ABORT_SHUTDOWN))
 			chtls_abort_conn(sk, skb);
+		else if (csk_flag_nochk(csk, CSK_TX_DATA_SENT))
+			chtls_set_quiesce_ctrl(sk, 0);
 		break;
 	default:
 		pr_info("close_con_rpl in bad state %d\n", sk->sk_state);
@@ -1996,39 +2014,6 @@ static void t4_defer_reply(struct sk_buff *skb, struct chtls_dev *cdev,
 	spin_unlock_bh(&cdev->deferq.lock);
 }
 
-static void send_abort_rpl(struct sock *sk, struct sk_buff *skb,
-			   struct chtls_dev *cdev, int status, int queue)
-{
-	struct cpl_abort_req_rss *req = cplhdr(skb);
-	struct sk_buff *reply_skb;
-	struct chtls_sock *csk;
-
-	csk = rcu_dereference_sk_user_data(sk);
-
-	reply_skb = alloc_skb(sizeof(struct cpl_abort_rpl),
-			      GFP_KERNEL);
-
-	if (!reply_skb) {
-		req->status = (queue << 1);
-		t4_defer_reply(skb, cdev, send_defer_abort_rpl);
-		return;
-	}
-
-	set_abort_rpl_wr(reply_skb, GET_TID(req), status);
-	kfree_skb(skb);
-
-	set_wr_txq(reply_skb, CPL_PRIORITY_DATA, queue);
-	if (csk_conn_inline(csk)) {
-		struct l2t_entry *e = csk->l2t_entry;
-
-		if (e && sk->sk_state != TCP_SYN_RECV) {
-			cxgb4_l2t_send(csk->egress_dev, reply_skb, e);
-			return;
-		}
-	}
-	cxgb4_ofld_send(cdev->lldi->ports[0], reply_skb);
-}
-
 static void chtls_send_abort_rpl(struct sock *sk, struct sk_buff *skb,
 				 struct chtls_dev *cdev,
 				 int status, int queue)
@@ -2077,9 +2062,9 @@ static void bl_abort_syn_rcv(struct sock *lsk, struct sk_buff *skb)
 	queue = csk->txq_idx;
 
 	skb->sk	= NULL;
+	chtls_send_abort_rpl(child, skb, BLOG_SKB_CB(skb)->cdev,
+			     CPL_ABORT_NO_RST, queue);
 	do_abort_syn_rcv(child, lsk);
-	send_abort_rpl(child, skb, BLOG_SKB_CB(skb)->cdev,
-		       CPL_ABORT_NO_RST, queue);
 }
 
 static int abort_syn_rcv(struct sock *sk, struct sk_buff *skb)
@@ -2109,8 +2094,8 @@ static int abort_syn_rcv(struct sock *sk, struct sk_buff *skb)
 	if (!sock_owned_by_user(psk)) {
 		int queue = csk->txq_idx;
 
+		chtls_send_abort_rpl(sk, skb, cdev, CPL_ABORT_NO_RST, queue);
 		do_abort_syn_rcv(sk, psk);
-		send_abort_rpl(sk, skb, cdev, CPL_ABORT_NO_RST, queue);
 	} else {
 		skb->sk = sk;
 		BLOG_SKB_CB(skb)->backlog_rcv = bl_abort_syn_rcv;
@@ -2128,9 +2113,6 @@ static void chtls_abort_req_rss(struct sock *sk, struct sk_buff *skb)
 	int queue = csk->txq_idx;
 
 	if (is_neg_adv(req->status)) {
-		if (sk->sk_state == TCP_SYN_RECV)
-			chtls_set_tcb_tflag(sk, 0, 0);
-
 		kfree_skb(skb);
 		return;
 	}
@@ -2157,12 +2139,12 @@ static void chtls_abort_req_rss(struct sock *sk, struct sk_buff *skb)
 		if (sk->sk_state == TCP_SYN_RECV && !abort_syn_rcv(sk, skb))
 			return;
 
-		chtls_release_resources(sk);
-		chtls_conn_done(sk);
 	}
 
 	chtls_send_abort_rpl(sk, skb, BLOG_SKB_CB(skb)->cdev,
 			     rst_status, queue);
+	chtls_release_resources(sk);
+	chtls_conn_done(sk);
 }
 
 static void chtls_abort_rpl_rss(struct sock *sk, struct sk_buff *skb)
@@ -2314,6 +2296,28 @@ static int chtls_wr_ack(struct chtls_dev *cdev, struct sk_buff *skb)
 	return 0;
 }
 
+static int chtls_set_tcb_rpl(struct chtls_dev *cdev, struct sk_buff *skb)
+{
+	struct cpl_set_tcb_rpl *rpl = cplhdr(skb) + RSS_HDR;
+	unsigned int hwtid = GET_TID(rpl);
+	struct sock *sk;
+
+	sk = lookup_tid(cdev->tids, hwtid);
+
+	/* return EINVAL if socket doesn't exist */
+	if (!sk)
+		return -EINVAL;
+
+	/* Reusing the skb as size of cpl_set_tcb_field structure
+	 * is greater than cpl_abort_req
+	 */
+	if (TCB_COOKIE_G(rpl->cookie) == TCB_FIELD_COOKIE_TFLAG)
+		chtls_send_abort(sk, CPL_ABORT_SEND_RST, NULL);
+
+	kfree_skb(skb);
+	return 0;
+}
+
 chtls_handler_func chtls_handlers[NUM_CPL_CMDS] = {
 	[CPL_PASS_OPEN_RPL]     = chtls_pass_open_rpl,
 	[CPL_CLOSE_LISTSRV_RPL] = chtls_close_listsrv_rpl,
@@ -2326,5 +2330,6 @@ chtls_handler_func chtls_handlers[NUM_CPL_CMDS] = {
 	[CPL_CLOSE_CON_RPL]     = chtls_conn_cpl,
 	[CPL_ABORT_REQ_RSS]     = chtls_conn_cpl,
 	[CPL_ABORT_RPL_RSS]     = chtls_conn_cpl,
-	[CPL_FW4_ACK]           = chtls_wr_ack,
+	[CPL_FW4_ACK]		= chtls_wr_ack,
+	[CPL_SET_TCB_RPL]	= chtls_set_tcb_rpl,
 };

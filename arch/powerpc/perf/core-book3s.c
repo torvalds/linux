@@ -95,6 +95,7 @@ static unsigned int freeze_events_kernel = MMCR0_FCS;
 #define SPRN_SIER3		0
 #define MMCRA_SAMPLE_ENABLE	0
 #define MMCRA_BHRB_DISABLE     0
+#define MMCR0_PMCCEXT		0
 
 static inline unsigned long perf_ip_adjust(struct pt_regs *regs)
 {
@@ -137,6 +138,9 @@ static void pmao_restore_workaround(bool ebb) { }
 
 bool is_sier_available(void)
 {
+	if (!ppmu)
+		return false;
+
 	if (ppmu->flags & PPMU_HAS_SIER)
 		return true;
 
@@ -250,9 +254,30 @@ static inline u32 perf_flags_from_msr(struct pt_regs *regs)
 static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 {
 	bool use_siar = regs_use_siar(regs);
+	unsigned long mmcra = regs->dsisr;
+	int marked = mmcra & MMCRA_SAMPLE_ENABLE;
 
 	if (!use_siar)
 		return perf_flags_from_msr(regs);
+
+	/*
+	 * Check the address in SIAR to identify the
+	 * privilege levels since the SIER[MSR_HV, MSR_PR]
+	 * bits are not set for marked events in power10
+	 * DD1.
+	 */
+	if (marked && (ppmu->flags & PPMU_P10_DD1)) {
+		unsigned long siar = mfspr(SPRN_SIAR);
+		if (siar) {
+			if (is_kernel_addr(siar))
+				return PERF_RECORD_MISC_KERNEL;
+			return PERF_RECORD_MISC_USER;
+		} else {
+			if (is_kernel_addr(regs->nip))
+				return PERF_RECORD_MISC_KERNEL;
+			return PERF_RECORD_MISC_USER;
+		}
+	}
 
 	/*
 	 * If we don't have flags in MMCRA, rather than using
@@ -350,7 +375,14 @@ static inline int siar_valid(struct pt_regs *regs)
 	int marked = mmcra & MMCRA_SAMPLE_ENABLE;
 
 	if (marked) {
-		if (ppmu->flags & PPMU_HAS_SIER)
+		/*
+		 * SIER[SIAR_VALID] is not set for some
+		 * marked events on power10 DD1, so drop
+		 * the check for SIER[SIAR_VALID] and return true.
+		 */
+		if (ppmu->flags & PPMU_P10_DD1)
+			return 0x1;
+		else if (ppmu->flags & PPMU_HAS_SIER)
 			return regs->dar & SIER_SIAR_VALID;
 
 		if (ppmu->flags & PPMU_SIAR_VALID)
@@ -1242,6 +1274,9 @@ static void power_pmu_disable(struct pmu *pmu)
 		val |= MMCR0_FC;
 		val &= ~(MMCR0_EBE | MMCR0_BHRBA | MMCR0_PMCC | MMCR0_PMAO |
 			 MMCR0_FC56);
+		/* Set mmcr0 PMCCEXT for p10 */
+		if (ppmu->flags & PPMU_ARCH_31)
+			val |= MMCR0_PMCCEXT;
 
 		/*
 		 * The barrier is to make sure the mtspr has been
@@ -1881,7 +1916,7 @@ static bool is_event_blacklisted(u64 ev)
 static int power_pmu_event_init(struct perf_event *event)
 {
 	u64 ev;
-	unsigned long flags;
+	unsigned long flags, irq_flags;
 	struct perf_event *ctrs[MAX_HWEVENTS];
 	u64 events[MAX_HWEVENTS];
 	unsigned int cflags[MAX_HWEVENTS];
@@ -1989,7 +2024,9 @@ static int power_pmu_event_init(struct perf_event *event)
 	if (check_excludes(ctrs, cflags, n, 1))
 		return -EINVAL;
 
-	cpuhw = &get_cpu_var(cpu_hw_events);
+	local_irq_save(irq_flags);
+	cpuhw = this_cpu_ptr(&cpu_hw_events);
+
 	err = power_check_constraints(cpuhw, events, cflags, n + 1);
 
 	if (has_branch_stack(event)) {
@@ -2000,13 +2037,13 @@ static int power_pmu_event_init(struct perf_event *event)
 					event->attr.branch_sample_type);
 
 		if (bhrb_filter == -1) {
-			put_cpu_var(cpu_hw_events);
+			local_irq_restore(irq_flags);
 			return -EOPNOTSUPP;
 		}
 		cpuhw->bhrb_filter = bhrb_filter;
 	}
 
-	put_cpu_var(cpu_hw_events);
+	local_irq_restore(irq_flags);
 	if (err)
 		return -EINVAL;
 
@@ -2074,6 +2111,9 @@ static struct pmu power_pmu = {
 	.sched_task	= power_pmu_sched_task,
 };
 
+#define PERF_SAMPLE_ADDR_TYPE  (PERF_SAMPLE_ADDR |		\
+				PERF_SAMPLE_PHYS_ADDR |		\
+				PERF_SAMPLE_DATA_PAGE_SIZE)
 /*
  * A counter has overflowed; update its count and record
  * things if requested.  Note that interrupts are hard-disabled
@@ -2122,6 +2162,16 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 	perf_event_update_userpage(event);
 
 	/*
+	 * Due to hardware limitation, sometimes SIAR could sample a kernel
+	 * address even when freeze on supervisor state (kernel) is set in
+	 * MMCR2. Check attr.exclude_kernel and address to drop the sample in
+	 * these cases.
+	 */
+	if (event->attr.exclude_kernel && record)
+		if (is_kernel_addr(mfspr(SPRN_SIAR)))
+			record = 0;
+
+	/*
 	 * Finally record data if requested.
 	 */
 	if (record) {
@@ -2129,8 +2179,7 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 
 		perf_sample_data_init(&data, ~0ULL, event->hw.last_period);
 
-		if (event->attr.sample_type &
-		    (PERF_SAMPLE_ADDR | PERF_SAMPLE_PHYS_ADDR))
+		if (event->attr.sample_type & PERF_SAMPLE_ADDR_TYPE)
 			perf_get_data_addr(event, regs, &data.addr);
 
 		if (event->attr.sample_type & PERF_SAMPLE_BRANCH_STACK) {
@@ -2178,8 +2227,14 @@ unsigned long perf_misc_flags(struct pt_regs *regs)
 unsigned long perf_instruction_pointer(struct pt_regs *regs)
 {
 	bool use_siar = regs_use_siar(regs);
+	unsigned long siar = mfspr(SPRN_SIAR);
 
-	if (use_siar && siar_valid(regs))
+	if (ppmu->flags & PPMU_P10_DD1) {
+		if (siar)
+			return siar;
+		else
+			return regs->nip;
+	} else if (use_siar && siar_valid(regs))
 		return mfspr(SPRN_SIAR) + perf_ip_adjust(regs);
 	else if (use_siar)
 		return 0;		// no valid instruction pointer

@@ -224,14 +224,6 @@
  *	line). See tty_do_resize() if you need to wrap the standard method
  *	in your own logic - the usual case.
  *
- * void (*set_termiox)(struct tty_struct *tty, struct termiox *new);
- *
- *	Called when the device receives a termiox based ioctl. Passes down
- *	the requested data from user space. This method will not be invoked
- *	unless the tty also has a valid tty->termiox pointer.
- *
- *	Optional: Called under the termios lock
- *
  * int (*get_icount)(struct tty_struct *tty, struct serial_icounter *icount);
  *
  *	Called when the device receives a TIOCGICOUNT ioctl. Passed a kernel
@@ -285,7 +277,6 @@ struct tty_operations {
 	int (*tiocmset)(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
 	int (*resize)(struct tty_struct *tty, struct winsize *ws);
-	int (*set_termiox)(struct tty_struct *tty, struct termiox *tnew);
 	int (*get_icount)(struct tty_struct *tty,
 				struct serial_icounter_struct *icount);
 	int  (*get_serial)(struct tty_struct *tty, struct serial_struct *p);

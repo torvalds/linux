@@ -1237,7 +1237,7 @@ static ssize_t
 et8ek8_priv_mem_read(struct device *dev, struct device_attribute *attr,
 		     char *buf)
 {
-	struct v4l2_subdev *subdev = i2c_get_clientdata(to_i2c_client(dev));
+	struct v4l2_subdev *subdev = dev_get_drvdata(dev);
 	struct et8ek8_sensor *sensor = to_et8ek8_sensor(subdev);
 
 #if PAGE_SIZE < ET8EK8_PRIV_MEM_SIZE
@@ -1374,8 +1374,7 @@ static const struct v4l2_subdev_internal_ops et8ek8_internal_ops = {
  */
 static int __maybe_unused et8ek8_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
+	struct v4l2_subdev *subdev = dev_get_drvdata(dev);
 	struct et8ek8_sensor *sensor = to_et8ek8_sensor(subdev);
 
 	if (!sensor->power_count)
@@ -1386,8 +1385,7 @@ static int __maybe_unused et8ek8_suspend(struct device *dev)
 
 static int __maybe_unused et8ek8_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
+	struct v4l2_subdev *subdev = dev_get_drvdata(dev);
 	struct et8ek8_sensor *sensor = to_et8ek8_sensor(subdev);
 
 	if (!sensor->power_count)

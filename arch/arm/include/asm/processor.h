@@ -96,7 +96,7 @@ unsigned long get_wchan(struct task_struct *p);
 #define __ALT_SMP_ASM(smp, up)						\
 	"9998:	" smp "\n"						\
 	"	.pushsection \".alt.smp.init\", \"a\"\n"		\
-	"	.long	9998b\n"					\
+	"	.long	9998b - .\n"					\
 	"	" up "\n"						\
 	"	.popsection\n"
 #else

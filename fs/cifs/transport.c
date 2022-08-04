@@ -338,7 +338,7 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 	if (ssocket == NULL)
 		return -EAGAIN;
 
-	if (signal_pending(current)) {
+	if (fatal_signal_pending(current)) {
 		cifs_dbg(FYI, "signal pending before send request\n");
 		return -ERESTARTSYS;
 	}
@@ -429,7 +429,7 @@ unmask:
 
 	if (signal_pending(current) && (total_len != send_length)) {
 		cifs_dbg(FYI, "signal is pending after attempt to send\n");
-		rc = -EINTR;
+		rc = -ERESTARTSYS;
 	}
 
 	/* uncork it */
@@ -527,6 +527,7 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 	int *credits;
 	int optype;
 	long int t;
+	int scredits = server->credits;
 
 	if (timeout < 0)
 		t = MAX_JIFFY_OFFSET;
@@ -624,12 +625,18 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 			/* update # of requests on the wire to server */
 			if ((flags & CIFS_TIMEOUT_MASK) != CIFS_BLOCKING_OP) {
 				*credits -= num_credits;
+				scredits = *credits;
 				server->in_flight += num_credits;
 				if (server->in_flight > server->max_in_flight)
 					server->max_in_flight = server->in_flight;
 				*instance = server->reconnect_instance;
 			}
 			spin_unlock(&server->req_lock);
+
+			trace_smb3_add_credits(server->CurrentMid,
+					server->hostname, scredits, -(num_credits));
+			cifs_dbg(FYI, "%s: remove %u credits total=%d\n",
+					__func__, num_credits, scredits);
 			break;
 		}
 	}
@@ -649,17 +656,37 @@ wait_for_compound_request(struct TCP_Server_Info *server, int num,
 			  const int flags, unsigned int *instance)
 {
 	int *credits;
+	int scredits, sin_flight;
 
 	credits = server->ops->get_credits_field(server, flags & CIFS_OP_MASK);
 
 	spin_lock(&server->req_lock);
+	scredits = *credits;
+	sin_flight = server->in_flight;
+
 	if (*credits < num) {
 		/*
-		 * Return immediately if not too many requests in flight since
-		 * we will likely be stuck on waiting for credits.
+		 * If the server is tight on resources or just gives us less
+		 * credits for other reasons (e.g. requests are coming out of
+		 * order and the server delays granting more credits until it
+		 * processes a missing mid) and we exhausted most available
+		 * credits there may be situations when we try to send
+		 * a compound request but we don't have enough credits. At this
+		 * point the client needs to decide if it should wait for
+		 * additional credits or fail the request. If at least one
+		 * request is in flight there is a high probability that the
+		 * server will return enough credits to satisfy this compound
+		 * request.
+		 *
+		 * Return immediately if no requests in flight since we will be
+		 * stuck on waiting for credits.
 		 */
-		if (server->in_flight < num - *credits) {
+		if (server->in_flight == 0) {
 			spin_unlock(&server->req_lock);
+			trace_smb3_insufficient_credits(server->CurrentMid,
+					server->hostname, scredits, sin_flight);
+			cifs_dbg(FYI, "%s: %d requests in flight, needed %d total=%d\n",
+					__func__, sin_flight, num, scredits);
 			return -ENOTSUPP;
 		}
 	}

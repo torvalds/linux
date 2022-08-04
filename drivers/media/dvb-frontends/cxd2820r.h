@@ -96,7 +96,7 @@ struct cxd2820r_config {
 
 #if IS_REACHABLE(CONFIG_DVB_CXD2820R)
 /**
- * Attach a cxd2820r demod
+ * cxd2820r_attach - Attach a cxd2820r demod
  *
  * @config: pointer to &struct cxd2820r_config with demod configuration.
  * @i2c: i2c adapter to use.

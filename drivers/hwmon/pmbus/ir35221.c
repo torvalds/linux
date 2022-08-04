@@ -137,7 +137,6 @@ static struct i2c_driver ir35221_driver = {
 		.name	= "ir35221",
 	},
 	.probe_new	= ir35221_probe,
-	.remove		= pmbus_do_remove,
 	.id_table	= ir35221_id,
 };
 

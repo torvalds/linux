@@ -812,17 +812,6 @@ extern void default_banner(void);
 #endif /* CONFIG_PARAVIRT_XXL */
 #endif	/* CONFIG_X86_64 */
 
-#ifdef CONFIG_PARAVIRT_XXL
-
-#define GET_CR2_INTO_AX							\
-	PARA_SITE(PARA_PATCH(PV_MMU_read_cr2),				\
-		  ANNOTATE_RETPOLINE_SAFE;				\
-		  call PARA_INDIRECT(pv_ops+PV_MMU_read_cr2);		\
-		 )
-
-#endif /* CONFIG_PARAVIRT_XXL */
-
-
 #endif /* __ASSEMBLY__ */
 #else  /* CONFIG_PARAVIRT */
 # define default_banner x86_init_noop

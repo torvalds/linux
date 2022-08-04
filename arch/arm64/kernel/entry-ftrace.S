@@ -35,7 +35,7 @@
  */
 	.macro  ftrace_regs_entry, allregs=0
 	/* Make room for pt_regs, plus a callee frame */
-	sub	sp, sp, #(S_FRAME_SIZE + 16)
+	sub	sp, sp, #(PT_REGS_SIZE + 16)
 
 	/* Save function arguments (and x9 for simplicity) */
 	stp	x0, x1, [sp, #S_X0]
@@ -61,15 +61,15 @@
 	.endif
 
 	/* Save the callsite's SP and LR */
-	add	x10, sp, #(S_FRAME_SIZE + 16)
+	add	x10, sp, #(PT_REGS_SIZE + 16)
 	stp	x9, x10, [sp, #S_LR]
 
 	/* Save the PC after the ftrace callsite */
 	str	x30, [sp, #S_PC]
 
 	/* Create a frame record for the callsite above pt_regs */
-	stp	x29, x9, [sp, #S_FRAME_SIZE]
-	add	x29, sp, #S_FRAME_SIZE
+	stp	x29, x9, [sp, #PT_REGS_SIZE]
+	add	x29, sp, #PT_REGS_SIZE
 
 	/* Create our frame record within pt_regs. */
 	stp	x29, x30, [sp, #S_STACKFRAME]
@@ -120,7 +120,7 @@ ftrace_common_return:
 	ldr	x9, [sp, #S_PC]
 
 	/* Restore the callsite's SP */
-	add	sp, sp, #S_FRAME_SIZE + 16
+	add	sp, sp, #PT_REGS_SIZE + 16
 
 	ret	x9
 SYM_CODE_END(ftrace_common)
@@ -130,7 +130,7 @@ SYM_CODE_START(ftrace_graph_caller)
 	ldr	x0, [sp, #S_PC]
 	sub	x0, x0, #AARCH64_INSN_SIZE	// ip (callsite's BL insn)
 	add	x1, sp, #S_LR			// parent_ip (callsite's LR)
-	ldr	x2, [sp, #S_FRAME_SIZE]	   	// parent fp (callsite's FP)
+	ldr	x2, [sp, #PT_REGS_SIZE]	   	// parent fp (callsite's FP)
 	bl	prepare_ftrace_return
 	b	ftrace_common_return
 SYM_CODE_END(ftrace_graph_caller)

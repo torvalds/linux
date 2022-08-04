@@ -556,6 +556,7 @@ const struct mpc_funcs dcn20_mpc_funcs = {
 	.set_ocsc_default = mpc2_set_ocsc_default,
 	.set_output_gamma = mpc2_set_output_gamma,
 	.power_on_mpc_mem_pwr = mpc20_power_on_ogam_lut,
+	.get_mpc_out_mux = mpc1_get_mpc_out_mux,
 };
 
 void dcn20_mpc_construct(struct dcn20_mpc *mpc20,

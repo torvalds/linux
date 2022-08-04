@@ -57,9 +57,8 @@ struct evlist;
 struct hist_entry;
 struct hist_browser_timer;
 
-int perf_evlist__gtk_browse_hists(struct evlist *evlist, const char *help,
-				  struct hist_browser_timer *hbt,
-				  float min_pcnt);
+int evlist__gtk_browse_hists(struct evlist *evlist, const char *help,
+			     struct hist_browser_timer *hbt, float min_pcnt);
 int hist_entry__gtk_annotate(struct hist_entry *he,
 			     struct evsel *evsel,
 			     struct hist_browser_timer *hbt);

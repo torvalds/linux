@@ -76,20 +76,20 @@ static void vmem_pte_free(unsigned long *table)
 
 /*
  * The unused vmemmap range, which was not yet memset(PAGE_UNUSED) ranges
- * from unused_pmd_start to next PMD_SIZE boundary.
+ * from unused_sub_pmd_start to next PMD_SIZE boundary.
  */
-static unsigned long unused_pmd_start;
+static unsigned long unused_sub_pmd_start;
 
-static void vmemmap_flush_unused_pmd(void)
+static void vmemmap_flush_unused_sub_pmd(void)
 {
-	if (!unused_pmd_start)
+	if (!unused_sub_pmd_start)
 		return;
-	memset(__va(unused_pmd_start), PAGE_UNUSED,
-	       ALIGN(unused_pmd_start, PMD_SIZE) - unused_pmd_start);
-	unused_pmd_start = 0;
+	memset(__va(unused_sub_pmd_start), PAGE_UNUSED,
+	       ALIGN(unused_sub_pmd_start, PMD_SIZE) - unused_sub_pmd_start);
+	unused_sub_pmd_start = 0;
 }
 
-static void __vmemmap_use_sub_pmd(unsigned long start, unsigned long end)
+static void vmemmap_mark_sub_pmd_used(unsigned long start, unsigned long end)
 {
 	/*
 	 * As we expect to add in the same granularity as we remove, it's
@@ -106,24 +106,24 @@ static void vmemmap_use_sub_pmd(unsigned long start, unsigned long end)
 	 * We only optimize if the new used range directly follows the
 	 * previously unused range (esp., when populating consecutive sections).
 	 */
-	if (unused_pmd_start == start) {
-		unused_pmd_start = end;
-		if (likely(IS_ALIGNED(unused_pmd_start, PMD_SIZE)))
-			unused_pmd_start = 0;
+	if (unused_sub_pmd_start == start) {
+		unused_sub_pmd_start = end;
+		if (likely(IS_ALIGNED(unused_sub_pmd_start, PMD_SIZE)))
+			unused_sub_pmd_start = 0;
 		return;
 	}
-	vmemmap_flush_unused_pmd();
-	__vmemmap_use_sub_pmd(start, end);
+	vmemmap_flush_unused_sub_pmd();
+	vmemmap_mark_sub_pmd_used(start, end);
 }
 
 static void vmemmap_use_new_sub_pmd(unsigned long start, unsigned long end)
 {
 	void *page = __va(ALIGN_DOWN(start, PMD_SIZE));
 
-	vmemmap_flush_unused_pmd();
+	vmemmap_flush_unused_sub_pmd();
 
 	/* Could be our memmap page is filled with PAGE_UNUSED already ... */
-	__vmemmap_use_sub_pmd(start, end);
+	vmemmap_mark_sub_pmd_used(start, end);
 
 	/* Mark the unused parts of the new memmap page PAGE_UNUSED. */
 	if (!IS_ALIGNED(start, PMD_SIZE))
@@ -134,7 +134,7 @@ static void vmemmap_use_new_sub_pmd(unsigned long start, unsigned long end)
 	 * unused range in the populated PMD.
 	 */
 	if (!IS_ALIGNED(end, PMD_SIZE))
-		unused_pmd_start = end;
+		unused_sub_pmd_start = end;
 }
 
 /* Returns true if the PMD is completely unused and can be freed. */
@@ -142,7 +142,7 @@ static bool vmemmap_unuse_sub_pmd(unsigned long start, unsigned long end)
 {
 	void *page = __va(ALIGN_DOWN(start, PMD_SIZE));
 
-	vmemmap_flush_unused_pmd();
+	vmemmap_flush_unused_sub_pmd();
 	memset(__va(start), PAGE_UNUSED, end - start);
 	return !memchr_inv(page, PAGE_UNUSED, PMD_SIZE);
 }
@@ -223,7 +223,7 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 		if (!add) {
 			if (pmd_none(*pmd))
 				continue;
-			if (pmd_large(*pmd) && !add) {
+			if (pmd_large(*pmd)) {
 				if (IS_ALIGNED(addr, PMD_SIZE) &&
 				    IS_ALIGNED(next, PMD_SIZE)) {
 					if (!direct)

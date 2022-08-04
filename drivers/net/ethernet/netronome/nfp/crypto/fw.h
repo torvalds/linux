@@ -40,7 +40,7 @@ struct nfp_crypto_req_add_front {
 	__be16 ipver_vlan __packed;
 	u8 l4_proto;
 #define NFP_NET_TLS_NON_ADDR_KEY_LEN	8
-	u8 l3_addrs[0];
+	u8 l3_addrs[];
 };
 
 struct nfp_crypto_req_add_back {

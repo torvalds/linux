@@ -465,9 +465,8 @@ static irqreturn_t moxart_irq(int irq, void *devid)
 {
 	struct moxart_host *host = (struct moxart_host *)devid;
 	u32 status;
-	unsigned long flags;
 
-	spin_lock_irqsave(&host->lock, flags);
+	spin_lock(&host->lock);
 
 	status = readl(host->base + REG_STATUS);
 	if (status & CARD_CHANGE) {
@@ -484,7 +483,7 @@ static irqreturn_t moxart_irq(int irq, void *devid)
 	if (status & (FIFO_ORUN | FIFO_URUN) && host->mrq)
 		moxart_transfer_pio(host);
 
-	spin_unlock_irqrestore(&host->lock, flags);
+	spin_unlock(&host->lock);
 
 	return IRQ_HANDLED;
 }

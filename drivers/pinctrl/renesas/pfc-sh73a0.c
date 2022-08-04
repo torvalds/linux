@@ -4279,7 +4279,7 @@ static int sh73a0_vccq_mc0_get_voltage(struct regulator_dev *reg)
 	return 3300000;
 }
 
-static struct regulator_ops sh73a0_vccq_mc0_ops = {
+static const struct regulator_ops sh73a0_vccq_mc0_ops = {
 	.enable = sh73a0_vccq_mc0_enable,
 	.disable = sh73a0_vccq_mc0_disable,
 	.is_enabled = sh73a0_vccq_mc0_is_enabled,

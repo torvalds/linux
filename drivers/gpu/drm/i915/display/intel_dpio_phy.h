@@ -32,6 +32,7 @@ void bxt_ddi_phy_set_lane_optim_mask(struct intel_encoder *encoder,
 u8 bxt_ddi_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder);
 
 void chv_set_phy_signal_level(struct intel_encoder *encoder,
+			      const struct intel_crtc_state *crtc_state,
 			      u32 deemph_reg_value, u32 margin_reg_value,
 			      bool uniq_trans_scale);
 void chv_data_lane_soft_reset(struct intel_encoder *encoder,
@@ -46,6 +47,7 @@ void chv_phy_post_pll_disable(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *old_crtc_state);
 
 void vlv_set_phy_signal_level(struct intel_encoder *encoder,
+			      const struct intel_crtc_state *crtc_state,
 			      u32 demph_reg_value, u32 preemph_reg_value,
 			      u32 uniqtranscale_reg_value, u32 tx3_demph);
 void vlv_phy_pre_pll_enable(struct intel_encoder *encoder,

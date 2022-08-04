@@ -1,66 +1,8 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
- * Copyright (C) 2019 Intel Corporation
- * Copyright (C) 2020 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- * Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
- * Copyright (C) 2019 Intel Corporation
- * Copyright (C) 2020 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright (C) 2015-2017 Intel Deutschland GmbH
+ * Copyright (C) 2018-2020 Intel Corporation
+ */
 #include <linux/etherdevice.h>
 #include <linux/math64.h>
 #include <net/cfg80211.h>
@@ -1035,9 +977,44 @@ iwl_mvm_ftm_pasn_update_pn(struct iwl_mvm *mvm,
 	}
 }
 
+static u8 iwl_mvm_ftm_get_range_resp_ver(struct iwl_mvm *mvm)
+{
+	if (!fw_has_api(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_API_FTM_NEW_RANGE_REQ))
+		return 5;
+
+	/* Starting from version 8, the FW advertises the version */
+	if (mvm->cmd_ver.range_resp >= 8)
+		return mvm->cmd_ver.range_resp;
+	else if (fw_has_api(&mvm->fw->ucode_capa,
+			    IWL_UCODE_TLV_API_FTM_RTT_ACCURACY))
+		return 7;
+
+	/* The first version of the new range request API */
+	return 6;
+}
+
+static bool iwl_mvm_ftm_resp_size_validation(u8 ver, unsigned int pkt_len)
+{
+	switch (ver) {
+	case 8:
+		return pkt_len == sizeof(struct iwl_tof_range_rsp_ntfy_v8);
+	case 7:
+		return pkt_len == sizeof(struct iwl_tof_range_rsp_ntfy_v7);
+	case 6:
+		return pkt_len == sizeof(struct iwl_tof_range_rsp_ntfy_v6);
+	case 5:
+		return pkt_len == sizeof(struct iwl_tof_range_rsp_ntfy_v5);
+	default:
+		WARN_ONCE(1, "FTM: unsupported range response version %u", ver);
+		return false;
+	}
+}
+
 void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	unsigned int pkt_len = iwl_rx_packet_payload_len(pkt);
 	struct iwl_tof_range_rsp_ntfy_v5 *fw_resp_v5 = (void *)pkt->data;
 	struct iwl_tof_range_rsp_ntfy_v6 *fw_resp_v6 = (void *)pkt->data;
 	struct iwl_tof_range_rsp_ntfy_v7 *fw_resp_v7 = (void *)pkt->data;
@@ -1046,12 +1023,16 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	bool new_api = fw_has_api(&mvm->fw->ucode_capa,
 				  IWL_UCODE_TLV_API_FTM_NEW_RANGE_REQ);
 	u8 num_of_aps, last_in_batch;
+	u8 notif_ver = iwl_mvm_ftm_get_range_resp_ver(mvm);
 
 	lockdep_assert_held(&mvm->mutex);
 
 	if (!mvm->ftm_initiator.req) {
 		return;
 	}
+
+	if (unlikely(!iwl_mvm_ftm_resp_size_validation(notif_ver, pkt_len)))
+		return;
 
 	if (new_api) {
 		if (iwl_mvm_ftm_range_resp_valid(mvm, fw_resp_v8->request_id,
@@ -1079,11 +1060,10 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		int peer_idx;
 
 		if (new_api) {
-			if (mvm->cmd_ver.range_resp == 8) {
+			if (notif_ver == 8) {
 				fw_ap = &fw_resp_v8->ap[i];
 				iwl_mvm_ftm_pasn_update_pn(mvm, fw_ap);
-			} else if (fw_has_api(&mvm->fw->ucode_capa,
-					      IWL_UCODE_TLV_API_FTM_RTT_ACCURACY)) {
+			} else if (notif_ver == 7) {
 				fw_ap = (void *)&fw_resp_v7->ap[i];
 			} else {
 				fw_ap = (void *)&fw_resp_v6->ap[i];

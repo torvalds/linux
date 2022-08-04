@@ -38,7 +38,7 @@ properties:
     const: stmmaceth
 
   syscon:
-    $ref: /schemas/types.yaml#definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Phandle to the device containing the EMAC or GMAC clock
       register
@@ -114,7 +114,7 @@ allOf:
     then:
       properties:
         allwinner,leds-active-low:
-          $ref: /schemas/types.yaml#definitions/flag
+          $ref: /schemas/types.yaml#/definitions/flag
           description:
             EPHY LEDs are active low.
 
@@ -126,7 +126,7 @@ allOf:
               const: allwinner,sun8i-h3-mdio-mux
 
             mdio-parent-bus:
-              $ref: /schemas/types.yaml#definitions/phandle
+              $ref: /schemas/types.yaml#/definitions/phandle
               description:
                 Phandle to EMAC MDIO.
 

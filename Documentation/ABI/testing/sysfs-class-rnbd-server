@@ -48,3 +48,11 @@ Date:		Feb 2020
 KernelVersion:	5.7
 Contact:	Jack Wang <jinpu.wang@cloud.ionos.com> Danil Kipnis <danil.kipnis@cloud.ionos.com>
 Description:	Contains the device access mode: ro, rw or migration.
+
+What:		/sys/class/rnbd-server/ctl/devices/<device_name>/sessions/<session-name>/force_close
+Date:		Nov 2020
+KernelVersion:	5.10
+Contact:	Jack Wang <jinpu.wang@cloud.ionos.com> Danil Kipnis <danil.kipnis@cloud.ionos.com>
+Description:	Write "1" to the file to close the device on server side. Please
+		note that the client side device will not be closed, read or
+		write to the device will get -ENOTCONN.

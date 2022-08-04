@@ -416,7 +416,7 @@ struct clk_hw *imx_dev_clk_hw_pll14xx(struct device *dev, const char *name,
 		       __func__, name);
 		kfree(pll);
 		return ERR_PTR(-EINVAL);
-	};
+	}
 
 	pll->base = base;
 	pll->hw.init = &init;

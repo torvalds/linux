@@ -5,7 +5,7 @@
  * Copyright 2008-2011	Luis R. Rodriguez <mcgrof@qca.qualcomm.com>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright      2017  Intel Deutschland GmbH
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright (C) 2018 - 2021 Intel Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -139,6 +139,11 @@ static const struct ieee80211_regdomain *get_cfg80211_regdom(void)
 	return rcu_dereference_rtnl(cfg80211_regdomain);
 }
 
+/*
+ * Returns the regulatory domain associated with the wiphy.
+ *
+ * Requires either RTNL or RCU protection
+ */
 const struct ieee80211_regdomain *get_wiphy_regdom(struct wiphy *wiphy)
 {
 	return rcu_dereference_rtnl(wiphy->regd);
@@ -1616,7 +1621,7 @@ static const struct ieee80211_reg_rule *
 __freq_reg_info(struct wiphy *wiphy, u32 center_freq, u32 min_bw)
 {
 	const struct ieee80211_regdomain *regd = reg_get_regdomain(wiphy);
-	const u32 bws[] = {0, 1, 2, 4, 5, 8, 10, 16, 20};
+	static const u32 bws[] = {0, 1, 2, 4, 5, 8, 10, 16, 20};
 	const struct ieee80211_reg_rule *reg_rule;
 	int i = ARRAY_SIZE(bws) - 1;
 	u32 bw;
@@ -2547,6 +2552,7 @@ static void handle_band_custom(struct wiphy *wiphy,
 void wiphy_apply_custom_regulatory(struct wiphy *wiphy,
 				   const struct ieee80211_regdomain *regd)
 {
+	const struct ieee80211_regdomain *new_regd, *tmp;
 	enum nl80211_band band;
 	unsigned int bands_set = 0;
 
@@ -2566,6 +2572,17 @@ void wiphy_apply_custom_regulatory(struct wiphy *wiphy,
 	 * on your device's supported bands.
 	 */
 	WARN_ON(!bands_set);
+	new_regd = reg_copy_regd(regd);
+	if (IS_ERR(new_regd))
+		return;
+
+	rtnl_lock();
+
+	tmp = get_wiphy_regdom(wiphy);
+	rcu_assign_pointer(wiphy->regd, new_regd);
+	rcu_free_regdom(tmp);
+
+	rtnl_unlock();
 }
 EXPORT_SYMBOL(wiphy_apply_custom_regulatory);
 

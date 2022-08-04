@@ -14,12 +14,11 @@
 
 #define VERSION "0.1"
 
-int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version,
+int qca_read_soc_version(struct hci_dev *hdev, struct qca_btsoc_version *ver,
 			 enum qca_btsoc_type soc_type)
 {
 	struct sk_buff *skb;
 	struct edl_event_hdr *edl;
-	struct qca_btsoc_version *ver;
 	char cmd;
 	int err = 0;
 	u8 event_type = HCI_EV_VENDOR;
@@ -70,9 +69,9 @@ int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version,
 	}
 
 	if (soc_type >= QCA_WCN3991)
-		memmove(&edl->data, &edl->data[1], sizeof(*ver));
-
-	ver = (struct qca_btsoc_version *)(edl->data);
+		memcpy(ver, edl->data + 1, sizeof(*ver));
+	else
+		memcpy(ver, &edl->data, sizeof(*ver));
 
 	bt_dev_info(hdev, "QCA Product ID   :0x%08x",
 		    le32_to_cpu(ver->product_id));
@@ -83,13 +82,7 @@ int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version,
 	bt_dev_info(hdev, "QCA Patch Version:0x%08x",
 		    le16_to_cpu(ver->patch_ver));
 
-	/* QCA chipset version can be decided by patch and SoC
-	 * version, combination with upper 2 bytes from SoC
-	 * and lower 2 bytes from patch will be used.
-	 */
-	*soc_version = (le32_to_cpu(ver->soc_id) << 16) |
-		       (le16_to_cpu(ver->rom_ver) & 0x0000ffff);
-	if (*soc_version == 0)
+	if (ver->soc_id == 0 || ver->rom_ver == 0)
 		err = -EILSEQ;
 
 out:
@@ -446,14 +439,19 @@ int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 EXPORT_SYMBOL_GPL(qca_set_bdaddr_rome);
 
 int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
-		   enum qca_btsoc_type soc_type, u32 soc_ver,
+		   enum qca_btsoc_type soc_type, struct qca_btsoc_version ver,
 		   const char *firmware_name)
 {
 	struct qca_fw_config config;
 	int err;
 	u8 rom_ver = 0;
+	u32 soc_ver;
 
 	bt_dev_dbg(hdev, "QCA setup on UART");
+
+	soc_ver = get_soc_ver(ver.soc_id, ver.rom_ver);
+
+	bt_dev_info(hdev, "QCA controller version 0x%08x", soc_ver);
 
 	config.user_baud_rate = baudrate;
 
@@ -491,9 +489,15 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 	if (firmware_name)
 		snprintf(config.fwname, sizeof(config.fwname),
 			 "qca/%s", firmware_name);
-	else if (qca_is_wcn399x(soc_type))
-		snprintf(config.fwname, sizeof(config.fwname),
-			 "qca/crnv%02x.bin", rom_ver);
+	else if (qca_is_wcn399x(soc_type)) {
+		if (ver.soc_id == QCA_WCN3991_SOC_ID) {
+			snprintf(config.fwname, sizeof(config.fwname),
+				 "qca/crnv%02xu.bin", rom_ver);
+		} else {
+			snprintf(config.fwname, sizeof(config.fwname),
+				 "qca/crnv%02x.bin", rom_ver);
+		}
+	}
 	else if (soc_type == QCA_QCA6390)
 		snprintf(config.fwname, sizeof(config.fwname),
 			 "qca/htnv%02x.bin", rom_ver);

@@ -263,10 +263,6 @@ int main(int argc, char **argv)
 	fprintf(out_file, "	const struct vm_special_mapping *sm,\n");
 	fprintf(out_file, "	struct vm_area_struct *new_vma)\n");
 	fprintf(out_file, "{\n");
-	fprintf(out_file, "	unsigned long new_size =\n");
-	fprintf(out_file, "	new_vma->vm_end - new_vma->vm_start;\n");
-	fprintf(out_file, "	if (vdso_image.size != new_size)\n");
-	fprintf(out_file, "		return -EINVAL;\n");
 	fprintf(out_file, "	current->mm->context.vdso =\n");
 	fprintf(out_file, "	(void *)(new_vma->vm_start);\n");
 	fprintf(out_file, "	return 0;\n");

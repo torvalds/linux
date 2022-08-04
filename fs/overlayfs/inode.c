@@ -329,8 +329,14 @@ static const char *ovl_get_link(struct dentry *dentry,
 
 bool ovl_is_private_xattr(struct super_block *sb, const char *name)
 {
-	return strncmp(name, OVL_XATTR_PREFIX,
-		       sizeof(OVL_XATTR_PREFIX) - 1) == 0;
+	struct ovl_fs *ofs = sb->s_fs_info;
+
+	if (ofs->config.userxattr)
+		return strncmp(name, OVL_XATTR_USER_PREFIX,
+			       sizeof(OVL_XATTR_USER_PREFIX) - 1) == 0;
+	else
+		return strncmp(name, OVL_XATTR_TRUSTED_PREFIX,
+			       sizeof(OVL_XATTR_TRUSTED_PREFIX) - 1) == 0;
 }
 
 int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char *name,
@@ -346,7 +352,9 @@ int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char *name,
 		goto out;
 
 	if (!value && !upperdentry) {
+		old_cred = ovl_override_creds(dentry->d_sb);
 		err = vfs_getxattr(realdentry, name, NULL, 0);
+		revert_creds(old_cred);
 		if (err < 0)
 			goto out_drop_write;
 	}
@@ -476,7 +484,7 @@ static int ovl_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		      u64 start, u64 len)
 {
 	int err;
-	struct inode *realinode = ovl_inode_real(inode);
+	struct inode *realinode = ovl_inode_realdata(inode);
 	const struct cred *old_cred;
 
 	if (!realinode->i_op->fiemap)
@@ -690,7 +698,7 @@ static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev)
  * For the first, copy up case, the union nlink does not change, whether the
  * operation succeeds or fails, but the upper inode nlink may change.
  * Therefore, before copy up, we store the union nlink value relative to the
- * lower inode nlink in the index inode xattr trusted.overlay.nlink.
+ * lower inode nlink in the index inode xattr .overlay.nlink.
  *
  * For the second, upper hardlink case, the union nlink should be incremented
  * or decremented IFF the operation succeeds, aligned with nlink change of the

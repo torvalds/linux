@@ -78,6 +78,20 @@
 
 #define MC_TIMING_UPDATE				BIT(0)
 
+static inline u32 tegra_mc_scale_percents(u64 val, unsigned int percents)
+{
+	val = val * percents;
+	do_div(val, 100);
+
+	return min_t(u64, val, U32_MAX);
+}
+
+static inline struct tegra_mc *
+icc_provider_to_tegra_mc(struct icc_provider *provider)
+{
+	return container_of(provider, struct tegra_mc, provider);
+}
+
 static inline u32 mc_readl(struct tegra_mc *mc, unsigned long offset)
 {
 	return readl_relaxed(mc->regs + offset);
@@ -114,5 +128,13 @@ extern const struct tegra_mc_soc tegra132_mc_soc;
 #ifdef CONFIG_ARCH_TEGRA_210_SOC
 extern const struct tegra_mc_soc tegra210_mc_soc;
 #endif
+
+/*
+ * These IDs are for internal use of Tegra ICC drivers. The ID numbers are
+ * chosen such that they don't conflict with the device-tree ICC node IDs.
+ */
+#define TEGRA_ICC_MC		1000
+#define TEGRA_ICC_EMC		1001
+#define TEGRA_ICC_EMEM		1002
 
 #endif /* MEMORY_TEGRA_MC_H */

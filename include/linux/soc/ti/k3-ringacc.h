@@ -67,6 +67,10 @@ struct k3_ring;
  *	 few times. It's usable when the same ring is used as Free Host PD ring
  *	 for different flows, for example.
  *	 Note: Locking should be done by consumer if required
+ * @dma_dev: Master device which is using and accessing to the ring
+ *	memory when the mode is K3_RINGACC_RING_MODE_RING. Memory allocations
+ *	should be done using this device.
+ * @asel: Address Space Select value for physical addresses
  */
 struct k3_ring_cfg {
 	u32 size;
@@ -74,6 +78,9 @@ struct k3_ring_cfg {
 	enum k3_ring_mode mode;
 #define K3_RINGACC_RING_SHARED BIT(1)
 	u32 flags;
+
+	struct device *dma_dev;
+	u32 asel;
 };
 
 #define K3_RINGACC_RING_ID_ANY (-1)
@@ -244,5 +251,20 @@ int k3_ringacc_ring_push_head(struct k3_ring *ring, void *elem);
 int k3_ringacc_ring_pop_tail(struct k3_ring *ring, void *elem);
 
 u32 k3_ringacc_get_tisci_dev_id(struct k3_ring *ring);
+
+/* DMA ring support */
+struct ti_sci_handle;
+
+/**
+ * struct struct k3_ringacc_init_data - Initialization data for DMA rings
+ */
+struct k3_ringacc_init_data {
+	const struct ti_sci_handle *tisci;
+	u32 tisci_dev_id;
+	u32 num_rings;
+};
+
+struct k3_ringacc *k3_ringacc_dmarings_init(struct platform_device *pdev,
+					    struct k3_ringacc_init_data *data);
 
 #endif /* __SOC_TI_K3_RINGACC_API_H_ */

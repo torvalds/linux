@@ -629,9 +629,9 @@
 			 <&tegra_car TEGRA124_CLK_PLL_E>;
 		clock-names = "sata", "sata-oob", "cml1", "pll_e";
 		resets = <&tegra_car 124>,
-			 <&tegra_car 123>,
-			 <&tegra_car 129>;
-		reset-names = "sata", "sata-oob", "sata-cold";
+			 <&tegra_car 129>,
+			 <&tegra_car 123>;
+		reset-names = "sata", "sata-cold", "sata-oob";
 		status = "disabled";
 	};
 
@@ -865,7 +865,9 @@
 		reg = <0x0 0x700e2000 0x0 0x600>, /* 0: SOC_THERM reg_base */
 		      <0x0 0x70040000 0x0 0x200>; /* 2: CCROC reg_base */
 		reg-names = "soctherm-reg", "ccroc-reg";
-		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "thermal", "edp";
 		clocks = <&tegra_car TEGRA124_CLK_TSENSOR>,
 		         <&tegra_car TEGRA124_CLK_SOC_THERM>;
 		clock-names = "tsensor", "soctherm";
@@ -925,6 +927,11 @@
 					hysteresis = <1000>;
 					type = "critical";
 				};
+				mem_throttle_trip {
+					temperature = <99000>;
+					hysteresis = <1000>;
+					type = "hot";
+				};
 			};
 
 			cooling-maps {
@@ -974,6 +981,11 @@
 					temperature = <105000>;
 					hysteresis = <1000>;
 					type = "critical";
+				};
+				pllx_throttle_trip {
+					temperature = <99000>;
+					hysteresis = <1000>;
+					type = "hot";
 				};
 			};
 

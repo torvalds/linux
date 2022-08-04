@@ -160,6 +160,7 @@ struct mlxsw_rx_listener_item {
 
 struct mlxsw_event_listener_item {
 	struct list_head list;
+	struct mlxsw_core *mlxsw_core;
 	struct mlxsw_event_listener el;
 	void *priv;
 };
@@ -1117,16 +1118,7 @@ static int mlxsw_core_fw_flash_update(struct mlxsw_core *mlxsw_core,
 				      struct devlink_flash_update_params *params,
 				      struct netlink_ext_ack *extack)
 {
-	const struct firmware *firmware;
-	int err;
-
-	err = request_firmware_direct(&firmware, params->file_name, mlxsw_core->bus_info->dev);
-	if (err)
-		return err;
-	err = mlxsw_core_fw_flash(mlxsw_core, firmware, extack);
-	release_firmware(firmware);
-
-	return err;
+	return mlxsw_core_fw_flash(mlxsw_core, params->fw, extack);
 }
 
 static int mlxsw_core_devlink_param_fw_load_policy_validate(struct devlink *devlink, u32 id,
@@ -2180,10 +2172,15 @@ static void mlxsw_core_event_listener_func(struct sk_buff *skb, u8 local_port,
 					   void *priv)
 {
 	struct mlxsw_event_listener_item *event_listener_item = priv;
+	struct mlxsw_core *mlxsw_core;
 	struct mlxsw_reg_info reg;
 	char *payload;
 	char *reg_tlv;
 	char *op_tlv;
+
+	mlxsw_core = event_listener_item->mlxsw_core;
+	trace_devlink_hwmsg(priv_to_devlink(mlxsw_core), true, 0,
+			    skb->data, skb->len);
 
 	mlxsw_emad_tlv_parse(skb);
 	op_tlv = mlxsw_emad_op_tlv(skb);
@@ -2234,6 +2231,7 @@ int mlxsw_core_event_listener_register(struct mlxsw_core *mlxsw_core,
 	el_item = kmalloc(sizeof(*el_item), GFP_KERNEL);
 	if (!el_item)
 		return -ENOMEM;
+	el_item->mlxsw_core = mlxsw_core;
 	el_item->el = *el;
 	el_item->priv = priv;
 
@@ -2857,6 +2855,18 @@ mlxsw_core_port_devlink_port_get(struct mlxsw_core *mlxsw_core,
 	return devlink_port;
 }
 EXPORT_SYMBOL(mlxsw_core_port_devlink_port_get);
+
+bool mlxsw_core_port_is_xm(const struct mlxsw_core *mlxsw_core, u8 local_port)
+{
+	const struct mlxsw_bus_info *bus_info = mlxsw_core->bus_info;
+	int i;
+
+	for (i = 0; i < bus_info->xm_local_ports_count; i++)
+		if (bus_info->xm_local_ports[i] == local_port)
+			return true;
+	return false;
+}
+EXPORT_SYMBOL(mlxsw_core_port_is_xm);
 
 struct mlxsw_env *mlxsw_core_env(const struct mlxsw_core *mlxsw_core)
 {

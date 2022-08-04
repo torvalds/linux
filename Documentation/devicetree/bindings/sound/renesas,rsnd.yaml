@@ -1,0 +1,447 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/renesas,rsnd.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas R-Car Sound Driver Device Tree Bindings
+
+maintainers:
+  - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+
+properties:
+
+  compatible:
+    oneOf:
+      # for Gen1 SoC
+      - items:
+          - enum:
+              - renesas,rcar_sound-r8a7778   # R-Car M1A
+              - renesas,rcar_sound-r8a7779   # R-Car H1
+          - enum:
+              - renesas,rcar_sound-gen1
+      # for Gen2 SoC
+      - items:
+          - enum:
+              - renesas,rcar_sound-r8a7742   # RZ/G1H
+              - renesas,rcar_sound-r8a7743   # RZ/G1M
+              - renesas,rcar_sound-r8a7744   # RZ/G1N
+              - renesas,rcar_sound-r8a7745   # RZ/G1E
+              - renesas,rcar_sound-r8a77470  # RZ/G1C
+              - renesas,rcar_sound-r8a7790   # R-Car H2
+              - renesas,rcar_sound-r8a7791   # R-Car M2-W
+              - renesas,rcar_sound-r8a7793   # R-Car M2-N
+              - renesas,rcar_sound-r8a7794   # R-Car E2
+          - enum:
+              - renesas,rcar_sound-gen2
+      # for Gen3 SoC
+      - items:
+          - enum:
+              - renesas,rcar_sound-r8a774a1  # RZ/G2M
+              - renesas,rcar_sound-r8a774b1  # RZ/G2N
+              - renesas,rcar_sound-r8a774c0  # RZ/G2E
+              - renesas,rcar_sound-r8a774e1  # RZ/G2H
+              - renesas,rcar_sound-r8a7795   # R-Car H3
+              - renesas,rcar_sound-r8a7796   # R-Car M3-W
+              - renesas,rcar_sound-r8a77961  # R-Car M3-W+
+              - renesas,rcar_sound-r8a77965  # R-Car M3-N
+              - renesas,rcar_sound-r8a77990  # R-Car E3
+              - renesas,rcar_sound-r8a77995  # R-Car D3
+          - enum:
+              - renesas,rcar_sound-gen3
+      # for Generic
+      - items:
+          - enum:
+              - renesas,rcar_sound-gen1
+              - renesas,rcar_sound-gen2
+              - renesas,rcar_sound-gen3
+
+  reg:
+    minItems: 1
+    maxItems: 5
+
+  reg-names:
+    minItems: 1
+    maxItems: 5
+
+  "#sound-dai-cells":
+    description: |
+      it must be 0 if your system is using single DAI
+      it must be 1 if your system is using multi  DAIs
+    enum: [0, 1]
+
+  "#clock-cells":
+    description: |
+      it must be 0 if your system has audio_clkout
+      it must be 1 if your system has audio_clkout0/1/2/3
+    enum: [0, 1]
+
+  clock-frequency:
+    description: for audio_clkout0/1/2/3
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  clkout-lr-asynchronous:
+    description: audio_clkoutn is asynchronizes with lr-clock.
+    $ref: /schemas/types.yaml#/definitions/flag
+
+  power-domains: true
+
+  resets:
+    maxItems: 11
+
+  reset-names:
+    maxItems: 11
+
+  clocks:
+    description: References to SSI/SRC/MIX/CTU/DVC/AUDIO_CLK clocks.
+    minItems: 1
+    maxItems: 31
+
+  clock-names:
+    description: List of necessary clock names.
+    minItems: 1
+    maxItems: 31
+    items:
+      oneOf:
+        - const: ssi-all
+        - pattern: '^ssi\.[0-9]$'
+        - pattern: '^src\.[0-9]$'
+        - pattern: '^mix\.[0-1]$'
+        - pattern: '^ctu\.[0-1]$'
+        - pattern: '^dvc\.[0-1]$'
+        - pattern: '^clk_(a|b|c|i)$'
+
+  port: true
+
+# use patternProperties to avoid naming "xxx,yyy" issue
+patternProperties:
+  "^rcar_sound,dvc$":
+    description: DVC subnode.
+    type: object
+    patternProperties:
+      "^dvc-[0-1]$":
+        type: object
+        properties:
+          dmas:
+            maxItems: 1
+          dma-names:
+            const: "tx"
+        required:
+          - dmas
+          - dma-names
+    additionalProperties: false
+
+  "^rcar_sound,mix$":
+    description: MIX subnode.
+    type: object
+    patternProperties:
+      "^mix-[0-1]$":
+        type: object
+        # no properties
+    additionalProperties: false
+
+  "^rcar_sound,ctu$":
+    description: CTU subnode.
+    type: object
+    patternProperties:
+      "^ctu-[0-7]$":
+        type: object
+        # no properties
+    additionalProperties: false
+
+  "^rcar_sound,src$":
+    description: SRC subnode.
+    type: object
+    patternProperties:
+      "^src-[0-9]$":
+        type: object
+        properties:
+          interrupts:
+            maxItems: 1
+          dmas:
+            maxItems: 2
+          dma-names:
+            allOf:
+              - items:
+                  enum:
+                    - tx
+                    - rx
+        required:
+          - interrupts
+          - dmas
+          - dma-names
+    additionalProperties: false
+
+  "^rcar_sound,ssiu$":
+    description: SSIU subnode.
+    type: object
+    patternProperties:
+      "^ssiu-[0-9]+$":
+        type: object
+        properties:
+          dmas:
+            maxItems: 2
+          dma-names:
+            allOf:
+              - items:
+                  enum:
+                    - tx
+                    - rx
+        required:
+          - dmas
+          - dma-names
+    additionalProperties: false
+
+  "^rcar_sound,ssi$":
+    description: SSI subnode.
+    type: object
+    patternProperties:
+      "^ssi-[0-9]$":
+        type: object
+        properties:
+          interrupts:
+            maxItems: 1
+          dmas:
+            minItems: 2
+            maxItems: 4
+          dma-names:
+            allOf:
+              - items:
+                  enum:
+                    - tx
+                    - rx
+                    - txu # if no ssiu node
+                    - rxu # if no ssiu node
+
+          shared-pin:
+            description: shared clock pin
+            $ref: /schemas/types.yaml#/definitions/flag
+          pio-transfer:
+            description: PIO transfer mode
+            $ref: /schemas/types.yaml#/definitions/flag
+          no-busif:
+            description: BUSIF is not used when [mem -> SSI] via DMA case
+            $ref: /schemas/types.yaml#/definitions/flag
+        required:
+          - interrupts
+          - dmas
+          - dma-names
+    additionalProperties: false
+
+  # For DAI base
+  "^rcar_sound,dai$":
+    description: DAI subnode.
+    type: object
+    patternProperties:
+      "^dai([0-9]+)?$":
+        type: object
+        properties:
+          playback:
+            $ref: /schemas/types.yaml#/definitions/phandle-array
+          capture:
+            $ref: /schemas/types.yaml#/definitions/phandle-array
+        anyOf:
+          - required:
+              - playback
+          - required:
+              - capture
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+  - clock-names
+  - "#sound-dai-cells"
+
+allOf:
+  - $ref: audio-graph.yaml#
+  - $ref: audio-graph-port.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,rcar_sound-gen1
+    then:
+      properties:
+        reg:
+          maxItems: 3
+        reg-names:
+          maxItems: 3
+          items:
+            enum:
+              - scu
+              - ssi
+              - adg
+    else:
+      properties:
+        reg:
+          maxItems: 5
+        reg-names:
+          maxItems: 5
+          items:
+            enum:
+              - scu
+              - adg
+              - ssiu
+              - ssi
+              - audmapp
+
+additionalProperties: false
+
+examples:
+  - |
+    rcar_sound: sound@ec500000 {
+        #sound-dai-cells = <1>;
+        compatible = "renesas,rcar_sound-r8a7790", "renesas,rcar_sound-gen2";
+        reg = <0xec500000 0x1000>, /* SCU  */
+              <0xec5a0000 0x100>,  /* ADG  */
+              <0xec540000 0x1000>, /* SSIU */
+              <0xec541000 0x1280>, /* SSI  */
+              <0xec740000 0x200>;  /* Audio DMAC peri peri*/
+        reg-names = "scu", "adg", "ssiu", "ssi", "audmapp";
+
+        clocks = <&mstp10_clks 1005>,                      /* SSI-ALL    */
+                 <&mstp10_clks 1006>, <&mstp10_clks 1007>, /* SSI9, SSI8 */
+                 <&mstp10_clks 1008>, <&mstp10_clks 1009>, /* SSI7, SSI6 */
+                 <&mstp10_clks 1010>, <&mstp10_clks 1011>, /* SSI5, SSI4 */
+                 <&mstp10_clks 1012>, <&mstp10_clks 1013>, /* SSI3, SSI2 */
+                 <&mstp10_clks 1014>, <&mstp10_clks 1015>, /* SSI1, SSI0 */
+                 <&mstp10_clks 1022>, <&mstp10_clks 1023>, /* SRC9, SRC8 */
+                 <&mstp10_clks 1024>, <&mstp10_clks 1025>, /* SRC7, SRC6 */
+                 <&mstp10_clks 1026>, <&mstp10_clks 1027>, /* SRC5, SRC4 */
+                 <&mstp10_clks 1028>, <&mstp10_clks 1029>, /* SRC3, SRC2 */
+                 <&mstp10_clks 1030>, <&mstp10_clks 1031>, /* SRC1, SRC0 */
+                 <&mstp10_clks 1020>, <&mstp10_clks 1021>, /* MIX1, MIX0 */
+                 <&mstp10_clks 1020>, <&mstp10_clks 1021>, /* CTU1, CTU0 */
+                 <&mstp10_clks 1019>, <&mstp10_clks 1018>, /* DVC0, DVC1 */
+                 <&audio_clk_a>, <&audio_clk_b>,           /* CLKA, CLKB */
+                 <&audio_clk_c>, <&audio_clk_i>;           /* CLKC, CLKI */
+
+        clock-names = "ssi-all",
+                      "ssi.9", "ssi.8",
+                      "ssi.7", "ssi.6",
+                      "ssi.5", "ssi.4",
+                      "ssi.3", "ssi.2",
+                      "ssi.1", "ssi.0",
+                      "src.9", "src.8",
+                      "src.7", "src.6",
+                      "src.5", "src.4",
+                      "src.3", "src.2",
+                      "src.1", "src.0",
+                      "mix.1", "mix.0",
+                      "ctu.1", "ctu.0",
+                      "dvc.0", "dvc.1",
+                      "clk_a", "clk_b",
+                      "clk_c", "clk_i";
+
+        rcar_sound,dvc {
+               dvc0: dvc-0 {
+                    dmas = <&audma0 0xbc>;
+                    dma-names = "tx";
+               };
+               dvc1: dvc-1 {
+                    dmas = <&audma0 0xbe>;
+                    dma-names = "tx";
+               };
+        };
+
+        rcar_sound,mix {
+            mix0: mix-0 { };
+            mix1: mix-1 { };
+        };
+
+        rcar_sound,ctu {
+            ctu00: ctu-0 { };
+            ctu01: ctu-1 { };
+            ctu02: ctu-2 { };
+            ctu03: ctu-3 { };
+            ctu10: ctu-4 { };
+            ctu11: ctu-5 { };
+            ctu12: ctu-6 { };
+            ctu13: ctu-7 { };
+        };
+
+        rcar_sound,src {
+            src0: src-0 {
+                status = "disabled";
+            };
+            src1: src-1 {
+                interrupts = <0 353 0>;
+                dmas = <&audma0 0x87>, <&audma1 0x9c>;
+                dma-names = "rx", "tx";
+            };
+            /* skip after src-2 */
+        };
+
+        rcar_sound,ssiu {
+            ssiu00: ssiu-0 {
+                dmas = <&audma0 0x15>, <&audma1 0x16>;
+                dma-names = "rx", "tx";
+            };
+            ssiu01: ssiu-1 {
+                dmas = <&audma0 0x35>, <&audma1 0x36>;
+                dma-names = "rx", "tx";
+            };
+            /* skip after ssiu-2 */
+        };
+
+        rcar_sound,ssi {
+            ssi0: ssi-0 {
+                interrupts = <0 370 1>;
+                dmas = <&audma0 0x01>, <&audma1 0x02>;
+                dma-names = "rx", "tx";
+            };
+            ssi1: ssi-1 {
+                interrupts = <0 371 1>;
+                dmas = <&audma0 0x03>, <&audma1 0x04>;
+                dma-names = "rx", "tx";
+            };
+            /* skip other ssi-2 */
+        };
+
+        /* DAI base */
+        rcar_sound,dai {
+            dai0 {
+                playback = <&ssi5 &src5>;
+                capture  = <&ssi6>;
+            };
+            dai1 {
+                playback = <&ssi3>;
+            };
+            dai2 {
+                capture  = <&ssi4>;
+            };
+            dai3 {
+                playback = <&ssi7>;
+            };
+            dai4 {
+                capture  = <&ssi8>;
+            };
+        };
+
+        /* assume audio-graph */
+        port {
+            rsnd_endpoint: endpoint {
+                remote-endpoint = <&codec_endpoint>;
+
+                dai-format = "left_j";
+                bitclock-master = <&rsnd_endpoint0>;
+                frame-master = <&rsnd_endpoint0>;
+
+                playback = <&ssi0 &src0 &dvc0>;
+                capture  = <&ssi1 &src1 &dvc1>;
+            };
+        };
+    };
+
+
+    /* assume audio-graph */
+    codec {
+        port {
+            codec_endpoint: endpoint {
+                remote-endpoint = <&rsnd_endpoint>;
+            };
+        };
+    };

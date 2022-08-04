@@ -41,6 +41,8 @@ Package
 Packages contain a number of cores plus shared resources, e.g. DRAM
 controller, shared caches etc.
 
+Modern systems may also use the term 'Die' for package.
+
 AMD nomenclature for package is 'Node'.
 
 Package-related topology information in the kernel:
@@ -53,10 +55,17 @@ Package-related topology information in the kernel:
 
     The number of dies in a package. This information is retrieved via CPUID.
 
+  - cpuinfo_x86.cpu_die_id:
+
+    The physical ID of the die. This information is retrieved via CPUID.
+
   - cpuinfo_x86.phys_proc_id:
 
     The physical ID of the package. This information is retrieved via CPUID
     and deduced from the APIC IDs of the cores in the package.
+
+    Modern systems use this value for the socket. There may be multiple
+    packages within a socket. This value may differ from cpu_die_id.
 
   - cpuinfo_x86.logical_proc_id:
 

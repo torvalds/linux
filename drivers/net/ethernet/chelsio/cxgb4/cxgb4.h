@@ -39,6 +39,7 @@
 
 #include <linux/bitops.h>
 #include <linux/cache.h>
+#include <linux/ethtool.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>

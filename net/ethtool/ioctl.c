@@ -2433,7 +2433,7 @@ static int noinline_for_stack ethtool_set_per_queue(struct net_device *dev,
 		return ethtool_set_per_queue_coalesce(dev, useraddr, &per_queue_opt);
 	default:
 		return -EOPNOTSUPP;
-	};
+	}
 }
 
 static int ethtool_phy_tunable_valid(const struct ethtool_tunable *tuna)

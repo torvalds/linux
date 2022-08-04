@@ -214,6 +214,12 @@
 #define RT1015_ID_VERA				0x0
 #define RT1015_ID_VERB				0x1
 
+/* 0x00f2 */
+#define RT1015_MONO_LR_SEL_MASK			(0x3 << 4)
+#define RT1015_MONO_L_CHANNEL			(0x0 << 4)
+#define RT1015_MONO_R_CHANNEL			(0x1 << 4)
+#define RT1015_MONO_LR_MIX_CHANNEL			(0x2 << 4)
+
 /* 0x0102 */
 #define RT1015_DAC_VOL_MASK			(0x7f << 9)
 #define RT1015_DAC_VOL_SFT			9
@@ -276,6 +282,42 @@
 #define RT1015_TDM_INV_BCLK_MASK		(0x1 << 15)
 #define RT1015_TDM_INV_BCLK_SFT			15
 #define RT1015_TDM_INV_BCLK			(0x1 << 15)
+#define RT1015_I2S_CH_TX_MASK			(0x3 << 10)
+#define RT1015_I2S_CH_TX_SFT			10
+#define RT1015_I2S_TX_2CH			(0x0 << 10)
+#define RT1015_I2S_TX_4CH			(0x1 << 10)
+#define RT1015_I2S_TX_6CH			(0x2 << 10)
+#define RT1015_I2S_TX_8CH			(0x3 << 10)
+#define RT1015_I2S_CH_RX_MASK			(0x3 << 8)
+#define RT1015_I2S_CH_RX_SFT			8
+#define RT1015_I2S_RX_2CH			(0x0 << 8)
+#define RT1015_I2S_RX_4CH			(0x1 << 8)
+#define RT1015_I2S_RX_6CH			(0x2 << 8)
+#define RT1015_I2S_RX_8CH			(0x3 << 8)
+#define RT1015_I2S_LR_CH_SEL_MASK			(0x1 << 7)
+#define RT1015_I2S_LR_CH_SEL_SFT			7
+#define RT1015_I2S_LEFT_CH_SEL			(0x0 << 7)
+#define RT1015_I2S_RIGHT_CH_SEL			(0x1 << 7)
+#define RT1015_I2S_CH_TX_LEN_MASK			(0x7 << 4)
+#define RT1015_I2S_CH_TX_LEN_SFT			4
+#define RT1015_I2S_CH_TX_LEN_16B			(0x0 << 4)
+#define RT1015_I2S_CH_TX_LEN_20B			(0x1 << 4)
+#define RT1015_I2S_CH_TX_LEN_24B			(0x2 << 4)
+#define RT1015_I2S_CH_TX_LEN_32B			(0x3 << 4)
+#define RT1015_I2S_CH_TX_LEN_8B			(0x4 << 4)
+#define RT1015_I2S_CH_RX_LEN_MASK			(0x7 << 0)
+#define RT1015_I2S_CH_RX_LEN_SFT			0
+#define RT1015_I2S_CH_RX_LEN_16B			(0x0 << 0)
+#define RT1015_I2S_CH_RX_LEN_20B			(0x1 << 0)
+#define RT1015_I2S_CH_RX_LEN_24B			(0x2 << 0)
+#define RT1015_I2S_CH_RX_LEN_32B			(0x3 << 0)
+#define RT1015_I2S_CH_RX_LEN_8B			(0x4 << 0)
+
+/* TDM1 Setting-4 (0x011a) */
+#define RT1015_TDM_I2S_TX_L_DAC1_1_MASK			(0x7 << 12)
+#define RT1015_TDM_I2S_TX_R_DAC1_1_MASK			(0x7 << 8)
+#define RT1015_TDM_I2S_TX_L_DAC1_1_SFT 12
+#define RT1015_TDM_I2S_TX_R_DAC1_1_SFT 8
 
 /* 0x0330 */
 #define RT1015_ABST_AUTO_EN_MASK		(0x1 << 13)

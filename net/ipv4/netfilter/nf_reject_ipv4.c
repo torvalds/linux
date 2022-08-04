@@ -12,6 +12,128 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_bridge.h>
 
+static int nf_reject_iphdr_validate(struct sk_buff *skb)
+{
+	struct iphdr *iph;
+	u32 len;
+
+	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
+		return 0;
+
+	iph = ip_hdr(skb);
+	if (iph->ihl < 5 || iph->version != 4)
+		return 0;
+
+	len = ntohs(iph->tot_len);
+	if (skb->len < len)
+		return 0;
+	else if (len < (iph->ihl*4))
+		return 0;
+
+	if (!pskb_may_pull(skb, iph->ihl*4))
+		return 0;
+
+	return 1;
+}
+
+struct sk_buff *nf_reject_skb_v4_tcp_reset(struct net *net,
+					   struct sk_buff *oldskb,
+					   const struct net_device *dev,
+					   int hook)
+{
+	const struct tcphdr *oth;
+	struct sk_buff *nskb;
+	struct iphdr *niph;
+	struct tcphdr _oth;
+
+	if (!nf_reject_iphdr_validate(oldskb))
+		return NULL;
+
+	oth = nf_reject_ip_tcphdr_get(oldskb, &_oth, hook);
+	if (!oth)
+		return NULL;
+
+	nskb = alloc_skb(sizeof(struct iphdr) + sizeof(struct tcphdr) +
+			 LL_MAX_HEADER, GFP_ATOMIC);
+	if (!nskb)
+		return NULL;
+
+	nskb->dev = (struct net_device *)dev;
+
+	skb_reserve(nskb, LL_MAX_HEADER);
+	niph = nf_reject_iphdr_put(nskb, oldskb, IPPROTO_TCP,
+				   net->ipv4.sysctl_ip_default_ttl);
+	nf_reject_ip_tcphdr_put(nskb, oldskb, oth);
+	niph->tot_len = htons(nskb->len);
+	ip_send_check(niph);
+
+	return nskb;
+}
+EXPORT_SYMBOL_GPL(nf_reject_skb_v4_tcp_reset);
+
+struct sk_buff *nf_reject_skb_v4_unreach(struct net *net,
+					 struct sk_buff *oldskb,
+					 const struct net_device *dev,
+					 int hook, u8 code)
+{
+	struct sk_buff *nskb;
+	struct iphdr *niph;
+	struct icmphdr *icmph;
+	unsigned int len;
+	__wsum csum;
+	u8 proto;
+
+	if (!nf_reject_iphdr_validate(oldskb))
+		return NULL;
+
+	/* IP header checks: fragment. */
+	if (ip_hdr(oldskb)->frag_off & htons(IP_OFFSET))
+		return NULL;
+
+	/* RFC says return as much as we can without exceeding 576 bytes. */
+	len = min_t(unsigned int, 536, oldskb->len);
+
+	if (!pskb_may_pull(oldskb, len))
+		return NULL;
+
+	if (pskb_trim_rcsum(oldskb, ntohs(ip_hdr(oldskb)->tot_len)))
+		return NULL;
+
+	proto = ip_hdr(oldskb)->protocol;
+
+	if (!skb_csum_unnecessary(oldskb) &&
+	    nf_reject_verify_csum(proto) &&
+	    nf_ip_checksum(oldskb, hook, ip_hdrlen(oldskb), proto))
+		return NULL;
+
+	nskb = alloc_skb(sizeof(struct iphdr) + sizeof(struct icmphdr) +
+			 LL_MAX_HEADER + len, GFP_ATOMIC);
+	if (!nskb)
+		return NULL;
+
+	nskb->dev = (struct net_device *)dev;
+
+	skb_reserve(nskb, LL_MAX_HEADER);
+	niph = nf_reject_iphdr_put(nskb, oldskb, IPPROTO_ICMP,
+				   net->ipv4.sysctl_ip_default_ttl);
+
+	skb_reset_transport_header(nskb);
+	icmph = skb_put_zero(nskb, sizeof(struct icmphdr));
+	icmph->type     = ICMP_DEST_UNREACH;
+	icmph->code	= code;
+
+	skb_put_data(nskb, skb_network_header(oldskb), len);
+
+	csum = csum_partial((void *)icmph, len + sizeof(struct icmphdr), 0);
+	icmph->checksum = csum_fold(csum);
+
+	niph->tot_len	= htons(nskb->len);
+	ip_send_check(niph);
+
+	return nskb;
+}
+EXPORT_SYMBOL_GPL(nf_reject_skb_v4_unreach);
+
 const struct tcphdr *nf_reject_ip_tcphdr_get(struct sk_buff *oldskb,
 					     struct tcphdr *_oth, int hook)
 {
@@ -112,7 +234,8 @@ static int nf_reject_fill_skb_dst(struct sk_buff *skb_in)
 }
 
 /* Send RST reply */
-void nf_send_reset(struct net *net, struct sk_buff *oldskb, int hook)
+void nf_send_reset(struct net *net, struct sock *sk, struct sk_buff *oldskb,
+		   int hook)
 {
 	struct net_device *br_indev __maybe_unused;
 	struct sk_buff *nskb;
@@ -124,7 +247,8 @@ void nf_send_reset(struct net *net, struct sk_buff *oldskb, int hook)
 	if (!oth)
 		return;
 
-	if (hook == NF_INET_PRE_ROUTING && nf_reject_fill_skb_dst(oldskb))
+	if ((hook == NF_INET_PRE_ROUTING || hook == NF_INET_INGRESS) &&
+	    nf_reject_fill_skb_dst(oldskb) < 0)
 		return;
 
 	if (skb_rtable(oldskb)->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST))
@@ -144,8 +268,7 @@ void nf_send_reset(struct net *net, struct sk_buff *oldskb, int hook)
 	niph = nf_reject_iphdr_put(nskb, oldskb, IPPROTO_TCP,
 				   ip4_dst_hoplimit(skb_dst(nskb)));
 	nf_reject_ip_tcphdr_put(nskb, oldskb, oth);
-
-	if (ip_route_me_harder(net, nskb->sk, nskb, RTN_UNSPEC))
+	if (ip_route_me_harder(net, sk, nskb, RTN_UNSPEC))
 		goto free_nskb;
 
 	niph = ip_hdr(nskb);
@@ -193,7 +316,8 @@ void nf_send_unreach(struct sk_buff *skb_in, int code, int hook)
 	if (iph->frag_off & htons(IP_OFFSET))
 		return;
 
-	if (hook == NF_INET_PRE_ROUTING && nf_reject_fill_skb_dst(skb_in))
+	if ((hook == NF_INET_PRE_ROUTING || hook == NF_INET_INGRESS) &&
+	    nf_reject_fill_skb_dst(skb_in) < 0)
 		return;
 
 	if (skb_csum_unnecessary(skb_in) || !nf_reject_verify_csum(proto)) {

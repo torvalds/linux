@@ -887,7 +887,7 @@ static void tcp_metrics_flush_all(struct net *net)
 		pp = &hb->chain;
 		for (tm = deref_locked(*pp); tm; tm = deref_locked(*pp)) {
 			match = net ? net_eq(tm_net(tm), net) :
-				!refcount_read(&tm_net(tm)->count);
+				!refcount_read(&tm_net(tm)->ns.count);
 			if (match) {
 				*pp = tm->tcpm_next;
 				kfree_rcu(tm, rcu_head);

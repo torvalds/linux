@@ -322,7 +322,7 @@ static const u32 KC[SEED_NUM_KCONSTANTS] = {
 		SS2[byte(t1, 2)] ^ SS3[byte(t1, 3)];	\
 	t0 += t1;					\
 	X1 ^= t0;					\
-	X2 ^= t1;
+	X2 ^= t1
 
 static int seed_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		        unsigned int key_len)

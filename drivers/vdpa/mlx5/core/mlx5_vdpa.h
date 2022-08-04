@@ -15,6 +15,7 @@ struct mlx5_vdpa_direct_mr {
 	struct sg_table sg_head;
 	int log_size;
 	int nsg;
+	int nent;
 	struct list_head list;
 	u64 offset;
 };

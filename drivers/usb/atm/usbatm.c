@@ -249,7 +249,7 @@ static void usbatm_complete(struct urb *urb)
 	/* vdbg("%s: urb 0x%p, status %d, actual_length %d",
 	     __func__, urb, status, urb->actual_length); */
 
-	/* usually in_interrupt(), but not always */
+	/* Can be invoked from task context, protect against interrupts */
 	spin_lock_irqsave(&channel->lock, flags);
 
 	/* must add to the back when receiving; doesn't matter when sending */
@@ -1278,7 +1278,7 @@ EXPORT_SYMBOL_GPL(usbatm_usb_disconnect);
 static int __init usbatm_usb_init(void)
 {
 	if (sizeof(struct usbatm_control) > sizeof_field(struct sk_buff, cb)) {
-		printk(KERN_ERR "%s unusable with this kernel!\n", usbatm_driver_name);
+		pr_err("%s unusable with this kernel!\n", usbatm_driver_name);
 		return -EIO;
 	}
 

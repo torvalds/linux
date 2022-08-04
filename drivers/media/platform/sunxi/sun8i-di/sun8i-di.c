@@ -825,10 +825,6 @@ static int deinterlace_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_dma_configure(dev->dev, dev->dev->of_node, true);
-	if (ret)
-		return ret;
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dev->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(dev->base))

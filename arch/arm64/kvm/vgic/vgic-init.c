@@ -419,7 +419,8 @@ int vgic_lazy_init(struct kvm *kvm)
  * Map the MMIO regions depending on the VGIC model exposed to the guest
  * called on the first VCPU run.
  * Also map the virtual CPU interface into the VM.
- * v2/v3 derivatives call vgic_init if not already done.
+ * v2 calls vgic_init() if not already done.
+ * v3 and derivatives return an error if the VGIC is not initialized.
  * vgic_ready() returns true if this function has succeeded.
  * @kvm: kvm struct pointer
  */
@@ -428,7 +429,13 @@ int kvm_vgic_map_resources(struct kvm *kvm)
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	int ret = 0;
 
+	if (likely(vgic_ready(kvm)))
+		return 0;
+
 	mutex_lock(&kvm->lock);
+	if (vgic_ready(kvm))
+		goto out;
+
 	if (!irqchip_in_kernel(kvm))
 		goto out;
 
@@ -439,6 +446,8 @@ int kvm_vgic_map_resources(struct kvm *kvm)
 
 	if (ret)
 		__kvm_vgic_destroy(kvm);
+	else
+		dist->ready = true;
 
 out:
 	mutex_unlock(&kvm->lock);

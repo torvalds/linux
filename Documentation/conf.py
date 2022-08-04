@@ -39,7 +39,7 @@ needs_sphinx = '1.3'
 extensions = ['kerneldoc', 'rstFlatTable', 'kernel_include',
               'kfigure', 'sphinx.ext.ifconfig', 'automarkup',
               'maintainers_include', 'sphinx.ext.autosectionlabel',
-              'kernel_abi']
+              'kernel_abi', 'kernel_feat']
 
 #
 # cdomain is badly broken in Sphinx 3+.  Leaving it out generates *most*
@@ -112,6 +112,9 @@ if major >= 3:
 
 else:
     extensions.append('cdomain')
+    if major == 1 and minor < 7:
+        sys.stderr.write('WARNING: Sphinx 1.7 or greater will be required as of '
+                         'the 5.12 release\n')
 
 # Ensure that autosectionlabel will produce unique names
 autosectionlabel_prefix_document = True

@@ -297,6 +297,15 @@ void dcn30_smu_set_num_of_displays(struct clk_mgr_internal *clk_mgr, uint32_t nu
 			DALSMC_MSG_NumOfDisplays, num_displays, NULL);
 }
 
+void dcn30_smu_set_display_refresh_from_mall(struct clk_mgr_internal *clk_mgr, bool enable, uint8_t cache_timer_delay, uint8_t cache_timer_scale)
+{
+	/* bits 8:7 for cache timer scale, bits 6:1 for cache timer delay, bit 0 = 1 for enable, = 0 for disable */
+	uint32_t param = (cache_timer_scale << 7) | (cache_timer_delay << 1) | (enable ? 1 : 0);
+
+	dcn30_smu_send_msg_with_param(clk_mgr,
+			DALSMC_MSG_SetDisplayRefreshFromMall, param, NULL);
+}
+
 void dcn30_smu_set_external_client_df_cstate_allow(struct clk_mgr_internal *clk_mgr, bool enable)
 {
 	smu_print("SMU Set external client df cstate allow: enable = %d\n", enable);

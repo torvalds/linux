@@ -60,6 +60,7 @@ struct polaris10_smumgr {
 	struct polaris10_range_table                range_table[NUM_SCLK_RANGE];
 	const struct polaris10_pt_defaults       *power_tune_defaults;
 	uint32_t               bif_sclk_table[SMU74_MAX_LEVELS_LINK];
+	pp_atomctrl_mc_reg_table             mc_reg_table;
 };
 
 

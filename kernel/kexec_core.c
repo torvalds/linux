@@ -42,7 +42,6 @@
 #include <asm/sections.h>
 
 #include <crypto/hash.h>
-#include <crypto/sha.h>
 #include "kexec_internal.h"
 
 DEFINE_MUTEX(kexec_mutex);
@@ -1135,7 +1134,6 @@ int kernel_kexec(void)
 
 #ifdef CONFIG_KEXEC_JUMP
 	if (kexec_image->preserve_context) {
-		lock_system_sleep();
 		pm_prepare_console();
 		error = freeze_processes();
 		if (error) {
@@ -1198,7 +1196,6 @@ int kernel_kexec(void)
 		thaw_processes();
  Restore_console:
 		pm_restore_console();
-		unlock_system_sleep();
 	}
 #endif
 

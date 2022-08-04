@@ -1374,7 +1374,7 @@ void __ref text_poke_queue(void *addr, const void *opcode, size_t len, const voi
  * @addr:	address to patch
  * @opcode:	opcode of new instruction
  * @len:	length to copy
- * @handler:	address to jump to when the temporary breakpoint is hit
+ * @emulate:	instruction to be emulated
  *
  * Update a single instruction with the vector in the stack, avoiding
  * dynamically allocated memory. This function should be used when it is

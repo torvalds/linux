@@ -428,55 +428,6 @@ tape_cleanup_device(struct tape_device *device)
 }
 
 /*
- * Suspend device.
- *
- * Called by the common I/O layer if the drive should be suspended on user
- * request. We refuse to suspend if the device is loaded or in use for the
- * following reason:
- * While the Linux guest is suspended, it might be logged off which causes
- * devices to be detached. Tape devices are automatically rewound and unloaded
- * during DETACH processing (unless the tape device was attached with the
- * NOASSIGN or MULTIUSER option). After rewind/unload, there is no way to
- * resume the original state of the tape device, since we would need to
- * manually re-load the cartridge which was active at suspend time.
- */
-int tape_generic_pm_suspend(struct ccw_device *cdev)
-{
-	struct tape_device *device;
-
-	device = dev_get_drvdata(&cdev->dev);
-	if (!device) {
-		return -ENODEV;
-	}
-
-	DBF_LH(3, "(%08x): tape_generic_pm_suspend(%p)\n",
-		device->cdev_id, device);
-
-	if (device->medium_state != MS_UNLOADED) {
-		pr_err("A cartridge is loaded in tape device %s, "
-		       "refusing to suspend\n", dev_name(&cdev->dev));
-		return -EBUSY;
-	}
-
-	spin_lock_irq(get_ccwdev_lock(device->cdev));
-	switch (device->tape_state) {
-		case TS_INIT:
-		case TS_NOT_OPER:
-		case TS_UNUSED:
-			spin_unlock_irq(get_ccwdev_lock(device->cdev));
-			break;
-		default:
-			pr_err("Tape device %s is busy, refusing to "
-			       "suspend\n", dev_name(&cdev->dev));
-			spin_unlock_irq(get_ccwdev_lock(device->cdev));
-			return -EBUSY;
-	}
-
-	DBF_LH(3, "(%08x): Drive suspended.\n", device->cdev_id);
-	return 0;
-}
-
-/*
  * Set device offline.
  *
  * Called by the common I/O layer if the drive should set offline on user
@@ -1360,7 +1311,6 @@ EXPORT_SYMBOL(tape_generic_remove);
 EXPORT_SYMBOL(tape_generic_probe);
 EXPORT_SYMBOL(tape_generic_online);
 EXPORT_SYMBOL(tape_generic_offline);
-EXPORT_SYMBOL(tape_generic_pm_suspend);
 EXPORT_SYMBOL(tape_put_device);
 EXPORT_SYMBOL(tape_get_device);
 EXPORT_SYMBOL(tape_state_verbose);

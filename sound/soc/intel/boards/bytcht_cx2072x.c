@@ -205,14 +205,12 @@ static struct snd_soc_dai_link byt_cht_cx2072x_dais[] = {
 	},
 };
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
 /* use space before codec name to simplify card ID, and simplify driver name */
-#define CARD_NAME "bytcht cx2072x" /* card name will be 'sof-bytcht cx2072x' */
-#define DRIVER_NAME "SOF"
-#else
+#define SOF_CARD_NAME "bytcht cx2072x" /* card name will be 'sof-bytcht cx2072x' */
+#define SOF_DRIVER_NAME "SOF"
+
 #define CARD_NAME "bytcht-cx2072x"
 #define DRIVER_NAME NULL /* card name will be used for driver name */
-#endif
 
 /* SoC card */
 static struct snd_soc_card byt_cht_cx2072x_card = {
@@ -236,6 +234,7 @@ static int snd_byt_cht_cx2072x_probe(struct platform_device *pdev)
 	struct snd_soc_acpi_mach *mach;
 	struct acpi_device *adev;
 	int dai_index = 0;
+	bool sof_parent;
 	int i, ret;
 
 	byt_cht_cx2072x_card.dev = &pdev->dev;
@@ -265,15 +264,27 @@ static int snd_byt_cht_cx2072x_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	sof_parent = snd_soc_acpi_sof_parent(&pdev->dev);
+
+	/* set card and driver name */
+	if (sof_parent) {
+		byt_cht_cx2072x_card.name = SOF_CARD_NAME;
+		byt_cht_cx2072x_card.driver_name = SOF_DRIVER_NAME;
+	} else {
+		byt_cht_cx2072x_card.name = CARD_NAME;
+		byt_cht_cx2072x_card.driver_name = DRIVER_NAME;
+	}
+
+	/* set pm ops */
+	if (sof_parent)
+		pdev->dev.driver->pm = &snd_soc_pm_ops;
+
 	return devm_snd_soc_register_card(&pdev->dev, &byt_cht_cx2072x_card);
 }
 
 static struct platform_driver snd_byt_cht_cx2072x_driver = {
 	.driver = {
 		.name = "bytcht_cx2072x",
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
-		.pm = &snd_soc_pm_ops,
-#endif
 	},
 	.probe = snd_byt_cht_cx2072x_probe,
 };

@@ -2,12 +2,6 @@
 #ifndef _MLX4_STATS_
 #define _MLX4_STATS_
 
-#ifdef MLX4_EN_PERF_STAT
-#define NUM_PERF_STATS			NUM_PERF_COUNTERS
-#else
-#define NUM_PERF_STATS			0
-#endif
-
 #define NUM_PRIORITIES	9
 #define NUM_PRIORITY_STATS 2
 
@@ -44,16 +38,6 @@ struct mlx4_en_port_stats {
 	unsigned long rx_chksum_complete;
 	unsigned long tx_chksum_offload;
 #define NUM_PORT_STATS		10
-};
-
-struct mlx4_en_perf_stats {
-	u32 tx_poll;
-	u64 tx_pktsz_avg;
-	u32 inflight_avg;
-	u16 tx_coal_avg;
-	u16 rx_coal_avg;
-	u32 napi_quota;
-#define NUM_PERF_COUNTERS		6
 };
 
 struct mlx4_en_xdp_stats {
@@ -135,7 +119,7 @@ enum {
 };
 
 #define NUM_ALL_STATS	(NUM_MAIN_STATS + NUM_PORT_STATS + NUM_PKT_STATS + \
-			 NUM_FLOW_STATS + NUM_PERF_STATS + NUM_PF_STATS + \
+			 NUM_FLOW_STATS + NUM_PF_STATS + \
 			 NUM_XDP_STATS + NUM_PHY_STATS)
 
 #define MLX4_FIND_NETDEV_STAT(n) (offsetof(struct net_device_stats, n) / \

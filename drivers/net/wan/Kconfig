@@ -282,6 +282,7 @@ config SLIC_DS26522
 	tristate "Slic Maxim ds26522 card support"
 	depends on SPI
 	depends on FSL_SOC || ARCH_MXC || ARCH_LAYERSCAPE || COMPILE_TEST
+	select BITREVERSE
 	help
 	  This module initializes and configures the slic maxim card
 	  in T1 or E1 mode.
@@ -321,51 +322,6 @@ config IXP4XX_HSS
 	  Say Y here if you want to use built-in HSS ports
 	  on IXP4xx processor.
 
-config DLCI
-	tristate "Frame Relay DLCI support"
-	help
-	  Support for the Frame Relay protocol.
-
-	  Frame Relay is a fast low-cost way to connect to a remote Internet
-	  access provider or to form a private wide area network. The one
-	  physical line from your box to the local "switch" (i.e. the entry
-	  point to the Frame Relay network, usually at the phone company) can
-	  carry several logical point-to-point connections to other computers
-	  connected to the Frame Relay network. For a general explanation of
-	  the protocol, check out <http://www.mplsforum.org/>.
-
-	  To use frame relay, you need supporting hardware (called FRAD) and
-	  certain programs from the net-tools package as explained in
-	  <file:Documentation/networking/framerelay.rst>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called dlci.
-
-config DLCI_MAX
-	int "Max DLCI per device"
-	depends on DLCI
-	default "8"
-	help
-	  How many logical point-to-point frame relay connections (the
-	  identifiers of which are called DCLIs) should be handled by each
-	  of your hardware frame relay access devices.
-
-	  Go with the default.
-
-config SDLA
-	tristate "SDLA (Sangoma S502/S508) support"
-	depends on DLCI && ISA
-	help
-	  Driver for the Sangoma S502A, S502E, and S508 Frame Relay Access
-	  Devices.
-
-	  These are multi-protocol cards, but only Frame Relay is supported
-	  by the driver at this time. Please read
-	  <file:Documentation/networking/framerelay.rst>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called sdla.
-
 # X.25 network drivers
 config LAPBETHER
 	tristate "LAPB over Ethernet driver"
@@ -380,21 +336,6 @@ config LAPBETHER
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called lapbether.
-
-	  If unsure, say N.
-
-config X25_ASY
-	tristate "X.25 async driver"
-	depends on LAPB && X25 && TTY
-	help
-	  Send and receive X.25 frames over regular asynchronous serial
-	  lines such as telephone lines equipped with ordinary modems.
-
-	  Experts should note that this driver doesn't currently comply with
-	  the asynchronous HDLS framing protocols in CCITT recommendation X.25.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called x25_asy.
 
 	  If unsure, say N.
 

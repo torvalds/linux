@@ -50,8 +50,8 @@ The following files belong to it:
   0x00000010        Memory Uncorrectable non-fatal
   0x00000020        Memory Uncorrectable fatal
   0x00000040        PCI Express Correctable
-  0x00000080        PCI Express Uncorrectable fatal
-  0x00000100        PCI Express Uncorrectable non-fatal
+  0x00000080        PCI Express Uncorrectable non-fatal
+  0x00000100        PCI Express Uncorrectable fatal
   0x00000200        Platform Correctable
   0x00000400        Platform Uncorrectable non-fatal
   0x00000800        Platform Uncorrectable fatal

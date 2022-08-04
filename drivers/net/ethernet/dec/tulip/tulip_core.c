@@ -1293,7 +1293,9 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	static unsigned char last_phys_addr[ETH_ALEN] = {
 		0x00, 'L', 'i', 'n', 'u', 'x'
 	};
+#if defined(__i386__) || defined(__x86_64__)	/* Patch up x86 BIOS bug. */
 	static int last_irq;
+#endif
 	int i, irq;
 	unsigned short sum;
 	unsigned char *ee_data;
@@ -1617,7 +1619,9 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	for (i = 0; i < 6; i++)
 		last_phys_addr[i] = dev->dev_addr[i];
+#if defined(__i386__) || defined(__x86_64__)	/* Patch up x86 BIOS bug. */
 	last_irq = irq;
+#endif
 
 	/* The lower four bits are the media type. */
 	if (board_idx >= 0  &&  board_idx < MAX_UNITS) {

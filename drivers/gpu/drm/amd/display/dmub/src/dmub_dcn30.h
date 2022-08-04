@@ -45,6 +45,5 @@ void dmub_dcn30_setup_windows(struct dmub_srv *dmub,
 			      const struct dmub_window *cw5,
 			      const struct dmub_window *cw6);
 
-bool dmub_dcn30_is_auto_load_done(struct dmub_srv *dmub);
 
 #endif /* _DMUB_DCN30_H_ */

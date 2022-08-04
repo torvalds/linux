@@ -47,7 +47,9 @@ int cedrus_engine_enable(struct cedrus_ctx *ctx, enum cedrus_codec codec)
 		reg |= VE_MODE_DEC_MPEG;
 		break;
 
+	/* H.264 and VP8 both use the same decoding mode bit. */
 	case CEDRUS_CODEC_H264:
+	case CEDRUS_CODEC_VP8:
 		reg |= VE_MODE_DEC_H264;
 		break;
 
@@ -221,24 +223,6 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 
 		return ret;
 	}
-
-	/*
-	 * The VPU is only able to handle bus addresses so we have to subtract
-	 * the RAM offset to the physcal addresses.
-	 *
-	 * This information will eventually be obtained from device-tree.
-	 *
-	 * XXX(hch): this has no business in a driver and needs to move
-	 * to the device tree.
-	 */
-
-#ifdef PHYS_PFN_OFFSET
-	if (!(variant->quirks & CEDRUS_QUIRK_NO_DMA_OFFSET)) {
-		ret = dma_direct_set_offset(dev->dev, PHYS_OFFSET, 0, SZ_4G);
-		if (ret)
-			return ret;
-	}
-#endif
 
 	ret = of_reserved_mem_device_init(dev->dev);
 	if (ret && ret != -ENODEV) {

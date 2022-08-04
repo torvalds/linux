@@ -169,12 +169,10 @@ static noinline __init void setup_lowcore_early(void)
 {
 	psw_t psw;
 
+	psw.addr = (unsigned long)s390_base_pgm_handler;
 	psw.mask = PSW_MASK_BASE | PSW_DEFAULT_KEY | PSW_MASK_EA | PSW_MASK_BA;
 	if (IS_ENABLED(CONFIG_KASAN))
 		psw.mask |= PSW_MASK_DAT;
-	psw.addr = (unsigned long) s390_base_ext_handler;
-	S390_lowcore.external_new_psw = psw;
-	psw.addr = (unsigned long) s390_base_pgm_handler;
 	S390_lowcore.program_new_psw = psw;
 	s390_base_pgm_handler_fn = early_pgm_check_handler;
 	S390_lowcore.preempt_count = INIT_PREEMPT_COUNT;

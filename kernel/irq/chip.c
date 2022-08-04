@@ -61,7 +61,7 @@ int irq_set_chip(unsigned int irq, struct irq_chip *chip)
 EXPORT_SYMBOL(irq_set_chip);
 
 /**
- *	irq_set_type - set the irq trigger type for an irq
+ *	irq_set_irq_type - set the irq trigger type for an irq
  *	@irq:	irq number
  *	@type:	IRQ_TYPE_{LEVEL,EDGE}_* value - see include/linux/irq.h
  */
@@ -942,33 +942,6 @@ void handle_percpu_devid_irq(struct irq_desc *desc)
 
 	if (chip->irq_eoi)
 		chip->irq_eoi(&desc->irq_data);
-}
-
-/**
- * handle_percpu_devid_fasteoi_ipi - Per CPU local IPI handler with per cpu
- *				     dev ids
- * @desc:	the interrupt description structure for this irq
- *
- * The biggest difference with the IRQ version is that the interrupt is
- * EOIed early, as the IPI could result in a context switch, and we need to
- * make sure the IPI can fire again. We also assume that the arch code has
- * registered an action. If not, we are positively doomed.
- */
-void handle_percpu_devid_fasteoi_ipi(struct irq_desc *desc)
-{
-	struct irq_chip *chip = irq_desc_get_chip(desc);
-	struct irqaction *action = desc->action;
-	unsigned int irq = irq_desc_get_irq(desc);
-	irqreturn_t res;
-
-	__kstat_incr_irqs_this_cpu(desc);
-
-	if (chip->irq_eoi)
-		chip->irq_eoi(&desc->irq_data);
-
-	trace_irq_handler_entry(irq, action);
-	res = action->handler(irq, raw_cpu_ptr(action->percpu_dev_id));
-	trace_irq_handler_exit(irq, action, res);
 }
 
 /**

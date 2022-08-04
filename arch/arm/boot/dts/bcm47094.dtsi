@@ -8,6 +8,15 @@
 / {
 };
 
+&pinctrl {
+	compatible = "brcm,bcm4709-pinmux";
+
+	pinmux_mdio: mdio {
+		groups = "mdio_grp";
+		function = "mdio";
+	};
+};
+
 &usb3_phy {
 	compatible = "brcm,ns-bx-usb3-phy";
 };
@@ -15,4 +24,8 @@
 &uart0 {
 	clock-frequency = <125000000>;
 	status = "okay";
+};
+
+&srab {
+	compatible = "brcm,bcm53012-srab", "brcm,bcm5301x-srab";
 };

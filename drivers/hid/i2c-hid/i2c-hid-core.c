@@ -1106,8 +1106,11 @@ static int i2c_hid_probe(struct i2c_client *client,
 	}
 
 	ret = i2c_hid_fetch_hid_descriptor(ihid);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"Failed to fetch the HID Descriptor\n");
 		goto err_regulator;
+	}
 
 	ret = i2c_hid_init_irq(client);
 	if (ret < 0)

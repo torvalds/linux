@@ -640,23 +640,17 @@ static struct attribute *qeth_blkt_device_attrs[] = {
 	&dev_attr_inter_jumbo.attr,
 	NULL,
 };
-const struct attribute_group qeth_device_blkt_group = {
+
+static const struct attribute_group qeth_dev_blkt_group = {
 	.name = "blkt",
 	.attrs = qeth_blkt_device_attrs,
 };
-EXPORT_SYMBOL_GPL(qeth_device_blkt_group);
 
-static struct attribute *qeth_device_attrs[] = {
-	&dev_attr_state.attr,
-	&dev_attr_chpid.attr,
-	&dev_attr_if_name.attr,
-	&dev_attr_card_type.attr,
+static struct attribute *qeth_dev_extended_attrs[] = {
 	&dev_attr_inbuf_size.attr,
 	&dev_attr_portno.attr,
 	&dev_attr_portname.attr,
 	&dev_attr_priority_queueing.attr,
-	&dev_attr_buffer_count.attr,
-	&dev_attr_recover.attr,
 	&dev_attr_performance_stats.attr,
 	&dev_attr_layer2.attr,
 	&dev_attr_isolation.attr,
@@ -664,18 +658,12 @@ static struct attribute *qeth_device_attrs[] = {
 	&dev_attr_switch_attrs.attr,
 	NULL,
 };
-const struct attribute_group qeth_device_attr_group = {
-	.attrs = qeth_device_attrs,
-};
-EXPORT_SYMBOL_GPL(qeth_device_attr_group);
 
-const struct attribute_group *qeth_generic_attr_groups[] = {
-	&qeth_device_attr_group,
-	&qeth_device_blkt_group,
-	NULL,
+static const struct attribute_group qeth_dev_extended_group = {
+	.attrs = qeth_dev_extended_attrs,
 };
 
-static struct attribute *qeth_osn_device_attrs[] = {
+static struct attribute *qeth_dev_attrs[] = {
 	&dev_attr_state.attr,
 	&dev_attr_chpid.attr,
 	&dev_attr_if_name.attr,
@@ -684,10 +672,19 @@ static struct attribute *qeth_osn_device_attrs[] = {
 	&dev_attr_recover.attr,
 	NULL,
 };
-static struct attribute_group qeth_osn_device_attr_group = {
-	.attrs = qeth_osn_device_attrs,
+
+static const struct attribute_group qeth_dev_group = {
+	.attrs = qeth_dev_attrs,
 };
-const struct attribute_group *qeth_osn_attr_groups[] = {
-	&qeth_osn_device_attr_group,
+
+const struct attribute_group *qeth_osn_dev_groups[] = {
+	&qeth_dev_group,
+	NULL,
+};
+
+const struct attribute_group *qeth_dev_groups[] = {
+	&qeth_dev_group,
+	&qeth_dev_extended_group,
+	&qeth_dev_blkt_group,
 	NULL,
 };

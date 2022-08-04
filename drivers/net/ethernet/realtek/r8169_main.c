@@ -67,8 +67,8 @@
 
 #define R8169_REGS_SIZE		256
 #define R8169_RX_BUF_SIZE	(SZ_16K - 1)
-#define NUM_TX_DESC	64	/* Number of Tx descriptor registers */
-#define NUM_RX_DESC	256U	/* Number of Rx descriptor registers */
+#define NUM_TX_DESC	256	/* Number of Tx descriptor registers */
+#define NUM_RX_DESC	256	/* Number of Rx descriptor registers */
 #define R8169_TX_RING_BYTES	(NUM_TX_DESC * sizeof(struct TxDesc))
 #define R8169_RX_RING_BYTES	(NUM_RX_DESC * sizeof(struct RxDesc))
 
@@ -584,12 +584,6 @@ enum rtl_flag {
 	RTL_FLAG_MAX
 };
 
-struct rtl8169_stats {
-	u64			packets;
-	u64			bytes;
-	struct u64_stats_sync	syncp;
-};
-
 struct rtl8169_private {
 	void __iomem *mmio_addr;	/* memory map physical address */
 	struct pci_dev *pci_dev;
@@ -600,8 +594,6 @@ struct rtl8169_private {
 	u32 cur_rx; /* Index into the Rx descriptor buffer of next Rx pkt. */
 	u32 cur_tx; /* Index into the Tx descriptor buffer of next Rx pkt. */
 	u32 dirty_tx;
-	struct rtl8169_stats rx_stats;
-	struct rtl8169_stats tx_stats;
 	struct TxDesc *TxDescArray;	/* 256-aligned Tx descriptor ring */
 	struct RxDesc *RxDescArray;	/* 256-aligned Rx descriptor ring */
 	dma_addr_t TxPhyAddr;
@@ -698,27 +690,6 @@ static bool rtl_supports_eee(struct rtl8169_private *tp)
 	return tp->mac_version >= RTL_GIGA_MAC_VER_34 &&
 	       tp->mac_version != RTL_GIGA_MAC_VER_37 &&
 	       tp->mac_version != RTL_GIGA_MAC_VER_39;
-}
-
-static void rtl_get_priv_stats(struct rtl8169_stats *stats,
-			       u64 *pkts, u64 *bytes)
-{
-	unsigned int start;
-
-	do {
-		start = u64_stats_fetch_begin_irq(&stats->syncp);
-		*pkts = stats->packets;
-		*bytes = stats->bytes;
-	} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
-}
-
-static void rtl_inc_priv_stats(struct rtl8169_stats *stats,
-			       u64 pkts, u64 bytes)
-{
-	u64_stats_update_begin(&stats->syncp);
-	stats->packets += pkts;
-	stats->bytes += bytes;
-	u64_stats_update_end(&stats->syncp);
 }
 
 static void rtl_read_mac_from_reg(struct rtl8169_private *tp, u8 *mac, int reg)
@@ -1591,16 +1562,6 @@ static void rtl8169_do_counters(struct rtl8169_private *tp, u32 counter_cmd)
 	rtl_loop_wait_low(tp, &rtl_counters_cond, 10, 1000);
 }
 
-static void rtl8169_reset_counters(struct rtl8169_private *tp)
-{
-	/*
-	 * Versions prior to RTL_GIGA_MAC_VER_19 don't support resetting the
-	 * tally counters.
-	 */
-	if (tp->mac_version >= RTL_GIGA_MAC_VER_19)
-		rtl8169_do_counters(tp, CounterReset);
-}
-
 static void rtl8169_update_counters(struct rtl8169_private *tp)
 {
 	u8 val = RTL_R8(tp, ChipCmd);
@@ -1635,13 +1596,16 @@ static void rtl8169_init_counter_offsets(struct rtl8169_private *tp)
 	if (tp->tc_offset.inited)
 		return;
 
-	rtl8169_reset_counters(tp);
-	rtl8169_update_counters(tp);
+	if (tp->mac_version >= RTL_GIGA_MAC_VER_19) {
+		rtl8169_do_counters(tp, CounterReset);
+	} else {
+		rtl8169_update_counters(tp);
+		tp->tc_offset.tx_errors = counters->tx_errors;
+		tp->tc_offset.tx_multi_collision = counters->tx_multi_collision;
+		tp->tc_offset.tx_aborted = counters->tx_aborted;
+		tp->tc_offset.rx_missed = counters->rx_missed;
+	}
 
-	tp->tc_offset.tx_errors = counters->tx_errors;
-	tp->tc_offset.tx_multi_collision = counters->tx_multi_collision;
-	tp->tc_offset.tx_aborted = counters->tx_aborted;
-	tp->tc_offset.rx_missed = counters->rx_missed;
 	tp->tc_offset.inited = true;
 }
 
@@ -2243,7 +2207,8 @@ static void rtl_pll_power_down(struct rtl8169_private *tp)
 	}
 
 	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_25 ... RTL_GIGA_MAC_VER_33:
+	case RTL_GIGA_MAC_VER_25 ... RTL_GIGA_MAC_VER_26:
+	case RTL_GIGA_MAC_VER_32 ... RTL_GIGA_MAC_VER_33:
 	case RTL_GIGA_MAC_VER_37:
 	case RTL_GIGA_MAC_VER_39:
 	case RTL_GIGA_MAC_VER_43:
@@ -2269,7 +2234,8 @@ static void rtl_pll_power_down(struct rtl8169_private *tp)
 static void rtl_pll_power_up(struct rtl8169_private *tp)
 {
 	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_25 ... RTL_GIGA_MAC_VER_33:
+	case RTL_GIGA_MAC_VER_25 ... RTL_GIGA_MAC_VER_26:
+	case RTL_GIGA_MAC_VER_32 ... RTL_GIGA_MAC_VER_33:
 	case RTL_GIGA_MAC_VER_37:
 	case RTL_GIGA_MAC_VER_39:
 	case RTL_GIGA_MAC_VER_43:
@@ -3880,7 +3846,7 @@ static struct page *rtl8169_alloc_rx_data(struct rtl8169_private *tp,
 
 static void rtl8169_rx_clear(struct rtl8169_private *tp)
 {
-	unsigned int i;
+	int i;
 
 	for (i = 0; i < NUM_RX_DESC && tp->Rx_databuff[i]; i++) {
 		dma_unmap_page(tp_to_dev(tp),
@@ -3895,7 +3861,7 @@ static void rtl8169_rx_clear(struct rtl8169_private *tp)
 
 static int rtl8169_rx_fill(struct rtl8169_private *tp)
 {
-	unsigned int i;
+	int i;
 
 	for (i = 0; i < NUM_RX_DESC; i++) {
 		struct page *data;
@@ -4080,17 +4046,72 @@ err_out:
 	return -EIO;
 }
 
-static bool rtl_test_hw_pad_bug(struct rtl8169_private *tp)
+static bool rtl_skb_is_udp(struct sk_buff *skb)
 {
+	int no = skb_network_offset(skb);
+	struct ipv6hdr *i6h, _i6h;
+	struct iphdr *ih, _ih;
+
+	switch (vlan_get_protocol(skb)) {
+	case htons(ETH_P_IP):
+		ih = skb_header_pointer(skb, no, sizeof(_ih), &_ih);
+		return ih && ih->protocol == IPPROTO_UDP;
+	case htons(ETH_P_IPV6):
+		i6h = skb_header_pointer(skb, no, sizeof(_i6h), &_i6h);
+		return i6h && i6h->nexthdr == IPPROTO_UDP;
+	default:
+		return false;
+	}
+}
+
+#define RTL_MIN_PATCH_LEN	47
+
+/* see rtl8125_get_patch_pad_len() in r8125 vendor driver */
+static unsigned int rtl8125_quirk_udp_padto(struct rtl8169_private *tp,
+					    struct sk_buff *skb)
+{
+	unsigned int padto = 0, len = skb->len;
+
+	if (rtl_is_8125(tp) && len < 128 + RTL_MIN_PATCH_LEN &&
+	    rtl_skb_is_udp(skb) && skb_transport_header_was_set(skb)) {
+		unsigned int trans_data_len = skb_tail_pointer(skb) -
+					      skb_transport_header(skb);
+
+		if (trans_data_len >= offsetof(struct udphdr, len) &&
+		    trans_data_len < RTL_MIN_PATCH_LEN) {
+			u16 dest = ntohs(udp_hdr(skb)->dest);
+
+			/* dest is a standard PTP port */
+			if (dest == 319 || dest == 320)
+				padto = len + RTL_MIN_PATCH_LEN - trans_data_len;
+		}
+
+		if (trans_data_len < sizeof(struct udphdr))
+			padto = max_t(unsigned int, padto,
+				      len + sizeof(struct udphdr) - trans_data_len);
+	}
+
+	return padto;
+}
+
+static unsigned int rtl_quirk_packet_padto(struct rtl8169_private *tp,
+					   struct sk_buff *skb)
+{
+	unsigned int padto;
+
+	padto = rtl8125_quirk_udp_padto(tp, skb);
+
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_34:
 	case RTL_GIGA_MAC_VER_60:
 	case RTL_GIGA_MAC_VER_61:
 	case RTL_GIGA_MAC_VER_63:
-		return true;
+		padto = max_t(unsigned int, padto, ETH_ZLEN);
 	default:
-		return false;
+		break;
 	}
+
+	return padto;
 }
 
 static void rtl8169_tso_csum_v1(struct sk_buff *skb, u32 *opts)
@@ -4162,21 +4183,22 @@ static bool rtl8169_tso_csum_v2(struct rtl8169_private *tp,
 
 		opts[1] |= transport_offset << TCPHO_SHIFT;
 	} else {
-		if (unlikely(skb->len < ETH_ZLEN && rtl_test_hw_pad_bug(tp)))
-			/* eth_skb_pad would free the skb on error */
-			return !__skb_put_padto(skb, ETH_ZLEN, false);
+		unsigned int padto = rtl_quirk_packet_padto(tp, skb);
+
+		/* skb_padto would free the skb on error */
+		return !__skb_put_padto(skb, padto, false);
 	}
 
 	return true;
 }
 
-static bool rtl_tx_slots_avail(struct rtl8169_private *tp,
-			       unsigned int nr_frags)
+static bool rtl_tx_slots_avail(struct rtl8169_private *tp)
 {
-	unsigned int slots_avail = tp->dirty_tx + NUM_TX_DESC - tp->cur_tx;
+	unsigned int slots_avail = READ_ONCE(tp->dirty_tx) + NUM_TX_DESC
+					- READ_ONCE(tp->cur_tx);
 
 	/* A skbuff with nr_frags needs nr_frags+1 entries in the tx queue */
-	return slots_avail > nr_frags;
+	return slots_avail > MAX_SKB_FRAGS;
 }
 
 /* Versions RTL8102e and from RTL8168c onwards support csum_v2 */
@@ -4209,16 +4231,11 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	bool stop_queue, door_bell;
 	u32 opts[2];
 
-	txd_first = tp->TxDescArray + entry;
-
-	if (unlikely(!rtl_tx_slots_avail(tp, frags))) {
+	if (unlikely(!rtl_tx_slots_avail(tp))) {
 		if (net_ratelimit())
 			netdev_err(dev, "BUG! Tx Ring full when queue awake!\n");
 		goto err_stop_0;
 	}
-
-	if (unlikely(le32_to_cpu(txd_first->opts1) & DescOwn))
-		goto err_stop_0;
 
 	opts[1] = rtl8169_tx_vlan_tag(skb);
 	opts[0] = 0;
@@ -4231,6 +4248,8 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	if (unlikely(rtl8169_tx_map(tp, opts, skb_headlen(skb), skb->data,
 				    entry, false)))
 		goto err_dma_0;
+
+	txd_first = tp->TxDescArray + entry;
 
 	if (frags) {
 		if (rtl8169_xmit_frags(tp, skb, opts, entry))
@@ -4254,22 +4273,15 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	/* rtl_tx needs to see descriptor changes before updated tp->cur_tx */
 	smp_wmb();
 
-	tp->cur_tx += frags + 1;
+	WRITE_ONCE(tp->cur_tx, tp->cur_tx + frags + 1);
 
-	stop_queue = !rtl_tx_slots_avail(tp, MAX_SKB_FRAGS);
+	stop_queue = !rtl_tx_slots_avail(tp);
 	if (unlikely(stop_queue)) {
 		/* Avoid wrongly optimistic queue wake-up: rtl_tx thread must
 		 * not miss a ring update when it notices a stopped queue.
 		 */
 		smp_wmb();
 		netif_stop_queue(dev);
-		door_bell = true;
-	}
-
-	if (door_bell)
-		rtl8169_doorbell(tp);
-
-	if (unlikely(stop_queue)) {
 		/* Sync with rtl_tx:
 		 * - publish queue status and cur_tx ring index (write barrier)
 		 * - refresh dirty_tx ring index (read barrier).
@@ -4277,10 +4289,14 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 		 * status and forget to wake up queue, a racing rtl_tx thread
 		 * can't.
 		 */
-		smp_mb();
-		if (rtl_tx_slots_avail(tp, MAX_SKB_FRAGS))
+		smp_mb__after_atomic();
+		if (rtl_tx_slots_avail(tp))
 			netif_start_queue(dev);
+		door_bell = true;
 	}
+
+	if (door_bell)
+		rtl8169_doorbell(tp);
 
 	return NETDEV_TX_OK;
 
@@ -4347,6 +4363,9 @@ static netdev_features_t rtl8169_features_check(struct sk_buff *skb,
 		if (skb->len < ETH_ZLEN)
 			features &= ~NETIF_F_CSUM_MASK;
 
+		if (rtl_quirk_packet_padto(tp, skb))
+			features &= ~NETIF_F_CSUM_MASK;
+
 		if (transport_offset > TCPHO_MAX &&
 		    rtl_chip_supports_csum_v2(tp))
 			features &= ~NETIF_F_CSUM_MASK;
@@ -4390,20 +4409,20 @@ static void rtl8169_pcierr_interrupt(struct net_device *dev)
 static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
 		   int budget)
 {
-	unsigned int dirty_tx, tx_left, bytes_compl = 0, pkts_compl = 0;
+	unsigned int dirty_tx, bytes_compl = 0, pkts_compl = 0;
+	struct sk_buff *skb;
 
 	dirty_tx = tp->dirty_tx;
-	smp_rmb();
 
-	for (tx_left = tp->cur_tx - dirty_tx; tx_left > 0; tx_left--) {
+	while (READ_ONCE(tp->cur_tx) != dirty_tx) {
 		unsigned int entry = dirty_tx % NUM_TX_DESC;
-		struct sk_buff *skb = tp->tx_skb[entry].skb;
 		u32 status;
 
 		status = le32_to_cpu(tp->TxDescArray[entry].opts1);
 		if (status & DescOwn)
 			break;
 
+		skb = tp->tx_skb[entry].skb;
 		rtl8169_unmap_tx_skb(tp, entry);
 
 		if (skb) {
@@ -4416,10 +4435,8 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
 
 	if (tp->dirty_tx != dirty_tx) {
 		netdev_completed_queue(dev, pkts_compl, bytes_compl);
+		dev_sw_netstats_tx_add(dev, pkts_compl, bytes_compl);
 
-		rtl_inc_priv_stats(&tp->tx_stats, pkts_compl, bytes_compl);
-
-		tp->dirty_tx = dirty_tx;
 		/* Sync with rtl8169_start_xmit:
 		 * - publish dirty_tx ring index (write barrier)
 		 * - refresh cur_tx ring index and queue status (read barrier)
@@ -4427,18 +4444,18 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
 		 * a racing xmit thread can only have a right view of the
 		 * ring status.
 		 */
-		smp_mb();
-		if (netif_queue_stopped(dev) &&
-		    rtl_tx_slots_avail(tp, MAX_SKB_FRAGS)) {
+		smp_store_mb(tp->dirty_tx, dirty_tx);
+		if (netif_queue_stopped(dev) && rtl_tx_slots_avail(tp))
 			netif_wake_queue(dev);
-		}
 		/*
 		 * 8168 hack: TxPoll requests are lost when the Tx packets are
 		 * too close. Let's kick an extra TxPoll request when a burst
 		 * of start_xmit activity is detected (if it is not detected,
 		 * it is slow enough). -- FR
+		 * If skb is NULL then we come here again once a tx irq is
+		 * triggered after the last fragment is marked transmitted.
 		 */
-		if (tp->cur_tx != dirty_tx)
+		if (tp->cur_tx != dirty_tx && skb)
 			rtl8169_doorbell(tp);
 	}
 }
@@ -4459,15 +4476,13 @@ static inline void rtl8169_rx_csum(struct sk_buff *skb, u32 opts1)
 		skb_checksum_none_assert(skb);
 }
 
-static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, u32 budget)
+static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, int budget)
 {
-	unsigned int cur_rx, rx_left, count;
 	struct device *d = tp_to_dev(tp);
+	int count;
 
-	cur_rx = tp->cur_rx;
-
-	for (rx_left = min(budget, NUM_RX_DESC); rx_left > 0; rx_left--, cur_rx++) {
-		unsigned int pkt_size, entry = cur_rx % NUM_RX_DESC;
+	for (count = 0; count < budget; count++, tp->cur_rx++) {
+		unsigned int pkt_size, entry = tp->cur_rx % NUM_RX_DESC;
 		struct RxDesc *desc = tp->RxDescArray + entry;
 		struct sk_buff *skb;
 		const void *rx_buf;
@@ -4539,13 +4554,10 @@ static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, u32 budget
 
 		napi_gro_receive(&tp->napi, skb);
 
-		rtl_inc_priv_stats(&tp->rx_stats, 1, pkt_size);
+		dev_sw_netstats_rx_add(dev, pkt_size);
 release_descriptor:
 		rtl8169_mark_to_asic(desc);
 	}
-
-	count = cur_rx - tp->cur_rx;
-	tp->cur_rx = cur_rx;
 
 	return count;
 }
@@ -4605,7 +4617,7 @@ static int rtl8169_poll(struct napi_struct *napi, int budget)
 	struct net_device *dev = tp->dev;
 	int work_done;
 
-	work_done = rtl_rx(dev, tp, (u32) budget);
+	work_done = rtl_rx(dev, tp, budget);
 
 	rtl_tx(dev, tp, budget);
 
@@ -4692,9 +4704,9 @@ static int rtl8169_close(struct net_device *dev)
 
 	cancel_work_sync(&tp->wk.work);
 
-	phy_disconnect(tp->phydev);
-
 	free_irq(pci_irq_vector(pdev, 0), tp);
+
+	phy_disconnect(tp->phydev);
 
 	dma_free_coherent(&pdev->dev, R8169_RX_RING_BYTES, tp->RxDescArray,
 			  tp->RxPhyAddr);
@@ -4721,6 +4733,7 @@ static int rtl_open(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	struct pci_dev *pdev = tp->pci_dev;
+	unsigned long irqflags;
 	int retval = -ENOMEM;
 
 	pm_runtime_get_sync(&pdev->dev);
@@ -4732,7 +4745,7 @@ static int rtl_open(struct net_device *dev)
 	tp->TxDescArray = dma_alloc_coherent(&pdev->dev, R8169_TX_RING_BYTES,
 					     &tp->TxPhyAddr, GFP_KERNEL);
 	if (!tp->TxDescArray)
-		goto err_pm_runtime_put;
+		goto out;
 
 	tp->RxDescArray = dma_alloc_coherent(&pdev->dev, R8169_RX_RING_BYTES,
 					     &tp->RxPhyAddr, GFP_KERNEL);
@@ -4745,8 +4758,9 @@ static int rtl_open(struct net_device *dev)
 
 	rtl_request_firmware(tp);
 
+	irqflags = pci_dev_msi_enabled(pdev) ? IRQF_NO_THREAD : IRQF_SHARED;
 	retval = request_irq(pci_irq_vector(pdev, 0), rtl8169_interrupt,
-			     IRQF_SHARED, dev->name, tp);
+			     irqflags, dev->name, tp);
 	if (retval < 0)
 		goto err_release_fw_2;
 
@@ -4757,9 +4771,9 @@ static int rtl_open(struct net_device *dev)
 	rtl8169_up(tp);
 	rtl8169_init_counter_offsets(tp);
 	netif_start_queue(dev);
-
-	pm_runtime_put_sync(&pdev->dev);
 out:
+	pm_runtime_put_sync(&pdev->dev);
+
 	return retval;
 
 err_free_irq:
@@ -4775,8 +4789,6 @@ err_free_tx_0:
 	dma_free_coherent(&pdev->dev, R8169_TX_RING_BYTES, tp->TxDescArray,
 			  tp->TxPhyAddr);
 	tp->TxDescArray = NULL;
-err_pm_runtime_put:
-	pm_runtime_put_noidle(&pdev->dev);
 	goto out;
 }
 
@@ -4790,9 +4802,7 @@ rtl8169_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	pm_runtime_get_noresume(&pdev->dev);
 
 	netdev_stats_to_stats64(stats, &dev->stats);
-
-	rtl_get_priv_stats(&tp->rx_stats, &stats->rx_packets, &stats->rx_bytes);
-	rtl_get_priv_stats(&tp->tx_stats, &stats->tx_packets, &stats->tx_bytes);
+	dev_fetch_sw_netstats(stats, dev->tstats);
 
 	/*
 	 * Fetch additional counter values missing in stats collected by driver
@@ -5204,8 +5214,8 @@ static int rtl_get_ether_clk(struct rtl8169_private *tp)
 		if (rc == -ENOENT)
 			/* clk-core allows NULL (for suspend / resume) */
 			rc = 0;
-		else if (rc != -EPROBE_DEFER)
-			dev_err(d, "failed to get clk: %d\n", rc);
+		else
+			dev_err_probe(d, rc, "failed to get clk\n");
 	} else {
 		tp->clk = clk;
 		rc = clk_prepare_enable(clk);
@@ -5262,6 +5272,11 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->supports_gmii = ent->driver_data == RTL_CFG_NO_GBIT ? 0 : 1;
 	tp->eee_adv = -1;
 	tp->ocp_base = OCP_STD_PHY_BASE;
+
+	dev->tstats = devm_netdev_alloc_pcpu_stats(&pdev->dev,
+						   struct pcpu_sw_netstats);
+	if (!dev->tstats)
+		return -ENOMEM;
 
 	/* Get the *optional* external "ether_clk" used on some boards */
 	rc = rtl_get_ether_clk(tp);
@@ -5340,8 +5355,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	INIT_WORK(&tp->wk.work, rtl_task);
-	u64_stats_init(&tp->rx_stats.syncp);
-	u64_stats_init(&tp->tx_stats.syncp);
 
 	rtl_init_mac_address(tp);
 

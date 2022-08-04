@@ -709,7 +709,7 @@ int zerocopy_sg_from_iter(struct sk_buff *skb, struct iov_iter *from)
 EXPORT_SYMBOL(zerocopy_sg_from_iter);
 
 /**
- *	skb_copy_and_csum_datagram_iter - Copy datagram to an iovec iterator
+ *	skb_copy_and_csum_datagram - Copy datagram to an iovec iterator
  *          and update a checksum.
  *	@skb: buffer to copy
  *	@offset: offset in the buffer to start copying from
@@ -721,8 +721,16 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 				      struct iov_iter *to, int len,
 				      __wsum *csump)
 {
-	return __skb_datagram_iter(skb, offset, to, len, true,
-			csum_and_copy_to_iter, csump);
+	struct csum_state csdata = { .csum = *csump };
+	int ret;
+
+	ret = __skb_datagram_iter(skb, offset, to, len, true,
+				  csum_and_copy_to_iter, &csdata);
+	if (ret)
+		return ret;
+
+	*csump = csdata.csum;
+	return 0;
 }
 
 /**

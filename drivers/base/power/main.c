@@ -441,9 +441,9 @@ static pm_callback_t pm_noirq_op(const struct dev_pm_ops *ops, pm_message_t stat
 
 static void pm_dev_dbg(struct device *dev, pm_message_t state, const char *info)
 {
-	dev_dbg(dev, "%s%s%s\n", info, pm_verb(state.event),
+	dev_dbg(dev, "%s%s%s driver flags: %x\n", info, pm_verb(state.event),
 		((state.event & PM_EVENT_SLEEP) && device_may_wakeup(dev)) ?
-		", may wakeup" : "");
+		", may wakeup" : "", dev->power.driver_flags);
 }
 
 static void pm_dev_err(struct device *dev, pm_message_t state, const char *info,
@@ -1359,7 +1359,7 @@ static void dpm_propagate_wakeup_to_parent(struct device *dev)
 
 	spin_lock_irq(&parent->power.lock);
 
-	if (dev->power.wakeup_path && !parent->power.ignore_children)
+	if (device_wakeup_path(dev) && !parent->power.ignore_children)
 		parent->power.wakeup_path = true;
 
 	spin_unlock_irq(&parent->power.lock);
@@ -1627,7 +1627,7 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 		goto Complete;
 
 	/* Avoid direct_complete to let wakeup_path propagate. */
-	if (device_may_wakeup(dev) || dev->power.wakeup_path)
+	if (device_may_wakeup(dev) || device_wakeup_path(dev))
 		dev->power.direct_complete = false;
 
 	if (dev->power.direct_complete) {

@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/accel/kionix,kxcjk1013.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Kionix KXCJK-1013 Accelerometer
+
+maintainers:
+  - Robert Yang <decatf@gmail.com>
+
+properties:
+  compatible:
+    enum:
+      - kionix,kxcjk1013
+      - kionix,kxcj91008
+      - kionix,kxtj21009
+      - kionix,kxtf9
+
+  reg:
+    maxItems: 1
+
+  mount-matrix:
+    description: an optional 3x3 mounting rotation matrix.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        accel@f {
+            compatible = "kionix,kxtf9";
+            reg = <0x0F>;
+            mount-matrix = "0", "1", "0",
+                           "1", "0", "0",
+                           "0", "0", "1";
+        };
+    };
+...

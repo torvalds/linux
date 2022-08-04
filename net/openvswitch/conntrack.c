@@ -1037,6 +1037,14 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 		    ovs_ct_helper(skb, info->family) != NF_ACCEPT) {
 			return -EINVAL;
 		}
+
+		if (nf_ct_protonum(ct) == IPPROTO_TCP &&
+		    nf_ct_is_confirmed(ct) && nf_conntrack_tcp_established(ct)) {
+			/* Be liberal for tcp packets so that out-of-window
+			 * packets are not marked invalid.
+			 */
+			nf_ct_set_tcp_be_liberal(ct);
+		}
 	}
 
 	return 0;
@@ -2025,15 +2033,11 @@ static int ovs_ct_limit_get_default_limit(struct ovs_ct_limit_info *info,
 					  struct sk_buff *reply)
 {
 	struct ovs_zone_limit zone_limit;
-	int err;
 
 	zone_limit.zone_id = OVS_ZONE_LIMIT_DEFAULT_ZONE;
 	zone_limit.limit = info->default_limit;
-	err = nla_put_nohdr(reply, sizeof(zone_limit), &zone_limit);
-	if (err)
-		return err;
 
-	return 0;
+	return nla_put_nohdr(reply, sizeof(zone_limit), &zone_limit);
 }
 
 static int __ovs_ct_limit_get_zone_limit(struct net *net,

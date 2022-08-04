@@ -39,8 +39,6 @@ do {								\
 
 #define ELF_FDPIC_CORE_EFLAGS	0
 
-#define ELF_CORE_COPY_FPREGS(...) 0 /* No FPU regs to copy */
-
 /*
  * These are used to set parameters in the core dumps.
  */
@@ -56,7 +54,6 @@ do {								\
 /* Nothing for now. Need to setup DP... */
 #define ELF_PLAT_INIT(_r)
 
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	4096
 
 #define ELF_CORE_COPY_REGS(_dest, _regs)		\

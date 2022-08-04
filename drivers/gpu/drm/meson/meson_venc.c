@@ -890,8 +890,8 @@ bool meson_venc_hdmi_supported_vic(int vic)
 }
 EXPORT_SYMBOL_GPL(meson_venc_hdmi_supported_vic);
 
-void meson_venc_hdmi_get_dmt_vmode(const struct drm_display_mode *mode,
-				   union meson_hdmi_venc_mode *dmt_mode)
+static void meson_venc_hdmi_get_dmt_vmode(const struct drm_display_mode *mode,
+					  union meson_hdmi_venc_mode *dmt_mode)
 {
 	memset(dmt_mode, 0, sizeof(*dmt_mode));
 

@@ -28,11 +28,9 @@ properties:
     description: i2c address of the bridge, 0x0f
 
   vdd-supply:
-    maxItems: 1
     description: 1.2V LVDS Power Supply
 
   vddio-supply:
-    maxItems: 1
     description: 1.8V IO Power Supply
 
   stby-gpios:

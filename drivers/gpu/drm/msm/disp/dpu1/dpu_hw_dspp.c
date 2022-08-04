@@ -57,8 +57,7 @@ static void dpu_setup_dspp_pcc(struct dpu_hw_dspp *ctx,
 static void _setup_dspp_ops(struct dpu_hw_dspp *c,
 		unsigned long features)
 {
-	if (test_bit(DPU_DSPP_PCC, &features) &&
-		IS_SC7180_TARGET(c->hw.hwversion))
+	if (test_bit(DPU_DSPP_PCC, &features))
 		c->ops.setup_pcc = dpu_setup_dspp_pcc;
 }
 

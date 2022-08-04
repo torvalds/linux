@@ -199,7 +199,7 @@ static irqreturn_t mms114_interrupt(int irq, void *dev_id)
 	int error;
 
 	mutex_lock(&input_dev->mutex);
-	if (!input_dev->users) {
+	if (!input_device_enabled(input_dev)) {
 		mutex_unlock(&input_dev->mutex);
 		goto out;
 	}
@@ -564,7 +564,7 @@ static int __maybe_unused mms114_suspend(struct device *dev)
 	input_sync(input_dev);
 
 	mutex_lock(&input_dev->mutex);
-	if (input_dev->users)
+	if (input_device_enabled(input_dev))
 		mms114_stop(data);
 	mutex_unlock(&input_dev->mutex);
 
@@ -579,7 +579,7 @@ static int __maybe_unused mms114_resume(struct device *dev)
 	int error;
 
 	mutex_lock(&input_dev->mutex);
-	if (input_dev->users) {
+	if (input_device_enabled(input_dev)) {
 		error = mms114_start(data);
 		if (error < 0) {
 			mutex_unlock(&input_dev->mutex);

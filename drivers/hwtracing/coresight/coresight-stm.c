@@ -96,7 +96,7 @@ module_param_named(
 	boot_nr_channel, boot_nr_channel, int, S_IRUGO
 );
 
-/**
+/*
  * struct channel_space - central management entity for extended ports
  * @base:		memory mapped base address where channels start.
  * @phys:		physical base address of channel region.
@@ -951,7 +951,7 @@ stm_unregister:
 	return ret;
 }
 
-static int __exit stm_remove(struct amba_device *adev)
+static int stm_remove(struct amba_device *adev)
 {
 	struct stm_drvdata *drvdata = dev_get_drvdata(&adev->dev);
 

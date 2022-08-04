@@ -57,7 +57,7 @@ To get help on a command, another level of help is provided. For example for the
 
 Summary of platform capability
 ------------------------------
-To check the current platform and driver capaibilities, execute::
+To check the current platform and driver capabilities, execute::
 
 #intel-speed-select --info
 
@@ -658,7 +658,7 @@ If -a option is not used, then the following steps are required before enabling
 Intel(R) SST-BF:
 
 - Discover Intel(R) SST-BF and note low and high priority base frequency
-- Note the high prioity CPU list
+- Note the high priority CPU list
 - Enable CLOS using core-power feature set
 - Configure CLOS parameters. Use CLOS.min to set to minimum performance
 - Subscribe desired CPUs to CLOS groups

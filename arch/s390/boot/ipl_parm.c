@@ -17,10 +17,10 @@ int __bootdata_preserved(ipl_block_valid);
 unsigned int __bootdata_preserved(zlib_dfltcc_support) = ZLIB_DFLTCC_FULL;
 
 unsigned long __bootdata(vmalloc_size) = VMALLOC_DEFAULT_SIZE;
-unsigned long __bootdata(memory_end);
-int __bootdata(memory_end_set);
 int __bootdata(noexec_disabled);
 
+unsigned long memory_limit;
+int vmalloc_size_set;
 int kaslr_enabled;
 
 static inline int __diag308(unsigned long subcode, void *addr)
@@ -55,6 +55,17 @@ void store_ipl_parmblock(void)
 	if (rc == DIAG308_RC_OK &&
 	    ipl_block.hdr.version <= IPL_MAX_SUPPORTED_VERSION)
 		ipl_block_valid = 1;
+}
+
+bool is_ipl_block_dump(void)
+{
+	if (ipl_block.pb0_hdr.pbt == IPL_PBT_FCP &&
+	    ipl_block.fcp.opt == IPL_PB0_FCP_OPT_DUMP)
+		return true;
+	if (ipl_block.pb0_hdr.pbt == IPL_PBT_NVME &&
+	    ipl_block.nvme.opt == IPL_PB0_NVME_OPT_DUMP)
+		return true;
+	return false;
 }
 
 static size_t scpdata_length(const u8 *buf, size_t count)
@@ -237,13 +248,13 @@ void parse_boot_command_line(void)
 	while (*args) {
 		args = next_arg(args, &param, &val);
 
-		if (!strcmp(param, "mem") && val) {
-			memory_end = round_down(memparse(val, NULL), PAGE_SIZE);
-			memory_end_set = 1;
-		}
+		if (!strcmp(param, "mem") && val)
+			memory_limit = round_down(memparse(val, NULL), PAGE_SIZE);
 
-		if (!strcmp(param, "vmalloc") && val)
+		if (!strcmp(param, "vmalloc") && val) {
 			vmalloc_size = round_up(memparse(val, NULL), PAGE_SIZE);
+			vmalloc_size_set = 1;
+		}
 
 		if (!strcmp(param, "dfltcc") && val) {
 			if (!strcmp(val, "off"))
@@ -278,28 +289,4 @@ void parse_boot_command_line(void)
 		}
 #endif
 	}
-}
-
-static inline bool is_ipl_block_dump(void)
-{
-	if (ipl_block.pb0_hdr.pbt == IPL_PBT_FCP &&
-	    ipl_block.fcp.opt == IPL_PB0_FCP_OPT_DUMP)
-		return true;
-	if (ipl_block.pb0_hdr.pbt == IPL_PBT_NVME &&
-	    ipl_block.nvme.opt == IPL_PB0_NVME_OPT_DUMP)
-		return true;
-	return false;
-}
-
-void setup_memory_end(void)
-{
-#ifdef CONFIG_CRASH_DUMP
-	if (OLDMEM_BASE) {
-		kaslr_enabled = 0;
-	} else if (ipl_block_valid && is_ipl_block_dump()) {
-		kaslr_enabled = 0;
-		if (!sclp_early_get_hsa_size(&memory_end) && memory_end)
-			memory_end_set = 1;
-	}
-#endif
 }

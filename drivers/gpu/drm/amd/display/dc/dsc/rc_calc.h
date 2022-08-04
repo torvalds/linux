@@ -66,8 +66,8 @@ enum bits_per_comp {
 };
 
 enum max_min {
-	MM_MIN = 0,
-	MM_MAX = 1
+	DAL_MM_MIN = 0,
+	DAL_MM_MAX = 1
 };
 
 struct qp_entry {

@@ -224,7 +224,7 @@ static inline  bool can_reduce_fps(struct v4l2_bt_timings *bt)
 }
 
 /**
- * struct v4l2_hdmi_rx_colorimetry - describes the HDMI colorimetry information
+ * struct v4l2_hdmi_colorimetry - describes the HDMI colorimetry information
  * @colorspace:		enum v4l2_colorspace, the colorspace
  * @ycbcr_enc:		enum v4l2_ycbcr_encoding, Y'CbCr encoding
  * @quantization:	enum v4l2_quantization, colorspace quantization

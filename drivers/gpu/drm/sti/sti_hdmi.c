@@ -167,6 +167,12 @@ struct sti_hdmi_connector {
 #define to_sti_hdmi_connector(x) \
 	container_of(x, struct sti_hdmi_connector, drm_connector)
 
+static const struct drm_prop_enum_list colorspace_mode_names[] = {
+	{ HDMI_COLORSPACE_RGB, "rgb" },
+	{ HDMI_COLORSPACE_YUV422, "yuv422" },
+	{ HDMI_COLORSPACE_YUV444, "yuv444" },
+};
+
 u32 hdmi_read(struct sti_hdmi *hdmi, int offset)
 {
 	return readl(hdmi->regs + offset);

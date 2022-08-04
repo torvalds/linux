@@ -94,7 +94,7 @@ static struct platform_driver sirf_hwspinlock_driver = {
 	.probe = sirf_hwspinlock_probe,
 	.driver = {
 		.name = "atlas7_hwspinlock",
-		.of_match_table = of_match_ptr(sirf_hwpinlock_ids),
+		.of_match_table = sirf_hwpinlock_ids,
 	},
 };
 

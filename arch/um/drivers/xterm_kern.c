@@ -51,7 +51,7 @@ int xterm_fd(int socket, int *pid_out)
 
 	err = um_request_irq(XTERM_IRQ, socket, IRQ_READ, xterm_interrupt,
 			     IRQF_SHARED, "xterm", data);
-	if (err) {
+	if (err < 0) {
 		printk(KERN_ERR "xterm_fd : failed to get IRQ for xterm, "
 		       "err = %d\n",  err);
 		ret = err;

@@ -99,7 +99,6 @@
 				| _PAGE_DIRTY)
 
 #define PAGE_KERNEL		__pgprot(_PAGE_KERNEL)
-#define PAGE_KERNEL_EXEC	__pgprot(_PAGE_KERNEL | _PAGE_EXEC)
 #define PAGE_KERNEL_READ	__pgprot(_PAGE_KERNEL & ~_PAGE_WRITE)
 #define PAGE_KERNEL_EXEC	__pgprot(_PAGE_KERNEL | _PAGE_EXEC)
 #define PAGE_KERNEL_READ_EXEC	__pgprot((_PAGE_KERNEL & ~_PAGE_WRITE) \
@@ -460,8 +459,6 @@ static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
 #define TASK_SIZE		0xffffffffUL
 #define VMALLOC_START		0
 #define VMALLOC_END		TASK_SIZE
-
-static inline void __kernel_map_pages(struct page *page, int numpages, int enable) {}
 
 #endif /* !CONFIG_MMU */
 

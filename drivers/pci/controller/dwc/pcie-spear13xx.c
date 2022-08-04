@@ -66,32 +66,10 @@ struct pcie_app_reg {
 
 #define to_spear13xx_pcie(x)	dev_get_drvdata((x)->dev)
 
-static int spear13xx_pcie_establish_link(struct spear13xx_pcie *spear13xx_pcie)
+static int spear13xx_pcie_start_link(struct dw_pcie *pci)
 {
-	struct dw_pcie *pci = spear13xx_pcie->pci;
-	struct pcie_port *pp = &pci->pp;
+	struct spear13xx_pcie *spear13xx_pcie = to_spear13xx_pcie(pci);
 	struct pcie_app_reg *app_reg = spear13xx_pcie->app_base;
-	u32 val;
-	u32 exp_cap_off = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
-
-	if (dw_pcie_link_up(pci)) {
-		dev_err(pci->dev, "link already up\n");
-		return 0;
-	}
-
-	dw_pcie_setup_rc(pp);
-
-	/*
-	 * this controller support only 128 bytes read size, however its
-	 * default value in capability register is 512 bytes. So force
-	 * it to 128 here.
-	 */
-	val = dw_pcie_readw_dbi(pci, exp_cap_off + PCI_EXP_DEVCTL);
-	val &= ~PCI_EXP_DEVCTL_READRQ;
-	dw_pcie_writew_dbi(pci, exp_cap_off + PCI_EXP_DEVCTL, val);
-
-	dw_pcie_writew_dbi(pci, PCI_VENDOR_ID, 0x104A);
-	dw_pcie_writew_dbi(pci, PCI_DEVICE_ID, 0xCD80);
 
 	/* enable ltssm */
 	writel(DEVICE_TYPE_RC | (1 << MISCTRL_EN_ID)
@@ -99,7 +77,7 @@ static int spear13xx_pcie_establish_link(struct spear13xx_pcie *spear13xx_pcie)
 			| ((u32)1 << REG_TRANSLATION_ENABLE),
 			&app_reg->app_ctrl_0);
 
-	return dw_pcie_wait_for_link(pci);
+	return 0;
 }
 
 static irqreturn_t spear13xx_pcie_irq_handler(int irq, void *arg)
@@ -124,16 +102,12 @@ static irqreturn_t spear13xx_pcie_irq_handler(int irq, void *arg)
 
 static void spear13xx_pcie_enable_interrupts(struct spear13xx_pcie *spear13xx_pcie)
 {
-	struct dw_pcie *pci = spear13xx_pcie->pci;
-	struct pcie_port *pp = &pci->pp;
 	struct pcie_app_reg *app_reg = spear13xx_pcie->app_base;
 
 	/* Enable MSI interrupt */
-	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		dw_pcie_msi_init(pp);
+	if (IS_ENABLED(CONFIG_PCI_MSI))
 		writel(readl(&app_reg->int_mask) |
 				MSI_CTRL_INT, &app_reg->int_mask);
-	}
 }
 
 static int spear13xx_pcie_link_up(struct dw_pcie *pci)
@@ -151,8 +125,23 @@ static int spear13xx_pcie_host_init(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct spear13xx_pcie *spear13xx_pcie = to_spear13xx_pcie(pci);
+	u32 exp_cap_off = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
+	u32 val;
 
-	spear13xx_pcie_establish_link(spear13xx_pcie);
+	spear13xx_pcie->app_base = pci->dbi_base + 0x2000;
+
+	/*
+	 * this controller support only 128 bytes read size, however its
+	 * default value in capability register is 512 bytes. So force
+	 * it to 128 here.
+	 */
+	val = dw_pcie_readw_dbi(pci, exp_cap_off + PCI_EXP_DEVCTL);
+	val &= ~PCI_EXP_DEVCTL_READRQ;
+	dw_pcie_writew_dbi(pci, exp_cap_off + PCI_EXP_DEVCTL, val);
+
+	dw_pcie_writew_dbi(pci, PCI_VENDOR_ID, 0x104A);
+	dw_pcie_writew_dbi(pci, PCI_DEVICE_ID, 0xCD80);
+
 	spear13xx_pcie_enable_interrupts(spear13xx_pcie);
 
 	return 0;
@@ -183,6 +172,7 @@ static int spear13xx_add_pcie_port(struct spear13xx_pcie *spear13xx_pcie,
 	}
 
 	pp->ops = &spear13xx_pcie_host_ops;
+	pp->msi_irq = -ENODEV;
 
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
@@ -195,6 +185,7 @@ static int spear13xx_add_pcie_port(struct spear13xx_pcie *spear13xx_pcie,
 
 static const struct dw_pcie_ops dw_pcie_ops = {
 	.link_up = spear13xx_pcie_link_up,
+	.start_link = spear13xx_pcie_start_link,
 };
 
 static int spear13xx_pcie_probe(struct platform_device *pdev)
@@ -203,7 +194,6 @@ static int spear13xx_pcie_probe(struct platform_device *pdev)
 	struct dw_pcie *pci;
 	struct spear13xx_pcie *spear13xx_pcie;
 	struct device_node *np = dev->of_node;
-	struct resource *dbi_base;
 	int ret;
 
 	spear13xx_pcie = devm_kzalloc(dev, sizeof(*spear13xx_pcie), GFP_KERNEL);
@@ -241,14 +231,6 @@ static int spear13xx_pcie_probe(struct platform_device *pdev)
 		dev_err(dev, "couldn't enable clk for pcie\n");
 		return ret;
 	}
-
-	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-	pci->dbi_base = devm_pci_remap_cfg_resource(dev, dbi_base);
-	if (IS_ERR(pci->dbi_base)) {
-		ret = PTR_ERR(pci->dbi_base);
-		goto fail_clk;
-	}
-	spear13xx_pcie->app_base = pci->dbi_base + 0x2000;
 
 	if (of_property_read_bool(np, "st,pcie-is-gen1"))
 		pci->link_gen = 1;

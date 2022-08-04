@@ -272,7 +272,7 @@ void eth_header_cache_update(struct hh_cache *hh,
 EXPORT_SYMBOL(eth_header_cache_update);
 
 /**
- * eth_header_parser_protocol - extract protocol from L2 header
+ * eth_header_parse_protocol - extract protocol from L2 header
  * @skb: packet to extract protocol from
  */
 __be16 eth_header_parse_protocol(const struct sk_buff *skb)
@@ -523,8 +523,8 @@ int eth_platform_get_mac_address(struct device *dev, u8 *mac_addr)
 EXPORT_SYMBOL(eth_platform_get_mac_address);
 
 /**
- * Obtain the MAC address from an nvmem cell named 'mac-address' associated
- * with given device.
+ * nvmem_get_mac_address - Obtain the MAC address from an nvmem cell named
+ * 'mac-address' associated with given device.
  *
  * @dev:	Device with which the mac-address cell is associated.
  * @addrbuf:	Buffer to which the MAC address will be copied on success.

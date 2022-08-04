@@ -35,7 +35,7 @@ properties:
     description: I2C slave address
 
   clock-mode:
-    $ref: /schemas/types.yaml#definitions/uint8
+    $ref: /schemas/types.yaml#/definitions/uint8
     description: |
       Input clock mode
     enum:
@@ -49,7 +49,7 @@ properties:
       GPIO attached to the chip's enable pin
 
   pwr-sel:
-    $ref: /schemas/types.yaml#definitions/uint8
+    $ref: /schemas/types.yaml#/definitions/uint8
     description: |
       LP8501 specific property. Power selection for output channels.
     enum:
@@ -70,14 +70,14 @@ patternProperties:
     $ref: common.yaml#
     properties:
       led-cur:
-        $ref: /schemas/types.yaml#definitions/uint8
+        $ref: /schemas/types.yaml#/definitions/uint8
         description: |
           Current setting at each LED channel (mA x10, 0 if LED is not connected)
         minimum: 0
         maximum: 255
 
       max-cur:
-        $ref: /schemas/types.yaml#definitions/uint8
+        $ref: /schemas/types.yaml#/definitions/uint8
         description: Maximun current at each LED channel.
 
       reg:
@@ -97,7 +97,7 @@ patternProperties:
           - 8 # LED output D9
 
       chan-name:
-        $ref: /schemas/types.yaml#definitions/string
+        $ref: /schemas/types.yaml#/definitions/string
         description: name of channel
 
 required:

@@ -263,7 +263,7 @@ Please notice that it will point to:
 
 - The last developers that touched the source code (if this is done inside
   a git tree). On the above example, Tejun and Bhaktipriya (in this
-  specific case, none really envolved on the development of this file);
+  specific case, none really involved on the development of this file);
 - The driver maintainer (Hans Verkuil);
 - The subsystem maintainer (Mauro Carvalho Chehab);
 - The driver and/or subsystem mailing list (linux-media@vger.kernel.org);

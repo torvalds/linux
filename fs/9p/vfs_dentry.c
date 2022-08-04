@@ -85,6 +85,8 @@ static int v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 			retval = v9fs_refresh_inode_dotl(fid, inode);
 		else
 			retval = v9fs_refresh_inode(fid, inode);
+		p9_client_clunk(fid);
+
 		if (retval == -ENOENT)
 			return 0;
 		if (retval < 0)

@@ -1268,7 +1268,7 @@ void dce120_timing_generator_construct(
 	tg110->min_h_front_porch = 0;
 	tg110->min_h_back_porch = 0;
 
-	tg110->min_h_sync_width = 8;
+	tg110->min_h_sync_width = 4;
 	tg110->min_v_sync_width = 1;
 	tg110->min_v_blank = 3;
 }

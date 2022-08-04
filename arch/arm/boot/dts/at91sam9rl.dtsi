@@ -266,8 +266,6 @@
 			};
 
 			adc0: adc@fffd0000 {
-				#address-cells = <1>;
-				#size-cells = <0>;
 				compatible = "atmel,at91sam9rl-adc";
 				reg = <0xfffd0000 0x100>;
 				interrupts = <20 IRQ_TYPE_LEVEL_HIGH 0>;
@@ -277,29 +275,6 @@
 				atmel,adc-channels-used = <0x3f>;
 				atmel,adc-vref = <3300>;
 				atmel,adc-startup-time = <40>;
-				atmel,adc-res = <8 10>;
-				atmel,adc-res-names = "lowres", "highres";
-				atmel,adc-use-res = "highres";
-
-				trigger0 {
-					trigger-name = "timer-counter-0";
-					trigger-value = <0x1>;
-				};
-				trigger1 {
-					trigger-name = "timer-counter-1";
-					trigger-value = <0x3>;
-				};
-
-				trigger2 {
-					trigger-name = "timer-counter-2";
-					trigger-value = <0x5>;
-				};
-
-				trigger3 {
-					trigger-name = "external";
-					trigger-value = <0x13>;
-					trigger-external;
-				};
 			};
 
 			usb0: gadget@fffd4000 {

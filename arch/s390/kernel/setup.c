@@ -49,6 +49,7 @@
 #include <linux/memory.h>
 #include <linux/compat.h>
 #include <linux/start_kernel.h>
+#include <linux/hugetlb.h>
 
 #include <asm/boot_data.h>
 #include <asm/ipl.h>
@@ -94,10 +95,8 @@ char elf_platform[ELF_PLATFORM_SIZE];
 unsigned long int_hwcap = 0;
 
 int __bootdata(noexec_disabled);
-int __bootdata(memory_end_set);
-unsigned long __bootdata(memory_end);
+unsigned long __bootdata(ident_map_size);
 unsigned long __bootdata(vmalloc_size);
-unsigned long __bootdata(max_physmem_end);
 struct mem_detect_info __bootdata(mem_detect);
 
 struct exception_table_entry *__bootdata_preserved(__start_dma_ex_table);
@@ -556,24 +555,25 @@ static void __init setup_resources(void)
 #endif
 }
 
-static void __init setup_memory_end(void)
+static void __init setup_ident_map_size(void)
 {
 	unsigned long vmax, tmp;
 
 	/* Choose kernel address space layout: 3 or 4 levels. */
-	tmp = (memory_end ?: max_physmem_end) / PAGE_SIZE;
+	tmp = ident_map_size / PAGE_SIZE;
 	tmp = tmp * (sizeof(struct page) + PAGE_SIZE);
 	if (tmp + vmalloc_size + MODULES_LEN <= _REGION2_SIZE)
 		vmax = _REGION2_SIZE; /* 3-level kernel page table */
 	else
 		vmax = _REGION1_SIZE; /* 4-level kernel page table */
-	if (is_prot_virt_host())
-		adjust_to_uv_max(&vmax);
-#ifdef CONFIG_KASAN
-	vmax = kasan_vmax;
-#endif
 	/* module area is at the end of the kernel address space. */
 	MODULES_END = vmax;
+	if (is_prot_virt_host())
+		adjust_to_uv_max(&MODULES_END);
+#ifdef CONFIG_KASAN
+	vmax = _REGION1_SIZE;
+	MODULES_END = kasan_vmax;
+#endif
 	MODULES_VADDR = MODULES_END - MODULES_LEN;
 	VMALLOC_END = MODULES_VADDR;
 	VMALLOC_START = VMALLOC_END - vmalloc_size;
@@ -587,22 +587,22 @@ static void __init setup_memory_end(void)
 	tmp = min(tmp, 1UL << MAX_PHYSMEM_BITS);
 	vmemmap = (struct page *) tmp;
 
-	/* Take care that memory_end is set and <= vmemmap */
-	memory_end = min(memory_end ?: max_physmem_end, (unsigned long)vmemmap);
+	/* Take care that ident_map_size <= vmemmap */
+	ident_map_size = min(ident_map_size, (unsigned long)vmemmap);
 #ifdef CONFIG_KASAN
-	memory_end = min(memory_end, KASAN_SHADOW_START);
+	ident_map_size = min(ident_map_size, KASAN_SHADOW_START);
 #endif
-	vmemmap_size = SECTION_ALIGN_UP(memory_end / PAGE_SIZE) * sizeof(struct page);
+	vmemmap_size = SECTION_ALIGN_UP(ident_map_size / PAGE_SIZE) * sizeof(struct page);
 #ifdef CONFIG_KASAN
 	/* move vmemmap above kasan shadow only if stands in a way */
 	if (KASAN_SHADOW_END > (unsigned long)vmemmap &&
 	    (unsigned long)vmemmap + vmemmap_size > KASAN_SHADOW_START)
 		vmemmap = max(vmemmap, (struct page *)KASAN_SHADOW_END);
 #endif
-	max_pfn = max_low_pfn = PFN_DOWN(memory_end);
-	memblock_remove(memory_end, ULONG_MAX);
+	max_pfn = max_low_pfn = PFN_DOWN(ident_map_size);
+	memblock_remove(ident_map_size, ULONG_MAX);
 
-	pr_notice("The maximum memory size is %luMB\n", memory_end >> 20);
+	pr_notice("The maximum memory size is %luMB\n", ident_map_size >> 20);
 }
 
 #ifdef CONFIG_CRASH_DUMP
@@ -632,12 +632,11 @@ static struct notifier_block kdump_mem_nb = {
 #endif
 
 /*
- * Make sure that the area behind memory_end is protected
+ * Make sure that the area above identity mapping is protected
  */
-static void __init reserve_memory_end(void)
+static void __init reserve_above_ident_map(void)
 {
-	if (memory_end_set)
-		memblock_reserve(memory_end, ULONG_MAX);
+	memblock_reserve(ident_map_size, ULONG_MAX);
 }
 
 /*
@@ -674,7 +673,7 @@ static void __init reserve_crashkernel(void)
 	phys_addr_t low, high;
 	int rc;
 
-	rc = parse_crashkernel(boot_command_line, memory_end, &crash_size,
+	rc = parse_crashkernel(boot_command_line, ident_map_size, &crash_size,
 			       &crash_base);
 
 	crash_base = ALIGN(crash_base, KEXEC_CRASH_MEM_ALIGN);
@@ -1128,7 +1127,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_control_program_code();
 
 	/* Do some memory reservations *before* memory is added to memblock */
-	reserve_memory_end();
+	reserve_above_ident_map();
 	reserve_oldmem();
 	reserve_kernel();
 	reserve_initrd();
@@ -1143,10 +1142,12 @@ void __init setup_arch(char **cmdline_p)
 	remove_oldmem();
 
 	setup_uv();
-	setup_memory_end();
+	setup_ident_map_size();
 	setup_memory();
-	dma_contiguous_reserve(memory_end);
+	dma_contiguous_reserve(ident_map_size);
 	vmcp_cma_reserve();
+	if (MACHINE_HAS_EDAT2)
+		hugetlb_cma_reserve(PUD_SHIFT - PAGE_SHIFT);
 
 	check_initrd();
 	reserve_crashkernel();

@@ -65,10 +65,9 @@ static void reload_slb(struct kvm_vcpu *vcpu)
  * On POWER7, see if we can handle a machine check that occurred inside
  * the guest in real mode, without switching to the host partition.
  */
-static void kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
+static long kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
 {
 	unsigned long srr1 = vcpu->arch.shregs.msr;
-	struct machine_check_event mce_evt;
 	long handled = 1;
 
 	if (srr1 & SRR1_MC_LDSTERR) {
@@ -106,6 +105,21 @@ static void kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
 		handled = 0;
 	}
 
+	return handled;
+}
+
+void kvmppc_realmode_machine_check(struct kvm_vcpu *vcpu)
+{
+	struct machine_check_event mce_evt;
+	long handled;
+
+	if (vcpu->kvm->arch.fwnmi_enabled) {
+		/* FWNMI guests handle their own recovery */
+		handled = 0;
+	} else {
+		handled = kvmppc_realmode_mc_power7(vcpu);
+	}
+
 	/*
 	 * Now get the event and stash it in the vcpu struct so it can
 	 * be handled by the primary thread in virtual mode.  We can't
@@ -120,11 +134,6 @@ static void kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
 	}
 
 	vcpu->arch.mce_evt = mce_evt;
-}
-
-void kvmppc_realmode_machine_check(struct kvm_vcpu *vcpu)
-{
-	kvmppc_realmode_mc_power7(vcpu);
 }
 
 /* Check if dynamic split is in force and return subcore size accordingly. */

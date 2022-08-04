@@ -416,9 +416,8 @@ void hda_dsp_dump_skl(struct snd_sof_dev *sdev, u32 flags)
 }
 
 /* dump the first 8 dwords representing the extended ROM status */
-static void hda_dsp_dump_ext_rom_status(struct snd_sof_dev *sdev)
+static void hda_dsp_dump_ext_rom_status(struct snd_sof_dev *sdev, u32 flags)
 {
-	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	char msg[128];
 	int len = 0;
 	u32 value;
@@ -429,14 +428,13 @@ static void hda_dsp_dump_ext_rom_status(struct snd_sof_dev *sdev)
 		len += snprintf(msg + len, sizeof(msg) - len, " 0x%x", value);
 	}
 
-	sof_dev_dbg_or_err(sdev->dev, hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS,
+	sof_dev_dbg_or_err(sdev->dev, flags & SOF_DBG_DUMP_FORCE_ERR_LEVEL,
 			   "extended rom status: %s", msg);
 
 }
 
 void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 {
-	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct sof_ipc_dsp_oops_xtensa xoops;
 	struct sof_ipc_panic_info panic_info;
 	u32 stack[HDA_DSP_STACK_DUMP_SIZE];
@@ -456,11 +454,11 @@ void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 		snd_sof_get_status(sdev, status, panic, &xoops, &panic_info,
 				   stack, HDA_DSP_STACK_DUMP_SIZE);
 	} else {
-		sof_dev_dbg_or_err(sdev->dev, hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS,
+		sof_dev_dbg_or_err(sdev->dev, flags & SOF_DBG_DUMP_FORCE_ERR_LEVEL,
 				   "status = 0x%8.8x panic = 0x%8.8x\n",
 				   status, panic);
 
-		hda_dsp_dump_ext_rom_status(sdev);
+		hda_dsp_dump_ext_rom_status(sdev, flags);
 		hda_dsp_get_status(sdev);
 	}
 }

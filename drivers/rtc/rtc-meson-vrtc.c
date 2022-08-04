@@ -83,7 +83,7 @@ static int meson_vrtc_probe(struct platform_device *pdev)
 		return PTR_ERR(vrtc->rtc);
 
 	vrtc->rtc->ops = &meson_vrtc_ops;
-	return rtc_register_device(vrtc->rtc);
+	return devm_rtc_register_device(vrtc->rtc);
 }
 
 static int __maybe_unused meson_vrtc_suspend(struct device *dev)

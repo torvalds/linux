@@ -9,12 +9,10 @@
 #include <util/util.h>
 #include <util/bpf-loader.h>
 #include <util/evlist.h>
-#include <linux/bpf.h>
 #include <linux/filter.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <api/fs/fs.h>
-#include <bpf/bpf.h>
 #include <perf/mmap.h>
 #include "tests.h"
 #include "llvm.h"
@@ -25,6 +23,8 @@
 #define PERF_TEST_BPF_PATH "/sys/fs/bpf/perf_test"
 
 #ifdef HAVE_LIBBPF_SUPPORT
+#include <linux/bpf.h>
+#include <bpf/bpf.h>
 
 static int epoll_pwait_loop(void)
 {
@@ -144,23 +144,23 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	pid[sizeof(pid) - 1] = '\0';
 	opts.target.tid = opts.target.pid = pid;
 
-	/* Instead of perf_evlist__new_default, don't add default events */
+	/* Instead of evlist__new_default, don't add default events */
 	evlist = evlist__new();
 	if (!evlist) {
 		pr_debug("Not enough memory to create evlist\n");
 		return TEST_FAIL;
 	}
 
-	err = perf_evlist__create_maps(evlist, &opts.target);
+	err = evlist__create_maps(evlist, &opts.target);
 	if (err < 0) {
 		pr_debug("Not enough memory to create thread/cpu maps\n");
 		goto out_delete_evlist;
 	}
 
-	perf_evlist__splice_list_tail(evlist, &parse_state.list);
+	evlist__splice_list_tail(evlist, &parse_state.list);
 	evlist->nr_groups = parse_state.nr_groups;
 
-	perf_evlist__config(evlist, &opts, NULL);
+	evlist__config(evlist, &opts, NULL);
 
 	err = evlist__open(evlist);
 	if (err < 0) {

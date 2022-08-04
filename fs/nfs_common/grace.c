@@ -69,10 +69,14 @@ __state_in_grace(struct net *net, bool open)
 	if (!open)
 		return !list_empty(grace_list);
 
+	spin_lock(&grace_lock);
 	list_for_each_entry(lm, grace_list, list) {
-		if (lm->block_opens)
+		if (lm->block_opens) {
+			spin_unlock(&grace_lock);
 			return true;
+		}
 	}
+	spin_unlock(&grace_lock);
 	return false;
 }
 

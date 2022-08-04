@@ -6,9 +6,9 @@
 #include <asm/ipcbuf.h>
 
 /*
- * The semid64_ds structure for x86 architecture.
- * Note extra padding because this structure is passed back and forth
- * between kernel and user space.
+ * The semid64_ds structure for most architectures (though it came from x86_32
+ * originally). Note extra padding because this structure is passed back and
+ * forth between kernel and user space.
  *
  * semid64_ds was originally meant to be architecture specific, but
  * everyone just ended up making identical copies without specific

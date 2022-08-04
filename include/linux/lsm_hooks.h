@@ -1105,7 +1105,7 @@
  * @xfrm_state_pol_flow_match:
  *	@x contains the state to match.
  *	@xp contains the policy to check for a match.
- *	@fl contains the flow to check for a match.
+ *	@flic contains the flowi_common struct to check for a match.
  *	Return 1 if there is a match.
  * @xfrm_decode_session:
  *	@skb points to skb to decode.

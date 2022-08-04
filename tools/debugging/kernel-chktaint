@@ -72,7 +72,7 @@ if [ `expr $T % 2` -eq 0 ]; then
 	addout " "
 else
 	addout "S"
-	echo " * SMP kernel oops on an officially SMP incapable processor (#2)"
+	echo " * kernel running on an out of specification system (#2)"
 fi
 
 T=`expr $T / 2`

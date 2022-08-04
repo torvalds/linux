@@ -152,6 +152,7 @@ setup_instance() { # [instance]
 	set_array_of ${instance}.options ${instancedir}/trace_options
 	set_value_of ${instance}.trace_clock ${instancedir}/trace_clock
 	set_value_of ${instance}.cpumask ${instancedir}/tracing_cpumask
+	set_value_of ${instance}.tracing_on ${instancedir}/tracing_on
 	set_value_of ${instance}.tracer ${instancedir}/current_tracer
 	set_array_of ${instance}.ftrace.filters \
 		${instancedir}/set_ftrace_filter

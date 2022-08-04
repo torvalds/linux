@@ -6,7 +6,7 @@ config DRM_AMD_DC
 	bool "AMD DC - Enable new display engine"
 	default y
 	select SND_HDA_COMPONENT if SND_HDA_CORE
-	select DRM_AMD_DC_DCN if (X86 || PPC64 || (ARM64 && KERNEL_MODE_NEON)) && !(KCOV_INSTRUMENT_ALL && KCOV_ENABLE_COMPARISONS)
+	select DRM_AMD_DC_DCN if (X86 || PPC64) && !(KCOV_INSTRUMENT_ALL && KCOV_ENABLE_COMPARISONS)
 	help
 	  Choose this option if you want to use the new display engine
 	  support for AMDGPU. This adds required support for Vega and
@@ -15,15 +15,7 @@ config DRM_AMD_DC
 config DRM_AMD_DC_DCN
 	def_bool n
 	help
-	  Raven, Navi and Renoir family support for display engine
-
-config DRM_AMD_DC_DCN3_0
-        bool "DCN 3.0 family"
-        depends on DRM_AMD_DC && X86
-        depends on DRM_AMD_DC_DCN
-        help
-            Choose this option if you want to have
-            sienna_cichlid support for display engine
+	  Raven, Navi, and newer family support for display engine
 
 config DRM_AMD_DC_HDCP
 	bool "Enable HDCP support in DC"

@@ -275,7 +275,7 @@ static struct ft_sess *ft_sess_delete(struct ft_tport *tport, u32 port_id)
 
 static void ft_close_sess(struct ft_sess *sess)
 {
-	target_sess_cmd_list_set_waiting(sess->se_sess);
+	target_stop_session(sess->se_sess);
 	target_wait_for_sess_cmds(sess->se_sess);
 	ft_sess_put(sess);
 }

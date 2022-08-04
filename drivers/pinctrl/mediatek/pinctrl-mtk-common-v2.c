@@ -488,14 +488,8 @@ EXPORT_SYMBOL_GPL(mtk_pinconf_bias_get);
 int mtk_pinconf_bias_disable_set_rev1(struct mtk_pinctrl *hw,
 				      const struct mtk_pin_desc *desc)
 {
-	int err;
-
-	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_PULLEN,
-			       MTK_DISABLE);
-	if (err)
-		return err;
-
-	return 0;
+	return mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_PULLEN,
+				MTK_DISABLE);
 }
 EXPORT_SYMBOL_GPL(mtk_pinconf_bias_disable_set_rev1);
 
@@ -924,6 +918,10 @@ int mtk_pinconf_adv_pull_set(struct mtk_pinctrl *hw,
 	if (err == -ENOTSUPP) {
 		if (hw->soc->bias_set) {
 			err = hw->soc->bias_set(hw, desc, pullup);
+			if (err)
+				return err;
+		} else if (hw->soc->bias_set_combo) {
+			err = hw->soc->bias_set_combo(hw, desc, pullup, arg);
 			if (err)
 				return err;
 		} else {

@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/types.h>
+#include <linux/irq.h>
 
 #include <asm/bcache.h>
 #include <asm/mips-cps.h>
@@ -461,6 +462,7 @@ static int cps_cpu_disable(void)
 	smp_mb__after_atomic();
 	set_cpu_online(cpu, false);
 	calculate_cpu_foreign_map();
+	irq_migrate_all_off_this_cpu();
 
 	return 0;
 }

@@ -33,7 +33,7 @@ void rtw_os_recv_resource_free(struct recv_priv *precvpriv)
 	sint i;
 	union recv_frame *precvframe;
 
-	precvframe = (union recv_frame*) precvpriv->precv_frame_buf;
+	precvframe = (union recv_frame *) precvpriv->precv_frame_buf;
 
 	for (i = 0; i < NR_RECVFRAME; i++) {
 		if (precvframe->u.hdr.pkt) {
@@ -97,7 +97,7 @@ _pkt *rtw_os_alloc_msdu_pkt(union recv_frame *prframe, u16 nSubframe_Length, u8 
 
 void rtw_os_recv_indicate_pkt(struct adapter *padapter, _pkt *pkt, struct rx_pkt_attrib *pattrib)
 {
-	struct mlme_priv*pmlmepriv = &padapter->mlmepriv;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	int ret;
 
 	/* Indicate the packets to upper layer */
@@ -117,14 +117,14 @@ void rtw_os_recv_indicate_pkt(struct adapter *padapter, _pkt *pkt, struct rx_pkt
 				}
 
 				if (psta) {
-					struct net_device *pnetdev = (struct net_device*)padapter->pnetdev;
+					struct net_device *pnetdev = (struct net_device *)padapter->pnetdev;
 					/* skb->ip_summed = CHECKSUM_NONE; */
 					pkt->dev = pnetdev;
 					skb_set_queue_mapping(pkt, rtw_recv_select_queue(pkt));
 
 					_rtw_xmit_entry(pkt, pnetdev);
 
-					if (bmcast && (pskb2 != NULL)) {
+					if (bmcast && pskb2) {
 						pkt = pskb2;
 						DBG_COUNTER(padapter->rx_logs.os_indicate_ap_mcast);
 					} else {
@@ -165,7 +165,7 @@ void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup)
 	enum nl80211_key_type key_type = 0;
 	union iwreq_data wrqu;
 	struct iw_michaelmicfailure    ev;
-	struct mlme_priv*              pmlmepriv  = &padapter->mlmepriv;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	unsigned long cur_time = 0;
 
@@ -218,9 +218,9 @@ static void rtw_os_ksocket_send(struct adapter *padapter, union recv_frame *prec
 	if (psta && psta->isrc && psta->pid > 0) {
 		u16 rx_pid;
 
-		rx_pid = *(u16*)(skb->data+ETH_HLEN);
+		rx_pid = *(u16 *)(skb->data+ETH_HLEN);
 
-		DBG_871X("eth rx(pid = 0x%x): sta("MAC_FMT") pid = 0x%x\n",
+		DBG_871X("eth rx(pid = 0x%x): sta(%pM) pid = 0x%x\n",
 			rx_pid, MAC_ARG(psta->hwaddr), psta->pid);
 
 		if (rx_pid == psta->pid) {

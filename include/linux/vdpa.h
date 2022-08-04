@@ -42,6 +42,7 @@ struct vdpa_vq_state {
  * @config: the configuration ops for this device.
  * @index: device index
  * @features_valid: were features initialized? for legacy guests
+ * @nvqs: maximum number of supported virtqueues
  */
 struct vdpa_device {
 	struct device dev;

@@ -68,7 +68,7 @@ extern void *jbd2_alloc(size_t size, gfp_t flags);
 extern void jbd2_free(void *ptr, size_t size);
 
 #define JBD2_MIN_JOURNAL_BLOCKS 1024
-#define JBD2_MIN_FC_BLOCKS	256
+#define JBD2_DEFAULT_FAST_COMMIT_BLOCKS 256
 
 #ifdef __KERNEL__
 
@@ -538,6 +538,7 @@ struct transaction_chp_stats_s {
  * The transaction keeps track of all of the buffers modified by a
  * running transaction, and all of the buffers committed but not yet
  * flushed to home for finished transactions.
+ * (Locking Documentation improved by LockDoc)
  */
 
 /*
@@ -658,12 +659,12 @@ struct transaction_s
 	unsigned long		t_start;
 
 	/*
-	 * When commit was requested
+	 * When commit was requested [j_state_lock]
 	 */
 	unsigned long		t_requested;
 
 	/*
-	 * Checkpointing stats [j_checkpoint_sem]
+	 * Checkpointing stats [j_list_lock]
 	 */
 	struct transaction_chp_stats_s t_chp_stats;
 
@@ -1689,6 +1690,13 @@ static inline int jbd2_journal_has_csum_v2or3(journal_t *journal)
 		     journal->j_chksum_driver == NULL);
 
 	return journal->j_chksum_driver != NULL;
+}
+
+static inline int jbd2_journal_get_num_fc_blks(journal_superblock_t *jsb)
+{
+	int num_fc_blocks = be32_to_cpu(jsb->s_num_fc_blks);
+
+	return num_fc_blocks ? num_fc_blocks : JBD2_DEFAULT_FAST_COMMIT_BLOCKS;
 }
 
 /*

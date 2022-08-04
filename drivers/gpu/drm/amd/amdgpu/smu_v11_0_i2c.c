@@ -212,6 +212,7 @@ static uint32_t smu_v11_0_i2c_poll_rx_status(struct i2c_adapter *control)
 /**
  * smu_v11_0_i2c_transmit - Send a block of data over the I2C bus to a slave device.
  *
+ * @control: I2C adapter reference
  * @address: The I2C address of the slave device.
  * @data: The data to transmit over the bus.
  * @numbytes: The amount of data to transmit.
@@ -313,7 +314,9 @@ Err:
 /**
  * smu_v11_0_i2c_receive - Receive a block of data over the I2C bus from a slave device.
  *
+ * @control: I2C adapter reference
  * @address: The I2C address of the slave device.
+ * @data: Placeholder to store received data.
  * @numbytes: The amount of data to transmit.
  * @i2c_flag: Flags for transmission
  *

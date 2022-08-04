@@ -32,6 +32,7 @@ struct host1x_subdev {
 /**
  * host1x_subdev_add() - add a new subdevice with an associated device node
  * @device: host1x device to add the subdevice to
+ * @driver: host1x driver containing the subdevices
  * @np: device node
  */
 static int host1x_subdev_add(struct host1x_device *device,

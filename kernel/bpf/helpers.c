@@ -108,7 +108,7 @@ BPF_CALL_2(bpf_map_peek_elem, struct bpf_map *, map, void *, value)
 }
 
 const struct bpf_func_proto bpf_map_peek_elem_proto = {
-	.func		= bpf_map_pop_elem,
+	.func		= bpf_map_peek_elem,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_CONST_MAP_PTR,
@@ -163,6 +163,17 @@ BPF_CALL_0(bpf_ktime_get_boot_ns)
 
 const struct bpf_func_proto bpf_ktime_get_boot_ns_proto = {
 	.func		= bpf_ktime_get_boot_ns,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+};
+
+BPF_CALL_0(bpf_ktime_get_coarse_ns)
+{
+	return ktime_get_coarse_ns();
+}
+
+const struct bpf_func_proto bpf_ktime_get_coarse_ns_proto = {
+	.func		= bpf_ktime_get_coarse_ns,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 };
@@ -685,6 +696,8 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 		return &bpf_ktime_get_ns_proto;
 	case BPF_FUNC_ktime_get_boot_ns:
 		return &bpf_ktime_get_boot_ns_proto;
+	case BPF_FUNC_ktime_get_coarse_ns:
+		return &bpf_ktime_get_coarse_ns_proto;
 	case BPF_FUNC_ringbuf_output:
 		return &bpf_ringbuf_output_proto;
 	case BPF_FUNC_ringbuf_reserve:

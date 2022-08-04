@@ -47,11 +47,12 @@
 /**
  * enum mlx5_fpga_access_type - Enumerated the different methods possible for
  * accessing the device memory address space
+ *
+ * @MLX5_FPGA_ACCESS_TYPE_I2C: Use the slow CX-FPGA I2C bus
+ * @MLX5_FPGA_ACCESS_TYPE_DONTCARE: Use the fastest available method
  */
 enum mlx5_fpga_access_type {
-	/** Use the slow CX-FPGA I2C bus */
 	MLX5_FPGA_ACCESS_TYPE_I2C = 0x0,
-	/** Use the fastest available method */
 	MLX5_FPGA_ACCESS_TYPE_DONTCARE = 0x0,
 };
 
@@ -113,6 +114,7 @@ struct mlx5_fpga_conn_attr {
 	 * subsequent receives.
 	 */
 	void (*recv_cb)(void *cb_arg, struct mlx5_fpga_dma_buf *buf);
+	/** @cb_arg: A context to be passed to recv_cb callback */
 	void *cb_arg;
 };
 
@@ -145,7 +147,7 @@ void mlx5_fpga_sbu_conn_destroy(struct mlx5_fpga_conn *conn);
 
 /**
  * mlx5_fpga_sbu_conn_sendmsg() - Queue the transmission of a packet
- * @fdev: An FPGA SBU connection
+ * @conn: An FPGA SBU connection
  * @buf: The packet buffer
  *
  * Queues a packet for transmission over an FPGA SBU connection.

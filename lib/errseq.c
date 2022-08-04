@@ -3,6 +3,7 @@
 #include <linux/bug.h>
 #include <linux/atomic.h>
 #include <linux/errseq.h>
+#include <linux/log2.h>
 
 /*
  * An errseq_t is a way of recording errors in one place, and allowing any

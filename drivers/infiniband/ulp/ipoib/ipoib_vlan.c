@@ -46,7 +46,7 @@ static ssize_t show_parent(struct device *d, struct device_attribute *attr,
 	struct net_device *dev = to_net_dev(d);
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
-	return sprintf(buf, "%s\n", priv->parent->name);
+	return sysfs_emit(buf, "%s\n", priv->parent->name);
 }
 static DEVICE_ATTR(parent, S_IRUGO, show_parent, NULL);
 

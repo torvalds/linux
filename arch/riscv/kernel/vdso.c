@@ -12,7 +12,7 @@
 #include <linux/binfmts.h>
 #include <linux/err.h>
 #include <asm/page.h>
-#ifdef GENERIC_TIME_VSYSCALL
+#ifdef CONFIG_GENERIC_TIME_VSYSCALL
 #include <vdso/datapage.h>
 #else
 #include <asm/vdso.h>

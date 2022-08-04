@@ -190,14 +190,12 @@ static int ds1742_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(rtc);
 
 	rtc->ops = &ds1742_rtc_ops;
-	rtc->nvram_old_abi = true;
 
-	ret = rtc_register_device(rtc);
+	ret = devm_rtc_register_device(rtc);
 	if (ret)
 		return ret;
 
-	if (rtc_nvmem_register(rtc, &nvmem_cfg))
-		dev_err(&pdev->dev, "Unable to register nvmem\n");
+	devm_rtc_nvmem_register(rtc, &nvmem_cfg);
 
 	return 0;
 }

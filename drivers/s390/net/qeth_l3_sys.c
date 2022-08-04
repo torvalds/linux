@@ -805,28 +805,7 @@ static const struct attribute_group qeth_device_rxip_group = {
 	.attrs = qeth_rxip_device_attrs,
 };
 
-static const struct attribute_group *qeth_l3_only_attr_groups[] = {
-	&qeth_l3_device_attr_group,
-	&qeth_device_ipato_group,
-	&qeth_device_vipa_group,
-	&qeth_device_rxip_group,
-	NULL,
-};
-
-int qeth_l3_create_device_attributes(struct device *dev)
-{
-	return sysfs_create_groups(&dev->kobj, qeth_l3_only_attr_groups);
-}
-
-void qeth_l3_remove_device_attributes(struct device *dev)
-{
-	sysfs_remove_groups(&dev->kobj, qeth_l3_only_attr_groups);
-}
-
 const struct attribute_group *qeth_l3_attr_groups[] = {
-	&qeth_device_attr_group,
-	&qeth_device_blkt_group,
-	/* l3 specific, see qeth_l3_only_attr_groups: */
 	&qeth_l3_device_attr_group,
 	&qeth_device_ipato_group,
 	&qeth_device_vipa_group,

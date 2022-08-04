@@ -294,7 +294,6 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 				default:
 					err("MAJOR PROBLEM!!!!, header type not supported? %x\n", hdr_type);
 					return -ENXIO;
-					break;
 			}	/* end of switch */
 		}	/* end of valid device */
 	}	/* end of for */
@@ -1509,7 +1508,6 @@ static int unconfigure_boot_card(struct slot *slot_cur)
 				default:
 					err("MAJOR PROBLEM!!!! Cannot read device's header\n");
 					return -1;
-					break;
 			}	/* end of switch */
 		}	/* end of valid device */
 	}	/* end of for */

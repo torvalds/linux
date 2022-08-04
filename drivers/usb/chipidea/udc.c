@@ -26,6 +26,7 @@
 #include "bits.h"
 #include "otg.h"
 #include "otg_fsm.h"
+#include "trace.h"
 
 /* control endpoint description */
 static const struct usb_endpoint_descriptor
@@ -569,14 +570,18 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 	if (ret)
 		return ret;
 
-	firstnode = list_first_entry(&hwreq->tds, struct td_node, td);
-
 	lastnode = list_entry(hwreq->tds.prev,
 		struct td_node, td);
 
 	lastnode->ptr->next = cpu_to_le32(TD_TERMINATE);
 	if (!hwreq->req.no_interrupt)
 		lastnode->ptr->token |= cpu_to_le32(TD_IOC);
+
+	list_for_each_entry_safe(firstnode, lastnode, &hwreq->tds, td)
+		trace_ci_prepare_td(hwep, hwreq, firstnode);
+
+	firstnode = list_first_entry(&hwreq->tds, struct td_node, td);
+
 	wmb();
 
 	hwreq->req.actual = 0;
@@ -671,6 +676,7 @@ static int _hardware_dequeue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 
 	list_for_each_entry_safe(node, tmpnode, &hwreq->tds, td) {
 		tmptoken = le32_to_cpu(node->ptr->token);
+		trace_ci_complete_td(hwep, hwreq, node);
 		if ((TD_STATUS_ACTIVE & tmptoken) != 0) {
 			int n = hw_ep_bit(hwep->num, hwep->dir);
 

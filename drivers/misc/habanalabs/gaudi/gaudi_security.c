@@ -1448,21 +1448,23 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	u32 pb_addr, mask;
 	u8 word_offset;
 
-	gaudi_pb_set_block(hdev, mmDMA_IF_E_S_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_IF_E_S_DOWN_CH0_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_IF_E_S_DOWN_CH1_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_E_PLL_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_IF_E_S_DOWN_BASE);
+	if (hdev->asic_prop.fw_security_disabled) {
+		gaudi_pb_set_block(hdev, mmDMA_IF_E_S_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_E_S_DOWN_CH0_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_E_S_DOWN_CH1_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_E_PLL_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_E_S_DOWN_BASE);
 
-	gaudi_pb_set_block(hdev, mmDMA_IF_W_N_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_IF_W_N_DOWN_CH0_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_IF_W_N_DOWN_CH1_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_IF_W_N_DOWN_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_W_N_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_W_N_DOWN_CH0_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_W_N_DOWN_CH1_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_W_N_DOWN_BASE);
 
-	gaudi_pb_set_block(hdev, mmDMA_IF_E_N_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_IF_E_N_DOWN_CH0_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_IF_E_N_DOWN_CH1_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_IF_E_N_DOWN_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_E_N_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_E_N_DOWN_CH0_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_E_N_DOWN_CH1_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_E_N_DOWN_BASE);
+	}
 
 	WREG32(mmDMA0_QM_BASE - CFG_BASE + PROT_BITS_OFFS + 0x7C, 0);
 	WREG32(mmDMA1_QM_BASE - CFG_BASE + PROT_BITS_OFFS + 0x7C, 0);
@@ -5157,19 +5159,3992 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	WREG32(pb_addr + word_offset, ~mask);
 }
 
+static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
+{
+	u32 pb_addr, mask;
+	u8 word_offset;
+
+	WREG32(mmNIC0_QM0_BASE - CFG_BASE + PROT_BITS_OFFS + 0x7C, 0);
+	WREG32(mmNIC0_QM1_BASE - CFG_BASE + PROT_BITS_OFFS + 0x7C, 0);
+
+	pb_addr = (mmNIC0_QM0_GLBL_CFG0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM0_GLBL_CFG0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM0_GLBL_CFG0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_CFG1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_PROT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_ERR_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_STS0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_STS1_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_MSG_EN_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_MSG_EN_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_MSG_EN_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_MSG_EN_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_MSG_EN_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_BASE_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_BASE_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_BASE_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_BASE_LO_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM0_PQ_BASE_HI_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM0_PQ_BASE_HI_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM0_PQ_BASE_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_BASE_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_BASE_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_BASE_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_SIZE_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_SIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_SIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_SIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_PI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_PI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_PI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_PI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_CI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_CI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_CI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_CI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_CFG0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_CFG0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_CFG0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_CFG0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_CFG1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_CFG1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_CFG1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_CFG1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_STS0_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM0_PQ_STS1_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM0_PQ_STS1_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM0_PQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_PQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_STS0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_PTR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_PTR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_TSIZE_0 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM0_CQ_CTL_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM0_CQ_CTL_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM0_CQ_CTL_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_PTR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_PTR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_TSIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_CTL_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_PTR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_PTR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_TSIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_CTL_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_PTR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_PTR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_TSIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_CTL_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_PTR_LO_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_PTR_LO_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_PTR_LO_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_PTR_LO_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_PTR_LO_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_PTR_HI_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_PTR_HI_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_PTR_HI_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_PTR_HI_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_PTR_HI_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_TSIZE_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_TSIZE_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_TSIZE_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_TSIZE_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_TSIZE_STS_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM0_CQ_CTL_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM0_CQ_CTL_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM0_CQ_CTL_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_CTL_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_CTL_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_CTL_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_CTL_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_IFIFO_CNT_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_IFIFO_CNT_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_IFIFO_CNT_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_IFIFO_CNT_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CQ_IFIFO_CNT_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE0_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE0_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE0_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE0_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE0_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE0_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE0_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE0_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE0_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE0_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE1_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE1_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE1_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE1_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE1_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE1_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE1_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE1_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE1_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE1_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE2_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE2_ADDR_LO_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM0_CP_MSG_BASE2_ADDR_LO_2 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM0_CP_MSG_BASE2_ADDR_LO_2 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM0_CP_MSG_BASE2_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE2_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE2_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE2_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE2_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE2_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE2_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE2_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE3_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE3_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE3_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE3_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE3_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE3_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE3_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE3_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE3_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_MSG_BASE3_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_LDMA_TSIZE_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_LDMA_TSIZE_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_LDMA_TSIZE_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_LDMA_TSIZE_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_LDMA_TSIZE_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_LDMA_DST_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_LDMA_DST_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_LDMA_DST_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM0_CP_LDMA_DST_BASE_LO_OFFSET_3 & ~0xFFF) +
+				PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM0_CP_LDMA_DST_BASE_LO_OFFSET_3 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM0_CP_LDMA_DST_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_LDMA_DST_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM0_CP_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM0_CP_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM0_CP_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_CURRENT_INST_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_CURRENT_INST_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_CURRENT_INST_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_CURRENT_INST_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_CURRENT_INST_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_CURRENT_INST_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_CURRENT_INST_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_CURRENT_INST_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_CURRENT_INST_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_CURRENT_INST_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_BARRIER_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_BARRIER_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_BARRIER_CFG_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM0_CP_BARRIER_CFG_3 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM0_CP_BARRIER_CFG_3 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC0_QM0_CP_BARRIER_CFG_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_BARRIER_CFG_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_DBG_0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_DBG_0_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM0_CP_DBG_0_2 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM0_CP_DBG_0_2 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM0_CP_DBG_0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_DBG_0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_DBG_0_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_ARUSER_31_11_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_AWUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_AWUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_AWUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_AWUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CP_AWUSER_31_11_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM0_ARB_CFG_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM0_ARB_CFG_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM0_ARB_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_19 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_23 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM0_ARB_MST_AVAIL_CRED_24 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_24 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_AVAIL_CRED_31 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM0_ARB_MST_CHOISE_PUSH_OFST_23 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM0_ARB_MST_CHOISE_PUSH_OFST_23 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM0_ARB_SLV_CHOISE_WDT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM0_ARB_STATE_STS & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM0_ARB_STATE_STS & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM0_ARB_STATE_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_CHOISE_FULLNESS_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MSG_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_SLV_CHOISE_Q_HEAD & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_ERR_CAUSE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_ERR_MSG_EN & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_ERR_STS_DRP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_19 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM0_ARB_MST_CRED_STS_20 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM0_ARB_MST_CRED_STS_20 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_23 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MST_CRED_STS_31 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CGM_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CGM_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CGM_CFG1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM0_LOCAL_RANGE_BASE & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM0_LOCAL_RANGE_BASE & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC0_QM0_LOCAL_RANGE_BASE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_LOCAL_RANGE_SIZE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_CSMR_STRICT_PRIO_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_HBW_RD_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_LBW_WR_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_LBW_WR_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_HBW_RD_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_AXCACHE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_IND_GW_APB_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_IND_GW_APB_WDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_IND_GW_APB_RDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_IND_GW_APB_STATUS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_ERR_ADDR_LO & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_ERR_WDATA & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM0_GLBL_MEM_INIT_BUSY & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM0_GLBL_MEM_INIT_BUSY & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC0_QM0_GLBL_MEM_INIT_BUSY & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM1_GLBL_CFG0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM1_GLBL_CFG0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM1_GLBL_CFG0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_CFG1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_PROT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_ERR_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_STS0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_STS1_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_MSG_EN_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_MSG_EN_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_MSG_EN_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_MSG_EN_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_MSG_EN_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_BASE_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_BASE_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_BASE_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_BASE_LO_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM1_PQ_BASE_HI_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM1_PQ_BASE_HI_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM1_PQ_BASE_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_BASE_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_BASE_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_BASE_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_SIZE_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_SIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_SIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_SIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_PI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_PI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_PI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_PI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_CI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_CI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_CI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_CI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_CFG0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_CFG0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_CFG0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_CFG0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_CFG1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_CFG1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_CFG1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_CFG1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_STS0_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM1_PQ_STS1_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM1_PQ_STS1_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM1_PQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_PQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_STS0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_PTR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_PTR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_TSIZE_0 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM1_CQ_CTL_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM1_CQ_CTL_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM1_CQ_CTL_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_PTR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_PTR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_TSIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_CTL_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_PTR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_PTR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_TSIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_CTL_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_PTR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_PTR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_TSIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_CTL_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_PTR_LO_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_PTR_LO_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_PTR_LO_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_PTR_LO_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_PTR_LO_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_PTR_HI_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_PTR_HI_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_PTR_HI_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_PTR_HI_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_PTR_HI_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_TSIZE_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_TSIZE_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_TSIZE_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_TSIZE_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_TSIZE_STS_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM1_CQ_CTL_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM1_CQ_CTL_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM1_CQ_CTL_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_CTL_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_CTL_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_CTL_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_CTL_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_IFIFO_CNT_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_IFIFO_CNT_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_IFIFO_CNT_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_IFIFO_CNT_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CQ_IFIFO_CNT_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE0_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE0_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE0_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE0_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE0_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE0_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE0_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE0_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE0_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE0_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE1_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE1_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE1_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE1_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE1_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE1_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE1_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE1_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE1_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE1_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE2_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE2_ADDR_LO_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM1_CP_MSG_BASE2_ADDR_LO_2 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM1_CP_MSG_BASE2_ADDR_LO_2 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM1_CP_MSG_BASE2_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE2_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE2_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE2_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE2_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE2_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE2_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE2_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE3_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE3_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE3_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE3_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE3_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE3_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE3_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE3_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE3_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_MSG_BASE3_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_LDMA_TSIZE_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_LDMA_TSIZE_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_LDMA_TSIZE_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_LDMA_TSIZE_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_LDMA_TSIZE_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_LDMA_DST_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_LDMA_DST_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_LDMA_DST_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM1_CP_LDMA_DST_BASE_LO_OFFSET_3 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM1_CP_LDMA_DST_BASE_LO_OFFSET_3 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM1_CP_LDMA_DST_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_LDMA_DST_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM1_CP_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM1_CP_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM1_CP_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_CURRENT_INST_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_CURRENT_INST_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_CURRENT_INST_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_CURRENT_INST_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_CURRENT_INST_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_CURRENT_INST_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_CURRENT_INST_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_CURRENT_INST_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_CURRENT_INST_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_CURRENT_INST_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_BARRIER_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_BARRIER_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_BARRIER_CFG_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM1_CP_BARRIER_CFG_3 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM1_CP_BARRIER_CFG_3 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC0_QM1_CP_BARRIER_CFG_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_BARRIER_CFG_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_DBG_0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_DBG_0_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM1_CP_DBG_0_2 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM1_CP_DBG_0_2 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM1_CP_DBG_0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_DBG_0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_DBG_0_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_ARUSER_31_11_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_AWUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_AWUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_AWUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_AWUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CP_AWUSER_31_11_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM1_ARB_CFG_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM1_ARB_CFG_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM1_ARB_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_19 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_23 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM1_ARB_MST_AVAIL_CRED_24 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_24 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_AVAIL_CRED_31 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM1_ARB_MST_CHOISE_PUSH_OFST_23 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM1_ARB_MST_CHOISE_PUSH_OFST_23 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM1_ARB_SLV_CHOISE_WDT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM1_ARB_STATE_STS & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM1_ARB_STATE_STS & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC0_QM1_ARB_STATE_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_CHOISE_FULLNESS_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MSG_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_SLV_CHOISE_Q_HEAD & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_ERR_CAUSE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_ERR_MSG_EN & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_ERR_STS_DRP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_19 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM1_ARB_MST_CRED_STS_20 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM1_ARB_MST_CRED_STS_20 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_23 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MST_CRED_STS_31 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CGM_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CGM_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CGM_CFG1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM1_LOCAL_RANGE_BASE & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM1_LOCAL_RANGE_BASE & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC0_QM1_LOCAL_RANGE_BASE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_LOCAL_RANGE_SIZE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_CSMR_STRICT_PRIO_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_HBW_RD_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_LBW_WR_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_LBW_WR_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_HBW_RD_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_AXCACHE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_IND_GW_APB_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_IND_GW_APB_WDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_IND_GW_APB_RDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_IND_GW_APB_STATUS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_ERR_ADDR_LO & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_ERR_WDATA & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC0_QM1_GLBL_MEM_INIT_BUSY & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC0_QM1_GLBL_MEM_INIT_BUSY & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC0_QM1_GLBL_MEM_INIT_BUSY & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	WREG32(mmNIC1_QM0_BASE - CFG_BASE + PROT_BITS_OFFS + 0x7C, 0);
+	WREG32(mmNIC1_QM1_BASE - CFG_BASE + PROT_BITS_OFFS + 0x7C, 0);
+
+	pb_addr = (mmNIC1_QM0_GLBL_CFG0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM0_GLBL_CFG0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM0_GLBL_CFG0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_CFG1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_PROT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_ERR_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_STS0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_STS1_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_MSG_EN_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_MSG_EN_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_MSG_EN_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_MSG_EN_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_MSG_EN_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_BASE_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_BASE_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_BASE_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_BASE_LO_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM0_PQ_BASE_HI_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM0_PQ_BASE_HI_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM0_PQ_BASE_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_BASE_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_BASE_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_BASE_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_SIZE_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_SIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_SIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_SIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_PI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_PI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_PI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_PI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_CI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_CI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_CI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_CI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_CFG0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_CFG0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_CFG0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_CFG0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_CFG1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_CFG1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_CFG1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_CFG1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_STS0_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM0_PQ_STS1_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM0_PQ_STS1_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM0_PQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_PQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_STS0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_PTR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_PTR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_TSIZE_0 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM0_CQ_CTL_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM0_CQ_CTL_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM0_CQ_CTL_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_PTR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_PTR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_TSIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_CTL_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_PTR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_PTR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_TSIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_CTL_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_PTR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_PTR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_TSIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_CTL_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_PTR_LO_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_PTR_LO_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_PTR_LO_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_PTR_LO_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_PTR_LO_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_PTR_HI_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_PTR_HI_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_PTR_HI_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_PTR_HI_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_PTR_HI_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_TSIZE_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_TSIZE_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_TSIZE_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_TSIZE_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_TSIZE_STS_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM0_CQ_CTL_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM0_CQ_CTL_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM0_CQ_CTL_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_CTL_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_CTL_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_CTL_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_CTL_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_IFIFO_CNT_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_IFIFO_CNT_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_IFIFO_CNT_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_IFIFO_CNT_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CQ_IFIFO_CNT_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE0_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE0_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE0_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE0_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE0_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE0_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE0_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE0_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE0_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE0_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE1_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE1_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE1_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE1_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE1_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE1_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE1_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE1_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE1_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE1_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE2_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE2_ADDR_LO_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM0_CP_MSG_BASE2_ADDR_LO_2 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM0_CP_MSG_BASE2_ADDR_LO_2 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM0_CP_MSG_BASE2_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE2_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE2_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE2_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE2_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE2_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE2_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE2_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE3_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE3_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE3_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE3_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE3_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE3_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE3_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE3_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE3_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_MSG_BASE3_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_LDMA_TSIZE_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_LDMA_TSIZE_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_LDMA_TSIZE_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_LDMA_TSIZE_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_LDMA_TSIZE_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_LDMA_DST_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_LDMA_DST_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_LDMA_DST_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM0_CP_LDMA_DST_BASE_LO_OFFSET_3 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM0_CP_LDMA_DST_BASE_LO_OFFSET_3 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM0_CP_LDMA_DST_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_LDMA_DST_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM0_CP_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM0_CP_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM0_CP_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_CURRENT_INST_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_CURRENT_INST_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_CURRENT_INST_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_CURRENT_INST_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_CURRENT_INST_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_CURRENT_INST_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_CURRENT_INST_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_CURRENT_INST_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_CURRENT_INST_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_CURRENT_INST_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_BARRIER_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_BARRIER_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_BARRIER_CFG_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM0_CP_BARRIER_CFG_3 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM0_CP_BARRIER_CFG_3 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC1_QM0_CP_BARRIER_CFG_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_BARRIER_CFG_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_DBG_0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_DBG_0_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM0_CP_DBG_0_2 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM0_CP_DBG_0_2 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM0_CP_DBG_0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_DBG_0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_DBG_0_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_ARUSER_31_11_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_AWUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_AWUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_AWUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_AWUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CP_AWUSER_31_11_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM0_ARB_CFG_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM0_ARB_CFG_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM0_ARB_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_19 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_23 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM0_ARB_MST_AVAIL_CRED_24 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_24 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_AVAIL_CRED_31 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM0_ARB_MST_CHOISE_PUSH_OFST_23 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM0_ARB_MST_CHOISE_PUSH_OFST_23 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM0_ARB_SLV_CHOISE_WDT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM0_ARB_STATE_STS & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM0_ARB_STATE_STS & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM0_ARB_STATE_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_CHOISE_FULLNESS_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MSG_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_SLV_CHOISE_Q_HEAD & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_ERR_CAUSE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_ERR_MSG_EN & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_ERR_STS_DRP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_19 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM0_ARB_MST_CRED_STS_20 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM0_ARB_MST_CRED_STS_20 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_23 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MST_CRED_STS_31 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CGM_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CGM_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CGM_CFG1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM0_LOCAL_RANGE_BASE & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM0_LOCAL_RANGE_BASE & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC1_QM0_LOCAL_RANGE_BASE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_LOCAL_RANGE_SIZE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_CSMR_STRICT_PRIO_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_HBW_RD_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_LBW_WR_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_LBW_WR_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_HBW_RD_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_AXCACHE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_IND_GW_APB_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_IND_GW_APB_WDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_IND_GW_APB_RDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_IND_GW_APB_STATUS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_ERR_ADDR_LO & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_ERR_WDATA & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM0_GLBL_MEM_INIT_BUSY & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM0_GLBL_MEM_INIT_BUSY & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC1_QM0_GLBL_MEM_INIT_BUSY & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM1_GLBL_CFG0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM1_GLBL_CFG0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM1_GLBL_CFG0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_CFG1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_PROT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_ERR_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_STS0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_STS1_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_MSG_EN_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_MSG_EN_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_MSG_EN_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_MSG_EN_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_MSG_EN_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_BASE_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_BASE_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_BASE_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_BASE_LO_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM1_PQ_BASE_HI_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM1_PQ_BASE_HI_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM1_PQ_BASE_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_BASE_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_BASE_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_BASE_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_SIZE_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_SIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_SIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_SIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_PI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_PI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_PI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_PI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_CI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_CI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_CI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_CI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_CFG0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_CFG0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_CFG0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_CFG0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_CFG1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_CFG1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_CFG1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_CFG1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_STS0_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM1_PQ_STS1_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM1_PQ_STS1_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM1_PQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_PQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_STS0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_PTR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_PTR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_TSIZE_0 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM1_CQ_CTL_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM1_CQ_CTL_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM1_CQ_CTL_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_PTR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_PTR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_TSIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_CTL_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_PTR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_PTR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_TSIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_CTL_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_PTR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_PTR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_TSIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_CTL_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_PTR_LO_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_PTR_LO_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_PTR_LO_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_PTR_LO_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_PTR_LO_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_PTR_HI_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_PTR_HI_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_PTR_HI_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_PTR_HI_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_PTR_HI_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_TSIZE_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_TSIZE_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_TSIZE_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_TSIZE_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_TSIZE_STS_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM1_CQ_CTL_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM1_CQ_CTL_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM1_CQ_CTL_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_CTL_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_CTL_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_CTL_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_CTL_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_IFIFO_CNT_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_IFIFO_CNT_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_IFIFO_CNT_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_IFIFO_CNT_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CQ_IFIFO_CNT_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE0_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE0_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE0_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE0_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE0_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE0_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE0_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE0_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE0_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE0_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE1_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE1_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE1_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE1_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE1_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE1_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE1_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE1_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE1_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE1_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE2_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE2_ADDR_LO_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM1_CP_MSG_BASE2_ADDR_LO_2 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM1_CP_MSG_BASE2_ADDR_LO_2 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM1_CP_MSG_BASE2_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE2_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE2_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE2_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE2_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE2_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE2_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE2_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE3_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE3_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE3_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE3_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE3_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE3_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE3_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE3_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE3_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_MSG_BASE3_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_LDMA_TSIZE_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_LDMA_TSIZE_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_LDMA_TSIZE_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_LDMA_TSIZE_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_LDMA_TSIZE_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_LDMA_DST_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_LDMA_DST_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_LDMA_DST_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM1_CP_LDMA_DST_BASE_LO_OFFSET_3 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM1_CP_LDMA_DST_BASE_LO_OFFSET_3 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM1_CP_LDMA_DST_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_LDMA_DST_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM1_CP_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM1_CP_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM1_CP_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_CURRENT_INST_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_CURRENT_INST_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_CURRENT_INST_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_CURRENT_INST_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_CURRENT_INST_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_CURRENT_INST_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_CURRENT_INST_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_CURRENT_INST_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_CURRENT_INST_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_CURRENT_INST_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_BARRIER_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_BARRIER_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_BARRIER_CFG_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM1_CP_BARRIER_CFG_3 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM1_CP_BARRIER_CFG_3 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC1_QM1_CP_BARRIER_CFG_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_BARRIER_CFG_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_DBG_0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_DBG_0_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM1_CP_DBG_0_2 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM1_CP_DBG_0_2 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM1_CP_DBG_0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_DBG_0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_DBG_0_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_ARUSER_31_11_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_AWUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_AWUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_AWUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_AWUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CP_AWUSER_31_11_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM1_ARB_CFG_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM1_ARB_CFG_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM1_ARB_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_19 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_23 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM1_ARB_MST_AVAIL_CRED_24 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_24 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_AVAIL_CRED_31 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM1_ARB_MST_CHOISE_PUSH_OFST_23 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM1_ARB_MST_CHOISE_PUSH_OFST_23 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM1_ARB_SLV_CHOISE_WDT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM1_ARB_STATE_STS & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM1_ARB_STATE_STS & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC1_QM1_ARB_STATE_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_CHOISE_FULLNESS_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MSG_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_SLV_CHOISE_Q_HEAD & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_ERR_CAUSE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_ERR_MSG_EN & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_ERR_STS_DRP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_19 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM1_ARB_MST_CRED_STS_20 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM1_ARB_MST_CRED_STS_20 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_23 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MST_CRED_STS_31 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CGM_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CGM_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CGM_CFG1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM1_LOCAL_RANGE_BASE & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM1_LOCAL_RANGE_BASE & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC1_QM1_LOCAL_RANGE_BASE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_LOCAL_RANGE_SIZE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_CSMR_STRICT_PRIO_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_HBW_RD_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_LBW_WR_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_LBW_WR_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_HBW_RD_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_AXCACHE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_IND_GW_APB_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_IND_GW_APB_WDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_IND_GW_APB_RDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_IND_GW_APB_STATUS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_ERR_ADDR_LO & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_ERR_WDATA & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC1_QM1_GLBL_MEM_INIT_BUSY & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC1_QM1_GLBL_MEM_INIT_BUSY & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC1_QM1_GLBL_MEM_INIT_BUSY & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	WREG32(mmNIC2_QM0_BASE - CFG_BASE + PROT_BITS_OFFS + 0x7C, 0);
+	WREG32(mmNIC2_QM1_BASE - CFG_BASE + PROT_BITS_OFFS + 0x7C, 0);
+
+	pb_addr = (mmNIC2_QM0_GLBL_CFG0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM0_GLBL_CFG0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM0_GLBL_CFG0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_CFG1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_PROT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_ERR_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_STS0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_STS1_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_MSG_EN_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_MSG_EN_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_MSG_EN_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_MSG_EN_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_MSG_EN_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_BASE_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_BASE_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_BASE_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_BASE_LO_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM0_PQ_BASE_HI_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM0_PQ_BASE_HI_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM0_PQ_BASE_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_BASE_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_BASE_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_BASE_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_SIZE_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_SIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_SIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_SIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_PI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_PI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_PI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_PI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_CI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_CI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_CI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_CI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_CFG0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_CFG0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_CFG0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_CFG0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_CFG1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_CFG1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_CFG1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_CFG1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_STS0_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM0_PQ_STS1_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM0_PQ_STS1_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM0_PQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_PQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_STS0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_PTR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_PTR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_TSIZE_0 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM0_CQ_CTL_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM0_CQ_CTL_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM0_CQ_CTL_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_PTR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_PTR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_TSIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_CTL_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_PTR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_PTR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_TSIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_CTL_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_PTR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_PTR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_TSIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_CTL_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_PTR_LO_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_PTR_LO_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_PTR_LO_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_PTR_LO_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_PTR_LO_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_PTR_HI_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_PTR_HI_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_PTR_HI_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_PTR_HI_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_PTR_HI_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_TSIZE_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_TSIZE_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_TSIZE_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_TSIZE_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_TSIZE_STS_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM0_CQ_CTL_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM0_CQ_CTL_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM0_CQ_CTL_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_CTL_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_CTL_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_CTL_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_CTL_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_IFIFO_CNT_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_IFIFO_CNT_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_IFIFO_CNT_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_IFIFO_CNT_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CQ_IFIFO_CNT_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE0_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE0_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE0_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE0_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE0_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE0_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE0_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE0_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE0_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE0_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE1_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE1_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE1_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE1_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE1_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE1_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE1_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE1_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE1_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE1_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE2_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE2_ADDR_LO_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM0_CP_MSG_BASE2_ADDR_LO_2 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM0_CP_MSG_BASE2_ADDR_LO_2 & PROT_BITS_OFFS)
+				>> 7) << 2;
+	mask = 1U << ((mmNIC2_QM0_CP_MSG_BASE2_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE2_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE2_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE2_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE2_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE2_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE2_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE2_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE3_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE3_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE3_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE3_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE3_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE3_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE3_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE3_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE3_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_MSG_BASE3_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_LDMA_TSIZE_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_LDMA_TSIZE_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_LDMA_TSIZE_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_LDMA_TSIZE_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_LDMA_TSIZE_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_LDMA_DST_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_LDMA_DST_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_LDMA_DST_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM0_CP_LDMA_DST_BASE_LO_OFFSET_3 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM0_CP_LDMA_DST_BASE_LO_OFFSET_3 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM0_CP_LDMA_DST_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_LDMA_DST_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM0_CP_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM0_CP_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM0_CP_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_CURRENT_INST_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_CURRENT_INST_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_CURRENT_INST_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_CURRENT_INST_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_CURRENT_INST_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_CURRENT_INST_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_CURRENT_INST_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_CURRENT_INST_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_CURRENT_INST_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_CURRENT_INST_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_BARRIER_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_BARRIER_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_BARRIER_CFG_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM0_CP_BARRIER_CFG_3 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM0_CP_BARRIER_CFG_3 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC2_QM0_CP_BARRIER_CFG_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_BARRIER_CFG_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_DBG_0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_DBG_0_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM0_CP_DBG_0_2 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM0_CP_DBG_0_2 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM0_CP_DBG_0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_DBG_0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_DBG_0_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_ARUSER_31_11_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_AWUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_AWUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_AWUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_AWUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CP_AWUSER_31_11_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM0_ARB_CFG_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM0_ARB_CFG_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM0_ARB_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_19 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_23 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM0_ARB_MST_AVAIL_CRED_24 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_24 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_AVAIL_CRED_31 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM0_ARB_MST_CHOISE_PUSH_OFST_23 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM0_ARB_MST_CHOISE_PUSH_OFST_23 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM0_ARB_SLV_CHOISE_WDT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM0_ARB_STATE_STS & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM0_ARB_STATE_STS & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM0_ARB_STATE_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_CHOISE_FULLNESS_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MSG_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_SLV_CHOISE_Q_HEAD & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_ERR_CAUSE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_ERR_MSG_EN & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_ERR_STS_DRP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_19 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM0_ARB_MST_CRED_STS_20 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM0_ARB_MST_CRED_STS_20 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_23 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MST_CRED_STS_31 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CGM_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CGM_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CGM_CFG1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM0_LOCAL_RANGE_BASE & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM0_LOCAL_RANGE_BASE & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC2_QM0_LOCAL_RANGE_BASE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_LOCAL_RANGE_SIZE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_CSMR_STRICT_PRIO_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_HBW_RD_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_LBW_WR_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_LBW_WR_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_HBW_RD_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_AXCACHE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_IND_GW_APB_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_IND_GW_APB_WDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_IND_GW_APB_RDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_IND_GW_APB_STATUS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_ERR_ADDR_LO & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_ERR_WDATA & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM0_GLBL_MEM_INIT_BUSY & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM0_GLBL_MEM_INIT_BUSY & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC2_QM0_GLBL_MEM_INIT_BUSY & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM1_GLBL_CFG0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM1_GLBL_CFG0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM1_GLBL_CFG0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_CFG1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_PROT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_ERR_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_STS0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_STS1_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_MSG_EN_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_MSG_EN_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_MSG_EN_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_MSG_EN_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_MSG_EN_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_BASE_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_BASE_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_BASE_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_BASE_LO_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM1_PQ_BASE_HI_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM1_PQ_BASE_HI_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM1_PQ_BASE_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_BASE_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_BASE_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_BASE_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_SIZE_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_SIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_SIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_SIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_PI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_PI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_PI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_PI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_CI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_CI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_CI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_CI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_CFG0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_CFG0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_CFG0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_CFG0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_CFG1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_CFG1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_CFG1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_CFG1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_STS0_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM1_PQ_STS1_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM1_PQ_STS1_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM1_PQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_PQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_STS0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_PTR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_PTR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_TSIZE_0 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM1_CQ_CTL_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM1_CQ_CTL_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM1_CQ_CTL_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_PTR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_PTR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_TSIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_CTL_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_PTR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_PTR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_TSIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_CTL_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_PTR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_PTR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_TSIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_CTL_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_PTR_LO_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_PTR_LO_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_PTR_LO_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_PTR_LO_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_PTR_LO_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_PTR_HI_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_PTR_HI_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_PTR_HI_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_PTR_HI_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_PTR_HI_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_TSIZE_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_TSIZE_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_TSIZE_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_TSIZE_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_TSIZE_STS_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM1_CQ_CTL_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM1_CQ_CTL_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM1_CQ_CTL_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_CTL_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_CTL_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_CTL_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_CTL_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_IFIFO_CNT_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_IFIFO_CNT_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_IFIFO_CNT_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_IFIFO_CNT_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CQ_IFIFO_CNT_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE0_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE0_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE0_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE0_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE0_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE0_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE0_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE0_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE0_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE0_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE1_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE1_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE1_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE1_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE1_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE1_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE1_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE1_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE1_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE1_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE2_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE2_ADDR_LO_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM1_CP_MSG_BASE2_ADDR_LO_2 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM1_CP_MSG_BASE2_ADDR_LO_2 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM1_CP_MSG_BASE2_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE2_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE2_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE2_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE2_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE2_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE2_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE2_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE3_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE3_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE3_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE3_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE3_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE3_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE3_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE3_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE3_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_MSG_BASE3_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_LDMA_TSIZE_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_LDMA_TSIZE_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_LDMA_TSIZE_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_LDMA_TSIZE_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_LDMA_TSIZE_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_LDMA_DST_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_LDMA_DST_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_LDMA_DST_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM1_CP_LDMA_DST_BASE_LO_OFFSET_3 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM1_CP_LDMA_DST_BASE_LO_OFFSET_3 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM1_CP_LDMA_DST_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_LDMA_DST_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM1_CP_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM1_CP_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM1_CP_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_CURRENT_INST_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_CURRENT_INST_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_CURRENT_INST_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_CURRENT_INST_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_CURRENT_INST_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_CURRENT_INST_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_CURRENT_INST_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_CURRENT_INST_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_CURRENT_INST_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_CURRENT_INST_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_BARRIER_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_BARRIER_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_BARRIER_CFG_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM1_CP_BARRIER_CFG_3 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM1_CP_BARRIER_CFG_3 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC2_QM1_CP_BARRIER_CFG_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_BARRIER_CFG_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_DBG_0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_DBG_0_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM1_CP_DBG_0_2 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM1_CP_DBG_0_2 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM1_CP_DBG_0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_DBG_0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_DBG_0_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_ARUSER_31_11_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_AWUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_AWUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_AWUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_AWUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CP_AWUSER_31_11_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM1_ARB_CFG_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM1_ARB_CFG_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM1_ARB_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_19 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_23 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM1_ARB_MST_AVAIL_CRED_24 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_24 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_AVAIL_CRED_31 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM1_ARB_MST_CHOISE_PUSH_OFST_23 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM1_ARB_MST_CHOISE_PUSH_OFST_23 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM1_ARB_SLV_CHOISE_WDT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM1_ARB_STATE_STS & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM1_ARB_STATE_STS & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC2_QM1_ARB_STATE_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_CHOISE_FULLNESS_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MSG_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_SLV_CHOISE_Q_HEAD & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_ERR_CAUSE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_ERR_MSG_EN & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_ERR_STS_DRP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_19 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM1_ARB_MST_CRED_STS_20 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM1_ARB_MST_CRED_STS_20 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_23 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MST_CRED_STS_31 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CGM_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CGM_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CGM_CFG1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM1_LOCAL_RANGE_BASE & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM1_LOCAL_RANGE_BASE & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC2_QM1_LOCAL_RANGE_BASE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_LOCAL_RANGE_SIZE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_CSMR_STRICT_PRIO_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_HBW_RD_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_LBW_WR_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_LBW_WR_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_HBW_RD_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_AXCACHE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_IND_GW_APB_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_IND_GW_APB_WDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_IND_GW_APB_RDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_IND_GW_APB_STATUS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_ERR_ADDR_LO & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_ERR_WDATA & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC2_QM1_GLBL_MEM_INIT_BUSY & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC2_QM1_GLBL_MEM_INIT_BUSY & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC2_QM1_GLBL_MEM_INIT_BUSY & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	WREG32(mmNIC3_QM0_BASE - CFG_BASE + PROT_BITS_OFFS + 0x7C, 0);
+	WREG32(mmNIC3_QM1_BASE - CFG_BASE + PROT_BITS_OFFS + 0x7C, 0);
+
+	pb_addr = (mmNIC3_QM0_GLBL_CFG0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM0_GLBL_CFG0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM0_GLBL_CFG0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_CFG1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_PROT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_ERR_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_STS0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_STS1_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_MSG_EN_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_MSG_EN_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_MSG_EN_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_MSG_EN_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_MSG_EN_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_BASE_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_BASE_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_BASE_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_BASE_LO_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM0_PQ_BASE_HI_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM0_PQ_BASE_HI_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM0_PQ_BASE_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_BASE_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_BASE_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_BASE_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_SIZE_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_SIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_SIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_SIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_PI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_PI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_PI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_PI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_CI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_CI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_CI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_CI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_CFG0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_CFG0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_CFG0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_CFG0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_CFG1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_CFG1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_CFG1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_CFG1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_STS0_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM0_PQ_STS1_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM0_PQ_STS1_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM0_PQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_PQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_STS0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_PTR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_PTR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_TSIZE_0 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM0_CQ_CTL_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM0_CQ_CTL_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM0_CQ_CTL_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_PTR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_PTR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_TSIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_CTL_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_PTR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_PTR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_TSIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_CTL_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_PTR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_PTR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_TSIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_CTL_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_PTR_LO_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_PTR_LO_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_PTR_LO_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_PTR_LO_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_PTR_LO_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_PTR_HI_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_PTR_HI_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_PTR_HI_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_PTR_HI_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_PTR_HI_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_TSIZE_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_TSIZE_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_TSIZE_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_TSIZE_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_TSIZE_STS_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM0_CQ_CTL_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM0_CQ_CTL_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM0_CQ_CTL_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_CTL_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_CTL_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_CTL_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_CTL_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_IFIFO_CNT_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_IFIFO_CNT_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_IFIFO_CNT_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_IFIFO_CNT_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CQ_IFIFO_CNT_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE0_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE0_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE0_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE0_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE0_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE0_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE0_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE0_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE0_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE0_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE1_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE1_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE1_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE1_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE1_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE1_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE1_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE1_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE1_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE1_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE2_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE2_ADDR_LO_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM0_CP_MSG_BASE2_ADDR_LO_2 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM0_CP_MSG_BASE2_ADDR_LO_2 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM0_CP_MSG_BASE2_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE2_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE2_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE2_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE2_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE2_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE2_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE2_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE3_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE3_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE3_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE3_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE3_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE3_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE3_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE3_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE3_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_MSG_BASE3_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_LDMA_TSIZE_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_LDMA_TSIZE_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_LDMA_TSIZE_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_LDMA_TSIZE_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_LDMA_TSIZE_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_LDMA_DST_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_LDMA_DST_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_LDMA_DST_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM0_CP_LDMA_DST_BASE_LO_OFFSET_3 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM0_CP_LDMA_DST_BASE_LO_OFFSET_3 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM0_CP_LDMA_DST_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_LDMA_DST_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM0_CP_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM0_CP_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM0_CP_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_CURRENT_INST_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_CURRENT_INST_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_CURRENT_INST_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_CURRENT_INST_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_CURRENT_INST_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_CURRENT_INST_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_CURRENT_INST_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_CURRENT_INST_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_CURRENT_INST_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_CURRENT_INST_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_BARRIER_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_BARRIER_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_BARRIER_CFG_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM0_CP_BARRIER_CFG_3 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM0_CP_BARRIER_CFG_3 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC3_QM0_CP_BARRIER_CFG_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_BARRIER_CFG_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_DBG_0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_DBG_0_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM0_CP_DBG_0_2 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM0_CP_DBG_0_2 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM0_CP_DBG_0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_DBG_0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_DBG_0_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_ARUSER_31_11_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_AWUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_AWUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_AWUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_AWUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CP_AWUSER_31_11_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM0_ARB_CFG_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM0_ARB_CFG_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM0_ARB_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_19 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_23 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM0_ARB_MST_AVAIL_CRED_24 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_24 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_AVAIL_CRED_31 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM0_ARB_MST_CHOISE_PUSH_OFST_23 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM0_ARB_MST_CHOISE_PUSH_OFST_23 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM0_ARB_SLV_CHOISE_WDT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM0_ARB_STATE_STS & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM0_ARB_STATE_STS & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM0_ARB_STATE_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_CHOISE_FULLNESS_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MSG_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_SLV_CHOISE_Q_HEAD & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_ERR_CAUSE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_ERR_MSG_EN & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_ERR_STS_DRP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_19 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM0_ARB_MST_CRED_STS_20 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM0_ARB_MST_CRED_STS_20 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_23 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MST_CRED_STS_31 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CGM_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CGM_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CGM_CFG1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM0_LOCAL_RANGE_BASE & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM0_LOCAL_RANGE_BASE & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC3_QM0_LOCAL_RANGE_BASE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_LOCAL_RANGE_SIZE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_CSMR_STRICT_PRIO_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_HBW_RD_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_LBW_WR_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_LBW_WR_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_HBW_RD_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_AXCACHE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_IND_GW_APB_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_IND_GW_APB_WDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_IND_GW_APB_RDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_IND_GW_APB_STATUS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_ERR_ADDR_LO & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_ERR_WDATA & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM0_GLBL_MEM_INIT_BUSY & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM0_GLBL_MEM_INIT_BUSY & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC3_QM0_GLBL_MEM_INIT_BUSY & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM1_GLBL_CFG0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM1_GLBL_CFG0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM1_GLBL_CFG0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_CFG1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_PROT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_ERR_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_STS0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_STS1_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_MSG_EN_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_MSG_EN_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_MSG_EN_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_MSG_EN_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_MSG_EN_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_BASE_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_BASE_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_BASE_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_BASE_LO_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM1_PQ_BASE_HI_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM1_PQ_BASE_HI_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM1_PQ_BASE_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_BASE_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_BASE_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_BASE_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_SIZE_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_SIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_SIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_SIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_PI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_PI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_PI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_PI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_CI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_CI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_CI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_CI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_CFG0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_CFG0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_CFG0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_CFG0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_CFG1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_CFG1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_CFG1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_CFG1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_STS0_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM1_PQ_STS1_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM1_PQ_STS1_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM1_PQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_PQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_STS0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_PTR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_PTR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_TSIZE_0 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM1_CQ_CTL_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM1_CQ_CTL_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM1_CQ_CTL_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_PTR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_PTR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_TSIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_CTL_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_PTR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_PTR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_TSIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_CTL_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_PTR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_PTR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_TSIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_CTL_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_PTR_LO_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_PTR_LO_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_PTR_LO_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_PTR_LO_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_PTR_LO_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_PTR_HI_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_PTR_HI_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_PTR_HI_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_PTR_HI_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_PTR_HI_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_TSIZE_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_TSIZE_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_TSIZE_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_TSIZE_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_TSIZE_STS_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM1_CQ_CTL_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM1_CQ_CTL_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM1_CQ_CTL_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_CTL_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_CTL_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_CTL_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_CTL_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_IFIFO_CNT_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_IFIFO_CNT_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_IFIFO_CNT_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_IFIFO_CNT_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CQ_IFIFO_CNT_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE0_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE0_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE0_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE0_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE0_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE0_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE0_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE0_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE0_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE0_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE1_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE1_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE1_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE1_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE1_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE1_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE1_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE1_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE1_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE1_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE2_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE2_ADDR_LO_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM1_CP_MSG_BASE2_ADDR_LO_2 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM1_CP_MSG_BASE2_ADDR_LO_2 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM1_CP_MSG_BASE2_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE2_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE2_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE2_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE2_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE2_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE2_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE2_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE3_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE3_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE3_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE3_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE3_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE3_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE3_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE3_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE3_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_MSG_BASE3_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_LDMA_TSIZE_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_LDMA_TSIZE_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_LDMA_TSIZE_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_LDMA_TSIZE_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_LDMA_TSIZE_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_LDMA_DST_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_LDMA_DST_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_LDMA_DST_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM1_CP_LDMA_DST_BASE_LO_OFFSET_3 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM1_CP_LDMA_DST_BASE_LO_OFFSET_3 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM1_CP_LDMA_DST_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_LDMA_DST_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM1_CP_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM1_CP_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM1_CP_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_CURRENT_INST_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_CURRENT_INST_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_CURRENT_INST_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_CURRENT_INST_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_CURRENT_INST_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_CURRENT_INST_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_CURRENT_INST_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_CURRENT_INST_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_CURRENT_INST_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_CURRENT_INST_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_BARRIER_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_BARRIER_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_BARRIER_CFG_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM1_CP_BARRIER_CFG_3 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM1_CP_BARRIER_CFG_3 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC3_QM1_CP_BARRIER_CFG_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_BARRIER_CFG_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_DBG_0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_DBG_0_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM1_CP_DBG_0_2 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM1_CP_DBG_0_2 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM1_CP_DBG_0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_DBG_0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_DBG_0_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_ARUSER_31_11_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_AWUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_AWUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_AWUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_AWUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CP_AWUSER_31_11_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM1_ARB_CFG_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM1_ARB_CFG_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM1_ARB_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_19 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_23 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM1_ARB_MST_AVAIL_CRED_24 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_24 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_AVAIL_CRED_31 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM1_ARB_MST_CHOISE_PUSH_OFST_23 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM1_ARB_MST_CHOISE_PUSH_OFST_23 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM1_ARB_SLV_CHOISE_WDT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM1_ARB_STATE_STS & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM1_ARB_STATE_STS & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC3_QM1_ARB_STATE_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_CHOISE_FULLNESS_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MSG_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_SLV_CHOISE_Q_HEAD & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_ERR_CAUSE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_ERR_MSG_EN & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_ERR_STS_DRP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_19 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM1_ARB_MST_CRED_STS_20 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM1_ARB_MST_CRED_STS_20 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_23 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MST_CRED_STS_31 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CGM_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CGM_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CGM_CFG1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM1_LOCAL_RANGE_BASE & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM1_LOCAL_RANGE_BASE & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC3_QM1_LOCAL_RANGE_BASE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_LOCAL_RANGE_SIZE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_CSMR_STRICT_PRIO_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_HBW_RD_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_LBW_WR_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_LBW_WR_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_HBW_RD_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_AXCACHE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_IND_GW_APB_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_IND_GW_APB_WDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_IND_GW_APB_RDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_IND_GW_APB_STATUS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_ERR_ADDR_LO & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_ERR_WDATA & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC3_QM1_GLBL_MEM_INIT_BUSY & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC3_QM1_GLBL_MEM_INIT_BUSY & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC3_QM1_GLBL_MEM_INIT_BUSY & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	WREG32(mmNIC4_QM0_BASE - CFG_BASE + PROT_BITS_OFFS + 0x7C, 0);
+	WREG32(mmNIC4_QM1_BASE - CFG_BASE + PROT_BITS_OFFS + 0x7C, 0);
+
+	pb_addr = (mmNIC4_QM0_GLBL_CFG0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM0_GLBL_CFG0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM0_GLBL_CFG0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_CFG1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_PROT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_ERR_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_STS0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_STS1_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_MSG_EN_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_MSG_EN_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_MSG_EN_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_MSG_EN_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_MSG_EN_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_BASE_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_BASE_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_BASE_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_BASE_LO_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM0_PQ_BASE_HI_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM0_PQ_BASE_HI_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM0_PQ_BASE_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_BASE_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_BASE_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_BASE_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_SIZE_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_SIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_SIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_SIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_PI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_PI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_PI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_PI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_CI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_CI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_CI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_CI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_CFG0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_CFG0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_CFG0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_CFG0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_CFG1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_CFG1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_CFG1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_CFG1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_STS0_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM0_PQ_STS1_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM0_PQ_STS1_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM0_PQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_PQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_STS0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_PTR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_PTR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_TSIZE_0 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM0_CQ_CTL_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM0_CQ_CTL_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM0_CQ_CTL_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_PTR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_PTR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_TSIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_CTL_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_PTR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_PTR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_TSIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_CTL_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_PTR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_PTR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_TSIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_CTL_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_PTR_LO_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_PTR_LO_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_PTR_LO_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_PTR_LO_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_PTR_LO_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_PTR_HI_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_PTR_HI_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_PTR_HI_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_PTR_HI_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_PTR_HI_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_TSIZE_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_TSIZE_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_TSIZE_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_TSIZE_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_TSIZE_STS_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM0_CQ_CTL_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM0_CQ_CTL_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM0_CQ_CTL_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_CTL_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_CTL_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_CTL_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_CTL_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_IFIFO_CNT_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_IFIFO_CNT_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_IFIFO_CNT_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_IFIFO_CNT_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CQ_IFIFO_CNT_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE0_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE0_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE0_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE0_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE0_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE0_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE0_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE0_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE0_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE0_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE1_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE1_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE1_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE1_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE1_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE1_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE1_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE1_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE1_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE1_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE2_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE2_ADDR_LO_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM0_CP_MSG_BASE2_ADDR_LO_2 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM0_CP_MSG_BASE2_ADDR_LO_2 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM0_CP_MSG_BASE2_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE2_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE2_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE2_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE2_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE2_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE2_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE2_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE3_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE3_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE3_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE3_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE3_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE3_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE3_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE3_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE3_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_MSG_BASE3_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_LDMA_TSIZE_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_LDMA_TSIZE_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_LDMA_TSIZE_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_LDMA_TSIZE_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_LDMA_TSIZE_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_LDMA_SRC_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_LDMA_DST_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_LDMA_DST_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_LDMA_DST_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM0_CP_LDMA_DST_BASE_LO_OFFSET_3 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM0_CP_LDMA_DST_BASE_LO_OFFSET_3 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM0_CP_LDMA_DST_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_LDMA_DST_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM0_CP_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM0_CP_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM0_CP_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_CURRENT_INST_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_CURRENT_INST_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_CURRENT_INST_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_CURRENT_INST_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_CURRENT_INST_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_CURRENT_INST_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_CURRENT_INST_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_CURRENT_INST_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_CURRENT_INST_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_CURRENT_INST_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_BARRIER_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_BARRIER_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_BARRIER_CFG_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM0_CP_BARRIER_CFG_3 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM0_CP_BARRIER_CFG_3 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC4_QM0_CP_BARRIER_CFG_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_BARRIER_CFG_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_DBG_0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_DBG_0_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM0_CP_DBG_0_2 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM0_CP_DBG_0_2 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM0_CP_DBG_0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_DBG_0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_DBG_0_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_ARUSER_31_11_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_AWUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_AWUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_AWUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_AWUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CP_AWUSER_31_11_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM0_ARB_CFG_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM0_ARB_CFG_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM0_ARB_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_19 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_23 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM0_ARB_MST_AVAIL_CRED_24 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_24 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_AVAIL_CRED_31 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM0_ARB_MST_CHOISE_PUSH_OFST_23 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM0_ARB_MST_CHOISE_PUSH_OFST_23 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM0_ARB_SLV_CHOISE_WDT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM0_ARB_STATE_STS & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM0_ARB_STATE_STS & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM0_ARB_STATE_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_CHOISE_FULLNESS_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MSG_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_SLV_CHOISE_Q_HEAD & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_ERR_CAUSE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_ERR_MSG_EN & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_ERR_STS_DRP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_19 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM0_ARB_MST_CRED_STS_20 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM0_ARB_MST_CRED_STS_20 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_23 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MST_CRED_STS_31 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CGM_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CGM_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CGM_CFG1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM0_LOCAL_RANGE_BASE & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM0_LOCAL_RANGE_BASE & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC4_QM0_LOCAL_RANGE_BASE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_LOCAL_RANGE_SIZE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_CSMR_STRICT_PRIO_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_HBW_RD_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_LBW_WR_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_LBW_WR_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_HBW_RD_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_AXCACHE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_IND_GW_APB_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_IND_GW_APB_WDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_IND_GW_APB_RDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_IND_GW_APB_STATUS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_ERR_ADDR_LO & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_ERR_WDATA & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM0_GLBL_MEM_INIT_BUSY & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM0_GLBL_MEM_INIT_BUSY & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC4_QM0_GLBL_MEM_INIT_BUSY & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM1_GLBL_CFG0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM1_GLBL_CFG0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM1_GLBL_CFG0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_CFG1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_PROT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_ERR_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_STS0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_STS1_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_MSG_EN_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_MSG_EN_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_MSG_EN_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_MSG_EN_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_MSG_EN_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_BASE_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_BASE_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_BASE_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_BASE_LO_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM1_PQ_BASE_HI_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM1_PQ_BASE_HI_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM1_PQ_BASE_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_BASE_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_BASE_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_BASE_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_SIZE_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_SIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_SIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_SIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_PI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_PI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_PI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_PI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_CI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_CI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_CI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_CI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_CFG0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_CFG0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_CFG0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_CFG0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_CFG1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_CFG1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_CFG1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_CFG1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_STS0_3 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM1_PQ_STS1_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM1_PQ_STS1_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM1_PQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_PQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_STS0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_STS0_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_STS0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_STS0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_STS1_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_STS1_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_STS1_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_STS1_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_PTR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_PTR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_TSIZE_0 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM1_CQ_CTL_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM1_CQ_CTL_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM1_CQ_CTL_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_PTR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_PTR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_TSIZE_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_CTL_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_PTR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_PTR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_TSIZE_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_CTL_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_PTR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_PTR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_TSIZE_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_CTL_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_PTR_LO_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_PTR_LO_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_PTR_LO_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_PTR_LO_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_PTR_LO_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_PTR_HI_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_PTR_HI_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_PTR_HI_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_PTR_HI_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_PTR_HI_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_TSIZE_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_TSIZE_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_TSIZE_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_TSIZE_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_TSIZE_STS_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM1_CQ_CTL_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM1_CQ_CTL_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM1_CQ_CTL_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_CTL_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_CTL_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_CTL_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_CTL_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_IFIFO_CNT_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_IFIFO_CNT_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_IFIFO_CNT_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_IFIFO_CNT_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CQ_IFIFO_CNT_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE0_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE0_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE0_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE0_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE0_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE0_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE0_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE0_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE0_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE0_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE1_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE1_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE1_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE1_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE1_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE1_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE1_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE1_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE1_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE1_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE2_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE2_ADDR_LO_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM1_CP_MSG_BASE2_ADDR_LO_2 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM1_CP_MSG_BASE2_ADDR_LO_2 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM1_CP_MSG_BASE2_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE2_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE2_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE2_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE2_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE2_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE2_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE2_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE3_ADDR_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE3_ADDR_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE3_ADDR_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE3_ADDR_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE3_ADDR_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE3_ADDR_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE3_ADDR_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE3_ADDR_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE3_ADDR_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_MSG_BASE3_ADDR_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_LDMA_TSIZE_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_LDMA_TSIZE_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_LDMA_TSIZE_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_LDMA_TSIZE_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_LDMA_TSIZE_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_LDMA_SRC_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_LDMA_DST_BASE_LO_OFFSET_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_LDMA_DST_BASE_LO_OFFSET_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_LDMA_DST_BASE_LO_OFFSET_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM1_CP_LDMA_DST_BASE_LO_OFFSET_3 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM1_CP_LDMA_DST_BASE_LO_OFFSET_3 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM1_CP_LDMA_DST_BASE_LO_OFFSET_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_LDMA_DST_BASE_LO_OFFSET_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM1_CP_STS_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM1_CP_STS_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM1_CP_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_CURRENT_INST_LO_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_CURRENT_INST_LO_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_CURRENT_INST_LO_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_CURRENT_INST_LO_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_CURRENT_INST_LO_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_CURRENT_INST_HI_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_CURRENT_INST_HI_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_CURRENT_INST_HI_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_CURRENT_INST_HI_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_CURRENT_INST_HI_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_BARRIER_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_BARRIER_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_BARRIER_CFG_2 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM1_CP_BARRIER_CFG_3 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM1_CP_BARRIER_CFG_3 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC4_QM1_CP_BARRIER_CFG_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_BARRIER_CFG_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_DBG_0_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_DBG_0_1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM1_CP_DBG_0_2 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM1_CP_DBG_0_2 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM1_CP_DBG_0_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_DBG_0_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_DBG_0_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_ARUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_ARUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_ARUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_ARUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_ARUSER_31_11_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_AWUSER_31_11_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_AWUSER_31_11_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_AWUSER_31_11_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_AWUSER_31_11_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CP_AWUSER_31_11_4 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM1_ARB_CFG_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM1_ARB_CFG_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM1_ARB_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_19 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_23 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM1_ARB_MST_AVAIL_CRED_24 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_24 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_AVAIL_CRED_31 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM1_ARB_MST_CHOISE_PUSH_OFST_23 & ~0xFFF) +
+			PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM1_ARB_MST_CHOISE_PUSH_OFST_23 &
+			PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM1_ARB_SLV_CHOISE_WDT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM1_ARB_STATE_STS & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM1_ARB_STATE_STS & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1U << ((mmNIC4_QM1_ARB_STATE_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_CHOISE_FULLNESS_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MSG_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_SLV_CHOISE_Q_HEAD & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_ERR_CAUSE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_ERR_MSG_EN & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_ERR_STS_DRP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_5 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_6 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_7 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_8 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_9 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_10 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_11 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_12 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_13 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_14 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_15 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_16 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_17 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_18 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_19 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM1_ARB_MST_CRED_STS_20 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM1_ARB_MST_CRED_STS_20 & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_20 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_21 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_22 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_23 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_24 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_25 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_26 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_27 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_28 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_29 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_30 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MST_CRED_STS_31 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CGM_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CGM_STS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CGM_CFG1 & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM1_LOCAL_RANGE_BASE & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM1_LOCAL_RANGE_BASE & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC4_QM1_LOCAL_RANGE_BASE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_LOCAL_RANGE_SIZE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_CSMR_STRICT_PRIO_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_HBW_RD_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_LBW_WR_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_LBW_WR_RATE_LIM_CFG_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_HBW_RD_RATE_LIM_CFG_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_AXCACHE & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_IND_GW_APB_CFG & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_IND_GW_APB_WDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_IND_GW_APB_RDATA & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_IND_GW_APB_STATUS & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_ERR_ADDR_LO & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_ERR_WDATA & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
+	pb_addr = (mmNIC4_QM1_GLBL_MEM_INIT_BUSY & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmNIC4_QM1_GLBL_MEM_INIT_BUSY & PROT_BITS_OFFS)
+			>> 7) << 2;
+	mask = 1U << ((mmNIC4_QM1_GLBL_MEM_INIT_BUSY & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+}
+
 static void gaudi_init_tpc_protection_bits(struct hl_device *hdev)
 {
 	u32 pb_addr, mask;
 	u8 word_offset;
 
-	gaudi_pb_set_block(hdev, mmTPC0_E2E_CRED_BASE);
-	gaudi_pb_set_block(hdev, mmTPC1_E2E_CRED_BASE);
-	gaudi_pb_set_block(hdev, mmTPC2_E2E_CRED_BASE);
-	gaudi_pb_set_block(hdev, mmTPC3_E2E_CRED_BASE);
-	gaudi_pb_set_block(hdev, mmTPC4_E2E_CRED_BASE);
-	gaudi_pb_set_block(hdev, mmTPC5_E2E_CRED_BASE);
-	gaudi_pb_set_block(hdev, mmTPC6_E2E_CRED_BASE);
-	gaudi_pb_set_block(hdev, mmTPC7_E2E_CRED_BASE);
+	if (hdev->asic_prop.fw_security_disabled) {
+		gaudi_pb_set_block(hdev, mmTPC0_E2E_CRED_BASE);
+		gaudi_pb_set_block(hdev, mmTPC1_E2E_CRED_BASE);
+		gaudi_pb_set_block(hdev, mmTPC2_E2E_CRED_BASE);
+		gaudi_pb_set_block(hdev, mmTPC3_E2E_CRED_BASE);
+		gaudi_pb_set_block(hdev, mmTPC4_E2E_CRED_BASE);
+		gaudi_pb_set_block(hdev, mmTPC5_E2E_CRED_BASE);
+		gaudi_pb_set_block(hdev, mmTPC6_E2E_CRED_BASE);
+		gaudi_pb_set_block(hdev, mmTPC7_E2E_CRED_BASE);
+	}
 
 	WREG32(mmTPC0_QM_BASE - CFG_BASE + PROT_BITS_OFFS + 0x7C, 0);
 	WREG32(mmTPC0_CFG_BASE - CFG_BASE + PROT_BITS_OFFS + 0x7C, 0);
@@ -8851,15 +12826,19 @@ static void gaudi_init_protection_bits(struct hl_device *hdev)
 	 * secured
 	 */
 
-	gaudi_pb_set_block(hdev, mmIF_E_PLL_BASE);
-	gaudi_pb_set_block(hdev, mmMESH_W_PLL_BASE);
-	gaudi_pb_set_block(hdev, mmSRAM_W_PLL_BASE);
-	gaudi_pb_set_block(hdev, mmMESH_E_PLL_BASE);
-	gaudi_pb_set_block(hdev, mmSRAM_E_PLL_BASE);
+	if (hdev->asic_prop.fw_security_disabled) {
+		gaudi_pb_set_block(hdev, mmIF_E_PLL_BASE);
+		gaudi_pb_set_block(hdev, mmMESH_W_PLL_BASE);
+		gaudi_pb_set_block(hdev, mmSRAM_W_PLL_BASE);
+		gaudi_pb_set_block(hdev, mmMESH_E_PLL_BASE);
+		gaudi_pb_set_block(hdev, mmSRAM_E_PLL_BASE);
+	}
 
 	gaudi_init_dma_protection_bits(hdev);
 
 	gaudi_init_mme_protection_bits(hdev);
+
+	gaudi_init_nic_protection_bits(hdev);
 
 	gaudi_init_tpc_protection_bits(hdev);
 }
@@ -9052,17 +13031,20 @@ void gaudi_init_security(struct hl_device *hdev)
 	 * property configuration of MME SBAB and ACC to be non-privileged and
 	 * non-secured
 	 */
-	WREG32(mmMME0_SBAB_PROT, 0x2);
-	WREG32(mmMME0_ACC_PROT, 0x2);
-	WREG32(mmMME1_SBAB_PROT, 0x2);
-	WREG32(mmMME1_ACC_PROT, 0x2);
-	WREG32(mmMME2_SBAB_PROT, 0x2);
-	WREG32(mmMME2_ACC_PROT, 0x2);
-	WREG32(mmMME3_SBAB_PROT, 0x2);
-	WREG32(mmMME3_ACC_PROT, 0x2);
+	if (hdev->asic_prop.fw_security_disabled) {
+		WREG32(mmMME0_SBAB_PROT, 0x2);
+		WREG32(mmMME0_ACC_PROT, 0x2);
+		WREG32(mmMME1_SBAB_PROT, 0x2);
+		WREG32(mmMME1_ACC_PROT, 0x2);
+		WREG32(mmMME2_SBAB_PROT, 0x2);
+		WREG32(mmMME2_ACC_PROT, 0x2);
+		WREG32(mmMME3_SBAB_PROT, 0x2);
+		WREG32(mmMME3_ACC_PROT, 0x2);
+	}
 
 	/* On RAZWI, 0 will be returned from RR and 0xBABA0BAD from PB */
-	WREG32(0xC01B28, 0x1);
+	if (hdev->asic_prop.fw_security_disabled)
+		WREG32(0xC01B28, 0x1);
 
 	gaudi_init_range_registers_lbw(hdev);
 

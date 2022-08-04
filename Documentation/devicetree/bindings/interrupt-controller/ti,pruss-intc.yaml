@@ -80,7 +80,7 @@ properties:
       mapping is provided.
 
   ti,irqs-reserved:
-    $ref: /schemas/types.yaml#definitions/uint8
+    $ref: /schemas/types.yaml#/definitions/uint8
     description: |
       Bitmask of host interrupts between 0 and 7 (corresponding to PRUSS INTC
       output interrupts 2 through 9) that are not connected to the Arm interrupt

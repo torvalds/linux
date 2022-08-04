@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * fs/verity/verify.c: data verification functions, i.e. hooks for ->readpages()
+ * Data verification functions, i.e. hooks for ->readpages()
  *
  * Copyright 2019 Google LLC
  */

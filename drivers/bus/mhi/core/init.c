@@ -8,6 +8,7 @@
 #include <linux/device.h>
 #include <linux/dma-direction.h>
 #include <linux/dma-mapping.h>
+#include <linux/idr.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/mhi.h>
@@ -17,6 +18,8 @@
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
 #include "internal.h"
+
+static DEFINE_IDA(mhi_controller_ida);
 
 const char * const mhi_ee_str[MHI_EE_MAX] = {
 	[MHI_EE_PBL] = "PBL",
@@ -610,7 +613,7 @@ static int parse_ev_cfg(struct mhi_controller *mhi_cntrl,
 {
 	struct mhi_event *mhi_event;
 	const struct mhi_event_config *event_cfg;
-	struct device *dev = &mhi_cntrl->mhi_dev->dev;
+	struct device *dev = mhi_cntrl->cntrl_dev;
 	int i, num;
 
 	num = config->num_events;
@@ -692,7 +695,7 @@ static int parse_ch_cfg(struct mhi_controller *mhi_cntrl,
 			const struct mhi_controller_config *config)
 {
 	const struct mhi_channel_config *ch_cfg;
-	struct device *dev = &mhi_cntrl->mhi_dev->dev;
+	struct device *dev = mhi_cntrl->cntrl_dev;
 	int i;
 	u32 chan;
 
@@ -758,7 +761,6 @@ static int parse_ch_cfg(struct mhi_controller *mhi_cntrl,
 		mhi_chan->offload_ch = ch_cfg->offload_channel;
 		mhi_chan->db_cfg.reset_req = ch_cfg->doorbell_mode_switch;
 		mhi_chan->pre_alloc = ch_cfg->auto_queue;
-		mhi_chan->auto_start = ch_cfg->auto_start;
 
 		/*
 		 * If MHI host allocates buffers, then the channel direction
@@ -858,7 +860,7 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 
 	if (!mhi_cntrl->runtime_get || !mhi_cntrl->runtime_put ||
 	    !mhi_cntrl->status_cb || !mhi_cntrl->read_reg ||
-	    !mhi_cntrl->write_reg)
+	    !mhi_cntrl->write_reg || !mhi_cntrl->nr_irqs)
 		return -EINVAL;
 
 	ret = parse_config(mhi_cntrl, config);
@@ -869,7 +871,7 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 				     sizeof(*mhi_cntrl->mhi_cmd), GFP_KERNEL);
 	if (!mhi_cntrl->mhi_cmd) {
 		ret = -ENOMEM;
-		goto error_alloc_cmd;
+		goto err_free_event;
 	}
 
 	INIT_LIST_HEAD(&mhi_cntrl->transition_list);
@@ -879,6 +881,14 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 	spin_lock_init(&mhi_cntrl->wlock);
 	INIT_WORK(&mhi_cntrl->st_worker, mhi_pm_st_worker);
 	init_waitqueue_head(&mhi_cntrl->state_event);
+
+	mhi_cntrl->hiprio_wq = alloc_ordered_workqueue
+				("mhi_hiprio_wq", WQ_MEM_RECLAIM | WQ_HIGHPRI);
+	if (!mhi_cntrl->hiprio_wq) {
+		dev_err(mhi_cntrl->cntrl_dev, "Failed to allocate workqueue\n");
+		ret = -ENOMEM;
+		goto err_free_cmd;
+	}
 
 	mhi_cmd = mhi_cntrl->mhi_cmd;
 	for (i = 0; i < NR_OF_CMD_RINGS; i++, mhi_cmd++)
@@ -923,7 +933,7 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 	ret = mhi_read_reg(mhi_cntrl, mhi_cntrl->regs,
 			   SOC_HW_VERSION_OFFS, &soc_info);
 	if (ret)
-		goto error_alloc_dev;
+		goto err_destroy_wq;
 
 	mhi_cntrl->family_number = (soc_info & SOC_HW_VERSION_FAM_NUM_BMSK) >>
 					SOC_HW_VERSION_FAM_NUM_SHFT;
@@ -934,25 +944,31 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 	mhi_cntrl->minor_version = (soc_info & SOC_HW_VERSION_MINOR_VER_BMSK) >>
 					SOC_HW_VERSION_MINOR_VER_SHFT;
 
+	mhi_cntrl->index = ida_alloc(&mhi_controller_ida, GFP_KERNEL);
+	if (mhi_cntrl->index < 0) {
+		ret = mhi_cntrl->index;
+		goto err_destroy_wq;
+	}
+
 	/* Register controller with MHI bus */
 	mhi_dev = mhi_alloc_device(mhi_cntrl);
 	if (IS_ERR(mhi_dev)) {
 		dev_err(mhi_cntrl->cntrl_dev, "Failed to allocate MHI device\n");
 		ret = PTR_ERR(mhi_dev);
-		goto error_alloc_dev;
+		goto err_ida_free;
 	}
 
 	mhi_dev->dev_type = MHI_DEVICE_CONTROLLER;
 	mhi_dev->mhi_cntrl = mhi_cntrl;
-	dev_set_name(&mhi_dev->dev, "%s", dev_name(mhi_cntrl->cntrl_dev));
-	mhi_dev->name = dev_name(mhi_cntrl->cntrl_dev);
+	dev_set_name(&mhi_dev->dev, "mhi%d", mhi_cntrl->index);
+	mhi_dev->name = dev_name(&mhi_dev->dev);
 
 	/* Init wakeup source */
 	device_init_wakeup(&mhi_dev->dev, true);
 
 	ret = device_add(&mhi_dev->dev);
 	if (ret)
-		goto error_add_dev;
+		goto err_release_dev;
 
 	mhi_cntrl->mhi_dev = mhi_dev;
 
@@ -960,15 +976,17 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 
 	return 0;
 
-error_add_dev:
+err_release_dev:
 	put_device(&mhi_dev->dev);
-
-error_alloc_dev:
+err_ida_free:
+	ida_free(&mhi_controller_ida, mhi_cntrl->index);
+err_destroy_wq:
+	destroy_workqueue(mhi_cntrl->hiprio_wq);
+err_free_cmd:
 	kfree(mhi_cntrl->mhi_cmd);
-
-error_alloc_cmd:
-	vfree(mhi_cntrl->mhi_chan);
+err_free_event:
 	kfree(mhi_cntrl->mhi_event);
+	vfree(mhi_cntrl->mhi_chan);
 
 	return ret;
 }
@@ -982,6 +1000,7 @@ void mhi_unregister_controller(struct mhi_controller *mhi_cntrl)
 
 	mhi_destroy_debugfs(mhi_cntrl);
 
+	destroy_workqueue(mhi_cntrl->hiprio_wq);
 	kfree(mhi_cntrl->mhi_cmd);
 	kfree(mhi_cntrl->mhi_event);
 
@@ -996,6 +1015,8 @@ void mhi_unregister_controller(struct mhi_controller *mhi_cntrl)
 
 	device_del(&mhi_dev->dev);
 	put_device(&mhi_dev->dev);
+
+	ida_free(&mhi_controller_ida, mhi_cntrl->index);
 }
 EXPORT_SYMBOL_GPL(mhi_unregister_controller);
 
@@ -1122,7 +1143,15 @@ struct mhi_device *mhi_alloc_device(struct mhi_controller *mhi_cntrl)
 	device_initialize(dev);
 	dev->bus = &mhi_bus_type;
 	dev->release = mhi_release_device;
-	dev->parent = mhi_cntrl->cntrl_dev;
+
+	if (mhi_cntrl->mhi_dev) {
+		/* for MHI client devices, parent is the MHI controller device */
+		dev->parent = &mhi_cntrl->mhi_dev->dev;
+	} else {
+		/* for MHI controller device, parent is the bus device (e.g. pci device) */
+		dev->parent = mhi_cntrl->cntrl_dev;
+	}
+
 	mhi_dev->mhi_cntrl = mhi_cntrl;
 	mhi_dev->dev_wake = 0;
 
@@ -1160,11 +1189,6 @@ static int mhi_driver_probe(struct device *dev)
 			goto exit_probe;
 
 		ul_chan->xfer_cb = mhi_drv->ul_xfer_cb;
-		if (ul_chan->auto_start) {
-			ret = mhi_prepare_channel(mhi_cntrl, ul_chan);
-			if (ret)
-				goto exit_probe;
-		}
 	}
 
 	ret = -EINVAL;
@@ -1197,9 +1221,6 @@ static int mhi_driver_probe(struct device *dev)
 	ret = mhi_drv->probe(mhi_dev, mhi_dev->id);
 	if (ret)
 		goto exit_probe;
-
-	if (dl_chan && dl_chan->auto_start)
-		mhi_prepare_channel(mhi_cntrl, dl_chan);
 
 	mhi_device_put(mhi_dev);
 
@@ -1276,10 +1297,8 @@ static int mhi_driver_remove(struct device *dev)
 		mutex_unlock(&mhi_chan->mutex);
 	}
 
-	read_lock_bh(&mhi_cntrl->pm_lock);
 	while (mhi_dev->dev_wake)
 		mhi_device_put(mhi_dev);
-	read_unlock_bh(&mhi_cntrl->pm_lock);
 
 	return 0;
 }

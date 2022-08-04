@@ -329,11 +329,11 @@ static int stmfx_chip_init(struct i2c_client *client)
 
 	stmfx->vdd = devm_regulator_get_optional(&client->dev, "vdd");
 	ret = PTR_ERR_OR_ZERO(stmfx->vdd);
-	if (ret == -ENODEV) {
-		stmfx->vdd = NULL;
-	} else {
-		return dev_err_probe(&client->dev, ret,
-				     "Failed to get VDD regulator\n");
+	if (ret) {
+		if (ret == -ENODEV)
+			stmfx->vdd = NULL;
+		else
+			return dev_err_probe(&client->dev, ret, "Failed to get VDD regulator\n");
 	}
 
 	if (stmfx->vdd) {
@@ -548,7 +548,7 @@ MODULE_DEVICE_TABLE(of, stmfx_of_match);
 static struct i2c_driver stmfx_driver = {
 	.driver = {
 		.name = "stmfx-core",
-		.of_match_table = of_match_ptr(stmfx_of_match),
+		.of_match_table = stmfx_of_match,
 		.pm = &stmfx_dev_pm_ops,
 	},
 	.probe = stmfx_probe,

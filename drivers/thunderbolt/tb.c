@@ -1534,5 +1534,7 @@ struct tb *tb_probe(struct tb_nhi *nhi)
 	INIT_LIST_HEAD(&tcm->dp_resources);
 	INIT_DELAYED_WORK(&tcm->remove_work, tb_remove_work);
 
+	tb_dbg(tb, "using software connection manager\n");
+
 	return tb;
 }

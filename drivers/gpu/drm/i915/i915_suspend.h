@@ -8,7 +8,7 @@
 
 struct drm_i915_private;
 
-int i915_save_state(struct drm_i915_private *i915);
-int i915_restore_state(struct drm_i915_private *i915);
+void i915_save_display(struct drm_i915_private *i915);
+void i915_restore_display(struct drm_i915_private *i915);
 
 #endif /* __I915_SUSPEND_H__ */

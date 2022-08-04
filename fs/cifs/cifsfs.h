@@ -152,9 +152,13 @@ extern long cifs_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 extern void cifs_setsize(struct inode *inode, loff_t offset);
 extern int cifs_truncate_page(struct address_space *mapping, loff_t from);
 
+struct smb3_fs_context;
+extern struct dentry *cifs_smb3_do_mount(struct file_system_type *fs_type,
+					 int flags, struct smb3_fs_context *ctx);
+
 #ifdef CONFIG_CIFS_NFSD_EXPORT
 extern const struct export_operations cifs_export_ops;
 #endif /* CONFIG_CIFS_NFSD_EXPORT */
 
-#define CIFS_VERSION   "2.29"
+#define CIFS_VERSION   "2.30"
 #endif				/* _CIFSFS_H */

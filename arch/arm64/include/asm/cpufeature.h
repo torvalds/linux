@@ -669,10 +669,16 @@ static __always_inline bool system_supports_fpsimd(void)
 	return !cpus_have_const_cap(ARM64_HAS_NO_FPSIMD);
 }
 
+static inline bool system_uses_hw_pan(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_PAN) &&
+		cpus_have_const_cap(ARM64_HAS_PAN);
+}
+
 static inline bool system_uses_ttbr0_pan(void)
 {
 	return IS_ENABLED(CONFIG_ARM64_SW_TTBR0_PAN) &&
-		!cpus_have_const_cap(ARM64_HAS_PAN);
+		!system_uses_hw_pan();
 }
 
 static __always_inline bool system_supports_sve(void)
@@ -697,6 +703,11 @@ static inline bool system_supports_generic_auth(void)
 {
 	return IS_ENABLED(CONFIG_ARM64_PTR_AUTH) &&
 		cpus_have_const_cap(ARM64_HAS_GENERIC_AUTH);
+}
+
+static inline bool system_has_full_ptr_auth(void)
+{
+	return system_supports_address_auth() && system_supports_generic_auth();
 }
 
 static __always_inline bool system_uses_irq_prio_masking(void)
@@ -764,10 +775,25 @@ static inline bool cpu_has_hw_af(void)
 						ID_AA64MMFR1_HADBS_SHIFT);
 }
 
+static inline bool cpu_has_pan(void)
+{
+	u64 mmfr1 = read_cpuid(ID_AA64MMFR1_EL1);
+	return cpuid_feature_extract_unsigned_field(mmfr1,
+						    ID_AA64MMFR1_PAN_SHIFT);
+}
+
 #ifdef CONFIG_ARM64_AMU_EXTN
 /* Check whether the cpu supports the Activity Monitors Unit (AMU) */
 extern bool cpu_has_amu_feat(int cpu);
+#else
+static inline bool cpu_has_amu_feat(int cpu)
+{
+	return false;
+}
 #endif
+
+/* Get a cpu that supports the Activity Monitors Unit (AMU) */
+extern int get_cpu_with_amu_feat(void);
 
 static inline unsigned int get_vmid_bits(u64 mmfr1)
 {

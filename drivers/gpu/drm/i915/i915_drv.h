@@ -110,8 +110,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20200917"
-#define DRIVER_TIMESTAMP	1600375437
+#define DRIVER_DATE		"20201103"
+#define DRIVER_TIMESTAMP	1604406085
 
 struct drm_i915_gem_object;
 
@@ -508,7 +508,6 @@ struct i915_psr {
 	bool dc3co_enabled;
 	u32 dc3co_exit_delay;
 	struct delayed_work dc3co_work;
-	bool force_mode_changed;
 	struct drm_dp_vsc_sdp vsc;
 };
 
@@ -891,9 +890,6 @@ struct drm_i915_private {
 	spinlock_t irq_lock;
 
 	bool display_irqs_enabled;
-
-	/* To control wakeup latency, e.g. for irq-driven dp aux transfers. */
-	struct pm_qos_request pm_qos;
 
 	/* Sideband mailbox protection */
 	struct mutex sb_lock;
@@ -1350,7 +1346,7 @@ intel_subplatform(const struct intel_runtime_info *info, enum intel_platform p)
 {
 	const unsigned int pi = __platform_mask_index(info, p);
 
-	return info->platform_mask[pi] & INTEL_SUBPLATFORM_BITS;
+	return info->platform_mask[pi] & ((1 << INTEL_SUBPLATFORM_BITS) - 1);
 }
 
 static __always_inline bool
@@ -1419,7 +1415,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_COMETLAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_COMETLAKE)
 #define IS_CANNONLAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_CANNONLAKE)
 #define IS_ICELAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_ICELAKE)
-#define IS_ELKHARTLAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_ELKHARTLAKE)
+#define IS_JSL_EHL(dev_priv)	(IS_PLATFORM(dev_priv, INTEL_JASPERLAKE) || \
+				IS_PLATFORM(dev_priv, INTEL_ELKHARTLAKE))
 #define IS_TIGERLAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_TIGERLAKE)
 #define IS_ROCKETLAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_ROCKETLAKE)
 #define IS_DG1(dev_priv)        IS_PLATFORM(dev_priv, INTEL_DG1)
@@ -1559,9 +1556,10 @@ extern const struct i915_rev_steppings kbl_revids[];
 	(IS_ICELAKE(p) && IS_REVID(p, since, until))
 
 #define EHL_REVID_A0            0x0
+#define EHL_REVID_B0            0x1
 
-#define IS_EHL_REVID(p, since, until) \
-	(IS_ELKHARTLAKE(p) && IS_REVID(p, since, until))
+#define IS_JSL_EHL_REVID(p, since, until) \
+	(IS_JSL_EHL(p) && IS_REVID(p, since, until))
 
 enum {
 	TGL_REVID_A0,
@@ -1578,9 +1576,9 @@ static inline const struct i915_rev_steppings *
 tgl_revids_get(struct drm_i915_private *dev_priv)
 {
 	if (IS_TGL_U(dev_priv) || IS_TGL_Y(dev_priv))
-		return tgl_uy_revids;
+		return &tgl_uy_revids[INTEL_REVID(dev_priv)];
 	else
-		return tgl_revids;
+		return &tgl_revids[INTEL_REVID(dev_priv)];
 }
 
 #define IS_TGL_DISP_REVID(p, since, until) \
@@ -1590,14 +1588,14 @@ tgl_revids_get(struct drm_i915_private *dev_priv)
 
 #define IS_TGL_UY_GT_REVID(p, since, until) \
 	((IS_TGL_U(p) || IS_TGL_Y(p)) && \
-	 tgl_uy_revids->gt_stepping >= (since) && \
-	 tgl_uy_revids->gt_stepping <= (until))
+	 tgl_uy_revids[INTEL_REVID(p)].gt_stepping >= (since) && \
+	 tgl_uy_revids[INTEL_REVID(p)].gt_stepping <= (until))
 
 #define IS_TGL_GT_REVID(p, since, until) \
 	(IS_TIGERLAKE(p) && \
 	 !(IS_TGL_U(p) || IS_TGL_Y(p)) && \
-	 tgl_revids->gt_stepping >= (since) && \
-	 tgl_revids->gt_stepping <= (until))
+	 tgl_revids[INTEL_REVID(p)].gt_stepping >= (since) && \
+	 tgl_revids[INTEL_REVID(p)].gt_stepping <= (until))
 
 #define RKL_REVID_A0		0x0
 #define RKL_REVID_B0		0x1
@@ -1640,8 +1638,7 @@ tgl_revids_get(struct drm_i915_private *dev_priv)
 #define HAS_SNOOP(dev_priv)	(INTEL_INFO(dev_priv)->has_snoop)
 #define HAS_EDRAM(dev_priv)	((dev_priv)->edram_size_mb)
 #define HAS_SECURE_BATCHES(dev_priv) (INTEL_GEN(dev_priv) < 6)
-#define HAS_WT(dev_priv)	((IS_HASWELL(dev_priv) || \
-				 IS_BROADWELL(dev_priv)) && HAS_EDRAM(dev_priv))
+#define HAS_WT(dev_priv)	HAS_EDRAM(dev_priv)
 
 #define HWS_NEEDS_PHYSICAL(dev_priv)	(INTEL_INFO(dev_priv)->hws_needs_physical)
 
@@ -1783,6 +1780,7 @@ extern const struct dev_pm_ops i915_pm_ops;
 
 int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 void i915_driver_remove(struct drm_i915_private *i915);
+void i915_driver_shutdown(struct drm_i915_private *i915);
 
 int i915_resume_switcheroo(struct drm_i915_private *i915);
 int i915_suspend_switcheroo(struct drm_i915_private *i915, pm_message_t state);

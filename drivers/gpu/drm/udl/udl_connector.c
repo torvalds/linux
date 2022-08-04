@@ -20,6 +20,7 @@ static int udl_get_edid_block(void *data, u8 *buf, unsigned int block,
 	int ret, i;
 	u8 *read_buff;
 	struct udl_device *udl = data;
+	struct usb_device *udev = udl_to_usb_device(udl);
 
 	read_buff = kmalloc(2, GFP_KERNEL);
 	if (!read_buff)
@@ -27,10 +28,9 @@ static int udl_get_edid_block(void *data, u8 *buf, unsigned int block,
 
 	for (i = 0; i < len; i++) {
 		int bval = (i + block * EDID_LENGTH) << 8;
-		ret = usb_control_msg(udl->udev,
-				      usb_rcvctrlpipe(udl->udev, 0),
-					  (0x02), (0x80 | (0x02 << 5)), bval,
-					  0xA1, read_buff, 2, HZ);
+		ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+				      0x02, (0x80 | (0x02 << 5)), bval,
+				      0xA1, read_buff, 2, HZ);
 		if (ret < 1) {
 			DRM_ERROR("Read EDID byte %d failed err %x\n", i, ret);
 			kfree(read_buff);

@@ -31,11 +31,19 @@ enum btf_endianness {
 };
 
 LIBBPF_API void btf__free(struct btf *btf);
+
 LIBBPF_API struct btf *btf__new(const void *data, __u32 size);
+LIBBPF_API struct btf *btf__new_split(const void *data, __u32 size, struct btf *base_btf);
 LIBBPF_API struct btf *btf__new_empty(void);
+LIBBPF_API struct btf *btf__new_empty_split(struct btf *base_btf);
+
 LIBBPF_API struct btf *btf__parse(const char *path, struct btf_ext **btf_ext);
+LIBBPF_API struct btf *btf__parse_split(const char *path, struct btf *base_btf);
 LIBBPF_API struct btf *btf__parse_elf(const char *path, struct btf_ext **btf_ext);
+LIBBPF_API struct btf *btf__parse_elf_split(const char *path, struct btf *base_btf);
 LIBBPF_API struct btf *btf__parse_raw(const char *path);
+LIBBPF_API struct btf *btf__parse_raw_split(const char *path, struct btf *base_btf);
+
 LIBBPF_API int btf__finalize_data(struct bpf_object *obj, struct btf *btf);
 LIBBPF_API int btf__load(struct btf *btf);
 LIBBPF_API __s32 btf__find_by_name(const struct btf *btf,
@@ -43,6 +51,7 @@ LIBBPF_API __s32 btf__find_by_name(const struct btf *btf,
 LIBBPF_API __s32 btf__find_by_name_kind(const struct btf *btf,
 					const char *type_name, __u32 kind);
 LIBBPF_API __u32 btf__get_nr_types(const struct btf *btf);
+LIBBPF_API const struct btf *btf__base_btf(const struct btf *btf);
 LIBBPF_API const struct btf_type *btf__type_by_id(const struct btf *btf,
 						  __u32 id);
 LIBBPF_API size_t btf__pointer_size(const struct btf *btf);

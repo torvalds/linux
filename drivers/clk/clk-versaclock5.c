@@ -739,8 +739,8 @@ static int vc5_update_power(struct device_node *np_output,
 {
 	u32 value;
 
-	if (!of_property_read_u32(np_output,
-				  "idt,voltage-microvolts", &value)) {
+	if (!of_property_read_u32(np_output, "idt,voltage-microvolt",
+				  &value)) {
 		clk_out->clk_output_cfg0_mask |= VC5_CLK_OUTPUT_CFG0_PWR_MASK;
 		switch (value) {
 		case 1800000:

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/string.h>
 #include <linux/elf.h>
+#include <asm/boot_data.h>
 #include <asm/sections.h>
+#include <asm/cpu_mf.h>
 #include <asm/setup.h>
 #include <asm/kexec.h>
 #include <asm/sclp.h>
@@ -13,6 +15,7 @@
 extern char __boot_data_start[], __boot_data_end[];
 extern char __boot_data_preserved_start[], __boot_data_preserved_end[];
 unsigned long __bootdata_preserved(__kaslr_offset);
+unsigned long __bootdata(ident_map_size);
 
 /*
  * Some code and data needs to stay below 2 GB, even when the kernel would be
@@ -56,6 +59,14 @@ void error(char *x)
 	sclp_early_printk("\n\n -- System halted");
 
 	disabled_wait();
+}
+
+static void setup_lpp(void)
+{
+	S390_lowcore.current_pid = 0;
+	S390_lowcore.lpp = LPP_MAGIC;
+	if (test_facility(40))
+		lpp(&S390_lowcore.lpp);
 }
 
 #ifdef CONFIG_KERNEL_UNCOMPRESSED
@@ -119,11 +130,65 @@ static void handle_relocs(unsigned long offset)
 }
 
 /*
+ * Merge information from several sources into a single ident_map_size value.
+ * "ident_map_size" represents the upper limit of physical memory we may ever
+ * reach. It might not be all online memory, but also include standby (offline)
+ * memory. "ident_map_size" could be lower then actual standby or even online
+ * memory present, due to limiting factors. We should never go above this limit.
+ * It is the size of our identity mapping.
+ *
+ * Consider the following factors:
+ * 1. max_physmem_end - end of physical memory online or standby.
+ *    Always <= end of the last online memory block (get_mem_detect_end()).
+ * 2. CONFIG_MAX_PHYSMEM_BITS - the maximum size of physical memory the
+ *    kernel is able to support.
+ * 3. "mem=" kernel command line option which limits physical memory usage.
+ * 4. OLDMEM_BASE which is a kdump memory limit when the kernel is executed as
+ *    crash kernel.
+ * 5. "hsa" size which is a memory limit when the kernel is executed during
+ *    zfcp/nvme dump.
+ */
+static void setup_ident_map_size(unsigned long max_physmem_end)
+{
+	unsigned long hsa_size;
+
+	ident_map_size = max_physmem_end;
+	if (memory_limit)
+		ident_map_size = min(ident_map_size, memory_limit);
+	ident_map_size = min(ident_map_size, 1UL << MAX_PHYSMEM_BITS);
+
+#ifdef CONFIG_CRASH_DUMP
+	if (OLDMEM_BASE) {
+		kaslr_enabled = 0;
+		ident_map_size = min(ident_map_size, OLDMEM_SIZE);
+	} else if (ipl_block_valid && is_ipl_block_dump()) {
+		kaslr_enabled = 0;
+		if (!sclp_early_get_hsa_size(&hsa_size) && hsa_size)
+			ident_map_size = min(ident_map_size, hsa_size);
+	}
+#endif
+}
+
+/*
  * This function clears the BSS section of the decompressed Linux kernel and NOT the decompressor's.
  */
 static void clear_bss_section(void)
 {
 	memset((void *)vmlinux.default_lma + vmlinux.image_size, 0, vmlinux.bss_size);
+}
+
+/*
+ * Set vmalloc area size to an 8th of (potential) physical memory
+ * size, unless size has been set by kernel command line parameter.
+ */
+static void setup_vmalloc_size(void)
+{
+	unsigned long size;
+
+	if (vmalloc_size_set)
+		return;
+	size = round_up(ident_map_size / 8, _SEGMENT_SIZE);
+	vmalloc_size = max(size, vmalloc_size);
 }
 
 void startup_kernel(void)
@@ -132,6 +197,7 @@ void startup_kernel(void)
 	unsigned long safe_addr;
 	void *img;
 
+	setup_lpp();
 	store_ipl_parmblock();
 	safe_addr = mem_safe_offset();
 	safe_addr = read_ipl_report(safe_addr);
@@ -140,8 +206,8 @@ void startup_kernel(void)
 	sclp_early_read_info();
 	setup_boot_command_line();
 	parse_boot_command_line();
-	setup_memory_end();
-	detect_memory();
+	setup_ident_map_size(detect_memory());
+	setup_vmalloc_size();
 
 	random_lma = __kaslr_offset = 0;
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && kaslr_enabled) {

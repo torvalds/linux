@@ -1201,12 +1201,12 @@ static int grcan_receive(struct net_device *dev, int budget)
 			cf->can_id = ((slot[0] & GRCAN_MSG_BID)
 				      >> GRCAN_MSG_BID_BIT);
 		}
-		cf->can_dlc = get_can_dlc((slot[1] & GRCAN_MSG_DLC)
+		cf->len = can_cc_dlc2len((slot[1] & GRCAN_MSG_DLC)
 					  >> GRCAN_MSG_DLC_BIT);
 		if (rtr) {
 			cf->can_id |= CAN_RTR_FLAG;
 		} else {
-			for (i = 0; i < cf->can_dlc; i++) {
+			for (i = 0; i < cf->len; i++) {
 				j = GRCAN_MSG_DATA_SLOT_INDEX(i);
 				shift = GRCAN_MSG_DATA_SHIFT(i);
 				cf->data[i] = (u8)(slot[j] >> shift);
@@ -1215,7 +1215,7 @@ static int grcan_receive(struct net_device *dev, int budget)
 
 		/* Update statistics and read pointer */
 		stats->rx_packets++;
-		stats->rx_bytes += cf->can_dlc;
+		stats->rx_bytes += cf->len;
 		netif_receive_skb(skb);
 
 		rd = grcan_ring_add(rd, GRCAN_MSG_SIZE, dma->rx.size);
@@ -1399,7 +1399,7 @@ static netdev_tx_t grcan_start_xmit(struct sk_buff *skb,
 	eff = cf->can_id & CAN_EFF_FLAG;
 	rtr = cf->can_id & CAN_RTR_FLAG;
 	id = cf->can_id & (eff ? CAN_EFF_MASK : CAN_SFF_MASK);
-	dlc = cf->can_dlc;
+	dlc = cf->len;
 	if (eff)
 		tmp = (id << GRCAN_MSG_EID_BIT) & GRCAN_MSG_EID;
 	else
@@ -1447,7 +1447,7 @@ static netdev_tx_t grcan_start_xmit(struct sk_buff *skb,
 	 * can_put_echo_skb would be an error unless other measures are
 	 * taken.
 	 */
-	priv->txdlc[slotindex] = cf->can_dlc; /* Store dlc for statistics */
+	priv->txdlc[slotindex] = cf->len; /* Store dlc for statistics */
 	can_put_echo_skb(skb, dev, slotindex);
 
 	/* Make sure everything is written before allowing hardware to

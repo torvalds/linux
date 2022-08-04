@@ -45,7 +45,7 @@ requirements:
 #. `Other RCU Flavors`_
 #. `Possible Future Changes`_
 
-This is followed by a `summary <#Summary>`__, however, the answers to
+This is followed by a summary_, however, the answers to
 each quick quiz immediately follows the quiz. Select the big white space
 with your mouse to see the answer.
 
@@ -1096,7 +1096,7 @@ memory barriers.
 | case, voluntary context switch) within an RCU read-side critical      |
 | section. However, sleeping locks may be used within userspace RCU     |
 | read-side critical sections, and also within Linux-kernel sleepable   |
-| RCU `(SRCU) <#Sleepable%20RCU>`__ read-side critical sections. In     |
+| RCU `(SRCU) <Sleepable RCU_>`__ read-side critical sections. In       |
 | addition, the -rt patchset turns spinlocks into a sleeping locks so   |
 | that the corresponding critical sections can be preempted, which also |
 | means that these sleeplockified spinlocks (but not other sleeping     |
@@ -1186,7 +1186,7 @@ non-preemptible (``CONFIG_PREEMPT=n``) kernels, and thus `tiny
 RCU <https://lkml.kernel.org/g/20090113221724.GA15307@linux.vnet.ibm.com>`__
 was born. Josh Triplett has since taken over the small-memory banner
 with his `Linux kernel tinification <https://tiny.wiki.kernel.org/>`__
-project, which resulted in `SRCU <#Sleepable%20RCU>`__ becoming optional
+project, which resulted in `SRCU <Sleepable RCU_>`__ becoming optional
 for those kernels not needing it.
 
 The remaining performance requirements are, for the most part,
@@ -1457,8 +1457,8 @@ will vary as the value of ``HZ`` varies, and can also be changed using
 the relevant Kconfig options and kernel boot parameters. RCU currently
 does not do much sanity checking of these parameters, so please use
 caution when changing them. Note that these forward-progress measures
-are provided only for RCU, not for `SRCU <#Sleepable%20RCU>`__ or `Tasks
-RCU <#Tasks%20RCU>`__.
+are provided only for RCU, not for `SRCU <Sleepable RCU_>`__ or `Tasks
+RCU`_.
 
 RCU takes the following steps in ``call_rcu()`` to encourage timely
 invocation of callbacks when any given non-\ ``rcu_nocbs`` CPU has
@@ -1477,8 +1477,8 @@ encouragement was provided:
 
 Again, these are default values when running at ``HZ=1000``, and can be
 overridden. Again, these forward-progress measures are provided only for
-RCU, not for `SRCU <#Sleepable%20RCU>`__ or `Tasks
-RCU <#Tasks%20RCU>`__. Even for RCU, callback-invocation forward
+RCU, not for `SRCU <Sleepable RCU_>`__ or `Tasks
+RCU`_. Even for RCU, callback-invocation forward
 progress for ``rcu_nocbs`` CPUs is much less well-developed, in part
 because workloads benefiting from ``rcu_nocbs`` CPUs tend to invoke
 ``call_rcu()`` relatively infrequently. If workloads emerge that need
@@ -1920,7 +1920,7 @@ Hotplug CPU
 
 The Linux kernel supports CPU hotplug, which means that CPUs can come
 and go. It is of course illegal to use any RCU API member from an
-offline CPU, with the exception of `SRCU <#Sleepable%20RCU>`__ read-side
+offline CPU, with the exception of `SRCU <Sleepable RCU_>`__ read-side
 critical sections. This requirement was present from day one in
 DYNIX/ptx, but on the other hand, the Linux kernel's CPU-hotplug
 implementation is “interesting.”
@@ -1929,16 +1929,46 @@ The Linux-kernel CPU-hotplug implementation has notifiers that are used
 to allow the various kernel subsystems (including RCU) to respond
 appropriately to a given CPU-hotplug operation. Most RCU operations may
 be invoked from CPU-hotplug notifiers, including even synchronous
-grace-period operations such as ``synchronize_rcu()`` and
-``synchronize_rcu_expedited()``.
+grace-period operations such as (``synchronize_rcu()`` and
+``synchronize_rcu_expedited()``).  However, these synchronous operations
+do block and therefore cannot be invoked from notifiers that execute via
+``stop_machine()``, specifically those between the ``CPUHP_AP_OFFLINE``
+and ``CPUHP_AP_ONLINE`` states.
 
-However, all-callback-wait operations such as ``rcu_barrier()`` are also
-not supported, due to the fact that there are phases of CPU-hotplug
-operations where the outgoing CPU's callbacks will not be invoked until
-after the CPU-hotplug operation ends, which could also result in
-deadlock. Furthermore, ``rcu_barrier()`` blocks CPU-hotplug operations
-during its execution, which results in another type of deadlock when
-invoked from a CPU-hotplug notifier.
+In addition, all-callback-wait operations such as ``rcu_barrier()`` may
+not be invoked from any CPU-hotplug notifier.  This restriction is due
+to the fact that there are phases of CPU-hotplug operations where the
+outgoing CPU's callbacks will not be invoked until after the CPU-hotplug
+operation ends, which could also result in deadlock. Furthermore,
+``rcu_barrier()`` blocks CPU-hotplug operations during its execution,
+which results in another type of deadlock when invoked from a CPU-hotplug
+notifier.
+
+Finally, RCU must avoid deadlocks due to interaction between hotplug,
+timers and grace period processing. It does so by maintaining its own set
+of books that duplicate the centrally maintained ``cpu_online_mask``,
+and also by reporting quiescent states explicitly when a CPU goes
+offline.  This explicit reporting of quiescent states avoids any need
+for the force-quiescent-state loop (FQS) to report quiescent states for
+offline CPUs.  However, as a debugging measure, the FQS loop does splat
+if offline CPUs block an RCU grace period for too long.
+
+An offline CPU's quiescent state will be reported either:
+
+1.  As the CPU goes offline using RCU's hotplug notifier (``rcu_report_dead()``).
+2.  When grace period initialization (``rcu_gp_init()``) detects a
+    race either with CPU offlining or with a task unblocking on a leaf
+    ``rcu_node`` structure whose CPUs are all offline.
+
+The CPU-online path (``rcu_cpu_starting()``) should never need to report
+a quiescent state for an offline CPU.  However, as a debugging measure,
+it does emit a warning if a quiescent state was not already reported
+for that CPU.
+
+During the checking/modification of RCU's hotplug bookkeeping, the
+corresponding CPU's leaf node lock is held. This avoids race conditions
+between RCU's hotplug notifier hooks, the grace period initialization
+code, and the FQS loop, all of which refer to or modify this bookkeeping.
 
 Scheduler and RCU
 ~~~~~~~~~~~~~~~~~
@@ -2147,7 +2177,7 @@ handles these states differently:
 However, RCU must be reliably informed as to whether any given CPU is
 currently in the idle loop, and, for ``NO_HZ_FULL``, also whether that
 CPU is executing in usermode, as discussed
-`earlier <#Energy%20Efficiency>`__. It also requires that the
+`earlier <Energy Efficiency_>`__. It also requires that the
 scheduling-clock interrupt be enabled when RCU needs it to be:
 
 #. If a CPU is either idle or executing in usermode, and RCU believes it
@@ -2264,7 +2294,7 @@ Performance, Scalability, Response Time, and Reliability
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Expanding on the `earlier
-discussion <#Performance%20and%20Scalability>`__, RCU is used heavily by
+discussion <Performance and Scalability_>`__, RCU is used heavily by
 hot code paths in performance-critical portions of the Linux kernel's
 networking, security, virtualization, and scheduling code paths. RCU
 must therefore use efficient implementations, especially in its

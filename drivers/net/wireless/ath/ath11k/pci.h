@@ -24,6 +24,30 @@
 /* register used for handshake mechanism to validate UMAC is awake */
 #define PCIE_SOC_WAKE_PCIE_LOCAL_REG		0x3004
 
+#define PCIE_PCIE_PARF_LTSSM			0x1e081b0
+#define PARM_LTSSM_VALUE			0x111
+
+#define GCC_GCC_PCIE_HOT_RST			0x1e402bc
+#define GCC_GCC_PCIE_HOT_RST_VAL		0x10
+
+#define PCIE_PCIE_INT_ALL_CLEAR			0x1e08228
+#define PCIE_SMLH_REQ_RST_LINK_DOWN		0x2
+#define PCIE_INT_CLEAR_ALL			0xffffffff
+
+#define PCIE_QSERDES_COM_SYSCLK_EN_SEL_REG	0x01e0c0ac
+#define PCIE_QSERDES_COM_SYSCLK_EN_SEL_VAL	0x10
+#define PCIE_QSERDES_COM_SYSCLK_EN_SEL_MSK	0xffffffff
+#define PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG1_REG	0x01e0c628
+#define PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG1_VAL	0x02
+#define PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG2_REG	0x01e0c62c
+#define PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG2_VAL	0x52
+#define PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG4_REG	0x01e0c634
+#define PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG4_VAL	0xff
+#define PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG_MSK	0x000000ff
+
+#define WLAON_QFPROM_PWR_CTRL_REG		0x01f8031c
+#define QFPROM_PWR_CTRL_VDD4BLOW_MASK		0x4
+
 struct ath11k_msi_user {
 	char *name;
 	int num_vectors;
@@ -38,6 +62,8 @@ struct ath11k_msi_config {
 
 enum ath11k_pci_flags {
 	ATH11K_PCI_FLAG_INIT_DONE,
+	ATH11K_PCI_FLAG_IS_MSI_64,
+	ATH11K_PCI_ASPM_RESTORE,
 };
 
 struct ath11k_pci {
@@ -55,6 +81,7 @@ struct ath11k_pci {
 
 	/* enum ath11k_pci_flags */
 	unsigned long flags;
+	u16 link_ctl;
 };
 
 static inline struct ath11k_pci *ath11k_pci_priv(struct ath11k_base *ab)

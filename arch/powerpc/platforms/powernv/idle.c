@@ -589,6 +589,7 @@ struct p9_sprs {
 	u64 spurr;
 	u64 dscr;
 	u64 wort;
+	u64 ciabr;
 
 	u64 mmcra;
 	u32 mmcr0;
@@ -668,6 +669,7 @@ static unsigned long power9_idle_stop(unsigned long psscr, bool mmu_on)
 		sprs.spurr	= mfspr(SPRN_SPURR);
 		sprs.dscr	= mfspr(SPRN_DSCR);
 		sprs.wort	= mfspr(SPRN_WORT);
+		sprs.ciabr	= mfspr(SPRN_CIABR);
 
 		sprs.mmcra	= mfspr(SPRN_MMCRA);
 		sprs.mmcr0	= mfspr(SPRN_MMCR0);
@@ -785,6 +787,7 @@ core_woken:
 	mtspr(SPRN_SPURR,	sprs.spurr);
 	mtspr(SPRN_DSCR,	sprs.dscr);
 	mtspr(SPRN_WORT,	sprs.wort);
+	mtspr(SPRN_CIABR,	sprs.ciabr);
 
 	mtspr(SPRN_MMCRA,	sprs.mmcra);
 	mtspr(SPRN_MMCR0,	sprs.mmcr0);

@@ -46,6 +46,11 @@ enum {
 	MCU_EXT_EVENT_RATE_REPORT = 0x87,
 };
 
+enum {
+	MCU_ATE_SET_TRX = 0x1,
+	MCU_ATE_SET_FREQ_OFFSET = 0xa,
+};
+
 struct mt7915_mcu_rxd {
 	__le32 rxd[6];
 
@@ -153,6 +158,18 @@ struct mt7915_mcu_ra_info {
 	u8 prob_down_pending;
 } __packed;
 
+
+struct mt7915_mcu_phy_rx_info {
+	u8 category;
+	u8 rate;
+	u8 mode;
+	u8 nsts;
+	u8 gi;
+	u8 coding;
+	u8 stbc;
+	u8 bw;
+};
+
 #define MT_RA_RATE_NSS			GENMASK(8, 6)
 #define MT_RA_RATE_MCS			GENMASK(3, 0)
 #define MT_RA_RATE_TX_MODE		GENMASK(12, 9)
@@ -201,19 +218,24 @@ enum {
 	MCU_EXT_CMD_EDCA_UPDATE = 0x27,
 	MCU_EXT_CMD_DEV_INFO_UPDATE = 0x2A,
 	MCU_EXT_CMD_THERMAL_CTRL = 0x2c,
+	MCU_EXT_CMD_WTBL_UPDATE = 0x32,
 	MCU_EXT_CMD_SET_DRR_CTRL = 0x36,
 	MCU_EXT_CMD_SET_RDD_CTRL = 0x3a,
+	MCU_EXT_CMD_ATE_CTRL = 0x3d,
 	MCU_EXT_CMD_PROTECT_CTRL = 0x3e,
 	MCU_EXT_CMD_MAC_INIT_CTRL = 0x46,
 	MCU_EXT_CMD_RX_HDR_TRANS = 0x47,
+	MCU_EXT_CMD_MUAR_UPDATE = 0x48,
 	MCU_EXT_CMD_SET_RX_PATH = 0x4e,
 	MCU_EXT_CMD_TX_POWER_FEATURE_CTRL = 0x58,
+	MCU_EXT_CMD_MWDS_SUPPORT = 0x80,
 	MCU_EXT_CMD_SET_SER_TRIGGER = 0x81,
 	MCU_EXT_CMD_SCS_CTRL = 0x82,
 	MCU_EXT_CMD_RATE_CTRL = 0x87,
 	MCU_EXT_CMD_FW_DBG_CTRL = 0x95,
 	MCU_EXT_CMD_SET_RDD_TH = 0x9d,
 	MCU_EXT_CMD_SET_SPR = 0xa8,
+	MCU_EXT_CMD_PHY_STAT_INFO = 0xad,
 };
 
 enum {
@@ -245,6 +267,14 @@ enum {
 	EE_FORMAT_BIN,
 	EE_FORMAT_WHOLE,
 	EE_FORMAT_MULTIPLE,
+};
+
+enum {
+	MCU_PHY_STATE_TX_RATE,
+	MCU_PHY_STATE_RX_RATE,
+	MCU_PHY_STATE_RSSI,
+	MCU_PHY_STATE_CONTENTION_RX_RATE,
+	MCU_PHY_STATE_OFDMLQ_CNINFO,
 };
 
 #define STA_TYPE_STA			BIT(0)
@@ -351,15 +381,6 @@ struct bss_info_ext_bss {
 	__le16 tag;
 	__le16 len;
 	__le32 mbss_tsf_offset; /* in unit of us */
-	u8 rsv[8];
-} __packed;
-
-struct bss_info_sync_mode {
-	__le16 tag;
-	__le16 len;
-	__le16 bcn_interval;
-	u8 enable;
-	u8 dtim_period;
 	u8 rsv[8];
 } __packed;
 
@@ -480,7 +501,7 @@ enum {
 	BSS_INFO_LQ_RM,		/* obsoleted */
 	BSS_INFO_EXT_BSS,
 	BSS_INFO_BMC_RATE,	/* for bmc rate control in CR4 */
-	BSS_INFO_SYNC_MODE,
+	BSS_INFO_SYNC_MODE,	/* obsoleted */
 	BSS_INFO_RA,
 	BSS_INFO_HW_AMSDU,
 	BSS_INFO_BSS_COLOR,
@@ -550,6 +571,15 @@ struct wtbl_vht {
 	u8 txop_ps;
 	u8 rsv[4];
 } __packed;
+
+struct wtbl_hdr_trans {
+	__le16 tag;
+	__le16 len;
+	u8 to_ds;
+	u8 from_ds;
+	u8 no_rx_trans;
+	u8 _rsv;
+};
 
 enum {
 	MT_BA_TYPE_INVALID,
@@ -972,6 +1002,7 @@ enum {
 					 sizeof(struct wtbl_rx) +	\
 					 sizeof(struct wtbl_ht) +	\
 					 sizeof(struct wtbl_vht) +	\
+					 sizeof(struct wtbl_hdr_trans) +\
 					 sizeof(struct wtbl_ba) +	\
 					 sizeof(struct wtbl_smps))
 
@@ -997,8 +1028,7 @@ enum {
 					 sizeof(struct bss_info_hw_amsdu) +\
 					 sizeof(struct bss_info_he) +	\
 					 sizeof(struct bss_info_bmc_rate) +\
-					 sizeof(struct bss_info_ext_bss) +\
-					 sizeof(struct bss_info_sync_mode))
+					 sizeof(struct bss_info_ext_bss))
 
 #define MT7915_BEACON_UPDATE_SIZE	(sizeof(struct sta_req_hdr) +	\
 					 sizeof(struct bss_info_bcn_csa) + \

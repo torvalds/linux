@@ -83,6 +83,7 @@ properties:
       - rc-it913x-v2
       - rc-kaiomy
       - rc-khadas
+      - rc-khamsin
       - rc-kworld-315u
       - rc-kworld-pc150u
       - rc-kworld-plus-tv-analog
@@ -102,6 +103,7 @@ properties:
       - rc-npgtech
       - rc-odroid
       - rc-pctv-sedna
+      - rc-pine64
       - rc-pinnacle-color
       - rc-pinnacle-grey
       - rc-pinnacle-pctv-hd

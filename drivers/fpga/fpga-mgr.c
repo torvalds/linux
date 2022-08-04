@@ -21,6 +21,10 @@
 static DEFINE_IDA(fpga_mgr_ida);
 static struct class *fpga_mgr_class;
 
+struct fpga_mgr_devres {
+	struct fpga_manager *mgr;
+};
+
 /**
  * fpga_image_info_alloc - Allocate a FPGA image info struct
  * @dev: owning device
@@ -625,9 +629,9 @@ EXPORT_SYMBOL_GPL(fpga_mgr_free);
 
 static void devm_fpga_mgr_release(struct device *dev, void *res)
 {
-	struct fpga_manager *mgr = *(struct fpga_manager **)res;
+	struct fpga_mgr_devres *dr = res;
 
-	fpga_mgr_free(mgr);
+	fpga_mgr_free(dr->mgr);
 }
 
 /**
@@ -651,21 +655,21 @@ struct fpga_manager *devm_fpga_mgr_create(struct device *dev, const char *name,
 					  const struct fpga_manager_ops *mops,
 					  void *priv)
 {
-	struct fpga_manager **ptr, *mgr;
+	struct fpga_mgr_devres *dr;
 
-	ptr = devres_alloc(devm_fpga_mgr_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
+	dr = devres_alloc(devm_fpga_mgr_release, sizeof(*dr), GFP_KERNEL);
+	if (!dr)
 		return NULL;
 
-	mgr = fpga_mgr_create(dev, name, mops, priv);
-	if (!mgr) {
-		devres_free(ptr);
-	} else {
-		*ptr = mgr;
-		devres_add(dev, ptr);
+	dr->mgr = fpga_mgr_create(dev, name, mops, priv);
+	if (!dr->mgr) {
+		devres_free(dr);
+		return NULL;
 	}
 
-	return mgr;
+	devres_add(dev, dr);
+
+	return dr->mgr;
 }
 EXPORT_SYMBOL_GPL(devm_fpga_mgr_create);
 
@@ -721,6 +725,59 @@ void fpga_mgr_unregister(struct fpga_manager *mgr)
 	device_unregister(&mgr->dev);
 }
 EXPORT_SYMBOL_GPL(fpga_mgr_unregister);
+
+static int fpga_mgr_devres_match(struct device *dev, void *res,
+				 void *match_data)
+{
+	struct fpga_mgr_devres *dr = res;
+
+	return match_data == dr->mgr;
+}
+
+static void devm_fpga_mgr_unregister(struct device *dev, void *res)
+{
+	struct fpga_mgr_devres *dr = res;
+
+	fpga_mgr_unregister(dr->mgr);
+}
+
+/**
+ * devm_fpga_mgr_register - resource managed variant of fpga_mgr_register()
+ * @dev: managing device for this FPGA manager
+ * @mgr: fpga manager struct
+ *
+ * This is the devres variant of fpga_mgr_register() for which the unregister
+ * function will be called automatically when the managing device is detached.
+ */
+int devm_fpga_mgr_register(struct device *dev, struct fpga_manager *mgr)
+{
+	struct fpga_mgr_devres *dr;
+	int ret;
+
+	/*
+	 * Make sure that the struct fpga_manager * that is passed in is
+	 * managed itself.
+	 */
+	if (WARN_ON(!devres_find(dev, devm_fpga_mgr_release,
+				 fpga_mgr_devres_match, mgr)))
+		return -EINVAL;
+
+	dr = devres_alloc(devm_fpga_mgr_unregister, sizeof(*dr), GFP_KERNEL);
+	if (!dr)
+		return -ENOMEM;
+
+	ret = fpga_mgr_register(mgr);
+	if (ret) {
+		devres_free(dr);
+		return ret;
+	}
+
+	dr->mgr = mgr;
+	devres_add(dev, dr);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devm_fpga_mgr_register);
 
 static void fpga_mgr_dev_release(struct device *dev)
 {

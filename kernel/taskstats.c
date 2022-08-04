@@ -346,7 +346,7 @@ static int parse(struct nlattr *na, struct cpumask *mask)
 	data = kmalloc(len, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-	nla_strlcpy(data, na, len);
+	nla_strscpy(data, na, len);
 	ret = cpulist_parse(data, mask);
 	kfree(data);
 	return ret;

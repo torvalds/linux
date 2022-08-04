@@ -478,7 +478,7 @@ static void ksz9477_flush_dyn_mac_table(struct ksz_device *dev, int port)
 			   SW_FLUSH_OPTION_M << SW_FLUSH_OPTION_S,
 			   SW_FLUSH_OPTION_DYN_MAC << SW_FLUSH_OPTION_S);
 
-	if (port < dev->mib_port_cnt) {
+	if (port < dev->port_cnt) {
 		/* flush individual port */
 		ksz_pread8(dev, port, P_STP_CTRL, &data);
 		if (!(data & PORT_LEARN_DISABLE))
@@ -1267,8 +1267,6 @@ static void ksz9477_config_cpu_port(struct dsa_switch *ds)
 	struct ksz_port *p;
 	int i;
 
-	ds->num_ports = dev->port_cnt;
-
 	for (i = 0; i < dev->port_cnt; i++) {
 		if (dsa_is_cpu_port(ds, i) && (dev->cpu_ports & (1 << i))) {
 			phy_interface_t interface;
@@ -1319,7 +1317,7 @@ static void ksz9477_config_cpu_port(struct dsa_switch *ds)
 
 	dev->member = dev->host_mask;
 
-	for (i = 0; i < dev->mib_port_cnt; i++) {
+	for (i = 0; i < dev->port_cnt; i++) {
 		if (i == dev->cpu_port)
 			continue;
 		p = &dev->ports[i];
@@ -1446,7 +1444,6 @@ static int ksz9477_switch_detect(struct ksz_device *dev)
 		return ret;
 
 	/* Number of ports can be reduced depending on chip. */
-	dev->mib_port_cnt = TOTAL_PORT_NUM;
 	dev->phy_port_cnt = 5;
 
 	/* Default capability is gigabit capable. */
@@ -1463,7 +1460,6 @@ static int ksz9477_switch_detect(struct ksz_device *dev)
 		/* Chip does not support gigabit. */
 		if (data8 & SW_QW_ABLE)
 			dev->features &= ~GBIT_SUPPORT;
-		dev->mib_port_cnt = 3;
 		dev->phy_port_cnt = 2;
 	} else {
 		dev_info(dev->dev, "Found KSZ9477 or compatible\n");
@@ -1566,12 +1562,12 @@ static int ksz9477_switch_init(struct ksz_device *dev)
 	dev->reg_mib_cnt = SWITCH_COUNTER_NUM;
 	dev->mib_cnt = TOTAL_SWITCH_COUNTER_NUM;
 
-	i = dev->mib_port_cnt;
-	dev->ports = devm_kzalloc(dev->dev, sizeof(struct ksz_port) * i,
+	dev->ports = devm_kzalloc(dev->dev,
+				  dev->port_cnt * sizeof(struct ksz_port),
 				  GFP_KERNEL);
 	if (!dev->ports)
 		return -ENOMEM;
-	for (i = 0; i < dev->mib_port_cnt; i++) {
+	for (i = 0; i < dev->port_cnt; i++) {
 		mutex_init(&dev->ports[i].mib.cnt_mutex);
 		dev->ports[i].mib.counters =
 			devm_kzalloc(dev->dev,

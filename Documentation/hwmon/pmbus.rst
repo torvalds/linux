@@ -148,11 +148,6 @@ Emerson DS1200 power modules might look as follows::
 	return pmbus_do_probe(client, &ds1200_info);
   }
 
-  static int ds1200_remove(struct i2c_client *client)
-  {
-	return pmbus_do_remove(client);
-  }
-
   static const struct i2c_device_id ds1200_id[] = {
 	{"ds1200", 0},
 	{}
@@ -166,7 +161,6 @@ Emerson DS1200 power modules might look as follows::
 		   .name = "ds1200",
 		   },
 	.probe_new = ds1200_probe,
-	.remove = ds1200_remove,
 	.id_table = ds1200_id,
   };
 

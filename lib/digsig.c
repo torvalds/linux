@@ -20,7 +20,7 @@
 #include <linux/key.h>
 #include <linux/crypto.h>
 #include <crypto/hash.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
 #include <keys/user-type.h>
 #include <linux/mpi.h>
 #include <linux/digsig.h>

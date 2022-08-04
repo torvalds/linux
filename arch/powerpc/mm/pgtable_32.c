@@ -84,7 +84,7 @@ int __ref map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot)
 		pg = pte_alloc_kernel(pd, va);
 	else
 		pg = early_pte_alloc_kernel(pd, va);
-	if (pg != 0) {
+	if (pg) {
 		err = 0;
 		/* The PTE should never be already set nor present in the
 		 * hash table
@@ -112,10 +112,6 @@ static void __init __mapin_ram_chunk(unsigned long offset, unsigned long top)
 		ktext = ((char *)v >= _stext && (char *)v < etext) ||
 			((char *)v >= _sinittext && (char *)v < _einittext);
 		map_kernel_page(v, p, ktext ? PAGE_KERNEL_TEXT : PAGE_KERNEL);
-#ifdef CONFIG_PPC_BOOK3S_32
-		if (ktext)
-			hash_preload(&init_mm, v);
-#endif
 		v += PAGE_SIZE;
 		p += PAGE_SIZE;
 	}

@@ -25,7 +25,7 @@
 #include <linux/pm_runtime.h>
 #include <crypto/md5.h>
 #include <crypto/skcipher.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
 #include <crypto/hash.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>

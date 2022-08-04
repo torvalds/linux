@@ -182,7 +182,7 @@ static int strset_parse_request(struct ethnl_req_info *req_base,
 		ret = strset_get_id(attr, &id, extack);
 		if (ret < 0)
 			return ret;
-		if (ret >= ETH_SS_COUNT) {
+		if (id >= ETH_SS_COUNT) {
 			NL_SET_ERR_MSG_ATTR(extack, attr,
 					    "unknown string set id");
 			return -EOPNOTSUPP;

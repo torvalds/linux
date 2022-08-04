@@ -68,8 +68,6 @@ source "drivers/staging/gdm724x/Kconfig"
 
 source "drivers/staging/fwserial/Kconfig"
 
-source "drivers/staging/goldfish/Kconfig"
-
 source "drivers/staging/netlogic/Kconfig"
 
 source "drivers/staging/gs_fpgaboot/Kconfig"
@@ -94,10 +92,6 @@ source "drivers/staging/pi433/Kconfig"
 
 source "drivers/staging/mt7621-pci/Kconfig"
 
-source "drivers/staging/mt7621-pci-phy/Kconfig"
-
-source "drivers/staging/mt7621-pinctrl/Kconfig"
-
 source "drivers/staging/mt7621-dma/Kconfig"
 
 source "drivers/staging/ralink-gdma/Kconfig"
@@ -113,6 +107,8 @@ source "drivers/staging/fieldbus/Kconfig"
 source "drivers/staging/kpc2000/Kconfig"
 
 source "drivers/staging/qlge/Kconfig"
+
+source "drivers/staging/wimax/Kconfig"
 
 source "drivers/staging/wfx/Kconfig"
 

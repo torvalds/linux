@@ -18,10 +18,6 @@
 #include "h/fddi.h"
 #include "h/smc.h"
 
-#ifndef	lint
-static const char ID_sccs[] = "@(#)queue.c	2.9 97/08/04 (C) SK " ;
-#endif
-
 #define PRINTF(a,b,c)
 
 /*

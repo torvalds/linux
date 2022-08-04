@@ -143,12 +143,9 @@ LIST_HEAD(tty_drivers);			/* linked list of tty drivers */
 DEFINE_MUTEX(tty_mutex);
 
 static ssize_t tty_read(struct file *, char __user *, size_t, loff_t *);
-static ssize_t tty_write(struct file *, const char __user *, size_t, loff_t *);
-ssize_t redirected_tty_write(struct file *, const char __user *,
-							size_t, loff_t *);
+static ssize_t tty_write(struct kiocb *, struct iov_iter *);
 static __poll_t tty_poll(struct file *, poll_table *);
 static int tty_open(struct inode *, struct file *);
-long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 #ifdef CONFIG_COMPAT
 static long tty_compat_ioctl(struct file *file, unsigned int cmd,
 				unsigned long arg);
@@ -208,7 +205,7 @@ void tty_add_file(struct tty_struct *tty, struct file *file)
 	spin_unlock(&tty->files_lock);
 }
 
-/**
+/*
  * tty_free_file - free file->private_data
  *
  * This shall be used only for fail path handling when tty_add_file was not
@@ -438,8 +435,7 @@ static ssize_t hung_up_tty_read(struct file *file, char __user *buf,
 	return 0;
 }
 
-static ssize_t hung_up_tty_write(struct file *file, const char __user *buf,
-				 size_t count, loff_t *ppos)
+static ssize_t hung_up_tty_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	return -EIO;
 }
@@ -478,7 +474,8 @@ static void tty_show_fdinfo(struct seq_file *m, struct file *file)
 static const struct file_operations tty_fops = {
 	.llseek		= no_llseek,
 	.read		= tty_read,
-	.write		= tty_write,
+	.write_iter	= tty_write,
+	.splice_write	= iter_file_splice_write,
 	.poll		= tty_poll,
 	.unlocked_ioctl	= tty_ioctl,
 	.compat_ioctl	= tty_compat_ioctl,
@@ -491,7 +488,8 @@ static const struct file_operations tty_fops = {
 static const struct file_operations console_fops = {
 	.llseek		= no_llseek,
 	.read		= tty_read,
-	.write		= redirected_tty_write,
+	.write_iter	= redirected_tty_write,
+	.splice_write	= iter_file_splice_write,
 	.poll		= tty_poll,
 	.unlocked_ioctl	= tty_ioctl,
 	.compat_ioctl	= tty_compat_ioctl,
@@ -503,7 +501,7 @@ static const struct file_operations console_fops = {
 static const struct file_operations hung_up_tty_fops = {
 	.llseek		= no_llseek,
 	.read		= hung_up_tty_read,
-	.write		= hung_up_tty_write,
+	.write_iter	= hung_up_tty_write,
 	.poll		= hung_up_tty_poll,
 	.unlocked_ioctl	= hung_up_tty_ioctl,
 	.compat_ioctl	= hung_up_tty_compat_ioctl,
@@ -513,8 +511,6 @@ static const struct file_operations hung_up_tty_fops = {
 
 static DEFINE_SPINLOCK(redirect_lock);
 static struct file *redirect;
-
-extern void tty_sysctl_init(void);
 
 /**
  *	tty_wakeup	-	request more data
@@ -545,6 +541,7 @@ EXPORT_SYMBOL_GPL(tty_wakeup);
 /**
  *	__tty_hangup		-	actual handler for hangup events
  *	@tty: tty device
+ *	@exit_session: if non-zero, signal all foreground group processes
  *
  *	This can be called by a "kworker" kernel thread.  That is process
  *	synchronous but doesn't hold any locks, so we need to make sure we
@@ -607,9 +604,9 @@ static void __tty_hangup(struct tty_struct *tty, int exit_session)
 	/* This breaks for file handles being sent over AF_UNIX sockets ? */
 	list_for_each_entry(priv, &tty->tty_files, list) {
 		filp = priv->file;
-		if (filp->f_op->write == redirected_tty_write)
+		if (filp->f_op->write_iter == redirected_tty_write)
 			cons_filp = filp;
-		if (filp->f_op->write != tty_write)
+		if (filp->f_op->write_iter != tty_write)
 			continue;
 		closecount++;
 		__tty_fasync(-1, filp, 0);	/* can't block */
@@ -902,9 +899,9 @@ static inline ssize_t do_tty_write(
 	ssize_t (*write)(struct tty_struct *, struct file *, const unsigned char *, size_t),
 	struct tty_struct *tty,
 	struct file *file,
-	const char __user *buf,
-	size_t count)
+	struct iov_iter *from)
 {
+	size_t count = iov_iter_count(from);
 	ssize_t ret, written = 0;
 	unsigned int chunk;
 
@@ -956,14 +953,20 @@ static inline ssize_t do_tty_write(
 		size_t size = count;
 		if (size > chunk)
 			size = chunk;
+
 		ret = -EFAULT;
-		if (copy_from_user(tty->write_buf, buf, size))
+		if (copy_from_iter(tty->write_buf, size, from) != size)
 			break;
+
 		ret = write(tty, file, tty->write_buf, size);
 		if (ret <= 0)
 			break;
+
+		/* FIXME! Have Al check this! */
+		if (ret != size)
+			iov_iter_revert(from, size-ret);
+
 		written += ret;
-		buf += ret;
 		count -= ret;
 		if (!count)
 			break;
@@ -1023,8 +1026,7 @@ void tty_write_message(struct tty_struct *tty, char *msg)
  *	write method will not be invoked in parallel for each device.
  */
 
-static ssize_t tty_write(struct file *file, const char __user *buf,
-						size_t count, loff_t *ppos)
+static ssize_t file_tty_write(struct file *file, struct kiocb *iocb, struct iov_iter *from)
 {
 	struct tty_struct *tty = file_tty(file);
  	struct tty_ldisc *ld;
@@ -1039,17 +1041,21 @@ static ssize_t tty_write(struct file *file, const char __user *buf,
 		tty_err(tty, "missing write_room method\n");
 	ld = tty_ldisc_ref_wait(tty);
 	if (!ld)
-		return hung_up_tty_write(file, buf, count, ppos);
+		return hung_up_tty_write(iocb, from);
 	if (!ld->ops->write)
 		ret = -EIO;
 	else
-		ret = do_tty_write(ld->ops->write, tty, file, buf, count);
+		ret = do_tty_write(ld->ops->write, tty, file, from);
 	tty_ldisc_deref(ld);
 	return ret;
 }
 
-ssize_t redirected_tty_write(struct file *file, const char __user *buf,
-						size_t count, loff_t *ppos)
+static ssize_t tty_write(struct kiocb *iocb, struct iov_iter *from)
+{
+	return file_tty_write(iocb->ki_filp, iocb, from);
+}
+
+ssize_t redirected_tty_write(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *p = NULL;
 
@@ -1058,16 +1064,20 @@ ssize_t redirected_tty_write(struct file *file, const char __user *buf,
 		p = get_file(redirect);
 	spin_unlock(&redirect_lock);
 
+	/*
+	 * We know the redirected tty is just another tty, we can can
+	 * call file_tty_write() directly with that file pointer.
+	 */
 	if (p) {
 		ssize_t res;
-		res = vfs_write(p, buf, count, &p->f_pos);
+		res = file_tty_write(p, iocb, iter);
 		fput(p);
 		return res;
 	}
-	return tty_write(file, buf, count, ppos);
+	return tty_write(iocb, iter);
 }
 
-/**
+/*
  *	tty_send_xchar	-	send priority character
  *
  *	Send a high priority character to the tty even if stopped
@@ -1145,6 +1155,7 @@ static ssize_t tty_line_name(struct tty_driver *driver, int index, char *p)
 /**
  *	tty_driver_lookup_tty() - find an existing tty, if any
  *	@driver: the driver for the tty
+ *	@file:   file object
  *	@idx:	 the minor number
  *
  *	Return the tty, if found. If not found, return NULL or ERR_PTR() if the
@@ -1496,6 +1507,8 @@ EXPORT_SYMBOL(tty_kref_put);
 
 /**
  *	release_tty		-	release tty structure memory
+ *	@tty: tty device release
+ *	@idx: index of the tty device release
  *
  *	Release both @tty and a possible linked partner (think pty pair),
  *	and decrement the refcount of the backing module.
@@ -2293,7 +2306,7 @@ static int tioccons(struct file *file)
 {
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	if (file->f_op->write == redirected_tty_write) {
+	if (file->f_op->write_iter == redirected_tty_write) {
 		struct file *f;
 		spin_lock(&redirect_lock);
 		f = redirect;
@@ -2303,6 +2316,12 @@ static int tioccons(struct file *file)
 			fput(f);
 		return 0;
 	}
+	if (file->f_op->write_iter != tty_write)
+		return -ENOTTY;
+	if (!(file->f_mode & FMODE_WRITE))
+		return -EBADF;
+	if (!(file->f_mode & FMODE_CAN_WRITE))
+		return -EINVAL;
 	spin_lock(&redirect_lock);
 	if (redirect) {
 		spin_unlock(&redirect_lock);
@@ -2970,7 +2989,7 @@ static struct device *tty_get_device(struct tty_struct *tty)
 }
 
 
-/**
+/*
  *	alloc_tty_struct
  *
  *	This subroutine allocates and initializes a tty structure.

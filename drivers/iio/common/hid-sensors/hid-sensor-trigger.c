@@ -84,15 +84,6 @@ static const struct attribute *hid_sensor_fifo_attributes[] = {
 	NULL,
 };
 
-static void hid_sensor_setup_batch_mode(struct iio_dev *indio_dev,
-					struct hid_sensor_common *st)
-{
-	if (!hid_sensor_batch_mode_supported(st))
-		return;
-
-	iio_buffer_set_attrs(indio_dev->buffer, hid_sensor_fifo_attributes);
-}
-
 static int _hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 {
 	int state_val;
@@ -247,11 +238,18 @@ static const struct iio_trigger_ops hid_sensor_trigger_ops = {
 int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
 				struct hid_sensor_common *attrb)
 {
+	const struct attribute **fifo_attrs;
 	int ret;
 	struct iio_trigger *trig;
 
-	ret = iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
-					 NULL, NULL);
+	if (hid_sensor_batch_mode_supported(attrb))
+		fifo_attrs = hid_sensor_fifo_attributes;
+	else
+		fifo_attrs = NULL;
+
+	ret = iio_triggered_buffer_setup_ext(indio_dev,
+					     &iio_pollfunc_store_time,
+					     NULL, NULL, fifo_attrs);
 	if (ret) {
 		dev_err(&indio_dev->dev, "Triggered Buffer Setup Failed\n");
 		return ret;
@@ -275,8 +273,6 @@ int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
 	}
 	attrb->trigger = trig;
 	indio_dev->trig = iio_trigger_get(trig);
-
-	hid_sensor_setup_batch_mode(indio_dev, attrb);
 
 	ret = pm_runtime_set_active(&indio_dev->dev);
 	if (ret)

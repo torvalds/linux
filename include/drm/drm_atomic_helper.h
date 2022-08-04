@@ -167,7 +167,7 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 	drm_for_each_plane_mask(plane, (crtc)->dev, (crtc)->state->plane_mask)
 
 /**
- * drm_crtc_atomic_state_for_each_plane - iterate over attached planes in new state
+ * drm_atomic_crtc_state_for_each_plane - iterate over attached planes in new state
  * @plane: the loop cursor
  * @crtc_state: the incoming CRTC state
  *
@@ -180,7 +180,7 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 	drm_for_each_plane_mask(plane, (crtc_state)->state->dev, (crtc_state)->plane_mask)
 
 /**
- * drm_crtc_atomic_state_for_each_plane_state - iterate over attached planes in new state
+ * drm_atomic_crtc_state_for_each_plane_state - iterate over attached planes in new state
  * @plane: the loop cursor
  * @plane_state: loop cursor for the plane's state, must be const
  * @crtc_state: the incoming CRTC state

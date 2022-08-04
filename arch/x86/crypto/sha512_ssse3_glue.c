@@ -34,7 +34,7 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
 #include <crypto/sha512_base.h>
 #include <asm/simd.h>
 

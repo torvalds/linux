@@ -132,9 +132,6 @@ static inline int rtw_bug_check(void *parg1, void *parg2, void *parg3, void *par
 
 #define _RND(sz, r) ((((sz)+((r)-1))/(r))*(r))
 
-#ifndef MAC_FMT
-#define MAC_FMT "%pM"
-#endif
 #ifndef MAC_ARG
 #define MAC_ARG(x) (x)
 #endif

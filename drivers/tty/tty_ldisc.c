@@ -135,8 +135,10 @@ static void put_ldops(struct tty_ldisc_ops *ldops)
 	raw_spin_unlock_irqrestore(&tty_ldiscs_lock, flags);
 }
 
+static int tty_ldisc_autoload = IS_BUILTIN(CONFIG_LDISC_AUTOLOAD);
 /**
  *	tty_ldisc_get		-	take a reference to an ldisc
+ *	@tty: tty device
  *	@disc: ldisc number
  *
  *	Takes a reference to a line discipline. Deals with refcounts and
@@ -154,8 +156,6 @@ static void put_ldops(struct tty_ldisc_ops *ldops)
  *	Locking:
  *		takes tty_ldiscs_lock to guard against ldisc races
  */
-
-static int tty_ldisc_autoload = IS_BUILTIN(CONFIG_LDISC_AUTOLOAD);
 
 static struct tty_ldisc *tty_ldisc_get(struct tty_struct *tty, int disc)
 {
@@ -190,7 +190,7 @@ static struct tty_ldisc *tty_ldisc_get(struct tty_struct *tty, int disc)
 	return ld;
 }
 
-/**
+/*
  *	tty_ldisc_put		-	release the ldisc
  *
  *	Complement of tty_ldisc_get().
@@ -250,12 +250,12 @@ const struct seq_operations tty_ldiscs_seq_ops = {
  *	Returns: NULL if the tty has been hungup and not re-opened with
  *		 a new file descriptor, otherwise valid ldisc reference
  *
- *	Note: Must not be called from an IRQ/timer context. The caller
+ *	Note 1: Must not be called from an IRQ/timer context. The caller
  *	must also be careful not to hold other locks that will deadlock
  *	against a discipline change, such as an existing ldisc reference
  *	(which we check for)
  *
- *	Note: a file_operations routine (read/poll/write) should use this
+ *	Note 2: a file_operations routine (read/poll/write) should use this
  *	function to wait for any ldisc lifetime events to finish.
  */
 
@@ -701,6 +701,7 @@ int tty_ldisc_reinit(struct tty_struct *tty, int disc)
 /**
  *	tty_ldisc_hangup		-	hangup ldisc reset
  *	@tty: tty being hung up
+ *	@reinit: whether to re-initialise the tty
  *
  *	Some tty devices reset their termios when they receive a hangup
  *	event. In that situation we must also switch back to N_TTY properly

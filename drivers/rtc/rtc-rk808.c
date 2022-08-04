@@ -447,7 +447,7 @@ static int rk808_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	return rtc_register_device(rk808_rtc->rtc);
+	return devm_rtc_register_device(rk808_rtc->rtc);
 }
 
 static struct platform_driver rk808_rtc_driver = {

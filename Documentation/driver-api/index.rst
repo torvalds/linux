@@ -29,6 +29,7 @@ available subsections can be seen below.
    infiniband
    frame-buffer
    regulator
+   reset
    iio/index
    input
    usb/index
@@ -72,6 +73,7 @@ available subsections can be seen below.
    thermal/index
    fpga/index
    acpi/index
+   auxiliary_bus
    backlight/lp855x-driver.rst
    connector
    console

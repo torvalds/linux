@@ -91,4 +91,7 @@ int ath11k_dp_rx_pdev_mon_detach(struct ath11k *ar);
 int ath11k_dp_rx_pdev_mon_attach(struct ath11k *ar);
 int ath11k_peer_rx_frag_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id);
 
+int ath11k_dp_rx_pktlog_start(struct ath11k_base *ab);
+int ath11k_dp_rx_pktlog_stop(struct ath11k_base *ab, bool stop_timer);
+
 #endif /* ATH11K_DP_RX_H */

@@ -705,6 +705,15 @@ static int bch_writeback_thread(void *arg)
 			 * bch_cached_dev_detach().
 			 */
 			if (test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags)) {
+				struct closure cl;
+
+				closure_init_stack(&cl);
+				memset(&dc->sb.set_uuid, 0, 16);
+				SET_BDEV_STATE(&dc->sb, BDEV_STATE_NONE);
+
+				bch_write_bdev_super(dc, &cl);
+				closure_sync(&cl);
+
 				up_write(&dc->writeback_lock);
 				break;
 			}

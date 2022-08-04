@@ -369,7 +369,7 @@
 			clocks = <&gate_clk 14>;
 			clock-names = "sata";
 			#phy-cells = <0>;
-			status = "ok";
+			status = "okay";
 		};
 
 		sata_phy1: sata-phy@84000 {
@@ -378,7 +378,7 @@
 			clocks = <&gate_clk 15>;
 			clock-names = "sata";
 			#phy-cells = <0>;
-			status = "ok";
+			status = "okay";
 		};
 
 		audio0: audio-controller@a0000 {

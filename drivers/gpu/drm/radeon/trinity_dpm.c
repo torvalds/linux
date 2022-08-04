@@ -29,6 +29,7 @@
 #include "radeon_asic.h"
 #include "trinity_dpm.h"
 #include "trinityd.h"
+#include "vce.h"
 
 #define TRINITY_MAX_DEEPSLEEP_DIVIDER_ID 5
 #define TRINITY_MINIMUM_ENGINE_CLOCK 800
@@ -116,54 +117,10 @@ static const u32 trinity_mgcg_shls_default[] =
 	0x00009220, 0x00090008, 0xffffffff,
 	0x00009294, 0x00000000, 0xffffffff
 };
-
-static const u32 trinity_mgcg_shls_enable[] =
-{
-	/* Register, Value, Mask */
-	0x0000802c, 0xc0000000, 0xffffffff,
-	0x000008f8, 0x00000000, 0xffffffff,
-	0x000008fc, 0x00000000, 0x000133FF,
-	0x000008f8, 0x00000001, 0xffffffff,
-	0x000008fc, 0x00000000, 0xE00B03FC,
-	0x00009150, 0x96944200, 0xffffffff
-};
-
-static const u32 trinity_mgcg_shls_disable[] =
-{
-	/* Register, Value, Mask */
-	0x0000802c, 0xc0000000, 0xffffffff,
-	0x00009150, 0x00600000, 0xffffffff,
-	0x000008f8, 0x00000000, 0xffffffff,
-	0x000008fc, 0xffffffff, 0x000133FF,
-	0x000008f8, 0x00000001, 0xffffffff,
-	0x000008fc, 0xffffffff, 0xE00B03FC
-};
 #endif
 
 #ifndef TRINITY_SYSLS_SEQUENCE
 #define TRINITY_SYSLS_SEQUENCE  100
-
-static const u32 trinity_sysls_default[] =
-{
-	/* Register, Value, Mask */
-	0x000055e8, 0x00000000, 0xffffffff,
-	0x0000d0bc, 0x00000000, 0xffffffff,
-	0x0000d8bc, 0x00000000, 0xffffffff,
-	0x000015c0, 0x000c1401, 0xffffffff,
-	0x0000264c, 0x000c0400, 0xffffffff,
-	0x00002648, 0x000c0400, 0xffffffff,
-	0x00002650, 0x000c0400, 0xffffffff,
-	0x000020b8, 0x000c0400, 0xffffffff,
-	0x000020bc, 0x000c0400, 0xffffffff,
-	0x000020c0, 0x000c0c80, 0xffffffff,
-	0x0000f4a0, 0x000000c0, 0xffffffff,
-	0x0000f4a4, 0x00680fff, 0xffffffff,
-	0x00002f50, 0x00000404, 0xffffffff,
-	0x000004c8, 0x00000001, 0xffffffff,
-	0x0000641c, 0x00000000, 0xffffffff,
-	0x00000c7c, 0x00000000, 0xffffffff,
-	0x00006dfc, 0x00000000, 0xffffffff
-};
 
 static const u32 trinity_sysls_disable[] =
 {
@@ -337,7 +294,6 @@ static const u32 trinity_override_mgpg_sequences[] =
 	0x00000204, 0x00000000,
 };
 
-extern void vce_v1_0_enable_mgcg(struct radeon_device *rdev, bool enable);
 static void trinity_program_clk_gating_hw_sequence(struct radeon_device *rdev,
 						   const u32 *seq, u32 count);
 static void trinity_override_dynamic_mg_powergating(struct radeon_device *rdev);

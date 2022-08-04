@@ -1016,15 +1016,19 @@ ecryptfs_setxattr(struct dentry *dentry, struct inode *inode,
 {
 	int rc;
 	struct dentry *lower_dentry;
+	struct inode *lower_inode;
 
 	lower_dentry = ecryptfs_dentry_to_lower(dentry);
-	if (!(d_inode(lower_dentry)->i_opflags & IOP_XATTR)) {
+	lower_inode = d_inode(lower_dentry);
+	if (!(lower_inode->i_opflags & IOP_XATTR)) {
 		rc = -EOPNOTSUPP;
 		goto out;
 	}
-	rc = vfs_setxattr(lower_dentry, name, value, size, flags);
+	inode_lock(lower_inode);
+	rc = __vfs_setxattr_locked(lower_dentry, name, value, size, flags, NULL);
+	inode_unlock(lower_inode);
 	if (!rc && inode)
-		fsstack_copy_attr_all(inode, d_inode(lower_dentry));
+		fsstack_copy_attr_all(inode, lower_inode);
 out:
 	return rc;
 }

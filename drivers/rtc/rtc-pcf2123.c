@@ -434,7 +434,7 @@ static int pcf2123_probe(struct spi_device *spi)
 	rtc->range_max = RTC_TIMESTAMP_END_2099;
 	rtc->set_start_time = true;
 
-	ret = rtc_register_device(rtc);
+	ret = devm_rtc_register_device(rtc);
 	if (ret)
 		return ret;
 

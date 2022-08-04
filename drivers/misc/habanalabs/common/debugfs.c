@@ -22,9 +22,10 @@ static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 				u8 i2c_reg, long *val)
 {
 	struct cpucp_packet pkt;
+	u64 result;
 	int rc;
 
-	if (hl_device_disabled_or_in_reset(hdev))
+	if (!hl_device_operational(hdev, NULL))
 		return -EBUSY;
 
 	memset(&pkt, 0, sizeof(pkt));
@@ -36,7 +37,9 @@ static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 	pkt.i2c_reg = i2c_reg;
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-						0, val);
+						0, &result);
+
+	*val = (long) result;
 
 	if (rc)
 		dev_err(hdev->dev, "Failed to read from I2C, error %d\n", rc);
@@ -50,7 +53,7 @@ static int hl_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 	struct cpucp_packet pkt;
 	int rc;
 
-	if (hl_device_disabled_or_in_reset(hdev))
+	if (!hl_device_operational(hdev, NULL))
 		return -EBUSY;
 
 	memset(&pkt, 0, sizeof(pkt));
@@ -76,7 +79,7 @@ static void hl_debugfs_led_set(struct hl_device *hdev, u8 led, u8 state)
 	struct cpucp_packet pkt;
 	int rc;
 
-	if (hl_device_disabled_or_in_reset(hdev))
+	if (!hl_device_operational(hdev, NULL))
 		return;
 
 	memset(&pkt, 0, sizeof(pkt));
@@ -113,7 +116,7 @@ static int command_buffers_show(struct seq_file *s, void *data)
 			"   %03llu        %d    0x%08x      %d          %d          %d\n",
 			cb->id, cb->ctx->asid, cb->size,
 			kref_read(&cb->refcount),
-			cb->mmap, cb->cs_cnt);
+			cb->mmap, atomic_read(&cb->cs_cnt));
 	}
 
 	spin_unlock(&dev_entry->cb_spinlock);
@@ -168,18 +171,19 @@ static int command_submission_jobs_show(struct seq_file *s, void *data)
 		if (first) {
 			first = false;
 			seq_puts(s, "\n");
-			seq_puts(s, " JOB ID   CS ID    CTX ASID   H/W Queue\n");
-			seq_puts(s, "---------------------------------------\n");
+			seq_puts(s, " JOB ID   CS ID    CTX ASID   JOB RefCnt   H/W Queue\n");
+			seq_puts(s, "----------------------------------------------------\n");
 		}
 		if (job->cs)
 			seq_printf(s,
-				"    %02d       %llu         %d         %d\n",
+				"   %02d      %llu        %d          %d           %d\n",
 				job->id, job->cs->sequence, job->cs->ctx->asid,
-				job->hw_queue_id);
+				kref_read(&job->refcount), job->hw_queue_id);
 		else
 			seq_printf(s,
-				"    %02d       0         %d         %d\n",
-				job->id, HL_KERNEL_ASID_ID, job->hw_queue_id);
+				"   %02d      0        %d          %d           %d\n",
+				job->id, HL_KERNEL_ASID_ID,
+				kref_read(&job->refcount), job->hw_queue_id);
 	}
 
 	spin_unlock(&dev_entry->cs_job_spinlock);
@@ -300,93 +304,15 @@ static int vm_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-/* these inline functions are copied from mmu.c */
-static inline u64 get_hop0_addr(struct hl_ctx *ctx)
-{
-	return ctx->hdev->asic_prop.mmu_pgt_addr +
-			(ctx->asid * ctx->hdev->asic_prop.mmu_hop_table_size);
-}
-
-static inline u64 get_hopN_pte_addr(struct hl_ctx *ctx, u64 hop_addr,
-					u64 virt_addr, u64 mask, u64 shift)
-{
-	return hop_addr + ctx->hdev->asic_prop.mmu_pte_size *
-			((virt_addr & mask) >> shift);
-}
-
-static inline u64 get_hop0_pte_addr(struct hl_ctx *ctx,
-					struct hl_mmu_properties *mmu_specs,
-					u64 hop_addr, u64 vaddr)
-{
-	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_specs->hop0_mask,
-					mmu_specs->hop0_shift);
-}
-
-static inline u64 get_hop1_pte_addr(struct hl_ctx *ctx,
-					struct hl_mmu_properties *mmu_specs,
-					u64 hop_addr, u64 vaddr)
-{
-	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_specs->hop1_mask,
-					mmu_specs->hop1_shift);
-}
-
-static inline u64 get_hop2_pte_addr(struct hl_ctx *ctx,
-					struct hl_mmu_properties *mmu_specs,
-					u64 hop_addr, u64 vaddr)
-{
-	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_specs->hop2_mask,
-					mmu_specs->hop2_shift);
-}
-
-static inline u64 get_hop3_pte_addr(struct hl_ctx *ctx,
-					struct hl_mmu_properties *mmu_specs,
-					u64 hop_addr, u64 vaddr)
-{
-	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_specs->hop3_mask,
-					mmu_specs->hop3_shift);
-}
-
-static inline u64 get_hop4_pte_addr(struct hl_ctx *ctx,
-					struct hl_mmu_properties *mmu_specs,
-					u64 hop_addr, u64 vaddr)
-{
-	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_specs->hop4_mask,
-					mmu_specs->hop4_shift);
-}
-
-static inline u64 get_hop5_pte_addr(struct hl_ctx *ctx,
-					struct hl_mmu_properties *mmu_specs,
-					u64 hop_addr, u64 vaddr)
-{
-	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_specs->hop5_mask,
-					mmu_specs->hop5_shift);
-}
-
-static inline u64 get_next_hop_addr(u64 curr_pte)
-{
-	if (curr_pte & PAGE_PRESENT_MASK)
-		return curr_pte & HOP_PHYS_ADDR_MASK;
-	else
-		return ULLONG_MAX;
-}
-
 static int mmu_show(struct seq_file *s, void *data)
 {
 	struct hl_debugfs_entry *entry = s->private;
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_device *hdev = dev_entry->hdev;
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	struct hl_mmu_properties *mmu_prop;
 	struct hl_ctx *ctx;
-	bool is_dram_addr;
-
-	u64 hop0_addr = 0, hop0_pte_addr = 0, hop0_pte = 0,
-		hop1_addr = 0, hop1_pte_addr = 0, hop1_pte = 0,
-		hop2_addr = 0, hop2_pte_addr = 0, hop2_pte = 0,
-		hop3_addr = 0, hop3_pte_addr = 0, hop3_pte = 0,
-		hop4_addr = 0, hop4_pte_addr = 0, hop4_pte = 0,
-		hop5_addr = 0, hop5_pte_addr = 0, hop5_pte = 0,
-		virt_addr = dev_entry->mmu_addr;
+	struct hl_mmu_hop_info hops_info;
+	u64 virt_addr = dev_entry->mmu_addr;
+	int i;
 
 	if (!hdev->mmu_enable)
 		return 0;
@@ -401,131 +327,23 @@ static int mmu_show(struct seq_file *s, void *data)
 		return 0;
 	}
 
-	is_dram_addr = hl_mem_area_inside_range(virt_addr, prop->dmmu.page_size,
-						prop->dmmu.start_addr,
-						prop->dmmu.end_addr);
-
-	/* shifts and masks are the same in PMMU and HPMMU, use one of them */
-	mmu_prop = is_dram_addr ? &prop->dmmu : &prop->pmmu;
-
-	mutex_lock(&ctx->mmu_lock);
-
-	/* the following lookup is copied from unmap() in mmu.c */
-
-	hop0_addr = get_hop0_addr(ctx);
-	hop0_pte_addr = get_hop0_pte_addr(ctx, mmu_prop, hop0_addr, virt_addr);
-	hop0_pte = hdev->asic_funcs->read_pte(hdev, hop0_pte_addr);
-	hop1_addr = get_next_hop_addr(hop0_pte);
-
-	if (hop1_addr == ULLONG_MAX)
-		goto not_mapped;
-
-	hop1_pte_addr = get_hop1_pte_addr(ctx, mmu_prop, hop1_addr, virt_addr);
-	hop1_pte = hdev->asic_funcs->read_pte(hdev, hop1_pte_addr);
-	hop2_addr = get_next_hop_addr(hop1_pte);
-
-	if (hop2_addr == ULLONG_MAX)
-		goto not_mapped;
-
-	hop2_pte_addr = get_hop2_pte_addr(ctx, mmu_prop, hop2_addr, virt_addr);
-	hop2_pte = hdev->asic_funcs->read_pte(hdev, hop2_pte_addr);
-	hop3_addr = get_next_hop_addr(hop2_pte);
-
-	if (hop3_addr == ULLONG_MAX)
-		goto not_mapped;
-
-	hop3_pte_addr = get_hop3_pte_addr(ctx, mmu_prop, hop3_addr, virt_addr);
-	hop3_pte = hdev->asic_funcs->read_pte(hdev, hop3_pte_addr);
-
-	if (mmu_prop->num_hops == MMU_ARCH_5_HOPS) {
-		if (!(hop3_pte & LAST_MASK)) {
-			hop4_addr = get_next_hop_addr(hop3_pte);
-
-			if (hop4_addr == ULLONG_MAX)
-				goto not_mapped;
-
-			hop4_pte_addr = get_hop4_pte_addr(ctx, mmu_prop,
-							hop4_addr, virt_addr);
-			hop4_pte = hdev->asic_funcs->read_pte(hdev,
-								hop4_pte_addr);
-			if (!(hop4_pte & PAGE_PRESENT_MASK))
-				goto not_mapped;
-		} else {
-			if (!(hop3_pte & PAGE_PRESENT_MASK))
-				goto not_mapped;
-		}
-	} else {
-		hop4_addr = get_next_hop_addr(hop3_pte);
-
-		if (hop4_addr == ULLONG_MAX)
-			goto not_mapped;
-
-		hop4_pte_addr = get_hop4_pte_addr(ctx, mmu_prop,
-						hop4_addr, virt_addr);
-		hop4_pte = hdev->asic_funcs->read_pte(hdev,
-							hop4_pte_addr);
-		if (!(hop4_pte & LAST_MASK)) {
-			hop5_addr = get_next_hop_addr(hop4_pte);
-
-			if (hop5_addr == ULLONG_MAX)
-				goto not_mapped;
-
-			hop5_pte_addr = get_hop5_pte_addr(ctx, mmu_prop,
-							hop5_addr, virt_addr);
-			hop5_pte = hdev->asic_funcs->read_pte(hdev,
-								hop5_pte_addr);
-			if (!(hop5_pte & PAGE_PRESENT_MASK))
-				goto not_mapped;
-		} else {
-			if (!(hop4_pte & PAGE_PRESENT_MASK))
-				goto not_mapped;
-		}
+	if (hl_mmu_get_tlb_info(ctx, virt_addr, &hops_info)) {
+		dev_err(hdev->dev, "virt addr 0x%llx is not mapped to phys addr\n",
+				virt_addr);
+		return 0;
 	}
 
 	seq_printf(s, "asid: %u, virt_addr: 0x%llx\n",
 			dev_entry->mmu_asid, dev_entry->mmu_addr);
 
-	seq_printf(s, "hop0_addr: 0x%llx\n", hop0_addr);
-	seq_printf(s, "hop0_pte_addr: 0x%llx\n", hop0_pte_addr);
-	seq_printf(s, "hop0_pte: 0x%llx\n", hop0_pte);
-
-	seq_printf(s, "hop1_addr: 0x%llx\n", hop1_addr);
-	seq_printf(s, "hop1_pte_addr: 0x%llx\n", hop1_pte_addr);
-	seq_printf(s, "hop1_pte: 0x%llx\n", hop1_pte);
-
-	seq_printf(s, "hop2_addr: 0x%llx\n", hop2_addr);
-	seq_printf(s, "hop2_pte_addr: 0x%llx\n", hop2_pte_addr);
-	seq_printf(s, "hop2_pte: 0x%llx\n", hop2_pte);
-
-	seq_printf(s, "hop3_addr: 0x%llx\n", hop3_addr);
-	seq_printf(s, "hop3_pte_addr: 0x%llx\n", hop3_pte_addr);
-	seq_printf(s, "hop3_pte: 0x%llx\n", hop3_pte);
-
-	if (mmu_prop->num_hops == MMU_ARCH_5_HOPS) {
-		if (!(hop3_pte & LAST_MASK)) {
-			seq_printf(s, "hop4_addr: 0x%llx\n", hop4_addr);
-			seq_printf(s, "hop4_pte_addr: 0x%llx\n", hop4_pte_addr);
-			seq_printf(s, "hop4_pte: 0x%llx\n", hop4_pte);
-		}
-	} else {
-		seq_printf(s, "hop4_addr: 0x%llx\n", hop4_addr);
-		seq_printf(s, "hop4_pte_addr: 0x%llx\n", hop4_pte_addr);
-		seq_printf(s, "hop4_pte: 0x%llx\n", hop4_pte);
-
-		if (!(hop4_pte & LAST_MASK)) {
-			seq_printf(s, "hop5_addr: 0x%llx\n", hop5_addr);
-			seq_printf(s, "hop5_pte_addr: 0x%llx\n", hop5_pte_addr);
-			seq_printf(s, "hop5_pte: 0x%llx\n", hop5_pte);
-		}
+	for (i = 0 ; i < hops_info.used_hops ; i++) {
+		seq_printf(s, "hop%d_addr: 0x%llx\n",
+				i, hops_info.hop_info[i].hop_addr);
+		seq_printf(s, "hop%d_pte_addr: 0x%llx\n",
+				i, hops_info.hop_info[i].hop_pte_addr);
+		seq_printf(s, "hop%d_pte: 0x%llx\n",
+				i, hops_info.hop_info[i].hop_pte_val);
 	}
-
-	goto out;
-
-not_mapped:
-	dev_err(hdev->dev, "virt addr 0x%llx is not mapped to phys addr\n",
-			virt_addr);
-out:
-	mutex_unlock(&ctx->mmu_lock);
 
 	return 0;
 }
@@ -597,7 +415,7 @@ static bool hl_is_device_va(struct hl_device *hdev, u64 addr)
 	if (!hdev->mmu_enable)
 		goto out;
 
-	if (hdev->dram_supports_virtual_memory &&
+	if (prop->dram_supports_virtual_memory &&
 		(addr >= prop->dmmu.start_addr && addr < prop->dmmu.end_addr))
 		return true;
 
@@ -616,78 +434,20 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr,
 				u64 *phys_addr)
 {
 	struct hl_ctx *ctx = hdev->compute_ctx;
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	struct hl_mmu_properties *mmu_prop;
-	u64 hop_addr, hop_pte_addr, hop_pte;
-	u64 offset_mask = HOP4_MASK | FLAGS_MASK;
 	int rc = 0;
-	bool is_dram_addr;
 
 	if (!ctx) {
 		dev_err(hdev->dev, "no ctx available\n");
 		return -EINVAL;
 	}
 
-	is_dram_addr = hl_mem_area_inside_range(virt_addr, prop->dmmu.page_size,
-						prop->dmmu.start_addr,
-						prop->dmmu.end_addr);
-
-	/* shifts and masks are the same in PMMU and HPMMU, use one of them */
-	mmu_prop = is_dram_addr ? &prop->dmmu : &prop->pmmu;
-
-	mutex_lock(&ctx->mmu_lock);
-
-	/* hop 0 */
-	hop_addr = get_hop0_addr(ctx);
-	hop_pte_addr = get_hop0_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
-	hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
-
-	/* hop 1 */
-	hop_addr = get_next_hop_addr(hop_pte);
-	if (hop_addr == ULLONG_MAX)
-		goto not_mapped;
-	hop_pte_addr = get_hop1_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
-	hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
-
-	/* hop 2 */
-	hop_addr = get_next_hop_addr(hop_pte);
-	if (hop_addr == ULLONG_MAX)
-		goto not_mapped;
-	hop_pte_addr = get_hop2_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
-	hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
-
-	/* hop 3 */
-	hop_addr = get_next_hop_addr(hop_pte);
-	if (hop_addr == ULLONG_MAX)
-		goto not_mapped;
-	hop_pte_addr = get_hop3_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
-	hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
-
-	if (!(hop_pte & LAST_MASK)) {
-		/* hop 4 */
-		hop_addr = get_next_hop_addr(hop_pte);
-		if (hop_addr == ULLONG_MAX)
-			goto not_mapped;
-		hop_pte_addr = get_hop4_pte_addr(ctx, mmu_prop, hop_addr,
-							virt_addr);
-		hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
-
-		offset_mask = FLAGS_MASK;
+	rc = hl_mmu_va_to_pa(ctx, virt_addr, phys_addr);
+	if (rc) {
+		dev_err(hdev->dev, "virt addr 0x%llx is not mapped to phys addr\n",
+				virt_addr);
+		rc = -EINVAL;
 	}
 
-	if (!(hop_pte & PAGE_PRESENT_MASK))
-		goto not_mapped;
-
-	*phys_addr = (hop_pte & ~offset_mask) | (virt_addr & offset_mask);
-
-	goto out;
-
-not_mapped:
-	dev_err(hdev->dev, "virt addr 0x%llx is not mapped to phys addr\n",
-			virt_addr);
-	rc = -EINVAL;
-out:
-	mutex_unlock(&ctx->mmu_lock);
 	return rc;
 }
 

@@ -35,7 +35,7 @@ module parameters have priority over Kconfig.
 
 Here is an example for module parameters::
 
-        pstore_blk.blkdev=179:7 pstore_blk.kmsg_size=64
+        pstore_blk.blkdev=/dev/mmcblk0p7 pstore_blk.kmsg_size=64 best_effort=y
 
 The detail of each configurations may be of interest to you.
 
@@ -151,10 +151,7 @@ otherwise KMSG_DUMP_MAX.
 Configurations for driver
 -------------------------
 
-Only a block device driver cares about these configurations. A block device
-driver uses ``register_pstore_blk`` to register to pstore/blk.
-
-A non-block device driver uses ``register_pstore_device`` with
+A device driver uses ``register_pstore_device`` with
 ``struct pstore_device_info`` to register to pstore/blk.
 
 .. kernel-doc:: fs/pstore/blk.c

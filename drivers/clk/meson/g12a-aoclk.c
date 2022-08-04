@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
 #include <linux/mfd/syscon.h>
+#include <linux/module.h>
 #include "meson-aoclk.h"
 #include "g12a-aoclk.h"
 
@@ -461,6 +462,7 @@ static const struct of_device_id g12a_aoclkc_match_table[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(of, g12a_aoclkc_match_table);
 
 static struct platform_driver g12a_aoclkc_driver = {
 	.probe		= meson_aoclkc_probe,
@@ -470,4 +472,5 @@ static struct platform_driver g12a_aoclkc_driver = {
 	},
 };
 
-builtin_platform_driver(g12a_aoclkc_driver);
+module_platform_driver(g12a_aoclkc_driver);
+MODULE_LICENSE("GPL v2");

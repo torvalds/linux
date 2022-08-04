@@ -84,13 +84,16 @@ struct ocxl_context {
 
 struct ocxl_process_element {
 	__be64 config_state;
-	__be32 reserved1[11];
+	__be32 pasid;
+	__be16 bdf;
+	__be16 reserved1;
+	__be32 reserved2[9];
 	__be32 lpid;
 	__be32 tid;
 	__be32 pid;
-	__be32 reserved2[10];
+	__be32 reserved3[10];
 	__be64 amr;
-	__be32 reserved3[3];
+	__be32 reserved4[3];
 	__be32 software_state;
 };
 

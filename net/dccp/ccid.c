@@ -76,7 +76,7 @@ int ccid_getsockopt_builtin_ccids(struct sock *sk, int len,
 	return err;
 }
 
-static struct kmem_cache *ccid_kmem_cache_create(int obj_size, char *slab_name_fmt, const char *fmt,...)
+static __printf(3, 4) struct kmem_cache *ccid_kmem_cache_create(int obj_size, char *slab_name_fmt, const char *fmt,...)
 {
 	struct kmem_cache *slab;
 	va_list args;

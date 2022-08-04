@@ -147,12 +147,14 @@ err1:
 
 /**
  * usb_hcd_msp_probe - initialize PMC MSP-based HCDs
- * Context: !in_interrupt()
+ * @driver:	Pointer to hc driver instance
+ * @dev:	USB controller to probe
+ *
+ * Context: task context, might sleep
  *
  * Allocates basic resources for this USB host controller, and
  * then invokes the start() method for the HCD associated with it
  * through the hotplug entry's driver_data.
- *
  */
 int usb_hcd_msp_probe(const struct hc_driver *driver,
 			  struct platform_device *dev)
@@ -223,8 +225,9 @@ err1:
 
 /**
  * usb_hcd_msp_remove - shutdown processing for PMC MSP-based HCDs
- * @dev: USB Host Controller being removed
- * Context: !in_interrupt()
+ * @hcd: USB Host Controller being removed
+ *
+ * Context: task context, might sleep
  *
  * Reverses the effect of usb_hcd_msp_probe(), first invoking
  * the HCD's stop() method.  It is always called from a thread
@@ -233,7 +236,7 @@ err1:
  * may be called without controller electrically present
  * may be called with controller, bus, and devices active
  */
-void usb_hcd_msp_remove(struct usb_hcd *hcd, struct platform_device *dev)
+static void usb_hcd_msp_remove(struct usb_hcd *hcd)
 {
 	usb_remove_hcd(hcd);
 	iounmap(hcd->regs);
@@ -306,7 +309,7 @@ static int ehci_hcd_msp_drv_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
-	usb_hcd_msp_remove(hcd, pdev);
+	usb_hcd_msp_remove(hcd);
 
 	/* free TWI GPIO USB_HOST_DEV pin */
 	gpio_free(MSP_PIN_USB0_HOST_DEV);

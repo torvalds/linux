@@ -90,7 +90,7 @@ On-line docs
       :Date: 2008
       :Keywords: patches, review process, types of submissions, basic rules, case studies
       :Description: This paper gives several experience values on what types of patches
-        there are and how likley they get merged.
+        there are and how likely they get merged.
       :Abstract:
         [...]. This paper examines some common problems for
         submitting larger changes and some strategies to avoid problems.
@@ -328,7 +328,7 @@ On-line docs
         block devices, hardware interrupts, scsi, DMA, access to user memory,
         memory allocation, timers.
       :Description: A guide designed to help you get up to speed on the
-        concepts that are not intuitevly obvious, and to document the internal
+        concepts that are not intuitively obvious, and to document the internal
         structures of Linux.
 
     * Title: **Dynamic Kernels: Modularized Device Drivers**

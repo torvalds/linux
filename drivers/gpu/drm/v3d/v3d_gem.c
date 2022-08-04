@@ -275,6 +275,8 @@ v3d_lock_bo_reservations(struct v3d_job *job,
  * @dev: DRM device
  * @file_priv: DRM file for this fd
  * @job: V3D job being set up
+ * @bo_handles: GEM handles
+ * @bo_count: Number of GEM handles passed in
  *
  * The command validator needs to reference BOs by their index within
  * the submitted job's BO list.  This does the validation of the job's

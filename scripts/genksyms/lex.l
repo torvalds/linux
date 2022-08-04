@@ -118,7 +118,7 @@ yylex(void)
 {
   static enum {
     ST_NOTSTARTED, ST_NORMAL, ST_ATTRIBUTE, ST_ASM, ST_TYPEOF, ST_TYPEOF_1,
-    ST_BRACKET, ST_BRACE, ST_EXPRESSION,
+    ST_BRACKET, ST_BRACE, ST_EXPRESSION, ST_STATIC_ASSERT,
     ST_TABLE_1, ST_TABLE_2, ST_TABLE_3, ST_TABLE_4,
     ST_TABLE_5, ST_TABLE_6
   } lexstate = ST_NOTSTARTED;
@@ -201,6 +201,11 @@ repeat:
 
 		  case EXPORT_SYMBOL_KEYW:
 		      goto fini;
+
+		  case STATIC_ASSERT_KEYW:
+		    lexstate = ST_STATIC_ASSERT;
+		    count = 0;
+		    goto repeat;
 		  }
 	      }
 	    if (!suppress_type_lookup)
@@ -397,6 +402,26 @@ repeat:
 	  goto repeat;
 	default:
 	  APP;
+	  goto repeat;
+	}
+      break;
+
+    case ST_STATIC_ASSERT:
+      APP;
+      switch (token)
+	{
+	case '(':
+	  ++count;
+	  goto repeat;
+	case ')':
+	  if (--count == 0)
+	    {
+	      lexstate = ST_NORMAL;
+	      token = STATIC_ASSERT_PHRASE;
+	      break;
+	    }
+	  goto repeat;
+	default:
 	  goto repeat;
 	}
       break;

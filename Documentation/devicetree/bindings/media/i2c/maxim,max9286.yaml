@@ -40,7 +40,6 @@ properties:
 
   poc-supply:
     description: Regulator providing Power over Coax to the cameras
-    maxItems: 1
 
   enable-gpios:
     description: GPIO connected to the \#PWDN pin with inverted polarity

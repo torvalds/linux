@@ -19,10 +19,6 @@
 #include "h/fddi.h"
 #include "h/smc.h"
 
-#ifndef	lint
-static const char ID_sccs[] = "@(#)smtinit.c	1.15 97/05/06 (C) SK " ;
-#endif
-
 void init_fddi_driver(struct s_smc *smc, u_char *mac_addr);
 
 /* define global debug variable */

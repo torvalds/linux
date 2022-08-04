@@ -67,7 +67,7 @@ qxl_debugfs_buffers_info(struct seq_file *m, void *data)
 
 		seq_printf(m, "size %ld, pc %d, num releases %d\n",
 			   (unsigned long)bo->tbo.base.size,
-			   bo->pin_count, rel);
+			   bo->tbo.pin_count, rel);
 	}
 	return 0;
 }

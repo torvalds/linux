@@ -91,6 +91,9 @@ static void vega10_ih_enable_interrupts(struct amdgpu_device *adev)
 		}
 		adev->irq.ih2.enabled = true;
 	}
+
+	if (adev->irq.ih_soft.ring_size)
+		adev->irq.ih_soft.enabled = true;
 }
 
 /**
@@ -366,6 +369,7 @@ static void vega10_ih_irq_disable(struct amdgpu_device *adev)
  * vega10_ih_get_wptr - get the IH ring buffer wptr
  *
  * @adev: amdgpu_device pointer
+ * @ih: IH ring buffer to fetch wptr
  *
  * Get the IH ring buffer wptr from either the register
  * or the writeback memory buffer (VEGA10).  Also check for
@@ -430,6 +434,8 @@ out:
  * vega10_ih_decode_iv - decode an interrupt vector
  *
  * @adev: amdgpu_device pointer
+ * @ih: IH ring buffer to decode
+ * @entry: IV entry to place decoded information into
  *
  * Decodes the interrupt vector at the current rptr
  * position and also advance the position.
@@ -473,6 +479,7 @@ static void vega10_ih_decode_iv(struct amdgpu_device *adev,
  * vega10_ih_irq_rearm - rearm IRQ if lost
  *
  * @adev: amdgpu_device pointer
+ * @ih: IH ring to match
  *
  */
 static void vega10_ih_irq_rearm(struct amdgpu_device *adev,
@@ -505,6 +512,7 @@ static void vega10_ih_irq_rearm(struct amdgpu_device *adev,
  * vega10_ih_set_rptr - set the IH ring buffer rptr
  *
  * @adev: amdgpu_device pointer
+ * @ih: IH ring buffer to set rptr
  *
  * Set the IH ring buffer rptr.
  */
@@ -605,6 +613,10 @@ static int vega10_ih_sw_init(void *handle)
 
 	adev->irq.ih2.use_doorbell = true;
 	adev->irq.ih2.doorbell_index = (adev->doorbell_index.ih + 2) << 1;
+
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih_soft, PAGE_SIZE, true);
+	if (r)
+		return r;
 
 	r = amdgpu_irq_init(adev);
 

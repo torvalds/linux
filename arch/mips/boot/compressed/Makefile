@@ -36,6 +36,7 @@ KBUILD_AFLAGS := $(KBUILD_AFLAGS) -D__ASSEMBLY__ \
 
 # Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
 KCOV_INSTRUMENT		:= n
+GCOV_PROFILE := n
 
 # decompressor objects (linked with vmlinuz)
 vmlinuzobjs-y := $(obj)/head.o $(obj)/decompress.o $(obj)/string.o
@@ -65,7 +66,9 @@ $(obj)/bswapsi.c: $(obj)/%.c: $(srctree)/arch/mips/lib/%.c FORCE
 targets := $(notdir $(vmlinuzobjs-y))
 
 targets += vmlinux.bin
+
 OBJCOPYFLAGS_vmlinux.bin := $(OBJCOPYFLAGS) -O binary -R .comment -S
+
 $(obj)/vmlinux.bin: $(KBUILD_IMAGE) FORCE
 	$(call if_changed,objcopy)
 
@@ -78,12 +81,15 @@ tool_$(CONFIG_KERNEL_XZ)      = xzkern
 tool_$(CONFIG_KERNEL_ZSTD)    = zstd22
 
 targets += vmlinux.bin.z
+
 $(obj)/vmlinux.bin.z: $(obj)/vmlinux.bin FORCE
 	$(call if_changed,$(tool_y))
 
 targets += piggy.o dummy.o
+
 OBJCOPYFLAGS_piggy.o := --add-section=.image=$(obj)/vmlinux.bin.z \
 			--set-section-flags=.image=contents,alloc,load,readonly,data
+
 $(obj)/piggy.o: $(obj)/dummy.o $(obj)/vmlinux.bin.z FORCE
 	$(call if_changed,objcopy)
 
@@ -102,13 +108,20 @@ UIMAGE_LOADADDR = $(VMLINUZ_LOAD_ADDRESS)
 
 vmlinuzobjs-y += $(obj)/piggy.o
 
+targets += ../../../../vmlinuz
+
 quiet_cmd_zld = LD      $@
       cmd_zld = $(LD) $(KBUILD_LDFLAGS) -Ttext $(VMLINUZ_LOAD_ADDRESS) -T $< $(vmlinuzobjs-y) -o $@
-quiet_cmd_strip = STRIP	  $@
+quiet_cmd_strip = STRIP   $@
       cmd_strip = $(STRIP) -s $@
-vmlinuz: $(src)/ld.script $(vmlinuzobjs-y) $(obj)/calc_vmlinuz_load_addr
+
+$(objtree)/vmlinuz: $(src)/ld.script $(vmlinuzobjs-y) $(obj)/calc_vmlinuz_load_addr
 	$(call cmd,zld)
 	$(call cmd,strip)
+
+objboot := $(objtree)/arch/mips/boot
+
+$(objboot)/vmlinuz: $(objtree)/vmlinuz FORCE
 
 #
 # Some DECstations need all possible sections of an ECOFF executable
@@ -121,34 +134,90 @@ endif
 hostprogs += ../elf2ecoff
 
 ifdef CONFIG_32BIT
-	VMLINUZ = vmlinuz
+	VMLINUZ = $(objtree)/vmlinuz
 else
-	VMLINUZ = vmlinuz.32
+	VMLINUZ = $(objboot)/vmlinuz.32
 endif
+
+targets += ../vmlinuz.32
 
 quiet_cmd_32 = OBJCOPY $@
       cmd_32 = $(OBJCOPY) -O $(32bit-bfd) $(OBJCOPYFLAGS) $< $@
-vmlinuz.32: vmlinuz
+
+$(objboot)/vmlinuz.32: $(objtree)/vmlinuz
 	$(call cmd,32)
+
+targets += ../vmlinuz.ecoff
 
 quiet_cmd_ecoff = ECOFF	  $@
       cmd_ecoff = $< $(VMLINUZ) $@ $(e2eflag)
-vmlinuz.ecoff: $(obj)/../elf2ecoff $(VMLINUZ)
+
+$(objboot)/vmlinuz.ecoff: $(objboot)/elf2ecoff $(VMLINUZ)
 	$(call cmd,ecoff)
 
+targets += ../vmlinuz.bin
+
 OBJCOPYFLAGS_vmlinuz.bin := $(OBJCOPYFLAGS) -O binary
-vmlinuz.bin: vmlinuz
+
+$(objboot)/vmlinuz.bin: $(objtree)/vmlinuz
 	$(call cmd,objcopy)
+
+targets += ../vmlinuz.srec
 
 OBJCOPYFLAGS_vmlinuz.srec := $(OBJCOPYFLAGS) -S -O srec
-vmlinuz.srec: vmlinuz
+
+$(objboot)/vmlinuz.srec: $(objtree)/vmlinuz
 	$(call cmd,objcopy)
 
-uzImage.bin: vmlinuz.bin FORCE
+targets += ../uzImage.bin
+
+$(objboot)/uzImage.bin: $(objboot)/vmlinuz.bin FORCE
 	$(call if_changed,uimage,none)
 
-clean-files += $(objtree)/vmlinuz
-clean-files += $(objtree)/vmlinuz.32
-clean-files += $(objtree)/vmlinuz.ecoff
-clean-files += $(objtree)/vmlinuz.bin
-clean-files += $(objtree)/vmlinuz.srec
+#
+# Flattened Image Tree (.itb) image
+#
+
+ifeq ($(ADDR_BITS),32)
+itb_addr_cells = 1
+endif
+ifeq ($(ADDR_BITS),64)
+itb_addr_cells = 2
+endif
+
+targets += ../vmlinuz.its.S
+
+quiet_cmd_its_cat = CAT     $@
+      cmd_its_cat = cat $(real-prereqs) >$@
+
+$(objboot)/vmlinuz.its.S: $(addprefix $(srctree)/arch/mips/$(PLATFORM)/,$(ITS_INPUTS)) FORCE
+	$(call if_changed,its_cat)
+
+targets += ../vmlinuz.its
+
+quiet_cmd_cpp_its_S = ITS     $@
+      cmd_cpp_its_S = $(CPP) -P -C -o $@ $< \
+		        -DKERNEL_NAME="\"Linux $(KERNELRELEASE)\"" \
+			-DVMLINUX_BINARY="\"$(2)\"" \
+			-DVMLINUX_COMPRESSION="\"none\"" \
+			-DVMLINUX_LOAD_ADDRESS=$(VMLINUZ_LOAD_ADDRESS) \
+			-DVMLINUX_ENTRY_ADDRESS=$(VMLINUZ_LOAD_ADDRESS) \
+			-DADDR_BITS=$(ADDR_BITS) \
+			-DADDR_CELLS=$(itb_addr_cells)
+
+$(objboot)/vmlinuz.its: $(objboot)/vmlinuz.its.S FORCE
+	$(call if_changed,cpp_its_S,vmlinuz.bin)
+
+targets += ../vmlinuz.itb
+
+quiet_cmd_itb-image = ITB     $@
+      cmd_itb-image = \
+		env PATH="$(objtree)/scripts/dtc:$(PATH)" \
+		$(BASH) $(MKIMAGE) \
+		-D "-I dts -O dtb -p 500 \
+			--include $(objtree)/arch/mips \
+			--warning no-unit_address_vs_reg" \
+		-f $(2) $@
+
+$(objboot)/vmlinuz.itb: $(objboot)/vmlinuz.its $(objboot)/vmlinuz.bin FORCE
+	$(call if_changed,itb-image,$<)

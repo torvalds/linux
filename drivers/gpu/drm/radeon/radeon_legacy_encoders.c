@@ -35,6 +35,7 @@
 
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "radeon_legacy_encoders.h"
 #include "atom.h"
 #ifdef CONFIG_PMAC_BACKLIGHT
 #include <asm/backlight.h>

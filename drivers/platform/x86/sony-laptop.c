@@ -2467,13 +2467,11 @@ static int __sony_nc_gfx_switch_status_get(void)
 		 * 0: integrated GFX (stamina)
 		 */
 		return result & 0x1 ? SPEED : STAMINA;
-		break;
 	case 0x015B:
 		/* 0: discrete GFX (speed)
 		 * 1: integrated GFX (stamina)
 		 */
 		return result & 0x1 ? STAMINA : SPEED;
-		break;
 	case 0x0128:
 		/* it's a more elaborated bitmask, for now:
 		 * 2: integrated GFX (stamina)
@@ -2482,7 +2480,6 @@ static int __sony_nc_gfx_switch_status_get(void)
 		dprintk("GFX Status: 0x%x\n", result);
 		return result & 0x80 ? AUTO :
 			result & 0x02 ? STAMINA : SPEED;
-		break;
 	}
 	return -EINVAL;
 }

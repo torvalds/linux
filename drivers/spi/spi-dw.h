@@ -9,6 +9,7 @@
 #include <linux/io.h>
 #include <linux/scatterlist.h>
 #include <linux/spi/spi-mem.h>
+#include <linux/bitfield.h>
 
 /* Register offsets */
 #define DW_SPI_CTRLR0			0x00
@@ -41,6 +42,8 @@
 
 /* Bit fields in CTRLR0 */
 #define SPI_DFS_OFFSET			0
+#define SPI_DFS_MASK			GENMASK(3, 0)
+#define SPI_DFS32_OFFSET		16
 
 #define SPI_FRF_OFFSET			4
 #define SPI_FRF_SPI			0x0
@@ -121,6 +124,7 @@ enum dw_ssi_type {
 #define DW_SPI_CAP_CS_OVERRIDE		BIT(0)
 #define DW_SPI_CAP_KEEMBAY_MST		BIT(1)
 #define DW_SPI_CAP_DWC_SSI		BIT(2)
+#define DW_SPI_CAP_DFS32		BIT(3)
 
 /* Slave spi_transfer/spi_mem_op related */
 struct dw_spi_cfg {
@@ -148,6 +152,7 @@ struct dw_spi {
 	unsigned long		paddr;
 	int			irq;
 	u32			fifo_len;	/* depth of the FIFO buffer */
+	unsigned int		dfs_offset;     /* CTRLR0 DFS field offset */
 	u32			max_mem_freq;	/* max mem-ops bus freq */
 	u32			max_freq;	/* max bus freq supported */
 

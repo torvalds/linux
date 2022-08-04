@@ -58,35 +58,12 @@ static inline u64 qxl_bo_mmap_offset(struct qxl_bo *bo)
 	return drm_vma_node_offset_addr(&bo->tbo.base.vma_node);
 }
 
-static inline int qxl_bo_wait(struct qxl_bo *bo, u32 *mem_type,
-			      bool no_wait)
-{
-	int r;
-
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, NULL);
-	if (unlikely(r != 0)) {
-		if (r != -ERESTARTSYS) {
-			struct drm_device *ddev = bo->tbo.base.dev;
-
-			dev_err(ddev->dev, "%p reserve failed for wait\n",
-				bo);
-		}
-		return r;
-	}
-	if (mem_type)
-		*mem_type = bo->tbo.mem.mem_type;
-
-	r = ttm_bo_wait(&bo->tbo, true, no_wait);
-	ttm_bo_unreserve(&bo->tbo);
-	return r;
-}
-
 extern int qxl_bo_create(struct qxl_device *qdev,
 			 unsigned long size,
 			 bool kernel, bool pinned, u32 domain,
 			 struct qxl_surface *surf,
 			 struct qxl_bo **bo_ptr);
-extern int qxl_bo_kmap(struct qxl_bo *bo, void **ptr);
+extern int qxl_bo_kmap(struct qxl_bo *bo, struct dma_buf_map *map);
 extern void qxl_bo_kunmap(struct qxl_bo *bo);
 void *qxl_bo_kmap_atomic_page(struct qxl_device *qdev, struct qxl_bo *bo, int page_offset);
 void qxl_bo_kunmap_atomic_page(struct qxl_device *qdev, struct qxl_bo *bo, void *map);
@@ -94,7 +71,7 @@ extern struct qxl_bo *qxl_bo_ref(struct qxl_bo *bo);
 extern void qxl_bo_unref(struct qxl_bo **bo);
 extern int qxl_bo_pin(struct qxl_bo *bo);
 extern int qxl_bo_unpin(struct qxl_bo *bo);
-extern void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain, bool pinned);
+extern void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain);
 extern bool qxl_ttm_bo_is_qxl_bo(struct ttm_buffer_object *bo);
 
 #endif

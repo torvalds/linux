@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/extcon/fcs,fsa880.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Fairchild Semiconductor FSA880, FSA9480 and compatibles
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description:
+  The FSA880 and FSA9480 are USB port accessory detectors and switches.
+  The switch is fully controlled using I2C and enables USB data, stereo
+  and mono audio, video, microphone, and UART data to use a common
+  connector port. Compatible switches exist from other manufacturers.
+
+properties:
+  compatible:
+    enum:
+      - fcs,fsa880
+      - fcs,fsa9480
+      - ti,tsu6111
+
+  reg:
+    maxItems: 1
+    description: The I2C address for an FSA880 compatible device is
+      usually 0x25.
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        usb-switch@25 {
+            compatible = "fcs,fsa880";
+            reg = <0x25>;
+            interrupt-parent = <&gpio>;
+            interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
+        };
+    };

@@ -169,20 +169,19 @@ int main(int argc, char *argv[])
 	 */
 	nested_vmx_check_supported();
 
+	if (!kvm_check_cap(KVM_CAP_NESTED_STATE)) {
+		print_skip("KVM_CAP_NESTED_STATE not supported");
+		exit(KSFT_SKIP);
+	}
+
 	/* Create VM */
 	vm = vm_create_default(VCPU_ID, 0, guest_code);
-	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 	run = vcpu_state(vm, VCPU_ID);
 
 	vcpu_regs_get(vm, VCPU_ID, &regs1);
 
-	if (kvm_check_cap(KVM_CAP_NESTED_STATE)) {
-		vcpu_alloc_vmx(vm, &vmx_pages_gva);
-		vcpu_args_set(vm, VCPU_ID, 1, vmx_pages_gva);
-	} else {
-		pr_info("will skip vmx preemption timer checks\n");
-		goto done;
-	}
+	vcpu_alloc_vmx(vm, &vmx_pages_gva);
+	vcpu_args_set(vm, VCPU_ID, 1, vmx_pages_gva);
 
 	for (stage = 1;; stage++) {
 		_vcpu_run(vm, VCPU_ID);

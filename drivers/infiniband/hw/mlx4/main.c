@@ -2024,7 +2024,8 @@ static ssize_t hca_type_show(struct device *device,
 {
 	struct mlx4_ib_dev *dev =
 		rdma_device_to_drv_device(device, struct mlx4_ib_dev, ib_dev);
-	return sprintf(buf, "MT%d\n", dev->dev->persist->pdev->device);
+
+	return sysfs_emit(buf, "MT%d\n", dev->dev->persist->pdev->device);
 }
 static DEVICE_ATTR_RO(hca_type);
 
@@ -2033,7 +2034,8 @@ static ssize_t hw_rev_show(struct device *device,
 {
 	struct mlx4_ib_dev *dev =
 		rdma_device_to_drv_device(device, struct mlx4_ib_dev, ib_dev);
-	return sprintf(buf, "%x\n", dev->dev->rev_id);
+
+	return sysfs_emit(buf, "%x\n", dev->dev->rev_id);
 }
 static DEVICE_ATTR_RO(hw_rev);
 
@@ -2043,8 +2045,7 @@ static ssize_t board_id_show(struct device *device,
 	struct mlx4_ib_dev *dev =
 		rdma_device_to_drv_device(device, struct mlx4_ib_dev, ib_dev);
 
-	return sprintf(buf, "%.*s\n", MLX4_BOARD_ID_LEN,
-		       dev->dev->board_id);
+	return sysfs_emit(buf, "%.*s\n", MLX4_BOARD_ID_LEN, dev->dev->board_id);
 }
 static DEVICE_ATTR_RO(board_id);
 
@@ -2264,10 +2265,7 @@ static void mlx4_ib_update_qps(struct mlx4_ib_dev *ibdev,
 	u64 release_mac = MLX4_IB_INVALID_MAC;
 	struct mlx4_ib_qp *qp;
 
-	read_lock(&dev_base_lock);
 	new_smac = mlx4_mac_to_u64(dev->dev_addr);
-	read_unlock(&dev_base_lock);
-
 	atomic64_set(&ibdev->iboe.mac[port - 1], new_smac);
 
 	/* no need for update QP1 and mac registration in non-SRIOV */
@@ -2657,73 +2655,25 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.num_comp_vectors	= dev->caps.num_comp_vectors;
 	ibdev->ib_dev.dev.parent	= &dev->persist->pdev->dev;
 
-	ibdev->ib_dev.uverbs_cmd_mask	=
-		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
-		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)	|
-		(1ull << IB_USER_VERBS_CMD_QUERY_PORT)		|
-		(1ull << IB_USER_VERBS_CMD_ALLOC_PD)		|
-		(1ull << IB_USER_VERBS_CMD_DEALLOC_PD)		|
-		(1ull << IB_USER_VERBS_CMD_REG_MR)		|
-		(1ull << IB_USER_VERBS_CMD_REREG_MR)		|
-		(1ull << IB_USER_VERBS_CMD_DEREG_MR)		|
-		(1ull << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL)	|
-		(1ull << IB_USER_VERBS_CMD_CREATE_CQ)		|
-		(1ull << IB_USER_VERBS_CMD_RESIZE_CQ)		|
-		(1ull << IB_USER_VERBS_CMD_DESTROY_CQ)		|
-		(1ull << IB_USER_VERBS_CMD_CREATE_QP)		|
-		(1ull << IB_USER_VERBS_CMD_MODIFY_QP)		|
-		(1ull << IB_USER_VERBS_CMD_QUERY_QP)		|
-		(1ull << IB_USER_VERBS_CMD_DESTROY_QP)		|
-		(1ull << IB_USER_VERBS_CMD_ATTACH_MCAST)	|
-		(1ull << IB_USER_VERBS_CMD_DETACH_MCAST)	|
-		(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)		|
-		(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)		|
-		(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)		|
-		(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ)		|
-		(1ull << IB_USER_VERBS_CMD_CREATE_XSRQ)		|
-		(1ull << IB_USER_VERBS_CMD_OPEN_QP);
-
 	ib_set_device_ops(&ibdev->ib_dev, &mlx4_ib_dev_ops);
-	ibdev->ib_dev.uverbs_ex_cmd_mask |=
-		(1ull << IB_USER_VERBS_EX_CMD_MODIFY_CQ) |
-		(1ull << IB_USER_VERBS_EX_CMD_QUERY_DEVICE) |
-		(1ull << IB_USER_VERBS_EX_CMD_CREATE_CQ) |
-		(1ull << IB_USER_VERBS_EX_CMD_CREATE_QP);
 
 	if ((dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_RSS) &&
 	    ((mlx4_ib_port_link_layer(&ibdev->ib_dev, 1) ==
 	    IB_LINK_LAYER_ETHERNET) ||
 	    (mlx4_ib_port_link_layer(&ibdev->ib_dev, 2) ==
-	    IB_LINK_LAYER_ETHERNET))) {
-		ibdev->ib_dev.uverbs_ex_cmd_mask |=
-			(1ull << IB_USER_VERBS_EX_CMD_CREATE_WQ)	  |
-			(1ull << IB_USER_VERBS_EX_CMD_MODIFY_WQ)	  |
-			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_WQ)	  |
-			(1ull << IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL) |
-			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL);
+	    IB_LINK_LAYER_ETHERNET)))
 		ib_set_device_ops(&ibdev->ib_dev, &mlx4_ib_dev_wq_ops);
-	}
 
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_MEM_WINDOW ||
-	    dev->caps.bmme_flags & MLX4_BMME_FLAG_TYPE_2_WIN) {
-		ibdev->ib_dev.uverbs_cmd_mask |=
-			(1ull << IB_USER_VERBS_CMD_ALLOC_MW) |
-			(1ull << IB_USER_VERBS_CMD_DEALLOC_MW);
+	    dev->caps.bmme_flags & MLX4_BMME_FLAG_TYPE_2_WIN)
 		ib_set_device_ops(&ibdev->ib_dev, &mlx4_ib_dev_mw_ops);
-	}
 
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_XRC) {
-		ibdev->ib_dev.uverbs_cmd_mask |=
-			(1ull << IB_USER_VERBS_CMD_OPEN_XRCD) |
-			(1ull << IB_USER_VERBS_CMD_CLOSE_XRCD);
 		ib_set_device_ops(&ibdev->ib_dev, &mlx4_ib_dev_xrc_ops);
 	}
 
 	if (check_flow_steering_support(dev)) {
 		ibdev->steering_support = MLX4_STEERING_MODE_DEVICE_MANAGED;
-		ibdev->ib_dev.uverbs_ex_cmd_mask	|=
-			(1ull << IB_USER_VERBS_EX_CMD_CREATE_FLOW) |
-			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_FLOW);
 		ib_set_device_ops(&ibdev->ib_dev, &mlx4_ib_dev_fs_ops);
 	}
 

@@ -56,6 +56,7 @@ struct rnbd_srv_sess_dev {
 	struct rnbd_srv_dev		*dev;
 	struct kobject                  kobj;
 	u32                             device_id;
+	bool				keep_id;
 	fmode_t                         open_flags;
 	struct kref			kref;
 	struct completion               *destroy_comp;
@@ -63,6 +64,7 @@ struct rnbd_srv_sess_dev {
 	enum rnbd_access_mode		access_mode;
 };
 
+void rnbd_srv_sess_dev_force_close(struct rnbd_srv_sess_dev *sess_dev);
 /* rnbd-srv-sysfs.c */
 
 int rnbd_srv_create_dev_sysfs(struct rnbd_srv_dev *dev,
@@ -73,6 +75,6 @@ int rnbd_srv_create_dev_session_sysfs(struct rnbd_srv_sess_dev *sess_dev);
 void rnbd_srv_destroy_dev_session_sysfs(struct rnbd_srv_sess_dev *sess_dev);
 int rnbd_srv_create_sysfs_files(void);
 void rnbd_srv_destroy_sysfs_files(void);
-void rnbd_destroy_sess_dev(struct rnbd_srv_sess_dev *sess_dev);
+void rnbd_destroy_sess_dev(struct rnbd_srv_sess_dev *sess_dev, bool keep_id);
 
 #endif /* RNBD_SRV_H */

@@ -876,31 +876,33 @@ static int rcsi2_parse_dt(struct rcar_csi2 *priv)
 {
 	struct v4l2_async_subdev *asd;
 	struct fwnode_handle *fwnode;
-	struct device_node *ep;
-	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = 0 };
+	struct fwnode_handle *ep;
+	struct v4l2_fwnode_endpoint v4l2_ep = {
+		.bus_type = V4L2_MBUS_CSI2_DPHY
+	};
 	int ret;
 
-	ep = of_graph_get_endpoint_by_regs(priv->dev->of_node, 0, 0);
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(priv->dev), 0, 0, 0);
 	if (!ep) {
 		dev_err(priv->dev, "Not connected to subdevice\n");
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &v4l2_ep);
+	ret = v4l2_fwnode_endpoint_parse(ep, &v4l2_ep);
 	if (ret) {
 		dev_err(priv->dev, "Could not parse v4l2 endpoint\n");
-		of_node_put(ep);
+		fwnode_handle_put(ep);
 		return -EINVAL;
 	}
 
 	ret = rcsi2_parse_v4l2(priv, &v4l2_ep);
 	if (ret) {
-		of_node_put(ep);
+		fwnode_handle_put(ep);
 		return ret;
 	}
 
-	fwnode = fwnode_graph_get_remote_endpoint(of_fwnode_handle(ep));
-	of_node_put(ep);
+	fwnode = fwnode_graph_get_remote_endpoint(ep);
+	fwnode_handle_put(ep);
 
 	dev_dbg(priv->dev, "Found '%pOF'\n", to_of_node(fwnode));
 

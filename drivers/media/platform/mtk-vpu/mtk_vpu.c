@@ -27,6 +27,7 @@
 
 #define INIT_TIMEOUT_MS		2000U
 #define IPI_TIMEOUT_MS		2000U
+#define VPU_IDLE_TIMEOUT_MS	1000U
 #define VPU_FW_VER_LEN		16
 
 /* maximum program/data TCM (Tightly-Coupled Memory) size */
@@ -57,11 +58,17 @@
 #define VPU_DMEM_EXT0_ADDR	0x0014
 #define VPU_DMEM_EXT1_ADDR	0x0018
 #define HOST_TO_VPU		0x0024
+#define VPU_IDLE_REG		0x002C
+#define VPU_INT_STATUS		0x0034
 #define VPU_PC_REG		0x0060
+#define VPU_SP_REG		0x0064
+#define VPU_RA_REG		0x0068
 #define VPU_WDT_REG		0x0084
 
 /* vpu inter-processor communication interrupt */
 #define VPU_IPC_INT		BIT(8)
+/* vpu idle state */
+#define VPU_IDLE_STATE		BIT(23)
 
 /**
  * enum vpu_fw_type - VPU firmware type
@@ -263,6 +270,20 @@ static int vpu_clock_enable(struct mtk_vpu *vpu)
 	return ret;
 }
 
+static void vpu_dump_status(struct mtk_vpu *vpu)
+{
+	dev_info(vpu->dev,
+		 "vpu: run %x, pc = 0x%x, ra = 0x%x, sp = 0x%x, idle = 0x%x\n"
+		 "vpu: int %x, hv = 0x%x, vh = 0x%x, wdt = 0x%x\n",
+		 vpu_running(vpu), vpu_cfg_readl(vpu, VPU_PC_REG),
+		 vpu_cfg_readl(vpu, VPU_RA_REG), vpu_cfg_readl(vpu, VPU_SP_REG),
+		 vpu_cfg_readl(vpu, VPU_IDLE_REG),
+		 vpu_cfg_readl(vpu, VPU_INT_STATUS),
+		 vpu_cfg_readl(vpu, HOST_TO_VPU),
+		 vpu_cfg_readl(vpu, VPU_TO_HOST),
+		 vpu_cfg_readl(vpu, VPU_WDT_REG));
+}
+
 int vpu_ipi_register(struct platform_device *pdev,
 		     enum ipi_id id, ipi_handler_t handler,
 		     const char *name, void *priv)
@@ -323,6 +344,7 @@ int vpu_ipi_send(struct platform_device *pdev,
 		if (time_after(jiffies, timeout)) {
 			dev_err(vpu->dev, "vpu_ipi_send: IPI timeout!\n");
 			ret = -EIO;
+			vpu_dump_status(vpu);
 			goto mut_unlock;
 		}
 	} while (vpu_cfg_readl(vpu, HOST_TO_VPU));
@@ -342,8 +364,9 @@ int vpu_ipi_send(struct platform_device *pdev,
 	ret = wait_event_timeout(vpu->ack_wq, vpu->ipi_id_ack[id], timeout);
 	vpu->ipi_id_ack[id] = false;
 	if (ret == 0) {
-		dev_err(vpu->dev, "vpu ipi %d ack time out !", id);
+		dev_err(vpu->dev, "vpu ipi %d ack time out !\n", id);
 		ret = -EIO;
+		vpu_dump_status(vpu);
 		goto clock_disable;
 	}
 	vpu_clock_disable(vpu);
@@ -628,7 +651,7 @@ static ssize_t vpu_debug_read(struct file *file, char __user *user_buf,
 {
 	char buf[256];
 	unsigned int len;
-	unsigned int running, pc, vpu_to_host, host_to_vpu, wdt;
+	unsigned int running, pc, vpu_to_host, host_to_vpu, wdt, idle, ra, sp;
 	int ret;
 	struct device *dev = file->private_data;
 	struct mtk_vpu *vpu = dev_get_drvdata(dev);
@@ -645,6 +668,10 @@ static ssize_t vpu_debug_read(struct file *file, char __user *user_buf,
 	wdt = vpu_cfg_readl(vpu, VPU_WDT_REG);
 	host_to_vpu = vpu_cfg_readl(vpu, HOST_TO_VPU);
 	vpu_to_host = vpu_cfg_readl(vpu, VPU_TO_HOST);
+	ra = vpu_cfg_readl(vpu, VPU_RA_REG);
+	sp = vpu_cfg_readl(vpu, VPU_SP_REG);
+	idle = vpu_cfg_readl(vpu, VPU_IDLE_REG);
+
 	vpu_clock_disable(vpu);
 
 	if (running) {
@@ -653,9 +680,12 @@ static ssize_t vpu_debug_read(struct file *file, char __user *user_buf,
 		"PC: 0x%x\n"
 		"WDT: 0x%x\n"
 		"Host to VPU: 0x%x\n"
-		"VPU to Host: 0x%x\n",
+		"VPU to Host: 0x%x\n"
+		"SP: 0x%x\n"
+		"RA: 0x%x\n"
+		"idle: 0x%x\n",
 		vpu->run.fw_ver, pc, wdt,
-		host_to_vpu, vpu_to_host);
+		host_to_vpu, vpu_to_host, sp, ra, idle);
 	} else {
 		len = snprintf(buf, sizeof(buf), "VPU not running\n");
 	}
@@ -945,11 +975,74 @@ static int mtk_vpu_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int mtk_vpu_suspend(struct device *dev)
+{
+	struct mtk_vpu *vpu = dev_get_drvdata(dev);
+	unsigned long timeout;
+	int ret;
+
+	ret = vpu_clock_enable(vpu);
+	if (ret) {
+		dev_err(dev, "failed to enable vpu clock\n");
+		return ret;
+	}
+
+	mutex_lock(&vpu->vpu_mutex);
+	/* disable vpu timer interrupt */
+	vpu_cfg_writel(vpu, vpu_cfg_readl(vpu, VPU_INT_STATUS) | VPU_IDLE_STATE,
+		       VPU_INT_STATUS);
+	/* check if vpu is idle for system suspend */
+	timeout = jiffies + msecs_to_jiffies(VPU_IDLE_TIMEOUT_MS);
+	do {
+		if (time_after(jiffies, timeout)) {
+			dev_err(dev, "vpu idle timeout\n");
+			mutex_unlock(&vpu->vpu_mutex);
+			vpu_clock_disable(vpu);
+			return -EIO;
+		}
+	} while (!vpu_cfg_readl(vpu, VPU_IDLE_REG));
+
+	mutex_unlock(&vpu->vpu_mutex);
+	vpu_clock_disable(vpu);
+	clk_unprepare(vpu->clk);
+
+	return 0;
+}
+
+static int mtk_vpu_resume(struct device *dev)
+{
+	struct mtk_vpu *vpu = dev_get_drvdata(dev);
+	int ret;
+
+	clk_prepare(vpu->clk);
+	ret = vpu_clock_enable(vpu);
+	if (ret) {
+		dev_err(dev, "failed to enable vpu clock\n");
+		return ret;
+	}
+
+	mutex_lock(&vpu->vpu_mutex);
+	/* enable vpu timer interrupt */
+	vpu_cfg_writel(vpu,
+		       vpu_cfg_readl(vpu, VPU_INT_STATUS) & ~(VPU_IDLE_STATE),
+		       VPU_INT_STATUS);
+	mutex_unlock(&vpu->vpu_mutex);
+	vpu_clock_disable(vpu);
+
+	return 0;
+}
+
+static const struct dev_pm_ops mtk_vpu_pm = {
+	.suspend = mtk_vpu_suspend,
+	.resume = mtk_vpu_resume,
+};
+
 static struct platform_driver mtk_vpu_driver = {
 	.probe	= mtk_vpu_probe,
 	.remove	= mtk_vpu_remove,
 	.driver	= {
 		.name	= "mtk_vpu",
+		.pm = &mtk_vpu_pm,
 		.of_match_table = mtk_vpu_match,
 	},
 };

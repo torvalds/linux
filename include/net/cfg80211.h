@@ -10,6 +10,7 @@
  * Copyright (C) 2018-2020 Intel Corporation
  */
 
+#include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/debugfs.h>
 #include <linux/list.h>
@@ -298,19 +299,6 @@ struct ieee80211_he_obss_pd {
 struct cfg80211_he_bss_color {
 	u8 color;
 	bool enabled;
-	bool partial;
-};
-
-/**
- * struct ieee80211_he_bss_color - AP settings for BSS coloring
- *
- * @color: the current color.
- * @disabled: is the feature disabled.
- * @partial: define the AID equation.
- */
-struct ieee80211_he_bss_color {
-	u8 color;
-	bool disabled;
 	bool partial;
 };
 
@@ -1008,6 +996,21 @@ struct survey_info {
  * @sae_pwd: password for SAE authentication (for devices supporting SAE
  *	offload)
  * @sae_pwd_len: length of SAE password (for devices supporting SAE offload)
+ * @sae_pwe: The mechanisms allowed for SAE PWE derivation:
+ *
+ *	NL80211_SAE_PWE_UNSPECIFIED
+ *	  Not-specified, used to indicate userspace did not specify any
+ *	  preference. The driver should follow its internal policy in
+ *	  such a scenario.
+ *
+ *	NL80211_SAE_PWE_HUNT_AND_PECK
+ *	  Allow hunting-and-pecking loop only
+ *
+ *	NL80211_SAE_PWE_HASH_TO_ELEMENT
+ *	  Allow hash-to-element only
+ *
+ *	NL80211_SAE_PWE_BOTH
+ *	  Allow either hunting-and-pecking loop or hash-to-element
  */
 struct cfg80211_crypto_settings {
 	u32 wpa_versions;
@@ -1026,6 +1029,7 @@ struct cfg80211_crypto_settings {
 	const u8 *psk;
 	const u8 *sae_pwd;
 	u8 sae_pwd_len;
+	enum nl80211_sae_pwe_mechanism sae_pwe;
 };
 
 /**
@@ -1170,6 +1174,7 @@ enum cfg80211_ap_settings_flags {
  * @vht_required: stations must support VHT
  * @twt_responder: Enable Target Wait Time
  * @he_required: stations must support HE
+ * @sae_h2e_required: stations must support direct H2E technique in SAE
  * @flags: flags, as defined in enum cfg80211_ap_settings_flags
  * @he_obss_pd: OBSS Packet Detection settings
  * @he_bss_color: BSS Color settings
@@ -1201,7 +1206,7 @@ struct cfg80211_ap_settings {
 	const struct ieee80211_vht_cap *vht_cap;
 	const struct ieee80211_he_cap_elem *he_cap;
 	const struct ieee80211_he_operation *he_oper;
-	bool ht_required, vht_required, he_required;
+	bool ht_required, vht_required, he_required, sae_h2e_required;
 	bool twt_responder;
 	u32 flags;
 	struct ieee80211_he_obss_pd he_obss_pd;
@@ -1725,6 +1730,54 @@ struct station_info {
 	u32 airtime_link_metric;
 
 	u8 connected_to_as;
+};
+
+/**
+ * struct cfg80211_sar_sub_specs - sub specs limit
+ * @power: power limitation in 0.25dbm
+ * @freq_range_index: index the power limitation applies to
+ */
+struct cfg80211_sar_sub_specs {
+	s32 power;
+	u32 freq_range_index;
+};
+
+/**
+ * struct cfg80211_sar_specs - sar limit specs
+ * @type: it's set with power in 0.25dbm or other types
+ * @num_sub_specs: number of sar sub specs
+ * @sub_specs: memory to hold the sar sub specs
+ */
+struct cfg80211_sar_specs {
+	enum nl80211_sar_type type;
+	u32 num_sub_specs;
+	struct cfg80211_sar_sub_specs sub_specs[];
+};
+
+
+/**
+ * struct cfg80211_sar_freq_ranges - sar frequency ranges
+ * @start_freq:  start range edge frequency
+ * @end_freq:    end range edge frequency
+ */
+struct cfg80211_sar_freq_ranges {
+	u32 start_freq;
+	u32 end_freq;
+};
+
+/**
+ * struct cfg80211_sar_capa - sar limit capability
+ * @type: it's set via power in 0.25dbm or other types
+ * @num_freq_ranges: number of frequency ranges
+ * @freq_ranges: memory to hold the freq ranges.
+ *
+ * Note: WLAN driver may append new ranges or split an existing
+ * range to small ones and then append them.
+ */
+struct cfg80211_sar_capa {
+	enum nl80211_sar_type type;
+	u32 num_freq_ranges;
+	const struct cfg80211_sar_freq_ranges *freq_ranges;
 };
 
 #if IS_ENABLED(CONFIG_CFG80211)
@@ -3736,8 +3789,6 @@ struct mgmt_frame_regs {
  * @get_tx_power: store the current TX power into the dbm variable;
  *	return 0 if successful
  *
- * @set_wds_peer: set the WDS peer for a WDS interface
- *
  * @rfkill_poll: polls the hw rfkill line, use cfg80211 reporting
  *	functions to adjust rfkill hw state
  *
@@ -3921,6 +3972,8 @@ struct mgmt_frame_regs {
  *	This callback may sleep.
  * @reset_tid_config: Reset TID specific configuration for the peer, for the
  *	given TIDs. This callback may sleep.
+ *
+ * @set_sar_specs: Update the SAR (TX power) settings.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -4057,9 +4110,6 @@ struct cfg80211_ops {
 				enum nl80211_tx_power_setting type, int mbm);
 	int	(*get_tx_power)(struct wiphy *wiphy, struct wireless_dev *wdev,
 				int *dbm);
-
-	int	(*set_wds_peer)(struct wiphy *wiphy, struct net_device *dev,
-				const u8 *addr);
 
 	void	(*rfkill_poll)(struct wiphy *wiphy);
 
@@ -4249,6 +4299,8 @@ struct cfg80211_ops {
 				  struct cfg80211_tid_config *tid_conf);
 	int	(*reset_tid_config)(struct wiphy *wiphy, struct net_device *dev,
 				    const u8 *peer, u8 tids);
+	int	(*set_sar_specs)(struct wiphy *wiphy,
+				 struct cfg80211_sar_specs *sar);
 };
 
 /*
@@ -4879,6 +4931,7 @@ struct wiphy_iftype_akm_suites {
  * @max_data_retry_count: maximum supported per TID retry count for
  *	configuration through the %NL80211_TID_CONFIG_ATTR_RETRY_SHORT and
  *	%NL80211_TID_CONFIG_ATTR_RETRY_LONG attributes
+ * @sar_capa: SAR control capabilities
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -5016,6 +5069,8 @@ struct wiphy {
 	} tid_config_support;
 
 	u8 max_data_retry_count;
+
+	const struct cfg80211_sar_capa *sar_capa;
 
 	char priv[] __aligned(NETDEV_ALIGN);
 };
@@ -6406,13 +6461,15 @@ void cfg80211_abandon_assoc(struct net_device *dev, struct cfg80211_bss *bss);
  * @dev: network device
  * @buf: 802.11 frame (header + body)
  * @len: length of the frame data
+ * @reconnect: immediate reconnect is desired (include the nl80211 attribute)
  *
  * This function is called whenever deauthentication has been processed in
  * station mode. This includes both received deauthentication frames and
  * locally generated ones. This function may sleep. The caller must hold the
  * corresponding wdev's mutex.
  */
-void cfg80211_tx_mlme_mgmt(struct net_device *dev, const u8 *buf, size_t len);
+void cfg80211_tx_mlme_mgmt(struct net_device *dev, const u8 *buf, size_t len,
+			   bool reconnect);
 
 /**
  * cfg80211_rx_unprot_mlme_mgmt - notification of unprotected mlme mgmt frame
@@ -7519,6 +7576,7 @@ void cfg80211_ch_switch_notify(struct net_device *dev,
  * @dev: the device on which the channel switch started
  * @chandef: the future channel definition
  * @count: the number of TBTTs until the channel switch happens
+ * @quiet: whether or not immediate quiet was requested by the AP
  *
  * Inform the userspace about the channel switch that has just
  * started, so that it can take appropriate actions (eg. starting
@@ -7526,7 +7584,7 @@ void cfg80211_ch_switch_notify(struct net_device *dev,
  */
 void cfg80211_ch_switch_started_notify(struct net_device *dev,
 				       struct cfg80211_chan_def *chandef,
-				       u8 count);
+				       u8 count, bool quiet);
 
 /**
  * ieee80211_operating_class_to_band - convert operating class to band

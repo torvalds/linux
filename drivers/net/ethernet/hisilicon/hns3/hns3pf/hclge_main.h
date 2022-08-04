@@ -27,9 +27,11 @@
 	(HCLGE_PF_CFG_BLOCK_SIZE / HCLGE_CFG_RD_LEN_BYTES)
 
 #define HCLGE_VECTOR_REG_BASE		0x20000
+#define HCLGE_VECTOR_EXT_REG_BASE	0x30000
 #define HCLGE_MISC_VECTOR_REG_BASE	0x20400
 
 #define HCLGE_VECTOR_REG_OFFSET		0x4
+#define HCLGE_VECTOR_REG_OFFSET_H	0x1000
 #define HCLGE_VECTOR_VF_OFFSET		0x100000
 
 #define HCLGE_CMDQ_TX_ADDR_L_REG	0x27000
@@ -105,6 +107,8 @@
 #define HCLGE_D_IP_BIT			BIT(2)
 #define HCLGE_S_IP_BIT			BIT(3)
 #define HCLGE_V_TAG_BIT			BIT(4)
+#define HCLGE_RSS_INPUT_TUPLE_SCTP_NO_PORT	\
+		(HCLGE_D_IP_BIT | HCLGE_S_IP_BIT | HCLGE_V_TAG_BIT)
 
 #define HCLGE_RSS_TC_SIZE_0		1
 #define HCLGE_RSS_TC_SIZE_1		2
@@ -278,6 +282,7 @@ struct hclge_mac {
 
 struct hclge_hw {
 	void __iomem *io_base;
+	void __iomem *mem_base;
 	struct hclge_mac mac;
 	int num_vec;
 	struct hclge_cmq cmq;
@@ -345,7 +350,8 @@ struct hclge_cfg {
 	u8 tc_num;
 	u16 tqp_desc_num;
 	u16 rx_buf_len;
-	u16 rss_size_max;
+	u16 vf_rss_size_max;
+	u16 pf_rss_size_max;
 	u8 phy_addr;
 	u8 media_type;
 	u8 mac_addr[ETH_ALEN];
@@ -561,6 +567,7 @@ enum HCLGE_FD_ACTIVE_RULE_TYPE {
 	HCLGE_FD_RULE_NONE,
 	HCLGE_FD_ARFS_ACTIVE,
 	HCLGE_FD_EP_ACTIVE,
+	HCLGE_FD_TC_FLOWER_ACTIVE,
 };
 
 enum HCLGE_FD_PACKET_TYPE {
@@ -569,8 +576,9 @@ enum HCLGE_FD_PACKET_TYPE {
 };
 
 enum HCLGE_FD_ACTION {
-	HCLGE_FD_ACTION_ACCEPT_PACKET,
+	HCLGE_FD_ACTION_SELECT_QUEUE,
 	HCLGE_FD_ACTION_DROP_PACKET,
+	HCLGE_FD_ACTION_SELECT_TC,
 };
 
 struct hclge_fd_key_cfg {
@@ -615,12 +623,20 @@ struct hclge_fd_rule {
 	struct hclge_fd_rule_tuples tuples_mask;
 	u32 unused_tuple;
 	u32 flow_type;
-	u8 action;
-	u16 vf_id;
+	union {
+		struct {
+			unsigned long cookie;
+			u8 tc;
+		} cls_flower;
+		struct {
+			u16 flow_id; /* only used for arfs */
+		} arfs;
+	};
 	u16 queue_id;
+	u16 vf_id;
 	u16 location;
-	u16 flow_id;	/* only used for arfs */
 	enum HCLGE_FD_ACTIVE_RULE_TYPE rule_type;
+	u8 action;
 };
 
 struct hclge_fd_ad_data {
@@ -634,6 +650,8 @@ struct hclge_fd_ad_data {
 	u8 write_rule_id_to_bd;
 	u8 next_input_key;
 	u16 rule_id;
+	u16 tc_size;
+	u8 override_tc;
 };
 
 enum HCLGE_MAC_NODE_STATE {
@@ -742,7 +760,8 @@ struct hclge_dev {
 
 	u16 base_tqp_pid;	/* Base task tqp physical id of this PF */
 	u16 alloc_rss_size;		/* Allocated RSS task queue */
-	u16 rss_size_max;		/* HW defined max RSS task queue */
+	u16 vf_rss_size_max;		/* HW defined VF max RSS task queue */
+	u16 pf_rss_size_max;		/* HW defined PF max RSS task queue */
 
 	u16 fdir_pf_filter_count; /* Num of guaranteed filters for this PF */
 	u16 num_alloc_vport;		/* Num vports this driver supports */
@@ -767,7 +786,6 @@ struct hclge_dev {
 	u16 num_msi;
 	u16 num_msi_left;
 	u16 num_msi_used;
-	u16 roce_base_msix_offset;
 	u32 base_msi_vector;
 	u16 *vector_status;
 	int *vector_irq;
@@ -848,15 +866,18 @@ struct hclge_tx_vtag_cfg {
 	bool insert_tag2_en;	/* Whether insert outer vlan tag */
 	u16  default_tag1;	/* The default inner vlan tag to insert */
 	u16  default_tag2;	/* The default outer vlan tag to insert */
+	bool tag_shift_mode_en;
 };
 
 /* VPort level vlan tag configuration for RX direction */
 struct hclge_rx_vtag_cfg {
-	u8 rx_vlan_offload_en;	/* Whether enable rx vlan offload */
-	u8 strip_tag1_en;	/* Whether strip inner vlan tag */
-	u8 strip_tag2_en;	/* Whether strip outer vlan tag */
-	u8 vlan1_vlan_prionly;	/* Inner VLAN Tag up to descriptor Enable */
-	u8 vlan2_vlan_prionly;	/* Outer VLAN Tag up to descriptor Enable */
+	bool rx_vlan_offload_en; /* Whether enable rx vlan offload */
+	bool strip_tag1_en;	 /* Whether strip inner vlan tag */
+	bool strip_tag2_en;	 /* Whether strip outer vlan tag */
+	bool vlan1_vlan_prionly; /* Inner vlan tag up to descriptor enable */
+	bool vlan2_vlan_prionly; /* Outer vlan tag up to descriptor enable */
+	bool strip_tag1_discard_en; /* Inner vlan tag discard for BD enable */
+	bool strip_tag2_discard_en; /* Outer vlan tag discard for BD enable */
 };
 
 struct hclge_rss_tuple_cfg {
@@ -901,7 +922,7 @@ struct hclge_vport {
 
 	u8  rss_hash_key[HCLGE_RSS_KEY_SIZE]; /* User configured hash keys */
 	/* User configured lookup table entries */
-	u8  rss_indirection_tbl[HCLGE_RSS_IND_TBL_SIZE];
+	u16 rss_indirection_tbl[HCLGE_RSS_IND_TBL_SIZE];
 	int rss_algo;		/* User configured hash algorithm */
 	/* User configured rss tuple sets */
 	struct hclge_rss_tuple_cfg rss_tuple_sets;

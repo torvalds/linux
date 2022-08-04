@@ -118,4 +118,11 @@
 long radeon_drm_ioctl(struct file *filp,
 		      unsigned int cmd, unsigned long arg);
 
+int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
+void radeon_driver_unload_kms(struct drm_device *dev);
+void radeon_driver_lastclose_kms(struct drm_device *dev);
+int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv);
+void radeon_driver_postclose_kms(struct drm_device *dev,
+				 struct drm_file *file_priv);
+
 #endif				/* __RADEON_DRV_H__ */

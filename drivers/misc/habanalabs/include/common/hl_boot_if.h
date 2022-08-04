@@ -53,6 +53,23 @@
  *					trust), boot authentication (chain of
  *					trust), data packets authentication.
  *
+ * CPU_BOOT_ERR0_EFUSE_FAIL		Reading from eFuse failed.
+ *					The PCI device ID might be wrong.
+ *
+ * CPU_BOOT_ERR0_PRI_IMG_VER_FAIL	Verification of primary image failed.
+ *					It mean that ppboot checksum
+ *					verification for the preboot primary
+ *					image has failed to match expected
+ *					checksum. Trying to program image again
+ *					might solve this.
+ *
+ * CPU_BOOT_ERR0_SEC_IMG_VER_FAIL	Verification of secondary image failed.
+ *					It mean that ppboot checksum
+ *					verification for the preboot secondary
+ *					image has failed to match expected
+ *					checksum. Trying to program image again
+ *					might solve this.
+ *
  * CPU_BOOT_ERR0_ENABLED		Error registers enabled.
  *					This is a main indication that the
  *					running FW populates the error
@@ -68,7 +85,98 @@
 #define CPU_BOOT_ERR0_NIC_FW_FAIL		(1 << 6)
 #define CPU_BOOT_ERR0_SECURITY_NOT_RDY		(1 << 7)
 #define CPU_BOOT_ERR0_SECURITY_FAIL		(1 << 8)
+#define CPU_BOOT_ERR0_EFUSE_FAIL		(1 << 9)
+#define CPU_BOOT_ERR0_PRI_IMG_VER_FAIL		(1 << 10)
+#define CPU_BOOT_ERR0_SEC_IMG_VER_FAIL		(1 << 11)
 #define CPU_BOOT_ERR0_ENABLED			(1 << 31)
+
+/*
+ * BOOT DEVICE STATUS bits in BOOT_DEVICE_STS registers
+ *
+ * CPU_BOOT_DEV_STS0_SECURITY_EN	Security is Enabled.
+ *					This is an indication for security
+ *					enabled in FW, which means that
+ *					all conditions for security are met:
+ *					device is indicated as security enabled,
+ *					registers are protected, and device
+ *					uses keys for image verification.
+ *					Initialized in: preboot
+ *
+ * CPU_BOOT_DEV_STS0_DEBUG_EN		Debug is enabled.
+ *					Enabled when JTAG or DEBUG is enabled
+ *					in FW.
+ *					Initialized in: preboot
+ *
+ * CPU_BOOT_DEV_STS0_WATCHDOG_EN	Watchdog is enabled.
+ *					Watchdog is enabled in FW.
+ *					Initialized in: preboot
+ *
+ * CPU_BOOT_DEV_STS0_DRAM_INIT_EN	DRAM initialization is enabled.
+ *					DRAM initialization has been done in FW.
+ *					Initialized in: u-boot
+ *
+ * CPU_BOOT_DEV_STS0_BMC_WAIT_EN	Waiting for BMC data enabled.
+ *					If set, it means that during boot,
+ *					FW waited for BMC data.
+ *					Initialized in: u-boot
+ *
+ * CPU_BOOT_DEV_STS0_E2E_CRED_EN	E2E credits initialized.
+ *					FW initialized E2E credits.
+ *					Initialized in: u-boot
+ *
+ * CPU_BOOT_DEV_STS0_HBM_CRED_EN	HBM credits initialized.
+ *					FW initialized HBM credits.
+ *					Initialized in: u-boot
+ *
+ * CPU_BOOT_DEV_STS0_RL_EN		Rate limiter initialized.
+ *					FW initialized rate limiter.
+ *					Initialized in: u-boot
+ *
+ * CPU_BOOT_DEV_STS0_SRAM_SCR_EN	SRAM scrambler enabled.
+ *					FW initialized SRAM scrambler.
+ *					Initialized in: linux
+ *
+ * CPU_BOOT_DEV_STS0_DRAM_SCR_EN	DRAM scrambler enabled.
+ *					FW initialized DRAM scrambler.
+ *					Initialized in: u-boot
+ *
+ * CPU_BOOT_DEV_STS0_FW_HARD_RST_EN	FW hard reset procedure is enabled.
+ *					FW has the hard reset procedure
+ *					implemented. This means that FW will
+ *					perform hard reset procedure on
+ *					receiving the halt-machine event.
+ *					Initialized in: preboot, u-boot, linux
+ *
+ * CPU_BOOT_DEV_STS0_PLL_INFO_EN	FW retrieval of PLL info is enabled.
+ *					Initialized in: linux
+ *
+ * CPU_BOOT_DEV_STS0_CLK_GATE_EN	Clock Gating enabled.
+ *					FW initialized Clock Gating.
+ *					Initialized in: preboot
+ *
+ * CPU_BOOT_DEV_STS0_ENABLED		Device status register enabled.
+ *					This is a main indication that the
+ *					running FW populates the device status
+ *					register. Meaning the device status
+ *					bits are not garbage, but actual
+ *					statuses.
+ *					Initialized in: preboot
+ *
+ */
+#define CPU_BOOT_DEV_STS0_SECURITY_EN			(1 << 0)
+#define CPU_BOOT_DEV_STS0_DEBUG_EN			(1 << 1)
+#define CPU_BOOT_DEV_STS0_WATCHDOG_EN			(1 << 2)
+#define CPU_BOOT_DEV_STS0_DRAM_INIT_EN			(1 << 3)
+#define CPU_BOOT_DEV_STS0_BMC_WAIT_EN			(1 << 4)
+#define CPU_BOOT_DEV_STS0_E2E_CRED_EN			(1 << 5)
+#define CPU_BOOT_DEV_STS0_HBM_CRED_EN			(1 << 6)
+#define CPU_BOOT_DEV_STS0_RL_EN				(1 << 7)
+#define CPU_BOOT_DEV_STS0_SRAM_SCR_EN			(1 << 8)
+#define CPU_BOOT_DEV_STS0_DRAM_SCR_EN			(1 << 9)
+#define CPU_BOOT_DEV_STS0_FW_HARD_RST_EN		(1 << 10)
+#define CPU_BOOT_DEV_STS0_PLL_INFO_EN			(1 << 11)
+#define CPU_BOOT_DEV_STS0_CLK_GATE_EN			(1 << 13)
+#define CPU_BOOT_DEV_STS0_ENABLED			(1 << 31)
 
 enum cpu_boot_status {
 	CPU_BOOT_STATUS_NA = 0,		/* Default value after reset of chip */
@@ -101,6 +209,8 @@ enum kmd_msg {
 	KMD_MSG_GOTO_WFE,
 	KMD_MSG_FIT_RDY,
 	KMD_MSG_SKIP_BMC,
+	RESERVED,
+	KMD_MSG_RST_DEV,
 };
 
 enum cpu_msg_status {

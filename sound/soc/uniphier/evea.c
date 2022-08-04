@@ -551,7 +551,7 @@ static int evea_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id evea_of_match[] = {
+static const struct of_device_id evea_of_match[] __maybe_unused = {
 	{ .compatible = "socionext,uniphier-evea", },
 	{}
 };

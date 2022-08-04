@@ -39,6 +39,12 @@ struct hclge_nq_to_qs_link_cmd {
 	__le16 nq_id;
 	__le16 rsvd;
 #define HCLGE_TM_Q_QS_LINK_VLD_MSK	BIT(10)
+#define HCLGE_TM_QS_ID_L_MSK		GENMASK(9, 0)
+#define HCLGE_TM_QS_ID_L_S		0
+#define HCLGE_TM_QS_ID_H_MSK		GENMASK(14, 10)
+#define HCLGE_TM_QS_ID_H_S		10
+#define HCLGE_TM_QS_ID_H_EXT_S		11
+#define HCLGE_TM_QS_ID_H_EXT_MSK	GENMASK(15, 11)
 	__le16 qset_id;
 };
 
@@ -86,22 +92,34 @@ enum hclge_shap_bucket {
 	HCLGE_TM_SHAP_P_BUCKET,
 };
 
+/* set bit HCLGE_TM_RATE_VLD to 1 means use 'rate' to config shaping */
+#define HCLGE_TM_RATE_VLD	0
+
 struct hclge_pri_shapping_cmd {
 	u8 pri_id;
 	u8 rsvd[3];
 	__le32 pri_shapping_para;
+	u8 flag;
+	u8 rsvd1[3];
+	__le32 pri_rate;
 };
 
 struct hclge_pg_shapping_cmd {
 	u8 pg_id;
 	u8 rsvd[3];
 	__le32 pg_shapping_para;
+	u8 flag;
+	u8 rsvd1[3];
+	__le32 pg_rate;
 };
 
 struct hclge_qs_shapping_cmd {
 	__le16 qs_id;
 	u8 rsvd[2];
 	__le32 qs_shapping_para;
+	u8 flag;
+	u8 rsvd1[3];
+	__le32 qs_rate;
 };
 
 #define HCLGE_BP_GRP_NUM		32
@@ -109,6 +127,11 @@ struct hclge_qs_shapping_cmd {
 #define HCLGE_BP_SUB_GRP_ID_M		GENMASK(4, 0)
 #define HCLGE_BP_GRP_ID_S		5
 #define HCLGE_BP_GRP_ID_M		GENMASK(9, 5)
+
+#define HCLGE_BP_EXT_GRP_NUM		40
+#define HCLGE_BP_EXT_GRP_ID_S		5
+#define HCLGE_BP_EXT_GRP_ID_M		GENMASK(10, 5)
+
 struct hclge_bp_to_qs_map_cmd {
 	u8 tc_id;
 	u8 rsvd[2];
@@ -139,6 +162,9 @@ struct hclge_pfc_stats_cmd {
 
 struct hclge_port_shapping_cmd {
 	__le32 port_shapping_para;
+	u8 flag;
+	u8 rsvd[3];
+	__le32 port_rate;
 };
 
 struct hclge_shaper_ir_para {

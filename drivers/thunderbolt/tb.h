@@ -367,6 +367,14 @@ struct tb_path {
  * @disconnect_pcie_paths: Disconnects PCIe paths before NVM update
  * @approve_xdomain_paths: Approve (establish) XDomain DMA paths
  * @disconnect_xdomain_paths: Disconnect XDomain DMA paths
+ * @usb4_switch_op: Optional proxy for USB4 router operations. If set
+ *		    this will be called whenever USB4 router operation is
+ *		    performed. If this returns %-EOPNOTSUPP then the
+ *		    native USB4 router operation is called.
+ * @usb4_switch_nvm_authenticate_status: Optional callback that the CM
+ *					 implementation can be used to
+ *					 return status of USB4 NVM_AUTH
+ *					 router operation.
  */
 struct tb_cm_ops {
 	int (*driver_ready)(struct tb *tb);
@@ -393,6 +401,11 @@ struct tb_cm_ops {
 	int (*disconnect_pcie_paths)(struct tb *tb);
 	int (*approve_xdomain_paths)(struct tb *tb, struct tb_xdomain *xd);
 	int (*disconnect_xdomain_paths)(struct tb *tb, struct tb_xdomain *xd);
+	int (*usb4_switch_op)(struct tb_switch *sw, u16 opcode, u32 *metadata,
+			      u8 *status, const void *tx_data, size_t tx_data_len,
+			      void *rx_data, size_t rx_data_len);
+	int (*usb4_switch_nvm_authenticate_status)(struct tb_switch *sw,
+						   u32 *status);
 };
 
 static inline void *tb_priv(struct tb *tb)
@@ -864,6 +877,10 @@ struct tb_port *tb_next_port_on_path(struct tb_port *start, struct tb_port *end,
 	     (p) = tb_next_port_on_path((src), (dst), (p)))
 
 int tb_port_get_link_speed(struct tb_port *port);
+int tb_port_get_link_width(struct tb_port *port);
+int tb_port_state(struct tb_port *port);
+int tb_port_lane_bonding_enable(struct tb_port *port);
+void tb_port_lane_bonding_disable(struct tb_port *port);
 
 int tb_switch_find_vse_cap(struct tb_switch *sw, enum tb_switch_vse_cap vsec);
 int tb_switch_find_cap(struct tb_switch *sw, enum tb_switch_cap cap);
@@ -970,6 +987,7 @@ int usb4_switch_nvm_read(struct tb_switch *sw, unsigned int address, void *buf,
 int usb4_switch_nvm_write(struct tb_switch *sw, unsigned int address,
 			  const void *buf, size_t size);
 int usb4_switch_nvm_authenticate(struct tb_switch *sw);
+int usb4_switch_nvm_authenticate_status(struct tb_switch *sw, u32 *status);
 bool usb4_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in);
 int usb4_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in);
 int usb4_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in);
@@ -1025,11 +1043,15 @@ void tb_debugfs_init(void);
 void tb_debugfs_exit(void);
 void tb_switch_debugfs_init(struct tb_switch *sw);
 void tb_switch_debugfs_remove(struct tb_switch *sw);
+void tb_service_debugfs_init(struct tb_service *svc);
+void tb_service_debugfs_remove(struct tb_service *svc);
 #else
 static inline void tb_debugfs_init(void) { }
 static inline void tb_debugfs_exit(void) { }
 static inline void tb_switch_debugfs_init(struct tb_switch *sw) { }
 static inline void tb_switch_debugfs_remove(struct tb_switch *sw) { }
+static inline void tb_service_debugfs_init(struct tb_service *svc) { }
+static inline void tb_service_debugfs_remove(struct tb_service *svc) { }
 #endif
 
 #ifdef CONFIG_USB4_KUNIT_TEST

@@ -73,6 +73,13 @@ int intel_pcm_open(struct snd_sof_dev *sdev,
 	/* binding pcm substream to hda stream */
 	substream->runtime->private_data = stream;
 
+	/* align to DMA minimum transfer size */
+	snd_pcm_hw_constraint_step(substream->runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 4);
+
+	/* avoid circular buffer wrap in middle of period */
+	snd_pcm_hw_constraint_integer(substream->runtime,
+				      SNDRV_PCM_HW_PARAM_PERIODS);
+
 	return 0;
 }
 EXPORT_SYMBOL_NS(intel_pcm_open, SND_SOC_SOF_INTEL_HIFI_EP_IPC);

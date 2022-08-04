@@ -126,7 +126,6 @@ TRACE_EVENT(regcache_sync,
 		__string(       name,           regmap_name(map)	)
 		__string(	status,		status			)
 		__string(	type,		type			)
-		__field(	int,		type			)
 	),
 
 	TP_fast_assign(

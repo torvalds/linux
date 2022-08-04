@@ -56,14 +56,21 @@ static void tlbiel_all_isa300(unsigned int num_sets, unsigned int is)
 	if (early_cpu_has_feature(CPU_FTR_HVMODE)) {
 		/* MSR[HV] should flush partition scope translations first. */
 		tlbiel_radix_set_isa300(0, is, 0, RIC_FLUSH_ALL, 0);
-		for (set = 1; set < num_sets; set++)
-			tlbiel_radix_set_isa300(set, is, 0, RIC_FLUSH_TLB, 0);
+
+		if (!early_cpu_has_feature(CPU_FTR_ARCH_31)) {
+			for (set = 1; set < num_sets; set++)
+				tlbiel_radix_set_isa300(set, is, 0,
+							RIC_FLUSH_TLB, 0);
+		}
 	}
 
 	/* Flush process scoped entries. */
 	tlbiel_radix_set_isa300(0, is, 0, RIC_FLUSH_ALL, 1);
-	for (set = 1; set < num_sets; set++)
-		tlbiel_radix_set_isa300(set, is, 0, RIC_FLUSH_TLB, 1);
+
+	if (!early_cpu_has_feature(CPU_FTR_ARCH_31)) {
+		for (set = 1; set < num_sets; set++)
+			tlbiel_radix_set_isa300(set, is, 0, RIC_FLUSH_TLB, 1);
+	}
 
 	ppc_after_tlbiel_barrier();
 }
@@ -300,9 +307,11 @@ static __always_inline void _tlbiel_pid(unsigned long pid, unsigned long ric)
 		return;
 	}
 
-	/* For the remaining sets, just flush the TLB */
-	for (set = 1; set < POWER9_TLB_SETS_RADIX ; set++)
-		__tlbiel_pid(pid, set, RIC_FLUSH_TLB);
+	if (!cpu_has_feature(CPU_FTR_ARCH_31)) {
+		/* For the remaining sets, just flush the TLB */
+		for (set = 1; set < POWER9_TLB_SETS_RADIX ; set++)
+			__tlbiel_pid(pid, set, RIC_FLUSH_TLB);
+	}
 
 	ppc_after_tlbiel_barrier();
 	asm volatile(PPC_RADIX_INVALIDATE_ERAT_USER "; isync" : : :"memory");

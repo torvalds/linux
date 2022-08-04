@@ -262,19 +262,25 @@ static irqreturn_t line_write_interrupt(int irq, void *data)
 int line_setup_irq(int fd, int input, int output, struct line *line, void *data)
 {
 	const struct line_driver *driver = line->driver;
-	int err = 0;
+	int err;
 
-	if (input)
+	if (input) {
 		err = um_request_irq(driver->read_irq, fd, IRQ_READ,
 				     line_interrupt, IRQF_SHARED,
 				     driver->read_irq_name, data);
-	if (err)
-		return err;
-	if (output)
+		if (err < 0)
+			return err;
+	}
+
+	if (output) {
 		err = um_request_irq(driver->write_irq, fd, IRQ_WRITE,
 				     line_write_interrupt, IRQF_SHARED,
 				     driver->write_irq_name, data);
-	return err;
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
 }
 
 static int line_activate(struct tty_port *port, struct tty_struct *tty)
@@ -608,7 +614,6 @@ static void free_winch(struct winch *winch)
 	winch->fd = -1;
 	if (fd != -1)
 		os_close_file(fd);
-	list_del(&winch->list);
 	__free_winch(&winch->work);
 }
 
@@ -709,6 +714,8 @@ static void unregister_winch(struct tty_struct *tty)
 		winch = list_entry(ele, struct winch, list);
 		wtty = tty_port_tty_get(winch->port);
 		if (wtty == tty) {
+			list_del(&winch->list);
+			spin_unlock(&winch_handler_lock);
 			free_winch(winch);
 			break;
 		}
@@ -719,14 +726,17 @@ static void unregister_winch(struct tty_struct *tty)
 
 static void winch_cleanup(void)
 {
-	struct list_head *ele, *next;
 	struct winch *winch;
 
 	spin_lock(&winch_handler_lock);
+	while ((winch = list_first_entry_or_null(&winch_handlers,
+						 struct winch, list))) {
+		list_del(&winch->list);
+		spin_unlock(&winch_handler_lock);
 
-	list_for_each_safe(ele, next, &winch_handlers) {
-		winch = list_entry(ele, struct winch, list);
 		free_winch(winch);
+
+		spin_lock(&winch_handler_lock);
 	}
 
 	spin_unlock(&winch_handler_lock);

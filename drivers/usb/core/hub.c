@@ -2171,7 +2171,8 @@ static void hub_disconnect_children(struct usb_device *udev)
 /**
  * usb_disconnect - disconnect a device (usbcore-internal)
  * @pdev: pointer to device being disconnected
- * Context: !in_interrupt ()
+ *
+ * Context: task context, might sleep
  *
  * Something got disconnected. Get rid of it and all of its children.
  *

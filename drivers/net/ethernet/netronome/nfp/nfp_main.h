@@ -166,7 +166,7 @@ nfp_pf_map_rtsym(struct nfp_pf *pf, const char *name, const char *sym_fmt,
 		 unsigned int min_size, struct nfp_cpp_area **area);
 int nfp_mbox_cmd(struct nfp_pf *pf, u32 cmd, void *in_data, u64 in_length,
 		 void *out_data, u64 out_length);
-int nfp_flash_update_common(struct nfp_pf *pf, const char *path,
+int nfp_flash_update_common(struct nfp_pf *pf, const struct firmware *fw,
 			    struct netlink_ext_ack *extack);
 
 enum nfp_dump_diag {

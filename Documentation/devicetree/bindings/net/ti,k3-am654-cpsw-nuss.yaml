@@ -119,12 +119,12 @@ properties:
             description: label associated with this port
 
           ti,mac-only:
-            $ref: /schemas/types.yaml#definitions/flag
+            $ref: /schemas/types.yaml#/definitions/flag
             description:
               Specifies the port works in mac-only mode.
 
           ti,syscon-efuse:
-            $ref: /schemas/types.yaml#definitions/phandle-array
+            $ref: /schemas/types.yaml#/definitions/phandle-array
             description:
               Phandle to the system control device node which provides access
               to efuse IO range with MAC addresses

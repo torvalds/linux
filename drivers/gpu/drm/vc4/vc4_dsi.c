@@ -1246,10 +1246,12 @@ reset_fifo_and_return:
 	return ret;
 }
 
+static const struct component_ops vc4_dsi_ops;
 static int vc4_dsi_host_attach(struct mipi_dsi_host *host,
 			       struct mipi_dsi_device *device)
 {
 	struct vc4_dsi *dsi = host_to_dsi(host);
+	int ret;
 
 	dsi->lanes = device->lanes;
 	dsi->channel = device->channel;
@@ -1282,6 +1284,12 @@ static int vc4_dsi_host_attach(struct mipi_dsi_host *host,
 		dev_err(&dsi->pdev->dev,
 			"Only VIDEO mode panels supported currently.\n");
 		return 0;
+	}
+
+	ret = component_add(&dsi->pdev->dev, &vc4_dsi_ops);
+	if (ret) {
+		mipi_dsi_host_unregister(&dsi->dsi_host);
+		return ret;
 	}
 
 	return 0;
@@ -1662,7 +1670,6 @@ static int vc4_dsi_dev_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct vc4_dsi *dsi;
-	int ret;
 
 	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
@@ -1670,25 +1677,9 @@ static int vc4_dsi_dev_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, dsi);
 
 	dsi->pdev = pdev;
-
-	/* Note, the initialization sequence for DSI and panels is
-	 * tricky.  The component bind above won't get past its
-	 * -EPROBE_DEFER until the panel/bridge probes.  The
-	 * panel/bridge will return -EPROBE_DEFER until it has a
-	 * mipi_dsi_host to register its device to.  So, we register
-	 * the host during pdev probe time, so vc4 as a whole can then
-	 * -EPROBE_DEFER its component bind process until the panel
-	 * successfully attaches.
-	 */
 	dsi->dsi_host.ops = &vc4_dsi_host_ops;
 	dsi->dsi_host.dev = dev;
 	mipi_dsi_host_register(&dsi->dsi_host);
-
-	ret = component_add(&pdev->dev, &vc4_dsi_ops);
-	if (ret) {
-		mipi_dsi_host_unregister(&dsi->dsi_host);
-		return ret;
-	}
 
 	return 0;
 }

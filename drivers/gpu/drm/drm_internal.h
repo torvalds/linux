@@ -33,6 +33,7 @@
 
 struct dentry;
 struct dma_buf;
+struct dma_buf_map;
 struct drm_connector;
 struct drm_crtc;
 struct drm_framebuffer;
@@ -53,15 +54,15 @@ void drm_lastclose(struct drm_device *dev);
 #ifdef CONFIG_PCI
 
 /* drm_pci.c */
-int drm_irq_by_busid(struct drm_device *dev, void *data,
-		     struct drm_file *file_priv);
+int drm_legacy_irq_by_busid(struct drm_device *dev, void *data,
+			    struct drm_file *file_priv);
 void drm_pci_agp_destroy(struct drm_device *dev);
 int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master);
 
 #else
 
-static inline int drm_irq_by_busid(struct drm_device *dev, void *data,
-				   struct drm_file *file_priv)
+static inline int drm_legacy_irq_by_busid(struct drm_device *dev, void *data,
+					  struct drm_file *file_priv)
 {
 	return -EINVAL;
 }
@@ -187,8 +188,8 @@ void drm_gem_print_info(struct drm_printer *p, unsigned int indent,
 
 int drm_gem_pin(struct drm_gem_object *obj);
 void drm_gem_unpin(struct drm_gem_object *obj);
-void *drm_gem_vmap(struct drm_gem_object *obj);
-void drm_gem_vunmap(struct drm_gem_object *obj, void *vaddr);
+int drm_gem_vmap(struct drm_gem_object *obj, struct dma_buf_map *map);
+void drm_gem_vunmap(struct drm_gem_object *obj, struct dma_buf_map *map);
 
 /* drm_debugfs.c drm_debugfs_crc.c */
 #if defined(CONFIG_DEBUG_FS)

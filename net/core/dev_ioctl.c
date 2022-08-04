@@ -230,7 +230,7 @@ static int dev_do_ioctl(struct net_device *dev,
 			struct ifreq *ifr, unsigned int cmd)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
-	int err = -EOPNOTSUPP;
+	int err;
 
 	err = dsa_ndo_do_ioctl(dev, ifr, cmd);
 	if (err == 0 || err != -EOPNOTSUPP)

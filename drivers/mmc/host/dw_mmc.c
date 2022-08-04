@@ -2617,7 +2617,6 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 	struct dw_mci *host = dev_id;
 	u32 pending;
 	struct dw_mci_slot *slot = host->slot;
-	unsigned long irqflags;
 
 	pending = mci_readl(host, MINTSTS); /* read-only mask reg */
 
@@ -2632,15 +2631,15 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 			 * Hold the lock; we know cmd11_timer can't be kicked
 			 * off after the lock is released, so safe to delete.
 			 */
-			spin_lock_irqsave(&host->irq_lock, irqflags);
+			spin_lock(&host->irq_lock);
 			dw_mci_cmd_interrupt(host, pending);
-			spin_unlock_irqrestore(&host->irq_lock, irqflags);
+			spin_unlock(&host->irq_lock);
 
 			del_timer(&host->cmd11_timer);
 		}
 
 		if (pending & DW_MCI_CMD_ERROR_FLAGS) {
-			spin_lock_irqsave(&host->irq_lock, irqflags);
+			spin_lock(&host->irq_lock);
 
 			del_timer(&host->cto_timer);
 			mci_writel(host, RINTSTS, DW_MCI_CMD_ERROR_FLAGS);
@@ -2648,7 +2647,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 			smp_wmb(); /* drain writebuffer */
 			set_bit(EVENT_CMD_COMPLETE, &host->pending_events);
 
-			spin_unlock_irqrestore(&host->irq_lock, irqflags);
+			spin_unlock(&host->irq_lock);
 		}
 
 		if (pending & DW_MCI_DATA_ERROR_FLAGS) {
@@ -2661,7 +2660,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 		}
 
 		if (pending & SDMMC_INT_DATA_OVER) {
-			spin_lock_irqsave(&host->irq_lock, irqflags);
+			spin_lock(&host->irq_lock);
 
 			del_timer(&host->dto_timer);
 
@@ -2676,7 +2675,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 			set_bit(EVENT_DATA_COMPLETE, &host->pending_events);
 			tasklet_schedule(&host->tasklet);
 
-			spin_unlock_irqrestore(&host->irq_lock, irqflags);
+			spin_unlock(&host->irq_lock);
 		}
 
 		if (pending & SDMMC_INT_RXDR) {
@@ -2692,12 +2691,12 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 		}
 
 		if (pending & SDMMC_INT_CMD_DONE) {
-			spin_lock_irqsave(&host->irq_lock, irqflags);
+			spin_lock(&host->irq_lock);
 
 			mci_writel(host, RINTSTS, SDMMC_INT_CMD_DONE);
 			dw_mci_cmd_interrupt(host, pending);
 
-			spin_unlock_irqrestore(&host->irq_lock, irqflags);
+			spin_unlock(&host->irq_lock);
 		}
 
 		if (pending & SDMMC_INT_CD) {

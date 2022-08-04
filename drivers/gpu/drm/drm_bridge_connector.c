@@ -241,7 +241,7 @@ static int drm_bridge_connector_get_modes_edid(struct drm_connector *connector,
 		goto no_edid;
 
 	edid = bridge->funcs->get_edid(bridge, connector);
-	if (!edid || !drm_edid_is_valid(edid)) {
+	if (!drm_edid_is_valid(edid)) {
 		kfree(edid);
 		goto no_edid;
 	}

@@ -77,7 +77,7 @@ the Subsystem ID in the second line, looks like this:
 only bt878-based cards can have a subsystem ID (which does not mean
 that every card really has one).  bt848 cards can't have a Subsystem
 ID and therefore can't be autodetected.  There is a list with the ID's
-at :doc:`bttv-cardlist` (in case you are intrested or want to mail
+at :doc:`bttv-cardlist` (in case you are interested or want to mail
 patches with updates).
 
 

@@ -32,9 +32,9 @@ static __always_inline void rcu_irq_enter_check_tick(void)
  */
 #define __irq_enter()					\
 	do {						\
-		account_irq_enter_time(current);	\
 		preempt_count_add(HARDIRQ_OFFSET);	\
 		lockdep_hardirq_enter();		\
+		account_hardirq_enter(current);		\
 	} while (0)
 
 /*
@@ -62,8 +62,8 @@ void irq_enter_rcu(void);
  */
 #define __irq_exit()					\
 	do {						\
+		account_hardirq_exit(current);		\
 		lockdep_hardirq_exit();			\
-		account_irq_exit_time(current);		\
 		preempt_count_sub(HARDIRQ_OFFSET);	\
 	} while (0)
 

@@ -329,7 +329,7 @@ static int tegra_rtc_probe(struct platform_device *pdev)
 		goto disable_clk;
 	}
 
-	ret = rtc_register_device(info->rtc);
+	ret = devm_rtc_register_device(info->rtc);
 	if (ret)
 		goto disable_clk;
 

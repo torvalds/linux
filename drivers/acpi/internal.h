@@ -97,7 +97,7 @@ void acpi_scan_table_handler(u32 event, void *table, void *context);
 extern struct list_head acpi_bus_id_list;
 
 struct acpi_device_bus_id {
-	char bus_id[15];
+	const char *bus_id;
 	unsigned int instance_no;
 	struct list_head node;
 };
@@ -105,7 +105,8 @@ struct acpi_device_bus_id {
 int acpi_device_add(struct acpi_device *device,
 		    void (*release)(struct device *));
 void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
-			     int type, unsigned long long sta);
+			     int type, unsigned long long sta,
+			     struct acpi_device_info *info);
 int acpi_device_setup_files(struct acpi_device *dev);
 void acpi_device_remove_files(struct acpi_device *dev);
 void acpi_device_add_finalize(struct acpi_device *device);

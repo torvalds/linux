@@ -80,10 +80,8 @@ static bool is_alloca(gimple stmt)
 	if (gimple_call_builtin_p(stmt, BUILT_IN_ALLOCA))
 		return true;
 
-#if BUILDING_GCC_VERSION >= 4007
 	if (gimple_call_builtin_p(stmt, BUILT_IN_ALLOCA_WITH_ALIGN))
 		return true;
-#endif
 
 	return false;
 }
@@ -322,7 +320,7 @@ static void remove_stack_tracking_gcall(void)
 
 		/* Delete the stackleak_track_stack() call */
 		delete_insn_and_edges(insn);
-#if BUILDING_GCC_VERSION >= 4007 && BUILDING_GCC_VERSION < 8000
+#if BUILDING_GCC_VERSION < 8000
 		if (GET_CODE(next) == NOTE &&
 		    NOTE_KIND(next) == NOTE_INSN_CALL_ARG_LOCATION) {
 			insn = next;

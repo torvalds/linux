@@ -22,10 +22,6 @@
 #include <linux/bitrev.h>
 #include <linux/pci.h>
 
-#ifndef	lint
-static const char ID_sccs[] = "@(#)drvfbi.c	1.63 99/02/11 (C) SK " ;
-#endif
-
 /*
  * PCM active state
  */

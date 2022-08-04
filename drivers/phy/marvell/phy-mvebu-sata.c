@@ -80,7 +80,6 @@ static const struct phy_ops phy_mvebu_sata_ops = {
 static int phy_mvebu_sata_probe(struct platform_device *pdev)
 {
 	struct phy_provider *phy_provider;
-	struct resource *res;
 	struct priv *priv;
 	struct phy *phy;
 
@@ -88,8 +87,7 @@ static int phy_mvebu_sata_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(&pdev->dev, res);
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 

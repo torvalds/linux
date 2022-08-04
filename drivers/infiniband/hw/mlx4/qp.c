@@ -1493,7 +1493,7 @@ static int _mlx4_ib_create_qp(struct ib_pd *pd, struct mlx4_ib_qp *qp,
 					MLX4_IB_SRIOV_SQP |
 					MLX4_IB_QP_NETIF |
 					MLX4_IB_QP_CREATE_ROCE_V2_GSI))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (init_attr->create_flags & IB_QP_CREATE_NETIF_QP) {
 		if (init_attr->qp_type != IB_QPT_UD)
@@ -1560,6 +1560,11 @@ static int _mlx4_ib_create_qp(struct ib_pd *pd, struct mlx4_ib_qp *qp,
 		err = create_qp_common(pd, init_attr, udata, sqpn, qp);
 		if (err)
 			return err;
+
+		if (init_attr->create_flags &
+		    (MLX4_IB_SRIOV_SQP | MLX4_IB_SRIOV_TUNNEL_QP))
+			/* Internal QP created with ib_create_qp */
+			rdma_restrack_no_track(&qp->ibqp.res);
 
 		qp->port	= init_attr->port_num;
 		qp->ibqp.qp_num = init_attr->qp_type == IB_QPT_SMI ? 0 :
@@ -2787,6 +2792,9 @@ int mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	struct mlx4_ib_qp *mqp = to_mqp(ibqp);
 	int ret;
 
+	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
+		return -EOPNOTSUPP;
+
 	ret = _mlx4_ib_modify_qp(ibqp, attr, attr_mask, udata);
 
 	if (mqp->mlx4_ib_qp_type == MLX4_IB_QPT_GSI) {
@@ -4007,7 +4015,9 @@ int mlx4_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr
 	qp_attr->qp_access_flags     =
 		to_ib_qp_access_flags(be32_to_cpu(context.params2));
 
-	if (qp->ibqp.qp_type == IB_QPT_RC || qp->ibqp.qp_type == IB_QPT_UC) {
+	if (qp->ibqp.qp_type == IB_QPT_RC || qp->ibqp.qp_type == IB_QPT_UC ||
+	    qp->ibqp.qp_type == IB_QPT_XRC_INI ||
+	    qp->ibqp.qp_type == IB_QPT_XRC_TGT) {
 		to_rdma_ah_attr(dev, &qp_attr->ah_attr, &context.pri_path);
 		to_rdma_ah_attr(dev, &qp_attr->alt_ah_attr, &context.alt_path);
 		qp_attr->alt_pkey_index = context.alt_path.pkey_index & 0x7f;

@@ -346,10 +346,12 @@ mark_service_closing_internal(struct vchiq_service *service, int sh_thread)
 	mutex_lock(&state->recycle_mutex);
 	mutex_unlock(&state->recycle_mutex);
 	if (!sh_thread || (state->conn_state != VCHIQ_CONNSTATE_PAUSE_SENT)) {
-		/* If we're pausing then the slot_mutex is held until resume
+		/*
+		 * If we're pausing then the slot_mutex is held until resume
 		 * by the slot handler.  Therefore don't try to acquire this
 		 * mutex if we're the slot handler and in the pause sent state.
-		 * We don't need to in this case anyway. */
+		 * We don't need to in this case anyway.
+		 */
 		mutex_lock(&state->slot_mutex);
 		mutex_unlock(&state->slot_mutex);
 	}
@@ -405,8 +407,10 @@ static inline void
 remote_event_create(wait_queue_head_t *wq, struct remote_event *event)
 {
 	event->armed = 0;
-	/* Don't clear the 'fired' flag because it may already have been set
-	** by the other side. */
+	/*
+	 * Don't clear the 'fired' flag because it may already have been set
+	 * by the other side.
+	 */
 	init_waitqueue_head(wq);
 }
 
@@ -460,9 +464,11 @@ remote_event_pollall(struct vchiq_state *state)
 	remote_event_poll(&state->recycle_event, &state->local->recycle);
 }
 
-/* Round up message sizes so that any space at the end of a slot is always big
-** enough for a header. This relies on header size being a power of two, which
-** has been verified earlier by a static assertion. */
+/*
+ * Round up message sizes so that any space at the end of a slot is always big
+ * enough for a header. This relies on header size being a power of two, which
+ * has been verified earlier by a static assertion.
+ */
 
 static inline size_t
 calc_stride(size_t size)
@@ -554,8 +560,10 @@ request_poll(struct vchiq_state *state, struct vchiq_service *service,
 	remote_event_signal_local(&state->trigger_event, &state->local->trigger);
 }
 
-/* Called from queue_message, by the slot handler and application threads,
-** with slot_mutex held */
+/*
+ * Called from queue_message, by the slot handler and application threads,
+ * with slot_mutex held
+ */
 static struct vchiq_header *
 reserve_space(struct vchiq_state *state, size_t space, int is_blocking)
 {
@@ -624,8 +632,10 @@ process_free_queue(struct vchiq_state *state, BITSET_T *service_found,
 	struct vchiq_shared_state *local = state->local;
 	int slot_queue_available;
 
-	/* Find slots which have been freed by the other side, and return them
-	** to the available queue. */
+	/*
+	 * Find slots which have been freed by the other side, and return them
+	 * to the available queue.
+	 */
 	slot_queue_available = state->slot_queue_available;
 
 	/*
@@ -652,8 +662,7 @@ process_free_queue(struct vchiq_state *state, BITSET_T *service_found,
 			state->id, slot_index, data,
 			local->slot_queue_recycle, slot_queue_available);
 
-		/* Initialise the bitmask for services which have used this
-		** slot */
+		/* Initialise the bitmask for services which have used this slot */
 		memset(service_found, 0, length);
 
 		pos = 0;
@@ -677,9 +686,10 @@ process_free_queue(struct vchiq_state *state, BITSET_T *service_found,
 				spin_unlock(&quota_spinlock);
 
 				if (count == service_quota->message_quota)
-					/* Signal the service that it
-					** has dropped below its quota
-					*/
+					/*
+					 * Signal the service that it
+					 * has dropped below its quota
+					 */
 					complete(&service_quota->quota_event);
 				else if (count == 0) {
 					vchiq_log_error(vchiq_core_log_level,
@@ -702,9 +712,10 @@ process_free_queue(struct vchiq_state *state, BITSET_T *service_found,
 					spin_unlock(&quota_spinlock);
 
 					if (count > 0) {
-						/* Signal the service in case
-						** it has dropped below its
-						** quota */
+						/*
+						 * Signal the service in case
+						 * it has dropped below its quota
+						 */
 						complete(&service_quota->quota_event);
 						vchiq_log_trace(
 							vchiq_core_log_level,
@@ -849,13 +860,17 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 
 		spin_lock(&quota_spinlock);
 
-		/* Ensure this service doesn't use more than its quota of
-		** messages or slots */
+		/*
+		 * Ensure this service doesn't use more than its quota of
+		 * messages or slots
+		 */
 		tx_end_index = SLOT_QUEUE_INDEX_FROM_POS(
 			state->local_tx_pos + stride - 1);
 
-		/* Ensure data messages don't use more than their quota of
-		** slots */
+		/*
+		 * Ensure data messages don't use more than their quota of
+		 * slots
+		 */
 		while ((tx_end_index != state->previous_data_index) &&
 			(state->data_use_count == state->data_quota)) {
 			VCHIQ_STATS_INC(state, data_stalls);
@@ -885,8 +900,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 				service_quota->slot_quota))) {
 			spin_unlock(&quota_spinlock);
 			vchiq_log_trace(vchiq_core_log_level,
-				"%d: qm:%d %s,%zx - quota stall "
-				"(msg %d, slot %d)",
+				"%d: qm:%d %s,%zx - quota stall (msg %d, slot %d)",
 				state->id, service->localport,
 				msg_type_str(type), size,
 				service_quota->message_use_count,
@@ -918,8 +932,10 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 	if (!header) {
 		if (service)
 			VCHIQ_SERVICE_STATS_INC(service, slot_stalls);
-		/* In the event of a failure, return the mutex to the
-		   state it was in */
+		/*
+		 * In the event of a failure, return the mutex to the
+		 * state it was in
+		 */
 		if (!(flags & QMFLAGS_NO_MUTEX_LOCK))
 			mutex_unlock(&state->slot_mutex);
 		return VCHIQ_RETRY;
@@ -963,15 +979,19 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 		tx_end_index =
 			SLOT_QUEUE_INDEX_FROM_POS(state->local_tx_pos - 1);
 
-		/* If this transmission can't fit in the last slot used by any
-		** service, the data_use_count must be increased. */
+		/*
+		 * If this transmission can't fit in the last slot used by any
+		 * service, the data_use_count must be increased.
+		 */
 		if (tx_end_index != state->previous_data_index) {
 			state->previous_data_index = tx_end_index;
 			state->data_use_count++;
 		}
 
-		/* If this isn't the same slot last used by this service,
-		** the service's slot_use_count must be increased. */
+		/*
+		 * If this isn't the same slot last used by this service,
+		 * the service's slot_use_count must be increased.
+		 */
 		if (tx_end_index != service_quota->previous_tx_index) {
 			service_quota->previous_tx_index = tx_end_index;
 			slot_use_count = ++service_quota->slot_use_count;
@@ -997,7 +1017,8 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 			header, size, VCHIQ_MSG_SRCPORT(msgid),
 			VCHIQ_MSG_DSTPORT(msgid));
 		if (size != 0) {
-			/* It is assumed for now that this code path
+			/*
+			 * It is assumed for now that this code path
 			 * only happens from calls inside this file.
 			 *
 			 * External callers are through the vchiq_queue_message
@@ -1166,8 +1187,7 @@ release_slot(struct vchiq_state *state, struct vchiq_slot_info *slot_info,
 			return;
 		}
 
-		/* Rewrite the message header to prevent a double
-		** release */
+		/* Rewrite the message header to prevent a double release */
 		header->msgid = msgid & ~VCHIQ_MSGID_CLAIMED;
 	}
 
@@ -1178,9 +1198,11 @@ release_slot(struct vchiq_state *state, struct vchiq_slot_info *slot_info,
 		int slot_queue_recycle;
 		/* Add to the freed queue */
 
-		/* A read barrier is necessary here to prevent speculative
-		** fetches of remote->slot_queue_recycle from overtaking the
-		** mutex. */
+		/*
+		 * A read barrier is necessary here to prevent speculative
+		 * fetches of remote->slot_queue_recycle from overtaking the
+		 * mutex.
+		 */
 		rmb();
 
 		slot_queue_recycle = state->remote->slot_queue_recycle;
@@ -1193,8 +1215,10 @@ release_slot(struct vchiq_state *state, struct vchiq_slot_info *slot_info,
 			SLOT_INDEX_FROM_INFO(state, slot_info),
 			state->remote->slot_queue_recycle);
 
-		/* A write barrier is necessary, but remote_event_signal
-		** contains one. */
+		/*
+		 * A write barrier is necessary, but remote_event_signal
+		 * contains one.
+		 */
 		remote_event_signal(&state->remote->recycle);
 	}
 
@@ -1221,8 +1245,10 @@ notify_bulks(struct vchiq_service *service, struct vchiq_bulk_queue *queue,
 			struct vchiq_bulk *bulk =
 				&queue->bulks[BULK_INDEX(queue->remove)];
 
-			/* Only generate callbacks for non-dummy bulk
-			** requests, and non-terminated services */
+			/*
+			 * Only generate callbacks for non-dummy bulk
+			 * requests, and non-terminated services
+			 */
 			if (bulk->data && service->instance) {
 				if (bulk->actual != VCHIQ_BULK_ACTUAL_ABORTED) {
 					if (bulk->dir == VCHIQ_BULK_TRANSMIT) {
@@ -1315,9 +1341,11 @@ poll_services(struct vchiq_state *state)
 						state->id, service->localport,
 						service->remoteport);
 
-					/* Make it look like a client, because
-					   it must be removed and not left in
-					   the LISTENING state. */
+					/*
+					 * Make it look like a client, because
+					 * it must be removed and not left in
+					 * the LISTENING state.
+					 */
 					service->public_fourcc =
 						VCHIQ_FOURCC_INVALID;
 
@@ -1383,8 +1411,7 @@ abort_outstanding_bulks(struct vchiq_service *service,
 			vchiq_complete_bulk(bulk);
 
 			vchiq_log_info(SRVTRACE_LEVEL(service),
-				"%s %c%c%c%c d:%d ABORTED - tx len:%d, "
-				"rx len:%d",
+				"%s %c%c%c%c d:%d ABORTED - tx len:%d, rx len:%d",
 				is_tx ? "Send Bulk to" : "Recv Bulk from",
 				VCHIQ_FOURCC_AS_4CHARS(service->base.fourcc),
 				service->remoteport,
@@ -1546,9 +1573,11 @@ parse_rx_slots(struct vchiq_state *state)
 				rx_index);
 			state->rx_info = SLOT_INFO_FROM_INDEX(state, rx_index);
 
-			/* Initialise use_count to one, and increment
-			** release_count at the end of the slot to avoid
-			** releasing the slot prematurely. */
+			/*
+			 * Initialise use_count to one, and increment
+			 * release_count at the end of the slot to avoid
+			 * releasing the slot prematurely.
+			 */
 			state->rx_info->use_count = 1;
 			state->rx_info->release_count = 0;
 		}
@@ -1580,9 +1609,11 @@ parse_rx_slots(struct vchiq_state *state)
 			      (service->remoteport != VCHIQ_PORT_FREE))) &&
 			    (localport == 0) &&
 			    (type == VCHIQ_MSG_CLOSE)) {
-				/* This could be a CLOSE from a client which
-				   hadn't yet received the OPENACK - look for
-				   the connected service */
+				/*
+				 * This could be a CLOSE from a client which
+				 * hadn't yet received the OPENACK - look for
+				 * the connected service
+				 */
 				if (service)
 					unlock_service(service);
 				service = get_connected_service(state,
@@ -1615,8 +1646,7 @@ parse_rx_slots(struct vchiq_state *state)
 				? service->base.fourcc
 				: VCHIQ_MAKE_FOURCC('?', '?', '?', '?');
 			vchiq_log_info(SRVTRACE_LEVEL(service),
-				"Rcvd Msg %s(%u) from %c%c%c%c s:%d d:%d "
-				"len:%d",
+				"Rcvd Msg %s(%u) from %c%c%c%c s:%d d:%d len:%d",
 				msg_type_str(type), type,
 				VCHIQ_FOURCC_AS_4CHARS(svc_fourcc),
 				remoteport, localport, size);
@@ -1740,8 +1770,7 @@ parse_rx_slots(struct vchiq_state *state)
 				if ((int)(queue->remote_insert -
 					queue->local_insert) >= 0) {
 					vchiq_log_error(vchiq_core_log_level,
-						"%d: prs %s@%pK (%d->%d) "
-						"unexpected (ri=%d,li=%d)",
+						"%d: prs %s@%pK (%d->%d) unexpected (ri=%d,li=%d)",
 						state->id, msg_type_str(type),
 						header, remoteport, localport,
 						queue->remote_insert,
@@ -1849,8 +1878,10 @@ skip_message:
 		state->rx_pos += calc_stride(size);
 
 		DEBUG_TRACE(PARSE_LINE);
-		/* Perform some housekeeping when the end of the slot is
-		** reached. */
+		/*
+		 * Perform some housekeeping when the end of the slot is
+		 * reached.
+		 */
 		if ((state->rx_pos & VCHIQ_SLOT_MASK) == 0) {
 			/* Remove the extra reference count. */
 			release_slot(state, state->rx_info, NULL, NULL);
@@ -1884,8 +1915,10 @@ slot_handler_func(void *v)
 
 			state->poll_needed = 0;
 
-			/* Handle service polling and other rare conditions here
-			** out of the mainline code */
+			/*
+			 * Handle service polling and other rare conditions here
+			 * out of the mainline code
+			 */
 			switch (state->conn_state) {
 			case VCHIQ_CONNSTATE_CONNECTED:
 				/* Poll the services as requested */
@@ -1914,12 +1947,13 @@ slot_handler_func(void *v)
 					vchiq_set_conn_state(state,
 						VCHIQ_CONNSTATE_CONNECTED);
 				} else {
-					/* This should really be impossible,
-					** since the PAUSE should have flushed
-					** through outstanding messages. */
+					/*
+					 * This should really be impossible,
+					 * since the PAUSE should have flushed
+					 * through outstanding messages.
+					 */
 					vchiq_log_error(vchiq_core_log_level,
-						"Failed to send RESUME "
-						"message");
+						"Failed to send RESUME message");
 				}
 				break;
 			default:
@@ -2045,9 +2079,7 @@ sync_func(void *v)
 					VCHIQ_MESSAGE_AVAILABLE, header,
 					NULL) == VCHIQ_RETRY)
 					vchiq_log_error(vchiq_sync_log_level,
-						"synchronous callback to "
-						"service %d returns "
-						"VCHIQ_RETRY",
+						"synchronous callback to service %d returns VCHIQ_RETRY",
 						localport);
 			}
 			break;
@@ -2142,8 +2174,7 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 	if (local->initialised) {
 		vchiq_loud_error_header();
 		if (remote->initialised)
-			vchiq_loud_error("local state has already been "
-				"initialised");
+			vchiq_loud_error("local state has already been initialised");
 		else
 			vchiq_loud_error("master/slave mismatch two slaves");
 		vchiq_loud_error_footer();
@@ -2153,7 +2184,7 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 	memset(state, 0, sizeof(struct vchiq_state));
 
 	/*
-		initialize shared state pointers
+	 * initialize shared state pointers
 	 */
 
 	state->local = local;
@@ -2161,7 +2192,7 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 	state->slot_data = (struct vchiq_slot *)slot_zero;
 
 	/*
-		initialize events and mutexes
+	 * initialize events and mutexes
 	 */
 
 	init_completion(&state->connect);
@@ -2217,7 +2248,7 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 		return VCHIQ_ERROR;
 
 	/*
-		bring up slot handler thread
+	 * bring up slot handler thread
 	 */
 	snprintf(threadname, sizeof(threadname), "vchiq-slot/%d", state->id);
 	state->slot_handler_thread = kthread_create(&slot_handler_func,
@@ -2382,15 +2413,16 @@ vchiq_add_service_internal(struct vchiq_state *state,
 	memset(&service->stats, 0, sizeof(service->stats));
 	memset(&service->msg_queue, 0, sizeof(service->msg_queue));
 
-	/* Although it is perfectly possible to use a spinlock
-	** to protect the creation of services, it is overkill as it
-	** disables interrupts while the array is searched.
-	** The only danger is of another thread trying to create a
-	** service - service deletion is safe.
-	** Therefore it is preferable to use state->mutex which,
-	** although slower to claim, doesn't block interrupts while
-	** it is held.
-	*/
+	/*
+	 * Although it is perfectly possible to use a spinlock
+	 * to protect the creation of services, it is overkill as it
+	 * disables interrupts while the array is searched.
+	 * The only danger is of another thread trying to create a
+	 * service - service deletion is safe.
+	 * Therefore it is preferable to use state->mutex which,
+	 * although slower to claim, doesn't block interrupts while
+	 * it is held.
+	 */
 
 	mutex_lock(&state->mutex);
 
@@ -2417,8 +2449,10 @@ vchiq_add_service_internal(struct vchiq_state *state,
 				&& ((srv->instance != instance) ||
 				(srv->base.callback !=
 				params->callback))) {
-				/* There is another server using this
-				** fourcc which doesn't match. */
+				/*
+				 * There is another server using this
+				 * fourcc which doesn't match.
+				 */
 				pservice = NULL;
 				break;
 			}
@@ -2542,8 +2576,10 @@ release_service_messages(struct vchiq_service *service)
 
 			end = VCHIQ_SLOT_SIZE;
 			if (data == state->rx_data)
-				/* This buffer is still being read from - stop
-				** at the current read position */
+				/*
+				 * This buffer is still being read from - stop
+				 * at the current read position
+				 */
 				end = state->rx_pos & VCHIQ_SLOT_MASK;
 
 			pos = 0;
@@ -2633,8 +2669,10 @@ close_service_complete(struct vchiq_service *service, int failstate)
 		int i;
 		/* Complete the close process */
 		for (i = 0; i < uc; i++)
-			/* cater for cases where close is forced and the
-			** client may not close all it's handles */
+			/*
+			 * cater for cases where close is forced and the
+			 * client may not close all it's handles
+			 */
 			vchiq_release_service_internal(service);
 
 		service->client_id = 0;
@@ -2673,8 +2711,7 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 	case VCHIQ_SRVSTATE_CLOSEWAIT:
 		if (close_recvd)
 			vchiq_log_error(vchiq_core_log_level,
-				"%s(1) called "
-				"in state %s",
+				"%s(1) called in state %s",
 				__func__, srvstate_names[service->srvstate]);
 		else if (is_server) {
 			if (service->srvstate == VCHIQ_SRVSTATE_LISTENING) {
@@ -2729,8 +2766,7 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 
 		if (status == VCHIQ_SUCCESS) {
 			if (!close_recvd) {
-				/* Change the state while the mutex is
-				   still held */
+				/* Change the state while the mutex is still held */
 				vchiq_set_service_state(service,
 							VCHIQ_SRVSTATE_CLOSESENT);
 				mutex_unlock(&state->slot_mutex);
@@ -2971,8 +3007,10 @@ vchiq_remove_service(unsigned int handle)
 
 	if ((service->srvstate == VCHIQ_SRVSTATE_HIDDEN) ||
 		(current == service->state->slot_handler_thread)) {
-		/* Make it look like a client, because it must be removed and
-		   not left in the LISTENING state. */
+		/*
+		 * Make it look like a client, because it must be removed and
+		 * not left in the LISTENING state.
+		 */
 		service->public_fourcc = VCHIQ_FOURCC_INVALID;
 
 		status = vchiq_close_service_internal(service,
@@ -3007,7 +3045,8 @@ vchiq_remove_service(unsigned int handle)
 	return status;
 }
 
-/* This function may be called by kernel threads or user threads.
+/*
+ * This function may be called by kernel threads or user threads.
  * User threads may receive VCHIQ_RETRY to indicate that a signal has been
  * received and the call should be retried after being returned to user
  * context.
@@ -3100,8 +3139,10 @@ enum vchiq_status vchiq_bulk_transfer(unsigned int handle,
 		state->id, service->localport, service->remoteport, dir_char,
 		size, &bulk->data, userdata);
 
-	/* The slot mutex must be held when the service is being closed, so
-	   claim it here to ensure that isn't happening */
+	/*
+	 * The slot mutex must be held when the service is being closed, so
+	 * claim it here to ensure that isn't happening
+	 */
 	if (mutex_lock_killable(&state->slot_mutex)) {
 		status = VCHIQ_RETRY;
 		goto cancel_bulk_error_exit;
@@ -3337,8 +3378,10 @@ vchiq_set_service_option(unsigned int handle,
 				if ((value >= service_quota->slot_use_count) &&
 					(service_quota->message_quota >=
 					 service_quota->message_use_count)) {
-					/* Signal the service that it may have
-					** dropped below its quota */
+					/*
+					 * Signal the service that it may have
+					 * dropped below its quota
+					 */
 					complete(&service_quota->quota_event);
 				}
 				status = VCHIQ_SUCCESS;
@@ -3358,8 +3401,10 @@ vchiq_set_service_option(unsigned int handle,
 					service_quota->message_use_count) &&
 					(service_quota->slot_quota >=
 					service_quota->slot_use_count))
-					/* Signal the service that it may have
-					** dropped below its quota */
+					/*
+					 * Signal the service that it may have
+					 * dropped below its quota
+					 */
 					complete(&service_quota->quota_event);
 				status = VCHIQ_SUCCESS;
 			}
@@ -3479,8 +3524,7 @@ int vchiq_dump_state(void *dump_context, struct vchiq_state *state)
 
 	if (VCHIQ_ENABLE_STATS) {
 		len = scnprintf(buf, sizeof(buf),
-			"  Stats: ctrl_tx_count=%d, ctrl_rx_count=%d, "
-			"error_count=%d",
+			"  Stats: ctrl_tx_count=%d, ctrl_rx_count=%d, error_count=%d",
 			state->stats.ctrl_tx_count, state->stats.ctrl_rx_count,
 			state->stats.error_count);
 		err = vchiq_dump(dump_context, buf, len + 1);
@@ -3489,8 +3533,7 @@ int vchiq_dump_state(void *dump_context, struct vchiq_state *state)
 	}
 
 	len = scnprintf(buf, sizeof(buf),
-		"  Slots: %d available (%d data), %d recyclable, %d stalls "
-		"(%d data)",
+		"  Slots: %d available (%d data), %d recyclable, %d stalls (%d data)",
 		((state->slot_queue_available * VCHIQ_SLOT_SIZE) -
 			state->local_tx_pos) / VCHIQ_SLOT_SIZE,
 		state->data_quota - state->data_use_count,
@@ -3585,8 +3628,7 @@ int vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
 			service->bulk_rx.remote_insert;
 
 		len = scnprintf(buf, sizeof(buf),
-			"  Bulk: tx_pending=%d (size %d),"
-			" rx_pending=%d (size %d)",
+			"  Bulk: tx_pending=%d (size %d), rx_pending=%d (size %d)",
 			tx_pending,
 			tx_pending ? service->bulk_tx.bulks[
 			BULK_INDEX(service->bulk_tx.remove)].size : 0,
@@ -3600,8 +3642,7 @@ int vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
 				return err;
 
 			len = scnprintf(buf, sizeof(buf),
-				"  Ctrl: tx_count=%d, tx_bytes=%llu, "
-				"rx_count=%d, rx_bytes=%llu",
+				"  Ctrl: tx_count=%d, tx_bytes=%llu, rx_count=%d, rx_bytes=%llu",
 				service->stats.ctrl_tx_count,
 				service->stats.ctrl_tx_bytes,
 				service->stats.ctrl_rx_count,
@@ -3611,8 +3652,7 @@ int vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
 				return err;
 
 			len = scnprintf(buf, sizeof(buf),
-				"  Bulk: tx_count=%d, tx_bytes=%llu, "
-				"rx_count=%d, rx_bytes=%llu",
+				"  Bulk: tx_count=%d, tx_bytes=%llu, rx_count=%d, rx_bytes=%llu",
 				service->stats.bulk_tx_count,
 				service->stats.bulk_tx_bytes,
 				service->stats.bulk_rx_count,
@@ -3622,8 +3662,7 @@ int vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
 				return err;
 
 			len = scnprintf(buf, sizeof(buf),
-				"  %d quota stalls, %d slot stalls, "
-				"%d bulk stalls, %d aborted, %d errors",
+				"  %d quota stalls, %d slot stalls, %d bulk stalls, %d aborted, %d errors",
 				service->stats.quota_stalls,
 				service->stats.slot_stalls,
 				service->stats.bulk_stalls,
@@ -3645,11 +3684,9 @@ void
 vchiq_loud_error_header(void)
 {
 	vchiq_log_error(vchiq_core_log_level,
-		"============================================================"
-		"================");
+		"============================================================================");
 	vchiq_log_error(vchiq_core_log_level,
-		"============================================================"
-		"================");
+		"============================================================================");
 	vchiq_log_error(vchiq_core_log_level, "=====");
 }
 
@@ -3658,11 +3695,9 @@ vchiq_loud_error_footer(void)
 {
 	vchiq_log_error(vchiq_core_log_level, "=====");
 	vchiq_log_error(vchiq_core_log_level,
-		"============================================================"
-		"================");
+		"============================================================================");
 	vchiq_log_error(vchiq_core_log_level,
-		"============================================================"
-		"================");
+		"============================================================================");
 }
 
 enum vchiq_status vchiq_send_remote_use(struct vchiq_state *state)

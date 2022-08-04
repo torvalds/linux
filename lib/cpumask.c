@@ -6,7 +6,6 @@
 #include <linux/export.h>
 #include <linux/memblock.h>
 #include <linux/numa.h>
-#include <linux/sched/isolation.h>
 
 /**
  * cpumask_next - get the next cpu in a cpumask
@@ -206,27 +205,22 @@ void __init free_bootmem_cpumask_var(cpumask_var_t mask)
  */
 unsigned int cpumask_local_spread(unsigned int i, int node)
 {
-	int cpu, hk_flags;
-	const struct cpumask *mask;
+	int cpu;
 
-	hk_flags = HK_FLAG_DOMAIN | HK_FLAG_MANAGED_IRQ;
-	mask = housekeeping_cpumask(hk_flags);
 	/* Wrap: we always want a cpu. */
-	i %= cpumask_weight(mask);
+	i %= num_online_cpus();
 
 	if (node == NUMA_NO_NODE) {
-		for_each_cpu(cpu, mask) {
+		for_each_cpu(cpu, cpu_online_mask)
 			if (i-- == 0)
 				return cpu;
-		}
 	} else {
 		/* NUMA first. */
-		for_each_cpu_and(cpu, cpumask_of_node(node), mask) {
+		for_each_cpu_and(cpu, cpumask_of_node(node), cpu_online_mask)
 			if (i-- == 0)
 				return cpu;
-		}
 
-		for_each_cpu(cpu, mask) {
+		for_each_cpu(cpu, cpu_online_mask) {
 			/* Skip NUMA nodes, done above. */
 			if (cpumask_test_cpu(cpu, cpumask_of_node(node)))
 				continue;
@@ -267,3 +261,21 @@ int cpumask_any_and_distribute(const struct cpumask *src1p,
 	return next;
 }
 EXPORT_SYMBOL(cpumask_any_and_distribute);
+
+int cpumask_any_distribute(const struct cpumask *srcp)
+{
+	int next, prev;
+
+	/* NOTE: our first selection will skip 0. */
+	prev = __this_cpu_read(distribute_cpu_mask_prev);
+
+	next = cpumask_next(prev, srcp);
+	if (next >= nr_cpu_ids)
+		next = cpumask_first(srcp);
+
+	if (next < nr_cpu_ids)
+		__this_cpu_write(distribute_cpu_mask_prev, next);
+
+	return next;
+}
+EXPORT_SYMBOL(cpumask_any_distribute);

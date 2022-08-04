@@ -52,5 +52,7 @@ void dcn21_set_abm_immediate_disable(struct pipe_ctx *pipe_ctx);
 bool dcn21_set_backlight_level(struct pipe_ctx *pipe_ctx,
 		uint32_t backlight_pwm_u16_16,
 		uint32_t frame_ramp);
+bool dcn21_is_abm_supported(struct dc *dc,
+		struct dc_state *context, struct dc_stream_state *stream);
 
 #endif /* __DC_HWSS_DCN21_H__ */

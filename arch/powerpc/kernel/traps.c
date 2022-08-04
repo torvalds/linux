@@ -347,12 +347,6 @@ static bool exception_common(int signr, struct pt_regs *regs, int code,
 
 	current->thread.trap_nr = code;
 
-	/*
-	 * Save all the pkey registers AMR/IAMR/UAMOR. Eg: Core dumps need
-	 * to capture the content, if the task gets killed.
-	 */
-	thread_pkey_regs_save(&current->thread);
-
 	return true;
 }
 
@@ -755,31 +749,6 @@ int machine_check_e500(struct pt_regs *regs)
 
 int machine_check_generic(struct pt_regs *regs)
 {
-	return 0;
-}
-#elif defined(CONFIG_E200)
-int machine_check_e200(struct pt_regs *regs)
-{
-	unsigned long reason = mfspr(SPRN_MCSR);
-
-	printk("Machine check in kernel mode.\n");
-	printk("Caused by (from MCSR=%lx): ", reason);
-
-	if (reason & MCSR_MCP)
-		pr_cont("Machine Check Signal\n");
-	if (reason & MCSR_CP_PERR)
-		pr_cont("Cache Push Parity Error\n");
-	if (reason & MCSR_CPERR)
-		pr_cont("Cache Parity Error\n");
-	if (reason & MCSR_EXCP_ERR)
-		pr_cont("ISI, ITLB, or Bus Error on first instruction fetch for an exception handler\n");
-	if (reason & MCSR_BUS_IRERR)
-		pr_cont("Bus - Read Bus Error on instruction fetch\n");
-	if (reason & MCSR_BUS_DRERR)
-		pr_cont("Bus - Read Bus Error on data load\n");
-	if (reason & MCSR_BUS_WRERR)
-		pr_cont("Bus - Write Bus Error on buffered store or cache line push\n");
-
 	return 0;
 }
 #elif defined(CONFIG_PPC32)
@@ -1190,7 +1159,9 @@ static void parse_fpe(struct pt_regs *regs)
 
 	flush_fp_to_thread(current);
 
+#ifdef CONFIG_PPC_FPU_REGS
 	code = __parse_fpscr(current->thread.fp_state.fpscr);
+#endif
 
 	_exception(SIGFPE, regs, code, regs->nip);
 }

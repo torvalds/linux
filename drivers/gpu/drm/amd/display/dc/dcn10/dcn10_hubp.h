@@ -260,6 +260,7 @@
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_NO_OUTSTANDING_REQ, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_VTG_SEL, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_DISABLE, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_IN_BLANK, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_ADDR_CONFIG, NUM_PIPES, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_ADDR_CONFIG, NUM_BANKS, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_ADDR_CONFIG, PIPE_INTERLEAVE, mask_sh),\
@@ -455,6 +456,7 @@
 	type HUBP_VTG_SEL;\
 	type HUBP_UNDERFLOW_STATUS;\
 	type HUBP_UNDERFLOW_CLEAR;\
+	type HUBP_IN_BLANK;\
 	type NUM_PIPES;\
 	type NUM_BANKS;\
 	type PIPE_INTERLEAVE;\
@@ -772,5 +774,7 @@ void hubp1_vready_workaround(struct hubp *hubp,
 
 void hubp1_init(struct hubp *hubp);
 void hubp1_read_state_common(struct hubp *hubp);
+bool hubp1_in_blank(struct hubp *hubp);
+void hubp1_soft_reset(struct hubp *hubp, bool reset);
 
 #endif

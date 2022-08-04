@@ -2,7 +2,7 @@
 //
 // rcpm.c - Freescale QorIQ RCPM driver
 //
-// Copyright 2019 NXP
+// Copyright 2019-2020 NXP
 //
 // Author: Ran Wang <ran.wang_1@nxp.com>
 
@@ -21,6 +21,28 @@ struct rcpm {
 	void __iomem	*ippdexpcr_base;
 	bool		little_endian;
 };
+
+#define  SCFG_SPARECR8	0x051c
+
+static void copy_ippdexpcr1_setting(u32 val)
+{
+	struct device_node *np;
+	void __iomem *regs;
+	u32 reg_val;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,ls1021a-scfg");
+	if (!np)
+		return;
+
+	regs = of_iomap(np, 0);
+	if (!regs)
+		return;
+
+	reg_val = ioread32be(regs + SCFG_SPARECR8);
+	iowrite32be(val | reg_val, regs + SCFG_SPARECR8);
+
+	iounmap(regs);
+}
 
 /**
  * rcpm_pm_prepare - performs device-level tasks associated with power
@@ -90,6 +112,17 @@ static int rcpm_pm_prepare(struct device *dev)
 			tmp |= ioread32be(address);
 			iowrite32be(tmp, address);
 		}
+		/*
+		 * Workaround of errata A-008646 on SoC LS1021A:
+		 * There is a bug of register ippdexpcr1.
+		 * Reading configuration register RCPM_IPPDEXPCR1
+		 * always return zero. So save ippdexpcr1's value
+		 * to register SCFG_SPARECR8.And the value of
+		 * ippdexpcr1 will be read from SCFG_SPARECR8.
+		 */
+		if (dev_of_node(dev) && (i == 1))
+			if (of_device_is_compatible(np, "fsl,ls1021a-rcpm"))
+				copy_ippdexpcr1_setting(tmp);
 	}
 
 	return 0;

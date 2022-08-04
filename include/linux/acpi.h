@@ -55,7 +55,7 @@ static inline struct fwnode_handle *acpi_alloc_fwnode_static(void)
 	if (!fwnode)
 		return NULL;
 
-	fwnode->ops = &acpi_static_fwnode_ops;
+	fwnode_init(fwnode, &acpi_static_fwnode_ops);
 
 	return fwnode;
 }
@@ -883,6 +883,13 @@ static inline int acpi_device_modalias(struct device *dev,
 				char *buf, int size)
 {
 	return -ENODEV;
+}
+
+static inline struct platform_device *
+acpi_create_platform_device(struct acpi_device *adev,
+			    struct property_entry *properties)
+{
+	return NULL;
 }
 
 static inline bool acpi_dma_supported(struct acpi_device *adev)

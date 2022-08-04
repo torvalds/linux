@@ -742,12 +742,16 @@ int cros_ec_get_next_event(struct cros_ec_device *ec_dev,
 		 * Sensor events need to be parsed by the sensor sub-device.
 		 * Defer them, and don't report the wakeup here.
 		 */
-		if (event_type == EC_MKBP_EVENT_SENSOR_FIFO)
+		if (event_type == EC_MKBP_EVENT_SENSOR_FIFO) {
 			*wake_event = false;
-		/* Masked host-events should not count as wake events. */
-		else if (host_event &&
-			 !(host_event & ec_dev->host_event_wake_mask))
-			*wake_event = false;
+		} else if (host_event) {
+			/* rtc_update_irq() already handles wakeup events. */
+			if (host_event & EC_HOST_EVENT_MASK(EC_HOST_EVENT_RTC))
+				*wake_event = false;
+			/* Masked host-events should not count as wake events. */
+			if (!(host_event & ec_dev->host_event_wake_mask))
+				*wake_event = false;
+		}
 	}
 
 	return ret;

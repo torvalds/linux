@@ -463,15 +463,14 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(m48t59->rtc))
 		return PTR_ERR(m48t59->rtc);
 
-	m48t59->rtc->nvram_old_abi = true;
 	m48t59->rtc->ops = ops;
 
 	nvmem_cfg.size = pdata->offset;
-	ret = rtc_nvmem_register(m48t59->rtc, &nvmem_cfg);
+	ret = devm_rtc_nvmem_register(m48t59->rtc, &nvmem_cfg);
 	if (ret)
 		return ret;
 
-	ret = rtc_register_device(m48t59->rtc);
+	ret = devm_rtc_register_device(m48t59->rtc);
 	if (ret)
 		return ret;
 

@@ -24,41 +24,38 @@ ENTRY(__boot_cpu_mode)
 .text
 
 	/*
-	 * Save the primary CPU boot mode. Requires 3 scratch registers.
+	 * Save the primary CPU boot mode. Requires 2 scratch registers.
 	 */
-	.macro	store_primary_cpu_mode	reg1, reg2, reg3
+	.macro	store_primary_cpu_mode	reg1, reg2
 	mrs	\reg1, cpsr
 	and	\reg1, \reg1, #MODE_MASK
-	adr	\reg2, .L__boot_cpu_mode_offset
-	ldr	\reg3, [\reg2]
-	str	\reg1, [\reg2, \reg3]
+	str_l	\reg1, __boot_cpu_mode, \reg2
 	.endm
 
 	/*
 	 * Compare the current mode with the one saved on the primary CPU.
 	 * If they don't match, record that fact. The Z bit indicates
 	 * if there's a match or not.
-	 * Requires 3 additionnal scratch registers.
+	 * Requires 2 additional scratch registers.
 	 */
-	.macro	compare_cpu_mode_with_primary mode, reg1, reg2, reg3
-	adr	\reg2, .L__boot_cpu_mode_offset
-	ldr	\reg3, [\reg2]
-	ldr	\reg1, [\reg2, \reg3]
+	.macro	compare_cpu_mode_with_primary mode, reg1, reg2
+	adr_l	\reg2, __boot_cpu_mode
+	ldr	\reg1, [\reg2]
 	cmp	\mode, \reg1		@ matches primary CPU boot mode?
 	orrne	\reg1, \reg1, #BOOT_CPU_MODE_MISMATCH
-	strne	\reg1, [\reg2, \reg3]	@ record what happened and give up
+	strne	\reg1, [\reg2]		@ record what happened and give up
 	.endm
 
 #else	/* ZIMAGE */
 
-	.macro	store_primary_cpu_mode	reg1:req, reg2:req, reg3:req
+	.macro	store_primary_cpu_mode	reg1:req, reg2:req
 	.endm
 
 /*
  * The zImage loader only runs on one CPU, so we don't bother with mult-CPU
  * consistency checking:
  */
-	.macro	compare_cpu_mode_with_primary mode, reg1, reg2, reg3
+	.macro	compare_cpu_mode_with_primary mode, reg1, reg2
 	cmp	\mode, \mode
 	.endm
 
@@ -73,7 +70,7 @@ ENTRY(__boot_cpu_mode)
  */
 @ Call this from the primary CPU
 ENTRY(__hyp_stub_install)
-	store_primary_cpu_mode	r4, r5, r6
+	store_primary_cpu_mode	r4, r5
 ENDPROC(__hyp_stub_install)
 
 	@ fall through...
@@ -87,7 +84,7 @@ ENTRY(__hyp_stub_install_secondary)
 	 * If the secondary has booted with a different mode, give up
 	 * immediately.
 	 */
-	compare_cpu_mode_with_primary	r4, r5, r6, r7
+	compare_cpu_mode_with_primary	r4, r5, r6
 	retne	lr
 
 	/*
@@ -227,12 +224,6 @@ ENTRY(__hyp_soft_restart)
 	__HVC(0)
 	ret	lr
 ENDPROC(__hyp_soft_restart)
-
-#ifndef ZIMAGE
-.align 2
-.L__boot_cpu_mode_offset:
-	.long	__boot_cpu_mode - .
-#endif
 
 .align 5
 ENTRY(__hyp_stub_vectors)

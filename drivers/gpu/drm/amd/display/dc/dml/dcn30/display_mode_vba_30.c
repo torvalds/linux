@@ -23,7 +23,7 @@
  *
  */
 
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+#ifdef CONFIG_DRM_AMD_DC_DCN
 #include "dc.h"
 #include "dc_link.h"
 #include "../display_mode_lib.h"
@@ -3628,7 +3628,7 @@ static double TruncToValidBPP(
 			}
 		}
 	} else {
-		if (!((DSCEnable == false && (DesiredBPP == NonDSCBPP2 || DesiredBPP == NonDSCBPP1 || DesiredBPP == NonDSCBPP0)) ||
+		if (!((DSCEnable == false && (DesiredBPP == NonDSCBPP2 || DesiredBPP == NonDSCBPP1 || DesiredBPP == NonDSCBPP0 || DesiredBPP == 18)) ||
 				(DSCEnable && DesiredBPP >= MinDSCBPP && DesiredBPP <= MaxDSCBPP))) {
 			return BPP_INVALID;
 		} else {
@@ -6870,4 +6870,4 @@ static void UseMinimumDCFCLK(
 	}
 }
 
-#endif /* CONFIG_DRM_AMD_DC_DCN3_0 */
+#endif /* CONFIG_DRM_AMD_DC_DCN */

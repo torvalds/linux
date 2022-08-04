@@ -221,7 +221,7 @@ All md devices contain:
 
   layout
      The ``layout`` for the array for the particular level.  This is
-     simply a number that is interpretted differently by different
+     simply a number that is interpreted differently by different
      levels.  It can be written while assembling an array.
 
   array_size

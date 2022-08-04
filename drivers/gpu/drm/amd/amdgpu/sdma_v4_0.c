@@ -569,7 +569,7 @@ static void sdma_v4_0_destroy_inst_ctx(struct amdgpu_device *adev)
 			break;
 	}
 
-	memset((void*)adev->sdma.instance, 0,
+	memset((void *)adev->sdma.instance, 0,
 		sizeof(struct amdgpu_sdma_instance) * AMDGPU_MAX_SDMA_INSTANCES);
 }
 
@@ -592,9 +592,6 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 	int err = 0, i;
 	struct amdgpu_firmware_info *info = NULL;
 	const struct common_firmware_header *header = NULL;
-
-	if (amdgpu_sriov_vf(adev))
-		return 0;
 
 	DRM_DEBUG("\n");
 
@@ -643,8 +640,8 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 		if (adev->asic_type == CHIP_ARCTURUS) {
 			/* Acturus will leverage the same FW memory
 			   for every SDMA instance */
-			memcpy((void*)&adev->sdma.instance[i],
-			       (void*)&adev->sdma.instance[0],
+			memcpy((void *)&adev->sdma.instance[i],
+			       (void *)&adev->sdma.instance[0],
 			       sizeof(struct amdgpu_sdma_instance));
 		}
 		else {
@@ -837,7 +834,9 @@ static void sdma_v4_0_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
  * sdma_v4_0_ring_emit_ib - Schedule an IB on the DMA engine
  *
  * @ring: amdgpu ring pointer
+ * @job: job to retrieve vmid from
  * @ib: IB object to schedule
+ * @flags: unused
  *
  * Schedule an IB in the DMA ring (VEGA10).
  */
@@ -912,7 +911,9 @@ static void sdma_v4_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
  * sdma_v4_0_ring_emit_fence - emit a fence on the DMA ring
  *
  * @ring: amdgpu ring pointer
- * @fence: amdgpu fence object
+ * @addr: address
+ * @seq: sequence number
+ * @flags: fence related flags
  *
  * Add a DMA fence packet to the ring to write
  * the fence seq number and DMA trap packet to generate
@@ -1110,7 +1111,7 @@ static void sdma_v4_0_enable(struct amdgpu_device *adev, bool enable)
 	}
 }
 
-/**
+/*
  * sdma_v4_0_rb_cntl - get parameters for rb_cntl
  */
 static uint32_t sdma_v4_0_rb_cntl(struct amdgpu_ring *ring, uint32_t rb_cntl)
@@ -1573,6 +1574,7 @@ error_free_wb:
  * sdma_v4_0_ring_test_ib - test an IB on the DMA engine
  *
  * @ring: amdgpu_ring structure holding ring information
+ * @timeout: timeout value in jiffies, or MAX_SCHEDULE_TIMEOUT
  *
  * Test a simple IB in the DMA ring (VEGA10).
  * Returns 0 on success, error on failure.
@@ -1669,10 +1671,9 @@ static void sdma_v4_0_vm_copy_pte(struct amdgpu_ib *ib,
  *
  * @ib: indirect buffer to fill with commands
  * @pe: addr of the page entry
- * @addr: dst addr to write into pe
+ * @value: dst addr to write into pe
  * @count: number of page entries to update
  * @incr: increase next addr by incr bytes
- * @flags: access flags
  *
  * Update PTEs by writing them manually using sDMA (VEGA10).
  */
@@ -1727,8 +1728,8 @@ static void sdma_v4_0_vm_set_pte_pde(struct amdgpu_ib *ib,
 /**
  * sdma_v4_0_ring_pad_ib - pad the IB to the required number of dw
  *
+ * @ring: amdgpu_ring structure holding ring information
  * @ib: indirect buffer to fill with padding
- *
  */
 static void sdma_v4_0_ring_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
 {
@@ -1772,7 +1773,8 @@ static void sdma_v4_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
  * sdma_v4_0_ring_emit_vm_flush - vm flush using sDMA
  *
  * @ring: amdgpu_ring pointer
- * @vm: amdgpu_vm pointer
+ * @vmid: vmid number to use
+ * @pd_addr: address
  *
  * Update the page table base and flush the VM TLB
  * using sDMA (VEGA10).
@@ -2491,10 +2493,11 @@ static void sdma_v4_0_set_irq_funcs(struct amdgpu_device *adev)
 /**
  * sdma_v4_0_emit_copy_buffer - copy buffer using the sDMA engine
  *
- * @ring: amdgpu_ring structure holding ring information
+ * @ib: indirect buffer to copy to
  * @src_offset: src GPU address
  * @dst_offset: dst GPU address
  * @byte_count: number of bytes to xfer
+ * @tmz: if a secure copy should be used
  *
  * Copy GPU buffers using the DMA engine (VEGA10/12).
  * Used by the amdgpu ttm implementation to move pages if
@@ -2520,7 +2523,7 @@ static void sdma_v4_0_emit_copy_buffer(struct amdgpu_ib *ib,
 /**
  * sdma_v4_0_emit_fill_buffer - fill buffer using the sDMA engine
  *
- * @ring: amdgpu_ring structure holding ring information
+ * @ib: indirect buffer to copy to
  * @src_data: value to write to buffer
  * @dst_offset: dst GPU address
  * @byte_count: number of bytes to xfer

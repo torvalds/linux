@@ -203,8 +203,8 @@ struct mlx5e_rep_sq {
 	struct list_head	 list;
 };
 
-void mlx5e_rep_register_vport_reps(struct mlx5_core_dev *mdev);
-void mlx5e_rep_unregister_vport_reps(struct mlx5_core_dev *mdev);
+int mlx5e_rep_init(void);
+void mlx5e_rep_cleanup(void);
 int mlx5e_rep_bond_init(struct mlx5e_rep_priv *rpriv);
 void mlx5e_rep_bond_cleanup(struct mlx5e_rep_priv *rpriv);
 int mlx5e_rep_bond_enslave(struct mlx5_eswitch *esw, struct net_device *netdev,
@@ -232,6 +232,8 @@ static inline bool mlx5e_eswitch_rep(struct net_device *netdev)
 static inline bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv) { return false; }
 static inline int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv) { return 0; }
 static inline void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv) {}
+static inline int mlx5e_rep_init(void) { return 0; };
+static inline void mlx5e_rep_cleanup(void) {};
 #endif
 
 static inline bool mlx5e_is_vport_rep(struct mlx5e_priv *priv)

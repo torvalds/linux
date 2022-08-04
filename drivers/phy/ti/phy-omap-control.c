@@ -268,7 +268,6 @@ MODULE_DEVICE_TABLE(of, omap_control_phy_id_table);
 
 static int omap_control_phy_probe(struct platform_device *pdev)
 {
-	struct resource	*res;
 	const struct of_device_id *of_id;
 	struct omap_control_phy *control_phy;
 
@@ -285,16 +284,13 @@ static int omap_control_phy_probe(struct platform_device *pdev)
 	control_phy->type = *(enum omap_control_phy_type *)of_id->data;
 
 	if (control_phy->type == OMAP_CTRL_TYPE_OTGHS) {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-			"otghs_control");
-		control_phy->otghs_control = devm_ioremap_resource(
-			&pdev->dev, res);
+		control_phy->otghs_control =
+			devm_platform_ioremap_resource_byname(pdev, "otghs_control");
 		if (IS_ERR(control_phy->otghs_control))
 			return PTR_ERR(control_phy->otghs_control);
 	} else {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-				"power");
-		control_phy->power = devm_ioremap_resource(&pdev->dev, res);
+		control_phy->power =
+			devm_platform_ioremap_resource_byname(pdev, "power");
 		if (IS_ERR(control_phy->power)) {
 			dev_err(&pdev->dev, "Couldn't get power register\n");
 			return PTR_ERR(control_phy->power);
@@ -312,9 +308,8 @@ static int omap_control_phy_probe(struct platform_device *pdev)
 	}
 
 	if (control_phy->type == OMAP_CTRL_TYPE_PCIE) {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						   "pcie_pcs");
-		control_phy->pcie_pcs = devm_ioremap_resource(&pdev->dev, res);
+		control_phy->pcie_pcs =
+			devm_platform_ioremap_resource_byname(pdev, "pcie_pcs");
 		if (IS_ERR(control_phy->pcie_pcs))
 			return PTR_ERR(control_phy->pcie_pcs);
 	}

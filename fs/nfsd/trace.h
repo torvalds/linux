@@ -12,6 +12,100 @@
 #include "export.h"
 #include "nfsfh.h"
 
+#define NFSD_TRACE_PROC_ARG_FIELDS \
+		__field(unsigned int, netns_ino) \
+		__field(u32, xid) \
+		__array(unsigned char, server, sizeof(struct sockaddr_in6)) \
+		__array(unsigned char, client, sizeof(struct sockaddr_in6))
+
+#define NFSD_TRACE_PROC_ARG_ASSIGNMENTS \
+		do { \
+			__entry->netns_ino = SVC_NET(rqstp)->ns.inum; \
+			__entry->xid = be32_to_cpu(rqstp->rq_xid); \
+			memcpy(__entry->server, &rqstp->rq_xprt->xpt_local, \
+			       rqstp->rq_xprt->xpt_locallen); \
+			memcpy(__entry->client, &rqstp->rq_xprt->xpt_remote, \
+			       rqstp->rq_xprt->xpt_remotelen); \
+		} while (0);
+
+#define NFSD_TRACE_PROC_RES_FIELDS \
+		__field(unsigned int, netns_ino) \
+		__field(u32, xid) \
+		__field(unsigned long, status) \
+		__array(unsigned char, server, sizeof(struct sockaddr_in6)) \
+		__array(unsigned char, client, sizeof(struct sockaddr_in6))
+
+#define NFSD_TRACE_PROC_RES_ASSIGNMENTS(error) \
+		do { \
+			__entry->netns_ino = SVC_NET(rqstp)->ns.inum; \
+			__entry->xid = be32_to_cpu(rqstp->rq_xid); \
+			__entry->status = be32_to_cpu(error); \
+			memcpy(__entry->server, &rqstp->rq_xprt->xpt_local, \
+			       rqstp->rq_xprt->xpt_locallen); \
+			memcpy(__entry->client, &rqstp->rq_xprt->xpt_remote, \
+			       rqstp->rq_xprt->xpt_remotelen); \
+		} while (0);
+
+TRACE_EVENT(nfsd_garbage_args_err,
+	TP_PROTO(
+		const struct svc_rqst *rqstp
+	),
+	TP_ARGS(rqstp),
+	TP_STRUCT__entry(
+		NFSD_TRACE_PROC_ARG_FIELDS
+
+		__field(u32, vers)
+		__field(u32, proc)
+	),
+	TP_fast_assign(
+		NFSD_TRACE_PROC_ARG_ASSIGNMENTS
+
+		__entry->vers = rqstp->rq_vers;
+		__entry->proc = rqstp->rq_proc;
+	),
+	TP_printk("xid=0x%08x vers=%u proc=%u",
+		__entry->xid, __entry->vers, __entry->proc
+	)
+);
+
+TRACE_EVENT(nfsd_cant_encode_err,
+	TP_PROTO(
+		const struct svc_rqst *rqstp
+	),
+	TP_ARGS(rqstp),
+	TP_STRUCT__entry(
+		NFSD_TRACE_PROC_ARG_FIELDS
+
+		__field(u32, vers)
+		__field(u32, proc)
+	),
+	TP_fast_assign(
+		NFSD_TRACE_PROC_ARG_ASSIGNMENTS
+
+		__entry->vers = rqstp->rq_vers;
+		__entry->proc = rqstp->rq_proc;
+	),
+	TP_printk("xid=0x%08x vers=%u proc=%u",
+		__entry->xid, __entry->vers, __entry->proc
+	)
+);
+
+#define show_nfsd_may_flags(x)						\
+	__print_flags(x, "|",						\
+		{ NFSD_MAY_EXEC,		"EXEC" },		\
+		{ NFSD_MAY_WRITE,		"WRITE" },		\
+		{ NFSD_MAY_READ,		"READ" },		\
+		{ NFSD_MAY_SATTR,		"SATTR" },		\
+		{ NFSD_MAY_TRUNC,		"TRUNC" },		\
+		{ NFSD_MAY_LOCK,		"LOCK" },		\
+		{ NFSD_MAY_OWNER_OVERRIDE,	"OWNER_OVERRIDE" },	\
+		{ NFSD_MAY_LOCAL_ACCESS,	"LOCAL_ACCESS" },	\
+		{ NFSD_MAY_BYPASS_GSS_ON_ROOT,	"BYPASS_GSS_ON_ROOT" },	\
+		{ NFSD_MAY_NOT_BREAK_LEASE,	"NOT_BREAK_LEASE" },	\
+		{ NFSD_MAY_BYPASS_GSS,		"BYPASS_GSS" },		\
+		{ NFSD_MAY_READ_IF_EXEC,	"READ_IF_EXEC" },	\
+		{ NFSD_MAY_64BIT_COOKIE,	"64BIT_COOKIE" })
+
 TRACE_EVENT(nfsd_compound,
 	TP_PROTO(const struct svc_rqst *rqst,
 		 u32 args_opcnt),
@@ -50,6 +144,56 @@ TRACE_EVENT(nfsd_compound_status,
 		__entry->resp_opcnt, __entry->args_opcnt,
 		__get_str(name), __entry->status)
 )
+
+TRACE_EVENT(nfsd_compound_decode_err,
+	TP_PROTO(
+		const struct svc_rqst *rqstp,
+		u32 args_opcnt,
+		u32 resp_opcnt,
+		u32 opnum,
+		__be32 status
+	),
+	TP_ARGS(rqstp, args_opcnt, resp_opcnt, opnum, status),
+	TP_STRUCT__entry(
+		NFSD_TRACE_PROC_RES_FIELDS
+
+		__field(u32, args_opcnt)
+		__field(u32, resp_opcnt)
+		__field(u32, opnum)
+	),
+	TP_fast_assign(
+		NFSD_TRACE_PROC_RES_ASSIGNMENTS(status)
+
+		__entry->args_opcnt = args_opcnt;
+		__entry->resp_opcnt = resp_opcnt;
+		__entry->opnum = opnum;
+	),
+	TP_printk("op=%u/%u opnum=%u status=%lu",
+		__entry->resp_opcnt, __entry->args_opcnt,
+		__entry->opnum, __entry->status)
+);
+
+TRACE_EVENT(nfsd_compound_encode_err,
+	TP_PROTO(
+		const struct svc_rqst *rqstp,
+		u32 opnum,
+		__be32 status
+	),
+	TP_ARGS(rqstp, opnum, status),
+	TP_STRUCT__entry(
+		NFSD_TRACE_PROC_RES_FIELDS
+
+		__field(u32, opnum)
+	),
+	TP_fast_assign(
+		NFSD_TRACE_PROC_RES_ASSIGNMENTS(status)
+
+		__entry->opnum = opnum;
+	),
+	TP_printk("opnum=%u status=%lu",
+		__entry->opnum, __entry->status)
+);
+
 
 DECLARE_EVENT_CLASS(nfsd_fh_err_class,
 	TP_PROTO(struct svc_rqst *rqstp,
@@ -421,6 +565,9 @@ TRACE_EVENT(nfsd_clid_inuse_err,
 		__entry->cl_boot, __entry->cl_id)
 )
 
+/*
+ * from fs/nfsd/filecache.h
+ */
 TRACE_DEFINE_ENUM(NFSD_FILE_HASHED);
 TRACE_DEFINE_ENUM(NFSD_FILE_PENDING);
 TRACE_DEFINE_ENUM(NFSD_FILE_BREAK_READ);
@@ -434,13 +581,6 @@ TRACE_DEFINE_ENUM(NFSD_FILE_REFERENCED);
 		{ 1 << NFSD_FILE_BREAK_READ,	"BREAK_READ" },		\
 		{ 1 << NFSD_FILE_BREAK_WRITE,	"BREAK_WRITE" },	\
 		{ 1 << NFSD_FILE_REFERENCED,	"REFERENCED"})
-
-/* FIXME: This should probably be fleshed out in the future. */
-#define show_nf_may(val)						\
-	__print_flags(val, "|",						\
-		{ NFSD_MAY_READ,		"READ" },		\
-		{ NFSD_MAY_WRITE,		"WRITE" },		\
-		{ NFSD_MAY_NOT_BREAK_LEASE,	"NOT_BREAK_LEASE" })
 
 DECLARE_EVENT_CLASS(nfsd_file_class,
 	TP_PROTO(struct nfsd_file *nf),
@@ -461,12 +601,12 @@ DECLARE_EVENT_CLASS(nfsd_file_class,
 		__entry->nf_may = nf->nf_may;
 		__entry->nf_file = nf->nf_file;
 	),
-	TP_printk("hash=0x%x inode=0x%p ref=%d flags=%s may=%s file=%p",
+	TP_printk("hash=0x%x inode=%p ref=%d flags=%s may=%s file=%p",
 		__entry->nf_hashval,
 		__entry->nf_inode,
 		__entry->nf_ref,
 		show_nf_flags(__entry->nf_flags),
-		show_nf_may(__entry->nf_may),
+		show_nfsd_may_flags(__entry->nf_may),
 		__entry->nf_file)
 )
 
@@ -492,10 +632,10 @@ TRACE_EVENT(nfsd_file_acquire,
 		__field(u32, xid)
 		__field(unsigned int, hash)
 		__field(void *, inode)
-		__field(unsigned int, may_flags)
+		__field(unsigned long, may_flags)
 		__field(int, nf_ref)
 		__field(unsigned long, nf_flags)
-		__field(unsigned char, nf_may)
+		__field(unsigned long, nf_may)
 		__field(struct file *, nf_file)
 		__field(u32, status)
 	),
@@ -512,12 +652,12 @@ TRACE_EVENT(nfsd_file_acquire,
 		__entry->status = be32_to_cpu(status);
 	),
 
-	TP_printk("xid=0x%x hash=0x%x inode=0x%p may_flags=%s ref=%d nf_flags=%s nf_may=%s nf_file=0x%p status=%u",
+	TP_printk("xid=0x%x hash=0x%x inode=%p may_flags=%s ref=%d nf_flags=%s nf_may=%s nf_file=%p status=%u",
 			__entry->xid, __entry->hash, __entry->inode,
-			show_nf_may(__entry->may_flags), __entry->nf_ref,
-			show_nf_flags(__entry->nf_flags),
-			show_nf_may(__entry->nf_may), __entry->nf_file,
-			__entry->status)
+			show_nfsd_may_flags(__entry->may_flags),
+			__entry->nf_ref, show_nf_flags(__entry->nf_flags),
+			show_nfsd_may_flags(__entry->nf_may),
+			__entry->nf_file, __entry->status)
 );
 
 DECLARE_EVENT_CLASS(nfsd_file_search_class,
@@ -533,7 +673,7 @@ DECLARE_EVENT_CLASS(nfsd_file_search_class,
 		__entry->hash = hash;
 		__entry->found = found;
 	),
-	TP_printk("hash=0x%x inode=0x%p found=%d", __entry->hash,
+	TP_printk("hash=0x%x inode=%p found=%d", __entry->hash,
 			__entry->inode, __entry->found)
 );
 
@@ -561,7 +701,7 @@ TRACE_EVENT(nfsd_file_fsnotify_handle_event,
 		__entry->mode = inode->i_mode;
 		__entry->mask = mask;
 	),
-	TP_printk("inode=0x%p nlink=%u mode=0%ho mask=0x%x", __entry->inode,
+	TP_printk("inode=%p nlink=%u mode=0%ho mask=0x%x", __entry->inode,
 			__entry->nlink, __entry->mode, __entry->mask)
 );
 

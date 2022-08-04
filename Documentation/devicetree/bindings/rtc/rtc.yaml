@@ -27,7 +27,6 @@ properties:
       1: chargeable
 
   quartz-load-femtofarads:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       The capacitive load of the quartz(x-tal), expressed in femto
       Farad (fF). The default value shall be listed (if optional),
@@ -47,7 +46,6 @@ properties:
     deprecated: true
 
   trickle-resistor-ohms:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Selected resistor for trickle charger. Should be given
       if trickle charger should be enabled.
@@ -62,6 +60,11 @@ properties:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       Enables wake up of host system on alarm.
+
+  reset-source:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      The RTC is able to reset the machine.
 
 additionalProperties: true
 

@@ -956,10 +956,38 @@ static int sh_mobile_i2c_remove(struct platform_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int sh_mobile_i2c_suspend(struct device *dev)
+{
+	struct sh_mobile_i2c_data *pd = dev_get_drvdata(dev);
+
+	i2c_mark_adapter_suspended(&pd->adap);
+	return 0;
+}
+
+static int sh_mobile_i2c_resume(struct device *dev)
+{
+	struct sh_mobile_i2c_data *pd = dev_get_drvdata(dev);
+
+	i2c_mark_adapter_resumed(&pd->adap);
+	return 0;
+}
+
+static const struct dev_pm_ops sh_mobile_i2c_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sh_mobile_i2c_suspend,
+				      sh_mobile_i2c_resume)
+};
+
+#define DEV_PM_OPS (&sh_mobile_i2c_pm_ops)
+#else
+#define DEV_PM_OPS NULL
+#endif /* CONFIG_PM_SLEEP */
+
 static struct platform_driver sh_mobile_i2c_driver = {
 	.driver		= {
 		.name		= "i2c-sh_mobile",
 		.of_match_table = sh_mobile_i2c_dt_ids,
+		.pm	= DEV_PM_OPS,
 	},
 	.probe		= sh_mobile_i2c_probe,
 	.remove		= sh_mobile_i2c_remove,

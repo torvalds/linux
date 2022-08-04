@@ -210,18 +210,12 @@ out:
 static DEVICE_ATTR(ungroup, 0200, NULL, ccwgroup_ungroup_store);
 static DEVICE_ATTR(online, 0644, ccwgroup_online_show, ccwgroup_online_store);
 
-static struct attribute *ccwgroup_attrs[] = {
+static struct attribute *ccwgroup_dev_attrs[] = {
 	&dev_attr_online.attr,
 	&dev_attr_ungroup.attr,
 	NULL,
 };
-static struct attribute_group ccwgroup_attr_group = {
-	.attrs = ccwgroup_attrs,
-};
-static const struct attribute_group *ccwgroup_attr_groups[] = {
-	&ccwgroup_attr_group,
-	NULL,
-};
+ATTRIBUTE_GROUPS(ccwgroup_dev);
 
 static void ccwgroup_ungroup_workfn(struct work_struct *work)
 {
@@ -384,7 +378,6 @@ int ccwgroup_create_dev(struct device *parent, struct ccwgroup_driver *gdrv,
 	}
 
 	dev_set_name(&gdev->dev, "%s", dev_name(&gdev->cdev[0]->dev));
-	gdev->dev.groups = ccwgroup_attr_groups;
 
 	if (gdrv) {
 		gdev->dev.driver = &gdrv->driver;
@@ -487,6 +480,7 @@ static void ccwgroup_shutdown(struct device *dev)
 
 static struct bus_type ccwgroup_bus_type = {
 	.name   = "ccwgroup",
+	.dev_groups = ccwgroup_dev_groups,
 	.remove = ccwgroup_remove,
 	.shutdown = ccwgroup_shutdown,
 };

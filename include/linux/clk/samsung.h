@@ -10,7 +10,7 @@
 
 struct device_node;
 
-#ifdef CONFIG_ARCH_S3C64XX
+#ifdef CONFIG_S3C64XX_COMMON_CLK
 void s3c64xx_clk_init(struct device_node *np, unsigned long xtal_f,
 		      unsigned long xusbxti_f, bool s3c6400,
 		      void __iomem *base);
@@ -19,7 +19,7 @@ static inline void s3c64xx_clk_init(struct device_node *np,
 				    unsigned long xtal_f,
 				    unsigned long xusbxti_f,
 				    bool s3c6400, void __iomem *base) { }
-#endif /* CONFIG_ARCH_S3C64XX */
+#endif /* CONFIG_S3C64XX_COMMON_CLK */
 
 #ifdef CONFIG_S3C2410_COMMON_CLK
 void s3c2410_common_clk_init(struct device_node *np, unsigned long xti_f,

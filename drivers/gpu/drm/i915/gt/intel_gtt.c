@@ -324,7 +324,7 @@ static void cnl_setup_private_ppat(struct intel_uncore *uncore)
 			   GEN8_PPAT_WC | GEN8_PPAT_LLCELLC);
 	intel_uncore_write(uncore,
 			   GEN10_PAT_INDEX(2),
-			   GEN8_PPAT_WT | GEN8_PPAT_LLCELLC);
+			   GEN8_PPAT_WB | GEN8_PPAT_ELLC_OVERRIDE);
 	intel_uncore_write(uncore,
 			   GEN10_PAT_INDEX(3),
 			   GEN8_PPAT_UC);
@@ -349,16 +349,22 @@ static void cnl_setup_private_ppat(struct intel_uncore *uncore)
  */
 static void bdw_setup_private_ppat(struct intel_uncore *uncore)
 {
+	struct drm_i915_private *i915 = uncore->i915;
 	u64 pat;
 
 	pat = GEN8_PPAT(0, GEN8_PPAT_WB | GEN8_PPAT_LLC) |	/* for normal objects, no eLLC */
 	      GEN8_PPAT(1, GEN8_PPAT_WC | GEN8_PPAT_LLCELLC) |	/* for something pointing to ptes? */
-	      GEN8_PPAT(2, GEN8_PPAT_WT | GEN8_PPAT_LLCELLC) |	/* for scanout with eLLC */
 	      GEN8_PPAT(3, GEN8_PPAT_UC) |			/* Uncached objects, mostly for scanout */
 	      GEN8_PPAT(4, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(0)) |
 	      GEN8_PPAT(5, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(1)) |
 	      GEN8_PPAT(6, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(2)) |
 	      GEN8_PPAT(7, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
+
+	/* for scanout with eLLC */
+	if (INTEL_GEN(i915) >= 9)
+		pat |= GEN8_PPAT(2, GEN8_PPAT_WB | GEN8_PPAT_ELLC_OVERRIDE);
+	else
+		pat |= GEN8_PPAT(2, GEN8_PPAT_WT | GEN8_PPAT_LLCELLC);
 
 	intel_uncore_write(uncore, GEN8_PRIVATE_PAT_LO, lower_32_bits(pat));
 	intel_uncore_write(uncore, GEN8_PRIVATE_PAT_HI, upper_32_bits(pat));

@@ -32,17 +32,16 @@ AArch64 Linux memory layout with 4KB pages + 4 levels (48-bit)::
   -----------------------------------------------------------------------
   0000000000000000	0000ffffffffffff	 256TB		user
   ffff000000000000	ffff7fffffffffff	 128TB		kernel logical memory map
-  ffff800000000000	ffff9fffffffffff	  32TB		kasan shadow region
-  ffffa00000000000	ffffa00007ffffff	 128MB		bpf jit region
-  ffffa00008000000	ffffa0000fffffff	 128MB		modules
-  ffffa00010000000	fffffdffbffeffff	 ~93TB		vmalloc
-  fffffdffbfff0000	fffffdfffe5f8fff	~998MB		[guard region]
-  fffffdfffe5f9000	fffffdfffe9fffff	4124KB		fixed mappings
-  fffffdfffea00000	fffffdfffebfffff	   2MB		[guard region]
-  fffffdfffec00000	fffffdffffbfffff	  16MB		PCI I/O space
-  fffffdffffc00000	fffffdffffdfffff	   2MB		[guard region]
-  fffffdffffe00000	ffffffffffdfffff	   2TB		vmemmap
-  ffffffffffe00000	ffffffffffffffff	   2MB		[guard region]
+ [ffff600000000000	ffff7fffffffffff]	  32TB		[kasan shadow region]
+  ffff800000000000	ffff800007ffffff	 128MB		bpf jit region
+  ffff800008000000	ffff80000fffffff	 128MB		modules
+  ffff800010000000	fffffbffefffffff	 124TB		vmalloc
+  fffffbfff0000000	fffffbfffdffffff	 224MB		fixed mappings (top down)
+  fffffbfffe000000	fffffbfffe7fffff	   8MB		[guard region]
+  fffffbfffe800000	fffffbffff7fffff	  16MB		PCI I/O space
+  fffffbffff800000	fffffbffffffffff	   8MB		[guard region]
+  fffffc0000000000	fffffdffffffffff	   2TB		vmemmap
+  fffffe0000000000	ffffffffffffffff	   2TB		[guard region]
 
 
 AArch64 Linux memory layout with 64KB pages + 3 levels (52-bit with HW support)::
@@ -50,19 +49,17 @@ AArch64 Linux memory layout with 64KB pages + 3 levels (52-bit with HW support):
   Start			End			Size		Use
   -----------------------------------------------------------------------
   0000000000000000	000fffffffffffff	   4PB		user
-  fff0000000000000	fff7ffffffffffff	   2PB		kernel logical memory map
-  fff8000000000000	fffd9fffffffffff	1440TB		[gap]
-  fffda00000000000	ffff9fffffffffff	 512TB		kasan shadow region
-  ffffa00000000000	ffffa00007ffffff	 128MB		bpf jit region
-  ffffa00008000000	ffffa0000fffffff	 128MB		modules
-  ffffa00010000000	fffff81ffffeffff	 ~88TB		vmalloc
-  fffff81fffff0000	fffffc1ffe58ffff	  ~3TB		[guard region]
-  fffffc1ffe590000	fffffc1ffe9fffff	4544KB		fixed mappings
-  fffffc1ffea00000	fffffc1ffebfffff	   2MB		[guard region]
-  fffffc1ffec00000	fffffc1fffbfffff	  16MB		PCI I/O space
-  fffffc1fffc00000	fffffc1fffdfffff	   2MB		[guard region]
-  fffffc1fffe00000	ffffffffffdfffff	3968GB		vmemmap
-  ffffffffffe00000	ffffffffffffffff	   2MB		[guard region]
+  fff0000000000000	ffff7fffffffffff	  ~4PB		kernel logical memory map
+ [fffd800000000000	ffff7fffffffffff]	 512TB		[kasan shadow region]
+  ffff800000000000	ffff800007ffffff	 128MB		bpf jit region
+  ffff800008000000	ffff80000fffffff	 128MB		modules
+  ffff800010000000	fffffbffefffffff	 124TB		vmalloc
+  fffffbfff0000000	fffffbfffdffffff	 224MB		fixed mappings (top down)
+  fffffbfffe000000	fffffbfffe7fffff	   8MB		[guard region]
+  fffffbfffe800000	fffffbffff7fffff	  16MB		PCI I/O space
+  fffffbffff800000	fffffbffffffffff	   8MB		[guard region]
+  fffffc0000000000	ffffffdfffffffff	  ~4TB		vmemmap
+  ffffffe000000000	ffffffffffffffff	 128GB		[guard region]
 
 
 Translation table lookup with 4KB pages::
@@ -100,7 +97,7 @@ hypervisor maps kernel pages in EL2 at a fixed (and potentially
 random) offset from the linear mapping. See the kern_hyp_va macro and
 kvm_update_va_mask function for more details. MMIO devices such as
 GICv2 gets mapped next to the HYP idmap page, as do vectors when
-ARM64_HARDEN_EL2_VECTORS is selected for particular CPUs.
+ARM64_SPECTRE_V3A is enabled for particular CPUs.
 
 When using KVM with the Virtualization Host Extensions, no additional
 mappings are created, since the host kernel runs directly in EL2.

@@ -10,11 +10,17 @@
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
 
+struct dma_buf_map;
+
 #define drm_gem_ttm_of_gem(gem_obj) \
 	container_of(gem_obj, struct ttm_buffer_object, base)
 
 void drm_gem_ttm_print_info(struct drm_printer *p, unsigned int indent,
 			    const struct drm_gem_object *gem);
+int drm_gem_ttm_vmap(struct drm_gem_object *gem,
+		     struct dma_buf_map *map);
+void drm_gem_ttm_vunmap(struct drm_gem_object *gem,
+			struct dma_buf_map *map);
 int drm_gem_ttm_mmap(struct drm_gem_object *gem,
 		     struct vm_area_struct *vma);
 

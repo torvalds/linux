@@ -25,7 +25,8 @@ I. For patch submitters
 
        make dt_binding_check
 
-     See ../writing-schema.rst for more details about schema and tools setup.
+     See Documentation/devicetree/writing-schema.rst for more details about
+     schema and tools setup.
 
   3) DT binding files should be dual licensed. The preferred license tag is
      (GPL-2.0-only OR BSD-2-Clause).

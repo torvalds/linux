@@ -16,7 +16,7 @@ properties:
   local-mac-address:
     description:
       Specifies the MAC address that was assigned to the network device.
-    $ref: /schemas/types.yaml#definitions/uint8-array
+    $ref: /schemas/types.yaml#/definitions/uint8-array
     items:
       - minItems: 6
         maxItems: 6
@@ -27,20 +27,20 @@ properties:
       program; should be used in cases where the MAC address assigned
       to the device by the boot program is different from the
       local-mac-address property.
-    $ref: /schemas/types.yaml#definitions/uint8-array
+    $ref: /schemas/types.yaml#/definitions/uint8-array
     items:
       - minItems: 6
         maxItems: 6
 
   max-frame-size:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Maximum transfer unit (IEEE defined MTU), rather than the
       maximum frame size (there\'s contradiction in the Devicetree
       Specification).
 
   max-speed:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Specifies maximum speed in Mbit/s supported by the device.
 
@@ -95,12 +95,13 @@ properties:
       # 10GBASE-KR, XFI, SFI
       - 10gbase-kr
       - usxgmii
+      - 10gbase-r
 
   phy-mode:
     $ref: "#/properties/phy-connection-type"
 
   phy-handle:
-    $ref: /schemas/types.yaml#definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Specifies a reference to a node representing a PHY device.
 
@@ -113,7 +114,7 @@ properties:
     deprecated: true
 
   rx-fifo-depth:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       The size of the controller\'s receive fifo in bytes. This is used
       for components that can have configurable receive fifo sizes,
@@ -121,25 +122,23 @@ properties:
       such as flow control thresholds.
 
   rx-internal-delay-ps:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       RGMII Receive Clock Delay defined in pico seconds.
       This is used for controllers that have configurable RX internal delays.
       If this property is present then the MAC applies the RX delay.
 
   sfp:
-    $ref: /schemas/types.yaml#definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Specifies a reference to a node representing a SFP cage.
 
   tx-fifo-depth:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       The size of the controller\'s transmit fifo in bytes. This
       is used for components that can have configurable fifo sizes.
 
   tx-internal-delay-ps:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       RGMII Transmit Clock Delay defined in pico seconds.
       This is used for controllers that have configurable TX internal delays.
@@ -149,7 +148,7 @@ properties:
     description:
       Specifies the PHY management type. If auto is set and fixed-link
       is not specified, it uses MDIO for management.
-    $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#/definitions/string
     default: auto
     enum:
       - auto
@@ -197,17 +196,17 @@ properties:
             speed:
               description:
                 Link speed.
-              $ref: /schemas/types.yaml#definitions/uint32
+              $ref: /schemas/types.yaml#/definitions/uint32
               enum: [10, 100, 1000]
 
             full-duplex:
-              $ref: /schemas/types.yaml#definitions/flag
+              $ref: /schemas/types.yaml#/definitions/flag
               description:
                 Indicates that full-duplex is used. When absent, half
                 duplex is assumed.
 
             asym-pause:
-              $ref: /schemas/types.yaml#definitions/flag
+              $ref: /schemas/types.yaml#/definitions/flag
               description:
                 Indicates that asym_pause should be enabled.
 

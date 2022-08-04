@@ -19,6 +19,7 @@
 #include <net/flow_offload.h>
 #include <uapi/linux/devlink.h>
 #include <linux/xarray.h>
+#include <linux/firmware.h>
 
 #define DEVLINK_RELOAD_STATS_ARRAY_SIZE \
 	(__DEVLINK_RELOAD_LIMIT_MAX * __DEVLINK_RELOAD_ACTION_MAX)
@@ -566,15 +567,15 @@ enum devlink_param_generic_id {
 
 /**
  * struct devlink_flash_update_params - Flash Update parameters
- * @file_name: the name of the flash firmware file to update from
+ * @fw: pointer to the firmware data to update from
  * @component: the flash component to update
  *
- * With the exception of file_name, drivers must opt-in to parameters by
+ * With the exception of fw, drivers must opt-in to parameters by
  * setting the appropriate bit in the supported_flash_update_params field in
  * their devlink_ops structure.
  */
 struct devlink_flash_update_params {
-	const char *file_name;
+	const struct firmware *fw;
 	const char *component;
 	u32 overwrite_mask;
 };
@@ -834,6 +835,7 @@ enum devlink_trap_generic_id {
 	DEVLINK_TRAP_GENERIC_ID_DCCP_PARSING,
 	DEVLINK_TRAP_GENERIC_ID_GTP_PARSING,
 	DEVLINK_TRAP_GENERIC_ID_ESP_PARSING,
+	DEVLINK_TRAP_GENERIC_ID_BLACKHOLE_NEXTHOP,
 
 	/* Add new generic trap IDs above */
 	__DEVLINK_TRAP_GENERIC_ID_MAX,
@@ -1057,7 +1059,8 @@ enum devlink_trap_group_generic_id {
 	"gtp_parsing"
 #define DEVLINK_TRAP_GENERIC_NAME_ESP_PARSING \
 	"esp_parsing"
-
+#define DEVLINK_TRAP_GENERIC_NAME_BLACKHOLE_NEXTHOP \
+	"blackhole_nexthop"
 
 #define DEVLINK_TRAP_GROUP_GENERIC_NAME_L2_DROPS \
 	"l2_drops"
@@ -1576,8 +1579,6 @@ void devlink_remote_reload_actions_performed(struct devlink *devlink,
 					     enum devlink_reload_limit limit,
 					     u32 actions_performed);
 
-void devlink_flash_update_begin_notify(struct devlink *devlink);
-void devlink_flash_update_end_notify(struct devlink *devlink);
 void devlink_flash_update_status_notify(struct devlink *devlink,
 					const char *status_msg,
 					const char *component,

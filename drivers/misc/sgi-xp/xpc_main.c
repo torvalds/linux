@@ -179,7 +179,7 @@ xpc_timeout_partition_disengage(struct timer_list *t)
 
 	DBUG_ON(time_is_after_jiffies(part->disengage_timeout));
 
-	(void)xpc_partition_disengaged(part);
+	xpc_partition_disengaged_from_timer(part);
 
 	DBUG_ON(part->disengage_timeout != 0);
 	DBUG_ON(xpc_arch_ops.partition_engaged(XPC_PARTID(part)));

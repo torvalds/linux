@@ -596,7 +596,7 @@ static int pcan_usb_decode_error(struct pcan_usb_msg_context *mc, u8 n,
 	}
 
 	mc->netdev->stats.rx_packets++;
-	mc->netdev->stats.rx_bytes += cf->can_dlc;
+	mc->netdev->stats.rx_bytes += cf->len;
 	netif_rx(skb);
 
 	return 0;
@@ -734,7 +734,7 @@ static int pcan_usb_decode_data(struct pcan_usb_msg_context *mc, u8 status_len)
 		cf->can_id = le16_to_cpu(tmp16) >> 5;
 	}
 
-	cf->can_dlc = get_can_dlc(rec_len);
+	can_frame_set_cc_len(cf, rec_len, mc->pdev->dev.can.ctrlmode);
 
 	/* Only first packet timestamp is a word */
 	if (pcan_usb_decode_ts(mc, !mc->rec_ts_idx))
@@ -751,7 +751,7 @@ static int pcan_usb_decode_data(struct pcan_usb_msg_context *mc, u8 status_len)
 		if ((mc->ptr + rec_len) > mc->end)
 			goto decode_failed;
 
-		memcpy(cf->data, mc->ptr, cf->can_dlc);
+		memcpy(cf->data, mc->ptr, cf->len);
 		mc->ptr += rec_len;
 	}
 
@@ -761,7 +761,7 @@ static int pcan_usb_decode_data(struct pcan_usb_msg_context *mc, u8 status_len)
 
 	/* update statistics */
 	mc->netdev->stats.rx_packets++;
-	mc->netdev->stats.rx_bytes += cf->can_dlc;
+	mc->netdev->stats.rx_bytes += cf->len;
 	/* push the skb */
 	netif_rx(skb);
 
@@ -838,7 +838,8 @@ static int pcan_usb_encode_msg(struct peak_usb_device *dev, struct sk_buff *skb,
 	pc = obuf + PCAN_USB_MSG_HEADER_LEN;
 
 	/* status/len byte */
-	*pc = cf->can_dlc;
+	*pc = can_get_cc_dlc(cf, dev->can.ctrlmode);
+
 	if (cf->can_id & CAN_RTR_FLAG)
 		*pc |= PCAN_USB_STATUSLEN_RTR;
 
@@ -858,8 +859,8 @@ static int pcan_usb_encode_msg(struct peak_usb_device *dev, struct sk_buff *skb,
 
 	/* can data */
 	if (!(cf->can_id & CAN_RTR_FLAG)) {
-		memcpy(pc, cf->data, cf->can_dlc);
-		pc += cf->can_dlc;
+		memcpy(pc, cf->data, cf->len);
+		pc += cf->len;
 	}
 
 	obuf[(*size)-1] = (u8)(stats->tx_packets & 0xff);
@@ -992,7 +993,8 @@ const struct peak_usb_adapter pcan_usb = {
 	.device_id = PCAN_USB_PRODUCT_ID,
 	.ctrl_count = 1,
 	.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES | CAN_CTRLMODE_LISTENONLY |
-			      CAN_CTRLMODE_BERR_REPORTING,
+			      CAN_CTRLMODE_BERR_REPORTING |
+			      CAN_CTRLMODE_CC_LEN8_DLC,
 	.clock = {
 		.freq = PCAN_USB_CRYSTAL_HZ / 2 ,
 	},

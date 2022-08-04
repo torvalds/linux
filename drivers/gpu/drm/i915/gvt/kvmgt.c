@@ -2101,7 +2101,7 @@ static bool kvmgt_is_valid_gfn(unsigned long handle, unsigned long gfn)
 	return ret;
 }
 
-static struct intel_gvt_mpt kvmgt_mpt = {
+static const struct intel_gvt_mpt kvmgt_mpt = {
 	.type = INTEL_GVT_HYPERVISOR_KVM,
 	.host_init = kvmgt_host_init,
 	.host_exit = kvmgt_host_exit,

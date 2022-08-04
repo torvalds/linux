@@ -115,7 +115,7 @@ void drm_mode_object_unregister(struct drm_device *dev,
 }
 
 /**
- * drm_lease_required - check types which must be leased to be used
+ * drm_mode_object_lease_required - check types which must be leased to be used
  * @type: type of object
  *
  * Returns whether the provided type of drm_mode_object must

@@ -27,6 +27,7 @@
 #include <linux/pm_qos.h>
 #include <linux/pm_wakeirq.h>
 #include <linux/dma-mapping.h>
+#include <linux/sys_soc.h>
 
 #include "8250.h"
 
@@ -41,6 +42,7 @@
  */
 #define UART_ERRATA_CLOCK_DISABLE	(1 << 3)
 #define	UART_HAS_EFR2			BIT(4)
+#define UART_HAS_RHR_IT_DIS		BIT(5)
 
 #define OMAP_UART_FCR_RX_TRIG		6
 #define OMAP_UART_FCR_TX_TRIG		4
@@ -93,6 +95,10 @@
 #define OMAP_UART_REV_46 0x0406
 #define OMAP_UART_REV_52 0x0502
 #define OMAP_UART_REV_63 0x0603
+
+/* Interrupt Enable Register 2 */
+#define UART_OMAP_IER2			0x1B
+#define UART_OMAP_IER2_RHR_IT_DIS	BIT(2)
 
 /* Enhanced features register 2 */
 #define UART_OMAP_EFR2			0x23
@@ -184,11 +190,6 @@ static void omap_8250_mdr1_errataset(struct uart_8250_port *up,
 				     struct omap8250_priv *priv)
 {
 	u8 timeout = 255;
-	u8 old_mdr1;
-
-	old_mdr1 = serial_in(up, UART_OMAP_MDR1);
-	if (old_mdr1 == priv->mdr1)
-		return;
 
 	serial_out(up, UART_OMAP_MDR1, priv->mdr1);
 	udelay(2);
@@ -533,6 +534,11 @@ static void omap_8250_pm(struct uart_port *port, unsigned int state,
 static void omap_serial_fill_features_erratas(struct uart_8250_port *up,
 					      struct omap8250_priv *priv)
 {
+	const struct soc_device_attribute k3_soc_devices[] = {
+		{ .family = "AM65X",  },
+		{ .family = "J721E", .revision = "SR1.0" },
+		{ /* sentinel */ }
+	};
 	u32 mvr, scheme;
 	u16 revision, major, minor;
 
@@ -580,6 +586,14 @@ static void omap_serial_fill_features_erratas(struct uart_8250_port *up,
 	default:
 		break;
 	}
+
+	/*
+	 * AM65x SR1.0, AM65x SR2.0 and J721e SR1.0 don't
+	 * don't have RHR_IT_DIS bit in IER2 register. So drop to flag
+	 * to enable errata workaround.
+	 */
+	if (soc_device_match(k3_soc_devices))
+		priv->habit &= ~UART_HAS_RHR_IT_DIS;
 }
 
 static void omap8250_uart_qos_work(struct work_struct *work)
@@ -761,17 +775,27 @@ static void __dma_rx_do_complete(struct uart_8250_port *p)
 {
 	struct uart_8250_dma    *dma = p->dma;
 	struct tty_port         *tty_port = &p->port.state->port;
+	struct omap8250_priv	*priv = p->port.private_data;
 	struct dma_chan		*rxchan = dma->rxchan;
 	dma_cookie_t		cookie;
 	struct dma_tx_state     state;
 	int                     count;
 	int			ret;
+	u32			reg;
 
 	if (!dma->rx_running)
 		goto out;
 
 	cookie = dma->rx_cookie;
 	dma->rx_running = 0;
+
+	/* Re-enable RX FIFO interrupt now that transfer is complete */
+	if (priv->habit & UART_HAS_RHR_IT_DIS) {
+		reg = serial_in(p, UART_OMAP_IER2);
+		reg &= ~UART_OMAP_IER2_RHR_IT_DIS;
+		serial_out(p, UART_OMAP_IER2, UART_OMAP_IER2_RHR_IT_DIS);
+	}
+
 	dmaengine_tx_status(rxchan, cookie, &state);
 
 	count = dma->rx_size - state.residue + state.in_flight_bytes;
@@ -867,6 +891,7 @@ static int omap_8250_rx_dma(struct uart_8250_port *p)
 	int				err = 0;
 	struct dma_async_tx_descriptor  *desc;
 	unsigned long			flags;
+	u32				reg;
 
 	if (priv->rx_dma_broken)
 		return -EINVAL;
@@ -901,6 +926,17 @@ static int omap_8250_rx_dma(struct uart_8250_port *p)
 	desc->callback_param = p;
 
 	dma->rx_cookie = dmaengine_submit(desc);
+
+	/*
+	 * Disable RX FIFO interrupt while RX DMA is enabled, else
+	 * spurious interrupt may be raised when data is in the RX FIFO
+	 * but is yet to be drained by DMA.
+	 */
+	if (priv->habit & UART_HAS_RHR_IT_DIS) {
+		reg = serial_in(p, UART_OMAP_IER2);
+		reg |= UART_OMAP_IER2_RHR_IT_DIS;
+		serial_out(p, UART_OMAP_IER2, UART_OMAP_IER2_RHR_IT_DIS);
+	}
 
 	dma_async_issue_pending(dma->rxchan);
 out:
@@ -1182,7 +1218,7 @@ static struct omap8250_dma_params am33xx_dma = {
 
 static struct omap8250_platdata am654_platdata = {
 	.dma_params	= &am654_dma,
-	.habit		= UART_HAS_EFR2,
+	.habit		= UART_HAS_EFR2 | UART_HAS_RHR_IT_DIS,
 };
 
 static struct omap8250_platdata am33xx_platdata = {

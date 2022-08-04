@@ -659,8 +659,9 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
  ecreate:
 	for (j = 0; j < i; j++)
 		device_remove_file(&dcon_device->dev, &dcon_device_files[j]);
+	platform_device_del(dcon_device);
  edev:
-	platform_device_unregister(dcon_device);
+	platform_device_put(dcon_device);
 	dcon_device = NULL;
  eirq:
 	free_irq(DCON_IRQ, dcon);

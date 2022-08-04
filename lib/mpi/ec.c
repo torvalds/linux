@@ -1252,7 +1252,6 @@ void mpi_ec_mul_point(MPI_POINT result,
 		MPI_POINT q1, q2, prd, sum;
 		unsigned long sw;
 		mpi_size_t rsize;
-		int scalar_copied = 0;
 
 		/* Compute scalar point multiplication with Montgomery Ladder.
 		 * Note that we don't use Y-coordinate in the points at all.
@@ -1314,8 +1313,6 @@ void mpi_ec_mul_point(MPI_POINT result,
 		point_free(&p2);
 		point_free(&p1_);
 		point_free(&p2_);
-		if (scalar_copied)
-			mpi_free(scalar);
 		return;
 	}
 

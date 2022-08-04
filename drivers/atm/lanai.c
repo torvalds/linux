@@ -765,8 +765,7 @@ static void lanai_shutdown_tx_vci(struct lanai_dev *lanai,
 	struct sk_buff *skb;
 	unsigned long flags, timeout;
 	int read, write, lastread = -1;
-	APRINTK(!in_interrupt(),
-	    "lanai_shutdown_tx_vci called w/o process context!\n");
+
 	if (lvcc->vbase == NULL)	/* We were never bound to a VCI */
 		return;
 	/* 15.2.1 - wait for queue to drain */

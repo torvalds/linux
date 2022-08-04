@@ -273,7 +273,7 @@ static int lpc32xx_kscan_suspend(struct device *dev)
 
 	mutex_lock(&input->mutex);
 
-	if (input->users) {
+	if (input_device_enabled(input)) {
 		/* Clear IRQ and disable clock */
 		writel(1, LPC32XX_KS_IRQ(kscandat->kscan_base));
 		clk_disable_unprepare(kscandat->clk);
@@ -292,7 +292,7 @@ static int lpc32xx_kscan_resume(struct device *dev)
 
 	mutex_lock(&input->mutex);
 
-	if (input->users) {
+	if (input_device_enabled(input)) {
 		/* Enable clock and clear IRQ */
 		retval = clk_prepare_enable(kscandat->clk);
 		if (retval == 0)

@@ -78,22 +78,18 @@ void
 pnfs_generic_clear_request_commit(struct nfs_page *req,
 				  struct nfs_commit_info *cinfo)
 {
-	struct pnfs_layout_segment *freeme = NULL;
+	struct pnfs_commit_bucket *bucket = NULL;
 
 	if (!test_and_clear_bit(PG_COMMIT_TO_DS, &req->wb_flags))
 		goto out;
 	cinfo->ds->nwritten--;
-	if (list_is_singular(&req->wb_list)) {
-		struct pnfs_commit_bucket *bucket;
-
+	if (list_is_singular(&req->wb_list))
 		bucket = list_first_entry(&req->wb_list,
-					  struct pnfs_commit_bucket,
-					  written);
-		freeme = pnfs_free_bucket_lseg(bucket);
-	}
+					  struct pnfs_commit_bucket, written);
 out:
 	nfs_request_remove_commit_list(req, cinfo);
-	pnfs_put_lseg(freeme);
+	if (bucket)
+		pnfs_put_lseg(pnfs_free_bucket_lseg(bucket));
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_clear_request_commit);
 
@@ -407,12 +403,16 @@ pnfs_bucket_get_committing(struct list_head *head,
 			   struct pnfs_commit_bucket *bucket,
 			   struct nfs_commit_info *cinfo)
 {
+	struct pnfs_layout_segment *lseg;
 	struct list_head *pos;
 
 	list_for_each(pos, &bucket->committing)
 		cinfo->ds->ncommitting--;
 	list_splice_init(&bucket->committing, head);
-	return pnfs_free_bucket_lseg(bucket);
+	lseg = pnfs_free_bucket_lseg(bucket);
+	if (!lseg)
+		lseg = pnfs_get_lseg(bucket->lseg);
+	return lseg;
 }
 
 static struct nfs_commit_data *
@@ -424,8 +424,6 @@ pnfs_bucket_fetch_commitdata(struct pnfs_commit_bucket *bucket,
 	if (!data)
 		return NULL;
 	data->lseg = pnfs_bucket_get_committing(&data->pages, bucket, cinfo);
-	if (!data->lseg)
-		data->lseg = pnfs_get_lseg(bucket->lseg);
 	return data;
 }
 
@@ -661,6 +659,21 @@ _data_server_lookup_locked(const struct list_head *dsaddrs)
 	return NULL;
 }
 
+static struct nfs4_pnfs_ds_addr *nfs4_pnfs_ds_addr_alloc(gfp_t gfp_flags)
+{
+	struct nfs4_pnfs_ds_addr *da = kzalloc(sizeof(*da), gfp_flags);
+	if (da)
+		INIT_LIST_HEAD(&da->da_node);
+	return da;
+}
+
+static void nfs4_pnfs_ds_addr_free(struct nfs4_pnfs_ds_addr *da)
+{
+	kfree(da->da_remotestr);
+	kfree(da->da_netid);
+	kfree(da);
+}
+
 static void destroy_ds(struct nfs4_pnfs_ds *ds)
 {
 	struct nfs4_pnfs_ds_addr *da;
@@ -676,8 +689,7 @@ static void destroy_ds(struct nfs4_pnfs_ds *ds)
 				      struct nfs4_pnfs_ds_addr,
 				      da_node);
 		list_del_init(&da->da_node);
-		kfree(da->da_remotestr);
-		kfree(da);
+		nfs4_pnfs_ds_addr_free(da);
 	}
 
 	kfree(ds->ds_remotestr);
@@ -854,12 +866,17 @@ static int _nfs4_pnfs_v3_ds_connect(struct nfs_server *mds_srv,
 
 		if (!IS_ERR(clp)) {
 			struct xprt_create xprt_args = {
-				.ident = XPRT_TRANSPORT_TCP,
+				.ident = da->da_transport,
 				.net = clp->cl_net,
 				.dstaddr = (struct sockaddr *)&da->da_addr,
 				.addrlen = da->da_addrlen,
 				.servername = clp->cl_hostname,
 			};
+
+			if (da->da_transport != clp->cl_proto)
+				continue;
+			if (da->da_addr.ss_family != clp->cl_addr.ss_family)
+				continue;
 			/* Add this address as an alias */
 			rpc_clnt_add_xprt(clp->cl_rpcclient, &xprt_args,
 					rpc_clnt_test_and_add_xprt, NULL);
@@ -867,7 +884,7 @@ static int _nfs4_pnfs_v3_ds_connect(struct nfs_server *mds_srv,
 		}
 		clp = get_v3_ds_connect(mds_srv,
 				(struct sockaddr *)&da->da_addr,
-				da->da_addrlen, IPPROTO_TCP,
+				da->da_addrlen, da->da_transport,
 				timeo, retrans);
 		if (IS_ERR(clp))
 			continue;
@@ -905,7 +922,7 @@ static int _nfs4_pnfs_v4_ds_connect(struct nfs_server *mds_srv,
 
 		if (!IS_ERR(clp) && clp->cl_mvops->session_trunk) {
 			struct xprt_create xprt_args = {
-				.ident = XPRT_TRANSPORT_TCP,
+				.ident = da->da_transport,
 				.net = clp->cl_net,
 				.dstaddr = (struct sockaddr *)&da->da_addr,
 				.addrlen = da->da_addrlen,
@@ -913,17 +930,21 @@ static int _nfs4_pnfs_v4_ds_connect(struct nfs_server *mds_srv,
 			};
 			struct nfs4_add_xprt_data xprtdata = {
 				.clp = clp,
-				.cred = nfs4_get_clid_cred(clp),
 			};
 			struct rpc_add_xprt_test rpcdata = {
 				.add_xprt_test = clp->cl_mvops->session_trunk,
 				.data = &xprtdata,
 			};
 
+			if (da->da_transport != clp->cl_proto)
+				continue;
+			if (da->da_addr.ss_family != clp->cl_addr.ss_family)
+				continue;
 			/**
 			* Test this address for session trunking and
 			* add as an alias
 			*/
+			xprtdata.cred = nfs4_get_clid_cred(clp),
 			rpc_clnt_add_xprt(clp->cl_rpcclient, &xprt_args,
 					  rpc_clnt_setup_test_and_add_xprt,
 					  &rpcdata);
@@ -932,8 +953,9 @@ static int _nfs4_pnfs_v4_ds_connect(struct nfs_server *mds_srv,
 		} else {
 			clp = nfs4_set_ds_client(mds_srv,
 						(struct sockaddr *)&da->da_addr,
-						da->da_addrlen, IPPROTO_TCP,
-						timeo, retrans, minor_version);
+						da->da_addrlen,
+						da->da_transport, timeo,
+						retrans, minor_version);
 			if (IS_ERR(clp))
 				continue;
 
@@ -1021,55 +1043,26 @@ nfs4_decode_mp_ds_addr(struct net *net, struct xdr_stream *xdr, gfp_t gfp_flags)
 	struct nfs4_pnfs_ds_addr *da = NULL;
 	char *buf, *portstr;
 	__be16 port;
-	int nlen, rlen;
+	ssize_t nlen, rlen;
 	int tmp[2];
-	__be32 *p;
-	char *netid, *match_netid;
-	size_t len, match_netid_len;
+	char *netid;
+	size_t len;
 	char *startsep = "";
 	char *endsep = "";
 
 
 	/* r_netid */
-	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(!p))
+	nlen = xdr_stream_decode_string_dup(xdr, &netid, XDR_MAX_NETOBJ,
+					    gfp_flags);
+	if (unlikely(nlen < 0))
 		goto out_err;
-	nlen = be32_to_cpup(p++);
-
-	p = xdr_inline_decode(xdr, nlen);
-	if (unlikely(!p))
-		goto out_err;
-
-	netid = kmalloc(nlen+1, gfp_flags);
-	if (unlikely(!netid))
-		goto out_err;
-
-	netid[nlen] = '\0';
-	memcpy(netid, p, nlen);
 
 	/* r_addr: ip/ip6addr with port in dec octets - see RFC 5665 */
-	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(!p))
-		goto out_free_netid;
-	rlen = be32_to_cpup(p);
-
-	p = xdr_inline_decode(xdr, rlen);
-	if (unlikely(!p))
-		goto out_free_netid;
-
 	/* port is ".ABC.DEF", 8 chars max */
-	if (rlen > INET6_ADDRSTRLEN + IPV6_SCOPE_ID_LEN + 8) {
-		dprintk("%s: Invalid address, length %d\n", __func__,
-			rlen);
+	rlen = xdr_stream_decode_string_dup(xdr, &buf, INET6_ADDRSTRLEN +
+					    IPV6_SCOPE_ID_LEN + 8, gfp_flags);
+	if (unlikely(rlen < 0))
 		goto out_free_netid;
-	}
-	buf = kmalloc(rlen + 1, gfp_flags);
-	if (!buf) {
-		dprintk("%s: Not enough memory\n", __func__);
-		goto out_free_netid;
-	}
-	buf[rlen] = '\0';
-	memcpy(buf, p, rlen);
 
 	/* replace port '.' with '-' */
 	portstr = strrchr(buf, '.');
@@ -1089,11 +1082,9 @@ nfs4_decode_mp_ds_addr(struct net *net, struct xdr_stream *xdr, gfp_t gfp_flags)
 	}
 	*portstr = '\0';
 
-	da = kzalloc(sizeof(*da), gfp_flags);
+	da = nfs4_pnfs_ds_addr_alloc(gfp_flags);
 	if (unlikely(!da))
 		goto out_free_buf;
-
-	INIT_LIST_HEAD(&da->da_node);
 
 	if (!rpc_pton(net, buf, portstr-buf, (struct sockaddr *)&da->da_addr,
 		      sizeof(da->da_addr))) {
@@ -1109,15 +1100,11 @@ nfs4_decode_mp_ds_addr(struct net *net, struct xdr_stream *xdr, gfp_t gfp_flags)
 	case AF_INET:
 		((struct sockaddr_in *)&da->da_addr)->sin_port = port;
 		da->da_addrlen = sizeof(struct sockaddr_in);
-		match_netid = "tcp";
-		match_netid_len = 3;
 		break;
 
 	case AF_INET6:
 		((struct sockaddr_in6 *)&da->da_addr)->sin6_port = port;
 		da->da_addrlen = sizeof(struct sockaddr_in6);
-		match_netid = "tcp6";
-		match_netid_len = 4;
 		startsep = "[";
 		endsep = "]";
 		break;
@@ -1128,11 +1115,14 @@ nfs4_decode_mp_ds_addr(struct net *net, struct xdr_stream *xdr, gfp_t gfp_flags)
 		goto out_free_da;
 	}
 
-	if (nlen != match_netid_len || strncmp(netid, match_netid, nlen)) {
-		dprintk("%s: ERROR: r_netid \"%s\" != \"%s\"\n",
-			__func__, netid, match_netid);
+	da->da_transport = xprt_find_transport_ident(netid);
+	if (da->da_transport < 0) {
+		dprintk("%s: ERROR: unknown r_netid \"%s\"\n",
+			__func__, netid);
 		goto out_free_da;
 	}
+
+	da->da_netid = netid;
 
 	/* save human readable address */
 	len = strlen(startsep) + strlen(buf) + strlen(endsep) + 7;
@@ -1145,7 +1135,6 @@ nfs4_decode_mp_ds_addr(struct net *net, struct xdr_stream *xdr, gfp_t gfp_flags)
 
 	dprintk("%s: Parsed DS addr %s\n", __func__, da->da_remotestr);
 	kfree(buf);
-	kfree(netid);
 	return da;
 
 out_free_da:

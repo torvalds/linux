@@ -69,7 +69,7 @@ struct ppc_dma_chan_ref {
 };
 
 /* The list of channels exported by ppc440spe ADMA */
-struct list_head
+static struct list_head
 ppc440spe_adma_chan_list = LIST_HEAD_INIT(ppc440spe_adma_chan_list);
 
 /* This flag is set when want to refetch the xor chain in the interrupt
@@ -559,7 +559,6 @@ static void ppc440spe_desc_set_src_mult(struct ppc440spe_adma_desc_slot *desc,
 			int sg_index, unsigned char mult_value)
 {
 	struct dma_cdb *dma_hw_desc;
-	struct xor_cb *xor_hw_desc;
 	u32 *psgu;
 
 	switch (chan->device->id) {
@@ -590,7 +589,6 @@ static void ppc440spe_desc_set_src_mult(struct ppc440spe_adma_desc_slot *desc,
 		*psgu |= cpu_to_le32(mult_value << mult_index);
 		break;
 	case PPC440SPE_XOR_ID:
-		xor_hw_desc = desc->hw_desc;
 		break;
 	default:
 		BUG();

@@ -207,8 +207,11 @@ static inline uint8_t get_device_count(struct mod_hdcp *hdcp)
 
 static enum mod_hdcp_status check_device_count(struct mod_hdcp *hdcp)
 {
-	/* device count must be greater than or equal to tracked hdcp displays */
-	return (get_device_count(hdcp) < get_active_display_count(hdcp)) ?
+	/* Some MST display may choose to report the internal panel as an HDCP RX.   */
+	/* To update this condition with 1(because the immediate repeater's internal */
+	/* panel is possibly not included in DEVICE_COUNT) + get_device_count(hdcp). */
+	/* Device count must be greater than or equal to tracked hdcp displays.      */
+	return ((1 + get_device_count(hdcp)) < get_active_display_count(hdcp)) ?
 			MOD_HDCP_STATUS_HDCP2_DEVICE_COUNT_MISMATCH_FAILURE :
 			MOD_HDCP_STATUS_SUCCESS;
 }

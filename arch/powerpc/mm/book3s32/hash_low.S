@@ -26,12 +26,11 @@
 #include <asm/feature-fixups.h>
 #include <asm/code-patching-asm.h>
 
-#ifdef CONFIG_SMP
-	.section .bss
-	.align	2
-mmu_hash_lock:
-	.space	4
-#endif /* CONFIG_SMP */
+#ifdef CONFIG_PTE_64BIT
+#define PTE_FLAGS_OFFSET	4	/* offset of PTE flags, in bytes */
+#else
+#define PTE_FLAGS_OFFSET	0
+#endif
 
 /*
  * Load a PTE into the hash table, if possible.
@@ -65,13 +64,14 @@ _GLOBAL(hash_page)
 	/* Get PTE (linux-style) and check access */
 	lis	r0, TASK_SIZE@h		/* check if kernel address */
 	cmplw	0,r4,r0
+	mfspr	r8,SPRN_SPRG_THREAD	/* current task's THREAD (phys) */
 	ori	r3,r3,_PAGE_USER|_PAGE_PRESENT /* test low addresses as user */
-	mfspr	r5, SPRN_SPRG_PGDIR	/* phys page-table root */
+	lwz	r5,PGDIR(r8)		/* virt page-table root */
 	blt+	112f			/* assume user more likely */
-	lis	r5, (swapper_pg_dir - PAGE_OFFSET)@ha	/* if kernel address, use */
-	addi	r5 ,r5 ,(swapper_pg_dir - PAGE_OFFSET)@l	/* kernel page table */
+	lis	r5,swapper_pg_dir@ha	/* if kernel address, use */
+	addi	r5,r5,swapper_pg_dir@l	/* kernel page table */
 	rlwimi	r3,r9,32-12,29,29	/* MSR_PR -> _PAGE_USER */
-112:
+112:	tophys(r5, r5)
 #ifndef CONFIG_PTE_64BIT
 	rlwimi	r5,r4,12,20,29		/* insert top 10 bits of address */
 	lwz	r8,0(r5)		/* get pmd entry */
@@ -94,25 +94,33 @@ _GLOBAL(hash_page)
 	rlwimi	r8,r4,22,20,29		/* insert next 10 bits of address */
 #else
 	rlwimi	r8,r4,23,20,28		/* compute pte address */
+	/*
+	 * If PTE_64BIT is set, the low word is the flags word; use that
+	 * word for locking since it contains all the interesting bits.
+	 */
+	addi	r8,r8,PTE_FLAGS_OFFSET
 #endif
-	rlwinm	r0,r3,32-3,24,24	/* _PAGE_RW access -> _PAGE_DIRTY */
-	ori	r0,r0,_PAGE_ACCESSED|_PAGE_HASHPTE
 
 	/*
 	 * Update the linux PTE atomically.  We do the lwarx up-front
 	 * because almost always, there won't be a permission violation
 	 * and there won't already be an HPTE, and thus we will have
 	 * to update the PTE to set _PAGE_HASHPTE.  -- paulus.
-	 *
-	 * If PTE_64BIT is set, the low word is the flags word; use that
-	 * word for locking since it contains all the interesting bits.
 	 */
-#if (PTE_FLAGS_OFFSET != 0)
-	addi	r8,r8,PTE_FLAGS_OFFSET
-#endif
 .Lretry:
 	lwarx	r6,0,r8			/* get linux-style pte, flag word */
+#ifdef CONFIG_PPC_KUAP
+	mfsrin	r5,r4
+	rlwinm	r0,r9,28,_PAGE_RW	/* MSR[PR] => _PAGE_RW */
+	rlwinm	r5,r5,12,_PAGE_RW	/* Ks => _PAGE_RW */
+	andc	r5,r5,r0		/* Ks & ~MSR[PR] */
+	andc	r5,r6,r5		/* Clear _PAGE_RW when Ks = 1 && MSR[PR] = 0 */
+	andc.	r5,r3,r5		/* check access & ~permission */
+#else
 	andc.	r5,r3,r6		/* check access & ~permission */
+#endif
+	rlwinm	r0,r3,32-3,24,24	/* _PAGE_RW access -> _PAGE_DIRTY */
+	ori	r0,r0,_PAGE_ACCESSED|_PAGE_HASHPTE
 #ifdef CONFIG_SMP
 	bne-	.Lhash_page_out		/* return if access not permitted */
 #else
@@ -179,12 +187,6 @@ _GLOBAL(add_hash_page)
 	mflr	r0
 	stw	r0,4(r1)
 
-	/* Convert context and va to VSID */
-	mulli	r3,r3,897*16		/* multiply context by context skew */
-	rlwinm	r0,r4,4,28,31		/* get ESID (top 4 bits of va) */
-	mulli	r0,r0,0x111		/* multiply by ESID skew */
-	add	r3,r3,r0		/* note create_hpte trims to 24 bits */
-
 #ifdef CONFIG_SMP
 	lwz	r8,TASK_CPU(r2)		/* to go in mmu_hash_lock */
 	oris	r8,r8,12
@@ -247,6 +249,12 @@ _GLOBAL(add_hash_page)
 	ori	r5,r6,_PAGE_HASHPTE
 	stwcx.	r5,0,r8
 	bne-	1b
+
+	/* Convert context and va to VSID */
+	mulli	r3,r3,897*16		/* multiply context by context skew */
+	rlwinm	r0,r4,4,28,31		/* get ESID (top 4 bits of va) */
+	mulli	r0,r0,0x111		/* multiply by ESID skew */
+	add	r3,r3,r0		/* note create_hpte trims to 24 bits */
 
 	bl	create_hpte
 
@@ -350,11 +358,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	beq+	10f			/* no PTE: go look for an empty slot */
 	tlbie	r4
 
-	lis	r4, (htab_hash_searches - PAGE_OFFSET)@ha
-	lwz	r6, (htab_hash_searches - PAGE_OFFSET)@l(r4)
-	addi	r6,r6,1			/* count how many searches we do */
-	stw	r6, (htab_hash_searches - PAGE_OFFSET)@l(r4)
-
 	/* Search the primary PTEG for a PTE whose 1st (d)word matches r5 */
 	mtctr	r0
 	addi	r4,r3,-HPTE_SIZE
@@ -384,12 +387,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	bdnzf	2,1b			/* loop while ctr != 0 && !cr0.eq */
 	beq+	.Lfound_empty
 
-	/* update counter of times that the primary PTEG is full */
-	lis	r4, (primary_pteg_full - PAGE_OFFSET)@ha
-	lwz	r6, (primary_pteg_full - PAGE_OFFSET)@l(r4)
-	addi	r6,r6,1
-	stw	r6, (primary_pteg_full - PAGE_OFFSET)@l(r4)
-
 	patch_site	0f, patch__hash_page_C
 	/* Search the secondary PTEG for an empty slot */
 	ori	r5,r5,PTE_H		/* set H (secondary hash) bit */
@@ -411,30 +408,14 @@ END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	 * and we know there is a definite (although small) speed
 	 * advantage to putting the PTE in the primary PTEG, we always
 	 * put the PTE in the primary PTEG.
-	 *
-	 * In addition, we skip any slot that is mapping kernel text in
-	 * order to avoid a deadlock when not using BAT mappings if
-	 * trying to hash in the kernel hash code itself after it has
-	 * already taken the hash table lock. This works in conjunction
-	 * with pre-faulting of the kernel text.
-	 *
-	 * If the hash table bucket is full of kernel text entries, we'll
-	 * lockup here but that shouldn't happen
 	 */
 
-1:	lis	r4, (next_slot - PAGE_OFFSET)@ha	/* get next evict slot */
+	lis	r4, (next_slot - PAGE_OFFSET)@ha	/* get next evict slot */
 	lwz	r6, (next_slot - PAGE_OFFSET)@l(r4)
 	addi	r6,r6,HPTE_SIZE			/* search for candidate */
 	andi.	r6,r6,7*HPTE_SIZE
 	stw	r6,next_slot@l(r4)
 	add	r4,r3,r6
-	LDPTE	r0,HPTE_SIZE/2(r4)		/* get PTE second word */
-	clrrwi	r0,r0,12
-	lis	r6,etext@h
-	ori	r6,r6,etext@l			/* get etext */
-	tophys(r6,r6)
-	cmpl	cr0,r0,r6			/* compare and try again */
-	blt	1b
 
 #ifndef CONFIG_SMP
 	/* Store PTE in PTEG */
@@ -482,10 +463,6 @@ _ASM_NOKPROBE_SYMBOL(create_hpte)
 	.align	2
 next_slot:
 	.space	4
-primary_pteg_full:
-	.space	4
-htab_hash_searches:
-	.space	4
 	.previous
 
 /*
@@ -517,8 +494,9 @@ _GLOBAL(flush_hash_pages)
 	rlwimi	r5,r4,22,20,29
 #else
 	rlwimi	r5,r4,23,20,28
+	addi	r5,r5,PTE_FLAGS_OFFSET
 #endif
-1:	lwz	r0,PTE_FLAGS_OFFSET(r5)
+1:	lwz	r0,0(r5)
 	cmpwi	cr1,r6,1
 	andi.	r0,r0,_PAGE_HASHPTE
 	bne	2f
@@ -562,9 +540,6 @@ _GLOBAL(flush_hash_pages)
 	 * already clear, we're done (for this pte).  If not,
 	 * clear it (atomically) and proceed.  -- paulus.
 	 */
-#if (PTE_FLAGS_OFFSET != 0)
-	addi	r5,r5,PTE_FLAGS_OFFSET
-#endif
 33:	lwarx	r8,0,r5			/* fetch the pte flags word */
 	andi.	r0,r8,_PAGE_HASHPTE
 	beq	8f			/* done if HASHPTE is already clear */
@@ -633,77 +608,3 @@ _GLOBAL(flush_hash_pages)
 	.previous
 EXPORT_SYMBOL(flush_hash_pages)
 _ASM_NOKPROBE_SYMBOL(flush_hash_pages)
-
-/*
- * Flush an entry from the TLB
- */
-_GLOBAL(_tlbie)
-#ifdef CONFIG_SMP
-	lwz	r8,TASK_CPU(r2)
-	oris	r8,r8,11
-	mfmsr	r10
-	rlwinm	r0,r10,0,17,15		/* clear bit 16 (MSR_EE) */
-	rlwinm	r0,r0,0,28,26		/* clear DR */
-	mtmsr	r0
-	isync
-	lis	r9,mmu_hash_lock@h
-	ori	r9,r9,mmu_hash_lock@l
-	tophys(r9,r9)
-10:	lwarx	r7,0,r9
-	cmpwi	0,r7,0
-	bne-	10b
-	stwcx.	r8,0,r9
-	bne-	10b
-	eieio
-	tlbie	r3
-	sync
-	TLBSYNC
-	li	r0,0
-	stw	r0,0(r9)		/* clear mmu_hash_lock */
-	mtmsr	r10
-	isync
-#else /* CONFIG_SMP */
-	tlbie	r3
-	sync
-#endif /* CONFIG_SMP */
-	blr
-_ASM_NOKPROBE_SYMBOL(_tlbie)
-
-/*
- * Flush the entire TLB. 603/603e only
- */
-_GLOBAL(_tlbia)
-#if defined(CONFIG_SMP)
-	lwz	r8,TASK_CPU(r2)
-	oris	r8,r8,10
-	mfmsr	r10
-	rlwinm	r0,r10,0,17,15		/* clear bit 16 (MSR_EE) */
-	rlwinm	r0,r0,0,28,26		/* clear DR */
-	mtmsr	r0
-	isync
-	lis	r9,mmu_hash_lock@h
-	ori	r9,r9,mmu_hash_lock@l
-	tophys(r9,r9)
-10:	lwarx	r7,0,r9
-	cmpwi	0,r7,0
-	bne-	10b
-	stwcx.	r8,0,r9
-	bne-	10b
-#endif /* CONFIG_SMP */
-	li	r5, 32
-	lis	r4, KERNELBASE@h
-	mtctr	r5
-	sync
-0:	tlbie	r4
-	addi	r4, r4, 0x1000
-	bdnz	0b
-	sync
-#ifdef CONFIG_SMP
-	TLBSYNC
-	li	r0,0
-	stw	r0,0(r9)		/* clear mmu_hash_lock */
-	mtmsr	r10
-	isync
-#endif /* CONFIG_SMP */
-	blr
-_ASM_NOKPROBE_SYMBOL(_tlbia)

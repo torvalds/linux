@@ -748,7 +748,7 @@ static int jmb38x_ms_set_param(struct memstick_host *msh,
 				      clock_delay);
 		host->ifmode = value;
 		break;
-	};
+	}
 	return 0;
 }
 

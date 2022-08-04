@@ -27,7 +27,9 @@
 
 #include <asm/unaligned.h>
 
-/*
+/**
+ * struct cros_ec_keyb - Structure representing EC keyboard device
+ *
  * @rows: Number of rows in the keypad
  * @cols: Number of columns in the keypad
  * @row_shift: log2 or number of rows, rounded up
@@ -58,10 +60,9 @@ struct cros_ec_keyb {
 	struct notifier_block notifier;
 };
 
-
 /**
- * cros_ec_bs_map - Struct mapping Linux keycodes to EC button/switch bitmap
- * #defines
+ * struct cros_ec_bs_map - Mapping between Linux keycodes and EC button/switch
+ *	bitmap #defines
  *
  * @ev_type: The type of the input event to generate (e.g., EV_KEY).
  * @code: A linux keycode

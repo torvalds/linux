@@ -4900,7 +4900,7 @@ static const char *sky2_name(u8 chipid, char *buf, int sz)
 	};
 
 	if (chipid >= CHIP_ID_YUKON_XL && chipid <= CHIP_ID_YUKON_OP_2)
-		strncpy(buf, name[chipid - CHIP_ID_YUKON_XL], sz);
+		snprintf(buf, sz, "%s", name[chipid - CHIP_ID_YUKON_XL]);
 	else
 		snprintf(buf, sz, "(chip %#x)", chipid);
 	return buf;

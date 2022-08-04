@@ -61,13 +61,34 @@
 	};
 
 	cgu: jz4780-cgu@10000000 {
-		compatible = "ingenic,jz4780-cgu";
+		compatible = "ingenic,jz4780-cgu", "simple-mfd";
 		reg = <0x10000000 0x100>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x10000000 0x100>;
+
+		#clock-cells = <1>;
 
 		clocks = <&ext>, <&rtc>;
 		clock-names = "ext", "rtc";
 
-		#clock-cells = <1>;
+		otg_phy: usb-phy@3c {
+			compatible = "ingenic,jz4780-phy";
+			reg = <0x3c 0x10>;
+
+			clocks = <&cgu JZ4780_CLK_OTG1>;
+
+			#phy-cells = <0>;
+
+			status = "disabled";
+		};
+
+		rng: rng@d8 {
+			compatible = "ingenic,jz4780-rng";
+			reg = <0xd8 0x8>;
+
+			status = "disabled";
+		};
 	};
 
 	tcu: timer@10002000 {
@@ -491,6 +512,26 @@
 		reg = <0x134d0000 0x10000>;
 
 		clocks = <&cgu JZ4780_CLK_BCH>;
+
+		status = "disabled";
+	};
+
+	otg: usb@13500000 {
+		compatible = "ingenic,jz4780-otg", "snps,dwc2";
+		reg = <0x13500000 0x40000>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <21>;
+
+		clocks = <&cgu JZ4780_CLK_UHC>;
+		clock-names = "otg";
+
+		phys = <&otg_phy>;
+		phy-names = "usb2-phy";
+
+		g-rx-fifo-size = <768>;
+		g-np-tx-fifo-size = <256>;
+		g-tx-fifo-size = <256 256 256 256 256 256 256 512>;
 
 		status = "disabled";
 	};

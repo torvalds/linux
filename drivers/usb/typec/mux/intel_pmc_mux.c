@@ -176,6 +176,7 @@ static int hsl_orientation(struct pmc_usb_port *port)
 static int pmc_usb_command(struct pmc_usb_port *port, u8 *msg, u32 len)
 {
 	u8 response[4];
+	u8 status_res;
 	int ret;
 
 	/*
@@ -189,9 +190,13 @@ static int pmc_usb_command(struct pmc_usb_port *port, u8 *msg, u32 len)
 	if (ret)
 		return ret;
 
-	if (response[2] & PMC_USB_RESP_STATUS_FAILURE) {
-		if (response[2] & PMC_USB_RESP_STATUS_FATAL)
+	status_res = (msg[0] & 0xf) < PMC_USB_SAFE_MODE ?
+		     response[2] : response[1];
+
+	if (status_res & PMC_USB_RESP_STATUS_FAILURE) {
+		if (status_res & PMC_USB_RESP_STATUS_FATAL)
 			return -EIO;
+
 		return -EBUSY;
 	}
 
@@ -202,9 +207,20 @@ static int
 pmc_usb_mux_dp_hpd(struct pmc_usb_port *port, struct typec_displayport_data *dp)
 {
 	u8 msg[2] = { };
+	int ret;
 
 	msg[0] = PMC_USB_DP_HPD;
 	msg[0] |= port->usb3_port << PMC_USB_MSG_USB3_PORT_SHIFT;
+
+	/* Configure HPD first if HPD,IRQ comes together */
+	if (!IOM_PORT_HPD_ASSERTED(port->iom_status) &&
+	    dp->status & DP_STATUS_IRQ_HPD &&
+	    dp->status & DP_STATUS_HPD_STATE) {
+		msg[1] = PMC_USB_DP_HPD_LVL;
+		ret = pmc_usb_command(port, msg, sizeof(msg));
+		if (ret)
+			return ret;
+	}
 
 	if (dp->status & DP_STATUS_IRQ_HPD)
 		msg[1] = PMC_USB_DP_HPD_IRQ;
@@ -256,6 +272,7 @@ static int
 pmc_usb_mux_tbt(struct pmc_usb_port *port, struct typec_mux_state *state)
 {
 	struct typec_thunderbolt_data *data = state->data;
+	u8 cable_rounded = TBT_CABLE_ROUNDED_SUPPORT(data->cable_mode);
 	u8 cable_speed = TBT_CABLE_SPEED(data->cable_mode);
 	struct altmode_req req = { };
 
@@ -283,6 +300,8 @@ pmc_usb_mux_tbt(struct pmc_usb_port *port, struct typec_mux_state *state)
 		req.mode_data |= PMC_USB_ALTMODE_ACTIVE_CABLE;
 
 	req.mode_data |= PMC_USB_ALTMODE_CABLE_SPD(cable_speed);
+
+	req.mode_data |= PMC_USB_ALTMODE_TBT_GEN(cable_rounded);
 
 	return pmc_usb_command(port, (void *)&req, sizeof(req));
 }
@@ -319,6 +338,11 @@ pmc_usb_mux_usb4(struct pmc_usb_port *port, struct typec_mux_state *state)
 		fallthrough;
 	default:
 		req.mode_data |= PMC_USB_ALTMODE_ACTIVE_CABLE;
+
+		/* Configure data rate to rounded in the case of Active TBT3
+		 * and USB4 cables.
+		 */
+		req.mode_data |= PMC_USB_ALTMODE_TBT_GEN(1);
 		break;
 	}
 

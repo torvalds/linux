@@ -200,7 +200,28 @@ static int dsi_7nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 
 static void dsi_7nm_phy_disable(struct msm_dsi_phy *phy)
 {
-	/* TODO */
+	void __iomem *base = phy->base;
+	u32 data;
+
+	DBG("");
+
+	if (dsi_phy_hw_v4_0_is_pll_on(phy))
+		pr_warn("Turning OFF PHY while PLL is on\n");
+
+	dsi_phy_hw_v4_0_config_lpcdrx(phy, false);
+	data = dsi_phy_read(base + REG_DSI_7nm_PHY_CMN_CTRL_0);
+
+	/* disable all lanes */
+	data &= ~0x1F;
+	dsi_phy_write(base + REG_DSI_7nm_PHY_CMN_CTRL_0, data);
+	dsi_phy_write(base + REG_DSI_7nm_PHY_CMN_LANE_CTRL0, 0);
+
+	/* Turn off all PHY blocks */
+	dsi_phy_write(base + REG_DSI_7nm_PHY_CMN_CTRL_0, 0x00);
+	/* make sure phy is turned off */
+	wmb();
+
+	DBG("DSI%d PHY disabled", phy->id);
 }
 
 static int dsi_7nm_phy_init(struct msm_dsi_phy *phy)

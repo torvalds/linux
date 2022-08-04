@@ -186,8 +186,7 @@ void mmu_mark_initmem_nx(void)
 	mmu_mapin_ram_chunk(0, boundary, PAGE_KERNEL_TEXT, false);
 	mmu_mapin_ram_chunk(boundary, einittext8, PAGE_KERNEL, false);
 
-	if (IS_ENABLED(CONFIG_PIN_TLB_TEXT))
-		mmu_pin_tlb(block_mapped_ram, false);
+	mmu_pin_tlb(block_mapped_ram, false);
 }
 
 #ifdef CONFIG_STRICT_KERNEL_RWX

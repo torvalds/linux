@@ -24,6 +24,50 @@ config MTD_SPI_NOR_USE_4K_SECTORS
 	  Please note that some tools/drivers/filesystems may not work with
 	  4096 B erase size (e.g. UBIFS requires 15 KiB as a minimum).
 
+choice
+	prompt "Software write protection at boot"
+	default MTD_SPI_NOR_SWP_DISABLE_ON_VOLATILE
+
+config MTD_SPI_NOR_SWP_DISABLE
+	bool "Disable SWP on any flashes (legacy behavior)"
+	help
+	  This option disables the software write protection on any SPI
+	  flashes at boot-up.
+
+	  Depending on the flash chip this either clears the block protection
+	  bits or does a "Global Unprotect" command.
+
+	  Don't use this if you intent to use the software write protection
+	  of your SPI flash. This is only to keep backwards compatibility.
+
+config MTD_SPI_NOR_SWP_DISABLE_ON_VOLATILE
+	bool "Disable SWP on flashes w/ volatile protection bits"
+	help
+	  Some SPI flashes have volatile block protection bits, ie. after a
+	  power-up or a reset the flash is software write protected by
+	  default.
+
+	  This option disables the software write protection for these kind
+	  of flashes while keeping it enabled for any other SPI flashes
+	  which have non-volatile write protection bits.
+
+	  If the software write protection will be disabled depending on
+	  the flash either the block protection bits are cleared or a
+	  "Global Unprotect" command is issued.
+
+	  If you are unsure, select this option.
+
+config MTD_SPI_NOR_SWP_KEEP
+	bool "Keep software write protection as is"
+	help
+	  If you select this option the software write protection of any
+	  SPI flashes will not be changed. If your flash is software write
+	  protected or will be automatically software write protected after
+	  power-up you have to manually unlock it before you are able to
+	  write to it.
+
+endchoice
+
 source "drivers/mtd/spi-nor/controllers/Kconfig"
 
 endif # MTD_SPI_NOR

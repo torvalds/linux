@@ -68,9 +68,8 @@ struct wcnss_msg_hdr {
 	u32 len;
 } __packed;
 
-/**
+/*
  * struct wcnss_version_resp - version request response
- * @hdr:	common packet wcnss_msg_hdr header
  */
 struct wcnss_version_resp {
 	struct wcnss_msg_hdr hdr;
@@ -108,9 +107,11 @@ struct wcnss_download_nv_resp {
 
 /**
  * wcnss_ctrl_smd_callback() - handler from SMD responses
- * @channel:	smd channel handle
+ * @rpdev:	remote processor message device pointer
  * @data:	pointer to the incoming data packet
  * @count:	size of the incoming data packet
+ * @priv:	unused
+ * @addr:	unused
  *
  * Handles any incoming packets from the remote WCNSS_CTRL service.
  */
@@ -267,6 +268,7 @@ free_req:
  * @wcnss:	wcnss handle, retrieved from drvdata
  * @name:	SMD channel name
  * @cb:		callback to handle incoming data on the channel
+ * @priv:	private data for use in the call-back
  */
 struct rpmsg_endpoint *qcom_wcnss_open_channel(void *wcnss, const char *name, rpmsg_rx_cb_t cb, void *priv)
 {

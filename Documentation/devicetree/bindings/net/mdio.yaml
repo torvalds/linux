@@ -70,7 +70,7 @@ patternProperties:
           The ID number for the device.
 
       broken-turn-around:
-        $ref: /schemas/types.yaml#definitions/flag
+        $ref: /schemas/types.yaml#/definitions/flag
         description:
           If set, indicates the MDIO device does not correctly release
           the turn around line low at end of the control phase of the

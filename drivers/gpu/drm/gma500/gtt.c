@@ -96,16 +96,12 @@ static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r,
 	}
 
 	/* Write our page entries into the GTT itself */
-	for (i = r->roll; i < r->npage; i++) {
+	for (i = 0; i < r->npage; i++) {
 		pte = psb_gtt_mask_pte(page_to_pfn(r->pages[i]),
 				       PSB_MMU_CACHED_MEMORY);
 		iowrite32(pte, gtt_slot++);
 	}
-	for (i = 0; i < r->roll; i++) {
-		pte = psb_gtt_mask_pte(page_to_pfn(r->pages[i]),
-				       PSB_MMU_CACHED_MEMORY);
-		iowrite32(pte, gtt_slot++);
-	}
+
 	/* Make sure all the entries are set before we return */
 	ioread32(gtt_slot - 1);
 
@@ -138,49 +134,6 @@ static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
 		iowrite32(pte, gtt_slot++);
 	ioread32(gtt_slot - 1);
 	set_pages_array_wb(r->pages, r->npage);
-}
-
-/**
- *	psb_gtt_roll	-	set scrolling position
- *	@dev: our DRM device
- *	@r: the gtt mapping we are using
- *	@roll: roll offset
- *
- *	Roll an existing pinned mapping by moving the pages through the GTT.
- *	This allows us to implement hardware scrolling on the consoles without
- *	a 2D engine
- */
-void psb_gtt_roll(struct drm_device *dev, struct gtt_range *r, int roll)
-{
-	u32 __iomem *gtt_slot;
-	u32 pte;
-	int i;
-
-	if (roll >= r->npage) {
-		WARN_ON(1);
-		return;
-	}
-
-	r->roll = roll;
-
-	/* Not currently in the GTT - no worry we will write the mapping at
-	   the right position when it gets pinned */
-	if (!r->stolen && !r->in_gart)
-		return;
-
-	gtt_slot = psb_gtt_entry(dev, r);
-
-	for (i = r->roll; i < r->npage; i++) {
-		pte = psb_gtt_mask_pte(page_to_pfn(r->pages[i]),
-				       PSB_MMU_CACHED_MEMORY);
-		iowrite32(pte, gtt_slot++);
-	}
-	for (i = 0; i < r->roll; i++) {
-		pte = psb_gtt_mask_pte(page_to_pfn(r->pages[i]),
-				       PSB_MMU_CACHED_MEMORY);
-		iowrite32(pte, gtt_slot++);
-	}
-	ioread32(gtt_slot - 1);
 }
 
 /**
@@ -346,7 +299,6 @@ struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 	gt->resource.name = name;
 	gt->stolen = backed;
 	gt->in_gart = backed;
-	gt->roll = 0;
 	/* Ensure this is set for non GEM objects */
 	gt->gem.dev = dev;
 	ret = allocate_resource(dev_priv->gtt_mem, &gt->resource,

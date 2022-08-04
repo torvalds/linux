@@ -27,11 +27,13 @@
 
 #include "atom.h"
 #include "ci_dpm.h"
+#include "cik.h"
 #include "cikd.h"
 #include "r600_dpm.h"
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_ucode.h"
+#include "si_dpm.h"
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -152,17 +154,6 @@ static const struct ci_pt_config_reg didt_config_ci[] =
 extern u8 rv770_get_memory_module_index(struct radeon_device *rdev);
 extern int ni_copy_and_switch_arb_sets(struct radeon_device *rdev,
 				       u32 arb_freq_src, u32 arb_freq_dest);
-extern u8 si_get_ddr3_mclk_frequency_ratio(u32 memory_clock);
-extern u8 si_get_mclk_frequency_ratio(u32 memory_clock, bool strobe_mode);
-extern void si_trim_voltage_table_to_fit_state_table(struct radeon_device *rdev,
-						     u32 max_voltage_steps,
-						     struct atom_voltage_table *voltage_table);
-extern void cik_enter_rlc_safe_mode(struct radeon_device *rdev);
-extern void cik_exit_rlc_safe_mode(struct radeon_device *rdev);
-extern int ci_mc_load_microcode(struct radeon_device *rdev);
-extern void cik_update_cg(struct radeon_device *rdev,
-			  u32 block, bool enable);
-
 static int ci_get_std_voltage_value_sidd(struct radeon_device *rdev,
 					 struct atom_voltage_table_entry *voltage_table,
 					 u16 *std_voltage_hi_sidd, u16 *std_voltage_lo_sidd);
@@ -1366,7 +1357,6 @@ static void ci_set_dpm_event_sources(struct radeon_device *rdev, u32 sources)
 {
 	struct ci_power_info *pi = ci_get_pi(rdev);
 	bool want_thermal_protection;
-	enum radeon_dpm_event_src dpm_event_src;
 	u32 tmp;
 
 	switch (sources) {
@@ -1376,28 +1366,17 @@ static void ci_set_dpm_event_sources(struct radeon_device *rdev, u32 sources)
 		break;
 	case (1 << RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL):
 		want_thermal_protection = true;
-		dpm_event_src = RADEON_DPM_EVENT_SRC_DIGITAL;
 		break;
 	case (1 << RADEON_DPM_AUTO_THROTTLE_SRC_EXTERNAL):
 		want_thermal_protection = true;
-		dpm_event_src = RADEON_DPM_EVENT_SRC_EXTERNAL;
 		break;
 	case ((1 << RADEON_DPM_AUTO_THROTTLE_SRC_EXTERNAL) |
 	      (1 << RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL)):
 		want_thermal_protection = true;
-		dpm_event_src = RADEON_DPM_EVENT_SRC_DIGIAL_OR_EXTERNAL;
 		break;
 	}
 
 	if (want_thermal_protection) {
-#if 0
-		/* XXX: need to figure out how to handle this properly */
-		tmp = RREG32_SMC(CG_THERMAL_CTRL);
-		tmp &= DPM_EVENT_SRC_MASK;
-		tmp |= DPM_EVENT_SRC(dpm_event_src);
-		WREG32_SMC(CG_THERMAL_CTRL, tmp);
-#endif
-
 		tmp = RREG32_SMC(GENERAL_PWRMGT);
 		if (pi->thermal_protection)
 			tmp &= ~THERMAL_PROTECTION_DIS;
@@ -4860,8 +4839,8 @@ static void ci_request_link_speed_change_before_state_change(struct radeon_devic
 		case RADEON_PCIE_GEN2:
 			if (radeon_acpi_pcie_performance_request(rdev, PCIE_PERF_REQ_PECI_GEN2, false) == 0)
 				break;
+			fallthrough;
 #endif
-			/* fall through */
 		default:
 			pi->force_pcie_gen = ci_get_current_pcie_speed(rdev);
 			break;

@@ -497,7 +497,6 @@ struct radeon_bo {
 	struct ttm_buffer_object	tbo;
 	struct ttm_bo_kmap_obj		kmap;
 	u32				flags;
-	unsigned			pin_count;
 	void				*kptr;
 	u32				tiling_flags;
 	u32				pitch;
@@ -510,7 +509,6 @@ struct radeon_bo {
 	/* Constant after initialization */
 	struct radeon_device		*rdev;
 
-	struct ttm_bo_kmap_obj		dma_buf_vmap;
 	pid_t				pid;
 
 #ifdef CONFIG_MMU_NOTIFIER
@@ -1992,6 +1990,7 @@ struct radeon_asic {
 		int (*get_fan_speed_percent)(struct radeon_device *rdev, u32 *speed);
 		u32 (*get_current_sclk)(struct radeon_device *rdev);
 		u32 (*get_current_mclk)(struct radeon_device *rdev);
+		u16 (*get_current_vddc)(struct radeon_device *rdev);
 	} dpm;
 	/* pageflipping */
 	struct {
@@ -2245,6 +2244,7 @@ int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
 int radeon_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
+int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 
 /* VRAM scratch page for HDP bug, default vram page */
 struct r600_vram_scratch {
@@ -2831,6 +2831,12 @@ extern void radeon_program_register_sequence(struct radeon_device *rdev,
 					     const u32 *registers,
 					     const u32 array_size);
 struct radeon_device *radeon_get_rdev(struct ttm_bo_device *bdev);
+
+/* KMS */
+
+u32 radeon_get_vblank_counter_kms(struct drm_crtc *crtc);
+int radeon_enable_vblank_kms(struct drm_crtc *crtc);
+void radeon_disable_vblank_kms(struct drm_crtc *crtc);
 
 /*
  * vm

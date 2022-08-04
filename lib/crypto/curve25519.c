@@ -13,8 +13,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 
-bool curve25519_selftest(void);
-
 static int __init mod_init(void)
 {
 	if (!IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS) &&

@@ -15,11 +15,14 @@
 #include <sys/stat.h>
 #include <linux/perf_event.h>
 
+#include <bpf/bpf.h>
 #include <bpf/libbpf.h>
-#include "bpf_load.h"
 #include "bpf_util.h"
 #include "perf-sys.h"
 #include "trace_helpers.h"
+
+static struct bpf_program *progs[2];
+static struct bpf_link *links[2];
 
 #define CHECK_PERROR_RET(condition) ({			\
 	int __ret = !!(condition);			\
@@ -86,21 +89,22 @@ static int bpf_get_retprobe_bit(const char *event_type)
 	return ret;
 }
 
-static int test_debug_fs_kprobe(int prog_fd_idx, const char *fn_name,
+static int test_debug_fs_kprobe(int link_idx, const char *fn_name,
 				__u32 expected_fd_type)
 {
 	__u64 probe_offset, probe_addr;
 	__u32 len, prog_id, fd_type;
+	int err, event_fd;
 	char buf[256];
-	int err;
 
 	len = sizeof(buf);
-	err = bpf_task_fd_query(getpid(), event_fd[prog_fd_idx], 0, buf, &len,
+	event_fd = bpf_link__fd(links[link_idx]);
+	err = bpf_task_fd_query(getpid(), event_fd, 0, buf, &len,
 				&prog_id, &fd_type, &probe_offset,
 				&probe_addr);
 	if (err < 0) {
 		printf("FAIL: %s, for event_fd idx %d, fn_name %s\n",
-		       __func__, prog_fd_idx, fn_name);
+		       __func__, link_idx, fn_name);
 		perror("    :");
 		return -1;
 	}
@@ -108,7 +112,7 @@ static int test_debug_fs_kprobe(int prog_fd_idx, const char *fn_name,
 	    fd_type != expected_fd_type ||
 	    probe_offset != 0x0 || probe_addr != 0x0) {
 		printf("FAIL: bpf_trace_event_query(event_fd[%d]):\n",
-		       prog_fd_idx);
+		       link_idx);
 		printf("buf: %s, fd_type: %u, probe_offset: 0x%llx,"
 		       " probe_addr: 0x%llx\n",
 		       buf, fd_type, probe_offset, probe_addr);
@@ -125,12 +129,13 @@ static int test_nondebug_fs_kuprobe_common(const char *event_type,
 	int is_return_bit = bpf_get_retprobe_bit(event_type);
 	int type = bpf_find_probe_type(event_type);
 	struct perf_event_attr attr = {};
-	int fd;
+	struct bpf_link *link;
+	int fd, err = -1;
 
 	if (type < 0 || is_return_bit < 0) {
 		printf("FAIL: %s incorrect type (%d) or is_return_bit (%d)\n",
 			__func__, type, is_return_bit);
-		return -1;
+		return err;
 	}
 
 	attr.sample_period = 1;
@@ -149,14 +154,21 @@ static int test_nondebug_fs_kuprobe_common(const char *event_type,
 	attr.type = type;
 
 	fd = sys_perf_event_open(&attr, -1, 0, -1, 0);
-	CHECK_PERROR_RET(fd < 0);
+	link = bpf_program__attach_perf_event(progs[0], fd);
+	if (libbpf_get_error(link)) {
+		printf("ERROR: bpf_program__attach_perf_event failed\n");
+		link = NULL;
+		close(fd);
+		goto cleanup;
+	}
 
-	CHECK_PERROR_RET(ioctl(fd, PERF_EVENT_IOC_ENABLE, 0) < 0);
-	CHECK_PERROR_RET(ioctl(fd, PERF_EVENT_IOC_SET_BPF, prog_fd[0]) < 0);
 	CHECK_PERROR_RET(bpf_task_fd_query(getpid(), fd, 0, buf, buf_len,
 			 prog_id, fd_type, probe_offset, probe_addr) < 0);
+	err = 0;
 
-	return 0;
+cleanup:
+	bpf_link__destroy(link);
+	return err;
 }
 
 static int test_nondebug_fs_probe(const char *event_type, const char *name,
@@ -215,17 +227,18 @@ static int test_nondebug_fs_probe(const char *event_type, const char *name,
 
 static int test_debug_fs_uprobe(char *binary_path, long offset, bool is_return)
 {
+	char buf[256], event_alias[sizeof("test_1234567890")];
 	const char *event_type = "uprobe";
 	struct perf_event_attr attr = {};
-	char buf[256], event_alias[sizeof("test_1234567890")];
 	__u64 probe_offset, probe_addr;
 	__u32 len, prog_id, fd_type;
-	int err, res, kfd, efd;
+	int err = -1, res, kfd, efd;
+	struct bpf_link *link;
 	ssize_t bytes;
 
 	snprintf(buf, sizeof(buf), "/sys/kernel/debug/tracing/%s_events",
 		 event_type);
-	kfd = open(buf, O_WRONLY | O_APPEND, 0);
+	kfd = open(buf, O_WRONLY | O_TRUNC, 0);
 	CHECK_PERROR_RET(kfd < 0);
 
 	res = snprintf(event_alias, sizeof(event_alias), "test_%d", getpid());
@@ -254,10 +267,15 @@ static int test_debug_fs_uprobe(char *binary_path, long offset, bool is_return)
 	attr.type = PERF_TYPE_TRACEPOINT;
 	attr.sample_period = 1;
 	attr.wakeup_events = 1;
+
 	kfd = sys_perf_event_open(&attr, -1, 0, -1, PERF_FLAG_FD_CLOEXEC);
-	CHECK_PERROR_RET(kfd < 0);
-	CHECK_PERROR_RET(ioctl(kfd, PERF_EVENT_IOC_SET_BPF, prog_fd[0]) < 0);
-	CHECK_PERROR_RET(ioctl(kfd, PERF_EVENT_IOC_ENABLE, 0) < 0);
+	link = bpf_program__attach_perf_event(progs[0], kfd);
+	if (libbpf_get_error(link)) {
+		printf("ERROR: bpf_program__attach_perf_event failed\n");
+		link = NULL;
+		close(kfd);
+		goto cleanup;
+	}
 
 	len = sizeof(buf);
 	err = bpf_task_fd_query(getpid(), kfd, 0, buf, &len,
@@ -283,32 +301,49 @@ static int test_debug_fs_uprobe(char *binary_path, long offset, bool is_return)
 		       probe_offset);
 		return -1;
 	}
+	err = 0;
 
-	close(kfd);
-	return 0;
+cleanup:
+	bpf_link__destroy(link);
+	return err;
 }
 
 int main(int argc, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	extern char __executable_start;
 	char filename[256], buf[256];
 	__u64 uprobe_file_offset;
-
-	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
-		perror("setrlimit(RLIMIT_MEMLOCK)");
-		return 1;
-	}
+	struct bpf_program *prog;
+	struct bpf_object *obj;
+	int i = 0, err = -1;
 
 	if (load_kallsyms()) {
 		printf("failed to process /proc/kallsyms\n");
-		return 1;
+		return err;
 	}
 
-	if (load_bpf_file(filename)) {
-		printf("%s", bpf_log_buf);
-		return 1;
+	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+	obj = bpf_object__open_file(filename, NULL);
+	if (libbpf_get_error(obj)) {
+		fprintf(stderr, "ERROR: opening BPF object file failed\n");
+		return err;
+	}
+
+	/* load BPF program */
+	if (bpf_object__load(obj)) {
+		fprintf(stderr, "ERROR: loading BPF object file failed\n");
+		goto cleanup;
+	}
+
+	bpf_object__for_each_program(prog, obj) {
+		progs[i] = prog;
+		links[i] = bpf_program__attach(progs[i]);
+		if (libbpf_get_error(links[i])) {
+			fprintf(stderr, "ERROR: bpf_program__attach failed\n");
+			links[i] = NULL;
+			goto cleanup;
+		}
+		i++;
 	}
 
 	/* test two functions in the corresponding *_kern.c file */
@@ -378,6 +413,12 @@ int main(int argc, char **argv)
 					   false));
 	CHECK_AND_RET(test_debug_fs_uprobe((char *)argv[0], uprobe_file_offset,
 					   true));
+	err = 0;
 
-	return 0;
+cleanup:
+	for (i--; i >= 0; i--)
+		bpf_link__destroy(links[i]);
+
+	bpf_object__close(obj);
+	return err;
 }

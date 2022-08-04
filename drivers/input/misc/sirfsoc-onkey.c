@@ -181,7 +181,7 @@ static int __maybe_unused sirfsoc_pwrc_resume(struct device *dev)
 	 * if users touch X_ONKEY_B, see arch/arm/mach-prima2/pm.c
 	 */
 	mutex_lock(&input->mutex);
-	if (input->users)
+	if (input_device_enabled(input))
 		sirfsoc_pwrc_toggle_interrupts(pwrcdrv, true);
 	mutex_unlock(&input->mutex);
 

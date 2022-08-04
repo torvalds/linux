@@ -14,6 +14,8 @@
 /* RVU Block revision IDs */
 #define RVU_BLK_RVUM_REVID		0x01
 
+#define RVU_MULTI_BLK_VER		0x7ULL
+
 /* RVU Block Address Enumeration */
 enum rvu_block_addr_e {
 	BLKADDR_RVUM		= 0x0ULL,
@@ -31,7 +33,9 @@ enum rvu_block_addr_e {
 	BLKADDR_NDC_NIX0_RX	= 0xcULL,
 	BLKADDR_NDC_NIX0_TX	= 0xdULL,
 	BLKADDR_NDC_NPA0	= 0xeULL,
-	BLK_COUNT		= 0xfULL,
+	BLKADDR_NDC_NIX1_RX	= 0x10ULL,
+	BLKADDR_NDC_NIX1_TX	= 0x11ULL,
+	BLK_COUNT		= 0x12ULL,
 };
 
 /* RVU Block Type Enumeration */
@@ -58,6 +62,16 @@ enum rvu_af_int_vec_e {
 	RVU_AF_INT_VEC_GEN    = 0x3,
 	RVU_AF_INT_VEC_MBOX   = 0x4,
 	RVU_AF_INT_VEC_CNT    = 0x5,
+};
+
+/* NPA Admin function Interrupt Vector Enumeration */
+enum npa_af_int_vec_e {
+	NPA_AF_INT_VEC_RVU	= 0x0,
+	NPA_AF_INT_VEC_GEN	= 0x1,
+	NPA_AF_INT_VEC_AQ_DONE	= 0x2,
+	NPA_AF_INT_VEC_AF_ERR	= 0x3,
+	NPA_AF_INT_VEC_POISON	= 0x4,
+	NPA_AF_INT_VEC_CNT	= 0x5,
 };
 
 /**
@@ -98,6 +112,19 @@ enum npa_aq_instop {
 	NPA_AQ_INSTOP_READ   = 0x3,
 	NPA_AQ_INSTOP_LOCK   = 0x4,
 	NPA_AQ_INSTOP_UNLOCK = 0x5,
+};
+
+/* ALLOC/FREE input queues Enumeration from coprocessors */
+enum npa_inpq {
+	NPA_INPQ_NIX0_RX       = 0x0,
+	NPA_INPQ_NIX0_TX       = 0x1,
+	NPA_INPQ_NIX1_RX       = 0x2,
+	NPA_INPQ_NIX1_TX       = 0x3,
+	NPA_INPQ_SSO           = 0x4,
+	NPA_INPQ_TIM           = 0x5,
+	NPA_INPQ_DPI           = 0x6,
+	NPA_INPQ_AURA_OP       = 0xe,
+	NPA_INPQ_INTERNAL_RSV  = 0xf,
 };
 
 /* NPA admin queue instruction structure */
@@ -917,4 +944,15 @@ enum nix_vtag_size {
 	VTAGSIZE_T4   = 0x0,
 	VTAGSIZE_T8   = 0x1,
 };
+
+enum nix_tx_vtag_op {
+	NOP		= 0x0,
+	VTAG_INSERT	= 0x1,
+	VTAG_REPLACE	= 0x2,
+};
+
+/* NIX RX VTAG actions */
+#define VTAG_STRIP	BIT_ULL(4)
+#define VTAG_CAPTURE	BIT_ULL(5)
+
 #endif /* RVU_STRUCT_H */

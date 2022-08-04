@@ -13,6 +13,7 @@
 #define HTS221_DEV_NAME		"hts221"
 
 #include <linux/iio/iio.h>
+#include <linux/regulator/consumer.h>
 
 enum hts221_sensor_type {
 	HTS221_SENSOR_H,
@@ -29,6 +30,7 @@ struct hts221_hw {
 	const char *name;
 	struct device *dev;
 	struct regmap *regmap;
+	struct regulator *vdd;
 
 	struct iio_trigger *trig;
 	int irq;

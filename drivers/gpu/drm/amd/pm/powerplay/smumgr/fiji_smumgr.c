@@ -318,13 +318,12 @@ static bool fiji_is_hw_avfs_present(struct pp_hwmgr *hwmgr)
 {
 
 	uint32_t efuse = 0;
-	uint32_t mask = (1 << ((AVFS_EN_MSB - AVFS_EN_LSB) + 1)) - 1;
 
 	if (!hwmgr->not_vf)
 		return false;
 
 	if (!atomctrl_read_efuse(hwmgr, AVFS_EN_LSB, AVFS_EN_MSB,
-			mask, &efuse)) {
+			&efuse)) {
 		if (efuse)
 			return true;
 	}
@@ -1091,7 +1090,7 @@ static int fiji_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 }
 
 
-/**
+/*
  * MCLK Frequency Ratio
  * SEQ_CG_RESP  Bit[31:24] - 0x0
  * Bit[27:24] \96 DDR3 Frequency ratio
@@ -1601,20 +1600,19 @@ static int fiji_populate_smc_uvd_level(struct pp_hwmgr *hwmgr,
 static int fiji_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 		struct SMU73_Discrete_DpmTable *table)
 {
-	int result = 0;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	table->GraphicsBootLevel = 0;
 	table->MemoryBootLevel = 0;
 
 	/* find boot level from dpm table */
-	result = phm_find_boot_level(&(data->dpm_table.sclk_table),
-			data->vbios_boot_state.sclk_bootup_value,
-			(uint32_t *)&(table->GraphicsBootLevel));
+	phm_find_boot_level(&(data->dpm_table.sclk_table),
+			    data->vbios_boot_state.sclk_bootup_value,
+			    (uint32_t *)&(table->GraphicsBootLevel));
 
-	result = phm_find_boot_level(&(data->dpm_table.mclk_table),
-			data->vbios_boot_state.mclk_bootup_value,
-			(uint32_t *)&(table->MemoryBootLevel));
+	phm_find_boot_level(&(data->dpm_table.mclk_table),
+			    data->vbios_boot_state.mclk_bootup_value,
+			    (uint32_t *)&(table->MemoryBootLevel));
 
 	table->BootVddc  = data->vbios_boot_state.vddc_bootup_value *
 			VOLTAGE_SCALE;

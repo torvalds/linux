@@ -110,6 +110,14 @@ config CORESIGHT_SOURCE_ETM4X
 	  To compile this driver as a module, choose M here: the
 	  module will be called coresight-etm4x.
 
+config ETM4X_IMPDEF_FEATURE
+	bool "Control implementation defined overflow support in ETM 4.x driver"
+	depends on CORESIGHT_SOURCE_ETM4X
+	help
+	  This control provides implementation define control for CoreSight
+	  ETM 4.x tracer module that can't reduce commit rate automatically.
+	  This avoids overflow between the ETM tracer module and the cpu core.
+
 config CORESIGHT_STM
 	tristate "CoreSight System Trace Macrocell driver"
 	depends on (ARM && !(CPU_32v3 || CPU_32v4 || CPU_32v4T)) || ARM64

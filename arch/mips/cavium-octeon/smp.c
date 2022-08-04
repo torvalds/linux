@@ -290,9 +290,6 @@ static int octeon_cpu_disable(void)
 {
 	unsigned int cpu = smp_processor_id();
 
-	if (cpu == 0)
-		return -EBUSY;
-
 	if (!octeon_bootloader_entry_addr)
 		return -ENOTSUPP;
 

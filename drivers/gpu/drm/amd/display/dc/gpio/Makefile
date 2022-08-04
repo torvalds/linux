@@ -47,7 +47,7 @@ endif
 ###############################################################################
 # all DCE8.x are derived from DCE8.0
 GPIO_DCE80 = hw_translate_dce80.o hw_factory_dce80.o
-	
+
 AMD_DAL_GPIO_DCE80 = $(addprefix $(AMDDALPATH)/dc/gpio/dce80/,$(GPIO_DCE80))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCE80)
@@ -97,11 +97,10 @@ GPIO_DCN21 = hw_translate_dcn21.o hw_factory_dcn21.o
 AMD_DAL_GPIO_DCN21 = $(addprefix $(AMDDALPATH)/dc/gpio/dcn21/,$(GPIO_DCN21))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCN21)
-endif
+
 ###############################################################################
 # DCN 3
 ###############################################################################
-ifdef CONFIG_DRM_AMD_DC_DCN3_0
 GPIO_DCN30 = hw_translate_dcn30.o hw_factory_dcn30.o
 
 AMD_DAL_GPIO_DCN30 = $(addprefix $(AMDDALPATH)/dc/gpio/dcn30/,$(GPIO_DCN30))

@@ -32,6 +32,7 @@ config PHY_ROCKCHIP_INNO_HDMI
 	tristate "Rockchip INNO HDMI PHY Driver"
 	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF
 	depends on COMMON_CLK
+	depends on HAS_IOMEM
 	select GENERIC_PHY
 	help
 	  Enable this to support the Rockchip Innosilicon HDMI PHY.

@@ -370,3 +370,10 @@ Date:		April 2020
 Contact:	"Daeho Jeong" <daehojeong@google.com>
 Description:	Give a way to change iostat_period time. 3secs by default.
 		The new iostat trace gives stats gap given the period.
+What:		/sys/fs/f2fs/<disk>/max_io_bytes
+Date:		December 2020
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:	This gives a control to limit the bio size in f2fs.
+		Default is zero, which will follow underlying block layer limit,
+		whereas, if it has a certain bytes value, f2fs won't submit a
+		bio larger than that size.

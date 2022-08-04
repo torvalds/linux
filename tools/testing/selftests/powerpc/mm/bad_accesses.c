@@ -38,7 +38,7 @@ static void segv_handler(int n, siginfo_t *info, void *ctxt_v)
 
 int bad_access(char *p, bool write)
 {
-	char x;
+	char x = 0;
 
 	fault_code = 0;
 	fault_addr = 0;

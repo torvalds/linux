@@ -69,7 +69,11 @@ struct uc_css_header {
 #define CSS_SW_VERSION_UC_MAJOR		(0xFF << 16)
 #define CSS_SW_VERSION_UC_MINOR		(0xFF << 8)
 #define CSS_SW_VERSION_UC_PATCH		(0xFF << 0)
-	u32 reserved[14];
+	u32 reserved0[13];
+	union {
+		u32 private_data_size; /* only applies to GuC */
+		u32 reserved1;
+	};
 	u32 header_info;
 } __packed;
 static_assert(sizeof(struct uc_css_header) == 128);

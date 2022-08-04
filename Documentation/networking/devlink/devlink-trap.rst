@@ -476,6 +476,10 @@ be added to the following table:
    * - ``esp_parsing``
      - ``drop``
      - Traps packets dropped due to an error in the ESP header parsing
+   * - ``blackhole_nexthop``
+     - ``drop``
+     - Traps packets that the device decided to drop in case they hit a
+       blackhole nexthop
 
 Driver-specific Packet Traps
 ============================

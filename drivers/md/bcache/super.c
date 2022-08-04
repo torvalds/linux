@@ -64,9 +64,25 @@ static unsigned int get_bucket_size(struct cache_sb *sb, struct cache_sb_disk *s
 {
 	unsigned int bucket_size = le16_to_cpu(s->bucket_size);
 
-	if (sb->version >= BCACHE_SB_VERSION_CDEV_WITH_FEATURES &&
-	     bch_has_feature_large_bucket(sb))
-		bucket_size |= le16_to_cpu(s->bucket_size_hi) << 16;
+	if (sb->version >= BCACHE_SB_VERSION_CDEV_WITH_FEATURES) {
+		if (bch_has_feature_large_bucket(sb)) {
+			unsigned int max, order;
+
+			max = sizeof(unsigned int) * BITS_PER_BYTE - 1;
+			order = le16_to_cpu(s->bucket_size);
+			/*
+			 * bcache tool will make sure the overflow won't
+			 * happen, an error message here is enough.
+			 */
+			if (order > max)
+				pr_err("Bucket size (1 << %u) overflows\n",
+					order);
+			bucket_size = 1 << order;
+		} else if (bch_has_feature_obso_large_bucket(sb)) {
+			bucket_size +=
+				le16_to_cpu(s->obso_bucket_size_hi) << 16;
+		}
+	}
 
 	return bucket_size;
 }
@@ -228,6 +244,20 @@ static const char *read_super(struct cache_sb *sb, struct block_device *bdev,
 		sb->feature_compat = le64_to_cpu(s->feature_compat);
 		sb->feature_incompat = le64_to_cpu(s->feature_incompat);
 		sb->feature_ro_compat = le64_to_cpu(s->feature_ro_compat);
+
+		/* Check incompatible features */
+		err = "Unsupported compatible feature found";
+		if (bch_has_unknown_compat_features(sb))
+			goto err;
+
+		err = "Unsupported read-only compatible feature found";
+		if (bch_has_unknown_ro_compat_features(sb))
+			goto err;
+
+		err = "Unsupported incompatible feature found";
+		if (bch_has_unknown_incompat_features(sb))
+			goto err;
+
 		err = read_super_common(sb, bdev, s);
 		if (err)
 			goto err;
@@ -1114,9 +1144,6 @@ static void cancel_writeback_rate_update_dwork(struct cached_dev *dc)
 static void cached_dev_detach_finish(struct work_struct *w)
 {
 	struct cached_dev *dc = container_of(w, struct cached_dev, detach);
-	struct closure cl;
-
-	closure_init_stack(&cl);
 
 	BUG_ON(!test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags));
 	BUG_ON(refcount_read(&dc->count));
@@ -1129,12 +1156,6 @@ static void cached_dev_detach_finish(struct work_struct *w)
 		kthread_stop(dc->writeback_thread);
 		dc->writeback_thread = NULL;
 	}
-
-	memset(&dc->sb.set_uuid, 0, 16);
-	SET_BDEV_STATE(&dc->sb, BDEV_STATE_NONE);
-
-	bch_write_bdev_super(dc, &cl);
-	closure_sync(&cl);
 
 	mutex_lock(&bch_register_lock);
 
@@ -1311,6 +1332,12 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c,
 	bcache_device_link(&dc->disk, c, "bdev");
 	atomic_inc(&c->attached_dev_nr);
 
+	if (bch_has_feature_obso_large_bucket(&(c->cache->sb))) {
+		pr_err("The obsoleted large bucket layout is unsupported, set the bcache device into read-only\n");
+		pr_err("Please update to the latest bcache-tools to create the cache device\n");
+		set_disk_ro(dc->disk.disk, 1);
+	}
+
 	/* Allow the writeback thread to proceed */
 	up_write(&dc->writeback_lock);
 
@@ -1408,7 +1435,7 @@ static int cached_dev_init(struct cached_dev *dc, unsigned int block_size)
 			q->limits.raid_partial_stripes_expensive;
 
 	ret = bcache_device_init(&dc->disk, block_size,
-			 dc->bdev->bd_part->nr_sects - dc->sb.data_offset,
+			 bdev_nr_sectors(dc->bdev) - dc->sb.data_offset,
 			 dc->bdev, &bcache_cached_ops);
 	if (ret)
 		return ret;
@@ -1447,8 +1474,7 @@ static int register_bdev(struct cache_sb *sb, struct cache_sb_disk *sb_disk,
 		goto err;
 
 	err = "error creating kobject";
-	if (kobject_add(&dc->disk.kobj, &part_to_dev(bdev->bd_part)->kobj,
-			"bcache"))
+	if (kobject_add(&dc->disk.kobj, bdev_kobj(bdev), "bcache"))
 		goto err;
 	if (bch_cache_accounting_add_kobjs(&dc->accounting, &dc->disk.kobj))
 		goto err;
@@ -1533,6 +1559,12 @@ static int flash_dev_run(struct cache_set *c, struct uuid_entry *u)
 		goto err;
 
 	bcache_device_link(d, c, "volume");
+
+	if (bch_has_feature_obso_large_bucket(&c->cache->sb)) {
+		pr_err("The obsoleted large bucket layout is unsupported, set the bcache device into read-only\n");
+		pr_err("Please update to the latest bcache-tools to create the cache device\n");
+		set_disk_ro(d->disk, 1);
+	}
 
 	return 0;
 err:
@@ -2093,6 +2125,9 @@ static int run_cache_set(struct cache_set *c)
 	c->cache->sb.last_mount = (u32)ktime_get_real_seconds();
 	bcache_write_super(c);
 
+	if (bch_has_feature_obso_large_bucket(&c->cache->sb))
+		pr_err("Detect obsoleted large bucket layout, all attached bcache device will be read-only\n");
+
 	list_for_each_entry_safe(dc, t, &uncached_devices, list)
 		bch_cached_dev_attach(dc, c, NULL);
 
@@ -2342,9 +2377,7 @@ static int register_cache(struct cache_sb *sb, struct cache_sb_disk *sb_disk,
 		goto err;
 	}
 
-	if (kobject_add(&ca->kobj,
-			&part_to_dev(bdev->bd_part)->kobj,
-			"bcache")) {
+	if (kobject_add(&ca->kobj, bdev_kobj(bdev), "bcache")) {
 		err = "error calling kobject_add";
 		ret = -ENOMEM;
 		goto out;
@@ -2383,38 +2416,38 @@ kobj_attribute_write(register,		register_bcache);
 kobj_attribute_write(register_quiet,	register_bcache);
 kobj_attribute_write(pendings_cleanup,	bch_pending_bdevs_cleanup);
 
-static bool bch_is_open_backing(struct block_device *bdev)
+static bool bch_is_open_backing(dev_t dev)
 {
 	struct cache_set *c, *tc;
 	struct cached_dev *dc, *t;
 
 	list_for_each_entry_safe(c, tc, &bch_cache_sets, list)
 		list_for_each_entry_safe(dc, t, &c->cached_devs, list)
-			if (dc->bdev == bdev)
+			if (dc->bdev->bd_dev == dev)
 				return true;
 	list_for_each_entry_safe(dc, t, &uncached_devices, list)
-		if (dc->bdev == bdev)
+		if (dc->bdev->bd_dev == dev)
 			return true;
 	return false;
 }
 
-static bool bch_is_open_cache(struct block_device *bdev)
+static bool bch_is_open_cache(dev_t dev)
 {
 	struct cache_set *c, *tc;
 
 	list_for_each_entry_safe(c, tc, &bch_cache_sets, list) {
 		struct cache *ca = c->cache;
 
-		if (ca->bdev == bdev)
+		if (ca->bdev->bd_dev == dev)
 			return true;
 	}
 
 	return false;
 }
 
-static bool bch_is_open(struct block_device *bdev)
+static bool bch_is_open(dev_t dev)
 {
-	return bch_is_open_cache(bdev) || bch_is_open_backing(bdev);
+	return bch_is_open_cache(dev) || bch_is_open_backing(dev);
 }
 
 struct async_reg_args {
@@ -2538,15 +2571,15 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 				  sb);
 	if (IS_ERR(bdev)) {
 		if (bdev == ERR_PTR(-EBUSY)) {
-			bdev = lookup_bdev(strim(path));
+			dev_t dev;
+
 			mutex_lock(&bch_register_lock);
-			if (!IS_ERR(bdev) && bch_is_open(bdev))
+			if (lookup_bdev(strim(path), &dev) == 0 &&
+			    bch_is_open(dev))
 				err = "device already registered";
 			else
 				err = "device busy";
 			mutex_unlock(&bch_register_lock);
-			if (!IS_ERR(bdev))
-				bdput(bdev);
 			if (attr == &ksysfs_register_quiet)
 				goto done;
 		}
@@ -2656,8 +2689,8 @@ static ssize_t bch_pending_bdevs_cleanup(struct kobject *k,
 	}
 
 	list_for_each_entry_safe(pdev, tpdev, &pending_devs, list) {
+		char *pdev_set_uuid = pdev->dc->sb.set_uuid;
 		list_for_each_entry_safe(c, tc, &bch_cache_sets, list) {
-			char *pdev_set_uuid = pdev->dc->sb.set_uuid;
 			char *set_uuid = c->set_uuid;
 
 			if (!memcmp(pdev_set_uuid, set_uuid, 16)) {

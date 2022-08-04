@@ -548,7 +548,7 @@ DEFINE_DRM_GEM_FOPS(panfrost_drm_driver_fops);
  * - 1.0 - initial interface
  * - 1.1 - adds HEAP and NOEXEC flags for CREATE_BO
  */
-static struct drm_driver panfrost_drm_driver = {
+static const struct drm_driver panfrost_drm_driver = {
 	.driver_features	= DRIVER_RENDER | DRIVER_GEM | DRIVER_SYNCOBJ,
 	.open			= panfrost_open,
 	.postclose		= panfrost_postclose,
@@ -586,6 +586,8 @@ static int panfrost_probe(struct platform_device *pdev)
 	pfdev->comp = of_device_get_match_data(&pdev->dev);
 	if (!pfdev->comp)
 		return -ENODEV;
+
+	pfdev->coherent = device_get_dma_attr(&pdev->dev) == DEV_DMA_COHERENT;
 
 	/* Allocate and initialze the DRM device. */
 	ddev = drm_dev_alloc(&panfrost_drm_driver, &pdev->dev);

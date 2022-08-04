@@ -661,6 +661,11 @@ setup_ntlmv2_rsp(struct cifs_ses *ses, const struct nls_table *nls_cp)
 	unsigned char *tiblob = NULL; /* target info blob */
 	__le64 rsp_timestamp;
 
+	if (nls_cp == NULL) {
+		cifs_dbg(VFS, "%s called with nls_cp==NULL\n", __func__);
+		return -EINVAL;
+	}
+
 	if (ses->server->negflavor == CIFS_NEGFLAVOR_EXTENDED) {
 		if (!ses->domainName) {
 			if (ses->domainAuto) {

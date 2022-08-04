@@ -99,7 +99,6 @@ struct vmw_fpriv {
  * struct vmw_buffer_object - TTM buffer object with vmwgfx additions
  * @base: The TTM buffer object
  * @res_tree: RB tree of resources using this buffer object as a backing MOB
- * @pin_count: pin depth
  * @cpu_writers: Number of synccpu write grabs. Protected by reservation when
  * increased. May be decreased without reservation.
  * @dx_query_ctx: DX context if this buffer object is used as a DX query MOB
@@ -110,7 +109,6 @@ struct vmw_fpriv {
 struct vmw_buffer_object {
 	struct ttm_buffer_object base;
 	struct rb_root res_tree;
-	s32 pin_count;
 	atomic_t cpu_writers;
 	/* Not ref-counted.  Protected by binding_mutex */
 	struct vmw_resource *dx_query_ctx;
@@ -845,10 +843,14 @@ extern void vmw_bo_get_guest_ptr(const struct ttm_buffer_object *buf,
 				 SVGAGuestPtr *ptr);
 extern void vmw_bo_pin_reserved(struct vmw_buffer_object *bo, bool pin);
 extern void vmw_bo_bo_free(struct ttm_buffer_object *bo);
+extern int vmw_bo_create_kernel(struct vmw_private *dev_priv,
+				unsigned long size,
+				struct ttm_placement *placement,
+				struct ttm_buffer_object **p_bo);
 extern int vmw_bo_init(struct vmw_private *dev_priv,
 		       struct vmw_buffer_object *vmw_bo,
 		       size_t size, struct ttm_placement *placement,
-		       bool interruptible,
+		       bool interruptible, bool pin,
 		       void (*bo_free)(struct ttm_buffer_object *bo));
 extern int vmw_user_bo_verify_access(struct ttm_buffer_object *bo,
 				     struct ttm_object_file *tfile);
@@ -1005,16 +1007,12 @@ extern void vmw_validation_mem_init_ttm(struct vmw_private *dev_priv,
 
 extern const size_t vmw_tt_size;
 extern struct ttm_placement vmw_vram_placement;
-extern struct ttm_placement vmw_vram_ne_placement;
 extern struct ttm_placement vmw_vram_sys_placement;
 extern struct ttm_placement vmw_vram_gmr_placement;
-extern struct ttm_placement vmw_vram_gmr_ne_placement;
 extern struct ttm_placement vmw_sys_placement;
-extern struct ttm_placement vmw_sys_ne_placement;
 extern struct ttm_placement vmw_evictable_placement;
 extern struct ttm_placement vmw_srf_placement;
 extern struct ttm_placement vmw_mob_placement;
-extern struct ttm_placement vmw_mob_ne_placement;
 extern struct ttm_placement vmw_nonfixed_placement;
 extern struct ttm_bo_driver vmw_bo_driver;
 extern const struct vmw_sg_table *

@@ -42,6 +42,6 @@ select: true
 
 properties:
   sleep:
-    $ref: /schemas/types.yaml#definitions/phandle-array
+    $ref: /schemas/types.yaml#/definitions/phandle-array
 
 additionalProperties: true
