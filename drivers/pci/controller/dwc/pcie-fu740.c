@@ -236,7 +236,7 @@ err:
 	return ret;
 }
 
-static int fu740_pcie_host_init(struct pcie_port *pp)
+static int fu740_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct fu740_pcie *afp = to_fu740_pcie(pci);
