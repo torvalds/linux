@@ -244,6 +244,7 @@ static int dwc3_qcom_interconnect_disable(struct dwc3_qcom *qcom)
  */
 static int dwc3_qcom_interconnect_init(struct dwc3_qcom *qcom)
 {
+	enum usb_device_speed max_speed;
 	struct device *dev = qcom->dev;
 	int ret;
 
@@ -264,8 +265,8 @@ static int dwc3_qcom_interconnect_init(struct dwc3_qcom *qcom)
 		return PTR_ERR(qcom->icc_path_apps);
 	}
 
-	if (usb_get_maximum_speed(&qcom->dwc3->dev) >= USB_SPEED_SUPER ||
-			usb_get_maximum_speed(&qcom->dwc3->dev) == USB_SPEED_UNKNOWN)
+	max_speed = usb_get_maximum_speed(&qcom->dwc3->dev);
+	if (max_speed >= USB_SPEED_SUPER || max_speed == USB_SPEED_UNKNOWN)
 		ret = icc_set_bw(qcom->icc_path_ddr,
 			USB_MEMORY_AVG_SS_BW, USB_MEMORY_PEAK_SS_BW);
 	else
