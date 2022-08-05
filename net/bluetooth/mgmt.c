@@ -8935,6 +8935,8 @@ void mgmt_index_removed(struct hci_dev *hdev)
 			 HCI_MGMT_EXT_INDEX_EVENTS);
 
 	/* Cancel any remaining timed work */
+	if (!hci_dev_test_flag(hdev, HCI_MGMT))
+		return;
 	cancel_delayed_work_sync(&hdev->discov_off);
 	cancel_delayed_work_sync(&hdev->service_cache);
 	cancel_delayed_work_sync(&hdev->rpa_expired);
