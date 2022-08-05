@@ -2417,10 +2417,10 @@ static int statx_to_caps(u32 want, umode_t mode)
 {
 	int mask = 0;
 
-	if (want & (STATX_MODE|STATX_UID|STATX_GID|STATX_CTIME|STATX_BTIME))
+	if (want & (STATX_MODE|STATX_UID|STATX_GID|STATX_CTIME|STATX_BTIME|STATX_CHANGE_COOKIE))
 		mask |= CEPH_CAP_AUTH_SHARED;
 
-	if (want & (STATX_NLINK|STATX_CTIME)) {
+	if (want & (STATX_NLINK|STATX_CTIME|STATX_CHANGE_COOKIE)) {
 		/*
 		 * The link count for directories depends on inode->i_subdirs,
 		 * and that is only updated when Fs caps are held.
@@ -2431,11 +2431,10 @@ static int statx_to_caps(u32 want, umode_t mode)
 			mask |= CEPH_CAP_LINK_SHARED;
 	}
 
-	if (want & (STATX_ATIME|STATX_MTIME|STATX_CTIME|STATX_SIZE|
-		    STATX_BLOCKS))
+	if (want & (STATX_ATIME|STATX_MTIME|STATX_CTIME|STATX_SIZE|STATX_BLOCKS|STATX_CHANGE_COOKIE))
 		mask |= CEPH_CAP_FILE_SHARED;
 
-	if (want & (STATX_CTIME))
+	if (want & (STATX_CTIME|STATX_CHANGE_COOKIE))
 		mask |= CEPH_CAP_XATTR_SHARED;
 
 	return mask;
@@ -2476,6 +2475,11 @@ int ceph_getattr(struct user_namespace *mnt_userns, const struct path *path,
 	if (ci->i_btime.tv_sec || ci->i_btime.tv_nsec) {
 		stat->btime = ci->i_btime;
 		valid_mask |= STATX_BTIME;
+	}
+
+	if (request_mask & STATX_CHANGE_COOKIE) {
+		stat->change_cookie = inode_peek_iversion_raw(inode);
+		valid_mask |= STATX_CHANGE_COOKIE;
 	}
 
 	if (ceph_snap(inode) == CEPH_NOSNAP)
@@ -2519,6 +2523,8 @@ int ceph_getattr(struct user_namespace *mnt_userns, const struct path *path,
 			stat->nlink = 1 + 1 + ci->i_subdirs;
 	}
 
+	stat->attributes_mask |= STATX_ATTR_CHANGE_MONOTONIC;
+	stat->attributes |= STATX_ATTR_CHANGE_MONOTONIC;
 	stat->result_mask = request_mask & valid_mask;
 	return err;
 }
