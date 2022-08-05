@@ -520,7 +520,7 @@ static void rcu_sync_torture_init(void)
 
 static bool rcu_poll_need_2gp(bool poll, bool poll_full)
 {
-	return poll || (!IS_ENABLED(CONFIG_TINY_RCU) && poll_full && num_online_cpus() <= 1);
+	return poll;
 }
 
 static struct rcu_torture_ops rcu_ops = {
