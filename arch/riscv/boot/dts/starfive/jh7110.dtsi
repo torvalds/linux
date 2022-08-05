@@ -405,7 +405,7 @@
 				      <0x0 0x10110000 0x0 0x10000>,
 				      <0x0 0x10120000 0x0 0x10000>;
 				reg-names = "otg", "xhci", "dev";
-				interrupts = <100>, <109>, <110>;
+				interrupts = <100>, <108>, <110>;
 				interrupt-names = "host", "peripheral", "otg";
 				phy-names = "cdns3,usb3-phy", "cnds3,usb2-phy";
 				maximum-speed = "super-speed";

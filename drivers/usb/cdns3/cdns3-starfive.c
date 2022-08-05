@@ -298,6 +298,9 @@ static int cdns_starfive_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
+	dev_info(dev, "usb mode %d %s probe success\n",
+		data->mode, data->usb2_only ? "2.0" : "3.0");
+
 	return 0;
 exit:
 	return ret;
