@@ -45,10 +45,9 @@ properties:
     description: |
       - For CPG core clocks, the two clock specifier cells must be "CPG_CORE"
         and a core clock reference, as defined in
-        <dt-bindings/clock/r9a0*-cpg.h>
+        <dt-bindings/clock/r9a0*-cpg.h>,
       - For module clocks, the two clock specifier cells must be "CPG_MOD" and
-        a module number, as defined in the <dt-bindings/clock/r9a07g0*-cpg.h> or
-        <dt-bindings/clock/r9a09g011-cpg.h>.
+        a module number, as defined in <dt-bindings/clock/r9a0*-cpg.h>.
     const: 2
 
   '#power-domain-cells':
@@ -62,7 +61,7 @@ properties:
   '#reset-cells':
     description:
       The single reset specifier cell must be the module number, as defined in
-      the <dt-bindings/clock/r9a07g0*-cpg.h> or <dt-bindings/clock/r9a09g011-cpg.h>.
+      <dt-bindings/clock/r9a0*-cpg.h>.
     const: 1
 
 required:
