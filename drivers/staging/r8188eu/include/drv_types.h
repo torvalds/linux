@@ -34,7 +34,6 @@
 #include "rtl8188e_hal.h"
 #include "rtw_fw.h"
 
-#define DRIVERVERSION	"v4.1.4_6773.20130222"
 #define FW_RTL8188EU	"rtlwifi/rtl8188eufw.bin"
 
 struct registry_priv {
