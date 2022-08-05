@@ -18,6 +18,8 @@
 
 #define RT1711H_VID		0x29CF
 #define RT1711H_PID		0x1711
+#define RT1711H_DID		0x2171
+#define RT1715_DID		0x2173
 
 #define RT1711H_PHYCTRL1	0x80
 #define RT1711H_PHYCTRL2	0x81
@@ -29,6 +31,7 @@
 			    (((ck300) << 7) | ((ship_off) << 5) | \
 			    ((auto_idle) << 3) | ((tout) & 0x07))
 #define RT1711H_AUTOIDLEEN	BIT(3)
+#define RT1711H_ENEXTMSG	BIT(4)
 
 #define RT1711H_RTCTRL11	0x9E
 
@@ -47,6 +50,7 @@ struct rt1711h_chip {
 	struct device *dev;
 	struct regulator *vbus;
 	bool src_en;
+	u16 did;
 };
 
 static int rt1711h_read16(struct rt1711h_chip *chip, unsigned int reg, u16 *val)
@@ -83,14 +87,23 @@ static struct rt1711h_chip *tdata_to_rt1711h(struct tcpci_data *tdata)
 
 static int rt1711h_init(struct tcpci *tcpci, struct tcpci_data *tdata)
 {
-	int ret;
 	struct rt1711h_chip *chip = tdata_to_rt1711h(tdata);
+	struct regmap *regmap = chip->data.regmap;
+	int ret;
 
 	/* CK 300K from 320K, shipping off, auto_idle enable, tout = 32ms */
 	ret = rt1711h_write8(chip, RT1711H_RTCTRL8,
 			     RT1711H_RTCTRL8_SET(0, 1, 1, 2));
 	if (ret < 0)
 		return ret;
+
+	/* Enable PD30 extended message for RT1715 */
+	if (chip->did == RT1715_DID) {
+		ret = regmap_update_bits(regmap, RT1711H_RTCTRL8,
+					 RT1711H_ENEXTMSG, RT1711H_ENEXTMSG);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* I2C reset : (val + 1) * 12.5ms */
 	ret = rt1711h_write8(chip, RT1711H_RTCTRL11,
@@ -229,7 +242,7 @@ static int rt1711h_sw_reset(struct rt1711h_chip *chip)
 	return 0;
 }
 
-static int rt1711h_check_revision(struct i2c_client *i2c)
+static int rt1711h_check_revision(struct i2c_client *i2c, struct rt1711h_chip *chip)
 {
 	int ret;
 
@@ -247,7 +260,15 @@ static int rt1711h_check_revision(struct i2c_client *i2c)
 		dev_err(&i2c->dev, "pid is not correct, 0x%04x\n", ret);
 		return -ENODEV;
 	}
-	return 0;
+	ret = i2c_smbus_read_word_data(i2c, TCPC_BCD_DEV);
+	if (ret < 0)
+		return ret;
+	if (ret != chip->did) {
+		dev_err(&i2c->dev, "did is not correct, 0x%04x\n", ret);
+		return -ENODEV;
+	}
+	dev_dbg(&i2c->dev, "did is 0x%04x\n", ret);
+	return ret;
 }
 
 static int rt1711h_probe(struct i2c_client *client,
@@ -256,15 +277,17 @@ static int rt1711h_probe(struct i2c_client *client,
 	int ret;
 	struct rt1711h_chip *chip;
 
-	ret = rt1711h_check_revision(client);
+	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
+	if (!chip)
+		return -ENOMEM;
+
+	chip->did = (size_t)device_get_match_data(&client->dev);
+
+	ret = rt1711h_check_revision(client, chip);
 	if (ret < 0) {
 		dev_err(&client->dev, "check vid/pid fail\n");
 		return ret;
 	}
-
-	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
-	if (!chip)
-		return -ENOMEM;
 
 	chip->data.regmap = devm_regmap_init_i2c(client,
 						 &rt1711h_regmap_config);
@@ -316,13 +339,15 @@ static int rt1711h_remove(struct i2c_client *client)
 
 static const struct i2c_device_id rt1711h_id[] = {
 	{ "rt1711h", 0 },
+	{ "rt1715", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt1711h_id);
 
 #ifdef CONFIG_OF
 static const struct of_device_id rt1711h_of_match[] = {
-	{ .compatible = "richtek,rt1711h", },
+	{ .compatible = "richtek,rt1711h", .data = (void *)RT1711H_DID },
+	{ .compatible = "richtek,rt1715", .data = (void *)RT1715_DID },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rt1711h_of_match);
