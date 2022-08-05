@@ -74,16 +74,7 @@ void hci_req_add_le_passive_scan(struct hci_request *req);
 void hci_req_prepare_suspend(struct hci_dev *hdev, enum suspended_state next);
 
 int hci_req_update_adv_data(struct hci_dev *hdev, u8 instance);
-int hci_get_random_address(struct hci_dev *hdev, bool require_privacy,
-			   bool use_rpa, struct adv_info *adv_instance,
-			   u8 *own_addr_type, bdaddr_t *rand_addr);
-
-int hci_update_random_address(struct hci_request *req, bool require_privacy,
-			      bool use_rpa, u8 *own_addr_type);
 
 int hci_abort_conn(struct hci_conn *conn, u8 reason);
-void __hci_abort_conn(struct hci_request *req, struct hci_conn *conn,
-		      u8 reason);
-
 void hci_request_setup(struct hci_dev *hdev);
 void hci_request_cancel_all(struct hci_dev *hdev);
