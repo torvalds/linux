@@ -816,7 +816,7 @@ S:	Maintained
 F:	drivers/staging/media/sunxi/cedrus/
 
 ALPHA PORT
-M:	Richard Henderson <rth@twiddle.net>
+M:	Richard Henderson <richard.henderson@linaro.org>
 M:	Ivan Kokshaysky <ink@jurassic.park.msu.ru>
 M:	Matt Turner <mattst88@gmail.com>
 L:	linux-alpha@vger.kernel.org
