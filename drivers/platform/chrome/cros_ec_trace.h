@@ -30,8 +30,8 @@ TRACE_EVENT(cros_ec_request_start,
 	),
 	TP_fast_assign(
 		__entry->version = cmd->version;
-		__entry->offset = cmd->command / EC_CMD_PASSTHRU_OFFSET(1);
-		__entry->command = cmd->command % EC_CMD_PASSTHRU_OFFSET(1);
+		__entry->offset = cmd->command / EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX);
+		__entry->command = cmd->command % EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX);
 		__entry->outsize = cmd->outsize;
 		__entry->insize = cmd->insize;
 	),
@@ -55,8 +55,8 @@ TRACE_EVENT(cros_ec_request_done,
 	),
 	TP_fast_assign(
 		__entry->version = cmd->version;
-		__entry->offset = cmd->command / EC_CMD_PASSTHRU_OFFSET(1);
-		__entry->command = cmd->command % EC_CMD_PASSTHRU_OFFSET(1);
+		__entry->offset = cmd->command / EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX);
+		__entry->command = cmd->command % EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX);
 		__entry->outsize = cmd->outsize;
 		__entry->insize = cmd->insize;
 		__entry->result = cmd->result;
