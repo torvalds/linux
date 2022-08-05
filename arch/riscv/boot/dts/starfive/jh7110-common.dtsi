@@ -454,7 +454,7 @@
 
 &i2srx_3ch {
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2srx_pins>;
+	pinctrl-0 = <&i2s_clk_pins &i2srx_pins>;
 	status = "disabled";
 };
 
@@ -464,7 +464,7 @@
 
 &i2stx_4ch1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2s_clk_pins &i2stx_pins>;
+	pinctrl-0 = <&i2stx_pins>;
 	status = "disabled";
 };
 

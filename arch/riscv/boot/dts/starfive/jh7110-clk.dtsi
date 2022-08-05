@@ -123,4 +123,10 @@
 		#clock-cells = <0>;
 		clock-frequency = <24576000>;
 	};
+
+	ac108_mclk: ac108_mclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+	};
 };

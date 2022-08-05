@@ -31,15 +31,6 @@
 
 #define CLOCK_BASE	0x13020000UL
 
-static void saif_set_reg(void __iomem *addr, u32 data, u32 shift, u32 mask)
-{
-	u32 tmp;
-	tmp = readl(addr);
-	tmp &= ~mask;
-	tmp |= (data << shift) & mask;
-	writel(tmp, addr);
-}
-
 static inline void i2s_write_reg(void __iomem *io_base, int reg, u32 val)
 {
 	writel(val, io_base + reg);
@@ -295,27 +286,54 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	if (txrx == SNDRV_PCM_STREAM_PLAYBACK)
-	{
-		//_SWITCH_CLOCK_CLK_MCLK_SOURCE_CLK_MCLK_EXT_;
-		saif_set_reg(dev->clk_base + 0x48, 1, 24, 0x1000000);
+	if (txrx == SNDRV_PCM_STREAM_PLAYBACK) {
+		ret = clk_prepare_enable(dev->clks_dac_bclk);
+		if (ret) {
+			dev_err(dev->dev, "%s: failed to enable clks_dac_bclk\n", __func__);
+			return ret;
+		}
 
-		//_SWITCH_CLOCK_CLK_U1_I2STX_4CH_BCLK_SOURCE_CLK_I2STX_BCLK_EXT_;
-		saif_set_reg(dev->clk_base + 0x2B0, 1, 24, 0x1000000);
+		ret = clk_set_parent(dev->clks_bclk, dev->clks_dac_bclk);
+		if (ret) {
+			dev_err(dev->dev, "Can't set clock source for clks_bclk: %d\n", ret);
+			return ret;
+		}
 
-		//_SWITCH_CLOCK_CLK_U1_I2STX_4CH_LRCK_SOURCE_CLK_I2STX_LRCK_EXT_;
-		saif_set_reg(dev->clk_base + 0x2B8, 1, 24, 0x1000000);
-	}
-	else if (txrx == SNDRV_PCM_STREAM_CAPTURE)
-	{
-		//_SWITCH_CLOCK_CLK_MCLK_SOURCE_CLK_MCLK_EXT_;
-		saif_set_reg(dev->clk_base + 0x48, 1, 24, 0x1000000);
+		ret = clk_prepare_enable(dev->clks_dac_lrck);
+		if (ret) {
+			dev_err(dev->dev, "%s: failed to enable clks_dac_lrck\n", __func__);
+			return ret;
+		}
 
-		//_SWITCH_CLOCK_CLK_U1_I2STX_4CH_BCLK_SOURCE_CLK_I2STX_BCLK_EXT_;
-		saif_set_reg(dev->clk_base + 0x2CC, 1, 24, 0x1000000);
+		ret = clk_set_parent(dev->clks_lrclk, dev->clks_dac_lrck);
+		if (ret) {
+			dev_err(dev->dev, "Can't set clock source for clks_lrclk: %d\n", ret);
+			return ret;
+		}
+	}else if (txrx == SNDRV_PCM_STREAM_CAPTURE) {
+		ret = clk_prepare_enable(dev->clks[CLK_ADC_BCLK_EXT]);
+		if (ret) {
+			dev_err(dev->dev, "%s: failed to enable CLK_ADC_BCLK_EXT\n", __func__);
+			return ret;
+		}
 
-		//_SWITCH_CLOCK_CLK_U1_I2STX_4CH_LRCK_SOURCE_CLK_I2STX_LRCK_EXT_;
-		saif_set_reg(dev->clk_base + 0x2D4, 1, 24, 0x1000000);
+		ret = clk_set_parent(dev->clks[CLK_ADC_RX_BCLK], dev->clks[CLK_ADC_BCLK_EXT]);
+		if (ret) {
+			dev_err(dev->dev, "Can't set clock source for CLK_ADC_RX_BCLK: %d\n", ret);
+			return ret;
+		}
+
+		ret = clk_prepare_enable(dev->clks[CLK_ADC_LRCK_EXT]);
+		if (ret) {
+			dev_err(dev->dev, "%s: failed to enable CLK_ADC_LRCK_EXT\n", __func__);
+			return ret;
+		}
+
+		ret = clk_set_parent(dev->clks[CLK_ADC_RX_LRCK], dev->clks[CLK_ADC_LRCK_EXT]);
+		if (ret) {
+			dev_err(dev->dev, "Can't set clock source for CLK_ADC_RX_LRCK: %d\n", ret);
+			return ret;
+		}
 	}
 
 	dw_i2s_config(dev, substream->stream);
@@ -503,6 +521,9 @@ static int dw_i2srx_clk_init(struct platform_device *pdev, struct dw_i2s_dev *de
 		{ .id = "3ch-lrck" },
 		{ .id = "rx-bclk" },
 		{ .id = "rx-lrck" },
+		{ .id = "mclk" },
+		{ .id = "bclk-ext" },
+		{ .id = "lrck-ext" },
 	};
 
 	ret = devm_clk_bulk_get(&pdev->dev, ARRAY_SIZE(clks), clks);
@@ -518,6 +539,9 @@ static int dw_i2srx_clk_init(struct platform_device *pdev, struct dw_i2s_dev *de
 	dev->clks[CLK_ADC_LRCLK] = clks[5].clk;
 	dev->clks[CLK_ADC_RX_BCLK] = clks[6].clk;
 	dev->clks[CLK_ADC_RX_LRCK] = clks[7].clk;
+	dev->clks[CLK_ADC_MCLK] = clks[8].clk;
+	dev->clks[CLK_ADC_BCLK_EXT] = clks[9].clk;
+	dev->clks[CLK_ADC_LRCK_EXT] = clks[10].clk;
 
 	ret = clk_prepare_enable(dev->clks[CLK_ADC_APB0]);
 	if (ret) {
@@ -536,6 +560,7 @@ static int dw_i2srx_clk_init(struct platform_device *pdev, struct dw_i2s_dev *de
 		dev_err(&pdev->dev, "%s: failed to enable CLK_ADC_AUDROOT\n", __func__);
 		goto disable_audroot_clk;
 	}
+
 	ret = clk_set_rate(dev->clks[CLK_ADC_AUDROOT], 204800000);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to set rate for CLK_ADC_MCLK \n");
@@ -767,6 +792,14 @@ static int dw_i2stx_4ch1_clk_init(struct platform_device *pdev, struct dw_i2s_de
 	dev->clks_4ch_apb = devm_clk_get(&pdev->dev, "clk_apb");
 	if (IS_ERR(dev->clks_4ch_apb))
 		return PTR_ERR(dev->clks_4ch_apb);
+
+	dev->clks_dac_bclk = devm_clk_get(&pdev->dev, "bclk_ext");
+	if (IS_ERR(dev->clks_dac_bclk))
+		return PTR_ERR(dev->clks_dac_bclk);
+
+	dev->clks_dac_lrck = devm_clk_get(&pdev->dev, "lrck_ext");
+	if (IS_ERR(dev->clks_dac_lrck))
+		return PTR_ERR(dev->clks_dac_lrck);
 
 	ret = clk_prepare_enable(dev->clks_audroot);
 	if (ret) {

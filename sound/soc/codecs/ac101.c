@@ -1583,7 +1583,7 @@ int ac10x_fill_regcache(struct device* dev, struct regmap* map) {
 		regcache_cache_bypass(map, true);
 		r = regmap_read(map, i, &v);
 		if (r) {
-			dev_err(dev, "failed to read register %d\n", i);
+			dev_dbg(dev, "failed to read register %d\n", i);
 			continue;
 		}
 		regcache_cache_bypass(map, false);
