@@ -539,12 +539,9 @@ static int exfat_add_entry(struct inode *inode, const char *path,
 		goto out;
 
 	exfat_init_dir_entry(&es, type, start_clu, clu_size, &ts);
+	exfat_init_ext_entry(&es, num_entries, &uniname);
 
 	ret = exfat_put_dentry_set(&es, IS_DIRSYNC(inode));
-	if (ret)
-		goto out;
-
-	ret = exfat_init_ext_entry(inode, p_dir, dentry, num_entries, &uniname);
 	if (ret)
 		goto out;
 
@@ -1018,8 +1015,7 @@ static int exfat_rename_file(struct inode *inode, struct exfat_chain *p_dir,
 	int ret, num_new_entries;
 	struct exfat_dentry *epold, *epnew;
 	struct super_block *sb = inode->i_sb;
-	struct buffer_head *new_bh;
-	struct exfat_entry_set_cache old_es;
+	struct exfat_entry_set_cache old_es, new_es;
 	int sync = IS_DIRSYNC(inode);
 
 	num_new_entries = exfat_calc_num_entries(p_uniname);
@@ -1044,33 +1040,25 @@ static int exfat_rename_file(struct inode *inode, struct exfat_chain *p_dir,
 			goto put_old_es;
 		}
 
-		epnew = exfat_get_dentry(sb, p_dir, newentry, &new_bh);
-		if (!epnew) {
-			ret = -EIO;
+		ret = exfat_get_empty_dentry_set(&new_es, sb, p_dir, newentry,
+				num_new_entries);
+		if (ret)
 			goto put_old_es;
-		}
 
+		epnew = exfat_get_dentry_cached(&new_es, ES_IDX_FILE);
 		*epnew = *epold;
 		if (exfat_get_entry_type(epnew) == TYPE_FILE) {
 			epnew->dentry.file.attr |= cpu_to_le16(EXFAT_ATTR_ARCHIVE);
 			ei->attr |= EXFAT_ATTR_ARCHIVE;
 		}
-		exfat_update_bh(new_bh, sync);
-		brelse(new_bh);
 
 		epold = exfat_get_dentry_cached(&old_es, ES_IDX_STREAM);
-		epnew = exfat_get_dentry(sb, p_dir, newentry + 1, &new_bh);
-		if (!epnew) {
-			ret = -EIO;
-			goto put_old_es;
-		}
-
+		epnew = exfat_get_dentry_cached(&new_es, ES_IDX_STREAM);
 		*epnew = *epold;
-		exfat_update_bh(new_bh, sync);
-		brelse(new_bh);
 
-		ret = exfat_init_ext_entry(inode, p_dir, newentry,
-			num_new_entries, p_uniname);
+		exfat_init_ext_entry(&new_es, num_new_entries, p_uniname);
+
+		ret = exfat_put_dentry_set(&new_es, sync);
 		if (ret)
 			goto put_old_es;
 
@@ -1084,11 +1072,7 @@ static int exfat_rename_file(struct inode *inode, struct exfat_chain *p_dir,
 		}
 
 		exfat_remove_entries(inode, &old_es, ES_IDX_FIRST_FILENAME + 1);
-
-		ret = exfat_init_ext_entry(inode, p_dir, oldentry,
-			num_new_entries, p_uniname);
-		if (ret)
-			goto put_old_es;
+		exfat_init_ext_entry(&old_es, num_new_entries, p_uniname);
 	}
 	return exfat_put_dentry_set(&old_es, sync);
 
@@ -1104,8 +1088,7 @@ static int exfat_move_file(struct inode *inode, struct exfat_chain *p_olddir,
 	int ret, newentry, num_new_entries;
 	struct exfat_dentry *epmov, *epnew;
 	struct super_block *sb = inode->i_sb;
-	struct buffer_head *new_bh;
-	struct exfat_entry_set_cache mov_es;
+	struct exfat_entry_set_cache mov_es, new_es;
 
 	num_new_entries = exfat_calc_num_entries(p_uniname);
 	if (num_new_entries < 0)
@@ -1120,43 +1103,35 @@ static int exfat_move_file(struct inode *inode, struct exfat_chain *p_olddir,
 	if (ret)
 		return -EIO;
 
-	epmov = exfat_get_dentry_cached(&mov_es, ES_IDX_FILE);
-	epnew = exfat_get_dentry(sb, p_newdir, newentry, &new_bh);
-	if (!epnew) {
-		ret = -EIO;
+	ret = exfat_get_empty_dentry_set(&new_es, sb, p_newdir, newentry,
+			num_new_entries);
+	if (ret)
 		goto put_mov_es;
-	}
 
+	epmov = exfat_get_dentry_cached(&mov_es, ES_IDX_FILE);
+	epnew = exfat_get_dentry_cached(&new_es, ES_IDX_FILE);
 	*epnew = *epmov;
 	if (exfat_get_entry_type(epnew) == TYPE_FILE) {
 		epnew->dentry.file.attr |= cpu_to_le16(EXFAT_ATTR_ARCHIVE);
 		ei->attr |= EXFAT_ATTR_ARCHIVE;
 	}
-	exfat_update_bh(new_bh, IS_DIRSYNC(inode));
-	brelse(new_bh);
 
 	epmov = exfat_get_dentry_cached(&mov_es, ES_IDX_STREAM);
-	epnew = exfat_get_dentry(sb, p_newdir, newentry + 1, &new_bh);
-	if (!epnew) {
-		ret = -EIO;
-		goto put_mov_es;
-	}
-
+	epnew = exfat_get_dentry_cached(&new_es, ES_IDX_STREAM);
 	*epnew = *epmov;
-	exfat_update_bh(new_bh, IS_DIRSYNC(inode));
-	brelse(new_bh);
 
-	ret = exfat_init_ext_entry(inode, p_newdir, newentry, num_new_entries,
-		p_uniname);
-	if (ret)
-		return ret;
-
+	exfat_init_ext_entry(&new_es, num_new_entries, p_uniname);
 	exfat_remove_entries(inode, &mov_es, ES_IDX_FILE);
 
 	exfat_chain_set(&ei->dir, p_newdir->dir, p_newdir->size,
 		p_newdir->flags);
 
 	ei->entry = newentry;
+
+	ret = exfat_put_dentry_set(&new_es, IS_DIRSYNC(inode));
+	if (ret)
+		goto put_mov_es;
+
 	return exfat_put_dentry_set(&mov_es, IS_DIRSYNC(inode));
 
 put_mov_es:

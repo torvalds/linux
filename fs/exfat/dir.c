@@ -532,46 +532,27 @@ static void exfat_free_benign_secondary_clusters(struct inode *inode,
 	exfat_free_cluster(inode, &dir);
 }
 
-int exfat_init_ext_entry(struct inode *inode, struct exfat_chain *p_dir,
-		int entry, int num_entries, struct exfat_uni_name *p_uniname)
+void exfat_init_ext_entry(struct exfat_entry_set_cache *es, int num_entries,
+		struct exfat_uni_name *p_uniname)
 {
-	struct super_block *sb = inode->i_sb;
 	int i;
 	unsigned short *uniname = p_uniname->name;
 	struct exfat_dentry *ep;
-	struct buffer_head *bh;
-	int sync = IS_DIRSYNC(inode);
 
-	ep = exfat_get_dentry(sb, p_dir, entry, &bh);
-	if (!ep)
-		return -EIO;
-
+	ep = exfat_get_dentry_cached(es, ES_IDX_FILE);
 	ep->dentry.file.num_ext = (unsigned char)(num_entries - 1);
-	exfat_update_bh(bh, sync);
-	brelse(bh);
 
-	ep = exfat_get_dentry(sb, p_dir, entry + 1, &bh);
-	if (!ep)
-		return -EIO;
-
+	ep = exfat_get_dentry_cached(es, ES_IDX_STREAM);
 	ep->dentry.stream.name_len = p_uniname->name_len;
 	ep->dentry.stream.name_hash = cpu_to_le16(p_uniname->name_hash);
-	exfat_update_bh(bh, sync);
-	brelse(bh);
 
-	for (i = EXFAT_FIRST_CLUSTER; i < num_entries; i++) {
-		ep = exfat_get_dentry(sb, p_dir, entry + i, &bh);
-		if (!ep)
-			return -EIO;
-
+	for (i = ES_IDX_FIRST_FILENAME; i < num_entries; i++) {
+		ep = exfat_get_dentry_cached(es, i);
 		exfat_init_name_entry(ep, uniname);
-		exfat_update_bh(bh, sync);
-		brelse(bh);
 		uniname += EXFAT_FILE_NAME_LEN;
 	}
 
-	exfat_update_dir_chksum(inode, p_dir, entry);
-	return 0;
+	exfat_update_dir_chksum_with_entry_set(es);
 }
 
 void exfat_remove_entries(struct inode *inode, struct exfat_entry_set_cache *es,

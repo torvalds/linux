@@ -483,8 +483,8 @@ unsigned int exfat_get_entry_type(struct exfat_dentry *p_entry);
 void exfat_init_dir_entry(struct exfat_entry_set_cache *es,
 		unsigned int type, unsigned int start_clu,
 		unsigned long long size, struct timespec64 *ts);
-int exfat_init_ext_entry(struct inode *inode, struct exfat_chain *p_dir,
-		int entry, int num_entries, struct exfat_uni_name *p_uniname);
+void exfat_init_ext_entry(struct exfat_entry_set_cache *es, int num_entries,
+		struct exfat_uni_name *p_uniname);
 void exfat_remove_entries(struct inode *inode, struct exfat_entry_set_cache *es,
 		int order);
 int exfat_update_dir_chksum(struct inode *inode, struct exfat_chain *p_dir,
