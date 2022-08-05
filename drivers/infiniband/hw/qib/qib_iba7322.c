@@ -2850,9 +2850,9 @@ static void qib_setup_7322_cleanup(struct qib_devdata *dd)
 
 	qib_7322_free_irq(dd);
 	kfree(dd->cspec->cntrs);
-	kfree(dd->cspec->sendchkenable);
-	kfree(dd->cspec->sendgrhchk);
-	kfree(dd->cspec->sendibchk);
+	bitmap_free(dd->cspec->sendchkenable);
+	bitmap_free(dd->cspec->sendgrhchk);
+	bitmap_free(dd->cspec->sendibchk);
 	kfree(dd->cspec->msix_entries);
 	for (i = 0; i < dd->num_pports; i++) {
 		unsigned long flags;
@@ -6383,18 +6383,11 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 	features = qib_7322_boardname(dd);
 
 	/* now that piobcnt2k and 4k set, we can allocate these */
-	sbufcnt = dd->piobcnt2k + dd->piobcnt4k +
-		NUM_VL15_BUFS + BITS_PER_LONG - 1;
-	sbufcnt /= BITS_PER_LONG;
-	dd->cspec->sendchkenable =
-		kmalloc_array(sbufcnt, sizeof(*dd->cspec->sendchkenable),
-			      GFP_KERNEL);
-	dd->cspec->sendgrhchk =
-		kmalloc_array(sbufcnt, sizeof(*dd->cspec->sendgrhchk),
-			      GFP_KERNEL);
-	dd->cspec->sendibchk =
-		kmalloc_array(sbufcnt, sizeof(*dd->cspec->sendibchk),
-			      GFP_KERNEL);
+	sbufcnt = dd->piobcnt2k + dd->piobcnt4k + NUM_VL15_BUFS;
+
+	dd->cspec->sendchkenable = bitmap_zalloc(sbufcnt, GFP_KERNEL);
+	dd->cspec->sendgrhchk = bitmap_zalloc(sbufcnt, GFP_KERNEL);
+	dd->cspec->sendibchk = bitmap_zalloc(sbufcnt, GFP_KERNEL);
 	if (!dd->cspec->sendchkenable || !dd->cspec->sendgrhchk ||
 		!dd->cspec->sendibchk) {
 		ret = -ENOMEM;

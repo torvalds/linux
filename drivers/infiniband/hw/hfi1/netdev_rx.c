@@ -216,7 +216,7 @@ static int hfi1_netdev_rxq_init(struct hfi1_netdev_rx *rx)
 		 * right now.
 		 */
 		set_bit(NAPI_STATE_NO_BUSY_POLL, &rxq->napi.state);
-		netif_napi_add(dev, &rxq->napi, hfi1_netdev_rx_napi, 64);
+		netif_napi_add_weight(dev, &rxq->napi, hfi1_netdev_rx_napi, 64);
 		rc = msix_netdev_request_rcd_irq(rxq->rcd);
 		if (rc)
 			goto bail_context_irq_failure;

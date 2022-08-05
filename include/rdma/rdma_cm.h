@@ -108,6 +108,7 @@ struct rdma_cm_id {
 	enum rdma_ucm_port_space ps;
 	enum ib_qp_type		 qp_type;
 	u32			 port_num;
+	struct work_struct net_work;
 };
 
 struct rdma_cm_id *
