@@ -2727,6 +2727,9 @@ static inline bool check_attr(const struct MFT_REC *rec,
 			return false;
 		}
 
+		if (run_off > asize)
+			return false;
+
 		if (run_unpack(NULL, sbi, 0, svcn, evcn, svcn,
 			       Add2Ptr(attr, run_off), asize - run_off) < 0) {
 			return false;
@@ -4770,6 +4773,12 @@ fake_attr:
 	if (attr->non_res) {
 		u16 roff = le16_to_cpu(attr->nres.run_off);
 		CLST svcn = le64_to_cpu(attr->nres.svcn);
+
+		if (roff > t32) {
+			kfree(oa->attr);
+			oa->attr = NULL;
+			goto fake_attr;
+		}
 
 		err = run_unpack(&oa->run0, sbi, inode->i_ino, svcn,
 				 le64_to_cpu(attr->nres.evcn), svcn,
