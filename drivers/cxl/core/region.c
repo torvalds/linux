@@ -1025,7 +1025,11 @@ static int cxl_port_setup_targets(struct cxl_port *port,
 		return rc;
 	}
 
-	if (cxl_rr->nr_targets > 1) {
+	/*
+	 * If @parent_port is masking address bits, pick the next unused address
+	 * bit to route @port's targets.
+	 */
+	if (parent_iw > 1 && cxl_rr->nr_targets > 1) {
 		u32 address_bit = max(peig + peiw, eiw + peig);
 
 		eig = address_bit - eiw + 1;
