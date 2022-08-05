@@ -14507,7 +14507,8 @@ S:	Supported
 W:	http://git.infradead.org/nvme.git
 T:	git://git.infradead.org/nvme.git
 F:	drivers/nvme/host/
-F:	include/linux/nvme.h
+F:	drivers/nvme/common/
+F:	include/linux/nvme*
 F:	include/uapi/linux/nvme_ioctl.h
 
 NVM EXPRESS FC TRANSPORT DRIVERS
@@ -18838,6 +18839,7 @@ SOFTWARE RAID (Multiple Disks) SUPPORT
 M:	Song Liu <song@kernel.org>
 L:	linux-raid@vger.kernel.org
 S:	Supported
+Q:	https://patchwork.kernel.org/project/linux-raid/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/song/md.git
 F:	drivers/md/Kconfig
 F:	drivers/md/Makefile
