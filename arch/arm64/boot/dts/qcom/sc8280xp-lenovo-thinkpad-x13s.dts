@@ -231,6 +231,8 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&tpad_default>;
+
+		wakeup-source;
 	};
 
 	keyboard@68 {
@@ -243,6 +245,8 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&kybd_default>;
+
+		wakeup-source;
 	};
 };
 
