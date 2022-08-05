@@ -158,7 +158,7 @@ static int bio_copy_user_iov(struct request *rq, struct rq_map_data *map_data,
 	bio_init(bio, NULL, bio->bi_inline_vecs, nr_pages, req_op(rq));
 
 	if (map_data) {
-		nr_pages = 1 << map_data->page_order;
+		nr_pages = 1U << map_data->page_order;
 		i = map_data->offset / PAGE_SIZE;
 	}
 	while (len) {

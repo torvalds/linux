@@ -963,11 +963,11 @@ blk_status_t blk_insert_cloned_request(struct request *rq);
 
 struct rq_map_data {
 	struct page **pages;
-	int page_order;
-	int nr_entries;
 	unsigned long offset;
-	int null_mapped;
-	int from_user;
+	unsigned short page_order;
+	unsigned short nr_entries;
+	bool null_mapped;
+	bool from_user;
 };
 
 int blk_rq_map_user(struct request_queue *, struct request *,
