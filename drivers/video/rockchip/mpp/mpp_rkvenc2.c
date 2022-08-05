@@ -807,25 +807,25 @@ static void *rkvenc2_prepare(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	struct mpp_taskqueue *queue = mpp->queue;
 	unsigned long core_idle;
 	unsigned long flags;
-	u32 core_count;
+	u32 core_id_max;
 	s32 core_id;
 	u32 i;
 
 	spin_lock_irqsave(&queue->running_lock, flags);
 
 	core_idle = queue->core_idle;
-	core_count = queue->core_count;
+	core_id_max = queue->core_id_max;
 
-	for (i = 0; i < core_count; i++) {
+	for (i = 0; i < core_id_max; i++) {
 		struct mpp_dev *mpp = queue->cores[i];
 
 		if (mpp && to_rkvenc_dev(mpp)->disable_work)
 			clear_bit(i, &core_idle);
 	}
 
-	core_id = find_first_bit(&core_idle, core_count);
+	core_id = find_first_bit(&core_idle, core_id_max + 1);
 
-	if (core_id >= core_count) {
+	if (core_id >= core_id_max + 1 || !queue->cores[core_id]) {
 		mpp_task = NULL;
 		mpp_dbg_core("core %d all busy %lx\n", core_id, core_idle);
 	} else {

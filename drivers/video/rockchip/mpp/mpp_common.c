@@ -1000,6 +1000,8 @@ static void mpp_attach_workqueue(struct mpp_dev *mpp,
 
 	set_bit(core_id, &queue->core_idle);
 	list_add_tail(&mpp->queue_link, &queue->dev_list);
+	if (queue->core_id_max < (u32)core_id)
+		queue->core_id_max = (u32)core_id;
 
 	mpp->core_id = core_id;
 	mpp->queue = queue;
@@ -1024,7 +1026,7 @@ static void mpp_detach_workqueue(struct mpp_dev *mpp)
 		queue->cores[mpp->core_id] = NULL;
 		queue->core_count--;
 
-		clear_bit(queue->core_count, &queue->core_idle);
+		clear_bit(mpp->core_id, &queue->core_idle);
 		list_del_init(&mpp->queue_link);
 
 		mpp->queue = NULL;

@@ -502,6 +502,7 @@ struct mpp_taskqueue {
 	atomic_t reset_request;
 	struct mpp_dev *cores[MPP_MAX_CORE_NUM];
 	unsigned long core_idle;
+	u32 core_id_max;
 	u32 core_count;
 };
 
