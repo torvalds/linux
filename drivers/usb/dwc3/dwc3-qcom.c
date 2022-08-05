@@ -254,7 +254,7 @@ static int dwc3_qcom_interconnect_init(struct dwc3_qcom *qcom)
 	qcom->icc_path_ddr = of_icc_get(dev, "usb-ddr");
 	if (IS_ERR(qcom->icc_path_ddr)) {
 		dev_err(dev, "failed to get usb-ddr path: %ld\n",
-			PTR_ERR(qcom->icc_path_ddr));
+				PTR_ERR(qcom->icc_path_ddr));
 		return PTR_ERR(qcom->icc_path_ddr);
 	}
 
@@ -266,20 +266,19 @@ static int dwc3_qcom_interconnect_init(struct dwc3_qcom *qcom)
 	}
 
 	max_speed = usb_get_maximum_speed(&qcom->dwc3->dev);
-	if (max_speed >= USB_SPEED_SUPER || max_speed == USB_SPEED_UNKNOWN)
+	if (max_speed >= USB_SPEED_SUPER || max_speed == USB_SPEED_UNKNOWN) {
 		ret = icc_set_bw(qcom->icc_path_ddr,
-			USB_MEMORY_AVG_SS_BW, USB_MEMORY_PEAK_SS_BW);
-	else
+				USB_MEMORY_AVG_SS_BW, USB_MEMORY_PEAK_SS_BW);
+	} else {
 		ret = icc_set_bw(qcom->icc_path_ddr,
-			USB_MEMORY_AVG_HS_BW, USB_MEMORY_PEAK_HS_BW);
-
+				USB_MEMORY_AVG_HS_BW, USB_MEMORY_PEAK_HS_BW);
+	}
 	if (ret) {
 		dev_err(dev, "failed to set bandwidth for usb-ddr path: %d\n", ret);
 		return ret;
 	}
 
-	ret = icc_set_bw(qcom->icc_path_apps,
-		APPS_USB_AVG_BW, APPS_USB_PEAK_BW);
+	ret = icc_set_bw(qcom->icc_path_apps, APPS_USB_AVG_BW, APPS_USB_PEAK_BW);
 	if (ret) {
 		dev_err(dev, "failed to set bandwidth for apps-usb path: %d\n", ret);
 		return ret;
