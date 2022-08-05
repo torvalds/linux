@@ -112,16 +112,6 @@ struct armada_37xx_pinctrl {
 	struct armada_37xx_pm_state	pm;
 };
 
-#define PIN_GRP(_name, _start, _nr, _mask, _func1, _func2)	\
-	{					\
-		.name = _name,			\
-		.start_pin = _start,		\
-		.npins = _nr,			\
-		.reg_mask = _mask,		\
-		.val = {0, _mask},		\
-		.funcs = {_func1, _func2}	\
-	}
-
 #define PIN_GRP_GPIO_0(_name, _start, _nr)	\
 	{					\
 		.name = _name,			\
