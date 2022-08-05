@@ -55,10 +55,14 @@ static int report_error_detected(struct pci_dev *dev,
 
 	device_lock(&dev->dev);
 	pdrv = dev->driver;
-	if (!pci_dev_set_io_state(dev, state) ||
-		!pdrv ||
-		!pdrv->err_handler ||
-		!pdrv->err_handler->error_detected) {
+	if (pci_dev_is_disconnected(dev)) {
+		vote = PCI_ERS_RESULT_DISCONNECT;
+	} else if (!pci_dev_set_io_state(dev, state)) {
+		pci_info(dev, "can't recover (state transition %u -> %u invalid)\n",
+			dev->error_state, state);
+		vote = PCI_ERS_RESULT_NONE;
+	} else if (!pdrv || !pdrv->err_handler ||
+		   !pdrv->err_handler->error_detected) {
 		/*
 		 * If any device in the subtree does not have an error_detected
 		 * callback, PCI_ERS_RESULT_NO_AER_DRIVER prevents subsequent
