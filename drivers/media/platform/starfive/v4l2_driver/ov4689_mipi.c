@@ -2756,12 +2756,7 @@ out:
 
 static int ov4689_stream_start(struct ov4689_dev *sensor, int enable)
 {
-	u8 val;
-	int result = ov4689_write_reg(sensor, 0x100, enable);
-
-	ov4689_read_reg(sensor, 0x100, &val);
-	mdelay(200);
-	return result;
+	return ov4689_write_reg(sensor, 0x100, enable);
 }
 
 static int ov4689_s_stream(struct v4l2_subdev *sd, int enable)
