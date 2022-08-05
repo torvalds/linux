@@ -10,6 +10,7 @@
  * V0.0X01.0X03
  *  1.support 10bit HDR DOL2.
  *  2.4032*3040 @ 25fps
+ * V0.0X01.0X04 add dgain ctrl
  *
  */
 
@@ -37,7 +38,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -67,9 +68,20 @@
 #define IMX577_REG_GAIN_H		0x0204
 #define IMX577_REG_GAIN_L		0x0205
 #define IMX577_GAIN_MIN			0x10
-#define IMX577_GAIN_MAX			0x160
-#define IMX577_GAIN_STEP		0x1
+#define IMX577_GAIN_MAX			0x1600
+#define IMX577_GAIN_STEP		0x10
 #define IMX577_GAIN_DEFAULT		0x20
+
+#define IMX577_REG_DGAIN		0x3ff9
+#define IMX577_DGAIN_MODE		1
+#define IMX577_REG_DGAINGR_H		0x020e
+#define IMX577_REG_DGAINGR_L		0x020f
+#define IMX577_REG_DGAINR_H		0x0210
+#define IMX577_REG_DGAINR_L		0x0211
+#define IMX577_REG_DGAINB_H		0x0212
+#define IMX577_REG_DGAINB_L		0x0213
+#define IMX577_REG_DGAINGB_H		0x0214
+#define IMX577_REG_DGAINGB_L		0x0215
 
 #define IMX577_LF_GAIN_REG_H		0x00f0
 #define IMX577_LF_GAIN_REG_L		0x00f1
@@ -77,6 +89,13 @@
 #define IMX577_SEF1_GAIN_REG_L		0x00f3
 #define IMX577_SEF2_GAIN_REG_H		0x00f4
 #define IMX577_SEF2_GAIN_REG_L		0x00f5
+
+#define IMX577_LF_DGAIN_REG_H		0x00f6
+#define IMX577_LF_DGAIN_REG_L		0x00f7
+#define IMX577_SEF1_DGAIN_REG_H		0x00f8
+#define IMX577_SEF1_DGAIN_REG_L		0x00f9
+#define IMX577_SEF2_DGAIN_REG_H		0x00fa
+#define IMX577_SEF2_DGAIN_REG_L		0x00fb
 
 #define IMX577_LF_EXPO_REG_H		0x00ea
 #define IMX577_LF_EXPO_REG_L		0x00eb
@@ -101,6 +120,9 @@
 
 #define IMX577_FETCH_AGAIN_H(VAL)	(((VAL) >> 8) & 0x03)
 #define IMX577_FETCH_AGAIN_L(VAL)	((VAL) & 0xFF)
+
+#define IMX577_FETCH_DGAIN_H(VAL)	(((VAL) >> 8) & 0x0F)
+#define IMX577_FETCH_DGAIN_L(VAL)	((VAL) & 0xFF)
 
 #define IMX577_FETCH_GAIN_H(VAL)	(((VAL) >> 8) & 0xFF)
 #define IMX577_FETCH_GAIN_L(VAL)	((VAL) & 0xFF)
@@ -1284,6 +1306,7 @@ static int imx577_set_hdrae(struct imx577 *imx577,
 	struct i2c_client *client = imx577->client;
 	u32 l_exp_time, m_exp_time, s_exp_time;
 	u32 l_a_gain, m_a_gain, s_a_gain;
+	u32 l_d_gain, s_d_gain;
 	int ret = 0;
 	u32 fll, dol_cit1, dol_cit2, dol_off2;
 
@@ -1312,15 +1335,19 @@ static int imx577_set_hdrae(struct imx577 *imx577,
 	ret = imx577_write_reg(client, IMX577_GROUP_HOLD_REG,
 		IMX577_REG_VALUE_08BIT, IMX577_GROUP_HOLD_START);
 	/* gain effect n+1 */
-	if (l_a_gain > 0x160)
-		l_a_gain = 0x160;
+	if (l_a_gain > 0x1600)
+		l_a_gain = 0x1600;
 	if (l_a_gain < 0x10)
 		l_a_gain = 0x10;
-	if (s_a_gain > 0x160)
-		s_a_gain = 0x160;
+	if (s_a_gain > 0x1600)
+		s_a_gain = 0x1600;
 	if (s_a_gain < 0x10)
 		s_a_gain = 0x10;
+	l_d_gain = l_a_gain > 0x160 ? (l_a_gain * 256 / 22 / 16) : 256;
+	l_a_gain = l_a_gain > 0x160 ? 0x160 : l_a_gain;
 	l_a_gain = 1024 - 1024 * 16 / l_a_gain;
+	s_d_gain = s_a_gain > 0x160 ? (s_a_gain * 256 / 22 / 16) : 256;
+	s_a_gain = s_a_gain > 0x160 ? 0x160 : s_a_gain;
 	s_a_gain = 1024 - 1024 * 16 / s_a_gain;
 
 	ret |= imx577_write_reg(client, IMX577_LF_GAIN_REG_H,
@@ -1331,6 +1358,17 @@ static int imx577_set_hdrae(struct imx577 *imx577,
 		IMX577_REG_VALUE_08BIT, IMX577_FETCH_GAIN_H(s_a_gain));
 	ret |= imx577_write_reg(client, IMX577_SEF1_GAIN_REG_L,
 		IMX577_REG_VALUE_08BIT, IMX577_FETCH_GAIN_L(s_a_gain));
+
+	if (IMX577_DGAIN_MODE && l_d_gain > 0 && s_d_gain > 0) {
+		ret |= imx577_write_reg(client, IMX577_LF_DGAIN_REG_H,
+			IMX577_REG_VALUE_08BIT, IMX577_FETCH_DGAIN_H(l_d_gain));
+		ret |= imx577_write_reg(client, IMX577_LF_DGAIN_REG_L,
+			IMX577_REG_VALUE_08BIT, IMX577_FETCH_DGAIN_L(l_d_gain));
+		ret |= imx577_write_reg(client, IMX577_SEF1_DGAIN_REG_H,
+			IMX577_REG_VALUE_08BIT, IMX577_FETCH_DGAIN_H(s_d_gain));
+		ret |= imx577_write_reg(client, IMX577_SEF1_DGAIN_REG_L,
+			IMX577_REG_VALUE_08BIT, IMX577_FETCH_DGAIN_L(s_d_gain));
+	}
 
 	fll = imx577->cur_vts;
 	dol_cit1 = l_exp_time >> 1;
@@ -1987,6 +2025,7 @@ static int imx577_set_ctrl(struct v4l2_ctrl *ctrl)
 	s64 max;
 	int ret = 0;
 	u32 again = 0;
+	u32 dgain = 0;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
@@ -2029,19 +2068,58 @@ static int imx577_set_ctrl(struct v4l2_ctrl *ctrl)
 		 */
 		if (imx577->cur_mode->hdr_mode != NO_HDR)
 			return ret;
-		if (ctrl->val > 0x160)
-			ctrl->val = 0x160;
+		if (ctrl->val > 0x1600)
+			ctrl->val = 0x1600;
 		if (ctrl->val < 0x10)
 			ctrl->val = 0x10;
 
-		again = 1024 - 1024 * 16 / ctrl->val;
+		dgain = ctrl->val > 0x160 ? (ctrl->val * 256 / 22 / 16) : 256;
+		again = ctrl->val > 0x160 ? 0x160 : ctrl->val;
+		again = 1024 - 1024 * 16 / again;
 		ret = imx577_write_reg(imx577->client, IMX577_REG_GAIN_H,
 				       IMX577_REG_VALUE_08BIT,
 				       IMX577_FETCH_AGAIN_H(again));
 		ret |= imx577_write_reg(imx577->client, IMX577_REG_GAIN_L,
 					IMX577_REG_VALUE_08BIT,
 					IMX577_FETCH_AGAIN_L(again));
-
+		ret |= imx577_write_reg(imx577->client, IMX577_REG_DGAIN,
+					IMX577_REG_VALUE_08BIT,
+					IMX577_DGAIN_MODE);
+		if (IMX577_DGAIN_MODE && dgain > 0) {
+			ret |= imx577_write_reg(imx577->client,
+						IMX577_REG_DGAINGR_H,
+						IMX577_REG_VALUE_08BIT,
+						IMX577_FETCH_DGAIN_H(dgain));
+			ret |= imx577_write_reg(imx577->client,
+						IMX577_REG_DGAINGR_L,
+						IMX577_REG_VALUE_08BIT,
+						IMX577_FETCH_DGAIN_L(dgain));
+		} else if (dgain > 0) {
+			ret |= imx577_write_reg(imx577->client,
+						IMX577_REG_DGAINR_H,
+						IMX577_REG_VALUE_08BIT,
+						IMX577_FETCH_DGAIN_H(dgain));
+			ret |= imx577_write_reg(imx577->client,
+						IMX577_REG_DGAINR_L,
+						IMX577_REG_VALUE_08BIT,
+						IMX577_FETCH_DGAIN_L(dgain));
+			ret |= imx577_write_reg(imx577->client,
+						IMX577_REG_DGAINB_H,
+						IMX577_REG_VALUE_08BIT,
+						IMX577_FETCH_DGAIN_H(dgain));
+			ret |= imx577_write_reg(imx577->client,
+						IMX577_REG_DGAINB_L,
+						IMX577_REG_VALUE_08BIT,
+						IMX577_FETCH_DGAIN_L(dgain));
+			ret |= imx577_write_reg(imx577->client,
+						IMX577_REG_DGAINGB_H,
+						IMX577_REG_VALUE_08BIT,
+						IMX577_FETCH_DGAIN_H(dgain));
+			ret |= imx577_write_reg(imx577->client,
+						IMX577_REG_DGAINGB_L,
+						IMX577_REG_VALUE_08BIT,
+						IMX577_FETCH_DGAIN_L(dgain));
+		}
 		dev_dbg(&client->dev, "set analog gain 0x%x\n",
 			ctrl->val);
 		break;
