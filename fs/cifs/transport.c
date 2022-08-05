@@ -38,7 +38,7 @@ cifs_wake_up_task(struct mid_q_entry *mid)
 	wake_up_process(mid->callback_data);
 }
 
-struct mid_q_entry *
+static struct mid_q_entry *
 alloc_mid(const struct smb_hdr *smb_buffer, struct TCP_Server_Info *server)
 {
 	struct mid_q_entry *temp;
