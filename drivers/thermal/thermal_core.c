@@ -295,25 +295,16 @@ static void thermal_zone_device_set_polling(struct thermal_zone_device *tz,
 		cancel_delayed_work(&tz->poll_queue);
 }
 
-static inline bool should_stop_polling(struct thermal_zone_device *tz)
-{
-	return !thermal_zone_device_is_enabled(tz);
-}
-
 static void monitor_thermal_zone(struct thermal_zone_device *tz)
 {
-	bool stop;
-
-	stop = should_stop_polling(tz);
-
 	mutex_lock(&tz->lock);
 
-	if (!stop && tz->passive)
-		thermal_zone_device_set_polling(tz, tz->passive_delay_jiffies);
-	else if (!stop && tz->polling_delay_jiffies)
-		thermal_zone_device_set_polling(tz, tz->polling_delay_jiffies);
-	else
+	if (tz->mode != THERMAL_DEVICE_ENABLED)
 		thermal_zone_device_set_polling(tz, 0);
+	else if (tz->passive)
+		thermal_zone_device_set_polling(tz, tz->passive_delay_jiffies);
+	else if (tz->polling_delay_jiffies)
+		thermal_zone_device_set_polling(tz, tz->polling_delay_jiffies);
 
 	mutex_unlock(&tz->lock);
 }
@@ -480,7 +471,7 @@ void thermal_zone_device_update(struct thermal_zone_device *tz,
 {
 	int count;
 
-	if (should_stop_polling(tz))
+	if (!thermal_zone_device_is_enabled(tz))
 		return;
 
 	if (atomic_read(&in_suspend))
