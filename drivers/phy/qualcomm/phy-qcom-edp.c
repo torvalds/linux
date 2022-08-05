@@ -410,31 +410,30 @@ static int qcom_edp_configure_pll(const struct qcom_edp *edp)
 	return 0;
 }
 
-static int qcom_edp_set_vco_div(const struct qcom_edp *edp)
+static int qcom_edp_set_vco_div(const struct qcom_edp *edp, unsigned long *pixel_freq)
 {
 	const struct phy_configure_opts_dp *dp_opts = &edp->dp_opts;
-	unsigned long pixel_freq;
 	u32 vco_div;
 
 	switch (dp_opts->link_rate) {
 	case 1620:
 		vco_div = 0x1;
-		pixel_freq = 1620000000UL / 2;
+		*pixel_freq = 1620000000UL / 2;
 		break;
 
 	case 2700:
 		vco_div = 0x1;
-		pixel_freq = 2700000000UL / 2;
+		*pixel_freq = 2700000000UL / 2;
 		break;
 
 	case 5400:
 		vco_div = 0x2;
-		pixel_freq = 5400000000UL / 4;
+		*pixel_freq = 5400000000UL / 4;
 		break;
 
 	case 8100:
 		vco_div = 0x0;
-		pixel_freq = 8100000000UL / 6;
+		*pixel_freq = 8100000000UL / 6;
 		break;
 
 	default:
@@ -444,9 +443,6 @@ static int qcom_edp_set_vco_div(const struct qcom_edp *edp)
 
 	writel(vco_div, edp->edp + DP_PHY_VCO_DIV);
 
-	clk_set_rate(edp->dp_link_hw.clk, dp_opts->link_rate * 100000);
-	clk_set_rate(edp->dp_pixel_hw.clk, pixel_freq);
-
 	return 0;
 }
 
@@ -455,6 +451,7 @@ static int qcom_edp_phy_power_on(struct phy *phy)
 	const struct qcom_edp *edp = phy_get_drvdata(phy);
 	const struct qcom_edp_cfg *cfg = edp->cfg;
 	u32 bias0_en, drvr0_en, bias1_en, drvr1_en;
+	unsigned long pixel_freq;
 	u8 ldo_config;
 	int timeout;
 	int ret;
@@ -508,7 +505,7 @@ static int qcom_edp_phy_power_on(struct phy *phy)
 	writel(0x01, edp->tx1 + TXn_TRAN_DRVR_EMP_EN);
 	writel(0x04, edp->tx1 + TXn_TX_BAND);
 
-	ret = qcom_edp_set_vco_div(edp);
+	ret = qcom_edp_set_vco_div(edp, &pixel_freq);
 	if (ret)
 		return ret;
 
@@ -574,8 +571,15 @@ static int qcom_edp_phy_power_on(struct phy *phy)
 
 	writel(0x19, edp->edp + DP_PHY_CFG);
 
-	return readl_poll_timeout(edp->edp + DP_PHY_STATUS,
-				  val, val & BIT(1), 500, 10000);
+	ret = readl_poll_timeout(edp->edp + DP_PHY_STATUS,
+				 val, val & BIT(1), 500, 10000);
+	if (ret)
+		return ret;
+
+	clk_set_rate(edp->dp_link_hw.clk, edp->dp_opts.link_rate * 100000);
+	clk_set_rate(edp->dp_pixel_hw.clk, pixel_freq);
+
+	return 0;
 }
 
 static int qcom_edp_phy_power_off(struct phy *phy)
