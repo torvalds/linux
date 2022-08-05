@@ -3526,7 +3526,6 @@ void get_completed_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)
 {
 	rgosp->rgos_norm = RCU_GET_STATE_COMPLETED;
 	rgosp->rgos_exp = RCU_GET_STATE_COMPLETED;
-	rgosp->rgos_polled = RCU_GET_STATE_COMPLETED;
 }
 EXPORT_SYMBOL_GPL(get_completed_synchronize_rcu_full);
 
@@ -3575,7 +3574,6 @@ void get_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)
 	smp_mb();  /* ^^^ */
 	rgosp->rgos_norm = rcu_seq_snap(&rnp->gp_seq);
 	rgosp->rgos_exp = rcu_seq_snap(&rcu_state.expedited_sequence);
-	rgosp->rgos_polled = rcu_seq_snap(&rcu_state.gp_seq_polled);
 }
 EXPORT_SYMBOL_GPL(get_state_synchronize_rcu_full);
 
@@ -3727,9 +3725,7 @@ bool poll_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)
 	if (rgosp->rgos_norm == RCU_GET_STATE_COMPLETED ||
 	    rcu_seq_done_exact(&rnp->gp_seq, rgosp->rgos_norm) ||
 	    rgosp->rgos_exp == RCU_GET_STATE_COMPLETED ||
-	    rcu_seq_done_exact(&rcu_state.expedited_sequence, rgosp->rgos_exp) ||
-	    rgosp->rgos_polled == RCU_GET_STATE_COMPLETED ||
-	    rcu_seq_done_exact(&rcu_state.gp_seq_polled, rgosp->rgos_polled)) {
+	    rcu_seq_done_exact(&rcu_state.expedited_sequence, rgosp->rgos_exp)) {
 		smp_mb(); /* Ensure GP ends before subsequent accesses. */
 		return true;
 	}

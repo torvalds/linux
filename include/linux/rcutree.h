@@ -44,7 +44,6 @@ bool rcu_gp_might_be_stalled(void);
 struct rcu_gp_oldstate {
 	unsigned long rgos_norm;
 	unsigned long rgos_exp;
-	unsigned long rgos_polled;
 };
 
 unsigned long start_poll_synchronize_rcu_expedited(void);
