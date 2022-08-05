@@ -6843,12 +6843,17 @@ static struct gdsc ufs_phy_gdsc = {
 	.pwrsts = PWRSTS_OFF_ON,
 };
 
+/*
+ * The Qualcomm DWC3 driver suspend implementation appears to be incomplete
+ * for sc8280xp so keep the USB power domains always-on for now.
+ */
 static struct gdsc usb30_mp_gdsc = {
 	.gdscr = 0xab004,
 	.pd = {
 		.name = "usb30_mp_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = ALWAYS_ON,
 };
 
 static struct gdsc usb30_prim_gdsc = {
@@ -6857,6 +6862,7 @@ static struct gdsc usb30_prim_gdsc = {
 		.name = "usb30_prim_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = ALWAYS_ON,
 };
 
 static struct gdsc usb30_sec_gdsc = {
@@ -6865,6 +6871,7 @@ static struct gdsc usb30_sec_gdsc = {
 		.name = "usb30_sec_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = ALWAYS_ON,
 };
 
 static struct clk_regmap *gcc_sc8280xp_clocks[] = {
