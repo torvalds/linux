@@ -499,28 +499,6 @@ static void cxld_set_type(struct cxl_decoder *cxld, u32 *ctrl)
 			  CXL_HDM_DECODER0_CTRL_TYPE);
 }
 
-static void cxld_set_hpa(struct cxl_decoder *cxld, u64 *base, u64 *size)
-{
-	struct cxl_region *cxlr = cxld->region;
-	struct cxl_region_params *p = &cxlr->params;
-
-	cxld->hpa_range = (struct range) {
-		.start = p->res->start,
-		.end = p->res->end,
-	};
-
-	*base = p->res->start;
-	*size = resource_size(p->res);
-}
-
-static void cxld_clear_hpa(struct cxl_decoder *cxld)
-{
-	cxld->hpa_range = (struct range) {
-		.start = 0,
-		.end = -1,
-	};
-}
-
 static int cxlsd_set_targets(struct cxl_switch_decoder *cxlsd, u64 *tgt)
 {
 	struct cxl_dport **t = &cxlsd->target[0];
@@ -601,7 +579,8 @@ static int cxl_decoder_commit(struct cxl_decoder *cxld)
 	ctrl = readl(hdm + CXL_HDM_DECODER0_CTRL_OFFSET(cxld->id));
 	cxld_set_interleave(cxld, &ctrl);
 	cxld_set_type(cxld, &ctrl);
-	cxld_set_hpa(cxld, &base, &size);
+	base = cxld->hpa_range.start;
+	size = range_len(&cxld->hpa_range);
 
 	writel(upper_32_bits(base), hdm + CXL_HDM_DECODER0_BASE_HIGH_OFFSET(id));
 	writel(lower_32_bits(base), hdm + CXL_HDM_DECODER0_BASE_LOW_OFFSET(id));
@@ -674,7 +653,6 @@ static int cxl_decoder_reset(struct cxl_decoder *cxld)
 	ctrl &= ~CXL_HDM_DECODER0_CTRL_COMMIT;
 	writel(ctrl, hdm + CXL_HDM_DECODER0_CTRL_OFFSET(id));
 
-	cxld_clear_hpa(cxld);
 	writel(0, hdm + CXL_HDM_DECODER0_SIZE_HIGH_OFFSET(id));
 	writel(0, hdm + CXL_HDM_DECODER0_SIZE_LOW_OFFSET(id));
 	writel(0, hdm + CXL_HDM_DECODER0_BASE_HIGH_OFFSET(id));

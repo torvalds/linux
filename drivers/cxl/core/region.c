@@ -1044,6 +1044,10 @@ static int cxl_port_setup_targets(struct cxl_port *port,
 
 	cxld->interleave_ways = iw;
 	cxld->interleave_granularity = ig;
+	cxld->hpa_range = (struct range) {
+		.start = p->res->start,
+		.end = p->res->end,
+	};
 	dev_dbg(&cxlr->dev, "%s:%s iw: %d ig: %d\n", dev_name(port->uport),
 		dev_name(&port->dev), iw, ig);
 add_target:
@@ -1070,13 +1074,21 @@ static void cxl_port_reset_targets(struct cxl_port *port,
 				   struct cxl_region *cxlr)
 {
 	struct cxl_region_ref *cxl_rr = cxl_rr_load(port, cxlr);
+	struct cxl_decoder *cxld;
 
 	/*
 	 * After the last endpoint has been detached the entire cxl_rr may now
 	 * be gone.
 	 */
-	if (cxl_rr)
-		cxl_rr->nr_targets_set = 0;
+	if (!cxl_rr)
+		return;
+	cxl_rr->nr_targets_set = 0;
+
+	cxld = cxl_rr->decoder;
+	cxld->hpa_range = (struct range) {
+		.start = 0,
+		.end = -1,
+	};
 }
 
 static void cxl_region_teardown_targets(struct cxl_region *cxlr)
@@ -1257,6 +1269,10 @@ static int cxl_region_attach(struct cxl_region *cxlr,
 
 	cxled->cxld.interleave_ways = p->interleave_ways;
 	cxled->cxld.interleave_granularity = p->interleave_granularity;
+	cxled->cxld.hpa_range = (struct range) {
+		.start = p->res->start,
+		.end = p->res->end,
+	};
 
 	return 0;
 
@@ -1315,6 +1331,10 @@ static int cxl_region_detach(struct cxl_endpoint_decoder *cxled)
 	}
 	p->targets[cxled->pos] = NULL;
 	p->nr_targets--;
+	cxled->cxld.hpa_range = (struct range) {
+		.start = 0,
+		.end = -1,
+	};
 
 	/* notify the region driver that one of its targets has departed */
 	up_write(&cxl_region_rwsem);
