@@ -445,7 +445,16 @@ int cxl_dpa_alloc(struct cxl_endpoint_decoder *cxled, unsigned long long size)
 		start = free_pmem_start;
 		avail = cxlds->pmem_res.end - start + 1;
 		skip_start = free_ram_start;
-		skip_end = start - 1;
+
+		/*
+		 * If some pmem is already allocated, then that allocation
+		 * already handled the skip.
+		 */
+		if (cxlds->pmem_res.child &&
+		    skip_start == cxlds->pmem_res.child->start)
+			skip_end = skip_start - 1;
+		else
+			skip_end = start - 1;
 		skip = skip_end - skip_start + 1;
 	} else {
 		dev_dbg(dev, "mode not set\n");
