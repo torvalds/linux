@@ -531,6 +531,7 @@ xfs_itruncate_extents(
 }
 
 /* from xfs_file.c */
+int	xfs_break_dax_layouts(struct inode *inode, bool *retry);
 int	xfs_break_layouts(struct inode *inode, uint *iolock,
 		enum layout_break_reason reason);
 

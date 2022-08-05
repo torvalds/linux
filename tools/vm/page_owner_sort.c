@@ -8,7 +8,7 @@
  * Or sort by total memory:
  * ./page_owner_sort -m page_owner_full.txt sorted_page_owner.txt
  *
- * See Documentation/vm/page_owner.rst
+ * See Documentation/mm/page_owner.rst
 */
 
 #include <stdio.h>
@@ -470,23 +470,23 @@ static bool match_str_list(const char *str, char **list, int list_size)
 
 static bool is_need(char *buf)
 {
-		if ((filter & FILTER_UNRELEASE) && get_free_ts_nsec(buf) != 0)
-			return false;
-		if ((filter & FILTER_PID) && !match_num_list(get_pid(buf), fc.pids, fc.pids_size))
-			return false;
-		if ((filter & FILTER_TGID) &&
-			!match_num_list(get_tgid(buf), fc.tgids, fc.tgids_size))
-			return false;
+	if ((filter & FILTER_UNRELEASE) && get_free_ts_nsec(buf) != 0)
+		return false;
+	if ((filter & FILTER_PID) && !match_num_list(get_pid(buf), fc.pids, fc.pids_size))
+		return false;
+	if ((filter & FILTER_TGID) &&
+		!match_num_list(get_tgid(buf), fc.tgids, fc.tgids_size))
+		return false;
 
-		char *comm = get_comm(buf);
+	char *comm = get_comm(buf);
 
-		if ((filter & FILTER_COMM) &&
-		!match_str_list(comm, fc.comms, fc.comms_size)) {
-			free(comm);
-			return false;
-		}
+	if ((filter & FILTER_COMM) &&
+	!match_str_list(comm, fc.comms, fc.comms_size)) {
 		free(comm);
-		return true;
+		return false;
+	}
+	free(comm);
+	return true;
 }
 
 static void add_list(char *buf, int len, char *ext_buf)
