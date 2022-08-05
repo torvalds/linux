@@ -19,6 +19,9 @@
 #define RT1711H_VID		0x29CF
 #define RT1711H_PID		0x1711
 
+#define RT1711H_PHYCTRL1	0x80
+#define RT1711H_PHYCTRL2	0x81
+
 #define RT1711H_RTCTRL8		0x9B
 
 /* Autoidle timeout = (tout * 2 + 1) * 6.4ms */
@@ -106,8 +109,18 @@ static int rt1711h_init(struct tcpci *tcpci, struct tcpci_data *tdata)
 		return ret;
 
 	/* dcSRC.DRP : 33% */
-	return rt1711h_write16(chip, RT1711H_RTCTRL16, 330);
+	ret = rt1711h_write16(chip, RT1711H_RTCTRL16, 330);
+	if (ret < 0)
+		return ret;
 
+	/* Enable phy discard retry, retry count 7, rx filter deglitch 100 us */
+	ret = rt1711h_write8(chip, RT1711H_PHYCTRL1, 0xF1);
+	if (ret < 0)
+		return ret;
+
+	/* Decrease wait time of BMC-encoded 1 bit from 2.67us to 2.55us */
+	/* wait time : (val * .4167) us */
+	return rt1711h_write8(chip, RT1711H_PHYCTRL2, 62);
 }
 
 static int rt1711h_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata,
