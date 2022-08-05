@@ -3504,11 +3504,14 @@ void synchronize_rcu(void)
 	rcu_poll_gp_seq_start_unlocked(&rcu_state.gp_seq_polled_snap);
 	rcu_poll_gp_seq_end_unlocked(&rcu_state.gp_seq_polled_snap);
 
-	// Update normal grace-period counters to record grace period.
+	// Update the normal grace-period counters to record
+	// this grace period, but only those used by the boot CPU.
+	// The rcu_scheduler_starting() will take care of the rest of
+	// these counters.
 	local_irq_save(flags);
 	WARN_ON_ONCE(num_online_cpus() > 1);
 	rcu_state.gp_seq += (1 << RCU_SEQ_CTR_SHIFT);
-	rcu_for_each_node_breadth_first(rnp)
+	for (rnp = this_cpu_ptr(&rcu_data)->mynode; rnp; rnp = rnp->parent)
 		rnp->gp_seq_needed = rnp->gp_seq = rcu_state.gp_seq;
 	local_irq_restore(flags);
 }
@@ -4456,9 +4459,20 @@ early_initcall(rcu_spawn_gp_kthread);
  */
 void rcu_scheduler_starting(void)
 {
+	unsigned long flags;
+	struct rcu_node *rnp;
+
 	WARN_ON(num_online_cpus() != 1);
 	WARN_ON(nr_context_switches() > 0);
 	rcu_test_sync_prims();
+
+	// Fix up the ->gp_seq counters.
+	local_irq_save(flags);
+	rcu_for_each_node_breadth_first(rnp)
+		rnp->gp_seq_needed = rnp->gp_seq = rcu_state.gp_seq;
+	local_irq_restore(flags);
+
+	// Switch out of early boot mode.
 	rcu_scheduler_active = RCU_SCHEDULER_INIT;
 	rcu_test_sync_prims();
 }
