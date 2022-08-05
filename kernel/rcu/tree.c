@@ -3480,24 +3480,37 @@ static int rcu_blocking_is_gp(void)
  */
 void synchronize_rcu(void)
 {
+	unsigned long flags;
+	struct rcu_node *rnp;
+
 	RCU_LOCKDEP_WARN(lock_is_held(&rcu_bh_lock_map) ||
 			 lock_is_held(&rcu_lock_map) ||
 			 lock_is_held(&rcu_sched_lock_map),
 			 "Illegal synchronize_rcu() in RCU read-side critical section");
-	if (rcu_blocking_is_gp()) {
-		// Note well that this code runs with !PREEMPT && !SMP.
-		// In addition, all code that advances grace periods runs at
-		// process level.  Therefore, this normal GP overlaps with
-		// other normal GPs only by being fully nested within them,
-		// which allows reuse of ->gp_seq_polled_snap.
-		rcu_poll_gp_seq_start_unlocked(&rcu_state.gp_seq_polled_snap);
-		rcu_poll_gp_seq_end_unlocked(&rcu_state.gp_seq_polled_snap);
-		return;  // Context allows vacuous grace periods.
+	if (!rcu_blocking_is_gp()) {
+		if (rcu_gp_is_expedited())
+			synchronize_rcu_expedited();
+		else
+			wait_rcu_gp(call_rcu);
+		return;
 	}
-	if (rcu_gp_is_expedited())
-		synchronize_rcu_expedited();
-	else
-		wait_rcu_gp(call_rcu);
+
+	// Context allows vacuous grace periods.
+	// Note well that this code runs with !PREEMPT && !SMP.
+	// In addition, all code that advances grace periods runs at
+	// process level.  Therefore, this normal GP overlaps with other
+	// normal GPs only by being fully nested within them, which allows
+	// reuse of ->gp_seq_polled_snap.
+	rcu_poll_gp_seq_start_unlocked(&rcu_state.gp_seq_polled_snap);
+	rcu_poll_gp_seq_end_unlocked(&rcu_state.gp_seq_polled_snap);
+
+	// Update normal grace-period counters to record grace period.
+	local_irq_save(flags);
+	WARN_ON_ONCE(num_online_cpus() > 1);
+	rcu_state.gp_seq += (1 << RCU_SEQ_CTR_SHIFT);
+	rcu_for_each_node_breadth_first(rnp)
+		rnp->gp_seq_needed = rnp->gp_seq = rcu_state.gp_seq;
+	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu);
 
