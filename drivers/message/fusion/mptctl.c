@@ -620,7 +620,6 @@ __mptctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	mpt_ioctl_header __user *uhdr = (void __user *) arg;
 	mpt_ioctl_header	 khdr;
-	int iocnum;
 	unsigned iocnumX;
 	int nonblock = (file->f_flags & O_NONBLOCK);
 	int ret;
@@ -634,12 +633,11 @@ __mptctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 	ret = -ENXIO;				/* (-6) No such device or address */
 
-	/* Verify intended MPT adapter - set iocnum and the adapter
+	/* Verify intended MPT adapter - set iocnumX and the adapter
 	 * pointer (iocp)
 	 */
 	iocnumX = khdr.iocnum & 0xFF;
-	if (((iocnum = mpt_verify_adapter(iocnumX, &iocp)) < 0) ||
-	    (iocp == NULL))
+	if ((mpt_verify_adapter(iocnumX, &iocp) < 0) || (iocp == NULL))
 		return -ENODEV;
 
 	if (!iocp->active) {
