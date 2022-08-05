@@ -530,14 +530,14 @@ static int dmaengine_pcm_lp_setup(struct snd_soc_component *component,
 
 		delta = is_playback ? (a - fifo_a) - (b + fifo_b) : (b - fifo_b) - (a + fifo_a);
 
-		prtd->hw_ptr_delta = delta;
-
 		/* push valid playback into ref list */
 		spin_lock(&dlp->lock);
 		if (is_playback) {
+			prtd->hw_ptr_delta = delta;
 			kref_get(&prtd->refcount);
 			list_add_tail(&prtd->node, &dlp->ref_list);
 		} else {
+			brtd->hw_ptr_delta = delta;
 			kref_get(&brtd->refcount);
 			list_add_tail(&brtd->node, &dlp->ref_list);
 		}
