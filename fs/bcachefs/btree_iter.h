@@ -335,7 +335,8 @@ void bch2_trans_copy_iter(struct btree_iter *, struct btree_iter *);
 
 static inline void set_btree_iter_dontneed(struct btree_iter *iter)
 {
-	iter->path->preserve = false;
+	if (!iter->trans->restarted)
+		iter->path->preserve = false;
 }
 
 void *bch2_trans_kmalloc(struct btree_trans *, size_t);
