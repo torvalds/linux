@@ -373,15 +373,24 @@ done:
 	return err;
 }
 
+static struct bt_iso_qos *iso_sock_get_qos(struct sock *sk)
+{
+	if (sk->sk_state == BT_CONNECTED || sk->sk_state == BT_CONNECT2)
+		return &iso_pi(sk)->conn->hcon->iso_qos;
+
+	return &iso_pi(sk)->qos;
+}
+
 static int iso_send_frame(struct sock *sk, struct sk_buff *skb)
 {
 	struct iso_conn *conn = iso_pi(sk)->conn;
+	struct bt_iso_qos *qos = iso_sock_get_qos(sk);
 	struct hci_iso_data_hdr *hdr;
 	int len = 0;
 
 	BT_DBG("sk %p len %d", sk, skb->len);
 
-	if (skb->len > iso_pi(sk)->qos.out.sdu)
+	if (skb->len > qos->out.sdu)
 		return -EMSGSIZE;
 
 	len = skb->len;
@@ -1263,10 +1272,7 @@ static int iso_sock_getsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case BT_ISO_QOS:
-		if (sk->sk_state == BT_CONNECTED || sk->sk_state == BT_CONNECT2)
-			qos = &iso_pi(sk)->conn->hcon->iso_qos;
-		else
-			qos = &iso_pi(sk)->qos;
+		qos = iso_sock_get_qos(sk);
 
 		len = min_t(unsigned int, len, sizeof(*qos));
 		if (copy_to_user(optval, qos, len))
