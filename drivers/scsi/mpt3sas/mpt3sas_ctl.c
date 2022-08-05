@@ -948,6 +948,14 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		break;
 	}
 	case MPI2_FUNCTION_FW_DOWNLOAD:
+	{
+		if (ioc->pdev->vendor == MPI2_MFGPAGE_VENDORID_ATTO) {
+			ioc_info(ioc, "Firmware download not supported for ATTO HBA.\n");
+			ret = -EPERM;
+			break;
+		}
+		fallthrough;
+	}
 	case MPI2_FUNCTION_FW_UPLOAD:
 	{
 		ioc->build_sg(ioc, psge, data_out_dma, data_out_sz, data_in_dma,
