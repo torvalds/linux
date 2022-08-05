@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_MVEBU
 	bool "Marvell Engineering Business Unit (MVEBU) SoCs"
-	depends on ARCH_MULTI_V7 || ARCH_MULTI_V5
-	select ARCH_SUPPORTS_BIG_ENDIAN
+	depends on ARCH_MULTI_V7 || (ARCH_MULTI_V5 && CPU_LITTLE_ENDIAN)
 	select CLKSRC_MMIO
 	select PINCTRL
 	select PLAT_ORION

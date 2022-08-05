@@ -63,7 +63,6 @@ int rxe_qp_chk_init(struct rxe_dev *rxe, struct ib_qp_init_attr *init)
 	int port_num = init->port_num;
 
 	switch (init->qp_type) {
-	case IB_QPT_SMI:
 	case IB_QPT_GSI:
 	case IB_QPT_RC:
 	case IB_QPT_UC:
@@ -81,18 +80,13 @@ int rxe_qp_chk_init(struct rxe_dev *rxe, struct ib_qp_init_attr *init)
 	if (rxe_qp_chk_cap(rxe, cap, !!init->srq))
 		goto err1;
 
-	if (init->qp_type == IB_QPT_SMI || init->qp_type == IB_QPT_GSI) {
+	if (init->qp_type == IB_QPT_GSI) {
 		if (!rdma_is_port_valid(&rxe->ib_dev, port_num)) {
 			pr_warn("invalid port = %d\n", port_num);
 			goto err1;
 		}
 
 		port = &rxe->port;
-
-		if (init->qp_type == IB_QPT_SMI && port->qp_smi_index) {
-			pr_warn("SMI QP exists for port %d\n", port_num);
-			goto err1;
-		}
 
 		if (init->qp_type == IB_QPT_GSI && port->qp_gsi_index) {
 			pr_warn("GSI QP exists for port %d\n", port_num);
@@ -167,12 +161,6 @@ static void rxe_qp_init_misc(struct rxe_dev *rxe, struct rxe_qp *qp,
 	port			= &rxe->port;
 
 	switch (init->qp_type) {
-	case IB_QPT_SMI:
-		qp->ibqp.qp_num		= 0;
-		port->qp_smi_index	= qpn;
-		qp->attr.port_num	= init->port_num;
-		break;
-
 	case IB_QPT_GSI:
 		qp->ibqp.qp_num		= 1;
 		port->qp_gsi_index	= qpn;
@@ -334,6 +322,9 @@ int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 	qp->scq			= scq;
 	qp->srq			= srq;
 
+	atomic_inc(&rcq->num_wq);
+	atomic_inc(&scq->num_wq);
+
 	rxe_qp_init_misc(rxe, qp, init);
 
 	err = rxe_qp_init_req(rxe, qp, init, udata, uresp);
@@ -353,6 +344,9 @@ err2:
 	rxe_queue_cleanup(qp->sq.queue);
 	qp->sq.queue = NULL;
 err1:
+	atomic_dec(&rcq->num_wq);
+	atomic_dec(&scq->num_wq);
+
 	qp->pd = NULL;
 	qp->rcq = NULL;
 	qp->scq = NULL;
@@ -777,9 +771,11 @@ int rxe_qp_chk_destroy(struct rxe_qp *qp)
 	return 0;
 }
 
-/* called by the destroy qp verb */
-void rxe_qp_destroy(struct rxe_qp *qp)
+/* called when the last reference to the qp is dropped */
+static void rxe_qp_do_cleanup(struct work_struct *work)
 {
+	struct rxe_qp *qp = container_of(work, typeof(*qp), cleanup_work.work);
+
 	qp->valid = 0;
 	qp->qp_timeout_jiffies = 0;
 	rxe_cleanup_task(&qp->resp.task);
@@ -798,12 +794,6 @@ void rxe_qp_destroy(struct rxe_qp *qp)
 		__rxe_do_task(&qp->comp.task);
 		__rxe_do_task(&qp->req.task);
 	}
-}
-
-/* called when the last reference to the qp is dropped */
-static void rxe_qp_do_cleanup(struct work_struct *work)
-{
-	struct rxe_qp *qp = container_of(work, typeof(*qp), cleanup_work.work);
 
 	if (qp->sq.queue)
 		rxe_queue_cleanup(qp->sq.queue);
@@ -814,10 +804,14 @@ static void rxe_qp_do_cleanup(struct work_struct *work)
 	if (qp->rq.queue)
 		rxe_queue_cleanup(qp->rq.queue);
 
+	atomic_dec(&qp->scq->num_wq);
 	if (qp->scq)
 		rxe_put(qp->scq);
+
+	atomic_dec(&qp->rcq->num_wq);
 	if (qp->rcq)
 		rxe_put(qp->rcq);
+
 	if (qp->pd)
 		rxe_put(qp->pd);
 

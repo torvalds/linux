@@ -48,13 +48,6 @@ MODULE_PARM_DESC(qlini_mode,
 	"when ready "
 	"\"enabled\" (default) - initiator mode will always stay enabled.");
 
-static int ql_dm_tgt_ex_pct = 0;
-module_param(ql_dm_tgt_ex_pct, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(ql_dm_tgt_ex_pct,
-	"For Dual Mode (qlini_mode=dual), this parameter determines "
-	"the percentage of exchanges/cmds FW will allocate resources "
-	"for Target mode.");
-
 int ql2xuctrlirq = 1;
 module_param(ql2xuctrlirq, int, 0644);
 MODULE_PARM_DESC(ql2xuctrlirq,
@@ -3866,8 +3859,6 @@ void qlt_free_cmd(struct qla_tgt_cmd *cmd)
 
 	BUG_ON(cmd->sg_mapped);
 	cmd->jiffies_at_free = get_jiffies_64();
-	if (unlikely(cmd->free_sg))
-		kfree(cmd->sg);
 
 	if (!sess || !sess->se_sess) {
 		WARN_ON(1);

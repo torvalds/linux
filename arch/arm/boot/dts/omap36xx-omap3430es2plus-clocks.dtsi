@@ -5,21 +5,35 @@
  * Copyright (C) 2013 Texas Instruments, Inc.
  */
 &cm_clocks {
-	ssi_ssr_gate_fck_3430es2: ssi_ssr_gate_fck_3430es2@a00 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
-		clocks = <&corex2_fck>;
-		ti,bit-shift = <0>;
-		reg = <0x0a00>;
+	clock@a00 {
+		compatible = "ti,clksel";
+		reg = <0xa00>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		ssi_ssr_gate_fck_3430es2: clock-ssi-ssr-gate-fck-3430es2 {
+			#clock-cells = <0>;
+			compatible = "ti,composite-no-wait-gate-clock";
+			clock-output-names = "ssi_ssr_gate_fck_3430es2";
+			clocks = <&corex2_fck>;
+			ti,bit-shift = <0>;
+		};
 	};
 
-	ssi_ssr_div_fck_3430es2: ssi_ssr_div_fck_3430es2@a40 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-divider-clock";
-		clocks = <&corex2_fck>;
-		ti,bit-shift = <8>;
-		reg = <0x0a40>;
-		ti,dividers = <0>, <1>, <2>, <3>, <4>, <0>, <6>, <0>, <8>;
+	clock@a40 {
+		compatible = "ti,clksel";
+		reg = <0xa40>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		ssi_ssr_div_fck_3430es2: clock-ssi-ssr-div-fck-3430es2 {
+			#clock-cells = <0>;
+			compatible = "ti,composite-divider-clock";
+			clock-output-names = "ssi_ssr_div_fck_3430es2";
+			clocks = <&corex2_fck>;
+			ti,bit-shift = <8>;
+			ti,dividers = <0>, <1>, <2>, <3>, <4>, <0>, <6>, <0>, <8>;
+		};
 	};
 
 	ssi_ssr_fck: ssi_ssr_fck_3430es2 {
@@ -36,12 +50,27 @@
 		clock-div = <2>;
 	};
 
-	hsotgusb_ick_3430es2: hsotgusb_ick_3430es2@a10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-hsotgusb-interface-clock";
-		clocks = <&core_l3_ick>;
-		reg = <0x0a10>;
-		ti,bit-shift = <4>;
+	clock@a10 {
+		compatible = "ti,clksel";
+		reg = <0xa10>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		hsotgusb_ick_3430es2: clock-hsotgusb-ick-3430es2 {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-hsotgusb-interface-clock";
+			clock-output-names = "hsotgusb_ick_3430es2";
+			clocks = <&core_l3_ick>;
+			ti,bit-shift = <4>;
+		};
+
+		ssi_ick: clock-ssi-ick-3430es2 {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-ssi-interface-clock";
+			clock-output-names = "ssi_ick_3430es2";
+			clocks = <&ssi_l4_ick>;
+			ti,bit-shift = <0>;
+		};
 	};
 
 	ssi_l4_ick: ssi_l4_ick {
@@ -52,20 +81,19 @@
 		clock-div = <1>;
 	};
 
-	ssi_ick: ssi_ick_3430es2@a10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-ssi-interface-clock";
-		clocks = <&ssi_l4_ick>;
-		reg = <0x0a10>;
-		ti,bit-shift = <0>;
-	};
+	clock@c00 {
+		compatible = "ti,clksel";
+		reg = <0xc00>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
 
-	usim_gate_fck: usim_gate_fck@c00 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-gate-clock";
-		clocks = <&omap_96m_fck>;
-		ti,bit-shift = <9>;
-		reg = <0x0c00>;
+		usim_gate_fck: clock-usim-gate-fck {
+			#clock-cells = <0>;
+			compatible = "ti,composite-gate-clock";
+			clock-output-names = "usim_gate_fck";
+			clocks = <&omap_96m_fck>;
+			ti,bit-shift = <9>;
+		};
 	};
 
 	sys_d2_ck: sys_d2_ck {
@@ -140,13 +168,20 @@
 		clock-div = <20>;
 	};
 
-	usim_mux_fck: usim_mux_fck@c40 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-mux-clock";
-		clocks = <&sys_ck>, <&sys_d2_ck>, <&omap_96m_d2_fck>, <&omap_96m_d4_fck>, <&omap_96m_d8_fck>, <&omap_96m_d10_fck>, <&dpll5_m2_d4_ck>, <&dpll5_m2_d8_ck>, <&dpll5_m2_d16_ck>, <&dpll5_m2_d20_ck>;
-		ti,bit-shift = <3>;
-		reg = <0x0c40>;
-		ti,index-starts-at-one;
+	clock@c40 {
+		compatible = "ti,clksel";
+		reg = <0xc40>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		usim_mux_fck: clock-usim-mux-fck {
+			#clock-cells = <0>;
+			compatible = "ti,composite-mux-clock";
+			clock-output-names = "usim_mux_fck";
+			clocks = <&sys_ck>, <&sys_d2_ck>, <&omap_96m_d2_fck>, <&omap_96m_d4_fck>, <&omap_96m_d8_fck>, <&omap_96m_d10_fck>, <&dpll5_m2_d4_ck>, <&dpll5_m2_d8_ck>, <&dpll5_m2_d16_ck>, <&dpll5_m2_d20_ck>;
+			ti,bit-shift = <3>;
+			ti,index-starts-at-one;
+		};
 	};
 
 	usim_fck: usim_fck {
@@ -155,12 +190,19 @@
 		clocks = <&usim_gate_fck>, <&usim_mux_fck>;
 	};
 
-	usim_ick: usim_ick@c10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&wkup_l4_ick>;
-		reg = <0x0c10>;
-		ti,bit-shift = <9>;
+	clock@c10 {
+		compatible = "ti,clksel";
+		reg = <0xc10>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		usim_ick: clock-usim-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "usim_ick";
+			clocks = <&wkup_l4_ick>;
+			ti,bit-shift = <9>;
+		};
 	};
 };
 

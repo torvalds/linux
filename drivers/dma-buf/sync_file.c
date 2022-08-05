@@ -157,9 +157,15 @@ static int sync_file_set_fence(struct sync_file *sync_file,
 	 * we already own a new reference to the fence. For num_fence > 1
 	 * we own the reference of the dma_fence_array creation.
 	 */
-	if (num_fences == 1) {
+
+	if (num_fences == 0) {
+		sync_file->fence = dma_fence_get_stub();
+		kfree(fences);
+
+	} else if (num_fences == 1) {
 		sync_file->fence = fences[0];
 		kfree(fences);
+
 	} else {
 		array = dma_fence_array_create(num_fences, fences,
 					       dma_fence_context_alloc(1),
@@ -259,19 +265,6 @@ static struct sync_file *sync_file_merge(const char *name, struct sync_file *a,
 			a_fence = dma_fence_unwrap_next(&a_iter);
 			b_fence = dma_fence_unwrap_next(&b_iter);
 		}
-	}
-
-	if (index == 0)
-		fences[index++] = dma_fence_get_stub();
-
-	if (num_fences > index) {
-		struct dma_fence **tmp;
-
-		/* Keep going even when reducing the size failed */
-		tmp = krealloc_array(fences, index, sizeof(*fences),
-				     GFP_KERNEL);
-		if (tmp)
-			fences = tmp;
 	}
 
 	if (sync_file_set_fence(sync_file, fences, index) < 0)

@@ -225,7 +225,7 @@ struct pfvf_start_queue_resp_tlv {
 };
 
 /* Extended queue information - additional index for reference inside qzone.
- * If commmunicated between VF/PF, each TLV relating to queues should be
+ * If communicated between VF/PF, each TLV relating to queues should be
  * extended by one such [or have a future base TLV that already contains info].
  */
 struct vfpf_qid_tlv {

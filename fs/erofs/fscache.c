@@ -17,6 +17,7 @@ static struct netfs_io_request *erofs_fscache_alloc_request(struct address_space
 	rreq->start	= start;
 	rreq->len	= len;
 	rreq->mapping	= mapping;
+	rreq->inode	= mapping->host;
 	INIT_LIST_HEAD(&rreq->subrequests);
 	refcount_set(&rreq->ref, 1);
 	return rreq;

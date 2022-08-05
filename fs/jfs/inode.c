@@ -224,18 +224,9 @@ int jfs_get_block(struct inode *ip, sector_t lblock,
 				 * this as a hole
 				 */
 				goto unlock;
-#ifdef _JFS_4K
 			XADoffset(&xad, lblock64);
 			XADlength(&xad, xlen);
 			XADaddress(&xad, xaddr);
-#else				/* _JFS_4K */
-			/*
-			 * As long as block size = 4K, this isn't a problem.
-			 * We should mark the whole page not ABNR, but how
-			 * will we know to mark the other blocks BH_New?
-			 */
-			BUG();
-#endif				/* _JFS_4K */
 			rc = extRecord(ip, &xad);
 			if (rc)
 				goto unlock;
@@ -252,7 +243,6 @@ int jfs_get_block(struct inode *ip, sector_t lblock,
 	/*
 	 * Allocate a new block
 	 */
-#ifdef _JFS_4K
 	if ((rc = extHint(ip, lblock64 << ip->i_sb->s_blocksize_bits, &xad)))
 		goto unlock;
 	rc = extAlloc(ip, xlen, lblock64, &xad, false);
@@ -262,14 +252,6 @@ int jfs_get_block(struct inode *ip, sector_t lblock,
 	set_buffer_new(bh_result);
 	map_bh(bh_result, ip->i_sb, addressXAD(&xad));
 	bh_result->b_size = lengthXAD(&xad) << ip->i_blkbits;
-
-#else				/* _JFS_4K */
-	/*
-	 * We need to do whatever it takes to keep all but the last buffers
-	 * in 4K pages - see jfs_write.c
-	 */
-	BUG();
-#endif				/* _JFS_4K */
 
       unlock:
 	/*

@@ -109,6 +109,25 @@ properties:
 
     additionalProperties: false
 
+  clkout-clock:
+    description: A subnode with three clock cells for externally routed clocks,
+      output clocks. These are two PRCMU-internal clocks that can be divided and
+      muxed out on the pads of the DB8500 SoC.
+    type: object
+
+    properties:
+      '#clock-cells':
+        description:
+          The first cell indicates which output clock we are using,
+          possible values are 0 (CLKOUT1) and 1 (CLKOUT2).
+          The second cell indicates which clock we want to use as source,
+          possible values are 0 thru 7, see the defines for the different
+          source clocks.
+          The third cell is a divider, legal values are 1 thru 63.
+        const: 3
+
+    additionalProperties: false
+
 required:
   - compatible
   - reg
@@ -119,3 +138,41 @@ required:
   - smp-twd-clock
 
 additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/ste-db8500-clkout.h>
+    clocks@8012 {
+      compatible = "stericsson,u8500-clks";
+      reg = <0x8012f000 0x1000>, <0x8011f000 0x1000>,
+            <0x8000f000 0x1000>, <0xa03ff000 0x1000>,
+            <0xa03cf000 0x1000>;
+
+      prcmu_clk: prcmu-clock {
+        #clock-cells = <1>;
+      };
+
+      prcc_pclk: prcc-periph-clock {
+        #clock-cells = <2>;
+      };
+
+      prcc_kclk: prcc-kernel-clock {
+        #clock-cells = <2>;
+      };
+
+      prcc_reset: prcc-reset-controller {
+        #reset-cells = <2>;
+      };
+
+      rtc_clk: rtc32k-clock {
+        #clock-cells = <0>;
+      };
+
+      smp_twd_clk: smp-twd-clock {
+        #clock-cells = <0>;
+      };
+
+      clkout_clk: clkout-clock {
+        #clock-cells = <3>;
+      };
+    };

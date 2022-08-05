@@ -455,7 +455,7 @@ void iounmap(volatile void __iomem *cookie)
 }
 EXPORT_SYMBOL(iounmap);
 
-#ifdef CONFIG_PCI
+#if defined(CONFIG_PCI) || IS_ENABLED(CONFIG_PCMCIA)
 static int pci_ioremap_mem_type = MT_DEVICE;
 
 void pci_ioremap_set_mem_type(int mem_type)

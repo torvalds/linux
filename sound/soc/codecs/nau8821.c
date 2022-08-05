@@ -1626,8 +1626,7 @@ static int nau8821_setup_irq(struct nau8821 *nau8821)
 	return 0;
 }
 
-static int nau8821_i2c_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+static int nau8821_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct nau8821 *nau8821 = dev_get_platdata(&i2c->dev);
@@ -1703,7 +1702,7 @@ static struct i2c_driver nau8821_driver = {
 		.of_match_table = of_match_ptr(nau8821_of_ids),
 		.acpi_match_table = ACPI_PTR(nau8821_acpi_match),
 	},
-	.probe = nau8821_i2c_probe,
+	.probe_new = nau8821_i2c_probe,
 	.remove = nau8821_i2c_remove,
 	.id_table = nau8821_i2c_ids,
 };

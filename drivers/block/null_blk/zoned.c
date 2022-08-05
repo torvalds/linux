@@ -398,10 +398,10 @@ static blk_status_t null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 	 */
 	if (append) {
 		sector = zone->wp;
-		if (cmd->bio)
-			cmd->bio->bi_iter.bi_sector = sector;
-		else
+		if (dev->queue_mode == NULL_Q_MQ)
 			cmd->rq->__sector = sector;
+		else
+			cmd->bio->bi_iter.bi_sector = sector;
 	} else if (sector != zone->wp) {
 		ret = BLK_STS_IOERR;
 		goto unlock;

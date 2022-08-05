@@ -21,7 +21,6 @@
 #include <asm/time.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include <asm/mpc52xx.h>
 
 /* ************************************************************************

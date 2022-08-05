@@ -23,12 +23,9 @@ static struct sg_table *omap_gem_map_dma_buf(
 {
 	struct drm_gem_object *obj = attachment->dmabuf->priv;
 	struct sg_table *sg;
-	sg = omap_gem_get_sg(obj);
+	sg = omap_gem_get_sg(obj, dir);
 	if (IS_ERR(sg))
 		return sg;
-
-	/* this must be after omap_gem_pin() to ensure we have pages attached */
-	omap_gem_dma_sync_buffer(obj, dir);
 
 	return sg;
 }

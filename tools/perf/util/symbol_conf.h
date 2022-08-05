@@ -43,7 +43,8 @@ struct symbol_conf {
 			report_individual_block,
 			inline_name,
 			disable_add2line_warn,
-			buildid_mmap2;
+			buildid_mmap2,
+			guest_code;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,

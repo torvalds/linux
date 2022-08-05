@@ -86,16 +86,6 @@ examples:
   - |
     #include <dt-bindings/clock/exynos5250.h>
 
-    gsc_0: scaler@13e00000 {
-      compatible = "samsung,exynos5-gsc";
-      reg = <0x13e00000 0x1000>;
-      interrupts = <0 85 0>;
-      power-domains = <&pd_gsc>;
-      clocks = <&clock CLK_GSCL0>;
-      clock-names = "gscl";
-      iommus = <&sysmmu_gsc0>;
-    };
-
     sysmmu_gsc0: iommu@13e80000 {
       compatible = "samsung,exynos-sysmmu";
       reg = <0x13E80000 0x1000>;
@@ -107,4 +97,3 @@ examples:
       power-domains = <&pd_gsc>;
       #iommu-cells = <0>;
     };
-

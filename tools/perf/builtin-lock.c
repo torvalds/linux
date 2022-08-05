@@ -65,7 +65,7 @@ struct lock_stat {
 	u64			wait_time_min;
 	u64			wait_time_max;
 
-	int			discard; /* flag of blacklist */
+	int			broken; /* flag of blacklist */
 	int			combined;
 };
 
@@ -118,6 +118,7 @@ struct thread_stat {
 static struct rb_root		thread_stats;
 
 static bool combine_locks;
+static bool show_thread_stats;
 
 static struct thread_stat *thread_stat_find(u32 tid)
 {
@@ -384,9 +385,6 @@ static void combine_lock_stats(struct lock_stat *st)
 			ret = !!st->name - !!p->name;
 
 		if (ret == 0) {
-			if (st->discard)
-				goto out;
-
 			p->nr_acquired += st->nr_acquired;
 			p->nr_contended += st->nr_contended;
 			p->wait_time_total += st->wait_time_total;
@@ -399,10 +397,7 @@ static void combine_lock_stats(struct lock_stat *st)
 			if (p->wait_time_max < st->wait_time_max)
 				p->wait_time_max = st->wait_time_max;
 
-			/* now it got a new !discard record */
-			p->discard = 0;
-
-out:
+			p->broken |= st->broken;
 			st->combined = 1;
 			return;
 		}
@@ -415,15 +410,6 @@ out:
 
 	rb_link_node(&st->rb, parent, rb);
 	rb_insert_color(&st->rb, &sorted);
-
-	if (st->discard) {
-		st->nr_acquired = 0;
-		st->nr_contended = 0;
-		st->wait_time_total = 0;
-		st->avg_wait_time = 0;
-		st->wait_time_min = ULLONG_MAX;
-		st->wait_time_max = 0;
-	}
 }
 
 static void insert_to_result(struct lock_stat *st,
@@ -557,11 +543,13 @@ static int report_lock_acquire_event(struct evsel *evsel,
 	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
 	int flag = evsel__intval(evsel, sample, "flags");
 
+	/* abuse ls->addr for tid */
+	if (show_thread_stats)
+		addr = sample->tid;
+
 	ls = lock_stat_findnew(addr, name);
 	if (!ls)
 		return -ENOMEM;
-	if (ls->discard)
-		return 0;
 
 	ts = thread_stat_findnew(sample->tid);
 	if (!ts)
@@ -599,9 +587,11 @@ static int report_lock_acquire_event(struct evsel *evsel,
 	case SEQ_STATE_ACQUIRING:
 	case SEQ_STATE_CONTENDED:
 broken:
-		/* broken lock sequence, discard it */
-		ls->discard = 1;
-		bad_hist[BROKEN_ACQUIRE]++;
+		/* broken lock sequence */
+		if (!ls->broken) {
+			ls->broken = 1;
+			bad_hist[BROKEN_ACQUIRE]++;
+		}
 		list_del_init(&seq->list);
 		free(seq);
 		goto end;
@@ -626,11 +616,12 @@ static int report_lock_acquired_event(struct evsel *evsel,
 	const char *name = evsel__strval(evsel, sample, "name");
 	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
 
+	if (show_thread_stats)
+		addr = sample->tid;
+
 	ls = lock_stat_findnew(addr, name);
 	if (!ls)
 		return -ENOMEM;
-	if (ls->discard)
-		return 0;
 
 	ts = thread_stat_findnew(sample->tid);
 	if (!ts)
@@ -657,9 +648,11 @@ static int report_lock_acquired_event(struct evsel *evsel,
 	case SEQ_STATE_RELEASED:
 	case SEQ_STATE_ACQUIRED:
 	case SEQ_STATE_READ_ACQUIRED:
-		/* broken lock sequence, discard it */
-		ls->discard = 1;
-		bad_hist[BROKEN_ACQUIRED]++;
+		/* broken lock sequence */
+		if (!ls->broken) {
+			ls->broken = 1;
+			bad_hist[BROKEN_ACQUIRED]++;
+		}
 		list_del_init(&seq->list);
 		free(seq);
 		goto end;
@@ -685,11 +678,12 @@ static int report_lock_contended_event(struct evsel *evsel,
 	const char *name = evsel__strval(evsel, sample, "name");
 	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
 
+	if (show_thread_stats)
+		addr = sample->tid;
+
 	ls = lock_stat_findnew(addr, name);
 	if (!ls)
 		return -ENOMEM;
-	if (ls->discard)
-		return 0;
 
 	ts = thread_stat_findnew(sample->tid);
 	if (!ts)
@@ -709,9 +703,11 @@ static int report_lock_contended_event(struct evsel *evsel,
 	case SEQ_STATE_ACQUIRED:
 	case SEQ_STATE_READ_ACQUIRED:
 	case SEQ_STATE_CONTENDED:
-		/* broken lock sequence, discard it */
-		ls->discard = 1;
-		bad_hist[BROKEN_CONTENDED]++;
+		/* broken lock sequence */
+		if (!ls->broken) {
+			ls->broken = 1;
+			bad_hist[BROKEN_CONTENDED]++;
+		}
 		list_del_init(&seq->list);
 		free(seq);
 		goto end;
@@ -737,11 +733,12 @@ static int report_lock_release_event(struct evsel *evsel,
 	const char *name = evsel__strval(evsel, sample, "name");
 	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
 
+	if (show_thread_stats)
+		addr = sample->tid;
+
 	ls = lock_stat_findnew(addr, name);
 	if (!ls)
 		return -ENOMEM;
-	if (ls->discard)
-		return 0;
 
 	ts = thread_stat_findnew(sample->tid);
 	if (!ts)
@@ -767,9 +764,11 @@ static int report_lock_release_event(struct evsel *evsel,
 	case SEQ_STATE_ACQUIRING:
 	case SEQ_STATE_CONTENDED:
 	case SEQ_STATE_RELEASED:
-		/* broken lock sequence, discard it */
-		ls->discard = 1;
-		bad_hist[BROKEN_RELEASE]++;
+		/* broken lock sequence */
+		if (!ls->broken) {
+			ls->broken = 1;
+			bad_hist[BROKEN_RELEASE]++;
+		}
 		goto free_seq;
 	default:
 		BUG_ON("Unknown state of lock sequence found!\n");
@@ -854,15 +853,26 @@ static void print_result(void)
 	bad = total = 0;
 	while ((st = pop_from_result())) {
 		total++;
-		if (st->discard) {
+		if (st->broken)
 			bad++;
+		if (!st->nr_acquired)
 			continue;
-		}
+
 		bzero(cut_name, 20);
 
 		if (strlen(st->name) < 20) {
 			/* output raw name */
-			pr_info("%20s ", st->name);
+			const char *name = st->name;
+
+			if (show_thread_stats) {
+				struct thread *t;
+
+				/* st->addr contains tid of thread */
+				t = perf_session__findnew(session, st->addr);
+				name = thread__comm_str(t);
+			}
+
+			pr_info("%20s ", name);
 		} else {
 			strncpy(cut_name, st->name, 16);
 			cut_name[16] = '.';
@@ -1073,7 +1083,7 @@ out_delete:
 static int __cmd_record(int argc, const char **argv)
 {
 	const char *record_args[] = {
-		"record", "-R", "-m", "1024", "-c", "1", "--synth", "no",
+		"record", "-R", "-m", "1024", "-c", "1", "--synth", "task",
 	};
 	unsigned int rec_argc, i, j, ret;
 	const char **rec_argv;
@@ -1139,6 +1149,8 @@ int cmd_lock(int argc, const char **argv)
 	/* TODO: type */
 	OPT_BOOLEAN('c', "combine-locks", &combine_locks,
 		    "combine locks in the same class"),
+	OPT_BOOLEAN('t', "threads", &show_thread_stats,
+		    "show per-thread lock stats"),
 	OPT_PARENT(lock_options)
 	};
 

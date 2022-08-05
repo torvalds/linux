@@ -231,7 +231,6 @@ static int ep93xx_keypad_probe(struct platform_device *pdev)
 	struct ep93xx_keypad *keypad;
 	const struct matrix_keymap_data *keymap_data;
 	struct input_dev *input_dev;
-	struct resource *res;
 	int err;
 
 	keypad = devm_kzalloc(&pdev->dev, sizeof(*keypad), GFP_KERNEL);
@@ -250,11 +249,7 @@ static int ep93xx_keypad_probe(struct platform_device *pdev)
 	if (keypad->irq < 0)
 		return keypad->irq;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENXIO;
-
-	keypad->mmio_base = devm_ioremap_resource(&pdev->dev, res);
+	keypad->mmio_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(keypad->mmio_base))
 		return PTR_ERR(keypad->mmio_base);
 

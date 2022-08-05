@@ -10,4 +10,4 @@ CONFIG_SERIAL_AMBA_PL011_CONSOLE=y''',
 			   qemu_arch='arm',
 			   kernel_path='arch/arm/boot/zImage',
 			   kernel_command_line='console=ttyAMA0',
-			   extra_qemu_params=['-machine virt'])
+			   extra_qemu_params=['-machine', 'virt'])

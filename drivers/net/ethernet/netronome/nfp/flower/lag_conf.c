@@ -576,7 +576,7 @@ nfp_fl_lag_changeupper_event(struct nfp_fl_lag *lag,
 	group->dirty = true;
 	group->slave_cnt = slave_count;
 
-	/* Group may have been on queue for removal but is now offfloable. */
+	/* Group may have been on queue for removal but is now offloable. */
 	group->to_remove = false;
 	mutex_unlock(&lag->lock);
 

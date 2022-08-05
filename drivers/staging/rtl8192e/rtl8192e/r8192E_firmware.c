@@ -34,8 +34,7 @@ static bool _rtl92e_fw_boot_cpu(struct net_device *dev)
 	netdev_dbg(dev, "Download Firmware: Put code ok!\n");
 
 	CPU_status = rtl92e_readl(dev, CPU_GEN);
-	rtl92e_writeb(dev, CPU_GEN,
-		      (u8)((CPU_status|CPU_GEN_PWR_STB_CPU)&0xff));
+	rtl92e_writeb(dev, CPU_GEN, (CPU_status | CPU_GEN_PWR_STB_CPU) & 0xff);
 	mdelay(1);
 
 	if (!_rtl92e_wait_for_fw(dev, CPU_GEN_BOOT_RDY, 200)) {

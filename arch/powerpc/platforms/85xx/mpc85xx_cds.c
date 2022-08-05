@@ -21,6 +21,8 @@
 #include <linux/initrd.h>
 #include <linux/interrupt.h>
 #include <linux/fsl_devices.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/pgtable.h>
 
@@ -33,7 +35,6 @@
 #include <asm/pci-bridge.h>
 #include <asm/irq.h>
 #include <mm/mmu_decl.h>
-#include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 #include <asm/i8259.h>
@@ -151,7 +152,7 @@ static void __init mpc85xx_cds_pci_irq_fixup(struct pci_dev *dev)
 		 */
 		case PCI_DEVICE_ID_VIA_82C586_2:
 		/* There are two USB controllers.
-		 * Identify them by functon number
+		 * Identify them by function number
 		 */
 			if (PCI_FUNC(dev->devfn) == 3)
 				dev->irq = 11;

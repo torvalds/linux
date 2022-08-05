@@ -92,4 +92,3 @@ examples:
             sound-dai = <&hdmi>, <&max98090>;
         };
     };
-

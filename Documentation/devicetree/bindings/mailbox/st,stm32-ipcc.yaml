@@ -30,15 +30,11 @@ properties:
     items:
       - description: rx channel occupied
       - description: tx channel free
-      - description: wakeup source
-    minItems: 2
 
   interrupt-names:
     items:
       - const: rx
       - const: tx
-      - const: wakeup
-    minItems: 2
 
   wakeup-source: true
 
@@ -70,10 +66,9 @@ examples:
       #mbox-cells = <1>;
       reg = <0x4c001000 0x400>;
       st,proc-id = <0>;
-      interrupts-extended = <&intc GIC_SPI 100 IRQ_TYPE_NONE>,
-      		      <&intc GIC_SPI 101 IRQ_TYPE_NONE>,
-      		      <&aiec 62 1>;
-      interrupt-names = "rx", "tx", "wakeup";
+      interrupts-extended = <&exti 61 1>,
+                            <&intc GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+      interrupt-names = "rx", "tx";
       clocks = <&rcc_clk IPCC>;
       wakeup-source;
     };

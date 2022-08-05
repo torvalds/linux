@@ -100,6 +100,17 @@ config SCLP_OFB
 	  This option enables the Open-for-Business interface to the s390
 	  Service Element.
 
+config S390_UV_UAPI
+	def_tristate m
+	prompt "Ultravisor userspace API"
+	depends on S390
+	help
+	  Selecting exposes parts of the UV interface to userspace
+	  by providing a misc character device at /dev/uv.
+	  Using IOCTLs one can interact with the UV.
+	  The device is only available if the Ultravisor
+	  Facility (158) is present.
+
 config S390_TAPE
 	def_tristate m
 	prompt "S/390 tape device support"

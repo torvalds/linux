@@ -307,13 +307,11 @@ static int chkSuper(struct super_block *sb)
 	}
 
 	bsize = le32_to_cpu(j_sb->s_bsize);
-#ifdef _JFS_4K
 	if (bsize != PSIZE) {
-		jfs_err("Currently only 4K block size supported!");
+		jfs_err("Only 4K block size supported!");
 		rc = -EINVAL;
 		goto out;
 	}
-#endif				/* _JFS_4K */
 
 	jfs_info("superblock: flag:0x%08x state:0x%08x size:0x%Lx",
 		 le32_to_cpu(j_sb->s_flag), le32_to_cpu(j_sb->s_state),

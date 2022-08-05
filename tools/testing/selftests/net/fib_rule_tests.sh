@@ -20,6 +20,7 @@ SRC_IP6=2001:db8:1::3
 DEV_ADDR=192.51.100.1
 DEV_ADDR6=2001:db8:1::1
 DEV=dummy0
+TESTS="fib_rule6 fib_rule4"
 
 log_test()
 {
@@ -316,7 +317,16 @@ fi
 # start clean
 cleanup &> /dev/null
 setup
-run_fibrule_tests
+for t in $TESTS
+do
+	case $t in
+	fib_rule6_test|fib_rule6)		fib_rule6_test;;
+	fib_rule4_test|fib_rule4)		fib_rule4_test;;
+
+	help) echo "Test names: $TESTS"; exit 0;;
+
+	esac
+done
 cleanup
 
 if [ "$TESTS" != "none" ]; then

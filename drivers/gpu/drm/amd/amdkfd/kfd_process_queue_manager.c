@@ -198,8 +198,26 @@ static int init_user_queue(struct process_queue_manager *pqm,
 	(*q)->device = dev;
 	(*q)->process = pqm->process;
 
-	pr_debug("PQM After init queue");
+	if (dev->shared_resources.enable_mes) {
+		retval = amdgpu_amdkfd_alloc_gtt_mem(dev->adev,
+						AMDGPU_MES_GANG_CTX_SIZE,
+						&(*q)->gang_ctx_bo,
+						&(*q)->gang_ctx_gpu_addr,
+						&(*q)->gang_ctx_cpu_ptr,
+						false);
+		if (retval) {
+			pr_err("failed to allocate gang context bo\n");
+			goto cleanup;
+		}
+		memset((*q)->gang_ctx_cpu_ptr, 0, AMDGPU_MES_GANG_CTX_SIZE);
+	}
 
+	pr_debug("PQM After init queue");
+	return 0;
+
+cleanup:
+	if (dev->shared_resources.enable_mes)
+		uninit_queue(*q);
 	return retval;
 }
 
@@ -418,6 +436,9 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 			pdd->qpd.num_gws = 0;
 		}
 
+		if (dev->shared_resources.enable_mes)
+			amdgpu_amdkfd_free_gtt_mem(dev->adev,
+						   pqn->q->gang_ctx_bo);
 		uninit_queue(pqn->q);
 	}
 

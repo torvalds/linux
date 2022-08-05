@@ -4,6 +4,8 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/string_helpers.h>
+
 #include <drm/drm_print.h>
 
 #include "gt/intel_gt_debugfs.h"
@@ -22,7 +24,7 @@ static int pxp_info_show(struct seq_file *m, void *data)
 		return 0;
 	}
 
-	drm_printf(&p, "active: %s\n", yesno(intel_pxp_is_active(pxp)));
+	drm_printf(&p, "active: %s\n", str_yes_no(intel_pxp_is_active(pxp)));
 	drm_printf(&p, "instance counter: %u\n", pxp->key_instance);
 
 	return 0;

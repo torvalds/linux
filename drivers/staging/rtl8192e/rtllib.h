@@ -1585,7 +1585,7 @@ struct rtllib_device {
 	short sta_sleep;
 	int ps_timeout;
 	int ps_period;
-	struct tasklet_struct ps_task;
+	struct work_struct ps_task;
 	u64 ps_time;
 	bool polling;
 

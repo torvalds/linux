@@ -652,9 +652,10 @@ static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
 		report = SND_JACK_HEADSET;
 
 	if (report) {
-		ret = snd_soc_card_jack_new(runtime->card, "Headset",
-				    report, &priv->jack, bytcr_jack_pins,
-				    ARRAY_SIZE(bytcr_jack_pins));
+		ret = snd_soc_card_jack_new_pins(runtime->card, "Headset",
+						 report, &priv->jack,
+						 bytcr_jack_pins,
+						 ARRAY_SIZE(bytcr_jack_pins));
 		if (ret) {
 			dev_err(runtime->dev, "jack creation failed %d\n", ret);
 			return ret;

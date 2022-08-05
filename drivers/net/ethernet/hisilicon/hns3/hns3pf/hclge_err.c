@@ -1977,7 +1977,7 @@ static int hclge_handle_mpf_ras_error(struct hclge_dev *hdev,
  * @num:  number of extended command structures
  *
  * This function handles all the PF RAS errors in the
- * hw register/s using command.
+ * hw registers using command.
  */
 static int hclge_handle_pf_ras_error(struct hclge_dev *hdev,
 				     struct hclge_desc *desc,

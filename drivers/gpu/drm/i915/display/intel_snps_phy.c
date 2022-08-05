@@ -32,10 +32,14 @@ void intel_snps_phy_wait_for_calibration(struct drm_i915_private *i915)
 		if (!intel_phy_is_snps(i915, phy))
 			continue;
 
+		/*
+		 * If calibration does not complete successfully, we'll remember
+		 * which phy was affected and skip setup of the corresponding
+		 * output later.
+		 */
 		if (intel_de_wait_for_clear(i915, DG2_PHY_MISC(phy),
 					    DG2_PHY_DP_TX_ACK_MASK, 25))
-			drm_err(&i915->drm, "SNPS PHY %c failed to calibrate after 25ms.\n",
-				phy_name(phy));
+			i915->snps_phy_failed_calibration |= BIT(phy);
 	}
 }
 

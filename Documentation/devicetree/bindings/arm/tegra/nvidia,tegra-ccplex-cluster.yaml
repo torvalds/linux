@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/arm/tegra/nvidia,tegra-ccplex-cluster.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: NVIDIA Tegra CPU COMPLEX CLUSTER area device tree bindings
+
+maintainers:
+  - Sumit Gupta <sumitg@nvidia.com>
+  - Mikko Perttunen <mperttunen@nvidia.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+  - Thierry Reding <thierry.reding@gmail.com>
+
+description: |+
+  The Tegra CPU COMPLEX CLUSTER area contains memory-mapped
+  registers that initiate CPU frequency/voltage transitions.
+
+properties:
+  $nodename:
+    pattern: "ccplex@([0-9a-f]+)$"
+
+  compatible:
+    enum:
+      - nvidia,tegra186-ccplex-cluster
+      - nvidia,tegra234-ccplex-cluster
+
+  reg:
+    maxItems: 1
+
+  nvidia,bpmp:
+    $ref: '/schemas/types.yaml#/definitions/phandle'
+    description: |
+      Specifies the BPMP node that needs to be queried to get
+      operating point data for all CPUs.
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - nvidia,bpmp
+  - status
+
+examples:
+  - |
+    ccplex@e000000 {
+      compatible = "nvidia,tegra234-ccplex-cluster";
+      reg = <0x0e000000 0x5ffff>;
+      nvidia,bpmp = <&bpmp>;
+      status = "okay";
+    };

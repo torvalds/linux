@@ -105,8 +105,9 @@ config DRM_PANEL_EDP
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on PM
 	select VIDEOMODE_HELPERS
+	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HELPER
 	select DRM_DP_AUX_BUS
-	select DRM_DP_HELPER
 	select DRM_KMS_HELPER
 	help
 	  DRM panel driver for dumb eDP panels that need at most a regulator and
@@ -283,6 +284,15 @@ config DRM_PANEL_NEC_NL8048HL11
 	  Say Y here if you want to enable support for the NEC NL8048HL11 RGB
 	  panel (found on the Zoom2/3/3630 SDP boards). To compile this driver
 	  as a module, choose M here.
+
+config DRM_PANEL_NEWVISION_NV3052C
+	tristate "NewVision NV3052C RGB/SPI panel"
+	depends on OF && SPI
+	depends on BACKLIGHT_CLASS_DEVICE
+	select DRM_MIPI_DBI
+	help
+	  Say Y here if you want to enable support for the panels built
+	  around the NewVision NV3052C display controller.
 
 config DRM_PANEL_NOVATEK_NT35510
 	tristate "Novatek NT35510 RGB panel driver"

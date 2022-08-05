@@ -647,8 +647,8 @@ u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 		struct sta_info *sta = container_of(pubsta, struct sta_info,
 						    sta);
 		struct ieee80211_rx_status stat;
-		struct ieee80211_tx_rate *tx_rate = &sta->tx_stats.last_rate;
-		struct rate_info *ri = &sta->tx_stats.last_rate_info;
+		struct ieee80211_tx_rate *tx_rate = &sta->deflink.tx_stats.last_rate;
+		struct rate_info *ri = &sta->deflink.tx_stats.last_rate_info;
 		u32 duration, overhead;
 		u8 agg_shift;
 

@@ -58,3 +58,7 @@
 &usi_0 {
 	status = "okay";
 };
+
+&xtcxo {
+	clock-frequency = <26000000>;
+};

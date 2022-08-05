@@ -29,6 +29,36 @@ static int rtw89_fw_leave_lps_check(struct rtw89_dev *rtwdev, u8 macid)
 	return 0;
 }
 
+static void rtw89_ps_power_mode_change_with_hci(struct rtw89_dev *rtwdev,
+						bool enter)
+{
+	ieee80211_stop_queues(rtwdev->hw);
+	rtwdev->hci.paused = true;
+	flush_work(&rtwdev->txq_work);
+	ieee80211_wake_queues(rtwdev->hw);
+
+	rtw89_hci_pause(rtwdev, true);
+	rtw89_mac_power_mode_change(rtwdev, enter);
+	rtw89_hci_switch_mode(rtwdev, enter);
+	rtw89_hci_pause(rtwdev, false);
+
+	rtwdev->hci.paused = false;
+
+	if (!enter) {
+		local_bh_disable();
+		napi_schedule(&rtwdev->napi);
+		local_bh_enable();
+	}
+}
+
+static void rtw89_ps_power_mode_change(struct rtw89_dev *rtwdev, bool enter)
+{
+	if (rtwdev->chip->low_power_hci_modes & BIT(rtwdev->ps_mode))
+		rtw89_ps_power_mode_change_with_hci(rtwdev, enter);
+	else
+		rtw89_mac_power_mode_change(rtwdev, enter);
+}
+
 static void __rtw89_enter_ps_mode(struct rtw89_dev *rtwdev)
 {
 	if (!rtwdev->ps_mode)
@@ -37,7 +67,7 @@ static void __rtw89_enter_ps_mode(struct rtw89_dev *rtwdev)
 	if (test_and_set_bit(RTW89_FLAG_LOW_POWER_MODE, rtwdev->flags))
 		return;
 
-	rtw89_mac_power_mode_change(rtwdev, true);
+	rtw89_ps_power_mode_change(rtwdev, true);
 }
 
 void __rtw89_leave_ps_mode(struct rtw89_dev *rtwdev)
@@ -46,7 +76,7 @@ void __rtw89_leave_ps_mode(struct rtw89_dev *rtwdev)
 		return;
 
 	if (test_and_clear_bit(RTW89_FLAG_LOW_POWER_MODE, rtwdev->flags))
-		rtw89_mac_power_mode_change(rtwdev, false);
+		rtw89_ps_power_mode_change(rtwdev, false);
 }
 
 static void __rtw89_enter_lps(struct rtw89_dev *rtwdev, u8 mac_id)

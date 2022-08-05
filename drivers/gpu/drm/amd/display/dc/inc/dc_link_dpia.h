@@ -87,6 +87,11 @@ union dpia_set_config_data {
  */
 enum dc_status dpcd_get_tunneling_device_data(struct dc_link *link);
 
+/* Query hot plug status of USB4 DP tunnel.
+ * Returns true if HPD high.
+ */
+bool dc_link_dpia_query_hpd_status(struct dc_link *link);
+
 /* Train DP tunneling link for USB4 DPIA display endpoint.
  * DPIA equivalent of dc_link_dp_perfrorm_link_training.
  * Aborts link training upon detection of sink unplug.

@@ -40,7 +40,7 @@ static bool all_vcpu_threads_running;
  * Continuously write to the first 8 bytes of each page in the
  * specified region.
  */
-static void guest_code(uint32_t vcpu_id)
+void perf_test_guest_code(uint32_t vcpu_id)
 {
 	struct perf_test_args *pta = &perf_test_args;
 	struct perf_test_vcpu_args *vcpu_args = &pta->vcpu_args[vcpu_id];
@@ -108,8 +108,9 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 {
 	struct perf_test_args *pta = &perf_test_args;
 	struct kvm_vm *vm;
-	uint64_t guest_num_pages;
+	uint64_t guest_num_pages, slot0_pages = DEFAULT_GUEST_PHY_PAGES;
 	uint64_t backing_src_pagesz = get_backing_src_pagesz(backing_src);
+	uint64_t region_end_gfn;
 	int i;
 
 	pr_info("Testing guest mode: %s\n", vm_guest_mode_string(mode));
@@ -135,33 +136,53 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 		    slots);
 
 	/*
+	 * If using nested, allocate extra pages for the nested page tables and
+	 * in-memory data structures.
+	 */
+	if (pta->nested)
+		slot0_pages += perf_test_nested_pages(vcpus);
+
+	/*
 	 * Pass guest_num_pages to populate the page tables for test memory.
 	 * The memory is also added to memslot 0, but that's a benign side
 	 * effect as KVM allows aliasing HVAs in meslots.
 	 */
-	vm = vm_create_with_vcpus(mode, vcpus, DEFAULT_GUEST_PHY_PAGES,
-				  guest_num_pages, 0, guest_code, NULL);
+	vm = vm_create_with_vcpus(mode, vcpus, slot0_pages, guest_num_pages, 0,
+				  perf_test_guest_code, NULL);
 
 	pta->vm = vm;
 
+	/* Put the test region at the top guest physical memory. */
+	region_end_gfn = vm_get_max_gfn(vm) + 1;
+
+#ifdef __x86_64__
+	/*
+	 * When running vCPUs in L2, restrict the test region to 48 bits to
+	 * avoid needing 5-level page tables to identity map L2.
+	 */
+	if (pta->nested)
+		region_end_gfn = min(region_end_gfn, (1UL << 48) / pta->guest_page_size);
+#endif
 	/*
 	 * If there should be more memory in the guest test region than there
 	 * can be pages in the guest, it will definitely cause problems.
 	 */
-	TEST_ASSERT(guest_num_pages < vm_get_max_gfn(vm),
+	TEST_ASSERT(guest_num_pages < region_end_gfn,
 		    "Requested more guest memory than address space allows.\n"
 		    "    guest pages: %" PRIx64 " max gfn: %" PRIx64
 		    " vcpus: %d wss: %" PRIx64 "]\n",
-		    guest_num_pages, vm_get_max_gfn(vm), vcpus,
+		    guest_num_pages, region_end_gfn - 1, vcpus,
 		    vcpu_memory_bytes);
 
-	pta->gpa = (vm_get_max_gfn(vm) - guest_num_pages) * pta->guest_page_size;
+	pta->gpa = (region_end_gfn - guest_num_pages) * pta->guest_page_size;
 	pta->gpa = align_down(pta->gpa, backing_src_pagesz);
 #ifdef __s390x__
 	/* Align to 1M (segment size) */
 	pta->gpa = align_down(pta->gpa, 1 << 20);
 #endif
-	pr_info("guest physical test memory offset: 0x%lx\n", pta->gpa);
+	pta->size = guest_num_pages * pta->guest_page_size;
+	pr_info("guest physical test memory: [0x%lx, 0x%lx)\n",
+		pta->gpa, pta->gpa + pta->size);
 
 	/* Add extra memory slots for testing */
 	for (i = 0; i < slots; i++) {
@@ -177,6 +198,11 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 	virt_map(vm, guest_test_virt_mem, pta->gpa, guest_num_pages);
 
 	perf_test_setup_vcpus(vm, vcpus, vcpu_memory_bytes, partition_vcpu_memory_access);
+
+	if (pta->nested) {
+		pr_info("Configuring vCPUs to run in L2 (nested).\n");
+		perf_test_setup_nested(vm, vcpus);
+	}
 
 	ucall_init(vm, NULL);
 
@@ -196,6 +222,17 @@ void perf_test_set_wr_fract(struct kvm_vm *vm, int wr_fract)
 {
 	perf_test_args.wr_fract = wr_fract;
 	sync_global_to_guest(vm, perf_test_args);
+}
+
+uint64_t __weak perf_test_nested_pages(int nr_vcpus)
+{
+	return 0;
+}
+
+void __weak perf_test_setup_nested(struct kvm_vm *vm, int nr_vcpus)
+{
+	pr_info("%s() not support on this architecture, skipping.\n", __func__);
+	exit(KSFT_SKIP);
 }
 
 static void *vcpu_thread_main(void *data)

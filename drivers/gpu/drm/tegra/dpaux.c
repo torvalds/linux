@@ -18,8 +18,8 @@
 #include <linux/reset.h>
 #include <linux/workqueue.h>
 
-#include <drm/dp/drm_dp_helper.h>
-#include <drm/dp/drm_dp_aux_bus.h>
+#include <drm/display/drm_dp_helper.h>
+#include <drm/display/drm_dp_aux_bus.h>
 #include <drm/drm_panel.h>
 
 #include "dp.h"

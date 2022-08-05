@@ -27,6 +27,7 @@ struct intel_plane_state;
 #define INTEL_PLANE_CAP_TILING_X	BIT(3)
 #define INTEL_PLANE_CAP_TILING_Y	BIT(4)
 #define INTEL_PLANE_CAP_TILING_Yf	BIT(5)
+#define INTEL_PLANE_CAP_TILING_4	BIT(6)
 
 bool intel_fb_is_ccs_modifier(u64 modifier);
 bool intel_fb_is_rc_ccs_cc_modifier(u64 modifier);

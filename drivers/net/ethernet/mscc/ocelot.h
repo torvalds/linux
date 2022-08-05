@@ -48,7 +48,6 @@ struct ocelot_port_private {
 	struct net_device *dev;
 	struct phylink *phylink;
 	struct phylink_config phylink_config;
-	u8 chip_port;
 	struct ocelot_port_tc tc;
 };
 

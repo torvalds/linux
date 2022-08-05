@@ -102,11 +102,18 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 
 	/*
 	 * Nothing further to be done for platforms that support the low power
-	 * D0 substate.
+	 * D0 substate. Resume trace and return when resuming from
+	 * low-power D0 substate
 	 */
 	if (!runtime_resume && sof_ops(sdev)->set_power_state &&
-	    old_state == SOF_DSP_PM_D0)
+	    old_state == SOF_DSP_PM_D0) {
+		ret = sof_fw_trace_resume(sdev);
+		if (ret < 0)
+			/* non fatal */
+			dev_warn(sdev->dev,
+				 "failed to enable trace after resume %d\n", ret);
 		return 0;
+	}
 
 	sof_set_fw_state(sdev, SOF_FW_BOOT_PREPARE);
 
@@ -135,8 +142,8 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 		return ret;
 	}
 
-	/* resume DMA trace, only need send ipc */
-	ret = snd_sof_init_trace_ipc(sdev);
+	/* resume DMA trace */
+	ret = sof_fw_trace_resume(sdev);
 	if (ret < 0) {
 		/* non fatal */
 		dev_warn(sdev->dev,
@@ -187,7 +194,7 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 
 	/* prepare for streams to be resumed properly upon resume */
 	if (!runtime_suspend) {
-		ret = sof_set_hw_params_upon_resume(sdev->dev);
+		ret = snd_sof_dsp_hw_params_upon_resume(sdev);
 		if (ret < 0) {
 			dev_err(sdev->dev,
 				"error: setting hw_params flag during suspend %d\n",
@@ -201,6 +208,7 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 
 	/* Skip to platform-specific suspend if DSP is entering D0 */
 	if (target_state == SOF_DSP_PM_D0) {
+		sof_fw_trace_suspend(sdev, pm_state);
 		/* Notify clients not managed by pm framework about core suspend */
 		sof_suspend_clients(sdev, pm_state);
 		goto suspend;
@@ -209,8 +217,8 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	if (tplg_ops->tear_down_all_pipelines)
 		tplg_ops->tear_down_all_pipelines(sdev, false);
 
-	/* release trace */
-	snd_sof_release_trace(sdev);
+	/* suspend DMA trace */
+	sof_fw_trace_suspend(sdev, pm_state);
 
 	/* Notify clients not managed by pm framework about core suspend */
 	sof_suspend_clients(sdev, pm_state);

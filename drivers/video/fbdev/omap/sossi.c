@@ -13,8 +13,10 @@
 #include <linux/interrupt.h>
 
 #include <linux/omap-dma.h>
+#include <linux/soc/ti/omap1-io.h>
 
 #include "omapfb.h"
+#include "lcd_dma.h"
 #include "lcdc.h"
 
 #define MODULE_NAME		"omapfb-sossi"
@@ -357,7 +359,7 @@ static void sossi_set_bits_per_cycle(int bpc)
 	int bus_pick_count, bus_pick_width;
 
 	/*
-	 * We set explicitly the the bus_pick_count as well, although
+	 * We set explicitly the bus_pick_count as well, although
 	 * with remapping/reordering disabled it will be calculated by HW
 	 * as (32 / bus_pick_width).
 	 */
@@ -638,7 +640,7 @@ static int sossi_init(struct omapfb_device *fbdev)
 	l &= ~(1 << 31); /* REORDERING */
 	sossi_write_reg(SOSSI_INIT1_REG, l);
 
-	if ((r = request_irq(INT_1610_SoSSI_MATCH, sossi_match_irq,
+	if ((r = request_irq(fbdev->ext_irq, sossi_match_irq,
 			     IRQ_TYPE_EDGE_FALLING,
 	     "sossi_match", sossi.fbdev->dev)) < 0) {
 		dev_err(sossi.fbdev->dev, "can't get SoSSI match IRQ\n");

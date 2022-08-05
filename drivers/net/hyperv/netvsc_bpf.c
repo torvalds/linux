@@ -10,6 +10,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
+#include <linux/netpoll.h>
 #include <linux/bpf.h>
 #include <linux/bpf_trace.h>
 #include <linux/kernel.h>
@@ -23,11 +24,13 @@
 u32 netvsc_run_xdp(struct net_device *ndev, struct netvsc_channel *nvchan,
 		   struct xdp_buff *xdp)
 {
+	struct netvsc_stats_rx *rx_stats = &nvchan->rx_stats;
 	void *data = nvchan->rsc.data[0];
 	u32 len = nvchan->rsc.len[0];
 	struct page *page = NULL;
 	struct bpf_prog *prog;
 	u32 act = XDP_PASS;
+	bool drop = true;
 
 	xdp->data_hard_start = NULL;
 
@@ -60,8 +63,33 @@ u32 netvsc_run_xdp(struct net_device *ndev, struct netvsc_channel *nvchan,
 	switch (act) {
 	case XDP_PASS:
 	case XDP_TX:
+		drop = false;
+		break;
+
 	case XDP_DROP:
 		break;
+
+	case XDP_REDIRECT:
+		if (!xdp_do_redirect(ndev, xdp, prog)) {
+			nvchan->xdp_flush = true;
+			drop = false;
+
+			u64_stats_update_begin(&rx_stats->syncp);
+
+			rx_stats->xdp_redirect++;
+			rx_stats->packets++;
+			rx_stats->bytes += nvchan->rsc.pktlen;
+
+			u64_stats_update_end(&rx_stats->syncp);
+
+			break;
+		} else {
+			u64_stats_update_begin(&rx_stats->syncp);
+			rx_stats->xdp_drop++;
+			u64_stats_update_end(&rx_stats->syncp);
+		}
+
+		fallthrough;
 
 	case XDP_ABORTED:
 		trace_xdp_exception(ndev, prog, act);
@@ -74,7 +102,7 @@ u32 netvsc_run_xdp(struct net_device *ndev, struct netvsc_channel *nvchan,
 out:
 	rcu_read_unlock();
 
-	if (page && act != XDP_PASS && act != XDP_TX) {
+	if (page && drop) {
 		__free_page(page);
 		xdp->data_hard_start = NULL;
 	}
@@ -137,7 +165,6 @@ int netvsc_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 int netvsc_vf_setxdp(struct net_device *vf_netdev, struct bpf_prog *prog)
 {
 	struct netdev_bpf xdp;
-	bpf_op_t ndo_bpf;
 	int ret;
 
 	ASSERT_RTNL();
@@ -145,8 +172,7 @@ int netvsc_vf_setxdp(struct net_device *vf_netdev, struct bpf_prog *prog)
 	if (!vf_netdev)
 		return 0;
 
-	ndo_bpf = vf_netdev->netdev_ops->ndo_bpf;
-	if (!ndo_bpf)
+	if (!vf_netdev->netdev_ops->ndo_bpf)
 		return 0;
 
 	memset(&xdp, 0, sizeof(xdp));
@@ -157,7 +183,7 @@ int netvsc_vf_setxdp(struct net_device *vf_netdev, struct bpf_prog *prog)
 	xdp.command = XDP_SETUP_PROG;
 	xdp.prog = prog;
 
-	ret = ndo_bpf(vf_netdev, &xdp);
+	ret = vf_netdev->netdev_ops->ndo_bpf(vf_netdev, &xdp);
 
 	if (ret && prog)
 		bpf_prog_put(prog);
@@ -198,4 +224,69 @@ int netvsc_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 	default:
 		return -EINVAL;
 	}
+}
+
+static int netvsc_ndoxdp_xmit_fm(struct net_device *ndev,
+				 struct xdp_frame *frame, u16 q_idx)
+{
+	struct sk_buff *skb;
+
+	skb = xdp_build_skb_from_frame(frame, ndev);
+	if (unlikely(!skb))
+		return -ENOMEM;
+
+	netvsc_get_hash(skb, netdev_priv(ndev));
+
+	skb_record_rx_queue(skb, q_idx);
+
+	netvsc_xdp_xmit(skb, ndev);
+
+	return 0;
+}
+
+int netvsc_ndoxdp_xmit(struct net_device *ndev, int n,
+		       struct xdp_frame **frames, u32 flags)
+{
+	struct net_device_context *ndev_ctx = netdev_priv(ndev);
+	const struct net_device_ops *vf_ops;
+	struct netvsc_stats_tx *tx_stats;
+	struct netvsc_device *nvsc_dev;
+	struct net_device *vf_netdev;
+	int i, count = 0;
+	u16 q_idx;
+
+	/* Don't transmit if netvsc_device is gone */
+	nvsc_dev = rcu_dereference_bh(ndev_ctx->nvdev);
+	if (unlikely(!nvsc_dev || nvsc_dev->destroy))
+		return 0;
+
+	/* If VF is present and up then redirect packets to it.
+	 * Skip the VF if it is marked down or has no carrier.
+	 * If netpoll is in uses, then VF can not be used either.
+	 */
+	vf_netdev = rcu_dereference_bh(ndev_ctx->vf_netdev);
+	if (vf_netdev && netif_running(vf_netdev) &&
+	    netif_carrier_ok(vf_netdev) && !netpoll_tx_running(ndev) &&
+	    vf_netdev->netdev_ops->ndo_xdp_xmit &&
+	    ndev_ctx->data_path_is_vf) {
+		vf_ops = vf_netdev->netdev_ops;
+		return vf_ops->ndo_xdp_xmit(vf_netdev, n, frames, flags);
+	}
+
+	q_idx = smp_processor_id() % ndev->real_num_tx_queues;
+
+	for (i = 0; i < n; i++) {
+		if (netvsc_ndoxdp_xmit_fm(ndev, frames[i], q_idx))
+			break;
+
+		count++;
+	}
+
+	tx_stats = &nvsc_dev->chan_table[q_idx].tx_stats;
+
+	u64_stats_update_begin(&tx_stats->syncp);
+	tx_stats->xdp_xmit += count;
+	u64_stats_update_end(&tx_stats->syncp);
+
+	return count;
 }

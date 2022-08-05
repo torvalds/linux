@@ -20,6 +20,13 @@ Optional properties:
 	       Vsram to fit SoC specific needs. When absent, the voltage scaling
 	       flow is handled by hardware, hence no software "voltage tracking" is
 	       needed.
+- mediatek,cci:
+	Used to confirm the link status between cpufreq and mediatek cci. Because
+	cpufreq and mediatek cci could share the same regulator in some MediaTek SoCs.
+	To prevent the issue of high frequency and low voltage, we need to use this
+	property to make sure mediatek cci is ready.
+	For details of mediatek cci, please refer to
+	Documentation/devicetree/bindings/interconnect/mediatek,cci.yaml
 - #cooling-cells:
 	For details, please refer to
 	Documentation/devicetree/bindings/thermal/thermal-cooling-devices.yaml

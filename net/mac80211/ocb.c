@@ -74,7 +74,7 @@ void ieee80211_ocb_rx_no_sta(struct ieee80211_sub_if_data *sdata,
 
 	/* Add only mandatory rates for now */
 	sband = local->hw.wiphy->bands[band];
-	sta->sta.supp_rates[band] =
+	sta->sta.deflink.supp_rates[band] =
 		ieee80211_mandatory_rates(sband, scan_width);
 
 	spin_lock(&ifocb->incomplete_lock);

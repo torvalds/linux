@@ -12,7 +12,6 @@
 #include <signal.h>
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
-#include <sys/resource.h>
 #include <libgen.h>
 #include <linux/if_link.h>
 

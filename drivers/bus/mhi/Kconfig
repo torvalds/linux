@@ -6,3 +6,4 @@
 #
 
 source "drivers/bus/mhi/host/Kconfig"
+source "drivers/bus/mhi/ep/Kconfig"

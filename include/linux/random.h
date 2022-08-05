@@ -13,7 +13,7 @@
 struct notifier_block;
 
 void add_device_randomness(const void *buf, size_t len);
-void add_bootloader_randomness(const void *buf, size_t len);
+void __init add_bootloader_randomness(const void *buf, size_t len);
 void add_input_randomness(unsigned int type, unsigned int code,
 			  unsigned int value) __latent_entropy;
 void add_interrupt_randomness(int irq) __latent_entropy;
@@ -74,7 +74,6 @@ static inline unsigned long get_random_canary(void)
 
 int __init random_init(const char *command_line);
 bool rng_is_initialized(void);
-bool rng_has_arch_random(void);
 int wait_for_random_bytes(void);
 
 /* Calls wait_for_random_bytes() and then calls get_random_bytes(buf, nbytes).

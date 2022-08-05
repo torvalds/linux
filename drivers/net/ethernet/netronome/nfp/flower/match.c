@@ -98,16 +98,18 @@ nfp_flower_compile_mac(struct nfp_flower_mac_mpls *ext,
 {
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
 		struct flow_match_eth_addrs match;
+		u8 tmp;
 		int i;
 
 		flow_rule_match_eth_addrs(rule, &match);
 		/* Populate mac frame. */
 		for (i = 0; i < ETH_ALEN; i++) {
-			ext->mac_dst[i] |= match.key->dst[i] &
-					   match.mask->dst[i];
+			tmp = match.key->dst[i] & match.mask->dst[i];
+			ext->mac_dst[i] |= tmp & (~msk->mac_dst[i]);
 			msk->mac_dst[i] |= match.mask->dst[i];
-			ext->mac_src[i] |= match.key->src[i] &
-					   match.mask->src[i];
+
+			tmp = match.key->src[i] & match.mask->src[i];
+			ext->mac_src[i] |= tmp & (~msk->mac_src[i]);
 			msk->mac_src[i] |= match.mask->src[i];
 		}
 	}
@@ -189,11 +191,16 @@ nfp_flower_compile_tport(struct nfp_flower_tp_ports *ext,
 {
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS)) {
 		struct flow_match_ports match;
+		__be16 tmp;
 
 		flow_rule_match_ports(rule, &match);
-		ext->port_src |= match.key->src & match.mask->src;
-		ext->port_dst |= match.key->dst & match.mask->dst;
+
+		tmp = match.key->src & match.mask->src;
+		ext->port_src |= tmp & (~msk->port_src);
 		msk->port_src |= match.mask->src;
+
+		tmp = match.key->dst & match.mask->dst;
+		ext->port_dst |= tmp & (~msk->port_dst);
 		msk->port_dst |= match.mask->dst;
 	}
 }
@@ -212,11 +219,16 @@ nfp_flower_compile_ip_ext(struct nfp_flower_ip_ext *ext,
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IP)) {
 		struct flow_match_ip match;
+		u8 tmp;
 
 		flow_rule_match_ip(rule, &match);
-		ext->tos |= match.key->tos & match.mask->tos;
-		ext->ttl |= match.key->ttl & match.mask->ttl;
+
+		tmp = match.key->tos & match.mask->tos;
+		ext->tos |= tmp & (~msk->tos);
 		msk->tos |= match.mask->tos;
+
+		tmp = match.key->ttl & match.mask->ttl;
+		ext->ttl |= tmp & (~msk->ttl);
 		msk->ttl |= match.mask->ttl;
 	}
 
@@ -325,11 +337,16 @@ nfp_flower_compile_ipv4(struct nfp_flower_ipv4 *ext,
 {
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
 		struct flow_match_ipv4_addrs match;
+		__be32 tmp;
 
 		flow_rule_match_ipv4_addrs(rule, &match);
-		ext->ipv4_src |= match.key->src & match.mask->src;
-		ext->ipv4_dst |= match.key->dst & match.mask->dst;
+
+		tmp = match.key->src & match.mask->src;
+		ext->ipv4_src |= tmp & (~msk->ipv4_src);
 		msk->ipv4_src |= match.mask->src;
+
+		tmp = match.key->dst & match.mask->dst;
+		ext->ipv4_dst |= tmp & (~msk->ipv4_dst);
 		msk->ipv4_dst |= match.mask->dst;
 	}
 
@@ -342,15 +359,21 @@ nfp_flower_compile_ipv6(struct nfp_flower_ipv6 *ext,
 {
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
 		struct flow_match_ipv6_addrs match;
+		u8 tmp;
 		int i;
 
 		flow_rule_match_ipv6_addrs(rule, &match);
 		for (i = 0; i < sizeof(ext->ipv6_src); i++) {
-			ext->ipv6_src.s6_addr[i] |= match.key->src.s6_addr[i] &
-						    match.mask->src.s6_addr[i];
-			ext->ipv6_dst.s6_addr[i] |= match.key->dst.s6_addr[i] &
-						    match.mask->dst.s6_addr[i];
+			tmp = match.key->src.s6_addr[i] &
+			      match.mask->src.s6_addr[i];
+			ext->ipv6_src.s6_addr[i] |= tmp &
+						    (~msk->ipv6_src.s6_addr[i]);
 			msk->ipv6_src.s6_addr[i] |= match.mask->src.s6_addr[i];
+
+			tmp = match.key->dst.s6_addr[i] &
+			      match.mask->dst.s6_addr[i];
+			ext->ipv6_dst.s6_addr[i] |= tmp &
+						    (~msk->ipv6_dst.s6_addr[i]);
 			msk->ipv6_dst.s6_addr[i] |= match.mask->dst.s6_addr[i];
 		}
 	}
@@ -602,6 +625,14 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 		msk += sizeof(struct nfp_flower_ipv6);
 	}
 
+	if (NFP_FLOWER_LAYER2_QINQ & key_ls->key_layer_two) {
+		nfp_flower_compile_vlan((struct nfp_flower_vlan *)ext,
+					(struct nfp_flower_vlan *)msk,
+					rule);
+		ext += sizeof(struct nfp_flower_vlan);
+		msk += sizeof(struct nfp_flower_vlan);
+	}
+
 	if (key_ls->key_layer_two & NFP_FLOWER_LAYER2_GRE) {
 		if (key_ls->key_layer_two & NFP_FLOWER_LAYER2_TUN_IPV6) {
 			struct nfp_flower_ipv6_gre_tun *gre_match;
@@ -635,14 +666,6 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 			nfp_flow->nfp_tun_ipv4_addr = dst;
 			nfp_tunnel_add_ipv4_off(app, dst);
 		}
-	}
-
-	if (NFP_FLOWER_LAYER2_QINQ & key_ls->key_layer_two) {
-		nfp_flower_compile_vlan((struct nfp_flower_vlan *)ext,
-					(struct nfp_flower_vlan *)msk,
-					rule);
-		ext += sizeof(struct nfp_flower_vlan);
-		msk += sizeof(struct nfp_flower_vlan);
 	}
 
 	if (key_ls->key_layer & NFP_FLOWER_LAYER_VXLAN ||

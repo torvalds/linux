@@ -56,6 +56,8 @@ struct ieee802154_local {
 
 	struct sk_buff *tx_skb;
 	struct work_struct tx_work;
+	/* A negative Linux error code or a null/positive MLME error status */
+	int tx_result;
 };
 
 enum {

@@ -26,11 +26,26 @@ struct path_selector {
 	void *context;
 };
 
+/*
+ * If a path selector uses this flag, a high resolution timer is used
+ * (via ktime_get_ns) to account for IO start time in BIO-based mpath.
+ * This improves performance of some path selectors (i.e. HST), in
+ * exchange for slightly higher overhead when submitting the BIO.
+ * The extra cost is usually offset by improved path selection for
+ * some benchmarks.
+ *
+ * This has no effect for request-based mpath, since it already uses a
+ * higher precision timer by default.
+ */
+#define DM_PS_USE_HR_TIMER		0x00000001
+#define dm_ps_use_hr_timer(type)	((type)->features & DM_PS_USE_HR_TIMER)
+
 /* Information about a path selector type */
 struct path_selector_type {
 	char *name;
 	struct module *module;
 
+	unsigned int features;
 	unsigned int table_args;
 	unsigned int info_args;
 

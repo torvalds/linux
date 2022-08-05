@@ -84,4 +84,10 @@ int bpf_core_patch_insn(const char *prog_name, struct bpf_insn *insn,
 			int insn_idx, const struct bpf_core_relo *relo,
 			int relo_idx, const struct bpf_core_relo_res *res);
 
+int bpf_core_parse_spec(const char *prog_name, const struct btf *btf,
+		        const struct bpf_core_relo *relo,
+		        struct bpf_core_spec *spec);
+
+int bpf_core_format_spec(char *buf, size_t buf_sz, const struct bpf_core_spec *spec);
+
 #endif

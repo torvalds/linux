@@ -371,9 +371,9 @@ test_tc_int_buf()
 	tc qdisc delete dev $swp root
 }
 
-trap cleanup EXIT
-
 bail_on_lldpad
+
+trap cleanup EXIT
 setup_wait
 tests_run
 

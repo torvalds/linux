@@ -593,14 +593,9 @@ static int navi10_ih_sw_fini(void *handle)
 
 static int navi10_ih_hw_init(void *handle)
 {
-	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = navi10_ih_irq_init(adev);
-	if (r)
-		return r;
-
-	return 0;
+	return navi10_ih_irq_init(adev);
 }
 
 static int navi10_ih_hw_fini(void *handle)
@@ -685,7 +680,7 @@ static int navi10_ih_set_powergating_state(void *handle,
 	return 0;
 }
 
-static void navi10_ih_get_clockgating_state(void *handle, u32 *flags)
+static void navi10_ih_get_clockgating_state(void *handle, u64 *flags)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 

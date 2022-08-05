@@ -6,7 +6,6 @@
 
 #include <net/tls.h>
 #include "en.h"
-#include "accel/tls.h"
 
 enum {
 	MLX5E_TLS_PROGRESS_PARAMS_AUTH_STATE_NO_OFFLOAD     = 0,

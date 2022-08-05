@@ -133,8 +133,7 @@ static const struct regmap_config max9877_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int max9877_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int max9877_i2c_probe(struct i2c_client *client)
 {
 	struct regmap *regmap;
 	int i;
@@ -161,7 +160,7 @@ static struct i2c_driver max9877_i2c_driver = {
 	.driver = {
 		.name = "max9877",
 	},
-	.probe = max9877_i2c_probe,
+	.probe_new = max9877_i2c_probe,
 	.id_table = max9877_i2c_id,
 };
 

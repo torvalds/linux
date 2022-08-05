@@ -259,10 +259,33 @@ static int stmpe_24xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	return 0;
 }
 
+static int stmpe_24xx_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+				const struct pwm_state *state)
+{
+	int err;
+
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
+	if (!state->enabled) {
+		if (pwm->state.enabled)
+			stmpe_24xx_pwm_disable(chip, pwm);
+
+		return 0;
+	}
+
+	err = stmpe_24xx_pwm_config(pwm->chip, pwm, state->duty_cycle, state->period);
+	if (err)
+		return err;
+
+	if (!pwm->state.enabled)
+		err = stmpe_24xx_pwm_enable(chip, pwm);
+
+	return err;
+}
+
 static const struct pwm_ops stmpe_24xx_pwm_ops = {
-	.config = stmpe_24xx_pwm_config,
-	.enable = stmpe_24xx_pwm_enable,
-	.disable = stmpe_24xx_pwm_disable,
+	.apply = stmpe_24xx_pwm_apply,
 	.owner = THIS_MODULE,
 };
 

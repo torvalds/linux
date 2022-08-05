@@ -393,27 +393,30 @@ struct dma_buf {
 	 * e.g. exposed in `Implicit Fence Poll Support`_ must follow the
 	 * below rules.
 	 *
-	 * - Drivers must add a shared fence through dma_resv_add_shared_fence()
-	 *   for anything the userspace API considers a read access. This highly
-	 *   depends upon the API and window system.
+	 * - Drivers must add a read fence through dma_resv_add_fence() with the
+	 *   DMA_RESV_USAGE_READ flag for anything the userspace API considers a
+	 *   read access. This highly depends upon the API and window system.
 	 *
-	 * - Similarly drivers must set the exclusive fence through
-	 *   dma_resv_add_excl_fence() for anything the userspace API considers
-	 *   write access.
+	 * - Similarly drivers must add a write fence through
+	 *   dma_resv_add_fence() with the DMA_RESV_USAGE_WRITE flag for
+	 *   anything the userspace API considers write access.
 	 *
-	 * - Drivers may just always set the exclusive fence, since that only
+	 * - Drivers may just always add a write fence, since that only
 	 *   causes unecessarily synchronization, but no correctness issues.
 	 *
 	 * - Some drivers only expose a synchronous userspace API with no
 	 *   pipelining across drivers. These do not set any fences for their
 	 *   access. An example here is v4l.
 	 *
+	 * - Driver should use dma_resv_usage_rw() when retrieving fences as
+	 *   dependency for implicit synchronization.
+	 *
 	 * DYNAMIC IMPORTER RULES:
 	 *
 	 * Dynamic importers, see dma_buf_attachment_is_dynamic(), have
 	 * additional constraints on how they set up fences:
 	 *
-	 * - Dynamic importers must obey the exclusive fence and wait for it to
+	 * - Dynamic importers must obey the write fences and wait for them to
 	 *   signal before allowing access to the buffer's underlying storage
 	 *   through the device.
 	 *
@@ -423,10 +426,9 @@ struct dma_buf {
 	 *
 	 * IMPORTANT:
 	 *
-	 * All drivers must obey the struct dma_resv rules, specifically the
-	 * rules for updating fences, see &dma_resv.fence_excl and
-	 * &dma_resv.fence. If these dependency rules are broken access tracking
-	 * can be lost resulting in use after free issues.
+	 * All drivers and memory management related functions must obey the
+	 * struct dma_resv rules, specifically the rules for updating and
+	 * obeying fences. See enum dma_resv_usage for further descriptions.
 	 */
 	struct dma_resv *resv;
 

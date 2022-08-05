@@ -23,7 +23,6 @@
 
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
-#include <linux/can/led.h>
 
 #define AT91_MB_MASK(i)		((1 << (i)) - 1)
 
@@ -618,8 +617,6 @@ static void at91_read_msg(struct net_device *dev, unsigned int mb)
 		stats->rx_bytes += cf->len;
 
 	netif_receive_skb(skb);
-
-	can_led_event(dev, CAN_LED_EVENT_RX);
 }
 
 /**
@@ -854,7 +851,6 @@ static void at91_irq_tx(struct net_device *dev, u32 reg_sr)
 						 mb - get_mb_tx_first(priv),
 						 NULL);
 			dev->stats.tx_packets++;
-			can_led_event(dev, CAN_LED_EVENT_TX);
 		}
 	}
 
@@ -1101,8 +1097,6 @@ static int at91_open(struct net_device *dev)
 		goto out_close;
 	}
 
-	can_led_event(dev, CAN_LED_EVENT_OPEN);
-
 	/* start chip and queuing */
 	at91_chip_start(dev);
 	napi_enable(&priv->napi);
@@ -1132,8 +1126,6 @@ static int at91_close(struct net_device *dev)
 	clk_disable_unprepare(priv->clk);
 
 	close_candev(dev);
-
-	can_led_event(dev, CAN_LED_EVENT_STOP);
 
 	return 0;
 }
@@ -1317,7 +1309,7 @@ static int at91_can_probe(struct platform_device *pdev)
 	priv->pdata = dev_get_platdata(&pdev->dev);
 	priv->mb0_id = 0x7ff;
 
-	netif_napi_add(dev, &priv->napi, at91_poll, get_mb_rx_num(priv));
+	netif_napi_add_weight(dev, &priv->napi, at91_poll, get_mb_rx_num(priv));
 
 	if (at91_is_sam9263(priv))
 		dev->sysfs_groups[0] = &at91_sysfs_attr_group;
@@ -1330,8 +1322,6 @@ static int at91_can_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "registering netdev failed\n");
 		goto exit_free;
 	}
-
-	devm_can_led_init(dev);
 
 	dev_info(&pdev->dev, "device registered (reg_base=%p, irq=%d)\n",
 		 priv->reg_base, dev->irq);

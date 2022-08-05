@@ -109,11 +109,7 @@ struct v9fs_session_info {
 #define V9FS_INO_INVALID_ATTR 0x01
 
 struct v9fs_inode {
-	struct {
-		/* These must be contiguous */
-		struct inode	vfs_inode;	/* the VFS's inode record */
-		struct netfs_i_context netfs_ctx; /* Netfslib context */
-	};
+	struct netfs_inode netfs; /* Netfslib context and vfs inode */
 	struct p9_qid qid;
 	unsigned int cache_validity;
 	struct p9_fid *writeback_fid;
@@ -122,13 +118,13 @@ struct v9fs_inode {
 
 static inline struct v9fs_inode *V9FS_I(const struct inode *inode)
 {
-	return container_of(inode, struct v9fs_inode, vfs_inode);
+	return container_of(inode, struct v9fs_inode, netfs.inode);
 }
 
 static inline struct fscache_cookie *v9fs_inode_cookie(struct v9fs_inode *v9inode)
 {
 #ifdef CONFIG_9P_FSCACHE
-	return netfs_i_cookie(&v9inode->vfs_inode);
+	return netfs_i_cookie(&v9inode->netfs);
 #else
 	return NULL;
 #endif

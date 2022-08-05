@@ -69,7 +69,7 @@ static void mlxbf_gige_initial_mac(struct mlxbf_gige *priv)
 	u8 mac[ETH_ALEN];
 	u64 local_mac;
 
-	memset(mac, 0, ETH_ALEN);
+	eth_zero_addr(mac);
 	mlxbf_gige_get_mac_rx_filter(priv, MLXBF_GIGE_LOCAL_MAC_FILTER_IDX,
 				     &local_mac);
 	u64_to_ether_addr(local_mac, mac);

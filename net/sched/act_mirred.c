@@ -460,7 +460,8 @@ static void tcf_offload_mirred_get_dev(struct flow_action_entry *entry,
 }
 
 static int tcf_mirred_offload_act_setup(struct tc_action *act, void *entry_data,
-					u32 *index_inc, bool bind)
+					u32 *index_inc, bool bind,
+					struct netlink_ext_ack *extack)
 {
 	if (bind) {
 		struct flow_action_entry *entry = entry_data;
@@ -478,6 +479,7 @@ static int tcf_mirred_offload_act_setup(struct tc_action *act, void *entry_data,
 			entry->id = FLOW_ACTION_MIRRED_INGRESS;
 			tcf_offload_mirred_get_dev(entry, act);
 		} else {
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported mirred offload");
 			return -EOPNOTSUPP;
 		}
 		*index_inc = 1;

@@ -146,6 +146,7 @@ properties:
       Horizontal sync pulse.
       0 selects active low, 1 selects active high.
       If omitted then it is not used by the hardware
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
 
   vsync-active:
@@ -153,6 +154,7 @@ properties:
       Vertical sync pulse.
       0 selects active low, 1 selects active high.
       If omitted then it is not used by the hardware
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
 
   de-active:
@@ -160,6 +162,7 @@ properties:
       Data enable.
       0 selects active low, 1 selects active high.
       If omitted then it is not used by the hardware
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
 
   pixelclk-active:
@@ -169,6 +172,7 @@ properties:
       sample data on rising edge.
       Use 1 to drive pixel data on rising edge and
       sample data on falling edge
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
 
   syncclk-active:
@@ -179,6 +183,7 @@ properties:
       sample sync on rising edge of pixel clock.
       Use 1 to drive sync on rising edge and
       sample sync on falling edge of pixel clock
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
 
   interlaced:

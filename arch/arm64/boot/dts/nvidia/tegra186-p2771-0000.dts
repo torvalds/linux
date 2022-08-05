@@ -811,6 +811,110 @@
 						remote-endpoint = <&mixer_out5_ep>;
 					};
 				};
+
+				xbar_asrc_in1_port: port@63 {
+					reg = <0x63>;
+
+					xbar_asrc_in1_ep: endpoint {
+						remote-endpoint = <&asrc_in1_ep>;
+					};
+				};
+
+				port@64 {
+					reg = <0x64>;
+
+					xbar_asrc_out1_ep: endpoint {
+						remote-endpoint = <&asrc_out1_ep>;
+					};
+				};
+
+				xbar_asrc_in2_port: port@65 {
+					reg = <0x65>;
+
+					xbar_asrc_in2_ep: endpoint {
+						remote-endpoint = <&asrc_in2_ep>;
+					};
+				};
+
+				port@66 {
+					reg = <0x66>;
+
+					xbar_asrc_out2_ep: endpoint {
+						remote-endpoint = <&asrc_out2_ep>;
+					};
+				};
+
+				xbar_asrc_in3_port: port@67 {
+					reg = <0x67>;
+
+					xbar_asrc_in3_ep: endpoint {
+						remote-endpoint = <&asrc_in3_ep>;
+					};
+				};
+
+				port@68 {
+					reg = <0x68>;
+
+					xbar_asrc_out3_ep: endpoint {
+						remote-endpoint = <&asrc_out3_ep>;
+					};
+				};
+
+				xbar_asrc_in4_port: port@69 {
+					reg = <0x69>;
+
+					xbar_asrc_in4_ep: endpoint {
+						remote-endpoint = <&asrc_in4_ep>;
+					};
+				};
+
+				port@6a {
+					reg = <0x6a>;
+
+					xbar_asrc_out4_ep: endpoint {
+						remote-endpoint = <&asrc_out4_ep>;
+					};
+				};
+
+				xbar_asrc_in5_port: port@6b {
+					reg = <0x6b>;
+
+					xbar_asrc_in5_ep: endpoint {
+						remote-endpoint = <&asrc_in5_ep>;
+					};
+				};
+
+				port@6c {
+					reg = <0x6c>;
+
+					xbar_asrc_out5_ep: endpoint {
+						remote-endpoint = <&asrc_out5_ep>;
+					};
+				};
+
+				xbar_asrc_in6_port: port@6d {
+					reg = <0x6d>;
+
+					xbar_asrc_in6_ep: endpoint {
+						remote-endpoint = <&asrc_in6_ep>;
+					};
+				};
+
+				port@6e {
+					reg = <0x6e>;
+
+					xbar_asrc_out6_ep: endpoint {
+						remote-endpoint = <&asrc_out6_ep>;
+					};
+				};
+
+				xbar_asrc_in7_port: port@6f {
+					reg = <0x6f>;
+
+					xbar_asrc_in7_ep: endpoint {
+						remote-endpoint = <&asrc_in7_ep>;
+					};
+				};
 			};
 
 			admaif@290f000 {
@@ -1935,6 +2039,119 @@
 					};
 				};
 			};
+
+			asrc@2910000 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0x0>;
+
+						asrc_in1_ep: endpoint {
+							remote-endpoint = <&xbar_asrc_in1_ep>;
+						};
+					};
+
+					port@1 {
+						reg = <0x1>;
+
+						asrc_in2_ep: endpoint {
+							remote-endpoint = <&xbar_asrc_in2_ep>;
+						};
+					};
+
+					port@2 {
+						reg = <0x2>;
+
+						asrc_in3_ep: endpoint {
+							remote-endpoint = <&xbar_asrc_in3_ep>;
+						};
+					};
+
+					port@3 {
+						reg = <0x3>;
+
+						asrc_in4_ep: endpoint {
+							remote-endpoint = <&xbar_asrc_in4_ep>;
+						};
+					};
+
+					port@4 {
+						reg = <0x4>;
+
+						asrc_in5_ep: endpoint {
+							remote-endpoint = <&xbar_asrc_in5_ep>;
+						};
+					};
+
+					port@5 {
+						reg = <0x5>;
+
+						asrc_in6_ep: endpoint {
+							remote-endpoint = <&xbar_asrc_in6_ep>;
+						};
+					};
+
+					port@6 {
+						reg = <0x6>;
+
+						asrc_in7_ep: endpoint {
+							remote-endpoint = <&xbar_asrc_in7_ep>;
+						};
+					};
+
+					asrc_out1_port: port@7 {
+						reg = <0x7>;
+
+						asrc_out1_ep: endpoint {
+							remote-endpoint = <&xbar_asrc_out1_ep>;
+						};
+					};
+
+					asrc_out2_port: port@8 {
+						reg = <0x8>;
+
+						asrc_out2_ep: endpoint {
+							remote-endpoint = <&xbar_asrc_out2_ep>;
+						};
+					};
+
+					asrc_out3_port: port@9 {
+						reg = <0x9>;
+
+						asrc_out3_ep: endpoint {
+							remote-endpoint = <&xbar_asrc_out3_ep>;
+						};
+					};
+
+					asrc_out4_port: port@a {
+						reg = <0xa>;
+
+						asrc_out4_ep: endpoint {
+							remote-endpoint = <&xbar_asrc_out4_ep>;
+						};
+					};
+
+					asrc_out5_port: port@b {
+						reg = <0xb>;
+
+						asrc_out5_ep: endpoint {
+							remote-endpoint = <&xbar_asrc_out5_ep>;
+						};
+					};
+
+					asrc_out6_port:	port@c {
+						reg = <0xc>;
+
+						asrc_out6_ep: endpoint {
+							remote-endpoint = <&xbar_asrc_out6_ep>;
+						};
+					};
+				};
+			};
 		};
 	};
 
@@ -2331,6 +2548,10 @@
 		       <&xbar_mixer_in5_port>, <&xbar_mixer_in6_port>,
 		       <&xbar_mixer_in7_port>, <&xbar_mixer_in8_port>,
 		       <&xbar_mixer_in9_port>, <&xbar_mixer_in10_port>,
+		       <&xbar_asrc_in1_port>, <&xbar_asrc_in2_port>,
+		       <&xbar_asrc_in3_port>, <&xbar_asrc_in4_port>,
+		       <&xbar_asrc_in5_port>, <&xbar_asrc_in6_port>,
+		       <&xbar_asrc_in7_port>,
 		       /* HW accelerators */
 		       <&sfc1_out_port>, <&sfc2_out_port>,
 		       <&sfc3_out_port>, <&sfc4_out_port>,
@@ -2348,6 +2569,8 @@
 		       <&mixer_out1_port>, <&mixer_out2_port>,
 		       <&mixer_out3_port>, <&mixer_out4_port>,
 		       <&mixer_out5_port>,
+		       <&asrc_out1_port>, <&asrc_out2_port>, <&asrc_out3_port>,
+		       <&asrc_out4_port>, <&asrc_out5_port>, <&asrc_out6_port>,
 		       /* I/O */
 		       <&i2s1_port>, <&i2s2_port>, <&i2s3_port>, <&i2s4_port>,
 		       <&i2s5_port>, <&i2s6_port>, <&dmic1_port>, <&dmic2_port>,

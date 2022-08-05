@@ -472,7 +472,7 @@ struct bnx2fc_cmd *bnx2fc_cmd_alloc(struct bnx2fc_rport *tgt)
 	u32 free_sqes;
 	u32 max_sqes;
 	u16 xid;
-	int index = get_cpu();
+	int index = raw_smp_processor_id();
 
 	max_sqes = BNX2FC_SCSI_MAX_SQES;
 	/*
@@ -485,7 +485,6 @@ struct bnx2fc_cmd *bnx2fc_cmd_alloc(struct bnx2fc_rport *tgt)
 	    (tgt->num_active_ios.counter  >= max_sqes) ||
 	    (free_sqes + max_sqes <= BNX2FC_SQ_WQES_MAX)) {
 		spin_unlock_bh(&cmd_mgr->free_list_lock[index]);
-		put_cpu();
 		return NULL;
 	}
 
@@ -498,7 +497,6 @@ struct bnx2fc_cmd *bnx2fc_cmd_alloc(struct bnx2fc_rport *tgt)
 	atomic_inc(&tgt->num_active_ios);
 	atomic_dec(&tgt->free_sqes);
 	spin_unlock_bh(&cmd_mgr->free_list_lock[index]);
-	put_cpu();
 
 	INIT_LIST_HEAD(&io_req->link);
 
@@ -2032,7 +2030,6 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	struct bnx2fc_interface *interface = port->priv;
 	struct bnx2fc_hba *hba = interface->hba;
 	struct fc_lport *lport = port->lport;
-	struct fc_stats *stats;
 	int task_idx, index;
 	u16 xid;
 
@@ -2045,20 +2042,18 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	io_req->data_xfer_len = scsi_bufflen(sc_cmd);
 	bnx2fc_priv(sc_cmd)->io_req = io_req;
 
-	stats = per_cpu_ptr(lport->stats, get_cpu());
 	if (sc_cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		io_req->io_req_flags = BNX2FC_READ;
-		stats->InputRequests++;
-		stats->InputBytes += io_req->data_xfer_len;
+		this_cpu_inc(lport->stats->InputRequests);
+		this_cpu_add(lport->stats->InputBytes, io_req->data_xfer_len);
 	} else if (sc_cmd->sc_data_direction == DMA_TO_DEVICE) {
 		io_req->io_req_flags = BNX2FC_WRITE;
-		stats->OutputRequests++;
-		stats->OutputBytes += io_req->data_xfer_len;
+		this_cpu_inc(lport->stats->OutputRequests);
+		this_cpu_add(lport->stats->OutputBytes, io_req->data_xfer_len);
 	} else {
 		io_req->io_req_flags = 0;
-		stats->ControlRequests++;
+		this_cpu_inc(lport->stats->ControlRequests);
 	}
-	put_cpu();
 
 	xid = io_req->xid;
 

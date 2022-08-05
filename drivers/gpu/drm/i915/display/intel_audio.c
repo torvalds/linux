@@ -337,8 +337,6 @@ static void g4x_audio_codec_disable(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 eldv, tmp;
 
-	drm_dbg_kms(&dev_priv->drm, "Disable audio codec\n");
-
 	tmp = intel_de_read(dev_priv, G4X_AUD_VID_DID);
 	if (tmp == INTEL_AUDIO_DEVBLC || tmp == INTEL_AUDIO_DEVCL)
 		eldv = G4X_ELDV_DEVCL_DEVBLC;
@@ -362,9 +360,6 @@ static void g4x_audio_codec_enable(struct intel_encoder *encoder,
 	u32 tmp;
 	int len, i;
 
-	drm_dbg_kms(&dev_priv->drm, "Enable audio codec, %u bytes ELD\n",
-		    drm_eld_size(eld));
-
 	tmp = intel_de_read(dev_priv, G4X_AUD_VID_DID);
 	if (tmp == INTEL_AUDIO_DEVBLC || tmp == INTEL_AUDIO_DEVCL)
 		eldv = G4X_ELDV_DEVCL_DEVBLC;
@@ -383,7 +378,6 @@ static void g4x_audio_codec_enable(struct intel_encoder *encoder,
 	intel_de_write(dev_priv, G4X_AUD_CNTL_ST, tmp);
 
 	len = min(drm_eld_size(eld) / 4, len);
-	drm_dbg(&dev_priv->drm, "ELD size %d\n", len);
 	for (i = 0; i < len; i++)
 		intel_de_write(dev_priv, G4X_HDMIW_HDMIEDID,
 			       *((const u32 *)eld + i));
@@ -500,9 +494,6 @@ static void hsw_audio_codec_disable(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum transcoder cpu_transcoder = old_crtc_state->cpu_transcoder;
 	u32 tmp;
-
-	drm_dbg_kms(&dev_priv->drm, "Disable audio codec on transcoder %s\n",
-		    transcoder_name(cpu_transcoder));
 
 	mutex_lock(&dev_priv->audio.mutex);
 
@@ -647,10 +638,6 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 	u32 tmp;
 	int len, i;
 
-	drm_dbg_kms(&dev_priv->drm,
-		    "Enable audio codec on transcoder %s, %u bytes ELD\n",
-		     transcoder_name(cpu_transcoder), drm_eld_size(eld));
-
 	mutex_lock(&dev_priv->audio.mutex);
 
 	/* Enable Audio WA for 4k DSC usecases */
@@ -703,11 +690,6 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder,
 	u32 tmp, eldv;
 	i915_reg_t aud_config, aud_cntrl_st2;
 
-	drm_dbg_kms(&dev_priv->drm,
-		    "Disable audio codec on [ENCODER:%d:%s], pipe %c\n",
-		     encoder->base.base.id, encoder->base.name,
-		     pipe_name(pipe));
-
 	if (drm_WARN_ON(&dev_priv->drm, port == PORT_A))
 		return;
 
@@ -753,11 +735,6 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 	u32 tmp, eldv;
 	int len, i;
 	i915_reg_t hdmiw_hdmiedid, aud_config, aud_cntl_st, aud_cntrl_st2;
-
-	drm_dbg_kms(&dev_priv->drm,
-		    "Enable audio codec on [ENCODER:%d:%s], pipe %c, %u bytes ELD\n",
-		    encoder->base.base.id, encoder->base.name,
-		    pipe_name(pipe), drm_eld_size(eld));
 
 	if (drm_WARN_ON(&dev_priv->drm, port == PORT_A))
 		return;
@@ -844,17 +821,19 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 	enum port port = encoder->port;
 	enum pipe pipe = crtc->pipe;
 
+	if (!crtc_state->has_audio)
+		return;
+
+	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s][ENCODER:%d:%s] Enable audio codec on pipe %c, %u bytes ELD\n",
+		    connector->base.id, connector->name,
+		    encoder->base.base.id, encoder->base.name,
+		    pipe_name(pipe), drm_eld_size(connector->eld));
+
 	/* FIXME precompute the ELD in .compute_config() */
 	if (!connector->eld[0])
 		drm_dbg_kms(&dev_priv->drm,
 			    "Bogus ELD on [CONNECTOR:%d:%s]\n",
 			    connector->base.id, connector->name);
-
-	drm_dbg(&dev_priv->drm, "ELD on [CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
-		connector->base.id,
-		connector->name,
-		encoder->base.base.id,
-		encoder->base.name);
 
 	connector->eld[6] = drm_av_sync_delay(connector, adjusted_mode) / 2;
 
@@ -900,8 +879,16 @@ void intel_audio_codec_disable(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct i915_audio_component *acomp = dev_priv->audio.component;
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
+	struct drm_connector *connector = old_conn_state->connector;
 	enum port port = encoder->port;
 	enum pipe pipe = crtc->pipe;
+
+	if (!old_crtc_state->has_audio)
+		return;
+
+	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s][ENCODER:%d:%s] Disable audio codec on pipe %c\n",
+		    connector->base.id, connector->name,
+		    encoder->base.base.id, encoder->base.name, pipe_name(pipe));
 
 	if (dev_priv->audio.funcs)
 		dev_priv->audio.funcs->audio_codec_disable(encoder,

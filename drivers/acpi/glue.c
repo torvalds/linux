@@ -79,17 +79,17 @@ static struct acpi_bus_type *acpi_get_bus_type(struct device *dev)
 
 static int find_child_checks(struct acpi_device *adev, bool check_children)
 {
-	bool sta_present = true;
 	unsigned long long sta;
 	acpi_status status;
 
-	status = acpi_evaluate_integer(adev->handle, "_STA", NULL, &sta);
-	if (status == AE_NOT_FOUND)
-		sta_present = false;
-	else if (ACPI_FAILURE(status) || !(sta & ACPI_STA_DEVICE_ENABLED))
+	if (check_children && list_empty(&adev->children))
 		return -ENODEV;
 
-	if (check_children && list_empty(&adev->children))
+	status = acpi_evaluate_integer(adev->handle, "_STA", NULL, &sta);
+	if (status == AE_NOT_FOUND)
+		return FIND_CHILD_MIN_SCORE;
+
+	if (ACPI_FAILURE(status) || !(sta & ACPI_STA_DEVICE_ENABLED))
 		return -ENODEV;
 
 	/*
@@ -99,8 +99,10 @@ static int find_child_checks(struct acpi_device *adev, bool check_children)
 	 * matched going forward.  [This means a second spec violation in a row,
 	 * so whatever we do here is best effort anyway.]
 	 */
-	return sta_present && !adev->pnp.type.platform_id ?
-			FIND_CHILD_MAX_SCORE : FIND_CHILD_MIN_SCORE;
+	if (adev->pnp.type.platform_id)
+		return FIND_CHILD_MIN_SCORE;
+
+	return FIND_CHILD_MAX_SCORE;
 }
 
 struct acpi_device *acpi_find_child_device(struct acpi_device *parent,

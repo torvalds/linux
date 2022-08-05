@@ -40,9 +40,8 @@ properties:
       value to be used for converting remote channel measurements to
       temperature.
     $ref: /schemas/types.yaml#/definitions/int32
-    items:
-      minimum: -128
-      maximum: 127
+    minimum: -128
+    maximum: 127
 
   ti,beta-compensation:
     description:

@@ -290,7 +290,6 @@ config DA311
 
 config DMARD06
 	tristate "Domintech DMARD06 Digital Accelerometer Driver"
-	depends on OF || COMPILE_TEST
 	depends on I2C
 	help
 	  Say yes here to build support for the Domintech low-g tri-axial

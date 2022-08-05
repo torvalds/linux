@@ -62,12 +62,27 @@
 	};
 };
 &cm_clocks {
-	ipss_ick: ipss_ick@a10 {
-		#clock-cells = <0>;
-		compatible = "ti,am35xx-interface-clock";
-		clocks = <&core_l3_ick>;
-		reg = <0x0a10>;
-		ti,bit-shift = <4>;
+	clock@a10 {
+		compatible = "ti,clksel";
+		reg = <0xa10>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		ipss_ick: clock-ipss-ick {
+			#clock-cells = <0>;
+			compatible = "ti,am35xx-interface-clock";
+			clock-output-names = "ipss_ick";
+			clocks = <&core_l3_ick>;
+			ti,bit-shift = <4>;
+		};
+
+		uart4_ick_am35xx: clock-uart4-ick-am35xx {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "uart4_ick_am35xx";
+			clocks = <&core_l4_ick>;
+			ti,bit-shift = <23>;
+		};
 	};
 
 	rmii_ck: rmii_ck {
@@ -82,20 +97,19 @@
 		clock-frequency = <27000000>;
 	};
 
-	uart4_ick_am35xx: uart4_ick_am35xx@a10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&core_l4_ick>;
-		reg = <0x0a10>;
-		ti,bit-shift = <23>;
-	};
+	clock@a00 {
+		compatible = "ti,clksel";
+		reg = <0xa00>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
 
-	uart4_fck_am35xx: uart4_fck_am35xx@a00 {
-		#clock-cells = <0>;
-		compatible = "ti,wait-gate-clock";
-		clocks = <&core_48m_fck>;
-		reg = <0x0a00>;
-		ti,bit-shift = <23>;
+		uart4_fck_am35xx: clock-uart4-fck-am35xx {
+			#clock-cells = <0>;
+			compatible = "ti,wait-gate-clock";
+			clock-output-names = "uart4_fck_am35xx";
+			clocks = <&core_48m_fck>;
+			ti,bit-shift = <23>;
+		};
 	};
 };
 

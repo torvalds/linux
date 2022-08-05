@@ -37,10 +37,6 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/common.h>
-#include <mach/mux.h>
-#include <mach/serial.h>
-
 #include <linux/platform_data/i2c-davinci.h>
 #include <linux/platform_data/mtd-davinci.h>
 #include <linux/platform_data/mmc-davinci.h>
@@ -49,6 +45,9 @@
 #include <linux/platform_data/ti-aemif.h>
 
 #include "davinci.h"
+#include "common.h"
+#include "mux.h"
+#include "serial.h"
 #include "irqs.h"
 
 #define DM644X_EVM_PHY_ID		"davinci_mdio-0:01"
@@ -366,14 +365,13 @@ evm_led_setup(struct i2c_client *client, int gpio, unsigned ngpio, void *c)
 	return status;
 }
 
-static int
+static void
 evm_led_teardown(struct i2c_client *client, int gpio, unsigned ngpio, void *c)
 {
 	if (evm_led_dev) {
 		platform_device_unregister(evm_led_dev);
 		evm_led_dev = NULL;
 	}
-	return 0;
 }
 
 static struct pcf857x_platform_data pcf_data_u2 = {
@@ -428,7 +426,7 @@ evm_u18_setup(struct i2c_client *client, int gpio, unsigned ngpio, void *c)
 	return 0;
 }
 
-static int
+static void
 evm_u18_teardown(struct i2c_client *client, int gpio, unsigned ngpio, void *c)
 {
 	gpio_free(gpio + 1);
@@ -439,7 +437,6 @@ evm_u18_teardown(struct i2c_client *client, int gpio, unsigned ngpio, void *c)
 		device_remove_file(&client->dev, &dev_attr_user_sw);
 		gpio_free(sw_gpio);
 	}
-	return 0;
 }
 
 static struct pcf857x_platform_data pcf_data_u18 = {
@@ -488,7 +485,7 @@ evm_u35_setup(struct i2c_client *client, int gpio, unsigned ngpio, void *c)
 	return 0;
 }
 
-static int
+static void
 evm_u35_teardown(struct i2c_client *client, int gpio, unsigned ngpio, void *c)
 {
 	gpio_free(gpio + 7);
@@ -498,7 +495,6 @@ evm_u35_teardown(struct i2c_client *client, int gpio, unsigned ngpio, void *c)
 	gpio_free(gpio + 2);
 	gpio_free(gpio + 1);
 	gpio_free(gpio + 0);
-	return 0;
 }
 
 static struct pcf857x_platform_data pcf_data_u35 = {

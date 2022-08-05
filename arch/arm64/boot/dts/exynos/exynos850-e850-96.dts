@@ -20,6 +20,11 @@
 	model = "WinLink E850-96 board";
 	compatible = "winlink,e850-96", "samsung,exynos850";
 
+	aliases {
+		mmc0 = &mmc_0;
+		serial0 = &serial_0;
+	};
+
 	chosen {
 		stdout-path = &serial_0;
 	};

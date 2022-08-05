@@ -31,12 +31,21 @@
 struct intel_color_funcs {
 	int (*color_check)(struct intel_crtc_state *crtc_state);
 	/*
-	 * Program double buffered color management registers during
-	 * vblank evasion. The registers should then latch during the
-	 * next vblank start, alongside any other double buffered registers
-	 * involved with the same commit.
+	 * Program non-arming double buffered color management registers
+	 * before vblank evasion. The registers should then latch after
+	 * the arming register is written (by color_commit_arm()) during
+	 * the next vblank start, alongside any other double buffered
+	 * registers involved with the same commit. This hook is optional.
 	 */
-	void (*color_commit)(const struct intel_crtc_state *crtc_state);
+	void (*color_commit_noarm)(const struct intel_crtc_state *crtc_state);
+	/*
+	 * Program arming double buffered color management registers
+	 * during vblank evasion. The registers (and whatever other registers
+	 * they arm that were written by color_commit_noarm) should then latch
+	 * during the next vblank start, alongside any other double buffered
+	 * registers involved with the same commit.
+	 */
+	void (*color_commit_arm)(const struct intel_crtc_state *crtc_state);
 	/*
 	 * Load LUTs (and other single buffered color management
 	 * registers). Will (hopefully) be called during the vblank
@@ -337,15 +346,11 @@ static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 				    ilk_csc_coeff_identity,
 				    ilk_csc_off_zero);
 	}
-
-	intel_de_write_fw(dev_priv, PIPE_CSC_MODE(crtc->pipe),
-			  crtc_state->csc_mode);
 }
 
 static void icl_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	if (crtc_state->hw.ctm) {
 		u16 coeff[9];
@@ -364,9 +369,6 @@ static void icl_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 				      ilk_csc_coeff_limited_range,
 				      ilk_csc_postoff_limited_range);
 	}
-
-	intel_de_write_fw(dev_priv, PIPE_CSC_MODE(crtc->pipe),
-			  crtc_state->csc_mode);
 }
 
 static void chv_load_cgm_csc(struct intel_crtc *crtc,
@@ -491,7 +493,17 @@ static void icl_lut_multi_seg_pack(struct drm_color_lut *entry, u32 ldw, u32 udw
 				    REG_FIELD_GET(PAL_PREC_MULTI_SEG_BLUE_LDW_MASK, ldw);
 }
 
-static void i9xx_color_commit(const struct intel_crtc_state *crtc_state)
+static void icl_color_commit_noarm(const struct intel_crtc_state *crtc_state)
+{
+	icl_load_csc_matrix(crtc_state);
+}
+
+static void ilk_color_commit_noarm(const struct intel_crtc_state *crtc_state)
+{
+	ilk_load_csc_matrix(crtc_state);
+}
+
+static void i9xx_color_commit_arm(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -504,7 +516,7 @@ static void i9xx_color_commit(const struct intel_crtc_state *crtc_state)
 	intel_de_write(dev_priv, PIPECONF(pipe), val);
 }
 
-static void ilk_color_commit(const struct intel_crtc_state *crtc_state)
+static void ilk_color_commit_arm(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -516,10 +528,11 @@ static void ilk_color_commit(const struct intel_crtc_state *crtc_state)
 	val |= PIPECONF_GAMMA_MODE(crtc_state->gamma_mode);
 	intel_de_write(dev_priv, PIPECONF(pipe), val);
 
-	ilk_load_csc_matrix(crtc_state);
+	intel_de_write_fw(dev_priv, PIPE_CSC_MODE(pipe),
+			  crtc_state->csc_mode);
 }
 
-static void hsw_color_commit(const struct intel_crtc_state *crtc_state)
+static void hsw_color_commit_arm(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -527,10 +540,11 @@ static void hsw_color_commit(const struct intel_crtc_state *crtc_state)
 	intel_de_write(dev_priv, GAMMA_MODE(crtc->pipe),
 		       crtc_state->gamma_mode);
 
-	ilk_load_csc_matrix(crtc_state);
+	intel_de_write_fw(dev_priv, PIPE_CSC_MODE(crtc->pipe),
+			  crtc_state->csc_mode);
 }
 
-static void skl_color_commit(const struct intel_crtc_state *crtc_state)
+static void skl_color_commit_arm(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -551,10 +565,8 @@ static void skl_color_commit(const struct intel_crtc_state *crtc_state)
 	intel_de_write(dev_priv, GAMMA_MODE(crtc->pipe),
 		       crtc_state->gamma_mode);
 
-	if (DISPLAY_VER(dev_priv) >= 11)
-		icl_load_csc_matrix(crtc_state);
-	else
-		ilk_load_csc_matrix(crtc_state);
+	intel_de_write_fw(dev_priv, PIPE_CSC_MODE(crtc->pipe),
+			  crtc_state->csc_mode);
 }
 
 static void i9xx_load_lut_8(struct intel_crtc *crtc,
@@ -1169,11 +1181,19 @@ void intel_color_load_luts(const struct intel_crtc_state *crtc_state)
 	dev_priv->color_funcs->load_luts(crtc_state);
 }
 
-void intel_color_commit(const struct intel_crtc_state *crtc_state)
+void intel_color_commit_noarm(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 
-	dev_priv->color_funcs->color_commit(crtc_state);
+	if (dev_priv->color_funcs->color_commit_noarm)
+		dev_priv->color_funcs->color_commit_noarm(crtc_state);
+}
+
+void intel_color_commit_arm(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
+
+	dev_priv->color_funcs->color_commit_arm(crtc_state);
 }
 
 static bool intel_can_preload_luts(const struct intel_crtc_state *new_crtc_state)
@@ -2132,70 +2152,77 @@ static void icl_read_luts(struct intel_crtc_state *crtc_state)
 
 static const struct intel_color_funcs chv_color_funcs = {
 	.color_check = chv_color_check,
-	.color_commit = i9xx_color_commit,
+	.color_commit_arm = i9xx_color_commit_arm,
 	.load_luts = chv_load_luts,
 	.read_luts = chv_read_luts,
 };
 
 static const struct intel_color_funcs i965_color_funcs = {
 	.color_check = i9xx_color_check,
-	.color_commit = i9xx_color_commit,
+	.color_commit_arm = i9xx_color_commit_arm,
 	.load_luts = i965_load_luts,
 	.read_luts = i965_read_luts,
 };
 
 static const struct intel_color_funcs i9xx_color_funcs = {
 	.color_check = i9xx_color_check,
-	.color_commit = i9xx_color_commit,
+	.color_commit_arm = i9xx_color_commit_arm,
 	.load_luts = i9xx_load_luts,
 	.read_luts = i9xx_read_luts,
 };
 
 static const struct intel_color_funcs icl_color_funcs = {
 	.color_check = icl_color_check,
-	.color_commit = skl_color_commit,
+	.color_commit_noarm = icl_color_commit_noarm,
+	.color_commit_arm = skl_color_commit_arm,
 	.load_luts = icl_load_luts,
 	.read_luts = icl_read_luts,
 };
 
 static const struct intel_color_funcs glk_color_funcs = {
 	.color_check = glk_color_check,
-	.color_commit = skl_color_commit,
+	.color_commit_noarm = ilk_color_commit_noarm,
+	.color_commit_arm = skl_color_commit_arm,
 	.load_luts = glk_load_luts,
 	.read_luts = glk_read_luts,
 };
 
 static const struct intel_color_funcs skl_color_funcs = {
 	.color_check = ivb_color_check,
-	.color_commit = skl_color_commit,
+	.color_commit_noarm = ilk_color_commit_noarm,
+	.color_commit_arm = skl_color_commit_arm,
 	.load_luts = bdw_load_luts,
 	.read_luts = NULL,
 };
 
 static const struct intel_color_funcs bdw_color_funcs = {
 	.color_check = ivb_color_check,
-	.color_commit = hsw_color_commit,
+	.color_commit_noarm = ilk_color_commit_noarm,
+	.color_commit_arm = hsw_color_commit_arm,
 	.load_luts = bdw_load_luts,
 	.read_luts = NULL,
 };
 
 static const struct intel_color_funcs hsw_color_funcs = {
 	.color_check = ivb_color_check,
-	.color_commit = hsw_color_commit,
+	.color_commit_noarm = ilk_color_commit_noarm,
+	.color_commit_arm = hsw_color_commit_arm,
 	.load_luts = ivb_load_luts,
 	.read_luts = NULL,
 };
 
 static const struct intel_color_funcs ivb_color_funcs = {
 	.color_check = ivb_color_check,
-	.color_commit = ilk_color_commit,
+	.color_commit_noarm = ilk_color_commit_noarm,
+	.color_commit_arm = ilk_color_commit_arm,
 	.load_luts = ivb_load_luts,
 	.read_luts = NULL,
 };
 
 static const struct intel_color_funcs ilk_color_funcs = {
 	.color_check = ilk_color_check,
-	.color_commit = ilk_color_commit,
+	.color_commit_noarm = ilk_color_commit_noarm,
+	.color_commit_arm = ilk_color_commit_arm,
 	.load_luts = ilk_load_luts,
 	.read_luts = ilk_read_luts,
 };

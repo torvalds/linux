@@ -191,12 +191,12 @@ static enum drm_connector_status cdv_intel_crt_detect(
 
 static void cdv_intel_crt_destroy(struct drm_connector *connector)
 {
+	struct gma_connector *gma_connector = to_gma_connector(connector);
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 
 	psb_intel_i2c_destroy(gma_encoder->ddc_bus);
-	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
-	kfree(connector);
+	kfree(gma_connector);
 }
 
 static int cdv_intel_crt_get_modes(struct drm_connector *connector)
@@ -280,8 +280,6 @@ void cdv_intel_crt_init(struct drm_device *dev,
 	drm_encoder_helper_add(encoder, &cdv_intel_crt_helper_funcs);
 	drm_connector_helper_add(connector,
 					&cdv_intel_crt_connector_helper_funcs);
-
-	drm_connector_register(connector);
 
 	return;
 failed_ddc:

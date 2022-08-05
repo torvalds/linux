@@ -7,5 +7,3 @@ can-dev-y			+= length.o
 can-dev-y			+= netlink.o
 can-dev-y			+= rx-offload.o
 can-dev-y                       += skb.o
-
-can-dev-$(CONFIG_CAN_LEDS)	+= led.o

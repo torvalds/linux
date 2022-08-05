@@ -5,6 +5,7 @@
 
 #include <linux/kernel.h>
 #include <linux/pwm.h>
+#include <linux/string_helpers.h>
 
 #include "intel_backlight.h"
 #include "intel_connector.h"
@@ -1633,7 +1634,7 @@ int intel_backlight_setup(struct intel_connector *connector, enum pipe pipe)
 	drm_dbg_kms(&dev_priv->drm,
 		    "Connector %s backlight initialized, %s, brightness %u/%u\n",
 		    connector->base.name,
-		    enableddisabled(panel->backlight.enabled),
+		    str_enabled_disabled(panel->backlight.enabled),
 		    panel->backlight.level, panel->backlight.max);
 
 	return 0;

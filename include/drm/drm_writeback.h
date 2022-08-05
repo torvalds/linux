@@ -30,6 +30,8 @@ struct drm_writeback_connector {
 	 * @drm_writeback_connector control the behaviour of the @encoder
 	 * by passing the @enc_funcs parameter to drm_writeback_connector_init()
 	 * function.
+	 * For users of drm_writeback_connector_init_with_encoder(), this field
+	 * is not valid as the encoder is managed within their drivers.
 	 */
 	struct drm_encoder encoder;
 
@@ -150,7 +152,14 @@ int drm_writeback_connector_init(struct drm_device *dev,
 				 struct drm_writeback_connector *wb_connector,
 				 const struct drm_connector_funcs *con_funcs,
 				 const struct drm_encoder_helper_funcs *enc_helper_funcs,
-				 const u32 *formats, int n_formats);
+				 const u32 *formats, int n_formats,
+				 u32 possible_crtcs);
+
+int drm_writeback_connector_init_with_encoder(struct drm_device *dev,
+				struct drm_writeback_connector *wb_connector,
+				struct drm_encoder *enc,
+				const struct drm_connector_funcs *con_funcs, const u32 *formats,
+				int n_formats);
 
 int drm_writeback_set_fb(struct drm_connector_state *conn_state,
 			 struct drm_framebuffer *fb);

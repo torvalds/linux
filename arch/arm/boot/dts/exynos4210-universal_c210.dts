@@ -666,8 +666,6 @@
 		clocks = <&clock CLK_MDMA>;
 		clock-names = "apb_pclk";
 		#dma-cells = <1>;
-		#dma-channels = <8>;
-		#dma-requests = <1>;
 		power-domains = <&pd_lcd0>;
 	};
 };

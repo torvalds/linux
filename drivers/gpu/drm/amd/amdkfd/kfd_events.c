@@ -128,8 +128,8 @@ static int allocate_event_notification_slot(struct kfd_process *p,
 }
 
 /*
- * Assumes that p->event_mutex is held and of course that p is not going
- * away (current or locked).
+ * Assumes that p->event_mutex or rcu_readlock is held and of course that p is
+ * not going away.
  */
 static struct kfd_event *lookup_event_by_id(struct kfd_process *p, uint32_t id)
 {
@@ -238,12 +238,24 @@ static int create_other_event(struct kfd_process *p, struct kfd_event *ev, const
 	return 0;
 }
 
-void kfd_event_init_process(struct kfd_process *p)
+int kfd_event_init_process(struct kfd_process *p)
 {
+	int id;
+
 	mutex_init(&p->event_mutex);
 	idr_init(&p->event_idr);
 	p->signal_page = NULL;
-	p->signal_event_count = 0;
+	p->signal_event_count = 1;
+	/* Allocate event ID 0. It is used for a fast path to ignore bogus events
+	 * that are sent by the CP without a context ID
+	 */
+	id = idr_alloc(&p->event_idr, NULL, 0, 1, GFP_KERNEL);
+	if (id < 0) {
+		idr_destroy(&p->event_idr);
+		mutex_destroy(&p->event_mutex);
+		return id;
+	}
+	return 0;
 }
 
 static void destroy_event(struct kfd_process *p, struct kfd_event *ev)
@@ -251,16 +263,18 @@ static void destroy_event(struct kfd_process *p, struct kfd_event *ev)
 	struct kfd_event_waiter *waiter;
 
 	/* Wake up pending waiters. They will return failure */
+	spin_lock(&ev->lock);
 	list_for_each_entry(waiter, &ev->wq.head, wait.entry)
-		waiter->event = NULL;
+		WRITE_ONCE(waiter->event, NULL);
 	wake_up_all(&ev->wq);
+	spin_unlock(&ev->lock);
 
 	if (ev->type == KFD_EVENT_TYPE_SIGNAL ||
 	    ev->type == KFD_EVENT_TYPE_DEBUG)
 		p->signal_event_count--;
 
 	idr_remove(&p->event_idr, ev->event_id);
-	kfree(ev);
+	kfree_rcu(ev, rcu);
 }
 
 static void destroy_events(struct kfd_process *p)
@@ -269,8 +283,10 @@ static void destroy_events(struct kfd_process *p)
 	uint32_t id;
 
 	idr_for_each_entry(&p->event_idr, ev, id)
-		destroy_event(p, ev);
+		if (ev)
+			destroy_event(p, ev);
 	idr_destroy(&p->event_idr);
+	mutex_destroy(&p->event_mutex);
 }
 
 /*
@@ -392,6 +408,7 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 	ev->auto_reset = auto_reset;
 	ev->signaled = false;
 
+	spin_lock_init(&ev->lock);
 	init_waitqueue_head(&ev->wq);
 
 	*event_page_offset = 0;
@@ -466,6 +483,7 @@ int kfd_criu_restore_event(struct file *devkfd,
 	ev->auto_reset = ev_priv->auto_reset;
 	ev->signaled = ev_priv->signaled;
 
+	spin_lock_init(&ev->lock);
 	init_waitqueue_head(&ev->wq);
 
 	mutex_lock(&p->event_mutex);
@@ -609,13 +627,13 @@ static void set_event(struct kfd_event *ev)
 
 	/* Auto reset if the list is non-empty and we're waking
 	 * someone. waitqueue_active is safe here because we're
-	 * protected by the p->event_mutex, which is also held when
+	 * protected by the ev->lock, which is also held when
 	 * updating the wait queues in kfd_wait_on_events.
 	 */
 	ev->signaled = !ev->auto_reset || !waitqueue_active(&ev->wq);
 
 	list_for_each_entry(waiter, &ev->wq.head, wait.entry)
-		waiter->activated = true;
+		WRITE_ONCE(waiter->activated, true);
 
 	wake_up_all(&ev->wq);
 }
@@ -626,16 +644,23 @@ int kfd_set_event(struct kfd_process *p, uint32_t event_id)
 	int ret = 0;
 	struct kfd_event *ev;
 
-	mutex_lock(&p->event_mutex);
+	rcu_read_lock();
 
 	ev = lookup_event_by_id(p, event_id);
+	if (!ev) {
+		ret = -EINVAL;
+		goto unlock_rcu;
+	}
+	spin_lock(&ev->lock);
 
-	if (ev && event_can_be_cpu_signaled(ev))
+	if (event_can_be_cpu_signaled(ev))
 		set_event(ev);
 	else
 		ret = -EINVAL;
 
-	mutex_unlock(&p->event_mutex);
+	spin_unlock(&ev->lock);
+unlock_rcu:
+	rcu_read_unlock();
 	return ret;
 }
 
@@ -650,23 +675,30 @@ int kfd_reset_event(struct kfd_process *p, uint32_t event_id)
 	int ret = 0;
 	struct kfd_event *ev;
 
-	mutex_lock(&p->event_mutex);
+	rcu_read_lock();
 
 	ev = lookup_event_by_id(p, event_id);
+	if (!ev) {
+		ret = -EINVAL;
+		goto unlock_rcu;
+	}
+	spin_lock(&ev->lock);
 
-	if (ev && event_can_be_cpu_signaled(ev))
+	if (event_can_be_cpu_signaled(ev))
 		reset_event(ev);
 	else
 		ret = -EINVAL;
 
-	mutex_unlock(&p->event_mutex);
+	spin_unlock(&ev->lock);
+unlock_rcu:
+	rcu_read_unlock();
 	return ret;
 
 }
 
 static void acknowledge_signal(struct kfd_process *p, struct kfd_event *ev)
 {
-	page_slots(p->signal_page)[ev->event_id] = UNSIGNALED_EVENT_SLOT;
+	WRITE_ONCE(page_slots(p->signal_page)[ev->event_id], UNSIGNALED_EVENT_SLOT);
 }
 
 static void set_event_from_interrupt(struct kfd_process *p,
@@ -674,7 +706,9 @@ static void set_event_from_interrupt(struct kfd_process *p,
 {
 	if (ev && event_can_be_gpu_signaled(ev)) {
 		acknowledge_signal(p, ev);
+		spin_lock(&ev->lock);
 		set_event(ev);
+		spin_unlock(&ev->lock);
 	}
 }
 
@@ -693,7 +727,7 @@ void kfd_signal_event_interrupt(u32 pasid, uint32_t partial_id,
 	if (!p)
 		return; /* Presumably process exited. */
 
-	mutex_lock(&p->event_mutex);
+	rcu_read_lock();
 
 	if (valid_id_bits)
 		ev = lookup_signaled_event_by_partial_id(p, partial_id,
@@ -721,7 +755,7 @@ void kfd_signal_event_interrupt(u32 pasid, uint32_t partial_id,
 				if (id >= KFD_SIGNAL_EVENT_LIMIT)
 					break;
 
-				if (slots[id] != UNSIGNALED_EVENT_SLOT)
+				if (READ_ONCE(slots[id]) != UNSIGNALED_EVENT_SLOT)
 					set_event_from_interrupt(p, ev);
 			}
 		} else {
@@ -729,15 +763,15 @@ void kfd_signal_event_interrupt(u32 pasid, uint32_t partial_id,
 			 * iterate over the signal slots and lookup
 			 * only signaled events from the IDR.
 			 */
-			for (id = 0; id < KFD_SIGNAL_EVENT_LIMIT; id++)
-				if (slots[id] != UNSIGNALED_EVENT_SLOT) {
+			for (id = 1; id < KFD_SIGNAL_EVENT_LIMIT; id++)
+				if (READ_ONCE(slots[id]) != UNSIGNALED_EVENT_SLOT) {
 					ev = lookup_event_by_id(p, id);
 					set_event_from_interrupt(p, ev);
 				}
 		}
 	}
 
-	mutex_unlock(&p->event_mutex);
+	rcu_read_unlock();
 	kfd_unref_process(p);
 }
 
@@ -760,7 +794,7 @@ static struct kfd_event_waiter *alloc_event_waiters(uint32_t num_events)
 	return event_waiters;
 }
 
-static int init_event_waiter_get_status(struct kfd_process *p,
+static int init_event_waiter(struct kfd_process *p,
 		struct kfd_event_waiter *waiter,
 		uint32_t event_id)
 {
@@ -769,22 +803,15 @@ static int init_event_waiter_get_status(struct kfd_process *p,
 	if (!ev)
 		return -EINVAL;
 
+	spin_lock(&ev->lock);
 	waiter->event = ev;
 	waiter->activated = ev->signaled;
 	ev->signaled = ev->signaled && !ev->auto_reset;
-
-	return 0;
-}
-
-static void init_event_waiter_add_to_waitlist(struct kfd_event_waiter *waiter)
-{
-	struct kfd_event *ev = waiter->event;
-
-	/* Only add to the wait list if we actually need to
-	 * wait on this event.
-	 */
 	if (!waiter->activated)
 		add_wait_queue(&ev->wq, &waiter->wait);
+	spin_unlock(&ev->lock);
+
+	return 0;
 }
 
 /* test_event_condition - Test condition of events being waited for
@@ -804,10 +831,10 @@ static uint32_t test_event_condition(bool all, uint32_t num_events,
 	uint32_t activated_count = 0;
 
 	for (i = 0; i < num_events; i++) {
-		if (!event_waiters[i].event)
+		if (!READ_ONCE(event_waiters[i].event))
 			return KFD_IOC_WAIT_RESULT_FAIL;
 
-		if (event_waiters[i].activated) {
+		if (READ_ONCE(event_waiters[i].activated)) {
 			if (!all)
 				return KFD_IOC_WAIT_RESULT_COMPLETE;
 
@@ -836,6 +863,8 @@ static int copy_signaled_event_data(uint32_t num_events,
 	for (i = 0; i < num_events; i++) {
 		waiter = &event_waiters[i];
 		event = waiter->event;
+		if (!event)
+			return -EINVAL; /* event was destroyed */
 		if (waiter->activated && event->type == KFD_EVENT_TYPE_MEMORY) {
 			dst = &data[i].memory_exception_data;
 			src = &event->memory_exception_data;
@@ -846,10 +875,7 @@ static int copy_signaled_event_data(uint32_t num_events,
 	}
 
 	return 0;
-
 }
-
-
 
 static long user_timeout_to_jiffies(uint32_t user_timeout_ms)
 {
@@ -874,9 +900,12 @@ static void free_waiters(uint32_t num_events, struct kfd_event_waiter *waiters)
 	uint32_t i;
 
 	for (i = 0; i < num_events; i++)
-		if (waiters[i].event)
+		if (waiters[i].event) {
+			spin_lock(&waiters[i].event->lock);
 			remove_wait_queue(&waiters[i].event->wq,
 					  &waiters[i].wait);
+			spin_unlock(&waiters[i].event->lock);
+		}
 
 	kfree(waiters);
 }
@@ -900,6 +929,9 @@ int kfd_wait_on_events(struct kfd_process *p,
 		goto out;
 	}
 
+	/* Use p->event_mutex here to protect against concurrent creation and
+	 * destruction of events while we initialize event_waiters.
+	 */
 	mutex_lock(&p->event_mutex);
 
 	for (i = 0; i < num_events; i++) {
@@ -911,8 +943,8 @@ int kfd_wait_on_events(struct kfd_process *p,
 			goto out_unlock;
 		}
 
-		ret = init_event_waiter_get_status(p, &event_waiters[i],
-				event_data.event_id);
+		ret = init_event_waiter(p, &event_waiters[i],
+					event_data.event_id);
 		if (ret)
 			goto out_unlock;
 	}
@@ -929,10 +961,6 @@ int kfd_wait_on_events(struct kfd_process *p,
 		 */
 		goto out_unlock;
 	}
-
-	/* Add to wait lists if we need to wait. */
-	for (i = 0; i < num_events; i++)
-		init_event_waiter_add_to_waitlist(&event_waiters[i]);
 
 	mutex_unlock(&p->event_mutex);
 
@@ -978,14 +1006,19 @@ int kfd_wait_on_events(struct kfd_process *p,
 	}
 	__set_current_state(TASK_RUNNING);
 
+	mutex_lock(&p->event_mutex);
 	/* copy_signaled_event_data may sleep. So this has to happen
 	 * after the task state is set back to RUNNING.
+	 *
+	 * The event may also have been destroyed after signaling. So
+	 * copy_signaled_event_data also must confirm that the event
+	 * still exists. Therefore this must be under the p->event_mutex
+	 * which is also held when events are destroyed.
 	 */
 	if (!ret && *wait_result == KFD_IOC_WAIT_RESULT_COMPLETE)
 		ret = copy_signaled_event_data(num_events,
 					       event_waiters, events);
 
-	mutex_lock(&p->event_mutex);
 out_unlock:
 	free_waiters(num_events, event_waiters);
 	mutex_unlock(&p->event_mutex);
@@ -1044,8 +1077,7 @@ int kfd_event_mmap(struct kfd_process *p, struct vm_area_struct *vma)
 }
 
 /*
- * Assumes that p->event_mutex is held and of course
- * that p is not going away (current or locked).
+ * Assumes that p is not going away.
  */
 static void lookup_events_by_type_and_signal(struct kfd_process *p,
 		int type, void *event_data)
@@ -1057,6 +1089,8 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 
 	ev_data = (struct kfd_hsa_memory_exception_data *) event_data;
 
+	rcu_read_lock();
+
 	id = KFD_FIRST_NONSIGNAL_EVENT_ID;
 	idr_for_each_entry_continue(&p->event_idr, ev, id)
 		if (ev->type == type) {
@@ -1064,9 +1098,11 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 			dev_dbg(kfd_device,
 					"Event found: id %X type %d",
 					ev->event_id, ev->type);
+			spin_lock(&ev->lock);
 			set_event(ev);
 			if (ev->type == KFD_EVENT_TYPE_MEMORY && ev_data)
 				ev->memory_exception_data = *ev_data;
+			spin_unlock(&ev->lock);
 		}
 
 	if (type == KFD_EVENT_TYPE_MEMORY) {
@@ -1089,6 +1125,8 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 				p->lead_thread->pid, p->pasid);
 		}
 	}
+
+	rcu_read_unlock();
 }
 
 #ifdef KFD_SUPPORT_IOMMU_V2
@@ -1164,15 +1202,9 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, u32 pasid,
 
 	if (KFD_GC_VERSION(dev) != IP_VERSION(9, 1, 0) &&
 	    KFD_GC_VERSION(dev) != IP_VERSION(9, 2, 2) &&
-	    KFD_GC_VERSION(dev) != IP_VERSION(9, 3, 0)) {
-		mutex_lock(&p->event_mutex);
-
-		/* Lookup events by type and signal them */
+	    KFD_GC_VERSION(dev) != IP_VERSION(9, 3, 0))
 		lookup_events_by_type_and_signal(p, KFD_EVENT_TYPE_MEMORY,
 				&memory_exception_data);
-
-		mutex_unlock(&p->event_mutex);
-	}
 
 	kfd_unref_process(p);
 }
@@ -1190,12 +1222,7 @@ void kfd_signal_hw_exception_event(u32 pasid)
 	if (!p)
 		return; /* Presumably process exited. */
 
-	mutex_lock(&p->event_mutex);
-
-	/* Lookup events by type and signal them */
 	lookup_events_by_type_and_signal(p, KFD_EVENT_TYPE_HW_EXCEPTION, NULL);
-
-	mutex_unlock(&p->event_mutex);
 	kfd_unref_process(p);
 }
 
@@ -1231,16 +1258,19 @@ void kfd_signal_vm_fault_event(struct kfd_dev *dev, u32 pasid,
 			info->prot_write ? 1 : 0;
 		memory_exception_data.failure.imprecise = 0;
 	}
-	mutex_lock(&p->event_mutex);
+
+	rcu_read_lock();
 
 	id = KFD_FIRST_NONSIGNAL_EVENT_ID;
 	idr_for_each_entry_continue(&p->event_idr, ev, id)
 		if (ev->type == KFD_EVENT_TYPE_MEMORY) {
+			spin_lock(&ev->lock);
 			ev->memory_exception_data = memory_exception_data;
 			set_event(ev);
+			spin_unlock(&ev->lock);
 		}
 
-	mutex_unlock(&p->event_mutex);
+	rcu_read_unlock();
 	kfd_unref_process(p);
 }
 
@@ -1274,22 +1304,28 @@ void kfd_signal_reset_event(struct kfd_dev *dev)
 			continue;
 		}
 
-		mutex_lock(&p->event_mutex);
+		rcu_read_lock();
+
 		id = KFD_FIRST_NONSIGNAL_EVENT_ID;
 		idr_for_each_entry_continue(&p->event_idr, ev, id) {
 			if (ev->type == KFD_EVENT_TYPE_HW_EXCEPTION) {
+				spin_lock(&ev->lock);
 				ev->hw_exception_data = hw_exception_data;
 				ev->hw_exception_data.gpu_id = user_gpu_id;
 				set_event(ev);
+				spin_unlock(&ev->lock);
 			}
 			if (ev->type == KFD_EVENT_TYPE_MEMORY &&
 			    reset_cause == KFD_HW_EXCEPTION_ECC) {
+				spin_lock(&ev->lock);
 				ev->memory_exception_data = memory_exception_data;
 				ev->memory_exception_data.gpu_id = user_gpu_id;
 				set_event(ev);
+				spin_unlock(&ev->lock);
 			}
 		}
-		mutex_unlock(&p->event_mutex);
+
+		rcu_read_unlock();
 	}
 	srcu_read_unlock(&kfd_processes_srcu, idx);
 }
@@ -1322,19 +1358,25 @@ void kfd_signal_poison_consumed_event(struct kfd_dev *dev, u32 pasid)
 	memory_exception_data.gpu_id = user_gpu_id;
 	memory_exception_data.failure.imprecise = true;
 
-	mutex_lock(&p->event_mutex);
+	rcu_read_lock();
+
 	idr_for_each_entry_continue(&p->event_idr, ev, id) {
 		if (ev->type == KFD_EVENT_TYPE_HW_EXCEPTION) {
+			spin_lock(&ev->lock);
 			ev->hw_exception_data = hw_exception_data;
 			set_event(ev);
+			spin_unlock(&ev->lock);
 		}
 
 		if (ev->type == KFD_EVENT_TYPE_MEMORY) {
+			spin_lock(&ev->lock);
 			ev->memory_exception_data = memory_exception_data;
 			set_event(ev);
+			spin_unlock(&ev->lock);
 		}
 	}
-	mutex_unlock(&p->event_mutex);
+
+	rcu_read_unlock();
 
 	/* user application will handle SIGBUS signal */
 	send_sig(SIGBUS, p->lead_thread, 0);

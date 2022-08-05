@@ -30,6 +30,8 @@ ignore define LIRC_CAN_REC
 
 ignore define LIRC_CAN_SEND_MASK
 ignore define LIRC_CAN_REC_MASK
+ignore define LIRC_CAN_SET_REC_FILTER
+ignore define LIRC_CAN_NOTIFY_DECODE
 
 # Obsolete ioctls
 
