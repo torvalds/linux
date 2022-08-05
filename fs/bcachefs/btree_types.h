@@ -392,7 +392,7 @@ struct btree_trans {
 	const char		*fn;
 	struct list_head	list;
 	u64			last_begin_time;
-	struct btree		*locking;
+	struct btree_bkey_cached_common *locking;
 	unsigned		locking_path_idx;
 	struct bpos		locking_pos;
 	u8			locking_btree_id;

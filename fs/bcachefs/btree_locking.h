@@ -173,7 +173,7 @@ static inline int btree_node_lock_type(struct btree_trans *trans,
 	trans->locking_btree_id	= path->btree_id;
 	trans->locking_level	= level;
 	trans->locking_lock_type = type;
-	trans->locking		= b;
+	trans->locking		= &b->c;
 	ret = six_lock_type(&b->c.lock, type, should_sleep_fn, p);
 	trans->locking = NULL;
 

@@ -3417,19 +3417,19 @@ void bch2_trans_exit(struct btree_trans *trans)
 
 static void __maybe_unused
 bch2_btree_path_node_to_text(struct printbuf *out,
-			     struct btree_bkey_cached_common *_b,
+			     struct btree_bkey_cached_common *b,
 			     bool cached)
 {
 	prt_printf(out, "    l=%u %s:",
-	       _b->level, bch2_btree_ids[_b->btree_id]);
-	bch2_bpos_to_text(out, btree_node_pos(_b, cached));
+	       b->level, bch2_btree_ids[b->btree_id]);
+	bch2_bpos_to_text(out, btree_node_pos(b, cached));
 }
 
 #ifdef CONFIG_BCACHEFS_DEBUG_TRANSACTIONS
 void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 {
 	struct btree_path *path;
-	struct btree *b;
+	struct btree_bkey_cached_common *b;
 	static char lock_types[] = { 'r', 'i', 'w' };
 	unsigned l;
 
@@ -3448,12 +3448,11 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 		prt_printf(out, "\n");
 
 		for (l = 0; l < BTREE_MAX_DEPTH; l++) {
-			if (btree_node_locked(path, l)) {
+			if (btree_node_locked(path, l) &&
+			    (unsigned long) (b = (void *) READ_ONCE(path->l[l].b)) >= 128) {
 				prt_printf(out, "    %s l=%u ",
 				       btree_node_intent_locked(path, l) ? "i" : "r", l);
-				bch2_btree_path_node_to_text(out,
-						(void *) path->l[l].b,
-						path->cached);
+				bch2_btree_path_node_to_text(out, b, path->cached);
 				prt_printf(out, "\n");
 			}
 		}
@@ -3471,8 +3470,7 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 		bch2_bpos_to_text(out, trans->locking_pos);
 
 		prt_printf(out, " node ");
-		bch2_btree_path_node_to_text(out,
-				(void *) b, path->cached);
+		bch2_btree_path_node_to_text(out, b, path->cached);
 		prt_printf(out, "\n");
 	}
 }
