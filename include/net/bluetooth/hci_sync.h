@@ -61,6 +61,7 @@ int hci_update_random_address_sync(struct hci_dev *hdev, bool require_privacy,
 
 int hci_update_scan_rsp_data_sync(struct hci_dev *hdev, u8 instance);
 int hci_update_adv_data_sync(struct hci_dev *hdev, u8 instance);
+int hci_update_adv_data(struct hci_dev *hdev, u8 instance);
 int hci_schedule_adv_instance_sync(struct hci_dev *hdev, u8 instance,
 				   bool force);
 

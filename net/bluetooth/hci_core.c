@@ -714,7 +714,7 @@ static void hci_update_passive_scan_state(struct hci_dev *hdev, u8 scan)
 		hci_dev_set_flag(hdev, HCI_BREDR_ENABLED);
 
 		if (hci_dev_test_flag(hdev, HCI_LE_ENABLED))
-			hci_req_update_adv_data(hdev, hdev->cur_adv_instance);
+			hci_update_adv_data(hdev, hdev->cur_adv_instance);
 
 		mgmt_new_settings(hdev);
 	}

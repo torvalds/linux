@@ -6065,3 +6065,23 @@ int hci_get_random_address(struct hci_dev *hdev, bool require_privacy,
 
 	return 0;
 }
+
+static int _update_adv_data_sync(struct hci_dev *hdev, void *data)
+{
+	u8 instance = *(u8 *)data;
+
+	kfree(data);
+
+	return hci_update_adv_data_sync(hdev, instance);
+}
+
+int hci_update_adv_data(struct hci_dev *hdev, u8 instance)
+{
+	u8 *inst_ptr = kmalloc(1, GFP_KERNEL);
+
+	if (!inst_ptr)
+		return -ENOMEM;
+
+	*inst_ptr = instance;
+	return hci_cmd_sync_queue(hdev, _update_adv_data_sync, inst_ptr, NULL);
+}
