@@ -311,8 +311,10 @@ static void monitor_thermal_zone(struct thermal_zone_device *tz)
 
 static void handle_non_critical_trips(struct thermal_zone_device *tz, int trip)
 {
+	mutex_lock(&tz->lock);
 	tz->governor ? tz->governor->throttle(tz, trip) :
 		       def_governor->throttle(tz, trip);
+	mutex_unlock(&tz->lock);
 }
 
 void thermal_zone_device_critical(struct thermal_zone_device *tz)

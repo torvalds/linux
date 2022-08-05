@@ -697,19 +697,19 @@ static void power_allocator_unbind(struct thermal_zone_device *tz)
 
 static int power_allocator_throttle(struct thermal_zone_device *tz, int trip)
 {
-	int ret = 0;
+	int ret;
 	int switch_on_temp, control_temp;
 	struct power_allocator_params *params = tz->governor_data;
 	bool update;
 
-	mutex_lock(&tz->lock);
+	lockdep_assert_held(&tz->lock);
 
 	/*
 	 * We get called for every trip point but we only need to do
 	 * our calculations once
 	 */
 	if (trip != params->trip_max_desired_temperature)
-		goto out;
+		return 0;
 
 	ret = tz->ops->get_trip_temp(tz, params->trip_switch_on,
 				     &switch_on_temp);
@@ -718,7 +718,7 @@ static int power_allocator_throttle(struct thermal_zone_device *tz, int trip)
 		tz->passive = 0;
 		reset_pid_controller(params);
 		allow_maximum_power(tz, update);
-		goto out;
+		return 0;
 	}
 
 	tz->passive = 1;
@@ -729,14 +729,10 @@ static int power_allocator_throttle(struct thermal_zone_device *tz, int trip)
 		dev_warn(&tz->device,
 			 "Failed to get the maximum desired temperature: %d\n",
 			 ret);
-		goto out;
+		return ret;
 	}
 
-	ret = allocate_power(tz, control_temp);
-
-	mutex_unlock(&tz->lock);
-out:
-	return ret;
+	return allocate_power(tz, control_temp);
 }
 
 static struct thermal_governor thermal_gov_power_allocator = {
