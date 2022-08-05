@@ -20,7 +20,7 @@ Required properties:
 - active_slave		: Specifies the slave to use for time stamping,
 			  ethtool and SIOCGMIIPHY
 - cpsw-phy-sel		: Specifies the phandle to the CPSW phy mode selection
-			  device. See also cpsw-phy-sel.txt for it's binding.
+			  device. See also cpsw-phy-sel.txt for its binding.
 			  Note that in legacy cases cpsw-phy-sel may be
 			  a child device instead of a phandle
 			  (DEPRECATED, use phys property instead).
