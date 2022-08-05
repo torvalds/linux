@@ -263,6 +263,8 @@ void fscache_caching_failed(struct fscache_cookie *cookie)
 {
 	clear_bit(FSCACHE_COOKIE_IS_CACHING, &cookie->flags);
 	fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_FAILED);
+	trace_fscache_cookie(cookie->debug_id, refcount_read(&cookie->ref),
+				fscache_cookie_failed);
 }
 EXPORT_SYMBOL(fscache_caching_failed);
 
