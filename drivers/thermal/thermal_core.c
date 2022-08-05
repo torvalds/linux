@@ -297,24 +297,18 @@ static void thermal_zone_device_set_polling(struct thermal_zone_device *tz,
 
 static void monitor_thermal_zone(struct thermal_zone_device *tz)
 {
-	mutex_lock(&tz->lock);
-
 	if (tz->mode != THERMAL_DEVICE_ENABLED)
 		thermal_zone_device_set_polling(tz, 0);
 	else if (tz->passive)
 		thermal_zone_device_set_polling(tz, tz->passive_delay_jiffies);
 	else if (tz->polling_delay_jiffies)
 		thermal_zone_device_set_polling(tz, tz->polling_delay_jiffies);
-
-	mutex_unlock(&tz->lock);
 }
 
 static void handle_non_critical_trips(struct thermal_zone_device *tz, int trip)
 {
-	mutex_lock(&tz->lock);
 	tz->governor ? tz->governor->throttle(tz, trip) :
 		       def_governor->throttle(tz, trip);
-	mutex_unlock(&tz->lock);
 }
 
 void thermal_zone_device_critical(struct thermal_zone_device *tz)
@@ -382,7 +376,7 @@ static void update_temperature(struct thermal_zone_device *tz)
 {
 	int temp, ret;
 
-	ret = thermal_zone_get_temp(tz, &temp);
+	ret = __thermal_zone_get_temp(tz, &temp);
 	if (ret) {
 		if (ret != -EAGAIN)
 			dev_warn(&tz->device,
@@ -391,10 +385,8 @@ static void update_temperature(struct thermal_zone_device *tz)
 		return;
 	}
 
-	mutex_lock(&tz->lock);
 	tz->last_temperature = tz->temperature;
 	tz->temperature = temp;
-	mutex_unlock(&tz->lock);
 
 	trace_thermal_temperature(tz);
 
@@ -457,24 +449,15 @@ EXPORT_SYMBOL_GPL(thermal_zone_device_disable);
 
 int thermal_zone_device_is_enabled(struct thermal_zone_device *tz)
 {
-	enum thermal_device_mode mode;
+	lockdep_assert_held(&tz->lock);
 
-	mutex_lock(&tz->lock);
-
-	mode = tz->mode;
-
-	mutex_unlock(&tz->lock);
-
-	return mode == THERMAL_DEVICE_ENABLED;
+	return tz->mode == THERMAL_DEVICE_ENABLED;
 }
 
 void thermal_zone_device_update(struct thermal_zone_device *tz,
 				enum thermal_notify_event event)
 {
 	int count;
-
-	if (!thermal_zone_device_is_enabled(tz))
-		return;
 
 	if (atomic_read(&in_suspend))
 		return;
@@ -483,9 +466,14 @@ void thermal_zone_device_update(struct thermal_zone_device *tz,
 		      "'get_temp' ops set\n", __func__))
 		return;
 
+	mutex_lock(&tz->lock);
+
+	if (!thermal_zone_device_is_enabled(tz))
+		goto out;
+
 	update_temperature(tz);
 
-	thermal_zone_set_trips(tz);
+	__thermal_zone_set_trips(tz);
 
 	tz->notify_event = event;
 
@@ -493,6 +481,8 @@ void thermal_zone_device_update(struct thermal_zone_device *tz,
 		handle_thermal_trip(tz, count);
 
 	monitor_thermal_zone(tz);
+out:
+	mutex_unlock(&tz->lock);
 }
 EXPORT_SYMBOL_GPL(thermal_zone_device_update);
 

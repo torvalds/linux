@@ -49,7 +49,11 @@ static ssize_t
 mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
-	int enabled = thermal_zone_device_is_enabled(tz);
+	int enabled;
+
+	mutex_lock(&tz->lock);
+	enabled = thermal_zone_device_is_enabled(tz);
+	mutex_unlock(&tz->lock);
 
 	return sprintf(buf, "%s\n", enabled ? "enabled" : "disabled");
 }
