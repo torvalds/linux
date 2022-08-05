@@ -214,7 +214,7 @@ static int encoder_bind(struct device *dev, struct device *master, void *data)
 
 	encoder->possible_crtcs =
 			drm_of_find_possible_crtcs(drm_dev, dev->of_node);
-	encoder->possible_crtcs = 3;
+	encoder->possible_crtcs = 2;
 
 	/* output port is port1*/
 
