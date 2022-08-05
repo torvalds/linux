@@ -493,6 +493,7 @@ void dcn32_set_phantom_stream_timing(struct dc *dc,
 						phantom_stream->timing.v_front_porch +
 						phantom_stream->timing.v_sync_width +
 						phantom_bp;
+	phantom_stream->timing.flags.DSC = 0; // Don't need DSC for phantom timing
 }
 
 /**
