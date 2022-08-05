@@ -634,6 +634,83 @@ static void dr_action_print_sequence(struct mlx5dr_domain *dmn,
 			   actions[i]->action_type);
 }
 
+static int dr_action_get_dest_fw_tbl_addr(struct mlx5dr_matcher *matcher,
+					  struct mlx5dr_action_dest_tbl *dest_tbl,
+					  bool is_rx_rule,
+					  u64 *final_icm_addr)
+{
+	struct mlx5dr_cmd_query_flow_table_details output;
+	struct mlx5dr_domain *dmn = matcher->tbl->dmn;
+	int ret;
+
+	if (!dest_tbl->fw_tbl.rx_icm_addr) {
+		ret = mlx5dr_cmd_query_flow_table(dmn->mdev,
+						  dest_tbl->fw_tbl.type,
+						  dest_tbl->fw_tbl.id,
+						  &output);
+		if (ret) {
+			mlx5dr_err(dmn,
+				   "Failed mlx5_cmd_query_flow_table ret: %d\n",
+				   ret);
+			return ret;
+		}
+
+		dest_tbl->fw_tbl.tx_icm_addr = output.sw_owner_icm_root_1;
+		dest_tbl->fw_tbl.rx_icm_addr = output.sw_owner_icm_root_0;
+	}
+
+	*final_icm_addr = is_rx_rule ? dest_tbl->fw_tbl.rx_icm_addr :
+				       dest_tbl->fw_tbl.tx_icm_addr;
+	return 0;
+}
+
+static int dr_action_get_dest_sw_tbl_addr(struct mlx5dr_matcher *matcher,
+					  struct mlx5dr_action_dest_tbl *dest_tbl,
+					  bool is_rx_rule,
+					  u64 *final_icm_addr)
+{
+	struct mlx5dr_domain *dmn = matcher->tbl->dmn;
+	struct mlx5dr_icm_chunk *chunk;
+
+	if (dest_tbl->tbl->dmn != dmn) {
+		mlx5dr_err(dmn,
+			   "Destination table belongs to a different domain\n");
+		return -EINVAL;
+	}
+
+	if (dest_tbl->tbl->level <= matcher->tbl->level) {
+		mlx5_core_dbg_once(dmn->mdev,
+				   "Connecting table to a lower/same level destination table\n");
+		mlx5dr_dbg(dmn,
+			   "Connecting table at level %d to a destination table at level %d\n",
+			   matcher->tbl->level,
+			   dest_tbl->tbl->level);
+	}
+
+	chunk = is_rx_rule ? dest_tbl->tbl->rx.s_anchor->chunk :
+			     dest_tbl->tbl->tx.s_anchor->chunk;
+
+	*final_icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(chunk);
+	return 0;
+}
+
+static int dr_action_get_dest_tbl_addr(struct mlx5dr_matcher *matcher,
+				       struct mlx5dr_action_dest_tbl *dest_tbl,
+				       bool is_rx_rule,
+				       u64 *final_icm_addr)
+{
+	if (dest_tbl->is_fw_tbl)
+		return dr_action_get_dest_fw_tbl_addr(matcher,
+						      dest_tbl,
+						      is_rx_rule,
+						      final_icm_addr);
+
+	return dr_action_get_dest_sw_tbl_addr(matcher,
+					      dest_tbl,
+					      is_rx_rule,
+					      final_icm_addr);
+}
+
 #define WITH_VLAN_NUM_HW_ACTIONS 6
 
 int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
@@ -661,8 +738,6 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 	action_domain = dr_action_get_action_domain(dmn->type, nic_dmn->type);
 
 	for (i = 0; i < num_actions; i++) {
-		struct mlx5dr_action_dest_tbl *dest_tbl;
-		struct mlx5dr_icm_chunk *chunk;
 		struct mlx5dr_action *action;
 		int max_actions_type = 1;
 		u32 action_type;
@@ -676,50 +751,10 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 			break;
 		case DR_ACTION_TYP_FT:
 			dest_action = action;
-			dest_tbl = action->dest_tbl;
-			if (!dest_tbl->is_fw_tbl) {
-				if (dest_tbl->tbl->dmn != dmn) {
-					mlx5dr_err(dmn,
-						   "Destination table belongs to a different domain\n");
-					return -EINVAL;
-				}
-				if (dest_tbl->tbl->level <= matcher->tbl->level) {
-					mlx5_core_dbg_once(dmn->mdev,
-							   "Connecting table to a lower/same level destination table\n");
-					mlx5dr_dbg(dmn,
-						   "Connecting table at level %d to a destination table at level %d\n",
-						   matcher->tbl->level,
-						   dest_tbl->tbl->level);
-				}
-				chunk = rx_rule ? dest_tbl->tbl->rx.s_anchor->chunk :
-					dest_tbl->tbl->tx.s_anchor->chunk;
-				attr.final_icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(chunk);
-			} else {
-				struct mlx5dr_cmd_query_flow_table_details output;
-				int ret;
-
-				/* get the relevant addresses */
-				if (!action->dest_tbl->fw_tbl.rx_icm_addr) {
-					ret = mlx5dr_cmd_query_flow_table(dmn->mdev,
-									  dest_tbl->fw_tbl.type,
-									  dest_tbl->fw_tbl.id,
-									  &output);
-					if (!ret) {
-						dest_tbl->fw_tbl.tx_icm_addr =
-							output.sw_owner_icm_root_1;
-						dest_tbl->fw_tbl.rx_icm_addr =
-							output.sw_owner_icm_root_0;
-					} else {
-						mlx5dr_err(dmn,
-							   "Failed mlx5_cmd_query_flow_table ret: %d\n",
-							   ret);
-						return ret;
-					}
-				}
-				attr.final_icm_addr = rx_rule ?
-					dest_tbl->fw_tbl.rx_icm_addr :
-					dest_tbl->fw_tbl.tx_icm_addr;
-			}
+			ret = dr_action_get_dest_tbl_addr(matcher, action->dest_tbl,
+							  rx_rule, &attr.final_icm_addr);
+			if (ret)
+				return ret;
 			break;
 		case DR_ACTION_TYP_QP:
 			mlx5dr_info(dmn, "Domain doesn't support QP\n");
