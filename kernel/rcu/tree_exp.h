@@ -924,8 +924,6 @@ void synchronize_rcu_expedited(void)
 		// them, which allows reuse of ->gp_seq_polled_exp_snap.
 		rcu_poll_gp_seq_start_unlocked(&rcu_state.gp_seq_polled_exp_snap);
 		rcu_poll_gp_seq_end_unlocked(&rcu_state.gp_seq_polled_exp_snap);
-		if (rcu_init_invoked())
-			cond_resched();
 		return;  // Context allows vacuous grace periods.
 	}
 
