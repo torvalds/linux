@@ -4023,10 +4023,8 @@ megasas_deplete_reply_queue(struct megasas_instance *instance,
 	u32 mfiStatus;
 	u32 fw_state;
 
-	if ((mfiStatus = instance->instancet->check_reset(instance,
-					instance->reg_set)) == 1) {
+	if (instance->instancet->check_reset(instance, instance->reg_set) == 1)
 		return IRQ_HANDLED;
-	}
 
 	mfiStatus = instance->instancet->clear_intr(instance);
 	if (mfiStatus == 0) {
