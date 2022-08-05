@@ -373,7 +373,7 @@
 		int-n {
 			pins = "gpio175";
 			function = "gpio";
-			bias-pull-up;
+			bias-disable;
 		};
 
 		reset-n {
