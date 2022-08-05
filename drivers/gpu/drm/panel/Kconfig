@@ -228,6 +228,13 @@ config DRM_PANEL_MANTIX_MLAF057WE51
 	  has a resolution of 720x1440 pixels, a built in backlight and touch
 	  controller.
 
+config DRM_PANEL_MAXIM_DESERIALIZER
+	tristate "Maxim deserializer panel driver"
+	depends on OF
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  This driver supports the Maxim deserializer panels.
+
 config DRM_PANEL_OLIMEX_LCD_OLINUXINO
 	tristate "Olimex LCD-OLinuXino panel"
 	depends on OF
