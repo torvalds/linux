@@ -537,6 +537,7 @@ void iser_login_rsp(struct ib_cq *cq, struct ib_wc *wc)
 	struct iscsi_hdr *hdr;
 	char *data;
 	int length;
+	bool full_feature_phase;
 
 	if (unlikely(wc->status != IB_WC_SUCCESS)) {
 		iser_err_comp(wc, "login_rsp");
@@ -550,6 +551,9 @@ void iser_login_rsp(struct ib_cq *cq, struct ib_wc *wc)
 	hdr = desc->rsp + sizeof(struct iser_ctrl);
 	data = desc->rsp + ISER_HEADERS_LEN;
 	length = wc->byte_len - ISER_HEADERS_LEN;
+	full_feature_phase = ((hdr->flags & ISCSI_FULL_FEATURE_PHASE) ==
+			      ISCSI_FULL_FEATURE_PHASE) &&
+			     (hdr->flags & ISCSI_FLAG_CMD_FINAL);
 
 	iser_dbg("op 0x%x itt 0x%x dlen %d\n", hdr->opcode,
 		 hdr->itt, length);
@@ -560,7 +564,8 @@ void iser_login_rsp(struct ib_cq *cq, struct ib_wc *wc)
 				      desc->rsp_dma, ISER_RX_LOGIN_SIZE,
 				      DMA_FROM_DEVICE);
 
-	if (iser_conn->iscsi_conn->session->discovery_sess)
+	if (!full_feature_phase ||
+	    iser_conn->iscsi_conn->session->discovery_sess)
 		return;
 
 	/* Post the first RX buffer that is skipped in iser_post_rx_bufs() */
