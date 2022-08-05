@@ -18,6 +18,7 @@
 #include "gt/intel_region_lmem.h"
 #include "i915_drv.h"
 #include "i915_gem_stolen.h"
+#include "i915_pci.h"
 #include "i915_reg.h"
 #include "i915_utils.h"
 #include "i915_vgpu.h"
@@ -827,6 +828,9 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915, u16 type,
 
 	if (WARN_ON_ONCE(instance))
 		return ERR_PTR(-ENODEV);
+
+	if (!i915_pci_resource_valid(pdev, GEN12_LMEM_BAR))
+		return ERR_PTR(-ENXIO);
 
 	/* Use DSM base address instead for stolen memory */
 	dsm_base = intel_uncore_read64(uncore, GEN12_DSMBASE);

@@ -4,6 +4,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_pci.h"
 #include "i915_reg.h"
 #include "intel_memory_region.h"
 #include "intel_pci_config.h"
@@ -196,6 +197,9 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 
 	if (!IS_DGFX(i915))
 		return ERR_PTR(-ENODEV);
+
+	if (!i915_pci_resource_valid(pdev, GEN12_LMEM_BAR))
+		return ERR_PTR(-ENXIO);
 
 	if (HAS_FLAT_CCS(i915)) {
 		resource_size_t lmem_range;
