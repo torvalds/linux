@@ -1492,4 +1492,10 @@ int mlx5dr_fw_create_md_tbl(struct mlx5dr_domain *dmn,
 			    u32 flow_source);
 void mlx5dr_fw_destroy_md_tbl(struct mlx5dr_domain *dmn, u32 tbl_id,
 			      u32 group_id);
+
+static inline bool mlx5dr_is_fw_table(struct mlx5_flow_table *ft)
+{
+	return !ft->fs_dr_table.dr_table;
+}
+
 #endif  /* _DR_TYPES_H_ */
