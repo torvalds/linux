@@ -395,13 +395,14 @@ static ssize_t interleave_granularity_store(struct device *dev,
 		return rc;
 
 	/*
-	 * Disallow region granularity less than root granularity to
-	 * simplify the implementation. Otherwise, region's with a
-	 * granularity less than the root interleave result in needing
-	 * multiple endpoints to support a single slot in the
-	 * interleave.
+	 * When the host-bridge is interleaved, disallow region granularity !=
+	 * root granularity. Regions with a granularity less than the root
+	 * interleave result in needing multiple endpoints to support a single
+	 * slot in the interleave (possible to suport in the future). Regions
+	 * with a granularity greater than the root interleave result in invalid
+	 * DPA translations (invalid to support).
 	 */
-	if (val < cxld->interleave_granularity)
+	if (cxld->interleave_ways > 1 && val != cxld->interleave_granularity)
 		return -EINVAL;
 
 	rc = down_write_killable(&cxl_region_rwsem);
