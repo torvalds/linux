@@ -230,6 +230,7 @@ bool bch2_btree_node_upgrade(struct btree_trans *trans,
 			     struct btree_path *path, unsigned level)
 {
 	struct btree *b = path->l[level].b;
+	struct six_lock_count count = bch2_btree_node_lock_counts(trans, path, &b->c, level);
 
 	if (!is_btree_node(path, level))
 		return false;
@@ -253,11 +254,24 @@ bool bch2_btree_node_upgrade(struct btree_trans *trans,
 	if (race_fault())
 		return false;
 
-	if (btree_node_locked(path, level)
-	    ? six_lock_tryupgrade(&b->c.lock)
-	    : six_relock_type(&b->c.lock, SIX_LOCK_intent, path->l[level].lock_seq))
-		goto success;
+	if (btree_node_locked(path, level)) {
+		bool ret;
 
+		six_lock_readers_add(&b->c.lock, -count.n[SIX_LOCK_read]);
+		ret = six_lock_tryupgrade(&b->c.lock);
+		six_lock_readers_add(&b->c.lock, count.n[SIX_LOCK_read]);
+
+		if (ret)
+			goto success;
+	} else {
+		if (six_relock_type(&b->c.lock, SIX_LOCK_intent, path->l[level].lock_seq))
+			goto success;
+	}
+
+	/*
+	 * Do we already have an intent lock via another path? If so, just bump
+	 * lock count:
+	 */
 	if (btree_node_lock_seq_matches(path, b, level) &&
 	    btree_node_lock_increment(trans, &b->c, level, BTREE_NODE_INTENT_LOCKED)) {
 		btree_node_unlock(trans, path, level);
