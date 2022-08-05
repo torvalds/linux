@@ -544,6 +544,39 @@ static void fnic_set_vlan(struct fnic *fnic, u16 vlan_id)
 	vnic_dev_set_default_vlan(fnic->vdev, vlan_id);
 }
 
+static int fnic_scsi_drv_init(struct fnic *fnic)
+{
+	struct Scsi_Host *host = fnic->lport->host;
+
+	/* Configure maximum outstanding IO reqs*/
+	if (fnic->config.io_throttle_count != FNIC_UCSM_DFLT_THROTTLE_CNT_BLD)
+		host->can_queue = min_t(u32, FNIC_MAX_IO_REQ,
+					max_t(u32, FNIC_MIN_IO_REQ,
+					fnic->config.io_throttle_count));
+
+	fnic->fnic_max_tag_id = host->can_queue;
+	host->max_lun = fnic->config.luns_per_tgt;
+	host->max_id = FNIC_MAX_FCP_TARGET;
+	host->max_cmd_len = FCOE_MAX_CMD_LEN;
+
+	host->nr_hw_queues = fnic->wq_copy_count;
+	if (host->nr_hw_queues > 1)
+		shost_printk(KERN_ERR, host,
+				"fnic: blk-mq is not supported");
+
+	host->nr_hw_queues = fnic->wq_copy_count = 1;
+
+	shost_printk(KERN_INFO, host,
+			"fnic: can_queue: %d max_lun: %llu",
+			host->can_queue, host->max_lun);
+
+	shost_printk(KERN_INFO, host,
+			"fnic: max_id: %d max_cmd_len: %d nr_hw_queues: %d",
+			host->max_id, host->max_cmd_len, host->nr_hw_queues);
+
+	return 0;
+}
+
 static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct Scsi_Host *host;
@@ -684,17 +717,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_dev_close;
 	}
 
-	/* Configure Maximum Outstanding IO reqs*/
-	if (fnic->config.io_throttle_count != FNIC_UCSM_DFLT_THROTTLE_CNT_BLD) {
-		host->can_queue = min_t(u32, FNIC_MAX_IO_REQ,
-					max_t(u32, FNIC_MIN_IO_REQ,
-					fnic->config.io_throttle_count));
-	}
-	fnic->fnic_max_tag_id = host->can_queue;
-
-	host->max_lun = fnic->config.luns_per_tgt;
-	host->max_id = FNIC_MAX_FCP_TARGET;
-	host->max_cmd_len = FCOE_MAX_CMD_LEN;
+	fnic_scsi_drv_init(fnic);
 
 	fnic_get_res_counts(fnic);
 

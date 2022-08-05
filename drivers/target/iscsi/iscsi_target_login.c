@@ -341,6 +341,7 @@ static int iscsi_login_zero_tsih_s2(
 {
 	struct iscsi_node_attrib *na;
 	struct iscsit_session *sess = conn->sess;
+	struct iscsi_param *param;
 	bool iser = false;
 
 	sess->tpg = conn->tpg;
@@ -373,6 +374,18 @@ static int iscsi_login_zero_tsih_s2(
 				conn->param_list);
 
 	na = iscsit_tpg_get_node_attrib(sess);
+
+	/*
+	 * If ACL allows non-authorized access in TPG with CHAP,
+	 * then set None to AuthMethod.
+	 */
+	param = iscsi_find_param_from_key(AUTHMETHOD, conn->param_list);
+	if (param && !strstr(param->value, NONE)) {
+		if (!iscsi_conn_auth_required(conn))
+			if (iscsi_change_param_sprintf(conn, "AuthMethod=%s",
+						       NONE))
+				return -1;
+	}
 
 	/*
 	 * Need to send TargetPortalGroupTag back in first login response
@@ -715,7 +728,7 @@ void iscsi_post_login_handler(
 
 		list_add_tail(&conn->conn_list, &sess->sess_conn_list);
 		atomic_inc(&sess->nconn);
-		pr_debug("Incremented iSCSI Connection count to %hu"
+		pr_debug("Incremented iSCSI Connection count to %d"
 			" from node: %s\n", atomic_read(&sess->nconn),
 			sess->sess_ops->InitiatorName);
 		spin_unlock_bh(&sess->conn_lock);
@@ -763,7 +776,7 @@ void iscsi_post_login_handler(
 	spin_lock_bh(&sess->conn_lock);
 	list_add_tail(&conn->conn_list, &sess->sess_conn_list);
 	atomic_inc(&sess->nconn);
-	pr_debug("Incremented iSCSI Connection count to %hu from node:"
+	pr_debug("Incremented iSCSI Connection count to %d from node:"
 		" %s\n", atomic_read(&sess->nconn),
 		sess->sess_ops->InitiatorName);
 	spin_unlock_bh(&sess->conn_lock);
