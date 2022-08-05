@@ -14,6 +14,7 @@
 #include <linux/usb/tcpci.h>
 #include <linux/usb/tcpm.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 
 #define RT1711H_VID		0x29CF
 #define RT1711H_PID		0x1711
@@ -41,6 +42,8 @@ struct rt1711h_chip {
 	struct tcpci_data data;
 	struct tcpci *tcpci;
 	struct device *dev;
+	struct regulator *vbus;
+	bool src_en;
 };
 
 static int rt1711h_read16(struct rt1711h_chip *chip, unsigned int reg, u16 *val)
@@ -104,6 +107,26 @@ static int rt1711h_init(struct tcpci *tcpci, struct tcpci_data *tdata)
 
 	/* dcSRC.DRP : 33% */
 	return rt1711h_write16(chip, RT1711H_RTCTRL16, 330);
+
+}
+
+static int rt1711h_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata,
+			    bool src, bool snk)
+{
+	struct rt1711h_chip *chip = tdata_to_rt1711h(tdata);
+	int ret;
+
+	if (chip->src_en == src)
+		return 0;
+
+	if (src)
+		ret = regulator_enable(chip->vbus);
+	else
+		ret = regulator_disable(chip->vbus);
+
+	if (!ret)
+		chip->src_en = src;
+	return ret;
 }
 
 static int rt1711h_set_vconn(struct tcpci *tcpci, struct tcpci_data *tdata,
@@ -247,7 +270,12 @@ static int rt1711h_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
+	chip->vbus = devm_regulator_get(&client->dev, "vbus");
+	if (IS_ERR(chip->vbus))
+		return PTR_ERR(chip->vbus);
+
 	chip->data.init = rt1711h_init;
+	chip->data.set_vbus = rt1711h_set_vbus;
 	chip->data.set_vconn = rt1711h_set_vconn;
 	chip->data.start_drp_toggling = rt1711h_start_drp_toggling;
 	chip->tcpci = tcpci_register_port(chip->dev, &chip->data);
