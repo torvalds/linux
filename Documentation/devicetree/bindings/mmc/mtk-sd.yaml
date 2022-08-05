@@ -30,13 +30,11 @@ properties:
           - const: mediatek,mt7623-mmc
           - const: mediatek,mt2701-mmc
       - items:
-          - const: mediatek,mt8186-mmc
-          - const: mediatek,mt8183-mmc
-      - items:
-          - const: mediatek,mt8192-mmc
-          - const: mediatek,mt8183-mmc
-      - items:
-          - const: mediatek,mt8195-mmc
+          - enum:
+              - mediatek,mt8186-mmc
+              - mediatek,mt8188-mmc
+              - mediatek,mt8192-mmc
+              - mediatek,mt8195-mmc
           - const: mediatek,mt8183-mmc
 
   reg:
@@ -72,12 +70,27 @@ properties:
       - const: ahb_cg
 
   interrupts:
-    maxItems: 1
+    description:
+      Should at least contain MSDC GIC interrupt. To support SDIO in-band wakeup, an extended
+      interrupt is required and be configured as wakeup source irq.
+    minItems: 1
+    maxItems: 2
+
+  interrupt-names:
+    items:
+      - const: msdc
+      - const: sdio_wakeup
 
   pinctrl-names:
+    description:
+      Should at least contain default and state_uhs. To support SDIO in-band wakeup, dat1 pin
+      will be switched between GPIO mode and SDIO DAT1 mode, state_eint is mandatory in this
+      scenario.
+    minItems: 2
     items:
       - const: default
       - const: state_uhs
+      - const: state_eint
 
   pinctrl-0:
     description:
@@ -87,6 +100,11 @@ properties:
   pinctrl-1:
     description:
       should contain uhs mode pin ctrl.
+    maxItems: 1
+
+  pinctrl-2:
+    description:
+      should switch dat1 pin to GPIO mode.
     maxItems: 1
 
   assigned-clocks:
@@ -206,6 +224,34 @@ examples:
         mediatek,hs200-cmd-int-delay = <26>;
         mediatek,hs400-cmd-int-delay = <14>;
         mediatek,hs400-cmd-resp-sel-rising;
+    };
+
+    mmc3: mmc@11260000 {
+        compatible = "mediatek,mt8173-mmc";
+        reg = <0x11260000 0x1000>;
+        clock-names = "source", "hclk";
+        clocks = <&pericfg CLK_PERI_MSDC30_3>,
+                 <&topckgen CLK_TOP_MSDC50_2_H_SEL>;
+        interrupt-names = "msdc", "sdio_wakeup";
+        interrupts-extended = <&gic GIC_SPI 74 IRQ_TYPE_LEVEL_LOW 0>,
+                     <&pio 23 IRQ_TYPE_LEVEL_LOW>;
+        pinctrl-names = "default", "state_uhs", "state_eint";
+        pinctrl-0 = <&mmc2_pins_default>;
+        pinctrl-1 = <&mmc2_pins_uhs>;
+        pinctrl-2 = <&mmc2_pins_eint>;
+        bus-width = <4>;
+        max-frequency = <200000000>;
+        cap-sd-highspeed;
+        sd-uhs-sdr104;
+        keep-power-in-suspend;
+        wakeup-source;
+        cap-sdio-irq;
+        no-mmc;
+        no-sd;
+        non-removable;
+        vmmc-supply = <&sdio_fixed_3v3>;
+        vqmmc-supply = <&mt6397_vgp3_reg>;
+        mmc-pwrseq = <&wifi_pwrseq>;
     };
 
 ...
