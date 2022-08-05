@@ -203,16 +203,20 @@
 	clock-frequency = <400000>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&qup0_i2c4_default>, <&ts0_default>;
+	pinctrl-0 = <&qup0_i2c4_default>;
 
 	status = "okay";
 
 	touchscreen@10 {
 		compatible = "hid-over-i2c";
 		reg = <0x10>;
+
 		hid-descr-addr = <0x1>;
 		interrupts-extended = <&tlmm 175 IRQ_TYPE_LEVEL_LOW>;
 		vdd-supply = <&vreg_misc_3p3>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts0_default>;
 	};
 };
 
@@ -228,24 +232,32 @@
 	clock-frequency = <400000>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&qup2_i2c5_default>, <&kybd_default>, <&tpad_default>;
+	pinctrl-0 = <&qup2_i2c5_default>;
 
 	status = "okay";
 
 	touchpad@15 {
 		compatible = "hid-over-i2c";
 		reg = <0x15>;
+
 		hid-descr-addr = <0x1>;
 		interrupts-extended = <&tlmm 182 IRQ_TYPE_LEVEL_LOW>;
 		vdd-supply = <&vreg_misc_3p3>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tpad_default>;
 	};
 
 	keyboard@68 {
 		compatible = "hid-over-i2c";
 		reg = <0x68>;
+
 		hid-descr-addr = <0x1>;
 		interrupts-extended = <&tlmm 104 IRQ_TYPE_LEVEL_LOW>;
 		vdd-supply = <&vreg_misc_3p3>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&kybd_default>;
 	};
 };
 
