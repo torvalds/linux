@@ -577,28 +577,23 @@ int exfat_init_ext_entry(struct inode *inode, struct exfat_chain *p_dir,
 	return 0;
 }
 
-int exfat_remove_entries(struct inode *inode, struct exfat_chain *p_dir,
-		int entry, int order, int num_entries)
+void exfat_remove_entries(struct inode *inode, struct exfat_entry_set_cache *es,
+		int order)
 {
-	struct super_block *sb = inode->i_sb;
 	int i;
 	struct exfat_dentry *ep;
-	struct buffer_head *bh;
 
-	for (i = order; i < num_entries; i++) {
-		ep = exfat_get_dentry(sb, p_dir, entry + i, &bh);
-		if (!ep)
-			return -EIO;
+	for (i = order; i < es->num_entries; i++) {
+		ep = exfat_get_dentry_cached(es, i);
 
 		if (exfat_get_entry_type(ep) & TYPE_BENIGN_SEC)
 			exfat_free_benign_secondary_clusters(inode, ep);
 
 		exfat_set_entry_type(ep, TYPE_DELETED);
-		exfat_update_bh(bh, IS_DIRSYNC(inode));
-		brelse(bh);
 	}
 
-	return 0;
+	if (order < es->num_entries)
+		es->modified = true;
 }
 
 void exfat_update_dir_chksum_with_entry_set(struct exfat_entry_set_cache *es)
