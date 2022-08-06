@@ -71,3 +71,12 @@ config BCACHEFS_NO_LATENCY_ACCT
 	depends on BCACHEFS_FS
 	help
 	This disables device latency tracking and time stats, only for performance testing
+
+config MEAN_AND_VARIANCE_UNIT_TEST
+	tristate "mean_and_variance unit tests" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	select MEAN_AND_VARIANCE
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables the kunit tests for mean_and_variance module.
+	  If unsure, say N.
