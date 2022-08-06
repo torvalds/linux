@@ -6,7 +6,7 @@
 ARCH_REL_TYPE_ABS := R_LARCH_32|R_LARCH_64|R_LARCH_MARK_LA|R_LARCH_JUMP_SLOT
 include $(srctree)/lib/vdso/Makefile
 
-obj-vdso-y := elf.o vgettimeofday.o sigreturn.o
+obj-vdso-y := elf.o vgetcpu.o vgettimeofday.o sigreturn.o
 
 # Common compiler flags between ABIs.
 ccflags-vdso := \
