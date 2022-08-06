@@ -39,7 +39,7 @@ struct vfio_fsl_mc_device {
 	struct vfio_fsl_mc_irq      *mc_irqs;
 };
 
-extern int vfio_fsl_mc_set_irqs_ioctl(struct vfio_fsl_mc_device *vdev,
+int vfio_fsl_mc_set_irqs_ioctl(struct vfio_fsl_mc_device *vdev,
 			       u32 flags, unsigned int index,
 			       unsigned int start, unsigned int count,
 			       void *data);
