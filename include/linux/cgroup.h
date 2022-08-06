@@ -734,11 +734,6 @@ static inline struct cgroup *cgroup_parent(struct cgroup *cgrp)
 	return NULL;
 }
 
-static inline struct psi_group *cgroup_psi(struct cgroup *cgrp)
-{
-	return NULL;
-}
-
 static inline bool cgroup_psi_enabled(void)
 {
 	return false;
