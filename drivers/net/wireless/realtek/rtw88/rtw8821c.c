@@ -125,6 +125,7 @@ static void rtw8821c_phy_bf_init(struct rtw_dev *rtwdev)
 
 static void rtw8821c_phy_set_param(struct rtw_dev *rtwdev)
 {
+	struct rtw_hal *hal = &rtwdev->hal;
 	u8 crystal_cap, val;
 
 	/* power on BB/RF domain */
@@ -159,9 +160,9 @@ static void rtw8821c_phy_set_param(struct rtw_dev *rtwdev)
 
 	/* post init after header files config */
 	rtw_write32_set(rtwdev, REG_RXPSEL, BIT_RX_PSEL_RST);
-	rtwdev->chip->ch_param[0] = rtw_read32_mask(rtwdev, REG_TXSF2, MASKDWORD);
-	rtwdev->chip->ch_param[1] = rtw_read32_mask(rtwdev, REG_TXSF6, MASKDWORD);
-	rtwdev->chip->ch_param[2] = rtw_read32_mask(rtwdev, REG_TXFILTER, MASKDWORD);
+	hal->ch_param[0] = rtw_read32_mask(rtwdev, REG_TXSF2, MASKDWORD);
+	hal->ch_param[1] = rtw_read32_mask(rtwdev, REG_TXSF6, MASKDWORD);
+	hal->ch_param[2] = rtw_read32_mask(rtwdev, REG_TXFILTER, MASKDWORD);
 
 	rtw_phy_init(rtwdev);
 	rtwdev->dm_info.cck_pd_default = rtw_read8(rtwdev, REG_CSRATIO) & 0x1f;
@@ -351,6 +352,7 @@ static void rtw8821c_set_channel_rxdfir(struct rtw_dev *rtwdev, u8 bw)
 static void rtw8821c_set_channel_bb(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 				    u8 primary_ch_idx)
 {
+	struct rtw_hal *hal = &rtwdev->hal;
 	u32 val32;
 
 	if (channel <= 14) {
@@ -367,11 +369,11 @@ static void rtw8821c_set_channel_bb(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 			rtw_write32_mask(rtwdev, REG_TXFILTER, MASKDWORD, 0x00003667);
 		} else {
 			rtw_write32_mask(rtwdev, REG_TXSF2, MASKDWORD,
-					 rtwdev->chip->ch_param[0]);
+					 hal->ch_param[0]);
 			rtw_write32_mask(rtwdev, REG_TXSF6, MASKLWORD,
-					 rtwdev->chip->ch_param[1] & MASKLWORD);
+					 hal->ch_param[1] & MASKLWORD);
 			rtw_write32_mask(rtwdev, REG_TXFILTER, MASKDWORD,
-					 rtwdev->chip->ch_param[2]);
+					 hal->ch_param[2]);
 		}
 	} else if (channel > 35) {
 		rtw_write32_mask(rtwdev, REG_ENTXCCK, BIT(18), 0x1);

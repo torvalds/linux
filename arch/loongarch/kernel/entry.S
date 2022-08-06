@@ -27,7 +27,7 @@ SYM_FUNC_START(handle_syscall)
 
 	addi.d	sp, sp, -PT_SIZE
 	cfi_st	t2, PT_R3
-	cfi_rel_offset  sp, PT_R3
+	cfi_rel_offset	sp, PT_R3
 	st.d	zero, sp, PT_R0
 	csrrd	t2, LOONGARCH_CSR_PRMD
 	st.d	t2, sp, PT_PRMD
@@ -50,7 +50,7 @@ SYM_FUNC_START(handle_syscall)
 	cfi_st	a7, PT_R11
 	csrrd	ra, LOONGARCH_CSR_ERA
 	st.d	ra, sp, PT_ERA
-	cfi_rel_offset ra, PT_ERA
+	cfi_rel_offset	ra, PT_ERA
 
 	cfi_st	tp, PT_R2
 	cfi_st	u0, PT_R21

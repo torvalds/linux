@@ -979,9 +979,11 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 	if (rc)
 		return rc;
 
-	rc = bnxt_dl_livepatch_info_put(bp, req, BNXT_FW_SRT_PATCH);
-	if (rc)
-		return rc;
+	if (BNXT_CHIP_P5(bp)) {
+		rc = bnxt_dl_livepatch_info_put(bp, req, BNXT_FW_SRT_PATCH);
+		if (rc)
+			return rc;
+	}
 	return bnxt_dl_livepatch_info_put(bp, req, BNXT_FW_CRT_PATCH);
 
 }

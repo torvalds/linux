@@ -23,6 +23,7 @@
 static void dwmac4_core_init(struct mac_device_info *hw,
 			     struct net_device *dev)
 {
+	struct stmmac_priv *priv = netdev_priv(dev);
 	void __iomem *ioaddr = hw->pcsr;
 	u32 value = readl(ioaddr + GMAC_CONFIG);
 
@@ -58,6 +59,9 @@ static void dwmac4_core_init(struct mac_device_info *hw,
 		value |= GMAC_INT_FPE_EN;
 
 	writel(value, ioaddr + GMAC_INT_EN);
+
+	if (GMAC_INT_DEFAULT_ENABLE & GMAC_INT_TSIE)
+		init_waitqueue_head(&priv->tstamp_busy_wait);
 }
 
 static void dwmac4_rx_queue_enable(struct mac_device_info *hw,
@@ -219,6 +223,9 @@ static void dwmac4_map_mtl_dma(struct mac_device_info *hw, u32 queue, u32 chan)
 	if (queue == 0 || queue == 4) {
 		value &= ~MTL_RXQ_DMA_Q04MDMACH_MASK;
 		value |= MTL_RXQ_DMA_Q04MDMACH(chan);
+	} else if (queue > 4) {
+		value &= ~MTL_RXQ_DMA_QXMDMACH_MASK(queue - 4);
+		value |= MTL_RXQ_DMA_QXMDMACH(chan, queue - 4);
 	} else {
 		value &= ~MTL_RXQ_DMA_QXMDMACH_MASK(queue);
 		value |= MTL_RXQ_DMA_QXMDMACH(chan, queue);

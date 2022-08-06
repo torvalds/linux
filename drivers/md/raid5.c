@@ -7304,7 +7304,9 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 		goto abort;
 	conf->mddev = mddev;
 
-	if ((conf->stripe_hashtbl = kzalloc(PAGE_SIZE, GFP_KERNEL)) == NULL)
+	ret = -ENOMEM;
+	conf->stripe_hashtbl = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!conf->stripe_hashtbl)
 		goto abort;
 
 	/* We init hash_locks[0] separately to that it can be used
