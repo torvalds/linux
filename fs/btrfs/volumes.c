@@ -6684,6 +6684,20 @@ static void btrfs_end_bio_work(struct work_struct *work)
 	bio_endio(&bbio->bio);
 }
 
+static void btrfs_raid56_end_io(struct bio *bio)
+{
+	struct btrfs_io_context *bioc = bio->bi_private;
+	struct btrfs_bio *bbio = btrfs_bio(bio);
+
+	btrfs_bio_counter_dec(bioc->fs_info);
+	bbio->mirror_num = bioc->mirror_num;
+	bio->bi_end_io = bioc->end_io;
+	bio->bi_private = bioc->private;
+	bio->bi_end_io(bio);
+
+	btrfs_put_bioc(bioc);
+}
+
 static void btrfs_end_bio(struct bio *bio)
 {
 	struct btrfs_io_stripe *stripe = bio->bi_private;
@@ -6817,10 +6831,12 @@ void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror
 
 	if ((bioc->map_type & BTRFS_BLOCK_GROUP_RAID56_MASK) &&
 	    ((btrfs_op(bio) == BTRFS_MAP_WRITE) || (mirror_num > 1))) {
+		bio->bi_private = bioc;
+		bio->bi_end_io = btrfs_raid56_end_io;
 		if (btrfs_op(bio) == BTRFS_MAP_WRITE)
 			raid56_parity_write(bio, bioc);
 		else
-			raid56_parity_recover(bio, bioc, mirror_num, true);
+			raid56_parity_recover(bio, bioc, mirror_num);
 		return;
 	}
 

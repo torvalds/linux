@@ -1568,8 +1568,7 @@ static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
 				 SECTOR_SHIFT;
 	bio->bi_private = &done;
 	bio->bi_end_io = scrub_bio_wait_endio;
-	raid56_parity_recover(bio, sector->recover->bioc,
-			      sector->sblock->mirror_num, false);
+	raid56_parity_recover(bio, sector->recover->bioc, sector->sblock->mirror_num);
 
 	wait_for_completion_io(&done);
 	return blk_status_to_errno(bio->bi_status);
@@ -2285,6 +2284,7 @@ static void scrub_missing_raid56_end_io(struct bio *bio)
 	struct scrub_block *sblock = bio->bi_private;
 	struct btrfs_fs_info *fs_info = sblock->sctx->fs_info;
 
+	btrfs_bio_counter_dec(fs_info);
 	if (bio->bi_status)
 		sblock->no_io_error_seen = 0;
 
@@ -2385,6 +2385,7 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 	scrub_block_get(sblock);
 	scrub_pending_bio_inc(sctx);
 	raid56_submit_missing_rbio(rbio);
+	btrfs_put_bioc(bioc);
 	return;
 
 rbio_out:
@@ -2924,6 +2925,7 @@ static void scrub_parity_bio_endio_worker(struct work_struct *work)
 						    work);
 	struct scrub_ctx *sctx = sparity->sctx;
 
+	btrfs_bio_counter_dec(sctx->fs_info);
 	scrub_free_parity(sparity);
 	scrub_pending_bio_dec(sctx);
 }
@@ -2974,6 +2976,7 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 					      sparity->scrub_dev,
 					      &sparity->dbitmap,
 					      sparity->nsectors);
+	btrfs_put_bioc(bioc);
 	if (!rbio)
 		goto rbio_out;
 
@@ -2985,7 +2988,6 @@ rbio_out:
 	bio_put(bio);
 bioc_out:
 	btrfs_bio_counter_dec(fs_info);
-	btrfs_put_bioc(bioc);
 	bitmap_or(&sparity->ebitmap, &sparity->ebitmap, &sparity->dbitmap,
 		  sparity->nsectors);
 	spin_lock(&sctx->stat_lock);
