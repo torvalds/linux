@@ -1348,8 +1348,7 @@ unsigned int OnAssocRsp(struct adapter *padapter, struct recv_frame *precv_frame
 		goto report_assoc_result;
 	}
 
-	/* get capabilities */
-	pmlmeinfo->capability = le16_to_cpu(*(__le16 *)(pframe + WLAN_HDR_A3_LEN));
+	pmlmeinfo->capability = le16_to_cpu(mgmt->u.assoc_resp.capab_info);
 
 	/* set slot time */
 	pmlmeinfo->slotTime = (pmlmeinfo->capability & BIT(10)) ? 9 : 20;
