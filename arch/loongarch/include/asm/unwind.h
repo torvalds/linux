@@ -11,11 +11,17 @@
 
 #include <asm/stacktrace.h>
 
+enum unwinder_type {
+	UNWINDER_GUESS,
+	UNWINDER_PROLOGUE,
+};
+
 struct unwind_state {
+	char type; /* UNWINDER_XXX */
 	struct stack_info stack_info;
 	struct task_struct *task;
 	bool first, error;
-	unsigned long sp, pc;
+	unsigned long sp, pc, ra;
 };
 
 void unwind_start(struct unwind_state *state,
