@@ -25,13 +25,9 @@
 */
 static	u32 phy_CalculateBitShift(u32 BitMask)
 {
-	u32 i;
+	u32 i = ffs(BitMask);
 
-	for (i = 0; i <= 31; i++) {
-		if (((BitMask >> i) & 0x1) == 1)
-			break;
-	}
-	return i;
+	return i ? i - 1 : 32;
 }
 
 /**
