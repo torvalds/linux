@@ -12,17 +12,7 @@
 /*  1. BB register R/W API */
 /*  */
 
-/**
-* Function:	phy_CalculateBitShift
-*
-* OverView:	Get shifted position of the BitMask
-*
-* Input:
-*			u32		BitMask,
-*
-* Output:	none
-* Return:		u32		Return the shift bit bit position of the mask
-*/
+/* Get shifted position of the bit mask */
 static u32 phy_calculate_bit_shift(u32 bitmask)
 {
 	u32 i = ffs(bitmask);
