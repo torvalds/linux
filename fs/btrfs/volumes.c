@@ -6788,13 +6788,12 @@ static void btrfs_submit_dev_bio(struct btrfs_device *dev, struct bio *bio)
 	submit_bio(bio);
 }
 
-static void submit_stripe_bio(struct btrfs_io_context *bioc,
-			      struct bio *orig_bio, int dev_nr, bool clone)
+static void submit_stripe_bio(struct btrfs_io_context *bioc, int dev_nr)
 {
-	struct bio *bio;
+	struct bio *orig_bio = bioc->orig_bio, *bio;
 
 	/* Reuse the bio embedded into the btrfs_bio for the last mirror */
-	if (!clone) {
+	if (dev_nr == bioc->num_stripes - 1) {
 		bio = orig_bio;
 		btrfs_bio(bio)->device = bioc->stripes[dev_nr].dev;
 		bio->bi_end_io = btrfs_end_bio;
@@ -6850,11 +6849,8 @@ void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror
 		BUG();
 	}
 
-	for (dev_nr = 0; dev_nr < total_devs; dev_nr++) {
-		const bool should_clone = (dev_nr < total_devs - 1);
-
-		submit_stripe_bio(bioc, bio, dev_nr, should_clone);
-	}
+	for (dev_nr = 0; dev_nr < total_devs; dev_nr++)
+		submit_stripe_bio(bioc, dev_nr);
 }
 
 static bool dev_args_match_fs_devices(const struct btrfs_dev_lookup_args *args,
