@@ -135,6 +135,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	childregs = (struct pt_regs *) childksp - 1;
 	/*  Put the stack after the struct pt_regs.  */
 	childksp = (unsigned long) childregs;
+	p->thread.sched_cfa = 0;
 	p->thread.csr_euen = 0;
 	p->thread.csr_crmd = csr_read32(LOONGARCH_CSR_CRMD);
 	p->thread.csr_prmd = csr_read32(LOONGARCH_CSR_PRMD);
@@ -145,6 +146,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		p->thread.reg23 = (unsigned long)args->fn;
 		p->thread.reg24 = (unsigned long)args->fn_arg;
 		p->thread.reg01 = (unsigned long)ret_from_kernel_thread;
+		p->thread.sched_ra = (unsigned long)ret_from_kernel_thread;
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->csr_euen = p->thread.csr_euen;
 		childregs->csr_crmd = p->thread.csr_crmd;
@@ -161,6 +163,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 
 	p->thread.reg03 = (unsigned long) childregs;
 	p->thread.reg01 = (unsigned long) ret_from_fork;
+	p->thread.sched_ra = (unsigned long) ret_from_fork;
 
 	/*
 	 * New tasks lose permission to use the fpu. This accelerates context
@@ -181,7 +184,31 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 
 unsigned long __get_wchan(struct task_struct *task)
 {
-	return 0;
+	unsigned long pc;
+	struct unwind_state state;
+
+	if (!try_get_task_stack(task))
+		return 0;
+
+	unwind_start(&state, task, NULL);
+	state.sp = thread_saved_fp(task);
+	get_stack_info(state.sp, state.task, &state.stack_info);
+	state.pc = thread_saved_ra(task);
+#ifdef CONFIG_UNWINDER_PROLOGUE
+	state.type = UNWINDER_PROLOGUE;
+#endif
+	for (; !unwind_done(&state); unwind_next_frame(&state)) {
+		pc = unwind_get_return_address(&state);
+		if (!pc)
+			break;
+		if (in_sched_functions(pc))
+			continue;
+		break;
+	}
+
+	put_task_stack(task);
+
+	return pc;
 }
 
 bool in_irq_stack(unsigned long stack, struct stack_info *info)
