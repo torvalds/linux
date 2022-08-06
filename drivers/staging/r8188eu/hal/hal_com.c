@@ -225,11 +225,10 @@ static void three_out_pipe(struct adapter *adapter, bool wifi_cfg)
 	}
 }
 
-bool Hal_MappingOutPipe(struct adapter *adapter, u8 numoutpipe)
+int Hal_MappingOutPipe(struct adapter *adapter, u8 numoutpipe)
 {
 	struct registry_priv *pregistrypriv = &adapter->registrypriv;
 	bool wifi_cfg = pregistrypriv->wifi_spec;
-	bool result = true;
 
 	switch (numoutpipe) {
 	case 2:
@@ -242,10 +241,9 @@ bool Hal_MappingOutPipe(struct adapter *adapter, u8 numoutpipe)
 		one_out_pipe(adapter);
 		break;
 	default:
-		result = false;
-		break;
+		return -ENXIO;
 	}
-	return result;
+	return 0;
 }
 
 /*
