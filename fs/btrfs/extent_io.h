@@ -60,7 +60,6 @@ enum {
 struct btrfs_bio;
 struct btrfs_root;
 struct btrfs_inode;
-struct btrfs_io_bio;
 struct btrfs_fs_info;
 struct io_failure_record;
 struct extent_io_tree;
@@ -242,8 +241,6 @@ void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 				  u32 bits_to_clear, unsigned long page_ops);
 
 int btrfs_alloc_page_array(unsigned int nr_pages, struct page **page_array);
-struct bio *btrfs_bio_alloc(unsigned int nr_iovecs);
-struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size);
 
 void end_extent_writepage(struct page *page, int err, u64 start, u64 end);
 int btrfs_repair_eb_io_failure(const struct extent_buffer *eb, int mirror_num);

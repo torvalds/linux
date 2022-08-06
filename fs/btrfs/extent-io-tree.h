@@ -96,9 +96,6 @@ struct extent_state {
 #endif
 };
 
-int __init extent_state_cache_init(void);
-void __cold extent_state_cache_exit(void);
-
 void extent_io_tree_init(struct btrfs_fs_info *fs_info,
 			 struct extent_io_tree *tree, unsigned int owner,
 			 void *private_data);

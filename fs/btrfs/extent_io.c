@@ -33,7 +33,6 @@
 
 static struct kmem_cache *extent_state_cache;
 static struct kmem_cache *extent_buffer_cache;
-static struct bio_set btrfs_bioset;
 
 static inline bool extent_state_in_tree(const struct extent_state *state)
 {
@@ -232,41 +231,23 @@ static void submit_write_bio(struct extent_page_data *epd, int ret)
 	}
 }
 
-int __init extent_state_cache_init(void)
+int __init extent_io_init(void)
 {
 	extent_state_cache = kmem_cache_create("btrfs_extent_state",
 			sizeof(struct extent_state), 0,
 			SLAB_MEM_SPREAD, NULL);
 	if (!extent_state_cache)
 		return -ENOMEM;
-	return 0;
-}
 
-int __init extent_io_init(void)
-{
 	extent_buffer_cache = kmem_cache_create("btrfs_extent_buffer",
 			sizeof(struct extent_buffer), 0,
 			SLAB_MEM_SPREAD, NULL);
-	if (!extent_buffer_cache)
+	if (!extent_buffer_cache) {
+		kmem_cache_destroy(extent_state_cache);
 		return -ENOMEM;
-
-	if (bioset_init(&btrfs_bioset, BIO_POOL_SIZE,
-			offsetof(struct btrfs_bio, bio),
-			BIOSET_NEED_BVECS))
-		goto free_buffer_cache;
+	}
 
 	return 0;
-
-free_buffer_cache:
-	kmem_cache_destroy(extent_buffer_cache);
-	extent_buffer_cache = NULL;
-	return -ENOMEM;
-}
-
-void __cold extent_state_cache_exit(void)
-{
-	btrfs_extent_state_leak_debug_check();
-	kmem_cache_destroy(extent_state_cache);
 }
 
 void __cold extent_io_exit(void)
@@ -277,7 +258,8 @@ void __cold extent_io_exit(void)
 	 */
 	rcu_barrier();
 	kmem_cache_destroy(extent_buffer_cache);
-	bioset_exit(&btrfs_bioset);
+	btrfs_extent_state_leak_debug_check();
+	kmem_cache_destroy(extent_state_cache);
 }
 
 /*
@@ -3151,50 +3133,6 @@ int btrfs_alloc_page_array(unsigned int nr_pages, struct page **page_array)
 		memalloc_retry_wait(GFP_NOFS);
 	}
 	return 0;
-}
-
-/*
- * Initialize the members up to but not including 'bio'. Use after allocating a
- * new bio by bio_alloc_bioset as it does not initialize the bytes outside of
- * 'bio' because use of __GFP_ZERO is not supported.
- */
-static inline void btrfs_bio_init(struct btrfs_bio *bbio)
-{
-	memset(bbio, 0, offsetof(struct btrfs_bio, bio));
-}
-
-/*
- * Allocate a btrfs_io_bio, with @nr_iovecs as maximum number of iovecs.
- *
- * The bio allocation is backed by bioset and does not fail.
- */
-struct bio *btrfs_bio_alloc(unsigned int nr_iovecs)
-{
-	struct bio *bio;
-
-	ASSERT(0 < nr_iovecs && nr_iovecs <= BIO_MAX_VECS);
-	bio = bio_alloc_bioset(NULL, nr_iovecs, 0, GFP_NOFS, &btrfs_bioset);
-	btrfs_bio_init(btrfs_bio(bio));
-	return bio;
-}
-
-struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size)
-{
-	struct bio *bio;
-	struct btrfs_bio *bbio;
-
-	ASSERT(offset <= UINT_MAX && size <= UINT_MAX);
-
-	/* this will never fail when it's backed by a bioset */
-	bio = bio_alloc_clone(orig->bi_bdev, orig, GFP_NOFS, &btrfs_bioset);
-	ASSERT(bio);
-
-	bbio = btrfs_bio(bio);
-	btrfs_bio_init(bbio);
-
-	bio_trim(bio, offset >> 9, size >> 9);
-	bbio->iter = bio->bi_iter;
-	return bio;
 }
 
 /**
