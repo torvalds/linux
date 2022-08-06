@@ -35,18 +35,12 @@ static void _ConfigNormalChipOutEP_8188E(struct adapter *adapt, u8 NumOutPipe)
 	}
 }
 
-static int HalUsbSetQueuePipeMapping8188EUsb(struct adapter *adapt, u8 NumOutPipe)
-{
-
-	_ConfigNormalChipOutEP_8188E(adapt, NumOutPipe);
-	return Hal_MappingOutPipe(adapt, NumOutPipe);
-}
-
 int rtl8188eu_interface_configure(struct adapter *adapt)
 {
 	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(adapt);
 
-	return HalUsbSetQueuePipeMapping8188EUsb(adapt, pdvobjpriv->RtNumOutPipes);
+	_ConfigNormalChipOutEP_8188E(adapt, pdvobjpriv->RtNumOutPipes);
+	return Hal_MappingOutPipe(adapt, pdvobjpriv->RtNumOutPipes);
 }
 
 u32 rtl8188eu_InitPowerOn(struct adapter *adapt)
