@@ -344,10 +344,8 @@ static struct bio *alloc_compressed_bio(struct compressed_bio *cb, u64 disk_byte
 	struct bio *bio;
 	int ret;
 
-	bio = btrfs_bio_alloc(BIO_MAX_VECS);
-
+	bio = btrfs_bio_alloc(BIO_MAX_VECS, opf);
 	bio->bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
-	bio->bi_opf = opf;
 	bio->bi_private = cb;
 	bio->bi_end_io = endio_func;
 

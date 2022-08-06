@@ -396,7 +396,7 @@ static inline struct btrfs_bio *btrfs_bio(struct bio *bio)
 int __init btrfs_bioset_init(void);
 void __cold btrfs_bioset_exit(void);
 
-struct bio *btrfs_bio_alloc(unsigned int nr_vecs);
+struct bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf);
 struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size);
 
 static inline void btrfs_bio_free_csum(struct btrfs_bio *bbio)
