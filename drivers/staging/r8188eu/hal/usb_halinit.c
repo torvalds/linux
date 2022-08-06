@@ -13,28 +13,6 @@
 #include "../include/usb_osintf.h"
 #include "../include/HalPwrSeqCmd.h"
 
-static void _ConfigNormalChipOutEP_8188E(struct adapter *adapt, u8 NumOutPipe)
-{
-	struct hal_data_8188e *haldata = &adapt->haldata;
-
-	switch (NumOutPipe) {
-	case	3:
-		haldata->OutEpQueueSel = TX_SELE_HQ | TX_SELE_LQ | TX_SELE_NQ;
-		haldata->OutEpNumber = 3;
-		break;
-	case	2:
-		haldata->OutEpQueueSel = TX_SELE_HQ | TX_SELE_NQ;
-		haldata->OutEpNumber = 2;
-		break;
-	case	1:
-		haldata->OutEpQueueSel = TX_SELE_HQ;
-		haldata->OutEpNumber = 1;
-		break;
-	default:
-		break;
-	}
-}
-
 static void one_out_pipe(struct adapter *adapter)
 {
 	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(adapter);
@@ -122,33 +100,34 @@ static void three_out_pipe(struct adapter *adapter, bool wifi_cfg)
 	}
 }
 
-static int Hal_MappingOutPipe(struct adapter *adapter, u8 numoutpipe)
+int rtl8188eu_interface_configure(struct adapter *adapt)
 {
-	struct registry_priv *pregistrypriv = &adapter->registrypriv;
+	struct registry_priv *pregistrypriv = &adapt->registrypriv;
+	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(adapt);
+	struct hal_data_8188e *haldata = &adapt->haldata;
 	bool wifi_cfg = pregistrypriv->wifi_spec;
 
-	switch (numoutpipe) {
-	case 2:
-		two_out_pipe(adapter, wifi_cfg);
-		break;
+	switch (pdvobjpriv->RtNumOutPipes) {
 	case 3:
-		three_out_pipe(adapter, wifi_cfg);
+		haldata->OutEpQueueSel = TX_SELE_HQ | TX_SELE_LQ | TX_SELE_NQ;
+		haldata->OutEpNumber = 3;
+		three_out_pipe(adapt, wifi_cfg);
+		break;
+	case 2:
+		haldata->OutEpQueueSel = TX_SELE_HQ | TX_SELE_NQ;
+		haldata->OutEpNumber = 2;
+		two_out_pipe(adapt, wifi_cfg);
 		break;
 	case 1:
-		one_out_pipe(adapter);
+		haldata->OutEpQueueSel = TX_SELE_HQ;
+		haldata->OutEpNumber = 1;
+		one_out_pipe(adapt);
 		break;
 	default:
 		return -ENXIO;
 	}
+
 	return 0;
-}
-
-int rtl8188eu_interface_configure(struct adapter *adapt)
-{
-	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(adapt);
-
-	_ConfigNormalChipOutEP_8188E(adapt, pdvobjpriv->RtNumOutPipes);
-	return Hal_MappingOutPipe(adapt, pdvobjpriv->RtNumOutPipes);
 }
 
 u32 rtl8188eu_InitPowerOn(struct adapter *adapt)
