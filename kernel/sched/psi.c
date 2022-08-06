@@ -1087,7 +1087,7 @@ int psi_show(struct seq_file *m, struct psi_group *group, enum psi_res res)
 }
 
 struct psi_trigger *psi_trigger_create(struct psi_group *group,
-			char *buf, size_t nbytes, enum psi_res res)
+			char *buf, enum psi_res res)
 {
 	struct psi_trigger *t;
 	enum psi_states state;
@@ -1316,7 +1316,7 @@ static ssize_t psi_write(struct file *file, const char __user *user_buf,
 		return -EBUSY;
 	}
 
-	new = psi_trigger_create(&psi_system, buf, nbytes, res);
+	new = psi_trigger_create(&psi_system, buf, res);
 	if (IS_ERR(new)) {
 		mutex_unlock(&seq->lock);
 		return PTR_ERR(new);
