@@ -1370,6 +1370,7 @@ F:	include/uapi/linux/apm_bios.h
 
 APPARMOR SECURITY MODULE
 M:	John Johansen <john.johansen@canonical.com>
+M:	John Johansen <john@apparmor.net>
 L:	apparmor@lists.ubuntu.com (moderated for non-subscribers)
 S:	Supported
 W:	apparmor.net
