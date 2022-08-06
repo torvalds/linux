@@ -2700,8 +2700,10 @@ void btrfs_submit_data_write_bio(struct inode *inode, struct bio *bio, int mirro
 	if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
 		ret = extract_ordered_extent(bi, bio,
 				page_offset(bio_first_bvec_all(bio)->bv_page));
-		if (ret)
-			goto out;
+		if (ret) {
+			btrfs_bio_end_io(btrfs_bio(bio), ret);
+			return;
+		}
 	}
 
 	/*
@@ -2721,16 +2723,12 @@ void btrfs_submit_data_write_bio(struct inode *inode, struct bio *bio, int mirro
 			return;
 
 		ret = btrfs_csum_one_bio(bi, bio, (u64)-1, false);
-		if (ret)
-			goto out;
+		if (ret) {
+			btrfs_bio_end_io(btrfs_bio(bio), ret);
+			return;
+		}
 	}
 	btrfs_submit_bio(fs_info, bio, mirror_num);
-	return;
-out:
-	if (ret) {
-		bio->bi_status = ret;
-		bio_endio(bio);
-	}
 }
 
 void btrfs_submit_data_read_bio(struct inode *inode, struct bio *bio,
@@ -2757,8 +2755,7 @@ void btrfs_submit_data_read_bio(struct inode *inode, struct bio *bio,
 	 */
 	ret = btrfs_lookup_bio_sums(inode, bio, NULL);
 	if (ret) {
-		bio->bi_status = ret;
-		bio_endio(bio);
+		btrfs_bio_end_io(btrfs_bio(bio), ret);
 		return;
 	}
 
@@ -7984,7 +7981,7 @@ static void submit_dio_repair_bio(struct inode *inode, struct bio *bio,
 				  int mirror_num,
 				  enum btrfs_compression_type compress_type)
 {
-	struct btrfs_dio_private *dip = bio->bi_private;
+	struct btrfs_dio_private *dip = btrfs_bio(bio)->private;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 
 	BUG_ON(bio_op(bio) == REQ_OP_WRITE);
@@ -8037,10 +8034,10 @@ static blk_status_t btrfs_submit_bio_start_direct_io(struct inode *inode,
 	return btrfs_csum_one_bio(BTRFS_I(inode), bio, dio_file_offset, false);
 }
 
-static void btrfs_end_dio_bio(struct bio *bio)
+static void btrfs_end_dio_bio(struct btrfs_bio *bbio)
 {
-	struct btrfs_dio_private *dip = bio->bi_private;
-	struct btrfs_bio *bbio = btrfs_bio(bio);
+	struct btrfs_dio_private *dip = bbio->private;
+	struct bio *bio = &bbio->bio;
 	blk_status_t err = bio->bi_status;
 
 	if (err)
@@ -8066,7 +8063,7 @@ static void btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
 				 u64 file_offset, int async_submit)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_dio_private *dip = bio->bi_private;
+	struct btrfs_dio_private *dip = btrfs_bio(bio)->private;
 	blk_status_t ret;
 
 	/* Save the original iter for read repair */
@@ -8089,8 +8086,7 @@ static void btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
 		 */
 		ret = btrfs_csum_one_bio(BTRFS_I(inode), bio, file_offset, false);
 		if (ret) {
-			bio->bi_status = ret;
-			bio_endio(bio);
+			btrfs_bio_end_io(btrfs_bio(bio), ret);
 			return;
 		}
 	} else {
@@ -8173,9 +8169,8 @@ static void btrfs_submit_direct(const struct iomap_iter *iter,
 		 * This will never fail as it's passing GPF_NOFS and
 		 * the allocation is backed by btrfs_bioset.
 		 */
-		bio = btrfs_bio_clone_partial(dio_bio, clone_offset, clone_len);
-		bio->bi_private = dip;
-		bio->bi_end_io = btrfs_end_dio_bio;
+		bio = btrfs_bio_clone_partial(dio_bio, clone_offset, clone_len,
+					      btrfs_end_dio_bio, dip);
 		btrfs_bio(bio)->file_offset = file_offset;
 
 		if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
@@ -10380,7 +10375,7 @@ struct btrfs_encoded_read_private {
 static blk_status_t submit_encoded_read_bio(struct btrfs_inode *inode,
 					    struct bio *bio, int mirror_num)
 {
-	struct btrfs_encoded_read_private *priv = bio->bi_private;
+	struct btrfs_encoded_read_private *priv = btrfs_bio(bio)->private;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	blk_status_t ret;
 
@@ -10398,7 +10393,7 @@ static blk_status_t submit_encoded_read_bio(struct btrfs_inode *inode,
 static blk_status_t btrfs_encoded_read_verify_csum(struct btrfs_bio *bbio)
 {
 	const bool uptodate = (bbio->bio.bi_status == BLK_STS_OK);
-	struct btrfs_encoded_read_private *priv = bbio->bio.bi_private;
+	struct btrfs_encoded_read_private *priv = bbio->private;
 	struct btrfs_inode *inode = priv->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	u32 sectorsize = fs_info->sectorsize;
@@ -10426,10 +10421,9 @@ static blk_status_t btrfs_encoded_read_verify_csum(struct btrfs_bio *bbio)
 	return BLK_STS_OK;
 }
 
-static void btrfs_encoded_read_endio(struct bio *bio)
+static void btrfs_encoded_read_endio(struct btrfs_bio *bbio)
 {
-	struct btrfs_encoded_read_private *priv = bio->bi_private;
-	struct btrfs_bio *bbio = btrfs_bio(bio);
+	struct btrfs_encoded_read_private *priv = bbio->private;
 	blk_status_t status;
 
 	status = btrfs_encoded_read_verify_csum(bbio);
@@ -10447,7 +10441,7 @@ static void btrfs_encoded_read_endio(struct bio *bio)
 	if (!atomic_dec_return(&priv->pending))
 		wake_up(&priv->wait);
 	btrfs_bio_free_csum(bbio);
-	bio_put(bio);
+	bio_put(&bbio->bio);
 }
 
 int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
@@ -10494,11 +10488,11 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 			size_t bytes = min_t(u64, remaining, PAGE_SIZE);
 
 			if (!bio) {
-				bio = btrfs_bio_alloc(BIO_MAX_VECS, REQ_OP_READ);
+				bio = btrfs_bio_alloc(BIO_MAX_VECS, REQ_OP_READ,
+						      btrfs_encoded_read_endio,
+						      &priv);
 				bio->bi_iter.bi_sector =
 					(disk_bytenr + cur) >> SECTOR_SHIFT;
-				bio->bi_end_io = btrfs_encoded_read_endio;
-				bio->bi_private = &priv;
 			}
 
 			if (!bytes ||

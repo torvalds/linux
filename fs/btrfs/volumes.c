@@ -6617,9 +6617,12 @@ int btrfs_map_sblock(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
  * Initialize a btrfs_bio structure.  This skips the embedded bio itself as it
  * is already initialized by the block layer.
  */
-static inline void btrfs_bio_init(struct btrfs_bio *bbio)
+static inline void btrfs_bio_init(struct btrfs_bio *bbio,
+				  btrfs_bio_end_io_t end_io, void *private)
 {
 	memset(bbio, 0, offsetof(struct btrfs_bio, bio));
+	bbio->end_io = end_io;
+	bbio->private = private;
 }
 
 /*
@@ -6629,16 +6632,18 @@ static inline void btrfs_bio_init(struct btrfs_bio *bbio)
  * Just like the underlying bio_alloc_bioset it will not fail as it is backed by
  * a mempool.
  */
-struct bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf)
+struct bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf,
+			    btrfs_bio_end_io_t end_io, void *private)
 {
 	struct bio *bio;
 
 	bio = bio_alloc_bioset(NULL, nr_vecs, opf, GFP_NOFS, &btrfs_bioset);
-	btrfs_bio_init(btrfs_bio(bio));
+	btrfs_bio_init(btrfs_bio(bio), end_io, private);
 	return bio;
 }
 
-struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size)
+struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size,
+				    btrfs_bio_end_io_t end_io, void *private)
 {
 	struct bio *bio;
 	struct btrfs_bio *bbio;
@@ -6647,7 +6652,7 @@ struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size)
 
 	bio = bio_alloc_clone(orig->bi_bdev, orig, GFP_NOFS, &btrfs_bioset);
 	bbio = btrfs_bio(bio);
-	btrfs_bio_init(bbio);
+	btrfs_bio_init(bbio, end_io, private);
 
 	bio_trim(bio, offset >> 9, size >> 9);
 	bbio->iter = bio->bi_iter;
@@ -6681,7 +6686,7 @@ static void btrfs_end_bio_work(struct work_struct *work)
 	struct btrfs_bio *bbio =
 		container_of(work, struct btrfs_bio, end_io_work);
 
-	bio_endio(&bbio->bio);
+	bbio->end_io(bbio);
 }
 
 static void btrfs_raid56_end_io(struct bio *bio)
@@ -6691,9 +6696,7 @@ static void btrfs_raid56_end_io(struct bio *bio)
 
 	btrfs_bio_counter_dec(bioc->fs_info);
 	bbio->mirror_num = bioc->mirror_num;
-	bio->bi_end_io = bioc->end_io;
-	bio->bi_private = bioc->private;
-	bio->bi_end_io(bio);
+	bbio->end_io(bbio);
 
 	btrfs_put_bioc(bioc);
 }
@@ -6712,8 +6715,6 @@ static void btrfs_end_bio(struct bio *bio)
 	}
 
 	bbio->mirror_num = bioc->mirror_num;
-	bio->bi_end_io = bioc->end_io;
-	bio->bi_private = bioc->private;
 
 	/*
 	 * Only send an error to the higher layers if it is beyond the tolerance
@@ -6728,7 +6729,7 @@ static void btrfs_end_bio(struct bio *bio)
 		INIT_WORK(&bbio->end_io_work, btrfs_end_bio_work);
 		queue_work(btrfs_end_io_wq(bioc), &bbio->end_io_work);
 	} else {
-		bio_endio(bio);
+		bbio->end_io(bbio);
 	}
 
 	btrfs_put_bioc(bioc);
@@ -6819,15 +6820,12 @@ void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror
 				&map_length, &bioc, mirror_num, 1);
 	if (ret) {
 		btrfs_bio_counter_dec(fs_info);
-		bio->bi_status = errno_to_blk_status(ret);
-		bio_endio(bio);
+		btrfs_bio_end_io(btrfs_bio(bio), errno_to_blk_status(ret));
 		return;
 	}
 
 	total_devs = bioc->num_stripes;
 	bioc->orig_bio = bio;
-	bioc->private = bio->bi_private;
-	bioc->end_io = bio->bi_end_io;
 
 	if ((bioc->map_type & BTRFS_BLOCK_GROUP_RAID56_MASK) &&
 	    ((btrfs_op(bio) == BTRFS_MAP_WRITE) || (mirror_num > 1))) {

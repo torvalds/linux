@@ -647,16 +647,14 @@ static void run_one_async_start(struct btrfs_work *work)
  */
 static void run_one_async_done(struct btrfs_work *work)
 {
-	struct async_submit_bio *async;
-	struct inode *inode;
-
-	async = container_of(work, struct  async_submit_bio, work);
-	inode = async->inode;
+	struct async_submit_bio *async =
+		container_of(work, struct  async_submit_bio, work);
+	struct inode *inode = async->inode;
+	struct btrfs_bio *bbio = btrfs_bio(async->bio);
 
 	/* If an error occurred we just want to clean up the bio and move on */
 	if (async->status) {
-		async->bio->bi_status = async->status;
-		bio_endio(async->bio);
+		btrfs_bio_end_io(bbio, async->status);
 		return;
 	}
 
@@ -757,6 +755,7 @@ static bool should_async_write(struct btrfs_fs_info *fs_info,
 void btrfs_submit_metadata_bio(struct inode *inode, struct bio *bio, int mirror_num)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_bio *bbio = btrfs_bio(bio);
 	blk_status_t ret;
 
 	bio->bi_opf |= REQ_META;
@@ -776,8 +775,7 @@ void btrfs_submit_metadata_bio(struct inode *inode, struct bio *bio, int mirror_
 
 	ret = btree_csum_one_bio(bio);
 	if (ret) {
-		bio->bi_status = ret;
-		bio_endio(bio);
+		btrfs_bio_end_io(bbio, ret);
 		return;
 	}
 
