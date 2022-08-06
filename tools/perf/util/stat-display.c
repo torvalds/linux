@@ -374,7 +374,7 @@ static void abs_printout(struct perf_stat_config *config,
 			config->csv_output ? 0 : config->unit_width,
 			evsel->unit, config->csv_sep);
 
-	fprintf(output, "%-*s", config->csv_output ? 0 : 25, evsel__name(evsel));
+	fprintf(output, "%-*s", config->csv_output ? 0 : 32, evsel__name(evsel));
 
 	print_cgroup(config, evsel);
 }

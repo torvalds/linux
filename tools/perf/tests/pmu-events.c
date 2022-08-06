@@ -812,6 +812,15 @@ static int check_parse_id(const char *id, struct parse_events_error *error,
 	for (cur = strchr(dup, '@') ; cur; cur = strchr(++cur, '@'))
 		*cur = '/';
 
+	if (fake_pmu) {
+		/*
+		 * Every call to __parse_events will try to initialize the PMU
+		 * state from sysfs and then clean it up at the end. Reset the
+		 * PMU events to the test state so that we don't pick up
+		 * erroneous prefixes and suffixes.
+		 */
+		perf_pmu__test_parse_init();
+	}
 	ret = __parse_events(evlist, dup, error, fake_pmu);
 	free(dup);
 
@@ -1115,6 +1124,7 @@ static int test__parsing_fake(struct test_suite *test __maybe_unused,
 				break;
 			if (!pe->metric_expr)
 				continue;
+			pr_debug("Found metric '%s' for '%s'\n", pe->metric_name, map->cpuid);
 			err = metric_parse_fake(pe->metric_expr);
 			if (err)
 				return err;

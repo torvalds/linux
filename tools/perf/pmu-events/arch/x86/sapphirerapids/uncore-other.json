@@ -21,15 +21,6 @@
         "Unit": "UPI LL"
     },
     {
-        "BriefDescription": "Clockticks in the UBOX using a dedicated 48-bit Fixed Counter",
-        "Counter": "FIXED",
-        "CounterType": "FIXED",
-        "EventCode": "0xff",
-        "EventName": "UNC_U_CLOCKTICKS",
-        "PerPkg": "1",
-        "Unit": "UBOX"
-    },
-    {
         "BriefDescription": "IRP Clockticks",
         "Counter": "0,1",
         "CounterType": "PGMABLE",

@@ -93,8 +93,9 @@ INSTALL ?= install
 RM ?= rm -f
 
 FEATURE_USER = .bpftool
-FEATURE_TESTS = libbfd disassembler-four-args libcap clang-bpf-co-re
-FEATURE_DISPLAY = libbfd disassembler-four-args libcap clang-bpf-co-re
+FEATURE_TESTS = libbfd disassembler-four-args disassembler-init-styled libcap \
+	clang-bpf-co-re
+FEATURE_DISPLAY = libbfd libcap clang-bpf-co-re
 
 check_feat := 1
 NON_CHECK_FEAT_TARGETS := clean uninstall doc doc-clean doc-install doc-uninstall
@@ -114,6 +115,9 @@ endif
 
 ifeq ($(feature-disassembler-four-args), 1)
 CFLAGS += -DDISASM_FOUR_ARGS_SIGNATURE
+endif
+ifeq ($(feature-disassembler-init-styled), 1)
+    CFLAGS += -DDISASM_INIT_STYLED
 endif
 
 LIBS = $(LIBBPF) -lelf -lz

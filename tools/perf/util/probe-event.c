@@ -1349,7 +1349,7 @@ int parse_line_range_desc(const char *arg, struct line_range *lr)
 				/*
 				 * Adjust the number of lines here.
 				 * If the number of lines == 1, the
-				 * the end of line should be equal to
+				 * end of line should be equal to
 				 * the start of line.
 				 */
 				lr->end--;
