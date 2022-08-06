@@ -507,8 +507,8 @@ static void __init setup_lowcore_dat_on(void)
 	S390_lowcore.svc_new_psw.mask |= PSW_MASK_DAT;
 	S390_lowcore.program_new_psw.mask |= PSW_MASK_DAT;
 	S390_lowcore.io_new_psw.mask |= PSW_MASK_DAT;
-	__ctl_set_bit(0, 28);
 	__ctl_store(S390_lowcore.cregs_save_area, 0, 15);
+	__ctl_set_bit(0, 28);
 	put_abs_lowcore(restart_flags, RESTART_FLAG_CTLREGS);
 	put_abs_lowcore(program_new_psw, lc->program_new_psw);
 	for (cr = 0; cr < ARRAY_SIZE(lc->cregs_save_area); cr++)
