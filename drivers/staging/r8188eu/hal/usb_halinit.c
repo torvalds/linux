@@ -228,26 +228,17 @@ static void _InitNormalChipRegPriority(struct adapter *Adapter, u16 beQ,
 static void _InitNormalChipTwoOutEpPriority(struct adapter *Adapter)
 {
 	struct registry_priv *pregistrypriv = &Adapter->registrypriv;
-	u16 beQ, bkQ, viQ, voQ, mgtQ, hiQ;
-	u16 valueHi = QUEUE_HIGH;
-	u16 valueLow = QUEUE_NORMAL;
+	u16 bkQ, voQ;
 
 	if (!pregistrypriv->wifi_spec) {
-		beQ	= valueLow;
-		bkQ	= valueLow;
-		viQ	= valueHi;
-		voQ	= valueHi;
-		mgtQ	= valueHi;
-		hiQ	= valueHi;
+		bkQ	= QUEUE_NORMAL;
+		voQ	= QUEUE_HIGH;
 	} else {/* for WMM ,CONFIG_OUT_EP_WIFI_MODE */
-		beQ	= valueLow;
-		bkQ	= valueHi;
-		viQ	= valueHi;
-		voQ	= valueLow;
-		mgtQ	= valueHi;
-		hiQ	= valueHi;
+		bkQ	= QUEUE_HIGH;
+		voQ	= QUEUE_NORMAL;
 	}
-	_InitNormalChipRegPriority(Adapter, beQ, bkQ, viQ, voQ, mgtQ, hiQ);
+	_InitNormalChipRegPriority(Adapter, QUEUE_NORMAL, bkQ, QUEUE_HIGH,
+				   voQ, QUEUE_HIGH, QUEUE_HIGH);
 }
 
 static void _InitNormalChipThreeOutEpPriority(struct adapter *Adapter)
