@@ -324,16 +324,30 @@ static int sft_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct sft_rtc *srtc = dev_get_drvdata(dev);
 	u32 val;
+	int irq_1sec_state_start, irq_1sec_state_end;
 
 	/* If the RTC is disabled, assume the values are invalid */
 	if (!sft_rtc_get_enabled(srtc))
 		return -EINVAL;
 
+	irq_1sec_state_start =
+		(readl(srtc->regs + SFT_RTC_IRQ_STATUS) & RTC_IRQ_1SEC) == 0 ? 0 : 1;
+
+read_again:
 	val = readl(srtc->regs + SFT_RTC_TIME);
 	sft_rtc_reg2time(tm, val);
 
 	val = readl(srtc->regs + SFT_RTC_DATE);
 	sft_rtc_reg2date(tm, val);
+
+	if (irq_1sec_state_start == 0) {
+		irq_1sec_state_end =
+			(readl(srtc->regs + SFT_RTC_IRQ_STATUS) & RTC_IRQ_1SEC) == 0 ? 0 : 1;
+		if (irq_1sec_state_end == 1) {
+			irq_1sec_state_start = 1;
+			goto read_again;
+		}
+	}
 
 	return 0;
 }
