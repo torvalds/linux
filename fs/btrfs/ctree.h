@@ -4076,7 +4076,6 @@ static inline void btrfs_init_full_stripe_locks_tree(
 
 /* dev-replace.c */
 void btrfs_bio_counter_inc_blocked(struct btrfs_fs_info *fs_info);
-void btrfs_bio_counter_inc_noblocked(struct btrfs_fs_info *fs_info);
 void btrfs_bio_counter_sub(struct btrfs_fs_info *fs_info, s64 amount);
 
 static inline void btrfs_bio_counter_dec(struct btrfs_fs_info *fs_info)

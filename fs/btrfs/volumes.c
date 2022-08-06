@@ -6676,6 +6676,8 @@ static void btrfs_end_bioc(struct btrfs_io_context *bioc, bool async)
 	struct bio *orig_bio = bioc->orig_bio;
 	struct btrfs_bio *bbio = btrfs_bio(orig_bio);
 
+	btrfs_bio_counter_dec(bioc->fs_info);
+
 	bbio->mirror_num = bioc->mirror_num;
 	orig_bio->bi_private = bioc->private;
 	orig_bio->bi_end_io = bioc->end_io;
@@ -6723,7 +6725,6 @@ static void btrfs_end_bio(struct bio *bio)
 	if (bio != bioc->orig_bio)
 		bio_put(bio);
 
-	btrfs_bio_counter_dec(bioc->fs_info);
 	if (atomic_dec_and_test(&bioc->stripes_pending))
 		btrfs_end_bioc(bioc, true);
 }
@@ -6778,8 +6779,6 @@ static void submit_stripe_bio(struct btrfs_io_context *bioc,
 		(unsigned long)dev->bdev->bd_dev, rcu_str_deref(dev->name),
 		dev->devid, bio->bi_iter.bi_size);
 
-	btrfs_bio_counter_inc_noblocked(fs_info);
-
 	btrfsic_check_bio(bio);
 	submit_bio(bio);
 }
@@ -6831,7 +6830,6 @@ void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror
 
 		submit_stripe_bio(bioc, bio, dev_nr, should_clone);
 	}
-	btrfs_bio_counter_dec(fs_info);
 }
 
 static bool dev_args_match_fs_devices(const struct btrfs_dev_lookup_args *args,
