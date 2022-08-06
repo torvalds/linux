@@ -225,28 +225,6 @@ static void _InitNormalChipRegPriority(struct adapter *Adapter, u16 beQ,
 	rtw_write16(Adapter, REG_TRXDMA_CTRL, value16);
 }
 
-static void _InitNormalChipOneOutEpPriority(struct adapter *Adapter)
-{
-	struct hal_data_8188e *haldata = &Adapter->haldata;
-
-	u16 value = 0;
-	switch (haldata->OutEpQueueSel) {
-	case TX_SELE_HQ:
-		value = QUEUE_HIGH;
-		break;
-	case TX_SELE_LQ:
-		value = QUEUE_LOW;
-		break;
-	case TX_SELE_NQ:
-		value = QUEUE_NORMAL;
-		break;
-	default:
-		break;
-	}
-	_InitNormalChipRegPriority(Adapter, value, value, value, value,
-				   value, value);
-}
-
 static void _InitNormalChipTwoOutEpPriority(struct adapter *Adapter)
 {
 	struct hal_data_8188e *haldata = &Adapter->haldata;
@@ -319,7 +297,8 @@ static void _InitQueuePriority(struct adapter *Adapter)
 
 	switch (pdvobjpriv->RtNumOutPipes) {
 	case 1:
-		_InitNormalChipOneOutEpPriority(Adapter);
+		_InitNormalChipRegPriority(Adapter, QUEUE_HIGH, QUEUE_HIGH, QUEUE_HIGH,
+					   QUEUE_HIGH, QUEUE_HIGH, QUEUE_HIGH);
 		break;
 	case 2:
 		_InitNormalChipTwoOutEpPriority(Adapter);
