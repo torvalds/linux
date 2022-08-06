@@ -12,7 +12,7 @@
 struct snd_soc_acpi_mach snd_soc_acpi_intel_haswell_machines[] = {
 	{
 		.id = "INT33CA",
-		.drv_name = "haswell-audio",
+		.drv_name = "hsw_rt5640",
 		.fw_filename = "intel/IntcSST1.bin",
 		.sof_tplg_filename = "sof-hsw.tplg",
 	},
@@ -23,7 +23,7 @@ EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_haswell_machines);
 struct snd_soc_acpi_mach snd_soc_acpi_intel_broadwell_machines[] = {
 	{
 		.id = "INT343A",
-		.drv_name = "broadwell-audio",
+		.drv_name = "bdw_rt286",
 		.fw_filename =  "intel/IntcSST2.bin",
 		.sof_tplg_filename = "sof-bdw-rt286.tplg",
 	},
@@ -41,7 +41,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_broadwell_machines[] = {
 	},
 	{
 		.id = "INT33CA",
-		.drv_name = "haswell-audio",
+		.drv_name = "hsw_rt5640",
 		.fw_filename = "intel/IntcSST2.bin",
 		.sof_tplg_filename = "sof-bdw-rt5640.tplg",
 	},

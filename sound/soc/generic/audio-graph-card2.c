@@ -229,7 +229,8 @@ enum graph_type {
 
 static enum graph_type __graph_get_type(struct device_node *lnk)
 {
-	struct device_node *np;
+	struct device_node *np, *parent_np;
+	enum graph_type ret;
 
 	/*
 	 * target {
@@ -240,19 +241,33 @@ static enum graph_type __graph_get_type(struct device_node *lnk)
 	 * };
 	 */
 	np = of_get_parent(lnk);
-	if (of_node_name_eq(np, "ports"))
-		np = of_get_parent(np);
+	if (of_node_name_eq(np, "ports")) {
+		parent_np = of_get_parent(np);
+		of_node_put(np);
+		np = parent_np;
+	}
 
-	if (of_node_name_eq(np, GRAPH_NODENAME_MULTI))
-		return GRAPH_MULTI;
+	if (of_node_name_eq(np, GRAPH_NODENAME_MULTI)) {
+		ret = GRAPH_MULTI;
+		goto out_put;
+	}
 
-	if (of_node_name_eq(np, GRAPH_NODENAME_DPCM))
-		return GRAPH_DPCM;
+	if (of_node_name_eq(np, GRAPH_NODENAME_DPCM)) {
+		ret = GRAPH_DPCM;
+		goto out_put;
+	}
 
-	if (of_node_name_eq(np, GRAPH_NODENAME_C2C))
-		return GRAPH_C2C;
+	if (of_node_name_eq(np, GRAPH_NODENAME_C2C)) {
+		ret = GRAPH_C2C;
+		goto out_put;
+	}
 
-	return GRAPH_NORMAL;
+	ret = GRAPH_NORMAL;
+
+out_put:
+	of_node_put(np);
+	return ret;
+
 }
 
 static enum graph_type graph_get_type(struct asoc_simple_priv *priv,
@@ -430,8 +445,10 @@ static int asoc_simple_parse_dai(struct device_node *ep,
 	 *    if he unbinded CPU or Codec.
 	 */
 	ret = snd_soc_get_dai_name(&args, &dlc->dai_name);
-	if (ret < 0)
+	if (ret < 0) {
+		of_node_put(node);
 		return ret;
+	}
 
 	dlc->of_node = node;
 
@@ -851,12 +868,10 @@ int audio_graph2_link_c2c(struct asoc_simple_priv *priv,
 			  struct link_info *li)
 {
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
-	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
-	struct snd_soc_pcm_stream *c2c_conf = dai_props->c2c_conf;
 	struct device_node *port0, *port1, *ports;
 	struct device_node *codec0_port, *codec1_port;
 	struct device_node *ep0, *ep1;
-	u32 val;
+	u32 val = 0;
 	int ret = -EINVAL;
 
 	/*
@@ -880,19 +895,33 @@ int audio_graph2_link_c2c(struct asoc_simple_priv *priv,
 	ports = of_get_parent(port0);
 	port1 = of_get_next_child(ports, lnk);
 
-	if (!of_get_property(ports, "rate", &val)) {
+	/*
+	 * Card2 can use original Codec2Codec settings if DT has.
+	 * It will use default settings if no settings on DT.
+	 * see
+	 *	asoc_simple_init_for_codec2codec()
+	 *
+	 * Add more settings here if needed
+	 */
+	of_property_read_u32(ports, "rate", &val);
+	if (val) {
 		struct device *dev = simple_priv_to_dev(priv);
+		struct snd_soc_pcm_stream *c2c_conf;
 
-		dev_err(dev, "Codec2Codec needs rate settings\n");
-		goto err1;
+		c2c_conf = devm_kzalloc(dev, sizeof(*c2c_conf), GFP_KERNEL);
+		if (!c2c_conf)
+			goto err1;
+
+		c2c_conf->formats	= SNDRV_PCM_FMTBIT_S32_LE; /* update ME */
+		c2c_conf->rates		= SNDRV_PCM_RATE_8000_384000;
+		c2c_conf->rate_min	=
+		c2c_conf->rate_max	= val;
+		c2c_conf->channels_min	=
+		c2c_conf->channels_max	= 2; /* update ME */
+
+		dai_link->params	= c2c_conf;
+		dai_link->num_params	= 1;
 	}
-
-	c2c_conf->formats	= SNDRV_PCM_FMTBIT_S32_LE; /* update ME */
-	c2c_conf->rate_min	=
-	c2c_conf->rate_max	= val;
-	c2c_conf->channels_min	=
-	c2c_conf->channels_max	= 2; /* update ME */
-	dai_link->params	= c2c_conf;
 
 	ep0 = port_to_endpoint(port0);
 	ep1 = port_to_endpoint(port1);
@@ -1086,7 +1115,6 @@ static int graph_count_c2c(struct asoc_simple_priv *priv,
 	li->num[li->link].cpus		=
 	li->num[li->link].platforms	= graph_counter(codec0);
 	li->num[li->link].codecs	= graph_counter(codec1);
-	li->num[li->link].c2c		= 1;
 
 	of_node_put(ports);
 	of_node_put(port1);

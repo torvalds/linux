@@ -37,6 +37,12 @@
 #define SOF_DBG_IGNORE_D3_PERSISTENT		BIT(7) /* ignore the DSP D3 persistent capability
 							* and always download firmware upon D3 exit
 							*/
+#define SOF_DBG_PRINT_DMA_POSITION_UPDATE_LOGS	BIT(8) /* print DMA position updates
+							* in dmesg logs
+							*/
+#define SOF_DBG_PRINT_IPC_SUCCESS_LOGS		BIT(9) /* print IPC success
+							* in dmesg logs
+							*/
 
 /* Flag definitions used for controlling the DSP dump behavior */
 #define SOF_DBG_DUMP_REGS		BIT(0)
@@ -120,6 +126,7 @@ struct snd_sof_platform_stream_params {
 	bool use_phy_address;
 	u32 phy_addr;
 	bool no_ipc_position;
+	bool cont_update_posn;
 };
 
 /*
@@ -378,12 +385,14 @@ struct sof_ipc_fw_tracing_ops {
 
 /**
  * struct sof_ipc_pm_ops - IPC-specific PM ops
- * @ctx_save:		Function pointer for context save
- * @ctx_restore:	Function pointer for context restore
+ * @ctx_save:		Optional function pointer for context save
+ * @ctx_restore:	Optional function pointer for context restore
+ * @set_core_state:	Optional function pointer for turning on/off a DSP core
  */
 struct sof_ipc_pm_ops {
 	int (*ctx_save)(struct snd_sof_dev *sdev);
 	int (*ctx_restore)(struct snd_sof_dev *sdev);
+	int (*set_core_state)(struct snd_sof_dev *sdev, int core_idx, bool on);
 };
 
 /**
@@ -657,7 +666,7 @@ void sof_print_oops_and_stack(struct snd_sof_dev *sdev, const char *level,
 			      u32 panic_code, u32 tracep_code, void *oops,
 			      struct sof_ipc_panic_info *panic_info,
 			      void *stack, size_t stack_words);
-void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev);
+void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev, const char *msg);
 int snd_sof_dbg_memory_info_init(struct snd_sof_dev *sdev);
 int snd_sof_debugfs_add_region_item_iomem(struct snd_sof_dev *sdev,
 		enum snd_sof_fw_blk_type blk_type, u32 offset, size_t size,

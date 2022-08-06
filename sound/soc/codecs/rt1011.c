@@ -2176,7 +2176,6 @@ static const struct snd_soc_component_driver soc_component_dev_rt1011 = {
 	.set_pll = rt1011_set_component_pll,
 	.use_pmdown_time = 1,
 	.endianness = 1,
-	.non_legacy_dai_naming = 1,
 };
 
 static const struct regmap_config rt1011_regmap = {
