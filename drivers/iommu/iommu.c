@@ -2460,6 +2460,9 @@ static ssize_t __iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
 			len = 0;
 		}
 
+		if (sg_is_dma_bus_address(sg))
+			goto next;
+
 		if (len) {
 			len += sg->length;
 		} else {
@@ -2467,6 +2470,7 @@ static ssize_t __iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
 			start = s_phys;
 		}
 
+next:
 		if (++i < nents)
 			sg = sg_next(sg);
 	}

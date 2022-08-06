@@ -95,7 +95,7 @@ static int mvebu_hwcc_notifier(struct notifier_block *nb,
 
 	if (event != BUS_NOTIFY_ADD_DEVICE)
 		return NOTIFY_DONE;
-	set_dma_ops(dev, &arm_coherent_dma_ops);
+	dev->dma_coherent = true;
 
 	return NOTIFY_OK;
 }
