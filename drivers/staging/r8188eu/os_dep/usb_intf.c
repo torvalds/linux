@@ -330,7 +330,9 @@ static int rtw_usb_if1_init(struct dvobj_priv *dvobj, struct usb_interface *pusb
 	rtl8188e_read_chip_version(padapter);
 
 	/* step usb endpoint mapping */
-	rtl8188eu_interface_configure(padapter);
+	ret = rtl8188eu_interface_configure(padapter);
+	if (ret)
+		goto handle_dualmac;
 
 	/* step read efuse/eeprom data and get mac_addr */
 	ret = ReadAdapterInfo8188EU(padapter);

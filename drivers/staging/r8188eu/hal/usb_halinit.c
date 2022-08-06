@@ -42,11 +42,11 @@ static int HalUsbSetQueuePipeMapping8188EUsb(struct adapter *adapt, u8 NumOutPip
 	return Hal_MappingOutPipe(adapt, NumOutPipe);
 }
 
-void rtl8188eu_interface_configure(struct adapter *adapt)
+int rtl8188eu_interface_configure(struct adapter *adapt)
 {
 	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(adapt);
 
-	HalUsbSetQueuePipeMapping8188EUsb(adapt, pdvobjpriv->RtNumOutPipes);
+	return HalUsbSetQueuePipeMapping8188EUsb(adapt, pdvobjpriv->RtNumOutPipes);
 }
 
 u32 rtl8188eu_InitPowerOn(struct adapter *adapt)
