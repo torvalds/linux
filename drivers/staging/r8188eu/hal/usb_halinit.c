@@ -110,17 +110,14 @@ int rtl8188eu_interface_configure(struct adapter *adapt)
 	switch (pdvobjpriv->RtNumOutPipes) {
 	case 3:
 		haldata->OutEpQueueSel = TX_SELE_HQ | TX_SELE_LQ | TX_SELE_NQ;
-		haldata->OutEpNumber = 3;
 		three_out_pipe(adapt, wifi_cfg);
 		break;
 	case 2:
 		haldata->OutEpQueueSel = TX_SELE_HQ | TX_SELE_NQ;
-		haldata->OutEpNumber = 2;
 		two_out_pipe(adapt, wifi_cfg);
 		break;
 	case 1:
 		haldata->OutEpQueueSel = TX_SELE_HQ;
-		haldata->OutEpNumber = 1;
 		one_out_pipe(adapt);
 		break;
 	default:
@@ -358,9 +355,9 @@ static void _InitNormalChipThreeOutEpPriority(struct adapter *Adapter)
 
 static void _InitQueuePriority(struct adapter *Adapter)
 {
-	struct hal_data_8188e *haldata = &Adapter->haldata;
+	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(Adapter);
 
-	switch (haldata->OutEpNumber) {
+	switch (pdvobjpriv->RtNumOutPipes) {
 	case 1:
 		_InitNormalChipOneOutEpPriority(Adapter);
 		break;

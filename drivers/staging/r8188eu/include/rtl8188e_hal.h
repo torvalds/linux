@@ -150,7 +150,6 @@ struct hal_data_8188e {
 	u8	TRxAntDivType;
 
 	u8	OutEpQueueSel;
-	u8	OutEpNumber;
 
 	struct P2P_PS_Offload_t	p2p_ps_offload;
 
