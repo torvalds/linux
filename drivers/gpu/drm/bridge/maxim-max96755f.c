@@ -42,6 +42,7 @@ struct max96755f_bridge {
 	struct {
 		struct gpio_desc *gpio;
 		int irq;
+		bool irq_enabled;
 		atomic_t triggered;
 	} lock;
 };
@@ -166,6 +167,7 @@ static int max96755f_bridge_attach(struct drm_bridge *bridge,
 	if (max96755f_bridge_link_locked(ser)) {
 		connector->status = connector_status_connected;
 		enable_irq(ser->lock.irq);
+		ser->lock.irq_enabled = true;
 	} else {
 		connector->status = connector_status_disconnected;
 	}
@@ -317,14 +319,20 @@ static void max96755f_bridge_enable(struct drm_bridge *bridge)
 	if (ser->panel)
 		drm_panel_enable(ser->panel);
 
-	enable_irq(ser->lock.irq);
+	if (!ser->lock.irq_enabled) {
+		enable_irq(ser->lock.irq);
+		ser->lock.irq_enabled = true;
+	}
 }
 
 static void max96755f_bridge_disable(struct drm_bridge *bridge)
 {
 	struct max96755f_bridge *ser = to_max96755f_bridge(bridge);
 
-	disable_irq(ser->lock.irq);
+	if (ser->lock.irq_enabled) {
+		disable_irq(ser->lock.irq);
+		ser->lock.irq_enabled = false;
+	}
 
 	if (ser->panel)
 		drm_panel_disable(ser->panel);
