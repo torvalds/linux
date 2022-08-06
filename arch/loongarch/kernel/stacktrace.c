@@ -6,6 +6,7 @@
  */
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
+#include <linux/uaccess.h>
 
 #include <asm/stacktrace.h>
 #include <asm/unwind.h>
@@ -33,5 +34,45 @@ void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
 		addr = unwind_get_return_address(&state);
 		if (!addr || !consume_entry(cookie, addr))
 			break;
+	}
+}
+
+static int
+copy_stack_frame(unsigned long fp, struct stack_frame *frame)
+{
+	int ret = 1;
+	unsigned long err;
+	unsigned long __user *user_frame_tail;
+
+	user_frame_tail = (unsigned long *)(fp - sizeof(struct stack_frame));
+	if (!access_ok(user_frame_tail, sizeof(*frame)))
+		return 0;
+
+	pagefault_disable();
+	err = (__copy_from_user_inatomic(frame, user_frame_tail, sizeof(*frame)));
+	if (err || (unsigned long)user_frame_tail >= frame->fp)
+		ret = 0;
+	pagefault_enable();
+
+	return ret;
+}
+
+void arch_stack_walk_user(stack_trace_consume_fn consume_entry, void *cookie,
+			  const struct pt_regs *regs)
+{
+	unsigned long fp = regs->regs[22];
+
+	while (fp && !((unsigned long)fp & 0xf)) {
+		struct stack_frame frame;
+
+		frame.fp = 0;
+		frame.ra = 0;
+		if (!copy_stack_frame(fp, &frame))
+			break;
+		if (!frame.ra)
+			break;
+		if (!consume_entry(cookie, frame.ra))
+			break;
+		fp = frame.fp;
 	}
 }
