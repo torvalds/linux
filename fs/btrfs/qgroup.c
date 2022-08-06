@@ -275,7 +275,7 @@ static int __add_relation_rb(struct btrfs_qgroup *member, struct btrfs_qgroup *p
 }
 
 /*
- * Add relation specified by two qgoup ids.
+ * Add relation specified by two qgroup ids.
  *
  * Must be called with qgroup_lock held.
  *
