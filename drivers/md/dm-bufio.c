@@ -83,7 +83,7 @@
 struct dm_bufio_client {
 	struct mutex lock;
 	spinlock_t spinlock;
-	unsigned long spinlock_flags;
+	bool no_sleep;
 
 	struct list_head lru[LIST_SIZE];
 	unsigned long n_buffers[LIST_SIZE];
@@ -93,8 +93,6 @@ struct dm_bufio_client {
 	s8 sectors_per_block_bits;
 	void (*alloc_callback)(struct dm_buffer *);
 	void (*write_callback)(struct dm_buffer *);
-	bool no_sleep;
-
 	struct kmem_cache *slab_buffer;
 	struct kmem_cache *slab_cache;
 	struct dm_io_client *dm_io;
@@ -174,7 +172,7 @@ static DEFINE_STATIC_KEY_FALSE(no_sleep_enabled);
 static void dm_bufio_lock(struct dm_bufio_client *c)
 {
 	if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep)
-		spin_lock_irqsave_nested(&c->spinlock, c->spinlock_flags, dm_bufio_in_request());
+		spin_lock_bh(&c->spinlock);
 	else
 		mutex_lock_nested(&c->lock, dm_bufio_in_request());
 }
@@ -182,7 +180,7 @@ static void dm_bufio_lock(struct dm_bufio_client *c)
 static int dm_bufio_trylock(struct dm_bufio_client *c)
 {
 	if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep)
-		return spin_trylock_irqsave(&c->spinlock, c->spinlock_flags);
+		return spin_trylock_bh(&c->spinlock);
 	else
 		return mutex_trylock(&c->lock);
 }
@@ -190,7 +188,7 @@ static int dm_bufio_trylock(struct dm_bufio_client *c)
 static void dm_bufio_unlock(struct dm_bufio_client *c)
 {
 	if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep)
-		spin_unlock_irqrestore(&c->spinlock, c->spinlock_flags);
+		spin_unlock_bh(&c->spinlock);
 	else
 		mutex_unlock(&c->lock);
 }
