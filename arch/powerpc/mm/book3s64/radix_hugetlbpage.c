@@ -48,11 +48,13 @@ void radix__huge_ptep_modify_prot_commit(struct vm_area_struct *vma,
 	struct mm_struct *mm = vma->vm_mm;
 
 	/*
-	 * To avoid NMMU hang while relaxing access we need to flush the tlb before
-	 * we set the new value.
+	 * POWER9 NMMU must flush the TLB after clearing the PTE before
+	 * installing a PTE with more relaxed access permissions, see
+	 * radix__ptep_set_access_flags.
 	 */
-	if (is_pte_rw_upgrade(pte_val(old_pte), pte_val(pte)) &&
-	    (atomic_read(&mm->context.copros) > 0))
+	if (!cpu_has_feature(CPU_FTR_ARCH_31) &&
+	    is_pte_rw_upgrade(pte_val(old_pte), pte_val(pte)) &&
+	    atomic_read(&mm->context.copros) > 0)
 		radix__flush_hugetlb_page(vma, addr);
 
 	set_huge_pte_at(vma->vm_mm, addr, ptep, pte);

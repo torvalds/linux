@@ -42,6 +42,8 @@
 /* The sub-arch has lwsync */
 #if defined(CONFIG_PPC64) || defined(CONFIG_PPC_E500MC)
 #    define SMPWMB      LWSYNC
+#elif defined(CONFIG_BOOKE)
+#    define SMPWMB      mbar
 #else
 #    define SMPWMB      eieio
 #endif

@@ -102,7 +102,7 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 	struct resource res;
 	struct mii_bus *new_bus;
 	struct fec_info *fec;
-	int (*get_bus_freq)(struct device_node *);
+	int (*get_bus_freq)(struct device *);
 	int ret = -ENOMEM, clock, speed;
 
 	match = of_match_device(fs_enet_mdio_fec_match, &ofdev->dev);
@@ -136,7 +136,7 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 	}
 
 	if (get_bus_freq) {
-		clock = get_bus_freq(ofdev->dev.of_node);
+		clock = get_bus_freq(&ofdev->dev);
 		if (!clock) {
 			/* Use maximum divider if clock is unknown */
 			dev_warn(&ofdev->dev, "could not determine IPS clock\n");

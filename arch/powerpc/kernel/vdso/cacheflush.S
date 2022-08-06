@@ -91,6 +91,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 3:
 	crclr	cr0*4+so
 	sync
+	icbi	0,r1
 	isync
 	li	r3,0
 	blr

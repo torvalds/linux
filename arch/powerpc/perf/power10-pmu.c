@@ -258,15 +258,26 @@ static const struct attribute_group power10_pmu_format_group = {
 	.attrs = power10_pmu_format_attr,
 };
 
+static struct attribute *power10_pmu_caps_attrs[] = {
+	NULL
+};
+
+static struct attribute_group power10_pmu_caps_group = {
+	.name  = "caps",
+	.attrs = power10_pmu_caps_attrs,
+};
+
 static const struct attribute_group *power10_pmu_attr_groups_dd1[] = {
 	&power10_pmu_format_group,
 	&power10_pmu_events_group_dd1,
+	&power10_pmu_caps_group,
 	NULL,
 };
 
 static const struct attribute_group *power10_pmu_attr_groups[] = {
 	&power10_pmu_format_group,
 	&power10_pmu_events_group,
+	&power10_pmu_caps_group,
 	NULL,
 };
 
@@ -597,12 +608,10 @@ int __init init_power10_pmu(void)
 	unsigned int pvr;
 	int rc;
 
-	/* Comes from cpu_specs[] */
-	if (!cur_cpu_spec->oprofile_cpu_type ||
-	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power10"))
+	pvr = mfspr(SPRN_PVR);
+	if (PVR_VER(pvr) != PVR_POWER10)
 		return -ENODEV;
 
-	pvr = mfspr(SPRN_PVR);
 	/* Add the ppmu flag for power10 DD1 */
 	if ((PVR_CFG(pvr) == 1))
 		power10_pmu.flags |= PPMU_P10_DD1;

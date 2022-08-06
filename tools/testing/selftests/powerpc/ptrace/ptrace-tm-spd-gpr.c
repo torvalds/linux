@@ -12,10 +12,10 @@
 int shm_id;
 int *cptr, *pptr;
 
-float a = FPR_1;
-float b = FPR_2;
-float c = FPR_3;
-float d = FPR_4;
+double a = FPR_1;
+double b = FPR_2;
+double c = FPR_3;
+double d = FPR_4;
 
 __attribute__((used)) void wait_parent(void)
 {
@@ -28,7 +28,7 @@ void tm_spd_gpr(void)
 {
 	unsigned long gpr_buf[18];
 	unsigned long result, texasr;
-	float fpr_buf[32];
+	double fpr_buf[32];
 
 	cptr = (int *)shmat(shm_id, NULL, 0);
 
@@ -36,7 +36,7 @@ trans:
 	cptr[2] = 0;
 	asm __volatile__(
 		ASM_LOAD_GPR_IMMED(gpr_1)
-		ASM_LOAD_FPR_SINGLE_PRECISION(flt_1)
+		ASM_LOAD_FPR(flt_1)
 
 		"1: ;"
 		"tbegin.;"
@@ -45,7 +45,7 @@ trans:
 		ASM_LOAD_GPR_IMMED(gpr_2)
 		"tsuspend.;"
 		ASM_LOAD_GPR_IMMED(gpr_4)
-		ASM_LOAD_FPR_SINGLE_PRECISION(flt_4)
+		ASM_LOAD_FPR(flt_4)
 
 		"bl wait_parent;"
 		"tresume.;"
@@ -77,12 +77,12 @@ trans:
 
 		shmdt((void *)cptr);
 		store_gpr(gpr_buf);
-		store_fpr_single_precision(fpr_buf);
+		store_fpr(fpr_buf);
 
 		if (validate_gpr(gpr_buf, GPR_3))
 			exit(1);
 
-		if (validate_fpr_float(fpr_buf, c))
+		if (validate_fpr_double(fpr_buf, c))
 			exit(1);
 		exit(0);
 	}
@@ -93,7 +93,7 @@ trans:
 int trace_tm_spd_gpr(pid_t child)
 {
 	unsigned long gpr[18];
-	unsigned long fpr[32];
+	__u64 fpr[32];
 
 	FAIL_IF(start_trace(child));
 	FAIL_IF(show_gpr(child, gpr));

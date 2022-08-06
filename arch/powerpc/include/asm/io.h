@@ -33,7 +33,6 @@ extern struct pci_dev *isa_bridge_pcidev;
 #include <asm/delay.h>
 #include <asm/mmiowb.h>
 #include <asm/mmu.h>
-#include <asm/ppc_asm.h>
 
 #define SIO_CONFIG_RA	0x398
 #define SIO_CONFIG_RD	0x399
