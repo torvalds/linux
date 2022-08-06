@@ -75,8 +75,8 @@ struct ipaq_micro_rxdev {
  * @id: 4-bit ID of the message
  * @tx_len: length of TX data
  * @tx_data: TX data to send
- * @rx_len: length of receieved RX data
- * @rx_data: RX data to recieve
+ * @rx_len: length of received RX data
+ * @rx_data: RX data to receive
  * @ack: a completion that will be completed when RX is complete
  * @node: list node if message gets queued
  */

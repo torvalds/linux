@@ -18,7 +18,9 @@ description: |
 
 properties:
   compatible:
-    const: mps,mp2629
+    enum:
+      - mps,mp2629
+      - mps,mp2733
 
   reg:
     maxItems: 1

@@ -81,11 +81,10 @@ int eseries_tmio_enable(struct platform_device *dev)
 	return 0;
 }
 
-int eseries_tmio_disable(struct platform_device *dev)
+void eseries_tmio_disable(struct platform_device *dev)
 {
 	gpio_set_value(GPIO_ESERIES_TMIO_SUSPEND, 0);
 	gpio_set_value(GPIO_ESERIES_TMIO_PCLR, 0);
-	return 0;
 }
 
 int eseries_tmio_suspend(struct platform_device *dev)
@@ -134,7 +133,6 @@ static void __init __maybe_unused eseries_register_clks(void)
 
 static struct tc6387xb_platform_data e330_tc6387xb_info = {
 	.enable   = &eseries_tmio_enable,
-	.disable  = &eseries_tmio_disable,
 	.suspend  = &eseries_tmio_suspend,
 	.resume   = &eseries_tmio_resume,
 };
