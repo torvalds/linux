@@ -1,0 +1,9 @@
+config UNWINDER_GUESS
+	bool "Guess unwinder"
+	help
+	  This option enables the "guess" unwinder for unwinding kernel stack
+	  traces.  It scans the stack and reports every kernel text address it
+	  finds.  Some of the addresses it reports may be incorrect.
+
+	  While this option often produces false positives, it can still be
+	  useful in many cases.

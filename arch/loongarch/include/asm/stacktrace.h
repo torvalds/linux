@@ -10,6 +10,21 @@
 #include <asm/loongarch.h>
 #include <linux/stringify.h>
 
+enum stack_type {
+	STACK_TYPE_UNKNOWN,
+	STACK_TYPE_IRQ,
+	STACK_TYPE_TASK,
+};
+
+struct stack_info {
+	enum stack_type type;
+	unsigned long begin, end, next_sp;
+};
+
+bool in_irq_stack(unsigned long stack, struct stack_info *info);
+bool in_task_stack(unsigned long stack, struct task_struct *task, struct stack_info *info);
+int get_stack_info(unsigned long stack, struct task_struct *task, struct stack_info *info);
+
 #define STR_LONG_L    __stringify(LONG_L)
 #define STR_LONG_S    __stringify(LONG_S)
 #define STR_LONGSIZE  __stringify(LONGSIZE)

@@ -22,4 +22,6 @@ obj-$(CONFIG_SMP)		+= smp.o
 
 obj-$(CONFIG_NUMA)		+= numa.o
 
+obj-$(CONFIG_UNWINDER_GUESS)	+= unwind_guess.o
+
 CPPFLAGS_vmlinux.lds		:= $(KBUILD_CFLAGS)

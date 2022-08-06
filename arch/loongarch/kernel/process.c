@@ -44,6 +44,7 @@
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/reg.h>
+#include <asm/unwind.h>
 #include <asm/vdso.h>
 
 /*
@@ -181,6 +182,66 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 unsigned long __get_wchan(struct task_struct *task)
 {
 	return 0;
+}
+
+bool in_irq_stack(unsigned long stack, struct stack_info *info)
+{
+	unsigned long nextsp;
+	unsigned long begin = (unsigned long)this_cpu_read(irq_stack);
+	unsigned long end = begin + IRQ_STACK_START;
+
+	if (stack < begin || stack >= end)
+		return false;
+
+	nextsp = *(unsigned long *)end;
+	if (nextsp & (SZREG - 1))
+		return false;
+
+	info->begin = begin;
+	info->end = end;
+	info->next_sp = nextsp;
+	info->type = STACK_TYPE_IRQ;
+
+	return true;
+}
+
+bool in_task_stack(unsigned long stack, struct task_struct *task,
+			struct stack_info *info)
+{
+	unsigned long begin = (unsigned long)task_stack_page(task);
+	unsigned long end = begin + THREAD_SIZE - 32;
+
+	if (stack < begin || stack >= end)
+		return false;
+
+	info->begin = begin;
+	info->end = end;
+	info->next_sp = 0;
+	info->type = STACK_TYPE_TASK;
+
+	return true;
+}
+
+int get_stack_info(unsigned long stack, struct task_struct *task,
+		   struct stack_info *info)
+{
+	task = task ? : current;
+
+	if (!stack || stack & (SZREG - 1))
+		goto unknown;
+
+	if (in_task_stack(stack, task, info))
+		return 0;
+
+	if (task != current)
+		goto unknown;
+
+	if (in_irq_stack(stack, info))
+		return 0;
+
+unknown:
+	info->type = STACK_TYPE_UNKNOWN;
+	return -EINVAL;
 }
 
 unsigned long stack_top(void)
