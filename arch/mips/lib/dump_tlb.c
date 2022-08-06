@@ -59,14 +59,6 @@ static inline const char *msk2str(unsigned int mask)
 	case PM_8M:	return "8Mb";
 	case PM_32M:	return "32Mb";
 #endif
-#ifndef CONFIG_CPU_VR41XX
-	case PM_1M:	return "1Mb";
-	case PM_4M:	return "4Mb";
-	case PM_16M:	return "16Mb";
-	case PM_64M:	return "64Mb";
-	case PM_256M:	return "256Mb";
-	case PM_1G:	return "1Gb";
-#endif
 	}
 	return "";
 }
