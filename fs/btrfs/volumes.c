@@ -249,10 +249,10 @@ static int init_first_rw_device(struct btrfs_trans_handle *trans);
 static int btrfs_relocate_sys_chunks(struct btrfs_fs_info *fs_info);
 static void btrfs_dev_stat_print_on_load(struct btrfs_device *device);
 static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
-			     enum btrfs_map_op op,
-			     u64 logical, u64 *length,
+			     enum btrfs_map_op op, u64 logical, u64 *length,
 			     struct btrfs_io_context **bioc_ret,
-			     int mirror_num, int need_raid_map);
+			     struct btrfs_io_stripe *smap,
+			     int *mirror_num_ret, int need_raid_map);
 
 /*
  * Device locking
@@ -6093,7 +6093,7 @@ static int get_extra_mirror_from_replace(struct btrfs_fs_info *fs_info,
 	int ret = 0;
 
 	ret = __btrfs_map_block(fs_info, BTRFS_MAP_GET_READ_MIRRORS,
-				logical, &length, &bioc, 0, 0);
+				logical, &length, &bioc, NULL, NULL, 0);
 	if (ret) {
 		ASSERT(bioc == NULL);
 		return ret;
@@ -6350,11 +6350,19 @@ int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, struct extent_map *em,
 	return 0;
 }
 
+static void set_io_stripe(struct btrfs_io_stripe *dst, const struct map_lookup *map,
+		          u32 stripe_index, u64 stripe_offset, u64 stripe_nr)
+{
+	dst->dev = map->stripes[stripe_index].dev;
+	dst->physical = map->stripes[stripe_index].physical +
+			stripe_offset + stripe_nr * map->stripe_len;
+}
+
 static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
-			     enum btrfs_map_op op,
-			     u64 logical, u64 *length,
+			     enum btrfs_map_op op, u64 logical, u64 *length,
 			     struct btrfs_io_context **bioc_ret,
-			     int mirror_num, int need_raid_map)
+			     struct btrfs_io_stripe *smap,
+			     int *mirror_num_ret, int need_raid_map)
 {
 	struct extent_map *em;
 	struct map_lookup *map;
@@ -6365,6 +6373,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 	int data_stripes;
 	int i;
 	int ret = 0;
+	int mirror_num = (mirror_num_ret ? *mirror_num_ret : 0);
 	int num_stripes;
 	int max_errors = 0;
 	int tgtdev_indexes = 0;
@@ -6525,6 +6534,29 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 		tgtdev_indexes = num_stripes;
 	}
 
+	/*
+	 * If this I/O maps to a single device, try to return the device and
+	 * physical block information on the stack instead of allocating an
+	 * I/O context structure.
+	 */
+	if (smap && num_alloc_stripes == 1 &&
+	    !((map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) && mirror_num > 1) &&
+	    (!need_full_stripe(op) || !dev_replace_is_ongoing ||
+	     !dev_replace->tgtdev)) {
+		if (patch_the_first_stripe_for_dev_replace) {
+			smap->dev = dev_replace->tgtdev;
+			smap->physical = physical_to_patch_in_first_stripe;
+			*mirror_num_ret = map->num_stripes + 1;
+		} else {
+			set_io_stripe(smap, map, stripe_index, stripe_offset,
+				      stripe_nr);
+			*mirror_num_ret = mirror_num;
+		}
+		*bioc_ret = NULL;
+		ret = 0;
+		goto out;
+	}
+
 	bioc = alloc_btrfs_io_context(fs_info, num_alloc_stripes, tgtdev_indexes);
 	if (!bioc) {
 		ret = -ENOMEM;
@@ -6532,9 +6564,8 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 	}
 
 	for (i = 0; i < num_stripes; i++) {
-		bioc->stripes[i].physical = map->stripes[stripe_index].physical +
-			stripe_offset + stripe_nr * map->stripe_len;
-		bioc->stripes[i].dev = map->stripes[stripe_index].dev;
+		set_io_stripe(&bioc->stripes[i], map, stripe_index, stripe_offset,
+			      stripe_nr);
 		stripe_index++;
 	}
 
@@ -6602,7 +6633,7 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		      struct btrfs_io_context **bioc_ret, int mirror_num)
 {
 	return __btrfs_map_block(fs_info, op, logical, length, bioc_ret,
-				 mirror_num, 0);
+				 NULL, &mirror_num, 0);
 }
 
 /* For Scrub/replace */
@@ -6610,7 +6641,8 @@ int btrfs_map_sblock(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		     u64 logical, u64 *length,
 		     struct btrfs_io_context **bioc_ret)
 {
-	return __btrfs_map_block(fs_info, op, logical, length, bioc_ret, 0, 1);
+	return __btrfs_map_block(fs_info, op, logical, length, bioc_ret,
+				 NULL, NULL, 1);
 }
 
 /*
@@ -6820,8 +6852,8 @@ void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror
 	struct btrfs_io_context *bioc = NULL;
 
 	btrfs_bio_counter_inc_blocked(fs_info);
-	ret = __btrfs_map_block(fs_info, btrfs_op(bio), logical,
-				&map_length, &bioc, mirror_num, 1);
+	ret = __btrfs_map_block(fs_info, btrfs_op(bio), logical, &map_length,
+				&bioc, NULL, &mirror_num, 1);
 	if (ret) {
 		btrfs_bio_counter_dec(fs_info);
 		btrfs_bio_end_io(btrfs_bio(bio), errno_to_blk_status(ret));
