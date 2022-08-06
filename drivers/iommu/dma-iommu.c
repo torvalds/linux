@@ -69,7 +69,7 @@ struct iommu_dma_cookie {
 };
 
 static DEFINE_STATIC_KEY_FALSE(iommu_deferred_attach_enabled);
-bool iommu_dma_forcedac __read_mostly = !IS_ENABLED(CONFIG_IOMMU_DMA_PCI_SAC);
+bool iommu_dma_forcedac __read_mostly;
 
 static int __init iommu_dma_forcedac_setup(char *str)
 {
