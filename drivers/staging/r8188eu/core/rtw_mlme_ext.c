@@ -1353,8 +1353,7 @@ unsigned int OnAssocRsp(struct adapter *padapter, struct recv_frame *precv_frame
 	/* set slot time */
 	pmlmeinfo->slotTime = (pmlmeinfo->capability & BIT(10)) ? 9 : 20;
 
-	/* AID */
-	pmlmeinfo->aid = (int)(le16_to_cpu(*(__le16 *)(pframe + WLAN_HDR_A3_LEN + 4)) & 0x3fff);
+	pmlmeinfo->aid = le16_to_cpu(mgmt->u.assoc_resp.aid) & 0x3fff;
 	res = pmlmeinfo->aid;
 
 	/* following are moved to join event callback function */
