@@ -227,28 +227,10 @@ static void _InitNormalChipRegPriority(struct adapter *Adapter, u16 beQ,
 
 static void _InitNormalChipTwoOutEpPriority(struct adapter *Adapter)
 {
-	struct hal_data_8188e *haldata = &Adapter->haldata;
 	struct registry_priv *pregistrypriv = &Adapter->registrypriv;
 	u16 beQ, bkQ, viQ, voQ, mgtQ, hiQ;
-	u16 valueHi = 0;
-	u16 valueLow = 0;
-
-	switch (haldata->OutEpQueueSel) {
-	case (TX_SELE_HQ | TX_SELE_LQ):
-		valueHi = QUEUE_HIGH;
-		valueLow = QUEUE_LOW;
-		break;
-	case (TX_SELE_NQ | TX_SELE_LQ):
-		valueHi = QUEUE_NORMAL;
-		valueLow = QUEUE_LOW;
-		break;
-	case (TX_SELE_HQ | TX_SELE_NQ):
-		valueHi = QUEUE_HIGH;
-		valueLow = QUEUE_NORMAL;
-		break;
-	default:
-		break;
-	}
+	u16 valueHi = QUEUE_HIGH;
+	u16 valueLow = QUEUE_NORMAL;
 
 	if (!pregistrypriv->wifi_spec) {
 		beQ	= valueLow;
