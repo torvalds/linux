@@ -567,7 +567,6 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 {
 	u8 value8 = 0;
 	u16  value16;
-	u8 txpktbuf_bndy;
 	u32 status = _SUCCESS;
 	int res;
 	struct hal_data_8188e *haldata = &Adapter->haldata;
@@ -599,13 +598,6 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	/*  2010/08/09 MH We need to check if we need to turnon or off RF after detecting */
 	/*  HW GPIO pin. Before PHY_RFConfig8192C. */
 	/*  2010/08/26 MH If Efuse does not support sective suspend then disable the function. */
-
-	if (!pregistrypriv->wifi_spec) {
-		txpktbuf_bndy = TX_PAGE_BOUNDARY_88E;
-	} else {
-		/*  for WMM */
-		txpktbuf_bndy = WMM_NORMAL_TX_PAGE_BOUNDARY_88E;
-	}
 
 	_InitQueueReservedPage(Adapter);
 	_InitQueuePriority(Adapter);
@@ -647,9 +639,9 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	if (status == _FAIL)
 		goto exit;
 
-	_InitTxBufferBoundary(Adapter, txpktbuf_bndy);
+	_InitTxBufferBoundary(Adapter, TX_PAGE_BOUNDARY_88E);
 
-	status =  InitLLTTable(Adapter, txpktbuf_bndy);
+	status =  InitLLTTable(Adapter, TX_PAGE_BOUNDARY_88E);
 	if (status == _FAIL)
 		goto exit;
 
