@@ -1221,6 +1221,11 @@ int attr_load_runs_vcn(struct ntfs_inode *ni, enum ATTR_TYPE type,
 	CLST svcn, evcn;
 	u16 ro;
 
+	if (!ni) {
+		/* Is record corrupted? */
+		return -ENOENT;
+	}
+
 	attr = ni_find_attr(ni, NULL, NULL, type, name, name_len, &vcn, NULL);
 	if (!attr) {
 		/* Is record corrupted? */
