@@ -62,9 +62,13 @@ static int rtl8188eu_init_recv_priv(struct adapter *padapter)
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
 
 	for (i = 0; i < NR_RECVBUFF; i++) {
-		res = rtw_os_recvbuf_resource_alloc(padapter, precvbuf);
-		if (res == _FAIL)
+		precvbuf->pskb = NULL;
+		precvbuf->reuse = false;
+		precvbuf->purb = usb_alloc_urb(0, GFP_KERNEL);
+		if (!precvbuf->purb) {
+			res = _FAIL;
 			break;
+		}
 		precvbuf->adapter = padapter;
 		precvbuf++;
 	}
