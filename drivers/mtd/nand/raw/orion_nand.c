@@ -170,18 +170,11 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 
-	/* Not all platforms can gate the clock, so it is not
-	   an error if the clock does not exists. */
-	info->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(info->clk)) {
-		ret = PTR_ERR(info->clk);
-		if (ret == -ENOENT) {
-			info->clk = NULL;
-		} else {
-			dev_err(&pdev->dev, "failed to get clock!\n");
-			return ret;
-		}
-	}
+	/* Not all platforms can gate the clock, so it is optional. */
+	info->clk = devm_clk_get_optional(&pdev->dev, NULL);
+	if (IS_ERR(info->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(info->clk),
+				     "failed to get clock!\n");
 
 	ret = clk_prepare_enable(info->clk);
 	if (ret) {
