@@ -6,6 +6,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/fault-inject.h>
 #include <linux/kthread.h>
 #include <linux/sched/mm.h>
 #include <linux/uaccess.h>
@@ -77,6 +78,11 @@ module_param(dumpstate, bool, 0600);
 static bool modeset = true;
 MODULE_PARM_DESC(modeset, "Use kernel modesetting [KMS] (1=on (default), 0=disable)");
 module_param(modeset, bool, 0600);
+
+#ifdef CONFIG_FAULT_INJECTION
+DECLARE_FAULT_ATTR(fail_gem_alloc);
+DECLARE_FAULT_ATTR(fail_gem_iova);
+#endif
 
 static irqreturn_t msm_irq(int irq, void *arg)
 {
@@ -701,6 +707,9 @@ static int msm_ioctl_gem_new(struct drm_device *dev, void *data,
 		flags |= MSM_BO_WC;
 	}
 
+	if (should_fail(&fail_gem_alloc, args->size))
+		return -ENOMEM;
+
 	return msm_gem_new_handle(dev, file, args->size,
 			args->flags, &args->handle, NULL);
 }
@@ -762,6 +771,9 @@ static int msm_ioctl_gem_info_iova(struct drm_device *dev,
 	if (!priv->gpu)
 		return -EINVAL;
 
+	if (should_fail(&fail_gem_iova, obj->size))
+		return -ENOMEM;
+
 	/*
 	 * Don't pin the memory here - just get an address so that userspace can
 	 * be productive
@@ -782,6 +794,9 @@ static int msm_ioctl_gem_info_set_iova(struct drm_device *dev,
 	/* Only supported if per-process address space is supported: */
 	if (priv->gpu->aspace == ctx->aspace)
 		return -EOPNOTSUPP;
+
+	if (should_fail(&fail_gem_iova, obj->size))
+		return -ENOMEM;
 
 	return msm_gem_set_iova(obj, ctx->aspace, iova);
 }
