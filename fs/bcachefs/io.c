@@ -674,7 +674,7 @@ static void __bch2_write_index(struct bch_write_op *op)
 
 		if (ret) {
 			bch_err_inum_ratelimited(c, op->pos.inode,
-				"write error %i from btree update", ret);
+				"write error while doing btree update: %s", bch2_err_str(ret));
 			goto err;
 		}
 	}
