@@ -216,13 +216,18 @@ static void vt6655_mac_dma_ctl(void __iomem *iobase, u8 reg_index)
 		iowrite32(DMACTL_RUN, iobase + reg_index);
 }
 
-static void MACvEnableProtectMD(void __iomem *iobase)
+static void vt6655_mac_set_bits(void __iomem *iobase, u32 mask)
 {
 	u32 reg_value;
 
 	reg_value = ioread32(iobase + MAC_REG_ENCFG);
-	reg_value = reg_value | ENCFG_PROTECTMD;
+	reg_value = reg_value | mask;
 	iowrite32(reg_value, iobase + MAC_REG_ENCFG);
+}
+
+static void MACvEnableProtectMD(void __iomem *iobase)
+{
+	vt6655_mac_set_bits(iobase, ENCFG_PROTECTMD);
 }
 
 /*
