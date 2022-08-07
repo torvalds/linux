@@ -132,15 +132,37 @@ void bch2_btree_node_unlock_write(struct btree_trans *trans,
 	bch2_btree_node_unlock_write_inlined(trans, path, b);
 }
 
+static struct six_lock_count btree_node_lock_counts(struct btree_trans *trans,
+					   struct btree_path *skip,
+					   struct btree *b,
+					   unsigned level)
+{
+	struct btree_path *path;
+	struct six_lock_count ret = { 0, 0 };
+
+	if ((unsigned long) b < 128)
+		return ret;
+
+	trans_for_each_path(trans, path)
+		if (path != skip && path->l[level].b == b) {
+			ret.read += btree_node_read_locked(path, level);
+			ret.intent += btree_node_intent_locked(path, level);
+		}
+
+	return ret;
+}
+
+static inline void six_lock_readers_add(struct six_lock *lock, int nr)
+{
+	if (!lock->readers)
+		atomic64_add(__SIX_VAL(read_lock, nr), &lock->state.counter);
+	else
+		this_cpu_add(*lock->readers, nr);
+}
+
 void __bch2_btree_node_lock_write(struct btree_trans *trans, struct btree *b)
 {
-	struct btree_path *linked;
-	unsigned readers = 0;
-
-	trans_for_each_path(trans, linked)
-		if (linked->l[b->c.level].b == b &&
-		    btree_node_read_locked(linked, b->c.level))
-			readers++;
+	int readers = btree_node_lock_counts(trans, NULL, b, b->c.level).read;
 
 	/*
 	 * Must drop our read locks before calling six_lock_write() -
@@ -148,19 +170,9 @@ void __bch2_btree_node_lock_write(struct btree_trans *trans, struct btree *b)
 	 * goes to 0, and it's safe because we have the node intent
 	 * locked:
 	 */
-	if (!b->c.lock.readers)
-		atomic64_sub(__SIX_VAL(read_lock, readers),
-			     &b->c.lock.state.counter);
-	else
-		this_cpu_sub(*b->c.lock.readers, readers);
-
+	six_lock_readers_add(&b->c.lock, -readers);
 	six_lock_write(&b->c.lock, NULL, NULL);
-
-	if (!b->c.lock.readers)
-		atomic64_add(__SIX_VAL(read_lock, readers),
-			     &b->c.lock.state.counter);
-	else
-		this_cpu_add(*b->c.lock.readers, readers);
+	six_lock_readers_add(&b->c.lock, readers);
 }
 
 bool __bch2_btree_node_relock(struct btree_trans *trans,
@@ -229,6 +241,12 @@ bool bch2_btree_node_upgrade(struct btree_trans *trans,
 		goto success;
 	}
 
+	trace_btree_node_upgrade_fail(trans->fn, _RET_IP_,
+				     path->btree_id,
+				     &path->pos,
+				     btree_node_locked(path, level),
+				     btree_node_lock_counts(trans, NULL, b, level),
+				     six_lock_counts(&b->c.lock));
 	return false;
 success:
 	mark_btree_node_intent_locked(trans, path, level);
@@ -1800,6 +1818,7 @@ static struct btree_path *have_node_at_pos(struct btree_trans *trans, struct btr
 
 static inline void __bch2_path_free(struct btree_trans *trans, struct btree_path *path)
 {
+	trace_btree_path_free(trans->fn, _RET_IP_, path->btree_id, &path->pos);
 	__bch2_btree_path_unlock(trans, path);
 	btree_path_list_remove(trans, path);
 	trans->paths_allocated &= ~(1ULL << path->idx);
@@ -1975,6 +1994,8 @@ struct btree_path *bch2_path_get(struct btree_trans *trans,
 		__btree_path_get(path_pos, intent);
 		path = bch2_btree_path_set_pos(trans, path_pos, pos, intent);
 	} else {
+		trace_btree_path_alloc(trans->fn, _RET_IP_, btree_id, &pos, locks_want);
+
 		path = btree_path_alloc(trans, path_pos);
 		path_pos = NULL;
 

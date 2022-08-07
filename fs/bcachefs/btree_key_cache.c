@@ -414,9 +414,13 @@ retry:
 	path->l[0].b		= (void *) ck;
 fill:
 	if (!ck->valid && !(flags & BTREE_ITER_CACHED_NOFILL)) {
+		/*
+		 * Using the underscore version because we haven't set
+		 * path->uptodate yet:
+		 */
 		if (!path->locks_want &&
 		    !__bch2_btree_path_upgrade(trans, path, 1)) {
-			trace_transaction_restart_ip(trans->fn, _THIS_IP_);
+			trace_transaction_restart_key_cache_upgrade(trans->fn, _THIS_IP_);
 			ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_upgrade);
 			goto err;
 		}
