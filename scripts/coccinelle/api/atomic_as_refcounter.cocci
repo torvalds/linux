@@ -5,7 +5,7 @@
 // Copyright (c) 2016-2017, Elena Reshetova, Intel Corporation
 //
 // Confidence: Moderate
-// URL: http://coccinelle.lip6.fr/
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Options: --include-headers --very-quiet
 
 virtual report
