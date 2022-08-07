@@ -83,7 +83,7 @@ struct ad9834_state {
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
 	 */
-	__be16				data ____cacheline_aligned;
+	__be16				data __aligned(IIO_DMA_MINALIGN);
 	__be16				freq_data[2];
 };
 
