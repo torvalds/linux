@@ -244,6 +244,10 @@ static void vt6655_mac_dis_protect_md(void __iomem *iobase)
 	vt6655_mac_clear_bits(iobase, ENCFG_PROTECTMD);
 }
 
+static void vt6655_mac_en_barker_preamble_md(void __iomem *iobase)
+{
+	vt6655_mac_set_bits(iobase, ENCFG_BARKERPREAM);
+}
 /*
  * Initialisation of MAC & BBP registers
  */
@@ -1479,7 +1483,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
 		if (conf->use_short_preamble) {
-			MACvEnableBarkerPreambleMd(priv->port_offset);
+			vt6655_mac_en_barker_preamble_md(priv->port_offset);
 			priv->preamble_type = true;
 		} else {
 			MACvDisableBarkerPreambleMd(priv->port_offset);
