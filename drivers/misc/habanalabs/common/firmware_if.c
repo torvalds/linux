@@ -15,14 +15,6 @@
 
 #define FW_FILE_MAX_SIZE		0x1400000 /* maximum size of 20MB */
 
-struct fw_binning_conf {
-	u64 tpc_binning;
-	u32 dec_binning;
-	u32 hbm_binning;
-	u32 edma_binning;
-	u32 mme_redundancy;
-};
-
 static char *extract_fw_ver_from_str(const char *fw_str)
 {
 	char *str, *fw_ver, *whitespace;
@@ -2423,18 +2415,6 @@ static int hl_fw_dynamic_send_msg(struct hl_device *hdev,
 	case HL_COMMS_RESET_CAUSE_TYPE:
 		msg.reset_cause = *(__u8 *) data;
 		break;
-
-	case HL_COMMS_BINNING_CONF_TYPE:
-	{
-		struct fw_binning_conf *binning_conf = (struct fw_binning_conf *) data;
-
-		msg.tpc_binning_conf = cpu_to_le64(binning_conf->tpc_binning);
-		msg.dec_binning_conf = cpu_to_le32(binning_conf->dec_binning);
-		msg.hbm_binning_conf = cpu_to_le32(binning_conf->hbm_binning);
-		msg.edma_binning_conf = cpu_to_le32(binning_conf->edma_binning);
-		msg.mme_redundancy_conf = cpu_to_le32(binning_conf->mme_redundancy);
-		break;
-	}
 
 	default:
 		dev_err(hdev->dev,

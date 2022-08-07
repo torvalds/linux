@@ -465,6 +465,26 @@ enum comms_msg_type {
 	HL_COMMS_BINNING_CONF_TYPE = 3,
 };
 
+/*
+ * Binning information shared between LKD and FW
+ * @tpc_mask - TPC binning information
+ * @dec_mask - Decoder binning information
+ * @hbm_mask - HBM binning information
+ * @edma_mask - EDMA binning information
+ * @mme_mask_l - MME binning information lower 32
+ * @mme_mask_h - MME binning information upper 32
+ * @reserved - reserved field for 64 bit alignment
+ */
+struct lkd_fw_binning_info {
+	__le64 tpc_mask;
+	__le32 dec_mask;
+	__le32 hbm_mask;
+	__le32 edma_mask;
+	__le32 mme_mask_l;
+	__le32 mme_mask_h;
+	__le32 reserved;
+};
+
 /* TODO: remove this struct after the code is updated to use message */
 /* this is the comms descriptor header - meta data */
 struct comms_desc_header {
@@ -525,13 +545,7 @@ struct lkd_fw_comms_msg {
 		struct {
 			__u8 fw_cfg_skip; /* 1 - skip, 0 - don't skip */
 		};
-		struct {
-			__le64 tpc_binning_conf;
-			__le32 dec_binning_conf;
-			__le32 hbm_binning_conf;
-			__le32 edma_binning_conf;
-			__le32 mme_redundancy_conf; /* use MME_REDUNDANT_COLUMN */
-		};
+		struct lkd_fw_binning_info binning_info;
 	};
 };
 
