@@ -216,6 +216,15 @@ static void vt6655_mac_dma_ctl(void __iomem *iobase, u8 reg_index)
 		iowrite32(DMACTL_RUN, iobase + reg_index);
 }
 
+static void MACvEnableProtectMD(void __iomem *iobase)
+{
+	u32 reg_value;
+
+	reg_value = ioread32(iobase + MAC_REG_ENCFG);
+	reg_value = reg_value | ENCFG_PROTECTMD;
+	iowrite32(reg_value, iobase + MAC_REG_ENCFG);
+}
+
 /*
  * Initialisation of MAC & BBP registers
  */
