@@ -5864,26 +5864,25 @@ again:
 }
 
 static int __get_type_size(struct btf *btf, u32 btf_id,
-			   const struct btf_type **bad_type)
+			   const struct btf_type **ret_type)
 {
 	const struct btf_type *t;
 
+	*ret_type = btf_type_by_id(btf, 0);
 	if (!btf_id)
 		/* void */
 		return 0;
 	t = btf_type_by_id(btf, btf_id);
 	while (t && btf_type_is_modifier(t))
 		t = btf_type_by_id(btf, t->type);
-	if (!t) {
-		*bad_type = btf_type_by_id(btf, 0);
+	if (!t)
 		return -EINVAL;
-	}
+	*ret_type = t;
 	if (btf_type_is_ptr(t))
 		/* kernel size of pointer. Not BPF's size of pointer*/
 		return sizeof(void *);
 	if (btf_type_is_int(t) || btf_is_any_enum(t))
 		return t->size;
-	*bad_type = t;
 	return -EINVAL;
 }
 
