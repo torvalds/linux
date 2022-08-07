@@ -1579,6 +1579,85 @@ static bool enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl, s
 	return true;
 }
 
+static int rtw_recv_indicatepkt(struct adapter *padapter, struct recv_frame *precv_frame)
+{
+	struct recv_priv *precvpriv;
+	struct __queue *pfree_recv_queue;
+	struct sk_buff *skb;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+
+	precvpriv = &padapter->recvpriv;
+	pfree_recv_queue = &precvpriv->free_recv_queue;
+
+	skb = precv_frame->pkt;
+	if (!skb)
+		goto _recv_indicatepkt_drop;
+
+	skb->data = precv_frame->rx_data;
+
+	skb_set_tail_pointer(skb, precv_frame->len);
+
+	skb->len = precv_frame->len;
+
+	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
+		struct sk_buff *pskb2 = NULL;
+		struct sta_info *psta = NULL;
+		struct sta_priv *pstapriv = &padapter->stapriv;
+		struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
+		bool bmcast = is_multicast_ether_addr(pattrib->dst);
+
+		if (memcmp(pattrib->dst, myid(&padapter->eeprompriv), ETH_ALEN)) {
+			if (bmcast) {
+				psta = rtw_get_bcmc_stainfo(padapter);
+				pskb2 = skb_clone(skb, GFP_ATOMIC);
+			} else {
+				psta = rtw_get_stainfo(pstapriv, pattrib->dst);
+			}
+
+			if (psta) {
+				struct net_device *pnetdev;
+
+				pnetdev = (struct net_device *)padapter->pnetdev;
+				skb->dev = pnetdev;
+				skb_set_queue_mapping(skb, rtw_recv_select_queue(skb));
+
+				rtw_xmit_entry(skb, pnetdev);
+
+				if (bmcast)
+					skb = pskb2;
+				else
+					goto _recv_indicatepkt_end;
+			}
+		}
+	}
+
+	rcu_read_lock();
+	rcu_dereference(padapter->pnetdev->rx_handler_data);
+	rcu_read_unlock();
+
+	skb->ip_summed = CHECKSUM_NONE;
+	skb->dev = padapter->pnetdev;
+	skb->protocol = eth_type_trans(skb, padapter->pnetdev);
+
+	netif_rx(skb);
+
+_recv_indicatepkt_end:
+
+	/*  pointers to NULL before rtw_free_recvframe() */
+	precv_frame->pkt = NULL;
+
+	rtw_free_recvframe(precv_frame, pfree_recv_queue);
+
+	return _SUCCESS;
+
+_recv_indicatepkt_drop:
+
+	/* enqueue back to free_recv_queue */
+	rtw_free_recvframe(precv_frame, pfree_recv_queue);
+
+	return _FAIL;
+}
+
 static bool recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reorder_ctrl *preorder_ctrl, int bforced)
 {
 	struct list_head *phead, *plist;
