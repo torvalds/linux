@@ -88,7 +88,7 @@ MODULE_DEVICE_TABLE(spi, hmc5843_id);
 static struct spi_driver hmc5843_driver = {
 	.driver = {
 		.name = "hmc5843",
-		.pm = HMC5843_PM_OPS,
+		.pm = pm_sleep_ptr(&hmc5843_pm_ops),
 	},
 	.id_table = hmc5843_id,
 	.probe = hmc5843_spi_probe,
