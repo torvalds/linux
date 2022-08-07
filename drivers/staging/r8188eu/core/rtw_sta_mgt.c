@@ -141,6 +141,19 @@ void _rtw_free_sta_priv(struct	sta_priv *pstapriv)
 	}
 }
 
+static void _rtw_reordering_ctrl_timeout_handler(struct timer_list *t)
+{
+	struct recv_reorder_ctrl *preorder_ctrl;
+
+	preorder_ctrl = from_timer(preorder_ctrl, t, reordering_ctrl_timer);
+	rtw_reordering_ctrl_timeout_handler(preorder_ctrl);
+}
+
+static void rtw_init_recv_timer(struct recv_reorder_ctrl *preorder_ctrl)
+{
+	timer_setup(&preorder_ctrl->reordering_ctrl_timer, _rtw_reordering_ctrl_timeout_handler, 0);
+}
+
 struct	sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 {
 	s32	index;
