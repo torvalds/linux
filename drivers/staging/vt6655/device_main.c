@@ -225,7 +225,7 @@ static void vt6655_mac_set_bits(void __iomem *iobase, u32 mask)
 	iowrite32(reg_value, iobase + MAC_REG_ENCFG);
 }
 
-static void MACvEnableProtectMD(void __iomem *iobase)
+static void vt6655_mac_en_protect_md(void __iomem *iobase)
 {
 	vt6655_mac_set_bits(iobase, ENCFG_PROTECTMD);
 }
@@ -1475,7 +1475,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
 		if (conf->use_cts_prot)
-			MACvEnableProtectMD(priv->port_offset);
+			vt6655_mac_en_protect_md(priv->port_offset);
 		else
 			MACvDisableProtectMD(priv->port_offset);
 	}
