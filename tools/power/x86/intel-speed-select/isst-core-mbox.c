@@ -339,6 +339,57 @@ static int mbox_get_pbf_info(struct isst_id *id, int level, struct isst_pbf_info
 	return 0;
 }
 
+static int mbox_set_pbf_fact_status(struct isst_id *id, int pbf, int enable)
+{
+	struct isst_pkg_ctdp pkg_dev;
+	struct isst_pkg_ctdp_level_info ctdp_level;
+	int current_level;
+	unsigned int req = 0, resp;
+	int ret;
+
+	ret = isst_get_ctdp_levels(id, &pkg_dev);
+	if (ret)
+		debug_printf("cpu:%d No support for dynamic ISST\n", id->cpu);
+
+	current_level = pkg_dev.current_level;
+
+	ret = isst_get_ctdp_control(id, current_level, &ctdp_level);
+	if (ret)
+		return ret;
+
+	if (pbf) {
+		if (ctdp_level.fact_enabled)
+			req = BIT(16);
+
+		if (enable)
+			req |= BIT(17);
+		else
+			req &= ~BIT(17);
+	} else {
+
+		if (enable && !ctdp_level.sst_cp_enabled)
+			isst_display_error_info_message(0, "Make sure to execute before: core-power enable", 0, 0);
+
+		if (ctdp_level.pbf_enabled)
+			req = BIT(17);
+
+		if (enable)
+			req |= BIT(16);
+		else
+			req &= ~BIT(16);
+	}
+
+	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
+				     CONFIG_TDP_SET_TDP_CONTROL, 0, req, &resp);
+	if (ret)
+		return ret;
+
+	debug_printf("cpu:%d CONFIG_TDP_SET_TDP_CONTROL pbf/fact:%d req:%x\n",
+		     id->cpu, pbf, req);
+
+	return 0;
+}
+
 static struct isst_platform_ops mbox_ops = {
 	.get_disp_freq_multiplier = mbox_get_disp_freq_multiplier,
 	.get_trl_max_levels = mbox_get_trl_max_levels,
@@ -353,6 +404,7 @@ static struct isst_platform_ops mbox_ops = {
 	.get_trl_bucket_info = mbox_get_trl_bucket_info,
 	.set_tdp_level = mbox_set_tdp_level,
 	.get_pbf_info = mbox_get_pbf_info,
+	.set_pbf_fact_status = mbox_set_pbf_fact_status,
 };
 
 struct isst_platform_ops *mbox_get_platform_ops(void)
