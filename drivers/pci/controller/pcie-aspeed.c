@@ -860,8 +860,7 @@ static irqreturn_t pcie_rst_irq_handler(int irq, void *dev_id)
 {
 	struct aspeed_pcie *pcie = dev_id;
 
-	schedule_delayed_work(&pcie->rst_dwork,
-				  msecs_to_jiffies(1));
+	schedule_delayed_work(&pcie->rst_dwork, 0);
 
 	return IRQ_HANDLED;
 }
