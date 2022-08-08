@@ -900,6 +900,17 @@ struct dc {
 
 	uint32_t *dcn_reg_offsets;
 	uint32_t *nbio_reg_offsets;
+
+	/* Scratch memory */
+	struct {
+		struct {
+			/*
+			 * For matching clock_limits table in driver with table
+			 * from PMFW.
+			 */
+			struct _vcs_dpi_voltage_scaling_st clock_limits[DC__VOLTAGE_STATES];
+		} update_bw_bounding_box;
+	} scratch;
 };
 
 enum frame_buffer_mode {

@@ -179,12 +179,6 @@ struct _vcs_dpi_voltage_scaling_st {
  */
 struct _vcs_dpi_soc_bounding_box_st {
 	struct _vcs_dpi_voltage_scaling_st clock_limits[DC__VOLTAGE_STATES];
-	/*
-	 * This is a temporary stash for updating @clock_limits with the PMFW
-	 * clock table. Do not use outside of *update_bw_boudning_box functions.
-	 */
-	struct _vcs_dpi_voltage_scaling_st _clock_tmp[DC__VOLTAGE_STATES];
-
 	/**
 	 * @num_states: It represents the total of Display Power Management
 	 * (DPM) supported by the specific ASIC.
