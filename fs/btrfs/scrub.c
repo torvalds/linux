@@ -203,7 +203,7 @@ struct full_stripe_lock {
 };
 
 static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
-				     struct scrub_block *sblocks_for_recheck);
+				     struct scrub_block *sblocks_for_recheck[]);
 static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 				struct scrub_block *sblock,
 				int retry_failed_mirror);
@@ -817,7 +817,8 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	unsigned int failed_mirror_index;
 	unsigned int is_metadata;
 	unsigned int have_csum;
-	struct scrub_block *sblocks_for_recheck; /* holds one for each mirror */
+	/* One scrub_block for each mirror */
+	struct scrub_block *sblocks_for_recheck[BTRFS_MAX_MIRRORS] = { 0 };
 	struct scrub_block *sblock_bad;
 	int ret;
 	int mirror_index;
@@ -910,17 +911,26 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	 * repaired area is verified in order to correctly maintain
 	 * the statistics.
 	 */
-
-	sblocks_for_recheck = kcalloc(BTRFS_MAX_MIRRORS,
-				      sizeof(*sblocks_for_recheck), GFP_KERNEL);
-	if (!sblocks_for_recheck) {
-		spin_lock(&sctx->stat_lock);
-		sctx->stat.malloc_errors++;
-		sctx->stat.read_errors++;
-		sctx->stat.uncorrectable_errors++;
-		spin_unlock(&sctx->stat_lock);
-		btrfs_dev_stat_inc_and_print(dev, BTRFS_DEV_STAT_READ_ERRS);
-		goto out;
+	for (mirror_index = 0; mirror_index < BTRFS_MAX_MIRRORS; mirror_index++) {
+		sblocks_for_recheck[mirror_index] =
+			kzalloc(sizeof(struct scrub_block), GFP_KERNEL);
+		if (!sblocks_for_recheck[mirror_index]) {
+			spin_lock(&sctx->stat_lock);
+			sctx->stat.malloc_errors++;
+			sctx->stat.read_errors++;
+			sctx->stat.uncorrectable_errors++;
+			spin_unlock(&sctx->stat_lock);
+			btrfs_dev_stat_inc_and_print(dev, BTRFS_DEV_STAT_READ_ERRS);
+			goto out;
+		}
+		/*
+		 * Note: the two members refs and outstanding_sectors are not
+		 * used in the blocks that are used for the recheck procedure.
+		 * But to make the cleanup easier, we just put one ref for each
+		 * sblocks.
+		 */
+		refcount_set(&sblocks_for_recheck[mirror_index]->refs, 1);
+		sblocks_for_recheck[mirror_index]->sctx = sctx;
 	}
 
 	/* Setup the context, map the logical blocks and alloc the sectors */
@@ -934,7 +944,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 		goto out;
 	}
 	BUG_ON(failed_mirror_index >= BTRFS_MAX_MIRRORS);
-	sblock_bad = sblocks_for_recheck + failed_mirror_index;
+	sblock_bad = sblocks_for_recheck[failed_mirror_index];
 
 	/* build and submit the bios for the failed mirror, check checksums */
 	scrub_recheck_block(fs_info, sblock_bad, 1);
@@ -1019,21 +1029,21 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 		if (!scrub_is_page_on_raid56(sblock_bad->sectors[0])) {
 			if (mirror_index >= BTRFS_MAX_MIRRORS)
 				break;
-			if (!sblocks_for_recheck[mirror_index].sector_count)
+			if (!sblocks_for_recheck[mirror_index]->sector_count)
 				break;
 
-			sblock_other = sblocks_for_recheck + mirror_index;
+			sblock_other = sblocks_for_recheck[mirror_index];
 		} else {
 			struct scrub_recover *r = sblock_bad->sectors[0]->recover;
 			int max_allowed = r->bioc->num_stripes - r->bioc->num_tgtdevs;
 
 			if (mirror_index >= max_allowed)
 				break;
-			if (!sblocks_for_recheck[1].sector_count)
+			if (!sblocks_for_recheck[1]->sector_count)
 				break;
 
 			ASSERT(failed_mirror_index == 0);
-			sblock_other = sblocks_for_recheck + 1;
+			sblock_other = sblocks_for_recheck[1];
 			sblock_other->sectors[0]->mirror_num = 1 + mirror_index;
 		}
 
@@ -1105,12 +1115,11 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 			/* Try to find no-io-error sector in mirrors */
 			for (mirror_index = 0;
 			     mirror_index < BTRFS_MAX_MIRRORS &&
-			     sblocks_for_recheck[mirror_index].sector_count > 0;
+			     sblocks_for_recheck[mirror_index]->sector_count > 0;
 			     mirror_index++) {
-				if (!sblocks_for_recheck[mirror_index].
+				if (!sblocks_for_recheck[mirror_index]->
 				    sectors[sector_num]->io_error) {
-					sblock_other = sblocks_for_recheck +
-						       mirror_index;
+					sblock_other = sblocks_for_recheck[mirror_index];
 					break;
 				}
 			}
@@ -1184,25 +1193,28 @@ did_not_correct_error:
 	}
 
 out:
-	if (sblocks_for_recheck) {
-		for (mirror_index = 0; mirror_index < BTRFS_MAX_MIRRORS;
-		     mirror_index++) {
-			struct scrub_block *sblock = sblocks_for_recheck +
-						     mirror_index;
-			struct scrub_recover *recover;
-			int i;
+	for (mirror_index = 0; mirror_index < BTRFS_MAX_MIRRORS; mirror_index++) {
+		struct scrub_block *sblock = sblocks_for_recheck[mirror_index];
+		struct scrub_recover *recover;
+		int sector_index;
 
-			for (i = 0; i < sblock->sector_count; i++) {
-				sblock->sectors[i]->sblock = NULL;
-				recover = sblock->sectors[i]->recover;
-				if (recover) {
-					scrub_put_recover(fs_info, recover);
-					sblock->sectors[i]->recover = NULL;
-				}
-				scrub_sector_put(sblock->sectors[i]);
+		/* Not allocated, continue checking the next mirror */
+		if (!sblock)
+			continue;
+
+		for (sector_index = 0; sector_index < sblock->sector_count;
+		     sector_index++) {
+			/*
+			 * Here we just cleanup the recover, each sector will be
+			 * properly cleaned up by later scrub_block_put()
+			 */
+			recover = sblock->sectors[sector_index]->recover;
+			if (recover) {
+				scrub_put_recover(fs_info, recover);
+				sblock->sectors[sector_index]->recover = NULL;
 			}
 		}
-		kfree(sblocks_for_recheck);
+		scrub_block_put(sblock);
 	}
 
 	ret = unlock_full_stripe(fs_info, logical, full_stripe_locked);
@@ -1252,7 +1264,7 @@ static inline void scrub_stripe_index_and_offset(u64 logical, u64 map_type,
 }
 
 static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
-				     struct scrub_block *sblocks_for_recheck)
+				     struct scrub_block *sblocks_for_recheck[])
 {
 	struct scrub_ctx *sctx = original_sblock->sctx;
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
@@ -1271,11 +1283,6 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 	int mirror_index;
 	int nmirrors;
 	int ret;
-
-	/*
-	 * Note: the two members refs and outstanding_sectors are not used (and
-	 * not set) in the blocks that are used for the recheck procedure.
-	 */
 
 	while (length > 0) {
 		sublen = min_t(u64, length, fs_info->sectorsize);
@@ -1315,7 +1322,7 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 			struct scrub_block *sblock;
 			struct scrub_sector *sector;
 
-			sblock = sblocks_for_recheck + mirror_index;
+			sblock = sblocks_for_recheck[mirror_index];
 			sblock->sctx = sctx;
 
 			sector = kzalloc(sizeof(*sector), GFP_NOFS);
