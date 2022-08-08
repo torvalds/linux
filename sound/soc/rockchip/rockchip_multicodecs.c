@@ -75,32 +75,6 @@ struct multicodecs_data {
 	struct input_dev_poller *poller;
 };
 
-static struct snd_soc_jack_pin jack_pins[] = {
-	{
-		.pin = "Headphone",
-		.mask = SND_JACK_HEADPHONE,
-	}, {
-		.pin = "Headset Mic",
-		.mask = SND_JACK_MICROPHONE,
-	},
-};
-
-static struct snd_soc_jack_zone headset_zones[] = {
-	{
-		.min_mv = 0,
-		.max_mv = 222,
-		.jack_type = SND_JACK_HEADPHONE,
-	}, {
-		.min_mv = 223,
-		.max_mv = 1500,
-		.jack_type = SND_JACK_HEADSET,
-	}, {
-		.min_mv = 1501,
-		.max_mv = UINT_MAX,
-		.jack_type = SND_JACK_HEADPHONE,
-	}
-};
-
 static const unsigned int headset_extcon_cable[] = {
 	EXTCON_JACK_MICROPHONE,
 	EXTCON_JACK_HEADPHONE,
@@ -397,19 +371,59 @@ static int rk_dailink_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_card *card = rtd->card;
 	struct snd_soc_jack *jack_headset;
 	int ret, irq;
+	struct snd_soc_jack_pin *pins;
+	struct snd_soc_jack_zone *zones;
+	struct snd_soc_jack_pin jack_pins[] = {
+		{
+			.pin = "Headphone",
+			.mask = SND_JACK_HEADPHONE,
+		}, {
+			.pin = "Headset Mic",
+			.mask = SND_JACK_MICROPHONE,
+		},
+	};
+	struct snd_soc_jack_zone headset_zones[] = {
+		{
+			.min_mv = 0,
+			.max_mv = 222,
+			.jack_type = SND_JACK_HEADPHONE,
+		}, {
+			.min_mv = 223,
+			.max_mv = 1500,
+			.jack_type = SND_JACK_HEADSET,
+		}, {
+			.min_mv = 1501,
+			.max_mv = UINT_MAX,
+			.jack_type = SND_JACK_HEADPHONE,
+		}
+	};
+
+	if ((!mc_data->codec_hp_det) && (gpiod_to_irq(mc_data->hp_det_gpio) < 0)) {
+		dev_info(card->dev, "Don't need to map headset detect gpio to irq\n");
+		return 0;
+	}
 
 	jack_headset = devm_kzalloc(card->dev, sizeof(*jack_headset), GFP_KERNEL);
 	if (!jack_headset)
 		return -ENOMEM;
 
+	pins = devm_kmemdup(card->dev, jack_pins,
+			    sizeof(*jack_pins) * ARRAY_SIZE(jack_pins), GFP_KERNEL);
+	if (!pins)
+		return -ENOMEM;
+
+	zones = devm_kmemdup(card->dev, headset_zones,
+			     sizeof(*headset_zones) * ARRAY_SIZE(headset_zones), GFP_KERNEL);
+	if (!zones)
+		return -ENOMEM;
+
 	ret = snd_soc_card_jack_new(card, "Headset",
 				    SND_JACK_HEADSET,
 				    jack_headset,
-				    jack_pins, ARRAY_SIZE(jack_pins));
+				    pins, ARRAY_SIZE(jack_pins));
 	if (ret)
 		return ret;
-	ret = snd_soc_jack_add_zones(jack_headset, ARRAY_SIZE(headset_zones),
-				     headset_zones);
+	ret = snd_soc_jack_add_zones(jack_headset, ARRAY_SIZE(headset_zones), zones);
 	if (ret)
 		return ret;
 
@@ -436,8 +450,6 @@ static int rk_dailink_init(struct snd_soc_pcm_runtime *rtd)
 
 			queue_delayed_work(system_power_efficient_wq,
 					   &mc_data->handler, msecs_to_jiffies(50));
-		} else {
-			dev_warn(card->dev, "Failed to map headset detect gpio to irq");
 		}
 	}
 
