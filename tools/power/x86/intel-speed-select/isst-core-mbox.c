@@ -756,6 +756,26 @@ static int mbox_set_clos(struct isst_id *id, int clos, struct isst_clos_config *
 	return 0;
 }
 
+static int mbox_clos_get_assoc_status(struct isst_id *id, int *clos_id)
+{
+	unsigned int resp;
+	unsigned int param;
+	int core_id, ret;
+
+	core_id = find_phy_core_num(id->cpu);
+	param = core_id;
+
+	ret = isst_send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PQR_ASSOC, param, 0,
+				     &resp);
+	if (ret)
+		return ret;
+
+	debug_printf("cpu:%d CLOS_PQR_ASSOC param:%x resp:%x\n", id->cpu, param,
+		     resp);
+	*clos_id = (resp >> 16) & 0x03;
+
+	return 0;
+}
 static struct isst_platform_ops mbox_ops = {
 	.get_disp_freq_multiplier = mbox_get_disp_freq_multiplier,
 	.get_trl_max_levels = mbox_get_trl_max_levels,
@@ -778,6 +798,7 @@ static struct isst_platform_ops mbox_ops = {
 	.pm_qos_config = mbox_pm_qos_config,
 	.pm_get_clos = mbox_pm_get_clos,
 	.set_clos = mbox_set_clos,
+	.clos_get_assoc_status = mbox_clos_get_assoc_status,
 };
 
 struct isst_platform_ops *mbox_get_platform_ops(void)

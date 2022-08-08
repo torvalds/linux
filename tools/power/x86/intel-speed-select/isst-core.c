@@ -639,23 +639,8 @@ int isst_set_clos(struct isst_id *id, int clos, struct isst_clos_config *clos_co
 
 int isst_clos_get_assoc_status(struct isst_id *id, int *clos_id)
 {
-	unsigned int resp;
-	unsigned int param;
-	int core_id, ret;
-
-	core_id = find_phy_core_num(id->cpu);
-	param = core_id;
-
-	ret = isst_send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PQR_ASSOC, param, 0,
-				     &resp);
-	if (ret)
-		return ret;
-
-	debug_printf("cpu:%d CLOS_PQR_ASSOC param:%x resp:%x\n", id->cpu, param,
-		     resp);
-	*clos_id = (resp >> 16) & 0x03;
-
-	return 0;
+	CHECK_CB(clos_get_assoc_status);
+	return isst_ops->clos_get_assoc_status(id, clos_id);
 }
 
 int isst_clos_associate(struct isst_id *id, int clos_id)
