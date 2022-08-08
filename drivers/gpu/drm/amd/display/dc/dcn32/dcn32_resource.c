@@ -1904,13 +1904,11 @@ int dcn32_populate_dml_pipes_from_context(
 		timing = &pipe->stream->timing;
 
 		pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_dal;
-		res_ctx->pipe_ctx[i].stream->odm_2to1_policy_applied  = false;
-		if (context->stream_count == 1 && timing->dsc_cfg.num_slices_h != 1) {
+		if (context->stream_count == 1 && !dc_is_hdmi_signal(res_ctx->pipe_ctx[i].stream->signal)) {
 			if (dc->debug.enable_single_display_2to1_odm_policy) {
 				if (!((plane_count > 2) && pipe->top_pipe))
 					pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_2to1;
 			}
-			res_ctx->pipe_ctx[i].stream->odm_2to1_policy_applied = true;
 		}
 		pipe_cnt++;
 	}
