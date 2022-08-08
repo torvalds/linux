@@ -104,7 +104,7 @@ static void regmap_mmio_write16be(struct regmap_mmio_context *ctx,
 				  unsigned int reg,
 				  unsigned int val)
 {
-	iowrite16be(val, ctx->regs + reg);
+	writew(swab16(val), ctx->regs + reg);
 }
 
 static void regmap_mmio_iowrite16be(struct regmap_mmio_context *ctx,
@@ -137,7 +137,7 @@ static void regmap_mmio_write32be(struct regmap_mmio_context *ctx,
 				  unsigned int reg,
 				  unsigned int val)
 {
-	iowrite32be(val, ctx->regs + reg);
+	writel(swab32(val), ctx->regs + reg);
 }
 
 static void regmap_mmio_iowrite32be(struct regmap_mmio_context *ctx,
@@ -204,7 +204,7 @@ static unsigned int regmap_mmio_ioread16le(struct regmap_mmio_context *ctx,
 static unsigned int regmap_mmio_read16be(struct regmap_mmio_context *ctx,
 				         unsigned int reg)
 {
-	return ioread16be(ctx->regs + reg);
+	return swab16(readw(ctx->regs + reg));
 }
 
 static unsigned int regmap_mmio_ioread16be(struct regmap_mmio_context *ctx,
@@ -234,7 +234,7 @@ static unsigned int regmap_mmio_ioread32le(struct regmap_mmio_context *ctx,
 static unsigned int regmap_mmio_read32be(struct regmap_mmio_context *ctx,
 				         unsigned int reg)
 {
-	return ioread32be(ctx->regs + reg);
+	return swab32(readl(ctx->regs + reg));
 }
 
 static unsigned int regmap_mmio_ioread32be(struct regmap_mmio_context *ctx,
