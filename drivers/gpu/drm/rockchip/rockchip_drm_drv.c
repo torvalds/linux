@@ -1836,17 +1836,19 @@ static int rockchip_drm_platform_probe(struct platform_device *pdev)
 	if (IS_ERR(match))
 		return PTR_ERR(match);
 
-	ret = component_master_add_with_match(dev, &rockchip_drm_ops, match);
-	if (ret < 0) {
-		rockchip_drm_match_remove(dev);
-		return ret;
-	}
-
 	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (ret)
-		return ret;
+		goto err;
+
+	ret = component_master_add_with_match(dev, &rockchip_drm_ops, match);
+	if (ret < 0)
+		goto err;
 
 	return 0;
+err:
+	rockchip_drm_match_remove(dev);
+
+	return ret;
 }
 
 static int rockchip_drm_platform_remove(struct platform_device *pdev)
