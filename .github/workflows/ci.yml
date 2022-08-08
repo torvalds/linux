@@ -106,7 +106,6 @@ jobs:
 
       - name: Build
         run: |
-          export PATH=/usr/lib/ccache/bin:/usr/lib/ccache:/mingw64/bin:$PATH
           make -j4 -C tools/lkl
       - name: Tests
         run: mkdir /tmp/junit && make -C tools/lkl run-tests tests="--junit-dir /tmp/junit"
