@@ -216,6 +216,7 @@ extern int get_max_punit_core_id(struct isst_id *id);
 
 /* Common interfaces */
 FILE *get_output_file(void);
+extern int is_debug_enabled(void);
 extern void debug_printf(const char *format, ...);
 extern int out_format_is_json(void);
 extern void set_isst_id(struct isst_id *id, int cpu);

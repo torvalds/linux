@@ -77,6 +77,11 @@ FILE *get_output_file(void)
 	return outf;
 }
 
+int is_debug_enabled(void)
+{
+	return debug_flag;
+}
+
 void debug_printf(const char *format, ...)
 {
 	va_list args;
