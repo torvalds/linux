@@ -215,6 +215,32 @@ static struct scrub_block *alloc_scrub_block(struct scrub_ctx *sctx)
 	return sblock;
 }
 
+/* Allocate a new scrub sector and attach it to @sblock */
+static struct scrub_sector *alloc_scrub_sector(struct scrub_block *sblock, gfp_t gfp)
+{
+	struct scrub_sector *ssector;
+
+	ssector = kzalloc(sizeof(*ssector), gfp);
+	if (!ssector)
+		return NULL;
+	ssector->page = alloc_page(gfp);
+	if (!ssector->page) {
+		kfree(ssector);
+		return NULL;
+	}
+	atomic_set(&ssector->refs, 1);
+	ssector->sblock = sblock;
+	/* The sector to be added should not be used */
+	ASSERT(sblock->sectors[sblock->sector_count] == NULL);
+	/* The sector count must be smaller than the limit */
+	ASSERT(sblock->sector_count < SCRUB_MAX_SECTORS_PER_BLOCK);
+
+	sblock->sectors[sblock->sector_count] = ssector;
+	sblock->sector_count++;
+
+	return ssector;
+}
+
 static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 				     struct scrub_block *sblocks_for_recheck[]);
 static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
@@ -1336,18 +1362,14 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 			sblock = sblocks_for_recheck[mirror_index];
 			sblock->sctx = sctx;
 
-			sector = kzalloc(sizeof(*sector), GFP_NOFS);
+			sector = alloc_scrub_sector(sblock, GFP_NOFS);
 			if (!sector) {
-leave_nomem:
 				spin_lock(&sctx->stat_lock);
 				sctx->stat.malloc_errors++;
 				spin_unlock(&sctx->stat_lock);
 				scrub_put_recover(fs_info, recover);
 				return -ENOMEM;
 			}
-			scrub_sector_get(sector);
-			sblock->sectors[sector_index] = sector;
-			sector->sblock = sblock;
 			sector->flags = flags;
 			sector->generation = generation;
 			sector->logical = logical;
@@ -1375,11 +1397,6 @@ leave_nomem:
 				physical_for_dev_replace;
 			/* For missing devices, dev->bdev is NULL */
 			sector->mirror_num = mirror_index + 1;
-			sblock->sector_count++;
-			sector->page = alloc_page(GFP_NOFS);
-			if (!sector->page)
-				goto leave_nomem;
-
 			scrub_get_recover(recover);
 			sector->recover = recover;
 		}
@@ -2251,19 +2268,14 @@ static int scrub_sectors(struct scrub_ctx *sctx, u64 logical, u32 len,
 		 */
 		u32 l = min(sectorsize, len);
 
-		sector = kzalloc(sizeof(*sector), GFP_KERNEL);
+		sector = alloc_scrub_sector(sblock, GFP_KERNEL);
 		if (!sector) {
-leave_nomem:
 			spin_lock(&sctx->stat_lock);
 			sctx->stat.malloc_errors++;
 			spin_unlock(&sctx->stat_lock);
 			scrub_block_put(sblock);
 			return -ENOMEM;
 		}
-		ASSERT(index < SCRUB_MAX_SECTORS_PER_BLOCK);
-		scrub_sector_get(sector);
-		sblock->sectors[index] = sector;
-		sector->sblock = sblock;
 		sector->dev = dev;
 		sector->flags = flags;
 		sector->generation = gen;
@@ -2277,10 +2289,6 @@ leave_nomem:
 		} else {
 			sector->have_csum = 0;
 		}
-		sblock->sector_count++;
-		sector->page = alloc_page(GFP_KERNEL);
-		if (!sector->page)
-			goto leave_nomem;
 		len -= l;
 		logical += l;
 		physical += l;
@@ -2595,23 +2603,18 @@ static int scrub_sectors_for_parity(struct scrub_parity *sparity,
 	for (index = 0; len > 0; index++) {
 		struct scrub_sector *sector;
 
-		sector = kzalloc(sizeof(*sector), GFP_KERNEL);
+		sector = alloc_scrub_sector(sblock, GFP_KERNEL);
 		if (!sector) {
-leave_nomem:
 			spin_lock(&sctx->stat_lock);
 			sctx->stat.malloc_errors++;
 			spin_unlock(&sctx->stat_lock);
 			scrub_block_put(sblock);
 			return -ENOMEM;
 		}
-		ASSERT(index < SCRUB_MAX_SECTORS_PER_BLOCK);
-		/* For scrub block */
-		scrub_sector_get(sector);
 		sblock->sectors[index] = sector;
 		/* For scrub parity */
 		scrub_sector_get(sector);
 		list_add_tail(&sector->list, &sparity->sectors_list);
-		sector->sblock = sblock;
 		sector->dev = dev;
 		sector->flags = flags;
 		sector->generation = gen;
@@ -2624,11 +2627,6 @@ leave_nomem:
 		} else {
 			sector->have_csum = 0;
 		}
-		sblock->sector_count++;
-		sector->page = alloc_page(GFP_KERNEL);
-		if (!sector->page)
-			goto leave_nomem;
-
 
 		/* Iterate over the stripe range in sectorsize steps */
 		len -= sectorsize;
