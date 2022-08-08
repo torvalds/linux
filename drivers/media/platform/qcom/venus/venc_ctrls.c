@@ -355,6 +355,10 @@ static const struct v4l2_ctrl_ops venc_ctrl_ops = {
 int venc_ctrl_init(struct venus_inst *inst)
 {
 	int ret;
+	struct v4l2_ctrl_hdr10_mastering_display p_hdr10_mastering = {
+		{ 34000, 13250, 7500 },
+		{ 16000, 34500, 3000 }, 15635, 16450, 10000000, 500,
+	};
 
 	ret = v4l2_ctrl_handler_init(&inst->ctrl_handler, 58);
 	if (ret)
@@ -583,7 +587,7 @@ int venc_ctrl_init(struct venus_inst *inst)
 
 	v4l2_ctrl_new_std_compound(&inst->ctrl_handler, &venc_ctrl_ops,
 				   V4L2_CID_COLORIMETRY_HDR10_MASTERING_DISPLAY,
-				   v4l2_ctrl_ptr_create(NULL));
+				   v4l2_ctrl_ptr_create((void *)&p_hdr10_mastering));
 
 	v4l2_ctrl_new_std_menu(&inst->ctrl_handler, &venc_ctrl_ops,
 			       V4L2_CID_MPEG_VIDEO_INTRA_REFRESH_PERIOD_TYPE,
