@@ -675,6 +675,7 @@ remote end.
 
 .. _`Agent Forwarding over SSH`: https://wiki.gnupg.org/AgentForwarding
 
+.. _pgp_with_git:
 
 Using PGP with Git
 ==================
@@ -817,6 +818,63 @@ You can tell git to always sign commits::
     Make sure you configure ``gpg-agent`` before you turn this on.
 
 .. _verify_identities:
+
+
+How to work with signed patches
+-------------------------------
+
+It is possible to use your PGP key to sign patches sent to kernel
+developer mailing lists. Since existing email signature mechanisms
+(PGP-Mime or PGP-inline) tend to cause problems with regular code
+review tasks, you should use the tool kernel.org created for this
+purpose that puts cryptographic attestation signatures into message
+headers (a-la DKIM):
+
+- `Patatt Patch Attestation`_
+
+.. _`Patatt Patch Attestation`: https://pypi.org/project/patatt/
+
+Installing and configuring patatt
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Patatt is packaged for many distributions already, so please check there
+first. You can also install it from pypi using "``pip install patatt``".
+
+If you already have your PGP key configured with git (via the
+``user.signingKey`` configuration parameter), then patatt requires no
+further configuration. You can start signing your patches by installing
+the git-send-email hook in the repository you want::
+
+    patatt install-hook
+
+Now any patches you send with ``git send-email`` will be automatically
+signed with your cryptographic signature.
+
+Checking patatt signatures
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you are using ``b4`` to retrieve and apply patches, then it will
+automatically attempt to verify all DKIM and patatt signatures it
+encounters, for example::
+
+    $ b4 am 20220720205013.890942-1-broonie@kernel.org
+    [...]
+    Checking attestation on all messages, may take a moment...
+    ---
+      ✓ [PATCH v1 1/3] kselftest/arm64: Correct buffer allocation for SVE Z registers
+      ✓ [PATCH v1 2/3] arm64/sve: Document our actual ABI for clearing registers on syscall
+      ✓ [PATCH v1 3/3] kselftest/arm64: Enforce actual ABI for SVE syscalls
+      ---
+      ✓ Signed: openpgp/broonie@kernel.org
+      ✓ Signed: DKIM/kernel.org
+
+.. note::
+
+    Patatt and b4 are still in active development and you should check
+    the latest documentation for these projects for any new or updated
+    features.
+
+.. _kernel_identities:
 
 How to verify kernel developer identities
 =========================================
