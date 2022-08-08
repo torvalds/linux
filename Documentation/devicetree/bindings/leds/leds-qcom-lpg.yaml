@@ -59,6 +59,8 @@ properties:
   multi-led:
     type: object
     $ref: leds-class-multicolor.yaml#
+    unevaluatedProperties: false
+
     properties:
       "#address-cells":
         const: 1
