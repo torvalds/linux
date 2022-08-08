@@ -202,6 +202,19 @@ struct full_stripe_lock {
 	struct mutex mutex;
 };
 
+static struct scrub_block *alloc_scrub_block(struct scrub_ctx *sctx)
+{
+	struct scrub_block *sblock;
+
+	sblock = kzalloc(sizeof(*sblock), GFP_KERNEL);
+	if (!sblock)
+		return NULL;
+	refcount_set(&sblock->refs, 1);
+	sblock->sctx = sctx;
+	sblock->no_io_error_seen = 1;
+	return sblock;
+}
+
 static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 				     struct scrub_block *sblocks_for_recheck[]);
 static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
@@ -912,8 +925,14 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	 * the statistics.
 	 */
 	for (mirror_index = 0; mirror_index < BTRFS_MAX_MIRRORS; mirror_index++) {
-		sblocks_for_recheck[mirror_index] =
-			kzalloc(sizeof(struct scrub_block), GFP_KERNEL);
+		/*
+		 * Note: the two members refs and outstanding_sectors are not
+		 * used in the blocks that are used for the recheck procedure.
+		 *
+		 * But alloc_scrub_block() will initialize sblock::ref anyway,
+		 * so we can use scrub_block_put() to clean them up.
+		 */
+		sblocks_for_recheck[mirror_index] = alloc_scrub_block(sctx);
 		if (!sblocks_for_recheck[mirror_index]) {
 			spin_lock(&sctx->stat_lock);
 			sctx->stat.malloc_errors++;
@@ -923,14 +942,6 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 			btrfs_dev_stat_inc_and_print(dev, BTRFS_DEV_STAT_READ_ERRS);
 			goto out;
 		}
-		/*
-		 * Note: the two members refs and outstanding_sectors are not
-		 * used in the blocks that are used for the recheck procedure.
-		 * But to make the cleanup easier, we just put one ref for each
-		 * sblocks.
-		 */
-		refcount_set(&sblocks_for_recheck[mirror_index]->refs, 1);
-		sblocks_for_recheck[mirror_index]->sctx = sctx;
 	}
 
 	/* Setup the context, map the logical blocks and alloc the sectors */
@@ -2223,19 +2234,13 @@ static int scrub_sectors(struct scrub_ctx *sctx, u64 logical, u32 len,
 	const u32 sectorsize = sctx->fs_info->sectorsize;
 	int index;
 
-	sblock = kzalloc(sizeof(*sblock), GFP_KERNEL);
+	sblock = alloc_scrub_block(sctx);
 	if (!sblock) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.malloc_errors++;
 		spin_unlock(&sctx->stat_lock);
 		return -ENOMEM;
 	}
-
-	/* one ref inside this function, plus one for each page added to
-	 * a bio later on */
-	refcount_set(&sblock->refs, 1);
-	sblock->sctx = sctx;
-	sblock->no_io_error_seen = 1;
 
 	for (index = 0; len > 0; index++) {
 		struct scrub_sector *sector;
@@ -2576,7 +2581,7 @@ static int scrub_sectors_for_parity(struct scrub_parity *sparity,
 
 	ASSERT(IS_ALIGNED(len, sectorsize));
 
-	sblock = kzalloc(sizeof(*sblock), GFP_KERNEL);
+	sblock = alloc_scrub_block(sctx);
 	if (!sblock) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.malloc_errors++;
@@ -2584,11 +2589,6 @@ static int scrub_sectors_for_parity(struct scrub_parity *sparity,
 		return -ENOMEM;
 	}
 
-	/* one ref inside this function, plus one for each page added to
-	 * a bio later on */
-	refcount_set(&sblock->refs, 1);
-	sblock->sctx = sctx;
-	sblock->no_io_error_seen = 1;
 	sblock->sparity = sparity;
 	scrub_parity_get(sparity);
 
