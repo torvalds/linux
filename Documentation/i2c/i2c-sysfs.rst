@@ -51,11 +51,10 @@ Google Pixel 3 phone for example::
 ``i2c-2`` is an I2C bus whose number is 2, and ``2-0049`` is an I2C device
 on bus 2 address 0x49 bound with a kernel driver.
 
-Terminologies
-=============
+Terminology
+===========
 
-First, let us define a couple of terminologies to avoid confusions in the later
-sections.
+First, let us define some terms to avoid confusion in later sections.
 
 (Physical) I2C Bus Controller
 -----------------------------
@@ -117,7 +116,7 @@ Walk through Logical I2C Bus
 
 For the following content, we will use a more complex I2C topology as an
 example. Here is a brief graph for the I2C topology. If you do not understand
-this graph at the first glance, do not be afraid to continue reading this doc
+this graph at first glance, do not be afraid to continue reading this doc
 and review it when you finish reading.
 
 ::
