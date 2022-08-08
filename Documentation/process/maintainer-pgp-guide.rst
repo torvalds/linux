@@ -266,9 +266,7 @@ home, such as your bank vault.
     Your printer is probably no longer a simple dumb device connected to
     your parallel port, but since the output is still encrypted with
     your passphrase, printing out even to "cloud-integrated" modern
-    printers should remain a relatively safe operation. One option is to
-    change the passphrase on your master key immediately after you are
-    done with paperkey.
+    printers should remain a relatively safe operation.
 
 Back up your whole GnuPG directory
 ----------------------------------
