@@ -156,10 +156,9 @@ static void _InitQueueReservedPage(struct adapter *Adapter)
 	struct registry_priv	*pregistrypriv = &Adapter->registrypriv;
 	u32 numHQ	= 0;
 	u32 numLQ	= 0;
-	u32 numNQ	= 0;
+	u8 numNQ = 0;
 	u32 numPubQ;
 	u32 value32;
-	u8 value8;
 
 	if (pregistrypriv->wifi_spec) {
 		if (haldata->OutEpQueueSel & TX_SELE_HQ)
@@ -171,8 +170,8 @@ static void _InitQueueReservedPage(struct adapter *Adapter)
 		/*  NOTE: This step shall be proceed before writing REG_RQPN. */
 		if (haldata->OutEpQueueSel & TX_SELE_NQ)
 			numNQ = 0x1C;
-		value8 = (u8)_NPQ(numNQ);
-		rtw_write8(Adapter, REG_RQPN_NPQ, value8);
+
+		rtw_write8(Adapter, REG_RQPN_NPQ, numNQ);
 
 		numPubQ = 0xA8 - numHQ - numLQ - numNQ;
 

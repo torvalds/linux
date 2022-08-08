@@ -928,8 +928,6 @@ Current IOREG MAP
 #define _HPQ(x)				((x) & 0xFF)
 #define _LPQ(x)				(((x) & 0xFF) << 8)
 #define _PUBQ(x)			(((x) & 0xFF) << 16)
-/*  NOTE: in RQPN_NPQ register */
-#define _NPQ(x)				((x) & 0xFF)
 
 #define HPQ_PUBLIC_DIS			BIT(24)
 #define LPQ_PUBLIC_DIS			BIT(25)
