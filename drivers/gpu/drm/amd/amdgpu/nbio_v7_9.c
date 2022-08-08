@@ -418,20 +418,13 @@ static void nbio_v7_9_enable_doorbell_interrupt(struct amdgpu_device *adev,
 
 static enum amdgpu_gfx_partition nbio_v7_9_get_compute_partition_mode(struct amdgpu_device *adev)
 {
-	u32 tmp;
+	u32 tmp, px;
 
-	tmp = RREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_COMPUTE_CAP);
+	tmp = RREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_COMPUTE_STATUS);
+	px = REG_GET_FIELD(tmp, BIF_BX_PF0_PARTITION_COMPUTE_STATUS,
+			   PARTITION_MODE);
 
-	if (REG_GET_FIELD(tmp, BIF_BX_PF0_PARTITION_COMPUTE_CAP, SPX_SUPPORT))
-		return AMDGPU_SPX_PARTITION_MODE;
-	else if (REG_GET_FIELD(tmp, BIF_BX_PF0_PARTITION_COMPUTE_CAP, DPX_SUPPORT))
-		return AMDGPU_DPX_PARTITION_MODE;
-	else if (REG_GET_FIELD(tmp, BIF_BX_PF0_PARTITION_COMPUTE_CAP, TPX_SUPPORT))
-		return AMDGPU_TPX_PARTITION_MODE;
-	else if (REG_GET_FIELD(tmp, BIF_BX_PF0_PARTITION_COMPUTE_CAP, CPX_SUPPORT))
-		return AMDGPU_CPX_PARTITION_MODE;
-	else
-		return AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE;
+	return ffs(px);
 }
 
 static void nbio_v7_9_set_compute_partition_mode(struct amdgpu_device *adev,
@@ -439,11 +432,14 @@ static void nbio_v7_9_set_compute_partition_mode(struct amdgpu_device *adev,
 {
 	u32 tmp;
 
-	tmp = RREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_COMPUTE_CAP);
-	tmp &= ~0x1f;
-	tmp |= 1 << mode;
+	/* Each bit represents DPX,TPX,QPX,CPX mode. No bit set means default
+	 * SPX mode.
+	 */
+	tmp = RREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_COMPUTE_STATUS);
+	tmp = REG_SET_FIELD(tmp, BIF_BX_PF0_PARTITION_COMPUTE_STATUS,
+			    PARTITION_MODE, mode ? BIT(mode - 1) : mode);
 
-	WREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_COMPUTE_CAP, tmp);
+	WREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_COMPUTE_STATUS, tmp);
 }
 
 const struct amdgpu_nbio_funcs nbio_v7_9_funcs = {
