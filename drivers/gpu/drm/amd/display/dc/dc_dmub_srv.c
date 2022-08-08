@@ -620,9 +620,8 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 	 * Reduce the fraction 1080/2160 = 1/2 for the "scaling factor"
 	 */
 	reduce_fraction(subvp_pipe->stream->src.height, subvp_pipe->stream->dst.height, &out_num, &out_den);
-	// TODO: Uncomment below lines once DMCUB include headers are promoted
-	//pipe_data->pipe_config.subvp_data.scale_factor_numerator = out_num;
-	//pipe_data->pipe_config.subvp_data.scale_factor_denominator = out_den;
+	pipe_data->pipe_config.subvp_data.scale_factor_numerator = out_num;
+	pipe_data->pipe_config.subvp_data.scale_factor_denominator = out_den;
 
 	// Prefetch lines is equal to VACTIVE + BP + VSYNC
 	pipe_data->pipe_config.subvp_data.prefetch_lines =
