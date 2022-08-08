@@ -633,26 +633,8 @@ int isst_pm_get_clos(struct isst_id *id, int clos, struct isst_clos_config *clos
 
 int isst_set_clos(struct isst_id *id, int clos, struct isst_clos_config *clos_config)
 {
-	unsigned int req, resp;
-	unsigned int param;
-	int ret;
-
-	req = clos_config->epp & 0x0f;
-	req |= (clos_config->clos_prop_prio & 0x0f) << 4;
-	req |= (clos_config->clos_min & 0xff) << 8;
-	req |= (clos_config->clos_max & 0xff) << 16;
-	req |= (clos_config->clos_desired & 0xff) << 24;
-
-	param = BIT(MBOX_CMD_WRITE_BIT) | clos;
-
-	ret = isst_send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_CLOS, param, req,
-				     &resp);
-	if (ret)
-		return ret;
-
-	debug_printf("cpu:%d CLOS_PM_CLOS param:%x req:%x\n", id->cpu, param, req);
-
-	return 0;
+	CHECK_CB(set_clos);
+	return isst_ops->set_clos(id, clos, clos_config);
 }
 
 int isst_clos_get_assoc_status(struct isst_id *id, int *clos_id)
