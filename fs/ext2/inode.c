@@ -1679,14 +1679,14 @@ int ext2_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	if (error)
 		return error;
 
-	if (is_quota_modification(inode, iattr)) {
+	if (is_quota_modification(mnt_userns, inode, iattr)) {
 		error = dquot_initialize(inode);
 		if (error)
 			return error;
 	}
-	if ((iattr->ia_valid & ATTR_UID && !uid_eq(iattr->ia_uid, inode->i_uid)) ||
-	    (iattr->ia_valid & ATTR_GID && !gid_eq(iattr->ia_gid, inode->i_gid))) {
-		error = dquot_transfer(inode, iattr);
+	if (i_uid_needs_update(mnt_userns, iattr, inode) ||
+	    i_gid_needs_update(mnt_userns, iattr, inode)) {
+		error = dquot_transfer(mnt_userns, inode, iattr);
 		if (error)
 			return error;
 	}

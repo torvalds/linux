@@ -156,7 +156,8 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk,
 {
 	struct inet_timewait_sock *tw;
 
-	if (refcount_read(&dr->tw_refcount) - 1 >= dr->sysctl_max_tw_buckets)
+	if (refcount_read(&dr->tw_refcount) - 1 >=
+	    READ_ONCE(dr->sysctl_max_tw_buckets))
 		return NULL;
 
 	tw = kmem_cache_alloc(sk->sk_prot_creator->twsk_prot->twsk_slab,

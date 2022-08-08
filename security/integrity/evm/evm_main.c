@@ -755,13 +755,14 @@ void evm_inode_post_removexattr(struct dentry *dentry, const char *xattr_name)
 	evm_update_evmxattr(dentry, xattr_name, NULL, 0);
 }
 
-static int evm_attr_change(struct dentry *dentry, struct iattr *attr)
+static int evm_attr_change(struct user_namespace *mnt_userns,
+			   struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_backing_inode(dentry);
 	unsigned int ia_valid = attr->ia_valid;
 
-	if ((!(ia_valid & ATTR_UID) || uid_eq(attr->ia_uid, inode->i_uid)) &&
-	    (!(ia_valid & ATTR_GID) || gid_eq(attr->ia_gid, inode->i_gid)) &&
+	if (!i_uid_needs_update(mnt_userns, attr, inode) &&
+	    !i_gid_needs_update(mnt_userns, attr, inode) &&
 	    (!(ia_valid & ATTR_MODE) || attr->ia_mode == inode->i_mode))
 		return 0;
 
@@ -775,7 +776,8 @@ static int evm_attr_change(struct dentry *dentry, struct iattr *attr)
  * Permit update of file attributes when files have a valid EVM signature,
  * except in the case of them having an immutable portable signature.
  */
-int evm_inode_setattr(struct dentry *dentry, struct iattr *attr)
+int evm_inode_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		      struct iattr *attr)
 {
 	unsigned int ia_valid = attr->ia_valid;
 	enum integrity_status evm_status;
@@ -801,7 +803,7 @@ int evm_inode_setattr(struct dentry *dentry, struct iattr *attr)
 		return 0;
 
 	if (evm_status == INTEGRITY_PASS_IMMUTABLE &&
-	    !evm_attr_change(dentry, attr))
+	    !evm_attr_change(mnt_userns, dentry, attr))
 		return 0;
 
 	integrity_audit_msg(AUDIT_INTEGRITY_METADATA, d_backing_inode(dentry),

@@ -667,13 +667,15 @@ xfs_setattr_nonsize(
 		uint	qflags = 0;
 
 		if ((mask & ATTR_UID) && XFS_IS_UQUOTA_ON(mp)) {
-			uid = iattr->ia_uid;
+			uid = from_vfsuid(mnt_userns, i_user_ns(inode),
+					  iattr->ia_vfsuid);
 			qflags |= XFS_QMOPT_UQUOTA;
 		} else {
 			uid = inode->i_uid;
 		}
 		if ((mask & ATTR_GID) && XFS_IS_GQUOTA_ON(mp)) {
-			gid = iattr->ia_gid;
+			gid = from_vfsgid(mnt_userns, i_user_ns(inode),
+					  iattr->ia_vfsgid);
 			qflags |= XFS_QMOPT_GQUOTA;
 		}  else {
 			gid = inode->i_gid;
@@ -704,13 +706,13 @@ xfs_setattr_nonsize(
 	 * didn't have the inode locked, inode's dquot(s) would have changed
 	 * also.
 	 */
-	if ((mask & ATTR_UID) && XFS_IS_UQUOTA_ON(mp) &&
-	    !uid_eq(inode->i_uid, iattr->ia_uid)) {
+	if (XFS_IS_UQUOTA_ON(mp) &&
+	    i_uid_needs_update(mnt_userns, iattr, inode)) {
 		ASSERT(udqp);
 		old_udqp = xfs_qm_vop_chown(tp, ip, &ip->i_udquot, udqp);
 	}
-	if ((mask & ATTR_GID) && XFS_IS_GQUOTA_ON(mp) &&
-	    !gid_eq(inode->i_gid, iattr->ia_gid)) {
+	if (XFS_IS_GQUOTA_ON(mp) &&
+	    i_gid_needs_update(mnt_userns, iattr, inode)) {
 		ASSERT(xfs_has_pquotino(mp) || !XFS_IS_PQUOTA_ON(mp));
 		ASSERT(gdqp);
 		old_gdqp = xfs_qm_vop_chown(tp, ip, &ip->i_gdquot, gdqp);

@@ -1407,12 +1407,6 @@ drivers/pinctrl/pinctrl-utils.c
 drivers/pinctrl/pinctrl-utils.h
 drivers/pinctrl/pinmux.c
 drivers/pinctrl/pinmux.h
-drivers/pinctrl/sunxi/pinctrl-sun50i-a100.c
-drivers/pinctrl/sunxi/pinctrl-sun50i-a100-r.c
-drivers/pinctrl/sunxi/pinctrl-sun50i-h616.c
-drivers/pinctrl/sunxi/pinctrl-sun50i-h616-r.c
-drivers/pinctrl/sunxi/pinctrl-sunxi.c
-drivers/pinctrl/sunxi/pinctrl-sunxi.h
 drivers/powercap/powercap_sys.c
 drivers/power/reset/hisi-reboot.c
 drivers/power/reset/syscon-reboot.c
@@ -1831,7 +1825,6 @@ fs/erofs/xattr.h
 fs/erofs/zdata.c
 fs/erofs/zdata.h
 fs/erofs/zmap.c
-fs/erofs/zpvec.h
 fs/eventfd.c
 fs/eventpoll.c
 fs/exec.c
@@ -2448,7 +2441,6 @@ include/dt-bindings/input/gpio-keys.h
 include/dt-bindings/interrupt-controller/arm-gic.h
 include/dt-bindings/interrupt-controller/irq.h
 include/dt-bindings/leds/common.h
-include/dt-bindings/pinctrl/sun4i-a10.h
 include/dt-bindings/pwm/pwm.h
 include/dt-bindings/spmi/spmi.h
 include/keys/asymmetric-parser.h
@@ -4084,6 +4076,7 @@ include/trace/hooks/net.h
 include/trace/hooks/pm_domain.h
 include/trace/hooks/preemptirq.h
 include/trace/hooks/printk.h
+include/trace/hooks/remoteproc.h
 include/trace/hooks/sched.h
 include/trace/hooks/selinux.h
 include/trace/hooks/syscall_check.h
