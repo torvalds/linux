@@ -1460,6 +1460,7 @@ int cfg80211_check_station_change(struct wiphy *wiphy,
  * @RATE_INFO_FLAGS_DMG: 60GHz MCS
  * @RATE_INFO_FLAGS_HE_MCS: HE MCS information
  * @RATE_INFO_FLAGS_EDMG: 60GHz MCS in EDMG mode
+ * @RATE_INFO_FLAGS_EXTENDED_SC_DMG: 60GHz extended SC MCS
  */
 enum rate_info_flags {
 	RATE_INFO_FLAGS_MCS			= BIT(0),
@@ -1468,6 +1469,7 @@ enum rate_info_flags {
 	RATE_INFO_FLAGS_DMG			= BIT(3),
 	RATE_INFO_FLAGS_HE_MCS			= BIT(4),
 	RATE_INFO_FLAGS_EDMG			= BIT(5),
+	RATE_INFO_FLAGS_EXTENDED_SC_DMG		= BIT(6),
 };
 
 /**
@@ -2581,12 +2583,14 @@ struct cfg80211_auth_request {
  *	authentication capability. Drivers can offload authentication to
  *	userspace if this flag is set. Only applicable for cfg80211_connect()
  *	request (connect callback).
+ * @ASSOC_REQ_DISABLE_HE:  Disable HE
  */
 enum cfg80211_assoc_req_flags {
 	ASSOC_REQ_DISABLE_HT			= BIT(0),
 	ASSOC_REQ_DISABLE_VHT			= BIT(1),
 	ASSOC_REQ_USE_RRM			= BIT(2),
 	CONNECT_REQ_EXTERNAL_AUTH_SUPPORT	= BIT(3),
+	ASSOC_REQ_DISABLE_HE			= BIT(4),
 };
 
 /**
@@ -3630,9 +3634,10 @@ struct mgmt_frame_regs {
  * All callbacks except where otherwise noted should return 0
  * on success or a negative error code.
  *
- * All operations are currently invoked under rtnl for consistency with the
- * wireless extensions but this is subject to reevaluation as soon as this
- * code is used more widely and we have a first user without wext.
+ * All operations are invoked with the wiphy mutex held. The RTNL may be
+ * held in addition (due to wireless extensions) but this cannot be relied
+ * upon except in cases where documented below. Note that due to ordering,
+ * the RTNL also cannot be acquired in any handlers.
  *
  * @suspend: wiphy device needs to be suspended. The variable @wow will
  *	be %NULL or contain the enabled Wake-on-Wireless triggers that are
@@ -3647,11 +3652,14 @@ struct mgmt_frame_regs {
  *	the new netdev in the wiphy's network namespace! Returns the struct
  *	wireless_dev, or an ERR_PTR. For P2P device wdevs, the driver must
  *	also set the address member in the wdev.
+ *	This additionally holds the RTNL to be able to do netdev changes.
  *
  * @del_virtual_intf: remove the virtual interface
+ *	This additionally holds the RTNL to be able to do netdev changes.
  *
  * @change_virtual_intf: change type/configuration of virtual interface,
  *	keep the struct wireless_dev's iftype updated.
+ *	This additionally holds the RTNL to be able to do netdev changes.
  *
  * @add_key: add a key with the given parameters. @mac_addr will be %NULL
  *	when adding a group key.
@@ -4741,6 +4749,7 @@ struct wiphy_iftype_akm_suites {
 
 /**
  * struct wiphy - wireless hardware description
+ * @mtx: mutex for the data (structures) of this device
  * @reg_notifier: the driver's regulatory notification callback,
  *	note that if your driver uses wiphy_apply_custom_regulatory()
  *	the reg_notifier's request can be passed as NULL
@@ -4934,6 +4943,8 @@ struct wiphy_iftype_akm_suites {
  * @sar_capa: SAR control capabilities
  */
 struct wiphy {
+	struct mutex mtx;
+
 	/* assign these fields before you register the wiphy */
 
 	u8 perm_addr[ETH_ALEN];
@@ -5186,6 +5197,37 @@ static inline struct wiphy *wiphy_new(const struct cfg80211_ops *ops,
  */
 int wiphy_register(struct wiphy *wiphy);
 
+/* this is a define for better error reporting (file/line) */
+#define lockdep_assert_wiphy(wiphy) lockdep_assert_held(&(wiphy)->mtx)
+
+/**
+ * rcu_dereference_wiphy - rcu_dereference with debug checking
+ * @wiphy: the wiphy to check the locking on
+ * @p: The pointer to read, prior to dereferencing
+ *
+ * Do an rcu_dereference(p), but check caller either holds rcu_read_lock()
+ * or RTNL. Note: Please prefer wiphy_dereference() or rcu_dereference().
+ */
+#define rcu_dereference_wiphy(wiphy, p)				\
+        rcu_dereference_check(p, lockdep_is_held(&wiphy->mtx))
+
+/**
+ * wiphy_dereference - fetch RCU pointer when updates are prevented by wiphy mtx
+ * @wiphy: the wiphy to check the locking on
+ * @p: The pointer to read, prior to dereferencing
+ *
+ * Return the value of the specified RCU-protected pointer, but omit the
+ * READ_ONCE(), because caller holds the wiphy mutex used for updates.
+ */
+#define wiphy_dereference(wiphy, p)				\
+        rcu_dereference_protected(p, lockdep_is_held(&wiphy->mtx))
+
+/**
+ * get_wiphy_regdom - get custom regdomain for the given wiphy
+ * @wiphy: the wiphy to get the regdomain from
+ */
+const struct ieee80211_regdomain *get_wiphy_regdom(struct wiphy *wiphy);
+
 /**
  * wiphy_unregister - deregister a wiphy from cfg80211
  *
@@ -5211,13 +5253,45 @@ struct cfg80211_cached_keys;
 struct cfg80211_cqm_config;
 
 /**
+ * wiphy_lock - lock the wiphy
+ * @wiphy: the wiphy to lock
+ *
+ * This is mostly exposed so it can be done around registering and
+ * unregistering netdevs that aren't created through cfg80211 calls,
+ * since that requires locking in cfg80211 when the notifiers is
+ * called, but that cannot differentiate which way it's called.
+ *
+ * When cfg80211 ops are called, the wiphy is already locked.
+ */
+static inline void wiphy_lock(struct wiphy *wiphy)
+	__acquires(&wiphy->mtx)
+{
+	mutex_lock(&wiphy->mtx);
+	__acquire(&wiphy->mtx);
+}
+
+/**
+ * wiphy_unlock - unlock the wiphy again
+ * @wiphy: the wiphy to unlock
+ */
+static inline void wiphy_unlock(struct wiphy *wiphy)
+	__releases(&wiphy->mtx)
+{
+	__release(&wiphy->mtx);
+	mutex_unlock(&wiphy->mtx);
+}
+
+/**
  * struct wireless_dev - wireless device state
  *
  * For netdevs, this structure must be allocated by the driver
  * that uses the ieee80211_ptr field in struct net_device (this
  * is intentional so it can be allocated along with the netdev.)
  * It need not be registered then as netdev registration will
- * be intercepted by cfg80211 to see the new wireless device.
+ * be intercepted by cfg80211 to see the new wireless device,
+ * however, drivers must lock the wiphy before registering or
+ * unregistering netdevs if they pre-create any netdevs (in ops
+ * called from cfg80211, the wiphy is already locked.)
  *
  * For non-netdev uses, it must also be allocated by the driver
  * in response to the cfg80211 callbacks that require it, as
@@ -5226,6 +5300,9 @@ struct cfg80211_cqm_config;
  *
  * @wiphy: pointer to hardware description
  * @iftype: interface type
+ * @registered: is this wdev already registered with cfg80211
+ * @registering: indicates we're doing registration under wiphy lock
+ *	for the notifier
  * @list: (private) Used to collect the interfaces
  * @netdev: (private) Used to reference back to the netdev, may be %NULL
  * @identifier: (private) Identifier used in nl80211 to identify this
@@ -5309,7 +5386,7 @@ struct wireless_dev {
 
 	struct mutex mtx;
 
-	bool use_4addr, is_running;
+	bool use_4addr, is_running, registered, registering;
 
 	u8 address[ETH_ALEN] __aligned(sizeof(u16));
 
@@ -5978,18 +6055,18 @@ int regulatory_set_wiphy_regd(struct wiphy *wiphy,
 			      struct ieee80211_regdomain *rd);
 
 /**
- * regulatory_set_wiphy_regd_sync_rtnl - set regdom for self-managed drivers
+ * regulatory_set_wiphy_regd_sync - set regdom for self-managed drivers
  * @wiphy: the wireless device we want to process the regulatory domain on
  * @rd: the regulatory domain information to use for this wiphy
  *
- * This functions requires the RTNL to be held and applies the new regdomain
- * synchronously to this wiphy. For more details see
- * regulatory_set_wiphy_regd().
+ * This functions requires the RTNL and the wiphy mutex to be held and
+ * applies the new regdomain synchronously to this wiphy. For more details
+ * see regulatory_set_wiphy_regd().
  *
  * Return: 0 on success. -EINVAL, -EPERM
  */
-int regulatory_set_wiphy_regd_sync_rtnl(struct wiphy *wiphy,
-					struct ieee80211_regdomain *rd);
+int regulatory_set_wiphy_regd_sync(struct wiphy *wiphy,
+				   struct ieee80211_regdomain *rd);
 
 /**
  * wiphy_apply_custom_regulatory - apply a custom driver regulatory domain
@@ -6107,7 +6184,7 @@ void cfg80211_sched_scan_results(struct wiphy *wiphy, u64 reqid);
 void cfg80211_sched_scan_stopped(struct wiphy *wiphy, u64 reqid);
 
 /**
- * cfg80211_sched_scan_stopped_rtnl - notify that the scheduled scan has stopped
+ * cfg80211_sched_scan_stopped_locked - notify that the scheduled scan has stopped
  *
  * @wiphy: the wiphy on which the scheduled scan stopped
  * @reqid: identifier for the related scheduled scan request
@@ -6115,9 +6192,9 @@ void cfg80211_sched_scan_stopped(struct wiphy *wiphy, u64 reqid);
  * The driver can call this function to inform cfg80211 that the
  * scheduled scan had to be stopped, for whatever reason.  The driver
  * is then called back via the sched_scan_stop operation when done.
- * This function should be called with rtnl locked.
+ * This function should be called with the wiphy mutex held.
  */
-void cfg80211_sched_scan_stopped_rtnl(struct wiphy *wiphy, u64 reqid);
+void cfg80211_sched_scan_stopped_locked(struct wiphy *wiphy, u64 reqid);
 
 /**
  * cfg80211_inform_bss_frame_data - inform cfg80211 of a received BSS frame
@@ -7554,7 +7631,7 @@ bool cfg80211_reg_can_beacon(struct wiphy *wiphy,
  * also checks if IR-relaxation conditions apply, to allow beaconing under
  * more permissive conditions.
  *
- * Requires the RTNL to be held.
+ * Requires the wiphy mutex to be held.
  */
 bool cfg80211_reg_can_beacon_relax(struct wiphy *wiphy,
 				   struct cfg80211_chan_def *chandef,
@@ -7652,17 +7729,44 @@ u32 cfg80211_calculate_bitrate(struct rate_info *rate);
  * cfg80211_unregister_wdev - remove the given wdev
  * @wdev: struct wireless_dev to remove
  *
- * Call this function only for wdevs that have no netdev assigned,
- * e.g. P2P Devices. It removes the device from the list so that
- * it can no longer be used. It is necessary to call this function
- * even when cfg80211 requests the removal of the interface by
- * calling the del_virtual_intf() callback. The function must also
- * be called when the driver wishes to unregister the wdev, e.g.
- * when the device is unbound from the driver.
+ * This function removes the device so it can no longer be used. It is necessary
+ * to call this function even when cfg80211 requests the removal of the device
+ * by calling the del_virtual_intf() callback. The function must also be called
+ * when the driver wishes to unregister the wdev, e.g. when the hardware device
+ * is unbound from the driver.
  *
- * Requires the RTNL to be held.
+ * Requires the RTNL and wiphy mutex to be held.
  */
 void cfg80211_unregister_wdev(struct wireless_dev *wdev);
+
+/**
+ * cfg80211_register_netdevice - register the given netdev
+ * @dev: the netdev to register
+ *
+ * Note: In contexts coming from cfg80211 callbacks, you must call this rather
+ * than register_netdevice(), unregister_netdev() is impossible as the RTNL is
+ * held. Otherwise, both register_netdevice() and register_netdev() are usable
+ * instead as well.
+ *
+ * Requires the RTNL and wiphy mutex to be held.
+ */
+int cfg80211_register_netdevice(struct net_device *dev);
+
+/**
+ * cfg80211_unregister_netdevice - unregister the given netdev
+ * @dev: the netdev to register
+ *
+ * Note: In contexts coming from cfg80211 callbacks, you must call this rather
+ * than unregister_netdevice(), unregister_netdev() is impossible as the RTNL
+ * is held. Otherwise, both unregister_netdevice() and unregister_netdev() are
+ * usable instead as well.
+ *
+ * Requires the RTNL and wiphy mutex to be held.
+ */
+static inline void cfg80211_unregister_netdevice(struct net_device *dev)
+{
+	cfg80211_unregister_wdev(dev->ieee80211_ptr);
+}
 
 /**
  * struct cfg80211_ft_event_params - FT Information Elements

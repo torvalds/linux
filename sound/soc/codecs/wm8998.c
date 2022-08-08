@@ -1161,8 +1161,8 @@ static struct snd_soc_dai_driver wm8998_dai[] = {
 			 .formats = WM8998_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm8998-aif2",
@@ -1183,8 +1183,8 @@ static struct snd_soc_dai_driver wm8998_dai[] = {
 			 .formats = WM8998_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm8998-aif3",
@@ -1205,8 +1205,8 @@ static struct snd_soc_dai_driver wm8998_dai[] = {
 			 .formats = WM8998_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm8998-slim1",

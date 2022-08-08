@@ -46,19 +46,19 @@
 	leds {
 		compatible = "gpio-leds";
 
-		stat {
+		led-0 {
 			label = "a20-som204-evb:green:stat";
 			gpios = <&pio 8 0 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 
-		led1 {
+		led-1 {
 			label = "a20-som204-evb:green:led1";
 			gpios = <&pio 8 10 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 
-		led2 {
+		led-2 {
 			label = "a20-som204-evb:yellow:led2";
 			gpios = <&pio 8 11 GPIO_ACTIVE_HIGH>;
 			default-state = "on";

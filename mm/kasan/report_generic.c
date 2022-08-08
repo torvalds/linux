@@ -30,7 +30,7 @@
 #include "kasan.h"
 #include "../slab.h"
 
-void *find_first_bad_addr(void *addr, size_t size)
+void *kasan_find_first_bad_addr(void *addr, size_t size)
 {
 	void *p = addr;
 
@@ -105,7 +105,7 @@ static const char *get_wild_bug_type(struct kasan_access_info *info)
 	return bug_type;
 }
 
-const char *get_bug_type(struct kasan_access_info *info)
+const char *kasan_get_bug_type(struct kasan_access_info *info)
 {
 	/*
 	 * If access_size is a negative number, then it has reason to be
@@ -123,12 +123,12 @@ const char *get_bug_type(struct kasan_access_info *info)
 	return get_wild_bug_type(info);
 }
 
-void metadata_fetch_row(char *buffer, void *row)
+void kasan_metadata_fetch_row(char *buffer, void *row)
 {
 	memcpy(buffer, kasan_mem_to_shadow(row), META_BYTES_PER_ROW);
 }
 
-#if CONFIG_KASAN_STACK
+#ifdef CONFIG_KASAN_STACK
 static bool __must_check tokenize_frame_descr(const char **frame_descr,
 					      char *token, size_t max_tok_len,
 					      unsigned long *value)
@@ -263,7 +263,7 @@ static bool __must_check get_address_stack_frame_info(const void *addr,
 	return true;
 }
 
-void print_address_stack_frame(const void *addr)
+void kasan_print_address_stack_frame(const void *addr)
 {
 	unsigned long offset;
 	const char *frame_descr;

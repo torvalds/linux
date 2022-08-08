@@ -32,50 +32,6 @@
 		spi1 = &spi1;
 	};
 
-	amba: bus {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		dmac1_s: dma-controller@20018000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x20018000 0x4000>;
-			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
-			#dma-cells = <1>;
-			arm,pl330-broken-no-flushp;
-			arm,pl330-periph-burst;
-			clocks = <&cru ACLK_DMA1>;
-			clock-names = "apb_pclk";
-		};
-
-		dmac1_ns: dma-controller@2001c000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x2001c000 0x4000>;
-			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
-			#dma-cells = <1>;
-			arm,pl330-broken-no-flushp;
-			arm,pl330-periph-burst;
-			clocks = <&cru ACLK_DMA1>;
-			clock-names = "apb_pclk";
-			status = "disabled";
-		};
-
-		dmac2: dma-controller@20078000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x20078000 0x4000>;
-			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
-			#dma-cells = <1>;
-			arm,pl330-broken-no-flushp;
-			arm,pl330-periph-burst;
-			clocks = <&cru ACLK_DMA2>;
-			clock-names = "apb_pclk";
-		};
-	};
-
 	xin24m: oscillator {
 		compatible = "fixed-clock";
 		clock-frequency = <24000000>;
@@ -151,42 +107,42 @@
 	};
 
 	qos_gpu: qos@1012d000 {
-		compatible = "syscon";
+		compatible = "rockchip,rk3066-qos", "syscon";
 		reg = <0x1012d000 0x20>;
 	};
 
 	qos_vpu: qos@1012e000 {
-		compatible = "syscon";
+		compatible = "rockchip,rk3066-qos", "syscon";
 		reg = <0x1012e000 0x20>;
 	};
 
 	qos_lcdc0: qos@1012f000 {
-		compatible = "syscon";
+		compatible = "rockchip,rk3066-qos", "syscon";
 		reg = <0x1012f000 0x20>;
 	};
 
 	qos_cif0: qos@1012f080 {
-		compatible = "syscon";
+		compatible = "rockchip,rk3066-qos", "syscon";
 		reg = <0x1012f080 0x20>;
 	};
 
 	qos_ipp: qos@1012f100 {
-		compatible = "syscon";
+		compatible = "rockchip,rk3066-qos", "syscon";
 		reg = <0x1012f100 0x20>;
 	};
 
 	qos_lcdc1: qos@1012f180 {
-		compatible = "syscon";
+		compatible = "rockchip,rk3066-qos", "syscon";
 		reg = <0x1012f180 0x20>;
 	};
 
 	qos_cif1: qos@1012f200 {
-		compatible = "syscon";
+		compatible = "rockchip,rk3066-qos", "syscon";
 		reg = <0x1012f200 0x20>;
 	};
 
 	qos_rga: qos@1012f280 {
-		compatible = "syscon";
+		compatible = "rockchip,rk3066-qos", "syscon";
 		reg = <0x1012f280 0x20>;
 	};
 
@@ -276,6 +232,15 @@
 		status = "disabled";
 	};
 
+	nfc: nand-controller@10500000 {
+		compatible = "rockchip,rk2928-nfc";
+		reg = <0x10500000 0x4000>;
+		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_NANDC0>;
+		clock-names = "ahb";
+		status = "disabled";
+	};
+
 	pmu: pmu@20004000 {
 		compatible = "rockchip,rk3066-pmu", "syscon", "simple-mfd";
 		reg = <0x20004000 0x100>;
@@ -293,6 +258,31 @@
 	grf: grf@20008000 {
 		compatible = "syscon";
 		reg = <0x20008000 0x200>;
+	};
+
+	dmac1_s: dma-controller@20018000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x20018000 0x4000>;
+		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+		#dma-cells = <1>;
+		arm,pl330-broken-no-flushp;
+		arm,pl330-periph-burst;
+		clocks = <&cru ACLK_DMA1>;
+		clock-names = "apb_pclk";
+	};
+
+	dmac1_ns: dma-controller@2001c000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x2001c000 0x4000>;
+		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+		#dma-cells = <1>;
+		arm,pl330-broken-no-flushp;
+		arm,pl330-periph-burst;
+		clocks = <&cru ACLK_DMA1>;
+		clock-names = "apb_pclk";
+		status = "disabled";
 	};
 
 	i2c0: i2c@2002d000 {
@@ -468,5 +458,17 @@
 		dmas = <&dmac2 12>, <&dmac2 13>;
 		dma-names = "tx", "rx";
 		status = "disabled";
+	};
+
+	dmac2: dma-controller@20078000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x20078000 0x4000>;
+		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+		#dma-cells = <1>;
+		arm,pl330-broken-no-flushp;
+		arm,pl330-periph-burst;
+		clocks = <&cru ACLK_DMA2>;
+		clock-names = "apb_pclk";
 	};
 };

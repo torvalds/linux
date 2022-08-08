@@ -66,7 +66,3 @@ void __init prom_init(void)
 
 	prom_init_cmdline();
 }
-
-void __init prom_free_prom_memory(void)
-{
-}

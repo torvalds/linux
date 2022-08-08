@@ -672,7 +672,7 @@ typedef union efi_tcg2_protocol efi_tcg2_protocol_t;
 union efi_tcg2_protocol {
 	struct {
 		void *get_capability;
-		efi_status_t (__efiapi *get_event_log)(efi_handle_t,
+		efi_status_t (__efiapi *get_event_log)(efi_tcg2_protocol_t *,
 						       efi_tcg2_event_log_format,
 						       efi_physical_addr_t *,
 						       efi_physical_addr_t *,
@@ -848,5 +848,14 @@ asmlinkage void __noreturn efi_enter_kernel(unsigned long entrypoint,
 void efi_handle_post_ebs_state(void);
 
 enum efi_secureboot_mode efi_get_secureboot(void);
+
+#ifdef CONFIG_RESET_ATTACK_MITIGATION
+void efi_enable_reset_attack_mitigation(void);
+#else
+static inline void
+efi_enable_reset_attack_mitigation(void) { }
+#endif
+
+void efi_retrieve_tpm2_eventlog(void);
 
 #endif

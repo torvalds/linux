@@ -189,7 +189,7 @@ static struct snd_soc_dai_driver cs4341_dai = {
 				  SNDRV_PCM_FMTBIT_S24_LE,
 	},
 	.ops			= &cs4341_dai_ops,
-	.symmetric_rates	= 1,
+	.symmetric_rate		= 1,
 };
 
 static const struct snd_soc_component_driver soc_component_cs4341 = {

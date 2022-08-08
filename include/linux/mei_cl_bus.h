@@ -68,7 +68,7 @@ struct mei_cl_driver {
 
 	int (*probe)(struct mei_cl_device *cldev,
 		     const struct mei_cl_device_id *id);
-	int (*remove)(struct mei_cl_device *cldev);
+	void (*remove)(struct mei_cl_device *cldev);
 };
 
 int __mei_cldev_driver_register(struct mei_cl_driver *cldrv,

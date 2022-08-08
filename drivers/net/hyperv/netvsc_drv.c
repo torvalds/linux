@@ -539,7 +539,8 @@ static int netvsc_xmit(struct sk_buff *skb, struct net_device *net, bool xdp_tx)
 	 */
 	vf_netdev = rcu_dereference_bh(net_device_ctx->vf_netdev);
 	if (vf_netdev && netif_running(vf_netdev) &&
-	    netif_carrier_ok(vf_netdev) && !netpoll_tx_running(net))
+	    netif_carrier_ok(vf_netdev) && !netpoll_tx_running(net) &&
+	    net_device_ctx->data_path_is_vf)
 		return netvsc_vf_xmit(net, vf_netdev, skb);
 
 	/* We will atmost need two pages to describe the rndis
@@ -742,7 +743,8 @@ static netdev_tx_t netvsc_start_xmit(struct sk_buff *skb,
  * netvsc_linkstatus_callback - Link up/down notification
  */
 void netvsc_linkstatus_callback(struct net_device *net,
-				struct rndis_message *resp)
+				struct rndis_message *resp,
+				void *data, u32 data_buflen)
 {
 	struct rndis_indicate_status *indicate = &resp->msg.indicate_status;
 	struct net_device_context *ndev_ctx = netdev_priv(net);
@@ -756,12 +758,29 @@ void netvsc_linkstatus_callback(struct net_device *net,
 		return;
 	}
 
+	/* Copy the RNDIS indicate status into nvchan->recv_buf */
+	memcpy(indicate, data + RNDIS_HEADER_SIZE, sizeof(*indicate));
+
 	/* Update the physical link speed when changing to another vSwitch */
 	if (indicate->status == RNDIS_STATUS_LINK_SPEED_CHANGE) {
 		u32 speed;
 
-		speed = *(u32 *)((void *)indicate
-				 + indicate->status_buf_offset) / 10000;
+		/* Validate status_buf_offset and status_buflen.
+		 *
+		 * Certain (pre-Fe) implementations of Hyper-V's vSwitch didn't account
+		 * for the status buffer field in resp->msg_len; perform the validation
+		 * using data_buflen (>= resp->msg_len).
+		 */
+		if (indicate->status_buflen < sizeof(speed) ||
+		    indicate->status_buf_offset < sizeof(*indicate) ||
+		    data_buflen - RNDIS_HEADER_SIZE < indicate->status_buf_offset ||
+		    data_buflen - RNDIS_HEADER_SIZE - indicate->status_buf_offset
+				< indicate->status_buflen) {
+			netdev_err(net, "invalid rndis_indicate_status packet\n");
+			return;
+		}
+
+		speed = *(u32 *)(data + RNDIS_HEADER_SIZE + indicate->status_buf_offset) / 10000;
 		ndev_ctx->speed = speed;
 		return;
 	}
@@ -816,10 +835,11 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 					     struct xdp_buff *xdp)
 {
 	struct napi_struct *napi = &nvchan->napi;
-	const struct ndis_pkt_8021q_info *vlan = nvchan->rsc.vlan;
+	const struct ndis_pkt_8021q_info *vlan = &nvchan->rsc.vlan;
 	const struct ndis_tcp_ip_checksum_info *csum_info =
-						nvchan->rsc.csum_info;
-	const u32 *hash_info = nvchan->rsc.hash_info;
+						&nvchan->rsc.csum_info;
+	const u32 *hash_info = &nvchan->rsc.hash_info;
+	u8 ppi_flags = nvchan->rsc.ppi_flags;
 	struct sk_buff *skb;
 	void *xbuf = xdp->data_hard_start;
 	int i;
@@ -863,22 +883,28 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 	 * We compute it here if the flags are set, because on Linux, the IP
 	 * checksum is always checked.
 	 */
-	if (csum_info && csum_info->receive.ip_checksum_value_invalid &&
+	if ((ppi_flags & NVSC_RSC_CSUM_INFO) && csum_info->receive.ip_checksum_value_invalid &&
 	    csum_info->receive.ip_checksum_succeeded &&
-	    skb->protocol == htons(ETH_P_IP))
+	    skb->protocol == htons(ETH_P_IP)) {
+		/* Check that there is enough space to hold the IP header. */
+		if (skb_headlen(skb) < sizeof(struct iphdr)) {
+			kfree_skb(skb);
+			return NULL;
+		}
 		netvsc_comp_ipcsum(skb);
+	}
 
 	/* Do L4 checksum offload if enabled and present. */
-	if (csum_info && (net->features & NETIF_F_RXCSUM)) {
+	if ((ppi_flags & NVSC_RSC_CSUM_INFO) && (net->features & NETIF_F_RXCSUM)) {
 		if (csum_info->receive.tcp_checksum_succeeded ||
 		    csum_info->receive.udp_checksum_succeeded)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
-	if (hash_info && (net->features & NETIF_F_RXHASH))
+	if ((ppi_flags & NVSC_RSC_HASH_INFO) && (net->features & NETIF_F_RXHASH))
 		skb_set_hash(skb, *hash_info, PKT_HASH_TYPE_L4);
 
-	if (vlan) {
+	if (ppi_flags & NVSC_RSC_VLAN) {
 		u16 vlan_tci = vlan->vlanid | (vlan->pri << VLAN_PRIO_SHIFT) |
 			(vlan->cfi ? VLAN_CFI_MASK : 0);
 
@@ -2381,12 +2407,15 @@ static int netvsc_register_vf(struct net_device *vf_netdev)
  * During hibernation, if a VF NIC driver (e.g. mlx5) preserves the network
  * interface, there is only the CHANGE event and no UP or DOWN event.
  */
-static int netvsc_vf_changed(struct net_device *vf_netdev)
+static int netvsc_vf_changed(struct net_device *vf_netdev, unsigned long event)
 {
 	struct net_device_context *net_device_ctx;
 	struct netvsc_device *netvsc_dev;
 	struct net_device *ndev;
-	bool vf_is_up = netif_running(vf_netdev);
+	bool vf_is_up = false;
+
+	if (event != NETDEV_GOING_DOWN)
+		vf_is_up = netif_running(vf_netdev);
 
 	ndev = get_netvsc_byref(vf_netdev);
 	if (!ndev)
@@ -2399,7 +2428,6 @@ static int netvsc_vf_changed(struct net_device *vf_netdev)
 
 	if (net_device_ctx->data_path_is_vf == vf_is_up)
 		return NOTIFY_OK;
-	net_device_ctx->data_path_is_vf = vf_is_up;
 
 	netvsc_switch_datapath(ndev, vf_is_up);
 	netdev_info(ndev, "Data path switched %s VF: %s\n",
@@ -2716,7 +2744,8 @@ static int netvsc_netdev_event(struct notifier_block *this,
 	case NETDEV_UP:
 	case NETDEV_DOWN:
 	case NETDEV_CHANGE:
-		return netvsc_vf_changed(event_dev);
+	case NETDEV_GOING_DOWN:
+		return netvsc_vf_changed(event_dev, event);
 	default:
 		return NOTIFY_DONE;
 	}

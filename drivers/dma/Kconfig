@@ -124,13 +124,6 @@ config BCM_SBA_RAID
 	  has the capability to offload memcpy, xor and pq computation
 	  for raid5/6.
 
-config COH901318
-	bool "ST-Ericsson COH901318 DMA support"
-	select DMA_ENGINE
-	depends on ARCH_U300 || COMPILE_TEST
-	help
-	  Enable support for ST-Ericsson COH 901 318 DMA.
-
 config DMA_BCM2835
 	tristate "BCM2835 DMA engine support"
 	depends on ARCH_BCM2835
@@ -179,6 +172,7 @@ config DMA_SUN6I
 config DW_AXI_DMAC
 	tristate "Synopsys DesignWare AXI DMA support"
 	depends on OF || COMPILE_TEST
+	depends on HAS_IOMEM
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
@@ -378,14 +372,14 @@ config MILBEAUT_XDMAC
 	  XDMAC device.
 
 config MMP_PDMA
-	bool "MMP PDMA support"
+	tristate "MMP PDMA support"
 	depends on ARCH_MMP || ARCH_PXA || COMPILE_TEST
 	select DMA_ENGINE
 	help
 	  Support the MMP PDMA engine for PXA and MMP platform.
 
 config MMP_TDMA
-	bool "MMP Two-Channel DMA support"
+	tristate "MMP Two-Channel DMA support"
 	depends on ARCH_MMP || COMPILE_TEST
 	select DMA_ENGINE
 	select GENERIC_ALLOCATOR
@@ -518,13 +512,6 @@ config PLX_DMA
 	  Some PLX ExpressLane PCI Switches support additional DMA engines.
 	  These are exposed via extra functions on the switch's
 	  upstream port. Each function exposes one DMA channel.
-
-config SIRF_DMA
-	tristate "CSR SiRFprimaII/SiRFmarco DMA support"
-	depends on ARCH_SIRF
-	select DMA_ENGINE
-	help
-	  Enable support for the CSR SiRFprimaII DMA engine.
 
 config STE_DMA40
 	bool "ST-Ericsson DMA40 support"
@@ -710,15 +697,6 @@ config XILINX_ZYNQMP_DPDMA
 	  driver provides the dmaengine required by the DisplayPort subsystem
 	  display driver.
 
-config ZX_DMA
-	tristate "ZTE ZX DMA support"
-	depends on ARCH_ZX || COMPILE_TEST
-	select DMA_ENGINE
-	select DMA_VIRTUAL_CHANNELS
-	help
-	  Support the DMA engine for ZTE ZX family platform devices.
-
-
 # driver files
 source "drivers/dma/bestcomm/Kconfig"
 
@@ -739,6 +717,8 @@ source "drivers/dma/sh/Kconfig"
 source "drivers/dma/ti/Kconfig"
 
 source "drivers/dma/fsl-dpaa2-qdma/Kconfig"
+
+source "drivers/dma/lgm/Kconfig"
 
 # clients
 comment "DMA Clients"

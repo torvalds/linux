@@ -81,8 +81,8 @@ static int parse_tunnel(struct mlx5e_priv *priv,
 	if (!enc_keyid.mask->keyid)
 		return 0;
 
-	if (!(MLX5_CAP_GEN(priv->mdev, flex_parser_protocols) &
-	      MLX5_FLEX_PROTO_CW_MPLS_UDP))
+	if (!MLX5_CAP_ETH(priv->mdev, tunnel_stateless_mpls_over_udp) &&
+	    !(MLX5_CAP_GEN(priv->mdev, flex_parser_protocols) & MLX5_FLEX_PROTO_CW_MPLS_UDP))
 		return -EOPNOTSUPP;
 
 	flow_rule_match_mpls(rule, &match);
@@ -131,4 +131,5 @@ struct mlx5e_tc_tunnel mplsoudp_tunnel = {
 	.generate_ip_tun_hdr  = generate_ip_tun_hdr,
 	.parse_udp_ports      = parse_udp_ports,
 	.parse_tunnel         = parse_tunnel,
+	.encap_info_equal     = mlx5e_tc_tun_encap_info_equal_generic,
 };

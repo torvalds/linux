@@ -414,7 +414,7 @@ static int __init prng_sha512_instantiate(void)
 	}
 
 	/* append the seed by 16 bytes of unique nonce */
-	get_tod_clock_ext(seed + seedlen);
+	store_tod_clock_ext((union tod_clock *)(seed + seedlen));
 	seedlen += 16;
 
 	/* now initial seed of the prno drng */

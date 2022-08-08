@@ -854,7 +854,7 @@ static int lmc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	spin_lock_init(&sc->lmc_lock);
 	pci_set_master(pdev);
 
-	printk(KERN_INFO "%s: detected at %lx, irq %d\n", dev->name,
+	printk(KERN_INFO "hdlc: detected at %lx, irq %d\n",
 	       dev->base_addr, dev->irq);
 
 	err = register_hdlc_device(dev);
@@ -899,6 +899,8 @@ static int lmc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
         break;
     default:
 	printk(KERN_WARNING "%s: LMC UNKNOWN CARD!\n", dev->name);
+	unregister_hdlc_device(dev);
+	return -EIO;
         break;
     }
 

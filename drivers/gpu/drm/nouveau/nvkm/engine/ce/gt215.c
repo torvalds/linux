@@ -44,7 +44,7 @@ gt215_ce_intr(struct nvkm_falcon *ce, struct nvkm_fifo_chan *chan)
 {
 	struct nvkm_subdev *subdev = &ce->engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	const u32 base = (subdev->index - NVKM_ENGINE_CE0) * 0x1000;
+	const u32 base = subdev->inst * 0x1000;
 	u32 ssta = nvkm_rd32(device, 0x104040 + base) & 0x0000ffff;
 	u32 addr = nvkm_rd32(device, 0x104040 + base) >> 16;
 	u32 mthd = (addr & 0x07ff) << 2;
@@ -75,9 +75,9 @@ gt215_ce = {
 };
 
 int
-gt215_ce_new(struct nvkm_device *device, int index,
+gt215_ce_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	     struct nvkm_engine **pengine)
 {
-	return nvkm_falcon_new_(&gt215_ce, device, index,
+	return nvkm_falcon_new_(&gt215_ce, device, type, inst,
 				(device->chipset != 0xaf), 0x104000, pengine);
 }

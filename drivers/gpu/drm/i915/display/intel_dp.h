@@ -70,16 +70,11 @@ enum irqreturn intel_dp_hpd_pulse(struct intel_digital_port *dig_port,
 void intel_edp_backlight_on(const struct intel_crtc_state *crtc_state,
 			    const struct drm_connector_state *conn_state);
 void intel_edp_backlight_off(const struct drm_connector_state *conn_state);
-void intel_edp_panel_vdd_on(struct intel_dp *intel_dp);
-void intel_edp_panel_on(struct intel_dp *intel_dp);
-void intel_edp_panel_off(struct intel_dp *intel_dp);
 void intel_dp_mst_suspend(struct drm_i915_private *dev_priv);
 void intel_dp_mst_resume(struct drm_i915_private *dev_priv);
 int intel_dp_max_link_rate(struct intel_dp *intel_dp);
 int intel_dp_max_lane_count(struct intel_dp *intel_dp);
 int intel_dp_rate_select(struct intel_dp *intel_dp, int rate);
-void intel_power_sequencer_reset(struct drm_i915_private *dev_priv);
-u32 intel_dp_pack_aux(const u8 *src, int src_bytes);
 
 void intel_edp_drrs_enable(struct intel_dp *intel_dp,
 			   const struct intel_crtc_state *crtc_state);
@@ -141,5 +136,11 @@ bool intel_dp_initial_fastset_check(struct intel_encoder *encoder,
 				    struct intel_crtc_state *crtc_state);
 void intel_dp_sync_state(struct intel_encoder *encoder,
 			 const struct intel_crtc_state *crtc_state);
+const struct dpll *vlv_get_dpll(struct drm_i915_private *i915);
+
+void intel_dp_check_frl_training(struct intel_dp *intel_dp);
+void intel_dp_pcon_dsc_configure(struct intel_dp *intel_dp,
+				 const struct intel_crtc_state *crtc_state);
+void intel_dp_phy_test(struct intel_encoder *encoder);
 
 #endif /* __INTEL_DP_H__ */

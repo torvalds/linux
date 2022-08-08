@@ -30,7 +30,7 @@
 
 #define APN806_MAX_DIVIDER		32
 
-/**
+/*
  * struct cpu_dfs_regs: CPU DFS register mapping
  * @divider_reg: full integer ratio from PLL frequency to CPU clock frequency
  * @force_reg: request to force new ratio regardless of relation to other clocks

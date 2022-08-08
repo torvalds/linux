@@ -804,12 +804,15 @@ static void rv3032_hwmon_register(struct device *dev)
 	devm_hwmon_device_register_with_info(dev, "rv3032", rv3032, &rv3032_hwmon_chip_info, NULL);
 }
 
-static struct rtc_class_ops rv3032_rtc_ops = {
+static const struct rtc_class_ops rv3032_rtc_ops = {
 	.read_time = rv3032_get_time,
 	.set_time = rv3032_set_time,
 	.read_offset = rv3032_read_offset,
 	.set_offset = rv3032_set_offset,
 	.ioctl = rv3032_ioctl,
+	.read_alarm = rv3032_get_alarm,
+	.set_alarm = rv3032_set_alarm,
+	.alarm_irq_enable = rv3032_alarm_irq_enable,
 };
 
 static const struct regmap_config regmap_config = {
@@ -868,12 +871,10 @@ static int rv3032_probe(struct i2c_client *client)
 		if (ret) {
 			dev_warn(&client->dev, "unable to request IRQ, alarms disabled\n");
 			client->irq = 0;
-		} else {
-			rv3032_rtc_ops.read_alarm = rv3032_get_alarm;
-			rv3032_rtc_ops.set_alarm = rv3032_set_alarm;
-			rv3032_rtc_ops.alarm_irq_enable = rv3032_alarm_irq_enable;
 		}
 	}
+	if (!client->irq)
+		clear_bit(RTC_FEATURE_ALARM, rv3032->rtc->features);
 
 	ret = regmap_update_bits(rv3032->regmap, RV3032_CTRL1,
 				 RV3032_CTRL1_WADA, RV3032_CTRL1_WADA);
@@ -905,7 +906,7 @@ static int rv3032_probe(struct i2c_client *client)
 	return 0;
 }
 
-static const struct of_device_id rv3032_of_match[] = {
+static const __maybe_unused struct of_device_id rv3032_of_match[] = {
 	{ .compatible = "microcrystal,rv3032", },
 	{ }
 };

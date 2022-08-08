@@ -155,13 +155,6 @@ cpout:	retl						! get outta here
         .text;                                  \
         .align  4
 
-#define EXT(start,end)				\
-        .section __ex_table,ALLOC;		\
-        .align  4;                              \
-        .word   start, 0, end, cc_fault;         \
-        .text;                                  \
-        .align  4
-
 	/* This aligned version executes typically in 8.5 superscalar cycles, this
 	 * is the best I can do.  I say 8.5 because the final add will pair with
 	 * the next ldd in the main unrolled loop.  Thus the pipe is always full.
@@ -169,20 +162,20 @@ cpout:	retl						! get outta here
 	 * please check the fixup code below as well.
 	 */
 #define CSUMCOPY_BIGCHUNK_ALIGNED(src, dst, sum, off, t0, t1, t2, t3, t4, t5, t6, t7)	\
-	ldd	[src + off + 0x00], t0;							\
-	ldd	[src + off + 0x08], t2;							\
+	EX(ldd	[src + off + 0x00], t0);						\
+	EX(ldd	[src + off + 0x08], t2);						\
 	addxcc	t0, sum, sum;								\
-	ldd	[src + off + 0x10], t4;							\
+	EX(ldd	[src + off + 0x10], t4);						\
 	addxcc	t1, sum, sum;								\
-	ldd	[src + off + 0x18], t6;							\
+	EX(ldd	[src + off + 0x18], t6);						\
 	addxcc	t2, sum, sum;								\
-	std	t0, [dst + off + 0x00];							\
+	EX(std	t0, [dst + off + 0x00]);						\
 	addxcc	t3, sum, sum;								\
-	std	t2, [dst + off + 0x08];							\
+	EX(std	t2, [dst + off + 0x08]);						\
 	addxcc	t4, sum, sum;								\
-	std	t4, [dst + off + 0x10];							\
+	EX(std	t4, [dst + off + 0x10]);						\
 	addxcc	t5, sum, sum;								\
-	std	t6, [dst + off + 0x18];							\
+	EX(std	t6, [dst + off + 0x18]);						\
 	addxcc	t6, sum, sum;								\
 	addxcc	t7, sum, sum;
 
@@ -191,39 +184,39 @@ cpout:	retl						! get outta here
 	 * Viking MXCC into streaming mode.  Ho hum...
 	 */
 #define CSUMCOPY_BIGCHUNK(src, dst, sum, off, t0, t1, t2, t3, t4, t5, t6, t7)	\
-	ldd	[src + off + 0x00], t0;						\
-	ldd	[src + off + 0x08], t2;						\
-	ldd	[src + off + 0x10], t4;						\
-	ldd	[src + off + 0x18], t6;						\
-	st	t0, [dst + off + 0x00];						\
+	EX(ldd	[src + off + 0x00], t0);					\
+	EX(ldd	[src + off + 0x08], t2);					\
+	EX(ldd	[src + off + 0x10], t4);					\
+	EX(ldd	[src + off + 0x18], t6);					\
+	EX(st	t0, [dst + off + 0x00]);					\
 	addxcc	t0, sum, sum;							\
-	st	t1, [dst + off + 0x04];						\
+	EX(st	t1, [dst + off + 0x04]);					\
 	addxcc	t1, sum, sum;							\
-	st	t2, [dst + off + 0x08];						\
+	EX(st	t2, [dst + off + 0x08]);					\
 	addxcc	t2, sum, sum;							\
-	st	t3, [dst + off + 0x0c];						\
+	EX(st	t3, [dst + off + 0x0c]);					\
 	addxcc	t3, sum, sum;							\
-	st	t4, [dst + off + 0x10];						\
+	EX(st	t4, [dst + off + 0x10]);					\
 	addxcc	t4, sum, sum;							\
-	st	t5, [dst + off + 0x14];						\
+	EX(st	t5, [dst + off + 0x14]);					\
 	addxcc	t5, sum, sum;							\
-	st	t6, [dst + off + 0x18];						\
+	EX(st	t6, [dst + off + 0x18]);					\
 	addxcc	t6, sum, sum;							\
-	st	t7, [dst + off + 0x1c];						\
+	EX(st	t7, [dst + off + 0x1c]);					\
 	addxcc	t7, sum, sum;
 
 	/* Yuck, 6 superscalar cycles... */
 #define CSUMCOPY_LASTCHUNK(src, dst, sum, off, t0, t1, t2, t3)	\
-	ldd	[src - off - 0x08], t0;				\
-	ldd	[src - off - 0x00], t2;				\
+	EX(ldd	[src - off - 0x08], t0);			\
+	EX(ldd	[src - off - 0x00], t2);			\
 	addxcc	t0, sum, sum;					\
-	st	t0, [dst - off - 0x08];				\
+	EX(st	t0, [dst - off - 0x08]);			\
 	addxcc	t1, sum, sum;					\
-	st	t1, [dst - off - 0x04];				\
+	EX(st	t1, [dst - off - 0x04]);			\
 	addxcc	t2, sum, sum;					\
-	st	t2, [dst - off - 0x00];				\
+	EX(st	t2, [dst - off - 0x00]);			\
 	addxcc	t3, sum, sum;					\
-	st	t3, [dst - off + 0x04];
+	EX(st	t3, [dst - off + 0x04]);
 
 	/* Handle the end cruft code out of band for better cache patterns. */
 cc_end_cruft:
@@ -331,7 +324,6 @@ __csum_partial_copy_sparc_generic:
 	CSUMCOPY_BIGCHUNK(%o0,%o1,%g7,0x20,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o3)
 	CSUMCOPY_BIGCHUNK(%o0,%o1,%g7,0x40,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o3)
 	CSUMCOPY_BIGCHUNK(%o0,%o1,%g7,0x60,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o3)
-10:	EXT(5b, 10b)			! note for exception handling
 	sub	%g1, 128, %g1		! detract from length
 	addx	%g0, %g7, %g7		! add in last carry bit
 	andcc	%g1, 0xffffff80, %g0	! more to csum?
@@ -356,8 +348,7 @@ cctbl:	CSUMCOPY_LASTCHUNK(%o0,%o1,%g7,0x68,%g2,%g3,%g4,%g5)
 	CSUMCOPY_LASTCHUNK(%o0,%o1,%g7,0x28,%g2,%g3,%g4,%g5)
 	CSUMCOPY_LASTCHUNK(%o0,%o1,%g7,0x18,%g2,%g3,%g4,%g5)
 	CSUMCOPY_LASTCHUNK(%o0,%o1,%g7,0x08,%g2,%g3,%g4,%g5)
-12:	EXT(cctbl, 12b)			! note for exception table handling
-	addx	%g0, %g7, %g7
+12:	addx	%g0, %g7, %g7
 	andcc	%o3, 0xf, %g0		! check for low bits set
 ccte:	bne	cc_end_cruft		! something left, handle it out of band
 	 andcc	%o3, 8, %g0		! begin checks for that code
@@ -367,7 +358,6 @@ ccdbl:	CSUMCOPY_BIGCHUNK_ALIGNED(%o0,%o1,%g7,0x00,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o
 	CSUMCOPY_BIGCHUNK_ALIGNED(%o0,%o1,%g7,0x20,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o3)
 	CSUMCOPY_BIGCHUNK_ALIGNED(%o0,%o1,%g7,0x40,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o3)
 	CSUMCOPY_BIGCHUNK_ALIGNED(%o0,%o1,%g7,0x60,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o3)
-11:	EXT(ccdbl, 11b)			! note for exception table handling
 	sub	%g1, 128, %g1		! detract from length
 	addx	%g0, %g7, %g7		! add in last carry bit
 	andcc	%g1, 0xffffff80, %g0	! more to csum?

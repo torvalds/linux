@@ -64,14 +64,17 @@ static int __init linkstation_add_bridge(struct device_node *dev)
 
 static void __init linkstation_setup_arch(void)
 {
+	printk(KERN_INFO "BUFFALO Network Attached Storage Series\n");
+	printk(KERN_INFO "(C) 2002-2005 BUFFALO INC.\n");
+}
+
+static void __init linkstation_setup_pci(void)
+{
 	struct device_node *np;
 
 	/* Lookup PCI host bridges */
 	for_each_compatible_node(np, "pci", "mpc10x-pci")
 		linkstation_add_bridge(np);
-
-	printk(KERN_INFO "BUFFALO Network Attached Storage Series\n");
-	printk(KERN_INFO "(C) 2002-2005 BUFFALO INC.\n");
 }
 
 /*
@@ -153,6 +156,7 @@ define_machine(linkstation){
 	.name 			= "Buffalo Linkstation",
 	.probe 			= linkstation_probe,
 	.setup_arch 		= linkstation_setup_arch,
+	.discover_phbs		= linkstation_setup_pci,
 	.init_IRQ 		= linkstation_init_IRQ,
 	.show_cpuinfo 		= linkstation_show_cpuinfo,
 	.get_irq 		= mpic_get_irq,

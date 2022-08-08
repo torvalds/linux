@@ -12,10 +12,6 @@
 #include <linux/threads.h>
 #include <linux/irq.h>
 
-#ifdef CONFIG_IRQSTACKS
-#define __ARCH_HAS_DO_SOFTIRQ
-#endif
-
 typedef struct {
 	unsigned int __softirq_pending;
 	unsigned int kernel_stack_usage;

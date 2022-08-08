@@ -21,7 +21,6 @@
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Gravis UltraSound MAX");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Gravis,UltraSound MAX}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -338,10 +337,9 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 	return err;
 }
 
-static int snd_gusmax_remove(struct device *devptr, unsigned int dev)
+static void snd_gusmax_remove(struct device *devptr, unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(devptr));
-	return 0;
 }
 
 #define DEV_NAME "gusmax"

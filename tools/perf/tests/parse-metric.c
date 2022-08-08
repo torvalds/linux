@@ -70,6 +70,10 @@ static struct pmu_event pme_test[] = {
 	.metric_name	= "M3",
 },
 {
+	.metric_expr	= "64 * l1d.replacement / 1000000000 / duration_time",
+	.metric_name	= "L1D_Cache_Fill_BW",
+},
+{
 	.name	= NULL,
 }
 };
@@ -107,6 +111,8 @@ static void load_runtime_stat(struct runtime_stat *st, struct evlist *evlist,
 	evlist__for_each_entry(evlist, evsel) {
 		count = find_value(evsel->name, vals);
 		perf_stat__update_shadow_stats(evsel, count, 0, st);
+		if (!strcmp(evsel->name, "duration_time"))
+			update_stats(&walltime_nsecs_stats, count);
 	}
 }
 
@@ -321,6 +327,23 @@ static int test_recursion_fail(void)
 	return 0;
 }
 
+static int test_memory_bandwidth(void)
+{
+	double ratio;
+	struct value vals[] = {
+		{ .event = "l1d.replacement", .val = 4000000 },
+		{ .event = "duration_time",  .val = 200000000 },
+		{ .event = NULL, },
+	};
+
+	TEST_ASSERT_VAL("failed to compute metric",
+			compute_metric("L1D_Cache_Fill_BW", vals, &ratio) == 0);
+	TEST_ASSERT_VAL("L1D_Cache_Fill_BW, wrong ratio",
+			1.28 == ratio);
+
+	return 0;
+}
+
 static int test_metric_group(void)
 {
 	double ratio1, ratio2;
@@ -353,5 +376,6 @@ int test__parse_metric(struct test *test __maybe_unused, int subtest __maybe_unu
 	TEST_ASSERT_VAL("DCache_L2 failed", test_dcache_l2() == 0);
 	TEST_ASSERT_VAL("recursion fail failed", test_recursion_fail() == 0);
 	TEST_ASSERT_VAL("test metric group", test_metric_group() == 0);
+	TEST_ASSERT_VAL("Memory bandwidth", test_memory_bandwidth() == 0);
 	return 0;
 }

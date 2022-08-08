@@ -51,6 +51,14 @@ config B44_PCI
 	depends on B44_PCI_AUTOSELECT && B44_PCICORE_AUTOSELECT
 	default y
 
+config BCM4908_ENET
+	tristate "Broadcom BCM4908 internal mac support"
+	depends on ARCH_BCM4908 || COMPILE_TEST
+	default y if ARCH_BCM4908
+	help
+	  This driver supports Ethernet controller integrated into Broadcom
+	  BCM4908 family SoCs.
+
 config BCM63XX_ENET
 	tristate "Broadcom 63xx internal mac support"
 	depends on BCM63XX
@@ -174,7 +182,6 @@ config BGMAC_BCMA
 config BGMAC_PLATFORM
 	tristate "Broadcom iProc GBit platform support"
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
-	depends on OF
 	select BGMAC
 	select PHYLIB
 	select FIXED_PHY

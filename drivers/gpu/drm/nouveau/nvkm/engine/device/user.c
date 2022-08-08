@@ -43,15 +43,15 @@ static int
 nvkm_udevice_info_subdev(struct nvkm_device *device, u64 mthd, u64 *data)
 {
 	struct nvkm_subdev *subdev;
-	enum nvkm_devidx subidx;
+	enum nvkm_subdev_type type;
 
 	switch (mthd & NV_DEVICE_INFO_UNIT) {
-	case NV_DEVICE_FIFO(0): subidx = NVKM_ENGINE_FIFO; break;
+	case NV_DEVICE_HOST(0): type = NVKM_ENGINE_FIFO; break;
 	default:
 		return -EINVAL;
 	}
 
-	subdev = nvkm_device_subdev(device, subidx);
+	subdev = nvkm_device_subdev(device, type, 0);
 	if (subdev)
 		return nvkm_subdev_info(subdev, mthd, data);
 	return -ENODEV;
@@ -66,37 +66,7 @@ nvkm_udevice_info_v1(struct nvkm_device *device,
 			args->mthd = NV_DEVICE_INFO_INVALID;
 		return;
 	}
-
-	switch (args->mthd) {
-#define ENGINE__(A,B,C) NV_DEVICE_INFO_ENGINE_##A: { int _i;                   \
-	for (_i = (B), args->data = 0ULL; _i <= (C); _i++) {                   \
-		if (nvkm_device_engine(device, _i))                            \
-			args->data |= BIT_ULL(_i);                             \
-	}                                                                      \
-}
-#define ENGINE_A(A) ENGINE__(A, NVKM_ENGINE_##A   , NVKM_ENGINE_##A)
-#define ENGINE_B(A) ENGINE__(A, NVKM_ENGINE_##A##0, NVKM_ENGINE_##A##_LAST)
-	case ENGINE_A(SW    ); break;
-	case ENGINE_A(GR    ); break;
-	case ENGINE_A(MPEG  ); break;
-	case ENGINE_A(ME    ); break;
-	case ENGINE_A(CIPHER); break;
-	case ENGINE_A(BSP   ); break;
-	case ENGINE_A(VP    ); break;
-	case ENGINE_B(CE    ); break;
-	case ENGINE_A(SEC   ); break;
-	case ENGINE_A(MSVLD ); break;
-	case ENGINE_A(MSPDEC); break;
-	case ENGINE_A(MSPPP ); break;
-	case ENGINE_A(MSENC ); break;
-	case ENGINE_A(VIC   ); break;
-	case ENGINE_A(SEC2  ); break;
-	case ENGINE_B(NVDEC ); break;
-	case ENGINE_B(NVENC ); break;
-	default:
-		args->mthd = NV_DEVICE_INFO_INVALID;
-		break;
-	}
+	args->mthd = NV_DEVICE_INFO_INVALID;
 }
 
 static int
@@ -357,7 +327,7 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
 	int i;
 
 	for (; i = __ffs64(mask), mask && !sclass; mask &= ~(1ULL << i)) {
-		if (!(engine = nvkm_device_engine(device, i)) ||
+		if (!(engine = nvkm_device_engine(device, i, 0)) ||
 		    !(engine->func->base.sclass))
 			continue;
 		oclass->engine = engine;

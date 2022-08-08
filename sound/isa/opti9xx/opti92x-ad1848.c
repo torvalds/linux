@@ -36,17 +36,11 @@ MODULE_AUTHOR("Massimo Piccioni <dafastidio@libero.it>");
 MODULE_LICENSE("GPL");
 #ifdef OPTi93X
 MODULE_DESCRIPTION("OPTi93X");
-MODULE_SUPPORTED_DEVICE("{{OPTi,82C931/3}}");
 #else	/* OPTi93X */
 #ifdef CS4231
 MODULE_DESCRIPTION("OPTi92X - CS4231");
-MODULE_SUPPORTED_DEVICE("{{OPTi,82C924 (CS4231)},"
-		"{OPTi,82C925 (CS4231)}}");
 #else	/* CS4231 */
 MODULE_DESCRIPTION("OPTi92X - AD1848");
-MODULE_SUPPORTED_DEVICE("{{OPTi,82C924 (AD1848)},"
-		"{OPTi,82C925 (AD1848)},"
-	        "{OAK,Mozart}}");
 #endif	/* CS4231 */
 #endif	/* OPTi93X */
 
@@ -1024,11 +1018,10 @@ static int snd_opti9xx_isa_probe(struct device *devptr,
 	return 0;
 }
 
-static int snd_opti9xx_isa_remove(struct device *devptr,
-				  unsigned int dev)
+static void snd_opti9xx_isa_remove(struct device *devptr,
+				   unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(devptr));
-	return 0;
 }
 
 #ifdef CONFIG_PM

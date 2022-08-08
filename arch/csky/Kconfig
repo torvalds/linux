@@ -7,7 +7,7 @@ config CSKY
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_USE_BUILTIN_BSWAP
-	select ARCH_USE_QUEUED_RWLOCKS if NR_CPUS>2
+	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_WANT_FRAME_POINTERS if !CPU_CK610
 	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
 	select COMMON_CLK
@@ -35,6 +35,9 @@ config CSKY
 	select GENERIC_IRQ_MULTI_HANDLER
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_TIME_VSYSCALL
+	select GENERIC_VDSO_32
+	select GENERIC_GETTIMEOFDAY
 	select GX6605S_TIMER if CPU_CK610
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_AUDITSYSCALL
@@ -43,11 +46,14 @@ config CSKY
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN
 	select HAVE_DEBUG_BUGVERBOSE
+	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
+	select HAVE_GENERIC_VDSO
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_ERROR_INJECTION
+	select HAVE_FUTEX_CMPXCHG if FUTEX && SMP
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZO
@@ -192,6 +198,22 @@ config CPU_CK860
 endchoice
 
 choice
+	prompt "PAGE OFFSET"
+	default PAGE_OFFSET_80000000
+
+config PAGE_OFFSET_80000000
+	bool "PAGE OFFSET 2G (user:kernel = 2:2)"
+
+config PAGE_OFFSET_A0000000
+	bool "PAGE OFFSET 2.5G (user:kernel = 2.5:1.5)"
+endchoice
+
+config PAGE_OFFSET
+	hex
+	default 0x80000000 if PAGE_OFFSET_80000000
+	default 0xa0000000 if PAGE_OFFSET_A0000000
+choice
+
 	prompt "C-SKY PMU type"
 	depends on PERF_EVENTS
 	depends on CPU_CK807 || CPU_CK810 || CPU_CK860
@@ -292,7 +314,7 @@ config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
 	default "11"
 
-config RAM_BASE
+config DRAM_BASE
 	hex "DRAM start addr (the same with memory-section in dts)"
 	default 0x0
 

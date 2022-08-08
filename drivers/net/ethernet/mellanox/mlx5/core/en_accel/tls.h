@@ -41,10 +41,13 @@
 #include "en.h"
 
 struct mlx5e_tls_sw_stats {
+	atomic64_t tx_tls_ctx;
 	atomic64_t tx_tls_drop_metadata;
 	atomic64_t tx_tls_drop_resync_alloc;
 	atomic64_t tx_tls_drop_no_sync_data;
 	atomic64_t tx_tls_drop_bypass_required;
+	atomic64_t rx_tls_ctx;
+	atomic64_t rx_tls_del;
 	atomic64_t rx_tls_drop_resync_request;
 	atomic64_t rx_tls_resync_request;
 	atomic64_t rx_tls_resync_reply;

@@ -410,7 +410,7 @@ static const struct dc_plane_cap plane_cap = {
 		.pixel_format_support = {
 				.argb8888 = true,
 				.nv12 = false,
-				.fp16 = false
+				.fp16 = true
 		},
 
 		.max_upscale_factor = {
@@ -715,7 +715,7 @@ static struct output_pixel_processor *dce110_opp_create(
 	return &opp->base;
 }
 
-struct dce_aux *dce110_aux_engine_create(
+static struct dce_aux *dce110_aux_engine_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -753,7 +753,7 @@ static const struct dce_i2c_mask i2c_masks = {
 		I2C_COMMON_MASK_SH_LIST_DCE110(_MASK)
 };
 
-struct dce_i2c_hw *dce110_i2c_hw_create(
+static struct dce_i2c_hw *dce110_i2c_hw_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -768,7 +768,7 @@ struct dce_i2c_hw *dce110_i2c_hw_create(
 
 	return dce_i2c_hw;
 }
-struct clock_source *dce110_clock_source_create(
+static struct clock_source *dce110_clock_source_create(
 	struct dc_context *ctx,
 	struct dc_bios *bios,
 	enum clock_source_id id,
@@ -792,7 +792,7 @@ struct clock_source *dce110_clock_source_create(
 	return NULL;
 }
 
-void dce110_clock_source_destroy(struct clock_source **clk_src)
+static void dce110_clock_source_destroy(struct clock_source **clk_src)
 {
 	struct dce110_clk_src *dce110_clk_src;
 
@@ -1034,8 +1034,8 @@ static bool dce110_validate_bandwidth(
 	return result;
 }
 
-enum dc_status dce110_validate_plane(const struct dc_plane_state *plane_state,
-				     struct dc_caps *caps)
+static enum dc_status dce110_validate_plane(const struct dc_plane_state *plane_state,
+					    struct dc_caps *caps)
 {
 	if (((plane_state->dst_rect.width * 2) < plane_state->src_rect.width) ||
 	    ((plane_state->dst_rect.height * 2) < plane_state->src_rect.height))
@@ -1089,7 +1089,7 @@ static bool dce110_validate_surface_sets(
 	return true;
 }
 
-enum dc_status dce110_validate_global(
+static enum dc_status dce110_validate_global(
 		struct dc *dc,
 		struct dc_state *context)
 {
@@ -1272,7 +1272,6 @@ static bool underlay_create(struct dc_context *ctx, struct resource_pool *pool)
 
 	/* update the public caps to indicate an underlay is available */
 	ctx->dc->caps.max_slave_planes = 1;
-	ctx->dc->caps.max_slave_planes = 1;
 
 	return true;
 }
@@ -1333,7 +1332,7 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 		1000);
 }
 
-const struct resource_caps *dce110_resource_cap(
+static const struct resource_caps *dce110_resource_cap(
 	struct hw_asic_id *asic_id)
 {
 	if (ASIC_REV_IS_STONEY(asic_id->hw_internal_rev))

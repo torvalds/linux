@@ -145,7 +145,8 @@ static void pool_retire(struct i915_active *ref)
 }
 
 static struct intel_gt_buffer_pool_node *
-node_create(struct intel_gt_buffer_pool *pool, size_t sz)
+node_create(struct intel_gt_buffer_pool *pool, size_t sz,
+	    enum i915_map_type type)
 {
 	struct intel_gt *gt = to_gt(pool);
 	struct intel_gt_buffer_pool_node *node;
@@ -169,12 +170,14 @@ node_create(struct intel_gt_buffer_pool *pool, size_t sz)
 
 	i915_gem_object_set_readonly(obj);
 
+	node->type = type;
 	node->obj = obj;
 	return node;
 }
 
 struct intel_gt_buffer_pool_node *
-intel_gt_get_buffer_pool(struct intel_gt *gt, size_t size)
+intel_gt_get_buffer_pool(struct intel_gt *gt, size_t size,
+			 enum i915_map_type type)
 {
 	struct intel_gt_buffer_pool *pool = &gt->buffer_pool;
 	struct intel_gt_buffer_pool_node *node;
@@ -191,6 +194,9 @@ intel_gt_get_buffer_pool(struct intel_gt *gt, size_t size)
 		if (node->obj->base.size < size)
 			continue;
 
+		if (node->type != type)
+			continue;
+
 		age = READ_ONCE(node->age);
 		if (!age)
 			continue;
@@ -205,7 +211,7 @@ intel_gt_get_buffer_pool(struct intel_gt *gt, size_t size)
 	rcu_read_unlock();
 
 	if (&node->link == list) {
-		node = node_create(pool, size);
+		node = node_create(pool, size, type);
 		if (IS_ERR(node))
 			return node;
 	}

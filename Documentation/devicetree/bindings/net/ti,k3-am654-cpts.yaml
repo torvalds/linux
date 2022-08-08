@@ -59,6 +59,7 @@ properties:
       - const: cpts
 
   clocks:
+    maxItems: 1
     description: CPTS reference clock
 
   clock-names:
@@ -72,6 +73,13 @@ properties:
   interrupt-names:
     items:
       - const: cpts
+
+  assigned-clock-parents: true
+
+  assigned-clocks: true
+
+  power-domains:
+    maxItems: 1
 
   ti,cpts-ext-ts-inputs:
     $ref: /schemas/types.yaml#/definitions/uint32

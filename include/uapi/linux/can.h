@@ -113,7 +113,7 @@ struct can_frame {
 		 */
 		__u8 len;
 		__u8 can_dlc; /* deprecated */
-	};
+	} __attribute__((packed)); /* disable padding added in some ABIs */
 	__u8 __pad; /* padding */
 	__u8 __res0; /* reserved / padding */
 	__u8 len8_dlc; /* optional DLC for 8 byte payload length (9 .. 15) */

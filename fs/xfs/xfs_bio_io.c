@@ -6,7 +6,7 @@
 
 static inline unsigned int bio_max_vecs(unsigned int count)
 {
-	return min_t(unsigned, howmany(count, PAGE_SIZE), BIO_MAX_PAGES);
+	return bio_max_segs(howmany(count, PAGE_SIZE));
 }
 
 int

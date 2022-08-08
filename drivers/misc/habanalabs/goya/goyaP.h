@@ -173,6 +173,7 @@ void goya_init_mme_qmans(struct hl_device *hdev);
 void goya_init_tpc_qmans(struct hl_device *hdev);
 int goya_init_cpu_queues(struct hl_device *hdev);
 void goya_init_security(struct hl_device *hdev);
+void goya_ack_protection_bits_errors(struct hl_device *hdev);
 int goya_late_init(struct hl_device *hdev);
 void goya_late_fini(struct hl_device *hdev);
 

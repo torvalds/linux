@@ -56,8 +56,8 @@ gm107_nvdec_fwif[] = {
 };
 
 int
-gm107_nvdec_new(struct nvkm_device *device, int index,
+gm107_nvdec_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		struct nvkm_nvdec **pnvdec)
 {
-	return nvkm_nvdec_new_(gm107_nvdec_fwif, device, index, pnvdec);
+	return nvkm_nvdec_new_(gm107_nvdec_fwif, device, type, inst, pnvdec);
 }

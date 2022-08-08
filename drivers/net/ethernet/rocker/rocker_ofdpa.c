@@ -923,7 +923,7 @@ static int ofdpa_flow_tbl_bridge(struct ofdpa_port *ofdpa_port,
 	struct ofdpa_flow_tbl_entry *entry;
 	u32 priority;
 	bool vlan_bridging = !!vlan_id;
-	bool dflt = !eth_dst || (eth_dst && eth_dst_mask);
+	bool dflt = !eth_dst || eth_dst_mask;
 	bool wild = false;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
@@ -2488,8 +2488,7 @@ static int ofdpa_port_attr_stp_state_set(struct rocker_port *rocker_port,
 }
 
 static int ofdpa_port_attr_bridge_flags_set(struct rocker_port *rocker_port,
-					    unsigned long brport_flags,
-					    struct switchdev_trans *trans)
+					    unsigned long brport_flags)
 {
 	struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
 	unsigned long orig_flags;
@@ -2497,13 +2496,10 @@ static int ofdpa_port_attr_bridge_flags_set(struct rocker_port *rocker_port,
 
 	orig_flags = ofdpa_port->brport_flags;
 	ofdpa_port->brport_flags = brport_flags;
-	if ((orig_flags ^ ofdpa_port->brport_flags) & BR_LEARNING &&
-	    !switchdev_trans_ph_prepare(trans))
+
+	if ((orig_flags ^ ofdpa_port->brport_flags) & BR_LEARNING)
 		err = rocker_port_set_learning(ofdpa_port->rocker_port,
 					       !!(ofdpa_port->brport_flags & BR_LEARNING));
-
-	if (switchdev_trans_ph_prepare(trans))
-		ofdpa_port->brport_flags = orig_flags;
 
 	return err;
 }
@@ -2520,18 +2516,15 @@ ofdpa_port_attr_bridge_flags_support_get(const struct rocker_port *
 
 static int
 ofdpa_port_attr_bridge_ageing_time_set(struct rocker_port *rocker_port,
-				       u32 ageing_time,
-				       struct switchdev_trans *trans)
+				       u32 ageing_time)
 {
 	struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
 	struct ofdpa *ofdpa = ofdpa_port->ofdpa;
 
-	if (!switchdev_trans_ph_prepare(trans)) {
-		ofdpa_port->ageing_time = clock_t_to_jiffies(ageing_time);
-		if (ofdpa_port->ageing_time < ofdpa->ageing_time)
-			ofdpa->ageing_time = ofdpa_port->ageing_time;
-		mod_timer(&ofdpa_port->ofdpa->fdb_cleanup_timer, jiffies);
-	}
+	ofdpa_port->ageing_time = clock_t_to_jiffies(ageing_time);
+	if (ofdpa_port->ageing_time < ofdpa->ageing_time)
+		ofdpa->ageing_time = ofdpa_port->ageing_time;
+	mod_timer(&ofdpa_port->ofdpa->fdb_cleanup_timer, jiffies);
 
 	return 0;
 }
@@ -2540,32 +2533,16 @@ static int ofdpa_port_obj_vlan_add(struct rocker_port *rocker_port,
 				   const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
-	u16 vid;
-	int err;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		err = ofdpa_port_vlan_add(ofdpa_port, vid, vlan->flags);
-		if (err)
-			return err;
-	}
-
-	return 0;
+	return ofdpa_port_vlan_add(ofdpa_port, vlan->vid, vlan->flags);
 }
 
 static int ofdpa_port_obj_vlan_del(struct rocker_port *rocker_port,
 				   const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
-	u16 vid;
-	int err;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		err = ofdpa_port_vlan_del(ofdpa_port, vid, vlan->flags);
-		if (err)
-			return err;
-	}
-
-	return 0;
+	return ofdpa_port_vlan_del(ofdpa_port, vlan->vid, vlan->flags);
 }
 
 static int ofdpa_port_obj_fdb_add(struct rocker_port *rocker_port,

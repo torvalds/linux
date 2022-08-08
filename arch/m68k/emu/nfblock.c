@@ -61,7 +61,7 @@ struct nfhd_device {
 
 static blk_qc_t nfhd_submit_bio(struct bio *bio)
 {
-	struct nfhd_device *dev = bio->bi_disk->private_data;
+	struct nfhd_device *dev = bio->bi_bdev->bd_disk->private_data;
 	struct bio_vec bvec;
 	struct bvec_iter iter;
 	int dir, len, shift;

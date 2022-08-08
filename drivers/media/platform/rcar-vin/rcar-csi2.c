@@ -910,7 +910,7 @@ static int rcsi2_parse_dt(struct rcar_csi2 *priv)
 	priv->notifier.ops = &rcar_csi2_notify_ops;
 
 	asd = v4l2_async_notifier_add_fwnode_subdev(&priv->notifier, fwnode,
-						    sizeof(*asd));
+						    struct v4l2_async_subdev);
 	fwnode_handle_put(fwnode);
 	if (IS_ERR(asd))
 		return PTR_ERR(asd);

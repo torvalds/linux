@@ -208,40 +208,6 @@ MODULE_PARM_DESC(snoop, "Enable/disable snooping");
 
 
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Intel, ICH6},"
-			 "{Intel, ICH6M},"
-			 "{Intel, ICH7},"
-			 "{Intel, ESB2},"
-			 "{Intel, ICH8},"
-			 "{Intel, ICH9},"
-			 "{Intel, ICH10},"
-			 "{Intel, PCH},"
-			 "{Intel, CPT},"
-			 "{Intel, PPT},"
-			 "{Intel, LPT},"
-			 "{Intel, LPT_LP},"
-			 "{Intel, WPT_LP},"
-			 "{Intel, SPT},"
-			 "{Intel, SPT_LP},"
-			 "{Intel, HPT},"
-			 "{Intel, PBG},"
-			 "{Intel, SCH},"
-			 "{ATI, SB450},"
-			 "{ATI, SB600},"
-			 "{ATI, RS600},"
-			 "{ATI, RS690},"
-			 "{ATI, RS780},"
-			 "{ATI, R600},"
-			 "{ATI, RV630},"
-			 "{ATI, RV610},"
-			 "{ATI, RV670},"
-			 "{ATI, RV635},"
-			 "{ATI, RV620},"
-			 "{ATI, RV770},"
-			 "{VIA, VT8251},"
-			 "{VIA, VT8237A},"
-			 "{SiS, SIS966},"
-			 "{ULI, M5461}}");
 MODULE_DESCRIPTION("Intel HDA driver");
 
 #if defined(CONFIG_PM) && defined(CONFIG_VGA_SWITCHEROO)
@@ -1023,8 +989,14 @@ static int azx_prepare(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
 
+	if (!azx_is_pm_ready(card))
+		return 0;
+
 	chip = card->private_data;
 	chip->pm_prepared = 1;
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+
+	flush_work(&azx_bus(chip)->unsol_work);
 
 	/* HDA controller always requires different WAKEEN for runtime suspend
 	 * and system suspend, so don't use direct-complete here.
@@ -1037,7 +1009,11 @@ static void azx_complete(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
 
+	if (!azx_is_pm_ready(card))
+		return;
+
 	chip = card->private_data;
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	chip->pm_prepared = 0;
 }
 
@@ -1444,7 +1420,7 @@ static bool atpx_present(void)
 		dhandle = ACPI_HANDLE(&pdev->dev);
 		if (dhandle) {
 			status = acpi_get_handle(dhandle, "ATPX", &atpx_handle);
-			if (!ACPI_FAILURE(status)) {
+			if (ACPI_SUCCESS(status)) {
 				pci_dev_put(pdev);
 				return true;
 			}
@@ -1454,7 +1430,7 @@ static bool atpx_present(void)
 		dhandle = ACPI_HANDLE(&pdev->dev);
 		if (dhandle) {
 			status = acpi_get_handle(dhandle, "ATPX", &atpx_handle);
-			if (!ACPI_FAILURE(status)) {
+			if (ACPI_SUCCESS(status)) {
 				pci_dev_put(pdev);
 				return true;
 			}
@@ -1967,12 +1943,8 @@ static int azx_first_init(struct azx *chip)
 	/* allow 64bit DMA address if supported by H/W */
 	if (!(gcap & AZX_GCAP_64OK))
 		dma_bits = 32;
-	if (!dma_set_mask(&pci->dev, DMA_BIT_MASK(dma_bits))) {
-		dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(dma_bits));
-	} else {
-		dma_set_mask(&pci->dev, DMA_BIT_MASK(32));
-		dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(32));
-	}
+	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(dma_bits)))
+		dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(32));
 
 	/* read number of streams from GCAP register instead of using
 	 * hardcoded value
@@ -2037,7 +2009,7 @@ static int azx_first_init(struct azx *chip)
 		return -EBUSY;
 
 	strcpy(card->driver, "HDA-Intel");
-	strlcpy(card->shortname, driver_short_names[chip->driver_type],
+	strscpy(card->shortname, driver_short_names[chip->driver_type],
 		sizeof(card->shortname));
 	snprintf(card->longname, sizeof(card->longname),
 		 "%s at 0x%lx irq %i",
@@ -2221,8 +2193,6 @@ static const struct snd_pci_quirk power_save_denylist[] = {
 	/* https://bugzilla.redhat.com/show_bug.cgi?id=1525104 */
 	SND_PCI_QUIRK(0x1043, 0x8733, "Asus Prime X370-Pro", 0),
 	/* https://bugzilla.redhat.com/show_bug.cgi?id=1525104 */
-	SND_PCI_QUIRK(0x1558, 0x6504, "Clevo W65_67SB", 0),
-	/* https://bugzilla.redhat.com/show_bug.cgi?id=1525104 */
 	SND_PCI_QUIRK(0x1028, 0x0497, "Dell Precision T3600", 0),
 	/* https://bugzilla.redhat.com/show_bug.cgi?id=1525104 */
 	/* Note the P55A-UD3 and Z87-D3HP share the subsys id for the HDA dev */
@@ -2304,7 +2274,7 @@ static int azx_probe_continue(struct azx *chip)
 
 		/* HSW/BDW controllers need this power */
 		if (CONTROLLER_IN_GPU(pci))
-			hda->need_i915_power = 1;
+			hda->need_i915_power = true;
 	}
 
 	/* Request display power well for the HDA controller or codec. For
@@ -2480,6 +2450,8 @@ static const struct pci_device_id azx_ids[] = {
 	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE},
 	/* CometLake-H */
 	{ PCI_DEVICE(0x8086, 0x06C8),
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE},
+	{ PCI_DEVICE(0x8086, 0xf1c8),
 	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE},
 	/* CometLake-S */
 	{ PCI_DEVICE(0x8086, 0xa3f0),

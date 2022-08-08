@@ -360,8 +360,8 @@ static struct snd_soc_dai_driver zl38_dai = {
 		.formats = ZL38_FORMATS,
 	},
 	.ops = &zl38_dai_ops,
-	.symmetric_rates = 1,
-	.symmetric_samplebits = 1,
+	.symmetric_rate = 1,
+	.symmetric_sample_bits = 1,
 	.symmetric_channels = 1,
 };
 

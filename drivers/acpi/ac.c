@@ -6,6 +6,8 @@
  *  Copyright (C) 2001, 2002 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
  */
 
+#define pr_fmt(fmt) "ACPI: AC: " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -18,8 +20,6 @@
 #include <linux/acpi.h>
 #include <acpi/battery.h>
 
-#define PREFIX "ACPI: "
-
 #define ACPI_AC_CLASS			"ac_adapter"
 #define ACPI_AC_DEVICE_NAME		"AC Adapter"
 #define ACPI_AC_FILE_STATE		"state"
@@ -27,9 +27,6 @@
 #define ACPI_AC_STATUS_OFFLINE		0x00
 #define ACPI_AC_STATUS_ONLINE		0x01
 #define ACPI_AC_STATUS_UNKNOWN		0xFF
-
-#define _COMPONENT		ACPI_AC_COMPONENT
-ACPI_MODULE_NAME("ac");
 
 MODULE_AUTHOR("Paul Diefenbaugh");
 MODULE_DESCRIPTION("ACPI AC Adapter Driver");
@@ -102,8 +99,9 @@ static int acpi_ac_get_state(struct acpi_ac *ac)
 	status = acpi_evaluate_integer(ac->device->handle, "_PSR", NULL,
 				       &ac->state);
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status,
-				"Error reading AC Adapter state"));
+		acpi_handle_info(ac->device->handle,
+				"Error reading AC Adapter state: %s\n",
+				acpi_format_exception(status));
 		ac->state = ACPI_AC_STATUS_UNKNOWN;
 		return -ENODEV;
 	}
@@ -153,8 +151,8 @@ static void acpi_ac_notify(struct acpi_device *device, u32 event)
 
 	switch (event) {
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Unsupported event [0x%x]\n", event));
+		acpi_handle_debug(device->handle, "Unsupported event [0x%x]\n",
+				  event);
 		fallthrough;
 	case ACPI_AC_NOTIFY_STATUS:
 	case ACPI_NOTIFY_BUS_CHECK:
@@ -278,9 +276,8 @@ static int acpi_ac_add(struct acpi_device *device)
 		goto end;
 	}
 
-	printk(KERN_INFO PREFIX "%s [%s] (%s)\n",
-	       acpi_device_name(device), acpi_device_bid(device),
-	       ac->state ? "on-line" : "off-line");
+	pr_info("%s [%s] (%s)\n", acpi_device_name(device),
+		acpi_device_bid(device), ac->state ? "on-line" : "off-line");
 
 	ac->battery_nb.notifier_call = acpi_ac_battery_notify;
 	register_acpi_notifier(&ac->battery_nb);
@@ -348,7 +345,7 @@ static int __init acpi_ac_init(void)
 		for (i = 0; i < ARRAY_SIZE(acpi_ac_blacklist); i++)
 			if (acpi_dev_present(acpi_ac_blacklist[i].hid, "1",
 					     acpi_ac_blacklist[i].hrv)) {
-				pr_info(PREFIX "AC: found native %s PMIC, not loading\n",
+				pr_info("found native %s PMIC, not loading\n",
 					acpi_ac_blacklist[i].hid);
 				return -ENODEV;
 			}

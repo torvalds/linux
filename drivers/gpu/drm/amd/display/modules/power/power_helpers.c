@@ -266,7 +266,7 @@ static void fill_backlight_transform_table_v_2_2(struct dmcu_iram_parameters par
 	 * format U4.10.
 	 */
 	for (i = 1; i+1 < num_entries; i++) {
-		lut_index = (params.backlight_lut_array_size - 1) * i / (num_entries - 1);
+		lut_index = DIV_ROUNDUP((i * params.backlight_lut_array_size), num_entries);
 		ASSERT(lut_index < params.backlight_lut_array_size);
 
 		table->backlight_thresholds[i] = (big_endian) ?
@@ -278,7 +278,7 @@ static void fill_backlight_transform_table_v_2_2(struct dmcu_iram_parameters par
 	}
 }
 
-void fill_iram_v_2(struct iram_table_v_2 *ram_table, struct dmcu_iram_parameters params)
+static void fill_iram_v_2(struct iram_table_v_2 *ram_table, struct dmcu_iram_parameters params)
 {
 	unsigned int set = params.set;
 
@@ -452,7 +452,7 @@ void fill_iram_v_2(struct iram_table_v_2 *ram_table, struct dmcu_iram_parameters
 			params, ram_table);
 }
 
-void fill_iram_v_2_2(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parameters params)
+static void fill_iram_v_2_2(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parameters params)
 {
 	unsigned int set = params.set;
 
@@ -598,7 +598,7 @@ void fill_iram_v_2_2(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parame
 			params, ram_table, true);
 }
 
-void fill_iram_v_2_3(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parameters params, bool big_endian)
+static void fill_iram_v_2_3(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parameters params, bool big_endian)
 {
 	unsigned int i, j;
 	unsigned int set = params.set;

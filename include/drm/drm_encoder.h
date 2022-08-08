@@ -89,7 +89,7 @@ struct drm_encoder_funcs {
  * @head: list management
  * @base: base KMS object
  * @name: human readable name, can be overwritten by the driver
- * @funcs: control functions
+ * @funcs: control functions, can be NULL for simple managed encoders
  * @helper_private: mid-layer private data
  *
  * CRTCs drive pixels to encoders, which convert them into signals
@@ -193,6 +193,36 @@ int drm_encoder_init(struct drm_device *dev,
 		     struct drm_encoder *encoder,
 		     const struct drm_encoder_funcs *funcs,
 		     int encoder_type, const char *name, ...);
+
+__printf(6, 7)
+void *__drmm_encoder_alloc(struct drm_device *dev,
+			   size_t size, size_t offset,
+			   const struct drm_encoder_funcs *funcs,
+			   int encoder_type,
+			   const char *name, ...);
+
+/**
+ * drmm_encoder_alloc - Allocate and initialize an encoder
+ * @dev: drm device
+ * @type: the type of the struct which contains struct &drm_encoder
+ * @member: the name of the &drm_encoder within @type
+ * @funcs: callbacks for this encoder (optional)
+ * @encoder_type: user visible type of the encoder
+ * @name: printf style format string for the encoder name, or NULL for default name
+ *
+ * Allocates and initializes an encoder. Encoder should be subclassed as part of
+ * driver encoder objects. Cleanup is automatically handled through registering
+ * drm_encoder_cleanup() with drmm_add_action().
+ *
+ * The @drm_encoder_funcs.destroy hook must be NULL.
+ *
+ * Returns:
+ * Pointer to new encoder, or ERR_PTR on failure.
+ */
+#define drmm_encoder_alloc(dev, type, member, funcs, encoder_type, name, ...) \
+	((type *)__drmm_encoder_alloc(dev, sizeof(type), \
+				      offsetof(type, member), funcs, \
+				      encoder_type, name, ##__VA_ARGS__))
 
 /**
  * drm_encoder_index - find the index of a registered encoder

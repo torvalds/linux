@@ -197,6 +197,7 @@ static int cmp_u32(const void *_a, const void *_b)
 
 static int __live_heartbeat_fast(struct intel_engine_cs *engine)
 {
+	const unsigned int error_threshold = max(20000u, jiffies_to_usecs(6));
 	struct intel_context *ce;
 	struct i915_request *rq;
 	ktime_t t0, t1;
@@ -254,12 +255,18 @@ static int __live_heartbeat_fast(struct intel_engine_cs *engine)
 		times[0],
 		times[ARRAY_SIZE(times) - 1]);
 
-	/* Min work delay is 2 * 2 (worst), +1 for scheduling, +1 for slack */
-	if (times[ARRAY_SIZE(times) / 2] > jiffies_to_usecs(6)) {
+	/*
+	 * Ideally, the upper bound on min work delay would be something like
+	 * 2 * 2 (worst), +1 for scheduling, +1 for slack. In practice, we
+	 * are, even with system_wq_highpri, at the mercy of the CPU scheduler
+	 * and may be stuck behind some slow work for many millisecond. Such
+	 * as our very own display workers.
+	 */
+	if (times[ARRAY_SIZE(times) / 2] > error_threshold) {
 		pr_err("%s: Heartbeat delay was %uus, expected less than %dus\n",
 		       engine->name,
 		       times[ARRAY_SIZE(times) / 2],
-		       jiffies_to_usecs(6));
+		       error_threshold);
 		err = -EINVAL;
 	}
 

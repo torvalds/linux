@@ -2,7 +2,7 @@
 /*
  * CZ.NIC's Turris Omnia LEDs driver
  *
- * 2020 by Marek Behun <marek.behun@nic.cz>
+ * 2020 by Marek Behún <kabel@kernel.org>
  */
 
 #include <linux/i2c.h>
@@ -287,6 +287,6 @@ static struct i2c_driver omnia_leds_driver = {
 
 module_i2c_driver(omnia_leds_driver);
 
-MODULE_AUTHOR("Marek Behun <marek.behun@nic.cz>");
+MODULE_AUTHOR("Marek Behun <kabel@kernel.org>");
 MODULE_DESCRIPTION("CZ.NIC's Turris Omnia LEDs");
 MODULE_LICENSE("GPL v2");

@@ -5,6 +5,8 @@
 #ifndef __MT76_TESTMODE_H
 #define __MT76_TESTMODE_H
 
+#define MT76_TM_TIMEOUT	10
+
 /**
  * enum mt76_testmode_attr - testmode attributes inside NL80211_ATTR_TESTDATA
  *
@@ -35,6 +37,13 @@
  * @MT76_TM_ATTR_FREQ_OFFSET: RF frequency offset (u32)
  *
  * @MT76_TM_ATTR_STATS: statistics (nested, see &enum mt76_testmode_stats_attr)
+ *
+ * @MT76_TM_ATTR_TX_SPE_IDX: tx spatial extension index (u8)
+ *
+ * @MT76_TM_ATTR_TX_DUTY_CYCLE: packet tx duty cycle (u8)
+ * @MT76_TM_ATTR_TX_IPG: tx inter-packet gap, in unit of us (u32)
+ * @MT76_TM_ATTR_TX_TIME: packet transmission time, in unit of us (u32)
+ *
  */
 enum mt76_testmode_attr {
 	MT76_TM_ATTR_UNSPEC,
@@ -62,6 +71,12 @@ enum mt76_testmode_attr {
 	MT76_TM_ATTR_FREQ_OFFSET,
 
 	MT76_TM_ATTR_STATS,
+
+	MT76_TM_ATTR_TX_SPE_IDX,
+
+	MT76_TM_ATTR_TX_DUTY_CYCLE,
+	MT76_TM_ATTR_TX_IPG,
+	MT76_TM_ATTR_TX_TIME,
 
 	/* keep last */
 	NUM_MT76_TM_ATTRS,
@@ -128,12 +143,14 @@ enum mt76_testmode_rx_attr {
  * @MT76_TM_STATE_IDLE: test mode enabled, but idle
  * @MT76_TM_STATE_TX_FRAMES: send a fixed number of test frames
  * @MT76_TM_STATE_RX_FRAMES: receive packets and keep statistics
+ * @MT76_TM_STATE_TX_CONT: waveform tx without time gap
  */
 enum mt76_testmode_state {
 	MT76_TM_STATE_OFF,
 	MT76_TM_STATE_IDLE,
 	MT76_TM_STATE_TX_FRAMES,
 	MT76_TM_STATE_RX_FRAMES,
+	MT76_TM_STATE_TX_CONT,
 
 	/* keep last */
 	NUM_MT76_TM_STATES,

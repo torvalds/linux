@@ -31,7 +31,7 @@ static inline void tlbiel_all(void)
 		hash__tlbiel_all(TLB_INVAL_SCOPE_GLOBAL);
 }
 #else
-static inline void tlbiel_all(void) { BUG(); };
+static inline void tlbiel_all(void) { BUG(); }
 #endif
 
 static inline void tlbiel_all_lpid(bool radix)

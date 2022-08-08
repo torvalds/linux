@@ -1485,12 +1485,20 @@ static u32 ivb_csc_mode(const struct intel_crtc_state *crtc_state)
 
 static int ivb_color_check(struct intel_crtc_state *crtc_state)
 {
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	bool limited_color_range = ilk_csc_limited_range(crtc_state);
 	int ret;
 
 	ret = check_luts(crtc_state);
 	if (ret)
 		return ret;
+
+	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB &&
+	    crtc_state->hw.ctm) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "YCBCR and CTM together are not possible\n");
+		return -EINVAL;
+	}
 
 	crtc_state->gamma_enable =
 		(crtc_state->hw.gamma_lut ||
@@ -1525,11 +1533,19 @@ static u32 glk_gamma_mode(const struct intel_crtc_state *crtc_state)
 
 static int glk_color_check(struct intel_crtc_state *crtc_state)
 {
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	int ret;
 
 	ret = check_luts(crtc_state);
 	if (ret)
 		return ret;
+
+	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB &&
+	    crtc_state->hw.ctm) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "YCBCR and CTM together are not possible\n");
+		return -EINVAL;
+	}
 
 	crtc_state->gamma_enable =
 		crtc_state->hw.gamma_lut &&

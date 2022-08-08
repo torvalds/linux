@@ -10,6 +10,8 @@
 
 #include <linux/fsl/mc.h>
 #include <linux/mutex.h>
+#include <linux/ioctl.h>
+#include <linux/miscdevice.h>
 
 /*
  * Data Path Management Complex (DPMNG) General API
@@ -543,6 +545,22 @@ struct fsl_mc_resource_pool {
 };
 
 /**
+ * struct fsl_mc_uapi - information associated with a device file
+ * @misc: struct miscdevice linked to the root dprc
+ * @device: newly created device in /dev
+ * @mutex: mutex lock to serialize the open/release operations
+ * @local_instance_in_use: local MC I/O instance in use or not
+ * @static_mc_io: pointer to the static MC I/O object
+ */
+struct fsl_mc_uapi {
+	struct miscdevice misc;
+	struct device *device;
+	struct mutex mutex; /* serialize open/release operations */
+	u32 local_instance_in_use;
+	struct fsl_mc_io *static_mc_io;
+};
+
+/**
  * struct fsl_mc_bus - logical bus that corresponds to a physical DPRC
  * @mc_dev: fsl-mc device for the bus device itself.
  * @resource_pools: array of resource pools (one pool per resource type)
@@ -551,6 +569,7 @@ struct fsl_mc_resource_pool {
  * @irq_resources: Pointer to array of IRQ objects for the IRQ pool
  * @scan_mutex: Serializes bus scanning
  * @dprc_attr: DPRC attributes
+ * @uapi_misc: struct that abstracts the interaction with userspace
  */
 struct fsl_mc_bus {
 	struct fsl_mc_device mc_dev;
@@ -558,6 +577,8 @@ struct fsl_mc_bus {
 	struct fsl_mc_device_irq *irq_resources;
 	struct mutex scan_mutex;    /* serializes bus scanning */
 	struct dprc_attributes dprc_attr;
+	struct fsl_mc_uapi uapi_misc;
+	int irq_enabled;
 };
 
 #define to_fsl_mc_bus(_mc_dev) \
@@ -573,6 +594,9 @@ void fsl_mc_device_remove(struct fsl_mc_device *mc_dev);
 int __init dprc_driver_init(void);
 
 void dprc_driver_exit(void);
+
+int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
+		      bool alloc_interrupts);
 
 int __init fsl_mc_allocator_driver_init(void);
 
@@ -611,5 +635,30 @@ void fsl_mc_get_root_dprc(struct device *dev,
 
 struct fsl_mc_device *fsl_mc_device_lookup(struct fsl_mc_obj_desc *obj_desc,
 					   struct fsl_mc_device *mc_bus_dev);
+
+u16 mc_cmd_hdr_read_cmdid(struct fsl_mc_command *cmd);
+
+#ifdef CONFIG_FSL_MC_UAPI_SUPPORT
+
+int fsl_mc_uapi_create_device_file(struct fsl_mc_bus *mc_bus);
+
+void fsl_mc_uapi_remove_device_file(struct fsl_mc_bus *mc_bus);
+
+#else
+
+static inline int fsl_mc_uapi_create_device_file(struct fsl_mc_bus *mc_bus)
+{
+	return 0;
+}
+
+static inline void fsl_mc_uapi_remove_device_file(struct fsl_mc_bus *mc_bus)
+{
+}
+
+#endif
+
+int disable_dprc_irq(struct fsl_mc_device *mc_dev);
+int enable_dprc_irq(struct fsl_mc_device *mc_dev);
+int get_dprc_irq_state(struct fsl_mc_device *mc_dev);
 
 #endif /* _FSL_MC_PRIVATE_H_ */

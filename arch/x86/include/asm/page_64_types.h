@@ -66,7 +66,7 @@
  * On Intel CPUs, if a SYSCALL instruction is at the highest canonical
  * address, then that syscall will enter the kernel with a
  * non-canonical return address, and SYSRET will explode dangerously.
- * We avoid this particular problem by preventing anything executable
+ * We avoid this particular problem by preventing anything
  * from being mapped at the maximum canonical address.
  *
  * On AMD CPUs in the Ryzen family, there's a nasty bug in which the

@@ -90,9 +90,10 @@ int hl_fw_send_pci_access_msg(struct hl_device *hdev, u32 opcode)
 int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 				u16 len, u32 timeout, u64 *result)
 {
+	struct hl_hw_queue *queue = &hdev->kernel_queues[hw_queue_id];
 	struct cpucp_packet *pkt;
 	dma_addr_t pkt_dma_addr;
-	u32 tmp;
+	u32 tmp, expected_ack_val;
 	int rc = 0;
 
 	pkt = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev, len,
@@ -115,14 +116,23 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 		goto out;
 	}
 
+	/* set fence to a non valid value */
+	pkt->fence = UINT_MAX;
+
 	rc = hl_hw_queue_send_cb_no_cmpl(hdev, hw_queue_id, len, pkt_dma_addr);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to send CB on CPU PQ (%d)\n", rc);
 		goto out;
 	}
 
+	if (hdev->asic_prop.fw_app_security_map &
+			CPU_BOOT_DEV_STS0_PKT_PI_ACK_EN)
+		expected_ack_val = queue->pi;
+	else
+		expected_ack_val = CPUCP_PACKET_FENCE_VAL;
+
 	rc = hl_poll_timeout_memory(hdev, &pkt->fence, tmp,
-				(tmp == CPUCP_PACKET_FENCE_VAL), 1000,
+				(tmp == expected_ack_val), 1000,
 				timeout, true);
 
 	hl_hw_queue_inc_ci_kernel(hdev, hw_queue_id);
@@ -279,8 +289,74 @@ int hl_fw_send_heartbeat(struct hl_device *hdev)
 	return rc;
 }
 
+static int fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
+		u32 cpu_security_boot_status_reg)
+{
+	u32 err_val, security_val;
+
+	/* Some of the firmware status codes are deprecated in newer f/w
+	 * versions. In those versions, the errors are reported
+	 * in different registers. Therefore, we need to check those
+	 * registers and print the exact errors. Moreover, there
+	 * may be multiple errors, so we need to report on each error
+	 * separately. Some of the error codes might indicate a state
+	 * that is not an error per-se, but it is an error in production
+	 * environment
+	 */
+	err_val = RREG32(boot_err0_reg);
+	if (!(err_val & CPU_BOOT_ERR0_ENABLED))
+		return 0;
+
+	if (err_val & CPU_BOOT_ERR0_DRAM_INIT_FAIL)
+		dev_err(hdev->dev,
+			"Device boot error - DRAM initialization failed\n");
+	if (err_val & CPU_BOOT_ERR0_FIT_CORRUPTED)
+		dev_err(hdev->dev, "Device boot error - FIT image corrupted\n");
+	if (err_val & CPU_BOOT_ERR0_TS_INIT_FAIL)
+		dev_err(hdev->dev,
+			"Device boot error - Thermal Sensor initialization failed\n");
+	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED)
+		dev_warn(hdev->dev,
+			"Device boot warning - Skipped DRAM initialization\n");
+
+	if (err_val & CPU_BOOT_ERR0_BMC_WAIT_SKIPPED) {
+		if (hdev->bmc_enable)
+			dev_warn(hdev->dev,
+				"Device boot error - Skipped waiting for BMC\n");
+		else
+			err_val &= ~CPU_BOOT_ERR0_BMC_WAIT_SKIPPED;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_NIC_DATA_NOT_RDY)
+		dev_err(hdev->dev,
+			"Device boot error - Serdes data from BMC not available\n");
+	if (err_val & CPU_BOOT_ERR0_NIC_FW_FAIL)
+		dev_err(hdev->dev,
+			"Device boot error - NIC F/W initialization failed\n");
+	if (err_val & CPU_BOOT_ERR0_SECURITY_NOT_RDY)
+		dev_warn(hdev->dev,
+			"Device boot warning - security not ready\n");
+	if (err_val & CPU_BOOT_ERR0_SECURITY_FAIL)
+		dev_err(hdev->dev, "Device boot error - security failure\n");
+	if (err_val & CPU_BOOT_ERR0_EFUSE_FAIL)
+		dev_err(hdev->dev, "Device boot error - eFuse failure\n");
+	if (err_val & CPU_BOOT_ERR0_PLL_FAIL)
+		dev_err(hdev->dev, "Device boot error - PLL failure\n");
+
+	security_val = RREG32(cpu_security_boot_status_reg);
+	if (security_val & CPU_BOOT_DEV_STS0_ENABLED)
+		dev_dbg(hdev->dev, "Device security status %#x\n",
+				security_val);
+
+	if (err_val & ~CPU_BOOT_ERR0_ENABLED)
+		return -EIO;
+
+	return 0;
+}
+
 int hl_fw_cpucp_info_get(struct hl_device *hdev,
-			u32 cpu_security_boot_status_reg)
+			u32 cpu_security_boot_status_reg,
+			u32 boot_err0_reg)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct cpucp_packet pkt = {};
@@ -311,6 +387,12 @@ int hl_fw_cpucp_info_get(struct hl_device *hdev,
 	if (rc) {
 		dev_err(hdev->dev,
 			"Failed to handle CPU-CP info pkt, error %d\n", rc);
+		goto out;
+	}
+
+	rc = fw_read_errors(hdev, boot_err0_reg, cpu_security_boot_status_reg);
+	if (rc) {
+		dev_err(hdev->dev, "Errors in device boot\n");
 		goto out;
 	}
 
@@ -483,58 +565,6 @@ int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, u16 pll_index,
 	return rc;
 }
 
-static void fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
-		u32 cpu_security_boot_status_reg)
-{
-	u32 err_val, security_val;
-
-	/* Some of the firmware status codes are deprecated in newer f/w
-	 * versions. In those versions, the errors are reported
-	 * in different registers. Therefore, we need to check those
-	 * registers and print the exact errors. Moreover, there
-	 * may be multiple errors, so we need to report on each error
-	 * separately. Some of the error codes might indicate a state
-	 * that is not an error per-se, but it is an error in production
-	 * environment
-	 */
-	err_val = RREG32(boot_err0_reg);
-	if (!(err_val & CPU_BOOT_ERR0_ENABLED))
-		return;
-
-	if (err_val & CPU_BOOT_ERR0_DRAM_INIT_FAIL)
-		dev_err(hdev->dev,
-			"Device boot error - DRAM initialization failed\n");
-	if (err_val & CPU_BOOT_ERR0_FIT_CORRUPTED)
-		dev_err(hdev->dev, "Device boot error - FIT image corrupted\n");
-	if (err_val & CPU_BOOT_ERR0_TS_INIT_FAIL)
-		dev_err(hdev->dev,
-			"Device boot error - Thermal Sensor initialization failed\n");
-	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED)
-		dev_warn(hdev->dev,
-			"Device boot warning - Skipped DRAM initialization\n");
-	if (err_val & CPU_BOOT_ERR0_BMC_WAIT_SKIPPED)
-		dev_warn(hdev->dev,
-			"Device boot error - Skipped waiting for BMC\n");
-	if (err_val & CPU_BOOT_ERR0_NIC_DATA_NOT_RDY)
-		dev_err(hdev->dev,
-			"Device boot error - Serdes data from BMC not available\n");
-	if (err_val & CPU_BOOT_ERR0_NIC_FW_FAIL)
-		dev_err(hdev->dev,
-			"Device boot error - NIC F/W initialization failed\n");
-	if (err_val & CPU_BOOT_ERR0_SECURITY_NOT_RDY)
-		dev_warn(hdev->dev,
-			"Device boot warning - security not ready\n");
-	if (err_val & CPU_BOOT_ERR0_SECURITY_FAIL)
-		dev_err(hdev->dev, "Device boot error - security failure\n");
-	if (err_val & CPU_BOOT_ERR0_EFUSE_FAIL)
-		dev_err(hdev->dev, "Device boot error - eFuse failure\n");
-
-	security_val = RREG32(cpu_security_boot_status_reg);
-	if (security_val & CPU_BOOT_DEV_STS0_ENABLED)
-		dev_dbg(hdev->dev, "Device security status %#x\n",
-				security_val);
-}
-
 static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 {
 	/* Some of the status codes below are deprecated in newer f/w
@@ -659,6 +689,9 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		prop->fw_security_disabled = true;
 	}
 
+	dev_dbg(hdev->dev, "Firmware preboot security status %#x\n",
+			security_status);
+
 	dev_dbg(hdev->dev, "Firmware preboot hard-reset is %s\n",
 			prop->hard_reset_done_by_fw ? "enabled" : "disabled");
 
@@ -753,6 +786,10 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		if (prop->fw_boot_cpu_security_map &
 				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
 			prop->hard_reset_done_by_fw = true;
+
+		dev_dbg(hdev->dev,
+			"Firmware boot CPU security status %#x\n",
+			prop->fw_boot_cpu_security_map);
 	}
 
 	dev_dbg(hdev->dev, "Firmware boot CPU hard-reset is %s\n",
@@ -826,6 +863,10 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		goto out;
 	}
 
+	rc = fw_read_errors(hdev, boot_err0_reg, cpu_security_boot_status_reg);
+	if (rc)
+		return rc;
+
 	/* Clear reset status since we need to read again from app */
 	prop->hard_reset_done_by_fw = false;
 
@@ -837,12 +878,18 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		if (prop->fw_app_security_map &
 				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
 			prop->hard_reset_done_by_fw = true;
+
+		dev_dbg(hdev->dev,
+			"Firmware application CPU security status %#x\n",
+			prop->fw_app_security_map);
 	}
 
 	dev_dbg(hdev->dev, "Firmware application CPU hard-reset is %s\n",
 			prop->hard_reset_done_by_fw ? "enabled" : "disabled");
 
 	dev_info(hdev->dev, "Successfully loaded firmware to device\n");
+
+	return 0;
 
 out:
 	fw_read_errors(hdev, boot_err0_reg, cpu_security_boot_status_reg);

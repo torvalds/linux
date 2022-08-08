@@ -21,9 +21,34 @@ static int trigger_module_test_read(int read_sz)
 	return 0;
 }
 
+static int trigger_module_test_write(int write_sz)
+{
+	int fd, err;
+	char *buf = malloc(write_sz);
+
+	if (!buf)
+		return -ENOMEM;
+
+	memset(buf, 'a', write_sz);
+	buf[write_sz-1] = '\0';
+
+	fd = open("/sys/kernel/bpf_testmod", O_WRONLY);
+	err = -errno;
+	if (CHECK(fd < 0, "testmod_file_open", "failed: %d\n", err)) {
+		free(buf);
+		return err;
+	}
+
+	write(fd, buf, write_sz);
+	close(fd);
+	free(buf);
+	return 0;
+}
+
 void test_module_attach(void)
 {
 	const int READ_SZ = 456;
+	const int WRITE_SZ = 457;
 	struct test_module_attach* skel;
 	struct test_module_attach__bss *bss;
 	int err;
@@ -48,8 +73,10 @@ void test_module_attach(void)
 
 	/* trigger tracepoint */
 	ASSERT_OK(trigger_module_test_read(READ_SZ), "trigger_read");
+	ASSERT_OK(trigger_module_test_write(WRITE_SZ), "trigger_write");
 
 	ASSERT_EQ(bss->raw_tp_read_sz, READ_SZ, "raw_tp");
+	ASSERT_EQ(bss->raw_tp_bare_write_sz, WRITE_SZ, "raw_tp_bare");
 	ASSERT_EQ(bss->tp_btf_read_sz, READ_SZ, "tp_btf");
 	ASSERT_EQ(bss->fentry_read_sz, READ_SZ, "fentry");
 	ASSERT_EQ(bss->fentry_manual_read_sz, READ_SZ, "fentry_manual");

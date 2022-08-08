@@ -101,7 +101,7 @@ static void _cifs_mid_q_entry_release(struct kref *refcount)
 	if (midEntry->resp_buf && (midEntry->mid_flags & MID_WAIT_CANCELLED) &&
 	    midEntry->mid_state == MID_RESPONSE_RECEIVED &&
 	    server->ops->handle_cancelled_mid)
-		server->ops->handle_cancelled_mid(midEntry->resp_buf, server);
+		server->ops->handle_cancelled_mid(midEntry, server);
 
 	midEntry->mid_state = MID_FREE;
 	atomic_dec(&midCount);
@@ -445,7 +445,7 @@ unmask:
 		 */
 		server->tcpStatus = CifsNeedReconnect;
 		trace_smb3_partial_send_reconnect(server->CurrentMid,
-						  server->hostname);
+						  server->conn_id, server->hostname);
 	}
 smbd_done:
 	if (rc < 0 && rc != -EINTR)
@@ -527,7 +527,7 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 	int *credits;
 	int optype;
 	long int t;
-	int scredits = server->credits;
+	int scredits, in_flight;
 
 	if (timeout < 0)
 		t = MAX_JIFFY_OFFSET;
@@ -551,23 +551,39 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 			server->max_in_flight = server->in_flight;
 		*credits -= 1;
 		*instance = server->reconnect_instance;
+		scredits = *credits;
+		in_flight = server->in_flight;
 		spin_unlock(&server->req_lock);
+
+		trace_smb3_add_credits(server->CurrentMid,
+				server->conn_id, server->hostname, scredits, -1, in_flight);
+		cifs_dbg(FYI, "%s: remove %u credits total=%d\n",
+				__func__, 1, scredits);
+
 		return 0;
 	}
 
 	while (1) {
 		if (*credits < num_credits) {
+			scredits = *credits;
 			spin_unlock(&server->req_lock);
+
 			cifs_num_waiters_inc(server);
 			rc = wait_event_killable_timeout(server->request_q,
 				has_credits(server, credits, num_credits), t);
 			cifs_num_waiters_dec(server);
 			if (!rc) {
+				spin_lock(&server->req_lock);
+				scredits = *credits;
+				in_flight = server->in_flight;
+				spin_unlock(&server->req_lock);
+
 				trace_smb3_credit_timeout(server->CurrentMid,
-					server->hostname, num_credits, 0);
+						server->conn_id, server->hostname, scredits,
+						num_credits, in_flight);
 				cifs_server_dbg(VFS, "wait timed out after %d ms\n",
-					 timeout);
-				return -ENOTSUPP;
+						timeout);
+				return -EBUSY;
 			}
 			if (rc == -ERESTARTSYS)
 				return -ERESTARTSYS;
@@ -595,6 +611,7 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 			    server->in_flight > 2 * MAX_COMPOUND &&
 			    *credits <= MAX_COMPOUND) {
 				spin_unlock(&server->req_lock);
+
 				cifs_num_waiters_inc(server);
 				rc = wait_event_killable_timeout(
 					server->request_q,
@@ -603,13 +620,18 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 					t);
 				cifs_num_waiters_dec(server);
 				if (!rc) {
+					spin_lock(&server->req_lock);
+					scredits = *credits;
+					in_flight = server->in_flight;
+					spin_unlock(&server->req_lock);
+
 					trace_smb3_credit_timeout(
-						server->CurrentMid,
-						server->hostname, num_credits,
-						0);
+							server->CurrentMid,
+							server->conn_id, server->hostname,
+							scredits, num_credits, in_flight);
 					cifs_server_dbg(VFS, "wait timed out after %d ms\n",
-						 timeout);
-					return -ENOTSUPP;
+							timeout);
+					return -EBUSY;
 				}
 				if (rc == -ERESTARTSYS)
 					return -ERESTARTSYS;
@@ -625,16 +647,18 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 			/* update # of requests on the wire to server */
 			if ((flags & CIFS_TIMEOUT_MASK) != CIFS_BLOCKING_OP) {
 				*credits -= num_credits;
-				scredits = *credits;
 				server->in_flight += num_credits;
 				if (server->in_flight > server->max_in_flight)
 					server->max_in_flight = server->in_flight;
 				*instance = server->reconnect_instance;
 			}
+			scredits = *credits;
+			in_flight = server->in_flight;
 			spin_unlock(&server->req_lock);
 
 			trace_smb3_add_credits(server->CurrentMid,
-					server->hostname, scredits, -(num_credits));
+					server->conn_id, server->hostname, scredits,
+					-(num_credits), in_flight);
 			cifs_dbg(FYI, "%s: remove %u credits total=%d\n",
 					__func__, num_credits, scredits);
 			break;
@@ -656,13 +680,13 @@ wait_for_compound_request(struct TCP_Server_Info *server, int num,
 			  const int flags, unsigned int *instance)
 {
 	int *credits;
-	int scredits, sin_flight;
+	int scredits, in_flight;
 
 	credits = server->ops->get_credits_field(server, flags & CIFS_OP_MASK);
 
 	spin_lock(&server->req_lock);
 	scredits = *credits;
-	sin_flight = server->in_flight;
+	in_flight = server->in_flight;
 
 	if (*credits < num) {
 		/*
@@ -684,10 +708,11 @@ wait_for_compound_request(struct TCP_Server_Info *server, int num,
 		if (server->in_flight == 0) {
 			spin_unlock(&server->req_lock);
 			trace_smb3_insufficient_credits(server->CurrentMid,
-					server->hostname, scredits, sin_flight);
+					server->conn_id, server->hostname, scredits,
+					num, in_flight);
 			cifs_dbg(FYI, "%s: %d requests in flight, needed %d total=%d\n",
-					__func__, sin_flight, num, scredits);
-			return -ENOTSUPP;
+					__func__, in_flight, num, scredits);
+			return -EDEADLK;
 		}
 	}
 	spin_unlock(&server->req_lock);
@@ -1171,9 +1196,12 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	/*
 	 * Compounding is never used during session establish.
 	 */
-	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP))
+	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP) || (optype & CIFS_SESS_OP)) {
+		mutex_lock(&server->srv_mutex);
 		smb311_update_preauth_hash(ses, rqst[0].rq_iov,
 					   rqst[0].rq_nvec);
+		mutex_unlock(&server->srv_mutex);
+	}
 
 	for (i = 0; i < num_rqst; i++) {
 		rc = wait_for_response(server, midQ[i]);
@@ -1182,7 +1210,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	}
 	if (rc != 0) {
 		for (; i < num_rqst; i++) {
-			cifs_server_dbg(VFS, "Cancelling wait for mid %llu cmd: %d\n",
+			cifs_server_dbg(FYI, "Cancelling wait for mid %llu cmd: %d\n",
 				 midQ[i]->mid, le16_to_cpu(midQ[i]->command));
 			send_cancel(server, &rqst[i], midQ[i]);
 			spin_lock(&GlobalMid_Lock);
@@ -1236,12 +1264,14 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	/*
 	 * Compounding is never used during session establish.
 	 */
-	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP)) {
+	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP) || (optype & CIFS_SESS_OP)) {
 		struct kvec iov = {
 			.iov_base = resp_iov[0].iov_base,
 			.iov_len = resp_iov[0].iov_len
 		};
+		mutex_lock(&server->srv_mutex);
 		smb311_update_preauth_hash(ses, &iov, 1);
+		mutex_unlock(&server->srv_mutex);
 	}
 
 out:

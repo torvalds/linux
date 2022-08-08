@@ -9,6 +9,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/dma-mapping.h>
 
 #include <linux/mei.h>
 
@@ -990,7 +991,8 @@ int mei_cl_disconnect(struct mei_cl *cl)
 		return 0;
 	}
 
-	if (dev->dev_state == MEI_DEV_POWER_DOWN) {
+	if (dev->dev_state == MEI_DEV_POWERING_DOWN ||
+	    dev->dev_state == MEI_DEV_POWER_DOWN) {
 		cl_dbg(dev, cl, "Device is powering down, don't bother with disconnection\n");
 		mei_cl_set_disconnected(cl);
 		return 0;
@@ -1737,7 +1739,7 @@ static inline u8 mei_ext_hdr_set_vtag(struct mei_ext_hdr *ext, u8 vtag)
  *
  * @cb: message callback structure
  *
- * Return: a pointer to initialized header
+ * Return: a pointer to initialized header or ERR_PTR on failure
  */
 static struct mei_msg_hdr *mei_msg_hdr_init(const struct mei_cl_cb *cb)
 {
@@ -2113,6 +2115,8 @@ void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
 	case MEI_FOP_DISCONNECT:
 	case MEI_FOP_NOTIFY_STOP:
 	case MEI_FOP_NOTIFY_START:
+	case MEI_FOP_DMA_MAP:
+	case MEI_FOP_DMA_UNMAP:
 		if (waitqueue_active(&cl->wait))
 			wake_up(&cl->wait);
 
@@ -2138,4 +2142,284 @@ void mei_cl_all_disconnect(struct mei_device *dev)
 
 	list_for_each_entry(cl, &dev->file_list, link)
 		mei_cl_set_disconnected(cl);
+}
+
+static struct mei_cl *mei_cl_dma_map_find(struct mei_device *dev, u8 buffer_id)
+{
+	struct mei_cl *cl;
+
+	list_for_each_entry(cl, &dev->file_list, link)
+		if (cl->dma.buffer_id == buffer_id)
+			return cl;
+	return NULL;
+}
+
+/**
+ * mei_cl_irq_dma_map - send client dma map request in irq_thread context
+ *
+ * @cl: client
+ * @cb: callback block.
+ * @cmpl_list: complete list.
+ *
+ * Return: 0 on such and error otherwise.
+ */
+int mei_cl_irq_dma_map(struct mei_cl *cl, struct mei_cl_cb *cb,
+		       struct list_head *cmpl_list)
+{
+	struct mei_device *dev = cl->dev;
+	u32 msg_slots;
+	int slots;
+	int ret;
+
+	msg_slots = mei_hbm2slots(sizeof(struct hbm_client_dma_map_request));
+	slots = mei_hbuf_empty_slots(dev);
+	if (slots < 0)
+		return -EOVERFLOW;
+
+	if ((u32)slots < msg_slots)
+		return -EMSGSIZE;
+
+	ret = mei_hbm_cl_dma_map_req(dev, cl);
+	if (ret) {
+		cl->status = ret;
+		list_move_tail(&cb->list, cmpl_list);
+		return ret;
+	}
+
+	list_move_tail(&cb->list, &dev->ctrl_rd_list);
+	return 0;
+}
+
+/**
+ * mei_cl_irq_dma_unmap - send client dma unmap request in irq_thread context
+ *
+ * @cl: client
+ * @cb: callback block.
+ * @cmpl_list: complete list.
+ *
+ * Return: 0 on such and error otherwise.
+ */
+int mei_cl_irq_dma_unmap(struct mei_cl *cl, struct mei_cl_cb *cb,
+			 struct list_head *cmpl_list)
+{
+	struct mei_device *dev = cl->dev;
+	u32 msg_slots;
+	int slots;
+	int ret;
+
+	msg_slots = mei_hbm2slots(sizeof(struct hbm_client_dma_unmap_request));
+	slots = mei_hbuf_empty_slots(dev);
+	if (slots < 0)
+		return -EOVERFLOW;
+
+	if ((u32)slots < msg_slots)
+		return -EMSGSIZE;
+
+	ret = mei_hbm_cl_dma_unmap_req(dev, cl);
+	if (ret) {
+		cl->status = ret;
+		list_move_tail(&cb->list, cmpl_list);
+		return ret;
+	}
+
+	list_move_tail(&cb->list, &dev->ctrl_rd_list);
+	return 0;
+}
+
+static int mei_cl_dma_alloc(struct mei_cl *cl, u8 buf_id, size_t size)
+{
+	cl->dma.vaddr = dmam_alloc_coherent(cl->dev->dev, size,
+					    &cl->dma.daddr, GFP_KERNEL);
+	if (!cl->dma.vaddr)
+		return -ENOMEM;
+
+	cl->dma.buffer_id = buf_id;
+	cl->dma.size = size;
+
+	return 0;
+}
+
+static void mei_cl_dma_free(struct mei_cl *cl)
+{
+	cl->dma.buffer_id = 0;
+	dmam_free_coherent(cl->dev->dev,
+			   cl->dma.size, cl->dma.vaddr, cl->dma.daddr);
+	cl->dma.size = 0;
+	cl->dma.vaddr = NULL;
+	cl->dma.daddr = 0;
+}
+
+/**
+ * mei_cl_alloc_and_map - send client dma map request
+ *
+ * @cl: host client
+ * @fp: pointer to file structure
+ * @buffer_id: id of the mapped buffer
+ * @size: size of the buffer
+ *
+ * Locking: called under "dev->device_lock" lock
+ *
+ * Return:
+ * * -ENODEV
+ * * -EINVAL
+ * * -EOPNOTSUPP
+ * * -EPROTO
+ * * -ENOMEM;
+ */
+int mei_cl_dma_alloc_and_map(struct mei_cl *cl, const struct file *fp,
+			     u8 buffer_id, size_t size)
+{
+	struct mei_device *dev;
+	struct mei_cl_cb *cb;
+	int rets;
+
+	if (WARN_ON(!cl || !cl->dev))
+		return -ENODEV;
+
+	dev = cl->dev;
+
+	if (!dev->hbm_f_cd_supported) {
+		cl_dbg(dev, cl, "client dma is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (buffer_id == 0)
+		return -EINVAL;
+
+	if (mei_cl_is_connected(cl))
+		return -EPROTO;
+
+	if (cl->dma_mapped)
+		return -EPROTO;
+
+	if (mei_cl_dma_map_find(dev, buffer_id)) {
+		cl_dbg(dev, cl, "client dma with id %d is already allocated\n",
+		       cl->dma.buffer_id);
+		return -EPROTO;
+	}
+
+	rets = pm_runtime_get(dev->dev);
+	if (rets < 0 && rets != -EINPROGRESS) {
+		pm_runtime_put_noidle(dev->dev);
+		cl_err(dev, cl, "rpm: get failed %d\n", rets);
+		return rets;
+	}
+
+	rets = mei_cl_dma_alloc(cl, buffer_id, size);
+	if (rets) {
+		pm_runtime_put_noidle(dev->dev);
+		return rets;
+	}
+
+	cb = mei_cl_enqueue_ctrl_wr_cb(cl, 0, MEI_FOP_DMA_MAP, fp);
+	if (!cb) {
+		rets = -ENOMEM;
+		goto out;
+	}
+
+	if (mei_hbuf_acquire(dev)) {
+		if (mei_hbm_cl_dma_map_req(dev, cl)) {
+			rets = -ENODEV;
+			goto out;
+		}
+		list_move_tail(&cb->list, &dev->ctrl_rd_list);
+	}
+
+	mutex_unlock(&dev->device_lock);
+	wait_event_timeout(cl->wait,
+			   cl->dma_mapped || cl->status,
+			   mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
+	mutex_lock(&dev->device_lock);
+
+	if (!cl->dma_mapped && !cl->status)
+		cl->status = -EFAULT;
+
+	rets = cl->status;
+
+out:
+	if (rets)
+		mei_cl_dma_free(cl);
+
+	cl_dbg(dev, cl, "rpm: autosuspend\n");
+	pm_runtime_mark_last_busy(dev->dev);
+	pm_runtime_put_autosuspend(dev->dev);
+
+	mei_io_cb_free(cb);
+	return rets;
+}
+
+/**
+ * mei_cl_unmap_and_free - send client dma unmap request
+ *
+ * @cl: host client
+ * @fp: pointer to file structure
+ *
+ * Locking: called under "dev->device_lock" lock
+ *
+ * Return: 0 on such and error otherwise.
+ */
+int mei_cl_dma_unmap(struct mei_cl *cl, const struct file *fp)
+{
+	struct mei_device *dev;
+	struct mei_cl_cb *cb;
+	int rets;
+
+	if (WARN_ON(!cl || !cl->dev))
+		return -ENODEV;
+
+	dev = cl->dev;
+
+	if (!dev->hbm_f_cd_supported) {
+		cl_dbg(dev, cl, "client dma is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	/* do not allow unmap for connected client */
+	if (mei_cl_is_connected(cl))
+		return -EPROTO;
+
+	if (!cl->dma_mapped)
+		return -EPROTO;
+
+	rets = pm_runtime_get(dev->dev);
+	if (rets < 0 && rets != -EINPROGRESS) {
+		pm_runtime_put_noidle(dev->dev);
+		cl_err(dev, cl, "rpm: get failed %d\n", rets);
+		return rets;
+	}
+
+	cb = mei_cl_enqueue_ctrl_wr_cb(cl, 0, MEI_FOP_DMA_UNMAP, fp);
+	if (!cb) {
+		rets = -ENOMEM;
+		goto out;
+	}
+
+	if (mei_hbuf_acquire(dev)) {
+		if (mei_hbm_cl_dma_unmap_req(dev, cl)) {
+			rets = -ENODEV;
+			goto out;
+		}
+		list_move_tail(&cb->list, &dev->ctrl_rd_list);
+	}
+
+	mutex_unlock(&dev->device_lock);
+	wait_event_timeout(cl->wait,
+			   !cl->dma_mapped || cl->status,
+			   mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
+	mutex_lock(&dev->device_lock);
+
+	if (cl->dma_mapped && !cl->status)
+		cl->status = -EFAULT;
+
+	rets = cl->status;
+
+	if (!rets)
+		mei_cl_dma_free(cl);
+out:
+	cl_dbg(dev, cl, "rpm: autosuspend\n");
+	pm_runtime_mark_last_busy(dev->dev);
+	pm_runtime_put_autosuspend(dev->dev);
+
+	mei_io_cb_free(cb);
+	return rets;
 }

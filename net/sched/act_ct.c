@@ -183,6 +183,7 @@ static void tcf_ct_flow_table_add_action_meta(struct nf_conn *ct,
 					     IP_CT_ESTABLISHED_REPLY;
 	/* aligns with the CT reference on the SKB nf_ct_set */
 	entry->ct_metadata.cookie = (unsigned long)ct | ctinfo;
+	entry->ct_metadata.orig_dir = dir == IP_CT_DIR_ORIGINAL;
 
 	act_ct_labels = entry->ct_metadata.labels;
 	ct_labels = nf_ct_labels_find(ct);
@@ -944,13 +945,14 @@ static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 	tcf_lastuse_update(&c->tcf_tm);
 
 	if (clear) {
+		qdisc_skb_cb(skb)->post_ct = false;
 		ct = nf_ct_get(skb, &ctinfo);
 		if (ct) {
 			nf_conntrack_put(&ct->ct_general);
 			nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
 		}
 
-		goto out;
+		goto out_clear;
 	}
 
 	family = tcf_ct_skb_nf_family(skb);
@@ -1029,6 +1031,8 @@ out_push:
 	skb_push_rcsum(skb, nh_ofs);
 
 out:
+	qdisc_skb_cb(skb)->post_ct = true;
+out_clear:
 	tcf_action_update_bstats(&c->common, skb);
 	if (defrag)
 		qdisc_skb_cb(skb)->pkt_len = skb->len;

@@ -129,7 +129,7 @@ static int ppc_spe_sha256_update(struct shash_desc *desc, const u8 *data,
 
 		src += bytes;
 		len -= bytes;
-	};
+	}
 
 	memcpy((char *)sctx->buf, src, len);
 	return 0;

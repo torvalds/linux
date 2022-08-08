@@ -646,14 +646,14 @@ static int cb710_mmc_irq_handler(struct cb710_slot *slot)
 	return 1;
 }
 
-static void cb710_mmc_finish_request_tasklet(unsigned long data)
+static void cb710_mmc_finish_request_tasklet(struct tasklet_struct *t)
 {
-	struct mmc_host *mmc = (void *)data;
-	struct cb710_mmc_reader *reader = mmc_priv(mmc);
+	struct cb710_mmc_reader *reader = from_tasklet(reader, t,
+						       finish_req_tasklet);
 	struct mmc_request *mrq = reader->mrq;
 
 	reader->mrq = NULL;
-	mmc_request_done(mmc, mrq);
+	mmc_request_done(mmc_from_priv(reader), mrq);
 }
 
 static const struct mmc_host_ops cb710_mmc_host = {
@@ -718,8 +718,8 @@ static int cb710_mmc_init(struct platform_device *pdev)
 
 	reader = mmc_priv(mmc);
 
-	tasklet_init(&reader->finish_req_tasklet,
-		cb710_mmc_finish_request_tasklet, (unsigned long)mmc);
+	tasklet_setup(&reader->finish_req_tasklet,
+		      cb710_mmc_finish_request_tasklet);
 	spin_lock_init(&reader->irq_lock);
 	cb710_dump_regs(chip, CB710_DUMP_REGS_MMC);
 

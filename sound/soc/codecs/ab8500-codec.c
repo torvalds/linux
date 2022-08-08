@@ -2384,7 +2384,7 @@ static struct snd_soc_dai_driver ab8500_codec_dai[] = {
 			.formats = AB8500_SUPPORTED_FMT,
 		},
 		.ops = &ab8500_codec_ops,
-		.symmetric_rates = 1
+		.symmetric_rate = 1
 	},
 	{
 		.name = "ab8500-codec-dai.1",
@@ -2397,7 +2397,7 @@ static struct snd_soc_dai_driver ab8500_codec_dai[] = {
 			.formats = AB8500_SUPPORTED_FMT,
 		},
 		.ops = &ab8500_codec_ops,
-		.symmetric_rates = 1
+		.symmetric_rate = 1
 	}
 };
 

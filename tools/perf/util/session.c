@@ -593,10 +593,13 @@ static void perf_event__mmap2_swap(union perf_event *event,
 	event->mmap2.start = bswap_64(event->mmap2.start);
 	event->mmap2.len   = bswap_64(event->mmap2.len);
 	event->mmap2.pgoff = bswap_64(event->mmap2.pgoff);
-	event->mmap2.maj   = bswap_32(event->mmap2.maj);
-	event->mmap2.min   = bswap_32(event->mmap2.min);
-	event->mmap2.ino   = bswap_64(event->mmap2.ino);
-	event->mmap2.ino_generation = bswap_64(event->mmap2.ino_generation);
+
+	if (!(event->header.misc & PERF_RECORD_MISC_MMAP_BUILD_ID)) {
+		event->mmap2.maj   = bswap_32(event->mmap2.maj);
+		event->mmap2.min   = bswap_32(event->mmap2.min);
+		event->mmap2.ino   = bswap_64(event->mmap2.ino);
+		event->mmap2.ino_generation = bswap_64(event->mmap2.ino_generation);
+	}
 
 	if (sample_id_all) {
 		void *data = &event->mmap2.filename;
@@ -1297,8 +1300,12 @@ static void dump_sample(struct evsel *evsel, union perf_event *event,
 	if (sample_type & PERF_SAMPLE_STACK_USER)
 		stack_user__printf(&sample->user_stack);
 
-	if (sample_type & PERF_SAMPLE_WEIGHT)
-		printf("... weight: %" PRIu64 "\n", sample->weight);
+	if (sample_type & PERF_SAMPLE_WEIGHT_TYPE) {
+		printf("... weight: %" PRIu64 "", sample->weight);
+			if (sample_type & PERF_SAMPLE_WEIGHT_STRUCT)
+				printf(",0x%"PRIx16"", sample->ins_lat);
+		printf("\n");
+	}
 
 	if (sample_type & PERF_SAMPLE_DATA_SRC)
 		printf(" . data_src: 0x%"PRIx64"\n", sample->data_src);
@@ -1308,6 +1315,9 @@ static void dump_sample(struct evsel *evsel, union perf_event *event,
 
 	if (sample_type & PERF_SAMPLE_DATA_PAGE_SIZE)
 		printf(" .. data page size: %s\n", get_page_size_name(sample->data_page_size, str));
+
+	if (sample_type & PERF_SAMPLE_CODE_PAGE_SIZE)
+		printf(" .. code page size: %s\n", get_page_size_name(sample->code_page_size, str));
 
 	if (sample_type & PERF_SAMPLE_TRANSACTION)
 		printf("... transaction: %" PRIx64 "\n", sample->transaction);
@@ -1346,8 +1356,6 @@ static struct machine *machines__find_for_cpumode(struct machines *machines,
 					       union perf_event *event,
 					       struct perf_sample *sample)
 {
-	struct machine *machine;
-
 	if (perf_guest &&
 	    ((sample->cpumode == PERF_RECORD_MISC_GUEST_KERNEL) ||
 	     (sample->cpumode == PERF_RECORD_MISC_GUEST_USER))) {
@@ -1359,10 +1367,7 @@ static struct machine *machines__find_for_cpumode(struct machines *machines,
 		else
 			pid = sample->pid;
 
-		machine = machines__find(machines, pid);
-		if (!machine)
-			machine = machines__findnew(machines, DEFAULT_GUEST_KERNEL_ID);
-		return machine;
+		return machines__find_guest(machines, pid);
 	}
 
 	return &machines->host;
@@ -1784,32 +1789,13 @@ struct thread *perf_session__findnew(struct perf_session *session, pid_t pid)
 	return machine__findnew_thread(&session->machines.host, -1, pid);
 }
 
-/*
- * Threads are identified by pid and tid, and the idle task has pid == tid == 0.
- * So here a single thread is created for that, but actually there is a separate
- * idle task per cpu, so there should be one 'struct thread' per cpu, but there
- * is only 1. That causes problems for some tools, requiring workarounds. For
- * example get_idle_thread() in builtin-sched.c, or thread_stack__per_cpu().
- */
 int perf_session__register_idle_thread(struct perf_session *session)
 {
-	struct thread *thread;
-	int err = 0;
+	struct thread *thread = machine__idle_thread(&session->machines.host);
 
-	thread = machine__findnew_thread(&session->machines.host, 0, 0);
-	if (thread == NULL || thread__set_comm(thread, "swapper", 0)) {
-		pr_err("problem inserting idle task.\n");
-		err = -1;
-	}
-
-	if (thread == NULL || thread__set_namespaces(thread, 0, NULL)) {
-		pr_err("problem inserting idle task.\n");
-		err = -1;
-	}
-
-	/* machine__findnew_thread() got the thread, so put it */
+	/* machine__idle_thread() got the thread, so put it */
 	thread__put(thread);
-	return err;
+	return thread ? 0 : -1;
 }
 
 static void

@@ -17,11 +17,18 @@ properties:
   $nodename:
     const: '/'
   compatible:
-    items:
-      - enum:
-          - sifive,hifive-unleashed-a00
-      - const: sifive,fu540-c000
-      - const: sifive,fu540
+    oneOf:
+      - items:
+          - enum:
+              - sifive,hifive-unleashed-a00
+          - const: sifive,fu540-c000
+          - const: sifive,fu540
+
+      - items:
+          - enum:
+              - sifive,hifive-unmatched-a00
+          - const: sifive,fu740-c000
+          - const: sifive,fu740
 
 additionalProperties: true
 

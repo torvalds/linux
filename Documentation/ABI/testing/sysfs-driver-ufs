@@ -1161,3 +1161,14 @@ Description:	This entry shows the configured size of WriteBooster buffer.
 		0400h corresponds to 4GB.
 
 		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/wb_on
+Date:		January 2021
+Contact:	Bean Huo <beanhuo@micron.com>
+Description:	This node is used to set or display whether UFS WriteBooster is
+		enabled. Echo 0 to this file to disable UFS WriteBooster or 1 to
+		enable it. The WriteBooster is enabled after power-on/reset,
+		however, it will be disabled/enable while CLK scaling down/up
+		(if the platform supports UFSHCD_CAP_CLK_SCALING). For a
+		platform that doesn't support UFSHCD_CAP_CLK_SCALING, we can
+		disable/enable WriteBooster through this sysfs node.

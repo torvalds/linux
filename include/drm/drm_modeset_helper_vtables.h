@@ -866,12 +866,18 @@ struct drm_connector_helper_funcs {
 	 * The usual way to implement this is to cache the EDID retrieved in the
 	 * probe callback somewhere in the driver-private connector structure.
 	 * In this function drivers then parse the modes in the EDID and add
-	 * them by calling drm_add_edid_modes(). But connectors that driver a
+	 * them by calling drm_add_edid_modes(). But connectors that drive a
 	 * fixed panel can also manually add specific modes using
 	 * drm_mode_probed_add(). Drivers which manually add modes should also
 	 * make sure that the &drm_connector.display_info,
 	 * &drm_connector.width_mm and &drm_connector.height_mm fields are
 	 * filled in.
+	 *
+	 * Note that the caller function will automatically add standard VESA
+	 * DMT modes up to 1024x768 if the .get_modes() helper operation returns
+	 * no mode and if the connector status is connector_status_connected or
+	 * connector_status_unknown. There is no need to call
+	 * drm_add_modes_noedid() manually in that case.
 	 *
 	 * Virtual drivers that just want some standard VESA mode with a given
 	 * resolution can call drm_add_modes_noedid(), and mark the preferred
@@ -1395,6 +1401,27 @@ struct drm_mode_config_helper_funcs {
 	 * drm_atomic_helper_commit_tail().
 	 */
 	void (*atomic_commit_tail)(struct drm_atomic_state *state);
+
+	/**
+	 * @atomic_commit_setup:
+	 *
+	 * This hook is used by the default atomic_commit() hook implemented in
+	 * drm_atomic_helper_commit() together with the nonblocking helpers (see
+	 * drm_atomic_helper_setup_commit()) to extend the DRM commit setup. It
+	 * is not used by the atomic helpers.
+	 *
+	 * This function is called at the end of
+	 * drm_atomic_helper_setup_commit(), so once the commit has been
+	 * properly setup across the generic DRM object states. It allows
+	 * drivers to do some additional commit tracking that isn't related to a
+	 * CRTC, plane or connector, tracked in a &drm_private_obj structure.
+	 *
+	 * Note that the documentation of &drm_private_obj has more details on
+	 * how one should implement this.
+	 *
+	 * This hook is optional.
+	 */
+	int (*atomic_commit_setup)(struct drm_atomic_state *state);
 };
 
 #endif

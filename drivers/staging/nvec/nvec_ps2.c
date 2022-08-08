@@ -112,8 +112,8 @@ static int nvec_mouse_probe(struct platform_device *pdev)
 	ser_dev->start = ps2_startstreaming;
 	ser_dev->stop = ps2_stopstreaming;
 
-	strlcpy(ser_dev->name, "nvec mouse", sizeof(ser_dev->name));
-	strlcpy(ser_dev->phys, "nvec", sizeof(ser_dev->phys));
+	strscpy(ser_dev->name, "nvec mouse", sizeof(ser_dev->name));
+	strscpy(ser_dev->phys, "nvec", sizeof(ser_dev->phys));
 
 	ps2_dev.ser_dev = ser_dev;
 	ps2_dev.notifier.notifier_call = nvec_ps2_notifier;

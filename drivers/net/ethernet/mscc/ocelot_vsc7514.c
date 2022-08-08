@@ -4,6 +4,7 @@
  *
  * Copyright (c) 2017 Microsemi Corporation
  */
+#include <linux/dsa/ocelot.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of_net.h>
@@ -17,8 +18,6 @@
 #include <soc/mscc/ocelot_vcap.h>
 #include <soc/mscc/ocelot_hsio.h>
 #include "ocelot.h"
-
-#define IFH_EXTRACT_BITFIELD64(x, o, w) (((x) >> (o)) & GENMASK_ULL((w) - 1, 0))
 
 static const u32 ocelot_ana_regmap[] = {
 	REG(ANA_ADVLEARN,				0x009000),
@@ -517,7 +516,6 @@ static int ocelot_chip_init(struct ocelot *ocelot, const struct ocelot_ops *ops)
 	ocelot->map = ocelot_regmap;
 	ocelot->stats_layout = ocelot_stats_layout;
 	ocelot->num_stats = ARRAY_SIZE(ocelot_stats_layout);
-	ocelot->shared_queue_sz = 224 * 1024;
 	ocelot->num_mact_rows = 1024;
 	ocelot->ops = ops;
 
@@ -533,181 +531,28 @@ static int ocelot_chip_init(struct ocelot *ocelot, const struct ocelot_ops *ops)
 	return 0;
 }
 
-static int ocelot_parse_ifh(u32 *_ifh, struct frame_info *info)
-{
-	u8 llen, wlen;
-	u64 ifh[2];
-
-	ifh[0] = be64_to_cpu(((__force __be64 *)_ifh)[0]);
-	ifh[1] = be64_to_cpu(((__force __be64 *)_ifh)[1]);
-
-	wlen = IFH_EXTRACT_BITFIELD64(ifh[0], 7,  8);
-	llen = IFH_EXTRACT_BITFIELD64(ifh[0], 15,  6);
-
-	info->len = OCELOT_BUFFER_CELL_SZ * wlen + llen - 80;
-
-	info->timestamp = IFH_EXTRACT_BITFIELD64(ifh[0], 21, 32);
-
-	info->port = IFH_EXTRACT_BITFIELD64(ifh[1], 43, 4);
-
-	info->tag_type = IFH_EXTRACT_BITFIELD64(ifh[1], 16,  1);
-	info->vid = IFH_EXTRACT_BITFIELD64(ifh[1], 0,  12);
-
-	return 0;
-}
-
-static int ocelot_rx_frame_word(struct ocelot *ocelot, u8 grp, bool ifh,
-				u32 *rval)
-{
-	u32 val;
-	u32 bytes_valid;
-
-	val = ocelot_read_rix(ocelot, QS_XTR_RD, grp);
-	if (val == XTR_NOT_READY) {
-		if (ifh)
-			return -EIO;
-
-		do {
-			val = ocelot_read_rix(ocelot, QS_XTR_RD, grp);
-		} while (val == XTR_NOT_READY);
-	}
-
-	switch (val) {
-	case XTR_ABORT:
-		return -EIO;
-	case XTR_EOF_0:
-	case XTR_EOF_1:
-	case XTR_EOF_2:
-	case XTR_EOF_3:
-	case XTR_PRUNED:
-		bytes_valid = XTR_VALID_BYTES(val);
-		val = ocelot_read_rix(ocelot, QS_XTR_RD, grp);
-		if (val == XTR_ESCAPE)
-			*rval = ocelot_read_rix(ocelot, QS_XTR_RD, grp);
-		else
-			*rval = val;
-
-		return bytes_valid;
-	case XTR_ESCAPE:
-		*rval = ocelot_read_rix(ocelot, QS_XTR_RD, grp);
-
-		return 4;
-	default:
-		*rval = val;
-
-		return 4;
-	}
-}
-
 static irqreturn_t ocelot_xtr_irq_handler(int irq, void *arg)
 {
 	struct ocelot *ocelot = arg;
-	int i = 0, grp = 0;
-	int err = 0;
+	int grp = 0, err;
 
-	if (!(ocelot_read(ocelot, QS_XTR_DATA_PRESENT) & BIT(grp)))
-		return IRQ_NONE;
-
-	do {
-		struct skb_shared_hwtstamps *shhwtstamps;
-		struct ocelot_port_private *priv;
-		struct ocelot_port *ocelot_port;
-		u64 tod_in_ns, full_ts_in_ns;
-		struct frame_info info = {};
-		struct net_device *dev;
-		u32 ifh[4], val, *buf;
-		struct timespec64 ts;
-		int sz, len, buf_len;
+	while (ocelot_read(ocelot, QS_XTR_DATA_PRESENT) & BIT(grp)) {
 		struct sk_buff *skb;
 
-		for (i = 0; i < OCELOT_TAG_LEN / 4; i++) {
-			err = ocelot_rx_frame_word(ocelot, grp, true, &ifh[i]);
-			if (err != 4)
-				break;
-		}
+		err = ocelot_xtr_poll_frame(ocelot, grp, &skb);
+		if (err)
+			goto out;
 
-		if (err != 4)
-			break;
+		skb->dev->stats.rx_bytes += skb->len;
+		skb->dev->stats.rx_packets++;
 
-		/* At this point the IFH was read correctly, so it is safe to
-		 * presume that there is no error. The err needs to be reset
-		 * otherwise a frame could come in CPU queue between the while
-		 * condition and the check for error later on. And in that case
-		 * the new frame is just removed and not processed.
-		 */
-		err = 0;
-
-		ocelot_parse_ifh(ifh, &info);
-
-		ocelot_port = ocelot->ports[info.port];
-		priv = container_of(ocelot_port, struct ocelot_port_private,
-				    port);
-		dev = priv->dev;
-
-		skb = netdev_alloc_skb(dev, info.len);
-
-		if (unlikely(!skb)) {
-			netdev_err(dev, "Unable to allocate sk_buff\n");
-			err = -ENOMEM;
-			break;
-		}
-		buf_len = info.len - ETH_FCS_LEN;
-		buf = (u32 *)skb_put(skb, buf_len);
-
-		len = 0;
-		do {
-			sz = ocelot_rx_frame_word(ocelot, grp, false, &val);
-			*buf++ = val;
-			len += sz;
-		} while (len < buf_len);
-
-		/* Read the FCS */
-		sz = ocelot_rx_frame_word(ocelot, grp, false, &val);
-		/* Update the statistics if part of the FCS was read before */
-		len -= ETH_FCS_LEN - sz;
-
-		if (unlikely(dev->features & NETIF_F_RXFCS)) {
-			buf = (u32 *)skb_put(skb, ETH_FCS_LEN);
-			*buf = val;
-		}
-
-		if (sz < 0) {
-			err = sz;
-			break;
-		}
-
-		if (ocelot->ptp) {
-			ocelot_ptp_gettime64(&ocelot->ptp_info, &ts);
-
-			tod_in_ns = ktime_set(ts.tv_sec, ts.tv_nsec);
-			if ((tod_in_ns & 0xffffffff) < info.timestamp)
-				full_ts_in_ns = (((tod_in_ns >> 32) - 1) << 32) |
-						info.timestamp;
-			else
-				full_ts_in_ns = (tod_in_ns & GENMASK_ULL(63, 32)) |
-						info.timestamp;
-
-			shhwtstamps = skb_hwtstamps(skb);
-			memset(shhwtstamps, 0, sizeof(struct skb_shared_hwtstamps));
-			shhwtstamps->hwtstamp = full_ts_in_ns;
-		}
-
-		/* Everything we see on an interface that is in the HW bridge
-		 * has already been forwarded.
-		 */
-		if (ocelot->bridge_mask & BIT(info.port))
-			skb->offload_fwd_mark = 1;
-
-		skb->protocol = eth_type_trans(skb, dev);
 		if (!skb_defer_rx_timestamp(skb))
 			netif_rx(skb);
-		dev->stats.rx_bytes += len;
-		dev->stats.rx_packets++;
-	} while (ocelot_read(ocelot, QS_XTR_DATA_PRESENT) & BIT(grp));
+	}
 
-	if (err)
-		while (ocelot_read(ocelot, QS_XTR_DATA_PRESENT) & BIT(grp))
-			ocelot_read_rix(ocelot, QS_XTR_RD, grp);
+out:
+	if (err < 0)
+		ocelot_drain_cpu_queue(ocelot, 0);
 
 	return IRQ_HANDLED;
 }
@@ -764,9 +609,25 @@ static u16 ocelot_wm_enc(u16 value)
 	return value;
 }
 
+static u16 ocelot_wm_dec(u16 wm)
+{
+	if (wm & BIT(8))
+		return (wm & GENMASK(7, 0)) * 16;
+
+	return wm;
+}
+
+static void ocelot_wm_stat(u32 val, u32 *inuse, u32 *maxuse)
+{
+	*inuse = (val & GENMASK(23, 12)) >> 12;
+	*maxuse = val & GENMASK(11, 0);
+}
+
 static const struct ocelot_ops ocelot_ops = {
 	.reset			= ocelot_reset,
 	.wm_enc			= ocelot_wm_enc,
+	.wm_dec			= ocelot_wm_dec,
+	.wm_stat		= ocelot_wm_stat,
 	.port_to_netdev		= ocelot_port_to_netdev,
 	.netdev_to_port		= ocelot_netdev_to_port,
 };
@@ -1036,12 +897,19 @@ static struct ptp_clock_info ocelot_ptp_clock_info = {
 	.enable		= ocelot_ptp_enable,
 };
 
+static void mscc_ocelot_teardown_devlink_ports(struct ocelot *ocelot)
+{
+	int port;
+
+	for (port = 0; port < ocelot->num_phys_ports; port++)
+		ocelot_port_devlink_teardown(ocelot, port);
+}
+
 static void mscc_ocelot_release_ports(struct ocelot *ocelot)
 {
 	int port;
 
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
-		struct ocelot_port_private *priv;
 		struct ocelot_port *ocelot_port;
 
 		ocelot_port = ocelot->ports[port];
@@ -1049,12 +917,7 @@ static void mscc_ocelot_release_ports(struct ocelot *ocelot)
 			continue;
 
 		ocelot_deinit_port(ocelot, port);
-
-		priv = container_of(ocelot_port, struct ocelot_port_private,
-				    port);
-
-		unregister_netdev(priv->dev);
-		free_netdev(priv->dev);
+		ocelot_release_port(ocelot_port);
 	}
 }
 
@@ -1062,36 +925,55 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 				  struct device_node *ports)
 {
 	struct ocelot *ocelot = platform_get_drvdata(pdev);
+	u32 devlink_ports_registered = 0;
 	struct device_node *portnp;
-	int err;
+	int port, err;
+	u32 reg;
 
 	ocelot->ports = devm_kcalloc(ocelot->dev, ocelot->num_phys_ports,
 				     sizeof(struct ocelot_port *), GFP_KERNEL);
 	if (!ocelot->ports)
 		return -ENOMEM;
 
+	ocelot->devlink_ports = devm_kcalloc(ocelot->dev,
+					     ocelot->num_phys_ports,
+					     sizeof(*ocelot->devlink_ports),
+					     GFP_KERNEL);
+	if (!ocelot->devlink_ports)
+		return -ENOMEM;
+
 	for_each_available_child_of_node(ports, portnp) {
 		struct ocelot_port_private *priv;
 		struct ocelot_port *ocelot_port;
 		struct device_node *phy_node;
+		struct devlink_port *dlp;
 		phy_interface_t phy_mode;
 		struct phy_device *phy;
 		struct regmap *target;
 		struct resource *res;
 		struct phy *serdes;
 		char res_name[8];
-		u32 port;
 
-		if (of_property_read_u32(portnp, "reg", &port))
+		if (of_property_read_u32(portnp, "reg", &reg))
 			continue;
+
+		port = reg;
+		if (port < 0 || port >= ocelot->num_phys_ports) {
+			dev_err(ocelot->dev,
+				"invalid port number: %d >= %d\n", port,
+				ocelot->num_phys_ports);
+			continue;
+		}
 
 		snprintf(res_name, sizeof(res_name), "port%d", port);
 
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   res_name);
 		target = ocelot_regmap_init(ocelot, res);
-		if (IS_ERR(target))
-			continue;
+		if (IS_ERR(target)) {
+			err = PTR_ERR(target);
+			goto out_teardown;
+		}
 
 		phy_node = of_parse_phandle(portnp, "phy-handle", 0);
 		if (!phy_node)
@@ -1102,15 +984,25 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 		if (!phy)
 			continue;
 
+		err = ocelot_port_devlink_init(ocelot, port,
+					       DEVLINK_PORT_FLAVOUR_PHYSICAL);
+		if (err) {
+			of_node_put(portnp);
+			goto out_teardown;
+		}
+		devlink_ports_registered |= BIT(port);
+
 		err = ocelot_probe_port(ocelot, port, target, phy);
 		if (err) {
 			of_node_put(portnp);
-			return err;
+			goto out_teardown;
 		}
 
 		ocelot_port = ocelot->ports[port];
 		priv = container_of(ocelot_port, struct ocelot_port_private,
 				    port);
+		dlp = &ocelot->devlink_ports[port];
+		devlink_port_type_eth_set(dlp, priv->dev);
 
 		of_get_phy_mode(portnp, &phy_mode);
 
@@ -1135,7 +1027,8 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 				"invalid phy mode for port%d, (Q)SGMII only\n",
 				port);
 			of_node_put(portnp);
-			return -EINVAL;
+			err = -EINVAL;
+			goto out_teardown;
 		}
 
 		serdes = devm_of_phy_get(ocelot->dev, portnp, NULL);
@@ -1149,13 +1042,36 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 					port);
 
 			of_node_put(portnp);
-			return err;
+			goto out_teardown;
 		}
 
 		priv->serdes = serdes;
 	}
 
+	/* Initialize unused devlink ports at the end */
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		if (devlink_ports_registered & BIT(port))
+			continue;
+
+		err = ocelot_port_devlink_init(ocelot, port,
+					       DEVLINK_PORT_FLAVOUR_UNUSED);
+		if (err)
+			goto out_teardown;
+
+		devlink_ports_registered |= BIT(port);
+	}
+
 	return 0;
+
+out_teardown:
+	/* Unregister the network interfaces */
+	mscc_ocelot_release_ports(ocelot);
+	/* Tear down devlink ports for the registered network interfaces */
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		if (devlink_ports_registered & BIT(port))
+			ocelot_port_devlink_teardown(ocelot, port);
+	}
+	return err;
 }
 
 static int mscc_ocelot_probe(struct platform_device *pdev)
@@ -1163,6 +1079,7 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	int err, irq_xtr, irq_ptp_rdy;
 	struct device_node *ports;
+	struct devlink *devlink;
 	struct ocelot *ocelot;
 	struct regmap *hsio;
 	unsigned int i;
@@ -1186,10 +1103,12 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	if (!np && !pdev->dev.platform_data)
 		return -ENODEV;
 
-	ocelot = devm_kzalloc(&pdev->dev, sizeof(*ocelot), GFP_KERNEL);
-	if (!ocelot)
+	devlink = devlink_alloc(&ocelot_devlink_ops, sizeof(*ocelot));
+	if (!devlink)
 		return -ENOMEM;
 
+	ocelot = devlink_priv(devlink);
+	ocelot->devlink = priv_to_devlink(ocelot);
 	platform_set_drvdata(pdev, ocelot);
 	ocelot->dev = &pdev->dev;
 
@@ -1206,7 +1125,8 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 				ocelot->targets[io_target[i].id] = NULL;
 				continue;
 			}
-			return PTR_ERR(target);
+			err = PTR_ERR(target);
+			goto out_free_devlink;
 		}
 
 		ocelot->targets[io_target[i].id] = target;
@@ -1215,24 +1135,27 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	hsio = syscon_regmap_lookup_by_compatible("mscc,ocelot-hsio");
 	if (IS_ERR(hsio)) {
 		dev_err(&pdev->dev, "missing hsio syscon\n");
-		return PTR_ERR(hsio);
+		err = PTR_ERR(hsio);
+		goto out_free_devlink;
 	}
 
 	ocelot->targets[HSIO] = hsio;
 
 	err = ocelot_chip_init(ocelot, &ocelot_ops);
 	if (err)
-		return err;
+		goto out_free_devlink;
 
 	irq_xtr = platform_get_irq_byname(pdev, "xtr");
-	if (irq_xtr < 0)
-		return -ENODEV;
+	if (irq_xtr < 0) {
+		err = irq_xtr;
+		goto out_free_devlink;
+	}
 
 	err = devm_request_threaded_irq(&pdev->dev, irq_xtr, NULL,
 					ocelot_xtr_irq_handler, IRQF_ONESHOT,
 					"frame extraction", ocelot);
 	if (err)
-		return err;
+		goto out_free_devlink;
 
 	irq_ptp_rdy = platform_get_irq_byname(pdev, "ptp_rdy");
 	if (irq_ptp_rdy > 0 && ocelot->targets[PTP]) {
@@ -1241,7 +1164,7 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 						IRQF_ONESHOT, "ptp ready",
 						ocelot);
 		if (err)
-			return err;
+			goto out_free_devlink;
 
 		/* Both the PTP interrupt and the PTP bank are available */
 		ocelot->ptp = 1;
@@ -1250,24 +1173,31 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	ports = of_get_child_by_name(np, "ethernet-ports");
 	if (!ports) {
 		dev_err(ocelot->dev, "no ethernet-ports child node found\n");
-		return -ENODEV;
+		err = -ENODEV;
+		goto out_free_devlink;
 	}
 
 	ocelot->num_phys_ports = of_get_child_count(ports);
 	ocelot->num_flooding_pgids = 1;
 
 	ocelot->vcap = vsc7514_vcap_props;
-	ocelot->inj_prefix = OCELOT_TAG_PREFIX_NONE;
-	ocelot->xtr_prefix = OCELOT_TAG_PREFIX_NONE;
 	ocelot->npi = -1;
 
 	err = ocelot_init(ocelot);
 	if (err)
 		goto out_put_ports;
 
-	err = mscc_ocelot_init_ports(pdev, ports);
+	err = devlink_register(devlink, ocelot->dev);
 	if (err)
 		goto out_ocelot_deinit;
+
+	err = mscc_ocelot_init_ports(pdev, ports);
+	if (err)
+		goto out_ocelot_devlink_unregister;
+
+	err = ocelot_devlink_sb_register(ocelot);
+	if (err)
+		goto out_ocelot_release_ports;
 
 	if (ocelot->ptp) {
 		err = ocelot_init_timestamp(ocelot, &ocelot_ptp_clock_info);
@@ -1288,10 +1218,17 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 
 	return 0;
 
+out_ocelot_release_ports:
+	mscc_ocelot_release_ports(ocelot);
+	mscc_ocelot_teardown_devlink_ports(ocelot);
+out_ocelot_devlink_unregister:
+	devlink_unregister(devlink);
 out_ocelot_deinit:
 	ocelot_deinit(ocelot);
 out_put_ports:
 	of_node_put(ports);
+out_free_devlink:
+	devlink_free(devlink);
 	return err;
 }
 
@@ -1300,11 +1237,15 @@ static int mscc_ocelot_remove(struct platform_device *pdev)
 	struct ocelot *ocelot = platform_get_drvdata(pdev);
 
 	ocelot_deinit_timestamp(ocelot);
+	ocelot_devlink_sb_unregister(ocelot);
 	mscc_ocelot_release_ports(ocelot);
+	mscc_ocelot_teardown_devlink_ports(ocelot);
+	devlink_unregister(ocelot->devlink);
 	ocelot_deinit(ocelot);
 	unregister_switchdev_blocking_notifier(&ocelot_switchdev_blocking_nb);
 	unregister_switchdev_notifier(&ocelot_switchdev_nb);
 	unregister_netdevice_notifier(&ocelot_netdevice_nb);
+	devlink_free(ocelot->devlink);
 
 	return 0;
 }

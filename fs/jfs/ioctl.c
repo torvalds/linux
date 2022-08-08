@@ -76,7 +76,7 @@ long jfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (err)
 			return err;
 
-		if (!inode_owner_or_capable(inode)) {
+		if (!inode_owner_or_capable(&init_user_ns, inode)) {
 			err = -EACCES;
 			goto setflags_out;
 		}

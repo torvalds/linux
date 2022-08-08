@@ -11,6 +11,7 @@
 
 enum nvdimm_event {
 	NVDIMM_REVALIDATE_POISON,
+	NVDIMM_REVALIDATE_REGION,
 };
 
 enum nvdimm_claim_class {
@@ -26,7 +27,7 @@ struct nd_device_driver {
 	struct device_driver drv;
 	unsigned long type;
 	int (*probe)(struct device *dev);
-	int (*remove)(struct device *dev);
+	void (*remove)(struct device *dev);
 	void (*shutdown)(struct device *dev);
 	void (*notify)(struct device *dev, enum nvdimm_event event);
 };

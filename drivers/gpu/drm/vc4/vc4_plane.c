@@ -1146,7 +1146,6 @@ static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 	plane->state->src_y = state->src_y;
 	plane->state->src_w = state->src_w;
 	plane->state->src_h = state->src_h;
-	plane->state->src_h = state->src_h;
 	plane->state->alpha = state->alpha;
 	plane->state->pixel_blend_mode = state->pixel_blend_mode;
 	plane->state->rotation = state->rotation;
@@ -1283,11 +1282,6 @@ static const struct drm_plane_helper_funcs vc4_plane_helper_funcs = {
 	.atomic_async_update = vc4_plane_atomic_async_update,
 };
 
-static void vc4_plane_destroy(struct drm_plane *plane)
-{
-	drm_plane_cleanup(plane);
-}
-
 static bool vc4_format_mod_supported(struct drm_plane *plane,
 				     uint32_t format,
 				     uint64_t modifier)
@@ -1338,7 +1332,7 @@ static bool vc4_format_mod_supported(struct drm_plane *plane,
 static const struct drm_plane_funcs vc4_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
-	.destroy = vc4_plane_destroy,
+	.destroy = drm_plane_cleanup,
 	.set_property = NULL,
 	.reset = vc4_plane_reset,
 	.atomic_duplicate_state = vc4_plane_duplicate_state,

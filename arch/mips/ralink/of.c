@@ -64,20 +64,15 @@ static int __init early_init_dt_find_memory(unsigned long node,
 
 void __init plat_mem_setup(void)
 {
-	void *dtb = NULL;
+	void *dtb;
 
 	set_io_port_base(KSEG1);
 
 	/*
 	 * Load the builtin devicetree. This causes the chosen node to be
-	 * parsed resulting in our memory appearing. fw_passed_dtb is used
-	 * by CONFIG_MIPS_APPENDED_RAW_DTB as well.
+	 * parsed resulting in our memory appearing.
 	 */
-	if (fw_passed_dtb)
-		dtb = (void *)fw_passed_dtb;
-	else if (__dtb_start != __dtb_end)
-		dtb = (void *)__dtb_start;
-
+	dtb = get_fdt();
 	__dt_setup_arch(dtb);
 
 	of_scan_flat_dt(early_init_dt_find_memory, NULL);

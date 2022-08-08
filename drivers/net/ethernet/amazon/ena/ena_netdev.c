@@ -1589,10 +1589,9 @@ static int ena_xdp_handle_buff(struct ena_ring *rx_ring, struct xdp_buff *xdp)
 	int ret;
 
 	rx_info = &rx_ring->rx_buffer_info[rx_ring->ena_bufs[0].req_id];
-	xdp->data = page_address(rx_info->page) + rx_info->page_offset;
-	xdp_set_data_meta_invalid(xdp);
-	xdp->data_hard_start = page_address(rx_info->page);
-	xdp->data_end = xdp->data + rx_ring->ena_bufs[0].len;
+	xdp_prepare_buff(xdp, page_address(rx_info->page),
+			 rx_info->page_offset,
+			 rx_ring->ena_bufs[0].len, false);
 	/* If for some reason we received a bigger packet than
 	 * we expect, then we simply drop it
 	 */
@@ -1638,8 +1637,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 	netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
 		  "%s qid %d\n", __func__, rx_ring->qid);
 	res_budget = budget;
-	xdp.rxq = &rx_ring->xdp_rxq;
-	xdp.frame_sz = ENA_PAGE_SIZE;
+	xdp_init_buff(&xdp, ENA_PAGE_SIZE, &rx_ring->xdp_rxq);
 
 	do {
 		xdp_verdict = XDP_PASS;

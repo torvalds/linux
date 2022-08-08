@@ -180,108 +180,6 @@ try_again:
 }
 
 static int
-i915_gem_create(struct drm_file *file,
-		struct intel_memory_region *mr,
-		u64 *size_p,
-		u32 *handle_p)
-{
-	struct drm_i915_gem_object *obj;
-	u32 handle;
-	u64 size;
-	int ret;
-
-	GEM_BUG_ON(!is_power_of_2(mr->min_page_size));
-	size = round_up(*size_p, mr->min_page_size);
-	if (size == 0)
-		return -EINVAL;
-
-	/* For most of the ABI (e.g. mmap) we think in system pages */
-	GEM_BUG_ON(!IS_ALIGNED(size, PAGE_SIZE));
-
-	/* Allocate the new object */
-	obj = i915_gem_object_create_region(mr, size, 0);
-	if (IS_ERR(obj))
-		return PTR_ERR(obj);
-
-	ret = drm_gem_handle_create(file, &obj->base, &handle);
-	/* drop reference from allocate - handle holds it now */
-	i915_gem_object_put(obj);
-	if (ret)
-		return ret;
-
-	*handle_p = handle;
-	*size_p = size;
-	return 0;
-}
-
-int
-i915_gem_dumb_create(struct drm_file *file,
-		     struct drm_device *dev,
-		     struct drm_mode_create_dumb *args)
-{
-	enum intel_memory_type mem_type;
-	int cpp = DIV_ROUND_UP(args->bpp, 8);
-	u32 format;
-
-	switch (cpp) {
-	case 1:
-		format = DRM_FORMAT_C8;
-		break;
-	case 2:
-		format = DRM_FORMAT_RGB565;
-		break;
-	case 4:
-		format = DRM_FORMAT_XRGB8888;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	/* have to work out size/pitch and return them */
-	args->pitch = ALIGN(args->width * cpp, 64);
-
-	/* align stride to page size so that we can remap */
-	if (args->pitch > intel_plane_fb_max_stride(to_i915(dev), format,
-						    DRM_FORMAT_MOD_LINEAR))
-		args->pitch = ALIGN(args->pitch, 4096);
-
-	if (args->pitch < args->width)
-		return -EINVAL;
-
-	args->size = mul_u32_u32(args->pitch, args->height);
-
-	mem_type = INTEL_MEMORY_SYSTEM;
-	if (HAS_LMEM(to_i915(dev)))
-		mem_type = INTEL_MEMORY_LOCAL;
-
-	return i915_gem_create(file,
-			       intel_memory_region_by_type(to_i915(dev),
-							   mem_type),
-			       &args->size, &args->handle);
-}
-
-/**
- * Creates a new mm object and returns a handle to it.
- * @dev: drm device pointer
- * @data: ioctl data blob
- * @file: drm file pointer
- */
-int
-i915_gem_create_ioctl(struct drm_device *dev, void *data,
-		      struct drm_file *file)
-{
-	struct drm_i915_private *i915 = to_i915(dev);
-	struct drm_i915_gem_create *args = data;
-
-	i915_gem_flush_free_objects(i915);
-
-	return i915_gem_create(file,
-			       intel_memory_region_by_type(i915,
-							   INTEL_MEMORY_SYSTEM),
-			       &args->size, &args->handle);
-}
-
-static int
 shmem_pread(struct page *page, int offset, int len, char __user *user_data,
 	    bool needs_clflush)
 {
@@ -1059,14 +957,14 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	    i915_gem_object_is_tiled(obj) &&
 	    i915->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
 		if (obj->mm.madv == I915_MADV_WILLNEED) {
-			GEM_BUG_ON(!obj->mm.quirked);
-			__i915_gem_object_unpin_pages(obj);
-			obj->mm.quirked = false;
+			GEM_BUG_ON(!i915_gem_object_has_tiling_quirk(obj));
+			i915_gem_object_clear_tiling_quirk(obj);
+			i915_gem_object_make_shrinkable(obj);
 		}
 		if (args->madv == I915_MADV_WILLNEED) {
-			GEM_BUG_ON(obj->mm.quirked);
-			__i915_gem_object_pin_pages(obj);
-			obj->mm.quirked = true;
+			GEM_BUG_ON(i915_gem_object_has_tiling_quirk(obj));
+			i915_gem_object_make_unshrinkable(obj);
+			i915_gem_object_set_tiling_quirk(obj);
 		}
 	}
 
@@ -1207,8 +1105,6 @@ void i915_gem_driver_remove(struct drm_i915_private *dev_priv)
 
 void i915_gem_driver_release(struct drm_i915_private *dev_priv)
 {
-	i915_gem_driver_release__contexts(dev_priv);
-
 	intel_gt_driver_release(&dev_priv->gt);
 
 	intel_wa_list_free(&dev_priv->gt_wa_list);
@@ -1247,53 +1143,6 @@ void i915_gem_cleanup_early(struct drm_i915_private *dev_priv)
 	GEM_BUG_ON(!llist_empty(&dev_priv->mm.free_list));
 	GEM_BUG_ON(atomic_read(&dev_priv->mm.free_count));
 	drm_WARN_ON(&dev_priv->drm, dev_priv->mm.shrink_count);
-}
-
-int i915_gem_freeze(struct drm_i915_private *dev_priv)
-{
-	/* Discard all purgeable objects, let userspace recover those as
-	 * required after resuming.
-	 */
-	i915_gem_shrink_all(dev_priv);
-
-	return 0;
-}
-
-int i915_gem_freeze_late(struct drm_i915_private *i915)
-{
-	struct drm_i915_gem_object *obj;
-	intel_wakeref_t wakeref;
-
-	/*
-	 * Called just before we write the hibernation image.
-	 *
-	 * We need to update the domain tracking to reflect that the CPU
-	 * will be accessing all the pages to create and restore from the
-	 * hibernation, and so upon restoration those pages will be in the
-	 * CPU domain.
-	 *
-	 * To make sure the hibernation image contains the latest state,
-	 * we update that state just before writing out the image.
-	 *
-	 * To try and reduce the hibernation image, we manually shrink
-	 * the objects as well, see i915_gem_freeze()
-	 */
-
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-
-	i915_gem_shrink(i915, -1UL, NULL, ~0);
-	i915_gem_drain_freed_objects(i915);
-
-	list_for_each_entry(obj, &i915->mm.shrink_list, mm.link) {
-		i915_gem_object_lock(obj, NULL);
-		drm_WARN_ON(&i915->drm,
-			    i915_gem_object_set_to_cpu_domain(obj, true));
-		i915_gem_object_unlock(obj);
-	}
-
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-
-	return 0;
 }
 
 int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file)

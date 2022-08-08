@@ -26,12 +26,16 @@ MODULE_VERSION(IDXD_DRIVER_VERSION);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Intel Corporation");
 
+static bool sva = true;
+module_param(sva, bool, 0644);
+MODULE_PARM_DESC(sva, "Toggle SVA support on/off");
+
 #define DRV_NAME "idxd"
 
 bool support_enqcmd;
 
 static struct idr idxd_idrs[IDXD_TYPE_MAX];
-static struct mutex idxd_idr_lock;
+static DEFINE_MUTEX(idxd_idr_lock);
 
 static struct pci_device_id idxd_pci_tbl[] = {
 	/* DSA ver 1.0 platforms */
@@ -61,7 +65,6 @@ static int idxd_setup_interrupts(struct idxd_device *idxd)
 	struct idxd_irq_entry *irq_entry;
 	int i, msixcnt;
 	int rc = 0;
-	union msix_perm mperm;
 
 	msixcnt = pci_msix_vec_count(pdev);
 	if (msixcnt < 0) {
@@ -140,14 +143,7 @@ static int idxd_setup_interrupts(struct idxd_device *idxd)
 	}
 
 	idxd_unmask_error_interrupts(idxd);
-
-	/* Setup MSIX permission table */
-	mperm.bits = 0;
-	mperm.pasid = idxd->pasid;
-	mperm.pasid_en = device_pasid_enabled(idxd);
-	for (i = 1; i < msixcnt; i++)
-		iowrite32(mperm.bits, idxd->reg_base + idxd->msix_perm_offset + i * 8);
-
+	idxd_msix_perm_setup(idxd);
 	return 0;
 
  err_no_irq:
@@ -341,12 +337,14 @@ static int idxd_probe(struct idxd_device *idxd)
 
 	dev_dbg(dev, "IDXD reset complete\n");
 
-	if (IS_ENABLED(CONFIG_INTEL_IDXD_SVM)) {
+	if (IS_ENABLED(CONFIG_INTEL_IDXD_SVM) && sva) {
 		rc = idxd_enable_system_pasid(idxd);
 		if (rc < 0)
 			dev_warn(dev, "Failed to enable PASID. No SVA support: %d\n", rc);
 		else
 			set_bit(IDXD_FLAG_PASID_ENABLED, &idxd->flags);
+	} else if (!sva) {
+		dev_warn(dev, "User forced SVA off via module param.\n");
 	}
 
 	idxd_read_caps(idxd);
@@ -504,6 +502,7 @@ static void idxd_shutdown(struct pci_dev *pdev)
 		idxd_flush_work_list(irq_entry);
 	}
 
+	idxd_msix_perm_clear(idxd);
 	destroy_workqueue(idxd->wq);
 }
 
@@ -547,7 +546,6 @@ static int __init idxd_init_module(void)
 	else
 		support_enqcmd = true;
 
-	mutex_init(&idxd_idr_lock);
 	for (i = 0; i < IDXD_TYPE_MAX; i++)
 		idr_init(&idxd_idrs[i]);
 

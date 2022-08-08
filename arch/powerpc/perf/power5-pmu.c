@@ -136,7 +136,7 @@ static unsigned long unit_cons[PM_LASTUNIT+1][2] = {
 };
 
 static int power5_get_constraint(u64 event, unsigned long *maskp,
-				 unsigned long *valp)
+				 unsigned long *valp, u64 event_config1 __maybe_unused)
 {
 	int pmc, byte, unit, sh;
 	int bit, fmask;
@@ -382,7 +382,8 @@ static int power5_marked_instr_event(u64 event)
 
 static int power5_compute_mmcr(u64 event[], int n_ev,
 			       unsigned int hwc[], struct mmcr_regs *mmcr,
-			       struct perf_event *pevents[])
+			       struct perf_event *pevents[],
+			       u32 flags __maybe_unused)
 {
 	unsigned long mmcr1 = 0;
 	unsigned long mmcra = MMCRA_SDAR_DCACHE_MISS | MMCRA_SDAR_ERAT_MISS;

@@ -28,6 +28,7 @@
 #include "gem/i915_gem_context.h"
 #include "gem/selftests/mock_context.h"
 #include "gt/intel_context.h"
+#include "gt/intel_gpu_commands.h"
 
 #include "i915_random.h"
 #include "i915_selftest.h"

@@ -7,7 +7,7 @@
 
 / {
 	model = "Pine64 PinePhone Braveheart (1.1)";
-	compatible = "pine64,pinephone-1.1", "allwinner,sun50i-a64";
+	compatible = "pine64,pinephone-1.1", "pine64,pinephone", "allwinner,sun50i-a64";
 };
 
 &backlight {

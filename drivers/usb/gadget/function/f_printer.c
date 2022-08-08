@@ -51,6 +51,8 @@
 #define GET_PORT_STATUS		1
 #define SOFT_RESET		2
 
+#define DEFAULT_Q_LEN		10 /* same as legacy g_printer gadget */
+
 static int major, minors;
 static struct class *usb_gadget_class;
 static DEFINE_IDA(printer_ida);
@@ -1363,6 +1365,9 @@ static struct usb_function_instance *gprinter_alloc_inst(void)
 	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = gprinter_free_inst;
 	ret = &opts->func_inst;
+
+	/* Make sure q_len is initialized, otherwise the bound device can't support read/write! */
+	opts->q_len = DEFAULT_Q_LEN;
 
 	mutex_lock(&printer_ida_lock);
 

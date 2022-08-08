@@ -81,9 +81,6 @@ MODULE_DESCRIPTION("Driver for Applicom Profibus card");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(AC_MINOR);
 
-MODULE_SUPPORTED_DEVICE("ac");
-
-
 static struct applicom_board {
 	unsigned long PhysIO;
 	void __iomem *RamIO;

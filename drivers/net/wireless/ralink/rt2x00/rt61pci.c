@@ -2993,8 +2993,6 @@ static const struct pci_device_id rt61pci_device_table[] = {
 MODULE_AUTHOR(DRV_PROJECT);
 MODULE_VERSION(DRV_VERSION);
 MODULE_DESCRIPTION("Ralink RT61 PCI & PCMCIA Wireless LAN driver.");
-MODULE_SUPPORTED_DEVICE("Ralink RT2561, RT2561s & RT2661 "
-			"PCI & PCMCIA chipset based cards");
 MODULE_DEVICE_TABLE(pci, rt61pci_device_table);
 MODULE_FIRMWARE(FIRMWARE_RT2561);
 MODULE_FIRMWARE(FIRMWARE_RT2561s);

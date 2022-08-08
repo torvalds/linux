@@ -67,7 +67,8 @@ gp102_disp = {
 };
 
 int
-gp102_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
+gp102_disp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_disp **pdisp)
 {
-	return nv50_disp_new_(&gp102_disp, device, index, pdisp);
+	return nv50_disp_new_(&gp102_disp, device, type, inst, pdisp);
 }

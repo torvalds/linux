@@ -7,6 +7,7 @@
  *  (C) Neil Horman <nhorman@tuxdriver.com>
  */
 
+#include <crypto/internal/cipher.h>
 #include <crypto/internal/rng.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -470,3 +471,4 @@ subsys_initcall(prng_mod_init);
 module_exit(prng_mod_fini);
 MODULE_ALIAS_CRYPTO("stdrng");
 MODULE_ALIAS_CRYPTO("ansi_cprng");
+MODULE_IMPORT_NS(CRYPTO_INTERNAL);

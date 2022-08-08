@@ -19,7 +19,7 @@
 
 #include "security.h"
 
-static struct sock *selnl;
+static struct sock *selnl __ro_after_init;
 
 static int selnl_msglen(int msgtype)
 {

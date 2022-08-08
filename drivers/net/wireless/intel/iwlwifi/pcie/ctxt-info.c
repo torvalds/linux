@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  */
 #include "iwl-trans.h"
 #include "iwl-fh.h"
@@ -240,7 +240,6 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 
 	/* kick FW self load */
 	iwl_write64(trans, CSR_CTXT_INFO_BA, trans_pcie->ctxt_info_dma_addr);
-	iwl_write_prph(trans, UREG_CPU_INIT_RUN, 1);
 
 	/* Context info will be released upon alive or failure to get one */
 

@@ -988,6 +988,7 @@ static int ge2d_probe(struct platform_device *pdev)
 	vfd = video_device_alloc();
 	if (!vfd) {
 		v4l2_err(&ge2d->v4l2_dev, "Failed to allocate video device\n");
+		ret = -ENOMEM;
 		goto unreg_v4l2_dev;
 	}
 

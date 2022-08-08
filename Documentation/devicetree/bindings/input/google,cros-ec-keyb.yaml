@@ -31,6 +31,17 @@ properties:
       if the EC does not have its own logic or hardware for this.
     type: boolean
 
+  function-row-physmap:
+    minItems: 1
+    maxItems: 15
+    description: |
+      An ordered u32 array describing the rows/columns (in the scan matrix)
+      of top row keys from physical left (KEY_F1) to right. Each entry
+      encodes the row/column as:
+      (((row) & 0xFF) << 24) | (((column) & 0xFF) << 16)
+      where the lower 16 bits are reserved. This property is specified only
+      when the keyboard has a custom design for the top row keys.
+
 required:
   - compatible
 
@@ -38,11 +49,24 @@ unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/input/input.h>
     cros-ec-keyb {
         compatible = "google,cros-ec-keyb";
         keypad,num-rows = <8>;
         keypad,num-columns = <13>;
         google,needs-ghost-filter;
+        function-row-physmap = <
+            MATRIX_KEY(0x00, 0x02, 0)   /* T1 */
+            MATRIX_KEY(0x03, 0x02, 0)   /* T2 */
+            MATRIX_KEY(0x02, 0x02, 0)   /* T3 */
+            MATRIX_KEY(0x01, 0x02, 0)   /* T4 */
+            MATRIX_KEY(0x03, 0x04, 0)   /* T5 */
+            MATRIX_KEY(0x02, 0x04, 0)   /* T6 */
+            MATRIX_KEY(0x01, 0x04, 0)   /* T7 */
+            MATRIX_KEY(0x02, 0x09, 0)   /* T8 */
+            MATRIX_KEY(0x01, 0x09, 0)   /* T9 */
+            MATRIX_KEY(0x00, 0x04, 0)   /* T10 */
+        >;
         /*
          * Keymap entries take the form of 0xRRCCKKKK where
          * RR=Row CC=Column KKKK=Key Code

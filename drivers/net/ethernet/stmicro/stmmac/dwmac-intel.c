@@ -233,9 +233,11 @@ static void common_default_data(struct plat_stmmacenet_data *plat)
 static int intel_mgbe_common_data(struct pci_dev *pdev,
 				  struct plat_stmmacenet_data *plat)
 {
+	char clk_name[20];
 	int ret;
 	int i;
 
+	plat->pdev = pdev;
 	plat->phy_addr = -1;
 	plat->clk_csr = 5;
 	plat->has_gmac = 0;
@@ -300,8 +302,10 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	plat->eee_usecs_rate = plat->clk_ptp_rate;
 
 	/* Set system clock */
+	sprintf(clk_name, "%s-%s", "stmmac", pci_name(pdev));
+
 	plat->stmmac_clk = clk_register_fixed_rate(&pdev->dev,
-						   "stmmac-clk", NULL, 0,
+						   clk_name, NULL, 0,
 						   plat->clk_ptp_rate);
 
 	if (IS_ERR(plat->stmmac_clk)) {
@@ -445,8 +449,8 @@ static int tgl_common_data(struct pci_dev *pdev,
 	return intel_mgbe_common_data(pdev, plat);
 }
 
-static int tgl_sgmii_data(struct pci_dev *pdev,
-			  struct plat_stmmacenet_data *plat)
+static int tgl_sgmii_phy0_data(struct pci_dev *pdev,
+			       struct plat_stmmacenet_data *plat)
 {
 	plat->bus_id = 1;
 	plat->phy_interface = PHY_INTERFACE_MODE_SGMII;
@@ -455,10 +459,53 @@ static int tgl_sgmii_data(struct pci_dev *pdev,
 	return tgl_common_data(pdev, plat);
 }
 
-static struct stmmac_pci_info tgl_sgmii1g_info = {
-	.setup = tgl_sgmii_data,
+static struct stmmac_pci_info tgl_sgmii1g_phy0_info = {
+	.setup = tgl_sgmii_phy0_data,
 };
 
+static int tgl_sgmii_phy1_data(struct pci_dev *pdev,
+			       struct plat_stmmacenet_data *plat)
+{
+	plat->bus_id = 2;
+	plat->phy_interface = PHY_INTERFACE_MODE_SGMII;
+	plat->serdes_powerup = intel_serdes_powerup;
+	plat->serdes_powerdown = intel_serdes_powerdown;
+	return tgl_common_data(pdev, plat);
+}
+
+static struct stmmac_pci_info tgl_sgmii1g_phy1_info = {
+	.setup = tgl_sgmii_phy1_data,
+};
+
+static int adls_sgmii_phy0_data(struct pci_dev *pdev,
+				struct plat_stmmacenet_data *plat)
+{
+	plat->bus_id = 1;
+	plat->phy_interface = PHY_INTERFACE_MODE_SGMII;
+
+	/* SerDes power up and power down are done in BIOS for ADL */
+
+	return tgl_common_data(pdev, plat);
+}
+
+static struct stmmac_pci_info adls_sgmii1g_phy0_info = {
+	.setup = adls_sgmii_phy0_data,
+};
+
+static int adls_sgmii_phy1_data(struct pci_dev *pdev,
+				struct plat_stmmacenet_data *plat)
+{
+	plat->bus_id = 2;
+	plat->phy_interface = PHY_INTERFACE_MODE_SGMII;
+
+	/* SerDes power up and power down are done in BIOS for ADL */
+
+	return tgl_common_data(pdev, plat);
+}
+
+static struct stmmac_pci_info adls_sgmii1g_phy1_info = {
+	.setup = adls_sgmii_phy1_data,
+};
 static const struct stmmac_pci_func_data galileo_stmmac_func_data[] = {
 	{
 		.func = 6,
@@ -726,6 +773,8 @@ static SIMPLE_DEV_PM_OPS(intel_eth_pm_ops, intel_eth_pci_suspend,
 #define PCI_DEVICE_ID_INTEL_TGLH_SGMII1G_0_ID		0x43ac
 #define PCI_DEVICE_ID_INTEL_TGLH_SGMII1G_1_ID		0x43a2
 #define PCI_DEVICE_ID_INTEL_TGL_SGMII1G_ID		0xa0ac
+#define PCI_DEVICE_ID_INTEL_ADLS_SGMII1G_0_ID		0x7aac
+#define PCI_DEVICE_ID_INTEL_ADLS_SGMII1G_1_ID		0x7aad
 
 static const struct pci_device_id intel_eth_pci_id_table[] = {
 	{ PCI_DEVICE_DATA(INTEL, QUARK_ID, &quark_info) },
@@ -738,9 +787,11 @@ static const struct pci_device_id intel_eth_pci_id_table[] = {
 	{ PCI_DEVICE_DATA(INTEL, EHL_PSE1_RGMII1G_ID, &ehl_pse1_rgmii1g_info) },
 	{ PCI_DEVICE_DATA(INTEL, EHL_PSE1_SGMII1G_ID, &ehl_pse1_sgmii1g_info) },
 	{ PCI_DEVICE_DATA(INTEL, EHL_PSE1_SGMII2G5_ID, &ehl_pse1_sgmii1g_info) },
-	{ PCI_DEVICE_DATA(INTEL, TGL_SGMII1G_ID, &tgl_sgmii1g_info) },
-	{ PCI_DEVICE_DATA(INTEL, TGLH_SGMII1G_0_ID, &tgl_sgmii1g_info) },
-	{ PCI_DEVICE_DATA(INTEL, TGLH_SGMII1G_1_ID, &tgl_sgmii1g_info) },
+	{ PCI_DEVICE_DATA(INTEL, TGL_SGMII1G_ID, &tgl_sgmii1g_phy0_info) },
+	{ PCI_DEVICE_DATA(INTEL, TGLH_SGMII1G_0_ID, &tgl_sgmii1g_phy0_info) },
+	{ PCI_DEVICE_DATA(INTEL, TGLH_SGMII1G_1_ID, &tgl_sgmii1g_phy1_info) },
+	{ PCI_DEVICE_DATA(INTEL, ADLS_SGMII1G_0_ID, &adls_sgmii1g_phy0_info) },
+	{ PCI_DEVICE_DATA(INTEL, ADLS_SGMII1G_1_ID, &adls_sgmii1g_phy1_info) },
 	{}
 };
 MODULE_DEVICE_TABLE(pci, intel_eth_pci_id_table);

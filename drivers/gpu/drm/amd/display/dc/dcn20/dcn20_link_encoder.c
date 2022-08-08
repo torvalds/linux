@@ -341,8 +341,7 @@ void enc2_hw_init(struct link_encoder *enc)
 	} else {
 		AUX_REG_WRITE(AUX_DPHY_RX_CONTROL0, 0x103d1110);
 
-		AUX_REG_WRITE(AUX_DPHY_TX_CONTROL, 0x21c4d);
-
+		AUX_REG_WRITE(AUX_DPHY_TX_CONTROL, 0x21c7a);
 	}
 
 	//AUX_DPHY_TX_REF_CONTROL'AUX_TX_REF_DIV HW default is 0x32;
@@ -363,7 +362,7 @@ static const struct link_encoder_funcs dcn20_link_enc_funcs = {
 		dcn10_link_encoder_validate_output_with_stream,
 	.hw_init = enc2_hw_init,
 	.setup = dcn10_link_encoder_setup,
-	.enable_tmds_output = dcn10_link_encoder_enable_tmds_output,
+	.enable_tmds_output = dcn10_link_encoder_enable_tmds_output_with_clk_pattern_wa,
 	.enable_dp_output = dcn20_link_encoder_enable_dp_output,
 	.enable_dp_mst_output = dcn10_link_encoder_enable_dp_mst_output,
 	.disable_output = dcn10_link_encoder_disable_output,

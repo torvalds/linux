@@ -853,7 +853,7 @@ static int ns2_pin_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
 		ns2_pin_get_pull(pctldev, pin, &pull_up, &pull_down);
-		if ((pull_up == false) && (pull_down == false))
+		if (!pull_up && !pull_down)
 			return 0;
 		else
 			return -EINVAL;

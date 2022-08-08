@@ -39,9 +39,6 @@ static int virtio_gpu_gem_create(struct drm_file *file,
 	int ret;
 	u32 handle;
 
-	if (vgdev->has_virgl_3d)
-		virtio_gpu_create_context(dev, file);
-
 	ret = virtio_gpu_object_create(vgdev, params, &obj, NULL);
 	if (ret < 0)
 		return ret;
@@ -118,6 +115,11 @@ int virtio_gpu_gem_object_open(struct drm_gem_object *obj,
 
 	if (!vgdev->has_virgl_3d)
 		goto out_notify;
+
+	/* the context might still be missing when the first ioctl is
+	 * DRM_IOCTL_MODE_CREATE_DUMB or DRM_IOCTL_PRIME_FD_TO_HANDLE
+	 */
+	virtio_gpu_create_context(obj->dev, file);
 
 	objs = virtio_gpu_array_alloc(1);
 	if (!objs)

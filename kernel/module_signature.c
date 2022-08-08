@@ -25,7 +25,7 @@ int mod_check_sig(const struct module_signature *ms, size_t file_len,
 		return -EBADMSG;
 
 	if (ms->id_type != PKEY_ID_PKCS7) {
-		pr_err("%s: Module is not signed with expected PKCS#7 message\n",
+		pr_err("%s: not signed with expected PKCS#7 message\n",
 		       name);
 		return -ENOPKG;
 	}

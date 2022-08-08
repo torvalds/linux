@@ -464,30 +464,52 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
  */
 static int netstat_seq_show(struct seq_file *seq, void *v)
 {
-	int i;
+	const int ip_cnt = ARRAY_SIZE(snmp4_ipextstats_list) - 1;
+	const int tcp_cnt = ARRAY_SIZE(snmp4_net_list) - 1;
 	struct net *net = seq->private;
+	unsigned long *buff;
+	int i;
 
 	seq_puts(seq, "TcpExt:");
-	for (i = 0; snmp4_net_list[i].name; i++)
+	for (i = 0; i < tcp_cnt; i++)
 		seq_printf(seq, " %s", snmp4_net_list[i].name);
 
 	seq_puts(seq, "\nTcpExt:");
-	for (i = 0; snmp4_net_list[i].name; i++)
-		seq_printf(seq, " %lu",
-			   snmp_fold_field(net->mib.net_statistics,
-					   snmp4_net_list[i].entry));
-
+	buff = kzalloc(max(tcp_cnt * sizeof(long), ip_cnt * sizeof(u64)),
+		       GFP_KERNEL);
+	if (buff) {
+		snmp_get_cpu_field_batch(buff, snmp4_net_list,
+					 net->mib.net_statistics);
+		for (i = 0; i < tcp_cnt; i++)
+			seq_printf(seq, " %lu", buff[i]);
+	} else {
+		for (i = 0; i < tcp_cnt; i++)
+			seq_printf(seq, " %lu",
+				   snmp_fold_field(net->mib.net_statistics,
+						   snmp4_net_list[i].entry));
+	}
 	seq_puts(seq, "\nIpExt:");
-	for (i = 0; snmp4_ipextstats_list[i].name; i++)
+	for (i = 0; i < ip_cnt; i++)
 		seq_printf(seq, " %s", snmp4_ipextstats_list[i].name);
 
 	seq_puts(seq, "\nIpExt:");
-	for (i = 0; snmp4_ipextstats_list[i].name; i++)
-		seq_printf(seq, " %llu",
-			   snmp_fold_field64(net->mib.ip_statistics,
-					     snmp4_ipextstats_list[i].entry,
-					     offsetof(struct ipstats_mib, syncp)));
+	if (buff) {
+		u64 *buff64 = (u64 *)buff;
 
+		memset(buff64, 0, ip_cnt * sizeof(u64));
+		snmp_get_cpu_field64_batch(buff64, snmp4_ipextstats_list,
+					   net->mib.ip_statistics,
+					   offsetof(struct ipstats_mib, syncp));
+		for (i = 0; i < ip_cnt; i++)
+			seq_printf(seq, " %llu", buff64[i]);
+	} else {
+		for (i = 0; i < ip_cnt; i++)
+			seq_printf(seq, " %llu",
+				   snmp_fold_field64(net->mib.ip_statistics,
+						     snmp4_ipextstats_list[i].entry,
+						     offsetof(struct ipstats_mib, syncp)));
+	}
+	kfree(buff);
 	seq_putc(seq, '\n');
 	mptcp_seq_show(seq);
 	return 0;

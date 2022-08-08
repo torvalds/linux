@@ -17,6 +17,10 @@
 #define SIFIVE_L2_DIRECCFIX_HIGH 0x104
 #define SIFIVE_L2_DIRECCFIX_COUNT 0x108
 
+#define SIFIVE_L2_DIRECCFAIL_LOW 0x120
+#define SIFIVE_L2_DIRECCFAIL_HIGH 0x124
+#define SIFIVE_L2_DIRECCFAIL_COUNT 0x128
+
 #define SIFIVE_L2_DATECCFIX_LOW 0x140
 #define SIFIVE_L2_DATECCFIX_HIGH 0x144
 #define SIFIVE_L2_DATECCFIX_COUNT 0x148
@@ -29,7 +33,7 @@
 #define SIFIVE_L2_WAYENABLE 0x08
 #define SIFIVE_L2_ECCINJECTERR 0x40
 
-#define SIFIVE_L2_MAX_ECCINTR 3
+#define SIFIVE_L2_MAX_ECCINTR 4
 
 static void __iomem *l2_base;
 static int g_irq[SIFIVE_L2_MAX_ECCINTR];
@@ -39,6 +43,7 @@ enum {
 	DIR_CORR = 0,
 	DATA_CORR,
 	DATA_UNCORR,
+	DIR_UNCORR,
 };
 
 #ifdef CONFIG_DEBUG_FS
@@ -93,6 +98,7 @@ static void l2_config_read(void)
 
 static const struct of_device_id sifive_l2_ids[] = {
 	{ .compatible = "sifive,fu540-c000-ccache" },
+	{ .compatible = "sifive,fu740-c000-ccache" },
 	{ /* end of table */ },
 };
 
@@ -155,6 +161,15 @@ static irqreturn_t l2_int_handler(int irq, void *device)
 		atomic_notifier_call_chain(&l2_err_chain, SIFIVE_L2_ERR_TYPE_CE,
 					   "DirECCFix");
 	}
+	if (irq == g_irq[DIR_UNCORR]) {
+		add_h = readl(l2_base + SIFIVE_L2_DIRECCFAIL_HIGH);
+		add_l = readl(l2_base + SIFIVE_L2_DIRECCFAIL_LOW);
+		/* Reading this register clears the DirFail interrupt sig */
+		readl(l2_base + SIFIVE_L2_DIRECCFAIL_COUNT);
+		atomic_notifier_call_chain(&l2_err_chain, SIFIVE_L2_ERR_TYPE_UE,
+					   "DirECCFail");
+		panic("L2CACHE: DirFail @ 0x%08X.%08X\n", add_h, add_l);
+	}
 	if (irq == g_irq[DATA_CORR]) {
 		add_h = readl(l2_base + SIFIVE_L2_DATECCFIX_HIGH);
 		add_l = readl(l2_base + SIFIVE_L2_DATECCFIX_LOW);
@@ -181,7 +196,7 @@ static int __init sifive_l2_init(void)
 {
 	struct device_node *np;
 	struct resource res;
-	int i, rc;
+	int i, rc, intr_num;
 
 	np = of_find_matching_node(NULL, sifive_l2_ids);
 	if (!np)
@@ -194,7 +209,13 @@ static int __init sifive_l2_init(void)
 	if (!l2_base)
 		return -ENOMEM;
 
-	for (i = 0; i < SIFIVE_L2_MAX_ECCINTR; i++) {
+	intr_num = of_property_count_u32_elems(np, "interrupts");
+	if (!intr_num) {
+		pr_err("L2CACHE: no interrupts property\n");
+		return -ENODEV;
+	}
+
+	for (i = 0; i < intr_num; i++) {
 		g_irq[i] = irq_of_parse_and_map(np, i);
 		rc = request_irq(g_irq[i], l2_int_handler, 0, "l2_ecc", NULL);
 		if (rc) {

@@ -12,6 +12,14 @@ config ARCH_HAS_RESTRICTED_VIRTIO_MEMORY_ACCESS
 	  This option is selected if the architecture may need to enforce
 	  VIRTIO_F_ACCESS_PLATFORM
 
+config VIRTIO_PCI_LIB
+	tristate
+	help
+	  Modern PCI device implementation. This module implements the
+	  basic probe and control for devices which are based on modern
+	  PCI device with possible vendor specific extensions. Any
+	  module that selects this module must depend on PCI.
+
 menuconfig VIRTIO_MENU
 	bool "Virtio drivers"
 	default y
@@ -21,6 +29,7 @@ if VIRTIO_MENU
 config VIRTIO_PCI
 	tristate "PCI driver for virtio devices"
 	depends on PCI
+	select VIRTIO_PCI_LIB
 	select VIRTIO
 	help
 	  This driver provides support for virtio based paravirtual device

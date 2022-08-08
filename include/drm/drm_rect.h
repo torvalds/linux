@@ -206,6 +206,19 @@ static inline bool drm_rect_equals(const struct drm_rect *r1,
 		r1->y1 == r2->y1 && r1->y2 == r2->y2;
 }
 
+/**
+ * drm_rect_fp_to_int - Convert a rect in 16.16 fixed point form to int form.
+ * @dst: rect to be stored the converted value
+ * @src: rect in 16.16 fixed point form
+ */
+static inline void drm_rect_fp_to_int(struct drm_rect *dst,
+				      const struct drm_rect *src)
+{
+	drm_rect_init(dst, src->x1 >> 16, src->y1 >> 16,
+		      drm_rect_width(src) >> 16,
+		      drm_rect_height(src) >> 16);
+}
+
 bool drm_rect_intersect(struct drm_rect *r, const struct drm_rect *clip);
 bool drm_rect_clip_scaled(struct drm_rect *src, struct drm_rect *dst,
 			  const struct drm_rect *clip);

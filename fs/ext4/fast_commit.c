@@ -513,10 +513,10 @@ void ext4_fc_track_link(handle_t *handle, struct dentry *dentry)
 	__ext4_fc_track_link(handle, d_inode(dentry), dentry);
 }
 
-void ext4_fc_track_create(handle_t *handle, struct dentry *dentry)
+void __ext4_fc_track_create(handle_t *handle, struct inode *inode,
+			  struct dentry *dentry)
 {
 	struct __track_dentry_update_args args;
-	struct inode *inode = d_inode(dentry);
 	int ret;
 
 	args.dentry = dentry;
@@ -525,6 +525,11 @@ void ext4_fc_track_create(handle_t *handle, struct dentry *dentry)
 	ret = ext4_fc_track_template(handle, inode, __track_dentry_update,
 					(void *)&args, 0);
 	trace_ext4_fc_track_create(inode, dentry, ret);
+}
+
+void ext4_fc_track_create(handle_t *handle, struct dentry *dentry)
+{
+	__ext4_fc_track_create(handle, d_inode(dentry), dentry);
 }
 
 /* __track_fn for inode tracking */
@@ -915,13 +920,11 @@ static int ext4_fc_submit_inode_data_all(journal_t *journal)
 	struct super_block *sb = (struct super_block *)(journal->j_private);
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_inode_info *ei;
-	struct list_head *pos;
 	int ret = 0;
 
 	spin_lock(&sbi->s_fc_lock);
 	ext4_set_mount_flag(sb, EXT4_MF_FC_COMMITTING);
-	list_for_each(pos, &sbi->s_fc_q[FC_Q_MAIN]) {
-		ei = list_entry(pos, struct ext4_inode_info, i_fc_list);
+	list_for_each_entry(ei, &sbi->s_fc_q[FC_Q_MAIN], i_fc_list) {
 		ext4_set_inode_state(&ei->vfs_inode, EXT4_STATE_FC_COMMITTING);
 		while (atomic_read(&ei->i_fc_updates)) {
 			DEFINE_WAIT(wait);
@@ -978,17 +981,15 @@ __releases(&sbi->s_fc_lock)
 {
 	struct super_block *sb = (struct super_block *)(journal->j_private);
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	struct ext4_fc_dentry_update *fc_dentry;
+	struct ext4_fc_dentry_update *fc_dentry, *fc_dentry_n;
 	struct inode *inode;
-	struct list_head *pos, *n, *fcd_pos, *fcd_n;
-	struct ext4_inode_info *ei;
+	struct ext4_inode_info *ei, *ei_n;
 	int ret;
 
 	if (list_empty(&sbi->s_fc_dentry_q[FC_Q_MAIN]))
 		return 0;
-	list_for_each_safe(fcd_pos, fcd_n, &sbi->s_fc_dentry_q[FC_Q_MAIN]) {
-		fc_dentry = list_entry(fcd_pos, struct ext4_fc_dentry_update,
-					fcd_list);
+	list_for_each_entry_safe(fc_dentry, fc_dentry_n,
+				 &sbi->s_fc_dentry_q[FC_Q_MAIN], fcd_list) {
 		if (fc_dentry->fcd_op != EXT4_FC_TAG_CREAT) {
 			spin_unlock(&sbi->s_fc_lock);
 			if (!ext4_fc_add_dentry_tlv(
@@ -1004,8 +1005,8 @@ __releases(&sbi->s_fc_lock)
 		}
 
 		inode = NULL;
-		list_for_each_safe(pos, n, &sbi->s_fc_q[FC_Q_MAIN]) {
-			ei = list_entry(pos, struct ext4_inode_info, i_fc_list);
+		list_for_each_entry_safe(ei, ei_n, &sbi->s_fc_q[FC_Q_MAIN],
+					 i_fc_list) {
 			if (ei->vfs_inode.i_ino == fc_dentry->fcd_ino) {
 				inode = &ei->vfs_inode;
 				break;
@@ -1057,7 +1058,6 @@ static int ext4_fc_perform_commit(journal_t *journal)
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_inode_info *iter;
 	struct ext4_fc_head head;
-	struct list_head *pos;
 	struct inode *inode;
 	struct blk_plug plug;
 	int ret = 0;
@@ -1076,7 +1076,7 @@ static int ext4_fc_perform_commit(journal_t *journal)
 	 * flush before we start writing fast commit blocks.
 	 */
 	if (journal->j_fs_dev != journal->j_dev)
-		blkdev_issue_flush(journal->j_fs_dev, GFP_NOFS);
+		blkdev_issue_flush(journal->j_fs_dev);
 
 	blk_start_plug(&plug);
 	if (sbi->s_fc_bytes == 0) {
@@ -1099,8 +1099,7 @@ static int ext4_fc_perform_commit(journal_t *journal)
 		goto out;
 	}
 
-	list_for_each(pos, &sbi->s_fc_q[FC_Q_MAIN]) {
-		iter = list_entry(pos, struct ext4_inode_info, i_fc_list);
+	list_for_each_entry(iter, &sbi->s_fc_q[FC_Q_MAIN], i_fc_list) {
 		inode = &iter->vfs_inode;
 		if (!ext4_test_inode_state(inode, EXT4_STATE_FC_COMMITTING))
 			continue;
@@ -1226,9 +1225,8 @@ static void ext4_fc_cleanup(journal_t *journal, int full)
 {
 	struct super_block *sb = journal->j_private;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	struct ext4_inode_info *iter;
+	struct ext4_inode_info *iter, *iter_n;
 	struct ext4_fc_dentry_update *fc_dentry;
-	struct list_head *pos, *n;
 
 	if (full && sbi->s_fc_bh)
 		sbi->s_fc_bh = NULL;
@@ -1236,8 +1234,8 @@ static void ext4_fc_cleanup(journal_t *journal, int full)
 	jbd2_fc_release_bufs(journal);
 
 	spin_lock(&sbi->s_fc_lock);
-	list_for_each_safe(pos, n, &sbi->s_fc_q[FC_Q_MAIN]) {
-		iter = list_entry(pos, struct ext4_inode_info, i_fc_list);
+	list_for_each_entry_safe(iter, iter_n, &sbi->s_fc_q[FC_Q_MAIN],
+				 i_fc_list) {
 		list_del_init(&iter->i_fc_list);
 		ext4_clear_inode_state(&iter->vfs_inode,
 				       EXT4_STATE_FC_COMMITTING);
@@ -1535,7 +1533,7 @@ static int ext4_fc_replay_inode(struct super_block *sb, struct ext4_fc_tl *tl)
 out:
 	iput(inode);
 	if (!ret)
-		blkdev_issue_flush(sb->s_bdev, GFP_KERNEL);
+		blkdev_issue_flush(sb->s_bdev);
 
 	return 0;
 }

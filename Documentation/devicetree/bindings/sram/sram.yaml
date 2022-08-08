@@ -35,6 +35,7 @@ properties:
     maxItems: 1
 
   clocks:
+    maxItems: 1
     description:
       A list of phandle and clock specifier pair that controls the single
       SRAM clock.
@@ -46,6 +47,7 @@ properties:
     const: 1
 
   ranges:
+    maxItems: 1
     description:
       Should translate from local addresses within the sram to bus addresses.
 
@@ -72,6 +74,8 @@ patternProperties:
             - allwinner,sun4i-a10-sram-d
             - allwinner,sun9i-a80-smp-sram
             - allwinner,sun50i-a64-sram-c
+            - amlogic,meson8-ao-arc-sram
+            - amlogic,meson8b-ao-arc-sram
             - amlogic,meson8-smp-sram
             - amlogic,meson8b-smp-sram
             - amlogic,meson-gxbb-scp-shmem

@@ -983,7 +983,7 @@ static void print_interval(struct perf_stat_config *config,
 	if (config->interval_clear)
 		puts(CONSOLE_CLEAR);
 
-	sprintf(prefix, "%6lu.%09lu%s", ts->tv_sec, ts->tv_nsec, config->csv_sep);
+	sprintf(prefix, "%6lu.%09lu%s", (unsigned long) ts->tv_sec, ts->tv_nsec, config->csv_sep);
 
 	if ((num_print_interval == 0 && !config->csv_output) || config->interval_clear) {
 		switch (config->aggr_mode) {
@@ -1045,7 +1045,9 @@ static void print_header(struct perf_stat_config *config,
 	if (!config->csv_output) {
 		fprintf(output, "\n");
 		fprintf(output, " Performance counter stats for ");
-		if (_target->system_wide)
+		if (_target->bpf_str)
+			fprintf(output, "\'BPF program(s) %s", _target->bpf_str);
+		else if (_target->system_wide)
 			fprintf(output, "\'system wide");
 		else if (_target->cpu_list)
 			fprintf(output, "\'CPU(s) %s", _target->cpu_list);

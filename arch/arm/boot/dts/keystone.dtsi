@@ -217,8 +217,8 @@
 			dma-ranges;
 			status = "disabled";
 
-			usb0: dwc3@2690000 {
-				compatible = "synopsys,dwc3";
+			usb0: usb@2690000 {
+				compatible = "snps,dwc3";
 				reg = <0x2690000 0x70000>;
 				interrupts = <GIC_SPI 393 IRQ_TYPE_EDGE_RISING>;
 				usb-phy = <&usb_phy>, <&usb_phy>;

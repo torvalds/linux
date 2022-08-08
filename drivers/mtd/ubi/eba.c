@@ -142,7 +142,6 @@ struct ubi_eba_table *ubi_eba_create_table(struct ubi_volume *vol,
 	return tbl;
 
 err:
-	kfree(tbl->entries);
 	kfree(tbl);
 
 	return ERR_PTR(err);

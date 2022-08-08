@@ -37,10 +37,18 @@
 #include <linux/slab.h>
 
 #include "i915_drv.h"
+#include "gt/intel_gpu_commands.h"
+#include "gt/intel_lrc.h"
 #include "gt/intel_ring.h"
+#include "gt/intel_gt_requests.h"
+#include "gt/shmem_utils.h"
 #include "gvt.h"
 #include "i915_pvinfo.h"
 #include "trace.h"
+
+#include "gem/i915_gem_context.h"
+#include "gem/i915_gem_pm.h"
+#include "gt/intel_context.h"
 
 #define INVALID_OP    (~0U)
 
@@ -454,6 +462,7 @@ enum {
 	RING_BUFFER_INSTRUCTION,
 	BATCH_BUFFER_INSTRUCTION,
 	BATCH_BUFFER_2ND_LEVEL,
+	RING_BUFFER_CTX,
 };
 
 enum {
@@ -495,6 +504,7 @@ struct parser_exec_state {
 	 */
 	int saved_buf_addr_type;
 	bool is_ctx_wa;
+	bool is_init_ctx;
 
 	const struct cmd_info *info;
 
@@ -708,6 +718,11 @@ static inline u32 cmd_val(struct parser_exec_state *s, int index)
 	return *cmd_ptr(s, index);
 }
 
+static inline bool is_init_ctx(struct parser_exec_state *s)
+{
+	return (s->buf_type == RING_BUFFER_CTX && s->is_init_ctx);
+}
+
 static void parser_exec_state_dump(struct parser_exec_state *s)
 {
 	int cnt = 0;
@@ -721,7 +736,8 @@ static void parser_exec_state_dump(struct parser_exec_state *s)
 
 	gvt_dbg_cmd("  %s %s ip_gma(%08lx) ",
 			s->buf_type == RING_BUFFER_INSTRUCTION ?
-			"RING_BUFFER" : "BATCH_BUFFER",
+			"RING_BUFFER" : ((s->buf_type == RING_BUFFER_CTX) ?
+				"CTX_BUFFER" : "BATCH_BUFFER"),
 			s->buf_addr_type == GTT_BUFFER ?
 			"GTT" : "PPGTT", s->ip_gma);
 
@@ -756,7 +772,8 @@ static inline void update_ip_va(struct parser_exec_state *s)
 	if (WARN_ON(s->ring_head == s->ring_tail))
 		return;
 
-	if (s->buf_type == RING_BUFFER_INSTRUCTION) {
+	if (s->buf_type == RING_BUFFER_INSTRUCTION ||
+			s->buf_type == RING_BUFFER_CTX) {
 		unsigned long ring_top = s->ring_start + s->ring_size;
 
 		if (s->ring_head > s->ring_tail) {
@@ -820,66 +837,10 @@ static inline int cmd_length(struct parser_exec_state *s)
 	*addr = val; \
 } while (0)
 
-static bool is_shadowed_mmio(unsigned int offset)
-{
-	bool ret = false;
-
-	if ((offset == 0x2168) || /*BB current head register UDW */
-	    (offset == 0x2140) || /*BB current header register */
-	    (offset == 0x211c) || /*second BB header register UDW */
-	    (offset == 0x2114)) { /*second BB header register UDW */
-		ret = true;
-	}
-	return ret;
-}
-
-static inline bool is_force_nonpriv_mmio(unsigned int offset)
-{
-	return (offset >= 0x24d0 && offset < 0x2500);
-}
-
-static int force_nonpriv_reg_handler(struct parser_exec_state *s,
-		unsigned int offset, unsigned int index, char *cmd)
-{
-	struct intel_gvt *gvt = s->vgpu->gvt;
-	unsigned int data;
-	u32 ring_base;
-	u32 nopid;
-
-	if (!strcmp(cmd, "lri"))
-		data = cmd_val(s, index + 1);
-	else {
-		gvt_err("Unexpected forcenonpriv 0x%x write from cmd %s\n",
-			offset, cmd);
-		return -EINVAL;
-	}
-
-	ring_base = s->engine->mmio_base;
-	nopid = i915_mmio_reg_offset(RING_NOPID(ring_base));
-
-	if (!intel_gvt_in_force_nonpriv_whitelist(gvt, data) &&
-			data != nopid) {
-		gvt_err("Unexpected forcenonpriv 0x%x LRI write, value=0x%x\n",
-			offset, data);
-		patch_value(s, cmd_ptr(s, index), nopid);
-		return 0;
-	}
-	return 0;
-}
-
 static inline bool is_mocs_mmio(unsigned int offset)
 {
 	return ((offset >= 0xc800) && (offset <= 0xcff8)) ||
 		((offset >= 0xb020) && (offset <= 0xb0a0));
-}
-
-static int mocs_cmd_reg_handler(struct parser_exec_state *s,
-				unsigned int offset, unsigned int index)
-{
-	if (!is_mocs_mmio(offset))
-		return -EINVAL;
-	vgpu_vreg(s->vgpu, offset) = cmd_val(s, index + 1);
-	return 0;
 }
 
 static int is_cmd_update_pdps(unsigned int offset,
@@ -929,11 +890,22 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 	struct intel_vgpu *vgpu = s->vgpu;
 	struct intel_gvt *gvt = vgpu->gvt;
 	u32 ctx_sr_ctl;
+	u32 *vreg, vreg_old;
 
 	if (offset + 4 > gvt->device_info.mmio_size) {
 		gvt_vgpu_err("%s access to (%x) outside of MMIO range\n",
 				cmd, offset);
 		return -EFAULT;
+	}
+
+	if (is_init_ctx(s)) {
+		struct intel_gvt_mmio_info *mmio_info;
+
+		intel_gvt_mmio_set_cmd_accessible(gvt, offset);
+		mmio_info = intel_gvt_find_mmio_info(gvt, offset);
+		if (mmio_info && mmio_info->write)
+			intel_gvt_mmio_set_cmd_write_patch(gvt, offset);
+		return 0;
 	}
 
 	if (!intel_gvt_mmio_is_cmd_accessible(gvt, offset)) {
@@ -942,18 +914,49 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 		return -EBADRQC;
 	}
 
-	if (is_shadowed_mmio(offset)) {
-		gvt_vgpu_err("found access of shadowed MMIO %x\n", offset);
+	if (!strncmp(cmd, "srm", 3) ||
+			!strncmp(cmd, "lrm", 3)) {
+		if (offset == i915_mmio_reg_offset(GEN8_L3SQCREG4) ||
+		    offset == 0x21f0 ||
+		    (IS_BROADWELL(gvt->gt->i915) &&
+		     offset == i915_mmio_reg_offset(INSTPM)))
+			return 0;
+		else {
+			gvt_vgpu_err("%s access to register (%x)\n",
+					cmd, offset);
+			return -EPERM;
+		}
+	}
+
+	if (!strncmp(cmd, "lrr-src", 7) ||
+			!strncmp(cmd, "lrr-dst", 7)) {
+		if (IS_BROADWELL(gvt->gt->i915) && offset == 0x215c)
+			return 0;
+		else {
+			gvt_vgpu_err("not allowed cmd %s reg (%x)\n", cmd, offset);
+			return -EPERM;
+		}
+	}
+
+	if (!strncmp(cmd, "pipe_ctrl", 9)) {
+		/* TODO: add LRI POST logic here */
 		return 0;
 	}
 
-	if (is_mocs_mmio(offset) &&
-	    mocs_cmd_reg_handler(s, offset, index))
-		return -EINVAL;
-
-	if (is_force_nonpriv_mmio(offset) &&
-		force_nonpriv_reg_handler(s, offset, index, cmd))
+	if (strncmp(cmd, "lri", 3))
 		return -EPERM;
+
+	/* below are all lri handlers */
+	vreg = &vgpu_vreg(s->vgpu, offset);
+	if (!intel_gvt_mmio_is_cmd_accessible(gvt, offset)) {
+		gvt_vgpu_err("%s access to non-render register (%x)\n",
+				cmd, offset);
+		return -EBADRQC;
+	}
+
+	if (is_cmd_update_pdps(offset, s) &&
+	    cmd_pdp_mmio_update_handler(s, offset, index))
+		return -EINVAL;
 
 	if (offset == i915_mmio_reg_offset(DERRMR) ||
 		offset == i915_mmio_reg_offset(FORCEWAKE_MT)) {
@@ -961,9 +964,42 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 		patch_value(s, cmd_ptr(s, index), VGT_PVINFO_PAGE);
 	}
 
-	if (is_cmd_update_pdps(offset, s) &&
-	    cmd_pdp_mmio_update_handler(s, offset, index))
-		return -EINVAL;
+	if (is_mocs_mmio(offset))
+		*vreg = cmd_val(s, index + 1);
+
+	vreg_old = *vreg;
+
+	if (intel_gvt_mmio_is_cmd_write_patch(gvt, offset)) {
+		u32 cmdval_new, cmdval;
+		struct intel_gvt_mmio_info *mmio_info;
+
+		cmdval = cmd_val(s, index + 1);
+
+		mmio_info = intel_gvt_find_mmio_info(gvt, offset);
+		if (!mmio_info) {
+			cmdval_new = cmdval;
+		} else {
+			u64 ro_mask = mmio_info->ro_mask;
+			int ret;
+
+			if (likely(!ro_mask))
+				ret = mmio_info->write(s->vgpu, offset,
+						&cmdval, 4);
+			else {
+				gvt_vgpu_err("try to write RO reg %x\n",
+						offset);
+				ret = -EBADRQC;
+			}
+			if (ret)
+				return ret;
+			cmdval_new = *vreg;
+		}
+		if (cmdval_new != cmdval)
+			patch_value(s, cmd_ptr(s, index+1), cmdval_new);
+	}
+
+	/* only patch cmd. restore vreg value if changed in mmio write handler*/
+	*vreg = vreg_old;
 
 	/* TODO
 	 * In order to let workload with inhibit context to generate
@@ -1215,6 +1251,8 @@ static int cmd_handler_mi_batch_buffer_end(struct parser_exec_state *s)
 		s->buf_type = BATCH_BUFFER_INSTRUCTION;
 		ret = ip_gma_set(s, s->ret_ip_gma_bb);
 		s->buf_addr_type = s->saved_buf_addr_type;
+	} else if (s->buf_type == RING_BUFFER_CTX) {
+		ret = ip_gma_set(s, s->ring_tail);
 	} else {
 		s->buf_type = RING_BUFFER_INSTRUCTION;
 		s->buf_addr_type = GTT_BUFFER;
@@ -2763,7 +2801,8 @@ static int command_scan(struct parser_exec_state *s,
 	gma_bottom = rb_start +  rb_len;
 
 	while (s->ip_gma != gma_tail) {
-		if (s->buf_type == RING_BUFFER_INSTRUCTION) {
+		if (s->buf_type == RING_BUFFER_INSTRUCTION ||
+				s->buf_type == RING_BUFFER_CTX) {
 			if (!(s->ip_gma >= rb_start) ||
 				!(s->ip_gma < gma_bottom)) {
 				gvt_vgpu_err("ip_gma %lx out of ring scope."
@@ -3054,6 +3093,118 @@ int intel_gvt_scan_and_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	}
 
 	return 0;
+}
+
+/* generate dummy contexts by sending empty requests to HW, and let
+ * the HW to fill Engine Contexts. This dummy contexts are used for
+ * initialization purpose (update reg whitelist), so referred to as
+ * init context here
+ */
+void intel_gvt_update_reg_whitelist(struct intel_vgpu *vgpu)
+{
+	const unsigned long start = LRC_STATE_PN * PAGE_SIZE;
+	struct intel_gvt *gvt = vgpu->gvt;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	if (gvt->is_reg_whitelist_updated)
+		return;
+
+	/* scan init ctx to update cmd accessible list */
+	for_each_engine(engine, gvt->gt, id) {
+		struct parser_exec_state s;
+		void *vaddr;
+		int ret;
+
+		if (!engine->default_state)
+			continue;
+
+		vaddr = shmem_pin_map(engine->default_state);
+		if (IS_ERR(vaddr)) {
+			gvt_err("failed to map %s->default state, err:%zd\n",
+				engine->name, PTR_ERR(vaddr));
+			return;
+		}
+
+		s.buf_type = RING_BUFFER_CTX;
+		s.buf_addr_type = GTT_BUFFER;
+		s.vgpu = vgpu;
+		s.engine = engine;
+		s.ring_start = 0;
+		s.ring_size = engine->context_size - start;
+		s.ring_head = 0;
+		s.ring_tail = s.ring_size;
+		s.rb_va = vaddr + start;
+		s.workload = NULL;
+		s.is_ctx_wa = false;
+		s.is_init_ctx = true;
+
+		/* skipping the first RING_CTX_SIZE(0x50) dwords */
+		ret = ip_gma_set(&s, RING_CTX_SIZE);
+		if (ret == 0) {
+			ret = command_scan(&s, 0, s.ring_size, 0, s.ring_size);
+			if (ret)
+				gvt_err("Scan init ctx error\n");
+		}
+
+		shmem_unpin_map(engine->default_state, vaddr);
+		if (ret)
+			return;
+	}
+
+	gvt->is_reg_whitelist_updated = true;
+}
+
+int intel_gvt_scan_engine_context(struct intel_vgpu_workload *workload)
+{
+	struct intel_vgpu *vgpu = workload->vgpu;
+	unsigned long gma_head, gma_tail, gma_start, ctx_size;
+	struct parser_exec_state s;
+	int ring_id = workload->engine->id;
+	struct intel_context *ce = vgpu->submission.shadow[ring_id];
+	int ret;
+
+	GEM_BUG_ON(atomic_read(&ce->pin_count) < 0);
+
+	ctx_size = workload->engine->context_size - PAGE_SIZE;
+
+	/* Only ring contxt is loaded to HW for inhibit context, no need to
+	 * scan engine context
+	 */
+	if (is_inhibit_context(ce))
+		return 0;
+
+	gma_start = i915_ggtt_offset(ce->state) + LRC_STATE_PN*PAGE_SIZE;
+	gma_head = 0;
+	gma_tail = ctx_size;
+
+	s.buf_type = RING_BUFFER_CTX;
+	s.buf_addr_type = GTT_BUFFER;
+	s.vgpu = workload->vgpu;
+	s.engine = workload->engine;
+	s.ring_start = gma_start;
+	s.ring_size = ctx_size;
+	s.ring_head = gma_start + gma_head;
+	s.ring_tail = gma_start + gma_tail;
+	s.rb_va = ce->lrc_reg_state;
+	s.workload = workload;
+	s.is_ctx_wa = false;
+	s.is_init_ctx = false;
+
+	/* don't scan the first RING_CTX_SIZE(0x50) dwords, as it's ring
+	 * context
+	 */
+	ret = ip_gma_set(&s, gma_start + gma_head + RING_CTX_SIZE);
+	if (ret)
+		goto out;
+
+	ret = command_scan(&s, gma_head, gma_tail,
+		gma_start, ctx_size);
+out:
+	if (ret)
+		gvt_vgpu_err("scan shadow ctx error\n");
+
+	return ret;
 }
 
 static int init_cmd_table(struct intel_gvt *gvt)

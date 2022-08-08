@@ -39,6 +39,7 @@ Types and flags used to represent the media graph elements
 .. _MEDIA-ENT-F-PROC-VIDEO-STATISTICS:
 .. _MEDIA-ENT-F-PROC-VIDEO-ENCODER:
 .. _MEDIA-ENT-F-PROC-VIDEO-DECODER:
+.. _MEDIA-ENT-F-PROC-VIDEO-ISP:
 .. _MEDIA-ENT-F-VID-MUX:
 .. _MEDIA-ENT-F-VID-IF-BRIDGE:
 .. _MEDIA-ENT-F-DV-DECODER:
@@ -200,6 +201,12 @@ Types and flags used to represent the media graph elements
        -  Video (MPEG, HEVC, VPx, etc.) decoder. An entity capable of
           decompressing a compressed video stream into uncompressed video
 	  frames. Must have one sink pad and at least one source pad.
+
+    *  -  ``MEDIA_ENT_F_PROC_VIDEO_ISP``
+       -  An Image Signal Processor (ISP) device. ISPs generally are one of a
+	  kind devices that have their specific control interfaces using a
+	  combination of custom V4L2 controls and IOCTLs, and parameters
+	  supplied in a metadata buffer.
 
     *  -  ``MEDIA_ENT_F_VID_MUX``
        - Video multiplexer. An entity capable of multiplexing must have at

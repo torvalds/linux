@@ -307,7 +307,7 @@
 #define TEGRA210_CLK_AUDIO4 275
 #define TEGRA210_CLK_SPDIF 276
 /* 277 */
-/* 278 */
+#define TEGRA210_CLK_QSPI_PM 278
 /* 279 */
 /* 280 */
 #define TEGRA210_CLK_SOR0_LVDS 281 /* deprecated */

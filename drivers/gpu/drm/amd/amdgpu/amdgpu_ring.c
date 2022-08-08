@@ -166,7 +166,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     unsigned int max_dw, struct amdgpu_irq_src *irq_src,
 		     unsigned int irq_type, unsigned int hw_prio)
 {
-	int r, i;
+	int r;
 	int sched_hw_submission = amdgpu_sched_hw_submission;
 	u32 *num_sched;
 	u32 hw_ip;
@@ -258,8 +258,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	}
 
 	ring->max_dw = max_dw;
-	ring->priority = DRM_SCHED_PRIORITY_NORMAL;
-	mutex_init(&ring->priority_mutex);
+	ring->hw_prio = hw_prio;
 
 	if (!ring->no_scheduler) {
 		hw_ip = ring->funcs->type;
@@ -267,9 +266,6 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		adev->gpu_sched[hw_ip][hw_prio].sched[(*num_sched)++] =
 			&ring->sched;
 	}
-
-	for (i = DRM_SCHED_PRIORITY_MIN; i < DRM_SCHED_PRIORITY_COUNT; ++i)
-		atomic_set(&ring->num_jobs[i], 0);
 
 	return 0;
 }

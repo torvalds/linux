@@ -1055,7 +1055,7 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 	return ret;
 }
 
-static int nmk_i2c_remove(struct amba_device *adev)
+static void nmk_i2c_remove(struct amba_device *adev)
 {
 	struct resource *res = &adev->res;
 	struct nmk_i2c_dev *dev = amba_get_drvdata(adev);
@@ -1068,8 +1068,6 @@ static int nmk_i2c_remove(struct amba_device *adev)
 	i2c_clr_bit(dev->virtbase + I2C_CR, I2C_CR_PE);
 	clk_disable_unprepare(dev->clk);
 	release_mem_region(res->start, resource_size(res));
-
-	return 0;
 }
 
 static struct i2c_vendor_data vendor_stn8815 = {

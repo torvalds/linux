@@ -1618,8 +1618,8 @@ static void print_clock_data(struct feat_fd *ff, FILE *fp)
 
 	fprintf(fp, "# clockid: %s (%u)\n", clockid_name(clockid), clockid);
 	fprintf(fp, "# reference time: %s = %ld.%06d (TOD) = %ld.%09ld (%s)\n",
-		    tstr, tod_ns.tv_sec, (int) tod_ns.tv_usec,
-		    clockid_ns.tv_sec, clockid_ns.tv_nsec,
+		    tstr, (long) tod_ns.tv_sec, (int) tod_ns.tv_usec,
+		    (long) clockid_ns.tv_sec, clockid_ns.tv_nsec,
 		    clockid_name(clockid));
 }
 
@@ -3806,7 +3806,7 @@ int perf_session__read_header(struct perf_session *session)
 	 * check for the pipe header regardless of source.
 	 */
 	err = perf_header__read_pipe(session);
-	if (!err || (err && perf_data__is_pipe(data))) {
+	if (!err || perf_data__is_pipe(data)) {
 		data->is_pipe = true;
 		return err;
 	}

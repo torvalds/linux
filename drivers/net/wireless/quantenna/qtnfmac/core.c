@@ -492,7 +492,7 @@ int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 
 	SET_NETDEV_DEV(dev, wiphy_dev(wiphy));
 
-	ret = register_netdevice(dev);
+	ret = cfg80211_register_netdevice(dev);
 	if (ret) {
 		free_netdev(dev);
 		vif->netdev = NULL;
@@ -611,8 +611,9 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 	mac->wiphy_registered = 1;
 
 	rtnl_lock();
-
+	wiphy_lock(priv_to_wiphy(mac));
 	ret = qtnf_core_net_attach(mac, vif, "wlan%d", NET_NAME_ENUM);
+	wiphy_unlock(priv_to_wiphy(mac));
 	rtnl_unlock();
 
 	if (ret) {

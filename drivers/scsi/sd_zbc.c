@@ -280,27 +280,28 @@ static int sd_zbc_update_wp_offset_cb(struct blk_zone *zone, unsigned int idx,
 static void sd_zbc_update_wp_offset_workfn(struct work_struct *work)
 {
 	struct scsi_disk *sdkp;
+	unsigned long flags;
 	unsigned int zno;
 	int ret;
 
 	sdkp = container_of(work, struct scsi_disk, zone_wp_offset_work);
 
-	spin_lock_bh(&sdkp->zones_wp_offset_lock);
+	spin_lock_irqsave(&sdkp->zones_wp_offset_lock, flags);
 	for (zno = 0; zno < sdkp->nr_zones; zno++) {
 		if (sdkp->zones_wp_offset[zno] != SD_ZBC_UPDATING_WP_OFST)
 			continue;
 
-		spin_unlock_bh(&sdkp->zones_wp_offset_lock);
+		spin_unlock_irqrestore(&sdkp->zones_wp_offset_lock, flags);
 		ret = sd_zbc_do_report_zones(sdkp, sdkp->zone_wp_update_buf,
 					     SD_BUF_SIZE,
 					     zno * sdkp->zone_blocks, true);
-		spin_lock_bh(&sdkp->zones_wp_offset_lock);
+		spin_lock_irqsave(&sdkp->zones_wp_offset_lock, flags);
 		if (!ret)
 			sd_zbc_parse_report(sdkp, sdkp->zone_wp_update_buf + 64,
 					    zno, sd_zbc_update_wp_offset_cb,
 					    sdkp);
 	}
-	spin_unlock_bh(&sdkp->zones_wp_offset_lock);
+	spin_unlock_irqrestore(&sdkp->zones_wp_offset_lock, flags);
 
 	scsi_device_put(sdkp->device);
 }
@@ -324,6 +325,7 @@ blk_status_t sd_zbc_prepare_zone_append(struct scsi_cmnd *cmd, sector_t *lba,
 	struct request *rq = cmd->request;
 	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
 	unsigned int wp_offset, zno = blk_rq_zone_no(rq);
+	unsigned long flags;
 	blk_status_t ret;
 
 	ret = sd_zbc_cmnd_checks(cmd);
@@ -337,7 +339,7 @@ blk_status_t sd_zbc_prepare_zone_append(struct scsi_cmnd *cmd, sector_t *lba,
 	if (!blk_req_zone_write_trylock(rq))
 		return BLK_STS_ZONE_RESOURCE;
 
-	spin_lock_bh(&sdkp->zones_wp_offset_lock);
+	spin_lock_irqsave(&sdkp->zones_wp_offset_lock, flags);
 	wp_offset = sdkp->zones_wp_offset[zno];
 	switch (wp_offset) {
 	case SD_ZBC_INVALID_WP_OFST:
@@ -366,7 +368,7 @@ blk_status_t sd_zbc_prepare_zone_append(struct scsi_cmnd *cmd, sector_t *lba,
 
 		*lba += wp_offset;
 	}
-	spin_unlock_bh(&sdkp->zones_wp_offset_lock);
+	spin_unlock_irqrestore(&sdkp->zones_wp_offset_lock, flags);
 	if (ret)
 		blk_req_zone_write_unlock(rq);
 	return ret;
@@ -445,6 +447,7 @@ static unsigned int sd_zbc_zone_wp_update(struct scsi_cmnd *cmd,
 	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
 	unsigned int zno = blk_rq_zone_no(rq);
 	enum req_opf op = req_op(rq);
+	unsigned long flags;
 
 	/*
 	 * If we got an error for a command that needs updating the write
@@ -452,7 +455,7 @@ static unsigned int sd_zbc_zone_wp_update(struct scsi_cmnd *cmd,
 	 * invalid to force an update from disk the next time a zone append
 	 * command is issued.
 	 */
-	spin_lock_bh(&sdkp->zones_wp_offset_lock);
+	spin_lock_irqsave(&sdkp->zones_wp_offset_lock, flags);
 
 	if (result && op != REQ_OP_ZONE_RESET_ALL) {
 		if (op == REQ_OP_ZONE_APPEND) {
@@ -496,7 +499,7 @@ static unsigned int sd_zbc_zone_wp_update(struct scsi_cmnd *cmd,
 	}
 
 unlock_wp_offset:
-	spin_unlock_bh(&sdkp->zones_wp_offset_lock);
+	spin_unlock_irqrestore(&sdkp->zones_wp_offset_lock, flags);
 
 	return good_bytes;
 }
@@ -665,12 +668,28 @@ static int sd_zbc_init_disk(struct scsi_disk *sdkp)
 	return 0;
 }
 
-void sd_zbc_release_disk(struct scsi_disk *sdkp)
+static void sd_zbc_clear_zone_info(struct scsi_disk *sdkp)
 {
+	/* Serialize against revalidate zones */
+	mutex_lock(&sdkp->rev_mutex);
+
 	kvfree(sdkp->zones_wp_offset);
 	sdkp->zones_wp_offset = NULL;
 	kfree(sdkp->zone_wp_update_buf);
 	sdkp->zone_wp_update_buf = NULL;
+
+	sdkp->nr_zones = 0;
+	sdkp->rev_nr_zones = 0;
+	sdkp->zone_blocks = 0;
+	sdkp->rev_zone_blocks = 0;
+
+	mutex_unlock(&sdkp->rev_mutex);
+}
+
+void sd_zbc_release_disk(struct scsi_disk *sdkp)
+{
+	if (sd_is_zoned(sdkp))
+		sd_zbc_clear_zone_info(sdkp);
 }
 
 static void sd_zbc_revalidate_zones_cb(struct gendisk *disk)
@@ -688,6 +707,7 @@ int sd_zbc_revalidate_zones(struct scsi_disk *sdkp)
 	unsigned int nr_zones = sdkp->rev_nr_zones;
 	u32 max_append;
 	int ret = 0;
+	unsigned int flags;
 
 	/*
 	 * For all zoned disks, initialize zone append emulation data if not
@@ -720,16 +740,19 @@ int sd_zbc_revalidate_zones(struct scsi_disk *sdkp)
 	    disk->queue->nr_zones == nr_zones)
 		goto unlock;
 
+	flags = memalloc_noio_save();
 	sdkp->zone_blocks = zone_blocks;
 	sdkp->nr_zones = nr_zones;
-	sdkp->rev_wp_offset = kvcalloc(nr_zones, sizeof(u32), GFP_NOIO);
+	sdkp->rev_wp_offset = kvcalloc(nr_zones, sizeof(u32), GFP_KERNEL);
 	if (!sdkp->rev_wp_offset) {
 		ret = -ENOMEM;
+		memalloc_noio_restore(flags);
 		goto unlock;
 	}
 
 	ret = blk_revalidate_disk_zones(disk, sd_zbc_revalidate_zones_cb);
 
+	memalloc_noio_restore(flags);
 	kvfree(sdkp->rev_wp_offset);
 	sdkp->rev_wp_offset = NULL;
 
@@ -769,6 +792,21 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buf)
 		 */
 		return 0;
 
+	/* READ16/WRITE16 is mandatory for ZBC disks */
+	sdkp->device->use_16_for_rw = 1;
+	sdkp->device->use_10_for_rw = 0;
+
+	if (!blk_queue_is_zoned(q)) {
+		/*
+		 * This can happen for a host aware disk with partitions.
+		 * The block device zone information was already cleared
+		 * by blk_queue_set_zoned(). Only clear the scsi disk zone
+		 * information and exit early.
+		 */
+		sd_zbc_clear_zone_info(sdkp);
+		return 0;
+	}
+
 	/* Check zoned block device characteristics (unconstrained reads) */
 	ret = sd_zbc_check_zoned_characteristics(sdkp, buf);
 	if (ret)
@@ -789,9 +827,13 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buf)
 	blk_queue_max_active_zones(q, 0);
 	nr_zones = round_up(sdkp->capacity, zone_blocks) >> ilog2(zone_blocks);
 
-	/* READ16/WRITE16 is mandatory for ZBC disks */
-	sdkp->device->use_16_for_rw = 1;
-	sdkp->device->use_10_for_rw = 0;
+	/*
+	 * Per ZBC and ZAC specifications, writes in sequential write required
+	 * zones of host-managed devices must be aligned to the device physical
+	 * block size.
+	 */
+	if (blk_queue_zoned_model(q) == BLK_ZONED_HM)
+		blk_queue_zone_write_granularity(q, sdkp->physical_block_size);
 
 	sdkp->rev_nr_zones = nr_zones;
 	sdkp->rev_zone_blocks = zone_blocks;

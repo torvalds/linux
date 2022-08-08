@@ -1084,7 +1084,7 @@ static struct snd_soc_dai_driver rt298_dai[] = {
 			.formats = RT298_FORMATS,
 		},
 		.ops = &rt298_aif_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.name = "rt298-aif2",
@@ -1104,7 +1104,7 @@ static struct snd_soc_dai_driver rt298_dai[] = {
 			.formats = RT298_FORMATS,
 		},
 		.ops = &rt298_aif_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 
 };

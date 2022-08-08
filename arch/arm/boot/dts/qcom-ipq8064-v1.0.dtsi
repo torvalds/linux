@@ -16,19 +16,19 @@
 	soc {
 		gsbi@16300000 {
 			qcom,mode = <GSBI_PROT_I2C_UART>;
-			status = "ok";
+			status = "okay";
 
 			serial@16340000 {
-				status = "ok";
+				status = "okay";
 			};
 		};
 
 		gsbi5: gsbi@1a200000 {
 			qcom,mode = <GSBI_PROT_SPI>;
-			status = "ok";
+			status = "okay";
 
 			spi4: spi@1a280000 {
-				status = "ok";
+				status = "okay";
 				spi-max-frequency = <50000000>;
 
 				pinctrl-0 = <&spi_pins>;
@@ -57,12 +57,12 @@
 		};
 
 		sata-phy@1b400000 {
-			status = "ok";
+			status = "okay";
 		};
 
 		sata@29000000 {
 			ports-implemented = <0x1>;
-			status = "ok";
+			status = "okay";
 		};
 
 		gpio_keys {

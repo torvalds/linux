@@ -44,16 +44,6 @@ static inline int atomic_fetch_add(int i, atomic_t *v)
 
 static inline void atomic_add(int i, atomic_t *v)
 {
-#ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
-	/*
-	 * Order of conditions is important to circumvent gcc 10 bug:
-	 * https://gcc.gnu.org/pipermail/gcc-patches/2020-July/549318.html
-	 */
-	if ((i > -129) && (i < 128) && __builtin_constant_p(i)) {
-		__atomic_add_const(i, &v->counter);
-		return;
-	}
-#endif
 	__atomic_add(i, &v->counter);
 }
 
@@ -115,16 +105,6 @@ static inline s64 atomic64_fetch_add(s64 i, atomic64_t *v)
 
 static inline void atomic64_add(s64 i, atomic64_t *v)
 {
-#ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
-	/*
-	 * Order of conditions is important to circumvent gcc 10 bug:
-	 * https://gcc.gnu.org/pipermail/gcc-patches/2020-July/549318.html
-	 */
-	if ((i > -129) && (i < 128) && __builtin_constant_p(i)) {
-		__atomic64_add_const(i, (long *)&v->counter);
-		return;
-	}
-#endif
 	__atomic64_add(i, (long *)&v->counter);
 }
 

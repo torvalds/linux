@@ -4,7 +4,7 @@
 #include <sys/prctl.h>
 #include <test_progs.h>
 
-#define MAX_TRAMP_PROGS 40
+#define MAX_TRAMP_PROGS 38
 
 struct inst {
 	struct bpf_object *obj;
@@ -52,7 +52,7 @@ void test_trampoline_count(void)
 	struct bpf_link *link;
 	char comm[16] = {};
 
-	/* attach 'allowed' 40 trampoline programs */
+	/* attach 'allowed' trampoline programs */
 	for (i = 0; i < MAX_TRAMP_PROGS; i++) {
 		obj = bpf_object__open_file(object, NULL);
 		if (CHECK(IS_ERR(obj), "obj_open_file", "err %ld\n", PTR_ERR(obj))) {

@@ -345,9 +345,6 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 
 	/* All wc fields are now known to be valid */
 	ctxt->rc_byte_len = wc->byte_len;
-	ib_dma_sync_single_for_cpu(rdma->sc_pd->device,
-				   ctxt->rc_recv_sge.addr,
-				   wc->byte_len, DMA_FROM_DEVICE);
 
 	spin_lock(&rdma->sc_rq_dto_lock);
 	list_add_tail(&ctxt->rc_list, &rdma->sc_rq_dto_q);
@@ -845,9 +842,11 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	}
 	list_del(&ctxt->rc_list);
 	spin_unlock(&rdma_xprt->sc_rq_dto_lock);
+	percpu_counter_inc(&svcrdma_stat_recv);
 
-	atomic_inc(&rdma_stat_recv);
-
+	ib_dma_sync_single_for_cpu(rdma_xprt->sc_pd->device,
+				   ctxt->rc_recv_sge.addr, ctxt->rc_byte_len,
+				   DMA_FROM_DEVICE);
 	svc_rdma_build_arg_xdr(rqstp, ctxt);
 
 	/* Prevent svc_xprt_release from releasing pages in rq_pages

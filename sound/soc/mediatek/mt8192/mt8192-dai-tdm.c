@@ -555,7 +555,9 @@ static int mtk_dai_tdm_hw_params(struct snd_pcm_substream *substream,
 
 	/* set tdm */
 	if (tdm_priv->bck_invert)
-		tdm_con |= 1 << BCK_INVERSE_SFT;
+		regmap_update_bits(afe->regmap, AUDIO_TOP_CON3,
+				   BCK_INVERSE_MASK_SFT,
+				   0x1 << BCK_INVERSE_SFT);
 
 	if (tdm_priv->lck_invert)
 		tdm_con |= 1 << LRCK_INVERSE_SFT;
@@ -738,7 +740,7 @@ static struct mtk_afe_tdm_priv *init_tdm_priv_data(struct mtk_base_afe *afe)
 	if (!tdm_priv)
 		return NULL;
 
-	tdm_priv->mclk_multiple = 128;
+	tdm_priv->mclk_multiple = 512;
 	tdm_priv->bck_id = MT8192_I2S4_BCK;
 	tdm_priv->mclk_id = MT8192_I2S4_MCK;
 	tdm_priv->id = MT8192_DAI_TDM;

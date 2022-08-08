@@ -52,17 +52,9 @@ MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>, Thomas Sailer <sailer@ife.ee.et
 MODULE_LICENSE("GPL");
 #ifdef CHIP1370
 MODULE_DESCRIPTION("Ensoniq AudioPCI ES1370");
-MODULE_SUPPORTED_DEVICE("{{Ensoniq,AudioPCI-97 ES1370},"
-	        "{Creative Labs,SB PCI64/128 (ES1370)}}");
 #endif
 #ifdef CHIP1371
 MODULE_DESCRIPTION("Ensoniq/Creative AudioPCI ES1371+");
-MODULE_SUPPORTED_DEVICE("{{Ensoniq,AudioPCI ES1371/73},"
-		"{Ensoniq,AudioPCI ES1373},"
-		"{Creative Labs,Ectiva EV1938},"
-		"{Creative Labs,SB PCI64/128 (ES1371/73)},"
-		"{Creative Labs,Vibra PCI128},"
-		"{Ectiva,EV1938}}");
 #endif
 
 #if IS_REACHABLE(CONFIG_GAMEPORT)
@@ -752,7 +744,7 @@ static void snd_es1371_dac1_rate(struct ensoniq * ensoniq, unsigned int rate)
 	unsigned int freq, r;
 
 	mutex_lock(&ensoniq->src_mutex);
-	freq = ((rate << 15) + 1500) / 3000;
+	freq = DIV_ROUND_CLOSEST(rate << 15, 3000);
 	r = (snd_es1371_wait_src_ready(ensoniq) & (ES_1371_SRC_DISABLE |
 						   ES_1371_DIS_P2 | ES_1371_DIS_R1)) |
 		ES_1371_DIS_P1;
@@ -773,7 +765,7 @@ static void snd_es1371_dac2_rate(struct ensoniq * ensoniq, unsigned int rate)
 	unsigned int freq, r;
 
 	mutex_lock(&ensoniq->src_mutex);
-	freq = ((rate << 15) + 1500) / 3000;
+	freq = DIV_ROUND_CLOSEST(rate << 15, 3000);
 	r = (snd_es1371_wait_src_ready(ensoniq) & (ES_1371_SRC_DISABLE |
 						   ES_1371_DIS_P1 | ES_1371_DIS_R1)) |
 		ES_1371_DIS_P2;

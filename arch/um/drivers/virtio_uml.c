@@ -55,16 +55,16 @@ struct virtio_uml_device {
 	u64 protocol_features;
 	u8 status;
 	u8 registered:1;
+	u8 suspended:1;
+
+	u8 config_changed_irq:1;
+	uint64_t vq_irq_vq_map;
 };
 
 struct virtio_uml_vq_info {
 	int kick_fd, call_fd;
 	char name[32];
-#ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
-	struct virtqueue *vq;
-	vq_callback_t *callback;
-	struct time_travel_event defer;
-#endif
+	bool suspended;
 };
 
 extern unsigned long long physmem_size, highmem;
@@ -96,6 +96,9 @@ static int full_sendmsg_fds(int fd, const void *buf, unsigned int len,
 static int full_read(int fd, void *buf, int len, bool abortable)
 {
 	int rc;
+
+	if (!len)
+		return 0;
 
 	do {
 		rc = os_read_file(fd, buf, len);
@@ -347,9 +350,9 @@ static void vhost_user_reply(struct virtio_uml_device *vu_dev,
 		       rc, size);
 }
 
-static irqreturn_t vu_req_interrupt(int irq, void *data)
+static irqreturn_t vu_req_read_message(struct virtio_uml_device *vu_dev,
+				       struct time_travel_event *ev)
 {
-	struct virtio_uml_device *vu_dev = data;
 	struct virtqueue *vq;
 	int response = 1;
 	struct {
@@ -367,14 +370,14 @@ static irqreturn_t vu_req_interrupt(int irq, void *data)
 
 	switch (msg.msg.header.request) {
 	case VHOST_USER_SLAVE_CONFIG_CHANGE_MSG:
-		virtio_config_changed(&vu_dev->vdev);
+		vu_dev->config_changed_irq = true;
 		response = 0;
 		break;
 	case VHOST_USER_SLAVE_VRING_CALL:
 		virtio_device_for_each_vq((&vu_dev->vdev), vq) {
 			if (vq->index == msg.msg.payload.vring_state.index) {
 				response = 0;
-				vring_interrupt(0 /* ignored */, vq);
+				vu_dev->vq_irq_vq_map |= BIT_ULL(vq->index);
 				break;
 			}
 		}
@@ -388,10 +391,43 @@ static irqreturn_t vu_req_interrupt(int irq, void *data)
 		       msg.msg.header.request);
 	}
 
+	if (ev && !vu_dev->suspended)
+		time_travel_add_irq_event(ev);
+
 	if (msg.msg.header.flags & VHOST_USER_FLAG_NEED_REPLY)
 		vhost_user_reply(vu_dev, &msg.msg, response);
 
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t vu_req_interrupt(int irq, void *data)
+{
+	struct virtio_uml_device *vu_dev = data;
+	irqreturn_t ret = IRQ_HANDLED;
+
+	if (!um_irq_timetravel_handler_used())
+		ret = vu_req_read_message(vu_dev, NULL);
+
+	if (vu_dev->vq_irq_vq_map) {
+		struct virtqueue *vq;
+
+		virtio_device_for_each_vq((&vu_dev->vdev), vq) {
+			if (vu_dev->vq_irq_vq_map & BIT_ULL(vq->index))
+				vring_interrupt(0 /* ignored */, vq);
+		}
+		vu_dev->vq_irq_vq_map = 0;
+	} else if (vu_dev->config_changed_irq) {
+		virtio_config_changed(&vu_dev->vdev);
+		vu_dev->config_changed_irq = false;
+	}
+
+	return ret;
+}
+
+static void vu_req_interrupt_comm_handler(int irq, int fd, void *data,
+					  struct time_travel_event *ev)
+{
+	vu_req_read_message(data, ev);
 }
 
 static int vhost_user_init_slave_req(struct virtio_uml_device *vu_dev)
@@ -404,9 +440,10 @@ static int vhost_user_init_slave_req(struct virtio_uml_device *vu_dev)
 		return rc;
 	vu_dev->req_fd = req_fds[0];
 
-	rc = um_request_irq(UM_IRQ_ALLOC, vu_dev->req_fd, IRQ_READ,
-			    vu_req_interrupt, IRQF_SHARED,
-			    vu_dev->pdev->name, vu_dev);
+	rc = um_request_irq_tt(UM_IRQ_ALLOC, vu_dev->req_fd, IRQ_READ,
+			       vu_req_interrupt, IRQF_SHARED,
+			       vu_dev->pdev->name, vu_dev,
+			       vu_req_interrupt_comm_handler);
 	if (rc < 0)
 		goto err_close;
 
@@ -722,6 +759,9 @@ static bool vu_notify(struct virtqueue *vq)
 	const uint64_t n = 1;
 	int rc;
 
+	if (info->suspended)
+		return true;
+
 	time_travel_propagate_time();
 
 	if (info->kick_fd < 0) {
@@ -875,23 +915,6 @@ out:
 	return rc;
 }
 
-#ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
-static void vu_defer_irq_handle(struct time_travel_event *d)
-{
-	struct virtio_uml_vq_info *info;
-
-	info = container_of(d, struct virtio_uml_vq_info, defer);
-	info->callback(info->vq);
-}
-
-static void vu_defer_irq_callback(struct virtqueue *vq)
-{
-	struct virtio_uml_vq_info *info = vq->priv;
-
-	time_travel_add_irq_event(&info->defer);
-}
-#endif
-
 static struct virtqueue *vu_setup_vq(struct virtio_device *vdev,
 				     unsigned index, vq_callback_t *callback,
 				     const char *name, bool ctx)
@@ -911,19 +934,6 @@ static struct virtqueue *vu_setup_vq(struct virtio_device *vdev,
 	snprintf(info->name, sizeof(info->name), "%s.%d-%s", pdev->name,
 		 pdev->id, name);
 
-#ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
-	/*
-	 * When we get an interrupt, we must bounce it through the simulation
-	 * calendar (the simtime device), except for the simtime device itself
-	 * since that's part of the simulation control.
-	 */
-	if (time_travel_mode == TT_MODE_EXTERNAL && callback) {
-		info->callback = callback;
-		callback = vu_defer_irq_callback;
-		time_travel_set_event_fn(&info->defer, vu_defer_irq_handle);
-	}
-#endif
-
 	vq = vring_create_virtqueue(index, num, PAGE_SIZE, vdev, true, true,
 				    ctx, vu_notify, callback, info->name);
 	if (!vq) {
@@ -932,9 +942,6 @@ static struct virtqueue *vu_setup_vq(struct virtio_device *vdev,
 	}
 	vq->priv = info;
 	num = virtqueue_get_vring_size(vq);
-#ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
-	info->vq = vq;
-#endif
 
 	if (vu_dev->protocol_features &
 			BIT_ULL(VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS)) {
@@ -992,6 +999,10 @@ static int vu_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	struct virtio_uml_device *vu_dev = to_virtio_uml_device(vdev);
 	int i, queue_idx = 0, rc;
 	struct virtqueue *vq;
+
+	/* not supported for now */
+	if (WARN_ON(nvqs > 64))
+		return -EINVAL;
 
 	rc = vhost_user_set_mem_table(vu_dev);
 	if (rc)
@@ -1124,6 +1135,8 @@ static int virtio_uml_probe(struct platform_device *pdev)
 		goto error_init;
 
 	platform_set_drvdata(pdev, vu_dev);
+
+	device_set_wakeup_capable(&vu_dev->vdev.dev, true);
 
 	rc = register_virtio_device(&vu_dev->vdev);
 	if (rc)
@@ -1286,6 +1299,46 @@ static const struct of_device_id virtio_uml_match[] = {
 };
 MODULE_DEVICE_TABLE(of, virtio_uml_match);
 
+static int virtio_uml_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct virtio_uml_device *vu_dev = platform_get_drvdata(pdev);
+	struct virtqueue *vq;
+
+	virtio_device_for_each_vq((&vu_dev->vdev), vq) {
+		struct virtio_uml_vq_info *info = vq->priv;
+
+		info->suspended = true;
+		vhost_user_set_vring_enable(vu_dev, vq->index, false);
+	}
+
+	if (!device_may_wakeup(&vu_dev->vdev.dev)) {
+		vu_dev->suspended = true;
+		return 0;
+	}
+
+	return irq_set_irq_wake(vu_dev->irq, 1);
+}
+
+static int virtio_uml_resume(struct platform_device *pdev)
+{
+	struct virtio_uml_device *vu_dev = platform_get_drvdata(pdev);
+	struct virtqueue *vq;
+
+	virtio_device_for_each_vq((&vu_dev->vdev), vq) {
+		struct virtio_uml_vq_info *info = vq->priv;
+
+		info->suspended = false;
+		vhost_user_set_vring_enable(vu_dev, vq->index, true);
+	}
+
+	vu_dev->suspended = false;
+
+	if (!device_may_wakeup(&vu_dev->vdev.dev))
+		return 0;
+
+	return irq_set_irq_wake(vu_dev->irq, 0);
+}
+
 static struct platform_driver virtio_uml_driver = {
 	.probe = virtio_uml_probe,
 	.remove = virtio_uml_remove,
@@ -1293,6 +1346,8 @@ static struct platform_driver virtio_uml_driver = {
 		.name = "virtio-uml",
 		.of_match_table = virtio_uml_match,
 	},
+	.suspend = virtio_uml_suspend,
+	.resume = virtio_uml_resume,
 };
 
 static int __init virtio_uml_init(void)

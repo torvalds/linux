@@ -19,6 +19,8 @@
 
 #define HISI_SFC_V3XX_VERSION (0x1f8)
 
+#define HISI_SFC_V3XX_GLB_CFG (0x100)
+#define HISI_SFC_V3XX_GLB_CFG_CS0_ADDR_MODE BIT(2)
 #define HISI_SFC_V3XX_RAW_INT_STAT (0x120)
 #define HISI_SFC_V3XX_INT_STAT (0x124)
 #define HISI_SFC_V3XX_INT_MASK (0x128)
@@ -75,6 +77,7 @@ struct hisi_sfc_v3xx_host {
 	void __iomem *regbase;
 	int max_cmd_dword;
 	struct completion *completion;
+	u8 address_mode;
 	int irq;
 };
 
@@ -168,8 +171,16 @@ static int hisi_sfc_v3xx_adjust_op_size(struct spi_mem *mem,
 static bool hisi_sfc_v3xx_supports_op(struct spi_mem *mem,
 				      const struct spi_mem_op *op)
 {
+	struct spi_device *spi = mem->spi;
+	struct hisi_sfc_v3xx_host *host;
+
+	host = spi_controller_get_devdata(spi->master);
+
 	if (op->data.buswidth > 4 || op->dummy.buswidth > 4 ||
 	    op->addr.buswidth > 4 || op->cmd.buswidth > 4)
+		return false;
+
+	if (op->addr.nbytes != host->address_mode && op->addr.nbytes)
 		return false;
 
 	return spi_mem_default_supports_op(mem, op);
@@ -416,7 +427,7 @@ static int hisi_sfc_v3xx_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct hisi_sfc_v3xx_host *host;
 	struct spi_controller *ctlr;
-	u32 version;
+	u32 version, glb_config;
 	int ret;
 
 	ctlr = spi_alloc_master(&pdev->dev, sizeof(*host));
@@ -463,16 +474,24 @@ static int hisi_sfc_v3xx_probe(struct platform_device *pdev)
 	ctlr->num_chipselect = 1;
 	ctlr->mem_ops = &hisi_sfc_v3xx_mem_ops;
 
+	/*
+	 * The address mode of the controller is either 3 or 4,
+	 * which is indicated by the address mode bit in
+	 * the global config register. The register is read only
+	 * for the OS driver.
+	 */
+	glb_config = readl(host->regbase + HISI_SFC_V3XX_GLB_CFG);
+	if (glb_config & HISI_SFC_V3XX_GLB_CFG_CS0_ADDR_MODE)
+		host->address_mode = 4;
+	else
+		host->address_mode = 3;
+
 	version = readl(host->regbase + HISI_SFC_V3XX_VERSION);
 
-	switch (version) {
-	case 0x351:
+	if (version >= 0x351)
 		host->max_cmd_dword = 64;
-		break;
-	default:
+	else
 		host->max_cmd_dword = 16;
-		break;
-	}
 
 	ret = devm_spi_register_controller(dev, ctlr);
 	if (ret)

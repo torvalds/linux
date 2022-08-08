@@ -858,7 +858,7 @@ The letters are:
 	b	synthesize "branches" events
 	x	synthesize "transactions" events
 	w	synthesize "ptwrite" events
-	p	synthesize "power" events
+	p	synthesize "power" events (incl. PSB events)
 	c	synthesize branches events (calls only)
 	r	synthesize branches events (returns only)
 	e	synthesize tracing error events
@@ -912,6 +912,11 @@ Where:
 	"pwrx" indicates return to C0
 For more details refer to the Intel 64 and IA-32 Architectures Software
 Developer Manuals.
+
+PSB events show when a PSB+ occurred and also the byte-offset in the trace.
+Emitting a PSB+ can cause a CPU a slight delay. When doing timing analysis
+of code with Intel PT, it is useful to know if a timing bubble was caused
+by Intel PT or not.
 
 Error events show where the decoder lost the trace.  Error events
 are quite important.  Users must know if what they are seeing is a complete
@@ -1140,6 +1145,88 @@ XED
 ---
 
 include::build-xed.txt[]
+
+
+Tracing Virtual Machines
+------------------------
+
+Currently, only kernel tracing is supported and only with "timeless" decoding
+i.e. no TSC timestamps
+
+Other limitations and caveats
+
+ VMX controls may suppress packets needed for decoding resulting in decoding errors
+ VMX controls may block the perf NMI to the host potentially resulting in lost trace data
+ Guest kernel self-modifying code (e.g. jump labels or JIT-compiled eBPF) will result in decoding errors
+ Guest thread information is unknown
+ Guest VCPU is unknown but may be able to be inferred from the host thread
+ Callchains are not supported
+
+Example
+
+Start VM
+
+ $ sudo virsh start kubuntu20.04
+ Domain kubuntu20.04 started
+
+Mount the guest file system.  Note sshfs needs -o direct_io to enable reading of proc files.  root access is needed to read /proc/kcore.
+
+ $ mkdir vm0
+ $ sshfs -o direct_io root@vm0:/ vm0
+
+Copy the guest /proc/kallsyms, /proc/modules and /proc/kcore
+
+ $ perf buildid-cache -v --kcore vm0/proc/kcore
+ kcore added to build-id cache directory /home/user/.debug/[kernel.kcore]/9600f316a53a0f54278885e8d9710538ec5f6a08/2021021807494306
+ $ KALLSYMS=/home/user/.debug/[kernel.kcore]/9600f316a53a0f54278885e8d9710538ec5f6a08/2021021807494306/kallsyms
+
+Find the VM process
+
+ $ ps -eLl | grep 'KVM\|PID'
+ F S   UID     PID    PPID     LWP  C PRI  NI ADDR SZ WCHAN  TTY          TIME CMD
+ 3 S 64055    1430       1    1440  1  80   0 - 1921718 -    ?        00:02:47 CPU 0/KVM
+ 3 S 64055    1430       1    1441  1  80   0 - 1921718 -    ?        00:02:41 CPU 1/KVM
+ 3 S 64055    1430       1    1442  1  80   0 - 1921718 -    ?        00:02:38 CPU 2/KVM
+ 3 S 64055    1430       1    1443  2  80   0 - 1921718 -    ?        00:03:18 CPU 3/KVM
+
+Start an open-ended perf record, tracing the VM process, do something on the VM, and then ctrl-C to stop.
+TSC is not supported and tsc=0 must be specified.  That means mtc is useless, so add mtc=0.
+However, IPC can still be determined, hence cyc=1 can be added.
+Only kernel decoding is supported, so 'k' must be specified.
+Intel PT traces both the host and the guest so --guest and --host need to be specified.
+Without timestamps, --per-thread must be specified to distinguish threads.
+
+ $ sudo perf kvm --guest --host --guestkallsyms $KALLSYMS record --kcore -e intel_pt/tsc=0,mtc=0,cyc=1/k -p 1430 --per-thread
+ ^C
+ [ perf record: Woken up 1 times to write data ]
+ [ perf record: Captured and wrote 5.829 MB ]
+
+perf script can be used to provide an instruction trace
+
+ $ perf script --guestkallsyms $KALLSYMS --insn-trace --xed -F+ipc | grep -C10 vmresume | head -21
+       CPU 0/KVM  1440  ffffffff82133cdd __vmx_vcpu_run+0x3d ([kernel.kallsyms])                movq  0x48(%rax), %r9
+       CPU 0/KVM  1440  ffffffff82133ce1 __vmx_vcpu_run+0x41 ([kernel.kallsyms])                movq  0x50(%rax), %r10
+       CPU 0/KVM  1440  ffffffff82133ce5 __vmx_vcpu_run+0x45 ([kernel.kallsyms])                movq  0x58(%rax), %r11
+       CPU 0/KVM  1440  ffffffff82133ce9 __vmx_vcpu_run+0x49 ([kernel.kallsyms])                movq  0x60(%rax), %r12
+       CPU 0/KVM  1440  ffffffff82133ced __vmx_vcpu_run+0x4d ([kernel.kallsyms])                movq  0x68(%rax), %r13
+       CPU 0/KVM  1440  ffffffff82133cf1 __vmx_vcpu_run+0x51 ([kernel.kallsyms])                movq  0x70(%rax), %r14
+       CPU 0/KVM  1440  ffffffff82133cf5 __vmx_vcpu_run+0x55 ([kernel.kallsyms])                movq  0x78(%rax), %r15
+       CPU 0/KVM  1440  ffffffff82133cf9 __vmx_vcpu_run+0x59 ([kernel.kallsyms])                movq  (%rax), %rax
+       CPU 0/KVM  1440  ffffffff82133cfc __vmx_vcpu_run+0x5c ([kernel.kallsyms])                callq  0xffffffff82133c40
+       CPU 0/KVM  1440  ffffffff82133c40 vmx_vmenter+0x0 ([kernel.kallsyms])            jz 0xffffffff82133c46
+       CPU 0/KVM  1440  ffffffff82133c42 vmx_vmenter+0x2 ([kernel.kallsyms])            vmresume         IPC: 0.11 (50/445)
+           :1440  1440  ffffffffbb678b06 native_write_msr+0x6 ([guest.kernel.kallsyms])                 nopl  %eax, (%rax,%rax,1)
+           :1440  1440  ffffffffbb678b0b native_write_msr+0xb ([guest.kernel.kallsyms])                 retq     IPC: 0.04 (2/41)
+           :1440  1440  ffffffffbb666646 lapic_next_deadline+0x26 ([guest.kernel.kallsyms])             data16 nop
+           :1440  1440  ffffffffbb666648 lapic_next_deadline+0x28 ([guest.kernel.kallsyms])             xor %eax, %eax
+           :1440  1440  ffffffffbb66664a lapic_next_deadline+0x2a ([guest.kernel.kallsyms])             popq  %rbp
+           :1440  1440  ffffffffbb66664b lapic_next_deadline+0x2b ([guest.kernel.kallsyms])             retq     IPC: 0.16 (4/25)
+           :1440  1440  ffffffffbb74607f clockevents_program_event+0x8f ([guest.kernel.kallsyms])               test %eax, %eax
+           :1440  1440  ffffffffbb746081 clockevents_program_event+0x91 ([guest.kernel.kallsyms])               jz 0xffffffffbb74603c    IPC: 0.06 (2/30)
+           :1440  1440  ffffffffbb74603c clockevents_program_event+0x4c ([guest.kernel.kallsyms])               popq  %rbx
+           :1440  1440  ffffffffbb74603d clockevents_program_event+0x4d ([guest.kernel.kallsyms])               popq  %r12
+
+
 
 SEE ALSO
 --------

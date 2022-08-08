@@ -66,6 +66,12 @@ static int __init amigaone_add_bridge(struct device_node *dev)
 
 void __init amigaone_setup_arch(void)
 {
+	if (ppc_md.progress)
+		ppc_md.progress("Linux/PPC "UTS_RELEASE"\n", 0);
+}
+
+static void __init amigaone_discover_phbs(void)
+{
 	struct device_node *np;
 	int phb = -ENODEV;
 
@@ -74,9 +80,6 @@ void __init amigaone_setup_arch(void)
 		phb = amigaone_add_bridge(np);
 
 	BUG_ON(phb != 0);
-
-	if (ppc_md.progress)
-		ppc_md.progress("Linux/PPC "UTS_RELEASE"\n", 0);
 }
 
 void __init amigaone_init_IRQ(void)
@@ -159,6 +162,7 @@ define_machine(amigaone) {
 	.name			= "AmigaOne",
 	.probe			= amigaone_probe,
 	.setup_arch		= amigaone_setup_arch,
+	.discover_phbs		= amigaone_discover_phbs,
 	.show_cpuinfo		= amigaone_show_cpuinfo,
 	.init_IRQ		= amigaone_init_IRQ,
 	.restart		= amigaone_restart,

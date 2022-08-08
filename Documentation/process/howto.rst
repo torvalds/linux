@@ -342,16 +342,10 @@ Adventurous testers are very welcome to runtime-test the linux-next.
 Bug Reporting
 -------------
 
-https://bugzilla.kernel.org is where the Linux kernel developers track kernel
-bugs.  Users are encouraged to report all bugs that they find in this
-tool.  For details on how to use the kernel bugzilla, please see:
-
-	https://bugzilla.kernel.org/page.cgi?id=faq.html
-
 The file 'Documentation/admin-guide/reporting-issues.rst' in the main kernel
-source directory has a good template for how to report a possible kernel bug,
-and details what kind of information is needed by the kernel developers to help
-track down the problem.
+source directory describes how to report a possible kernel bug, and details
+what kind of information is needed by the kernel developers to help track
+down the problem.
 
 
 Managing bug reports
@@ -364,7 +358,13 @@ improve your skills, and other developers will be aware of your presence.
 Fixing bugs is one of the best ways to get merits among other developers,
 because not many people like wasting time fixing other people's bugs.
 
-To work in the already reported bug reports, go to https://bugzilla.kernel.org.
+To work on already reported bug reports, find a subsystem you are interested in.
+Check the MAINTAINERS file where bugs for that subsystem get reported to; often
+it will be a mailing list, rarely a bugtracker. Search the archives of said
+place for recent reports and help where you see fit. You may also want to check
+https://bugzilla.kernel.org for bug reports; only a handful of kernel subsystems
+use it actively for reporting or tracking, nevertheless bugs for the whole
+kernel get filed there.
 
 
 Mailing lists

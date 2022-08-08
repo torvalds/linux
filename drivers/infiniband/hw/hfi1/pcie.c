@@ -334,7 +334,7 @@ int pcie_speeds(struct hfi1_devdata *dd)
 	return 0;
 }
 
-/**
+/*
  * Restore command and BARs after a reset has wiped them out
  *
  * Returns 0 on success, otherwise a negative error value
@@ -393,7 +393,7 @@ error:
 	return pcibios_err_to_errno(ret);
 }
 
-/**
+/*
  * Save BARs and command to rewrite after device reset
  *
  * Returns 0 on success, otherwise a negative error value

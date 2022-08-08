@@ -254,7 +254,7 @@ spider_net_set_promisc(struct spider_net_card *card)
 
 /**
  * spider_net_get_descr_status -- returns the status of a descriptor
- * @descr: descriptor to look at
+ * @hwdescr: descriptor to look at
  *
  * returns the status as in the dmac_cmd_status field of the descriptor
  */
@@ -542,6 +542,7 @@ error:
 
 /**
  * spider_net_get_multicast_hash - generates hash for multicast filter table
+ * @netdev: interface device structure
  * @addr: multicast address
  *
  * returns the hash value.
@@ -890,7 +891,7 @@ spider_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 /**
  * spider_net_cleanup_tx_ring - cleans up the TX ring
- * @card: card structure
+ * @t: timer context used to obtain the pointer to net card data structure
  *
  * spider_net_cleanup_tx_ring is called by either the tx_timer
  * or from the NAPI polling routine.
@@ -1063,6 +1064,7 @@ static void show_rx_chain(struct spider_net_card *card)
 
 /**
  * spider_net_resync_head_ptr - Advance head ptr past empty descrs
+ * @card: card structure
  *
  * If the driver fails to keep up and empty the queue, then the
  * hardware wil run out of room to put incoming packets. This
@@ -1220,7 +1222,7 @@ bad_desc:
 
 /**
  * spider_net_poll - NAPI poll function called by the stack to return packets
- * @netdev: interface device structure
+ * @napi: napi device structure
  * @budget: number of packets we can pass to the stack at most
  *
  * returns 0 if no more packets available to the driver/stack. Returns 1,
@@ -1268,7 +1270,7 @@ static int spider_net_poll(struct napi_struct *napi, int budget)
 /**
  * spider_net_set_mac - sets the MAC of an interface
  * @netdev: interface device structure
- * @ptr: pointer to new MAC address
+ * @p: pointer to new MAC address
  *
  * Returns 0 on success, <0 on failure. Currently, we don't support this
  * and will always return EOPNOTSUPP.
@@ -1340,6 +1342,8 @@ spider_net_link_reset(struct net_device *netdev)
  * spider_net_handle_error_irq - handles errors raised by an interrupt
  * @card: card structure
  * @status_reg: interrupt status register 0 (GHIINT0STS)
+ * @error_reg1: interrupt status register 1 (GHIINT1STS)
+ * @error_reg2: interrupt status register 2 (GHIINT2STS)
  *
  * spider_net_handle_error_irq treats or ignores all error conditions
  * found when an interrupt is presented
@@ -1961,8 +1965,7 @@ init_firmware_failed:
 
 /**
  * spider_net_link_phy
- * @data: used for pointer to card structure
- *
+ * @t: timer context used to obtain the pointer to net card data structure
  */
 static void spider_net_link_phy(struct timer_list *t)
 {
@@ -2140,7 +2143,7 @@ spider_net_stop(struct net_device *netdev)
 /**
  * spider_net_tx_timeout_task - task scheduled by the watchdog timeout
  * function (to be called not under interrupt status)
- * @data: data, is interface device structure
+ * @work: work context used to obtain the pointer to net card data structure
  *
  * called as task when tx hangs, resets interface (if interface is up)
  */
@@ -2174,6 +2177,7 @@ out:
 /**
  * spider_net_tx_timeout - called when the tx timeout watchdog kicks in.
  * @netdev: interface device structure
+ * @txqueue: unused
  *
  * called, if tx hangs. Schedules a task that resets the interface
  */

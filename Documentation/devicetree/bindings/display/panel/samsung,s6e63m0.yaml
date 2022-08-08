@@ -11,6 +11,7 @@ maintainers:
 
 allOf:
   - $ref: panel-common.yaml#
+  - $ref: /schemas/leds/backlight/common.yaml#
 
 properties:
   compatible:
@@ -19,6 +20,8 @@ properties:
   reg: true
   reset-gpios: true
   port: true
+  default-brightness: true
+  max-brightness: true
 
   vdd3-supply:
     description: VDD regulator
@@ -31,7 +34,6 @@ required:
   - reset-gpios
   - vdd3-supply
   - vci-supply
-  - port
 
 unevaluatedProperties: false
 

@@ -296,6 +296,9 @@ OPTIONS
 --data-page-size::
 	Record the sampled data address data page size.
 
+--code-page-size::
+	Record the sampled code address (ip) page size
+
 -T::
 --timestamp::
 	Record the sample timestamps. Use it with 'perf report -D' to see the
@@ -485,6 +488,9 @@ Specify vmlinux path which has debuginfo.
 --buildid-all::
 Record build-id of all DSOs regardless whether it's actually hit or not.
 
+--buildid-mmap::
+Record build ids in mmap2 events, disables build id cache (implies --no-buildid).
+
 --aio[=n]::
 Use <n> control blocks in asynchronous (Posix AIO) trace writing mode (default: 1, max: 4).
 Asynchronous mode is supported only when linking Perf tool with libc library
@@ -640,9 +646,18 @@ ctl-fifo / ack-fifo are opened and used as ctl-fd / ack-fd as follows.
 Listen on ctl-fd descriptor for command to control measurement.
 
 Available commands:
-  'enable'  : enable events
-  'disable' : disable events
-  'snapshot': AUX area tracing snapshot).
+  'enable'           : enable events
+  'disable'          : disable events
+  'enable name'      : enable event 'name'
+  'disable name'     : disable event 'name'
+  'snapshot'         : AUX area tracing snapshot).
+  'stop'             : stop perf record
+  'ping'             : ping
+
+  'evlist [-v|-g|-F] : display all events
+                       -F  Show just the sample frequency used for each event.
+                       -v  Show all fields.
+                       -g  Show event group information.
 
 Measurements can be started with events disabled using --delay=-1 option. Optionally
 send control command completion ('ack\n') to ack-fd descriptor to synchronize with the

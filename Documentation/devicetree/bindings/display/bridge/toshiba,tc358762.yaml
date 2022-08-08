@@ -25,62 +25,20 @@ properties:
     description: Regulator for 1.2V internal core power.
 
   ports:
-    type: object
+    $ref: /schemas/graph.yaml#/properties/ports
 
     properties:
-      "#address-cells":
-        const: 1
-
-      "#size-cells":
-        const: 0
-
       port@0:
-        type: object
-        additionalProperties: false
-
-        description: |
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
           Video port for MIPI DSI input
 
-        properties:
-          reg:
-            const: 0
-
-        patternProperties:
-          endpoint:
-            type: object
-            additionalProperties: false
-
-            properties:
-              remote-endpoint: true
-
-        required:
-          - reg
-
       port@1:
-        type: object
-        additionalProperties: false
-
-        description: |
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
           Video port for MIPI DPI output (panel or connector).
 
-        properties:
-          reg:
-            const: 1
-
-        patternProperties:
-          endpoint:
-            type: object
-            additionalProperties: false
-
-            properties:
-              remote-endpoint: true
-
-        required:
-          - reg
-
     required:
-      - "#address-cells"
-      - "#size-cells"
       - port@0
       - port@1
 

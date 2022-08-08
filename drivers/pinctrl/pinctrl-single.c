@@ -777,6 +777,7 @@ static int pcs_add_function(struct pcs_device *pcs,
 
 	function->vals = vals;
 	function->nvals = nvals;
+	function->name = name;
 
 	selector = pinmux_generic_add_function(pcs->pctl, name,
 					       pgnames, npgnames,

@@ -12,6 +12,9 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 	unsigned long addr;
 	struct page *page;
 
+	if (!pfn_valid(pte_pfn(*pte)))
+		return;
+
 	page = pfn_to_page(pte_pfn(*pte));
 	if (page == ZERO_PAGE(0))
 		return;

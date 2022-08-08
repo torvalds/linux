@@ -609,6 +609,7 @@ found:
 			 * changed. Schedule recovery!
 			 */
 			nfs4_schedule_path_down_recovery(pos);
+			goto out;
 		default:
 			goto out;
 		}

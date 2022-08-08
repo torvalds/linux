@@ -161,7 +161,7 @@ static int zinitix_read_data(struct i2c_client *client,
 
 	ret = i2c_master_recv(client, (u8 *)values, length);
 	if (ret != length)
-		return ret < 0 ? ret : -EIO; ;
+		return ret < 0 ? ret : -EIO;
 
 	return 0;
 }
@@ -190,7 +190,7 @@ static int zinitix_write_cmd(struct i2c_client *client, u16 reg)
 	return 0;
 }
 
-static bool zinitix_init_touch(struct bt541_ts_data *bt541)
+static int zinitix_init_touch(struct bt541_ts_data *bt541)
 {
 	struct i2c_client *client = bt541->client;
 	int i;

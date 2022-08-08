@@ -24,7 +24,6 @@
 #include "amdgpu_amdkfd.h"
 #include "gc/gc_10_3_0_offset.h"
 #include "gc/gc_10_3_0_sh_mask.h"
-#include "navi10_enum.h"
 #include "oss/osssys_5_0_0_offset.h"
 #include "oss/osssys_5_0_0_sh_mask.h"
 #include "soc15_common.h"

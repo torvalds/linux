@@ -1159,7 +1159,6 @@ enum {
 	SNBEP_PCI_QPI_PORT0_FILTER,
 	SNBEP_PCI_QPI_PORT1_FILTER,
 	BDX_PCI_QPI_PORT2_FILTER,
-	HSWEP_PCI_PCU_3,
 };
 
 static int snbep_qpi_hw_config(struct intel_uncore_box *box, struct perf_event *event)
@@ -1359,7 +1358,7 @@ static struct pci_driver snbep_uncore_pci_driver = {
 static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool reverse)
 {
 	struct pci_dev *ubox_dev = NULL;
-	int i, bus, nodeid, segment;
+	int i, bus, nodeid, segment, die_id;
 	struct pci2phy_map *map;
 	int err = 0;
 	u32 config = 0;
@@ -1370,36 +1369,77 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 		if (!ubox_dev)
 			break;
 		bus = ubox_dev->bus->number;
-		/* get the Node ID of the local register */
-		err = pci_read_config_dword(ubox_dev, nodeid_loc, &config);
-		if (err)
-			break;
-		nodeid = config & NODE_ID_MASK;
-		/* get the Node ID mapping */
-		err = pci_read_config_dword(ubox_dev, idmap_loc, &config);
-		if (err)
-			break;
-
-		segment = pci_domain_nr(ubox_dev->bus);
-		raw_spin_lock(&pci2phy_map_lock);
-		map = __find_pci2phy_map(segment);
-		if (!map) {
-			raw_spin_unlock(&pci2phy_map_lock);
-			err = -ENOMEM;
-			break;
-		}
-
 		/*
-		 * every three bits in the Node ID mapping register maps
-		 * to a particular node.
+		 * The nodeid and idmap registers only contain enough
+		 * information to handle 8 nodes.  On systems with more
+		 * than 8 nodes, we need to rely on NUMA information,
+		 * filled in from BIOS supplied information, to determine
+		 * the topology.
 		 */
-		for (i = 0; i < 8; i++) {
-			if (nodeid == ((config >> (3 * i)) & 0x7)) {
-				map->pbus_to_physid[bus] = i;
+		if (nr_node_ids <= 8) {
+			/* get the Node ID of the local register */
+			err = pci_read_config_dword(ubox_dev, nodeid_loc, &config);
+			if (err)
+				break;
+			nodeid = config & NODE_ID_MASK;
+			/* get the Node ID mapping */
+			err = pci_read_config_dword(ubox_dev, idmap_loc, &config);
+			if (err)
+				break;
+
+			segment = pci_domain_nr(ubox_dev->bus);
+			raw_spin_lock(&pci2phy_map_lock);
+			map = __find_pci2phy_map(segment);
+			if (!map) {
+				raw_spin_unlock(&pci2phy_map_lock);
+				err = -ENOMEM;
+				break;
+			}
+
+			/*
+			 * every three bits in the Node ID mapping register maps
+			 * to a particular node.
+			 */
+			for (i = 0; i < 8; i++) {
+				if (nodeid == ((config >> (3 * i)) & 0x7)) {
+					if (topology_max_die_per_package() > 1)
+						die_id = i;
+					else
+						die_id = topology_phys_to_logical_pkg(i);
+					map->pbus_to_dieid[bus] = die_id;
+					break;
+				}
+			}
+			raw_spin_unlock(&pci2phy_map_lock);
+		} else {
+			int node = pcibus_to_node(ubox_dev->bus);
+			int cpu;
+
+			segment = pci_domain_nr(ubox_dev->bus);
+			raw_spin_lock(&pci2phy_map_lock);
+			map = __find_pci2phy_map(segment);
+			if (!map) {
+				raw_spin_unlock(&pci2phy_map_lock);
+				err = -ENOMEM;
+				break;
+			}
+
+			die_id = -1;
+			for_each_cpu(cpu, cpumask_of_pcibus(ubox_dev->bus)) {
+				struct cpuinfo_x86 *c = &cpu_data(cpu);
+
+				if (c->initialized && cpu_to_node(cpu) == node) {
+					map->pbus_to_dieid[bus] = die_id = c->logical_die_id;
+					break;
+				}
+			}
+			raw_spin_unlock(&pci2phy_map_lock);
+
+			if (WARN_ON_ONCE(die_id == -1)) {
+				err = -EINVAL;
 				break;
 			}
 		}
-		raw_spin_unlock(&pci2phy_map_lock);
 	}
 
 	if (!err) {
@@ -1412,17 +1452,17 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 			i = -1;
 			if (reverse) {
 				for (bus = 255; bus >= 0; bus--) {
-					if (map->pbus_to_physid[bus] >= 0)
-						i = map->pbus_to_physid[bus];
+					if (map->pbus_to_dieid[bus] >= 0)
+						i = map->pbus_to_dieid[bus];
 					else
-						map->pbus_to_physid[bus] = i;
+						map->pbus_to_dieid[bus] = i;
 				}
 			} else {
 				for (bus = 0; bus <= 255; bus++) {
-					if (map->pbus_to_physid[bus] >= 0)
-						i = map->pbus_to_physid[bus];
+					if (map->pbus_to_dieid[bus] >= 0)
+						i = map->pbus_to_dieid[bus];
 					else
-						map->pbus_to_physid[bus] = i;
+						map->pbus_to_dieid[bus] = i;
 				}
 			}
 		}
@@ -2816,22 +2856,33 @@ static struct intel_uncore_type *hswep_msr_uncores[] = {
 	NULL,
 };
 
+#define HSWEP_PCU_DID			0x2fc0
+#define HSWEP_PCU_CAPID4_OFFET		0x94
+#define hswep_get_chop(_cap)		(((_cap) >> 6) & 0x3)
+
+static bool hswep_has_limit_sbox(unsigned int device)
+{
+	struct pci_dev *dev = pci_get_device(PCI_VENDOR_ID_INTEL, device, NULL);
+	u32 capid4;
+
+	if (!dev)
+		return false;
+
+	pci_read_config_dword(dev, HSWEP_PCU_CAPID4_OFFET, &capid4);
+	if (!hswep_get_chop(capid4))
+		return true;
+
+	return false;
+}
+
 void hswep_uncore_cpu_init(void)
 {
-	int pkg = boot_cpu_data.logical_proc_id;
-
 	if (hswep_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
 		hswep_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
 
 	/* Detect 6-8 core systems with only two SBOXes */
-	if (uncore_extra_pci_dev[pkg].dev[HSWEP_PCI_PCU_3]) {
-		u32 capid4;
-
-		pci_read_config_dword(uncore_extra_pci_dev[pkg].dev[HSWEP_PCI_PCU_3],
-				      0x94, &capid4);
-		if (((capid4 >> 6) & 0x3) == 0)
-			hswep_uncore_sbox.num_boxes = 2;
-	}
+	if (hswep_has_limit_sbox(HSWEP_PCU_DID))
+		hswep_uncore_sbox.num_boxes = 2;
 
 	uncore_msr_uncores = hswep_msr_uncores;
 }
@@ -3094,11 +3145,6 @@ static const struct pci_device_id hswep_uncore_pci_ids[] = {
 		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV,
 						   SNBEP_PCI_QPI_PORT1_FILTER),
 	},
-	{ /* PCU.3 (for Capability registers) */
-		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x2fc0),
-		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV,
-						   HSWEP_PCI_PCU_3),
-	},
 	{ /* end: all zeroes */ }
 };
 
@@ -3190,27 +3236,18 @@ static struct event_constraint bdx_uncore_pcu_constraints[] = {
 	EVENT_CONSTRAINT_END
 };
 
+#define BDX_PCU_DID			0x6fc0
+
 void bdx_uncore_cpu_init(void)
 {
-	int pkg = topology_phys_to_logical_pkg(boot_cpu_data.phys_proc_id);
-
 	if (bdx_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
 		bdx_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
 	uncore_msr_uncores = bdx_msr_uncores;
 
-	/* BDX-DE doesn't have SBOX */
-	if (boot_cpu_data.x86_model == 86) {
-		uncore_msr_uncores[BDX_MSR_UNCORE_SBOX] = NULL;
 	/* Detect systems with no SBOXes */
-	} else if (uncore_extra_pci_dev[pkg].dev[HSWEP_PCI_PCU_3]) {
-		struct pci_dev *pdev;
-		u32 capid4;
+	if ((boot_cpu_data.x86_model == 86) || hswep_has_limit_sbox(BDX_PCU_DID))
+		uncore_msr_uncores[BDX_MSR_UNCORE_SBOX] = NULL;
 
-		pdev = uncore_extra_pci_dev[pkg].dev[HSWEP_PCI_PCU_3];
-		pci_read_config_dword(pdev, 0x94, &capid4);
-		if (((capid4 >> 6) & 0x3) == 0)
-			bdx_msr_uncores[BDX_MSR_UNCORE_SBOX] = NULL;
-	}
 	hswep_uncore_pcu.constraints = bdx_uncore_pcu_constraints;
 }
 
@@ -3430,11 +3467,6 @@ static const struct pci_device_id bdx_uncore_pci_ids[] = {
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f46),
 		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV,
 						   BDX_PCI_QPI_PORT2_FILTER),
-	},
-	{ /* PCU.3 (for Capability registers) */
-		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fc0),
-		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV,
-						   HSWEP_PCI_PCU_3),
 	},
 	{ /* end: all zeroes */ }
 };
@@ -4646,19 +4678,14 @@ int snr_uncore_pci_init(void)
 static struct pci_dev *snr_uncore_get_mc_dev(int id)
 {
 	struct pci_dev *mc_dev = NULL;
-	int phys_id, pkg;
+	int pkg;
 
 	while (1) {
 		mc_dev = pci_get_device(PCI_VENDOR_ID_INTEL, 0x3451, mc_dev);
 		if (!mc_dev)
 			break;
-		phys_id = uncore_pcibus_to_physid(mc_dev->bus);
-		if (phys_id < 0)
-			continue;
-		pkg = topology_phys_to_logical_pkg(phys_id);
-		if (pkg < 0)
-			continue;
-		else if (pkg == id)
+		pkg = uncore_pcibus_to_dieid(mc_dev->bus);
+		if (pkg == id)
 			break;
 	}
 	return mc_dev;

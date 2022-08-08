@@ -189,13 +189,8 @@ num_phys
 The event interface::
 
 	/* LLDD calls these to notify the class of an event. */
-	void (*notify_ha_event)(struct sas_ha_struct *, enum ha_event);
-	void (*notify_port_event)(struct sas_phy *, enum port_event);
-	void (*notify_phy_event)(struct sas_phy *, enum phy_event);
-
-When sas_register_ha() returns, those are set and can be
-called by the LLDD to notify the SAS layer of such events
-the SAS layer.
+	void sas_notify_port_event(struct sas_phy *, enum port_event, gfp_t);
+	void sas_notify_phy_event(struct sas_phy *, enum phy_event, gfp_t);
 
 The port notification::
 

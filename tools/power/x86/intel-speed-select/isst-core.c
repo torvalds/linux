@@ -665,6 +665,17 @@ int isst_get_fact_info(int cpu, int level, int fact_bucket, struct isst_fact_inf
 	return 0;
 }
 
+int isst_get_trl(int cpu, unsigned long long *trl)
+{
+	int ret;
+
+	ret = isst_send_msr_command(cpu, 0x1AD, 0, trl);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 int isst_set_trl(int cpu, unsigned long long trl)
 {
 	int ret;

@@ -592,9 +592,9 @@ static void xcan_write_frame(struct net_device *ndev, struct sk_buff *skb,
 
 	if (!(priv->devtype.flags & XCAN_FLAG_TX_MAILBOXES) &&
 	    (priv->devtype.flags & XCAN_FLAG_TXFEMP))
-		can_put_echo_skb(skb, ndev, priv->tx_head % priv->tx_max);
+		can_put_echo_skb(skb, ndev, priv->tx_head % priv->tx_max, 0);
 	else
-		can_put_echo_skb(skb, ndev, 0);
+		can_put_echo_skb(skb, ndev, 0, 0);
 
 	priv->tx_head++;
 
@@ -1292,7 +1292,7 @@ static void xcan_tx_interrupt(struct net_device *ndev, u32 isr)
 
 	while (frames_sent--) {
 		stats->tx_bytes += can_get_echo_skb(ndev, priv->tx_tail %
-						    priv->tx_max);
+						    priv->tx_max, NULL);
 		priv->tx_tail++;
 		stats->tx_packets++;
 	}

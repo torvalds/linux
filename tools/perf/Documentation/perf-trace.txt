@@ -97,8 +97,8 @@ filter out the startup phase of the program, which is often very different.
 	Filter out events for these pids and for 'trace' itself (comma separated list).
 
 -v::
---verbose=::
-        Verbosity level.
+--verbose::
+        Increase the verbosity level.
 
 --no-inherit::
 	Child tasks do not inherit counters.

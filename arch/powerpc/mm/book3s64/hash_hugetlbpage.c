@@ -16,10 +16,6 @@
 unsigned int hpage_shift;
 EXPORT_SYMBOL(hpage_shift);
 
-extern long hpte_insert_repeating(unsigned long hash, unsigned long vpn,
-				  unsigned long pa, unsigned long rlags,
-				  unsigned long vflags, int psize, int ssize);
-
 int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		     pte_t *ptep, unsigned long trap, unsigned long flags,
 		     int ssize, unsigned int shift, unsigned int mmu_psize)

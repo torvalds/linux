@@ -331,13 +331,18 @@ int usb4_switch_setup(struct tb_switch *sw)
 	if (ret)
 		return ret;
 
-	if (sw->link_usb4 && tb_switch_find_port(parent, TB_TYPE_USB3_DOWN)) {
+	if (tb_acpi_may_tunnel_usb3() && sw->link_usb4 &&
+	    tb_switch_find_port(parent, TB_TYPE_USB3_DOWN)) {
 		val |= ROUTER_CS_5_UTO;
 		xhci = false;
 	}
 
-	/* Only enable PCIe tunneling if the parent router supports it */
-	if (tb_switch_find_port(parent, TB_TYPE_PCIE_DOWN)) {
+	/*
+	 * Only enable PCIe tunneling if the parent router supports it
+	 * and it is not disabled.
+	 */
+	if (tb_acpi_may_tunnel_pcie() &&
+	    tb_switch_find_port(parent, TB_TYPE_PCIE_DOWN)) {
 		val |= ROUTER_CS_5_PTO;
 		/*
 		 * xHCI can be enabled if PCIe tunneling is supported

@@ -150,9 +150,7 @@ static int bio_copy_user_iov(struct request *rq, struct rq_map_data *map_data,
 	bmd->is_our_pages = !map_data;
 	bmd->is_null_mapped = (map_data && map_data->null_mapped);
 
-	nr_pages = DIV_ROUND_UP(offset + len, PAGE_SIZE);
-	if (nr_pages > BIO_MAX_PAGES)
-		nr_pages = BIO_MAX_PAGES;
+	nr_pages = bio_max_segs(DIV_ROUND_UP(offset + len, PAGE_SIZE));
 
 	ret = -ENOMEM;
 	bio = bio_kmalloc(gfp_mask, nr_pages);
@@ -251,7 +249,7 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 	if (!iov_iter_count(iter))
 		return -EINVAL;
 
-	bio = bio_kmalloc(gfp_mask, iov_iter_npages(iter, BIO_MAX_PAGES));
+	bio = bio_kmalloc(gfp_mask, iov_iter_npages(iter, BIO_MAX_VECS));
 	if (!bio)
 		return -ENOMEM;
 	bio->bi_opf |= req_op(rq);

@@ -575,7 +575,7 @@ static struct snd_soc_dai_driver ak4613_dai = {
 		.formats	= AK4613_PCM_FMTBIT,
 	},
 	.ops = &ak4613_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static int ak4613_suspend(struct snd_soc_component *component)

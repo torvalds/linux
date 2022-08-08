@@ -215,8 +215,10 @@ static int read_mos_reg(struct usb_serial *serial, unsigned int serial_portnum,
 	int status;
 
 	buf = kmalloc(1, GFP_KERNEL);
-	if (!buf)
+	if (!buf) {
+		*data = 0;
 		return -ENOMEM;
+	}
 
 	status = usb_control_msg(usbdev, pipe, request, requesttype, value,
 				     index, buf, 1, MOS_WDR_TIMEOUT);
@@ -1092,8 +1094,10 @@ static int mos7720_write(struct tty_struct *tty, struct usb_serial_port *port,
 	if (urb->transfer_buffer == NULL) {
 		urb->transfer_buffer = kmalloc(URB_TRANSFER_BUFFER_SIZE,
 					       GFP_ATOMIC);
-		if (!urb->transfer_buffer)
+		if (!urb->transfer_buffer) {
+			bytes_sent = -ENOMEM;
 			goto exit;
+		}
 	}
 	transfer_size = min(count, URB_TRANSFER_BUFFER_SIZE);
 
@@ -1756,14 +1760,12 @@ static int mos7720_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-static int mos7720_port_remove(struct usb_serial_port *port)
+static void mos7720_port_remove(struct usb_serial_port *port)
 {
 	struct moschip_port *mos7720_port;
 
 	mos7720_port = usb_get_serial_port_data(port);
 	kfree(mos7720_port);
-
-	return 0;
 }
 
 static struct usb_serial_driver moschip7720_2port_driver = {

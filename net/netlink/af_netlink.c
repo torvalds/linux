@@ -67,6 +67,8 @@
 #include <net/sock.h>
 #include <net/scm.h>
 #include <net/netlink.h>
+#define CREATE_TRACE_POINTS
+#include <trace/events/netlink.h>
 
 #include "af_netlink.h"
 
@@ -146,6 +148,12 @@ static BLOCKING_NOTIFIER_HEAD(netlink_chain);
 
 
 static const struct rhashtable_params netlink_rhashtable_params;
+
+void do_trace_netlink_extack(const char *msg)
+{
+	trace_netlink_extack(msg);
+}
+EXPORT_SYMBOL(do_trace_netlink_extack);
 
 static inline u32 netlink_group_mask(u32 group)
 {
@@ -1011,7 +1019,6 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 			return -EINVAL;
 	}
 
-	netlink_lock_table();
 	if (nlk->netlink_bind && groups) {
 		int group;
 
@@ -1023,13 +1030,14 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 			if (!err)
 				continue;
 			netlink_undo_bind(group, groups, sk);
-			goto unlock;
+			return err;
 		}
 	}
 
 	/* No need for barriers here as we return to user-space without
 	 * using any of the bound attributes.
 	 */
+	netlink_lock_table();
 	if (!bound) {
 		err = nladdr->nl_pid ?
 			netlink_insert(sk, nladdr->nl_pid) :

@@ -10,7 +10,6 @@
     |         arc: | TODO |
     |         arm: | TODO |
     |       arm64: | TODO |
-    |         c6x: |  ..  |
     |        csky: | TODO |
     |       h8300: |  ..  |
     |     hexagon: | TODO |

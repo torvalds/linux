@@ -39,6 +39,7 @@ struct l2tp_stats {
 	atomic_long_t		rx_oos_packets;
 	atomic_long_t		rx_errors;
 	atomic_long_t		rx_cookie_discards;
+	atomic_long_t		rx_invalid;
 };
 
 struct l2tp_tunnel;

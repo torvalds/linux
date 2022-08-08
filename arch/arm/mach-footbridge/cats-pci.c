@@ -15,14 +15,14 @@
 #include <asm/mach-types.h>
 
 /* cats host-specific stuff */
-static int irqmap_cats[] __initdata = { IRQ_PCI, IRQ_IN0, IRQ_IN1, IRQ_IN3 };
+static int irqmap_cats[] = { IRQ_PCI, IRQ_IN0, IRQ_IN1, IRQ_IN3 };
 
 static u8 cats_no_swizzle(struct pci_dev *dev, u8 *pin)
 {
 	return 0;
 }
 
-static int __init cats_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+static int cats_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	if (dev->irq >= 255)
 		return -1;	/* not a valid interrupt. */

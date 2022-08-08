@@ -71,14 +71,12 @@ static int isert_sg_tablesize_set(const char *val, const struct kernel_param *kp
 	return param_set_int(val, kp);
 }
 
-
 static inline bool
 isert_prot_cmd(struct isert_conn *conn, struct se_cmd *cmd)
 {
 	return (conn->pi_support &&
 		cmd->prot_op != TARGET_PROT_NORMAL);
 }
-
 
 static void
 isert_qp_event_callback(struct ib_event *e, void *context)
@@ -232,8 +230,10 @@ isert_create_device_ib_res(struct isert_device *device)
 	}
 
 	/* Check signature cap */
-	device->pi_capable = ib_dev->attrs.device_cap_flags &
-			     IB_DEVICE_INTEGRITY_HANDOVER ? true : false;
+	if (ib_dev->attrs.device_cap_flags & IB_DEVICE_INTEGRITY_HANDOVER)
+		device->pi_capable = true;
+	else
+		device->pi_capable = false;
 
 	return 0;
 }
@@ -1993,7 +1993,7 @@ isert_set_dif_domain(struct se_cmd *se_cmd, struct ib_sig_domain *domain)
 	if (se_cmd->prot_type == TARGET_DIF_TYPE1_PROT ||
 	    se_cmd->prot_type == TARGET_DIF_TYPE2_PROT)
 		domain->sig.dif.ref_remap = true;
-};
+}
 
 static int
 isert_set_sig_attrs(struct se_cmd *se_cmd, struct ib_sig_attrs *sig_attrs)

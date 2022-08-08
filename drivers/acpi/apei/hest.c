@@ -49,6 +49,12 @@ static const int hest_esrc_len_tab[ACPI_HEST_TYPE_RESERVED] = {
 	[ACPI_HEST_TYPE_IA32_DEFERRED_CHECK] = -1,
 };
 
+static inline bool is_generic_error(struct acpi_hest_header *hest_hdr)
+{
+	return hest_hdr->type == ACPI_HEST_TYPE_GENERIC_ERROR ||
+	       hest_hdr->type == ACPI_HEST_TYPE_GENERIC_ERROR_V2;
+}
+
 static int hest_esrc_len(struct acpi_hest_header *hest_hdr)
 {
 	u16 hest_type = hest_hdr->type;
@@ -141,8 +147,7 @@ static int __init hest_parse_ghes_count(struct acpi_hest_header *hest_hdr, void 
 {
 	int *count = data;
 
-	if (hest_hdr->type == ACPI_HEST_TYPE_GENERIC_ERROR ||
-	    hest_hdr->type == ACPI_HEST_TYPE_GENERIC_ERROR_V2)
+	if (is_generic_error(hest_hdr))
 		(*count)++;
 	return 0;
 }
@@ -153,8 +158,7 @@ static int __init hest_parse_ghes(struct acpi_hest_header *hest_hdr, void *data)
 	struct ghes_arr *ghes_arr = data;
 	int rc, i;
 
-	if (hest_hdr->type != ACPI_HEST_TYPE_GENERIC_ERROR &&
-	    hest_hdr->type != ACPI_HEST_TYPE_GENERIC_ERROR_V2)
+	if (!is_generic_error(hest_hdr))
 		return 0;
 
 	if (!((struct acpi_hest_generic *)hest_hdr)->enabled)

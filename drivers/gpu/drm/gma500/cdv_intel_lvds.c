@@ -74,7 +74,7 @@ static u32 cdv_intel_lvds_get_max_backlight(struct drm_device *dev)
 	return retval;
 }
 
-/**
+/*
  * Sets the backlight level.
  *
  * level backlight level, from 0 to cdv_intel_lvds_get_max_backlight().
@@ -99,7 +99,7 @@ static void cdv_intel_lvds_set_backlight(struct drm_device *dev, int level)
 	}
 }
 
-/**
+/*
  * Sets the power state for the panel.
  */
 static void cdv_intel_lvds_set_power(struct drm_device *dev,
@@ -291,7 +291,7 @@ static void cdv_intel_lvds_mode_set(struct drm_encoder *encoder,
 	REG_WRITE(PFIT_CONTROL, pfit_control);
 }
 
-/**
+/*
  * Return the list of DDC modes if available, or the BIOS fixed mode otherwise.
  */
 static int cdv_intel_lvds_get_modes(struct drm_connector *connector)
@@ -471,6 +471,7 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev,
 /**
  * cdv_intel_lvds_init - setup LVDS connectors on this device
  * @dev: drm device
+ * @mode_dev: PSB mode device
  *
  * Create the connector, register the LVDS DDC bus, and try to figure out what
  * modes we can display on the LVDS panel (if present).
@@ -554,7 +555,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 							 "LVDSBLC_B");
 	if (!gma_encoder->i2c_bus) {
 		dev_printk(KERN_ERR,
-			&dev->pdev->dev, "I2C bus registration failed.\n");
+			dev->dev, "I2C bus registration failed.\n");
 		goto failed_blc_i2c;
 	}
 	gma_encoder->i2c_bus->slave_addr = 0x2C;
@@ -575,7 +576,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 							 GPIOC,
 							 "LVDSDDC_C");
 	if (!gma_encoder->ddc_bus) {
-		dev_printk(KERN_ERR, &dev->pdev->dev,
+		dev_printk(KERN_ERR, dev->dev,
 			   "DDC bus registration " "failed.\n");
 		goto failed_ddc;
 	}

@@ -92,6 +92,7 @@ config TI_CPTS
 config TI_K3_AM65_CPSW_NUSS
 	tristate "TI K3 AM654x/J721E CPSW Ethernet driver"
 	depends on ARCH_K3 && OF && TI_K3_UDMA_GLUE_LAYER
+	select NET_DEVLINK
 	select TI_DAVINCI_MDIO
 	imply PHY_TI_GMII_SEL
 	depends on TI_K3_AM65_CPTS || !TI_K3_AM65_CPTS
@@ -104,6 +105,15 @@ config TI_K3_AM65_CPSW_NUSS
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called ti-am65-cpsw-nuss.
+
+config TI_K3_AM65_CPSW_SWITCHDEV
+	bool "TI K3 AM654x/J721E CPSW Switch mode support"
+	depends on TI_K3_AM65_CPSW_NUSS
+	depends on NET_SWITCHDEV
+	help
+	 This enables switchdev support for TI K3 CPSWxG Ethernet
+	 Switch. Enable this driver to support hardware switch support for AM65
+	 CPSW NUSS driver.
 
 config TI_K3_AM65_CPTS
 	tristate "TI K3 AM65x CPTS"

@@ -145,6 +145,22 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 	asm_inline volatile(ALTERNATIVE_2(oldinstr, altinstr1, facility1,   \
 				   altinstr2, facility2) ::: "memory")
 
+/* Alternative inline assembly with input. */
+#define alternative_input(oldinstr, newinstr, feature, input...)	\
+	asm_inline volatile (ALTERNATIVE(oldinstr, newinstr, feature)	\
+		: : input)
+
+/* Like alternative_input, but with a single output argument */
+#define alternative_io(oldinstr, altinstr, facility, output, input...)	\
+	asm_inline volatile(ALTERNATIVE(oldinstr, altinstr, facility)	\
+		: output : input)
+
+/* Use this macro if more than one output parameter is needed. */
+#define ASM_OUTPUT2(a...) a
+
+/* Use this macro if clobbers are needed without inputs. */
+#define ASM_NO_INPUT_CLOBBER(clobber...) : clobber
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_S390_ALTERNATIVE_H */

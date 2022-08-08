@@ -43,11 +43,12 @@ properties:
       - renesas,pfc-r8a77980    # R-Car V3H
       - renesas,pfc-r8a77990    # R-Car E3
       - renesas,pfc-r8a77995    # R-Car D3
+      - renesas,pfc-r8a779a0    # R-Car V3U
       - renesas,pfc-sh73a0      # SH-Mobile AG5
 
   reg:
     minItems: 1
-    maxItems: 2
+    maxItems: 10
 
   gpio-controller: true
 
@@ -76,11 +77,10 @@ required:
 if:
   properties:
     compatible:
-      items:
-        enum:
-          - renesas,pfc-r8a73a4
-          - renesas,pfc-r8a7740
-          - renesas,pfc-sh73a0
+      enum:
+        - renesas,pfc-r8a73a4
+        - renesas,pfc-r8a7740
+        - renesas,pfc-sh73a0
 then:
   required:
     - interrupts-extended

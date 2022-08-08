@@ -396,9 +396,9 @@ number of lines as the luma plane.
 NV24 and NV42
 -------------
 
-Semi-planar YUV 4:4:4 formats. The chroma plane is subsampled by 2 in the
-horizontal direction. Chroma lines contain half the number of pixels and the
-same number of bytes as luma lines, and the chroma plane contains the same
+Semi-planar YUV 4:4:4 formats. The chroma plane is not subsampled.
+Chroma lines contain the same number of pixels and twice the
+number of bytes as luma lines, and the chroma plane contains the same
 number of lines as the luma plane.
 
 .. flat-table:: Sample 4x4 NV24 Image

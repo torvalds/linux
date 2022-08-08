@@ -194,5 +194,4 @@ module_init(rsi_91x_bt_module_init);
 module_exit(rsi_91x_bt_module_exit);
 MODULE_AUTHOR("Redpine Signals Inc");
 MODULE_DESCRIPTION("RSI BT driver");
-MODULE_SUPPORTED_DEVICE("RSI-BT");
 MODULE_LICENSE("Dual BSD/GPL");

@@ -113,7 +113,7 @@
 			#size-cells = <1>;
 			ranges = <0x0 0x8a20000 0x1000>;
 
-			usb2_phy1: usb2-phy@120 {
+			usb2_phy1: usb2_phy@120 {
 				compatible = "hisilicon,hi3798cv200-usb2-phy";
 				reg = <0x120 0x4>;
 				clocks = <&crg HISTB_USB2_PHY1_REF_CLK>;
@@ -134,7 +134,7 @@
 				};
 			};
 
-			usb2_phy2: usb2-phy@124 {
+			usb2_phy2: usb2_phy@124 {
 				compatible = "hisilicon,hi3798cv200-usb2-phy";
 				reg = <0x124 0x4>;
 				clocks = <&crg HISTB_USB2_PHY2_REF_CLK>;
@@ -565,8 +565,8 @@
 			device_type = "pci";
 			bus-range = <0x00 0xff>;
 			num-lanes = <1>;
-			ranges = <0x81000000 0x0 0x00000000 0x4f00000 0x0 0x100000
-				  0x82000000 0x0 0x3000000 0x3000000 0x0 0x01f00000>;
+			ranges = <0x81000000 0x0 0x00000000 0x4f00000 0x0 0x100000>,
+				 <0x82000000 0x0 0x3000000 0x3000000 0x0 0x01f00000>;
 			interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "msi";
 			#interrupt-cells = <1>;

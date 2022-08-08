@@ -24,7 +24,9 @@ properties:
     description: >
       List of phandle and IIO specifier pairs.
       Each pair defines one ADC channel to which a joystick axis is connected.
-      See Documentation/devicetree/bindings/iio/iio-bindings.txt for details.
+      See
+      https://github.com/devicetree-org/dt-schema/blob/master/schemas/iio/iio-consumer.yaml
+      for details.
 
   '#address-cells':
     const: 1

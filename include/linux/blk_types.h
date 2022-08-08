@@ -222,16 +222,15 @@ static inline void bio_issue_init(struct bio_issue *issue,
  */
 struct bio {
 	struct bio		*bi_next;	/* request queue link */
-	struct gendisk		*bi_disk;
+	struct block_device	*bi_bdev;
 	unsigned int		bi_opf;		/* bottom bits req flags,
 						 * top bits REQ_OP. Use
 						 * accessors.
 						 */
-	unsigned short		bi_flags;	/* status, etc and bvec pool number */
+	unsigned short		bi_flags;	/* BIO_* below */
 	unsigned short		bi_ioprio;
 	unsigned short		bi_write_hint;
 	blk_status_t		bi_status;
-	u8			bi_partno;
 	atomic_t		__bi_remaining;
 
 	struct bvec_iter	bi_iter;
@@ -304,35 +303,9 @@ enum {
 				 * of this bio. */
 	BIO_CGROUP_ACCT,	/* has been accounted to a cgroup */
 	BIO_TRACKED,		/* set if bio goes through the rq_qos path */
+	BIO_REMAPPED,
 	BIO_FLAG_LAST
 };
-
-/* See BVEC_POOL_OFFSET below before adding new flags */
-
-/*
- * We support 6 different bvec pools, the last one is magic in that it
- * is backed by a mempool.
- */
-#define BVEC_POOL_NR		6
-#define BVEC_POOL_MAX		(BVEC_POOL_NR - 1)
-
-/*
- * Top 3 bits of bio flags indicate the pool the bvecs came from.  We add
- * 1 to the actual index so that 0 indicates that there are no bvecs to be
- * freed.
- */
-#define BVEC_POOL_BITS		(3)
-#define BVEC_POOL_OFFSET	(16 - BVEC_POOL_BITS)
-#define BVEC_POOL_IDX(bio)	((bio)->bi_flags >> BVEC_POOL_OFFSET)
-#if (1<< BVEC_POOL_BITS) < (BVEC_POOL_NR+1)
-# error "BVEC_POOL_BITS is too small"
-#endif
-
-/*
- * Flags starting here get preserved by bio_reset() - this includes
- * only BVEC_POOL_IDX()
- */
-#define BIO_RESET_BITS	BVEC_POOL_OFFSET
 
 typedef __u32 __bitwise blk_mq_req_flags_t;
 

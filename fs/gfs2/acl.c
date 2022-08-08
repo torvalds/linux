@@ -106,7 +106,8 @@ out:
 	return error;
 }
 
-int gfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int gfs2_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+		 struct posix_acl *acl, int type)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
@@ -130,7 +131,7 @@ int gfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 
 	mode = inode->i_mode;
 	if (type == ACL_TYPE_ACCESS && acl) {
-		ret = posix_acl_update_mode(inode, &mode, &acl);
+		ret = posix_acl_update_mode(&init_user_ns, inode, &mode, &acl);
 		if (ret)
 			goto unlock;
 	}

@@ -27,7 +27,6 @@
 #include "athub/athub_2_0_0_offset.h"
 #include "athub/athub_2_0_0_sh_mask.h"
 #include "athub/athub_2_0_0_default.h"
-#include "navi10_enum.h"
 
 #include "soc15_common.h"
 

@@ -49,7 +49,7 @@ static void dump_fir(int cpu)
 
 }
 
-void cbe_system_error_exception(struct pt_regs *regs)
+DEFINE_INTERRUPT_HANDLER(cbe_system_error_exception)
 {
 	int cpu = smp_processor_id();
 
@@ -58,7 +58,7 @@ void cbe_system_error_exception(struct pt_regs *regs)
 	dump_stack();
 }
 
-void cbe_maintenance_exception(struct pt_regs *regs)
+DEFINE_INTERRUPT_HANDLER(cbe_maintenance_exception)
 {
 	int cpu = smp_processor_id();
 
@@ -70,7 +70,7 @@ void cbe_maintenance_exception(struct pt_regs *regs)
 	dump_stack();
 }
 
-void cbe_thermal_exception(struct pt_regs *regs)
+DEFINE_INTERRUPT_HANDLER(cbe_thermal_exception)
 {
 	int cpu = smp_processor_id();
 

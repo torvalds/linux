@@ -12,7 +12,8 @@
 #define GPIO_OUT_REG(offset) (BD70528_REG_GPIO1_OUT + (offset) * 2)
 
 struct bd70528_gpio {
-	struct rohm_regmap_dev chip;
+	struct regmap *regmap;
+	struct device *dev;
 	struct gpio_chip gpio;
 };
 
@@ -35,11 +36,11 @@ static int bd70528_set_debounce(struct bd70528_gpio *bdgpio,
 		val = BD70528_DEBOUNCE_50MS;
 		break;
 	default:
-		dev_err(bdgpio->chip.dev,
+		dev_err(bdgpio->dev,
 			"Invalid debounce value %u\n", debounce);
 		return -EINVAL;
 	}
-	return regmap_update_bits(bdgpio->chip.regmap, GPIO_IN_REG(offset),
+	return regmap_update_bits(bdgpio->regmap, GPIO_IN_REG(offset),
 				 BD70528_DEBOUNCE_MASK, val);
 }
 
@@ -49,9 +50,9 @@ static int bd70528_get_direction(struct gpio_chip *chip, unsigned int offset)
 	int val, ret;
 
 	/* Do we need to do something to IRQs here? */
-	ret = regmap_read(bdgpio->chip.regmap, GPIO_OUT_REG(offset), &val);
+	ret = regmap_read(bdgpio->regmap, GPIO_OUT_REG(offset), &val);
 	if (ret) {
-		dev_err(bdgpio->chip.dev, "Could not read gpio direction\n");
+		dev_err(bdgpio->dev, "Could not read gpio direction\n");
 		return ret;
 	}
 	if (val & BD70528_GPIO_OUT_EN_MASK)
@@ -67,13 +68,13 @@ static int bd70528_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 
 	switch (pinconf_to_config_param(config)) {
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
-		return regmap_update_bits(bdgpio->chip.regmap,
+		return regmap_update_bits(bdgpio->regmap,
 					  GPIO_OUT_REG(offset),
 					  BD70528_GPIO_DRIVE_MASK,
 					  BD70528_GPIO_OPEN_DRAIN);
 		break;
 	case PIN_CONFIG_DRIVE_PUSH_PULL:
-		return regmap_update_bits(bdgpio->chip.regmap,
+		return regmap_update_bits(bdgpio->regmap,
 					  GPIO_OUT_REG(offset),
 					  BD70528_GPIO_DRIVE_MASK,
 					  BD70528_GPIO_PUSH_PULL);
@@ -93,7 +94,7 @@ static int bd70528_direction_input(struct gpio_chip *chip, unsigned int offset)
 	struct bd70528_gpio *bdgpio = gpiochip_get_data(chip);
 
 	/* Do we need to do something to IRQs here? */
-	return regmap_update_bits(bdgpio->chip.regmap, GPIO_OUT_REG(offset),
+	return regmap_update_bits(bdgpio->regmap, GPIO_OUT_REG(offset),
 				 BD70528_GPIO_OUT_EN_MASK,
 				 BD70528_GPIO_OUT_DISABLE);
 }
@@ -105,10 +106,10 @@ static void bd70528_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	struct bd70528_gpio *bdgpio = gpiochip_get_data(chip);
 	u8 val = (value) ? BD70528_GPIO_OUT_HI : BD70528_GPIO_OUT_LO;
 
-	ret = regmap_update_bits(bdgpio->chip.regmap, GPIO_OUT_REG(offset),
+	ret = regmap_update_bits(bdgpio->regmap, GPIO_OUT_REG(offset),
 				 BD70528_GPIO_OUT_MASK, val);
 	if (ret)
-		dev_err(bdgpio->chip.dev, "Could not set gpio to %d\n", value);
+		dev_err(bdgpio->dev, "Could not set gpio to %d\n", value);
 }
 
 static int bd70528_direction_output(struct gpio_chip *chip, unsigned int offset,
@@ -117,7 +118,7 @@ static int bd70528_direction_output(struct gpio_chip *chip, unsigned int offset,
 	struct bd70528_gpio *bdgpio = gpiochip_get_data(chip);
 
 	bd70528_gpio_set(chip, offset, value);
-	return regmap_update_bits(bdgpio->chip.regmap, GPIO_OUT_REG(offset),
+	return regmap_update_bits(bdgpio->regmap, GPIO_OUT_REG(offset),
 				 BD70528_GPIO_OUT_EN_MASK,
 				 BD70528_GPIO_OUT_ENABLE);
 }
@@ -129,11 +130,11 @@ static int bd70528_gpio_get_o(struct bd70528_gpio *bdgpio, unsigned int offset)
 	int ret;
 	unsigned int val;
 
-	ret = regmap_read(bdgpio->chip.regmap, GPIO_OUT_REG(offset), &val);
+	ret = regmap_read(bdgpio->regmap, GPIO_OUT_REG(offset), &val);
 	if (!ret)
 		ret = !!(val & BD70528_GPIO_OUT_MASK);
 	else
-		dev_err(bdgpio->chip.dev, "GPIO (out) state read failed\n");
+		dev_err(bdgpio->dev, "GPIO (out) state read failed\n");
 
 	return ret;
 }
@@ -143,12 +144,12 @@ static int bd70528_gpio_get_i(struct bd70528_gpio *bdgpio, unsigned int offset)
 	unsigned int val;
 	int ret;
 
-	ret = regmap_read(bdgpio->chip.regmap, BD70528_REG_GPIO_STATE, &val);
+	ret = regmap_read(bdgpio->regmap, BD70528_REG_GPIO_STATE, &val);
 
 	if (!ret)
 		ret = !(val & GPIO_IN_STATE_MASK(offset));
 	else
-		dev_err(bdgpio->chip.dev, "GPIO (in) state read failed\n");
+		dev_err(bdgpio->dev, "GPIO (in) state read failed\n");
 
 	return ret;
 }
@@ -173,29 +174,22 @@ static int bd70528_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	else if (ret == GPIO_LINE_DIRECTION_IN)
 		ret = bd70528_gpio_get_i(bdgpio, offset);
 	else
-		dev_err(bdgpio->chip.dev, "failed to read GPIO direction\n");
+		dev_err(bdgpio->dev, "failed to read GPIO direction\n");
 
 	return ret;
 }
 
 static int bd70528_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct bd70528_gpio *bdgpio;
-	struct rohm_regmap_dev *bd70528;
 	int ret;
 
-	bd70528 = dev_get_drvdata(pdev->dev.parent);
-	if (!bd70528) {
-		dev_err(&pdev->dev, "No MFD driver data\n");
-		return -EINVAL;
-	}
-
-	bdgpio = devm_kzalloc(&pdev->dev, sizeof(*bdgpio),
-			      GFP_KERNEL);
+	bdgpio = devm_kzalloc(dev, sizeof(*bdgpio), GFP_KERNEL);
 	if (!bdgpio)
 		return -ENOMEM;
-	bdgpio->chip.dev = &pdev->dev;
-	bdgpio->gpio.parent = pdev->dev.parent;
+	bdgpio->dev = dev;
+	bdgpio->gpio.parent = dev->parent;
 	bdgpio->gpio.label = "bd70528-gpio";
 	bdgpio->gpio.owner = THIS_MODULE;
 	bdgpio->gpio.get_direction = bd70528_get_direction;
@@ -208,14 +202,15 @@ static int bd70528_probe(struct platform_device *pdev)
 	bdgpio->gpio.ngpio = 4;
 	bdgpio->gpio.base = -1;
 #ifdef CONFIG_OF_GPIO
-	bdgpio->gpio.of_node = pdev->dev.parent->of_node;
+	bdgpio->gpio.of_node = dev->parent->of_node;
 #endif
-	bdgpio->chip.regmap = bd70528->regmap;
+	bdgpio->regmap = dev_get_regmap(dev->parent, NULL);
+	if (!bdgpio->regmap)
+		return -ENODEV;
 
-	ret = devm_gpiochip_add_data(&pdev->dev, &bdgpio->gpio,
-				     bdgpio);
+	ret = devm_gpiochip_add_data(dev, &bdgpio->gpio, bdgpio);
 	if (ret)
-		dev_err(&pdev->dev, "gpio_init: Failed to add bd70528-gpio\n");
+		dev_err(dev, "gpio_init: Failed to add bd70528-gpio\n");
 
 	return ret;
 }

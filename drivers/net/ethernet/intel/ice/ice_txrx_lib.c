@@ -191,12 +191,7 @@ ice_receive_skb(struct ice_ring *rx_ring, struct sk_buff *skb, u16 vlan_tag)
 	if ((rx_ring->netdev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
 	    (vlan_tag & VLAN_VID_MASK))
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
-	if (napi_gro_receive(&rx_ring->q_vector->napi, skb) == GRO_DROP) {
-		/* this is tracked separately to help us debug stack drops */
-		rx_ring->rx_stats.gro_dropped++;
-		netdev_dbg(rx_ring->netdev, "Receive Queue %d: Dropped packet from GRO\n",
-			   rx_ring->q_index);
-	}
+	napi_gro_receive(&rx_ring->q_vector->napi, skb);
 }
 
 /**

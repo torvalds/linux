@@ -10,10 +10,7 @@ C MP+polockonce+poacquiresilsil
  * speaking).
  *)
 
-{
-	spinlock_t lo;
-	int x;
-}
+{}
 
 P0(spinlock_t *lo, int *x) // Producer
 {

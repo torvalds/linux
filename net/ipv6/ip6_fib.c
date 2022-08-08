@@ -499,7 +499,7 @@ int fib6_tables_dump(struct net *net, struct notifier_block *nb,
 
 		hlist_for_each_entry_rcu(tb, head, tb6_hlist) {
 			err = fib6_table_dump(net, tb, w);
-			if (err < 0)
+			if (err)
 				goto out;
 		}
 	}
@@ -507,7 +507,8 @@ int fib6_tables_dump(struct net *net, struct notifier_block *nb,
 out:
 	kfree(w);
 
-	return err;
+	/* The tree traversal function should never return a positive value. */
+	return err > 0 ? -EINVAL : err;
 }
 
 static int fib6_dump_node(struct fib6_walker *w)
@@ -2485,7 +2486,7 @@ static int ipv6_route_native_seq_show(struct seq_file *seq, void *v)
 	const struct net_device *dev;
 
 	if (rt->nh)
-		fib6_nh = nexthop_fib6_nh(rt->nh);
+		fib6_nh = nexthop_fib6_nh_bh(rt->nh);
 
 	seq_printf(seq, "%pi6 %02x ", &rt->fib6_dst.addr, rt->fib6_dst.plen);
 

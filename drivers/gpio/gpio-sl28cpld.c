@@ -65,13 +65,13 @@ static int sl28cpld_gpio_irq_init(struct platform_device *pdev,
 	if (!irq_chip)
 		return -ENOMEM;
 
-	irq_chip->name = "sl28cpld-gpio-irq",
+	irq_chip->name = "sl28cpld-gpio-irq";
 	irq_chip->irqs = sl28cpld_gpio_irqs;
 	irq_chip->num_irqs = ARRAY_SIZE(sl28cpld_gpio_irqs);
 	irq_chip->num_regs = 1;
 	irq_chip->status_base = base + GPIO_REG_IP;
 	irq_chip->mask_base = base + GPIO_REG_IE;
-	irq_chip->mask_invert = true,
+	irq_chip->mask_invert = true;
 	irq_chip->ack_base = base + GPIO_REG_IP;
 
 	ret = devm_regmap_add_irq_chip_fwnode(dev, dev_fwnode(dev),

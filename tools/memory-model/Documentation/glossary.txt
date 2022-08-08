@@ -33,10 +33,11 @@ Acquire:  With respect to a lock, acquiring that lock, for example,
 	acquire loads.
 
 	When an acquire load returns the value stored by a release store
-	to that same variable, then all operations preceding that store
-	happen before any operations following that load acquire.
+	to that same variable, (in other words, the acquire load "reads
+	from" the release store), then all operations preceding that
+	store "happen before" any operations following that load acquire.
 
-	See also "Relaxed" and "Release".
+	See also "Happens-Before", "Reads-From", "Relaxed", and "Release".
 
 Coherence (co):  When one CPU's store to a given variable overwrites
 	either the value from another CPU's store or some later value,
@@ -118,6 +119,11 @@ Fully Ordered:  An operation such as smp_mb() that orders all of
 	accesses, or a marked access such as atomic_add_return()
 	that orders all of its CPU's prior accesses, itself, and
 	all of its CPU's subsequent accesses.
+
+Happens-Before (hb): A relation between two accesses in which LKMM
+	guarantees the first access precedes the second.  For more
+	detail, please see the "THE HAPPENS-BEFORE RELATION: hb"
+	section of explanation.txt.
 
 Marked Access:  An access to a variable that uses an special function or
 	macro such as "r1 = READ_ONCE(x)" or "smp_store_release(&a, 1)".

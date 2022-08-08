@@ -115,3 +115,68 @@ void tb_acpi_add_links(struct tb_nhi *nhi)
 	if (ACPI_FAILURE(status))
 		dev_warn(&nhi->pdev->dev, "failed to enumerate tunneled ports\n");
 }
+
+/**
+ * tb_acpi_is_native() - Did the platform grant native TBT/USB4 control
+ *
+ * Returns %true if the platform granted OS native control over
+ * TBT/USB4. In this case software based connection manager can be used,
+ * otherwise there is firmware based connection manager running.
+ */
+bool tb_acpi_is_native(void)
+{
+	return osc_sb_native_usb4_support_confirmed &&
+	       osc_sb_native_usb4_control;
+}
+
+/**
+ * tb_acpi_may_tunnel_usb3() - Is USB3 tunneling allowed by the platform
+ *
+ * When software based connection manager is used, this function
+ * returns %true if platform allows native USB3 tunneling.
+ */
+bool tb_acpi_may_tunnel_usb3(void)
+{
+	if (tb_acpi_is_native())
+		return osc_sb_native_usb4_control & OSC_USB_USB3_TUNNELING;
+	return true;
+}
+
+/**
+ * tb_acpi_may_tunnel_dp() - Is DisplayPort tunneling allowed by the platform
+ *
+ * When software based connection manager is used, this function
+ * returns %true if platform allows native DP tunneling.
+ */
+bool tb_acpi_may_tunnel_dp(void)
+{
+	if (tb_acpi_is_native())
+		return osc_sb_native_usb4_control & OSC_USB_DP_TUNNELING;
+	return true;
+}
+
+/**
+ * tb_acpi_may_tunnel_pcie() - Is PCIe tunneling allowed by the platform
+ *
+ * When software based connection manager is used, this function
+ * returns %true if platform allows native PCIe tunneling.
+ */
+bool tb_acpi_may_tunnel_pcie(void)
+{
+	if (tb_acpi_is_native())
+		return osc_sb_native_usb4_control & OSC_USB_PCIE_TUNNELING;
+	return true;
+}
+
+/**
+ * tb_acpi_is_xdomain_allowed() - Are XDomain connections allowed
+ *
+ * When software based connection manager is used, this function
+ * returns %true if platform allows XDomain connections.
+ */
+bool tb_acpi_is_xdomain_allowed(void)
+{
+	if (tb_acpi_is_native())
+		return osc_sb_native_usb4_control & OSC_USB_XDOMAIN;
+	return true;
+}

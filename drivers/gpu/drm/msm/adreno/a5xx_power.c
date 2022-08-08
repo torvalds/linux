@@ -298,13 +298,13 @@ int a5xx_power_init(struct msm_gpu *gpu)
 	int ret;
 
 	/* Not all A5xx chips have a GPMU */
-	if (adreno_is_a510(adreno_gpu))
+	if (!(adreno_is_a530(adreno_gpu) || adreno_is_a540(adreno_gpu)))
 		return 0;
 
 	/* Set up the limits management */
 	if (adreno_is_a530(adreno_gpu))
 		a530_lm_setup(gpu);
-	else
+	else if (adreno_is_a540(adreno_gpu))
 		a540_lm_setup(gpu);
 
 	/* Set up SP/TP power collpase */
@@ -330,7 +330,7 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 	unsigned int *data, *ptr, *cmds;
 	unsigned int cmds_size;
 
-	if (adreno_is_a510(adreno_gpu))
+	if (!(adreno_is_a530(adreno_gpu) || adreno_is_a540(adreno_gpu)))
 		return;
 
 	if (a5xx_gpu->gpmu_bo)

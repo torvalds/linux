@@ -27,11 +27,14 @@
 
 struct ms_hyperv_info {
 	u32 features;
+	u32 features_b;
 	u32 misc_features;
 	u32 hints;
 	u32 nested_features;
 	u32 max_vp_index;
 	u32 max_lp_index;
+	u32 isolation_config_a;
+	u32 isolation_config_b;
 };
 extern struct ms_hyperv_info ms_hyperv;
 
@@ -169,6 +172,8 @@ void hyperv_report_panic(struct pt_regs *regs, long err, bool in_die);
 void hyperv_report_panic_msg(phys_addr_t pa, size_t size);
 bool hv_is_hyperv_initialized(void);
 bool hv_is_hibernation_supported(void);
+enum hv_isolation_type hv_get_isolation_type(void);
+bool hv_is_isolation_supported(void);
 void hyperv_cleanup(void);
 #else /* CONFIG_HYPERV */
 static inline bool hv_is_hyperv_initialized(void) { return false; }

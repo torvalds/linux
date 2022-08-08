@@ -75,6 +75,11 @@ enum {
  * request and directly join the other shared lock.  A shared lock request
  * without the priority flag might be forced to wait until the deferred
  * requested had acquired and released the lock.
+ *
+ * LM_FLAG_NODE_SCOPE
+ * This holder agrees to share the lock within this node. In other words,
+ * the glock is held in EX mode according to DLM, but local holders on the
+ * same node can share it.
  */
 
 #define LM_FLAG_TRY		0x0001
@@ -82,6 +87,7 @@ enum {
 #define LM_FLAG_NOEXP		0x0004
 #define LM_FLAG_ANY		0x0008
 #define LM_FLAG_PRIORITY	0x0010
+#define LM_FLAG_NODE_SCOPE	0x0020
 #define GL_ASYNC		0x0040
 #define GL_EXACT		0x0080
 #define GL_SKIP			0x0100

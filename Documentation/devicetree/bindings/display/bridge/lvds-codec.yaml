@@ -45,25 +45,17 @@ properties:
           - thine,thc63lvdm83d # For the THC63LVDM83D LVDS serializer
 
   ports:
-    type: object
-    description: |
-      This device has two video ports. Their connections are modeled using the
-      OF graph bindings specified in Documentation/devicetree/bindings/graph.txt
+    $ref: /schemas/graph.yaml#/properties/ports
+
     properties:
-      '#address-cells':
-        const: 1
-
-      '#size-cells':
-        const: 0
-
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           For LVDS encoders, port 0 is the parallel input
           For LVDS decoders, port 0 is the LVDS input
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           For LVDS encoders, port 1 is the LVDS output
           For LVDS decoders, port 1 is the parallel output
@@ -71,8 +63,6 @@ properties:
     required:
       - port@0
       - port@1
-
-    additionalProperties: false
 
   powerdown-gpios:
     description:

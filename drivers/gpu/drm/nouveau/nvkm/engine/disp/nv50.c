@@ -154,7 +154,7 @@ nv50_disp_ = {
 
 int
 nv50_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
-	       int index, struct nvkm_disp **pdisp)
+	       enum nvkm_subdev_type type, int inst, struct nvkm_disp **pdisp)
 {
 	struct nv50_disp *disp;
 	int ret;
@@ -164,7 +164,7 @@ nv50_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
 	disp->func = func;
 	*pdisp = &disp->base;
 
-	ret = nvkm_disp_ctor(&nv50_disp_, device, index, &disp->base);
+	ret = nvkm_disp_ctor(&nv50_disp_, device, type, inst, &disp->base);
 	if (ret)
 		return ret;
 
@@ -769,7 +769,8 @@ nv50_disp = {
 };
 
 int
-nv50_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
+nv50_disp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_disp **pdisp)
 {
-	return nv50_disp_new_(&nv50_disp, device, index, pdisp);
+	return nv50_disp_new_(&nv50_disp, device, type, inst, pdisp);
 }

@@ -901,15 +901,13 @@ static int sierra_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-static int sierra_port_remove(struct usb_serial_port *port)
+static void sierra_port_remove(struct usb_serial_port *port)
 {
 	struct sierra_port_private *portdata;
 
 	portdata = usb_get_serial_port_data(port);
 	usb_set_serial_port_data(port, NULL);
 	kfree(portdata);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

@@ -20,10 +20,12 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
+#include <drm/drm_bridge_connector.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_of.h>
 #include <drm/drm_simple_kms_helper.h>
 
+#include "mtk_disp_drv.h"
 #include "mtk_dpi_regs.h"
 #include "mtk_drm_ddp_comp.h"
 
@@ -62,10 +64,10 @@ enum mtk_dpi_out_color_format {
 };
 
 struct mtk_dpi {
-	struct mtk_ddp_comp ddp_comp;
 	struct drm_encoder encoder;
 	struct drm_bridge bridge;
 	struct drm_bridge *next_bridge;
+	struct drm_connector *connector;
 	void __iomem *regs;
 	struct device *dev;
 	struct clk *engine_clk;
@@ -562,24 +564,19 @@ static const struct drm_bridge_funcs mtk_dpi_bridge_funcs = {
 	.enable = mtk_dpi_bridge_enable,
 };
 
-static void mtk_dpi_start(struct mtk_ddp_comp *comp)
+void mtk_dpi_start(struct device *dev)
 {
-	struct mtk_dpi *dpi = container_of(comp, struct mtk_dpi, ddp_comp);
+	struct mtk_dpi *dpi = dev_get_drvdata(dev);
 
 	mtk_dpi_power_on(dpi);
 }
 
-static void mtk_dpi_stop(struct mtk_ddp_comp *comp)
+void mtk_dpi_stop(struct device *dev)
 {
-	struct mtk_dpi *dpi = container_of(comp, struct mtk_dpi, ddp_comp);
+	struct mtk_dpi *dpi = dev_get_drvdata(dev);
 
 	mtk_dpi_power_off(dpi);
 }
-
-static const struct mtk_ddp_comp_funcs mtk_dpi_funcs = {
-	.start = mtk_dpi_start,
-	.stop = mtk_dpi_stop,
-};
 
 static int mtk_dpi_bind(struct device *dev, struct device *master, void *data)
 {
@@ -587,27 +584,29 @@ static int mtk_dpi_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	int ret;
 
-	ret = mtk_ddp_comp_register(drm_dev, &dpi->ddp_comp);
-	if (ret < 0) {
-		dev_err(dev, "Failed to register component %pOF: %d\n",
-			dev->of_node, ret);
-		return ret;
-	}
-
 	ret = drm_simple_encoder_init(drm_dev, &dpi->encoder,
 				      DRM_MODE_ENCODER_TMDS);
 	if (ret) {
 		dev_err(dev, "Failed to initialize decoder: %d\n", ret);
-		goto err_unregister;
+		return ret;
 	}
 
-	dpi->encoder.possible_crtcs = mtk_drm_find_possible_crtc_by_comp(drm_dev, dpi->ddp_comp);
+	dpi->encoder.possible_crtcs = mtk_drm_find_possible_crtc_by_comp(drm_dev, dpi->dev);
 
-	ret = drm_bridge_attach(&dpi->encoder, &dpi->bridge, NULL, 0);
+	ret = drm_bridge_attach(&dpi->encoder, &dpi->bridge, NULL,
+				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 	if (ret) {
 		dev_err(dev, "Failed to attach bridge: %d\n", ret);
 		goto err_cleanup;
 	}
+
+	dpi->connector = drm_bridge_connector_init(drm_dev, &dpi->encoder);
+	if (IS_ERR(dpi->connector)) {
+		dev_err(dev, "Unable to create bridge connector\n");
+		ret = PTR_ERR(dpi->connector);
+		goto err_cleanup;
+	}
+	drm_connector_attach_encoder(dpi->connector, &dpi->encoder);
 
 	dpi->bit_num = MTK_DPI_OUT_BIT_NUM_8BITS;
 	dpi->channel_swap = MTK_DPI_OUT_CHANNEL_SWAP_RGB;
@@ -618,8 +617,6 @@ static int mtk_dpi_bind(struct device *dev, struct device *master, void *data)
 
 err_cleanup:
 	drm_encoder_cleanup(&dpi->encoder);
-err_unregister:
-	mtk_ddp_comp_unregister(drm_dev, &dpi->ddp_comp);
 	return ret;
 }
 
@@ -627,10 +624,8 @@ static void mtk_dpi_unbind(struct device *dev, struct device *master,
 			   void *data)
 {
 	struct mtk_dpi *dpi = dev_get_drvdata(dev);
-	struct drm_device *drm_dev = data;
 
 	drm_encoder_cleanup(&dpi->encoder);
-	mtk_ddp_comp_unregister(drm_dev, &dpi->ddp_comp);
 }
 
 static const struct component_ops mtk_dpi_component_ops = {
@@ -691,7 +686,6 @@ static int mtk_dpi_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mtk_dpi *dpi;
 	struct resource *mem;
-	int comp_id;
 	int ret;
 
 	dpi = devm_kzalloc(dev, sizeof(*dpi), GFP_KERNEL);
@@ -768,19 +762,6 @@ static int mtk_dpi_probe(struct platform_device *pdev)
 		return ret;
 
 	dev_info(dev, "Found bridge node: %pOF\n", dpi->next_bridge->of_node);
-
-	comp_id = mtk_ddp_comp_get_id(dev->of_node, MTK_DPI);
-	if (comp_id < 0) {
-		dev_err(dev, "Failed to identify by alias: %d\n", comp_id);
-		return comp_id;
-	}
-
-	ret = mtk_ddp_comp_init(dev, dev->of_node, &dpi->ddp_comp, comp_id,
-				&mtk_dpi_funcs);
-	if (ret) {
-		dev_err(dev, "Failed to initialize component: %d\n", ret);
-		return ret;
-	}
 
 	platform_set_drvdata(pdev, dpi);
 

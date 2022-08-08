@@ -634,9 +634,21 @@ static int gaudi_config_etr(struct hl_device *hdev,
 		WREG32(mmPSOC_ETR_BUFWM, 0x3FFC);
 		WREG32(mmPSOC_ETR_RSZ, input->buffer_size);
 		WREG32(mmPSOC_ETR_MODE, input->sink_mode);
-		/* Workaround for H3 #HW-2075 bug: use small data chunks */
-		WREG32(mmPSOC_ETR_AXICTL, (is_host ? 0 : 0x700) |
-					PSOC_ETR_AXICTL_PROTCTRLBIT1_SHIFT);
+		if (hdev->asic_prop.fw_security_disabled) {
+			/* make ETR not privileged */
+			val = FIELD_PREP(
+					PSOC_ETR_AXICTL_PROTCTRLBIT0_MASK, 0);
+			/* make ETR non-secured (inverted logic) */
+			val |= FIELD_PREP(
+					PSOC_ETR_AXICTL_PROTCTRLBIT1_MASK, 1);
+			/*
+			 * Workaround for H3 #HW-2075 bug: use small data
+			 * chunks
+			 */
+			val |= FIELD_PREP(PSOC_ETR_AXICTL_WRBURSTLEN_MASK,
+							is_host ? 0 : 7);
+			WREG32(mmPSOC_ETR_AXICTL, val);
+		}
 		WREG32(mmPSOC_ETR_DBALO,
 				lower_32_bits(input->buffer_address));
 		WREG32(mmPSOC_ETR_DBAHI,

@@ -506,10 +506,9 @@ struct vidtv_psi_desc *vidtv_psi_desc_clone(struct vidtv_psi_desc *desc)
 
 		case REGISTRATION_DESCRIPTOR:
 		default:
-			curr = kzalloc(sizeof(*desc) + desc->length, GFP_KERNEL);
+			curr = kmemdup(desc, sizeof(*desc) + desc->length, GFP_KERNEL);
 			if (!curr)
 				return NULL;
-			memcpy(curr, desc, sizeof(*desc) + desc->length);
 		}
 
 		if (!curr)
@@ -1164,6 +1163,8 @@ u32 vidtv_psi_pmt_write_into(struct vidtv_psi_pmt_write_args *args)
 	struct vidtv_psi_desc *table_descriptor   = args->pmt->descriptor;
 	struct vidtv_psi_table_pmt_stream *stream = args->pmt->stream;
 	struct vidtv_psi_desc *stream_descriptor;
+	u32 crc = INITIAL_CRC;
+	u32 nbytes = 0;
 	struct header_write_args h_args = {
 		.dest_buf           = args->buf,
 		.dest_offset        = args->offset,
@@ -1181,6 +1182,7 @@ u32 vidtv_psi_pmt_write_into(struct vidtv_psi_pmt_write_args *args)
 		.new_psi_section    = false,
 		.is_crc             = false,
 		.dest_buf_sz        = args->buf_sz,
+		.crc                = &crc,
 	};
 	struct desc_write_args d_args   = {
 		.dest_buf           = args->buf,
@@ -1193,8 +1195,6 @@ u32 vidtv_psi_pmt_write_into(struct vidtv_psi_pmt_write_args *args)
 		.pid                = args->pid,
 		.dest_buf_sz        = args->buf_sz,
 	};
-	u32 crc = INITIAL_CRC;
-	u32 nbytes = 0;
 
 	vidtv_psi_pmt_table_update_sec_len(args->pmt);
 

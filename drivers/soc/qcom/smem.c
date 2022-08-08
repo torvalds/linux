@@ -732,9 +732,7 @@ qcom_smem_partition_header(struct qcom_smem *smem,
 	header = smem->regions[0].virt_base + le32_to_cpu(entry->offset);
 
 	if (memcmp(header->magic, SMEM_PART_MAGIC, sizeof(header->magic))) {
-		dev_err(smem->dev, "bad partition magic %02x %02x %02x %02x\n",
-			header->magic[0], header->magic[1],
-			header->magic[2], header->magic[3]);
+		dev_err(smem->dev, "bad partition magic %4ph\n", header->magic);
 		return NULL;
 	}
 

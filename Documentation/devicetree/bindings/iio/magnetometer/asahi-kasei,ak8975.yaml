@@ -47,6 +47,7 @@ properties:
     description: an optional 3x3 mounting rotation matrix.
 
   reset-gpios:
+    maxItems: 1
     description: |
       an optional pin needed for AK09911 to set the reset state. This should
       be usually active low

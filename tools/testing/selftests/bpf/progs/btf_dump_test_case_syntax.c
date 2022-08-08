@@ -174,6 +174,12 @@ struct struct_in_struct {
 	};
 };
 
+struct struct_in_array {};
+
+struct struct_in_array_typed {};
+
+typedef struct struct_in_array_typed struct_in_array_t[2];
+
 struct struct_with_embedded_stuff {
 	int a;
 	struct {
@@ -203,6 +209,8 @@ struct struct_with_embedded_stuff {
 	} r[5];
 	struct struct_in_struct s[10];
 	int t[11];
+	struct struct_in_array (*u)[2];
+	struct_in_array_t *v;
 };
 
 struct root_struct {

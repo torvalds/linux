@@ -112,23 +112,6 @@ config UBSAN_UNREACHABLE
 	  This option enables -fsanitize=unreachable which checks for control
 	  flow reaching an expected-to-be-unreachable position.
 
-config UBSAN_SIGNED_OVERFLOW
-	bool "Perform checking for signed arithmetic overflow"
-	default UBSAN
-	depends on $(cc-option,-fsanitize=signed-integer-overflow)
-	help
-	  This option enables -fsanitize=signed-integer-overflow which checks
-	  for overflow of any arithmetic operations with signed integers.
-
-config UBSAN_UNSIGNED_OVERFLOW
-	bool "Perform checking for unsigned arithmetic overflow"
-	depends on $(cc-option,-fsanitize=unsigned-integer-overflow)
-	depends on !X86_32 # avoid excessive stack usage on x86-32/clang
-	help
-	  This option enables -fsanitize=unsigned-integer-overflow which checks
-	  for overflow of any arithmetic operations with unsigned integers. This
-	  currently causes x86 to fail to boot.
-
 config UBSAN_OBJECT_SIZE
 	bool "Perform checking for accesses beyond the end of objects"
 	default UBSAN

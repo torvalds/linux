@@ -8,19 +8,8 @@ struct nvkm_top_func {
 	int (*oneinit)(struct nvkm_top *);
 };
 
-int nvkm_top_new_(const struct nvkm_top_func *, struct nvkm_device *,
-		  int, struct nvkm_top **);
-
-struct nvkm_top_device {
-	enum nvkm_devidx index;
-	u32 addr;
-	int fault;
-	int engine;
-	int runlist;
-	int reset;
-	int intr;
-	struct list_head head;
-};
+int nvkm_top_new_(const struct nvkm_top_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		  struct nvkm_top **);
 
 struct nvkm_top_device *nvkm_top_device_new(struct nvkm_top *);
 #endif

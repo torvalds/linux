@@ -335,22 +335,12 @@ out:
 }
 EXPORT_SYMBOL_GPL(drm_gem_dumb_map_offset);
 
-/**
- * drm_gem_dumb_destroy - dumb fb callback helper for gem based drivers
- * @file: drm file-private structure to remove the dumb handle from
- * @dev: corresponding drm_device
- * @handle: the dumb handle to remove
- *
- * This implements the &drm_driver.dumb_destroy kms driver callback for drivers
- * which use gem to manage their backing storage.
- */
 int drm_gem_dumb_destroy(struct drm_file *file,
 			 struct drm_device *dev,
-			 uint32_t handle)
+			 u32 handle)
 {
 	return drm_gem_handle_delete(file, handle);
 }
-EXPORT_SYMBOL(drm_gem_dumb_destroy);
 
 /**
  * drm_gem_handle_create_tail - internal functions to create a handle
@@ -1078,20 +1068,17 @@ int drm_gem_mmap_obj(struct drm_gem_object *obj, unsigned long obj_size,
 	drm_gem_object_get(obj);
 
 	vma->vm_private_data = obj;
+	vma->vm_ops = obj->funcs->vm_ops;
 
 	if (obj->funcs->mmap) {
 		ret = obj->funcs->mmap(obj, vma);
-		if (ret) {
-			drm_gem_object_put(obj);
-			return ret;
-		}
+		if (ret)
+			goto err_drm_gem_object_put;
 		WARN_ON(!(vma->vm_flags & VM_DONTEXPAND));
 	} else {
-		if (obj->funcs->vm_ops)
-			vma->vm_ops = obj->funcs->vm_ops;
-		else {
-			drm_gem_object_put(obj);
-			return -EINVAL;
+		if (!vma->vm_ops) {
+			ret = -EINVAL;
+			goto err_drm_gem_object_put;
 		}
 
 		vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP;
@@ -1100,6 +1087,10 @@ int drm_gem_mmap_obj(struct drm_gem_object *obj, unsigned long obj_size,
 	}
 
 	return 0;
+
+err_drm_gem_object_put:
+	drm_gem_object_put(obj);
+	return ret;
 }
 EXPORT_SYMBOL(drm_gem_mmap_obj);
 

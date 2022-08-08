@@ -17,12 +17,12 @@ For ACPI on arm64, tables also fall into the following categories:
 
        -  Recommended: BERT, EINJ, ERST, HEST, PCCT, SSDT
 
-       -  Optional: BGRT, CPEP, CSRT, DBG2, DRTM, ECDT, FACS, FPDT, IORT,
-          MCHI, MPST, MSCT, NFIT, PMTT, RASF, SBST, SLIT, SPMI, SRAT, STAO,
-	  TCPA, TPM2, UEFI, XENV
+       -  Optional: BGRT, CPEP, CSRT, DBG2, DRTM, ECDT, FACS, FPDT, IBFT,
+          IORT, MCHI, MPST, MSCT, NFIT, PMTT, RASF, SBST, SLIT, SPMI, SRAT,
+          STAO, TCPA, TPM2, UEFI, XENV
 
-       -  Not supported: BOOT, DBGP, DMAR, ETDT, HPET, IBFT, IVRS, LPIT,
-          MSDM, OEMx, PSDT, RSDT, SLIC, WAET, WDAT, WDRT, WPBT
+       -  Not supported: BOOT, DBGP, DMAR, ETDT, HPET, IVRS, LPIT, MSDM, OEMx,
+          PSDT, RSDT, SLIC, WAET, WDAT, WDRT, WPBT
 
 ====== ========================================================================
 Table  Usage for ARMv8 Linux

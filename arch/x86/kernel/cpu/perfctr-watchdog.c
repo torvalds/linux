@@ -3,7 +3,7 @@
  * local apic based NMI watchdog for various CPUs.
  *
  * This file also handles reservation of performance counters for coordination
- * with other users (like oprofile).
+ * with other users.
  *
  * Note that these events normally don't tick when the CPU idles. This means
  * the frequency varies with CPU load.
@@ -104,15 +104,6 @@ static inline unsigned int nmi_evntsel_msr_to_bit(unsigned int msr)
 	return 0;
 
 }
-
-/* checks for a bit availability (hack for oprofile) */
-int avail_to_resrv_perfctr_nmi_bit(unsigned int counter)
-{
-	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
-
-	return !test_bit(counter, perfctr_nmi_owner);
-}
-EXPORT_SYMBOL(avail_to_resrv_perfctr_nmi_bit);
 
 int reserve_perfctr_nmi(unsigned int msr)
 {

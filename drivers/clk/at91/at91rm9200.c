@@ -215,5 +215,4 @@ err_free:
  * deferring properly. Once this is fixed, this can be switched to a platform
  * driver.
  */
-CLK_OF_DECLARE_DRIVER(at91rm9200_pmc, "atmel,at91rm9200-pmc",
-		      at91rm9200_pmc_setup);
+CLK_OF_DECLARE(at91rm9200_pmc, "atmel,at91rm9200-pmc", at91rm9200_pmc_setup);

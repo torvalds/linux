@@ -154,6 +154,10 @@ static off_t get_hdrs_offset(int kernelfd, const char *filename)
 		offset -= LOOKBACK;
 		/* skip a.out header */
 		offset += AOUT_TEXT_OFFSET;
+		if (offset < 0) {
+			errno = -EINVAL;
+			die("Calculated a negative offset, probably elftoaout generated an invalid image. Did you use a recent elftoaout ?");
+		}
 		if (lseek(kernelfd, offset, SEEK_SET) < 0)
 			die("lseek");
 		if (read(kernelfd, buffer, BUFSIZE) != BUFSIZE)

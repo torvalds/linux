@@ -97,7 +97,7 @@ void snd_opl3_init_seq_oss(struct snd_opl3 *opl3, char *name)
 		return;
 
 	opl3->oss_seq_dev = dev;
-	strlcpy(dev->name, name, sizeof(dev->name));
+	strscpy(dev->name, name, sizeof(dev->name));
 	arg = SNDRV_SEQ_DEVICE_ARGPTR(dev);
 	arg->type = SYNTH_TYPE_FM;
 	if (opl3->hardware < OPL3_HW_OPL3) {

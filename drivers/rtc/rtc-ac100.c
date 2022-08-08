@@ -528,7 +528,7 @@ static irqreturn_t ac100_rtc_irq(int irq, void *data)
 	unsigned int val = 0;
 	int ret;
 
-	mutex_lock(&chip->rtc->ops_lock);
+	rtc_lock(chip->rtc);
 
 	/* read status */
 	ret = regmap_read(regmap, AC100_ALM_INT_STA, &val);
@@ -551,7 +551,7 @@ static irqreturn_t ac100_rtc_irq(int irq, void *data)
 	}
 
 out:
-	mutex_unlock(&chip->rtc->ops_lock);
+	rtc_unlock(chip->rtc);
 	return IRQ_HANDLED;
 }
 

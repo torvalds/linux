@@ -187,6 +187,15 @@ config SND_CTL_VALIDATION
 	  from the driver are in the proper ranges or the check of the invalid
 	  access at out-of-array areas.
 
+config SND_JACK_INJECTION_DEBUG
+	bool "Sound jack injection interface via debugfs"
+	depends on SND_JACK && SND_DEBUG && DEBUG_FS
+	help
+	  This option can be used to enable or disable sound jack
+	  software injection.
+	  Say Y if you are debugging via jack injection interface.
+	  If unsure select "N".
+
 config SND_VMASTER
 	bool
 

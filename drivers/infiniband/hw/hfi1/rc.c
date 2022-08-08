@@ -421,6 +421,7 @@ bail:
 /**
  * hfi1_make_rc_req - construct a request packet (SEND, RDMA r/w, ATOMIC)
  * @qp: a pointer to the QP
+ * @ps: the current packet state
  *
  * Assumes s_lock is held.
  *
@@ -1375,9 +1376,8 @@ static const hfi1_make_rc_ack hfi1_make_rc_ack_tbl[2] = {
 	[HFI1_PKT_TYPE_16B] = &hfi1_make_rc_ack_16B
 };
 
-/**
+/*
  * hfi1_send_rc_ack - Construct an ACK packet and send it
- * @qp: a pointer to the QP
  *
  * This is called from hfi1_rc_rcv() and handle_receive_interrupt().
  * Note that RDMA reads and atomics are handled in the
@@ -1992,7 +1992,7 @@ static void update_qp_retry_state(struct rvt_qp *qp, u32 psn, u32 spsn,
 	}
 }
 
-/**
+/*
  * do_rc_ack - process an incoming RC ACK
  * @qp: the QP the ACK came in on
  * @psn: the packet sequence number of the ACK
@@ -2541,6 +2541,7 @@ static inline void rc_cancel_ack(struct rvt_qp *qp)
  * @opcode: the opcode for this packet
  * @psn: the packet sequence number for this packet
  * @diff: the difference between the PSN and the expected PSN
+ * @rcd: the receive context
  *
  * This is called from hfi1_rc_rcv() to process an unexpected
  * incoming RC packet for the given QP.

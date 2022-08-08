@@ -8,6 +8,9 @@
 #include <linux/input.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/ctype.h>
+#include <linux/mm.h>
+#include <linux/debugfs.h>
 #include <sound/jack.h>
 #include <sound/core.h>
 #include <sound/control.h>
@@ -16,6 +19,11 @@ struct snd_jack_kctl {
 	struct snd_kcontrol *kctl;
 	struct list_head list;  /* list of controls belong to the same jack */
 	unsigned int mask_bits; /* only masked status bits are reported via kctl */
+	struct snd_jack *jack;  /* pointer to struct snd_jack */
+	bool sw_inject_enable;  /* allow to inject plug event via debugfs */
+#ifdef CONFIG_SND_JACK_INJECTION_DEBUG
+	struct dentry *jack_debugfs_root; /* jack_kctl debugfs root */
+#endif
 };
 
 #ifdef CONFIG_SND_JACK_INPUT_DEV
@@ -109,12 +117,291 @@ static int snd_jack_dev_register(struct snd_device *device)
 }
 #endif /* CONFIG_SND_JACK_INPUT_DEV */
 
+#ifdef CONFIG_SND_JACK_INJECTION_DEBUG
+static void snd_jack_inject_report(struct snd_jack_kctl *jack_kctl, int status)
+{
+	struct snd_jack *jack;
+#ifdef CONFIG_SND_JACK_INPUT_DEV
+	int i;
+#endif
+	if (!jack_kctl)
+		return;
+
+	jack = jack_kctl->jack;
+
+	if (jack_kctl->sw_inject_enable)
+		snd_kctl_jack_report(jack->card, jack_kctl->kctl,
+				     status & jack_kctl->mask_bits);
+
+#ifdef CONFIG_SND_JACK_INPUT_DEV
+	if (!jack->input_dev)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(jack->key); i++) {
+		int testbit = ((SND_JACK_BTN_0 >> i) & jack_kctl->mask_bits);
+
+		if (jack->type & testbit)
+			input_report_key(jack->input_dev, jack->key[i],
+					 status & testbit);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(jack_switch_types); i++) {
+		int testbit = ((1 << i) & jack_kctl->mask_bits);
+
+		if (jack->type & testbit)
+			input_report_switch(jack->input_dev,
+					    jack_switch_types[i],
+					    status & testbit);
+	}
+
+	input_sync(jack->input_dev);
+#endif /* CONFIG_SND_JACK_INPUT_DEV */
+}
+
+static ssize_t sw_inject_enable_read(struct file *file,
+				     char __user *to, size_t count, loff_t *ppos)
+{
+	struct snd_jack_kctl *jack_kctl = file->private_data;
+	int len, ret;
+	char buf[128];
+
+	len = scnprintf(buf, sizeof(buf), "%s: %s\t\t%s: %i\n", "Jack", jack_kctl->kctl->id.name,
+			"Inject Enabled", jack_kctl->sw_inject_enable);
+	ret = simple_read_from_buffer(to, count, ppos, buf, len);
+
+	return ret;
+}
+
+static ssize_t sw_inject_enable_write(struct file *file,
+				      const char __user *from, size_t count, loff_t *ppos)
+{
+	struct snd_jack_kctl *jack_kctl = file->private_data;
+	int ret, err;
+	unsigned long enable;
+	char buf[8] = { 0 };
+
+	ret = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, from, count);
+	err = kstrtoul(buf, 0, &enable);
+	if (err)
+		return err;
+
+	if (jack_kctl->sw_inject_enable == (!!enable))
+		return ret;
+
+	jack_kctl->sw_inject_enable = !!enable;
+
+	if (!jack_kctl->sw_inject_enable)
+		snd_jack_report(jack_kctl->jack, jack_kctl->jack->hw_status_cache);
+
+	return ret;
+}
+
+static ssize_t jackin_inject_write(struct file *file,
+				   const char __user *from, size_t count, loff_t *ppos)
+{
+	struct snd_jack_kctl *jack_kctl = file->private_data;
+	int ret, err;
+	unsigned long enable;
+	char buf[8] = { 0 };
+
+	if (!jack_kctl->sw_inject_enable)
+		return -EINVAL;
+
+	ret = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, from, count);
+	err = kstrtoul(buf, 0, &enable);
+	if (err)
+		return err;
+
+	snd_jack_inject_report(jack_kctl, !!enable ? jack_kctl->mask_bits : 0);
+
+	return ret;
+}
+
+static ssize_t jack_kctl_id_read(struct file *file,
+				 char __user *to, size_t count, loff_t *ppos)
+{
+	struct snd_jack_kctl *jack_kctl = file->private_data;
+	char buf[64];
+	int len, ret;
+
+	len = scnprintf(buf, sizeof(buf), "%s\n", jack_kctl->kctl->id.name);
+	ret = simple_read_from_buffer(to, count, ppos, buf, len);
+
+	return ret;
+}
+
+/* the bit definition is aligned with snd_jack_types in jack.h */
+static const char * const jack_events_name[] = {
+	"HEADPHONE(0x0001)", "MICROPHONE(0x0002)", "LINEOUT(0x0004)",
+	"MECHANICAL(0x0008)", "VIDEOOUT(0x0010)", "LINEIN(0x0020)",
+	"", "", "", "BTN_5(0x0200)", "BTN_4(0x0400)", "BTN_3(0x0800)",
+	"BTN_2(0x1000)", "BTN_1(0x2000)", "BTN_0(0x4000)", "",
+};
+
+/* the recommended buffer size is 256 */
+static int parse_mask_bits(unsigned int mask_bits, char *buf, size_t buf_size)
+{
+	int i;
+
+	scnprintf(buf, buf_size, "0x%04x", mask_bits);
+
+	for (i = 0; i < ARRAY_SIZE(jack_events_name); i++)
+		if (mask_bits & (1 << i)) {
+			strlcat(buf, " ", buf_size);
+			strlcat(buf, jack_events_name[i], buf_size);
+		}
+	strlcat(buf, "\n", buf_size);
+
+	return strlen(buf);
+}
+
+static ssize_t jack_kctl_mask_bits_read(struct file *file,
+					char __user *to, size_t count, loff_t *ppos)
+{
+	struct snd_jack_kctl *jack_kctl = file->private_data;
+	char buf[256];
+	int len, ret;
+
+	len = parse_mask_bits(jack_kctl->mask_bits, buf, sizeof(buf));
+	ret = simple_read_from_buffer(to, count, ppos, buf, len);
+
+	return ret;
+}
+
+static ssize_t jack_kctl_status_read(struct file *file,
+				     char __user *to, size_t count, loff_t *ppos)
+{
+	struct snd_jack_kctl *jack_kctl = file->private_data;
+	char buf[16];
+	int len, ret;
+
+	len = scnprintf(buf, sizeof(buf), "%s\n", jack_kctl->kctl->private_value ?
+			"Plugged" : "Unplugged");
+	ret = simple_read_from_buffer(to, count, ppos, buf, len);
+
+	return ret;
+}
+
+#ifdef CONFIG_SND_JACK_INPUT_DEV
+static ssize_t jack_type_read(struct file *file,
+			      char __user *to, size_t count, loff_t *ppos)
+{
+	struct snd_jack_kctl *jack_kctl = file->private_data;
+	char buf[256];
+	int len, ret;
+
+	len = parse_mask_bits(jack_kctl->jack->type, buf, sizeof(buf));
+	ret = simple_read_from_buffer(to, count, ppos, buf, len);
+
+	return ret;
+}
+
+static const struct file_operations jack_type_fops = {
+	.open = simple_open,
+	.read = jack_type_read,
+	.llseek = default_llseek,
+};
+#endif
+
+static const struct file_operations sw_inject_enable_fops = {
+	.open = simple_open,
+	.read = sw_inject_enable_read,
+	.write = sw_inject_enable_write,
+	.llseek = default_llseek,
+};
+
+static const struct file_operations jackin_inject_fops = {
+	.open = simple_open,
+	.write = jackin_inject_write,
+	.llseek = default_llseek,
+};
+
+static const struct file_operations jack_kctl_id_fops = {
+	.open = simple_open,
+	.read = jack_kctl_id_read,
+	.llseek = default_llseek,
+};
+
+static const struct file_operations jack_kctl_mask_bits_fops = {
+	.open = simple_open,
+	.read = jack_kctl_mask_bits_read,
+	.llseek = default_llseek,
+};
+
+static const struct file_operations jack_kctl_status_fops = {
+	.open = simple_open,
+	.read = jack_kctl_status_read,
+	.llseek = default_llseek,
+};
+
+static int snd_jack_debugfs_add_inject_node(struct snd_jack *jack,
+					    struct snd_jack_kctl *jack_kctl)
+{
+	char *tname;
+	int i;
+
+	/* Don't create injection interface for Phantom jacks */
+	if (strstr(jack_kctl->kctl->id.name, "Phantom"))
+		return 0;
+
+	tname = kstrdup(jack_kctl->kctl->id.name, GFP_KERNEL);
+	if (!tname)
+		return -ENOMEM;
+
+	/* replace the chars which are not suitable for folder's name with _ */
+	for (i = 0; tname[i]; i++)
+		if (!isalnum(tname[i]))
+			tname[i] = '_';
+
+	jack_kctl->jack_debugfs_root = debugfs_create_dir(tname, jack->card->debugfs_root);
+	kfree(tname);
+
+	debugfs_create_file("sw_inject_enable", 0644, jack_kctl->jack_debugfs_root, jack_kctl,
+			    &sw_inject_enable_fops);
+
+	debugfs_create_file("jackin_inject", 0200, jack_kctl->jack_debugfs_root, jack_kctl,
+			    &jackin_inject_fops);
+
+	debugfs_create_file("kctl_id", 0444, jack_kctl->jack_debugfs_root, jack_kctl,
+			    &jack_kctl_id_fops);
+
+	debugfs_create_file("mask_bits", 0444, jack_kctl->jack_debugfs_root, jack_kctl,
+			    &jack_kctl_mask_bits_fops);
+
+	debugfs_create_file("status", 0444, jack_kctl->jack_debugfs_root, jack_kctl,
+			    &jack_kctl_status_fops);
+
+#ifdef CONFIG_SND_JACK_INPUT_DEV
+	debugfs_create_file("type", 0444, jack_kctl->jack_debugfs_root, jack_kctl,
+			    &jack_type_fops);
+#endif
+	return 0;
+}
+
+static void snd_jack_debugfs_clear_inject_node(struct snd_jack_kctl *jack_kctl)
+{
+	debugfs_remove(jack_kctl->jack_debugfs_root);
+	jack_kctl->jack_debugfs_root = NULL;
+}
+#else /* CONFIG_SND_JACK_INJECTION_DEBUG */
+static int snd_jack_debugfs_add_inject_node(struct snd_jack *jack,
+					    struct snd_jack_kctl *jack_kctl)
+{
+	return 0;
+}
+
+static void snd_jack_debugfs_clear_inject_node(struct snd_jack_kctl *jack_kctl)
+{
+}
+#endif /* CONFIG_SND_JACK_INJECTION_DEBUG */
+
 static void snd_jack_kctl_private_free(struct snd_kcontrol *kctl)
 {
 	struct snd_jack_kctl *jack_kctl;
 
 	jack_kctl = kctl->private_data;
 	if (jack_kctl) {
+		snd_jack_debugfs_clear_inject_node(jack_kctl);
 		list_del(&jack_kctl->list);
 		kfree(jack_kctl);
 	}
@@ -122,7 +409,9 @@ static void snd_jack_kctl_private_free(struct snd_kcontrol *kctl)
 
 static void snd_jack_kctl_add(struct snd_jack *jack, struct snd_jack_kctl *jack_kctl)
 {
+	jack_kctl->jack = jack;
 	list_add_tail(&jack_kctl->list, &jack->kctl_list);
+	snd_jack_debugfs_add_inject_node(jack, jack_kctl);
 }
 
 static struct snd_jack_kctl * snd_jack_kctl_new(struct snd_card *card, const char *name, unsigned int mask)
@@ -340,6 +629,7 @@ EXPORT_SYMBOL(snd_jack_set_key);
 void snd_jack_report(struct snd_jack *jack, int status)
 {
 	struct snd_jack_kctl *jack_kctl;
+	unsigned int mask_bits = 0;
 #ifdef CONFIG_SND_JACK_INPUT_DEV
 	int i;
 #endif
@@ -347,16 +637,21 @@ void snd_jack_report(struct snd_jack *jack, int status)
 	if (!jack)
 		return;
 
+	jack->hw_status_cache = status;
+
 	list_for_each_entry(jack_kctl, &jack->kctl_list, list)
-		snd_kctl_jack_report(jack->card, jack_kctl->kctl,
-					    status & jack_kctl->mask_bits);
+		if (jack_kctl->sw_inject_enable)
+			mask_bits |= jack_kctl->mask_bits;
+		else
+			snd_kctl_jack_report(jack->card, jack_kctl->kctl,
+					     status & jack_kctl->mask_bits);
 
 #ifdef CONFIG_SND_JACK_INPUT_DEV
 	if (!jack->input_dev)
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(jack->key); i++) {
-		int testbit = SND_JACK_BTN_0 >> i;
+		int testbit = ((SND_JACK_BTN_0 >> i) & ~mask_bits);
 
 		if (jack->type & testbit)
 			input_report_key(jack->input_dev, jack->key[i],
@@ -364,7 +659,8 @@ void snd_jack_report(struct snd_jack *jack, int status)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(jack_switch_types); i++) {
-		int testbit = 1 << i;
+		int testbit = ((1 << i) & ~mask_bits);
+
 		if (jack->type & testbit)
 			input_report_switch(jack->input_dev,
 					    jack_switch_types[i],

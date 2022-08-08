@@ -49,7 +49,8 @@ static void guest_code(uint32_t vcpu_id)
 }
 
 struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
-				   uint64_t vcpu_memory_bytes)
+				   uint64_t vcpu_memory_bytes,
+				   enum vm_mem_backing_src_type backing_src)
 {
 	struct kvm_vm *vm;
 	uint64_t guest_num_pages;
@@ -93,8 +94,7 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 	pr_info("guest physical test memory offset: 0x%lx\n", guest_test_phys_mem);
 
 	/* Add an extra memory slot for testing */
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
-				    guest_test_phys_mem,
+	vm_userspace_mem_region_add(vm, backing_src, guest_test_phys_mem,
 				    PERF_TEST_MEM_SLOT_INDEX,
 				    guest_num_pages, 0);
 
@@ -112,7 +112,9 @@ void perf_test_destroy_vm(struct kvm_vm *vm)
 	kvm_vm_free(vm);
 }
 
-void perf_test_setup_vcpus(struct kvm_vm *vm, int vcpus, uint64_t vcpu_memory_bytes)
+void perf_test_setup_vcpus(struct kvm_vm *vm, int vcpus,
+			   uint64_t vcpu_memory_bytes,
+			   bool partition_vcpu_memory_access)
 {
 	vm_paddr_t vcpu_gpa;
 	struct perf_test_vcpu_args *vcpu_args;
@@ -122,13 +124,22 @@ void perf_test_setup_vcpus(struct kvm_vm *vm, int vcpus, uint64_t vcpu_memory_by
 		vcpu_args = &perf_test_args.vcpu_args[vcpu_id];
 
 		vcpu_args->vcpu_id = vcpu_id;
-		vcpu_args->gva = guest_test_virt_mem +
-				 (vcpu_id * vcpu_memory_bytes);
-		vcpu_args->pages = vcpu_memory_bytes /
-				   perf_test_args.guest_page_size;
+		if (partition_vcpu_memory_access) {
+			vcpu_args->gva = guest_test_virt_mem +
+					 (vcpu_id * vcpu_memory_bytes);
+			vcpu_args->pages = vcpu_memory_bytes /
+					   perf_test_args.guest_page_size;
+			vcpu_gpa = guest_test_phys_mem +
+				   (vcpu_id * vcpu_memory_bytes);
+		} else {
+			vcpu_args->gva = guest_test_virt_mem;
+			vcpu_args->pages = (vcpus * vcpu_memory_bytes) /
+					   perf_test_args.guest_page_size;
+			vcpu_gpa = guest_test_phys_mem;
+		}
 
-		vcpu_gpa = guest_test_phys_mem + (vcpu_id * vcpu_memory_bytes);
 		pr_debug("Added VCPU %d with test mem gpa [%lx, %lx)\n",
-			 vcpu_id, vcpu_gpa, vcpu_gpa + vcpu_memory_bytes);
+			 vcpu_id, vcpu_gpa, vcpu_gpa +
+			 (vcpu_args->pages * perf_test_args.guest_page_size));
 	}
 }

@@ -173,12 +173,12 @@ static const struct clk_ops zynq_pll_ops = {
 
 /**
  * clk_register_zynq_pll() - Register PLL with the clock framework
- * @name	PLL name
- * @parent	Parent clock name
- * @pll_ctrl	Pointer to PLL control register
- * @pll_status	Pointer to PLL status register
- * @lock_index	Bit index to this PLL's lock status bit in @pll_status
- * @lock	Register lock
+ * @name:	PLL name
+ * @parent:	Parent clock name
+ * @pll_ctrl:	Pointer to PLL control register
+ * @pll_status:	Pointer to PLL status register
+ * @lock_index:	Bit index to this PLL's lock status bit in @pll_status
+ * @lock:	Register lock
  * Returns handle to the registered clock.
  */
 struct clk *clk_register_zynq_pll(const char *name, const char *parent,

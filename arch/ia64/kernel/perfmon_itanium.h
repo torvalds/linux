@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This file contains the Itanium PMU register description tables
- * and pmc checker used by perfmon.c.
+ * and pmc checker.
  *
  * Copyright (C) 2002-2003  Hewlett Packard Co
  *               Stephane Eranian <eranian@hpl.hp.com>

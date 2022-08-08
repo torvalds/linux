@@ -24,14 +24,13 @@
  * failed. On success, it returns the index (>= 0) of command in the
  * command queue.
  */
-static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
-				      struct iwl_host_cmd *cmd)
+int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
+			       struct iwl_host_cmd *cmd)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = trans->txqs.txq[trans->txqs.cmd.q_id];
 	struct iwl_device_cmd *out_cmd;
 	struct iwl_cmd_meta *out_meta;
-	unsigned long flags;
 	void *dup_buf = NULL;
 	dma_addr_t phys_addr;
 	int i, cmd_pos, idx;
@@ -244,11 +243,11 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 	if (txq->read_ptr == txq->write_ptr && txq->wd_timeout)
 		mod_timer(&txq->stuck_timer, jiffies + txq->wd_timeout);
 
-	spin_lock_irqsave(&trans_pcie->reg_lock, flags);
+	spin_lock(&trans_pcie->reg_lock);
 	/* Increment and update queue's write index */
 	txq->write_ptr = iwl_txq_inc_wrap(trans, txq->write_ptr);
 	iwl_txq_inc_wr_ptr(trans, txq);
-	spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
+	spin_unlock(&trans_pcie->reg_lock);
 
 out:
 	spin_unlock_bh(&txq->lock);
@@ -257,124 +256,3 @@ free_dup_buf:
 		kfree(dup_buf);
 	return idx;
 }
-
-#define HOST_COMPLETE_TIMEOUT	(2 * HZ)
-
-static int iwl_pcie_gen2_send_hcmd_sync(struct iwl_trans *trans,
-					struct iwl_host_cmd *cmd)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	const char *cmd_str = iwl_get_cmd_string(trans, cmd->id);
-	struct iwl_txq *txq = trans->txqs.txq[trans->txqs.cmd.q_id];
-	int cmd_idx;
-	int ret;
-
-	IWL_DEBUG_INFO(trans, "Attempting to send sync command %s\n", cmd_str);
-
-	if (WARN(test_and_set_bit(STATUS_SYNC_HCMD_ACTIVE,
-				  &trans->status),
-		 "Command %s: a command is already active!\n", cmd_str))
-		return -EIO;
-
-	IWL_DEBUG_INFO(trans, "Setting HCMD_ACTIVE for command %s\n", cmd_str);
-
-	cmd_idx = iwl_pcie_gen2_enqueue_hcmd(trans, cmd);
-	if (cmd_idx < 0) {
-		ret = cmd_idx;
-		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
-		IWL_ERR(trans, "Error sending %s: enqueue_hcmd failed: %d\n",
-			cmd_str, ret);
-		return ret;
-	}
-
-	ret = wait_event_timeout(trans_pcie->wait_command_queue,
-				 !test_bit(STATUS_SYNC_HCMD_ACTIVE,
-					   &trans->status),
-				 HOST_COMPLETE_TIMEOUT);
-	if (!ret) {
-		IWL_ERR(trans, "Error sending %s: time out after %dms.\n",
-			cmd_str, jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
-
-		IWL_ERR(trans, "Current CMD queue read_ptr %d write_ptr %d\n",
-			txq->read_ptr, txq->write_ptr);
-
-		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
-		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
-			       cmd_str);
-		ret = -ETIMEDOUT;
-
-		iwl_trans_pcie_sync_nmi(trans);
-		goto cancel;
-	}
-
-	if (test_bit(STATUS_FW_ERROR, &trans->status)) {
-		IWL_ERR(trans, "FW error in SYNC CMD %s\n", cmd_str);
-		dump_stack();
-		ret = -EIO;
-		goto cancel;
-	}
-
-	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
-	    test_bit(STATUS_RFKILL_OPMODE, &trans->status)) {
-		IWL_DEBUG_RF_KILL(trans, "RFKILL in SYNC CMD... no rsp\n");
-		ret = -ERFKILL;
-		goto cancel;
-	}
-
-	if ((cmd->flags & CMD_WANT_SKB) && !cmd->resp_pkt) {
-		IWL_ERR(trans, "Error: Response NULL in '%s'\n", cmd_str);
-		ret = -EIO;
-		goto cancel;
-	}
-
-	return 0;
-
-cancel:
-	if (cmd->flags & CMD_WANT_SKB) {
-		/*
-		 * Cancel the CMD_WANT_SKB flag for the cmd in the
-		 * TX cmd queue. Otherwise in case the cmd comes
-		 * in later, it will possibly set an invalid
-		 * address (cmd->meta.source).
-		 */
-		txq->entries[cmd_idx].meta.flags &= ~CMD_WANT_SKB;
-	}
-
-	if (cmd->resp_pkt) {
-		iwl_free_resp(cmd);
-		cmd->resp_pkt = NULL;
-	}
-
-	return ret;
-}
-
-int iwl_trans_pcie_gen2_send_hcmd(struct iwl_trans *trans,
-				  struct iwl_host_cmd *cmd)
-{
-	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
-	    test_bit(STATUS_RFKILL_OPMODE, &trans->status)) {
-		IWL_DEBUG_RF_KILL(trans, "Dropping CMD 0x%x: RF KILL\n",
-				  cmd->id);
-		return -ERFKILL;
-	}
-
-	if (cmd->flags & CMD_ASYNC) {
-		int ret;
-
-		/* An asynchronous command can not expect an SKB to be set. */
-		if (WARN_ON(cmd->flags & CMD_WANT_SKB))
-			return -EINVAL;
-
-		ret = iwl_pcie_gen2_enqueue_hcmd(trans, cmd);
-		if (ret < 0) {
-			IWL_ERR(trans,
-				"Error sending %s: enqueue_hcmd failed: %d\n",
-				iwl_get_cmd_string(trans, cmd->id), ret);
-			return ret;
-		}
-		return 0;
-	}
-
-	return iwl_pcie_gen2_send_hcmd_sync(trans, cmd);
-}
-

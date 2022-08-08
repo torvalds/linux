@@ -36,9 +36,9 @@ static inline int ethnl_strz_size(const char *s)
 
 /**
  * ethnl_put_strz() - put string attribute with fixed size string
- * @skb:     skb with the message
- * @attrype: attribute type
- * @s:       ETH_GSTRING_LEN sized string (may not be null terminated)
+ * @skb:      skb with the message
+ * @attrtype: attribute type
+ * @s:        ETH_GSTRING_LEN sized string (may not be null terminated)
  *
  * Puts an attribute with null terminated string from @s into the message.
  *
@@ -351,7 +351,7 @@ extern const struct nla_policy ethnl_strset_get_policy[ETHTOOL_A_STRSET_COUNTS_O
 extern const struct nla_policy ethnl_linkinfo_get_policy[ETHTOOL_A_LINKINFO_HEADER + 1];
 extern const struct nla_policy ethnl_linkinfo_set_policy[ETHTOOL_A_LINKINFO_TP_MDIX_CTRL + 1];
 extern const struct nla_policy ethnl_linkmodes_get_policy[ETHTOOL_A_LINKMODES_HEADER + 1];
-extern const struct nla_policy ethnl_linkmodes_set_policy[ETHTOOL_A_LINKMODES_MASTER_SLAVE_CFG + 1];
+extern const struct nla_policy ethnl_linkmodes_set_policy[ETHTOOL_A_LINKMODES_LANES + 1];
 extern const struct nla_policy ethnl_linkstate_get_policy[ETHTOOL_A_LINKSTATE_HEADER + 1];
 extern const struct nla_policy ethnl_debug_get_policy[ETHTOOL_A_DEBUG_HEADER + 1];
 extern const struct nla_policy ethnl_debug_set_policy[ETHTOOL_A_DEBUG_MSGMASK + 1];

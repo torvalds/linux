@@ -13,6 +13,7 @@ properties:
   compatible:
     enum:
       - ti,omap4-hwspinlock  # for OMAP44xx, OMAP54xx, AM33xx, AM43xx, DRA7xx SoCs
+      - ti,am64-hwspinlock   # for K3 AM64x SoCs
       - ti,am654-hwspinlock  # for K3 AM65x, J721E and J7200 SoCs
 
   reg:

@@ -10,9 +10,6 @@
 #include <linux/dmi.h>
 #include <linux/module.h>
 
-#include <asm/intel-mid.h>
-#include <asm/intel_scu_ipc.h>
-
 #include <drm/drm.h>
 
 #include "intel_bios.h"
@@ -504,9 +501,10 @@ static const struct psb_offset oaktrail_regmap[2] = {
 static int oaktrail_chip_setup(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int ret;
-	
-	if (pci_enable_msi(dev->pdev))
+
+	if (pci_enable_msi(pdev))
 		dev_warn(dev->dev, "Enabling MSI failed!\n");
 
 	dev_priv->regmap = oaktrail_regmap;

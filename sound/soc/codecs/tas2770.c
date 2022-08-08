@@ -499,7 +499,7 @@ static struct snd_soc_dai_driver tas2770_dai_driver[] = {
 			.formats    = TAS2770_FORMATS,
 		},
 		.ops = &tas2770_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 };
 

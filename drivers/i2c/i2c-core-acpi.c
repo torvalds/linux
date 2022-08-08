@@ -225,12 +225,8 @@ static void i2c_acpi_register_device(struct i2c_adapter *adapter,
 	adev->power.flags.ignore_parent = true;
 	acpi_device_set_enumerated(adev);
 
-	if (IS_ERR(i2c_new_client_device(adapter, info))) {
+	if (IS_ERR(i2c_new_client_device(adapter, info)))
 		adev->power.flags.ignore_parent = false;
-		dev_err(&adapter->dev,
-			"failed to add I2C device %s from ACPI\n",
-			dev_name(&adev->dev));
-	}
 }
 
 static acpi_status i2c_acpi_add_device(acpi_handle handle, u32 level,

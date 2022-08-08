@@ -112,7 +112,27 @@ extern char arcs_cmdline[COMMAND_LINE_SIZE];
 extern unsigned long fw_arg0, fw_arg1, fw_arg2, fw_arg3;
 
 #ifdef CONFIG_USE_OF
-extern unsigned long fw_passed_dtb;
+#include <linux/libfdt.h>
+#include <linux/of_fdt.h>
+
+extern char __appended_dtb[];
+
+static inline void *get_fdt(void)
+{
+	if (IS_ENABLED(CONFIG_MIPS_RAW_APPENDED_DTB) ||
+	    IS_ENABLED(CONFIG_MIPS_ELF_APPENDED_DTB))
+		if (fdt_magic(&__appended_dtb) == FDT_MAGIC)
+			return &__appended_dtb;
+
+	if (fw_arg0 == -2) /* UHI interface */
+		return (void *)fw_arg1;
+
+	if (IS_ENABLED(CONFIG_BUILTIN_DTB))
+		if (&__dtb_start != &__dtb_end)
+			return &__dtb_start;
+
+	return NULL;
+}
 #endif
 
 /*

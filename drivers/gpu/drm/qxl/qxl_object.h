@@ -50,7 +50,7 @@ static inline void qxl_bo_unreserve(struct qxl_bo *bo)
 
 static inline unsigned long qxl_bo_size(struct qxl_bo *bo)
 {
-	return bo->tbo.num_pages << PAGE_SHIFT;
+	return bo->tbo.base.size;
 }
 
 static inline u64 qxl_bo_mmap_offset(struct qxl_bo *bo)

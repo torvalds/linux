@@ -50,11 +50,11 @@ config XEN_BALLOON_MEMORY_HOTPLUG
 
 	  SUBSYSTEM=="memory", ACTION=="add", RUN+="/bin/sh -c '[ -f /sys$devpath/state ] && echo online > /sys$devpath/state'"
 
-config XEN_BALLOON_MEMORY_HOTPLUG_LIMIT
+config XEN_MEMORY_HOTPLUG_LIMIT
 	int "Hotplugged memory limit (in GiB) for a PV guest"
 	default 512
 	depends on XEN_HAVE_PVMMU
-	depends on XEN_BALLOON_MEMORY_HOTPLUG
+	depends on MEMORY_HOTPLUG
 	help
 	  Maxmium amount of memory (in GiB) that a PV guest can be
 	  expanded to when using memory hotplug.

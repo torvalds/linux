@@ -1623,10 +1623,6 @@ p9_client_read_once(struct p9_fid *fid, u64 offset, struct iov_iter *to,
 	}
 
 	p9_debug(P9_DEBUG_9P, "<<< RREAD count %d\n", count);
-	if (!count) {
-		p9_tag_remove(clnt, req);
-		return 0;
-	}
 
 	if (non_zc) {
 		int n = copy_to_iter(dataptr, count, to);

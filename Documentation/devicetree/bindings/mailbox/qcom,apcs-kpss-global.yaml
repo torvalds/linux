@@ -24,6 +24,7 @@ properties:
       - qcom,msm8998-apcs-hmss-global
       - qcom,qcs404-apcs-apps-global
       - qcom,sc7180-apss-shared
+      - qcom,sc8180x-apss-shared
       - qcom,sdm660-apcs-hmss-global
       - qcom,sdm845-apss-shared
       - qcom,sm8150-apss-shared
@@ -33,9 +34,11 @@ properties:
 
   clocks:
     description: phandles to the parent clocks of the clock driver
+    minItems: 2
     items:
       - description: primary pll parent of the clock driver
       - description: auxiliary parent
+      - description: reference clock
 
   '#mbox-cells':
     const: 1
@@ -44,9 +47,11 @@ properties:
     const: 0
 
   clock-names:
+    minItems: 2
     items:
       - const: pll
       - const: aux
+      - const: ref
 
 required:
   - compatible
@@ -55,6 +60,35 @@ required:
 
 additionalProperties: false
 
+allOf:
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,ipq6018-apcs-apps-global
+            - qcom,ipq8074-apcs-apps-global
+            - qcom,msm8916-apcs-kpss-global
+            - qcom,msm8994-apcs-kpss-global
+            - qcom,msm8996-apcs-hmss-global
+            - qcom,msm8998-apcs-hmss-global
+            - qcom,qcs404-apcs-apps-global
+            - qcom,sc7180-apss-shared
+            - qcom,sdm660-apcs-hmss-global
+            - qcom,sdm845-apss-shared
+            - qcom,sm8150-apss-shared
+    then:
+      properties:
+        clocks:
+          maxItems: 2
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,sdx55-apcs-gcc
+    then:
+      properties:
+        clocks:
+          maxItems: 3
 examples:
 
   # Example apcs with msm8996

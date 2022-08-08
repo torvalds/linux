@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig CXL_BUS
+	tristate "CXL (Compute Express Link) Devices Support"
+	depends on PCI
+	help
+	  CXL is a bus that is electrically compatible with PCI Express, but
+	  layers three protocols on that signalling (CXL.io, CXL.cache, and
+	  CXL.mem). The CXL.cache protocol allows devices to hold cachelines
+	  locally, the CXL.mem protocol allows devices to be fully coherent
+	  memory targets, the CXL.io protocol is equivalent to PCI Express.
+	  Say 'y' to enable support for the configuration and management of
+	  devices supporting these protocols.
+
+if CXL_BUS
+
+config CXL_MEM
+	tristate "CXL.mem: Memory Devices"
+	help
+	  The CXL.mem protocol allows a device to act as a provider of
+	  "System RAM" and/or "Persistent Memory" that is fully coherent
+	  as if the memory was attached to the typical CPU memory
+	  controller.
+
+	  Say 'y/m' to enable a driver (named "cxl_mem.ko" when built as
+	  a module) that will attach to CXL.mem devices for
+	  configuration, provisioning, and health monitoring. This
+	  driver is required for dynamic provisioning of CXL.mem
+	  attached memory which is a prerequisite for persistent memory
+	  support. Typically volatile memory is mapped by platform
+	  firmware and included in the platform memory map, but in some
+	  cases the OS is responsible for mapping that memory. See
+	  Chapter 2.3 Type 3 CXL Device in the CXL 2.0 specification.
+
+	  If unsure say 'm'.
+
+config CXL_MEM_RAW_COMMANDS
+	bool "RAW Command Interface for Memory Devices"
+	depends on CXL_MEM
+	help
+	  Enable CXL RAW command interface.
+
+	  The CXL driver ioctl interface may assign a kernel ioctl command
+	  number for each specification defined opcode. At any given point in
+	  time the number of opcodes that the specification defines and a device
+	  may implement may exceed the kernel's set of associated ioctl function
+	  numbers. The mismatch is either by omission, specification is too new,
+	  or by design. When prototyping new hardware, or developing / debugging
+	  the driver it is useful to be able to submit any possible command to
+	  the hardware, even commands that may crash the kernel due to their
+	  potential impact to memory currently in use by the kernel.
+
+	  If developing CXL hardware or the driver say Y, otherwise say N.
+endif

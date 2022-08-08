@@ -698,6 +698,7 @@ static int rtl2832_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			goto err;
 
 		constellation = (u8tmp >> 2) & 0x03; /* [3:2] */
+		ret = -EINVAL;
 		if (constellation > CONSTELLATION_NUM - 1)
 			goto err;
 

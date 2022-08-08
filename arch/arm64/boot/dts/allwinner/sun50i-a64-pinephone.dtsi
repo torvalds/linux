@@ -21,6 +21,7 @@
 		compatible = "pwm-backlight";
 		pwms = <&r_pwm 0 50000 PWM_POLARITY_INVERTED>;
 		enable-gpios = <&pio 7 10 GPIO_ACTIVE_HIGH>; /* PH10 */
+		power-supply = <&reg_ps>;
 		/* Backlight configuration differs per PinePhone revision. */
 	};
 
@@ -31,23 +32,31 @@
 	leds {
 		compatible = "gpio-leds";
 
-		blue {
+		led-0 {
 			function = LED_FUNCTION_INDICATOR;
 			color = <LED_COLOR_ID_BLUE>;
 			gpios = <&pio 3 20 GPIO_ACTIVE_HIGH>; /* PD20 */
 		};
 
-		green {
+		led-1 {
 			function = LED_FUNCTION_INDICATOR;
 			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&pio 3 18 GPIO_ACTIVE_HIGH>; /* PD18 */
 		};
 
-		red {
+		led-2 {
 			function = LED_FUNCTION_INDICATOR;
 			color = <LED_COLOR_ID_RED>;
 			gpios = <&pio 3 19 GPIO_ACTIVE_HIGH>; /* PD19 */
 		};
+	};
+
+	reg_ps: ps-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "ps";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
 	};
 
 	reg_vbat_wifi: vbat-wifi {
@@ -174,8 +183,6 @@
 		reg = <0x48>;
 		interrupt-parent = <&pio>;
 		interrupts = <1 0 IRQ_TYPE_EDGE_FALLING>; /* PB0 */
-		vdd-supply = <&reg_ldo_io0>;
-		leda-supply = <&reg_dldo1>;
 	};
 
 	/* Accelerometer/gyroscope */
@@ -196,6 +203,7 @@
 
 &lradc {
 	vref-supply = <&reg_aldo3>;
+	wakeup-source;
 	status = "okay";
 
 	button-200 {

@@ -385,13 +385,11 @@ static int opticon_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-static int opticon_port_remove(struct usb_serial_port *port)
+static void opticon_port_remove(struct usb_serial_port *port)
 {
 	struct opticon_private *priv = usb_get_serial_port_data(port);
 
 	kfree(priv);
-
-	return 0;
 }
 
 static struct usb_serial_driver opticon_device = {

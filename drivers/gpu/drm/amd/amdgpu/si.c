@@ -1270,7 +1270,7 @@ static int si_gpu_pci_config_reset(struct amdgpu_device *adev)
 	u32 i;
 	int r = -EINVAL;
 
-	dev_info(adev->dev, "GPU pci config reset\n");
+	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
 
 	/* set mclk/sclk to bypass */
 	si_set_clk_bypass_mode(adev);
@@ -1294,20 +1294,6 @@ static int si_gpu_pci_config_reset(struct amdgpu_device *adev)
 		}
 		udelay(1);
 	}
-
-	return r;
-}
-
-static int si_asic_reset(struct amdgpu_device *adev)
-{
-	int r;
-
-	dev_info(adev->dev, "PCI CONFIG reset\n");
-
-	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
-
-	r = si_gpu_pci_config_reset(adev);
-
 	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
 
 	return r;
@@ -1321,12 +1307,32 @@ static bool si_asic_supports_baco(struct amdgpu_device *adev)
 static enum amd_reset_method
 si_asic_reset_method(struct amdgpu_device *adev)
 {
-	if (amdgpu_reset_method != AMD_RESET_METHOD_LEGACY &&
-	    amdgpu_reset_method != -1)
+	if (amdgpu_reset_method == AMD_RESET_METHOD_PCI)
+		return amdgpu_reset_method;
+	else if (amdgpu_reset_method != AMD_RESET_METHOD_LEGACY &&
+		 amdgpu_reset_method != -1)
 		dev_warn(adev->dev, "Specified reset method:%d isn't supported, using AUTO instead.\n",
-				  amdgpu_reset_method);
+			 amdgpu_reset_method);
 
 	return AMD_RESET_METHOD_LEGACY;
+}
+
+static int si_asic_reset(struct amdgpu_device *adev)
+{
+	int r;
+
+	switch (si_asic_reset_method(adev)) {
+	case AMD_RESET_METHOD_PCI:
+		dev_info(adev->dev, "PCI reset\n");
+		r = amdgpu_device_pci_reset(adev);
+		break;
+	default:
+		dev_info(adev->dev, "PCI CONFIG reset\n");
+		r = si_gpu_pci_config_reset(adev);
+		break;
+	}
+
+	return r;
 }
 
 static u32 si_get_config_memsize(struct amdgpu_device *adev)

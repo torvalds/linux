@@ -25,6 +25,6 @@ int gp102_sec2_load(struct nvkm_sec2 *, int, const struct nvkm_sec2_fwif *);
 extern const struct nvkm_sec2_func gp102_sec2;
 extern const struct nvkm_acr_lsf_func gp102_sec2_acr_1;
 
-int nvkm_sec2_new_(const struct nvkm_sec2_fwif *, struct nvkm_device *,
+int nvkm_sec2_new_(const struct nvkm_sec2_fwif *, struct nvkm_device *, enum nvkm_subdev_type,
 		   int, u32 addr, struct nvkm_sec2 **);
 #endif

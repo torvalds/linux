@@ -42,65 +42,30 @@ properties:
     const: refclk
 
   ports:
-    type: object
+    $ref: /schemas/graph.yaml#/properties/ports
 
     properties:
-      "#address-cells":
-        const: 1
-
-      "#size-cells":
-        const: 0
-
       port@0:
-        type: object
-        additionalProperties: false
-
+        $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
         description: |
           Video port for RGB input
 
         properties:
-          reg:
-            const: 0
-
-        patternProperties:
           endpoint:
-            type: object
-            additionalProperties: false
+            $ref: /schemas/graph.yaml#/$defs/endpoint-base
+            unevaluatedProperties: false
 
             properties:
               data-lines:
                 enum: [ 16, 18, 24 ]
 
-              remote-endpoint: true
-
-        required:
-          - reg
-
       port@1:
-        type: object
-        additionalProperties: false
-
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           Video port for DSI output (panel or connector).
 
-        properties:
-          reg:
-            const: 1
-
-        patternProperties:
-          endpoint:
-            type: object
-            additionalProperties: false
-
-            properties:
-              remote-endpoint: true
-
-        required:
-          - reg
-
     required:
-      - "#address-cells"
-      - "#size-cells"
       - port@0
       - port@1
 
@@ -156,4 +121,3 @@ examples:
         };
       };
     };
-    

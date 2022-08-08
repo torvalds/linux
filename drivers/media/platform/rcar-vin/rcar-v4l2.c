@@ -966,18 +966,50 @@ void rvin_v4l2_unregister(struct rvin_dev *vin)
 	video_unregister_device(&vin->vdev);
 }
 
-static void rvin_notify(struct v4l2_subdev *sd,
-			unsigned int notification, void *arg)
+static void rvin_notify_video_device(struct rvin_dev *vin,
+				     unsigned int notification, void *arg)
 {
-	struct rvin_dev *vin =
-		container_of(sd->v4l2_dev, struct rvin_dev, v4l2_dev);
-
 	switch (notification) {
 	case V4L2_DEVICE_NOTIFY_EVENT:
 		v4l2_event_queue(&vin->vdev, arg);
 		break;
 	default:
 		break;
+	}
+}
+
+static void rvin_notify(struct v4l2_subdev *sd,
+			unsigned int notification, void *arg)
+{
+	struct v4l2_subdev *remote;
+	struct rvin_group *group;
+	struct media_pad *pad;
+	struct rvin_dev *vin =
+		container_of(sd->v4l2_dev, struct rvin_dev, v4l2_dev);
+	unsigned int i;
+
+	/* If no media controller, no need to route the event. */
+	if (!vin->info->use_mc) {
+		rvin_notify_video_device(vin, notification, arg);
+		return;
+	}
+
+	group = vin->group;
+
+	for (i = 0; i < RCAR_VIN_NUM; i++) {
+		vin = group->vin[i];
+		if (!vin)
+			continue;
+
+		pad = media_entity_remote_pad(&vin->pad);
+		if (!pad)
+			continue;
+
+		remote = media_entity_to_v4l2_subdev(pad->entity);
+		if (remote != sd)
+			continue;
+
+		rvin_notify_video_device(vin, notification, arg);
 	}
 }
 

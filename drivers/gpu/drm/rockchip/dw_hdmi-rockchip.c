@@ -202,7 +202,7 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 	} else if (PTR_ERR(hdmi->vpll_clk) == -EPROBE_DEFER) {
 		return -EPROBE_DEFER;
 	} else if (IS_ERR(hdmi->vpll_clk)) {
-		DRM_DEV_ERROR(hdmi->dev, "failed to get grf clock\n");
+		DRM_DEV_ERROR(hdmi->dev, "failed to get vpll clock\n");
 		return PTR_ERR(hdmi->vpll_clk);
 	}
 

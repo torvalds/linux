@@ -209,14 +209,16 @@ xfs_fsbulkstat_one_fmt_compat(
 /* copied from xfs_ioctl.c */
 STATIC int
 xfs_compat_ioc_fsbulkstat(
-	xfs_mount_t		  *mp,
+	struct file		*file,
 	unsigned int		  cmd,
 	struct compat_xfs_fsop_bulkreq __user *p32)
 {
+	struct xfs_mount	*mp = XFS_I(file_inode(file))->i_mount;
 	u32			addr;
 	struct xfs_fsop_bulkreq	bulkreq;
 	struct xfs_ibulk	breq = {
 		.mp		= mp,
+		.mnt_userns	= file_mnt_user_ns(file),
 		.ocount		= 0,
 	};
 	xfs_ino_t		lastino;
@@ -436,7 +438,6 @@ xfs_file_compat_ioctl(
 {
 	struct inode		*inode = file_inode(filp);
 	struct xfs_inode	*ip = XFS_I(inode);
-	struct xfs_mount	*mp = ip->i_mount;
 	void			__user *arg = compat_ptr(p);
 	int			error;
 
@@ -456,7 +457,7 @@ xfs_file_compat_ioctl(
 		return xfs_ioc_space(filp, &bf);
 	}
 	case XFS_IOC_FSGEOMETRY_V1_32:
-		return xfs_compat_ioc_fsgeometry_v1(mp, arg);
+		return xfs_compat_ioc_fsgeometry_v1(ip->i_mount, arg);
 	case XFS_IOC_FSGROWFSDATA_32: {
 		struct xfs_growfs_data	in;
 
@@ -465,7 +466,7 @@ xfs_file_compat_ioctl(
 		error = mnt_want_write_file(filp);
 		if (error)
 			return error;
-		error = xfs_growfs_data(mp, &in);
+		error = xfs_growfs_data(ip->i_mount, &in);
 		mnt_drop_write_file(filp);
 		return error;
 	}
@@ -477,7 +478,7 @@ xfs_file_compat_ioctl(
 		error = mnt_want_write_file(filp);
 		if (error)
 			return error;
-		error = xfs_growfs_rt(mp, &in);
+		error = xfs_growfs_rt(ip->i_mount, &in);
 		mnt_drop_write_file(filp);
 		return error;
 	}
@@ -507,7 +508,7 @@ xfs_file_compat_ioctl(
 	case XFS_IOC_FSBULKSTAT_32:
 	case XFS_IOC_FSBULKSTAT_SINGLE_32:
 	case XFS_IOC_FSINUMBERS_32:
-		return xfs_compat_ioc_fsbulkstat(mp, cmd, arg);
+		return xfs_compat_ioc_fsbulkstat(filp, cmd, arg);
 	case XFS_IOC_FD_TO_HANDLE_32:
 	case XFS_IOC_PATH_TO_HANDLE_32:
 	case XFS_IOC_PATH_TO_FSHANDLE_32: {

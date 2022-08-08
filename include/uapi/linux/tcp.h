@@ -51,7 +51,7 @@ struct tcphdr {
 		fin:1;
 #else
 #error	"Adjust your <asm/byteorder.h> defines"
-#endif	
+#endif
 	__be16	window;
 	__sum16	check;
 	__be16	urg_ptr;
@@ -62,14 +62,14 @@ struct tcphdr {
  *  (union is compatible to any of its members)
  *  This means this part of the code is -fstrict-aliasing safe now.
  */
-union tcp_word_hdr { 
+union tcp_word_hdr {
 	struct tcphdr hdr;
-	__be32 		  words[5];
-}; 
+	__be32        words[5];
+};
 
-#define tcp_flag_word(tp) ( ((union tcp_word_hdr *)(tp))->words [3]) 
+#define tcp_flag_word(tp) (((union tcp_word_hdr *)(tp))->words[3])
 
-enum { 
+enum {
 	TCP_FLAG_CWR = __constant_cpu_to_be32(0x00800000),
 	TCP_FLAG_ECE = __constant_cpu_to_be32(0x00400000),
 	TCP_FLAG_URG = __constant_cpu_to_be32(0x00200000),
@@ -80,7 +80,7 @@ enum {
 	TCP_FLAG_FIN = __constant_cpu_to_be32(0x00010000),
 	TCP_RESERVED_BITS = __constant_cpu_to_be32(0x0F000000),
 	TCP_DATA_OFFSET = __constant_cpu_to_be32(0xF0000000)
-}; 
+};
 
 /*
  * TCP general constants
@@ -103,8 +103,8 @@ enum {
 #define TCP_QUICKACK		12	/* Block/reenable quick acks */
 #define TCP_CONGESTION		13	/* Congestion control algorithm */
 #define TCP_MD5SIG		14	/* TCP MD5 Signature (RFC2385) */
-#define TCP_THIN_LINEAR_TIMEOUTS 16      /* Use linear timeouts for thin streams*/
-#define TCP_THIN_DUPACK         17      /* Fast retrans. after 1 dupack */
+#define TCP_THIN_LINEAR_TIMEOUTS 16	/* Use linear timeouts for thin streams*/
+#define TCP_THIN_DUPACK		17	/* Fast retrans. after 1 dupack */
 #define TCP_USER_TIMEOUT	18	/* How long for loss retry before timeout */
 #define TCP_REPAIR		19	/* TCP sock is under repair right now */
 #define TCP_REPAIR_QUEUE	20
@@ -314,6 +314,7 @@ enum {
 	TCP_NLA_TIMEOUT_REHASH, /* Timeout-triggered rehash attempts */
 	TCP_NLA_BYTES_NOTSENT,	/* Bytes in write queue not yet sent */
 	TCP_NLA_EDT,		/* Earliest departure time (CLOCK_MONOTONIC) */
+	TCP_NLA_TTL,		/* TTL or hop limit of a packet received */
 };
 
 /* for TCP_MD5SIG socket option */
@@ -353,5 +354,9 @@ struct tcp_zerocopy_receive {
 	__u64 copybuf_address;	/* in: copybuf address (small reads) */
 	__s32 copybuf_len; /* in/out: copybuf bytes avail/used or error */
 	__u32 flags; /* in: flags */
+	__u64 msg_control; /* ancillary data */
+	__u64 msg_controllen;
+	__u32 msg_flags;
+	__u32 reserved; /* set to 0 for now */
 };
 #endif /* _UAPI_LINUX_TCP_H */

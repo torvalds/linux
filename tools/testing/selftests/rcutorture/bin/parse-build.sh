@@ -21,7 +21,7 @@ mkdir $T
 
 . functions.sh
 
-if grep -q CC < $F || test -n "$TORTURE_TRUST_MAKE"
+if grep -q CC < $F || test -n "$TORTURE_TRUST_MAKE" || grep -qe --trust-make < `dirname $F`/../log
 then
 	:
 else

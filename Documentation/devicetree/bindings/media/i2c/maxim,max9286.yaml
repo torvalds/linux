@@ -50,81 +50,61 @@ properties:
   '#gpio-cells':
     const: 2
 
-  ports:
-    type: object
+  maxim,reverse-channel-microvolt:
+    minimum: 30000
+    maximum: 200000
+    default: 170000
     description: |
-      The connections to the MAX9286 GMSL and its endpoint nodes are modelled
-      using the OF graph bindings in accordance with the video interface
-      bindings defined in
-      Documentation/devicetree/bindings/media/video-interfaces.txt.
+      Initial amplitude of the reverse control channel, in micro volts.
 
-      The following table lists the port number corresponding to each device
-      port.
+      The initial amplitude shall be adjusted to a value compatible with the
+      configuration of the connected remote serializer.
 
-        Port            Description
-        ----------------------------------------
-        Port 0          GMSL Input 0
-        Port 1          GMSL Input 1
-        Port 2          GMSL Input 2
-        Port 3          GMSL Input 3
-        Port 4          CSI-2 Output
+      Some camera modules (for example RDACM20) include an on-board MCU that
+      pre-programs the embedded serializer with power supply noise immunity
+      (high-threshold) enabled. A typical value of the deserializer's reverse
+      channel amplitude to communicate with pre-programmed serializers is
+      170000 micro volts.
+
+      A typical value for the reverse channel amplitude to communicate with
+      a remote serializer whose high-threshold noise immunity is not enabled
+      is 100000 micro volts
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
 
     properties:
-      '#address-cells':
-        const: 1
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: GMSL Input 0
 
-      '#size-cells':
-        const: 0
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: GMSL Input 1
 
-      port@[0-3]:
-        type: object
-        properties:
-          reg:
-            enum: [ 0, 1, 2, 3 ]
+      port@2:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: GMSL Input 2
 
-          endpoint:
-            type: object
-
-            properties:
-              remote-endpoint:
-                description: |
-                 phandle to the remote GMSL source endpoint subnode in the
-                 remote node port.
-
-            required:
-              - remote-endpoint
-
-        required:
-          - reg
-          - endpoint
-
-        additionalProperties: false
+      port@3:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: GMSL Input 3
 
       port@4:
-        type: object
-        properties:
-          reg:
-            const: 4
+        $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
+        description: CSI-2 Output
 
+        properties:
           endpoint:
-            type: object
+            $ref: /schemas/media/video-interfaces.yaml#
+            unevaluatedProperties: false
 
             properties:
-              remote-endpoint:
-                description: phandle to the remote CSI-2 sink endpoint.
-
-              data-lanes:
-                description: array of physical CSI-2 data lane indexes.
+              data-lanes: true
 
             required:
-              - remote-endpoint
               - data-lanes
-
-        required:
-          - reg
-          - endpoint
-
-        additionalProperties: false
 
     required:
       - port@4
@@ -183,25 +163,8 @@ properties:
                   requirements of the currently connected remote device.
 
               port:
-                type: object
-
-                properties:
-                  endpoint:
-                    type: object
-
-                    properties:
-                      remote-endpoint:
-                        description: phandle to the MAX9286 sink endpoint.
-
-                    required:
-                      - remote-endpoint
-
-                    additionalProperties: false
-
-                required:
-                  - endpoint
-
-                additionalProperties: false
+                $ref: /schemas/graph.yaml#/properties/port
+                description: Connection to the MAX9286 sink.
 
             required:
               - compatible
@@ -241,6 +204,8 @@ examples:
 
         gpio-controller;
         #gpio-cells = <2>;
+
+        maxim,reverse-channel-microvolt = <170000>;
 
         ports {
           #address-cells = <1>;

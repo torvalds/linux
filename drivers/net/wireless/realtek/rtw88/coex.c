@@ -1607,6 +1607,7 @@ static void rtw_coex_action_bt_relink(struct rtw_dev *rtwdev)
 	struct rtw_efuse *efuse = &rtwdev->efuse;
 	struct rtw_chip_info *chip = rtwdev->chip;
 	u8 table_case, tdma_case;
+	u32 slot_type = 0;
 
 	rtw_dbg(rtwdev, RTW_DBG_COEX, "[BTCoex], %s()\n", __func__);
 
@@ -1618,6 +1619,7 @@ static void rtw_coex_action_bt_relink(struct rtw_dev *rtwdev)
 			table_case = 26;
 			if (coex_stat->bt_hid_exist &&
 			    coex_stat->bt_profile_num == 1) {
+				slot_type = TDMA_4SLOT;
 				tdma_case = 20;
 			} else {
 				tdma_case = 20;
@@ -1635,7 +1637,7 @@ static void rtw_coex_action_bt_relink(struct rtw_dev *rtwdev)
 	}
 
 	rtw_coex_table(rtwdev, false, table_case);
-	rtw_coex_tdma(rtwdev, false, tdma_case);
+	rtw_coex_tdma(rtwdev, false, tdma_case | slot_type);
 }
 
 static void rtw_coex_action_bt_idle(struct rtw_dev *rtwdev)

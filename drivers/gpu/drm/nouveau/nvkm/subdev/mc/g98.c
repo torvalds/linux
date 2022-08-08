@@ -62,7 +62,7 @@ g98_mc = {
 };
 
 int
-g98_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+g98_mc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_mc **pmc)
 {
-	return nvkm_mc_new_(&g98_mc, device, index, pmc);
+	return nvkm_mc_new_(&g98_mc, device, type, inst, pmc);
 }

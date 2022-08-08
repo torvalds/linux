@@ -691,7 +691,7 @@ static struct snd_soc_dai_driver cs35l33_dai = {
 			.formats = CS35L33_FORMATS,
 		},
 		.ops = &cs35l33_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 };
 
 static int cs35l33_set_hg_data(struct snd_soc_component *component,

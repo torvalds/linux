@@ -273,14 +273,12 @@ err_clk_enable:
 	return ret;
 }
 
-static int pl172_remove(struct amba_device *adev)
+static void pl172_remove(struct amba_device *adev)
 {
 	struct pl172_data *pl172 = amba_get_drvdata(adev);
 
 	clk_disable_unprepare(pl172->clk);
 	amba_release_regions(adev);
-
-	return 0;
 }
 
 static const struct amba_id pl172_ids[] = {

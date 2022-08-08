@@ -467,7 +467,7 @@ int mlx5_eq_table_init(struct mlx5_core_dev *dev)
 	for (i = 0; i < MLX5_EVENT_TYPE_MAX; i++)
 		ATOMIC_INIT_NOTIFIER_HEAD(&eq_table->nh[i]);
 
-	eq_table->irq_table = dev->priv.irq_table;
+	eq_table->irq_table = mlx5_irq_table_get(dev);
 	return 0;
 }
 
@@ -594,6 +594,9 @@ static void gather_async_events_mask(struct mlx5_core_dev *dev, u64 mask[4])
 	if (mlx5_eswitch_is_funcs_handler(dev))
 		async_event_mask |=
 			(1ull << MLX5_EVENT_TYPE_ESW_FUNCTIONS_CHANGED);
+
+	if (MLX5_CAP_GEN_MAX(dev, vhca_state))
+		async_event_mask |= (1ull << MLX5_EVENT_TYPE_VHCA_STATE_CHANGE);
 
 	mask[0] = async_event_mask;
 
@@ -928,13 +931,24 @@ void mlx5_core_eq_free_irqs(struct mlx5_core_dev *dev)
 	mutex_unlock(&table->lock);
 }
 
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+#define MLX5_MAX_ASYNC_EQS 4
+#else
+#define MLX5_MAX_ASYNC_EQS 3
+#endif
+
 int mlx5_eq_table_create(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
+	int num_eqs = MLX5_CAP_GEN(dev, max_num_eqs) ?
+		      MLX5_CAP_GEN(dev, max_num_eqs) :
+		      1 << MLX5_CAP_GEN(dev, log_max_eq);
 	int err;
 
 	eq_table->num_comp_eqs =
-		mlx5_irq_get_num_comp(eq_table->irq_table);
+		min_t(int,
+		      mlx5_irq_get_num_comp(eq_table->irq_table),
+		      num_eqs - MLX5_MAX_ASYNC_EQS);
 
 	err = create_async_eqs(dev);
 	if (err) {

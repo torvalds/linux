@@ -98,6 +98,7 @@ static const struct hw_sequencer_funcs dcn301_funcs = {
 	.set_abm_immediate_disable = dcn21_set_abm_immediate_disable,
 	.set_pipe = dcn21_set_pipe,
 	.set_disp_pattern_generator = dcn30_set_disp_pattern_generator,
+	.set_hubp_blank = dcn30_set_hubp_blank,
 };
 
 static const struct hwseq_private_funcs dcn301_private_funcs = {

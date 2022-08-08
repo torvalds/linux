@@ -106,11 +106,11 @@ don't. When you need open drain signaling but your hardware doesn't directly
 support it, there's a common idiom you can use to emulate it with any GPIO pin
 that can be used as either an input or an output:
 
- LOW:	gpiod_direction_output(gpio, 0) ... this drives the signal and overrides
-	the pullup.
+ **LOW**: ``gpiod_direction_output(gpio, 0)`` ... this drives the signal and
+ overrides the pullup.
 
- HIGH:	gpiod_direction_input(gpio) ... this turns off the output, so the pullup
-	(or some other device) controls the signal.
+ **HIGH**: ``gpiod_direction_input(gpio)`` ... this turns off the output, so
+ the pullup (or some other device) controls the signal.
 
 The same logic can be applied to emulate open source signaling, by driving the
 high signal and configuring the GPIO as input for low. This open drain/open

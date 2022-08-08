@@ -1524,6 +1524,14 @@ basic()
 	run_cmd "$IP nexthop replace id 2 blackhole dev veth1"
 	log_test $? 2 "Blackhole nexthop with other attributes"
 
+	# blackhole nexthop should not be affected by the state of the loopback
+	# device
+	run_cmd "$IP link set dev lo down"
+	check_nexthop "id 2" "id 2 blackhole"
+	log_test $? 0 "Blackhole nexthop with loopback device down"
+
+	run_cmd "$IP link set dev lo up"
+
 	#
 	# groups
 	#

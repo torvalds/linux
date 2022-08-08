@@ -212,18 +212,6 @@ static const struct can_bittiming_const c_can_bittiming_const = {
 	.brp_inc = 1,
 };
 
-static inline void c_can_pm_runtime_enable(const struct c_can_priv *priv)
-{
-	if (priv->device)
-		pm_runtime_enable(priv->device);
-}
-
-static inline void c_can_pm_runtime_disable(const struct c_can_priv *priv)
-{
-	if (priv->device)
-		pm_runtime_disable(priv->device);
-}
-
 static inline void c_can_pm_runtime_get_sync(const struct c_can_priv *priv)
 {
 	if (priv->device)
@@ -476,7 +464,7 @@ static netdev_tx_t c_can_start_xmit(struct sk_buff *skb,
 	 */
 	c_can_setup_tx_object(dev, IF_TX, frame, idx);
 	priv->dlc[idx] = frame->len;
-	can_put_echo_skb(skb, dev, idx);
+	can_put_echo_skb(skb, dev, idx, 0);
 
 	/* Update the active bits */
 	atomic_add((1 << idx), &priv->tx_active);
@@ -733,7 +721,7 @@ static void c_can_do_tx(struct net_device *dev)
 		pend &= ~(1 << idx);
 		obj = idx + C_CAN_MSG_OBJ_TX_FIRST;
 		c_can_inval_tx_object(dev, IF_RX, obj);
-		can_get_echo_skb(dev, idx);
+		can_get_echo_skb(dev, idx, NULL);
 		bytes += priv->dlc[idx];
 		pkts++;
 	}
@@ -1335,7 +1323,6 @@ static const struct net_device_ops c_can_netdev_ops = {
 
 int register_c_can_dev(struct net_device *dev)
 {
-	struct c_can_priv *priv = netdev_priv(dev);
 	int err;
 
 	/* Deactivate pins to prevent DRA7 DCAN IP from being
@@ -1345,28 +1332,19 @@ int register_c_can_dev(struct net_device *dev)
 	 */
 	pinctrl_pm_select_sleep_state(dev->dev.parent);
 
-	c_can_pm_runtime_enable(priv);
-
 	dev->flags |= IFF_ECHO;	/* we support local echo */
 	dev->netdev_ops = &c_can_netdev_ops;
 
 	err = register_candev(dev);
-	if (err)
-		c_can_pm_runtime_disable(priv);
-	else
+	if (!err)
 		devm_can_led_init(dev);
-
 	return err;
 }
 EXPORT_SYMBOL_GPL(register_c_can_dev);
 
 void unregister_c_can_dev(struct net_device *dev)
 {
-	struct c_can_priv *priv = netdev_priv(dev);
-
 	unregister_candev(dev);
-
-	c_can_pm_runtime_disable(priv);
 }
 EXPORT_SYMBOL_GPL(unregister_c_can_dev);
 

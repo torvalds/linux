@@ -72,6 +72,8 @@
 #include "gt/intel_context_param.h"
 #include "gt/intel_engine_heartbeat.h"
 #include "gt/intel_engine_user.h"
+#include "gt/intel_execlists_submission.h" /* virtual_engine */
+#include "gt/intel_gpu_commands.h"
 #include "gt/intel_ring.h"
 
 #include "i915_gem_context.h"
@@ -333,13 +335,12 @@ static struct i915_gem_engines *default_engines(struct i915_gem_context *ctx)
 	return e;
 }
 
-static void i915_gem_context_free(struct i915_gem_context *ctx)
+void i915_gem_context_release(struct kref *ref)
 {
-	GEM_BUG_ON(!i915_gem_context_is_closed(ctx));
+	struct i915_gem_context *ctx = container_of(ref, typeof(*ctx), ref);
 
-	spin_lock(&ctx->i915->gem.contexts.lock);
-	list_del(&ctx->link);
-	spin_unlock(&ctx->i915->gem.contexts.lock);
+	trace_i915_context_free(ctx);
+	GEM_BUG_ON(!i915_gem_context_is_closed(ctx));
 
 	mutex_destroy(&ctx->engines_mutex);
 	mutex_destroy(&ctx->lut_mutex);
@@ -351,37 +352,6 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 	mutex_destroy(&ctx->mutex);
 
 	kfree_rcu(ctx, rcu);
-}
-
-static void contexts_free_all(struct llist_node *list)
-{
-	struct i915_gem_context *ctx, *cn;
-
-	llist_for_each_entry_safe(ctx, cn, list, free_link)
-		i915_gem_context_free(ctx);
-}
-
-static void contexts_flush_free(struct i915_gem_contexts *gc)
-{
-	contexts_free_all(llist_del_all(&gc->free_list));
-}
-
-static void contexts_free_worker(struct work_struct *work)
-{
-	struct i915_gem_contexts *gc =
-		container_of(work, typeof(*gc), free_work);
-
-	contexts_flush_free(gc);
-}
-
-void i915_gem_context_release(struct kref *ref)
-{
-	struct i915_gem_context *ctx = container_of(ref, typeof(*ctx), ref);
-	struct i915_gem_contexts *gc = &ctx->i915->gem.contexts;
-
-	trace_i915_context_free(ctx);
-	if (llist_add(&ctx->free_link, &gc->free_list))
-		schedule_work(&gc->free_work);
 }
 
 static inline struct i915_gem_engines *
@@ -438,7 +408,7 @@ __active_engine(struct i915_request *rq, struct intel_engine_cs **active)
 	}
 
 	if (i915_request_is_active(rq)) {
-		if (!i915_request_completed(rq))
+		if (!__i915_request_is_complete(rq))
 			*active = locked;
 		ret = true;
 	}
@@ -452,6 +422,9 @@ static struct intel_engine_cs *active_engine(struct intel_context *ce)
 {
 	struct intel_engine_cs *engine = NULL;
 	struct i915_request *rq;
+
+	if (intel_context_has_inflight(ce))
+		return intel_context_inflight(ce);
 
 	if (!ce->timeline)
 		return NULL;
@@ -632,6 +605,10 @@ static void context_close(struct i915_gem_context *ctx)
 	 */
 	lut_close(ctx);
 
+	spin_lock(&ctx->i915->gem.contexts.lock);
+	list_del(&ctx->link);
+	spin_unlock(&ctx->i915->gem.contexts.lock);
+
 	mutex_unlock(&ctx->mutex);
 
 	/*
@@ -740,7 +717,8 @@ err_free:
 }
 
 static inline struct i915_gem_engines *
-__context_engines_await(const struct i915_gem_context *ctx)
+__context_engines_await(const struct i915_gem_context *ctx,
+			bool *user_engines)
 {
 	struct i915_gem_engines *engines;
 
@@ -749,6 +727,10 @@ __context_engines_await(const struct i915_gem_context *ctx)
 		engines = rcu_dereference(ctx->engines);
 		GEM_BUG_ON(!engines);
 
+		if (user_engines)
+			*user_engines = i915_gem_context_user_engines(ctx);
+
+		/* successful await => strong mb */
 		if (unlikely(!i915_sw_fence_await(&engines->fence)))
 			continue;
 
@@ -772,7 +754,7 @@ context_apply_all(struct i915_gem_context *ctx,
 	struct intel_context *ce;
 	int err = 0;
 
-	e = __context_engines_await(ctx);
+	e = __context_engines_await(ctx, NULL);
 	for_each_gem_engine(ce, e, it) {
 		err = fn(ce, data);
 		if (err)
@@ -849,9 +831,6 @@ i915_gem_create_context(struct drm_i915_private *i915, unsigned int flags)
 	    !HAS_EXECLISTS(i915))
 		return ERR_PTR(-EINVAL);
 
-	/* Reap the stale contexts */
-	contexts_flush_free(&i915->gem.contexts);
-
 	ctx = __create_context(i915);
 	if (IS_ERR(ctx))
 		return ctx;
@@ -896,23 +875,11 @@ static void init_contexts(struct i915_gem_contexts *gc)
 {
 	spin_lock_init(&gc->lock);
 	INIT_LIST_HEAD(&gc->list);
-
-	INIT_WORK(&gc->free_work, contexts_free_worker);
-	init_llist_head(&gc->free_list);
 }
 
 void i915_gem_init__contexts(struct drm_i915_private *i915)
 {
 	init_contexts(&i915->gem.contexts);
-	drm_dbg(&i915->drm, "%s context support initialized\n",
-		DRIVER_CAPS(i915)->has_logical_contexts ?
-		"logical" : "fake");
-}
-
-void i915_gem_driver_release__contexts(struct drm_i915_private *i915)
-{
-	flush_work(&i915->gem.contexts.free_work);
-	rcu_barrier(); /* and flush the left over RCU frees */
 }
 
 static int gem_context_register(struct i915_gem_context *ctx,
@@ -988,7 +955,6 @@ err:
 void i915_gem_context_close(struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
-	struct drm_i915_private *i915 = file_priv->dev_priv;
 	struct i915_address_space *vm;
 	struct i915_gem_context *ctx;
 	unsigned long idx;
@@ -1000,8 +966,6 @@ void i915_gem_context_close(struct drm_file *file)
 	xa_for_each(&file_priv->vm_xa, idx, vm)
 		i915_vm_put(vm);
 	xa_destroy(&file_priv->vm_xa);
-
-	contexts_flush_free(&i915->gem.contexts);
 }
 
 int i915_gem_vm_create_ioctl(struct drm_device *dev, void *data,
@@ -1116,7 +1080,7 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 		return err;
 	}
 
-	e = __context_engines_await(ctx);
+	e = __context_engines_await(ctx, NULL);
 	if (!e) {
 		i915_active_release(&cb->base);
 		return -ENOENT;
@@ -1879,27 +1843,6 @@ replace:
 	return 0;
 }
 
-static struct i915_gem_engines *
-__copy_engines(struct i915_gem_engines *e)
-{
-	struct i915_gem_engines *copy;
-	unsigned int n;
-
-	copy = alloc_engines(e->num_engines);
-	if (!copy)
-		return ERR_PTR(-ENOMEM);
-
-	for (n = 0; n < e->num_engines; n++) {
-		if (e->engines[n])
-			copy->engines[n] = intel_context_get(e->engines[n]);
-		else
-			copy->engines[n] = NULL;
-	}
-	copy->num_engines = n;
-
-	return copy;
-}
-
 static int
 get_engines(struct i915_gem_context *ctx,
 	    struct drm_i915_gem_context_param *args)
@@ -1907,19 +1850,17 @@ get_engines(struct i915_gem_context *ctx,
 	struct i915_context_param_engines __user *user;
 	struct i915_gem_engines *e;
 	size_t n, count, size;
+	bool user_engines;
 	int err = 0;
 
-	err = mutex_lock_interruptible(&ctx->engines_mutex);
-	if (err)
-		return err;
+	e = __context_engines_await(ctx, &user_engines);
+	if (!e)
+		return -ENOENT;
 
-	e = NULL;
-	if (i915_gem_context_user_engines(ctx))
-		e = __copy_engines(i915_gem_context_engines(ctx));
-	mutex_unlock(&ctx->engines_mutex);
-	if (IS_ERR_OR_NULL(e)) {
+	if (!user_engines) {
+		i915_sw_fence_complete(&e->fence);
 		args->size = 0;
-		return PTR_ERR_OR_ZERO(e);
+		return 0;
 	}
 
 	count = e->num_engines;
@@ -1970,7 +1911,7 @@ get_engines(struct i915_gem_context *ctx,
 	args->size = size;
 
 err_free:
-	free_engines(e);
+	i915_sw_fence_complete(&e->fence);
 	return err;
 }
 
@@ -2136,10 +2077,13 @@ static int copy_ring_size(struct intel_context *dst,
 static int clone_engines(struct i915_gem_context *dst,
 			 struct i915_gem_context *src)
 {
-	struct i915_gem_engines *e = i915_gem_context_lock_engines(src);
-	struct i915_gem_engines *clone;
+	struct i915_gem_engines *clone, *e;
 	bool user_engines;
 	unsigned long n;
+
+	e = __context_engines_await(src, &user_engines);
+	if (!e)
+		return -ENOENT;
 
 	clone = alloc_engines(e->num_engines);
 	if (!clone)
@@ -2182,9 +2126,7 @@ static int clone_engines(struct i915_gem_context *dst,
 		}
 	}
 	clone->num_engines = n;
-
-	user_engines = i915_gem_context_user_engines(src);
-	i915_gem_context_unlock_engines(src);
+	i915_sw_fence_complete(&e->fence);
 
 	/* Serialised by constructor */
 	engines_idle_release(dst, rcu_replace_pointer(dst->engines, clone, 1));
@@ -2195,7 +2137,7 @@ static int clone_engines(struct i915_gem_context *dst,
 	return 0;
 
 err_unlock:
-	i915_gem_context_unlock_engines(src);
+	i915_sw_fence_complete(&e->fence);
 	return -ENOMEM;
 }
 

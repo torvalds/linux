@@ -2897,7 +2897,7 @@ static netdev_tx_t myri10ge_sw_tso(struct sk_buff *skb,
 			dev_kfree_skb_any(curr);
 			if (segs != NULL) {
 				curr = segs;
-				segs = segs->next;
+				segs = next;
 				curr->next = NULL;
 				dev_kfree_skb_any(segs);
 			}

@@ -20,13 +20,11 @@
 #include <linux/genalloc.h>
 #include <linux/gfp.h>
 #include <linux/pgtable.h>
+#include <asm/efi.h>
 #include <asm/page.h>
 #include <asm/pal.h>
 #include <linux/atomic.h>
 #include <asm/tlbflush.h>
-
-
-extern void __init efi_memmap_walk_uc(efi_freemem_callback_t, void *);
 
 struct uncached_pool {
 	struct gen_pool *pool;

@@ -17,16 +17,6 @@ struct cpu_spec;
 typedef	void (*cpu_setup_t)(unsigned long offset, struct cpu_spec* spec);
 typedef	void (*cpu_restore_t)(void);
 
-enum powerpc_oprofile_type {
-	PPC_OPROFILE_INVALID = 0,
-	PPC_OPROFILE_RS64 = 1,
-	PPC_OPROFILE_POWER4 = 2,
-	PPC_OPROFILE_G4 = 3,
-	PPC_OPROFILE_FSL_EMB = 4,
-	PPC_OPROFILE_CELL = 5,
-	PPC_OPROFILE_PA6T = 6,
-};
-
 enum powerpc_pmc_type {
 	PPC_PMC_DEFAULT = 0,
 	PPC_PMC_IBM = 1,
@@ -82,16 +72,6 @@ struct cpu_spec {
 
 	/* Used by oprofile userspace to select the right counters */
 	char		*oprofile_cpu_type;
-
-	/* Processor specific oprofile operations */
-	enum powerpc_oprofile_type oprofile_type;
-
-	/* Bit locations inside the mmcra change */
-	unsigned long	oprofile_mmcra_sihv;
-	unsigned long	oprofile_mmcra_sipr;
-
-	/* Bits to clear during an oprofile exception */
-	unsigned long	oprofile_mmcra_clear;
 
 	/* Name of processor class, for the ELF AT_PLATFORM entry */
 	char		*platform;

@@ -520,7 +520,7 @@ static struct snd_soc_dai_driver max9867_dai[] = {
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 	.ops = &max9867_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 	}
 };
 

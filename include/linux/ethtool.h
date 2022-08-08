@@ -87,9 +87,7 @@ u32 ethtool_op_get_link(struct net_device *dev);
 int ethtool_op_get_ts_info(struct net_device *dev, struct ethtool_ts_info *eti);
 
 
-/**
- * struct ethtool_link_ext_state_info - link extended state and substate.
- */
+/* Link extended state and substate. */
 struct ethtool_link_ext_state_info {
 	enum ethtool_link_ext_state link_ext_state;
 	union {
@@ -128,6 +126,7 @@ struct ethtool_link_ksettings {
 		__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
 		__ETHTOOL_DECLARE_LINK_MODE_MASK(lp_advertising);
 	} link_modes;
+	u32	lanes;
 };
 
 /**
@@ -265,6 +264,8 @@ struct ethtool_pause_stats {
 
 /**
  * struct ethtool_ops - optional netdev operations
+ * @cap_link_lanes_supported: indicates if the driver supports lanes
+ *	parameter.
  * @supported_coalesce_params: supported types of interrupt coalescing.
  * @get_drvinfo: Report driver/device information.  Should only set the
  *	@driver, @version, @fw_version and @bus_info fields.  If not
@@ -288,6 +289,9 @@ struct ethtool_pause_stats {
  *	do not attach ext_substate attribute to netlink message). If link_ext_state
  *	and link_ext_substate are unknown, return -ENODATA. If not implemented,
  *	link_ext_state and link_ext_substate will not be sent to userspace.
+ * @get_eeprom_len: Read range of EEPROM addresses for validation of
+ *	@get_eeprom and @set_eeprom requests.
+ *	Returns 0 if device does not support EEPROM access.
  * @get_eeprom: Read data from the device EEPROM.
  *	Should fill in the magic field.  Don't need to check len for zero
  *	or wraparound.  Fill in the data argument with the eeprom values
@@ -380,6 +384,8 @@ struct ethtool_pause_stats {
  * @get_module_eeprom: Get the eeprom information from the plug-in module
  * @get_eee: Get Energy-Efficient (EEE) supported and status.
  * @set_eee: Set EEE status (enable/disable) as well as LPI timers.
+ * @get_tunable: Read the value of a driver / device tunable.
+ * @set_tunable: Set the value of a driver / device tunable.
  * @get_per_queue_coalesce: Get interrupt coalescing parameters per queue.
  *	It must check that the given queue number is valid. If neither a RX nor
  *	a TX queue has this number, return -EINVAL. If only a RX queue or a TX
@@ -420,6 +426,7 @@ struct ethtool_pause_stats {
  * of the generic netdev features interface.
  */
 struct ethtool_ops {
+	u32     cap_link_lanes_supported:1;
 	u32	supported_coalesce_params;
 	void	(*get_drvinfo)(struct net_device *, struct ethtool_drvinfo *);
 	int	(*get_regs_len)(struct net_device *);
@@ -542,8 +549,8 @@ struct phy_tdr_config;
  * @get_sset_count: Get number of strings that @get_strings will write.
  * @get_strings: Return a set of strings that describe the requested objects
  * @get_stats: Return extended statistics about the PHY device.
- * @start_cable_test - Start a cable test
- * @start_cable_test_tdr - Start a Time Domain Reflectometry cable test
+ * @start_cable_test: Start a cable test
+ * @start_cable_test_tdr: Start a Time Domain Reflectometry cable test
  *
  * All operations are optional (i.e. the function pointer may be set to %NULL)
  * and callers must take this into account. Callers must hold the RTNL lock.
@@ -566,4 +573,12 @@ struct ethtool_phy_ops {
  */
 void ethtool_set_ethtool_phy_ops(const struct ethtool_phy_ops *ops);
 
+/*
+ * ethtool_params_from_link_mode - Derive link parameters from a given link mode
+ * @link_ksettings: Link parameters to be derived from the link mode
+ * @link_mode: Link mode
+ */
+void
+ethtool_params_from_link_mode(struct ethtool_link_ksettings *link_ksettings,
+			      enum ethtool_link_mode_bit_indices link_mode);
 #endif /* _LINUX_ETHTOOL_H */

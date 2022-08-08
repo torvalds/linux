@@ -35,9 +35,9 @@
 struct sg_table *radeon_gem_prime_get_sg_table(struct drm_gem_object *obj)
 {
 	struct radeon_bo *bo = gem_to_radeon_bo(obj);
-	int npages = bo->tbo.num_pages;
 
-	return drm_prime_pages_to_sg(obj->dev, bo->tbo.ttm->pages, npages);
+	return drm_prime_pages_to_sg(obj->dev, bo->tbo.ttm->pages,
+				     bo->tbo.ttm->num_pages);
 }
 
 struct drm_gem_object *radeon_gem_prime_import_sg_table(struct drm_device *dev,
@@ -55,6 +55,8 @@ struct drm_gem_object *radeon_gem_prime_import_sg_table(struct drm_device *dev,
 	dma_resv_unlock(resv);
 	if (ret)
 		return ERR_PTR(ret);
+
+	bo->tbo.base.funcs = &radeon_gem_object_funcs;
 
 	mutex_lock(&rdev->gem.mutex);
 	list_add_tail(&bo->list, &rdev->gem.objects);

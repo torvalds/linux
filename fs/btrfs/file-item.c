@@ -24,8 +24,10 @@
 				       PAGE_SIZE))
 
 /**
- * @inode - the inode we want to update the disk_i_size for
- * @new_i_size - the i_size we want to set to, 0 if we use i_size
+ * Set inode's size according to filesystem options
+ *
+ * @inode:      inode we want to update the disk_i_size for
+ * @new_i_size: i_size we want to set to, 0 if we use i_size
  *
  * With NO_HOLES set this simply sets the disk_is_size to whatever i_size_read()
  * returns as it is perfectly fine with a file that has holes without hole file
@@ -62,9 +64,11 @@ void btrfs_inode_safe_disk_i_size_write(struct btrfs_inode *inode, u64 new_i_siz
 }
 
 /**
- * @inode - the inode we're modifying
- * @start - the start file offset of the file extent we've inserted
- * @len - the logical length of the file extent item
+ * Mark range within a file as having a new extent inserted
+ *
+ * @inode: inode being modified
+ * @start: start file offset of the file extent we've inserted
+ * @len:   logical length of the file extent item
  *
  * Call when we are inserting a new file extent where there was none before.
  * Does not need to call this in the case where we're replacing an existing file
@@ -88,9 +92,11 @@ int btrfs_inode_set_file_extent_range(struct btrfs_inode *inode, u64 start,
 }
 
 /**
- * @inode - the inode we're modifying
- * @start - the start file offset of the file extent we've inserted
- * @len - the logical length of the file extent item
+ * Marks an inode range as not having a backing extent
+ *
+ * @inode: inode being modified
+ * @start: start file offset of the file extent we've inserted
+ * @len:   logical length of the file extent item
  *
  * Called when we drop a file extent, for example when we truncate.  Doesn't
  * need to be called for cases where we're replacing a file extent, like when

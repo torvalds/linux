@@ -992,14 +992,14 @@ static void intel_dsi_post_disable(struct intel_atomic_state *state,
 	 * FIXME As we do with eDP, just make a note of the time here
 	 * and perform the wait before the next panel power on.
 	 */
-	intel_dsi_msleep(intel_dsi, intel_dsi->panel_pwr_cycle_delay);
+	msleep(intel_dsi->panel_pwr_cycle_delay);
 }
 
 static void intel_dsi_shutdown(struct intel_encoder *encoder)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 
-	intel_dsi_msleep(intel_dsi, intel_dsi->panel_pwr_cycle_delay);
+	msleep(intel_dsi->panel_pwr_cycle_delay);
 }
 
 static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,

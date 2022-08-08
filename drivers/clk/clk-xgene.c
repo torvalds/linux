@@ -206,17 +206,16 @@ static void xgene_pcppllclk_init(struct device_node *np)
  * @hw:		handle between common and hardware-specific interfaces
  * @reg:	register containing the fractional scale multiplier (scaler)
  * @shift:	shift to the unit bit field
+ * @mask:	mask to the unit bit field
  * @denom:	1/denominator unit
  * @lock:	register lock
- * Flags:
- * XGENE_CLK_PMD_SCALE_INVERTED - By default the scaler is the value read
+ * @flags: XGENE_CLK_PMD_SCALE_INVERTED - By default the scaler is the value read
  *	from the register plus one. For example,
  *		0 for (0 + 1) / denom,
  *		1 for (1 + 1) / denom and etc.
  *	If this flag is set, it is
  *		0 for (denom - 0) / denom,
  *		1 for (denom - 1) / denom and etc.
- *
  */
 struct xgene_clk_pmd {
 	struct clk_hw	hw;

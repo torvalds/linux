@@ -16,4 +16,20 @@ config IQS624_POS
 	  To compile this driver as a module, choose M here: the module
 	  will be called iqs624-pos.
 
+config HID_SENSOR_CUSTOM_INTEL_HINGE
+	depends on HID_SENSOR_HUB
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select HID_SENSOR_IIO_COMMON
+	select HID_SENSOR_IIO_TRIGGER
+	tristate "HID Hinge"
+	help
+	  This sensor present three angles, hinge angel, screen angles
+	  and keyboard angle respect to horizon (ground).
+	  Say yes here to build support for the HID custom
+	  intel hinge sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hid-sensor-custom-hinge.
+
 endmenu

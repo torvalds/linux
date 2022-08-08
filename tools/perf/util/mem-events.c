@@ -56,6 +56,11 @@ char * __weak perf_mem_events__name(int i)
 	return (char *)e->name;
 }
 
+__weak bool is_mem_loads_aux_event(struct evsel *leader __maybe_unused)
+{
+	return false;
+}
+
 int perf_mem_events__parse(const char *str)
 {
 	char *tok, *saveptr = NULL;
@@ -332,6 +337,29 @@ int perf_mem__lck_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	return l;
 }
 
+int perf_mem__blk_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+{
+	size_t l = 0;
+	u64 mask = PERF_MEM_BLK_NA;
+
+	sz -= 1; /* -1 for null termination */
+	out[0] = '\0';
+
+	if (mem_info)
+		mask = mem_info->data_src.mem_blk;
+
+	if (!mask || (mask & PERF_MEM_BLK_NA)) {
+		l += scnprintf(out + l, sz - l, " N/A");
+		return l;
+	}
+	if (mask & PERF_MEM_BLK_DATA)
+		l += scnprintf(out + l, sz - l, " Data");
+	if (mask & PERF_MEM_BLK_ADDR)
+		l += scnprintf(out + l, sz - l, " Addr");
+
+	return l;
+}
+
 int perf_script__meminfo_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 {
 	int i = 0;
@@ -343,6 +371,8 @@ int perf_script__meminfo_scnprintf(char *out, size_t sz, struct mem_info *mem_in
 	i += perf_mem__tlb_scnprintf(out + i, sz - i, mem_info);
 	i += scnprintf(out + i, sz - i, "|LCK ");
 	i += perf_mem__lck_scnprintf(out + i, sz - i, mem_info);
+	i += scnprintf(out + i, sz - i, "|BLK ");
+	i += perf_mem__blk_scnprintf(out + i, sz - i, mem_info);
 
 	return i;
 }
@@ -355,6 +385,7 @@ int c2c_decode_stats(struct c2c_stats *stats, struct mem_info *mi)
 	u64 lvl    = data_src->mem_lvl;
 	u64 snoop  = data_src->mem_snoop;
 	u64 lock   = data_src->mem_lock;
+	u64 blk    = data_src->mem_blk;
 	/*
 	 * Skylake might report unknown remote level via this
 	 * bit, consider it when evaluating remote HITMs.
@@ -373,6 +404,9 @@ do {				\
 	stats->nr_entries++;
 
 	if (lock & P(LOCK, LOCKED)) stats->locks++;
+
+	if (blk & P(BLK, DATA)) stats->blk_data++;
+	if (blk & P(BLK, ADDR)) stats->blk_addr++;
 
 	if (op & P(OP, LOAD)) {
 		/* load */
@@ -485,6 +519,8 @@ void c2c_add_stats(struct c2c_stats *stats, struct c2c_stats *add)
 	stats->rmt_hit		+= add->rmt_hit;
 	stats->lcl_dram		+= add->lcl_dram;
 	stats->rmt_dram		+= add->rmt_dram;
+	stats->blk_data		+= add->blk_data;
+	stats->blk_addr		+= add->blk_addr;
 	stats->nomap		+= add->nomap;
 	stats->noparse		+= add->noparse;
 }

@@ -1699,7 +1699,7 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 	struct mlx4_dev *dev = (to_mdev(qp->device))->dev;
 	int is_bonded = mlx4_is_bonded(dev);
 
-	if (flow_attr->port < 1 || flow_attr->port > qp->device->phys_port_cnt)
+	if (!rdma_is_port_valid(qp->device, flow_attr->port))
 		return ERR_PTR(-EINVAL);
 
 	if (flow_attr->flags & ~IB_FLOW_ATTR_FLAGS_DONT_TRAP)

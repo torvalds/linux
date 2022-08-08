@@ -169,7 +169,7 @@ ath11k_wmi_tlv_iter(struct ath11k_base *ab, const void *ptr, size_t len,
 		len -= sizeof(*tlv);
 
 		if (tlv_len > len) {
-			ath11k_err(ab, "wmi tlv parse failure of tag %hhu at byte %zd (%zu bytes left, %hhu expected)\n",
+			ath11k_err(ab, "wmi tlv parse failure of tag %u at byte %zd (%zu bytes left, %u expected)\n",
 				   tlv_tag, ptr - begin, len, tlv_len);
 			return -EINVAL;
 		}
@@ -177,7 +177,7 @@ ath11k_wmi_tlv_iter(struct ath11k_base *ab, const void *ptr, size_t len,
 		if (tlv_tag < ARRAY_SIZE(wmi_tlv_policies) &&
 		    wmi_tlv_policies[tlv_tag].min_len &&
 		    wmi_tlv_policies[tlv_tag].min_len > tlv_len) {
-			ath11k_err(ab, "wmi tlv parse failure of tag %hhu at byte %zd (%hhu bytes is less than min length %zu)\n",
+			ath11k_err(ab, "wmi tlv parse failure of tag %u at byte %zd (%u bytes is less than min length %zu)\n",
 				   tlv_tag, ptr - begin, tlv_len,
 				   wmi_tlv_policies[tlv_tag].min_len);
 			return -EINVAL;
@@ -2967,6 +2967,233 @@ ath11k_wmi_send_obss_spr_cmd(struct ath11k *ar, u32 vdev_id,
 			    "Failed to send WMI_PDEV_OBSS_PD_SPATIAL_REUSE_CMDID");
 		dev_kfree_skb(skb);
 	}
+	return ret;
+}
+
+int
+ath11k_wmi_pdev_set_srg_bss_color_bitmap(struct ath11k *ar, u32 *bitmap)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct ath11k_base *ab = wmi->wmi_ab->ab;
+	struct wmi_pdev_obss_pd_bitmap_cmd *cmd;
+	struct sk_buff *skb;
+	int ret, len;
+
+	len = sizeof(*cmd);
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_pdev_obss_pd_bitmap_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG,
+				     WMI_TAG_PDEV_SRG_BSS_COLOR_BITMAP_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, len - TLV_HDR_SIZE);
+	cmd->pdev_id = ar->pdev->pdev_id;
+	memcpy(cmd->bitmap, bitmap, sizeof(cmd->bitmap));
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "obss pd pdev_id %d bss color bitmap %08x %08x\n",
+		   cmd->pdev_id, cmd->bitmap[0], cmd->bitmap[1]);
+
+	ret = ath11k_wmi_cmd_send(wmi, skb,
+				  WMI_PDEV_SET_SRG_BSS_COLOR_BITMAP_CMDID);
+	if (ret) {
+		ath11k_warn(ab,
+			    "failed to send WMI_PDEV_SET_SRG_BSS_COLOR_BITMAP_CMDID");
+		dev_kfree_skb(skb);
+	}
+
+	return ret;
+}
+
+int
+ath11k_wmi_pdev_set_srg_patial_bssid_bitmap(struct ath11k *ar, u32 *bitmap)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct ath11k_base *ab = wmi->wmi_ab->ab;
+	struct wmi_pdev_obss_pd_bitmap_cmd *cmd;
+	struct sk_buff *skb;
+	int ret, len;
+
+	len = sizeof(*cmd);
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_pdev_obss_pd_bitmap_cmd *)skb->data;
+	cmd->tlv_header =
+		FIELD_PREP(WMI_TLV_TAG,
+			   WMI_TAG_PDEV_SRG_PARTIAL_BSSID_BITMAP_CMD) |
+		FIELD_PREP(WMI_TLV_LEN, len - TLV_HDR_SIZE);
+	cmd->pdev_id = ar->pdev->pdev_id;
+	memcpy(cmd->bitmap, bitmap, sizeof(cmd->bitmap));
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "obss pd pdev_id %d partial bssid bitmap %08x %08x\n",
+		   cmd->pdev_id, cmd->bitmap[0], cmd->bitmap[1]);
+
+	ret = ath11k_wmi_cmd_send(wmi, skb,
+				  WMI_PDEV_SET_SRG_PARTIAL_BSSID_BITMAP_CMDID);
+	if (ret) {
+		ath11k_warn(ab,
+			    "failed to send WMI_PDEV_SET_SRG_PARTIAL_BSSID_BITMAP_CMDID");
+		dev_kfree_skb(skb);
+	}
+
+	return ret;
+}
+
+int
+ath11k_wmi_pdev_srg_obss_color_enable_bitmap(struct ath11k *ar, u32 *bitmap)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct ath11k_base *ab = wmi->wmi_ab->ab;
+	struct wmi_pdev_obss_pd_bitmap_cmd *cmd;
+	struct sk_buff *skb;
+	int ret, len;
+
+	len = sizeof(*cmd);
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_pdev_obss_pd_bitmap_cmd *)skb->data;
+	cmd->tlv_header =
+		FIELD_PREP(WMI_TLV_TAG,
+			   WMI_TAG_PDEV_SRG_OBSS_COLOR_ENABLE_BITMAP_CMD) |
+		FIELD_PREP(WMI_TLV_LEN, len - TLV_HDR_SIZE);
+	cmd->pdev_id = ar->pdev->pdev_id;
+	memcpy(cmd->bitmap, bitmap, sizeof(cmd->bitmap));
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "obss pd srg pdev_id %d bss color enable bitmap %08x %08x\n",
+		   cmd->pdev_id, cmd->bitmap[0], cmd->bitmap[1]);
+
+	ret = ath11k_wmi_cmd_send(wmi, skb,
+				  WMI_PDEV_SET_SRG_OBSS_COLOR_ENABLE_BITMAP_CMDID);
+	if (ret) {
+		ath11k_warn(ab,
+			    "failed to send WMI_PDEV_SET_SRG_OBSS_COLOR_ENABLE_BITMAP_CMDID");
+		dev_kfree_skb(skb);
+	}
+
+	return ret;
+}
+
+int
+ath11k_wmi_pdev_srg_obss_bssid_enable_bitmap(struct ath11k *ar, u32 *bitmap)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct ath11k_base *ab = wmi->wmi_ab->ab;
+	struct wmi_pdev_obss_pd_bitmap_cmd *cmd;
+	struct sk_buff *skb;
+	int ret, len;
+
+	len = sizeof(*cmd);
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_pdev_obss_pd_bitmap_cmd *)skb->data;
+	cmd->tlv_header =
+		FIELD_PREP(WMI_TLV_TAG,
+			   WMI_TAG_PDEV_SRG_OBSS_BSSID_ENABLE_BITMAP_CMD) |
+		FIELD_PREP(WMI_TLV_LEN, len - TLV_HDR_SIZE);
+	cmd->pdev_id = ar->pdev->pdev_id;
+	memcpy(cmd->bitmap, bitmap, sizeof(cmd->bitmap));
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "obss pd srg pdev_id %d bssid enable bitmap %08x %08x\n",
+		   cmd->pdev_id, cmd->bitmap[0], cmd->bitmap[1]);
+
+	ret = ath11k_wmi_cmd_send(wmi, skb,
+				  WMI_PDEV_SET_SRG_OBSS_BSSID_ENABLE_BITMAP_CMDID);
+	if (ret) {
+		ath11k_warn(ab,
+			    "failed to send WMI_PDEV_SET_SRG_OBSS_BSSID_ENABLE_BITMAP_CMDID");
+		dev_kfree_skb(skb);
+	}
+
+	return ret;
+}
+
+int
+ath11k_wmi_pdev_non_srg_obss_color_enable_bitmap(struct ath11k *ar, u32 *bitmap)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct ath11k_base *ab = wmi->wmi_ab->ab;
+	struct wmi_pdev_obss_pd_bitmap_cmd *cmd;
+	struct sk_buff *skb;
+	int ret, len;
+
+	len = sizeof(*cmd);
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_pdev_obss_pd_bitmap_cmd *)skb->data;
+	cmd->tlv_header =
+		FIELD_PREP(WMI_TLV_TAG,
+			   WMI_TAG_PDEV_NON_SRG_OBSS_COLOR_ENABLE_BITMAP_CMD) |
+		FIELD_PREP(WMI_TLV_LEN, len - TLV_HDR_SIZE);
+	cmd->pdev_id = ar->pdev->pdev_id;
+	memcpy(cmd->bitmap, bitmap, sizeof(cmd->bitmap));
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "obss pd non_srg pdev_id %d bss color enable bitmap %08x %08x\n",
+		   cmd->pdev_id, cmd->bitmap[0], cmd->bitmap[1]);
+
+	ret = ath11k_wmi_cmd_send(wmi, skb,
+				  WMI_PDEV_SET_NON_SRG_OBSS_COLOR_ENABLE_BITMAP_CMDID);
+	if (ret) {
+		ath11k_warn(ab,
+			    "failed to send WMI_PDEV_SET_NON_SRG_OBSS_COLOR_ENABLE_BITMAP_CMDID");
+		dev_kfree_skb(skb);
+	}
+
+	return ret;
+}
+
+int
+ath11k_wmi_pdev_non_srg_obss_bssid_enable_bitmap(struct ath11k *ar, u32 *bitmap)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct ath11k_base *ab = wmi->wmi_ab->ab;
+	struct wmi_pdev_obss_pd_bitmap_cmd *cmd;
+	struct sk_buff *skb;
+	int ret, len;
+
+	len = sizeof(*cmd);
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_pdev_obss_pd_bitmap_cmd *)skb->data;
+	cmd->tlv_header =
+		FIELD_PREP(WMI_TLV_TAG,
+			   WMI_TAG_PDEV_NON_SRG_OBSS_BSSID_ENABLE_BITMAP_CMD) |
+		FIELD_PREP(WMI_TLV_LEN, len - TLV_HDR_SIZE);
+	cmd->pdev_id = ar->pdev->pdev_id;
+	memcpy(cmd->bitmap, bitmap, sizeof(cmd->bitmap));
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "obss pd non_srg pdev_id %d bssid enable bitmap %08x %08x\n",
+		   cmd->pdev_id, cmd->bitmap[0], cmd->bitmap[1]);
+
+	ret = ath11k_wmi_cmd_send(wmi, skb,
+				  WMI_PDEV_SET_NON_SRG_OBSS_BSSID_ENABLE_BITMAP_CMDID);
+	if (ret) {
+		ath11k_warn(ab,
+			    "failed to send WMI_PDEV_SET_NON_SRG_OBSS_BSSID_ENABLE_BITMAP_CMDID");
+		dev_kfree_skb(skb);
+	}
+
 	return ret;
 }
 

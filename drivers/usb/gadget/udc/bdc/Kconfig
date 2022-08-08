@@ -11,14 +11,3 @@ config USB_BDC_UDC
 
 	Say "y" here to link the driver statically, or "m" to build a dynamically
 	linked module called "bdc".
-
-if USB_BDC_UDC
-
-comment "Platform Support"
-config	USB_BDC_PCI
-	tristate "BDC support for PCIe based platforms"
-	depends on USB_PCI && BROKEN
-	default USB_BDC_UDC
-	help
-		Enable support for platforms which have BDC connected through PCIe, such as Lego3 FPGA platform.
-endif

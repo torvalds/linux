@@ -137,15 +137,7 @@ static int ktd253_backlight_probe(struct platform_device *pdev)
 		brightness = max_brightness;
 	}
 
-	if (brightness)
-		/* This will be the default ratio when the KTD253 is enabled */
-		ktd253->ratio = KTD253_MAX_RATIO;
-	else
-		ktd253->ratio = 0;
-
-	ktd253->gpiod = devm_gpiod_get(dev, "enable",
-				       brightness ? GPIOD_OUT_HIGH :
-				       GPIOD_OUT_LOW);
+	ktd253->gpiod = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(ktd253->gpiod)) {
 		ret = PTR_ERR(ktd253->gpiod);
 		if (ret != -EPROBE_DEFER)
@@ -153,6 +145,8 @@ static int ktd253_backlight_probe(struct platform_device *pdev)
 		return ret;
 	}
 	gpiod_set_consumer_name(ktd253->gpiod, dev_name(dev));
+	/* Bring backlight to a known off state */
+	msleep(KTD253_T_OFF_MS);
 
 	bl = devm_backlight_device_register(dev, dev_name(dev), dev, ktd253,
 					    &ktd253_backlight_ops, NULL);

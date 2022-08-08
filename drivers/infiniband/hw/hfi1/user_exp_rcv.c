@@ -154,12 +154,12 @@ void hfi1_user_exp_rcv_free(struct hfi1_filedata *fd)
 	fd->entry_to_rb = NULL;
 }
 
-/**
+/*
  * Release pinned receive buffer pages.
  *
- * @mapped - true if the pages have been DMA mapped. false otherwise.
- * @idx - Index of the first page to unpin.
- * @npages - No of pages to unpin.
+ * @mapped: true if the pages have been DMA mapped. false otherwise.
+ * @idx: Index of the first page to unpin.
+ * @npages: No of pages to unpin.
  *
  * If the pages have been DMA mapped (indicated by mapped parameter), their
  * info will be passed via a struct tid_rb_node. If they haven't been mapped,
@@ -189,7 +189,7 @@ static void unpin_rcv_pages(struct hfi1_filedata *fd,
 	fd->tid_n_pinned -= npages;
 }
 
-/**
+/*
  * Pin receive buffer pages.
  */
 static int pin_rcv_pages(struct hfi1_filedata *fd, struct tid_user_buf *tidbuf)

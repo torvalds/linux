@@ -27,11 +27,11 @@ static const struct nvkm_mc_map
 gf100_mc_reset[] = {
 	{ 0x00020000, NVKM_ENGINE_MSPDEC },
 	{ 0x00008000, NVKM_ENGINE_MSVLD },
-	{ 0x00002000, NVKM_SUBDEV_PMU, true },
+	{ 0x00002000, NVKM_SUBDEV_PMU, 0, true },
 	{ 0x00001000, NVKM_ENGINE_GR },
 	{ 0x00000100, NVKM_ENGINE_FIFO },
-	{ 0x00000080, NVKM_ENGINE_CE1 },
-	{ 0x00000040, NVKM_ENGINE_CE0 },
+	{ 0x00000080, NVKM_ENGINE_CE, 1 },
+	{ 0x00000040, NVKM_ENGINE_CE, 0 },
 	{ 0x00000002, NVKM_ENGINE_MSPPP },
 	{}
 };
@@ -43,10 +43,10 @@ gf100_mc_intr[] = {
 	{ 0x00008000, NVKM_ENGINE_MSVLD },
 	{ 0x00001000, NVKM_ENGINE_GR },
 	{ 0x00000100, NVKM_ENGINE_FIFO },
-	{ 0x00000040, NVKM_ENGINE_CE1 },
-	{ 0x00000020, NVKM_ENGINE_CE0 },
+	{ 0x00000040, NVKM_ENGINE_CE, 1 },
+	{ 0x00000020, NVKM_ENGINE_CE, 0 },
 	{ 0x00000001, NVKM_ENGINE_MSPPP },
-	{ 0x40000000, NVKM_SUBDEV_IBUS },
+	{ 0x40000000, NVKM_SUBDEV_PRIVRING },
 	{ 0x10000000, NVKM_SUBDEV_BUS },
 	{ 0x08000000, NVKM_SUBDEV_FB },
 	{ 0x02000000, NVKM_SUBDEV_LTC },
@@ -112,7 +112,7 @@ gf100_mc = {
 };
 
 int
-gf100_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+gf100_mc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_mc **pmc)
 {
-	return nvkm_mc_new_(&gf100_mc, device, index, pmc);
+	return nvkm_mc_new_(&gf100_mc, device, type, inst, pmc);
 }

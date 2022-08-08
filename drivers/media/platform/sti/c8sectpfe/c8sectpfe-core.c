@@ -826,6 +826,7 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 			dev_err(dev,
 				"reset gpio for tsin%d not valid (gpio=%d)\n",
 				tsin->tsin_id, tsin->rst_gpio);
+			ret = -EINVAL;
 			goto err_node_put;
 		}
 

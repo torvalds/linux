@@ -256,7 +256,7 @@ e cercate di evitare le "riparazioni" che fan sparire l'avvertimento senza
 però averne trovato la causa.
 
 Tenete a mente che non tutti gli avvertimenti sono disabilitati di default.
-Costruite il kernel con "make EXTRA_CFLAGS=-W" per ottenerli tutti.
+Costruite il kernel con "make KCFLAGS=-W" per ottenerli tutti.
 
 Il kernel fornisce differenti opzioni che abilitano funzionalità di debugging;
 molti di queste sono trovano all'interno del sotto menu "kernel hacking".

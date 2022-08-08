@@ -28,6 +28,54 @@ int is_skas_winch(int pid, int fd, void *data)
 	return pid == getpgrp();
 }
 
+static const char *ptrace_reg_name(int idx)
+{
+#define R(n) case HOST_##n: return #n
+
+	switch (idx) {
+#ifdef __x86_64__
+	R(BX);
+	R(CX);
+	R(DI);
+	R(SI);
+	R(DX);
+	R(BP);
+	R(AX);
+	R(R8);
+	R(R9);
+	R(R10);
+	R(R11);
+	R(R12);
+	R(R13);
+	R(R14);
+	R(R15);
+	R(ORIG_AX);
+	R(CS);
+	R(SS);
+	R(EFLAGS);
+#elif defined(__i386__)
+	R(IP);
+	R(SP);
+	R(EFLAGS);
+	R(AX);
+	R(BX);
+	R(CX);
+	R(DX);
+	R(SI);
+	R(DI);
+	R(BP);
+	R(CS);
+	R(SS);
+	R(DS);
+	R(FS);
+	R(ES);
+	R(GS);
+	R(ORIG_AX);
+#endif
+	}
+	return "";
+}
+
 static int ptrace_dump_regs(int pid)
 {
 	unsigned long regs[MAX_REG_NR];
@@ -37,8 +85,11 @@ static int ptrace_dump_regs(int pid)
 		return -errno;
 
 	printk(UM_KERN_ERR "Stub registers -\n");
-	for (i = 0; i < ARRAY_SIZE(regs); i++)
-		printk(UM_KERN_ERR "\t%d - %lx\n", i, regs[i]);
+	for (i = 0; i < ARRAY_SIZE(regs); i++) {
+		const char *regname = ptrace_reg_name(i);
+
+		printk(UM_KERN_ERR "\t%s\t(%2d): %lx\n", regname, i, regs[i]);
+	}
 
 	return 0;
 }
@@ -200,10 +251,6 @@ static int userspace_tramp(void *stack)
 	signal(SIGTERM, SIG_DFL);
 	signal(SIGWINCH, SIG_IGN);
 
-	/*
-	 * This has a pte, but it can't be mapped in with the usual
-	 * tlb_flush mechanism because this is part of that mechanism
-	 */
 	fd = phys_mapping(to_phys(__syscall_stub_start), &offset);
 	addr = mmap64((void *) STUB_CODE, UM_KERN_PAGE_SIZE,
 		      PROT_EXEC, MAP_FIXED | MAP_PRIVATE, fd, offset);
@@ -249,6 +296,7 @@ static int userspace_tramp(void *stack)
 }
 
 int userspace_pid[NR_CPUS];
+int kill_userspace_mm[NR_CPUS];
 
 /**
  * start_userspace() - prepare a new userspace process
@@ -342,6 +390,8 @@ void userspace(struct uml_pt_regs *regs, unsigned long *aux_fp_regs)
 	interrupt_end();
 
 	while (1) {
+		if (kill_userspace_mm[0])
+			fatal_sigsegv();
 
 		/*
 		 * This can legitimately fail if the process loads a
@@ -491,8 +541,14 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	 * and child's mmap2 calls
 	 */
 	*data = ((struct stub_data) {
-			.offset	= MMAP_OFFSET(new_offset),
-			.fd     = new_fd
+		.offset	= MMAP_OFFSET(new_offset),
+		.fd     = new_fd,
+		.parent_err = -ESRCH,
+		.child_err = 0,
+	});
+
+	*child_data = ((struct stub_data) {
+		.child_err = -ESRCH,
 	});
 
 	err = ptrace_setregs(pid, thread_regs);
@@ -510,9 +566,6 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 		return err;
 	}
 
-	/* set a well known return code for detection of child write failure */
-	child_data->err = 12345678;
-
 	/*
 	 * Wait, until parent has finished its work: read child's pid from
 	 * parent's stack, and check, if bad result.
@@ -527,7 +580,7 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 
 	wait_stub_done(pid);
 
-	pid = data->err;
+	pid = data->parent_err;
 	if (pid < 0) {
 		printk(UM_KERN_ERR "copy_context_skas0 - stub-parent reports "
 		       "error %d\n", -pid);
@@ -539,10 +592,10 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	 * child's stack and check it.
 	 */
 	wait_stub_done(pid);
-	if (child_data->err != STUB_DATA) {
-		printk(UM_KERN_ERR "copy_context_skas0 - stub-child reports "
-		       "error %ld\n", child_data->err);
-		err = child_data->err;
+	if (child_data->child_err != STUB_DATA) {
+		printk(UM_KERN_ERR "copy_context_skas0 - stub-child %d reports "
+		       "error %ld\n", pid, data->child_err);
+		err = data->child_err;
 		goto out_kill;
 	}
 
@@ -663,4 +716,5 @@ void reboot_skas(void)
 void __switch_mm(struct mm_id *mm_idp)
 {
 	userspace_pid[0] = mm_idp->u.pid;
+	kill_userspace_mm[0] = mm_idp->kill;
 }

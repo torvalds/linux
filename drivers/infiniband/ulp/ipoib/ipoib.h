@@ -413,7 +413,6 @@ struct ipoib_dev_priv {
 	u64	hca_caps;
 	struct ipoib_ethtool_st ethtool;
 	unsigned int max_send_sge;
-	bool sm_fullmember_sendonly_support;
 	const struct net_device_ops	*rn_ops;
 };
 

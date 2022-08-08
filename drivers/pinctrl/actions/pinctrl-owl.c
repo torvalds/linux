@@ -444,7 +444,6 @@ static int owl_group_config_get(struct pinctrl_dev *pctrldev,
 	*config = pinconf_to_config_packed(param, arg);
 
 	return ret;
-
 }
 
 static int owl_group_config_set(struct pinctrl_dev *pctrldev,

@@ -498,7 +498,7 @@ int ubifs_purge_xattrs(struct inode *host)
 	struct fscrypt_name nm = {0};
 	int err;
 
-	if (ubifs_inode(host)->xattr_cnt < ubifs_xattr_max_cnt(c))
+	if (ubifs_inode(host)->xattr_cnt <= ubifs_xattr_max_cnt(c))
 		return 0;
 
 	ubifs_warn(c, "inode %lu has too many xattrs, doing a non-atomic deletion",
@@ -681,6 +681,7 @@ static int xattr_get(const struct xattr_handler *handler,
 }
 
 static int xattr_set(const struct xattr_handler *handler,
+			   struct user_namespace *mnt_userns,
 			   struct dentry *dentry, struct inode *inode,
 			   const char *name, const void *value,
 			   size_t size, int flags)

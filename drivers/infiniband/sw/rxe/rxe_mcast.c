@@ -7,45 +7,61 @@
 #include "rxe.h"
 #include "rxe_loc.h"
 
+/* caller should hold mc_grp_pool->pool_lock */
+static struct rxe_mc_grp *create_grp(struct rxe_dev *rxe,
+				     struct rxe_pool *pool,
+				     union ib_gid *mgid)
+{
+	int err;
+	struct rxe_mc_grp *grp;
+
+	grp = rxe_alloc_locked(&rxe->mc_grp_pool);
+	if (!grp)
+		return ERR_PTR(-ENOMEM);
+
+	INIT_LIST_HEAD(&grp->qp_list);
+	spin_lock_init(&grp->mcg_lock);
+	grp->rxe = rxe;
+	rxe_add_key_locked(grp, mgid);
+
+	err = rxe_mcast_add(rxe, mgid);
+	if (unlikely(err)) {
+		rxe_drop_key_locked(grp);
+		rxe_drop_ref(grp);
+		return ERR_PTR(err);
+	}
+
+	return grp;
+}
+
 int rxe_mcast_get_grp(struct rxe_dev *rxe, union ib_gid *mgid,
 		      struct rxe_mc_grp **grp_p)
 {
 	int err;
 	struct rxe_mc_grp *grp;
+	struct rxe_pool *pool = &rxe->mc_grp_pool;
+	unsigned long flags;
 
-	if (rxe->attr.max_mcast_qp_attach == 0) {
-		err = -EINVAL;
-		goto err1;
-	}
+	if (rxe->attr.max_mcast_qp_attach == 0)
+		return -EINVAL;
 
-	grp = rxe_pool_get_key(&rxe->mc_grp_pool, mgid);
+	write_lock_irqsave(&pool->pool_lock, flags);
+
+	grp = rxe_pool_get_key_locked(pool, mgid);
 	if (grp)
 		goto done;
 
-	grp = rxe_alloc(&rxe->mc_grp_pool);
-	if (!grp) {
-		err = -ENOMEM;
-		goto err1;
+	grp = create_grp(rxe, pool, mgid);
+	if (IS_ERR(grp)) {
+		write_unlock_irqrestore(&pool->pool_lock, flags);
+		err = PTR_ERR(grp);
+		return err;
 	}
 
-	INIT_LIST_HEAD(&grp->qp_list);
-	spin_lock_init(&grp->mcg_lock);
-	grp->rxe = rxe;
-
-	rxe_add_key(grp, mgid);
-
-	err = rxe_mcast_add(rxe, mgid);
-	if (err)
-		goto err2;
-
 done:
+	write_unlock_irqrestore(&pool->pool_lock, flags);
 	*grp_p = grp;
 	return 0;
-
-err2:
-	rxe_drop_ref(grp);
-err1:
-	return err;
 }
 
 int rxe_mcast_add_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,

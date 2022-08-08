@@ -41,3 +41,30 @@
 	clocks = <&uart_clk>;
 	clock-names = "apb_pclk";
 };
+
+&piether {
+	status = "okay";
+	phy-handle = <&phy0>;
+	phy-mode = "rgmii-id";
+	clocks = <&clk300mhz>, <&clk125mhz>;
+	clock-names = "stmmaceth", "phy_ref_clk";
+
+	mdio0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "snps,dwmac-mdio";
+		phy0: ethernet-phy@1 {
+			device_type = "ethernet-phy";
+			reg = <0x1>;
+		};
+	};
+};
+
+&wdt {
+	status = "okay";
+	clocks = <&wdt_clk>;
+};
+
+&gpio {
+	status = "okay";
+};

@@ -203,7 +203,7 @@ config SPI_CADENCE
 
 config SPI_CADENCE_QUADSPI
 	tristate "Cadence Quad SPI controller"
-	depends on OF && (ARM || ARM64 || COMPILE_TEST)
+	depends on OF && (ARM || ARM64 || X86 || COMPILE_TEST)
 	help
 	  Enable support for the Cadence Quad SPI Flash controller.
 
@@ -291,13 +291,6 @@ config SPI_DLN2
 
 	 This driver can also be built as a module.  If so, the module
 	 will be called spi-dln2.
-
-config SPI_EFM32
-	tristate "EFM32 SPI controller"
-	depends on OF && ARM && (ARCH_EFM32 || COMPILE_TEST)
-	select SPI_BITBANG
-	help
-	  Driver for the spi controller found on Energy Micro's EFM32 SoCs.
 
 config SPI_EP93XX
 	tristate "Cirrus Logic EP93xx SPI controller"
@@ -601,7 +594,6 @@ config SPI_PIC32_SQI
 config SPI_PL022
 	tristate "ARM AMBA PL022 SSP controller"
 	depends on ARM_AMBA
-	default y if MACH_U300
 	default y if ARCH_REALVIEW
 	default y if INTEGRATOR_IMPD1
 	default y if ARCH_VERSATILE
@@ -650,7 +642,7 @@ config SPI_RPCIF
 	tristate "Renesas RPC-IF SPI driver"
 	depends on RENESAS_RPCIF
 	help
-	  SPI driver for Renesas R-Car Gen3 RPC-IF.
+	  SPI driver for Renesas R-Car Gen3 or RZ/G2 RPC-IF.
 
 config SPI_RSPI
 	tristate "Renesas RSPI/QSPI controller"
@@ -751,13 +743,6 @@ config SPI_SIFIVE
 	help
 	  This exposes the SPI controller IP from SiFive.
 
-config SPI_SIRF
-	tristate "CSR SiRFprimaII SPI controller"
-	depends on SIRF_DMA
-	select SPI_BITBANG
-	help
-	  SPI driver for CSR SiRFprimaII SoCs
-
 config SPI_SLAVE_MT27XX
 	tristate "MediaTek SPI slave device"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
@@ -843,6 +828,15 @@ config SPI_MXS
 	help
 	  SPI driver for Freescale MXS devices.
 
+config SPI_TEGRA210_QUAD
+	tristate "NVIDIA Tegra QSPI Controller"
+	depends on ARCH_TEGRA || COMPILE_TEST
+	depends on RESET_CONTROLLER
+	help
+	  QSPI driver for NVIDIA Tegra QSPI Controller interface. This
+	  controller is different from the SPI controller and is available
+	  on Tegra SoCs starting from Tegra210.
+
 config SPI_TEGRA114
 	tristate "NVIDIA Tegra114 SPI Controller"
 	depends on (ARCH_TEGRA && TEGRA20_APB_DMA) || COMPILE_TEST
@@ -884,12 +878,6 @@ config SPI_TOPCLIFF_PCH
 
 	  This driver also supports the ML7213/ML7223/ML7831, a companion chip
 	  for the Atom E6xx series and compatible with the Intel EG20T PCH.
-
-config SPI_TXX9
-	tristate "Toshiba TXx9 SPI controller"
-	depends on GPIOLIB && (CPU_TX49XX || COMPILE_TEST)
-	help
-	  SPI driver for Toshiba TXx9 MIPS SoCs
 
 config SPI_UNIPHIER
 	tristate "Socionext UniPhier SPI Controller"

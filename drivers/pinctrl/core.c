@@ -1604,8 +1604,8 @@ static int pinctrl_pins_show(struct seq_file *s, void *what)
 	unsigned i, pin;
 #ifdef CONFIG_GPIOLIB
 	struct pinctrl_gpio_range *range;
-	unsigned int gpio_num;
 	struct gpio_chip *chip;
+	int gpio_num;
 #endif
 
 	seq_printf(s, "registered pins: %d\n", pctldev->desc->npins);
@@ -1625,7 +1625,7 @@ static int pinctrl_pins_show(struct seq_file *s, void *what)
 		seq_printf(s, "pin %d (%s) ", pin, desc->name);
 
 #ifdef CONFIG_GPIOLIB
-		gpio_num = 0;
+		gpio_num = -1;
 		list_for_each_entry(range, &pctldev->gpio_ranges, node) {
 			if ((pin >= range->pin_base) &&
 			    (pin < (range->pin_base + range->npins))) {
@@ -1633,10 +1633,12 @@ static int pinctrl_pins_show(struct seq_file *s, void *what)
 				break;
 			}
 		}
-		chip = gpio_to_chip(gpio_num);
-		if (chip && chip->gpiodev && chip->gpiodev->base)
-			seq_printf(s, "%u:%s ", gpio_num -
-				chip->gpiodev->base, chip->label);
+		if (gpio_num >= 0)
+			chip = gpio_to_chip(gpio_num);
+		else
+			chip = NULL;
+		if (chip)
+			seq_printf(s, "%u:%s ", gpio_num - chip->gpiodev->base, chip->label);
 		else
 			seq_puts(s, "0:? ");
 #endif
@@ -2117,7 +2119,6 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 		return ERR_PTR(error);
 
 	return pctldev;
-
 }
 EXPORT_SYMBOL_GPL(pinctrl_register);
 

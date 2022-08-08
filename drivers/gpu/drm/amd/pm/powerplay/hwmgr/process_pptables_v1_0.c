@@ -1362,6 +1362,7 @@ static int ppt_get_vce_state_table_entry_v1_0(struct pp_hwmgr *hwmgr, uint32_t i
  * @hwmgr: Pointer to the hardware manager.
  * @entry_index: The index of the entry to be extracted from the table.
  * @power_state: The address of the PowerState instance being created.
+ * @call_back_func: The function to call into to fill power state
  * Return: -1 if the entry cannot be retrieved.
  */
 int get_powerplay_table_entry_v1_0(struct pp_hwmgr *hwmgr,

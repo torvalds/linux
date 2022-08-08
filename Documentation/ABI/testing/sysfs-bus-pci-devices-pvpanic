@@ -1,0 +1,24 @@
+What:		/sys/devices/pci0000:00/*/QEMU0001:00/capability
+Date:		Jan 2021
+Contact:	zhenwei pi <pizhenwei@bytedance.com>
+Description:
+		Read-only attribute. Capabilities of pvpanic device which
+		are supported by QEMU.
+
+		Format: %x.
+
+		Detailed bit definition refers to section <Bit Definition>
+		from pvpanic device specification:
+		https://git.qemu.org/?p=qemu.git;a=blob_plain;f=docs/specs/pvpanic.txt
+
+What:		/sys/devices/pci0000:00/*/QEMU0001:00/events
+Date:		Jan 2021
+Contact:	zhenwei pi <pizhenwei@bytedance.com>
+Description:
+		RW attribute. Set/get which features in-use. This attribute
+		is used to enable/disable feature(s) of pvpanic device.
+		Notice that this value should be a subset of capability.
+
+		Format: %x.
+
+		Also refer to pvpanic device specification.

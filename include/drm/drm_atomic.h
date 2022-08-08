@@ -248,6 +248,26 @@ struct drm_private_state_funcs {
  *    drm_dev_register()
  * 2/ all calls to drm_atomic_private_obj_fini() must be done after calling
  *    drm_dev_unregister()
+ *
+ * If that private object is used to store a state shared by multiple
+ * CRTCs, proper care must be taken to ensure that non-blocking commits are
+ * properly ordered to avoid a use-after-free issue.
+ *
+ * Indeed, assuming a sequence of two non-blocking &drm_atomic_commit on two
+ * different &drm_crtc using different &drm_plane and &drm_connector, so with no
+ * resources shared, there's no guarantee on which commit is going to happen
+ * first. However, the second &drm_atomic_commit will consider the first
+ * &drm_private_obj its old state, and will be in charge of freeing it whenever
+ * the second &drm_atomic_commit is done.
+ *
+ * If the first &drm_atomic_commit happens after it, it will consider its
+ * &drm_private_obj the new state and will be likely to access it, resulting in
+ * an access to a freed memory region. Drivers should store (and get a reference
+ * to) the &drm_crtc_commit structure in our private state in
+ * &drm_mode_config_helper_funcs.atomic_commit_setup, and then wait for that
+ * commit to complete as the first step of
+ * &drm_mode_config_helper_funcs.atomic_commit_tail, similar to
+ * drm_atomic_helper_wait_for_dependencies().
  */
 struct drm_private_obj {
 	/**

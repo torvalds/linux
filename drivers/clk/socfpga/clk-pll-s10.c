@@ -27,9 +27,36 @@
 #define SWCTRLBTCLKSEL_MASK		0x200
 #define SWCTRLBTCLKSEL_SHIFT		9
 
+#define SOCFPGA_N5X_PLLDIV_FDIV_MASK	GENMASK(16, 8)
+#define SOCFPGA_N5X_PLLDIV_FDIV_SHIFT	8
+#define SOCFPGA_N5X_PLLDIV_RDIV_MASK	GENMASK(5, 0)
+#define SOCFPGA_N5X_PLLDIV_QDIV_MASK	GENMASK(26, 24)
+#define SOCFPGA_N5X_PLLDIV_QDIV_SHIFT	24
+
 #define SOCFPGA_BOOT_CLK		"boot_clk"
 
 #define to_socfpga_clk(p) container_of(p, struct socfpga_pll, hw.hw)
+
+static unsigned long n5x_clk_pll_recalc_rate(struct clk_hw *hwclk,
+						unsigned long parent_rate)
+{
+	struct socfpga_pll *socfpgaclk = to_socfpga_clk(hwclk);
+	unsigned long fdiv, reg, rdiv, qdiv;
+	u32 power = 1;
+
+	/* read VCO1 reg for numerator and denominator */
+	reg = readl(socfpgaclk->hw.reg + 0x8);
+	fdiv = (reg & SOCFPGA_N5X_PLLDIV_FDIV_MASK) >> SOCFPGA_N5X_PLLDIV_FDIV_SHIFT;
+	rdiv = (reg & SOCFPGA_N5X_PLLDIV_RDIV_MASK);
+	qdiv = (reg & SOCFPGA_N5X_PLLDIV_QDIV_MASK) >> SOCFPGA_N5X_PLLDIV_QDIV_SHIFT;
+
+	while (qdiv) {
+		power *= 2;
+		qdiv--;
+	}
+
+	return ((parent_rate * 2 * (fdiv + 1)) / ((rdiv + 1) * power));
+}
 
 static unsigned long agilex_clk_pll_recalc_rate(struct clk_hw *hwclk,
 						unsigned long parent_rate)
@@ -123,6 +150,25 @@ static int clk_pll_prepare(struct clk_hw *hwclk)
 	return 0;
 }
 
+static int n5x_clk_pll_prepare(struct clk_hw *hwclk)
+{
+	struct socfpga_pll *socfpgaclk = to_socfpga_clk(hwclk);
+	u32 reg;
+
+	/* Bring PLL out of reset */
+	reg = readl(socfpgaclk->hw.reg + 0x4);
+	reg |= SOCFPGA_PLL_RESET_MASK;
+	writel(reg, socfpgaclk->hw.reg + 0x4);
+
+	return 0;
+}
+
+static const struct clk_ops n5x_clk_pll_ops = {
+	.recalc_rate = n5x_clk_pll_recalc_rate,
+	.get_parent = clk_pll_get_parent,
+	.prepare = n5x_clk_pll_prepare,
+};
+
 static const struct clk_ops agilex_clk_pll_ops = {
 	.recalc_rate = agilex_clk_pll_recalc_rate,
 	.get_parent = clk_pll_get_parent,
@@ -196,6 +242,43 @@ struct clk *agilex_register_pll(const struct stratix10_pll_clock *clks,
 		init.ops = &clk_boot_ops;
 	else
 		init.ops = &agilex_clk_pll_ops;
+
+	init.name = name;
+	init.flags = clks->flags;
+
+	init.num_parents = clks->num_parents;
+	init.parent_names = NULL;
+	init.parent_data = clks->parent_data;
+	pll_clk->hw.hw.init = &init;
+
+	pll_clk->hw.bit_idx = SOCFPGA_PLL_POWER;
+
+	clk = clk_register(NULL, &pll_clk->hw.hw);
+	if (WARN_ON(IS_ERR(clk))) {
+		kfree(pll_clk);
+		return NULL;
+	}
+	return clk;
+}
+
+struct clk *n5x_register_pll(const struct stratix10_pll_clock *clks,
+			     void __iomem *reg)
+{
+	struct clk *clk;
+	struct socfpga_pll *pll_clk;
+	struct clk_init_data init;
+	const char *name = clks->name;
+
+	pll_clk = kzalloc(sizeof(*pll_clk), GFP_KERNEL);
+	if (WARN_ON(!pll_clk))
+		return NULL;
+
+	pll_clk->hw.reg = reg + clks->offset;
+
+	if (streq(name, SOCFPGA_BOOT_CLK))
+		init.ops = &clk_boot_ops;
+	else
+		init.ops = &n5x_clk_pll_ops;
 
 	init.name = name;
 	init.flags = clks->flags;

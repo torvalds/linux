@@ -600,6 +600,39 @@ static int rkisp1_isp_enum_mbus_code(struct v4l2_subdev *sd,
 	return -EINVAL;
 }
 
+static int rkisp1_isp_enum_frame_size(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_pad_config *cfg,
+				      struct v4l2_subdev_frame_size_enum *fse)
+{
+	const struct rkisp1_isp_mbus_info *mbus_info;
+
+	if (fse->pad == RKISP1_ISP_PAD_SINK_PARAMS ||
+	    fse->pad == RKISP1_ISP_PAD_SOURCE_STATS)
+		return -ENOTTY;
+
+	if (fse->index > 0)
+		return -EINVAL;
+
+	mbus_info = rkisp1_isp_mbus_info_get(fse->code);
+	if (!mbus_info)
+		return -EINVAL;
+
+	if (!(mbus_info->direction & RKISP1_ISP_SD_SINK) &&
+	    fse->pad == RKISP1_ISP_PAD_SINK_VIDEO)
+		return -EINVAL;
+
+	if (!(mbus_info->direction & RKISP1_ISP_SD_SRC) &&
+	    fse->pad == RKISP1_ISP_PAD_SOURCE_VIDEO)
+		return -EINVAL;
+
+	fse->min_width = RKISP1_ISP_MIN_WIDTH;
+	fse->max_width = RKISP1_ISP_MAX_WIDTH;
+	fse->min_height = RKISP1_ISP_MIN_HEIGHT;
+	fse->max_height = RKISP1_ISP_MAX_HEIGHT;
+
+	return 0;
+}
+
 static int rkisp1_isp_init_config(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_pad_config *cfg)
 {
@@ -880,6 +913,7 @@ static int rkisp1_subdev_link_validate(struct media_link *link)
 
 static const struct v4l2_subdev_pad_ops rkisp1_isp_pad_ops = {
 	.enum_mbus_code = rkisp1_isp_enum_mbus_code,
+	.enum_frame_size = rkisp1_isp_enum_frame_size,
 	.get_selection = rkisp1_isp_get_selection,
 	.set_selection = rkisp1_isp_set_selection,
 	.init_cfg = rkisp1_isp_init_config,

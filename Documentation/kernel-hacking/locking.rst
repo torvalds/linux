@@ -958,7 +958,7 @@ grabs a read lock, searches a list, fails to find what it wants, drops
 the read lock, grabs a write lock and inserts the object has a race
 condition.
 
-If you don't see why, please stay the fuck away from my code.
+If you don't see why, please stay away from my code.
 
 Racing Timers: A Kernel Pastime
 -------------------------------

@@ -9,10 +9,7 @@ C R+fencembonceonces
  * cause the resulting test to be allowed.
  *)
 
-{
-	int x;
-	int y;
-}
+{}
 
 P0(int *x, int *y)
 {

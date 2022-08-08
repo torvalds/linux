@@ -220,6 +220,7 @@ static bool max98373_volatile_reg(struct device *dev, unsigned int reg)
 	case MAX98373_R2054_MEAS_ADC_PVDD_CH_READBACK:
 	case MAX98373_R2055_MEAS_ADC_THERM_CH_READBACK:
 	case MAX98373_R20B6_BDE_CUR_STATE_READBACK:
+	case MAX98373_R20FF_GLOBAL_SHDN:
 	case MAX98373_R21FF_REV_ID:
 	/* SoundWire Control Port Registers */
 	case MAX98373_R0040_SCP_INIT_STAT_1 ... MAX98373_R0070_SCP_FRAME_CTLR:
@@ -262,6 +263,8 @@ static __maybe_unused int max98373_suspend(struct device *dev)
 	return 0;
 }
 
+#define MAX98373_PROBE_TIMEOUT 5000
+
 static __maybe_unused int max98373_resume(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
@@ -275,7 +278,7 @@ static __maybe_unused int max98373_resume(struct device *dev)
 		goto regmap_sync;
 
 	time = wait_for_completion_timeout(&slave->initialization_complete,
-					   msecs_to_jiffies(2000));
+					   msecs_to_jiffies(MAX98373_PROBE_TIMEOUT));
 	if (!time) {
 		dev_err(dev, "Initialization not complete, timed out\n");
 		return -ETIMEDOUT;

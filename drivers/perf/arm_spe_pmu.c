@@ -54,7 +54,7 @@ struct arm_spe_pmu {
 	struct hlist_node			hotplug_node;
 
 	int					irq; /* PPI */
-
+	u16					pmsver;
 	u16					min_period;
 	u16					counter_sz;
 
@@ -146,7 +146,7 @@ static struct attribute *arm_spe_pmu_cap_attr[] = {
 	NULL,
 };
 
-static struct attribute_group arm_spe_pmu_cap_group = {
+static const struct attribute_group arm_spe_pmu_cap_group = {
 	.name	= "caps",
 	.attrs	= arm_spe_pmu_cap_attr,
 };
@@ -227,7 +227,7 @@ static struct attribute *arm_spe_pmu_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group arm_spe_pmu_format_group = {
+static const struct attribute_group arm_spe_pmu_format_group = {
 	.name	= "format",
 	.attrs	= arm_spe_pmu_formats_attr,
 };
@@ -247,7 +247,7 @@ static struct attribute *arm_spe_pmu_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group arm_spe_pmu_group = {
+static const struct attribute_group arm_spe_pmu_group = {
 	.attrs	= arm_spe_pmu_attrs,
 };
 
@@ -655,6 +655,18 @@ static irqreturn_t arm_spe_pmu_irq_handler(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+static u64 arm_spe_pmsevfr_res0(u16 pmsver)
+{
+	switch (pmsver) {
+	case ID_AA64DFR0_PMSVER_8_2:
+		return SYS_PMSEVFR_EL1_RES0_8_2;
+	case ID_AA64DFR0_PMSVER_8_3:
+	/* Return the highest version we support in default */
+	default:
+		return SYS_PMSEVFR_EL1_RES0_8_3;
+	}
+}
+
 /* Perf callbacks */
 static int arm_spe_pmu_event_init(struct perf_event *event)
 {
@@ -670,7 +682,7 @@ static int arm_spe_pmu_event_init(struct perf_event *event)
 	    !cpumask_test_cpu(event->cpu, &spe_pmu->supported_cpus))
 		return -ENOENT;
 
-	if (arm_spe_event_to_pmsevfr(event) & SYS_PMSEVFR_EL1_RES0)
+	if (arm_spe_event_to_pmsevfr(event) & arm_spe_pmsevfr_res0(spe_pmu->pmsver))
 		return -EOPNOTSUPP;
 
 	if (attr->exclude_idle)
@@ -937,6 +949,7 @@ static void __arm_spe_pmu_dev_probe(void *info)
 			fld, smp_processor_id());
 		return;
 	}
+	spe_pmu->pmsver = (u16)fld;
 
 	/* Read PMBIDR first to determine whether or not we have access */
 	reg = read_sysreg_s(SYS_PMBIDR_EL1);

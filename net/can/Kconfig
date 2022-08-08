@@ -4,7 +4,6 @@
 #
 
 menuconfig CAN
-	depends on NET
 	tristate "CAN bus subsystem support"
 	help
 	  Controller Area Network (CAN) is a slow (up to 1Mbit/s) serial

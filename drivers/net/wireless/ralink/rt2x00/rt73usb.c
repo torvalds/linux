@@ -2513,7 +2513,6 @@ static const struct usb_device_id rt73usb_device_table[] = {
 MODULE_AUTHOR(DRV_PROJECT);
 MODULE_VERSION(DRV_VERSION);
 MODULE_DESCRIPTION("Ralink RT73 USB Wireless LAN driver.");
-MODULE_SUPPORTED_DEVICE("Ralink RT2571W & RT2671 USB chipset based cards");
 MODULE_DEVICE_TABLE(usb, rt73usb_device_table);
 MODULE_FIRMWARE(FIRMWARE_RT2571);
 MODULE_LICENSE("GPL");

@@ -111,6 +111,7 @@ do {									\
 
 #define IF_MODE_MASK		0x00000003 /* 30-31 Mask on i/f mode bits */
 #define IF_MODE_10G		0x00000000 /* 30-31 10G interface */
+#define IF_MODE_MII		0x00000001 /* 30-31 MII interface */
 #define IF_MODE_GMII		0x00000002 /* 30-31 GMII (1G) interface */
 #define IF_MODE_RGMII		0x00000004
 #define IF_MODE_RGMII_AUTO	0x00008000
@@ -441,6 +442,9 @@ static int init(struct memac_regs __iomem *regs, struct memac_cfg *cfg,
 	switch (phy_if) {
 	case PHY_INTERFACE_MODE_XGMII:
 		tmp |= IF_MODE_10G;
+		break;
+	case PHY_INTERFACE_MODE_MII:
+		tmp |= IF_MODE_MII;
 		break;
 	default:
 		tmp |= IF_MODE_GMII;

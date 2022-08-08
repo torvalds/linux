@@ -688,7 +688,7 @@ static struct snd_soc_dai_driver wm8940_dai = {
 		.formats = WM8940_FORMATS,
 	},
 	.ops = &wm8940_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static int wm8940_probe(struct snd_soc_component *component)

@@ -175,7 +175,7 @@ static ssize_t buffer_from_user(unsigned int minor, const char __user *buf,
 static ssize_t vme_user_read(struct file *file, char __user *buf, size_t count,
 			     loff_t *ppos)
 {
-	unsigned int minor = MINOR(file_inode(file)->i_rdev);
+	unsigned int minor = iminor(file_inode(file));
 	ssize_t retval;
 	size_t image_size;
 
@@ -218,7 +218,7 @@ static ssize_t vme_user_read(struct file *file, char __user *buf, size_t count,
 static ssize_t vme_user_write(struct file *file, const char __user *buf,
 			      size_t count, loff_t *ppos)
 {
-	unsigned int minor = MINOR(file_inode(file)->i_rdev);
+	unsigned int minor = iminor(file_inode(file));
 	ssize_t retval;
 	size_t image_size;
 
@@ -260,7 +260,7 @@ static ssize_t vme_user_write(struct file *file, const char __user *buf,
 
 static loff_t vme_user_llseek(struct file *file, loff_t off, int whence)
 {
-	unsigned int minor = MINOR(file_inode(file)->i_rdev);
+	unsigned int minor = iminor(file_inode(file));
 	size_t image_size;
 	loff_t res;
 
@@ -294,7 +294,7 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 	struct vme_slave slave;
 	struct vme_irq_id irq_req;
 	unsigned long copied;
-	unsigned int minor = MINOR(inode->i_rdev);
+	unsigned int minor = iminor(inode);
 	int retval;
 	dma_addr_t pci_addr;
 	void __user *argp = (void __user *)arg;
@@ -412,7 +412,7 @@ vme_user_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret;
 	struct inode *inode = file_inode(file);
-	unsigned int minor = MINOR(inode->i_rdev);
+	unsigned int minor = iminor(inode);
 
 	mutex_lock(&image[minor].mutex);
 	ret = vme_user_ioctl(inode, file, cmd, arg);
@@ -481,7 +481,7 @@ static int vme_user_master_mmap(unsigned int minor, struct vm_area_struct *vma)
 
 static int vme_user_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	unsigned int minor = MINOR(file_inode(file)->i_rdev);
+	unsigned int minor = iminor(file_inode(file));
 
 	if (type[minor] == MASTER_MINOR)
 		return vme_user_master_mmap(minor, vma);
@@ -689,7 +689,7 @@ err_dev:
 	return err;
 }
 
-static int vme_user_remove(struct vme_dev *dev)
+static void vme_user_remove(struct vme_dev *dev)
 {
 	int i;
 
@@ -717,8 +717,6 @@ static int vme_user_remove(struct vme_dev *dev)
 
 	/* Unregister the major and minor device numbers */
 	unregister_chrdev_region(MKDEV(VME_MAJOR, 0), VME_DEVS);
-
-	return 0;
 }
 
 static struct vme_driver vme_user_driver = {

@@ -7,9 +7,7 @@ C CoWR+poonceonce+Once
  * given variable and a later read from that same variable are ordered.
  *)
 
-{
-	int x;
-}
+{}
 
 P0(int *x)
 {

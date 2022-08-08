@@ -12,7 +12,7 @@ This document describes the Linux kernel Makefiles.
 	   --- 3.1 Goal definitions
 	   --- 3.2 Built-in object goals - obj-y
 	   --- 3.3 Loadable module goals - obj-m
-	   --- 3.4 Objects which export symbols
+	   --- 3.4 <deleted>
 	   --- 3.5 Library file goals - lib-y
 	   --- 3.6 Descending down in directories
 	   --- 3.7 Non-builtin vmlinux targets - extra-y
@@ -247,12 +247,6 @@ more details, with real examples.
 	kbuild will build an ext2.o file for you out of the individual
 	parts and then link this into built-in.a, as you would expect.
 
-3.4 Objects which export symbols
---------------------------------
-
-	No special notation is required in the makefiles for
-	modules exporting symbols.
-
 3.5 Library file goals - lib-y
 ------------------------------
 
@@ -461,10 +455,8 @@ more details, with real examples.
 
 		# drivers/scsi/Makefile
 		CFLAGS_aha152x.o =   -DAHA152X_STAT -DAUTOCONF
-		CFLAGS_gdth.o    = # -DDEBUG_GDTH=2 -D__SERIAL__ -D__COM2__ \
-				     -DGDTH_STATISTICS
 
-	These two lines specify compilation flags for aha152x.o and gdth.o.
+	This line specify compilation flags for aha152x.o.
 
 	$(AFLAGS_$@) is a similar feature for source files in assembly
 	languages.
@@ -1317,7 +1309,6 @@ When kbuild executes, the following steps are followed (roughly):
 		libs-y                 += arch/sparc/lib/
 
 		drivers-$(CONFIG_PM) += arch/sparc/power/
-		drivers-$(CONFIG_OPROFILE)	+= arch/sparc/oprofile/
 
 7.5 Architecture-specific boot images
 -------------------------------------

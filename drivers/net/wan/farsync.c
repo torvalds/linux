@@ -566,11 +566,11 @@ MODULE_DEVICE_TABLE(pci, fst_pci_dev_id);
 
 static void do_bottom_half_tx(struct fst_card_info *card);
 static void do_bottom_half_rx(struct fst_card_info *card);
-static void fst_process_tx_work_q(unsigned long work_q);
-static void fst_process_int_work_q(unsigned long work_q);
+static void fst_process_tx_work_q(struct tasklet_struct *unused);
+static void fst_process_int_work_q(struct tasklet_struct *unused);
 
-static DECLARE_TASKLET_OLD(fst_tx_task, fst_process_tx_work_q);
-static DECLARE_TASKLET_OLD(fst_int_task, fst_process_int_work_q);
+static DECLARE_TASKLET(fst_tx_task, fst_process_tx_work_q);
+static DECLARE_TASKLET(fst_int_task, fst_process_int_work_q);
 
 static struct fst_card_info *fst_card_array[FST_MAX_CARDS];
 static spinlock_t fst_work_q_lock;
@@ -600,7 +600,7 @@ fst_q_work_item(u64 * queue, int card_index)
 }
 
 static void
-fst_process_tx_work_q(unsigned long /*void **/work_q)
+fst_process_tx_work_q(struct tasklet_struct *unused)
 {
 	unsigned long flags;
 	u64 work_txq;
@@ -630,7 +630,7 @@ fst_process_tx_work_q(unsigned long /*void **/work_q)
 }
 
 static void
-fst_process_int_work_q(unsigned long /*void **/work_q)
+fst_process_int_work_q(struct tasklet_struct *unused)
 {
 	unsigned long flags;
 	u64 work_intq;

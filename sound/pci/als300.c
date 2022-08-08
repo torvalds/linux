@@ -86,7 +86,6 @@ enum {DEVICE_ALS300, DEVICE_ALS300_PLUS};
 MODULE_AUTHOR("Ash Willis <ashwillis@programmer.net>");
 MODULE_DESCRIPTION("Avance Logic ALS300");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Avance Logic,ALS300},{Avance Logic,ALS300+}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
@@ -625,8 +624,7 @@ static int snd_als300_create(struct snd_card *card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 
-	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(28)) < 0 ||
-		dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(28)) < 0) {
+	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(28))) {
 		dev_err(card->dev, "error setting 28bit DMA mask\n");
 		pci_disable_device(pci);
 		return -ENXIO;

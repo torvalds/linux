@@ -386,10 +386,6 @@ static struct bio *nilfs_alloc_seg_bio(struct the_nilfs *nilfs, sector_t start,
 	struct bio *bio;
 
 	bio = bio_alloc(GFP_NOIO, nr_vecs);
-	if (bio == NULL) {
-		while (!bio && (nr_vecs >>= 1))
-			bio = bio_alloc(GFP_NOIO, nr_vecs);
-	}
 	if (likely(bio)) {
 		bio_set_dev(bio, nilfs->ns_bdev);
 		bio->bi_iter.bi_sector =
@@ -403,7 +399,7 @@ static void nilfs_segbuf_prepare_write(struct nilfs_segment_buffer *segbuf,
 {
 	wi->bio = NULL;
 	wi->rest_blocks = segbuf->sb_sum.nblocks;
-	wi->max_pages = BIO_MAX_PAGES;
+	wi->max_pages = BIO_MAX_VECS;
 	wi->nr_vecs = min(wi->max_pages, wi->rest_blocks);
 	wi->start = wi->end = 0;
 	wi->blocknr = segbuf->sb_pseg_start;

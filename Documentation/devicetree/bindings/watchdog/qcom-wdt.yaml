@@ -18,6 +18,7 @@ properties:
       - qcom,apss-wdt-qcs404
       - qcom,apss-wdt-sc7180
       - qcom,apss-wdt-sdm845
+      - qcom,apss-wdt-sdx55
       - qcom,apss-wdt-sm8150
       - qcom,kpss-timer
       - qcom,kpss-wdt

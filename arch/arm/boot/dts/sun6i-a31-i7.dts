@@ -72,7 +72,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		blue {
+		led {
 			label = "i7:blue:usr";
 			gpios = <&pio 7 13 GPIO_ACTIVE_HIGH>;
 		};

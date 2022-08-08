@@ -87,7 +87,7 @@ static int child_unregister(struct device *dev, void *data)
 	return 0;
 }
 
-static int nd_region_remove(struct device *dev)
+static void nd_region_remove(struct device *dev)
 {
 	struct nd_region *nd_region = to_nd_region(dev);
 
@@ -108,8 +108,6 @@ static int nd_region_remove(struct device *dev)
 	 */
 	sysfs_put(nd_region->bb_state);
 	nd_region->bb_state = NULL;
-
-	return 0;
 }
 
 static int child_notify(struct device *dev, void *data)

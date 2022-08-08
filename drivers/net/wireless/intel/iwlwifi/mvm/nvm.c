@@ -545,7 +545,7 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 			return -EIO;
 	}
 
-	retval = regulatory_set_wiphy_regd_sync_rtnl(mvm->hw->wiphy, regd);
+	retval = regulatory_set_wiphy_regd_sync(mvm->hw->wiphy, regd);
 	kfree(regd);
 	return retval;
 }

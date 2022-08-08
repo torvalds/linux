@@ -94,34 +94,29 @@ static void cma_clear_bitmap(struct cma *cma, unsigned long pfn,
 
 static void __init cma_activate_area(struct cma *cma)
 {
-	unsigned long base_pfn = cma->base_pfn, pfn = base_pfn;
-	unsigned i = cma->count >> pageblock_order;
+	unsigned long base_pfn = cma->base_pfn, pfn;
 	struct zone *zone;
 
 	cma->bitmap = bitmap_zalloc(cma_bitmap_maxno(cma), GFP_KERNEL);
 	if (!cma->bitmap)
 		goto out_error;
 
-	WARN_ON_ONCE(!pfn_valid(pfn));
-	zone = page_zone(pfn_to_page(pfn));
+	/*
+	 * alloc_contig_range() requires the pfn range specified to be in the
+	 * same zone. Simplify by forcing the entire CMA resv range to be in the
+	 * same zone.
+	 */
+	WARN_ON_ONCE(!pfn_valid(base_pfn));
+	zone = page_zone(pfn_to_page(base_pfn));
+	for (pfn = base_pfn + 1; pfn < base_pfn + cma->count; pfn++) {
+		WARN_ON_ONCE(!pfn_valid(pfn));
+		if (page_zone(pfn_to_page(pfn)) != zone)
+			goto not_in_zone;
+	}
 
-	do {
-		unsigned j;
-
-		base_pfn = pfn;
-		for (j = pageblock_nr_pages; j; --j, pfn++) {
-			WARN_ON_ONCE(!pfn_valid(pfn));
-			/*
-			 * alloc_contig_range requires the pfn range
-			 * specified to be in the same zone. Make this
-			 * simple by forcing the entire CMA resv range
-			 * to be in the same zone.
-			 */
-			if (page_zone(pfn_to_page(pfn)) != zone)
-				goto not_in_zone;
-		}
-		init_cma_reserved_pageblock(pfn_to_page(base_pfn));
-	} while (--i);
+	for (pfn = base_pfn; pfn < base_pfn + cma->count;
+	     pfn += pageblock_nr_pages)
+		init_cma_reserved_pageblock(pfn_to_page(pfn));
 
 	mutex_init(&cma->lock);
 
@@ -135,6 +130,10 @@ static void __init cma_activate_area(struct cma *cma)
 not_in_zone:
 	bitmap_free(cma->bitmap);
 out_error:
+	/* Expose all pages to the buddy, they are useless for CMA. */
+	for (pfn = base_pfn; pfn < base_pfn + cma->count; pfn++)
+		free_reserved_page(pfn_to_page(pfn));
+	totalcma_pages -= cma->count;
 	cma->count = 0;
 	pr_err("CMA area %s could not be activated\n", cma->name);
 	return;
@@ -336,6 +335,23 @@ int __init cma_declare_contiguous_nid(phys_addr_t base,
 			limit = highmem_start;
 		}
 
+		/*
+		 * If there is enough memory, try a bottom-up allocation first.
+		 * It will place the new cma area close to the start of the node
+		 * and guarantee that the compaction is moving pages out of the
+		 * cma area and not into it.
+		 * Avoid using first 4GB to not interfere with constrained zones
+		 * like DMA/DMA32.
+		 */
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
+		if (!memblock_bottom_up() && memblock_end >= SZ_4G + size) {
+			memblock_set_bottom_up(true);
+			addr = memblock_alloc_range_nid(size, alignment, SZ_4G,
+							limit, nid, true);
+			memblock_set_bottom_up(false);
+		}
+#endif
+
 		if (!addr) {
 			addr = memblock_alloc_range_nid(size, alignment, base,
 					limit, nid, true);
@@ -484,8 +500,8 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 	}
 
 	if (ret && !no_warn) {
-		pr_err("%s: alloc failed, req-size: %zu pages, ret: %d\n",
-			__func__, count, ret);
+		pr_err("%s: %s: alloc failed, req-size: %zu pages, ret: %d\n",
+		       __func__, cma->name, count, ret);
 		cma_debug_show_areas(cma);
 	}
 

@@ -57,7 +57,6 @@ struct amdgpu_nbio_funcs {
 	u32 (*get_pcie_port_data_offset)(struct amdgpu_device *adev);
 	u32 (*get_rev_id)(struct amdgpu_device *adev);
 	void (*mc_access_enable)(struct amdgpu_device *adev, bool enable);
-	void (*hdp_flush)(struct amdgpu_device *adev, struct amdgpu_ring *ring);
 	u32 (*get_memsize)(struct amdgpu_device *adev);
 	void (*sdma_doorbell_range)(struct amdgpu_device *adev, int instance,
 			bool use_doorbell, int doorbell_index, int doorbell_size);
@@ -89,6 +88,7 @@ struct amdgpu_nbio_funcs {
 	int (*ras_late_init)(struct amdgpu_device *adev);
 	void (*enable_aspm)(struct amdgpu_device *adev,
 			    bool enable);
+	void (*program_aspm)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_nbio {

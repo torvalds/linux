@@ -3906,18 +3906,18 @@ qla1280_get_target_parameters(struct scsi_qla_host *ha,
 	printk(KERN_INFO "scsi(%li:%d:%d:%d):", ha->host_no, bus, target, lun);
 
 	if (mb[3] != 0) {
-		printk(" Sync: period %d, offset %d",
+		printk(KERN_CONT " Sync: period %d, offset %d",
 		       (mb[3] & 0xff), (mb[3] >> 8));
 		if (mb[2] & BIT_13)
-			printk(", Wide");
+			printk(KERN_CONT ", Wide");
 		if ((mb[2] & BIT_5) && ((mb[6] >> 8) & 0xff) >= 2)
-			printk(", DT");
+			printk(KERN_CONT ", DT");
 	} else
-		printk(" Async");
+		printk(KERN_CONT " Async");
 
 	if (device->simple_tags)
-		printk(", Tagged queuing: depth %d", device->queue_depth);
-	printk("\n");
+		printk(KERN_CONT ", Tagged queuing: depth %d", device->queue_depth);
+	printk(KERN_CONT "\n");
 }
 
 

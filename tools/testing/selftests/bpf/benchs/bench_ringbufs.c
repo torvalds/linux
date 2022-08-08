@@ -319,7 +319,7 @@ static void ringbuf_custom_process_ring(struct ringbuf_custom *r)
 			smp_store_release(r->consumer_pos, cons_pos);
 		else
 			break;
-	};
+	}
 }
 
 static void *ringbuf_custom_consumer(void *input)

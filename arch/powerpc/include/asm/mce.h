@@ -204,7 +204,18 @@ struct mce_error_info {
 	bool			ignore_event;
 };
 
-#define MAX_MC_EVT	100
+#define MAX_MC_EVT	10
+
+struct mce_info {
+	int mce_nest_count;
+	struct machine_check_event mce_event[MAX_MC_EVT];
+	/* Queue for delayed MCE events. */
+	int mce_queue_count;
+	struct machine_check_event mce_event_queue[MAX_MC_EVT];
+	/* Queue for delayed MCE UE events. */
+	int mce_ue_count;
+	struct machine_check_event  mce_ue_event_queue[MAX_MC_EVT];
+};
 
 /* Release flags for get_mce_event() */
 #define MCE_EVENT_RELEASE	true
@@ -234,4 +245,11 @@ long __machine_check_early_realmode_p8(struct pt_regs *regs);
 long __machine_check_early_realmode_p9(struct pt_regs *regs);
 long __machine_check_early_realmode_p10(struct pt_regs *regs);
 #endif /* CONFIG_PPC_BOOK3S_64 */
+
+#ifdef CONFIG_PPC_BOOK3S_64
+void mce_init(void);
+#else
+static inline void mce_init(void) { };
+#endif /* CONFIG_PPC_BOOK3S_64 */
+
 #endif /* __ASM_PPC64_MCE_H__ */

@@ -49,8 +49,8 @@
 
 /* AEN string type */
 typedef struct TAG_twa_message_type {
-  unsigned int   code;
-  char*          text;
+	unsigned int   code;
+	char*	       text;
 } twa_message_type;
 
 /* AEN strings */
@@ -263,9 +263,9 @@ static twa_message_type twa_error_table[] = {
 #define TW_CONTROL_ENABLE_INTERRUPTS	       0x00000080
 #define TW_CONTROL_DISABLE_INTERRUPTS	       0x00000040
 #define TW_CONTROL_ISSUE_HOST_INTERRUPT	       0x00000020
-#define TW_CONTROL_CLEAR_PARITY_ERROR          0x00800000
-#define TW_CONTROL_CLEAR_QUEUE_ERROR           0x00400000
-#define TW_CONTROL_CLEAR_PCI_ABORT             0x00100000
+#define TW_CONTROL_CLEAR_PARITY_ERROR	       0x00800000
+#define TW_CONTROL_CLEAR_QUEUE_ERROR	       0x00400000
+#define TW_CONTROL_CLEAR_PCI_ABORT	       0x00100000
 
 /* Status register bit definitions */
 #define TW_STATUS_MAJOR_VERSION_MASK	       0xF0000000
@@ -284,25 +284,25 @@ static twa_message_type twa_error_table[] = {
 #define TW_STATUS_COMMAND_QUEUE_EMPTY	       0x00001000
 #define TW_STATUS_EXPECTED_BITS		       0x00002000
 #define TW_STATUS_UNEXPECTED_BITS	       0x00F00000
-#define TW_STATUS_VALID_INTERRUPT              0x00DF0000
+#define TW_STATUS_VALID_INTERRUPT	       0x00DF0000
 
 /* PCI related defines */
 #define TW_PCI_CLEAR_PARITY_ERRORS 0xc100
 #define TW_PCI_CLEAR_PCI_ABORT     0x2000
 
 /* Command packet opcodes used by the driver */
-#define TW_OP_INIT_CONNECTION 0x1
-#define TW_OP_GET_PARAM	      0x12
-#define TW_OP_SET_PARAM	      0x13
-#define TW_OP_EXECUTE_SCSI    0x10
+#define TW_OP_INIT_CONNECTION	0x1
+#define TW_OP_GET_PARAM		0x12
+#define TW_OP_SET_PARAM		0x13
+#define TW_OP_EXECUTE_SCSI	0x10
 #define TW_OP_DOWNLOAD_FIRMWARE 0x16
-#define TW_OP_RESET             0x1C
+#define TW_OP_RESET		0x1C
 
 /* Asynchronous Event Notification (AEN) codes used by the driver */
-#define TW_AEN_QUEUE_EMPTY       0x0000
-#define TW_AEN_SOFT_RESET        0x0001
+#define TW_AEN_QUEUE_EMPTY	0x0000
+#define TW_AEN_SOFT_RESET	0x0001
 #define TW_AEN_SYNC_TIME_WITH_HOST 0x031
-#define TW_AEN_SEVERITY_ERROR    0x1
+#define TW_AEN_SEVERITY_ERROR	0x1
 #define TW_AEN_SEVERITY_DEBUG    0x4
 #define TW_AEN_NOT_RETRIEVED 0x1
 #define TW_AEN_RETRIEVED 0x2
@@ -323,9 +323,9 @@ static twa_message_type twa_error_table[] = {
 
 /* Misc defines */
 #define TW_9550SX_DRAIN_COMPLETED	      0xFFFF
-#define TW_SECTOR_SIZE                        512
-#define TW_ALIGNMENT_9000                     4  /* 4 bytes */
-#define TW_ALIGNMENT_9000_SGL                 0x3
+#define TW_SECTOR_SIZE			      512
+#define TW_ALIGNMENT_9000		      4  /* 4 bytes */
+#define TW_ALIGNMENT_9000_SGL		      0x3
 #define TW_MAX_UNITS			      16
 #define TW_MAX_UNITS_9650SE		      32
 #define TW_INIT_MESSAGE_CREDITS		      0x100
@@ -338,7 +338,7 @@ static twa_message_type twa_error_table[] = {
 #define TW_BASE_FW_SRL			      24
 #define TW_BASE_FW_BRANCH		      0
 #define TW_BASE_FW_BUILD		      1
-#define TW_FW_SRL_LUNS_SUPPORTED              28
+#define TW_FW_SRL_LUNS_SUPPORTED	      28
 #define TW_Q_LENGTH			      256
 #define TW_Q_START			      0
 #define TW_MAX_SLOT			      32
@@ -346,19 +346,19 @@ static twa_message_type twa_error_table[] = {
 #define TW_MAX_CMDS_PER_LUN		      254
 #define TW_MAX_RESPONSE_DRAIN		      256
 #define TW_MAX_AEN_DRAIN		      255
-#define TW_IN_RESET                           2
+#define TW_IN_RESET			      2
 #define TW_USING_MSI			      3
 #define TW_IN_ATTENTION_LOOP		      4
-#define TW_MAX_SECTORS                        256
-#define TW_AEN_WAIT_TIME                      1000
-#define TW_IOCTL_WAIT_TIME                    (1 * HZ) /* 1 second */
-#define TW_MAX_CDB_LEN                        16
-#define TW_ISR_DONT_COMPLETE                  2
-#define TW_ISR_DONT_RESULT                    3
-#define TW_IOCTL_CHRDEV_TIMEOUT               60 /* 60 seconds */
-#define TW_IOCTL_CHRDEV_FREE                  -1
-#define TW_COMMAND_OFFSET                     128 /* 128 bytes */
-#define TW_VERSION_TABLE                      0x0402
+#define TW_MAX_SECTORS			      256
+#define TW_AEN_WAIT_TIME		      1000
+#define TW_IOCTL_WAIT_TIME		      (1 * HZ) /* 1 second */
+#define TW_MAX_CDB_LEN			      16
+#define TW_ISR_DONT_COMPLETE		      2
+#define TW_ISR_DONT_RESULT		      3
+#define TW_IOCTL_CHRDEV_TIMEOUT		      60 /* 60 seconds */
+#define TW_IOCTL_CHRDEV_FREE		      -1
+#define TW_COMMAND_OFFSET		      128 /* 128 bytes */
+#define TW_VERSION_TABLE		      0x0402
 #define TW_TIMEKEEP_TABLE		      0x040A
 #define TW_INFORMATION_TABLE		      0x0403
 #define TW_PARAM_FWVER			      3
@@ -367,22 +367,22 @@ static twa_message_type twa_error_table[] = {
 #define TW_PARAM_BIOSVER_LENGTH		      16
 #define TW_PARAM_PORTCOUNT		      3
 #define TW_PARAM_PORTCOUNT_LENGTH	      1
-#define TW_MIN_SGL_LENGTH                     0x200 /* 512 bytes */
-#define TW_MAX_SENSE_LENGTH                   256
-#define TW_EVENT_SOURCE_AEN                   0x1000
-#define TW_EVENT_SOURCE_COMMAND               0x1001
-#define TW_EVENT_SOURCE_PCHIP                 0x1002
-#define TW_EVENT_SOURCE_DRIVER                0x1003
+#define TW_MIN_SGL_LENGTH		      0x200 /* 512 bytes */
+#define TW_MAX_SENSE_LENGTH		      256
+#define TW_EVENT_SOURCE_AEN		      0x1000
+#define TW_EVENT_SOURCE_COMMAND		      0x1001
+#define TW_EVENT_SOURCE_PCHIP		      0x1002
+#define TW_EVENT_SOURCE_DRIVER		      0x1003
 #define TW_IOCTL_GET_COMPATIBILITY_INFO	      0x101
-#define TW_IOCTL_GET_LAST_EVENT               0x102
-#define TW_IOCTL_GET_FIRST_EVENT              0x103
-#define TW_IOCTL_GET_NEXT_EVENT               0x104
-#define TW_IOCTL_GET_PREVIOUS_EVENT           0x105
-#define TW_IOCTL_GET_LOCK                     0x106
-#define TW_IOCTL_RELEASE_LOCK                 0x107
-#define TW_IOCTL_FIRMWARE_PASS_THROUGH        0x108
+#define TW_IOCTL_GET_LAST_EVENT		      0x102
+#define TW_IOCTL_GET_FIRST_EVENT	      0x103
+#define TW_IOCTL_GET_NEXT_EVENT		      0x104
+#define TW_IOCTL_GET_PREVIOUS_EVENT	      0x105
+#define TW_IOCTL_GET_LOCK		      0x106
+#define TW_IOCTL_RELEASE_LOCK		      0x107
+#define TW_IOCTL_FIRMWARE_PASS_THROUGH	      0x108
 #define TW_IOCTL_ERROR_STATUS_NOT_LOCKED      0x1001 // Not locked
-#define TW_IOCTL_ERROR_STATUS_LOCKED          0x1002 // Already locked
+#define TW_IOCTL_ERROR_STATUS_LOCKED	      0x1002 // Already locked
 #define TW_IOCTL_ERROR_STATUS_NO_MORE_EVENTS  0x1003 // No more events
 #define TW_IOCTL_ERROR_STATUS_AEN_CLOBBER     0x1004 // AEN clobber occurred
 #define TW_IOCTL_ERROR_OS_EFAULT	      -EFAULT // Bad address
@@ -397,12 +397,12 @@ static twa_message_type twa_error_table[] = {
 #define TW_SENSE_DATA_LENGTH		      18
 #define TW_STATUS_CHECK_CONDITION	      2
 #define TW_ERROR_LOGICAL_UNIT_NOT_SUPPORTED   0x10a
-#define TW_ERROR_UNIT_OFFLINE                 0x128
+#define TW_ERROR_UNIT_OFFLINE		      0x128
 #define TW_MESSAGE_SOURCE_CONTROLLER_ERROR    3
 #define TW_MESSAGE_SOURCE_CONTROLLER_EVENT    4
-#define TW_MESSAGE_SOURCE_LINUX_DRIVER        6
+#define TW_MESSAGE_SOURCE_LINUX_DRIVER	      6
 #define TW_DRIVER TW_MESSAGE_SOURCE_LINUX_DRIVER
-#define TW_MESSAGE_SOURCE_LINUX_OS            9
+#define TW_MESSAGE_SOURCE_LINUX_OS	      9
 #define TW_OS TW_MESSAGE_SOURCE_LINUX_OS
 #ifndef PCI_DEVICE_ID_3WARE_9000
 #define PCI_DEVICE_ID_3WARE_9000 0x1002
@@ -434,24 +434,38 @@ static twa_message_type twa_error_table[] = {
 #define TW_RESID_OUT(x) ((x >> 4) & 0xff)
 
 /* request_id: 12, lun: 4 */
-#define TW_REQ_LUN_IN(lun, request_id) (((lun << 12) & 0xf000) | (request_id & 0xfff))
+#define TW_REQ_LUN_IN(lun, request_id)			\
+	(((lun << 12) & 0xf000) | (request_id & 0xfff))
 #define TW_LUN_OUT(lun) ((lun >> 12) & 0xf)
 
 /* Macros */
 #define TW_CONTROL_REG_ADDR(x) (x->base_addr)
 #define TW_STATUS_REG_ADDR(x) ((unsigned char __iomem *)x->base_addr + 0x4)
-#define TW_COMMAND_QUEUE_REG_ADDR(x) (sizeof(dma_addr_t) > 4 ? ((unsigned char __iomem *)x->base_addr + 0x20) : ((unsigned char __iomem *)x->base_addr + 0x8))
-#define TW_COMMAND_QUEUE_REG_ADDR_LARGE(x) ((unsigned char __iomem *)x->base_addr + 0x20)
-#define TW_RESPONSE_QUEUE_REG_ADDR(x) ((unsigned char __iomem *)x->base_addr + 0xC)
-#define TW_RESPONSE_QUEUE_REG_ADDR_LARGE(x) ((unsigned char __iomem *)x->base_addr + 0x30)
-#define TW_CLEAR_ALL_INTERRUPTS(x) (writel(TW_STATUS_VALID_INTERRUPT, TW_CONTROL_REG_ADDR(x)))
-#define TW_CLEAR_ATTENTION_INTERRUPT(x) (writel(TW_CONTROL_CLEAR_ATTENTION_INTERRUPT, TW_CONTROL_REG_ADDR(x)))
-#define TW_CLEAR_HOST_INTERRUPT(x) (writel(TW_CONTROL_CLEAR_HOST_INTERRUPT, TW_CONTROL_REG_ADDR(x)))
-#define TW_DISABLE_INTERRUPTS(x) (writel(TW_CONTROL_DISABLE_INTERRUPTS, TW_CONTROL_REG_ADDR(x)))
-#define TW_ENABLE_AND_CLEAR_INTERRUPTS(x) (writel(TW_CONTROL_CLEAR_ATTENTION_INTERRUPT | TW_CONTROL_UNMASK_RESPONSE_INTERRUPT | TW_CONTROL_ENABLE_INTERRUPTS, TW_CONTROL_REG_ADDR(x)))
-#define TW_MASK_COMMAND_INTERRUPT(x) (writel(TW_CONTROL_MASK_COMMAND_INTERRUPT, TW_CONTROL_REG_ADDR(x)))
-#define TW_UNMASK_COMMAND_INTERRUPT(x) (writel(TW_CONTROL_UNMASK_COMMAND_INTERRUPT, TW_CONTROL_REG_ADDR(x)))
-#define TW_SOFT_RESET(x) (writel(TW_CONTROL_ISSUE_SOFT_RESET | \
+#define TW_COMMAND_QUEUE_REG_ADDR(x) \
+	(sizeof(dma_addr_t) > 4 ? ((unsigned char __iomem *)x->base_addr + 0x20) : ((unsigned char __iomem *)x->base_addr + 0x8))
+#define TW_COMMAND_QUEUE_REG_ADDR_LARGE(x) \
+	((unsigned char __iomem *)x->base_addr + 0x20)
+#define TW_RESPONSE_QUEUE_REG_ADDR(x) \
+	((unsigned char __iomem *)x->base_addr + 0xC)
+#define TW_RESPONSE_QUEUE_REG_ADDR_LARGE(x) \
+	((unsigned char __iomem *)x->base_addr + 0x30)
+#define TW_CLEAR_ALL_INTERRUPTS(x) \
+	(writel(TW_STATUS_VALID_INTERRUPT, TW_CONTROL_REG_ADDR(x)))
+#define TW_CLEAR_ATTENTION_INTERRUPT(x) \
+	(writel(TW_CONTROL_CLEAR_ATTENTION_INTERRUPT, TW_CONTROL_REG_ADDR(x)))
+#define TW_CLEAR_HOST_INTERRUPT(x) \
+	(writel(TW_CONTROL_CLEAR_HOST_INTERRUPT, TW_CONTROL_REG_ADDR(x)))
+#define TW_DISABLE_INTERRUPTS(x) \
+	(writel(TW_CONTROL_DISABLE_INTERRUPTS, TW_CONTROL_REG_ADDR(x)))
+#define TW_ENABLE_AND_CLEAR_INTERRUPTS(x)				\
+	(writel(TW_CONTROL_CLEAR_ATTENTION_INTERRUPT |			\
+		TW_CONTROL_UNMASK_RESPONSE_INTERRUPT |			\
+		TW_CONTROL_ENABLE_INTERRUPTS, TW_CONTROL_REG_ADDR(x)))
+#define TW_MASK_COMMAND_INTERRUPT(x)					\
+	(writel(TW_CONTROL_MASK_COMMAND_INTERRUPT, TW_CONTROL_REG_ADDR(x)))
+#define TW_UNMASK_COMMAND_INTERRUPT(x)					\
+	(writel(TW_CONTROL_UNMASK_COMMAND_INTERRUPT, TW_CONTROL_REG_ADDR(x)))
+#define TW_SOFT_RESET(x) (writel(TW_CONTROL_ISSUE_SOFT_RESET |	\
 			TW_CONTROL_CLEAR_HOST_INTERRUPT | \
 			TW_CONTROL_CLEAR_ATTENTION_INTERRUPT | \
 			TW_CONTROL_MASK_COMMAND_INTERRUPT | \
@@ -586,7 +600,7 @@ typedef struct TAG_TW_Ioctl_Driver_Command {
 
 typedef struct TAG_TW_Ioctl_Apache {
 	TW_Ioctl_Driver_Command driver_command;
-        char padding[488];
+	char padding[488];
 	TW_Command_Full firmware_command;
 	char data_buffer[1];
 } TW_Ioctl_Buf_Apache;
@@ -634,10 +648,10 @@ typedef struct TAG_TW_Compatibility_Info
 #pragma pack()
 
 typedef struct TAG_TW_Device_Extension {
-	u32                     __iomem *base_addr;
-	unsigned long	       	*generic_buffer_virt[TW_Q_LENGTH];
-	dma_addr_t	       	generic_buffer_phys[TW_Q_LENGTH];
-	TW_Command_Full	       	*command_packet_virt[TW_Q_LENGTH];
+	u32			__iomem *base_addr;
+	unsigned long		*generic_buffer_virt[TW_Q_LENGTH];
+	dma_addr_t		generic_buffer_phys[TW_Q_LENGTH];
+	TW_Command_Full		*command_packet_virt[TW_Q_LENGTH];
 	dma_addr_t		command_packet_phys[TW_Q_LENGTH];
 	struct pci_dev		*tw_pci_dev;
 	struct scsi_cmnd	*srb[TW_Q_LENGTH];
@@ -647,10 +661,10 @@ typedef struct TAG_TW_Device_Extension {
 	unsigned char		pending_queue[TW_Q_LENGTH];
 	unsigned char		pending_head;
 	unsigned char		pending_tail;
-	int     		state[TW_Q_LENGTH];
+	int			state[TW_Q_LENGTH];
 	unsigned int		posted_request_count;
 	unsigned int		max_posted_request_count;
-	unsigned int	        pending_request_count;
+	unsigned int		pending_request_count;
 	unsigned int		max_pending_request_count;
 	unsigned int		max_sgl_entries;
 	unsigned int		sgl_entries;
@@ -661,12 +675,12 @@ typedef struct TAG_TW_Device_Extension {
 	struct Scsi_Host	*host;
 	long			flags;
 	int			reset_print;
-	TW_Event                *event_queue[TW_Q_LENGTH];
-	unsigned char           error_index;
+	TW_Event		*event_queue[TW_Q_LENGTH];
+	unsigned char		error_index;
 	unsigned char		event_queue_wrapped;
-	unsigned int            error_sequence_id;
-	int                     ioctl_sem_lock;
-	ktime_t                 ioctl_time;
+	unsigned int		error_sequence_id;
+	int			ioctl_sem_lock;
+	ktime_t			ioctl_time;
 	int			chrdev_request_id;
 	wait_queue_head_t	ioctl_wqueue;
 	struct mutex		ioctl_lock;

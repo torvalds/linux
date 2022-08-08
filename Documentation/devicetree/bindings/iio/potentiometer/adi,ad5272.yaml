@@ -25,6 +25,7 @@ properties:
     maxItems: 1
 
   reset-gpios:
+    maxItems: 1
     description:
       Active low signal to the AD5272 RESET input.
 

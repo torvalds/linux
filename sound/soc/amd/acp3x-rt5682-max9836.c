@@ -140,9 +140,7 @@ static int acp3x_1015_hw_params(struct snd_pcm_substream *substream,
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		if (strcmp(codec_dai->name, "rt1015-aif"))
 			continue;
-		ret = snd_soc_dai_set_bclk_ratio(codec_dai, 64);
-		if (ret < 0)
-			return ret;
+
 		ret = snd_soc_dai_set_pll(codec_dai, 0, RT1015_PLL_S_BCLK,
 						64 * srate, 256 * srate);
 		if (ret < 0)

@@ -20,6 +20,7 @@ properties:
   compatible:
     enum:
       - adi,axi-clkgen-2.00.a
+      - adi,zynqmp-axi-clkgen-2.00.a
 
   clocks:
     description:

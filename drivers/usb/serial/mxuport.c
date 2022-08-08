@@ -261,13 +261,6 @@ static int mxuport_send_ctrl_data_urb(struct usb_serial *serial,
 		return status;
 	}
 
-	if (status != size) {
-		dev_err(&serial->interface->dev,
-			"%s - short write (%d / %zd)\n",
-			__func__, status, size);
-		return -EIO;
-	}
-
 	return 0;
 }
 

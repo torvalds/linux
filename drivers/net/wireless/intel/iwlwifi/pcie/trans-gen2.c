@@ -10,6 +10,8 @@
 #include "internal.h"
 #include "fw/dbg.h"
 
+#define FW_RESET_TIMEOUT (HZ / 5)
+
 /*
  * Start up NIC's basic functionality after it has been reset
  * (e.g. after platform boot, or shutdown via iwl_pcie_apm_stop())
@@ -104,7 +106,7 @@ static void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 
 	/* wait 200ms */
 	ret = wait_event_timeout(trans_pcie->fw_reset_waitq,
-				 trans_pcie->fw_reset_done, HZ / 5);
+				 trans_pcie->fw_reset_done, FW_RESET_TIMEOUT);
 	if (!ret)
 		IWL_ERR(trans,
 			"firmware didn't ACK the reset - continue anyway\n");
@@ -198,6 +200,10 @@ void iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	bool was_in_rfkill;
 
+	iwl_op_mode_time_point(trans->op_mode,
+			       IWL_FW_INI_TIME_POINT_HOST_DEVICE_DISABLE,
+			       NULL);
+
 	mutex_lock(&trans_pcie->mutex);
 	trans_pcie->opmode_down = true;
 	was_in_rfkill = test_bit(STATUS_RFKILL_OPMODE, &trans->status);
@@ -213,9 +219,9 @@ static int iwl_pcie_gen2_nic_init(struct iwl_trans *trans)
 			       trans->cfg->min_txq_size);
 
 	/* TODO: most of the logic can be removed in A0 - but not in Z0 */
-	spin_lock(&trans_pcie->irq_lock);
+	spin_lock_bh(&trans_pcie->irq_lock);
 	iwl_pcie_gen2_apm_init(trans);
-	spin_unlock(&trans_pcie->irq_lock);
+	spin_unlock_bh(&trans_pcie->irq_lock);
 
 	iwl_op_mode_nic_config(trans->op_mode);
 
@@ -258,6 +264,34 @@ void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 	mutex_lock(&trans_pcie->mutex);
 	iwl_pcie_check_hw_rf_kill(trans);
 	mutex_unlock(&trans_pcie->mutex);
+}
+
+static void iwl_pcie_set_ltr(struct iwl_trans *trans)
+{
+	u32 ltr_val = CSR_LTR_LONG_VAL_AD_NO_SNOOP_REQ |
+		      u32_encode_bits(CSR_LTR_LONG_VAL_AD_SCALE_USEC,
+				      CSR_LTR_LONG_VAL_AD_NO_SNOOP_SCALE) |
+		      u32_encode_bits(250,
+				      CSR_LTR_LONG_VAL_AD_NO_SNOOP_VAL) |
+		      CSR_LTR_LONG_VAL_AD_SNOOP_REQ |
+		      u32_encode_bits(CSR_LTR_LONG_VAL_AD_SCALE_USEC,
+				      CSR_LTR_LONG_VAL_AD_SNOOP_SCALE) |
+		      u32_encode_bits(250, CSR_LTR_LONG_VAL_AD_SNOOP_VAL);
+
+	/*
+	 * To workaround hardware latency issues during the boot process,
+	 * initialize the LTR to ~250 usec (see ltr_val above).
+	 * The firmware initializes this again later (to a smaller value).
+	 */
+	if ((trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_AX210 ||
+	     trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_22000) &&
+	    !trans->trans_cfg->integrated) {
+		iwl_write32(trans, CSR_LTR_LONG_VAL_AD, ltr_val);
+	} else if (trans->trans_cfg->integrated &&
+		   trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_22000) {
+		iwl_write_prph(trans, HPM_MAC_LTR_CSR, HPM_MAC_LRT_ENABLE_ALL);
+		iwl_write_prph(trans, HPM_UMAC_LTR, ltr_val);
+	}
 }
 
 int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
@@ -325,6 +359,13 @@ int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
 		ret = iwl_pcie_ctxt_info_init(trans, fw);
 	if (ret)
 		goto out;
+
+	iwl_pcie_set_ltr(trans);
+
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+		iwl_write_umac_prph(trans, UREG_CPU_INIT_RUN, 1);
+	else
+		iwl_write_prph(trans, UREG_CPU_INIT_RUN, 1);
 
 	/* re-check RF-Kill state since we may have missed the interrupt */
 	hw_rfkill = iwl_pcie_check_hw_rf_kill(trans);

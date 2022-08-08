@@ -1087,6 +1087,7 @@ static int knav_queue_setup_regions(struct knav_device *kdev,
 	for_each_child_of_node(regions, child) {
 		region = devm_kzalloc(dev, sizeof(*region), GFP_KERNEL);
 		if (!region) {
+			of_node_put(child);
 			dev_err(dev, "out of memory allocating region\n");
 			return -ENOMEM;
 		}
@@ -1399,6 +1400,7 @@ static int knav_queue_init_qmgrs(struct knav_device *kdev,
 	for_each_child_of_node(qmgrs, child) {
 		qmgr = devm_kzalloc(dev, sizeof(*qmgr), GFP_KERNEL);
 		if (!qmgr) {
+			of_node_put(child);
 			dev_err(dev, "out of memory allocating qmgr\n");
 			return -ENOMEM;
 		}
@@ -1498,6 +1500,7 @@ static int knav_queue_init_pdsps(struct knav_device *kdev,
 	for_each_child_of_node(pdsps, child) {
 		pdsp = devm_kzalloc(dev, sizeof(*pdsp), GFP_KERNEL);
 		if (!pdsp) {
+			of_node_put(child);
 			dev_err(dev, "out of memory allocating pdsp\n");
 			return -ENOMEM;
 		}

@@ -227,7 +227,6 @@ static void meson_mmc_get_transfer_mode(struct mmc_host *mmc,
 	struct mmc_data *data = mrq->data;
 	struct scatterlist *sg;
 	int i;
-	bool use_desc_chain_mode = true;
 
 	/*
 	 * When Controller DMA cannot directly access DDR memory, disable
@@ -237,25 +236,34 @@ static void meson_mmc_get_transfer_mode(struct mmc_host *mmc,
 	if (host->dram_access_quirk)
 		return;
 
-	/*
-	 * Broken SDIO with AP6255-based WiFi on Khadas VIM Pro has been
-	 * reported. For some strange reason this occurs in descriptor
-	 * chain mode only. So let's fall back to bounce buffer mode
-	 * for command SD_IO_RW_EXTENDED.
-	 */
-	if (mrq->cmd->opcode == SD_IO_RW_EXTENDED)
-		return;
-
-	for_each_sg(data->sg, sg, data->sg_len, i)
-		/* check for 8 byte alignment */
-		if (sg->offset & 7) {
-			WARN_ONCE(1, "unaligned scatterlist buffer\n");
-			use_desc_chain_mode = false;
-			break;
+	if (data->blocks > 1) {
+		/*
+		 * In block mode DMA descriptor format, "length" field indicates
+		 * number of blocks and there is no way to pass DMA size that
+		 * is not multiple of SDIO block size, making it impossible to
+		 * tie more than one memory buffer with single SDIO block.
+		 * Block mode sg buffer size should be aligned with SDIO block
+		 * size, otherwise chain mode could not be used.
+		 */
+		for_each_sg(data->sg, sg, data->sg_len, i) {
+			if (sg->length % data->blksz) {
+				dev_warn_once(mmc_dev(mmc),
+					      "unaligned sg len %u blksize %u, disabling descriptor DMA for transfer\n",
+					      sg->length, data->blksz);
+				return;
+			}
 		}
+	}
 
-	if (use_desc_chain_mode)
-		data->host_cookie |= SD_EMMC_DESC_CHAIN_MODE;
+	for_each_sg(data->sg, sg, data->sg_len, i) {
+		/* check for 8 byte alignment */
+		if (sg->offset % 8) {
+			WARN_ONCE(1, "unaligned scatterlist buffer\n");
+			return;
+		}
+	}
+
+	data->host_cookie |= SD_EMMC_DESC_CHAIN_MODE;
 }
 
 static inline bool meson_mmc_desc_chain_mode(const struct mmc_data *data)

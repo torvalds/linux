@@ -47,7 +47,7 @@ inline u32 hl_cq_inc_ptr(u32 ptr)
  * Increment ptr by 1. If it reaches the number of event queue
  * entries, set it to 0
  */
-inline u32 hl_eq_inc_ptr(u32 ptr)
+static inline u32 hl_eq_inc_ptr(u32 ptr)
 {
 	ptr++;
 	if (unlikely(ptr == HL_EQ_LENGTH))

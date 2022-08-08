@@ -451,6 +451,8 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 				dout->output_bpp;
 		mode_lib->vba.Output[mode_lib->vba.NumberOfActivePlanes] =
 				(enum output_encoder_class) (dout->output_type);
+		mode_lib->vba.skip_dio_check[mode_lib->vba.NumberOfActivePlanes] =
+				dout->is_virtual;
 
 		if (!dout->dsc_enable)
 			mode_lib->vba.ForcedOutputLinkBPP[mode_lib->vba.NumberOfActivePlanes] = dout->output_bpp;

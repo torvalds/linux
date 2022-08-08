@@ -115,16 +115,20 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 					       napi);
 	struct mlx5e_ch_stats *ch_stats = c->stats;
 	struct mlx5e_xdpsq *xsksq = &c->xsksq;
+	struct mlx5e_txqsq __rcu **qos_sqs;
 	struct mlx5e_rq *xskrq = &c->xskrq;
 	struct mlx5e_rq *rq = &c->rq;
 	bool aff_change = false;
 	bool busy_xsk = false;
 	bool busy = false;
 	int work_done = 0;
+	u16 qos_sqs_size;
 	bool xsk_open;
 	int i;
 
 	rcu_read_lock();
+
+	qos_sqs = rcu_dereference(c->qos_sqs);
 
 	xsk_open = test_bit(MLX5E_CHANNEL_STATE_XSK, c->state);
 
@@ -132,6 +136,18 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 
 	for (i = 0; i < c->num_tc; i++)
 		busy |= mlx5e_poll_tx_cq(&c->sq[i].cq, budget);
+
+	if (unlikely(qos_sqs)) {
+		smp_rmb(); /* Pairs with mlx5e_qos_alloc_queues. */
+		qos_sqs_size = READ_ONCE(c->qos_sqs_size);
+
+		for (i = 0; i < qos_sqs_size; i++) {
+			struct mlx5e_txqsq *sq = rcu_dereference(qos_sqs[i]);
+
+			if (sq)
+				busy |= mlx5e_poll_tx_cq(&sq->cq, budget);
+		}
+	}
 
 	busy |= mlx5e_poll_xdpsq_cq(&c->xdpsq.cq);
 
@@ -185,6 +201,16 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	for (i = 0; i < c->num_tc; i++) {
 		mlx5e_handle_tx_dim(&c->sq[i]);
 		mlx5e_cq_arm(&c->sq[i].cq);
+	}
+	if (unlikely(qos_sqs)) {
+		for (i = 0; i < qos_sqs_size; i++) {
+			struct mlx5e_txqsq *sq = rcu_dereference(qos_sqs[i]);
+
+			if (sq) {
+				mlx5e_handle_tx_dim(sq);
+				mlx5e_cq_arm(&sq->cq);
+			}
+		}
 	}
 
 	mlx5e_handle_rx_dim(rq);

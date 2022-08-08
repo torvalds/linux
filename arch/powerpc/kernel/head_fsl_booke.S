@@ -364,12 +364,12 @@ interrupt_base:
 	/* Data Storage Interrupt */
 	START_EXCEPTION(DataStorage)
 	NORMAL_EXCEPTION_PROLOG(DATA_STORAGE)
-	mfspr	r5,SPRN_ESR		/* Grab the ESR, save it, pass arg3 */
+	mfspr	r5,SPRN_ESR		/* Grab the ESR, save it */
 	stw	r5,_ESR(r11)
-	mfspr	r4,SPRN_DEAR		/* Grab the DEAR, save it, pass arg2 */
+	mfspr	r4,SPRN_DEAR		/* Grab the DEAR, save it */
+	stw	r4, _DEAR(r11)
 	andis.	r10,r5,(ESR_ILK|ESR_DLK)@h
 	bne	1f
-	stw	r4, _DEAR(r11)
 	EXC_XFER_LITE(0x0300, handle_page_fault)
 1:
 	addi	r3,r1,STACK_FRAME_OVERHEAD

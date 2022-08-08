@@ -2314,13 +2314,13 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	return status;
 }
 
-static int
+static void
 pl022_remove(struct amba_device *adev)
 {
 	struct pl022 *pl022 = amba_get_drvdata(adev);
 
 	if (!pl022)
-		return 0;
+		return;
 
 	/*
 	 * undo pm_runtime_put() in probe.  I assume that we're not
@@ -2335,7 +2335,6 @@ pl022_remove(struct amba_device *adev)
 	clk_disable_unprepare(pl022->clk);
 	amba_release_regions(adev);
 	tasklet_disable(&pl022->pump_transfers);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

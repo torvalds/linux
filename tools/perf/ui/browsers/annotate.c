@@ -759,7 +759,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 			continue;
 		case 'k':
 			notes->options->show_linenr = !notes->options->show_linenr;
-			break;
+			continue;
 		case 'H':
 			nd = browser->curr_hot;
 			break;

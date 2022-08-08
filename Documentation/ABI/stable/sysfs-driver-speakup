@@ -273,7 +273,7 @@ Description:	In `/sys/accessibility/speakup` is a directory corresponding to
 		Below is a description of values and  parameters for soft
 		synthesizer, which is currently the most commonly used.
 
-What:		/sys/accessibility/speakup/soft/caps_start
+What:		/sys/accessibility/speakup/<synth-name>/caps_start
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	This is the string that is sent to the synthesizer to cause it
@@ -281,7 +281,7 @@ Description:	This is the string that is sent to the synthesizer to cause it
 		and most others, this causes the pitch of the voice to rise
 		above the currently set pitch.
 
-What:		/sys/accessibility/speakup/soft/caps_stop
+What:		/sys/accessibility/speakup/<synth-name>/caps_stop
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	This is the string sent to the synthesizer to cause it to stop
@@ -290,12 +290,12 @@ Description:	This is the string sent to the synthesizer to cause it to stop
 		down to the
 		currently set pitch.
 
-What:		/sys/accessibility/speakup/soft/delay_time
+What:		/sys/accessibility/speakup/<synth-name>/delay_time
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	TODO:
 
-What:		/sys/accessibility/speakup/soft/direct
+What:		/sys/accessibility/speakup/<synth-name>/direct
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	Controls if punctuation is spoken by speakup, or by the
@@ -306,36 +306,43 @@ Description:	Controls if punctuation is spoken by speakup, or by the
 		than". Zero lets speakup speak the punctuation. One lets the
 		synthesizer itself speak punctuation.
 
-What:		/sys/accessibility/speakup/soft/freq
+What:		/sys/accessibility/speakup/<synth-name>/freq
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	Gets or sets the frequency of the speech synthesizer. Range is
 		0-9.
 
-What:		/sys/accessibility/speakup/soft/full_time
+What:		/sys/accessibility/speakup/<synth-name>/flush_time
+KernelVersion:	5.12
+Contact:	speakup@linux-speakup.org
+Description:	Gets or sets the timeout to wait for the synthesizer flush to
+		complete. This can be used when the cable gets faulty and flush
+		notifications are getting lost.
+
+What:		/sys/accessibility/speakup/<synth-name>/full_time
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	TODO:
 
-What:		/sys/accessibility/speakup/soft/jiffy_delta
+What:		/sys/accessibility/speakup/<synth-name>/jiffy_delta
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	This controls how many jiffys the kernel gives to the
 		synthesizer. Setting this too high can make a system unstable,
 		or even crash it.
 
-What:		/sys/accessibility/speakup/soft/pitch
+What:		/sys/accessibility/speakup/<synth-name>/pitch
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	Gets or sets the pitch of the synthesizer. The range is 0-9.
 
-What:		/sys/accessibility/speakup/soft/inflection
+What:		/sys/accessibility/speakup/<synth-name>/inflection
 KernelVersion:	5.8
 Contact:	speakup@linux-speakup.org
 Description:	Gets or sets the inflection of the synthesizer, i.e. the pitch
 		range. The range is 0-9.
 
-What:		/sys/accessibility/speakup/soft/punct
+What:		/sys/accessibility/speakup/<synth-name>/punct
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	Gets or sets the amount of punctuation spoken by the
@@ -343,13 +350,13 @@ Description:	Gets or sets the amount of punctuation spoken by the
 		TODO: How is this related to speakup's punc_level, or
 		reading_punc.
 
-What:		/sys/accessibility/speakup/soft/rate
+What:		/sys/accessibility/speakup/<synth-name>/rate
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	Gets or sets the rate of the synthesizer. Range is from zero
 		slowest, to nine fastest.
 
-What:		/sys/accessibility/speakup/soft/tone
+What:		/sys/accessibility/speakup/<synth-name>/tone
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	Gets or sets the tone of the speech synthesizer. The range for
@@ -357,12 +364,12 @@ Description:	Gets or sets the tone of the speech synthesizer. The range for
 		difference if using espeak and the espeakup connector.
 		TODO: does espeakup support different tonalities?
 
-What:		/sys/accessibility/speakup/soft/trigger_time
+What:		/sys/accessibility/speakup/<synth-name>/trigger_time
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	TODO:
 
-What:		/sys/accessibility/speakup/soft/voice
+What:		/sys/accessibility/speakup/<synth-name>/voice
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	Gets or sets the voice used by the synthesizer if the
@@ -371,7 +378,7 @@ Description:	Gets or sets the voice used by the synthesizer if the
 		voices, this parameter will not set the voice when the espeakup
 		connector is used  between speakup and espeak.
 
-What:		/sys/accessibility/speakup/soft/vol
+What:		/sys/accessibility/speakup/<synth-name>/vol
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	Gets or sets the volume of the speech synthesizer. Range is 0-9,

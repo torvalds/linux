@@ -34,8 +34,9 @@ int unregister_ftrace_export(struct trace_export *export);
 struct trace_array;
 
 void trace_printk_init_buffers(void);
+__printf(3, 4)
 int trace_array_printk(struct trace_array *tr, unsigned long ip,
-		const char *fmt, ...);
+		       const char *fmt, ...);
 int trace_array_init_printk(struct trace_array *tr);
 void trace_array_put(struct trace_array *tr);
 struct trace_array *trace_array_get_by_name(const char *name);

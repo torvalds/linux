@@ -55,7 +55,6 @@ int main(void)
 	struct test *test, tests[] = {
 		{ -EINVAL, 1, pfn(0), NULL, PAGE_SIZE, 0, 1 },
 		{ 0, 1, pfn(0), NULL, PAGE_SIZE, PAGE_SIZE + 1, 1 },
-		{ 0, 1, pfn(0), NULL, PAGE_SIZE, sgmax + 1, 1 },
 		{ 0, 1, pfn(0), NULL, PAGE_SIZE, sgmax, 1 },
 		{ 0, 1, pfn(0), NULL, 1, sgmax, 1 },
 		{ 0, 2, pfn(0, 1), NULL, 2 * PAGE_SIZE, sgmax, 1 },

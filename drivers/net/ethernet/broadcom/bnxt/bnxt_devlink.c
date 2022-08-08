@@ -44,21 +44,20 @@ static int bnxt_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
 				     struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = devlink_health_reporter_priv(reporter);
-	u32 val, health_status;
+	u32 val;
 	int rc;
 
 	if (test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
 		return 0;
 
 	val = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
-	health_status = val & 0xffff;
 
-	if (health_status < BNXT_FW_STATUS_HEALTHY) {
+	if (BNXT_FW_IS_BOOTING(val)) {
 		rc = devlink_fmsg_string_pair_put(fmsg, "Description",
 						  "Not yet completed initialization");
 		if (rc)
 			return rc;
-	} else if (health_status > BNXT_FW_STATUS_HEALTHY) {
+	} else if (BNXT_FW_IS_ERR(val)) {
 		rc = devlink_fmsg_string_pair_put(fmsg, "Description",
 						  "Encountered fatal error and cannot recover");
 		if (rc)
@@ -472,8 +471,8 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 	if (BNXT_PF(bp) && !bnxt_hwrm_get_nvm_cfg_ver(bp, &nvm_cfg_ver)) {
 		u32 ver = nvm_cfg_ver.vu32;
 
-		sprintf(buf, "%X.%X.%X", (ver >> 16) & 0xF, (ver >> 8) & 0xF,
-			ver & 0xF);
+		sprintf(buf, "%d.%d.%d", (ver >> 16) & 0xf, (ver >> 8) & 0xf,
+			ver & 0xf);
 		rc = bnxt_dl_info_put(bp, req, BNXT_VERSION_STORED,
 				      DEVLINK_INFO_VERSION_GENERIC_FW_PSID,
 				      buf);

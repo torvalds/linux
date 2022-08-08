@@ -141,7 +141,6 @@ static vm_fault_t sgx_vma_fault(struct vm_fault *vmf)
 	struct sgx_encl_page *entry;
 	unsigned long phys_addr;
 	struct sgx_encl *encl;
-	unsigned long pfn;
 	vm_fault_t ret;
 
 	encl = vma->vm_private_data;
@@ -167,13 +166,6 @@ static vm_fault_t sgx_vma_fault(struct vm_fault *vmf)
 	}
 
 	phys_addr = sgx_get_epc_phys_addr(entry->epc_page);
-
-	/* Check if another thread got here first to insert the PTE. */
-	if (!follow_pfn(vma, addr, &pfn)) {
-		mutex_unlock(&encl->lock);
-
-		return VM_FAULT_NOPAGE;
-	}
 
 	ret = vmf_insert_pfn(vma, addr, PFN_DOWN(phys_addr));
 	if (ret != VM_FAULT_NOPAGE) {

@@ -67,6 +67,7 @@ config VIDEO_EM28XX_DVB
 	select MEDIA_TUNER_XC2028 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_XC5000 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_MT2060 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_MXL692 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  This adds support for DVB cards based on the
 	  Empiatech em28xx chips.
@@ -77,5 +78,6 @@ config VIDEO_EM28XX_RC
 	depends on VIDEO_EM28XX
 	depends on !(RC_CORE=m && VIDEO_EM28XX=y)
 	default VIDEO_EM28XX
+	select BITREVERSE
 	help
 	  Enables Remote Controller support on em28xx driver.

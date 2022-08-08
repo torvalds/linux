@@ -15,15 +15,10 @@
         "ArchStdEvent": "UNALIGNED_LDST_SPEC"
     },
     {
-        "PublicDescription": "Data memory access",
-        "EventCode": "0x13",
-        "EventName": "MEM_ACCESS",
-        "BriefDescription": "Memory access"
+        "ArchStdEvent": "MEM_ACCESS",
     },
     {
-        "PublicDescription": "Local memory error. This event counts any correctable or uncorrectable memory error (ECC or parity) in the protected core RAMs",
-        "EventCode": "0x1a",
-        "EventName": "MEM_ERROR",
-        "BriefDescription": "Memory error"
+        "PublicDescription": "This event counts any correctable or uncorrectable memory error (ECC or parity) in the protected core RAMs",
+        "ArchStdEvent": "MEMORY_ERROR",
     }
 ]

@@ -321,4 +321,6 @@ extern void iowrite64be(u64 val, void __iomem *addr);
  */
 #define xlate_dev_kmem_ptr(p)	p
 
+extern int devmem_is_allowed(unsigned long pfn);
+
 #endif

@@ -66,7 +66,12 @@ struct nh_info {
 struct nh_grp_entry {
 	struct nexthop	*nh;
 	u8		weight;
-	atomic_t	upper_bound;
+
+	union {
+		struct {
+			atomic_t	upper_bound;
+		} mpath;
+	};
 
 	struct list_head nh_list;
 	struct nexthop	*nh_parent;  /* nexthop of group with this entry */
@@ -109,6 +114,11 @@ enum nexthop_event_type {
 	NEXTHOP_EVENT_REPLACE,
 };
 
+enum nh_notifier_info_type {
+	NH_NOTIFIER_INFO_TYPE_SINGLE,
+	NH_NOTIFIER_INFO_TYPE_GRP,
+};
+
 struct nh_notifier_single_info {
 	struct net_device *dev;
 	u8 gw_family;
@@ -137,7 +147,7 @@ struct nh_notifier_info {
 	struct net *net;
 	struct netlink_ext_ack *extack;
 	u32 id;
-	bool is_grp;
+	enum nh_notifier_info_type type;
 	union {
 		struct nh_notifier_single_info *nh;
 		struct nh_notifier_grp_info *nh_grp;
@@ -400,6 +410,7 @@ static inline struct fib_nh *fib_info_nh(struct fib_info *fi, int nhsel)
 int fib6_check_nexthop(struct nexthop *nh, struct fib6_config *cfg,
 		       struct netlink_ext_ack *extack);
 
+/* Caller should either hold rcu_read_lock(), or RTNL. */
 static inline struct fib6_nh *nexthop_fib6_nh(struct nexthop *nh)
 {
 	struct nh_info *nhi;
@@ -414,6 +425,29 @@ static inline struct fib6_nh *nexthop_fib6_nh(struct nexthop *nh)
 	}
 
 	nhi = rcu_dereference_rtnl(nh->nh_info);
+	if (nhi->family == AF_INET6)
+		return &nhi->fib6_nh;
+
+	return NULL;
+}
+
+/* Variant of nexthop_fib6_nh().
+ * Caller should either hold rcu_read_lock_bh(), or RTNL.
+ */
+static inline struct fib6_nh *nexthop_fib6_nh_bh(struct nexthop *nh)
+{
+	struct nh_info *nhi;
+
+	if (nh->is_group) {
+		struct nh_group *nh_grp;
+
+		nh_grp = rcu_dereference_bh_rtnl(nh->nh_grp);
+		nh = nexthop_mpath_select(nh_grp, 0);
+		if (!nh)
+			return NULL;
+	}
+
+	nhi = rcu_dereference_bh_rtnl(nh->nh_info);
 	if (nhi->family == AF_INET6)
 		return &nhi->fib6_nh;
 

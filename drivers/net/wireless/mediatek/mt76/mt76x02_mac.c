@@ -345,7 +345,7 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 	u16 txwi_flags = 0;
 	u8 nss;
 	s8 txpwr_adj, max_txpwr_adj;
-	u8 ccmp_pn[8], nstreams = dev->chainmask & 0xf;
+	u8 ccmp_pn[8], nstreams = dev->mphy.chainmask & 0xf;
 
 	memset(txwi, 0, sizeof(*txwi));
 
@@ -685,7 +685,7 @@ mt76x02_mac_process_rate(struct mt76x02_dev *dev,
 		status->rate_idx = idx;
 		break;
 	case MT_PHY_TYPE_VHT: {
-		u8 n_rxstream = dev->chainmask & 0xf;
+		u8 n_rxstream = dev->mphy.chainmask & 0xf;
 
 		status->encoding = RX_ENC_VHT;
 		status->rate_idx = FIELD_GET(MT_RATE_INDEX_VHT_IDX, idx);
@@ -777,7 +777,7 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 	u16 rate = le16_to_cpu(rxwi->rate);
 	u16 tid_sn = le16_to_cpu(rxwi->tid_sn);
 	bool unicast = rxwi->rxinfo & cpu_to_le32(MT_RXINFO_UNICAST);
-	int pad_len = 0, nstreams = dev->chainmask & 0xf;
+	int pad_len = 0, nstreams = dev->mphy.chainmask & 0xf;
 	s8 signal;
 	u8 pn_len;
 	u8 wcid;
@@ -1162,7 +1162,7 @@ static void mt76x02_edcca_check(struct mt76x02_dev *dev)
 void mt76x02_mac_work(struct work_struct *work)
 {
 	struct mt76x02_dev *dev = container_of(work, struct mt76x02_dev,
-					       mt76.mac_work.work);
+					       mphy.mac_work.work);
 	int i, idx;
 
 	mutex_lock(&dev->mt76.mutex);
@@ -1185,7 +1185,7 @@ void mt76x02_mac_work(struct work_struct *work)
 
 	mt76_tx_status_check(&dev->mt76, NULL, false);
 
-	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
+	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mphy.mac_work,
 				     MT_MAC_WORK_INTERVAL);
 }
 

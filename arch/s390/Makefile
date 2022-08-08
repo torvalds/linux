@@ -134,9 +134,6 @@ core-y		+= arch/s390/
 libs-y		+= arch/s390/lib/
 drivers-y	+= drivers/s390/
 
-# must be linked after kernel
-drivers-$(CONFIG_OPROFILE)	+= arch/s390/oprofile/
-
 boot		:= arch/s390/boot
 syscalls	:= arch/s390/kernel/syscalls
 tools		:= arch/s390/tools

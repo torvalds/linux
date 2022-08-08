@@ -23,8 +23,8 @@ extern u32 memsize, highmemsize;
 extern const struct plat_smp_ops loongson3_smp_ops;
 
 /* loongson-specific command line, env and memory initialization */
-extern void __init prom_init_memory(void);
 extern void __init prom_init_env(void);
+extern void __init szmem(unsigned int node);
 extern void *loongson_fdt_blob;
 
 /* irq operation functions */

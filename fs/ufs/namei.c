@@ -69,7 +69,8 @@ static struct dentry *ufs_lookup(struct inode * dir, struct dentry *dentry, unsi
  * If the create succeeds, we fill in the inode information
  * with d_instantiate(). 
  */
-static int ufs_create (struct inode * dir, struct dentry * dentry, umode_t mode,
+static int ufs_create (struct user_namespace * mnt_userns,
+		struct inode * dir, struct dentry * dentry, umode_t mode,
 		bool excl)
 {
 	struct inode *inode;
@@ -85,7 +86,8 @@ static int ufs_create (struct inode * dir, struct dentry * dentry, umode_t mode,
 	return ufs_add_nondir(dentry, inode);
 }
 
-static int ufs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t rdev)
+static int ufs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+		     struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct inode *inode;
 	int err;
@@ -104,8 +106,8 @@ static int ufs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev
 	return err;
 }
 
-static int ufs_symlink (struct inode * dir, struct dentry * dentry,
-	const char * symname)
+static int ufs_symlink (struct user_namespace * mnt_userns, struct inode * dir,
+	struct dentry * dentry, const char * symname)
 {
 	struct super_block * sb = dir->i_sb;
 	int err;
@@ -164,7 +166,8 @@ static int ufs_link (struct dentry * old_dentry, struct inode * dir,
 	return error;
 }
 
-static int ufs_mkdir(struct inode * dir, struct dentry * dentry, umode_t mode)
+static int ufs_mkdir(struct user_namespace * mnt_userns, struct inode * dir,
+	struct dentry * dentry, umode_t mode)
 {
 	struct inode * inode;
 	int err;
@@ -240,9 +243,9 @@ static int ufs_rmdir (struct inode * dir, struct dentry *dentry)
 	return err;
 }
 
-static int ufs_rename(struct inode *old_dir, struct dentry *old_dentry,
-		      struct inode *new_dir, struct dentry *new_dentry,
-		      unsigned int flags)
+static int ufs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
+		      struct dentry *old_dentry, struct inode *new_dir,
+		      struct dentry *new_dentry, unsigned int flags)
 {
 	struct inode *old_inode = d_inode(old_dentry);
 	struct inode *new_inode = d_inode(new_dentry);

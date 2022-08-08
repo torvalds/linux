@@ -55,7 +55,6 @@
 
 MODULE_AUTHOR("YOKOTA Hiroshi <yokota@netlab.is.tsukuba.ac.jp>");
 MODULE_DESCRIPTION("WorkBit NinjaSCSI-3 / NinjaSCSI-32Bi(16bit) PCMCIA SCSI host adapter module");
-MODULE_SUPPORTED_DEVICE("sd,sr,sg,st");
 MODULE_LICENSE("GPL");
 
 #include "nsp_io.h"
@@ -1132,7 +1131,7 @@ static irqreturn_t nspintr(int irq, void *dev_id)
 		//*sync_neg       = SYNC_NOT_YET;
 
 		/* all command complete and return status */
-		if (tmpSC->SCp.Message == MSG_COMMAND_COMPLETE) {
+		if (tmpSC->SCp.Message == COMMAND_COMPLETE) {
 			tmpSC->result = (DID_OK		             << 16) |
 					((tmpSC->SCp.Message & 0xff) <<  8) |
 					((tmpSC->SCp.Status  & 0xff) <<  0);
@@ -1226,9 +1225,9 @@ static irqreturn_t nspintr(int irq, void *dev_id)
 			data->Sync[target].SyncOffset = 0;
 
 			/**/
-			data->MsgBuffer[i] = MSG_EXTENDED; i++;
+			data->MsgBuffer[i] = EXTENDED_MESSAGE; i++;
 			data->MsgBuffer[i] = 3;            i++;
-			data->MsgBuffer[i] = MSG_EXT_SDTR; i++;
+			data->MsgBuffer[i] = EXTENDED_SDTR; i++;
 			data->MsgBuffer[i] = 0x0c;         i++;
 			data->MsgBuffer[i] = 15;           i++;
 			/**/
@@ -1255,9 +1254,9 @@ static irqreturn_t nspintr(int irq, void *dev_id)
 			//nsp_dbg(NSP_DEBUG_INTR, "sync target=%d,lun=%d",target,lun);
 
 			if (data->MsgLen       >= 5            &&
-			    data->MsgBuffer[0] == MSG_EXTENDED &&
+			    data->MsgBuffer[0] == EXTENDED_MESSAGE &&
 			    data->MsgBuffer[1] == 3            &&
-			    data->MsgBuffer[2] == MSG_EXT_SDTR ) {
+			    data->MsgBuffer[2] == EXTENDED_SDTR ) {
 				data->Sync[target].SyncPeriod = data->MsgBuffer[3];
 				data->Sync[target].SyncOffset = data->MsgBuffer[4];
 				//nsp_dbg(NSP_DEBUG_INTR, "sync ok, %d %d", data->MsgBuffer[3], data->MsgBuffer[4]);
@@ -1275,7 +1274,7 @@ static irqreturn_t nspintr(int irq, void *dev_id)
 		tmp = -1;
 		for (i = 0; i < data->MsgLen; i++) {
 			tmp = data->MsgBuffer[i];
-			if (data->MsgBuffer[i] == MSG_EXTENDED) {
+			if (data->MsgBuffer[i] == EXTENDED_MESSAGE) {
 				i += (1 + data->MsgBuffer[i+1]);
 			}
 		}

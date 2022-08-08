@@ -474,7 +474,6 @@ static irqreturn_t pvrdma_intrx_handler(int irq, void *dev_id)
 	int ring_slots = (dev->dsr->cq_ring_pages.num_pages - 1) * PAGE_SIZE /
 			 sizeof(struct pvrdma_cqne);
 	unsigned int head;
-	unsigned long flags;
 
 	dev_dbg(&dev->pdev->dev, "interrupt x (completion) handler\n");
 
@@ -483,11 +482,11 @@ static irqreturn_t pvrdma_intrx_handler(int irq, void *dev_id)
 		struct pvrdma_cq *cq;
 
 		cqne = get_cqne(dev, head);
-		spin_lock_irqsave(&dev->cq_tbl_lock, flags);
+		spin_lock(&dev->cq_tbl_lock);
 		cq = dev->cq_tbl[cqne->info % dev->dsr->caps.max_cq];
 		if (cq)
 			refcount_inc(&cq->refcnt);
-		spin_unlock_irqrestore(&dev->cq_tbl_lock, flags);
+		spin_unlock(&dev->cq_tbl_lock);
 
 		if (cq && cq->ibcq.comp_handler)
 			cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);

@@ -57,6 +57,8 @@
 #include <asm/processor.h>
 #include <asm/pointer_auth.h>
 #include <asm/stacktrace.h>
+#include <asm/switch_to.h>
+#include <asm/system_misc.h>
 
 #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_STACKPROTECTOR_PER_TASK)
 #include <linux/stackprotector.h>
@@ -304,7 +306,7 @@ void __show_regs(struct pt_regs *regs)
 	}
 }
 
-void show_regs(struct pt_regs * regs)
+void show_regs(struct pt_regs *regs)
 {
 	__show_regs(regs);
 	dump_backtrace(regs, NULL, KERN_DEFAULT);
@@ -398,7 +400,7 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 
 	ptrauth_thread_init_kernel(p);
 
-	if (likely(!(p->flags & PF_KTHREAD))) {
+	if (likely(!(p->flags & (PF_KTHREAD | PF_IO_WORKER)))) {
 		*childregs = *current_pt_regs();
 		childregs->regs[0] = 0;
 
@@ -587,7 +589,7 @@ unsigned long get_wchan(struct task_struct *p)
 			ret = frame.pc;
 			goto out;
 		}
-	} while (count ++ < 16);
+	} while (count++ < 16);
 
 out:
 	put_task_stack(p);

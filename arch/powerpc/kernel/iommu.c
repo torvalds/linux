@@ -25,6 +25,7 @@
 #include <linux/pci.h>
 #include <linux/iommu.h>
 #include <linux/sched.h>
+#include <linux/debugfs.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/iommu.h>
@@ -37,6 +38,47 @@
 #include <asm/mmu_context.h>
 
 #define DBG(...)
+
+#ifdef CONFIG_IOMMU_DEBUGFS
+static int iommu_debugfs_weight_get(void *data, u64 *val)
+{
+	struct iommu_table *tbl = data;
+	*val = bitmap_weight(tbl->it_map, tbl->it_size);
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(iommu_debugfs_fops_weight, iommu_debugfs_weight_get, NULL, "%llu\n");
+
+static void iommu_debugfs_add(struct iommu_table *tbl)
+{
+	char name[10];
+	struct dentry *liobn_entry;
+
+	sprintf(name, "%08lx", tbl->it_index);
+	liobn_entry = debugfs_create_dir(name, iommu_debugfs_dir);
+
+	debugfs_create_file_unsafe("weight", 0400, liobn_entry, tbl, &iommu_debugfs_fops_weight);
+	debugfs_create_ulong("it_size", 0400, liobn_entry, &tbl->it_size);
+	debugfs_create_ulong("it_page_shift", 0400, liobn_entry, &tbl->it_page_shift);
+	debugfs_create_ulong("it_reserved_start", 0400, liobn_entry, &tbl->it_reserved_start);
+	debugfs_create_ulong("it_reserved_end", 0400, liobn_entry, &tbl->it_reserved_end);
+	debugfs_create_ulong("it_indirect_levels", 0400, liobn_entry, &tbl->it_indirect_levels);
+	debugfs_create_ulong("it_level_size", 0400, liobn_entry, &tbl->it_level_size);
+}
+
+static void iommu_debugfs_del(struct iommu_table *tbl)
+{
+	char name[10];
+	struct dentry *liobn_entry;
+
+	sprintf(name, "%08lx", tbl->it_index);
+	liobn_entry = debugfs_lookup(name, iommu_debugfs_dir);
+	if (liobn_entry)
+		debugfs_remove(liobn_entry);
+}
+#else
+static void iommu_debugfs_add(struct iommu_table *tbl){}
+static void iommu_debugfs_del(struct iommu_table *tbl){}
+#endif
 
 static int novmerge;
 
@@ -725,6 +767,8 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid,
 		welcomed = 1;
 	}
 
+	iommu_debugfs_add(tbl);
+
 	return tbl;
 }
 
@@ -743,6 +787,8 @@ static void iommu_table_free(struct kref *kref)
 		kfree(tbl);
 		return;
 	}
+
+	iommu_debugfs_del(tbl);
 
 	iommu_table_release_pages(tbl);
 

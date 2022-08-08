@@ -44,6 +44,57 @@
 	};
 };
 
+&ports {
+	port@0 {
+		label = "lan2";
+	};
+
+	port@1 {
+		label = "lan1";
+	};
+
+	port@2 {
+		label = "lan6";
+	};
+
+	port@3 {
+		label = "lan5";
+	};
+
+	/* External BCM53134S switch */
+	port@7 {
+		label = "sw";
+		reg = <7>;
+
+		fixed-link {
+			speed = <1000>;
+			full-duplex;
+		};
+	};
+};
+
+&mdio {
+	/* lan8 */
+	ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	/* lan7 */
+	ethernet-phy@1 {
+		reg = <1>;
+	};
+
+	/* lan4 */
+	ethernet-phy@2 {
+		reg = <2>;
+	};
+
+	/* lan3 */
+	ethernet-phy@3 {
+		reg = <3>;
+	};
+};
+
 &nandcs {
 	nand-ecc-strength = <4>;
 	nand-ecc-step-size = <512>;

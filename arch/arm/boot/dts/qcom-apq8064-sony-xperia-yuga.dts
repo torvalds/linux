@@ -362,11 +362,11 @@
 		};
 
 		gsbi@1a200000 {
-			status = "ok";
+			status = "okay";
 			qcom,mode = <GSBI_PROT_I2C_UART>;
 
 			serial@1a240000 {
-				status = "ok";
+				status = "okay";
 
 				pinctrl-names = "default";
 				pinctrl-0 = <&gsbi5_uart_pin_a>;

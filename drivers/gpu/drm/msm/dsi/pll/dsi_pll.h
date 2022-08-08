@@ -117,10 +117,12 @@ msm_dsi_pll_10nm_init(struct platform_device *pdev, int id)
 }
 #endif
 #ifdef CONFIG_DRM_MSM_DSI_7NM_PHY
-struct msm_dsi_pll *msm_dsi_pll_7nm_init(struct platform_device *pdev, int id);
+struct msm_dsi_pll *msm_dsi_pll_7nm_init(struct platform_device *pdev,
+					enum msm_dsi_phy_type type, int id);
 #else
 static inline struct msm_dsi_pll *
-msm_dsi_pll_7nm_init(struct platform_device *pdev, int id)
+msm_dsi_pll_7nm_init(struct platform_device *pdev,
+					enum msm_dsi_phy_type type, int id)
 {
 	return ERR_PTR(-ENODEV);
 }

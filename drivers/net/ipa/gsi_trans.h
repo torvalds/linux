@@ -13,6 +13,7 @@
 
 #include "ipa_cmd.h"
 
+struct page;
 struct scatterlist;
 struct device;
 struct sk_buff;

@@ -54,6 +54,7 @@ struct hw_sequencer_funcs {
 	/* Embedded Display Related */
 	void (*edp_power_control)(struct dc_link *link, bool enable);
 	void (*edp_wait_for_hpd_ready)(struct dc_link *link, bool power_up);
+	void (*edp_wait_for_T12)(struct dc_link *link);
 
 	/* Pipe Programming Related */
 	void (*init_hw)(struct dc *dc);
@@ -217,6 +218,9 @@ struct hw_sequencer_funcs {
 	/* Idle Optimization Related */
 	bool (*apply_idle_power_optimizations)(struct dc *dc, bool enable);
 
+	bool (*does_plane_fit_in_mall)(struct dc *dc, struct dc_plane_state *plane,
+			struct dc_cursor_attributes *cursor_attr);
+
 	bool (*is_abm_supported)(struct dc *dc,
 			struct dc_state *context, struct dc_stream_state *stream);
 
@@ -227,6 +231,10 @@ struct hw_sequencer_funcs {
 			enum dc_color_depth color_depth,
 			const struct tg_color *solid_color,
 			int width, int height, int offset);
+
+	void (*set_hubp_blank)(const struct dc *dc,
+			struct pipe_ctx *pipe_ctx,
+			bool blank_enable);
 };
 
 void color_space_to_black_color(

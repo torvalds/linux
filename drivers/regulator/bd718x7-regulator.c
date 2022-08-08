@@ -1554,7 +1554,7 @@ err_out:
 
 static int bd718xx_probe(struct platform_device *pdev)
 {
-	struct bd718xx *mfd;
+	struct regmap *regmap;
 	struct regulator_config config = { 0 };
 	int i, j, err, omit_enable;
 	bool use_snvs;
@@ -1563,11 +1563,10 @@ static int bd718xx_probe(struct platform_device *pdev)
 	enum rohm_chip_type chip = platform_get_device_id(pdev)->driver_data;
 	const struct regulator_ops **swops, **hwops;
 
-	mfd = dev_get_drvdata(pdev->dev.parent);
-	if (!mfd) {
+	regmap = dev_get_regmap(pdev->dev.parent, NULL);
+	if (!regmap) {
 		dev_err(&pdev->dev, "No MFD driver data\n");
-		err = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	switch (chip) {
@@ -1590,7 +1589,7 @@ static int bd718xx_probe(struct platform_device *pdev)
 	}
 
 	/* Register LOCK release */
-	err = regmap_update_bits(mfd->chip.regmap, BD718XX_REG_REGLOCK,
+	err = regmap_update_bits(regmap, BD718XX_REG_REGLOCK,
 				 (REGLOCK_PWRSEQ | REGLOCK_VREG), 0);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to unlock PMIC (%d)\n", err);
@@ -1609,8 +1608,7 @@ static int bd718xx_probe(struct platform_device *pdev)
 	 * bit allowing HW defaults for power rails to be used
 	 */
 	if (!use_snvs) {
-		err = regmap_update_bits(mfd->chip.regmap,
-					 BD718XX_REG_TRANS_COND1,
+		err = regmap_update_bits(regmap, BD718XX_REG_TRANS_COND1,
 					 BD718XX_ON_REQ_POWEROFF_MASK |
 					 BD718XX_SWRESET_POWEROFF_MASK |
 					 BD718XX_WDOG_POWEROFF_MASK |
@@ -1626,7 +1624,7 @@ static int bd718xx_probe(struct platform_device *pdev)
 	}
 
 	config.dev = pdev->dev.parent;
-	config.regmap = mfd->chip.regmap;
+	config.regmap = regmap;
 	/*
 	 * There are cases when we want to leave the enable-control for
 	 * the HW state machine and use this driver only for voltage control.
@@ -1685,7 +1683,7 @@ static int bd718xx_probe(struct platform_device *pdev)
 		if (!no_enable_control && (!use_snvs ||
 		    !rdev->constraints->always_on ||
 		    !rdev->constraints->boot_on)) {
-			err = regmap_update_bits(mfd->chip.regmap, r->init.reg,
+			err = regmap_update_bits(regmap, r->init.reg,
 						 r->init.mask, r->init.val);
 			if (err) {
 				dev_err(&pdev->dev,
@@ -1695,7 +1693,7 @@ static int bd718xx_probe(struct platform_device *pdev)
 			}
 		}
 		for (j = 0; j < r->additional_init_amnt; j++) {
-			err = regmap_update_bits(mfd->chip.regmap,
+			err = regmap_update_bits(regmap,
 						 r->additional_inits[j].reg,
 						 r->additional_inits[j].mask,
 						 r->additional_inits[j].val);

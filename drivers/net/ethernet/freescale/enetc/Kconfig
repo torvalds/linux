@@ -27,7 +27,7 @@ config FSL_ENETC_VF
 
 config FSL_ENETC_MDIO
 	tristate "ENETC MDIO driver"
-	depends on PCI
+	depends on PCI && MDIO_DEVRES && MDIO_BUS
 	help
 	  This driver supports NXP ENETC Central MDIO controller as a PCIe
 	  physical function (PF) device.

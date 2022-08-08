@@ -1056,7 +1056,7 @@ static struct snd_soc_dai_driver rt274_dai[] = {
 			.formats = RT274_FORMATS,
 		},
 		.ops = &rt274_aif_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 };
 

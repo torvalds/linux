@@ -14,7 +14,6 @@
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
 #include <errno.h>
-#include <internal/cpumap.h>
 #include <perf/cpumap.h>
 #include "bench.h"
 #include "futex.h"

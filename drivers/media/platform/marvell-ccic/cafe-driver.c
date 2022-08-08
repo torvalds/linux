@@ -44,10 +44,6 @@
 MODULE_AUTHOR("Jonathan Corbet <corbet@lwn.net>");
 MODULE_DESCRIPTION("Marvell 88ALP01 CMOS Camera Controller driver");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("Video");
-
-
-
 
 struct cafe_camera {
 	int registered;			/* Fully initialized? */
@@ -489,6 +485,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	int ret;
 	struct cafe_camera *cam;
 	struct mcam_camera *mcam;
+	struct v4l2_async_subdev *asd;
 
 	/*
 	 * Start putting together one of our big camera structures.
@@ -546,9 +543,16 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto out_pdown;
 
-	mcam->asd.match_type = V4L2_ASYNC_MATCH_I2C;
-	mcam->asd.match.i2c.adapter_id = i2c_adapter_id(cam->i2c_adapter);
-	mcam->asd.match.i2c.address = ov7670_info.addr;
+	v4l2_async_notifier_init(&mcam->notifier);
+
+	asd = v4l2_async_notifier_add_i2c_subdev(&mcam->notifier,
+					i2c_adapter_id(cam->i2c_adapter),
+					ov7670_info.addr,
+					struct v4l2_async_subdev);
+	if (IS_ERR(asd)) {
+		ret = PTR_ERR(asd);
+		goto out_smbus_shutdown;
+	}
 
 	ret = mccic_register(mcam);
 	if (ret)
