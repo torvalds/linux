@@ -154,11 +154,10 @@ static void _InitQueueReservedPage(struct adapter *Adapter)
 {
 	struct hal_data_8188e *haldata = &Adapter->haldata;
 	struct registry_priv	*pregistrypriv = &Adapter->registrypriv;
-	u32 numHQ	= 0;
-	u32 numLQ	= 0;
+	u8 numHQ = 0;
+	u8 numLQ = 0;
 	u8 numNQ = 0;
-	u32 numPubQ;
-	u32 value32;
+	u8 numPubQ;
 
 	if (pregistrypriv->wifi_spec) {
 		if (haldata->OutEpQueueSel & TX_SELE_HQ)
@@ -176,8 +175,7 @@ static void _InitQueueReservedPage(struct adapter *Adapter)
 		numPubQ = 0xA8 - numHQ - numLQ - numNQ;
 
 		/*  TX DMA */
-		value32 = _HPQ(numHQ) | _LPQ(numLQ) | _PUBQ(numPubQ) | LD_RQPN;
-		rtw_write32(Adapter, REG_RQPN, value32);
+		rtw_write32(Adapter, REG_RQPN, LD_RQPN | numPubQ << 16 | numLQ << 8 | numHQ);
 	} else {
 		rtw_write16(Adapter, REG_RQPN_NPQ, 0x0000);/* Just follow MP Team,??? Georgia 03/28 */
 		rtw_write16(Adapter, REG_RQPN_NPQ, 0x0d);
