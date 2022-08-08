@@ -187,6 +187,7 @@ struct isst_platform_ops {
 	char *(*get_trl_level_name)(int level);
 	int (*is_punit_valid)(struct isst_id *id);
 	int (*get_config_levels)(struct isst_id *id, struct isst_pkg_ctdp *pkg_ctdp);
+	int (*get_ctdp_control)(struct isst_id *id, int config_index, struct isst_pkg_ctdp_level_info *ctdp_level);
 };
 
 extern int is_cpu_in_power_domain(int cpu, struct isst_id *id);

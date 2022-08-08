@@ -294,36 +294,8 @@ int isst_get_ctdp_levels(struct isst_id *id, struct isst_pkg_ctdp *pkg_dev)
 int isst_get_ctdp_control(struct isst_id *id, int config_index,
 			  struct isst_pkg_ctdp_level_info *ctdp_level)
 {
-	int cp_state, cp_cap;
-	unsigned int resp;
-	int ret;
-
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
-				     CONFIG_TDP_GET_TDP_CONTROL, 0,
-				     config_index, &resp);
-	if (ret)
-		return ret;
-
-	ctdp_level->fact_support = resp & BIT(0);
-	ctdp_level->pbf_support = !!(resp & BIT(1));
-	ctdp_level->fact_enabled = !!(resp & BIT(16));
-	ctdp_level->pbf_enabled = !!(resp & BIT(17));
-
-	ret = isst_read_pm_config(id, &cp_state, &cp_cap);
-	if (ret) {
-		debug_printf("cpu:%d pm_config is not supported\n", id->cpu);
-	} else {
-		debug_printf("cpu:%d pm_config SST-CP state:%d cap:%d\n", id->cpu, cp_state, cp_cap);
-		ctdp_level->sst_cp_support = cp_cap;
-		ctdp_level->sst_cp_enabled = cp_state;
-	}
-
-	debug_printf(
-		"cpu:%d CONFIG_TDP_GET_TDP_CONTROL resp:%x fact_support:%d pbf_support: %d fact_enabled:%d pbf_enabled:%d\n",
-		id->cpu, resp, ctdp_level->fact_support, ctdp_level->pbf_support,
-		ctdp_level->fact_enabled, ctdp_level->pbf_enabled);
-
-	return 0;
+	CHECK_CB(get_ctdp_control);
+	return isst_ops->get_ctdp_control(id, config_index, ctdp_level);
 }
 
 int isst_get_tdp_info(struct isst_id *id, int config_index,
