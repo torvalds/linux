@@ -185,6 +185,7 @@ ENTRY(handle_system_call)
 	ldw	r5, PT_R5(sp)
 
 local_restart:
+	stw	r2, PT_ORIG_R2(sp)
 	/* Check that the requested system call is within limits */
 	movui	r1, __NR_syscalls
 	bgeu	r2, r1, ret_invsyscall
@@ -335,9 +336,6 @@ external_interrupt:
 	and	r12, r12, r9
 	/* skip if no interrupt is pending */
 	beq	r12, r0, ret_from_interrupt
-
-	movi	r24, -1
-	stw	r24, PT_ORIG_R2(sp)
 
 	/*
 	 * Process an external hardware interrupt.
