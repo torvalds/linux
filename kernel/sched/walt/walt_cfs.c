@@ -281,8 +281,8 @@ static void walt_find_best_target(struct sched_domain *sd,
 	}
 
 	/* fast path for packing_cpu */
-	packing_cpu = walt_find_cluster_packing_cpu(start_cpu);
-	if (walt_choose_packing_cpu(packing_cpu, p)) {
+	packing_cpu = walt_find_and_choose_cluster_packing_cpu(start_cpu, p);
+	if (packing_cpu >= 0) {
 		fbt_env->fastpath = CLUSTER_PACKING_FASTPATH;
 		cpumask_set_cpu(packing_cpu, candidates);
 			goto out;

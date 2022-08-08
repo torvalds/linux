@@ -290,8 +290,8 @@ static void walt_select_task_rq_rt(void *unused, struct task_struct *task, int c
 				lowest_mask, walt_rt_task_fits_capacity);
 
 	/* create a fastpath for finding a packing cpu */
-	packing_cpu = walt_find_cluster_packing_cpu(task_cpu(task));
-	if (walt_choose_packing_cpu(packing_cpu, task)) {
+	packing_cpu = walt_find_and_choose_cluster_packing_cpu(task_cpu(task), task);
+	if (packing_cpu >= 0) {
 		*new_cpu = packing_cpu;
 		goto unlock;
 	}
@@ -333,8 +333,8 @@ static void walt_rt_find_lowest_rq(void *unused, struct task_struct *task,
 		return;
 
 	/* create a fastpath for finding a packing cpu */
-	packing_cpu = walt_find_cluster_packing_cpu(task_cpu(task));
-	if (walt_choose_packing_cpu(packing_cpu, task)) {
+	packing_cpu = walt_find_and_choose_cluster_packing_cpu(task_cpu(task), task);
+	if (packing_cpu >= 0) {
 		*best_cpu = packing_cpu;
 		return;
 	}

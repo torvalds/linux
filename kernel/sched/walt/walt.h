@@ -962,6 +962,74 @@ extern struct cpumask __cpu_halt_mask;
 #define cpu_halt_mask ((struct cpumask *)&__cpu_halt_mask)
 #define cpu_halted(cpu) cpumask_test_cpu((cpu), cpu_halt_mask)
 
+/* walt_find_and_choose_cluster_packing_cpu - Return a packing_cpu choice common for this cluster.
+ * @start_cpu:  The cpu from the cluster to choose from
+ *
+ * If the cluster has a 32bit capable cpu return it regardless
+ * of whether it is halted or not.
+ *
+ * If the cluster does not have a 32 bit capable cpu, find the
+ * first unhalted, active cpu in this cluster.
+ *
+ * Returns -1 if packing_cpu if not found or is unsuitable to be packed on  to
+ * Returns a valid cpu number if packing_cpu is found and is usable
+ */
+static inline int walt_find_and_choose_cluster_packing_cpu(int start_cpu, struct task_struct *p)
+{
+	struct rq *rq = cpu_rq(start_cpu);
+	struct walt_rq *wrq = (struct walt_rq *)rq->android_vendor_data1;
+	struct walt_sched_cluster *cluster = wrq->cluster;
+	cpumask_t unhalted_cpus;
+	cpumask_t cluster_32bit_cpus;
+	int packing_cpu;
+
+	/* if idle_enough feature is not enabled */
+	if (!sysctl_sched_idle_enough)
+		return -1;
+	if (!sysctl_sched_cluster_util_thres_pct)
+		return -1;
+
+	/* find all 32 bit capable cpus in this cluster */
+	cpumask_and(&cluster_32bit_cpus, &cluster->cpus, system_32bit_el0_cpumask());
+
+	/* pack 32 bit and 64 bit tasks on the same cpu, if possible */
+	if (cpumask_weight(&cluster_32bit_cpus) > 0) {
+		packing_cpu = cpumask_first(&cluster_32bit_cpus);
+	} else {
+		/* find all unhalted active cpus */
+		cpumask_andnot(&unhalted_cpus, cpu_active_mask, cpu_halt_mask);
+
+		/* find all unhalted active cpus in this cluster */
+		cpumask_and(&unhalted_cpus, &unhalted_cpus, &cluster->cpus);
+
+		/* return the first found unhalted, active cpu, in this cluster */
+		packing_cpu = cpumask_first(&unhalted_cpus);
+	}
+
+	/* packing cpu must be a valid cpu for runqueue lookup */
+	if (packing_cpu >= nr_cpu_ids)
+		return -1;
+
+	/* if cpu is not allowed for this task */
+	if (!cpumask_test_cpu(packing_cpu, p->cpus_ptr))
+		return -1;
+
+	/* if cluster util is high */
+	if (sched_get_cluster_util_pct(cluster) >= sysctl_sched_cluster_util_thres_pct)
+		return -1;
+
+	/* if cpu utilization is high */
+	if (cpu_util(packing_cpu) >= sysctl_sched_idle_enough)
+		return -1;
+
+	/* don't pack big tasks */
+	if (task_util(p) >= sysctl_sched_idle_enough)
+		return -1;
+
+	/* the packing cpu can be used, so pack! */
+	return packing_cpu;
+}
+
 extern void walt_task_dump(struct task_struct *p);
 extern void walt_rq_dump(int cpu);
 extern void walt_dump(void);
