@@ -20244,6 +20244,8 @@ L:	linux-pm@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/power/supply/qcom,smbchg.yaml
+F:	drivers/power/supply/qcom-smbchg.c
+F:	drivers/power/supply/qcom-smbchg.h
 
 QUALCOMM TSENS THERMAL DRIVER
 M:	Amit Kucheria <amitk@kernel.org>
