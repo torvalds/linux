@@ -610,24 +610,6 @@ static int pvt_get_regmap(struct platform_device *pdev, char *reg_name,
 	return 0;
 }
 
-static void pvt_clk_disable(void *data)
-{
-	struct pvt_device *pvt = data;
-
-	clk_disable_unprepare(pvt->clk);
-}
-
-static int pvt_clk_enable(struct device *dev, struct pvt_device *pvt)
-{
-	int ret;
-
-	ret = clk_prepare_enable(pvt->clk);
-	if (ret)
-		return ret;
-
-	return devm_add_action_or_reset(dev, pvt_clk_disable, pvt);
-}
-
 static void pvt_reset_control_assert(void *data)
 {
 	struct pvt_device *pvt = data;
@@ -799,15 +781,9 @@ static int mr75203_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	pvt->clk = devm_clk_get(dev, NULL);
+	pvt->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(pvt->clk))
 		return dev_err_probe(dev, PTR_ERR(pvt->clk), "failed to get clock\n");
-
-	ret = pvt_clk_enable(dev, pvt);
-	if (ret) {
-		dev_err(dev, "failed to enable clock\n");
-		return ret;
-	}
 
 	pvt->rst = devm_reset_control_get_optional_exclusive(dev, NULL);
 	if (IS_ERR(pvt->rst))
