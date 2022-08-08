@@ -54,6 +54,8 @@ struct scrub_ctx;
  */
 #define SCRUB_MAX_SECTORS_PER_BLOCK	(BTRFS_MAX_METADATA_BLOCKSIZE / SZ_4K)
 
+#define SCRUB_MAX_PAGES			(DIV_ROUND_UP(BTRFS_MAX_METADATA_BLOCKSIZE, PAGE_SIZE))
+
 struct scrub_recover {
 	refcount_t		refs;
 	struct btrfs_io_context	*bioc;
@@ -94,8 +96,18 @@ struct scrub_bio {
 };
 
 struct scrub_block {
+	/*
+	 * Each page will have its page::private used to record the logical
+	 * bytenr.
+	 */
+	struct page		*pages[SCRUB_MAX_PAGES];
 	struct scrub_sector	*sectors[SCRUB_MAX_SECTORS_PER_BLOCK];
+	/* Logical bytenr of the sblock */
+	u64			logical;
+	/* Length of sblock in bytes */
+	u32			len;
 	int			sector_count;
+
 	atomic_t		outstanding_sectors;
 	refcount_t		refs; /* free mem on transition to zero */
 	struct scrub_ctx	*sctx;
@@ -202,7 +214,45 @@ struct full_stripe_lock {
 	struct mutex mutex;
 };
 
-static struct scrub_block *alloc_scrub_block(struct scrub_ctx *sctx)
+#ifndef CONFIG_64BIT
+/* This structure is for archtectures whose (void *) is smaller than u64 */
+struct scrub_page_private {
+	u64 logical;
+};
+#endif
+
+static int attach_scrub_page_private(struct page *page, u64 logical)
+{
+#ifdef CONFIG_64BIT
+	attach_page_private(page, (void *)logical);
+	return 0;
+#else
+	struct scrub_page_private *spp;
+
+	spp = kmalloc(sizeof(*spp), GFP_KERNEL);
+	if (!spp)
+		return -ENOMEM;
+	spp->logical = logical;
+	attach_page_private(page, (void *)spp);
+	return 0;
+#endif
+}
+
+static void detach_scrub_page_private(struct page *page)
+{
+#ifdef CONFIG_64BIT
+	detach_page_private(page);
+	return;
+#else
+	struct scrub_page_private *spp;
+
+	spp = detach_page_private(page);
+	kfree(spp);
+	return;
+#endif
+}
+
+static struct scrub_block *alloc_scrub_block(struct scrub_ctx *sctx, u64 logical)
 {
 	struct scrub_block *sblock;
 
@@ -211,27 +261,55 @@ static struct scrub_block *alloc_scrub_block(struct scrub_ctx *sctx)
 		return NULL;
 	refcount_set(&sblock->refs, 1);
 	sblock->sctx = sctx;
+	sblock->logical = logical;
 	sblock->no_io_error_seen = 1;
+	/*
+	 * Scrub_block::pages will be allocated at alloc_scrub_sector() when
+	 * the corresponding page is not allocated.
+	 */
 	return sblock;
 }
 
-/* Allocate a new scrub sector and attach it to @sblock */
-static struct scrub_sector *alloc_scrub_sector(struct scrub_block *sblock, gfp_t gfp)
+/*
+ * Allocate a new scrub sector and attach it to @sblock.
+ *
+ * Will also allocate new pages for @sblock if needed.
+ */
+static struct scrub_sector *alloc_scrub_sector(struct scrub_block *sblock,
+					       u64 logical, gfp_t gfp)
 {
+	const pgoff_t page_index = (logical - sblock->logical) >> PAGE_SHIFT;
 	struct scrub_sector *ssector;
 
 	ssector = kzalloc(sizeof(*ssector), gfp);
 	if (!ssector)
 		return NULL;
-	ssector->page = alloc_page(gfp);
-	if (!ssector->page) {
-		kfree(ssector);
-		return NULL;
+
+	/* Allocate a new page if the slot is not allocated */
+	if (!sblock->pages[page_index]) {
+		int ret;
+
+		sblock->pages[page_index] = alloc_page(gfp);
+		if (!sblock->pages[page_index]) {
+			kfree(ssector);
+			return NULL;
+		}
+		ret = attach_scrub_page_private(sblock->pages[page_index],
+				sblock->logical + (page_index << PAGE_SHIFT));
+		if (ret < 0) {
+			kfree(ssector);
+			__free_page(sblock->pages[page_index]);
+			sblock->pages[page_index] = NULL;
+			return NULL;
+		}
 	}
+
 	atomic_set(&ssector->refs, 1);
 	ssector->sblock = sblock;
 	/* The sector to be added should not be used */
 	ASSERT(sblock->sectors[sblock->sector_count] == NULL);
+	ssector->logical = logical;
+
 	/* The sector count must be smaller than the limit */
 	ASSERT(sblock->sector_count < SCRUB_MAX_SECTORS_PER_BLOCK);
 
@@ -958,7 +1036,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 		 * But alloc_scrub_block() will initialize sblock::ref anyway,
 		 * so we can use scrub_block_put() to clean them up.
 		 */
-		sblocks_for_recheck[mirror_index] = alloc_scrub_block(sctx);
+		sblocks_for_recheck[mirror_index] = alloc_scrub_block(sctx, logical);
 		if (!sblocks_for_recheck[mirror_index]) {
 			spin_lock(&sctx->stat_lock);
 			sctx->stat.malloc_errors++;
@@ -1362,7 +1440,7 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 			sblock = sblocks_for_recheck[mirror_index];
 			sblock->sctx = sctx;
 
-			sector = alloc_scrub_sector(sblock, GFP_NOFS);
+			sector = alloc_scrub_sector(sblock, logical, GFP_NOFS);
 			if (!sector) {
 				spin_lock(&sctx->stat_lock);
 				sctx->stat.malloc_errors++;
@@ -1372,7 +1450,6 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 			}
 			sector->flags = flags;
 			sector->generation = generation;
-			sector->logical = logical;
 			sector->have_csum = have_csum;
 			if (have_csum)
 				memcpy(sector->csum,
@@ -1651,6 +1728,11 @@ static int fill_writer_pointer_gap(struct scrub_ctx *sctx, u64 physical)
 	return ret;
 }
 
+static void scrub_block_get(struct scrub_block *sblock)
+{
+	refcount_inc(&sblock->refs);
+}
+
 static int scrub_add_sector_to_wr_bio(struct scrub_ctx *sctx,
 				      struct scrub_sector *sector)
 {
@@ -1711,6 +1793,13 @@ again:
 
 	sbio->sectors[sbio->sector_count] = sector;
 	scrub_sector_get(sector);
+	/*
+	 * Since ssector no longer holds a page, but uses sblock::pages, we
+	 * have to ensure the sblock had not been freed before our write bio
+	 * finished.
+	 */
+	scrub_block_get(sector->sblock);
+
 	sbio->sector_count++;
 	if (sbio->sector_count == sctx->sectors_per_bio)
 		scrub_wr_submit(sctx);
@@ -1772,8 +1861,14 @@ static void scrub_wr_bio_end_io_worker(struct work_struct *work)
 		}
 	}
 
-	for (i = 0; i < sbio->sector_count; i++)
+	/*
+	 * In scrub_add_sector_to_wr_bio() we grab extra ref for sblock, now in
+	 * endio we should put the sblock.
+	 */
+	for (i = 0; i < sbio->sector_count; i++) {
+		scrub_block_put(sbio->sectors[i]->sblock);
 		scrub_sector_put(sbio->sectors[i]);
+	}
 
 	bio_put(sbio->bio);
 	kfree(sbio);
@@ -1947,11 +2042,6 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 	return fail_cor + fail_gen;
 }
 
-static void scrub_block_get(struct scrub_block *sblock)
-{
-	refcount_inc(&sblock->refs);
-}
-
 static void scrub_block_put(struct scrub_block *sblock)
 {
 	if (refcount_dec_and_test(&sblock->refs)) {
@@ -1962,6 +2052,12 @@ static void scrub_block_put(struct scrub_block *sblock)
 
 		for (i = 0; i < sblock->sector_count; i++)
 			scrub_sector_put(sblock->sectors[i]);
+		for (i = 0; i < DIV_ROUND_UP(sblock->len, PAGE_SIZE); i++) {
+			if (sblock->pages[i]) {
+				detach_scrub_page_private(sblock->pages[i]);
+				__free_page(sblock->pages[i]);
+			}
+		}
 		kfree(sblock);
 	}
 }
@@ -2251,7 +2347,7 @@ static int scrub_sectors(struct scrub_ctx *sctx, u64 logical, u32 len,
 	const u32 sectorsize = sctx->fs_info->sectorsize;
 	int index;
 
-	sblock = alloc_scrub_block(sctx);
+	sblock = alloc_scrub_block(sctx, logical);
 	if (!sblock) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.malloc_errors++;
@@ -2268,7 +2364,7 @@ static int scrub_sectors(struct scrub_ctx *sctx, u64 logical, u32 len,
 		 */
 		u32 l = min(sectorsize, len);
 
-		sector = alloc_scrub_sector(sblock, GFP_KERNEL);
+		sector = alloc_scrub_sector(sblock, logical, GFP_KERNEL);
 		if (!sector) {
 			spin_lock(&sctx->stat_lock);
 			sctx->stat.malloc_errors++;
@@ -2279,7 +2375,6 @@ static int scrub_sectors(struct scrub_ctx *sctx, u64 logical, u32 len,
 		sector->dev = dev;
 		sector->flags = flags;
 		sector->generation = gen;
-		sector->logical = logical;
 		sector->physical = physical;
 		sector->physical_for_dev_replace = physical_for_dev_replace;
 		sector->mirror_num = mirror_num;
@@ -2589,7 +2684,7 @@ static int scrub_sectors_for_parity(struct scrub_parity *sparity,
 
 	ASSERT(IS_ALIGNED(len, sectorsize));
 
-	sblock = alloc_scrub_block(sctx);
+	sblock = alloc_scrub_block(sctx, logical);
 	if (!sblock) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.malloc_errors++;
@@ -2603,7 +2698,7 @@ static int scrub_sectors_for_parity(struct scrub_parity *sparity,
 	for (index = 0; len > 0; index++) {
 		struct scrub_sector *sector;
 
-		sector = alloc_scrub_sector(sblock, GFP_KERNEL);
+		sector = alloc_scrub_sector(sblock, logical, GFP_KERNEL);
 		if (!sector) {
 			spin_lock(&sctx->stat_lock);
 			sctx->stat.malloc_errors++;
@@ -2618,7 +2713,6 @@ static int scrub_sectors_for_parity(struct scrub_parity *sparity,
 		sector->dev = dev;
 		sector->flags = flags;
 		sector->generation = gen;
-		sector->logical = logical;
 		sector->physical = physical;
 		sector->mirror_num = mirror_num;
 		if (csum) {
