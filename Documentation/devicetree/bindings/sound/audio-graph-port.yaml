@@ -22,6 +22,8 @@ properties:
     $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-sample-rate"
   convert-channels:
     $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-channels"
+  convert-sample-format:
+    $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-sample-format"
 
 patternProperties:
   "^endpoint(@[0-9a-f]+)?":
@@ -67,6 +69,8 @@ patternProperties:
         $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-sample-rate"
       convert-channels:
         $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-channels"
+      convert-sample-format:
+        $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-sample-format"
 
       dai-tdm-slot-width-map:
         description: Mapping of sample widths to slot widths. For hardware

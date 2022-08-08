@@ -30,6 +30,8 @@ properties:
     $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-sample-rate"
   convert-channels:
     $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-channels"
+  convert-sample-format:
+    $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-sample-format"
 
   pa-gpios:
     maxItems: 1
