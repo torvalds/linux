@@ -6,6 +6,7 @@
 #ifndef __LINUX_DRM_FORMAT_HELPER_H
 #define __LINUX_DRM_FORMAT_HELPER_H
 
+struct iosys_map;
 struct drm_format_info;
 struct drm_framebuffer;
 struct drm_rect;
@@ -39,9 +40,9 @@ void drm_fb_xrgb8888_to_xrgb2101010_toio(void __iomem *dst, unsigned int dst_pit
 void drm_fb_xrgb8888_to_gray8(void *dst, unsigned int dst_pitch, const void *vaddr,
 			      const struct drm_framebuffer *fb, const struct drm_rect *clip);
 
-int drm_fb_blit_toio(void __iomem *dst, unsigned int dst_pitch, uint32_t dst_format,
-		     const void *vmap, const struct drm_framebuffer *fb,
-		     const struct drm_rect *rect);
+int drm_fb_blit(struct iosys_map *dst, const unsigned int *dst_pitch, uint32_t dst_format,
+		const struct iosys_map *vmap, const struct drm_framebuffer *fb,
+		const struct drm_rect *rect);
 
 void drm_fb_xrgb8888_to_mono(void *dst, unsigned int dst_pitch, const void *src,
 			     const struct drm_framebuffer *fb, const struct drm_rect *clip);
