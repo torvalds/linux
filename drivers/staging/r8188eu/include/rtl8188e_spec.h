@@ -925,8 +925,6 @@ Current IOREG MAP
 
 /* 	0x0200h ~ 0x027Fh	TXDMA Configuration */
 
-#define HPQ_PUBLIC_DIS			BIT(24)
-#define LPQ_PUBLIC_DIS			BIT(25)
 #define LD_RQPN				BIT(31)
 
 /* 2TDECTRL */
