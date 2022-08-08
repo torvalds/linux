@@ -159,6 +159,40 @@ static int mbox_get_pwr_info(struct isst_id *id, int config_index,
 	return 0;
 }
 
+static int mbox_get_coremask_info(struct isst_id *id, int config_index,
+			   struct isst_pkg_ctdp_level_info *ctdp_level)
+{
+	unsigned int resp;
+	int i, ret;
+
+	ctdp_level->cpu_count = 0;
+	for (i = 0; i < 2; ++i) {
+		unsigned long long mask;
+		int cpu_count = 0;
+
+		ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
+					     CONFIG_TDP_GET_CORE_MASK, 0,
+					     (i << 8) | config_index, &resp);
+		if (ret)
+			return ret;
+
+		debug_printf(
+			"cpu:%d ctdp:%d mask:%d CONFIG_TDP_GET_CORE_MASK resp:%x\n",
+			id->cpu, config_index, i, resp);
+
+		mask = (unsigned long long)resp << (32 * i);
+		set_cpu_mask_from_punit_coremask(id, mask,
+						 ctdp_level->core_cpumask_size,
+						 ctdp_level->core_cpumask,
+						 &cpu_count);
+		ctdp_level->cpu_count += cpu_count;
+		debug_printf("cpu:%d ctdp:%d mask:%d cpu count:%d\n", id->cpu,
+			     config_index, i, ctdp_level->cpu_count);
+	}
+
+	return 0;
+}
+
 static struct isst_platform_ops mbox_ops = {
 	.get_disp_freq_multiplier = mbox_get_disp_freq_multiplier,
 	.get_trl_max_levels = mbox_get_trl_max_levels,
@@ -168,6 +202,7 @@ static struct isst_platform_ops mbox_ops = {
 	.get_ctdp_control = mbox_get_ctdp_control,
 	.get_tdp_info = mbox_get_tdp_info,
 	.get_pwr_info = mbox_get_pwr_info,
+	.get_coremask_info = mbox_get_coremask_info,
 };
 
 struct isst_platform_ops *mbox_get_platform_ops(void)
