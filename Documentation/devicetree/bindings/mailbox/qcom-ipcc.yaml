@@ -25,6 +25,7 @@ properties:
     items:
       - enum:
           - qcom,sm6350-ipcc
+          - qcom,sm6375-ipcc
           - qcom,sm8250-ipcc
           - qcom,sm8350-ipcc
           - qcom,sm8450-ipcc
