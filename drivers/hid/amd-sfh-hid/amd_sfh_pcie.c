@@ -24,11 +24,54 @@
 #define ACEL_EN		BIT(0)
 #define GYRO_EN		BIT(1)
 #define MAGNO_EN	BIT(2)
+#define HPD_EN		BIT(16)
 #define ALS_EN		BIT(19)
 
 static int sensor_mask_override = -1;
 module_param_named(sensor_mask, sensor_mask_override, int, 0444);
 MODULE_PARM_DESC(sensor_mask, "override the detected sensors mask");
+
+static void amd_start_sensor_v2(struct amd_mp2_dev *privdata, struct amd_mp2_sensor_info info)
+{
+	union sfh_cmd_base cmd_base;
+
+	cmd_base.ul = 0;
+	cmd_base.cmd_v2.cmd_id = ENABLE_SENSOR;
+	cmd_base.cmd_v2.period = info.period;
+	cmd_base.cmd_v2.sensor_id = info.sensor_idx;
+	cmd_base.cmd_v2.length = 16;
+
+	if (info.sensor_idx == als_idx)
+		cmd_base.cmd_v2.mem_type = USE_C2P_REG;
+
+	writeq(info.dma_address, privdata->mmio + AMD_C2P_MSG1);
+	writel(cmd_base.ul, privdata->mmio + AMD_C2P_MSG0);
+}
+
+static void amd_stop_sensor_v2(struct amd_mp2_dev *privdata, u16 sensor_idx)
+{
+	union sfh_cmd_base cmd_base;
+
+	cmd_base.ul = 0;
+	cmd_base.cmd_v2.cmd_id = DISABLE_SENSOR;
+	cmd_base.cmd_v2.period = 0;
+	cmd_base.cmd_v2.sensor_id = sensor_idx;
+	cmd_base.cmd_v2.length  = 16;
+
+	writeq(0x0, privdata->mmio + AMD_C2P_MSG1);
+	writel(cmd_base.ul, privdata->mmio + AMD_C2P_MSG0);
+}
+
+static void amd_stop_all_sensor_v2(struct amd_mp2_dev *privdata)
+{
+	union sfh_cmd_base cmd_base;
+
+	cmd_base.cmd_v2.cmd_id = STOP_ALL_SENSORS;
+	cmd_base.cmd_v2.period = 0;
+	cmd_base.cmd_v2.sensor_id = 0;
+
+	writel(cmd_base.ul, privdata->mmio + AMD_C2P_MSG0);
+}
 
 void amd_start_sensor(struct amd_mp2_dev *privdata, struct amd_mp2_sensor_info info)
 {
@@ -98,7 +141,6 @@ int amd_mp2_get_sensor_num(struct amd_mp2_dev *privdata, u8 *sensor_id)
 {
 	int activestatus, num_of_sensors = 0;
 	const struct dmi_system_id *dmi_id;
-	u32 activecontrolstatus;
 
 	if (sensor_mask_override == -1) {
 		dmi_id = dmi_first_match(dmi_sensor_mask_overrides);
@@ -109,8 +151,7 @@ int amd_mp2_get_sensor_num(struct amd_mp2_dev *privdata, u8 *sensor_id)
 	if (sensor_mask_override >= 0) {
 		activestatus = sensor_mask_override;
 	} else {
-		activecontrolstatus = readl(privdata->mmio + AMD_P2C_MSG3);
-		activestatus = activecontrolstatus >> 4;
+		activestatus = privdata->mp2_acs >> 4;
 	}
 
 	if (ACEL_EN  & activestatus)
@@ -125,13 +166,46 @@ int amd_mp2_get_sensor_num(struct amd_mp2_dev *privdata, u8 *sensor_id)
 	if (ALS_EN & activestatus)
 		sensor_id[num_of_sensors++] = als_idx;
 
+	if (HPD_EN & activestatus)
+		sensor_id[num_of_sensors++] = HPD_IDX;
+
 	return num_of_sensors;
 }
 
 static void amd_mp2_pci_remove(void *privdata)
 {
+	struct amd_mp2_dev *mp2 = privdata;
 	amd_sfh_hid_client_deinit(privdata);
-	amd_stop_all_sensors(privdata);
+	mp2->mp2_ops->stop_all(mp2);
+}
+
+static const struct amd_mp2_ops amd_sfh_ops_v2 = {
+	.start = amd_start_sensor_v2,
+	.stop = amd_stop_sensor_v2,
+	.stop_all = amd_stop_all_sensor_v2,
+};
+
+static const struct amd_mp2_ops amd_sfh_ops = {
+	.start = amd_start_sensor,
+	.stop = amd_stop_sensor,
+	.stop_all = amd_stop_all_sensors,
+};
+
+static void mp2_select_ops(struct amd_mp2_dev *privdata)
+{
+	u8 acs;
+
+	privdata->mp2_acs = readl(privdata->mmio + AMD_P2C_MSG3);
+	acs = privdata->mp2_acs & GENMASK(3, 0);
+
+	switch (acs) {
+	case V2_STATUS:
+		privdata->mp2_ops = &amd_sfh_ops_v2;
+		break;
+	default:
+		privdata->mp2_ops = &amd_sfh_ops;
+		break;
+	}
 }
 
 static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -160,9 +234,16 @@ static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		return rc;
 	}
+
+	privdata->cl_data = devm_kzalloc(&pdev->dev, sizeof(struct amdtp_cl_data), GFP_KERNEL);
+	if (!privdata->cl_data)
+		return -ENOMEM;
+
 	rc = devm_add_action_or_reset(&pdev->dev, amd_mp2_pci_remove, privdata);
 	if (rc)
 		return rc;
+
+	mp2_select_ops(privdata);
 
 	return amd_sfh_hid_client_init(privdata);
 }

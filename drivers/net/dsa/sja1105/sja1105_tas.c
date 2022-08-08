@@ -27,7 +27,7 @@ static int sja1105_tas_set_runtime_params(struct sja1105_private *priv)
 
 	tas_data->enabled = false;
 
-	for (port = 0; port < SJA1105_NUM_PORTS; port++) {
+	for (port = 0; port < ds->num_ports; port++) {
 		const struct tc_taprio_qopt_offload *offload;
 
 		offload = tas_data->offload[port];
@@ -164,6 +164,7 @@ int sja1105_init_scheduling(struct sja1105_private *priv)
 	struct sja1105_tas_data *tas_data = &priv->tas_data;
 	struct sja1105_gating_config *gating_cfg = &tas_data->gating_cfg;
 	struct sja1105_schedule_entry *schedule;
+	struct dsa_switch *ds = priv->ds;
 	struct sja1105_table *table;
 	int schedule_start_idx;
 	s64 entry_point_delta;
@@ -207,7 +208,7 @@ int sja1105_init_scheduling(struct sja1105_private *priv)
 	}
 
 	/* Figure out the dimensioning of the problem */
-	for (port = 0; port < SJA1105_NUM_PORTS; port++) {
+	for (port = 0; port < ds->num_ports; port++) {
 		if (tas_data->offload[port]) {
 			num_entries += tas_data->offload[port]->num_entries;
 			num_cycles++;
@@ -269,7 +270,7 @@ int sja1105_init_scheduling(struct sja1105_private *priv)
 	schedule_entry_points_params->clksrc = SJA1105_TAS_CLKSRC_PTP;
 	schedule_entry_points_params->actsubsch = num_cycles - 1;
 
-	for (port = 0; port < SJA1105_NUM_PORTS; port++) {
+	for (port = 0; port < ds->num_ports; port++) {
 		const struct tc_taprio_qopt_offload *offload;
 		/* Relative base time */
 		s64 rbt;
@@ -468,6 +469,7 @@ bool sja1105_gating_check_conflicts(struct sja1105_private *priv, int port,
 	struct sja1105_gating_config *gating_cfg = &priv->tas_data.gating_cfg;
 	size_t num_entries = gating_cfg->num_entries;
 	struct tc_taprio_qopt_offload *dummy;
+	struct dsa_switch *ds = priv->ds;
 	struct sja1105_gate_entry *e;
 	bool conflict;
 	int i = 0;
@@ -491,7 +493,7 @@ bool sja1105_gating_check_conflicts(struct sja1105_private *priv, int port,
 	if (port != -1) {
 		conflict = sja1105_tas_check_conflicts(priv, port, dummy);
 	} else {
-		for (port = 0; port < SJA1105_NUM_PORTS; port++) {
+		for (port = 0; port < ds->num_ports; port++) {
 			conflict = sja1105_tas_check_conflicts(priv, port,
 							       dummy);
 			if (conflict)
@@ -554,7 +556,7 @@ int sja1105_setup_tc_taprio(struct dsa_switch *ds, int port,
 		}
 	}
 
-	for (other_port = 0; other_port < SJA1105_NUM_PORTS; other_port++) {
+	for (other_port = 0; other_port < ds->num_ports; other_port++) {
 		if (other_port == port)
 			continue;
 
@@ -885,7 +887,7 @@ void sja1105_tas_teardown(struct dsa_switch *ds)
 
 	cancel_work_sync(&priv->tas_data.tas_work);
 
-	for (port = 0; port < SJA1105_NUM_PORTS; port++) {
+	for (port = 0; port < ds->num_ports; port++) {
 		offload = priv->tas_data.offload[port];
 		if (!offload)
 			continue;

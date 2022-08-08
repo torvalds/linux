@@ -97,12 +97,12 @@ static void check_result(void)
 
 	err = bpf_map_lookup_elem(linum_map_fd, &egress_linum_idx,
 				  &egress_linum);
-	CHECK(err == -1, "bpf_map_lookup_elem(linum_map_fd)",
+	CHECK(err < 0, "bpf_map_lookup_elem(linum_map_fd)",
 	      "err:%d errno:%d\n", err, errno);
 
 	err = bpf_map_lookup_elem(linum_map_fd, &ingress_linum_idx,
 				  &ingress_linum);
-	CHECK(err == -1, "bpf_map_lookup_elem(linum_map_fd)",
+	CHECK(err < 0, "bpf_map_lookup_elem(linum_map_fd)",
 	      "err:%d errno:%d\n", err, errno);
 
 	memcpy(&srv_sk, &skel->bss->srv_sk, sizeof(srv_sk));
@@ -355,14 +355,12 @@ void test_sock_fields(void)
 
 	egress_link = bpf_program__attach_cgroup(skel->progs.egress_read_sock_fields,
 						 child_cg_fd);
-	if (CHECK(IS_ERR(egress_link), "attach_cgroup(egress)", "err:%ld\n",
-		  PTR_ERR(egress_link)))
+	if (!ASSERT_OK_PTR(egress_link, "attach_cgroup(egress)"))
 		goto done;
 
 	ingress_link = bpf_program__attach_cgroup(skel->progs.ingress_read_sock_fields,
 						  child_cg_fd);
-	if (CHECK(IS_ERR(ingress_link), "attach_cgroup(ingress)", "err:%ld\n",
-		  PTR_ERR(ingress_link)))
+	if (!ASSERT_OK_PTR(ingress_link, "attach_cgroup(ingress)"))
 		goto done;
 
 	linum_map_fd = bpf_map__fd(skel->maps.linum_map);
@@ -375,8 +373,8 @@ done:
 	bpf_link__destroy(egress_link);
 	bpf_link__destroy(ingress_link);
 	test_sock_fields__destroy(skel);
-	if (child_cg_fd != -1)
+	if (child_cg_fd >= 0)
 		close(child_cg_fd);
-	if (parent_cg_fd != -1)
+	if (parent_cg_fd >= 0)
 		close(parent_cg_fd);
 }

@@ -588,23 +588,4 @@ static inline struct ep_queue_head *get_qh_by_ep(struct fsl_ep *ep)
 				USB_DIR_IN) ? 1 : 0];
 }
 
-struct platform_device;
-#ifdef CONFIG_ARCH_MXC
-int fsl_udc_clk_init(struct platform_device *pdev);
-int fsl_udc_clk_finalize(struct platform_device *pdev);
-void fsl_udc_clk_release(void);
-#else
-static inline int fsl_udc_clk_init(struct platform_device *pdev)
-{
-	return 0;
-}
-static inline int fsl_udc_clk_finalize(struct platform_device *pdev)
-{
-	return 0;
-}
-static inline void fsl_udc_clk_release(void)
-{
-}
-#endif
-
 #endif

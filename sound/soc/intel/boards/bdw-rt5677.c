@@ -423,10 +423,8 @@ static int bdw_rt5677_probe(struct platform_device *pdev)
 	/* Allocate driver private struct */
 	bdw_rt5677 = devm_kzalloc(&pdev->dev, sizeof(struct bdw_rt5677_priv),
 		GFP_KERNEL);
-	if (!bdw_rt5677) {
-		dev_err(&pdev->dev, "Can't allocate bdw_rt5677\n");
+	if (!bdw_rt5677)
 		return -ENOMEM;
-	}
 
 	/* override plaform name, if required */
 	mach = pdev->dev.platform_data;

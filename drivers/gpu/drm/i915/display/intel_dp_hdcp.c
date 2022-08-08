@@ -11,9 +11,11 @@
 #include <drm/drm_hdcp.h>
 #include <drm/drm_print.h>
 
-#include "intel_display_types.h"
 #include "intel_ddi.h"
+#include "intel_de.h"
+#include "intel_display_types.h"
 #include "intel_dp.h"
+#include "intel_dp_hdcp.h"
 #include "intel_hdcp.h"
 
 static unsigned int transcoder_to_stream_enc_status(enum transcoder cpu_transcoder)
@@ -532,7 +534,7 @@ int intel_dp_hdcp2_read_msg(struct intel_digital_port *dig_port,
 	u8 *byte = buf;
 	ssize_t ret, bytes_to_recv, len;
 	const struct hdcp2_dp_msg_data *hdcp2_msg_data;
-	ktime_t msg_end;
+	ktime_t msg_end = ktime_set(0, 0);
 	bool msg_expired;
 
 	hdcp2_msg_data = get_hdcp2_dp_msg_data(msg_id);
@@ -835,7 +837,7 @@ static const struct intel_hdcp_shim intel_dp_mst_hdcp_shim = {
 	.protocol = HDCP_PROTOCOL_DP,
 };
 
-int intel_dp_init_hdcp(struct intel_digital_port *dig_port,
+int intel_dp_hdcp_init(struct intel_digital_port *dig_port,
 		       struct intel_connector *intel_connector)
 {
 	struct drm_device *dev = intel_connector->base.dev;

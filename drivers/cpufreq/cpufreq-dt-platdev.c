@@ -15,7 +15,7 @@
  * Machines for which the cpufreq device is *always* created, mostly used for
  * platforms using "operating-points" (V1) property.
  */
-static const struct of_device_id whitelist[] __initconst = {
+static const struct of_device_id allowlist[] __initconst = {
 	{ .compatible = "allwinner,sun4i-a10", },
 	{ .compatible = "allwinner,sun5i-a10s", },
 	{ .compatible = "allwinner,sun5i-a13", },
@@ -100,7 +100,7 @@ static const struct of_device_id whitelist[] __initconst = {
  * Machines for which the cpufreq device is *not* created, mostly used for
  * platforms using "operating-points-v2" property.
  */
-static const struct of_device_id blacklist[] __initconst = {
+static const struct of_device_id blocklist[] __initconst = {
 	{ .compatible = "allwinner,sun50i-h6", },
 
 	{ .compatible = "arm,vexpress", },
@@ -126,6 +126,7 @@ static const struct of_device_id blacklist[] __initconst = {
 	{ .compatible = "mediatek,mt8173", },
 	{ .compatible = "mediatek,mt8176", },
 	{ .compatible = "mediatek,mt8183", },
+	{ .compatible = "mediatek,mt8365", },
 	{ .compatible = "mediatek,mt8516", },
 
 	{ .compatible = "nvidia,tegra20", },
@@ -137,7 +138,10 @@ static const struct of_device_id blacklist[] __initconst = {
 	{ .compatible = "qcom,msm8996", },
 	{ .compatible = "qcom,qcs404", },
 	{ .compatible = "qcom,sc7180", },
+	{ .compatible = "qcom,sc7280", },
+	{ .compatible = "qcom,sc8180x", },
 	{ .compatible = "qcom,sdm845", },
+	{ .compatible = "qcom,sm8150", },
 
 	{ .compatible = "st,stih407", },
 	{ .compatible = "st,stih410", },
@@ -177,13 +181,13 @@ static int __init cpufreq_dt_platdev_init(void)
 	if (!np)
 		return -ENODEV;
 
-	match = of_match_node(whitelist, np);
+	match = of_match_node(allowlist, np);
 	if (match) {
 		data = match->data;
 		goto create_pdev;
 	}
 
-	if (cpu0_node_has_opp_v2_prop() && !of_match_node(blacklist, np))
+	if (cpu0_node_has_opp_v2_prop() && !of_match_node(blocklist, np))
 		goto create_pdev;
 
 	of_node_put(np);

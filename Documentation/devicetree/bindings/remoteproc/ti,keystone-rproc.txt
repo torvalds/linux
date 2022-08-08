@@ -48,7 +48,7 @@ The following are the mandatory properties:
 			bindings for the reset argument specifier as per SoC,
 			Documentation/devicetree/bindings/reset/ti-syscon-reset.txt
 			    for 66AK2HK/66AK2L/66AK2E SoCs or,
-			Documentation/devicetree/bindings/reset/ti,sci-reset.txt
+			Documentation/devicetree/bindings/reset/ti,sci-reset.yaml
 			    for 66AK2G SoCs
 
 - interrupts: 		Should contain an entry for each value in 'interrupt-names'.
@@ -82,7 +82,7 @@ The following are mandatory properties for Keystone 2 66AK2G SoCs only:
 - power-domains:	Should contain a phandle to a PM domain provider node
 			and an args specifier containing the DSP device id
 			value. This property is as per the binding,
-			Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
+			Documentation/devicetree/bindings/soc/ti/sci-pm-domain.yaml
 
 Optional properties:
 --------------------

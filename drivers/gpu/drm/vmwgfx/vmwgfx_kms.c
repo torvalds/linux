@@ -38,8 +38,10 @@
 
 void vmw_du_cleanup(struct vmw_display_unit *du)
 {
+	struct vmw_private *dev_priv = vmw_priv(du->primary.dev);
 	drm_plane_cleanup(&du->primary);
-	drm_plane_cleanup(&du->cursor);
+	if (vmw_cmd_supported(dev_priv))
+		drm_plane_cleanup(&du->cursor);
 
 	drm_connector_unregister(&du->connector);
 	drm_crtc_cleanup(&du->crtc);
@@ -128,11 +130,17 @@ static void vmw_cursor_update_position(struct vmw_private *dev_priv,
 	uint32_t count;
 
 	spin_lock(&dev_priv->cursor_lock);
-	vmw_fifo_mem_write(dev_priv, SVGA_FIFO_CURSOR_ON, show ? 1 : 0);
-	vmw_fifo_mem_write(dev_priv, SVGA_FIFO_CURSOR_X, x);
-	vmw_fifo_mem_write(dev_priv, SVGA_FIFO_CURSOR_Y, y);
-	count = vmw_fifo_mem_read(dev_priv, SVGA_FIFO_CURSOR_COUNT);
-	vmw_fifo_mem_write(dev_priv, SVGA_FIFO_CURSOR_COUNT, ++count);
+	if (vmw_is_cursor_bypass3_enabled(dev_priv)) {
+		vmw_fifo_mem_write(dev_priv, SVGA_FIFO_CURSOR_ON, show ? 1 : 0);
+		vmw_fifo_mem_write(dev_priv, SVGA_FIFO_CURSOR_X, x);
+		vmw_fifo_mem_write(dev_priv, SVGA_FIFO_CURSOR_Y, y);
+		count = vmw_fifo_mem_read(dev_priv, SVGA_FIFO_CURSOR_COUNT);
+		vmw_fifo_mem_write(dev_priv, SVGA_FIFO_CURSOR_COUNT, ++count);
+	} else {
+		vmw_write(dev_priv, SVGA_REG_CURSOR_X, x);
+		vmw_write(dev_priv, SVGA_REG_CURSOR_Y, y);
+		vmw_write(dev_priv, SVGA_REG_CURSOR_ON, show ? 1 : 0);
+	}
 	spin_unlock(&dev_priv->cursor_lock);
 }
 
@@ -289,7 +297,7 @@ void vmw_du_primary_plane_destroy(struct drm_plane *plane)
 
 
 /**
- * vmw_du_vps_unpin_surf - unpins resource associated with a framebuffer surface
+ * vmw_du_plane_unpin_surf - unpins resource associated with a framebuffer surface
  *
  * @vps: plane state associated with the display surface
  * @unreference: true if we also want to unreference the display.
@@ -474,7 +482,7 @@ int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
  * vmw_du_cursor_plane_atomic_check - check if the new state is okay
  *
  * @plane: cursor plane
- * @new_state: info on the new plane state
+ * @state: info on the new plane state
  *
  * This is a chance to fail if the new cursor state does not fit
  * our requirements.
@@ -1008,12 +1016,6 @@ static int vmw_framebuffer_bo_dirty(struct drm_framebuffer *framebuffer,
 
 	drm_modeset_lock_all(&dev_priv->drm);
 
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0)) {
-		drm_modeset_unlock_all(&dev_priv->drm);
-		return ret;
-	}
-
 	if (!num_clips) {
 		num_clips = 1;
 		clips = &norect;
@@ -1037,7 +1039,6 @@ static int vmw_framebuffer_bo_dirty(struct drm_framebuffer *framebuffer,
 	}
 
 	vmw_cmd_flush(dev_priv, false);
-	ttm_read_unlock(&dev_priv->reservation_sem);
 
 	drm_modeset_unlock_all(&dev_priv->drm);
 
@@ -1052,7 +1053,8 @@ static int vmw_framebuffer_bo_dirty_ext(struct drm_framebuffer *framebuffer,
 {
 	struct vmw_private *dev_priv = vmw_priv(framebuffer->dev);
 
-	if (dev_priv->active_display_unit == vmw_du_legacy)
+	if (dev_priv->active_display_unit == vmw_du_legacy &&
+	    vmw_cmd_supported(dev_priv))
 		return vmw_framebuffer_bo_dirty(framebuffer, file_priv, flags,
 						color, clips, num_clips);
 
@@ -2640,7 +2642,7 @@ int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_kms_create_implicit_placement_proparty - Set up the implicit placement
+ * vmw_kms_create_implicit_placement_property - Set up the implicit placement
  * property.
  *
  * @dev_priv: Pointer to a device private struct.

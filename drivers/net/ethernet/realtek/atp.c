@@ -497,8 +497,8 @@ static void write_packet(long ioaddr, int length, unsigned char *packet, int pad
 {
     if (length & 1)
     {
-    	length++;
-    	pad_len++;
+	length++;
+	pad_len++;
     }
 
     outb(EOC+MAR, ioaddr + PAR_DATA);

@@ -31,7 +31,8 @@ int snd_oss_info_register(int dev, int num, char *string)
 		return -ENXIO;
 	mutex_lock(&strings);
 	if (string == NULL) {
-		if ((x = snd_sndstat_strings[num][dev]) != NULL) {
+		x = snd_sndstat_strings[num][dev];
+		if (x) {
 			kfree(x);
 			x = NULL;
 		}

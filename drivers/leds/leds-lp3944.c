@@ -92,7 +92,7 @@ static int lp3944_reg_write(struct i2c_client *client, u8 reg, u8 value)
 }
 
 /**
- * Set the period for DIM status
+ * lp3944_dim_set_period() - Set the period for DIM status
  *
  * @client: the i2c client
  * @dim: either LP3944_DIM0 or LP3944_DIM1
@@ -123,7 +123,7 @@ static int lp3944_dim_set_period(struct i2c_client *client, u8 dim, u16 period)
 }
 
 /**
- * Set the duty cycle for DIM status
+ * lp3944_dim_set_dutycycle - Set the duty cycle for DIM status
  *
  * @client: the i2c client
  * @dim: either LP3944_DIM0 or LP3944_DIM1
@@ -155,7 +155,7 @@ static int lp3944_dim_set_dutycycle(struct i2c_client *client, u8 dim,
 }
 
 /**
- * Set the led status
+ * lp3944_led_set() - Set the led status
  *
  * @led: a lp3944_led_data structure
  * @status: one of LP3944_LED_STATUS_OFF

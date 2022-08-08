@@ -190,12 +190,11 @@ static int profinet_probe(struct anybuss_client *client)
 	return 0;
 }
 
-static int profinet_remove(struct anybuss_client *client)
+static void profinet_remove(struct anybuss_client *client)
 {
 	struct profi_priv *priv = anybuss_get_drvdata(client);
 
 	fieldbus_dev_unregister(&priv->fbdev);
-	return 0;
 }
 
 static struct anybuss_client_driver profinet_driver = {

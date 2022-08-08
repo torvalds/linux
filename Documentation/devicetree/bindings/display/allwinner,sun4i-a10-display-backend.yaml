@@ -26,14 +26,12 @@ properties:
 
   reg:
     minItems: 1
-    maxItems: 2
     items:
       - description: Display Backend registers
       - description: SAT registers
 
   reg-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: be
       - const: sat
@@ -43,7 +41,6 @@ properties:
 
   clocks:
     minItems: 3
-    maxItems: 4
     items:
       - description: The backend interface clock
       - description: The backend module clock
@@ -52,7 +49,6 @@ properties:
 
   clock-names:
     minItems: 3
-    maxItems: 4
     items:
       - const: ahb
       - const: mod
@@ -61,14 +57,12 @@ properties:
 
   resets:
     minItems: 1
-    maxItems: 2
     items:
       - description: The Backend reset line
       - description: The SAT reset line
 
   reset-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: be
       - const: sat

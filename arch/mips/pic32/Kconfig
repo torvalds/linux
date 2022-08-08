@@ -17,7 +17,6 @@ config PIC32MZDA
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select GPIOLIB
 	select COMMON_CLK
-	select CLKDEV_LOOKUP
 	select LIBFDT
 	select USE_OF
 	select PINCTRL

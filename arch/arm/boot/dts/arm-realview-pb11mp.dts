@@ -712,7 +712,7 @@
 			reg = <0x4f000000 0x20000>;
 			interrupt-parent = <&intc_tc11mp>;
 			interrupts = <0 3 IRQ_TYPE_LEVEL_HIGH>;
-			port1-otg;
+			dr_mode = "peripheral";
 		};
 	};
 };

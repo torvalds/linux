@@ -1159,7 +1159,7 @@
 			ranges = <0x0 0x20000 0x1000>;
 
 			uart3: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
@@ -1343,7 +1343,7 @@
 			};
 		};
 
-		target-module@55000 {			/* 0x48055000, ap 13 0e.0 */
+		gpio2_target: target-module@55000 {		/* 0x48055000, ap 13 0e.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
 			reg = <0x55000 0x4>,
 			      <0x55010 0x4>,
@@ -1376,7 +1376,7 @@
 			};
 		};
 
-		target-module@57000 {			/* 0x48057000, ap 15 06.0 */
+		gpio3_target: target-module@57000 {		/* 0x48057000, ap 15 06.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
 			reg = <0x57000 0x4>,
 			      <0x57010 0x4>,
@@ -1562,7 +1562,7 @@
 			ranges = <0x0 0x66000 0x1000>;
 
 			uart5: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
@@ -1594,7 +1594,7 @@
 			ranges = <0x0 0x68000 0x1000>;
 
 			uart6: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
@@ -1626,7 +1626,7 @@
 			ranges = <0x0 0x6a000 0x1000>;
 
 			uart1: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts-extended = <&crossbar_mpu GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
@@ -1658,7 +1658,7 @@
 			ranges = <0x0 0x6c000 0x1000>;
 
 			uart2: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
@@ -1690,7 +1690,7 @@
 			ranges = <0x0 0x6e000 0x1000>;
 
 			uart4: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
@@ -2424,7 +2424,7 @@
 			ranges = <0x0 0x20000 0x1000>;
 
 			uart7: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 218 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
@@ -2454,7 +2454,7 @@
 			ranges = <0x0 0x22000 0x1000>;
 
 			uart8: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 219 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
@@ -2484,7 +2484,7 @@
 			ranges = <0x0 0x24000 0x1000>;
 
 			uart9: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
@@ -2561,7 +2561,7 @@
 				status = "disabled";
 				ranges = <0 0 0x1000>;
 
-				ecap0: ecap@100 {
+				ecap0: pwm@100 {
 					compatible = "ti,dra746-ecap",
 						     "ti,am3352-ecap";
 					#pwm-cells = <3>;
@@ -2607,7 +2607,7 @@
 				status = "disabled";
 				ranges = <0 0 0x1000>;
 
-				ecap1: ecap@100 {
+				ecap1: pwm@100 {
 					compatible = "ti,dra746-ecap",
 						     "ti,am3352-ecap";
 					#pwm-cells = <3>;
@@ -2653,7 +2653,7 @@
 				status = "disabled";
 				ranges = <0 0 0x1000>;
 
-				ecap2: ecap@100 {
+				ecap2: pwm@100 {
 					compatible = "ti,dra746-ecap",
 						     "ti,am3352-ecap";
 					#pwm-cells = <3>;
@@ -4129,28 +4129,6 @@
 			};
 		};
 
-		usb4_tm: target-module@140000 {		/* 0x48940000, ap 75 3c.0 */
-			compatible = "ti,sysc-omap4", "ti,sysc";
-			reg = <0x140000 0x4>,
-			      <0x140010 0x4>;
-			reg-names = "rev", "sysc";
-			ti,sysc-mask = <SYSC_OMAP4_DMADISABLE>;
-			ti,sysc-midle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
-					<SYSC_IDLE_SMART>,
-					<SYSC_IDLE_SMART_WKUP>;
-			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
-					<SYSC_IDLE_SMART>,
-					<SYSC_IDLE_SMART_WKUP>;
-			/* Domains (P, C): l3init_pwrdm, l3init_clkdm */
-			clocks = <&l3init_clkctrl DRA7_L3INIT_USB_OTG_SS4_CLKCTRL 0>;
-			clock-names = "fck";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges = <0x0 0x140000 0x20000>;
-		};
-
 		target-module@170000 {			/* 0x48970000, ap 21 0a.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
 			reg = <0x170010 0x4>;
@@ -4530,7 +4508,7 @@
 			ranges = <0x0 0xb000 0x1000>;
 
 			uart10: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;

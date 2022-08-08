@@ -110,20 +110,25 @@ static int vx_transfer_end(struct vx_core *chip, int cmd)
 {
 	int err;
 
-	if ((err = vx_reset_chk(chip)) < 0)
+	err = vx_reset_chk(chip);
+	if (err < 0)
 		return err;
 
 	/* irq MESS_READ/WRITE_END */
-	if ((err = vx_send_irq_dsp(chip, cmd)) < 0)
+	err = vx_send_irq_dsp(chip, cmd);
+	if (err < 0)
 		return err;
 
 	/* Wait CHK = 1 */
-	if ((err = vx_wait_isr_bit(chip, ISR_CHK)) < 0)
+	err = vx_wait_isr_bit(chip, ISR_CHK);
+	if (err < 0)
 		return err;
 
 	/* If error, Read RX */
-	if ((err = vx_inb(chip, ISR)) & ISR_ERR) {
-		if ((err = vx_wait_for_rx_full(chip)) < 0) {
+	err = vx_inb(chip, ISR);
+	if (err & ISR_ERR) {
+		err = vx_wait_for_rx_full(chip);
+		if (err < 0) {
 			snd_printd(KERN_DEBUG "transfer_end: error in rx_full\n");
 			return err;
 		}
@@ -232,7 +237,8 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 	if (chip->chip_status & VX_STAT_IS_STALE)
 		return -EBUSY;
 
-	if ((err = vx_reset_chk(chip)) < 0) {
+	err = vx_reset_chk(chip);
+	if (err < 0) {
 		snd_printd(KERN_DEBUG "vx_send_msg: vx_reset_chk error\n");
 		return err;
 	}
@@ -254,7 +260,8 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 		rmh->Cmd[0] &= MASK_1_WORD_COMMAND;
 
 	/* Wait for TX empty */
-	if ((err = vx_wait_isr_bit(chip, ISR_TX_EMPTY)) < 0) {
+	err = vx_wait_isr_bit(chip, ISR_TX_EMPTY);
+	if (err < 0) {
 		snd_printd(KERN_DEBUG "vx_send_msg: wait tx empty error\n");
 		return err;
 	}
@@ -265,18 +272,21 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 	vx_outb(chip, TXL, rmh->Cmd[0] & 0xff);
 
 	/* Trigger irq MESSAGE */
-	if ((err = vx_send_irq_dsp(chip, IRQ_MESSAGE)) < 0) {
+	err = vx_send_irq_dsp(chip, IRQ_MESSAGE);
+	if (err < 0) {
 		snd_printd(KERN_DEBUG "vx_send_msg: send IRQ_MESSAGE error\n");
 		return err;
 	}
 
 	/* Wait for CHK = 1 */
-	if ((err = vx_wait_isr_bit(chip, ISR_CHK)) < 0)
+	err = vx_wait_isr_bit(chip, ISR_CHK);
+	if (err < 0)
 		return err;
 
 	/* If error, get error value from RX */
 	if (vx_inb(chip, ISR) & ISR_ERR) {
-		if ((err = vx_wait_for_rx_full(chip)) < 0) {
+		err = vx_wait_for_rx_full(chip);
+		if (err < 0) {
 			snd_printd(KERN_DEBUG "vx_send_msg: rx_full read error\n");
 			return err;
 		}
@@ -292,7 +302,8 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 	if (rmh->LgCmd > 1) {
 		for (i = 1; i < rmh->LgCmd; i++) {
 			/* Wait for TX ready */
-			if ((err = vx_wait_isr_bit(chip, ISR_TX_READY)) < 0) {
+			err = vx_wait_isr_bit(chip, ISR_TX_READY);
+			if (err < 0) {
 				snd_printd(KERN_DEBUG "vx_send_msg: tx_ready error\n");
 				return err;
 			}
@@ -303,13 +314,15 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 			vx_outb(chip, TXL, rmh->Cmd[i] & 0xff);
 
 			/* Trigger irq MESS_READ_NEXT */
-			if ((err = vx_send_irq_dsp(chip, IRQ_MESS_READ_NEXT)) < 0) {
+			err = vx_send_irq_dsp(chip, IRQ_MESS_READ_NEXT);
+			if (err < 0) {
 				snd_printd(KERN_DEBUG "vx_send_msg: IRQ_READ_NEXT error\n");
 				return err;
 			}
 		}
 		/* Wait for TX empty */
-		if ((err = vx_wait_isr_bit(chip, ISR_TX_READY)) < 0) {
+		err = vx_wait_isr_bit(chip, ISR_TX_READY);
+		if (err < 0) {
 			snd_printd(KERN_DEBUG "vx_send_msg: TX_READY error\n");
 			return err;
 		}
@@ -362,17 +375,21 @@ int vx_send_rih_nolock(struct vx_core *chip, int cmd)
 #if 0
 	printk(KERN_DEBUG "send_rih: cmd = 0x%x\n", cmd);
 #endif
-	if ((err = vx_reset_chk(chip)) < 0)
+	err = vx_reset_chk(chip);
+	if (err < 0)
 		return err;
 	/* send the IRQ */
-	if ((err = vx_send_irq_dsp(chip, cmd)) < 0)
+	err = vx_send_irq_dsp(chip, cmd);
+	if (err < 0)
 		return err;
 	/* Wait CHK = 1 */
-	if ((err = vx_wait_isr_bit(chip, ISR_CHK)) < 0)
+	err = vx_wait_isr_bit(chip, ISR_CHK);
+	if (err < 0)
 		return err;
 	/* If error, read RX */
 	if (vx_inb(chip, ISR) & ISR_ERR) {
-		if ((err = vx_wait_for_rx_full(chip)) < 0)
+		err = vx_wait_for_rx_full(chip);
+		if (err < 0)
 			return err;
 		err = vx_inb(chip, RXH) << 16;
 		err |= vx_inb(chip, RXM) << 8;
@@ -648,7 +665,8 @@ int snd_vx_dsp_boot(struct vx_core *chip, const struct firmware *boot)
 	vx_reset_board(chip, cold_reset);
 	vx_validate_irq(chip, 0);
 
-	if ((err = snd_vx_load_boot_image(chip, boot)) < 0)
+	err = snd_vx_load_boot_image(chip, boot);
+	if (err < 0)
 		return err;
 	msleep(10);
 
@@ -678,7 +696,8 @@ int snd_vx_dsp_load(struct vx_core *chip, const struct firmware *dsp)
 	for (i = 0; i < dsp->size; i += 3) {
 		image = dsp->data + i;
 		/* Wait DSP ready for a new read */
-		if ((err = vx_wait_isr_bit(chip, ISR_TX_EMPTY)) < 0) {
+		err = vx_wait_isr_bit(chip, ISR_TX_EMPTY);
+		if (err < 0) {
 			printk(KERN_ERR
 			       "dsp loading error at position %d\n", i);
 			return err;
@@ -698,7 +717,8 @@ int snd_vx_dsp_load(struct vx_core *chip, const struct firmware *dsp)
 
 	msleep(200);
 
-	if ((err = vx_wait_isr_bit(chip, ISR_CHK)) < 0)
+	err = vx_wait_isr_bit(chip, ISR_CHK);
+	if (err < 0)
 		return err;
 
 	vx_toggle_dac_mute(chip, 0);

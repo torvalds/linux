@@ -918,10 +918,8 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 	}
 
 	cii = kzalloc(sizeof(struct codec_info_item), GFP_KERNEL);
-	if (!cii) {
-		printk(KERN_DEBUG "i2sbus: failed to allocate cii\n");
+	if (!cii)
 		return -ENOMEM;
-	}
 
 	/* use the private data to point to the codec info */
 	cii->sdev = soundbus_dev_get(dev);

@@ -11,7 +11,7 @@ Documentation for /proc/sys/abi/
 
 Copyright (c) 2020, Stephen Kitt
 
-For general info, see :doc:`index`.
+For general info, see Documentation/admin-guide/sysctl/index.rst.
 
 ------------------------------------------------------------------------------
 

@@ -48,13 +48,13 @@ struct lsm_ioctlop_audit {
 };
 
 struct lsm_ibpkey_audit {
-	u64	subnet_prefix;
-	u16	pkey;
+	u64 subnet_prefix;
+	u16 pkey;
 };
 
 struct lsm_ibendport_audit {
-	char	dev_name[IB_DEVICE_NAME_MAX];
-	u8	port;
+	const char *dev_name;
+	u8 port;
 };
 
 /* Auxiliary data to use in generating the audit record. */

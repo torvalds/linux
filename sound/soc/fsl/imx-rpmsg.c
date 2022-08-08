@@ -137,7 +137,6 @@ fail:
 static struct platform_driver imx_rpmsg_driver = {
 	.driver = {
 		.name = "imx-audio-rpmsg",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = imx_rpmsg_probe,

@@ -96,7 +96,8 @@ static void check_if_tm_restore_required(struct task_struct *tsk)
 	if (tsk == current && tsk->thread.regs &&
 	    MSR_TM_ACTIVE(tsk->thread.regs->msr) &&
 	    !test_thread_flag(TIF_RESTORE_TM)) {
-		tsk->thread.ckpt_regs.msr = tsk->thread.regs->msr;
+		regs_set_return_msr(&tsk->thread.ckpt_regs,
+						tsk->thread.regs->msr);
 		set_thread_flag(TIF_RESTORE_TM);
 	}
 }
@@ -161,7 +162,7 @@ static void __giveup_fpu(struct task_struct *tsk)
 	msr &= ~(MSR_FP|MSR_FE0|MSR_FE1);
 	if (cpu_has_feature(CPU_FTR_VSX))
 		msr &= ~MSR_VSX;
-	tsk->thread.regs->msr = msr;
+	regs_set_return_msr(tsk->thread.regs, msr);
 }
 
 void giveup_fpu(struct task_struct *tsk)
@@ -244,7 +245,7 @@ static void __giveup_altivec(struct task_struct *tsk)
 	msr &= ~MSR_VEC;
 	if (cpu_has_feature(CPU_FTR_VSX))
 		msr &= ~MSR_VSX;
-	tsk->thread.regs->msr = msr;
+	regs_set_return_msr(tsk->thread.regs, msr);
 }
 
 void giveup_altivec(struct task_struct *tsk)
@@ -559,7 +560,7 @@ void notrace restore_math(struct pt_regs *regs)
 
 		msr_check_and_clear(new_msr);
 
-		regs->msr |= new_msr | fpexc_mode;
+		regs_set_return_msr(regs, regs->msr | new_msr | fpexc_mode);
 	}
 }
 #endif /* CONFIG_PPC_BOOK3S_64 */
@@ -1114,7 +1115,7 @@ void restore_tm_state(struct pt_regs *regs)
 #endif
 	restore_math(regs);
 
-	regs->msr |= msr_diff;
+	regs_set_return_msr(regs, regs->msr | msr_diff);
 }
 
 #else /* !CONFIG_PPC_TRANSACTIONAL_MEM */
@@ -1128,6 +1129,10 @@ static inline void save_sprs(struct thread_struct *t)
 #ifdef CONFIG_ALTIVEC
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		t->vrsave = mfspr(SPRN_VRSAVE);
+#endif
+#ifdef CONFIG_SPE
+	if (cpu_has_feature(CPU_FTR_SPE))
+		t->spefscr = mfspr(SPRN_SPEFSCR);
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	if (cpu_has_feature(CPU_FTR_DSCR))
@@ -1158,6 +1163,11 @@ static inline void restore_sprs(struct thread_struct *old_thread,
 	if (cpu_has_feature(CPU_FTR_ALTIVEC) &&
 	    old_thread->vrsave != new_thread->vrsave)
 		mtspr(SPRN_VRSAVE, new_thread->vrsave);
+#endif
+#ifdef CONFIG_SPE
+	if (cpu_has_feature(CPU_FTR_SPE) &&
+	    old_thread->spefscr != new_thread->spefscr)
+		mtspr(SPRN_SPEFSCR, new_thread->spefscr);
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	if (cpu_has_feature(CPU_FTR_DSCR)) {
@@ -1213,6 +1223,19 @@ struct task_struct *__switch_to(struct task_struct *prev,
 			__flush_tlb_pending(batch);
 		batch->active = 0;
 	}
+
+	/*
+	 * On POWER9 the copy-paste buffer can only paste into
+	 * foreign real addresses, so unprivileged processes can not
+	 * see the data or use it in any way unless they have
+	 * foreign real mappings. If the new process has the foreign
+	 * real address mappings, we must issue a cp_abort to clear
+	 * any state and prevent snooping, corruption or a covert
+	 * channel. ISA v3.1 supports paste into local memory.
+	 */
+	if (new->mm && (cpu_has_feature(CPU_FTR_ARCH_31) ||
+			atomic_read(&new->mm->context.vas_windows)))
+		asm volatile(PPC_CP_ABORT);
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
@@ -1248,43 +1271,48 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	}
 
 	/*
-	 * Call restore_sprs() before calling _switch(). If we move it after
-	 * _switch() then we miss out on calling it for new tasks. The reason
-	 * for this is we manually create a stack frame for new tasks that
-	 * directly returns through ret_from_fork() or
+	 * Call restore_sprs() and set_return_regs_changed() before calling
+	 * _switch(). If we move it after _switch() then we miss out on calling
+	 * it for new tasks. The reason for this is we manually create a stack
+	 * frame for new tasks that directly returns through ret_from_fork() or
 	 * ret_from_kernel_thread(). See copy_thread() for details.
 	 */
 	restore_sprs(old_thread, new_thread);
+
+	set_return_regs_changed(); /* _switch changes stack (and regs) */
 
 #ifdef CONFIG_PPC32
 	kuap_assert_locked();
 #endif
 	last = _switch(old_thread, new_thread);
 
+	/*
+	 * Nothing after _switch will be run for newly created tasks,
+	 * because they switch directly to ret_from_fork/ret_from_kernel_thread
+	 * etc. Code added here should have a comment explaining why that is
+	 * okay.
+	 */
+
 #ifdef CONFIG_PPC_BOOK3S_64
+	/*
+	 * This applies to a process that was context switched while inside
+	 * arch_enter_lazy_mmu_mode(), to re-activate the batch that was
+	 * deactivated above, before _switch(). This will never be the case
+	 * for new tasks.
+	 */
 	if (current_thread_info()->local_flags & _TLF_LAZY_MMU) {
 		current_thread_info()->local_flags &= ~_TLF_LAZY_MMU;
 		batch = this_cpu_ptr(&ppc64_tlb_batch);
 		batch->active = 1;
 	}
 
-	if (current->thread.regs) {
+	/*
+	 * Math facilities are masked out of the child MSR in copy_thread.
+	 * A new task does not need to restore_math because it will
+	 * demand fault them.
+	 */
+	if (current->thread.regs)
 		restore_math(current->thread.regs);
-
-		/*
-		 * On POWER9 the copy-paste buffer can only paste into
-		 * foreign real addresses, so unprivileged processes can not
-		 * see the data or use it in any way unless they have
-		 * foreign real mappings. If the new process has the foreign
-		 * real address mappings, we must issue a cp_abort to clear
-		 * any state and prevent snooping, corruption or a covert
-		 * channel. ISA v3.1 supports paste into local memory.
-		 */
-		if (current->mm &&
-			(cpu_has_feature(CPU_FTR_ARCH_31) ||
-			atomic_read(&current->mm->context.vas_windows)))
-			asm volatile(PPC_CP_ABORT);
-	}
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 	return last;
@@ -1736,6 +1764,9 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 #ifdef CONFIG_ALTIVEC
 	p->thread.vr_save_area = NULL;
 #endif
+#if defined(CONFIG_PPC_BOOK3S_32) && defined(CONFIG_PPC_KUAP)
+	p->thread.kuap = KUAP_NONE;
+#endif
 
 	setup_ksp_vsid(p, sp);
 
@@ -1838,13 +1869,14 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 			}
 			regs->gpr[2] = toc;
 		}
-		regs->nip = entry;
-		regs->msr = MSR_USER64;
+		regs_set_return_ip(regs, entry);
+		regs_set_return_msr(regs, MSR_USER64);
 	} else {
-		regs->nip = start;
 		regs->gpr[2] = 0;
-		regs->msr = MSR_USER32;
+		regs_set_return_ip(regs, start);
+		regs_set_return_msr(regs, MSR_USER32);
 	}
+
 #endif
 #ifdef CONFIG_VSX
 	current->thread.used_vsr = 0;
@@ -1875,7 +1907,6 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	current->thread.tm_tfiar = 0;
 	current->thread.load_tm = 0;
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
-
 }
 EXPORT_SYMBOL(start_thread);
 
@@ -1923,9 +1954,10 @@ int set_fpexc_mode(struct task_struct *tsk, unsigned int val)
 	if (val > PR_FP_EXC_PRECISE)
 		return -EINVAL;
 	tsk->thread.fpexc_mode = __pack_fe01(val);
-	if (regs != NULL && (regs->msr & MSR_FP) != 0)
-		regs->msr = (regs->msr & ~(MSR_FE0|MSR_FE1))
-			| tsk->thread.fpexc_mode;
+	if (regs != NULL && (regs->msr & MSR_FP) != 0) {
+		regs_set_return_msr(regs, (regs->msr & ~(MSR_FE0|MSR_FE1))
+						| tsk->thread.fpexc_mode);
+	}
 	return 0;
 }
 
@@ -1971,9 +2003,9 @@ int set_endian(struct task_struct *tsk, unsigned int val)
 		return -EINVAL;
 
 	if (val == PR_ENDIAN_BIG)
-		regs->msr &= ~MSR_LE;
+		regs_set_return_msr(regs, regs->msr & ~MSR_LE);
 	else if (val == PR_ENDIAN_LITTLE || val == PR_ENDIAN_PPC_LITTLE)
-		regs->msr |= MSR_LE;
+		regs_set_return_msr(regs, regs->msr | MSR_LE);
 	else
 		return -EINVAL;
 
@@ -2084,7 +2116,7 @@ static unsigned long __get_wchan(struct task_struct *p)
 	unsigned long ip, sp;
 	int count = 0;
 
-	if (!p || p == current || p->state == TASK_RUNNING)
+	if (!p || p == current || task_is_running(p))
 		return 0;
 
 	sp = p->thread.ksp;
@@ -2094,7 +2126,7 @@ static unsigned long __get_wchan(struct task_struct *p)
 	do {
 		sp = *(unsigned long *)sp;
 		if (!validate_sp(sp, p, STACK_FRAME_OVERHEAD) ||
-		    p->state == TASK_RUNNING)
+		    task_is_running(p))
 			return 0;
 		if (count > 0) {
 			ip = ((unsigned long *)sp)[STACK_FRAME_LR_SAVE];
@@ -2121,8 +2153,9 @@ unsigned long get_wchan(struct task_struct *p)
 
 static int kstack_depth_to_print = CONFIG_PRINT_STACK_DEPTH;
 
-void show_stack(struct task_struct *tsk, unsigned long *stack,
-		const char *loglvl)
+void __no_sanitize_address show_stack(struct task_struct *tsk,
+				      unsigned long *stack,
+				      const char *loglvl)
 {
 	unsigned long sp, ip, lr, newsp;
 	int count = 0;

@@ -91,7 +91,6 @@ properties:
   interrupts:
     # Either 1 or 2 interrupts can be present
     minItems: 1
-    maxItems: 2
     items:
       - description: tx or combined interrupt
       - description: rx interrupt
@@ -105,7 +104,6 @@ properties:
   interrupt-names:
     # minItems must be specified here because the default would be 2
     minItems: 1
-    maxItems: 2
     items:
       - const: tx irq
       - const: rx irq

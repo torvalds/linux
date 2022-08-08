@@ -21,7 +21,7 @@
 				 <0x02000000 0 0x40000000 0 0x40000000 0 0x40000000>;
 		};
 
-		isa {
+		isa@18000000 {
 			compatible = "isa";
 			#address-cells = <2>;
 			#size-cells = <1>;

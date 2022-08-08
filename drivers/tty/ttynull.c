@@ -35,7 +35,7 @@ static int ttynull_write(struct tty_struct *tty, const unsigned char *buf,
 	return count;
 }
 
-static int ttynull_write_room(struct tty_struct *tty)
+static unsigned int ttynull_write_room(struct tty_struct *tty)
 {
 	return 65536;
 }

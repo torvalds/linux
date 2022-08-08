@@ -237,7 +237,8 @@ asmlinkage void __init init_feature_override(void)
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
 		if (regs[i]->override)
-			__flush_dcache_area(regs[i]->override,
+			dcache_clean_inval_poc((unsigned long)regs[i]->override,
+					    (unsigned long)regs[i]->override +
 					    sizeof(*regs[i]->override));
 	}
 }

@@ -96,7 +96,7 @@ struct pcm_stream_info {
  * @had_spinlock: driver lock
  * @aes_bits: IEC958 status bits
  * @buff_done: id of current buffer done intr
- * @dev: platoform device handle
+ * @dev: platform device handle
  * @chmap: holds channel map info
  */
 struct snd_intelhad {

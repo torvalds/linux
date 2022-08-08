@@ -69,7 +69,7 @@ static const int gs_sense[] =
 	DEF_FX_VIBRATE, DEF_FX_VIBDEPTH, DEF_FX_VIBDELAY
 };
 
-/* effect sensitivies for XG controls:
+/* effect sensitivities for XG controls:
  * adjusted for chaos 8MB soundfonts
  */
 static const int xg_sense[] =

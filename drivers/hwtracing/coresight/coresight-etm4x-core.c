@@ -568,11 +568,6 @@ static int etm4_parse_event_config(struct etmv4_drvdata *drvdata,
 	struct etmv4_config *config = &drvdata->config;
 	struct perf_event_attr *attr = &event->attr;
 
-	if (!attr) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	/* Clear configuration from previous run */
 	memset(config, 0, sizeof(struct etmv4_config));
 

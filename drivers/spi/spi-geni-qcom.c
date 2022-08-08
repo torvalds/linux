@@ -639,8 +639,8 @@ static irqreturn_t geni_spi_isr(int irq, void *data)
 		complete(&mas->abort_done);
 
 	/*
-	 * It's safe or a good idea to Ack all of our our interrupts at the
-	 * end of the function. Specifically:
+	 * It's safe or a good idea to Ack all of our interrupts at the end
+	 * of the function. Specifically:
 	 * - M_CMD_DONE_EN / M_RX_FIFO_LAST_EN: Edge triggered interrupts and
 	 *   clearing Acks. Clearing at the end relies on nobody else having
 	 *   started a new transfer yet or else we could be clearing _their_

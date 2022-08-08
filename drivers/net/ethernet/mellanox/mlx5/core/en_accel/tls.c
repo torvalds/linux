@@ -192,13 +192,13 @@ void mlx5e_tls_build_netdev(struct mlx5e_priv *priv)
 	struct net_device *netdev = priv->netdev;
 	u32 caps;
 
-	if (mlx5_accel_is_ktls_device(priv->mdev)) {
+	if (mlx5e_accel_is_ktls_device(priv->mdev)) {
 		mlx5e_ktls_build_netdev(priv);
 		return;
 	}
 
 	/* FPGA */
-	if (!mlx5_accel_is_tls_device(priv->mdev))
+	if (!mlx5e_accel_is_tls_device(priv->mdev))
 		return;
 
 	caps = mlx5_accel_tls_device_caps(priv->mdev);
@@ -224,7 +224,7 @@ int mlx5e_tls_init(struct mlx5e_priv *priv)
 {
 	struct mlx5e_tls *tls;
 
-	if (!mlx5_accel_is_tls_device(priv->mdev))
+	if (!mlx5e_accel_is_tls_device(priv->mdev))
 		return 0;
 
 	tls = kzalloc(sizeof(*tls), GFP_KERNEL);

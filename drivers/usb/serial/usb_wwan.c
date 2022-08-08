@@ -278,12 +278,12 @@ static void usb_wwan_outdat_callback(struct urb *urb)
 	}
 }
 
-int usb_wwan_write_room(struct tty_struct *tty)
+unsigned int usb_wwan_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_wwan_port_private *portdata;
 	int i;
-	int data_len = 0;
+	unsigned int data_len = 0;
 	struct urb *this_urb;
 
 	portdata = usb_get_serial_port_data(port);
@@ -294,17 +294,17 @@ int usb_wwan_write_room(struct tty_struct *tty)
 			data_len += OUT_BUFLEN;
 	}
 
-	dev_dbg(&port->dev, "%s: %d\n", __func__, data_len);
+	dev_dbg(&port->dev, "%s: %u\n", __func__, data_len);
 	return data_len;
 }
 EXPORT_SYMBOL(usb_wwan_write_room);
 
-int usb_wwan_chars_in_buffer(struct tty_struct *tty)
+unsigned int usb_wwan_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_wwan_port_private *portdata;
 	int i;
-	int data_len = 0;
+	unsigned int data_len = 0;
 	struct urb *this_urb;
 
 	portdata = usb_get_serial_port_data(port);
@@ -316,7 +316,7 @@ int usb_wwan_chars_in_buffer(struct tty_struct *tty)
 		if (this_urb && test_bit(i, &portdata->out_busy))
 			data_len += this_urb->transfer_buffer_length;
 	}
-	dev_dbg(&port->dev, "%s: %d\n", __func__, data_len);
+	dev_dbg(&port->dev, "%s: %u\n", __func__, data_len);
 	return data_len;
 }
 EXPORT_SYMBOL(usb_wwan_chars_in_buffer);

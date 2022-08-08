@@ -5,6 +5,7 @@
 #include <asm/sections.h>
 #include <asm/cpu_mf.h>
 #include <asm/setup.h>
+#include <asm/kasan.h>
 #include <asm/kexec.h>
 #include <asm/sclp.h>
 #include <asm/diag.h>
@@ -15,7 +16,17 @@
 extern char __boot_data_start[], __boot_data_end[];
 extern char __boot_data_preserved_start[], __boot_data_preserved_end[];
 unsigned long __bootdata_preserved(__kaslr_offset);
+unsigned long __bootdata_preserved(VMALLOC_START);
+unsigned long __bootdata_preserved(VMALLOC_END);
+struct page *__bootdata_preserved(vmemmap);
+unsigned long __bootdata_preserved(vmemmap_size);
+unsigned long __bootdata_preserved(MODULES_VADDR);
+unsigned long __bootdata_preserved(MODULES_END);
 unsigned long __bootdata(ident_map_size);
+int __bootdata(is_full_image) = 1;
+
+u64 __bootdata_preserved(stfle_fac_list[16]);
+u64 __bootdata_preserved(alt_stfle_fac_list[16]);
 
 /*
  * Some code and data needs to stay below 2 GB, even when the kernel would be
@@ -169,6 +180,86 @@ static void setup_ident_map_size(unsigned long max_physmem_end)
 #endif
 }
 
+static void setup_kernel_memory_layout(void)
+{
+	bool vmalloc_size_verified = false;
+	unsigned long vmemmap_off;
+	unsigned long vspace_left;
+	unsigned long rte_size;
+	unsigned long pages;
+	unsigned long vmax;
+
+	pages = ident_map_size / PAGE_SIZE;
+	/* vmemmap contains a multiple of PAGES_PER_SECTION struct pages */
+	vmemmap_size = SECTION_ALIGN_UP(pages) * sizeof(struct page);
+
+	/* choose kernel address space layout: 4 or 3 levels. */
+	vmemmap_off = round_up(ident_map_size, _REGION3_SIZE);
+	if (IS_ENABLED(CONFIG_KASAN) ||
+	    vmalloc_size > _REGION2_SIZE ||
+	    vmemmap_off + vmemmap_size + vmalloc_size + MODULES_LEN > _REGION2_SIZE)
+		vmax = _REGION1_SIZE;
+	else
+		vmax = _REGION2_SIZE;
+
+	/* keep vmemmap_off aligned to a top level region table entry */
+	rte_size = vmax == _REGION1_SIZE ? _REGION2_SIZE : _REGION3_SIZE;
+	MODULES_END = vmax;
+	if (is_prot_virt_host()) {
+		/*
+		 * forcing modules and vmalloc area under the ultravisor
+		 * secure storage limit, so that any vmalloc allocation
+		 * we do could be used to back secure guest storage.
+		 */
+		adjust_to_uv_max(&MODULES_END);
+	}
+
+#ifdef CONFIG_KASAN
+	if (MODULES_END < vmax) {
+		/* force vmalloc and modules below kasan shadow */
+		MODULES_END = min(MODULES_END, KASAN_SHADOW_START);
+	} else {
+		/*
+		 * leave vmalloc and modules above kasan shadow but make
+		 * sure they don't overlap with it
+		 */
+		vmalloc_size = min(vmalloc_size, vmax - KASAN_SHADOW_END - MODULES_LEN);
+		vmalloc_size_verified = true;
+		vspace_left = KASAN_SHADOW_START;
+	}
+#endif
+	MODULES_VADDR = MODULES_END - MODULES_LEN;
+	VMALLOC_END = MODULES_VADDR;
+
+	if (vmalloc_size_verified) {
+		VMALLOC_START = VMALLOC_END - vmalloc_size;
+	} else {
+		vmemmap_off = round_up(ident_map_size, rte_size);
+
+		if (vmemmap_off + vmemmap_size > VMALLOC_END ||
+		    vmalloc_size > VMALLOC_END - vmemmap_off - vmemmap_size) {
+			/*
+			 * allow vmalloc area to occupy up to 1/2 of
+			 * the rest virtual space left.
+			 */
+			vmalloc_size = min(vmalloc_size, VMALLOC_END / 2);
+		}
+		VMALLOC_START = VMALLOC_END - vmalloc_size;
+		vspace_left = VMALLOC_START;
+	}
+
+	pages = vspace_left / (PAGE_SIZE + sizeof(struct page));
+	pages = SECTION_ALIGN_UP(pages);
+	vmemmap_off = round_up(vspace_left - pages * sizeof(struct page), rte_size);
+	/* keep vmemmap left most starting from a fresh region table entry */
+	vmemmap_off = min(vmemmap_off, round_up(ident_map_size, rte_size));
+	/* take care that identity map is lower then vmemmap */
+	ident_map_size = min(ident_map_size, vmemmap_off);
+	vmemmap_size = SECTION_ALIGN_UP(ident_map_size / PAGE_SIZE) * sizeof(struct page);
+	VMALLOC_START = max(vmemmap_off + vmemmap_size, VMALLOC_START);
+	vmemmap = (struct page *)vmemmap_off;
+}
+
 /*
  * This function clears the BSS section of the decompressed Linux kernel and NOT the decompressor's.
  */
@@ -208,6 +299,7 @@ void startup_kernel(void)
 	parse_boot_command_line();
 	setup_ident_map_size(detect_memory());
 	setup_vmalloc_size();
+	setup_kernel_memory_layout();
 
 	random_lma = __kaslr_offset = 0;
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && kaslr_enabled) {

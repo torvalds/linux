@@ -168,6 +168,7 @@
 #define CS35L35_SP_SCLKS_48FS		0x0B
 #define CS35L35_SP_SCLKS_64FS		0x0F
 #define CS35L35_SP_RATE_MASK		0xC0
+#define CS35L35_SP_RATE_SHIFT		6
 
 #define CS35L35_PDN_BST_MASK		0x06
 #define CS35L35_PDN_BST_FETON_SHIFT	1
@@ -282,7 +283,7 @@ struct  cs35l35_private {
 	int sclk;
 	bool pdm_mode;
 	bool i2s_mode;
-	bool slave_mode;
+	bool clock_consumer;
 	/* GPIO for /RST */
 	struct gpio_desc *reset_gpio;
 	struct completion pdn_done;

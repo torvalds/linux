@@ -1933,6 +1933,13 @@ static u32 iwl_dump_ini_mem(struct iwl_fw_runtime *fwrt, struct list_head *list,
 	u32 num_of_ranges, i, size;
 	void *range;
 
+	/*
+	 * The higher part of the ID in version 2 is irrelevant for
+	 * us, so mask it out.
+	 */
+	if (le32_to_cpu(reg->hdr.version) == 2)
+		id &= IWL_FW_INI_REGION_V2_MASK;
+
 	if (!ops->get_num_of_ranges || !ops->get_size || !ops->fill_mem_hdr ||
 	    !ops->fill_range)
 		return 0;
@@ -1957,7 +1964,7 @@ static u32 iwl_dump_ini_mem(struct iwl_fw_runtime *fwrt, struct list_head *list,
 	num_of_ranges = ops->get_num_of_ranges(fwrt, reg_data);
 
 	header = (void *)tlv->data;
-	header->region_id = reg->id;
+	header->region_id = cpu_to_le32(id);
 	header->num_of_ranges = cpu_to_le32(num_of_ranges);
 	header->name_len = cpu_to_le32(IWL_FW_INI_MAX_NAME);
 	memcpy(header->name, reg->name, IWL_FW_INI_MAX_NAME);
@@ -2751,44 +2758,6 @@ void iwl_fw_dbg_stop_sync(struct iwl_fw_runtime *fwrt)
 	iwl_fw_dbg_stop_restart_recording(fwrt, NULL, true);
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_stop_sync);
-
-#define FSEQ_REG(x) { .addr = (x), .str = #x, }
-
-void iwl_fw_error_print_fseq_regs(struct iwl_fw_runtime *fwrt)
-{
-	struct iwl_trans *trans = fwrt->trans;
-	int i;
-	struct {
-		u32 addr;
-		const char *str;
-	} fseq_regs[] = {
-		FSEQ_REG(FSEQ_ERROR_CODE),
-		FSEQ_REG(FSEQ_TOP_INIT_VERSION),
-		FSEQ_REG(FSEQ_CNVIO_INIT_VERSION),
-		FSEQ_REG(FSEQ_OTP_VERSION),
-		FSEQ_REG(FSEQ_TOP_CONTENT_VERSION),
-		FSEQ_REG(FSEQ_ALIVE_TOKEN),
-		FSEQ_REG(FSEQ_CNVI_ID),
-		FSEQ_REG(FSEQ_CNVR_ID),
-		FSEQ_REG(CNVI_AUX_MISC_CHIP),
-		FSEQ_REG(CNVR_AUX_MISC_CHIP),
-		FSEQ_REG(CNVR_SCU_SD_REGS_SD_REG_DIG_DCDC_VTRIM),
-		FSEQ_REG(CNVR_SCU_SD_REGS_SD_REG_ACTIVE_VDIG_MIRROR),
-	};
-
-	if (!iwl_trans_grab_nic_access(trans))
-		return;
-
-	IWL_ERR(fwrt, "Fseq Registers:\n");
-
-	for (i = 0; i < ARRAY_SIZE(fseq_regs); i++)
-		IWL_ERR(fwrt, "0x%08X | %s\n",
-			iwl_read_prph_no_grab(trans, fseq_regs[i].addr),
-			fseq_regs[i].str);
-
-	iwl_trans_release_nic_access(trans);
-}
-IWL_EXPORT_SYMBOL(iwl_fw_error_print_fseq_regs);
 
 static int iwl_fw_dbg_suspend_resume_hcmd(struct iwl_trans *trans, bool suspend)
 {

@@ -5,17 +5,12 @@
  * Copyright 2010 Analog Devices Inc.
  */
 
-#include <linux/interrupt.h>
-#include <linux/mutex.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
-#include <linux/sysfs.h>
 #include <linux/module.h>
 
 #include <linux/iio/iio.h>
-#include <linux/iio/sysfs.h>
-#include <linux/iio/buffer.h>
 #include <linux/iio/imu/adis.h>
 
 #define ADIS16260_STARTUP_DELAY	220 /* ms */
@@ -293,7 +288,7 @@ static int adis16260_write_raw(struct iio_dev *indio_dev,
 		addr = adis16260_addresses[chan->scan_index][1];
 		return adis_write_reg_16(adis, addr, val);
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		mutex_lock(&adis->state_lock);
+		adis_dev_lock(adis);
 		if (spi_get_device_id(adis->spi)->driver_data)
 			t = 256 / val;
 		else
@@ -310,7 +305,7 @@ static int adis16260_write_raw(struct iio_dev *indio_dev,
 			adis->spi->max_speed_hz = ADIS16260_SPI_FAST;
 		ret = __adis_write_reg_8(adis, ADIS16260_SMPL_PRD, t);
 
-		mutex_unlock(&adis->state_lock);
+		adis_dev_unlock(adis);
 		return ret;
 	}
 	return -EINVAL;

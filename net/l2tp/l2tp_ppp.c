@@ -226,7 +226,7 @@ static void pppol2tp_recv(struct l2tp_session *session, struct sk_buff *skb, int
 	/* If the first two bytes are 0xFF03, consider that it is the PPP's
 	 * Address and Control fields and skip them. The L2TP module has always
 	 * worked this way, although, in theory, the use of these fields should
-	 * be negociated and handled at the PPP layer. These fields are
+	 * be negotiated and handled at the PPP layer. These fields are
 	 * constant: 0xFF is the All-Stations Address and 0x03 the Unnumbered
 	 * Information command with Poll/Final bit set to zero (RFC 1662).
 	 */

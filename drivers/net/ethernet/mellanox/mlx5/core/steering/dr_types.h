@@ -89,6 +89,11 @@ enum {
 	DR_STE_SIZE_REDUCED = DR_STE_SIZE - DR_STE_SIZE_MASK,
 };
 
+enum mlx5dr_ste_ctx_action_cap {
+	DR_STE_CTX_ACTION_CAP_NONE = 0,
+	DR_STE_CTX_ACTION_CAP_RX_ENCAP = 1 << 0,
+};
+
 enum {
 	DR_MODIFY_ACTION_SIZE = 8,
 };
@@ -118,6 +123,8 @@ enum mlx5dr_action_type {
 	DR_ACTION_TYP_VPORT,
 	DR_ACTION_TYP_POP_VLAN,
 	DR_ACTION_TYP_PUSH_VLAN,
+	DR_ACTION_TYP_INSERT_HDR,
+	DR_ACTION_TYP_SAMPLER,
 	DR_ACTION_TYP_MAX,
 };
 
@@ -261,8 +268,12 @@ struct mlx5dr_ste_actions_attr {
 	u32	ctr_id;
 	u16	gvmi;
 	u16	hit_gvmi;
-	u32	reformat_id;
-	u32	reformat_size;
+	struct {
+		u32	id;
+		u32	size;
+		u8	param_0;
+		u8	param_1;
+	} reformat;
 	struct {
 		int	count;
 		u32	headers[MLX5DR_MAX_VLANS];
@@ -903,8 +914,17 @@ struct mlx5dr_action_rewrite {
 
 struct mlx5dr_action_reformat {
 	struct mlx5dr_domain *dmn;
-	u32 reformat_id;
-	u32 reformat_size;
+	u32 id;
+	u32 size;
+	u8 param_0;
+	u8 param_1;
+};
+
+struct mlx5dr_action_sampler {
+	struct mlx5dr_domain *dmn;
+	u64 rx_icm_addr;
+	u64 tx_icm_addr;
+	u32 sampler_id;
 };
 
 struct mlx5dr_action_dest_tbl {
@@ -950,6 +970,7 @@ struct mlx5dr_action {
 		void *data;
 		struct mlx5dr_action_rewrite *rewrite;
 		struct mlx5dr_action_reformat *reformat;
+		struct mlx5dr_action_sampler *sampler;
 		struct mlx5dr_action_dest_tbl *dest_tbl;
 		struct mlx5dr_action_ctr *ctr;
 		struct mlx5dr_action_vport *vport;
@@ -1104,6 +1125,10 @@ int mlx5dr_cmd_query_gvmi(struct mlx5_core_dev *mdev,
 			  bool other_vport, u16 vport_number, u16 *gvmi);
 int mlx5dr_cmd_query_esw_caps(struct mlx5_core_dev *mdev,
 			      struct mlx5dr_esw_caps *caps);
+int mlx5dr_cmd_query_flow_sampler(struct mlx5_core_dev *dev,
+				  u32 sampler_id,
+				  u64 *rx_icm_addr,
+				  u64 *tx_icm_addr);
 int mlx5dr_cmd_sync_steering(struct mlx5_core_dev *mdev);
 int mlx5dr_cmd_set_fte_modify_and_vport(struct mlx5_core_dev *mdev,
 					u32 table_type,
@@ -1142,6 +1167,8 @@ int mlx5dr_cmd_query_flow_table(struct mlx5_core_dev *dev,
 				struct mlx5dr_cmd_query_flow_table_details *output);
 int mlx5dr_cmd_create_reformat_ctx(struct mlx5_core_dev *mdev,
 				   enum mlx5_reformat_ctx_type rt,
+				   u8 reformat_param_0,
+				   u8 reformat_param_1,
 				   size_t reformat_size,
 				   void *reformat_data,
 				   u32 *reformat_id);
@@ -1252,7 +1279,6 @@ struct mlx5dr_send_ring {
 	u32 tx_head;
 	void *buf;
 	u32 buf_size;
-	struct ib_wc wc[MAX_SEND_CQE];
 	u8 sync_buff[MIN_READ_SYNC];
 	struct mlx5dr_mr *sync_mr;
 	spinlock_t lock; /* Protect the data path of the send ring */
@@ -1290,6 +1316,7 @@ struct mlx5dr_cmd_flow_destination_hw_info {
 		u32 ft_num;
 		u32 ft_id;
 		u32 counter_id;
+		u32 sampler_id;
 		struct {
 			u16 num;
 			u16 vhca_id;

@@ -263,7 +263,7 @@ possible overrun should the name be too long::
 
 	char name[128];
 	if (ioctl(fd, JSIOCGNAME(sizeof(name)), name) < 0)
-		strncpy(name, "Unknown", sizeof(name));
+		strscpy(name, "Unknown", sizeof(name));
 	printf("Name: %s\n", name);
 
 

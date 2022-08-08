@@ -53,6 +53,7 @@ __setup("debug_locks_verbose=", setup_debug_locks_verbose);
 #define LOCKTYPE_WW	0x10
 #define LOCKTYPE_RTMUTEX 0x20
 #define LOCKTYPE_LL	0x40
+#define LOCKTYPE_SPECIAL 0x80
 
 static struct ww_acquire_ctx t, t2;
 static struct ww_mutex o, o2, o3;
@@ -194,6 +195,7 @@ static void init_shared_classes(void)
 #define HARDIRQ_ENTER()				\
 	local_irq_disable();			\
 	__irq_enter();				\
+	lockdep_hardirq_threaded();		\
 	WARN_ON(!in_irq());
 
 #define HARDIRQ_EXIT()				\
@@ -2492,16 +2494,6 @@ static void rcu_sched_exit(int *_)
 	int rcu_sched_guard_##name __guard(rcu_sched_exit);	\
 	rcu_read_lock_sched();
 
-static void rcu_callback_exit(int *_)
-{
-	rcu_lock_release(&rcu_callback_map);
-}
-
-#define RCU_CALLBACK_CONTEXT(name, ...)					\
-	int rcu_callback_guard_##name __guard(rcu_callback_exit);	\
-	rcu_lock_acquire(&rcu_callback_map);
-
-
 static void raw_spinlock_exit(raw_spinlock_t **lock)
 {
 	raw_spin_unlock(*lock);
@@ -2558,8 +2550,6 @@ static void __maybe_unused inner##_in_##outer(void)				\
  * ---------------+-------+----------+------+-------
  * RCU_BH         |   o   |    o     |  o   |  x
  * ---------------+-------+----------+------+-------
- * RCU_CALLBACK   |   o   |    o     |  o   |  x
- * ---------------+-------+----------+------+-------
  * RCU_SCHED      |   o   |    o     |  x   |  x
  * ---------------+-------+----------+------+-------
  * RAW_SPIN       |   o   |    o     |  x   |  x
@@ -2576,7 +2566,6 @@ GENERATE_2_CONTEXT_TESTCASE(NOTTHREADED_HARDIRQ, , inner, inner_lock)		\
 GENERATE_2_CONTEXT_TESTCASE(SOFTIRQ, , inner, inner_lock)			\
 GENERATE_2_CONTEXT_TESTCASE(RCU, , inner, inner_lock)				\
 GENERATE_2_CONTEXT_TESTCASE(RCU_BH, , inner, inner_lock)			\
-GENERATE_2_CONTEXT_TESTCASE(RCU_CALLBACK, , inner, inner_lock)			\
 GENERATE_2_CONTEXT_TESTCASE(RCU_SCHED, , inner, inner_lock)			\
 GENERATE_2_CONTEXT_TESTCASE(RAW_SPINLOCK, raw_lock_A, inner, inner_lock)	\
 GENERATE_2_CONTEXT_TESTCASE(SPINLOCK, lock_A, inner, inner_lock)		\
@@ -2636,10 +2625,6 @@ static void wait_context_tests(void)
 
 	print_testname("in RCU-bh context");
 	DO_CONTEXT_TESTCASE_OUTER_LIMITED_PREEMPTIBLE(RCU_BH);
-	pr_cont("\n");
-
-	print_testname("in RCU callback context");
-	DO_CONTEXT_TESTCASE_OUTER_LIMITED_PREEMPTIBLE(RCU_CALLBACK);
 	pr_cont("\n");
 
 	print_testname("in RCU-sched context");
@@ -2742,6 +2727,66 @@ static void local_lock_tests(void)
 	print_testname("local_lock inversion 3B");
 	dotest(local_lock_3B, FAILURE, LOCKTYPE_LL);
 	pr_cont("\n");
+}
+
+static void hardirq_deadlock_softirq_not_deadlock(void)
+{
+	/* mutex_A is hardirq-unsafe and softirq-unsafe */
+	/* mutex_A -> lock_C */
+	mutex_lock(&mutex_A);
+	HARDIRQ_DISABLE();
+	spin_lock(&lock_C);
+	spin_unlock(&lock_C);
+	HARDIRQ_ENABLE();
+	mutex_unlock(&mutex_A);
+
+	/* lock_A is hardirq-safe */
+	HARDIRQ_ENTER();
+	spin_lock(&lock_A);
+	spin_unlock(&lock_A);
+	HARDIRQ_EXIT();
+
+	/* lock_A -> lock_B */
+	HARDIRQ_DISABLE();
+	spin_lock(&lock_A);
+	spin_lock(&lock_B);
+	spin_unlock(&lock_B);
+	spin_unlock(&lock_A);
+	HARDIRQ_ENABLE();
+
+	/* lock_B -> lock_C */
+	HARDIRQ_DISABLE();
+	spin_lock(&lock_B);
+	spin_lock(&lock_C);
+	spin_unlock(&lock_C);
+	spin_unlock(&lock_B);
+	HARDIRQ_ENABLE();
+
+	/* lock_D is softirq-safe */
+	SOFTIRQ_ENTER();
+	spin_lock(&lock_D);
+	spin_unlock(&lock_D);
+	SOFTIRQ_EXIT();
+
+	/* And lock_D is hardirq-unsafe */
+	SOFTIRQ_DISABLE();
+	spin_lock(&lock_D);
+	spin_unlock(&lock_D);
+	SOFTIRQ_ENABLE();
+
+	/*
+	 * mutex_A -> lock_C -> lock_D is softirq-unsafe -> softirq-safe, not
+	 * deadlock.
+	 *
+	 * lock_A -> lock_B -> lock_C -> lock_D is hardirq-safe ->
+	 * hardirq-unsafe, deadlock.
+	 */
+	HARDIRQ_DISABLE();
+	spin_lock(&lock_C);
+	spin_lock(&lock_D);
+	spin_unlock(&lock_D);
+	spin_unlock(&lock_C);
+	HARDIRQ_ENABLE();
 }
 
 void locking_selftest(void)
@@ -2871,6 +2916,10 @@ void locking_selftest(void)
 		wait_context_tests();
 
 	local_lock_tests();
+
+	print_testname("hardirq_unsafe_softirq_safe");
+	dotest(hardirq_deadlock_softirq_not_deadlock, FAILURE, LOCKTYPE_SPECIAL);
+	pr_cont("\n");
 
 	if (unexpected_testcase_failures) {
 		printk("-----------------------------------------------------------------\n");

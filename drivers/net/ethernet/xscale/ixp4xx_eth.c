@@ -37,6 +37,8 @@
 #include <linux/module.h>
 #include <linux/soc/ixp4xx/npe.h>
 #include <linux/soc/ixp4xx/qmgr.h>
+#include <mach/hardware.h>
+#include <linux/soc/ixp4xx/cpu.h>
 
 #include "ixp46x_ts.h"
 
@@ -1425,7 +1427,6 @@ static int ixp4xx_eth_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct eth_plat_info *plat;
 	struct net_device *ndev;
-	struct resource *res;
 	struct port *port;
 	int err;
 
@@ -1482,10 +1483,7 @@ static int ixp4xx_eth_probe(struct platform_device *pdev)
 	port->id = plat->npe;
 
 	/* Get the port resource and remap */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-	port->regs = devm_ioremap_resource(dev, res);
+	port->regs = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(port->regs))
 		return PTR_ERR(port->regs);
 
@@ -1531,8 +1529,8 @@ static int ixp4xx_eth_probe(struct platform_device *pdev)
 		phydev = of_phy_get_and_connect(ndev, np, ixp4xx_adjust_link);
 	} else {
 		phydev = mdiobus_get_phy(mdio_bus, plat->phy);
-		if (IS_ERR(phydev)) {
-			err = PTR_ERR(phydev);
+		if (!phydev) {
+			err = -ENODEV;
 			dev_err(dev, "could not connect phydev (%d)\n", err);
 			goto err_free_mem;
 		}

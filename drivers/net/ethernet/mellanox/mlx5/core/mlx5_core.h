@@ -164,27 +164,10 @@ int mlx5_query_mcam_reg(struct mlx5_core_dev *dev, u32 *mcap, u8 feature_group,
 int mlx5_query_qcam_reg(struct mlx5_core_dev *mdev, u32 *qcam,
 			u8 feature_group, u8 access_reg_group);
 
-void mlx5_lag_add(struct mlx5_core_dev *dev, struct net_device *netdev);
-void mlx5_lag_remove(struct mlx5_core_dev *dev);
-
-int mlx5_irq_table_init(struct mlx5_core_dev *dev);
-void mlx5_irq_table_cleanup(struct mlx5_core_dev *dev);
-int mlx5_irq_table_create(struct mlx5_core_dev *dev);
-void mlx5_irq_table_destroy(struct mlx5_core_dev *dev);
-int mlx5_irq_attach_nb(struct mlx5_irq_table *irq_table, int vecidx,
-		       struct notifier_block *nb);
-int mlx5_irq_detach_nb(struct mlx5_irq_table *irq_table, int vecidx,
-		       struct notifier_block *nb);
-
-int mlx5_set_msix_vec_count(struct mlx5_core_dev *dev, int devfn,
-			    int msix_vec_count);
-int mlx5_get_default_msix_vec_count(struct mlx5_core_dev *dev, int num_vfs);
-
-struct cpumask *
-mlx5_irq_get_affinity_mask(struct mlx5_irq_table *irq_table, int vecidx);
-struct cpu_rmap *mlx5_irq_get_rmap(struct mlx5_irq_table *table);
-int mlx5_irq_get_num_comp(struct mlx5_irq_table *table);
-struct mlx5_irq_table *mlx5_irq_table_get(struct mlx5_core_dev *dev);
+void mlx5_lag_add_netdev(struct mlx5_core_dev *dev, struct net_device *netdev);
+void mlx5_lag_remove_netdev(struct mlx5_core_dev *dev, struct net_device *netdev);
+void mlx5_lag_add_mdev(struct mlx5_core_dev *dev);
+void mlx5_lag_remove_mdev(struct mlx5_core_dev *dev);
 
 int mlx5_events_init(struct mlx5_core_dev *dev);
 void mlx5_events_cleanup(struct mlx5_core_dev *dev);
@@ -223,8 +206,13 @@ int mlx5_firmware_flash(struct mlx5_core_dev *dev, const struct firmware *fw,
 int mlx5_fw_version_query(struct mlx5_core_dev *dev,
 			  u32 *running_ver, u32 *stored_ver);
 
+#ifdef CONFIG_MLX5_CORE_EN
 int mlx5e_init(void);
 void mlx5e_cleanup(void);
+#else
+static inline int mlx5e_init(void){ return 0; }
+static inline void mlx5e_cleanup(void){}
+#endif
 
 static inline bool mlx5_sriov_is_enabled(struct mlx5_core_dev *dev)
 {

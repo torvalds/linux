@@ -129,6 +129,4 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t ptep)
 
 #define __pte_free_tlb(tlb, pte, addr)  pte_free((tlb)->mm, pte)
 
-#define pmd_pgtable(pmd)	((pgtable_t) pmd_page_vaddr(pmd))
-
 #endif /* _ASM_ARC_PGALLOC_H */

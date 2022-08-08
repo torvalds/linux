@@ -66,3 +66,9 @@ Display Core
 ============
 
 **WIP**
+
+FreeSync Video
+--------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+   :doc: FreeSync Video

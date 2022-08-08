@@ -4,8 +4,6 @@
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#define _RTW_MLME_EXT_C_
-
 #include <drv_types.h>
 #include <rtw_debug.h>
 #include <rtw_wifi_regd.h>
@@ -48,7 +46,6 @@ static struct action_handler OnAction_tbl[] = {
 	{RTW_WLAN_CATEGORY_UNPROTECTED_WNM, "ACTION_UNPROTECTED_WNM", &DoReserved},
 	{RTW_WLAN_CATEGORY_SELF_PROTECTED, "ACTION_SELF_PROTECTED", &DoReserved},
 	{RTW_WLAN_CATEGORY_WMM, "ACTION_WMM", &DoReserved},
-	{RTW_WLAN_CATEGORY_VHT, "ACTION_VHT", &DoReserved},
 	{RTW_WLAN_CATEGORY_P2P, "ACTION_P2P", &DoReserved},
 };
 
@@ -81,135 +78,95 @@ static struct rt_channel_plan_2g	RTW_ChannelPlan2G[RT_CHANNEL_DOMAIN_2G_MAX] = {
 	{{}, 0},								/*  0x06, RT_CHANNEL_DOMAIN_2G_NULL */
 };
 
-static struct rt_channel_plan_5g	RTW_ChannelPlan5G[RT_CHANNEL_DOMAIN_5G_MAX] = {
-	{{}, 0},																					/*  0x00, RT_CHANNEL_DOMAIN_5G_NULL */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140}, 19},						/*  0x01, RT_CHANNEL_DOMAIN_5G_ETSI1 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165}, 24},	/*  0x02, RT_CHANNEL_DOMAIN_5G_ETSI2 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 149, 153, 157, 161, 165}, 22},			/*  0x03, RT_CHANNEL_DOMAIN_5G_ETSI3 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165}, 24},	/*  0x04, RT_CHANNEL_DOMAIN_5G_FCC1 */
-	{{36, 40, 44, 48, 149, 153, 157, 161, 165}, 9},														/*  0x05, RT_CHANNEL_DOMAIN_5G_FCC2 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 149, 153, 157, 161, 165}, 13},											/*  0x06, RT_CHANNEL_DOMAIN_5G_FCC3 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 149, 153, 157, 161}, 12},												/*  0x07, RT_CHANNEL_DOMAIN_5G_FCC4 */
-	{{149, 153, 157, 161, 165}, 5},																	/*  0x08, RT_CHANNEL_DOMAIN_5G_FCC5 */
-	{{36, 40, 44, 48, 52, 56, 60, 64}, 8},																/*  0x09, RT_CHANNEL_DOMAIN_5G_FCC6 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 136, 140, 149, 153, 157, 161, 165}, 20},					/*  0x0A, RT_CHANNEL_DOMAIN_5G_FCC7_IC1 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 149, 153, 157, 161, 165}, 20},					/*  0x0B, RT_CHANNEL_DOMAIN_5G_KCC1 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140}, 19},						/*  0x0C, RT_CHANNEL_DOMAIN_5G_MKK1 */
-	{{36, 40, 44, 48, 52, 56, 60, 64}, 8},																/*  0x0D, RT_CHANNEL_DOMAIN_5G_MKK2 */
-	{{100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140}, 11},											/*  0x0E, RT_CHANNEL_DOMAIN_5G_MKK3 */
-	{{56, 60, 64, 100, 104, 108, 112, 116, 136, 140, 149, 153, 157, 161, 165}, 15},								/*  0x0F, RT_CHANNEL_DOMAIN_5G_NCC1 */
-	{{56, 60, 64, 149, 153, 157, 161, 165}, 8},															/*  0x10, RT_CHANNEL_DOMAIN_5G_NCC2 */
-	{{149, 153, 157, 161, 165}, 5},																	/*  0x11, RT_CHANNEL_DOMAIN_5G_NCC3 */
-	{{36, 40, 44, 48}, 4},																			/*  0x12, RT_CHANNEL_DOMAIN_5G_ETSI4 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 136, 140, 149, 153, 157, 161, 165}, 20},					/*  0x13, RT_CHANNEL_DOMAIN_5G_ETSI5 */
-	{{149, 153, 157, 161}, 4},																		/*  0x14, RT_CHANNEL_DOMAIN_5G_FCC8 */
-	{{36, 40, 44, 48, 52, 56, 60, 64}, 8},																/*  0x15, RT_CHANNEL_DOMAIN_5G_ETSI6 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 149, 153, 157, 161, 165}, 13},											/*  0x16, RT_CHANNEL_DOMAIN_5G_ETSI7 */
-	{{36, 40, 44, 48, 149, 153, 157, 161, 165}, 9},														/*  0x17, RT_CHANNEL_DOMAIN_5G_ETSI8 */
-	{{100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140}, 11},											/*  0x18, RT_CHANNEL_DOMAIN_5G_ETSI9 */
-	{{149, 153, 157, 161, 165}, 5},																	/*  0x19, RT_CHANNEL_DOMAIN_5G_ETSI10 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 132, 136, 140, 149, 153, 157, 161, 165}, 16},									/*  0x1A, RT_CHANNEL_DOMAIN_5G_ETSI11 */
-	{{52, 56, 60, 64, 100, 104, 108, 112, 116, 132, 136, 140, 149, 153, 157, 161, 165}, 17},							/*  0x1B, RT_CHANNEL_DOMAIN_5G_NCC4 */
-	{{149, 153, 157, 161}, 4},																		/*  0x1C, RT_CHANNEL_DOMAIN_5G_ETSI12 */
-	{{36, 40, 44, 48, 100, 104, 108, 112, 116, 132, 136, 140, 149, 153, 157, 161, 165}, 17},							/*  0x1D, RT_CHANNEL_DOMAIN_5G_FCC9 */
-	{{36, 40, 44, 48, 100, 104, 108, 112, 116, 132, 136, 140}, 12},											/*  0x1E, RT_CHANNEL_DOMAIN_5G_ETSI13 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 132, 136, 140, 149, 153, 157, 161}, 20},					/*  0x1F, RT_CHANNEL_DOMAIN_5G_FCC10 */
-
-	/*  Driver self defined for old channel plan Compatible , Remember to modify if have new channel plan definition ===== */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 132, 136, 140, 149, 153, 157, 161, 165}, 21},				/*  0x20, RT_CHANNEL_DOMAIN_5G_FCC */
-	{{36, 40, 44, 48}, 4},																			/*  0x21, RT_CHANNEL_DOMAIN_5G_JAPAN_NO_DFS */
-	{{36, 40, 44, 48, 149, 153, 157, 161}, 8},															/*  0x22, RT_CHANNEL_DOMAIN_5G_FCC4_NO_DFS */
-};
-
 static struct rt_channel_plan_map	RTW_ChannelPlanMap[RT_CHANNEL_DOMAIN_MAX] = {
 	/*  0x00 ~ 0x1F , Old Define ===== */
-	{0x02, 0x20},	/* 0x00, RT_CHANNEL_DOMAIN_FCC */
-	{0x02, 0x0A},	/* 0x01, RT_CHANNEL_DOMAIN_IC */
-	{0x01, 0x01},	/* 0x02, RT_CHANNEL_DOMAIN_ETSI */
-	{0x01, 0x00},	/* 0x03, RT_CHANNEL_DOMAIN_SPAIN */
-	{0x01, 0x00},	/* 0x04, RT_CHANNEL_DOMAIN_FRANCE */
-	{0x03, 0x00},	/* 0x05, RT_CHANNEL_DOMAIN_MKK */
-	{0x03, 0x00},	/* 0x06, RT_CHANNEL_DOMAIN_MKK1 */
-	{0x01, 0x09},	/* 0x07, RT_CHANNEL_DOMAIN_ISRAEL */
-	{0x03, 0x09},	/* 0x08, RT_CHANNEL_DOMAIN_TELEC */
-	{0x03, 0x00},	/* 0x09, RT_CHANNEL_DOMAIN_GLOBAL_DOAMIN */
-	{0x00, 0x00},	/* 0x0A, RT_CHANNEL_DOMAIN_WORLD_WIDE_13 */
-	{0x02, 0x0F},	/* 0x0B, RT_CHANNEL_DOMAIN_TAIWAN */
-	{0x01, 0x08},	/* 0x0C, RT_CHANNEL_DOMAIN_CHINA */
-	{0x02, 0x06},	/* 0x0D, RT_CHANNEL_DOMAIN_SINGAPORE_INDIA_MEXICO */
-	{0x02, 0x0B},	/* 0x0E, RT_CHANNEL_DOMAIN_KOREA */
-	{0x02, 0x09},	/* 0x0F, RT_CHANNEL_DOMAIN_TURKEY */
-	{0x01, 0x01},	/* 0x10, RT_CHANNEL_DOMAIN_JAPAN */
-	{0x02, 0x05},	/* 0x11, RT_CHANNEL_DOMAIN_FCC_NO_DFS */
-	{0x01, 0x21},	/* 0x12, RT_CHANNEL_DOMAIN_JAPAN_NO_DFS */
-	{0x00, 0x04},	/* 0x13, RT_CHANNEL_DOMAIN_WORLD_WIDE_5G */
-	{0x02, 0x10},	/* 0x14, RT_CHANNEL_DOMAIN_TAIWAN_NO_DFS */
-	{0x00, 0x21},	/* 0x15, RT_CHANNEL_DOMAIN_ETSI_NO_DFS */
-	{0x00, 0x22},	/* 0x16, RT_CHANNEL_DOMAIN_KOREA_NO_DFS */
-	{0x03, 0x21},	/* 0x17, RT_CHANNEL_DOMAIN_JAPAN_NO_DFS */
-	{0x06, 0x08},	/* 0x18, RT_CHANNEL_DOMAIN_PAKISTAN_NO_DFS */
-	{0x02, 0x08},	/* 0x19, RT_CHANNEL_DOMAIN_TAIWAN2_NO_DFS */
-	{0x00, 0x00},	/* 0x1A, */
-	{0x00, 0x00},	/* 0x1B, */
-	{0x00, 0x00},	/* 0x1C, */
-	{0x00, 0x00},	/* 0x1D, */
-	{0x00, 0x00},	/* 0x1E, */
-	{0x06, 0x04},	/* 0x1F, RT_CHANNEL_DOMAIN_WORLD_WIDE_ONLY_5G */
+	{0x02},	/* 0x00, RT_CHANNEL_DOMAIN_FCC */
+	{0x02},	/* 0x01, RT_CHANNEL_DOMAIN_IC */
+	{0x01},	/* 0x02, RT_CHANNEL_DOMAIN_ETSI */
+	{0x01},	/* 0x03, RT_CHANNEL_DOMAIN_SPAIN */
+	{0x01},	/* 0x04, RT_CHANNEL_DOMAIN_FRANCE */
+	{0x03},	/* 0x05, RT_CHANNEL_DOMAIN_MKK */
+	{0x03},	/* 0x06, RT_CHANNEL_DOMAIN_MKK1 */
+	{0x01},	/* 0x07, RT_CHANNEL_DOMAIN_ISRAEL */
+	{0x03},	/* 0x08, RT_CHANNEL_DOMAIN_TELEC */
+	{0x03},	/* 0x09, RT_CHANNEL_DOMAIN_GLOBAL_DOAMIN */
+	{0x00},	/* 0x0A, RT_CHANNEL_DOMAIN_WORLD_WIDE_13 */
+	{0x02},	/* 0x0B, RT_CHANNEL_DOMAIN_TAIWAN */
+	{0x01},	/* 0x0C, RT_CHANNEL_DOMAIN_CHINA */
+	{0x02},	/* 0x0D, RT_CHANNEL_DOMAIN_SINGAPORE_INDIA_MEXICO */
+	{0x02},	/* 0x0E, RT_CHANNEL_DOMAIN_KOREA */
+	{0x02},	/* 0x0F, RT_CHANNEL_DOMAIN_TURKEY */
+	{0x01},	/* 0x10, RT_CHANNEL_DOMAIN_JAPAN */
+	{0x02},	/* 0x11, RT_CHANNEL_DOMAIN_FCC_NO_DFS */
+	{0x01},	/* 0x12, RT_CHANNEL_DOMAIN_JAPAN_NO_DFS */
+	{0x00},	/* 0x13, RT_CHANNEL_DOMAIN_WORLD_WIDE_5G */
+	{0x02},	/* 0x14, RT_CHANNEL_DOMAIN_TAIWAN_NO_DFS */
+	{0x00},	/* 0x15, RT_CHANNEL_DOMAIN_ETSI_NO_DFS */
+	{0x00},	/* 0x16, RT_CHANNEL_DOMAIN_KOREA_NO_DFS */
+	{0x03},	/* 0x17, RT_CHANNEL_DOMAIN_JAPAN_NO_DFS */
+	{0x06},	/* 0x18, RT_CHANNEL_DOMAIN_PAKISTAN_NO_DFS */
+	{0x02},	/* 0x19, RT_CHANNEL_DOMAIN_TAIWAN2_NO_DFS */
+	{0x00},	/* 0x1A, */
+	{0x00},	/* 0x1B, */
+	{0x00},	/* 0x1C, */
+	{0x00},	/* 0x1D, */
+	{0x00},	/* 0x1E, */
+	{0x06},	/* 0x1F, RT_CHANNEL_DOMAIN_WORLD_WIDE_ONLY_5G */
 	/*  0x20 ~ 0x7F , New Define ===== */
-	{0x00, 0x00},	/* 0x20, RT_CHANNEL_DOMAIN_WORLD_NULL */
-	{0x01, 0x00},	/* 0x21, RT_CHANNEL_DOMAIN_ETSI1_NULL */
-	{0x02, 0x00},	/* 0x22, RT_CHANNEL_DOMAIN_FCC1_NULL */
-	{0x03, 0x00},	/* 0x23, RT_CHANNEL_DOMAIN_MKK1_NULL */
-	{0x04, 0x00},	/* 0x24, RT_CHANNEL_DOMAIN_ETSI2_NULL */
-	{0x02, 0x04},	/* 0x25, RT_CHANNEL_DOMAIN_FCC1_FCC1 */
-	{0x00, 0x01},	/* 0x26, RT_CHANNEL_DOMAIN_WORLD_ETSI1 */
-	{0x03, 0x0C},	/* 0x27, RT_CHANNEL_DOMAIN_MKK1_MKK1 */
-	{0x00, 0x0B},	/* 0x28, RT_CHANNEL_DOMAIN_WORLD_KCC1 */
-	{0x00, 0x05},	/* 0x29, RT_CHANNEL_DOMAIN_WORLD_FCC2 */
-	{0x00, 0x00},	/* 0x2A, */
-	{0x00, 0x00},	/* 0x2B, */
-	{0x00, 0x00},	/* 0x2C, */
-	{0x00, 0x00},	/* 0x2D, */
-	{0x00, 0x00},	/* 0x2E, */
-	{0x00, 0x00},	/* 0x2F, */
-	{0x00, 0x06},	/* 0x30, RT_CHANNEL_DOMAIN_WORLD_FCC3 */
-	{0x00, 0x07},	/* 0x31, RT_CHANNEL_DOMAIN_WORLD_FCC4 */
-	{0x00, 0x08},	/* 0x32, RT_CHANNEL_DOMAIN_WORLD_FCC5 */
-	{0x00, 0x09},	/* 0x33, RT_CHANNEL_DOMAIN_WORLD_FCC6 */
-	{0x02, 0x0A},	/* 0x34, RT_CHANNEL_DOMAIN_FCC1_FCC7 */
-	{0x00, 0x02},	/* 0x35, RT_CHANNEL_DOMAIN_WORLD_ETSI2 */
-	{0x00, 0x03},	/* 0x36, RT_CHANNEL_DOMAIN_WORLD_ETSI3 */
-	{0x03, 0x0D},	/* 0x37, RT_CHANNEL_DOMAIN_MKK1_MKK2 */
-	{0x03, 0x0E},	/* 0x38, RT_CHANNEL_DOMAIN_MKK1_MKK3 */
-	{0x02, 0x0F},	/* 0x39, RT_CHANNEL_DOMAIN_FCC1_NCC1 */
-	{0x00, 0x00},	/* 0x3A, */
-	{0x00, 0x00},	/* 0x3B, */
-	{0x00, 0x00},	/* 0x3C, */
-	{0x00, 0x00},	/* 0x3D, */
-	{0x00, 0x00},	/* 0x3E, */
-	{0x00, 0x00},	/* 0x3F, */
-	{0x02, 0x10},	/* 0x40, RT_CHANNEL_DOMAIN_FCC1_NCC2 */
-	{0x05, 0x00},	/* 0x41, RT_CHANNEL_DOMAIN_GLOBAL_NULL */
-	{0x01, 0x12},	/* 0x42, RT_CHANNEL_DOMAIN_ETSI1_ETSI4 */
-	{0x02, 0x05},	/* 0x43, RT_CHANNEL_DOMAIN_FCC1_FCC2 */
-	{0x02, 0x11},	/* 0x44, RT_CHANNEL_DOMAIN_FCC1_NCC3 */
-	{0x00, 0x13},	/* 0x45, RT_CHANNEL_DOMAIN_WORLD_ETSI5 */
-	{0x02, 0x14},	/* 0x46, RT_CHANNEL_DOMAIN_FCC1_FCC8 */
-	{0x00, 0x15},	/* 0x47, RT_CHANNEL_DOMAIN_WORLD_ETSI6 */
-	{0x00, 0x16},	/* 0x48, RT_CHANNEL_DOMAIN_WORLD_ETSI7 */
-	{0x00, 0x17},	/* 0x49, RT_CHANNEL_DOMAIN_WORLD_ETSI8 */
-	{0x00, 0x18},	/* 0x50, RT_CHANNEL_DOMAIN_WORLD_ETSI9 */
-	{0x00, 0x19},	/* 0x51, RT_CHANNEL_DOMAIN_WORLD_ETSI10 */
-	{0x00, 0x1A},	/* 0x52, RT_CHANNEL_DOMAIN_WORLD_ETSI11 */
-	{0x02, 0x1B},	/* 0x53, RT_CHANNEL_DOMAIN_FCC1_NCC4 */
-	{0x00, 0x1C},	/* 0x54, RT_CHANNEL_DOMAIN_WORLD_ETSI12 */
-	{0x02, 0x1D},	/* 0x55, RT_CHANNEL_DOMAIN_FCC1_FCC9 */
-	{0x00, 0x1E},	/* 0x56, RT_CHANNEL_DOMAIN_WORLD_ETSI13 */
-	{0x02, 0x1F},	/* 0x57, RT_CHANNEL_DOMAIN_FCC1_FCC10 */
+	{0x00},	/* 0x20, RT_CHANNEL_DOMAIN_WORLD_NULL */
+	{0x01},	/* 0x21, RT_CHANNEL_DOMAIN_ETSI1_NULL */
+	{0x02},	/* 0x22, RT_CHANNEL_DOMAIN_FCC1_NULL */
+	{0x03},	/* 0x23, RT_CHANNEL_DOMAIN_MKK1_NULL */
+	{0x04},	/* 0x24, RT_CHANNEL_DOMAIN_ETSI2_NULL */
+	{0x02},	/* 0x25, RT_CHANNEL_DOMAIN_FCC1_FCC1 */
+	{0x00},	/* 0x26, RT_CHANNEL_DOMAIN_WORLD_ETSI1 */
+	{0x03},	/* 0x27, RT_CHANNEL_DOMAIN_MKK1_MKK1 */
+	{0x00},	/* 0x28, RT_CHANNEL_DOMAIN_WORLD_KCC1 */
+	{0x00},	/* 0x29, RT_CHANNEL_DOMAIN_WORLD_FCC2 */
+	{0x00},	/* 0x2A, */
+	{0x00},	/* 0x2B, */
+	{0x00},	/* 0x2C, */
+	{0x00},	/* 0x2D, */
+	{0x00},	/* 0x2E, */
+	{0x00},	/* 0x2F, */
+	{0x00},	/* 0x30, RT_CHANNEL_DOMAIN_WORLD_FCC3 */
+	{0x00},	/* 0x31, RT_CHANNEL_DOMAIN_WORLD_FCC4 */
+	{0x00},	/* 0x32, RT_CHANNEL_DOMAIN_WORLD_FCC5 */
+	{0x00},	/* 0x33, RT_CHANNEL_DOMAIN_WORLD_FCC6 */
+	{0x02},	/* 0x34, RT_CHANNEL_DOMAIN_FCC1_FCC7 */
+	{0x00},	/* 0x35, RT_CHANNEL_DOMAIN_WORLD_ETSI2 */
+	{0x00},	/* 0x36, RT_CHANNEL_DOMAIN_WORLD_ETSI3 */
+	{0x03},	/* 0x37, RT_CHANNEL_DOMAIN_MKK1_MKK2 */
+	{0x03},	/* 0x38, RT_CHANNEL_DOMAIN_MKK1_MKK3 */
+	{0x02},	/* 0x39, RT_CHANNEL_DOMAIN_FCC1_NCC1 */
+	{0x00},	/* 0x3A, */
+	{0x00},	/* 0x3B, */
+	{0x00},	/* 0x3C, */
+	{0x00},	/* 0x3D, */
+	{0x00},	/* 0x3E, */
+	{0x00},	/* 0x3F, */
+	{0x02},	/* 0x40, RT_CHANNEL_DOMAIN_FCC1_NCC2 */
+	{0x05},	/* 0x41, RT_CHANNEL_DOMAIN_GLOBAL_NULL */
+	{0x01},	/* 0x42, RT_CHANNEL_DOMAIN_ETSI1_ETSI4 */
+	{0x02},	/* 0x43, RT_CHANNEL_DOMAIN_FCC1_FCC2 */
+	{0x02},	/* 0x44, RT_CHANNEL_DOMAIN_FCC1_NCC3 */
+	{0x00},	/* 0x45, RT_CHANNEL_DOMAIN_WORLD_ETSI5 */
+	{0x02},	/* 0x46, RT_CHANNEL_DOMAIN_FCC1_FCC8 */
+	{0x00},	/* 0x47, RT_CHANNEL_DOMAIN_WORLD_ETSI6 */
+	{0x00},	/* 0x48, RT_CHANNEL_DOMAIN_WORLD_ETSI7 */
+	{0x00},	/* 0x49, RT_CHANNEL_DOMAIN_WORLD_ETSI8 */
+	{0x00},	/* 0x50, RT_CHANNEL_DOMAIN_WORLD_ETSI9 */
+	{0x00},	/* 0x51, RT_CHANNEL_DOMAIN_WORLD_ETSI10 */
+	{0x00},	/* 0x52, RT_CHANNEL_DOMAIN_WORLD_ETSI11 */
+	{0x02},	/* 0x53, RT_CHANNEL_DOMAIN_FCC1_NCC4 */
+	{0x00},	/* 0x54, RT_CHANNEL_DOMAIN_WORLD_ETSI12 */
+	{0x02},	/* 0x55, RT_CHANNEL_DOMAIN_FCC1_FCC9 */
+	{0x00},	/* 0x56, RT_CHANNEL_DOMAIN_WORLD_ETSI13 */
+	{0x02},	/* 0x57, RT_CHANNEL_DOMAIN_FCC1_FCC10 */
 };
 
  /* use the combination for max channel numbers */
-static struct rt_channel_plan_map RTW_CHANNEL_PLAN_MAP_REALTEK_DEFINE = {0x03, 0x02};
+static struct rt_channel_plan_map RTW_CHANNEL_PLAN_MAP_REALTEK_DEFINE = {0x03};
 
 /* Search the @param ch in given @param ch_set
  * @ch_set: the given channel set
@@ -229,23 +186,6 @@ int rtw_ch_set_search_ch(struct rt_channel_info *ch_set, const u32 ch)
 	if (i >= ch_set[i].ChannelNum)
 		return -1;
 	return i;
-}
-
-/* Check the @param ch is fit with setband setting of @param adapter
- * @adapter: the given adapter
- * @ch: the given channel number
- *
- * return true when check valid, false not valid
- */
-bool rtw_mlme_band_check(struct adapter *adapter, const u32 ch)
-{
-	if (adapter->setband == GHZ24_50 /* 2.4G and 5G */
-		|| (adapter->setband == GHZ_24 && ch < 35) /* 2.4G only */
-		|| (adapter->setband == GHZ_50 && ch > 35) /* 5G only */
-	) {
-		return true;
-	}
-	return false;
 }
 
 /****************************************************************************
@@ -395,8 +335,8 @@ static void init_channel_list(struct adapter *padapter, struct rt_channel_info *
 static u8 init_channel_set(struct adapter *padapter, u8 ChannelPlan, struct rt_channel_info *channel_set)
 {
 	u8 index, chanset_size = 0;
-	u8 b5GBand = false, b2_4GBand = false;
-	u8 Index2G = 0, Index5G = 0;
+	u8 b2_4GBand = false;
+	u8 Index2G = 0;
 
 	memset(channel_set, 0, sizeof(struct rt_channel_info)*MAX_CHANNEL_NUM);
 
@@ -422,7 +362,6 @@ static u8 init_channel_set(struct adapter *padapter, u8 ChannelPlan, struct rt_c
 				else if ((channel_set[chanset_size].ChannelNum  >= 12 && channel_set[chanset_size].ChannelNum  <= 14))
 					channel_set[chanset_size].ScanType  = SCAN_PASSIVE;
 			} else if (RT_CHANNEL_DOMAIN_WORLD_WIDE_13 == ChannelPlan ||
-				RT_CHANNEL_DOMAIN_WORLD_WIDE_5G == ChannelPlan ||
 				RT_CHANNEL_DOMAIN_2G_WORLD == Index2G) { /*  channel 12~13, passive scan */
 				if (channel_set[chanset_size].ChannelNum <= 11)
 					channel_set[chanset_size].ScanType = SCAN_ACTIVE;
@@ -432,20 +371,6 @@ static u8 init_channel_set(struct adapter *padapter, u8 ChannelPlan, struct rt_c
 				channel_set[chanset_size].ScanType = SCAN_ACTIVE;
 
 			chanset_size++;
-		}
-	}
-
-	if (b5GBand) {
-		for (index = 0; index < RTW_ChannelPlan5G[Index5G].Len; index++) {
-			if (RTW_ChannelPlan5G[Index5G].Channel[index] <= 48
-				|| RTW_ChannelPlan5G[Index5G].Channel[index] >= 149) {
-				channel_set[chanset_size].ChannelNum = RTW_ChannelPlan5G[Index5G].Channel[index];
-				if (RT_CHANNEL_DOMAIN_WORLD_WIDE_5G == ChannelPlan)/* passive scan for all 5G channels */
-					channel_set[chanset_size].ScanType = SCAN_PASSIVE;
-				else
-					channel_set[chanset_size].ScanType = SCAN_ACTIVE;
-				chanset_size++;
-			}
 		}
 	}
 
@@ -1021,7 +946,7 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 	u16 capab_info;
 	struct rtw_ieee802_11_elems elems;
 	struct sta_info *pstat;
-	unsigned char 	reassoc, *p, *pos, *wpa_ie;
+	unsigned char 	*p, *pos, *wpa_ie;
 	unsigned char WMM_IE[] = {0x00, 0x50, 0xf2, 0x02, 0x00, 0x01};
 	int		i, ie_len, wpa_ie_len, left;
 	unsigned char 	supportRate[16];
@@ -1041,13 +966,10 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 		return _FAIL;
 
 	frame_type = GetFrameSubType(pframe);
-	if (frame_type == WIFI_ASSOCREQ) {
-		reassoc = 0;
+	if (frame_type == WIFI_ASSOCREQ) 
 		ie_offset = _ASOCREQ_IE_OFFSET_;
-	} else { /*  WIFI_REASSOCREQ */
-		reassoc = 1;
+	else /*  WIFI_REASSOCREQ */
 		ie_offset = _REASOCREQ_IE_OFFSET_;
-	}
 
 
 	if (pkt_len < sizeof(struct ieee80211_hdr_3addr) + ie_offset)
@@ -1726,7 +1648,7 @@ unsigned int OnAction_back(struct adapter *padapter, union recv_frame *precv_fra
 	struct recv_reorder_ctrl *preorder_ctrl;
 	unsigned char 	*frame_body;
 	unsigned char 	category, action;
-	unsigned short	tid, status, reason_code = 0;
+	unsigned short	tid, status;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 	u8 *pframe = precv_frame->u.hdr.rx_data;
@@ -1795,9 +1717,6 @@ unsigned int OnAction_back(struct adapter *padapter, union recv_frame *precv_fra
 					~BIT((frame_body[3] >> 4) & 0xf);
 				psta->htpriv.candidate_tid_bitmap &=
 					~BIT((frame_body[3] >> 4) & 0xf);
-
-				/* reason_code = frame_body[4] | (frame_body[5] << 8); */
-				reason_code = get_unaligned_le16(&frame_body[4]);
 			} else if ((frame_body[3] & BIT(3)) == BIT(3)) {
 				tid = (frame_body[3] >> 4) & 0x0F;
 
@@ -2142,7 +2061,7 @@ s32 dump_mgntframe_and_wait(struct adapter *padapter, struct xmit_frame *pmgntfr
 	ret = rtw_hal_mgnt_xmit(padapter, pmgntframe);
 
 	if (ret == _SUCCESS)
-		ret = rtw_sctx_wait(&sctx, __func__);
+		ret = rtw_sctx_wait(&sctx);
 
 	spin_lock_irqsave(&pxmitpriv->lock_sctx, irqL);
 	pxmitbuf->sctx = NULL;
@@ -2226,7 +2145,6 @@ void issue_beacon(struct adapter *padapter, int timeout_ms)
 	struct mlme_ext_priv *pmlmeext = &(padapter->mlmeextpriv);
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct wlan_bssid_ex		*cur_network = &(pmlmeinfo->network);
-	u8 bc_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 	pmgntframe = alloc_mgtxmitframe(pxmitpriv);
 	if (!pmgntframe)
@@ -2248,7 +2166,7 @@ void issue_beacon(struct adapter *padapter, int timeout_ms)
 	fctrl = &(pwlanhdr->frame_control);
 	*(fctrl) = 0;
 
-	memcpy(pwlanhdr->addr1, bc_addr, ETH_ALEN);
+	eth_broadcast_addr(pwlanhdr->addr1);
 	memcpy(pwlanhdr->addr2, myid(&(padapter->eeprompriv)), ETH_ALEN);
 	memcpy(pwlanhdr->addr3, get_my_bssid(cur_network), ETH_ALEN);
 
@@ -2457,8 +2375,12 @@ void issue_probersp(struct adapter *padapter, unsigned char *da, u8 is_valid_p2p
 			u8 *ssid_ie;
 			signed int ssid_ielen;
 			signed int ssid_ielen_diff;
-			u8 buf[MAX_IE_SZ];
+			u8 *buf;
 			u8 *ies = pmgntframe->buf_addr+TXDESC_OFFSET+sizeof(struct ieee80211_hdr_3addr);
+
+			buf = rtw_zmalloc(MAX_IE_SZ);
+			if (!buf)
+				return;
 
 			ssid_ie = rtw_get_ie(ies+_FIXED_IE_LENGTH_, WLAN_EID_SSID, &ssid_ielen,
 				(pframe-ies)-_FIXED_IE_LENGTH_);
@@ -2487,6 +2409,7 @@ void issue_probersp(struct adapter *padapter, unsigned char *da, u8 is_valid_p2p
 				pframe += ssid_ielen_diff;
 				pattrib->pktlen += ssid_ielen_diff;
 			}
+			kfree (buf);
 		}
 	} else {
 		/* timestamp will be inserted by hardware */
@@ -2567,7 +2490,6 @@ static int _issue_probereq(struct adapter *padapter,
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 	struct mlme_ext_priv *pmlmeext = &(padapter->mlmeextpriv);
 	int	bssrate_len = 0;
-	u8 bc_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 	pmgntframe = alloc_mgtxmitframe(pxmitpriv);
 	if (!pmgntframe)
@@ -2594,8 +2516,8 @@ static int _issue_probereq(struct adapter *padapter,
 		memcpy(pwlanhdr->addr3, da, ETH_ALEN);
 	} else {
 		/* 	broadcast probe request frame */
-		memcpy(pwlanhdr->addr1, bc_addr, ETH_ALEN);
-		memcpy(pwlanhdr->addr3, bc_addr, ETH_ALEN);
+		eth_broadcast_addr(pwlanhdr->addr1);
+		eth_broadcast_addr(pwlanhdr->addr3);
 	}
 
 	memcpy(pwlanhdr->addr2, mac, ETH_ALEN);
@@ -4483,61 +4405,6 @@ static void process_80211d(struct adapter *padapter, struct wlan_bssid_ex *bssid
 			}
 		}
 
-		if (pregistrypriv->wireless_mode & WIRELESS_11A) {
-			do {
-				if ((i == MAX_CHANNEL_NUM) ||
-					(chplan_sta[i].ChannelNum == 0))
-					break;
-
-				if ((j == chplan_ap.Len) || (chplan_ap.Channel[j] == 0))
-					break;
-
-				if (chplan_sta[i].ChannelNum == chplan_ap.Channel[j]) {
-					chplan_new[k].ChannelNum = chplan_ap.Channel[j];
-					chplan_new[k].ScanType = SCAN_ACTIVE;
-					i++;
-					j++;
-					k++;
-				} else if (chplan_sta[i].ChannelNum < chplan_ap.Channel[j]) {
-					chplan_new[k].ChannelNum = chplan_sta[i].ChannelNum;
-/* 					chplan_new[k].ScanType = chplan_sta[i].ScanType; */
-					chplan_new[k].ScanType = SCAN_PASSIVE;
-					i++;
-					k++;
-				} else if (chplan_sta[i].ChannelNum > chplan_ap.Channel[j]) {
-					chplan_new[k].ChannelNum = chplan_ap.Channel[j];
-					chplan_new[k].ScanType = SCAN_ACTIVE;
-					j++;
-					k++;
-				}
-			} while (1);
-
-			/*  change AP not support channel to Passive scan */
-			while ((i < MAX_CHANNEL_NUM) && (chplan_sta[i].ChannelNum != 0)) {
-				chplan_new[k].ChannelNum = chplan_sta[i].ChannelNum;
-/* 				chplan_new[k].ScanType = chplan_sta[i].ScanType; */
-				chplan_new[k].ScanType = SCAN_PASSIVE;
-				i++;
-				k++;
-			}
-
-			/*  add channel AP supported */
-			while ((j < chplan_ap.Len) && (chplan_ap.Channel[j] != 0)) {
-				chplan_new[k].ChannelNum = chplan_ap.Channel[j];
-				chplan_new[k].ScanType = SCAN_ACTIVE;
-				j++;
-				k++;
-			}
-		} else {
-			/*  keep original STA 5G channel plan */
-			while ((i < MAX_CHANNEL_NUM) && (chplan_sta[i].ChannelNum != 0)) {
-				chplan_new[k].ChannelNum = chplan_sta[i].ChannelNum;
-				chplan_new[k].ScanType = chplan_sta[i].ScanType;
-				i++;
-				k++;
-			}
-		}
-
 		pmlmeext->update_channel_plan_by_ap_done = 1;
 	}
 
@@ -4548,10 +4415,6 @@ static void process_80211d(struct adapter *padapter, struct wlan_bssid_ex *bssid
 	while ((i < MAX_CHANNEL_NUM) && (chplan_new[i].ChannelNum != 0)) {
 		if (chplan_new[i].ChannelNum == channel) {
 			if (chplan_new[i].ScanType == SCAN_PASSIVE) {
-				/* 5G Bnad 2, 3 (DFS) doesn't change to active scan */
-				if (channel >= 52 && channel <= 144)
-					break;
-
 				chplan_new[i].ScanType = SCAN_ACTIVE;
 			}
 			break;
@@ -5125,24 +4988,9 @@ void _linked_info_dump(struct adapter *padapter)
 
 	if (padapter->bLinkInfoDump) {
 
-		if ((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE) {
+		if ((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE)
 			rtw_hal_get_def_var(padapter, HAL_DEF_UNDERCORATEDSMOOTHEDPWDB, &UndecoratedSmoothedPWDB);
-		} else if ((pmlmeinfo->state&0x03) == _HW_STATE_AP_) {
-			struct list_head	*phead, *plist;
 
-			struct sta_info *psta = NULL;
-			struct sta_priv *pstapriv = &padapter->stapriv;
-
-			spin_lock_bh(&pstapriv->asoc_list_lock);
-			phead = &pstapriv->asoc_list;
-			plist = get_next(phead);
-			while (phead != plist) {
-				psta = container_of(plist, struct sta_info, asoc_list);
-				plist = get_next(plist);
-			}
-			spin_unlock_bh(&pstapriv->asoc_list_lock);
-
-		}
 		for (i = 0; i < NUM_STA; i++) {
 			if (pdvobj->macid[i]) {
 				if (i != 1) /* skip bc/mc sta */
@@ -5151,11 +4999,7 @@ void _linked_info_dump(struct adapter *padapter)
 			}
 		}
 		rtw_hal_set_def_var(padapter, HAL_DEF_DBG_RX_INFO_DUMP, NULL);
-
-
 	}
-
-
 }
 
 static u8 chk_ap_is_alive(struct adapter *padapter, struct sta_info *psta)
@@ -5452,9 +5296,7 @@ u8 createbss_hdl(struct adapter *padapter, u8 *pbuf)
 	/* u32 initialgain; */
 
 	if (pmlmeinfo->state == WIFI_FW_AP_STATE) {
-		struct wlan_bssid_ex *network = &padapter->mlmepriv.cur_network.network;
-
-		start_bss_network(padapter, (u8 *)network);
+		start_bss_network(padapter);
 		return H2C_SUCCESS;
 	}
 
@@ -5692,7 +5534,6 @@ static int rtw_scan_ch_decision(struct adapter *padapter, struct rtw_ieee80211_c
 		set_idx = rtw_ch_set_search_ch(pmlmeext->channel_set, in[i].hw_value);
 		if (in[i].hw_value && !(in[i].flags & RTW_IEEE80211_CHAN_DISABLED)
 			&& set_idx >= 0
-			&& rtw_mlme_band_check(padapter, in[i].hw_value)
 		) {
 			if (j >= out_num) {
 				netdev_dbg(padapter->pnetdev,
@@ -5716,23 +5557,20 @@ static int rtw_scan_ch_decision(struct adapter *padapter, struct rtw_ieee80211_c
 	if (j == 0) {
 		for (i = 0; i < pmlmeext->max_chan_nums; i++) {
 
-			if (rtw_mlme_band_check(padapter, pmlmeext->channel_set[i].ChannelNum)) {
-
-				if (j >= out_num) {
-					netdev_dbg(padapter->pnetdev,
-						   FUNC_ADPT_FMT " out_num:%u not enough\n",
-						   FUNC_ADPT_ARG(padapter),
-						   out_num);
-					break;
-				}
-
-				out[j].hw_value = pmlmeext->channel_set[i].ChannelNum;
-
-				if (pmlmeext->channel_set[i].ScanType == SCAN_PASSIVE)
-					out[j].flags |= RTW_IEEE80211_CHAN_PASSIVE_SCAN;
-
-				j++;
+			if (j >= out_num) {
+				netdev_dbg(padapter->pnetdev,
+					   FUNC_ADPT_FMT " out_num:%u not enough\n",
+					   FUNC_ADPT_ARG(padapter),
+					   out_num);
+				break;
 			}
+
+			out[j].hw_value = pmlmeext->channel_set[i].ChannelNum;
+
+			if (pmlmeext->channel_set[i].ScanType == SCAN_PASSIVE)
+				out[j].flags |= RTW_IEEE80211_CHAN_PASSIVE_SCAN;
+
+			j++;
 		}
 	}
 
@@ -5997,10 +5835,40 @@ exit:
 	return res;
 }
 
+static struct fwevent wlanevents[] = {
+	{0, rtw_dummy_event_callback},	/*0*/
+	{0, NULL},
+	{0, NULL},
+	{0, NULL},
+	{0, NULL},
+	{0, NULL},
+	{0, NULL},
+	{0, NULL},
+	{0, &rtw_survey_event_callback},		/*8*/
+	{sizeof(struct surveydone_event), &rtw_surveydone_event_callback},	/*9*/
+
+	{0, &rtw_joinbss_event_callback},		/*10*/
+	{sizeof(struct stassoc_event), &rtw_stassoc_event_callback},
+	{sizeof(struct stadel_event), &rtw_stadel_event_callback},
+	{0, &rtw_atimdone_event_callback},
+	{0, rtw_dummy_event_callback},
+	{0, NULL},	/*15*/
+	{0, NULL},
+	{0, NULL},
+	{0, NULL},
+	{0, rtw_fwdbg_event_callback},
+	{0, NULL},	 /*20*/
+	{0, NULL},
+	{0, NULL},
+	{0, &rtw_cpwm_event_callback},
+	{0, NULL},
+	{0, &rtw_wmm_event_callback},
+
+};
 
 u8 mlme_evt_hdl(struct adapter *padapter, unsigned char *pbuf)
 {
-	u8 evt_code, evt_seq;
+	u8 evt_code;
 	u16 evt_sz;
 	uint	*peventbuf;
 	void (*event_callback)(struct adapter *dev, u8 *pbuf);
@@ -6011,18 +5879,7 @@ u8 mlme_evt_hdl(struct adapter *padapter, unsigned char *pbuf)
 
 	peventbuf = (uint *)pbuf;
 	evt_sz = (u16)(*peventbuf&0xffff);
-	evt_seq = (u8)((*peventbuf>>24)&0x7f);
 	evt_code = (u8)((*peventbuf>>16)&0xff);
-
-
-	#ifdef CHECK_EVENT_SEQ
-	/*  checking event sequence... */
-	if (evt_seq != (atomic_read(&pevt_priv->event_seq) & 0x7f)) {
-		pevt_priv->event_seq = (evt_seq+1)&0x7f;
-
-		goto _abort_event_;
-	}
-	#endif
 
 	/*  checking if event code is valid */
 	if (evt_code >= MAX_C2HEVT)
@@ -6063,7 +5920,7 @@ u8 h2c_msg_hdl(struct adapter *padapter, unsigned char *pbuf)
 u8 chk_bmc_sleepq_hdl(struct adapter *padapter, unsigned char *pbuf)
 {
 	struct sta_info *psta_bmc;
-	struct list_head	*xmitframe_plist, *xmitframe_phead;
+	struct list_head *xmitframe_plist, *xmitframe_phead, *tmp;
 	struct xmit_frame *pxmitframe = NULL;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct sta_priv  *pstapriv = &padapter->stapriv;
@@ -6080,12 +5937,9 @@ u8 chk_bmc_sleepq_hdl(struct adapter *padapter, unsigned char *pbuf)
 		spin_lock_bh(&pxmitpriv->lock);
 
 		xmitframe_phead = get_list_head(&psta_bmc->sleep_q);
-		xmitframe_plist = get_next(xmitframe_phead);
-
-		while (xmitframe_phead != xmitframe_plist) {
-			pxmitframe = container_of(xmitframe_plist, struct xmit_frame, list);
-
-			xmitframe_plist = get_next(xmitframe_plist);
+		list_for_each_safe(xmitframe_plist, tmp, xmitframe_phead) {
+			pxmitframe = list_entry(xmitframe_plist,
+						struct xmit_frame, list);
 
 			list_del_init(&pxmitframe->list);
 

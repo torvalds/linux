@@ -336,6 +336,8 @@ config PINCTRL_ZYNQMP
 	  Configuration can include the mux function to select on those
 	  pin(s)/group(s), and various pin configuration parameters
 	  such as pull-up, slew rate, etc.
+	  This driver can also be built as a module. If so, the module
+	  will be called pinctrl-zynqmp.
 
 config PINCTRL_INGENIC
 	bool "Pinctrl driver for the Ingenic JZ47xx SoCs"

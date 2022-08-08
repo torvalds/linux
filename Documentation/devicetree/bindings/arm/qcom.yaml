@@ -36,17 +36,20 @@ description: |
         msm8992
         msm8994
         msm8996
+        sa8155p
         sc7180
         sc7280
         sdm630
         sdm660
         sdm845
         sdx55
+        sm8150
         sm8250
         sm8350
 
   The 'board' element must be one of the following strings:
 
+        adp
         cdp
         cp01-c1
         dragonboard
@@ -178,6 +181,7 @@ properties:
       - items:
           - enum:
               - qcom,sc7280-idp
+              - google,senor
           - const: qcom,sc7280
 
       - items:
@@ -197,6 +201,16 @@ properties:
               - qcom,ipq6018-cp01
               - qcom,ipq6018-cp01-c1
           - const: qcom,ipq6018
+
+      - items:
+          - enum:
+              - qcom,sa8155p-adp
+          - const: qcom,sa8155p
+
+      - items:
+          - enum:
+              - qcom,sm8150-mtp
+          - const: qcom,sm8150
 
       - items:
           - enum:

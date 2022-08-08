@@ -55,7 +55,8 @@ void pcicore_write16(struct ssb_pcicore *pc, u16 offset, u16 value)
 #include <asm/paccess.h>
 /* Probe a 32bit value on the bus and catch bus exceptions.
  * Returns nonzero on a bus exception.
- * This is MIPS specific */
+ * This is MIPS specific
+ */
 #define mips_busprobe32(val, addr)	get_dbe((val), ((u32 *)(addr)))
 
 /* Assume one-hot slot wiring */
@@ -255,7 +256,8 @@ static struct pci_controller ssb_pcicore_controller = {
 };
 
 /* This function is called when doing a pci_enable_device().
- * We must first check if the device is a device on the PCI-core bridge. */
+ * We must first check if the device is a device on the PCI-core bridge.
+ */
 int ssb_pcicore_plat_dev_init(struct pci_dev *d)
 {
 	if (d->bus->ops != &ssb_pcicore_pciops) {
@@ -381,11 +383,13 @@ static void ssb_pcicore_init_hostmode(struct ssb_pcicore *pc)
 
 	/* Ok, ready to run, register it to the system.
 	 * The following needs change, if we want to port hostmode
-	 * to non-MIPS platform. */
+	 * to non-MIPS platform.
+	 */
 	ssb_pcicore_controller.io_map_base = (unsigned long)ioremap(SSB_PCI_MEM, 0x04000000);
 	set_io_port_base(ssb_pcicore_controller.io_map_base);
 	/* Give some time to the PCI controller to configure itself with the new
-	 * values. Not waiting at this point causes crashes of the machine. */
+	 * values. Not waiting at this point causes crashes of the machine.
+	 */
 	mdelay(10);
 	register_pci_controller(&ssb_pcicore_controller);
 }
@@ -405,7 +409,8 @@ static int pcicore_is_in_hostmode(struct ssb_pcicore *pc)
 		return 0;
 
 	/* The 200-pin BCM4712 package does not bond out PCI. Even when
-	 * PCI is bonded out, some boards may leave the pins floating. */
+	 * PCI is bonded out, some boards may leave the pins floating.
+	 */
 	if (bus->chip_id == 0x4712) {
 		if (bus->chip_package == SSB_CHIPPACK_BCM4712S)
 			return 0;
@@ -685,7 +690,8 @@ int ssb_pcicore_dev_irqvecs_enable(struct ssb_pcicore *pc,
 	if (dev->bus->bustype != SSB_BUSTYPE_PCI) {
 		/* This SSB device is not on a PCI host-bus. So the IRQs are
 		 * not routed through the PCI core.
-		 * So we must not enable routing through the PCI core. */
+		 * So we must not enable routing through the PCI core.
+		 */
 		goto out;
 	}
 

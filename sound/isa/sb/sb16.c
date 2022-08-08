@@ -332,14 +332,9 @@ static int snd_sb16_probe(struct snd_card *card, int dev)
 	xdma8 = dma8[dev];
 	xdma16 = dma16[dev];
 
-	if ((err = snd_sbdsp_create(card,
-				    port[dev],
-				    xirq,
-				    snd_sb16dsp_interrupt,
-				    xdma8,
-				    xdma16,
-				    SB_HW_AUTO,
-				    &chip)) < 0)
+	err = snd_sbdsp_create(card, port[dev], xirq, snd_sb16dsp_interrupt,
+			       xdma8, xdma16, SB_HW_AUTO, &chip);
+	if (err < 0)
 		return err;
 
 	acard->chip = chip;
@@ -348,10 +343,14 @@ static int snd_sb16_probe(struct snd_card *card, int dev)
 		return -ENODEV;
 	}
 	chip->mpu_port = mpu_port[dev];
-	if (! is_isapnp_selected(dev) && (err = snd_sb16dsp_configure(chip)) < 0)
-		return err;
+	if (!is_isapnp_selected(dev)) {
+		err = snd_sb16dsp_configure(chip);
+		if (err < 0)
+			return err;
+	}
 
-	if ((err = snd_sb16dsp_pcm(chip, 0)) < 0)
+	err = snd_sb16dsp_pcm(chip, 0);
+	if (err < 0)
 		return err;
 
 	strcpy(card->driver,
@@ -371,10 +370,11 @@ static int snd_sb16_probe(struct snd_card *card, int dev)
 			xdma8 >= 0 ? "&" : "", xdma16);
 
 	if (chip->mpu_port > 0 && chip->mpu_port != SNDRV_AUTO_PORT) {
-		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_SB,
-					       chip->mpu_port,
-					       MPU401_INFO_IRQ_HOOK, -1,
-					       &chip->rmidi)) < 0)
+		err = snd_mpu401_uart_new(card, 0, MPU401_HW_SB,
+					  chip->mpu_port,
+					  MPU401_INFO_IRQ_HOOK, -1,
+					  &chip->rmidi);
+		if (err < 0)
 			return err;
 		chip->rmidi_callback = snd_mpu401_uart_interrupt;
 	}
@@ -397,12 +397,14 @@ static int snd_sb16_probe(struct snd_card *card, int dev)
 #else
 			int seqdev = 1;
 #endif
-			if ((err = snd_opl3_hwdep_new(opl3, 0, seqdev, &synth)) < 0)
+			err = snd_opl3_hwdep_new(opl3, 0, seqdev, &synth);
+			if (err < 0)
 				return err;
 		}
 	}
 
-	if ((err = snd_sbmixer_new(chip)) < 0)
+	err = snd_sbmixer_new(chip);
+	if (err < 0)
 		return err;
 
 #ifdef CONFIG_SND_SB16_CSP
@@ -419,8 +421,9 @@ static int snd_sb16_probe(struct snd_card *card, int dev)
 #endif
 #ifdef SNDRV_SBAWE_EMU8000
 	if (awe_port[dev] > 0) {
-		if ((err = snd_emu8000_new(card, 1, awe_port[dev],
-					   seq_ports[dev], NULL)) < 0) {
+		err = snd_emu8000_new(card, 1, awe_port[dev],
+				      seq_ports[dev], NULL);
+		if (err < 0) {
 			snd_printk(KERN_ERR PFX "fatal error - EMU-8000 synthesizer not detected at 0x%lx\n", awe_port[dev]);
 
 			return err;
@@ -435,7 +438,8 @@ static int snd_sb16_probe(struct snd_card *card, int dev)
 		(mic_agc[dev] ? 0x00 : 0x01));
 	spin_unlock_irqrestore(&chip->mixer_lock, flags);
 
-	if ((err = snd_card_register(card)) < 0)
+	err = snd_card_register(card);
+	if (err < 0)
 		return err;
 
 	return 0;
@@ -484,7 +488,8 @@ static int snd_sb16_isa_probe1(int dev, struct device *pdev)
 	awe_port[dev] = port[dev] + 0x400;
 #endif
 
-	if ((err = snd_sb16_probe(card, dev)) < 0) {
+	err = snd_sb16_probe(card, dev);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -506,19 +511,22 @@ static int snd_sb16_isa_probe(struct device *pdev, unsigned int dev)
 	static const int possible_dmas16[] = {5, 6, 7, -1};
 
 	if (irq[dev] == SNDRV_AUTO_IRQ) {
-		if ((irq[dev] = snd_legacy_find_free_irq(possible_irqs)) < 0) {
+		irq[dev] = snd_legacy_find_free_irq(possible_irqs);
+		if (irq[dev] < 0) {
 			snd_printk(KERN_ERR PFX "unable to find a free IRQ\n");
 			return -EBUSY;
 		}
 	}
 	if (dma8[dev] == SNDRV_AUTO_DMA) {
-		if ((dma8[dev] = snd_legacy_find_free_dma(possible_dmas8)) < 0) {
+		dma8[dev] = snd_legacy_find_free_dma(possible_dmas8);
+		if (dma8[dev] < 0) {
 			snd_printk(KERN_ERR PFX "unable to find a free 8-bit DMA\n");
 			return -EBUSY;
 		}
 	}
 	if (dma16[dev] == SNDRV_AUTO_DMA) {
-		if ((dma16[dev] = snd_legacy_find_free_dma(possible_dmas16)) < 0) {
+		dma16[dev] = snd_legacy_find_free_dma(possible_dmas16);
+		if (dma16[dev] < 0) {
 			snd_printk(KERN_ERR PFX "unable to find a free 16-bit DMA\n");
 			return -EBUSY;
 		}
@@ -591,8 +599,13 @@ static int snd_sb16_pnp_detect(struct pnp_card_link *pcard,
 		res = snd_sb16_card_new(&pcard->card->dev, dev, &card);
 		if (res < 0)
 			return res;
-		if ((res = snd_card_sb16_pnp(dev, card->private_data, pcard, pid)) < 0 ||
-		    (res = snd_sb16_probe(card, dev)) < 0) {
+		res = snd_card_sb16_pnp(dev, card->private_data, pcard, pid);
+		if (res < 0) {
+			snd_card_free(card);
+			return res;
+		}
+		res = snd_sb16_probe(card, dev);
+		if (res < 0) {
 			snd_card_free(card);
 			return res;
 		}

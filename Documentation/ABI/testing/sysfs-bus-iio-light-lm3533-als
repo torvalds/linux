@@ -41,14 +41,6 @@ Description:
 		Get the current light zone (0..4) as defined by the
 		in_illuminance0_threshY_{falling,rising} thresholds.
 
-What:		/sys/bus/iio/devices/iio:deviceX/out_currentY_raw
-Date:		May 2012
-KernelVersion:	3.5
-Contact:	Johan Hovold <jhovold@gmail.com>
-Description:
-		Get output current for channel Y (0..255), that is,
-		out_currentY_currentZ_raw, where Z is the current zone.
-
 What:		/sys/bus/iio/devices/iio:deviceX/out_currentY_currentZ_raw
 Date:		May 2012
 KernelVersion:	3.5
@@ -59,3 +51,6 @@ Description:
 
 		These values correspond to the ALS-mapper target registers for
 		ALS-mapper Y + 1.
+
+		Note that out_currentY_raw provides the current for the
+		current zone.

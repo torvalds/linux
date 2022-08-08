@@ -1483,10 +1483,16 @@ static void hdmi_set_refclk(struct hdmi_context *hdata, bool on)
 /* Should be called with hdata->mutex mutex held. */
 static void hdmiphy_enable(struct hdmi_context *hdata)
 {
+	int ret;
+
 	if (hdata->powered)
 		return;
 
-	pm_runtime_get_sync(hdata->dev);
+	ret = pm_runtime_resume_and_get(hdata->dev);
+	if (ret < 0) {
+		dev_err(hdata->dev, "failed to enable HDMIPHY device.\n");
+		return;
+	}
 
 	if (regulator_bulk_enable(ARRAY_SIZE(supply), hdata->regul_bulk))
 		DRM_DEV_DEBUG_KMS(hdata->dev,

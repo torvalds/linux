@@ -19,14 +19,14 @@ Module Name:
 
 Abstract:
 
- 	 AMD8111 based 10/100 Ethernet Controller Driver.
+	 AMD8111 based 10/100 Ethernet Controller Driver.
 
 Environment:
 
 	Kernel Mode
 
 Revision History:
- 	3.0.0
+	3.0.0
 	   Initial Revision.
 	3.0.1
 	 1. Dynamic interrupt coalescing.

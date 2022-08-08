@@ -83,7 +83,7 @@ int vhost_iotlb_add_range(struct vhost_iotlb *iotlb,
 EXPORT_SYMBOL_GPL(vhost_iotlb_add_range);
 
 /**
- * vring_iotlb_del_range - delete overlapped ranges from vhost IOTLB
+ * vhost_iotlb_del_range - delete overlapped ranges from vhost IOTLB
  * @iotlb: the IOTLB
  * @start: start of the IOVA range
  * @last: last of IOVA range

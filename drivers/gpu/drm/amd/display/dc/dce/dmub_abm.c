@@ -56,11 +56,19 @@ static void dmub_abm_enable_fractional_pwm(struct dc_context *dc)
 {
 	union dmub_rb_cmd cmd;
 	uint32_t fractional_pwm = (dc->dc->config.disable_fractional_pwm == false) ? 1 : 0;
+	uint32_t edp_id_count = dc->dc_edp_id_count;
+	int i;
+	uint8_t panel_mask = 0;
+
+	for (i = 0; i < edp_id_count; i++)
+		panel_mask |= 0x01 << i;
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.abm_set_pwm_frac.header.type = DMUB_CMD__ABM;
 	cmd.abm_set_pwm_frac.header.sub_type = DMUB_CMD__ABM_SET_PWM_FRAC;
 	cmd.abm_set_pwm_frac.abm_set_pwm_frac_data.fractional_pwm = fractional_pwm;
+	cmd.abm_set_pwm_frac.abm_set_pwm_frac_data.version = DMUB_CMD_ABM_CONTROL_VERSION_1;
+	cmd.abm_set_pwm_frac.abm_set_pwm_frac_data.panel_mask = panel_mask;
 	cmd.abm_set_pwm_frac.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_pwm_frac_data);
 
 	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
@@ -135,11 +143,24 @@ static bool dmub_abm_set_level(struct abm *abm, uint32_t level)
 {
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = abm->ctx;
+	struct dc_link *edp_links[MAX_NUM_EDP];
+	int i;
+	int edp_num;
+	uint8_t panel_mask = 0;
+
+	get_edp_links(dc->dc, edp_links, &edp_num);
+
+	for (i = 0; i < edp_num; i++) {
+		if (edp_links[i]->link_status.link_active)
+			panel_mask |= (0x01 << i);
+	}
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.abm_set_level.header.type = DMUB_CMD__ABM;
 	cmd.abm_set_level.header.sub_type = DMUB_CMD__ABM_SET_LEVEL;
 	cmd.abm_set_level.abm_set_level_data.level = level;
+	cmd.abm_set_level.abm_set_level_data.version = DMUB_CMD_ABM_CONTROL_VERSION_1;
+	cmd.abm_set_level.abm_set_level_data.panel_mask = panel_mask;
 	cmd.abm_set_level.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_level_data);
 
 	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
@@ -151,10 +172,12 @@ static bool dmub_abm_set_level(struct abm *abm, uint32_t level)
 
 static bool dmub_abm_init_config(struct abm *abm,
 	const char *src,
-	unsigned int bytes)
+	unsigned int bytes,
+	unsigned int inst)
 {
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = abm->ctx;
+	uint8_t panel_mask = 0x01 << inst;
 
 	// TODO: Optimize by only reading back final 4 bytes
 	dmub_flush_buffer_mem(&dc->dmub_srv->dmub->scratch_mem_fb);
@@ -168,6 +191,9 @@ static bool dmub_abm_init_config(struct abm *abm,
 	cmd.abm_init_config.header.sub_type = DMUB_CMD__ABM_INIT_CONFIG;
 	cmd.abm_init_config.abm_init_config_data.src.quad_part = dc->dmub_srv->dmub->scratch_mem_fb.gpu_addr;
 	cmd.abm_init_config.abm_init_config_data.bytes = bytes;
+	cmd.abm_init_config.abm_init_config_data.version = DMUB_CMD_ABM_CONTROL_VERSION_1;
+	cmd.abm_init_config.abm_init_config_data.panel_mask = panel_mask;
+
 	cmd.abm_init_config.header.payload_bytes = sizeof(struct dmub_cmd_abm_init_config_data);
 
 	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);

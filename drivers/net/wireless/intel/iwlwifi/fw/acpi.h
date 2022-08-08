@@ -78,6 +78,7 @@ enum iwl_dsm_funcs_rev_0 {
 	DSM_FUNC_DISABLE_SRD = 1,
 	DSM_FUNC_ENABLE_INDONESIA_5G2 = 2,
 	DSM_FUNC_11AX_ENABLEMENT = 6,
+	DSM_FUNC_ENABLE_UNII4_CHAN = 7
 };
 
 enum iwl_dsm_values_srd {
@@ -115,6 +116,9 @@ void *iwl_acpi_get_object(struct device *dev, acpi_string method);
 
 int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
 			const guid_t *guid, u8 *value);
+
+int iwl_acpi_get_dsm_u32(struct device *dev, int rev, int func,
+			 const guid_t *guid, u32 *value);
 
 union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 					 union acpi_object *data,
@@ -178,6 +182,12 @@ static inline void *iwl_acpi_get_dsm_object(struct device *dev, int rev,
 
 static inline int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
 				      const guid_t *guid, u8 *value)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_acpi_get_dsm_u32(struct device *dev, int rev, int func,
+				       const guid_t *guid, u32 *value)
 {
 	return -ENOENT;
 }

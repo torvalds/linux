@@ -254,23 +254,21 @@ static inline int extwriter_counter_read(struct btrfs_transaction *trans)
 }
 
 /*
- * To be called after all the new block groups attached to the transaction
- * handle have been created (btrfs_create_pending_block_groups()).
+ * To be called after doing the chunk btree updates right after allocating a new
+ * chunk (after btrfs_chunk_alloc_add_chunk_item() is called), when removing a
+ * chunk after all chunk btree updates and after finishing the second phase of
+ * chunk allocation (btrfs_create_pending_block_groups()) in case some block
+ * group had its chunk item insertion delayed to the second phase.
  */
 void btrfs_trans_release_chunk_metadata(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
-	struct btrfs_transaction *cur_trans = trans->transaction;
 
 	if (!trans->chunk_bytes_reserved)
 		return;
 
-	WARN_ON_ONCE(!list_empty(&trans->new_bgs));
-
 	btrfs_block_rsv_release(fs_info, &fs_info->chunk_block_rsv,
 				trans->chunk_bytes_reserved, NULL);
-	atomic64_sub(trans->chunk_bytes_reserved, &cur_trans->chunk_bytes_reserved);
-	cond_wake_up(&cur_trans->chunk_reserve_wait);
 	trans->chunk_bytes_reserved = 0;
 }
 
@@ -386,8 +384,6 @@ loop:
 	spin_lock_init(&cur_trans->dropped_roots_lock);
 	INIT_LIST_HEAD(&cur_trans->releasing_ebs);
 	spin_lock_init(&cur_trans->releasing_ebs_lock);
-	atomic64_set(&cur_trans->chunk_bytes_reserved, 0);
-	init_waitqueue_head(&cur_trans->chunk_reserve_wait);
 	list_add_tail(&cur_trans->list, &fs_info->trans_list);
 	extent_io_tree_init(fs_info, &cur_trans->dirty_pages,
 			IO_TREE_TRANS_DIRTY_PAGES, fs_info->btree_inode);
@@ -583,9 +579,6 @@ start_transaction(struct btrfs_root *root, unsigned int num_items,
 	bool do_chunk_alloc = false;
 	int ret;
 
-	/* Send isn't supposed to start transactions. */
-	ASSERT(current->journal_info != BTRFS_SEND_TRANS_STUB);
-
 	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state))
 		return ERR_PTR(-EROFS);
 
@@ -704,7 +697,6 @@ again:
 	h->fs_info = root->fs_info;
 
 	h->type = type;
-	h->can_flush_pending_bgs = true;
 	INIT_LIST_HEAD(&h->new_bgs);
 
 	smp_mb();
@@ -1406,8 +1398,10 @@ int btrfs_defrag_root(struct btrfs_root *root)
 
 	while (1) {
 		trans = btrfs_start_transaction(root, 0);
-		if (IS_ERR(trans))
-			return PTR_ERR(trans);
+		if (IS_ERR(trans)) {
+			ret = PTR_ERR(trans);
+			break;
+		}
 
 		ret = btrfs_defrag_leaves(trans, root);
 
@@ -1476,7 +1470,7 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	ret = btrfs_run_delayed_refs(trans, (unsigned long)-1);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
-		goto out;
+		return ret;
 	}
 
 	/*
@@ -1869,31 +1863,6 @@ int btrfs_transaction_blocked(struct btrfs_fs_info *info)
 }
 
 /*
- * wait for the current transaction commit to start and block subsequent
- * transaction joins
- */
-static void wait_current_trans_commit_start(struct btrfs_fs_info *fs_info,
-					    struct btrfs_transaction *trans)
-{
-	wait_event(fs_info->transaction_blocked_wait,
-		   trans->state >= TRANS_STATE_COMMIT_START ||
-		   TRANS_ABORTED(trans));
-}
-
-/*
- * wait for the current transaction to start and then become unblocked.
- * caller holds ref.
- */
-static void wait_current_trans_commit_start_and_unblock(
-					struct btrfs_fs_info *fs_info,
-					struct btrfs_transaction *trans)
-{
-	wait_event(fs_info->transaction_wait,
-		   trans->state >= TRANS_STATE_UNBLOCKED ||
-		   TRANS_ABORTED(trans));
-}
-
-/*
  * commit transactions asynchronously. once btrfs_commit_transaction_async
  * returns, any subsequent transaction will not be allowed to join.
  */
@@ -1920,8 +1889,7 @@ static void do_async_commit(struct work_struct *work)
 	kfree(ac);
 }
 
-int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
-				   int wait_for_unblock)
+int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_async_commit *ac;
@@ -1953,13 +1921,13 @@ int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 		__sb_writers_release(fs_info->sb, SB_FREEZE_FS);
 
 	schedule_work(&ac->work);
-
-	/* wait for transaction to start and unblock */
-	if (wait_for_unblock)
-		wait_current_trans_commit_start_and_unblock(fs_info, cur_trans);
-	else
-		wait_current_trans_commit_start(fs_info, cur_trans);
-
+	/*
+	 * Wait for the current transaction commit to start and block
+	 * subsequent transaction joins
+	 */
+	wait_event(fs_info->transaction_blocked_wait,
+		   cur_trans->state >= TRANS_STATE_COMMIT_START ||
+		   TRANS_ABORTED(cur_trans));
 	if (current->journal_info == trans)
 		current->journal_info = NULL;
 
@@ -2073,14 +2041,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	int ret;
 
 	ASSERT(refcount_read(&trans->use_count) == 1);
-
-	/*
-	 * Some places just start a transaction to commit it.  We need to make
-	 * sure that if this commit fails that the abort code actually marks the
-	 * transaction as failed, so set trans->dirty to make the abort code do
-	 * the right thing.
-	 */
-	trans->dirty = true;
 
 	/* Stop the commit early if ->aborted is set */
 	if (TRANS_ABORTED(cur_trans)) {

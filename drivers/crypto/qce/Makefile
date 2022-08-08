@@ -6,3 +6,4 @@ qcrypto-objs := core.o \
 
 qcrypto-$(CONFIG_CRYPTO_DEV_QCE_SHA) += sha.o
 qcrypto-$(CONFIG_CRYPTO_DEV_QCE_SKCIPHER) += skcipher.o
+qcrypto-$(CONFIG_CRYPTO_DEV_QCE_AEAD) += aead.o

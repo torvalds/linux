@@ -4,7 +4,7 @@
 
 /*
  * This struct is used to pass information from page reclaim to the shrinkers.
- * We consolidate the values for easier extention later.
+ * We consolidate the values for easier extension later.
  *
  * The 'gfpmask' refers to the allocation we are currently trying to
  * fulfil.

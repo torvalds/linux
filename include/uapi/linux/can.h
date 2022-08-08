@@ -123,8 +123,8 @@ struct can_frame {
 /*
  * defined bits for canfd_frame.flags
  *
- * The use of struct canfd_frame implies the Extended Data Length (EDL) bit to
- * be set in the CAN frame bitstream on the wire. The EDL bit switch turns
+ * The use of struct canfd_frame implies the FD Frame (FDF) bit to
+ * be set in the CAN frame bitstream on the wire. The FDF bit switch turns
  * the CAN controllers bitstream processor into the CAN FD mode which creates
  * two new options within the CAN FD frame specification:
  *
@@ -135,9 +135,18 @@ struct can_frame {
  * controller only the CANFD_BRS bit is relevant for real CAN controllers when
  * building a CAN FD frame for transmission. Setting the CANFD_ESI bit can make
  * sense for virtual CAN interfaces to test applications with echoed frames.
+ *
+ * The struct can_frame and struct canfd_frame intentionally share the same
+ * layout to be able to write CAN frame content into a CAN FD frame structure.
+ * When this is done the former differentiation via CAN_MTU / CANFD_MTU gets
+ * lost. CANFD_FDF allows programmers to mark CAN FD frames in the case of
+ * using struct canfd_frame for mixed CAN / CAN FD content (dual use).
+ * N.B. the Kernel APIs do NOT provide mixed CAN / CAN FD content inside of
+ * struct canfd_frame therefore the CANFD_FDF flag is disregarded by Linux.
  */
 #define CANFD_BRS 0x01 /* bit rate switch (second bitrate for payload data) */
 #define CANFD_ESI 0x02 /* error state indicator of the transmitting node */
+#define CANFD_FDF 0x04 /* mark CAN FD for dual use of struct canfd_frame */
 
 /**
  * struct canfd_frame - CAN flexible data rate frame structure

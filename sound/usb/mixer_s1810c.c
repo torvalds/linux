@@ -163,7 +163,7 @@ snd_s1810c_send_ctl_packet(struct usb_device *dev, u32 a,
 }
 
 /*
- * When opening Universal Control the program periodicaly
+ * When opening Universal Control the program periodically
  * sends and receives state packets for syncinc state between
  * the device and the host.
  *

@@ -74,10 +74,10 @@ static int live_gt_clocks(void *arg)
 		return 0;
 	}
 
-	if (INTEL_GEN(gt->i915) < 4) /* Any CS_TIMESTAMP? */
+	if (GRAPHICS_VER(gt->i915) < 4) /* Any CS_TIMESTAMP? */
 		return 0;
 
-	if (IS_GEN(gt->i915, 5))
+	if (GRAPHICS_VER(gt->i915) == 5)
 		/*
 		 * XXX CS_TIMESTAMP low dword is dysfunctional?
 		 *
@@ -86,7 +86,7 @@ static int live_gt_clocks(void *arg)
 		 */
 		return 0;
 
-	if (IS_GEN(gt->i915, 4))
+	if (GRAPHICS_VER(gt->i915) == 4)
 		/*
 		 * XXX CS_TIMESTAMP appears gibberish
 		 *
@@ -105,7 +105,7 @@ static int live_gt_clocks(void *arg)
 		u64 time;
 		u64 dt;
 
-		if (INTEL_GEN(engine->i915) < 7 && engine->id != RCS0)
+		if (GRAPHICS_VER(engine->i915) < 7 && engine->id != RCS0)
 			continue;
 
 		measure_clocks(engine, &cycles, &dt);

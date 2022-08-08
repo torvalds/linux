@@ -424,6 +424,6 @@
 		       <&i2s1_port>, <&i2s2_port>, <&i2s3_port>, <&i2s4_port>,
 		       <&i2s5_port>, <&dmic1_port>, <&dmic2_port>, <&dmic3_port>;
 
-		label = "jetson-tx1-ape";
+		label = "NVIDIA Jetson TX1 APE";
 	};
 };

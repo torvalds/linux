@@ -388,31 +388,6 @@ static void virtio_ccw_drop_indicator(struct virtio_ccw_device *vcdev,
 	ccw_device_dma_free(vcdev->cdev, thinint_area, sizeof(*thinint_area));
 }
 
-static inline long __do_kvm_notify(struct subchannel_id schid,
-				   unsigned long queue_index,
-				   long cookie)
-{
-	register unsigned long __nr asm("1") = KVM_S390_VIRTIO_CCW_NOTIFY;
-	register struct subchannel_id __schid asm("2") = schid;
-	register unsigned long __index asm("3") = queue_index;
-	register long __rc asm("2");
-	register long __cookie asm("4") = cookie;
-
-	asm volatile ("diag 2,4,0x500\n"
-		      : "=d" (__rc) : "d" (__nr), "d" (__schid), "d" (__index),
-		      "d"(__cookie)
-		      : "memory", "cc");
-	return __rc;
-}
-
-static inline long do_kvm_notify(struct subchannel_id schid,
-				 unsigned long queue_index,
-				 long cookie)
-{
-	diag_stat_inc(DIAG_STAT_X500);
-	return __do_kvm_notify(schid, queue_index, cookie);
-}
-
 static bool virtio_ccw_kvm_notify(struct virtqueue *vq)
 {
 	struct virtio_ccw_vq_info *info = vq->priv;
@@ -421,7 +396,10 @@ static bool virtio_ccw_kvm_notify(struct virtqueue *vq)
 
 	vcdev = to_vc_device(info->vq->vdev);
 	ccw_device_get_schid(vcdev->cdev, &schid);
-	info->cookie = do_kvm_notify(schid, vq->index, info->cookie);
+	BUILD_BUG_ON(sizeof(struct subchannel_id) != sizeof(unsigned int));
+	info->cookie = kvm_hypercall3(KVM_S390_VIRTIO_CCW_NOTIFY,
+				      *((unsigned int *)&schid),
+				      vq->index, info->cookie);
 	if (info->cookie < 0)
 		return false;
 	return true;

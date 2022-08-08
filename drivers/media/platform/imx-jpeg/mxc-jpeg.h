@@ -51,7 +51,7 @@ enum mxc_jpeg_mode {
  * @flags:	flags describing format applicability
  */
 struct mxc_jpeg_fmt {
-	char					*name;
+	const char				*name;
 	u32					fourcc;
 	enum v4l2_jpeg_chroma_subsampling	subsampling;
 	int					nc;
@@ -74,14 +74,14 @@ struct mxc_jpeg_desc {
 } __packed;
 
 struct mxc_jpeg_q_data {
-	struct mxc_jpeg_fmt	*fmt;
-	u32			sizeimage[MXC_JPEG_MAX_PLANES];
-	u32			bytesperline[MXC_JPEG_MAX_PLANES];
-	int			w;
-	int			w_adjusted;
-	int			h;
-	int			h_adjusted;
-	unsigned int		sequence;
+	const struct mxc_jpeg_fmt	*fmt;
+	u32				sizeimage[MXC_JPEG_MAX_PLANES];
+	u32				bytesperline[MXC_JPEG_MAX_PLANES];
+	int				w;
+	int				w_adjusted;
+	int				h;
+	int				h_adjusted;
+	unsigned int			sequence;
 };
 
 struct mxc_jpeg_ctx {

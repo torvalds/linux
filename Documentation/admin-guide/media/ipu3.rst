@@ -234,22 +234,23 @@ The IPU3 ImgU pipelines can be configured using the Media Controller, defined at
 Running mode and firmware binary selection
 ------------------------------------------
 
-ImgU works based on firmware, currently the ImgU firmware support run 2 pipes in
-time-sharing with single input frame data. Each pipe can run at certain mode -
-"VIDEO" or "STILL", "VIDEO" mode is commonly used for video frames capture, and
-"STILL" is used for still frame capture. However, you can also select "VIDEO" to
-capture still frames if you want to capture images with less system load and
-power. For "STILL" mode, ImgU will try to use smaller BDS factor and output
-larger bayer frame for further YUV processing than "VIDEO" mode to get high
-quality images. Besides, "STILL" mode need XNR3 to do noise reduction, hence
-"STILL" mode will need more power and memory bandwidth than "VIDEO" mode. TNR
-will be enabled in "VIDEO" mode and bypassed by "STILL" mode. ImgU is running at
-“VIDEO” mode by default, the user can use v4l2 control V4L2_CID_INTEL_IPU3_MODE
-(currently defined in drivers/staging/media/ipu3/include/intel-ipu3.h) to query
-and set the running mode. For user, there is no difference for buffer queueing
-between the "VIDEO" and "STILL" mode, mandatory input and main output node
-should be enabled and buffers need be queued, the statistics and the view-finder
-queues are optional.
+ImgU works based on firmware, currently the ImgU firmware support run 2 pipes
+in time-sharing with single input frame data. Each pipe can run at certain mode
+- "VIDEO" or "STILL", "VIDEO" mode is commonly used for video frames capture,
+and "STILL" is used for still frame capture. However, you can also select
+"VIDEO" to capture still frames if you want to capture images with less system
+load and power. For "STILL" mode, ImgU will try to use smaller BDS factor and
+output larger bayer frame for further YUV processing than "VIDEO" mode to get
+high quality images. Besides, "STILL" mode need XNR3 to do noise reduction,
+hence "STILL" mode will need more power and memory bandwidth than "VIDEO" mode.
+TNR will be enabled in "VIDEO" mode and bypassed by "STILL" mode. ImgU is
+running at "VIDEO" mode by default, the user can use v4l2 control
+V4L2_CID_INTEL_IPU3_MODE (currently defined in
+drivers/staging/media/ipu3/include/uapi/intel-ipu3.h) to query and set the
+running mode. For user, there is no difference for buffer queueing between the
+"VIDEO" and "STILL" mode, mandatory input and main output node should be
+enabled and buffers need be queued, the statistics and the view-finder queues
+are optional.
 
 The firmware binary will be selected according to current running mode, such log
 "using binary if_to_osys_striped " or "using binary if_to_osys_primary_striped"
@@ -586,7 +587,7 @@ preserved.
 References
 ==========
 
-.. [#f5] drivers/staging/media/ipu3/include/intel-ipu3.h
+.. [#f5] drivers/staging/media/ipu3/include/uapi/intel-ipu3.h
 
 .. [#f1] https://github.com/intel/nvt
 

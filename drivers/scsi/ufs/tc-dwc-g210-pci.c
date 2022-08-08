@@ -148,6 +148,8 @@ static const struct dev_pm_ops tc_dwc_g210_pci_pm_ops = {
 	.runtime_suspend = tc_dwc_g210_pci_runtime_suspend,
 	.runtime_resume  = tc_dwc_g210_pci_runtime_resume,
 	.runtime_idle    = tc_dwc_g210_pci_runtime_idle,
+	.prepare	 = ufshcd_suspend_prepare,
+	.complete	 = ufshcd_resume_complete,
 };
 
 static const struct pci_device_id tc_dwc_g210_pci_tbl[] = {

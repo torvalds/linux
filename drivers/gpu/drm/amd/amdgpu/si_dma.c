@@ -305,7 +305,7 @@ err0:
 }
 
 /**
- * cik_dma_vm_copy_pte - update PTEs by copying them from the GART
+ * si_dma_vm_copy_pte - update PTEs by copying them from the GART
  *
  * @ib: indirect buffer to fill with commands
  * @pe: addr of the page entry
@@ -402,7 +402,7 @@ static void si_dma_vm_set_pte_pde(struct amdgpu_ib *ib,
 }
 
 /**
- * si_dma_pad_ib - pad the IB to the required number of dw
+ * si_dma_ring_pad_ib - pad the IB to the required number of dw
  *
  * @ring: amdgpu_ring pointer
  * @ib: indirect buffer to fill with padding
@@ -415,7 +415,7 @@ static void si_dma_ring_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
 }
 
 /**
- * cik_sdma_ring_emit_pipeline_sync - sync the pipeline
+ * si_dma_ring_emit_pipeline_sync - sync the pipeline
  *
  * @ring: amdgpu_ring pointer
  *

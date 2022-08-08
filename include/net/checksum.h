@@ -80,16 +80,18 @@ static inline __sum16 csum16_sub(__sum16 csum, __be16 addend)
 	return csum16_add(csum, ~addend);
 }
 
+static inline __wsum csum_shift(__wsum sum, int offset)
+{
+	/* rotate sum to align it with a 16b boundary */
+	if (offset & 1)
+		return (__force __wsum)ror32((__force u32)sum, 8);
+	return sum;
+}
+
 static inline __wsum
 csum_block_add(__wsum csum, __wsum csum2, int offset)
 {
-	u32 sum = (__force u32)csum2;
-
-	/* rotate sum to align it with a 16b boundary */
-	if (offset & 1)
-		sum = ror32(sum, 8);
-
-	return csum_add(csum, (__force __wsum)sum);
+	return csum_add(csum, csum_shift(csum2, offset));
 }
 
 static inline __wsum

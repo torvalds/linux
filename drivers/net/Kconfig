@@ -262,17 +262,17 @@ config GENEVE
 	  will be called geneve.
 
 config BAREUDP
-       tristate "Bare UDP Encapsulation"
-       depends on INET
-       depends on IPV6 || !IPV6
-       select NET_UDP_TUNNEL
-       select GRO_CELLS
-       help
-          This adds a bare UDP tunnel module for tunnelling different
-          kinds of traffic like MPLS, IP, etc. inside a UDP tunnel.
+	tristate "Bare UDP Encapsulation"
+	depends on INET
+	depends on IPV6 || !IPV6
+	select NET_UDP_TUNNEL
+	select GRO_CELLS
+	help
+	  This adds a bare UDP tunnel module for tunnelling different
+	  kinds of traffic like MPLS, IP, etc. inside a UDP tunnel.
 
-          To compile this driver as a module, choose M here: the module
-          will be called bareudp.
+	  To compile this driver as a module, choose M here: the module
+	  will be called bareudp.
 
 config GTP
 	tristate "GPRS Tunneling Protocol datapath (GTP-U)"
@@ -431,6 +431,7 @@ config VSOCKMON
 config MHI_NET
 	tristate "MHI network driver"
 	depends on MHI_BUS
+	select WWAN
 	help
 	  This is the network driver for MHI bus.  It can be used with
 	  QCOM based WWAN modems (like SDX55).  Say Y or M.

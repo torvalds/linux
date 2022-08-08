@@ -77,7 +77,7 @@ static struct pulse *pulse_create(void)
 		return p;
 
 	kref_init(&p->kref);
-	i915_active_init(&p->active, pulse_active, pulse_retire);
+	i915_active_init(&p->active, pulse_active, pulse_retire, 0);
 
 	return p;
 }

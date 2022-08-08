@@ -276,4 +276,4 @@ before they become available from the ACPICA release process.
    # git clone https://github.com/acpica/acpica
    # git clone https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
    # cd acpica
-   # generate/linux/divergences.sh -s ../linux
+   # generate/linux/divergence.sh -s ../linux

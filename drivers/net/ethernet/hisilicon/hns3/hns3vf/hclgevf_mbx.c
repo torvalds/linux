@@ -13,6 +13,7 @@ static int hclgevf_resp_to_errno(u16 resp_code)
 	return resp_code ? -resp_code : 0;
 }
 
+#define HCLGEVF_MBX_MATCH_ID_START	1
 static void hclgevf_reset_mbx_resp_status(struct hclgevf_dev *hdev)
 {
 	/* this function should be called with mbx_resp.mbx_mutex held
@@ -21,6 +22,10 @@ static void hclgevf_reset_mbx_resp_status(struct hclgevf_dev *hdev)
 	hdev->mbx_resp.received_resp  = false;
 	hdev->mbx_resp.origin_mbx_msg = 0;
 	hdev->mbx_resp.resp_status    = 0;
+	hdev->mbx_resp.match_id++;
+	/* Update match_id and ensure the value of match_id is not zero */
+	if (hdev->mbx_resp.match_id == 0)
+		hdev->mbx_resp.match_id = HCLGEVF_MBX_MATCH_ID_START;
 	memset(hdev->mbx_resp.additional_info, 0, HCLGE_MBX_MAX_RESP_DATA_SIZE);
 }
 
@@ -115,6 +120,7 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev,
 	if (need_resp) {
 		mutex_lock(&hdev->mbx_resp.mbx_mutex);
 		hclgevf_reset_mbx_resp_status(hdev);
+		req->match_id = hdev->mbx_resp.match_id;
 		status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
 		if (status) {
 			dev_err(&hdev->pdev->dev,
@@ -211,6 +217,19 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 				resp->additional_info[i] = *temp;
 				temp++;
 			}
+
+			/* If match_id is not zero, it means PF support
+			 * match_id. If the match_id is right, VF get the
+			 * right response, otherwise ignore the response.
+			 * Driver will clear hdev->mbx_resp when send
+			 * next message which need response.
+			 */
+			if (req->match_id) {
+				if (req->match_id == resp->match_id)
+					resp->received_resp = true;
+			} else {
+				resp->received_resp = true;
+			}
 			break;
 		case HCLGE_MBX_LINK_STAT_CHANGE:
 		case HCLGE_MBX_ASSERTING_RESET:
@@ -304,8 +323,8 @@ void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 			flag = (u8)msg_q[5];
 
 			/* update upper layer with new link link status */
-			hclgevf_update_link_status(hdev, link_status);
 			hclgevf_update_speed_duplex(hdev, speed, duplex);
+			hclgevf_update_link_status(hdev, link_status);
 
 			if (flag & HCLGE_MBX_PUSH_LINK_STATUS_EN)
 				set_bit(HCLGEVF_STATE_PF_PUSH_LINK_STATUS,

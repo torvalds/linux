@@ -146,5 +146,10 @@ void dcn20_set_disp_pattern_generator(const struct dc *dc,
 		const struct tg_color *solid_color,
 		int width, int height, int offset);
 
+void dcn20_update_visual_confirm_color(struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color,
+		int mpcc_id);
+
 #endif /* __DC_HWSS_DCN20_H__ */
 

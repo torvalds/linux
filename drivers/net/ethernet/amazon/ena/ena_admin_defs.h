@@ -1042,8 +1042,6 @@ enum ena_admin_aenq_group {
 };
 
 enum ena_admin_aenq_notification_syndrome {
-	ENA_ADMIN_SUSPEND                           = 0,
-	ENA_ADMIN_RESUME                            = 1,
 	ENA_ADMIN_UPDATE_HINTS                      = 2,
 };
 

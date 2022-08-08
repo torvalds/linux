@@ -95,7 +95,7 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 	hw_ip.first_available_interrupt_id =
 			prop->first_available_user_msix_interrupt;
 	return copy_to_user(out, &hw_ip,
-		min((size_t)size, sizeof(hw_ip))) ? -EFAULT : 0;
+		min((size_t) size, sizeof(hw_ip))) ? -EFAULT : 0;
 }
 
 static int hw_events_info(struct hl_device *hdev, bool aggregate,
@@ -460,6 +460,24 @@ static int power_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 		min((size_t) max_size, sizeof(power_info))) ? -EFAULT : 0;
 }
 
+static int open_stats_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	u32 max_size = args->return_size;
+	struct hl_open_stats_info open_stats_info = {0};
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	open_stats_info.last_open_period_ms = jiffies64_to_msecs(
+		hdev->last_open_session_duration_jif);
+	open_stats_info.open_counter = hdev->open_counter;
+
+	return copy_to_user(out, &open_stats_info,
+		min((size_t) max_size, sizeof(open_stats_info))) ? -EFAULT : 0;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -542,6 +560,9 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_POWER:
 		return power_info(hpriv, args);
+
+	case HL_INFO_OPEN_STATS:
+		return open_stats_info(hpriv, args);
 
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);

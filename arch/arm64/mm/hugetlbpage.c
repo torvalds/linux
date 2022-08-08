@@ -339,10 +339,9 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 	return NULL;
 }
 
-pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
-			 struct page *page, int writable)
+pte_t arch_make_huge_pte(pte_t entry, unsigned int shift, vm_flags_t flags)
 {
-	size_t pagesize = huge_page_size(hstate_vma(vma));
+	size_t pagesize = 1UL << shift;
 
 	if (pagesize == CONT_PTE_SIZE) {
 		entry = pte_mkcont(entry);

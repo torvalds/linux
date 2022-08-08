@@ -337,27 +337,6 @@ void snd_pcm_set_managed_buffer_all(struct snd_pcm *pcm, int type,
 }
 EXPORT_SYMBOL(snd_pcm_set_managed_buffer_all);
 
-#ifdef CONFIG_SND_DMA_SGBUF
-/*
- * snd_pcm_sgbuf_ops_page - get the page struct at the given offset
- * @substream: the pcm substream instance
- * @offset: the buffer offset
- *
- * Used as the page callback of PCM ops.
- *
- * Return: The page struct at the given buffer offset. %NULL on failure.
- */
-struct page *snd_pcm_sgbuf_ops_page(struct snd_pcm_substream *substream, unsigned long offset)
-{
-	struct snd_sg_buf *sgbuf = snd_pcm_substream_sgbuf(substream);
-
-	unsigned int idx = offset >> PAGE_SHIFT;
-	if (idx >= (unsigned int)sgbuf->pages)
-		return NULL;
-	return sgbuf->page_table[idx];
-}
-#endif /* CONFIG_SND_DMA_SGBUF */
-
 /**
  * snd_pcm_lib_malloc_pages - allocate the DMA buffer
  * @substream: the substream to allocate the DMA buffer to

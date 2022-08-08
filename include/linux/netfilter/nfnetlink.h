@@ -11,6 +11,7 @@ struct nfnl_info {
 	struct net		*net;
 	struct sock		*sk;
 	const struct nlmsghdr	*nlh;
+	const struct nfgenmsg	*nfmsg;
 	struct netlink_ext_ack	*extack;
 };
 

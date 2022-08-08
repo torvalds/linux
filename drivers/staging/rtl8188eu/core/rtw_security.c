@@ -465,8 +465,9 @@ static const unsigned short Sbox1[2][256] = {  /* Sbox for hash (can be in ROM) 
 
 /**
  * phase1() - generate P1K, given TA, TK, IV32
- * @tk[]: temporal key [128 bits]
- * @ta[]: transmitter's MAC address [ 48 bits]
+ * @p1k: placeholder for the returned phase 1 key
+ * @tk: temporal key [128 bits]
+ * @ta: transmitter's MAC address [ 48 bits]
  * @iv32: upper 32 bits of IV [ 32 bits]
  *
  * This function only needs to be called every 2**16 packets,
@@ -498,8 +499,9 @@ static void phase1(u16 *p1k, const u8 *tk, const u8 *ta, u32 iv32)
 
 /**
  * phase2() - generate RC4KEY, given TK, P1K, IV16
- * @tk[]: Temporal key [128 bits]
- * @p1k[]: Phase 1 output key [ 80 bits]
+ * @rc4key: Placeholder for the returned key
+ * @tk: Temporal key [128 bits]
+ * @p1k: Phase 1 output key [ 80 bits]
  * @iv16: low 16 bits of IV counter [ 16 bits]
  *
  * The value {TA, IV32, IV16} for Phase1/Phase2 must be unique
@@ -589,8 +591,6 @@ u32	rtw_tkip_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe)
 			stainfo = rtw_get_stainfo(&padapter->stapriv, &pattrib->ra[0]);
 
 		if (stainfo) {
-			RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("%s: stainfo!= NULL!!!\n", __func__));
-
 			if (is_multicast_ether_addr(pattrib->ra))
 				prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey;
 			else
@@ -609,9 +609,6 @@ u32	rtw_tkip_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe)
 
 				if ((curfragnum + 1) == pattrib->nr_frags) {	/* 4 the last fragment */
 					length = pattrib->last_txcmdsz - pattrib->hdrlen - pattrib->iv_len - pattrib->icv_len;
-					RT_TRACE(_module_rtl871x_security_c_, _drv_info_,
-						 ("pattrib->iv_len=%x, pattrib->icv_len=%x\n",
-						 pattrib->iv_len, pattrib->icv_len));
 					*((__le32 *)crc) = getcrc32(payload, length);/* modified by Amy*/
 
 					arcfour_init(&mycontext, rc4key, 16);
@@ -629,7 +626,6 @@ u32	rtw_tkip_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe)
 				}
 			}
 		} else {
-			RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("%s: stainfo==NULL!!!\n", __func__));
 			res = _FAIL;
 		}
 	}
@@ -662,12 +658,10 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, struct recv_frame *precvframe)
 			if (is_multicast_ether_addr(prxattrib->ra)) {
 				if (!psecuritypriv->binstallGrpkey) {
 					res = _FAIL;
-					DBG_88E("%s:rx bc/mc packets, but didn't install group key!!!!!!!!!!\n", __func__);
 					goto exit;
 				}
 				prwskey = psecuritypriv->dot118021XGrpKey[prxattrib->key_index].skey;
 			} else {
-				RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("%s: stainfo!= NULL!!!\n", __func__));
 				prwskey = &stainfo->dot118021x_UncstKey.skey[0];
 			}
 
@@ -693,14 +687,9 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, struct recv_frame *precvframe)
 			if (crc[3] != payload[length - 1] ||
 			    crc[2] != payload[length - 2] ||
 			    crc[1] != payload[length - 3] ||
-			    crc[0] != payload[length - 4]) {
-				RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
-					 ("rtw_wep_decrypt:icv error crc (%4ph)!=payload (%4ph)\n",
-					 &crc, &payload[length - 4]));
+			    crc[0] != payload[length - 4])
 				res = _FAIL;
-			}
 		} else {
-			RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("%s: stainfo==NULL!!!\n", __func__));
 			res = _FAIL;
 		}
 	}
@@ -742,10 +731,8 @@ u32 rtw_aes_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe)
 	else
 		stainfo = rtw_get_stainfo(&padapter->stapriv, &pattrib->ra[0]);
 
-	if (!stainfo) {
-		RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("%s: stainfo==NULL!!!\n", __func__));
+	if (!stainfo)
 		return _FAIL;
-	}
 
 	crypto_ops = lib80211_get_crypto_ops("CCMP");
 
@@ -769,8 +756,6 @@ u32 rtw_aes_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe)
 		res = _FAIL;
 		goto exit_crypto_ops_deinit;
 	}
-
-	RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("%s: stainfo!= NULL!!!\n", __func__));
 
 	for (curfragnum = 0; curfragnum < pattrib->nr_frags; curfragnum++) {
 		if (curfragnum + 1 == pattrib->nr_frags)
@@ -834,7 +819,6 @@ u32 rtw_aes_decrypt(struct adapter *padapter, struct recv_frame *precvframe)
 				/* in concurrent we should use sw descrypt in group key, so we remove this message */
 				if (!psecuritypriv->binstallGrpkey) {
 					res = _FAIL;
-					DBG_88E("%s:rx bc/mc packets, but didn't install group key!!!!!!!!!!\n", __func__);
 					goto exit;
 				}
 				key_idx = psecuritypriv->dot118021XGrpKeyid;
@@ -877,7 +861,6 @@ exit_lib80211_ccmp:
 			if (crypto_ops && crypto_private)
 				crypto_ops->deinit(crypto_private);
 		} else {
-			RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("rtw_aes_encrypt: stainfo==NULL!!!\n"));
 			res = _FAIL;
 		}
 	}

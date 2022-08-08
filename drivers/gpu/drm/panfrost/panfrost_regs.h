@@ -82,6 +82,7 @@
 
 #define GPU_TEXTURE_FEATURES(n)		(0x0B0 + ((n) * 4))
 #define GPU_JS_FEATURES(n)		(0x0C0 + ((n) * 4))
+#define GPU_AFBC_FEATURES		(0x4C)	/* (RO) AFBC support on Bifrost */
 
 #define GPU_SHADER_PRESENT_LO		0x100	/* (RO) Shader core present bitmap, low word */
 #define GPU_SHADER_PRESENT_HI		0x104	/* (RO) Shader core present bitmap, high word */

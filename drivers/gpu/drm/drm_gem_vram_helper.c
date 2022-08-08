@@ -17,6 +17,8 @@
 #include <drm/drm_prime.h>
 #include <drm/drm_simple_kms_helper.h>
 
+#include <drm/ttm/ttm_range_manager.h>
+
 static const struct drm_gem_object_funcs drm_gem_vram_object_funcs;
 
 /**
@@ -245,29 +247,14 @@ void drm_gem_vram_put(struct drm_gem_vram_object *gbo)
 }
 EXPORT_SYMBOL(drm_gem_vram_put);
 
-/**
- * drm_gem_vram_mmap_offset() - Returns a GEM VRAM object's mmap offset
- * @gbo:	the GEM VRAM object
- *
- * See drm_vma_node_offset_addr() for more information.
- *
- * Returns:
- * The buffer object's offset for userspace mappings on success, or
- * 0 if no offset is allocated.
- */
-u64 drm_gem_vram_mmap_offset(struct drm_gem_vram_object *gbo)
-{
-	return drm_vma_node_offset_addr(&gbo->bo.base.vma_node);
-}
-EXPORT_SYMBOL(drm_gem_vram_mmap_offset);
-
 static u64 drm_gem_vram_pg_offset(struct drm_gem_vram_object *gbo)
 {
 	/* Keep TTM behavior for now, remove when drivers are audited */
-	if (WARN_ON_ONCE(!gbo->bo.mem.mm_node))
+	if (WARN_ON_ONCE(!gbo->bo.resource ||
+			 gbo->bo.resource->mem_type == TTM_PL_SYSTEM))
 		return 0;
 
-	return gbo->bo.mem.start;
+	return gbo->bo.resource->start;
 }
 
 /**
@@ -637,38 +624,6 @@ int drm_gem_vram_driver_dumb_create(struct drm_file *file,
 	return drm_gem_vram_fill_create_dumb(file, dev, 0, 0, args);
 }
 EXPORT_SYMBOL(drm_gem_vram_driver_dumb_create);
-
-/**
- * drm_gem_vram_driver_dumb_mmap_offset() - \
-	Implements &struct drm_driver.dumb_mmap_offset
- * @file:	DRM file pointer.
- * @dev:	DRM device.
- * @handle:	GEM handle
- * @offset:	Returns the mapping's memory offset on success
- *
- * Returns:
- * 0 on success, or
- * a negative errno code otherwise.
- */
-int drm_gem_vram_driver_dumb_mmap_offset(struct drm_file *file,
-					 struct drm_device *dev,
-					 uint32_t handle, uint64_t *offset)
-{
-	struct drm_gem_object *gem;
-	struct drm_gem_vram_object *gbo;
-
-	gem = drm_gem_object_lookup(file, handle);
-	if (!gem)
-		return -ENOENT;
-
-	gbo = drm_gem_vram_of_gem(gem);
-	*offset = drm_gem_vram_mmap_offset(gbo);
-
-	drm_gem_object_put(gem);
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_gem_vram_driver_dumb_mmap_offset);
 
 /*
  * Helpers for struct drm_plane_helper_funcs

@@ -13,6 +13,8 @@
 
 #include <asm/msr-index.h>
 
+#include "../kvm_util.h"
+
 #define X86_EFLAGS_FIXED	 (1u << 1)
 
 #define X86_CR4_VME		(1ul << 0)
@@ -53,7 +55,8 @@
 #define CPUID_PKU		(1ul << 3)
 #define CPUID_LA57		(1ul << 16)
 
-#define UNEXPECTED_VECTOR_PORT 0xfff0u
+/* CPUID.0x8000_0001.EDX */
+#define CPUID_GBPAGES		(1ul << 26)
 
 /* General Registers in 64-Bit Mode */
 struct gpr64_regs {
@@ -391,8 +394,12 @@ struct ex_regs {
 
 void vm_init_descriptor_tables(struct kvm_vm *vm);
 void vcpu_init_descriptor_tables(struct kvm_vm *vm, uint32_t vcpuid);
-void vm_handle_exception(struct kvm_vm *vm, int vector,
+void vm_install_exception_handler(struct kvm_vm *vm, int vector,
 			void (*handler)(struct ex_regs *));
+
+uint64_t vm_get_page_table_entry(struct kvm_vm *vm, int vcpuid, uint64_t vaddr);
+void vm_set_page_table_entry(struct kvm_vm *vm, int vcpuid, uint64_t vaddr,
+			     uint64_t pte);
 
 /*
  * set_cpuid() - overwrites a matching cpuid entry with the provided value.
@@ -410,6 +417,14 @@ struct kvm_cpuid2 *kvm_get_supported_hv_cpuid(void);
 void vcpu_set_hv_cpuid(struct kvm_vm *vm, uint32_t vcpuid);
 struct kvm_cpuid2 *vcpu_get_supported_hv_cpuid(struct kvm_vm *vm, uint32_t vcpuid);
 
+enum x86_page_size {
+	X86_PAGE_SIZE_4K = 0,
+	X86_PAGE_SIZE_2M,
+	X86_PAGE_SIZE_1G,
+};
+void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
+		   enum x86_page_size page_size);
+
 /*
  * Basic CPU control in CR0
  */
@@ -424,53 +439,6 @@ struct kvm_cpuid2 *vcpu_get_supported_hv_cpuid(struct kvm_vm *vm, uint32_t vcpui
 #define X86_CR0_NW          (1UL<<29) /* Not Write-through */
 #define X86_CR0_CD          (1UL<<30) /* Cache Disable */
 #define X86_CR0_PG          (1UL<<31) /* Paging */
-
-#define APIC_DEFAULT_GPA		0xfee00000ULL
-
-/* APIC base address MSR and fields */
-#define MSR_IA32_APICBASE		0x0000001b
-#define MSR_IA32_APICBASE_BSP		(1<<8)
-#define MSR_IA32_APICBASE_EXTD		(1<<10)
-#define MSR_IA32_APICBASE_ENABLE	(1<<11)
-#define MSR_IA32_APICBASE_BASE		(0xfffff<<12)
-#define		GET_APIC_BASE(x)	(((x) >> 12) << 12)
-
-#define APIC_BASE_MSR	0x800
-#define X2APIC_ENABLE	(1UL << 10)
-#define	APIC_ID		0x20
-#define	APIC_LVR	0x30
-#define		GET_APIC_ID_FIELD(x)	(((x) >> 24) & 0xFF)
-#define	APIC_TASKPRI	0x80
-#define	APIC_PROCPRI	0xA0
-#define	APIC_EOI	0xB0
-#define	APIC_SPIV	0xF0
-#define		APIC_SPIV_FOCUS_DISABLED	(1 << 9)
-#define		APIC_SPIV_APIC_ENABLED		(1 << 8)
-#define	APIC_ICR	0x300
-#define		APIC_DEST_SELF		0x40000
-#define		APIC_DEST_ALLINC	0x80000
-#define		APIC_DEST_ALLBUT	0xC0000
-#define		APIC_ICR_RR_MASK	0x30000
-#define		APIC_ICR_RR_INVALID	0x00000
-#define		APIC_ICR_RR_INPROG	0x10000
-#define		APIC_ICR_RR_VALID	0x20000
-#define		APIC_INT_LEVELTRIG	0x08000
-#define		APIC_INT_ASSERT		0x04000
-#define		APIC_ICR_BUSY		0x01000
-#define		APIC_DEST_LOGICAL	0x00800
-#define		APIC_DEST_PHYSICAL	0x00000
-#define		APIC_DM_FIXED		0x00000
-#define		APIC_DM_FIXED_MASK	0x00700
-#define		APIC_DM_LOWEST		0x00100
-#define		APIC_DM_SMI		0x00200
-#define		APIC_DM_REMRD		0x00300
-#define		APIC_DM_NMI		0x00400
-#define		APIC_DM_INIT		0x00500
-#define		APIC_DM_STARTUP		0x00600
-#define		APIC_DM_EXTINT		0x00700
-#define		APIC_VECTOR_MASK	0x000FF
-#define	APIC_ICR2	0x310
-#define		SET_APIC_DEST_FIELD(x)	((x) << 24)
 
 /* VMX_EPT_VPID_CAP bits */
 #define VMX_EPT_VPID_CAP_AD_BITS       (1ULL << 21)

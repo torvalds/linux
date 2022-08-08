@@ -80,6 +80,11 @@
 
 			status = "disabled";
 		};
+
+		mac_phy_ctrl: mac-phy-ctrl@e8 {
+			compatible = "syscon";
+			reg = <0xe8 0x4>;
+		};
 	};
 
 	ost: timer@12000000 {
@@ -346,6 +351,8 @@
 
 		clocks = <&cgu X1000_CLK_MAC>;
 		clock-names = "stmmaceth";
+
+		mode-reg = <&mac_phy_ctrl>;
 
 		status = "disabled";
 

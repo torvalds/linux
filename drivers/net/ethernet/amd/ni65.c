@@ -193,7 +193,7 @@ static struct card {
 		.vendor_id   = ni_vendor,
 		.cardname    = "ni6510",
 		.config	     = 0x1,
-       	},
+	},
 	{
 		.id0	     = NI65_EB_ID0,
 		.id1	     = NI65_EB_ID1,
@@ -204,7 +204,7 @@ static struct card {
 		.vendor_id   = ni_vendor,
 		.cardname    = "ni6510 EtherBlaster",
 		.config	     = 0x2,
-       	},
+	},
 	{
 		.id0	     = NE2100_ID0,
 		.id1	     = NE2100_ID1,
@@ -1232,15 +1232,15 @@ MODULE_PARM_DESC(dma, "ni6510 ISA DMA channel (ignored for some cards)");
 
 int __init init_module(void)
 {
- 	dev_ni65 = ni65_probe(-1);
+	dev_ni65 = ni65_probe(-1);
 	return PTR_ERR_OR_ZERO(dev_ni65);
 }
 
 void __exit cleanup_module(void)
 {
- 	unregister_netdev(dev_ni65);
- 	cleanup_card(dev_ni65);
- 	free_netdev(dev_ni65);
+	unregister_netdev(dev_ni65);
+	cleanup_card(dev_ni65);
+	free_netdev(dev_ni65);
 }
 #endif /* MODULE */
 

@@ -1136,7 +1136,7 @@ static void vi_program_aspm(struct amdgpu_device *adev)
 	bool bL1SS = false;
 	bool bClkReqSupport = true;
 
-	if (amdgpu_aspm != 1)
+	if (!amdgpu_aspm)
 		return;
 
 	if (adev->flags & AMD_IS_APU ||

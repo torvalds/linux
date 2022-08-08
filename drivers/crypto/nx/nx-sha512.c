@@ -15,6 +15,11 @@
 #include "nx_csbcpb.h"
 #include "nx.h"
 
+struct sha512_state_be {
+	__be64 state[SHA512_DIGEST_SIZE / 8];
+	u64 count[2];
+	u8 buf[SHA512_BLOCK_SIZE];
+};
 
 static int nx_crypto_ctx_sha512_init(struct crypto_tfm *tfm)
 {
@@ -36,7 +41,7 @@ static int nx_crypto_ctx_sha512_init(struct crypto_tfm *tfm)
 
 static int nx_sha512_init(struct shash_desc *desc)
 {
-	struct sha512_state *sctx = shash_desc_ctx(desc);
+	struct sha512_state_be *sctx = shash_desc_ctx(desc);
 
 	memset(sctx, 0, sizeof *sctx);
 
@@ -56,7 +61,7 @@ static int nx_sha512_init(struct shash_desc *desc)
 static int nx_sha512_update(struct shash_desc *desc, const u8 *data,
 			    unsigned int len)
 {
-	struct sha512_state *sctx = shash_desc_ctx(desc);
+	struct sha512_state_be *sctx = shash_desc_ctx(desc);
 	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(&desc->tfm->base);
 	struct nx_csbcpb *csbcpb = (struct nx_csbcpb *)nx_ctx->csbcpb;
 	struct nx_sg *out_sg;
@@ -178,7 +183,7 @@ out:
 
 static int nx_sha512_final(struct shash_desc *desc, u8 *out)
 {
-	struct sha512_state *sctx = shash_desc_ctx(desc);
+	struct sha512_state_be *sctx = shash_desc_ctx(desc);
 	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(&desc->tfm->base);
 	struct nx_csbcpb *csbcpb = (struct nx_csbcpb *)nx_ctx->csbcpb;
 	struct nx_sg *in_sg, *out_sg;
@@ -251,7 +256,7 @@ out:
 
 static int nx_sha512_export(struct shash_desc *desc, void *out)
 {
-	struct sha512_state *sctx = shash_desc_ctx(desc);
+	struct sha512_state_be *sctx = shash_desc_ctx(desc);
 
 	memcpy(out, sctx, sizeof(*sctx));
 
@@ -260,7 +265,7 @@ static int nx_sha512_export(struct shash_desc *desc, void *out)
 
 static int nx_sha512_import(struct shash_desc *desc, const void *in)
 {
-	struct sha512_state *sctx = shash_desc_ctx(desc);
+	struct sha512_state_be *sctx = shash_desc_ctx(desc);
 
 	memcpy(sctx, in, sizeof(*sctx));
 
@@ -274,8 +279,8 @@ struct shash_alg nx_shash_sha512_alg = {
 	.final      = nx_sha512_final,
 	.export     = nx_sha512_export,
 	.import     = nx_sha512_import,
-	.descsize   = sizeof(struct sha512_state),
-	.statesize  = sizeof(struct sha512_state),
+	.descsize   = sizeof(struct sha512_state_be),
+	.statesize  = sizeof(struct sha512_state_be),
 	.base       = {
 		.cra_name        = "sha512",
 		.cra_driver_name = "sha512-nx",

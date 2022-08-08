@@ -1,18 +1,9 @@
+/* SPDX-License-Identifier: LGPL-2.1 */
 /*
  *   fs/cifs/cifs_fs_sb.h
  *
  *   Copyright (c) International Business Machines  Corp., 2002,2004
  *   Author(s): Steve French (sfrench@us.ibm.com)
- *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
  *
  */
 #include <linux/rbtree.h>
@@ -72,11 +63,12 @@ struct cifs_sb_info {
 	char *prepath;
 
 	/*
-	 * Path initially provided by the mount call. We might connect
-	 * to something different via DFS but we want to keep it to do
-	 * failover properly.
+	 * Canonical DFS path initially provided by the mount call. We might connect to something
+	 * different via DFS but we want to keep it to do failover properly.
 	 */
 	char *origin_fullpath; /* \\HOST\SHARE\[OPTIONAL PATH] */
+	/* randomly generated 128-bit number for indexing dfs mount groups in referral cache */
+	uuid_t dfs_mount_id;
 	/*
 	 * Indicate whether serverino option was turned off later
 	 * (cifs_autodisable_serverino) in order to match new mounts.

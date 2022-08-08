@@ -120,6 +120,11 @@ TODO
     for this driver until the other work is done, as there will be a lot
     of code churn until this driver becomes functional again.
 
+16. Fix private ioctls to not need a compat_ioctl handler for running
+    32-bit tasks. The compat code has been removed because of bugs,
+    and should not be needed for modern drivers. Fixing this properly
+    unfortunately means an incompatible ABI change.
+
 Limitations
 ===========
 

@@ -250,7 +250,6 @@ static ssize_t rtrs_clt_disconnect_store(struct kobject *kobj,
 					  const char *buf, size_t count)
 {
 	struct rtrs_clt_sess *sess;
-	int ret;
 
 	sess = container_of(kobj, struct rtrs_clt_sess, kobj);
 	if (!sysfs_streq(buf, "1")) {
@@ -258,9 +257,7 @@ static ssize_t rtrs_clt_disconnect_store(struct kobject *kobj,
 			  attr->attr.name, buf);
 		return -EINVAL;
 	}
-	ret = rtrs_clt_disconnect_from_sysfs(sess);
-	if (ret)
-		return ret;
+	rtrs_clt_close_conns(sess, true);
 
 	return count;
 }

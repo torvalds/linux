@@ -326,7 +326,7 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 		ctrl |= SPIFI_CTRL_DUAL;
 	}
 
-	switch (mode & (SPI_CPHA | SPI_CPOL)) {
+	switch (mode & SPI_MODE_X_MASK) {
 	case SPI_MODE_0:
 		ctrl &= ~SPIFI_CTRL_MODE3;
 		break;

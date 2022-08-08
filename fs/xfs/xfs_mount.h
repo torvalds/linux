@@ -12,6 +12,7 @@ struct xfs_mru_cache;
 struct xfs_ail;
 struct xfs_quotainfo;
 struct xfs_da_geometry;
+struct xfs_perag;
 
 /* dynamic preallocation free space thresholds, 5% down to 1% */
 enum {
@@ -297,117 +298,12 @@ xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 	return (xfs_agblock_t) do_div(ld, mp->m_sb.sb_agblocks);
 }
 
-/* per-AG block reservation data structures*/
-struct xfs_ag_resv {
-	/* number of blocks originally reserved here */
-	xfs_extlen_t			ar_orig_reserved;
-	/* number of blocks reserved here */
-	xfs_extlen_t			ar_reserved;
-	/* number of blocks originally asked for */
-	xfs_extlen_t			ar_asked;
-};
-
-/*
- * Per-ag incore structure, copies of information in agf and agi, to improve the
- * performance of allocation group selection.
- */
-typedef struct xfs_perag {
-	struct xfs_mount *pag_mount;	/* owner filesystem */
-	xfs_agnumber_t	pag_agno;	/* AG this structure belongs to */
-	atomic_t	pag_ref;	/* perag reference count */
-	char		pagf_init;	/* this agf's entry is initialized */
-	char		pagi_init;	/* this agi's entry is initialized */
-	char		pagf_metadata;	/* the agf is preferred to be metadata */
-	char		pagi_inodeok;	/* The agi is ok for inodes */
-	uint8_t		pagf_levels[XFS_BTNUM_AGF];
-					/* # of levels in bno & cnt btree */
-	bool		pagf_agflreset; /* agfl requires reset before use */
-	uint32_t	pagf_flcount;	/* count of blocks in freelist */
-	xfs_extlen_t	pagf_freeblks;	/* total free blocks */
-	xfs_extlen_t	pagf_longest;	/* longest free space */
-	uint32_t	pagf_btreeblks;	/* # of blocks held in AGF btrees */
-	xfs_agino_t	pagi_freecount;	/* number of free inodes */
-	xfs_agino_t	pagi_count;	/* number of allocated inodes */
-
-	/*
-	 * Inode allocation search lookup optimisation.
-	 * If the pagino matches, the search for new inodes
-	 * doesn't need to search the near ones again straight away
-	 */
-	xfs_agino_t	pagl_pagino;
-	xfs_agino_t	pagl_leftrec;
-	xfs_agino_t	pagl_rightrec;
-
-	/*
-	 * Bitsets of per-ag metadata that have been checked and/or are sick.
-	 * Callers should hold pag_state_lock before accessing this field.
-	 */
-	uint16_t	pag_checked;
-	uint16_t	pag_sick;
-	spinlock_t	pag_state_lock;
-
-	spinlock_t	pagb_lock;	/* lock for pagb_tree */
-	struct rb_root	pagb_tree;	/* ordered tree of busy extents */
-	unsigned int	pagb_gen;	/* generation count for pagb_tree */
-	wait_queue_head_t pagb_wait;	/* woken when pagb_gen changes */
-
-	atomic_t        pagf_fstrms;    /* # of filestreams active in this AG */
-
-	spinlock_t	pag_ici_lock;	/* incore inode cache lock */
-	struct radix_tree_root pag_ici_root;	/* incore inode cache root */
-	int		pag_ici_reclaimable;	/* reclaimable inodes */
-	unsigned long	pag_ici_reclaim_cursor;	/* reclaim restart point */
-
-	/* buffer cache index */
-	spinlock_t	pag_buf_lock;	/* lock for pag_buf_hash */
-	struct rhashtable pag_buf_hash;
-
-	/* for rcu-safe freeing */
-	struct rcu_head	rcu_head;
-	int		pagb_count;	/* pagb slots in use */
-
-	/* Blocks reserved for all kinds of metadata. */
-	struct xfs_ag_resv	pag_meta_resv;
-	/* Blocks reserved for the reverse mapping btree. */
-	struct xfs_ag_resv	pag_rmapbt_resv;
-
-	/* background prealloc block trimming */
-	struct delayed_work	pag_blockgc_work;
-
-	/* reference count */
-	uint8_t			pagf_refcount_level;
-
-	/*
-	 * Unlinked inode information.  This incore information reflects
-	 * data stored in the AGI, so callers must hold the AGI buffer lock
-	 * or have some other means to control concurrency.
-	 */
-	struct rhashtable	pagi_unlinked_hash;
-} xfs_perag_t;
-
-static inline struct xfs_ag_resv *
-xfs_perag_resv(
-	struct xfs_perag	*pag,
-	enum xfs_ag_resv_type	type)
-{
-	switch (type) {
-	case XFS_AG_RESV_METADATA:
-		return &pag->pag_meta_resv;
-	case XFS_AG_RESV_RMAPBT:
-		return &pag->pag_rmapbt_resv;
-	default:
-		return NULL;
-	}
-}
-
-int xfs_buf_hash_init(xfs_perag_t *pag);
-void xfs_buf_hash_destroy(xfs_perag_t *pag);
+int xfs_buf_hash_init(struct xfs_perag *pag);
+void xfs_buf_hash_destroy(struct xfs_perag *pag);
 
 extern void	xfs_uuid_table_free(void);
 extern uint64_t xfs_default_resblks(xfs_mount_t *mp);
 extern int	xfs_mountfs(xfs_mount_t *mp);
-extern int	xfs_initialize_perag(xfs_mount_t *mp, xfs_agnumber_t agcount,
-				     xfs_agnumber_t *maxagi);
 extern void	xfs_unmountfs(xfs_mount_t *);
 
 extern int	xfs_mod_fdblocks(struct xfs_mount *mp, int64_t delta,

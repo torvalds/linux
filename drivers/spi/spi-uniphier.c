@@ -142,7 +142,7 @@ static void uniphier_spi_set_mode(struct spi_device *spi)
 	 * FSTRT    start frame timing
 	 *          0: rising edge of clock, 1: falling edge of clock
 	 */
-	switch (spi->mode & (SPI_CPOL | SPI_CPHA)) {
+	switch (spi->mode & SPI_MODE_X_MASK) {
 	case SPI_MODE_0:
 		/* CKPHS=1, CKINIT=0, CKDLY=1, FSTRT=0 */
 		val1 = SSI_CKS_CKPHS | SSI_CKS_CKDLY;

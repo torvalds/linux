@@ -29,8 +29,8 @@ struct f_hid_opts {
 	 * Protect the data form concurrent access by read/write
 	 * and create symlink/remove symlink.
 	 */
-	 struct mutex			lock;
-	 int				refcnt;
+	struct mutex			lock;
+	int				refcnt;
 };
 
 int ghid_setup(struct usb_gadget *g, int count);

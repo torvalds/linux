@@ -15,6 +15,7 @@
 #include <asm/debug-monitors.h>
 #include <asm/ftrace.h>
 #include <asm/insn.h>
+#include <asm/patching.h>
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 /*

@@ -770,4 +770,6 @@ int t3_xaui_direct_phy_prep(struct cphy *phy, struct adapter *adapter,
 			    int phy_addr, const struct mdio_ops *mdio_ops);
 int t3_aq100x_phy_prep(struct cphy *phy, struct adapter *adapter,
 			    int phy_addr, const struct mdio_ops *mdio_ops);
+
+extern struct workqueue_struct *cxgb3_wq;
 #endif				/* __CHELSIO_COMMON_H */

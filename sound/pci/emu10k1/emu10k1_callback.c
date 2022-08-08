@@ -90,7 +90,8 @@ snd_emu10k1_synth_get_voice(struct snd_emu10k1 *hw)
 		if (best[i].voice >= 0) {
 			int ch;
 			vp = &emu->voices[best[i].voice];
-			if ((ch = vp->ch) < 0) {
+			ch = vp->ch;
+			if (ch < 0) {
 				/*
 				dev_warn(emu->card->dev,
 				       "synth_get_voice: ch < 0 (%d) ??", i);

@@ -7,8 +7,6 @@
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
 #include <linux/regmap.h>
 
 #include <drm/drm_probe_helper.h>
@@ -755,7 +753,6 @@ static struct i2c_driver lt8912_i2c_driver = {
 	.driver = {
 		.name = "lt8912",
 		.of_match_table = lt8912_dt_match,
-		.owner = THIS_MODULE,
 	},
 	.probe = lt8912_probe,
 	.remove = lt8912_remove,

@@ -460,12 +460,10 @@ int qlcnic_82xx_sre_macaddr_change(struct qlcnic_adapter *adapter, u8 *addr,
 int qlcnic_nic_del_mac(struct qlcnic_adapter *adapter, const u8 *addr)
 {
 	struct qlcnic_mac_vlan_list *cur;
-	struct list_head *head;
 	int err = -EINVAL;
 
 	/* Delete MAC from the existing list */
-	list_for_each(head, &adapter->mac_list) {
-		cur = list_entry(head, struct qlcnic_mac_vlan_list, list);
+	list_for_each_entry(cur, &adapter->mac_list, list) {
 		if (ether_addr_equal(addr, cur->mac_addr)) {
 			err = qlcnic_sre_macaddr_change(adapter, cur->mac_addr,
 							0, QLCNIC_MAC_DEL);
@@ -483,11 +481,9 @@ int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr, u16 vlan,
 		       enum qlcnic_mac_type mac_type)
 {
 	struct qlcnic_mac_vlan_list *cur;
-	struct list_head *head;
 
 	/* look up if already exists */
-	list_for_each(head, &adapter->mac_list) {
-		cur = list_entry(head, struct qlcnic_mac_vlan_list, list);
+	list_for_each_entry(cur, &adapter->mac_list, list) {
 		if (ether_addr_equal(addr, cur->mac_addr) &&
 		    cur->vlan_id == vlan)
 			return 0;

@@ -1082,9 +1082,8 @@ void cdnsp_mem_cleanup(struct cdnsp_device *pdev)
 	dma_pool_destroy(pdev->device_pool);
 	pdev->device_pool = NULL;
 
-	if (pdev->dcbaa)
-		dma_free_coherent(dev, sizeof(*pdev->dcbaa),
-				  pdev->dcbaa, pdev->dcbaa->dma);
+	dma_free_coherent(dev, sizeof(*pdev->dcbaa),
+			  pdev->dcbaa, pdev->dcbaa->dma);
 
 	pdev->dcbaa = NULL;
 

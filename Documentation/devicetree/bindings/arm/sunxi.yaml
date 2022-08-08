@@ -224,6 +224,12 @@ properties:
           - const: empire-electronix,m712
           - const: allwinner,sun5i-a13
 
+      - description: Forlinx OKA40i-C Development board
+        items:
+          - const: forlinx,oka40i-c
+          - const: forlinx,feta40i-c
+          - const: allwinner,sun8i-r40
+
       - description: FriendlyARM NanoPi A64
         items:
           - const: friendlyarm,nanopi-a64
@@ -268,6 +274,11 @@ properties:
         items:
           - const: friendlyarm,nanopi-r1
           - const: allwinner,sun8i-h3
+
+      - description: FriendlyARM NanoPi R1S H5
+        items:
+          - const: friendlyarm,nanopi-r1s-h5
+          - const: allwinner,sun50i-h5
 
       - description: FriendlyARM ZeroPi
         items:

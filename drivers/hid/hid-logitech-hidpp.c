@@ -56,6 +56,8 @@ MODULE_PARM_DESC(disable_tap_to_click,
 #define HIDPP_SUB_ID_CONSUMER_VENDOR_KEYS	0x03
 #define HIDPP_SUB_ID_ROLLER			0x05
 #define HIDPP_SUB_ID_MOUSE_EXTRA_BTNS		0x06
+#define HIDPP_SUB_ID_USER_IFACE_EVENT		0x08
+#define HIDPP_USER_IFACE_EVENT_ENCRYPTION_KEY_LOST	BIT(5)
 
 #define HIDPP_QUIRK_CLASS_WTP			BIT(0)
 #define HIDPP_QUIRK_CLASS_M560			BIT(1)
@@ -3527,6 +3529,16 @@ static int hidpp_raw_hidpp_event(struct hidpp_device *hidpp, u8 *data,
 		if (schedule_work(&hidpp->work) == 0)
 			dbg_hid("%s: connect event already queued\n", __func__);
 		return 1;
+	}
+
+	if (hidpp->hid_dev->group == HID_GROUP_LOGITECH_27MHZ_DEVICE &&
+	    data[0] == REPORT_ID_HIDPP_SHORT &&
+	    data[2] == HIDPP_SUB_ID_USER_IFACE_EVENT &&
+	    (data[3] & HIDPP_USER_IFACE_EVENT_ENCRYPTION_KEY_LOST)) {
+		dev_err_ratelimited(&hidpp->hid_dev->dev,
+			"Error the keyboard's wireless encryption key has been lost, your keyboard will not work unless you re-configure encryption.\n");
+		dev_err_ratelimited(&hidpp->hid_dev->dev,
+			"See: https://gitlab.freedesktop.org/jwrdegoede/logitech-27mhz-keyboard-encryption-setup/\n");
 	}
 
 	if (hidpp->capabilities & HIDPP_CAPABILITY_HIDPP20_BATTERY) {

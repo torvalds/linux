@@ -84,7 +84,7 @@ static unsigned int mt6315_regulator_get_mode(struct regulator_dev *rdev)
 	modeset_mask = init->modeset_mask[rdev_get_id(rdev)];
 	ret = regmap_read(rdev->regmap, MT6315_BUCK_TOP_4PHASE_ANA_CON42, &regval);
 	if (ret != 0) {
-		dev_notice(&rdev->dev, "Failed to get mode: %d\n", ret);
+		dev_err(&rdev->dev, "Failed to get mode: %d\n", ret);
 		return ret;
 	}
 
@@ -93,7 +93,7 @@ static unsigned int mt6315_regulator_get_mode(struct regulator_dev *rdev)
 
 	ret = regmap_read(rdev->regmap, MT6315_BUCK_TOP_CON1, &regval);
 	if (ret != 0) {
-		dev_notice(&rdev->dev, "Failed to get lp mode: %d\n", ret);
+		dev_err(&rdev->dev, "Failed to get lp mode: %d\n", ret);
 		return ret;
 	}
 
@@ -147,12 +147,12 @@ static int mt6315_regulator_set_mode(struct regulator_dev *rdev,
 		break;
 	default:
 		ret = -EINVAL;
-		dev_notice(&rdev->dev, "Unsupported mode: %d\n", mode);
+		dev_err(&rdev->dev, "Unsupported mode: %d\n", mode);
 		break;
 	}
 
 	if (ret != 0) {
-		dev_notice(&rdev->dev, "Failed to set mode: %d\n", ret);
+		dev_err(&rdev->dev, "Failed to set mode: %d\n", ret);
 		return ret;
 	}
 
@@ -168,7 +168,7 @@ static int mt6315_get_status(struct regulator_dev *rdev)
 	info = container_of(rdev->desc, struct mt6315_regulator_info, desc);
 	ret = regmap_read(rdev->regmap, info->status_reg, &regval);
 	if (ret < 0) {
-		dev_notice(&rdev->dev, "Failed to get enable reg: %d\n", ret);
+		dev_err(&rdev->dev, "Failed to get enable reg: %d\n", ret);
 		return ret;
 	}
 
@@ -223,8 +223,8 @@ static int mt6315_regulator_probe(struct spmi_device *pdev)
 	int i;
 
 	regmap = devm_regmap_init_spmi_ext(pdev, &mt6315_regmap_config);
-	if (!regmap)
-		return -ENODEV;
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
 
 	chip = devm_kzalloc(dev, sizeof(struct mt6315_chip), GFP_KERNEL);
 	if (!chip)
@@ -260,8 +260,9 @@ static int mt6315_regulator_probe(struct spmi_device *pdev)
 		config.driver_data = init_data;
 		rdev = devm_regulator_register(dev, &mt6315_regulators[i].desc, &config);
 		if (IS_ERR(rdev)) {
-			dev_notice(dev, "Failed to register %s\n", mt6315_regulators[i].desc.name);
-			continue;
+			dev_err(dev, "Failed to register %s\n",
+				mt6315_regulators[i].desc.name);
+			return PTR_ERR(rdev);
 		}
 	}
 
@@ -279,7 +280,7 @@ static void mt6315_regulator_shutdown(struct spmi_device *pdev)
 	ret |= regmap_write(chip->regmap, MT6315_TOP_TMA_KEY, 0);
 	ret |= regmap_write(chip->regmap, MT6315_TOP_TMA_KEY_H, 0);
 	if (ret < 0)
-		dev_notice(&pdev->dev, "[%#x] Failed to enable power off sequence. %d\n",
+		dev_err(&pdev->dev, "[%#x] Failed to enable power off sequence. %d\n",
 			   pdev->usid, ret);
 }
 

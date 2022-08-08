@@ -30,7 +30,6 @@ properties:
 
   clock-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: ref
       - const: xo

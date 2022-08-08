@@ -357,3 +357,23 @@ config UML_RTC
 	  rtcwake, especially in time-travel mode. This driver enables that
 	  by providing a fake RTC clock that causes a wakeup at the right
 	  time.
+
+config UML_PCI_OVER_VIRTIO
+	bool "Enable PCI over VIRTIO device simulation"
+	# in theory, just VIRTIO is enough, but that causes recursion
+	depends on VIRTIO_UML
+	select FORCE_PCI
+	select UML_IOMEM_EMULATION
+	select UML_DMA_EMULATION
+	select PCI_MSI
+	select PCI_MSI_IRQ_DOMAIN
+	select PCI_LOCKLESS_CONFIG
+
+config UML_PCI_OVER_VIRTIO_DEVICE_ID
+	int "set the virtio device ID for PCI emulation"
+	default -1
+	depends on UML_PCI_OVER_VIRTIO
+	help
+	  There's no official device ID assigned (yet), set the one you
+	  wish to use for experimentation here. The default of -1 is
+	  not valid and will cause the driver to fail at probe.

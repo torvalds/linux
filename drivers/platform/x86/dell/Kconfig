@@ -5,7 +5,6 @@
 
 menuconfig X86_PLATFORM_DRIVERS_DELL
 	bool "Dell X86 Platform Specific Device Drivers"
-	default n
 	depends on X86_PLATFORM_DEVICES
 	help
 	  Say Y here to get to see options for device drivers for various
@@ -53,6 +52,7 @@ config DELL_LAPTOP
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on RFKILL || RFKILL = n
+	depends on DELL_WMI || DELL_WMI = n
 	depends on SERIO_I8042
 	depends on DELL_SMBIOS
 	select POWER_SUPPLY
@@ -164,6 +164,14 @@ config DELL_WMI
 	  To compile this driver as a module, choose M here: the module will
 	  be called dell-wmi.
 
+config DELL_WMI_PRIVACY
+	bool "Dell WMI Hardware Privacy Support"
+	depends on DELL_WMI
+	depends on LEDS_TRIGGER_AUDIO
+	help
+	  This option adds integration with the "Dell Hardware Privacy"
+	  feature of Dell laptops to the dell-wmi driver.
+
 config DELL_WMI_AIO
 	tristate "WMI Hotkeys for Dell All-In-One series"
 	default m
@@ -197,6 +205,7 @@ config DELL_WMI_SYSMAN
 	depends on ACPI_WMI
 	depends on DMI
 	select NLS
+	select FW_ATTR_CLASS
 	help
 	  This driver allows changing BIOS settings on many Dell machines from
 	  2018 and newer without the use of any additional software.

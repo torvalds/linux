@@ -369,8 +369,8 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 	/* 32-bit arches must use fcntl64() */
 	case F_OFD_SETLK:
 	case F_OFD_SETLKW:
-#endif
 		fallthrough;
+#endif
 	case F_SETLK:
 	case F_SETLKW:
 		if (copy_from_user(&flock, argp, sizeof(flock)))

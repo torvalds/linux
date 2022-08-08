@@ -19,6 +19,16 @@ config NETFILTER_FAMILY_BRIDGE
 config NETFILTER_FAMILY_ARP
 	bool
 
+config NETFILTER_NETLINK_HOOK
+	tristate "Netfilter base hook dump support"
+	depends on NETFILTER_ADVANCED
+	depends on NF_TABLES
+	select NETFILTER_NETLINK
+	help
+	  If this option is enabled, the kernel will include support
+	  to list the base netfilter hooks via NFNETLINK.
+	  This is helpful for debugging.
+
 config NETFILTER_NETLINK_ACCT
 	tristate "Netfilter NFACCT over NFNETLINK interface"
 	depends on NETFILTER_ADVANCED
@@ -816,7 +826,7 @@ config NETFILTER_XT_TARGET_CLASSIFY
 	  the priority of a packet. Some qdiscs can use this value for
 	  classification, among these are:
 
-  	  atm, cbq, dsmark, pfifo_fast, htb, prio
+	  atm, cbq, dsmark, pfifo_fast, htb, prio
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 

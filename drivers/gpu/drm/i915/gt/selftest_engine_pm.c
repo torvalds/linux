@@ -198,7 +198,7 @@ static int live_engine_timestamps(void *arg)
 	 * the same CS clock.
 	 */
 
-	if (INTEL_GEN(gt->i915) < 8)
+	if (GRAPHICS_VER(gt->i915) < 8)
 		return 0;
 
 	for_each_engine(engine, gt, id) {

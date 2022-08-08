@@ -38,7 +38,7 @@
 #include <linux/mmu_notifier.h>
 #include <linux/pci.h>
 
-#include <drm/drm_agpsupport.h>
+#include <drm/drm_aperture.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
@@ -330,7 +330,7 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 		return -EPROBE_DEFER;
 
 	/* Get rid of things like offb */
-	ret = drm_fb_helper_remove_conflicting_pci_framebuffers(pdev, "radeondrmfb");
+	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, "radeondrmfb");
 	if (ret)
 		return ret;
 
@@ -344,15 +344,6 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, dev);
 
-	if (pci_find_capability(pdev, PCI_CAP_ID_AGP))
-		dev->agp = drm_agp_init(dev);
-	if (dev->agp) {
-		dev->agp->agp_mtrr = arch_phys_wc_add(
-			dev->agp->agp_info.aper_base,
-			dev->agp->agp_info.aper_size *
-			1024 * 1024);
-	}
-
 	ret = drm_dev_register(dev, ent->driver_data);
 	if (ret)
 		goto err_agp;
@@ -360,9 +351,6 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 	return 0;
 
 err_agp:
-	if (dev->agp)
-		arch_phys_wc_del(dev->agp->agp_mtrr);
-	kfree(dev->agp);
 	pci_disable_device(pdev);
 err_free:
 	drm_dev_put(dev);
@@ -386,13 +374,13 @@ radeon_pci_shutdown(struct pci_dev *pdev)
 	if (radeon_device_is_virtual())
 		radeon_pci_remove(pdev);
 
-#ifdef CONFIG_PPC64
+#if defined(CONFIG_PPC64) || defined(CONFIG_MACH_LOONGSON64)
 	/*
 	 * Some adapters need to be suspended before a
 	 * shutdown occurs in order to prevent an error
-	 * during kexec.
-	 * Make this power specific becauase it breaks
-	 * some non-power boards.
+	 * during kexec, shutdown or reboot.
+	 * Make this power and Loongson specific because
+	 * it breaks some other boards.
 	 */
 	radeon_suspend_kms(pci_get_drvdata(pdev), true, true, false);
 #endif
@@ -557,7 +545,7 @@ static const struct file_operations radeon_driver_kms_fops = {
 	.open = drm_open,
 	.release = drm_release,
 	.unlocked_ioctl = radeon_drm_ioctl,
-	.mmap = radeon_mmap,
+	.mmap = drm_gem_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
 #ifdef CONFIG_COMPAT
@@ -632,6 +620,7 @@ static const struct drm_driver kms_driver = {
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import_sg_table = radeon_gem_prime_import_sg_table,
+	.gem_prime_mmap = drm_gem_prime_mmap,
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,

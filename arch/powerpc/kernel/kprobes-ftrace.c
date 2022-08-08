@@ -39,7 +39,7 @@ void kprobe_ftrace_handler(unsigned long nip, unsigned long parent_nip,
 		 * On powerpc, NIP is *before* this instruction for the
 		 * pre handler
 		 */
-		regs->nip -= MCOUNT_INSN_SIZE;
+		regs_add_return_ip(regs, -MCOUNT_INSN_SIZE);
 
 		__this_cpu_write(current_kprobe, p);
 		kcb->kprobe_status = KPROBE_HIT_ACTIVE;
@@ -48,7 +48,7 @@ void kprobe_ftrace_handler(unsigned long nip, unsigned long parent_nip,
 			 * Emulate singlestep (and also recover regs->nip)
 			 * as if there is a nop
 			 */
-			regs->nip += MCOUNT_INSN_SIZE;
+			regs_add_return_ip(regs, MCOUNT_INSN_SIZE);
 			if (unlikely(p->post_handler)) {
 				kcb->kprobe_status = KPROBE_HIT_SSDONE;
 				p->post_handler(p, regs, 0);

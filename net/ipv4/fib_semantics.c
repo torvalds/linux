@@ -1874,6 +1874,7 @@ static int call_fib_nh_notifiers(struct fib_nh *nh,
 		    (nh->fib_nh_flags & RTNH_F_DEAD))
 			return call_fib4_notifiers(dev_net(nh->fib_nh_dev),
 						   event_type, &info.info);
+		break;
 	default:
 		break;
 	}

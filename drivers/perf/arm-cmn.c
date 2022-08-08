@@ -31,7 +31,7 @@
 #define CMN_CI_CHILD_COUNT		GENMASK_ULL(15, 0)
 #define CMN_CI_CHILD_PTR_OFFSET		GENMASK_ULL(31, 16)
 
-#define CMN_CHILD_NODE_ADDR		GENMASK(27,0)
+#define CMN_CHILD_NODE_ADDR		GENMASK(27, 0)
 #define CMN_CHILD_NODE_EXTERNAL		BIT(31)
 
 #define CMN_ADDR_NODE_PTR		GENMASK(27, 14)
@@ -1162,7 +1162,7 @@ static int arm_cmn_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 
 	perf_pmu_migrate_context(&cmn->pmu, cpu, target);
 	for (i = 0; i < cmn->num_dtcs; i++)
-		irq_set_affinity_hint(cmn->dtc[i].irq, cpumask_of(target));
+		irq_set_affinity(cmn->dtc[i].irq, cpumask_of(target));
 	cmn->cpu = target;
 	return 0;
 }
@@ -1212,7 +1212,7 @@ static int arm_cmn_init_irqs(struct arm_cmn *cmn)
 		irq = cmn->dtc[i].irq;
 		for (j = i; j--; ) {
 			if (cmn->dtc[j].irq == irq) {
-				cmn->dtc[j].irq_friend = j - i;
+				cmn->dtc[j].irq_friend = i - j;
 				goto next;
 			}
 		}
@@ -1222,7 +1222,7 @@ static int arm_cmn_init_irqs(struct arm_cmn *cmn)
 		if (err)
 			return err;
 
-		err = irq_set_affinity_hint(irq, cpumask_of(cmn->cpu));
+		err = irq_set_affinity(irq, cpumask_of(cmn->cpu));
 		if (err)
 			return err;
 	next:
@@ -1568,16 +1568,11 @@ static int arm_cmn_probe(struct platform_device *pdev)
 static int arm_cmn_remove(struct platform_device *pdev)
 {
 	struct arm_cmn *cmn = platform_get_drvdata(pdev);
-	int i;
 
 	writel_relaxed(0, cmn->dtc[0].base + CMN_DT_DTC_CTL);
 
 	perf_pmu_unregister(&cmn->pmu);
 	cpuhp_state_remove_instance(arm_cmn_hp_state, &cmn->cpuhp_node);
-
-	for (i = 0; i < cmn->num_dtcs; i++)
-		irq_set_affinity_hint(cmn->dtc[i].irq, NULL);
-
 	return 0;
 }
 

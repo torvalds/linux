@@ -890,7 +890,7 @@ static int ak8975_probe(struct i2c_client *client,
 	data->reset_gpiod = reset_gpiod;
 	data->eoc_irq = 0;
 
-	err = iio_read_mount_matrix(&client->dev, "mount-matrix", &data->orientation);
+	err = iio_read_mount_matrix(&client->dev, &data->orientation);
 	if (err)
 		return err;
 

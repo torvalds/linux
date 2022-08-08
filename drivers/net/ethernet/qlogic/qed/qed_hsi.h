@@ -20,6 +20,7 @@
 #include <linux/qed/fcoe_common.h>
 #include <linux/qed/eth_common.h>
 #include <linux/qed/iscsi_common.h>
+#include <linux/qed/nvmetcp_common.h>
 #include <linux/qed/iwarp_common.h>
 #include <linux/qed/rdma_common.h>
 #include <linux/qed/roce_common.h>
@@ -1118,7 +1119,7 @@ struct outer_tag_config_struct {
 /* personality per PF */
 enum personality_type {
 	BAD_PERSONALITY_TYP,
-	PERSONALITY_ISCSI,
+	PERSONALITY_TCP_ULP,
 	PERSONALITY_FCOE,
 	PERSONALITY_RDMA_AND_ETH,
 	PERSONALITY_RDMA,
@@ -12147,7 +12148,8 @@ struct public_func {
 #define FUNC_MF_CFG_PROTOCOL_ISCSI              0x00000010
 #define FUNC_MF_CFG_PROTOCOL_FCOE               0x00000020
 #define FUNC_MF_CFG_PROTOCOL_ROCE               0x00000030
-#define FUNC_MF_CFG_PROTOCOL_MAX	0x00000030
+#define FUNC_MF_CFG_PROTOCOL_NVMETCP    0x00000040
+#define FUNC_MF_CFG_PROTOCOL_MAX	0x00000040
 
 #define FUNC_MF_CFG_MIN_BW_MASK		0x0000ff00
 #define FUNC_MF_CFG_MIN_BW_SHIFT	8

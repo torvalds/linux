@@ -1935,7 +1935,7 @@ int coda_alloc_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf,
 	if (name && parent) {
 		buf->blob.data = buf->vaddr;
 		buf->blob.size = size;
-		buf->dentry = debugfs_create_blob(name, 0644, parent,
+		buf->dentry = debugfs_create_blob(name, 0444, parent,
 						  &buf->blob);
 	}
 
@@ -2660,7 +2660,7 @@ static int coda_open(struct file *file)
 	ctx->use_vdoa = false;
 
 	/* Power up and upload firmware if necessary */
-	ret = pm_runtime_get_sync(dev->dev);
+	ret = pm_runtime_resume_and_get(dev->dev);
 	if (ret < 0) {
 		v4l2_err(&dev->v4l2_dev, "failed to power up: %d\n", ret);
 		goto err_pm_get;
@@ -2668,7 +2668,7 @@ static int coda_open(struct file *file)
 
 	ret = clk_prepare_enable(dev->clk_per);
 	if (ret)
-		goto err_pm_get;
+		goto err_clk_enable;
 
 	ret = clk_prepare_enable(dev->clk_ahb);
 	if (ret)
@@ -2707,8 +2707,9 @@ err_ctx_init:
 	clk_disable_unprepare(dev->clk_ahb);
 err_clk_ahb:
 	clk_disable_unprepare(dev->clk_per);
-err_pm_get:
+err_clk_enable:
 	pm_runtime_put_sync(dev->dev);
+err_pm_get:
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
 err_coda_name_init:
@@ -3232,7 +3233,7 @@ static int coda_probe(struct platform_device *pdev)
 		memset(dev->iram.vaddr, 0, dev->iram.size);
 		dev->iram.blob.data = dev->iram.vaddr;
 		dev->iram.blob.size = dev->iram.size;
-		dev->iram.dentry = debugfs_create_blob("iram", 0644,
+		dev->iram.dentry = debugfs_create_blob("iram", 0444,
 						       dev->debugfs_root,
 						       &dev->iram.blob);
 	}

@@ -11,6 +11,12 @@
 	model = "Rayeager PX2";
 	compatible = "chipspark,rayeager-px2", "rockchip,rk3066a";
 
+	aliases {
+		mmc0 = &mmc0;
+		mmc1 = &mmc1;
+		mmc2 = &emmc;
+	};
+
 	memory@60000000 {
 		device_type = "memory";
 		reg = <0x60000000 0x40000000>;
@@ -58,7 +64,7 @@
 	};
 
 	/* input for 5V_STDBY is VSYS or DC5V, selectable by jumper J4 */
-	vcc_stdby: 5v-stdby-regulator {
+	vcc_stdby: stdby-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "5v_stdby";
 		regulator-min-microvolt = <5000000>;

@@ -52,6 +52,7 @@ void vchiq_add_connected_callback(VCHIQ_CONNECTED_CALLBACK_T callback)
 	}
 	mutex_unlock(&g_connected_mutex);
 }
+EXPORT_SYMBOL(vchiq_add_connected_callback);
 
 /*
  * This function is called by the vchiq stack once it has been connected to
@@ -73,4 +74,3 @@ void vchiq_call_connected_callbacks(void)
 	g_connected = 1;
 	mutex_unlock(&g_connected_mutex);
 }
-EXPORT_SYMBOL(vchiq_add_connected_callback);

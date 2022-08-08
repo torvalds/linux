@@ -85,7 +85,7 @@ static const struct dsa_device_ops ar9331_netdev_ops = {
 	.proto	= DSA_TAG_PROTO_AR9331,
 	.xmit	= ar9331_tag_xmit,
 	.rcv	= ar9331_tag_rcv,
-	.overhead = AR9331_HDR_LEN,
+	.needed_headroom = AR9331_HDR_LEN,
 };
 
 MODULE_LICENSE("GPL v2");

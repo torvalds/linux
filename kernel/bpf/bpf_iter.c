@@ -473,15 +473,16 @@ bool bpf_link_is_iter(struct bpf_link *link)
 	return link->ops == &bpf_iter_link_lops;
 }
 
-int bpf_iter_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
+int bpf_iter_link_attach(const union bpf_attr *attr, bpfptr_t uattr,
+			 struct bpf_prog *prog)
 {
-	union bpf_iter_link_info __user *ulinfo;
 	struct bpf_link_primer link_primer;
 	struct bpf_iter_target_info *tinfo;
 	union bpf_iter_link_info linfo;
 	struct bpf_iter_link *link;
 	u32 prog_btf_id, linfo_len;
 	bool existed = false;
+	bpfptr_t ulinfo;
 	int err;
 
 	if (attr->link_create.target_fd || attr->link_create.flags)
@@ -489,18 +490,18 @@ int bpf_iter_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 
 	memset(&linfo, 0, sizeof(union bpf_iter_link_info));
 
-	ulinfo = u64_to_user_ptr(attr->link_create.iter_info);
+	ulinfo = make_bpfptr(attr->link_create.iter_info, uattr.is_kernel);
 	linfo_len = attr->link_create.iter_info_len;
-	if (!ulinfo ^ !linfo_len)
+	if (bpfptr_is_null(ulinfo) ^ !linfo_len)
 		return -EINVAL;
 
-	if (ulinfo) {
+	if (!bpfptr_is_null(ulinfo)) {
 		err = bpf_check_uarg_tail_zero(ulinfo, sizeof(linfo),
 					       linfo_len);
 		if (err)
 			return err;
 		linfo_len = min_t(u32, linfo_len, sizeof(linfo));
-		if (copy_from_user(&linfo, ulinfo, linfo_len))
+		if (copy_from_bpfptr(&linfo, ulinfo, linfo_len))
 			return -EFAULT;
 	}
 

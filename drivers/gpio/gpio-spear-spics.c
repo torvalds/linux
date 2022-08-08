@@ -122,7 +122,6 @@ static int spics_gpio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct spear_spics *spics;
-	int ret;
 
 	spics = devm_kzalloc(&pdev->dev, sizeof(*spics), GFP_KERNEL);
 	if (!spics)
@@ -148,8 +147,6 @@ static int spics_gpio_probe(struct platform_device *pdev)
 				&spics->cs_enable_shift))
 		goto err_dt_data;
 
-	platform_set_drvdata(pdev, spics);
-
 	spics->chip.ngpio = NUM_OF_GPIO;
 	spics->chip.base = -1;
 	spics->chip.request = spics_request;
@@ -163,14 +160,7 @@ static int spics_gpio_probe(struct platform_device *pdev)
 	spics->chip.owner = THIS_MODULE;
 	spics->last_off = -1;
 
-	ret = devm_gpiochip_add_data(&pdev->dev, &spics->chip, spics);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to add gpio chip\n");
-		return ret;
-	}
-
-	dev_info(&pdev->dev, "spear spics registered\n");
-	return 0;
+	return devm_gpiochip_add_data(&pdev->dev, &spics->chip, spics);
 
 err_dt_data:
 	dev_err(&pdev->dev, "DT probe failed\n");

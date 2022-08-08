@@ -24,7 +24,7 @@
 
 #define NFFW_FWID_ALL   255
 
-/**
+/*
  * NFFW_INFO_VERSION history:
  * 0: This was never actually used (before versioning), but it refers to
  *    the previous struct which had FWINFO_CNT = MEINFO_CNT = 120 that later

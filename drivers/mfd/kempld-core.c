@@ -344,16 +344,16 @@ static const char *kempld_get_type_string(struct kempld_device_data *pld)
 	return version_type;
 }
 
-static ssize_t kempld_version_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t pld_version_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct kempld_device_data *pld = dev_get_drvdata(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n", pld->info.version);
 }
 
-static ssize_t kempld_specification_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t pld_specification_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
 {
 	struct kempld_device_data *pld = dev_get_drvdata(dev);
 
@@ -361,18 +361,17 @@ static ssize_t kempld_specification_show(struct device *dev,
 		       pld->info.spec_minor);
 }
 
-static ssize_t kempld_type_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t pld_type_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct kempld_device_data *pld = dev_get_drvdata(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n", kempld_get_type_string(pld));
 }
 
-static DEVICE_ATTR(pld_version, S_IRUGO, kempld_version_show, NULL);
-static DEVICE_ATTR(pld_specification, S_IRUGO, kempld_specification_show,
-		   NULL);
-static DEVICE_ATTR(pld_type, S_IRUGO, kempld_type_show, NULL);
+static DEVICE_ATTR_RO(pld_version);
+static DEVICE_ATTR_RO(pld_specification);
+static DEVICE_ATTR_RO(pld_type);
 
 static struct attribute *pld_attributes[] = {
 	&dev_attr_pld_version.attr,

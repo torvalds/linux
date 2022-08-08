@@ -78,9 +78,6 @@ struct snd_dice {
 	spinlock_t lock;
 	struct mutex mutex;
 
-	bool registered;
-	struct delayed_work dwork;
-
 	/* Offsets for sub-addresses */
 	unsigned int global_offset;
 	unsigned int rx_offset;
@@ -93,7 +90,6 @@ struct snd_dice {
 	unsigned int rx_pcm_chs[MAX_STREAMS][SND_DICE_RATE_MODE_COUNT];
 	unsigned int tx_midi_ports[MAX_STREAMS];
 	unsigned int rx_midi_ports[MAX_STREAMS];
-	snd_dice_detect_formats_t detect_formats;
 
 	struct fw_address_handler notification_handler;
 	int owner_generation;

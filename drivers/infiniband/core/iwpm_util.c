@@ -61,7 +61,7 @@ int iwpm_init(u8 nl_client)
 {
 	int ret = 0;
 	mutex_lock(&iwpm_admin_lock);
-	if (atomic_read(&iwpm_admin.refcount) == 0) {
+	if (!refcount_read(&iwpm_admin.refcount)) {
 		iwpm_hash_bucket = kcalloc(IWPM_MAPINFO_HASH_SIZE,
 					   sizeof(struct hlist_head),
 					   GFP_KERNEL);
@@ -77,8 +77,12 @@ int iwpm_init(u8 nl_client)
 			ret = -ENOMEM;
 			goto init_exit;
 		}
+
+		refcount_set(&iwpm_admin.refcount, 1);
+	} else {
+		refcount_inc(&iwpm_admin.refcount);
 	}
-	atomic_inc(&iwpm_admin.refcount);
+
 init_exit:
 	mutex_unlock(&iwpm_admin_lock);
 	if (!ret) {
@@ -105,12 +109,12 @@ int iwpm_exit(u8 nl_client)
 	if (!iwpm_valid_client(nl_client))
 		return -EINVAL;
 	mutex_lock(&iwpm_admin_lock);
-	if (atomic_read(&iwpm_admin.refcount) == 0) {
+	if (!refcount_read(&iwpm_admin.refcount)) {
 		mutex_unlock(&iwpm_admin_lock);
 		pr_err("%s Incorrect usage - negative refcount\n", __func__);
 		return -EINVAL;
 	}
-	if (atomic_dec_and_test(&iwpm_admin.refcount)) {
+	if (refcount_dec_and_test(&iwpm_admin.refcount)) {
 		free_hash_bucket();
 		free_reminfo_bucket();
 		pr_debug("%s: Resources are destroyed\n", __func__);
@@ -303,7 +307,7 @@ int iwpm_get_remote_info(struct sockaddr_storage *mapped_loc_addr,
 	int ret = -EINVAL;
 
 	if (!iwpm_valid_client(nl_client)) {
-		pr_info("%s: Invalid client = %d\n", __func__, nl_client);
+		pr_info("%s: Invalid client = %u\n", __func__, nl_client);
 		return ret;
 	}
 	spin_lock_irqsave(&iwpm_reminfo_lock, flags);
@@ -651,7 +655,7 @@ static int send_mapinfo_num(u32 mapping_num, u8 nl_client, int iwpm_pid)
 		err_str = "Unable to send a nlmsg";
 		goto mapinfo_num_error;
 	}
-	pr_debug("%s: Sent mapping number = %d\n", __func__, mapping_num);
+	pr_debug("%s: Sent mapping number = %u\n", __func__, mapping_num);
 	return 0;
 mapinfo_num_error:
 	pr_info("%s: %s\n", __func__, err_str);

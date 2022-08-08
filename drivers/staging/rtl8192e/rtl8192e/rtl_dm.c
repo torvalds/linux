@@ -1733,7 +1733,7 @@ static void _rtl92e_dm_check_edca_turbo(struct net_device *dev)
 			priv->bcurrent_turbo_EDCA = true;
 		}
 	} else {
-		 if (priv->bcurrent_turbo_EDCA) {
+		if (priv->bcurrent_turbo_EDCA) {
 			u8 tmp = AC0_BE;
 
 			priv->rtllib->SetHwRegHandler(dev, HW_VAR_AC_PARAM,

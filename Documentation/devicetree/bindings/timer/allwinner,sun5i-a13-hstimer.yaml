@@ -24,7 +24,6 @@ properties:
 
   interrupts:
     minItems: 2
-    maxItems: 4
     items:
       - description: Timer 0 Interrupt
       - description: Timer 1 Interrupt

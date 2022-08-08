@@ -45,6 +45,7 @@ properties:
       - rc-cec
       - rc-cinergy
       - rc-cinergy-1400
+      - rc-ct-90405
       - rc-d680-dmb
       - rc-delock-61959
       - rc-dib0700-nec
@@ -125,7 +126,6 @@ properties:
       - rc-snapstream-firefly
       - rc-streamzap
       - rc-su3000
-      - rc-tango
       - rc-tanix-tx3mini
       - rc-tanix-tx5max
       - rc-tbs-nec

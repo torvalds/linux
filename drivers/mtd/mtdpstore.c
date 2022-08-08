@@ -423,13 +423,13 @@ static void mtdpstore_notify_add(struct mtd_info *mtd)
 	longcnt = BITS_TO_LONGS(div_u64(mtd->size, mtd->erasesize));
 	cxt->badmap = kcalloc(longcnt, sizeof(long), GFP_KERNEL);
 
-	cxt->dev.total_size = mtd->size;
 	/* just support dmesg right now */
 	cxt->dev.flags = PSTORE_FLAGS_DMESG;
-	cxt->dev.read = mtdpstore_read;
-	cxt->dev.write = mtdpstore_write;
-	cxt->dev.erase = mtdpstore_erase;
-	cxt->dev.panic_write = mtdpstore_panic_write;
+	cxt->dev.zone.read = mtdpstore_read;
+	cxt->dev.zone.write = mtdpstore_write;
+	cxt->dev.zone.erase = mtdpstore_erase;
+	cxt->dev.zone.panic_write = mtdpstore_panic_write;
+	cxt->dev.zone.total_size = mtd->size;
 
 	ret = register_pstore_device(&cxt->dev);
 	if (ret) {

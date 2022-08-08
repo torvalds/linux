@@ -27,8 +27,10 @@
 #include <asm/code-patching-asm.h>
 
 #ifdef CONFIG_PTE_64BIT
+#define PTE_T_SIZE		8
 #define PTE_FLAGS_OFFSET	4	/* offset of PTE flags, in bytes */
 #else
+#define PTE_T_SIZE		4
 #define PTE_FLAGS_OFFSET	0
 #endif
 
@@ -488,7 +490,7 @@ _GLOBAL(flush_hash_pages)
 	bne	2f
 	ble	cr1,19f
 	addi	r4,r4,0x1000
-	addi	r5,r5,PTE_SIZE
+	addi	r5,r5,PTE_T_SIZE
 	addi	r6,r6,-1
 	b	1b
 
@@ -573,7 +575,7 @@ _GLOBAL(flush_hash_pages)
 
 8:	ble	cr1,9f			/* if all ptes checked */
 81:	addi	r6,r6,-1
-	addi	r5,r5,PTE_SIZE
+	addi	r5,r5,PTE_T_SIZE
 	addi	r4,r4,0x1000
 	lwz	r0,0(r5)		/* check next pte */
 	cmpwi	cr1,r6,1

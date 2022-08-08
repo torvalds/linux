@@ -50,6 +50,7 @@ endif
 CFLAGS_KASAN := -fsanitize=kernel-hwaddress \
 		$(call cc-param,hwasan-instrument-stack=$(stack_enable)) \
 		$(call cc-param,hwasan-use-short-granules=0) \
+		$(call cc-param,hwasan-inline-all-checks=0) \
 		$(instrumentation_flags)
 
 endif # CONFIG_KASAN_SW_TAGS

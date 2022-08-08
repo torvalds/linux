@@ -10,6 +10,7 @@
 
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/fwnode_mdio.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -29,128 +30,28 @@ MODULE_LICENSE("GPL");
  * ethernet-phy-idAAAA.BBBB */
 static int of_get_phy_id(struct device_node *device, u32 *phy_id)
 {
-	struct property *prop;
-	const char *cp;
-	unsigned int upper, lower;
-
-	of_property_for_each_string(device, "compatible", prop, cp) {
-		if (sscanf(cp, "ethernet-phy-id%4x.%4x", &upper, &lower) == 2) {
-			*phy_id = ((upper & 0xFFFF) << 16) | (lower & 0xFFFF);
-			return 0;
-		}
-	}
-	return -EINVAL;
-}
-
-static struct mii_timestamper *of_find_mii_timestamper(struct device_node *node)
-{
-	struct of_phandle_args arg;
-	int err;
-
-	err = of_parse_phandle_with_fixed_args(node, "timestamper", 1, 0, &arg);
-
-	if (err == -ENOENT)
-		return NULL;
-	else if (err)
-		return ERR_PTR(err);
-
-	if (arg.args_count != 1)
-		return ERR_PTR(-EINVAL);
-
-	return register_mii_timestamper(arg.np, arg.args[0]);
+	return fwnode_get_phy_id(of_fwnode_handle(device), phy_id);
 }
 
 int of_mdiobus_phy_device_register(struct mii_bus *mdio, struct phy_device *phy,
-			      struct device_node *child, u32 addr)
+				   struct device_node *child, u32 addr)
 {
-	int rc;
-
-	rc = of_irq_get(child, 0);
-	if (rc == -EPROBE_DEFER)
-		return rc;
-
-	if (rc > 0) {
-		phy->irq = rc;
-		mdio->irq[addr] = rc;
-	} else {
-		phy->irq = mdio->irq[addr];
-	}
-
-	if (of_property_read_bool(child, "broken-turn-around"))
-		mdio->phy_ignore_ta_mask |= 1 << addr;
-
-	of_property_read_u32(child, "reset-assert-us",
-			     &phy->mdio.reset_assert_delay);
-	of_property_read_u32(child, "reset-deassert-us",
-			     &phy->mdio.reset_deassert_delay);
-
-	/* Associate the OF node with the device structure so it
-	 * can be looked up later */
-	of_node_get(child);
-	phy->mdio.dev.of_node = child;
-	phy->mdio.dev.fwnode = of_fwnode_handle(child);
-
-	/* All data is now stored in the phy struct;
-	 * register it */
-	rc = phy_device_register(phy);
-	if (rc) {
-		of_node_put(child);
-		return rc;
-	}
-
-	dev_dbg(&mdio->dev, "registered phy %pOFn at address %i\n",
-		child, addr);
-	return 0;
+	return fwnode_mdiobus_phy_device_register(mdio, phy,
+						  of_fwnode_handle(child),
+						  addr);
 }
 EXPORT_SYMBOL(of_mdiobus_phy_device_register);
 
 static int of_mdiobus_register_phy(struct mii_bus *mdio,
 				    struct device_node *child, u32 addr)
 {
-	struct mii_timestamper *mii_ts;
-	struct phy_device *phy;
-	bool is_c45;
-	int rc;
-	u32 phy_id;
-
-	mii_ts = of_find_mii_timestamper(child);
-	if (IS_ERR(mii_ts))
-		return PTR_ERR(mii_ts);
-
-	is_c45 = of_device_is_compatible(child,
-					 "ethernet-phy-ieee802.3-c45");
-
-	if (!is_c45 && !of_get_phy_id(child, &phy_id))
-		phy = phy_device_create(mdio, addr, phy_id, 0, NULL);
-	else
-		phy = get_phy_device(mdio, addr, is_c45);
-	if (IS_ERR(phy)) {
-		if (mii_ts)
-			unregister_mii_timestamper(mii_ts);
-		return PTR_ERR(phy);
-	}
-
-	rc = of_mdiobus_phy_device_register(mdio, phy, child, addr);
-	if (rc) {
-		if (mii_ts)
-			unregister_mii_timestamper(mii_ts);
-		phy_device_free(phy);
-		return rc;
-	}
-
-	/* phy->mii_ts may already be defined by the PHY driver. A
-	 * mii_timestamper probed via the device tree will still have
-	 * precedence.
-	 */
-	if (mii_ts)
-		phy->mii_ts = mii_ts;
-
-	return 0;
+	return fwnode_mdiobus_register_phy(mdio, of_fwnode_handle(child), addr);
 }
 
 static int of_mdiobus_register_device(struct mii_bus *mdio,
 				      struct device_node *child, u32 addr)
 {
+	struct fwnode_handle *fwnode = of_fwnode_handle(child);
 	struct mdio_device *mdiodev;
 	int rc;
 
@@ -161,9 +62,8 @@ static int of_mdiobus_register_device(struct mii_bus *mdio,
 	/* Associate the OF node with the device structure so it
 	 * can be looked up later.
 	 */
-	of_node_get(child);
-	mdiodev->dev.of_node = child;
-	mdiodev->dev.fwnode = of_fwnode_handle(child);
+	fwnode_handle_get(fwnode);
+	device_set_node(&mdiodev->dev, fwnode);
 
 	/* All data is now stored in the mdiodev struct; register it. */
 	rc = mdio_device_register(mdiodev);
@@ -262,8 +162,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	 * the device tree are populated after the bus has been registered */
 	mdio->phy_mask = ~0;
 
-	mdio->dev.of_node = np;
-	mdio->dev.fwnode = of_fwnode_handle(np);
+	device_set_node(&mdio->dev, of_fwnode_handle(np));
 
 	/* Get bus level PHY reset GPIO details */
 	mdio->reset_delay_us = DEFAULT_GPIO_RESET_DELAY;
@@ -347,16 +246,7 @@ EXPORT_SYMBOL(of_mdiobus_register);
  */
 struct mdio_device *of_mdio_find_device(struct device_node *np)
 {
-	struct device *d;
-
-	if (!np)
-		return NULL;
-
-	d = bus_find_device_by_of_node(&mdio_bus_type, np);
-	if (!d)
-		return NULL;
-
-	return to_mdio_device(d);
+	return fwnode_mdio_find_device(of_fwnode_handle(np));
 }
 EXPORT_SYMBOL(of_mdio_find_device);
 
@@ -369,18 +259,7 @@ EXPORT_SYMBOL(of_mdio_find_device);
  */
 struct phy_device *of_phy_find_device(struct device_node *phy_np)
 {
-	struct mdio_device *mdiodev;
-
-	mdiodev = of_mdio_find_device(phy_np);
-	if (!mdiodev)
-		return NULL;
-
-	if (mdiodev->flags & MDIO_DEVICE_FLAG_PHY)
-		return to_phy_device(&mdiodev->dev);
-
-	put_device(&mdiodev->dev);
-
-	return NULL;
+	return fwnode_phy_find_device(of_fwnode_handle(phy_np));
 }
 EXPORT_SYMBOL(of_phy_find_device);
 
@@ -466,7 +345,7 @@ EXPORT_SYMBOL(of_phy_get_and_connect);
  * of_phy_is_fixed_link() and of_phy_register_fixed_link() must
  * support two DT bindings:
  * - the old DT binding, where 'fixed-link' was a property with 5
- *   cells encoding various informations about the fixed PHY
+ *   cells encoding various information about the fixed PHY
  * - the new DT binding, where 'fixed-link' is a sub-node of the
  *   Ethernet device.
  */

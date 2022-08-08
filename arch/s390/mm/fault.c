@@ -285,26 +285,6 @@ static noinline void do_sigbus(struct pt_regs *regs)
 			(void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK));
 }
 
-static noinline int signal_return(struct pt_regs *regs)
-{
-	u16 instruction;
-	int rc;
-
-	rc = __get_user(instruction, (u16 __user *) regs->psw.addr);
-	if (rc)
-		return rc;
-	if (instruction == 0x0a77) {
-		set_pt_regs_flag(regs, PIF_SYSCALL);
-		regs->int_code = 0x00040077;
-		return 0;
-	} else if (instruction == 0x0aad) {
-		set_pt_regs_flag(regs, PIF_SYSCALL);
-		regs->int_code = 0x000400ad;
-		return 0;
-	}
-	return -EACCES;
-}
-
 static noinline void do_fault_error(struct pt_regs *regs, int access,
 					vm_fault_t fault)
 {
@@ -312,9 +292,6 @@ static noinline void do_fault_error(struct pt_regs *regs, int access,
 
 	switch (fault) {
 	case VM_FAULT_BADACCESS:
-		if (access == VM_EXEC && signal_return(regs) == 0)
-			break;
-		fallthrough;
 	case VM_FAULT_BADMAP:
 		/* Bad memory access. Check if it is kernel or user space. */
 		if (user_mode(regs)) {
@@ -702,7 +679,7 @@ static void pfault_interrupt(struct ext_code ext_code,
 			 * interrupt since it must be a leftover of a PFAULT
 			 * CANCEL operation which didn't remove all pending
 			 * completion interrupts. */
-			if (tsk->state == TASK_RUNNING)
+			if (task_is_running(tsk))
 				tsk->thread.pfault_wait = -1;
 		}
 	} else {
@@ -791,6 +768,32 @@ void do_secure_storage_access(struct pt_regs *regs)
 	struct mm_struct *mm;
 	struct page *page;
 	int rc;
+
+	/*
+	 * bit 61 tells us if the address is valid, if it's not we
+	 * have a major problem and should stop the kernel or send a
+	 * SIGSEGV to the process. Unfortunately bit 61 is not
+	 * reliable without the misc UV feature so we need to check
+	 * for that as well.
+	 */
+	if (test_bit_inv(BIT_UV_FEAT_MISC, &uv_info.uv_feature_indications) &&
+	    !test_bit_inv(61, &regs->int_parm_long)) {
+		/*
+		 * When this happens, userspace did something that it
+		 * was not supposed to do, e.g. branching into secure
+		 * memory. Trigger a segmentation fault.
+		 */
+		if (user_mode(regs)) {
+			send_sig(SIGSEGV, current, 0);
+			return;
+		}
+
+		/*
+		 * The kernel should never run into this case and we
+		 * have no way out of this situation.
+		 */
+		panic("Unexpected PGM 0x3d with TEID bit 61=0");
+	}
 
 	switch (get_fault_type(regs)) {
 	case USER_FAULT:

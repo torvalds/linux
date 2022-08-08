@@ -55,6 +55,8 @@ static int proc_sctp_do_alpha_beta(struct ctl_table *ctl, int write,
 				   void *buffer, size_t *lenp, loff_t *ppos);
 static int proc_sctp_do_auth(struct ctl_table *ctl, int write,
 			     void *buffer, size_t *lenp, loff_t *ppos);
+static int proc_sctp_do_probe_interval(struct ctl_table *ctl, int write,
+				       void *buffer, size_t *lenp, loff_t *ppos);
 
 static struct ctl_table sctp_table[] = {
 	{
@@ -292,6 +294,13 @@ static struct ctl_table sctp_net_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "plpmtud_probe_interval",
+		.data		= &init_net.sctp.probe_interval,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_sctp_do_probe_interval,
 	},
 	{
 		.procname	= "udp_port",
@@ -534,6 +543,32 @@ static int proc_sctp_do_udp_port(struct ctl_table *ctl, int write,
 		lock_sock(sk);
 		sctp_sk(sk)->udp_port = htons(net->sctp.udp_port);
 		release_sock(sk);
+	}
+
+	return ret;
+}
+
+static int proc_sctp_do_probe_interval(struct ctl_table *ctl, int write,
+				       void *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct net *net = current->nsproxy->net_ns;
+	struct ctl_table tbl;
+	int ret, new_value;
+
+	memset(&tbl, 0, sizeof(struct ctl_table));
+	tbl.maxlen = sizeof(unsigned int);
+
+	if (write)
+		tbl.data = &new_value;
+	else
+		tbl.data = &net->sctp.probe_interval;
+
+	ret = proc_dointvec(&tbl, write, buffer, lenp, ppos);
+	if (write && ret == 0) {
+		if (new_value && new_value < SCTP_PROBE_TIMER_MIN)
+			return -EINVAL;
+
+		net->sctp.probe_interval = new_value;
 	}
 
 	return ret;

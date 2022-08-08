@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/percpu.h>
 #include <linux/jump_label.h>
+#include <asm/interrupt.h>
 #include <asm/opal-api.h>
 #include <asm/trace.h>
 #include <asm/asm-prototypes.h>
@@ -99,6 +100,9 @@ static int64_t opal_call(int64_t a0, int64_t a1, int64_t a2, int64_t a3,
 	unsigned long msr = mfmsr();
 	bool mmu = (msr & (MSR_IR|MSR_DR));
 	int64_t ret;
+
+	/* OPAL call / firmware may use SRR and/or HSRR */
+	srr_regs_clobbered();
 
 	msr &= ~MSR_EE;
 

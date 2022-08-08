@@ -206,11 +206,6 @@ static inline u8 ib_get_lver(struct ib_header *hdr)
 		   IB_LVER_MASK);
 }
 
-static inline u16 ib_get_len(struct ib_header *hdr)
-{
-	return (u16)(be16_to_cpu(hdr->lrh[2]));
-}
-
 static inline u32 ib_get_qkey(struct ib_other_headers *ohdr)
 {
 	return be32_to_cpu(ohdr->u.ud.deth[0]);

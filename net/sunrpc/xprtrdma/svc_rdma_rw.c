@@ -483,7 +483,7 @@ out_overflow:
  * @iov: kvec to write
  *
  * Returns:
- *   On succes, returns zero
+ *   On success, returns zero
  *   %-E2BIG if the client-provided Write chunk is too small
  *   %-ENOMEM if a resource has been exhausted
  *   %-EIO if an rdma-rw error occurred
@@ -504,7 +504,7 @@ static int svc_rdma_iov_write(struct svc_rdma_write_info *info,
  * @length: number of bytes to write
  *
  * Returns:
- *   On succes, returns zero
+ *   On success, returns zero
  *   %-E2BIG if the client-provided Write chunk is too small
  *   %-ENOMEM if a resource has been exhausted
  *   %-EIO if an rdma-rw error occurred
@@ -526,7 +526,7 @@ static int svc_rdma_pages_write(struct svc_rdma_write_info *info,
  * @data: pointer to write arguments
  *
  * Returns:
- *   On succes, returns zero
+ *   On success, returns zero
  *   %-E2BIG if the client-provided Write chunk is too small
  *   %-ENOMEM if a resource has been exhausted
  *   %-EIO if an rdma-rw error occurred

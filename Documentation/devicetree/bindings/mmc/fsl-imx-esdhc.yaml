@@ -116,7 +116,6 @@ properties:
 
   pinctrl-names:
     minItems: 1
-    maxItems: 4
     items:
       - const: default
       - const: state_100mhz

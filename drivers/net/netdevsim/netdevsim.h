@@ -197,11 +197,22 @@ static inline void nsim_dev_psample_exit(struct nsim_dev *nsim_dev)
 }
 #endif
 
+enum nsim_dev_port_type {
+	NSIM_DEV_PORT_TYPE_PF,
+	NSIM_DEV_PORT_TYPE_VF,
+};
+
+#define NSIM_DEV_VF_PORT_INDEX_BASE 128
+#define NSIM_DEV_VF_PORT_INDEX_MAX UINT_MAX
+
 struct nsim_dev_port {
 	struct list_head list;
 	struct devlink_port devlink_port;
 	unsigned int port_index;
+	enum nsim_dev_port_type port_type;
 	struct dentry *ddir;
+	struct dentry *rate_parent;
+	char *parent_name;
 	struct netdevsim *ns;
 };
 
@@ -212,6 +223,8 @@ struct nsim_dev {
 	struct dentry *ddir;
 	struct dentry *ports_ddir;
 	struct dentry *take_snapshot;
+	struct dentry *max_vfs;
+	struct dentry *nodes_ddir;
 	struct bpf_offload_dev *bpf_dev;
 	bool bpf_bind_accept;
 	bool bpf_bind_verifier_accept;
@@ -236,6 +249,7 @@ struct nsim_dev {
 	bool fail_trap_group_set;
 	bool fail_trap_policer_set;
 	bool fail_trap_policer_counter_get;
+	bool fail_trap_drop_counter_get;
 	struct {
 		struct udp_tunnel_nic_shared utn_shared;
 		u32 __ports[2][NSIM_UDP_TUNNEL_N_PORTS];
@@ -247,7 +261,21 @@ struct nsim_dev {
 		u32 sleep;
 	} udp_ports;
 	struct nsim_dev_psample *psample;
+	u16 esw_mode;
 };
+
+int nsim_esw_legacy_enable(struct nsim_dev *nsim_dev, struct netlink_ext_ack *extack);
+int nsim_esw_switchdev_enable(struct nsim_dev *nsim_dev, struct netlink_ext_ack *extack);
+
+static inline bool nsim_esw_mode_is_legacy(struct nsim_dev *nsim_dev)
+{
+	return nsim_dev->esw_mode == DEVLINK_ESWITCH_MODE_LEGACY;
+}
+
+static inline bool nsim_esw_mode_is_switchdev(struct nsim_dev *nsim_dev)
+{
+	return nsim_dev->esw_mode == DEVLINK_ESWITCH_MODE_SWITCHDEV;
+}
 
 static inline struct net *nsim_dev_net(struct nsim_dev *nsim_dev)
 {
@@ -259,8 +287,10 @@ void nsim_dev_exit(void);
 int nsim_dev_probe(struct nsim_bus_dev *nsim_bus_dev);
 void nsim_dev_remove(struct nsim_bus_dev *nsim_bus_dev);
 int nsim_dev_port_add(struct nsim_bus_dev *nsim_bus_dev,
+		      enum nsim_dev_port_type type,
 		      unsigned int port_index);
 int nsim_dev_port_del(struct nsim_bus_dev *nsim_bus_dev,
+		      enum nsim_dev_port_type type,
 		      unsigned int port_index);
 
 struct nsim_fib_data *nsim_fib_create(struct devlink *devlink,
@@ -269,6 +299,23 @@ void nsim_fib_destroy(struct devlink *devlink, struct nsim_fib_data *fib_data);
 u64 nsim_fib_get_val(struct nsim_fib_data *fib_data,
 		     enum nsim_resource_id res_id, bool max);
 
+ssize_t nsim_bus_dev_max_vfs_read(struct file *file,
+				  char __user *data,
+				  size_t count, loff_t *ppos);
+ssize_t nsim_bus_dev_max_vfs_write(struct file *file,
+				   const char __user *data,
+				   size_t count, loff_t *ppos);
+void nsim_bus_dev_vfs_disable(struct nsim_bus_dev *nsim_bus_dev);
+
+static inline bool nsim_dev_port_is_pf(struct nsim_dev_port *nsim_dev_port)
+{
+	return nsim_dev_port->port_type == NSIM_DEV_PORT_TYPE_PF;
+}
+
+static inline bool nsim_dev_port_is_vf(struct nsim_dev_port *nsim_dev_port)
+{
+	return nsim_dev_port->port_type == NSIM_DEV_PORT_TYPE_VF;
+}
 #if IS_ENABLED(CONFIG_XFRM_OFFLOAD)
 void nsim_ipsec_init(struct netdevsim *ns);
 void nsim_ipsec_teardown(struct netdevsim *ns);
@@ -308,7 +355,9 @@ struct nsim_bus_dev {
 	struct net *initial_net; /* Purpose of this is to carry net pointer
 				  * during the probe time only.
 				  */
+	unsigned int max_vfs;
 	unsigned int num_vfs;
+	struct mutex vfs_lock;  /* Protects vfconfigs */
 	struct nsim_vf_config *vfconfigs;
 	/* Lock for devlink->reload_enabled in netdevsim module */
 	struct mutex nsim_bus_reload_lock;

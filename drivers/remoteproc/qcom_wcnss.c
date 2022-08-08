@@ -624,8 +624,8 @@ static int wcnss_probe(struct platform_device *pdev)
 	wcnss->stop_ack_irq = ret;
 
 	if (wcnss->stop_ack_irq) {
-		wcnss->state = qcom_smem_state_get(&pdev->dev, "stop",
-						   &wcnss->stop_bit);
+		wcnss->state = devm_qcom_smem_state_get(&pdev->dev, "stop",
+							&wcnss->stop_bit);
 		if (IS_ERR(wcnss->state)) {
 			ret = PTR_ERR(wcnss->state);
 			goto detach_pds;
@@ -659,7 +659,6 @@ static int wcnss_remove(struct platform_device *pdev)
 
 	of_platform_depopulate(&pdev->dev);
 
-	qcom_smem_state_put(wcnss->state);
 	rproc_del(wcnss->rproc);
 
 	qcom_remove_sysmon_subdev(wcnss->sysmon);

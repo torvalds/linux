@@ -124,50 +124,6 @@
 		scsi_hostbyte_name(DID_TRANSPORT_DISRUPTED),	\
 		scsi_hostbyte_name(DID_TRANSPORT_FAILFAST))
 
-#define scsi_driverbyte_name(result)	{ result, #result }
-#define show_driverbyte_name(val)				\
-	__print_symbolic(val,					\
-		scsi_driverbyte_name(DRIVER_OK),		\
-		scsi_driverbyte_name(DRIVER_BUSY),		\
-		scsi_driverbyte_name(DRIVER_SOFT),		\
-		scsi_driverbyte_name(DRIVER_MEDIA),		\
-		scsi_driverbyte_name(DRIVER_ERROR),		\
-		scsi_driverbyte_name(DRIVER_INVALID),		\
-		scsi_driverbyte_name(DRIVER_TIMEOUT),		\
-		scsi_driverbyte_name(DRIVER_HARD),		\
-		scsi_driverbyte_name(DRIVER_SENSE))
-
-#define scsi_msgbyte_name(result)	{ result, #result }
-#define show_msgbyte_name(val)					\
-	__print_symbolic(val,					\
-		scsi_msgbyte_name(COMMAND_COMPLETE),		\
-		scsi_msgbyte_name(EXTENDED_MESSAGE),		\
-		scsi_msgbyte_name(SAVE_POINTERS),		\
-		scsi_msgbyte_name(RESTORE_POINTERS),		\
-		scsi_msgbyte_name(DISCONNECT),			\
-		scsi_msgbyte_name(INITIATOR_ERROR),		\
-		scsi_msgbyte_name(ABORT_TASK_SET),		\
-		scsi_msgbyte_name(MESSAGE_REJECT),		\
-		scsi_msgbyte_name(NOP),				\
-		scsi_msgbyte_name(MSG_PARITY_ERROR),		\
-		scsi_msgbyte_name(LINKED_CMD_COMPLETE),		\
-		scsi_msgbyte_name(LINKED_FLG_CMD_COMPLETE),	\
-		scsi_msgbyte_name(TARGET_RESET),		\
-		scsi_msgbyte_name(ABORT_TASK),			\
-		scsi_msgbyte_name(CLEAR_TASK_SET),		\
-		scsi_msgbyte_name(INITIATE_RECOVERY),		\
-		scsi_msgbyte_name(RELEASE_RECOVERY),		\
-		scsi_msgbyte_name(CLEAR_ACA),			\
-		scsi_msgbyte_name(LOGICAL_UNIT_RESET),		\
-		scsi_msgbyte_name(SIMPLE_QUEUE_TAG),		\
-		scsi_msgbyte_name(HEAD_OF_QUEUE_TAG),		\
-		scsi_msgbyte_name(ORDERED_QUEUE_TAG),		\
-		scsi_msgbyte_name(IGNORE_WIDE_RESIDUE),		\
-		scsi_msgbyte_name(ACA),				\
-		scsi_msgbyte_name(QAS_REQUEST),			\
-		scsi_msgbyte_name(BUS_DEVICE_RESET),		\
-		scsi_msgbyte_name(ABORT))
-
 #define scsi_statusbyte_name(result)	{ result, #result }
 #define show_statusbyte_name(val)				\
 	__print_symbolic(val,					\
@@ -327,9 +283,9 @@ DECLARE_EVENT_CLASS(scsi_cmd_done_timeout_template,
 		  show_opcode_name(__entry->opcode),
 		  __parse_cdb(__get_dynamic_array(cmnd), __entry->cmd_len),
 		  __print_hex(__get_dynamic_array(cmnd), __entry->cmd_len),
-		  show_driverbyte_name(((__entry->result) >> 24) & 0xff),
+		  "DRIVER_OK",
 		  show_hostbyte_name(((__entry->result) >> 16) & 0xff),
-		  show_msgbyte_name(((__entry->result) >> 8) & 0xff),
+		  "COMMAND_COMPLETE",
 		  show_statusbyte_name(__entry->result & 0xff))
 );
 

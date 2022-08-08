@@ -18,6 +18,8 @@ Description:
 		respectively which simply helper channels containing the
 		calculated difference in the value of stage 1 - 2 and 3 - 4.
 		The values are expressed in 24-bit twos complement.
+		The LED current for the stage is controlled via
+		out_currentY_raw.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensityY_offset
 Date:		May 2016
@@ -35,11 +37,3 @@ Contact:	Andrew F. Davis <afd@ti.com>
 Description:
 		Get and set the resistance and the capacitance settings for the
 		Transimpedance Amplifier during the associated stage.
-
-What:		/sys/bus/iio/devices/iio:deviceX/out_currentY_raw
-Date:		May 2016
-KernelVersion:
-Contact:	Andrew F. Davis <afd@ti.com>
-Description:
-		Get and set the LED current for the specified LED active during
-		this stage. Y is the specific stage number.

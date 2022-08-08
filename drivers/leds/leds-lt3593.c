@@ -7,8 +7,9 @@
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/slab.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/property.h>
 
 #define LED_LT3593_NAME "lt3593"
 
@@ -68,9 +69,6 @@ static int lt3593_led_probe(struct platform_device *pdev)
 	struct led_init_data init_data = {};
 	const char *tmp;
 
-	if (!dev_of_node(dev))
-		return -ENODEV;
-
 	led_data = devm_kzalloc(dev, sizeof(*led_data), GFP_KERNEL);
 	if (!led_data)
 		return -ENOMEM;
@@ -119,7 +117,7 @@ static struct platform_driver lt3593_led_driver = {
 	.probe		= lt3593_led_probe,
 	.driver		= {
 		.name	= "leds-lt3593",
-		.of_match_table = of_match_ptr(of_lt3593_leds_match),
+		.of_match_table = of_lt3593_leds_match,
 	},
 };
 

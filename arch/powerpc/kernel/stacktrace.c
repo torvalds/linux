@@ -23,8 +23,8 @@
 
 #include <asm/paca.h>
 
-void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
-		     struct task_struct *task, struct pt_regs *regs)
+void __no_sanitize_address arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
+					   struct task_struct *task, struct pt_regs *regs)
 {
 	unsigned long sp;
 
@@ -61,8 +61,8 @@ void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
  *
  * If the task is not 'current', the caller *must* ensure the task is inactive.
  */
-int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
-			     void *cookie, struct task_struct *task)
+int __no_sanitize_address arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
+						   void *cookie, struct task_struct *task)
 {
 	unsigned long sp;
 	unsigned long newsp;
@@ -172,17 +172,31 @@ static void handle_backtrace_ipi(struct pt_regs *regs)
 
 static void raise_backtrace_ipi(cpumask_t *mask)
 {
+	struct paca_struct *p;
 	unsigned int cpu;
+	u64 delay_us;
 
 	for_each_cpu(cpu, mask) {
-		if (cpu == smp_processor_id())
+		if (cpu == smp_processor_id()) {
 			handle_backtrace_ipi(NULL);
-		else
-			smp_send_safe_nmi_ipi(cpu, handle_backtrace_ipi, 5 * USEC_PER_SEC);
-	}
+			continue;
+		}
 
-	for_each_cpu(cpu, mask) {
-		struct paca_struct *p = paca_ptrs[cpu];
+		delay_us = 5 * USEC_PER_SEC;
+
+		if (smp_send_safe_nmi_ipi(cpu, handle_backtrace_ipi, delay_us)) {
+			// Now wait up to 5s for the other CPU to do its backtrace
+			while (cpumask_test_cpu(cpu, mask) && delay_us) {
+				udelay(1);
+				delay_us--;
+			}
+
+			// Other CPU cleared itself from the mask
+			if (delay_us)
+				continue;
+		}
+
+		p = paca_ptrs[cpu];
 
 		cpumask_clear_cpu(cpu, mask);
 

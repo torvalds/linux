@@ -4,6 +4,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 
 / {
 	aliases {
@@ -95,6 +96,63 @@
 			pinctrl-0 = <&muic_int_default>;
 		};
 	};
+
+	i2c-tkey {
+		compatible = "i2c-gpio";
+		sda-gpios = <&msmgpio 16 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&msmgpio 17 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tkey_i2c_default>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		touchkey: touchkey@20 {
+			/* Note: Actually an ABOV MCU that implements same interface */
+			compatible = "coreriver,tc360-touchkey";
+			reg = <0x20>;
+
+			interrupt-parent = <&msmgpio>;
+			interrupts = <98 IRQ_TYPE_EDGE_FALLING>;
+
+			/* vcc/vdd-supply are board-specific */
+			vddio-supply = <&pm8916_l6>;
+
+			linux,keycodes = <KEY_APPSELECT KEY_BACK>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&tkey_default>;
+		};
+	};
+
+	i2c-nfc {
+		compatible = "i2c-gpio";
+		sda-gpios = <&msmgpio 0 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&msmgpio 1 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&nfc_i2c_default>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		nfc@27 {
+			compatible = "samsung,s3fwrn5-i2c";
+			reg = <0x27>;
+
+			interrupt-parent = <&msmgpio>;
+			interrupts = <21 IRQ_TYPE_EDGE_RISING>;
+
+			en-gpios = <&msmgpio 20 GPIO_ACTIVE_HIGH>;
+			wake-gpios = <&msmgpio 49 GPIO_ACTIVE_HIGH>;
+
+			clocks = <&rpmcc RPM_SMD_BB_CLK2_PIN>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&nfc_default &nfc_clk_req>;
+		};
+	};
 };
 
 &blsp_i2c2 {
@@ -119,6 +177,20 @@
 
 		vdd-supply = <&pm8916_l17>;
 		vddio-supply = <&pm8916_l5>;
+	};
+};
+
+&blsp_i2c4 {
+	status = "okay";
+
+	battery@35 {
+		compatible = "richtek,rt5033-battery";
+		reg = <0x35>;
+		interrupt-parent = <&msmgpio>;
+		interrupts = <121 IRQ_TYPE_EDGE_BOTH>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&fg_alert_default>;
 	};
 };
 
@@ -284,6 +356,14 @@
 		bias-disable;
 	};
 
+	fg_alert_default: fg-alert-default {
+		pins = "gpio121";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
 	gpio_keys_default: gpio-keys-default {
 		pins = "gpio107", "gpio109";
 		function = "gpio";
@@ -333,11 +413,62 @@
 		bias-disable;
 	};
 
+	nfc_default: nfc-default {
+		pins = "gpio20", "gpio49";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+
+		irq {
+			pins = "gpio21";
+			function = "gpio";
+
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
+	nfc_i2c_default: nfc-i2c-default {
+		pins = "gpio0", "gpio1";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	tkey_default: tkey-default {
+		pins = "gpio98";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	tkey_i2c_default: tkey-i2c-default {
+		pins = "gpio16", "gpio17";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
 	tsp_en_default: tsp-en-default {
 		pins = "gpio73";
 		function = "gpio";
 
 		drive-strength = <2>;
 		bias-disable;
+	};
+};
+
+&pm8916_gpios {
+	nfc_clk_req: nfc-clk-req {
+		pins = "gpio2";
+		function = "func1";
+
+		input-enable;
+		bias-disable;
+		power-source = <PM8916_GPIO_L2>;
 	};
 };

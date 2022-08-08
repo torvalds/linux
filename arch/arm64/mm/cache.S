@@ -15,7 +15,7 @@
 #include <asm/asm-uaccess.h>
 
 /*
- *	flush_icache_range(start,end)
+ *	caches_clean_inval_pou_macro(start,end) [fixup]
  *
  *	Ensure that the I and D caches are coherent within specified region.
  *	This is typically used when code has been written to a memory region,
@@ -23,70 +23,54 @@
  *
  *	- start   - virtual start address of region
  *	- end     - virtual end address of region
+ *	- fixup   - optional label to branch to on user fault
  */
-SYM_FUNC_START(__flush_icache_range)
-	/* FALLTHROUGH */
-
-/*
- *	__flush_cache_user_range(start,end)
- *
- *	Ensure that the I and D caches are coherent within specified region.
- *	This is typically used when code has been written to a memory region,
- *	and will be executed.
- *
- *	- start   - virtual start address of region
- *	- end     - virtual end address of region
- */
-SYM_FUNC_START(__flush_cache_user_range)
-	uaccess_ttbr0_enable x2, x3, x4
+.macro	caches_clean_inval_pou_macro, fixup
 alternative_if ARM64_HAS_CACHE_IDC
-	dsb	ishst
-	b	7f
+	dsb     ishst
+	b       .Ldc_skip_\@
 alternative_else_nop_endif
-	dcache_line_size x2, x3
-	sub	x3, x2, #1
-	bic	x4, x0, x3
-1:
-user_alt 9f, "dc cvau, x4",  "dc civac, x4",  ARM64_WORKAROUND_CLEAN_CACHE
-	add	x4, x4, x2
-	cmp	x4, x1
-	b.lo	1b
-	dsb	ish
-
-7:
+	mov     x2, x0
+	mov     x3, x1
+	dcache_by_line_op cvau, ish, x2, x3, x4, x5, \fixup
+.Ldc_skip_\@:
 alternative_if ARM64_HAS_CACHE_DIC
 	isb
-	b	8f
+	b	.Lic_skip_\@
 alternative_else_nop_endif
-	invalidate_icache_by_line x0, x1, x2, x3, 9f
-8:	mov	x0, #0
-1:
-	uaccess_ttbr0_disable x1, x2
-	ret
-9:
-	mov	x0, #-EFAULT
-	b	1b
-SYM_FUNC_END(__flush_icache_range)
-SYM_FUNC_END(__flush_cache_user_range)
+	invalidate_icache_by_line x0, x1, x2, x3, \fixup
+.Lic_skip_\@:
+.endm
 
 /*
- *	invalidate_icache_range(start,end)
+ *	caches_clean_inval_pou(start,end)
  *
- *	Ensure that the I cache is invalid within specified region.
+ *	Ensure that the I and D caches are coherent within specified region.
+ *	This is typically used when code has been written to a memory region,
+ *	and will be executed.
  *
  *	- start   - virtual start address of region
  *	- end     - virtual end address of region
  */
-SYM_FUNC_START(invalidate_icache_range)
-alternative_if ARM64_HAS_CACHE_DIC
-	mov	x0, xzr
-	isb
+SYM_FUNC_START(caches_clean_inval_pou)
+	caches_clean_inval_pou_macro
 	ret
-alternative_else_nop_endif
+SYM_FUNC_END(caches_clean_inval_pou)
 
+/*
+ *	caches_clean_inval_user_pou(start,end)
+ *
+ *	Ensure that the I and D caches are coherent within specified region.
+ *	This is typically used when code has been written to a memory region,
+ *	and will be executed.
+ *
+ *	- start   - virtual start address of region
+ *	- end     - virtual end address of region
+ */
+SYM_FUNC_START(caches_clean_inval_user_pou)
 	uaccess_ttbr0_enable x2, x3, x4
 
-	invalidate_icache_by_line x0, x1, x2, x3, 2f
+	caches_clean_inval_pou_macro 2f
 	mov	x0, xzr
 1:
 	uaccess_ttbr0_disable x1, x2
@@ -94,60 +78,77 @@ alternative_else_nop_endif
 2:
 	mov	x0, #-EFAULT
 	b	1b
-SYM_FUNC_END(invalidate_icache_range)
+SYM_FUNC_END(caches_clean_inval_user_pou)
 
 /*
- *	__flush_dcache_area(kaddr, size)
+ *	icache_inval_pou(start,end)
  *
- *	Ensure that any D-cache lines for the interval [kaddr, kaddr+size)
+ *	Ensure that the I cache is invalid within specified region.
+ *
+ *	- start   - virtual start address of region
+ *	- end     - virtual end address of region
+ */
+SYM_FUNC_START(icache_inval_pou)
+alternative_if ARM64_HAS_CACHE_DIC
+	isb
+	ret
+alternative_else_nop_endif
+
+	invalidate_icache_by_line x0, x1, x2, x3
+	ret
+SYM_FUNC_END(icache_inval_pou)
+
+/*
+ *	dcache_clean_inval_poc(start, end)
+ *
+ *	Ensure that any D-cache lines for the interval [start, end)
  *	are cleaned and invalidated to the PoC.
  *
- *	- kaddr   - kernel address
- *	- size    - size in question
+ *	- start   - virtual start address of region
+ *	- end     - virtual end address of region
  */
-SYM_FUNC_START_PI(__flush_dcache_area)
+SYM_FUNC_START_PI(dcache_clean_inval_poc)
 	dcache_by_line_op civac, sy, x0, x1, x2, x3
 	ret
-SYM_FUNC_END_PI(__flush_dcache_area)
+SYM_FUNC_END_PI(dcache_clean_inval_poc)
 
 /*
- *	__clean_dcache_area_pou(kaddr, size)
+ *	dcache_clean_pou(start, end)
  *
- * 	Ensure that any D-cache lines for the interval [kaddr, kaddr+size)
+ * 	Ensure that any D-cache lines for the interval [start, end)
  * 	are cleaned to the PoU.
  *
- *	- kaddr   - kernel address
- *	- size    - size in question
+ *	- start   - virtual start address of region
+ *	- end     - virtual end address of region
  */
-SYM_FUNC_START(__clean_dcache_area_pou)
+SYM_FUNC_START(dcache_clean_pou)
 alternative_if ARM64_HAS_CACHE_IDC
 	dsb	ishst
 	ret
 alternative_else_nop_endif
 	dcache_by_line_op cvau, ish, x0, x1, x2, x3
 	ret
-SYM_FUNC_END(__clean_dcache_area_pou)
+SYM_FUNC_END(dcache_clean_pou)
 
 /*
- *	__inval_dcache_area(kaddr, size)
+ *	dcache_inval_poc(start, end)
  *
- * 	Ensure that any D-cache lines for the interval [kaddr, kaddr+size)
+ * 	Ensure that any D-cache lines for the interval [start, end)
  * 	are invalidated. Any partial lines at the ends of the interval are
  *	also cleaned to PoC to prevent data loss.
  *
- *	- kaddr   - kernel address
- *	- size    - size in question
+ *	- start   - kernel start address of region
+ *	- end     - kernel end address of region
  */
 SYM_FUNC_START_LOCAL(__dma_inv_area)
-SYM_FUNC_START_PI(__inval_dcache_area)
+SYM_FUNC_START_PI(dcache_inval_poc)
 	/* FALLTHROUGH */
 
 /*
- *	__dma_inv_area(start, size)
+ *	__dma_inv_area(start, end)
  *	- start   - virtual start address of region
- *	- size    - size in question
+ *	- end     - virtual end address of region
  */
-	add	x1, x1, x0
 	dcache_line_size x2, x3
 	sub	x3, x2, #1
 	tst	x1, x3				// end cache line aligned?
@@ -165,48 +166,48 @@ SYM_FUNC_START_PI(__inval_dcache_area)
 	b.lo	2b
 	dsb	sy
 	ret
-SYM_FUNC_END_PI(__inval_dcache_area)
+SYM_FUNC_END_PI(dcache_inval_poc)
 SYM_FUNC_END(__dma_inv_area)
 
 /*
- *	__clean_dcache_area_poc(kaddr, size)
+ *	dcache_clean_poc(start, end)
  *
- * 	Ensure that any D-cache lines for the interval [kaddr, kaddr+size)
+ * 	Ensure that any D-cache lines for the interval [start, end)
  * 	are cleaned to the PoC.
  *
- *	- kaddr   - kernel address
- *	- size    - size in question
+ *	- start   - virtual start address of region
+ *	- end     - virtual end address of region
  */
 SYM_FUNC_START_LOCAL(__dma_clean_area)
-SYM_FUNC_START_PI(__clean_dcache_area_poc)
+SYM_FUNC_START_PI(dcache_clean_poc)
 	/* FALLTHROUGH */
 
 /*
- *	__dma_clean_area(start, size)
+ *	__dma_clean_area(start, end)
  *	- start   - virtual start address of region
- *	- size    - size in question
+ *	- end     - virtual end address of region
  */
 	dcache_by_line_op cvac, sy, x0, x1, x2, x3
 	ret
-SYM_FUNC_END_PI(__clean_dcache_area_poc)
+SYM_FUNC_END_PI(dcache_clean_poc)
 SYM_FUNC_END(__dma_clean_area)
 
 /*
- *	__clean_dcache_area_pop(kaddr, size)
+ *	dcache_clean_pop(start, end)
  *
- * 	Ensure that any D-cache lines for the interval [kaddr, kaddr+size)
+ * 	Ensure that any D-cache lines for the interval [start, end)
  * 	are cleaned to the PoP.
  *
- *	- kaddr   - kernel address
- *	- size    - size in question
+ *	- start   - virtual start address of region
+ *	- end     - virtual end address of region
  */
-SYM_FUNC_START_PI(__clean_dcache_area_pop)
+SYM_FUNC_START_PI(dcache_clean_pop)
 	alternative_if_not ARM64_HAS_DCPOP
-	b	__clean_dcache_area_poc
+	b	dcache_clean_poc
 	alternative_else_nop_endif
 	dcache_by_line_op cvap, sy, x0, x1, x2, x3
 	ret
-SYM_FUNC_END_PI(__clean_dcache_area_pop)
+SYM_FUNC_END_PI(dcache_clean_pop)
 
 /*
  *	__dma_flush_area(start, size)
@@ -217,6 +218,7 @@ SYM_FUNC_END_PI(__clean_dcache_area_pop)
  *	- size    - size in question
  */
 SYM_FUNC_START_PI(__dma_flush_area)
+	add	x1, x0, x1
 	dcache_by_line_op civac, sy, x0, x1, x2, x3
 	ret
 SYM_FUNC_END_PI(__dma_flush_area)
@@ -228,6 +230,7 @@ SYM_FUNC_END_PI(__dma_flush_area)
  *	- dir	- DMA direction
  */
 SYM_FUNC_START_PI(__dma_map_area)
+	add	x1, x0, x1
 	cmp	w2, #DMA_FROM_DEVICE
 	b.eq	__dma_inv_area
 	b	__dma_clean_area
@@ -240,6 +243,7 @@ SYM_FUNC_END_PI(__dma_map_area)
  *	- dir	- DMA direction
  */
 SYM_FUNC_START_PI(__dma_unmap_area)
+	add	x1, x0, x1
 	cmp	w2, #DMA_TO_DEVICE
 	b.ne	__dma_inv_area
 	ret

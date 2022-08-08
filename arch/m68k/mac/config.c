@@ -933,13 +933,15 @@ static const struct resource mac_scsi_ccl_rsrc[] __initconst = {
 	},
 };
 
-static const struct resource mac_ide_quadra_rsrc[] __initconst = {
-	DEFINE_RES_MEM(0x50F1A000, 0x104),
+static const struct resource mac_pata_quadra_rsrc[] __initconst = {
+	DEFINE_RES_MEM(0x50F1A000, 0x38),
+	DEFINE_RES_MEM(0x50F1A038, 0x04),
 	DEFINE_RES_IRQ(IRQ_NUBUS_F),
 };
 
-static const struct resource mac_ide_pb_rsrc[] __initconst = {
-	DEFINE_RES_MEM(0x50F1A000, 0x104),
+static const struct resource mac_pata_pb_rsrc[] __initconst = {
+	DEFINE_RES_MEM(0x50F1A000, 0x38),
+	DEFINE_RES_MEM(0x50F1A038, 0x04),
 	DEFINE_RES_IRQ(IRQ_NUBUS_C),
 };
 
@@ -949,7 +951,7 @@ static const struct resource mac_pata_baboon_rsrc[] __initconst = {
 	DEFINE_RES_IRQ(IRQ_BABOON_1),
 };
 
-static const struct pata_platform_info mac_pata_baboon_data __initconst = {
+static const struct pata_platform_info mac_pata_data __initconst = {
 	.ioport_shift = 2,
 };
 
@@ -1067,17 +1069,19 @@ int __init mac_platform_init(void)
 
 	switch (macintosh_config->ide_type) {
 	case MAC_IDE_QUADRA:
-		platform_device_register_simple("mac_ide", -1,
-			mac_ide_quadra_rsrc, ARRAY_SIZE(mac_ide_quadra_rsrc));
+		platform_device_register_resndata(NULL, "pata_platform", -1,
+			mac_pata_quadra_rsrc, ARRAY_SIZE(mac_pata_quadra_rsrc),
+			&mac_pata_data, sizeof(mac_pata_data));
 		break;
 	case MAC_IDE_PB:
-		platform_device_register_simple("mac_ide", -1,
-			mac_ide_pb_rsrc, ARRAY_SIZE(mac_ide_pb_rsrc));
+		platform_device_register_resndata(NULL, "pata_platform", -1,
+			mac_pata_pb_rsrc, ARRAY_SIZE(mac_pata_pb_rsrc),
+			&mac_pata_data, sizeof(mac_pata_data));
 		break;
 	case MAC_IDE_BABOON:
 		platform_device_register_resndata(NULL, "pata_platform", -1,
 			mac_pata_baboon_rsrc, ARRAY_SIZE(mac_pata_baboon_rsrc),
-			&mac_pata_baboon_data, sizeof(mac_pata_baboon_data));
+			&mac_pata_data, sizeof(mac_pata_data));
 		break;
 	}
 

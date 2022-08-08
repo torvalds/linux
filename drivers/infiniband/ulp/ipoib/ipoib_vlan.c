@@ -40,7 +40,7 @@
 
 #include "ipoib.h"
 
-static ssize_t show_parent(struct device *d, struct device_attribute *attr,
+static ssize_t parent_show(struct device *d, struct device_attribute *attr,
 			   char *buf)
 {
 	struct net_device *dev = to_net_dev(d);
@@ -48,7 +48,7 @@ static ssize_t show_parent(struct device *d, struct device_attribute *attr,
 
 	return sysfs_emit(buf, "%s\n", priv->parent->name);
 }
-static DEVICE_ATTR(parent, S_IRUGO, show_parent, NULL);
+static DEVICE_ATTR_RO(parent);
 
 static bool is_child_unique(struct ipoib_dev_priv *ppriv,
 			    struct ipoib_dev_priv *priv)

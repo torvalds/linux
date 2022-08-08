@@ -3,6 +3,7 @@ config PPC_XIVE
 	bool
 	select PPC_SMP_MUXED_IPI
 	select HARDIRQS_SW_RESEND
+	select IRQ_DOMAIN_NOMAP
 
 config PPC_XIVE_NATIVE
 	bool

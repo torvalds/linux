@@ -89,6 +89,7 @@ static inline int WQE_PAGE_NUM(struct hinic_wq *wq, u16 idx)
 	return (((idx) >> ((wq)->wqebbs_per_page_shift))
 		& ((wq)->num_q_pages - 1));
 }
+
 /**
  * queue_alloc_page - allocate page for Queue
  * @hwif: HW interface for allocating DMA

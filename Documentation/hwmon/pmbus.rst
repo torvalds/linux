@@ -3,15 +3,18 @@ Kernel driver pmbus
 
 Supported chips:
 
-  * Ericsson BMR453, BMR454
+  * Flex BMR310, BMR453, BMR454, BMR456, BMR457, BMR458, BMR480,
+    BMR490, BMR491, BMR492
 
-    Prefixes: 'bmr453', 'bmr454'
+    Prefixes: 'bmr310', 'bmr453', 'bmr454', 'bmr456', 'bmr457', 'bmr458', 'bmr480',
+    'bmr490', 'bmr491', 'bmr492'
 
     Addresses scanned: -
 
-    Datasheet:
+    Datasheets:
 
- http://archive.ericsson.net/service/internet/picov/get?DocNo=28701-EN/LZT146395
+	https://flexpowermodules.com/products
+
 
   * ON Semiconductor ADP4000, NCP4200, NCP4208
 

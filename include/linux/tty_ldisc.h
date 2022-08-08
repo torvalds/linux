@@ -201,15 +201,13 @@ struct tty_ldisc_ops {
 	 * The following routines are called from below.
 	 */
 	void	(*receive_buf)(struct tty_struct *, const unsigned char *cp,
-			       char *fp, int count);
+			       const char *fp, int count);
 	void	(*write_wakeup)(struct tty_struct *);
 	void	(*dcd_change)(struct tty_struct *, unsigned int);
 	int	(*receive_buf2)(struct tty_struct *, const unsigned char *cp,
-				char *fp, int count);
+				const char *fp, int count);
 
 	struct  module *owner;
-
-	int refcount;
 };
 
 struct tty_ldisc {

@@ -14,7 +14,6 @@
 
 MODULE_DESCRIPTION("Xillybus driver for PCIe");
 MODULE_AUTHOR("Eli Billauer, Xillybus Ltd.");
-MODULE_VERSION("1.06");
 MODULE_ALIAS("xillybus_pcie");
 MODULE_LICENSE("GPL v2");
 

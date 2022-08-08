@@ -714,10 +714,6 @@ ap_ts_i2c: &i2c14 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
-
-		pdupdate {
-			compatible = "google,cros-ec-pd-update";
-		};
 	};
 };
 

@@ -231,9 +231,9 @@ void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv);
 
 void mlx5e_rep_queue_neigh_stats_work(struct mlx5e_priv *priv);
 
-bool mlx5e_eswitch_vf_rep(struct net_device *netdev);
-bool mlx5e_eswitch_uplink_rep(struct net_device *netdev);
-static inline bool mlx5e_eswitch_rep(struct net_device *netdev)
+bool mlx5e_eswitch_vf_rep(const struct net_device *netdev);
+bool mlx5e_eswitch_uplink_rep(const struct net_device *netdev);
+static inline bool mlx5e_eswitch_rep(const struct net_device *netdev)
 {
 	return mlx5e_eswitch_vf_rep(netdev) ||
 	       mlx5e_eswitch_uplink_rep(netdev);

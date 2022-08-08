@@ -7,6 +7,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_fourcc.h>
 
+#include <video/vga.h>
 #include "bochs.h"
 
 /* ---------------------------------------------------------------------- */
@@ -21,6 +22,19 @@ static void bochs_vga_writeb(struct bochs_device *bochs, u16 ioport, u8 val)
 		writeb(val, bochs->mmio + offset);
 	} else {
 		outb(val, ioport);
+	}
+}
+
+static u8 bochs_vga_readb(struct bochs_device *bochs, u16 ioport)
+{
+	if (WARN_ON(ioport < 0x3c0 || ioport > 0x3df))
+		return 0xff;
+
+	if (bochs->mmio) {
+		int offset = ioport - 0x3c0 + 0x400;
+		return readb(bochs->mmio + offset);
+	} else {
+		return inb(ioport);
 	}
 }
 
@@ -205,6 +219,15 @@ void bochs_hw_fini(struct drm_device *dev)
 	kfree(bochs->edid);
 }
 
+void bochs_hw_blank(struct bochs_device *bochs, bool blank)
+{
+	DRM_DEBUG_DRIVER("hw_blank %d\n", blank);
+	/* discard ar_flip_flop */
+	(void)bochs_vga_readb(bochs, VGA_IS1_RC);
+	/* blank or unblank; we need only update index and set 0x20 */
+	bochs_vga_writeb(bochs, VGA_ATT_W, blank ? 0 : 0x20);
+}
+
 void bochs_hw_setmode(struct bochs_device *bochs,
 		      struct drm_display_mode *mode)
 {
@@ -223,7 +246,7 @@ void bochs_hw_setmode(struct bochs_device *bochs,
 			 bochs->xres, bochs->yres, bochs->bpp,
 			 bochs->yres_virtual);
 
-	bochs_vga_writeb(bochs, 0x3c0, 0x20); /* unblank */
+	bochs_hw_blank(bochs, false);
 
 	bochs_dispi_write(bochs, VBE_DISPI_INDEX_ENABLE,      0);
 	bochs_dispi_write(bochs, VBE_DISPI_INDEX_BPP,         bochs->bpp);

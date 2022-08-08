@@ -76,7 +76,6 @@ static int tps6586x_gpio_probe(struct platform_device *pdev)
 {
 	struct tps6586x_platform_data *pdata;
 	struct tps6586x_gpio *tps6586x_gpio;
-	int ret;
 
 	pdata = dev_get_platdata(pdev->dev.parent);
 	tps6586x_gpio = devm_kzalloc(&pdev->dev,
@@ -106,16 +105,8 @@ static int tps6586x_gpio_probe(struct platform_device *pdev)
 	else
 		tps6586x_gpio->gpio_chip.base = -1;
 
-	ret = devm_gpiochip_add_data(&pdev->dev, &tps6586x_gpio->gpio_chip,
-				     tps6586x_gpio);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
-		return ret;
-	}
-
-	platform_set_drvdata(pdev, tps6586x_gpio);
-
-	return ret;
+	return devm_gpiochip_add_data(&pdev->dev, &tps6586x_gpio->gpio_chip,
+				      tps6586x_gpio);
 }
 
 static struct platform_driver tps6586x_gpio_driver = {

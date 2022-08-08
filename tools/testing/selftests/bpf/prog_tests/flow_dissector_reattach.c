@@ -134,9 +134,9 @@ static void test_link_create_link_create(int netns, int prog1, int prog2)
 	/* Expect failure creating link when another link exists */
 	errno = 0;
 	link2 = bpf_link_create(prog2, netns, BPF_FLOW_DISSECTOR, &opts);
-	if (CHECK_FAIL(link2 != -1 || errno != E2BIG))
+	if (CHECK_FAIL(link2 >= 0 || errno != E2BIG))
 		perror("bpf_prog_attach(prog2) expected E2BIG");
-	if (link2 != -1)
+	if (link2 >= 0)
 		close(link2);
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
@@ -159,9 +159,9 @@ static void test_prog_attach_link_create(int netns, int prog1, int prog2)
 	/* Expect failure creating link when prog attached */
 	errno = 0;
 	link = bpf_link_create(prog2, netns, BPF_FLOW_DISSECTOR, &opts);
-	if (CHECK_FAIL(link != -1 || errno != EEXIST))
+	if (CHECK_FAIL(link >= 0 || errno != EEXIST))
 		perror("bpf_link_create(prog2) expected EEXIST");
-	if (link != -1)
+	if (link >= 0)
 		close(link);
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
@@ -623,7 +623,7 @@ static void run_tests(int netns)
 	}
 out_close:
 	for (i = 0; i < ARRAY_SIZE(progs); i++) {
-		if (progs[i] != -1)
+		if (progs[i] >= 0)
 			CHECK_FAIL(close(progs[i]));
 	}
 }

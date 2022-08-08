@@ -408,7 +408,8 @@ int uart_register_driver(struct uart_driver *uart);
 void uart_unregister_driver(struct uart_driver *uart);
 int uart_add_one_port(struct uart_driver *reg, struct uart_port *port);
 int uart_remove_one_port(struct uart_driver *reg, struct uart_port *port);
-int uart_match_port(struct uart_port *port1, struct uart_port *port2);
+bool uart_match_port(const struct uart_port *port1,
+		const struct uart_port *port2);
 
 /*
  * Power Management
@@ -428,7 +429,7 @@ int uart_resume_port(struct uart_driver *reg, struct uart_port *port);
 static inline int uart_tx_stopped(struct uart_port *port)
 {
 	struct tty_struct *tty = port->state->port.tty;
-	if ((tty && tty->stopped) || port->hw_stopped)
+	if ((tty && tty->flow.stopped) || port->hw_stopped)
 		return 1;
 	return 0;
 }
@@ -517,6 +518,25 @@ static inline void uart_unlock_and_check_sysrq(struct uart_port *port)
 	if (sysrq_ch)
 		handle_sysrq(sysrq_ch);
 }
+
+static inline void uart_unlock_and_check_sysrq_irqrestore(struct uart_port *port,
+		unsigned long flags)
+{
+	int sysrq_ch;
+
+	if (!port->has_sysrq) {
+		spin_unlock_irqrestore(&port->lock, flags);
+		return;
+	}
+
+	sysrq_ch = port->sysrq_ch;
+	port->sysrq_ch = 0;
+
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	if (sysrq_ch)
+		handle_sysrq(sysrq_ch);
+}
 #else	/* CONFIG_MAGIC_SYSRQ_SERIAL */
 static inline int uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
 {
@@ -529,6 +549,11 @@ static inline int uart_prepare_sysrq_char(struct uart_port *port, unsigned int c
 static inline void uart_unlock_and_check_sysrq(struct uart_port *port)
 {
 	spin_unlock(&port->lock);
+}
+static inline void uart_unlock_and_check_sysrq_irqrestore(struct uart_port *port,
+		unsigned long flags)
+{
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 #endif	/* CONFIG_MAGIC_SYSRQ_SERIAL */
 

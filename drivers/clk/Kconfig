@@ -6,10 +6,6 @@ config HAVE_CLK
 	  The <linux/clk.h> calls support software clock gating and
 	  thus are a key power management tool on many systems.
 
-config CLKDEV_LOOKUP
-	bool
-	select HAVE_CLK
-
 config HAVE_CLK_PREPARE
 	bool
 
@@ -26,7 +22,7 @@ menuconfig COMMON_CLK
 	bool "Common Clock Framework"
 	depends on !HAVE_LEGACY_CLK
 	select HAVE_CLK_PREPARE
-	select CLKDEV_LOOKUP
+	select HAVE_CLK
 	select SRCU
 	select RATIONAL
 	help
@@ -54,6 +50,14 @@ config CLK_HSDK
 	help
 	  This driver supports the HSDK core, system, ddr, tunnel and hdmi PLLs
 	  control.
+
+config LMK04832
+	tristate "Ti LMK04832 JESD204B Compliant Clock Jitter Cleaner"
+	depends on SPI
+	select REGMAP_SPI
+	help
+	  Say yes here to build support for Texas Instruments' LMK04832 Ultra
+	  Low-Noise JESD204B Compliant Clock Jitter Cleaner With Dual Loop PLLs
 
 config COMMON_CLK_MAX77686
 	tristate "Clock driver for Maxim 77620/77686/77802 MFD"
@@ -335,6 +339,16 @@ config COMMON_CLK_STM32MP157
 	help
 	  Support for stm32mp157 SoC family clocks
 
+config COMMON_CLK_STM32MP157_SCMI
+	bool "stm32mp157 Clock driver with Trusted Firmware"
+	depends on COMMON_CLK_STM32MP157
+	select COMMON_CLK_SCMI
+	select ARM_SCMI_PROTOCOL
+	default y
+	help
+	  Support for stm32mp157 SoC family clocks with Trusted Firmware using
+	  SCMI protocol.
+
 config COMMON_CLK_STM32F
 	def_bool COMMON_CLK && (MACH_STM32F429 || MACH_STM32F469 || MACH_STM32F746)
 	help
@@ -358,10 +372,10 @@ config COMMON_CLK_MMP2_AUDIO
 
 config COMMON_CLK_BD718XX
 	tristate "Clock driver for 32K clk gates on ROHM PMICs"
-	depends on MFD_ROHM_BD718XX || MFD_ROHM_BD70528 || MFD_ROHM_BD71828
+	depends on MFD_ROHM_BD718XX || MFD_ROHM_BD71828
 	help
-	  This driver supports ROHM BD71837, ROHM BD71847, ROHM BD71828 and
-	  ROHM BD70528 PMICs clock gates.
+	  This driver supports ROHM BD71837, BD71847, BD71850, BD71815
+	  and BD71828 PMICs clock gates.
 
 config COMMON_CLK_FIXED_MMIO
 	bool "Clock driver for Memory Mapped Fixed values"

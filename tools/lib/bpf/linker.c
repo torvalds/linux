@@ -158,7 +158,9 @@ struct bpf_linker {
 
 static int init_output_elf(struct bpf_linker *linker, const char *file);
 
-static int linker_load_obj_file(struct bpf_linker *linker, const char *filename, struct src_obj *obj);
+static int linker_load_obj_file(struct bpf_linker *linker, const char *filename,
+				const struct bpf_linker_file_opts *opts,
+				struct src_obj *obj);
 static int linker_sanity_check_elf(struct src_obj *obj);
 static int linker_sanity_check_elf_symtab(struct src_obj *obj, struct src_sec *sec);
 static int linker_sanity_check_elf_relos(struct src_obj *obj, struct src_sec *sec);
@@ -218,16 +220,16 @@ struct bpf_linker *bpf_linker__new(const char *filename, struct bpf_linker_opts 
 	int err;
 
 	if (!OPTS_VALID(opts, bpf_linker_opts))
-		return NULL;
+		return errno = EINVAL, NULL;
 
 	if (elf_version(EV_CURRENT) == EV_NONE) {
 		pr_warn_elf("libelf initialization failed");
-		return NULL;
+		return errno = EINVAL, NULL;
 	}
 
 	linker = calloc(1, sizeof(*linker));
 	if (!linker)
-		return NULL;
+		return errno = ENOMEM, NULL;
 
 	linker->fd = -1;
 
@@ -239,7 +241,7 @@ struct bpf_linker *bpf_linker__new(const char *filename, struct bpf_linker_opts 
 
 err_out:
 	bpf_linker__free(linker);
-	return NULL;
+	return errno = -err, NULL;
 }
 
 static struct dst_sec *add_dst_sec(struct bpf_linker *linker, const char *sec_name)
@@ -435,15 +437,19 @@ static int init_output_elf(struct bpf_linker *linker, const char *file)
 	return 0;
 }
 
-int bpf_linker__add_file(struct bpf_linker *linker, const char *filename)
+int bpf_linker__add_file(struct bpf_linker *linker, const char *filename,
+			 const struct bpf_linker_file_opts *opts)
 {
 	struct src_obj obj = {};
 	int err = 0;
 
-	if (!linker->elf)
-		return -EINVAL;
+	if (!OPTS_VALID(opts, bpf_linker_file_opts))
+		return libbpf_err(-EINVAL);
 
-	err = err ?: linker_load_obj_file(linker, filename, &obj);
+	if (!linker->elf)
+		return libbpf_err(-EINVAL);
+
+	err = err ?: linker_load_obj_file(linker, filename, opts, &obj);
 	err = err ?: linker_append_sec_data(linker, &obj);
 	err = err ?: linker_append_elf_syms(linker, &obj);
 	err = err ?: linker_append_elf_relos(linker, &obj);
@@ -461,7 +467,7 @@ int bpf_linker__add_file(struct bpf_linker *linker, const char *filename)
 	if (obj.fd >= 0)
 		close(obj.fd);
 
-	return err;
+	return libbpf_err(err);
 }
 
 static bool is_dwarf_sec_name(const char *name)
@@ -529,7 +535,9 @@ static struct src_sec *add_src_sec(struct src_obj *obj, const char *sec_name)
 	return sec;
 }
 
-static int linker_load_obj_file(struct bpf_linker *linker, const char *filename, struct src_obj *obj)
+static int linker_load_obj_file(struct bpf_linker *linker, const char *filename,
+				const struct bpf_linker_file_opts *opts,
+				struct src_obj *obj)
 {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 	const int host_endianness = ELFDATA2LSB;
@@ -884,7 +892,8 @@ static int linker_sanity_check_elf_relos(struct src_obj *obj, struct src_sec *se
 		size_t sym_idx = ELF64_R_SYM(relo->r_info);
 		size_t sym_type = ELF64_R_TYPE(relo->r_info);
 
-		if (sym_type != R_BPF_64_64 && sym_type != R_BPF_64_32) {
+		if (sym_type != R_BPF_64_64 && sym_type != R_BPF_64_32 &&
+		    sym_type != R_BPF_64_ABS64 && sym_type != R_BPF_64_ABS32) {
 			pr_warn("ELF relo #%d in section #%zu has unexpected type %zu in %s\n",
 				i, sec->sec_idx, sym_type, obj->filename);
 			return -EINVAL;
@@ -1780,7 +1789,7 @@ static void sym_update_visibility(Elf64_Sym *sym, int sym_vis)
 	/* libelf doesn't provide setters for ST_VISIBILITY,
 	 * but it is stored in the lower 2 bits of st_other
 	 */
-	sym->st_other &= 0x03;
+	sym->st_other &= ~0x03;
 	sym->st_other |= sym_vis;
 }
 
@@ -2539,11 +2548,11 @@ int bpf_linker__finalize(struct bpf_linker *linker)
 	int err, i;
 
 	if (!linker->elf)
-		return -EINVAL;
+		return libbpf_err(-EINVAL);
 
 	err = finalize_btf(linker);
 	if (err)
-		return err;
+		return libbpf_err(err);
 
 	/* Finalize strings */
 	strs_sz = strset__data_size(linker->strtab_strs);
@@ -2575,14 +2584,14 @@ int bpf_linker__finalize(struct bpf_linker *linker)
 	if (elf_update(linker->elf, ELF_C_NULL) < 0) {
 		err = -errno;
 		pr_warn_elf("failed to finalize ELF layout");
-		return err;
+		return libbpf_err(err);
 	}
 
 	/* Write out final ELF contents */
 	if (elf_update(linker->elf, ELF_C_WRITE) < 0) {
 		err = -errno;
 		pr_warn_elf("failed to write ELF contents");
-		return err;
+		return libbpf_err(err);
 	}
 
 	elf_end(linker->elf);

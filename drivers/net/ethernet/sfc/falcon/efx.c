@@ -2254,12 +2254,12 @@ static struct notifier_block ef4_netdev_notifier = {
 };
 
 static ssize_t
-show_phy_type(struct device *dev, struct device_attribute *attr, char *buf)
+phy_type_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ef4_nic *efx = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", efx->phy_type);
 }
-static DEVICE_ATTR(phy_type, 0444, show_phy_type, NULL);
+static DEVICE_ATTR_RO(phy_type);
 
 static int ef4_register_netdev(struct ef4_nic *efx)
 {

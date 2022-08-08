@@ -10,6 +10,7 @@
 #include <media/v4l2-mem2mem.h>
 #include "hantro.h"
 #include "hantro_hw.h"
+#include "hantro_g1_regs.h"
 
 #define G1_SWREG(nr)			((nr) * 4)
 
@@ -20,7 +21,6 @@
 #define G1_REG_REFER2_BASE		G1_SWREG(16)
 #define G1_REG_REFER3_BASE		G1_SWREG(17)
 #define G1_REG_QTABLE_BASE		G1_SWREG(40)
-#define G1_REG_DEC_E(v)			((v) ? BIT(0) : 0)
 
 #define G1_REG_DEC_AXI_RD_ID(v)		(((v) << 24) & GENMASK(31, 24))
 #define G1_REG_DEC_TIMEOUT_E(v)		((v) ? BIT(23) : 0)
@@ -77,43 +77,33 @@
 
 #define G1_REG_APF_THRESHOLD(v)		(((v) << 0) & GENMASK(13, 0))
 
-#define PICT_TOP_FIELD     1
-#define PICT_BOTTOM_FIELD  2
-#define PICT_FRAME         3
-
 static void
-hantro_g1_mpeg2_dec_set_quantization(struct hantro_dev *vpu,
+hantro_g1_mpeg2_dec_set_quantisation(struct hantro_dev *vpu,
 				     struct hantro_ctx *ctx)
 {
-	struct v4l2_ctrl_mpeg2_quantization *quantization;
+	struct v4l2_ctrl_mpeg2_quantisation *q;
 
-	quantization = hantro_get_ctrl(ctx,
-				       V4L2_CID_MPEG_VIDEO_MPEG2_QUANTIZATION);
-	hantro_mpeg2_dec_copy_qtable(ctx->mpeg2_dec.qtable.cpu,
-				     quantization);
-	vdpu_write_relaxed(vpu, ctx->mpeg2_dec.qtable.dma,
-			   G1_REG_QTABLE_BASE);
+	q = hantro_get_ctrl(ctx, V4L2_CID_STATELESS_MPEG2_QUANTISATION);
+	hantro_mpeg2_dec_copy_qtable(ctx->mpeg2_dec.qtable.cpu, q);
+	vdpu_write_relaxed(vpu, ctx->mpeg2_dec.qtable.dma, G1_REG_QTABLE_BASE);
 }
 
 static void
 hantro_g1_mpeg2_dec_set_buffers(struct hantro_dev *vpu, struct hantro_ctx *ctx,
 				struct vb2_buffer *src_buf,
 				struct vb2_buffer *dst_buf,
-				const struct v4l2_mpeg2_sequence *sequence,
-				const struct v4l2_mpeg2_picture *picture,
-				const struct v4l2_ctrl_mpeg2_slice_params *slice_params)
+				const struct v4l2_ctrl_mpeg2_sequence *seq,
+				const struct v4l2_ctrl_mpeg2_picture *pic)
 {
 	dma_addr_t forward_addr = 0, backward_addr = 0;
 	dma_addr_t current_addr, addr;
 
-	switch (picture->picture_coding_type) {
-	case V4L2_MPEG2_PICTURE_CODING_TYPE_B:
-		backward_addr = hantro_get_ref(ctx,
-					       slice_params->backward_ref_ts);
+	switch (pic->picture_coding_type) {
+	case V4L2_MPEG2_PIC_CODING_TYPE_B:
+		backward_addr = hantro_get_ref(ctx, pic->backward_ref_ts);
 		fallthrough;
-	case V4L2_MPEG2_PICTURE_CODING_TYPE_P:
-		forward_addr = hantro_get_ref(ctx,
-					      slice_params->forward_ref_ts);
+	case V4L2_MPEG2_PIC_CODING_TYPE_P:
+		forward_addr = hantro_get_ref(ctx, pic->forward_ref_ts);
 	}
 
 	/* Source bitstream buffer */
@@ -124,7 +114,7 @@ hantro_g1_mpeg2_dec_set_buffers(struct hantro_dev *vpu, struct hantro_ctx *ctx,
 	addr = hantro_get_dec_buf_addr(ctx, dst_buf);
 	current_addr = addr;
 
-	if (picture->picture_structure == PICT_BOTTOM_FIELD)
+	if (pic->picture_structure == V4L2_MPEG2_PIC_BOTTOM_FIELD)
 		addr += ALIGN(ctx->dst_fmt.width, 16);
 	vdpu_write_relaxed(vpu, addr, G1_REG_DEC_OUT_BASE);
 
@@ -134,18 +124,18 @@ hantro_g1_mpeg2_dec_set_buffers(struct hantro_dev *vpu, struct hantro_ctx *ctx,
 		backward_addr = current_addr;
 
 	/* Set forward ref frame (top/bottom field) */
-	if (picture->picture_structure == PICT_FRAME ||
-	    picture->picture_coding_type == V4L2_MPEG2_PICTURE_CODING_TYPE_B ||
-	    (picture->picture_structure == PICT_TOP_FIELD &&
-	     picture->top_field_first) ||
-	    (picture->picture_structure == PICT_BOTTOM_FIELD &&
-	     !picture->top_field_first)) {
+	if (pic->picture_structure == V4L2_MPEG2_PIC_FRAME ||
+	    pic->picture_coding_type == V4L2_MPEG2_PIC_CODING_TYPE_B ||
+	    (pic->picture_structure == V4L2_MPEG2_PIC_TOP_FIELD &&
+	     pic->flags & V4L2_MPEG2_PIC_FLAG_TOP_FIELD_FIRST) ||
+	    (pic->picture_structure == V4L2_MPEG2_PIC_BOTTOM_FIELD &&
+	     !(pic->flags & V4L2_MPEG2_PIC_FLAG_TOP_FIELD_FIRST))) {
 		vdpu_write_relaxed(vpu, forward_addr, G1_REG_REFER0_BASE);
 		vdpu_write_relaxed(vpu, forward_addr, G1_REG_REFER1_BASE);
-	} else if (picture->picture_structure == PICT_TOP_FIELD) {
+	} else if (pic->picture_structure == V4L2_MPEG2_PIC_TOP_FIELD) {
 		vdpu_write_relaxed(vpu, forward_addr, G1_REG_REFER0_BASE);
 		vdpu_write_relaxed(vpu, current_addr, G1_REG_REFER1_BASE);
-	} else if (picture->picture_structure == PICT_BOTTOM_FIELD) {
+	} else if (pic->picture_structure == V4L2_MPEG2_PIC_BOTTOM_FIELD) {
 		vdpu_write_relaxed(vpu, current_addr, G1_REG_REFER0_BASE);
 		vdpu_write_relaxed(vpu, forward_addr, G1_REG_REFER1_BASE);
 	}
@@ -155,13 +145,12 @@ hantro_g1_mpeg2_dec_set_buffers(struct hantro_dev *vpu, struct hantro_ctx *ctx,
 	vdpu_write_relaxed(vpu, backward_addr, G1_REG_REFER3_BASE);
 }
 
-void hantro_g1_mpeg2_dec_run(struct hantro_ctx *ctx)
+int hantro_g1_mpeg2_dec_run(struct hantro_ctx *ctx)
 {
 	struct hantro_dev *vpu = ctx->dev;
 	struct vb2_v4l2_buffer *src_buf, *dst_buf;
-	const struct v4l2_ctrl_mpeg2_slice_params *slice_params;
-	const struct v4l2_mpeg2_sequence *sequence;
-	const struct v4l2_mpeg2_picture *picture;
+	const struct v4l2_ctrl_mpeg2_sequence *seq;
+	const struct v4l2_ctrl_mpeg2_picture *pic;
 	u32 reg;
 
 	src_buf = hantro_get_src_buf(ctx);
@@ -170,10 +159,10 @@ void hantro_g1_mpeg2_dec_run(struct hantro_ctx *ctx)
 	/* Apply request controls if any */
 	hantro_start_prepare_run(ctx);
 
-	slice_params = hantro_get_ctrl(ctx,
-				       V4L2_CID_MPEG_VIDEO_MPEG2_SLICE_PARAMS);
-	sequence = &slice_params->sequence;
-	picture = &slice_params->picture;
+	seq = hantro_get_ctrl(ctx,
+			      V4L2_CID_STATELESS_MPEG2_SEQUENCE);
+	pic = hantro_get_ctrl(ctx,
+			      V4L2_CID_STATELESS_MPEG2_PICTURE);
 
 	reg = G1_REG_DEC_AXI_RD_ID(0) |
 	      G1_REG_DEC_TIMEOUT_E(1) |
@@ -193,11 +182,11 @@ void hantro_g1_mpeg2_dec_run(struct hantro_ctx *ctx)
 
 	reg = G1_REG_DEC_MODE(5) |
 	      G1_REG_RLC_MODE_E(0) |
-	      G1_REG_PIC_INTERLACE_E(!sequence->progressive_sequence) |
-	      G1_REG_PIC_FIELDMODE_E(picture->picture_structure != PICT_FRAME) |
-	      G1_REG_PIC_B_E(picture->picture_coding_type == V4L2_MPEG2_PICTURE_CODING_TYPE_B) |
-	      G1_REG_PIC_INTER_E(picture->picture_coding_type != V4L2_MPEG2_PICTURE_CODING_TYPE_I) |
-	      G1_REG_PIC_TOPFIELD_E(picture->picture_structure == PICT_TOP_FIELD) |
+	      G1_REG_PIC_INTERLACE_E(!(seq->flags & V4L2_MPEG2_SEQ_FLAG_PROGRESSIVE)) |
+	      G1_REG_PIC_FIELDMODE_E(pic->picture_structure != V4L2_MPEG2_PIC_FRAME) |
+	      G1_REG_PIC_B_E(pic->picture_coding_type == V4L2_MPEG2_PIC_CODING_TYPE_B) |
+	      G1_REG_PIC_INTER_E(pic->picture_coding_type != V4L2_MPEG2_PIC_CODING_TYPE_I) |
+	      G1_REG_PIC_TOPFIELD_E(pic->picture_structure == V4L2_MPEG2_PIC_TOP_FIELD) |
 	      G1_REG_FWD_INTERLACE_E(0) |
 	      G1_REG_FILTERING_DIS(1) |
 	      G1_REG_WRITE_MVS_E(0) |
@@ -206,27 +195,27 @@ void hantro_g1_mpeg2_dec_run(struct hantro_ctx *ctx)
 
 	reg = G1_REG_PIC_MB_WIDTH(MB_WIDTH(ctx->dst_fmt.width)) |
 	      G1_REG_PIC_MB_HEIGHT_P(MB_HEIGHT(ctx->dst_fmt.height)) |
-	      G1_REG_ALT_SCAN_E(picture->alternate_scan) |
-	      G1_REG_TOPFIELDFIRST_E(picture->top_field_first);
+	      G1_REG_ALT_SCAN_E(pic->flags & V4L2_MPEG2_PIC_FLAG_ALT_SCAN) |
+	      G1_REG_TOPFIELDFIRST_E(pic->flags & V4L2_MPEG2_PIC_FLAG_TOP_FIELD_FIRST);
 	vdpu_write_relaxed(vpu, reg, G1_SWREG(4));
 
-	reg = G1_REG_STRM_START_BIT(slice_params->data_bit_offset) |
-	      G1_REG_QSCALE_TYPE(picture->q_scale_type) |
-	      G1_REG_CON_MV_E(picture->concealment_motion_vectors) |
-	      G1_REG_INTRA_DC_PREC(picture->intra_dc_precision) |
-	      G1_REG_INTRA_VLC_TAB(picture->intra_vlc_format) |
-	      G1_REG_FRAME_PRED_DCT(picture->frame_pred_frame_dct);
+	reg = G1_REG_STRM_START_BIT(0) |
+	      G1_REG_QSCALE_TYPE(pic->flags & V4L2_MPEG2_PIC_FLAG_Q_SCALE_TYPE) |
+	      G1_REG_CON_MV_E(pic->flags & V4L2_MPEG2_PIC_FLAG_CONCEALMENT_MV) |
+	      G1_REG_INTRA_DC_PREC(pic->intra_dc_precision) |
+	      G1_REG_INTRA_VLC_TAB(pic->flags & V4L2_MPEG2_PIC_FLAG_INTRA_VLC) |
+	      G1_REG_FRAME_PRED_DCT(pic->flags & V4L2_MPEG2_PIC_FLAG_FRAME_PRED_DCT);
 	vdpu_write_relaxed(vpu, reg, G1_SWREG(5));
 
 	reg = G1_REG_INIT_QP(1) |
-	      G1_REG_STREAM_LEN(slice_params->bit_size >> 3);
+	      G1_REG_STREAM_LEN(vb2_get_plane_payload(&src_buf->vb2_buf, 0));
 	vdpu_write_relaxed(vpu, reg, G1_SWREG(6));
 
-	reg = G1_REG_ALT_SCAN_FLAG_E(picture->alternate_scan) |
-	      G1_REG_FCODE_FWD_HOR(picture->f_code[0][0]) |
-	      G1_REG_FCODE_FWD_VER(picture->f_code[0][1]) |
-	      G1_REG_FCODE_BWD_HOR(picture->f_code[1][0]) |
-	      G1_REG_FCODE_BWD_VER(picture->f_code[1][1]) |
+	reg = G1_REG_ALT_SCAN_FLAG_E(pic->flags & V4L2_MPEG2_PIC_FLAG_ALT_SCAN) |
+	      G1_REG_FCODE_FWD_HOR(pic->f_code[0][0]) |
+	      G1_REG_FCODE_FWD_VER(pic->f_code[0][1]) |
+	      G1_REG_FCODE_BWD_HOR(pic->f_code[1][0]) |
+	      G1_REG_FCODE_BWD_VER(pic->f_code[1][1]) |
 	      G1_REG_MV_ACCURACY_FWD(1) |
 	      G1_REG_MV_ACCURACY_BWD(1);
 	vdpu_write_relaxed(vpu, reg, G1_SWREG(18));
@@ -238,14 +227,14 @@ void hantro_g1_mpeg2_dec_run(struct hantro_ctx *ctx)
 	reg = G1_REG_APF_THRESHOLD(8);
 	vdpu_write_relaxed(vpu, reg, G1_SWREG(55));
 
-	hantro_g1_mpeg2_dec_set_quantization(vpu, ctx);
-
+	hantro_g1_mpeg2_dec_set_quantisation(vpu, ctx);
 	hantro_g1_mpeg2_dec_set_buffers(vpu, ctx, &src_buf->vb2_buf,
 					&dst_buf->vb2_buf,
-					sequence, picture, slice_params);
+					seq, pic);
 
 	hantro_end_prepare_run(ctx);
 
-	reg = G1_REG_DEC_E(1);
-	vdpu_write(vpu, reg, G1_SWREG(1));
+	vdpu_write(vpu, G1_REG_INTERRUPT_DEC_E, G1_REG_INTERRUPT);
+
+	return 0;
 }

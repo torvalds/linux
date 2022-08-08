@@ -49,10 +49,13 @@ static int jpeg_v3_0_set_powergating_state(void *handle,
 static int jpeg_v3_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	u32 harvest = RREG32_SOC15(JPEG, 0, mmCC_UVD_HARVESTING);
 
-	if (harvest & CC_UVD_HARVESTING__UVD_DISABLE_MASK)
-		return -ENOENT;
+	if (adev->asic_type != CHIP_YELLOW_CARP) {
+		u32 harvest = RREG32_SOC15(JPEG, 0, mmCC_UVD_HARVESTING);
+
+		if (harvest & CC_UVD_HARVESTING__UVD_DISABLE_MASK)
+			return -ENOENT;
+	}
 
 	adev->jpeg.num_jpeg_inst = 1;
 

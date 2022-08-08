@@ -998,7 +998,7 @@ static int iqs62x_probe(struct i2c_client *client)
 
 	device_property_read_string(&client->dev, "firmware-name", &fw_name);
 
-	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				      fw_name ? : iqs62x->dev_desc->fw_name,
 				      &client->dev, GFP_KERNEL, iqs62x,
 				      iqs62x_firmware_load);

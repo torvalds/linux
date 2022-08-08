@@ -58,8 +58,7 @@ static int _kvm_mips_host_tlb_inv(unsigned long entryhi)
 	tlb_probe_hazard();
 	idx = read_c0_index();
 
-	if (idx >= current_cpu_data.tlbsize)
-		BUG();
+	BUG_ON(idx >= current_cpu_data.tlbsize);
 
 	if (idx >= 0) {
 		write_c0_entryhi(UNIQUE_ENTRYHI(idx));

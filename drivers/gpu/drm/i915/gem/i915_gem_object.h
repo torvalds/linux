@@ -500,7 +500,7 @@ i915_gem_object_last_write_engine(struct drm_i915_gem_object *obj)
 	struct dma_fence *fence;
 
 	rcu_read_lock();
-	fence = dma_resv_get_excl_rcu(obj->base.resv);
+	fence = dma_resv_get_excl_unlocked(obj->base.resv);
 	rcu_read_unlock();
 
 	if (fence && dma_fence_is_i915(fence) && !dma_fence_is_signaled(fence))

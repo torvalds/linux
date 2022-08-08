@@ -567,6 +567,7 @@ struct nfsd4_copy {
 	struct vfsmount		*ss_mnt;
 	struct nfs_fh		c_fh;
 	nfs4_stateid		stateid;
+	bool			committed;
 };
 
 struct nfsd4_seek {

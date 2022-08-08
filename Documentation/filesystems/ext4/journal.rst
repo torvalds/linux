@@ -4,14 +4,14 @@ Journal (jbd2)
 --------------
 
 Introduced in ext3, the ext4 filesystem employs a journal to protect the
-filesystem against corruption in the case of a system crash. A small
-continuous region of disk (default 128MiB) is reserved inside the
-filesystem as a place to land “important” data writes on-disk as quickly
-as possible. Once the important data transaction is fully written to the
-disk and flushed from the disk write cache, a record of the data being
-committed is also written to the journal. At some later point in time,
-the journal code writes the transactions to their final locations on
-disk (this could involve a lot of seeking or a lot of small
+filesystem against metadata inconsistencies in the case of a system crash. Up
+to 10,240,000 file system blocks (see man mke2fs(8) for more details on journal
+size limits) can be reserved inside the filesystem as a place to land
+“important” data writes on-disk as quickly as possible. Once the important
+data transaction is fully written to the disk and flushed from the disk write
+cache, a record of the data being committed is also written to the journal. At
+some later point in time, the journal code writes the transactions to their
+final locations on disk (this could involve a lot of seeking or a lot of small
 read-write-erases) before erasing the commit record. Should the system
 crash during the second slow write, the journal can be replayed all the
 way to the latest commit record, guaranteeing the atomicity of whatever
@@ -731,3 +731,26 @@ point, the refcount for inode 11 is not reliable, but that gets fixed by the
 replay of last inode 11 tag. Thus, by converting a non-idempotent procedure
 into a series of idempotent outcomes, fast commits ensured idempotence during
 the replay.
+
+Journal Checkpoint
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Checkpointing the journal ensures all transactions and their associated buffers
+are submitted to the disk. In-progress transactions are waited upon and included
+in the checkpoint. Checkpointing is used internally during critical updates to
+the filesystem including journal recovery, filesystem resizing, and freeing of
+the journal_t structure.
+
+A journal checkpoint can be triggered from userspace via the ioctl
+EXT4_IOC_CHECKPOINT. This ioctl takes a single, u64 argument for flags.
+Currently, three flags are supported. First, EXT4_IOC_CHECKPOINT_FLAG_DRY_RUN
+can be used to verify input to the ioctl. It returns error if there is any
+invalid input, otherwise it returns success without performing
+any checkpointing. This can be used to check whether the ioctl exists on a
+system and to verify there are no issues with arguments or flags. The
+other two flags are EXT4_IOC_CHECKPOINT_FLAG_DISCARD and
+EXT4_IOC_CHECKPOINT_FLAG_ZEROOUT. These flags cause the journal blocks to be
+discarded or zero-filled, respectively, after the journal checkpoint is
+complete. EXT4_IOC_CHECKPOINT_FLAG_DISCARD and EXT4_IOC_CHECKPOINT_FLAG_ZEROOUT
+cannot both be set. The ioctl may be useful when snapshotting a system or for
+complying with content deletion SLOs.

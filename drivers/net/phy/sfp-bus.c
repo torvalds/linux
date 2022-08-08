@@ -392,6 +392,11 @@ EXPORT_SYMBOL_GPL(sfp_parse_support);
 phy_interface_t sfp_select_interface(struct sfp_bus *bus,
 				     unsigned long *link_modes)
 {
+	if (phylink_test(link_modes, 25000baseCR_Full) ||
+	    phylink_test(link_modes, 25000baseKR_Full) ||
+	    phylink_test(link_modes, 25000baseSR_Full))
+		return PHY_INTERFACE_MODE_25GBASER;
+
 	if (phylink_test(link_modes, 10000baseCR_Full) ||
 	    phylink_test(link_modes, 10000baseSR_Full) ||
 	    phylink_test(link_modes, 10000baseLR_Full) ||
@@ -624,14 +629,14 @@ static void sfp_upstream_clear(struct sfp_bus *bus)
  * be put via sfp_bus_put() when done.
  *
  * Returns:
- * 	    - on success, a pointer to the sfp_bus structure,
- *	    - %NULL if no SFP is specified,
- * 	    - on failure, an error pointer value:
+ *	- on success, a pointer to the sfp_bus structure,
+ *	- %NULL if no SFP is specified,
+ *	- on failure, an error pointer value:
  *
- * 	      - corresponding to the errors detailed for
- * 	        fwnode_property_get_reference_args().
- * 	      - %-ENOMEM if we failed to allocate the bus.
- *	      - an error from the upstream's connect_phy() method.
+ *	- corresponding to the errors detailed for
+ *	  fwnode_property_get_reference_args().
+ *	- %-ENOMEM if we failed to allocate the bus.
+ *	- an error from the upstream's connect_phy() method.
  */
 struct sfp_bus *sfp_bus_find_fwnode(struct fwnode_handle *fwnode)
 {
@@ -666,14 +671,14 @@ EXPORT_SYMBOL_GPL(sfp_bus_find_fwnode);
  * bus, so it is safe to put the bus after this call.
  *
  * Returns:
- * 	    - on success, a pointer to the sfp_bus structure,
- *	    - %NULL if no SFP is specified,
- * 	    - on failure, an error pointer value:
+ *	- on success, a pointer to the sfp_bus structure,
+ *	- %NULL if no SFP is specified,
+ *	- on failure, an error pointer value:
  *
- * 	      - corresponding to the errors detailed for
- * 	        fwnode_property_get_reference_args().
- * 	      - %-ENOMEM if we failed to allocate the bus.
- *	      - an error from the upstream's connect_phy() method.
+ *	- corresponding to the errors detailed for
+ *	  fwnode_property_get_reference_args().
+ *	- %-ENOMEM if we failed to allocate the bus.
+ *	- an error from the upstream's connect_phy() method.
  */
 int sfp_bus_add_upstream(struct sfp_bus *bus, void *upstream,
 			 const struct sfp_upstream_ops *ops)

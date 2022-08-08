@@ -100,16 +100,10 @@ static void rs_flush_chars(struct tty_struct *tty)
 {
 }
 
-static int rs_write_room(struct tty_struct *tty)
+static unsigned int rs_write_room(struct tty_struct *tty)
 {
 	/* Let's say iss can always accept 2K characters.. */
 	return 2 * 1024;
-}
-
-static int rs_chars_in_buffer(struct tty_struct *tty)
-{
-	/* the iss doesn't buffer characters */
-	return 0;
 }
 
 static void rs_hangup(struct tty_struct *tty)
@@ -135,7 +129,6 @@ static const struct tty_operations serial_ops = {
 	.put_char = rs_put_char,
 	.flush_chars = rs_flush_chars,
 	.write_room = rs_write_room,
-	.chars_in_buffer = rs_chars_in_buffer,
 	.hangup = rs_hangup,
 	.wait_until_sent = rs_wait_until_sent,
 	.proc_show = rs_proc_show,

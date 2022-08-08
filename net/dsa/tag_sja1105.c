@@ -7,6 +7,52 @@
 #include <linux/packing.h>
 #include "dsa_priv.h"
 
+/* Is this a TX or an RX header? */
+#define SJA1110_HEADER_HOST_TO_SWITCH		BIT(15)
+
+/* RX header */
+#define SJA1110_RX_HEADER_IS_METADATA		BIT(14)
+#define SJA1110_RX_HEADER_HOST_ONLY		BIT(13)
+#define SJA1110_RX_HEADER_HAS_TRAILER		BIT(12)
+
+/* Trap-to-host format (no trailer present) */
+#define SJA1110_RX_HEADER_SRC_PORT(x)		(((x) & GENMASK(7, 4)) >> 4)
+#define SJA1110_RX_HEADER_SWITCH_ID(x)		((x) & GENMASK(3, 0))
+
+/* Timestamp format (trailer present) */
+#define SJA1110_RX_HEADER_TRAILER_POS(x)	((x) & GENMASK(11, 0))
+
+#define SJA1110_RX_TRAILER_SWITCH_ID(x)		(((x) & GENMASK(7, 4)) >> 4)
+#define SJA1110_RX_TRAILER_SRC_PORT(x)		((x) & GENMASK(3, 0))
+
+/* Meta frame format (for 2-step TX timestamps) */
+#define SJA1110_RX_HEADER_N_TS(x)		(((x) & GENMASK(8, 4)) >> 4)
+
+/* TX header */
+#define SJA1110_TX_HEADER_UPDATE_TC		BIT(14)
+#define SJA1110_TX_HEADER_TAKE_TS		BIT(13)
+#define SJA1110_TX_HEADER_TAKE_TS_CASC		BIT(12)
+#define SJA1110_TX_HEADER_HAS_TRAILER		BIT(11)
+
+/* Only valid if SJA1110_TX_HEADER_HAS_TRAILER is false */
+#define SJA1110_TX_HEADER_PRIO(x)		(((x) << 7) & GENMASK(10, 7))
+#define SJA1110_TX_HEADER_TSTAMP_ID(x)		((x) & GENMASK(7, 0))
+
+/* Only valid if SJA1110_TX_HEADER_HAS_TRAILER is true */
+#define SJA1110_TX_HEADER_TRAILER_POS(x)	((x) & GENMASK(10, 0))
+
+#define SJA1110_TX_TRAILER_TSTAMP_ID(x)		(((x) << 24) & GENMASK(31, 24))
+#define SJA1110_TX_TRAILER_PRIO(x)		(((x) << 21) & GENMASK(23, 21))
+#define SJA1110_TX_TRAILER_SWITCHID(x)		(((x) << 12) & GENMASK(15, 12))
+#define SJA1110_TX_TRAILER_DESTPORTS(x)		(((x) << 1) & GENMASK(11, 1))
+
+#define SJA1110_META_TSTAMP_SIZE		10
+
+#define SJA1110_HEADER_LEN			4
+#define SJA1110_RX_TRAILER_LEN			13
+#define SJA1110_TX_TRAILER_LEN			4
+#define SJA1110_MAX_PADDING_LEN			15
+
 /* Similar to is_link_local_ether_addr(hdr->h_dest) but also covers PTP */
 static inline bool sja1105_is_link_local(const struct sk_buff *skb)
 {
@@ -140,6 +186,57 @@ static struct sk_buff *sja1105_xmit(struct sk_buff *skb,
 			     ((pcp << VLAN_PRIO_SHIFT) | tx_vid));
 }
 
+static struct sk_buff *sja1110_xmit(struct sk_buff *skb,
+				    struct net_device *netdev)
+{
+	struct sk_buff *clone = SJA1105_SKB_CB(skb)->clone;
+	struct dsa_port *dp = dsa_slave_to_port(netdev);
+	u16 tx_vid = dsa_8021q_tx_vid(dp->ds, dp->index);
+	u16 queue_mapping = skb_get_queue_mapping(skb);
+	u8 pcp = netdev_txq_to_tc(netdev, queue_mapping);
+	struct ethhdr *eth_hdr;
+	__be32 *tx_trailer;
+	__be16 *tx_header;
+	int trailer_pos;
+
+	/* Transmitting control packets is done using in-band control
+	 * extensions, while data packets are transmitted using
+	 * tag_8021q TX VLANs.
+	 */
+	if (likely(!sja1105_is_link_local(skb)))
+		return dsa_8021q_xmit(skb, netdev, sja1105_xmit_tpid(dp->priv),
+				     ((pcp << VLAN_PRIO_SHIFT) | tx_vid));
+
+	skb_push(skb, SJA1110_HEADER_LEN);
+
+	/* Move Ethernet header to the left, making space for DSA tag */
+	memmove(skb->data, skb->data + SJA1110_HEADER_LEN, 2 * ETH_ALEN);
+
+	trailer_pos = skb->len;
+
+	/* On TX, skb->data points to skb_mac_header(skb) */
+	eth_hdr = (struct ethhdr *)skb->data;
+	tx_header = (__be16 *)(eth_hdr + 1);
+	tx_trailer = skb_put(skb, SJA1110_TX_TRAILER_LEN);
+
+	eth_hdr->h_proto = htons(ETH_P_SJA1110);
+
+	*tx_header = htons(SJA1110_HEADER_HOST_TO_SWITCH |
+			   SJA1110_TX_HEADER_HAS_TRAILER |
+			   SJA1110_TX_HEADER_TRAILER_POS(trailer_pos));
+	*tx_trailer = cpu_to_be32(SJA1110_TX_TRAILER_PRIO(pcp) |
+				  SJA1110_TX_TRAILER_SWITCHID(dp->ds->index) |
+				  SJA1110_TX_TRAILER_DESTPORTS(BIT(dp->index)));
+	if (clone) {
+		u8 ts_id = SJA1105_SKB_CB(clone)->ts_id;
+
+		*tx_header |= htons(SJA1110_TX_HEADER_TAKE_TS);
+		*tx_trailer |= cpu_to_be32(SJA1110_TX_TRAILER_TSTAMP_ID(ts_id));
+	}
+
+	return skb;
+}
+
 static void sja1105_transfer_meta(struct sk_buff *skb,
 				  const struct sja1105_meta *meta)
 {
@@ -147,7 +244,7 @@ static void sja1105_transfer_meta(struct sk_buff *skb,
 
 	hdr->h_dest[3] = meta->dmac_byte_3;
 	hdr->h_dest[4] = meta->dmac_byte_4;
-	SJA1105_SKB_CB(skb)->meta_tstamp = meta->tstamp;
+	SJA1105_SKB_CB(skb)->tstamp = meta->tstamp;
 }
 
 /* This is a simple state machine which follows the hardware mechanism of
@@ -275,46 +372,38 @@ static void sja1105_decode_subvlan(struct sk_buff *skb, u16 subvlan)
 	__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tci);
 }
 
+static bool sja1105_skb_has_tag_8021q(const struct sk_buff *skb)
+{
+	u16 tpid = ntohs(eth_hdr(skb)->h_proto);
+
+	return tpid == ETH_P_SJA1105 || tpid == ETH_P_8021Q ||
+	       skb_vlan_tag_present(skb);
+}
+
+static bool sja1110_skb_has_inband_control_extension(const struct sk_buff *skb)
+{
+	return ntohs(eth_hdr(skb)->h_proto) == ETH_P_SJA1110;
+}
+
 static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 				   struct net_device *netdev,
 				   struct packet_type *pt)
 {
+	int source_port, switch_id, subvlan = 0;
 	struct sja1105_meta meta = {0};
-	int source_port, switch_id;
 	struct ethhdr *hdr;
-	u16 tpid, vid, tci;
 	bool is_link_local;
-	u16 subvlan = 0;
-	bool is_tagged;
 	bool is_meta;
 
 	hdr = eth_hdr(skb);
-	tpid = ntohs(hdr->h_proto);
-	is_tagged = (tpid == ETH_P_SJA1105 || tpid == ETH_P_8021Q ||
-		     skb_vlan_tag_present(skb));
 	is_link_local = sja1105_is_link_local(skb);
 	is_meta = sja1105_is_meta_frame(skb);
 
 	skb->offload_fwd_mark = 1;
 
-	if (is_tagged) {
+	if (sja1105_skb_has_tag_8021q(skb)) {
 		/* Normal traffic path. */
-		skb_push_rcsum(skb, ETH_HLEN);
-		if (skb_vlan_tag_present(skb)) {
-			tci = skb_vlan_tag_get(skb);
-			__vlan_hwaccel_clear_tag(skb);
-		} else {
-			__skb_vlan_pop(skb, &tci);
-		}
-		skb_pull_rcsum(skb, ETH_HLEN);
-		skb_reset_network_header(skb);
-		skb_reset_transport_header(skb);
-
-		vid = tci & VLAN_VID_MASK;
-		source_port = dsa_8021q_rx_source_port(vid);
-		switch_id = dsa_8021q_rx_switch_id(vid);
-		skb->priority = (tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
-		subvlan = dsa_8021q_rx_subvlan(vid);
+		dsa_8021q_rcv(skb, &source_port, &switch_id, &subvlan);
 	} else if (is_link_local) {
 		/* Management traffic path. Switch embeds the switch ID and
 		 * port ID into bytes of the destination MAC, courtesy of
@@ -346,6 +435,138 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 					      is_meta);
 }
 
+static struct sk_buff *sja1110_rcv_meta(struct sk_buff *skb, u16 rx_header)
+{
+	int switch_id = SJA1110_RX_HEADER_SWITCH_ID(rx_header);
+	int n_ts = SJA1110_RX_HEADER_N_TS(rx_header);
+	struct net_device *master = skb->dev;
+	struct dsa_port *cpu_dp;
+	u8 *buf = skb->data + 2;
+	struct dsa_switch *ds;
+	int i;
+
+	cpu_dp = master->dsa_ptr;
+	ds = dsa_switch_find(cpu_dp->dst->index, switch_id);
+	if (!ds) {
+		net_err_ratelimited("%s: cannot find switch id %d\n",
+				    master->name, switch_id);
+		return NULL;
+	}
+
+	for (i = 0; i <= n_ts; i++) {
+		u8 ts_id, source_port, dir;
+		u64 tstamp;
+
+		ts_id = buf[0];
+		source_port = (buf[1] & GENMASK(7, 4)) >> 4;
+		dir = (buf[1] & BIT(3)) >> 3;
+		tstamp = be64_to_cpu(*(__be64 *)(buf + 2));
+
+		sja1110_process_meta_tstamp(ds, source_port, ts_id, dir,
+					    tstamp);
+
+		buf += SJA1110_META_TSTAMP_SIZE;
+	}
+
+	/* Discard the meta frame, we've consumed the timestamps it contained */
+	return NULL;
+}
+
+static struct sk_buff *sja1110_rcv_inband_control_extension(struct sk_buff *skb,
+							    int *source_port,
+							    int *switch_id)
+{
+	u16 rx_header;
+
+	if (unlikely(!pskb_may_pull(skb, SJA1110_HEADER_LEN)))
+		return NULL;
+
+	/* skb->data points to skb_mac_header(skb) + ETH_HLEN, which is exactly
+	 * what we need because the caller has checked the EtherType (which is
+	 * located 2 bytes back) and we just need a pointer to the header that
+	 * comes afterwards.
+	 */
+	rx_header = ntohs(*(__be16 *)skb->data);
+
+	if (rx_header & SJA1110_RX_HEADER_IS_METADATA)
+		return sja1110_rcv_meta(skb, rx_header);
+
+	/* Timestamp frame, we have a trailer */
+	if (rx_header & SJA1110_RX_HEADER_HAS_TRAILER) {
+		int start_of_padding = SJA1110_RX_HEADER_TRAILER_POS(rx_header);
+		u8 *rx_trailer = skb_tail_pointer(skb) - SJA1110_RX_TRAILER_LEN;
+		u64 *tstamp = &SJA1105_SKB_CB(skb)->tstamp;
+		u8 last_byte = rx_trailer[12];
+
+		/* The timestamp is unaligned, so we need to use packing()
+		 * to get it
+		 */
+		packing(rx_trailer, tstamp, 63, 0, 8, UNPACK, 0);
+
+		*source_port = SJA1110_RX_TRAILER_SRC_PORT(last_byte);
+		*switch_id = SJA1110_RX_TRAILER_SWITCH_ID(last_byte);
+
+		/* skb->len counts from skb->data, while start_of_padding
+		 * counts from the destination MAC address. Right now skb->data
+		 * is still as set by the DSA master, so to trim away the
+		 * padding and trailer we need to account for the fact that
+		 * skb->data points to skb_mac_header(skb) + ETH_HLEN.
+		 */
+		pskb_trim_rcsum(skb, start_of_padding - ETH_HLEN);
+	/* Trap-to-host frame, no timestamp trailer */
+	} else {
+		*source_port = SJA1110_RX_HEADER_SRC_PORT(rx_header);
+		*switch_id = SJA1110_RX_HEADER_SWITCH_ID(rx_header);
+	}
+
+	/* Advance skb->data past the DSA header */
+	skb_pull_rcsum(skb, SJA1110_HEADER_LEN);
+
+	/* Remove the DSA header */
+	memmove(skb->data - ETH_HLEN, skb->data - ETH_HLEN - SJA1110_HEADER_LEN,
+		2 * ETH_ALEN);
+
+	/* With skb->data in its final place, update the MAC header
+	 * so that eth_hdr() continues to works properly.
+	 */
+	skb_set_mac_header(skb, -ETH_HLEN);
+
+	return skb;
+}
+
+static struct sk_buff *sja1110_rcv(struct sk_buff *skb,
+				   struct net_device *netdev,
+				   struct packet_type *pt)
+{
+	int source_port = -1, switch_id = -1, subvlan = 0;
+
+	skb->offload_fwd_mark = 1;
+
+	if (sja1110_skb_has_inband_control_extension(skb)) {
+		skb = sja1110_rcv_inband_control_extension(skb, &source_port,
+							   &switch_id);
+		if (!skb)
+			return NULL;
+	}
+
+	/* Packets with in-band control extensions might still have RX VLANs */
+	if (likely(sja1105_skb_has_tag_8021q(skb)))
+		dsa_8021q_rcv(skb, &source_port, &switch_id, &subvlan);
+
+	skb->dev = dsa_master_find_slave(netdev, switch_id, source_port);
+	if (!skb->dev) {
+		netdev_warn(netdev,
+			    "Couldn't decode source port %d and switch id %d\n",
+			    source_port, switch_id);
+		return NULL;
+	}
+
+	if (subvlan)
+		sja1105_decode_subvlan(skb, subvlan);
+
+	return skb;
+}
+
 static void sja1105_flow_dissect(const struct sk_buff *skb, __be16 *proto,
 				 int *offset)
 {
@@ -356,18 +577,53 @@ static void sja1105_flow_dissect(const struct sk_buff *skb, __be16 *proto,
 	dsa_tag_generic_flow_dissect(skb, proto, offset);
 }
 
+static void sja1110_flow_dissect(const struct sk_buff *skb, __be16 *proto,
+				 int *offset)
+{
+	/* Management frames have 2 DSA tags on RX, so the needed_headroom we
+	 * declared is fine for the generic dissector adjustment procedure.
+	 */
+	if (unlikely(sja1105_is_link_local(skb)))
+		return dsa_tag_generic_flow_dissect(skb, proto, offset);
+
+	/* For the rest, there is a single DSA tag, the tag_8021q one */
+	*offset = VLAN_HLEN;
+	*proto = ((__be16 *)skb->data)[(VLAN_HLEN / 2) - 1];
+}
+
 static const struct dsa_device_ops sja1105_netdev_ops = {
 	.name = "sja1105",
 	.proto = DSA_TAG_PROTO_SJA1105,
 	.xmit = sja1105_xmit,
 	.rcv = sja1105_rcv,
 	.filter = sja1105_filter,
-	.overhead = VLAN_HLEN,
+	.needed_headroom = VLAN_HLEN,
 	.flow_dissect = sja1105_flow_dissect,
 	.promisc_on_master = true,
 };
 
-MODULE_LICENSE("GPL v2");
+DSA_TAG_DRIVER(sja1105_netdev_ops);
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_SJA1105);
 
-module_dsa_tag_driver(sja1105_netdev_ops);
+static const struct dsa_device_ops sja1110_netdev_ops = {
+	.name = "sja1110",
+	.proto = DSA_TAG_PROTO_SJA1110,
+	.xmit = sja1110_xmit,
+	.rcv = sja1110_rcv,
+	.filter = sja1105_filter,
+	.flow_dissect = sja1110_flow_dissect,
+	.needed_headroom = SJA1110_HEADER_LEN + VLAN_HLEN,
+	.needed_tailroom = SJA1110_RX_TRAILER_LEN + SJA1110_MAX_PADDING_LEN,
+};
+
+DSA_TAG_DRIVER(sja1110_netdev_ops);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_SJA1110);
+
+static struct dsa_tag_driver *sja1105_tag_driver_array[] = {
+	&DSA_TAG_DRIVER_NAME(sja1105_netdev_ops),
+	&DSA_TAG_DRIVER_NAME(sja1110_netdev_ops),
+};
+
+module_dsa_tag_drivers(sja1105_tag_driver_array);
+
+MODULE_LICENSE("GPL v2");

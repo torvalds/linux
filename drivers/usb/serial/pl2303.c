@@ -418,24 +418,34 @@ static int pl2303_detect_type(struct usb_serial *serial)
 	bcdDevice = le16_to_cpu(desc->bcdDevice);
 	bcdUSB = le16_to_cpu(desc->bcdUSB);
 
-	switch (bcdDevice) {
-	case 0x100:
-		/*
-		 * Assume it's an HXN-type if the device doesn't support the old read
-		 * request value.
-		 */
-		if (bcdUSB == 0x200 && !pl2303_supports_hx_status(serial))
-			return TYPE_HXN;
+	switch (bcdUSB) {
+	case 0x110:
+		switch (bcdDevice) {
+		case 0x300:
+			return TYPE_HX;
+		case 0x400:
+			return TYPE_HXD;
+		default:
+			return TYPE_HX;
+		}
 		break;
-	case 0x300:
-		if (bcdUSB == 0x200)
+	case 0x200:
+		switch (bcdDevice) {
+		case 0x100:
+		case 0x305:
+			/*
+			 * Assume it's an HXN-type if the device doesn't
+			 * support the old read request value.
+			 */
+			if (!pl2303_supports_hx_status(serial))
+				return TYPE_HXN;
+			break;
+		case 0x300:
 			return TYPE_TA;
-
-		return TYPE_HX;
-	case 0x400:
-		return TYPE_HXD;
-	case 0x500:
-		return TYPE_TB;
+		case 0x500:
+			return TYPE_TB;
+		}
+		break;
 	}
 
 	dev_err(&serial->interface->dev,
@@ -789,20 +799,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 
 	pl2303_get_line_request(port, buf);
 
-	switch (C_CSIZE(tty)) {
-	case CS5:
-		buf[6] = 5;
-		break;
-	case CS6:
-		buf[6] = 6;
-		break;
-	case CS7:
-		buf[6] = 7;
-		break;
-	default:
-	case CS8:
-		buf[6] = 8;
-	}
+	buf[6] = tty_get_char_size(tty->termios.c_cflag);
 	dev_dbg(&port->dev, "data bits = %d\n", buf[6]);
 
 	/* For reference buf[0]:buf[3] baud rate value */

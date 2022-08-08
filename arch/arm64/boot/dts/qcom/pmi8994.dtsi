@@ -32,5 +32,18 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 		};
+
+		pmi8994_wled: wled@d800 {
+			compatible = "qcom,pmi8994-wled";
+			reg = <0xd800 0xd900>;
+			interrupts = <3 0xd8 0x02 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "short";
+			qcom,num-strings = <3>;
+			/* Yes, all four strings *have to* be defined or things won't work. */
+			qcom,enabled-strings = <0 1 2 3>;
+			qcom,cabc;
+			qcom,eternal-pfet;
+			status = "disabled";
+		};
 	};
 };

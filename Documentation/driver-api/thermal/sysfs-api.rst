@@ -740,21 +740,15 @@ possible.
 5. thermal_emergency_poweroff
 =============================
 
-On an event of critical trip temperature crossing. Thermal framework
-allows the system to shutdown gracefully by calling orderly_poweroff().
-In the event of a failure of orderly_poweroff() to shut down the system
-we are in danger of keeping the system alive at undesirably high
-temperatures. To mitigate this high risk scenario we program a work
-queue to fire after a pre-determined number of seconds to start
-an emergency shutdown of the device using the kernel_power_off()
-function. In case kernel_power_off() fails then finally
-emergency_restart() is called in the worst case.
+On an event of critical trip temperature crossing the thermal framework
+shuts down the system by calling hw_protection_shutdown(). The
+hw_protection_shutdown() first attempts to perform an orderly shutdown
+but accepts a delay after which it proceeds doing a forced power-off
+or as last resort an emergency_restart.
 
 The delay should be carefully profiled so as to give adequate time for
-orderly_poweroff(). In case of failure of an orderly_poweroff() the
-emergency poweroff kicks in after the delay has elapsed and shuts down
-the system.
+orderly poweroff.
 
-If set to 0 emergency poweroff will not be supported. So a carefully
-profiled non-zero positive value is a must for emergency poweroff to be
-triggered.
+If the delay is set to 0 emergency poweroff will not be supported. So a
+carefully profiled non-zero positive value is a must for emergency
+poweroff to be triggered.

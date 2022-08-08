@@ -1380,7 +1380,7 @@ static bool mei_me_fw_type_nm(const struct pci_dev *pdev)
 	.quirk_probe = mei_me_fw_type_nm
 
 /**
- * mei_me_fw_sku_sps_4() - check for sps 4.0 sku
+ * mei_me_fw_type_sps_4() - check for sps 4.0 sku
  *
  * Read ME FW Status register to check for SPS Firmware.
  * The SPS FW is only signaled in the PCI function 0.
@@ -1405,7 +1405,7 @@ static bool mei_me_fw_type_sps_4(const struct pci_dev *pdev)
 	.quirk_probe = mei_me_fw_type_sps_4
 
 /**
- * mei_me_fw_sku_sps() - check for sps sku
+ * mei_me_fw_type_sps() - check for sps sku
  *
  * Read ME FW Status register to check for SPS Firmware.
  * The SPS FW is only signaled in pci function 0

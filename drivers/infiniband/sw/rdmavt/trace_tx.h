@@ -111,7 +111,7 @@ TRACE_EVENT(
 		__field(int, wr_num_sge)
 	),
 	TP_fast_assign(
-		RDI_DEV_ASSIGN(ib_to_rvt(qp->ibqp.device))
+		RDI_DEV_ASSIGN(ib_to_rvt(qp->ibqp.device));
 		__entry->wqe = wqe;
 		__entry->wr_id = wqe->wr.wr_id;
 		__entry->qpn = qp->ibqp.qp_num;
@@ -170,7 +170,7 @@ TRACE_EVENT(
 		__field(int, send_flags)
 	),
 	TP_fast_assign(
-		RDI_DEV_ASSIGN(ib_to_rvt(qp->ibqp.device))
+		RDI_DEV_ASSIGN(ib_to_rvt(qp->ibqp.device));
 		__entry->wqe = wqe;
 		__entry->wr_id = wqe->wr.wr_id;
 		__entry->qpn = qp->ibqp.qp_num;

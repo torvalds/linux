@@ -10,7 +10,7 @@ maintainers:
   - Rob Herring <robh@kernel.org>
 
 allOf:
-  - $ref: /schemas/serial.yaml#
+  - $ref: serial.yaml#
 
 properties:
   compatible:
@@ -23,6 +23,7 @@ properties:
       - items:
           - enum:
               - rockchip,px30-uart
+              - rockchip,rk1808-uart
               - rockchip,rk3036-uart
               - rockchip,rk3066-uart
               - rockchip,rk3188-uart
@@ -31,6 +32,7 @@ properties:
               - rockchip,rk3328-uart
               - rockchip,rk3368-uart
               - rockchip,rk3399-uart
+              - rockchip,rk3568-uart
               - rockchip,rv1108-uart
           - const: snps,dw-apb-uart
       - items:

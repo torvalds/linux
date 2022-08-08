@@ -624,7 +624,7 @@ void btrfs_discard_update_discardable(struct btrfs_block_group *block_group)
  * @fs_info: fs_info of interest
  *
  * The unused_bgs list needs to be punted to the discard lists because the
- * order of operations is changed.  In the normal sychronous discard path, the
+ * order of operations is changed.  In the normal synchronous discard path, the
  * block groups are trimmed via a single large trim in transaction commit.  This
  * is ultimately what we are trying to avoid with asynchronous discard.  Thus,
  * it must be done before going down the unused_bgs path.

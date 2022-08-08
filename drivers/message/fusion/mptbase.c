@@ -6993,8 +6993,6 @@ mpt_SoftResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 	ioc->ioc_reset_in_progress = 1;
 	spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
 
-	rc = -1;
-
 	for (cb_idx = MPT_MAX_PROTOCOL_DRIVERS-1; cb_idx; cb_idx--) {
 		if (MptResetHandlers[cb_idx])
 			mpt_signal_reset(cb_idx, ioc, MPT_IOC_SETUP_RESET);

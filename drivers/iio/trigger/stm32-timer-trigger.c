@@ -296,7 +296,7 @@ static ssize_t stm32_tt_show_master_mode(struct device *dev,
 	else
 		cr2 = (cr2 & TIM_CR2_MMS) >> TIM_CR2_MMS_SHIFT;
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", master_mode_table[cr2]);
+	return sysfs_emit(buf, "%s\n", master_mode_table[cr2]);
 }
 
 static ssize_t stm32_tt_store_master_mode(struct device *dev,

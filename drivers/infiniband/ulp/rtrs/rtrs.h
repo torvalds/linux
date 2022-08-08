@@ -57,7 +57,6 @@ struct rtrs_clt *rtrs_clt_open(struct rtrs_clt_ops *ops,
 				 const struct rtrs_addr *paths,
 				 size_t path_cnt, u16 port,
 				 size_t pdu_sz, u8 reconnect_delay_sec,
-				 u16 max_segments,
 				 s16 max_reconnect_attempts, u32 nr_poll_queues);
 
 void rtrs_clt_close(struct rtrs_clt *sess);
@@ -110,6 +109,7 @@ int rtrs_clt_rdma_cq_direct(struct rtrs_clt *clt, unsigned int index);
 struct rtrs_attrs {
 	u32		queue_depth;
 	u32		max_io_size;
+	u32		max_segments;
 };
 
 int rtrs_clt_query(struct rtrs_clt *sess, struct rtrs_attrs *attr);

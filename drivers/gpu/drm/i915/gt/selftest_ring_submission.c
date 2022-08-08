@@ -41,10 +41,10 @@ static struct i915_vma *create_wally(struct intel_engine_cs *engine)
 		return ERR_CAST(cs);
 	}
 
-	if (INTEL_GEN(engine->i915) >= 6) {
+	if (GRAPHICS_VER(engine->i915) >= 6) {
 		*cs++ = MI_STORE_DWORD_IMM_GEN4;
 		*cs++ = 0;
-	} else if (INTEL_GEN(engine->i915) >= 4) {
+	} else if (GRAPHICS_VER(engine->i915) >= 4) {
 		*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 		*cs++ = 0;
 	} else {
@@ -266,7 +266,7 @@ static int live_ctx_switch_wa(void *arg)
 		if (!intel_engine_can_store_dword(engine))
 			continue;
 
-		if (IS_GEN_RANGE(gt->i915, 4, 5))
+		if (IS_GRAPHICS_VER(gt->i915, 4, 5))
 			continue; /* MI_STORE_DWORD is privileged! */
 
 		saved_wa = fetch_and_zero(&engine->wa_ctx.vma);
@@ -291,7 +291,7 @@ int intel_ring_submission_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_ctx_switch_wa),
 	};
 
-	if (HAS_EXECLISTS(i915))
+	if (i915->gt.submission_method > INTEL_SUBMISSION_RING)
 		return 0;
 
 	return intel_gt_live_subtests(tests, &i915->gt);

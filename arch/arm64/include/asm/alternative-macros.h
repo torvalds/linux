@@ -3,11 +3,9 @@
 #define __ASM_ALTERNATIVE_MACROS_H
 
 #include <asm/cpucaps.h>
+#include <asm/insn-def.h>
 
 #define ARM64_CB_PATCH ARM64_NCAPS
-
-/* A64 instructions are always 32 bits. */
-#define	AARCH64_INSN_SIZE		4
 
 #ifndef __ASSEMBLY__
 
@@ -196,11 +194,6 @@ alternative_endif
 
 #define _ALTERNATIVE_CFG(insn1, insn2, cap, cfg, ...)	\
 	alternative_insn insn1, insn2, cap, IS_ENABLED(cfg)
-
-.macro user_alt, label, oldinstr, newinstr, cond
-9999:	alternative_insn "\oldinstr", "\newinstr", \cond
-	_asm_extable 9999b, \label
-.endm
 
 #endif  /*  __ASSEMBLY__  */
 

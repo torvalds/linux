@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0+
-# Copyright (C) 2019-2020 Maximilian Luz <luzmaximilian@gmail.com>
+# Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
 
 # For include/trace/define_trace.h to include trace.h
 CFLAGS_core.o = -I$(src)

@@ -94,10 +94,14 @@ mt7915_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
 }
 
 /* TODO: support 2/4/6/8 MSI-X vectors */
-static irqreturn_t mt7915_irq_handler(int irq, void *dev_instance)
+static void mt7915_irq_tasklet(struct tasklet_struct *t)
 {
-	struct mt7915_dev *dev = dev_instance;
+	struct mt7915_dev *dev = from_tasklet(dev, t, irq_tasklet);
 	u32 intr, intr1, mask;
+
+	mt76_wr(dev, MT_INT_MASK_CSR, 0);
+	if (dev->hif2)
+		mt76_wr(dev, MT_INT1_MASK_CSR, 0);
 
 	intr = mt76_rr(dev, MT_INT_SOURCE_CSR);
 	intr &= dev->mt76.mmio.irqmask;
@@ -110,9 +114,6 @@ static irqreturn_t mt7915_irq_handler(int irq, void *dev_instance)
 
 		intr |= intr1;
 	}
-
-	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
-		return IRQ_NONE;
 
 	trace_dev_irq(&dev->mt76, intr, dev->mt76.mmio.irqmask);
 
@@ -150,6 +151,20 @@ static irqreturn_t mt7915_irq_handler(int irq, void *dev_instance)
 			wake_up(&dev->reset_wait);
 		}
 	}
+}
+
+static irqreturn_t mt7915_irq_handler(int irq, void *dev_instance)
+{
+	struct mt7915_dev *dev = dev_instance;
+
+	mt76_wr(dev, MT_INT_MASK_CSR, 0);
+	if (dev->hif2)
+		mt76_wr(dev, MT_INT1_MASK_CSR, 0);
+
+	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
+		return IRQ_NONE;
+
+	tasklet_schedule(&dev->irq_tasklet);
 
 	return IRQ_HANDLED;
 }
@@ -240,6 +255,8 @@ static int mt7915_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
+	mt76_pci_disable_aspm(pdev);
+
 	if (id->device == 0x7916)
 		return mt7915_pci_hif2_probe(pdev);
 
@@ -250,9 +267,17 @@ static int mt7915_pci_probe(struct pci_dev *pdev,
 
 	dev = container_of(mdev, struct mt7915_dev, mt76);
 
+	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+	if (ret < 0)
+		goto free;
+
 	ret = mt7915_mmio_init(mdev, pcim_iomap_table(pdev)[0], pdev->irq);
 	if (ret)
 		goto error;
+
+	tasklet_setup(&dev->irq_tasklet, mt7915_irq_tasklet);
+
+	mt76_wr(dev, MT_INT_MASK_CSR, 0);
 
 	/* master switch of PCIe tnterrupt enable */
 	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
@@ -266,10 +291,14 @@ static int mt7915_pci_probe(struct pci_dev *pdev,
 
 	ret = mt7915_register_device(dev);
 	if (ret)
-		goto error;
+		goto free_irq;
 
 	return 0;
+free_irq:
+	devm_free_irq(mdev->dev, pdev->irq, dev);
 error:
+	pci_free_irq_vectors(pdev);
+free:
 	mt76_free_device(&dev->mt76);
 
 	return ret;

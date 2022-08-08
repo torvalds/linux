@@ -235,8 +235,6 @@ static int do_isofs_readdir(struct inode *inode, struct file *file,
 				break;
 		}
 		ctx->pos += de_len;
-
-		continue;
 	}
 	if (bh)
 		brelse(bh);

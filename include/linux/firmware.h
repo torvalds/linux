@@ -6,8 +6,8 @@
 #include <linux/compiler.h>
 #include <linux/gfp.h>
 
-#define FW_ACTION_NOHOTPLUG 0
-#define FW_ACTION_HOTPLUG 1
+#define FW_ACTION_NOUEVENT 0
+#define FW_ACTION_UEVENT 1
 
 struct firmware {
 	size_t size;

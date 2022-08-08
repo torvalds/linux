@@ -152,14 +152,6 @@ static inline int superio_inw(int reg)
 	return val;
 }
 
-static inline void superio_outw(int val, int reg)
-{
-	outb(reg++, REG);
-	outb(val >> 8, VAL);
-	outb(reg, REG);
-	outb(val, VAL);
-}
-
 /* Internal function, should be called after superio_select(GPIO) */
 static void _wdt_update_timeout(unsigned int t)
 {

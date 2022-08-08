@@ -83,6 +83,13 @@ struct dcn20_hubbub {
 	int num_vmid;
 	struct dcn20_vmid vmid[16];
 	unsigned int detile_buf_size;
+	unsigned int crb_size_segs;
+	unsigned int compbuf_size_segments;
+	unsigned int pixel_chunk_size;
+	unsigned int det0_size;
+	unsigned int det1_size;
+	unsigned int det2_size;
+	unsigned int det3_size;
 };
 
 void hubbub2_construct(struct dcn20_hubbub *hubbub,

@@ -9,7 +9,7 @@
  */
 int lmc_probe(struct net_device * dev);
 unsigned lmc_mii_readreg(lmc_softc_t * const sc, unsigned
-      			  devaddr, unsigned regno);
+			  devaddr, unsigned regno);
 void lmc_mii_writereg(lmc_softc_t * const sc, unsigned devaddr,
 			       unsigned regno, unsigned data);
 void lmc_led_on(lmc_softc_t * const, u32);

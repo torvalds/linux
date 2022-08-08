@@ -177,10 +177,8 @@ static pte_t hugepage_shift_to_tte(pte_t entry, unsigned int shift)
 		return sun4u_hugepage_shift_to_tte(entry, shift);
 }
 
-pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
-			 struct page *page, int writeable)
+pte_t arch_make_huge_pte(pte_t entry, unsigned int shift, vm_flags_t flags)
 {
-	unsigned int shift = huge_page_shift(hstate_vma(vma));
 	pte_t pte;
 
 	pte = hugepage_shift_to_tte(entry, shift);
@@ -188,7 +186,7 @@ pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
 #ifdef CONFIG_SPARC64
 	/* If this vma has ADI enabled on it, turn on TTE.mcd
 	 */
-	if (vma->vm_flags & VM_SPARC_ADI)
+	if (flags & VM_SPARC_ADI)
 		return pte_mkmcd(pte);
 	else
 		return pte_mknotmcd(pte);

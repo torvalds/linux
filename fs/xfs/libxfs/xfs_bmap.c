@@ -31,6 +31,7 @@
 #include "xfs_attr_leaf.h"
 #include "xfs_filestream.h"
 #include "xfs_rmap.h"
+#include "xfs_ag.h"
 #include "xfs_ag_resv.h"
 #include "xfs_refcount.h"
 #include "xfs_icache.h"
@@ -1028,7 +1029,7 @@ xfs_bmap_add_attrfork_local(
 /*
  * Set an inode attr fork offset based on the format of the data fork.
  */
-int
+static int
 xfs_bmap_set_attrforkoff(
 	struct xfs_inode	*ip,
 	int			size,

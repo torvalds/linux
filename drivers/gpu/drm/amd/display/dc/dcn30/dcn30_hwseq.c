@@ -48,6 +48,8 @@
 #include "dc_dmub_srv.h"
 #include "link_hwss.h"
 #include "dpcd_defs.h"
+#include "inc/dc_link_dp.h"
+#include "inc/link_dpcd.h"
 
 
 
@@ -529,6 +531,8 @@ void dcn30_init_hw(struct dc *dc)
 		for (i = 0; i < dc->link_count; i++) {
 			if (dc->links[i]->connector_signal != SIGNAL_TYPE_DISPLAY_PORT)
 				continue;
+			/* DP 2.0 states that LTTPR regs must be read first */
+			dp_retrieve_lttpr_cap(dc->links[i]);
 
 			/* if any of the displays are lit up turn them off */
 			status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
@@ -651,6 +655,9 @@ void dcn30_init_hw(struct dc *dc)
 	if (dc->res_pool->hubbub->funcs->force_pstate_change_control)
 		dc->res_pool->hubbub->funcs->force_pstate_change_control(
 				dc->res_pool->hubbub, false, false);
+	if (dc->res_pool->hubbub->funcs->init_crb)
+		dc->res_pool->hubbub->funcs->init_crb(dc->res_pool->hubbub);
+
 }
 
 void dcn30_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
@@ -812,6 +819,15 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 				tmr_delay = div_u64(((1000000LL + 2 * stutter_period * refresh_hz) *
 						(100LL + dc->debug.mall_additional_timer_percent) + denom - 1),
 						denom) - 64LL;
+
+				/* In some cases the stutter period is really big (tiny modes) in these
+				 * cases MALL cant be enabled, So skip these cases to avoid a ASSERT()
+				 *
+				 * We can check if stutter_period is more than 1/10th the frame time to
+				 * consider if we can actually meet the range of hysteresis timer
+				 */
+				if (stutter_period > 100000/refresh_hz)
+					return false;
 
 				/* scale should be increased until it fits into 6 bits */
 				while (tmr_delay & ~0x3F) {

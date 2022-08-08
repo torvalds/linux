@@ -236,7 +236,7 @@ again:
 	if (!buf)
 		return -ENOMEM;
 
-	rq = blk_get_request(q, REQ_OP_SCSI_IN, 0);
+	rq = blk_get_request(q, REQ_OP_DRV_IN, 0);
 	if (IS_ERR(rq)) {
 		error = -ENOMEM;
 		goto out_free_buf;

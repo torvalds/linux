@@ -14,14 +14,13 @@
 #include <asm/sections.h>
 
 #include "base.h"
+#include "trace.h"
 
 struct devres_node {
 	struct list_head		entry;
 	dr_release_t			release;
-#ifdef CONFIG_DEBUG_DEVRES
 	const char			*name;
 	size_t				size;
-#endif
 };
 
 struct devres {
@@ -43,10 +42,6 @@ struct devres_group {
 	/* -- 8 pointers */
 };
 
-#ifdef CONFIG_DEBUG_DEVRES
-static int log_devres = 0;
-module_param_named(log, log_devres, int, S_IRUGO | S_IWUSR);
-
 static void set_node_dbginfo(struct devres_node *node, const char *name,
 			     size_t size)
 {
@@ -54,7 +49,11 @@ static void set_node_dbginfo(struct devres_node *node, const char *name,
 	node->size = size;
 }
 
-static void devres_log(struct device *dev, struct devres_node *node,
+#ifdef CONFIG_DEBUG_DEVRES
+static int log_devres = 0;
+module_param_named(log, log_devres, int, S_IRUGO | S_IWUSR);
+
+static void devres_dbg(struct device *dev, struct devres_node *node,
 		       const char *op)
 {
 	if (unlikely(log_devres))
@@ -62,9 +61,15 @@ static void devres_log(struct device *dev, struct devres_node *node,
 			op, node, node->name, node->size);
 }
 #else /* CONFIG_DEBUG_DEVRES */
-#define set_node_dbginfo(node, n, s)	do {} while (0)
-#define devres_log(dev, node, op)	do {} while (0)
+#define devres_dbg(dev, node, op)	do {} while (0)
 #endif /* CONFIG_DEBUG_DEVRES */
+
+static void devres_log(struct device *dev, struct devres_node *node,
+		       const char *op)
+{
+	trace_devres_log(dev, op, node, node->name, node->size);
+	devres_dbg(dev, node, op);
+}
 
 /*
  * Release functions for devres group.  These callbacks are used only
@@ -134,9 +139,23 @@ static void replace_dr(struct device *dev,
 	list_replace(&old->entry, &new->entry);
 }
 
-#ifdef CONFIG_DEBUG_DEVRES
-void * __devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid,
-		      const char *name)
+/**
+ * __devres_alloc_node - Allocate device resource data
+ * @release: Release function devres will be associated with
+ * @size: Allocation size
+ * @gfp: Allocation flags
+ * @nid: NUMA node
+ * @name: Name of the resource
+ *
+ * Allocate devres of @size bytes.  The allocated area is zeroed, then
+ * associated with @release.  The returned pointer can be passed to
+ * other devres_*() functions.
+ *
+ * RETURNS:
+ * Pointer to allocated devres on success, NULL on failure.
+ */
+void *__devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid,
+			  const char *name)
 {
 	struct devres *dr;
 
@@ -147,32 +166,6 @@ void * __devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid
 	return dr->data;
 }
 EXPORT_SYMBOL_GPL(__devres_alloc_node);
-#else
-/**
- * devres_alloc_node - Allocate device resource data
- * @release: Release function devres will be associated with
- * @size: Allocation size
- * @gfp: Allocation flags
- * @nid: NUMA node
- *
- * Allocate devres of @size bytes.  The allocated area is zeroed, then
- * associated with @release.  The returned pointer can be passed to
- * other devres_*() functions.
- *
- * RETURNS:
- * Pointer to allocated devres on success, NULL on failure.
- */
-void * devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid)
-{
-	struct devres *dr;
-
-	dr = alloc_dr(release, size, gfp | __GFP_ZERO, nid);
-	if (unlikely(!dr))
-		return NULL;
-	return dr->data;
-}
-EXPORT_SYMBOL_GPL(devres_alloc_node);
-#endif
 
 /**
  * devres_for_each_res - Resource iterator
@@ -438,19 +431,15 @@ static int remove_nodes(struct device *dev,
 			struct list_head *first, struct list_head *end,
 			struct list_head *todo)
 {
+	struct devres_node *node, *n;
 	int cnt = 0, nr_groups = 0;
-	struct list_head *cur;
 
 	/* First pass - move normal devres entries to @todo and clear
 	 * devres_group colors.
 	 */
-	cur = first;
-	while (cur != end) {
-		struct devres_node *node;
+	node = list_entry(first, struct devres_node, entry);
+	list_for_each_entry_safe_from(node, n, end, entry) {
 		struct devres_group *grp;
-
-		node = list_entry(cur, struct devres_node, entry);
-		cur = cur->next;
 
 		grp = node_to_group(node);
 		if (grp) {
@@ -471,17 +460,13 @@ static int remove_nodes(struct device *dev,
 
 	/* Second pass - Scan groups and color them.  A group gets
 	 * color value of two iff the group is wholly contained in
-	 * [cur, end).  That is, for a closed group, both opening and
-	 * closing markers should be in the range, while just the
+	 * [current node, end). That is, for a closed group, both opening
+	 * and closing markers should be in the range, while just the
 	 * opening marker is enough for an open group.
 	 */
-	cur = first;
-	while (cur != end) {
-		struct devres_node *node;
+	node = list_entry(first, struct devres_node, entry);
+	list_for_each_entry_safe_from(node, n, end, entry) {
 		struct devres_group *grp;
-
-		node = list_entry(cur, struct devres_node, entry);
-		cur = cur->next;
 
 		grp = node_to_group(node);
 		BUG_ON(!grp || list_empty(&grp->node[0].entry));
@@ -492,7 +477,7 @@ static int remove_nodes(struct device *dev,
 
 		BUG_ON(grp->color <= 0 || grp->color > 2);
 		if (grp->color == 2) {
-			/* No need to update cur or end.  The removed
+			/* No need to update current node or end. The removed
 			 * nodes are always before both.
 			 */
 			list_move_tail(&grp->node[0].entry, todo);
@@ -503,28 +488,18 @@ static int remove_nodes(struct device *dev,
 	return cnt;
 }
 
-static int release_nodes(struct device *dev, struct list_head *first,
-			 struct list_head *end, unsigned long flags)
-	__releases(&dev->devres_lock)
+static void release_nodes(struct device *dev, struct list_head *todo)
 {
-	LIST_HEAD(todo);
-	int cnt;
 	struct devres *dr, *tmp;
-
-	cnt = remove_nodes(dev, first, end, &todo);
-
-	spin_unlock_irqrestore(&dev->devres_lock, flags);
 
 	/* Release.  Note that both devres and devres_group are
 	 * handled as devres in the following loop.  This is safe.
 	 */
-	list_for_each_entry_safe_reverse(dr, tmp, &todo, node.entry) {
+	list_for_each_entry_safe_reverse(dr, tmp, todo, node.entry) {
 		devres_log(dev, &dr->node, "REL");
 		dr->node.release(dev, dr->data);
 		kfree(dr);
 	}
-
-	return cnt;
 }
 
 /**
@@ -537,13 +512,23 @@ static int release_nodes(struct device *dev, struct list_head *first,
 int devres_release_all(struct device *dev)
 {
 	unsigned long flags;
+	LIST_HEAD(todo);
+	int cnt;
 
 	/* Looks like an uninitialized device structure */
 	if (WARN_ON(dev->devres_head.next == NULL))
 		return -ENODEV;
+
+	/* Nothing to release if list is empty */
+	if (list_empty(&dev->devres_head))
+		return 0;
+
 	spin_lock_irqsave(&dev->devres_lock, flags);
-	return release_nodes(dev, dev->devres_head.next, &dev->devres_head,
-			     flags);
+	cnt = remove_nodes(dev, dev->devres_head.next, &dev->devres_head, &todo);
+	spin_unlock_irqrestore(&dev->devres_lock, flags);
+
+	release_nodes(dev, &todo);
+	return cnt;
 }
 
 /**
@@ -679,6 +664,7 @@ int devres_release_group(struct device *dev, void *id)
 {
 	struct devres_group *grp;
 	unsigned long flags;
+	LIST_HEAD(todo);
 	int cnt = 0;
 
 	spin_lock_irqsave(&dev->devres_lock, flags);
@@ -691,7 +677,10 @@ int devres_release_group(struct device *dev, void *id)
 		if (!list_empty(&grp->node[1].entry))
 			end = grp->node[1].entry.next;
 
-		cnt = release_nodes(dev, first, end, flags);
+		cnt = remove_nodes(dev, first, end, &todo);
+		spin_unlock_irqrestore(&dev->devres_lock, flags);
+
+		release_nodes(dev, &todo);
 	} else {
 		WARN_ON(1);
 		spin_unlock_irqrestore(&dev->devres_lock, flags);

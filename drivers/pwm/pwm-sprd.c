@@ -183,13 +183,10 @@ static int sprd_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			}
 		}
 
-		if (state->period != cstate->period ||
-		    state->duty_cycle != cstate->duty_cycle) {
-			ret = sprd_pwm_config(spc, pwm, state->duty_cycle,
-					      state->period);
-			if (ret)
-				return ret;
-		}
+		ret = sprd_pwm_config(spc, pwm, state->duty_cycle,
+				      state->period);
+		if (ret)
+			return ret;
 
 		sprd_pwm_write(spc, pwm->hwpwm, SPRD_PWM_ENABLE, 1);
 	} else if (cstate->enabled) {
@@ -284,7 +281,9 @@ static int sprd_pwm_remove(struct platform_device *pdev)
 {
 	struct sprd_pwm_chip *spc = platform_get_drvdata(pdev);
 
-	return pwmchip_remove(&spc->chip);
+	pwmchip_remove(&spc->chip);
+
+	return 0;
 }
 
 static const struct of_device_id sprd_pwm_of_match[] = {

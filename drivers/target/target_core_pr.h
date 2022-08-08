@@ -52,7 +52,7 @@
 /*
  *  Function defined in target_core_spc.c
  */
-void spc_parse_naa_6h_vendor_specific(struct se_device *, unsigned char *);
+void spc_gen_naa_6h_vendor_specific(struct se_device *, unsigned char *);
 
 extern struct kmem_cache *t10_pr_reg_cache;
 

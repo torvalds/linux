@@ -28,7 +28,6 @@ properties:
     minItems: 2
 
   clock-names:
-    minItems: 2
     items:
       - const: pll_a
       - const: plla_out0

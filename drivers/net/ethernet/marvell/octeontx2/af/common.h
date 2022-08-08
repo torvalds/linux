@@ -197,6 +197,11 @@ enum nix_scheduler {
 
 #define SDP_CHANNELS			256
 
+/* The mask is to extract lower 10-bits of channel number
+ * which CPT will pass to X2P.
+ */
+#define NIX_CHAN_CPT_X2P_MASK          (0x3ffull)
+
 /* NIX LSO format indices.
  * As of now TSO is the only one using, so statically assigning indices.
  */

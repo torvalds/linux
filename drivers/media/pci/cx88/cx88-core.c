@@ -152,7 +152,8 @@ int cx88_risc_buffer(struct pci_dev *pci, struct cx88_riscmem *risc,
 	instructions += 4;
 	risc->size = instructions * 8;
 	risc->dma = 0;
-	risc->cpu = pci_zalloc_consistent(pci, risc->size, &risc->dma);
+	risc->cpu = dma_alloc_coherent(&pci->dev, risc->size, &risc->dma,
+				       GFP_KERNEL);
 	if (!risc->cpu)
 		return -ENOMEM;
 
@@ -190,7 +191,8 @@ int cx88_risc_databuffer(struct pci_dev *pci, struct cx88_riscmem *risc,
 	instructions += 3;
 	risc->size = instructions * 8;
 	risc->dma = 0;
-	risc->cpu = pci_zalloc_consistent(pci, risc->size, &risc->dma);
+	risc->cpu = dma_alloc_coherent(&pci->dev, risc->size, &risc->dma,
+				       GFP_KERNEL);
 	if (!risc->cpu)
 		return -ENOMEM;
 

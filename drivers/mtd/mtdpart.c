@@ -212,15 +212,14 @@ out_register:
 	return child;
 }
 
-static ssize_t mtd_partition_offset_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t offset_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%lld\n", mtd->part.offset);
+	return sysfs_emit(buf, "%lld\n", mtd->part.offset);
 }
-
-static DEVICE_ATTR(offset, S_IRUGO, mtd_partition_offset_show, NULL);
+static DEVICE_ATTR_RO(offset);	/* mtd partition offset */
 
 static const struct attribute *mtd_partition_attrs[] = {
 	&dev_attr_offset.attr,

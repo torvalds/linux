@@ -352,6 +352,7 @@ static void dr_ste_v0_set_rx_decap(u8 *hw_ste_p)
 {
 	MLX5_SET(ste_rx_steering_mult, hw_ste_p, tunneling_action,
 		 DR_STE_TUNL_ACTION_DECAP);
+	MLX5_SET(ste_rx_steering_mult, hw_ste_p, fail_on_error, 1);
 }
 
 static void dr_ste_v0_set_rx_pop_vlan(u8 *hw_ste_p)
@@ -365,6 +366,7 @@ static void dr_ste_v0_set_rx_decap_l3(u8 *hw_ste_p, bool vlan)
 	MLX5_SET(ste_rx_steering_mult, hw_ste_p, tunneling_action,
 		 DR_STE_TUNL_ACTION_L3_DECAP);
 	MLX5_SET(ste_modify_packet, hw_ste_p, action_description, vlan ? 1 : 0);
+	MLX5_SET(ste_rx_steering_mult, hw_ste_p, fail_on_error, 1);
 }
 
 static void dr_ste_v0_set_rewrite_actions(u8 *hw_ste_p, u16 num_of_actions,
@@ -437,8 +439,8 @@ dr_ste_v0_set_actions_tx(struct mlx5dr_domain *dmn,
 						attr->gvmi);
 
 		dr_ste_v0_set_tx_encap(last_ste,
-				       attr->reformat_id,
-				       attr->reformat_size,
+				       attr->reformat.id,
+				       attr->reformat.size,
 				       action_type_set[DR_ACTION_TYP_L2_TO_TNL_L3]);
 		/* Whenever prio_tag_required enabled, we can be sure that the
 		 * previous table (ACL) already push vlan to our packet,
@@ -1893,6 +1895,7 @@ struct mlx5dr_ste_ctx ste_ctx_v0 = {
 	.get_byte_mask			= &dr_ste_v0_get_byte_mask,
 
 	/* Actions */
+	.actions_caps			= DR_STE_CTX_ACTION_CAP_NONE,
 	.set_actions_rx			= &dr_ste_v0_set_actions_rx,
 	.set_actions_tx			= &dr_ste_v0_set_actions_tx,
 	.modify_field_arr_sz		= ARRAY_SIZE(dr_ste_v0_action_modify_field_arr),

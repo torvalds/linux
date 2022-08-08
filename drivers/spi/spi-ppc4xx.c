@@ -34,7 +34,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/dcr.h>
 #include <asm/dcr-regs.h>
 
@@ -223,7 +223,7 @@ static int spi_ppc4xx_setup(struct spi_device *spi)
 	}
 
 	if (cs == NULL) {
-		cs = kzalloc(sizeof *cs, GFP_KERNEL);
+		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 		if (!cs)
 			return -ENOMEM;
 		spi->controller_state = cs;
@@ -235,7 +235,7 @@ static int spi_ppc4xx_setup(struct spi_device *spi)
 	 */
 	cs->mode = SPI_PPC4XX_MODE_SPE;
 
-	switch (spi->mode & (SPI_CPHA | SPI_CPOL)) {
+	switch (spi->mode & SPI_MODE_X_MASK) {
 	case SPI_MODE_0:
 		cs->mode |= SPI_CLK_MODE0;
 		break;
@@ -326,7 +326,7 @@ static void spi_ppc4xx_enable(struct ppc4xx_spi *hw)
 {
 	/*
 	 * On all 4xx PPC's the SPI bus is shared/multiplexed with
-	 * the 2nd I2C bus. We need to enable the the SPI bus before
+	 * the 2nd I2C bus. We need to enable the SPI bus before
 	 * using it.
 	 */
 
@@ -349,7 +349,7 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 	int ret;
 	const unsigned int *clk;
 
-	master = spi_alloc_master(dev, sizeof *hw);
+	master = spi_alloc_master(dev, sizeof(*hw));
 	if (master == NULL)
 		return -ENOMEM;
 	master->dev.of_node = np;

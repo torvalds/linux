@@ -327,6 +327,9 @@ static int qed_ll2_txq_completion(struct qed_hwfn *p_hwfn, void *p_cookie)
 	unsigned long flags;
 	int rc = -EINVAL;
 
+	if (!p_ll2_conn)
+		return rc;
+
 	spin_lock_irqsave(&p_tx->lock, flags);
 	if (p_tx->b_completing_packet) {
 		rc = -EBUSY;
@@ -500,7 +503,16 @@ static int qed_ll2_rxq_completion(struct qed_hwfn *p_hwfn, void *cookie)
 	unsigned long flags = 0;
 	int rc = 0;
 
+	if (!p_ll2_conn)
+		return rc;
+
 	spin_lock_irqsave(&p_rx->lock, flags);
+
+	if (!QED_LL2_RX_REGISTERED(p_ll2_conn)) {
+		spin_unlock_irqrestore(&p_rx->lock, flags);
+		return 0;
+	}
+
 	cq_new_idx = le16_to_cpu(*p_rx->p_fw_cons);
 	cq_old_idx = qed_chain_get_cons_idx(&p_rx->rcq_chain);
 
@@ -821,6 +833,9 @@ static int qed_ll2_lb_rxq_completion(struct qed_hwfn *p_hwfn, void *p_cookie)
 	struct qed_ll2_info *p_ll2_conn = (struct qed_ll2_info *)p_cookie;
 	int rc;
 
+	if (!p_ll2_conn)
+		return 0;
+
 	if (!QED_LL2_RX_REGISTERED(p_ll2_conn))
 		return 0;
 
@@ -843,6 +858,9 @@ static int qed_ll2_lb_txq_completion(struct qed_hwfn *p_hwfn, void *p_cookie)
 	bool b_dont_submit_rx = false;
 	u16 new_idx = 0, num_bds = 0;
 	int rc;
+
+	if (!p_ll2_conn)
+		return 0;
 
 	if (!QED_LL2_TX_REGISTERED(p_ll2_conn))
 		return 0;
@@ -960,7 +978,8 @@ static int qed_sp_ll2_rx_queue_start(struct qed_hwfn *p_hwfn,
 
 	if (test_bit(QED_MF_LL2_NON_UNICAST, &p_hwfn->cdev->mf_bits) &&
 	    p_ramrod->main_func_queue && conn_type != QED_LL2_TYPE_ROCE &&
-	    conn_type != QED_LL2_TYPE_IWARP) {
+	    conn_type != QED_LL2_TYPE_IWARP &&
+		(!QED_IS_NVMETCP_PERSONALITY(p_hwfn))) {
 		p_ramrod->mf_si_bcast_accept_all = 1;
 		p_ramrod->mf_si_mcast_accept_all = 1;
 	} else {
@@ -1037,8 +1056,8 @@ static int qed_sp_ll2_tx_queue_start(struct qed_hwfn *p_hwfn,
 	case QED_LL2_TYPE_FCOE:
 		p_ramrod->conn_type = PROTOCOLID_FCOE;
 		break;
-	case QED_LL2_TYPE_ISCSI:
-		p_ramrod->conn_type = PROTOCOLID_ISCSI;
+	case QED_LL2_TYPE_TCP_ULP:
+		p_ramrod->conn_type = PROTOCOLID_TCP_ULP;
 		break;
 	case QED_LL2_TYPE_ROCE:
 		p_ramrod->conn_type = PROTOCOLID_ROCE;
@@ -1047,8 +1066,9 @@ static int qed_sp_ll2_tx_queue_start(struct qed_hwfn *p_hwfn,
 		p_ramrod->conn_type = PROTOCOLID_IWARP;
 		break;
 	case QED_LL2_TYPE_OOO:
-		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI)
-			p_ramrod->conn_type = PROTOCOLID_ISCSI;
+		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI ||
+		    p_hwfn->hw_info.personality == QED_PCI_NVMETCP)
+			p_ramrod->conn_type = PROTOCOLID_TCP_ULP;
 		else
 			p_ramrod->conn_type = PROTOCOLID_IWARP;
 		break;
@@ -1634,7 +1654,8 @@ int qed_ll2_establish_connection(void *cxt, u8 connection_handle)
 	if (rc)
 		goto out;
 
-	if (!QED_IS_RDMA_PERSONALITY(p_hwfn))
+	if (!QED_IS_RDMA_PERSONALITY(p_hwfn) &&
+	    !QED_IS_NVMETCP_PERSONALITY(p_hwfn))
 		qed_wr(p_hwfn, p_ptt, PRS_REG_USE_LIGHT_L2, 1);
 
 	qed_ll2_establish_connection_ooo(p_hwfn, p_ll2_conn);
@@ -1725,6 +1746,8 @@ int qed_ll2_post_rx_buffer(void *cxt,
 	if (!p_ll2_conn)
 		return -EINVAL;
 	p_rx = &p_ll2_conn->rx_queue;
+	if (!p_rx->set_prod_addr)
+		return -EIO;
 
 	spin_lock_irqsave(&p_rx->lock, flags);
 	if (!list_empty(&p_rx->free_descq))
@@ -2376,7 +2399,8 @@ out:
 static bool qed_ll2_is_storage_eng1(struct qed_dev *cdev)
 {
 	return (QED_IS_FCOE_PERSONALITY(QED_LEADING_HWFN(cdev)) ||
-		QED_IS_ISCSI_PERSONALITY(QED_LEADING_HWFN(cdev))) &&
+		QED_IS_ISCSI_PERSONALITY(QED_LEADING_HWFN(cdev)) ||
+		QED_IS_NVMETCP_PERSONALITY(QED_LEADING_HWFN(cdev))) &&
 		(QED_AFFIN_HWFN(cdev) != QED_LEADING_HWFN(cdev));
 }
 
@@ -2402,11 +2426,13 @@ static int qed_ll2_stop(struct qed_dev *cdev)
 
 	if (cdev->ll2->handle == QED_LL2_UNUSED_HANDLE)
 		return 0;
+	if (!QED_IS_NVMETCP_PERSONALITY(p_hwfn))
+		qed_llh_remove_mac_filter(cdev, 0, cdev->ll2_mac_address);
 
 	qed_llh_remove_mac_filter(cdev, 0, cdev->ll2_mac_address);
 	eth_zero_addr(cdev->ll2_mac_address);
 
-	if (QED_IS_ISCSI_PERSONALITY(p_hwfn))
+	if (QED_IS_ISCSI_PERSONALITY(p_hwfn) || QED_IS_NVMETCP_PERSONALITY(p_hwfn))
 		qed_ll2_stop_ooo(p_hwfn);
 
 	/* In CMT mode, LL2 is always started on engine 0 for a storage PF */
@@ -2442,7 +2468,8 @@ static int __qed_ll2_start(struct qed_hwfn *p_hwfn,
 		conn_type = QED_LL2_TYPE_FCOE;
 		break;
 	case QED_PCI_ISCSI:
-		conn_type = QED_LL2_TYPE_ISCSI;
+	case QED_PCI_NVMETCP:
+		conn_type = QED_LL2_TYPE_TCP_ULP;
 		break;
 	case QED_PCI_ETH_ROCE:
 		conn_type = QED_LL2_TYPE_ROCE;
@@ -2567,7 +2594,7 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 		}
 	}
 
-	if (QED_IS_ISCSI_PERSONALITY(p_hwfn)) {
+	if (QED_IS_ISCSI_PERSONALITY(p_hwfn) || QED_IS_NVMETCP_PERSONALITY(p_hwfn)) {
 		DP_VERBOSE(cdev, QED_MSG_STORAGE, "Starting OOO LL2 queue\n");
 		rc = qed_ll2_start_ooo(p_hwfn, params);
 		if (rc) {
@@ -2576,10 +2603,13 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 		}
 	}
 
-	rc = qed_llh_add_mac_filter(cdev, 0, params->ll2_mac_address);
-	if (rc) {
-		DP_NOTICE(cdev, "Failed to add an LLH filter\n");
-		goto err3;
+	if (!QED_IS_NVMETCP_PERSONALITY(p_hwfn)) {
+		rc = qed_llh_add_mac_filter(cdev, 0, params->ll2_mac_address);
+		if (rc) {
+			DP_NOTICE(cdev, "Failed to add an LLH filter\n");
+			goto err3;
+		}
+
 	}
 
 	ether_addr_copy(cdev->ll2_mac_address, params->ll2_mac_address);
@@ -2587,7 +2617,7 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 	return 0;
 
 err3:
-	if (QED_IS_ISCSI_PERSONALITY(p_hwfn))
+	if (QED_IS_ISCSI_PERSONALITY(p_hwfn) || QED_IS_NVMETCP_PERSONALITY(p_hwfn))
 		qed_ll2_stop_ooo(p_hwfn);
 err2:
 	if (b_is_storage_eng1)

@@ -127,6 +127,17 @@ static void rtw_phy_cfo_init(struct rtw_dev *rtwdev)
 		chip->ops->cfo_init(rtwdev);
 }
 
+static void rtw_phy_tx_path_div_init(struct rtw_dev *rtwdev)
+{
+	struct rtw_path_div *path_div = &rtwdev->dm_path_div;
+
+	path_div->current_tx_path = rtwdev->chip->default_1ss_tx_path;
+	path_div->path_a_cnt = 0;
+	path_div->path_a_sum = 0;
+	path_div->path_b_cnt = 0;
+	path_div->path_b_sum = 0;
+}
+
 void rtw_phy_init(struct rtw_dev *rtwdev)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
@@ -149,6 +160,7 @@ void rtw_phy_init(struct rtw_dev *rtwdev)
 
 	dm_info->iqk.done = false;
 	rtw_phy_cfo_init(rtwdev);
+	rtw_phy_tx_path_div_init(rtwdev);
 }
 EXPORT_SYMBOL(rtw_phy_init);
 
@@ -695,6 +707,7 @@ void rtw_phy_dynamic_mechanism(struct rtw_dev *rtwdev)
 	rtw_phy_dig(rtwdev);
 	rtw_phy_cck_pd(rtwdev);
 	rtw_phy_ra_track(rtwdev);
+	rtw_phy_tx_path_diversity(rtwdev);
 	rtw_phy_cfo_track(rtwdev);
 	rtw_phy_dpk_track(rtwdev);
 	rtw_phy_pwr_track(rtwdev);
@@ -2315,3 +2328,71 @@ bool rtw_phy_pwrtrack_need_iqk(struct rtw_dev *rtwdev)
 	return false;
 }
 EXPORT_SYMBOL(rtw_phy_pwrtrack_need_iqk);
+
+static void rtw_phy_set_tx_path_by_reg(struct rtw_dev *rtwdev,
+				       enum rtw_bb_path tx_path_sel_1ss)
+{
+	struct rtw_path_div *path_div = &rtwdev->dm_path_div;
+	enum rtw_bb_path tx_path_sel_cck = tx_path_sel_1ss;
+	struct rtw_chip_info *chip = rtwdev->chip;
+
+	if (tx_path_sel_1ss == path_div->current_tx_path)
+		return;
+
+	path_div->current_tx_path = tx_path_sel_1ss;
+	rtw_dbg(rtwdev, RTW_DBG_PATH_DIV, "Switch TX path=%s\n",
+		tx_path_sel_1ss == BB_PATH_A ? "A" : "B");
+	chip->ops->config_tx_path(rtwdev, rtwdev->hal.antenna_tx,
+				  tx_path_sel_1ss, tx_path_sel_cck, false);
+}
+
+static void rtw_phy_tx_path_div_select(struct rtw_dev *rtwdev)
+{
+	struct rtw_path_div *path_div = &rtwdev->dm_path_div;
+	enum rtw_bb_path path = path_div->current_tx_path;
+	s32 rssi_a = 0, rssi_b = 0;
+
+	if (path_div->path_a_cnt)
+		rssi_a = path_div->path_a_sum / path_div->path_a_cnt;
+	else
+		rssi_a = 0;
+	if (path_div->path_b_cnt)
+		rssi_b = path_div->path_b_sum / path_div->path_b_cnt;
+	else
+		rssi_b = 0;
+
+	if (rssi_a != rssi_b)
+		path = (rssi_a > rssi_b) ? BB_PATH_A : BB_PATH_B;
+
+	path_div->path_a_cnt = 0;
+	path_div->path_a_sum = 0;
+	path_div->path_b_cnt = 0;
+	path_div->path_b_sum = 0;
+	rtw_phy_set_tx_path_by_reg(rtwdev, path);
+}
+
+static void rtw_phy_tx_path_diversity_2ss(struct rtw_dev *rtwdev)
+{
+	if (rtwdev->hal.antenna_rx != BB_PATH_AB) {
+		rtw_dbg(rtwdev, RTW_DBG_PATH_DIV,
+			"[Return] tx_Path_en=%d, rx_Path_en=%d\n",
+			rtwdev->hal.antenna_tx, rtwdev->hal.antenna_rx);
+		return;
+	}
+	if (rtwdev->sta_cnt == 0) {
+		rtw_dbg(rtwdev, RTW_DBG_PATH_DIV, "No Link\n");
+		return;
+	}
+
+	rtw_phy_tx_path_div_select(rtwdev);
+}
+
+void rtw_phy_tx_path_diversity(struct rtw_dev *rtwdev)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+
+	if (!chip->path_div_supported)
+		return;
+
+	rtw_phy_tx_path_diversity_2ss(rtwdev);
+}

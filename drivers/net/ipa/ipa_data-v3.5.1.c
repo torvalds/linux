@@ -271,77 +271,92 @@ static const struct ipa_resource_data ipa_resource_data = {
 
 /* IPA-resident memory region data for an SoC having IPA v3.5.1 */
 static const struct ipa_mem ipa_mem_local_data[] = {
-	[IPA_MEM_UC_SHARED] = {
+	{
+		.id		= IPA_MEM_UC_SHARED,
 		.offset		= 0x0000,
 		.size		= 0x0080,
 		.canary_count	= 0,
 	},
-	[IPA_MEM_UC_INFO] = {
+	{
+		.id		= IPA_MEM_UC_INFO,
 		.offset		= 0x0080,
 		.size		= 0x0200,
 		.canary_count	= 0,
 	},
-	[IPA_MEM_V4_FILTER_HASHED] = {
+	{
+		.id		= IPA_MEM_V4_FILTER_HASHED,
 		.offset		= 0x0288,
 		.size		= 0x0078,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_V4_FILTER] = {
+	{
+		.id		= IPA_MEM_V4_FILTER,
 		.offset		= 0x0308,
 		.size		= 0x0078,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_V6_FILTER_HASHED] = {
+	{
+		.id		= IPA_MEM_V6_FILTER_HASHED,
 		.offset		= 0x0388,
 		.size		= 0x0078,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_V6_FILTER] = {
+	{
+		.id		= IPA_MEM_V6_FILTER,
 		.offset		= 0x0408,
 		.size		= 0x0078,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_V4_ROUTE_HASHED] = {
+	{
+		.id		= IPA_MEM_V4_ROUTE_HASHED,
 		.offset		= 0x0488,
 		.size		= 0x0078,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_V4_ROUTE] = {
+	{
+		.id		= IPA_MEM_V4_ROUTE,
 		.offset		= 0x0508,
 		.size		= 0x0078,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_V6_ROUTE_HASHED] = {
+	{
+		.id		= IPA_MEM_V6_ROUTE_HASHED,
 		.offset		= 0x0588,
 		.size		= 0x0078,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_V6_ROUTE] = {
+	{
+		.id		= IPA_MEM_V6_ROUTE,
 		.offset		= 0x0608,
 		.size		= 0x0078,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_MODEM_HEADER] = {
+	{
+		.id		= IPA_MEM_MODEM_HEADER,
 		.offset		= 0x0688,
 		.size		= 0x0140,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_MODEM_PROC_CTX] = {
+	{
+		.id		= IPA_MEM_MODEM_PROC_CTX,
 		.offset		= 0x07d0,
 		.size		= 0x0200,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_AP_PROC_CTX] = {
+	{
+		.id		= IPA_MEM_AP_PROC_CTX,
 		.offset		= 0x09d0,
 		.size		= 0x0200,
 		.canary_count	= 0,
 	},
-	[IPA_MEM_MODEM] = {
+	{
+		.id		= IPA_MEM_MODEM,
 		.offset		= 0x0bd8,
 		.size		= 0x1024,
 		.canary_count	= 0,
 	},
-	[IPA_MEM_UC_EVENT_RING] = {
+	{
+		.id		= IPA_MEM_UC_EVENT_RING,
 		.offset		= 0x1c00,
 		.size		= 0x0400,
 		.canary_count	= 1,

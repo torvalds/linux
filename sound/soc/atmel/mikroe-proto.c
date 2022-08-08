@@ -120,19 +120,22 @@ static int snd_proto_probe(struct platform_device *pdev)
 	dai->cpus->of_node = cpu_np;
 	dai->platforms->of_node = cpu_np;
 
-	dai_fmt = snd_soc_of_parse_daifmt(np, NULL,
-					  &bitclkmaster, &framemaster);
+	dai_fmt = snd_soc_daifmt_parse_format(np, NULL);
+	snd_soc_daifmt_parse_clock_provider_as_phandle(np, NULL,
+						       &bitclkmaster, &framemaster);
 	if (bitclkmaster != framemaster) {
 		dev_err(&pdev->dev, "Must be the same bitclock and frame master\n");
 		return -EINVAL;
 	}
 	if (bitclkmaster) {
-		dai_fmt &= ~SND_SOC_DAIFMT_MASTER_MASK;
 		if (codec_np == bitclkmaster)
 			dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
 		else
 			dai_fmt |= SND_SOC_DAIFMT_CBS_CFS;
+	} else {
+		dai_fmt |= snd_soc_daifmt_parse_clock_provider_as_flag(np, NULL);
 	}
+
 	of_node_put(bitclkmaster);
 	of_node_put(framemaster);
 	dai->dai_fmt = dai_fmt;

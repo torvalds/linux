@@ -1051,6 +1051,19 @@ static int mlxsw_sp_get_module_eeprom(struct net_device *netdev,
 }
 
 static int
+mlxsw_sp_get_module_eeprom_by_page(struct net_device *dev,
+				   const struct ethtool_module_eeprom *page,
+				   struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u8 module = mlxsw_sp_port->mapping.module;
+
+	return mlxsw_env_get_module_eeprom_by_page(mlxsw_sp->core, module, page,
+						   extack);
+}
+
+static int
 mlxsw_sp_get_ts_info(struct net_device *netdev, struct ethtool_ts_info *info)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(netdev);
@@ -1199,6 +1212,7 @@ const struct ethtool_ops mlxsw_sp_port_ethtool_ops = {
 	.set_link_ksettings		= mlxsw_sp_port_set_link_ksettings,
 	.get_module_info		= mlxsw_sp_get_module_info,
 	.get_module_eeprom		= mlxsw_sp_get_module_eeprom,
+	.get_module_eeprom_by_page	= mlxsw_sp_get_module_eeprom_by_page,
 	.get_ts_info			= mlxsw_sp_get_ts_info,
 	.get_eth_phy_stats		= mlxsw_sp_get_eth_phy_stats,
 	.get_eth_mac_stats		= mlxsw_sp_get_eth_mac_stats,

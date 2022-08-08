@@ -96,6 +96,13 @@ KVM_FEATURE_MSI_EXT_DEST_ID        15          guest checks this feature bit
                                                before using extended destination
                                                ID bits in MSI address bits 11-5.
 
+KVM_FEATURE_HC_MAP_GPA_RANGE       16          guest checks this feature bit before
+                                               using the map gpa range hypercall
+                                               to notify the page state change
+
+KVM_FEATURE_MIGRATION_CONTROL      17          guest checks this feature bit before
+                                               using MSR_KVM_MIGRATION_CONTROL
+
 KVM_FEATURE_CLOCKSOURCE_STABLE_BIT 24          host will warn if no guest-side
                                                per-cpu warps are expected in
                                                kvmclock

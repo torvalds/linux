@@ -38,7 +38,7 @@ Conventions and Notations Used in This Document
 6. i = [a..b]: sequence of integers from a to b, inclusive, i.e. i =
    [0..2]: i = 0, 1, 2.
 
-7. Given an ``OUTPUT`` buffer A, then A’ represents a buffer on the ``CAPTURE``
+7. Given an ``OUTPUT`` buffer A, then A' represents a buffer on the ``CAPTURE``
    queue containing data that resulted from processing buffer A.
 
 .. _decoder-glossary:
@@ -288,7 +288,7 @@ Initialization
 
       Changing the ``OUTPUT`` format may change the currently set ``CAPTURE``
       format. How the new ``CAPTURE`` format is determined is up to the decoder
-      and the client must ensure it matches its needs afterwards.
+      and the client must ensure it matches its needs afterwards.
 
 2.  Allocate source (bytestream) buffers via :c:func:`VIDIOC_REQBUFS` on
     ``OUTPUT``.
@@ -874,7 +874,7 @@ it may be affected as per normal decoder operation.
 
    any of the following results on the ``CAPTURE`` queue is allowed:
 
-     {A’, B’, G’, H’}, {A’, G’, H’}, {G’, H’}.
+     {A', B', G', H'}, {A', G', H'}, {G', H'}.
 
    To determine the CAPTURE buffer containing the first decoded frame after the
    seek, the client may observe the timestamps to match the CAPTURE and OUTPUT

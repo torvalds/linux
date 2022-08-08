@@ -98,14 +98,14 @@ int radeon_sync_resv(struct radeon_device *rdev,
 	int r = 0;
 
 	/* always sync to the exclusive fence */
-	f = dma_resv_get_excl(resv);
+	f = dma_resv_excl_fence(resv);
 	fence = f ? to_radeon_fence(f) : NULL;
 	if (fence && fence->rdev == rdev)
 		radeon_sync_fence(sync, fence);
 	else if (f)
 		r = dma_fence_wait(f, true);
 
-	flist = dma_resv_get_list(resv);
+	flist = dma_resv_shared_list(resv);
 	if (shared || !flist || r)
 		return r;
 

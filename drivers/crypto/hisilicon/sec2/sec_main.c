@@ -52,6 +52,7 @@
 #define SEC_RAS_CE_ENB_MSK		0x88
 #define SEC_RAS_FE_ENB_MSK		0x0
 #define SEC_RAS_NFE_ENB_MSK		0x7c177
+#define SEC_OOO_SHUTDOWN_SEL		0x301014
 #define SEC_RAS_DISABLE		0x0
 #define SEC_MEM_START_INIT_REG	0x301100
 #define SEC_MEM_INIT_DONE_REG		0x301104
@@ -84,6 +85,12 @@
 #define SEC_USER1_SMMU_MASK		(~SEC_USER1_SVA_SET)
 #define SEC_CORE_INT_STATUS_M_ECC	BIT(2)
 
+#define SEC_PREFETCH_CFG		0x301130
+#define SEC_SVA_TRANS			0x301EC4
+#define SEC_PREFETCH_ENABLE		(~(BIT(0) | BIT(1) | BIT(11)))
+#define SEC_PREFETCH_DISABLE		BIT(1)
+#define SEC_SVA_DISABLE_READY		(BIT(7) | BIT(11))
+
 #define SEC_DELAY_10_US			10
 #define SEC_POLL_TIMEOUT_US		1000
 #define SEC_DBGFS_VAL_MAX_LEN		20
@@ -91,6 +98,7 @@
 
 #define SEC_SQE_MASK_OFFSET		64
 #define SEC_SQE_MASK_LEN		48
+#define SEC_SHAPER_TYPE_RATE		128
 
 struct sec_hw_error {
 	u32 int_msk;
@@ -331,6 +339,45 @@ static u8 sec_get_endian(struct hisi_qm *qm)
 		return SEC_64BE;
 }
 
+static void sec_open_sva_prefetch(struct hisi_qm *qm)
+{
+	u32 val;
+	int ret;
+
+	if (qm->ver < QM_HW_V3)
+		return;
+
+	/* Enable prefetch */
+	val = readl_relaxed(qm->io_base + SEC_PREFETCH_CFG);
+	val &= SEC_PREFETCH_ENABLE;
+	writel(val, qm->io_base + SEC_PREFETCH_CFG);
+
+	ret = readl_relaxed_poll_timeout(qm->io_base + SEC_PREFETCH_CFG,
+					 val, !(val & SEC_PREFETCH_DISABLE),
+					 SEC_DELAY_10_US, SEC_POLL_TIMEOUT_US);
+	if (ret)
+		pci_err(qm->pdev, "failed to open sva prefetch\n");
+}
+
+static void sec_close_sva_prefetch(struct hisi_qm *qm)
+{
+	u32 val;
+	int ret;
+
+	if (qm->ver < QM_HW_V3)
+		return;
+
+	val = readl_relaxed(qm->io_base + SEC_PREFETCH_CFG);
+	val |= SEC_PREFETCH_DISABLE;
+	writel(val, qm->io_base + SEC_PREFETCH_CFG);
+
+	ret = readl_relaxed_poll_timeout(qm->io_base + SEC_SVA_TRANS,
+					 val, !(val & SEC_SVA_DISABLE_READY),
+					 SEC_DELAY_10_US, SEC_POLL_TIMEOUT_US);
+	if (ret)
+		pci_err(qm->pdev, "failed to close sva prefetch\n");
+}
+
 static int sec_engine_init(struct hisi_qm *qm)
 {
 	int ret;
@@ -430,53 +477,60 @@ static void sec_debug_regs_clear(struct hisi_qm *qm)
 	hisi_qm_debug_regs_clear(qm);
 }
 
+static void sec_master_ooo_ctrl(struct hisi_qm *qm, bool enable)
+{
+	u32 val1, val2;
+
+	val1 = readl(qm->io_base + SEC_CONTROL_REG);
+	if (enable) {
+		val1 |= SEC_AXI_SHUTDOWN_ENABLE;
+		val2 = SEC_RAS_NFE_ENB_MSK;
+	} else {
+		val1 &= SEC_AXI_SHUTDOWN_DISABLE;
+		val2 = 0x0;
+	}
+
+	if (qm->ver > QM_HW_V2)
+		writel(val2, qm->io_base + SEC_OOO_SHUTDOWN_SEL);
+
+	writel(val1, qm->io_base + SEC_CONTROL_REG);
+}
+
 static void sec_hw_error_enable(struct hisi_qm *qm)
 {
-	u32 val;
-
 	if (qm->ver == QM_HW_V1) {
 		writel(SEC_CORE_INT_DISABLE, qm->io_base + SEC_CORE_INT_MASK);
 		pci_info(qm->pdev, "V1 not support hw error handle\n");
 		return;
 	}
 
-	val = readl(qm->io_base + SEC_CONTROL_REG);
-
 	/* clear SEC hw error source if having */
 	writel(SEC_CORE_INT_CLEAR, qm->io_base + SEC_CORE_INT_SOURCE);
-
-	/* enable SEC hw error interrupts */
-	writel(SEC_CORE_INT_ENABLE, qm->io_base + SEC_CORE_INT_MASK);
 
 	/* enable RAS int */
 	writel(SEC_RAS_CE_ENB_MSK, qm->io_base + SEC_RAS_CE_REG);
 	writel(SEC_RAS_FE_ENB_MSK, qm->io_base + SEC_RAS_FE_REG);
 	writel(SEC_RAS_NFE_ENB_MSK, qm->io_base + SEC_RAS_NFE_REG);
 
-	/* enable SEC block master OOO when m-bit error occur */
-	val = val | SEC_AXI_SHUTDOWN_ENABLE;
+	/* enable SEC block master OOO when nfe occurs on Kunpeng930 */
+	sec_master_ooo_ctrl(qm, true);
 
-	writel(val, qm->io_base + SEC_CONTROL_REG);
+	/* enable SEC hw error interrupts */
+	writel(SEC_CORE_INT_ENABLE, qm->io_base + SEC_CORE_INT_MASK);
 }
 
 static void sec_hw_error_disable(struct hisi_qm *qm)
 {
-	u32 val;
+	/* disable SEC hw error interrupts */
+	writel(SEC_CORE_INT_DISABLE, qm->io_base + SEC_CORE_INT_MASK);
 
-	val = readl(qm->io_base + SEC_CONTROL_REG);
+	/* disable SEC block master OOO when nfe occurs on Kunpeng930 */
+	sec_master_ooo_ctrl(qm, false);
 
 	/* disable RAS int */
 	writel(SEC_RAS_DISABLE, qm->io_base + SEC_RAS_CE_REG);
 	writel(SEC_RAS_DISABLE, qm->io_base + SEC_RAS_FE_REG);
 	writel(SEC_RAS_DISABLE, qm->io_base + SEC_RAS_NFE_REG);
-
-	/* disable SEC hw error interrupts */
-	writel(SEC_CORE_INT_DISABLE, qm->io_base + SEC_CORE_INT_MASK);
-
-	/* disable SEC block master OOO when m-bit error occur */
-	val = val & SEC_AXI_SHUTDOWN_DISABLE;
-
-	writel(val, qm->io_base + SEC_CONTROL_REG);
 }
 
 static u32 sec_clear_enable_read(struct sec_debug_file *file)
@@ -743,6 +797,8 @@ static const struct hisi_qm_err_ini sec_err_ini = {
 	.clear_dev_hw_err_status = sec_clear_hw_err_status,
 	.log_dev_hw_err		= sec_log_hw_error,
 	.open_axi_master_ooo	= sec_open_axi_master_ooo,
+	.open_sva_prefetch	= sec_open_sva_prefetch,
+	.close_sva_prefetch	= sec_close_sva_prefetch,
 	.err_info_init		= sec_err_info_init,
 };
 
@@ -758,6 +814,7 @@ static int sec_pf_probe_init(struct sec_dev *sec)
 	if (ret)
 		return ret;
 
+	sec_open_sva_prefetch(qm);
 	hisi_qm_dev_err_init(qm);
 	sec_debug_regs_clear(qm);
 
@@ -821,6 +878,7 @@ static void sec_qm_uninit(struct hisi_qm *qm)
 
 static int sec_probe_init(struct sec_dev *sec)
 {
+	u32 type_rate = SEC_SHAPER_TYPE_RATE;
 	struct hisi_qm *qm = &sec->qm;
 	int ret;
 
@@ -828,6 +886,11 @@ static int sec_probe_init(struct sec_dev *sec)
 		ret = sec_pf_probe_init(sec);
 		if (ret)
 			return ret;
+		/* enable shaper type 0 */
+		if (qm->ver >= QM_HW_V3) {
+			type_rate |= QM_SHAPER_ENABLE;
+			qm->type_rate = type_rate;
+		}
 	}
 
 	return 0;

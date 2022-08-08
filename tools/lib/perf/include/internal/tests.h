@@ -5,8 +5,8 @@
 #include <stdio.h>
 #include <unistd.h>
 
-int tests_failed;
-int tests_verbose;
+extern int tests_failed;
+extern int tests_verbose;
 
 static inline int get_verbose(char **argv, int argc)
 {

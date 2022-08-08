@@ -21,7 +21,7 @@
 #define NFP_TUN_PRE_TUN_IPV6_BIT	BIT(7)
 
 /**
- * struct nfp_tun_pre_run_rule - rule matched before decap
+ * struct nfp_tun_pre_tun_rule - rule matched before decap
  * @flags:		options for the rule offset
  * @port_idx:		index of destination MAC address for the rule
  * @vlan_tci:		VLAN info associated with MAC

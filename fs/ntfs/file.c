@@ -1684,20 +1684,17 @@ static size_t ntfs_copy_from_user_iter(struct page **pages, unsigned nr_pages,
 {
 	struct page **last_page = pages + nr_pages;
 	size_t total = 0;
-	struct iov_iter data = *i;
 	unsigned len, copied;
 
 	do {
 		len = PAGE_SIZE - ofs;
 		if (len > bytes)
 			len = bytes;
-		copied = iov_iter_copy_from_user_atomic(*pages, &data, ofs,
-				len);
+		copied = copy_page_from_iter_atomic(*pages, ofs, len, i);
 		total += copied;
 		bytes -= copied;
 		if (!bytes)
 			break;
-		iov_iter_advance(&data, copied);
 		if (copied < len)
 			goto err;
 		ofs = 0;
@@ -1866,34 +1863,24 @@ again:
 		if (likely(copied == bytes)) {
 			status = ntfs_commit_pages_after_write(pages, do_pages,
 					pos, bytes);
-			if (!status)
-				status = bytes;
 		}
 		do {
 			unlock_page(pages[--do_pages]);
 			put_page(pages[do_pages]);
 		} while (do_pages);
-		if (unlikely(status < 0))
+		if (unlikely(status < 0)) {
+			iov_iter_revert(i, copied);
 			break;
-		copied = status;
+		}
 		cond_resched();
-		if (unlikely(!copied)) {
-			size_t sc;
-
-			/*
-			 * We failed to copy anything.  Fall back to single
-			 * segment length write.
-			 *
-			 * This is needed to avoid possible livelock in the
-			 * case that all segments in the iov cannot be copied
-			 * at once without a pagefault.
-			 */
-			sc = iov_iter_single_seg_count(i);
-			if (bytes > sc)
-				bytes = sc;
+		if (unlikely(copied < bytes)) {
+			iov_iter_revert(i, copied);
+			if (copied)
+				bytes = copied;
+			else if (bytes > PAGE_SIZE - ofs)
+				bytes = PAGE_SIZE - ofs;
 			goto again;
 		}
-		iov_iter_advance(i, copied);
 		pos += copied;
 		written += copied;
 		balance_dirty_pages_ratelimited(mapping);

@@ -604,20 +604,19 @@ r9a06g032_div_clamp_div(struct r9a06g032_clk_div *clk,
 	return div;
 }
 
-static long
-r9a06g032_div_round_rate(struct clk_hw *hw,
-			 unsigned long rate, unsigned long *prate)
+static int
+r9a06g032_div_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
 {
 	struct r9a06g032_clk_div *clk = to_r9a06g032_div(hw);
-	u32 div = DIV_ROUND_UP(*prate, rate);
+	u32 div = DIV_ROUND_UP(req->best_parent_rate, req->rate);
 
 	pr_devel("%s %pC %ld (prate %ld) (wanted div %u)\n", __func__,
-		 hw->clk, rate, *prate, div);
+		 hw->clk, req->rate, req->best_parent_rate, div);
 	pr_devel("   min %d (%ld) max %d (%ld)\n",
-		 clk->min, DIV_ROUND_UP(*prate, clk->min),
-		clk->max, DIV_ROUND_UP(*prate, clk->max));
+		 clk->min, DIV_ROUND_UP(req->best_parent_rate, clk->min),
+		 clk->max, DIV_ROUND_UP(req->best_parent_rate, clk->max));
 
-	div = r9a06g032_div_clamp_div(clk, rate, *prate);
+	div = r9a06g032_div_clamp_div(clk, req->rate, req->best_parent_rate);
 	/*
 	 * this is a hack. Currently the serial driver asks for a clock rate
 	 * that is 16 times the baud rate -- and that is wildly outside the
@@ -630,11 +629,13 @@ r9a06g032_div_round_rate(struct clk_hw *hw,
 	if (clk->index == R9A06G032_DIV_UART ||
 	    clk->index == R9A06G032_DIV_P2_PG) {
 		pr_devel("%s div uart hack!\n", __func__);
-		return clk_get_rate(hw->clk);
+		req->rate = clk_get_rate(hw->clk);
+		return 0;
 	}
+	req->rate = DIV_ROUND_UP(req->best_parent_rate, div);
 	pr_devel("%s %pC %ld / %u = %ld\n", __func__, hw->clk,
-		 *prate, div, DIV_ROUND_UP(*prate, div));
-	return DIV_ROUND_UP(*prate, div);
+		 req->best_parent_rate, div, req->rate);
+	return 0;
 }
 
 static int
@@ -663,7 +664,7 @@ r9a06g032_div_set_rate(struct clk_hw *hw,
 
 static const struct clk_ops r9a06g032_clk_div_ops = {
 	.recalc_rate = r9a06g032_div_recalc_rate,
-	.round_rate = r9a06g032_div_round_rate,
+	.determine_rate = r9a06g032_div_determine_rate,
 	.set_rate = r9a06g032_div_set_rate,
 };
 

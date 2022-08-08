@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -159,6 +159,22 @@ struct iwl_proto_offload_cmd_v3_large {
 	struct iwl_ns_config ns_config[IWL_PROTO_OFFLOAD_NUM_NS_CONFIG_V3L];
 } __packed; /* PROT_OFFLOAD_CONFIG_CMD_DB_S_VER_3 */
 
+/**
+ * struct iwl_proto_offload_cmd_v4 - ARP/NS offload configuration
+ * @sta_id: station id
+ * @common: common/IPv4 configuration
+ * @num_valid_ipv6_addrs: number of valid IPv6 addresses
+ * @targ_addrs: target IPv6 addresses
+ * @ns_config: NS offload configurations
+ */
+struct iwl_proto_offload_cmd_v4 {
+	__le32 sta_id;
+	struct iwl_proto_offload_cmd_common common;
+	__le32 num_valid_ipv6_addrs;
+	struct iwl_targ_addr targ_addrs[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V3L];
+	struct iwl_ns_config ns_config[IWL_PROTO_OFFLOAD_NUM_NS_CONFIG_V3L];
+} __packed; /* PROT_OFFLOAD_CONFIG_CMD_DB_S_VER_4 */
+
 /*
  * WOWLAN_PATTERNS
  */
@@ -302,13 +318,23 @@ struct iwl_wowlan_patterns_cmd {
 	/**
 	 * @n_patterns: number of patterns
 	 */
-	__le32 n_patterns;
+	u8 n_patterns;
+
+	/**
+	 * @n_patterns: sta_id
+	 */
+	u8 sta_id;
+
+	/**
+	 * @reserved: reserved for alignment
+	 */
+	__le16 reserved;
 
 	/**
 	 * @patterns: the patterns, array length in @n_patterns
 	 */
 	struct iwl_wowlan_pattern_v2 patterns[];
-} __packed; /* WOWLAN_PATTERN_ARRAY_API_S_VER_2 */
+} __packed; /* WOWLAN_PATTERN_ARRAY_API_S_VER_3 */
 
 enum iwl_wowlan_wakeup_filters {
 	IWL_WOWLAN_WAKEUP_MAGIC_PACKET			= BIT(0),
@@ -339,9 +365,10 @@ enum iwl_wowlan_flags {
 };
 
 /**
- * struct iwl_wowlan_config_cmd - WoWLAN configuration
+ * struct iwl_wowlan_config_cmd - WoWLAN configuration (versions 5 and 6)
  * @wakeup_filter: filter from &enum iwl_wowlan_wakeup_filters
- * @non_qos_seq: non-QoS sequence counter to use next
+ * @non_qos_seq: non-QoS sequence counter to use next.
+ *               Reserved if the struct has version >= 6.
  * @qos_seq: QoS sequence counters to use next
  * @wowlan_ba_teardown_tids: bitmap of BA sessions to tear down
  * @is_11n_connection: indicates HT connection
@@ -455,6 +482,23 @@ struct iwl_wowlan_kek_kck_material_cmd_v3 {
 	__le32  igtk_cipher;
 	__le32  bigtk_cipher;
 } __packed; /* KEK_KCK_MATERIAL_API_S_VER_3 */
+
+struct iwl_wowlan_kek_kck_material_cmd_v4 {
+	__le32  sta_id;
+	u8	kck[IWL_KCK_MAX_SIZE];
+	u8	kek[IWL_KEK_MAX_SIZE];
+	__le16	kck_len;
+	__le16	kek_len;
+	__le64	replay_ctr;
+	__le32  akm;
+	__le32  gtk_cipher;
+	__le32  igtk_cipher;
+	__le32  bigtk_cipher;
+} __packed; /* KEK_KCK_MATERIAL_API_S_VER_4 */
+
+struct iwl_wowlan_get_status_cmd {
+	__le32  sta_id;
+} __packed; /* WOWLAN_GET_STATUSES_CMD_API_S_VER_1 */
 
 #define RF_KILL_INDICATOR_FOR_WOWLAN	0x87
 
@@ -604,12 +648,13 @@ struct iwl_wowlan_status_v7 {
 } __packed; /* WOWLAN_STATUSES_API_S_VER_7 */
 
 /**
- * struct iwl_wowlan_status_v9 - WoWLAN status (version 9)
+ * struct iwl_wowlan_status_v9 - WoWLAN status (versions 9 and 10)
  * @gtk: GTK data
  * @igtk: IGTK data
  * @replay_ctr: GTK rekey replay counter
  * @pattern_number: number of the matched pattern
- * @non_qos_seq_ctr: non-QoS sequence counter to use next
+ * @non_qos_seq_ctr: non-QoS sequence counter to use next.
+ *                   Reserved if the struct has version >= 10.
  * @qos_seq_ctr: QoS sequence counters to use next
  * @wakeup_reasons: wakeup reasons, see &enum iwl_wowlan_wakeup_reason
  * @num_of_gtk_rekeys: number of GTK rekeys
@@ -638,7 +683,7 @@ struct iwl_wowlan_status_v9 {
 	u8 tid_tear_down;
 	u8 reserved[3];
 	u8 wake_packet[]; /* can be truncated from _length to _bufsize */
-} __packed; /* WOWLAN_STATUSES_API_S_VER_9 */
+} __packed; /* WOWLAN_STATUSES_RSP_API_S_VER_9 */
 
 /**
  * struct iwl_wowlan_status - WoWLAN status
@@ -682,55 +727,6 @@ static inline u8 iwlmvm_wowlan_gtk_idx(struct iwl_wowlan_gtk_status *gtk)
 {
 	return gtk->key_flags & IWL_WOWLAN_GTK_IDX_MASK;
 }
-
-#define IWL_WOWLAN_TCP_MAX_PACKET_LEN		64
-#define IWL_WOWLAN_REMOTE_WAKE_MAX_PACKET_LEN	128
-#define IWL_WOWLAN_REMOTE_WAKE_MAX_TOKENS	2048
-
-struct iwl_tcp_packet_info {
-	__le16 tcp_pseudo_header_checksum;
-	__le16 tcp_payload_length;
-} __packed; /* TCP_PACKET_INFO_API_S_VER_2 */
-
-struct iwl_tcp_packet {
-	struct iwl_tcp_packet_info info;
-	u8 rx_mask[IWL_WOWLAN_MAX_PATTERN_LEN / 8];
-	u8 data[IWL_WOWLAN_TCP_MAX_PACKET_LEN];
-} __packed; /* TCP_PROTOCOL_PACKET_API_S_VER_1 */
-
-struct iwl_remote_wake_packet {
-	struct iwl_tcp_packet_info info;
-	u8 rx_mask[IWL_WOWLAN_MAX_PATTERN_LEN / 8];
-	u8 data[IWL_WOWLAN_REMOTE_WAKE_MAX_PACKET_LEN];
-} __packed; /* TCP_PROTOCOL_PACKET_API_S_VER_1 */
-
-struct iwl_wowlan_remote_wake_config {
-	__le32 connection_max_time; /* unused */
-	/* TCP_PROTOCOL_CONFIG_API_S_VER_1 */
-	u8 max_syn_retries;
-	u8 max_data_retries;
-	u8 tcp_syn_ack_timeout;
-	u8 tcp_ack_timeout;
-
-	struct iwl_tcp_packet syn_tx;
-	struct iwl_tcp_packet synack_rx;
-	struct iwl_tcp_packet keepalive_ack_rx;
-	struct iwl_tcp_packet fin_tx;
-
-	struct iwl_remote_wake_packet keepalive_tx;
-	struct iwl_remote_wake_packet wake_rx;
-
-	/* REMOTE_WAKE_OFFSET_INFO_API_S_VER_1 */
-	u8 sequence_number_offset;
-	u8 sequence_number_length;
-	u8 token_offset;
-	u8 token_length;
-	/* REMOTE_WAKE_PROTOCOL_PARAMS_API_S_VER_1 */
-	__le32 initial_sequence_number;
-	__le16 keepalive_interval;
-	__le16 num_tokens;
-	u8 tokens[IWL_WOWLAN_REMOTE_WAKE_MAX_TOKENS];
-} __packed; /* REMOTE_WAKE_CONFIG_API_S_VER_2 */
 
 /* TODO: NetDetect API */
 

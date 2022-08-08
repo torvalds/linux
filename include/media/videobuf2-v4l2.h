@@ -262,6 +262,22 @@ int __must_check vb2_queue_init_name(struct vb2_queue *q, const char *name);
 void vb2_queue_release(struct vb2_queue *q);
 
 /**
+ * vb2_queue_change_type() - change the type of an inactive vb2_queue
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
+ * @type:	the type to change to (V4L2_BUF_TYPE_VIDEO_*)
+ *
+ * This function changes the type of the vb2_queue. This is only possible
+ * if the queue is not busy (i.e. no buffers have been allocated).
+ *
+ * vb2_queue_change_type() can be used to support multiple buffer types using
+ * the same queue. The driver can implement v4l2_ioctl_ops.vidioc_reqbufs and
+ * v4l2_ioctl_ops.vidioc_create_bufs functions and call vb2_queue_change_type()
+ * before calling vb2_ioctl_reqbufs() or vb2_ioctl_create_bufs(), and thus
+ * "lock" the buffer type until the buffers have been released.
+ */
+int vb2_queue_change_type(struct vb2_queue *q, unsigned int type);
+
+/**
  * vb2_poll() - implements poll userspace operation
  * @q:		pointer to &struct vb2_queue with videobuf2 queue.
  * @file:	file argument passed to the poll file operation handler

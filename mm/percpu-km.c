@@ -32,6 +32,12 @@
 
 #include <linux/log2.h>
 
+static void pcpu_post_unmap_tlb_flush(struct pcpu_chunk *chunk,
+				      int page_start, int page_end)
+{
+	/* nothing */
+}
+
 static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
 			       int page_start, int page_end, gfp_t gfp)
 {
@@ -44,8 +50,7 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
 	/* nada */
 }
 
-static struct pcpu_chunk *pcpu_create_chunk(enum pcpu_chunk_type type,
-					    gfp_t gfp)
+static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
 {
 	const int nr_pages = pcpu_group_sizes[0] >> PAGE_SHIFT;
 	struct pcpu_chunk *chunk;
@@ -53,7 +58,7 @@ static struct pcpu_chunk *pcpu_create_chunk(enum pcpu_chunk_type type,
 	unsigned long flags;
 	int i;
 
-	chunk = pcpu_alloc_chunk(type, gfp);
+	chunk = pcpu_alloc_chunk(gfp);
 	if (!chunk)
 		return NULL;
 
@@ -117,4 +122,9 @@ static int __init pcpu_verify_alloc_info(const struct pcpu_alloc_info *ai)
 			alloc_pages - nr_pages);
 
 	return 0;
+}
+
+static bool pcpu_should_reclaim_chunk(struct pcpu_chunk *chunk)
+{
+	return false;
 }

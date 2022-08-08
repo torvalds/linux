@@ -859,6 +859,7 @@ int security_validate_transition(struct selinux_state *state,
  * It returns 0, if @newsid is bounded by @oldsid.
  * Otherwise, it returns error code.
  *
+ * @state: SELinux state
  * @oldsid : current security identifier
  * @newsid : destinated security identifier
  */
@@ -1098,6 +1099,7 @@ allow:
 
 /**
  * security_compute_av - Compute access vector decisions.
+ * @state: SELinux state
  * @ssid: source security identifier
  * @tsid: target security identifier
  * @tclass: target security class
@@ -1386,6 +1388,7 @@ out_unlock:
 
 /**
  * security_sid_to_context - Obtain a context for a given SID.
+ * @state: SELinux state
  * @sid: security identifier, SID
  * @scontext: security context
  * @scontext_len: length in bytes
@@ -1411,6 +1414,7 @@ int security_sid_to_context_force(struct selinux_state *state, u32 sid,
 /**
  * security_sid_to_context_inval - Obtain a context for a given SID if it
  *                                 is invalid.
+ * @state: SELinux state
  * @sid: security identifier, SID
  * @scontext: security context
  * @scontext_len: length in bytes
@@ -1587,6 +1591,7 @@ out:
 
 /**
  * security_context_to_sid - Obtain a SID for a given security context.
+ * @state: SELinux state
  * @scontext: security context
  * @scontext_len: length in bytes
  * @sid: security identifier, SID
@@ -1616,6 +1621,7 @@ int security_context_str_to_sid(struct selinux_state *state,
  * security_context_to_sid_default - Obtain a SID for a given security context,
  * falling back to specified default if needed.
  *
+ * @state: SELinux state
  * @scontext: security context
  * @scontext_len: length in bytes
  * @sid: security identifier, SID
@@ -1907,6 +1913,7 @@ out:
 
 /**
  * security_transition_sid - Compute the SID for a new subject/object.
+ * @state: SELinux state
  * @ssid: source security identifier
  * @tsid: target security identifier
  * @tclass: target security class
@@ -1962,6 +1969,7 @@ int security_member_sid(struct selinux_state *state,
 
 /**
  * security_change_sid - Compute the SID for object relabeling.
+ * @state: SELinux state
  * @ssid: source security identifier
  * @tsid: target security identifier
  * @tclass: target security class
@@ -2060,7 +2068,6 @@ static int convert_context(struct context *oldc, struct context *newc, void *p)
 	context_init(newc);
 
 	/* Convert the user. */
-	rc = -EINVAL;
 	usrdatum = symtab_search(&args->newp->p_users,
 				 sym_name(args->oldp,
 					  SYM_USERS, oldc->user - 1));
@@ -2069,7 +2076,6 @@ static int convert_context(struct context *oldc, struct context *newc, void *p)
 	newc->user = usrdatum->value;
 
 	/* Convert the role. */
-	rc = -EINVAL;
 	role = symtab_search(&args->newp->p_roles,
 			     sym_name(args->oldp, SYM_ROLES, oldc->role - 1));
 	if (!role)
@@ -2077,7 +2083,6 @@ static int convert_context(struct context *oldc, struct context *newc, void *p)
 	newc->role = role->value;
 
 	/* Convert the type. */
-	rc = -EINVAL;
 	typdatum = symtab_search(&args->newp->p_types,
 				 sym_name(args->oldp,
 					  SYM_TYPES, oldc->type - 1));
@@ -2101,7 +2106,6 @@ static int convert_context(struct context *oldc, struct context *newc, void *p)
 		oc = args->newp->ocontexts[OCON_ISID];
 		while (oc && oc->sid[0] != SECINITSID_UNLABELED)
 			oc = oc->next;
-		rc = -EINVAL;
 		if (!oc) {
 			pr_err("SELinux:  unable to look up"
 				" the initial SIDs list\n");
@@ -2264,6 +2268,7 @@ void selinux_policy_commit(struct selinux_state *state,
 
 /**
  * security_load_policy - Load a security policy configuration.
+ * @state: SELinux state
  * @data: binary policy data
  * @len: length of data in bytes
  *
@@ -2371,6 +2376,7 @@ err_policy:
 
 /**
  * security_port_sid - Obtain the SID for a port.
+ * @state: SELinux state
  * @protocol: protocol number
  * @port: port number
  * @out_sid: security identifier
@@ -2427,7 +2433,8 @@ out:
 }
 
 /**
- * security_pkey_sid - Obtain the SID for a pkey.
+ * security_ib_pkey_sid - Obtain the SID for a pkey.
+ * @state: SELinux state
  * @subnet_prefix: Subnet Prefix
  * @pkey_num: pkey number
  * @out_sid: security identifier
@@ -2486,6 +2493,7 @@ out:
 
 /**
  * security_ib_endport_sid - Obtain the SID for a subnet management interface.
+ * @state: SELinux state
  * @dev_name: device name
  * @port: port number
  * @out_sid: security identifier
@@ -2544,6 +2552,7 @@ out:
 
 /**
  * security_netif_sid - Obtain the SID for a network interface.
+ * @state: SELinux state
  * @name: interface name
  * @if_sid: interface SID
  */
@@ -2618,6 +2627,7 @@ static int match_ipv6_addrmask(u32 *input, u32 *addr, u32 *mask)
 
 /**
  * security_node_sid - Obtain the SID for a node (host).
+ * @state: SELinux state
  * @domain: communication domain aka address family
  * @addrp: address
  * @addrlen: address length in bytes
@@ -2711,6 +2721,7 @@ out:
 
 /**
  * security_get_user_sids - Obtain reachable SIDs for a user.
+ * @state: SELinux state
  * @fromsid: starting SID
  * @username: username
  * @sids: array of reachable SIDs for user
@@ -2903,6 +2914,7 @@ out:
 
 /**
  * security_genfs_sid - Obtain a SID for a file in a filesystem
+ * @state: SELinux state
  * @fstype: filesystem type
  * @path: path from root of mount
  * @sclass: file security class
@@ -2947,6 +2959,7 @@ int selinux_policy_genfs_sid(struct selinux_policy *policy,
 
 /**
  * security_fs_use - Determine how to handle labeling for a filesystem.
+ * @state: SELinux state
  * @sb: superblock in question
  */
 int security_fs_use(struct selinux_state *state, struct super_block *sb)
@@ -3286,6 +3299,7 @@ out_unlock:
 
 /**
  * security_net_peersid_resolve - Compare and resolve two network peer SIDs
+ * @state: SELinux state
  * @nlbl_sid: NetLabel SID
  * @nlbl_type: NetLabel labeling protocol type
  * @xfrm_sid: XFRM SID
@@ -3510,6 +3524,7 @@ int security_get_allow_unknown(struct selinux_state *state)
 
 /**
  * security_policycap_supported - Check for a specific policy capability
+ * @state: SELinux state
  * @req_cap: capability
  *
  * Description:
@@ -3844,6 +3859,7 @@ static void security_netlbl_cache_add(struct netlbl_lsm_secattr *secattr,
 
 /**
  * security_netlbl_secattr_to_sid - Convert a NetLabel secattr to a SELinux SID
+ * @state: SELinux state
  * @secattr: the NetLabel packet security attributes
  * @sid: the SELinux SID
  *
@@ -3926,6 +3942,7 @@ out:
 
 /**
  * security_netlbl_sid_to_secattr - Convert a SELinux SID to a NetLabel secattr
+ * @state: SELinux state
  * @sid: the SELinux SID
  * @secattr: the NetLabel packet security attributes
  *

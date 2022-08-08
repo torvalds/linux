@@ -39,8 +39,6 @@
 		       __func__, ##arg);				\
 } while (0)
 
-static struct dentry *v4l2_debugfs_dir;
-
 /*
  *	sysfs stuff
  */
@@ -520,9 +518,8 @@ static int get_index(struct video_device *vdev)
 	return find_first_zero_bit(used, VIDEO_NUM_DEVICES);
 }
 
-#define SET_VALID_IOCTL(ops, cmd, op)			\
-	if (ops->op)					\
-		set_bit(_IOC_NR(cmd), valid_ioctls)
+#define SET_VALID_IOCTL(ops, cmd, op) \
+	do { if ((ops)->op) set_bit(_IOC_NR(cmd), valid_ioctls); } while (0)
 
 /* This determines which ioctls are actually implemented in the driver.
    It's a one-time thing which simplifies video_ioctl2 as it can just do
@@ -1121,8 +1118,6 @@ static int __init videodev_init(void)
 		return -EIO;
 	}
 
-	v4l2_debugfs_dir = debugfs_create_dir("video4linux", NULL);
-	v4l2_async_debug_init(v4l2_debugfs_dir);
 	return 0;
 }
 
@@ -1130,7 +1125,6 @@ static void __exit videodev_exit(void)
 {
 	dev_t dev = MKDEV(VIDEO_MAJOR, 0);
 
-	debugfs_remove_recursive(v4l2_debugfs_dir);
 	class_unregister(&video_class);
 	unregister_chrdev_region(dev, VIDEO_NUM_DEVICES);
 }

@@ -16,6 +16,7 @@
 #include "resource.h"
 #include "link_enc_cfg.h"
 #include "clk_mgr.h"
+#include "inc/link_dpcd.h"
 
 static uint8_t convert_to_count(uint8_t lttpr_repeater_count)
 {
@@ -45,36 +46,6 @@ static uint8_t convert_to_count(uint8_t lttpr_repeater_count)
 static inline bool is_immediate_downstream(struct dc_link *link, uint32_t offset)
 {
 	return (convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt) == offset);
-}
-
-enum dc_status core_link_read_dpcd(
-	struct dc_link *link,
-	uint32_t address,
-	uint8_t *data,
-	uint32_t size)
-{
-	if (!link->aux_access_disabled &&
-			!dm_helpers_dp_read_dpcd(link->ctx,
-			link, address, data, size)) {
-		return DC_ERROR_UNEXPECTED;
-	}
-
-	return DC_OK;
-}
-
-enum dc_status core_link_write_dpcd(
-	struct dc_link *link,
-	uint32_t address,
-	const uint8_t *data,
-	uint32_t size)
-{
-	if (!link->aux_access_disabled &&
-			!dm_helpers_dp_write_dpcd(link->ctx,
-			link, address, data, size)) {
-		return DC_ERROR_UNEXPECTED;
-	}
-
-	return DC_OK;
 }
 
 void dp_receiver_power_ctrl(struct dc_link *link, bool on)
@@ -332,7 +303,16 @@ void dp_set_hw_test_pattern(
 	uint32_t custom_pattern_size)
 {
 	struct encoder_set_dp_phy_pattern_param pattern_param = {0};
-	struct link_encoder *encoder = link->link_enc;
+	struct link_encoder *encoder;
+
+	/* Access link encoder based on whether it is statically
+	 * or dynamically assigned to a link.
+	 */
+	if (link->is_dig_mapping_flexible &&
+			link->dc->res_pool->funcs->link_encs_assign)
+		encoder = link_enc_cfg_get_link_enc_used_by_link(link->dc->current_state, link);
+	else
+		encoder = link->link_enc;
 
 	pattern_param.dp_phy_pattern = test_pattern;
 	pattern_param.custom_pattern = custom_pattern;
@@ -384,7 +364,8 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 					skip_video_pattern,
 					LINK_TRAINING_ATTEMPTS,
 					&pipes[i],
-					SIGNAL_TYPE_DISPLAY_PORT);
+					SIGNAL_TYPE_DISPLAY_PORT,
+					false);
 
 			link->dc->hwss.enable_stream(&pipes[i]);
 

@@ -64,6 +64,7 @@ obj-$(CONFIG_BLK_DEV_COW_COMMON) += cow_user.o
 obj-$(CONFIG_UML_RANDOM) += random.o
 obj-$(CONFIG_VIRTIO_UML) += virtio_uml.o
 obj-$(CONFIG_UML_RTC) += rtc.o
+obj-$(CONFIG_UML_PCI_OVER_VIRTIO) += virt-pci.o
 
 # pcap_user.o must be added explicitly.
 USER_OBJS := fd.o null.o pty.o tty.o xterm.o slip_common.o pcap_user.o vde_user.o vector_user.o

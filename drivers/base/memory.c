@@ -596,7 +596,7 @@ static struct attribute *memory_memblk_attrs[] = {
 	NULL
 };
 
-static struct attribute_group memory_memblk_attr_group = {
+static const struct attribute_group memory_memblk_attr_group = {
 	.attrs = memory_memblk_attrs,
 };
 
@@ -772,7 +772,7 @@ static struct attribute *memory_root_attrs[] = {
 	NULL
 };
 
-static struct attribute_group memory_root_attr_group = {
+static const struct attribute_group memory_root_attr_group = {
 	.attrs = memory_root_attrs,
 };
 

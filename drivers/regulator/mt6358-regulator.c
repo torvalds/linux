@@ -153,50 +153,50 @@ static const struct linear_range buck_volt_range4[] = {
 	REGULATOR_LINEAR_RANGE(1000000, 0, 0x7f, 12500),
 };
 
-static const u32 vdram2_voltages[] = {
+static const unsigned int vdram2_voltages[] = {
 	600000, 1800000,
 };
 
-static const u32 vsim_voltages[] = {
+static const unsigned int vsim_voltages[] = {
 	1700000, 1800000, 2700000, 3000000, 3100000,
 };
 
-static const u32 vibr_voltages[] = {
+static const unsigned int vibr_voltages[] = {
 	1200000, 1300000, 1500000, 1800000,
 	2000000, 2800000, 3000000, 3300000,
 };
 
-static const u32 vusb_voltages[] = {
+static const unsigned int vusb_voltages[] = {
 	3000000, 3100000,
 };
 
-static const u32 vcamd_voltages[] = {
+static const unsigned int vcamd_voltages[] = {
 	900000, 1000000, 1100000, 1200000,
 	1300000, 1500000, 1800000,
 };
 
-static const u32 vefuse_voltages[] = {
+static const unsigned int vefuse_voltages[] = {
 	1700000, 1800000, 1900000,
 };
 
-static const u32 vmch_vemc_voltages[] = {
+static const unsigned int vmch_vemc_voltages[] = {
 	2900000, 3000000, 3300000,
 };
 
-static const u32 vcama_voltages[] = {
+static const unsigned int vcama_voltages[] = {
 	1800000, 2500000, 2700000,
 	2800000, 2900000, 3000000,
 };
 
-static const u32 vcn33_bt_wifi_voltages[] = {
+static const unsigned int vcn33_bt_wifi_voltages[] = {
 	3300000, 3400000, 3500000,
 };
 
-static const u32 vmc_voltages[] = {
+static const unsigned int vmc_voltages[] = {
 	1800000, 2900000, 3000000, 3300000,
 };
 
-static const u32 vldo28_voltages[] = {
+static const unsigned int vldo28_voltages[] = {
 	2800000, 3000000,
 };
 
@@ -457,7 +457,7 @@ static struct mt6358_regulator_info mt6358_regulators[] = {
 	MT6358_REG_FIXED("ldo_vaud28", VAUD28,
 			 MT6358_LDO_VAUD28_CON0, 0, 2800000),
 	MT6358_LDO("ldo_vdram2", VDRAM2, vdram2_voltages, vdram2_idx,
-		   MT6358_LDO_VDRAM2_CON0, 0, MT6358_LDO_VDRAM2_ELR0, 0x10, 0),
+		   MT6358_LDO_VDRAM2_CON0, 0, MT6358_LDO_VDRAM2_ELR0, 0xf, 0),
 	MT6358_LDO("ldo_vsim1", VSIM1, vsim_voltages, vsim_idx,
 		   MT6358_LDO_VSIM1_CON0, 0, MT6358_VSIM1_ANA_CON0, 0xf00, 8),
 	MT6358_LDO("ldo_vibr", VIBR, vibr_voltages, vibr_idx,

@@ -2,7 +2,7 @@
 #include <test_progs.h>
 #include "test_send_signal_kern.skel.h"
 
-static volatile int sigusr1_received = 0;
+int sigusr1_received = 0;
 
 static void sigusr1_handler(int signum)
 {
@@ -91,8 +91,7 @@ static void test_send_signal_common(struct perf_event_attr *attr,
 
 		skel->links.send_signal_perf =
 			bpf_program__attach_perf_event(skel->progs.send_signal_perf, pmu_fd);
-		if (CHECK(IS_ERR(skel->links.send_signal_perf), "attach_perf_event",
-			  "err %ld\n", PTR_ERR(skel->links.send_signal_perf)))
+		if (!ASSERT_OK_PTR(skel->links.send_signal_perf, "attach_perf_event"))
 			goto disable_pmu;
 	}
 

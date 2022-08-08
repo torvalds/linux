@@ -174,9 +174,6 @@ static int bcm4908_dma_alloc_buf_descs(struct bcm4908_enet *enet,
 	if (!ring->slots)
 		goto err_free_buf_descs;
 
-	ring->read_idx = 0;
-	ring->write_idx = 0;
-
 	return 0;
 
 err_free_buf_descs:
@@ -304,6 +301,9 @@ static void bcm4908_enet_dma_ring_init(struct bcm4908_enet *enet,
 
 	enet_write(enet, ring->st_ram_block + ENET_DMA_CH_STATE_RAM_BASE_DESC_PTR,
 		   (uint32_t)ring->dma_addr);
+
+	ring->read_idx = 0;
+	ring->write_idx = 0;
 }
 
 static void bcm4908_enet_dma_uninit(struct bcm4908_enet *enet)

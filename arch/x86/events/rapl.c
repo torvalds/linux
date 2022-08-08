@@ -764,13 +764,14 @@ static struct rapl_model model_spr = {
 	.rapl_msrs      = intel_rapl_spr_msrs,
 };
 
-static struct rapl_model model_amd_fam17h = {
+static struct rapl_model model_amd_hygon = {
 	.events		= BIT(PERF_RAPL_PKG),
 	.msr_power_unit = MSR_AMD_RAPL_POWER_UNIT,
 	.rapl_msrs      = amd_rapl_msrs,
 };
 
 static const struct x86_cpu_id rapl_model_match[] __initconst = {
+	X86_MATCH_FEATURE(X86_FEATURE_RAPL,		&model_amd_hygon),
 	X86_MATCH_INTEL_FAM6_MODEL(SANDYBRIDGE,		&model_snb),
 	X86_MATCH_INTEL_FAM6_MODEL(SANDYBRIDGE_X,	&model_snbep),
 	X86_MATCH_INTEL_FAM6_MODEL(IVYBRIDGE,		&model_snb),
@@ -803,9 +804,6 @@ static const struct x86_cpu_id rapl_model_match[] __initconst = {
 	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE,		&model_skl),
 	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L,		&model_skl),
 	X86_MATCH_INTEL_FAM6_MODEL(SAPPHIRERAPIDS_X,	&model_spr),
-	X86_MATCH_VENDOR_FAM(AMD,	0x17,		&model_amd_fam17h),
-	X86_MATCH_VENDOR_FAM(HYGON,	0x18,		&model_amd_fam17h),
-	X86_MATCH_VENDOR_FAM(AMD,	0x19,		&model_amd_fam17h),
 	{},
 };
 MODULE_DEVICE_TABLE(x86cpu, rapl_model_match);

@@ -213,7 +213,7 @@ static int isp_subdev_unsubscribe_event(struct v4l2_subdev *sd,
  * return -EINVAL or zero on success
  */
 static int isp_subdev_enum_mbus_code(struct v4l2_subdev *sd,
-				     struct v4l2_subdev_pad_config *cfg,
+				     struct v4l2_subdev_state *sd_state,
 				     struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index >= ARRAY_SIZE(atomisp_in_fmt_conv) - 1)
@@ -246,7 +246,7 @@ static int isp_subdev_validate_rect(struct v4l2_subdev *sd, uint32_t pad,
 }
 
 struct v4l2_rect *atomisp_subdev_get_rect(struct v4l2_subdev *sd,
-	struct v4l2_subdev_pad_config *cfg,
+	struct v4l2_subdev_state *sd_state,
 	u32 which, uint32_t pad,
 	uint32_t target)
 {
@@ -255,9 +255,9 @@ struct v4l2_rect *atomisp_subdev_get_rect(struct v4l2_subdev *sd,
 	if (which == V4L2_SUBDEV_FORMAT_TRY) {
 		switch (target) {
 		case V4L2_SEL_TGT_CROP:
-			return v4l2_subdev_get_try_crop(sd, cfg, pad);
+			return v4l2_subdev_get_try_crop(sd, sd_state, pad);
 		case V4L2_SEL_TGT_COMPOSE:
-			return v4l2_subdev_get_try_compose(sd, cfg, pad);
+			return v4l2_subdev_get_try_compose(sd, sd_state, pad);
 		}
 	}
 
@@ -273,19 +273,20 @@ struct v4l2_rect *atomisp_subdev_get_rect(struct v4l2_subdev *sd,
 
 struct v4l2_mbus_framefmt
 *atomisp_subdev_get_ffmt(struct v4l2_subdev *sd,
-			 struct v4l2_subdev_pad_config *cfg, uint32_t which,
+			 struct v4l2_subdev_state *sd_state, uint32_t which,
 			 uint32_t pad)
 {
 	struct atomisp_sub_device *isp_sd = v4l2_get_subdevdata(sd);
 
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(sd, cfg, pad);
+		return v4l2_subdev_get_try_format(sd, sd_state, pad);
 
 	return &isp_sd->fmt[pad].fmt;
 }
 
 static void isp_get_fmt_rect(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg, uint32_t which,
+			     struct v4l2_subdev_state *sd_state,
+			     uint32_t which,
 			     struct v4l2_mbus_framefmt **ffmt,
 			     struct v4l2_rect *crop[ATOMISP_SUBDEV_PADS_NUM],
 			     struct v4l2_rect *comp[ATOMISP_SUBDEV_PADS_NUM])
@@ -293,16 +294,16 @@ static void isp_get_fmt_rect(struct v4l2_subdev *sd,
 	unsigned int i;
 
 	for (i = 0; i < ATOMISP_SUBDEV_PADS_NUM; i++) {
-		ffmt[i] = atomisp_subdev_get_ffmt(sd, cfg, which, i);
-		crop[i] = atomisp_subdev_get_rect(sd, cfg, which, i,
+		ffmt[i] = atomisp_subdev_get_ffmt(sd, sd_state, which, i);
+		crop[i] = atomisp_subdev_get_rect(sd, sd_state, which, i,
 						  V4L2_SEL_TGT_CROP);
-		comp[i] = atomisp_subdev_get_rect(sd, cfg, which, i,
+		comp[i] = atomisp_subdev_get_rect(sd, sd_state, which, i,
 						  V4L2_SEL_TGT_COMPOSE);
 	}
 }
 
 static void isp_subdev_propagate(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 u32 which, uint32_t pad, uint32_t target,
 				 uint32_t flags)
 {
@@ -313,7 +314,7 @@ static void isp_subdev_propagate(struct v4l2_subdev *sd,
 	if (flags & V4L2_SEL_FLAG_KEEP_CONFIG)
 		return;
 
-	isp_get_fmt_rect(sd, cfg, which, ffmt, crop, comp);
+	isp_get_fmt_rect(sd, sd_state, which, ffmt, crop, comp);
 
 	switch (pad) {
 	case ATOMISP_SUBDEV_PAD_SINK: {
@@ -323,7 +324,7 @@ static void isp_subdev_propagate(struct v4l2_subdev *sd,
 		r.width = ffmt[pad]->width;
 		r.height = ffmt[pad]->height;
 
-		atomisp_subdev_set_selection(sd, cfg, which, pad,
+		atomisp_subdev_set_selection(sd, sd_state, which, pad,
 					     target, flags, &r);
 		break;
 	}
@@ -331,7 +332,7 @@ static void isp_subdev_propagate(struct v4l2_subdev *sd,
 }
 
 static int isp_subdev_get_selection(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_pad_config *cfg,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_selection *sel)
 {
 	struct v4l2_rect *rec;
@@ -340,7 +341,7 @@ static int isp_subdev_get_selection(struct v4l2_subdev *sd,
 	if (rval)
 		return rval;
 
-	rec = atomisp_subdev_get_rect(sd, cfg, sel->which, sel->pad,
+	rec = atomisp_subdev_get_rect(sd, sd_state, sel->which, sel->pad,
 				      sel->target);
 	if (!rec)
 		return -EINVAL;
@@ -365,7 +366,7 @@ static const char *atomisp_pad_str(unsigned int pad)
 }
 
 int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 u32 which, uint32_t pad, uint32_t target,
 				 u32 flags, struct v4l2_rect *r)
 {
@@ -382,7 +383,7 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 
 	stream_id = atomisp_source_pad_to_stream_id(isp_sd, vdev_pad);
 
-	isp_get_fmt_rect(sd, cfg, which, ffmt, crop, comp);
+	isp_get_fmt_rect(sd, sd_state, which, ffmt, crop, comp);
 
 	dev_dbg(isp->dev,
 		"sel: pad %s tgt %s l %d t %d w %d h %d which %s f 0x%8.8x\n",
@@ -450,7 +451,8 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 				struct v4l2_rect tmp = *crop[pad];
 
 				atomisp_subdev_set_selection(
-				    sd, cfg, which, i, V4L2_SEL_TGT_COMPOSE,
+				    sd, sd_state, which, i,
+				    V4L2_SEL_TGT_COMPOSE,
 				    flags, &tmp);
 			}
 		}
@@ -472,9 +474,9 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 			 * when dvs is disabled.
 			 */
 			dvs_w = dvs_h = 12;
-		} else
+		} else {
 			dvs_w = dvs_h = 0;
-
+		}
 		atomisp_css_video_set_dis_envelope(isp_sd, dvs_w, dvs_h);
 		atomisp_css_input_set_effective_resolution(isp_sd, stream_id,
 			crop[pad]->width, crop[pad]->height);
@@ -551,9 +553,9 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 		ffmt[pad]->height = comp[pad]->height;
 	}
 
-	if (!atomisp_subdev_get_rect(sd, cfg, which, pad, target))
+	if (!atomisp_subdev_get_rect(sd, sd_state, which, pad, target))
 		return -EINVAL;
-	*r = *atomisp_subdev_get_rect(sd, cfg, which, pad, target);
+	*r = *atomisp_subdev_get_rect(sd, sd_state, which, pad, target);
 
 	dev_dbg(isp->dev, "sel actual: l %d t %d w %d h %d\n",
 		r->left, r->top, r->width, r->height);
@@ -562,7 +564,7 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 }
 
 static int isp_subdev_set_selection(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_pad_config *cfg,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_selection *sel)
 {
 	int rval = isp_subdev_validate_rect(sd, sel->pad, sel->target);
@@ -570,7 +572,8 @@ static int isp_subdev_set_selection(struct v4l2_subdev *sd,
 	if (rval)
 		return rval;
 
-	return atomisp_subdev_set_selection(sd, cfg, sel->which, sel->pad,
+	return atomisp_subdev_set_selection(sd, sd_state, sel->which,
+					    sel->pad,
 					    sel->target, sel->flags, &sel->r);
 }
 
@@ -609,13 +612,14 @@ static int atomisp_get_sensor_bin_factor(struct atomisp_sub_device *asd)
 }
 
 void atomisp_subdev_set_ffmt(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg, uint32_t which,
+			     struct v4l2_subdev_state *sd_state,
+			     uint32_t which,
 			     u32 pad, struct v4l2_mbus_framefmt *ffmt)
 {
 	struct atomisp_sub_device *isp_sd = v4l2_get_subdevdata(sd);
 	struct atomisp_device *isp = isp_sd->isp;
 	struct v4l2_mbus_framefmt *__ffmt =
-	    atomisp_subdev_get_ffmt(sd, cfg, which, pad);
+	    atomisp_subdev_get_ffmt(sd, sd_state, which, pad);
 	u16 vdev_pad = atomisp_subdev_source_pad(sd->devnode);
 	enum atomisp_input_stream_id stream_id;
 
@@ -640,7 +644,7 @@ void atomisp_subdev_set_ffmt(struct v4l2_subdev *sd,
 
 		*__ffmt = *ffmt;
 
-		isp_subdev_propagate(sd, cfg, which, pad,
+		isp_subdev_propagate(sd, sd_state, which, pad,
 				     V4L2_SEL_TGT_CROP, 0);
 
 		if (which == V4L2_SUBDEV_FORMAT_ACTIVE) {
@@ -679,10 +683,11 @@ void atomisp_subdev_set_ffmt(struct v4l2_subdev *sd,
  * to the format type.
  */
 static int isp_subdev_get_format(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
-	fmt->format = *atomisp_subdev_get_ffmt(sd, cfg, fmt->which, fmt->pad);
+	fmt->format = *atomisp_subdev_get_ffmt(sd, sd_state, fmt->which,
+					       fmt->pad);
 
 	return 0;
 }
@@ -698,10 +703,11 @@ static int isp_subdev_get_format(struct v4l2_subdev *sd,
  * to the format type.
  */
 static int isp_subdev_set_format(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
-	atomisp_subdev_set_ffmt(sd, cfg, fmt->which, fmt->pad, &fmt->format);
+	atomisp_subdev_set_ffmt(sd, sd_state, fmt->which, fmt->pad,
+				&fmt->format);
 
 	return 0;
 }

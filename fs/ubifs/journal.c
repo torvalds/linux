@@ -882,6 +882,7 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 		struct ubifs_dent_node *xent, *pxent = NULL;
 
 		if (ui->xattr_cnt > ubifs_xattr_max_cnt(c)) {
+			err = -EPERM;
 			ubifs_err(c, "Cannot delete inode, it has too much xattrs!");
 			goto out_release;
 		}
@@ -1431,7 +1432,7 @@ out_free:
 /**
  * truncate_data_node - re-compress/encrypt a truncated data node.
  * @c: UBIFS file-system description object
- * @inode: inode which referes to the data node
+ * @inode: inode which refers to the data node
  * @block: data block number
  * @dn: data node to re-compress
  * @new_len: new length

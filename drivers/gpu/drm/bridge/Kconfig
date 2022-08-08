@@ -50,6 +50,19 @@ config DRM_CHRONTEL_CH7033
 
 	  If in doubt, say "N".
 
+config DRM_CROS_EC_ANX7688
+	tristate "ChromeOS EC ANX7688 bridge"
+	depends on OF
+	depends on I2C_CROS_EC_TUNNEL || COMPILE_TEST
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	help
+	  ChromeOS EC ANX7688 is an ultra-low power
+	  4K Ultra-HD (4096x2160p60) mobile HD transmitter
+	  designed for ChromeOS devices. It converts HDMI
+	  2.0 to DisplayPort 1.3 Ultra-HD. It is connected
+	  to the ChromeOS Embedded Controller.
+
 config DRM_DISPLAY_CONNECTOR
 	tristate "Display connector support"
 	depends on OF
@@ -68,6 +81,7 @@ config DRM_LONTIUM_LT8912B
 	select DRM_KMS_HELPER
 	select DRM_MIPI_DSI
 	select REGMAP_I2C
+	select VIDEOMODE_HELPERS
 	help
 	  Driver for Lontium LT8912B DSI to HDMI bridge
 	  chip driver.
@@ -103,6 +117,14 @@ config DRM_LONTIUM_LT9611UXC
 	  chip driver that converts dual DSI and I2S to
 	  HDMI signals
 	  Please say Y if you have such hardware.
+
+config DRM_ITE_IT66121
+	tristate "ITE IT66121 HDMI bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	help
+	  Support for ITE IT66121 HDMI bridge.
 
 config DRM_LVDS_CODEC
 	tristate "Transparent LVDS encoders and decoders support"
@@ -172,7 +194,7 @@ config DRM_SIL_SII8620
 	tristate "Silicon Image SII8620 HDMI/MHL bridge"
 	depends on OF
 	select DRM_KMS_HELPER
-	imply EXTCON
+	select EXTCON
 	depends on RC_CORE || !RC_CORE
 	help
 	  Silicon Image SII8620 HDMI/MHL bridge chip driver.
@@ -263,6 +285,16 @@ config DRM_TI_TFP410
 	help
 	  Texas Instruments TFP410 DVI/HDMI Transmitter driver
 
+config DRM_TI_SN65DSI83
+	tristate "TI SN65DSI83 and SN65DSI84 DSI to LVDS bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	select DRM_PANEL
+	select DRM_MIPI_DSI
+	help
+	  Texas Instruments SN65DSI83 and SN65DSI84 DSI to LVDS Bridge driver
+
 config DRM_TI_SN65DSI86
 	tristate "TI SN65DSI86 DSI to eDP bridge"
 	depends on OF
@@ -270,6 +302,7 @@ config DRM_TI_SN65DSI86
 	select REGMAP_I2C
 	select DRM_PANEL
 	select DRM_MIPI_DSI
+	select AUXILIARY_BUS
 	help
 	  Texas Instruments SN65DSI86 DSI to eDP Bridge driver
 

@@ -254,6 +254,9 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 	}
 
 	if (params->blob) {
+		if (params->blob_mem == VIRTGPU_BLOB_MEM_GUEST)
+			bo->guest_blob = true;
+
 		virtio_gpu_cmd_resource_create_blob(vgdev, bo, params,
 						    ents, nents);
 	} else if (params->virgl) {

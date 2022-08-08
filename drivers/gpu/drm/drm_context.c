@@ -124,7 +124,7 @@ void drm_legacy_ctxbitmap_cleanup(struct drm_device * dev)
 }
 
 /**
- * drm_ctxbitmap_flush() - Flush all contexts owned by a file
+ * drm_legacy_ctxbitmap_flush() - Flush all contexts owned by a file
  * @dev: DRM device to operate on
  * @file: Open file to flush contexts for
  *
@@ -312,7 +312,8 @@ static int drm_context_switch_complete(struct drm_device *dev,
 
 	/* If a context switch is ever initiated
 	   when the kernel holds the lock, release
-	   that lock here. */
+	   that lock here.
+	 */
 	clear_bit(0, &dev->context_flag);
 
 	return 0;

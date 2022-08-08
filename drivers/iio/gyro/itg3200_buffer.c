@@ -114,7 +114,7 @@ int itg3200_probe_trigger(struct iio_dev *indio_dev)
 	struct itg3200 *st = iio_priv(indio_dev);
 
 	st->trig = iio_trigger_alloc(&st->i2c->dev, "%s-dev%d", indio_dev->name,
-				     indio_dev->id);
+				     iio_device_id(indio_dev));
 	if (!st->trig)
 		return -ENOMEM;
 

@@ -91,7 +91,6 @@ static int ioa_add_path(struct path_selector *ps, struct dm_path *path,
 		cpumask_set_cpu(cpu, s->path_mask);
 		s->path_map[cpu] = pi;
 		refcount_inc(&pi->refcount);
-		continue;
 	}
 
 	if (refcount_dec_and_test(&pi->refcount)) {

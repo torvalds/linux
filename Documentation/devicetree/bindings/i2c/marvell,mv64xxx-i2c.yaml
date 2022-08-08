@@ -43,14 +43,12 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 2
     items:
       - description: Reference clock for the I2C bus
       - description: Bus clock (Only for Armada 7K/8K)
 
   clock-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: core
       - const: reg

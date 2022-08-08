@@ -148,7 +148,7 @@ static __inline__ void rtsdtr_ctrl(int bits)
  * ------------------------------------------------------------
  * rs_stop() and rs_start()
  *
- * This routines are called before setting or resetting tty->stopped.
+ * This routines are called before setting or resetting tty->flow.stopped.
  * They enable or disable transmitter interrupts, as necessary.
  * ------------------------------------------------------------
  */
@@ -309,7 +309,7 @@ static void transmit_chars(struct serial_state *info)
 		return;
 	}
 	if (info->xmit.head == info->xmit.tail
-	    || info->tport.tty->stopped
+	    || info->tport.tty->flow.stopped
 	    || info->tport.tty->hw_stopped) {
 		info->IER &= ~UART_IER_THRI;
 	        custom.intena = IF_TBE;
@@ -768,7 +768,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 	unsigned long flags;
 
 	if (info->xmit.head == info->xmit.tail
-	    || tty->stopped
+	    || tty->flow.stopped
 	    || tty->hw_stopped
 	    || !info->xmit.buf)
 		return;
@@ -812,7 +812,7 @@ static int rs_write(struct tty_struct * tty, const unsigned char *buf, int count
 	local_irq_restore(flags);
 
 	if (info->xmit.head != info->xmit.tail
-	    && !tty->stopped
+	    && !tty->flow.stopped
 	    && !tty->hw_stopped
 	    && !(info->IER & UART_IER_THRI)) {
 		info->IER |= UART_IER_THRI;
@@ -827,14 +827,14 @@ static int rs_write(struct tty_struct * tty, const unsigned char *buf, int count
 	return ret;
 }
 
-static int rs_write_room(struct tty_struct *tty)
+static unsigned int rs_write_room(struct tty_struct *tty)
 {
 	struct serial_state *info = tty->driver_data;
 
 	return CIRC_SPACE(info->xmit.head, info->xmit.tail, SERIAL_XMIT_SIZE);
 }
 
-static int rs_chars_in_buffer(struct tty_struct *tty)
+static unsigned int rs_chars_in_buffer(struct tty_struct *tty)
 {
 	struct serial_state *info = tty->driver_data;
 

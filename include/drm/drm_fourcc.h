@@ -136,14 +136,6 @@ struct drm_format_info {
 };
 
 /**
- * struct drm_format_name_buf - name of a DRM format
- * @str: string buffer containing the format name
- */
-struct drm_format_name_buf {
-	char str[32];
-};
-
-/**
  * drm_format_info_is_yuv_packed - check that the format info matches a YUV
  * format with data laid in a single plane
  * @info: format info
@@ -318,6 +310,5 @@ unsigned int drm_format_info_block_height(const struct drm_format_info *info,
 					  int plane);
 uint64_t drm_format_info_min_pitch(const struct drm_format_info *info,
 				   int plane, unsigned int buffer_width);
-const char *drm_get_format_name(uint32_t format, struct drm_format_name_buf *buf);
 
 #endif /* __DRM_FOURCC_H__ */

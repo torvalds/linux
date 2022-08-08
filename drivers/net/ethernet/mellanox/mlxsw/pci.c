@@ -1426,11 +1426,6 @@ static int mlxsw_pci_sys_ready_wait(struct mlxsw_pci *mlxsw_pci,
 	unsigned long end;
 	u32 val;
 
-	if (id->device == PCI_DEVICE_ID_MELLANOX_SWITCHX2) {
-		msleep(MLXSW_PCI_SW_RESET_TIMEOUT_MSECS);
-		return 0;
-	}
-
 	/* We must wait for the HW to become responsive. */
 	msleep(MLXSW_PCI_SW_RESET_WAIT_MSECS);
 

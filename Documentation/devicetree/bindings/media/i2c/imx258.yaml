@@ -49,7 +49,7 @@ properties:
 
   # See ../video-interfaces.txt for more details
   port:
-    $ref: /schemas/graph.yaml#/properties/port
+    $ref: /schemas/graph.yaml#/$defs/port-base
     additionalProperties: false
 
     properties:

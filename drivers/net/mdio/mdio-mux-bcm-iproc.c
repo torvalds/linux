@@ -65,7 +65,7 @@ static void mdio_mux_iproc_config(struct iproc_mdiomux_desc *md)
 	writel(val, md->base + MDIO_SCAN_CTRL_OFFSET);
 
 	if (md->core_clk) {
-		/* use rate adjust regs to derrive the mdio's operating
+		/* use rate adjust regs to derive the mdio's operating
 		 * frequency from the specified core clock
 		 */
 		divisor = clk_get_rate(md->core_clk) / MDIO_OPERATING_FREQUENCY;
@@ -187,7 +187,9 @@ static int mdio_mux_iproc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	md->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	md->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(md->base))
+		return PTR_ERR(md->base);
 	if (res->start & 0xfff) {
 		/* For backward compatibility in case the
 		 * base address is specified with an offset.
@@ -196,9 +198,6 @@ static int mdio_mux_iproc_probe(struct platform_device *pdev)
 		res->start &= ~0xfff;
 		res->end = res->start + MDIO_REG_ADDR_SPACE_SIZE - 1;
 	}
-	md->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(md->base))
-		return PTR_ERR(md->base);
 
 	md->mii_bus = devm_mdiobus_alloc(&pdev->dev);
 	if (!md->mii_bus) {

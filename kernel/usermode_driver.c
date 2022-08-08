@@ -26,7 +26,7 @@ static struct vfsmount *blob_to_mnt(const void *data, size_t len, const char *na
 	if (IS_ERR(mnt))
 		return mnt;
 
-	file = file_open_root(mnt->mnt_root, mnt, name, O_CREAT | O_WRONLY, 0700);
+	file = file_open_root_mnt(mnt, name, O_CREAT | O_WRONLY, 0700);
 	if (IS_ERR(file)) {
 		mntput(mnt);
 		return ERR_CAST(file);

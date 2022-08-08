@@ -96,10 +96,7 @@ bool rtw_is_cckratesonly_included(u8 *rate)
 int rtw_check_network_type(unsigned char *rate, int ratelen, int channel)
 {
 	if (channel > 14) {
-		if (rtw_is_cckrates_included(rate))
-			return WIRELESS_INVALID;
-		else
-			return WIRELESS_11A;
+		return WIRELESS_INVALID;
 	} else { /*  could be pure B, pure G, or B/G */
 		if (rtw_is_cckratesonly_included(rate))
 			return WIRELESS_11B;
@@ -239,12 +236,10 @@ int rtw_ies_remove_ie(u8 *ies, uint *ies_len, uint offset, u8 eid, u8 *oui, u8 o
 	while (1) {
 		target_ie = rtw_get_ie_ex(start, search_len, eid, oui, oui_len, NULL, &target_ielen);
 		if (target_ie && target_ielen) {
-			u8 buf[MAX_IE_SZ] = {0};
 			u8 *remain_ies = target_ie + target_ielen;
 			uint remain_len = search_len - (remain_ies - start);
 
-			memcpy(buf, remain_ies, remain_len);
-			memcpy(target_ie, buf, remain_len);
+			memcpy(target_ie, remain_ies, remain_len);
 			*ies_len = *ies_len - target_ielen;
 			ret = _SUCCESS;
 
@@ -268,10 +263,6 @@ void rtw_set_supported_rate(u8 *SupportedRates, uint mode)
 		break;
 
 	case WIRELESS_11G:
-	case WIRELESS_11A:
-	case WIRELESS_11_5N:
-	case WIRELESS_11A_5N:/* Todo: no basic rate for ofdm ? */
-	case WIRELESS_11_5AC:
 		memcpy(SupportedRates, WIFI_OFDMRATES, IEEE80211_NUM_OFDM_RATESLEN);
 		break;
 
@@ -329,14 +320,7 @@ int rtw_generate_ie(struct registry_priv *pregistrypriv)
 	ie = rtw_set_ie(ie, WLAN_EID_SSID, pdev_network->Ssid.SsidLength, pdev_network->Ssid.Ssid, &sz);
 
 	/* supported rates */
-	if (pregistrypriv->wireless_mode == WIRELESS_11ABGN) {
-		if (pdev_network->Configuration.DSConfig > 14)
-			wireless_mode = WIRELESS_11A_5N;
-		else
-			wireless_mode = WIRELESS_11BG_24N;
-	} else {
-		wireless_mode = pregistrypriv->wireless_mode;
-	}
+	wireless_mode = pregistrypriv->wireless_mode;
 
 	rtw_set_supported_rate(pdev_network->SupportedRates, wireless_mode);
 
@@ -361,8 +345,8 @@ int rtw_generate_ie(struct registry_priv *pregistrypriv)
 	}
 
 	/* HT Cap. */
-	if (((pregistrypriv->wireless_mode&WIRELESS_11_5N) || (pregistrypriv->wireless_mode&WIRELESS_11_24N))
-		&& (pregistrypriv->ht_enable == true)) {
+	if ((pregistrypriv->wireless_mode & WIRELESS_11_24N) &&
+	    (pregistrypriv->ht_enable == true)) {
 		/* todo: */
 	}
 
@@ -877,7 +861,7 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 }
 
 /**
- * ieee802_11_parse_elems - Parse information elements in management frames
+ * rtw_ieee802_11_parse_elems - Parse information elements in management frames
  * @start: Pointer to the start of IEs
  * @len: Length of IE buffer in octets
  * @elems: Data structure for parsed elements

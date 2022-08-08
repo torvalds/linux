@@ -18,7 +18,6 @@
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
-#include <linux/lockdep.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
 #include <linux/nospec.h>
@@ -46,7 +45,6 @@
 #include <linux/prctl.h>
 
 #include <asm/alternative.h>
-#include <asm/arch_gicv3.h>
 #include <asm/compat.h>
 #include <asm/cpufeature.h>
 #include <asm/cacheflush.h>
@@ -71,65 +69,6 @@ EXPORT_SYMBOL(__stack_chk_guard);
  */
 void (*pm_power_off)(void);
 EXPORT_SYMBOL_GPL(pm_power_off);
-
-void (*arm_pm_restart)(enum reboot_mode reboot_mode, const char *cmd);
-
-static void noinstr __cpu_do_idle(void)
-{
-	dsb(sy);
-	wfi();
-}
-
-static void noinstr __cpu_do_idle_irqprio(void)
-{
-	unsigned long pmr;
-	unsigned long daif_bits;
-
-	daif_bits = read_sysreg(daif);
-	write_sysreg(daif_bits | PSR_I_BIT | PSR_F_BIT, daif);
-
-	/*
-	 * Unmask PMR before going idle to make sure interrupts can
-	 * be raised.
-	 */
-	pmr = gic_read_pmr();
-	gic_write_pmr(GIC_PRIO_IRQON | GIC_PRIO_PSR_I_SET);
-
-	__cpu_do_idle();
-
-	gic_write_pmr(pmr);
-	write_sysreg(daif_bits, daif);
-}
-
-/*
- *	cpu_do_idle()
- *
- *	Idle the processor (wait for interrupt).
- *
- *	If the CPU supports priority masking we must do additional work to
- *	ensure that interrupts are not masked at the PMR (because the core will
- *	not wake up if we block the wake up signal in the interrupt controller).
- */
-void noinstr cpu_do_idle(void)
-{
-	if (system_uses_irq_prio_masking())
-		__cpu_do_idle_irqprio();
-	else
-		__cpu_do_idle();
-}
-
-/*
- * This is our default idle handler.
- */
-void noinstr arch_cpu_idle(void)
-{
-	/*
-	 * This should do all the clock switching and wait for interrupt
-	 * tricks
-	 */
-	cpu_do_idle();
-	raw_local_irq_enable();
-}
 
 #ifdef CONFIG_HOTPLUG_CPU
 void arch_cpu_idle_dead(void)
@@ -201,10 +140,7 @@ void machine_restart(char *cmd)
 		efi_reboot(reboot_mode, NULL);
 
 	/* Now call the architecture specific reboot code. */
-	if (arm_pm_restart)
-		arm_pm_restart(reboot_mode, cmd);
-	else
-		do_kernel_restart(cmd);
+	do_kernel_restart(cmd);
 
 	/*
 	 * Whoops - the architecture was unable to reboot.
@@ -435,6 +371,11 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	}
 	p->thread.cpu_context.pc = (unsigned long)ret_from_fork;
 	p->thread.cpu_context.sp = (unsigned long)childregs;
+	/*
+	 * For the benefit of the unwinder, set up childregs->stackframe
+	 * as the final frame for the new task.
+	 */
+	p->thread.cpu_context.fp = (unsigned long)childregs->stackframe;
 
 	ptrace_hw_copy_thread(p);
 
@@ -527,6 +468,15 @@ static void erratum_1418040_thread_switch(struct task_struct *prev,
 	write_sysreg(val, cntkctl_el1);
 }
 
+static void compat_thread_switch(struct task_struct *next)
+{
+	if (!is_compat_thread(task_thread_info(next)))
+		return;
+
+	if (static_branch_unlikely(&arm64_mismatched_32bit_el0))
+		set_tsk_thread_flag(next, TIF_NOTIFY_RESUME);
+}
+
 static void update_sctlr_el1(u64 sctlr)
 {
 	/*
@@ -568,6 +518,7 @@ __notrace_funcgraph struct task_struct *__switch_to(struct task_struct *prev,
 	ssbs_thread_switch(next);
 	erratum_1418040_thread_switch(prev, next);
 	ptrauth_thread_switch_user(next);
+	compat_thread_switch(next);
 
 	/*
 	 * Complete any pending TLB or cache maintenance on this CPU in case
@@ -598,7 +549,7 @@ unsigned long get_wchan(struct task_struct *p)
 	struct stackframe frame;
 	unsigned long stack_page, ret = 0;
 	int count = 0;
-	if (!p || p == current || p->state == TASK_RUNNING)
+	if (!p || p == current || task_is_running(p))
 		return 0;
 
 	stack_page = (unsigned long)try_get_task_stack(p);
@@ -633,8 +584,15 @@ unsigned long arch_align_stack(unsigned long sp)
  */
 void arch_setup_new_exec(void)
 {
-	current->mm->context.flags = is_compat_task() ? MMCF_AARCH32 : 0;
+	unsigned long mmflags = 0;
 
+	if (is_compat_task()) {
+		mmflags = MMCF_AARCH32;
+		if (static_branch_unlikely(&arm64_mismatched_32bit_el0))
+			set_tsk_thread_flag(current, TIF_NOTIFY_RESUME);
+	}
+
+	current->mm->context.flags = mmflags;
 	ptrauth_thread_init_user();
 	mte_thread_init_user();
 
@@ -723,22 +681,6 @@ static int __init tagged_addr_init(void)
 
 core_initcall(tagged_addr_init);
 #endif	/* CONFIG_ARM64_TAGGED_ADDR_ABI */
-
-asmlinkage void __sched arm64_preempt_schedule_irq(void)
-{
-	lockdep_assert_irqs_disabled();
-
-	/*
-	 * Preempting a task from an IRQ means we leave copies of PSTATE
-	 * on the stack. cpufeature's enable calls may modify PSTATE, but
-	 * resuming one of these preempted tasks would undo those changes.
-	 *
-	 * Only allow a task to be preempted once cpufeatures have been
-	 * enabled.
-	 */
-	if (system_capabilities_finalized())
-		preempt_schedule_irq();
-}
 
 #ifdef CONFIG_BINFMT_ELF
 int arch_elf_adjust_prot(int prot, const struct arch_elf_state *state,

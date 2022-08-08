@@ -985,7 +985,7 @@ static void tx_done(MGSLPC_INFO *info, struct tty_struct *tty)
 	else
 #endif
 	{
-		if (tty && (tty->stopped || tty->hw_stopped)) {
+		if (tty && (tty->flow.stopped || tty->hw_stopped)) {
 			tx_stop(info);
 			return;
 		}
@@ -1005,7 +1005,7 @@ static void tx_ready(MGSLPC_INFO *info, struct tty_struct *tty)
 		if (!info->tx_active)
 			return;
 	} else {
-		if (tty && (tty->stopped || tty->hw_stopped)) {
+		if (tty && (tty->flow.stopped || tty->hw_stopped)) {
 			tx_stop(info);
 			return;
 		}
@@ -1419,13 +1419,7 @@ static void mgslpc_change_params(MGSLPC_INFO *info, struct tty_struct *tty)
 
 	/* byte size and parity */
 
-	switch (cflag & CSIZE) {
-	case CS5: info->params.data_bits = 5; break;
-	case CS6: info->params.data_bits = 6; break;
-	case CS7: info->params.data_bits = 7; break;
-	case CS8: info->params.data_bits = 8; break;
-	default:  info->params.data_bits = 7; break;
-	}
+	info->params.data_bits = tty_get_char_size(cflag);
 
 	if (cflag & CSTOPB)
 		info->params.stop_bits = 2;
@@ -1525,7 +1519,7 @@ static void mgslpc_flush_chars(struct tty_struct *tty)
 	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_flush_chars"))
 		return;
 
-	if (info->tx_count <= 0 || tty->stopped ||
+	if (info->tx_count <= 0 || tty->flow.stopped ||
 	    tty->hw_stopped || !info->tx_buf)
 		return;
 
@@ -1594,7 +1588,7 @@ static int mgslpc_write(struct tty_struct * tty,
 		ret += c;
 	}
 start:
-	if (info->tx_count && !tty->stopped && !tty->hw_stopped) {
+	if (info->tx_count && !tty->flow.stopped && !tty->hw_stopped) {
 		spin_lock_irqsave(&info->lock, flags);
 		if (!info->tx_active)
 			tx_start(info, tty);
@@ -1609,7 +1603,7 @@ cleanup:
 
 /* Return the count of free bytes in transmit buffer
  */
-static int mgslpc_write_room(struct tty_struct *tty)
+static unsigned int mgslpc_write_room(struct tty_struct *tty)
 {
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	int ret;
@@ -1637,10 +1631,10 @@ static int mgslpc_write_room(struct tty_struct *tty)
 
 /* Return the count of bytes in transmit buffer
  */
-static int mgslpc_chars_in_buffer(struct tty_struct *tty)
+static unsigned int mgslpc_chars_in_buffer(struct tty_struct *tty)
 {
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
-	int rc;
+	unsigned int rc;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):mgslpc_chars_in_buffer(%s)\n",
@@ -1655,7 +1649,7 @@ static int mgslpc_chars_in_buffer(struct tty_struct *tty)
 		rc = info->tx_count;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
-		printk("%s(%d):mgslpc_chars_in_buffer(%s)=%d\n",
+		printk("%s(%d):mgslpc_chars_in_buffer(%s)=%u\n",
 			 __FILE__, __LINE__, info->device_name, rc);
 
 	return rc;

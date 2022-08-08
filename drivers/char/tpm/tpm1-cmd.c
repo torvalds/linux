@@ -312,7 +312,7 @@ unsigned long tpm1_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal)
 #define TPM_ST_CLEAR 1
 
 /**
- * tpm_startup() - turn on the TPM
+ * tpm1_startup() - turn on the TPM
  * @chip: TPM chip to use
  *
  * Normally the firmware should start the TPM. This function is provided as a
@@ -611,7 +611,7 @@ out:
 
 #define TPM_ORD_CONTINUE_SELFTEST 83
 /**
- * tpm_continue_selftest() - run TPM's selftest
+ * tpm1_continue_selftest() - run TPM's selftest
  * @chip: TPM chip to use
  *
  * Returns 0 on success, < 0 in case of fatal error or a value > 0 representing

@@ -2,7 +2,7 @@
 /**
  * dts file for Hisilicon D02 Development Board
  *
- * Copyright (C) 2014,2015 Hisilicon Ltd.
+ * Copyright (C) 2014,2015 HiSilicon Ltd.
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>

@@ -234,7 +234,7 @@ target_scsi2_reservation_release(struct se_cmd *cmd)
 out_unlock:
 	spin_unlock(&dev->dev_reservation_lock);
 out:
-	target_complete_cmd(cmd, GOOD);
+	target_complete_cmd(cmd, SAM_STAT_GOOD);
 	return 0;
 }
 
@@ -297,7 +297,7 @@ out_unlock:
 	spin_unlock(&dev->dev_reservation_lock);
 out:
 	if (!ret)
-		target_complete_cmd(cmd, GOOD);
+		target_complete_cmd(cmd, SAM_STAT_GOOD);
 	return ret;
 }
 
@@ -3676,7 +3676,7 @@ target_scsi3_emulate_pr_out(struct se_cmd *cmd)
 	}
 
 	if (!ret)
-		target_complete_cmd(cmd, GOOD);
+		target_complete_cmd(cmd, SAM_STAT_GOOD);
 	return ret;
 }
 
@@ -4073,7 +4073,7 @@ target_scsi3_emulate_pr_in(struct se_cmd *cmd)
 	}
 
 	if (!ret)
-		target_complete_cmd(cmd, GOOD);
+		target_complete_cmd(cmd, SAM_STAT_GOOD);
 	return ret;
 }
 

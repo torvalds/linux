@@ -27,8 +27,6 @@ nvkm-y += nvkm/engine/fifo/dmanv04.o
 nvkm-y += nvkm/engine/fifo/dmanv10.o
 nvkm-y += nvkm/engine/fifo/dmanv17.o
 nvkm-y += nvkm/engine/fifo/dmanv40.o
-nvkm-y += nvkm/engine/fifo/dmanv50.o
-nvkm-y += nvkm/engine/fifo/dmag84.o
 
 nvkm-y += nvkm/engine/fifo/gpfifonv50.o
 nvkm-y += nvkm/engine/fifo/gpfifog84.o

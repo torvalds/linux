@@ -28,9 +28,6 @@
 #define CEX4C_MIN_MOD_SIZE	 16	/*  256 bits	*/
 #define CEX4C_MAX_MOD_SIZE	512	/* 4096 bits	*/
 
-#define CEX4A_MAX_MESSAGE_SIZE	MSGTYPE50_CRB3_MAX_MSG_SIZE
-#define CEX4C_MAX_MESSAGE_SIZE	MSGTYPE06_MAX_MSG_SIZE
-
 /* Waiting time for requests to be processed.
  * Currently there are some types of request which are not deterministic.
  * But the maximum time limit managed by the stomper code is set to 60sec.
@@ -605,19 +602,19 @@ static int zcrypt_cex4_queue_probe(struct ap_device *ap_dev)
 	int rc;
 
 	if (ap_test_bit(&aq->card->functions, AP_FUNC_ACCEL)) {
-		zq = zcrypt_queue_alloc(CEX4A_MAX_MESSAGE_SIZE);
+		zq = zcrypt_queue_alloc(aq->card->maxmsgsize);
 		if (!zq)
 			return -ENOMEM;
 		zq->ops = zcrypt_msgtype(MSGTYPE50_NAME,
 					 MSGTYPE50_VARIANT_DEFAULT);
 	} else if (ap_test_bit(&aq->card->functions, AP_FUNC_COPRO)) {
-		zq = zcrypt_queue_alloc(CEX4C_MAX_MESSAGE_SIZE);
+		zq = zcrypt_queue_alloc(aq->card->maxmsgsize);
 		if (!zq)
 			return -ENOMEM;
 		zq->ops = zcrypt_msgtype(MSGTYPE06_NAME,
 					 MSGTYPE06_VARIANT_DEFAULT);
 	} else if (ap_test_bit(&aq->card->functions, AP_FUNC_EP11)) {
-		zq = zcrypt_queue_alloc(CEX4C_MAX_MESSAGE_SIZE);
+		zq = zcrypt_queue_alloc(aq->card->maxmsgsize);
 		if (!zq)
 			return -ENOMEM;
 		zq->ops = zcrypt_msgtype(MSGTYPE06_NAME,

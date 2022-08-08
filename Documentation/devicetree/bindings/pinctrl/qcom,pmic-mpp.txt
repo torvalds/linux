@@ -21,6 +21,7 @@ of PMIC's from Qualcomm.
 		    "qcom,pmi8950-mpp",
 		    "qcom,pm8994-mpp",
 		    "qcom,pma8084-mpp",
+		    "qcom,pmi8994-mpp",
 
 		    And must contain either "qcom,spmi-mpp" or "qcom,ssbi-mpp"
 		    if the device is on an spmi bus or an ssbi bus respectively.

@@ -133,7 +133,8 @@ static int snd_vx222_create(struct snd_card *card, struct pci_dev *pci,
 	const struct snd_vx_ops *vx_ops;
 
 	/* enable PCI device */
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pci_enable_device(pci);
+	if (err < 0)
 		return err;
 	pci_set_master(pci);
 
@@ -147,7 +148,8 @@ static int snd_vx222_create(struct snd_card *card, struct pci_dev *pci,
 	vx = to_vx222(chip);
 	vx->pci = pci;
 
-	if ((err = pci_request_regions(pci, CARD_NAME)) < 0) {
+	err = pci_request_regions(pci, CARD_NAME);
+	if (err < 0) {
 		snd_vx222_free(chip);
 		return err;
 	}
@@ -164,7 +166,8 @@ static int snd_vx222_create(struct snd_card *card, struct pci_dev *pci,
 	chip->irq = pci->irq;
 	card->sync_irq = chip->irq;
 
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+	if (err < 0) {
 		snd_vx222_free(chip);
 		return err;
 	}
@@ -207,7 +210,8 @@ static int snd_vx222_probe(struct pci_dev *pci,
 			hw = &vx222_v2_hw;
 		break;
 	}
-	if ((err = snd_vx222_create(card, pci, hw, &vx)) < 0) {
+	err = snd_vx222_create(card, pci, hw, &vx);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -223,12 +227,14 @@ static int snd_vx222_probe(struct pci_dev *pci,
 	vx->core.dev = &pci->dev;
 #endif
 
-	if ((err = snd_vx_setup_firmware(&vx->core)) < 0) {
+	err = snd_vx_setup_firmware(&vx->core);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
 
-	if ((err = snd_card_register(card)) < 0) {
+	err = snd_card_register(card);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}

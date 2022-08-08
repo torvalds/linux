@@ -749,7 +749,7 @@ static void xsk_unbind_dev(struct xdp_sock *xs)
 }
 
 static struct xsk_map *xsk_get_map_list_entry(struct xdp_sock *xs,
-					      struct xdp_sock ***map_entry)
+					      struct xdp_sock __rcu ***map_entry)
 {
 	struct xsk_map *map = NULL;
 	struct xsk_map_node *node;
@@ -785,7 +785,7 @@ static void xsk_delete_from_maps(struct xdp_sock *xs)
 	 * might be updates to the map between
 	 * xsk_get_map_list_entry() and xsk_map_try_sock_delete().
 	 */
-	struct xdp_sock **map_entry = NULL;
+	struct xdp_sock __rcu **map_entry = NULL;
 	struct xsk_map *map;
 
 	while ((map = xsk_get_map_list_entry(xs, &map_entry))) {
@@ -1313,7 +1313,7 @@ static int xsk_notifier(struct notifier_block *this,
 			if (xs->dev == dev) {
 				sk->sk_err = ENETDOWN;
 				if (!sock_flag(sk, SOCK_DEAD))
-					sk->sk_error_report(sk);
+					sk_error_report(sk);
 
 				xsk_unbind_dev(xs);
 

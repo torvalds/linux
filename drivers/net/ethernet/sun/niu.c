@@ -8191,8 +8191,9 @@ static int niu_pci_vpd_fetch(struct niu *np, u32 start)
 		err = niu_pci_vpd_scan_props(np, here, end);
 		if (err < 0)
 			return err;
+		/* ret == 1 is not an error */
 		if (err == 1)
-			return -EINVAL;
+			return 0;
 	}
 	return 0;
 }

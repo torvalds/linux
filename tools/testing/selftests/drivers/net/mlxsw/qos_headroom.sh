@@ -29,37 +29,38 @@ cleanup()
 
 get_prio_pg()
 {
-	__mlnx_qos -i $swp | sed -n '/^PFC/,/^[^[:space:]]/p' |
-		grep buffer | sed 's/ \+/ /g' | cut -d' ' -f 2-
+	# Produces a string of numbers "<B0> <B1> ... <B7> ", where BX is number
+	# of buffer that priority X is mapped to.
+	dcb -j buffer show dev $swp |
+		jq -r '[.prio_buffer | .[] | tostring + " "] | add'
 }
 
 get_prio_pfc()
 {
-	__mlnx_qos -i $swp | sed -n '/^PFC/,/^[^[:space:]]/p' |
-		grep enabled | sed 's/ \+/ /g' | cut -d' ' -f 2-
+	# Produces a string of numbers "<P0> <P1> ... <P7> ", where PX denotes
+	# whether priority X has PFC enabled (the value is 1) or disabled (0).
+	dcb -j pfc show dev $swp |
+		jq -r '[.prio_pfc | .[] | if . then "1 " else "0 " end] | add'
 }
 
 get_prio_tc()
 {
-	__mlnx_qos -i $swp | sed -n '/^tc/,$p' |
-		awk '/^tc/ { TC = $2 }
-		     /priority:/ { PRIO[$2]=TC }
-		     END {
-			for (i in PRIO)
-			    printf("%d ", PRIO[i])
-		     }'
+	# Produces a string of numbers "<T0> <T1> ... <T7> ", where TC is number
+	# of TC that priority X is mapped to.
+	dcb -j ets show dev $swp |
+		jq -r '[.prio_tc | .[] | tostring + " "] | add'
 }
 
 get_buf_size()
 {
 	local idx=$1; shift
 
-	__mlnx_qos -i $swp | grep Receive | sed 's/.*: //' | cut -d, -f $((idx + 1))
+	dcb -j buffer show dev $swp | jq ".buffer_size[$idx]"
 }
 
 get_tot_size()
 {
-	__mlnx_qos -i $swp | grep Receive | sed 's/.*total_size=//'
+	dcb -j buffer show dev $swp | jq '.total_size'
 }
 
 check_prio_pg()
@@ -121,18 +122,18 @@ test_dcb_ets()
 {
 	RET=0
 
-	__mlnx_qos -i $swp --prio_tc=0,2,4,6,1,3,5,7 > /dev/null
+	dcb ets set dev $swp prio-tc 0:0 1:2 2:4 3:6 4:1 5:3 6:5 7:7
 
 	check_prio_pg "0 2 4 6 1 3 5 7 "
 	check_prio_tc "0 2 4 6 1 3 5 7 "
 	check_prio_pfc "0 0 0 0 0 0 0 0 "
 
-	__mlnx_qos -i $swp --prio_tc=0,0,0,0,0,0,0,0 > /dev/null
+	dcb ets set dev $swp prio-tc all:0
 
 	check_prio_pg "0 0 0 0 0 0 0 0 "
 	check_prio_tc "0 0 0 0 0 0 0 0 "
 
-	__mlnx_qos -i $swp --prio2buffer=1,3,5,7,0,2,4,6 &> /dev/null
+	dcb buffer set dev $swp prio-buffer 0:1 1:3 2:5 3:7 4:0 5:2 6:4 7:6 2>/dev/null
 	check_fail $? "prio2buffer accepted in DCB mode"
 
 	log_test "Configuring headroom through ETS"
@@ -174,7 +175,7 @@ test_pfc()
 {
 	RET=0
 
-	__mlnx_qos -i $swp --prio_tc=0,0,0,0,0,1,2,3 > /dev/null
+	dcb ets set dev $swp prio-tc all:0 5:1 6:2 7:3
 
 	local buf0size=$(get_buf_size 0)
 	local buf1size=$(get_buf_size 1)
@@ -193,7 +194,7 @@ test_pfc()
 
 	RET=0
 
-	__mlnx_qos -i $swp --pfc=0,0,0,0,0,1,1,1 --cable_len=0 > /dev/null
+	dcb pfc set dev $swp prio-pfc all:off 5:on 6:on 7:on delay 0
 
 	check_prio_pg "0 0 0 0 0 1 2 3 "
 	check_prio_pfc "0 0 0 0 0 1 1 1 "
@@ -210,7 +211,7 @@ test_pfc()
 
 	RET=0
 
-	__mlnx_qos -i $swp --pfc=0,0,0,0,0,1,1,1 --cable_len=1000 > /dev/null
+	dcb pfc set dev $swp delay 1000
 
 	check_buf_size 0 "== $buf0size"
 	check_buf_size 1 "> $buf1size"
@@ -221,8 +222,8 @@ test_pfc()
 
 	RET=0
 
-	__mlnx_qos -i $swp --pfc=0,0,0,0,0,0,0,0 --cable_len=0 > /dev/null
-	__mlnx_qos -i $swp --prio_tc=0,0,0,0,0,0,0,0 > /dev/null
+	dcb pfc set dev $swp prio-pfc all:off delay 0
+	dcb ets set dev $swp prio-tc all:0
 
 	check_prio_pg "0 0 0 0 0 0 0 0 "
 	check_prio_tc "0 0 0 0 0 0 0 0 "
@@ -242,13 +243,13 @@ test_tc_priomap()
 {
 	RET=0
 
-	__mlnx_qos -i $swp --prio_tc=0,1,2,3,4,5,6,7 > /dev/null
+	dcb ets set dev $swp prio-tc 0:0 1:1 2:2 3:3 4:4 5:5 6:6 7:7
 	check_prio_pg "0 1 2 3 4 5 6 7 "
 
 	tc qdisc replace dev $swp root handle 1: bfifo limit 1.5M
 	check_prio_pg "0 0 0 0 0 0 0 0 "
 
-	__mlnx_qos -i $swp --prio2buffer=1,3,5,7,0,2,4,6 > /dev/null
+	dcb buffer set dev $swp prio-buffer 0:1 1:3 2:5 3:7 4:0 5:2 6:4 7:6
 	check_prio_pg "1 3 5 7 0 2 4 6 "
 
 	tc qdisc delete dev $swp root
@@ -256,9 +257,9 @@ test_tc_priomap()
 
 	# Clean up.
 	tc qdisc replace dev $swp root handle 1: bfifo limit 1.5M
-	__mlnx_qos -i $swp --prio2buffer=0,0,0,0,0,0,0,0 > /dev/null
+	dcb buffer set dev $swp prio-buffer all:0
 	tc qdisc delete dev $swp root
-	__mlnx_qos -i $swp --prio_tc=0,0,0,0,0,0,0,0 > /dev/null
+	dcb ets set dev $swp prio-tc all:0
 
 	log_test "TC: priomap"
 }
@@ -270,12 +271,12 @@ test_tc_sizes()
 
 	RET=0
 
-	__mlnx_qos -i $swp --buffer_size=$size,0,0,0,0,0,0,0 &> /dev/null
+	dcb buffer set dev $swp buffer-size all:0 0:$size 2>/dev/null
 	check_fail $? "buffer_size should fail before qdisc is added"
 
 	tc qdisc replace dev $swp root handle 1: bfifo limit 1.5M
 
-	__mlnx_qos -i $swp --buffer_size=$size,0,0,0,0,0,0,0 > /dev/null
+	dcb buffer set dev $swp buffer-size all:0 0:$size
 	check_err $? "buffer_size should pass after qdisc is added"
 	check_buf_size 0 "== $size" "set size: "
 
@@ -283,26 +284,26 @@ test_tc_sizes()
 	check_buf_size 0 "== $size" "set MTU: "
 	mtu_restore $swp
 
-	__mlnx_qos -i $swp --buffer_size=0,0,0,0,0,0,0,0 > /dev/null
+	dcb buffer set dev $swp buffer-size all:0
 
 	# After replacing the qdisc for the same kind, buffer_size still has to
 	# work.
 	tc qdisc replace dev $swp root handle 1: bfifo limit 1M
 
-	__mlnx_qos -i $swp --buffer_size=$size,0,0,0,0,0,0,0 > /dev/null
+	dcb buffer set dev $swp buffer-size all:0 0:$size
 	check_buf_size 0 "== $size" "post replace, set size: "
 
-	__mlnx_qos -i $swp --buffer_size=0,0,0,0,0,0,0,0 > /dev/null
+	dcb buffer set dev $swp buffer-size all:0
 
 	# Likewise after replacing for a different kind.
 	tc qdisc replace dev $swp root handle 2: prio bands 8
 
-	__mlnx_qos -i $swp --buffer_size=$size,0,0,0,0,0,0,0 > /dev/null
+	dcb buffer set dev $swp buffer-size all:0 0:$size
 	check_buf_size 0 "== $size" "post replace different kind, set size: "
 
 	tc qdisc delete dev $swp root
 
-	__mlnx_qos -i $swp --buffer_size=$size,0,0,0,0,0,0,0 &> /dev/null
+	dcb buffer set dev $swp buffer-size all:0 0:$size 2>/dev/null
 	check_fail $? "buffer_size should fail after qdisc is deleted"
 
 	log_test "TC: buffer size"
@@ -363,10 +364,10 @@ test_tc_int_buf()
 	tc qdisc replace dev $swp root handle 1: bfifo limit 1.5M
 	test_int_buf "TC: "
 
-	__mlnx_qos -i $swp --buffer_size=$size,0,0,0,0,0,0,0 > /dev/null
+	dcb buffer set dev $swp buffer-size all:0 0:$size
 	test_int_buf "TC+buffsize: "
 
-	__mlnx_qos -i $swp --buffer_size=0,0,0,0,0,0,0,0 > /dev/null
+	dcb buffer set dev $swp buffer-size all:0
 	tc qdisc delete dev $swp root
 }
 

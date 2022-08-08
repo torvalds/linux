@@ -6,6 +6,8 @@
  * Authors: Lan Tianyu <tianyu.lan@intel.com>
  */
 
+#define pr_fmt(fmt) "ACPI: " fmt
+
 #include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -59,7 +61,7 @@ static int acpi_install_cmos_rtc_space_handler(struct acpi_device *adev,
 			&acpi_cmos_rtc_space_handler,
 			NULL, NULL);
 	if (ACPI_FAILURE(status)) {
-		pr_err(PREFIX "Error installing CMOS-RTC region handler\n");
+		pr_err("Error installing CMOS-RTC region handler\n");
 		return -ENODEV;
 	}
 
@@ -70,7 +72,7 @@ static void acpi_remove_cmos_rtc_space_handler(struct acpi_device *adev)
 {
 	if (ACPI_FAILURE(acpi_remove_address_space_handler(adev->handle,
 			ACPI_ADR_SPACE_CMOS, &acpi_cmos_rtc_space_handler)))
-		pr_err(PREFIX "Error removing CMOS-RTC region handler\n");
+		pr_err("Error removing CMOS-RTC region handler\n");
 }
 
 static struct acpi_scan_handler cmos_rtc_handler = {

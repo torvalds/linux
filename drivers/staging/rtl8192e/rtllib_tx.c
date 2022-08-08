@@ -881,7 +881,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 
  success:
 	if (txb) {
-		struct cb_desc *tcb_desc = (struct cb_desc *)
+		tcb_desc = (struct cb_desc *)
 				(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->bTxEnableFwCalcDur = 1;
 		tcb_desc->priority = skb->priority;

@@ -688,6 +688,7 @@ u32 tfrc_calc_x_reverse_lookup(u32 fvalue)
 
 /**
  * tfrc_invert_loss_event_rate  -  Compute p so that 10^6 corresponds to 100%
+ * @loss_event_rate: loss event rate to invert
  * When @loss_event_rate is large, there is a chance that p is truncated to 0.
  * To avoid re-entering slow-start in that case, we set p = TFRC_SMALLEST_P > 0.
  */

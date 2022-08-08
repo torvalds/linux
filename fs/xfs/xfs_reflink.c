@@ -27,7 +27,7 @@
 #include "xfs_quota.h"
 #include "xfs_reflink.h"
 #include "xfs_iomap.h"
-#include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_ag_resv.h"
 
 /*
@@ -144,7 +144,7 @@ xfs_reflink_find_shared(
 	if (error)
 		return error;
 
-	cur = xfs_refcountbt_init_cursor(mp, tp, agbp, agno);
+	cur = xfs_refcountbt_init_cursor(mp, tp, agbp, agbp->b_pag);
 
 	error = xfs_refcount_find_shared(cur, agbno, aglen, fbno, flen,
 			find_end_of_shared);
@@ -755,16 +755,19 @@ int
 xfs_reflink_recover_cow(
 	struct xfs_mount	*mp)
 {
+	struct xfs_perag	*pag;
 	xfs_agnumber_t		agno;
 	int			error = 0;
 
 	if (!xfs_sb_version_hasreflink(&mp->m_sb))
 		return 0;
 
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
-		error = xfs_refcount_recover_cow_leftovers(mp, agno);
-		if (error)
+	for_each_perag(mp, agno, pag) {
+		error = xfs_refcount_recover_cow_leftovers(mp, pag);
+		if (error) {
+			xfs_perag_put(pag);
 			break;
+		}
 	}
 
 	return error;

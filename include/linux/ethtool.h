@@ -401,12 +401,12 @@ struct ethtool_rmon_stats {
  * required information to the driver.
  */
 struct ethtool_module_eeprom {
-	__u32	offset;
-	__u32	length;
-	__u8	page;
-	__u8	bank;
-	__u8	i2c_address;
-	__u8	*data;
+	u32	offset;
+	u32	length;
+	u8	page;
+	u8	bank;
+	u8	i2c_address;
+	u8	*data;
 };
 
 /**
@@ -756,6 +756,16 @@ void ethtool_set_ethtool_phy_ops(const struct ethtool_phy_ops *ops);
 void
 ethtool_params_from_link_mode(struct ethtool_link_ksettings *link_ksettings,
 			      enum ethtool_link_mode_bit_indices link_mode);
+
+/**
+ * ethtool_get_phc_vclocks - Derive phc vclocks information, and caller
+ *                           is responsible to free memory of vclock_index
+ * @dev: pointer to net_device structure
+ * @vclock_index: pointer to pointer of vclock index
+ *
+ * Return number of phc vclocks
+ */
+int ethtool_get_phc_vclocks(struct net_device *dev, int **vclock_index);
 
 /**
  * ethtool_sprintf - Write formatted string to ethtool string data

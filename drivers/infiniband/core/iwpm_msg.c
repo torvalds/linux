@@ -123,7 +123,7 @@ int iwpm_register_pid(struct iwpm_dev_data *pm_msg, u8 nl_client)
 	ret = iwpm_wait_complete_req(nlmsg_request);
 	return ret;
 pid_query_error:
-	pr_info("%s: %s (client = %d)\n", __func__, err_str, nl_client);
+	pr_info("%s: %s (client = %u)\n", __func__, err_str, nl_client);
 	dev_kfree_skb(skb);
 	if (nlmsg_request)
 		iwpm_free_nlmsg_request(&nlmsg_request->kref);
@@ -211,7 +211,7 @@ int iwpm_add_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 	ret = iwpm_wait_complete_req(nlmsg_request);
 	return ret;
 add_mapping_error:
-	pr_info("%s: %s (client = %d)\n", __func__, err_str, nl_client);
+	pr_info("%s: %s (client = %u)\n", __func__, err_str, nl_client);
 add_mapping_error_nowarn:
 	dev_kfree_skb(skb);
 	if (nlmsg_request)
@@ -304,7 +304,7 @@ int iwpm_add_and_query_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 	ret = iwpm_wait_complete_req(nlmsg_request);
 	return ret;
 query_mapping_error:
-	pr_info("%s: %s (client = %d)\n", __func__, err_str, nl_client);
+	pr_info("%s: %s (client = %u)\n", __func__, err_str, nl_client);
 query_mapping_error_nowarn:
 	dev_kfree_skb(skb);
 	if (nlmsg_request)
@@ -372,7 +372,7 @@ int iwpm_remove_mapping(struct sockaddr_storage *local_addr, u8 nl_client)
 			"remove_mapping: Local sockaddr:");
 	return 0;
 remove_mapping_error:
-	pr_info("%s: %s (client = %d)\n", __func__, err_str, nl_client);
+	pr_info("%s: %s (client = %u)\n", __func__, err_str, nl_client);
 	if (skb)
 		dev_kfree_skb_any(skb);
 	return ret;
@@ -431,7 +431,7 @@ int iwpm_register_pid_cb(struct sk_buff *skb, struct netlink_callback *cb)
 			strcmp(iwpm_ulib_name, iwpm_name) ||
 			iwpm_version < IWPM_UABI_VERSION_MIN) {
 
-		pr_info("%s: Incorrect info (dev = %s name = %s version = %d)\n",
+		pr_info("%s: Incorrect info (dev = %s name = %s version = %u)\n",
 				__func__, dev_name, iwpm_name, iwpm_version);
 		nlmsg_request->err_code = IWPM_USER_LIB_INFO_ERR;
 		goto register_pid_response_exit;
@@ -439,7 +439,7 @@ int iwpm_register_pid_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	iwpm_user_pid = cb->nlh->nlmsg_pid;
 	iwpm_ulib_version = iwpm_version;
 	if (iwpm_ulib_version < IWPM_UABI_VERSION)
-		pr_warn_once("%s: Down level iwpmd/pid %u.  Continuing...",
+		pr_warn_once("%s: Down level iwpmd/pid %d.  Continuing...",
 			__func__, iwpm_user_pid);
 	atomic_set(&echo_nlmsg_seq, cb->nlh->nlmsg_seq);
 	pr_debug("%s: iWarp Port Mapper (pid = %d) is available!\n",
@@ -650,7 +650,7 @@ int iwpm_remote_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
 
 	nl_client = RDMA_NL_GET_CLIENT(cb->nlh->nlmsg_type);
 	if (!iwpm_valid_client(nl_client)) {
-		pr_info("%s: Invalid port mapper client = %d\n",
+		pr_info("%s: Invalid port mapper client = %u\n",
 				__func__, nl_client);
 		return ret;
 	}
@@ -731,13 +731,13 @@ int iwpm_mapping_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	iwpm_version = nla_get_u16(nltb[IWPM_NLA_MAPINFO_ULIB_VER]);
 	if (strcmp(iwpm_ulib_name, iwpm_name) ||
 			iwpm_version < IWPM_UABI_VERSION_MIN) {
-		pr_info("%s: Invalid port mapper name = %s version = %d\n",
+		pr_info("%s: Invalid port mapper name = %s version = %u\n",
 				__func__, iwpm_name, iwpm_version);
 		return ret;
 	}
 	nl_client = RDMA_NL_GET_CLIENT(cb->nlh->nlmsg_type);
 	if (!iwpm_valid_client(nl_client)) {
-		pr_info("%s: Invalid port mapper client = %d\n",
+		pr_info("%s: Invalid port mapper client = %u\n",
 				__func__, nl_client);
 		return ret;
 	}
@@ -746,7 +746,7 @@ int iwpm_mapping_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	iwpm_user_pid = cb->nlh->nlmsg_pid;
 
 	if (iwpm_ulib_version < IWPM_UABI_VERSION)
-		pr_warn_once("%s: Down level iwpmd/pid %u.  Continuing...",
+		pr_warn_once("%s: Down level iwpmd/pid %d.  Continuing...",
 			__func__, iwpm_user_pid);
 
 	if (!iwpm_mapinfo_available())
@@ -864,7 +864,7 @@ int iwpm_hello_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	abi_version = nla_get_u16(nltb[IWPM_NLA_HELLO_ABI_VERSION]);
 	nl_client = RDMA_NL_GET_CLIENT(cb->nlh->nlmsg_type);
 	if (!iwpm_valid_client(nl_client)) {
-		pr_info("%s: Invalid port mapper client = %d\n",
+		pr_info("%s: Invalid port mapper client = %u\n",
 				__func__, nl_client);
 		return ret;
 	}

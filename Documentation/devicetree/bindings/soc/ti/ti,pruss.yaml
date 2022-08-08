@@ -100,7 +100,6 @@ patternProperties:
     properties:
       reg:
         minItems: 2 # On AM437x one of two PRUSS units don't contain Shared RAM.
-        maxItems: 3
         items:
           - description: Address and size of the Data RAM0.
           - description: Address and size of the Data RAM1.
@@ -111,7 +110,6 @@ patternProperties:
 
       reg-names:
         minItems: 2
-        maxItems: 3
         items:
           - const: dram0
           - const: dram1

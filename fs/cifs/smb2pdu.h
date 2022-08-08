@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: LGPL-2.1 */
 /*
  *   fs/cifs/smb2pdu.h
  *
@@ -6,26 +7,13 @@
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *              Pavel Shilovsky (pshilovsky@samba.org) 2012
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #ifndef _SMB2PDU_H
 #define _SMB2PDU_H
 
 #include <net/sock.h>
-#include <cifsacl.h>
+#include "cifsacl.h"
 
 /*
  * Note that, due to trying to use names similar to the protocol specifications,
@@ -276,7 +264,7 @@ struct share_redirect_error_context_rsp {
 	__le32 NotificationType;
 	__le32 ResourceNameOffset;
 	__le32 ResourceNameLength;
-	__le16 Flags;
+	__le16 Reserved;
 	__le16 TargetType;
 	__le32 IPAddrCount;
 	struct move_dst_ipaddr IpAddrMoveList[];
@@ -341,7 +329,7 @@ struct smb2_neg_context {
 	__le16	ContextType;
 	__le16	DataLength;
 	__le32	Reserved;
-	/* Followed by array of data */
+	/* Followed by array of data. NOTE: some servers require padding to 8 byte boundary */
 } __packed;
 
 #define SMB311_LINUX_CLIENT_SALT_SIZE			32
@@ -406,6 +394,8 @@ struct smb2_compression_capabilities_context {
 	__u16	Padding;
 	__u32	Flags;
 	__le16	CompressionAlgorithms[3];
+	__u16	Pad;  /* Some servers require pad to DataLen multiple of 8 */
+	/* Check if pad needed */
 } __packed;
 
 /*
@@ -432,6 +422,7 @@ struct smb2_transport_capabilities_context {
 	__le16  DataLength;
 	__u32	Reserved;
 	__le32	Flags;
+	__u32	Pad;
 } __packed;
 
 /*
@@ -470,6 +461,7 @@ struct smb2_signing_capabilities {
 	__u32	Reserved;
 	__le16	SigningAlgorithmCount;
 	__le16	SigningAlgorithms[];
+	/*  Followed by padding to 8 byte boundary (required by some servers) */
 } __packed;
 
 #define POSIX_CTXT_DATA_LEN	16
@@ -1460,6 +1452,22 @@ struct smb2_echo_rsp {
 
 #define SMB2_QUERY_DIRECTORY_IOV_SIZE 2
 
+/*
+ * Valid FileInformation classes.
+ *
+ * Note that these are a subset of the (file) QUERY_INFO levels defined
+ * later in this file (but since QUERY_DIRECTORY uses equivalent numbers
+ * we do not redefine them here)
+ *
+ * FileDirectoryInfomation		0x01
+ * FileFullDirectoryInformation		0x02
+ * FileIdFullDirectoryInformation	0x26
+ * FileBothDirectoryInformation		0x03
+ * FileIdBothDirectoryInformation	0x25
+ * FileNamesInformation			0x0C
+ * FileIdExtdDirectoryInformation	0x3C
+ */
+
 struct smb2_query_directory_req {
 	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 33 */
@@ -1696,6 +1704,7 @@ struct smb3_fs_vol_info {
 #define FILEID_GLOBAL_TX_DIRECTORY_INFORMATION 50
 #define FILE_STANDARD_LINK_INFORMATION	54
 #define FILE_ID_INFORMATION		59
+#define FILE_ID_EXTD_DIRECTORY_INFORMATION 60
 
 struct smb2_file_internal_info {
 	__le64 IndexNumber;
@@ -1776,12 +1785,30 @@ struct smb2_file_network_open_info {
 	__le32 Reserved;
 } __packed; /* level 34 Query also similar returned in close rsp and open rsp */
 
-/* See MS-FSCC 2.4.43 */
+/* See MS-FSCC 2.4.21 */
 struct smb2_file_id_information {
 	__le64	VolumeSerialNumber;
 	__u64  PersistentFileId; /* opaque endianness */
 	__u64  VolatileFileId; /* opaque endianness */
 } __packed; /* level 59 */
+
+/* See MS-FSCC 2.4.18 */
+struct smb2_file_id_extd_directory_info {
+	__le32 NextEntryOffset;
+	__u32 FileIndex;
+	__le64 CreationTime;
+	__le64 LastAccessTime;
+	__le64 LastWriteTime;
+	__le64 ChangeTime;
+	__le64 EndOfFile;
+	__le64 AllocationSize;
+	__le32 FileAttributes;
+	__le32 FileNameLength;
+	__le32 EaSize; /* EA size */
+	__le32 ReparsePointTag; /* valid if FILE_ATTR_REPARSE_POINT set in FileAttributes */
+	__le64 UniqueId; /* inode num - le since Samba puts ino in low 32 bit */
+	char FileName[1];
+} __packed; /* level 60 */
 
 extern char smb2_padding[7];
 

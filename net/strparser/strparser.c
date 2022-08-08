@@ -58,7 +58,7 @@ static void strp_abort_strp(struct strparser *strp, int err)
 
 		/* Report an error on the lower socket */
 		sk->sk_err = -err;
-		sk->sk_error_report(sk);
+		sk_error_report(sk);
 	}
 }
 

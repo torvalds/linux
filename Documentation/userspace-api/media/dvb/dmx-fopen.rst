@@ -82,7 +82,7 @@ appropriately.
     :widths: 1 16
 
     -  -  ``EMFILE``
-       -  “Too many open files”, i.e. no more filters available.
+       -  "Too many open files", i.e. no more filters available.
 
 The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

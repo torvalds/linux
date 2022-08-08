@@ -1445,11 +1445,18 @@ static void mwifiex_uninit_sw(struct mwifiex_adapter *adapter)
 		if (!priv)
 			continue;
 		rtnl_lock();
-		wiphy_lock(adapter->wiphy);
 		if (priv->netdev &&
-		    priv->wdev.iftype != NL80211_IFTYPE_UNSPECIFIED)
+		    priv->wdev.iftype != NL80211_IFTYPE_UNSPECIFIED) {
+			/*
+			 * Close the netdev now, because if we do it later, the
+			 * netdev notifiers will need to acquire the wiphy lock
+			 * again --> deadlock.
+			 */
+			dev_close(priv->wdev.netdev);
+			wiphy_lock(adapter->wiphy);
 			mwifiex_del_virtual_intf(adapter->wiphy, &priv->wdev);
-		wiphy_unlock(adapter->wiphy);
+			wiphy_unlock(adapter->wiphy);
+		}
 		rtnl_unlock();
 	}
 

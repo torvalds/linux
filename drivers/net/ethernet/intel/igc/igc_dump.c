@@ -112,7 +112,7 @@ static void igc_regdump(struct igc_hw *hw, struct igc_reg_info *reginfo)
 void igc_rings_dump(struct igc_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	struct my_u0 { u64 a; u64 b; } *u0;
+	struct my_u0 { __le64 a; __le64 b; } *u0;
 	union igc_adv_tx_desc *tx_desc;
 	union igc_adv_rx_desc *rx_desc;
 	struct igc_ring *tx_ring;

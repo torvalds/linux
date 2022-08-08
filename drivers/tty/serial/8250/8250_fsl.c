@@ -30,10 +30,11 @@ struct fsl8250_data {
 int fsl8250_handle_irq(struct uart_port *port)
 {
 	unsigned char lsr, orig_lsr;
+	unsigned long flags;
 	unsigned int iir;
 	struct uart_8250_port *up = up_to_u8250p(port);
 
-	spin_lock(&up->port.lock);
+	spin_lock_irqsave(&up->port.lock, flags);
 
 	iir = port->serial_in(port, UART_IIR);
 	if (iir & UART_IIR_NO_INT) {
@@ -82,7 +83,7 @@ int fsl8250_handle_irq(struct uart_port *port)
 
 	up->lsr_saved_flags = orig_lsr;
 
-	uart_unlock_and_check_sysrq(&up->port);
+	uart_unlock_and_check_sysrq_irqrestore(&up->port, flags);
 
 	return 1;
 }

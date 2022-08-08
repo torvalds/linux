@@ -5,6 +5,7 @@
 // Copyright (C) 2012 Samsung Electrnoics
 // Chanwoo Choi <cw00.choi@samsung.com>
 
+#include <linux/devm-helpers.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
@@ -1127,7 +1128,10 @@ static int max77693_muic_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, info);
 	mutex_init(&info->mutex);
 
-	INIT_WORK(&info->irq_work, max77693_muic_irq_work);
+	ret = devm_work_autocancel(&pdev->dev, &info->irq_work,
+				   max77693_muic_irq_work);
+	if (ret)
+		return ret;
 
 	/* Support irq domain for MAX77693 MUIC device */
 	for (i = 0; i < ARRAY_SIZE(muic_irqs); i++) {
@@ -1254,22 +1258,11 @@ static int max77693_muic_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int max77693_muic_remove(struct platform_device *pdev)
-{
-	struct max77693_muic_info *info = platform_get_drvdata(pdev);
-
-	cancel_work_sync(&info->irq_work);
-	input_unregister_device(info->dock);
-
-	return 0;
-}
-
 static struct platform_driver max77693_muic_driver = {
 	.driver		= {
 		.name	= DEV_NAME,
 	},
 	.probe		= max77693_muic_probe,
-	.remove		= max77693_muic_remove,
 };
 
 module_platform_driver(max77693_muic_driver);

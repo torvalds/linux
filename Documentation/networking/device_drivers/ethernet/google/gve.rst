@@ -47,12 +47,23 @@ The driver interacts with the device in the following ways:
  - Transmit and Receive Queues
     - See description below
 
+Descriptor Formats
+------------------
+GVE supports two descriptor formats: GQI and DQO. These two formats have
+entirely different descriptors, which will be described below.
+
 Registers
 ---------
-All registers are MMIO and big endian.
+All registers are MMIO.
 
 The registers are used for initializing and configuring the device as well as
 querying device status in response to management interrupts.
+
+Endianness
+----------
+- Admin Queue messages and registers are all Big Endian.
+- GQI descriptors and datapath registers are Big Endian.
+- DQO descriptors and datapath registers are Little Endian.
 
 Admin Queue (AQ)
 ----------------
@@ -97,10 +108,10 @@ the queues associated with that interrupt.
 The handler for these irqs schedule the napi for that block to run
 and poll the queues.
 
-Traffic Queues
---------------
-gVNIC's queues are composed of a descriptor ring and a buffer and are
-assigned to a notification block.
+GQI Traffic Queues
+------------------
+GQI queues are composed of a descriptor ring and a buffer and are assigned to a
+notification block.
 
 The descriptor rings are power-of-two-sized ring buffers consisting of
 fixed-size descriptors. They advance their head pointer using a __be32
@@ -121,3 +132,35 @@ Receive
 The buffers for receive rings are put into a data ring that is the same
 length as the descriptor ring and the head and tail pointers advance over
 the rings together.
+
+DQO Traffic Queues
+------------------
+- Every TX and RX queue is assigned a notification block.
+
+- TX and RX buffers queues, which send descriptors to the device, use MMIO
+  doorbells to notify the device of new descriptors.
+
+- RX and TX completion queues, which receive descriptors from the device, use a
+  "generation bit" to know when a descriptor was populated by the device. The
+  driver initializes all bits with the "current generation". The device will
+  populate received descriptors with the "next generation" which is inverted
+  from the current generation. When the ring wraps, the current/next generation
+  are swapped.
+
+- It's the driver's responsibility to ensure that the RX and TX completion
+  queues are not overrun. This can be accomplished by limiting the number of
+  descriptors posted to HW.
+
+- TX packets have a 16 bit completion_tag and RX buffers have a 16 bit
+  buffer_id. These will be returned on the TX completion and RX queues
+  respectively to let the driver know which packet/buffer was completed.
+
+Transmit
+~~~~~~~~
+A packet's buffers are DMA mapped for the device to access before transmission.
+After the packet was successfully transmitted, the buffers are unmapped.
+
+Receive
+~~~~~~~
+The driver posts fixed sized buffers to HW on the RX buffer queue. The packet
+received on the associated RX queue may span multiple descriptors.

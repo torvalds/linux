@@ -415,9 +415,6 @@
 #define HFI_BUFFER_MODE_RING			0x1000002
 #define HFI_BUFFER_MODE_DYNAMIC			0x1000003
 
-#define HFI_VENC_PERFMODE_MAX_QUALITY		0x1
-#define HFI_VENC_PERFMODE_POWER_SAVE		0x2
-
 /*
  * HFI_PROPERTY_SYS_COMMON_START
  * HFI_DOMAIN_BASE_COMMON + HFI_ARCH_COMMON_OFFSET + 0x0000
@@ -846,6 +843,13 @@ struct hfi_framesize {
 	u32 buffer_type;
 	u32 width;
 	u32 height;
+};
+
+#define HFI_VENC_PERFMODE_MAX_QUALITY		0x1
+#define HFI_VENC_PERFMODE_POWER_SAVE		0x2
+
+struct hfi_perf_mode {
+	u32 video_perf_mode;
 };
 
 #define VIDC_CORE_ID_DEFAULT	0

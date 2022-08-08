@@ -660,7 +660,7 @@ static void tx_free_skb(struct hinic_dev *nic_dev, struct sk_buff *skb,
 }
 
 /**
- * free_all_rx_skbs - free all skbs in tx queue
+ * free_all_tx_skbs - free all skbs in tx queue
  * @txq: tx queue
  **/
 static void free_all_tx_skbs(struct hinic_txq *txq)
@@ -717,7 +717,7 @@ static int free_tx_poll(struct napi_struct *napi, int budget)
 
 		/* Reading a WQEBB to get real WQE size and consumer index. */
 		sq_wqe = hinic_sq_read_wqebb(sq, &skb, &wqe_size, &sw_ci);
-		if ((!sq_wqe) ||
+		if (!sq_wqe ||
 		    (((hw_ci - sw_ci) & wq->mask) * wq->wqebb_size < wqe_size))
 			break;
 

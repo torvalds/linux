@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014 Intel Corporation
+ * Copyright (C) 2012-2014, 2021 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015 Intel Deutschland GmbH
  */
@@ -36,7 +36,7 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 		struct iwl_proto_offload_cmd_v1 v1;
 		struct iwl_proto_offload_cmd_v2 v2;
 		struct iwl_proto_offload_cmd_v3_small v3s;
-		struct iwl_proto_offload_cmd_v3_large v3l;
+		struct iwl_proto_offload_cmd_v4 v4;
 	} cmd = {};
 	struct iwl_host_cmd hcmd = {
 		.id = PROT_OFFLOAD_CONFIG_CMD,
@@ -47,6 +47,9 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 	struct iwl_proto_offload_cmd_common *common;
 	u32 enabled = 0, size;
 	u32 capa_flags = mvm->fw->ucode_capa.flags;
+	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
+					PROT_OFFLOAD_CONFIG_CMD, 0);
+
 #if IS_ENABLED(CONFIG_IPV6)
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int i;
@@ -72,9 +75,9 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 			addrs = cmd.v3s.targ_addrs;
 			n_addrs = IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V3S;
 		} else {
-			nsc = cmd.v3l.ns_config;
+			nsc = cmd.v4.ns_config;
 			n_nsc = IWL_PROTO_OFFLOAD_NUM_NS_CONFIG_V3L;
-			addrs = cmd.v3l.targ_addrs;
+			addrs = cmd.v4.targ_addrs;
 			n_addrs = IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V3L;
 		}
 
@@ -116,7 +119,7 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 			cmd.v3s.num_valid_ipv6_addrs =
 				cpu_to_le32(i - num_skipped);
 		else
-			cmd.v3l.num_valid_ipv6_addrs =
+			cmd.v4.num_valid_ipv6_addrs =
 				cpu_to_le32(i - num_skipped);
 	} else if (capa_flags & IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS) {
 		bool found = false;
@@ -171,8 +174,17 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 		common = &cmd.v3s.common;
 		size = sizeof(cmd.v3s);
 	} else if (capa_flags & IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_LARGE) {
-		common = &cmd.v3l.common;
-		size = sizeof(cmd.v3l);
+		common = &cmd.v4.common;
+		size = sizeof(cmd.v4);
+		if (ver < 4) {
+			/*
+			 * This basically uses iwl_proto_offload_cmd_v3_large
+			 * which doesn't have the sta_id parameter before the
+			 * common part.
+			 */
+			size -= sizeof(cmd.v4.sta_id);
+			hcmd.data[0] = common;
+		}
 	} else if (capa_flags & IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS) {
 		common = &cmd.v2.common;
 		size = sizeof(cmd.v2);

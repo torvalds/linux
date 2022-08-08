@@ -329,7 +329,7 @@ static int dccp_v4_err(struct sk_buff *skb, u32 info)
 			__DCCP_INC_STATS(DCCP_MIB_ATTEMPTFAILS);
 			sk->sk_err = err;
 
-			sk->sk_error_report(sk);
+			sk_error_report(sk);
 
 			dccp_done(sk);
 		} else
@@ -356,7 +356,7 @@ static int dccp_v4_err(struct sk_buff *skb, u32 info)
 	inet = inet_sk(sk);
 	if (!sock_owned_by_user(sk) && inet->recverr) {
 		sk->sk_err = err;
-		sk->sk_error_report(sk);
+		sk_error_report(sk);
 	} else /* Only an error on timeout */
 		sk->sk_err_soft = err;
 out:
@@ -977,7 +977,6 @@ static const struct net_protocol dccp_v4_protocol = {
 	.handler	= dccp_v4_rcv,
 	.err_handler	= dccp_v4_err,
 	.no_policy	= 1,
-	.netns_ok	= 1,
 	.icmp_strict_tag_validation = 1,
 };
 

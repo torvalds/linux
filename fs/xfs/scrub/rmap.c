@@ -15,6 +15,7 @@
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/btree.h"
+#include "xfs_ag.h"
 
 /*
  * Set us up to scrub reverse mapping btrees.
@@ -91,7 +92,7 @@ xchk_rmapbt_rec(
 {
 	struct xfs_mount	*mp = bs->cur->bc_mp;
 	struct xfs_rmap_irec	irec;
-	xfs_agnumber_t		agno = bs->cur->bc_ag.agno;
+	xfs_agnumber_t		agno = bs->cur->bc_ag.pag->pag_agno;
 	bool			non_inode;
 	bool			is_unwritten;
 	bool			is_bmbt;

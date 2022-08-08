@@ -90,7 +90,7 @@ void test_xdp_bpf2bpf(void)
 	pb_opts.ctx = &passed;
 	pb = perf_buffer__new(bpf_map__fd(ftrace_skel->maps.perf_buf_map),
 			      1, &pb_opts);
-	if (CHECK(IS_ERR(pb), "perf_buf__new", "err %ld\n", PTR_ERR(pb)))
+	if (!ASSERT_OK_PTR(pb, "perf_buf__new"))
 		goto out;
 
 	/* Run test program */

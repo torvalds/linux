@@ -3784,6 +3784,7 @@ vxge_hw_rts_rth_data0_data1_get(u32 j, u64 *data0, u64 *data1,
 			VXGE_HW_RTS_ACCESS_STEER_DATA1_RTH_ITEM1_ENTRY_EN |
 			VXGE_HW_RTS_ACCESS_STEER_DATA1_RTH_ITEM1_BUCKET_DATA(
 			itable[j]);
+		return;
 	default:
 		return;
 	}
@@ -4884,7 +4885,7 @@ vpath_open_exit1:
 }
 
 /**
- * vxge_hw_vpath_rx_doorbell_post - Close the handle got from previous vpath
+ * vxge_hw_vpath_rx_doorbell_init - Close the handle got from previous vpath
  * (vpath) open
  * @vp: Handle got from previous vpath open
  *

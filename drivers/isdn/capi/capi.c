@@ -1158,8 +1158,6 @@ static void capinc_tty_flush_chars(struct tty_struct *tty)
 	struct capiminor *mp = tty->driver_data;
 	struct sk_buff *skb;
 
-	pr_debug("capinc_tty_flush_chars\n");
-
 	spin_lock_bh(&mp->outlock);
 	skb = mp->outskb;
 	if (skb) {
@@ -1175,18 +1173,18 @@ static void capinc_tty_flush_chars(struct tty_struct *tty)
 	handle_minor_recv(mp);
 }
 
-static int capinc_tty_write_room(struct tty_struct *tty)
+static unsigned int capinc_tty_write_room(struct tty_struct *tty)
 {
 	struct capiminor *mp = tty->driver_data;
-	int room;
+	unsigned int room;
 
 	room = CAPINC_MAX_SENDQUEUE-skb_queue_len(&mp->outqueue);
 	room *= CAPI_MAX_BLKSIZE;
-	pr_debug("capinc_tty_write_room = %d\n", room);
+	pr_debug("capinc_tty_write_room = %u\n", room);
 	return room;
 }
 
-static int capinc_tty_chars_in_buffer(struct tty_struct *tty)
+static unsigned int capinc_tty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct capiminor *mp = tty->driver_data;
 
@@ -1197,15 +1195,9 @@ static int capinc_tty_chars_in_buffer(struct tty_struct *tty)
 	return mp->outbytes;
 }
 
-static void capinc_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
-{
-	pr_debug("capinc_tty_set_termios\n");
-}
-
 static void capinc_tty_throttle(struct tty_struct *tty)
 {
 	struct capiminor *mp = tty->driver_data;
-	pr_debug("capinc_tty_throttle\n");
 	mp->ttyinstop = 1;
 }
 
@@ -1213,7 +1205,6 @@ static void capinc_tty_unthrottle(struct tty_struct *tty)
 {
 	struct capiminor *mp = tty->driver_data;
 
-	pr_debug("capinc_tty_unthrottle\n");
 	mp->ttyinstop = 0;
 	handle_minor_recv(mp);
 }
@@ -1222,7 +1213,6 @@ static void capinc_tty_stop(struct tty_struct *tty)
 {
 	struct capiminor *mp = tty->driver_data;
 
-	pr_debug("capinc_tty_stop\n");
 	mp->ttyoutstop = 1;
 }
 
@@ -1230,7 +1220,6 @@ static void capinc_tty_start(struct tty_struct *tty)
 {
 	struct capiminor *mp = tty->driver_data;
 
-	pr_debug("capinc_tty_start\n");
 	mp->ttyoutstop = 0;
 	handle_minor_send(mp);
 }
@@ -1239,24 +1228,7 @@ static void capinc_tty_hangup(struct tty_struct *tty)
 {
 	struct capiminor *mp = tty->driver_data;
 
-	pr_debug("capinc_tty_hangup\n");
 	tty_port_hangup(&mp->port);
-}
-
-static int capinc_tty_break_ctl(struct tty_struct *tty, int state)
-{
-	pr_debug("capinc_tty_break_ctl(%d)\n", state);
-	return 0;
-}
-
-static void capinc_tty_flush_buffer(struct tty_struct *tty)
-{
-	pr_debug("capinc_tty_flush_buffer\n");
-}
-
-static void capinc_tty_set_ldisc(struct tty_struct *tty)
-{
-	pr_debug("capinc_tty_set_ldisc\n");
 }
 
 static void capinc_tty_send_xchar(struct tty_struct *tty, char ch)
@@ -1272,15 +1244,11 @@ static const struct tty_operations capinc_ops = {
 	.flush_chars = capinc_tty_flush_chars,
 	.write_room = capinc_tty_write_room,
 	.chars_in_buffer = capinc_tty_chars_in_buffer,
-	.set_termios = capinc_tty_set_termios,
 	.throttle = capinc_tty_throttle,
 	.unthrottle = capinc_tty_unthrottle,
 	.stop = capinc_tty_stop,
 	.start = capinc_tty_start,
 	.hangup = capinc_tty_hangup,
-	.break_ctl = capinc_tty_break_ctl,
-	.flush_buffer = capinc_tty_flush_buffer,
-	.set_ldisc = capinc_tty_set_ldisc,
 	.send_xchar = capinc_tty_send_xchar,
 	.install = capinc_tty_install,
 	.cleanup = capinc_tty_cleanup,

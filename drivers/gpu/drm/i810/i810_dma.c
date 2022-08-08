@@ -34,7 +34,6 @@
 #include <linux/mman.h>
 #include <linux/pci.h>
 
-#include <drm/drm_agpsupport.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
@@ -220,7 +219,7 @@ static int i810_dma_cleanup(struct drm_device *dev)
 		if (dev_priv->ring.virtual_start)
 			drm_legacy_ioremapfree(&dev_priv->ring.map, dev);
 		if (dev_priv->hw_status_page) {
-			dma_free_coherent(&dev->pdev->dev, PAGE_SIZE,
+			dma_free_coherent(dev->dev, PAGE_SIZE,
 					  dev_priv->hw_status_page,
 					  dev_priv->dma_status_page);
 		}
@@ -398,7 +397,7 @@ static int i810_dma_initialize(struct drm_device *dev,
 
 	/* Program Hardware Status Page */
 	dev_priv->hw_status_page =
-		dma_alloc_coherent(&dev->pdev->dev, PAGE_SIZE,
+		dma_alloc_coherent(dev->dev, PAGE_SIZE,
 				   &dev_priv->dma_status_page, GFP_KERNEL);
 	if (!dev_priv->hw_status_page) {
 		dev->dev_private = (void *)dev_priv;
@@ -1197,7 +1196,9 @@ static int i810_flip_bufs(struct drm_device *dev, void *data,
 
 int i810_driver_load(struct drm_device *dev, unsigned long flags)
 {
-	dev->agp = drm_agp_init(dev);
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+
+	dev->agp = drm_legacy_agp_init(dev);
 	if (dev->agp) {
 		dev->agp->agp_mtrr = arch_phys_wc_add(
 			dev->agp->agp_info.aper_base,
@@ -1209,7 +1210,7 @@ int i810_driver_load(struct drm_device *dev, unsigned long flags)
 	if (!dev->agp)
 		return -EINVAL;
 
-	pci_set_master(dev->pdev);
+	pci_set_master(pdev);
 
 	return 0;
 }

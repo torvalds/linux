@@ -314,6 +314,7 @@ static void rcu_print_detail_task_stall_rnp(struct rcu_node *rnp)
  * tasks blocked within RCU read-side critical sections.
  */
 static int rcu_print_task_stall(struct rcu_node *rnp, unsigned long flags)
+	__releases(rnp->lock)
 {
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	return 0;
@@ -460,12 +461,12 @@ static void rcu_check_gp_kthread_starvation(void)
 
 	if (rcu_is_gp_kthread_starving(&j)) {
 		cpu = gpk ? task_cpu(gpk) : -1;
-		pr_err("%s kthread starved for %ld jiffies! g%ld f%#x %s(%d) ->state=%#lx ->cpu=%d\n",
+		pr_err("%s kthread starved for %ld jiffies! g%ld f%#x %s(%d) ->state=%#x ->cpu=%d\n",
 		       rcu_state.name, j,
 		       (long)rcu_seq_current(&rcu_state.gp_seq),
 		       data_race(rcu_state.gp_flags),
 		       gp_state_getname(rcu_state.gp_state), rcu_state.gp_state,
-		       gpk ? gpk->state : ~0, cpu);
+		       gpk ? gpk->__state : ~0, cpu);
 		if (gpk) {
 			pr_err("\tUnless %s kthread gets sufficient CPU time, OOM is now expected behavior.\n", rcu_state.name);
 			pr_err("RCU grace-period kthread stack dump:\n");
@@ -503,12 +504,12 @@ static void rcu_check_gp_kthread_expired_fqs_timer(void)
 	    time_after(jiffies, jiffies_fqs + RCU_STALL_MIGHT_MIN) &&
 	    gpk && !READ_ONCE(gpk->on_rq)) {
 		cpu = task_cpu(gpk);
-		pr_err("%s kthread timer wakeup didn't happen for %ld jiffies! g%ld f%#x %s(%d) ->state=%#lx\n",
+		pr_err("%s kthread timer wakeup didn't happen for %ld jiffies! g%ld f%#x %s(%d) ->state=%#x\n",
 		       rcu_state.name, (jiffies - jiffies_fqs),
 		       (long)rcu_seq_current(&rcu_state.gp_seq),
 		       data_race(rcu_state.gp_flags),
 		       gp_state_getname(RCU_GP_WAIT_FQS), RCU_GP_WAIT_FQS,
-		       gpk->state);
+		       gpk->__state);
 		pr_err("\tPossible timer handling issue on cpu=%d timer-softirq=%u\n",
 		       cpu, kstat_softirqs_cpu(TIMER_SOFTIRQ, cpu));
 	}
@@ -717,6 +718,63 @@ static void check_cpu_stall(struct rcu_data *rdp)
 
 
 /*
+ * Check to see if a failure to end RCU priority inversion was due to
+ * a CPU not passing through a quiescent state.  When this happens, there
+ * is nothing that RCU priority boosting can do to help, so we shouldn't
+ * count this as an RCU priority boosting failure.  A return of true says
+ * RCU priority boosting is to blame, and false says otherwise.  If false
+ * is returned, the first of the CPUs to blame is stored through cpup.
+ * If there was no CPU blocking the current grace period, but also nothing
+ * in need of being boosted, *cpup is set to -1.  This can happen in case
+ * of vCPU preemption while the last CPU is reporting its quiscent state,
+ * for example.
+ *
+ * If cpup is NULL, then a lockless quick check is carried out, suitable
+ * for high-rate usage.  On the other hand, if cpup is non-NULL, each
+ * rcu_node structure's ->lock is acquired, ruling out high-rate usage.
+ */
+bool rcu_check_boost_fail(unsigned long gp_state, int *cpup)
+{
+	bool atb = false;
+	int cpu;
+	unsigned long flags;
+	struct rcu_node *rnp;
+
+	rcu_for_each_leaf_node(rnp) {
+		if (!cpup) {
+			if (READ_ONCE(rnp->qsmask)) {
+				return false;
+			} else {
+				if (READ_ONCE(rnp->gp_tasks))
+					atb = true;
+				continue;
+			}
+		}
+		*cpup = -1;
+		raw_spin_lock_irqsave_rcu_node(rnp, flags);
+		if (rnp->gp_tasks)
+			atb = true;
+		if (!rnp->qsmask) {
+			// No CPUs without quiescent states for this rnp.
+			raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+			continue;
+		}
+		// Find the first holdout CPU.
+		for_each_leaf_node_possible_cpu(rnp, cpu) {
+			if (rnp->qsmask & (1UL << (cpu - rnp->grplo))) {
+				raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+				*cpup = cpu;
+				return false;
+			}
+		}
+		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+	}
+	// Can't blame CPUs, so must blame RCU priority boosting.
+	return atb;
+}
+EXPORT_SYMBOL_GPL(rcu_check_boost_fail);
+
+/*
  * Show the state of the grace-period kthreads.
  */
 void show_rcu_gp_kthreads(void)
@@ -726,6 +784,7 @@ void show_rcu_gp_kthreads(void)
 	unsigned long j;
 	unsigned long ja;
 	unsigned long jr;
+	unsigned long js;
 	unsigned long jw;
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
@@ -734,21 +793,30 @@ void show_rcu_gp_kthreads(void)
 	j = jiffies;
 	ja = j - data_race(rcu_state.gp_activity);
 	jr = j - data_race(rcu_state.gp_req_activity);
+	js = j - data_race(rcu_state.gp_start);
 	jw = j - data_race(rcu_state.gp_wake_time);
-	pr_info("%s: wait state: %s(%d) ->state: %#lx delta ->gp_activity %lu ->gp_req_activity %lu ->gp_wake_time %lu ->gp_wake_seq %ld ->gp_seq %ld ->gp_seq_needed %ld ->gp_flags %#x\n",
+	pr_info("%s: wait state: %s(%d) ->state: %#x ->rt_priority %u delta ->gp_start %lu ->gp_activity %lu ->gp_req_activity %lu ->gp_wake_time %lu ->gp_wake_seq %ld ->gp_seq %ld ->gp_seq_needed %ld ->gp_max %lu ->gp_flags %#x\n",
 		rcu_state.name, gp_state_getname(rcu_state.gp_state),
-		rcu_state.gp_state, t ? t->state : 0x1ffffL,
-		ja, jr, jw, (long)data_race(rcu_state.gp_wake_seq),
+		rcu_state.gp_state, t ? t->__state : 0x1ffff, t ? t->rt_priority : 0xffU,
+		js, ja, jr, jw, (long)data_race(rcu_state.gp_wake_seq),
 		(long)data_race(rcu_state.gp_seq),
 		(long)data_race(rcu_get_root()->gp_seq_needed),
+		data_race(rcu_state.gp_max),
 		data_race(rcu_state.gp_flags));
 	rcu_for_each_node_breadth_first(rnp) {
-		if (ULONG_CMP_GE(READ_ONCE(rcu_state.gp_seq),
-				 READ_ONCE(rnp->gp_seq_needed)))
+		if (ULONG_CMP_GE(READ_ONCE(rcu_state.gp_seq), READ_ONCE(rnp->gp_seq_needed)) &&
+		    !data_race(rnp->qsmask) && !data_race(rnp->boost_tasks) &&
+		    !data_race(rnp->exp_tasks) && !data_race(rnp->gp_tasks))
 			continue;
-		pr_info("\trcu_node %d:%d ->gp_seq %ld ->gp_seq_needed %ld\n",
-			rnp->grplo, rnp->grphi, (long)data_race(rnp->gp_seq),
-			(long)data_race(rnp->gp_seq_needed));
+		pr_info("\trcu_node %d:%d ->gp_seq %ld ->gp_seq_needed %ld ->qsmask %#lx %c%c%c%c ->n_boosts %ld\n",
+			rnp->grplo, rnp->grphi,
+			(long)data_race(rnp->gp_seq), (long)data_race(rnp->gp_seq_needed),
+			data_race(rnp->qsmask),
+			".b"[!!data_race(rnp->boost_kthread_task)],
+			".B"[!!data_race(rnp->boost_tasks)],
+			".E"[!!data_race(rnp->exp_tasks)],
+			".G"[!!data_race(rnp->gp_tasks)],
+			data_race(rnp->n_boosts));
 		if (!rcu_is_leaf_node(rnp))
 			continue;
 		for_each_leaf_node_possible_cpu(rnp, cpu) {

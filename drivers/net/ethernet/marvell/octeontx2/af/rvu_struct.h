@@ -35,7 +35,8 @@ enum rvu_block_addr_e {
 	BLKADDR_NDC_NPA0	= 0xeULL,
 	BLKADDR_NDC_NIX1_RX	= 0x10ULL,
 	BLKADDR_NDC_NIX1_TX	= 0x11ULL,
-	BLK_COUNT		= 0x12ULL,
+	BLKADDR_APR		= 0x16ULL,
+	BLK_COUNT		= 0x17ULL,
 };
 
 /* RVU Block Type Enumeration */
@@ -286,7 +287,7 @@ enum nix_aq_ctype {
 	NIX_AQ_CTYPE_MCE  = 0x3,
 	NIX_AQ_CTYPE_RSS  = 0x4,
 	NIX_AQ_CTYPE_DYNO = 0x5,
-	NIX_AQ_CTYPE_BAND_PROF = 0x6,
+	NIX_AQ_CTYPE_BANDPROF = 0x6,
 };
 
 /* NIX admin queue instruction opcodes */
@@ -663,6 +664,89 @@ struct nix_rx_mce_s {
 	uint64_t rsvd_31_24 : 8;
 	uint64_t pf_func    : 16;
 	uint64_t next       : 16;
+};
+
+enum nix_band_prof_layers {
+	BAND_PROF_LEAF_LAYER = 0,
+	BAND_PROF_INVAL_LAYER = 1,
+	BAND_PROF_MID_LAYER = 2,
+	BAND_PROF_TOP_LAYER = 3,
+	BAND_PROF_NUM_LAYERS = 4,
+};
+
+enum NIX_RX_BAND_PROF_ACTIONRESULT_E {
+	NIX_RX_BAND_PROF_ACTIONRESULT_PASS = 0x0,
+	NIX_RX_BAND_PROF_ACTIONRESULT_DROP = 0x1,
+	NIX_RX_BAND_PROF_ACTIONRESULT_RED = 0x2,
+};
+
+enum nix_band_prof_pc_mode {
+	NIX_RX_PC_MODE_VLAN = 0,
+	NIX_RX_PC_MODE_DSCP = 1,
+	NIX_RX_PC_MODE_GEN = 2,
+	NIX_RX_PC_MODE_RSVD = 3,
+};
+
+/* NIX ingress policer bandwidth profile structure */
+struct nix_bandprof_s {
+	uint64_t pc_mode                     :  2; /* W0 */
+	uint64_t icolor                      :  2;
+	uint64_t tnl_ena                     :  1;
+	uint64_t reserved_5_7                :  3;
+	uint64_t peir_exponent               :  5;
+	uint64_t reserved_13_15              :  3;
+	uint64_t pebs_exponent               :  5;
+	uint64_t reserved_21_23              :  3;
+	uint64_t cir_exponent                :  5;
+	uint64_t reserved_29_31              :  3;
+	uint64_t cbs_exponent                :  5;
+	uint64_t reserved_37_39              :  3;
+	uint64_t peir_mantissa               :  8;
+	uint64_t pebs_mantissa               :  8;
+	uint64_t cir_mantissa                :  8;
+	uint64_t cbs_mantissa                :  8; /* W1 */
+	uint64_t lmode                       :  1;
+	uint64_t l_sellect                   :  3;
+	uint64_t rdiv                        :  4;
+	uint64_t adjust_exponent             :  5;
+	uint64_t reserved_85_86              :  2;
+	uint64_t adjust_mantissa             :  9;
+	uint64_t gc_action                   :  2;
+	uint64_t yc_action                   :  2;
+	uint64_t rc_action                   :  2;
+	uint64_t meter_algo                  :  2;
+	uint64_t band_prof_id                :  7;
+	uint64_t reserved_111_118            :  8;
+	uint64_t hl_en                       :  1;
+	uint64_t reserved_120_127            :  8;
+	uint64_t ts                          : 48; /* W2 */
+	uint64_t reserved_176_191            : 16;
+	uint64_t pe_accum                    : 32; /* W3 */
+	uint64_t c_accum                     : 32;
+	uint64_t green_pkt_pass              : 48; /* W4 */
+	uint64_t reserved_304_319            : 16;
+	uint64_t yellow_pkt_pass             : 48; /* W5 */
+	uint64_t reserved_368_383            : 16;
+	uint64_t red_pkt_pass                : 48; /* W6 */
+	uint64_t reserved_432_447            : 16;
+	uint64_t green_octs_pass             : 48; /* W7 */
+	uint64_t reserved_496_511            : 16;
+	uint64_t yellow_octs_pass            : 48; /* W8 */
+	uint64_t reserved_560_575            : 16;
+	uint64_t red_octs_pass               : 48; /* W9 */
+	uint64_t reserved_624_639            : 16;
+	uint64_t green_pkt_drop              : 48; /* W10 */
+	uint64_t reserved_688_703            : 16;
+	uint64_t yellow_pkt_drop             : 48; /* W11 */
+	uint64_t reserved_752_767            : 16;
+	uint64_t red_pkt_drop                : 48; /* W12 */
+	uint64_t reserved_816_831            : 16;
+	uint64_t green_octs_drop             : 48; /* W13 */
+	uint64_t reserved_880_895            : 16;
+	uint64_t yellow_octs_drop            : 48; /* W14 */
+	uint64_t reserved_944_959            : 16;
+	uint64_t red_octs_drop               : 48; /* W15 */
+	uint64_t reserved_1008_1023          : 16;
 };
 
 enum nix_lsoalg {

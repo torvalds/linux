@@ -120,7 +120,7 @@ extern int __must_check __mcb_register_driver(struct mcb_driver *drv,
 	__mcb_register_driver(driver, THIS_MODULE, KBUILD_MODNAME)
 extern void mcb_unregister_driver(struct mcb_driver *driver);
 #define module_mcb_driver(__mcb_driver)		\
-	module_driver(__mcb_driver, mcb_register_driver, mcb_unregister_driver);
+	module_driver(__mcb_driver, mcb_register_driver, mcb_unregister_driver)
 extern void mcb_bus_add_devices(const struct mcb_bus *bus);
 extern int mcb_device_register(struct mcb_bus *bus, struct mcb_device *dev);
 extern struct mcb_bus *mcb_alloc_bus(struct device *carrier);

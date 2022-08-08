@@ -6607,7 +6607,8 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 			rts->frame_control = cpu_to_le16(IEEE80211_FTYPE_CTL |
 							 IEEE80211_STYPE_RTS);
 
-			memcpy(&rts->ra, &h->addr1, 2 * ETH_ALEN);
+			memcpy(&rts->ra, &h->addr1, ETH_ALEN);
+			memcpy(&rts->ta, &h->addr2, ETH_ALEN);
 		}
 
 		/* mainrate

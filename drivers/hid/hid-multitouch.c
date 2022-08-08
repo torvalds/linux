@@ -1768,7 +1768,8 @@ static int mt_suspend(struct hid_device *hdev, pm_message_t state)
 	struct mt_device *td = hid_get_drvdata(hdev);
 
 	/* High latency is desirable for power savings during S3/S0ix */
-	if (td->mtclass.quirks & MT_QUIRK_DISABLE_WAKEUP)
+	if ((td->mtclass.quirks & MT_QUIRK_DISABLE_WAKEUP) ||
+	    !hid_hw_may_wakeup(hdev))
 		mt_set_modes(hdev, HID_LATENCY_HIGH, false, false);
 	else
 		mt_set_modes(hdev, HID_LATENCY_HIGH, true, true);

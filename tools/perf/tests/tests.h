@@ -133,13 +133,11 @@ bool test__bp_account_is_supported(void);
 bool test__wp_is_supported(void);
 bool test__tsc_is_supported(void);
 
-#if defined(__arm__) || defined(__aarch64__)
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
 struct thread;
 struct perf_sample;
 int test__arch_unwind_sample(struct perf_sample *sample,
 			     struct thread *thread);
-#endif
 #endif
 
 #if defined(__arm__)

@@ -117,7 +117,6 @@ enum hal_def_variable {
 	HW_DEF_RA_INFO_DUMP,
 	HAL_DEF_DBG_DUMP_TXPKT,
 	HW_DEF_FA_CNT_DUMP,
-	HW_DEF_ODM_DBG_FLAG,
 };
 
 enum hal_odm_variable {

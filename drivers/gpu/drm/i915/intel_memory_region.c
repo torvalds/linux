@@ -22,7 +22,32 @@ static const struct {
 		.class = INTEL_MEMORY_STOLEN_SYSTEM,
 		.instance = 0,
 	},
+	[INTEL_REGION_STOLEN_LMEM] = {
+		.class = INTEL_MEMORY_STOLEN_LOCAL,
+		.instance = 0,
+	},
 };
+
+struct intel_region_reserve {
+	struct list_head link;
+	struct ttm_resource *res;
+};
+
+struct intel_memory_region *
+intel_memory_region_lookup(struct drm_i915_private *i915,
+			   u16 class, u16 instance)
+{
+	struct intel_memory_region *mr;
+	int id;
+
+	/* XXX: consider maybe converting to an rb tree at some point */
+	for_each_memory_region(mr, i915, id) {
+		if (mr->type == class && mr->instance == instance)
+			return mr;
+	}
+
+	return NULL;
+}
 
 struct intel_memory_region *
 intel_memory_region_by_type(struct drm_i915_private *i915,
@@ -38,146 +63,61 @@ intel_memory_region_by_type(struct drm_i915_private *i915,
 	return NULL;
 }
 
-static u64
-intel_memory_region_free_pages(struct intel_memory_region *mem,
-			       struct list_head *blocks)
+/**
+ * intel_memory_region_unreserve - Unreserve all previously reserved
+ * ranges
+ * @mem: The region containing the reserved ranges.
+ */
+void intel_memory_region_unreserve(struct intel_memory_region *mem)
 {
-	struct i915_buddy_block *block, *on;
-	u64 size = 0;
+	struct intel_region_reserve *reserve, *next;
 
-	list_for_each_entry_safe(block, on, blocks, link) {
-		size += i915_buddy_block_size(&mem->mm, block);
-		i915_buddy_free(&mem->mm, block);
-	}
-	INIT_LIST_HEAD(blocks);
-
-	return size;
-}
-
-void
-__intel_memory_region_put_pages_buddy(struct intel_memory_region *mem,
-				      struct list_head *blocks)
-{
-	mutex_lock(&mem->mm_lock);
-	mem->avail += intel_memory_region_free_pages(mem, blocks);
-	mutex_unlock(&mem->mm_lock);
-}
-
-void
-__intel_memory_region_put_block_buddy(struct i915_buddy_block *block)
-{
-	struct list_head blocks;
-
-	INIT_LIST_HEAD(&blocks);
-	list_add(&block->link, &blocks);
-	__intel_memory_region_put_pages_buddy(block->private, &blocks);
-}
-
-int
-__intel_memory_region_get_pages_buddy(struct intel_memory_region *mem,
-				      resource_size_t size,
-				      unsigned int flags,
-				      struct list_head *blocks)
-{
-	unsigned int min_order = 0;
-	unsigned long n_pages;
-
-	GEM_BUG_ON(!IS_ALIGNED(size, mem->mm.chunk_size));
-	GEM_BUG_ON(!list_empty(blocks));
-
-	if (flags & I915_ALLOC_MIN_PAGE_SIZE) {
-		min_order = ilog2(mem->min_page_size) -
-			    ilog2(mem->mm.chunk_size);
-	}
-
-	if (flags & I915_ALLOC_CONTIGUOUS) {
-		size = roundup_pow_of_two(size);
-		min_order = ilog2(size) - ilog2(mem->mm.chunk_size);
-	}
-
-	if (size > mem->mm.size)
-		return -E2BIG;
-
-	n_pages = size >> ilog2(mem->mm.chunk_size);
+	if (!mem->priv_ops || !mem->priv_ops->free)
+		return;
 
 	mutex_lock(&mem->mm_lock);
-
-	do {
-		struct i915_buddy_block *block;
-		unsigned int order;
-
-		order = fls(n_pages) - 1;
-		GEM_BUG_ON(order > mem->mm.max_order);
-		GEM_BUG_ON(order < min_order);
-
-		do {
-			block = i915_buddy_alloc(&mem->mm, order);
-			if (!IS_ERR(block))
-				break;
-
-			if (order-- == min_order)
-				goto err_free_blocks;
-		} while (1);
-
-		n_pages -= BIT(order);
-
-		block->private = mem;
-		list_add_tail(&block->link, blocks);
-
-		if (!n_pages)
-			break;
-	} while (1);
-
-	mem->avail -= size;
+	list_for_each_entry_safe(reserve, next, &mem->reserved, link) {
+		list_del(&reserve->link);
+		mem->priv_ops->free(mem, reserve->res);
+		kfree(reserve);
+	}
 	mutex_unlock(&mem->mm_lock);
-	return 0;
-
-err_free_blocks:
-	intel_memory_region_free_pages(mem, blocks);
-	mutex_unlock(&mem->mm_lock);
-	return -ENXIO;
 }
 
-struct i915_buddy_block *
-__intel_memory_region_get_block_buddy(struct intel_memory_region *mem,
-				      resource_size_t size,
-				      unsigned int flags)
-{
-	struct i915_buddy_block *block;
-	LIST_HEAD(blocks);
-	int ret;
-
-	ret = __intel_memory_region_get_pages_buddy(mem, size, flags, &blocks);
-	if (ret)
-		return ERR_PTR(ret);
-
-	block = list_first_entry(&blocks, typeof(*block), link);
-	list_del_init(&block->link);
-	return block;
-}
-
-int intel_memory_region_init_buddy(struct intel_memory_region *mem)
-{
-	return i915_buddy_init(&mem->mm, resource_size(&mem->region),
-			       PAGE_SIZE);
-}
-
-void intel_memory_region_release_buddy(struct intel_memory_region *mem)
-{
-	i915_buddy_free_list(&mem->mm, &mem->reserved);
-	i915_buddy_fini(&mem->mm);
-}
-
+/**
+ * intel_memory_region_reserve - Reserve a memory range
+ * @mem: The region for which we want to reserve a range.
+ * @offset: Start of the range to reserve.
+ * @size: The size of the range to reserve.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
 int intel_memory_region_reserve(struct intel_memory_region *mem,
-				u64 offset, u64 size)
+				resource_size_t offset,
+				resource_size_t size)
 {
 	int ret;
+	struct intel_region_reserve *reserve;
+
+	if (!mem->priv_ops || !mem->priv_ops->reserve)
+		return -EINVAL;
+
+	reserve = kzalloc(sizeof(*reserve), GFP_KERNEL);
+	if (!reserve)
+		return -ENOMEM;
+
+	reserve->res = mem->priv_ops->reserve(mem, offset, size);
+	if (IS_ERR(reserve->res)) {
+		ret = PTR_ERR(reserve->res);
+		kfree(reserve);
+		return ret;
+	}
 
 	mutex_lock(&mem->mm_lock);
-	ret = i915_buddy_alloc_range(&mem->mm, &mem->reserved, offset, size);
+	list_add_tail(&reserve->link, &mem->reserved);
 	mutex_unlock(&mem->mm_lock);
 
-	return ret;
+	return 0;
 }
 
 struct intel_memory_region *
@@ -186,6 +126,8 @@ intel_memory_region_create(struct drm_i915_private *i915,
 			   resource_size_t size,
 			   resource_size_t min_page_size,
 			   resource_size_t io_start,
+			   u16 type,
+			   u16 instance,
 			   const struct intel_memory_region_ops *ops)
 {
 	struct intel_memory_region *mem;
@@ -202,6 +144,8 @@ intel_memory_region_create(struct drm_i915_private *i915,
 	mem->ops = ops;
 	mem->total = size;
 	mem->avail = mem->total;
+	mem->type = type;
+	mem->instance = instance;
 
 	mutex_init(&mem->objects.lock);
 	INIT_LIST_HEAD(&mem->objects.list);
@@ -239,6 +183,7 @@ static void __intel_memory_region_destroy(struct kref *kref)
 	struct intel_memory_region *mem =
 		container_of(kref, typeof(*mem), kref);
 
+	intel_memory_region_unreserve(mem);
 	if (mem->ops->release)
 		mem->ops->release(mem);
 
@@ -276,10 +221,17 @@ int intel_memory_regions_hw_probe(struct drm_i915_private *i915)
 		instance = intel_region_map[i].instance;
 		switch (type) {
 		case INTEL_MEMORY_SYSTEM:
-			mem = i915_gem_shmem_setup(i915);
+			mem = i915_gem_shmem_setup(i915, type, instance);
+			break;
+		case INTEL_MEMORY_STOLEN_LOCAL:
+			mem = i915_gem_stolen_lmem_setup(i915, type, instance);
+			if (!IS_ERR(mem))
+				i915->mm.stolen_region = mem;
 			break;
 		case INTEL_MEMORY_STOLEN_SYSTEM:
-			mem = i915_gem_stolen_setup(i915);
+			mem = i915_gem_stolen_smem_setup(i915, type, instance);
+			if (!IS_ERR(mem))
+				i915->mm.stolen_region = mem;
 			break;
 		default:
 			continue;
@@ -294,9 +246,6 @@ int intel_memory_regions_hw_probe(struct drm_i915_private *i915)
 		}
 
 		mem->id = i;
-		mem->type = type;
-		mem->instance = instance;
-
 		i915->mm.regions[i] = mem;
 	}
 

@@ -8,21 +8,21 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/envytools/rnndb/adreno.xml                     (    594 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/freedreno_copyright.xml        (   1572 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml                (  90159 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml       (  14386 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml          (  65048 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a3xx.xml                (  84226 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a4xx.xml                ( 112556 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml                ( 149461 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml                ( 184695 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx_gmu.xml            (  11218 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/ocmem.xml               (   1773 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_control_regs.xml (   4559 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_pipe_regs.xml    (   2872 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno.xml                     (    594 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/freedreno_copyright.xml        (   1572 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a2xx.xml                (  90810 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_common.xml       (  14386 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_pm4.xml          (  67699 bytes, from 2021-05-31 20:21:57)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a3xx.xml                (  84226 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a4xx.xml                ( 112551 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a5xx.xml                ( 150713 bytes, from 2021-06-10 22:34:02)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a6xx.xml                ( 180049 bytes, from 2021-06-02 21:44:19)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a6xx_gmu.xml            (  11331 bytes, from 2021-05-21 19:18:08)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/ocmem.xml               (   1773 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_control_regs.xml (   6038 bytes, from 2021-05-27 20:22:36)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_pipe_regs.xml    (   2924 bytes, from 2021-05-27 20:18:13)
 
-Copyright (C) 2013-2020 by the following authors:
+Copyright (C) 2013-2021 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
@@ -247,9 +247,9 @@ enum adreno_pm4_type3_packets {
 	CP_DRAW_INDX_INDIRECT = 41,
 	CP_DRAW_INDIRECT_MULTI = 42,
 	CP_DRAW_AUTO = 36,
-	CP_UNKNOWN_19 = 25,
-	CP_UNKNOWN_1A = 26,
-	CP_UNKNOWN_4E = 78,
+	CP_DRAW_PRED_ENABLE_GLOBAL = 25,
+	CP_DRAW_PRED_ENABLE_LOCAL = 26,
+	CP_DRAW_PRED_SET = 78,
 	CP_WIDE_REG_WRITE = 116,
 	CP_SCRATCH_TO_REG = 77,
 	CP_REG_TO_SCRATCH = 74,
@@ -267,6 +267,7 @@ enum adreno_pm4_type3_packets {
 	CP_SKIP_IB2_ENABLE_GLOBAL = 29,
 	CP_SKIP_IB2_ENABLE_LOCAL = 35,
 	CP_SET_SUBDRAW_SIZE = 53,
+	CP_WHERE_AM_I = 98,
 	CP_SET_VISIBILITY_OVERRIDE = 100,
 	CP_PREEMPT_ENABLE_GLOBAL = 105,
 	CP_PREEMPT_ENABLE_LOCAL = 106,
@@ -298,7 +299,6 @@ enum adreno_pm4_type3_packets {
 	CP_SET_BIN_DATA5_OFFSET = 46,
 	CP_SET_CTXSWITCH_IB = 85,
 	CP_REG_WRITE = 109,
-	CP_WHERE_AM_I = 98,
 };
 
 enum adreno_state_block {
@@ -400,6 +400,17 @@ enum a6xx_patch_type {
 enum a6xx_draw_indirect_opcode {
 	INDIRECT_OP_NORMAL = 2,
 	INDIRECT_OP_INDEXED = 4,
+	INDIRECT_OP_INDIRECT_COUNT = 6,
+	INDIRECT_OP_INDIRECT_COUNT_INDEXED = 7,
+};
+
+enum cp_draw_pred_src {
+	PRED_SRC_MEM = 5,
+};
+
+enum cp_draw_pred_test {
+	NE_0_PASS = 0,
+	EQ_0_PASS = 1,
 };
 
 enum cp_cond_function {
@@ -1040,33 +1051,61 @@ static inline uint32_t A6XX_CP_DRAW_INDIRECT_MULTI_1_DST_OFF(uint32_t val)
 	return ((val) << A6XX_CP_DRAW_INDIRECT_MULTI_1_DST_OFF__SHIFT) & A6XX_CP_DRAW_INDIRECT_MULTI_1_DST_OFF__MASK;
 }
 
-#define REG_A6XX_CP_DRAW_INDIRECT_MULTI_2			0x00000002
-#define A6XX_CP_DRAW_INDIRECT_MULTI_2_DRAW_COUNT__MASK		0xffffffff
-#define A6XX_CP_DRAW_INDIRECT_MULTI_2_DRAW_COUNT__SHIFT		0
-static inline uint32_t A6XX_CP_DRAW_INDIRECT_MULTI_2_DRAW_COUNT(uint32_t val)
+#define REG_A6XX_CP_DRAW_INDIRECT_MULTI_DRAW_COUNT		0x00000002
+
+
+#define REG_A6XX_CP_DRAW_INDIRECT_MULTI_INDIRECT		0x00000003
+
+#define REG_A6XX_CP_DRAW_INDIRECT_MULTI_STRIDE			0x00000005
+
+
+#define REG_CP_DRAW_INDIRECT_MULTI_INDEX_INDEXED		0x00000003
+
+#define REG_CP_DRAW_INDIRECT_MULTI_MAX_INDICES_INDEXED		0x00000005
+
+#define REG_CP_DRAW_INDIRECT_MULTI_INDIRECT_INDEXED		0x00000006
+
+#define REG_CP_DRAW_INDIRECT_MULTI_STRIDE_INDEXED		0x00000008
+
+
+#define REG_CP_DRAW_INDIRECT_MULTI_INDIRECT_INDIRECT		0x00000003
+
+#define REG_CP_DRAW_INDIRECT_MULTI_INDIRECT_COUNT_INDIRECT	0x00000005
+
+#define REG_CP_DRAW_INDIRECT_MULTI_STRIDE_INDIRECT		0x00000007
+
+
+#define REG_CP_DRAW_INDIRECT_MULTI_INDEX_INDIRECT_INDEXED	0x00000003
+
+#define REG_CP_DRAW_INDIRECT_MULTI_MAX_INDICES_INDIRECT_INDEXED	0x00000005
+
+#define REG_CP_DRAW_INDIRECT_MULTI_INDIRECT_INDIRECT_INDEXED	0x00000006
+
+#define REG_CP_DRAW_INDIRECT_MULTI_INDIRECT_COUNT_INDIRECT_INDEXED	0x00000008
+
+#define REG_CP_DRAW_INDIRECT_MULTI_STRIDE_INDIRECT_INDEXED	0x0000000a
+
+#define REG_CP_DRAW_PRED_ENABLE_GLOBAL_0			0x00000000
+#define CP_DRAW_PRED_ENABLE_GLOBAL_0_ENABLE			0x00000001
+
+#define REG_CP_DRAW_PRED_ENABLE_LOCAL_0				0x00000000
+#define CP_DRAW_PRED_ENABLE_LOCAL_0_ENABLE			0x00000001
+
+#define REG_CP_DRAW_PRED_SET_0					0x00000000
+#define CP_DRAW_PRED_SET_0_SRC__MASK				0x000000f0
+#define CP_DRAW_PRED_SET_0_SRC__SHIFT				4
+static inline uint32_t CP_DRAW_PRED_SET_0_SRC(enum cp_draw_pred_src val)
 {
-	return ((val) << A6XX_CP_DRAW_INDIRECT_MULTI_2_DRAW_COUNT__SHIFT) & A6XX_CP_DRAW_INDIRECT_MULTI_2_DRAW_COUNT__MASK;
+	return ((val) << CP_DRAW_PRED_SET_0_SRC__SHIFT) & CP_DRAW_PRED_SET_0_SRC__MASK;
+}
+#define CP_DRAW_PRED_SET_0_TEST__MASK				0x00000100
+#define CP_DRAW_PRED_SET_0_TEST__SHIFT				8
+static inline uint32_t CP_DRAW_PRED_SET_0_TEST(enum cp_draw_pred_test val)
+{
+	return ((val) << CP_DRAW_PRED_SET_0_TEST__SHIFT) & CP_DRAW_PRED_SET_0_TEST__MASK;
 }
 
-#define REG_A6XX_CP_DRAW_INDIRECT_MULTI_ADDRESS_0		0x00000003
-
-#define REG_A6XX_CP_DRAW_INDIRECT_MULTI_5			0x00000005
-#define A6XX_CP_DRAW_INDIRECT_MULTI_5_PARAM_0__MASK		0xffffffff
-#define A6XX_CP_DRAW_INDIRECT_MULTI_5_PARAM_0__SHIFT		0
-static inline uint32_t A6XX_CP_DRAW_INDIRECT_MULTI_5_PARAM_0(uint32_t val)
-{
-	return ((val) << A6XX_CP_DRAW_INDIRECT_MULTI_5_PARAM_0__SHIFT) & A6XX_CP_DRAW_INDIRECT_MULTI_5_PARAM_0__MASK;
-}
-
-#define REG_A6XX_CP_DRAW_INDIRECT_MULTI_INDIRECT		0x00000006
-
-#define REG_A6XX_CP_DRAW_INDIRECT_MULTI_8			0x00000008
-#define A6XX_CP_DRAW_INDIRECT_MULTI_8_STRIDE__MASK		0xffffffff
-#define A6XX_CP_DRAW_INDIRECT_MULTI_8_STRIDE__SHIFT		0
-static inline uint32_t A6XX_CP_DRAW_INDIRECT_MULTI_8_STRIDE(uint32_t val)
-{
-	return ((val) << A6XX_CP_DRAW_INDIRECT_MULTI_8_STRIDE__SHIFT) & A6XX_CP_DRAW_INDIRECT_MULTI_8_STRIDE__MASK;
-}
+#define REG_CP_DRAW_PRED_SET_MEM_ADDR				0x00000001
 
 static inline uint32_t REG_CP_SET_DRAW_STATE_(uint32_t i0) { return 0x00000000 + 0x3*i0; }
 

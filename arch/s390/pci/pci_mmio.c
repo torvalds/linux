@@ -49,8 +49,7 @@ static inline int __pcistg_mio_inuser(
 		void __iomem *ioaddr, const void __user *src,
 		u64 ulen, u8 *status)
 {
-	register u64 addr asm("2") = (u64 __force) ioaddr;
-	register u64 len asm("3") = ulen;
+	union register_pair ioaddr_len = {.even = (u64 __force)ioaddr, .odd = ulen};
 	int cc = -ENXIO;
 	u64 val = 0;
 	u64 cnt = ulen;
@@ -68,7 +67,7 @@ static inline int __pcistg_mio_inuser(
 		"       aghi    %[src],1\n"
 		"       ogr     %[val],%[tmp]\n"
 		"       brctg   %[cnt],0b\n"
-		"1:     .insn   rre,0xb9d40000,%[val],%[ioaddr]\n"
+		"1:     .insn   rre,0xb9d40000,%[val],%[ioaddr_len]\n"
 		"2:     ipm     %[cc]\n"
 		"       srl     %[cc],28\n"
 		"3:     sacf    768\n"
@@ -76,10 +75,9 @@ static inline int __pcistg_mio_inuser(
 		:
 		[src] "+a" (src), [cnt] "+d" (cnt),
 		[val] "+d" (val), [tmp] "=d" (tmp),
-		[len] "+d" (len), [cc] "+d" (cc),
-		[ioaddr] "+a" (addr)
+		[cc] "+d" (cc), [ioaddr_len] "+&d" (ioaddr_len.pair)
 		:: "cc", "memory");
-	*status = len >> 24 & 0xff;
+	*status = ioaddr_len.odd >> 24 & 0xff;
 
 	/* did we read everything from user memory? */
 	if (!cc && cnt != 0)
@@ -195,8 +193,7 @@ static inline int __pcilg_mio_inuser(
 		void __user *dst, const void __iomem *ioaddr,
 		u64 ulen, u8 *status)
 {
-	register u64 addr asm("2") = (u64 __force) ioaddr;
-	register u64 len asm("3") = ulen;
+	union register_pair ioaddr_len = {.even = (u64 __force)ioaddr, .odd = ulen};
 	u64 cnt = ulen;
 	int shift = ulen * 8;
 	int cc = -ENXIO;
@@ -209,7 +206,7 @@ static inline int __pcilg_mio_inuser(
 	 */
 	asm volatile (
 		"       sacf    256\n"
-		"0:     .insn   rre,0xb9d60000,%[val],%[ioaddr]\n"
+		"0:     .insn   rre,0xb9d60000,%[val],%[ioaddr_len]\n"
 		"1:     ipm     %[cc]\n"
 		"       srl     %[cc],28\n"
 		"       ltr     %[cc],%[cc]\n"
@@ -222,18 +219,17 @@ static inline int __pcilg_mio_inuser(
 		"4:     sacf    768\n"
 		EX_TABLE(0b, 4b) EX_TABLE(1b, 4b) EX_TABLE(3b, 4b)
 		:
-		[cc] "+d" (cc), [val] "=d" (val), [len] "+d" (len),
+		[ioaddr_len] "+&d" (ioaddr_len.pair),
+		[cc] "+d" (cc), [val] "=d" (val),
 		[dst] "+a" (dst), [cnt] "+d" (cnt), [tmp] "=d" (tmp),
 		[shift] "+d" (shift)
-		:
-		[ioaddr] "a" (addr)
-		: "cc", "memory");
+		:: "cc", "memory");
 
 	/* did we write everything to the user space buffer? */
 	if (!cc && cnt != 0)
 		cc = -EFAULT;
 
-	*status = len >> 24 & 0xff;
+	*status = ioaddr_len.odd >> 24 & 0xff;
 	return cc;
 }
 

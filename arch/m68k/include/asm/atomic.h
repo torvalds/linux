@@ -16,8 +16,8 @@
  * We do not have SMP m68k systems, so we don't have to deal with that.
  */
 
-#define atomic_read(v)		READ_ONCE((v)->counter)
-#define atomic_set(v, i)	WRITE_ONCE(((v)->counter), (i))
+#define arch_atomic_read(v)	READ_ONCE((v)->counter)
+#define arch_atomic_set(v, i)	WRITE_ONCE(((v)->counter), (i))
 
 /*
  * The ColdFire parts cannot do some immediate to memory operations,
@@ -30,7 +30,7 @@
 #endif
 
 #define ATOMIC_OP(op, c_op, asm_op)					\
-static inline void atomic_##op(int i, atomic_t *v)			\
+static inline void arch_atomic_##op(int i, atomic_t *v)			\
 {									\
 	__asm__ __volatile__(#asm_op "l %1,%0" : "+m" (*v) : ASM_DI (i));\
 }									\
@@ -38,7 +38,7 @@ static inline void atomic_##op(int i, atomic_t *v)			\
 #ifdef CONFIG_RMW_INSNS
 
 #define ATOMIC_OP_RETURN(op, c_op, asm_op)				\
-static inline int atomic_##op##_return(int i, atomic_t *v)		\
+static inline int arch_atomic_##op##_return(int i, atomic_t *v)		\
 {									\
 	int t, tmp;							\
 									\
@@ -48,12 +48,12 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 			"	casl %2,%1,%0\n"			\
 			"	jne 1b"					\
 			: "+m" (*v), "=&d" (t), "=&d" (tmp)		\
-			: "g" (i), "2" (atomic_read(v)));		\
+			: "g" (i), "2" (arch_atomic_read(v)));		\
 	return t;							\
 }
 
 #define ATOMIC_FETCH_OP(op, c_op, asm_op)				\
-static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+static inline int arch_atomic_fetch_##op(int i, atomic_t *v)		\
 {									\
 	int t, tmp;							\
 									\
@@ -63,14 +63,14 @@ static inline int atomic_fetch_##op(int i, atomic_t *v)			\
 			"	casl %2,%1,%0\n"			\
 			"	jne 1b"					\
 			: "+m" (*v), "=&d" (t), "=&d" (tmp)		\
-			: "g" (i), "2" (atomic_read(v)));		\
+			: "g" (i), "2" (arch_atomic_read(v)));		\
 	return tmp;							\
 }
 
 #else
 
 #define ATOMIC_OP_RETURN(op, c_op, asm_op)				\
-static inline int atomic_##op##_return(int i, atomic_t * v)		\
+static inline int arch_atomic_##op##_return(int i, atomic_t * v)	\
 {									\
 	unsigned long flags;						\
 	int t;								\
@@ -83,7 +83,7 @@ static inline int atomic_##op##_return(int i, atomic_t * v)		\
 }
 
 #define ATOMIC_FETCH_OP(op, c_op, asm_op)				\
-static inline int atomic_fetch_##op(int i, atomic_t * v)		\
+static inline int arch_atomic_fetch_##op(int i, atomic_t * v)		\
 {									\
 	unsigned long flags;						\
 	int t;								\
@@ -120,27 +120,27 @@ ATOMIC_OPS(xor, ^=, eor)
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
-static inline void atomic_inc(atomic_t *v)
+static inline void arch_atomic_inc(atomic_t *v)
 {
 	__asm__ __volatile__("addql #1,%0" : "+m" (*v));
 }
-#define atomic_inc atomic_inc
+#define arch_atomic_inc arch_atomic_inc
 
-static inline void atomic_dec(atomic_t *v)
+static inline void arch_atomic_dec(atomic_t *v)
 {
 	__asm__ __volatile__("subql #1,%0" : "+m" (*v));
 }
-#define atomic_dec atomic_dec
+#define arch_atomic_dec arch_atomic_dec
 
-static inline int atomic_dec_and_test(atomic_t *v)
+static inline int arch_atomic_dec_and_test(atomic_t *v)
 {
 	char c;
 	__asm__ __volatile__("subql #1,%1; seq %0" : "=d" (c), "+m" (*v));
 	return c != 0;
 }
-#define atomic_dec_and_test atomic_dec_and_test
+#define arch_atomic_dec_and_test arch_atomic_dec_and_test
 
-static inline int atomic_dec_and_test_lt(atomic_t *v)
+static inline int arch_atomic_dec_and_test_lt(atomic_t *v)
 {
 	char c;
 	__asm__ __volatile__(
@@ -150,49 +150,49 @@ static inline int atomic_dec_and_test_lt(atomic_t *v)
 	return c != 0;
 }
 
-static inline int atomic_inc_and_test(atomic_t *v)
+static inline int arch_atomic_inc_and_test(atomic_t *v)
 {
 	char c;
 	__asm__ __volatile__("addql #1,%1; seq %0" : "=d" (c), "+m" (*v));
 	return c != 0;
 }
-#define atomic_inc_and_test atomic_inc_and_test
+#define arch_atomic_inc_and_test arch_atomic_inc_and_test
 
 #ifdef CONFIG_RMW_INSNS
 
-#define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
-#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
+#define arch_atomic_cmpxchg(v, o, n) ((int)arch_cmpxchg(&((v)->counter), (o), (n)))
+#define arch_atomic_xchg(v, new) (arch_xchg(&((v)->counter), new))
 
 #else /* !CONFIG_RMW_INSNS */
 
-static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
+static inline int arch_atomic_cmpxchg(atomic_t *v, int old, int new)
 {
 	unsigned long flags;
 	int prev;
 
 	local_irq_save(flags);
-	prev = atomic_read(v);
+	prev = arch_atomic_read(v);
 	if (prev == old)
-		atomic_set(v, new);
+		arch_atomic_set(v, new);
 	local_irq_restore(flags);
 	return prev;
 }
 
-static inline int atomic_xchg(atomic_t *v, int new)
+static inline int arch_atomic_xchg(atomic_t *v, int new)
 {
 	unsigned long flags;
 	int prev;
 
 	local_irq_save(flags);
-	prev = atomic_read(v);
-	atomic_set(v, new);
+	prev = arch_atomic_read(v);
+	arch_atomic_set(v, new);
 	local_irq_restore(flags);
 	return prev;
 }
 
 #endif /* !CONFIG_RMW_INSNS */
 
-static inline int atomic_sub_and_test(int i, atomic_t *v)
+static inline int arch_atomic_sub_and_test(int i, atomic_t *v)
 {
 	char c;
 	__asm__ __volatile__("subl %2,%1; seq %0"
@@ -200,9 +200,9 @@ static inline int atomic_sub_and_test(int i, atomic_t *v)
 			     : ASM_DI (i));
 	return c != 0;
 }
-#define atomic_sub_and_test atomic_sub_and_test
+#define arch_atomic_sub_and_test arch_atomic_sub_and_test
 
-static inline int atomic_add_negative(int i, atomic_t *v)
+static inline int arch_atomic_add_negative(int i, atomic_t *v)
 {
 	char c;
 	__asm__ __volatile__("addl %2,%1; smi %0"
@@ -210,6 +210,6 @@ static inline int atomic_add_negative(int i, atomic_t *v)
 			     : ASM_DI (i));
 	return c != 0;
 }
-#define atomic_add_negative atomic_add_negative
+#define arch_atomic_add_negative arch_atomic_add_negative
 
 #endif /* __ARCH_M68K_ATOMIC __ */

@@ -65,7 +65,7 @@ DECLARE_EVENT_CLASS(rvt_qphash_template,
 		__field(u32, bucket)
 	),
 	TP_fast_assign(
-		RDI_DEV_ASSIGN(ib_to_rvt(qp->ibqp.device))
+		RDI_DEV_ASSIGN(ib_to_rvt(qp->ibqp.device));
 		__entry->qpn = qp->ibqp.qp_num;
 		__entry->bucket = bucket;
 	),
@@ -97,7 +97,7 @@ DECLARE_EVENT_CLASS(
 		__field(u32, to)
 	),
 	TP_fast_assign(
-		RDI_DEV_ASSIGN(ib_to_rvt(qp->ibqp.device))
+		RDI_DEV_ASSIGN(ib_to_rvt(qp->ibqp.device));
 		__entry->qpn = qp->ibqp.qp_num;
 		__entry->hrtimer = &qp->s_rnr_timer;
 		__entry->s_flags = qp->s_flags;

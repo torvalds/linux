@@ -154,7 +154,4 @@ bool rtl8188eu_xmitframe_complete(struct adapter *padapter,
 
 void handle_txrpt_ccx_88e(struct adapter *adapter, u8 *buf);
 
-void _dbg_dump_tx_info(struct adapter *padapter, int frame_tag,
-		       struct tx_desc *ptxdesc);
-
 #endif /* __RTL8188E_XMIT_H__ */

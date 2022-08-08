@@ -144,7 +144,7 @@ extern int FPU_store_int16(FPU_REG *st0_ptr, u_char st0_tag, short __user *d);
 extern int FPU_store_bcd(FPU_REG *st0_ptr, u_char st0_tag, u_char __user *d);
 extern int FPU_round_to_int(FPU_REG *r, u_char tag);
 extern u_char __user *fldenv(fpu_addr_modes addr_modes, u_char __user *s);
-extern void frstor(fpu_addr_modes addr_modes, u_char __user *data_address);
+extern void FPU_frstor(fpu_addr_modes addr_modes, u_char __user *data_address);
 extern u_char __user *fstenv(fpu_addr_modes addr_modes, u_char __user *d);
 extern void fsave(fpu_addr_modes addr_modes, u_char __user *data_address);
 extern int FPU_tagof(FPU_REG *ptr);

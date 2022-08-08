@@ -173,23 +173,6 @@ static enum power_supply_property cpcap_charger_props[] = {
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 };
 
-/* No battery always shows temperature of -40000 */
-static bool cpcap_charger_battery_found(struct cpcap_charger_ddata *ddata)
-{
-	struct iio_channel *channel;
-	int error, temperature;
-
-	channel = ddata->channels[CPCAP_CHARGER_IIO_BATTDET];
-	error = iio_read_channel_processed(channel, &temperature);
-	if (error < 0) {
-		dev_warn(ddata->dev, "%s failed: %i\n", __func__, error);
-
-		return false;
-	}
-
-	return temperature > -20000 && temperature < 60000;
-}
-
 static int cpcap_charger_get_charge_voltage(struct cpcap_charger_ddata *ddata)
 {
 	struct iio_channel *channel;
@@ -700,11 +683,29 @@ static void cpcap_usb_detect(struct work_struct *work)
 
 	if (!ddata->feeding_vbus && cpcap_charger_vbus_valid(ddata) &&
 	    s.chrgcurr1) {
-		int max_current = 532000;
+		int max_current;
 		int vchrg, ichrg;
+		union power_supply_propval val;
+		struct power_supply *battery;
 
-		if (cpcap_charger_battery_found(ddata))
+		battery = power_supply_get_by_name("battery");
+		if (IS_ERR_OR_NULL(battery)) {
+			dev_err(ddata->dev, "battery power_supply not available %li\n",
+					PTR_ERR(battery));
+			return;
+		}
+
+		error = power_supply_get_property(battery, POWER_SUPPLY_PROP_PRESENT, &val);
+		power_supply_put(battery);
+		if (error)
+			goto out_err;
+
+		if (val.intval) {
 			max_current = 1596000;
+		} else {
+			dev_info(ddata->dev, "battery not inserted, charging disabled\n");
+			max_current = 0;
+		}
 
 		if (max_current > ddata->limit_current)
 			max_current = ddata->limit_current;

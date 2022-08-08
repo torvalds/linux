@@ -194,7 +194,8 @@ static int set_professional_spdif(struct echoaudio *chip, char prof)
 		}
 	}
 
-	if ((err = write_control_reg(chip, control_reg, false)))
+	err = write_control_reg(chip, control_reg, false);
+	if (err)
 		return err;
 	chip->professional_spdif = prof;
 	dev_dbg(chip->card->dev, "set_professional_spdif to %s\n",

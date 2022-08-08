@@ -78,6 +78,7 @@ void rds_tcp_state_change(struct sock *sk)
 	case TCP_CLOSE_WAIT:
 	case TCP_CLOSE:
 		rds_conn_path_drop(cp, false);
+		break;
 	default:
 		break;
 	}

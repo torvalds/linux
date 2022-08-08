@@ -817,7 +817,7 @@
 	};
 
 	hda@3510000 {
-		nvidia,model = "jetson-tx2-hda";
+		nvidia,model = "NVIDIA Jetson TX2 HDA";
 		status = "okay";
 	};
 
@@ -1109,6 +1109,6 @@
 		       <&i2s5_port>, <&i2s6_port>, <&dmic1_port>, <&dmic2_port>,
 		       <&dmic3_port>, <&dspk1_port>, <&dspk2_port>;
 
-		label = "jetson-tx2-ape";
+		label = "NVIDIA Jetson TX2 APE";
 	};
 };

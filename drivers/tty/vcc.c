@@ -473,9 +473,9 @@ static struct vio_version vcc_versions[] = {
 
 static struct tty_port_operations vcc_port_ops = { 0 };
 
-static ssize_t vcc_sysfs_domain_show(struct device *dev,
-				     struct device_attribute *attr,
-				     char *buf)
+static ssize_t domain_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
 {
 	struct vcc_port *port;
 	int rv;
@@ -505,9 +505,9 @@ static int vcc_send_ctl(struct vcc_port *port, int ctl)
 	return rv;
 }
 
-static ssize_t vcc_sysfs_break_store(struct device *dev,
-				     struct device_attribute *attr,
-				     const char *buf, size_t count)
+static ssize_t break_store(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	struct vcc_port *port;
 	unsigned long flags;
@@ -530,8 +530,8 @@ static ssize_t vcc_sysfs_break_store(struct device *dev,
 	return rv;
 }
 
-static DEVICE_ATTR(domain, 0400, vcc_sysfs_domain_show, NULL);
-static DEVICE_ATTR(break, 0200, NULL, vcc_sysfs_break_store);
+static DEVICE_ATTR_ADMIN_RO(domain);
+static DEVICE_ATTR_WO(break);
 
 static struct attribute *vcc_sysfs_entries[] = {
 	&dev_attr_domain.attr,
@@ -668,7 +668,7 @@ free_port:
  *
  * Return: status of removal
  */
-static int vcc_remove(struct vio_dev *vdev)
+static void vcc_remove(struct vio_dev *vdev)
 {
 	struct vcc_port *port = dev_get_drvdata(&vdev->dev);
 
@@ -703,8 +703,6 @@ static int vcc_remove(struct vio_dev *vdev)
 		kfree(port->domain);
 		kfree(port);
 	}
-
-	return 0;
 }
 
 static const struct vio_device_id vcc_match[] = {
@@ -870,10 +868,10 @@ static int vcc_write(struct tty_struct *tty, const unsigned char *buf,
 	return total_sent ? total_sent : rv;
 }
 
-static int vcc_write_room(struct tty_struct *tty)
+static unsigned int vcc_write_room(struct tty_struct *tty)
 {
 	struct vcc_port *port;
-	u64 num;
+	unsigned int num;
 
 	port = vcc_get_ne(tty->index);
 	if (unlikely(!port)) {
@@ -888,10 +886,10 @@ static int vcc_write_room(struct tty_struct *tty)
 	return num;
 }
 
-static int vcc_chars_in_buffer(struct tty_struct *tty)
+static unsigned int vcc_chars_in_buffer(struct tty_struct *tty)
 {
 	struct vcc_port *port;
-	u64 num;
+	unsigned int num;
 
 	port = vcc_get_ne(tty->index);
 	if (unlikely(!port)) {

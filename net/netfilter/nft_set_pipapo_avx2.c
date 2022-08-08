@@ -142,7 +142,6 @@ static void nft_pipapo_avx2_fill(unsigned long *data, int start, int len)
  * @map:	Bitmap to be scanned for set bits
  * @dst:	Destination bitmap
  * @mt:		Mapping table containing bit set specifiers
- * @len:	Length of bitmap in longs
  * @last:	Return index of first set bit, if this is the last field
  *
  * This is an alternative implementation of pipapo_refill() suitable for usage
@@ -1109,7 +1108,7 @@ bool nft_pipapo_avx2_estimate(const struct nft_set_desc *desc, u32 features,
  * nft_pipapo_avx2_lookup() - Lookup function for AVX2 implementation
  * @net:	Network namespace
  * @set:	nftables API set representation
- * @elem:	nftables API element representation containing key data
+ * @key:	nftables API element representation containing key data
  * @ext:	nftables API extension pointer, filled with matching reference
  *
  * For more details, see DOC: Theory of Operation in nft_set_pipapo.c.
@@ -1136,8 +1135,13 @@ bool nft_pipapo_avx2_lookup(const struct net *net, const struct nft_set *set,
 
 	m = rcu_dereference(priv->match);
 
-	/* This also protects access to all data related to scratch maps */
-	kernel_fpu_begin();
+	/* This also protects access to all data related to scratch maps.
+	 *
+	 * Note that we don't need a valid MXCSR state for any of the
+	 * operations we use here, so pass 0 as mask and spare a LDMXCSR
+	 * instruction.
+	 */
+	kernel_fpu_begin_mask(0);
 
 	scratch = *raw_cpu_ptr(m->scratch_aligned);
 	if (unlikely(!scratch)) {

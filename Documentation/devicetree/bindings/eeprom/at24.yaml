@@ -32,7 +32,6 @@ properties:
     oneOf:
       - allOf:
           - minItems: 1
-            maxItems: 2
             items:
               - pattern: "^(atmel|catalyst|microchip|nxp|ramtron|renesas|rohm|st),(24(c|cs|lc|mac)[0-9]+|spd)$"
               - pattern: "^atmel,(24(c|cs|mac)[0-9]+|spd)$"

@@ -203,3 +203,38 @@ int is_valid_bugaddr(unsigned long pc)
 void __init trap_init(void)
 {
 }
+
+#ifdef CONFIG_VMAP_STACK
+static DEFINE_PER_CPU(unsigned long [OVERFLOW_STACK_SIZE/sizeof(long)],
+		overflow_stack)__aligned(16);
+/*
+ * shadow stack, handled_ kernel_ stack_ overflow(in kernel/entry.S) is used
+ * to get per-cpu overflow stack(get_overflow_stack).
+ */
+long shadow_stack[SHADOW_OVERFLOW_STACK_SIZE/sizeof(long)];
+asmlinkage unsigned long get_overflow_stack(void)
+{
+	return (unsigned long)this_cpu_ptr(overflow_stack) +
+		OVERFLOW_STACK_SIZE;
+}
+
+asmlinkage void handle_bad_stack(struct pt_regs *regs)
+{
+	unsigned long tsk_stk = (unsigned long)current->stack;
+	unsigned long ovf_stk = (unsigned long)this_cpu_ptr(overflow_stack);
+
+	console_verbose();
+
+	pr_emerg("Insufficient stack space to handle exception!\n");
+	pr_emerg("Task stack:     [0x%016lx..0x%016lx]\n",
+			tsk_stk, tsk_stk + THREAD_SIZE);
+	pr_emerg("Overflow stack: [0x%016lx..0x%016lx]\n",
+			ovf_stk, ovf_stk + OVERFLOW_STACK_SIZE);
+
+	__show_regs(regs);
+	panic("Kernel stack overflow");
+
+	for (;;)
+		wait_for_interrupt();
+}
+#endif

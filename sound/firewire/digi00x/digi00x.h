@@ -37,9 +37,6 @@ struct snd_dg00x {
 	struct mutex mutex;
 	spinlock_t lock;
 
-	bool registered;
-	struct delayed_work dwork;
-
 	struct amdtp_stream tx_stream;
 	struct fw_iso_resources tx_resources;
 

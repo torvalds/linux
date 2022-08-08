@@ -30,9 +30,9 @@
 #include <linux/irq.h>
 #include <linux/suspend.h>
 #include <linux/mm.h>
+#include <linux/io.h>
 
 #include <asm/div64.h>
-#include <asm/io.h>
 #include <asm/ioctls.h>
 
 #define PDC_BUFFER_SIZE		512

@@ -9,7 +9,8 @@ Copyright (c) 1998, 1999,  Rik van Riel <riel@nl.linux.org>
 
 Copyright (c) 2009,        Shen Feng<shen@cn.fujitsu.com>
 
-For general info and legal blurb, please look in :doc:`index`.
+For general info and legal blurb, please look in
+Documentation/admin-guide/sysctl/index.rst.
 
 ------------------------------------------------------------------------------
 
@@ -54,7 +55,7 @@ free space valid for 30 seconds.
 acpi_video_flags
 ================
 
-See :doc:`/power/video`. This allows the video resume mode to be set,
+See Documentation/power/video.rst. This allows the video resume mode to be set,
 in a similar fashion to the ``acpi_sleep`` kernel parameter, by
 combining the following values:
 
@@ -89,7 +90,7 @@ is 0x15 and the full version number is 0x234, this file will contain
 the value 340 = 0x154.
 
 See the ``type_of_loader`` and ``ext_loader_type`` fields in
-:doc:`/x86/boot` for additional information.
+Documentation/x86/boot.rst for additional information.
 
 
 bootloader_version (x86 only)
@@ -99,7 +100,7 @@ The complete bootloader version number.  In the example above, this
 file will contain the value 564 = 0x234.
 
 See the ``type_of_loader`` and ``ext_loader_ver`` fields in
-:doc:`/x86/boot` for additional information.
+Documentation/x86/boot.rst for additional information.
 
 
 bpf_stats_enabled
@@ -269,7 +270,7 @@ see the ``hostname(1)`` man page.
 firmware_config
 ===============
 
-See :doc:`/driver-api/firmware/fallback-mechanisms`.
+See Documentation/driver-api/firmware/fallback-mechanisms.rst.
 
 The entries in this directory allow the firmware loader helper
 fallback to be controlled:
@@ -297,7 +298,7 @@ crashes and outputting them to a serial console.
 ftrace_enabled, stack_tracer_enabled
 ====================================
 
-See :doc:`/trace/ftrace`.
+See Documentation/trace/ftrace.rst.
 
 
 hardlockup_all_cpu_backtrace
@@ -325,7 +326,7 @@ when a hard lockup is detected.
 1 Panic on hard lockup.
 = ===========================
 
-See :doc:`/admin-guide/lockup-watchdogs` for more information.
+See Documentation/admin-guide/lockup-watchdogs.rst for more information.
 This can also be set using the nmi_watchdog kernel parameter.
 
 
@@ -333,7 +334,12 @@ hotplug
 =======
 
 Path for the hotplug policy agent.
-Default value is "``/sbin/hotplug``".
+Default value is ``CONFIG_UEVENT_HELPER_PATH``, which in turn defaults
+to the empty string.
+
+This file only exists when ``CONFIG_UEVENT_HELPER`` is enabled. Most
+modern systems rely exclusively on the netlink-based uevent source and
+don't need this.
 
 
 hung_task_all_cpu_backtrace
@@ -582,7 +588,8 @@ in a KVM virtual machine. This default can be overridden by adding::
 
    nmi_watchdog=1
 
-to the guest kernel command line (see :doc:`/admin-guide/kernel-parameters`).
+to the guest kernel command line (see
+Documentation/admin-guide/kernel-parameters.rst).
 
 
 numa_balancing
@@ -1067,7 +1074,7 @@ that support this feature.
 real-root-dev
 =============
 
-See :doc:`/admin-guide/initrd`.
+See Documentation/admin-guide/initrd.rst.
 
 
 reboot-cmd (SPARC only)
@@ -1088,6 +1095,13 @@ Model available). If your platform happens to meet the
 requirements for EAS but you do not want to use it, change
 this value to 0.
 
+task_delayacct
+===============
+
+Enables/disables task delay accounting (see
+:doc:`accounting/delay-accounting.rst`). Enabling this feature incurs
+a small amount of overhead in the scheduler but is useful for debugging
+and performance tuning. It is required by some tools such as iotop.
 
 sched_schedstats
 ================
@@ -1154,7 +1168,7 @@ will take effect.
 seccomp
 =======
 
-See :doc:`/userspace-api/seccomp_filter`.
+See Documentation/userspace-api/seccomp_filter.rst.
 
 
 sg-big-buff
@@ -1283,11 +1297,11 @@ This parameter can be used to control the soft lockup detector.
 = =================================
 
 The soft lockup detector monitors CPUs for threads that are hogging the CPUs
-without rescheduling voluntarily, and thus prevent the 'watchdog/N' threads
-from running. The mechanism depends on the CPUs ability to respond to timer
-interrupts which are needed for the 'watchdog/N' threads to be woken up by
-the watchdog timer function, otherwise the NMI watchdog — if enabled — can
-detect a hard lockup condition.
+without rescheduling voluntarily, and thus prevent the 'migration/N' threads
+from running, causing the watchdog work fail to execute. The mechanism depends
+on the CPUs ability to respond to timer interrupts which are needed for the
+watchdog work to be queued by the watchdog timer function, otherwise the NMI
+watchdog — if enabled — can detect a hard lockup condition.
 
 
 stack_erasing
@@ -1325,7 +1339,7 @@ the boot PROM.
 sysrq
 =====
 
-See :doc:`/admin-guide/sysrq`.
+See Documentation/admin-guide/sysrq.rst.
 
 
 tainted
@@ -1355,15 +1369,16 @@ ORed together. The letters are seen in "Tainted" line of Oops reports.
 131072  `(T)`  The kernel was built with the struct randomization plugin
 ======  =====  ==============================================================
 
-See :doc:`/admin-guide/tainted-kernels` for more information.
+See Documentation/admin-guide/tainted-kernels.rst for more information.
 
 Note:
   writes to this sysctl interface will fail with ``EINVAL`` if the kernel is
   booted with the command line option ``panic_on_taint=<bitmask>,nousertaint``
   and any of the ORed together values being written to ``tainted`` match with
   the bitmask declared on panic_on_taint.
-  See :doc:`/admin-guide/kernel-parameters` for more details on that particular
-  kernel command line option and its optional ``nousertaint`` switch.
+  See Documentation/admin-guide/kernel-parameters.rst for more details on
+  that particular kernel command line option and its optional
+  ``nousertaint`` switch.
 
 threads-max
 ===========
@@ -1387,7 +1402,7 @@ If a value outside of this range is written to ``threads-max`` an
 traceoff_on_warning
 ===================
 
-When set, disables tracing (see :doc:`/trace/ftrace`) when a
+When set, disables tracing (see Documentation/trace/ftrace.rst) when a
 ``WARN()`` is hit.
 
 
@@ -1407,8 +1422,8 @@ will send them to printk() again.
 
 This only works if the kernel was booted with ``tp_printk`` enabled.
 
-See :doc:`/admin-guide/kernel-parameters` and
-:doc:`/trace/boottime-trace`.
+See Documentation/admin-guide/kernel-parameters.rst and
+Documentation/trace/boottime-trace.rst.
 
 
 .. _unaligned-dump-stack:

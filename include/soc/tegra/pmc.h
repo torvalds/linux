@@ -171,6 +171,8 @@ int tegra_io_rail_power_off(unsigned int id);
 void tegra_pmc_set_suspend_mode(enum tegra_suspend_mode mode);
 void tegra_pmc_enter_suspend_mode(enum tegra_suspend_mode mode);
 
+bool tegra_pmc_core_domain_state_synced(void);
+
 #else
 static inline int tegra_powergate_power_on(unsigned int id)
 {
@@ -225,6 +227,11 @@ static inline void tegra_pmc_set_suspend_mode(enum tegra_suspend_mode mode)
 
 static inline void tegra_pmc_enter_suspend_mode(enum tegra_suspend_mode mode)
 {
+}
+
+static inline bool tegra_pmc_core_domain_state_synced(void)
+{
+	return false;
 }
 
 #endif /* CONFIG_SOC_TEGRA_PMC */

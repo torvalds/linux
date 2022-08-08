@@ -512,7 +512,6 @@ struct mlx5_ib_qp {
 	/*
 	 * IB/core doesn't store low-level QP types, so
 	 * store both MLX and IBTA types in the field below.
-	 * IB_QPT_DRIVER will be break to DCI/DCT subtypes.
 	 */
 	enum ib_qp_type		type;
 	/* A flag to indicate if there's a new counter is configured
@@ -550,6 +549,7 @@ static inline const struct mlx5_umr_wr *umr_wr(const struct ib_send_wr *wr)
 
 enum mlx5_ib_cq_pr_flags {
 	MLX5_IB_CQ_PR_FLAGS_CQE_128_PAD	= 1 << 0,
+	MLX5_IB_CQ_PR_FLAGS_REAL_TIME_TS = 1 << 1,
 };
 
 struct mlx5_ib_cq {
@@ -1198,8 +1198,7 @@ to_mmmap(struct rdma_user_mmap_entry *rdma_entry)
 		struct mlx5_user_mmap_entry, rdma_entry);
 }
 
-int mlx5_ib_db_map_user(struct mlx5_ib_ucontext *context,
-			struct ib_udata *udata, unsigned long virt,
+int mlx5_ib_db_map_user(struct mlx5_ib_ucontext *context, unsigned long virt,
 			struct mlx5_db *db);
 void mlx5_ib_db_unmap_user(struct mlx5_ib_ucontext *context, struct mlx5_db *db);
 void __mlx5_ib_cq_clean(struct mlx5_ib_cq *cq, u32 qpn, struct mlx5_ib_srq *srq);
@@ -1265,7 +1264,6 @@ int mlx5_ib_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 		       int page_shift, int flags);
 int mlx5_ib_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags);
 struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
-					     struct ib_udata *udata,
 					     int access_flags);
 void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *mr);
 void mlx5_ib_free_odp_mr(struct mlx5_ib_mr *mr);
@@ -1613,5 +1611,11 @@ static inline bool mlx5_ib_lag_should_assign_affinity(struct mlx5_ib_dev *dev)
 	return dev->lag_active ||
 		(MLX5_CAP_GEN(dev->mdev, num_lag_ports) > 1 &&
 		 MLX5_CAP_GEN(dev->mdev, lag_tx_port_affinity));
+}
+
+static inline bool rt_supported(int ts_cap)
+{
+	return ts_cap == MLX5_TIMESTAMP_FORMAT_CAP_REAL_TIME ||
+	       ts_cap == MLX5_TIMESTAMP_FORMAT_CAP_FREE_RUNNING_AND_REAL_TIME;
 }
 #endif /* MLX5_IB_H */

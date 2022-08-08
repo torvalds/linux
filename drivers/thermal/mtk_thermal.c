@@ -23,6 +23,8 @@
 #include <linux/reset.h>
 #include <linux/types.h>
 
+#include "thermal_hwmon.h"
+
 /* AUXADC Registers */
 #define AUXADC_CON1_SET_V	0x008
 #define AUXADC_CON1_CLR_V	0x00c
@@ -1086,6 +1088,10 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 		ret = PTR_ERR(tzdev);
 		goto err_disable_clk_peri_therm;
 	}
+
+	ret = devm_thermal_add_hwmon_sysfs(tzdev);
+	if (ret)
+		dev_warn(&pdev->dev, "error in thermal_add_hwmon_sysfs");
 
 	return 0;
 

@@ -14186,7 +14186,7 @@ static void init_kdeth_qp(struct hfi1_devdata *dd)
 }
 
 /**
- * hfi1_get_qp_map
+ * hfi1_get_qp_map - get qp map
  * @dd: device data
  * @idx: index to read
  */
@@ -14199,7 +14199,7 @@ u8 hfi1_get_qp_map(struct hfi1_devdata *dd, u8 idx)
 }
 
 /**
- * init_qpmap_table
+ * init_qpmap_table - init qp map
  * @dd: device data
  * @first_ctxt: first context
  * @last_ctxt: first context

@@ -45,6 +45,7 @@ LIBPERF_0.0.1 {
 		perf_evlist__munmap;
 		perf_evlist__filter_pollfd;
 		perf_evlist__next_mmap;
+		perf_evlist__set_leader;
 		perf_mmap__consume;
 		perf_mmap__read_init;
 		perf_mmap__read_done;

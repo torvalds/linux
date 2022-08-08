@@ -52,7 +52,6 @@ properties:
 
   interrupt-names:
     minItems: 9
-    maxItems: 17
     items:
       - const: error
       - pattern: "^ch([0-9]|1[0-5])$"

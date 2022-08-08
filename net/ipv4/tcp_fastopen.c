@@ -507,8 +507,18 @@ void tcp_fastopen_active_disable(struct sock *sk)
 {
 	struct net *net = sock_net(sk);
 
+	if (!sock_net(sk)->ipv4.sysctl_tcp_fastopen_blackhole_timeout)
+		return;
+
+	/* Paired with READ_ONCE() in tcp_fastopen_active_should_disable() */
+	WRITE_ONCE(net->ipv4.tfo_active_disable_stamp, jiffies);
+
+	/* Paired with smp_rmb() in tcp_fastopen_active_should_disable().
+	 * We want net->ipv4.tfo_active_disable_stamp to be updated first.
+	 */
+	smp_mb__before_atomic();
 	atomic_inc(&net->ipv4.tfo_active_disable_times);
-	net->ipv4.tfo_active_disable_stamp = jiffies;
+
 	NET_INC_STATS(net, LINUX_MIB_TCPFASTOPENBLACKHOLE);
 }
 
@@ -519,17 +529,27 @@ void tcp_fastopen_active_disable(struct sock *sk)
 bool tcp_fastopen_active_should_disable(struct sock *sk)
 {
 	unsigned int tfo_bh_timeout = sock_net(sk)->ipv4.sysctl_tcp_fastopen_blackhole_timeout;
-	int tfo_da_times = atomic_read(&sock_net(sk)->ipv4.tfo_active_disable_times);
 	unsigned long timeout;
+	int tfo_da_times;
 	int multiplier;
 
+	if (!tfo_bh_timeout)
+		return false;
+
+	tfo_da_times = atomic_read(&sock_net(sk)->ipv4.tfo_active_disable_times);
 	if (!tfo_da_times)
 		return false;
 
-	/* Limit timout to max: 2^6 * initial timeout */
+	/* Paired with smp_mb__before_atomic() in tcp_fastopen_active_disable() */
+	smp_rmb();
+
+	/* Limit timeout to max: 2^6 * initial timeout */
 	multiplier = 1 << min(tfo_da_times - 1, 6);
-	timeout = multiplier * tfo_bh_timeout * HZ;
-	if (time_before(jiffies, sock_net(sk)->ipv4.tfo_active_disable_stamp + timeout))
+
+	/* Paired with the WRITE_ONCE() in tcp_fastopen_active_disable(). */
+	timeout = READ_ONCE(sock_net(sk)->ipv4.tfo_active_disable_stamp) +
+		  multiplier * tfo_bh_timeout * HZ;
+	if (time_before(jiffies, timeout))
 		return true;
 
 	/* Mark check bit so we can check for successful active TFO

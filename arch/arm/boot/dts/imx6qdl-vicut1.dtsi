@@ -40,6 +40,27 @@
 		};
 	};
 
+	counter-0 {
+		compatible = "interrupt-counter";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_counter0>;
+		gpios = <&gpio2 0 GPIO_ACTIVE_LOW>;
+	};
+
+	counter-1 {
+		compatible = "interrupt-counter";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_counter1>;
+		gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
+	};
+
+	counter-2 {
+		compatible = "interrupt-counter";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_counter2>;
+		gpios = <&gpio2 2 GPIO_ACTIVE_LOW>;
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		autorepeat;
@@ -254,7 +275,7 @@
 
 &gpio2 {
 	gpio-line-names =
-		"", "", "", "", "", "", "", "",
+		"count0", "count1", "count2", "", "", "", "", "",
 		"REV_ID0", "REV_ID1", "REV_ID2", "REV_ID3", "REV_ID4",
 			"BOARD_ID0", "BOARD_ID1", "BOARD_ID2",
 		"", "", "", "", "", "", "", "ON_SWITCH",
@@ -569,6 +590,24 @@
 			MX6QDL_PAD_KEY_COL4__FLEXCAN2_TX		0x3008
 			/* CAN2_SR */
 			MX6QDL_PAD_KEY_ROW3__GPIO4_IO13			0x13008
+		>;
+	};
+
+	pinctrl_counter0: counter0grp {
+		fsl,pins = <
+			MX6QDL_PAD_NANDF_D0__GPIO2_IO00			0x1b000
+		>;
+	};
+
+	pinctrl_counter1: counter1grp {
+		fsl,pins = <
+			MX6QDL_PAD_NANDF_D1__GPIO2_IO01			0x1b000
+		>;
+	};
+
+	pinctrl_counter2: counter2grp {
+		fsl,pins = <
+			MX6QDL_PAD_NANDF_D2__GPIO2_IO02			0x1b000
 		>;
 	};
 

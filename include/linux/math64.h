@@ -3,6 +3,7 @@
 #define _LINUX_MATH64_H
 
 #include <linux/types.h>
+#include <linux/math.h>
 #include <vdso/math64.h>
 #include <asm/div64.h>
 
@@ -233,6 +234,24 @@ static inline u64 mul_u64_u64_shr(u64 a, u64 b, unsigned int shift)
 #endif /* mul_u64_u64_shr */
 
 #endif
+
+#ifndef mul_s64_u64_shr
+static inline u64 mul_s64_u64_shr(s64 a, u64 b, unsigned int shift)
+{
+	u64 ret;
+
+	/*
+	 * Extract the sign before the multiplication and put it back
+	 * afterwards if needed.
+	 */
+	ret = mul_u64_u64_shr(abs(a), b, shift);
+
+	if (a < 0)
+		ret = -((s64) ret);
+
+	return ret;
+}
+#endif /* mul_s64_u64_shr */
 
 #ifndef mul_u64_u32_div
 static inline u64 mul_u64_u32_div(u64 a, u32 mul, u32 divisor)

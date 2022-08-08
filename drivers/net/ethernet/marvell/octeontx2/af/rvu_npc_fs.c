@@ -123,11 +123,8 @@ static bool npc_is_field_present(struct rvu *rvu, enum key_fields type, u8 intf)
 static bool npc_is_same(struct npc_key_field *input,
 			struct npc_key_field *field)
 {
-	int ret;
-
-	ret = memcmp(&input->layer_mdata, &field->layer_mdata,
-		     sizeof(struct npc_layer_mdata));
-	return ret == 0;
+	return memcmp(&input->layer_mdata, &field->layer_mdata,
+		     sizeof(struct npc_layer_mdata)) == 0;
 }
 
 static void npc_set_layer_mdata(struct npc_mcam *mcam, enum key_fields type,
@@ -913,14 +910,17 @@ static void rvu_mcam_add_counter_to_rule(struct rvu *rvu, u16 pcifunc,
 
 static void npc_update_rx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
 				struct mcam_entry *entry,
-				struct npc_install_flow_req *req, u16 target)
+				struct npc_install_flow_req *req,
+				u16 target, bool pf_set_vfs_mac)
 {
+	struct rvu_switch *rswitch = &rvu->rswitch;
 	struct nix_rx_action action;
-	u64 chan_mask;
 
-	chan_mask = req->chan_mask ? req->chan_mask : ~0ULL;
-	npc_update_entry(rvu, NPC_CHAN, entry, req->channel, 0, chan_mask, 0,
-			 NIX_INTF_RX);
+	if (rswitch->mode == DEVLINK_ESWITCH_MODE_SWITCHDEV && pf_set_vfs_mac)
+		req->chan_mask = 0x0; /* Do not care channel */
+
+	npc_update_entry(rvu, NPC_CHAN, entry, req->channel, 0, req->chan_mask,
+			 0, NIX_INTF_RX);
 
 	*(u64 *)&action = 0x00;
 	action.pf_func = target;
@@ -952,9 +952,16 @@ static void npc_update_tx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
 				struct npc_install_flow_req *req, u16 target)
 {
 	struct nix_tx_action action;
+	u64 mask = ~0ULL;
+
+	/* If AF is installing then do not care about
+	 * PF_FUNC in Send Descriptor
+	 */
+	if (is_pffunc_af(req->hdr.pcifunc))
+		mask = 0;
 
 	npc_update_entry(rvu, NPC_PF_FUNC, entry, (__force u16)htons(target),
-			 0, ~0ULL, 0, NIX_INTF_TX);
+			 0, mask, 0, NIX_INTF_TX);
 
 	*(u64 *)&action = 0x00;
 	action.op = req->op;
@@ -1005,7 +1012,7 @@ static int npc_install_flow(struct rvu *rvu, int blkaddr, u16 target,
 			req->intf);
 
 	if (is_npc_intf_rx(req->intf))
-		npc_update_rx_entry(rvu, pfvf, entry, req, target);
+		npc_update_rx_entry(rvu, pfvf, entry, req, target, pf_set_vfs_mac);
 	else
 		npc_update_tx_entry(rvu, pfvf, entry, req, target);
 
@@ -1103,10 +1110,17 @@ find_rule:
 	if (pf_set_vfs_mac) {
 		ether_addr_copy(pfvf->default_mac, req->packet.dmac);
 		ether_addr_copy(pfvf->mac_addr, req->packet.dmac);
+		set_bit(PF_SET_VF_MAC, &pfvf->flags);
 	}
 
-	if (pfvf->pf_set_vf_cfg && req->vtag0_type == NIX_AF_LFX_RX_VTAG_TYPE7)
+	if (test_bit(PF_SET_VF_CFG, &pfvf->flags) &&
+	    req->vtag0_type == NIX_AF_LFX_RX_VTAG_TYPE7)
 		rule->vfvlan_cfg = true;
+
+	if (is_npc_intf_rx(req->intf) && req->match_id &&
+	    (req->op == NIX_RX_ACTIONOP_UCAST || req->op == NIX_RX_ACTIONOP_RSS))
+		return rvu_nix_setup_ratelimit_aggr(rvu, req->hdr.pcifunc,
+					     req->index, req->match_id);
 
 	return 0;
 }
@@ -1160,14 +1174,16 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 	if (err)
 		return err;
 
-	if (npc_mcam_verify_channel(rvu, target, req->intf, req->channel))
+	/* Skip channel validation if AF is installing */
+	if (!is_pffunc_af(req->hdr.pcifunc) &&
+	    npc_mcam_verify_channel(rvu, target, req->intf, req->channel))
 		return -EINVAL;
 
 	pfvf = rvu_get_pfvf(rvu, target);
 
 	/* PF installing for its VF */
 	if (req->hdr.pcifunc && !from_vf && req->vf)
-		pfvf->pf_set_vf_cfg = 1;
+		set_bit(PF_SET_VF_CFG, &pfvf->flags);
 
 	/* update req destination mac addr */
 	if ((req->features & BIT_ULL(NPC_DMAC)) && is_npc_intf_rx(req->intf) &&
@@ -1176,10 +1192,14 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 		eth_broadcast_addr((u8 *)&req->mask.dmac);
 	}
 
+	/* Proceed if NIXLF is attached or not for TX rules */
 	err = nix_get_nixlf(rvu, target, &nixlf, NULL);
+	if (err && is_npc_intf_rx(req->intf) && !pf_set_vfs_mac)
+		return -EINVAL;
 
-	/* If interface is uninitialized then do not enable entry */
-	if (err || (!req->default_rule && !pfvf->def_ucast_rule))
+	/* don't enable rule when nixlf not attached or initialized */
+	if (!(is_nixlf_attached(rvu, target) &&
+	      test_bit(NIXLF_INITIALIZED, &pfvf->flags)))
 		enable = false;
 
 	/* Packets reaching NPC in Tx path implies that a
@@ -1192,6 +1212,14 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 	/* Do not allow requests from uninitialized VFs */
 	if (from_vf && !enable)
 		return -EINVAL;
+
+	/* PF sets VF mac & VF NIXLF is not attached, update the mac addr */
+	if (pf_set_vfs_mac && !enable) {
+		ether_addr_copy(pfvf->default_mac, req->packet.dmac);
+		ether_addr_copy(pfvf->mac_addr, req->packet.dmac);
+		set_bit(PF_SET_VF_MAC, &pfvf->flags);
+		return 0;
+	}
 
 	/* If message is from VF then its flow should not overlap with
 	 * reserved unicast flow.

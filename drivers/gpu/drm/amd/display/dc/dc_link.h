@@ -36,12 +36,6 @@ enum dc_link_fec_state {
 	dc_link_fec_enabled
 };
 
-enum lttpr_mode {
-	LTTPR_MODE_NON_LTTPR,
-	LTTPR_MODE_TRANSPARENT,
-	LTTPR_MODE_NON_TRANSPARENT,
-};
-
 struct dc_link_status {
 	bool link_active;
 	struct dpcd_caps *dpcd_caps;
@@ -113,6 +107,7 @@ struct dc_link {
 	/* TODO: Rename. Flag an endpoint as having a programmable mapping to a
 	 * DIG encoder. */
 	bool is_dig_mapping_flexible;
+	bool hpd_status; /* HPD status of link without physical HPD pin. */
 
 	bool edp_sink_present;
 
@@ -221,6 +216,23 @@ static inline void get_edp_links(const struct dc *dc,
 	}
 }
 
+static inline bool dc_get_edp_link_panel_inst(const struct dc *dc,
+		const struct dc_link *link,
+		unsigned int *inst_out)
+{
+	struct dc_link *edp_links[MAX_NUM_EDP];
+	int edp_num;
+
+	if (link->connector_signal != SIGNAL_TYPE_EDP)
+		return false;
+	get_edp_links(dc, edp_links, &edp_num);
+	if ((edp_num > 1) && (link->link_index > edp_links[0]->link_index))
+		*inst_out = 1;
+	else
+		*inst_out = 0;
+	return true;
+}
+
 /* Set backlight level of an embedded panel (eDP, LVDS).
  * backlight_pwm_u16_16 is unsigned 32 bit with 16 bit integer
  * and 16 bit fractional, where 1.0 is max backlight value.
@@ -321,7 +333,7 @@ bool dc_link_dp_perform_link_training_skip_aux(
 
 enum link_training_result dc_link_dp_perform_link_training(
 	struct dc_link *link,
-	const struct dc_link_settings *link_setting,
+	const struct dc_link_settings *link_settings,
 	bool skip_video_pattern);
 
 bool dc_link_dp_sync_lt_begin(struct dc_link *link);
@@ -345,6 +357,8 @@ bool dc_link_dp_set_test_pattern(
 	const unsigned char *p_custom_pattern,
 	unsigned int cust_pattern_size);
 
+bool dc_link_dp_get_max_link_enc_cap(const struct dc_link *link, struct dc_link_settings *max_link_enc_cap);
+
 void dc_link_enable_hpd_filter(struct dc_link *link, bool enable);
 
 bool dc_link_is_dp_sink_present(struct dc_link *link);
@@ -361,9 +375,6 @@ bool dc_link_is_hdcp22(struct dc_link *link, enum signal_type signal);
 void dc_link_set_drive_settings(struct dc *dc,
 				struct link_training_settings *lt_settings,
 				const struct dc_link *link);
-void dc_link_perform_link_training(struct dc *dc,
-				   struct dc_link_settings *link_setting,
-				   bool skip_video_pattern);
 void dc_link_set_preferred_link_settings(struct dc *dc,
 					 struct dc_link_settings *link_setting,
 					 struct dc_link *link);

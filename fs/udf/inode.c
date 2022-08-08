@@ -235,6 +235,7 @@ static sector_t udf_bmap(struct address_space *mapping, sector_t block)
 }
 
 const struct address_space_operations udf_aops = {
+	.set_page_dirty	= __set_page_dirty_buffers,
 	.readpage	= udf_readpage,
 	.readahead	= udf_readahead,
 	.writepage	= udf_writepage,

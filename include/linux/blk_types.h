@@ -29,7 +29,6 @@ struct block_device {
 	int			bd_openers;
 	struct inode *		bd_inode;	/* will die */
 	struct super_block *	bd_super;
-	struct mutex		bd_mutex;	/* open/close mutex */
 	void *			bd_claiming;
 	struct device		bd_device;
 	void *			bd_holder;
@@ -40,9 +39,6 @@ struct block_device {
 #endif
 	struct kobject		*bd_holder_dir;
 	u8			bd_partno;
-	/* number of times partitions within this device have been opened. */
-	unsigned		bd_part_count;
-
 	spinlock_t		bd_size_lock; /* for bd_inode->i_size updates */
 	struct gendisk *	bd_disk;
 	struct backing_dev_info *bd_bdi;
@@ -304,6 +300,7 @@ enum {
 	BIO_CGROUP_ACCT,	/* has been accounted to a cgroup */
 	BIO_TRACKED,		/* set if bio goes through the rq_qos path */
 	BIO_REMAPPED,
+	BIO_ZONE_WRITE_LOCKED,	/* Owns a zoned device zone write lock */
 	BIO_FLAG_LAST
 };
 
@@ -354,9 +351,6 @@ enum req_opf {
 	/* reset all the zone present on the device */
 	REQ_OP_ZONE_RESET_ALL	= 17,
 
-	/* SCSI passthrough using struct scsi_request */
-	REQ_OP_SCSI_IN		= 32,
-	REQ_OP_SCSI_OUT		= 33,
 	/* Driver private requests */
 	REQ_OP_DRV_IN		= 34,
 	REQ_OP_DRV_OUT		= 35,

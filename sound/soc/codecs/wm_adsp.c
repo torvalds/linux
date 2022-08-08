@@ -282,6 +282,7 @@
 /*
  * HALO_CCM_CORE_CONTROL
  */
+#define HALO_CORE_RESET                     0x00000200
 #define HALO_CORE_EN                        0x00000001
 
 /*
@@ -303,9 +304,9 @@
 #define HALO_MPU_VIO_ERR_SRC_MASK           0x00007fff
 #define HALO_MPU_VIO_ERR_SRC_SHIFT                   0
 
-static struct wm_adsp_ops wm_adsp1_ops;
-static struct wm_adsp_ops wm_adsp2_ops[];
-static struct wm_adsp_ops wm_halo_ops;
+static const struct wm_adsp_ops wm_adsp1_ops;
+static const struct wm_adsp_ops wm_adsp2_ops[];
+static const struct wm_adsp_ops wm_halo_ops;
 
 struct wm_adsp_buf {
 	struct list_head list;
@@ -746,7 +747,6 @@ static void wm_adsp2_init_debugfs(struct wm_adsp *dsp,
 static void wm_adsp2_cleanup_debugfs(struct wm_adsp *dsp)
 {
 	wm_adsp_debugfs_clear(dsp);
-	debugfs_remove_recursive(dsp->debugfs_root);
 }
 #else
 static inline void wm_adsp2_init_debugfs(struct wm_adsp *dsp,
@@ -824,7 +824,7 @@ const struct soc_enum wm_adsp_fw_enum[] = {
 };
 EXPORT_SYMBOL_GPL(wm_adsp_fw_enum);
 
-static struct wm_adsp_region const *wm_adsp_find_region(struct wm_adsp *dsp,
+static const struct wm_adsp_region *wm_adsp_find_region(struct wm_adsp *dsp,
 							int type)
 {
 	int i;
@@ -1213,7 +1213,7 @@ static int wm_coeff_tlv_get(struct snd_kcontrol *kctl,
 
 	mutex_lock(&ctl->dsp->pwr_lock);
 
-	ret = wm_coeff_read_ctrl_raw(ctl, ctl->cache, size);
+	ret = wm_coeff_read_ctrl(ctl, ctl->cache, size);
 
 	if (!ret && copy_to_user(bytes, ctl->cache, size))
 		ret = -EFAULT;
@@ -2240,7 +2240,7 @@ static void wmfw_v3_parse_id_header(struct wm_adsp *dsp,
 }
 
 static int wm_adsp_create_regions(struct wm_adsp *dsp, __be32 id, int nregions,
-				int *type, __be32 *base)
+				const int *type, __be32 *base)
 {
 	struct wm_adsp_alg_region *alg_region;
 	int i;
@@ -2487,7 +2487,7 @@ out:
 static int wm_halo_create_regions(struct wm_adsp *dsp, __be32 id,
 				  __be32 xm_base, __be32 ym_base)
 {
-	int types[] = {
+	static const int types[] = {
 		WMFW_ADSP2_XM, WMFW_HALO_XM_PACKED,
 		WMFW_ADSP2_YM, WMFW_HALO_YM_PACKED
 	};
@@ -3333,7 +3333,8 @@ static int wm_halo_start_core(struct wm_adsp *dsp)
 {
 	return regmap_update_bits(dsp->regmap,
 				  dsp->base + HALO_CCM_CORE_CONTROL,
-				  HALO_CORE_EN, HALO_CORE_EN);
+				  HALO_CORE_RESET | HALO_CORE_EN,
+				  HALO_CORE_RESET | HALO_CORE_EN);
 }
 
 static void wm_halo_stop_core(struct wm_adsp *dsp)
@@ -4500,13 +4501,13 @@ irqreturn_t wm_halo_wdt_expire(int irq, void *data)
 }
 EXPORT_SYMBOL_GPL(wm_halo_wdt_expire);
 
-static struct wm_adsp_ops wm_adsp1_ops = {
+static const struct wm_adsp_ops wm_adsp1_ops = {
 	.validate_version = wm_adsp_validate_version,
 	.parse_sizes = wm_adsp1_parse_sizes,
 	.region_to_reg = wm_adsp_region_to_reg,
 };
 
-static struct wm_adsp_ops wm_adsp2_ops[] = {
+static const struct wm_adsp_ops wm_adsp2_ops[] = {
 	{
 		.sys_config_size = sizeof(struct wm_adsp_system_config_xm_hdr),
 		.parse_sizes = wm_adsp2_parse_sizes,
@@ -4567,7 +4568,7 @@ static struct wm_adsp_ops wm_adsp2_ops[] = {
 	},
 };
 
-static struct wm_adsp_ops wm_halo_ops = {
+static const struct wm_adsp_ops wm_halo_ops = {
 	.sys_config_size = sizeof(struct wm_halo_system_config_xm_hdr),
 	.parse_sizes = wm_adsp2_parse_sizes,
 	.validate_version = wm_halo_validate_version,

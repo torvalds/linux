@@ -85,14 +85,14 @@ static int gen6_drpc(struct seq_file *m)
 	gt_core_status = intel_uncore_read_fw(uncore, GEN6_GT_CORE_STATUS);
 
 	rcctl1 = intel_uncore_read(uncore, GEN6_RC_CONTROL);
-	if (INTEL_GEN(i915) >= 9) {
+	if (GRAPHICS_VER(i915) >= 9) {
 		gen9_powergate_enable =
 			intel_uncore_read(uncore, GEN9_PG_ENABLE);
 		gen9_powergate_status =
 			intel_uncore_read(uncore, GEN9_PWRGT_DOMAIN_STATUS);
 	}
 
-	if (INTEL_GEN(i915) <= 7)
+	if (GRAPHICS_VER(i915) <= 7)
 		sandybridge_pcode_read(i915, GEN6_PCODE_READ_RC6VIDS,
 				       &rc6vids, NULL);
 
@@ -100,7 +100,7 @@ static int gen6_drpc(struct seq_file *m)
 		   yesno(rcctl1 & GEN6_RC_CTL_RC1e_ENABLE));
 	seq_printf(m, "RC6 Enabled: %s\n",
 		   yesno(rcctl1 & GEN6_RC_CTL_RC6_ENABLE));
-	if (INTEL_GEN(i915) >= 9) {
+	if (GRAPHICS_VER(i915) >= 9) {
 		seq_printf(m, "Render Well Gating Enabled: %s\n",
 			   yesno(gen9_powergate_enable & GEN9_RENDER_PG_ENABLE));
 		seq_printf(m, "Media Well Gating Enabled: %s\n",
@@ -134,7 +134,7 @@ static int gen6_drpc(struct seq_file *m)
 
 	seq_printf(m, "Core Power Down: %s\n",
 		   yesno(gt_core_status & GEN6_CORE_CPD_STATE_MASK));
-	if (INTEL_GEN(i915) >= 9) {
+	if (GRAPHICS_VER(i915) >= 9) {
 		seq_printf(m, "Render Power Well: %s\n",
 			   (gen9_powergate_status &
 			    GEN9_PWRGT_RENDER_STATUS_MASK) ? "Up" : "Down");
@@ -150,7 +150,7 @@ static int gen6_drpc(struct seq_file *m)
 	print_rc6_res(m, "RC6+ residency since boot:", GEN6_GT_GFX_RC6p);
 	print_rc6_res(m, "RC6++ residency since boot:", GEN6_GT_GFX_RC6pp);
 
-	if (INTEL_GEN(i915) <= 7) {
+	if (GRAPHICS_VER(i915) <= 7) {
 		seq_printf(m, "RC6   voltage: %dmV\n",
 			   GEN6_DECODE_RC6_VID(((rc6vids >> 0) & 0xff)));
 		seq_printf(m, "RC6+  voltage: %dmV\n",
@@ -230,7 +230,7 @@ static int drpc_show(struct seq_file *m, void *unused)
 	with_intel_runtime_pm(gt->uncore->rpm, wakeref) {
 		if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
 			err = vlv_drpc(m);
-		else if (INTEL_GEN(i915) >= 6)
+		else if (GRAPHICS_VER(i915) >= 6)
 			err = gen6_drpc(m);
 		else
 			err = ilk_drpc(m);
@@ -250,7 +250,7 @@ static int frequency_show(struct seq_file *m, void *unused)
 
 	wakeref = intel_runtime_pm_get(uncore->rpm);
 
-	if (IS_GEN(i915, 5)) {
+	if (GRAPHICS_VER(i915) == 5) {
 		u16 rgvswctl = intel_uncore_read16(uncore, MEMSWCTL);
 		u16 rgvstat = intel_uncore_read16(uncore, MEMSTAT_ILK);
 
@@ -296,7 +296,7 @@ static int frequency_show(struct seq_file *m, void *unused)
 
 		seq_printf(m, "efficient (RPe) frequency: %d MHz\n",
 			   intel_gpu_freq(rps, rps->efficient_freq));
-	} else if (INTEL_GEN(i915) >= 6) {
+	} else if (GRAPHICS_VER(i915) >= 6) {
 		u32 rp_state_limits;
 		u32 gt_perf_status;
 		u32 rp_state_cap;
@@ -321,7 +321,7 @@ static int frequency_show(struct seq_file *m, void *unused)
 		intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
 
 		reqf = intel_uncore_read(uncore, GEN6_RPNSWREQ);
-		if (INTEL_GEN(i915) >= 9) {
+		if (GRAPHICS_VER(i915) >= 9) {
 			reqf >>= 23;
 		} else {
 			reqf &= ~GEN6_TURBO_DISABLE;
@@ -354,7 +354,7 @@ static int frequency_show(struct seq_file *m, void *unused)
 
 		intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
 
-		if (INTEL_GEN(i915) >= 11) {
+		if (GRAPHICS_VER(i915) >= 11) {
 			pm_ier = intel_uncore_read(uncore, GEN11_GPM_WGBOXPERF_INTR_ENABLE);
 			pm_imr = intel_uncore_read(uncore, GEN11_GPM_WGBOXPERF_INTR_MASK);
 			/*
@@ -363,7 +363,7 @@ static int frequency_show(struct seq_file *m, void *unused)
 			 */
 			pm_isr = 0;
 			pm_iir = 0;
-		} else if (INTEL_GEN(i915) >= 8) {
+		} else if (GRAPHICS_VER(i915) >= 8) {
 			pm_ier = intel_uncore_read(uncore, GEN8_GT_IER(2));
 			pm_imr = intel_uncore_read(uncore, GEN8_GT_IMR(2));
 			pm_isr = intel_uncore_read(uncore, GEN8_GT_ISR(2));
@@ -386,14 +386,14 @@ static int frequency_show(struct seq_file *m, void *unused)
 
 		seq_printf(m, "PM IER=0x%08x IMR=0x%08x, MASK=0x%08x\n",
 			   pm_ier, pm_imr, pm_mask);
-		if (INTEL_GEN(i915) <= 10)
+		if (GRAPHICS_VER(i915) <= 10)
 			seq_printf(m, "PM ISR=0x%08x IIR=0x%08x\n",
 				   pm_isr, pm_iir);
 		seq_printf(m, "pm_intrmsk_mbz: 0x%08x\n",
 			   rps->pm_intrmsk_mbz);
 		seq_printf(m, "GT_PERF_STATUS: 0x%08x\n", gt_perf_status);
 		seq_printf(m, "Render p-state ratio: %d\n",
-			   (gt_perf_status & (INTEL_GEN(i915) >= 9 ? 0x1ff00 : 0xff00)) >> 8);
+			   (gt_perf_status & (GRAPHICS_VER(i915) >= 9 ? 0x1ff00 : 0xff00)) >> 8);
 		seq_printf(m, "Render p-state VID: %d\n",
 			   gt_perf_status & 0xff);
 		seq_printf(m, "Render p-state limit: %d\n",
@@ -437,20 +437,20 @@ static int frequency_show(struct seq_file *m, void *unused)
 		max_freq = (IS_GEN9_LP(i915) ? rp_state_cap >> 0 :
 			    rp_state_cap >> 16) & 0xff;
 		max_freq *= (IS_GEN9_BC(i915) ||
-			     INTEL_GEN(i915) >= 10 ? GEN9_FREQ_SCALER : 1);
+			     GRAPHICS_VER(i915) >= 10 ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Lowest (RPN) frequency: %dMHz\n",
 			   intel_gpu_freq(rps, max_freq));
 
 		max_freq = (rp_state_cap & 0xff00) >> 8;
 		max_freq *= (IS_GEN9_BC(i915) ||
-			     INTEL_GEN(i915) >= 10 ? GEN9_FREQ_SCALER : 1);
+			     GRAPHICS_VER(i915) >= 10 ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Nominal (RP1) frequency: %dMHz\n",
 			   intel_gpu_freq(rps, max_freq));
 
 		max_freq = (IS_GEN9_LP(i915) ? rp_state_cap >> 16 :
 			    rp_state_cap >> 0) & 0xff;
 		max_freq *= (IS_GEN9_BC(i915) ||
-			     INTEL_GEN(i915) >= 10 ? GEN9_FREQ_SCALER : 1);
+			     GRAPHICS_VER(i915) >= 10 ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
 			   intel_gpu_freq(rps, max_freq));
 		seq_printf(m, "Max overclocked frequency: %dMHz\n",
@@ -488,7 +488,7 @@ static int llc_show(struct seq_file *m, void *data)
 {
 	struct intel_gt *gt = m->private;
 	struct drm_i915_private *i915 = gt->i915;
-	const bool edram = INTEL_GEN(i915) > 8;
+	const bool edram = GRAPHICS_VER(i915) > 8;
 	struct intel_rps *rps = &gt->rps;
 	unsigned int max_gpu_freq, min_gpu_freq;
 	intel_wakeref_t wakeref;
@@ -500,7 +500,7 @@ static int llc_show(struct seq_file *m, void *data)
 
 	min_gpu_freq = rps->min_freq;
 	max_gpu_freq = rps->max_freq;
-	if (IS_GEN9_BC(i915) || INTEL_GEN(i915) >= 10) {
+	if (IS_GEN9_BC(i915) || GRAPHICS_VER(i915) >= 10) {
 		/* Convert GT frequency to 50 HZ units */
 		min_gpu_freq /= GEN9_FREQ_SCALER;
 		max_gpu_freq /= GEN9_FREQ_SCALER;
@@ -518,7 +518,7 @@ static int llc_show(struct seq_file *m, void *data)
 			   intel_gpu_freq(rps,
 					  (gpu_freq *
 					   (IS_GEN9_BC(i915) ||
-					    INTEL_GEN(i915) >= 10 ?
+					    GRAPHICS_VER(i915) >= 10 ?
 					    GEN9_FREQ_SCALER : 1))),
 			   ((ia_freq >> 0) & 0xff) * 100,
 			   ((ia_freq >> 8) & 0xff) * 100);
@@ -580,7 +580,7 @@ static int rps_boost_show(struct seq_file *m, void *data)
 
 	seq_printf(m, "Wait boosts: %d\n", READ_ONCE(rps->boosts));
 
-	if (INTEL_GEN(i915) >= 6 && intel_rps_is_active(rps)) {
+	if (GRAPHICS_VER(i915) >= 6 && intel_rps_is_active(rps)) {
 		struct intel_uncore *uncore = gt->uncore;
 		u32 rpup, rpupei;
 		u32 rpdown, rpdownei;

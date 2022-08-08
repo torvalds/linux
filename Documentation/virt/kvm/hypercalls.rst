@@ -169,3 +169,24 @@ a0: destination APIC ID
 
 :Usage example: When sending a call-function IPI-many to vCPUs, yield if
 	        any of the IPI target vCPUs was preempted.
+
+8. KVM_HC_MAP_GPA_RANGE
+-------------------------
+:Architecture: x86
+:Status: active
+:Purpose: Request KVM to map a GPA range with the specified attributes.
+
+a0: the guest physical address of the start page
+a1: the number of (4kb) pages (must be contiguous in GPA space)
+a2: attributes
+
+    Where 'attributes' :
+        * bits  3:0 - preferred page size encoding 0 = 4kb, 1 = 2mb, 2 = 1gb, etc...
+        * bit     4 - plaintext = 0, encrypted = 1
+        * bits 63:5 - reserved (must be zero)
+
+**Implementation note**: this hypercall is implemented in userspace via
+the KVM_CAP_EXIT_HYPERCALL capability. Userspace must enable that capability
+before advertising KVM_FEATURE_HC_MAP_GPA_RANGE in the guest CPUID.  In
+addition, if the guest supports KVM_FEATURE_MIGRATION_CONTROL, userspace
+must also set up an MSR filter to process writes to MSR_KVM_MIGRATION_CONTROL.

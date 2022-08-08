@@ -21,7 +21,7 @@ log, telling which card type is used.  Like this one::
 
 You should verify this is correct.  If it isn't, you have to pass the
 correct board type as insmod argument, ``insmod bttv card=2`` for
-example.  The file :doc:`/admin-guide/media/bttv-cardlist` has a list
+example.  The file Documentation/admin-guide/media/bttv-cardlist.rst has a list
 of valid arguments for card.
 
 If your card isn't listed there, you might check the source code for

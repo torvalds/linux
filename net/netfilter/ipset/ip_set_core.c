@@ -1685,8 +1685,8 @@ static const struct nla_policy ip_set_adt_policy[IPSET_ATTR_CMD_MAX + 1] = {
 };
 
 static int
-call_ad(struct sock *ctnl, struct sk_buff *skb, struct ip_set *set,
-	struct nlattr *tb[], enum ipset_adt adt,
+call_ad(struct net *net, struct sock *ctnl, struct sk_buff *skb,
+	struct ip_set *set, struct nlattr *tb[], enum ipset_adt adt,
 	u32 flags, bool use_lineno)
 {
 	int ret;
@@ -1738,8 +1738,7 @@ call_ad(struct sock *ctnl, struct sk_buff *skb, struct ip_set *set,
 
 		*errline = lineno;
 
-		netlink_unicast(ctnl, skb2, NETLINK_CB(skb).portid,
-				MSG_DONTWAIT);
+		nfnetlink_unicast(skb2, net, NETLINK_CB(skb).portid);
 		/* Signal netlink not to send its ACK/errmsg.  */
 		return -EINTR;
 	}
@@ -1783,7 +1782,7 @@ static int ip_set_ad(struct net *net, struct sock *ctnl,
 				     attr[IPSET_ATTR_DATA],
 				     set->type->adt_policy, NULL))
 			return -IPSET_ERR_PROTOCOL;
-		ret = call_ad(ctnl, skb, set, tb, adt, flags,
+		ret = call_ad(net, ctnl, skb, set, tb, adt, flags,
 			      use_lineno);
 	} else {
 		int nla_rem;
@@ -1794,7 +1793,7 @@ static int ip_set_ad(struct net *net, struct sock *ctnl,
 			    nla_parse_nested(tb, IPSET_ATTR_ADT_MAX, nla,
 					     set->type->adt_policy, NULL))
 				return -IPSET_ERR_PROTOCOL;
-			ret = call_ad(ctnl, skb, set, tb, adt,
+			ret = call_ad(net, ctnl, skb, set, tb, adt,
 				      flags, use_lineno);
 			if (ret < 0)
 				return ret;
@@ -1859,7 +1858,6 @@ static int ip_set_header(struct sk_buff *skb, const struct nfnl_info *info,
 	const struct ip_set *set;
 	struct sk_buff *skb2;
 	struct nlmsghdr *nlh2;
-	int ret = 0;
 
 	if (unlikely(protocol_min_failed(attr) ||
 		     !attr[IPSET_ATTR_SETNAME]))
@@ -1885,12 +1883,7 @@ static int ip_set_header(struct sk_buff *skb, const struct nfnl_info *info,
 		goto nla_put_failure;
 	nlmsg_end(skb2, nlh2);
 
-	ret = netlink_unicast(info->sk, skb2, NETLINK_CB(skb).portid,
-			      MSG_DONTWAIT);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return nfnetlink_unicast(skb2, info->net, NETLINK_CB(skb).portid);
 
 nla_put_failure:
 	nlmsg_cancel(skb2, nlh2);
@@ -1945,12 +1938,7 @@ static int ip_set_type(struct sk_buff *skb, const struct nfnl_info *info,
 	nlmsg_end(skb2, nlh2);
 
 	pr_debug("Send TYPE, nlmsg_len: %u\n", nlh2->nlmsg_len);
-	ret = netlink_unicast(info->sk, skb2, NETLINK_CB(skb).portid,
-			      MSG_DONTWAIT);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return nfnetlink_unicast(skb2, info->net, NETLINK_CB(skb).portid);
 
 nla_put_failure:
 	nlmsg_cancel(skb2, nlh2);
@@ -1971,7 +1959,6 @@ static int ip_set_protocol(struct sk_buff *skb, const struct nfnl_info *info,
 {
 	struct sk_buff *skb2;
 	struct nlmsghdr *nlh2;
-	int ret = 0;
 
 	if (unlikely(!attr[IPSET_ATTR_PROTOCOL]))
 		return -IPSET_ERR_PROTOCOL;
@@ -1990,12 +1977,7 @@ static int ip_set_protocol(struct sk_buff *skb, const struct nfnl_info *info,
 		goto nla_put_failure;
 	nlmsg_end(skb2, nlh2);
 
-	ret = netlink_unicast(info->sk, skb2, NETLINK_CB(skb).portid,
-			      MSG_DONTWAIT);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return nfnetlink_unicast(skb2, info->net, NETLINK_CB(skb).portid);
 
 nla_put_failure:
 	nlmsg_cancel(skb2, nlh2);
@@ -2014,7 +1996,6 @@ static int ip_set_byname(struct sk_buff *skb, const struct nfnl_info *info,
 	struct nlmsghdr *nlh2;
 	ip_set_id_t id = IPSET_INVALID_ID;
 	const struct ip_set *set;
-	int ret = 0;
 
 	if (unlikely(protocol_failed(attr) ||
 		     !attr[IPSET_ATTR_SETNAME]))
@@ -2038,12 +2019,7 @@ static int ip_set_byname(struct sk_buff *skb, const struct nfnl_info *info,
 		goto nla_put_failure;
 	nlmsg_end(skb2, nlh2);
 
-	ret = netlink_unicast(info->sk, skb2, NETLINK_CB(skb).portid,
-			      MSG_DONTWAIT);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return nfnetlink_unicast(skb2, info->net, NETLINK_CB(skb).portid);
 
 nla_put_failure:
 	nlmsg_cancel(skb2, nlh2);
@@ -2065,7 +2041,6 @@ static int ip_set_byindex(struct sk_buff *skb, const struct nfnl_info *info,
 	struct nlmsghdr *nlh2;
 	ip_set_id_t id = IPSET_INVALID_ID;
 	const struct ip_set *set;
-	int ret = 0;
 
 	if (unlikely(protocol_failed(attr) ||
 		     !attr[IPSET_ATTR_INDEX]))
@@ -2091,12 +2066,7 @@ static int ip_set_byindex(struct sk_buff *skb, const struct nfnl_info *info,
 		goto nla_put_failure;
 	nlmsg_end(skb2, nlh2);
 
-	ret = netlink_unicast(info->sk, skb2, NETLINK_CB(skb).portid,
-			      MSG_DONTWAIT);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return nfnetlink_unicast(skb2, info->net, NETLINK_CB(skb).portid);
 
 nla_put_failure:
 	nlmsg_cancel(skb2, nlh2);

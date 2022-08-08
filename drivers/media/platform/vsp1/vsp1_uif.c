@@ -54,38 +54,39 @@ static const unsigned int uif_codes[] = {
 };
 
 static int uif_enum_mbus_code(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_mbus_code_enum *code)
 {
-	return vsp1_subdev_enum_mbus_code(subdev, cfg, code, uif_codes,
+	return vsp1_subdev_enum_mbus_code(subdev, sd_state, code, uif_codes,
 					  ARRAY_SIZE(uif_codes));
 }
 
 static int uif_enum_frame_size(struct v4l2_subdev *subdev,
-			       struct v4l2_subdev_pad_config *cfg,
+			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
-	return vsp1_subdev_enum_frame_size(subdev, cfg, fse, UIF_MIN_SIZE,
+	return vsp1_subdev_enum_frame_size(subdev, sd_state, fse,
+					   UIF_MIN_SIZE,
 					   UIF_MIN_SIZE, UIF_MAX_SIZE,
 					   UIF_MAX_SIZE);
 }
 
 static int uif_set_format(struct v4l2_subdev *subdev,
-			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *fmt)
 {
-	return vsp1_subdev_set_pad_format(subdev, cfg, fmt, uif_codes,
+	return vsp1_subdev_set_pad_format(subdev, sd_state, fmt, uif_codes,
 					  ARRAY_SIZE(uif_codes),
 					  UIF_MIN_SIZE, UIF_MIN_SIZE,
 					  UIF_MAX_SIZE, UIF_MAX_SIZE);
 }
 
 static int uif_get_selection(struct v4l2_subdev *subdev,
-			     struct v4l2_subdev_pad_config *cfg,
+			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_selection *sel)
 {
 	struct vsp1_uif *uif = to_uif(subdev);
-	struct v4l2_subdev_pad_config *config;
+	struct v4l2_subdev_state *config;
 	struct v4l2_mbus_framefmt *format;
 	int ret = 0;
 
@@ -94,7 +95,8 @@ static int uif_get_selection(struct v4l2_subdev *subdev,
 
 	mutex_lock(&uif->entity.lock);
 
-	config = vsp1_entity_get_pad_config(&uif->entity, cfg, sel->which);
+	config = vsp1_entity_get_pad_config(&uif->entity, sd_state,
+					    sel->which);
 	if (!config) {
 		ret = -EINVAL;
 		goto done;
@@ -127,11 +129,11 @@ done:
 }
 
 static int uif_set_selection(struct v4l2_subdev *subdev,
-			     struct v4l2_subdev_pad_config *cfg,
+			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_selection *sel)
 {
 	struct vsp1_uif *uif = to_uif(subdev);
-	struct v4l2_subdev_pad_config *config;
+	struct v4l2_subdev_state *config;
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *selection;
 	int ret = 0;
@@ -142,7 +144,8 @@ static int uif_set_selection(struct v4l2_subdev *subdev,
 
 	mutex_lock(&uif->entity.lock);
 
-	config = vsp1_entity_get_pad_config(&uif->entity, cfg, sel->which);
+	config = vsp1_entity_get_pad_config(&uif->entity, sd_state,
+					    sel->which);
 	if (!config) {
 		ret = -EINVAL;
 		goto done;

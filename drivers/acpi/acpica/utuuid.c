@@ -61,4 +61,45 @@ void acpi_ut_convert_string_to_uuid(char *in_string, u8 *uuid_buffer)
 					       1]);
 	}
 }
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_convert_uuid_to_string
+ *
+ * PARAMETERS:  uuid_buffer         - 16-byte UUID buffer
+ *              out_string          - 36-byte formatted UUID string
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Convert 16-byte UUID buffer to 36-byte formatted UUID string
+ *              out_string must be 37 bytes to include null terminator.
+ *
+ ******************************************************************************/
+
+acpi_status acpi_ut_convert_uuid_to_string(char *uuid_buffer, char *out_string)
+{
+	u32 i;
+
+	if (!uuid_buffer || !out_string) {
+		return (AE_BAD_PARAMETER);
+	}
+
+	for (i = 0; i < UUID_BUFFER_LENGTH; i++) {
+		out_string[acpi_gbl_map_to_uuid_offset[i]] =
+		    acpi_ut_hex_to_ascii_char(uuid_buffer[i], 4);
+
+		out_string[acpi_gbl_map_to_uuid_offset[i] + 1] =
+		    acpi_ut_hex_to_ascii_char(uuid_buffer[i], 0);
+	}
+
+	/* Insert required hyphens (dashes) */
+
+	out_string[UUID_HYPHEN1_OFFSET] =
+	    out_string[UUID_HYPHEN2_OFFSET] =
+	    out_string[UUID_HYPHEN3_OFFSET] =
+	    out_string[UUID_HYPHEN4_OFFSET] = '-';
+
+	out_string[UUID_STRING_LENGTH] = 0;	/* Null terminate */
+	return (AE_OK);
+}
 #endif

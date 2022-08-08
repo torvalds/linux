@@ -98,7 +98,7 @@ get_cb_table(const struct sk_buff *skb, unsigned int type, unsigned int op)
 		 */
 		up_read(&rdma_nl_types[type].sem);
 
-		request_module("rdma-netlink-subsys-%d", type);
+		request_module("rdma-netlink-subsys-%u", type);
 
 		down_read(&rdma_nl_types[type].sem);
 		cb_table = READ_ONCE(rdma_nl_types[type].cb_table);

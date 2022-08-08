@@ -19,10 +19,10 @@ The following are mandatory properties for Keystone 2 66AK2G SoCs only:
 - power-domains		: Should contain a phandle to a PM domain provider node
 			  and an args specifier containing the DCAN device id
 			  value. This property is as per the binding,
-			  Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
+			  Documentation/devicetree/bindings/soc/ti/sci-pm-domain.yaml
 - clocks		: CAN functional clock phandle. This property is as per the
 			  binding,
-			  Documentation/devicetree/bindings/clock/ti,sci-clk.txt
+			  Documentation/devicetree/bindings/clock/ti,sci-clk.yaml
 
 Optional properties:
 - syscon-raminit	: Handle to system control region that contains the

@@ -39,7 +39,7 @@ enum {
 /* Page starts writeback, clear dirty bit and set writeback bit */
 #define PAGE_START_WRITEBACK	(1 << 1)
 #define PAGE_END_WRITEBACK	(1 << 2)
-#define PAGE_SET_PRIVATE2	(1 << 3)
+#define PAGE_SET_ORDERED	(1 << 3)
 #define PAGE_SET_ERROR		(1 << 4)
 #define PAGE_LOCK		(1 << 5)
 
@@ -99,6 +99,17 @@ struct extent_buffer {
 #ifdef CONFIG_BTRFS_DEBUG
 	struct list_head leak_list;
 #endif
+};
+
+/*
+ * Structure to record info about the bio being assembled, and other info like
+ * how many bytes are there before stripe/ordered extent boundary.
+ */
+struct btrfs_bio_ctrl {
+	struct bio *bio;
+	unsigned long bio_flags;
+	u32 len_to_stripe_boundary;
+	u32 len_to_oe_boundary;
 };
 
 /*
@@ -169,7 +180,7 @@ int try_release_extent_buffer(struct page *page);
 int __must_check submit_one_bio(struct bio *bio, int mirror_num,
 				unsigned long bio_flags);
 int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
-		      struct bio **bio, unsigned long *bio_flags,
+		      struct btrfs_bio_ctrl *bio_ctrl,
 		      unsigned int read_flags, u64 *prev_em_start);
 int extent_write_full_page(struct page *page, struct writeback_control *wbc);
 int extent_write_locked_range(struct inode *inode, u64 start, u64 end,
@@ -281,7 +292,7 @@ int btrfs_repair_eb_io_failure(const struct extent_buffer *eb, int mirror_num);
  * When IO fails, either with EIO or csum verification fails, we
  * try other mirrors that might have a good copy of the data.  This
  * io_failure_record is used to record state as we go through all the
- * mirrors.  If another mirror has good data, the page is set up to date
+ * mirrors.  If another mirror has good data, the sector is set up to date
  * and things continue.  If a good mirror can't be found, the original
  * bio end_io callback is called to indicate things have failed.
  */
@@ -293,15 +304,13 @@ struct io_failure_record {
 	unsigned long bio_flags;
 	int this_mirror;
 	int failed_mirror;
-	int in_validation;
 };
 
-
-blk_status_t btrfs_submit_read_repair(struct inode *inode,
-				      struct bio *failed_bio, u32 bio_offset,
-				      struct page *page, unsigned int pgoff,
-				      u64 start, u64 end, int failed_mirror,
-				      submit_bio_hook_t *submit_bio_hook);
+int btrfs_repair_one_sector(struct inode *inode,
+			    struct bio *failed_bio, u32 bio_offset,
+			    struct page *page, unsigned int pgoff,
+			    u64 start, int failed_mirror,
+			    submit_bio_hook_t *submit_bio_hook);
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 bool find_lock_delalloc_range(struct inode *inode,

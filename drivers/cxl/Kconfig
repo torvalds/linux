@@ -15,21 +15,17 @@ if CXL_BUS
 
 config CXL_MEM
 	tristate "CXL.mem: Memory Devices"
+	default CXL_BUS
 	help
 	  The CXL.mem protocol allows a device to act as a provider of
 	  "System RAM" and/or "Persistent Memory" that is fully coherent
 	  as if the memory was attached to the typical CPU memory
 	  controller.
 
-	  Say 'y/m' to enable a driver (named "cxl_mem.ko" when built as
-	  a module) that will attach to CXL.mem devices for
-	  configuration, provisioning, and health monitoring. This
-	  driver is required for dynamic provisioning of CXL.mem
-	  attached memory which is a prerequisite for persistent memory
-	  support. Typically volatile memory is mapped by platform
-	  firmware and included in the platform memory map, but in some
-	  cases the OS is responsible for mapping that memory. See
-	  Chapter 2.3 Type 3 CXL Device in the CXL 2.0 specification.
+	  Say 'y/m' to enable a driver that will attach to CXL.mem devices for
+	  configuration and management primarily via the mailbox interface. See
+	  Chapter 2.3 Type 3 CXL Device in the CXL 2.0 specification for more
+	  details.
 
 	  If unsure say 'm'.
 
@@ -50,4 +46,33 @@ config CXL_MEM_RAW_COMMANDS
 	  potential impact to memory currently in use by the kernel.
 
 	  If developing CXL hardware or the driver say Y, otherwise say N.
+
+config CXL_ACPI
+	tristate "CXL ACPI: Platform Support"
+	depends on ACPI
+	default CXL_BUS
+	help
+	  Enable support for host managed device memory (HDM) resources
+	  published by a platform's ACPI CXL memory layout description.  See
+	  Chapter 9.14.1 CXL Early Discovery Table (CEDT) in the CXL 2.0
+	  specification, and CXL Fixed Memory Window Structures (CEDT.CFMWS)
+	  (https://www.computeexpresslink.org/spec-landing). The CXL core
+	  consumes these resource to publish the root of a cxl_port decode
+	  hierarchy to map regions that represent System RAM, or Persistent
+	  Memory regions to be managed by LIBNVDIMM.
+
+	  If unsure say 'm'.
+
+config CXL_PMEM
+	tristate "CXL PMEM: Persistent Memory Support"
+	depends on LIBNVDIMM
+	default CXL_BUS
+	help
+	  In addition to typical memory resources a platform may also advertise
+	  support for persistent memory attached via CXL. This support is
+	  managed via a bridge driver from CXL to the LIBNVDIMM system
+	  subsystem. Say 'y/m' to enable support for enumerating and
+	  provisioning the persistent memory capacity of CXL memory expanders.
+
+	  If unsure say 'm'.
 endif

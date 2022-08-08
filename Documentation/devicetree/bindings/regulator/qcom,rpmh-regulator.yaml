@@ -33,6 +33,9 @@ description: |
 
     The names used for regulator nodes must match those supported by a given
     PMIC. Supported regulator node names are
+      For PM6150, smps1 - smps5, ldo1 - ldo19
+      For PM6150L, smps1 - smps8, ldo1 - ldo11, bob
+      For PM7325, smps1 - smps8, ldo1 - ldo19
       For PM8005, smps1 - smps4
       For PM8009, smps1 - smps2, ldo1 - ldo7
       For PM8150, smps1 - smps10, ldo1 - ldo18
@@ -41,15 +44,15 @@ description: |
       For PM8350C, smps1 - smps10, ldo1 - ldo13, bob
       For PM8998, smps1 - smps13, ldo1 - ldo28, lvs1 - lvs2
       For PMI8998, bob
-      For PM6150, smps1 - smps5, ldo1 - ldo19
-      For PM6150L, smps1 - smps8, ldo1 - ldo11, bob
-      For PMX55, smps1 - smps7, ldo1 - ldo16
-      For PM7325, smps1 - smps8, ldo1 - ldo19
       For PMR735A, smps1 - smps3, ldo1 - ldo7
+      For PMX55, smps1 - smps7, ldo1 - ldo16
 
 properties:
   compatible:
     enum:
+      - qcom,pm6150-rpmh-regulators
+      - qcom,pm6150l-rpmh-regulators
+      - qcom,pm7325-rpmh-regulators
       - qcom,pm8005-rpmh-regulators
       - qcom,pm8009-rpmh-regulators
       - qcom,pm8009-1-rpmh-regulators
@@ -59,11 +62,9 @@ properties:
       - qcom,pm8350c-rpmh-regulators
       - qcom,pm8998-rpmh-regulators
       - qcom,pmi8998-rpmh-regulators
-      - qcom,pm6150-rpmh-regulators
-      - qcom,pm6150l-rpmh-regulators
-      - qcom,pmx55-rpmh-regulators
-      - qcom,pm7325-rpmh-regulators
+      - qcom,pmm8155au-rpmh-regulators
       - qcom,pmr735a-rpmh-regulators
+      - qcom,pmx55-rpmh-regulators
 
   qcom,pmic-id:
     description: |

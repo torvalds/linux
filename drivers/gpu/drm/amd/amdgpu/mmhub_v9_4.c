@@ -436,7 +436,7 @@ static void mmhub_v9_4_gart_disable(struct amdgpu_device *adev)
 }
 
 /**
- * mmhub_v1_0_set_fault_enable_default - update GART/VM fault handling
+ * mmhub_v9_4_set_fault_enable_default - update GART/VM fault handling
  *
  * @adev: amdgpu_device pointer
  * @value: true redirects VM faults to the default page

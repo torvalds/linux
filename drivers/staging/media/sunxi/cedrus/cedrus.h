@@ -68,14 +68,16 @@ struct cedrus_h264_run {
 };
 
 struct cedrus_mpeg2_run {
-	const struct v4l2_ctrl_mpeg2_slice_params	*slice_params;
-	const struct v4l2_ctrl_mpeg2_quantization	*quantization;
+	const struct v4l2_ctrl_mpeg2_sequence		*sequence;
+	const struct v4l2_ctrl_mpeg2_picture		*picture;
+	const struct v4l2_ctrl_mpeg2_quantisation	*quantisation;
 };
 
 struct cedrus_h265_run {
 	const struct v4l2_ctrl_hevc_sps			*sps;
 	const struct v4l2_ctrl_hevc_pps			*pps;
 	const struct v4l2_ctrl_hevc_slice_params	*slice_params;
+	const struct v4l2_ctrl_hevc_decode_params	*decode_params;
 };
 
 struct cedrus_vp8_run {

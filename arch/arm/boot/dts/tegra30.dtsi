@@ -410,7 +410,7 @@
 		reg = <0x6000c000 0x150>; /* AHB Arbitration + Gizmo Controller */
 	};
 
-	actmon@6000c800 {
+	actmon: actmon@6000c800 {
 		compatible = "nvidia,tegra30-actmon";
 		reg = <0x6000c800 0x400>;
 		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
@@ -422,6 +422,7 @@
 		operating-points-v2 = <&emc_bw_dfs_opp_table>;
 		interconnects = <&mc TEGRA30_MC_MPCORER &emc>;
 		interconnect-names = "cpu-read";
+		#cooling-cells = <2>;
 	};
 
 	gpio: gpio@6000d000 {

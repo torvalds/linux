@@ -93,8 +93,8 @@ struct br2684_dev {
  * This lock should be held for writing any time the list of devices or
  * their attached vcc's could be altered.  It should be held for reading
  * any time these are being queried.  Note that we sometimes need to
- * do read-locking under interrupt context, so write locking must block
- * the current CPU's interrupts
+ * do read-locking under interrupting context, so write locking must block
+ * the current CPU's interrupts.
  */
 static DEFINE_RWLOCK(devs_lock);
 

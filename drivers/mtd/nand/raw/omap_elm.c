@@ -116,7 +116,7 @@ int elm_config(struct device *dev, enum bch_ecc bch_type,
 		return -EINVAL;
 	}
 	/* ELM support 8 error syndrome process */
-	if (ecc_steps > ERROR_VECTOR_MAX) {
+	if (ecc_steps > ERROR_VECTOR_MAX && ecc_steps % ERROR_VECTOR_MAX) {
 		dev_err(dev, "unsupported config ecc-step=%d\n", ecc_steps);
 		return -EINVAL;
 	}

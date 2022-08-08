@@ -306,7 +306,7 @@ static bool prepare_vm(struct vm_data *data, int nslots, uint64_t *maxslots,
 		guest_addr += npages * 4096;
 	}
 
-	virt_map(data->vm, MEM_GPA, MEM_GPA, mempages, 0);
+	virt_map(data->vm, MEM_GPA, MEM_GPA, mempages);
 
 	sync = (typeof(sync))vm_gpa2hva(data, MEM_SYNC_GPA, NULL);
 	atomic_init(&sync->start_flag, false);

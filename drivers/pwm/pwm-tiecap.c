@@ -48,15 +48,12 @@ static inline struct ecap_pwm_chip *to_ecap_pwm_chip(struct pwm_chip *chip)
  * duty_ns   = 10^9 * duty_cycles / PWM_CLK_RATE
  */
 static int ecap_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
-		int duty_ns, int period_ns)
+			   int duty_ns, int period_ns, int enabled)
 {
 	struct ecap_pwm_chip *pc = to_ecap_pwm_chip(chip);
 	u32 period_cycles, duty_cycles;
 	unsigned long long c;
 	u16 value;
-
-	if (period_ns > NSEC_PER_SEC)
-		return -ERANGE;
 
 	c = pc->clk_rate;
 	c = c * period_ns;
@@ -82,7 +79,7 @@ static int ecap_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	writew(value, pc->mmio_base + ECCTL2);
 
-	if (!pwm_is_enabled(pwm)) {
+	if (!enabled) {
 		/* Update active registers if not running */
 		writel(duty_cycles, pc->mmio_base + CAP2);
 		writel(period_cycles, pc->mmio_base + CAP1);
@@ -96,7 +93,7 @@ static int ecap_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		writel(period_cycles, pc->mmio_base + CAP3);
 	}
 
-	if (!pwm_is_enabled(pwm)) {
+	if (!enabled) {
 		value = readw(pc->mmio_base + ECCTL2);
 		/* Disable APWM mode to put APWM output Low */
 		value &= ~ECCTL2_APWM_MODE;
@@ -168,20 +165,46 @@ static void ecap_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	pm_runtime_put_sync(pc->chip.dev);
 }
 
-static void ecap_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
+static int ecap_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			  const struct pwm_state *state)
 {
-	if (pwm_is_enabled(pwm)) {
-		dev_warn(chip->dev, "Removing PWM device without disabling\n");
-		pm_runtime_put_sync(chip->dev);
+	int err;
+	int enabled = pwm->state.enabled;
+
+	if (state->polarity != pwm->state.polarity) {
+
+		if (enabled) {
+			ecap_pwm_disable(chip, pwm);
+			enabled = false;
+		}
+
+		err = ecap_pwm_set_polarity(chip, pwm, state->polarity);
+		if (err)
+			return err;
 	}
+
+	if (!state->enabled) {
+		if (enabled)
+			ecap_pwm_disable(chip, pwm);
+		return 0;
+	}
+
+	if (state->period > NSEC_PER_SEC)
+		return -ERANGE;
+
+	err = ecap_pwm_config(chip, pwm, state->duty_cycle,
+			      state->period, enabled);
+	if (err)
+		return err;
+
+	if (!enabled)
+		return ecap_pwm_enable(chip, pwm);
+
+	return 0;
 }
 
 static const struct pwm_ops ecap_pwm_ops = {
-	.free = ecap_pwm_free,
-	.config = ecap_pwm_config,
-	.set_polarity = ecap_pwm_set_polarity,
-	.enable = ecap_pwm_enable,
-	.disable = ecap_pwm_disable,
+	.apply = ecap_pwm_apply,
 	.owner = THIS_MODULE,
 };
 
@@ -224,8 +247,6 @@ static int ecap_pwm_probe(struct platform_device *pdev)
 
 	pc->chip.dev = &pdev->dev;
 	pc->chip.ops = &ecap_pwm_ops;
-	pc->chip.of_xlate = of_pwm_xlate_with_flags;
-	pc->chip.of_pwm_n_cells = 3;
 	pc->chip.npwm = 1;
 
 	pc->mmio_base = devm_platform_ioremap_resource(pdev, 0);

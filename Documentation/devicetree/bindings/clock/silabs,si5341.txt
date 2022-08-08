@@ -24,9 +24,8 @@ it.
 
 The device type, speed grade and revision are determined runtime by probing.
 
-The driver currently only supports XTAL input mode, and does not support any
-fancy input configurations. They can still be programmed into the chip and
-the driver will leave them "as is".
+The driver currently does not support any fancy input configurations. They can
+still be programmed into the chip and the driver will leave them "as is".
 
 ==I2C device node==
 
@@ -45,9 +44,9 @@ Required properties:
 	corresponding to inputs. Use a fixed clock for the "xtal" input.
 	At least one must be present.
 - clock-names: One of: "xtal", "in0", "in1", "in2"
-- vdd-supply: Regulator node for VDD
 
 Optional properties:
+- vdd-supply: Regulator node for VDD
 - vdda-supply: Regulator node for VDDA
 - vdds-supply: Regulator node for VDDS
 - silabs,pll-m-num, silabs,pll-m-den: Numerator and denominator for PLL
@@ -60,7 +59,14 @@ Optional properties:
   be initialized, and always performs the soft-reset routine. Since this will
   temporarily stop all output clocks, don't do this if the chip is generating
   the CPU clock for example.
+- silabs,xaxb-ext-clk: When present, indicates that the XA/XB pins are used
+  in EXTCLK (external reference clock) rather than XTAL (crystal) mode.
 - interrupts: Interrupt for INTRb pin.
+- silabs,iovdd-33: When present, indicates that the I2C lines are using 3.3V
+  rather than 1.8V thresholds.
+- vddoX-supply (where X is an output index): Regulator node for VDDO for the
+  specified output. The driver selects the output VDD_SEL setting based on this
+  voltage.
 - #address-cells: shall be set to 1.
 - #size-cells: shall be set to 0.
 
@@ -77,8 +83,6 @@ Required child node properties:
 - reg: number of clock output.
 
 Optional child node properties:
-- vdd-supply: Regulator node for VDD for this output. The driver selects default
-	values for common-mode and amplitude based on the voltage.
 - silabs,format: Output format, one of:
 	1 = differential (defaults to LVDS levels)
 	2 = low-power (defaults to HCSL levels)

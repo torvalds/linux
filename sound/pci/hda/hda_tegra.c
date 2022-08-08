@@ -235,11 +235,9 @@ static int hda_tegra_init_chip(struct azx *chip, struct platform_device *pdev)
 {
 	struct hda_tegra *hda = container_of(chip, struct hda_tegra, chip);
 	struct hdac_bus *bus = azx_bus(chip);
-	struct device *dev = hda->dev;
 	struct resource *res;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hda->regs = devm_ioremap_resource(dev, res);
+	hda->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(hda->regs))
 		return PTR_ERR(hda->regs);
 
@@ -261,6 +259,9 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 	int irq_id = platform_get_irq(pdev, 0);
 	const char *sname, *drv_name = "tegra-hda";
 	struct device_node *np = pdev->dev.of_node;
+
+	if (irq_id < 0)
+		return irq_id;
 
 	err = hda_tegra_init_chip(chip, pdev);
 	if (err)

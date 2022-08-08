@@ -32,7 +32,6 @@ static struct i915_vma *hwsp_alloc(struct intel_gt *gt)
 	return vma;
 }
 
-__i915_active_call
 static void __timeline_retire(struct i915_active *active)
 {
 	struct intel_timeline *tl =
@@ -104,7 +103,8 @@ static int intel_timeline_init(struct intel_timeline *timeline,
 	INIT_LIST_HEAD(&timeline->requests);
 
 	i915_syncmap_init(&timeline->sync);
-	i915_active_init(&timeline->active, __timeline_active, __timeline_retire);
+	i915_active_init(&timeline->active, __timeline_active,
+			 __timeline_retire, 0);
 
 	return 0;
 }
@@ -127,6 +127,15 @@ static void intel_timeline_fini(struct rcu_head *rcu)
 
 	i915_vma_put(timeline->hwsp_ggtt);
 	i915_active_fini(&timeline->active);
+
+	/*
+	 * A small race exists between intel_gt_retire_requests_timeout and
+	 * intel_timeline_exit which could result in the syncmap not getting
+	 * free'd. Rather than work to hard to seal this race, simply cleanup
+	 * the syncmap on fini.
+	 */
+	i915_syncmap_free(&timeline->sync);
+
 	kfree(timeline);
 }
 

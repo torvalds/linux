@@ -486,7 +486,7 @@ void thread_change_pc(struct task_struct *tsk, struct pt_regs *regs)
 	return;
 
 reset:
-	regs->msr &= ~MSR_SE;
+	regs_set_return_msr(regs, regs->msr & ~MSR_SE);
 	for (i = 0; i < nr_wp_slots(); i++) {
 		info = counter_arch_bp(__this_cpu_read(bp_per_reg[i]));
 		__set_breakpoint(i, info);
@@ -537,7 +537,7 @@ static bool stepping_handler(struct pt_regs *regs, struct perf_event **bp,
 			current->thread.last_hit_ubp[i] = bp[i];
 			info[i] = NULL;
 		}
-		regs->msr |= MSR_SE;
+		regs_set_return_msr(regs, regs->msr | MSR_SE);
 		return false;
 	}
 

@@ -322,14 +322,17 @@ static int pcxhr_dsp_load(struct pcxhr_mgr *mgr, int index,
         for (card_index = 0; card_index < mgr->num_cards; card_index++) {
 		struct snd_pcxhr *chip = mgr->chip[card_index];
 
-		if ((err = pcxhr_create_pcm(chip)) < 0)
+		err = pcxhr_create_pcm(chip);
+		if (err < 0)
 			return err;
 
 		if (card_index == 0) {
-			if ((err = pcxhr_create_mixer(chip->mgr)) < 0)
+			err = pcxhr_create_mixer(chip->mgr);
+			if (err < 0)
 				return err;
 		}
-		if ((err = snd_card_register(chip->card)) < 0)
+		err = snd_card_register(chip->card);
+		if (err < 0)
 			return err;
 	}
 	err = pcxhr_start_pipes(mgr);

@@ -96,9 +96,8 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 		 * entries back to scratch.
 		 */
 
-		vaddr = kmap_atomic_px(pt);
+		vaddr = px_vaddr(pt);
 		memset32(vaddr + pte, scratch_pte, count);
-		kunmap_atomic(vaddr);
 
 		pte = 0;
 	}
@@ -120,7 +119,7 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 
 	GEM_BUG_ON(!pd->entry[act_pt]);
 
-	vaddr = kmap_atomic_px(i915_pt_entry(pd, act_pt));
+	vaddr = px_vaddr(i915_pt_entry(pd, act_pt));
 	do {
 		GEM_BUG_ON(sg_dma_len(iter.sg) < I915_GTT_PAGE_SIZE);
 		vaddr[act_pte] = pte_encode | GEN6_PTE_ADDR_ENCODE(iter.dma);
@@ -136,12 +135,10 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 		}
 
 		if (++act_pte == GEN6_PTES) {
-			kunmap_atomic(vaddr);
-			vaddr = kmap_atomic_px(i915_pt_entry(pd, ++act_pt));
+			vaddr = px_vaddr(i915_pt_entry(pd, ++act_pt));
 			act_pte = 0;
 		}
 	} while (1);
-	kunmap_atomic(vaddr);
 
 	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
 }
@@ -235,7 +232,7 @@ static int gen6_ppgtt_init_scratch(struct gen6_ppgtt *ppgtt)
 		goto err_scratch0;
 	}
 
-	ret = pin_pt_dma(vm, vm->scratch[1]);
+	ret = map_pt_dma(vm, vm->scratch[1]);
 	if (ret)
 		goto err_scratch1;
 
@@ -346,7 +343,7 @@ static struct i915_vma *pd_vma_create(struct gen6_ppgtt *ppgtt, int size)
 	if (!vma)
 		return ERR_PTR(-ENOMEM);
 
-	i915_active_init(&vma->active, NULL, NULL);
+	i915_active_init(&vma->active, NULL, NULL, 0);
 
 	kref_init(&vma->ref);
 	mutex_init(&vma->pages_mutex);

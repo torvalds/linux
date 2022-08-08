@@ -99,12 +99,6 @@ struct alpha_machine_vector
 
 	const char *vector_name;
 
-	/* NUMA information */
-	int (*pa_to_nid)(unsigned long);
-	int (*cpuid_to_nid)(int);
-	unsigned long (*node_mem_start)(int);
-	unsigned long (*node_mem_size)(int);
-
 	/* System specific parameters.  */
 	union {
 	    struct {

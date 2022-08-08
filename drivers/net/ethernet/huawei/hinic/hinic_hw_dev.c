@@ -48,7 +48,7 @@ enum io_status {
 };
 
 /**
- * get_capability - convert device capabilities to NIC capabilities
+ * parse_capability - convert device capabilities to NIC capabilities
  * @hwdev: the HW device to set and convert device capabilities for
  * @dev_cap: device capabilities from FW
  *
@@ -92,7 +92,7 @@ static int parse_capability(struct hinic_hwdev *hwdev,
 }
 
 /**
- * get_cap_from_fw - get device capabilities from FW
+ * get_capability - get device capabilities from FW
  * @pfhwdev: the PF HW device to get capabilities for
  *
  * Return 0 - Success, negative - Failure
@@ -257,7 +257,7 @@ static int init_fw_ctxt(struct hinic_hwdev *hwdev)
 	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_FWCTXT_INIT,
 				 &fw_ctxt, sizeof(fw_ctxt),
 				 &fw_ctxt, &out_size);
-	if (err || (out_size != sizeof(fw_ctxt)) || fw_ctxt.status) {
+	if (err || out_size != sizeof(fw_ctxt) || fw_ctxt.status) {
 		dev_err(&pdev->dev, "Failed to init FW ctxt, err: %d, status: 0x%x, out size: 0x%x\n",
 			err, fw_ctxt.status, out_size);
 		return -EIO;
@@ -346,7 +346,7 @@ static int wait_for_db_state(struct hinic_hwdev *hwdev)
 }
 
 /**
- * clear_io_resource - set the IO resources as not active in the NIC
+ * clear_io_resources - set the IO resources as not active in the NIC
  * @hwdev: the NIC HW device
  *
  * Return 0 - Success, negative - Failure
@@ -424,7 +424,7 @@ static int get_base_qpn(struct hinic_hwdev *hwdev, u16 *base_qpn)
 	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_GLOBAL_QPN,
 				 &cmd_base_qpn, sizeof(cmd_base_qpn),
 				 &cmd_base_qpn, &out_size);
-	if (err || (out_size != sizeof(cmd_base_qpn)) || cmd_base_qpn.status) {
+	if (err || out_size != sizeof(cmd_base_qpn) || cmd_base_qpn.status) {
 		dev_err(&pdev->dev, "Failed to get base qpn, err: %d, status: 0x%x, out size: 0x%x\n",
 			err, cmd_base_qpn.status, out_size);
 		return -EIO;
@@ -605,8 +605,8 @@ static void nic_mgmt_msg_handler(void *handle, u8 cmd, void *buf_in,
 	hwif = hwdev->hwif;
 	pdev = hwif->pdev;
 
-	if ((cmd < HINIC_MGMT_MSG_CMD_BASE) ||
-	    (cmd >= HINIC_MGMT_MSG_CMD_MAX)) {
+	if (cmd < HINIC_MGMT_MSG_CMD_BASE ||
+	    cmd >= HINIC_MGMT_MSG_CMD_MAX) {
 		dev_err(&pdev->dev, "unknown L2NIC event, cmd = %d\n", cmd);
 		return;
 	}
@@ -619,7 +619,7 @@ static void nic_mgmt_msg_handler(void *handle, u8 cmd, void *buf_in,
 			   HINIC_CB_ENABLED,
 			   HINIC_CB_ENABLED | HINIC_CB_RUNNING);
 
-	if ((cb_state == HINIC_CB_ENABLED) && (nic_cb->handler))
+	if (cb_state == HINIC_CB_ENABLED && nic_cb->handler)
 		nic_cb->handler(nic_cb->handle, buf_in,
 				in_size, buf_out, out_size);
 	else
@@ -1090,7 +1090,7 @@ struct hinic_sq *hinic_hwdev_get_sq(struct hinic_hwdev *hwdev, int i)
 }
 
 /**
- * hinic_hwdev_get_sq - get RQ
+ * hinic_hwdev_get_rq - get RQ
  * @hwdev: the NIC HW device
  * @i: the position of the RQ
  *

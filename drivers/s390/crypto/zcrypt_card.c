@@ -64,7 +64,8 @@ static ssize_t online_store(struct device *dev,
 	struct ap_card *ac = to_ap_card(dev);
 	struct zcrypt_card *zc = ac->private;
 	struct zcrypt_queue *zq;
-	int online, id;
+	int online, id, i = 0, maxzqs = 0;
+	struct zcrypt_queue **zq_uelist = NULL;
 
 	if (sscanf(buf, "%d\n", &online) != 1 || online < 0 || online > 1)
 		return -EINVAL;
@@ -77,10 +78,35 @@ static ssize_t online_store(struct device *dev,
 
 	ZCRYPT_DBF(DBF_INFO, "card=%02x online=%d\n", id, online);
 
+	ap_send_online_uevent(&ac->ap_dev, online);
+
 	spin_lock(&zcrypt_list_lock);
+	/*
+	 * As we are in atomic context here, directly sending uevents
+	 * does not work. So collect the zqueues in a dynamic array
+	 * and process them after zcrypt_list_lock release. As we get/put
+	 * the zqueue objects, we make sure they exist after lock release.
+	 */
 	list_for_each_entry(zq, &zc->zqueues, list)
-		zcrypt_queue_force_online(zq, online);
+		maxzqs++;
+	if (maxzqs > 0)
+		zq_uelist = kcalloc(maxzqs + 1, sizeof(zq), GFP_ATOMIC);
+	list_for_each_entry(zq, &zc->zqueues, list)
+		if (zcrypt_queue_force_online(zq, online))
+			if (zq_uelist) {
+				zcrypt_queue_get(zq);
+				zq_uelist[i++] = zq;
+			}
 	spin_unlock(&zcrypt_list_lock);
+	if (zq_uelist) {
+		for (i = 0; zq_uelist[i]; i++) {
+			zq = zq_uelist[i];
+			ap_send_online_uevent(&zq->queue->ap_dev, online);
+			zcrypt_queue_put(zq);
+		}
+		kfree(zq_uelist);
+	}
+
 	return count;
 }
 

@@ -98,10 +98,11 @@ u32 mlx5_eswitch_get_vport_metadata_for_set(struct mlx5_eswitch *esw,
 					    u16 vport_num);
 
 /* Reg C1 usage:
- * Reg C1 = < ESW_TUN_ID(12) | ESW_TUN_OPTS(12) | ESW_ZONE_ID(8) >
+ * Reg C1 = < Reserved(1) | ESW_TUN_ID(12) | ESW_TUN_OPTS(11) | ESW_ZONE_ID(8) >
  *
- * Highest 12 bits of reg c1 is the encapsulation tunnel id, next 12 bits is
- * encapsulation tunnel options, and the lowest 8 bits are used for zone id.
+ * Highest bit is reserved for other offloads as marker bit, next 12 bits of reg c1
+ * is the encapsulation tunnel id, next 11 bits is encapsulation tunnel options,
+ * and the lowest 8 bits are used for zone id.
  *
  * Zone id is used to restore CT flow when packet misses on chain.
  *
@@ -109,16 +110,18 @@ u32 mlx5_eswitch_get_vport_metadata_for_set(struct mlx5_eswitch *esw,
  * on miss and to support inner header rewrite by means of implicit chain 0
  * flows.
  */
+#define ESW_RESERVED_BITS 1
 #define ESW_ZONE_ID_BITS 8
-#define ESW_TUN_OPTS_BITS 12
+#define ESW_TUN_OPTS_BITS 11
 #define ESW_TUN_ID_BITS 12
 #define ESW_TUN_OPTS_OFFSET ESW_ZONE_ID_BITS
 #define ESW_TUN_OFFSET ESW_TUN_OPTS_OFFSET
 #define ESW_ZONE_ID_MASK GENMASK(ESW_ZONE_ID_BITS - 1, 0)
-#define ESW_TUN_OPTS_MASK GENMASK(32 - ESW_TUN_ID_BITS - 1, ESW_TUN_OPTS_OFFSET)
-#define ESW_TUN_MASK GENMASK(31, ESW_TUN_OFFSET)
+#define ESW_TUN_OPTS_MASK GENMASK(31 - ESW_TUN_ID_BITS - ESW_RESERVED_BITS, ESW_TUN_OPTS_OFFSET)
+#define ESW_TUN_MASK GENMASK(31 - ESW_RESERVED_BITS, ESW_TUN_OFFSET)
 #define ESW_TUN_ID_SLOW_TABLE_GOTO_VPORT 0 /* 0 is not a valid tunnel id */
-#define ESW_TUN_OPTS_SLOW_TABLE_GOTO_VPORT 0xFFF /* 0xFFF is a reserved mapping */
+/* 0x7FF is a reserved mapping */
+#define ESW_TUN_OPTS_SLOW_TABLE_GOTO_VPORT GENMASK(ESW_TUN_OPTS_BITS - 1, 0)
 #define ESW_TUN_SLOW_TABLE_GOTO_VPORT ((ESW_TUN_ID_SLOW_TABLE_GOTO_VPORT << ESW_TUN_OPTS_BITS) | \
 				       ESW_TUN_OPTS_SLOW_TABLE_GOTO_VPORT)
 #define ESW_TUN_SLOW_TABLE_GOTO_VPORT_MARK ESW_TUN_OPTS_MASK

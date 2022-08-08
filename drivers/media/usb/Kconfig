@@ -1,10 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-# This Kconfig option is also used by the legacy av7110 driver
-config TTPCI_EEPROM
-	tristate
-	depends on I2C
-
 if USB && MEDIA_SUPPORT
 
 menuconfig MEDIA_USB_SUPPORT

@@ -950,23 +950,37 @@ static int k210_fpioa_probe(struct platform_device *pdev)
 		return ret;
 
 	pdata->pclk = devm_clk_get_optional(dev, "pclk");
-	if (!IS_ERR(pdata->pclk))
-		clk_prepare_enable(pdata->pclk);
+	if (!IS_ERR(pdata->pclk)) {
+		ret = clk_prepare_enable(pdata->pclk);
+		if (ret)
+			goto disable_clk;
+	}
 
 	pdata->sysctl_map =
 		syscon_regmap_lookup_by_phandle_args(np,
 						"canaan,k210-sysctl-power",
 						1, &pdata->power_offset);
-	if (IS_ERR(pdata->sysctl_map))
-		return PTR_ERR(pdata->sysctl_map);
+	if (IS_ERR(pdata->sysctl_map)) {
+		ret = PTR_ERR(pdata->sysctl_map);
+		goto disable_pclk;
+	}
 
 	k210_fpioa_init_ties(pdata);
 
 	pdata->pctl = pinctrl_register(&k210_pinctrl_desc, dev, (void *)pdata);
-	if (IS_ERR(pdata->pctl))
-		return PTR_ERR(pdata->pctl);
+	if (IS_ERR(pdata->pctl)) {
+		ret = PTR_ERR(pdata->pctl);
+		goto disable_pclk;
+	}
 
 	return 0;
+
+disable_pclk:
+	clk_disable_unprepare(pdata->pclk);
+disable_clk:
+	clk_disable_unprepare(pdata->clk);
+
+	return ret;
 }
 
 static const struct of_device_id k210_fpioa_dt_ids[] = {

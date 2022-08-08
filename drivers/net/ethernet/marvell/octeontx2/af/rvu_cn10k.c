@@ -10,6 +10,206 @@
 #include "cgx.h"
 #include "rvu_reg.h"
 
+/* RVU LMTST */
+#define LMT_TBL_OP_READ		0
+#define LMT_TBL_OP_WRITE	1
+#define LMT_MAP_TABLE_SIZE	(128 * 1024)
+#define LMT_MAPTBL_ENTRY_SIZE	16
+
+/* Function to perform operations (read/write) on lmtst map table */
+static int lmtst_map_table_ops(struct rvu *rvu, u32 index, u64 *val,
+			       int lmt_tbl_op)
+{
+	void __iomem *lmt_map_base;
+	u64 tbl_base;
+
+	tbl_base = rvu_read64(rvu, BLKADDR_APR, APR_AF_LMT_MAP_BASE);
+
+	lmt_map_base = ioremap_wc(tbl_base, LMT_MAP_TABLE_SIZE);
+	if (!lmt_map_base) {
+		dev_err(rvu->dev, "Failed to setup lmt map table mapping!!\n");
+		return -ENOMEM;
+	}
+
+	if (lmt_tbl_op == LMT_TBL_OP_READ) {
+		*val = readq(lmt_map_base + index);
+	} else {
+		writeq((*val), (lmt_map_base + index));
+		/* Flushing the AP interceptor cache to make APR_LMT_MAP_ENTRY_S
+		 * changes effective. Write 1 for flush and read is being used as a
+		 * barrier and sets up a data dependency. Write to 0 after a write
+		 * to 1 to complete the flush.
+		 */
+		rvu_write64(rvu, BLKADDR_APR, APR_AF_LMT_CTL, BIT_ULL(0));
+		rvu_read64(rvu, BLKADDR_APR, APR_AF_LMT_CTL);
+		rvu_write64(rvu, BLKADDR_APR, APR_AF_LMT_CTL, 0x00);
+	}
+
+	iounmap(lmt_map_base);
+	return 0;
+}
+
+static u32 rvu_get_lmtst_tbl_index(struct rvu *rvu, u16 pcifunc)
+{
+	return ((rvu_get_pf(pcifunc) * rvu->hw->total_vfs) +
+		(pcifunc & RVU_PFVF_FUNC_MASK)) * LMT_MAPTBL_ENTRY_SIZE;
+}
+
+static int rvu_get_lmtaddr(struct rvu *rvu, u16 pcifunc,
+			   u64 iova, u64 *lmt_addr)
+{
+	u64 pa, val, pf;
+	int err;
+
+	if (!iova) {
+		dev_err(rvu->dev, "%s Requested Null address for transulation\n", __func__);
+		return -EINVAL;
+	}
+
+	rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_SMMU_ADDR_REQ, iova);
+	pf = rvu_get_pf(pcifunc) & 0x1F;
+	val = BIT_ULL(63) | BIT_ULL(14) | BIT_ULL(13) | pf << 8 |
+	      ((pcifunc & RVU_PFVF_FUNC_MASK) & 0xFF);
+	rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_SMMU_TXN_REQ, val);
+
+	err = rvu_poll_reg(rvu, BLKADDR_RVUM, RVU_AF_SMMU_ADDR_RSP_STS, BIT_ULL(0), false);
+	if (err) {
+		dev_err(rvu->dev, "%s LMTLINE iova transulation failed\n", __func__);
+		return err;
+	}
+	val = rvu_read64(rvu, BLKADDR_RVUM, RVU_AF_SMMU_ADDR_RSP_STS);
+	if (val & ~0x1ULL) {
+		dev_err(rvu->dev, "%s LMTLINE iova transulation failed err:%llx\n", __func__, val);
+		return -EIO;
+	}
+	/* PA[51:12] = RVU_AF_SMMU_TLN_FLIT1[60:21]
+	 * PA[11:0] = IOVA[11:0]
+	 */
+	pa = rvu_read64(rvu, BLKADDR_RVUM, RVU_AF_SMMU_TLN_FLIT1) >> 21;
+	pa &= GENMASK_ULL(39, 0);
+	*lmt_addr = (pa << 12) | (iova  & 0xFFF);
+
+	return 0;
+}
+
+static int rvu_update_lmtaddr(struct rvu *rvu, u16 pcifunc, u64 lmt_addr)
+{
+	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
+	u32 tbl_idx;
+	int err = 0;
+	u64 val;
+
+	/* Read the current lmt addr of pcifunc */
+	tbl_idx = rvu_get_lmtst_tbl_index(rvu, pcifunc);
+	err = lmtst_map_table_ops(rvu, tbl_idx, &val, LMT_TBL_OP_READ);
+	if (err) {
+		dev_err(rvu->dev,
+			"Failed to read LMT map table: index 0x%x err %d\n",
+			tbl_idx, err);
+		return err;
+	}
+
+	/* Storing the seondary's lmt base address as this needs to be
+	 * reverted in FLR. Also making sure this default value doesn't
+	 * get overwritten on multiple calls to this mailbox.
+	 */
+	if (!pfvf->lmt_base_addr)
+		pfvf->lmt_base_addr = val;
+
+	/* Update the LMT table with new addr */
+	err = lmtst_map_table_ops(rvu, tbl_idx, &lmt_addr, LMT_TBL_OP_WRITE);
+	if (err) {
+		dev_err(rvu->dev,
+			"Failed to update LMT map table: index 0x%x err %d\n",
+			tbl_idx, err);
+		return err;
+	}
+	return 0;
+}
+
+int rvu_mbox_handler_lmtst_tbl_setup(struct rvu *rvu,
+				     struct lmtst_tbl_setup_req *req,
+				     struct msg_rsp *rsp)
+{
+	u64 lmt_addr, val;
+	u32 pri_tbl_idx;
+	int err = 0;
+
+	/* Check if PF_FUNC wants to use it's own local memory as LMTLINE
+	 * region, if so, convert that IOVA to physical address and
+	 * populate LMT table with that address
+	 */
+	if (req->use_local_lmt_region) {
+		err = rvu_get_lmtaddr(rvu, req->hdr.pcifunc,
+				      req->lmt_iova, &lmt_addr);
+		if (err < 0)
+			return err;
+
+		/* Update the lmt addr for this PFFUNC in the LMT table */
+		err = rvu_update_lmtaddr(rvu, req->hdr.pcifunc, lmt_addr);
+		if (err)
+			return err;
+	}
+
+	/* Reconfiguring lmtst map table in lmt region shared mode i.e. make
+	 * multiple PF_FUNCs to share an LMTLINE region, so primary/base
+	 * pcifunc (which is passed as an argument to mailbox) is the one
+	 * whose lmt base address will be shared among other secondary
+	 * pcifunc (will be the one who is calling this mailbox).
+	 */
+	if (req->base_pcifunc) {
+		/* Calculating the LMT table index equivalent to primary
+		 * pcifunc.
+		 */
+		pri_tbl_idx = rvu_get_lmtst_tbl_index(rvu, req->base_pcifunc);
+
+		/* Read the base lmt addr of the primary pcifunc */
+		err = lmtst_map_table_ops(rvu, pri_tbl_idx, &val,
+					  LMT_TBL_OP_READ);
+		if (err) {
+			dev_err(rvu->dev,
+				"Failed to read LMT map table: index 0x%x err %d\n",
+				pri_tbl_idx, err);
+			return err;
+		}
+
+		/* Update the base lmt addr of secondary with primary's base
+		 * lmt addr.
+		 */
+		err = rvu_update_lmtaddr(rvu, req->hdr.pcifunc, val);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+/* Resetting the lmtst map table to original base addresses */
+void rvu_reset_lmt_map_tbl(struct rvu *rvu, u16 pcifunc)
+{
+	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
+	u32 tbl_idx;
+	int err;
+
+	if (is_rvu_otx2(rvu))
+		return;
+
+	if (pfvf->lmt_base_addr) {
+		/* This corresponds to lmt map table index */
+		tbl_idx = rvu_get_lmtst_tbl_index(rvu, pcifunc);
+		/* Reverting back original lmt base addr for respective
+		 * pcifunc.
+		 */
+		err = lmtst_map_table_ops(rvu, tbl_idx, &pfvf->lmt_base_addr,
+					  LMT_TBL_OP_WRITE);
+		if (err)
+			dev_err(rvu->dev,
+				"Failed to update LMT map table: index 0x%x err %d\n",
+				tbl_idx, err);
+		pfvf->lmt_base_addr = 0;
+	}
+}
+
 int rvu_set_channels_base(struct rvu *rvu)
 {
 	struct rvu_hwinfo *hw = rvu->hw;

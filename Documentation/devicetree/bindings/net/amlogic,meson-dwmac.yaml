@@ -43,7 +43,6 @@ allOf:
       properties:
         clocks:
           minItems: 3
-          maxItems: 4
           items:
             - description: GMAC main clock
             - description: First parent clock of the internal mux
@@ -52,7 +51,6 @@ allOf:
 
         clock-names:
           minItems: 3
-          maxItems: 4
           items:
             - const: stmmaceth
             - const: clkin0

@@ -1644,7 +1644,6 @@ static size_t br_get_linkxstats_size(const struct net_device *dev, int attr)
 		p = br_port_get_rtnl(dev);
 		if (!p)
 			return 0;
-		br = p->br;
 		vg = nbp_vlan_group(p);
 		break;
 	default:

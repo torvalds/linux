@@ -123,13 +123,13 @@ static int mei_cl_irq_read_msg(struct mei_cl *cl,
 
 	if (mei_hdr->extended) {
 		struct mei_ext_hdr *ext;
-		struct mei_ext_hdr *vtag = NULL;
+		struct mei_ext_hdr_vtag *vtag_hdr = NULL;
 
 		ext = mei_ext_begin(meta);
 		do {
 			switch (ext->type) {
 			case MEI_EXT_HDR_VTAG:
-				vtag = ext;
+				vtag_hdr = (struct mei_ext_hdr_vtag *)ext;
 				break;
 			case MEI_EXT_HDR_NONE:
 				fallthrough;
@@ -141,20 +141,20 @@ static int mei_cl_irq_read_msg(struct mei_cl *cl,
 			ext = mei_ext_next(ext);
 		} while (!mei_ext_last(meta, ext));
 
-		if (!vtag) {
+		if (!vtag_hdr) {
 			cl_dbg(dev, cl, "vtag not found in extended header.\n");
 			cb->status = -EPROTO;
 			goto discard;
 		}
 
-		cl_dbg(dev, cl, "vtag: %d\n", vtag->ext_payload[0]);
-		if (cb->vtag && cb->vtag != vtag->ext_payload[0]) {
+		cl_dbg(dev, cl, "vtag: %d\n", vtag_hdr->vtag);
+		if (cb->vtag && cb->vtag != vtag_hdr->vtag) {
 			cl_err(dev, cl, "mismatched tag: %d != %d\n",
-			       cb->vtag, vtag->ext_payload[0]);
+			       cb->vtag, vtag_hdr->vtag);
 			cb->status = -EPROTO;
 			goto discard;
 		}
-		cb->vtag = vtag->ext_payload[0];
+		cb->vtag = vtag_hdr->vtag;
 	}
 
 	if (!mei_cl_is_connected(cl)) {
@@ -331,7 +331,6 @@ int mei_irq_read_handler(struct mei_device *dev,
 	struct mei_ext_meta_hdr *meta_hdr = NULL;
 	struct mei_cl *cl;
 	int ret;
-	u32 ext_meta_hdr_u32;
 	u32 hdr_size_left;
 	u32 hdr_size_ext;
 	int i;
@@ -367,14 +366,12 @@ int mei_irq_read_handler(struct mei_device *dev,
 
 	if (mei_hdr->extended) {
 		if (!dev->rd_msg_hdr[1]) {
-			ext_meta_hdr_u32 = mei_read_hdr(dev);
-			dev->rd_msg_hdr[1] = ext_meta_hdr_u32;
+			dev->rd_msg_hdr[1] = mei_read_hdr(dev);
 			dev->rd_msg_hdr_count++;
 			(*slots)--;
-			dev_dbg(dev->dev, "extended header is %08x\n",
-				ext_meta_hdr_u32);
+			dev_dbg(dev->dev, "extended header is %08x\n", dev->rd_msg_hdr[1]);
 		}
-		meta_hdr = ((struct mei_ext_meta_hdr *)dev->rd_msg_hdr + 1);
+		meta_hdr = ((struct mei_ext_meta_hdr *)&dev->rd_msg_hdr[1]);
 		if (check_add_overflow((u32)sizeof(*meta_hdr),
 				       mei_slots2data(meta_hdr->size),
 				       &hdr_size_ext)) {

@@ -23,14 +23,12 @@ properties:
 
   interrupts:
     minItems: 1
-    maxItems: 2
     items:
       - description: RX interrupt
       - description: TX interrupt
 
   interrupt-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: rx
       - const: tx

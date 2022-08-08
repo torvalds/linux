@@ -314,7 +314,8 @@
 };
 
 &fimc_1 {
-	status = "okay";
+	/* Back camera not implemented */
+	status = "disabled";
 
 	assigned-clocks = <&clock CLK_MOUT_FIMC1>, <&clock CLK_SCLK_FIMC1>;
 	assigned-clock-parents = <&clock CLK_SCLK_MPLL>;
@@ -330,7 +331,8 @@
 };
 
 &fimc_3 {
-	status = "okay";
+	/* Back camera not implemented */
+	status = "disabled";
 
 	assigned-clocks = <&clock CLK_MOUT_FIMC3>, <&clock CLK_SCLK_FIMC3>;
 	assigned-clock-parents = <&clock CLK_SCLK_MPLL>;
@@ -806,7 +808,7 @@
 	pinctrl-0 = <&sd3_clk>, <&sd3_cmd>, <&sd3_bus4>;
 
 	brcmf: wifi@1 {
-		compatible = "brcm,bcm4330-fmac";
+		compatible = "brcm,bcm4330-fmac", "brcm,bcm4329-fmac";
 		reg = <1>;
 
 		interrupt-parent = <&gpx2>;

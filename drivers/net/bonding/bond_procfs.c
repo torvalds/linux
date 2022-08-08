@@ -112,6 +112,7 @@ static void bond_info_show_master(struct seq_file *seq)
 	/* ARP information */
 	if (bond->params.arp_interval > 0) {
 		int printed = 0;
+
 		seq_printf(seq, "ARP Polling Interval (ms): %d\n",
 				bond->params.arp_interval);
 

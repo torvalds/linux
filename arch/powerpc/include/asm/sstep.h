@@ -13,12 +13,11 @@ struct pt_regs;
  * we don't allow putting a breakpoint on an mtmsrd instruction.
  * Similarly we don't allow breakpoints on rfid instructions.
  * These macros tell us if an instruction is a mtmsrd or rfid.
- * Note that IS_MTMSRD returns true for both an mtmsr (32-bit)
- * and an mtmsrd (64-bit).
+ * Note that these return true for both mtmsr/rfi (32-bit)
+ * and mtmsrd/rfid (64-bit).
  */
 #define IS_MTMSRD(instr)	((ppc_inst_val(instr) & 0xfc0007be) == 0x7c000124)
-#define IS_RFID(instr)		((ppc_inst_val(instr) & 0xfc0007fe) == 0x4c000024)
-#define IS_RFI(instr)		((ppc_inst_val(instr) & 0xfc0007fe) == 0x4c000064)
+#define IS_RFID(instr)		((ppc_inst_val(instr) & 0xfc0007be) == 0x4c000024)
 
 enum instruction_type {
 	COMPUTE,		/* arith/logical/CR op, etc. */

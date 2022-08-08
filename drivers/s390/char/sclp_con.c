@@ -10,6 +10,7 @@
 #include <linux/kmod.h>
 #include <linux/console.h>
 #include <linux/init.h>
+#include <linux/panic_notifier.h>
 #include <linux/timer.h>
 #include <linux/jiffies.h>
 #include <linux/termios.h>
@@ -35,8 +36,6 @@ static LIST_HEAD(sclp_con_outqueue);
 static struct sclp_buffer *sclp_conbuf;
 /* Timer for delayed output of console messages */
 static struct timer_list sclp_con_timer;
-/* Suspend mode flag */
-static int sclp_con_suspended;
 /* Flag that output queue is currently running */
 static int sclp_con_queue_running;
 
@@ -63,7 +62,7 @@ sclp_conbuf_callback(struct sclp_buffer *buffer, int rc)
 		if (!list_empty(&sclp_con_outqueue))
 			buffer = list_first_entry(&sclp_con_outqueue,
 						  struct sclp_buffer, list);
-		if (!buffer || sclp_con_suspended) {
+		if (!buffer) {
 			sclp_con_queue_running = 0;
 			spin_unlock_irqrestore(&sclp_con_lock, flags);
 			break;
@@ -85,7 +84,7 @@ static void sclp_conbuf_emit(void)
 	if (sclp_conbuf)
 		list_add_tail(&sclp_conbuf->list, &sclp_con_outqueue);
 	sclp_conbuf = NULL;
-	if (sclp_con_queue_running || sclp_con_suspended)
+	if (sclp_con_queue_running)
 		goto out_unlock;
 	if (list_empty(&sclp_con_outqueue))
 		goto out_unlock;
@@ -179,8 +178,6 @@ sclp_console_write(struct console *console, const char *message,
 			if (list_empty(&sclp_con_pages))
 				sclp_console_full++;
 			while (list_empty(&sclp_con_pages)) {
-				if (sclp_con_suspended)
-					goto out;
 				if (sclp_console_drop_buffer())
 					break;
 				spin_unlock_irqrestore(&sclp_con_lock, flags);
@@ -213,7 +210,6 @@ sclp_console_write(struct console *console, const char *message,
 	    !timer_pending(&sclp_con_timer)) {
 		mod_timer(&sclp_con_timer, jiffies + HZ / 10);
 	}
-out:
 	spin_unlock_irqrestore(&sclp_con_lock, flags);
 }
 
@@ -234,32 +230,6 @@ sclp_console_flush(void)
 	sclp_console_sync_queue();
 }
 
-/*
- * Resume console: If there are cached messages, emit them.
- */
-static void sclp_console_resume(void)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&sclp_con_lock, flags);
-	sclp_con_suspended = 0;
-	spin_unlock_irqrestore(&sclp_con_lock, flags);
-	sclp_conbuf_emit();
-}
-
-/*
- * Suspend console: Set suspend flag and flush console
- */
-static void sclp_console_suspend(void)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&sclp_con_lock, flags);
-	sclp_con_suspended = 1;
-	spin_unlock_irqrestore(&sclp_con_lock, flags);
-	sclp_console_flush();
-}
-
 static int sclp_console_notify(struct notifier_block *self,
 			       unsigned long event, void *data)
 {
@@ -269,7 +239,7 @@ static int sclp_console_notify(struct notifier_block *self,
 
 static struct notifier_block on_panic_nb = {
 	.notifier_call = sclp_console_notify,
-	.priority = SCLP_PANIC_PRIO_CLIENT,
+	.priority = 1,
 };
 
 static struct notifier_block on_reboot_nb = {
@@ -289,22 +259,6 @@ static struct console sclp_console =
 	.flags = CON_PRINTBUFFER,
 	.index = 0 /* ttyS0 */
 };
-
-/*
- * This function is called for SCLP suspend and resume events.
- */
-void sclp_console_pm_event(enum sclp_pm_event sclp_pm_event)
-{
-	switch (sclp_pm_event) {
-	case SCLP_PM_EVENT_FREEZE:
-		sclp_console_suspend();
-		break;
-	case SCLP_PM_EVENT_RESTORE:
-	case SCLP_PM_EVENT_THAW:
-		sclp_console_resume();
-		break;
-	}
-}
 
 /*
  * called by console_init() in drivers/char/tty_io.c at boot-time.

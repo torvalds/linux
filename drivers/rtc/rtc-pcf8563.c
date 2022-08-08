@@ -8,7 +8,7 @@
  *
  * based on the other drivers in this same directory.
  *
- * http://www.semiconductors.philips.com/acrobat/datasheets/PCF8563-04.pdf
+ * https://www.nxp.com/docs/en/data-sheet/PCF8563.pdf
  */
 
 #include <linux/clk-provider.h>

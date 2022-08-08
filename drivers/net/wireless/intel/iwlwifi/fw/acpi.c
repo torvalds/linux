@@ -163,6 +163,27 @@ int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_dsm_u8);
 
+/*
+ * Evaluate a DSM with no arguments and a u32 return value,
+ */
+int iwl_acpi_get_dsm_u32(struct device *dev, int rev, int func,
+			 const guid_t *guid, u32 *value)
+{
+	int ret;
+	u64 val;
+
+	ret = iwl_acpi_get_dsm_integer(dev, rev, func,
+				       guid, &val, sizeof(u32));
+
+	if (ret < 0)
+		return ret;
+
+	/* cast val (u64) to be u32 */
+	*value = (u32)val;
+	return 0;
+}
+IWL_EXPORT_SYMBOL(iwl_acpi_get_dsm_u32);
+
 union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 					 union acpi_object *data,
 					 int data_size, int *tbl_rev)
@@ -696,68 +717,37 @@ int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 }
 IWL_EXPORT_SYMBOL(iwl_sar_geo_init);
 
-static u32 iwl_acpi_eval_dsm_func(struct device *dev, enum iwl_dsm_funcs_rev_0 eval_func)
-{
-	union acpi_object *obj;
-	u32 ret;
-
-	obj = iwl_acpi_get_dsm_object(dev, 0,
-				      eval_func, NULL,
-				      &iwl_guid);
-
-	if (IS_ERR(obj)) {
-		IWL_DEBUG_DEV_RADIO(dev,
-				    "ACPI: DSM func '%d': Got Error in obj = %ld\n",
-				    eval_func,
-				    PTR_ERR(obj));
-		return 0;
-	}
-
-	if (obj->type != ACPI_TYPE_INTEGER) {
-		IWL_DEBUG_DEV_RADIO(dev,
-				    "ACPI: DSM func '%d' did not return a valid object, type=%d\n",
-				    eval_func,
-				    obj->type);
-		ret = 0;
-		goto out;
-	}
-
-	ret = obj->integer.value;
-	IWL_DEBUG_DEV_RADIO(dev,
-			    "ACPI: DSM method evaluated: func='%d', ret=%d\n",
-			    eval_func,
-			    ret);
-out:
-	ACPI_FREE(obj);
-	return ret;
-}
-
 __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 {
-	u32 ret;
+	int ret;
+	u8 value;
 	__le32 config_bitmap = 0;
 
 	/*
 	 ** Evaluate func 'DSM_FUNC_ENABLE_INDONESIA_5G2'
 	 */
-	ret = iwl_acpi_eval_dsm_func(fwrt->dev, DSM_FUNC_ENABLE_INDONESIA_5G2);
+	ret = iwl_acpi_get_dsm_u8(fwrt->dev, 0,
+				  DSM_FUNC_ENABLE_INDONESIA_5G2,
+				  &iwl_guid, &value);
 
-	if (ret == DSM_VALUE_INDONESIA_ENABLE)
+	if (!ret && value == DSM_VALUE_INDONESIA_ENABLE)
 		config_bitmap |=
 			cpu_to_le32(LARI_CONFIG_ENABLE_5G2_IN_INDONESIA_MSK);
 
 	/*
 	 ** Evaluate func 'DSM_FUNC_DISABLE_SRD'
 	 */
-	ret = iwl_acpi_eval_dsm_func(fwrt->dev, DSM_FUNC_DISABLE_SRD);
-
-	if (ret == DSM_VALUE_SRD_PASSIVE)
-		config_bitmap |=
-			cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_PASSIVE_MSK);
-
-	else if (ret == DSM_VALUE_SRD_DISABLE)
-		config_bitmap |=
-			cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK);
+	ret = iwl_acpi_get_dsm_u8(fwrt->dev, 0,
+				  DSM_FUNC_DISABLE_SRD,
+				  &iwl_guid, &value);
+	if (!ret) {
+		if (value == DSM_VALUE_SRD_PASSIVE)
+			config_bitmap |=
+				cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_PASSIVE_MSK);
+		else if (value == DSM_VALUE_SRD_DISABLE)
+			config_bitmap |=
+				cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK);
+	}
 
 	return config_bitmap;
 }

@@ -1657,14 +1657,13 @@ static inline void restore_spu_mb(struct spu_state *csa, struct spu *spu)
 static inline void check_ppu_mb_stat(struct spu_state *csa, struct spu *spu)
 {
 	struct spu_problem __iomem *prob = spu->problem;
-	u32 dummy = 0;
 
 	/* Restore, Step 66:
 	 *     If CSA.MB_Stat[P]=0 (mailbox empty) then
 	 *     read from the PPU_MB register.
 	 */
 	if ((csa->prob.mb_stat_R & 0xFF) == 0) {
-		dummy = in_be32(&prob->pu_mb_R);
+		in_be32(&prob->pu_mb_R);
 		eieio();
 	}
 }
@@ -1672,14 +1671,13 @@ static inline void check_ppu_mb_stat(struct spu_state *csa, struct spu *spu)
 static inline void check_ppuint_mb_stat(struct spu_state *csa, struct spu *spu)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
-	u64 dummy = 0UL;
 
 	/* Restore, Step 66:
 	 *     If CSA.MB_Stat[I]=0 (mailbox empty) then
 	 *     read from the PPUINT_MB register.
 	 */
 	if ((csa->prob.mb_stat_R & 0xFF0000) == 0) {
-		dummy = in_be64(&priv2->puint_mb_R);
+		in_be64(&priv2->puint_mb_R);
 		eieio();
 		spu_int_stat_clear(spu, 2, CLASS2_ENABLE_MAILBOX_INTR);
 		eieio();

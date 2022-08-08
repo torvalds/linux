@@ -2,6 +2,8 @@
 #ifndef __XFS_MESSAGE_H
 #define __XFS_MESSAGE_H 1
 
+#include <linux/once_lite.h>
+
 struct xfs_mount;
 
 extern __printf(2, 3)
@@ -41,16 +43,7 @@ do {									\
 } while (0)
 
 #define xfs_printk_once(func, dev, fmt, ...)			\
-({								\
-	static bool __section(".data.once") __print_once;	\
-	bool __ret_print_once = !__print_once; 			\
-								\
-	if (!__print_once) {					\
-		__print_once = true;				\
-		func(dev, fmt, ##__VA_ARGS__);			\
-	}							\
-	unlikely(__ret_print_once);				\
-})
+	DO_ONCE_LITE(func, dev, fmt, ##__VA_ARGS__)
 
 #define xfs_emerg_ratelimited(dev, fmt, ...)				\
 	xfs_printk_ratelimited(xfs_emerg, dev, fmt, ##__VA_ARGS__)

@@ -12,6 +12,8 @@ import sys
 import os
 import time
 
+assert sys.version_info >= (3, 7), "Python version is too old"
+
 from collections import namedtuple
 from enum import Enum, auto
 
@@ -70,10 +72,10 @@ def build_tests(linux: kunit_kernel.LinuxSourceTree,
 	kunit_parser.print_with_timestamp('Building KUnit Kernel ...')
 
 	build_start = time.time()
-	success = linux.build_um_kernel(request.alltests,
-					request.jobs,
-					request.build_dir,
-					request.make_options)
+	success = linux.build_kernel(request.alltests,
+				     request.jobs,
+				     request.build_dir,
+				     request.make_options)
 	build_end = time.time()
 	if not success:
 		return KunitResult(KunitStatus.BUILD_FAILURE,
@@ -189,6 +191,31 @@ def add_common_opts(parser) -> None:
 			     'will get  automatically appended.',
 			     metavar='kunitconfig')
 
+	parser.add_argument('--arch',
+			    help=('Specifies the architecture to run tests under. '
+				  'The architecture specified here must match the '
+				  'string passed to the ARCH make param, '
+				  'e.g. i386, x86_64, arm, um, etc. Non-UML '
+				  'architectures run on QEMU.'),
+			    type=str, default='um', metavar='arch')
+
+	parser.add_argument('--cross_compile',
+			    help=('Sets make\'s CROSS_COMPILE variable; it should '
+				  'be set to a toolchain path prefix (the prefix '
+				  'of gcc and other tools in your toolchain, for '
+				  'example `sparc64-linux-gnu-` if you have the '
+				  'sparc toolchain installed on your system, or '
+				  '`$HOME/toolchains/microblaze/gcc-9.2.0-nolibc/microblaze-linux/bin/microblaze-linux-` '
+				  'if you have downloaded the microblaze toolchain '
+				  'from the 0-day website to a directory in your '
+				  'home directory called `toolchains`).'),
+			    metavar='cross_compile')
+
+	parser.add_argument('--qemu_config',
+			    help=('Takes a path to a path to a file containing '
+				  'a QemuArchParams object.'),
+			    type=str, metavar='qemu_config')
+
 def add_build_opts(parser) -> None:
 	parser.add_argument('--jobs',
 			    help='As in the make command, "Specifies  the number of '
@@ -270,7 +297,11 @@ def main(argv, linux=None):
 			os.mkdir(cli_args.build_dir)
 
 		if not linux:
-			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir, kunitconfig_path=cli_args.kunitconfig)
+			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir,
+					kunitconfig_path=cli_args.kunitconfig,
+					arch=cli_args.arch,
+					cross_compile=cli_args.cross_compile,
+					qemu_config_path=cli_args.qemu_config)
 
 		request = KunitRequest(cli_args.raw_output,
 				       cli_args.timeout,
@@ -289,7 +320,11 @@ def main(argv, linux=None):
 			os.mkdir(cli_args.build_dir)
 
 		if not linux:
-			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir, kunitconfig_path=cli_args.kunitconfig)
+			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir,
+					kunitconfig_path=cli_args.kunitconfig,
+					arch=cli_args.arch,
+					cross_compile=cli_args.cross_compile,
+					qemu_config_path=cli_args.qemu_config)
 
 		request = KunitConfigRequest(cli_args.build_dir,
 					     cli_args.make_options)
@@ -301,7 +336,11 @@ def main(argv, linux=None):
 			sys.exit(1)
 	elif cli_args.subcommand == 'build':
 		if not linux:
-			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir, kunitconfig_path=cli_args.kunitconfig)
+			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir,
+					kunitconfig_path=cli_args.kunitconfig,
+					arch=cli_args.arch,
+					cross_compile=cli_args.cross_compile,
+					qemu_config_path=cli_args.qemu_config)
 
 		request = KunitBuildRequest(cli_args.jobs,
 					    cli_args.build_dir,
@@ -315,7 +354,11 @@ def main(argv, linux=None):
 			sys.exit(1)
 	elif cli_args.subcommand == 'exec':
 		if not linux:
-			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir)
+			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir,
+					kunitconfig_path=cli_args.kunitconfig,
+					arch=cli_args.arch,
+					cross_compile=cli_args.cross_compile,
+					qemu_config_path=cli_args.qemu_config)
 
 		exec_request = KunitExecRequest(cli_args.timeout,
 						cli_args.build_dir,

@@ -48,7 +48,8 @@ static int snd_pmac_probe(struct platform_device *devptr)
 	if (err < 0)
 		return err;
 
-	if ((err = snd_pmac_new(card, &chip)) < 0)
+	err = snd_pmac_new(card, &chip);
+	if (err < 0)
 		goto __error;
 	card->private_data = chip;
 
@@ -58,7 +59,8 @@ static int snd_pmac_probe(struct platform_device *devptr)
 		strcpy(card->shortname, "PowerMac Burgundy");
 		sprintf(card->longname, "%s (Dev %d) Sub-frame %d",
 			card->shortname, chip->device_id, chip->subframe);
-		if ((err = snd_pmac_burgundy_init(chip)) < 0)
+		err = snd_pmac_burgundy_init(chip);
+		if (err < 0)
 			goto __error;
 		break;
 	case PMAC_DACA:
@@ -66,7 +68,8 @@ static int snd_pmac_probe(struct platform_device *devptr)
 		strcpy(card->shortname, "PowerMac DACA");
 		sprintf(card->longname, "%s (Dev %d) Sub-frame %d",
 			card->shortname, chip->device_id, chip->subframe);
-		if ((err = snd_pmac_daca_init(chip)) < 0)
+		err = snd_pmac_daca_init(chip);
+		if (err < 0)
 			goto __error;
 		break;
 	case PMAC_TUMBLER:
@@ -76,7 +79,11 @@ static int snd_pmac_probe(struct platform_device *devptr)
 		sprintf(card->shortname, "PowerMac %s", name_ext);
 		sprintf(card->longname, "%s (Dev %d) Sub-frame %d",
 			card->shortname, chip->device_id, chip->subframe);
-		if ( snd_pmac_tumbler_init(chip) < 0 || snd_pmac_tumbler_post_init() < 0)
+		err = snd_pmac_tumbler_init(chip);
+		if (err < 0)
+			goto __error;
+		err = snd_pmac_tumbler_post_init();
+		if (err < 0)
 			goto __error;
 		break;
 	case PMAC_AWACS:
@@ -92,7 +99,8 @@ static int snd_pmac_probe(struct platform_device *devptr)
 			name_ext = "";
 		sprintf(card->longname, "%s%s Rev %d",
 			card->shortname, name_ext, chip->revision);
-		if ((err = snd_pmac_awacs_init(chip)) < 0)
+		err = snd_pmac_awacs_init(chip);
+		if (err < 0)
 			goto __error;
 		break;
 	default:
@@ -101,14 +109,16 @@ static int snd_pmac_probe(struct platform_device *devptr)
 		goto __error;
 	}
 
-	if ((err = snd_pmac_pcm_new(chip)) < 0)
+	err = snd_pmac_pcm_new(chip);
+	if (err < 0)
 		goto __error;
 
 	chip->initialized = 1;
 	if (enable_beep)
 		snd_pmac_attach_beep(chip);
 
-	if ((err = snd_card_register(card)) < 0)
+	err = snd_card_register(card);
+	if (err < 0)
 		goto __error;
 
 	platform_set_drvdata(devptr, card);
@@ -162,7 +172,8 @@ static int __init alsa_card_pmac_init(void)
 {
 	int err;
 
-	if ((err = platform_driver_register(&snd_pmac_driver)) < 0)
+	err = platform_driver_register(&snd_pmac_driver);
+	if (err < 0)
 		return err;
 	device = platform_device_register_simple(SND_PMAC_DRIVER, -1, NULL, 0);
 	return 0;

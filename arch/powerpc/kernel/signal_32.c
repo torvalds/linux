@@ -354,14 +354,8 @@ static void prepare_save_tm_user_regs(void)
 {
 	WARN_ON(tm_suspend_disabled);
 
-#ifdef CONFIG_ALTIVEC
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		current->thread.ckvrsave = mfspr(SPRN_VRSAVE);
-#endif
-#ifdef CONFIG_SPE
-	if (current->thread.used_spe)
-		flush_spe_to_thread(current);
-#endif
 }
 
 static int save_tm_user_regs_unsafe(struct pt_regs *regs, struct mcontext __user *frame,
@@ -379,7 +373,6 @@ static int save_tm_user_regs_unsafe(struct pt_regs *regs, struct mcontext __user
 	 */
 	unsafe_put_user((msr >> 32), &tm_frame->mc_gregs[PT_MSR], failed);
 
-#ifdef CONFIG_ALTIVEC
 	/* save altivec registers */
 	if (current->thread.used_vr) {
 		unsafe_copy_to_user(&frame->mc_vregs, &current->thread.ckvr_state,
@@ -412,7 +405,6 @@ static int save_tm_user_regs_unsafe(struct pt_regs *regs, struct mcontext __user
 	else
 		unsafe_put_user(current->thread.ckvrsave,
 				(u32 __user *)&tm_frame->mc_vregs[32], failed);
-#endif /* CONFIG_ALTIVEC */
 
 	unsafe_copy_ckfpr_to_user(&frame->mc_fregs, current, failed);
 	if (msr & MSR_FP)
@@ -420,7 +412,6 @@ static int save_tm_user_regs_unsafe(struct pt_regs *regs, struct mcontext __user
 	else
 		unsafe_copy_ckfpr_to_user(&tm_frame->mc_fregs, current, failed);
 
-#ifdef CONFIG_VSX
 	/*
 	 * Copy VSR 0-31 upper half from thread_struct to local
 	 * buffer, then write that to userspace.  Also set MSR_VSX in
@@ -436,23 +427,6 @@ static int save_tm_user_regs_unsafe(struct pt_regs *regs, struct mcontext __user
 
 		msr |= MSR_VSX;
 	}
-#endif /* CONFIG_VSX */
-#ifdef CONFIG_SPE
-	/* SPE regs are not checkpointed with TM, so this section is
-	 * simply the same as in __unsafe_save_user_regs().
-	 */
-	if (current->thread.used_spe) {
-		unsafe_copy_to_user(&frame->mc_vregs, current->thread.evr,
-				    ELF_NEVRREG * sizeof(u32), failed);
-		/* set MSR_SPE in the saved MSR value to indicate that
-		 * frame->mc_vregs contains valid data */
-		msr |= MSR_SPE;
-	}
-
-	/* We always copy to/from spefscr */
-	unsafe_put_user(current->thread.spefscr,
-			(u32 __user *)&frame->mc_vregs + ELF_NEVRREG, failed);
-#endif /* CONFIG_SPE */
 
 	unsafe_put_user(msr, &frame->mc_gregs[PT_MSR], failed);
 
@@ -505,14 +479,14 @@ static long restore_user_regs(struct pt_regs *regs,
 
 	/* if doing signal return, restore the previous little-endian mode */
 	if (sig)
-		regs->msr = (regs->msr & ~MSR_LE) | (msr & MSR_LE);
+		regs_set_return_msr(regs, (regs->msr & ~MSR_LE) | (msr & MSR_LE));
 
 #ifdef CONFIG_ALTIVEC
 	/*
 	 * Force the process to reload the altivec registers from
 	 * current->thread when it next does altivec instructions
 	 */
-	regs->msr &= ~MSR_VEC;
+	regs_set_return_msr(regs, regs->msr & ~MSR_VEC);
 	if (msr & MSR_VEC) {
 		/* restore altivec registers from the stack */
 		unsafe_copy_from_user(&current->thread.vr_state, &sr->mc_vregs,
@@ -534,7 +508,7 @@ static long restore_user_regs(struct pt_regs *regs,
 	 * Force the process to reload the VSX registers from
 	 * current->thread when it next does VSX instruction.
 	 */
-	regs->msr &= ~MSR_VSX;
+	regs_set_return_msr(regs, regs->msr & ~MSR_VSX);
 	if (msr & MSR_VSX) {
 		/*
 		 * Restore altivec registers from the stack to a local
@@ -550,12 +524,12 @@ static long restore_user_regs(struct pt_regs *regs,
 	 * force the process to reload the FP registers from
 	 * current->thread when it next does FP instructions
 	 */
-	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1);
+	regs_set_return_msr(regs, regs->msr & ~(MSR_FP | MSR_FE0 | MSR_FE1));
 
 #ifdef CONFIG_SPE
 	/* force the process to reload the spe registers from
 	   current->thread when it next does spe instructions */
-	regs->msr &= ~MSR_SPE;
+	regs_set_return_msr(regs, regs->msr & ~MSR_SPE);
 	if (msr & MSR_SPE) {
 		/* restore spe registers from the stack */
 		unsafe_copy_from_user(current->thread.evr, &sr->mc_vregs,
@@ -587,9 +561,7 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 				 struct mcontext __user *tm_sr)
 {
 	unsigned long msr, msr_hi;
-#ifdef CONFIG_VSX
 	int i;
-#endif
 
 	if (tm_suspend_disabled)
 		return 1;
@@ -608,10 +580,9 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	unsafe_get_user(msr, &sr->mc_gregs[PT_MSR], failed);
 
 	/* Restore the previous little-endian mode */
-	regs->msr = (regs->msr & ~MSR_LE) | (msr & MSR_LE);
+	regs_set_return_msr(regs, (regs->msr & ~MSR_LE) | (msr & MSR_LE));
 
-#ifdef CONFIG_ALTIVEC
-	regs->msr &= ~MSR_VEC;
+	regs_set_return_msr(regs, regs->msr & ~MSR_VEC);
 	if (msr & MSR_VEC) {
 		/* restore altivec registers from the stack */
 		unsafe_copy_from_user(&current->thread.ckvr_state, &sr->mc_vregs,
@@ -629,14 +600,12 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 			(u32 __user *)&sr->mc_vregs[32], failed);
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		mtspr(SPRN_VRSAVE, current->thread.ckvrsave);
-#endif /* CONFIG_ALTIVEC */
 
-	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1);
+	regs_set_return_msr(regs, regs->msr & ~(MSR_FP | MSR_FE0 | MSR_FE1));
 
 	unsafe_copy_fpr_from_user(current, &sr->mc_fregs, failed);
 
-#ifdef CONFIG_VSX
-	regs->msr &= ~MSR_VSX;
+	regs_set_return_msr(regs, regs->msr & ~MSR_VSX);
 	if (msr & MSR_VSX) {
 		/*
 		 * Restore altivec registers from the stack to a local
@@ -649,24 +618,6 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 			current->thread.fp_state.fpr[i][TS_VSRLOWOFFSET] = 0;
 			current->thread.ckfp_state.fpr[i][TS_VSRLOWOFFSET] = 0;
 		}
-#endif /* CONFIG_VSX */
-
-#ifdef CONFIG_SPE
-	/* SPE regs are not checkpointed with TM, so this section is
-	 * simply the same as in restore_user_regs().
-	 */
-	regs->msr &= ~MSR_SPE;
-	if (msr & MSR_SPE) {
-		unsafe_copy_from_user(current->thread.evr, &sr->mc_vregs,
-				      ELF_NEVRREG * sizeof(u32), failed);
-		current->thread.used_spe = true;
-	} else if (current->thread.used_spe)
-		memset(current->thread.evr, 0, ELF_NEVRREG * sizeof(u32));
-
-	/* Always get SPEFSCR back */
-	unsafe_get_user(current->thread.spefscr,
-			(u32 __user *)&sr->mc_vregs + ELF_NEVRREG, failed);
-#endif /* CONFIG_SPE */
 
 	user_read_access_end();
 
@@ -675,7 +626,6 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 
 	unsafe_restore_general_regs(regs, tm_sr, failed);
 
-#ifdef CONFIG_ALTIVEC
 	/* restore altivec registers from the stack */
 	if (msr & MSR_VEC)
 		unsafe_copy_from_user(&current->thread.vr_state, &tm_sr->mc_vregs,
@@ -684,11 +634,9 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	/* Always get VRSAVE back */
 	unsafe_get_user(current->thread.vrsave,
 			(u32 __user *)&tm_sr->mc_vregs[32], failed);
-#endif /* CONFIG_ALTIVEC */
 
 	unsafe_copy_ckfpr_from_user(current, &tm_sr->mc_fregs, failed);
 
-#ifdef CONFIG_VSX
 	if (msr & MSR_VSX) {
 		/*
 		 * Restore altivec registers from the stack to a local
@@ -697,7 +645,6 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 		unsafe_copy_vsx_from_user(current, &tm_sr->mc_vsregs, failed);
 		current->thread.used_vsr = true;
 	}
-#endif /* CONFIG_VSX */
 
 	/* Get the top half of the MSR from the user context */
 	unsafe_get_user(msr_hi, &tm_sr->mc_gregs[PT_MSR], failed);
@@ -725,7 +672,7 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	 *
 	 * Pull in the MSR TM bits from the user context
 	 */
-	regs->msr = (regs->msr & ~MSR_TS_MASK) | (msr_hi & MSR_TS_MASK);
+	regs_set_return_msr(regs, (regs->msr & ~MSR_TS_MASK) | (msr_hi & MSR_TS_MASK));
 	/* Now, recheckpoint.  This loads up all of the checkpointed (older)
 	 * registers, including FP and V[S]Rs.  After recheckpointing, the
 	 * transactional versions should be loaded.
@@ -740,14 +687,12 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	msr_check_and_set(msr & (MSR_FP | MSR_VEC));
 	if (msr & MSR_FP) {
 		load_fp_state(&current->thread.fp_state);
-		regs->msr |= (MSR_FP | current->thread.fpexc_mode);
+		regs_set_return_msr(regs, regs->msr | (MSR_FP | current->thread.fpexc_mode));
 	}
-#ifdef CONFIG_ALTIVEC
 	if (msr & MSR_VEC) {
 		load_vr_state(&current->thread.vr_state);
-		regs->msr |= MSR_VEC;
+		regs_set_return_msr(regs, regs->msr | MSR_VEC);
 	}
-#endif
 
 	preempt_enable();
 
@@ -828,10 +773,8 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 		tramp = VDSO32_SYMBOL(tsk->mm->context.vdso, sigtramp_rt32);
 	} else {
 		tramp = (unsigned long)mctx->mc_pad;
-		/* Set up the sigreturn trampoline: li r0,sigret; sc */
-		unsafe_put_user(PPC_INST_ADDI + __NR_rt_sigreturn, &mctx->mc_pad[0],
-				failed);
-		unsafe_put_user(PPC_INST_SC, &mctx->mc_pad[1], failed);
+		unsafe_put_user(PPC_RAW_LI(_R0, __NR_rt_sigreturn), &mctx->mc_pad[0], failed);
+		unsafe_put_user(PPC_RAW_SC(), &mctx->mc_pad[1], failed);
 		asm("dcbst %y0; sync; icbi %y0; sync" :: "Z" (mctx->mc_pad[0]));
 	}
 	unsafe_put_sigset_t(&frame->uc.uc_sigmask, oldset, failed);
@@ -858,10 +801,10 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	regs->gpr[4] = (unsigned long)&frame->info;
 	regs->gpr[5] = (unsigned long)&frame->uc;
 	regs->gpr[6] = (unsigned long)frame;
-	regs->nip = (unsigned long) ksig->ka.sa.sa_handler;
+	regs_set_return_ip(regs, (unsigned long) ksig->ka.sa.sa_handler);
 	/* enter the signal handler in native-endian mode */
-	regs->msr &= ~MSR_LE;
-	regs->msr |= (MSR_KERNEL & MSR_LE);
+	regs_set_return_msr(regs, (regs->msr & ~MSR_LE) | (MSR_KERNEL & MSR_LE));
+
 	return 0;
 
 failed:
@@ -926,9 +869,8 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 		tramp = VDSO32_SYMBOL(tsk->mm->context.vdso, sigtramp32);
 	} else {
 		tramp = (unsigned long)mctx->mc_pad;
-		/* Set up the sigreturn trampoline: li r0,sigret; sc */
-		unsafe_put_user(PPC_INST_ADDI + __NR_sigreturn, &mctx->mc_pad[0], failed);
-		unsafe_put_user(PPC_INST_SC, &mctx->mc_pad[1], failed);
+		unsafe_put_user(PPC_RAW_LI(_R0, __NR_sigreturn), &mctx->mc_pad[0], failed);
+		unsafe_put_user(PPC_RAW_SC(), &mctx->mc_pad[1], failed);
 		asm("dcbst %y0; sync; icbi %y0; sync" :: "Z" (mctx->mc_pad[0]));
 	}
 	user_access_end();
@@ -947,10 +889,10 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 	regs->gpr[1] = newsp;
 	regs->gpr[3] = ksig->sig;
 	regs->gpr[4] = (unsigned long) sc;
-	regs->nip = (unsigned long)ksig->ka.sa.sa_handler;
+	regs_set_return_ip(regs, (unsigned long) ksig->ka.sa.sa_handler);
 	/* enter the signal handler in native-endian mode */
-	regs->msr &= ~MSR_LE;
-	regs->msr |= (MSR_KERNEL & MSR_LE);
+	regs_set_return_msr(regs, (regs->msr & ~MSR_LE) | (MSR_KERNEL & MSR_LE));
+
 	return 0;
 
 failed:
@@ -1200,7 +1142,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 		 * set, and recheckpoint was not called. This avoid
 		 * hitting a TM Bad thing at RFID
 		 */
-		regs->msr &= ~MSR_TS_MASK;
+		regs_set_return_msr(regs, regs->msr & ~MSR_TS_MASK);
 	}
 	/* Fall through, for non-TM restore */
 #endif
@@ -1289,7 +1231,7 @@ SYSCALL_DEFINE3(debug_setcontext, struct ucontext __user *, ctx,
 	   affect the contents of these registers.  After this point,
 	   failure is a problem, anyway, and it's very unlikely unless
 	   the user is really doing something wrong. */
-	regs->msr = new_msr;
+	regs_set_return_msr(regs, new_msr);
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	current->thread.debug.dbcr0 = new_dbcr0;
 #endif

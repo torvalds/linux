@@ -279,7 +279,6 @@ int init_credit_return(struct hfi1_devdata *dd);
 void free_credit_return(struct hfi1_devdata *dd);
 int init_sc_pools_and_sizes(struct hfi1_devdata *dd);
 int init_send_contexts(struct hfi1_devdata *dd);
-int init_credit_return(struct hfi1_devdata *dd);
 int init_pervl_scs(struct hfi1_devdata *dd);
 struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 			      uint hdrqentsize, int numa);
@@ -294,7 +293,6 @@ void sc_stop(struct send_context *sc, int bit);
 struct pio_buf *sc_buffer_alloc(struct send_context *sc, u32 dw_len,
 				pio_release_cb cb, void *arg);
 void sc_release_update(struct send_context *sc);
-void sc_return_credits(struct send_context *sc);
 void sc_group_release_update(struct hfi1_devdata *dd, u32 hw_context);
 void sc_add_credit_return_intr(struct send_context *sc);
 void sc_del_credit_return_intr(struct send_context *sc);

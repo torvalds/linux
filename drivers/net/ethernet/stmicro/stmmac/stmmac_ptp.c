@@ -62,7 +62,8 @@ static int stmmac_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 	u32 sec, nsec;
 	u32 quotient, reminder;
 	int neg_adj = 0;
-	bool xmac;
+	bool xmac, est_rst = false;
+	int ret;
 
 	xmac = priv->plat->has_gmac4 || priv->plat->has_xgmac;
 
@@ -75,9 +76,47 @@ static int stmmac_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 	sec = quotient;
 	nsec = reminder;
 
+	/* If EST is enabled, disabled it before adjust ptp time. */
+	if (priv->plat->est && priv->plat->est->enable) {
+		est_rst = true;
+		mutex_lock(&priv->plat->est->lock);
+		priv->plat->est->enable = false;
+		stmmac_est_configure(priv, priv->ioaddr, priv->plat->est,
+				     priv->plat->clk_ptp_rate);
+		mutex_unlock(&priv->plat->est->lock);
+	}
+
 	spin_lock_irqsave(&priv->ptp_lock, flags);
 	stmmac_adjust_systime(priv, priv->ptpaddr, sec, nsec, neg_adj, xmac);
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
+
+	/* Caculate new basetime and re-configured EST after PTP time adjust. */
+	if (est_rst) {
+		struct timespec64 current_time, time;
+		ktime_t current_time_ns, basetime;
+		u64 cycle_time;
+
+		mutex_lock(&priv->plat->est->lock);
+		priv->ptp_clock_ops.gettime64(&priv->ptp_clock_ops, &current_time);
+		current_time_ns = timespec64_to_ktime(current_time);
+		time.tv_nsec = priv->plat->est->btr_reserve[0];
+		time.tv_sec = priv->plat->est->btr_reserve[1];
+		basetime = timespec64_to_ktime(time);
+		cycle_time = priv->plat->est->ctr[1] * NSEC_PER_SEC +
+			     priv->plat->est->ctr[0];
+		time = stmmac_calc_tas_basetime(basetime,
+						current_time_ns,
+						cycle_time);
+
+		priv->plat->est->btr[0] = (u32)time.tv_nsec;
+		priv->plat->est->btr[1] = (u32)time.tv_sec;
+		priv->plat->est->enable = true;
+		ret = stmmac_est_configure(priv, priv->ioaddr, priv->plat->est,
+					   priv->plat->clk_ptp_rate);
+		mutex_unlock(&priv->plat->est->lock);
+		if (ret)
+			netdev_err(priv->dev, "failed to configure EST\n");
+	}
 
 	return 0;
 }

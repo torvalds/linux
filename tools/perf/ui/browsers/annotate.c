@@ -343,6 +343,29 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 	browser->curr_hot = rb_last(&browser->entries);
 }
 
+static struct annotation_line *annotate_browser__find_next_asm_line(
+					struct annotate_browser *browser,
+					struct annotation_line *al)
+{
+	struct annotation_line *it = al;
+
+	/* find next asm line */
+	list_for_each_entry_continue(it, browser->b.entries, node) {
+		if (it->idx_asm >= 0)
+			return it;
+	}
+
+	/* no asm line found forwards, try backwards */
+	it = al;
+	list_for_each_entry_continue_reverse(it, browser->b.entries, node) {
+		if (it->idx_asm >= 0)
+			return it;
+	}
+
+	/* There are no asm lines */
+	return NULL;
+}
+
 static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 {
 	struct annotation *notes = browser__annotation(&browser->b);
@@ -363,9 +386,12 @@ static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 		browser->b.index = al->idx;
 	} else {
 		if (al->idx_asm < 0) {
-			ui_helpline__puts("Only available for assembly lines.");
-			browser->b.seek(&browser->b, -offset, SEEK_CUR);
-			return false;
+			/* move cursor to next asm line */
+			al = annotate_browser__find_next_asm_line(browser, al);
+			if (!al) {
+				browser->b.seek(&browser->b, -offset, SEEK_CUR);
+				return false;
+			}
 		}
 
 		if (al->idx_asm < offset)
@@ -723,7 +749,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 				hbt->timer(hbt->arg);
 
 			if (delay_secs != 0) {
-				symbol__annotate_decay_histogram(sym, evsel->idx);
+				symbol__annotate_decay_histogram(sym, evsel->core.idx);
 				hists__scnprintf_title(hists, title, sizeof(title));
 				annotate_browser__show(&browser->b, title, help);
 			}

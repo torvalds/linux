@@ -3,33 +3,16 @@
  * processor_thermal_device.c
  * Copyright (c) 2014, Intel Corporation.
  */
+#include <linux/acpi.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/pci.h>
-#include <linux/interrupt.h>
-#include <linux/platform_device.h>
-#include <linux/acpi.h>
 #include <linux/thermal.h>
-#include <linux/cpuhotplug.h>
 #include "int340x_thermal_zone.h"
 #include "processor_thermal_device.h"
 #include "../intel_soc_dts_iosf.h"
 
 #define DRV_NAME "proc_thermal"
-
-enum proc_thermal_emum_mode_type {
-	PROC_THERMAL_NONE,
-	PROC_THERMAL_PCI,
-	PROC_THERMAL_PLATFORM_DEV
-};
-
-/*
- * We can have only one type of enumeration, PCI or Platform,
- * not both. So we don't need instance specific data.
- */
-static enum proc_thermal_emum_mode_type proc_thermal_emum_mode =
-							PROC_THERMAL_NONE;
 
 #define POWER_LIMIT_SHOW(index, suffix) \
 static ssize_t power_limit_##index##_##suffix##_show(struct device *dev, \
@@ -37,11 +20,6 @@ static ssize_t power_limit_##index##_##suffix##_show(struct device *dev, \
 					char *buf) \
 { \
 	struct proc_thermal_device *proc_dev = dev_get_drvdata(dev); \
-	\
-	if (proc_thermal_emum_mode == PROC_THERMAL_NONE) { \
-		dev_warn(dev, "Attempted to get power limit before device was initialized!\n"); \
-		return 0; \
-	} \
 	\
 	return sprintf(buf, "%lu\n",\
 	(unsigned long)proc_dev->power_limits[index].suffix * 1000); \
@@ -100,24 +78,27 @@ static ssize_t tcc_offset_degree_celsius_show(struct device *dev,
 	if (err)
 		return err;
 
-	val = (val >> 24) & 0xff;
+	val = (val >> 24) & 0x3f;
 	return sprintf(buf, "%d\n", (int)val);
 }
 
-static int tcc_offset_update(int tcc)
+static int tcc_offset_update(unsigned int tcc)
 {
 	u64 val;
 	int err;
 
-	if (!tcc)
+	if (tcc > 63)
 		return -EINVAL;
 
 	err = rdmsrl_safe(MSR_IA32_TEMPERATURE_TARGET, &val);
 	if (err)
 		return err;
 
-	val &= ~GENMASK_ULL(31, 24);
-	val |= (tcc & 0xff) << 24;
+	if (val & BIT(31))
+		return -EPERM;
+
+	val &= ~GENMASK_ULL(29, 24);
+	val |= (tcc & 0x3f) << 24;
 
 	err = wrmsrl_safe(MSR_IA32_TEMPERATURE_TARGET, val);
 	if (err)
@@ -126,14 +107,15 @@ static int tcc_offset_update(int tcc)
 	return 0;
 }
 
-static int tcc_offset_save;
+static unsigned int tcc_offset_save;
 
 static ssize_t tcc_offset_degree_celsius_store(struct device *dev,
 				struct device_attribute *attr, const char *buf,
 				size_t count)
 {
+	unsigned int tcc;
 	u64 val;
-	int tcc, err;
+	int err;
 
 	err = rdmsrl_safe(MSR_PLATFORM_INFO, &val);
 	if (err)
@@ -142,7 +124,7 @@ static ssize_t tcc_offset_degree_celsius_store(struct device *dev,
 	if (!(val & BIT(30)))
 		return -EACCES;
 
-	if (kstrtoint(buf, 0, &tcc))
+	if (kstrtouint(buf, 0, &tcc))
 		return -EINVAL;
 
 	err = tcc_offset_update(tcc);
@@ -291,11 +273,8 @@ static void proc_thermal_notify(acpi_handle handle, u32 event, void *data)
 	}
 }
 
-
-static int proc_thermal_add(struct device *dev,
-			    struct proc_thermal_device **priv)
+int proc_thermal_add(struct device *dev, struct proc_thermal_device *proc_priv)
 {
-	struct proc_thermal_device *proc_priv;
 	struct acpi_device *adev;
 	acpi_status status;
 	unsigned long long tmp;
@@ -306,13 +285,8 @@ static int proc_thermal_add(struct device *dev,
 	if (!adev)
 		return -ENODEV;
 
-	proc_priv = devm_kzalloc(dev, sizeof(*proc_priv), GFP_KERNEL);
-	if (!proc_priv)
-		return -ENOMEM;
-
 	proc_priv->dev = dev;
 	proc_priv->adev = adev;
-	*priv = proc_priv;
 
 	ret = proc_thermal_read_ppcc(proc_priv);
 	if (ret)
@@ -338,15 +312,29 @@ static int proc_thermal_add(struct device *dev,
 	if (ret)
 		goto remove_zone;
 
+	ret = sysfs_create_file(&dev->kobj, &dev_attr_tcc_offset_degree_celsius.attr);
+	if (ret)
+		goto remove_notify;
+
+	ret = sysfs_create_group(&dev->kobj, &power_limit_attribute_group);
+	if (ret) {
+		sysfs_remove_file(&dev->kobj, &dev_attr_tcc_offset_degree_celsius.attr);
+		goto remove_notify;
+	}
+
 	return 0;
 
+remove_notify:
+	acpi_remove_notify_handler(adev->handle,
+				    ACPI_DEVICE_NOTIFY, proc_thermal_notify);
 remove_zone:
 	int340x_thermal_zone_remove(proc_priv->int340x_zone);
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(proc_thermal_add);
 
-static void proc_thermal_remove(struct proc_thermal_device *proc_priv)
+void proc_thermal_remove(struct proc_thermal_device *proc_priv)
 {
 	acpi_remove_notify_handler(proc_priv->adev->handle,
 				   ACPI_DEVICE_NOTIFY, proc_thermal_notify);
@@ -355,60 +343,24 @@ static void proc_thermal_remove(struct proc_thermal_device *proc_priv)
 	sysfs_remove_group(&proc_priv->dev->kobj,
 			   &power_limit_attribute_group);
 }
+EXPORT_SYMBOL_GPL(proc_thermal_remove);
 
-static int int3401_add(struct platform_device *pdev)
+int proc_thermal_resume(struct device *dev)
 {
-	struct proc_thermal_device *proc_priv;
-	int ret;
+	struct proc_thermal_device *proc_dev;
 
-	if (proc_thermal_emum_mode == PROC_THERMAL_PCI) {
-		dev_err(&pdev->dev, "error: enumerated as PCI dev\n");
-		return -ENODEV;
-	}
+	proc_dev = dev_get_drvdata(dev);
+	proc_thermal_read_ppcc(proc_dev);
 
-	ret = proc_thermal_add(&pdev->dev, &proc_priv);
-	if (ret)
-		return ret;
-
-	platform_set_drvdata(pdev, proc_priv);
-	proc_thermal_emum_mode = PROC_THERMAL_PLATFORM_DEV;
-
-	dev_info(&pdev->dev, "Creating sysfs group for PROC_THERMAL_PLATFORM_DEV\n");
-
-	ret = sysfs_create_file(&pdev->dev.kobj, &dev_attr_tcc_offset_degree_celsius.attr);
-	if (ret)
-		return ret;
-
-	ret = sysfs_create_group(&pdev->dev.kobj, &power_limit_attribute_group);
-	if (ret)
-		sysfs_remove_file(&pdev->dev.kobj, &dev_attr_tcc_offset_degree_celsius.attr);
-
-	return ret;
-}
-
-static int int3401_remove(struct platform_device *pdev)
-{
-	proc_thermal_remove(platform_get_drvdata(pdev));
+	tcc_offset_update(tcc_offset_save);
 
 	return 0;
 }
-
-static irqreturn_t proc_thermal_pci_msi_irq(int irq, void *devid)
-{
-	struct proc_thermal_device *proc_priv;
-	struct pci_dev *pdev = devid;
-
-	proc_priv = pci_get_drvdata(pdev);
-
-	intel_soc_dts_iosf_interrupt_handler(proc_priv->soc_dts);
-
-	return IRQ_HANDLED;
-}
+EXPORT_SYMBOL_GPL(proc_thermal_resume);
 
 #define MCHBAR 0
 
-static int proc_thermal_set_mmio_base(struct pci_dev *pdev,
-				      struct proc_thermal_device *proc_priv)
+static int proc_thermal_set_mmio_base(struct pci_dev *pdev, struct proc_thermal_device *proc_priv)
 {
 	int ret;
 
@@ -423,9 +375,9 @@ static int proc_thermal_set_mmio_base(struct pci_dev *pdev,
 	return 0;
 }
 
-static int proc_thermal_mmio_add(struct pci_dev *pdev,
-				 struct proc_thermal_device *proc_priv,
-				 kernel_ulong_t feature_mask)
+int proc_thermal_mmio_add(struct pci_dev *pdev,
+			  struct proc_thermal_device *proc_priv,
+			  kernel_ulong_t feature_mask)
 {
 	int ret;
 
@@ -471,11 +423,10 @@ err_rem_rapl:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(proc_thermal_mmio_add);
 
-static void proc_thermal_mmio_remove(struct pci_dev *pdev)
+void proc_thermal_mmio_remove(struct pci_dev *pdev, struct proc_thermal_device *proc_priv)
 {
-	struct proc_thermal_device *proc_priv = pci_get_drvdata(pdev);
-
 	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_RAPL)
 		proc_thermal_rapl_remove();
 
@@ -486,181 +437,7 @@ static void proc_thermal_mmio_remove(struct pci_dev *pdev)
 	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_MBOX)
 		proc_thermal_mbox_remove(pdev);
 }
-
-static int  proc_thermal_pci_probe(struct pci_dev *pdev,
-				   const struct pci_device_id *id)
-{
-	struct proc_thermal_device *proc_priv;
-	int ret;
-
-	if (proc_thermal_emum_mode == PROC_THERMAL_PLATFORM_DEV) {
-		dev_err(&pdev->dev, "error: enumerated as platform dev\n");
-		return -ENODEV;
-	}
-
-	ret = pcim_enable_device(pdev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "error: could not enable device\n");
-		return ret;
-	}
-
-	ret = proc_thermal_add(&pdev->dev, &proc_priv);
-	if (ret)
-		return ret;
-
-	pci_set_drvdata(pdev, proc_priv);
-	proc_thermal_emum_mode = PROC_THERMAL_PCI;
-
-	if (pdev->device == PCI_DEVICE_ID_INTEL_BSW_THERMAL) {
-		/*
-		 * Enumerate additional DTS sensors available via IOSF.
-		 * But we are not treating as a failure condition, if
-		 * there are no aux DTSs enabled or fails. This driver
-		 * already exposes sensors, which can be accessed via
-		 * ACPI/MSR. So we don't want to fail for auxiliary DTSs.
-		 */
-		proc_priv->soc_dts = intel_soc_dts_iosf_init(
-					INTEL_SOC_DTS_INTERRUPT_MSI, 2, 0);
-
-		if (!IS_ERR(proc_priv->soc_dts) && pdev->irq) {
-			ret = pci_enable_msi(pdev);
-			if (!ret) {
-				ret = request_threaded_irq(pdev->irq, NULL,
-						proc_thermal_pci_msi_irq,
-						IRQF_ONESHOT, "proc_thermal",
-						pdev);
-				if (ret) {
-					intel_soc_dts_iosf_exit(
-							proc_priv->soc_dts);
-					pci_disable_msi(pdev);
-					proc_priv->soc_dts = NULL;
-				}
-			}
-		} else
-			dev_err(&pdev->dev, "No auxiliary DTSs enabled\n");
-	}
-
-	dev_info(&pdev->dev, "Creating sysfs group for PROC_THERMAL_PCI\n");
-
-	ret = sysfs_create_file(&pdev->dev.kobj, &dev_attr_tcc_offset_degree_celsius.attr);
-	if (ret)
-		return ret;
-
-	ret = sysfs_create_group(&pdev->dev.kobj, &power_limit_attribute_group);
-	if (ret) {
-		sysfs_remove_file(&pdev->dev.kobj, &dev_attr_tcc_offset_degree_celsius.attr);
-		return ret;
-	}
-
-	ret = proc_thermal_mmio_add(pdev, proc_priv, id->driver_data);
-	if (ret) {
-		proc_thermal_remove(proc_priv);
-		return ret;
-	}
-
-	return 0;
-}
-
-static void  proc_thermal_pci_remove(struct pci_dev *pdev)
-{
-	struct proc_thermal_device *proc_priv = pci_get_drvdata(pdev);
-
-	if (proc_priv->soc_dts) {
-		intel_soc_dts_iosf_exit(proc_priv->soc_dts);
-		if (pdev->irq) {
-			free_irq(pdev->irq, pdev);
-			pci_disable_msi(pdev);
-		}
-	}
-
-	proc_thermal_mmio_remove(pdev);
-	proc_thermal_remove(proc_priv);
-}
-
-#ifdef CONFIG_PM_SLEEP
-static int proc_thermal_resume(struct device *dev)
-{
-	struct proc_thermal_device *proc_dev;
-
-	proc_dev = dev_get_drvdata(dev);
-	proc_thermal_read_ppcc(proc_dev);
-
-	tcc_offset_update(tcc_offset_save);
-
-	return 0;
-}
-#else
-#define proc_thermal_resume NULL
-#endif
-
-static SIMPLE_DEV_PM_OPS(proc_thermal_pm, NULL, proc_thermal_resume);
-
-static const struct pci_device_id proc_thermal_pci_ids[] = {
-	{ PCI_DEVICE_DATA(INTEL, ADL_THERMAL, PROC_THERMAL_FEATURE_RAPL | PROC_THERMAL_FEATURE_FIVR | PROC_THERMAL_FEATURE_DVFS | PROC_THERMAL_FEATURE_MBOX) },
-	{ PCI_DEVICE_DATA(INTEL, BDW_THERMAL, 0) },
-	{ PCI_DEVICE_DATA(INTEL, BSW_THERMAL, 0) },
-	{ PCI_DEVICE_DATA(INTEL, BXT0_THERMAL, 0) },
-	{ PCI_DEVICE_DATA(INTEL, BXT1_THERMAL, 0) },
-	{ PCI_DEVICE_DATA(INTEL, BXTX_THERMAL, 0) },
-	{ PCI_DEVICE_DATA(INTEL, BXTP_THERMAL, 0) },
-	{ PCI_DEVICE_DATA(INTEL, CNL_THERMAL, 0) },
-	{ PCI_DEVICE_DATA(INTEL, CFL_THERMAL, 0) },
-	{ PCI_DEVICE_DATA(INTEL, GLK_THERMAL, 0) },
-	{ PCI_DEVICE_DATA(INTEL, HSB_THERMAL, 0) },
-	{ PCI_DEVICE_DATA(INTEL, ICL_THERMAL, PROC_THERMAL_FEATURE_RAPL) },
-	{ PCI_DEVICE_DATA(INTEL, JSL_THERMAL, 0) },
-	{ PCI_DEVICE_DATA(INTEL, SKL_THERMAL, PROC_THERMAL_FEATURE_RAPL) },
-	{ PCI_DEVICE_DATA(INTEL, TGL_THERMAL, PROC_THERMAL_FEATURE_RAPL | PROC_THERMAL_FEATURE_FIVR | PROC_THERMAL_FEATURE_MBOX) },
-	{ },
-};
-
-MODULE_DEVICE_TABLE(pci, proc_thermal_pci_ids);
-
-static struct pci_driver proc_thermal_pci_driver = {
-	.name		= DRV_NAME,
-	.probe		= proc_thermal_pci_probe,
-	.remove		= proc_thermal_pci_remove,
-	.id_table	= proc_thermal_pci_ids,
-	.driver.pm	= &proc_thermal_pm,
-};
-
-static const struct acpi_device_id int3401_device_ids[] = {
-	{"INT3401", 0},
-	{"", 0},
-};
-MODULE_DEVICE_TABLE(acpi, int3401_device_ids);
-
-static struct platform_driver int3401_driver = {
-	.probe = int3401_add,
-	.remove = int3401_remove,
-	.driver = {
-		.name = "int3401 thermal",
-		.acpi_match_table = int3401_device_ids,
-		.pm = &proc_thermal_pm,
-	},
-};
-
-static int __init proc_thermal_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&int3401_driver);
-	if (ret)
-		return ret;
-
-	ret = pci_register_driver(&proc_thermal_pci_driver);
-
-	return ret;
-}
-
-static void __exit proc_thermal_exit(void)
-{
-	platform_driver_unregister(&int3401_driver);
-	pci_unregister_driver(&proc_thermal_pci_driver);
-}
-
-module_init(proc_thermal_init);
-module_exit(proc_thermal_exit);
+EXPORT_SYMBOL_GPL(proc_thermal_mmio_remove);
 
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 MODULE_DESCRIPTION("Processor Thermal Reporting Device Driver");

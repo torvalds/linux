@@ -207,7 +207,7 @@ static void mtu3_intr_enable(struct mtu3 *mtu)
 	mtu3_writel(mbase, U3D_DEV_LINK_INTR_ENABLE, SSUSB_DEV_SPEED_CHG_INTR);
 }
 
-void mtu3_set_speed(struct mtu3 *mtu, enum usb_device_speed speed)
+static void mtu3_set_speed(struct mtu3 *mtu, enum usb_device_speed speed)
 {
 	void __iomem *mbase = mtu->mac_base;
 
@@ -334,6 +334,10 @@ void mtu3_start(struct mtu3 *mtu)
 		mtu3_readl(mbase, U3D_DEVICE_CONTROL));
 
 	mtu3_clrbits(mtu->ippc_base, U3D_SSUSB_IP_PW_CTRL2, SSUSB_IP_DEV_PDN);
+	if (mtu->is_u3_ip)
+		mtu3_clrbits(mtu->ippc_base, SSUSB_U3_CTRL(0), SSUSB_U3_PORT_PDN);
+
+	mtu3_clrbits(mtu->ippc_base, SSUSB_U2_CTRL(0), SSUSB_U2_PORT_PDN);
 
 	mtu3_csr_init(mtu);
 	mtu3_set_speed(mtu, mtu->speed);
@@ -356,6 +360,11 @@ void mtu3_stop(struct mtu3 *mtu)
 		mtu3_dev_on_off(mtu, 0);
 
 	mtu->is_active = 0;
+
+	if (mtu->is_u3_ip)
+		mtu3_setbits(mtu->ippc_base, SSUSB_U3_CTRL(0), SSUSB_U3_PORT_PDN);
+
+	mtu3_setbits(mtu->ippc_base, SSUSB_U2_CTRL(0), SSUSB_U2_PORT_PDN);
 	mtu3_setbits(mtu->ippc_base, U3D_SSUSB_IP_PW_CTRL2, SSUSB_IP_DEV_PDN);
 }
 
@@ -536,7 +545,7 @@ static void get_ep_fifo_config(struct mtu3 *mtu)
 		rx_fifo->base, rx_fifo->limit);
 }
 
-void mtu3_ep0_setup(struct mtu3 *mtu)
+static void mtu3_ep0_setup(struct mtu3 *mtu)
 {
 	u32 maxpacket = mtu->g.ep0->maxpacket;
 	u32 csr;
@@ -921,15 +930,14 @@ int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 
 	device_init_wakeup(dev, true);
 
+	/* power down device IP for power saving by default */
+	mtu3_stop(mtu);
+
 	ret = mtu3_gadget_setup(mtu);
 	if (ret) {
 		dev_err(dev, "mtu3 gadget init failed:%d\n", ret);
 		goto gadget_err;
 	}
-
-	/* init as host mode, power down device IP for power saving */
-	if (mtu->ssusb->dr_mode == USB_DR_MODE_OTG)
-		mtu3_stop(mtu);
 
 	ssusb_dev_debugfs_init(ssusb);
 

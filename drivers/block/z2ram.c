@@ -236,11 +236,8 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 
 			case Z2MINOR_Z2ONLY:
 				z2ram_map = kmalloc(max_z2_map, GFP_KERNEL);
-				if (z2ram_map == NULL) {
-					printk(KERN_ERR DEVICE_NAME
-					       ": cannot get mem for z2ram_map\n");
+				if (!z2ram_map)
 					goto err_out;
-				}
 
 				get_z2ram();
 
@@ -253,11 +250,8 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 
 			case Z2MINOR_CHIPONLY:
 				z2ram_map = kmalloc(max_chip_map, GFP_KERNEL);
-				if (z2ram_map == NULL) {
-					printk(KERN_ERR DEVICE_NAME
-					       ": cannot get mem for z2ram_map\n");
+				if (!z2ram_map)
 					goto err_out;
-				}
 
 				get_chipram();
 
@@ -323,27 +317,20 @@ static const struct blk_mq_ops z2_mq_ops = {
 
 static int z2ram_register_disk(int minor)
 {
-	struct request_queue *q;
 	struct gendisk *disk;
 
-	disk = alloc_disk(1);
-	if (!disk)
-		return -ENOMEM;
-
-	q = blk_mq_init_queue(&tag_set);
-	if (IS_ERR(q)) {
-		put_disk(disk);
-		return PTR_ERR(q);
-	}
+	disk = blk_mq_alloc_disk(&tag_set, NULL);
+	if (IS_ERR(disk))
+		return PTR_ERR(disk);
 
 	disk->major = Z2RAM_MAJOR;
 	disk->first_minor = minor;
+	disk->minors = 1;
 	disk->fops = &z2_fops;
 	if (minor)
 		sprintf(disk->disk_name, "z2ram%d", minor);
 	else
 		sprintf(disk->disk_name, "z2ram");
-	disk->queue = q;
 
 	z2ram_gendisk[minor] = disk;
 	add_disk(disk);

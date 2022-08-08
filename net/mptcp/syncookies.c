@@ -37,7 +37,21 @@ static spinlock_t join_entry_locks[COOKIE_JOIN_SLOTS] __cacheline_aligned_in_smp
 
 static u32 mptcp_join_entry_hash(struct sk_buff *skb, struct net *net)
 {
-	u32 i = skb_get_hash(skb) ^ net_hash_mix(net);
+	static u32 mptcp_join_hash_secret __read_mostly;
+	struct tcphdr *th = tcp_hdr(skb);
+	u32 seq, i;
+
+	net_get_random_once(&mptcp_join_hash_secret,
+			    sizeof(mptcp_join_hash_secret));
+
+	if (th->syn)
+		seq = TCP_SKB_CB(skb)->seq;
+	else
+		seq = TCP_SKB_CB(skb)->seq - 1;
+
+	i = jhash_3words(seq, net_hash_mix(net),
+			 (__force __u32)th->source << 16 | (__force __u32)th->dest,
+			 mptcp_join_hash_secret);
 
 	return i % ARRAY_SIZE(join_entries);
 }

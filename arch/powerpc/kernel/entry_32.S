@@ -32,6 +32,7 @@
 #include <asm/barrier.h>
 #include <asm/kup.h>
 #include <asm/bug.h>
+#include <asm/interrupt.h>
 
 #include "head_32.h"
 
@@ -74,6 +75,24 @@ _ASM_NOKPROBE_SYMBOL(prepare_transfer_to_handler)
 
 	.globl	transfer_to_syscall
 transfer_to_syscall:
+	stw	r11, GPR1(r1)
+	stw	r11, 0(r1)
+	mflr	r12
+	stw	r12, _LINK(r1)
+#if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
+	rlwinm	r9,r9,0,14,12		/* clear MSR_WE (necessary?) */
+#endif
+	lis	r12,STACK_FRAME_REGS_MARKER@ha /* exception frame marker */
+	SAVE_GPR(2, r1)
+	addi	r12,r12,STACK_FRAME_REGS_MARKER@l
+	stw	r9,_MSR(r1)
+	li	r2, INTERRUPT_SYSCALL
+	stw	r12,8(r1)
+	stw	r2,_TRAP(r1)
+	SAVE_GPR(0, r1)
+	SAVE_4GPRS(3, r1)
+	SAVE_2GPRS(7, r1)
+	addi	r2,r10,-THREAD
 	SAVE_NVGPRS(r1)
 
 	/* Calling convention has r9 = orig r0, r10 = regs */
@@ -176,28 +195,6 @@ _GLOBAL(_switch)
 	/* r3-r12 are caller saved -- Cort */
 	SAVE_NVGPRS(r1)
 	stw	r0,_NIP(r1)	/* Return to switch caller */
-	mfmsr	r11
-	li	r0,MSR_FP	/* Disable floating-point */
-#ifdef CONFIG_ALTIVEC
-BEGIN_FTR_SECTION
-	oris	r0,r0,MSR_VEC@h	/* Disable altivec */
-	mfspr	r12,SPRN_VRSAVE	/* save vrsave register value */
-	stw	r12,THREAD+THREAD_VRSAVE(r2)
-END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
-#endif /* CONFIG_ALTIVEC */
-#ifdef CONFIG_SPE
-BEGIN_FTR_SECTION
-	oris	r0,r0,MSR_SPE@h	 /* Disable SPE */
-	mfspr	r12,SPRN_SPEFSCR /* save spefscr register value */
-	stw	r12,THREAD+THREAD_SPEFSCR(r2)
-END_FTR_SECTION_IFSET(CPU_FTR_SPE)
-#endif /* CONFIG_SPE */
-	and.	r0,r0,r11	/* FP or altivec or SPE enabled? */
-	beq+	1f
-	andc	r11,r11,r0
-	mtmsr	r11
-	isync
-1:	stw	r11,_MSR(r1)
 	mfcr	r10
 	stw	r10,_CCR(r1)
 	stw	r1,KSP(r3)	/* Set old stack pointer */
@@ -217,19 +214,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPE)
 	/* save the old current 'last' for return value */
 	mr	r3,r2
 	addi	r2,r4,-THREAD	/* Update current */
-
-#ifdef CONFIG_ALTIVEC
-BEGIN_FTR_SECTION
-	lwz	r0,THREAD+THREAD_VRSAVE(r2)
-	mtspr	SPRN_VRSAVE,r0		/* if G4, restore VRSAVE reg */
-END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
-#endif /* CONFIG_ALTIVEC */
-#ifdef CONFIG_SPE
-BEGIN_FTR_SECTION
-	lwz	r0,THREAD+THREAD_SPEFSCR(r2)
-	mtspr	SPRN_SPEFSCR,r0		/* restore SPEFSCR reg */
-END_FTR_SECTION_IFSET(CPU_FTR_SPE)
-#endif /* CONFIG_SPE */
 
 	lwz	r0,_CCR(r1)
 	mtcrf	0xFF,r0

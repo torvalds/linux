@@ -64,7 +64,7 @@ static const struct v4l2_frmsize_discrete tegra_csi_tpg_sizes[] = {
  * V4L2 Subdevice Pad Operations
  */
 static int csi_enum_bus_code(struct v4l2_subdev *subdev,
-			     struct v4l2_subdev_pad_config *cfg,
+			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
@@ -79,7 +79,7 @@ static int csi_enum_bus_code(struct v4l2_subdev *subdev,
 }
 
 static int csi_get_format(struct v4l2_subdev *subdev,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct tegra_csi_channel *csi_chan = to_csi_chan(subdev);
@@ -127,7 +127,7 @@ static void csi_chan_update_blank_intervals(struct tegra_csi_channel *csi_chan,
 }
 
 static int csi_enum_framesizes(struct v4l2_subdev *subdev,
-			       struct v4l2_subdev_pad_config *cfg,
+			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
 	unsigned int i;
@@ -154,7 +154,7 @@ static int csi_enum_framesizes(struct v4l2_subdev *subdev,
 }
 
 static int csi_enum_frameintervals(struct v4l2_subdev *subdev,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct tegra_csi_channel *csi_chan = to_csi_chan(subdev);
@@ -181,7 +181,7 @@ static int csi_enum_frameintervals(struct v4l2_subdev *subdev,
 }
 
 static int csi_set_format(struct v4l2_subdev *subdev,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct tegra_csi_channel *csi_chan = to_csi_chan(subdev);
@@ -298,10 +298,9 @@ static int tegra_csi_enable_stream(struct v4l2_subdev *subdev)
 	struct tegra_csi *csi = csi_chan->csi;
 	int ret, err;
 
-	ret = pm_runtime_get_sync(csi->dev);
+	ret = pm_runtime_resume_and_get(csi->dev);
 	if (ret < 0) {
 		dev_err(csi->dev, "failed to get runtime PM: %d\n", ret);
-		pm_runtime_put_noidle(csi->dev);
 		return ret;
 	}
 
