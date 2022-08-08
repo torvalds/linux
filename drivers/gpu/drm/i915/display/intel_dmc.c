@@ -383,6 +383,30 @@ static void disable_all_event_handlers(struct drm_i915_private *i915)
 	}
 }
 
+static void pipedmc_clock_gating_wa(struct drm_i915_private *i915, bool enable)
+{
+	enum pipe pipe;
+
+	if (DISPLAY_VER(i915) != 13)
+		return;
+
+	/*
+	 * Wa_16015201720:adl-p,dg2
+	 * The WA requires clock gating to be disabled all the time
+	 * for pipe A and B.
+	 * For pipe C and D clock gating needs to be disabled only
+	 * during initializing the firmware.
+	 */
+	if (enable)
+		for (pipe = PIPE_A; pipe <= PIPE_D; pipe++)
+			intel_de_rmw(i915, CLKGATE_DIS_PSL_EXT(pipe),
+				     0, PIPEDMC_GATING_DIS);
+	else
+		for (pipe = PIPE_C; pipe <= PIPE_D; pipe++)
+			intel_de_rmw(i915, CLKGATE_DIS_PSL_EXT(pipe),
+				     PIPEDMC_GATING_DIS, 0);
+}
+
 /**
  * intel_dmc_load_program() - write the firmware from memory to register.
  * @dev_priv: i915 drm device.
@@ -398,6 +422,8 @@ void intel_dmc_load_program(struct drm_i915_private *dev_priv)
 
 	if (!intel_dmc_has_payload(dev_priv))
 		return;
+
+	pipedmc_clock_gating_wa(dev_priv, true);
 
 	disable_all_event_handlers(dev_priv);
 
@@ -432,6 +458,8 @@ void intel_dmc_load_program(struct drm_i915_private *dev_priv)
 	 * here.
 	 */
 	disable_all_flip_queue_events(dev_priv);
+
+	pipedmc_clock_gating_wa(dev_priv, false);
 }
 
 /**
@@ -446,7 +474,9 @@ void intel_dmc_disable_program(struct drm_i915_private *i915)
 	if (!intel_dmc_has_payload(i915))
 		return;
 
+	pipedmc_clock_gating_wa(i915, true);
 	disable_all_event_handlers(i915);
+	pipedmc_clock_gating_wa(i915, false);
 }
 
 void assert_dmc_loaded(struct drm_i915_private *i915)
