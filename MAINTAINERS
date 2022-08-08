@@ -20231,6 +20231,14 @@ F:	drivers/firmware/qcom/qcom_tzmem.c
 F:	drivers/firmware/qcom/qcom_tzmem.h
 F:	include/linux/firmware/qcom/qcom_tzmem.h
 
+QUALCOMM SMBCHG DRIVER
+M:	Yassine Oudjana <y.oudjana@protonmail.com>
+M:	Alejandro Tafalla <atafalla@dnyon.com>
+L:	linux-pm@vger.kernel.org
+L:	linux-arm-msm@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/power/supply/qcom,smbchg.yaml
+
 QUALCOMM TSENS THERMAL DRIVER
 M:	Amit Kucheria <amitk@kernel.org>
 M:	Thara Gopinath <thara.gopinath@gmail.com>
