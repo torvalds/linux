@@ -600,6 +600,30 @@ static int mbox_get_fact_info(struct isst_id *id, int level, int fact_bucket, st
 	return 0;
 }
 
+static int mbox_get_clos_information(struct isst_id *id, int *enable, int *type)
+{
+	unsigned int resp;
+	int ret;
+
+	ret = isst_send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_QOS_CONFIG, 0, 0,
+				     &resp);
+	if (ret)
+		return ret;
+
+	debug_printf("cpu:%d CLOS_PM_QOS_CONFIG resp:%x\n", id->cpu, resp);
+
+	if (resp & BIT(1))
+		*enable = 1;
+	else
+		*enable = 0;
+
+	if (resp & BIT(2))
+		*type = 1;
+	else
+		*type = 0;
+
+	return 0;
+}
 static struct isst_platform_ops mbox_ops = {
 	.get_disp_freq_multiplier = mbox_get_disp_freq_multiplier,
 	.get_trl_max_levels = mbox_get_trl_max_levels,
@@ -618,6 +642,7 @@ static struct isst_platform_ops mbox_ops = {
 	.set_pbf_fact_status = mbox_set_pbf_fact_status,
 	.get_fact_info = mbox_get_fact_info,
 	.get_uncore_p0_p1_info = mbox_get_uncore_p0_p1_info,
+	.get_clos_information = mbox_get_clos_information,
 };
 
 struct isst_platform_ops *mbox_get_platform_ops(void)

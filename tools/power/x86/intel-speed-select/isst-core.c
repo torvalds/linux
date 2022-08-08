@@ -635,27 +635,8 @@ int isst_get_process_ctdp(struct isst_id *id, int tdp_level, struct isst_pkg_ctd
 
 int isst_clos_get_clos_information(struct isst_id *id, int *enable, int *type)
 {
-	unsigned int resp;
-	int ret;
-
-	ret = isst_send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_QOS_CONFIG, 0, 0,
-				     &resp);
-	if (ret)
-		return ret;
-
-	debug_printf("cpu:%d CLOS_PM_QOS_CONFIG resp:%x\n", id->cpu, resp);
-
-	if (resp & BIT(1))
-		*enable = 1;
-	else
-		*enable = 0;
-
-	if (resp & BIT(2))
-		*type = 1;
-	else
-		*type = 0;
-
-	return 0;
+	CHECK_CB(get_clos_information);
+	return isst_ops->get_clos_information(id, enable, type);
 }
 
 int isst_pm_qos_config(struct isst_id *id, int enable_clos, int priority_type)

@@ -199,6 +199,7 @@ struct isst_platform_ops {
 	int (*set_pbf_fact_status)(struct isst_id *id, int pbf, int enable);
 	int (*get_fact_info)(struct isst_id *id, int level, int fact_bucket, struct isst_fact_info *fact_info);
 	void (*get_uncore_p0_p1_info)(struct isst_id *id, int config_index, struct isst_pkg_ctdp_level_info *ctdp_level);
+	int (*get_clos_information)(struct isst_id *id, int *enable, int *type);
 };
 
 extern int is_cpu_in_power_domain(int cpu, struct isst_id *id);
