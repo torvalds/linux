@@ -2671,11 +2671,17 @@ static int scrub_extent(struct scrub_ctx *sctx, struct map_lookup *map,
 	u8 csum[BTRFS_CSUM_SIZE];
 	u32 blocksize;
 
+	/*
+	 * Block size determines how many scrub_block will be allocated.  Here
+	 * we use BTRFS_STRIPE_LEN (64KiB) as default limit, so we won't
+	 * allocate too many scrub_block, while still won't cause too large
+	 * bios for large extents.
+	 */
 	if (flags & BTRFS_EXTENT_FLAG_DATA) {
 		if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK)
 			blocksize = map->stripe_len;
 		else
-			blocksize = sctx->fs_info->sectorsize;
+			blocksize = BTRFS_STRIPE_LEN;
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.data_extents_scrubbed++;
 		sctx->stat.data_bytes_scrubbed += len;
