@@ -627,21 +627,8 @@ int isst_pm_qos_config(struct isst_id *id, int enable_clos, int priority_type)
 
 int isst_pm_get_clos(struct isst_id *id, int clos, struct isst_clos_config *clos_config)
 {
-	unsigned int resp;
-	int ret;
-
-	ret = isst_send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_CLOS, clos, 0,
-				     &resp);
-	if (ret)
-		return ret;
-
-	clos_config->epp = resp & 0x0f;
-	clos_config->clos_prop_prio = (resp >> 4) & 0x0f;
-	clos_config->clos_min = (resp >> 8) & 0xff;
-	clos_config->clos_max = (resp >> 16) & 0xff;
-	clos_config->clos_desired = (resp >> 24) & 0xff;
-
-	return 0;
+	CHECK_CB(pm_get_clos);
+	return isst_ops->pm_get_clos(id, clos, clos_config);
 }
 
 int isst_set_clos(struct isst_id *id, int clos, struct isst_clos_config *clos_config)

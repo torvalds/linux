@@ -713,6 +713,25 @@ static int mbox_pm_qos_config(struct isst_id *id, int enable_clos, int priority_
 	return 0;
 }
 
+static int mbox_pm_get_clos(struct isst_id *id, int clos, struct isst_clos_config *clos_config)
+{
+	unsigned int resp;
+	int ret;
+
+	ret = isst_send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_CLOS, clos, 0,
+				     &resp);
+	if (ret)
+		return ret;
+
+	clos_config->epp = resp & 0x0f;
+	clos_config->clos_prop_prio = (resp >> 4) & 0x0f;
+	clos_config->clos_min = (resp >> 8) & 0xff;
+	clos_config->clos_max = (resp >> 16) & 0xff;
+	clos_config->clos_desired = (resp >> 24) & 0xff;
+
+	return 0;
+}
+
 static struct isst_platform_ops mbox_ops = {
 	.get_disp_freq_multiplier = mbox_get_disp_freq_multiplier,
 	.get_trl_max_levels = mbox_get_trl_max_levels,
@@ -733,6 +752,7 @@ static struct isst_platform_ops mbox_ops = {
 	.get_uncore_p0_p1_info = mbox_get_uncore_p0_p1_info,
 	.get_clos_information = mbox_get_clos_information,
 	.pm_qos_config = mbox_pm_qos_config,
+	.pm_get_clos = mbox_pm_get_clos,
 };
 
 struct isst_platform_ops *mbox_get_platform_ops(void)
