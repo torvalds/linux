@@ -346,22 +346,10 @@ int isst_get_get_trl(struct isst_id *id, int level, int avx_level, int *trl)
 	return isst_ops->get_get_trl(id, level, avx_level, trl);
 }
 
-int isst_get_trl_bucket_info(struct isst_id *id, unsigned long long *buckets_info)
+int isst_get_trl_bucket_info(struct isst_id *id, int level, unsigned long long *buckets_info)
 {
-	int ret;
-
-	debug_printf("cpu:%d bucket info via MSR\n", id->cpu);
-
-	*buckets_info = 0;
-
-	ret = isst_send_msr_command(id->cpu, 0x1ae, 0, buckets_info);
-	if (ret)
-		return ret;
-
-	debug_printf("cpu:%d bucket info via MSR successful 0x%llx\n", id->cpu,
-		     *buckets_info);
-
-	return 0;
+	CHECK_CB(get_trl_bucket_info);
+	return isst_ops->get_trl_bucket_info(id, level, buckets_info);
 }
 
 int isst_set_tdp_level(struct isst_id *id, int tdp_level)
@@ -909,7 +897,7 @@ int isst_get_process_ctdp(struct isst_id *id, int tdp_level, struct isst_pkg_ctd
 			}
 
 			isst_get_get_trl_from_msr(id, ctdp_level->trl_ratios[0]);
-			isst_get_trl_bucket_info(id, &ctdp_level->trl_cores);
+			isst_get_trl_bucket_info(id, i, &ctdp_level->trl_cores);
 			continue;
 		}
 
@@ -927,7 +915,7 @@ int isst_get_process_ctdp(struct isst_id *id, int tdp_level, struct isst_pkg_ctd
 		if (ret)
 			return ret;
 
-		ret = isst_get_trl_bucket_info(id, &ctdp_level->trl_cores);
+		ret = isst_get_trl_bucket_info(id, i, &ctdp_level->trl_cores);
 		if (ret)
 			return ret;
 

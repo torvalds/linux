@@ -232,6 +232,24 @@ static int mbox_get_get_trl(struct isst_id *id, int level, int avx_level, int *t
 	return 0;
 }
 
+static int mbox_get_trl_bucket_info(struct isst_id *id, int level, unsigned long long *buckets_info)
+{
+	int ret;
+
+	debug_printf("cpu:%d bucket info via MSR\n", id->cpu);
+
+	*buckets_info = 0;
+
+	ret = isst_send_msr_command(id->cpu, 0x1ae, 0, buckets_info);
+	if (ret)
+		return ret;
+
+	debug_printf("cpu:%d bucket info via MSR successful 0x%llx\n", id->cpu,
+		     *buckets_info);
+
+	return 0;
+}
+
 static struct isst_platform_ops mbox_ops = {
 	.get_disp_freq_multiplier = mbox_get_disp_freq_multiplier,
 	.get_trl_max_levels = mbox_get_trl_max_levels,
@@ -243,6 +261,7 @@ static struct isst_platform_ops mbox_ops = {
 	.get_pwr_info = mbox_get_pwr_info,
 	.get_coremask_info = mbox_get_coremask_info,
 	.get_get_trl = mbox_get_get_trl,
+	.get_trl_bucket_info = mbox_get_trl_bucket_info,
 };
 
 struct isst_platform_ops *mbox_get_platform_ops(void)
