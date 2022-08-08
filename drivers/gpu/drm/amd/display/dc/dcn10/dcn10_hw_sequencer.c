@@ -3340,6 +3340,9 @@ static bool dcn10_dmub_should_update_cursor_data(
 	if (pipe_ctx->plane_state->address.type == PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
 		return false;
 
+	if (dcn10_can_pipe_disable_cursor(pipe_ctx))
+		return false;
+
 	if (pipe_ctx->stream->link->psr_settings.psr_version == DC_PSR_VERSION_SU_1)
 		return true;
 
