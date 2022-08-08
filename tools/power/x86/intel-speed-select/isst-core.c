@@ -396,63 +396,13 @@ int isst_set_pbf_fact_status(struct isst_id *id, int pbf, int enable)
 	return isst_ops->set_pbf_fact_status(id, pbf, enable);
 }
 
-int isst_get_fact_bucket_info(struct isst_id *id, int level,
-			      struct isst_fact_bucket_info *bucket_info)
-{
-	unsigned int resp;
-	int i, k, ret;
 
-	for (i = 0; i < 2; ++i) {
-		int j;
-
-		ret = isst_send_mbox_command(
-			id->cpu, CONFIG_TDP,
-			CONFIG_TDP_GET_FACT_HP_TURBO_LIMIT_NUMCORES, 0,
-			(i << 8) | level, &resp);
-		if (ret)
-			return ret;
-
-		debug_printf(
-			"cpu:%d CONFIG_TDP_GET_FACT_HP_TURBO_LIMIT_NUMCORES index:%d level:%d resp:%x\n",
-			id->cpu, i, level, resp);
-
-		for (j = 0; j < 4; ++j) {
-			bucket_info[j + (i * 4)].hp_cores =
-				(resp >> (j * 8)) & 0xff;
-		}
-	}
-
-	for (k = 0; k < 3; ++k) {
-		for (i = 0; i < 2; ++i) {
-			int j;
-
-			ret = isst_send_mbox_command(
-				id->cpu, CONFIG_TDP,
-				CONFIG_TDP_GET_FACT_HP_TURBO_LIMIT_RATIOS, 0,
-				(k << 16) | (i << 8) | level, &resp);
-			if (ret)
-				return ret;
-
-			debug_printf(
-				"cpu:%d CONFIG_TDP_GET_FACT_HP_TURBO_LIMIT_RATIOS index:%d level:%d avx:%d resp:%x\n",
-				id->cpu, i, level, k, resp);
-
-			for (j = 0; j < 4; ++j) {
-				bucket_info[j + (i * 4)].hp_ratios[k] =
-					(resp >> (j * 8)) & 0xff;
-			}
-		}
-	}
-
-	return 0;
-}
 
 int isst_get_fact_info(struct isst_id *id, int level, int fact_bucket, struct isst_fact_info *fact_info)
 {
 	struct isst_pkg_ctdp_level_info ctdp_level;
 	struct isst_pkg_ctdp pkg_dev;
-	unsigned int resp;
-	int j, ret, print;
+	int ret;
 
 	ret = isst_get_ctdp_levels(id, &pkg_dev);
 	if (ret) {
@@ -473,40 +423,8 @@ int isst_get_fact_info(struct isst_id *id, int level, int fact_bucket, struct is
 		isst_display_error_info_message(1, "turbo-freq feature is not present at this level", 1, level);
 		return -1;
 	}
-
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
-				     CONFIG_TDP_GET_FACT_LP_CLIPPING_RATIO, 0,
-				     level, &resp);
-	if (ret)
-		return ret;
-
-	debug_printf("cpu:%d CONFIG_TDP_GET_FACT_LP_CLIPPING_RATIO resp:%x\n",
-		     id->cpu, resp);
-
-	fact_info->lp_ratios[0] = resp & 0xff;
-	fact_info->lp_ratios[1] = (resp >> 8) & 0xff;
-	fact_info->lp_ratios[2] = (resp >> 16) & 0xff;
-
-	ret = isst_get_fact_bucket_info(id, level, fact_info->bucket_info);
-	if (ret)
-		return ret;
-
-	print = 0;
-	for (j = 0; j < ISST_FACT_MAX_BUCKETS; ++j) {
-		if (fact_bucket != 0xff && fact_bucket != j)
-			continue;
-
-		if (!fact_info->bucket_info[j].hp_cores)
-			break;
-
-		print = 1;
-	}
-	if (!print) {
-		isst_display_error_info_message(1, "Invalid bucket", 0, 0);
-		return -1;
-	}
-
-	return 0;
+	CHECK_CB(get_fact_info);
+	return isst_ops->get_fact_info(id, level, fact_bucket, fact_info);
 }
 
 int isst_get_trl(struct isst_id *id, unsigned long long *trl)

@@ -390,6 +390,97 @@ static int mbox_set_pbf_fact_status(struct isst_id *id, int pbf, int enable)
 	return 0;
 }
 
+static int _get_fact_bucket_info(struct isst_id *id, int level,
+			      struct isst_fact_bucket_info *bucket_info)
+{
+	unsigned int resp;
+	int i, k, ret;
+
+	for (i = 0; i < 2; ++i) {
+		int j;
+
+		ret = isst_send_mbox_command(
+			id->cpu, CONFIG_TDP,
+			CONFIG_TDP_GET_FACT_HP_TURBO_LIMIT_NUMCORES, 0,
+			(i << 8) | level, &resp);
+		if (ret)
+			return ret;
+
+		debug_printf(
+			"cpu:%d CONFIG_TDP_GET_FACT_HP_TURBO_LIMIT_NUMCORES index:%d level:%d resp:%x\n",
+			id->cpu, i, level, resp);
+
+		for (j = 0; j < 4; ++j) {
+			bucket_info[j + (i * 4)].hp_cores =
+				(resp >> (j * 8)) & 0xff;
+		}
+	}
+
+	for (k = 0; k < 3; ++k) {
+		for (i = 0; i < 2; ++i) {
+			int j;
+
+			ret = isst_send_mbox_command(
+				id->cpu, CONFIG_TDP,
+				CONFIG_TDP_GET_FACT_HP_TURBO_LIMIT_RATIOS, 0,
+				(k << 16) | (i << 8) | level, &resp);
+			if (ret)
+				return ret;
+
+			debug_printf(
+				"cpu:%d CONFIG_TDP_GET_FACT_HP_TURBO_LIMIT_RATIOS index:%d level:%d avx:%d resp:%x\n",
+				id->cpu, i, level, k, resp);
+
+			for (j = 0; j < 4; ++j) {
+				bucket_info[j + (i * 4)].hp_ratios[k] =
+					(resp >> (j * 8)) & 0xff;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int mbox_get_fact_info(struct isst_id *id, int level, int fact_bucket, struct isst_fact_info *fact_info)
+{
+	unsigned int resp;
+	int j, ret, print;
+
+	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
+				     CONFIG_TDP_GET_FACT_LP_CLIPPING_RATIO, 0,
+				     level, &resp);
+	if (ret)
+		return ret;
+
+	debug_printf("cpu:%d CONFIG_TDP_GET_FACT_LP_CLIPPING_RATIO resp:%x\n",
+		     id->cpu, resp);
+
+	fact_info->lp_ratios[0] = resp & 0xff;
+	fact_info->lp_ratios[1] = (resp >> 8) & 0xff;
+	fact_info->lp_ratios[2] = (resp >> 16) & 0xff;
+
+	ret = _get_fact_bucket_info(id, level, fact_info->bucket_info);
+	if (ret)
+		return ret;
+
+	print = 0;
+	for (j = 0; j < ISST_FACT_MAX_BUCKETS; ++j) {
+		if (fact_bucket != 0xff && fact_bucket != j)
+			continue;
+
+		if (!fact_info->bucket_info[j].hp_cores)
+			break;
+
+		print = 1;
+	}
+	if (!print) {
+		isst_display_error_info_message(1, "Invalid bucket", 0, 0);
+		return -1;
+	}
+
+	return 0;
+}
+
 static struct isst_platform_ops mbox_ops = {
 	.get_disp_freq_multiplier = mbox_get_disp_freq_multiplier,
 	.get_trl_max_levels = mbox_get_trl_max_levels,
@@ -405,6 +496,7 @@ static struct isst_platform_ops mbox_ops = {
 	.set_tdp_level = mbox_set_tdp_level,
 	.get_pbf_info = mbox_get_pbf_info,
 	.set_pbf_fact_status = mbox_set_pbf_fact_status,
+	.get_fact_info = mbox_get_fact_info,
 };
 
 struct isst_platform_ops *mbox_get_platform_ops(void)
