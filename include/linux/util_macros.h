@@ -91,4 +91,26 @@
 	((uintptr_t)(ptr) >= (uintptr_t)(var) &&			\
 	 (uintptr_t)(ptr) <  (uintptr_t)(var) + sizeof(var))
 
+/**
+ * find_closest_smaller - locate the closest smaller element in a sorted array
+ * @x: The reference value.
+ * @a: The array in which to look for the closest smaller element. Must be
+ *  sorted in ascending order.
+ * @as: Size of 'a'.
+ *
+ * Returns the index of the element closest to and smaller than 'x', or -1
+ * if no element smaller than 'x' exists in the array.
+ */
+#define find_closest_smaller(x, a, as)					\
+({									\
+	typeof(as) __fcs_i;						\
+	typeof(x) __fcs_x = (x);					\
+	typeof(*a) const *__fcs_a = (a);				\
+	for (__fcs_i = 0; __fcs_i < (as); __fcs_i++) {			\
+		if (__fcs_x < __fcs_a[__fcs_i])				\
+			break;						\
+	}								\
+	(__fcs_i - 1);							\
+})
+
 #endif
