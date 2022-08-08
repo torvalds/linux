@@ -197,9 +197,7 @@ int rknpu_mem_destroy_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 	vunmap(rknpu_obj->kv_addr);
 	rknpu_obj->kv_addr = NULL;
 
-	if (rknpu_obj->owner)
-		rk_dma_heap_buffer_free(dmabuf);
-	else
+	if (!rknpu_obj->owner)
 		dma_buf_put(dmabuf);
 
 	kfree(rknpu_obj);
