@@ -18,6 +18,7 @@
 #include <linux/math64.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -128,6 +129,7 @@
  *        calculations
  * @object_ambient_temperature: Ambient temperature at object (might differ of
  *                              the ambient temperature of sensor.
+ * @regulator: Regulator of the device
  */
 struct mlx90632_data {
 	struct i2c_client *client;
@@ -136,6 +138,7 @@ struct mlx90632_data {
 	u16 emissivity;
 	u8 mtyp;
 	u32 object_ambient_temperature;
+	struct regulator *regulator;
 };
 
 static const struct regmap_range mlx90632_volatile_reg_range[] = {
@@ -208,6 +211,15 @@ static s32 mlx90632_pwr_continuous(struct regmap *regmap)
 }
 
 /**
+ * mlx90632_reset_delay() - Give the mlx90632 some time to reset properly
+ * If this is not done, the following I2C command(s) will not be accepted.
+ */
+static void mlx90632_reset_delay(void)
+{
+	usleep_range(150, 200);
+}
+
+/**
  * mlx90632_perform_measurement() - Trigger and retrieve current measurement cycle
  * @data: pointer to mlx90632_data object containing regmap information
  *
@@ -248,11 +260,7 @@ static int mlx90632_set_meas_type(struct regmap *regmap, u8 type)
 	if (ret < 0)
 		return ret;
 
-	/*
-	 * Give the mlx90632 some time to reset properly before sending a new I2C command
-	 * if this is not done, the following I2C command(s) will not be accepted.
-	 */
-	usleep_range(150, 200);
+	mlx90632_reset_delay();
 
 	ret = regmap_write_bits(regmap, MLX90632_REG_CONTROL,
 				 (MLX90632_CFG_MTYP_MASK | MLX90632_CFG_PWR_MASK),
@@ -841,6 +849,32 @@ static int mlx90632_wakeup(struct mlx90632_data *data)
 	return mlx90632_pwr_continuous(data->regmap);
 }
 
+static void mlx90632_disable_regulator(void *_data)
+{
+	struct mlx90632_data *data = _data;
+	int ret;
+
+	ret = regulator_disable(data->regulator);
+	if (ret < 0)
+		dev_err(regmap_get_device(data->regmap),
+			"Failed to disable power regulator: %d\n", ret);
+}
+
+static int mlx90632_enable_regulator(struct mlx90632_data *data)
+{
+	int ret;
+
+	ret = regulator_enable(data->regulator);
+	if (ret < 0) {
+		dev_err(regmap_get_device(data->regmap), "Failed to enable power regulator!\n");
+		return ret;
+	}
+
+	mlx90632_reset_delay();
+
+	return ret;
+}
+
 static int mlx90632_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
@@ -875,6 +909,23 @@ static int mlx90632_probe(struct i2c_client *client,
 	indio_dev->info = &mlx90632_info;
 	indio_dev->channels = mlx90632_channels;
 	indio_dev->num_channels = ARRAY_SIZE(mlx90632_channels);
+
+	mlx90632->regulator = devm_regulator_get(&client->dev, "vdd");
+	if (IS_ERR(mlx90632->regulator))
+		return dev_err_probe(&client->dev, PTR_ERR(mlx90632->regulator),
+				     "failed to get vdd regulator");
+
+	ret = mlx90632_enable_regulator(mlx90632);
+	if (ret < 0)
+		return ret;
+
+	ret = devm_add_action_or_reset(&client->dev, mlx90632_disable_regulator,
+				       mlx90632);
+	if (ret < 0) {
+		dev_err(&client->dev, "Failed to setup regulator cleanup action %d\n",
+			ret);
+		return ret;
+	}
 
 	ret = mlx90632_wakeup(mlx90632);
 	if (ret < 0) {
