@@ -69,15 +69,14 @@ int rtl8188eu_interface_configure(struct adapter *adapt)
 
 	switch (pdvobjpriv->RtNumOutPipes) {
 	case 3:
-		haldata->OutEpQueueSel = TX_SELE_HQ | TX_SELE_LQ | TX_SELE_NQ;
+		haldata->out_ep_extra_queues = TX_SELE_LQ | TX_SELE_NQ;
 		three_out_pipe(adapt, wifi_cfg);
 		break;
 	case 2:
-		haldata->OutEpQueueSel = TX_SELE_HQ | TX_SELE_NQ;
+		haldata->out_ep_extra_queues = TX_SELE_NQ;
 		two_out_pipe(adapt, wifi_cfg);
 		break;
 	case 1:
-		haldata->OutEpQueueSel = TX_SELE_HQ;
 		one_out_pipe(adapt);
 		break;
 	default:
@@ -154,28 +153,24 @@ static void _InitQueueReservedPage(struct adapter *Adapter)
 {
 	struct hal_data_8188e *haldata = &Adapter->haldata;
 	struct registry_priv	*pregistrypriv = &Adapter->registrypriv;
-	u8 numHQ = 0;
 	u8 numLQ = 0;
 	u8 numNQ = 0;
 	u8 numPubQ;
 
 	if (pregistrypriv->wifi_spec) {
-		if (haldata->OutEpQueueSel & TX_SELE_HQ)
-			numHQ =  0x29;
-
-		if (haldata->OutEpQueueSel & TX_SELE_LQ)
+		if (haldata->out_ep_extra_queues & TX_SELE_LQ)
 			numLQ = 0x1C;
 
 		/*  NOTE: This step shall be proceed before writing REG_RQPN. */
-		if (haldata->OutEpQueueSel & TX_SELE_NQ)
+		if (haldata->out_ep_extra_queues & TX_SELE_NQ)
 			numNQ = 0x1C;
 
 		rtw_write8(Adapter, REG_RQPN_NPQ, numNQ);
 
-		numPubQ = 0xA8 - numHQ - numLQ - numNQ;
+		numPubQ = 0xA8 - NUM_HQ - numLQ - numNQ;
 
 		/*  TX DMA */
-		rtw_write32(Adapter, REG_RQPN, LD_RQPN | numPubQ << 16 | numLQ << 8 | numHQ);
+		rtw_write32(Adapter, REG_RQPN, LD_RQPN | numPubQ << 16 | numLQ << 8 | NUM_HQ);
 	} else {
 		rtw_write16(Adapter, REG_RQPN_NPQ, 0x0000);/* Just follow MP Team,??? Georgia 03/28 */
 		rtw_write16(Adapter, REG_RQPN_NPQ, 0x0d);
