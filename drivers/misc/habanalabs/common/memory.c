@@ -457,7 +457,7 @@ static void merge_va_blocks_locked(struct hl_device *hdev,
 	prev = list_prev_entry(va_block, node);
 	if (&prev->node != va_list && prev->end + 1 == va_block->start) {
 		prev->end = va_block->end;
-		prev->size = prev->end - prev->start;
+		prev->size = prev->end - prev->start + 1;
 		list_del(&va_block->node);
 		kfree(va_block);
 		va_block = prev;
@@ -466,7 +466,7 @@ static void merge_va_blocks_locked(struct hl_device *hdev,
 	next = list_next_entry(va_block, node);
 	if (&next->node != va_list && va_block->end + 1 == next->start) {
 		next->start = va_block->start;
-		next->size = next->end - next->start;
+		next->size = next->end - next->start + 1;
 		list_del(&va_block->node);
 		kfree(va_block);
 	}
