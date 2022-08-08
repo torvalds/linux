@@ -4,7 +4,7 @@
 // Confidence: High
 // Copyright: (C) 2012 Julia Lawall, INRIA/LIP6.
 // Copyright: (C) 2012 Gilles Muller, INRIA/LiP6.
-// URL: http://coccinelle.lip6.fr/
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments:
 // Options: --no-includes --include-headers
 
@@ -14,12 +14,10 @@ virtual context
 
 @r@
 expression x;
-statement S1,S2;
 position p;
 @@
 
-*if@p (&x)
- S1 else S2
+*\(&x@p == NULL \| &x@p != NULL\)
 
 @script:python depends on org@
 p << r.p;
