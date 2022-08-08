@@ -243,7 +243,6 @@ err_phy:
 	return ret;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int cdns_pcie_suspend_noirq(struct device *dev)
 {
 	struct cdns_pcie *pcie = dev_get_drvdata(dev);
@@ -266,9 +265,8 @@ static int cdns_pcie_resume_noirq(struct device *dev)
 
 	return 0;
 }
-#endif
 
 const struct dev_pm_ops cdns_pcie_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(cdns_pcie_suspend_noirq,
-				      cdns_pcie_resume_noirq)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(cdns_pcie_suspend_noirq,
+				  cdns_pcie_resume_noirq)
 };
