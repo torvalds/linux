@@ -337,8 +337,6 @@ static int venc_op_s_ctrl(struct v4l2_ctrl *ctrl)
 		 * if we disable 8x8 transform for HP.
 		 */
 
-		if (ctrl->val == 0)
-			return -EINVAL;
 
 		ctr->h264_8x8_transform = ctrl->val;
 		break;
