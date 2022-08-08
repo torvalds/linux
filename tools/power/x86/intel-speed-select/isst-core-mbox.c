@@ -122,6 +122,18 @@ static int mbox_get_tdp_info(struct isst_id *id, int config_index,
 		"cpu:%d ctdp:%d CONFIG_TDP_GET_TDP_INFO resp:%x tdp_ratio:%d pkg_tdp:%d\n",
 		id->cpu, config_index, resp, ctdp_level->tdp_ratio,
 		ctdp_level->pkg_tdp);
+
+	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP, CONFIG_TDP_GET_TJMAX_INFO,
+				     0, config_index, &resp);
+	if (ret)
+		return ret;
+
+	ctdp_level->t_proc_hot = resp & GENMASK(7, 0);
+
+	debug_printf(
+		"cpu:%d ctdp:%d CONFIG_TDP_GET_TJMAX_INFO resp:%x t_proc_hot:%d\n",
+		id->cpu, config_index, resp, ctdp_level->t_proc_hot);
+
 	return 0;
 }
 
@@ -146,7 +158,6 @@ static int mbox_get_pwr_info(struct isst_id *id, int config_index,
 
 	return 0;
 }
-
 
 static struct isst_platform_ops mbox_ops = {
 	.get_disp_freq_multiplier = mbox_get_disp_freq_multiplier,

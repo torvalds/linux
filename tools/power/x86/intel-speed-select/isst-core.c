@@ -312,26 +312,6 @@ int isst_get_pwr_info(struct isst_id *id, int config_index,
 	return isst_ops->get_pwr_info(id, config_index, ctdp_level);
 }
 
-int isst_get_tjmax_info(struct isst_id *id, int config_index,
-			struct isst_pkg_ctdp_level_info *ctdp_level)
-{
-	unsigned int resp;
-	int ret;
-
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP, CONFIG_TDP_GET_TJMAX_INFO,
-				     0, config_index, &resp);
-	if (ret)
-		return ret;
-
-	ctdp_level->t_proc_hot = resp & GENMASK(7, 0);
-
-	debug_printf(
-		"cpu:%d ctdp:%d CONFIG_TDP_GET_TJMAX_INFO resp:%x t_proc_hot:%d\n",
-		id->cpu, config_index, resp, ctdp_level->t_proc_hot);
-
-	return 0;
-}
-
 int isst_get_coremask_info(struct isst_id *id, int config_index,
 			   struct isst_pkg_ctdp_level_info *ctdp_level)
 {
@@ -998,10 +978,6 @@ int isst_get_process_ctdp(struct isst_id *id, int tdp_level, struct isst_pkg_ctd
 			return ret;
 
 		ret = isst_get_pwr_info(id, i, ctdp_level);
-		if (ret)
-			return ret;
-
-		ret = isst_get_tjmax_info(id, i, ctdp_level);
 		if (ret)
 			return ret;
 
