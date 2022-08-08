@@ -1306,8 +1306,15 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 
 	mlx5_sf_dev_table_create(dev);
 
+	err = mlx5_devlink_traps_register(priv_to_devlink(dev));
+	if (err)
+		goto err_traps_reg;
+
 	return 0;
 
+err_traps_reg:
+	mlx5_sf_dev_table_destroy(dev);
+	mlx5_sriov_detach(dev);
 err_sriov:
 	mlx5_lag_remove_mdev(dev);
 	mlx5_ec_cleanup(dev);
@@ -1336,6 +1343,7 @@ err_irq_table:
 
 static void mlx5_unload(struct mlx5_core_dev *dev)
 {
+	mlx5_devlink_traps_unregister(priv_to_devlink(dev));
 	mlx5_sf_dev_table_destroy(dev);
 	mlx5_sriov_detach(dev);
 	mlx5_eswitch_disable(dev->priv.eswitch);
