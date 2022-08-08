@@ -143,12 +143,14 @@ struct isst_pkg_ctdp_level_info {
 	int pkg_max_power;
 	int fact;
 	int t_proc_hot;
+	int cooling_type;
 	int uncore_p0;
 	int uncore_p1;
 	int uncore_pm;
 	int sse_p1;
 	int avx2_p1;
 	int avx512_p1;
+	int amx_p1;
 	int mem_freq;
 	size_t core_cpumask_size;
 	cpu_set_t *core_cpumask;
@@ -311,5 +313,6 @@ extern void hfi_exit(void);
 
 /* Interface specific callbacks */
 extern struct isst_platform_ops *mbox_get_platform_ops(void);
+extern struct isst_platform_ops *tpmi_get_platform_ops(void);
 
 #endif
