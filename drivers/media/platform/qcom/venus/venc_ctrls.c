@@ -8,6 +8,7 @@
 
 #include "core.h"
 #include "venc.h"
+#include "helpers.h"
 
 #define BITRATE_MIN		32000
 #define BITRATE_MAX		160000000
@@ -348,8 +349,29 @@ static int venc_op_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
+static int venc_op_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct venus_inst *inst = ctrl_to_inst(ctrl);
+	struct hfi_buffer_requirements bufreq;
+	enum hfi_version ver = inst->core->res->hfi_version;
+	int ret;
+
+	switch (ctrl->id) {
+	case V4L2_CID_MIN_BUFFERS_FOR_OUTPUT:
+		ret = venus_helper_get_bufreq(inst, HFI_BUFFER_INPUT, &bufreq);
+		if (!ret)
+			ctrl->val = HFI_BUFREQ_COUNT_MIN(&bufreq, ver);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct v4l2_ctrl_ops venc_ctrl_ops = {
 	.s_ctrl = venc_op_s_ctrl,
+	.g_volatile_ctrl = venc_op_g_volatile_ctrl,
 };
 
 int venc_ctrl_init(struct venus_inst *inst)
@@ -360,7 +382,7 @@ int venc_ctrl_init(struct venus_inst *inst)
 		{ 16000, 34500, 3000 }, 15635, 16450, 10000000, 500,
 	};
 
-	ret = v4l2_ctrl_handler_init(&inst->ctrl_handler, 58);
+	ret = v4l2_ctrl_handler_init(&inst->ctrl_handler, 59);
 	if (ret)
 		return ret;
 
@@ -439,6 +461,9 @@ int venc_ctrl_init(struct venus_inst *inst)
 		V4L2_CID_MPEG_VIDEO_VP8_PROFILE,
 		V4L2_MPEG_VIDEO_VP8_PROFILE_3,
 		0, V4L2_MPEG_VIDEO_VP8_PROFILE_0);
+
+	v4l2_ctrl_new_std(&inst->ctrl_handler, &venc_ctrl_ops,
+			  V4L2_CID_MIN_BUFFERS_FOR_OUTPUT, 4, 11, 1, 4);
 
 	v4l2_ctrl_new_std(&inst->ctrl_handler, &venc_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_BITRATE, BITRATE_MIN, BITRATE_MAX,
