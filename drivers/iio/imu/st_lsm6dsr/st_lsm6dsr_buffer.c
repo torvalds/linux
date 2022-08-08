@@ -225,8 +225,6 @@ int st_lsm6dsr_update_watermark(struct st_lsm6dsr_sensor *sensor,
 
 	fifo_watermark = max_t(u16, fifo_watermark, 2);
 
-	mutex_lock(&hw->lock);
-
 	err = st_lsm6dsr_read_atomic(hw, ST_LSM6DSR_REG_FIFO_CTRL1_ADDR + 1,
 				     sizeof(data), &data);
 	if (err < 0)
@@ -238,8 +236,6 @@ int st_lsm6dsr_update_watermark(struct st_lsm6dsr_sensor *sensor,
 	err = st_lsm6dsr_write_atomic(hw, ST_LSM6DSR_REG_FIFO_CTRL1_ADDR,
 				      sizeof(wdata), (u8 *)&wdata);
 out:
-	mutex_unlock(&hw->lock);
-
 	return err < 0 ? err : 0;
 }
 
