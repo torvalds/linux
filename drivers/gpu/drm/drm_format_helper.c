@@ -131,63 +131,57 @@ static int drm_fb_xfrm_toio(void __iomem *dst, unsigned long dst_pitch, unsigned
 
 /**
  * drm_fb_memcpy - Copy clip buffer
- * @dst: Destination buffer
- * @dst_pitch: Number of bytes between two consecutive scanlines within dst
- * @vaddr: Source buffer
+ * @dst: Array of destination buffers
+ * @dst_pitch: Array of numbers of bytes between the start of two consecutive scanlines
+ *             within @dst; can be NULL if scanlines are stored next to each other.
+ * @vmap: Array of source buffers
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
  *
- * This function does not apply clipping on dst, i.e. the destination
- * is at the top-left corner.
+ * This function copies parts of a framebuffer to display memory. Destination and
+ * framebuffer formats must match. No conversion takes place. The parameters @dst,
+ * @dst_pitch and @vmap refer to arrays. Each array must have at least as many entries
+ * as there are planes in @fb's format. Each entry stores the value for the format's
+ * respective color plane at the same index.
+ *
+ * This function does not apply clipping on @dst (i.e. the destination is at the
+ * top-left corner).
  */
-void drm_fb_memcpy(void *dst, unsigned int dst_pitch, const void *vaddr,
-		   const struct drm_framebuffer *fb, const struct drm_rect *clip)
+void drm_fb_memcpy(struct iosys_map *dst, const unsigned int *dst_pitch,
+		   const struct iosys_map *vmap, const struct drm_framebuffer *fb,
+		   const struct drm_rect *clip)
 {
-	unsigned int cpp = fb->format->cpp[0];
-	size_t len = (clip->x2 - clip->x1) * cpp;
-	unsigned int y, lines = clip->y2 - clip->y1;
+	static const unsigned int default_dst_pitch[DRM_FORMAT_MAX_PLANES] = {
+		0, 0, 0, 0
+	};
+
+	const struct drm_format_info *format = fb->format;
+	unsigned int i, y, lines = drm_rect_height(clip);
 
 	if (!dst_pitch)
-		dst_pitch = len;
+		dst_pitch = default_dst_pitch;
 
-	vaddr += clip_offset(clip, fb->pitches[0], cpp);
-	for (y = 0; y < lines; y++) {
-		memcpy(dst, vaddr, len);
-		vaddr += fb->pitches[0];
-		dst += dst_pitch;
+	for (i = 0; i < format->num_planes; ++i) {
+		unsigned int bpp_i = drm_format_info_bpp(format, i);
+		unsigned int cpp_i = DIV_ROUND_UP(bpp_i, 8);
+		size_t len_i = DIV_ROUND_UP(drm_rect_width(clip) * bpp_i, 8);
+		unsigned int dst_pitch_i = dst_pitch[i];
+		struct iosys_map dst_i = dst[i];
+		struct iosys_map vmap_i = vmap[i];
+
+		if (!dst_pitch_i)
+			dst_pitch_i = len_i;
+
+		iosys_map_incr(&vmap_i, clip_offset(clip, fb->pitches[i], cpp_i));
+		for (y = 0; y < lines; y++) {
+			/* TODO: handle vmap_i in I/O memory here */
+			iosys_map_memcpy_to(&dst_i, 0, vmap_i.vaddr, len_i);
+			iosys_map_incr(&vmap_i, fb->pitches[i]);
+			iosys_map_incr(&dst_i, dst_pitch_i);
+		}
 	}
 }
 EXPORT_SYMBOL(drm_fb_memcpy);
-
-/**
- * drm_fb_memcpy_toio - Copy clip buffer
- * @dst: Destination buffer (iomem)
- * @dst_pitch: Number of bytes between two consecutive scanlines within dst
- * @vaddr: Source buffer
- * @fb: DRM framebuffer
- * @clip: Clip rectangle area to copy
- *
- * This function does not apply clipping on dst, i.e. the destination
- * is at the top-left corner.
- */
-void drm_fb_memcpy_toio(void __iomem *dst, unsigned int dst_pitch, const void *vaddr,
-			const struct drm_framebuffer *fb, const struct drm_rect *clip)
-{
-	unsigned int cpp = fb->format->cpp[0];
-	size_t len = (clip->x2 - clip->x1) * cpp;
-	unsigned int y, lines = clip->y2 - clip->y1;
-
-	if (!dst_pitch)
-		dst_pitch = len;
-
-	vaddr += clip_offset(clip, fb->pitches[0], cpp);
-	for (y = 0; y < lines; y++) {
-		memcpy_toio(dst, vaddr, len);
-		vaddr += fb->pitches[0];
-		dst += dst_pitch;
-	}
-}
-EXPORT_SYMBOL(drm_fb_memcpy_toio);
 
 static void drm_fb_swab16_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
@@ -587,7 +581,7 @@ int drm_fb_blit(struct iosys_map *dst, const unsigned int *dst_pitch, uint32_t d
 		dst_format = DRM_FORMAT_XRGB2101010;
 
 	if (dst_format == fb_format) {
-		drm_fb_memcpy_toio(dst[0].vaddr_iomem, dst_pitch[0], vmap[0].vaddr, fb, clip);
+		drm_fb_memcpy(dst, dst_pitch, vmap, fb, clip);
 		return 0;
 
 	} else if (dst_format == DRM_FORMAT_RGB565) {

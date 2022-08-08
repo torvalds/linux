@@ -205,6 +205,7 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 	struct drm_gem_object *gem = drm_gem_fb_get_obj(fb, 0);
 	struct iosys_map map[DRM_FORMAT_MAX_PLANES];
 	struct iosys_map data[DRM_FORMAT_MAX_PLANES];
+	struct iosys_map dst_map = IOSYS_MAP_INIT_VADDR(dst);
 	void *src;
 	int ret;
 
@@ -222,7 +223,7 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 		if (swap)
 			drm_fb_swab(dst, 0, src, fb, clip, !gem->import_attach);
 		else
-			drm_fb_memcpy(dst, 0, src, fb, clip);
+			drm_fb_memcpy(&dst_map, NULL, data, fb, clip);
 		break;
 	case DRM_FORMAT_XRGB8888:
 		drm_fb_xrgb8888_to_rgb565(dst, 0, src, fb, clip, swap);

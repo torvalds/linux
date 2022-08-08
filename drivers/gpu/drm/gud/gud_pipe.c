@@ -156,6 +156,7 @@ static int gud_prep_flush(struct gud_device *gdrm, struct drm_framebuffer *fb,
 	u8 compression = gdrm->compression;
 	struct iosys_map map[DRM_FORMAT_MAX_PLANES];
 	struct iosys_map map_data[DRM_FORMAT_MAX_PLANES];
+	struct iosys_map dst;
 	void *vaddr, *buf;
 	size_t pitch, len;
 	int ret = 0;
@@ -179,6 +180,7 @@ retry:
 		buf = gdrm->compress_buf;
 	else
 		buf = gdrm->bulk_buf;
+	iosys_map_set_vaddr(&dst, buf);
 
 	/*
 	 * Imported buffers are assumed to be write-combined and thus uncached
@@ -208,7 +210,7 @@ retry:
 		/* can compress directly from the framebuffer */
 		buf = vaddr + rect->y1 * pitch;
 	} else {
-		drm_fb_memcpy(buf, 0, vaddr, fb, rect);
+		drm_fb_memcpy(&dst, NULL, map_data, fb, rect);
 	}
 
 	memset(req, 0, sizeof(*req));

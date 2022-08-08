@@ -14,10 +14,9 @@ struct drm_rect;
 unsigned int drm_fb_clip_offset(unsigned int pitch, const struct drm_format_info *format,
 				const struct drm_rect *clip);
 
-void drm_fb_memcpy(void *dst, unsigned int dst_pitch, const void *vaddr,
-		   const struct drm_framebuffer *fb, const struct drm_rect *clip);
-void drm_fb_memcpy_toio(void __iomem *dst, unsigned int dst_pitch, const void *vaddr,
-			const struct drm_framebuffer *fb, const struct drm_rect *clip);
+void drm_fb_memcpy(struct iosys_map *dst, const unsigned int *dst_pitch,
+		   const struct iosys_map *vmap, const struct drm_framebuffer *fb,
+		   const struct drm_rect *clip);
 void drm_fb_swab(void *dst, unsigned int dst_pitch, const void *src,
 		 const struct drm_framebuffer *fb, const struct drm_rect *clip,
 		 bool cached);

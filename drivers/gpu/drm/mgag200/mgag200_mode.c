@@ -430,13 +430,12 @@ static void mgag200_disable_display(struct mga_device *mdev)
 }
 
 static void mgag200_handle_damage(struct mga_device *mdev, const struct iosys_map *vmap,
-				  struct drm_framebuffer *fb, const struct drm_rect *clip)
+				  struct drm_framebuffer *fb, struct drm_rect *clip)
 {
-	void __iomem *dst = mdev->vram;
-	void *vaddr = vmap[0].vaddr; /* TODO: Use mapping abstraction properly */
+	struct iosys_map dst = IOSYS_MAP_INIT_VADDR_IOMEM(mdev->vram);
 
-	dst += drm_fb_clip_offset(fb->pitches[0], fb->format, clip);
-	drm_fb_memcpy_toio(dst, fb->pitches[0], vaddr, fb, clip);
+	iosys_map_incr(&dst, drm_fb_clip_offset(fb->pitches[0], fb->format, clip));
+	drm_fb_memcpy(&dst, fb->pitches, vmap, fb, clip);
 }
 
 /*
