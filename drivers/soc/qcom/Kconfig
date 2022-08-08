@@ -124,6 +124,10 @@ config QCOM_PMIC_GLINK
 	  Say yes here to support USB-C and battery status on modern Qualcomm
 	  platforms.
 
+config QCOM_PMIC_SEC_WRITE
+	tristate
+	depends on REGMAP
+
 config QCOM_QMI_HELPERS
 	tristate
 	depends on NET
