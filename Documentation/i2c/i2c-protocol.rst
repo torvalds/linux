@@ -2,7 +2,8 @@
 The I2C Protocol
 ================
 
-This document describes the I2C protocol. Or will, when it is finished :-)
+This document is an overview of the basic I2C transactions and the kernel
+APIs to perform them.
 
 Key to symbols
 ==============
