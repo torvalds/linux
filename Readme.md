@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 15 Jun 2022
+Release Date: 08 Aug 2022
 
-Release Version: V_01-00-52 : Limited-tested version
+Release Version: V_01-00-53 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -530,3 +530,7 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
 ## TC956X_Host_Driver_20220615_V_01-00-52:
 1. Added debugfs support for module specific register dump.
+
+## TC956X_Host_Driver_20220808_V_01-00-53:
+1. For IPA offload path, disable RBU interrupt when RBU interrupt occurs.
+   Interrupt should be enabled back in IPA SW.

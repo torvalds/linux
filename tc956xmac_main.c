@@ -129,6 +129,8 @@
  *  VERSION     : 01-00-51
  *  15 Jun 2022 : 1. Added debugfs support for module specific register dump
  *  VERSION     : 01-00-52 
+ *  08 Aug 2022 : 1. Disable RBU interrupt on RBU interrupt occurance. IPA SW should enable it back.
+ *  VERSION     : 01-00-53 
  */
 
 #include <linux/clk.h>
@@ -7445,7 +7447,7 @@ static irqreturn_t tc956xmac_interrupt(int irq, void *dev_id)
 	u32 queues_count;
 	u32 queue;
 	bool xmac;
-	u32 val = 0;
+	u32 val = 0, value = 0;
 	uint32_t uiIntSts, uiIntclr = 0;
 
 	xmac = priv->plat->has_gmac4 || priv->plat->has_xgmac;
@@ -7519,6 +7521,15 @@ static irqreturn_t tc956xmac_interrupt(int irq, void *dev_id)
 				uiIntclr |= XGMAC_AIS;
 			}
 			writel(uiIntclr, (priv->ioaddr + XGMAC_DMA_CH_STATUS(queue)));
+
+			/* Disable RBU interrupt on RBU interrupt occurance. IPA SW should enable it back */
+			value = readl(priv->ioaddr + XGMAC_DMA_CH_INT_EN(queue));
+			if ( ((uiIntclr & XGMAC_RBU) == XGMAC_RBU) && (value & XGMAC_RBUE)) {
+				value = readl(priv->ioaddr + XGMAC_DMA_CH_INT_EN(queue));
+				value &= ~XGMAC_RBUE;
+				writel(value, priv->ioaddr + XGMAC_DMA_CH_INT_EN(queue));
+				printk("***RBU INT disabled***XGMAC_DMA_CH_INT_EN[%d]***** :0x%x\n", queue, readl(priv->ioaddr + XGMAC_DMA_CH_INT_EN(queue)));
+			}
 		}
 	}
 
