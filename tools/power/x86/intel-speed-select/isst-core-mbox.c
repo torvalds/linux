@@ -272,6 +272,73 @@ static int mbox_set_tdp_level(struct isst_id *id, int tdp_level)
 	return 0;
 }
 
+static int mbox_get_pbf_info(struct isst_id *id, int level, struct isst_pbf_info *pbf_info)
+{
+	int max_punit_core, max_mask_index;
+	unsigned int req, resp;
+	int i, ret;
+
+	max_punit_core = get_max_punit_core_id(id);
+	max_mask_index = max_punit_core > 32 ? 2 : 1;
+
+	for (i = 0; i < max_mask_index; ++i) {
+		unsigned long long mask;
+		int count;
+
+		ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
+					     CONFIG_TDP_PBF_GET_CORE_MASK_INFO,
+					     0, (i << 8) | level, &resp);
+		if (ret)
+			break;
+
+		debug_printf(
+			"cpu:%d CONFIG_TDP_PBF_GET_CORE_MASK_INFO resp:%x\n",
+			id->cpu, resp);
+
+		mask = (unsigned long long)resp << (32 * i);
+		set_cpu_mask_from_punit_coremask(id, mask,
+						 pbf_info->core_cpumask_size,
+						 pbf_info->core_cpumask,
+						 &count);
+	}
+
+	req = level;
+	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
+				     CONFIG_TDP_PBF_GET_P1HI_P1LO_INFO, 0, req,
+				     &resp);
+	if (ret)
+		return ret;
+
+	debug_printf("cpu:%d CONFIG_TDP_PBF_GET_P1HI_P1LO_INFO resp:%x\n", id->cpu,
+		     resp);
+
+	pbf_info->p1_low = resp & 0xff;
+	pbf_info->p1_high = (resp & GENMASK(15, 8)) >> 8;
+
+	req = level;
+	ret = isst_send_mbox_command(
+		id->cpu, CONFIG_TDP, CONFIG_TDP_PBF_GET_TDP_INFO, 0, req, &resp);
+	if (ret)
+		return ret;
+
+	debug_printf("cpu:%d CONFIG_TDP_PBF_GET_TDP_INFO resp:%x\n", id->cpu, resp);
+
+	pbf_info->tdp = resp & 0xffff;
+
+	req = level;
+	ret = isst_send_mbox_command(
+		id->cpu, CONFIG_TDP, CONFIG_TDP_PBF_GET_TJ_MAX_INFO, 0, req, &resp);
+	if (ret)
+		return ret;
+
+	debug_printf("cpu:%d CONFIG_TDP_PBF_GET_TJ_MAX_INFO resp:%x\n", id->cpu,
+		     resp);
+	pbf_info->t_control = (resp >> 8) & 0xff;
+	pbf_info->t_prochot = resp & 0xff;
+
+	return 0;
+}
+
 static struct isst_platform_ops mbox_ops = {
 	.get_disp_freq_multiplier = mbox_get_disp_freq_multiplier,
 	.get_trl_max_levels = mbox_get_trl_max_levels,
@@ -285,6 +352,7 @@ static struct isst_platform_ops mbox_ops = {
 	.get_get_trl = mbox_get_get_trl,
 	.get_trl_bucket_info = mbox_get_trl_bucket_info,
 	.set_tdp_level = mbox_set_tdp_level,
+	.get_pbf_info = mbox_get_pbf_info,
 };
 
 struct isst_platform_ops *mbox_get_platform_ops(void)

@@ -362,8 +362,7 @@ int isst_get_pbf_info(struct isst_id *id, int level, struct isst_pbf_info *pbf_i
 {
 	struct isst_pkg_ctdp_level_info ctdp_level;
 	struct isst_pkg_ctdp pkg_dev;
-	int i, ret, max_punit_core, max_mask_index;
-	unsigned int req, resp;
+	int ret;
 
 	ret = isst_get_ctdp_levels(id, &pkg_dev);
 	if (ret) {
@@ -387,65 +386,8 @@ int isst_get_pbf_info(struct isst_id *id, int level, struct isst_pbf_info *pbf_i
 
 	pbf_info->core_cpumask_size = alloc_cpu_set(&pbf_info->core_cpumask);
 
-	max_punit_core = get_max_punit_core_id(id);
-	max_mask_index = max_punit_core > 32 ? 2 : 1;
-
-	for (i = 0; i < max_mask_index; ++i) {
-		unsigned long long mask;
-		int count;
-
-		ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
-					     CONFIG_TDP_PBF_GET_CORE_MASK_INFO,
-					     0, (i << 8) | level, &resp);
-		if (ret)
-			break;
-
-		debug_printf(
-			"cpu:%d CONFIG_TDP_PBF_GET_CORE_MASK_INFO resp:%x\n",
-			id->cpu, resp);
-
-		mask = (unsigned long long)resp << (32 * i);
-		set_cpu_mask_from_punit_coremask(id, mask,
-						 pbf_info->core_cpumask_size,
-						 pbf_info->core_cpumask,
-						 &count);
-	}
-
-	req = level;
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
-				     CONFIG_TDP_PBF_GET_P1HI_P1LO_INFO, 0, req,
-				     &resp);
-	if (ret)
-		return ret;
-
-	debug_printf("cpu:%d CONFIG_TDP_PBF_GET_P1HI_P1LO_INFO resp:%x\n", id->cpu,
-		     resp);
-
-	pbf_info->p1_low = resp & 0xff;
-	pbf_info->p1_high = (resp & GENMASK(15, 8)) >> 8;
-
-	req = level;
-	ret = isst_send_mbox_command(
-		id->cpu, CONFIG_TDP, CONFIG_TDP_PBF_GET_TDP_INFO, 0, req, &resp);
-	if (ret)
-		return ret;
-
-	debug_printf("cpu:%d CONFIG_TDP_PBF_GET_TDP_INFO resp:%x\n", id->cpu, resp);
-
-	pbf_info->tdp = resp & 0xffff;
-
-	req = level;
-	ret = isst_send_mbox_command(
-		id->cpu, CONFIG_TDP, CONFIG_TDP_PBF_GET_TJ_MAX_INFO, 0, req, &resp);
-	if (ret)
-		return ret;
-
-	debug_printf("cpu:%d CONFIG_TDP_PBF_GET_TJ_MAX_INFO resp:%x\n", id->cpu,
-		     resp);
-	pbf_info->t_control = (resp >> 8) & 0xff;
-	pbf_info->t_prochot = resp & 0xff;
-
-	return 0;
+	CHECK_CB(get_pbf_info);
+	return isst_ops->get_pbf_info(id, level, pbf_info);
 }
 
 void isst_get_pbf_info_complete(struct isst_pbf_info *pbf_info)
