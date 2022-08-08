@@ -306,6 +306,7 @@ static int video_buf_init(struct vb2_buffer *vb)
 	//struct sg_table *sgt;
 	dma_addr_t *paddr;
 	unsigned int i;
+
 	buffer->sizeimage = 0;
 
 	if (video->is_mp) {
@@ -1012,9 +1013,8 @@ static int video_pipeline_s_fmt(struct stfcamss_video *video,
 	pad = media_entity_remote_pad(&sensor->pads[0]);
 	ret = video_entity_s_fmt(video, pad->entity, state, &fmt, code);
 
-	if (ret < 0 && ret != -ENOIOCTLCMD) {
+	if (ret < 0 && ret != -ENOIOCTLCMD)
 		return ret;
-	}
 
 	index = video_find_format(mf->code,
 				video->formats[index].pixelformat,
