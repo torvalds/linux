@@ -228,11 +228,9 @@ separate signing subkey::
     recommend that you create an ECC signing subkey for your kernel
     work.
 
-    If for some reason you prefer to stay with RSA subkeys, just replace
-    "ed25519" with "rsa2048" in the above command. Additionally, if you
-    plan to use a hardware device that does not support ED25519 ECC
-    keys, like Nitrokey Pro or a Yubikey, then you should use
-    "nistp256" instead or "ed25519."
+    Note, that if you plan to use a hardware device that does not
+    support ED25519 ECC keys, you should choose "nistp256" instead or
+    "ed25519."
 
 
 Back up your Certify key for disaster recovery
@@ -438,7 +436,8 @@ functionality. There are several options available:
 - `Yubikey 5`_: proprietary hardware and software, but cheaper than
   Nitrokey Pro and comes available in the USB-C form that is more useful
   with newer laptops. Offers additional security features such as FIDO
-  U2F, among others, and now finally supports ECC keys (NISTP).
+  U2F, among others, and now finally supports NISTP and ED25519 ECC
+  keys.
 
 `LWN has a good review`_ of some of the above models, as well as several
 others. Your choice will depend on cost, shipping availability in your
@@ -451,7 +450,7 @@ geographical region, and open/proprietary hardware considerations.
     Foundation.
 
 .. _`Nitrokey Start`: https://shop.nitrokey.com/shop/product/nitrokey-start-6
-.. _`Nitrokey Pro 2`: https://shop.nitrokey.com/shop/product/nitrokey-pro-2-3
+.. _`Nitrokey Pro 2`: https://shop.nitrokey.com/shop/product/nkpr2-nitrokey-pro-2-3
 .. _`Yubikey 5`: https://www.yubico.com/products/yubikey-5-overview/
 .. _Gnuk: https://www.fsij.org/doc-gnuk/
 .. _`LWN has a good review`: https://lwn.net/Articles/736231/
