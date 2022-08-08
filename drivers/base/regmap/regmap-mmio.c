@@ -16,7 +16,6 @@
 struct regmap_mmio_context {
 	void __iomem *regs;
 	unsigned int val_bytes;
-	bool relaxed_mmio;
 
 	bool attached_clk;
 	struct clk *clk;
@@ -290,7 +289,6 @@ static struct regmap_mmio_context *regmap_mmio_gen_context(struct device *dev,
 
 	ctx->regs = regs;
 	ctx->val_bytes = config->val_bits / 8;
-	ctx->relaxed_mmio = config->use_relaxed_mmio;
 	ctx->clk = ERR_PTR(-ENODEV);
 
 	switch (regmap_get_val_endian(dev, &regmap_mmio, config)) {
@@ -301,7 +299,7 @@ static struct regmap_mmio_context *regmap_mmio_gen_context(struct device *dev,
 #endif
 		switch (config->val_bits) {
 		case 8:
-			if (ctx->relaxed_mmio) {
+			if (config->use_relaxed_mmio) {
 				ctx->reg_read = regmap_mmio_read8_relaxed;
 				ctx->reg_write = regmap_mmio_write8_relaxed;
 			} else {
@@ -310,7 +308,7 @@ static struct regmap_mmio_context *regmap_mmio_gen_context(struct device *dev,
 			}
 			break;
 		case 16:
-			if (ctx->relaxed_mmio) {
+			if (config->use_relaxed_mmio) {
 				ctx->reg_read = regmap_mmio_read16le_relaxed;
 				ctx->reg_write = regmap_mmio_write16le_relaxed;
 			} else {
@@ -319,7 +317,7 @@ static struct regmap_mmio_context *regmap_mmio_gen_context(struct device *dev,
 			}
 			break;
 		case 32:
-			if (ctx->relaxed_mmio) {
+			if (config->use_relaxed_mmio) {
 				ctx->reg_read = regmap_mmio_read32le_relaxed;
 				ctx->reg_write = regmap_mmio_write32le_relaxed;
 			} else {
@@ -329,7 +327,7 @@ static struct regmap_mmio_context *regmap_mmio_gen_context(struct device *dev,
 			break;
 #ifdef CONFIG_64BIT
 		case 64:
-			if (ctx->relaxed_mmio) {
+			if (config->use_relaxed_mmio) {
 				ctx->reg_read = regmap_mmio_read64le_relaxed;
 				ctx->reg_write = regmap_mmio_write64le_relaxed;
 			} else {
