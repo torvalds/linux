@@ -32,9 +32,6 @@ static int regmap_mmio_regbits_check(size_t reg_bits)
 	case 8:
 	case 16:
 	case 32:
-#ifdef CONFIG_64BIT
-	case 64:
-#endif
 		return 0;
 	default:
 		return -EINVAL;
@@ -56,11 +53,6 @@ static int regmap_mmio_get_min_stride(size_t val_bits)
 	case 32:
 		min_stride = 4;
 		break;
-#ifdef CONFIG_64BIT
-	case 64:
-		min_stride = 8;
-		break;
-#endif
 	default:
 		return -EINVAL;
 	}
@@ -123,22 +115,6 @@ static void regmap_mmio_write32be(struct regmap_mmio_context *ctx,
 {
 	iowrite32be(val, ctx->regs + reg);
 }
-
-#ifdef CONFIG_64BIT
-static void regmap_mmio_write64le(struct regmap_mmio_context *ctx,
-				  unsigned int reg,
-				  unsigned int val)
-{
-	writeq(val, ctx->regs + reg);
-}
-
-static void regmap_mmio_write64le_relaxed(struct regmap_mmio_context *ctx,
-				  unsigned int reg,
-				  unsigned int val)
-{
-	writeq_relaxed(val, ctx->regs + reg);
-}
-#endif
 
 static int regmap_mmio_write(void *context, unsigned int reg, unsigned int val)
 {
@@ -206,20 +182,6 @@ static unsigned int regmap_mmio_read32be(struct regmap_mmio_context *ctx,
 {
 	return ioread32be(ctx->regs + reg);
 }
-
-#ifdef CONFIG_64BIT
-static unsigned int regmap_mmio_read64le(struct regmap_mmio_context *ctx,
-				         unsigned int reg)
-{
-	return readq(ctx->regs + reg);
-}
-
-static unsigned int regmap_mmio_read64le_relaxed(struct regmap_mmio_context *ctx,
-						 unsigned int reg)
-{
-	return readq_relaxed(ctx->regs + reg);
-}
-#endif
 
 static int regmap_mmio_read(void *context, unsigned int reg, unsigned int *val)
 {
@@ -325,17 +287,6 @@ static struct regmap_mmio_context *regmap_mmio_gen_context(struct device *dev,
 				ctx->reg_write = regmap_mmio_write32le;
 			}
 			break;
-#ifdef CONFIG_64BIT
-		case 64:
-			if (config->use_relaxed_mmio) {
-				ctx->reg_read = regmap_mmio_read64le_relaxed;
-				ctx->reg_write = regmap_mmio_write64le_relaxed;
-			} else {
-				ctx->reg_read = regmap_mmio_read64le;
-				ctx->reg_write = regmap_mmio_write64le;
-			}
-			break;
-#endif
 		default:
 			ret = -EINVAL;
 			goto err_free;
