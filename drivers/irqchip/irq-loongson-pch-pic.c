@@ -349,7 +349,7 @@ int __init pch_pic_acpi_init(struct irq_domain *parent,
 
 	vec_base = acpi_pchpic->gsi_base - GSI_MIN_PCH_IRQ;
 
-	domain_handle = irq_domain_alloc_fwnode((phys_addr_t *)acpi_pchpic);
+	domain_handle = irq_domain_alloc_fwnode(&acpi_pchpic->address);
 	if (!domain_handle) {
 		pr_err("Unable to allocate domain handle\n");
 		return -ENOMEM;

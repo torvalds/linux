@@ -348,7 +348,8 @@ int __init eiointc_acpi_init(struct irq_domain *parent,
 	if (!priv)
 		return -ENOMEM;
 
-	priv->domain_handle = irq_domain_alloc_fwnode((phys_addr_t *)acpi_eiointc);
+	priv->domain_handle = irq_domain_alloc_named_id_fwnode("EIOPIC",
+							       acpi_eiointc->node);
 	if (!priv->domain_handle) {
 		pr_err("Unable to allocate domain handle\n");
 		goto out_free_priv;
