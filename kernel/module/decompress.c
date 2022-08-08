@@ -119,10 +119,10 @@ static ssize_t module_gzip_decompress(struct load_info *info,
 			goto out_inflate_end;
 		}
 
-		s.next_out = kmap(page);
+		s.next_out = kmap_local_page(page);
 		s.avail_out = PAGE_SIZE;
 		rc = zlib_inflate(&s, 0);
-		kunmap(page);
+		kunmap_local(s.next_out);
 
 		new_size += PAGE_SIZE - s.avail_out;
 	} while (rc == Z_OK);
@@ -178,11 +178,11 @@ static ssize_t module_xz_decompress(struct load_info *info,
 			goto out;
 		}
 
-		xz_buf.out = kmap(page);
+		xz_buf.out = kmap_local_page(page);
 		xz_buf.out_pos = 0;
 		xz_buf.out_size = PAGE_SIZE;
 		xz_ret = xz_dec_run(xz_dec, &xz_buf);
-		kunmap(page);
+		kunmap_local(xz_buf.out);
 
 		new_size += xz_buf.out_pos;
 	} while (xz_buf.out_pos == PAGE_SIZE && xz_ret == XZ_OK);
