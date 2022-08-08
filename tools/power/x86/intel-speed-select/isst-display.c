@@ -421,6 +421,13 @@ void isst_ctdp_display_information(struct isst_id *id, FILE *outf, int tdp_level
 			format_and_print(outf, level + 2, header, value);
 		}
 
+		if (api_version() > 1 && ctdp_level->amx_p1) {
+			snprintf(header, sizeof(header), "base-frequency-amx(MHz)");
+			snprintf(value, sizeof(value), "%d",
+			ctdp_level->amx_p1 * isst_get_disp_freq_multiplier());
+			format_and_print(outf, level + 2, header, value);
+		}
+
 		if (ctdp_level->uncore_p1) {
 			snprintf(header, sizeof(header), "uncore-frequency-base(MHz)");
 			snprintf(value, sizeof(value), "%d",
@@ -432,6 +439,13 @@ void isst_ctdp_display_information(struct isst_id *id, FILE *outf, int tdp_level
 			snprintf(header, sizeof(header), "mem-frequency(MHz)");
 			snprintf(value, sizeof(value), "%d",
 				 ctdp_level->mem_freq);
+			format_and_print(outf, level + 2, header, value);
+		}
+
+		if (api_version() > 1) {
+			snprintf(header, sizeof(header), "cooling_type");
+			snprintf(value, sizeof(value), "%d",
+				ctdp_level->cooling_type);
 			format_and_print(outf, level + 2, header, value);
 		}
 
