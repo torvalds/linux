@@ -247,26 +247,6 @@ int isst_send_msr_command(unsigned int cpu, unsigned int msr, int write,
 	return 0;
 }
 
-int isst_write_pm_config(struct isst_id *id, int cp_state)
-{
-	unsigned int req, resp;
-	int ret;
-
-	if (cp_state)
-		req = BIT(16);
-	else
-		req = 0;
-
-	ret = isst_send_mbox_command(id->cpu, WRITE_PM_CONFIG, PM_FEATURE, 0, req,
-				     &resp);
-	if (ret)
-		return ret;
-
-	debug_printf("cpu:%d WRITE_PM_CONFIG resp:%x\n", id->cpu, resp);
-
-	return 0;
-}
-
 int isst_read_pm_config(struct isst_id *id, int *cp_state, int *cp_cap)
 {
 	unsigned int resp;
@@ -641,70 +621,8 @@ int isst_clos_get_clos_information(struct isst_id *id, int *enable, int *type)
 
 int isst_pm_qos_config(struct isst_id *id, int enable_clos, int priority_type)
 {
-	unsigned int req, resp;
-	int ret;
-
-	if (!enable_clos) {
-		struct isst_pkg_ctdp pkg_dev;
-		struct isst_pkg_ctdp_level_info ctdp_level;
-
-		ret = isst_get_ctdp_levels(id, &pkg_dev);
-		if (ret) {
-			debug_printf("isst_get_ctdp_levels\n");
-			return ret;
-		}
-
-		ret = isst_get_ctdp_control(id, pkg_dev.current_level,
-					    &ctdp_level);
-		if (ret)
-			return ret;
-
-		if (ctdp_level.fact_enabled) {
-			isst_display_error_info_message(1, "Ignoring request, turbo-freq feature is still enabled", 0, 0);
-			return -EINVAL;
-		}
-		ret = isst_write_pm_config(id, 0);
-		if (ret)
-			isst_display_error_info_message(0, "WRITE_PM_CONFIG command failed, ignoring error", 0, 0);
-	} else {
-		ret = isst_write_pm_config(id, 1);
-		if (ret)
-			isst_display_error_info_message(0, "WRITE_PM_CONFIG command failed, ignoring error", 0, 0);
-	}
-
-	ret = isst_send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_QOS_CONFIG, 0, 0,
-				     &resp);
-	if (ret) {
-		isst_display_error_info_message(1, "CLOS_PM_QOS_CONFIG command failed", 0, 0);
-		return ret;
-	}
-
-	debug_printf("cpu:%d CLOS_PM_QOS_CONFIG resp:%x\n", id->cpu, resp);
-
-	req = resp;
-
-	if (enable_clos)
-		req = req | BIT(1);
-	else
-		req = req & ~BIT(1);
-
-	if (priority_type > 1)
-		isst_display_error_info_message(1, "Invalid priority type: Changing type to ordered", 0, 0);
-
-	if (priority_type)
-		req = req | BIT(2);
-	else
-		req = req & ~BIT(2);
-
-	ret = isst_send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_QOS_CONFIG,
-				     BIT(MBOX_CMD_WRITE_BIT), req, &resp);
-	if (ret)
-		return ret;
-
-	debug_printf("cpu:%d CLOS_PM_QOS_CONFIG priority type:%d req:%x\n", id->cpu,
-		     priority_type, req);
-
-	return 0;
+	CHECK_CB(pm_qos_config);
+	return isst_ops->pm_qos_config(id, enable_clos, priority_type);
 }
 
 int isst_pm_get_clos(struct isst_id *id, int clos, struct isst_clos_config *clos_config)

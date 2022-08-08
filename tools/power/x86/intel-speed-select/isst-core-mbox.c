@@ -624,6 +624,95 @@ static int mbox_get_clos_information(struct isst_id *id, int *enable, int *type)
 
 	return 0;
 }
+
+static int _write_pm_config(struct isst_id *id, int cp_state)
+{
+	unsigned int req, resp;
+	int ret;
+
+	if (cp_state)
+		req = BIT(16);
+	else
+		req = 0;
+
+	ret = isst_send_mbox_command(id->cpu, WRITE_PM_CONFIG, PM_FEATURE, 0, req,
+				     &resp);
+	if (ret)
+		return ret;
+
+	debug_printf("cpu:%d WRITE_PM_CONFIG resp:%x\n", id->cpu, resp);
+
+	return 0;
+}
+
+static int mbox_pm_qos_config(struct isst_id *id, int enable_clos, int priority_type)
+{
+	unsigned int req, resp;
+	int ret;
+
+	if (!enable_clos) {
+		struct isst_pkg_ctdp pkg_dev;
+		struct isst_pkg_ctdp_level_info ctdp_level;
+
+		ret = isst_get_ctdp_levels(id, &pkg_dev);
+		if (ret) {
+			debug_printf("isst_get_ctdp_levels\n");
+			return ret;
+		}
+
+		ret = isst_get_ctdp_control(id, pkg_dev.current_level,
+					    &ctdp_level);
+		if (ret)
+			return ret;
+
+		if (ctdp_level.fact_enabled) {
+			isst_display_error_info_message(1, "Ignoring request, turbo-freq feature is still enabled", 0, 0);
+			return -EINVAL;
+		}
+		ret = _write_pm_config(id, 0);
+		if (ret)
+			isst_display_error_info_message(0, "WRITE_PM_CONFIG command failed, ignoring error", 0, 0);
+	} else {
+		ret = _write_pm_config(id, 1);
+		if (ret)
+			isst_display_error_info_message(0, "WRITE_PM_CONFIG command failed, ignoring error", 0, 0);
+	}
+
+	ret = isst_send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_QOS_CONFIG, 0, 0,
+				     &resp);
+	if (ret) {
+		isst_display_error_info_message(1, "CLOS_PM_QOS_CONFIG command failed", 0, 0);
+		return ret;
+	}
+
+	debug_printf("cpu:%d CLOS_PM_QOS_CONFIG resp:%x\n", id->cpu, resp);
+
+	req = resp;
+
+	if (enable_clos)
+		req = req | BIT(1);
+	else
+		req = req & ~BIT(1);
+
+	if (priority_type > 1)
+		isst_display_error_info_message(1, "Invalid priority type: Changing type to ordered", 0, 0);
+
+	if (priority_type)
+		req = req | BIT(2);
+	else
+		req = req & ~BIT(2);
+
+	ret = isst_send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_QOS_CONFIG,
+				     BIT(MBOX_CMD_WRITE_BIT), req, &resp);
+	if (ret)
+		return ret;
+
+	debug_printf("cpu:%d CLOS_PM_QOS_CONFIG priority type:%d req:%x\n", id->cpu,
+		     priority_type, req);
+
+	return 0;
+}
+
 static struct isst_platform_ops mbox_ops = {
 	.get_disp_freq_multiplier = mbox_get_disp_freq_multiplier,
 	.get_trl_max_levels = mbox_get_trl_max_levels,
@@ -643,6 +732,7 @@ static struct isst_platform_ops mbox_ops = {
 	.get_fact_info = mbox_get_fact_info,
 	.get_uncore_p0_p1_info = mbox_get_uncore_p0_p1_info,
 	.get_clos_information = mbox_get_clos_information,
+	.pm_qos_config = mbox_pm_qos_config,
 };
 
 struct isst_platform_ops *mbox_get_platform_ops(void)
