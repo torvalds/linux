@@ -40,6 +40,24 @@ static int mbox_is_punit_valid(struct isst_id *id)
 	return 1;
 }
 
+static int mbox_read_pm_config(struct isst_id *id, int *cp_state, int *cp_cap)
+{
+	unsigned int resp;
+	int ret;
+
+	ret = isst_send_mbox_command(id->cpu, READ_PM_CONFIG, PM_FEATURE, 0, 0,
+					&resp);
+	if (ret)
+		return ret;
+
+	debug_printf("cpu:%d READ_PM_CONFIG resp:%x\n", id->cpu, resp);
+
+	*cp_state = resp & BIT(16);
+	*cp_cap = resp & BIT(0) ? 1 : 0;
+
+	return 0;
+}
+
 static int mbox_get_config_levels(struct isst_id *id, struct isst_pkg_ctdp *pkg_dev)
 {
 	unsigned int resp;
@@ -803,6 +821,7 @@ static struct isst_platform_ops mbox_ops = {
 	.get_trl_max_levels = mbox_get_trl_max_levels,
 	.get_trl_level_name = mbox_get_trl_level_name,
 	.is_punit_valid = mbox_is_punit_valid,
+	.read_pm_config = mbox_read_pm_config,
 	.get_config_levels = mbox_get_config_levels,
 	.get_ctdp_control = mbox_get_ctdp_control,
 	.get_tdp_info = mbox_get_tdp_info,

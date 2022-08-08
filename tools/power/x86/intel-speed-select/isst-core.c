@@ -249,20 +249,8 @@ int isst_send_msr_command(unsigned int cpu, unsigned int msr, int write,
 
 int isst_read_pm_config(struct isst_id *id, int *cp_state, int *cp_cap)
 {
-	unsigned int resp;
-	int ret;
-
-	ret = isst_send_mbox_command(id->cpu, READ_PM_CONFIG, PM_FEATURE, 0, 0,
-				     &resp);
-	if (ret)
-		return ret;
-
-	debug_printf("cpu:%d READ_PM_CONFIG resp:%x\n", id->cpu, resp);
-
-	*cp_state = resp & BIT(16);
-	*cp_cap = resp & BIT(0) ? 1 : 0;
-
-	return 0;
+	CHECK_CB(read_pm_config);
+	return isst_ops->read_pm_config(id, cp_state, cp_cap);
 }
 
 int isst_get_ctdp_levels(struct isst_id *id, struct isst_pkg_ctdp *pkg_dev)
