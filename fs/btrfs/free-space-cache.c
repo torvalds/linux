@@ -48,8 +48,7 @@ static void bitmap_clear_bits(struct btrfs_free_space_ctl *ctl,
 			      struct btrfs_free_space *info, u64 offset,
 			      u64 bytes, bool update_stats);
 
-static void __btrfs_remove_free_space_cache_locked(
-				struct btrfs_free_space_ctl *ctl)
+static void __btrfs_remove_free_space_cache(struct btrfs_free_space_ctl *ctl)
 {
 	struct btrfs_free_space *info;
 	struct rb_node *node;
@@ -898,12 +897,8 @@ out:
 free_cache:
 	io_ctl_drop_pages(&io_ctl);
 
-	/*
-	 * We need to call the _locked variant so we don't try to update the
-	 * discard counters.
-	 */
 	spin_lock(&ctl->tree_lock);
-	__btrfs_remove_free_space_cache_locked(ctl);
+	__btrfs_remove_free_space_cache(ctl);
 	spin_unlock(&ctl->tree_lock);
 	goto out;
 }
@@ -3010,15 +3005,6 @@ static void __btrfs_return_cluster_to_free_space(
 	btrfs_put_block_group(block_group);
 }
 
-void __btrfs_remove_free_space_cache(struct btrfs_free_space_ctl *ctl)
-{
-	spin_lock(&ctl->tree_lock);
-	__btrfs_remove_free_space_cache_locked(ctl);
-	if (ctl->block_group)
-		btrfs_discard_update_discardable(ctl->block_group);
-	spin_unlock(&ctl->tree_lock);
-}
-
 void btrfs_remove_free_space_cache(struct btrfs_block_group *block_group)
 {
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
@@ -3036,7 +3022,7 @@ void btrfs_remove_free_space_cache(struct btrfs_block_group *block_group)
 
 		cond_resched_lock(&ctl->tree_lock);
 	}
-	__btrfs_remove_free_space_cache_locked(ctl);
+	__btrfs_remove_free_space_cache(ctl);
 	btrfs_discard_update_discardable(block_group);
 	spin_unlock(&ctl->tree_lock);
 

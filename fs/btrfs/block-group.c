@@ -4110,7 +4110,7 @@ void btrfs_unfreeze_block_group(struct btrfs_block_group *block_group)
 		 * tasks trimming this block group have left 1 entry each one.
 		 * Free them if any.
 		 */
-		__btrfs_remove_free_space_cache(block_group->free_space_ctl);
+		btrfs_remove_free_space_cache(block_group);
 	}
 }
 
