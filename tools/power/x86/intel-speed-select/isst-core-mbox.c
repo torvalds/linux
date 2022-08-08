@@ -125,6 +125,29 @@ static int mbox_get_tdp_info(struct isst_id *id, int config_index,
 	return 0;
 }
 
+static int mbox_get_pwr_info(struct isst_id *id, int config_index,
+		      struct isst_pkg_ctdp_level_info *ctdp_level)
+{
+	unsigned int resp;
+	int ret;
+
+	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP, CONFIG_TDP_GET_PWR_INFO,
+				     0, config_index, &resp);
+	if (ret)
+		return ret;
+
+	ctdp_level->pkg_max_power = resp & GENMASK(14, 0);
+	ctdp_level->pkg_min_power = (resp & GENMASK(30, 16)) >> 16;
+
+	debug_printf(
+		"cpu:%d ctdp:%d CONFIG_TDP_GET_PWR_INFO resp:%x pkg_max_power:%d pkg_min_power:%d\n",
+		id->cpu, config_index, resp, ctdp_level->pkg_max_power,
+		ctdp_level->pkg_min_power);
+
+	return 0;
+}
+
+
 static struct isst_platform_ops mbox_ops = {
 	.get_disp_freq_multiplier = mbox_get_disp_freq_multiplier,
 	.get_trl_max_levels = mbox_get_trl_max_levels,
@@ -133,6 +156,7 @@ static struct isst_platform_ops mbox_ops = {
 	.get_config_levels = mbox_get_config_levels,
 	.get_ctdp_control = mbox_get_ctdp_control,
 	.get_tdp_info = mbox_get_tdp_info,
+	.get_pwr_info = mbox_get_pwr_info,
 };
 
 struct isst_platform_ops *mbox_get_platform_ops(void)
