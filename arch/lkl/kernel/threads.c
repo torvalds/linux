@@ -19,7 +19,7 @@ static int init_ti(struct thread_info *ti)
 	return 0;
 }
 
-unsigned long *alloc_thread_stack_node(struct task_struct *task, int node)
+unsigned long *arch_alloc_thread_stack_node(struct task_struct *task, int node)
 {
 	struct thread_info *ti;
 
@@ -61,7 +61,7 @@ static void kill_thread(struct thread_info *ti)
 
 }
 
-void free_thread_stack(struct task_struct *tsk)
+void arch_free_thread_stack(struct task_struct *tsk)
 {
 	struct thread_info *ti = task_thread_info(tsk);
 
