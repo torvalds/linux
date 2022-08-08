@@ -204,6 +204,7 @@ struct isst_platform_ops {
 	int (*pm_get_clos)(struct isst_id *id, int clos, struct isst_clos_config *clos_config);
 	int (*set_clos)(struct isst_id *id, int clos, struct isst_clos_config *clos_config);
 	int (*clos_get_assoc_status)(struct isst_id *id, int *clos_id);
+	int (*clos_associate)(struct isst_id *id, int clos_id);
 };
 
 extern int is_cpu_in_power_domain(int cpu, struct isst_id *id);

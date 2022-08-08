@@ -645,21 +645,7 @@ int isst_clos_get_assoc_status(struct isst_id *id, int *clos_id)
 
 int isst_clos_associate(struct isst_id *id, int clos_id)
 {
-	unsigned int req, resp;
-	unsigned int param;
-	int core_id, ret;
+	CHECK_CB(clos_associate);
+	return isst_ops->clos_associate(id, clos_id);
 
-	req = (clos_id & 0x03) << 16;
-	core_id = find_phy_core_num(id->cpu);
-	param = BIT(MBOX_CMD_WRITE_BIT) | core_id;
-
-	ret = isst_send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PQR_ASSOC, param,
-				     req, &resp);
-	if (ret)
-		return ret;
-
-	debug_printf("cpu:%d CLOS_PQR_ASSOC param:%x req:%x\n", id->cpu, param,
-		     req);
-
-	return 0;
 }
