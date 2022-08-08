@@ -11,7 +11,7 @@ enum {
 };
 
 int mlx5_create_encryption_key(struct mlx5_core_dev *mdev,
-			       void *key, u32 sz_bytes,
+			       const void *key, u32 sz_bytes,
 			       u32 key_type, u32 *p_key_id);
 
 void mlx5_destroy_encryption_key(struct mlx5_core_dev *mdev, u32 key_id);

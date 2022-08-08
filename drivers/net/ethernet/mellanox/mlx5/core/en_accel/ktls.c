@@ -13,8 +13,8 @@ int mlx5_ktls_create_key(struct mlx5_core_dev *mdev,
 			 struct tls_crypto_info *crypto_info,
 			 u32 *p_key_id)
 {
+	const void *key;
 	u32 sz_bytes;
-	void *key;
 
 	switch (crypto_info->cipher_type) {
 	case TLS_CIPHER_AES_GCM_128: {

@@ -10,7 +10,7 @@ struct mlx5_crypto_dek_priv {
 };
 
 int mlx5_create_encryption_key(struct mlx5_core_dev *mdev,
-			       void *key, u32 sz_bytes,
+			       const void *key, u32 sz_bytes,
 			       u32 key_type, u32 *p_key_id)
 {
 	u32 in[MLX5_ST_SZ_DW(create_encryption_key_in)] = {};
