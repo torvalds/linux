@@ -250,6 +250,28 @@ static int mbox_get_trl_bucket_info(struct isst_id *id, int level, unsigned long
 	return 0;
 }
 
+static int mbox_set_tdp_level(struct isst_id *id, int tdp_level)
+{
+	unsigned int resp;
+	int ret;
+
+
+	if (isst_get_config_tdp_lock_status(id)) {
+		isst_display_error_info_message(1, "TDP is locked", 0, 0);
+		return -1;
+
+	}
+
+	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP, CONFIG_TDP_SET_LEVEL, 0,
+				     tdp_level, &resp);
+	if (ret) {
+		isst_display_error_info_message(1, "Set TDP level failed for level", 1, tdp_level);
+		return ret;
+	}
+
+	return 0;
+}
+
 static struct isst_platform_ops mbox_ops = {
 	.get_disp_freq_multiplier = mbox_get_disp_freq_multiplier,
 	.get_trl_max_levels = mbox_get_trl_max_levels,
@@ -262,6 +284,7 @@ static struct isst_platform_ops mbox_ops = {
 	.get_coremask_info = mbox_get_coremask_info,
 	.get_get_trl = mbox_get_get_trl,
 	.get_trl_bucket_info = mbox_get_trl_bucket_info,
+	.set_tdp_level = mbox_set_tdp_level,
 };
 
 struct isst_platform_ops *mbox_get_platform_ops(void)

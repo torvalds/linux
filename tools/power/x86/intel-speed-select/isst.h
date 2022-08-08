@@ -193,6 +193,7 @@ struct isst_platform_ops {
 	int (*get_coremask_info)(struct isst_id *id, int config_index, struct isst_pkg_ctdp_level_info *ctdp_level);
 	int (*get_get_trl)(struct isst_id *id, int level, int avx_level, int *trl);
 	int (*get_trl_bucket_info)(struct isst_id *id, int level, unsigned long long *buckets_info);
+	int (*set_tdp_level)(struct isst_id *id, int tdp_level);
 };
 
 extern int is_cpu_in_power_domain(int cpu, struct isst_id *id);

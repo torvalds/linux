@@ -354,24 +354,8 @@ int isst_get_trl_bucket_info(struct isst_id *id, int level, unsigned long long *
 
 int isst_set_tdp_level(struct isst_id *id, int tdp_level)
 {
-	unsigned int resp;
-	int ret;
-
-
-	if (isst_get_config_tdp_lock_status(id)) {
-		isst_display_error_info_message(1, "TDP is locked", 0, 0);
-		return -1;
-
-	}
-
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP, CONFIG_TDP_SET_LEVEL, 0,
-				     tdp_level, &resp);
-	if (ret) {
-		isst_display_error_info_message(1, "Set TDP level failed for level", 1, tdp_level);
-		return ret;
-	}
-
-	return 0;
+	CHECK_CB(set_tdp_level);
+	return isst_ops->set_tdp_level(id, tdp_level);
 }
 
 int isst_get_pbf_info(struct isst_id *id, int level, struct isst_pbf_info *pbf_info)
