@@ -75,7 +75,7 @@ static void vgacon_scrolldelta(struct vc_data *c, int lines);
 static int vgacon_set_origin(struct vc_data *c);
 static void vgacon_save_screen(struct vc_data *c);
 static void vgacon_invert_region(struct vc_data *c, u16 * p, int count);
-static struct uni_pagedir *vgacon_uni_pagedir;
+static struct uni_pagedict *vgacon_uni_pagedir;
 static int vgacon_refcount;
 
 /* Description of the hardware situation */
@@ -342,7 +342,7 @@ static const char *vgacon_startup(void)
 
 static void vgacon_init(struct vc_data *c, int init)
 {
-	struct uni_pagedir *p;
+	struct uni_pagedict *p;
 
 	/*
 	 * We cannot be loaded as a module, therefore init will be 1
@@ -367,10 +367,10 @@ static void vgacon_init(struct vc_data *c, int init)
 	c->vc_complement_mask = 0x7700;
 	if (vga_512_chars)
 		c->vc_hi_font_mask = 0x0800;
-	p = *c->vc_uni_pagedir_loc;
-	if (c->vc_uni_pagedir_loc != &vgacon_uni_pagedir) {
+	p = *c->uni_pagedict_loc;
+	if (c->uni_pagedict_loc != &vgacon_uni_pagedir) {
 		con_free_unimap(c);
-		c->vc_uni_pagedir_loc = &vgacon_uni_pagedir;
+		c->uni_pagedict_loc = &vgacon_uni_pagedir;
 		vgacon_refcount++;
 	}
 	if (!vgacon_uni_pagedir && p)
@@ -392,7 +392,7 @@ static void vgacon_deinit(struct vc_data *c)
 
 	if (!--vgacon_refcount)
 		con_free_unimap(c);
-	c->vc_uni_pagedir_loc = &c->vc_uni_pagedir;
+	c->uni_pagedict_loc = &c->uni_pagedict;
 	con_set_default_unimap(c);
 }
 
