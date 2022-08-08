@@ -1331,7 +1331,7 @@ static void dump_pbf_config_for_cpu(struct isst_id *id, void *arg1, void *arg2, 
 		exit(1);
 	} else {
 		isst_pbf_display_information(id, outf, tdp_level, &pbf_info);
-		isst_get_pbf_info_complete(&pbf_info);
+		free_cpu_set(pbf_info.core_cpumask);
 	}
 }
 

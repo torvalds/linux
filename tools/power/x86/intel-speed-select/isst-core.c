@@ -390,11 +390,6 @@ int isst_get_pbf_info(struct isst_id *id, int level, struct isst_pbf_info *pbf_i
 	return isst_ops->get_pbf_info(id, level, pbf_info);
 }
 
-void isst_get_pbf_info_complete(struct isst_pbf_info *pbf_info)
-{
-	free_cpu_set(pbf_info->core_cpumask);
-}
-
 int isst_set_pbf_fact_status(struct isst_id *id, int pbf, int enable)
 {
 	struct isst_pkg_ctdp pkg_dev;

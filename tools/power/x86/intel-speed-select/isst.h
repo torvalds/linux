@@ -253,7 +253,6 @@ extern int isst_set_tdp_level(struct isst_id *id, int tdp_level);
 extern int isst_set_pbf_fact_status(struct isst_id *id, int pbf, int enable);
 extern int isst_get_pbf_info(struct isst_id *id, int level,
 			     struct isst_pbf_info *pbf_info);
-extern void isst_get_pbf_info_complete(struct isst_pbf_info *pbf_info);
 extern int isst_get_fact_info(struct isst_id *id, int level, int fact_bucket,
 			      struct isst_fact_info *fact_info);
 extern int isst_get_fact_bucket_info(struct isst_id *id, int level,
