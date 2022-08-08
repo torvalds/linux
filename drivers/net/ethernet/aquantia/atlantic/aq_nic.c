@@ -265,12 +265,10 @@ static void aq_nic_service_timer_cb(struct timer_list *t)
 static void aq_nic_polling_timer_cb(struct timer_list *t)
 {
 	struct aq_nic_s *self = from_timer(self, t, polling_timer);
-	struct aq_vec_s *aq_vec = NULL;
 	unsigned int i = 0U;
 
-	for (i = 0U, aq_vec = self->aq_vec[0];
-		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])
-		aq_vec_isr(i, (void *)aq_vec);
+	for (i = 0U; self->aq_vecs > i; ++i)
+		aq_vec_isr(i, (void *)self->aq_vec[i]);
 
 	mod_timer(&self->polling_timer, jiffies +
 		  AQ_CFG_POLLING_TIMER_INTERVAL);
@@ -872,7 +870,6 @@ int aq_nic_get_regs_count(struct aq_nic_s *self)
 
 u64 *aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
 {
-	struct aq_vec_s *aq_vec = NULL;
 	struct aq_stats_s *stats;
 	unsigned int count = 0U;
 	unsigned int i = 0U;
@@ -922,11 +919,11 @@ u64 *aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
 	data += i;
 
 	for (tc = 0U; tc < self->aq_nic_cfg.tcs; tc++) {
-		for (i = 0U, aq_vec = self->aq_vec[0];
-		     aq_vec && self->aq_vecs > i;
-		     ++i, aq_vec = self->aq_vec[i]) {
+		for (i = 0U; self->aq_vecs > i; ++i) {
+			if (!self->aq_vec[i])
+				break;
 			data += count;
-			count = aq_vec_get_sw_stats(aq_vec, tc, data);
+			count = aq_vec_get_sw_stats(self->aq_vec[i], tc, data);
 		}
 	}
 
@@ -1240,7 +1237,6 @@ int aq_nic_set_loopback(struct aq_nic_s *self)
 
 int aq_nic_stop(struct aq_nic_s *self)
 {
-	struct aq_vec_s *aq_vec = NULL;
 	unsigned int i = 0U;
 
 	netif_tx_disable(self->ndev);
@@ -1258,9 +1254,8 @@ int aq_nic_stop(struct aq_nic_s *self)
 
 	aq_ptp_irq_free(self);
 
-	for (i = 0U, aq_vec = self->aq_vec[0];
-		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])
-		aq_vec_stop(aq_vec);
+	for (i = 0U; self->aq_vecs > i; ++i)
+		aq_vec_stop(self->aq_vec[i]);
 
 	aq_ptp_ring_stop(self);
 
