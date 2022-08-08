@@ -566,11 +566,12 @@ void acpi_init_properties(struct acpi_device *adev)
 					&adev->data, acpi_fwnode_handle(adev)))
 		adev->data.pointer = buf.pointer;
 
-	if (!adev->data.pointer ||
-	    !acpi_tie_nondev_subnodes(&adev->data)) {
-		acpi_untie_nondev_subnodes(&adev->data);
+	if (!adev->data.pointer) {
 		acpi_handle_debug(adev->handle, "Invalid _DSD data, skipping\n");
 		ACPI_FREE(buf.pointer);
+	} else {
+		if (!acpi_tie_nondev_subnodes(&adev->data))
+			acpi_untie_nondev_subnodes(&adev->data);
 	}
 
  out:
