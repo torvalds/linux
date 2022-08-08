@@ -39,15 +39,15 @@ struct idxd_user_context {
 	struct iommu_sva *sva;
 };
 
-enum idxd_cdev_cleanup {
-	CDEV_NORMAL = 0,
-	CDEV_FAILED,
-};
-
 static void idxd_cdev_dev_release(struct device *dev)
 {
-	dev_dbg(dev, "releasing cdev device\n");
-	kfree(dev);
+	struct idxd_cdev *idxd_cdev = container_of(dev, struct idxd_cdev, dev);
+	struct idxd_cdev_context *cdev_ctx;
+	struct idxd_wq *wq = idxd_cdev->wq;
+
+	cdev_ctx = &ictx[wq->idxd->data->type];
+	ida_simple_remove(&cdev_ctx->minor_ida, idxd_cdev->minor);
+	kfree(idxd_cdev);
 }
 
 static struct device_type idxd_cdev_device_type = {
@@ -62,14 +62,11 @@ static inline struct idxd_cdev *inode_idxd_cdev(struct inode *inode)
 	return container_of(cdev, struct idxd_cdev, cdev);
 }
 
-static inline struct idxd_wq *idxd_cdev_wq(struct idxd_cdev *idxd_cdev)
-{
-	return container_of(idxd_cdev, struct idxd_wq, idxd_cdev);
-}
-
 static inline struct idxd_wq *inode_wq(struct inode *inode)
 {
-	return idxd_cdev_wq(inode_idxd_cdev(inode));
+	struct idxd_cdev *idxd_cdev = inode_idxd_cdev(inode);
+
+	return idxd_cdev->wq;
 }
 
 static int idxd_cdev_open(struct inode *inode, struct file *filp)
@@ -113,6 +110,7 @@ static int idxd_cdev_open(struct inode *inode, struct file *filp)
 		pasid = iommu_sva_get_pasid(sva);
 		if (pasid == IOMMU_PASID_INVALID) {
 			iommu_sva_unbind_device(sva);
+			rc = -EINVAL;
 			goto failed;
 		}
 
@@ -220,11 +218,10 @@ static __poll_t idxd_cdev_poll(struct file *filp,
 	struct idxd_user_context *ctx = filp->private_data;
 	struct idxd_wq *wq = ctx->wq;
 	struct idxd_device *idxd = wq->idxd;
-	struct idxd_cdev *idxd_cdev = &wq->idxd_cdev;
 	unsigned long flags;
 	__poll_t out = 0;
 
-	poll_wait(filp, &idxd_cdev->err_queue, wait);
+	poll_wait(filp, &wq->err_queue, wait);
 	spin_lock_irqsave(&idxd->dev_lock, flags);
 	if (idxd->sw_err.valid)
 		out = EPOLLIN | EPOLLRDNORM;
@@ -243,101 +240,69 @@ static const struct file_operations idxd_cdev_fops = {
 
 int idxd_cdev_get_major(struct idxd_device *idxd)
 {
-	return MAJOR(ictx[idxd->type].devt);
-}
-
-static int idxd_wq_cdev_dev_setup(struct idxd_wq *wq)
-{
-	struct idxd_device *idxd = wq->idxd;
-	struct idxd_cdev *idxd_cdev = &wq->idxd_cdev;
-	struct idxd_cdev_context *cdev_ctx;
-	struct device *dev;
-	int minor, rc;
-
-	idxd_cdev->dev = kzalloc(sizeof(*idxd_cdev->dev), GFP_KERNEL);
-	if (!idxd_cdev->dev)
-		return -ENOMEM;
-
-	dev = idxd_cdev->dev;
-	dev->parent = &idxd->pdev->dev;
-	dev_set_name(dev, "%s/wq%u.%u", idxd_get_dev_name(idxd),
-		     idxd->id, wq->id);
-	dev->bus = idxd_get_bus_type(idxd);
-
-	cdev_ctx = &ictx[wq->idxd->type];
-	minor = ida_simple_get(&cdev_ctx->minor_ida, 0, MINORMASK, GFP_KERNEL);
-	if (minor < 0) {
-		rc = minor;
-		kfree(dev);
-		goto ida_err;
-	}
-
-	dev->devt = MKDEV(MAJOR(cdev_ctx->devt), minor);
-	dev->type = &idxd_cdev_device_type;
-	rc = device_register(dev);
-	if (rc < 0) {
-		dev_err(&idxd->pdev->dev, "device register failed\n");
-		goto dev_reg_err;
-	}
-	idxd_cdev->minor = minor;
-
-	return 0;
-
- dev_reg_err:
-	ida_simple_remove(&cdev_ctx->minor_ida, MINOR(dev->devt));
-	put_device(dev);
- ida_err:
-	idxd_cdev->dev = NULL;
-	return rc;
-}
-
-static void idxd_wq_cdev_cleanup(struct idxd_wq *wq,
-				 enum idxd_cdev_cleanup cdev_state)
-{
-	struct idxd_cdev *idxd_cdev = &wq->idxd_cdev;
-	struct idxd_cdev_context *cdev_ctx;
-
-	cdev_ctx = &ictx[wq->idxd->type];
-	if (cdev_state == CDEV_NORMAL)
-		cdev_del(&idxd_cdev->cdev);
-	device_unregister(idxd_cdev->dev);
-	/*
-	 * The device_type->release() will be called on the device and free
-	 * the allocated struct device. We can just forget it.
-	 */
-	ida_simple_remove(&cdev_ctx->minor_ida, idxd_cdev->minor);
-	idxd_cdev->dev = NULL;
-	idxd_cdev->minor = -1;
+	return MAJOR(ictx[idxd->data->type].devt);
 }
 
 int idxd_wq_add_cdev(struct idxd_wq *wq)
 {
-	struct idxd_cdev *idxd_cdev = &wq->idxd_cdev;
-	struct cdev *cdev = &idxd_cdev->cdev;
+	struct idxd_device *idxd = wq->idxd;
+	struct idxd_cdev *idxd_cdev;
+	struct cdev *cdev;
 	struct device *dev;
-	int rc;
+	struct idxd_cdev_context *cdev_ctx;
+	int rc, minor;
 
-	rc = idxd_wq_cdev_dev_setup(wq);
+	idxd_cdev = kzalloc(sizeof(*idxd_cdev), GFP_KERNEL);
+	if (!idxd_cdev)
+		return -ENOMEM;
+
+	idxd_cdev->wq = wq;
+	cdev = &idxd_cdev->cdev;
+	dev = &idxd_cdev->dev;
+	cdev_ctx = &ictx[wq->idxd->data->type];
+	minor = ida_simple_get(&cdev_ctx->minor_ida, 0, MINORMASK, GFP_KERNEL);
+	if (minor < 0) {
+		kfree(idxd_cdev);
+		return minor;
+	}
+	idxd_cdev->minor = minor;
+
+	device_initialize(dev);
+	dev->parent = &wq->conf_dev;
+	dev->bus = &dsa_bus_type;
+	dev->type = &idxd_cdev_device_type;
+	dev->devt = MKDEV(MAJOR(cdev_ctx->devt), minor);
+
+	rc = dev_set_name(dev, "%s/wq%u.%u", idxd->data->name_prefix, idxd->id, wq->id);
 	if (rc < 0)
-		return rc;
+		goto err;
 
-	dev = idxd_cdev->dev;
+	wq->idxd_cdev = idxd_cdev;
 	cdev_init(cdev, &idxd_cdev_fops);
-	cdev_set_parent(cdev, &dev->kobj);
-	rc = cdev_add(cdev, dev->devt, 1);
+	rc = cdev_device_add(cdev, dev);
 	if (rc) {
 		dev_dbg(&wq->idxd->pdev->dev, "cdev_add failed: %d\n", rc);
-		idxd_wq_cdev_cleanup(wq, CDEV_FAILED);
-		return rc;
+		goto err;
 	}
 
-	init_waitqueue_head(&idxd_cdev->err_queue);
 	return 0;
+
+ err:
+	put_device(dev);
+	wq->idxd_cdev = NULL;
+	return rc;
 }
 
 void idxd_wq_del_cdev(struct idxd_wq *wq)
 {
-	idxd_wq_cdev_cleanup(wq, CDEV_NORMAL);
+	struct idxd_cdev *idxd_cdev;
+	struct idxd_cdev_context *cdev_ctx;
+
+	cdev_ctx = &ictx[wq->idxd->data->type];
+	idxd_cdev = wq->idxd_cdev;
+	wq->idxd_cdev = NULL;
+	cdev_device_del(&idxd_cdev->cdev, &idxd_cdev->dev);
+	put_device(&idxd_cdev->dev);
 }
 
 int idxd_cdev_register(void)

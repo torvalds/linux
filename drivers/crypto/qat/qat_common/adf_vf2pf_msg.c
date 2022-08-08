@@ -8,7 +8,7 @@
  * adf_vf2pf_init() - send init msg to PF
  * @accel_dev:  Pointer to acceleration VF device.
  *
- * Function sends an init messge from the VF to a PF
+ * Function sends an init message from the VF to a PF
  *
  * Return: 0 on success, error code otherwise.
  */
@@ -31,7 +31,7 @@ EXPORT_SYMBOL_GPL(adf_vf2pf_init);
  * adf_vf2pf_shutdown() - send shutdown msg to PF
  * @accel_dev:  Pointer to acceleration VF device.
  *
- * Function sends a shutdown messge from the VF to a PF
+ * Function sends a shutdown message from the VF to a PF
  *
  * Return: void
  */

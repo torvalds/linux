@@ -129,7 +129,7 @@ CPU_LE(	rev32		v19.16b, v19.16b	)
 
 	/* handled all input blocks? */
 	cbz		w2, 2f
-	cond_yield	3f, x5
+	cond_yield	3f, x5, x6
 	b		0b
 
 	/*

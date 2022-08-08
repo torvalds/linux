@@ -75,7 +75,7 @@ void release_cis_mem(struct pcmcia_socket *s)
 	mutex_unlock(&s->ops_mutex);
 }
 
-/**
+/*
  * set_cis_map() - map the card memory at "card_offset" into virtual space.
  *
  * If flags & MAP_ATTRIB, map the attribute space, otherwise
@@ -126,7 +126,7 @@ static void __iomem *set_cis_map(struct pcmcia_socket *s,
 #define IS_ATTR		1
 #define IS_INDIRECT	8
 
-/**
+/*
  * pcmcia_read_cis_mem() - low-level function to read CIS memory
  *
  * must be called with ops_mutex held
@@ -206,7 +206,7 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 }
 
 
-/**
+/*
  * pcmcia_write_cis_mem() - low-level function to write CIS memory
  *
  * Probably only useful for writing one-byte registers. Must be called
@@ -277,7 +277,7 @@ int pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 }
 
 
-/**
+/*
  * read_cis_cache() - read CIS memory or its associated cache
  *
  * This is a wrapper around read_cis_mem, with the same interface,
@@ -365,7 +365,7 @@ void destroy_cis_cache(struct pcmcia_socket *s)
 	}
 }
 
-/**
+/*
  * verify_cis_cache() - does the CIS match what is in the CIS cache?
  */
 int verify_cis_cache(struct pcmcia_socket *s)
@@ -401,7 +401,7 @@ int verify_cis_cache(struct pcmcia_socket *s)
 	return 0;
 }
 
-/**
+/*
  * pcmcia_replace_cis() - use a replacement CIS instead of the card's CIS
  *
  * For really bad cards, we provide a facility for uploading a

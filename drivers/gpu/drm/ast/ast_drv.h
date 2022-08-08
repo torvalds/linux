@@ -81,6 +81,9 @@ enum ast_tx_chip {
 #define AST_DRAM_4Gx16   7
 #define AST_DRAM_8Gx16   8
 
+/*
+ * Cursor plane
+ */
 
 #define AST_MAX_HWC_WIDTH	64
 #define AST_MAX_HWC_HEIGHT	64
@@ -99,6 +102,28 @@ enum ast_tx_chip {
 #define AST_HWC_SIGNATURE_HOTSPOTX	0x14
 #define AST_HWC_SIGNATURE_HOTSPOTY	0x18
 
+struct ast_cursor_plane {
+	struct drm_plane base;
+
+	struct {
+		struct drm_gem_vram_object *gbo;
+		struct dma_buf_map map;
+		u64 off;
+	} hwc[AST_DEFAULT_HWC_NUM];
+
+	unsigned int next_hwc_index;
+};
+
+static inline struct ast_cursor_plane *
+to_ast_cursor_plane(struct drm_plane *plane)
+{
+	return container_of(plane, struct ast_cursor_plane, base);
+}
+
+/*
+ * Connector with i2c channel
+ */
+
 struct ast_i2c_chan {
 	struct i2c_adapter adapter;
 	struct drm_device *dev;
@@ -116,6 +141,10 @@ to_ast_connector(struct drm_connector *connector)
 	return container_of(connector, struct ast_connector, base);
 }
 
+/*
+ * Device
+ */
+
 struct ast_private {
 	struct drm_device base;
 
@@ -130,13 +159,8 @@ struct ast_private {
 
 	int fb_mtrr;
 
-	struct {
-		struct drm_gem_vram_object *gbo[AST_DEFAULT_HWC_NUM];
-		unsigned int next_index;
-	} cursor;
-
 	struct drm_plane primary_plane;
-	struct drm_plane cursor_plane;
+	struct ast_cursor_plane cursor_plane;
 	struct drm_crtc crtc;
 	struct drm_encoder encoder;
 	struct ast_connector connector;
@@ -178,6 +202,9 @@ struct ast_private *ast_device_create(const struct drm_driver *drv,
 #define AST_IO_MM_OFFSET		(0x380)
 
 #define AST_IO_VGAIR1_VREFRESH		BIT(3)
+
+#define AST_IO_VGACRCB_HWC_ENABLED     BIT(1)
+#define AST_IO_VGACRCB_HWC_16BPP       BIT(0) /* set: ARGB4444, cleared: 2bpp palette */
 
 #define __ast_read(x) \
 static inline u##x ast_read##x(struct ast_private *ast, u32 reg) { \
@@ -313,13 +340,5 @@ bool ast_backup_fw(struct drm_device *dev, u8 *addr, u32 size);
 bool ast_dp501_read_edid(struct drm_device *dev, u8 *ediddata);
 u8 ast_get_dp501_max_clk(struct drm_device *dev);
 void ast_init_3rdtx(struct drm_device *dev);
-
-/* ast_cursor.c */
-int ast_cursor_init(struct ast_private *ast);
-int ast_cursor_blit(struct ast_private *ast, struct drm_framebuffer *fb);
-void ast_cursor_page_flip(struct ast_private *ast);
-void ast_cursor_show(struct ast_private *ast, int x, int y,
-		     unsigned int offset_x, unsigned int offset_y);
-void ast_cursor_hide(struct ast_private *ast);
 
 #endif

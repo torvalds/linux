@@ -9,9 +9,6 @@ maintainers:
 
 title: STMicroelectronics STM32 USART bindings
 
-allOf:
-  - $ref: rs485.yaml
-
 properties:
   compatible:
     enum:
@@ -40,6 +37,8 @@ properties:
 
   uart-has-rtscts: true
 
+  rx-tx-swap: true
+
   dmas:
     minItems: 1
     maxItems: 2
@@ -66,13 +65,46 @@ properties:
   linux,rs485-enabled-at-boot-time: true
   rs485-rx-during-tx: true
 
-if:
-  required:
-    - st,hw-flow-ctrl
-then:
-  properties:
-    cts-gpios: false
-    rts-gpios: false
+  rx-threshold:
+    description:
+      If value is set to 1, RX FIFO threshold is disabled.
+    enum: [1, 2, 4, 8, 12, 14, 16]
+    default: 8
+
+  tx-threshold:
+    description:
+      If value is set to 1, TX FIFO threshold is disabled.
+    enum: [1, 2, 4, 8, 12, 14, 16]
+    default: 8
+
+allOf:
+  - $ref: rs485.yaml#
+  - $ref: serial.yaml#
+  - if:
+      required:
+        - st,hw-flow-ctrl
+    then:
+      properties:
+        cts-gpios: false
+        rts-gpios: false
+  - if:
+      properties:
+        compatible:
+          const: st,stm32-uart
+    then:
+      properties:
+        rx-tx-swap: false
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - st,stm32-uart
+              - st,stm32f7-uart
+    then:
+      properties:
+        rx-threshold: false
+        tx-threshold: false
 
 required:
   - compatible
@@ -80,19 +112,22 @@ required:
   - interrupts
   - clocks
 
-additionalProperties: false
+additionalProperties:
+  type: object
 
 examples:
   - |
     #include <dt-bindings/clock/stm32mp1-clks.h>
     usart1: serial@40011000 {
-      compatible = "st,stm32-uart";
+      compatible = "st,stm32h7-uart";
       reg = <0x40011000 0x400>;
       interrupts = <37>;
       clocks = <&rcc 0 164>;
       dmas = <&dma2 2 4 0x414 0x0>,
              <&dma2 7 4 0x414 0x0>;
       dma-names = "rx", "tx";
+      rx-threshold = <4>;
+      tx-threshold = <4>;
       rs485-rts-active-low;
     };
 

@@ -80,9 +80,7 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 			bool *exceed_err_limit);
 int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control);
 
-int amdgpu_ras_eeprom_check_err_threshold(
-				struct amdgpu_ras_eeprom_control *control,
-				bool *exceed_err_limit);
+bool amdgpu_ras_eeprom_check_err_threshold(struct amdgpu_device *adev);
 
 int amdgpu_ras_eeprom_process_recods(struct amdgpu_ras_eeprom_control *control,
 					    struct eeprom_table_record *records,

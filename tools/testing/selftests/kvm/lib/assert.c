@@ -71,9 +71,9 @@ test_assert(bool exp, const char *exp_str,
 
 		fprintf(stderr, "==== Test Assertion Failure ====\n"
 			"  %s:%u: %s\n"
-			"  pid=%d tid=%d - %s\n",
+			"  pid=%d tid=%d errno=%d - %s\n",
 			file, line, exp_str, getpid(), _gettid(),
-			strerror(errno));
+			errno, strerror(errno));
 		test_dump_stack();
 		if (fmt) {
 			fputs("  ", stderr);

@@ -321,7 +321,6 @@ mptctl_do_taskmgmt(MPT_ADAPTER *ioc, u8 tm_type, u8 bus_id, u8 target_id)
 	int		 ii;
 	int		 retval;
 	unsigned long	 timeout;
-	unsigned long	 time_count;
 	u16		 iocstatus;
 
 
@@ -383,7 +382,6 @@ mptctl_do_taskmgmt(MPT_ADAPTER *ioc, u8 tm_type, u8 bus_id, u8 target_id)
 		ioc->name, tm_type, timeout));
 
 	INITIALIZE_MGMT_STATUS(ioc->taskmgmt_cmds.status)
-	time_count = jiffies;
 	if ((ioc->facts.IOCCapabilities & MPI_IOCFACTS_CAPABILITY_HIGH_PRI_Q) &&
 	    (ioc->facts.MsgVersion >= MPI_VERSION_01_05))
 		mpt_put_msg_frame_hi_pri(mptctl_taskmgmt_id, ioc, mf);
@@ -1369,7 +1367,6 @@ mptctl_gettargetinfo (MPT_ADAPTER *ioc, unsigned long arg)
 	int			lun;
 	int			maxWordsLeft;
 	int			numBytes;
-	u8			port;
 	struct scsi_device 	*sdev;
 
 	if (copy_from_user(&karg, uarg, sizeof(struct mpt_ioctl_targetinfo))) {
@@ -1381,13 +1378,8 @@ mptctl_gettargetinfo (MPT_ADAPTER *ioc, unsigned long arg)
 
 	dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "mptctl_gettargetinfo called.\n",
 	    ioc->name));
-	/* Get the port number and set the maximum number of bytes
-	 * in the returned structure.
-	 * Ignore the port setting.
-	 */
 	numBytes = karg.hdr.maxDataSize - sizeof(mpt_ioctl_header);
 	maxWordsLeft = numBytes/sizeof(int);
-	port = karg.hdr.port;
 
 	if (maxWordsLeft <= 0) {
 		printk(MYIOC_s_ERR_FMT "%s@%d::mptctl_gettargetinfo() - no memory available!\n",

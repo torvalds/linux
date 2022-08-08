@@ -33,7 +33,7 @@
 #ifdef ASD_DEBUG
 #define ASD_DPRINTK asd_printk
 #else
-#define ASD_DPRINTK(fmt, ...)
+#define ASD_DPRINTK(fmt, ...) no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 /* 2*ITNL timeout + 1 second */

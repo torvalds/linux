@@ -23,7 +23,9 @@
 #include <linux/slab.h>
 #include <linux/suspend.h>
 #include <linux/uaccess.h>
+#include <linux/uuid.h>
 
+#include <acpi/acpi_bus.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include <asm/msr.h>
@@ -31,7 +33,8 @@
 
 #include "intel_pmc_core.h"
 
-static struct pmc_dev pmc;
+#define ACPI_S0IX_DSM_UUID		"57a6512e-3979-4e9d-9708-ff13b2508972"
+#define ACPI_GET_LOW_MODE_REGISTERS	1
 
 /* PKGC MSRs are common across Intel Core SoCs */
 static const struct pmc_bit_map msr_map[] = {
@@ -380,6 +383,8 @@ static const struct pmc_bit_map cnp_ltr_show_map[] = {
 	 * a list of core SoCs using this.
 	 */
 	{"WIGIG",		ICL_PMC_LTR_WIGIG},
+	{"THC0",                TGL_PMC_LTR_THC0},
+	{"THC1",                TGL_PMC_LTR_THC1},
 	/* Below two cannot be used for LTR_IGNORE */
 	{"CURRENT_PLATFORM",	CNP_PMC_LTR_CUR_PLT},
 	{"AGGREGATED_SYSTEM",	CNP_PMC_LTR_CUR_ASLT},
@@ -401,6 +406,7 @@ static const struct pmc_reg_map cnp_reg_map = {
 	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
 	.ltr_ignore_max = CNP_NUM_IP_IGN_ALLOWED,
+	.etr3_offset = ETR3_OFFSET,
 };
 
 static const struct pmc_reg_map icl_reg_map = {
@@ -418,6 +424,7 @@ static const struct pmc_reg_map icl_reg_map = {
 	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
 	.ltr_ignore_max = ICL_NUM_IP_IGN_ALLOWED,
+	.etr3_offset = ETR3_OFFSET,
 };
 
 static const struct pmc_bit_map tgl_clocksource_status_map[] = {
@@ -579,13 +586,64 @@ static const struct pmc_reg_map tgl_reg_map = {
 	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
 	.ltr_ignore_max = TGL_NUM_IP_IGN_ALLOWED,
-	.lpm_modes = tgl_lpm_modes,
+	.lpm_num_maps = TGL_LPM_NUM_MAPS,
+	.lpm_res_counter_step_x2 = TGL_PMC_LPM_RES_COUNTER_STEP_X2,
+	.lpm_sts_latch_en_offset = TGL_LPM_STS_LATCH_EN_OFFSET,
 	.lpm_en_offset = TGL_LPM_EN_OFFSET,
+	.lpm_priority_offset = TGL_LPM_PRI_OFFSET,
 	.lpm_residency_offset = TGL_LPM_RESIDENCY_OFFSET,
 	.lpm_sts = tgl_lpm_maps,
 	.lpm_status_offset = TGL_LPM_STATUS_OFFSET,
 	.lpm_live_status_offset = TGL_LPM_LIVE_STATUS_OFFSET,
+	.etr3_offset = ETR3_OFFSET,
 };
+
+static void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev)
+{
+	struct pmc_dev *pmcdev = platform_get_drvdata(pdev);
+	const int num_maps = pmcdev->map->lpm_num_maps;
+	u32 lpm_size = LPM_MAX_NUM_MODES * num_maps * 4;
+	union acpi_object *out_obj;
+	struct acpi_device *adev;
+	guid_t s0ix_dsm_guid;
+	u32 *lpm_req_regs, *addr;
+
+	adev = ACPI_COMPANION(&pdev->dev);
+	if (!adev)
+		return;
+
+	guid_parse(ACPI_S0IX_DSM_UUID, &s0ix_dsm_guid);
+
+	out_obj = acpi_evaluate_dsm(adev->handle, &s0ix_dsm_guid, 0,
+				    ACPI_GET_LOW_MODE_REGISTERS, NULL);
+	if (out_obj && out_obj->type == ACPI_TYPE_BUFFER) {
+		u32 size = out_obj->buffer.length;
+
+		if (size != lpm_size) {
+			acpi_handle_debug(adev->handle,
+				"_DSM returned unexpected buffer size, have %u, expect %u\n",
+				size, lpm_size);
+			goto free_acpi_obj;
+		}
+	} else {
+		acpi_handle_debug(adev->handle,
+				  "_DSM function 0 evaluation failed\n");
+		goto free_acpi_obj;
+	}
+
+	addr = (u32 *)out_obj->buffer.pointer;
+
+	lpm_req_regs = devm_kzalloc(&pdev->dev, lpm_size * sizeof(u32),
+				     GFP_KERNEL);
+	if (!lpm_req_regs)
+		goto free_acpi_obj;
+
+	memcpy(lpm_req_regs, addr, lpm_size);
+	pmcdev->lpm_req_regs = lpm_req_regs;
+
+free_acpi_obj:
+	ACPI_FREE(out_obj);
+}
 
 static inline u32 pmc_core_reg_read(struct pmc_dev *pmcdev, int reg_offset)
 {
@@ -603,6 +661,115 @@ static inline u64 pmc_core_adjust_slp_s0_step(struct pmc_dev *pmcdev, u32 value)
 	return (u64)value * pmcdev->map->slp_s0_res_counter_step;
 }
 
+static int set_etr3(struct pmc_dev *pmcdev)
+{
+	const struct pmc_reg_map *map = pmcdev->map;
+	u32 reg;
+	int err;
+
+	if (!map->etr3_offset)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&pmcdev->lock);
+
+	/* check if CF9 is locked */
+	reg = pmc_core_reg_read(pmcdev, map->etr3_offset);
+	if (reg & ETR3_CF9LOCK) {
+		err = -EACCES;
+		goto out_unlock;
+	}
+
+	/* write CF9 global reset bit */
+	reg |= ETR3_CF9GR;
+	pmc_core_reg_write(pmcdev, map->etr3_offset, reg);
+
+	reg = pmc_core_reg_read(pmcdev, map->etr3_offset);
+	if (!(reg & ETR3_CF9GR)) {
+		err = -EIO;
+		goto out_unlock;
+	}
+
+	err = 0;
+
+out_unlock:
+	mutex_unlock(&pmcdev->lock);
+	return err;
+}
+static umode_t etr3_is_visible(struct kobject *kobj,
+				struct attribute *attr,
+				int idx)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
+	const struct pmc_reg_map *map = pmcdev->map;
+	u32 reg;
+
+	mutex_lock(&pmcdev->lock);
+	reg = pmc_core_reg_read(pmcdev, map->etr3_offset);
+	mutex_unlock(&pmcdev->lock);
+
+	return reg & ETR3_CF9LOCK ? attr->mode & (SYSFS_PREALLOC | 0444) : attr->mode;
+}
+
+static ssize_t etr3_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
+	const struct pmc_reg_map *map = pmcdev->map;
+	u32 reg;
+
+	if (!map->etr3_offset)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&pmcdev->lock);
+
+	reg = pmc_core_reg_read(pmcdev, map->etr3_offset);
+	reg &= ETR3_CF9GR | ETR3_CF9LOCK;
+
+	mutex_unlock(&pmcdev->lock);
+
+	return sysfs_emit(buf, "0x%08x", reg);
+}
+
+static ssize_t etr3_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t len)
+{
+	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
+	int err;
+	u32 reg;
+
+	err = kstrtouint(buf, 16, &reg);
+	if (err)
+		return err;
+
+	/* allow only CF9 writes */
+	if (reg != ETR3_CF9GR)
+		return -EINVAL;
+
+	err = set_etr3(pmcdev);
+	if (err)
+		return err;
+
+	return len;
+}
+static DEVICE_ATTR_RW(etr3);
+
+static struct attribute *pmc_attrs[] = {
+	&dev_attr_etr3.attr,
+	NULL
+};
+
+static const struct attribute_group pmc_attr_group = {
+	.attrs = pmc_attrs,
+	.is_visible = etr3_is_visible,
+};
+
+static const struct attribute_group *pmc_dev_groups[] = {
+	&pmc_attr_group,
+	NULL
+};
+
 static int pmc_core_dev_state_get(void *data, u64 *val)
 {
 	struct pmc_dev *pmcdev = data;
@@ -617,9 +784,8 @@ static int pmc_core_dev_state_get(void *data, u64 *val)
 
 DEFINE_DEBUGFS_ATTRIBUTE(pmc_core_dev_state, pmc_core_dev_state_get, NULL, "%llu\n");
 
-static int pmc_core_check_read_lock_bit(void)
+static int pmc_core_check_read_lock_bit(struct pmc_dev *pmcdev)
 {
-	struct pmc_dev *pmcdev = &pmc;
 	u32 value;
 
 	value = pmc_core_reg_read(pmcdev, pmcdev->map->pm_cfg_offset);
@@ -744,28 +910,26 @@ static int pmc_core_ppfear_show(struct seq_file *s, void *unused)
 DEFINE_SHOW_ATTRIBUTE(pmc_core_ppfear);
 
 /* This function should return link status, 0 means ready */
-static int pmc_core_mtpmc_link_status(void)
+static int pmc_core_mtpmc_link_status(struct pmc_dev *pmcdev)
 {
-	struct pmc_dev *pmcdev = &pmc;
 	u32 value;
 
 	value = pmc_core_reg_read(pmcdev, SPT_PMC_PM_STS_OFFSET);
 	return value & BIT(SPT_PMC_MSG_FULL_STS_BIT);
 }
 
-static int pmc_core_send_msg(u32 *addr_xram)
+static int pmc_core_send_msg(struct pmc_dev *pmcdev, u32 *addr_xram)
 {
-	struct pmc_dev *pmcdev = &pmc;
 	u32 dest;
 	int timeout;
 
 	for (timeout = NUM_RETRIES; timeout > 0; timeout--) {
-		if (pmc_core_mtpmc_link_status() == 0)
+		if (pmc_core_mtpmc_link_status(pmcdev) == 0)
 			break;
 		msleep(5);
 	}
 
-	if (timeout <= 0 && pmc_core_mtpmc_link_status())
+	if (timeout <= 0 && pmc_core_mtpmc_link_status(pmcdev))
 		return -EBUSY;
 
 	dest = (*addr_xram & MTPMC_MASK) | (1U << 1);
@@ -791,7 +955,7 @@ static int pmc_core_mphy_pg_show(struct seq_file *s, void *unused)
 
 	mutex_lock(&pmcdev->lock);
 
-	if (pmc_core_send_msg(&mphy_core_reg_low) != 0) {
+	if (pmc_core_send_msg(pmcdev, &mphy_core_reg_low) != 0) {
 		err = -EBUSY;
 		goto out_unlock;
 	}
@@ -799,7 +963,7 @@ static int pmc_core_mphy_pg_show(struct seq_file *s, void *unused)
 	msleep(10);
 	val_low = pmc_core_reg_read(pmcdev, SPT_PMC_MFPMC_OFFSET);
 
-	if (pmc_core_send_msg(&mphy_core_reg_high) != 0) {
+	if (pmc_core_send_msg(pmcdev, &mphy_core_reg_high) != 0) {
 		err = -EBUSY;
 		goto out_unlock;
 	}
@@ -842,7 +1006,7 @@ static int pmc_core_pll_show(struct seq_file *s, void *unused)
 	mphy_common_reg  = (SPT_PMC_MPHY_COM_STS_0 << 16);
 	mutex_lock(&pmcdev->lock);
 
-	if (pmc_core_send_msg(&mphy_common_reg) != 0) {
+	if (pmc_core_send_msg(pmcdev, &mphy_common_reg) != 0) {
 		err = -EBUSY;
 		goto out_unlock;
 	}
@@ -863,9 +1027,8 @@ out_unlock:
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_pll);
 
-static int pmc_core_send_ltr_ignore(u32 value)
+static int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value)
 {
-	struct pmc_dev *pmcdev = &pmc;
 	const struct pmc_reg_map *map = pmcdev->map;
 	u32 reg;
 	int err = 0;
@@ -891,6 +1054,8 @@ static ssize_t pmc_core_ltr_ignore_write(struct file *file,
 					 const char __user *userbuf,
 					 size_t count, loff_t *ppos)
 {
+	struct seq_file *s = file->private_data;
+	struct pmc_dev *pmcdev = s->private;
 	u32 buf_size, value;
 	int err;
 
@@ -900,7 +1065,7 @@ static ssize_t pmc_core_ltr_ignore_write(struct file *file,
 	if (err)
 		return err;
 
-	err = pmc_core_send_ltr_ignore(value);
+	err = pmc_core_send_ltr_ignore(pmcdev, value);
 
 	return err == 0 ? count : err;
 }
@@ -1029,21 +1194,26 @@ static int pmc_core_ltr_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_ltr);
 
+static inline u64 adjust_lpm_residency(struct pmc_dev *pmcdev, u32 offset,
+				       const int lpm_adj_x2)
+{
+	u64 lpm_res = pmc_core_reg_read(pmcdev, offset);
+
+	return GET_X2_COUNTER((u64)lpm_adj_x2 * lpm_res);
+}
+
 static int pmc_core_substate_res_show(struct seq_file *s, void *unused)
 {
 	struct pmc_dev *pmcdev = s->private;
-	const char **lpm_modes = pmcdev->map->lpm_modes;
+	const int lpm_adj_x2 = pmcdev->map->lpm_res_counter_step_x2;
 	u32 offset = pmcdev->map->lpm_residency_offset;
-	u32 lpm_en;
-	int index;
+	int i, mode;
 
-	lpm_en = pmc_core_reg_read(pmcdev, pmcdev->map->lpm_en_offset);
-	seq_printf(s, "status substate residency\n");
-	for (index = 0; lpm_modes[index]; index++) {
-		seq_printf(s, "%7s %7s %-15u\n",
-			   BIT(index) & lpm_en ? "Enabled" : " ",
-			   lpm_modes[index], pmc_core_reg_read(pmcdev, offset));
-		offset += 4;
+	seq_printf(s, "%-10s %-15s\n", "Substate", "Residency");
+
+	pmc_for_each_mode(i, mode, pmcdev) {
+		seq_printf(s, "%-10s %-15llu\n", pmc_lpm_modes[mode],
+			   adjust_lpm_residency(pmcdev, offset + (4 * mode), lpm_adj_x2));
 	}
 
 	return 0;
@@ -1074,6 +1244,190 @@ static int pmc_core_substate_l_sts_regs_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_substate_l_sts_regs);
 
+static void pmc_core_substate_req_header_show(struct seq_file *s)
+{
+	struct pmc_dev *pmcdev = s->private;
+	int i, mode;
+
+	seq_printf(s, "%30s |", "Element");
+	pmc_for_each_mode(i, mode, pmcdev)
+		seq_printf(s, " %9s |", pmc_lpm_modes[mode]);
+
+	seq_printf(s, " %9s |\n", "Status");
+}
+
+static int pmc_core_substate_req_regs_show(struct seq_file *s, void *unused)
+{
+	struct pmc_dev *pmcdev = s->private;
+	const struct pmc_bit_map **maps = pmcdev->map->lpm_sts;
+	const struct pmc_bit_map *map;
+	const int num_maps = pmcdev->map->lpm_num_maps;
+	u32 sts_offset = pmcdev->map->lpm_status_offset;
+	u32 *lpm_req_regs = pmcdev->lpm_req_regs;
+	int mp;
+
+	/* Display the header */
+	pmc_core_substate_req_header_show(s);
+
+	/* Loop over maps */
+	for (mp = 0; mp < num_maps; mp++) {
+		u32 req_mask = 0;
+		u32 lpm_status;
+		int mode, idx, i, len = 32;
+
+		/*
+		 * Capture the requirements and create a mask so that we only
+		 * show an element if it's required for at least one of the
+		 * enabled low power modes
+		 */
+		pmc_for_each_mode(idx, mode, pmcdev)
+			req_mask |= lpm_req_regs[mp + (mode * num_maps)];
+
+		/* Get the last latched status for this map */
+		lpm_status = pmc_core_reg_read(pmcdev, sts_offset + (mp * 4));
+
+		/*  Loop over elements in this map */
+		map = maps[mp];
+		for (i = 0; map[i].name && i < len; i++) {
+			u32 bit_mask = map[i].bit_mask;
+
+			if (!(bit_mask & req_mask))
+				/*
+				 * Not required for any enabled states
+				 * so don't display
+				 */
+				continue;
+
+			/* Display the element name in the first column */
+			seq_printf(s, "%30s |", map[i].name);
+
+			/* Loop over the enabled states and display if required */
+			pmc_for_each_mode(idx, mode, pmcdev) {
+				if (lpm_req_regs[mp + (mode * num_maps)] & bit_mask)
+					seq_printf(s, " %9s |",
+						   "Required");
+				else
+					seq_printf(s, " %9s |", " ");
+			}
+
+			/* In Status column, show the last captured state of this agent */
+			if (lpm_status & bit_mask)
+				seq_printf(s, " %9s |", "Yes");
+			else
+				seq_printf(s, " %9s |", " ");
+
+			seq_puts(s, "\n");
+		}
+	}
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(pmc_core_substate_req_regs);
+
+static int pmc_core_lpm_latch_mode_show(struct seq_file *s, void *unused)
+{
+	struct pmc_dev *pmcdev = s->private;
+	bool c10;
+	u32 reg;
+	int idx, mode;
+
+	reg = pmc_core_reg_read(pmcdev, pmcdev->map->lpm_sts_latch_en_offset);
+	if (reg & LPM_STS_LATCH_MODE) {
+		seq_puts(s, "c10");
+		c10 = false;
+	} else {
+		seq_puts(s, "[c10]");
+		c10 = true;
+	}
+
+	pmc_for_each_mode(idx, mode, pmcdev) {
+		if ((BIT(mode) & reg) && !c10)
+			seq_printf(s, " [%s]", pmc_lpm_modes[mode]);
+		else
+			seq_printf(s, " %s", pmc_lpm_modes[mode]);
+	}
+
+	seq_puts(s, " clear\n");
+
+	return 0;
+}
+
+static ssize_t pmc_core_lpm_latch_mode_write(struct file *file,
+					     const char __user *userbuf,
+					     size_t count, loff_t *ppos)
+{
+	struct seq_file *s = file->private_data;
+	struct pmc_dev *pmcdev = s->private;
+	bool clear = false, c10 = false;
+	unsigned char buf[8];
+	int idx, m, mode;
+	u32 reg;
+
+	if (count > sizeof(buf) - 1)
+		return -EINVAL;
+	if (copy_from_user(buf, userbuf, count))
+		return -EFAULT;
+	buf[count] = '\0';
+
+	/*
+	 * Allowed strings are:
+	 *	Any enabled substate, e.g. 'S0i2.0'
+	 *	'c10'
+	 *	'clear'
+	 */
+	mode = sysfs_match_string(pmc_lpm_modes, buf);
+
+	/* Check string matches enabled mode */
+	pmc_for_each_mode(idx, m, pmcdev)
+		if (mode == m)
+			break;
+
+	if (mode != m || mode < 0) {
+		if (sysfs_streq(buf, "clear"))
+			clear = true;
+		else if (sysfs_streq(buf, "c10"))
+			c10 = true;
+		else
+			return -EINVAL;
+	}
+
+	if (clear) {
+		mutex_lock(&pmcdev->lock);
+
+		reg = pmc_core_reg_read(pmcdev, pmcdev->map->etr3_offset);
+		reg |= ETR3_CLEAR_LPM_EVENTS;
+		pmc_core_reg_write(pmcdev, pmcdev->map->etr3_offset, reg);
+
+		mutex_unlock(&pmcdev->lock);
+
+		return count;
+	}
+
+	if (c10) {
+		mutex_lock(&pmcdev->lock);
+
+		reg = pmc_core_reg_read(pmcdev, pmcdev->map->lpm_sts_latch_en_offset);
+		reg &= ~LPM_STS_LATCH_MODE;
+		pmc_core_reg_write(pmcdev, pmcdev->map->lpm_sts_latch_en_offset, reg);
+
+		mutex_unlock(&pmcdev->lock);
+
+		return count;
+	}
+
+	/*
+	 * For LPM mode latching we set the latch enable bit and selected mode
+	 * and clear everything else.
+	 */
+	reg = LPM_STS_LATCH_MODE | BIT(mode);
+	mutex_lock(&pmcdev->lock);
+	pmc_core_reg_write(pmcdev, pmcdev->map->lpm_sts_latch_en_offset, reg);
+	mutex_unlock(&pmcdev->lock);
+
+	return count;
+}
+DEFINE_PMC_CORE_ATTR_WRITE(pmc_core_lpm_latch_mode);
+
 static int pmc_core_pkgc_show(struct seq_file *s, void *unused)
 {
 	struct pmc_dev *pmcdev = s->private;
@@ -1094,6 +1448,45 @@ static int pmc_core_pkgc_show(struct seq_file *s, void *unused)
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_pkgc);
+
+static void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev)
+{
+	u8 lpm_priority[LPM_MAX_NUM_MODES];
+	u32 lpm_en;
+	int mode, i, p;
+
+	/* Use LPM Maps to indicate support for substates */
+	if (!pmcdev->map->lpm_num_maps)
+		return;
+
+	lpm_en = pmc_core_reg_read(pmcdev, pmcdev->map->lpm_en_offset);
+	pmcdev->num_lpm_modes = hweight32(lpm_en);
+
+	/* Each byte contains information for 2 modes (7:4 and 3:0) */
+	for (mode = 0; mode < LPM_MAX_NUM_MODES; mode += 2) {
+		u8 priority = pmc_core_reg_read_byte(pmcdev,
+				pmcdev->map->lpm_priority_offset + (mode / 2));
+		int pri0 = GENMASK(3, 0) & priority;
+		int pri1 = (GENMASK(7, 4) & priority) >> 4;
+
+		lpm_priority[pri0] = mode;
+		lpm_priority[pri1] = mode + 1;
+	}
+
+	/*
+	 * Loop though all modes from lowest to highest priority,
+	 * and capture all enabled modes in order
+	 */
+	i = 0;
+	for (p = LPM_MAX_NUM_MODES - 1; p >= 0; p--) {
+		int mode = lpm_priority[p];
+
+		if (!(BIT(mode) & lpm_en))
+			continue;
+
+		pmcdev->lpm_en_modes[i++] = mode;
+	}
+}
 
 static void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 {
@@ -1153,6 +1546,15 @@ static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 		debugfs_create_file("substate_live_status_registers", 0444,
 				    pmcdev->dbgfs_dir, pmcdev,
 				    &pmc_core_substate_l_sts_regs_fops);
+		debugfs_create_file("lpm_latch_mode", 0644,
+				    pmcdev->dbgfs_dir, pmcdev,
+				    &pmc_core_lpm_latch_mode_fops);
+	}
+
+	if (pmcdev->lpm_req_regs) {
+		debugfs_create_file("substate_requirements", 0444,
+				    pmcdev->dbgfs_dir, pmcdev,
+				    &pmc_core_substate_req_regs_fops);
 	}
 }
 
@@ -1171,6 +1573,7 @@ static const struct x86_cpu_id intel_pmc_core_ids[] = {
 	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT,	&tgl_reg_map),
 	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT_L,	&icl_reg_map),
 	X86_MATCH_INTEL_FAM6_MODEL(ROCKETLAKE,		&tgl_reg_map),
+	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L,		&tgl_reg_map),
 	{}
 };
 
@@ -1186,9 +1589,15 @@ static const struct pci_device_id pmc_pci_ids[] = {
  * the platform BIOS enforces 24Mhz crystal to shutdown
  * before PMC can assert SLP_S0#.
  */
+static bool xtal_ignore;
 static int quirk_xtal_ignore(const struct dmi_system_id *id)
 {
-	struct pmc_dev *pmcdev = &pmc;
+	xtal_ignore = true;
+	return 0;
+}
+
+static void pmc_core_xtal_ignore(struct pmc_dev *pmcdev)
+{
 	u32 value;
 
 	value = pmc_core_reg_read(pmcdev, pmcdev->map->pm_vric1_offset);
@@ -1197,7 +1606,6 @@ static int quirk_xtal_ignore(const struct dmi_system_id *id)
 	/* Low Voltage Mode Enable */
 	value &= ~SPT_PMC_VRIC1_SLPS0LVEN;
 	pmc_core_reg_write(pmcdev, pmcdev->map->pm_vric1_offset, value);
-	return 0;
 }
 
 static const struct dmi_system_id pmc_core_dmi_table[]  = {
@@ -1212,15 +1620,29 @@ static const struct dmi_system_id pmc_core_dmi_table[]  = {
 	{}
 };
 
+static void pmc_core_do_dmi_quirks(struct pmc_dev *pmcdev)
+{
+	dmi_check_system(pmc_core_dmi_table);
+
+	if (xtal_ignore)
+		pmc_core_xtal_ignore(pmcdev);
+}
+
 static int pmc_core_probe(struct platform_device *pdev)
 {
 	static bool device_initialized;
-	struct pmc_dev *pmcdev = &pmc;
+	struct pmc_dev *pmcdev;
 	const struct x86_cpu_id *cpu_id;
 	u64 slp_s0_addr;
 
 	if (device_initialized)
 		return -ENODEV;
+
+	pmcdev = devm_kzalloc(&pdev->dev, sizeof(*pmcdev), GFP_KERNEL);
+	if (!pmcdev)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, pmcdev);
 
 	cpu_id = x86_match_cpu(intel_pmc_core_ids);
 	if (!cpu_id)
@@ -1251,9 +1673,13 @@ static int pmc_core_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mutex_init(&pmcdev->lock);
-	platform_set_drvdata(pdev, pmcdev);
-	pmcdev->pmc_xram_read_bit = pmc_core_check_read_lock_bit();
-	dmi_check_system(pmc_core_dmi_table);
+
+	pmcdev->pmc_xram_read_bit = pmc_core_check_read_lock_bit(pmcdev);
+	pmc_core_get_low_power_modes(pmcdev);
+	pmc_core_do_dmi_quirks(pmcdev);
+
+	if (pmcdev->map == &tgl_reg_map)
+		pmc_core_get_tgl_lpm_reqs(pdev);
 
 	/*
 	 * On TGL, due to a hardware limitation, the GBE LTR blocks PC10 when
@@ -1261,7 +1687,7 @@ static int pmc_core_probe(struct platform_device *pdev)
 	 */
 	if (pmcdev->map == &tgl_reg_map) {
 		dev_dbg(&pdev->dev, "ignoring GBE LTR\n");
-		pmc_core_send_ltr_ignore(3);
+		pmc_core_send_ltr_ignore(pmcdev, 3);
 	}
 
 	pmc_core_dbgfs_register(pmcdev);
@@ -1384,6 +1810,7 @@ static struct platform_driver pmc_core_driver = {
 		.name = "intel_pmc_core",
 		.acpi_match_table = ACPI_PTR(pmc_core_acpi_ids),
 		.pm = &pmc_core_pm_ops,
+		.dev_groups = pmc_dev_groups,
 	},
 	.probe = pmc_core_probe,
 	.remove = pmc_core_remove,

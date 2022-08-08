@@ -139,7 +139,7 @@ static int mlx5_ib_create_counters(struct ib_counters *counters,
 
 
 static const struct mlx5_ib_counters *get_counters(struct mlx5_ib_dev *dev,
-						   u8 port_num)
+						   u32 port_num)
 {
 	return is_mdev_switchdev_mode(dev->mdev) ? &dev->port[0].cnts :
 						   &dev->port[port_num].cnts;
@@ -154,7 +154,7 @@ static const struct mlx5_ib_counters *get_counters(struct mlx5_ib_dev *dev,
  * device port combination in switchdev and non switchdev mode of the
  * parent device.
  */
-u16 mlx5_ib_get_counters_id(struct mlx5_ib_dev *dev, u8 port_num)
+u16 mlx5_ib_get_counters_id(struct mlx5_ib_dev *dev, u32 port_num)
 {
 	const struct mlx5_ib_counters *cnts = get_counters(dev, port_num);
 
@@ -162,7 +162,7 @@ u16 mlx5_ib_get_counters_id(struct mlx5_ib_dev *dev, u8 port_num)
 }
 
 static struct rdma_hw_stats *mlx5_ib_alloc_hw_stats(struct ib_device *ibdev,
-						    u8 port_num)
+						    u32 port_num)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	const struct mlx5_ib_counters *cnts;
@@ -236,13 +236,13 @@ free:
 
 static int mlx5_ib_get_hw_stats(struct ib_device *ibdev,
 				struct rdma_hw_stats *stats,
-				u8 port_num, int index)
+				u32 port_num, int index)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	const struct mlx5_ib_counters *cnts = get_counters(dev, port_num - 1);
 	struct mlx5_core_dev *mdev;
 	int ret, num_counters;
-	u8 mdev_port_num;
+	u32 mdev_port_num;
 
 	if (!stats)
 		return -EINVAL;

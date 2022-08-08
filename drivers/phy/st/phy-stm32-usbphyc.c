@@ -7,6 +7,7 @@
  */
 #include <linux/bitfield.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
@@ -70,6 +71,7 @@ struct stm32_usbphyc {
 	struct regulator *vdda1v1;
 	struct regulator *vdda1v8;
 	atomic_t n_pll_cons;
+	struct clk_hw clk48_hw;
 	int switch_setup;
 };
 
@@ -295,6 +297,61 @@ static const struct phy_ops stm32_usbphyc_phy_ops = {
 	.owner = THIS_MODULE,
 };
 
+static int stm32_usbphyc_clk48_prepare(struct clk_hw *hw)
+{
+	struct stm32_usbphyc *usbphyc = container_of(hw, struct stm32_usbphyc, clk48_hw);
+
+	return stm32_usbphyc_pll_enable(usbphyc);
+}
+
+static void stm32_usbphyc_clk48_unprepare(struct clk_hw *hw)
+{
+	struct stm32_usbphyc *usbphyc = container_of(hw, struct stm32_usbphyc, clk48_hw);
+
+	stm32_usbphyc_pll_disable(usbphyc);
+}
+
+static unsigned long stm32_usbphyc_clk48_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
+{
+	return 48000000;
+}
+
+static const struct clk_ops usbphyc_clk48_ops = {
+	.prepare = stm32_usbphyc_clk48_prepare,
+	.unprepare = stm32_usbphyc_clk48_unprepare,
+	.recalc_rate = stm32_usbphyc_clk48_recalc_rate,
+};
+
+static void stm32_usbphyc_clk48_unregister(void *data)
+{
+	struct stm32_usbphyc *usbphyc = data;
+
+	of_clk_del_provider(usbphyc->dev->of_node);
+	clk_hw_unregister(&usbphyc->clk48_hw);
+}
+
+static int stm32_usbphyc_clk48_register(struct stm32_usbphyc *usbphyc)
+{
+	struct device_node *node = usbphyc->dev->of_node;
+	struct clk_init_data init = { };
+	int ret = 0;
+
+	init.name = "ck_usbo_48m";
+	init.ops = &usbphyc_clk48_ops;
+
+	usbphyc->clk48_hw.init = &init;
+
+	ret = clk_hw_register(usbphyc->dev, &usbphyc->clk48_hw);
+	if (ret)
+		return ret;
+
+	ret = of_clk_add_hw_provider(node, of_clk_hw_simple_get, &usbphyc->clk48_hw);
+	if (ret)
+		clk_hw_unregister(&usbphyc->clk48_hw);
+
+	return ret;
+}
+
 static void stm32_usbphyc_switch_setup(struct stm32_usbphyc *usbphyc,
 				       u32 utmi_switch)
 {
@@ -473,6 +530,12 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 		goto clk_disable;
 	}
 
+	ret = stm32_usbphyc_clk48_register(usbphyc);
+	if (ret) {
+		dev_err(dev, "failed to register ck_usbo_48m clock: %d\n", ret);
+		goto clk_disable;
+	}
+
 	version = readl_relaxed(usbphyc->base + STM32_USBPHYC_VERSION);
 	dev_info(dev, "registered rev:%lu.%lu\n",
 		 FIELD_GET(MAJREV, version), FIELD_GET(MINREV, version));
@@ -496,6 +559,8 @@ static int stm32_usbphyc_remove(struct platform_device *pdev)
 	for (port = 0; port < usbphyc->nphys; port++)
 		if (usbphyc->phys[port]->active)
 			stm32_usbphyc_phy_exit(usbphyc->phys[port]->phy);
+
+	stm32_usbphyc_clk48_unregister(usbphyc);
 
 	clk_disable_unprepare(usbphyc->clk);
 

@@ -236,9 +236,7 @@ static void arc_serial_rx_chars(struct uart_port *port, unsigned int status)
 		if (!(uart_handle_sysrq_char(port, ch)))
 			uart_insert_char(port, status, RXOERR, ch, flg);
 
-		spin_unlock(&port->lock);
 		tty_flip_buffer_push(&port->state->port);
-		spin_lock(&port->lock);
 	} while (!((status = UART_GET_STATUS(port)) & RXEMPTY));
 }
 

@@ -59,12 +59,12 @@ enum mtk_instance_type {
 
 /**
  * enum mtk_instance_state - The state of an MTK Vcodec instance.
- * @MTK_STATE_FREE - default state when instance is created
- * @MTK_STATE_INIT - vcodec instance is initialized
- * @MTK_STATE_HEADER - vdec had sps/pps header parsed or venc
+ * @MTK_STATE_FREE: default state when instance is created
+ * @MTK_STATE_INIT: vcodec instance is initialized
+ * @MTK_STATE_HEADER: vdec had sps/pps header parsed or venc
  *			had sps/pps header encoded
- * @MTK_STATE_FLUSH - vdec is flushing. Only used by decoder
- * @MTK_STATE_ABORT - vcodec should be aborted
+ * @MTK_STATE_FLUSH: vdec is flushing. Only used by decoder
+ * @MTK_STATE_ABORT: vcodec should be aborted
  */
 enum mtk_instance_state {
 	MTK_STATE_FREE = 0,
@@ -75,7 +75,7 @@ enum mtk_instance_state {
 };
 
 /**
- * struct mtk_encode_param - General encoding parameters type
+ * enum mtk_encode_param - General encoding parameters type
  */
 enum mtk_encode_param {
 	MTK_ENCODE_PARAM_NONE = 0,
@@ -112,7 +112,7 @@ struct mtk_codec_framesizes {
 };
 
 /**
- * struct mtk_q_type - Type of queue
+ * enum mtk_q_type - Type of queue
  */
 enum mtk_q_type {
 	MTK_Q_DATA_SRC = 0,
@@ -193,7 +193,6 @@ struct mtk_vcodec_pm {
 
 	struct mtk_vcodec_clk	venc_clk;
 	struct device	*larbvenc;
-	struct device	*larbvenclt;
 	struct device	*dev;
 	struct mtk_vcodec_dev	*mtkdev;
 };
@@ -311,25 +310,25 @@ enum mtk_chip {
  * @chip: chip this encoder is compatible with
  *
  * @uses_ext: whether the encoder uses the extended firmware messaging format
- * @has_lt_irq: whether the encoder uses the LT irq
  * @min_birate: minimum supported encoding bitrate
  * @max_bitrate: maximum supported encoding bitrate
  * @capture_formats: array of supported capture formats
  * @num_capture_formats: number of entries in capture_formats
  * @output_formats: array of supported output formats
  * @num_output_formats: number of entries in output_formats
+ * @core_id: stand for h264 or vp8 encode index
  */
 struct mtk_vcodec_enc_pdata {
 	enum mtk_chip chip;
 
 	bool uses_ext;
-	bool has_lt_irq;
 	unsigned long min_bitrate;
 	unsigned long max_bitrate;
 	const struct mtk_video_fmt *capture_formats;
 	size_t num_capture_formats;
 	const struct mtk_video_fmt *output_formats;
 	size_t num_output_formats;
+	int core_id;
 };
 
 #define MTK_ENC_CTX_IS_EXT(ctx) ((ctx)->dev->venc_pdata->uses_ext)
@@ -361,7 +360,6 @@ struct mtk_vcodec_enc_pdata {
  *
  * @dec_irq: decoder irq resource
  * @enc_irq: h264 encoder irq resource
- * @enc_lt_irq: vp8 encoder irq resource
  *
  * @dec_mutex: decoder hardware lock
  * @enc_mutex: encoder hardware lock.
@@ -397,7 +395,6 @@ struct mtk_vcodec_dev {
 
 	int dec_irq;
 	int enc_irq;
-	int enc_lt_irq;
 
 	struct mutex dec_mutex;
 	struct mutex enc_mutex;

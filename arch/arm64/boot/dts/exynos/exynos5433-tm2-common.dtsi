@@ -1002,7 +1002,7 @@
 		ppmu_event0_d1_general: ppmu-event0-d1-general {
 		       event-name = "ppmu-event0-d1-general";
 	       };
-       };
+	};
 };
 
 &pinctrl_alive {

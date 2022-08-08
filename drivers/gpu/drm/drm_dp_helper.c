@@ -2635,14 +2635,16 @@ EXPORT_SYMBOL(drm_dp_pcon_is_frl_ready);
  * drm_dp_pcon_frl_configure_1() - Set HDMI LINK Configuration-Step1
  * @aux: DisplayPort AUX channel
  * @max_frl_gbps: maximum frl bw to be configured between PCON and HDMI sink
- * @concurrent_mode: true if concurrent mode or operation is required,
- * false otherwise.
+ * @frl_mode: FRL Training mode, it can be either Concurrent or Sequential.
+ * In Concurrent Mode, the FRL link bring up can be done along with
+ * DP Link training. In Sequential mode, the FRL link bring up is done prior to
+ * the DP Link training.
  *
  * Returns 0 if success, else returns negative error code.
  */
 
 int drm_dp_pcon_frl_configure_1(struct drm_dp_aux *aux, int max_frl_gbps,
-				bool concurrent_mode)
+				u8 frl_mode)
 {
 	int ret;
 	u8 buf;
@@ -2651,7 +2653,7 @@ int drm_dp_pcon_frl_configure_1(struct drm_dp_aux *aux, int max_frl_gbps,
 	if (ret < 0)
 		return ret;
 
-	if (concurrent_mode)
+	if (frl_mode == DP_PCON_ENABLE_CONCURRENT_LINK)
 		buf |= DP_PCON_ENABLE_CONCURRENT_LINK;
 	else
 		buf &= ~DP_PCON_ENABLE_CONCURRENT_LINK;
@@ -2694,21 +2696,23 @@ EXPORT_SYMBOL(drm_dp_pcon_frl_configure_1);
  * drm_dp_pcon_frl_configure_2() - Set HDMI Link configuration Step-2
  * @aux: DisplayPort AUX channel
  * @max_frl_mask : Max FRL BW to be tried by the PCON with HDMI Sink
- * @extended_train_mode : true for Extended Mode, false for Normal Mode.
- * In Normal mode, the PCON tries each frl bw from the max_frl_mask starting
- * from min, and stops when link training is successful. In Extended mode, all
- * frl bw selected in the mask are trained by the PCON.
+ * @frl_type : FRL training type, can be Extended, or Normal.
+ * In Normal FRL training, the PCON tries each frl bw from the max_frl_mask
+ * starting from min, and stops when link training is successful. In Extended
+ * FRL training, all frl bw selected in the mask are trained by the PCON.
  *
  * Returns 0 if success, else returns negative error code.
  */
 int drm_dp_pcon_frl_configure_2(struct drm_dp_aux *aux, int max_frl_mask,
-				bool extended_train_mode)
+				u8 frl_type)
 {
 	int ret;
 	u8 buf = max_frl_mask;
 
-	if (extended_train_mode)
+	if (frl_type == DP_PCON_FRL_LINK_TRAIN_EXTENDED)
 		buf |= DP_PCON_FRL_LINK_TRAIN_EXTENDED;
+	else
+		buf &= ~DP_PCON_FRL_LINK_TRAIN_EXTENDED;
 
 	ret = drm_dp_dpcd_writeb(aux, DP_PCON_HDMI_LINK_CONFIG_2, buf);
 	if (ret < 0)

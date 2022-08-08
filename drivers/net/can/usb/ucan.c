@@ -246,7 +246,7 @@ struct ucan_message_in {
 		 */
 		struct ucan_tx_complete_entry_t can_tx_complete_msg[0];
 	} __aligned(0x4) msg;
-} __packed;
+} __packed __aligned(0x4);
 
 /* Macros to calculate message lengths */
 #define UCAN_OUT_HDR_SIZE offsetof(struct ucan_message_out, msg)
@@ -675,7 +675,7 @@ static void ucan_tx_complete_msg(struct ucan_priv *up,
 			can_get_echo_skb(up->netdev, echo_index, NULL);
 		} else {
 			up->netdev->stats.tx_dropped++;
-			can_free_echo_skb(up->netdev, echo_index);
+			can_free_echo_skb(up->netdev, echo_index, NULL);
 		}
 		spin_unlock_irqrestore(&up->echo_skb_lock, flags);
 	}
@@ -843,7 +843,7 @@ static void ucan_write_bulk_callback(struct urb *urb)
 
 		/* update counters an cleanup */
 		spin_lock_irqsave(&up->echo_skb_lock, flags);
-		can_free_echo_skb(up->netdev, context - up->context_array);
+		can_free_echo_skb(up->netdev, context - up->context_array, NULL);
 		spin_unlock_irqrestore(&up->echo_skb_lock, flags);
 
 		up->netdev->stats.tx_dropped++;
@@ -1157,7 +1157,7 @@ static netdev_tx_t ucan_start_xmit(struct sk_buff *skb,
 		 * frees the skb
 		 */
 		spin_lock_irqsave(&up->echo_skb_lock, flags);
-		can_free_echo_skb(up->netdev, echo_index);
+		can_free_echo_skb(up->netdev, echo_index, NULL);
 		spin_unlock_irqrestore(&up->echo_skb_lock, flags);
 
 		if (ret == -ENODEV) {

@@ -173,13 +173,13 @@
 #define	MAX_FRAGS	(32 * MAX_CARDS)
 
 static LIST_HEAD(HFClist);
-static spinlock_t HFClock; /* global hfc list lock */
+static DEFINE_SPINLOCK(HFClock); /* global hfc list lock */
 
 static void ph_state_change(struct dchannel *);
 
 static struct hfc_multi *syncmaster;
 static int plxsd_master; /* if we have a master card (yet) */
-static spinlock_t plx_lock; /* may not acquire other lock inside */
+static DEFINE_SPINLOCK(plx_lock); /* may not acquire other lock inside */
 
 #define	TYP_E1		1
 #define	TYP_4S		4
@@ -2748,8 +2748,6 @@ hfcmulti_interrupt(int intno, void *dev_id)
 		if (hc->ctype != HFC_TYPE_E1)
 			ph_state_irq(hc, r_irq_statech);
 	}
-	if (status & V_EXT_IRQSTA)
-		; /* external IRQ */
 	if (status & V_LOST_STA) {
 		/* LOST IRQ */
 		HFC_outb(hc, R_INC_RES_FIFO, V_RES_LOST); /* clear irq! */
@@ -5481,9 +5479,6 @@ HFCmulti_init(void)
 #ifdef IRQ_DEBUG
 	printk(KERN_DEBUG "%s: IRQ_DEBUG IS ENABLED!\n", __func__);
 #endif
-
-	spin_lock_init(&HFClock);
-	spin_lock_init(&plx_lock);
 
 	if (debug & DEBUG_HFCMULTI_INIT)
 		printk(KERN_DEBUG "%s: init entered\n", __func__);

@@ -543,6 +543,14 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 	if ((info->flags & X86_IRQ_ALLOC_CONTIGUOUS_VECTORS) && nr_irqs > 1)
 		return -ENOSYS;
 
+	/*
+	 * Catch any attempt to touch the cascade interrupt on a PIC
+	 * equipped system.
+	 */
+	if (WARN_ON_ONCE(info->flags & X86_IRQ_ALLOC_LEGACY &&
+			 virq == PIC_CASCADE_IR))
+		return -EINVAL;
+
 	for (i = 0; i < nr_irqs; i++) {
 		irqd = irq_domain_get_irq_data(domain, virq + i);
 		BUG_ON(!irqd);
@@ -730,6 +738,26 @@ void lapic_assign_legacy_vector(unsigned int irq, bool replace)
 	irq_matrix_assign_system(vector_matrix, ISA_IRQ_VECTOR(irq), replace);
 }
 
+void __init lapic_update_legacy_vectors(void)
+{
+	unsigned int i;
+
+	if (IS_ENABLED(CONFIG_X86_IO_APIC) && nr_ioapics > 0)
+		return;
+
+	/*
+	 * If the IO/APIC is disabled via config, kernel command line or
+	 * lack of enumeration then all legacy interrupts are routed
+	 * through the PIC. Make sure that they are marked as legacy
+	 * vectors. PIC_CASCADE_IRQ has already been marked in
+	 * lapic_assign_system_vectors().
+	 */
+	for (i = 0; i < nr_legacy_irqs(); i++) {
+		if (i != PIC_CASCADE_IR)
+			lapic_assign_legacy_vector(i, true);
+	}
+}
+
 void __init lapic_assign_system_vectors(void)
 {
 	unsigned int i, vector = 0;
@@ -745,6 +773,11 @@ void __init lapic_assign_system_vectors(void)
 
 	/* Mark the preallocated legacy interrupts */
 	for (i = 0; i < nr_legacy_irqs(); i++) {
+		/*
+		 * Don't touch the cascade interrupt. It's unusable
+		 * on PIC equipped machines. See the large comment
+		 * in the IO/APIC code.
+		 */
 		if (i != PIC_CASCADE_IR)
 			irq_matrix_assign(vector_matrix, ISA_IRQ_VECTOR(i));
 	}
@@ -1045,7 +1078,7 @@ void irq_force_complete_move(struct irq_desc *desc)
 		 *
 		 * But in case of cpu hotplug this should be a non issue
 		 * because if the affinity update happens right before all
-		 * cpus rendevouz in stop machine, there is no way that the
+		 * cpus rendezvous in stop machine, there is no way that the
 		 * interrupt can be blocked on the target cpu because all cpus
 		 * loops first with interrupts enabled in stop machine, so the
 		 * old vector is not yet cleaned up when the interrupt fires.
@@ -1054,7 +1087,7 @@ void irq_force_complete_move(struct irq_desc *desc)
 		 * of the interrupt on the apic/system bus would be delayed
 		 * beyond the point where the target cpu disables interrupts
 		 * in stop machine. I doubt that it can happen, but at least
-		 * there is a theroretical chance. Virtualization might be
+		 * there is a theoretical chance. Virtualization might be
 		 * able to expose this, but AFAICT the IOAPIC emulation is not
 		 * as stupid as the real hardware.
 		 *

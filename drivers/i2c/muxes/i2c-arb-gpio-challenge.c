@@ -34,7 +34,7 @@ struct i2c_arbitrator_data {
 };
 
 
-/**
+/*
  * i2c_arbitrator_select - claim the I2C bus
  *
  * Use the GPIO-based signalling protocol; return -EBUSY if we fail.
@@ -77,7 +77,7 @@ static int i2c_arbitrator_select(struct i2c_mux_core *muxc, u32 chan)
 	return -EBUSY;
 }
 
-/**
+/*
  * i2c_arbitrator_deselect - release the I2C bus
  *
  * Release the I2C bus using the GPIO-based signalling protocol.

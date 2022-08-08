@@ -22,7 +22,12 @@ properties:
     pattern: "^ufs-phy@[0-9a-f]+$"
 
   compatible:
-    const: mediatek,mt8183-ufsphy
+    oneOf:
+      - items:
+          - enum:
+              - mediatek,mt8195-ufsphy
+          - const: mediatek,mt8183-ufsphy
+      - const: mediatek,mt8183-ufsphy
 
   reg:
     maxItems: 1

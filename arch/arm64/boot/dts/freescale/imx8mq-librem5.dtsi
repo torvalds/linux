@@ -258,6 +258,25 @@
 		compatible = "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "protected0";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "protected1";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		partition@40000 {
+			label = "rw";
+			reg = <0x40000 0x1C0000>;
+		};
 	};
 };
 
@@ -267,8 +286,9 @@
 
 	pmic-5v-hog {
 		gpio-hog;
-		gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+		gpios = <1 GPIO_ACTIVE_HIGH>;
 		input;
+		lane-mapping = "pmic-5v";
 	};
 };
 
@@ -1051,8 +1071,6 @@
 	assigned-clocks = <&clk IMX8MQ_CLK_SAI2>;
 	assigned-clock-parents = <&clk IMX8MQ_AUDIO_PLL1_OUT>;
 	assigned-clock-rates = <24576000>;
-	assigned-clocks = <&clk IMX8MQ_AUDIO_PLL1>, <&clk IMX8MQ_AUDIO_PLL2>;
-	assigned-clock-rates = <786432000>, <722534400>;
 	status = "okay";
 };
 

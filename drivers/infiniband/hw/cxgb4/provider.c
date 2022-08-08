@@ -237,12 +237,12 @@ static int c4iw_allocate_pd(struct ib_pd *pd, struct ib_udata *udata)
 	return 0;
 }
 
-static int c4iw_query_gid(struct ib_device *ibdev, u8 port, int index,
+static int c4iw_query_gid(struct ib_device *ibdev, u32 port, int index,
 			  union ib_gid *gid)
 {
 	struct c4iw_dev *dev;
 
-	pr_debug("ibdev %p, port %d, index %d, gid %p\n",
+	pr_debug("ibdev %p, port %u, index %d, gid %p\n",
 		 ibdev, port, index, gid);
 	if (!port)
 		return -EINVAL;
@@ -295,7 +295,7 @@ static int c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *pro
 	return 0;
 }
 
-static int c4iw_query_port(struct ib_device *ibdev, u8 port,
+static int c4iw_query_port(struct ib_device *ibdev, u32 port,
 			   struct ib_port_attr *props)
 {
 	int ret = 0;
@@ -378,7 +378,7 @@ static const char * const names[] = {
 };
 
 static struct rdma_hw_stats *c4iw_alloc_stats(struct ib_device *ibdev,
-					      u8 port_num)
+					      u32 port_num)
 {
 	BUILD_BUG_ON(ARRAY_SIZE(names) != NR_COUNTERS);
 
@@ -391,7 +391,7 @@ static struct rdma_hw_stats *c4iw_alloc_stats(struct ib_device *ibdev,
 
 static int c4iw_get_mib(struct ib_device *ibdev,
 			struct rdma_hw_stats *stats,
-			u8 port, int index)
+			u32 port, int index)
 {
 	struct tp_tcp_stats v4, v6;
 	struct c4iw_dev *c4iw_dev = to_c4iw_dev(ibdev);
@@ -420,7 +420,7 @@ static const struct attribute_group c4iw_attr_group = {
 	.attrs = c4iw_class_attributes,
 };
 
-static int c4iw_port_immutable(struct ib_device *ibdev, u8 port_num,
+static int c4iw_port_immutable(struct ib_device *ibdev, u32 port_num,
 			       struct ib_port_immutable *immutable)
 {
 	struct ib_port_attr attr;

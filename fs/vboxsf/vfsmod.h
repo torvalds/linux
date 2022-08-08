@@ -82,8 +82,8 @@ extern const struct dentry_operations vboxsf_dentry_ops;
 
 /* from utils.c */
 struct inode *vboxsf_new_inode(struct super_block *sb);
-void vboxsf_init_inode(struct vboxsf_sbi *sbi, struct inode *inode,
-		       const struct shfl_fsobjinfo *info);
+int vboxsf_init_inode(struct vboxsf_sbi *sbi, struct inode *inode,
+		       const struct shfl_fsobjinfo *info, bool reinit);
 int vboxsf_create_at_dentry(struct dentry *dentry,
 			    struct shfl_createparms *params);
 int vboxsf_stat(struct vboxsf_sbi *sbi, struct shfl_string *path,

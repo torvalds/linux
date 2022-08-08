@@ -16,7 +16,7 @@
  *   LVS	Lawrence V. Stefani <lstefani@yahoo.com>
  *
  * Maintainers:
- *   macro	Maciej W. Rozycki <macro@linux-mips.org>
+ *   macro	Maciej W. Rozycki <macro@orcam.me.uk>
  *
  * Modification History:
  *		Date		Name	Description
@@ -27,6 +27,7 @@
  *		04 Aug 2003	macro		Converted to the DMA API.
  *		23 Oct 2006	macro		Big-endian host support.
  *		14 Dec 2006	macro		TURBOchannel support.
+ *		10 Mar 2021	macro		Dynamic MMIO vs port I/O.
  */
 
 #ifndef _DEFXX_H_
@@ -1776,6 +1777,8 @@ typedef struct DFX_board_tag
 		int port;
 	} base;										/* base address */
 	struct device			*bus_dev;
+	/* Whether to use MMIO or port I/O.  */
+	bool				mmio;
 	u32				full_duplex_enb;				/* FDDI Full Duplex enable (1 == on, 2 == off) */
 	u32				req_ttrt;					/* requested TTRT value (in 80ns units) */
 	u32				burst_size;					/* adapter burst size (enumerated) */

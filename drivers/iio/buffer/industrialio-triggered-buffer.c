@@ -50,8 +50,6 @@ int iio_triggered_buffer_setup_ext(struct iio_dev *indio_dev,
 		goto error_ret;
 	}
 
-	iio_device_attach_buffer(indio_dev, buffer);
-
 	indio_dev->pollfunc = iio_alloc_pollfunc(h,
 						 thread,
 						 IRQF_ONESHOT,
@@ -72,10 +70,16 @@ int iio_triggered_buffer_setup_ext(struct iio_dev *indio_dev,
 
 	buffer->attrs = buffer_attrs;
 
+	ret = iio_device_attach_buffer(indio_dev, buffer);
+	if (ret < 0)
+		goto error_dealloc_pollfunc;
+
 	return 0;
 
+error_dealloc_pollfunc:
+	iio_dealloc_pollfunc(indio_dev->pollfunc);
 error_kfifo_free:
-	iio_kfifo_free(indio_dev->buffer);
+	iio_kfifo_free(buffer);
 error_ret:
 	return ret;
 }

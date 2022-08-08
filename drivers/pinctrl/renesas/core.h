@@ -29,12 +29,4 @@ void sh_pfc_write(struct sh_pfc *pfc, u32 reg, u32 data);
 int sh_pfc_get_pin_index(struct sh_pfc *pfc, unsigned int pin);
 int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type);
 
-const struct pinmux_bias_reg *
-sh_pfc_pin_to_bias_reg(const struct sh_pfc *pfc, unsigned int pin,
-		       unsigned int *bit);
-
-unsigned int rcar_pinmux_get_bias(struct sh_pfc *pfc, unsigned int pin);
-void rcar_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
-			  unsigned int bias);
-
 #endif /* __SH_PFC_CORE_H__ */

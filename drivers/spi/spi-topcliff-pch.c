@@ -1201,7 +1201,8 @@ static void pch_spi_process_messages(struct work_struct *pwork)
 		if (data->use_dma) {
 			int i;
 			char *save_rx_buf = data->cur_trans->rx_buf;
-			for (i = 0; i < cnt; i ++) {
+
+			for (i = 0; i < cnt; i++) {
 				pch_spi_handle_dma(data, &bpw);
 				if (!pch_spi_start_transfer(data)) {
 					data->transfer_complete = true;

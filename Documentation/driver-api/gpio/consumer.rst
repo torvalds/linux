@@ -12,7 +12,7 @@ Guidelines for GPIOs consumers
 
 Drivers that can't work without standard GPIO calls should have Kconfig entries
 that depend on GPIOLIB or select GPIOLIB. The functions that allow a driver to
-obtain and use GPIOs are available by including the following file:
+obtain and use GPIOs are available by including the following file::
 
 	#include <linux/gpio/consumer.h>
 

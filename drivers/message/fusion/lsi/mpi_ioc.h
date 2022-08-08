@@ -448,7 +448,7 @@ typedef struct _MSG_EVENT_NOTIFY_REPLY
      U32                    IOCLogInfo;                 /* 10h */
      U32                    Event;                      /* 14h */
      U32                    EventContext;               /* 18h */
-     U32                    Data[1];                    /* 1Ch */
+     U32                    Data[];			/* 1Ch */
 } MSG_EVENT_NOTIFY_REPLY, MPI_POINTER PTR_MSG_EVENT_NOTIFY_REPLY,
   EventNotificationReply_t, MPI_POINTER pEventNotificationReply_t;
 

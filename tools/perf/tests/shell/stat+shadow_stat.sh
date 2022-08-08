@@ -7,6 +7,9 @@ set -e
 # skip if system-wide mode is forbidden
 perf stat -a true > /dev/null 2>&1 || exit 2
 
+# skip if on hybrid platform
+perf stat -a -e cycles sleep 1 2>&1 | grep -e cpu_core && exit 2
+
 test_global_aggr()
 {
 	perf stat -a --no-big-num -e cycles,instructions sleep 1  2>&1 | \

@@ -1,4 +1,3 @@
 # SPDX-License-Identifier: GPL-2.0-only
-kheaders.md5
-timeconst.h
-hz.bc
+/config_data
+/kheaders.md5

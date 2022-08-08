@@ -368,7 +368,7 @@ static ssize_t sdram_show(struct file *file, struct kobject *kobj,
 			  struct bin_attribute *a, char *buf,
 			  loff_t off, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct solo_dev *solo_dev =
 		container_of(dev, struct solo_dev, dev);
 	const int size = solo_dev->sdram_size;

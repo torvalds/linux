@@ -251,13 +251,24 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 	struct ieee80211_mgmt *mgmt = (void *)skb->data;
 	struct ieee80211_bss *bss;
 	struct ieee80211_channel *channel;
+	size_t min_hdr_len = offsetof(struct ieee80211_mgmt,
+				      u.probe_resp.variable);
+
+	if (!ieee80211_is_probe_resp(mgmt->frame_control) &&
+	    !ieee80211_is_beacon(mgmt->frame_control) &&
+	    !ieee80211_is_s1g_beacon(mgmt->frame_control))
+		return;
 
 	if (ieee80211_is_s1g_beacon(mgmt->frame_control)) {
-		if (skb->len < 15)
-			return;
-	} else if (skb->len < 24 ||
-		 (!ieee80211_is_probe_resp(mgmt->frame_control) &&
-		  !ieee80211_is_beacon(mgmt->frame_control)))
+		if (ieee80211_is_s1g_short_beacon(mgmt->frame_control))
+			min_hdr_len = offsetof(struct ieee80211_ext,
+					       u.s1g_short_beacon.variable);
+		else
+			min_hdr_len = offsetof(struct ieee80211_ext,
+					       u.s1g_beacon);
+	}
+
+	if (skb->len < min_hdr_len)
 		return;
 
 	sdata1 = rcu_dereference(local->scan_sdata);

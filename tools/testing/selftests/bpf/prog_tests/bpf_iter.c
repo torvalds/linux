@@ -147,6 +147,7 @@ static void test_task_stack(void)
 		return;
 
 	do_dummy_read(skel->progs.dump_task_stack);
+	do_dummy_read(skel->progs.get_task_user_stacks);
 
 	bpf_iter_task_stack__destroy(skel);
 }

@@ -66,7 +66,7 @@ These ioctls are optional, not all drivers may support them. They were
 introduced in Linux 2.6.21. They are, however, mandatory for stateful mem2mem
 encoders (as further documented in :ref:`encoder`).
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. c:type:: v4l2_encoder_cmd
 
@@ -89,7 +89,7 @@ encoders (as further documented in :ref:`encoder`).
 	the array to zero.
 
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. _encoder-cmds:
 
@@ -133,7 +133,7 @@ encoders (as further documented in :ref:`encoder`).
 	the encoder is already running, this command does nothing. No
 	flags are defined for this command.
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. _encoder-flags:
 

@@ -156,6 +156,8 @@ static const struct omap_clkctrl_reg_data omap5_l3main1_clkctrl_regs[] __initcon
 
 static const struct omap_clkctrl_reg_data omap5_l3main2_clkctrl_regs[] __initconst = {
 	{ OMAP5_L3_MAIN_2_CLKCTRL, NULL, 0, "l3_iclk_div" },
+	{ OMAP5_L3_MAIN_2_GPMC_CLKCTRL, NULL, CLKF_HW_SUP, "l3_iclk_div" },
+	{ OMAP5_L3_MAIN_2_OCMC_RAM_CLKCTRL, NULL, CLKF_HW_SUP, "l3_iclk_div" },
 	{ 0 },
 };
 

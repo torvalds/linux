@@ -1154,6 +1154,7 @@ static void build_clear_payload_id_table(struct drm_dp_sideband_msg_tx *msg)
 
 	req.req_type = DP_CLEAR_PAYLOAD_ID_TABLE;
 	drm_dp_encode_sideband_req(&req, msg);
+	msg->path_msg = true;
 }
 
 static int build_enum_path_resources(struct drm_dp_sideband_msg_tx *msg,
@@ -2303,11 +2304,9 @@ drm_dp_mst_port_add_connector(struct drm_dp_mst_branch *mstb,
 
 	if (port->pdt != DP_PEER_DEVICE_NONE &&
 	    drm_dp_mst_is_end_device(port->pdt, port->mcs) &&
-	    port->port_num >= DP_MST_LOGICAL_PORT_0) {
+	    port->port_num >= DP_MST_LOGICAL_PORT_0)
 		port->cached_edid = drm_get_edid(port->connector,
 						 &port->aux.ddc);
-		drm_connector_set_tile_property(port->connector);
-	}
 
 	drm_connector_register(port->connector);
 	return;
@@ -2824,15 +2823,21 @@ static int set_hdr_from_dst_qlock(struct drm_dp_sideband_msg_hdr *hdr,
 
 	req_type = txmsg->msg[0] & 0x7f;
 	if (req_type == DP_CONNECTION_STATUS_NOTIFY ||
-		req_type == DP_RESOURCE_STATUS_NOTIFY)
+		req_type == DP_RESOURCE_STATUS_NOTIFY ||
+		req_type == DP_CLEAR_PAYLOAD_ID_TABLE)
 		hdr->broadcast = 1;
 	else
 		hdr->broadcast = 0;
 	hdr->path_msg = txmsg->path_msg;
-	hdr->lct = mstb->lct;
-	hdr->lcr = mstb->lct - 1;
-	if (mstb->lct > 1)
-		memcpy(hdr->rad, mstb->rad, mstb->lct / 2);
+	if (hdr->broadcast) {
+		hdr->lct = 1;
+		hdr->lcr = 6;
+	} else {
+		hdr->lct = mstb->lct;
+		hdr->lcr = mstb->lct - 1;
+	}
+
+	memcpy(hdr->rad, mstb->rad, hdr->lct / 2);
 
 	return 0;
 }
@@ -4104,10 +4109,9 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 		return 0;
 
 	up_req = kzalloc(sizeof(*up_req), GFP_KERNEL);
-	if (!up_req) {
-		DRM_ERROR("Not enough memory to process MST up req\n");
+	if (!up_req)
 		return -ENOMEM;
-	}
+
 	INIT_LIST_HEAD(&up_req->next);
 
 	drm_dp_sideband_parse_req(&mgr->up_req_recv, &up_req->msg);
@@ -4234,9 +4238,8 @@ drm_dp_mst_detect_port(struct drm_connector *connector,
 	case DP_PEER_DEVICE_SST_SINK:
 		ret = connector_status_connected;
 		/* for logical ports - cache the EDID */
-		if (port->port_num >= 8 && !port->cached_edid) {
+		if (port->port_num >= DP_MST_LOGICAL_PORT_0 && !port->cached_edid)
 			port->cached_edid = drm_get_edid(connector, &port->aux.ddc);
-		}
 		break;
 	case DP_PEER_DEVICE_DP_LEGACY_CONV:
 		if (port->ldps)
@@ -4723,6 +4726,28 @@ static void drm_dp_mst_kick_tx(struct drm_dp_mst_topology_mgr *mgr)
 	queue_work(system_long_wq, &mgr->tx_work);
 }
 
+/*
+ * Helper function for parsing DP device types into convenient strings
+ * for use with dp_mst_topology
+ */
+static const char *pdt_to_string(u8 pdt)
+{
+	switch (pdt) {
+	case DP_PEER_DEVICE_NONE:
+		return "NONE";
+	case DP_PEER_DEVICE_SOURCE_OR_SST:
+		return "SOURCE OR SST";
+	case DP_PEER_DEVICE_MST_BRANCHING:
+		return "MST BRANCHING";
+	case DP_PEER_DEVICE_SST_SINK:
+		return "SST SINK";
+	case DP_PEER_DEVICE_DP_LEGACY_CONV:
+		return "DP LEGACY CONV";
+	default:
+		return "ERR";
+	}
+}
+
 static void drm_dp_mst_dump_mstb(struct seq_file *m,
 				 struct drm_dp_mst_branch *mstb)
 {
@@ -4735,9 +4760,20 @@ static void drm_dp_mst_dump_mstb(struct seq_file *m,
 		prefix[i] = '\t';
 	prefix[i] = '\0';
 
-	seq_printf(m, "%smst: %p, %d\n", prefix, mstb, mstb->num_ports);
+	seq_printf(m, "%smstb - [%p]: num_ports: %d\n", prefix, mstb, mstb->num_ports);
 	list_for_each_entry(port, &mstb->ports, next) {
-		seq_printf(m, "%sport: %d: input: %d: pdt: %d, ddps: %d ldps: %d, sdp: %d/%d, %p, conn: %p\n", prefix, port->port_num, port->input, port->pdt, port->ddps, port->ldps, port->num_sdp_streams, port->num_sdp_stream_sinks, port, port->connector);
+		seq_printf(m, "%sport %d - [%p] (%s - %s): ddps: %d, ldps: %d, sdp: %d/%d, fec: %s, conn: %p\n", 
+			   prefix,
+			   port->port_num,
+			   port,
+			   port->input ? "input" : "output",
+			   pdt_to_string(port->pdt),
+			   port->ddps,
+			   port->ldps,
+			   port->num_sdp_streams,
+			   port->num_sdp_stream_sinks,
+			   port->fec_capable ? "true" : "false",
+			   port->connector);
 		if (port->mstb)
 			drm_dp_mst_dump_mstb(m, port->mstb);
 	}
@@ -4790,33 +4826,37 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 	mutex_unlock(&mgr->lock);
 
 	mutex_lock(&mgr->payload_lock);
-	seq_printf(m, "vcpi: %lx %lx %d\n", mgr->payload_mask, mgr->vcpi_mask,
-		mgr->max_payloads);
+	seq_printf(m, "\n*** VCPI Info ***\n");
+	seq_printf(m, "payload_mask: %lx, vcpi_mask: %lx, max_payloads: %d\n", mgr->payload_mask, mgr->vcpi_mask, mgr->max_payloads);
 
+	seq_printf(m, "\n|   idx   |  port # |  vcp_id | # slots |     sink name     |\n");
 	for (i = 0; i < mgr->max_payloads; i++) {
 		if (mgr->proposed_vcpis[i]) {
 			char name[14];
 
 			port = container_of(mgr->proposed_vcpis[i], struct drm_dp_mst_port, vcpi);
 			fetch_monitor_name(mgr, port, name, sizeof(name));
-			seq_printf(m, "vcpi %d: %d %d %d sink name: %s\n", i,
-				   port->port_num, port->vcpi.vcpi,
+			seq_printf(m, "%10d%10d%10d%10d%20s\n",
+				   i,
+				   port->port_num,
+				   port->vcpi.vcpi,
 				   port->vcpi.num_slots,
-				   (*name != 0) ? name :  "Unknown");
+				   (*name != 0) ? name : "Unknown");
 		} else
-			seq_printf(m, "vcpi %d:unused\n", i);
+			seq_printf(m, "%6d - Unused\n", i);
 	}
+	seq_printf(m, "\n*** Payload Info ***\n");
+	seq_printf(m, "|   idx   |  state  |  start slot  | # slots |\n");
 	for (i = 0; i < mgr->max_payloads; i++) {
-		seq_printf(m, "payload %d: %d, %d, %d\n",
+		seq_printf(m, "%10d%10d%15d%10d\n",
 			   i,
 			   mgr->payloads[i].payload_state,
 			   mgr->payloads[i].start_slot,
 			   mgr->payloads[i].num_slots);
-
-
 	}
 	mutex_unlock(&mgr->payload_lock);
 
+	seq_printf(m, "\n*** DPCD Info ***\n");
 	mutex_lock(&mgr->lock);
 	if (mgr->mst_primary) {
 		u8 buf[DP_PAYLOAD_TABLE_SIZE];
@@ -5121,11 +5161,16 @@ drm_dp_mst_atomic_check_port_bw_limit(struct drm_dp_mst_port *port,
 		if (!found)
 			return 0;
 
-		/* This should never happen, as it means we tried to
-		 * set a mode before querying the full_pbn
+		/*
+		 * This could happen if the sink deasserted its HPD line, but
+		 * the branch device still reports it as attached (PDT != NONE).
 		 */
-		if (WARN_ON(!port->full_pbn))
+		if (!port->full_pbn) {
+			drm_dbg_atomic(port->mgr->dev,
+				       "[MSTB:%p] [MST PORT:%p] no BW available for the port\n",
+				       port->parent, port);
 			return -EINVAL;
+		}
 
 		pbn_used = vcpi->pbn;
 	} else {

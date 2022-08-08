@@ -35,7 +35,7 @@ static int ss_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_ss, ss_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_ss, ss_get, NULL, "%llu\n");
 
 
 
@@ -114,13 +114,13 @@ static int multi_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_multi, multi_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_multi, multi_get, NULL, "%llu\n");
 
 static int __init spinlock_test(void)
 {
-	debugfs_create_file("spin_single", S_IRUGO, mips_debugfs_dir, NULL,
+	debugfs_create_file_unsafe("spin_single", S_IRUGO, mips_debugfs_dir, NULL,
 			    &fops_ss);
-	debugfs_create_file("spin_multi", S_IRUGO, mips_debugfs_dir, NULL,
+	debugfs_create_file_unsafe("spin_multi", S_IRUGO, mips_debugfs_dir, NULL,
 			    &fops_multi);
 	return 0;
 }

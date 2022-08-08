@@ -1,3 +1,17 @@
+config DRM_I915_REQUEST_TIMEOUT
+	int "Default timeout for requests (ms)"
+	default 20000 # milliseconds
+	help
+	  Configures the default timeout after which any user submissions will
+	  be forcefully terminated.
+
+	  Beware setting this value lower, or close to heartbeat interval
+	  rounded to whole seconds times three, in order to avoid allowing
+	  misbehaving applications causing total rendering failure in unrelated
+	  clients.
+
+	  May be 0 to disable the timeout.
+
 config DRM_I915_FENCE_TIMEOUT
 	int "Timeout for unsignaled foreign fences (ms, jiffy granularity)"
 	default 10000 # milliseconds

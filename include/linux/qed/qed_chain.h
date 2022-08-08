@@ -19,7 +19,7 @@ enum qed_chain_mode {
 	/* Each Page contains a next pointer at its end */
 	QED_CHAIN_MODE_NEXT_PTR,
 
-	/* Chain is a single page (next ptr) is unrequired */
+	/* Chain is a single page (next ptr) is not required */
 	QED_CHAIN_MODE_SINGLE,
 
 	/* Page pointers are located in a side list */
@@ -56,13 +56,13 @@ struct qed_chain_pbl_u32 {
 };
 
 struct qed_chain_u16 {
-	/* Cyclic index of next element to produce/consme */
+	/* Cyclic index of next element to produce/consume */
 	u16						prod_idx;
 	u16						cons_idx;
 };
 
 struct qed_chain_u32 {
-	/* Cyclic index of next element to produce/consme */
+	/* Cyclic index of next element to produce/consume */
 	u32						prod_idx;
 	u32						cons_idx;
 };
@@ -270,7 +270,7 @@ static inline dma_addr_t qed_chain_get_pbl_phys(const struct qed_chain *chain)
 /**
  * @brief qed_chain_advance_page -
  *
- * Advance the next element accros pages for a linked chain
+ * Advance the next element across pages for a linked chain
  *
  * @param p_chain
  * @param p_next_elem

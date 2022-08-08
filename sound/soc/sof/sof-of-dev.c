@@ -71,7 +71,6 @@ static int sof_of_probe(struct platform_device *pdev)
 	const struct sof_dev_desc *desc;
 	struct snd_sof_pdata *sof_pdata;
 	const struct snd_sof_dsp_ops *ops;
-	int ret;
 
 	dev_info(&pdev->dev, "DT DSP detected");
 
@@ -98,22 +97,11 @@ static int sof_of_probe(struct platform_device *pdev)
 	sof_pdata->fw_filename_prefix = sof_pdata->desc->default_fw_path;
 	sof_pdata->tplg_filename_prefix = sof_pdata->desc->default_tplg_path;
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE)
-	/* set callback to enable runtime_pm */
+	/* set callback to be called on successful device probe to enable runtime_pm */
 	sof_pdata->sof_probe_complete = sof_of_probe_complete;
-#endif
-	 /* call sof helper for DSP hardware probe */
-	ret = snd_sof_device_probe(dev, sof_pdata);
-	if (ret) {
-		dev_err(dev, "error: failed to probe DSP hardware\n");
-		return ret;
-	}
 
-#if !IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE)
-	sof_of_probe_complete(dev);
-#endif
-
-	return ret;
+	/* call sof helper for DSP hardware probe */
+	return snd_sof_device_probe(dev, sof_pdata);
 }
 
 static int sof_of_remove(struct platform_device *pdev)

@@ -5,8 +5,8 @@
 #define __MLX5_EN_PTP_H__
 
 #include "en.h"
-#include "en/params.h"
 #include "en_stats.h"
+#include <linux/ptp_classify.h>
 
 struct mlx5e_ptpsq {
 	struct mlx5e_txqsq       txqsq;
@@ -17,9 +17,16 @@ struct mlx5e_ptpsq {
 	struct mlx5e_ptp_cq_stats *cq_stats;
 };
 
-struct mlx5e_port_ptp {
+enum {
+	MLX5E_PTP_STATE_TX,
+	MLX5E_PTP_STATE_RX,
+	MLX5E_PTP_STATE_NUM_STATES,
+};
+
+struct mlx5e_ptp {
 	/* data path */
 	struct mlx5e_ptpsq         ptpsq[MLX5E_MAX_NUM_TC];
+	struct mlx5e_rq            rq;
 	struct napi_struct         napi;
 	struct device             *pdev;
 	struct net_device         *netdev;
@@ -34,20 +41,39 @@ struct mlx5e_port_ptp {
 	struct mlx5e_priv         *priv;
 	struct mlx5_core_dev      *mdev;
 	struct hwtstamp_config    *tstamp;
-	DECLARE_BITMAP(state, MLX5E_CHANNEL_NUM_STATES);
-	int                        ix;
+	DECLARE_BITMAP(state, MLX5E_PTP_STATE_NUM_STATES);
 };
 
-struct mlx5e_ptp_params {
-	struct mlx5e_params        params;
-	struct mlx5e_sq_param      txq_sq_param;
-};
+static inline bool mlx5e_use_ptpsq(struct sk_buff *skb)
+{
+	struct flow_keys fk;
 
-int mlx5e_port_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
-			u8 lag_port, struct mlx5e_port_ptp **cp);
-void mlx5e_port_ptp_close(struct mlx5e_port_ptp *c);
-void mlx5e_ptp_activate_channel(struct mlx5e_port_ptp *c);
-void mlx5e_ptp_deactivate_channel(struct mlx5e_port_ptp *c);
+	if (!(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
+		return false;
+
+	if (!skb_flow_dissect_flow_keys(skb, &fk, 0))
+		return false;
+
+	if (fk.basic.n_proto == htons(ETH_P_1588))
+		return true;
+
+	if (fk.basic.n_proto != htons(ETH_P_IP) &&
+	    fk.basic.n_proto != htons(ETH_P_IPV6))
+		return false;
+
+	return (fk.basic.ip_proto == IPPROTO_UDP &&
+		fk.ports.dst == htons(PTP_EV_PORT));
+}
+
+int mlx5e_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
+		   u8 lag_port, struct mlx5e_ptp **cp);
+void mlx5e_ptp_close(struct mlx5e_ptp *c);
+void mlx5e_ptp_activate_channel(struct mlx5e_ptp *c);
+void mlx5e_ptp_deactivate_channel(struct mlx5e_ptp *c);
+int mlx5e_ptp_get_rqn(struct mlx5e_ptp *c, u32 *rqn);
+int mlx5e_ptp_alloc_rx_fs(struct mlx5e_priv *priv);
+void mlx5e_ptp_free_rx_fs(struct mlx5e_priv *priv);
+int mlx5e_ptp_rx_manage_fs(struct mlx5e_priv *priv, bool set);
 
 enum {
 	MLX5E_SKB_CB_CQE_HWTSTAMP  = BIT(0),

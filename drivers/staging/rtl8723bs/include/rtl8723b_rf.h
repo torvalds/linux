@@ -12,6 +12,6 @@ int	PHY_RF6052_Config8723B(struct adapter *Adapter);
 
 void
 PHY_RF6052SetBandwidth8723B(struct adapter *Adapter,
-	enum CHANNEL_WIDTH		Bandwidth);
+	enum channel_width		Bandwidth);
 
 #endif

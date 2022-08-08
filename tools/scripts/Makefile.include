@@ -38,8 +38,7 @@ EXTRA_WARNINGS += -Wswitch-enum
 EXTRA_WARNINGS += -Wundef
 EXTRA_WARNINGS += -Wwrite-strings
 EXTRA_WARNINGS += -Wformat
-
-CC_NO_CLANG := $(shell $(CC) -dM -E -x c /dev/null | grep -Fq "__clang__"; echo $$?)
+EXTRA_WARNINGS += -Wno-type-limits
 
 # Makefiles suck: This macro sets a default value of $(2) for the
 # variable named by $(1), unless the variable has been set by
@@ -52,12 +51,22 @@ define allow-override
     $(eval $(1) = $(2)))
 endef
 
+ifneq ($(LLVM),)
+$(call allow-override,CC,clang)
+$(call allow-override,AR,llvm-ar)
+$(call allow-override,LD,ld.lld)
+$(call allow-override,CXX,clang++)
+$(call allow-override,STRIP,llvm-strip)
+else
 # Allow setting various cross-compile vars or setting CROSS_COMPILE as a prefix.
 $(call allow-override,CC,$(CROSS_COMPILE)gcc)
 $(call allow-override,AR,$(CROSS_COMPILE)ar)
 $(call allow-override,LD,$(CROSS_COMPILE)ld)
 $(call allow-override,CXX,$(CROSS_COMPILE)g++)
 $(call allow-override,STRIP,$(CROSS_COMPILE)strip)
+endif
+
+CC_NO_CLANG := $(shell $(CC) -dM -E -x c /dev/null | grep -Fq "__clang__"; echo $$?)
 
 ifneq ($(LLVM),)
 HOSTAR  ?= llvm-ar
@@ -86,7 +95,8 @@ endif
 # in newer systems.
 # Needed for the __raw_cmpxchg in tools/arch/x86/include/asm/cmpxchg.h
 #
-# See https://lkml.org/lkml/2006/11/28/253 and https://gcc.gnu.org/gcc-4.8/changes.html,
+# See https://lore.kernel.org/lkml/9a8748490611281710g78402fbeh8ff7fcc162dbcbca@mail.gmail.com/
+# and https://gcc.gnu.org/gcc-4.8/changes.html,
 # that takes into account Linus's comments (search for Wshadow) for the reasoning about
 # -Wshadow not being interesting before gcc 4.8.
 
@@ -121,29 +131,29 @@ QUIET_SUBDIR1  =
 
 ifneq ($(silent),1)
   ifneq ($(V),1)
-	QUIET_CC       = @echo '  CC       '$@;
-	QUIET_CC_FPIC  = @echo '  CC FPIC  '$@;
-	QUIET_CLANG    = @echo '  CLANG    '$@;
-	QUIET_AR       = @echo '  AR       '$@;
-	QUIET_LINK     = @echo '  LINK     '$@;
-	QUIET_MKDIR    = @echo '  MKDIR    '$@;
-	QUIET_GEN      = @echo '  GEN      '$@;
+	QUIET_CC       = @echo '  CC      '$@;
+	QUIET_CC_FPIC  = @echo '  CC FPIC '$@;
+	QUIET_CLANG    = @echo '  CLANG   '$@;
+	QUIET_AR       = @echo '  AR      '$@;
+	QUIET_LINK     = @echo '  LINK    '$@;
+	QUIET_MKDIR    = @echo '  MKDIR   '$@;
+	QUIET_GEN      = @echo '  GEN     '$@;
 	QUIET_SUBDIR0  = +@subdir=
 	QUIET_SUBDIR1  = ;$(NO_SUBDIR) \
-			  echo '  SUBDIR   '$$subdir; \
+			  echo '  SUBDIR  '$$subdir; \
 			 $(MAKE) $(PRINT_DIR) -C $$subdir
-	QUIET_FLEX     = @echo '  FLEX     '$@;
-	QUIET_BISON    = @echo '  BISON    '$@;
-	QUIET_GENSKEL  = @echo '  GEN-SKEL '$@;
+	QUIET_FLEX     = @echo '  FLEX    '$@;
+	QUIET_BISON    = @echo '  BISON   '$@;
+	QUIET_GENSKEL  = @echo '  GENSKEL '$@;
 
 	descend = \
-		+@echo	       '  DESCEND  '$(1); \
+		+@echo	       '  DESCEND '$(1); \
 		mkdir -p $(OUTPUT)$(1) && \
 		$(MAKE) $(COMMAND_O) subdir=$(if $(subdir),$(subdir)/$(1),$(1)) $(PRINT_DIR) -C $(1) $(2)
 
-	QUIET_CLEAN    = @printf '  CLEAN    %s\n' $1;
-	QUIET_INSTALL  = @printf '  INSTALL  %s\n' $1;
-	QUIET_UNINST   = @printf '  UNINST   %s\n' $1;
+	QUIET_CLEAN    = @printf '  CLEAN   %s\n' $1;
+	QUIET_INSTALL  = @printf '  INSTALL %s\n' $1;
+	QUIET_UNINST   = @printf '  UNINST  %s\n' $1;
   endif
 endif
 

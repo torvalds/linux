@@ -909,22 +909,6 @@ enum {
 	MQ_MG_MODE
 };
 
-/* GFAR_SQ_POLLING: Single Queue NAPI polling mode
- *	The driver supports a single pair of RX/Tx queues
- *	per interrupt group (Rx/Tx int line). MQ_MG mode
- *	devices have 2 interrupt groups, so the device will
- *	have a total of 2 Tx and 2 Rx queues in this case.
- * GFAR_MQ_POLLING: Multi Queue NAPI polling mode
- *	The driver supports all the 8 Rx and Tx HW queues
- *	each queue mapped by the Device Tree to one of
- *	the 2 interrupt groups. This mode implies significant
- *	processing overhead (CPU and controller level).
- */
-enum gfar_poll_mode {
-	GFAR_SQ_POLLING = 0,
-	GFAR_MQ_POLLING
-};
-
 /*
  * Per TX queue stats
  */
@@ -1105,7 +1089,6 @@ struct gfar_private {
 	unsigned long state;
 
 	unsigned short mode;
-	unsigned short poll_mode;
 	unsigned int num_tx_queues;
 	unsigned int num_rx_queues;
 	unsigned int num_grps;

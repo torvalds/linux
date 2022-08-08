@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
-/include/ "bcm63268.dtsi"
+#include "bcm63268.dtsi"
 
 / {
 	compatible = "comtrend,vr-3032u", "brcm,bcm63268";

@@ -21,9 +21,8 @@ mt7603_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 	struct mt7603_mcu_rxd *rxd;
 
 	if (!skb) {
-		dev_err(mdev->dev,
-			"MCU message %d (seq %d) timed out\n",
-			cmd, seq);
+		dev_err(mdev->dev, "MCU message %02x (seq %d) timed out\n",
+			abs(cmd), seq);
 		dev->mcu_hang = MT7603_WATCHDOG_TIMEOUT;
 		return -ETIMEDOUT;
 	}

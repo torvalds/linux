@@ -260,7 +260,6 @@ do {									\
 
 extern unsigned long __arch_clear_user(void __user * addr, unsigned long n);
 extern long strncpy_from_user(char *dest, const char __user * src, long count);
-extern __must_check long strlen_user(const char __user * str);
 extern __must_check long strnlen_user(const char __user * str, long n);
 extern unsigned long __arch_copy_from_user(void *to, const void __user * from,
                                            unsigned long n);

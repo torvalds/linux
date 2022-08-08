@@ -1,4 +1,4 @@
-/**
+/*
  * Marvell NFC-over-UART driver
  *
  * Copyright (C) 2015, Marvell International Ltd.

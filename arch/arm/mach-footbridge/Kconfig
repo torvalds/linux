@@ -16,27 +16,6 @@ config ARCH_CATS
 
 	  Saying N will reduce the size of the Footbridge kernel.
 
-config ARCH_PERSONAL_SERVER
-	bool "Compaq Personal Server"
-	select FOOTBRIDGE_HOST
-	select ISA
-	select ISA_DMA
-	select FORCE_PCI
-	help
-	  Say Y here if you intend to run this kernel on the Compaq
-	  Personal Server.
-
-	  Saying N will reduce the size of the Footbridge kernel.
-
-	  The Compaq Personal Server is not available for purchase.
-	  There are no product plans beyond the current research
-	  prototypes at this time.  Information is available at:
-
-	  <http://www.crl.hpl.hp.com/projects/personalserver/>
-
-	  If you have any questions or comments about the  Compaq Personal
-	  Server, send e-mail to <skiff@crl.dec.com>.
-
 config ARCH_EBSA285_ADDIN
 	bool "EBSA285 (addin mode)"
 	select ARCH_EBSA285

@@ -1784,12 +1784,6 @@ set_tct(struct idt77252_dev *card, struct vc_map *vc)
 /*****************************************************************************/
 
 static __inline__ int
-idt77252_fbq_level(struct idt77252_dev *card, int queue)
-{
-	return (readl(SAR_REG_STAT) >> (16 + (queue << 2))) & 0x0f;
-}
-
-static __inline__ int
 idt77252_fbq_full(struct idt77252_dev *card, int queue)
 {
 	return (readl(SAR_REG_STAT) >> (16 + (queue << 2))) == 0x0f;

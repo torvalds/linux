@@ -161,14 +161,13 @@ static struct se_tpg_np *lio_target_call_addnptotpg(
 	char *str, *str2, *ip_str, *port_str;
 	struct sockaddr_storage sockaddr = { };
 	int ret;
-	char buf[MAX_PORTAL_LEN + 1];
+	char buf[MAX_PORTAL_LEN + 1] = { };
 
 	if (strlen(name) > MAX_PORTAL_LEN) {
 		pr_err("strlen(name): %d exceeds MAX_PORTAL_LEN: %d\n",
 			(int)strlen(name), MAX_PORTAL_LEN);
 		return ERR_PTR(-EOVERFLOW);
 	}
-	memset(buf, 0, MAX_PORTAL_LEN + 1);
 	snprintf(buf, MAX_PORTAL_LEN + 1, "%s", name);
 
 	str = strstr(buf, "[");

@@ -410,7 +410,7 @@ not_target:
 }
 
 /**
- * tcm_fcp_prli() - Handle incoming or outgoing PRLI for the FCP target
+ * ft_prli() - Handle incoming or outgoing PRLI for the FCP target
  * @rdata: remote port private
  * @spp_len: service parameter page length
  * @rspp: received service parameter page (NULL for outgoing PRLI)

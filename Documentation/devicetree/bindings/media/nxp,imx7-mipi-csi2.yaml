@@ -4,14 +4,19 @@
 $id: http://devicetree.org/schemas/media/nxp,imx7-mipi-csi2.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NXP i.MX7 Mipi CSI2
+title: NXP i.MX7 MIPI CSI-2 receiver
 
 maintainers:
   - Rui Miguel Silva <rmfrfs@gmail.com>
 
-description: |
-  This is the device node for the MIPI CSI-2 receiver core in i.MX7 soc. It is
-  compatible with previous version of samsung d-phy.
+description: |-
+  The NXP i.MX7 SoC family includes a MIPI CSI-2 receiver IP core, documented
+  as "CSIS V3.3". The IP core seems to originate from Samsung, and may be
+  compatible with some of the Exynos4 ad S5P SoCs.
+
+  While the CSI-2 receiver is separate from the MIPI D-PHY IP core, the PHY is
+  completely wrapped by the CSIS and doesn't expose a control interface of its
+  own. This binding thus covers both IP cores.
 
 properties:
   compatible:
@@ -24,8 +29,10 @@ properties:
     maxItems: 1
 
   clocks:
-    minItems: 3
-    maxItems: 3
+    items:
+      - description: The peripheral clock (a.k.a. APB clock)
+      - description: The external clock (optionally used as the pixel clock)
+      - description: The MIPI D-PHY clock
 
   clock-names:
     items:
@@ -37,25 +44,15 @@ properties:
     maxItems: 1
 
   phy-supply:
-    description:
-      Phandle to a regulator that provides power to the PHY. This
-      regulator will be managed during the PHY power on/off sequence.
+    description: The MIPI D-PHY digital power supply
 
   resets:
-    maxItems: 1
-
-  reset-names:
-    const: mrst
+    items:
+      - description: MIPI D-PHY slave reset
 
   clock-frequency:
-    description:
-      The IP main (system bus) clock frequency in Hertz
+    description: The desired external clock ("wrap") frequency, in Hz
     default: 166000000
-
-  fsl,csis-hs-settle:
-    $ref: /schemas/types.yaml#/definitions/uint32
-    description:
-      Differential receiver (HS-RX) settle time
 
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
@@ -98,7 +95,6 @@ required:
   - power-domains
   - phy-supply
   - resets
-  - reset-names
   - ports
 
 additionalProperties: false
@@ -111,43 +107,41 @@ examples:
     #include <dt-bindings/reset/imx7-reset.h>
 
     mipi_csi: mipi-csi@30750000 {
-            compatible = "fsl,imx7-mipi-csi2";
-            reg = <0x30750000 0x10000>;
-            interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+        compatible = "fsl,imx7-mipi-csi2";
+        reg = <0x30750000 0x10000>;
+        interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 
-            clocks = <&clks IMX7D_IPG_ROOT_CLK>,
-                     <&clks IMX7D_MIPI_CSI_ROOT_CLK>,
-                     <&clks IMX7D_MIPI_DPHY_ROOT_CLK>;
-            clock-names = "pclk", "wrap", "phy";
-            clock-frequency = <166000000>;
+        clocks = <&clks IMX7D_IPG_ROOT_CLK>,
+                 <&clks IMX7D_MIPI_CSI_ROOT_CLK>,
+                 <&clks IMX7D_MIPI_DPHY_ROOT_CLK>;
+        clock-names = "pclk", "wrap", "phy";
+        clock-frequency = <166000000>;
 
-            power-domains = <&pgc_mipi_phy>;
-            phy-supply = <&reg_1p0d>;
-            resets = <&src IMX7_RESET_MIPI_PHY_MRST>;
-            reset-names = "mrst";
-            fsl,csis-hs-settle = <3>;
+        power-domains = <&pgc_mipi_phy>;
+        phy-supply = <&reg_1p0d>;
+        resets = <&src IMX7_RESET_MIPI_PHY_MRST>;
 
-            ports {
-                    #address-cells = <1>;
-                    #size-cells = <0>;
+        ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-                    port@0 {
-                            reg = <0>;
+            port@0 {
+                reg = <0>;
 
-                            mipi_from_sensor: endpoint {
-                                    remote-endpoint = <&ov2680_to_mipi>;
-                                    data-lanes = <1>;
-                            };
-                    };
-
-                    port@1 {
-                            reg = <1>;
-
-                            mipi_vc0_to_csi_mux: endpoint {
-                                    remote-endpoint = <&csi_mux_from_mipi_vc0>;
-                            };
-                    };
+                mipi_from_sensor: endpoint {
+                    remote-endpoint = <&ov2680_to_mipi>;
+                    data-lanes = <1>;
+                };
             };
+
+            port@1 {
+                reg = <1>;
+
+                mipi_vc0_to_csi_mux: endpoint {
+                    remote-endpoint = <&csi_mux_from_mipi_vc0>;
+                };
+            };
+        };
     };
 
 ...

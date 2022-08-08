@@ -80,8 +80,8 @@ values of phy_interface_t must be understood from the perspective of the PHY
 device itself, leading to the following:
 
 * PHY_INTERFACE_MODE_RGMII: the PHY is not responsible for inserting any
-  internal delay by itself, it assumes that either the Ethernet MAC (if capable
-  or the PCB traces) insert the correct 1.5-2ns delay
+  internal delay by itself, it assumes that either the Ethernet MAC (if capable)
+  or the PCB traces insert the correct 1.5-2ns delay
 
 * PHY_INTERFACE_MODE_RGMII_TXID: the PHY should insert an internal delay
   for the transmit data lines (TXD[3:0]) processed by the PHY device

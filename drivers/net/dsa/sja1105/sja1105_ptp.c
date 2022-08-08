@@ -431,20 +431,24 @@ bool sja1105_port_rxtstamp(struct dsa_switch *ds, int port,
 	return true;
 }
 
-/* Called from dsa_skb_tx_timestamp. This callback is just to make DSA clone
- * the skb and have it available in DSA_SKB_CB in the .port_deferred_xmit
+/* Called from dsa_skb_tx_timestamp. This callback is just to clone
+ * the skb and have it available in SJA1105_SKB_CB in the .port_deferred_xmit
  * callback, where we will timestamp it synchronously.
  */
-bool sja1105_port_txtstamp(struct dsa_switch *ds, int port,
-			   struct sk_buff *skb, unsigned int type)
+void sja1105_port_txtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb)
 {
 	struct sja1105_private *priv = ds->priv;
 	struct sja1105_port *sp = &priv->ports[port];
+	struct sk_buff *clone;
 
 	if (!sp->hwts_tx_en)
-		return false;
+		return;
 
-	return true;
+	clone = skb_clone_sk(skb);
+	if (!clone)
+		return;
+
+	SJA1105_SKB_CB(skb)->clone = clone;
 }
 
 static int sja1105_ptp_reset(struct dsa_switch *ds)

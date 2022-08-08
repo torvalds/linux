@@ -332,11 +332,15 @@ static const struct property_entry mistral_at24_properties[] = {
 	{ }
 };
 
+static const struct software_node mistral_at24_node = {
+	.properties = mistral_at24_properties,
+};
+
 static struct i2c_board_info __initdata mistral_i2c_board_info[] = {
 	{
 		/* NOTE:  powered from LCD supply */
 		I2C_BOARD_INFO("24c04", 0x50),
-		.properties = mistral_at24_properties,
+		.swnode = &mistral_at24_node,
 	},
 	/* TODO when driver support is ready:
 	 *  - optionally ov9640 camera sensor at 0x30

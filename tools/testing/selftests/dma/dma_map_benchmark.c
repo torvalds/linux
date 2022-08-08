@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020 Hisilicon Limited.
+ * Copyright (C) 2020 HiSilicon Limited.
  */
 
 #include <fcntl.h>
@@ -40,7 +40,8 @@ struct map_benchmark {
 	__u32 dma_bits; /* DMA addressing capability */
 	__u32 dma_dir; /* DMA data direction */
 	__u32 dma_trans_ns; /* time for DMA transmission in ns */
-	__u8 expansion[80];	/* For future use */
+	__u32 granule; /* how many PAGE_SIZE will do map/unmap once a time */
+	__u8 expansion[76];	/* For future use */
 };
 
 int main(int argc, char **argv)
@@ -51,11 +52,13 @@ int main(int argc, char **argv)
 	int threads = 1, seconds = 20, node = -1;
 	/* default dma mask 32bit, bidirectional DMA */
 	int bits = 32, xdelay = 0, dir = DMA_MAP_BIDIRECTIONAL;
+	/* default granule 1 PAGESIZE */
+	int granule = 1;
 
 	int cmd = DMA_MAP_BENCHMARK;
 	char *p;
 
-	while ((opt = getopt(argc, argv, "t:s:n:b:d:x:")) != -1) {
+	while ((opt = getopt(argc, argv, "t:s:n:b:d:x:g:")) != -1) {
 		switch (opt) {
 		case 't':
 			threads = atoi(optarg);
@@ -74,6 +77,9 @@ int main(int argc, char **argv)
 			break;
 		case 'x':
 			xdelay = atoi(optarg);
+			break;
+		case 'g':
+			granule = atoi(optarg);
 			break;
 		default:
 			return -1;
@@ -110,6 +116,11 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+	if (granule < 1 || granule > 1024) {
+		fprintf(stderr, "invalid granule size\n");
+		exit(1);
+	}
+
 	fd = open("/sys/kernel/debug/dma_map_benchmark", O_RDWR);
 	if (fd == -1) {
 		perror("open");
@@ -123,14 +134,15 @@ int main(int argc, char **argv)
 	map.dma_bits = bits;
 	map.dma_dir = dir;
 	map.dma_trans_ns = xdelay;
+	map.granule = granule;
 
 	if (ioctl(fd, cmd, &map)) {
 		perror("ioctl");
 		exit(1);
 	}
 
-	printf("dma mapping benchmark: threads:%d seconds:%d node:%d dir:%s\n",
-			threads, seconds, node, dir[directions]);
+	printf("dma mapping benchmark: threads:%d seconds:%d node:%d dir:%s granule: %d\n",
+			threads, seconds, node, dir[directions], granule);
 	printf("average map latency(us):%.1f standard deviation:%.1f\n",
 			map.avg_map_100ns/10.0, map.map_stddev/10.0);
 	printf("average unmap latency(us):%.1f standard deviation:%.1f\n",

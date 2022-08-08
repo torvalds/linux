@@ -96,7 +96,7 @@ int esw_acl_egress_lgcy_setup(struct mlx5_eswitch *esw,
 	}
 
 	if (!vport->egress.acl) {
-		vport->egress.acl = esw_acl_table_create(esw, vport->vport,
+		vport->egress.acl = esw_acl_table_create(esw, vport,
 							 MLX5_FLOW_NAMESPACE_ESW_EGRESS,
 							 table_size);
 		if (IS_ERR(vport->egress.acl)) {

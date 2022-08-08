@@ -2457,7 +2457,6 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	struct bcm_sysport_priv *priv;
 	struct device_node *dn;
 	struct net_device *dev;
-	const void *macaddr;
 	u32 txq, rxq;
 	int ret;
 
@@ -2552,12 +2551,10 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize netdevice members */
-	macaddr = of_get_mac_address(dn);
-	if (IS_ERR(macaddr)) {
+	ret = of_get_mac_address(dn, dev->dev_addr);
+	if (ret) {
 		dev_warn(&pdev->dev, "using random Ethernet MAC\n");
 		eth_hw_addr_random(dev);
-	} else {
-		ether_addr_copy(dev->dev_addr, macaddr);
 	}
 
 	SET_NETDEV_DEV(dev, &pdev->dev);

@@ -531,6 +531,8 @@ static bool stm32_pctrl_is_function_valid(struct stm32_pinctrl *pctl,
 		break;
 	}
 
+	dev_err(pctl->dev, "invalid function %d on pin %d .\n", fnum, pin_num);
+
 	return false;
 }
 
@@ -545,11 +547,8 @@ static int stm32_pctrl_dt_node_to_map_func(struct stm32_pinctrl *pctl,
 	(*map)[*num_maps].type = PIN_MAP_TYPE_MUX_GROUP;
 	(*map)[*num_maps].data.mux.group = grp->name;
 
-	if (!stm32_pctrl_is_function_valid(pctl, pin, fnum)) {
-		dev_err(pctl->dev, "invalid function %d on pin %d .\n",
-				fnum, pin);
+	if (!stm32_pctrl_is_function_valid(pctl, pin, fnum))
 		return -EINVAL;
-	}
 
 	(*map)[*num_maps].data.mux.function = stm32_gpio_functions[fnum];
 	(*num_maps)++;
@@ -620,7 +619,6 @@ static int stm32_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		func = STM32_GET_PIN_FUNC(pinfunc);
 
 		if (!stm32_pctrl_is_function_valid(pctl, pin, func)) {
-			dev_err(pctl->dev, "invalid function.\n");
 			err = -EINVAL;
 			goto exit;
 		}
@@ -821,11 +819,8 @@ static int stm32_pmx_set_mux(struct pinctrl_dev *pctldev,
 	int pin;
 
 	ret = stm32_pctrl_is_function_valid(pctl, g->pin, function);
-	if (!ret) {
-		dev_err(pctl->dev, "invalid function %d on group %d .\n",
-				function, group);
+	if (!ret)
 		return -EINVAL;
-	}
 
 	range = pinctrl_find_gpio_range_from_pin(pctldev, g->pin);
 	if (!range) {
@@ -1229,7 +1224,7 @@ static int stm32_gpiolib_register_bank(struct stm32_pinctrl *pctl,
 	struct device *dev = pctl->dev;
 	struct resource res;
 	int npins = STM32_GPIO_PINS_PER_BANK;
-	int bank_nr, err;
+	int bank_nr, err, i = 0;
 
 	if (!IS_ERR(bank->rstc))
 		reset_control_deassert(bank->rstc);
@@ -1251,9 +1246,14 @@ static int stm32_gpiolib_register_bank(struct stm32_pinctrl *pctl,
 
 	of_property_read_string(np, "st,bank-name", &bank->gpio_chip.label);
 
-	if (!of_parse_phandle_with_fixed_args(np, "gpio-ranges", 3, 0, &args)) {
+	if (!of_parse_phandle_with_fixed_args(np, "gpio-ranges", 3, i, &args)) {
 		bank_nr = args.args[1] / STM32_GPIO_PINS_PER_BANK;
 		bank->gpio_chip.base = args.args[1];
+
+		npins = args.args[2];
+		while (!of_parse_phandle_with_fixed_args(np, "gpio-ranges", 3,
+							 ++i, &args))
+			npins += args.args[2];
 	} else {
 		bank_nr = pctl->nbanks;
 		bank->gpio_chip.base = bank_nr * STM32_GPIO_PINS_PER_BANK;
@@ -1542,8 +1542,10 @@ int stm32_pctl_probe(struct platform_device *pdev)
 		if (of_property_read_bool(child, "gpio-controller")) {
 			bank->rstc = of_reset_control_get_exclusive(child,
 								    NULL);
-			if (PTR_ERR(bank->rstc) == -EPROBE_DEFER)
+			if (PTR_ERR(bank->rstc) == -EPROBE_DEFER) {
+				of_node_put(child);
 				return -EPROBE_DEFER;
+			}
 
 			bank->clk = of_clk_get_by_name(child, NULL);
 			if (IS_ERR(bank->clk)) {
@@ -1551,6 +1553,7 @@ int stm32_pctl_probe(struct platform_device *pdev)
 					dev_err(dev,
 						"failed to get clk (%ld)\n",
 						PTR_ERR(bank->clk));
+				of_node_put(child);
 				return PTR_ERR(bank->clk);
 			}
 			i++;

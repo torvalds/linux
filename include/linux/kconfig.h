@@ -70,10 +70,4 @@
  */
 #define IS_ENABLED(option) __or(IS_BUILTIN(option), IS_MODULE(option))
 
-/*
- * IF_ENABLED(CONFIG_FOO, ptr) evaluates to (ptr) if CONFIG_FOO is set to 'y'
- * or 'm', NULL otherwise.
- */
-#define IF_ENABLED(option, ptr) (IS_ENABLED(option) ? (ptr) : NULL)
-
 #endif /* __LINUX_KCONFIG_H */

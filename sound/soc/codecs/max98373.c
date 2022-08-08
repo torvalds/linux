@@ -204,6 +204,15 @@ SOC_SINGLE("Ramp Up Switch", MAX98373_R203F_AMP_DSP_CFG,
 	MAX98373_AMP_DSP_CFG_RMP_UP_SHIFT, 1, 0),
 SOC_SINGLE("Ramp Down Switch", MAX98373_R203F_AMP_DSP_CFG,
 	MAX98373_AMP_DSP_CFG_RMP_DN_SHIFT, 1, 0),
+/* Speaker Amplifier Overcurrent Automatic Restart Enable */
+SOC_SINGLE("OVC Autorestart Switch", MAX98373_R20FE_DEVICE_AUTO_RESTART_CFG,
+	MAX98373_OVC_AUTORESTART_SHIFT, 1, 0),
+/* Thermal Shutdown Automatic Restart Enable */
+SOC_SINGLE("THERM Autorestart Switch", MAX98373_R20FE_DEVICE_AUTO_RESTART_CFG,
+	MAX98373_THERM_AUTORESTART_SHIFT, 1, 0),
+/* Clock Monitor Automatic Restart Enable */
+SOC_SINGLE("CMON Autorestart Switch", MAX98373_R20FE_DEVICE_AUTO_RESTART_CFG,
+	MAX98373_CMON_AUTORESTART_SHIFT, 1, 0),
 SOC_SINGLE("CLK Monitor Switch", MAX98373_R20FE_DEVICE_AUTO_RESTART_CFG,
 	MAX98373_CLOCK_MON_SHIFT, 1, 0),
 SOC_SINGLE("Dither Switch", MAX98373_R203F_AMP_DSP_CFG,
@@ -391,6 +400,11 @@ static int max98373_probe(struct snd_soc_component *component)
 		regmap_update_bits(max98373->regmap,
 			MAX98373_R2021_PCM_TX_HIZ_EN_2,
 			1 << (max98373->i_slot - 8), 0);
+
+	/* enable auto restart function by default */
+	regmap_write(max98373->regmap,
+		MAX98373_R20FE_DEVICE_AUTO_RESTART_CFG,
+		0xF);
 
 	/* speaker feedback slot configuration */
 	regmap_write(max98373->regmap,

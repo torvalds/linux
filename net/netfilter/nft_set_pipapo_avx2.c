@@ -1131,6 +1131,9 @@ bool nft_pipapo_avx2_lookup(const struct net *net, const struct nft_set *set,
 	bool map_index;
 	int i, ret = 0;
 
+	if (unlikely(!irq_fpu_usable()))
+		return nft_pipapo_lookup(net, set, key, ext);
+
 	m = rcu_dereference(priv->match);
 
 	/* This also protects access to all data related to scratch maps */

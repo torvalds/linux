@@ -882,7 +882,7 @@ out:
 }
 
 /**
- * pvrdma_post_receive - post receive work request entries on a QP
+ * pvrdma_post_recv - post receive work request entries on a QP
  * @ibqp: the QP
  * @wr: the work request list to post
  * @bad_wr: the first bad WR returned

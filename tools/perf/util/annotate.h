@@ -84,6 +84,7 @@ struct annotation_options {
 	     print_lines,
 	     full_path,
 	     show_linenr,
+	     show_fileloc,
 	     show_nr_jumps,
 	     show_minmax_cycle,
 	     show_asm_raw,
@@ -136,6 +137,7 @@ struct annotation_line {
 	s64			 offset;
 	char			*line;
 	int			 line_nr;
+	char			*fileloc;
 	int			 jump_sources;
 	float			 ipc;
 	u64			 cycles;

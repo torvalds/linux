@@ -9,7 +9,7 @@ ret=0
 ksft_skip=4
 
 # all tests in this script. Can be overridden with -t option
-TESTS="unregister down carrier nexthop suppress ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics ipv4_route_metrics ipv4_route_v6_gw rp_filter ipv4_del_addr"
+TESTS="unregister down carrier nexthop suppress ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics ipv4_route_metrics ipv4_route_v6_gw rp_filter ipv4_del_addr ipv4_mangle ipv6_mangle"
 
 VERBOSE=0
 PAUSE_ON_FAIL=no
@@ -1384,12 +1384,37 @@ ipv4_rt_replace()
 	ipv4_rt_replace_mpath
 }
 
+# checks that cached input route on VRF port is deleted
+# when VRF is deleted
+ipv4_local_rt_cache()
+{
+	run_cmd "ip addr add 10.0.0.1/32 dev lo"
+	run_cmd "ip netns add test-ns"
+	run_cmd "ip link add veth-outside type veth peer name veth-inside"
+	run_cmd "ip link add vrf-100 type vrf table 1100"
+	run_cmd "ip link set veth-outside master vrf-100"
+	run_cmd "ip link set veth-inside netns test-ns"
+	run_cmd "ip link set veth-outside up"
+	run_cmd "ip link set vrf-100 up"
+	run_cmd "ip route add 10.1.1.1/32 dev veth-outside table 1100"
+	run_cmd "ip netns exec test-ns ip link set veth-inside up"
+	run_cmd "ip netns exec test-ns ip addr add 10.1.1.1/32 dev veth-inside"
+	run_cmd "ip netns exec test-ns ip route add 10.0.0.1/32 dev veth-inside"
+	run_cmd "ip netns exec test-ns ip route add default via 10.0.0.1"
+	run_cmd "ip netns exec test-ns ping 10.0.0.1 -c 1 -i 1"
+	run_cmd "ip link delete vrf-100"
+
+	# if we do not hang test is a success
+	log_test $? 0 "Cached route removed from VRF port device"
+}
+
 ipv4_route_test()
 {
 	route_setup
 
 	ipv4_rt_add
 	ipv4_rt_replace
+	ipv4_local_rt_cache
 
 	route_cleanup
 }
@@ -1653,6 +1678,154 @@ ipv4_route_v6_gw_test()
 	route_cleanup
 }
 
+socat_check()
+{
+	if [ ! -x "$(command -v socat)" ]; then
+		echo "socat command not found. Skipping test"
+		return 1
+	fi
+
+	return 0
+}
+
+iptables_check()
+{
+	iptables -t mangle -L OUTPUT &> /dev/null
+	if [ $? -ne 0 ]; then
+		echo "iptables configuration not supported. Skipping test"
+		return 1
+	fi
+
+	return 0
+}
+
+ip6tables_check()
+{
+	ip6tables -t mangle -L OUTPUT &> /dev/null
+	if [ $? -ne 0 ]; then
+		echo "ip6tables configuration not supported. Skipping test"
+		return 1
+	fi
+
+	return 0
+}
+
+ipv4_mangle_test()
+{
+	local rc
+
+	echo
+	echo "IPv4 mangling tests"
+
+	socat_check || return 1
+	iptables_check || return 1
+
+	route_setup
+	sleep 2
+
+	local tmp_file=$(mktemp)
+	ip netns exec ns2 socat UDP4-LISTEN:54321,fork $tmp_file &
+
+	# Add a FIB rule and a route that will direct our connection to the
+	# listening server.
+	$IP rule add pref 100 ipproto udp sport 12345 dport 54321 table 123
+	$IP route add table 123 172.16.101.0/24 dev veth1
+
+	# Add an unreachable route to the main table that will block our
+	# connection in case the FIB rule is not hit.
+	$IP route add unreachable 172.16.101.2/32
+
+	run_cmd "echo a | $NS_EXEC socat STDIN UDP4:172.16.101.2:54321,sourceport=12345"
+	log_test $? 0 "    Connection with correct parameters"
+
+	run_cmd "echo a | $NS_EXEC socat STDIN UDP4:172.16.101.2:54321,sourceport=11111"
+	log_test $? 1 "    Connection with incorrect parameters"
+
+	# Add a mangling rule and make sure connection is still successful.
+	$NS_EXEC iptables -t mangle -A OUTPUT -j MARK --set-mark 1
+
+	run_cmd "echo a | $NS_EXEC socat STDIN UDP4:172.16.101.2:54321,sourceport=12345"
+	log_test $? 0 "    Connection with correct parameters - mangling"
+
+	# Delete the mangling rule and make sure connection is still
+	# successful.
+	$NS_EXEC iptables -t mangle -D OUTPUT -j MARK --set-mark 1
+
+	run_cmd "echo a | $NS_EXEC socat STDIN UDP4:172.16.101.2:54321,sourceport=12345"
+	log_test $? 0 "    Connection with correct parameters - no mangling"
+
+	# Verify connections were indeed successful on server side.
+	[[ $(cat $tmp_file | wc -l) -eq 3 ]]
+	log_test $? 0 "    Connection check - server side"
+
+	$IP route del unreachable 172.16.101.2/32
+	$IP route del table 123 172.16.101.0/24 dev veth1
+	$IP rule del pref 100
+
+	{ kill %% && wait %%; } 2>/dev/null
+	rm $tmp_file
+
+	route_cleanup
+}
+
+ipv6_mangle_test()
+{
+	local rc
+
+	echo
+	echo "IPv6 mangling tests"
+
+	socat_check || return 1
+	ip6tables_check || return 1
+
+	route_setup
+	sleep 2
+
+	local tmp_file=$(mktemp)
+	ip netns exec ns2 socat UDP6-LISTEN:54321,fork $tmp_file &
+
+	# Add a FIB rule and a route that will direct our connection to the
+	# listening server.
+	$IP -6 rule add pref 100 ipproto udp sport 12345 dport 54321 table 123
+	$IP -6 route add table 123 2001:db8:101::/64 dev veth1
+
+	# Add an unreachable route to the main table that will block our
+	# connection in case the FIB rule is not hit.
+	$IP -6 route add unreachable 2001:db8:101::2/128
+
+	run_cmd "echo a | $NS_EXEC socat STDIN UDP6:[2001:db8:101::2]:54321,sourceport=12345"
+	log_test $? 0 "    Connection with correct parameters"
+
+	run_cmd "echo a | $NS_EXEC socat STDIN UDP6:[2001:db8:101::2]:54321,sourceport=11111"
+	log_test $? 1 "    Connection with incorrect parameters"
+
+	# Add a mangling rule and make sure connection is still successful.
+	$NS_EXEC ip6tables -t mangle -A OUTPUT -j MARK --set-mark 1
+
+	run_cmd "echo a | $NS_EXEC socat STDIN UDP6:[2001:db8:101::2]:54321,sourceport=12345"
+	log_test $? 0 "    Connection with correct parameters - mangling"
+
+	# Delete the mangling rule and make sure connection is still
+	# successful.
+	$NS_EXEC ip6tables -t mangle -D OUTPUT -j MARK --set-mark 1
+
+	run_cmd "echo a | $NS_EXEC socat STDIN UDP6:[2001:db8:101::2]:54321,sourceport=12345"
+	log_test $? 0 "    Connection with correct parameters - no mangling"
+
+	# Verify connections were indeed successful on server side.
+	[[ $(cat $tmp_file | wc -l) -eq 3 ]]
+	log_test $? 0 "    Connection check - server side"
+
+	$IP -6 route del unreachable 2001:db8:101::2/128
+	$IP -6 route del table 123 2001:db8:101::/64 dev veth1
+	$IP -6 rule del pref 100
+
+	{ kill %% && wait %%; } 2>/dev/null
+	rm $tmp_file
+
+	route_cleanup
+}
+
 ################################################################################
 # usage
 
@@ -1725,6 +1898,8 @@ do
 	ipv6_route_metrics)		ipv6_route_metrics_test;;
 	ipv4_route_metrics)		ipv4_route_metrics_test;;
 	ipv4_route_v6_gw)		ipv4_route_v6_gw_test;;
+	ipv4_mangle)			ipv4_mangle_test;;
+	ipv6_mangle)			ipv6_mangle_test;;
 
 	help) echo "Test names: $TESTS"; exit 0;;
 	esac

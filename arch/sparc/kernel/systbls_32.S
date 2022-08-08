@@ -9,10 +9,10 @@
  * Copyright (C) 1995 Adrian M. Rodriguez (adrian@remus.rutgers.edu)
  */
 
-#define __SYSCALL(nr, entry, nargs) .long entry
+#define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, native)
+#define __SYSCALL(nr, entry) .long entry
 	.data
 	.align 4
 	.globl sys_call_table
 sys_call_table:
 #include <asm/syscall_table_32.h>	/* 32-bit native syscalls */
-#undef __SYSCALL

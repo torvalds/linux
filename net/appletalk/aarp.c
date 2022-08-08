@@ -768,7 +768,7 @@ static int aarp_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (a && a->status & ATIF_PROBE) {
 		a->status |= ATIF_PROBE_FAIL;
 		/*
-		 * we do not respond to probe or request packets for
+		 * we do not respond to probe or request packets of
 		 * this address while we are probing this address
 		 */
 		goto unlock;

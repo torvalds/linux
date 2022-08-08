@@ -44,16 +44,6 @@ enum i2caux_transaction_action {
 	I2CAUX_TRANSACTION_ACTION_DP_READ = 0x90
 };
 
-enum aux_channel_operation_result {
-	AUX_CHANNEL_OPERATION_SUCCEEDED,
-	AUX_CHANNEL_OPERATION_FAILED_REASON_UNKNOWN,
-	AUX_CHANNEL_OPERATION_FAILED_INVALID_REPLY,
-	AUX_CHANNEL_OPERATION_FAILED_TIMEOUT,
-	AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON,
-	AUX_CHANNEL_OPERATION_FAILED_ENGINE_ACQUIRE
-};
-
-
 struct aux_request_transaction_data {
 	enum aux_transaction_type type;
 	enum i2caux_transaction_action action;

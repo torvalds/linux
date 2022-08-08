@@ -172,4 +172,7 @@ struct hclgevf_mbx_arq_ring {
 		(arq.tail = (arq.tail + 1) % HCLGE_MBX_MAX_ARQ_MSG_NUM)
 #define hclge_mbx_head_ptr_move_arq(arq) \
 		(arq.head = (arq.head + 1) % HCLGE_MBX_MAX_ARQ_MSG_NUM)
+
+/* PF immediately push link status to VFs when link status changed */
+#define HCLGE_MBX_PUSH_LINK_STATUS_EN			BIT(0)
 #endif

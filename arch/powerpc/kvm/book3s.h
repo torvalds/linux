@@ -9,12 +9,10 @@
 
 extern void kvmppc_core_flush_memslot_hv(struct kvm *kvm,
 					 struct kvm_memory_slot *memslot);
-extern int kvm_unmap_hva_range_hv(struct kvm *kvm, unsigned long start,
-				  unsigned long end);
-extern int kvm_age_hva_hv(struct kvm *kvm, unsigned long start,
-			  unsigned long end);
-extern int kvm_test_age_hva_hv(struct kvm *kvm, unsigned long hva);
-extern void kvm_set_spte_hva_hv(struct kvm *kvm, unsigned long hva, pte_t pte);
+extern bool kvm_unmap_gfn_range_hv(struct kvm *kvm, struct kvm_gfn_range *range);
+extern bool kvm_age_gfn_hv(struct kvm *kvm, struct kvm_gfn_range *range);
+extern bool kvm_test_age_gfn_hv(struct kvm *kvm, struct kvm_gfn_range *range);
+extern bool kvm_set_spte_gfn_hv(struct kvm *kvm, struct kvm_gfn_range *range);
 
 extern int kvmppc_mmu_init_pr(struct kvm_vcpu *vcpu);
 extern void kvmppc_mmu_destroy_pr(struct kvm_vcpu *vcpu);

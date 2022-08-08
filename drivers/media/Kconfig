@@ -134,7 +134,7 @@ config MEDIA_PLATFORM_SUPPORT
 	  This is found on Embedded hardware (SoC), on V4L2 codecs and
 	  on some GPU and newer CPU chipsets.
 
-	  Say Y when you want to be able so see such devices.
+	  Say Y when you want to be able to see such devices.
 
 config MEDIA_TEST_SUPPORT
 	bool

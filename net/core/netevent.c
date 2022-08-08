@@ -32,7 +32,7 @@ int register_netevent_notifier(struct notifier_block *nb)
 EXPORT_SYMBOL_GPL(register_netevent_notifier);
 
 /**
- *	netevent_unregister_notifier - unregister a netevent notifier block
+ *	unregister_netevent_notifier - unregister a netevent notifier block
  *	@nb: notifier
  *
  *	Unregister a notifier previously registered by

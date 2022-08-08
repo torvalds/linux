@@ -238,7 +238,9 @@ static int hid_time_probe(struct platform_device *pdev)
 
 	ret = hid_sensor_parse_common_attributes(hsdev,
 				HID_USAGE_SENSOR_TIME,
-				&time_state->common_attributes);
+				&time_state->common_attributes,
+				NULL,
+				0);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup common attributes!\n");
 		return ret;

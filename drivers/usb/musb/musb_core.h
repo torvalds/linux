@@ -375,11 +375,11 @@ struct musb {
 	unsigned		dyn_fifo:1;	/* dynamic FIFO supported? */
 
 	unsigned		bulk_split:1;
-#define	can_bulk_split(musb,type) \
+#define	can_bulk_split(musb, type) \
 	(((type) == USB_ENDPOINT_XFER_BULK) && (musb)->bulk_split)
 
 	unsigned		bulk_combine:1;
-#define	can_bulk_combine(musb,type) \
+#define	can_bulk_combine(musb, type) \
 	(((type) == USB_ENDPOINT_XFER_BULK) && (musb)->bulk_combine)
 
 	/* is_suspended means USB B_PERIPHERAL suspend */

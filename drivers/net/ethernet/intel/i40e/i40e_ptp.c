@@ -216,7 +216,7 @@ static int i40e_ptp_feature_enable(struct ptp_clock_info *ptp,
 }
 
 /**
- * i40e_ptp_update_latch_events - Read I40E_PRTTSYN_STAT_1 and latch events
+ * i40e_ptp_get_rx_events - Read I40E_PRTTSYN_STAT_1 and latch events
  * @pf: the PF data structure
  *
  * This function reads I40E_PRTTSYN_STAT_1 and updates the corresponding timers

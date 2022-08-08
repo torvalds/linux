@@ -16,7 +16,6 @@
 #include <linux/kernel.h>
 #include <linux/pinctrl/pinconf-generic.h>
 
-#include "core.h"
 #include "sh_pfc.h"
 
 #define PORT_GP_PUP_1(bank, pin, fn, sfx)	\

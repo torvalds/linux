@@ -36,6 +36,7 @@ config PHY_STIH407_USB
 config PHY_STM32_USBPHYC
 	tristate "STMicroelectronics STM32 USB HS PHY Controller driver"
 	depends on ARCH_STM32 || COMPILE_TEST
+	depends on COMMON_CLK
 	select GENERIC_PHY
 	help
 	  Enable this to support the High-Speed USB transceivers that are part

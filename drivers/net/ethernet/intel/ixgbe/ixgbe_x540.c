@@ -701,7 +701,7 @@ static s32 ixgbe_get_swfw_sync_semaphore(struct ixgbe_hw *hw)
 }
 
 /**
- * ixgbe_release_nvm_semaphore - Release hardware semaphore
+ * ixgbe_release_swfw_sync_semaphore - Release hardware semaphore
  * @hw: pointer to hardware structure
  *
  * This function clears hardware semaphore bits.

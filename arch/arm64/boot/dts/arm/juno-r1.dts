@@ -230,6 +230,10 @@
 	status = "okay";
 };
 
+&smmu_pcie {
+	status = "okay";
+};
+
 &etm0 {
 	cpu = <&A57_0>;
 };

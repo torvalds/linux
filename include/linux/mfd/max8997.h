@@ -14,13 +14,13 @@
  * others and b) it can be enabled simply by using MAX17042 driver.
  */
 
-#ifndef __LINUX_MFD_MAX8998_H
-#define __LINUX_MFD_MAX8998_H
+#ifndef __LINUX_MFD_MAX8997_H
+#define __LINUX_MFD_MAX8997_H
 
 #include <linux/regulator/consumer.h>
 
 /* MAX8997/8966 regulator IDs */
-enum max8998_regulators {
+enum max8997_regulators {
 	MAX8997_LDO1 = 0,
 	MAX8997_LDO2,
 	MAX8997_LDO3,
@@ -207,4 +207,4 @@ struct max8997_platform_data {
 	struct max8997_led_platform_data *led_pdata;
 };
 
-#endif /* __LINUX_MFD_MAX8998_H */
+#endif /* __LINUX_MFD_MAX8997_H */

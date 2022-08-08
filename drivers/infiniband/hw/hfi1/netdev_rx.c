@@ -17,11 +17,11 @@
 #include <linux/etherdevice.h>
 #include <rdma/ib_verbs.h>
 
-static int hfi1_netdev_setup_ctxt(struct hfi1_netdev_priv *priv,
+static int hfi1_netdev_setup_ctxt(struct hfi1_netdev_rx *rx,
 				  struct hfi1_ctxtdata *uctxt)
 {
 	unsigned int rcvctrl_ops;
-	struct hfi1_devdata *dd = priv->dd;
+	struct hfi1_devdata *dd = rx->dd;
 	int ret;
 
 	uctxt->rhf_rcv_function_map = netdev_rhf_rcv_functions;
@@ -118,11 +118,11 @@ static void hfi1_netdev_deallocate_ctxt(struct hfi1_devdata *dd,
 	hfi1_free_ctxt(uctxt);
 }
 
-static int hfi1_netdev_allot_ctxt(struct hfi1_netdev_priv *priv,
+static int hfi1_netdev_allot_ctxt(struct hfi1_netdev_rx *rx,
 				  struct hfi1_ctxtdata **ctxt)
 {
 	int rc;
-	struct hfi1_devdata *dd = priv->dd;
+	struct hfi1_devdata *dd = rx->dd;
 
 	rc = hfi1_netdev_allocate_ctxt(dd, ctxt);
 	if (rc) {
@@ -130,7 +130,7 @@ static int hfi1_netdev_allot_ctxt(struct hfi1_netdev_priv *priv,
 		return rc;
 	}
 
-	rc = hfi1_netdev_setup_ctxt(priv, *ctxt);
+	rc = hfi1_netdev_setup_ctxt(rx, *ctxt);
 	if (rc) {
 		dd_dev_err(dd, "netdev ctxt setup failed %d\n", rc);
 		hfi1_netdev_deallocate_ctxt(dd, *ctxt);
@@ -183,31 +183,31 @@ u32 hfi1_num_netdev_contexts(struct hfi1_devdata *dd, u32 available_contexts,
 		    (u32)HFI1_MAX_NETDEV_CTXTS);
 }
 
-static int hfi1_netdev_rxq_init(struct net_device *dev)
+static int hfi1_netdev_rxq_init(struct hfi1_netdev_rx *rx)
 {
 	int i;
 	int rc;
-	struct hfi1_netdev_priv *priv = hfi1_netdev_priv(dev);
-	struct hfi1_devdata *dd = priv->dd;
+	struct hfi1_devdata *dd = rx->dd;
+	struct net_device *dev = &rx->rx_napi;
 
-	priv->num_rx_q = dd->num_netdev_contexts;
-	priv->rxq = kcalloc_node(priv->num_rx_q, sizeof(struct hfi1_netdev_rxq),
-				 GFP_KERNEL, dd->node);
+	rx->num_rx_q = dd->num_netdev_contexts;
+	rx->rxq = kcalloc_node(rx->num_rx_q, sizeof(*rx->rxq),
+			       GFP_KERNEL, dd->node);
 
-	if (!priv->rxq) {
+	if (!rx->rxq) {
 		dd_dev_err(dd, "Unable to allocate netdev queue data\n");
 		return (-ENOMEM);
 	}
 
-	for (i = 0; i < priv->num_rx_q; i++) {
-		struct hfi1_netdev_rxq *rxq = &priv->rxq[i];
+	for (i = 0; i < rx->num_rx_q; i++) {
+		struct hfi1_netdev_rxq *rxq = &rx->rxq[i];
 
-		rc = hfi1_netdev_allot_ctxt(priv, &rxq->rcd);
+		rc = hfi1_netdev_allot_ctxt(rx, &rxq->rcd);
 		if (rc)
 			goto bail_context_irq_failure;
 
 		hfi1_rcd_get(rxq->rcd);
-		rxq->priv = priv;
+		rxq->rx = rx;
 		rxq->rcd->napi = &rxq->napi;
 		dd_dev_info(dd, "Setting rcv queue %d napi to context %d\n",
 			    i, rxq->rcd->ctxt);
@@ -227,7 +227,7 @@ static int hfi1_netdev_rxq_init(struct net_device *dev)
 bail_context_irq_failure:
 	dd_dev_err(dd, "Unable to allot receive context\n");
 	for (; i >= 0; i--) {
-		struct hfi1_netdev_rxq *rxq = &priv->rxq[i];
+		struct hfi1_netdev_rxq *rxq = &rx->rxq[i];
 
 		if (rxq->rcd) {
 			hfi1_netdev_deallocate_ctxt(dd, rxq->rcd);
@@ -235,20 +235,19 @@ bail_context_irq_failure:
 			rxq->rcd = NULL;
 		}
 	}
-	kfree(priv->rxq);
-	priv->rxq = NULL;
+	kfree(rx->rxq);
+	rx->rxq = NULL;
 
 	return rc;
 }
 
-static void hfi1_netdev_rxq_deinit(struct net_device *dev)
+static void hfi1_netdev_rxq_deinit(struct hfi1_netdev_rx *rx)
 {
 	int i;
-	struct hfi1_netdev_priv *priv = hfi1_netdev_priv(dev);
-	struct hfi1_devdata *dd = priv->dd;
+	struct hfi1_devdata *dd = rx->dd;
 
-	for (i = 0; i < priv->num_rx_q; i++) {
-		struct hfi1_netdev_rxq *rxq = &priv->rxq[i];
+	for (i = 0; i < rx->num_rx_q; i++) {
+		struct hfi1_netdev_rxq *rxq = &rx->rxq[i];
 
 		netif_napi_del(&rxq->napi);
 		hfi1_netdev_deallocate_ctxt(dd, rxq->rcd);
@@ -256,41 +255,41 @@ static void hfi1_netdev_rxq_deinit(struct net_device *dev)
 		rxq->rcd = NULL;
 	}
 
-	kfree(priv->rxq);
-	priv->rxq = NULL;
-	priv->num_rx_q = 0;
+	kfree(rx->rxq);
+	rx->rxq = NULL;
+	rx->num_rx_q = 0;
 }
 
-static void enable_queues(struct hfi1_netdev_priv *priv)
+static void enable_queues(struct hfi1_netdev_rx *rx)
 {
 	int i;
 
-	for (i = 0; i < priv->num_rx_q; i++) {
-		struct hfi1_netdev_rxq *rxq = &priv->rxq[i];
+	for (i = 0; i < rx->num_rx_q; i++) {
+		struct hfi1_netdev_rxq *rxq = &rx->rxq[i];
 
-		dd_dev_info(priv->dd, "enabling queue %d on context %d\n", i,
+		dd_dev_info(rx->dd, "enabling queue %d on context %d\n", i,
 			    rxq->rcd->ctxt);
 		napi_enable(&rxq->napi);
-		hfi1_rcvctrl(priv->dd,
+		hfi1_rcvctrl(rx->dd,
 			     HFI1_RCVCTRL_CTXT_ENB | HFI1_RCVCTRL_INTRAVAIL_ENB,
 			     rxq->rcd);
 	}
 }
 
-static void disable_queues(struct hfi1_netdev_priv *priv)
+static void disable_queues(struct hfi1_netdev_rx *rx)
 {
 	int i;
 
-	msix_netdev_synchronize_irq(priv->dd);
+	msix_netdev_synchronize_irq(rx->dd);
 
-	for (i = 0; i < priv->num_rx_q; i++) {
-		struct hfi1_netdev_rxq *rxq = &priv->rxq[i];
+	for (i = 0; i < rx->num_rx_q; i++) {
+		struct hfi1_netdev_rxq *rxq = &rx->rxq[i];
 
-		dd_dev_info(priv->dd, "disabling queue %d on context %d\n", i,
+		dd_dev_info(rx->dd, "disabling queue %d on context %d\n", i,
 			    rxq->rcd->ctxt);
 
 		/* wait for napi if it was scheduled */
-		hfi1_rcvctrl(priv->dd,
+		hfi1_rcvctrl(rx->dd,
 			     HFI1_RCVCTRL_CTXT_DIS | HFI1_RCVCTRL_INTRAVAIL_DIS,
 			     rxq->rcd);
 		napi_synchronize(&rxq->napi);
@@ -307,15 +306,14 @@ static void disable_queues(struct hfi1_netdev_priv *priv)
  */
 int hfi1_netdev_rx_init(struct hfi1_devdata *dd)
 {
-	struct hfi1_netdev_priv *priv = hfi1_netdev_priv(dd->dummy_netdev);
+	struct hfi1_netdev_rx *rx = dd->netdev_rx;
 	int res;
 
-	if (atomic_fetch_inc(&priv->netdevs))
+	if (atomic_fetch_inc(&rx->netdevs))
 		return 0;
 
 	mutex_lock(&hfi1_mutex);
-	init_dummy_netdev(dd->dummy_netdev);
-	res = hfi1_netdev_rxq_init(dd->dummy_netdev);
+	res = hfi1_netdev_rxq_init(rx);
 	mutex_unlock(&hfi1_mutex);
 	return res;
 }
@@ -328,12 +326,12 @@ int hfi1_netdev_rx_init(struct hfi1_devdata *dd)
  */
 int hfi1_netdev_rx_destroy(struct hfi1_devdata *dd)
 {
-	struct hfi1_netdev_priv *priv = hfi1_netdev_priv(dd->dummy_netdev);
+	struct hfi1_netdev_rx *rx = dd->netdev_rx;
 
 	/* destroy the RX queues only if it is the last netdev going away */
-	if (atomic_fetch_add_unless(&priv->netdevs, -1, 0) == 1) {
+	if (atomic_fetch_add_unless(&rx->netdevs, -1, 0) == 1) {
 		mutex_lock(&hfi1_mutex);
-		hfi1_netdev_rxq_deinit(dd->dummy_netdev);
+		hfi1_netdev_rxq_deinit(rx);
 		mutex_unlock(&hfi1_mutex);
 	}
 
@@ -341,39 +339,43 @@ int hfi1_netdev_rx_destroy(struct hfi1_devdata *dd)
 }
 
 /**
- * hfi1_netdev_alloc - Allocates netdev and private data. It is required
- * because RMT index and MSI-X interrupt can be set only
- * during driver initialization.
- *
+ * hfi1_alloc_rx - Allocates the rx support structure
  * @dd: hfi1 dev data
+ *
+ * Allocate the rx structure to support gathering the receive
+ * resources and the dummy netdev.
+ *
+ * Updates dd struct pointer upon success.
+ *
+ * Return: 0 (success) -error on failure
+ *
  */
-int hfi1_netdev_alloc(struct hfi1_devdata *dd)
+int hfi1_alloc_rx(struct hfi1_devdata *dd)
 {
-	struct hfi1_netdev_priv *priv;
-	const int netdev_size = sizeof(*dd->dummy_netdev) +
-		sizeof(struct hfi1_netdev_priv);
+	struct hfi1_netdev_rx *rx;
 
-	dd_dev_info(dd, "allocating netdev size %d\n", netdev_size);
-	dd->dummy_netdev = kcalloc_node(1, netdev_size, GFP_KERNEL, dd->node);
+	dd_dev_info(dd, "allocating rx size %ld\n", sizeof(*rx));
+	rx = kzalloc_node(sizeof(*rx), GFP_KERNEL, dd->node);
 
-	if (!dd->dummy_netdev)
+	if (!rx)
 		return -ENOMEM;
+	rx->dd = dd;
+	init_dummy_netdev(&rx->rx_napi);
 
-	priv = hfi1_netdev_priv(dd->dummy_netdev);
-	priv->dd = dd;
-	xa_init(&priv->dev_tbl);
-	atomic_set(&priv->enabled, 0);
-	atomic_set(&priv->netdevs, 0);
+	xa_init(&rx->dev_tbl);
+	atomic_set(&rx->enabled, 0);
+	atomic_set(&rx->netdevs, 0);
+	dd->netdev_rx = rx;
 
 	return 0;
 }
 
-void hfi1_netdev_free(struct hfi1_devdata *dd)
+void hfi1_free_rx(struct hfi1_devdata *dd)
 {
-	if (dd->dummy_netdev) {
-		dd_dev_info(dd, "hfi1 netdev freed\n");
-		kfree(dd->dummy_netdev);
-		dd->dummy_netdev = NULL;
+	if (dd->netdev_rx) {
+		dd_dev_info(dd, "hfi1 rx freed\n");
+		kfree(dd->netdev_rx);
+		dd->netdev_rx = NULL;
 	}
 }
 
@@ -388,33 +390,33 @@ void hfi1_netdev_free(struct hfi1_devdata *dd)
  */
 void hfi1_netdev_enable_queues(struct hfi1_devdata *dd)
 {
-	struct hfi1_netdev_priv *priv;
+	struct hfi1_netdev_rx *rx;
 
-	if (!dd->dummy_netdev)
+	if (!dd->netdev_rx)
 		return;
 
-	priv = hfi1_netdev_priv(dd->dummy_netdev);
-	if (atomic_fetch_inc(&priv->enabled))
+	rx = dd->netdev_rx;
+	if (atomic_fetch_inc(&rx->enabled))
 		return;
 
 	mutex_lock(&hfi1_mutex);
-	enable_queues(priv);
+	enable_queues(rx);
 	mutex_unlock(&hfi1_mutex);
 }
 
 void hfi1_netdev_disable_queues(struct hfi1_devdata *dd)
 {
-	struct hfi1_netdev_priv *priv;
+	struct hfi1_netdev_rx *rx;
 
-	if (!dd->dummy_netdev)
+	if (!dd->netdev_rx)
 		return;
 
-	priv = hfi1_netdev_priv(dd->dummy_netdev);
-	if (atomic_dec_if_positive(&priv->enabled))
+	rx = dd->netdev_rx;
+	if (atomic_dec_if_positive(&rx->enabled))
 		return;
 
 	mutex_lock(&hfi1_mutex);
-	disable_queues(priv);
+	disable_queues(rx);
 	mutex_unlock(&hfi1_mutex);
 }
 
@@ -430,9 +432,9 @@ void hfi1_netdev_disable_queues(struct hfi1_devdata *dd)
  */
 int hfi1_netdev_add_data(struct hfi1_devdata *dd, int id, void *data)
 {
-	struct hfi1_netdev_priv *priv = hfi1_netdev_priv(dd->dummy_netdev);
+	struct hfi1_netdev_rx *rx = dd->netdev_rx;
 
-	return xa_insert(&priv->dev_tbl, id, data, GFP_NOWAIT);
+	return xa_insert(&rx->dev_tbl, id, data, GFP_NOWAIT);
 }
 
 /**
@@ -444,9 +446,9 @@ int hfi1_netdev_add_data(struct hfi1_devdata *dd, int id, void *data)
  */
 void *hfi1_netdev_remove_data(struct hfi1_devdata *dd, int id)
 {
-	struct hfi1_netdev_priv *priv = hfi1_netdev_priv(dd->dummy_netdev);
+	struct hfi1_netdev_rx *rx = dd->netdev_rx;
 
-	return xa_erase(&priv->dev_tbl, id);
+	return xa_erase(&rx->dev_tbl, id);
 }
 
 /**
@@ -457,24 +459,24 @@ void *hfi1_netdev_remove_data(struct hfi1_devdata *dd, int id)
  */
 void *hfi1_netdev_get_data(struct hfi1_devdata *dd, int id)
 {
-	struct hfi1_netdev_priv *priv = hfi1_netdev_priv(dd->dummy_netdev);
+	struct hfi1_netdev_rx *rx = dd->netdev_rx;
 
-	return xa_load(&priv->dev_tbl, id);
+	return xa_load(&rx->dev_tbl, id);
 }
 
 /**
- * hfi1_netdev_get_first_dat - Gets first entry with greater or equal id.
+ * hfi1_netdev_get_first_data - Gets first entry with greater or equal id.
  *
  * @dd: hfi1 dev data
  * @start_id: requested integer id up to INT_MAX
  */
 void *hfi1_netdev_get_first_data(struct hfi1_devdata *dd, int *start_id)
 {
-	struct hfi1_netdev_priv *priv = hfi1_netdev_priv(dd->dummy_netdev);
+	struct hfi1_netdev_rx *rx = dd->netdev_rx;
 	unsigned long index = *start_id;
 	void *ret;
 
-	ret = xa_find(&priv->dev_tbl, &index, UINT_MAX, XA_PRESENT);
+	ret = xa_find(&rx->dev_tbl, &index, UINT_MAX, XA_PRESENT);
 	*start_id = (int)index;
 	return ret;
 }

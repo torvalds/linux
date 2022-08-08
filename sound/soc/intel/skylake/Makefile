@@ -7,7 +7,7 @@ ifdef CONFIG_DEBUG_FS
   snd-soc-skl-objs += skl-debug.o
 endif
 
-obj-$(CONFIG_SND_SOC_INTEL_SKYLAKE) += snd-soc-skl.o
+obj-$(CONFIG_SND_SOC_INTEL_SKYLAKE_COMMON) += snd-soc-skl.o
 
 #Skylake Clock device support
 snd-soc-skl-ssp-clk-objs := skl-ssp-clk.o

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Hisilicon SoC reset code
+ * HiSilicon SoC reset code
  *
- * Copyright (c) 2014 Hisilicon Ltd.
+ * Copyright (c) 2014 HiSilicon Ltd.
  * Copyright (c) 2014 Linaro Ltd.
  *
  * Author: Haojian Zhuang <haojian.zhuang@linaro.org>
@@ -68,6 +68,7 @@ static const struct of_device_id hisi_reboot_of_match[] = {
 	{ .compatible = "hisilicon,sysctrl" },
 	{}
 };
+MODULE_DEVICE_TABLE(of, hisi_reboot_of_match);
 
 static struct platform_driver hisi_reboot_driver = {
 	.probe = hisi_reboot_probe,

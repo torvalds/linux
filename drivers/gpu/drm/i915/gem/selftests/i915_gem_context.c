@@ -1094,7 +1094,7 @@ __read_slice_count(struct intel_context *ce,
 	if (ret < 0)
 		return ret;
 
-	buf = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	buf = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WB);
 	if (IS_ERR(buf)) {
 		ret = PTR_ERR(buf);
 		return ret;
@@ -1511,7 +1511,7 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	cmd = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	cmd = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WB);
 	if (IS_ERR(cmd)) {
 		err = PTR_ERR(cmd);
 		goto out;
@@ -1622,7 +1622,7 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 		if (err)
 			goto out_vm;
 
-		cmd = i915_gem_object_pin_map(obj, I915_MAP_WB);
+		cmd = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WB);
 		if (IS_ERR(cmd)) {
 			err = PTR_ERR(cmd);
 			goto out;
@@ -1658,7 +1658,7 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 		if (err)
 			goto out_vm;
 
-		cmd = i915_gem_object_pin_map(obj, I915_MAP_WB);
+		cmd = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WB);
 		if (IS_ERR(cmd)) {
 			err = PTR_ERR(cmd);
 			goto out;
@@ -1715,7 +1715,7 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 	if (err)
 		goto out_vm;
 
-	cmd = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	cmd = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WB);
 	if (IS_ERR(cmd)) {
 		err = PTR_ERR(cmd);
 		goto out_vm;

@@ -9,6 +9,10 @@
 
 #include <linux/compiler.h>
 
+#include <asm-generic/bitops/fls.h>
+#include <asm-generic/bitops/__fls.h>
+#include <asm-generic/bitops/fls64.h>
+
 #ifdef __KERNEL__
 
 #ifndef _LINUX_BITOPS_H
@@ -172,9 +176,5 @@ static inline unsigned long __ffs(unsigned long word)
 #include <asm-generic/bitops/ext2-atomic.h>
 
 #endif /* __KERNEL__ */
-
-#include <asm-generic/bitops/fls.h>
-#include <asm-generic/bitops/__fls.h>
-#include <asm-generic/bitops/fls64.h>
 
 #endif /* _H8300_BITOPS_H */

@@ -7,6 +7,7 @@ config XTENSA
 	select ARCH_HAS_SYNC_DMA_FOR_CPU if MMU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE if MMU
 	select ARCH_HAS_DMA_SET_UNCACHED if MMU
+	select ARCH_USE_MEMTEST
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS
 	select ARCH_WANT_FRAME_POINTERS
@@ -83,6 +84,12 @@ config HAVE_XTENSA_GPIO32
 config KASAN_SHADOW_OFFSET
 	hex
 	default 0x6e400000
+
+config CPU_BIG_ENDIAN
+	def_bool $(success,test "$(shell,echo __XTENSA_EB__ | $(CC) -E -P -)" = 1)
+
+config CPU_LITTLE_ENDIAN
+	def_bool !CPU_BIG_ENDIAN
 
 menu "Processor type and features"
 
@@ -387,6 +394,28 @@ config PARSE_BOOTPARAM
 
 	  If unsure, say Y.
 
+choice
+	prompt "Semihosting interface"
+	default XTENSA_SIMCALL_ISS
+	depends on XTENSA_PLATFORM_ISS
+	help
+	  Choose semihosting interface that will be used for serial port,
+	  block device and networking.
+
+config XTENSA_SIMCALL_ISS
+	bool "simcall"
+	help
+	  Use simcall instruction. simcall is only available on simulators,
+	  it does nothing on hardware.
+
+config XTENSA_SIMCALL_GDBIO
+	bool "GDBIO"
+	help
+	  Use break instruction. It is available on real hardware when GDB
+	  is attached to it via JTAG.
+
+endchoice
+
 config BLK_DEV_SIMDISK
 	tristate "Host file-based simulated block device support"
 	default n
@@ -466,7 +495,7 @@ config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 	  then enter your normal kernel breakpoints once the MMU was mapped
 	  to the kernel mappings (0XC0000000).
 
-	  This unfortunately won't work for U-Boot and likely also wont
+	  This unfortunately won't work for U-Boot and likely also won't
 	  work for using KEXEC to have a hot kernel ready for doing a
 	  KDUMP.
 

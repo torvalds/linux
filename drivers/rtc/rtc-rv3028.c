@@ -320,7 +320,7 @@ static int rv3028_get_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_sec  = bcd2bin(date[RV3028_SEC] & 0x7f);
 	tm->tm_min  = bcd2bin(date[RV3028_MIN] & 0x7f);
 	tm->tm_hour = bcd2bin(date[RV3028_HOUR] & 0x3f);
-	tm->tm_wday = ilog2(date[RV3028_WDAY] & 0x7f);
+	tm->tm_wday = date[RV3028_WDAY] & 0x7f;
 	tm->tm_mday = bcd2bin(date[RV3028_DAY] & 0x3f);
 	tm->tm_mon  = bcd2bin(date[RV3028_MONTH] & 0x1f) - 1;
 	tm->tm_year = bcd2bin(date[RV3028_YEAR]) + 100;
@@ -337,7 +337,7 @@ static int rv3028_set_time(struct device *dev, struct rtc_time *tm)
 	date[RV3028_SEC]   = bin2bcd(tm->tm_sec);
 	date[RV3028_MIN]   = bin2bcd(tm->tm_min);
 	date[RV3028_HOUR]  = bin2bcd(tm->tm_hour);
-	date[RV3028_WDAY]  = 1 << (tm->tm_wday);
+	date[RV3028_WDAY]  = tm->tm_wday;
 	date[RV3028_DAY]   = bin2bcd(tm->tm_mday);
 	date[RV3028_MONTH] = bin2bcd(tm->tm_mon + 1);
 	date[RV3028_YEAR]  = bin2bcd(tm->tm_year - 100);

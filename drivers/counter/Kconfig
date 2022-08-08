@@ -14,7 +14,7 @@ if COUNTER
 
 config 104_QUAD_8
 	tristate "ACCES 104-QUAD-8 driver"
-	depends on PC104 && X86 && IIO
+	depends on PC104 && X86
 	select ISA_BUS_API
 	help
 	  Say yes here to build support for the ACCES 104-QUAD-8 quadrature
@@ -29,6 +29,16 @@ config 104_QUAD_8
 	  The base port addresses for the devices may be configured via the base
 	  array module parameter.
 
+config INTERRUPT_CNT
+	tristate "Interrupt counter driver"
+	depends on GPIOLIB
+	help
+	  Select this option to enable interrupt counter driver. Any interrupt
+	  source can be used by this driver as the event source.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called interrupt-cnt.
+
 config STM32_TIMER_CNT
 	tristate "STM32 Timer encoder counter driver"
 	depends on MFD_STM32_TIMERS || COMPILE_TEST
@@ -41,7 +51,7 @@ config STM32_TIMER_CNT
 
 config STM32_LPTIMER_CNT
 	tristate "STM32 LP Timer encoder counter driver"
-	depends on (MFD_STM32_LPTIMER || COMPILE_TEST) && IIO
+	depends on MFD_STM32_LPTIMER || COMPILE_TEST
 	help
 	  Select this option to enable STM32 Low-Power Timer quadrature encoder
 	  and counter driver.

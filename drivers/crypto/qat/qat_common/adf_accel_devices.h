@@ -173,6 +173,7 @@ struct adf_hw_device_data {
 	void (*configure_iov_threads)(struct adf_accel_dev *accel_dev,
 				      bool enable);
 	void (*enable_ints)(struct adf_accel_dev *accel_dev);
+	void (*set_ssm_wdtimer)(struct adf_accel_dev *accel_dev);
 	int (*enable_vf2pf_comms)(struct adf_accel_dev *accel_dev);
 	void (*reset_device)(struct adf_accel_dev *accel_dev);
 	void (*set_msix_rttable)(struct adf_accel_dev *accel_dev);

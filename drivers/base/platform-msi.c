@@ -316,10 +316,11 @@ void *platform_msi_get_host_data(struct irq_domain *domain)
 }
 
 /**
- * platform_msi_create_device_domain - Create a platform-msi domain
+ * __platform_msi_create_device_domain - Create a platform-msi domain
  *
  * @dev:		The device generating the MSIs
  * @nvec:		The number of MSIs that need to be allocated
+ * @is_tree:		flag to indicate tree hierarchy
  * @write_msi_msg:	Callback to write an interrupt message for @dev
  * @ops:		The hierarchy domain operations to use
  * @host_data:		Private data associated to this domain

@@ -85,7 +85,7 @@ static int dma_lch_count;
 static int dma_chan_count;
 static int omap_dma_reserve_channels;
 
-static spinlock_t dma_chan_lock;
+static DEFINE_SPINLOCK(dma_chan_lock);
 static struct omap_dma_lch *dma_chan;
 
 static inline void disable_lnk(int lch);
@@ -902,7 +902,6 @@ static int omap_system_dma_probe(struct platform_device *pdev)
 	if (!dma_chan)
 		return -ENOMEM;
 
-	spin_lock_init(&dma_chan_lock);
 	for (ch = 0; ch < dma_chan_count; ch++) {
 		omap_clear_dma(ch);
 

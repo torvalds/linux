@@ -497,13 +497,13 @@ static struct mlx5_fc_bulk *mlx5_fc_bulk_create(struct mlx5_core_dev *dev)
 	alloc_bitmask = MLX5_CAP_GEN(dev, flow_counter_bulk_alloc);
 	bulk_len = alloc_bitmask > 0 ? MLX5_FC_BULK_NUM_FCS(alloc_bitmask) : 1;
 
-	bulk = kzalloc(sizeof(*bulk) + bulk_len * sizeof(struct mlx5_fc),
-		       GFP_KERNEL);
+	bulk = kvzalloc(sizeof(*bulk) + bulk_len * sizeof(struct mlx5_fc),
+			GFP_KERNEL);
 	if (!bulk)
 		goto err_alloc_bulk;
 
-	bulk->bitmask = kcalloc(BITS_TO_LONGS(bulk_len), sizeof(unsigned long),
-				GFP_KERNEL);
+	bulk->bitmask = kvcalloc(BITS_TO_LONGS(bulk_len), sizeof(unsigned long),
+				 GFP_KERNEL);
 	if (!bulk->bitmask)
 		goto err_alloc_bitmask;
 
@@ -521,9 +521,9 @@ static struct mlx5_fc_bulk *mlx5_fc_bulk_create(struct mlx5_core_dev *dev)
 	return bulk;
 
 err_mlx5_cmd_bulk_alloc:
-	kfree(bulk->bitmask);
+	kvfree(bulk->bitmask);
 err_alloc_bitmask:
-	kfree(bulk);
+	kvfree(bulk);
 err_alloc_bulk:
 	return ERR_PTR(err);
 }
@@ -537,8 +537,8 @@ mlx5_fc_bulk_destroy(struct mlx5_core_dev *dev, struct mlx5_fc_bulk *bulk)
 	}
 
 	mlx5_cmd_fc_free(dev, bulk->base_id);
-	kfree(bulk->bitmask);
-	kfree(bulk);
+	kvfree(bulk->bitmask);
+	kvfree(bulk);
 
 	return 0;
 }

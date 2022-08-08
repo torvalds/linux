@@ -6,6 +6,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/devm-helpers.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -124,7 +125,7 @@ static void gpd_pocket_fan_force_update(struct gpd_pocket_fan_data *fan)
 static int gpd_pocket_fan_probe(struct platform_device *pdev)
 {
 	struct gpd_pocket_fan_data *fan;
-	int i;
+	int i, ret;
 
 	for (i = 0; i < ARRAY_SIZE(temp_limits); i++) {
 		if (temp_limits[i] < 20000 || temp_limits[i] > 90000) {
@@ -152,7 +153,10 @@ static int gpd_pocket_fan_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	fan->dev = &pdev->dev;
-	INIT_DELAYED_WORK(&fan->work, gpd_pocket_fan_worker);
+	ret = devm_delayed_work_autocancel(&pdev->dev, &fan->work,
+					   gpd_pocket_fan_worker);
+	if (ret)
+		return ret;
 
 	/* Note this returns a "weak" reference which we don't need to free */
 	fan->dts0 = thermal_zone_get_zone_by_name("soc_dts0");
@@ -174,14 +178,6 @@ static int gpd_pocket_fan_probe(struct platform_device *pdev)
 	gpd_pocket_fan_force_update(fan);
 
 	platform_set_drvdata(pdev, fan);
-	return 0;
-}
-
-static int gpd_pocket_fan_remove(struct platform_device *pdev)
-{
-	struct gpd_pocket_fan_data *fan = platform_get_drvdata(pdev);
-
-	cancel_delayed_work_sync(&fan->work);
 	return 0;
 }
 
@@ -215,7 +211,6 @@ MODULE_DEVICE_TABLE(acpi, gpd_pocket_fan_acpi_match);
 
 static struct platform_driver gpd_pocket_fan_driver = {
 	.probe	= gpd_pocket_fan_probe,
-	.remove	= gpd_pocket_fan_remove,
 	.driver	= {
 		.name			= "gpd_pocket_fan",
 		.acpi_match_table	= gpd_pocket_fan_acpi_match,

@@ -108,9 +108,9 @@ displayed as follows:
 
 	perf script --itrace=ibxwpe -F+flags
 
-The flags are "bcrosyiABEx" which stand for branch, call, return, conditional,
-system, asynchronous, interrupt, transaction abort, trace begin, trace end, and
-in transaction, respectively.
+The flags are "bcrosyiABExgh" which stand for branch, call, return, conditional,
+system, asynchronous, interrupt, transaction abort, trace begin, trace end,
+in transaction, VM-entry, and VM-exit respectively.
 
 perf script also supports higher level ways to dump instruction traces:
 

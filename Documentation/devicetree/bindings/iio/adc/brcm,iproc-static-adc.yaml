@@ -53,11 +53,6 @@ examples:
         #address-cells = <1>;
         #size-cells = <1>;
 
-        ts_adc_syscon: ts_adc_syscon@180a6000 {
-            compatible = "brcm,iproc-ts-adc-syscon","syscon";
-            reg = <0x180a6000 0xc30>;
-        };
-
         adc {
             compatible = "brcm,iproc-static-adc";
             adc-syscon = <&ts_adc_syscon>;

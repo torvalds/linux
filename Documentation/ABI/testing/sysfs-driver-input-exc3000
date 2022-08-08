@@ -15,3 +15,12 @@ Description:    Reports the model identification provided by the touchscreen, fo
 		Access: Read
 
 		Valid values: Represented as string
+
+What:		/sys/bus/i2c/devices/xxx/type
+Date:		Jan 2021
+Contact:	linux-input@vger.kernel.org
+Description:	Reports the type identification provided by the touchscreen, for example "PCAP82H80 Series"
+
+		Access: Read
+
+		Valid values: Represented as string

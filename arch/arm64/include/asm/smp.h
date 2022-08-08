@@ -145,6 +145,7 @@ bool cpus_are_stuck_in_kernel(void);
 
 extern void crash_smp_send_stop(void);
 extern bool smp_crash_stop_failed(void);
+extern void panic_smp_self_stop(void);
 
 #endif /* ifndef __ASSEMBLY__ */
 

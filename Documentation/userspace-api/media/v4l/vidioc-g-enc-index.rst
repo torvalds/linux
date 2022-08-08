@@ -54,7 +54,7 @@ will be zero.
 Currently this ioctl is only defined for MPEG-2 program streams and
 video elementary streams.
 
-.. tabularcolumns:: |p{3.8cm}|p{5.6cm}|p{8.1cm}|
+.. tabularcolumns:: |p{4.2cm}|p{6.2cm}|p{6.9cm}|
 
 .. c:type:: v4l2_enc_idx
 
@@ -81,7 +81,7 @@ video elementary streams.
 	their ``offset``.
 
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. c:type:: v4l2_enc_idx_entry
 
@@ -113,7 +113,7 @@ video elementary streams.
       - Reserved for future extensions. Drivers must set the array to
 	zero.
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. _enc-idx-flags:
 

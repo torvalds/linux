@@ -634,7 +634,6 @@ MODULE_DEVICE_TABLE(of, orion_spi_of_match_table);
 
 static int orion_spi_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id;
 	const struct orion_spi_dev *devdata;
 	struct spi_master *master;
 	struct orion_spi *spi;
@@ -676,8 +675,8 @@ static int orion_spi_probe(struct platform_device *pdev)
 	spi->master = master;
 	spi->dev = &pdev->dev;
 
-	of_id = of_match_device(orion_spi_of_match_table, &pdev->dev);
-	devdata = (of_id) ? of_id->data : &orion_spi_dev_data;
+	devdata = device_get_match_data(&pdev->dev);
+	devdata = devdata ? devdata : &orion_spi_dev_data;
 	spi->devdata = devdata;
 
 	spi->clk = devm_clk_get(&pdev->dev, NULL);

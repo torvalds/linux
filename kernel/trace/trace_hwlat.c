@@ -83,7 +83,7 @@ struct hwlat_sample {
 	u64			nmi_total_ts;	/* Total time spent in NMIs */
 	struct timespec64	timestamp;	/* wall time */
 	int			nmi_count;	/* # NMIs during this sample */
-	int			count;		/* # of iteratons over threash */
+	int			count;		/* # of iterations over thresh */
 };
 
 /* keep the global state somewhere. */
@@ -389,7 +389,7 @@ static int start_kthread(struct trace_array *tr)
 }
 
 /**
- * stop_kthread - Inform the hardware latency samping/detector kthread to stop
+ * stop_kthread - Inform the hardware latency sampling/detector kthread to stop
  *
  * This kicks the running hardware latency sampling/detector kernel thread and
  * tells it to stop sampling now. Use this on unload and at system shutdown.

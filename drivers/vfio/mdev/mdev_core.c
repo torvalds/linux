@@ -29,39 +29,39 @@ static DEFINE_MUTEX(mdev_list_lock);
 
 struct device *mdev_parent_dev(struct mdev_device *mdev)
 {
-	return mdev->parent->dev;
+	return mdev->type->parent->dev;
 }
 EXPORT_SYMBOL(mdev_parent_dev);
 
-void *mdev_get_drvdata(struct mdev_device *mdev)
+/*
+ * Return the index in supported_type_groups that this mdev_device was created
+ * from.
+ */
+unsigned int mdev_get_type_group_id(struct mdev_device *mdev)
 {
-	return mdev->driver_data;
+	return mdev->type->type_group_id;
 }
-EXPORT_SYMBOL(mdev_get_drvdata);
+EXPORT_SYMBOL(mdev_get_type_group_id);
 
-void mdev_set_drvdata(struct mdev_device *mdev, void *data)
+/*
+ * Used in mdev_type_attribute sysfs functions to return the index in the
+ * supported_type_groups that the sysfs is called from.
+ */
+unsigned int mtype_get_type_group_id(struct mdev_type *mtype)
 {
-	mdev->driver_data = data;
+	return mtype->type_group_id;
 }
-EXPORT_SYMBOL(mdev_set_drvdata);
+EXPORT_SYMBOL(mtype_get_type_group_id);
 
-struct device *mdev_dev(struct mdev_device *mdev)
+/*
+ * Used in mdev_type_attribute sysfs functions to return the parent struct
+ * device
+ */
+struct device *mtype_get_parent_dev(struct mdev_type *mtype)
 {
-	return &mdev->dev;
+	return mtype->parent->dev;
 }
-EXPORT_SYMBOL(mdev_dev);
-
-struct mdev_device *mdev_from_dev(struct device *dev)
-{
-	return dev_is_mdev(dev) ? to_mdev_device(dev) : NULL;
-}
-EXPORT_SYMBOL(mdev_from_dev);
-
-const guid_t *mdev_uuid(struct mdev_device *mdev)
-{
-	return &mdev->uuid;
-}
-EXPORT_SYMBOL(mdev_uuid);
+EXPORT_SYMBOL(mtype_get_parent_dev);
 
 /* Should be called holding parent_list_lock */
 static struct mdev_parent *__find_parent_device(struct device *dev)
@@ -75,7 +75,7 @@ static struct mdev_parent *__find_parent_device(struct device *dev)
 	return NULL;
 }
 
-static void mdev_release_parent(struct kref *kref)
+void mdev_release_parent(struct kref *kref)
 {
 	struct mdev_parent *parent = container_of(kref, struct mdev_parent,
 						  ref);
@@ -85,31 +85,14 @@ static void mdev_release_parent(struct kref *kref)
 	put_device(dev);
 }
 
-static struct mdev_parent *mdev_get_parent(struct mdev_parent *parent)
-{
-	if (parent)
-		kref_get(&parent->ref);
-
-	return parent;
-}
-
-static void mdev_put_parent(struct mdev_parent *parent)
-{
-	if (parent)
-		kref_put(&parent->ref, mdev_release_parent);
-}
-
 /* Caller must hold parent unreg_sem read or write lock */
 static void mdev_device_remove_common(struct mdev_device *mdev)
 {
-	struct mdev_parent *parent;
-	struct mdev_type *type;
+	struct mdev_parent *parent = mdev->type->parent;
 	int ret;
 
-	type = to_mdev_type(mdev->type_kobj);
-	mdev_remove_sysfs_files(&mdev->dev, type);
+	mdev_remove_sysfs_files(mdev);
 	device_del(&mdev->dev);
-	parent = mdev->parent;
 	lockdep_assert_held(&parent->unreg_sem);
 	ret = parent->ops->remove(mdev);
 	if (ret)
@@ -117,17 +100,14 @@ static void mdev_device_remove_common(struct mdev_device *mdev)
 
 	/* Balances with device_initialize() */
 	put_device(&mdev->dev);
-	mdev_put_parent(parent);
 }
 
 static int mdev_device_remove_cb(struct device *dev, void *data)
 {
-	if (dev_is_mdev(dev)) {
-		struct mdev_device *mdev;
+	struct mdev_device *mdev = mdev_from_dev(dev);
 
-		mdev = to_mdev_device(dev);
+	if (mdev)
 		mdev_device_remove_common(mdev);
-	}
 	return 0;
 }
 
@@ -256,8 +236,13 @@ void mdev_unregister_device(struct device *dev)
 }
 EXPORT_SYMBOL(mdev_unregister_device);
 
-static void mdev_device_free(struct mdev_device *mdev)
+static void mdev_device_release(struct device *dev)
 {
+	struct mdev_device *mdev = to_mdev_device(dev);
+
+	/* Pairs with the get in mdev_device_create() */
+	kobject_put(&mdev->type->kobj);
+
 	mutex_lock(&mdev_list_lock);
 	list_del(&mdev->next);
 	mutex_unlock(&mdev_list_lock);
@@ -266,24 +251,11 @@ static void mdev_device_free(struct mdev_device *mdev)
 	kfree(mdev);
 }
 
-static void mdev_device_release(struct device *dev)
-{
-	struct mdev_device *mdev = to_mdev_device(dev);
-
-	mdev_device_free(mdev);
-}
-
-int mdev_device_create(struct kobject *kobj,
-		       struct device *dev, const guid_t *uuid)
+int mdev_device_create(struct mdev_type *type, const guid_t *uuid)
 {
 	int ret;
 	struct mdev_device *mdev, *tmp;
-	struct mdev_parent *parent;
-	struct mdev_type *type = to_mdev_type(kobj);
-
-	parent = mdev_get_parent(type->parent);
-	if (!parent)
-		return -EINVAL;
+	struct mdev_parent *parent = type->parent;
 
 	mutex_lock(&mdev_list_lock);
 
@@ -291,50 +263,50 @@ int mdev_device_create(struct kobject *kobj,
 	list_for_each_entry(tmp, &mdev_list, next) {
 		if (guid_equal(&tmp->uuid, uuid)) {
 			mutex_unlock(&mdev_list_lock);
-			ret = -EEXIST;
-			goto mdev_fail;
+			return -EEXIST;
 		}
 	}
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev) {
 		mutex_unlock(&mdev_list_lock);
-		ret = -ENOMEM;
-		goto mdev_fail;
+		return -ENOMEM;
 	}
+
+	device_initialize(&mdev->dev);
+	mdev->dev.parent  = parent->dev;
+	mdev->dev.bus = &mdev_bus_type;
+	mdev->dev.release = mdev_device_release;
+	mdev->dev.groups = parent->ops->mdev_attr_groups;
+	mdev->type = type;
+	/* Pairs with the put in mdev_device_release() */
+	kobject_get(&type->kobj);
 
 	guid_copy(&mdev->uuid, uuid);
 	list_add(&mdev->next, &mdev_list);
 	mutex_unlock(&mdev_list_lock);
 
-	mdev->parent = parent;
+	ret = dev_set_name(&mdev->dev, "%pUl", uuid);
+	if (ret)
+		goto out_put_device;
 
 	/* Check if parent unregistration has started */
 	if (!down_read_trylock(&parent->unreg_sem)) {
-		mdev_device_free(mdev);
 		ret = -ENODEV;
-		goto mdev_fail;
+		goto out_put_device;
 	}
 
-	device_initialize(&mdev->dev);
-	mdev->dev.parent  = dev;
-	mdev->dev.bus     = &mdev_bus_type;
-	mdev->dev.release = mdev_device_release;
-	dev_set_name(&mdev->dev, "%pUl", uuid);
-	mdev->dev.groups = parent->ops->mdev_attr_groups;
-	mdev->type_kobj = kobj;
-
-	ret = parent->ops->create(kobj, mdev);
+	ret = parent->ops->create(mdev);
 	if (ret)
-		goto ops_create_fail;
+		goto out_unlock;
 
 	ret = device_add(&mdev->dev);
 	if (ret)
-		goto add_fail;
+		goto out_remove;
 
-	ret = mdev_create_sysfs_files(&mdev->dev, type);
+	ret = mdev_create_sysfs_files(mdev);
 	if (ret)
-		goto sysfs_fail;
+		goto out_del;
 
 	mdev->active = true;
 	dev_dbg(&mdev->dev, "MDEV: created\n");
@@ -342,24 +314,21 @@ int mdev_device_create(struct kobject *kobj,
 
 	return 0;
 
-sysfs_fail:
+out_del:
 	device_del(&mdev->dev);
-add_fail:
+out_remove:
 	parent->ops->remove(mdev);
-ops_create_fail:
+out_unlock:
 	up_read(&parent->unreg_sem);
+out_put_device:
 	put_device(&mdev->dev);
-mdev_fail:
-	mdev_put_parent(parent);
 	return ret;
 }
 
-int mdev_device_remove(struct device *dev)
+int mdev_device_remove(struct mdev_device *mdev)
 {
-	struct mdev_device *mdev, *tmp;
-	struct mdev_parent *parent;
-
-	mdev = to_mdev_device(dev);
+	struct mdev_device *tmp;
+	struct mdev_parent *parent = mdev->type->parent;
 
 	mutex_lock(&mdev_list_lock);
 	list_for_each_entry(tmp, &mdev_list, next) {
@@ -380,7 +349,6 @@ int mdev_device_remove(struct device *dev)
 	mdev->active = false;
 	mutex_unlock(&mdev_list_lock);
 
-	parent = mdev->parent;
 	/* Check if parent unregistration has started */
 	if (!down_read_trylock(&parent->unreg_sem))
 		return -ENODEV;
@@ -389,24 +357,6 @@ int mdev_device_remove(struct device *dev)
 	up_read(&parent->unreg_sem);
 	return 0;
 }
-
-int mdev_set_iommu_device(struct device *dev, struct device *iommu_device)
-{
-	struct mdev_device *mdev = to_mdev_device(dev);
-
-	mdev->iommu_device = iommu_device;
-
-	return 0;
-}
-EXPORT_SYMBOL(mdev_set_iommu_device);
-
-struct device *mdev_get_iommu_device(struct device *dev)
-{
-	struct mdev_device *mdev = to_mdev_device(dev);
-
-	return mdev->iommu_device;
-}
-EXPORT_SYMBOL(mdev_get_iommu_device);
 
 static int __init mdev_init(void)
 {

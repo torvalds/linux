@@ -1259,8 +1259,27 @@ v4l2_fwnode_reference_parse_int_props(struct device *dev,
 	return !fwnode || PTR_ERR(fwnode) == -ENOENT ? 0 : PTR_ERR(fwnode);
 }
 
-int v4l2_async_notifier_parse_fwnode_sensor_common(struct device *dev,
-						   struct v4l2_async_notifier *notifier)
+/**
+ * v4l2_async_notifier_parse_fwnode_sensor - parse common references on
+ *					     sensors for async sub-devices
+ * @dev: the device node the properties of which are parsed for references
+ * @notifier: the async notifier where the async subdevs will be added
+ *
+ * Parse common sensor properties for remote devices related to the
+ * sensor and set up async sub-devices for them.
+ *
+ * Any notifier populated using this function must be released with a call to
+ * v4l2_async_notifier_release() after it has been unregistered and the async
+ * sub-devices are no longer in use, even in the case the function returned an
+ * error.
+ *
+ * Return: 0 on success
+ *	   -ENOMEM if memory allocation failed
+ *	   -EINVAL if property parsing failed
+ */
+static int
+v4l2_async_notifier_parse_fwnode_sensor(struct device *dev,
+					struct v4l2_async_notifier *notifier)
 {
 	static const char * const led_props[] = { "led" };
 	static const struct v4l2_fwnode_int_props props[] = {
@@ -1288,9 +1307,8 @@ int v4l2_async_notifier_parse_fwnode_sensor_common(struct device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(v4l2_async_notifier_parse_fwnode_sensor_common);
 
-int v4l2_async_register_subdev_sensor_common(struct v4l2_subdev *sd)
+int v4l2_async_register_subdev_sensor(struct v4l2_subdev *sd)
 {
 	struct v4l2_async_notifier *notifier;
 	int ret;
@@ -1304,8 +1322,7 @@ int v4l2_async_register_subdev_sensor_common(struct v4l2_subdev *sd)
 
 	v4l2_async_notifier_init(notifier);
 
-	ret = v4l2_async_notifier_parse_fwnode_sensor_common(sd->dev,
-							     notifier);
+	ret = v4l2_async_notifier_parse_fwnode_sensor(sd->dev, notifier);
 	if (ret < 0)
 		goto out_cleanup;
 
@@ -1330,7 +1347,7 @@ out_cleanup:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(v4l2_async_register_subdev_sensor_common);
+EXPORT_SYMBOL_GPL(v4l2_async_register_subdev_sensor);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sakari Ailus <sakari.ailus@linux.intel.com>");

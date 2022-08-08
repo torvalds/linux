@@ -520,7 +520,7 @@ static void dn_nsp_linkservice(struct sock *sk, struct sk_buff *skb)
 	fcval = *ptr;
 
 	/*
-	 * Here we ignore erronous packets which should really
+	 * Here we ignore erroneous packets which should really
 	 * should cause a connection abort. It is not critical
 	 * for now though.
 	 */

@@ -352,6 +352,10 @@
 	};
 };
 
+&mfg {
+	domain-supply = <&mt6358_vgpu_reg>;
+};
+
 &spi0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi_pins_0>;

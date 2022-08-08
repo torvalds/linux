@@ -630,20 +630,22 @@ static int __i915_gem_object_create_stolen(struct intel_memory_region *mem,
 	int err;
 
 	drm_gem_private_object_init(&mem->i915->drm, &obj->base, stolen->size);
-	i915_gem_object_init(obj, &i915_gem_object_stolen_ops, &lock_class);
+	i915_gem_object_init(obj, &i915_gem_object_stolen_ops, &lock_class, 0);
 
 	obj->stolen = stolen;
 	obj->read_domains = I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT;
 	cache_level = HAS_LLC(mem->i915) ? I915_CACHE_LLC : I915_CACHE_NONE;
 	i915_gem_object_set_cache_coherency(obj, cache_level);
 
+	if (WARN_ON(!i915_gem_object_trylock(obj)))
+		return -EBUSY;
+
 	err = i915_gem_object_pin_pages(obj);
-	if (err)
-		return err;
+	if (!err)
+		i915_gem_object_init_memory_region(obj, mem);
+	i915_gem_object_unlock(obj);
 
-	i915_gem_object_init_memory_region(obj, mem, 0);
-
-	return 0;
+	return err;
 }
 
 static int _i915_gem_object_stolen_init(struct intel_memory_region *mem,
@@ -686,7 +688,7 @@ struct drm_i915_gem_object *
 i915_gem_object_create_stolen(struct drm_i915_private *i915,
 			      resource_size_t size)
 {
-	return i915_gem_object_create_region(i915->mm.regions[INTEL_REGION_STOLEN],
+	return i915_gem_object_create_region(i915->mm.regions[INTEL_REGION_STOLEN_SMEM],
 					     size, I915_BO_ALLOC_CONTIGUOUS);
 }
 
@@ -726,7 +728,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *i915,
 					       resource_size_t stolen_offset,
 					       resource_size_t size)
 {
-	struct intel_memory_region *mem = i915->mm.regions[INTEL_REGION_STOLEN];
+	struct intel_memory_region *mem = i915->mm.regions[INTEL_REGION_STOLEN_SMEM];
 	struct drm_i915_gem_object *obj;
 	struct drm_mm_node *stolen;
 	int ret;

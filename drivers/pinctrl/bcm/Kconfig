@@ -29,6 +29,68 @@ config PINCTRL_BCM2835
 	help
 	   Say Y here to enable the Broadcom BCM2835 GPIO driver.
 
+config PINCTRL_BCM63XX
+	bool
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIO_REGMAP
+
+config PINCTRL_BCM6318
+	bool "Broadcom BCM6318 GPIO driver"
+	depends on (BMIPS_GENERIC || COMPILE_TEST)
+	depends on OF
+	select PINCTRL_BCM63XX
+	default BMIPS_GENERIC
+	help
+	   Say Y here to enable the Broadcom BCM6318 GPIO driver.
+
+config PINCTRL_BCM6328
+	bool "Broadcom BCM6328 GPIO driver"
+	depends on (BMIPS_GENERIC || COMPILE_TEST)
+	depends on OF
+	select PINCTRL_BCM63XX
+	default BMIPS_GENERIC
+	help
+	   Say Y here to enable the Broadcom BCM6328 GPIO driver.
+
+config PINCTRL_BCM6358
+	bool "Broadcom BCM6358 GPIO driver"
+	depends on (BMIPS_GENERIC || COMPILE_TEST)
+	depends on OF
+	select PINCTRL_BCM63XX
+	default BMIPS_GENERIC
+	help
+	   Say Y here to enable the Broadcom BCM6358 GPIO driver.
+
+config PINCTRL_BCM6362
+	bool "Broadcom BCM6362 GPIO driver"
+	depends on (BMIPS_GENERIC || COMPILE_TEST)
+	depends on OF
+	select PINCTRL_BCM63XX
+	default BMIPS_GENERIC
+	help
+	   Say Y here to enable the Broadcom BCM6362 GPIO driver.
+
+config PINCTRL_BCM6368
+	bool "Broadcom BCM6368 GPIO driver"
+	depends on (BMIPS_GENERIC || COMPILE_TEST)
+	depends on OF
+	select PINCTRL_BCM63XX
+	default BMIPS_GENERIC
+	help
+	   Say Y here to enable the Broadcom BCM6368 GPIO driver.
+
+config PINCTRL_BCM63268
+	bool "Broadcom BCM63268 GPIO driver"
+	depends on (BMIPS_GENERIC || COMPILE_TEST)
+	depends on OF
+	select PINCTRL_BCM63XX
+	default BMIPS_GENERIC
+	help
+	   Say Y here to enable the Broadcom BCM63268 GPIO driver.
+
 config PINCTRL_IPROC_GPIO
 	bool "Broadcom iProc GPIO (with PINCONF) driver"
 	depends on OF_GPIO && (ARCH_BCM_IPROC || COMPILE_TEST)

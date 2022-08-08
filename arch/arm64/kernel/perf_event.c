@@ -470,9 +470,8 @@ static inline u64 armv8pmu_read_evcntr(int idx)
 static inline u64 armv8pmu_read_hw_counter(struct perf_event *event)
 {
 	int idx = event->hw.idx;
-	u64 val = 0;
+	u64 val = armv8pmu_read_evcntr(idx);
 
-	val = armv8pmu_read_evcntr(idx);
 	if (armv8pmu_event_is_chained(event))
 		val = (val << 32) | armv8pmu_read_evcntr(idx - 1);
 	return val;
@@ -520,7 +519,7 @@ static u64 armv8pmu_read_counter(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
-	u64 value = 0;
+	u64 value;
 
 	if (idx == ARMV8_IDX_CYCLE_COUNTER)
 		value = read_sysreg(pmccntr_el0);

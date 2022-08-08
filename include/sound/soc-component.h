@@ -101,7 +101,7 @@ struct snd_soc_component_driver {
 
 	/* DT */
 	int (*of_xlate_dai_name)(struct snd_soc_component *component,
-				 struct of_phandle_args *args,
+				 const struct of_phandle_args *args,
 				 const char **dai_name);
 	int (*of_xlate_dai_id)(struct snd_soc_component *comment,
 			       struct device_node *endpoint);
@@ -146,6 +146,8 @@ struct snd_soc_component_driver {
 	int (*mmap)(struct snd_soc_component *component,
 		    struct snd_pcm_substream *substream,
 		    struct vm_area_struct *vma);
+	int (*ack)(struct snd_soc_component *component,
+		   struct snd_pcm_substream *substream);
 
 	const struct snd_compress_ops *compress_ops;
 
@@ -336,6 +338,7 @@ static inline int snd_soc_component_cache_sync(
 void snd_soc_component_set_aux(struct snd_soc_component *component,
 			       struct snd_soc_aux_dev *aux);
 int snd_soc_component_init(struct snd_soc_component *component);
+int snd_soc_component_is_dummy(struct snd_soc_component *component);
 
 /* component IO */
 unsigned int snd_soc_component_read(struct snd_soc_component *component,
@@ -450,7 +453,7 @@ void snd_soc_component_remove(struct snd_soc_component *component);
 int snd_soc_component_of_xlate_dai_id(struct snd_soc_component *component,
 				      struct device_node *ep);
 int snd_soc_component_of_xlate_dai_name(struct snd_soc_component *component,
-					struct of_phandle_args *args,
+					const struct of_phandle_args *args,
 					const char **dai_name);
 int snd_soc_component_compr_open(struct snd_compr_stream *cstream);
 void snd_soc_component_compr_free(struct snd_compr_stream *cstream,
@@ -498,5 +501,6 @@ int snd_soc_pcm_component_pm_runtime_get(struct snd_soc_pcm_runtime *rtd,
 					 void *stream);
 void snd_soc_pcm_component_pm_runtime_put(struct snd_soc_pcm_runtime *rtd,
 					  void *stream, int rollback);
+int snd_soc_pcm_component_ack(struct snd_pcm_substream *substream);
 
 #endif /* __SOC_COMPONENT_H */

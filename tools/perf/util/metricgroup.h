@@ -9,7 +9,6 @@
 
 struct evlist;
 struct evsel;
-struct evlist;
 struct option;
 struct rblist;
 struct pmu_events_map;
@@ -44,7 +43,8 @@ int metricgroup__parse_groups(const struct option *opt,
 			      bool metric_no_group,
 			      bool metric_no_merge,
 			      struct rblist *metric_events);
-
+struct pmu_event *metricgroup__find_metric(const char *metric,
+					   struct pmu_events_map *map);
 int metricgroup__parse_groups_test(struct evlist *evlist,
 				   struct pmu_events_map *map,
 				   const char *str,

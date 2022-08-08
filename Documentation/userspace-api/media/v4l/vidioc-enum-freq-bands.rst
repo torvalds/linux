@@ -40,7 +40,7 @@ fields, and zero out the ``reserved`` array of a struct
 This ioctl is supported if the ``V4L2_TUNER_CAP_FREQ_BANDS`` capability
 of the corresponding tuner/modulator is set.
 
-.. tabularcolumns:: |p{2.9cm}|p{2.9cm}|p{5.8cm}|p{2.9cm}|p{3.0cm}|
+.. tabularcolumns:: |p{2.9cm}|p{2.9cm}|p{5.8cm}|p{2.9cm}|p{2.4cm}|
 
 .. c:type:: v4l2_frequency_band
 
@@ -108,7 +108,7 @@ of the corresponding tuner/modulator is set.
 	Applications and drivers must set the array to zero.
 
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. _band-modulation:
 

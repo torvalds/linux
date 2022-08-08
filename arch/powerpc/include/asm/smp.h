@@ -31,6 +31,7 @@ extern u32 *cpu_to_phys_id;
 extern bool coregroup_enabled;
 
 extern int cpu_to_chip_id(int cpu);
+extern int *chip_id_lookup_table;
 
 #ifdef CONFIG_SMP
 
@@ -119,6 +120,11 @@ DECLARE_PER_CPU(cpumask_var_t, cpu_smallcore_map);
 static inline struct cpumask *cpu_sibling_mask(int cpu)
 {
 	return per_cpu(cpu_sibling_map, cpu);
+}
+
+static inline struct cpumask *cpu_core_mask(int cpu)
+{
+	return per_cpu(cpu_core_map, cpu);
 }
 
 static inline struct cpumask *cpu_l2_cache_mask(int cpu)

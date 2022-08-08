@@ -58,43 +58,13 @@
 
 extern int RTW_STATUS_CODE(int error_code);
 
-/* flags used for rtw_mstat_update() */
-enum mstat_f {
-	/* type: 0x00ff */
-	MSTAT_TYPE_VIR = 0x00,
-	MSTAT_TYPE_PHY = 0x01,
-	MSTAT_TYPE_SKB = 0x02,
-	MSTAT_TYPE_USB = 0x03,
-	MSTAT_TYPE_MAX = 0x04,
-
-	/* func: 0xff00 */
-	MSTAT_FUNC_UNSPECIFIED = 0x00<<8,
-	MSTAT_FUNC_IO = 0x01<<8,
-	MSTAT_FUNC_TX_IO = 0x02<<8,
-	MSTAT_FUNC_RX_IO = 0x03<<8,
-	MSTAT_FUNC_TX = 0x04<<8,
-	MSTAT_FUNC_RX = 0x05<<8,
-	MSTAT_FUNC_MAX = 0x06<<8,
-};
-
-#define mstat_tf_idx(flags) ((flags)&0xff)
-#define mstat_ff_idx(flags) (((flags)&0xff00) >> 8)
-
-typedef enum mstat_status {
-	MSTAT_ALLOC_SUCCESS = 0,
-	MSTAT_ALLOC_FAIL,
-	MSTAT_FREE
-} MSTAT_STATUS;
-
-#define rtw_mstat_update(flag, status, sz) do {} while (0)
-#define rtw_mstat_dump(sel) do {} while (0)
 void *_rtw_zmalloc(u32 sz);
 void *_rtw_malloc(u32 sz);
 void _kfree(u8 *pbuf, u32 sz);
 
 struct sk_buff *_rtw_skb_alloc(u32 sz);
 struct sk_buff *_rtw_skb_copy(const struct sk_buff *skb);
-int _rtw_netif_rx(_nic_hdl ndev, struct sk_buff *skb);
+int _rtw_netif_rx(struct net_device *ndev, struct sk_buff *skb);
 
 #define rtw_malloc(sz)			_rtw_malloc((sz))
 #define rtw_zmalloc(sz)			_rtw_zmalloc((sz))
@@ -136,14 +106,7 @@ static inline int rtw_bug_check(void *parg1, void *parg2, void *parg3, void *par
 #define MAC_ARG(x) (x)
 #endif
 
-
-#ifdef CONFIG_AP_WOWLAN
-extern void rtw_softap_lock_suspend(void);
-extern void rtw_softap_unlock_suspend(void);
-#endif
-
 extern void rtw_free_netdev(struct net_device * netdev);
-
 
 /* Macros for handling unaligned memory accesses */
 

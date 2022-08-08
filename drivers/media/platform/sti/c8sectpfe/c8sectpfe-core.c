@@ -655,7 +655,7 @@ static irqreturn_t c8sectpfe_error_irq_handler(int irq, void *priv)
 
 	/*
 	 * TODO FIXME we should detect some error conditions here
-	 * and ideally so something about them!
+	 * and ideally do something about them!
 	 */
 
 	return IRQ_HANDLED;

@@ -353,6 +353,11 @@ wait_for_offload()
 	"$@" | grep -q offload
 }
 
+wait_for_trap()
+{
+	"$@" | grep -q trap
+}
+
 until_counter_is()
 {
 	local expr=$1; shift
@@ -765,6 +770,15 @@ rate()
 	local interval=$1; shift
 
 	echo $((8 * (t1 - t0) / interval))
+}
+
+packets_rate()
+{
+	local t0=$1; shift
+	local t1=$1; shift
+	local interval=$1; shift
+
+	echo $(((t1 - t0) / interval))
 }
 
 mac_get()

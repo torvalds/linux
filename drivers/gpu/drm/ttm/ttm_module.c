@@ -32,68 +32,22 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/sched.h>
+#include <linux/debugfs.h>
 #include <drm/drm_sysfs.h>
 
 #include "ttm_module.h"
 
-static DECLARE_WAIT_QUEUE_HEAD(exit_q);
-static atomic_t device_released;
-
-static struct device_type ttm_drm_class_type = {
-	.name = "ttm",
-	/**
-	 * Add pm ops here.
-	 */
-};
-
-static void ttm_drm_class_device_release(struct device *dev)
-{
-	atomic_set(&device_released, 1);
-	wake_up_all(&exit_q);
-}
-
-static struct device ttm_drm_class_device = {
-	.type = &ttm_drm_class_type,
-	.release = &ttm_drm_class_device_release
-};
-
-struct kobject *ttm_get_kobj(void)
-{
-	struct kobject *kobj = &ttm_drm_class_device.kobj;
-	BUG_ON(kobj == NULL);
-	return kobj;
-}
+struct dentry *ttm_debugfs_root;
 
 static int __init ttm_init(void)
 {
-	int ret;
-
-	ret = dev_set_name(&ttm_drm_class_device, "ttm");
-	if (unlikely(ret != 0))
-		return ret;
-
-	atomic_set(&device_released, 0);
-	ret = drm_class_device_register(&ttm_drm_class_device);
-	if (unlikely(ret != 0))
-		goto out_no_dev_reg;
-
+	ttm_debugfs_root = debugfs_create_dir("ttm", NULL);
 	return 0;
-out_no_dev_reg:
-	atomic_set(&device_released, 1);
-	wake_up_all(&exit_q);
-	return ret;
 }
 
 static void __exit ttm_exit(void)
 {
-	drm_class_device_unregister(&ttm_drm_class_device);
-
-	/**
-	 * Refuse to unload until the TTM device is released.
-	 * Not sure this is 100% needed.
-	 */
-
-	wait_event(exit_q, atomic_read(&device_released) == 1);
+	debugfs_remove(ttm_debugfs_root);
 }
 
 module_init(ttm_init);

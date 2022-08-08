@@ -43,13 +43,6 @@ extern void ia64_tlb_init (void);
 
 unsigned long MAX_DMA_ADDRESS = PAGE_OFFSET + 0x100000000UL;
 
-#ifdef CONFIG_VIRTUAL_MEM_MAP
-unsigned long VMALLOC_END = VMALLOC_END_INIT;
-EXPORT_SYMBOL(VMALLOC_END);
-struct page *vmem_map;
-EXPORT_SYMBOL(vmem_map);
-#endif
-
 struct page *zero_page_memmap_ptr;	/* map entry for zero page */
 EXPORT_SYMBOL(zero_page_memmap_ptr);
 
@@ -373,212 +366,6 @@ void ia64_mmu_init(void *my_cpu_data)
 #endif
 }
 
-#ifdef CONFIG_VIRTUAL_MEM_MAP
-int vmemmap_find_next_valid_pfn(int node, int i)
-{
-	unsigned long end_address, hole_next_pfn;
-	unsigned long stop_address;
-	pg_data_t *pgdat = NODE_DATA(node);
-
-	end_address = (unsigned long) &vmem_map[pgdat->node_start_pfn + i];
-	end_address = PAGE_ALIGN(end_address);
-	stop_address = (unsigned long) &vmem_map[pgdat_end_pfn(pgdat)];
-
-	do {
-		pgd_t *pgd;
-		p4d_t *p4d;
-		pud_t *pud;
-		pmd_t *pmd;
-		pte_t *pte;
-
-		pgd = pgd_offset_k(end_address);
-		if (pgd_none(*pgd)) {
-			end_address += PGDIR_SIZE;
-			continue;
-		}
-
-		p4d = p4d_offset(pgd, end_address);
-		if (p4d_none(*p4d)) {
-			end_address += P4D_SIZE;
-			continue;
-		}
-
-		pud = pud_offset(p4d, end_address);
-		if (pud_none(*pud)) {
-			end_address += PUD_SIZE;
-			continue;
-		}
-
-		pmd = pmd_offset(pud, end_address);
-		if (pmd_none(*pmd)) {
-			end_address += PMD_SIZE;
-			continue;
-		}
-
-		pte = pte_offset_kernel(pmd, end_address);
-retry_pte:
-		if (pte_none(*pte)) {
-			end_address += PAGE_SIZE;
-			pte++;
-			if ((end_address < stop_address) &&
-			    (end_address != ALIGN(end_address, 1UL << PMD_SHIFT)))
-				goto retry_pte;
-			continue;
-		}
-		/* Found next valid vmem_map page */
-		break;
-	} while (end_address < stop_address);
-
-	end_address = min(end_address, stop_address);
-	end_address = end_address - (unsigned long) vmem_map + sizeof(struct page) - 1;
-	hole_next_pfn = end_address / sizeof(struct page);
-	return hole_next_pfn - pgdat->node_start_pfn;
-}
-
-int __init create_mem_map_page_table(u64 start, u64 end, void *arg)
-{
-	unsigned long address, start_page, end_page;
-	struct page *map_start, *map_end;
-	int node;
-	pgd_t *pgd;
-	p4d_t *p4d;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-
-	map_start = vmem_map + (__pa(start) >> PAGE_SHIFT);
-	map_end   = vmem_map + (__pa(end) >> PAGE_SHIFT);
-
-	start_page = (unsigned long) map_start & PAGE_MASK;
-	end_page = PAGE_ALIGN((unsigned long) map_end);
-	node = paddr_to_nid(__pa(start));
-
-	for (address = start_page; address < end_page; address += PAGE_SIZE) {
-		pgd = pgd_offset_k(address);
-		if (pgd_none(*pgd)) {
-			p4d = memblock_alloc_node(PAGE_SIZE, PAGE_SIZE, node);
-			if (!p4d)
-				goto err_alloc;
-			pgd_populate(&init_mm, pgd, p4d);
-		}
-		p4d = p4d_offset(pgd, address);
-
-		if (p4d_none(*p4d)) {
-			pud = memblock_alloc_node(PAGE_SIZE, PAGE_SIZE, node);
-			if (!pud)
-				goto err_alloc;
-			p4d_populate(&init_mm, p4d, pud);
-		}
-		pud = pud_offset(p4d, address);
-
-		if (pud_none(*pud)) {
-			pmd = memblock_alloc_node(PAGE_SIZE, PAGE_SIZE, node);
-			if (!pmd)
-				goto err_alloc;
-			pud_populate(&init_mm, pud, pmd);
-		}
-		pmd = pmd_offset(pud, address);
-
-		if (pmd_none(*pmd)) {
-			pte = memblock_alloc_node(PAGE_SIZE, PAGE_SIZE, node);
-			if (!pte)
-				goto err_alloc;
-			pmd_populate_kernel(&init_mm, pmd, pte);
-		}
-		pte = pte_offset_kernel(pmd, address);
-
-		if (pte_none(*pte)) {
-			void *page = memblock_alloc_node(PAGE_SIZE, PAGE_SIZE,
-							 node);
-			if (!page)
-				goto err_alloc;
-			set_pte(pte, pfn_pte(__pa(page) >> PAGE_SHIFT,
-					     PAGE_KERNEL));
-		}
-	}
-	return 0;
-
-err_alloc:
-	panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d\n",
-	      __func__, PAGE_SIZE, PAGE_SIZE, node);
-	return -ENOMEM;
-}
-
-struct memmap_init_callback_data {
-	struct page *start;
-	struct page *end;
-	int nid;
-	unsigned long zone;
-};
-
-static int __meminit
-virtual_memmap_init(u64 start, u64 end, void *arg)
-{
-	struct memmap_init_callback_data *args;
-	struct page *map_start, *map_end;
-
-	args = (struct memmap_init_callback_data *) arg;
-	map_start = vmem_map + (__pa(start) >> PAGE_SHIFT);
-	map_end   = vmem_map + (__pa(end) >> PAGE_SHIFT);
-
-	if (map_start < args->start)
-		map_start = args->start;
-	if (map_end > args->end)
-		map_end = args->end;
-
-	/*
-	 * We have to initialize "out of bounds" struct page elements that fit completely
-	 * on the same pages that were allocated for the "in bounds" elements because they
-	 * may be referenced later (and found to be "reserved").
-	 */
-	map_start -= ((unsigned long) map_start & (PAGE_SIZE - 1)) / sizeof(struct page);
-	map_end += ((PAGE_ALIGN((unsigned long) map_end) - (unsigned long) map_end)
-		    / sizeof(struct page));
-
-	if (map_start < map_end)
-		memmap_init_range((unsigned long)(map_end - map_start),
-				 args->nid, args->zone, page_to_pfn(map_start), page_to_pfn(map_end),
-				 MEMINIT_EARLY, NULL, MIGRATE_MOVABLE);
-	return 0;
-}
-
-void __meminit memmap_init_zone(struct zone *zone)
-{
-	int nid = zone_to_nid(zone), zone_id = zone_idx(zone);
-	unsigned long start_pfn = zone->zone_start_pfn;
-	unsigned long size = zone->spanned_pages;
-
-	if (!vmem_map) {
-		memmap_init_range(size, nid, zone_id, start_pfn, start_pfn + size,
-				 MEMINIT_EARLY, NULL, MIGRATE_MOVABLE);
-	} else {
-		struct page *start;
-		struct memmap_init_callback_data args;
-
-		start = pfn_to_page(start_pfn);
-		args.start = start;
-		args.end = start + size;
-		args.nid = nid;
-		args.zone = zone_id;
-
-		efi_memmap_walk(virtual_memmap_init, &args);
-	}
-}
-
-int
-ia64_pfn_valid (unsigned long pfn)
-{
-	char byte;
-	struct page *pg = pfn_to_page(pfn);
-
-	return     (__get_user(byte, (char __user *) pg) == 0)
-		&& ((((u64)pg & PAGE_MASK) == (((u64)(pg + 1) - 1) & PAGE_MASK))
-			|| (__get_user(byte, (char __user *) (pg + 1) - 1) == 0));
-}
-EXPORT_SYMBOL(ia64_pfn_valid);
-
-#endif /* CONFIG_VIRTUAL_MEM_MAP */
-
 int __init register_active_ranges(u64 start, u64 len, int nid)
 {
 	u64 end = start + len;
@@ -644,13 +431,16 @@ mem_init (void)
 	 * _before_ any drivers that may need the PCI DMA interface are
 	 * initialized or bootmem has been freed.
 	 */
+	do {
 #ifdef CONFIG_INTEL_IOMMU
-	detect_intel_iommu();
-	if (!iommu_detected)
+		detect_intel_iommu();
+		if (iommu_detected)
+			break;
 #endif
 #ifdef CONFIG_SWIOTLB
 		swiotlb_init(1);
 #endif
+	} while (0);
 
 #ifdef CONFIG_FLATMEM
 	BUG_ON(!mem_map);
@@ -659,7 +449,6 @@ mem_init (void)
 	set_max_mapnr(max_low_pfn);
 	high_memory = __va(max_low_pfn * PAGE_SIZE);
 	memblock_free_all();
-	mem_init_print_info(NULL);
 
 	/*
 	 * For fsyscall entrpoints with no light-weight handler, use the ordinary

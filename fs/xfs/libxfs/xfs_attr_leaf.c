@@ -518,10 +518,10 @@ xfs_attr_copy_value(
  * Query whether the total requested number of attr fork bytes of extended
  * attribute space will be able to fit inline.
  *
- * Returns zero if not, else the di_forkoff fork offset to be used in the
+ * Returns zero if not, else the i_forkoff fork offset to be used in the
  * literal area for attribute data once the new bytes have been added.
  *
- * di_forkoff must be 8 byte aligned, hence is stored as a >>3 value;
+ * i_forkoff must be 8 byte aligned, hence is stored as a >>3 value;
  * special case for dev/uuid inodes, they have fixed size data forks.
  */
 int
@@ -560,7 +560,7 @@ xfs_attr_shortform_bytesfit(
 	 * literal area rebalancing.
 	 */
 	if (bytes <= XFS_IFORK_ASIZE(dp))
-		return dp->i_d.di_forkoff;
+		return dp->i_forkoff;
 
 	/*
 	 * For attr2 we can try to move the forkoff if there is space in the
@@ -581,7 +581,7 @@ xfs_attr_shortform_bytesfit(
 		 * minimum offset only needs to be the space required for
 		 * the btree root.
 		 */
-		if (!dp->i_d.di_forkoff && dp->i_df.if_bytes >
+		if (!dp->i_forkoff && dp->i_df.if_bytes >
 		    xfs_default_attroffset(dp))
 			dsize = XFS_BMDR_SPACE_CALC(MINDBTPTRS);
 		break;
@@ -592,10 +592,10 @@ xfs_attr_shortform_bytesfit(
 		 * minforkoff to where the btree root can finish so we have
 		 * plenty of room for attrs
 		 */
-		if (dp->i_d.di_forkoff) {
-			if (offset < dp->i_d.di_forkoff)
+		if (dp->i_forkoff) {
+			if (offset < dp->i_forkoff)
 				return 0;
-			return dp->i_d.di_forkoff;
+			return dp->i_forkoff;
 		}
 		dsize = XFS_BMAP_BROOT_SPACE(mp, dp->i_df.if_broot);
 		break;
@@ -651,13 +651,8 @@ xfs_attr_shortform_create(
 	trace_xfs_attr_sf_create(args);
 
 	ASSERT(ifp->if_bytes == 0);
-	if (ifp->if_format == XFS_DINODE_FMT_EXTENTS) {
-		ifp->if_flags &= ~XFS_IFEXTENTS;	/* just in case */
+	if (ifp->if_format == XFS_DINODE_FMT_EXTENTS)
 		ifp->if_format = XFS_DINODE_FMT_LOCAL;
-		ifp->if_flags |= XFS_IFINLINE;
-	} else {
-		ASSERT(ifp->if_flags & XFS_IFINLINE);
-	}
 	xfs_idata_realloc(dp, sizeof(*hdr), XFS_ATTR_FORK);
 	hdr = (struct xfs_attr_sf_hdr *)ifp->if_u1.if_data;
 	memset(hdr, 0, sizeof(*hdr));
@@ -730,10 +725,10 @@ xfs_attr_shortform_add(
 
 	dp = args->dp;
 	mp = dp->i_mount;
-	dp->i_d.di_forkoff = forkoff;
+	dp->i_forkoff = forkoff;
 
 	ifp = dp->i_afp;
-	ASSERT(ifp->if_flags & XFS_IFINLINE);
+	ASSERT(ifp->if_format == XFS_DINODE_FMT_LOCAL);
 	sf = (struct xfs_attr_shortform *)ifp->if_u1.if_data;
 	if (xfs_attr_sf_findname(args, &sfe, NULL) == -EEXIST)
 		ASSERT(0);
@@ -770,7 +765,7 @@ xfs_attr_fork_remove(
 	xfs_idestroy_fork(ip->i_afp);
 	kmem_cache_free(xfs_ifork_zone, ip->i_afp);
 	ip->i_afp = NULL;
-	ip->i_d.di_forkoff = 0;
+	ip->i_forkoff = 0;
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 }
 
@@ -821,8 +816,8 @@ xfs_attr_shortform_remove(
 		xfs_attr_fork_remove(dp, args->trans);
 	} else {
 		xfs_idata_realloc(dp, -size, XFS_ATTR_FORK);
-		dp->i_d.di_forkoff = xfs_attr_shortform_bytesfit(dp, totsize);
-		ASSERT(dp->i_d.di_forkoff);
+		dp->i_forkoff = xfs_attr_shortform_bytesfit(dp, totsize);
+		ASSERT(dp->i_forkoff);
 		ASSERT(totsize > sizeof(xfs_attr_sf_hdr_t) ||
 				(args->op_flags & XFS_DA_OP_ADDNAME) ||
 				!(mp->m_flags & XFS_MOUNT_ATTR2) ||
@@ -851,7 +846,7 @@ xfs_attr_shortform_lookup(xfs_da_args_t *args)
 	trace_xfs_attr_sf_lookup(args);
 
 	ifp = args->dp->i_afp;
-	ASSERT(ifp->if_flags & XFS_IFINLINE);
+	ASSERT(ifp->if_format == XFS_DINODE_FMT_LOCAL);
 	sf = (struct xfs_attr_shortform *)ifp->if_u1.if_data;
 	sfe = &sf->list[0];
 	for (i = 0; i < sf->hdr.count;
@@ -878,7 +873,7 @@ xfs_attr_shortform_getvalue(
 	struct xfs_attr_sf_entry *sfe;
 	int			i;
 
-	ASSERT(args->dp->i_afp->if_flags == XFS_IFINLINE);
+	ASSERT(args->dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL);
 	sf = (struct xfs_attr_shortform *)args->dp->i_afp->if_u1.if_data;
 	sfe = &sf->list[0];
 	for (i = 0; i < sf->hdr.count;

@@ -85,6 +85,7 @@ int xfs_attr_inactive(struct xfs_inode *dp);
 int xfs_attr_list_ilocked(struct xfs_attr_list_context *);
 int xfs_attr_list(struct xfs_attr_list_context *);
 int xfs_inode_hasattr(struct xfs_inode *ip);
+bool xfs_attr_is_leaf(struct xfs_inode *ip);
 int xfs_attr_get_ilocked(struct xfs_da_args *args);
 int xfs_attr_get(struct xfs_da_args *args);
 int xfs_attr_set(struct xfs_da_args *args);

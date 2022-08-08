@@ -287,7 +287,7 @@ static void optiplus_set_dma_mode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	optidma_make_bits	-	PCI setup helper
+ *	optidma_make_bits43	-	PCI setup helper
  *	@adev: ATA device
  *
  *	Turn the ATA device setup into PCI configuration bits
@@ -309,6 +309,7 @@ static u8 optidma_make_bits43(struct ata_device *adev)
 /**
  *	optidma_set_mode	-	mode setup
  *	@link: link to set up
+ *	@r_failed: out parameter for failed device
  *
  *	Use the standard setup to tune the chipset and then finalise the
  *	configuration by writing the nibble of extra bits of data into
@@ -354,7 +355,7 @@ static struct ata_port_operations optiplus_port_ops = {
 
 /**
  *	optiplus_with_udma	-	Look for UDMA capable setup
- *	@pdev; ATA controller
+ *	@pdev: ATA controller
  */
 
 static int optiplus_with_udma(struct pci_dev *pdev)

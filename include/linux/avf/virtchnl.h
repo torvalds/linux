@@ -136,6 +136,12 @@ enum virtchnl_ops {
 	VIRTCHNL_OP_DISABLE_CHANNELS = 31,
 	VIRTCHNL_OP_ADD_CLOUD_FILTER = 32,
 	VIRTCHNL_OP_DEL_CLOUD_FILTER = 33,
+	/* opcode 34 - 44 are reserved */
+	VIRTCHNL_OP_ADD_RSS_CFG = 45,
+	VIRTCHNL_OP_DEL_RSS_CFG = 46,
+	VIRTCHNL_OP_ADD_FDIR_FILTER = 47,
+	VIRTCHNL_OP_DEL_FDIR_FILTER = 48,
+	VIRTCHNL_OP_MAX,
 };
 
 /* These macros are used to generate compilation errors if a structure/union
@@ -247,6 +253,9 @@ VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_vsi_resource);
 #define VIRTCHNL_VF_OFFLOAD_ENCAP_CSUM		0X00200000
 #define VIRTCHNL_VF_OFFLOAD_RX_ENCAP_CSUM	0X00400000
 #define VIRTCHNL_VF_OFFLOAD_ADQ			0X00800000
+#define VIRTCHNL_VF_OFFLOAD_USO			0X02000000
+#define VIRTCHNL_VF_OFFLOAD_ADV_RSS_PF		0X08000000
+#define VIRTCHNL_VF_OFFLOAD_FDIR_PF		0X10000000
 
 /* Define below the capability flags that are not offloads */
 #define VIRTCHNL_VF_CAP_ADV_LINK_SPEED		0x00000080
@@ -557,6 +566,11 @@ enum virtchnl_action {
 	/* action types */
 	VIRTCHNL_ACTION_DROP = 0,
 	VIRTCHNL_ACTION_TC_REDIRECT,
+	VIRTCHNL_ACTION_PASSTHRU,
+	VIRTCHNL_ACTION_QUEUE,
+	VIRTCHNL_ACTION_Q_REGION,
+	VIRTCHNL_ACTION_MARK,
+	VIRTCHNL_ACTION_COUNT,
 };
 
 enum virtchnl_flow_type {
@@ -665,6 +679,286 @@ enum virtchnl_vfr_states {
 	VIRTCHNL_VFR_COMPLETED,
 	VIRTCHNL_VFR_VFACTIVE,
 };
+
+/* Type of RSS algorithm */
+enum virtchnl_rss_algorithm {
+	VIRTCHNL_RSS_ALG_TOEPLITZ_ASYMMETRIC	= 0,
+	VIRTCHNL_RSS_ALG_R_ASYMMETRIC		= 1,
+	VIRTCHNL_RSS_ALG_TOEPLITZ_SYMMETRIC	= 2,
+	VIRTCHNL_RSS_ALG_XOR_SYMMETRIC		= 3,
+};
+
+#define VIRTCHNL_MAX_NUM_PROTO_HDRS	32
+#define PROTO_HDR_SHIFT			5
+#define PROTO_HDR_FIELD_START(proto_hdr_type) ((proto_hdr_type) << PROTO_HDR_SHIFT)
+#define PROTO_HDR_FIELD_MASK ((1UL << PROTO_HDR_SHIFT) - 1)
+
+/* VF use these macros to configure each protocol header.
+ * Specify which protocol headers and protocol header fields base on
+ * virtchnl_proto_hdr_type and virtchnl_proto_hdr_field.
+ * @param hdr: a struct of virtchnl_proto_hdr
+ * @param hdr_type: ETH/IPV4/TCP, etc
+ * @param field: SRC/DST/TEID/SPI, etc
+ */
+#define VIRTCHNL_ADD_PROTO_HDR_FIELD(hdr, field) \
+	((hdr)->field_selector |= BIT((field) & PROTO_HDR_FIELD_MASK))
+#define VIRTCHNL_DEL_PROTO_HDR_FIELD(hdr, field) \
+	((hdr)->field_selector &= ~BIT((field) & PROTO_HDR_FIELD_MASK))
+#define VIRTCHNL_TEST_PROTO_HDR_FIELD(hdr, val) \
+	((hdr)->field_selector & BIT((val) & PROTO_HDR_FIELD_MASK))
+#define VIRTCHNL_GET_PROTO_HDR_FIELD(hdr)	((hdr)->field_selector)
+
+#define VIRTCHNL_ADD_PROTO_HDR_FIELD_BIT(hdr, hdr_type, field) \
+	(VIRTCHNL_ADD_PROTO_HDR_FIELD(hdr, \
+		VIRTCHNL_PROTO_HDR_ ## hdr_type ## _ ## field))
+#define VIRTCHNL_DEL_PROTO_HDR_FIELD_BIT(hdr, hdr_type, field) \
+	(VIRTCHNL_DEL_PROTO_HDR_FIELD(hdr, \
+		VIRTCHNL_PROTO_HDR_ ## hdr_type ## _ ## field))
+
+#define VIRTCHNL_SET_PROTO_HDR_TYPE(hdr, hdr_type) \
+	((hdr)->type = VIRTCHNL_PROTO_HDR_ ## hdr_type)
+#define VIRTCHNL_GET_PROTO_HDR_TYPE(hdr) \
+	(((hdr)->type) >> PROTO_HDR_SHIFT)
+#define VIRTCHNL_TEST_PROTO_HDR_TYPE(hdr, val) \
+	((hdr)->type == ((val) >> PROTO_HDR_SHIFT))
+#define VIRTCHNL_TEST_PROTO_HDR(hdr, val) \
+	(VIRTCHNL_TEST_PROTO_HDR_TYPE((hdr), (val)) && \
+	 VIRTCHNL_TEST_PROTO_HDR_FIELD((hdr), (val)))
+
+/* Protocol header type within a packet segment. A segment consists of one or
+ * more protocol headers that make up a logical group of protocol headers. Each
+ * logical group of protocol headers encapsulates or is encapsulated using/by
+ * tunneling or encapsulation protocols for network virtualization.
+ */
+enum virtchnl_proto_hdr_type {
+	VIRTCHNL_PROTO_HDR_NONE,
+	VIRTCHNL_PROTO_HDR_ETH,
+	VIRTCHNL_PROTO_HDR_S_VLAN,
+	VIRTCHNL_PROTO_HDR_C_VLAN,
+	VIRTCHNL_PROTO_HDR_IPV4,
+	VIRTCHNL_PROTO_HDR_IPV6,
+	VIRTCHNL_PROTO_HDR_TCP,
+	VIRTCHNL_PROTO_HDR_UDP,
+	VIRTCHNL_PROTO_HDR_SCTP,
+	VIRTCHNL_PROTO_HDR_GTPU_IP,
+	VIRTCHNL_PROTO_HDR_GTPU_EH,
+	VIRTCHNL_PROTO_HDR_GTPU_EH_PDU_DWN,
+	VIRTCHNL_PROTO_HDR_GTPU_EH_PDU_UP,
+	VIRTCHNL_PROTO_HDR_PPPOE,
+	VIRTCHNL_PROTO_HDR_L2TPV3,
+	VIRTCHNL_PROTO_HDR_ESP,
+	VIRTCHNL_PROTO_HDR_AH,
+	VIRTCHNL_PROTO_HDR_PFCP,
+};
+
+/* Protocol header field within a protocol header. */
+enum virtchnl_proto_hdr_field {
+	/* ETHER */
+	VIRTCHNL_PROTO_HDR_ETH_SRC =
+		PROTO_HDR_FIELD_START(VIRTCHNL_PROTO_HDR_ETH),
+	VIRTCHNL_PROTO_HDR_ETH_DST,
+	VIRTCHNL_PROTO_HDR_ETH_ETHERTYPE,
+	/* S-VLAN */
+	VIRTCHNL_PROTO_HDR_S_VLAN_ID =
+		PROTO_HDR_FIELD_START(VIRTCHNL_PROTO_HDR_S_VLAN),
+	/* C-VLAN */
+	VIRTCHNL_PROTO_HDR_C_VLAN_ID =
+		PROTO_HDR_FIELD_START(VIRTCHNL_PROTO_HDR_C_VLAN),
+	/* IPV4 */
+	VIRTCHNL_PROTO_HDR_IPV4_SRC =
+		PROTO_HDR_FIELD_START(VIRTCHNL_PROTO_HDR_IPV4),
+	VIRTCHNL_PROTO_HDR_IPV4_DST,
+	VIRTCHNL_PROTO_HDR_IPV4_DSCP,
+	VIRTCHNL_PROTO_HDR_IPV4_TTL,
+	VIRTCHNL_PROTO_HDR_IPV4_PROT,
+	/* IPV6 */
+	VIRTCHNL_PROTO_HDR_IPV6_SRC =
+		PROTO_HDR_FIELD_START(VIRTCHNL_PROTO_HDR_IPV6),
+	VIRTCHNL_PROTO_HDR_IPV6_DST,
+	VIRTCHNL_PROTO_HDR_IPV6_TC,
+	VIRTCHNL_PROTO_HDR_IPV6_HOP_LIMIT,
+	VIRTCHNL_PROTO_HDR_IPV6_PROT,
+	/* TCP */
+	VIRTCHNL_PROTO_HDR_TCP_SRC_PORT =
+		PROTO_HDR_FIELD_START(VIRTCHNL_PROTO_HDR_TCP),
+	VIRTCHNL_PROTO_HDR_TCP_DST_PORT,
+	/* UDP */
+	VIRTCHNL_PROTO_HDR_UDP_SRC_PORT =
+		PROTO_HDR_FIELD_START(VIRTCHNL_PROTO_HDR_UDP),
+	VIRTCHNL_PROTO_HDR_UDP_DST_PORT,
+	/* SCTP */
+	VIRTCHNL_PROTO_HDR_SCTP_SRC_PORT =
+		PROTO_HDR_FIELD_START(VIRTCHNL_PROTO_HDR_SCTP),
+	VIRTCHNL_PROTO_HDR_SCTP_DST_PORT,
+	/* GTPU_IP */
+	VIRTCHNL_PROTO_HDR_GTPU_IP_TEID =
+		PROTO_HDR_FIELD_START(VIRTCHNL_PROTO_HDR_GTPU_IP),
+	/* GTPU_EH */
+	VIRTCHNL_PROTO_HDR_GTPU_EH_PDU =
+		PROTO_HDR_FIELD_START(VIRTCHNL_PROTO_HDR_GTPU_EH),
+	VIRTCHNL_PROTO_HDR_GTPU_EH_QFI,
+	/* PPPOE */
+	VIRTCHNL_PROTO_HDR_PPPOE_SESS_ID =
+		PROTO_HDR_FIELD_START(VIRTCHNL_PROTO_HDR_PPPOE),
+	/* L2TPV3 */
+	VIRTCHNL_PROTO_HDR_L2TPV3_SESS_ID =
+		PROTO_HDR_FIELD_START(VIRTCHNL_PROTO_HDR_L2TPV3),
+	/* ESP */
+	VIRTCHNL_PROTO_HDR_ESP_SPI =
+		PROTO_HDR_FIELD_START(VIRTCHNL_PROTO_HDR_ESP),
+	/* AH */
+	VIRTCHNL_PROTO_HDR_AH_SPI =
+		PROTO_HDR_FIELD_START(VIRTCHNL_PROTO_HDR_AH),
+	/* PFCP */
+	VIRTCHNL_PROTO_HDR_PFCP_S_FIELD =
+		PROTO_HDR_FIELD_START(VIRTCHNL_PROTO_HDR_PFCP),
+	VIRTCHNL_PROTO_HDR_PFCP_SEID,
+};
+
+struct virtchnl_proto_hdr {
+	enum virtchnl_proto_hdr_type type;
+	u32 field_selector; /* a bit mask to select field for header type */
+	u8 buffer[64];
+	/**
+	 * binary buffer in network order for specific header type.
+	 * For example, if type = VIRTCHNL_PROTO_HDR_IPV4, a IPv4
+	 * header is expected to be copied into the buffer.
+	 */
+};
+
+VIRTCHNL_CHECK_STRUCT_LEN(72, virtchnl_proto_hdr);
+
+struct virtchnl_proto_hdrs {
+	u8 tunnel_level;
+	u8 pad[3];
+	/**
+	 * specify where protocol header start from.
+	 * 0 - from the outer layer
+	 * 1 - from the first inner layer
+	 * 2 - from the second inner layer
+	 * ....
+	 **/
+	int count; /* the proto layers must < VIRTCHNL_MAX_NUM_PROTO_HDRS */
+	struct virtchnl_proto_hdr proto_hdr[VIRTCHNL_MAX_NUM_PROTO_HDRS];
+};
+
+VIRTCHNL_CHECK_STRUCT_LEN(2312, virtchnl_proto_hdrs);
+
+struct virtchnl_rss_cfg {
+	struct virtchnl_proto_hdrs proto_hdrs;	   /* protocol headers */
+	enum virtchnl_rss_algorithm rss_algorithm; /* RSS algorithm type */
+	u8 reserved[128];			   /* reserve for future */
+};
+
+VIRTCHNL_CHECK_STRUCT_LEN(2444, virtchnl_rss_cfg);
+
+/* action configuration for FDIR */
+struct virtchnl_filter_action {
+	enum virtchnl_action type;
+	union {
+		/* used for queue and qgroup action */
+		struct {
+			u16 index;
+			u8 region;
+		} queue;
+		/* used for count action */
+		struct {
+			/* share counter ID with other flow rules */
+			u8 shared;
+			u32 id; /* counter ID */
+		} count;
+		/* used for mark action */
+		u32 mark_id;
+		u8 reserve[32];
+	} act_conf;
+};
+
+VIRTCHNL_CHECK_STRUCT_LEN(36, virtchnl_filter_action);
+
+#define VIRTCHNL_MAX_NUM_ACTIONS  8
+
+struct virtchnl_filter_action_set {
+	/* action number must be less then VIRTCHNL_MAX_NUM_ACTIONS */
+	int count;
+	struct virtchnl_filter_action actions[VIRTCHNL_MAX_NUM_ACTIONS];
+};
+
+VIRTCHNL_CHECK_STRUCT_LEN(292, virtchnl_filter_action_set);
+
+/* pattern and action for FDIR rule */
+struct virtchnl_fdir_rule {
+	struct virtchnl_proto_hdrs proto_hdrs;
+	struct virtchnl_filter_action_set action_set;
+};
+
+VIRTCHNL_CHECK_STRUCT_LEN(2604, virtchnl_fdir_rule);
+
+/* Status returned to VF after VF requests FDIR commands
+ * VIRTCHNL_FDIR_SUCCESS
+ * VF FDIR related request is successfully done by PF
+ * The request can be OP_ADD/DEL.
+ *
+ * VIRTCHNL_FDIR_FAILURE_RULE_NORESOURCE
+ * OP_ADD_FDIR_FILTER request is failed due to no Hardware resource.
+ *
+ * VIRTCHNL_FDIR_FAILURE_RULE_EXIST
+ * OP_ADD_FDIR_FILTER request is failed due to the rule is already existed.
+ *
+ * VIRTCHNL_FDIR_FAILURE_RULE_CONFLICT
+ * OP_ADD_FDIR_FILTER request is failed due to conflict with existing rule.
+ *
+ * VIRTCHNL_FDIR_FAILURE_RULE_NONEXIST
+ * OP_DEL_FDIR_FILTER request is failed due to this rule doesn't exist.
+ *
+ * VIRTCHNL_FDIR_FAILURE_RULE_INVALID
+ * OP_ADD_FDIR_FILTER request is failed due to parameters validation
+ * or HW doesn't support.
+ *
+ * VIRTCHNL_FDIR_FAILURE_RULE_TIMEOUT
+ * OP_ADD/DEL_FDIR_FILTER request is failed due to timing out
+ * for programming.
+ */
+enum virtchnl_fdir_prgm_status {
+	VIRTCHNL_FDIR_SUCCESS = 0,
+	VIRTCHNL_FDIR_FAILURE_RULE_NORESOURCE,
+	VIRTCHNL_FDIR_FAILURE_RULE_EXIST,
+	VIRTCHNL_FDIR_FAILURE_RULE_CONFLICT,
+	VIRTCHNL_FDIR_FAILURE_RULE_NONEXIST,
+	VIRTCHNL_FDIR_FAILURE_RULE_INVALID,
+	VIRTCHNL_FDIR_FAILURE_RULE_TIMEOUT,
+};
+
+/* VIRTCHNL_OP_ADD_FDIR_FILTER
+ * VF sends this request to PF by filling out vsi_id,
+ * validate_only and rule_cfg. PF will return flow_id
+ * if the request is successfully done and return add_status to VF.
+ */
+struct virtchnl_fdir_add {
+	u16 vsi_id;  /* INPUT */
+	/*
+	 * 1 for validating a fdir rule, 0 for creating a fdir rule.
+	 * Validate and create share one ops: VIRTCHNL_OP_ADD_FDIR_FILTER.
+	 */
+	u16 validate_only; /* INPUT */
+	u32 flow_id;       /* OUTPUT */
+	struct virtchnl_fdir_rule rule_cfg; /* INPUT */
+	enum virtchnl_fdir_prgm_status status; /* OUTPUT */
+};
+
+VIRTCHNL_CHECK_STRUCT_LEN(2616, virtchnl_fdir_add);
+
+/* VIRTCHNL_OP_DEL_FDIR_FILTER
+ * VF sends this request to PF by filling out vsi_id
+ * and flow_id. PF will return del_status to VF.
+ */
+struct virtchnl_fdir_del {
+	u16 vsi_id;  /* INPUT */
+	u16 pad;
+	u32 flow_id; /* INPUT */
+	enum virtchnl_fdir_prgm_status status; /* OUTPUT */
+};
+
+VIRTCHNL_CHECK_STRUCT_LEN(12, virtchnl_fdir_del);
 
 /**
  * virtchnl_vc_validate_vf_msg
@@ -825,6 +1119,16 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		break;
 	case VIRTCHNL_OP_DEL_CLOUD_FILTER:
 		valid_len = sizeof(struct virtchnl_filter);
+		break;
+	case VIRTCHNL_OP_ADD_RSS_CFG:
+	case VIRTCHNL_OP_DEL_RSS_CFG:
+		valid_len = sizeof(struct virtchnl_rss_cfg);
+		break;
+	case VIRTCHNL_OP_ADD_FDIR_FILTER:
+		valid_len = sizeof(struct virtchnl_fdir_add);
+		break;
+	case VIRTCHNL_OP_DEL_FDIR_FILTER:
+		valid_len = sizeof(struct virtchnl_fdir_del);
 		break;
 	/* These are always errors coming from the VF. */
 	case VIRTCHNL_OP_EVENT:

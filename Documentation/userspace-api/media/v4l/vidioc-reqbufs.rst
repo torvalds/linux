@@ -71,7 +71,7 @@ aborting or finishing any DMA in progress, an implicit
 
 .. c:type:: v4l2_requestbuffers
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. flat-table:: struct v4l2_requestbuffers
     :header-rows:  0
@@ -109,8 +109,6 @@ aborting or finishing any DMA in progress, an implicit
       - A place holder for future extensions. Drivers and applications
 	must set the array to zero.
 
-.. tabularcolumns:: |p{6.1cm}|p{2.2cm}|p{8.7cm}|
-
 .. _v4l2-buf-capabilities:
 .. _V4L2-BUF-CAP-SUPPORTS-MMAP:
 .. _V4L2-BUF-CAP-SUPPORTS-USERPTR:
@@ -119,6 +117,12 @@ aborting or finishing any DMA in progress, an implicit
 .. _V4L2-BUF-CAP-SUPPORTS-ORPHANED-BUFS:
 .. _V4L2-BUF-CAP-SUPPORTS-M2M-HOLD-CAPTURE-BUF:
 .. _V4L2-BUF-CAP-SUPPORTS-MMAP-CACHE-HINTS:
+
+.. raw:: latex
+
+   \footnotesize
+
+.. tabularcolumns:: |p{8.1cm}|p{2.2cm}|p{7.0cm}|
 
 .. cssclass:: longtable
 
@@ -156,6 +160,10 @@ aborting or finishing any DMA in progress, an implicit
         queue is used for :ref:`memory mapping <mmap>` streaming I/O. See
         :ref:`V4L2_BUF_FLAG_NO_CACHE_INVALIDATE <V4L2-BUF-FLAG-NO-CACHE-INVALIDATE>` and
         :ref:`V4L2_BUF_FLAG_NO_CACHE_CLEAN <V4L2-BUF-FLAG-NO-CACHE-CLEAN>`.
+
+.. raw:: latex
+
+   \normalsize
 
 Return Value
 ============

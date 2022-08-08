@@ -663,11 +663,6 @@ static inline void name at					\
 #define xlate_dev_mem_ptr(p)	__va(p)
 
 /*
- * Convert a virtual cached pointer to an uncached pointer
- */
-#define xlate_dev_kmem_ptr(p)	p
-
-/*
  * We don't do relaxed operations yet, at least not with this semantic
  */
 #define readb_relaxed(addr)	readb(addr)

@@ -26,7 +26,7 @@ static int sigmadsp_read_regmap(void *control_data,
 }
 
 /**
- * devm_sigmadsp_init_i2c() - Initialize SigmaDSP instance
+ * devm_sigmadsp_init_regmap() - Initialize SigmaDSP instance
  * @dev: The parent device
  * @regmap: Regmap instance to use
  * @ops: The sigmadsp_ops to use for this instance

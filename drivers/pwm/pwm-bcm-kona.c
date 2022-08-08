@@ -271,7 +271,6 @@ static int kona_pwmc_probe(struct platform_device *pdev)
 
 	kp->chip.dev = &pdev->dev;
 	kp->chip.ops = &kona_pwm_ops;
-	kp->chip.base = -1;
 	kp->chip.npwm = 6;
 	kp->chip.of_xlate = of_pwm_xlate_with_flags;
 	kp->chip.of_pwm_n_cells = 3;
@@ -301,7 +300,7 @@ static int kona_pwmc_probe(struct platform_device *pdev)
 
 	clk_disable_unprepare(kp->clk);
 
-	ret = pwmchip_add_with_polarity(&kp->chip, PWM_POLARITY_INVERSED);
+	ret = pwmchip_add(&kp->chip);
 	if (ret < 0)
 		dev_err(&pdev->dev, "failed to add PWM chip: %d\n", ret);
 
@@ -311,11 +310,6 @@ static int kona_pwmc_probe(struct platform_device *pdev)
 static int kona_pwmc_remove(struct platform_device *pdev)
 {
 	struct kona_pwmc *kp = platform_get_drvdata(pdev);
-	unsigned int chan;
-
-	for (chan = 0; chan < kp->chip.npwm; chan++)
-		if (pwm_is_enabled(&kp->chip.pwms[chan]))
-			clk_disable_unprepare(kp->clk);
 
 	return pwmchip_remove(&kp->chip);
 }

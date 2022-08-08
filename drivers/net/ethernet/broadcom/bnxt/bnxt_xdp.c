@@ -217,7 +217,7 @@ int bnxt_xdp_xmit(struct net_device *dev, int num_frames,
 	struct pci_dev *pdev = bp->pdev;
 	struct bnxt_tx_ring_info *txr;
 	dma_addr_t mapping;
-	int drops = 0;
+	int nxmit = 0;
 	int ring;
 	int i;
 
@@ -233,21 +233,17 @@ int bnxt_xdp_xmit(struct net_device *dev, int num_frames,
 		struct xdp_frame *xdp = frames[i];
 
 		if (!txr || !bnxt_tx_avail(bp, txr) ||
-		    !(bp->bnapi[ring]->flags & BNXT_NAPI_FLAG_XDP)) {
-			xdp_return_frame_rx_napi(xdp);
-			drops++;
-			continue;
-		}
+		    !(bp->bnapi[ring]->flags & BNXT_NAPI_FLAG_XDP))
+			break;
 
 		mapping = dma_map_single(&pdev->dev, xdp->data, xdp->len,
 					 DMA_TO_DEVICE);
 
-		if (dma_mapping_error(&pdev->dev, mapping)) {
-			xdp_return_frame_rx_napi(xdp);
-			drops++;
-			continue;
-		}
+		if (dma_mapping_error(&pdev->dev, mapping))
+			break;
+
 		__bnxt_xmit_xdp_redirect(bp, txr, mapping, xdp->len, xdp);
+		nxmit++;
 	}
 
 	if (flags & XDP_XMIT_FLUSH) {
@@ -256,7 +252,7 @@ int bnxt_xdp_xmit(struct net_device *dev, int num_frames,
 		bnxt_db_write(bp, &txr->tx_db, txr->tx_prod);
 	}
 
-	return num_frames - drops;
+	return nxmit;
 }
 
 /* Under rtnl_lock */

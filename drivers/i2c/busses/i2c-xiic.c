@@ -706,7 +706,7 @@ static int xiic_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	dev_dbg(adap->dev.parent, "%s entry SR: 0x%x\n", __func__,
 		xiic_getreg8(i2c, XIIC_SR_REG_OFFSET));
 
-	err = pm_runtime_get_sync(i2c->dev);
+	err = pm_runtime_resume_and_get(i2c->dev);
 	if (err < 0)
 		return err;
 
@@ -873,7 +873,7 @@ static int xiic_i2c_remove(struct platform_device *pdev)
 	/* remove adapter & data */
 	i2c_del_adapter(&i2c->adap);
 
-	ret = pm_runtime_get_sync(i2c->dev);
+	ret = pm_runtime_resume_and_get(i2c->dev);
 	if (ret < 0)
 		return ret;
 

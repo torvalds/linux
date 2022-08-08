@@ -5,7 +5,6 @@
  * License as published by the Free Software Foundation.
  */
 #include <linux/ptrace.h>
-#include <linux/version.h>
 #include <uapi/linux/bpf.h>
 #include <uapi/linux/bpf_perf_event.h>
 #include <uapi/linux/perf_event.h>

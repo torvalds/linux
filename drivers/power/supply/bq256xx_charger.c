@@ -202,6 +202,8 @@ enum bq256xx_id {
  * @client: i2c client structure
  * @regmap: register map structure
  * @dev: device structure
+ * @charger: power supply registered for the charger
+ * @battery: power supply registered for the battery
  * @lock: mutex lock structure
  *
  * @usb2_phy: usb_phy identifier

@@ -329,7 +329,7 @@ static void *chain_alloc(struct chain_allocator *ca, unsigned int size)
 /**
  * Data types related to memory bitmaps.
  *
- * Memory bitmap is a structure consiting of many linked lists of
+ * Memory bitmap is a structure consisting of many linked lists of
  * objects.  The main list's elements are of type struct zone_bitmap
  * and each of them corresonds to one zone.  For each zone bitmap
  * object there is a list of objects of type struct bm_block that

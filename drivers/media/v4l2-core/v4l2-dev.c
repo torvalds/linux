@@ -350,8 +350,9 @@ static __poll_t v4l2_poll(struct file *filp, struct poll_table_struct *poll)
 			res = vdev->fops->poll(filp, poll);
 	}
 	if (vdev->dev_debug & V4L2_DEV_DEBUG_POLL)
-		dprintk("%s: poll: %08x\n",
-			video_device_node_name(vdev), res);
+		dprintk("%s: poll: %08x %08x\n",
+			video_device_node_name(vdev), res,
+			poll_requested_events(poll));
 	return res;
 }
 

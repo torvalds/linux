@@ -532,7 +532,7 @@ int aac_rx_select_comm(struct aac_dev *dev, int comm)
 }
 
 /**
- *	aac_rx_init	-	initialize an i960 based AAC card
+ *	_aac_rx_init	-	initialize an i960 based AAC card
  *	@dev: device to configure
  *
  *	Allocate and set up resources for the i960 based AAC variants. The 

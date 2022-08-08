@@ -6,14 +6,14 @@
 #include "helper.h"
 
 struct mlx5_flow_table *
-esw_acl_table_create(struct mlx5_eswitch *esw, u16 vport_num, int ns, int size)
+esw_acl_table_create(struct mlx5_eswitch *esw, struct mlx5_vport *vport, int ns, int size)
 {
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_core_dev *dev = esw->dev;
 	struct mlx5_flow_namespace *root_ns;
 	struct mlx5_flow_table *acl;
 	int acl_supported;
-	int vport_index;
+	u16 vport_num;
 	int err;
 
 	acl_supported = (ns == MLX5_FLOW_NAMESPACE_ESW_INGRESS) ?
@@ -23,11 +23,11 @@ esw_acl_table_create(struct mlx5_eswitch *esw, u16 vport_num, int ns, int size)
 	if (!acl_supported)
 		return ERR_PTR(-EOPNOTSUPP);
 
+	vport_num = vport->vport;
 	esw_debug(dev, "Create vport[%d] %s ACL table\n", vport_num,
 		  ns == MLX5_FLOW_NAMESPACE_ESW_INGRESS ? "ingress" : "egress");
 
-	vport_index = mlx5_eswitch_vport_num_to_index(esw, vport_num);
-	root_ns = mlx5_get_flow_vport_acl_namespace(dev, ns, vport_index);
+	root_ns = mlx5_get_flow_vport_acl_namespace(dev, ns, vport->index);
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get E-Switch root namespace for vport (%d)\n",
 			 vport_num);

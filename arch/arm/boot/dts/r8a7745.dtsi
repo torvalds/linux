@@ -258,7 +258,7 @@
 		apmu@e6151000 {
 			compatible = "renesas,r8a7745-apmu", "renesas,apmu";
 			reg = <0 0xe6151000 0 0x188>;
-			cpus = <&cpu0 &cpu1>;
+			cpus = <&cpu0>, <&cpu1>;
 		};
 
 		rst: reset-controller@e6160000 {

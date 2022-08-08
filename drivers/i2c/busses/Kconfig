@@ -369,7 +369,7 @@ comment "I2C system bus drivers (mostly embedded / system-on-chip)"
 
 config I2C_ALTERA
 	tristate "Altera Soft IP I2C"
-	depends on ARCH_SOCFPGA || NIOS2 || COMPILE_TEST
+	depends on ARCH_INTEL_SOCFPGA || NIOS2 || COMPILE_TEST
 	depends on OF
 	help
 	  If you say yes to this option, support will be included for the
@@ -645,6 +645,16 @@ config I2C_HIGHLANDER
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-highlander.
 
+config I2C_HISI
+	tristate "HiSilicon I2C controller"
+	depends on (ARM64 && ACPI) || COMPILE_TEST
+	help
+	  Say Y here if you want to have Hisilicon I2C controller support
+	  available on the Kunpeng Server.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called i2c-hisi.
+
 config I2C_IBM_IIC
 	tristate "IBM PPC 4xx on-chip I2C interface"
 	depends on 4xx
@@ -776,7 +786,7 @@ config I2C_MT7621
 
 config I2C_MV64XXX
 	tristate "Marvell mv64xxx I2C Controller"
-	depends on MV64X60 || PLAT_ORION || ARCH_SUNXI || ARCH_MVEBU || COMPILE_TEST
+	depends on PLAT_ORION || ARCH_SUNXI || ARCH_MVEBU || COMPILE_TEST
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in I2C interface on the Marvell 64xxx line of host bridges.
@@ -1198,6 +1208,16 @@ config I2C_DLN2
 
 	 This driver can also be built as a module.  If so, the module
 	 will be called i2c-dln2.
+
+config I2C_CP2615
+	tristate "Silicon Labs CP2615 USB sound card and I2C adapter"
+	depends on USB
+	help
+	  If you say yes to this option, support will be included for Silicon
+	  Labs CP2615's I2C interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-cp2615.
 
 config I2C_PARPORT
 	tristate "Parallel port adapter"

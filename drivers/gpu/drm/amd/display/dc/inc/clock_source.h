@@ -170,6 +170,11 @@ struct clock_source_funcs {
 			const struct clock_source *clock_source,
 			unsigned int inst,
 			unsigned int *pixel_clk_khz);
+	bool (*override_dp_pix_clk)(
+			struct clock_source *clock_source,
+			unsigned int inst,
+			unsigned int pixel_clk,
+			unsigned int ref_clk);
 };
 
 struct clock_source {

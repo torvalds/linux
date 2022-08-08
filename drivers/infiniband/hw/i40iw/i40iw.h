@@ -504,15 +504,6 @@ static inline void i40iw_free_resource(struct i40iw_device *iwdev,
 	spin_unlock_irqrestore(&iwdev->resource_lock, flags);
 }
 
-/**
- * to_iwhdl - Get the handler from the device pointer
- * @iwdev: device pointer
- **/
-static inline struct i40iw_handler *to_iwhdl(struct i40iw_device *iw_dev)
-{
-	return container_of(iw_dev, struct i40iw_handler, device);
-}
-
 struct i40iw_handler *i40iw_find_netdev(struct net_device *netdev);
 
 /**

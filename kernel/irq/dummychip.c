@@ -13,7 +13,7 @@
 
 /*
  * What should we do if we get a hw irq event on an illegal vector?
- * Each architecture has to answer this themself.
+ * Each architecture has to answer this themselves.
  */
 static void ack_bad(struct irq_data *data)
 {

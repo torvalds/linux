@@ -7,7 +7,7 @@
 #include "ofld.h"
 
 static bool
-esw_acl_ingress_prio_tag_enabled(const struct mlx5_eswitch *esw,
+esw_acl_ingress_prio_tag_enabled(struct mlx5_eswitch *esw,
 				 const struct mlx5_vport *vport)
 {
 	return (MLX5_CAP_GEN(esw->dev, prio_tag_required) &&
@@ -255,7 +255,7 @@ int esw_acl_ingress_ofld_setup(struct mlx5_eswitch *esw,
 	if (esw_acl_ingress_prio_tag_enabled(esw, vport))
 		num_ftes++;
 
-	vport->ingress.acl = esw_acl_table_create(esw, vport->vport,
+	vport->ingress.acl = esw_acl_table_create(esw, vport,
 						  MLX5_FLOW_NAMESPACE_ESW_INGRESS,
 						  num_ftes);
 	if (IS_ERR(vport->ingress.acl)) {

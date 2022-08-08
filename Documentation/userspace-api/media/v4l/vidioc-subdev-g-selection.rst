@@ -70,7 +70,7 @@ Selection targets and flags are documented in
 
 .. c:type:: v4l2_subdev_selection
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. flat-table:: struct v4l2_subdev_selection
     :header-rows:  0

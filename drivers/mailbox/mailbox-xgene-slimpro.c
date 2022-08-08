@@ -51,10 +51,10 @@ struct slimpro_mbox_chan {
 /**
  * X-Gene SlimPRO Mailbox controller data
  *
- * X-Gene SlimPRO Mailbox controller has 8 commnunication channels.
- * Each channel has a separate IRQ number assgined to it.
+ * X-Gene SlimPRO Mailbox controller has 8 communication channels.
+ * Each channel has a separate IRQ number assigned to it.
  *
- * @mb_ctrl:	Representation of the commnunication channel controller
+ * @mb_ctrl:	Representation of the communication channel controller
  * @mc:		Array of SlimPRO mailbox channels of the controller
  * @chans:	Array of mailbox communication channels
  *

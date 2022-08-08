@@ -190,5 +190,6 @@ void iwl_free_fw_paging(struct iwl_fw_runtime *fwrt);
 
 void iwl_get_shared_mem_conf(struct iwl_fw_runtime *fwrt);
 int iwl_set_soc_latency(struct iwl_fw_runtime *fwrt);
+int iwl_configure_rxq(struct iwl_fw_runtime *fwrt);
 
 #endif /* __iwl_fw_runtime_h__ */

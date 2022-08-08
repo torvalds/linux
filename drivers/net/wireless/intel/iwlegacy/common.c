@@ -1430,10 +1430,8 @@ static void
 il_hdl_scan_complete(struct il_priv *il, struct il_rx_buf *rxb)
 {
 
-#ifdef CONFIG_IWLEGACY_DEBUG
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_scancomplete_notification *scan_notif = (void *)pkt->u.raw;
-#endif
 
 	D_SCAN("Scan complete: %d channels (TSF 0x%08X:%08X) - %d\n",
 	       scan_notif->scanned_channels, scan_notif->tsf_low,

@@ -14,4 +14,10 @@ obj-$(CONFIG_OF_RESOLVE)  += resolver.o
 obj-$(CONFIG_OF_OVERLAY) += overlay.o
 obj-$(CONFIG_OF_NUMA) += of_numa.o
 
+ifdef CONFIG_KEXEC_FILE
+ifdef CONFIG_OF_FLATTREE
+obj-y	+= kexec.o
+endif
+endif
+
 obj-$(CONFIG_OF_UNITTEST) += unittest-data/

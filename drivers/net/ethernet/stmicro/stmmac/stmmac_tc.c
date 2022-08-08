@@ -254,6 +254,16 @@ static int tc_init(struct stmmac_priv *priv)
 			 priv->flow_entries_max);
 	}
 
+	if (!priv->plat->fpe_cfg) {
+		priv->plat->fpe_cfg = devm_kzalloc(priv->device,
+						   sizeof(*priv->plat->fpe_cfg),
+						   GFP_KERNEL);
+		if (!priv->plat->fpe_cfg)
+			return -ENOMEM;
+	} else {
+		memset(priv->plat->fpe_cfg, 0, sizeof(*priv->plat->fpe_cfg));
+	}
+
 	/* Fail silently as we can still use remaining features, e.g. CBS */
 	if (!dma_cap->frpsel)
 		return 0;
@@ -297,6 +307,7 @@ static int tc_init(struct stmmac_priv *priv)
 
 	dev_info(priv->device, "Enabling HW TC (entries=%d, max_off=%d)\n",
 			priv->tc_entries_max, priv->tc_off_max);
+
 	return 0;
 }
 
@@ -598,6 +609,87 @@ static int tc_del_flow(struct stmmac_priv *priv,
 	return ret;
 }
 
+#define VLAN_PRIO_FULL_MASK (0x07)
+
+static int tc_add_vlan_flow(struct stmmac_priv *priv,
+			    struct flow_cls_offload *cls)
+{
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
+	struct flow_dissector *dissector = rule->match.dissector;
+	int tc = tc_classid_to_hwtc(priv->dev, cls->classid);
+	struct flow_match_vlan match;
+
+	/* Nothing to do here */
+	if (!dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_VLAN))
+		return -EINVAL;
+
+	if (tc < 0) {
+		netdev_err(priv->dev, "Invalid traffic class\n");
+		return -EINVAL;
+	}
+
+	flow_rule_match_vlan(rule, &match);
+
+	if (match.mask->vlan_priority) {
+		u32 prio;
+
+		if (match.mask->vlan_priority != VLAN_PRIO_FULL_MASK) {
+			netdev_err(priv->dev, "Only full mask is supported for VLAN priority");
+			return -EINVAL;
+		}
+
+		prio = BIT(match.key->vlan_priority);
+		stmmac_rx_queue_prio(priv, priv->hw, prio, tc);
+	}
+
+	return 0;
+}
+
+static int tc_del_vlan_flow(struct stmmac_priv *priv,
+			    struct flow_cls_offload *cls)
+{
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
+	struct flow_dissector *dissector = rule->match.dissector;
+	int tc = tc_classid_to_hwtc(priv->dev, cls->classid);
+
+	/* Nothing to do here */
+	if (!dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_VLAN))
+		return -EINVAL;
+
+	if (tc < 0) {
+		netdev_err(priv->dev, "Invalid traffic class\n");
+		return -EINVAL;
+	}
+
+	stmmac_rx_queue_prio(priv, priv->hw, 0, tc);
+
+	return 0;
+}
+
+static int tc_add_flow_cls(struct stmmac_priv *priv,
+			   struct flow_cls_offload *cls)
+{
+	int ret;
+
+	ret = tc_add_flow(priv, cls);
+	if (!ret)
+		return ret;
+
+	return tc_add_vlan_flow(priv, cls);
+}
+
+static int tc_del_flow_cls(struct stmmac_priv *priv,
+			   struct flow_cls_offload *cls)
+{
+	int ret;
+
+	ret = tc_del_flow(priv, cls);
+	if (!ret)
+		return ret;
+
+	return tc_del_vlan_flow(priv, cls);
+}
+
 static int tc_setup_cls(struct stmmac_priv *priv,
 			struct flow_cls_offload *cls)
 {
@@ -609,10 +701,10 @@ static int tc_setup_cls(struct stmmac_priv *priv,
 
 	switch (cls->command) {
 	case FLOW_CLS_REPLACE:
-		ret = tc_add_flow(priv, cls);
+		ret = tc_add_flow_cls(priv, cls);
 		break;
 	case FLOW_CLS_DESTROY:
-		ret = tc_del_flow(priv, cls);
+		ret = tc_del_flow_cls(priv, cls);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -748,13 +840,10 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 	if (fpe && !priv->dma_cap.fpesel)
 		return -EOPNOTSUPP;
 
-	ret = stmmac_fpe_configure(priv, priv->ioaddr,
-				   priv->plat->tx_queues_to_use,
-				   priv->plat->rx_queues_to_use, fpe);
-	if (ret && fpe) {
-		netdev_err(priv->dev, "failed to enable Frame Preemption\n");
-		return ret;
-	}
+	/* Actual FPE register configuration will be done after FPE handshake
+	 * is success.
+	 */
+	priv->plat->fpe_cfg->enable = fpe;
 
 	ret = stmmac_est_configure(priv, priv->ioaddr, priv->plat->est,
 				   priv->plat->clk_ptp_rate);
@@ -764,12 +853,29 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 	}
 
 	netdev_info(priv->dev, "configured EST\n");
+
+	if (fpe) {
+		stmmac_fpe_handshake(priv, true);
+		netdev_info(priv->dev, "start FPE handshake\n");
+	}
+
 	return 0;
 
 disable:
 	priv->plat->est->enable = false;
 	stmmac_est_configure(priv, priv->ioaddr, priv->plat->est,
 			     priv->plat->clk_ptp_rate);
+
+	priv->plat->fpe_cfg->enable = false;
+	stmmac_fpe_configure(priv, priv->ioaddr,
+			     priv->plat->tx_queues_to_use,
+			     priv->plat->rx_queues_to_use,
+			     false);
+	netdev_info(priv->dev, "disabled FPE\n");
+
+	stmmac_fpe_handshake(priv, false);
+	netdev_info(priv->dev, "stop FPE handshake\n");
+
 	return ret;
 }
 

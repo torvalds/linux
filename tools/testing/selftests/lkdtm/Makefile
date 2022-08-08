@@ -5,6 +5,7 @@ include ../lib.mk
 
 # NOTE: $(OUTPUT) won't get default value if used before lib.mk
 TEST_FILES := tests.txt
+TEST_PROGS := stack-entropy.sh
 TEST_GEN_PROGS = $(patsubst %,$(OUTPUT)/%.sh,$(shell awk '{print $$1}' tests.txt | sed -e 's/\#//'))
 all: $(TEST_GEN_PROGS)
 

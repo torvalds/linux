@@ -11,7 +11,7 @@
 
 /**
  * struct s5k4ecgx_gpio - data structure describing a GPIO
- * @gpio : GPIO number
+ * @gpio: GPIO number
  * @level: indicates active state of the @gpio
  */
 struct s5k4ecgx_gpio {
@@ -20,9 +20,9 @@ struct s5k4ecgx_gpio {
 };
 
 /**
- * struct ss5k4ecgx_platform_data- s5k4ecgx driver platform data
+ * struct s5k4ecgx_platform_data - s5k4ecgx driver platform data
  * @gpio_reset:	 GPIO driving RESET pin
- * @gpio_stby :	 GPIO driving STBY pin
+ * @gpio_stby:	 GPIO driving STBY pin
  */
 
 struct s5k4ecgx_platform_data {

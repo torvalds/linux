@@ -84,7 +84,7 @@ static int rtw_hw_resume(struct adapter *padapter)
 	pwrpriv->bips_processing = true;
 	rtw_reset_drv_sw(padapter);
 
-	if (ips_netdrv_open(rtw_netdev_priv(pnetdev)) != _SUCCESS) {
+	if (ips_netdrv_open(netdev_priv(pnetdev)) != _SUCCESS) {
 		mutex_unlock(&pwrpriv->mutex_lock);
 		goto error_exit;
 	}
@@ -480,10 +480,9 @@ void LPS_Leave(struct adapter *padapter)
 void LeaveAllPowerSaveMode(struct adapter *Adapter)
 {
 	struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;
-	u8 enqueue = 0;
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED))
-		rtw_lps_ctrl_wk_cmd(Adapter, LPS_CTRL_LEAVE, enqueue);
+		rtw_lps_ctrl_wk_cmd(Adapter, LPS_CTRL_LEAVE, 0);
 }
 
 void rtw_init_pwrctrl_priv(struct adapter *padapter)

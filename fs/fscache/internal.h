@@ -142,6 +142,10 @@ extern int fscache_wait_for_operation_activation(struct fscache_object *,
 						 atomic_t *,
 						 atomic_t *);
 extern void fscache_invalidate_writes(struct fscache_cookie *);
+struct fscache_retrieval *fscache_alloc_retrieval(struct fscache_cookie *cookie,
+						  struct address_space *mapping,
+						  fscache_rw_complete_t end_io_func,
+						  void *context);
 
 /*
  * proc.c

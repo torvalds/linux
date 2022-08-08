@@ -214,7 +214,6 @@ DECLARE_EVENT_CLASS(cdns3_log_request,
 		__field(int, no_interrupt)
 		__field(int, start_trb)
 		__field(int, end_trb)
-		__field(struct cdns3_trb *, start_trb_addr)
 		__field(int, flags)
 		__field(unsigned int, stream_id)
 	),
@@ -230,12 +229,11 @@ DECLARE_EVENT_CLASS(cdns3_log_request,
 		__entry->no_interrupt = req->request.no_interrupt;
 		__entry->start_trb = req->start_trb;
 		__entry->end_trb = req->end_trb;
-		__entry->start_trb_addr = req->trb;
 		__entry->flags = req->flags;
 		__entry->stream_id = req->request.stream_id;
 	),
 	TP_printk("%s: req: %p, req buff %p, length: %u/%u %s%s%s, status: %d,"
-		  " trb: [start:%d, end:%d: virt addr %pa], flags:%x SID: %u",
+		  " trb: [start:%d, end:%d], flags:%x SID: %u",
 		__get_str(name), __entry->req, __entry->buf, __entry->actual,
 		__entry->length,
 		__entry->zero ? "Z" : "z",
@@ -244,7 +242,6 @@ DECLARE_EVENT_CLASS(cdns3_log_request,
 		__entry->status,
 		__entry->start_trb,
 		__entry->end_trb,
-		__entry->start_trb_addr,
 		__entry->flags,
 		__entry->stream_id
 	)

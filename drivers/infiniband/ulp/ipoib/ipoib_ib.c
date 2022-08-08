@@ -1060,7 +1060,7 @@ static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
 	union ib_gid *netdev_gid;
 	int err;
 	u16 index;
-	u8 port;
+	u32 port;
 	bool ret = false;
 
 	netdev_gid = (union ib_gid *)(priv->dev->dev_addr + 4);

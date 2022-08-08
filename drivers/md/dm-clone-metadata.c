@@ -276,12 +276,6 @@ static inline int superblock_read_lock(struct dm_clone_metadata *cmd,
 	return dm_bm_read_lock(cmd->bm, SUPERBLOCK_LOCATION, &sb_validator, sblock);
 }
 
-static inline int superblock_write_lock(struct dm_clone_metadata *cmd,
-					struct dm_block **sblock)
-{
-	return dm_bm_write_lock(cmd->bm, SUPERBLOCK_LOCATION, &sb_validator, sblock);
-}
-
 static inline int superblock_write_lock_zero(struct dm_clone_metadata *cmd,
 					     struct dm_block **sblock)
 {

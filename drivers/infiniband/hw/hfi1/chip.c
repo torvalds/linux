@@ -1322,7 +1322,7 @@ CNTR_ELEM(#name, \
 	  access_ibp_##cntr)
 
 /**
- * hfi_addr_from_offset - return addr for readq/writeq
+ * hfi1_addr_from_offset - return addr for readq/writeq
  * @dd: the dd device
  * @offset: the offset of the CSR within bar0
  *
@@ -8316,7 +8316,7 @@ static void is_interrupt(struct hfi1_devdata *dd, unsigned int source)
 }
 
 /**
- * gerneral_interrupt() -  General interrupt handler
+ * general_interrupt -  General interrupt handler
  * @irq: MSIx IRQ vector
  * @data: hfi1 devdata
  *
@@ -15243,8 +15243,8 @@ int hfi1_init_dd(struct hfi1_devdata *dd)
 		 (dd->revision >> CCE_REVISION_SW_SHIFT)
 		    & CCE_REVISION_SW_MASK);
 
-	/* alloc netdev data */
-	ret = hfi1_netdev_alloc(dd);
+	/* alloc VNIC/AIP rx data */
+	ret = hfi1_alloc_rx(dd);
 	if (ret)
 		goto bail_cleanup;
 
@@ -15348,7 +15348,7 @@ bail_clear_intr:
 	hfi1_comp_vectors_clean_up(dd);
 	msix_clean_up_interrupts(dd);
 bail_cleanup:
-	hfi1_netdev_free(dd);
+	hfi1_free_rx(dd);
 	hfi1_pcie_ddcleanup(dd);
 bail_free:
 	hfi1_free_devdata(dd);

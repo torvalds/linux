@@ -100,6 +100,14 @@ struct {
 	struct hwa742_request	req_pool[REQ_POOL_SIZE];
 	struct list_head	pending_req_list;
 	struct list_head	free_req_list;
+
+	/*
+	 * @req_lock: protect request slots pool and its tracking lists
+	 * @req_sema: counter; slot allocators from task contexts must
+	 *            push it down before acquiring a slot. This
+	 *            guarantees that atomic contexts will always have
+	 *            a minimum of IRQ_REQ_POOL_SIZE slots available.
+	 */
 	struct semaphore	req_sema;
 	spinlock_t		req_lock;
 
@@ -224,13 +232,13 @@ static void disable_tearsync(void)
 	hwa742_write_reg(HWA742_NDP_CTRL, b);
 }
 
-static inline struct hwa742_request *alloc_req(void)
+static inline struct hwa742_request *alloc_req(bool can_sleep)
 {
 	unsigned long flags;
 	struct hwa742_request *req;
 	int req_flags = 0;
 
-	if (!in_interrupt())
+	if (can_sleep)
 		down(&hwa742.req_sema);
 	else
 		req_flags = REQ_FROM_IRQ_POOL;
@@ -399,8 +407,8 @@ static void send_frame_complete(void *data)
 	hwa742.int_ctrl->enable_plane(OMAPFB_PLANE_GFX, 0);
 }
 
-#define ADD_PREQ(_x, _y, _w, _h) do {		\
-	req = alloc_req();			\
+#define ADD_PREQ(_x, _y, _w, _h, can_sleep) do {\
+	req = alloc_req(can_sleep);		\
 	req->handler	= send_frame_handler;	\
 	req->complete	= send_frame_complete;	\
 	req->par.update.x = _x;			\
@@ -413,7 +421,8 @@ static void send_frame_complete(void *data)
 } while(0)
 
 static void create_req_list(struct omapfb_update_window *win,
-			    struct list_head *req_head)
+			    struct list_head *req_head,
+			    bool can_sleep)
 {
 	struct hwa742_request *req;
 	int x = win->x;
@@ -427,7 +436,7 @@ static void create_req_list(struct omapfb_update_window *win,
 	color_mode = win->format & OMAPFB_FORMAT_MASK;
 
 	if (x & 1) {
-		ADD_PREQ(x, y, 1, height);
+		ADD_PREQ(x, y, 1, height, can_sleep);
 		width--;
 		x++;
 		flags &= ~OMAPFB_FORMAT_FLAG_TEARSYNC;
@@ -439,19 +448,19 @@ static void create_req_list(struct omapfb_update_window *win,
 
 		if (xspan * height * 2 > hwa742.max_transmit_size) {
 			yspan = hwa742.max_transmit_size / (xspan * 2);
-			ADD_PREQ(x, ystart, xspan, yspan);
+			ADD_PREQ(x, ystart, xspan, yspan, can_sleep);
 			ystart += yspan;
 			yspan = height - yspan;
 			flags &= ~OMAPFB_FORMAT_FLAG_TEARSYNC;
 		}
 
-		ADD_PREQ(x, ystart, xspan, yspan);
+		ADD_PREQ(x, ystart, xspan, yspan, can_sleep);
 		x += xspan;
 		width -= xspan;
 		flags &= ~OMAPFB_FORMAT_FLAG_TEARSYNC;
 	}
 	if (width)
-		ADD_PREQ(x, y, 1, height);
+		ADD_PREQ(x, y, 1, height, can_sleep);
 }
 
 static void auto_update_complete(void *data)
@@ -461,18 +470,23 @@ static void auto_update_complete(void *data)
 			  jiffies + HWA742_AUTO_UPDATE_TIME);
 }
 
-static void hwa742_update_window_auto(struct timer_list *unused)
+static void __hwa742_update_window_auto(bool can_sleep)
 {
 	LIST_HEAD(req_list);
 	struct hwa742_request *last;
 
-	create_req_list(&hwa742.auto_update_window, &req_list);
+	create_req_list(&hwa742.auto_update_window, &req_list, can_sleep);
 	last = list_entry(req_list.prev, struct hwa742_request, entry);
 
 	last->complete = auto_update_complete;
 	last->complete_data = NULL;
 
 	submit_req_list(&req_list);
+}
+
+static void hwa742_update_window_auto(struct timer_list *unused)
+{
+	__hwa742_update_window_auto(false);
 }
 
 int hwa742_update_window_async(struct fb_info *fbi,
@@ -497,7 +511,7 @@ int hwa742_update_window_async(struct fb_info *fbi,
 		goto out;
 	}
 
-	create_req_list(win, &req_list);
+	create_req_list(win, &req_list, true);
 	last = list_entry(req_list.prev, struct hwa742_request, entry);
 
 	last->complete = complete_callback;
@@ -544,7 +558,7 @@ static void hwa742_sync(void)
 	struct hwa742_request *req;
 	struct completion comp;
 
-	req = alloc_req();
+	req = alloc_req(true);
 
 	req->handler = sync_handler;
 	req->complete = NULL;
@@ -599,7 +613,7 @@ static int hwa742_set_update_mode(enum omapfb_update_mode mode)
 		omapfb_notify_clients(hwa742.fbdev, OMAPFB_EVENT_READY);
 		break;
 	case OMAPFB_AUTO_UPDATE:
-		hwa742_update_window_auto(0);
+		__hwa742_update_window_auto(true);
 		break;
 	case OMAPFB_UPDATE_DISABLED:
 		break;

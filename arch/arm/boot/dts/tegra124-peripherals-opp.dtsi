@@ -128,24 +128,28 @@
 			opp-microvolt = <800000 800000 1150000>;
 			opp-hz = /bits/ 64 <204000000>;
 			opp-supported-hw = <0x0003>;
+			opp-suspend;
 		};
 
 		opp@204000000,950 {
 			opp-microvolt = <950000 950000 1150000>;
 			opp-hz = /bits/ 64 <204000000>;
 			opp-supported-hw = <0x0008>;
+			opp-suspend;
 		};
 
 		opp@204000000,1050 {
 			opp-microvolt = <1050000 1050000 1150000>;
 			opp-hz = /bits/ 64 <204000000>;
 			opp-supported-hw = <0x0010>;
+			opp-suspend;
 		};
 
 		opp@204000000,1110 {
 			opp-microvolt = <1110000 1110000 1150000>;
 			opp-hz = /bits/ 64 <204000000>;
 			opp-supported-hw = <0x0004>;
+			opp-suspend;
 		};
 
 		opp@264000000,800 {
@@ -360,6 +364,7 @@
 			opp-hz = /bits/ 64 <204000000>;
 			opp-supported-hw = <0x001F>;
 			opp-peak-kBps = <3264000>;
+			opp-suspend;
 		};
 
 		opp@264000000 {

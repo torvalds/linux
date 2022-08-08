@@ -486,7 +486,6 @@ static void cc_trng_clk_fini(struct cctrng_drvdata *drvdata)
 
 static int cctrng_probe(struct platform_device *pdev)
 {
-	struct resource *req_mem_cc_regs = NULL;
 	struct cctrng_drvdata *drvdata;
 	struct device *dev = &pdev->dev;
 	int rc = 0;
@@ -510,27 +509,16 @@ static int cctrng_probe(struct platform_device *pdev)
 
 	drvdata->circ.buf = (char *)drvdata->data_buf;
 
-	/* Get device resources */
-	/* First CC registers space */
-	req_mem_cc_regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	/* Map registers space */
-	drvdata->cc_base = devm_ioremap_resource(dev, req_mem_cc_regs);
+	drvdata->cc_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(drvdata->cc_base)) {
 		dev_err(dev, "Failed to ioremap registers");
 		return PTR_ERR(drvdata->cc_base);
 	}
 
-	dev_dbg(dev, "Got MEM resource (%s): %pR\n", req_mem_cc_regs->name,
-		req_mem_cc_regs);
-	dev_dbg(dev, "CC registers mapped from %pa to 0x%p\n",
-		&req_mem_cc_regs->start, drvdata->cc_base);
-
 	/* Then IRQ */
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "Failed getting IRQ resource\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	/* parse sampling rate from device tree */
 	rc = cc_trng_parse_sampling_ratio(drvdata);
@@ -585,7 +573,7 @@ static int cctrng_probe(struct platform_device *pdev)
 	atomic_set(&drvdata->pending_hw, 1);
 
 	/* registration of the hwrng device */
-	rc = hwrng_register(&drvdata->rng);
+	rc = devm_hwrng_register(dev, &drvdata->rng);
 	if (rc) {
 		dev_err(dev, "Could not register hwrng device.\n");
 		goto post_pm_err;
@@ -617,8 +605,6 @@ static int cctrng_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 
 	dev_dbg(dev, "Releasing cctrng resources...\n");
-
-	hwrng_unregister(&drvdata->rng);
 
 	cc_trng_pm_fini(drvdata);
 

@@ -574,7 +574,7 @@ static ssize_t ad5758_read_powerdown(struct iio_dev *indio_dev,
 {
 	struct ad5758_state *st = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n", st->pwr_down);
+	return sysfs_emit(buf, "%d\n", st->pwr_down);
 }
 
 static ssize_t ad5758_write_powerdown(struct iio_dev *indio_dev,

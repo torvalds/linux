@@ -1202,26 +1202,26 @@ bool pwrdm_can_ever_lose_context(struct powerdomain *pwrdm)
 	if (!pwrdm) {
 		pr_debug("powerdomain: %s: invalid powerdomain pointer\n",
 			 __func__);
-		return 1;
+		return true;
 	}
 
 	if (pwrdm->pwrsts & PWRSTS_OFF)
-		return 1;
+		return true;
 
 	if (pwrdm->pwrsts & PWRSTS_RET) {
 		if (pwrdm->pwrsts_logic_ret & PWRSTS_OFF)
-			return 1;
+			return true;
 
 		for (i = 0; i < pwrdm->banks; i++)
 			if (pwrdm->pwrsts_mem_ret[i] & PWRSTS_OFF)
-				return 1;
+				return true;
 	}
 
 	for (i = 0; i < pwrdm->banks; i++)
 		if (pwrdm->pwrsts_mem_on[i] & PWRSTS_OFF)
-			return 1;
+			return true;
 
-	return 0;
+	return false;
 }
 
 /**

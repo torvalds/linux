@@ -36,6 +36,9 @@ properties:
       containing several internal sensors.
     enum: [0, 1]
 
+required:
+  - "#thermal-sensor-cells"
+
 additionalProperties: true
 
 examples:

@@ -889,219 +889,177 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 	module_cfg_update = new_params->module_cfg_update;
 	module_ens = new_params->module_ens;
 
-	if ((module_en_update & RKISP1_CIF_ISP_MODULE_DPCC) ||
-	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_DPCC)) {
-		/*update dpc config */
-		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_DPCC)
-			rkisp1_dpcc_config(params,
-					   &new_params->others.dpcc_config);
+	/* update dpc config */
+	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_DPCC)
+		rkisp1_dpcc_config(params,
+				   &new_params->others.dpcc_config);
 
-		if (module_en_update & RKISP1_CIF_ISP_MODULE_DPCC) {
-			if (module_ens & RKISP1_CIF_ISP_MODULE_DPCC)
-				rkisp1_param_set_bits(params,
-						      RKISP1_CIF_ISP_DPCC_MODE,
-						      RKISP1_CIF_ISP_DPCC_ENA);
-			else
-				rkisp1_param_clear_bits(params,
-							RKISP1_CIF_ISP_DPCC_MODE,
-							RKISP1_CIF_ISP_DPCC_ENA);
-		}
+	if (module_en_update & RKISP1_CIF_ISP_MODULE_DPCC) {
+		if (module_ens & RKISP1_CIF_ISP_MODULE_DPCC)
+			rkisp1_param_set_bits(params,
+					      RKISP1_CIF_ISP_DPCC_MODE,
+					      RKISP1_CIF_ISP_DPCC_ENA);
+		else
+			rkisp1_param_clear_bits(params,
+						RKISP1_CIF_ISP_DPCC_MODE,
+						RKISP1_CIF_ISP_DPCC_ENA);
 	}
 
-	if ((module_en_update & RKISP1_CIF_ISP_MODULE_BLS) ||
-	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_BLS)) {
-		/* update bls config */
-		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_BLS)
-			rkisp1_bls_config(params,
-					  &new_params->others.bls_config);
+	/* update bls config */
+	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_BLS)
+		rkisp1_bls_config(params,
+				  &new_params->others.bls_config);
 
-		if (module_en_update & RKISP1_CIF_ISP_MODULE_BLS) {
-			if (module_ens & RKISP1_CIF_ISP_MODULE_BLS)
-				rkisp1_param_set_bits(params,
-						      RKISP1_CIF_ISP_BLS_CTRL,
-						      RKISP1_CIF_ISP_BLS_ENA);
-			else
-				rkisp1_param_clear_bits(params,
-							RKISP1_CIF_ISP_BLS_CTRL,
-							RKISP1_CIF_ISP_BLS_ENA);
-		}
+	if (module_en_update & RKISP1_CIF_ISP_MODULE_BLS) {
+		if (module_ens & RKISP1_CIF_ISP_MODULE_BLS)
+			rkisp1_param_set_bits(params,
+					      RKISP1_CIF_ISP_BLS_CTRL,
+					      RKISP1_CIF_ISP_BLS_ENA);
+		else
+			rkisp1_param_clear_bits(params,
+						RKISP1_CIF_ISP_BLS_CTRL,
+						RKISP1_CIF_ISP_BLS_ENA);
 	}
 
-	if ((module_en_update & RKISP1_CIF_ISP_MODULE_SDG) ||
-	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_SDG)) {
-		/* update sdg config */
-		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_SDG)
-			rkisp1_sdg_config(params,
-					  &new_params->others.sdg_config);
+	/* update sdg config */
+	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_SDG)
+		rkisp1_sdg_config(params,
+				  &new_params->others.sdg_config);
 
-		if (module_en_update & RKISP1_CIF_ISP_MODULE_SDG) {
-			if (module_ens & RKISP1_CIF_ISP_MODULE_SDG)
-				rkisp1_param_set_bits(params,
-						      RKISP1_CIF_ISP_CTRL,
-						      RKISP1_CIF_ISP_CTRL_ISP_GAMMA_IN_ENA);
-			else
-				rkisp1_param_clear_bits(params,
-							RKISP1_CIF_ISP_CTRL,
-							RKISP1_CIF_ISP_CTRL_ISP_GAMMA_IN_ENA);
-		}
+	if (module_en_update & RKISP1_CIF_ISP_MODULE_SDG) {
+		if (module_ens & RKISP1_CIF_ISP_MODULE_SDG)
+			rkisp1_param_set_bits(params,
+					      RKISP1_CIF_ISP_CTRL,
+					      RKISP1_CIF_ISP_CTRL_ISP_GAMMA_IN_ENA);
+		else
+			rkisp1_param_clear_bits(params,
+						RKISP1_CIF_ISP_CTRL,
+						RKISP1_CIF_ISP_CTRL_ISP_GAMMA_IN_ENA);
 	}
 
-	if ((module_en_update & RKISP1_CIF_ISP_MODULE_LSC) ||
-	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_LSC)) {
-		/* update lsc config */
-		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_LSC)
-			rkisp1_lsc_config(params,
-					  &new_params->others.lsc_config);
+	/* update lsc config */
+	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_LSC)
+		rkisp1_lsc_config(params,
+				  &new_params->others.lsc_config);
 
-		if (module_en_update & RKISP1_CIF_ISP_MODULE_LSC) {
-			if (module_ens & RKISP1_CIF_ISP_MODULE_LSC)
-				rkisp1_param_set_bits(params,
-						      RKISP1_CIF_ISP_LSC_CTRL,
-						      RKISP1_CIF_ISP_LSC_CTRL_ENA);
-			else
-				rkisp1_param_clear_bits(params,
-							RKISP1_CIF_ISP_LSC_CTRL,
-							RKISP1_CIF_ISP_LSC_CTRL_ENA);
-		}
+	if (module_en_update & RKISP1_CIF_ISP_MODULE_LSC) {
+		if (module_ens & RKISP1_CIF_ISP_MODULE_LSC)
+			rkisp1_param_set_bits(params,
+					      RKISP1_CIF_ISP_LSC_CTRL,
+					      RKISP1_CIF_ISP_LSC_CTRL_ENA);
+		else
+			rkisp1_param_clear_bits(params,
+						RKISP1_CIF_ISP_LSC_CTRL,
+						RKISP1_CIF_ISP_LSC_CTRL_ENA);
 	}
 
-	if ((module_en_update & RKISP1_CIF_ISP_MODULE_AWB_GAIN) ||
-	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_AWB_GAIN)) {
-		/* update awb gains */
-		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AWB_GAIN)
-			rkisp1_awb_gain_config(params,
-					       &new_params->others.awb_gain_config);
+	/* update awb gains */
+	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AWB_GAIN)
+		rkisp1_awb_gain_config(params, &new_params->others.awb_gain_config);
 
-		if (module_en_update & RKISP1_CIF_ISP_MODULE_AWB_GAIN) {
-			if (module_ens & RKISP1_CIF_ISP_MODULE_AWB_GAIN)
-				rkisp1_param_set_bits(params,
-						      RKISP1_CIF_ISP_CTRL,
-						      RKISP1_CIF_ISP_CTRL_ISP_AWB_ENA);
-			else
-				rkisp1_param_clear_bits(params,
-							RKISP1_CIF_ISP_CTRL,
-							RKISP1_CIF_ISP_CTRL_ISP_AWB_ENA);
-		}
+	if (module_en_update & RKISP1_CIF_ISP_MODULE_AWB_GAIN) {
+		if (module_ens & RKISP1_CIF_ISP_MODULE_AWB_GAIN)
+			rkisp1_param_set_bits(params,
+					      RKISP1_CIF_ISP_CTRL,
+					      RKISP1_CIF_ISP_CTRL_ISP_AWB_ENA);
+		else
+			rkisp1_param_clear_bits(params,
+						RKISP1_CIF_ISP_CTRL,
+						RKISP1_CIF_ISP_CTRL_ISP_AWB_ENA);
 	}
 
-	if ((module_en_update & RKISP1_CIF_ISP_MODULE_BDM) ||
-	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_BDM)) {
-		/* update bdm config */
-		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_BDM)
-			rkisp1_bdm_config(params,
-					  &new_params->others.bdm_config);
+	/* update bdm config */
+	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_BDM)
+		rkisp1_bdm_config(params,
+				  &new_params->others.bdm_config);
 
-		if (module_en_update & RKISP1_CIF_ISP_MODULE_BDM) {
-			if (module_ens & RKISP1_CIF_ISP_MODULE_BDM)
-				rkisp1_param_set_bits(params,
-						      RKISP1_CIF_ISP_DEMOSAIC,
-						      RKISP1_CIF_ISP_DEMOSAIC_BYPASS);
-			else
-				rkisp1_param_clear_bits(params,
-							RKISP1_CIF_ISP_DEMOSAIC,
-							RKISP1_CIF_ISP_DEMOSAIC_BYPASS);
-		}
+	if (module_en_update & RKISP1_CIF_ISP_MODULE_BDM) {
+		if (module_ens & RKISP1_CIF_ISP_MODULE_BDM)
+			rkisp1_param_set_bits(params,
+					      RKISP1_CIF_ISP_DEMOSAIC,
+					      RKISP1_CIF_ISP_DEMOSAIC_BYPASS);
+		else
+			rkisp1_param_clear_bits(params,
+						RKISP1_CIF_ISP_DEMOSAIC,
+						RKISP1_CIF_ISP_DEMOSAIC_BYPASS);
 	}
 
-	if ((module_en_update & RKISP1_CIF_ISP_MODULE_FLT) ||
-	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_FLT)) {
-		/* update filter config */
-		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_FLT)
-			rkisp1_flt_config(params,
-					  &new_params->others.flt_config);
+	/* update filter config */
+	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_FLT)
+		rkisp1_flt_config(params,
+				  &new_params->others.flt_config);
 
-		if (module_en_update & RKISP1_CIF_ISP_MODULE_FLT) {
-			if (module_ens & RKISP1_CIF_ISP_MODULE_FLT)
-				rkisp1_param_set_bits(params,
-						      RKISP1_CIF_ISP_FILT_MODE,
-						      RKISP1_CIF_ISP_FLT_ENA);
-			else
-				rkisp1_param_clear_bits(params,
-							RKISP1_CIF_ISP_FILT_MODE,
-							RKISP1_CIF_ISP_FLT_ENA);
-		}
+	if (module_en_update & RKISP1_CIF_ISP_MODULE_FLT) {
+		if (module_ens & RKISP1_CIF_ISP_MODULE_FLT)
+			rkisp1_param_set_bits(params,
+					      RKISP1_CIF_ISP_FILT_MODE,
+					      RKISP1_CIF_ISP_FLT_ENA);
+		else
+			rkisp1_param_clear_bits(params,
+						RKISP1_CIF_ISP_FILT_MODE,
+						RKISP1_CIF_ISP_FLT_ENA);
 	}
 
-	if ((module_en_update & RKISP1_CIF_ISP_MODULE_CTK) ||
-	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_CTK)) {
-		/* update ctk config */
-		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_CTK)
-			rkisp1_ctk_config(params,
-					  &new_params->others.ctk_config);
+	/* update ctk config */
+	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_CTK)
+		rkisp1_ctk_config(params,
+				  &new_params->others.ctk_config);
 
-		if (module_en_update & RKISP1_CIF_ISP_MODULE_CTK)
-			rkisp1_ctk_enable(params,
-					  !!(module_ens & RKISP1_CIF_ISP_MODULE_CTK));
+	if (module_en_update & RKISP1_CIF_ISP_MODULE_CTK)
+		rkisp1_ctk_enable(params, !!(module_ens & RKISP1_CIF_ISP_MODULE_CTK));
+
+	/* update goc config */
+	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_GOC)
+		rkisp1_goc_config(params,
+				  &new_params->others.goc_config);
+
+	if (module_en_update & RKISP1_CIF_ISP_MODULE_GOC) {
+		if (module_ens & RKISP1_CIF_ISP_MODULE_GOC)
+			rkisp1_param_set_bits(params,
+					      RKISP1_CIF_ISP_CTRL,
+					      RKISP1_CIF_ISP_CTRL_ISP_GAMMA_OUT_ENA);
+		else
+			rkisp1_param_clear_bits(params,
+						RKISP1_CIF_ISP_CTRL,
+						RKISP1_CIF_ISP_CTRL_ISP_GAMMA_OUT_ENA);
 	}
 
-	if ((module_en_update & RKISP1_CIF_ISP_MODULE_GOC) ||
-	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_GOC)) {
-		/* update goc config */
-		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_GOC)
-			rkisp1_goc_config(params,
-					  &new_params->others.goc_config);
+	/* update cproc config */
+	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_CPROC)
+		rkisp1_cproc_config(params,
+				    &new_params->others.cproc_config);
 
-		if (module_en_update & RKISP1_CIF_ISP_MODULE_GOC) {
-			if (module_ens & RKISP1_CIF_ISP_MODULE_GOC)
-				rkisp1_param_set_bits(params,
-						      RKISP1_CIF_ISP_CTRL,
-						      RKISP1_CIF_ISP_CTRL_ISP_GAMMA_OUT_ENA);
-			else
-				rkisp1_param_clear_bits(params,
-							RKISP1_CIF_ISP_CTRL,
-							RKISP1_CIF_ISP_CTRL_ISP_GAMMA_OUT_ENA);
-		}
+	if (module_en_update & RKISP1_CIF_ISP_MODULE_CPROC) {
+		if (module_ens & RKISP1_CIF_ISP_MODULE_CPROC)
+			rkisp1_param_set_bits(params,
+					      RKISP1_CIF_C_PROC_CTRL,
+					      RKISP1_CIF_C_PROC_CTR_ENABLE);
+		else
+			rkisp1_param_clear_bits(params,
+						RKISP1_CIF_C_PROC_CTRL,
+						RKISP1_CIF_C_PROC_CTR_ENABLE);
 	}
 
-	if ((module_en_update & RKISP1_CIF_ISP_MODULE_CPROC) ||
-	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_CPROC)) {
-		/* update cproc config */
-		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_CPROC) {
-			rkisp1_cproc_config(params,
-					    &new_params->others.cproc_config);
-		}
+	/* update ie config */
+	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_IE)
+		rkisp1_ie_config(params, &new_params->others.ie_config);
 
-		if (module_en_update & RKISP1_CIF_ISP_MODULE_CPROC) {
-			if (module_ens & RKISP1_CIF_ISP_MODULE_CPROC)
-				rkisp1_param_set_bits(params,
-						      RKISP1_CIF_C_PROC_CTRL,
-						      RKISP1_CIF_C_PROC_CTR_ENABLE);
-			else
-				rkisp1_param_clear_bits(params,
-							RKISP1_CIF_C_PROC_CTRL,
-							RKISP1_CIF_C_PROC_CTR_ENABLE);
-		}
-	}
+	if (module_en_update & RKISP1_CIF_ISP_MODULE_IE)
+		rkisp1_ie_enable(params, !!(module_ens & RKISP1_CIF_ISP_MODULE_IE));
 
-	if ((module_en_update & RKISP1_CIF_ISP_MODULE_IE) ||
-	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_IE)) {
-		/* update ie config */
-		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_IE)
-			rkisp1_ie_config(params,
-					 &new_params->others.ie_config);
+	/* update dpf config */
+	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_DPF)
+		rkisp1_dpf_config(params, &new_params->others.dpf_config);
 
-		if (module_en_update & RKISP1_CIF_ISP_MODULE_IE)
-			rkisp1_ie_enable(params,
-					 !!(module_ens & RKISP1_CIF_ISP_MODULE_IE));
-	}
-
-	if ((module_en_update & RKISP1_CIF_ISP_MODULE_DPF) ||
-	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_DPF)) {
-		/* update dpf  config */
-		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_DPF)
-			rkisp1_dpf_config(params,
-					  &new_params->others.dpf_config);
-
-		if (module_en_update & RKISP1_CIF_ISP_MODULE_DPF) {
-			if (module_ens & RKISP1_CIF_ISP_MODULE_DPF)
-				rkisp1_param_set_bits(params,
-						      RKISP1_CIF_ISP_DPF_MODE,
-						      RKISP1_CIF_ISP_DPF_MODE_EN);
-			else
-				rkisp1_param_clear_bits(params,
-							RKISP1_CIF_ISP_DPF_MODE,
-							RKISP1_CIF_ISP_DPF_MODE_EN);
-		}
+	if (module_en_update & RKISP1_CIF_ISP_MODULE_DPF) {
+		if (module_ens & RKISP1_CIF_ISP_MODULE_DPF)
+			rkisp1_param_set_bits(params,
+					      RKISP1_CIF_ISP_DPF_MODE,
+					      RKISP1_CIF_ISP_DPF_MODE_EN);
+		else
+			rkisp1_param_clear_bits(params,
+						RKISP1_CIF_ISP_DPF_MODE,
+						RKISP1_CIF_ISP_DPF_MODE_EN);
 	}
 
 	if ((module_en_update & RKISP1_CIF_ISP_MODULE_DPF_STRENGTH) ||
@@ -1121,68 +1079,55 @@ static void rkisp1_isp_isr_meas_config(struct rkisp1_params *params,
 	module_cfg_update = new_params->module_cfg_update;
 	module_ens = new_params->module_ens;
 
-	if ((module_en_update & RKISP1_CIF_ISP_MODULE_AWB) ||
-	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_AWB)) {
-		/* update awb config */
-		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AWB)
-			rkisp1_awb_meas_config(params,
-					       &new_params->meas.awb_meas_config);
+	/* update awb config */
+	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AWB)
+		rkisp1_awb_meas_config(params, &new_params->meas.awb_meas_config);
 
-		if (module_en_update & RKISP1_CIF_ISP_MODULE_AWB)
-			rkisp1_awb_meas_enable(params,
-					       &new_params->meas.awb_meas_config,
-					       !!(module_ens & RKISP1_CIF_ISP_MODULE_AWB));
+	if (module_en_update & RKISP1_CIF_ISP_MODULE_AWB)
+		rkisp1_awb_meas_enable(params,
+				       &new_params->meas.awb_meas_config,
+				       !!(module_ens & RKISP1_CIF_ISP_MODULE_AWB));
+
+	/* update afc config */
+	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AFC)
+		rkisp1_afm_config(params,
+				  &new_params->meas.afc_config);
+
+	if (module_en_update & RKISP1_CIF_ISP_MODULE_AFC) {
+		if (module_ens & RKISP1_CIF_ISP_MODULE_AFC)
+			rkisp1_param_set_bits(params,
+					      RKISP1_CIF_ISP_AFM_CTRL,
+					      RKISP1_CIF_ISP_AFM_ENA);
+		else
+			rkisp1_param_clear_bits(params,
+						RKISP1_CIF_ISP_AFM_CTRL,
+						RKISP1_CIF_ISP_AFM_ENA);
 	}
 
-	if ((module_en_update & RKISP1_CIF_ISP_MODULE_AFC) ||
-	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_AFC)) {
-		/* update afc config */
-		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AFC)
-			rkisp1_afm_config(params,
-					  &new_params->meas.afc_config);
+	/* update hst config */
+	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_HST)
+		rkisp1_hst_config(params,
+				  &new_params->meas.hst_config);
 
-		if (module_en_update & RKISP1_CIF_ISP_MODULE_AFC) {
-			if (module_ens & RKISP1_CIF_ISP_MODULE_AFC)
-				rkisp1_param_set_bits(params,
-						      RKISP1_CIF_ISP_AFM_CTRL,
-						      RKISP1_CIF_ISP_AFM_ENA);
-			else
-				rkisp1_param_clear_bits(params,
-							RKISP1_CIF_ISP_AFM_CTRL,
-							RKISP1_CIF_ISP_AFM_ENA);
-		}
-	}
+	if (module_en_update & RKISP1_CIF_ISP_MODULE_HST)
+		rkisp1_hst_enable(params,
+				  &new_params->meas.hst_config,
+				  !!(module_ens & RKISP1_CIF_ISP_MODULE_HST));
 
-	if ((module_en_update & RKISP1_CIF_ISP_MODULE_HST) ||
-	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_HST)) {
-		/* update hst config */
-		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_HST)
-			rkisp1_hst_config(params,
-					  &new_params->meas.hst_config);
+	/* update aec config */
+	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AEC)
+		rkisp1_aec_config(params,
+				  &new_params->meas.aec_config);
 
-		if (module_en_update & RKISP1_CIF_ISP_MODULE_HST)
-			rkisp1_hst_enable(params,
-					  &new_params->meas.hst_config,
-					  !!(module_ens & RKISP1_CIF_ISP_MODULE_HST));
-	}
-
-	if ((module_en_update & RKISP1_CIF_ISP_MODULE_AEC) ||
-	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_AEC)) {
-		/* update aec config */
-		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AEC)
-			rkisp1_aec_config(params,
-					  &new_params->meas.aec_config);
-
-		if (module_en_update & RKISP1_CIF_ISP_MODULE_AEC) {
-			if (module_ens & RKISP1_CIF_ISP_MODULE_AEC)
-				rkisp1_param_set_bits(params,
-						      RKISP1_CIF_ISP_EXP_CTRL,
-						      RKISP1_CIF_ISP_EXP_ENA);
-			else
-				rkisp1_param_clear_bits(params,
-							RKISP1_CIF_ISP_EXP_CTRL,
-							RKISP1_CIF_ISP_EXP_ENA);
-		}
+	if (module_en_update & RKISP1_CIF_ISP_MODULE_AEC) {
+		if (module_ens & RKISP1_CIF_ISP_MODULE_AEC)
+			rkisp1_param_set_bits(params,
+					      RKISP1_CIF_ISP_EXP_CTRL,
+					      RKISP1_CIF_ISP_EXP_ENA);
+		else
+			rkisp1_param_clear_bits(params,
+						RKISP1_CIF_ISP_EXP_CTRL,
+						RKISP1_CIF_ISP_EXP_ENA);
 	}
 }
 

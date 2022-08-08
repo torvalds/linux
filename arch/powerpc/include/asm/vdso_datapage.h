@@ -107,9 +107,7 @@ extern struct vdso_arch_data *vdso_data;
 	bcl	20, 31, .+4
 999:
 	mflr	\ptr
-#if CONFIG_PPC_PAGE_SHIFT > 14
 	addis	\ptr, \ptr, (_vdso_datapage - 999b)@ha
-#endif
 	addi	\ptr, \ptr, (_vdso_datapage - 999b)@l
 .endm
 

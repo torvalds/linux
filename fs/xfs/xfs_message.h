@@ -73,6 +73,8 @@ do {									\
 	xfs_printk_once(xfs_warn, dev, fmt, ##__VA_ARGS__)
 #define xfs_notice_once(dev, fmt, ...)				\
 	xfs_printk_once(xfs_notice, dev, fmt, ##__VA_ARGS__)
+#define xfs_info_once(dev, fmt, ...)				\
+	xfs_printk_once(xfs_info, dev, fmt, ##__VA_ARGS__)
 
 void assfail(struct xfs_mount *mp, char *expr, char *f, int l);
 void asswarn(struct xfs_mount *mp, char *expr, char *f, int l);

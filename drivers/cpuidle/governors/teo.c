@@ -100,8 +100,8 @@ struct teo_idle_state {
  * @intervals: Saved idle duration values.
  */
 struct teo_cpu {
-	u64 time_span_ns;
-	u64 sleep_length_ns;
+	s64 time_span_ns;
+	s64 sleep_length_ns;
 	struct teo_idle_state states[CPUIDLE_STATE_MAX];
 	int interval_idx;
 	u64 intervals[INTERVALS];
@@ -117,7 +117,8 @@ static DEFINE_PER_CPU(struct teo_cpu, teo_cpus);
 static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 {
 	struct teo_cpu *cpu_data = per_cpu_ptr(&teo_cpus, dev->cpu);
-	int i, idx_hit = -1, idx_timer = -1;
+	int i, idx_hit = 0, idx_timer = 0;
+	unsigned int hits, misses;
 	u64 measured_ns;
 
 	if (cpu_data->time_span_ns >= cpu_data->sleep_length_ns) {
@@ -174,24 +175,21 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	 * also increase the "early hits" metric for the state that actually
 	 * matches the measured idle duration.
 	 */
-	if (idx_timer >= 0) {
-		unsigned int hits = cpu_data->states[idx_timer].hits;
-		unsigned int misses = cpu_data->states[idx_timer].misses;
+	hits = cpu_data->states[idx_timer].hits;
+	hits -= hits >> DECAY_SHIFT;
 
-		hits -= hits >> DECAY_SHIFT;
-		misses -= misses >> DECAY_SHIFT;
+	misses = cpu_data->states[idx_timer].misses;
+	misses -= misses >> DECAY_SHIFT;
 
-		if (idx_timer > idx_hit) {
-			misses += PULSE;
-			if (idx_hit >= 0)
-				cpu_data->states[idx_hit].early_hits += PULSE;
-		} else {
-			hits += PULSE;
-		}
-
-		cpu_data->states[idx_timer].misses = misses;
-		cpu_data->states[idx_timer].hits = hits;
+	if (idx_timer == idx_hit) {
+		hits += PULSE;
+	} else {
+		misses += PULSE;
+		cpu_data->states[idx_hit].early_hits += PULSE;
 	}
+
+	cpu_data->states[idx_timer].misses = misses;
+	cpu_data->states[idx_timer].hits = hits;
 
 	/*
 	 * Save idle duration values corresponding to non-timer wakeups for
@@ -216,7 +214,7 @@ static bool teo_time_ok(u64 interval_ns)
  */
 static int teo_find_shallower_state(struct cpuidle_driver *drv,
 				    struct cpuidle_device *dev, int state_idx,
-				    u64 duration_ns)
+				    s64 duration_ns)
 {
 	int i;
 
@@ -242,10 +240,10 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 {
 	struct teo_cpu *cpu_data = per_cpu_ptr(&teo_cpus, dev->cpu);
 	s64 latency_req = cpuidle_governor_latency_req(dev->cpu);
-	u64 duration_ns;
+	int max_early_idx, prev_max_early_idx, constraint_idx, idx0, idx, i;
 	unsigned int hits, misses, early_hits;
-	int max_early_idx, prev_max_early_idx, constraint_idx, idx, i;
 	ktime_t delta_tick;
+	s64 duration_ns;
 
 	if (dev->last_state_idx >= 0) {
 		teo_update(drv, dev);
@@ -264,6 +262,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	prev_max_early_idx = -1;
 	constraint_idx = drv->state_count;
 	idx = -1;
+	idx0 = idx;
 
 	for (i = 0; i < drv->state_count; i++) {
 		struct cpuidle_state *s = &drv->states[i];
@@ -324,6 +323,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 			idx = i; /* first enabled state */
 			hits = cpu_data->states[i].hits;
 			misses = cpu_data->states[i].misses;
+			idx0 = i;
 		}
 
 		if (s->target_residency_ns > duration_ns)
@@ -376,11 +376,16 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 
 	if (idx < 0) {
 		idx = 0; /* No states enabled. Must use 0. */
-	} else if (idx > 0) {
+	} else if (idx > idx0) {
 		unsigned int count = 0;
 		u64 sum = 0;
 
 		/*
+		 * The target residencies of at least two different enabled idle
+		 * states are less than or equal to the current expected idle
+		 * duration.  Try to refine the selection using the most recent
+		 * measured idle duration values.
+		 *
 		 * Count and sum the most recent idle duration values less than
 		 * the current expected idle duration value.
 		 */
@@ -428,7 +433,8 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		 * till the closest timer including the tick, try to correct
 		 * that.
 		 */
-		if (idx > 0 && drv->states[idx].target_residency_ns > delta_tick)
+		if (idx > idx0 &&
+		    drv->states[idx].target_residency_ns > delta_tick)
 			idx = teo_find_shallower_state(drv, dev, idx, delta_tick);
 	}
 

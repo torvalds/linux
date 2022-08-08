@@ -172,19 +172,19 @@ struct drm_vram_mm {
 	uint64_t vram_base;
 	size_t vram_size;
 
-	struct ttm_bo_device bdev;
+	struct ttm_device bdev;
 };
 
 /**
  * drm_vram_mm_of_bdev() - \
-	Returns the container of type &struct ttm_bo_device for field bdev.
+	Returns the container of type &struct ttm_device for field bdev.
  * @bdev:	the TTM BO device
  *
  * Returns:
  * The containing instance of &struct drm_vram_mm
  */
 static inline struct drm_vram_mm *drm_vram_mm_of_bdev(
-	struct ttm_bo_device *bdev)
+	struct ttm_device *bdev)
 {
 	return container_of(bdev, struct drm_vram_mm, bdev);
 }

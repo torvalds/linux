@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/**
+/*
  * AMCC SoC PPC4xx Crypto Driver
  *
  * Copyright (c) 2008 Applied Micro Circuits Corporation.
@@ -44,7 +44,7 @@
 
 #define PPC4XX_SEC_VERSION_STR			"0.5"
 
-/**
+/*
  * PPC4xx Crypto Engine Initialization Routine
  */
 static void crypto4xx_hw_init(struct crypto4xx_device *dev)
@@ -159,7 +159,7 @@ void crypto4xx_free_sa(struct crypto4xx_ctx *ctx)
 	ctx->sa_len = 0;
 }
 
-/**
+/*
  * alloc memory for the gather ring
  * no need to alloc buf for the ring
  * gdr_tail, gdr_head and gdr_count are initialized by this function
@@ -268,7 +268,7 @@ static u32 crypto4xx_put_pd_to_pdr(struct crypto4xx_device *dev, u32 idx)
 	return tail;
 }
 
-/**
+/*
  * alloc memory for the gather ring
  * no need to alloc buf for the ring
  * gdr_tail, gdr_head and gdr_count are initialized by this function
@@ -346,7 +346,7 @@ static inline struct ce_gd *crypto4xx_get_gdp(struct crypto4xx_device *dev,
 	return &dev->gdr[idx];
 }
 
-/**
+/*
  * alloc memory for the scatter ring
  * need to alloc buf for the ring
  * sdr_tail, sdr_head and sdr_count are initialized by this function
@@ -930,7 +930,7 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 	return is_busy ? -EBUSY : -EINPROGRESS;
 }
 
-/**
+/*
  * Algorithm Registration Functions
  */
 static void crypto4xx_ctx_init(struct crypto4xx_alg *amcc_alg,
@@ -1097,7 +1097,7 @@ static void crypto4xx_bh_tasklet_cb(unsigned long data)
 	} while (head != tail);
 }
 
-/**
+/*
  * Top Half of isr.
  */
 static inline irqreturn_t crypto4xx_interrupt_handler(int irq, void *data,
@@ -1186,7 +1186,7 @@ static int crypto4xx_prng_seed(struct crypto_rng *tfm, const u8 *seed,
 	return 0;
 }
 
-/**
+/*
  * Supported Crypto Algorithms
  */
 static struct crypto4xx_alg_common crypto4xx_alg[] = {
@@ -1369,7 +1369,7 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 	} },
 };
 
-/**
+/*
  * Module Initialization Routine
  */
 static int crypto4xx_probe(struct platform_device *ofdev)

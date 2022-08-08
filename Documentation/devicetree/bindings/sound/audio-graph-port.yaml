@@ -11,71 +11,59 @@ maintainers:
 
 select: false
 
+allOf:
+  - $ref: /schemas/graph.yaml#/$defs/port-base
+
 properties:
-  port:
-    description: single OF-Graph subnode
-    type: object
+  prefix:
+    description: "device name prefix"
+    $ref: /schemas/types.yaml#/definitions/string
+  convert-rate:
+    description: CPU to Codec rate convert.
+    $ref: /schemas/types.yaml#/definitions/uint32
+  convert-channels:
+    description: CPU to Codec rate channels.
+    $ref: /schemas/types.yaml#/definitions/uint32
+patternProperties:
+  "^endpoint(@[0-9a-f]+)?":
+    $ref: /schemas/graph.yaml#/$defs/endpoint-base
     properties:
-      reg:
-        maxItems: 1
-      prefix:
-        description: "device name prefix"
-        $ref: /schemas/types.yaml#/definitions/string
+      mclk-fs:
+        description: |
+          Multiplication factor between stream rate and codec mclk.
+          When defined, mclk-fs property defined in dai-link sub nodes are
+          ignored.
+        $ref: /schemas/types.yaml#/definitions/uint32
+      frame-inversion:
+        description: dai-link uses frame clock inversion
+        $ref: /schemas/types.yaml#/definitions/flag
+      bitclock-inversion:
+        description: dai-link uses bit clock inversion
+        $ref: /schemas/types.yaml#/definitions/flag
+      frame-master:
+        description: Indicates dai-link frame master.
+        $ref: /schemas/types.yaml#/definitions/phandle
+      bitclock-master:
+        description: Indicates dai-link bit clock master
+        $ref: /schemas/types.yaml#/definitions/phandle
+      dai-format:
+        description: audio format.
+        items:
+          enum:
+            - i2s
+            - right_j
+            - left_j
+            - dsp_a
+            - dsp_b
+            - ac97
+            - pdm
+            - msb
+            - lsb
       convert-rate:
         description: CPU to Codec rate convert.
         $ref: /schemas/types.yaml#/definitions/uint32
       convert-channels:
         description: CPU to Codec rate channels.
         $ref: /schemas/types.yaml#/definitions/uint32
-    patternProperties:
-      "^endpoint(@[0-9a-f]+)?":
-        type: object
-        properties:
-          remote-endpoint:
-            maxItems: 1
-          mclk-fs:
-            description: |
-              Multiplication factor between stream rate and codec mclk.
-              When defined, mclk-fs property defined in dai-link sub nodes are
-              ignored.
-            $ref: /schemas/types.yaml#/definitions/uint32
-          frame-inversion:
-            description: dai-link uses frame clock inversion
-            $ref: /schemas/types.yaml#/definitions/flag
-          bitclock-inversion:
-            description: dai-link uses bit clock inversion
-            $ref: /schemas/types.yaml#/definitions/flag
-          frame-master:
-            description: Indicates dai-link frame master.
-            $ref: /schemas/types.yaml#/definitions/phandle
-          bitclock-master:
-            description: Indicates dai-link bit clock master
-            $ref: /schemas/types.yaml#/definitions/phandle
-          dai-format:
-            description: audio format.
-            items:
-              enum:
-                - i2s
-                - right_j
-                - left_j
-                - dsp_a
-                - dsp_b
-                - ac97
-                - pdm
-                - msb
-                - lsb
-          convert-rate:
-            description: CPU to Codec rate convert.
-            $ref: /schemas/types.yaml#/definitions/uint32
-          convert-channels:
-            description: CPU to Codec rate channels.
-            $ref: /schemas/types.yaml#/definitions/uint32
-
-  ports:
-    description: multi OF-Graph subnode
-    type: object
-    patternProperties:
-      "^port(@[0-9a-f]+)?":
-        $ref: "#/properties/port"
 
 additionalProperties: true

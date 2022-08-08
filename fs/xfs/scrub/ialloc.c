@@ -29,10 +29,9 @@
  */
 int
 xchk_setup_ag_iallocbt(
-	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip)
+	struct xfs_scrub	*sc)
 {
-	return xchk_setup_ag_btree(sc, ip, sc->flags & XCHK_TRY_HARDER);
+	return xchk_setup_ag_btree(sc, sc->flags & XCHK_TRY_HARDER);
 }
 
 /* Inode btree scrubber. */
@@ -212,7 +211,6 @@ xchk_iallocbt_check_cluster(
 {
 	struct xfs_imap			imap;
 	struct xfs_mount		*mp = bs->cur->bc_mp;
-	struct xfs_dinode		*dip;
 	struct xfs_buf			*cluster_bp;
 	unsigned int			nr_inodes;
 	xfs_agnumber_t			agno = bs->cur->bc_ag.agno;
@@ -278,7 +276,7 @@ xchk_iallocbt_check_cluster(
 			&XFS_RMAP_OINFO_INODES);
 
 	/* Grab the inode cluster buffer. */
-	error = xfs_imap_to_bp(mp, bs->cur->bc_tp, &imap, &dip, &cluster_bp, 0);
+	error = xfs_imap_to_bp(mp, bs->cur->bc_tp, &imap, &cluster_bp);
 	if (!xchk_btree_xref_process_error(bs->sc, bs->cur, 0, &error))
 		return error;
 

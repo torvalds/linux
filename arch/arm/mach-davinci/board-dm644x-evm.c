@@ -541,6 +541,10 @@ static const struct property_entry eeprom_properties[] = {
 	{ }
 };
 
+static const struct software_node eeprom_node = {
+	.properties = eeprom_properties,
+};
+
 /*
  * MSP430 supports RTC, card detection, input from IR remote, and
  * a bit more.  It triggers interrupts on GPIO(7) from pressing
@@ -647,7 +651,7 @@ static struct i2c_board_info __initdata i2c_info[] =  {
 	},
 	{
 		I2C_BOARD_INFO("24c256", 0x50),
-		.properties = eeprom_properties,
+		.swnode = &eeprom_node,
 	},
 	{
 		I2C_BOARD_INFO("tlv320aic33", 0x1b),

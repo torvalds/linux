@@ -50,6 +50,8 @@
 #include <linux/miscdevice.h>
 #endif
 
+#include "mpt3sas_base.h"
+
 #ifndef MPT2SAS_MINOR
 #define MPT2SAS_MINOR		(MPT_MINOR + 1)
 #endif
@@ -436,19 +438,13 @@ struct mpt3_diag_read_buffer {
  * struct mpt3_addnl_diag_query - diagnostic buffer release reason
  * @hdr - generic header
  * @unique_id - unique id associated with this buffer.
- * @buffer_rel_condition - Release condition ioctl/sysfs/reset
- * @reserved1
- * @trigger_type - Master/Event/scsi/MPI
- * @trigger_info_dwords - Data Correspondig to trigger type
+ * @rel_query - release query.
  * @reserved2
  */
 struct mpt3_addnl_diag_query {
 	struct mpt3_ioctl_header hdr;
 	uint32_t unique_id;
-	uint16_t buffer_rel_condition;
-	uint16_t reserved1;
-	uint32_t trigger_type;
-	uint32_t trigger_info_dwords[2];
+	struct htb_rel_query rel_query;
 	uint32_t reserved2[2];
 };
 

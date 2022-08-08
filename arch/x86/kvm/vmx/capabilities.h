@@ -90,8 +90,7 @@ static inline bool cpu_has_vmx_preemption_timer(void)
 
 static inline bool cpu_has_vmx_posted_intr(void)
 {
-	return IS_ENABLED(CONFIG_X86_LOCAL_APIC) &&
-		vmcs_config.pin_based_exec_ctrl & PIN_BASED_POSTED_INTR;
+	return vmcs_config.pin_based_exec_ctrl & PIN_BASED_POSTED_INTR;
 }
 
 static inline bool cpu_has_load_ia32_efer(void)
@@ -397,6 +396,9 @@ static inline u64 vmx_get_perf_capabilities(void)
 static inline u64 vmx_supported_debugctl(void)
 {
 	u64 debugctl = 0;
+
+	if (boot_cpu_has(X86_FEATURE_BUS_LOCK_DETECT))
+		debugctl |= DEBUGCTLMSR_BUS_LOCK_DETECT;
 
 	if (vmx_get_perf_capabilities() & PMU_CAP_LBR_FMT)
 		debugctl |= DEBUGCTLMSR_LBR_MASK;

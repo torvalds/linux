@@ -113,11 +113,7 @@ static int rtw_enusbss;/* 0:disable, 1:enable */
 
 static int rtw_hwpdn_mode = 2;/* 0:disable, 1:enable, 2: by EFUSE config */
 
-#ifdef CONFIG_HW_PWRP_DETECTION
-static int rtw_hwpwrp_detect = 1;
-#else
 static int rtw_hwpwrp_detect; /* HW power  ping detect 0:disable , 1:enable */
-#endif
 
 static int rtw_hw_wps_pbc;
 
@@ -125,11 +121,7 @@ int rtw_mc2u_disable = 0;
 
 static int rtw_80211d;
 
-#ifdef CONFIG_QOS_OPTIMIZATION
-static int rtw_qos_opt_enable = 1;/* 0: disable, 1:enable */
-#else
 static int rtw_qos_opt_enable;/* 0: disable, 1:enable */
-#endif
 module_param(rtw_qos_opt_enable, int, 0644);
 
 static char *ifname = "wlan%d";
@@ -201,11 +193,9 @@ MODULE_PARM_DESC(rtw_tx_pwr_lmt_enable, "0:Disable, 1:Enable, 2: Depend on efuse
 module_param(rtw_tx_pwr_by_rate, int, 0644);
 MODULE_PARM_DESC(rtw_tx_pwr_by_rate, "0:Disable, 1:Enable, 2: Depend on efuse");
 
-int _netdev_open(struct net_device *pnetdev);
-int netdev_open(struct net_device *pnetdev);
 static int netdev_close(struct net_device *pnetdev);
 
-static void loadparam(struct adapter *padapter, _nic_hdl pnetdev)
+static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 {
 	struct registry_priv  *registry_par = &padapter->registrypriv;
 
@@ -314,7 +304,6 @@ static int rtw_net_set_mac_address(struct net_device *pnetdev, void *p)
 	struct sockaddr *addr = p;
 
 	if (!padapter->bup) {
-		/* DBG_871X("r8711_net_set_mac_address(), MAC =%x:%x:%x:%x:%x:%x\n", addr->sa_data[0], addr->sa_data[1], addr->sa_data[2], addr->sa_data[3], */
 		/* addr->sa_data[4], addr->sa_data[5]); */
 		memcpy(padapter->eeprompriv.mac_addr, addr->sa_data, ETH_ALEN);
 		/* memcpy(pnetdev->dev_addr, addr->sa_data, ETH_ALEN); */
@@ -423,7 +412,8 @@ static int rtw_ndev_notifier_call(struct notifier_block *nb, unsigned long state
 	if (dev->netdev_ops->ndo_do_ioctl != rtw_ioctl)
 		return NOTIFY_DONE;
 
-	DBG_871X_LEVEL(_drv_info_, FUNC_NDEV_FMT " state:%lu\n", FUNC_NDEV_ARG(dev), state);
+	netdev_info(dev, FUNC_NDEV_FMT " state:%lu\n", FUNC_NDEV_ARG(dev),
+		    state);
 
 	return NOTIFY_DONE;
 }
@@ -447,7 +437,7 @@ static int rtw_ndev_init(struct net_device *dev)
 {
 	struct adapter *adapter = rtw_netdev_priv(dev);
 
-	DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT "\n", FUNC_ADPT_ARG(adapter));
+	netdev_dbg(dev, FUNC_ADPT_FMT "\n", FUNC_ADPT_ARG(adapter));
 	strncpy(adapter->old_ifname, dev->name, IFNAMSIZ);
 
 	return 0;
@@ -457,7 +447,7 @@ static void rtw_ndev_uninit(struct net_device *dev)
 {
 	struct adapter *adapter = rtw_netdev_priv(dev);
 
-	DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT "\n", FUNC_ADPT_ARG(adapter));
+	netdev_dbg(dev, FUNC_ADPT_FMT "\n", FUNC_ADPT_ARG(adapter));
 }
 
 static const struct net_device_ops rtw_netdev_ops = {
@@ -489,8 +479,6 @@ struct net_device *rtw_init_netdev(struct adapter *old_padapter)
 	struct adapter *padapter;
 	struct net_device *pnetdev;
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+init_net_dev\n"));
-
 	if (old_padapter)
 		pnetdev = rtw_alloc_etherdev_with_old_priv(sizeof(struct adapter), (void *)old_padapter);
 	else
@@ -505,7 +493,6 @@ struct net_device *rtw_init_netdev(struct adapter *old_padapter)
 
 	/* pnetdev->init = NULL; */
 
-	DBG_871X("register rtw_netdev_ops to netdev_ops\n");
 	pnetdev->netdev_ops = &rtw_netdev_ops;
 
 	/* pnetdev->tx_timeout = NULL; */
@@ -539,7 +526,6 @@ u32 rtw_start_drv_threads(struct adapter *padapter)
 {
 	u32 _status = _SUCCESS;
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+rtw_start_drv_threads\n"));
 	padapter->xmitThread = kthread_run(rtw_xmit_thread, padapter, "RTW_XMIT_THREAD");
 	if (IS_ERR(padapter->xmitThread))
 		_status = _FAIL;
@@ -556,14 +542,11 @@ u32 rtw_start_drv_threads(struct adapter *padapter)
 
 void rtw_stop_drv_threads(struct adapter *padapter)
 {
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+rtw_stop_drv_threads\n"));
-
 	rtw_stop_cmd_thread(padapter);
 
 	/*  Below is to termindate tx_thread... */
 	complete(&padapter->xmitpriv.xmit_comp);
 	wait_for_completion(&padapter->xmitpriv.terminate_xmitthread_comp);
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("\n drv_halt: rtw_xmit_thread can be terminated !\n"));
 
 	rtw_hal_stop_thread(padapter);
 }
@@ -596,9 +579,6 @@ static void rtw_init_default_value(struct adapter *padapter)
 	/* security_priv */
 	/* rtw_get_encrypt_decrypt_from_registrypriv(padapter); */
 	psecuritypriv->binstallGrpkey = _FAIL;
-#ifdef CONFIG_GTK_OL
-	psecuritypriv->binstallKCK_KEK = _FAIL;
-#endif /* CONFIG_GTK_OL */
 	psecuritypriv->sw_encrypt = pregistrypriv->software_encrypt;
 	psecuritypriv->sw_decrypt = pregistrypriv->software_decrypt;
 
@@ -710,14 +690,11 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 {
 	u8 ret8 = _SUCCESS;
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+rtw_init_drv_sw\n"));
-
 	rtw_init_default_value(padapter);
 
 	rtw_init_hal_com_default_value(padapter);
 
 	if (rtw_init_cmd_priv(&padapter->cmdpriv)) {
-		RT_TRACE(_module_os_intfs_c_, _drv_err_, ("\n Can't init cmd_priv\n"));
 		ret8 = _FAIL;
 		goto exit;
 	}
@@ -725,14 +702,12 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 	padapter->cmdpriv.padapter = padapter;
 
 	if (rtw_init_evt_priv(&padapter->evtpriv)) {
-		RT_TRACE(_module_os_intfs_c_, _drv_err_, ("\n Can't init evt_priv\n"));
 		ret8 = _FAIL;
 		goto exit;
 	}
 
 
 	if (rtw_init_mlme_priv(padapter) == _FAIL) {
-		RT_TRACE(_module_os_intfs_c_, _drv_err_, ("\n Can't init mlme_priv\n"));
 		ret8 = _FAIL;
 		goto exit;
 	}
@@ -740,13 +715,11 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 	init_mlme_ext_priv(padapter);
 
 	if (_rtw_init_xmit_priv(&padapter->xmitpriv, padapter) == _FAIL) {
-		DBG_871X("Can't _rtw_init_xmit_priv\n");
 		ret8 = _FAIL;
 		goto exit;
 	}
 
 	if (_rtw_init_recv_priv(&padapter->recvpriv, padapter) == _FAIL) {
-		DBG_871X("Can't _rtw_init_recv_priv\n");
 		ret8 = _FAIL;
 		goto exit;
 	}
@@ -757,7 +730,6 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 	/* memset((unsigned char *)&padapter->securitypriv, 0, sizeof (struct security_priv)); */
 
 	if (_rtw_init_sta_priv(&padapter->stapriv) == _FAIL) {
-		DBG_871X("Can't _rtw_init_sta_priv\n");
 		ret8 = _FAIL;
 		goto exit;
 	}
@@ -773,29 +745,21 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 
 exit:
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-rtw_init_drv_sw\n"));
-
 	return ret8;
 }
 
 void rtw_cancel_all_timer(struct adapter *padapter)
 {
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+rtw_cancel_all_timer\n"));
-
 	del_timer_sync(&padapter->mlmepriv.assoc_timer);
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("rtw_cancel_all_timer:cancel association timer complete!\n"));
 
 	del_timer_sync(&padapter->mlmepriv.scan_to_timer);
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("rtw_cancel_all_timer:cancel scan_to_timer!\n"));
 
 	del_timer_sync(&padapter->mlmepriv.dynamic_chk_timer);
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("rtw_cancel_all_timer:cancel dynamic_chk_timer!\n"));
 
 	del_timer_sync(&(adapter_to_pwrctl(padapter)->pwr_state_check_timer));
 
 	del_timer_sync(&padapter->mlmepriv.set_scan_deny_timer);
 	rtw_clear_scan_deny(padapter);
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("rtw_cancel_all_timer:cancel set_scan_deny_timer!\n"));
 
 	del_timer_sync(&padapter->recvpriv.signal_stat_timer);
 
@@ -805,8 +769,6 @@ void rtw_cancel_all_timer(struct adapter *padapter)
 
 u8 rtw_free_drv_sw(struct adapter *padapter)
 {
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("==>rtw_free_drv_sw"));
-
 	free_mlme_ext_priv(&padapter->mlmeextpriv);
 
 	rtw_free_cmd_priv(&padapter->cmdpriv);
@@ -829,8 +791,6 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 
 	rtw_hal_free_data(padapter);
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("<==rtw_free_drv_sw\n"));
-
 	/* free the old_pnetdev */
 	if (padapter->rereg_nd_name_priv.old_pnetdev) {
 		free_netdev(padapter->rereg_nd_name_priv.old_pnetdev);
@@ -840,8 +800,6 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 	/*  clear pbuddystruct adapter to avoid access wrong pointer. */
 	if (padapter->pbuddy_adapter)
 		padapter->pbuddy_adapter->pbuddy_adapter = NULL;
-
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-rtw_free_drv_sw\n"));
 
 	return _SUCCESS;
 }
@@ -859,12 +817,9 @@ static int _rtw_drv_register_netdev(struct adapter *padapter, char *name)
 
 	/* Tell the network stack we exist */
 	if (register_netdev(pnetdev) != 0) {
-		DBG_871X(FUNC_NDEV_FMT "Failed!\n", FUNC_NDEV_ARG(pnetdev));
 		ret = _FAIL;
 		goto error_register_netdev;
 	}
-
-	DBG_871X("%s, MAC Address (if%d) = %pM\n", __func__, (padapter->iface_id + 1), MAC_ARG(pnetdev->dev_addr));
 
 	return ret;
 
@@ -886,14 +841,11 @@ int rtw_drv_register_netdev(struct adapter *if1)
 	return _rtw_drv_register_netdev(padapter, name);
 }
 
-int _netdev_open(struct net_device *pnetdev)
+static int _netdev_open(struct net_device *pnetdev)
 {
 	uint status;
 	struct adapter *padapter = rtw_netdev_priv(pnetdev);
 	struct pwrctrl_priv *pwrctrlpriv = adapter_to_pwrctl(padapter);
-
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+871x_drv - dev_open\n"));
-	DBG_871X("+871x_drv - drv_open, bup =%d\n", padapter->bup);
 
 	padapter->netif_up = true;
 
@@ -908,18 +860,12 @@ int _netdev_open(struct net_device *pnetdev)
 		padapter->bCardDisableWOHSM = false;
 
 		status = rtw_hal_init(padapter);
-		if (status == _FAIL) {
-			RT_TRACE(_module_os_intfs_c_, _drv_err_, ("rtl871x_hal_init(): Can't init h/w!\n"));
+		if (status == _FAIL)
 			goto netdev_open_error;
-		}
-
-		DBG_871X("MAC Address = %pM\n", MAC_ARG(pnetdev->dev_addr));
 
 		status = rtw_start_drv_threads(padapter);
-		if (status == _FAIL) {
-			DBG_871X("Initialize driver software resource Failed!\n");
+		if (status == _FAIL)
 			goto netdev_open_error;
-		}
 
 		if (padapter->intf_start)
 			padapter->intf_start(padapter);
@@ -940,9 +886,6 @@ int _netdev_open(struct net_device *pnetdev)
 
 netdev_open_normal_process:
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-871x_drv - dev_open\n"));
-	DBG_871X("-871x_drv - drv_open, bup =%d\n", padapter->bup);
-
 	return 0;
 
 netdev_open_error:
@@ -951,9 +894,6 @@ netdev_open_error:
 
 	netif_carrier_off(pnetdev);
 	rtw_netif_stop_queue(pnetdev);
-
-	RT_TRACE(_module_os_intfs_c_, _drv_err_, ("-871x_drv - dev_open, fail!\n"));
-	DBG_871X("-871x_drv - drv_open fail, bup =%d\n", padapter->bup);
 
 	return (-1);
 }
@@ -964,10 +904,8 @@ int netdev_open(struct net_device *pnetdev)
 	struct adapter *padapter = rtw_netdev_priv(pnetdev);
 	struct pwrctrl_priv *pwrctrlpriv = adapter_to_pwrctl(padapter);
 
-	if (pwrctrlpriv->bInSuspend) {
-		DBG_871X("+871x_drv - drv_open, bInSuspend =%d\n", pwrctrlpriv->bInSuspend);
+	if (pwrctrlpriv->bInSuspend)
 		return 0;
-	}
 
 	if (mutex_lock_interruptible(&(adapter_to_dvobj(padapter)->hw_init_mutex)))
 		return -1;
@@ -985,18 +923,13 @@ static int  ips_netdrv_open(struct adapter *padapter)
 
 	padapter->net_closed = false;
 
-	DBG_871X("===> %s.........\n", __func__);
-
-
 	padapter->bDriverStopped = false;
 	padapter->bCardDisableWOHSM = false;
 	/* padapter->bup = true; */
 
 	status = rtw_hal_init(padapter);
-	if (status == _FAIL) {
-		RT_TRACE(_module_os_intfs_c_, _drv_err_, ("ips_netdrv_open(): Can't init h/w!\n"));
+	if (status == _FAIL)
 		goto netdev_open_error;
-	}
 
 	if (padapter->intf_start)
 		padapter->intf_start(padapter);
@@ -1006,8 +939,6 @@ static int  ips_netdrv_open(struct adapter *padapter)
 	return _SUCCESS;
 
 netdev_open_error:
-	/* padapter->bup = false; */
-	DBG_871X("-ips_netdrv_open - drv_open failure, bup =%d\n", padapter->bup);
 
 	return _FAIL;
 }
@@ -1016,35 +947,27 @@ netdev_open_error:
 int rtw_ips_pwr_up(struct adapter *padapter)
 {
 	int result;
-	DBG_871X("===>  rtw_ips_pwr_up..............\n");
 
 	result = ips_netdrv_open(padapter);
 
-	DBG_871X("<===  rtw_ips_pwr_up..............\n");
 	return result;
 }
 
 void rtw_ips_pwr_down(struct adapter *padapter)
 {
-	DBG_871X("===> rtw_ips_pwr_down...................\n");
-
 	padapter->bCardDisableWOHSM = true;
 	padapter->net_closed = true;
 
 	rtw_ips_dev_unload(padapter);
 	padapter->bCardDisableWOHSM = false;
-	DBG_871X("<=== rtw_ips_pwr_down.....................\n");
 }
 
 void rtw_ips_dev_unload(struct adapter *padapter)
 {
-	DBG_871X("====> %s...\n", __func__);
-
 
 	if (!padapter->bSurpriseRemoved)
 		rtw_hal_deinit(padapter);
 }
-
 
 static int pm_netdev_open(struct net_device *pnetdev, u8 bnormal)
 {
@@ -1069,8 +992,6 @@ static int netdev_close(struct net_device *pnetdev)
 	struct adapter *padapter = rtw_netdev_priv(pnetdev);
 	struct pwrctrl_priv *pwrctl = adapter_to_pwrctl(padapter);
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+871x_drv - drv_close\n"));
-
 	if (pwrctl->bInternalAutoSuspend) {
 		/* rtw_pwr_wakeup(padapter); */
 		if (pwrctl->rf_pwrstate == rf_off)
@@ -1081,7 +1002,6 @@ static int netdev_close(struct net_device *pnetdev)
 
 /*if (!padapter->hw_init_completed)
 	{
-		DBG_871X("(1)871x_drv - drv_close, bup =%d, hw_init_completed =%d\n", padapter->bup, padapter->hw_init_completed);
 
 		padapter->bDriverStopped = true;
 
@@ -1089,8 +1009,6 @@ static int netdev_close(struct net_device *pnetdev)
 	}
 	else*/
 	if (pwrctl->rf_pwrstate == rf_on) {
-		DBG_871X("(2)871x_drv - drv_close, bup =%d, hw_init_completed =%d\n", padapter->bup, padapter->hw_init_completed);
-
 		/* s1. */
 		if (pnetdev) {
 			if (!rtw_netif_queue_stopped(pnetdev))
@@ -1111,16 +1029,11 @@ static int netdev_close(struct net_device *pnetdev)
 	rtw_scan_abort(padapter);
 	adapter_wdev_data(padapter)->bandroid_scan = false;
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-871x_drv - drv_close\n"));
-	DBG_871X("-871x_drv - drv_close, bup =%d\n", padapter->bup);
-
 	return 0;
 }
 
 void rtw_ndev_destructor(struct net_device *ndev)
 {
-	DBG_871X(FUNC_NDEV_FMT "\n", FUNC_NDEV_ARG(ndev));
-
 	kfree(ndev->ieee80211_ptr);
 }
 
@@ -1132,10 +1045,7 @@ void rtw_dev_unload(struct adapter *padapter)
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 	u8 cnt = 0;
 
-	RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("+%s\n", __func__));
-
 	if (padapter->bup) {
-		DBG_871X("===> %s\n", __func__);
 
 		padapter->bDriverStopped = true;
 		if (padapter->xmitpriv.ack_tx)
@@ -1144,76 +1054,51 @@ void rtw_dev_unload(struct adapter *padapter)
 		if (padapter->intf_stop)
 			padapter->intf_stop(padapter);
 
-		RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("@ rtw_dev_unload: stop intf complete!\n"));
-
 		if (!pwrctl->bInternalAutoSuspend)
 			rtw_stop_drv_threads(padapter);
 
 		while (atomic_read(&pcmdpriv->cmdthd_running)) {
 			if (cnt > 5) {
-				DBG_871X("stop cmdthd timeout\n");
 				break;
 			} else {
 				cnt++;
-				DBG_871X("cmdthd is running(%d)\n", cnt);
 				msleep(10);
 			}
 		}
 
-		RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("@ %s: stop thread complete!\n", __func__));
-
 		/* check the status of IPS */
 		if (rtw_hal_check_ips_status(padapter) || pwrctl->rf_pwrstate == rf_off) {
 			/* check HW status and SW state */
-			DBG_871X_LEVEL(_drv_always_, "%s: driver in IPS-FWLPS\n", __func__);
+			netdev_dbg(padapter->pnetdev,
+				   "%s: driver in IPS-FWLPS\n", __func__);
 			pdbgpriv->dbg_dev_unload_inIPS_cnt++;
 			LeaveAllPowerSaveMode(padapter);
 		} else {
-			DBG_871X_LEVEL(_drv_always_, "%s: driver not in IPS\n", __func__);
+			netdev_dbg(padapter->pnetdev,
+				   "%s: driver not in IPS\n", __func__);
 		}
 
 		if (!padapter->bSurpriseRemoved) {
 			hal_btcoex_IpsNotify(padapter, pwrctl->ips_mode_req);
-#ifdef CONFIG_WOWLAN
-			if (pwrctl->bSupportRemoteWakeup && pwrctl->wowlan_mode) {
-				DBG_871X_LEVEL(_drv_always_, "%s bSupportRemoteWakeup ==true  do not run rtw_hal_deinit()\n", __func__);
-			}
-			else
-#endif
-			{
-				/* amy modify 20120221 for power seq is different between driver open and ips */
-				rtw_hal_deinit(padapter);
-			}
+
+			/* amy modify 20120221 for power seq is different between driver open and ips */
+			rtw_hal_deinit(padapter);
+
 			padapter->bSurpriseRemoved = true;
 		}
-		RT_TRACE(_module_hci_intfs_c_, _drv_notice_,
-			 ("@ %s: deinit hal complete!\n", __func__));
 
 		padapter->bup = false;
 
-		DBG_871X("<=== %s\n", __func__);
-	} else {
-		RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("%s: bup ==false\n", __func__));
-		DBG_871X("%s: bup ==false\n", __func__);
 	}
-
-	RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("-%s\n", __func__));
 }
 
 static int rtw_suspend_free_assoc_resource(struct adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	DBG_871X("==> " FUNC_ADPT_FMT " entry....\n", FUNC_ADPT_ARG(padapter));
-
 	if (rtw_chk_roam_flags(padapter, RTW_ROAM_ON_RESUME)) {
 		if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)
 			&& check_fwstate(pmlmepriv, _FW_LINKED)) {
-			DBG_871X("%s %s(%pM), length:%d assoc_ssid.length:%d\n", __func__,
-					pmlmepriv->cur_network.network.Ssid.Ssid,
-					MAC_ARG(pmlmepriv->cur_network.network.MacAddress),
-					pmlmepriv->cur_network.network.Ssid.SsidLength,
-					pmlmepriv->assoc_ssid.SsidLength);
 			rtw_set_to_roam(padapter, 1);
 		}
 	}
@@ -1236,146 +1121,18 @@ static int rtw_suspend_free_assoc_resource(struct adapter *padapter)
 		rtw_indicate_scan_done(padapter, 1);
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING)) {
-		DBG_871X_LEVEL(_drv_always_, "%s: fw_under_linking\n", __func__);
+		netdev_dbg(padapter->pnetdev, "%s: fw_under_linking\n",
+			   __func__);
 		rtw_indicate_disconnect(padapter);
 	}
 
-	DBG_871X("<== " FUNC_ADPT_FMT " exit....\n", FUNC_ADPT_ARG(padapter));
 	return _SUCCESS;
 }
-
-#ifdef CONFIG_WOWLAN
-void rtw_suspend_wow(struct adapter *padapter)
-{
-	u8 ch, bw, offset;
-	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct net_device *pnetdev = padapter->pnetdev;
-	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
-	struct wowlan_ioctl_param poidparam;
-
-	DBG_871X("==> " FUNC_ADPT_FMT " entry....\n", FUNC_ADPT_ARG(padapter));
-
-
-	DBG_871X("wowlan_mode: %d\n", pwrpriv->wowlan_mode);
-	DBG_871X("wowlan_pno_enable: %d\n", pwrpriv->wowlan_pno_enable);
-
-	if (pwrpriv->wowlan_mode) {
-		if (pnetdev)
-			rtw_netif_stop_queue(pnetdev);
-		/*  1. stop thread */
-		padapter->bDriverStopped = true;	/* for stop thread */
-		rtw_stop_drv_threads(padapter);
-		padapter->bDriverStopped = false;	/* for 32k command */
-
-		/*  2. disable interrupt */
-		if (padapter->intf_stop)
-			padapter->intf_stop(padapter);
-
-		/*  2.1 clean interrupt */
-		if (padapter->HalFunc.clear_interrupt)
-			padapter->HalFunc.clear_interrupt(padapter);
-
-		/*  2.2 free irq */
-		/* sdio_free_irq(adapter_to_dvobj(padapter)); */
-		if (padapter->intf_free_irq)
-			padapter->intf_free_irq(adapter_to_dvobj(padapter));
-
-		poidparam.subcode = WOWLAN_ENABLE;
-		padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_WOWLAN, (u8 *)&poidparam);
-		if (rtw_chk_roam_flags(padapter, RTW_ROAM_ON_RESUME)) {
-			if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) && check_fwstate(pmlmepriv, _FW_LINKED)) {
-				DBG_871X("%s %s(%pM), length:%d assoc_ssid.length:%d\n", __func__,
-						pmlmepriv->cur_network.network.Ssid.Ssid,
-						MAC_ARG(pmlmepriv->cur_network.network.MacAddress),
-						pmlmepriv->cur_network.network.Ssid.SsidLength,
-						pmlmepriv->assoc_ssid.SsidLength);
-
-				rtw_set_to_roam(padapter, 0);
-			}
-		}
-
-		DBG_871X_LEVEL(_drv_always_, "%s: wowmode suspending\n", __func__);
-
-		if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY)) {
-			DBG_871X_LEVEL(_drv_always_, "%s: fw_under_survey\n", __func__);
-			rtw_indicate_scan_done(padapter, 1);
-			clr_fwstate(pmlmepriv, _FW_UNDER_SURVEY);
-		}
-
-		if (rtw_get_ch_setting_union(padapter, &ch, &bw, &offset) != 0) {
-			DBG_871X(FUNC_ADPT_FMT " back to linked/linking union - ch:%u, bw:%u, offset:%u\n",
-				FUNC_ADPT_ARG(padapter), ch, bw, offset);
-			set_channel_bwmode(padapter, ch, offset, bw);
-		}
-
-		if (pwrpriv->wowlan_pno_enable)
-			DBG_871X_LEVEL(_drv_always_, "%s: pno: %d\n", __func__, pwrpriv->wowlan_pno_enable);
-		else
-			rtw_set_ps_mode(padapter, PS_MODE_DTIM, 0, 0, "WOWLAN");
-	} else {
-		DBG_871X_LEVEL(_drv_always_, "%s: ### ERROR ### wowlan_mode =%d\n", __func__, pwrpriv->wowlan_mode);
-	}
-	DBG_871X("<== " FUNC_ADPT_FMT " exit....\n", FUNC_ADPT_ARG(padapter));
-}
-#endif /* ifdef CONFIG_WOWLAN */
-
-#ifdef CONFIG_AP_WOWLAN
-void rtw_suspend_ap_wow(struct adapter *padapter)
-{
-	u8 ch, bw, offset;
-	struct net_device *pnetdev = padapter->pnetdev;
-	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
-	struct wowlan_ioctl_param poidparam;
-
-	DBG_871X("==> " FUNC_ADPT_FMT " entry....\n", FUNC_ADPT_ARG(padapter));
-
-	pwrpriv->wowlan_ap_mode = true;
-
-	DBG_871X("wowlan_ap_mode: %d\n", pwrpriv->wowlan_ap_mode);
-
-	if (pnetdev)
-		rtw_netif_stop_queue(pnetdev);
-	/*  1. stop thread */
-	padapter->bDriverStopped = true;	/* for stop thread */
-	rtw_stop_drv_threads(padapter);
-	padapter->bDriverStopped = false;	/* for 32k command */
-
-	/*  2. disable interrupt */
-	rtw_hal_disable_interrupt(padapter); /*  It need wait for leaving 32K. */
-
-	/*  2.1 clean interrupt */
-	if (padapter->HalFunc.clear_interrupt)
-		padapter->HalFunc.clear_interrupt(padapter);
-
-	/*  2.2 free irq */
-	/* sdio_free_irq(adapter_to_dvobj(padapter)); */
-	if (padapter->intf_free_irq)
-		padapter->intf_free_irq(adapter_to_dvobj(padapter));
-
-	poidparam.subcode = WOWLAN_AP_ENABLE;
-	padapter->HalFunc.SetHwRegHandler(padapter,
-					HW_VAR_AP_WOWLAN, (u8 *)&poidparam);
-
-	DBG_871X_LEVEL(_drv_always_, "%s: wowmode suspending\n", __func__);
-
-	if (rtw_get_ch_setting_union(padapter, &ch, &bw, &offset) != 0) {
-		DBG_871X(FUNC_ADPT_FMT " back to linked/linking union - ch:%u, bw:%u, offset:%u\n",
-			 FUNC_ADPT_ARG(padapter), ch, bw, offset);
-		set_channel_bwmode(padapter, ch, offset, bw);
-	}
-
-	rtw_set_ps_mode(padapter, PS_MODE_MIN, 0, 0, "AP-WOWLAN");
-
-	DBG_871X("<== " FUNC_ADPT_FMT " exit....\n", FUNC_ADPT_ARG(padapter));
-}
-#endif /* ifdef CONFIG_AP_WOWLAN */
-
 
 static void rtw_suspend_normal(struct adapter *padapter)
 {
 	struct net_device *pnetdev = padapter->pnetdev;
 
-	DBG_871X("==> " FUNC_ADPT_FMT " entry....\n", FUNC_ADPT_ARG(padapter));
 	if (pnetdev) {
 		netif_carrier_off(pnetdev);
 		rtw_netif_stop_queue(pnetdev);
@@ -1384,15 +1141,15 @@ static void rtw_suspend_normal(struct adapter *padapter)
 	rtw_suspend_free_assoc_resource(padapter);
 
 	if ((rtw_hal_check_ips_status(padapter)) || (adapter_to_pwrctl(padapter)->rf_pwrstate == rf_off))
-		DBG_871X_LEVEL(_drv_always_, "%s: ### ERROR #### driver in IPS ####ERROR###!!!\n", __func__);
+		netdev_dbg(padapter->pnetdev,
+			   "%s: ### ERROR #### driver in IPS ####ERROR###!!!\n",
+			   __func__);
 
 	rtw_dev_unload(padapter);
 
 	/* sdio_deinit(adapter_to_dvobj(padapter)); */
 	if (padapter->intf_deinit)
 		padapter->intf_deinit(adapter_to_dvobj(padapter));
-
-	DBG_871X("<== " FUNC_ADPT_FMT " exit....\n", FUNC_ADPT_ARG(padapter));
 }
 
 int rtw_suspend_common(struct adapter *padapter)
@@ -1405,8 +1162,7 @@ int rtw_suspend_common(struct adapter *padapter)
 	int ret = 0;
 	unsigned long start_time = jiffies;
 
-	DBG_871X_LEVEL(_drv_always_, " suspend start\n");
-	DBG_871X("==> %s (%s:%d)\n", __func__, current->comm, current->pid);
+	netdev_dbg(padapter->pnetdev, " suspend start\n");
 	pdbgpriv->dbg_suspend_cnt++;
 
 	pwrpriv->bInSuspend = true;
@@ -1415,8 +1171,6 @@ int rtw_suspend_common(struct adapter *padapter)
 		msleep(1);
 
 	if ((!padapter->bup) || (padapter->bDriverStopped) || (padapter->bSurpriseRemoved)) {
-		DBG_871X("%s bup =%d bDriverStopped =%d bSurpriseRemoved = %d\n", __func__
-			, padapter->bup, padapter->bDriverStopped, padapter->bSurpriseRemoved);
 		pdbgpriv->dbg_suspend_error_cnt++;
 		goto exit;
 	}
@@ -1429,246 +1183,27 @@ int rtw_suspend_common(struct adapter *padapter)
 	rtw_stop_cmd_thread(padapter);
 
 	/*  wait for the latest FW to remove this condition. */
-	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
+	if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
 		hal_btcoex_SuspendNotify(padapter, 0);
-		DBG_871X("WIFI_AP_STATE\n");
-	} else if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
+	else if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 		hal_btcoex_SuspendNotify(padapter, 1);
-		DBG_871X("STATION\n");
-	}
 
 	rtw_ps_deny_cancel(padapter, PS_DENY_SUSPEND);
 
-	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
-	#ifdef CONFIG_WOWLAN
-		if (check_fwstate(pmlmepriv, _FW_LINKED))
-			pwrpriv->wowlan_mode = true;
-		else if (pwrpriv->wowlan_pno_enable)
-			pwrpriv->wowlan_mode |= pwrpriv->wowlan_pno_enable;
-
-		if (pwrpriv->wowlan_mode)
-			rtw_suspend_wow(padapter);
-		else
-			rtw_suspend_normal(padapter);
-
-	#else /* CONFIG_WOWLAN */
+	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 		rtw_suspend_normal(padapter);
-	#endif /* CONFIG_WOWLAN */
-	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
-	#ifdef CONFIG_AP_WOWLAN
-		rtw_suspend_ap_wow(padapter);
-	#else
+	else if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
 		rtw_suspend_normal(padapter);
-	#endif /* CONFIG_AP_WOWLAN */
-	} else {
+	else
 		rtw_suspend_normal(padapter);
-	}
 
-	DBG_871X_LEVEL(_drv_always_, "rtw suspend success in %d ms\n",
-		jiffies_to_msecs(jiffies - start_time));
+	netdev_dbg(padapter->pnetdev, "rtw suspend success in %d ms\n",
+		   jiffies_to_msecs(jiffies - start_time));
 
 exit:
-	DBG_871X("<===  %s return %d.............. in %dms\n", __func__
-		, ret, jiffies_to_msecs(jiffies - start_time));
 
 	return ret;
 }
-
-#ifdef CONFIG_WOWLAN
-int rtw_resume_process_wow(struct adapter *padapter)
-{
-	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
-	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
-	struct net_device *pnetdev = padapter->pnetdev;
-	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
-	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
-	struct wowlan_ioctl_param poidparam;
-	struct sta_info *psta = NULL;
-	int ret = _SUCCESS;
-
-	DBG_871X("==> " FUNC_ADPT_FMT " entry....\n", FUNC_ADPT_ARG(padapter));
-
-	if (padapter) {
-		pnetdev = padapter->pnetdev;
-		pwrpriv = adapter_to_pwrctl(padapter);
-	} else {
-		pdbgpriv->dbg_resume_error_cnt++;
-		ret = -1;
-		goto exit;
-	}
-
-	if (padapter->bDriverStopped || padapter->bSurpriseRemoved) {
-		DBG_871X("%s pdapter %p bDriverStopped %d bSurpriseRemoved %d\n",
-				__func__, padapter, padapter->bDriverStopped,
-				padapter->bSurpriseRemoved);
-		goto exit;
-	}
-
-#ifdef CONFIG_PNO_SUPPORT
-	pwrpriv->pno_in_resume = true;
-#endif
-
-	if (pwrpriv->wowlan_mode) {
-		rtw_set_ps_mode(padapter, PS_MODE_ACTIVE, 0, 0, "WOWLAN");
-
-		pwrpriv->bFwCurrentInPSMode = false;
-
-		if (padapter->intf_stop)
-			padapter->intf_stop(padapter);
-
-		if (padapter->HalFunc.clear_interrupt)
-			padapter->HalFunc.clear_interrupt(padapter);
-
-		/* if (sdio_alloc_irq(adapter_to_dvobj(padapter)) != _SUCCESS) { */
-		if ((padapter->intf_alloc_irq) && (padapter->intf_alloc_irq(adapter_to_dvobj(padapter)) != _SUCCESS)) {
-			ret = -1;
-			RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("%s: sdio_alloc_irq Failed!!\n", __func__));
-			goto exit;
-		}
-
-		/* Disable WOW, set H2C command */
-		poidparam.subcode = WOWLAN_DISABLE;
-		padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_WOWLAN, (u8 *)&poidparam);
-
-		psta = rtw_get_stainfo(&padapter->stapriv, get_bssid(&padapter->mlmepriv));
-		if (psta)
-			set_sta_rate(padapter, psta);
-
-		padapter->bDriverStopped = false;
-		DBG_871X("%s: wowmode resuming, DriverStopped:%d\n", __func__, padapter->bDriverStopped);
-		rtw_start_drv_threads(padapter);
-
-		if (padapter->intf_start)
-			padapter->intf_start(padapter);
-
-		/*  start netif queue */
-		if (pnetdev) {
-			if (!rtw_netif_queue_stopped(pnetdev))
-				rtw_netif_start_queue(pnetdev);
-			else
-				rtw_netif_wake_queue(pnetdev);
-		}
-	} else {
-		DBG_871X_LEVEL(_drv_always_, "%s: ### ERROR ### wowlan_mode =%d\n", __func__, pwrpriv->wowlan_mode);
-	}
-
-	if (padapter->pid[1] != 0) {
-		DBG_871X("pid[1]:%d\n", padapter->pid[1]);
-		rtw_signal_process(padapter->pid[1], SIGUSR2);
-	}
-
-	if (rtw_chk_roam_flags(padapter, RTW_ROAM_ON_RESUME)) {
-		if (pwrpriv->wowlan_wake_reason == FWDecisionDisconnect ||
-			pwrpriv->wowlan_wake_reason == Rx_DisAssoc ||
-			pwrpriv->wowlan_wake_reason == Rx_DeAuth) {
-			DBG_871X("%s: disconnect reason: %02x\n", __func__,
-						pwrpriv->wowlan_wake_reason);
-			rtw_indicate_disconnect(padapter);
-
-			rtw_sta_media_status_rpt(padapter,
-				rtw_get_stainfo(&padapter->stapriv,
-					get_bssid(&padapter->mlmepriv)), 0);
-
-			rtw_free_assoc_resources(padapter, 1);
-			pmlmeinfo->state = WIFI_FW_NULL_STATE;
-
-		} else {
-			DBG_871X("%s: do roaming\n", __func__);
-			rtw_roaming(padapter, NULL);
-		}
-	}
-
-	if (pwrpriv->wowlan_mode) {
-		pwrpriv->bips_processing = false;
-		_set_timer(&padapter->mlmepriv.dynamic_chk_timer, 2000);
-	} else {
-		DBG_871X_LEVEL(_drv_always_, "do not reset timer\n");
-	}
-
-	pwrpriv->wowlan_mode = false;
-
-	/* clean driver side wake up reason. */
-	pwrpriv->wowlan_wake_reason = 0;
-exit:
-	DBG_871X("<== " FUNC_ADPT_FMT " exit....\n", FUNC_ADPT_ARG(padapter));
-	return ret;
-}
-#endif /* ifdef CONFIG_WOWLAN */
-
-#ifdef CONFIG_AP_WOWLAN
-int rtw_resume_process_ap_wow(struct adapter *padapter)
-{
-	struct net_device *pnetdev = padapter->pnetdev;
-	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
-	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
-	struct wowlan_ioctl_param poidparam;
-	int ret = _SUCCESS;
-
-	DBG_871X("==> " FUNC_ADPT_FMT " entry....\n", FUNC_ADPT_ARG(padapter));
-
-	if (padapter) {
-		pnetdev = padapter->pnetdev;
-		pwrpriv = adapter_to_pwrctl(padapter);
-	} else {
-		pdbgpriv->dbg_resume_error_cnt++;
-		ret = -1;
-		goto exit;
-	}
-
-	rtw_set_ps_mode(padapter, PS_MODE_ACTIVE, 0, 0, "AP-WOWLAN");
-
-	pwrpriv->bFwCurrentInPSMode = false;
-
-	rtw_hal_disable_interrupt(padapter);
-
-	if (padapter->HalFunc.clear_interrupt)
-		padapter->HalFunc.clear_interrupt(padapter);
-
-	/* if (sdio_alloc_irq(adapter_to_dvobj(padapter)) != _SUCCESS) { */
-	if ((padapter->intf_alloc_irq) && (padapter->intf_alloc_irq(adapter_to_dvobj(padapter)) != _SUCCESS)) {
-		ret = -1;
-		RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("%s: sdio_alloc_irq Failed!!\n", __func__));
-		goto exit;
-	}
-
-	/* Disable WOW, set H2C command */
-	poidparam.subcode = WOWLAN_AP_DISABLE;
-	padapter->HalFunc.SetHwRegHandler(padapter,
-		HW_VAR_AP_WOWLAN, (u8 *)&poidparam);
-	pwrpriv->wowlan_ap_mode = false;
-
-	padapter->bDriverStopped = false;
-	DBG_871X("%s: wowmode resuming, DriverStopped:%d\n", __func__, padapter->bDriverStopped);
-	rtw_start_drv_threads(padapter);
-
-	if (padapter->intf_start)
-		padapter->intf_start(padapter);
-
-	/*  start netif queue */
-	if (pnetdev) {
-		if (!rtw_netif_queue_stopped(pnetdev))
-			rtw_netif_start_queue(pnetdev);
-		else
-			rtw_netif_wake_queue(pnetdev);
-	}
-
-	if (padapter->pid[1] != 0) {
-		DBG_871X("pid[1]:%d\n", padapter->pid[1]);
-		rtw_signal_process(padapter->pid[1], SIGUSR2);
-	}
-
-	pwrpriv->bips_processing = false;
-	_set_timer(&padapter->mlmepriv.dynamic_chk_timer, 2000);
-
-	/* clean driver side wake up reason. */
-	pwrpriv->wowlan_wake_reason = 0;
-exit:
-	DBG_871X("<== " FUNC_ADPT_FMT " exit....\n", FUNC_ADPT_ARG(padapter));
-	return ret;
-}
-#endif /* ifdef CONFIG_APWOWLAN */
 
 static int rtw_resume_process_normal(struct adapter *padapter)
 {
@@ -1690,27 +1225,22 @@ static int rtw_resume_process_normal(struct adapter *padapter)
 	pmlmepriv = &padapter->mlmepriv;
 	psdpriv = padapter->dvobj;
 	pdbgpriv = &psdpriv->drv_dbg;
-
-	DBG_871X("==> " FUNC_ADPT_FMT " entry....\n", FUNC_ADPT_ARG(padapter));
 	/*  interface init */
 	/* if (sdio_init(adapter_to_dvobj(padapter)) != _SUCCESS) */
 	if ((padapter->intf_init) && (padapter->intf_init(adapter_to_dvobj(padapter)) != _SUCCESS)) {
 		ret = -1;
-		RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("%s: initialize SDIO Failed!!\n", __func__));
 		goto exit;
 	}
 	rtw_hal_disable_interrupt(padapter);
 	/* if (sdio_alloc_irq(adapter_to_dvobj(padapter)) != _SUCCESS) */
 	if ((padapter->intf_alloc_irq) && (padapter->intf_alloc_irq(adapter_to_dvobj(padapter)) != _SUCCESS)) {
 		ret = -1;
-		RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("%s: sdio_alloc_irq Failed!!\n", __func__));
 		goto exit;
 	}
 
 	rtw_reset_drv_sw(padapter);
 	pwrpriv->bkeepfwalive = false;
 
-	DBG_871X("bkeepfwalive(%x)\n", pwrpriv->bkeepfwalive);
 	if (pm_netdev_open(pnetdev, true) != 0) {
 		ret = -1;
 		pdbgpriv->dbg_resume_error_cnt++;
@@ -1720,27 +1250,15 @@ static int rtw_resume_process_normal(struct adapter *padapter)
 	netif_device_attach(pnetdev);
 	netif_carrier_on(pnetdev);
 
-	if (padapter->pid[1] != 0) {
-		DBG_871X("pid[1]:%d\n", padapter->pid[1]);
+	if (padapter->pid[1] != 0)
 		rtw_signal_process(padapter->pid[1], SIGUSR2);
-	}
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
-		DBG_871X(FUNC_ADPT_FMT " fwstate:0x%08x - WIFI_STATION_STATE\n", FUNC_ADPT_ARG(padapter), get_fwstate(pmlmepriv));
-
 		if (rtw_chk_roam_flags(padapter, RTW_ROAM_ON_RESUME))
 			rtw_roaming(padapter, NULL);
-
 	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
-		DBG_871X(FUNC_ADPT_FMT " fwstate:0x%08x - WIFI_AP_STATE\n", FUNC_ADPT_ARG(padapter), get_fwstate(pmlmepriv));
 		rtw_ap_restore_network(padapter);
-	} else if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
-		DBG_871X(FUNC_ADPT_FMT " fwstate:0x%08x - WIFI_ADHOC_STATE\n", FUNC_ADPT_ARG(padapter), get_fwstate(pmlmepriv));
-	} else {
-		DBG_871X(FUNC_ADPT_FMT " fwstate:0x%08x - ???\n", FUNC_ADPT_ARG(padapter), get_fwstate(pmlmepriv));
 	}
-
-	DBG_871X("<== " FUNC_ADPT_FMT " exit....\n", FUNC_ADPT_ARG(padapter));
 
 exit:
 	return ret;
@@ -1753,25 +1271,12 @@ int rtw_resume_common(struct adapter *padapter)
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	DBG_871X_LEVEL(_drv_always_, "resume start\n");
-	DBG_871X("==> %s (%s:%d)\n", __func__, current->comm, current->pid);
+	netdev_dbg(padapter->pnetdev, "resume start\n");
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
-	#ifdef CONFIG_WOWLAN
-		if (pwrpriv->wowlan_mode)
-			rtw_resume_process_wow(padapter);
-		else
-			rtw_resume_process_normal(padapter);
-	#else
 		rtw_resume_process_normal(padapter);
-	#endif
-
 	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
-	#ifdef CONFIG_AP_WOWLAN
-		rtw_resume_process_ap_wow(padapter);
-	#else
 		rtw_resume_process_normal(padapter);
-	#endif /* CONFIG_AP_WOWLAN */
 	} else {
 		rtw_resume_process_normal(padapter);
 	}
@@ -1780,12 +1285,9 @@ int rtw_resume_common(struct adapter *padapter)
 
 	if (pwrpriv) {
 		pwrpriv->bInSuspend = false;
-	#ifdef CONFIG_PNO_SUPPORT
-		pwrpriv->pno_in_resume = false;
-	#endif
 	}
-	DBG_871X_LEVEL(_drv_always_, "%s:%d in %d ms\n", __func__, ret,
-		jiffies_to_msecs(jiffies - start_time));
+	netdev_dbg(padapter->pnetdev, "%s:%d in %d ms\n", __func__, ret,
+		   jiffies_to_msecs(jiffies - start_time));
 
 	return ret;
 }

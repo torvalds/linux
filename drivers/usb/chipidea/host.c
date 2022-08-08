@@ -32,7 +32,7 @@ struct ehci_ci_priv {
 struct ci_hdrc_dma_aligned_buffer {
 	void *kmalloc_ptr;
 	void *old_xfer_buffer;
-	u8 data[0];
+	u8 data[];
 };
 
 static int ehci_ci_portpower(struct usb_hcd *hcd, int portnum, bool enable)

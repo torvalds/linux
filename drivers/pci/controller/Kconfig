@@ -41,7 +41,6 @@ config PCI_TEGRA
 	bool "NVIDIA Tegra PCIe controller"
 	depends on ARCH_TEGRA || COMPILE_TEST
 	depends on PCI_MSI_IRQ_DOMAIN
-	select PCI_MSI_ARCH_FALLBACKS
 	help
 	  Say Y here if you want support for the PCIe host controller found
 	  on NVIDIA Tegra SoCs.
@@ -59,7 +58,6 @@ config PCIE_RCAR_HOST
 	bool "Renesas R-Car PCIe host controller"
 	depends on ARCH_RENESAS || COMPILE_TEST
 	depends on PCI_MSI_IRQ_DOMAIN
-	select PCI_MSI_ARCH_FALLBACKS
 	help
 	  Say Y here if you want PCIe controller support on R-Car SoCs in host
 	  mode.
@@ -88,7 +86,7 @@ config PCI_HOST_GENERIC
 config PCIE_XILINX
 	bool "Xilinx AXI PCIe host bridge support"
 	depends on OF || COMPILE_TEST
-	select PCI_MSI_ARCH_FALLBACKS
+	depends on PCI_MSI_IRQ_DOMAIN
 	help
 	  Say 'Y' here if you want kernel to support the Xilinx AXI PCIe
 	  Host Bridge driver.
@@ -231,6 +229,19 @@ config PCIE_MEDIATEK
 	depends on PCI_MSI_IRQ_DOMAIN
 	help
 	  Say Y here if you want to enable PCIe controller support on
+	  MediaTek SoCs.
+
+config PCIE_MEDIATEK_GEN3
+	tristate "MediaTek Gen3 PCIe controller"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on PCI_MSI_IRQ_DOMAIN
+	help
+	  Adds support for PCIe Gen3 MAC controller for MediaTek SoCs.
+	  This PCIe controller is compatible with Gen3, Gen2 and Gen1 speed,
+	  and support up to 256 MSI interrupt numbers for
+	  multi-function devices.
+
+	  Say Y here if you want to enable Gen3 PCIe controller support on
 	  MediaTek SoCs.
 
 config VMD

@@ -631,14 +631,9 @@ static inline u16 carl9170_get_seq(struct sk_buff *skb)
 	return get_seq_h(carl9170_get_hdr(skb));
 }
 
-static inline u16 get_tid_h(struct ieee80211_hdr *hdr)
-{
-	return (ieee80211_get_qos_ctl(hdr))[0] & IEEE80211_QOS_CTL_TID_MASK;
-}
-
 static inline u16 carl9170_get_tid(struct sk_buff *skb)
 {
-	return get_tid_h(carl9170_get_hdr(skb));
+	return ieee80211_get_tid(carl9170_get_hdr(skb));
 }
 
 static inline struct ieee80211_vif *

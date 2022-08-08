@@ -156,7 +156,7 @@ struct zfcp_adapter {
 	u32			fsf_lic_version;
 	u32			adapter_features;  /* FCP channel features */
 	u32			connection_features; /* host connection features */
-        u32			hardware_version;  /* of FCP channel */
+	u32			hardware_version;  /* of FCP channel */
 	u32			fc_security_algorithms; /* of FCP channel */
 	u32			fc_security_algorithms_old; /* of FCP channel */
 	u16			timer_ticks;       /* time int for a tick */
@@ -180,7 +180,7 @@ struct zfcp_adapter {
 	rwlock_t		erp_lock;
 	wait_queue_head_t	erp_done_wqh;
 	struct zfcp_erp_action	erp_action;	   /* pending error recovery */
-        atomic_t                erp_counter;
+	atomic_t		erp_counter;
 	u32			erp_total_count;   /* total nr of enqueued erp
 						      actions */
 	u32			erp_low_mem_count; /* nr of erp actions waiting
@@ -217,7 +217,7 @@ struct zfcp_port {
 	u32		       d_id;	       /* D_ID */
 	u32		       handle;	       /* handle assigned by FSF */
 	struct zfcp_erp_action erp_action;     /* pending error recovery */
-        atomic_t               erp_counter;
+	atomic_t	       erp_counter;
 	u32                    maxframe_size;
 	u32                    supported_classes;
 	u32                    connection_info;

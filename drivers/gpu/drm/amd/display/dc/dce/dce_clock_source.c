@@ -1002,15 +1002,27 @@ static bool get_pixel_clk_frequency_100hz(
 {
 	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
 	unsigned int clock_hz = 0;
+	unsigned int modulo_hz = 0;
 
 	if (clock_source->id == CLOCK_SOURCE_ID_DP_DTO) {
 		clock_hz = REG_READ(PHASE[inst]);
 
-		/* NOTE: There is agreement with VBIOS here that MODULO is
-		 * programmed equal to DPREFCLK, in which case PHASE will be
-		 * equivalent to pixel clock.
-		 */
-		*pixel_clk_khz = clock_hz / 100;
+		if (clock_source->ctx->dc->hwss.enable_vblanks_synchronization &&
+			clock_source->ctx->dc->config.vblank_alignment_max_frame_time_diff > 0) {
+			/* NOTE: In case VBLANK syncronization is enabled, MODULO may
+			 * not be programmed equal to DPREFCLK
+			 */
+			modulo_hz = REG_READ(MODULO[inst]);
+			*pixel_clk_khz = div_u64((uint64_t)clock_hz*
+				clock_source->ctx->dc->clk_mgr->dprefclk_khz*10,
+				modulo_hz);
+		} else {
+			/* NOTE: There is agreement with VBIOS here that MODULO is
+			 * programmed equal to DPREFCLK, in which case PHASE will be
+			 * equivalent to pixel clock.
+			 */
+			*pixel_clk_khz = clock_hz / 100;
+		}
 		return true;
 	}
 
@@ -1074,8 +1086,35 @@ static bool dcn20_program_pix_clk(
 		struct pixel_clk_params *pix_clk_params,
 		struct pll_settings *pll_settings)
 {
+	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
+	unsigned int inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
+
 	dce112_program_pix_clk(clock_source, pix_clk_params, pll_settings);
 
+	if (clock_source->ctx->dc->hwss.enable_vblanks_synchronization &&
+			clock_source->ctx->dc->config.vblank_alignment_max_frame_time_diff > 0) {
+		/* NOTE: In case VBLANK syncronization is enabled,
+		 * we need to set modulo to default DPREFCLK first
+		 * dce112_program_pix_clk does not set default DPREFCLK
+		 */
+		REG_WRITE(MODULO[inst],
+			clock_source->ctx->dc->clk_mgr->dprefclk_khz*1000);
+	}
+	return true;
+}
+
+static bool dcn20_override_dp_pix_clk(
+		struct clock_source *clock_source,
+		unsigned int inst,
+		unsigned int pixel_clk,
+		unsigned int ref_clk)
+{
+	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
+
+	REG_UPDATE(PIXEL_RATE_CNTL[inst], DP_DTO0_ENABLE, 0);
+	REG_WRITE(PHASE[inst], pixel_clk);
+	REG_WRITE(MODULO[inst], ref_clk);
+	REG_UPDATE(PIXEL_RATE_CNTL[inst], DP_DTO0_ENABLE, 1);
 	return true;
 }
 
@@ -1083,7 +1122,8 @@ static const struct clock_source_funcs dcn20_clk_src_funcs = {
 	.cs_power_down = dce110_clock_source_power_down,
 	.program_pix_clk = dcn20_program_pix_clk,
 	.get_pix_clk_dividers = dce112_get_pix_clk_dividers,
-	.get_pixel_clk_frequency_100hz = get_pixel_clk_frequency_100hz
+	.get_pixel_clk_frequency_100hz = get_pixel_clk_frequency_100hz,
+	.override_dp_pix_clk = dcn20_override_dp_pix_clk
 };
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)

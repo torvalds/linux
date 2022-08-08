@@ -73,7 +73,7 @@ struct wc_memory_superblock {
 		};
 		__le64 padding[8];
 	};
-	struct wc_memory_entry entries[0];
+	struct wc_memory_entry entries[];
 };
 
 struct wc_entry {

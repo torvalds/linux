@@ -1140,19 +1140,14 @@ static void f81534_close(struct usb_serial_port *port)
 	mutex_unlock(&serial_priv->urb_mutex);
 }
 
-static int f81534_get_serial_info(struct tty_struct *tty,
-				  struct serial_struct *ss)
+static void f81534_get_serial_info(struct tty_struct *tty, struct serial_struct *ss)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct f81534_port_private *port_priv;
 
 	port_priv = usb_get_serial_port_data(port);
 
-	ss->type = PORT_16550A;
-	ss->port = port->port_number;
-	ss->line = port->minor;
 	ss->baud_base = port_priv->baud_base;
-	return 0;
 }
 
 static void f81534_process_per_serial_block(struct usb_serial_port *port,

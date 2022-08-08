@@ -34,6 +34,7 @@ struct hal_tx_info {
 	u8 search_type; /* %HAL_TX_ADDR_SEARCH_ */
 	u8 lmac_id;
 	u8 dscp_tid_tbl_idx;
+	bool enable_mesh;
 };
 
 /* TODO: Check if the actual desc macros can be used instead */

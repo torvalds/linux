@@ -1072,19 +1072,6 @@ static long sock_do_ioctl(struct net *net, struct socket *sock,
  *	what to do with it - that's up to the protocol still.
  */
 
-/**
- *	get_net_ns - increment the refcount of the network namespace
- *	@ns: common namespace (net)
- *
- *	Returns the net's common namespace.
- */
-
-struct ns_common *get_net_ns(struct ns_common *ns)
-{
-	return &get_net(container_of(ns, struct net, ns))->ns;
-}
-EXPORT_SYMBOL_GPL(get_net_ns);
-
 static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
 	struct socket *sock;
@@ -3568,7 +3555,7 @@ EXPORT_SYMBOL(kernel_accept);
  *	@addrlen: address length
  *	@flags: flags (O_NONBLOCK, ...)
  *
- *	For datagram sockets, @addr is the addres to which datagrams are sent
+ *	For datagram sockets, @addr is the address to which datagrams are sent
  *	by default, and the only address from which datagrams are received.
  *	For stream sockets, attempts to connect to @addr.
  *	Returns 0 or an error code.

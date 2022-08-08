@@ -19,6 +19,14 @@ Supported chips:
 
     Datasheet: https://www.ti.com/lit/gpn/TPS53667
 
+  * Texas Instruments TPS53676
+
+    Prefix: 'tps53676'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.ti.com/lit/gpn/TPS53676
+
   * Texas Instruments TPS53679
 
     Prefix: 'tps53679'
@@ -136,7 +144,7 @@ power1_input		Measured input power.
 power[N]_label		"pout[1-2]".
 
 			- TPS53647, TPS53667: N=2
-			- TPS53679, TPS53681, TPS53588: N=2,3
+			- TPS53676, TPS53679, TPS53681, TPS53588: N=2,3
 
 power[N]_input		Measured output power.
 
@@ -156,10 +164,11 @@ curr[N]_label		"iout[1-2]" or "iout1.[0-5]".
 
 			The first digit is the output channel, the second
 			digit is the phase within the channel. Per-phase
-			telemetry supported on TPS53681 only.
+			telemetry supported on TPS53676 and TPS53681 only.
 
 			- TPS53647, TPS53667: N=2
 			- TPS53679, TPS53588: N=2,3
+			- TPS53676: N=2-8
 			- TPS53681: N=2-9
 
 curr[N]_input		Measured output current.

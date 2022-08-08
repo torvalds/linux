@@ -8,7 +8,7 @@
  * made available by the vendor. Firmware files may be pushed to the device's
  * nonvolatile memory by writing the filename to the 'fw_file' sysfs control.
  *
- * Link to PC-based configuration tool and data sheet: http://www.azoteq.com/
+ * Link to PC-based configuration tool and datasheet: https://www.azoteq.com/
  */
 
 #include <linux/bits.h>
@@ -32,14 +32,10 @@
 #define IQS5XX_NUM_RETRIES	10
 #define IQS5XX_NUM_CONTACTS	5
 #define IQS5XX_WR_BYTES_MAX	2
-#define IQS5XX_XY_RES_MAX	0xFFFE
 
 #define IQS5XX_PROD_NUM_IQS550	40
 #define IQS5XX_PROD_NUM_IQS572	58
 #define IQS5XX_PROD_NUM_IQS525	52
-#define IQS5XX_PROJ_NUM_A000	0
-#define IQS5XX_PROJ_NUM_B000	15
-#define IQS5XX_MAJOR_VER_MIN	2
 
 #define IQS5XX_SHOW_RESET	BIT(7)
 #define IQS5XX_ACK_RESET	BIT(7)
@@ -64,6 +60,7 @@
 #define IQS5XX_SYS_CFG1		0x058F
 #define IQS5XX_X_RES		0x066E
 #define IQS5XX_Y_RES		0x0670
+#define IQS5XX_EXP_FILE		0x0677
 #define IQS5XX_CHKSM		0x83C0
 #define IQS5XX_APP		0x8400
 #define IQS5XX_CSTM		0xBE00
@@ -87,21 +84,10 @@
 #define IQS5XX_BL_CMD_CRC	0x03
 #define IQS5XX_BL_BLK_LEN_MAX	64
 #define IQS5XX_BL_ID		0x0200
-#define IQS5XX_BL_STATUS_RESET	0x00
-#define IQS5XX_BL_STATUS_AVAIL	0xA5
 #define IQS5XX_BL_STATUS_NONE	0xEE
 #define IQS5XX_BL_CRC_PASS	0x00
 #define IQS5XX_BL_CRC_FAIL	0x01
 #define IQS5XX_BL_ATTEMPTS	3
-
-struct iqs5xx_private {
-	struct i2c_client *client;
-	struct input_dev *input;
-	struct gpio_desc *reset_gpio;
-	struct touchscreen_properties prop;
-	struct mutex lock;
-	u8 bl_status;
-};
 
 struct iqs5xx_dev_id_info {
 	__be16 prod_num;
@@ -133,6 +119,16 @@ struct iqs5xx_status {
 	__be16 rel_y;
 	struct iqs5xx_touch_data touch_data[IQS5XX_NUM_CONTACTS];
 } __packed;
+
+struct iqs5xx_private {
+	struct i2c_client *client;
+	struct input_dev *input;
+	struct gpio_desc *reset_gpio;
+	struct touchscreen_properties prop;
+	struct mutex lock;
+	struct iqs5xx_dev_id_info dev_id_info;
+	u8 exp_file[2];
+};
 
 static int iqs5xx_read_burst(struct i2c_client *client,
 			     u16 reg, void *val, u16 len)
@@ -446,7 +442,7 @@ static int iqs5xx_set_state(struct i2c_client *client, u8 state)
 	struct iqs5xx_private *iqs5xx = i2c_get_clientdata(client);
 	int error1, error2;
 
-	if (iqs5xx->bl_status == IQS5XX_BL_STATUS_RESET)
+	if (!iqs5xx->dev_id_info.bl_status)
 		return 0;
 
 	mutex_lock(&iqs5xx->lock);
@@ -504,10 +500,6 @@ static int iqs5xx_axis_init(struct i2c_client *client)
 		input->open = iqs5xx_open;
 		input->close = iqs5xx_close;
 
-		input_set_capability(input, EV_ABS, ABS_MT_POSITION_X);
-		input_set_capability(input, EV_ABS, ABS_MT_POSITION_Y);
-		input_set_capability(input, EV_ABS, ABS_MT_PRESSURE);
-
 		input_set_drvdata(input, iqs5xx);
 		iqs5xx->input = input;
 	}
@@ -520,26 +512,29 @@ static int iqs5xx_axis_init(struct i2c_client *client)
 	if (error)
 		return error;
 
-	input_abs_set_max(iqs5xx->input, ABS_MT_POSITION_X, max_x);
-	input_abs_set_max(iqs5xx->input, ABS_MT_POSITION_Y, max_y);
+	input_set_abs_params(iqs5xx->input, ABS_MT_POSITION_X, 0, max_x, 0, 0);
+	input_set_abs_params(iqs5xx->input, ABS_MT_POSITION_Y, 0, max_y, 0, 0);
+	input_set_abs_params(iqs5xx->input, ABS_MT_PRESSURE, 0, U16_MAX, 0, 0);
 
 	touchscreen_parse_properties(iqs5xx->input, true, prop);
 
-	if (prop->max_x > IQS5XX_XY_RES_MAX) {
-		dev_err(&client->dev, "Invalid maximum x-coordinate: %u > %u\n",
-			prop->max_x, IQS5XX_XY_RES_MAX);
+	/*
+	 * The device reserves 0xFFFF for coordinates that correspond to slots
+	 * which are not in a state of touch.
+	 */
+	if (prop->max_x >= U16_MAX || prop->max_y >= U16_MAX) {
+		dev_err(&client->dev, "Invalid touchscreen size: %u*%u\n",
+			prop->max_x, prop->max_y);
 		return -EINVAL;
-	} else if (prop->max_x != max_x) {
+	}
+
+	if (prop->max_x != max_x) {
 		error = iqs5xx_write_word(client, IQS5XX_X_RES, prop->max_x);
 		if (error)
 			return error;
 	}
 
-	if (prop->max_y > IQS5XX_XY_RES_MAX) {
-		dev_err(&client->dev, "Invalid maximum y-coordinate: %u > %u\n",
-			prop->max_y, IQS5XX_XY_RES_MAX);
-		return -EINVAL;
-	} else if (prop->max_y != max_y) {
+	if (prop->max_y != max_y) {
 		error = iqs5xx_write_word(client, IQS5XX_Y_RES, prop->max_y);
 		if (error)
 			return error;
@@ -574,7 +569,7 @@ static int iqs5xx_dev_init(struct i2c_client *client)
 	 * the missing zero is prepended).
 	 */
 	buf[0] = 0;
-	dev_id_info = (struct iqs5xx_dev_id_info *)&buf[(buf[1] > 0) ? 0 : 1];
+	dev_id_info = (struct iqs5xx_dev_id_info *)&buf[buf[1] ? 0 : 1];
 
 	switch (be16_to_cpu(dev_id_info->prod_num)) {
 	case IQS5XX_PROD_NUM_IQS550:
@@ -587,35 +582,20 @@ static int iqs5xx_dev_init(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	switch (be16_to_cpu(dev_id_info->proj_num)) {
-	case IQS5XX_PROJ_NUM_A000:
-		dev_err(&client->dev, "Unsupported project number: %u\n",
-			be16_to_cpu(dev_id_info->proj_num));
-		return iqs5xx_bl_open(client);
-	case IQS5XX_PROJ_NUM_B000:
-		break;
-	default:
-		dev_err(&client->dev, "Unrecognized project number: %u\n",
-			be16_to_cpu(dev_id_info->proj_num));
-		return -EINVAL;
-	}
-
-	if (dev_id_info->major_ver < IQS5XX_MAJOR_VER_MIN) {
-		dev_err(&client->dev, "Unsupported major version: %u\n",
-			dev_id_info->major_ver);
+	/*
+	 * With the product number recognized yet shifted by one byte, open the
+	 * bootloader and wait for user space to convert the A000 device into a
+	 * B000 device via new firmware.
+	 */
+	if (buf[1]) {
+		dev_err(&client->dev, "Opening bootloader for A000 device\n");
 		return iqs5xx_bl_open(client);
 	}
 
-	switch (dev_id_info->bl_status) {
-	case IQS5XX_BL_STATUS_AVAIL:
-	case IQS5XX_BL_STATUS_NONE:
-		break;
-	default:
-		dev_err(&client->dev,
-			"Unrecognized bootloader status: 0x%02X\n",
-			dev_id_info->bl_status);
-		return -EINVAL;
-	}
+	error = iqs5xx_read_burst(client, IQS5XX_EXP_FILE,
+				  iqs5xx->exp_file, sizeof(iqs5xx->exp_file));
+	if (error)
+		return error;
 
 	error = iqs5xx_axis_init(client);
 	if (error)
@@ -640,7 +620,7 @@ static int iqs5xx_dev_init(struct i2c_client *client)
 	if (error)
 		return error;
 
-	iqs5xx->bl_status = dev_id_info->bl_status;
+	iqs5xx->dev_id_info = *dev_id_info;
 
 	/*
 	 * The following delay allows ATI to complete before the open and close
@@ -666,7 +646,7 @@ static irqreturn_t iqs5xx_irq(int irq, void *data)
 	 * RDY output during bootloader mode. If the device operates outside of
 	 * bootloader mode, the input device is guaranteed to be allocated.
 	 */
-	if (iqs5xx->bl_status == IQS5XX_BL_STATUS_RESET)
+	if (!iqs5xx->dev_id_info.bl_status)
 		return IRQ_NONE;
 
 	error = iqs5xx_read_burst(client, IQS5XX_SYS_INFO0,
@@ -852,11 +832,8 @@ static int iqs5xx_fw_file_parse(struct i2c_client *client,
 static int iqs5xx_fw_file_write(struct i2c_client *client, const char *fw_file)
 {
 	struct iqs5xx_private *iqs5xx = i2c_get_clientdata(client);
-	int error, error_bl = 0;
+	int error, error_init = 0;
 	u8 *pmap;
-
-	if (iqs5xx->bl_status == IQS5XX_BL_STATUS_NONE)
-		return -EPERM;
 
 	pmap = kzalloc(IQS5XX_PMAP_LEN, GFP_KERNEL);
 	if (!pmap)
@@ -875,7 +852,7 @@ static int iqs5xx_fw_file_write(struct i2c_client *client, const char *fw_file)
 	 */
 	disable_irq(client->irq);
 
-	iqs5xx->bl_status = IQS5XX_BL_STATUS_RESET;
+	iqs5xx->dev_id_info.bl_status = 0;
 
 	error = iqs5xx_bl_cmd(client, IQS5XX_BL_CMD_VER, 0);
 	if (error) {
@@ -895,21 +872,14 @@ static int iqs5xx_fw_file_write(struct i2c_client *client, const char *fw_file)
 	error = iqs5xx_bl_verify(client, IQS5XX_CSTM,
 				 pmap + IQS5XX_CHKSM_LEN + IQS5XX_APP_LEN,
 				 IQS5XX_CSTM_LEN);
-	if (error)
-		goto err_reset;
-
-	error = iqs5xx_bl_cmd(client, IQS5XX_BL_CMD_EXEC, 0);
 
 err_reset:
-	if (error) {
-		iqs5xx_reset(client);
-		usleep_range(10000, 10100);
-	}
+	iqs5xx_reset(client);
+	usleep_range(15000, 15100);
 
-	error_bl = error;
-	error = iqs5xx_dev_init(client);
-	if (!error && iqs5xx->bl_status == IQS5XX_BL_STATUS_RESET)
-		error = -EINVAL;
+	error_init = iqs5xx_dev_init(client);
+	if (!iqs5xx->dev_id_info.bl_status)
+		error_init = error_init ? : -EINVAL;
 
 	enable_irq(client->irq);
 
@@ -918,10 +888,7 @@ err_reset:
 err_kfree:
 	kfree(pmap);
 
-	if (error_bl)
-		return error_bl;
-
-	return error;
+	return error ? : error_init;
 }
 
 static ssize_t fw_file_store(struct device *dev,
@@ -968,14 +935,47 @@ static ssize_t fw_file_store(struct device *dev,
 	return count;
 }
 
+static ssize_t fw_info_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct iqs5xx_private *iqs5xx = dev_get_drvdata(dev);
+
+	if (!iqs5xx->dev_id_info.bl_status)
+		return -ENODATA;
+
+	return scnprintf(buf, PAGE_SIZE, "%u.%u.%u.%u:%u.%u\n",
+			 be16_to_cpu(iqs5xx->dev_id_info.prod_num),
+			 be16_to_cpu(iqs5xx->dev_id_info.proj_num),
+			 iqs5xx->dev_id_info.major_ver,
+			 iqs5xx->dev_id_info.minor_ver,
+			 iqs5xx->exp_file[0], iqs5xx->exp_file[1]);
+}
+
 static DEVICE_ATTR_WO(fw_file);
+static DEVICE_ATTR_RO(fw_info);
 
 static struct attribute *iqs5xx_attrs[] = {
 	&dev_attr_fw_file.attr,
+	&dev_attr_fw_info.attr,
 	NULL,
 };
 
+static umode_t iqs5xx_attr_is_visible(struct kobject *kobj,
+				      struct attribute *attr, int i)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct iqs5xx_private *iqs5xx = dev_get_drvdata(dev);
+
+	if (attr == &dev_attr_fw_file.attr &&
+	    (iqs5xx->dev_id_info.bl_status == IQS5XX_BL_STATUS_NONE ||
+	    !iqs5xx->reset_gpio))
+		return 0;
+
+	return attr->mode;
+}
+
 static const struct attribute_group iqs5xx_attr_group = {
+	.is_visible = iqs5xx_attr_is_visible,
 	.attrs = iqs5xx_attrs,
 };
 
@@ -1032,8 +1032,8 @@ static int iqs5xx_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, iqs5xx);
 	iqs5xx->client = client;
 
-	iqs5xx->reset_gpio = devm_gpiod_get(&client->dev,
-					    "reset", GPIOD_OUT_LOW);
+	iqs5xx->reset_gpio = devm_gpiod_get_optional(&client->dev,
+						     "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(iqs5xx->reset_gpio)) {
 		error = PTR_ERR(iqs5xx->reset_gpio);
 		dev_err(&client->dev, "Failed to request GPIO: %d\n", error);
@@ -1041,9 +1041,6 @@ static int iqs5xx_probe(struct i2c_client *client,
 	}
 
 	mutex_init(&iqs5xx->lock);
-
-	iqs5xx_reset(client);
-	usleep_range(10000, 10100);
 
 	error = iqs5xx_dev_init(client);
 	if (error)

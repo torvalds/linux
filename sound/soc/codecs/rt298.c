@@ -267,11 +267,16 @@ static int rt298_jack_detect(struct rt298_priv *rt298, bool *hp, bool *mic)
 				msleep(300);
 				regmap_read(rt298->regmap,
 					RT298_CBJ_CTRL2, &val);
-				if (0x0070 == (val & 0x0070))
+				if (0x0070 == (val & 0x0070)) {
 					*mic = true;
-				else
+				} else {
 					*mic = false;
+					regmap_update_bits(rt298->regmap,
+						RT298_CBJ_CTRL1,
+						0xfcc0, 0xc400);
+				}
 			}
+
 			regmap_update_bits(rt298->regmap,
 				RT298_DC_GAIN, 0x200, 0x0);
 

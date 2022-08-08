@@ -396,7 +396,7 @@ static ssize_t hwrng_attr_selected_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", cur_rng_set_by_user);
+	return sysfs_emit(buf, "%d\n", cur_rng_set_by_user);
 }
 
 static DEVICE_ATTR(rng_current, S_IRUGO | S_IWUSR,

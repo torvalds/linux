@@ -2398,7 +2398,7 @@ static int __net_init __ip_vs_init(struct net *net)
 	if (ipvs == NULL)
 		return -ENOMEM;
 
-	/* Hold the beast until a service is registerd */
+	/* Hold the beast until a service is registered */
 	ipvs->enable = 0;
 	ipvs->net = net;
 	/* Counters used for creating unique names */

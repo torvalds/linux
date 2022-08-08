@@ -30,6 +30,12 @@ struct mlxsw_afa_ops {
 			   u16 *p_policer_index,
 			   struct netlink_ext_ack *extack);
 	void (*policer_del)(void *priv, u16 policer_index);
+	int (*sampler_add)(void *priv, u8 local_port,
+			   struct psample_group *psample_group, u32 rate,
+			   u32 trunc_size, bool truncate, bool ingress,
+			   int *p_span_id, struct netlink_ext_ack *extack);
+	void (*sampler_del)(void *priv, u8 local_port, int span_id,
+			    bool ingress);
 	bool dummy_first_set;
 };
 
@@ -92,5 +98,10 @@ int mlxsw_afa_block_append_police(struct mlxsw_afa_block *block,
 				  u32 fa_index, u64 rate_bytes_ps, u32 burst,
 				  u16 *p_policer_index,
 				  struct netlink_ext_ack *extack);
+int mlxsw_afa_block_append_sampler(struct mlxsw_afa_block *block, u8 local_port,
+				   struct psample_group *psample_group,
+				   u32 rate, u32 trunc_size, bool truncate,
+				   bool ingress,
+				   struct netlink_ext_ack *extack);
 
 #endif

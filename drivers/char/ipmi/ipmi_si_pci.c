@@ -16,17 +16,10 @@ static bool pci_registered;
 static bool si_trypci = true;
 
 module_param_named(trypci, si_trypci, bool, 0);
-MODULE_PARM_DESC(trypci, "Setting this to zero will disable the"
-		 " default scan of the interfaces identified via pci");
+MODULE_PARM_DESC(trypci,
+		 "Setting this to zero will disable the default scan of the interfaces identified via pci");
 
 #define PCI_DEVICE_ID_HP_MMC 0x121A
-
-static void ipmi_pci_cleanup(struct si_sm_io *io)
-{
-	struct pci_dev *pdev = io->addr_source_data;
-
-	pci_disable_device(pdev);
-}
 
 static int ipmi_pci_probe_regspacing(struct si_sm_io *io)
 {
@@ -97,14 +90,11 @@ static int ipmi_pci_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 
-	rv = pci_enable_device(pdev);
+	rv = pcim_enable_device(pdev);
 	if (rv) {
 		dev_err(&pdev->dev, "couldn't enable PCI device\n");
 		return rv;
 	}
-
-	io.addr_source_cleanup = ipmi_pci_cleanup;
-	io.addr_source_data = pdev;
 
 	if (pci_resource_flags(pdev, 0) & IORESOURCE_IO) {
 		io.addr_space = IPMI_IO_ADDR_SPACE;
@@ -128,11 +118,7 @@ static int ipmi_pci_probe(struct pci_dev *pdev,
 	dev_info(&pdev->dev, "%pR regsize %d spacing %d irq %d\n",
 		 &pdev->resource[0], io.regsize, io.regspacing, io.irq);
 
-	rv = ipmi_si_add_smi(&io);
-	if (rv)
-		pci_disable_device(pdev);
-
-	return rv;
+	return ipmi_si_add_smi(&io);
 }
 
 static void ipmi_pci_remove(struct pci_dev *pdev)

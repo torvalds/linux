@@ -10,7 +10,8 @@
 #include <asm/unaligned.h>
 #include <crypto/internal/poly1305.h>
 
-void poly1305_core_setkey(struct poly1305_core_key *key, const u8 raw_key[16])
+void poly1305_core_setkey(struct poly1305_core_key *key,
+			  const u8 raw_key[POLY1305_BLOCK_SIZE])
 {
 	/* r &= 0xffffffc0ffffffc0ffffffc0fffffff */
 	key->key.r[0] = (get_unaligned_le32(&raw_key[0])) & 0x3ffffff;

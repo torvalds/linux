@@ -173,7 +173,7 @@ static void sl82c105_bmdma_start(struct ata_queued_cmd *qc)
 }
 
 /**
- *	sl82c105_bmdma_end		-	DMA engine stop
+ *	sl82c105_bmdma_stop		-	DMA engine stop
  *	@qc: ATA command
  *
  *	Reset the DMA engine each use as recommended by the errata

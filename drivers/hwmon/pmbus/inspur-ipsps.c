@@ -70,7 +70,7 @@ static ssize_t ipsps_string_show(struct device *dev,
 	p = memscan(data, '#', rc);
 	*p = '\0';
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", data);
+	return sysfs_emit(buf, "%s\n", data);
 }
 
 static ssize_t ipsps_fw_version_show(struct device *dev,
@@ -91,9 +91,9 @@ static ssize_t ipsps_fw_version_show(struct device *dev,
 	if (rc != 6)
 		return -EPROTO;
 
-	return snprintf(buf, PAGE_SIZE, "%u.%02u%u-%u.%02u\n",
-			data[1], data[2]/* < 100 */, data[3]/*< 10*/,
-			data[4], data[5]/* < 100 */);
+	return sysfs_emit(buf, "%u.%02u%u-%u.%02u\n",
+			  data[1], data[2]/* < 100 */, data[3]/*< 10*/,
+			  data[4], data[5]/* < 100 */);
 }
 
 static ssize_t ipsps_mode_show(struct device *dev,
@@ -111,19 +111,19 @@ static ssize_t ipsps_mode_show(struct device *dev,
 
 	switch (rc) {
 	case MODE_ACTIVE:
-		return snprintf(buf, PAGE_SIZE, "[%s] %s %s\n",
-				MODE_ACTIVE_STRING,
-				MODE_STANDBY_STRING, MODE_REDUNDANCY_STRING);
+		return sysfs_emit(buf, "[%s] %s %s\n",
+				  MODE_ACTIVE_STRING,
+				  MODE_STANDBY_STRING, MODE_REDUNDANCY_STRING);
 	case MODE_STANDBY:
-		return snprintf(buf, PAGE_SIZE, "%s [%s] %s\n",
-				MODE_ACTIVE_STRING,
-				MODE_STANDBY_STRING, MODE_REDUNDANCY_STRING);
+		return sysfs_emit(buf, "%s [%s] %s\n",
+				  MODE_ACTIVE_STRING,
+				  MODE_STANDBY_STRING, MODE_REDUNDANCY_STRING);
 	case MODE_REDUNDANCY:
-		return snprintf(buf, PAGE_SIZE, "%s %s [%s]\n",
-				MODE_ACTIVE_STRING,
-				MODE_STANDBY_STRING, MODE_REDUNDANCY_STRING);
+		return sysfs_emit(buf, "%s %s [%s]\n",
+				  MODE_ACTIVE_STRING,
+				  MODE_STANDBY_STRING, MODE_REDUNDANCY_STRING);
 	default:
-		return snprintf(buf, PAGE_SIZE, "unspecified\n");
+		return sysfs_emit(buf, "unspecified\n");
 	}
 }
 
@@ -224,3 +224,4 @@ module_i2c_driver(ipsps_driver);
 MODULE_AUTHOR("John Wang");
 MODULE_DESCRIPTION("PMBus driver for Inspur Power System power supplies");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

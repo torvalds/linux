@@ -537,6 +537,8 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 	parse_em_data(m);
 	maxmem_data(m);
 
+	seq_printf(m, "security_flavor=%u\n", pseries_security_flavor);
+
 	return 0;
 }
 

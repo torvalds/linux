@@ -29,6 +29,6 @@
 #define HOST1X_SYNC_SYNCPT_THRESH_INT_ENABLE_CPU0(x)	(0x652c + 4 * (x))
 #define HOST1X_SYNC_SYNCPT_THRESH_INT_DISABLE(x)	(0x6590 + 4 * (x))
 #define HOST1X_SYNC_SYNCPT(x)				(0x8080 + 4 * (x))
-#define HOST1X_SYNC_SYNCPT_INT_THRESH(x)		(0x8d00 + 4 * (x))
+#define HOST1X_SYNC_SYNCPT_INT_THRESH(x)		(0x9980 + 4 * (x))
 #define HOST1X_SYNC_SYNCPT_CH_APP(x)			(0xa604 + 4 * (x))
 #define HOST1X_SYNC_SYNCPT_CH_APP_CH(v)			(((v) & 0x3f) << 8)

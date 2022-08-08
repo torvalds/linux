@@ -72,6 +72,7 @@ For example, the perf_event_attr structure can be initialized with
 The Fixed counter 3 must be the leader of the group.
 
 #include <linux/perf_event.h>
+#include <sys/mman.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
@@ -95,6 +96,11 @@ int slots_fd = perf_event_open(&slots, 0, -1, -1, 0);
 if (slots_fd < 0)
 	... error ...
 
+/* Memory mapping the fd permits _rdpmc calls from userspace */
+void *slots_p = mmap(0, getpagesize(), PROT_READ, MAP_SHARED, slots_fd, 0);
+if (!slot_p)
+	.... error ...
+
 /*
  * Open metrics event file descriptor for current task.
  * Set slots event as the leader of the group.
@@ -110,6 +116,14 @@ int metrics_fd = perf_event_open(&metrics, 0, -1, slots_fd, 0);
 if (metrics_fd < 0)
 	... error ...
 
+/* Memory mapping the fd permits _rdpmc calls from userspace */
+void *metrics_p = mmap(0, getpagesize(), PROT_READ, MAP_SHARED, metrics_fd, 0);
+if (!metrics_p)
+	... error ...
+
+Note: the file descriptors returned by the perf_event_open calls must be memory
+mapped to permit calls to the _rdpmd instruction. Permission may also be granted
+by writing the /sys/devices/cpu/rdpmc sysfs node.
 
 The RDPMC instruction (or _rdpmc compiler intrinsic) can now be used
 to read slots and the topdown metrics at different points of the program:
@@ -140,6 +154,10 @@ It's not a good idea to do this with too short code regions,
 as the parallelism and overlap in the CPU program execution will
 cause too much measurement inaccuracy. For example instrumenting
 individual basic blocks is definitely too fine grained.
+
+_rdpmc calls should not be mixed with reading the metrics and slots counters
+through system calls, as the kernel will reset these counters after each system
+call.
 
 Decoding metrics values
 =======================

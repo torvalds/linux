@@ -102,6 +102,7 @@ void xive_flush_interrupt(void);
 /* xmon hook */
 void xmon_xive_do_dump(int cpu);
 int xmon_xive_get_irq_config(u32 hw_irq, struct irq_data *d);
+void xmon_xive_get_irq_all(void);
 
 /* APIs used by KVM */
 u32 xive_native_default_eq_shift(void);

@@ -293,6 +293,7 @@ static int fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
 		u32 cpu_security_boot_status_reg)
 {
 	u32 err_val, security_val;
+	bool err_exists = false;
 
 	/* Some of the firmware status codes are deprecated in newer f/w
 	 * versions. In those versions, the errors are reported
@@ -307,48 +308,100 @@ static int fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
 	if (!(err_val & CPU_BOOT_ERR0_ENABLED))
 		return 0;
 
-	if (err_val & CPU_BOOT_ERR0_DRAM_INIT_FAIL)
+	if (err_val & CPU_BOOT_ERR0_DRAM_INIT_FAIL) {
 		dev_err(hdev->dev,
 			"Device boot error - DRAM initialization failed\n");
-	if (err_val & CPU_BOOT_ERR0_FIT_CORRUPTED)
-		dev_err(hdev->dev, "Device boot error - FIT image corrupted\n");
-	if (err_val & CPU_BOOT_ERR0_TS_INIT_FAIL)
-		dev_err(hdev->dev,
-			"Device boot error - Thermal Sensor initialization failed\n");
-	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED)
-		dev_warn(hdev->dev,
-			"Device boot warning - Skipped DRAM initialization\n");
-
-	if (err_val & CPU_BOOT_ERR0_BMC_WAIT_SKIPPED) {
-		if (hdev->bmc_enable)
-			dev_warn(hdev->dev,
-				"Device boot error - Skipped waiting for BMC\n");
-		else
-			err_val &= ~CPU_BOOT_ERR0_BMC_WAIT_SKIPPED;
+		err_exists = true;
 	}
 
-	if (err_val & CPU_BOOT_ERR0_NIC_DATA_NOT_RDY)
+	if (err_val & CPU_BOOT_ERR0_FIT_CORRUPTED) {
+		dev_err(hdev->dev, "Device boot error - FIT image corrupted\n");
+		err_exists = true;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_TS_INIT_FAIL) {
+		dev_err(hdev->dev,
+			"Device boot error - Thermal Sensor initialization failed\n");
+		err_exists = true;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED) {
+		dev_warn(hdev->dev,
+			"Device boot warning - Skipped DRAM initialization\n");
+		/* This is a warning so we don't want it to disable the
+		 * device
+		 */
+		err_val &= ~CPU_BOOT_ERR0_DRAM_SKIPPED;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_BMC_WAIT_SKIPPED) {
+		if (hdev->bmc_enable) {
+			dev_err(hdev->dev,
+				"Device boot error - Skipped waiting for BMC\n");
+			err_exists = true;
+		} else {
+			dev_info(hdev->dev,
+				"Device boot message - Skipped waiting for BMC\n");
+			/* This is an info so we don't want it to disable the
+			 * device
+			 */
+			err_val &= ~CPU_BOOT_ERR0_BMC_WAIT_SKIPPED;
+		}
+	}
+
+	if (err_val & CPU_BOOT_ERR0_NIC_DATA_NOT_RDY) {
 		dev_err(hdev->dev,
 			"Device boot error - Serdes data from BMC not available\n");
-	if (err_val & CPU_BOOT_ERR0_NIC_FW_FAIL)
+		err_exists = true;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_NIC_FW_FAIL) {
 		dev_err(hdev->dev,
 			"Device boot error - NIC F/W initialization failed\n");
-	if (err_val & CPU_BOOT_ERR0_SECURITY_NOT_RDY)
-		dev_warn(hdev->dev,
+		err_exists = true;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_SECURITY_NOT_RDY) {
+		dev_err(hdev->dev,
 			"Device boot warning - security not ready\n");
-	if (err_val & CPU_BOOT_ERR0_SECURITY_FAIL)
+		err_exists = true;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_SECURITY_FAIL) {
 		dev_err(hdev->dev, "Device boot error - security failure\n");
-	if (err_val & CPU_BOOT_ERR0_EFUSE_FAIL)
+		err_exists = true;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_EFUSE_FAIL) {
 		dev_err(hdev->dev, "Device boot error - eFuse failure\n");
-	if (err_val & CPU_BOOT_ERR0_PLL_FAIL)
+		err_exists = true;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_PLL_FAIL) {
 		dev_err(hdev->dev, "Device boot error - PLL failure\n");
+		err_exists = true;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL) {
+		dev_err(hdev->dev,
+			"Device boot error - device unusable\n");
+		err_exists = true;
+	}
 
 	security_val = RREG32(cpu_security_boot_status_reg);
 	if (security_val & CPU_BOOT_DEV_STS0_ENABLED)
 		dev_dbg(hdev->dev, "Device security status %#x\n",
 				security_val);
 
-	if (err_val & ~CPU_BOOT_ERR0_ENABLED)
+	if (!err_exists && (err_val & ~CPU_BOOT_ERR0_ENABLED)) {
+		dev_err(hdev->dev,
+			"Device boot error - unknown error 0x%08x\n",
+			err_val);
+		err_exists = true;
+	}
+
+	if (err_exists && ((err_val & ~CPU_BOOT_ERR0_ENABLED) &
+				lower_32_bits(hdev->boot_error_status_mask)))
 		return -EIO;
 
 	return 0;
@@ -417,6 +470,73 @@ out:
 			sizeof(struct cpucp_info), cpucp_info_cpu_addr);
 
 	return rc;
+}
+
+static int hl_fw_send_msi_info_msg(struct hl_device *hdev)
+{
+	struct cpucp_array_data_packet *pkt;
+	size_t total_pkt_size, data_size;
+	u64 result;
+	int rc;
+
+	/* skip sending this info for unsupported ASICs */
+	if (!hdev->asic_funcs->get_msi_info)
+		return 0;
+
+	data_size = CPUCP_NUM_OF_MSI_TYPES * sizeof(u32);
+	total_pkt_size = sizeof(struct cpucp_array_data_packet) + data_size;
+
+	/* data should be aligned to 8 bytes in order to CPU-CP to copy it */
+	total_pkt_size = (total_pkt_size + 0x7) & ~0x7;
+
+	/* total_pkt_size is casted to u16 later on */
+	if (total_pkt_size > USHRT_MAX) {
+		dev_err(hdev->dev, "CPUCP array data is too big\n");
+		return -EINVAL;
+	}
+
+	pkt = kzalloc(total_pkt_size, GFP_KERNEL);
+	if (!pkt)
+		return -ENOMEM;
+
+	pkt->length = cpu_to_le32(CPUCP_NUM_OF_MSI_TYPES);
+
+	hdev->asic_funcs->get_msi_info((u32 *)&pkt->data);
+
+	pkt->cpucp_pkt.ctl = cpu_to_le32(CPUCP_PACKET_MSI_INFO_SET <<
+						CPUCP_PKT_CTL_OPCODE_SHIFT);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *)pkt,
+						total_pkt_size, 0, &result);
+
+	/*
+	 * in case packet result is invalid it means that FW does not support
+	 * this feature and will use default/hard coded MSI values. no reason
+	 * to stop the boot
+	 */
+	if (rc && result == cpucp_packet_invalid)
+		rc = 0;
+
+	if (rc)
+		dev_err(hdev->dev, "failed to send CPUCP array data\n");
+
+	kfree(pkt);
+
+	return rc;
+}
+
+int hl_fw_cpucp_handshake(struct hl_device *hdev,
+			u32 cpu_security_boot_status_reg,
+			u32 boot_err0_reg)
+{
+	int rc;
+
+	rc = hl_fw_cpucp_info_get(hdev, cpu_security_boot_status_reg,
+					boot_err0_reg);
+	if (rc)
+		return rc;
+
+	return hl_fw_send_msi_info_msg(hdev);
 }
 
 int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
@@ -539,18 +659,69 @@ int hl_fw_cpucp_total_energy_get(struct hl_device *hdev, u64 *total_energy)
 	return rc;
 }
 
-int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, u16 pll_index,
+int get_used_pll_index(struct hl_device *hdev, u32 input_pll_index,
+						enum pll_index *pll_index)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u8 pll_byte, pll_bit_off;
+	bool dynamic_pll;
+	int fw_pll_idx;
+
+	dynamic_pll = prop->fw_security_status_valid &&
+		(prop->fw_app_security_map & CPU_BOOT_DEV_STS0_DYN_PLL_EN);
+
+	if (!dynamic_pll) {
+		/*
+		 * in case we are working with legacy FW (each asic has unique
+		 * PLL numbering) use the driver based index as they are
+		 * aligned with fw legacy numbering
+		 */
+		*pll_index = input_pll_index;
+		return 0;
+	}
+
+	/* retrieve a FW compatible PLL index based on
+	 * ASIC specific user request
+	 */
+	fw_pll_idx = hdev->asic_funcs->map_pll_idx_to_fw_idx(input_pll_index);
+	if (fw_pll_idx < 0) {
+		dev_err(hdev->dev, "Invalid PLL index (%u) error %d\n",
+			input_pll_index, fw_pll_idx);
+		return -EINVAL;
+	}
+
+	/* PLL map is a u8 array */
+	pll_byte = prop->cpucp_info.pll_map[fw_pll_idx >> 3];
+	pll_bit_off = fw_pll_idx & 0x7;
+
+	if (!(pll_byte & BIT(pll_bit_off))) {
+		dev_err(hdev->dev, "PLL index %d is not supported\n",
+			fw_pll_idx);
+		return -EINVAL;
+	}
+
+	*pll_index = fw_pll_idx;
+
+	return 0;
+}
+
+int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, u32 pll_index,
 		u16 *pll_freq_arr)
 {
 	struct cpucp_packet pkt;
+	enum pll_index used_pll_idx;
 	u64 result;
 	int rc;
+
+	rc = get_used_pll_index(hdev, pll_index, &used_pll_idx);
+	if (rc)
+		return rc;
 
 	memset(&pkt, 0, sizeof(pkt));
 
 	pkt.ctl = cpu_to_le32(CPUCP_PACKET_PLL_INFO_GET <<
 				CPUCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.pll_type = __cpu_to_le16(pll_index);
+	pkt.pll_type = __cpu_to_le16((u16)used_pll_idx);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 			HL_CPUCP_INFO_TIMEOUT_USEC, &result);
@@ -561,6 +732,29 @@ int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, u16 pll_index,
 	pll_freq_arr[1] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT1_MASK, result);
 	pll_freq_arr[2] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT2_MASK, result);
 	pll_freq_arr[3] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT3_MASK, result);
+
+	return rc;
+}
+
+int hl_fw_cpucp_power_get(struct hl_device *hdev, u64 *power)
+{
+	struct cpucp_packet pkt;
+	u64 result;
+	int rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_POWER_GET <<
+				CPUCP_PKT_CTL_OPCODE_SHIFT);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+			HL_CPUCP_INFO_TIMEOUT_USEC, &result);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to read power, error %d\n", rc);
+		return rc;
+	}
+
+	*power = result;
 
 	return rc;
 }
@@ -623,7 +817,11 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	u32 status, security_status;
 	int rc;
 
-	if (!hdev->cpu_enable)
+	/* pldm was added for cases in which we use preboot on pldm and want
+	 * to load boot fit, but we can't wait for preboot because it runs
+	 * very slowly
+	 */
+	if (!(hdev->fw_components & FW_TYPE_PREBOOT_CPU) || hdev->pldm)
 		return 0;
 
 	/* Need to check two possible scenarios:
@@ -650,8 +848,13 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	if (rc) {
 		dev_err(hdev->dev, "Failed to read preboot version\n");
 		detect_cpu_boot_status(hdev, status);
-		fw_read_errors(hdev, boot_err0_reg,
-				cpu_security_boot_status_reg);
+
+		/* If we read all FF, then something is totally wrong, no point
+		 * of reading specific errors
+		 */
+		if (status != -1)
+			fw_read_errors(hdev, boot_err0_reg,
+					cpu_security_boot_status_reg);
 		return -EIO;
 	}
 
@@ -677,16 +880,16 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	if (security_status & CPU_BOOT_DEV_STS0_ENABLED) {
 		prop->fw_security_status_valid = 1;
 
+		/* FW security should be derived from PCI ID, we keep this
+		 * check for backward compatibility
+		 */
 		if (security_status & CPU_BOOT_DEV_STS0_SECURITY_EN)
 			prop->fw_security_disabled = false;
-		else
-			prop->fw_security_disabled = true;
 
 		if (security_status & CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
 			prop->hard_reset_done_by_fw = true;
 	} else {
 		prop->fw_security_status_valid = 0;
-		prop->fw_security_disabled = true;
 	}
 
 	dev_dbg(hdev->dev, "Firmware preboot security status %#x\n",
@@ -710,7 +913,7 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	u32 status;
 	int rc;
 
-	if (!(hdev->fw_loading & FW_TYPE_BOOT_CPU))
+	if (!(hdev->fw_components & FW_TYPE_BOOT_CPU))
 		return 0;
 
 	dev_info(hdev->dev, "Going to wait for device boot (up to %lds)\n",
@@ -801,7 +1004,7 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		goto out;
 	}
 
-	if (!(hdev->fw_loading & FW_TYPE_LINUX)) {
+	if (!(hdev->fw_components & FW_TYPE_LINUX)) {
 		dev_info(hdev->dev, "Skip loading Linux F/W\n");
 		goto out;
 	}

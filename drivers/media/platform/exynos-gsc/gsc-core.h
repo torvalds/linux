@@ -64,14 +64,11 @@ enum gsc_irq {
  * enum gsc_datapath - the path of data used for G-Scaler
  * @GSC_CAMERA: from camera
  * @GSC_DMA: from/to DMA
- * @GSC_LOCAL: to local path
  * @GSC_WRITEBACK: from FIMD
  */
 enum gsc_datapath {
 	GSC_CAMERA = 0x1,
 	GSC_DMA,
-	GSC_MIXER,
-	GSC_FIMD,
 	GSC_WRITEBACK,
 };
 
@@ -104,10 +101,11 @@ enum gsc_yuv_fmt {
  * struct gsc_fmt - the driver's internal color format data
  * @mbus_code: Media Bus pixel code, -1 if not applicable
  * @pixelformat: the fourcc code for this format, 0 if not applicable
+ * @color: color encoding
  * @yorder: Y/C order
  * @corder: Chrominance order control
  * @num_planes: number of physically non-contiguous data planes
- * @nr_comp: number of physically contiguous data planes
+ * @num_comp: number of physically contiguous data planes
  * @depth: per plane driver's private 'number of bits per pixel'
  * @flags: flags indicating which operation mode format applies to
  */
@@ -280,7 +278,7 @@ struct gsc_pix_align {
 	u16 target_h;
 };
 
-/**
+/*
  * struct gsc_variant - G-Scaler variant information
  */
 struct gsc_variant {
@@ -301,6 +299,9 @@ struct gsc_variant {
  *
  * @variant: the variant information for this driver.
  * @num_entities: the number of g-scalers
+ * @clk_names: clock names
+ * @num_clocks: the number of clocks in @clk_names
+ * @num_entities: the number of g-scalers
  */
 struct gsc_driverdata {
 	struct gsc_variant *variant[GSC_MAX_DEVS];
@@ -316,12 +317,14 @@ struct gsc_driverdata {
  * @pdev:	pointer to the G-Scaler platform device
  * @variant:	the IP variant information
  * @id:		G-Scaler device index (0..GSC_MAX_DEVS)
+ * @num_clocks:	number of clocks required for G-Scaler operation
  * @clock:	clocks required for G-Scaler operation
  * @regs:	the mapped hardware registers
  * @irq_queue:	interrupt handler waitqueue
  * @m2m:	memory-to-memory V4L2 device information
  * @state:	flags used to synchronize m2m and capture mode operation
  * @vdev:	video device for G-Scaler instance
+ * @v4l2_dev:	v4l2_device for G-Scaler instance
  */
 struct gsc_dev {
 	spinlock_t			slock;
@@ -340,7 +343,7 @@ struct gsc_dev {
 };
 
 /**
- * gsc_ctx - the device context data
+ * struct gsc_ctx - the device context data
  * @s_frame:		source frame properties
  * @d_frame:		destination frame properties
  * @in_path:		input mode (DMA or camera)
@@ -348,12 +351,16 @@ struct gsc_dev {
  * @scaler:		image scaler properties
  * @flags:		additional flags for image conversion
  * @state:		flags to keep track of user configuration
+ * @rotation:		rotation
+ * @hflip:		horizontal flip
+ * @vflip:		vertical flip
  * @gsc_dev:		the G-Scaler device this context applies to
  * @m2m_ctx:		memory-to-memory device context
  * @fh:                 v4l2 file handle
  * @ctrl_handler:       v4l2 controls handler
- * @gsc_ctrls		G-Scaler control set
+ * @gsc_ctrls:		G-Scaler control set
  * @ctrls_rdy:          true if the control handler is initialized
+ * @out_colorspace:     the colorspace of the OUTPUT queue
  */
 struct gsc_ctx {
 	struct gsc_frame	s_frame;

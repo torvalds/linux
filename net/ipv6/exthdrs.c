@@ -381,7 +381,7 @@ static int ipv6_srh_rcv(struct sk_buff *skb)
 
 looped_back:
 	if (hdr->segments_left == 0) {
-		if (hdr->nexthdr == NEXTHDR_IPV6) {
+		if (hdr->nexthdr == NEXTHDR_IPV6 || hdr->nexthdr == NEXTHDR_IPV4) {
 			int offset = (hdr->hdrlen + 1) << 3;
 
 			skb_postpull_rcsum(skb, skb_network_header(skb),
@@ -397,7 +397,8 @@ looped_back:
 			skb_reset_network_header(skb);
 			skb_reset_transport_header(skb);
 			skb->encapsulation = 0;
-
+			if (hdr->nexthdr == NEXTHDR_IPV4)
+				skb->protocol = htons(ETH_P_IP);
 			__skb_tunnel_rx(skb, skb->dev, net);
 
 			netif_rx(skb);

@@ -1615,7 +1615,6 @@ static int FlashPoint_AbortCCB(void *pCurrCard, struct sccb *p_Sccb)
 
 	unsigned char thisCard;
 	CALL_BK_FN callback;
-	unsigned char TID;
 	struct sccb *pSaveSCCB;
 	struct sccb_mgr_tar_info *currTar_Info;
 
@@ -1652,9 +1651,6 @@ static int FlashPoint_AbortCCB(void *pCurrCard, struct sccb *p_Sccb)
 			}
 
 			else {
-
-				TID = p_Sccb->TargID;
-
 				if (p_Sccb->Sccb_tag) {
 					MDISABLE_INT(ioport);
 					if (((struct sccb_card *)pCurrCard)->
@@ -4534,7 +4530,7 @@ static void FPT_phaseBusFree(u32 port, unsigned char p_card)
  *
  * Function: Auto Load Default Map
  *
- * Description: Load the Automation RAM with the defualt map values.
+ * Description: Load the Automation RAM with the default map values.
  *
  *---------------------------------------------------------------------*/
 static void FPT_autoLoadDefaultMap(u32 p_port)

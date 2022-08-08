@@ -232,10 +232,14 @@ static const struct property_entry eeprom_properties[] = {
 	{ }
 };
 
+static const struct software_node eeprom_node = {
+	.properties = eeprom_properties,
+};
+
 static struct i2c_board_info i2c_info[] = {
 	{
 		I2C_BOARD_INFO("24c256", 0x50),
-		.properties = eeprom_properties,
+		.swnode = &eeprom_node,
 	},
 	{
 		I2C_BOARD_INFO("tlv320aic3x", 0x18),

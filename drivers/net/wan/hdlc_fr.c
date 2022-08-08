@@ -415,7 +415,7 @@ static netdev_tx_t pvc_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		if (pad > 0) { /* Pad the frame with zeros */
 			if (__skb_pad(skb, pad, false))
-				goto out;
+				goto drop;
 			skb_put(skb, pad);
 		}
 	}
@@ -448,9 +448,8 @@ static netdev_tx_t pvc_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 
 drop:
-	kfree_skb(skb);
-out:
 	dev->stats.tx_dropped++;
+	kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 

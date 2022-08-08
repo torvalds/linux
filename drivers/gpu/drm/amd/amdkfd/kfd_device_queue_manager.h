@@ -121,11 +121,6 @@ struct device_queue_manager_ops {
 					   void __user *alternate_aperture_base,
 					   uint64_t alternate_aperture_size);
 
-	int	(*set_trap_handler)(struct device_queue_manager *dqm,
-				    struct qcm_process_device *qpd,
-				    uint64_t tba_addr,
-				    uint64_t tma_addr);
-
 	int (*process_termination)(struct device_queue_manager *dqm,
 			struct qcm_process_device *qpd);
 

@@ -38,7 +38,7 @@ enum pconfig_leaf {
 #define MKTME_INVALID_ENC_ALG	4
 #define MKTME_DEVICE_BUSY	5
 
-/* Hardware requires the structure to be 256 byte alinged. Otherwise #GP(0). */
+/* Hardware requires the structure to be 256 byte aligned. Otherwise #GP(0). */
 struct mktme_key_program {
 	u16 keyid;
 	u32 keyid_ctrl;

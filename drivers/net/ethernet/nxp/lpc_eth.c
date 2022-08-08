@@ -1044,7 +1044,8 @@ static netdev_tx_t lpc_eth_hard_start_xmit(struct sk_buff *skb,
 
 	if (pldat->num_used_tx_buffs >= (ENET_TX_DESC - 1)) {
 		/* This function should never be called when there are no
-		   buffers */
+		 * buffers
+		 */
 		netif_stop_queue(ndev);
 		spin_unlock_irq(&pldat->lock);
 		WARN(1, "BUG! TX request when no free TX buffers!\n");
@@ -1318,7 +1319,8 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 		pldat->dma_buff_size = PAGE_ALIGN(pldat->dma_buff_size);
 
 		/* Allocate a chunk of memory for the DMA ethernet buffers
-		   and descriptors */
+		 * and descriptors
+		 */
 		pldat->dma_buff_base_v =
 			dma_alloc_coherent(dev,
 					   pldat->dma_buff_size, &dma_handle,
@@ -1348,9 +1350,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	__lpc_get_mac(pldat, ndev->dev_addr);
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
-		const char *macaddr = of_get_mac_address(np);
-		if (!IS_ERR(macaddr))
-			ether_addr_copy(ndev->dev_addr, macaddr);
+		of_get_mac_address(np, ndev->dev_addr);
 	}
 	if (!is_valid_ether_addr(ndev->dev_addr))
 		eth_hw_addr_random(ndev);
@@ -1365,7 +1365,8 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	__lpc_mii_mngt_reset(pldat);
 
 	/* Force default PHY interface setup in chip, this will probably be
-	   changed by the PHY driver */
+	 * changed by the PHY driver
+	 */
 	pldat->link = 0;
 	pldat->speed = 100;
 	pldat->duplex = DUPLEX_FULL;

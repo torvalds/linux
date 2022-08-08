@@ -63,7 +63,7 @@ information about try formats.
 
 .. c:type:: v4l2_subdev_frame_size_enum
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. flat-table:: struct v4l2_subdev_frame_size_enum
     :header-rows:  0

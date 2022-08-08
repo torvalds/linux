@@ -561,8 +561,6 @@ static int intel_link_power_down(struct sdw_intel *sdw)
 		ret = intel_clear_bit(shim, SDW_SHIM_LCTL, link_control, cpa_mask);
 	}
 
-	link_control = intel_readl(shim, SDW_SHIM_LCTL);
-
 	mutex_unlock(sdw->link_res->shim_lock);
 
 	if (ret < 0) {
@@ -997,7 +995,7 @@ static int intel_prepare(struct snd_pcm_substream *substream,
 
 	dma = snd_soc_dai_get_dma_data(dai, substream);
 	if (!dma) {
-		dev_err(dai->dev, "failed to get dma data in %s",
+		dev_err(dai->dev, "failed to get dma data in %s\n",
 			__func__);
 		return -EIO;
 	}
@@ -1061,7 +1059,7 @@ intel_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 
 	ret = intel_free_stream(sdw, substream, dai, sdw->instance);
 	if (ret < 0) {
-		dev_err(dai->dev, "intel_free_stream: failed %d", ret);
+		dev_err(dai->dev, "intel_free_stream: failed %d\n", ret);
 		return ret;
 	}
 
@@ -1286,6 +1284,9 @@ static int sdw_master_read_intel_prop(struct sdw_bus *bus)
 	if (quirk_mask & SDW_INTEL_QUIRK_MASK_BUS_DISABLE)
 		prop->hw_disabled = true;
 
+	prop->quirks = SDW_MASTER_QUIRKS_CLEAR_INITIAL_CLASH |
+		SDW_MASTER_QUIRKS_CLEAR_INITIAL_PARITY;
+
 	return 0;
 }
 
@@ -1302,6 +1303,7 @@ static int intel_prop_read(struct sdw_bus *bus)
 
 static struct sdw_master_ops sdw_intel_ops = {
 	.read_prop = sdw_master_read_prop,
+	.override_adr = sdw_dmi_override_adr,
 	.xfer_msg = cdns_xfer_msg,
 	.xfer_msg_defer = cdns_xfer_msg_defer,
 	.reset_page_addr = cdns_reset_page_addr,
@@ -1630,7 +1632,7 @@ static int __maybe_unused intel_suspend(struct device *dev)
 
 	ret = intel_link_power_down(sdw);
 	if (ret) {
-		dev_err(dev, "Link power down failed: %d", ret);
+		dev_err(dev, "Link power down failed: %d\n", ret);
 		return ret;
 	}
 
@@ -1665,7 +1667,7 @@ static int __maybe_unused intel_suspend_runtime(struct device *dev)
 
 		ret = intel_link_power_down(sdw);
 		if (ret) {
-			dev_err(dev, "Link power down failed: %d", ret);
+			dev_err(dev, "Link power down failed: %d\n", ret);
 			return ret;
 		}
 
@@ -1689,7 +1691,7 @@ static int __maybe_unused intel_suspend_runtime(struct device *dev)
 
 		ret = intel_link_power_down(sdw);
 		if (ret) {
-			dev_err(dev, "Link power down failed: %d", ret);
+			dev_err(dev, "Link power down failed: %d\n", ret);
 			return ret;
 		}
 
@@ -1738,7 +1740,7 @@ static int __maybe_unused intel_resume(struct device *dev)
 
 	ret = intel_init(sdw);
 	if (ret) {
-		dev_err(dev, "%s failed: %d", __func__, ret);
+		dev_err(dev, "%s failed: %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -1822,7 +1824,7 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 	if (clock_stop_quirks & SDW_INTEL_CLK_STOP_TEARDOWN) {
 		ret = intel_init(sdw);
 		if (ret) {
-			dev_err(dev, "%s failed: %d", __func__, ret);
+			dev_err(dev, "%s failed: %d\n", __func__, ret);
 			return ret;
 		}
 
@@ -1867,7 +1869,7 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 	} else if (clock_stop_quirks & SDW_INTEL_CLK_STOP_BUS_RESET) {
 		ret = intel_init(sdw);
 		if (ret) {
-			dev_err(dev, "%s failed: %d", __func__, ret);
+			dev_err(dev, "%s failed: %d\n", __func__, ret);
 			return ret;
 		}
 
@@ -1945,7 +1947,7 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 
 		ret = intel_init(sdw);
 		if (ret) {
-			dev_err(dev, "%s failed: %d", __func__, ret);
+			dev_err(dev, "%s failed: %d\n", __func__, ret);
 			return ret;
 		}
 

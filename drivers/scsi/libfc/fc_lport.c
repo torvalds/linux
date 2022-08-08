@@ -703,7 +703,7 @@ static void fc_lport_disc_callback(struct fc_lport *lport,
 }
 
 /**
- * fc_rport_enter_ready() - Enter the ready state and start discovery
+ * fc_lport_enter_ready() - Enter the ready state and start discovery
  * @lport: The local port that is ready
  */
 static void fc_lport_enter_ready(struct fc_lport *lport)
@@ -747,7 +747,7 @@ static void fc_lport_set_port_id(struct fc_lport *lport, u32 port_id,
 }
 
 /**
- * fc_lport_set_port_id() - set the local port Port ID for point-to-multipoint
+ * fc_lport_set_local_id() - set the local port Port ID for point-to-multipoint
  * @lport: The local port which will have its Port ID set.
  * @port_id: The new port ID.
  *
@@ -1393,7 +1393,7 @@ static struct fc_rport_operations fc_lport_rport_ops = {
 };
 
 /**
- * fc_rport_enter_dns() - Create a fc_rport for the name server
+ * fc_lport_enter_dns() - Create a fc_rport for the name server
  * @lport: The local port requesting a remote port for the name server
  */
 static void fc_lport_enter_dns(struct fc_lport *lport)
@@ -1509,7 +1509,7 @@ static void fc_lport_enter_ms(struct fc_lport *lport, enum fc_lport_state state)
 }
 
 /**
- * fc_rport_enter_fdmi() - Create a fc_rport for the management server
+ * fc_lport_enter_fdmi() - Create a fc_rport for the management server
  * @lport: The local port requesting a remote port for the management server
  */
 static void fc_lport_enter_fdmi(struct fc_lport *lport)
@@ -1640,7 +1640,7 @@ err:
 EXPORT_SYMBOL(fc_lport_logo_resp);
 
 /**
- * fc_rport_enter_logo() - Logout of the fabric
+ * fc_lport_enter_logo() - Logout of the fabric
  * @lport: The local port to be logged out
  */
 static void fc_lport_enter_logo(struct fc_lport *lport)
@@ -1731,7 +1731,7 @@ void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 
 	if (mfs < FC_SP_MIN_MAX_PAYLOAD || mfs > FC_SP_MAX_MAX_PAYLOAD) {
 		FC_LPORT_DBG(lport, "FLOGI bad mfs:%hu response, "
-			     "lport->mfs:%hu\n", mfs, lport->mfs);
+			     "lport->mfs:%u\n", mfs, lport->mfs);
 		fc_lport_error(lport, fp);
 		goto out;
 	}
@@ -1782,7 +1782,7 @@ err:
 EXPORT_SYMBOL(fc_lport_flogi_resp);
 
 /**
- * fc_rport_enter_flogi() - Send a FLOGI request to the fabric manager
+ * fc_lport_enter_flogi() - Send a FLOGI request to the fabric manager
  * @lport: Fibre Channel local port to be logged in to the fabric
  */
 static void fc_lport_enter_flogi(struct fc_lport *lport)

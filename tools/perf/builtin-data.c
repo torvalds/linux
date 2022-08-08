@@ -7,7 +7,6 @@
 #include "debug.h"
 #include <subcmd/parse-options.h>
 #include "data-convert.h"
-#include "data-convert-bt.h"
 
 typedef int (*data_cmd_fn_t)(int argc, const char **argv);
 
@@ -55,7 +54,8 @@ static const char * const data_convert_usage[] = {
 
 static int cmd_data_convert(int argc, const char **argv)
 {
-	const char *to_ctf     = NULL;
+	const char *to_json = NULL;
+	const char *to_ctf = NULL;
 	struct perf_data_convert_opts opts = {
 		.force = false,
 		.all = false,
@@ -63,6 +63,7 @@ static int cmd_data_convert(int argc, const char **argv)
 	const struct option options[] = {
 		OPT_INCR('v', "verbose", &verbose, "be more verbose"),
 		OPT_STRING('i', "input", &input_name, "file", "input file name"),
+		OPT_STRING(0, "to-json", &to_json, NULL, "Convert to JSON format"),
 #ifdef HAVE_LIBBABELTRACE_SUPPORT
 		OPT_STRING(0, "to-ctf", &to_ctf, NULL, "Convert to CTF format"),
 		OPT_BOOLEAN(0, "tod", &opts.tod, "Convert time to wall clock time"),
@@ -72,11 +73,6 @@ static int cmd_data_convert(int argc, const char **argv)
 		OPT_END()
 	};
 
-#ifndef HAVE_LIBBABELTRACE_SUPPORT
-	pr_err("No conversion support compiled in. perf should be compiled with environment variables LIBBABELTRACE=1 and LIBBABELTRACE_DIR=/path/to/libbabeltrace/\n");
-	return -1;
-#endif
-
 	argc = parse_options(argc, argv, options,
 			     data_convert_usage, 0);
 	if (argc) {
@@ -84,11 +80,25 @@ static int cmd_data_convert(int argc, const char **argv)
 		return -1;
 	}
 
+	if (to_json && to_ctf) {
+		pr_err("You cannot specify both --to-ctf and --to-json.\n");
+		return -1;
+	}
+	if (!to_json && !to_ctf) {
+		pr_err("You must specify one of --to-ctf or --to-json.\n");
+		return -1;
+	}
+
+	if (to_json)
+		return bt_convert__perf2json(input_name, to_json, &opts);
+
 	if (to_ctf) {
 #ifdef HAVE_LIBBABELTRACE_SUPPORT
 		return bt_convert__perf2ctf(input_name, to_ctf, &opts);
 #else
-		pr_err("The libbabeltrace support is not compiled in.\n");
+		pr_err("The libbabeltrace support is not compiled in. perf should be "
+		       "compiled with environment variables LIBBABELTRACE=1 and "
+		       "LIBBABELTRACE_DIR=/path/to/libbabeltrace/\n");
 		return -1;
 #endif
 	}

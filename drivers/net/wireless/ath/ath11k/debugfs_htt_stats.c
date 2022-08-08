@@ -3851,7 +3851,7 @@ htt_print_pdev_obss_pd_stats_tlv_v(const void *tag_buf,
 			   htt_stats_buf->num_non_srg_ppdu_tried);
 	len += HTT_DBG_OUT(buf + len, buf_len - len, "Non-SRG success PPDU = %u\n",
 			   htt_stats_buf->num_non_srg_ppdu_success);
-	len += HTT_DBG_OUT(buf + len, buf_len - len, "SRG Opportunies = %u\n",
+	len += HTT_DBG_OUT(buf + len, buf_len - len, "SRG Opportunities = %u\n",
 			   htt_stats_buf->num_srg_opportunities);
 	len += HTT_DBG_OUT(buf + len, buf_len - len, "SRG tried PPDU = %u\n",
 			   htt_stats_buf->num_srg_ppdu_tried);

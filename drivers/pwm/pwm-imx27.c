@@ -327,7 +327,6 @@ static int pwm_imx27_probe(struct platform_device *pdev)
 
 	imx->chip.ops = &pwm_imx27_ops;
 	imx->chip.dev = &pdev->dev;
-	imx->chip.base = -1;
 	imx->chip.npwm = 1;
 
 	imx->chip.of_xlate = of_pwm_xlate_with_flags;

@@ -305,8 +305,6 @@ static int ad1836_probe(struct snd_soc_component *component)
 		return ret;
 
 	ret = snd_soc_dapm_add_routes(dapm, ad183x_adc_routes, num_adcs);
-	if (ret)
-		return ret;
 
 	return ret;
 }

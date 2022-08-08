@@ -37,8 +37,6 @@ enum {
 
 #define PTP_CFG_MISC_PTP_EN		BIT(2)
 
-#define PSEC_PER_SEC			1000000000000LL
-
 #define PTP_CFG_CLK_ADJ_CFG_ENA		BIT(0)
 #define PTP_CFG_CLK_ADJ_CFG_DIR		BIT(1)
 

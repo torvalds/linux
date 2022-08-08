@@ -71,7 +71,7 @@ static int mlxsw_sp_flow_block_bind(struct mlxsw_sp *mlxsw_sp,
 		return -EOPNOTSUPP;
 	}
 
-	err = mlxsw_sp_mall_port_bind(block, mlxsw_sp_port);
+	err = mlxsw_sp_mall_port_bind(block, mlxsw_sp_port, extack);
 	if (err)
 		return err;
 

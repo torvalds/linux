@@ -113,11 +113,24 @@ do { \
 /* Power gating */
 #define ADF_POWERGATE_PKE		BIT(24)
 
+/* WDT timers
+ *
+ * Timeout is in cycles. Clock speed may vary across products but this
+ * value should be a few milli-seconds.
+ */
+#define ADF_SSM_WDT_DEFAULT_VALUE	0x200000
+#define ADF_SSM_WDT_PKE_DEFAULT_VALUE	0x2000000
+#define ADF_SSMWDT_OFFSET		0x54
+#define ADF_SSMWDTPKE_OFFSET		0x58
+#define ADF_SSMWDT(i)		(ADF_SSMWDT_OFFSET + ((i) * 0x4000))
+#define ADF_SSMWDTPKE(i)	(ADF_SSMWDTPKE_OFFSET + ((i) * 0x4000))
+
 void adf_gen2_cfg_iov_thds(struct adf_accel_dev *accel_dev, bool enable,
 			   int num_a_regs, int num_b_regs);
 void adf_gen2_init_hw_csr_ops(struct adf_hw_csr_ops *csr_ops);
 void adf_gen2_get_admin_info(struct admin_info *admin_csrs_info);
 void adf_gen2_get_arb_info(struct arb_info *arb_info);
 u32 adf_gen2_get_accel_cap(struct adf_accel_dev *accel_dev);
+void adf_gen2_set_ssm_wdtimer(struct adf_accel_dev *accel_dev);
 
 #endif

@@ -84,6 +84,7 @@
 #define STD_MOUSE				BIT(2)
 #define MULTIMEDIA				BIT(3)
 #define POWER_KEYS				BIT(4)
+#define KBD_MOUSE				BIT(5)
 #define MEDIA_CENTER				BIT(8)
 #define KBD_LEDS				BIT(14)
 /* Fake (bitnr > NUMBER_OF_HID_REPORTS) bit to track HID++ capability */
@@ -117,6 +118,7 @@ enum recvr_type {
 	recvr_type_mouse_only,
 	recvr_type_27mhz,
 	recvr_type_bluetooth,
+	recvr_type_dinovo,
 };
 
 struct dj_report {
@@ -333,6 +335,47 @@ static const char mse_bluetooth_descriptor[] = {
 	0xC0,			/*  END_COLLECTION                      */
 };
 
+/* Mouse descriptor (5) for Bluetooth receiver, normal-res hwheel, 8 buttons */
+static const char mse5_bluetooth_descriptor[] = {
+	0x05, 0x01,		/*  USAGE_PAGE (Generic Desktop)        */
+	0x09, 0x02,		/*  Usage (Mouse)                       */
+	0xa1, 0x01,		/*  Collection (Application)            */
+	0x85, 0x05,		/*   Report ID (5)                      */
+	0x09, 0x01,		/*   Usage (Pointer)                    */
+	0xa1, 0x00,		/*   Collection (Physical)              */
+	0x05, 0x09,		/*    Usage Page (Button)               */
+	0x19, 0x01,		/*    Usage Minimum (1)                 */
+	0x29, 0x08,		/*    Usage Maximum (8)                 */
+	0x15, 0x00,		/*    Logical Minimum (0)               */
+	0x25, 0x01,		/*    Logical Maximum (1)               */
+	0x95, 0x08,		/*    Report Count (8)                  */
+	0x75, 0x01,		/*    Report Size (1)                   */
+	0x81, 0x02,		/*    Input (Data,Var,Abs)              */
+	0x05, 0x01,		/*    Usage Page (Generic Desktop)      */
+	0x16, 0x01, 0xf8,	/*    Logical Minimum (-2047)           */
+	0x26, 0xff, 0x07,	/*    Logical Maximum (2047)            */
+	0x75, 0x0c,		/*    Report Size (12)                  */
+	0x95, 0x02,		/*    Report Count (2)                  */
+	0x09, 0x30,		/*    Usage (X)                         */
+	0x09, 0x31,		/*    Usage (Y)                         */
+	0x81, 0x06,		/*    Input (Data,Var,Rel)              */
+	0x15, 0x81,		/*    Logical Minimum (-127)            */
+	0x25, 0x7f,		/*    Logical Maximum (127)             */
+	0x75, 0x08,		/*    Report Size (8)                   */
+	0x95, 0x01,		/*    Report Count (1)                  */
+	0x09, 0x38,		/*    Usage (Wheel)                     */
+	0x81, 0x06,		/*    Input (Data,Var,Rel)              */
+	0x05, 0x0c,		/*    Usage Page (Consumer Devices)     */
+	0x0a, 0x38, 0x02,	/*    Usage (AC Pan)                    */
+	0x15, 0x81,		/*    Logical Minimum (-127)            */
+	0x25, 0x7f,		/*    Logical Maximum (127)             */
+	0x75, 0x08,		/*    Report Size (8)                   */
+	0x95, 0x01,		/*    Report Count (1)                  */
+	0x81, 0x06,		/*    Input (Data,Var,Rel)              */
+	0xc0,			/*   End Collection                     */
+	0xc0,			/*  End Collection                      */
+};
+
 /* Gaming Mouse descriptor (2) */
 static const char mse_high_res_descriptor[] = {
 	0x05, 0x01,		/*  USAGE_PAGE (Generic Desktop)        */
@@ -480,6 +523,7 @@ static const char hidpp_descriptor[] = {
 #define MAX_RDESC_SIZE				\
 	(sizeof(kbd_descriptor) +		\
 	 sizeof(mse_bluetooth_descriptor) +	\
+	 sizeof(mse5_bluetooth_descriptor) +	\
 	 sizeof(consumer_descriptor) +		\
 	 sizeof(syscontrol_descriptor) +	\
 	 sizeof(media_descriptor) +	\
@@ -517,6 +561,11 @@ static void delayedwork_callback(struct work_struct *work);
 static LIST_HEAD(dj_hdev_list);
 static DEFINE_MUTEX(dj_hdev_list_lock);
 
+static bool recvr_type_is_bluetooth(enum recvr_type type)
+{
+	return type == recvr_type_bluetooth || type == recvr_type_dinovo;
+}
+
 /*
  * dj/HID++ receivers are really a single logical entity, but for BIOS/Windows
  * compatibility they have multiple USB interfaces. On HID++ receivers we need
@@ -534,7 +583,7 @@ static struct dj_receiver_dev *dj_find_receiver_dev(struct hid_device *hdev,
 	 * The bluetooth receiver contains a built-in hub and has separate
 	 * USB-devices for the keyboard and mouse interfaces.
 	 */
-	sep = (type == recvr_type_bluetooth) ? '.' : '/';
+	sep = recvr_type_is_bluetooth(type) ? '.' : '/';
 
 	/* Try to find an already-probed interface from the same device */
 	list_for_each_entry(djrcv_dev, &dj_hdev_list, list) {
@@ -872,6 +921,14 @@ static void logi_dj_recv_queue_notification(struct dj_receiver_dev *djrcv_dev,
  * touchpad to work we must also forward mouse input reports to the dj_hiddev
  * created for the keyboard (instead of forwarding them to a second paired
  * device with a device_type of REPORT_TYPE_MOUSE as we normally would).
+ *
+ * On Dinovo receivers the keyboard's touchpad and an optional paired actual
+ * mouse send separate input reports, INPUT(2) aka STD_MOUSE for the mouse
+ * and INPUT(5) aka KBD_MOUSE for the keyboard's touchpad.
+ *
+ * On MX5x00 receivers (which can also be paired with a Dinovo keyboard)
+ * INPUT(2) is used for both an optional paired actual mouse and for the
+ * keyboard's touchpad.
  */
 static const u16 kbd_builtin_touchpad_ids[] = {
 	0xb309, /* Dinovo Edge */
@@ -898,7 +955,10 @@ static void logi_hidpp_dev_conn_notif_equad(struct hid_device *hdev,
 		id = (workitem->quad_id_msb << 8) | workitem->quad_id_lsb;
 		for (i = 0; i < ARRAY_SIZE(kbd_builtin_touchpad_ids); i++) {
 			if (id == kbd_builtin_touchpad_ids[i]) {
-				workitem->reports_supported |= STD_MOUSE;
+				if (djrcv_dev->type == recvr_type_dinovo)
+					workitem->reports_supported |= KBD_MOUSE;
+				else
+					workitem->reports_supported |= STD_MOUSE;
 				break;
 			}
 		}
@@ -1367,12 +1427,19 @@ static int logi_dj_ll_parse(struct hid_device *hid)
 		else if (djdev->dj_receiver_dev->type == recvr_type_27mhz)
 			rdcat(rdesc, &rsize, mse_27mhz_descriptor,
 			      sizeof(mse_27mhz_descriptor));
-		else if (djdev->dj_receiver_dev->type == recvr_type_bluetooth)
+		else if (recvr_type_is_bluetooth(djdev->dj_receiver_dev->type))
 			rdcat(rdesc, &rsize, mse_bluetooth_descriptor,
 			      sizeof(mse_bluetooth_descriptor));
 		else
 			rdcat(rdesc, &rsize, mse_descriptor,
 			      sizeof(mse_descriptor));
+	}
+
+	if (djdev->reports_supported & KBD_MOUSE) {
+		dbg_hid("%s: sending a kbd-mouse descriptor, reports_supported: %llx\n",
+			__func__, djdev->reports_supported);
+		rdcat(rdesc, &rsize, mse5_bluetooth_descriptor,
+		      sizeof(mse5_bluetooth_descriptor));
 	}
 
 	if (djdev->reports_supported & MULTIMEDIA) {
@@ -1692,6 +1759,7 @@ static int logi_dj_probe(struct hid_device *hdev,
 	case recvr_type_mouse_only:	no_dj_interfaces = 2; break;
 	case recvr_type_27mhz:		no_dj_interfaces = 2; break;
 	case recvr_type_bluetooth:	no_dj_interfaces = 2; break;
+	case recvr_type_dinovo:		no_dj_interfaces = 2; break;
 	}
 	if (hid_is_using_ll_driver(hdev, &usb_hid_driver)) {
 		intf = to_usb_interface(hdev->dev.parent);
@@ -1857,23 +1925,27 @@ static void logi_dj_remove(struct hid_device *hdev)
 }
 
 static const struct hid_device_id logi_dj_receivers[] = {
-	{HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+	{ /* Logitech unifying receiver (0xc52b) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_UNIFYING_RECEIVER),
 	 .driver_data = recvr_type_dj},
-	{HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+	{ /* Logitech unifying receiver (0xc532) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_UNIFYING_RECEIVER_2),
 	 .driver_data = recvr_type_dj},
-	{ /* Logitech Nano mouse only receiver */
+
+	{ /* Logitech Nano mouse only receiver (0xc52f) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 			 USB_DEVICE_ID_LOGITECH_NANO_RECEIVER),
 	 .driver_data = recvr_type_mouse_only},
-	{ /* Logitech Nano (non DJ) receiver */
+	{ /* Logitech Nano (non DJ) receiver (0xc534) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 			 USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_2),
 	 .driver_data = recvr_type_hidpp},
+
 	{ /* Logitech G700(s) receiver (0xc531) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
-		0xc531),
+			 USB_DEVICE_ID_LOGITECH_G700_RECEIVER),
 	 .driver_data = recvr_type_gaming_hidpp},
 	{ /* Logitech G602 receiver (0xc537) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
@@ -1883,17 +1955,18 @@ static const struct hid_device_id logi_dj_receivers[] = {
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_LIGHTSPEED_1),
 	 .driver_data = recvr_type_gaming_hidpp},
-	{ /* Logitech lightspeed receiver (0xc53f) */
-	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
-		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_LIGHTSPEED_1_1),
-	 .driver_data = recvr_type_gaming_hidpp},
-	{ /* Logitech 27 MHz HID++ 1.0 receiver (0xc513) */
-	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_MX3000_RECEIVER),
-	 .driver_data = recvr_type_27mhz},
 	{ /* Logitech powerplay receiver (0xc53a) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_POWERPLAY),
 	 .driver_data = recvr_type_gaming_hidpp},
+	{ /* Logitech lightspeed receiver (0xc53f) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_LIGHTSPEED_1_1),
+	 .driver_data = recvr_type_gaming_hidpp},
+
+	{ /* Logitech 27 MHz HID++ 1.0 receiver (0xc513) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_MX3000_RECEIVER),
+	 .driver_data = recvr_type_27mhz},
 	{ /* Logitech 27 MHz HID++ 1.0 receiver (0xc517) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_S510_RECEIVER_2),
@@ -1902,22 +1975,40 @@ static const struct hid_device_id logi_dj_receivers[] = {
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_27MHZ_MOUSE_RECEIVER),
 	 .driver_data = recvr_type_27mhz},
-	{ /* Logitech MX5000 HID++ / bluetooth receiver keyboard intf. */
+
+	{ /* Logitech MX5000 HID++ / bluetooth receiver keyboard intf. (0xc70e) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
-		0xc70e),
+		USB_DEVICE_ID_MX5000_RECEIVER_KBD_DEV),
 	 .driver_data = recvr_type_bluetooth},
-	{ /* Logitech MX5000 HID++ / bluetooth receiver mouse intf. */
+	{ /* Logitech MX5000 HID++ / bluetooth receiver mouse intf. (0xc70a) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
-		0xc70a),
+		USB_DEVICE_ID_MX5000_RECEIVER_MOUSE_DEV),
 	 .driver_data = recvr_type_bluetooth},
-	{ /* Logitech MX5500 HID++ / bluetooth receiver keyboard intf. */
+	{ /* Logitech MX5500 HID++ / bluetooth receiver keyboard intf. (0xc71b) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
-		0xc71b),
+		USB_DEVICE_ID_MX5500_RECEIVER_KBD_DEV),
 	 .driver_data = recvr_type_bluetooth},
-	{ /* Logitech MX5500 HID++ / bluetooth receiver mouse intf. */
+	{ /* Logitech MX5500 HID++ / bluetooth receiver mouse intf. (0xc71c) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
-		0xc71c),
+		USB_DEVICE_ID_MX5500_RECEIVER_MOUSE_DEV),
 	 .driver_data = recvr_type_bluetooth},
+
+	{ /* Logitech Dinovo Edge HID++ / bluetooth receiver keyboard intf. (0xc713) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		USB_DEVICE_ID_DINOVO_EDGE_RECEIVER_KBD_DEV),
+	 .driver_data = recvr_type_dinovo},
+	{ /* Logitech Dinovo Edge HID++ / bluetooth receiver mouse intf. (0xc714) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		USB_DEVICE_ID_DINOVO_EDGE_RECEIVER_MOUSE_DEV),
+	 .driver_data = recvr_type_dinovo},
+	{ /* Logitech DiNovo Mini HID++ / bluetooth receiver mouse intf. (0xc71e) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		USB_DEVICE_ID_DINOVO_MINI_RECEIVER_KBD_DEV),
+	 .driver_data = recvr_type_dinovo},
+	{ /* Logitech DiNovo Mini HID++ / bluetooth receiver keyboard intf. (0xc71f) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		USB_DEVICE_ID_DINOVO_MINI_RECEIVER_MOUSE_DEV),
+	 .driver_data = recvr_type_dinovo},
 	{}
 };
 

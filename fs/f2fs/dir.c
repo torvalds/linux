@@ -449,9 +449,7 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 
 struct f2fs_dir_entry *f2fs_parent_dir(struct inode *dir, struct page **p)
 {
-	struct qstr dotdot = QSTR_INIT("..", 2);
-
-	return f2fs_find_entry(dir, &dotdot, p);
+	return f2fs_find_entry(dir, &dotdot_name, p);
 }
 
 ino_t f2fs_inode_by_name(struct inode *dir, const struct qstr *qstr,
@@ -473,6 +471,7 @@ void f2fs_set_link(struct inode *dir, struct f2fs_dir_entry *de,
 		struct page *page, struct inode *inode)
 {
 	enum page_type type = f2fs_has_inline_dentry(dir) ? NODE : DATA;
+
 	lock_page(page);
 	f2fs_wait_on_page_writeback(page, type, true, true);
 	de->ino = cpu_to_le32(inode->i_ino);

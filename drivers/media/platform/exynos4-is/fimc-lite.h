@@ -137,6 +137,8 @@ struct flite_buffer {
  * @active_buf_count: number of video buffers scheduled in hardware
  * @frame_count: the captured frames counter
  * @reqbufs_count: the number of buffers requested with REQBUFS ioctl
+ * @events: event info
+ * @streaming: is streaming in progress?
  */
 struct fimc_lite {
 	struct platform_device	*pdev;

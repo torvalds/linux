@@ -366,9 +366,13 @@ static u32 max_outstanding_req_per_channel;
 static int storvsc_change_queue_depth(struct scsi_device *sdev, int queue_depth);
 
 static int storvsc_vcpus_per_sub_channel = 4;
+static unsigned int storvsc_max_hw_queues;
 
 module_param(storvsc_ringbuffer_size, int, S_IRUGO);
 MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
+
+module_param(storvsc_max_hw_queues, uint, 0644);
+MODULE_PARM_DESC(storvsc_max_hw_queues, "Maximum number of hardware queues");
 
 module_param(storvsc_vcpus_per_sub_channel, int, S_IRUGO);
 MODULE_PARM_DESC(storvsc_vcpus_per_sub_channel, "Ratio of VCPUs to subchannels");
@@ -1688,9 +1692,8 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 	struct storvsc_cmd_request *cmd_request = scsi_cmd_priv(scmnd);
 	int i;
 	struct scatterlist *sgl;
-	unsigned int sg_count = 0;
+	unsigned int sg_count;
 	struct vmscsi_request *vm_srb;
-	struct scatterlist *cur_sgl;
 	struct vmbus_packet_mpb_array  *payload;
 	u32 payload_sz;
 	u32 length;
@@ -1769,8 +1772,8 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 	payload_sz = sizeof(cmd_request->mpb);
 
 	if (sg_count) {
-		unsigned int hvpgoff = 0;
-		unsigned long offset_in_hvpg = sgl->offset & ~HV_HYP_PAGE_MASK;
+		unsigned int hvpgoff, hvpfns_to_add;
+		unsigned long offset_in_hvpg = offset_in_hvpage(sgl->offset);
 		unsigned int hvpg_count = HVPFN_UP(offset_in_hvpg + length);
 		u64 hvpfn;
 
@@ -1783,51 +1786,34 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 				return SCSI_MLQUEUE_DEVICE_BUSY;
 		}
 
-		/*
-		 * sgl is a list of PAGEs, and payload->range.pfn_array
-		 * expects the page number in the unit of HV_HYP_PAGE_SIZE (the
-		 * page size that Hyper-V uses, so here we need to divide PAGEs
-		 * into HV_HYP_PAGE in case that PAGE_SIZE > HV_HYP_PAGE_SIZE.
-		 * Besides, payload->range.offset should be the offset in one
-		 * HV_HYP_PAGE.
-		 */
 		payload->range.len = length;
 		payload->range.offset = offset_in_hvpg;
-		hvpgoff = sgl->offset >> HV_HYP_PAGE_SHIFT;
 
-		cur_sgl = sgl;
-		for (i = 0; i < hvpg_count; i++) {
+
+		for (i = 0; sgl != NULL; sgl = sg_next(sgl)) {
 			/*
-			 * 'i' is the index of hv pages in the payload and
-			 * 'hvpgoff' is the offset (in hv pages) of the first
-			 * hv page in the the first page. The relationship
-			 * between the sum of 'i' and 'hvpgoff' and the offset
-			 * (in hv pages) in a payload page ('hvpgoff_in_page')
-			 * is as follow:
-			 *
-			 * |------------------ PAGE -------------------|
-			 * |   NR_HV_HYP_PAGES_IN_PAGE hvpgs in total  |
-			 * |hvpg|hvpg| ...              |hvpg|... |hvpg|
-			 * ^         ^                                 ^                 ^
-			 * +-hvpgoff-+                                 +-hvpgoff_in_page-+
-			 *           ^                                                   |
-			 *           +--------------------- i ---------------------------+
+			 * Init values for the current sgl entry. hvpgoff
+			 * and hvpfns_to_add are in units of Hyper-V size
+			 * pages. Handling the PAGE_SIZE != HV_HYP_PAGE_SIZE
+			 * case also handles values of sgl->offset that are
+			 * larger than PAGE_SIZE. Such offsets are handled
+			 * even on other than the first sgl entry, provided
+			 * they are a multiple of PAGE_SIZE.
 			 */
-			unsigned int hvpgoff_in_page =
-				(i + hvpgoff) % NR_HV_HYP_PAGES_IN_PAGE;
+			hvpgoff = HVPFN_DOWN(sgl->offset);
+			hvpfn = page_to_hvpfn(sg_page(sgl)) + hvpgoff;
+			hvpfns_to_add =	HVPFN_UP(sgl->offset + sgl->length) -
+						hvpgoff;
 
 			/*
-			 * Two cases that we need to fetch a page:
-			 * 1) i == 0, the first step or
-			 * 2) hvpgoff_in_page == 0, when we reach the boundary
-			 *    of a page.
+			 * Fill the next portion of the PFN array with
+			 * sequential Hyper-V PFNs for the continguous physical
+			 * memory described by the sgl entry. The end of the
+			 * last sgl should be reached at the same time that
+			 * the PFN array is filled.
 			 */
-			if (hvpgoff_in_page == 0 || i == 0) {
-				hvpfn = page_to_hvpfn(sg_page(cur_sgl));
-				cur_sgl = sg_next(cur_sgl);
-			}
-
-			payload->range.pfn_array[i] = hvpfn + hvpgoff_in_page;
+			while (hvpfns_to_add--)
+				payload->range.pfn_array[i++] =	hvpfn++;
 		}
 	}
 
@@ -1861,8 +1847,6 @@ static struct scsi_host_template scsi_driver = {
 	.slave_configure =	storvsc_device_configure,
 	.cmd_per_lun =		2048,
 	.this_id =		-1,
-	/* Make sure we dont get a sg segment crosses a page boundary */
-	.dma_boundary =		PAGE_SIZE-1,
 	/* Ensure there are no gaps in presented sgls */
 	.virt_boundary_mask =	PAGE_SIZE-1,
 	.no_write_same =	1,
@@ -1907,6 +1891,7 @@ static int storvsc_probe(struct hv_device *device,
 {
 	int ret;
 	int num_cpus = num_online_cpus();
+	int num_present_cpus = num_present_cpus();
 	struct Scsi_Host *host;
 	struct hv_host_device *host_dev;
 	bool dev_is_ide = ((dev_id->driver_data == IDE_GUID) ? true : false);
@@ -2015,8 +2000,17 @@ static int storvsc_probe(struct hv_device *device,
 	 * For non-IDE disks, the host supports multiple channels.
 	 * Set the number of HW queues we are supporting.
 	 */
-	if (!dev_is_ide)
-		host->nr_hw_queues = num_present_cpus();
+	if (!dev_is_ide) {
+		if (storvsc_max_hw_queues > num_present_cpus) {
+			storvsc_max_hw_queues = 0;
+			storvsc_log(device, STORVSC_LOGGING_WARN,
+				"Resetting invalid storvsc_max_hw_queues value to default.\n");
+		}
+		if (storvsc_max_hw_queues)
+			host->nr_hw_queues = storvsc_max_hw_queues;
+		else
+			host->nr_hw_queues = num_present_cpus;
+	}
 
 	/*
 	 * Set the error handler work queue.

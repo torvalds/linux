@@ -212,6 +212,10 @@ int bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 	u8 opcode, retry_cnt = 0xFF;
 	int rc = 0;
 
+	/* Prevent posting if f/w is not in a state to process */
+	if (test_bit(ERR_DEVICE_DETACHED, &rcfw->cmdq.flags))
+		return 0;
+
 	do {
 		opcode = req->opcode;
 		rc = __send_message(rcfw, req, resp, sb, is_block);

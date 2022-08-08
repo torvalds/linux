@@ -16,16 +16,12 @@ __wsum csum_and_copy_from_user(const void __user *src, void *dst,
 {
 	__wsum csum;
 
-	might_sleep();
-
-	if (unlikely(!access_ok(src, len)))
+	if (unlikely(!user_read_access_begin(src, len)))
 		return 0;
-
-	allow_read_from_user(src, len);
 
 	csum = csum_partial_copy_generic((void __force *)src, dst, len);
 
-	prevent_read_from_user(src, len);
+	user_read_access_end();
 	return csum;
 }
 EXPORT_SYMBOL(csum_and_copy_from_user);
@@ -34,15 +30,12 @@ __wsum csum_and_copy_to_user(const void *src, void __user *dst, int len)
 {
 	__wsum csum;
 
-	might_sleep();
-	if (unlikely(!access_ok(dst, len)))
+	if (unlikely(!user_write_access_begin(dst, len)))
 		return 0;
-
-	allow_write_to_user(dst, len);
 
 	csum = csum_partial_copy_generic(src, (void __force *)dst, len);
 
-	prevent_write_to_user(dst, len);
+	user_write_access_end();
 	return csum;
 }
 EXPORT_SYMBOL(csum_and_copy_to_user);

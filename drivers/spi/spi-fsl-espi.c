@@ -435,8 +435,7 @@ static int fsl_espi_trans(struct spi_message *m, struct spi_transfer *trans)
 static int fsl_espi_do_one_msg(struct spi_master *master,
 			       struct spi_message *m)
 {
-	unsigned int delay_usecs = 0, rx_nbits = 0;
-	unsigned int delay_nsecs = 0, delay_nsecs1 = 0;
+	unsigned int rx_nbits = 0, delay_nsecs = 0;
 	struct spi_transfer *t, trans = {};
 	int ret;
 
@@ -445,16 +444,10 @@ static int fsl_espi_do_one_msg(struct spi_master *master,
 		goto out;
 
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		if (t->delay_usecs) {
-			if (t->delay_usecs > delay_usecs) {
-				delay_usecs = t->delay_usecs;
-				delay_nsecs = delay_usecs * 1000;
-			}
-		} else {
-			delay_nsecs1 = spi_delay_to_ns(&t->delay, t);
-			if (delay_nsecs1 > delay_nsecs)
-				delay_nsecs = delay_nsecs1;
-		}
+		unsigned int delay = spi_delay_to_ns(&t->delay, t);
+
+		if (delay > delay_nsecs)
+			delay_nsecs = delay;
 		if (t->rx_nbits > rx_nbits)
 			rx_nbits = t->rx_nbits;
 	}

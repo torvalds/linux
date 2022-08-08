@@ -581,11 +581,12 @@ static int rtw_pci_start(struct rtw_dev *rtwdev)
 {
 	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
 
+	rtw_pci_napi_start(rtwdev);
+
 	spin_lock_bh(&rtwpci->irq_lock);
+	rtwpci->running = true;
 	rtw_pci_enable_interrupt(rtwdev, rtwpci, false);
 	spin_unlock_bh(&rtwpci->irq_lock);
-
-	rtw_pci_napi_start(rtwdev);
 
 	return 0;
 }
@@ -593,11 +594,17 @@ static int rtw_pci_start(struct rtw_dev *rtwdev)
 static void rtw_pci_stop(struct rtw_dev *rtwdev)
 {
 	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
+	struct pci_dev *pdev = rtwpci->pdev;
 
+	spin_lock_bh(&rtwpci->irq_lock);
+	rtwpci->running = false;
+	rtw_pci_disable_interrupt(rtwdev, rtwpci);
+	spin_unlock_bh(&rtwpci->irq_lock);
+
+	synchronize_irq(pdev->irq);
 	rtw_pci_napi_stop(rtwdev);
 
 	spin_lock_bh(&rtwpci->irq_lock);
-	rtw_pci_disable_interrupt(rtwdev, rtwpci);
 	rtw_pci_dma_release(rtwdev, rtwpci);
 	spin_unlock_bh(&rtwpci->irq_lock);
 }
@@ -671,6 +678,8 @@ static u8 ac_to_hwq[] = {
 	[IEEE80211_AC_BK] = RTW_TX_QUEUE_BK,
 };
 
+static_assert(ARRAY_SIZE(ac_to_hwq) == IEEE80211_NUM_ACS);
+
 static u8 rtw_hw_queue_mapping(struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -725,6 +734,72 @@ static void rtw_pci_dma_check(struct rtw_dev *rtwdev,
 		rtw_warn(rtwdev, "pci bus timeout, check dma status\n");
 
 	rtwpci->rx_tag = (rtwpci->rx_tag + 1) % RX_TAG_MAX;
+}
+
+static u32 __pci_get_hw_tx_ring_rp(struct rtw_dev *rtwdev, u8 pci_q)
+{
+	u32 bd_idx_addr = rtw_pci_tx_queue_idx_addr[pci_q];
+	u32 bd_idx = rtw_read16(rtwdev, bd_idx_addr + 2);
+
+	return FIELD_GET(TRX_BD_IDX_MASK, bd_idx);
+}
+
+static void __pci_flush_queue(struct rtw_dev *rtwdev, u8 pci_q, bool drop)
+{
+	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
+	struct rtw_pci_tx_ring *ring = &rtwpci->tx_rings[pci_q];
+	u32 cur_rp;
+	u8 i;
+
+	/* Because the time taked by the I/O in __pci_get_hw_tx_ring_rp is a
+	 * bit dynamic, it's hard to define a reasonable fixed total timeout to
+	 * use read_poll_timeout* helper. Instead, we can ensure a reasonable
+	 * polling times, so we just use for loop with udelay here.
+	 */
+	for (i = 0; i < 30; i++) {
+		cur_rp = __pci_get_hw_tx_ring_rp(rtwdev, pci_q);
+		if (cur_rp == ring->r.wp)
+			return;
+
+		udelay(1);
+	}
+
+	if (!drop)
+		rtw_warn(rtwdev, "timed out to flush pci tx ring[%d]\n", pci_q);
+}
+
+static void __rtw_pci_flush_queues(struct rtw_dev *rtwdev, u32 pci_queues,
+				   bool drop)
+{
+	u8 q;
+
+	for (q = 0; q < RTK_MAX_TX_QUEUE_NUM; q++) {
+		/* It may be not necessary to flush BCN and H2C tx queues. */
+		if (q == RTW_TX_QUEUE_BCN || q == RTW_TX_QUEUE_H2C)
+			continue;
+
+		if (pci_queues & BIT(q))
+			__pci_flush_queue(rtwdev, q, drop);
+	}
+}
+
+static void rtw_pci_flush_queues(struct rtw_dev *rtwdev, u32 queues, bool drop)
+{
+	u32 pci_queues = 0;
+	u8 i;
+
+	/* If all of the hardware queues are requested to flush,
+	 * flush all of the pci queues.
+	 */
+	if (queues == BIT(rtwdev->hw->queues) - 1) {
+		pci_queues = BIT(RTK_MAX_TX_QUEUE_NUM) - 1;
+	} else {
+		for (i = 0; i < rtwdev->hw->queues; i++)
+			if (queues & BIT(i))
+				pci_queues |= BIT(ac_to_hwq[i]);
+	}
+
+	__rtw_pci_flush_queues(rtwdev, pci_queues, drop);
 }
 
 static void rtw_pci_tx_kick_off_queue(struct rtw_dev *rtwdev, u8 queue)
@@ -882,10 +957,12 @@ static int rtw_pci_tx_write(struct rtw_dev *rtwdev,
 		return ret;
 
 	ring = &rtwpci->tx_rings[queue];
+	spin_lock_bh(&rtwpci->irq_lock);
 	if (avail_desc(ring->r.wp, ring->r.rp, ring->r.len) < 2) {
 		ieee80211_stop_queue(rtwdev->hw, skb_get_queue_mapping(skb));
 		ring->queue_stopped = true;
 	}
+	spin_unlock_bh(&rtwpci->irq_lock);
 
 	return 0;
 }
@@ -900,7 +977,7 @@ static void rtw_pci_tx_isr(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 	struct sk_buff *skb;
 	u32 count;
 	u32 bd_idx_addr;
-	u32 bd_idx, cur_rp;
+	u32 bd_idx, cur_rp, rp_idx;
 	u16 q_map;
 
 	ring = &rtwpci->tx_rings[hw_queue];
@@ -909,6 +986,7 @@ static void rtw_pci_tx_isr(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 	bd_idx = rtw_read32(rtwdev, bd_idx_addr);
 	cur_rp = bd_idx >> 16;
 	cur_rp &= TRX_BD_IDX_MASK;
+	rp_idx = ring->r.rp;
 	if (cur_rp >= ring->r.rp)
 		count = cur_rp - ring->r.rp;
 	else
@@ -932,11 +1010,14 @@ static void rtw_pci_tx_isr(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 		}
 
 		if (ring->queue_stopped &&
-		    avail_desc(ring->r.wp, ring->r.rp, ring->r.len) > 4) {
+		    avail_desc(ring->r.wp, rp_idx, ring->r.len) > 4) {
 			q_map = skb_get_queue_mapping(skb);
 			ieee80211_wake_queue(hw, q_map);
 			ring->queue_stopped = false;
 		}
+
+		if (++rp_idx >= ring->r.len)
+			rp_idx = 0;
 
 		skb_pull(skb, rtwdev->chip->tx_pkt_desc_sz);
 
@@ -1138,7 +1219,8 @@ static irqreturn_t rtw_pci_interrupt_threadfn(int irq, void *dev)
 		rtw_fw_c2h_cmd_isr(rtwdev);
 
 	/* all of the jobs for this interrupt have been done */
-	rtw_pci_enable_interrupt(rtwdev, rtwpci, rx);
+	if (rtwpci->running)
+		rtw_pci_enable_interrupt(rtwdev, rtwpci, rx);
 	spin_unlock_bh(&rtwpci->irq_lock);
 
 	return IRQ_HANDLED;
@@ -1490,6 +1572,7 @@ static void rtw_pci_destroy(struct rtw_dev *rtwdev, struct pci_dev *pdev)
 static struct rtw_hci_ops rtw_pci_ops = {
 	.tx_write = rtw_pci_tx_write,
 	.tx_kick_off = rtw_pci_tx_kick_off,
+	.flush_queues = rtw_pci_flush_queues,
 	.setup = rtw_pci_setup,
 	.start = rtw_pci_start,
 	.stop = rtw_pci_stop,
@@ -1558,7 +1641,8 @@ static int rtw_pci_napi_poll(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
 		spin_lock_bh(&rtwpci->irq_lock);
-		rtw_pci_enable_interrupt(rtwdev, rtwpci, false);
+		if (rtwpci->running)
+			rtw_pci_enable_interrupt(rtwdev, rtwpci, false);
 		spin_unlock_bh(&rtwpci->irq_lock);
 		/* When ISR happens during polling and before napi_complete
 		 * while no further data is received. Data on the dma_ring will

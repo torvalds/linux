@@ -540,7 +540,9 @@ encoded manner. The codes are the following:
     ac    area is accountable
     nr    swap space is not reserved for the area
     ht    area uses huge tlb pages
+    sf    synchronous page fault
     ar    architecture specific flag
+    wf    wipe on fork
     dd    do not include area into core dump
     sd    soft dirty flag
     mm    mixed map area
@@ -549,6 +551,8 @@ encoded manner. The codes are the following:
     mg    mergable advise flag
     bt    arm64 BTI guarded page
     mt    arm64 MTE allocation tags are enabled
+    um    userfaultfd missing tracking
+    uw    userfaultfd wr-protect tracking
     ==    =======================================
 
 Note that there is no guarantee that every flag and associated mnemonic will

@@ -169,19 +169,8 @@ out:
 
 static u64 nfs_fetch_iversion(struct inode *inode)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
-
-	/* Is this the right call?: */
-	nfs_revalidate_inode(server, inode);
-	/*
-	 * Also, note we're ignoring any returned error.  That seems to be
-	 * the practice for cache consistency information elsewhere in
-	 * the server, but I'm not sure why.
-	 */
-	if (server->nfs_client->rpc_ops->version >= 4)
-		return inode_peek_iversion_raw(inode);
-	else
-		return time_to_chattr(&inode->i_ctime);
+	nfs_revalidate_inode(inode, NFS_INO_INVALID_CHANGE);
+	return inode_peek_iversion_raw(inode);
 }
 
 const struct export_operations nfs_export_ops = {

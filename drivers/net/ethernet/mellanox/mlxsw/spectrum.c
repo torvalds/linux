@@ -23,6 +23,8 @@
 #include <linux/netlink.h>
 #include <linux/jhash.h>
 #include <linux/log2.h>
+#include <linux/refcount.h>
+#include <linux/rhashtable.h>
 #include <net/switchdev.h>
 #include <net/pkt_cls.h>
 #include <net/netevent.h>
@@ -45,7 +47,7 @@
 
 #define MLXSW_SP1_FWREV_MAJOR 13
 #define MLXSW_SP1_FWREV_MINOR 2008
-#define MLXSW_SP1_FWREV_SUBMINOR 2018
+#define MLXSW_SP1_FWREV_SUBMINOR 2406
 #define MLXSW_SP1_FWREV_CAN_RESET_MINOR 1702
 
 static const struct mlxsw_fw_rev mlxsw_sp1_fw_rev = {
@@ -62,7 +64,7 @@ static const struct mlxsw_fw_rev mlxsw_sp1_fw_rev = {
 
 #define MLXSW_SP2_FWREV_MAJOR 29
 #define MLXSW_SP2_FWREV_MINOR 2008
-#define MLXSW_SP2_FWREV_SUBMINOR 2018
+#define MLXSW_SP2_FWREV_SUBMINOR 2406
 
 static const struct mlxsw_fw_rev mlxsw_sp2_fw_rev = {
 	.major = MLXSW_SP2_FWREV_MAJOR,
@@ -77,7 +79,7 @@ static const struct mlxsw_fw_rev mlxsw_sp2_fw_rev = {
 
 #define MLXSW_SP3_FWREV_MAJOR 30
 #define MLXSW_SP3_FWREV_MINOR 2008
-#define MLXSW_SP3_FWREV_SUBMINOR 2018
+#define MLXSW_SP3_FWREV_SUBMINOR 2406
 
 static const struct mlxsw_fw_rev mlxsw_sp3_fw_rev = {
 	.major = MLXSW_SP3_FWREV_MAJOR,
@@ -398,6 +400,22 @@ int mlxsw_sp_ethtype_to_sver_type(u16 ethtype, u8 *p_sver_type)
 	}
 
 	return 0;
+}
+
+int mlxsw_sp_port_egress_ethtype_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				     u16 ethtype)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char spevet_pl[MLXSW_REG_SPEVET_LEN];
+	u8 sver_type;
+	int err;
+
+	err = mlxsw_sp_ethtype_to_sver_type(ethtype, &sver_type);
+	if (err)
+		return err;
+
+	mlxsw_reg_spevet_pack(spevet_pl, mlxsw_sp_port->local_port, sver_type);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spevet), spevet_pl);
 }
 
 static int __mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -2212,32 +2230,6 @@ void mlxsw_sp_ptp_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
 	mlxsw_sp->ptp_ops->receive(mlxsw_sp, skb, local_port);
 }
 
-void mlxsw_sp_sample_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
-			     u8 local_port)
-{
-	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp->ports[local_port];
-	struct mlxsw_sp_port_sample *sample;
-	u32 size;
-
-	if (unlikely(!mlxsw_sp_port)) {
-		dev_warn_ratelimited(mlxsw_sp->bus_info->dev, "Port %d: sample skb received for non-existent port\n",
-				     local_port);
-		goto out;
-	}
-
-	rcu_read_lock();
-	sample = rcu_dereference(mlxsw_sp_port->sample);
-	if (!sample)
-		goto out_unlock;
-	size = sample->truncate ? sample->trunc_size : skb->len;
-	psample_sample_packet(sample->psample_group, skb, size,
-			      mlxsw_sp_port->dev->ifindex, 0, sample->rate);
-out_unlock:
-	rcu_read_unlock();
-out:
-	consume_skb(skb);
-}
-
 #define MLXSW_SP_RXL_NO_MARK(_trap_id, _action, _trap_group, _is_ctrl)	\
 	MLXSW_RXL(mlxsw_sp_rx_listener_no_mark_func, _trap_id, _action,	\
 		  _is_ctrl, SP_##_trap_group, DISCARD)
@@ -2576,6 +2568,147 @@ static const struct mlxsw_sp_ptp_ops mlxsw_sp2_ptp_ops = {
 	.get_stats	= mlxsw_sp2_get_stats,
 };
 
+struct mlxsw_sp_sample_trigger_node {
+	struct mlxsw_sp_sample_trigger trigger;
+	struct mlxsw_sp_sample_params params;
+	struct rhash_head ht_node;
+	struct rcu_head rcu;
+	refcount_t refcount;
+};
+
+static const struct rhashtable_params mlxsw_sp_sample_trigger_ht_params = {
+	.key_offset = offsetof(struct mlxsw_sp_sample_trigger_node, trigger),
+	.head_offset = offsetof(struct mlxsw_sp_sample_trigger_node, ht_node),
+	.key_len = sizeof(struct mlxsw_sp_sample_trigger),
+	.automatic_shrinking = true,
+};
+
+static void
+mlxsw_sp_sample_trigger_key_init(struct mlxsw_sp_sample_trigger *key,
+				 const struct mlxsw_sp_sample_trigger *trigger)
+{
+	memset(key, 0, sizeof(*key));
+	key->type = trigger->type;
+	key->local_port = trigger->local_port;
+}
+
+/* RCU read lock must be held */
+struct mlxsw_sp_sample_params *
+mlxsw_sp_sample_trigger_params_lookup(struct mlxsw_sp *mlxsw_sp,
+				      const struct mlxsw_sp_sample_trigger *trigger)
+{
+	struct mlxsw_sp_sample_trigger_node *trigger_node;
+	struct mlxsw_sp_sample_trigger key;
+
+	mlxsw_sp_sample_trigger_key_init(&key, trigger);
+	trigger_node = rhashtable_lookup(&mlxsw_sp->sample_trigger_ht, &key,
+					 mlxsw_sp_sample_trigger_ht_params);
+	if (!trigger_node)
+		return NULL;
+
+	return &trigger_node->params;
+}
+
+static int
+mlxsw_sp_sample_trigger_node_init(struct mlxsw_sp *mlxsw_sp,
+				  const struct mlxsw_sp_sample_trigger *trigger,
+				  const struct mlxsw_sp_sample_params *params)
+{
+	struct mlxsw_sp_sample_trigger_node *trigger_node;
+	int err;
+
+	trigger_node = kzalloc(sizeof(*trigger_node), GFP_KERNEL);
+	if (!trigger_node)
+		return -ENOMEM;
+
+	trigger_node->trigger = *trigger;
+	trigger_node->params = *params;
+	refcount_set(&trigger_node->refcount, 1);
+
+	err = rhashtable_insert_fast(&mlxsw_sp->sample_trigger_ht,
+				     &trigger_node->ht_node,
+				     mlxsw_sp_sample_trigger_ht_params);
+	if (err)
+		goto err_rhashtable_insert;
+
+	return 0;
+
+err_rhashtable_insert:
+	kfree(trigger_node);
+	return err;
+}
+
+static void
+mlxsw_sp_sample_trigger_node_fini(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_sample_trigger_node *trigger_node)
+{
+	rhashtable_remove_fast(&mlxsw_sp->sample_trigger_ht,
+			       &trigger_node->ht_node,
+			       mlxsw_sp_sample_trigger_ht_params);
+	kfree_rcu(trigger_node, rcu);
+}
+
+int
+mlxsw_sp_sample_trigger_params_set(struct mlxsw_sp *mlxsw_sp,
+				   const struct mlxsw_sp_sample_trigger *trigger,
+				   const struct mlxsw_sp_sample_params *params,
+				   struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp_sample_trigger_node *trigger_node;
+	struct mlxsw_sp_sample_trigger key;
+
+	ASSERT_RTNL();
+
+	mlxsw_sp_sample_trigger_key_init(&key, trigger);
+
+	trigger_node = rhashtable_lookup_fast(&mlxsw_sp->sample_trigger_ht,
+					      &key,
+					      mlxsw_sp_sample_trigger_ht_params);
+	if (!trigger_node)
+		return mlxsw_sp_sample_trigger_node_init(mlxsw_sp, &key,
+							 params);
+
+	if (trigger_node->trigger.local_port) {
+		NL_SET_ERR_MSG_MOD(extack, "Sampling already enabled on port");
+		return -EINVAL;
+	}
+
+	if (trigger_node->params.psample_group != params->psample_group ||
+	    trigger_node->params.truncate != params->truncate ||
+	    trigger_node->params.rate != params->rate ||
+	    trigger_node->params.trunc_size != params->trunc_size) {
+		NL_SET_ERR_MSG_MOD(extack, "Sampling parameters do not match for an existing sampling trigger");
+		return -EINVAL;
+	}
+
+	refcount_inc(&trigger_node->refcount);
+
+	return 0;
+}
+
+void
+mlxsw_sp_sample_trigger_params_unset(struct mlxsw_sp *mlxsw_sp,
+				     const struct mlxsw_sp_sample_trigger *trigger)
+{
+	struct mlxsw_sp_sample_trigger_node *trigger_node;
+	struct mlxsw_sp_sample_trigger key;
+
+	ASSERT_RTNL();
+
+	mlxsw_sp_sample_trigger_key_init(&key, trigger);
+
+	trigger_node = rhashtable_lookup_fast(&mlxsw_sp->sample_trigger_ht,
+					      &key,
+					      mlxsw_sp_sample_trigger_ht_params);
+	if (!trigger_node)
+		return;
+
+	if (!refcount_dec_and_test(&trigger_node->refcount))
+		return;
+
+	mlxsw_sp_sample_trigger_node_fini(mlxsw_sp, trigger_node);
+}
+
 static int mlxsw_sp_netdevice_event(struct notifier_block *unused,
 				    unsigned long event, void *ptr);
 
@@ -2730,6 +2863,13 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_port_module_info_init;
 	}
 
+	err = rhashtable_init(&mlxsw_sp->sample_trigger_ht,
+			      &mlxsw_sp_sample_trigger_ht_params);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to init sampling trigger hashtable\n");
+		goto err_sample_trigger_init;
+	}
+
 	err = mlxsw_sp_ports_create(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to create ports\n");
@@ -2739,6 +2879,8 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	return 0;
 
 err_ports_create:
+	rhashtable_destroy(&mlxsw_sp->sample_trigger_ht);
+err_sample_trigger_init:
 	mlxsw_sp_port_module_info_fini(mlxsw_sp);
 err_port_module_info_init:
 	mlxsw_sp_dpipe_fini(mlxsw_sp);
@@ -2788,6 +2930,7 @@ static int mlxsw_sp1_init(struct mlxsw_core *mlxsw_core,
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 
+	mlxsw_sp->switchdev_ops = &mlxsw_sp1_switchdev_ops;
 	mlxsw_sp->kvdl_ops = &mlxsw_sp1_kvdl_ops;
 	mlxsw_sp->afa_ops = &mlxsw_sp1_act_afa_ops;
 	mlxsw_sp->afk_ops = &mlxsw_sp1_afk_ops;
@@ -2796,7 +2939,6 @@ static int mlxsw_sp1_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->acl_tcam_ops = &mlxsw_sp1_acl_tcam_ops;
 	mlxsw_sp->nve_ops_arr = mlxsw_sp1_nve_ops_arr;
 	mlxsw_sp->mac_mask = mlxsw_sp1_mac_mask;
-	mlxsw_sp->rif_ops_arr = mlxsw_sp1_rif_ops_arr;
 	mlxsw_sp->sb_vals = &mlxsw_sp1_sb_vals;
 	mlxsw_sp->sb_ops = &mlxsw_sp1_sb_ops;
 	mlxsw_sp->port_type_speed_ops = &mlxsw_sp1_port_type_speed_ops;
@@ -2804,6 +2946,8 @@ static int mlxsw_sp1_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->span_ops = &mlxsw_sp1_span_ops;
 	mlxsw_sp->policer_core_ops = &mlxsw_sp1_policer_core_ops;
 	mlxsw_sp->trap_ops = &mlxsw_sp1_trap_ops;
+	mlxsw_sp->mall_ops = &mlxsw_sp1_mall_ops;
+	mlxsw_sp->router_ops = &mlxsw_sp1_router_ops;
 	mlxsw_sp->listeners = mlxsw_sp1_listener;
 	mlxsw_sp->listeners_count = ARRAY_SIZE(mlxsw_sp1_listener);
 	mlxsw_sp->lowest_shaper_bs = MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP1;
@@ -2817,6 +2961,7 @@ static int mlxsw_sp2_init(struct mlxsw_core *mlxsw_core,
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 
+	mlxsw_sp->switchdev_ops = &mlxsw_sp2_switchdev_ops;
 	mlxsw_sp->kvdl_ops = &mlxsw_sp2_kvdl_ops;
 	mlxsw_sp->afa_ops = &mlxsw_sp2_act_afa_ops;
 	mlxsw_sp->afk_ops = &mlxsw_sp2_afk_ops;
@@ -2825,7 +2970,6 @@ static int mlxsw_sp2_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->acl_tcam_ops = &mlxsw_sp2_acl_tcam_ops;
 	mlxsw_sp->nve_ops_arr = mlxsw_sp2_nve_ops_arr;
 	mlxsw_sp->mac_mask = mlxsw_sp2_mac_mask;
-	mlxsw_sp->rif_ops_arr = mlxsw_sp2_rif_ops_arr;
 	mlxsw_sp->sb_vals = &mlxsw_sp2_sb_vals;
 	mlxsw_sp->sb_ops = &mlxsw_sp2_sb_ops;
 	mlxsw_sp->port_type_speed_ops = &mlxsw_sp2_port_type_speed_ops;
@@ -2833,6 +2977,8 @@ static int mlxsw_sp2_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->span_ops = &mlxsw_sp2_span_ops;
 	mlxsw_sp->policer_core_ops = &mlxsw_sp2_policer_core_ops;
 	mlxsw_sp->trap_ops = &mlxsw_sp2_trap_ops;
+	mlxsw_sp->mall_ops = &mlxsw_sp2_mall_ops;
+	mlxsw_sp->router_ops = &mlxsw_sp2_router_ops;
 	mlxsw_sp->lowest_shaper_bs = MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP2;
 
 	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info, extack);
@@ -2844,6 +2990,7 @@ static int mlxsw_sp3_init(struct mlxsw_core *mlxsw_core,
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 
+	mlxsw_sp->switchdev_ops = &mlxsw_sp2_switchdev_ops;
 	mlxsw_sp->kvdl_ops = &mlxsw_sp2_kvdl_ops;
 	mlxsw_sp->afa_ops = &mlxsw_sp2_act_afa_ops;
 	mlxsw_sp->afk_ops = &mlxsw_sp2_afk_ops;
@@ -2852,7 +2999,6 @@ static int mlxsw_sp3_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->acl_tcam_ops = &mlxsw_sp2_acl_tcam_ops;
 	mlxsw_sp->nve_ops_arr = mlxsw_sp2_nve_ops_arr;
 	mlxsw_sp->mac_mask = mlxsw_sp2_mac_mask;
-	mlxsw_sp->rif_ops_arr = mlxsw_sp2_rif_ops_arr;
 	mlxsw_sp->sb_vals = &mlxsw_sp2_sb_vals;
 	mlxsw_sp->sb_ops = &mlxsw_sp3_sb_ops;
 	mlxsw_sp->port_type_speed_ops = &mlxsw_sp2_port_type_speed_ops;
@@ -2860,6 +3006,8 @@ static int mlxsw_sp3_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->span_ops = &mlxsw_sp3_span_ops;
 	mlxsw_sp->policer_core_ops = &mlxsw_sp2_policer_core_ops;
 	mlxsw_sp->trap_ops = &mlxsw_sp2_trap_ops;
+	mlxsw_sp->mall_ops = &mlxsw_sp2_mall_ops;
+	mlxsw_sp->router_ops = &mlxsw_sp2_router_ops;
 	mlxsw_sp->lowest_shaper_bs = MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP3;
 
 	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info, extack);
@@ -2870,6 +3018,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 
 	mlxsw_sp_ports_remove(mlxsw_sp);
+	rhashtable_destroy(&mlxsw_sp->sample_trigger_ht);
 	mlxsw_sp_port_module_info_fini(mlxsw_sp);
 	mlxsw_sp_dpipe_fini(mlxsw_sp);
 	unregister_netdevice_notifier_net(mlxsw_sp_net(mlxsw_sp),
@@ -4283,7 +4432,7 @@ static int mlxsw_sp_netdevice_bridge_event(struct net_device *br_dev,
 		if (br_vlan_enabled(br_dev)) {
 			br_vlan_get_proto(br_dev, &proto);
 			if (proto == ETH_P_8021AD) {
-				NL_SET_ERR_MSG_MOD(extack, "Uppers are not supported on top of an 802.1ad bridge");
+				NL_SET_ERR_MSG_MOD(extack, "Upper devices are not supported on top of an 802.1ad bridge");
 				return -EOPNOTSUPP;
 			}
 		}

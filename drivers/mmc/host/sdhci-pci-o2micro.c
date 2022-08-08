@@ -706,6 +706,8 @@ static int sdhci_pci_o2_probe(struct sdhci_pci_chip *chip)
 			ret = pci_read_config_dword(chip->pdev,
 						    O2_SD_FUNC_REG0,
 						    &scratch_32);
+			if (ret)
+				return ret;
 			scratch_32 = ((scratch_32 & 0xFF000000) >> 24);
 
 			/* Check Whether subId is 0x11 or 0x12 */
@@ -716,6 +718,8 @@ static int sdhci_pci_o2_probe(struct sdhci_pci_chip *chip)
 				ret = pci_read_config_dword(chip->pdev,
 							    O2_SD_FUNC_REG4,
 							    &scratch_32);
+				if (ret)
+					return ret;
 
 				/* Enable Base Clk setting change */
 				scratch_32 |= O2_SD_FREG4_ENABLE_CLK_SET;
@@ -795,6 +799,8 @@ static int sdhci_pci_o2_probe(struct sdhci_pci_chip *chip)
 
 		ret = pci_read_config_dword(chip->pdev,
 					    O2_SD_PLL_SETTING, &scratch_32);
+		if (ret)
+			return ret;
 
 		if ((scratch_32 & 0xff000000) == 0x01000000) {
 			scratch_32 &= 0x0000FFFF;
@@ -812,6 +818,8 @@ static int sdhci_pci_o2_probe(struct sdhci_pci_chip *chip)
 			ret = pci_read_config_dword(chip->pdev,
 						    O2_SD_FUNC_REG4,
 						    &scratch_32);
+			if (ret)
+				return ret;
 			scratch_32 |= (1 << 22);
 			pci_write_config_dword(chip->pdev,
 					       O2_SD_FUNC_REG4, scratch_32);

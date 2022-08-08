@@ -7041,11 +7041,11 @@ static int ca0132_build_controls(struct hda_codec *codec)
 					spec->tlv);
 		snd_hda_add_vmaster(codec, "Master Playback Volume",
 					spec->tlv, ca0132_alt_follower_pfxs,
-					"Playback Volume");
+					"Playback Volume", 0);
 		err = __snd_hda_add_vmaster(codec, "Master Playback Switch",
 					    NULL, ca0132_alt_follower_pfxs,
 					    "Playback Switch",
-					    true, &spec->vmaster_mute.sw_kctl);
+					    true, 0, &spec->vmaster_mute.sw_kctl);
 		if (err < 0)
 			return err;
 	}

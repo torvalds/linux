@@ -63,11 +63,6 @@ struct imgu_node_mapping {
 	const char *name;
 };
 
-/**
- * struct imgu_video_device
- * each node registers as video device and maintains its
- * own vb2_queue.
- */
 struct imgu_video_device {
 	const char *name;
 	bool output;

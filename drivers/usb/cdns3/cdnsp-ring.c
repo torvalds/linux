@@ -1517,13 +1517,14 @@ irqreturn_t cdnsp_thread_irq_handler(int irq, void *data)
 {
 	struct cdnsp_device *pdev = (struct cdnsp_device *)data;
 	union cdnsp_trb *event_ring_deq;
+	unsigned long flags;
 	int counter = 0;
 
-	spin_lock(&pdev->lock);
+	spin_lock_irqsave(&pdev->lock, flags);
 
 	if (pdev->cdnsp_state & (CDNSP_STATE_HALTED | CDNSP_STATE_DYING)) {
 		cdnsp_died(pdev);
-		spin_unlock(&pdev->lock);
+		spin_unlock_irqrestore(&pdev->lock, flags);
 		return IRQ_HANDLED;
 	}
 
@@ -1539,7 +1540,7 @@ irqreturn_t cdnsp_thread_irq_handler(int irq, void *data)
 
 	cdnsp_update_erst_dequeue(pdev, event_ring_deq, 1);
 
-	spin_unlock(&pdev->lock);
+	spin_unlock_irqrestore(&pdev->lock, flags);
 
 	return IRQ_HANDLED;
 }

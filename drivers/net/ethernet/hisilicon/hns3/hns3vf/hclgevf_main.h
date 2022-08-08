@@ -152,6 +152,7 @@ enum hclgevf_states {
 	HCLGEVF_STATE_LINK_UPDATING,
 	HCLGEVF_STATE_PROMISC_CHANGED,
 	HCLGEVF_STATE_RST_FAIL,
+	HCLGEVF_STATE_PF_PUSH_LINK_STATUS,
 };
 
 struct hclgevf_mac {
@@ -176,9 +177,9 @@ struct hclgevf_hw {
 
 /* TQP stats */
 struct hlcgevf_tqp_stats {
-	/* query_tqp_tx_queue_statistics ,opcode id:  0x0B03 */
+	/* query_tqp_tx_queue_statistics, opcode id: 0x0B03 */
 	u64 rcb_tx_ring_pktnum_rcd; /* 32bit */
-	/* query_tqp_rx_queue_statistics ,opcode id:  0x0B13 */
+	/* query_tqp_rx_queue_statistics, opcode id: 0x0B13 */
 	u64 rcb_rx_ring_pktnum_rcd; /* 32bit */
 };
 
@@ -192,7 +193,6 @@ struct hclgevf_tqp {
 };
 
 struct hclgevf_cfg {
-	u8 vmdq_vport_num;
 	u8 tc_num;
 	u16 tqp_desc_num;
 	u16 rx_buf_len;

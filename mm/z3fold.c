@@ -391,7 +391,7 @@ static void z3fold_unregister_migration(struct z3fold_pool *pool)
 {
 	if (pool->inode)
 		iput(pool->inode);
- }
+}
 
 /* Initializes the z3fold header of a newly allocated z3fold page */
 static struct z3fold_header *init_z3fold_page(struct page *page, bool headless,

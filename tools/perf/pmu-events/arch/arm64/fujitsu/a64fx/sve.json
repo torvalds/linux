@@ -1,0 +1,110 @@
+[
+  {
+    "ArchStdEvent": "SIMD_INST_RETIRED"
+  },
+  {
+    "ArchStdEvent": "SVE_INST_RETIRED"
+  },
+  {
+    "ArchStdEvent": "UOP_SPEC"
+  },
+  {
+    "ArchStdEvent": "SVE_MATH_SPEC"
+  },
+  {
+    "ArchStdEvent": "FP_SPEC"
+  },
+  {
+    "ArchStdEvent": "FP_FMA_SPEC"
+  },
+  {
+    "ArchStdEvent": "FP_RECPE_SPEC"
+  },
+  {
+    "ArchStdEvent": "FP_CVT_SPEC"
+  },
+  {
+    "ArchStdEvent": "ASE_SVE_INT_SPEC"
+  },
+  {
+    "ArchStdEvent": "SVE_PRED_SPEC"
+  },
+  {
+    "ArchStdEvent": "SVE_MOVPRFX_SPEC"
+  },
+  {
+    "ArchStdEvent": "SVE_MOVPRFX_U_SPEC"
+  },
+  {
+    "ArchStdEvent": "ASE_SVE_LD_SPEC"
+  },
+  {
+    "ArchStdEvent": "ASE_SVE_ST_SPEC"
+  },
+  {
+    "ArchStdEvent": "PRF_SPEC"
+  },
+  {
+    "ArchStdEvent": "BASE_LD_REG_SPEC"
+  },
+  {
+    "ArchStdEvent": "BASE_ST_REG_SPEC"
+  },
+  {
+    "ArchStdEvent": "SVE_LDR_REG_SPEC"
+  },
+  {
+    "ArchStdEvent": "SVE_STR_REG_SPEC"
+  },
+  {
+    "ArchStdEvent": "SVE_LDR_PREG_SPEC"
+  },
+  {
+    "ArchStdEvent": "SVE_STR_PREG_SPEC"
+  },
+  {
+    "ArchStdEvent": "SVE_PRF_CONTIG_SPEC"
+  },
+  {
+    "ArchStdEvent": "ASE_SVE_LD_MULTI_SPEC"
+  },
+  {
+    "ArchStdEvent": "ASE_SVE_ST_MULTI_SPEC"
+  },
+  {
+    "ArchStdEvent": "SVE_LD_GATHER_SPEC"
+  },
+  {
+    "ArchStdEvent": "SVE_ST_SCATTER_SPEC"
+  },
+  {
+    "ArchStdEvent": "SVE_PRF_GATHER_SPEC"
+  },
+  {
+    "ArchStdEvent": "SVE_LDFF_SPEC"
+  },
+  {
+    "ArchStdEvent": "FP_SCALE_OPS_SPEC"
+  },
+  {
+    "ArchStdEvent": "FP_FIXED_OPS_SPEC"
+  },
+  {
+    "ArchStdEvent": "FP_HP_SCALE_OPS_SPEC"
+  },
+  {
+    "ArchStdEvent": "FP_HP_FIXED_OPS_SPEC"
+  },
+  {
+    "ArchStdEvent": "FP_SP_SCALE_OPS_SPEC"
+  },
+  {
+    "ArchStdEvent": "FP_SP_FIXED_OPS_SPEC"
+  },
+  {
+    "ArchStdEvent": "FP_DP_SCALE_OPS_SPEC"
+  },
+  {
+    "ArchStdEvent": "FP_DP_FIXED_OPS_SPEC"
+  }
+]

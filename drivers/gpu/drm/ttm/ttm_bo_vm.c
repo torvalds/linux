@@ -95,10 +95,10 @@ out_unlock:
 static unsigned long ttm_bo_io_mem_pfn(struct ttm_buffer_object *bo,
 				       unsigned long page_offset)
 {
-	struct ttm_bo_device *bdev = bo->bdev;
+	struct ttm_device *bdev = bo->bdev;
 
-	if (bdev->driver->io_mem_pfn)
-		return bdev->driver->io_mem_pfn(bo, page_offset);
+	if (bdev->funcs->io_mem_pfn)
+		return bdev->funcs->io_mem_pfn(bo, page_offset);
 
 	return (bo->mem.bus.offset >> PAGE_SHIFT) + page_offset;
 }
@@ -216,7 +216,7 @@ static vm_fault_t ttm_bo_vm_insert_huge(struct vm_fault *vmf,
 			if (page_to_pfn(ttm->pages[page_offset + i]) != pfn + i)
 				goto out_fallback;
 		}
-	} else if (bo->bdev->driver->io_mem_pfn) {
+	} else if (bo->bdev->funcs->io_mem_pfn) {
 		for (i = 1; i < fault_page_size; ++i) {
 			if (ttm_bo_io_mem_pfn(bo, page_offset + i) != pfn + i)
 				goto out_fallback;
@@ -278,7 +278,7 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct ttm_buffer_object *bo = vma->vm_private_data;
-	struct ttm_bo_device *bdev = bo->bdev;
+	struct ttm_device *bdev = bo->bdev;
 	unsigned long page_offset;
 	unsigned long page_last;
 	unsigned long pfn;
@@ -488,8 +488,8 @@ int ttm_bo_vm_access(struct vm_area_struct *vma, unsigned long addr,
 		ret = ttm_bo_vm_access_kmap(bo, offset, buf, len, write);
 		break;
 	default:
-		if (bo->bdev->driver->access_memory)
-			ret = bo->bdev->driver->access_memory(
+		if (bo->bdev->funcs->access_memory)
+			ret = bo->bdev->funcs->access_memory(
 				bo, offset, buf, len, write);
 		else
 			ret = -EIO;
@@ -508,7 +508,7 @@ static const struct vm_operations_struct ttm_bo_vm_ops = {
 	.access = ttm_bo_vm_access,
 };
 
-static struct ttm_buffer_object *ttm_bo_vm_lookup(struct ttm_bo_device *bdev,
+static struct ttm_buffer_object *ttm_bo_vm_lookup(struct ttm_device *bdev,
 						  unsigned long offset,
 						  unsigned long pages)
 {
@@ -555,9 +555,8 @@ static void ttm_bo_mmap_vma_setup(struct ttm_buffer_object *bo, struct vm_area_s
 }
 
 int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
-		struct ttm_bo_device *bdev)
+		struct ttm_device *bdev)
 {
-	struct ttm_bo_driver *driver;
 	struct ttm_buffer_object *bo;
 	int ret;
 
@@ -568,12 +567,11 @@ int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
 	if (unlikely(!bo))
 		return -EINVAL;
 
-	driver = bo->bdev->driver;
-	if (unlikely(!driver->verify_access)) {
+	if (unlikely(!bo->bdev->funcs->verify_access)) {
 		ret = -EPERM;
 		goto out_unref;
 	}
-	ret = driver->verify_access(bo, filp);
+	ret = bo->bdev->funcs->verify_access(bo, filp);
 	if (unlikely(ret != 0))
 		goto out_unref;
 

@@ -98,9 +98,9 @@ struct ssam_device_uid {
 		     | (((fun) != SSAM_ANY_FUN) ? SSAM_MATCH_FUNCTION : 0),	\
 	.domain   = d,								\
 	.category = cat,							\
-	.target   = ((tid) != SSAM_ANY_TID) ? (tid) : 0,			\
-	.instance = ((iid) != SSAM_ANY_IID) ? (iid) : 0,			\
-	.function = ((fun) != SSAM_ANY_FUN) ? (fun) : 0				\
+	.target   = __builtin_choose_expr((tid) != SSAM_ANY_TID, (tid), 0),	\
+	.instance = __builtin_choose_expr((iid) != SSAM_ANY_IID, (iid), 0),	\
+	.function = __builtin_choose_expr((fun) != SSAM_ANY_FUN, (fun), 0)
 
 /**
  * SSAM_VDEV() - Initialize a &struct ssam_device_id as virtual device with
@@ -336,17 +336,18 @@ void ssam_device_driver_unregister(struct ssam_device_driver *d);
  * request has been fully completed. The required transport buffer will be
  * allocated on the stack.
  *
- * The generated function is defined as ``int name(struct ssam_device *sdev)``,
- * returning the status of the request, which is zero on success and negative
- * on failure. The ``sdev`` parameter specifies both the target device of the
- * request and by association the controller via which the request is sent.
+ * The generated function is defined as ``static int name(struct ssam_device
+ * *sdev)``, returning the status of the request, which is zero on success and
+ * negative on failure. The ``sdev`` parameter specifies both the target
+ * device of the request and by association the controller via which the
+ * request is sent.
  *
  * Refer to ssam_request_sync_onstack() for more details on the behavior of
  * the generated function.
  */
 #define SSAM_DEFINE_SYNC_REQUEST_CL_N(name, spec...)			\
 	SSAM_DEFINE_SYNC_REQUEST_MD_N(__raw_##name, spec)		\
-	int name(struct ssam_device *sdev)				\
+	static int name(struct ssam_device *sdev)			\
 	{								\
 		return __raw_##name(sdev->ctrl, sdev->uid.target,	\
 				    sdev->uid.instance);		\
@@ -368,19 +369,19 @@ void ssam_device_driver_unregister(struct ssam_device_driver *d);
  * itself, returning once the request has been fully completed. The required
  * transport buffer will be allocated on the stack.
  *
- * The generated function is defined as ``int name(struct ssam_device *sdev,
- * const atype *arg)``, returning the status of the request, which is zero on
- * success and negative on failure. The ``sdev`` parameter specifies both the
- * target device of the request and by association the controller via which
- * the request is sent. The request's argument is specified via the ``arg``
- * pointer.
+ * The generated function is defined as ``static int name(struct ssam_device
+ * *sdev, const atype *arg)``, returning the status of the request, which is
+ * zero on success and negative on failure. The ``sdev`` parameter specifies
+ * both the target device of the request and by association the controller via
+ * which the request is sent. The request's argument is specified via the
+ * ``arg`` pointer.
  *
  * Refer to ssam_request_sync_onstack() for more details on the behavior of
  * the generated function.
  */
 #define SSAM_DEFINE_SYNC_REQUEST_CL_W(name, atype, spec...)		\
 	SSAM_DEFINE_SYNC_REQUEST_MD_W(__raw_##name, atype, spec)	\
-	int name(struct ssam_device *sdev, const atype *arg)		\
+	static int name(struct ssam_device *sdev, const atype *arg)	\
 	{								\
 		return __raw_##name(sdev->ctrl, sdev->uid.target,	\
 				    sdev->uid.instance, arg);		\
@@ -402,8 +403,8 @@ void ssam_device_driver_unregister(struct ssam_device_driver *d);
  * itself, returning once the request has been fully completed. The required
  * transport buffer will be allocated on the stack.
  *
- * The generated function is defined as ``int name(struct ssam_device *sdev,
- * rtype *ret)``, returning the status of the request, which is zero on
+ * The generated function is defined as ``static int name(struct ssam_device
+ * *sdev, rtype *ret)``, returning the status of the request, which is zero on
  * success and negative on failure. The ``sdev`` parameter specifies both the
  * target device of the request and by association the controller via which
  * the request is sent. The request's return value is written to the memory
@@ -414,7 +415,7 @@ void ssam_device_driver_unregister(struct ssam_device_driver *d);
  */
 #define SSAM_DEFINE_SYNC_REQUEST_CL_R(name, rtype, spec...)		\
 	SSAM_DEFINE_SYNC_REQUEST_MD_R(__raw_##name, rtype, spec)	\
-	int name(struct ssam_device *sdev, rtype *ret)			\
+	static int name(struct ssam_device *sdev, rtype *ret)		\
 	{								\
 		return __raw_##name(sdev->ctrl, sdev->uid.target,	\
 				    sdev->uid.instance, ret);		\

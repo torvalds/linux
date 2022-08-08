@@ -487,7 +487,7 @@ int jpeg_v1_0_sw_init(void *handle)
 	ring = &adev->jpeg.inst->ring_dec;
 	sprintf(ring->name, "jpeg_dec");
 	r = amdgpu_ring_init(adev, ring, 512, &adev->jpeg.inst->irq,
-			     0, AMDGPU_RING_PRIO_DEFAULT);
+			     0, AMDGPU_RING_PRIO_DEFAULT, NULL);
 	if (r)
 		return r;
 

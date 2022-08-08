@@ -205,8 +205,7 @@ static inline struct lowpan_peer *peer_lookup_dst(struct lowpan_btle_dev *dev,
 		}
 	}
 
-	/* use the neighbour cache for matching addresses assigned by SLAAC
-	*/
+	/* use the neighbour cache for matching addresses assigned by SLAAC */
 	neigh = __ipv6_neigh_lookup(dev->netdev, nexthop);
 	if (neigh) {
 		list_for_each_entry_rcu(peer, &dev->peers, list) {
@@ -841,8 +840,6 @@ static void chan_close_cb(struct l2cap_chan *chan)
 	} else {
 		spin_unlock(&devices_lock);
 	}
-
-	return;
 }
 
 static void chan_state_change_cb(struct l2cap_chan *chan, int state, int err)

@@ -1095,10 +1095,6 @@ of interest:
 		 - maximum number of commands that can be queued on devices
                    controlled by the host. Overridden by LLD calls to
                    scsi_change_queue_depth().
-    unchecked_isa_dma
-		 - 1=>only use bottom 16 MB of ram (ISA DMA addressing
-                   restriction), 0=>can use full 32 bit (or better) DMA
-                   address space
     no_async_abort
 		 - 1=>Asynchronous aborts are not supported
 		 - 0=>Timed-out commands will be aborted asynchronously

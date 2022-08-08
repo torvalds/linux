@@ -1,0 +1,44 @@
+menu "CPU errata selection"
+
+config RISCV_ERRATA_ALTERNATIVE
+	bool "RISC-V alternative scheme"
+	default y
+	help
+	  This Kconfig allows the kernel to automatically patch the
+	  errata required by the execution platform at run time. The
+	  code patching is performed once in the boot stages. It means
+	  that the overhead from this mechanism is just taken once.
+
+config ERRATA_SIFIVE
+	bool "SiFive errata"
+	depends on RISCV_ERRATA_ALTERNATIVE
+	help
+	  All SiFive errata Kconfig depend on this Kconfig. Disabling
+	  this Kconfig will disable all SiFive errata. Please say "Y"
+	  here if your platform uses SiFive CPU cores.
+
+	  Otherwise, please say "N" here to avoid unnecessary overhead.
+
+config ERRATA_SIFIVE_CIP_453
+	bool "Apply SiFive errata CIP-453"
+	depends on ERRATA_SIFIVE && 64BIT
+	default y
+	help
+	  This will apply the SiFive CIP-453 errata to add sign extension
+	  to the $badaddr when exception type is instruction page fault
+	  and instruction access fault.
+
+	  If you don't know what to do here, say "Y".
+
+config ERRATA_SIFIVE_CIP_1200
+	bool "Apply SiFive errata CIP-1200"
+	depends on ERRATA_SIFIVE && 64BIT
+	default y
+	help
+	  This will apply the SiFive CIP-1200 errata to repalce all
+	  "sfence.vma addr" with "sfence.vma" to ensure that the addr
+	  has been flushed from TLB.
+
+	  If you don't know what to do here, say "Y".
+
+endmenu

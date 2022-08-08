@@ -2,13 +2,14 @@
 config VIDEO_IMX_MEDIA
 	tristate "i.MX5/6 V4L2 media core driver"
 	depends on ARCH_MXC || COMPILE_TEST
+	depends on HAS_DMA
+	depends on VIDEO_DEV
 	depends on VIDEO_V4L2
 	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	depends on HAS_DMA
-	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_FWNODE
 	select V4L2_MEM2MEM_DEV
+	select VIDEOBUF2_DMA_CONTIG
+	select VIDEO_V4L2_SUBDEV_API
 	help
 	  Say yes here to enable support for video4linux media controller
 	  driver for the i.MX5/6 SOC.
@@ -18,7 +19,6 @@ menu "i.MX5/6/7/8 Media Sub devices"
 
 config VIDEO_IMX_CSI
 	tristate "i.MX5/6 Camera Sensor Interface driver"
-	depends on VIDEO_IMX_MEDIA && VIDEO_DEV && I2C
 	depends on IMX_IPUV3_CORE
 	default y
 	help
@@ -26,7 +26,6 @@ config VIDEO_IMX_CSI
 
 config VIDEO_IMX7_CSI
 	tristate "i.MX6UL/L / i.MX7 / i.MX8M Camera Sensor Interface driver"
-	depends on VIDEO_IMX_MEDIA && VIDEO_DEV && I2C
 	default y
 	help
 	  Enable support for video4linux camera sensor interface driver for

@@ -29,6 +29,7 @@
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
 #include "dc.h"
+#include "amdgpu_securedisplay.h"
 
 static const char *const pipe_crc_sources[] = {
 	"none",
@@ -81,6 +82,73 @@ const char *const *amdgpu_dm_crtc_get_crc_sources(struct drm_crtc *crtc,
 	return pipe_crc_sources;
 }
 
+#ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
+static void amdgpu_dm_set_crc_window_default(struct drm_crtc *crtc)
+{
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	acrtc->dm_irq_params.crc_window.x_start = 0;
+	acrtc->dm_irq_params.crc_window.y_start = 0;
+	acrtc->dm_irq_params.crc_window.x_end = 0;
+	acrtc->dm_irq_params.crc_window.y_end = 0;
+	acrtc->dm_irq_params.crc_window.activated = false;
+	acrtc->dm_irq_params.crc_window.update_win = false;
+	acrtc->dm_irq_params.crc_window.skip_frame_cnt = 0;
+	spin_unlock_irq(&drm_dev->event_lock);
+}
+
+static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
+{
+	struct crc_rd_work *crc_rd_wrk;
+	struct amdgpu_device *adev;
+	struct psp_context *psp;
+	struct securedisplay_cmd *securedisplay_cmd;
+	struct drm_crtc *crtc;
+	uint8_t phy_id;
+	int ret;
+
+	crc_rd_wrk = container_of(work, struct crc_rd_work, notify_ta_work);
+	spin_lock_irq(&crc_rd_wrk->crc_rd_work_lock);
+	crtc = crc_rd_wrk->crtc;
+
+	if (!crtc) {
+		spin_unlock_irq(&crc_rd_wrk->crc_rd_work_lock);
+		return;
+	}
+
+	adev = drm_to_adev(crtc->dev);
+	psp = &adev->psp;
+	phy_id = crc_rd_wrk->phy_inst;
+	spin_unlock_irq(&crc_rd_wrk->crc_rd_work_lock);
+
+	psp_prep_securedisplay_cmd_buf(psp, &securedisplay_cmd,
+						TA_SECUREDISPLAY_COMMAND__SEND_ROI_CRC);
+	securedisplay_cmd->securedisplay_in_message.send_roi_crc.phy_id =
+						phy_id;
+	ret = psp_securedisplay_invoke(psp, TA_SECUREDISPLAY_COMMAND__SEND_ROI_CRC);
+	if (!ret) {
+		if (securedisplay_cmd->status != TA_SECUREDISPLAY_STATUS__SUCCESS) {
+			psp_securedisplay_parse_resp_status(psp, securedisplay_cmd->status);
+		}
+	}
+}
+
+bool amdgpu_dm_crc_window_is_activated(struct drm_crtc *crtc)
+{
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+	bool ret = false;
+
+	spin_lock_irq(&drm_dev->event_lock);
+	ret = acrtc->dm_irq_params.crc_window.activated;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	return ret;
+}
+#endif
+
 int
 amdgpu_dm_crtc_verify_crc_source(struct drm_crtc *crtc, const char *src_name,
 				 size_t *values_cnt)
@@ -114,6 +182,20 @@ int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
 
 	/* Enable CRTC CRC generation if necessary. */
 	if (dm_is_crc_source_crtc(source) || source == AMDGPU_DM_PIPE_CRC_SOURCE_NONE) {
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+		if (!enable) {
+			if (adev->dm.crc_rd_wrk) {
+				flush_work(&adev->dm.crc_rd_wrk->notify_ta_work);
+				spin_lock_irq(&adev->dm.crc_rd_wrk->crc_rd_work_lock);
+				if (adev->dm.crc_rd_wrk->crtc == crtc) {
+					dc_stream_stop_dmcu_crc_win_update(stream_state->ctx->dc,
+									dm_crtc_state->stream);
+					adev->dm.crc_rd_wrk->crtc = NULL;
+				}
+				spin_unlock_irq(&adev->dm.crc_rd_wrk->crc_rd_work_lock);
+			}
+		}
+#endif
 		if (!dc_stream_configure_crc(stream_state->ctx->dc,
 					     stream_state, NULL, enable, enable)) {
 			ret = -EINVAL;
@@ -142,8 +224,11 @@ unlock:
 int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 {
 	enum amdgpu_dm_pipe_crc_source source = dm_parse_crc_source(src_name);
+	enum amdgpu_dm_pipe_crc_source cur_crc_src;
 	struct drm_crtc_commit *commit;
 	struct dm_crtc_state *crtc_state;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 	struct drm_dp_aux *aux = NULL;
 	bool enable = false;
 	bool enabled = false;
@@ -182,6 +267,9 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 
 	enable = amdgpu_dm_is_valid_crc_source(source);
 	crtc_state = to_dm_crtc_state(crtc->state);
+	spin_lock_irq(&drm_dev->event_lock);
+	cur_crc_src = acrtc->dm_irq_params.crc_src;
+	spin_unlock_irq(&drm_dev->event_lock);
 
 	/*
 	 * USER REQ SRC | CURRENT SRC | BEHAVIOR
@@ -198,7 +286,7 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 	 */
 	if (dm_is_crc_source_dprx(source) ||
 	    (source == AMDGPU_DM_PIPE_CRC_SOURCE_NONE &&
-	     dm_is_crc_source_dprx(crtc_state->crc_src))) {
+	     dm_is_crc_source_dprx(cur_crc_src))) {
 		struct amdgpu_dm_connector *aconn = NULL;
 		struct drm_connector *connector;
 		struct drm_connector_list_iter conn_iter;
@@ -219,7 +307,7 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 			goto cleanup;
 		}
 
-		aux = &aconn->dm_dp_aux.aux;
+		aux = (aconn->port) ? &aconn->port->aux : &aconn->dm_dp_aux.aux;
 
 		if (!aux) {
 			DRM_DEBUG_DRIVER("No dp aux for amd connector\n");
@@ -227,6 +315,10 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 			goto cleanup;
 		}
 	}
+
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+	amdgpu_dm_set_crc_window_default(crtc);
+#endif
 
 	if (amdgpu_dm_crtc_configure_crc_source(crtc, crtc_state, source)) {
 		ret = -EINVAL;
@@ -237,7 +329,7 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 	 * Reading the CRC requires the vblank interrupt handler to be
 	 * enabled. Keep a reference until CRC capture stops.
 	 */
-	enabled = amdgpu_dm_is_valid_crc_source(crtc_state->crc_src);
+	enabled = amdgpu_dm_is_valid_crc_source(cur_crc_src);
 	if (!enabled && enable) {
 		ret = drm_crtc_vblank_get(crtc);
 		if (ret)
@@ -261,7 +353,9 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 		}
 	}
 
-	crtc_state->crc_src = source;
+	spin_lock_irq(&drm_dev->event_lock);
+	acrtc->dm_irq_params.crc_src = source;
+	spin_unlock_irq(&drm_dev->event_lock);
 
 	/* Reset crc_skipped on dm state */
 	crtc_state->crc_skip_count = 0;
@@ -286,16 +380,26 @@ void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc)
 {
 	struct dm_crtc_state *crtc_state;
 	struct dc_stream_state *stream_state;
+	struct drm_device *drm_dev = NULL;
+	enum amdgpu_dm_pipe_crc_source cur_crc_src;
+	struct amdgpu_crtc *acrtc = NULL;
 	uint32_t crcs[3];
+	unsigned long flags;
 
 	if (crtc == NULL)
 		return;
 
 	crtc_state = to_dm_crtc_state(crtc->state);
 	stream_state = crtc_state->stream;
+	acrtc = to_amdgpu_crtc(crtc);
+	drm_dev = crtc->dev;
+
+	spin_lock_irqsave(&drm_dev->event_lock, flags);
+	cur_crc_src = acrtc->dm_irq_params.crc_src;
+	spin_unlock_irqrestore(&drm_dev->event_lock, flags);
 
 	/* Early return if CRC capture is not enabled. */
-	if (!amdgpu_dm_is_valid_crc_source(crtc_state->crc_src))
+	if (!amdgpu_dm_is_valid_crc_source(cur_crc_src))
 		return;
 
 	/*
@@ -309,7 +413,7 @@ void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc)
 		return;
 	}
 
-	if (dm_is_crc_source_crtc(crtc_state->crc_src)) {
+	if (dm_is_crc_source_crtc(cur_crc_src)) {
 		if (!dc_stream_get_crc(stream_state->ctx->dc, stream_state,
 				       &crcs[0], &crcs[1], &crcs[2]))
 			return;
@@ -318,3 +422,182 @@ void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc)
 				       drm_crtc_accurate_vblank_count(crtc), crcs);
 	}
 }
+
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
+{
+	struct dc_stream_state *stream_state;
+	struct drm_device *drm_dev = NULL;
+	enum amdgpu_dm_pipe_crc_source cur_crc_src;
+	struct amdgpu_crtc *acrtc = NULL;
+	struct amdgpu_device *adev = NULL;
+	struct crc_rd_work *crc_rd_wrk = NULL;
+	struct crc_params *crc_window = NULL, tmp_window;
+	unsigned long flags1, flags2;
+	struct crtc_position position;
+	uint32_t v_blank;
+	uint32_t v_back_porch;
+	uint32_t crc_window_latch_up_line;
+	struct dc_crtc_timing *timing_out;
+
+	if (crtc == NULL)
+		return;
+
+	acrtc = to_amdgpu_crtc(crtc);
+	adev = drm_to_adev(crtc->dev);
+	drm_dev = crtc->dev;
+
+	spin_lock_irqsave(&drm_dev->event_lock, flags1);
+	stream_state = acrtc->dm_irq_params.stream;
+	cur_crc_src = acrtc->dm_irq_params.crc_src;
+	timing_out = &stream_state->timing;
+
+	/* Early return if CRC capture is not enabled. */
+	if (!amdgpu_dm_is_valid_crc_source(cur_crc_src))
+		goto cleanup;
+
+	if (dm_is_crc_source_crtc(cur_crc_src)) {
+		if (acrtc->dm_irq_params.crc_window.activated) {
+			if (acrtc->dm_irq_params.crc_window.update_win) {
+				if (acrtc->dm_irq_params.crc_window.skip_frame_cnt) {
+					acrtc->dm_irq_params.crc_window.skip_frame_cnt -= 1;
+					goto cleanup;
+				}
+				crc_window = &tmp_window;
+
+				tmp_window.windowa_x_start =
+							acrtc->dm_irq_params.crc_window.x_start;
+				tmp_window.windowa_y_start =
+							acrtc->dm_irq_params.crc_window.y_start;
+				tmp_window.windowa_x_end =
+							acrtc->dm_irq_params.crc_window.x_end;
+				tmp_window.windowa_y_end =
+							acrtc->dm_irq_params.crc_window.y_end;
+				tmp_window.windowb_x_start =
+							acrtc->dm_irq_params.crc_window.x_start;
+				tmp_window.windowb_y_start =
+							acrtc->dm_irq_params.crc_window.y_start;
+				tmp_window.windowb_x_end =
+							acrtc->dm_irq_params.crc_window.x_end;
+				tmp_window.windowb_y_end =
+							acrtc->dm_irq_params.crc_window.y_end;
+
+				dc_stream_forward_dmcu_crc_window(stream_state->ctx->dc,
+									stream_state, crc_window);
+
+				acrtc->dm_irq_params.crc_window.update_win = false;
+
+				dc_stream_get_crtc_position(stream_state->ctx->dc, &stream_state, 1,
+					&position.vertical_count,
+					&position.nominal_vcount);
+
+				v_blank = timing_out->v_total - timing_out->v_border_top -
+					timing_out->v_addressable - timing_out->v_border_bottom;
+
+				v_back_porch = v_blank - timing_out->v_front_porch -
+					timing_out->v_sync_width;
+
+				crc_window_latch_up_line = v_back_porch + timing_out->v_sync_width;
+
+				/* take 3 lines margin*/
+				if ((position.vertical_count + 3) >= crc_window_latch_up_line)
+					acrtc->dm_irq_params.crc_window.skip_frame_cnt = 1;
+				else
+					acrtc->dm_irq_params.crc_window.skip_frame_cnt = 0;
+			} else {
+				if (acrtc->dm_irq_params.crc_window.skip_frame_cnt == 0) {
+					if (adev->dm.crc_rd_wrk) {
+						crc_rd_wrk = adev->dm.crc_rd_wrk;
+						spin_lock_irqsave(&crc_rd_wrk->crc_rd_work_lock, flags2);
+						crc_rd_wrk->phy_inst =
+							stream_state->link->link_enc_hw_inst;
+						spin_unlock_irqrestore(&crc_rd_wrk->crc_rd_work_lock, flags2);
+						schedule_work(&crc_rd_wrk->notify_ta_work);
+					}
+				} else {
+					acrtc->dm_irq_params.crc_window.skip_frame_cnt -= 1;
+				}
+			}
+		}
+	}
+
+cleanup:
+	spin_unlock_irqrestore(&drm_dev->event_lock, flags1);
+}
+
+void amdgpu_dm_crtc_secure_display_resume(struct amdgpu_device *adev)
+{
+	struct drm_crtc *crtc;
+	enum amdgpu_dm_pipe_crc_source cur_crc_src;
+	struct crc_rd_work *crc_rd_wrk = adev->dm.crc_rd_wrk;
+	struct crc_window_parm cur_crc_window;
+	struct amdgpu_crtc *acrtc = NULL;
+
+	drm_for_each_crtc(crtc, &adev->ddev) {
+		acrtc = to_amdgpu_crtc(crtc);
+
+		spin_lock_irq(&adev_to_drm(adev)->event_lock);
+		cur_crc_src = acrtc->dm_irq_params.crc_src;
+		cur_crc_window = acrtc->dm_irq_params.crc_window;
+		spin_unlock_irq(&adev_to_drm(adev)->event_lock);
+
+		if (amdgpu_dm_is_valid_crc_source(cur_crc_src)) {
+			amdgpu_dm_crtc_set_crc_source(crtc,
+				pipe_crc_sources[cur_crc_src]);
+			spin_lock_irq(&adev_to_drm(adev)->event_lock);
+			acrtc->dm_irq_params.crc_window = cur_crc_window;
+			if (acrtc->dm_irq_params.crc_window.activated) {
+				acrtc->dm_irq_params.crc_window.update_win = true;
+				acrtc->dm_irq_params.crc_window.skip_frame_cnt = 1;
+				spin_lock_irq(&crc_rd_wrk->crc_rd_work_lock);
+				crc_rd_wrk->crtc = crtc;
+				spin_unlock_irq(&crc_rd_wrk->crc_rd_work_lock);
+			}
+			spin_unlock_irq(&adev_to_drm(adev)->event_lock);
+		}
+	}
+}
+
+void amdgpu_dm_crtc_secure_display_suspend(struct amdgpu_device *adev)
+{
+	struct drm_crtc *crtc;
+	struct crc_window_parm cur_crc_window;
+	enum amdgpu_dm_pipe_crc_source cur_crc_src;
+	struct amdgpu_crtc *acrtc = NULL;
+
+	drm_for_each_crtc(crtc, &adev->ddev) {
+		acrtc = to_amdgpu_crtc(crtc);
+
+		spin_lock_irq(&adev_to_drm(adev)->event_lock);
+		cur_crc_src = acrtc->dm_irq_params.crc_src;
+		cur_crc_window = acrtc->dm_irq_params.crc_window;
+		cur_crc_window.update_win = false;
+		spin_unlock_irq(&adev_to_drm(adev)->event_lock);
+
+		if (amdgpu_dm_is_valid_crc_source(cur_crc_src)) {
+			amdgpu_dm_crtc_set_crc_source(crtc, NULL);
+			spin_lock_irq(&adev_to_drm(adev)->event_lock);
+			/* For resume to set back crc source*/
+			acrtc->dm_irq_params.crc_src = cur_crc_src;
+			acrtc->dm_irq_params.crc_window = cur_crc_window;
+			spin_unlock_irq(&adev_to_drm(adev)->event_lock);
+		}
+	}
+
+}
+
+struct crc_rd_work *amdgpu_dm_crtc_secure_display_create_work(void)
+{
+	struct crc_rd_work *crc_rd_wrk = NULL;
+
+	crc_rd_wrk = kzalloc(sizeof(*crc_rd_wrk), GFP_KERNEL);
+
+	if (!crc_rd_wrk)
+		return NULL;
+
+	spin_lock_init(&crc_rd_wrk->crc_rd_work_lock);
+	INIT_WORK(&crc_rd_wrk->notify_ta_work, amdgpu_dm_crtc_notify_ta_to_read);
+
+	return crc_rd_wrk;
+}
+#endif

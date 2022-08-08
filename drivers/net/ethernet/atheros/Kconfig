@@ -21,6 +21,7 @@ config AG71XX
 	tristate "Atheros AR7XXX/AR9XXX built-in ethernet mac support"
 	depends on ATH79
 	select PHYLINK
+	imply NET_SELFTESTS
 	help
 	  If you wish to compile a kernel for AR7XXX/91XXX and enable
 	  ethernet support, then you should always answer Y to this.

@@ -168,30 +168,25 @@ static const struct reg_default da732x_reg_cache[] = {
 static inline int da732x_get_input_div(struct snd_soc_component *component, int sysclk)
 {
 	int val;
-	int ret;
 
 	if (sysclk < DA732X_MCLK_10MHZ) {
-		val = DA732X_MCLK_RET_0_10MHZ;
-		ret = DA732X_MCLK_VAL_0_10MHZ;
+		val = DA732X_MCLK_VAL_0_10MHZ;
 	} else if ((sysclk >= DA732X_MCLK_10MHZ) &&
 	    (sysclk < DA732X_MCLK_20MHZ)) {
-		val = DA732X_MCLK_RET_10_20MHZ;
-		ret = DA732X_MCLK_VAL_10_20MHZ;
+		val = DA732X_MCLK_VAL_10_20MHZ;
 	} else if ((sysclk >= DA732X_MCLK_20MHZ) &&
 	    (sysclk < DA732X_MCLK_40MHZ)) {
-		val = DA732X_MCLK_RET_20_40MHZ;
-		ret = DA732X_MCLK_VAL_20_40MHZ;
+		val = DA732X_MCLK_VAL_20_40MHZ;
 	} else if ((sysclk >= DA732X_MCLK_40MHZ) &&
 	    (sysclk <= DA732X_MCLK_54MHZ)) {
-		val = DA732X_MCLK_RET_40_54MHZ;
-		ret = DA732X_MCLK_VAL_40_54MHZ;
+		val = DA732X_MCLK_VAL_40_54MHZ;
 	} else {
 		return -EINVAL;
 	}
 
 	snd_soc_component_write(component, DA732X_REG_PLL_CTRL, val);
 
-	return ret;
+	return val;
 }
 
 static void da732x_set_charge_pump(struct snd_soc_component *component, int state)
@@ -1158,7 +1153,7 @@ static int da732x_set_dai_pll(struct snd_soc_component *component, int pll_id,
 	if (indiv < 0)
 		return indiv;
 
-	fref = (da732x->sysclk / indiv);
+	fref = da732x->sysclk / BIT(indiv);
 	div_hi = freq_out / fref;
 	frac_div = (u64)(freq_out % fref) * 8192ULL;
 	do_div(frac_div, fref);

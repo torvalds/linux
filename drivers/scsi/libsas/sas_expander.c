@@ -553,7 +553,7 @@ static int sas_ex_manuf_info(struct domain_device *dev)
 
 	mi_req[1] = SMP_REPORT_MANUF_INFO;
 
-	res = smp_execute_task(dev, mi_req, MI_REQ_SIZE, mi_resp,MI_RESP_SIZE);
+	res = smp_execute_task(dev, mi_req, MI_REQ_SIZE, mi_resp, MI_RESP_SIZE);
 	if (res) {
 		pr_notice("MI: ex %016llx failed:0x%x\n",
 			  SAS_ADDR(dev->sas_addr), res);
@@ -594,13 +594,13 @@ int sas_smp_phy_control(struct domain_device *dev, int phy_id,
 
 	pc_req[1] = SMP_PHY_CONTROL;
 	pc_req[9] = phy_id;
-	pc_req[10]= phy_func;
+	pc_req[10] = phy_func;
 	if (rates) {
 		pc_req[32] = rates->minimum_linkrate << 4;
 		pc_req[33] = rates->maximum_linkrate << 4;
 	}
 
-	res = smp_execute_task(dev, pc_req, PC_REQ_SIZE, pc_resp,PC_RESP_SIZE);
+	res = smp_execute_task(dev, pc_req, PC_REQ_SIZE, pc_resp, PC_RESP_SIZE);
 	if (res) {
 		pr_err("ex %016llx phy%02d PHY control failed: %d\n",
 		       SAS_ADDR(dev->sas_addr), phy_id, res);
@@ -678,7 +678,7 @@ int sas_smp_get_phy_events(struct sas_phy *phy)
 	req[9] = phy->number;
 
 	res = smp_execute_task(dev, req, RPEL_REQ_SIZE,
-			            resp, RPEL_RESP_SIZE);
+			       resp, RPEL_RESP_SIZE);
 
 	if (res)
 		goto out;
@@ -714,7 +714,7 @@ int sas_get_report_phy_sata(struct domain_device *dev, int phy_id,
 	rps_req[9] = phy_id;
 
 	res = smp_execute_task(dev, rps_req, RPS_REQ_SIZE,
-			            rps_resp, RPS_RESP_SIZE);
+			       rps_resp, RPS_RESP_SIZE);
 
 	/* 0x34 is the FIS type for the D2H fis.  There's a potential
 	 * standards cockup here.  sas-2 explicitly specifies the FIS
@@ -1506,7 +1506,8 @@ static int sas_configure_phy(struct domain_device *dev, int phy_id,
 	if (res)
 		return res;
 	if (include ^ present)
-		return sas_configure_set(dev, phy_id, sas_addr, index,include);
+		return sas_configure_set(dev, phy_id, sas_addr, index,
+					 include);
 
 	return res;
 }

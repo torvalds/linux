@@ -53,7 +53,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 #define QEDR_WQ_MULTIPLIER_DFT	(3)
 
-static void qedr_ib_dispatch_event(struct qedr_dev *dev, u8 port_num,
+static void qedr_ib_dispatch_event(struct qedr_dev *dev, u32 port_num,
 				   enum ib_event_type type)
 {
 	struct ib_event ibev;
@@ -66,7 +66,7 @@ static void qedr_ib_dispatch_event(struct qedr_dev *dev, u8 port_num,
 }
 
 static enum rdma_link_layer qedr_link_layer(struct ib_device *device,
-					    u8 port_num)
+					    u32 port_num)
 {
 	return IB_LINK_LAYER_ETHERNET;
 }
@@ -81,7 +81,7 @@ static void qedr_get_dev_fw_str(struct ib_device *ibdev, char *str)
 		 (fw_ver >> 8) & 0xFF, fw_ver & 0xFF);
 }
 
-static int qedr_roce_port_immutable(struct ib_device *ibdev, u8 port_num,
+static int qedr_roce_port_immutable(struct ib_device *ibdev, u32 port_num,
 				    struct ib_port_immutable *immutable)
 {
 	struct ib_port_attr attr;
@@ -100,7 +100,7 @@ static int qedr_roce_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
-static int qedr_iw_port_immutable(struct ib_device *ibdev, u8 port_num,
+static int qedr_iw_port_immutable(struct ib_device *ibdev, u32 port_num,
 				  struct ib_port_immutable *immutable)
 {
 	struct ib_port_attr attr;

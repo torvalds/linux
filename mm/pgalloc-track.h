@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _LINUX_PGALLLC_TRACK_H
-#define _LINUX_PGALLLC_TRACK_H
+#ifndef _LINUX_PGALLOC_TRACK_H
+#define _LINUX_PGALLOC_TRACK_H
 
 #if defined(CONFIG_MMU)
 static inline p4d_t *p4d_alloc_track(struct mm_struct *mm, pgd_t *pgd,
@@ -48,4 +48,4 @@ static inline pmd_t *pmd_alloc_track(struct mm_struct *mm, pud_t *pud,
 	  (__pte_alloc_kernel(pmd) || ({*(mask)|=PGTBL_PMD_MODIFIED;0;})))?\
 		NULL: pte_offset_kernel(pmd, address))
 
-#endif /* _LINUX_PGALLLC_TRACK_H */
+#endif /* _LINUX_PGALLOC_TRACK_H */

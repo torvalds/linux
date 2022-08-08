@@ -71,6 +71,16 @@ properties:
       - qcom,sm8250-mmss-noc
       - qcom,sm8250-npu-noc
       - qcom,sm8250-system-noc
+      - qcom,sm8350-aggre1-noc
+      - qcom,sm8350-aggre2-noc
+      - qcom,sm8350-config-noc
+      - qcom,sm8350-dc-noc
+      - qcom,sm8350-gem-noc
+      - qcom,sm8350-lpass-ag-noc
+      - qcom,sm8350-mc-virt
+      - qcom,sm8350-mmss-noc
+      - qcom,sm8350-compute-noc
+      - qcom,sm8350-system-noc
 
   '#interconnect-cells':
     enum: [ 1, 2 ]
@@ -82,7 +92,6 @@ properties:
       this interconnect to send RPMh commands.
 
   qcom,bcm-voter-names:
-    $ref: /schemas/types.yaml#/definitions/string-array
     description: |
       Names for each of the qcom,bcm-voters specified.
 

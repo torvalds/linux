@@ -45,7 +45,7 @@
  * the data portion is mmap()'ed.
  *
  * To sort the queues in chronological order, all queue access is controlled
- * by the auxtrace_heap. This is basicly a stack, each stack element has two
+ * by the auxtrace_heap. This is basically a stack, each stack element has two
  * entries, the queue number and a time stamp. However the stack is sorted by
  * the time stamps. The highest time stamp is at the bottom the lowest
  * (nearest) time stamp is at the top. That sort order is maintained at all
@@ -65,11 +65,11 @@
  * stamp of the last processed entry of the auxtrace_buffer replaces the
  * current auxtrace_heap top.
  *
- * 3. Auxtrace_queues might run of out data and are feeded by the
+ * 3. Auxtrace_queues might run of out data and are fed by the
  * PERF_RECORD_AUXTRACE handling, see s390_cpumsf_process_auxtrace_event().
  *
  * Event Generation
- * Each sampling-data entry in the auxilary trace data generates a perf sample.
+ * Each sampling-data entry in the auxiliary trace data generates a perf sample.
  * This sample is filled
  * with data from the auxtrace such as PID/TID, instruction address, CPU state,
  * etc. This sample is processed with perf_session__deliver_synth_event() to
@@ -575,7 +575,7 @@ static unsigned long long get_trailer_time(const unsigned char *buf)
  * pointer to the queue, the second parameter is the time stamp. This
  * is the time stamp:
  * - of the event that triggered this processing.
- * - or the time stamp when the last proccesing of this queue stopped.
+ * - or the time stamp when the last processing of this queue stopped.
  *   In this case it stopped at a 4KB page boundary and record the
  *   position on where to continue processing on the next invocation
  *   (see buffer->use_data and buffer->use_size).
@@ -640,7 +640,7 @@ static int s390_cpumsf_samples(struct s390_cpumsf_queue *sfq, u64 *ts)
 			goto out;
 		}
 
-		pos += dsdes;	/* Skip diagnositic entry */
+		pos += dsdes;	/* Skip diagnostic entry */
 
 		/* Check for trailer entry */
 		if (!s390_cpumsf_reached_trailer(bsdes + dsdes, pos)) {

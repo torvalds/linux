@@ -169,7 +169,7 @@ out:
  * @msg:	Message to send
  * @vf_nr:	VF number to which the message will be sent
  *
- * Function sends a messge from the PF to a VF
+ * Function sends a message from the PF to a VF
  *
  * Return: 0 on success, error code otherwise.
  */

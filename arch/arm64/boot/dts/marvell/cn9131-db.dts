@@ -193,10 +193,15 @@
 };
 
 /* CON58 */
+&cp1_utmi {
+	status = "okay";
+};
+
 &cp1_usb3_1 {
 	status = "okay";
 	usb-phy = <&cp1_usb3_0_phy0>;
 	/* Generic PHY, providing serdes lanes */
-	phys = <&cp1_comphy3 1>;
-	phy-names = "usb";
+	phys = <&cp1_comphy3 1>, <&cp1_utmi1>;
+	phy-names = "usb", "utmi";
+	dr_mode = "host";
 };

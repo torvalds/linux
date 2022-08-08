@@ -21,7 +21,7 @@ config MFD_CS5535
 
 config MFD_ALTERA_A10SR
 	bool "Altera Arria10 DevKit System Resource chip"
-	depends on ARCH_SOCFPGA && SPI_MASTER=y && OF
+	depends on ARCH_INTEL_SOCFPGA && SPI_MASTER=y && OF
 	select REGMAP_SPI
 	select MFD_CORE
 	help
@@ -32,7 +32,7 @@ config MFD_ALTERA_A10SR
 
 config MFD_ALTERA_SYSMGR
 	bool "Altera SOCFPGA System Manager"
-	depends on (ARCH_SOCFPGA || ARCH_STRATIX10) && OF
+	depends on ARCH_INTEL_SOCFPGA && OF
 	select MFD_SYSCON
 	help
 	  Select this to get System Manager support for all Altera branded
@@ -967,6 +967,17 @@ config MFD_VIPERBOARD
 	  You need to select the mfd cell drivers separately.
 	  The drivers do not support all features the board exposes.
 
+config MFD_NTXEC
+	tristate "Netronix embedded controller (EC)"
+	depends on OF || COMPILE_TEST
+	depends on I2C
+	select REGMAP_I2C
+	select MFD_CORE
+	help
+	  Say yes here if you want to support the embedded controller found in
+	  certain e-book readers designed by the original design manufacturer
+	  Netronix.
+
 config MFD_RETU
 	tristate "Nokia Retu and Tahvo multi-function device"
 	select MFD_CORE
@@ -1224,37 +1235,14 @@ config MFD_SC27XX_PMIC
 
 config ABX500_CORE
 	bool "ST-Ericsson ABX500 Mixed Signal Circuit register functions"
-	default y if ARCH_U300 || ARCH_U8500 || COMPILE_TEST
+	depends on ARCH_U8500 || COMPILE_TEST
+	default y if ARCH_U8500
 	help
 	  Say yes here if you have the ABX500 Mixed Signal IC family
 	  chips. This core driver expose register access functions.
 	  Functionality specific drivers using these functions can
 	  remain unchanged when IC changes. Binding of the functions to
 	  actual register access is done by the IC core driver.
-
-config AB3100_CORE
-	bool "ST-Ericsson AB3100 Mixed Signal Circuit core functions"
-	depends on I2C=y && ABX500_CORE
-	select MFD_CORE
-	default y if ARCH_U300
-	help
-	  Select this to enable the AB3100 Mixed Signal IC core
-	  functionality. This connects to a AB3100 on the I2C bus
-	  and expose a number of symbols needed for dependent devices
-	  to read and write registers and subscribe to events from
-	  this multi-functional IC. This is needed to use other features
-	  of the AB3100 such as battery-backed RTC, charging control,
-	  LEDs, vibrator, system power and temperature, power management
-	  and ALSA sound.
-
-config AB3100_OTP
-	tristate "ST-Ericsson AB3100 OTP functions"
-	depends on AB3100_CORE
-	default y if AB3100_CORE
-	help
-	  Select this to enable the AB3100 Mixed Signal IC OTP (one-time
-	  programmable memory) support. This exposes a sysfs file to read
-	  out OTP values.
 
 config AB8500_CORE
 	bool "ST-Ericsson AB8500 Mixed Signal Power Management chip"
@@ -1975,19 +1963,31 @@ config MFD_ROHM_BD70528
 	  charger.
 
 config MFD_ROHM_BD71828
-	tristate "ROHM BD71828 Power Management IC"
+	tristate "ROHM BD71828 and BD71815 Power Management IC"
 	depends on I2C=y
 	depends on OF
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	select MFD_CORE
 	help
-	  Select this option to get support for the ROHM BD71828 Power
-	  Management IC. BD71828GW is a single-chip power management IC for
-	  battery-powered portable devices. The IC integrates 7 buck
-	  converters, 7 LDOs, and a 1500 mA single-cell linear charger.
-	  Also included is a Coulomb counter, a real-time clock (RTC), and
-	  a 32.768 kHz clock gate.
+	  Select this option to get support for the ROHM BD71828 and BD71815
+	  Power Management ICs. BD71828GW and BD71815AGW are single-chip power
+	  management ICs mainly for battery-powered portable devices.
+	  The BD71828 integrates 7 buck converters and 7 LDOs. The BD71815
+	  has 5 bucks, 7 LDOs, and a boost for driving LEDs. Both ICs provide
+	  also a single-cell linear charger, a Coulomb counter, a real-time
+	  clock (RTC), GPIOs and a 32.768 kHz clock gate.
+
+config MFD_ROHM_BD957XMUF
+	tristate "ROHM BD9576MUF and BD9573MUF Power Management ICs"
+	depends on I2C=y
+	depends on OF
+	select REGMAP_I2C
+	select MFD_CORE
+	help
+	  Select this option to get support for the ROHM BD9576MUF and
+	  BD9573MUF Power Management ICs. BD9576 and BD9573 are primarily
+	  designed to be used to power R-Car series processors.
 
 config MFD_STM32_LPTIMER
 	tristate "Support for STM32 Low-Power Timer"
@@ -2054,6 +2054,24 @@ config MFD_WCD934X
 	  Support for the Qualcomm WCD9340/WCD9341 Codec.
 	  This driver provides common support WCD934x audio codec and its
 	  associated Pin Controller, Soundwire Controller and Audio codec.
+
+config MFD_ATC260X
+	tristate
+	select MFD_CORE
+	select REGMAP
+	select REGMAP_IRQ
+
+config MFD_ATC260X_I2C
+	tristate "Actions Semi ATC260x PMICs with I2C"
+	select MFD_ATC260X
+	select REGMAP_I2C
+	depends on I2C
+	help
+	  Support for the Actions Semi ATC260x PMICs controlled via I2C.
+
+	  This driver provides common support for accessing the ATC2603C
+	  and ATC2609A chip variants, additional drivers must be enabled
+	  in order to use the functionality of the device.
 
 config MFD_KHADAS_MCU
 	tristate "Support for Khadas System control Microcontroller"

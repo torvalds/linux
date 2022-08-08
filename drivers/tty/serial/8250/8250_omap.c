@@ -1143,7 +1143,6 @@ static int omap_8250_dma_handle_irq(struct uart_port *port)
 	struct uart_8250_port *up = up_to_u8250p(port);
 	struct omap8250_priv *priv = up->port.private_data;
 	unsigned char status;
-	unsigned long flags;
 	u8 iir;
 
 	serial8250_rpm_get(up);
@@ -1154,7 +1153,7 @@ static int omap_8250_dma_handle_irq(struct uart_port *port)
 		return IRQ_HANDLED;
 	}
 
-	spin_lock_irqsave(&port->lock, flags);
+	spin_lock(&port->lock);
 
 	status = serial_port_in(port, UART_LSR);
 
@@ -1179,7 +1178,8 @@ static int omap_8250_dma_handle_irq(struct uart_port *port)
 		}
 	}
 
-	uart_unlock_and_check_sysrq(port, flags);
+	uart_unlock_and_check_sysrq(port);
+
 	serial8250_rpm_put(up);
 	return 1;
 }

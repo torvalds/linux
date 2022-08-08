@@ -36,7 +36,7 @@
 #include <linux/pm_runtime.h>
 
 static struct mutex power_mutex;	/* Serialize power ops */
-static spinlock_t power_ctrl_lock;	/* Serialize power claim */
+static DEFINE_SPINLOCK(power_ctrl_lock);	/* Serialize power claim */
 
 /**
  *	gma_power_init		-	initialise power manager
@@ -55,7 +55,6 @@ void gma_power_init(struct drm_device *dev)
 	dev_priv->display_power = true;	/* We start active */
 	dev_priv->display_count = 0;	/* Currently no users */
 	dev_priv->suspended = false;	/* And not suspended */
-	spin_lock_init(&power_ctrl_lock);
 	mutex_init(&power_mutex);
 
 	if (dev_priv->ops->init_pm)

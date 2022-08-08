@@ -19,6 +19,7 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/ratelimit.h>
+#include "tty.h"
 
 #undef LDISC_DEBUG_HANGUP
 
@@ -147,7 +148,7 @@ static int tty_ldisc_autoload = IS_BUILTIN(CONFIG_LDISC_AUTOLOAD);
  *	Returns: -EINVAL if the discipline index is not [N_TTY..NR_LDISCS] or
  *			 if the discipline is not registered
  *		 -EAGAIN if request_module() failed to load or register the
- *			 the discipline
+ *			 discipline
  *		 -ENOMEM if allocation failure
  *
  *		 Otherwise, returns a pointer to the discipline and bumps the
@@ -459,7 +460,7 @@ static int tty_ldisc_open(struct tty_struct *tty, struct tty_ldisc *ld)
 	WARN_ON(test_and_set_bit(TTY_LDISC_OPEN, &tty->flags));
 	if (ld->ops->open) {
 		int ret;
-                /* BTM here locks versus a hangup event */
+		/* BTM here locks versus a hangup event */
 		ret = ld->ops->open(tty);
 		if (ret)
 			clear_bit(TTY_LDISC_OPEN, &tty->flags);
@@ -508,7 +509,8 @@ static int tty_ldisc_failto(struct tty_struct *tty, int ld)
 		return PTR_ERR(disc);
 	tty->ldisc = disc;
 	tty_set_termios_ldisc(tty, ld);
-	if ((r = tty_ldisc_open(tty, disc)) < 0)
+	r = tty_ldisc_open(tty, disc);
+	if (r < 0)
 		tty_ldisc_put(disc);
 	return r;
 }
@@ -529,9 +531,11 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 		const char *name = tty_name(tty);
 
 		pr_warn("Falling back ldisc for %s.\n", name);
-		/* The traditional behaviour is to fall back to N_TTY, we
-		   want to avoid falling back to N_NULL unless we have no
-		   choice to avoid the risk of breaking anything */
+		/*
+		 * The traditional behaviour is to fall back to N_TTY, we
+		 * want to avoid falling back to N_NULL unless we have no
+		 * choice to avoid the risk of breaking anything
+		 */
 		if (tty_ldisc_failto(tty, N_TTY) < 0 &&
 		    tty_ldisc_failto(tty, N_NULL) < 0)
 			panic("Couldn't open N_NULL ldisc for %s.", name);
@@ -600,17 +604,21 @@ int tty_set_ldisc(struct tty_struct *tty, int disc)
 		up_read(&tty->termios_rwsem);
 	}
 
-	/* At this point we hold a reference to the new ldisc and a
-	   reference to the old ldisc, or we hold two references to
-	   the old ldisc (if it was restored as part of error cleanup
-	   above). In either case, releasing a single reference from
-	   the old ldisc is correct. */
+	/*
+	 * At this point we hold a reference to the new ldisc and a
+	 * reference to the old ldisc, or we hold two references to
+	 * the old ldisc (if it was restored as part of error cleanup
+	 * above). In either case, releasing a single reference from
+	 * the old ldisc is correct.
+	 */
 	new_ldisc = old_ldisc;
 out:
 	tty_ldisc_unlock(tty);
 
-	/* Restart the work queue in case no characters kick it off. Safe if
-	   already running */
+	/*
+	 * Restart the work queue in case no characters kick it off. Safe if
+	 * already running
+	 */
 	tty_buffer_restart_work(tty->port);
 err:
 	tty_ldisc_put(new_ldisc);	/* drop the extra reference */
@@ -771,6 +779,7 @@ void tty_ldisc_hangup(struct tty_struct *tty, bool reinit)
 int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty)
 {
 	int retval = tty_ldisc_open(tty, tty->ldisc);
+
 	if (retval)
 		return retval;
 
@@ -811,8 +820,10 @@ void tty_ldisc_release(struct tty_struct *tty)
 		tty_ldisc_kill(o_tty);
 	tty_ldisc_unlock_pair(tty, o_tty);
 
-	/* And the memory resources remaining (buffers, termios) will be
-	   disposed of when the kref hits zero */
+	/*
+	 * And the memory resources remaining (buffers, termios) will be
+	 * disposed of when the kref hits zero
+	 */
 
 	tty_ldisc_debug(tty, "released\n");
 }
@@ -829,6 +840,7 @@ EXPORT_SYMBOL_GPL(tty_ldisc_release);
 int tty_ldisc_init(struct tty_struct *tty)
 {
 	struct tty_ldisc *ld = tty_ldisc_get(tty, N_TTY);
+
 	if (IS_ERR(ld))
 		return PTR_ERR(ld);
 	tty->ldisc = ld;

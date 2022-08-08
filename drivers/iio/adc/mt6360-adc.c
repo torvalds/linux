@@ -9,12 +9,13 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
-#include <linux/unaligned/be_byteshift.h>
 
 #include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
+
+#include <asm/unaligned.h>
 
 #define MT6360_REG_PMUCHGCTRL3	0x313
 #define MT6360_REG_PMUADCCFG	0x356

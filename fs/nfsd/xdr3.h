@@ -137,6 +137,7 @@ struct nfsd3_readlinkres {
 	__be32			status;
 	struct svc_fh		fh;
 	__u32			len;
+	struct page		**pages;
 };
 
 struct nfsd3_readres {
@@ -144,6 +145,7 @@ struct nfsd3_readres {
 	struct svc_fh		fh;
 	unsigned long		count;
 	__u32			eof;
+	struct page		**pages;
 };
 
 struct nfsd3_writeres {
@@ -167,19 +169,17 @@ struct nfsd3_linkres {
 };
 
 struct nfsd3_readdirres {
+	/* Components of the reply */
 	__be32			status;
 	struct svc_fh		fh;
-	/* Just to save kmalloc on every readdirplus entry (svc_fh is a
-	 * little large for the stack): */
-	struct svc_fh		scratch;
-	int			count;
 	__be32			verf[2];
 
+	/* Used to encode the reply's entry list */
+	struct xdr_stream	xdr;
+	struct xdr_buf		dirlist;
+	struct svc_fh		scratch;
 	struct readdir_cd	common;
-	__be32 *		buffer;
-	int			buflen;
-	__be32 *		offset;
-	__be32 *		offset1;
+	unsigned int		cookie_offset;
 	struct svc_rqst *	rqstp;
 
 };
@@ -280,9 +280,9 @@ int nfs3svc_decode_symlinkargs(struct svc_rqst *, __be32 *);
 int nfs3svc_decode_readdirargs(struct svc_rqst *, __be32 *);
 int nfs3svc_decode_readdirplusargs(struct svc_rqst *, __be32 *);
 int nfs3svc_decode_commitargs(struct svc_rqst *, __be32 *);
-int nfs3svc_encode_attrstat(struct svc_rqst *, __be32 *);
+int nfs3svc_encode_getattrres(struct svc_rqst *, __be32 *);
 int nfs3svc_encode_wccstat(struct svc_rqst *, __be32 *);
-int nfs3svc_encode_diropres(struct svc_rqst *, __be32 *);
+int nfs3svc_encode_lookupres(struct svc_rqst *, __be32 *);
 int nfs3svc_encode_accessres(struct svc_rqst *, __be32 *);
 int nfs3svc_encode_readlinkres(struct svc_rqst *, __be32 *);
 int nfs3svc_encode_readres(struct svc_rqst *, __be32 *);
@@ -298,15 +298,16 @@ int nfs3svc_encode_commitres(struct svc_rqst *, __be32 *);
 
 void nfs3svc_release_fhandle(struct svc_rqst *);
 void nfs3svc_release_fhandle2(struct svc_rqst *);
-int nfs3svc_encode_entry(void *, const char *name,
-				int namlen, loff_t offset, u64 ino,
-				unsigned int);
-int nfs3svc_encode_entry_plus(void *, const char *name,
-				int namlen, loff_t offset, u64 ino,
-				unsigned int);
+
+void nfs3svc_encode_cookie3(struct nfsd3_readdirres *resp, u64 offset);
+int nfs3svc_encode_entry3(void *data, const char *name, int namlen,
+			  loff_t offset, u64 ino, unsigned int d_type);
+int nfs3svc_encode_entryplus3(void *data, const char *name, int namlen,
+			      loff_t offset, u64 ino, unsigned int d_type);
 /* Helper functions for NFSv3 ACL code */
-__be32 *nfs3svc_encode_post_op_attr(struct svc_rqst *rqstp, __be32 *p,
-				struct svc_fh *fhp);
 bool svcxdr_decode_nfs_fh3(struct xdr_stream *xdr, struct svc_fh *fhp);
+bool svcxdr_encode_nfsstat3(struct xdr_stream *xdr, __be32 status);
+bool svcxdr_encode_post_op_attr(struct svc_rqst *rqstp, struct xdr_stream *xdr,
+				const struct svc_fh *fhp);
 
 #endif /* _LINUX_NFSD_XDR3_H */

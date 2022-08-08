@@ -24,5 +24,6 @@
 #define __MMHUB_V1_0_H__
 
 extern const struct amdgpu_mmhub_funcs mmhub_v1_0_funcs;
+extern const struct amdgpu_mmhub_ras_funcs mmhub_v1_0_ras_funcs;
 
 #endif

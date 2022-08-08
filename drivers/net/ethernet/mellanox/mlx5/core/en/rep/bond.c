@@ -223,6 +223,8 @@ static void mlx5e_rep_changelowerstate_event(struct net_device *netdev, void *pt
 	rpriv = priv->ppriv;
 	fwd_vport_num = rpriv->rep->vport;
 	lag_dev = netdev_master_upper_dev_get(netdev);
+	if (!lag_dev)
+		return;
 
 	netdev_dbg(netdev, "lag_dev(%s)'s slave vport(%d) is txable(%d)\n",
 		   lag_dev->name, fwd_vport_num, net_lag_port_dev_txable(netdev));

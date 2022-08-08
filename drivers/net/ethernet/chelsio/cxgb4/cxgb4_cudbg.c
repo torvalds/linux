@@ -157,8 +157,7 @@ static int cudbg_alloc_compress_buff(struct cudbg_init *pdbg_init)
 
 static void cudbg_free_compress_buff(struct cudbg_init *pdbg_init)
 {
-	if (pdbg_init->compress_buff)
-		vfree(pdbg_init->compress_buff);
+	vfree(pdbg_init->compress_buff);
 }
 
 int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,

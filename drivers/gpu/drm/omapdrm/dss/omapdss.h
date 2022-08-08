@@ -48,16 +48,15 @@
 #define DISPC_IRQ_ACBIAS_COUNT_STAT3	(1 << 29)
 #define DISPC_IRQ_FRAMEDONE3		(1 << 30)
 
-struct dss_device;
-struct omap_drm_private;
-struct omap_dss_device;
 struct dispc_device;
+struct drm_connector;
 struct dss_device;
 struct dss_lcd_mgr_config;
+struct hdmi_avi_infoframe;
+struct omap_drm_private;
+struct omap_dss_device;
 struct snd_aes_iec958;
 struct snd_cea_861_aud_if;
-struct hdmi_avi_infoframe;
-struct drm_connector;
 
 enum omap_display_type {
 	OMAP_DISPLAY_TYPE_NONE		= 0,

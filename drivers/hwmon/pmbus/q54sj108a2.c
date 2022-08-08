@@ -299,7 +299,7 @@ static int q54sj108a2_probe(struct i2c_client *client)
 		dev_err(&client->dev, "Failed to read Manufacturer ID\n");
 		return ret;
 	}
-	if (ret != 5 || strncmp(buf, "DELTA", 5)) {
+	if (ret != 6 || strncmp(buf, "DELTA", 5)) {
 		buf[ret] = '\0';
 		dev_err(dev, "Unsupported Manufacturer ID '%s'\n", buf);
 		return -ENODEV;
@@ -420,3 +420,4 @@ module_i2c_driver(q54sj108a2_driver);
 MODULE_AUTHOR("Xiao.Ma <xiao.mx.ma@deltaww.com>");
 MODULE_DESCRIPTION("PMBus driver for Delta Q54SJ108A2 series modules");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

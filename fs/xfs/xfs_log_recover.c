@@ -2683,9 +2683,10 @@ xlog_recover_process_one_iunlink(
 	/*
 	 * Get the on disk inode to find the next inode in the bucket.
 	 */
-	error = xfs_imap_to_bp(mp, NULL, &ip->i_imap, &dip, &ibp, 0);
+	error = xfs_imap_to_bp(mp, NULL, &ip->i_imap, &ibp);
 	if (error)
 		goto fail_iput;
+	dip = xfs_buf_offset(ibp, ip->i_imap.im_boffset);
 
 	xfs_iflags_clear(ip, XFS_IRECOVERY);
 	ASSERT(VFS_I(ip)->i_nlink == 0);
@@ -2694,12 +2695,6 @@ xlog_recover_process_one_iunlink(
 	/* setup for the next pass */
 	agino = be32_to_cpu(dip->di_next_unlinked);
 	xfs_buf_relse(ibp);
-
-	/*
-	 * Prevent any DMAPI event from being sent when the reference on
-	 * the inode is dropped.
-	 */
-	ip->i_d.di_dmevmask = 0;
 
 	xfs_irele(ip);
 	return agino;
@@ -2736,7 +2731,7 @@ xlog_recover_process_one_iunlink(
  * of log space.
  *
  * This behaviour is bad for latency on single CPU and non-preemptible kernels,
- * and can prevent other filesytem work (such as CIL pushes) from running. This
+ * and can prevent other filesystem work (such as CIL pushes) from running. This
  * can lead to deadlocks if the recovery process runs out of log reservation
  * space. Hence we need to yield the CPU when there is other kernel work
  * scheduled on this CPU to ensure other scheduled work can run without undue
@@ -3404,7 +3399,7 @@ xlog_recover(
 
 		/*
 		 * Delay log recovery if the debug hook is set. This is debug
-		 * instrumention to coordinate simulation of I/O failures with
+		 * instrumentation to coordinate simulation of I/O failures with
 		 * log recovery.
 		 */
 		if (xfs_globals.log_recovery_delay) {

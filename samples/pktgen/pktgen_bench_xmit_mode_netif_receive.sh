@@ -50,9 +50,6 @@ if [ -n "$DST_PORT" ]; then
     validate_ports $UDP_DST_MIN $UDP_DST_MAX
 fi
 
-# Base Config
-DELAY="0"        # Zero means max speed
-
 # General cleanup everything since last run
 pg_ctrl "reset"
 

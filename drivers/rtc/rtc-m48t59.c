@@ -421,7 +421,7 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 	/* Try to get irq number. We also can work in
 	 * the mode without IRQ.
 	 */
-	m48t59->irq = platform_get_irq(pdev, 0);
+	m48t59->irq = platform_get_irq_optional(pdev, 0);
 	if (m48t59->irq <= 0)
 		m48t59->irq = NO_IRQ;
 

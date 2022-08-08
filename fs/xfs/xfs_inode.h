@@ -54,8 +54,19 @@ typedef struct xfs_inode {
 	/* Miscellaneous state. */
 	unsigned long		i_flags;	/* see defined flags below */
 	uint64_t		i_delayed_blks;	/* count of delay alloc blks */
-
-	struct xfs_icdinode	i_d;		/* most of ondisk inode */
+	xfs_fsize_t		i_disk_size;	/* number of bytes in file */
+	xfs_rfsblock_t		i_nblocks;	/* # of direct & btree blocks */
+	prid_t			i_projid;	/* owner's project id */
+	xfs_extlen_t		i_extsize;	/* basic/minimum extent size */
+	/* cowextsize is only used for v3 inodes, flushiter for v1/2 */
+	union {
+		xfs_extlen_t	i_cowextsize;	/* basic cow extent size */
+		uint16_t	i_flushiter;	/* incremented on flush */
+	};
+	uint8_t			i_forkoff;	/* attr fork offset >> 3 */
+	uint16_t		i_diflags;	/* XFS_DIFLAG_... */
+	uint64_t		i_diflags2;	/* XFS_DIFLAG2_... */
+	struct timespec64	i_crtime;	/* time created */
 
 	/* VFS inode */
 	struct inode		i_vnode;	/* embedded VFS inode */
@@ -87,7 +98,7 @@ static inline xfs_fsize_t XFS_ISIZE(struct xfs_inode *ip)
 {
 	if (S_ISREG(VFS_I(ip)->i_mode))
 		return i_size_read(VFS_I(ip));
-	return ip->i_d.di_size;
+	return ip->i_disk_size;
 }
 
 /*
@@ -101,7 +112,7 @@ xfs_new_eof(struct xfs_inode *ip, xfs_fsize_t new_size)
 
 	if (new_size > i_size || new_size < 0)
 		new_size = i_size;
-	return new_size > ip->i_d.di_size ? new_size : 0;
+	return new_size > ip->i_disk_size ? new_size : 0;
 }
 
 /*
@@ -174,15 +185,23 @@ xfs_iflags_test_and_set(xfs_inode_t *ip, unsigned short flags)
 static inline prid_t
 xfs_get_initial_prid(struct xfs_inode *dp)
 {
-	if (dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT)
-		return dp->i_d.di_projid;
+	if (dp->i_diflags & XFS_DIFLAG_PROJINHERIT)
+		return dp->i_projid;
 
 	return XFS_PROJID_DEFAULT;
 }
 
 static inline bool xfs_is_reflink_inode(struct xfs_inode *ip)
 {
-	return ip->i_d.di_flags2 & XFS_DIFLAG2_REFLINK;
+	return ip->i_diflags2 & XFS_DIFLAG2_REFLINK;
+}
+
+static inline bool xfs_is_metadata_inode(struct xfs_inode *ip)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+
+	return ip == mp->m_rbmip || ip == mp->m_rsumip ||
+		xfs_is_quota_inode(&mp->m_sb, ip->i_ino);
 }
 
 /*
@@ -196,7 +215,7 @@ static inline bool xfs_inode_has_cow_data(struct xfs_inode *ip)
 
 static inline bool xfs_inode_has_bigtime(struct xfs_inode *ip)
 {
-	return ip->i_d.di_flags2 & XFS_DIFLAG2_BIGTIME;
+	return ip->i_diflags2 & XFS_DIFLAG2_BIGTIME;
 }
 
 /*
@@ -214,6 +233,7 @@ static inline bool xfs_inode_has_bigtime(struct xfs_inode *ip)
 #define XFS_IRECLAIMABLE	(1 << 2) /* inode can be reclaimed */
 #define __XFS_INEW_BIT		3	 /* inode has just been allocated */
 #define XFS_INEW		(1 << __XFS_INEW_BIT)
+#define XFS_IPRESERVE_DM_FIELDS	(1 << 4) /* has legacy DMAPI fields set */
 #define XFS_ITRUNCATED		(1 << 5) /* truncated down so flush-on-close */
 #define XFS_IDIRTY_RELEASE	(1 << 6) /* dirty release already seen */
 #define XFS_IFLUSHING		(1 << 7) /* inode is being flushed */
@@ -371,7 +391,8 @@ int		xfs_lookup(struct xfs_inode *dp, struct xfs_name *name,
 			   struct xfs_inode **ipp, struct xfs_name *ci_name);
 int		xfs_create(struct user_namespace *mnt_userns,
 			   struct xfs_inode *dp, struct xfs_name *name,
-			   umode_t mode, dev_t rdev, struct xfs_inode **ipp);
+			   umode_t mode, dev_t rdev, bool need_xattr,
+			   struct xfs_inode **ipp);
 int		xfs_create_tmpfile(struct user_namespace *mnt_userns,
 			   struct xfs_inode *dp, umode_t mode,
 			   struct xfs_inode **ipp);
@@ -413,7 +434,8 @@ xfs_extlen_t	xfs_get_cowextsz_hint(struct xfs_inode *ip);
 int		xfs_dir_ialloc(struct user_namespace *mnt_userns,
 			       struct xfs_trans **tpp, struct xfs_inode *dp,
 			       umode_t mode, xfs_nlink_t nlink, dev_t dev,
-			       prid_t prid, struct xfs_inode **ipp);
+			       prid_t prid, bool need_xattr,
+			       struct xfs_inode **ipp);
 
 static inline int
 xfs_itruncate_extents(

@@ -273,7 +273,7 @@ struct max310x_port {
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip	gpio;
 #endif
-	struct max310x_one	p[0];
+	struct max310x_one	p[];
 };
 
 static struct uart_driver max310x_uart = {
@@ -1519,6 +1519,8 @@ static int __init max310x_uart_init(void)
 
 #ifdef CONFIG_SPI_MASTER
 	ret = spi_register_driver(&max310x_spi_driver);
+	if (ret)
+		uart_unregister_driver(&max310x_uart);
 #endif
 
 	return ret;

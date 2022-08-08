@@ -1081,8 +1081,6 @@ out_unlock:
 
 /**
  * __receive_fd() - Install received file into file descriptor table
- *
- * @fd: fd to install into (if negative, a new fd will be allocated)
  * @file: struct file that was received from another process
  * @ufd: __user pointer to write new fd number to
  * @o_flags: the O_* flags to apply to the new fd entry
@@ -1096,7 +1094,7 @@ out_unlock:
  *
  * Returns newly install fd or -ve on error.
  */
-int __receive_fd(int fd, struct file *file, int __user *ufd, unsigned int o_flags)
+int __receive_fd(struct file *file, int __user *ufd, unsigned int o_flags)
 {
 	int new_fd;
 	int error;
@@ -1105,32 +1103,33 @@ int __receive_fd(int fd, struct file *file, int __user *ufd, unsigned int o_flag
 	if (error)
 		return error;
 
-	if (fd < 0) {
-		new_fd = get_unused_fd_flags(o_flags);
-		if (new_fd < 0)
-			return new_fd;
-	} else {
-		new_fd = fd;
-	}
+	new_fd = get_unused_fd_flags(o_flags);
+	if (new_fd < 0)
+		return new_fd;
 
 	if (ufd) {
 		error = put_user(new_fd, ufd);
 		if (error) {
-			if (fd < 0)
-				put_unused_fd(new_fd);
+			put_unused_fd(new_fd);
 			return error;
 		}
 	}
 
-	if (fd < 0) {
-		fd_install(new_fd, get_file(file));
-	} else {
-		error = replace_fd(new_fd, file, o_flags);
-		if (error)
-			return error;
-	}
+	fd_install(new_fd, get_file(file));
+	__receive_sock(file);
+	return new_fd;
+}
 
-	/* Bump the sock usage counts, if any. */
+int receive_fd_replace(int new_fd, struct file *file, unsigned int o_flags)
+{
+	int error;
+
+	error = security_file_receive(file);
+	if (error)
+		return error;
+	error = replace_fd(new_fd, file, o_flags);
+	if (error)
+		return error;
 	__receive_sock(file);
 	return new_fd;
 }

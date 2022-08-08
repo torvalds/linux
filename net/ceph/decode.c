@@ -4,6 +4,7 @@
 #include <linux/inet.h>
 
 #include <linux/ceph/decode.h>
+#include <linux/ceph/messenger.h>  /* for ceph_pr_addr() */
 
 static int
 ceph_decode_entity_addr_versioned(void **p, void *end,
@@ -110,6 +111,7 @@ int ceph_decode_entity_addrvec(void **p, void *end, bool msgr2,
 	}
 
 	ceph_decode_32_safe(p, end, addr_cnt, e_inval);
+	dout("%s addr_cnt %d\n", __func__, addr_cnt);
 
 	found = false;
 	for (i = 0; i < addr_cnt; i++) {
@@ -117,6 +119,7 @@ int ceph_decode_entity_addrvec(void **p, void *end, bool msgr2,
 		if (ret)
 			return ret;
 
+		dout("%s i %d addr %s\n", __func__, i, ceph_pr_addr(&tmp_addr));
 		if (tmp_addr.type == my_type) {
 			if (found) {
 				pr_err("another match of type %d in addrvec\n",
@@ -128,13 +131,18 @@ int ceph_decode_entity_addrvec(void **p, void *end, bool msgr2,
 			found = true;
 		}
 	}
-	if (!found && addr_cnt != 0) {
-		pr_err("no match of type %d in addrvec\n",
-		       le32_to_cpu(my_type));
-		return -ENOENT;
-	}
 
-	return 0;
+	if (found)
+		return 0;
+
+	if (!addr_cnt)
+		return 0;  /* normal -- e.g. unused OSD id/slot */
+
+	if (addr_cnt == 1 && !memchr_inv(&tmp_addr, 0, sizeof(tmp_addr)))
+		return 0;  /* weird but effectively the same as !addr_cnt */
+
+	pr_err("no match of type %d in addrvec\n", le32_to_cpu(my_type));
+	return -ENOENT;
 
 e_inval:
 	return -EINVAL;

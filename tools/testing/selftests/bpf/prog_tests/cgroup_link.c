@@ -54,7 +54,7 @@ void test_cgroup_link(void)
 
 	for (i = 0; i < cg_nr; i++) {
 		cgs[i].fd = create_and_get_cgroup(cgs[i].path);
-		if (CHECK(cgs[i].fd < 0, "cg_create", "fail: %d\n", cgs[i].fd))
+		if (!ASSERT_GE(cgs[i].fd, 0, "cg_create"))
 			goto cleanup;
 	}
 

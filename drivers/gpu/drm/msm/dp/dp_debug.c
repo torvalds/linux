@@ -226,7 +226,7 @@ static int dp_test_data_show(struct seq_file *m, void *data)
 					debug->link->test_video.test_h_width);
 			seq_printf(m, "vdisplay: %d\n",
 					debug->link->test_video.test_v_height);
-					seq_printf(m, "bpc: %u\n",
+			seq_printf(m, "bpc: %u\n",
 					dp_link_bit_depth_to_bpc(bpc));
 		} else
 			seq_puts(m, "0");
@@ -368,44 +368,21 @@ static int dp_debug_init(struct dp_debug *dp_debug, struct drm_minor *minor)
 	int rc = 0;
 	struct dp_debug_private *debug = container_of(dp_debug,
 			struct dp_debug_private, dp_debug);
-	struct dentry *file;
-	struct dentry *test_active;
-	struct dentry *test_data, *test_type;
 
-	file = debugfs_create_file("dp_debug", 0444, minor->debugfs_root,
+	debugfs_create_file("dp_debug", 0444, minor->debugfs_root,
 			debug, &dp_debug_fops);
-	if (IS_ERR_OR_NULL(file)) {
-		rc = PTR_ERR(file);
-		DRM_ERROR("[%s] debugfs create file failed, rc=%d\n",
-				  DEBUG_NAME, rc);
-	}
 
-	test_active = debugfs_create_file("msm_dp_test_active", 0444,
+	debugfs_create_file("msm_dp_test_active", 0444,
 			minor->debugfs_root,
 			debug, &test_active_fops);
-	if (IS_ERR_OR_NULL(test_active)) {
-		rc = PTR_ERR(test_active);
-		DRM_ERROR("[%s] debugfs test_active failed, rc=%d\n",
-				  DEBUG_NAME, rc);
-	}
 
-	test_data = debugfs_create_file("msm_dp_test_data", 0444,
+	debugfs_create_file("msm_dp_test_data", 0444,
 			minor->debugfs_root,
 			debug, &dp_test_data_fops);
-	if (IS_ERR_OR_NULL(test_data)) {
-		rc = PTR_ERR(test_data);
-		DRM_ERROR("[%s] debugfs test_data failed, rc=%d\n",
-				  DEBUG_NAME, rc);
-	}
 
-	test_type = debugfs_create_file("msm_dp_test_type", 0444,
+	debugfs_create_file("msm_dp_test_type", 0444,
 			minor->debugfs_root,
 			debug, &dp_test_type_fops);
-	if (IS_ERR_OR_NULL(test_type)) {
-		rc = PTR_ERR(test_type);
-		DRM_ERROR("[%s] debugfs test_type failed, rc=%d\n",
-				  DEBUG_NAME, rc);
-	}
 
 	debug->root = minor->debugfs_root;
 

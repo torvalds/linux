@@ -104,7 +104,7 @@ static void nfs_block_buffered(struct nfs_inode *nfsi, struct inode *inode)
 }
 
 /**
- * nfs_end_io_direct - declare the file is being used for direct i/o
+ * nfs_start_io_direct - declare the file is being used for direct i/o
  * @inode: file inode
  *
  * Declare that a direct I/O operation is about to start, and ensure

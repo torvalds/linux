@@ -1069,7 +1069,7 @@ again:
 
 		/*
 		 * Do not return the error but go back to waiting.  We
-		 * have the inital workspace and the CRUSH computation
+		 * have the initial workspace and the CRUSH computation
 		 * time is bounded so we will get it eventually.
 		 */
 		WARN_ON(atomic_read(&wsm->total_ws) < 1);

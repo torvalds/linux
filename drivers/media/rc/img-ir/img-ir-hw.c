@@ -617,7 +617,7 @@ unlock:
 }
 
 /**
- * img_ir_decoder_compatable() - Find whether a decoder will work with a device.
+ * img_ir_decoder_compatible() - Find whether a decoder will work with a device.
  * @priv:	IR private data.
  * @dec:	Decoder to check.
  *

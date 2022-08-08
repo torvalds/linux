@@ -32,7 +32,7 @@ static const struct pci_device_id atl1c_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, atl1c_pci_tbl);
 
 MODULE_AUTHOR("Jie Yang");
-MODULE_AUTHOR("Qualcomm Atheros Inc., <nic-devel@qualcomm.com>");
+MODULE_AUTHOR("Qualcomm Atheros Inc.");
 MODULE_DESCRIPTION("Qualcomm Atheros 100/1000M Ethernet Network Driver");
 MODULE_LICENSE("GPL");
 
@@ -47,7 +47,7 @@ static void atl1c_down(struct atl1c_adapter *adapter);
 static int atl1c_reset_mac(struct atl1c_hw *hw);
 static void atl1c_reset_dma_ring(struct atl1c_adapter *adapter);
 static int atl1c_configure(struct atl1c_adapter *adapter);
-static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter);
+static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter, bool napi_mode);
 
 
 static const u32 atl1c_default_msg = NETIF_MSG_DRV | NETIF_MSG_PROBE |
@@ -470,7 +470,7 @@ static void atl1c_set_rxbufsize(struct atl1c_adapter *adapter,
 	adapter->rx_buffer_len = mtu > AT_RX_BUF_SIZE ?
 		roundup(mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN, 8) : AT_RX_BUF_SIZE;
 
-	head_size = SKB_DATA_ALIGN(adapter->rx_buffer_len + NET_SKB_PAD) +
+	head_size = SKB_DATA_ALIGN(adapter->rx_buffer_len + NET_SKB_PAD + NET_IP_ALIGN) +
 		    SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 	adapter->rx_frag_size = roundup_pow_of_two(head_size);
 }
@@ -813,6 +813,7 @@ static int atl1c_sw_init(struct atl1c_adapter *adapter)
 	atl1c_set_rxbufsize(adapter, adapter->netdev);
 	atomic_set(&adapter->irq_sem, 1);
 	spin_lock_init(&adapter->mdio_lock);
+	spin_lock_init(&adapter->hw.intr_mask_lock);
 	set_bit(__AT_DOWN, &adapter->flags);
 
 	return 0;
@@ -1434,7 +1435,7 @@ static int atl1c_configure(struct atl1c_adapter *adapter)
 	atl1c_set_multi(netdev);
 	atl1c_restore_vlan(adapter);
 
-	num = atl1c_alloc_rx_buffer(adapter);
+	num = atl1c_alloc_rx_buffer(adapter, false);
 	if (unlikely(num == 0))
 		return -ENOMEM;
 
@@ -1530,20 +1531,19 @@ static inline void atl1c_clear_phy_int(struct atl1c_adapter *adapter)
 	spin_unlock(&adapter->mdio_lock);
 }
 
-static bool atl1c_clean_tx_irq(struct atl1c_adapter *adapter,
-				enum atl1c_trans_queue type)
+static int atl1c_clean_tx(struct napi_struct *napi, int budget)
 {
-	struct atl1c_tpd_ring *tpd_ring = &adapter->tpd_ring[type];
+	struct atl1c_adapter *adapter =
+		container_of(napi, struct atl1c_adapter, tx_napi);
+	struct atl1c_tpd_ring *tpd_ring = &adapter->tpd_ring[atl1c_trans_normal];
 	struct atl1c_buffer *buffer_info;
 	struct pci_dev *pdev = adapter->pdev;
 	u16 next_to_clean = atomic_read(&tpd_ring->next_to_clean);
 	u16 hw_next_to_clean;
-	u16 reg;
 	unsigned int total_bytes = 0, total_packets = 0;
+	unsigned long flags;
 
-	reg = type == atl1c_trans_high ? REG_TPD_PRI1_CIDX : REG_TPD_PRI0_CIDX;
-
-	AT_READ_REGW(&adapter->hw, reg, &hw_next_to_clean);
+	AT_READ_REGW(&adapter->hw, REG_TPD_PRI0_CIDX, &hw_next_to_clean);
 
 	while (next_to_clean != hw_next_to_clean) {
 		buffer_info = &tpd_ring->buffer_info[next_to_clean];
@@ -1564,7 +1564,15 @@ static bool atl1c_clean_tx_irq(struct atl1c_adapter *adapter,
 		netif_wake_queue(adapter->netdev);
 	}
 
-	return true;
+	if (total_packets < budget) {
+		napi_complete_done(napi, total_packets);
+		spin_lock_irqsave(&adapter->hw.intr_mask_lock, flags);
+		adapter->hw.intr_mask |= ISR_TX_PKT;
+		AT_WRITE_REG(&adapter->hw, REG_IMR, adapter->hw.intr_mask);
+		spin_unlock_irqrestore(&adapter->hw.intr_mask_lock, flags);
+		return total_packets;
+	}
+	return budget;
 }
 
 /**
@@ -1599,13 +1607,22 @@ static irqreturn_t atl1c_intr(int irq, void *data)
 		AT_WRITE_REG(hw, REG_ISR, status | ISR_DIS_INT);
 		if (status & ISR_RX_PKT) {
 			if (likely(napi_schedule_prep(&adapter->napi))) {
+				spin_lock(&hw->intr_mask_lock);
 				hw->intr_mask &= ~ISR_RX_PKT;
 				AT_WRITE_REG(hw, REG_IMR, hw->intr_mask);
+				spin_unlock(&hw->intr_mask_lock);
 				__napi_schedule(&adapter->napi);
 			}
 		}
-		if (status & ISR_TX_PKT)
-			atl1c_clean_tx_irq(adapter, atl1c_trans_normal);
+		if (status & ISR_TX_PKT) {
+			if (napi_schedule_prep(&adapter->tx_napi)) {
+				spin_lock(&hw->intr_mask_lock);
+				hw->intr_mask &= ~ISR_TX_PKT;
+				AT_WRITE_REG(hw, REG_IMR, hw->intr_mask);
+				spin_unlock(&hw->intr_mask_lock);
+				__napi_schedule(&adapter->tx_napi);
+			}
+		}
 
 		handled = IRQ_HANDLED;
 		/* check if PCIE PHY Link down */
@@ -1650,14 +1667,20 @@ static inline void atl1c_rx_checksum(struct atl1c_adapter *adapter,
 	skb_checksum_none_assert(skb);
 }
 
-static struct sk_buff *atl1c_alloc_skb(struct atl1c_adapter *adapter)
+static struct sk_buff *atl1c_alloc_skb(struct atl1c_adapter *adapter,
+				       bool napi_mode)
 {
 	struct sk_buff *skb;
 	struct page *page;
 
-	if (adapter->rx_frag_size > PAGE_SIZE)
-		return netdev_alloc_skb(adapter->netdev,
-					adapter->rx_buffer_len);
+	if (adapter->rx_frag_size > PAGE_SIZE) {
+		if (likely(napi_mode))
+			return napi_alloc_skb(&adapter->napi,
+					      adapter->rx_buffer_len);
+		else
+			return netdev_alloc_skb_ip_align(adapter->netdev,
+							 adapter->rx_buffer_len);
+	}
 
 	page = adapter->rx_page;
 	if (!page) {
@@ -1670,7 +1693,7 @@ static struct sk_buff *atl1c_alloc_skb(struct atl1c_adapter *adapter)
 	skb = build_skb(page_address(page) + adapter->rx_page_offset,
 			adapter->rx_frag_size);
 	if (likely(skb)) {
-		skb_reserve(skb, NET_SKB_PAD);
+		skb_reserve(skb, NET_SKB_PAD + NET_IP_ALIGN);
 		adapter->rx_page_offset += adapter->rx_frag_size;
 		if (adapter->rx_page_offset >= PAGE_SIZE)
 			adapter->rx_page = NULL;
@@ -1680,7 +1703,7 @@ static struct sk_buff *atl1c_alloc_skb(struct atl1c_adapter *adapter)
 	return skb;
 }
 
-static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter)
+static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter, bool napi_mode)
 {
 	struct atl1c_rfd_ring *rfd_ring = &adapter->rfd_ring;
 	struct pci_dev *pdev = adapter->pdev;
@@ -1701,7 +1724,7 @@ static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter)
 	while (next_info->flags & ATL1C_BUFFER_FREE) {
 		rfd_desc = ATL1C_RFD_DESC(rfd_ring, rfd_next_to_use);
 
-		skb = atl1c_alloc_skb(adapter);
+		skb = atl1c_alloc_skb(adapter, napi_mode);
 		if (unlikely(!skb)) {
 			if (netif_msg_rx_err(adapter))
 				dev_warn(&pdev->dev, "alloc rx buffer failed\n");
@@ -1851,13 +1874,13 @@ rrs_checked:
 			vlan = le16_to_cpu(vlan);
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan);
 		}
-		netif_receive_skb(skb);
+		napi_gro_receive(&adapter->napi, skb);
 
 		(*work_done)++;
 		count++;
 	}
 	if (count)
-		atl1c_alloc_rx_buffer(adapter);
+		atl1c_alloc_rx_buffer(adapter, true);
 }
 
 /**
@@ -1870,6 +1893,7 @@ static int atl1c_clean(struct napi_struct *napi, int budget)
 	struct atl1c_adapter *adapter =
 			container_of(napi, struct atl1c_adapter, napi);
 	int work_done = 0;
+	unsigned long flags;
 
 	/* Keep link state information with original netdev */
 	if (!netif_carrier_ok(adapter->netdev))
@@ -1880,8 +1904,10 @@ static int atl1c_clean(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 quit_polling:
 		napi_complete_done(napi, work_done);
+		spin_lock_irqsave(&adapter->hw.intr_mask_lock, flags);
 		adapter->hw.intr_mask |= ISR_RX_PKT;
 		AT_WRITE_REG(&adapter->hw, REG_IMR, adapter->hw.intr_mask);
+		spin_unlock_irqrestore(&adapter->hw.intr_mask_lock, flags);
 	}
 	return work_done;
 }
@@ -2319,6 +2345,7 @@ static int atl1c_up(struct atl1c_adapter *adapter)
 	atl1c_check_link_status(adapter);
 	clear_bit(__AT_DOWN, &adapter->flags);
 	napi_enable(&adapter->napi);
+	napi_enable(&adapter->tx_napi);
 	atl1c_irq_enable(adapter);
 	netif_start_queue(netdev);
 	return err;
@@ -2339,6 +2366,7 @@ static void atl1c_down(struct atl1c_adapter *adapter)
 	set_bit(__AT_DOWN, &adapter->flags);
 	netif_carrier_off(netdev);
 	napi_disable(&adapter->napi);
+	napi_disable(&adapter->tx_napi);
 	atl1c_irq_disable(adapter);
 	atl1c_free_irq(adapter);
 	/* disable ASPM if device inactive */
@@ -2587,7 +2615,9 @@ static int atl1c_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->mii.mdio_write = atl1c_mdio_write;
 	adapter->mii.phy_id_mask = 0x1f;
 	adapter->mii.reg_num_mask = MDIO_CTRL_REG_MASK;
+	dev_set_threaded(netdev, true);
 	netif_napi_add(netdev, &adapter->napi, atl1c_clean, 64);
+	netif_napi_add(netdev, &adapter->tx_napi, atl1c_clean_tx, 64);
 	timer_setup(&adapter->phy_config_timer, atl1c_phy_config, 0);
 	/* setup the private structure */
 	err = atl1c_sw_init(adapter);

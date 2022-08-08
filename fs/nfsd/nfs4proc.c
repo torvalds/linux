@@ -1383,10 +1383,13 @@ static void nfsd4_init_copy_res(struct nfsd4_copy *copy, bool sync)
 static ssize_t _nfsd_copy_file_range(struct nfsd4_copy *copy)
 {
 	ssize_t bytes_copied = 0;
-	size_t bytes_total = copy->cp_count;
+	u64 bytes_total = copy->cp_count;
 	u64 src_pos = copy->cp_src_pos;
 	u64 dst_pos = copy->cp_dst_pos;
 
+	/* See RFC 7862 p.67: */
+	if (bytes_total == 0)
+		bytes_total = ULLONG_MAX;
 	do {
 		if (kthread_should_stop())
 			break;
@@ -1538,8 +1541,8 @@ nfsd4_copy(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		if (!nfs4_init_copy_state(nn, copy))
 			goto out_err;
 		refcount_set(&async_copy->refcount, 1);
-		memcpy(&copy->cp_res.cb_stateid, &copy->cp_stateid,
-			sizeof(copy->cp_stateid));
+		memcpy(&copy->cp_res.cb_stateid, &copy->cp_stateid.stid,
+			sizeof(copy->cp_res.cb_stateid));
 		dup_copy_fields(copy, async_copy);
 		async_copy->copy_task = kthread_create(nfsd4_do_async_copy,
 				async_copy, "%s", "copy thread");
@@ -2262,25 +2265,6 @@ static bool need_wrongsec_check(struct svc_rqst *rqstp)
 	return !(nextd->op_flags & OP_HANDLES_WRONGSEC);
 }
 
-static void svcxdr_init_encode(struct svc_rqst *rqstp,
-			       struct nfsd4_compoundres *resp)
-{
-	struct xdr_stream *xdr = &resp->xdr;
-	struct xdr_buf *buf = &rqstp->rq_res;
-	struct kvec *head = buf->head;
-
-	xdr->buf = buf;
-	xdr->iov = head;
-	xdr->p   = head->iov_base + head->iov_len;
-	xdr->end = head->iov_base + PAGE_SIZE - rqstp->rq_auth_slack;
-	/* Tail and page_len should be zero at this point: */
-	buf->len = buf->head[0].iov_len;
-	xdr_reset_scratch_buffer(xdr);
-	xdr->page_ptr = buf->pages - 1;
-	buf->buflen = PAGE_SIZE * (1 + rqstp->rq_page_end - buf->pages)
-		- rqstp->rq_auth_slack;
-}
-
 #ifdef CONFIG_NFSD_V4_2_INTER_SSC
 static void
 check_if_stalefh_allowed(struct nfsd4_compoundargs *args)
@@ -2335,10 +2319,14 @@ nfsd4_proc_compound(struct svc_rqst *rqstp)
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 	__be32		status;
 
-	svcxdr_init_encode(rqstp, resp);
-	resp->tagp = resp->xdr.p;
+	resp->xdr = &rqstp->rq_res_stream;
+
+	/* reserve space for: NFS status code */
+	xdr_reserve_space(resp->xdr, XDR_UNIT);
+
+	resp->tagp = resp->xdr->p;
 	/* reserve space for: taglen, tag, and opcnt */
-	xdr_reserve_space(&resp->xdr, 8 + args->taglen);
+	xdr_reserve_space(resp->xdr, XDR_UNIT * 2 + args->taglen);
 	resp->taglen = args->taglen;
 	resp->tag = args->tag;
 	resp->rqstp = rqstp;
@@ -2444,7 +2432,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp)
 encode_op:
 		if (op->status == nfserr_replay_me) {
 			op->replay = &cstate->replay_owner->so_replay;
-			nfsd4_encode_replay(&resp->xdr, op);
+			nfsd4_encode_replay(resp->xdr, op);
 			status = op->status = op->replay->rp_status;
 		} else {
 			nfsd4_encode_operation(resp, op);
@@ -3329,9 +3317,3 @@ const struct svc_version nfsd_version4 = {
 	.vs_rpcb_optnl		= true,
 	.vs_need_cong_ctrl	= true,
 };
-
-/*
- * Local variables:
- *  c-basic-offset: 8
- * End:
- */

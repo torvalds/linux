@@ -90,9 +90,11 @@ void *memmove(void *v_dst, const void *v_src, __kernel_size_t c)
 		case 3:
 			*--dst = *--src;
 			--c;
+			fallthrough;
 		case 2:
 			*--dst = *--src;
 			--c;
+			fallthrough;
 		case 1:
 			*--dst = *--src;
 			--c;
@@ -201,10 +203,13 @@ void *memmove(void *v_dst, const void *v_src, __kernel_size_t c)
 	switch (c) {
 	case 4:
 		*--dst = *--src;
+		fallthrough;
 	case 3:
 		*--dst = *--src;
+		fallthrough;
 	case 2:
 		*--dst = *--src;
+		fallthrough;
 	case 1:
 		*--dst = *--src;
 	}

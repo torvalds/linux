@@ -60,9 +60,12 @@ struct nsim_ethtool_pauseparam {
 };
 
 struct nsim_ethtool {
+	u32 get_err;
+	u32 set_err;
 	struct nsim_ethtool_pauseparam pauseparam;
 	struct ethtool_coalesce coalesce;
 	struct ethtool_ringparam ring;
+	struct ethtool_fecparam fec;
 };
 
 struct netdevsim {
@@ -180,6 +183,20 @@ struct nsim_dev_health {
 int nsim_dev_health_init(struct nsim_dev *nsim_dev, struct devlink *devlink);
 void nsim_dev_health_exit(struct nsim_dev *nsim_dev);
 
+#if IS_ENABLED(CONFIG_PSAMPLE)
+int nsim_dev_psample_init(struct nsim_dev *nsim_dev);
+void nsim_dev_psample_exit(struct nsim_dev *nsim_dev);
+#else
+static inline int nsim_dev_psample_init(struct nsim_dev *nsim_dev)
+{
+	return 0;
+}
+
+static inline void nsim_dev_psample_exit(struct nsim_dev *nsim_dev)
+{
+}
+#endif
+
 struct nsim_dev_port {
 	struct list_head list;
 	struct devlink_port devlink_port;
@@ -229,6 +246,7 @@ struct nsim_dev {
 		bool static_iana_vxlan;
 		u32 sleep;
 	} udp_ports;
+	struct nsim_dev_psample *psample;
 };
 
 static inline struct net *nsim_dev_net(struct nsim_dev *nsim_dev)

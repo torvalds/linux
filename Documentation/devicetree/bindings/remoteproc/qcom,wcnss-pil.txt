@@ -34,6 +34,12 @@ on the Qualcomm WCNSS core.
 	Definition: should be "wdog", "fatal", optionally followed by "ready",
 		    "handover", "stop-ack"
 
+- firmware-name:
+	Usage: optional
+	Value type: <string>
+	Definition: must list the relative firmware image path for the
+		    WCNSS core. Defaults to "wcnss.mdt".
+
 - vddmx-supply: (deprecated for qcom,pronto-v1/2-pil)
 - vddcx-supply: (deprecated for qcom,pronto-v1/2-pil)
 - vddpx-supply:

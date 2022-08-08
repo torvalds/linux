@@ -167,7 +167,6 @@ static int amd_cable_detect(struct ata_port *ap)
 /**
  *	amd_fifo_setup		-	set the PIO FIFO for ATA/ATAPI
  *	@ap: ATA interface
- *	@adev: ATA device
  *
  *	Set the PCI fifo for this device according to the devices present
  *	on the bus at this point in time. We need to turn the post write buffer
@@ -320,8 +319,9 @@ static unsigned long nv_mode_filter(struct ata_device *dev,
 }
 
 /**
- *	nv_probe_init	-	cable detection
- *	@lin: ATA link
+ *	nv_pre_reset	-	cable detection
+ *	@link: ATA link
+ *	@deadline: deadline jiffies for the operation
  *
  *	Perform cable detection. The BIOS stores this in PCI config
  *	space for us.

@@ -204,6 +204,17 @@ config REGULATOR_BD70528
 	  This driver can also be built as a module. If so, the module
 	  will be called bd70528-regulator.
 
+config REGULATOR_BD71815
+	tristate "ROHM BD71815 Power Regulator"
+	depends on MFD_ROHM_BD71828
+	help
+	  This driver supports voltage regulators on ROHM BD71815 PMIC.
+	  This will enable support for the software controllable buck
+	  and LDO regulators and a current regulator for LEDs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called bd71815-regulator.
+
 config REGULATOR_BD71828
 	tristate "ROHM BD71828 Power Regulator"
 	depends on MFD_ROHM_BD71828
@@ -421,6 +432,15 @@ config REGULATOR_HI655X
 	help
 	  This driver provides support for the voltage regulators of the
 	  Hisilicon Hi655x PMIC device.
+
+config REGULATOR_HI6421V600
+	tristate "HiSilicon Hi6421v600 PMIC voltage regulator support"
+	depends on MFD_HI6421_SPMI && OF
+	select REGMAP
+	help
+	  This driver provides support for the voltage regulators on
+	  HiSilicon Hi6421v600 PMU / Codec IC.
+	  This is used on Kirin 3670 boards, like HiKey 970.
 
 config REGULATOR_ISL9305
 	tristate "Intersil ISL9305 regulator"
@@ -1011,7 +1031,7 @@ config REGULATOR_RT5033
 	  current source, LDO and Buck.
 
 config REGULATOR_RTMV20
-	tristate "RTMV20 Laser Diode Regulator"
+	tristate "Richtek RTMV20 Laser Diode Regulator"
 	depends on I2C
 	select REGMAP_I2C
 	help

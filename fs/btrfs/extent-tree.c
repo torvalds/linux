@@ -1340,11 +1340,15 @@ int btrfs_discard_extent(struct btrfs_fs_info *fs_info, u64 bytenr,
 		stripe = bbio->stripes;
 		for (i = 0; i < bbio->num_stripes; i++, stripe++) {
 			u64 bytes;
+			struct btrfs_device *device = stripe->dev;
 
-			if (!stripe->dev->bdev) {
+			if (!device->bdev) {
 				ASSERT(btrfs_test_opt(fs_info, DEGRADED));
 				continue;
 			}
+
+			if (!test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state))
+				continue;
 
 			ret = do_discard_extent(stripe, &bytes);
 			if (!ret) {
@@ -1864,7 +1868,7 @@ static int cleanup_ref_head(struct btrfs_trans_handle *trans,
 	trace_run_delayed_ref_head(fs_info, head, 0);
 	btrfs_delayed_ref_unlock(head);
 	btrfs_put_delayed_ref_head(head);
-	return 0;
+	return ret;
 }
 
 static struct btrfs_delayed_ref_head *btrfs_obtain_ref_head(
@@ -2488,19 +2492,6 @@ int btrfs_dec_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		  struct extent_buffer *buf, int full_backref)
 {
 	return __btrfs_mod_ref(trans, root, buf, full_backref, 0);
-}
-
-int btrfs_extent_readonly(struct btrfs_fs_info *fs_info, u64 bytenr)
-{
-	struct btrfs_block_group *block_group;
-	int readonly = 0;
-
-	block_group = btrfs_lookup_block_group(fs_info, bytenr);
-	if (!block_group || block_group->ro)
-		readonly = 1;
-	if (block_group)
-		btrfs_put_block_group(block_group);
-	return readonly;
 }
 
 static u64 get_alloc_profile_by_root(struct btrfs_root *root, int data)
@@ -3355,11 +3346,9 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 		 * find a node pointing to this leaf and record operations that
 		 * point to this leaf.
 		 */
-		if (btrfs_header_level(buf) == 0) {
-			read_lock(&fs_info->tree_mod_log_lock);
-			must_pin = !list_empty(&fs_info->tree_mod_seq_list);
-			read_unlock(&fs_info->tree_mod_log_lock);
-		}
+		if (btrfs_header_level(buf) == 0 &&
+		    test_bit(BTRFS_FS_TREE_MOD_LOG_USERS, &fs_info->flags))
+			must_pin = true;
 
 		if (must_pin || btrfs_is_zoned(fs_info)) {
 			btrfs_redirty_list_add(trans->transaction, buf);

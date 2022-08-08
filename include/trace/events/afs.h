@@ -886,65 +886,52 @@ TRACE_EVENT(afs_call_done,
 		      __entry->rx_call)
 	    );
 
-TRACE_EVENT(afs_send_pages,
-	    TP_PROTO(struct afs_call *call, struct msghdr *msg,
-		     pgoff_t first, pgoff_t last, unsigned int offset),
+TRACE_EVENT(afs_send_data,
+	    TP_PROTO(struct afs_call *call, struct msghdr *msg),
 
-	    TP_ARGS(call, msg, first, last, offset),
+	    TP_ARGS(call, msg),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call		)
-		    __field(pgoff_t,			first		)
-		    __field(pgoff_t,			last		)
-		    __field(unsigned int,		nr		)
-		    __field(unsigned int,		bytes		)
-		    __field(unsigned int,		offset		)
 		    __field(unsigned int,		flags		)
+		    __field(loff_t,			offset		)
+		    __field(loff_t,			count		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->call = call->debug_id;
-		    __entry->first = first;
-		    __entry->last = last;
-		    __entry->nr = msg->msg_iter.nr_segs;
-		    __entry->bytes = msg->msg_iter.count;
-		    __entry->offset = offset;
 		    __entry->flags = msg->msg_flags;
+		    __entry->offset = msg->msg_iter.xarray_start + msg->msg_iter.iov_offset;
+		    __entry->count = iov_iter_count(&msg->msg_iter);
 			   ),
 
-	    TP_printk(" c=%08x %lx-%lx-%lx b=%x o=%x f=%x",
-		      __entry->call,
-		      __entry->first, __entry->first + __entry->nr - 1, __entry->last,
-		      __entry->bytes, __entry->offset,
+	    TP_printk(" c=%08x o=%llx n=%llx f=%x",
+		      __entry->call, __entry->offset, __entry->count,
 		      __entry->flags)
 	    );
 
-TRACE_EVENT(afs_sent_pages,
-	    TP_PROTO(struct afs_call *call, pgoff_t first, pgoff_t last,
-		     pgoff_t cursor, int ret),
+TRACE_EVENT(afs_sent_data,
+	    TP_PROTO(struct afs_call *call, struct msghdr *msg, int ret),
 
-	    TP_ARGS(call, first, last, cursor, ret),
+	    TP_ARGS(call, msg, ret),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call		)
-		    __field(pgoff_t,			first		)
-		    __field(pgoff_t,			last		)
-		    __field(pgoff_t,			cursor		)
 		    __field(int,			ret		)
+		    __field(loff_t,			offset		)
+		    __field(loff_t,			count		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->call = call->debug_id;
-		    __entry->first = first;
-		    __entry->last = last;
-		    __entry->cursor = cursor;
 		    __entry->ret = ret;
+		    __entry->offset = msg->msg_iter.xarray_start + msg->msg_iter.iov_offset;
+		    __entry->count = iov_iter_count(&msg->msg_iter);
 			   ),
 
-	    TP_printk(" c=%08x %lx-%lx c=%lx r=%d",
-		      __entry->call,
-		      __entry->first, __entry->last,
-		      __entry->cursor, __entry->ret)
+	    TP_printk(" c=%08x o=%llx n=%llx r=%x",
+		      __entry->call, __entry->offset, __entry->count,
+		      __entry->ret)
 	    );
 
 TRACE_EVENT(afs_dir_check_failed,
@@ -969,30 +956,33 @@ TRACE_EVENT(afs_dir_check_failed,
 	    );
 
 TRACE_EVENT(afs_page_dirty,
-	    TP_PROTO(struct afs_vnode *vnode, const char *where,
-		     pgoff_t page, unsigned long priv),
+	    TP_PROTO(struct afs_vnode *vnode, const char *where, struct page *page),
 
-	    TP_ARGS(vnode, where, page, priv),
+	    TP_ARGS(vnode, where, page),
 
 	    TP_STRUCT__entry(
 		    __field(struct afs_vnode *,		vnode		)
 		    __field(const char *,		where		)
 		    __field(pgoff_t,			page		)
-		    __field(unsigned long,		priv		)
+		    __field(unsigned long,		from		)
+		    __field(unsigned long,		to		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->vnode = vnode;
 		    __entry->where = where;
-		    __entry->page = page;
-		    __entry->priv = priv;
+		    __entry->page = page->index;
+		    __entry->from = afs_page_dirty_from(page, page->private);
+		    __entry->to = afs_page_dirty_to(page, page->private);
+		    __entry->to |= (afs_is_page_dirty_mmapped(page->private) ?
+				    (1UL << (BITS_PER_LONG - 1)) : 0);
 			   ),
 
-	    TP_printk("vn=%p %lx %s %zx-%zx%s",
+	    TP_printk("vn=%p %lx %s %lx-%lx%s",
 		      __entry->vnode, __entry->page, __entry->where,
-		      afs_page_dirty_from(__entry->priv),
-		      afs_page_dirty_to(__entry->priv),
-		      afs_is_page_dirty_mmapped(__entry->priv) ? " M" : "")
+		      __entry->from,
+		      __entry->to & ~(1UL << (BITS_PER_LONG - 1)),
+		      __entry->to & (1UL << (BITS_PER_LONG - 1)) ? " M" : "")
 	    );
 
 TRACE_EVENT(afs_call_state,

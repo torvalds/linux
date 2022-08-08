@@ -28,11 +28,6 @@ Copyright (C) 2006-2008, Uri Shkolnik, Anatoly Greenblat
 
 #include "smsir.h"
 
-#define kmutex_init(_p_) mutex_init(_p_)
-#define kmutex_lock(_p_) mutex_lock(_p_)
-#define kmutex_trylock(_p_) mutex_trylock(_p_)
-#define kmutex_unlock(_p_) mutex_unlock(_p_)
-
 /*
  * Define the firmware names used by the driver.
  * Those should match what's used at smscoreapi.c and sms-cards.c

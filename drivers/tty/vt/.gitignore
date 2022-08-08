@@ -1,4 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-conmakehash
-consolemap_deftbl.c
-defkeymap.c
+/conmakehash
+/consolemap_deftbl.c
+/defkeymap.c

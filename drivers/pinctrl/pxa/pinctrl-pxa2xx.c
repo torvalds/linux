@@ -194,7 +194,7 @@ static int pxa2xx_pconf_group_get(struct pinctrl_dev *pctldev,
 
 	spin_lock_irqsave(&pctl->lock, flags);
 	val = readl_relaxed(pgsr) & BIT(pin % 32);
-	*config = val ? PIN_CONFIG_LOW_POWER_MODE : 0;
+	*config = val ? PIN_CONFIG_MODE_LOW_POWER : 0;
 	spin_unlock_irqrestore(&pctl->lock, flags);
 
 	dev_dbg(pctl->dev, "get sleep gpio state(pin=%d) %d\n",
@@ -217,7 +217,7 @@ static int pxa2xx_pconf_group_set(struct pinctrl_dev *pctldev,
 
 	for (i = 0; i < num_configs; i++) {
 		switch (pinconf_to_config_param(configs[i])) {
-		case PIN_CONFIG_LOW_POWER_MODE:
+		case PIN_CONFIG_MODE_LOW_POWER:
 			is_set = pinconf_to_config_argument(configs[i]);
 			break;
 		default:

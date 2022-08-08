@@ -1868,18 +1868,19 @@ static int omap_sw_ooblayout_ecc(struct mtd_info *mtd, int section,
 				 struct mtd_oob_region *oobregion)
 {
 	struct nand_device *nand = mtd_to_nanddev(mtd);
-	const struct nand_ecc_sw_bch_conf *engine_conf = nand->ecc.ctx.priv;
+	unsigned int nsteps = nanddev_get_ecc_nsteps(nand);
+	unsigned int ecc_bytes = nanddev_get_ecc_bytes_per_step(nand);
 	int off = BADBLOCK_MARKER_LENGTH;
 
-	if (section >= engine_conf->nsteps)
+	if (section >= nsteps)
 		return -ERANGE;
 
 	/*
 	 * When SW correction is employed, one OMAP specific marker byte is
 	 * reserved after each ECC step.
 	 */
-	oobregion->offset = off + (section * (engine_conf->code_size + 1));
-	oobregion->length = engine_conf->code_size;
+	oobregion->offset = off + (section * (ecc_bytes + 1));
+	oobregion->length = ecc_bytes;
 
 	return 0;
 }
@@ -1888,7 +1889,8 @@ static int omap_sw_ooblayout_free(struct mtd_info *mtd, int section,
 				  struct mtd_oob_region *oobregion)
 {
 	struct nand_device *nand = mtd_to_nanddev(mtd);
-	const struct nand_ecc_sw_bch_conf *engine_conf = nand->ecc.ctx.priv;
+	unsigned int nsteps = nanddev_get_ecc_nsteps(nand);
+	unsigned int ecc_bytes = nanddev_get_ecc_bytes_per_step(nand);
 	int off = BADBLOCK_MARKER_LENGTH;
 
 	if (section)
@@ -1898,7 +1900,7 @@ static int omap_sw_ooblayout_free(struct mtd_info *mtd, int section,
 	 * When SW correction is employed, one OMAP specific marker byte is
 	 * reserved after each ECC step.
 	 */
-	off += ((engine_conf->code_size + 1) * engine_conf->nsteps);
+	off += ((ecc_bytes + 1) * nsteps);
 	if (off >= mtd->oobsize)
 		return -ERANGE;
 

@@ -11,13 +11,12 @@
 
 static unsigned long byt_machine_id;
 
-#define BYT_THINKPAD_10  1
+#define BYT_RT5672       1
 #define BYT_POV_P1006W   2
-#define BYT_AEGEX_10     3
 
-static int byt_thinkpad10_quirk_cb(const struct dmi_system_id *id)
+static int byt_rt5672_quirk_cb(const struct dmi_system_id *id)
 {
-	byt_machine_id = BYT_THINKPAD_10;
+	byt_machine_id = BYT_RT5672;
 	return 1;
 }
 
@@ -27,36 +26,30 @@ static int byt_pov_p1006w_quirk_cb(const struct dmi_system_id *id)
 	return 1;
 }
 
-static int byt_aegex10_quirk_cb(const struct dmi_system_id *id)
-{
-	byt_machine_id = BYT_AEGEX_10;
-	return 1;
-}
-
 static const struct dmi_system_id byt_table[] = {
 	{
-		.callback = byt_thinkpad10_quirk_cb,
+		.callback = byt_rt5672_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad 8"),
 		},
 	},
 	{
-		.callback = byt_thinkpad10_quirk_cb,
+		.callback = byt_rt5672_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad 10"),
 		},
 	},
 	{
-		.callback = byt_thinkpad10_quirk_cb,
+		.callback = byt_rt5672_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad Tablet B"),
 		},
 	},
 	{
-		.callback = byt_thinkpad10_quirk_cb,
+		.callback = byt_rt5672_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Miix 2 10"),
@@ -75,17 +68,25 @@ static const struct dmi_system_id byt_table[] = {
 	},
 	{
 		/* Aegex 10 tablet (RU2) */
-		.callback = byt_aegex10_quirk_cb,
+		.callback = byt_rt5672_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "AEGEX"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "RU2"),
 		},
 	},
+	{
+		/* Dell Venue 10 Pro 5055 */
+		.callback = byt_rt5672_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Venue 10 Pro 5055"),
+		},
+	},
 	{ }
 };
 
-/* The Thinkapd 10 and Aegex 10 tablets have the same ID problem */
-static struct snd_soc_acpi_mach byt_thinkpad_10 = {
+/* Various devices use an ACPI id of 10EC5640 while using a rt5672 codec */
+static struct snd_soc_acpi_mach byt_rt5672 = {
 	.id = "10EC5640",
 	.drv_name = "cht-bsw-rt5672",
 	.fw_filename = "intel/fw_sst_0f28.bin",
@@ -110,9 +111,8 @@ static struct snd_soc_acpi_mach *byt_quirk(void *arg)
 	dmi_check_system(byt_table);
 
 	switch (byt_machine_id) {
-	case BYT_THINKPAD_10:
-	case BYT_AEGEX_10:
-		return &byt_thinkpad_10;
+	case BYT_RT5672:
+		return &byt_rt5672;
 	case BYT_POV_P1006W:
 		return &byt_pov_p1006w;
 	default:

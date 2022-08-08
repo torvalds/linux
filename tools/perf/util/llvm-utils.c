@@ -471,7 +471,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 
 	/*
 	 * This is an optional work. Even it fail we can continue our
-	 * work. Needn't to check error return.
+	 * work. Needn't check error return.
 	 */
 	llvm__get_kbuild_opts(&kbuild_dir, &kbuild_include_opts);
 

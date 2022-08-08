@@ -519,7 +519,7 @@ static bool dump_interrupted(void)
 	 * but then we need to teach dump_write() to restart and clear
 	 * TIF_SIGPENDING.
 	 */
-	return signal_pending(current);
+	return fatal_signal_pending(current) || freezing(current);
 }
 
 static void wait_for_dump_helpers(struct file *file)
@@ -809,6 +809,16 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		}
 		file_start_write(cprm.file);
 		core_dumped = binfmt->core_dump(&cprm);
+		/*
+		 * Ensures that file size is big enough to contain the current
+		 * file postion. This prevents gdb from complaining about
+		 * a truncated file if the last "write" to the file was
+		 * dump_skip.
+		 */
+		if (cprm.to_skip) {
+			cprm.to_skip--;
+			dump_emit(&cprm, "", 1);
+		}
 		file_end_write(cprm.file);
 	}
 	if (ispipe && core_pipe_limit)
@@ -835,7 +845,7 @@ fail:
  * do on a core-file: use only these functions to write out all the
  * necessary info.
  */
-int dump_emit(struct coredump_params *cprm, const void *addr, int nr)
+static int __dump_emit(struct coredump_params *cprm, const void *addr, int nr)
 {
 	struct file *file = cprm->file;
 	loff_t pos = file->f_pos;
@@ -855,9 +865,8 @@ int dump_emit(struct coredump_params *cprm, const void *addr, int nr)
 
 	return 1;
 }
-EXPORT_SYMBOL(dump_emit);
 
-int dump_skip(struct coredump_params *cprm, size_t nr)
+static int __dump_skip(struct coredump_params *cprm, size_t nr)
 {
 	static char zeroes[PAGE_SIZE];
 	struct file *file = cprm->file;
@@ -869,12 +878,34 @@ int dump_skip(struct coredump_params *cprm, size_t nr)
 		return 1;
 	} else {
 		while (nr > PAGE_SIZE) {
-			if (!dump_emit(cprm, zeroes, PAGE_SIZE))
+			if (!__dump_emit(cprm, zeroes, PAGE_SIZE))
 				return 0;
 			nr -= PAGE_SIZE;
 		}
-		return dump_emit(cprm, zeroes, nr);
+		return __dump_emit(cprm, zeroes, nr);
 	}
+}
+
+int dump_emit(struct coredump_params *cprm, const void *addr, int nr)
+{
+	if (cprm->to_skip) {
+		if (!__dump_skip(cprm, cprm->to_skip))
+			return 0;
+		cprm->to_skip = 0;
+	}
+	return __dump_emit(cprm, addr, nr);
+}
+EXPORT_SYMBOL(dump_emit);
+
+void dump_skip_to(struct coredump_params *cprm, unsigned long pos)
+{
+	cprm->to_skip = pos - cprm->pos;
+}
+EXPORT_SYMBOL(dump_skip_to);
+
+void dump_skip(struct coredump_params *cprm, size_t nr)
+{
+	cprm->to_skip += nr;
 }
 EXPORT_SYMBOL(dump_skip);
 
@@ -902,11 +933,11 @@ int dump_user_range(struct coredump_params *cprm, unsigned long start,
 			stop = !dump_emit(cprm, kaddr, PAGE_SIZE);
 			kunmap_local(kaddr);
 			put_page(page);
+			if (stop)
+				return 0;
 		} else {
-			stop = !dump_skip(cprm, PAGE_SIZE);
+			dump_skip(cprm, PAGE_SIZE);
 		}
-		if (stop)
-			return 0;
 	}
 	return 1;
 }
@@ -914,31 +945,14 @@ int dump_user_range(struct coredump_params *cprm, unsigned long start,
 
 int dump_align(struct coredump_params *cprm, int align)
 {
-	unsigned mod = cprm->pos & (align - 1);
+	unsigned mod = (cprm->pos + cprm->to_skip) & (align - 1);
 	if (align & (align - 1))
 		return 0;
-	return mod ? dump_skip(cprm, align - mod) : 1;
+	if (mod)
+		cprm->to_skip += align - mod;
+	return 1;
 }
 EXPORT_SYMBOL(dump_align);
-
-/*
- * Ensures that file size is big enough to contain the current file
- * postion. This prevents gdb from complaining about a truncated file
- * if the last "write" to the file was dump_skip.
- */
-void dump_truncate(struct coredump_params *cprm)
-{
-	struct file *file = cprm->file;
-	loff_t offset;
-
-	if (file->f_op->llseek && file->f_op->llseek != no_llseek) {
-		offset = file->f_op->llseek(file, 0, SEEK_CUR);
-		if (i_size_read(file->f_mapping->host) < offset)
-			do_truncate(file_mnt_user_ns(file), file->f_path.dentry,
-				    offset, 0, file);
-	}
-}
-EXPORT_SYMBOL(dump_truncate);
 
 /*
  * The purpose of always_dump_vma() is to make sure that special kernel mappings

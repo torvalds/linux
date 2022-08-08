@@ -75,7 +75,7 @@ is available from the LinuxTV v4l-dvb repository; see
 `https://linuxtv.org/repo/ <https://linuxtv.org/repo/>`__ for access
 instructions.
 
-.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{3.5cm}|p{7.0cm}|
+.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{3.5cm}|p{6.6cm}|
 
 .. _name-v4l2-dbg-match:
 
@@ -101,7 +101,7 @@ instructions.
       -
 
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. c:type:: v4l2_dbg_chip_info
 
@@ -127,7 +127,7 @@ instructions.
       - Reserved fields, both application and driver must set these to 0.
 
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. _name-chip-match-types:
 

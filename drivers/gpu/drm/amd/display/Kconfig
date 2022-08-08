@@ -38,4 +38,18 @@ config DEBUG_KERNEL_DC
 	help
 	  Choose this option if you want to hit kdgb_break in assert.
 
+config DRM_AMD_SECURE_DISPLAY
+        bool "Enable secure display support"
+        default n
+        depends on DEBUG_FS
+        depends on DRM_AMD_DC_DCN
+        help
+            Choose this option if you want to
+            support secure display
+
+            This option enables the calculation
+            of crc of specific region via debugfs.
+            Cooperate with specific DMCU FW.
+
+
 endmenu

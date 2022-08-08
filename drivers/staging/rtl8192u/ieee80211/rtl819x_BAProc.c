@@ -140,7 +140,7 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, s
 	// Dialog Token
 	*tag++ = pBA->dialog_token;
 
-	if (ACT_ADDBARSP == type) {
+	if (type == ACT_ADDBARSP) {
 		// Status Code
 		netdev_info(ieee->dev, "=====>to send ADDBARSP\n");
 
@@ -156,7 +156,7 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, s
 	put_unaligned_le16(pBA->timeout_value, tag);
 	tag += 2;
 
-	if (ACT_ADDBAREQ == type) {
+	if (type == ACT_ADDBAREQ) {
 	// BA Start SeqCtrl
 		memcpy(tag, (u8 *)&(pBA->start_seq_ctrl), 2);
 		tag += 2;

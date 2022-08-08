@@ -32,7 +32,7 @@ struct intel_reset {
 	 *
 	 * #I915_WEDGED_ON_INIT - If we fail to initialize the GPU we can no
 	 * longer use the GPU - similar to #I915_WEDGED bit. The difference in
-	 * in the way we're handling "forced" unwedged (e.g. through debugfs),
+	 * the way we're handling "forced" unwedged (e.g. through debugfs),
 	 * which is not allowed in case we failed to initialize.
 	 *
 	 * #I915_WEDGED_ON_FINI - Similar to #I915_WEDGED_ON_INIT, except we

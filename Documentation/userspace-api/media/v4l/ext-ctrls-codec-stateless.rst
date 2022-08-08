@@ -34,7 +34,11 @@ Stateless Codec Control ID
 
 .. c:type:: v4l2_ctrl_h264_sps
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{1.2cm}|p{8.6cm}|p{7.5cm}|
 
 .. flat-table:: struct v4l2_ctrl_h264_sps
     :header-rows:  0
@@ -95,6 +99,10 @@ Stateless Codec Control ID
     * - __u32
       - ``flags``
       - See :ref:`Sequence Parameter Set Flags <h264_sps_flags>`
+
+.. raw:: latex
+
+    \normalsize
 
 .. _h264_sps_constraints_set_flags:
 
@@ -171,7 +179,9 @@ Stateless Codec Control ID
 
 .. c:type:: v4l2_ctrl_h264_pps
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
 
 .. flat-table:: struct v4l2_ctrl_h264_pps
     :header-rows:  0
@@ -212,42 +222,56 @@ Stateless Codec Control ID
       - ``flags``
       - See :ref:`Picture Parameter Set Flags <h264_pps_flags>`
 
+.. raw:: latex
+
+    \normalsize
+
 .. _h264_pps_flags:
 
 ``Picture Parameter Set Flags``
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \begingroup
+    \scriptsize
+    \setlength{\tabcolsep}{2pt}
+
+.. tabularcolumns:: |p{9.8cm}|p{1.0cm}|p{6.5cm}|
 
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2
+    :widths:       10 1 4
 
     * - ``V4L2_H264_PPS_FLAG_ENTROPY_CODING_MODE``
-      - 0x00000001
+      - 0x0001
       -
     * - ``V4L2_H264_PPS_FLAG_BOTTOM_FIELD_PIC_ORDER_IN_FRAME_PRESENT``
-      - 0x00000002
+      - 0x0002
       -
     * - ``V4L2_H264_PPS_FLAG_WEIGHTED_PRED``
-      - 0x00000004
+      - 0x0004
       -
     * - ``V4L2_H264_PPS_FLAG_DEBLOCKING_FILTER_CONTROL_PRESENT``
-      - 0x00000008
+      - 0x0008
       -
     * - ``V4L2_H264_PPS_FLAG_CONSTRAINED_INTRA_PRED``
-      - 0x00000010
+      - 0x0010
       -
     * - ``V4L2_H264_PPS_FLAG_REDUNDANT_PIC_CNT_PRESENT``
-      - 0x00000020
+      - 0x0020
       -
     * - ``V4L2_H264_PPS_FLAG_TRANSFORM_8X8_MODE``
-      - 0x00000040
+      - 0x0040
       -
     * - ``V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT``
-      - 0x00000080
-      - Indicates that ``V4L2_CID_STATELESS_H264_SCALING_MATRIX``
+      - 0x0080
+      - ``V4L2_CID_STATELESS_H264_SCALING_MATRIX``
         must be used for this picture.
+
+.. raw:: latex
+
+    \endgroup
 
 ``V4L2_CID_STATELESS_H264_SCALING_MATRIX (struct)``
     Specifies the scaling matrix (as extracted from the bitstream) for
@@ -259,7 +283,11 @@ Stateless Codec Control ID
 
 .. c:type:: v4l2_ctrl_h264_scaling_matrix
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{0.6cm}|p{4.8cm}|p{11.9cm}|
 
 .. flat-table:: struct v4l2_ctrl_h264_scaling_matrix
     :header-rows:  0
@@ -290,7 +318,11 @@ Stateless Codec Control ID
 
 .. c:type:: v4l2_ctrl_h264_slice_params
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{4.0cm}|p{5.9cm}|p{7.4cm}|
 
 .. flat-table:: struct v4l2_ctrl_h264_slice_params
     :header-rows:  0
@@ -333,11 +365,11 @@ Stateless Codec Control ID
     * - __u8
       - ``num_ref_idx_l0_active_minus1``
       - If num_ref_idx_active_override_flag is not set, this field must be
-        set to the value of num_ref_idx_l0_default_active_minus1.
+        set to the value of num_ref_idx_l0_default_active_minus1
     * - __u8
       - ``num_ref_idx_l1_active_minus1``
       - If num_ref_idx_active_override_flag is not set, this field must be
-        set to the value of num_ref_idx_l1_default_active_minus1.
+        set to the value of num_ref_idx_l1_default_active_minus1
     * - __u8
       - ``reserved``
       - Applications and drivers must set this to zero.
@@ -350,6 +382,10 @@ Stateless Codec Control ID
     * - __u32
       - ``flags``
       - See :ref:`Slice Parameter Flags <h264_slice_flags>`
+
+.. raw:: latex
+
+    \normalsize
 
 .. _h264_slice_flags:
 
@@ -378,7 +414,11 @@ Stateless Codec Control ID
 
 .. c:type:: v4l2_ctrl_h264_pred_weights
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{4.9cm}|p{4.9cm}|p{7.5cm}|
 
 .. flat-table:: struct v4l2_ctrl_h264_pred_weights
     :header-rows:  0
@@ -396,9 +436,17 @@ Stateless Codec Control ID
       - The weight factors at index 0 are the weight factors for the reference
         list 0, the one at index 1 for the reference list 1.
 
+.. raw:: latex
+
+    \normalsize
+
 .. c:type:: v4l2_h264_weight_factors
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{1.0cm}|p{4.5cm}|p{11.8cm}|
 
 .. flat-table:: struct v4l2_h264_weight_factors
     :header-rows:  0
@@ -417,6 +465,10 @@ Stateless Codec Control ID
     * - __s16
       - ``chroma_offset[32][2]``
       -
+
+.. raw:: latex
+
+    \normalsize
 
 ``Picture Reference``
 
@@ -440,7 +492,11 @@ Stateless Codec Control ID
 
 ``Reference Fields``
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{5.4cm}|p{0.8cm}|p{11.1cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -458,6 +514,10 @@ Stateless Codec Control ID
       - The frame (or the top/bottom fields, if it's a field pair)
         is used for short-term reference.
 
+.. raw:: latex
+
+    \normalsize
+
 ``V4L2_CID_STATELESS_H264_DECODE_PARAMS (struct)``
     Specifies the decode parameters (as extracted from the bitstream)
     for the associated H264 slice data. This includes the necessary
@@ -469,7 +529,11 @@ Stateless Codec Control ID
 
 .. c:type:: v4l2_ctrl_h264_decode_params
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{4.0cm}|p{5.9cm}|p{7.4cm}|
 
 .. flat-table:: struct v4l2_ctrl_h264_decode_params
     :header-rows:  0
@@ -524,11 +588,19 @@ Stateless Codec Control ID
       - ``flags``
       - See :ref:`Decode Parameters Flags <h264_decode_params_flags>`
 
+.. raw:: latex
+
+    \normalsize
+
 .. _h264_decode_params_flags:
 
 ``Decode Parameters Flags``
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{8.3cm}|p{2.1cm}|p{6.9cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -545,9 +617,17 @@ Stateless Codec Control ID
       - 0x00000004
       -
 
+.. raw:: latex
+
+    \normalsize
+
 .. c:type:: v4l2_h264_dpb_entry
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{1.0cm}|p{4.9cm}|p{11.4cm}|
 
 .. flat-table:: struct v4l2_h264_dpb_entry
     :header-rows:  0
@@ -583,11 +663,19 @@ Stateless Codec Control ID
       - ``flags``
       - See :ref:`DPB Entry Flags <h264_dpb_flags>`
 
+.. raw:: latex
+
+    \normalsize
+
 .. _h264_dpb_flags:
 
 ``DPB Entries Flags``
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{7.7cm}|p{2.1cm}|p{7.5cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -607,6 +695,10 @@ Stateless Codec Control ID
       - 0x00000008
       - The DPB entry is a single field or a complementary field pair.
 
+.. raw:: latex
+
+    \normalsize
+
 ``V4L2_CID_STATELESS_H264_DECODE_MODE (enum)``
     Specifies the decoding mode to use. Currently exposes slice-based and
     frame-based decoding but new modes might be added later on.
@@ -619,7 +711,11 @@ Stateless Codec Control ID
 
 .. c:type:: v4l2_stateless_h264_decode_mode
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \scriptsize
+
+.. tabularcolumns:: |p{7.4cm}|p{0.3cm}|p{9.6cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -644,6 +740,10 @@ Stateless Codec Control ID
         selected, the ``V4L2_CID_STATELESS_H264_SLICE_PARAMS``
         control shall not be set.
 
+.. raw:: latex
+
+    \normalsize
+
 ``V4L2_CID_STATELESS_H264_START_CODE (enum)``
     Specifies the H264 slice start code expected for each slice.
     This control is used as a modifier for V4L2_PIX_FMT_H264_SLICE
@@ -655,23 +755,32 @@ Stateless Codec Control ID
 
 .. c:type:: v4l2_stateless_h264_start_code
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{7.9cm}|p{0.4cm}|p{9.0cm}|
 
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2
+    :widths:       4 1 4
 
     * - ``V4L2_STATELESS_H264_START_CODE_NONE``
       - 0
       - Selecting this value specifies that H264 slices are passed
-        to the driver without any start code.
+        to the driver without any start code. The bitstream data should be
+        according to :ref:`h264` 7.3.1 NAL unit syntax, hence contains
+        emulation prevention bytes when required.
     * - ``V4L2_STATELESS_H264_START_CODE_ANNEX_B``
       - 1
       - Selecting this value specifies that H264 slices are expected
         to be prefixed by Annex B start codes. According to :ref:`h264`
         valid start codes can be 3-bytes 0x000001 or 4-bytes 0x00000001.
 
+.. raw:: latex
+
+    \normalsize
 
 .. _codec-stateless-fwht:
 
@@ -683,9 +792,11 @@ Stateless Codec Control ID
 
 .. c:type:: v4l2_ctrl_fwht_params
 
-.. cssclass:: longtable
+.. raw:: latex
 
-.. tabularcolumns:: |p{1.4cm}|p{4.3cm}|p{11.8cm}|
+    \small
+
+.. tabularcolumns:: |p{1.4cm}|p{3.9cm}|p{12.0cm}|
 
 .. flat-table:: struct v4l2_ctrl_fwht_params
     :header-rows:  0
@@ -724,16 +835,20 @@ Stateless Codec Control ID
       - ``quantization``
       - The quantization range, from enum :c:type:`v4l2_quantization`.
 
+.. raw:: latex
 
+    \normalsize
 
 .. _fwht-flags:
 
 FWHT Flags
 ==========
 
-.. cssclass:: longtable
+.. raw:: latex
 
-.. tabularcolumns:: |p{6.8cm}|p{2.4cm}|p{8.3cm}|
+    \small
+
+.. tabularcolumns:: |p{7.0cm}|p{2.3cm}|p{8.0cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -778,7 +893,7 @@ FWHT Flags
       - Set if this is an I-frame.
     * - ``V4L2_FWHT_FL_COMPONENTS_NUM_MSK``
       - 0x00070000
-      - The number of color components - 1.
+      - The number of color components minus one.
     * - ``V4L2_FWHT_FL_PIXENC_MSK``
       - 0x00180000
       - The mask for the pixel encoding.
@@ -791,3 +906,341 @@ FWHT Flags
     * - ``V4L2_FWHT_FL_PIXENC_HSV``
       - 0x00180000
       - Set if the pixel encoding is HSV.
+
+.. raw:: latex
+
+    \normalsize
+
+.. _v4l2-codec-stateless-vp8:
+
+``V4L2_CID_STATELESS_VP8_FRAME (struct)``
+    Specifies the frame parameters for the associated VP8 parsed frame data.
+    This includes the necessary parameters for
+    configuring a stateless hardware decoding pipeline for VP8.
+    The bitstream parameters are defined according to :ref:`vp8`.
+
+.. c:type:: v4l2_ctrl_vp8_frame
+
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{7.0cm}|p{4.6cm}|p{5.7cm}|
+
+.. cssclass:: longtable
+
+.. flat-table:: struct v4l2_ctrl_vp8_frame
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - struct :c:type:`v4l2_vp8_segment`
+      - ``segment``
+      - Structure with segment-based adjustments metadata.
+    * - struct :c:type:`v4l2_vp8_loop_filter`
+      - ``lf``
+      - Structure with loop filter level adjustments metadata.
+    * - struct :c:type:`v4l2_vp8_quantization`
+      - ``quant``
+      - Structure with VP8 dequantization indices metadata.
+    * - struct :c:type:`v4l2_vp8_entropy`
+      - ``entropy``
+      - Structure with VP8 entropy coder probabilities metadata.
+    * - struct :c:type:`v4l2_vp8_entropy_coder_state`
+      - ``coder_state``
+      - Structure with VP8 entropy coder state.
+    * - __u16
+      - ``width``
+      - The width of the frame. Must be set for all frames.
+    * - __u16
+      - ``height``
+      - The height of the frame. Must be set for all frames.
+    * - __u8
+      - ``horizontal_scale``
+      - Horizontal scaling factor.
+    * - __u8
+      - ``vertical_scaling factor``
+      - Vertical scale.
+    * - __u8
+      - ``version``
+      - Bitstream version.
+    * - __u8
+      - ``prob_skip_false``
+      - Indicates the probability that the macroblock is not skipped.
+    * - __u8
+      - ``prob_intra``
+      - Indicates the probability that a macroblock is intra-predicted.
+    * - __u8
+      - ``prob_last``
+      - Indicates the probability that the last reference frame is used
+        for inter-prediction
+    * - __u8
+      - ``prob_gf``
+      - Indicates the probability that the golden reference frame is used
+        for inter-prediction
+    * - __u8
+      - ``num_dct_parts``
+      - Number of DCT coefficients partitions. Must be one of: 1, 2, 4, or 8.
+    * - __u32
+      - ``first_part_size``
+      - Size of the first partition, i.e. the control partition.
+    * - __u32
+      - ``first_part_header_bits``
+      - Size in bits of the first partition header portion.
+    * - __u32
+      - ``dct_part_sizes[8]``
+      - DCT coefficients sizes.
+    * - __u64
+      - ``last_frame_ts``
+      - Timestamp for the V4L2 capture buffer to use as last reference frame, used
+        with inter-coded frames. The timestamp refers to the ``timestamp`` field in
+	struct :c:type:`v4l2_buffer`. Use the :c:func:`v4l2_timeval_to_ns()`
+	function to convert the struct :c:type:`timeval` in struct
+	:c:type:`v4l2_buffer` to a __u64.
+    * - __u64
+      - ``golden_frame_ts``
+      - Timestamp for the V4L2 capture buffer to use as last reference frame, used
+        with inter-coded frames. The timestamp refers to the ``timestamp`` field in
+	struct :c:type:`v4l2_buffer`. Use the :c:func:`v4l2_timeval_to_ns()`
+	function to convert the struct :c:type:`timeval` in struct
+	:c:type:`v4l2_buffer` to a __u64.
+    * - __u64
+      - ``alt_frame_ts``
+      - Timestamp for the V4L2 capture buffer to use as alternate reference frame, used
+        with inter-coded frames. The timestamp refers to the ``timestamp`` field in
+	struct :c:type:`v4l2_buffer`. Use the :c:func:`v4l2_timeval_to_ns()`
+	function to convert the struct :c:type:`timeval` in struct
+	:c:type:`v4l2_buffer` to a __u64.
+    * - __u64
+      - ``flags``
+      - See :ref:`Frame Flags <vp8_frame_flags>`
+
+.. raw:: latex
+
+    \normalsize
+
+.. _vp8_frame_flags:
+
+``Frame Flags``
+
+.. tabularcolumns:: |p{9.8cm}|p{0.8cm}|p{6.7cm}|
+
+.. cssclass:: longtable
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - ``V4L2_VP8_FRAME_FLAG_KEY_FRAME``
+      - 0x01
+      - Indicates if the frame is a key frame.
+    * - ``V4L2_VP8_FRAME_FLAG_EXPERIMENTAL``
+      - 0x02
+      - Experimental bitstream.
+    * - ``V4L2_VP8_FRAME_FLAG_SHOW_FRAME``
+      - 0x04
+      - Show frame flag, indicates if the frame is for display.
+    * - ``V4L2_VP8_FRAME_FLAG_MB_NO_SKIP_COEFF``
+      - 0x08
+      - Enable/disable skipping of macroblocks with no non-zero coefficients.
+    * - ``V4L2_VP8_FRAME_FLAG_SIGN_BIAS_GOLDEN``
+      - 0x10
+      - Sign of motion vectors when the golden frame is referenced.
+    * - ``V4L2_VP8_FRAME_FLAG_SIGN_BIAS_ALT``
+      - 0x20
+      - Sign of motion vectors when the alt frame is referenced.
+
+.. c:type:: v4l2_vp8_entropy_coder_state
+
+.. cssclass:: longtable
+
+.. tabularcolumns:: |p{1.0cm}|p{2.0cm}|p{14.3cm}|
+
+.. flat-table:: struct v4l2_vp8_entropy_coder_state
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __u8
+      - ``range``
+      - coder state value for "Range"
+    * - __u8
+      - ``value``
+      - coder state value for "Value"-
+    * - __u8
+      - ``bit_count``
+      - number of bits left.
+    * - __u8
+      - ``padding``
+      - Applications and drivers must set this to zero.
+
+.. c:type:: v4l2_vp8_segment
+
+.. cssclass:: longtable
+
+.. tabularcolumns:: |p{1.2cm}|p{4.0cm}|p{12.1cm}|
+
+.. flat-table:: struct v4l2_vp8_segment
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __s8
+      - ``quant_update[4]``
+      - Signed quantizer value update.
+    * - __s8
+      - ``lf_update[4]``
+      - Signed loop filter level value update.
+    * - __u8
+      - ``segment_probs[3]``
+      - Segment probabilities.
+    * - __u8
+      - ``padding``
+      - Applications and drivers must set this to zero.
+    * - __u32
+      - ``flags``
+      - See :ref:`Segment Flags <vp8_segment_flags>`
+
+.. _vp8_segment_flags:
+
+``Segment Flags``
+
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{10cm}|p{1.0cm}|p{6.3cm}|
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - ``V4L2_VP8_SEGMENT_FLAG_ENABLED``
+      - 0x01
+      - Enable/disable segment-based adjustments.
+    * - ``V4L2_VP8_SEGMENT_FLAG_UPDATE_MAP``
+      - 0x02
+      - Indicates if the macroblock segmentation map is updated in this frame.
+    * - ``V4L2_VP8_SEGMENT_FLAG_UPDATE_FEATURE_DATA``
+      - 0x04
+      - Indicates if the segment feature data is updated in this frame.
+    * - ``V4L2_VP8_SEGMENT_FLAG_DELTA_VALUE_MODE``
+      - 0x08
+      - If is set, the segment feature data mode is delta-value.
+        If cleared, it's absolute-value.
+
+.. raw:: latex
+
+    \normalsize
+
+.. c:type:: v4l2_vp8_loop_filter
+
+.. cssclass:: longtable
+
+.. tabularcolumns:: |p{1.5cm}|p{3.9cm}|p{11.9cm}|
+
+.. flat-table:: struct v4l2_vp8_loop_filter
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __s8
+      - ``ref_frm_delta[4]``
+      - Reference adjustment (signed) delta value.
+    * - __s8
+      - ``mb_mode_delta[4]``
+      - Macroblock prediction mode adjustment (signed) delta value.
+    * - __u8
+      - ``sharpness_level``
+      - Sharpness level
+    * - __u8
+      - ``level``
+      - Filter level
+    * - __u16
+      - ``padding``
+      - Applications and drivers must set this to zero.
+    * - __u32
+      - ``flags``
+      - See :ref:`Loop Filter Flags <vp8_loop_filter_flags>`
+
+.. _vp8_loop_filter_flags:
+
+``Loop Filter Flags``
+
+.. tabularcolumns:: |p{7.0cm}|p{1.2cm}|p{9.1cm}|
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - ``V4L2_VP8_LF_ADJ_ENABLE``
+      - 0x01
+      - Enable/disable macroblock-level loop filter adjustment.
+    * - ``V4L2_VP8_LF_DELTA_UPDATE``
+      - 0x02
+      - Indicates if the delta values used in an adjustment are updated.
+    * - ``V4L2_VP8_LF_FILTER_TYPE_SIMPLE``
+      - 0x04
+      - If set, indicates the filter type is simple.
+        If cleared, the filter type is normal.
+
+.. c:type:: v4l2_vp8_quantization
+
+.. tabularcolumns:: |p{1.5cm}|p{3.5cm}|p{12.3cm}|
+
+.. flat-table:: struct v4l2_vp8_quantization
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __u8
+      - ``y_ac_qi``
+      - Luma AC coefficient table index.
+    * - __s8
+      - ``y_dc_delta``
+      - Luma DC delta vaue.
+    * - __s8
+      - ``y2_dc_delta``
+      - Y2 block DC delta value.
+    * - __s8
+      - ``y2_ac_delta``
+      - Y2 block AC delta value.
+    * - __s8
+      - ``uv_dc_delta``
+      - Chroma DC delta value.
+    * - __s8
+      - ``uv_ac_delta``
+      - Chroma AC delta value.
+    * - __u16
+      - ``padding``
+      - Applications and drivers must set this to zero.
+
+.. c:type:: v4l2_vp8_entropy
+
+.. cssclass:: longtable
+
+.. tabularcolumns:: |p{1.5cm}|p{5.8cm}|p{10.0cm}|
+
+.. flat-table:: struct v4l2_vp8_entropy
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __u8
+      - ``coeff_probs[4][8][3][11]``
+      - Coefficient update probabilities.
+    * - __u8
+      - ``y_mode_probs[4]``
+      - Luma mode update probabilities.
+    * - __u8
+      - ``uv_mode_probs[3]``
+      - Chroma mode update probabilities.
+    * - __u8
+      - ``mv_probs[2][19]``
+      - MV decoding update probabilities.
+    * - __u8
+      - ``padding[3]``
+      - Applications and drivers must set this to zero.

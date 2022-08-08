@@ -10,6 +10,8 @@
 
 enum pipe;
 struct drm_i915_private;
+struct intel_crtc;
+struct intel_initial_plane_config;
 struct intel_plane;
 struct intel_plane_state;
 
@@ -21,4 +23,6 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state);
 struct intel_plane *
 intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe);
 
+void i9xx_get_initial_plane_config(struct intel_crtc *crtc,
+				   struct intel_initial_plane_config *plane_config);
 #endif

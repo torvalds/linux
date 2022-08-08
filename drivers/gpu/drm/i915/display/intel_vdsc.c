@@ -343,14 +343,10 @@ bool intel_dsc_source_support(const struct intel_crtc_state *crtc_state)
 		return false;
 
 	/* On TGL, DSC is supported on all Pipes */
-	if (INTEL_GEN(i915) >= 12)
+	if (DISPLAY_VER(i915) >= 12)
 		return true;
 
-	if (INTEL_GEN(i915) >= 10 &&
-	    (pipe != PIPE_A ||
-	     (cpu_transcoder == TRANSCODER_EDP ||
-	      cpu_transcoder == TRANSCODER_DSI_0 ||
-	      cpu_transcoder == TRANSCODER_DSI_1)))
+	if ((DISPLAY_VER(i915) >= 11 || IS_CANNONLAKE(i915)) && (pipe != PIPE_A || (cpu_transcoder == TRANSCODER_EDP || cpu_transcoder == TRANSCODER_DSI_0 || cpu_transcoder == TRANSCODER_DSI_1)))
 		return true;
 
 	return false;
@@ -362,7 +358,7 @@ static bool is_pipe_dsc(const struct intel_crtc_state *crtc_state)
 	const struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
-	if (INTEL_GEN(i915) >= 12)
+	if (DISPLAY_VER(i915) >= 12)
 		return true;
 
 	if (cpu_transcoder == TRANSCODER_EDP ||
@@ -479,7 +475,7 @@ intel_dsc_power_domain(const struct intel_crtc_state *crtc_state)
 	 * the pipe in use. Hence another reference on the pipe power domain
 	 * will suffice. (Except no VDSC/joining on ICL pipe A.)
 	 */
-	if (INTEL_GEN(i915) >= 12 && !IS_ROCKETLAKE(i915) && pipe == PIPE_A)
+	if (DISPLAY_VER(i915) >= 12 && !IS_ROCKETLAKE(i915) && pipe == PIPE_A)
 		return POWER_DOMAIN_TRANSCODER_VDSC_PW2;
 	else if (is_pipe_dsc(crtc_state))
 		return POWER_DOMAIN_PIPE(pipe);

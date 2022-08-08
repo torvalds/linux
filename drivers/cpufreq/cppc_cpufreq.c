@@ -216,26 +216,16 @@ static unsigned int cppc_cpufreq_get_transition_delay_us(unsigned int cpu)
 {
 	unsigned long implementor = read_cpuid_implementor();
 	unsigned long part_num = read_cpuid_part_number();
-	unsigned int delay_us = 0;
 
 	switch (implementor) {
 	case ARM_CPU_IMP_QCOM:
 		switch (part_num) {
 		case QCOM_CPU_PART_FALKOR_V1:
 		case QCOM_CPU_PART_FALKOR:
-			delay_us = 10000;
-			break;
-		default:
-			delay_us = cppc_get_transition_latency(cpu) / NSEC_PER_USEC;
-			break;
+			return 10000;
 		}
-		break;
-	default:
-		delay_us = cppc_get_transition_latency(cpu) / NSEC_PER_USEC;
-		break;
 	}
-
-	return delay_us;
+	return cppc_get_transition_latency(cpu) / NSEC_PER_USEC;
 }
 
 #else

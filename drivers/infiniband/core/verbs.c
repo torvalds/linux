@@ -96,10 +96,10 @@ static const char * const wc_statuses[] = {
 	[IB_WC_LOC_EEC_OP_ERR]		= "local EE context operation error",
 	[IB_WC_LOC_PROT_ERR]		= "local protection error",
 	[IB_WC_WR_FLUSH_ERR]		= "WR flushed",
-	[IB_WC_MW_BIND_ERR]		= "memory management operation error",
+	[IB_WC_MW_BIND_ERR]		= "memory bind operation error",
 	[IB_WC_BAD_RESP_ERR]		= "bad response error",
 	[IB_WC_LOC_ACCESS_ERR]		= "local access error",
-	[IB_WC_REM_INV_REQ_ERR]		= "invalid request error",
+	[IB_WC_REM_INV_REQ_ERR]		= "remote invalid request error",
 	[IB_WC_REM_ACCESS_ERR]		= "remote access error",
 	[IB_WC_REM_OP_ERR]		= "remote operation error",
 	[IB_WC_RETRY_EXC_ERR]		= "transport retry counter exceeded",
@@ -227,7 +227,8 @@ rdma_node_get_transport(unsigned int node_type)
 }
 EXPORT_SYMBOL(rdma_node_get_transport);
 
-enum rdma_link_layer rdma_port_get_link_layer(struct ib_device *device, u8 port_num)
+enum rdma_link_layer rdma_port_get_link_layer(struct ib_device *device,
+					      u32 port_num)
 {
 	enum rdma_transport_type lt;
 	if (device->ops.get_link_layer)
@@ -341,7 +342,8 @@ int ib_dealloc_pd_user(struct ib_pd *pd, struct ib_udata *udata)
 	}
 
 	/* uverbs manipulates usecnt with proper locking, while the kabi
-	   requires the caller to guarantee we can't race here. */
+	 * requires the caller to guarantee we can't race here.
+	 */
 	WARN_ON(atomic_read(&pd->usecnt));
 
 	ret = pd->device->ops.dealloc_pd(pd, udata);
@@ -658,7 +660,7 @@ int ib_get_rdma_header_version(const union rdma_network_hdr *hdr)
 EXPORT_SYMBOL(ib_get_rdma_header_version);
 
 static enum rdma_network_type ib_get_net_type_by_grh(struct ib_device *device,
-						     u8 port_num,
+						     u32 port_num,
 						     const struct ib_grh *grh)
 {
 	int grh_version;
@@ -701,7 +703,7 @@ static bool find_gid_index(const union ib_gid *gid,
 }
 
 static const struct ib_gid_attr *
-get_sgid_attr_from_eth(struct ib_device *device, u8 port_num,
+get_sgid_attr_from_eth(struct ib_device *device, u32 port_num,
 		       u16 vlan_id, const union ib_gid *sgid,
 		       enum ib_gid_type gid_type)
 {
@@ -788,7 +790,7 @@ static int ib_resolve_unicast_gid_dmac(struct ib_device *device,
  * On success the caller is responsible to call rdma_destroy_ah_attr on the
  * attr.
  */
-int ib_init_ah_attr_from_wc(struct ib_device *device, u8 port_num,
+int ib_init_ah_attr_from_wc(struct ib_device *device, u32 port_num,
 			    const struct ib_wc *wc, const struct ib_grh *grh,
 			    struct rdma_ah_attr *ah_attr)
 {
@@ -919,7 +921,7 @@ void rdma_destroy_ah_attr(struct rdma_ah_attr *ah_attr)
 EXPORT_SYMBOL(rdma_destroy_ah_attr);
 
 struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, const struct ib_wc *wc,
-				   const struct ib_grh *grh, u8 port_num)
+				   const struct ib_grh *grh, u32 port_num)
 {
 	struct rdma_ah_attr ah_attr;
 	struct ib_ah *ah;
@@ -1037,8 +1039,12 @@ struct ib_srq *ib_create_srq_user(struct ib_pd *pd,
 	}
 	atomic_inc(&pd->usecnt);
 
+	rdma_restrack_new(&srq->res, RDMA_RESTRACK_SRQ);
+	rdma_restrack_parent_name(&srq->res, &pd->res);
+
 	ret = pd->device->ops.create_srq(srq, srq_init_attr, udata);
 	if (ret) {
+		rdma_restrack_put(&srq->res);
 		atomic_dec(&srq->pd->usecnt);
 		if (srq->srq_type == IB_SRQT_XRC)
 			atomic_dec(&srq->ext.xrc.xrcd->usecnt);
@@ -1047,6 +1053,8 @@ struct ib_srq *ib_create_srq_user(struct ib_pd *pd,
 		kfree(srq);
 		return ERR_PTR(ret);
 	}
+
+	rdma_restrack_add(&srq->res);
 
 	return srq;
 }
@@ -1086,6 +1094,7 @@ int ib_destroy_srq_user(struct ib_srq *srq, struct ib_udata *udata)
 		atomic_dec(&srq->ext.xrc.xrcd->usecnt);
 	if (ib_srq_has_cq(srq->srq_type))
 		atomic_dec(&srq->ext.cq->usecnt);
+	rdma_restrack_del(&srq->res);
 	kfree(srq);
 
 	return ret;
@@ -1673,7 +1682,7 @@ static bool is_qp_type_connected(const struct ib_qp *qp)
 static int _ib_modify_qp(struct ib_qp *qp, struct ib_qp_attr *attr,
 			 int attr_mask, struct ib_udata *udata)
 {
-	u8 port = attr_mask & IB_QP_PORT ? attr->port_num : qp->port;
+	u32 port = attr_mask & IB_QP_PORT ? attr->port_num : qp->port;
 	const struct ib_gid_attr *old_sgid_attr_av;
 	const struct ib_gid_attr *old_sgid_attr_alt_av;
 	int ret;
@@ -1801,7 +1810,7 @@ int ib_modify_qp_with_udata(struct ib_qp *ib_qp, struct ib_qp_attr *attr,
 }
 EXPORT_SYMBOL(ib_modify_qp_with_udata);
 
-int ib_get_eth_speed(struct ib_device *dev, u8 port_num, u16 *speed, u8 *width)
+int ib_get_eth_speed(struct ib_device *dev, u32 port_num, u16 *speed, u8 *width)
 {
 	int rc;
 	u32 netdev_speed;
@@ -2467,7 +2476,7 @@ int ib_check_mr_status(struct ib_mr *mr, u32 check_mask,
 }
 EXPORT_SYMBOL(ib_check_mr_status);
 
-int ib_set_vf_link_state(struct ib_device *device, int vf, u8 port,
+int ib_set_vf_link_state(struct ib_device *device, int vf, u32 port,
 			 int state)
 {
 	if (!device->ops.set_vf_link_state)
@@ -2477,7 +2486,7 @@ int ib_set_vf_link_state(struct ib_device *device, int vf, u8 port,
 }
 EXPORT_SYMBOL(ib_set_vf_link_state);
 
-int ib_get_vf_config(struct ib_device *device, int vf, u8 port,
+int ib_get_vf_config(struct ib_device *device, int vf, u32 port,
 		     struct ifla_vf_info *info)
 {
 	if (!device->ops.get_vf_config)
@@ -2487,7 +2496,7 @@ int ib_get_vf_config(struct ib_device *device, int vf, u8 port,
 }
 EXPORT_SYMBOL(ib_get_vf_config);
 
-int ib_get_vf_stats(struct ib_device *device, int vf, u8 port,
+int ib_get_vf_stats(struct ib_device *device, int vf, u32 port,
 		    struct ifla_vf_stats *stats)
 {
 	if (!device->ops.get_vf_stats)
@@ -2497,7 +2506,7 @@ int ib_get_vf_stats(struct ib_device *device, int vf, u8 port,
 }
 EXPORT_SYMBOL(ib_get_vf_stats);
 
-int ib_set_vf_guid(struct ib_device *device, int vf, u8 port, u64 guid,
+int ib_set_vf_guid(struct ib_device *device, int vf, u32 port, u64 guid,
 		   int type)
 {
 	if (!device->ops.set_vf_guid)
@@ -2507,7 +2516,7 @@ int ib_set_vf_guid(struct ib_device *device, int vf, u8 port, u64 guid,
 }
 EXPORT_SYMBOL(ib_set_vf_guid);
 
-int ib_get_vf_guid(struct ib_device *device, int vf, u8 port,
+int ib_get_vf_guid(struct ib_device *device, int vf, u32 port,
 		   struct ifla_vf_guid *node_guid,
 		   struct ifla_vf_guid *port_guid)
 {
@@ -2849,7 +2858,7 @@ void ib_drain_qp(struct ib_qp *qp)
 }
 EXPORT_SYMBOL(ib_drain_qp);
 
-struct net_device *rdma_alloc_netdev(struct ib_device *device, u8 port_num,
+struct net_device *rdma_alloc_netdev(struct ib_device *device, u32 port_num,
 				     enum rdma_netdev_t type, const char *name,
 				     unsigned char name_assign_type,
 				     void (*setup)(struct net_device *))
@@ -2875,7 +2884,7 @@ struct net_device *rdma_alloc_netdev(struct ib_device *device, u8 port_num,
 }
 EXPORT_SYMBOL(rdma_alloc_netdev);
 
-int rdma_init_netdev(struct ib_device *device, u8 port_num,
+int rdma_init_netdev(struct ib_device *device, u32 port_num,
 		     enum rdma_netdev_t type, const char *name,
 		     unsigned char name_assign_type,
 		     void (*setup)(struct net_device *),

@@ -239,7 +239,7 @@ static irqreturn_t ti_msgmgr_queue_rx_interrupt(int irq, void *p)
 
 	/*
 	 * I have no idea about the protocol being used to communicate with the
-	 * remote producer - 0 could be valid data, so I wont make a judgement
+	 * remote producer - 0 could be valid data, so I won't make a judgement
 	 * of how many bytes I should be reading. Let the client figure this
 	 * out.. I just read the full message and pass it on..
 	 */

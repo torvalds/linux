@@ -11,16 +11,16 @@
 #include "resctrl.h"
 
 #define RESULT_FILE_NAME	"result_mbm"
-#define MAX_DIFF		300
+#define MAX_DIFF_PERCENT	5
 #define NUM_OF_RUNS		5
 
-static void
+static int
 show_bw_info(unsigned long *bw_imc, unsigned long *bw_resc, int span)
 {
 	unsigned long avg_bw_imc = 0, avg_bw_resc = 0;
 	unsigned long sum_bw_imc = 0, sum_bw_resc = 0;
-	long avg_diff = 0;
-	int runs;
+	int runs, ret, avg_diff_per;
+	float avg_diff = 0;
 
 	/*
 	 * Discard the first value which is inaccurate due to monitoring setup
@@ -33,15 +33,18 @@ show_bw_info(unsigned long *bw_imc, unsigned long *bw_resc, int span)
 
 	avg_bw_imc = sum_bw_imc / 4;
 	avg_bw_resc = sum_bw_resc / 4;
-	avg_diff = avg_bw_resc - avg_bw_imc;
+	avg_diff = (float)labs(avg_bw_resc - avg_bw_imc) / avg_bw_imc;
+	avg_diff_per = (int)(avg_diff * 100);
 
-	printf("%sok MBM: diff within %d%%\n",
-	       labs(avg_diff) > MAX_DIFF ? "not " : "", MAX_DIFF);
-	tests_run++;
-	printf("# avg_diff: %lu\n", labs(avg_diff));
-	printf("# Span (MB): %d\n", span);
-	printf("# avg_bw_imc: %lu\n", avg_bw_imc);
-	printf("# avg_bw_resc: %lu\n", avg_bw_resc);
+	ret = avg_diff_per > MAX_DIFF_PERCENT;
+	ksft_print_msg("%s Check MBM diff within %d%%\n",
+		       ret ? "Fail:" : "Pass:", MAX_DIFF_PERCENT);
+	ksft_print_msg("avg_diff_per: %d%%\n", avg_diff_per);
+	ksft_print_msg("Span (MB): %d\n", span);
+	ksft_print_msg("avg_bw_imc: %lu\n", avg_bw_imc);
+	ksft_print_msg("avg_bw_resc: %lu\n", avg_bw_resc);
+
+	return ret;
 }
 
 static int check_results(int span)
@@ -49,10 +52,10 @@ static int check_results(int span)
 	unsigned long bw_imc[NUM_OF_RUNS], bw_resc[NUM_OF_RUNS];
 	char temp[1024], *token_array[8];
 	char output[] = RESULT_FILE_NAME;
-	int runs;
+	int runs, ret;
 	FILE *fp;
 
-	printf("# Checking for pass/fail\n");
+	ksft_print_msg("Checking for pass/fail\n");
 
 	fp = fopen(output, "r");
 	if (!fp) {
@@ -76,11 +79,11 @@ static int check_results(int span)
 		runs++;
 	}
 
-	show_bw_info(bw_imc, bw_resc, span);
+	ret = show_bw_info(bw_imc, bw_resc, span);
 
 	fclose(fp);
 
-	return 0;
+	return ret;
 }
 
 static int mbm_setup(int num, ...)
@@ -114,7 +117,7 @@ void mbm_test_cleanup(void)
 int mbm_bw_change(int span, int cpu_no, char *bw_report, char **benchmark_cmd)
 {
 	struct resctrl_val_param param = {
-		.resctrl_val	= "mbm",
+		.resctrl_val	= MBM_STR,
 		.ctrlgrp	= "c1",
 		.mongrp		= "m1",
 		.span		= span,
@@ -127,9 +130,6 @@ int mbm_bw_change(int span, int cpu_no, char *bw_report, char **benchmark_cmd)
 	int ret;
 
 	remove(RESULT_FILE_NAME);
-
-	if (!validate_resctrl_feature_request("mbm"))
-		return -1;
 
 	ret = resctrl_val(benchmark_cmd, &param);
 	if (ret)

@@ -32,7 +32,7 @@
  * process particular chunks of the input data stream in parallel.
  *
  * For the CRC-32 variants, the constants are precomputed according to
- * these defintions:
+ * these definitions:
  *
  *	R1 = x4*128+64 mod P(x)
  *	R2 = x4*128    mod P(x)
@@ -189,7 +189,7 @@ ENTRY(crc32_be_vgfm_16)
 	 * Note: To compensate the division by x^32, use the vector unpack
 	 * instruction to move the leftmost word into the leftmost doubleword
 	 * of the vector register.  The rightmost doubleword is multiplied
-	 * with zero to not contribute to the intermedate results.
+	 * with zero to not contribute to the intermediate results.
 	 */
 
 	/* T1(x) = floor( R(x) / x^32 ) GF2MUL u */

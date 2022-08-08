@@ -345,15 +345,9 @@ static bool rtw_fw_dump_crash_log(struct rtw_dev *rtwdev)
 			"fw crash dump's seq is wrong: %d\n", seq);
 		goto free_buf;
 	}
-	if (seq == 0 &&
-	    (GET_FW_DUMP_TLV_TYPE(buf) != FW_CD_TYPE ||
-	     GET_FW_DUMP_TLV_LEN(buf) != FW_CD_LEN ||
-	     GET_FW_DUMP_TLV_VAL(buf) != FW_CD_VAL)) {
-		rtw_dbg(rtwdev, RTW_DBG_FW, "fw crash dump's tlv is wrong\n");
-		goto free_buf;
-	}
 
-	print_hex_dump_bytes("rtw88 fw dump: ", DUMP_PREFIX_OFFSET, buf, size);
+	print_hex_dump(KERN_ERR, "rtw88 fw dump: ", DUMP_PREFIX_OFFSET, 16, 1,
+		       buf, size, true);
 
 	if (GET_FW_DUMP_MORE(buf) == 1) {
 		rtwdev->fw.prev_dump_seq = seq;
@@ -367,6 +361,78 @@ exit:
 
 	return ret;
 }
+
+int rtw_dump_fw(struct rtw_dev *rtwdev, const u32 ocp_src, u32 size,
+		const char *prefix_str)
+{
+	u32 rxff = rtwdev->chip->fw_rxff_size;
+	u32 dump_size, done_size = 0;
+	u8 *buf;
+	int ret;
+
+	buf = vzalloc(size);
+	if (!buf)
+		return -ENOMEM;
+
+	while (size) {
+		dump_size = size > rxff ? rxff : size;
+
+		ret = rtw_ddma_to_fw_fifo(rtwdev, ocp_src + done_size,
+					  dump_size);
+		if (ret) {
+			rtw_err(rtwdev,
+				"ddma fw 0x%x [+0x%x] to fw fifo fail\n",
+				ocp_src, done_size);
+			goto exit;
+		}
+
+		ret = rtw_fw_dump_fifo(rtwdev, RTW_FW_FIFO_SEL_RXBUF_FW, 0,
+				       dump_size, (u32 *)(buf + done_size));
+		if (ret) {
+			rtw_err(rtwdev,
+				"dump fw 0x%x [+0x%x] from fw fifo fail\n",
+				ocp_src, done_size);
+			goto exit;
+		}
+
+		size -= dump_size;
+		done_size += dump_size;
+	}
+
+	print_hex_dump(KERN_ERR, prefix_str, DUMP_PREFIX_OFFSET, 16, 1,
+		       buf, done_size, true);
+
+exit:
+	vfree(buf);
+	return ret;
+}
+EXPORT_SYMBOL(rtw_dump_fw);
+
+int rtw_dump_reg(struct rtw_dev *rtwdev, const u32 addr, const u32 size,
+		 const char *prefix_str)
+{
+	u8 *buf;
+	u32 i;
+
+	if (addr & 0x3) {
+		WARN(1, "should be 4-byte aligned, addr = 0x%08x\n", addr);
+		return -EINVAL;
+	}
+
+	buf = vzalloc(size);
+	if (!buf)
+		return -ENOMEM;
+
+	for (i = 0; i < size; i += 4)
+		*(u32 *)(buf + i) = rtw_read32(rtwdev, addr + i);
+
+	print_hex_dump(KERN_ERR, prefix_str, DUMP_PREFIX_OFFSET, 16, 4, buf,
+		       size, true);
+
+	vfree(buf);
+	return 0;
+}
+EXPORT_SYMBOL(rtw_dump_reg);
 
 void rtw_vif_assoc_changed(struct rtw_vif *rtwvif,
 			   struct ieee80211_bss_conf *conf)
@@ -419,10 +485,8 @@ void rtw_fw_recovery(struct rtw_dev *rtwdev)
 		ieee80211_queue_work(rtwdev->hw, &rtwdev->fw_recovery_work);
 }
 
-static void rtw_fw_recovery_work(struct work_struct *work)
+static void __fw_recovery_work(struct rtw_dev *rtwdev)
 {
-	struct rtw_dev *rtwdev = container_of(work, struct rtw_dev,
-					      fw_recovery_work);
 
 	/* rtw_fw_dump_crash_log() returns false indicates that there are
 	 * still more log to dump. Driver set 0x1cf[7:0] = 0x1 to tell firmware
@@ -435,18 +499,26 @@ static void rtw_fw_recovery_work(struct work_struct *work)
 	}
 	rtwdev->fw.prev_dump_seq = 0;
 
+	set_bit(RTW_FLAG_RESTARTING, rtwdev->flags);
+	rtw_chip_dump_fw_crash(rtwdev);
+
 	WARN(1, "firmware crash, start reset and recover\n");
 
-	mutex_lock(&rtwdev->mutex);
-
-	set_bit(RTW_FLAG_RESTARTING, rtwdev->flags);
 	rcu_read_lock();
 	rtw_iterate_keys_rcu(rtwdev, NULL, rtw_reset_key_iter, rtwdev);
 	rcu_read_unlock();
 	rtw_iterate_stas_atomic(rtwdev, rtw_reset_sta_iter, rtwdev);
 	rtw_iterate_vifs_atomic(rtwdev, rtw_reset_vif_iter, rtwdev);
 	rtw_enter_ips(rtwdev);
+}
 
+static void rtw_fw_recovery_work(struct work_struct *work)
+{
+	struct rtw_dev *rtwdev = container_of(work, struct rtw_dev,
+					      fw_recovery_work);
+
+	mutex_lock(&rtwdev->mutex);
+	__fw_recovery_work(rtwdev);
 	mutex_unlock(&rtwdev->mutex);
 
 	ieee80211_restart_hw(rtwdev->hw);
@@ -1138,6 +1210,7 @@ int rtw_core_start(struct rtw_dev *rtwdev)
 static void rtw_power_off(struct rtw_dev *rtwdev)
 {
 	rtw_hci_stop(rtwdev);
+	rtw_coex_power_off_setting(rtwdev);
 	rtw_mac_power_off(rtwdev);
 }
 
@@ -1393,7 +1466,6 @@ static int rtw_chip_parameter_setup(struct rtw_dev *rtwdev)
 	struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_hal *hal = &rtwdev->hal;
 	struct rtw_efuse *efuse = &rtwdev->efuse;
-	int ret = 0;
 
 	switch (rtw_hci_type(rtwdev)) {
 	case RTW_HCI_TYPE_PCIE:
@@ -1431,7 +1503,7 @@ static int rtw_chip_parameter_setup(struct rtw_dev *rtwdev)
 
 	hal->bfee_sts_cap = 3;
 
-	return ret;
+	return 0;
 }
 
 static int rtw_chip_efuse_enable(struct rtw_dev *rtwdev)

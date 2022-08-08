@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
-/include/ "bcm6328.dtsi"
+#include "bcm6328.dtsi"
 
 / {
 	compatible = "brcm,bcm9ejtagprb", "brcm,bcm6328";

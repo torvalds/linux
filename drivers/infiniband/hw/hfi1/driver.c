@@ -1026,7 +1026,7 @@ static bool __set_armed_to_active(struct hfi1_packet *packet)
 }
 
 /**
- * armed to active - the fast path for armed to active
+ * set_armed_to_active  - the fast path for armed to active
  * @packet: the packet structure
  *
  * Return true if packet processing needs to bail.

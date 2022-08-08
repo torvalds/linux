@@ -659,6 +659,44 @@ nf_nat_ipv4_pre_routing(void *priv, struct sk_buff *skb,
 	return ret;
 }
 
+#ifdef CONFIG_XFRM
+static int nf_xfrm_me_harder(struct net *net, struct sk_buff *skb, unsigned int family)
+{
+	struct sock *sk = skb->sk;
+	struct dst_entry *dst;
+	unsigned int hh_len;
+	struct flowi fl;
+	int err;
+
+	err = xfrm_decode_session(skb, &fl, family);
+	if (err < 0)
+		return err;
+
+	dst = skb_dst(skb);
+	if (dst->xfrm)
+		dst = ((struct xfrm_dst *)dst)->route;
+	if (!dst_hold_safe(dst))
+		return -EHOSTUNREACH;
+
+	if (sk && !net_eq(net, sock_net(sk)))
+		sk = NULL;
+
+	dst = xfrm_lookup(net, dst, &fl, sk, 0);
+	if (IS_ERR(dst))
+		return PTR_ERR(dst);
+
+	skb_dst_drop(skb);
+	skb_dst_set(skb, dst);
+
+	/* Change in oif may mean change in hh_len. */
+	hh_len = skb_dst(skb)->dev->hard_header_len;
+	if (skb_headroom(skb) < hh_len &&
+	    pskb_expand_head(skb, hh_len - skb_headroom(skb), 0, GFP_ATOMIC))
+		return -ENOMEM;
+	return 0;
+}
+#endif
+
 static unsigned int
 nf_nat_ipv4_local_in(void *priv, struct sk_buff *skb,
 		     const struct nf_hook_state *state)

@@ -794,6 +794,10 @@ static const struct property_entry pca9500_eeprom_properties[] = {
 	{ }
 };
 
+static const struct software_node pca9500_eeprom_node = {
+	.properties = pca9500_eeprom_properties,
+};
+
 /**
  * stargate2_reset_bluetooth() reset the bluecore to ensure consistent state
  **/
@@ -929,7 +933,7 @@ static struct i2c_board_info __initdata stargate2_i2c_board_info[] = {
 	}, {
 		.type = "24c02",
 		.addr = 0x57,
-		.properties = pca9500_eeprom_properties,
+		.swnode = &pca9500_eeprom_node,
 	}, {
 		.type = "max1238",
 		.addr = 0x35,

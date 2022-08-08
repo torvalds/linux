@@ -711,16 +711,6 @@ struct address_space *page_mapping(struct page *page)
 }
 EXPORT_SYMBOL(page_mapping);
 
-/*
- * For file cache pages, return the address_space, otherwise return NULL
- */
-struct address_space *page_mapping_file(struct page *page)
-{
-	if (unlikely(PageSwapCache(page)))
-		return NULL;
-	return page_mapping(page);
-}
-
 /* Slow path of page_mapcount() for compound pages */
 int __page_mapcount(struct page *page)
 {
@@ -775,7 +765,7 @@ int overcommit_policy_handler(struct ctl_table *table, int write, void *buffer,
 	 * The deviation of sync_overcommit_as could be big with loose policy
 	 * like OVERCOMMIT_ALWAYS/OVERCOMMIT_GUESS. When changing policy to
 	 * strict OVERCOMMIT_NEVER, we need to reduce the deviation to comply
-	 * with the strict "NEVER", and to avoid possible race condtion (even
+	 * with the strict "NEVER", and to avoid possible race condition (even
 	 * though user usually won't too frequently do the switching to policy
 	 * OVERCOMMIT_NEVER), the switch is done in the following order:
 	 *	1. changing the batch
@@ -983,6 +973,7 @@ int __weak memcmp_pages(struct page *page1, struct page *page2)
 	return ret;
 }
 
+#ifdef CONFIG_PRINTK
 /**
  * mem_dump_obj - Print available provenance information
  * @object: object for which to find provenance information.
@@ -996,20 +987,26 @@ int __weak memcmp_pages(struct page *page1, struct page *page2)
  */
 void mem_dump_obj(void *object)
 {
+	const char *type;
+
 	if (kmem_valid_obj(object)) {
 		kmem_dump_obj(object);
 		return;
 	}
+
 	if (vmalloc_dump_obj(object))
 		return;
-	if (!virt_addr_valid(object)) {
-		if (object == NULL)
-			pr_cont(" NULL pointer.\n");
-		else if (object == ZERO_SIZE_PTR)
-			pr_cont(" zero-size pointer.\n");
-		else
-			pr_cont(" non-paged memory.\n");
-		return;
-	}
-	pr_cont(" non-slab/vmalloc memory.\n");
+
+	if (virt_addr_valid(object))
+		type = "non-slab/vmalloc memory";
+	else if (object == NULL)
+		type = "NULL pointer";
+	else if (object == ZERO_SIZE_PTR)
+		type = "zero-size pointer";
+	else
+		type = "non-paged memory";
+
+	pr_cont(" %s\n", type);
 }
+EXPORT_SYMBOL_GPL(mem_dump_obj);
+#endif

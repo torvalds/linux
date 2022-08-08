@@ -402,6 +402,7 @@ static int __init _omap2_init_reprogram_sdrc(void)
 	return v;
 }
 
+#ifdef CONFIG_OMAP_HWMOD
 static int _set_hwmod_postsetup_state(struct omap_hwmod *oh, void *data)
 {
 	return omap_hwmod_set_postsetup_state(oh, *(u8 *)data);
@@ -414,6 +415,11 @@ static void __init __maybe_unused omap_hwmod_init_postsetup(void)
 	/* Set the default postsetup state for all hwmods */
 	omap_hwmod_for_each(_set_hwmod_postsetup_state, &postsetup_state);
 }
+#else
+static inline void omap_hwmod_init_postsetup(void)
+{
+}
+#endif
 
 #ifdef CONFIG_SOC_OMAP2420
 void __init omap2420_init_early(void)
@@ -615,8 +621,6 @@ void __init omap4430_init_early(void)
 	omap44xx_voltagedomains_init();
 	omap44xx_powerdomains_init();
 	omap44xx_clockdomains_init();
-	omap44xx_hwmod_init();
-	omap_hwmod_init_postsetup();
 	omap_l2_cache_init();
 	omap_clk_soc_init = omap4xxx_dt_clk_init;
 	omap_secure_init();
@@ -643,8 +647,6 @@ void __init omap5_init_early(void)
 	omap54xx_voltagedomains_init();
 	omap54xx_powerdomains_init();
 	omap54xx_clockdomains_init();
-	omap54xx_hwmod_init();
-	omap_hwmod_init_postsetup();
 	omap_clk_soc_init = omap5xxx_dt_clk_init;
 	omap_secure_init();
 }
@@ -667,8 +669,6 @@ void __init dra7xx_init_early(void)
 	dra7xxx_check_revision();
 	dra7xx_powerdomains_init();
 	dra7xx_clockdomains_init();
-	dra7xx_hwmod_init();
-	omap_hwmod_init_postsetup();
 	omap_clk_soc_init = dra7xx_dt_clk_init;
 	omap_secure_init();
 }

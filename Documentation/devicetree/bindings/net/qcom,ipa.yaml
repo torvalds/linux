@@ -43,7 +43,12 @@ description:
 
 properties:
   compatible:
-    const: "qcom,sdm845-ipa"
+    enum:
+      - qcom,sc7180-ipa
+      - qcom,sc7280-ipa
+      - qcom,sdm845-ipa
+      - qcom,sdx55-ipa
+      - qcom,sm8350-ipa
 
   reg:
     items:
@@ -100,7 +105,6 @@ properties:
       - description: Whether the IPA clock is enabled (if valid)
 
   qcom,smem-state-names:
-    $ref: /schemas/types.yaml#/definitions/string-array
     description: The names of the state bits used for SMP2P output
     items:
       - const: ipa-clock-enabled-valid
@@ -120,6 +124,14 @@ properties:
       the firmware passed to Trust Zone for authentication.  Required
       when Trust Zone (not the modem) performs early initialization.
 
+  firmware-name:
+    $ref: /schemas/types.yaml#/definitions/string
+    description:
+      If present, name (or relative path) of the file within the
+      firmware search path containing the firmware image used when
+      initializing IPA hardware.  Optional, and only used when
+      Trust Zone performs early initialization.
+
 required:
   - compatible
   - iommus
@@ -129,11 +141,22 @@ required:
   - interconnects
   - qcom,smem-states
 
+# Either modem-init is present, or memory-region must be present.
 oneOf:
   - required:
       - modem-init
   - required:
       - memory-region
+
+# If memory-region is present, firmware-name may optionally be present.
+# But if modem-init is present, firmware-name must not be present.
+if:
+  required:
+    - modem-init
+then:
+  not:
+    required:
+      - firmware-name
 
 additionalProperties: false
 

@@ -152,7 +152,7 @@ typedef union {
 
 	/* physical mem address */
 	struct {
-		/* techically, <47:40> are dont-cares */
+		/* technically, <47:40> are dont-cares */
 		uint64_t zeroes:24;
 		/* the hardware ignores <39:36> in Octeon I */
 		uint64_t unaddr:4;

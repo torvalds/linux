@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright 2021 Google LLC
+ *
+ * SKU: 0x20 => 32
+ *  - bit 8: Camera: 0 (OV5695)
+ *  - bits 7..4: Panel ID: 0x2 (BOE)
+ */
+
+/dts-v1/;
+#include "mt8183-kukui-kodama.dtsi"
+
+/ {
+	model = "MediaTek kodama sku32 board";
+	compatible = "google,kodama-sku32", "google,kodama", "mediatek,mt8183";
+};
+
+&panel {
+	status = "okay";
+	compatible = "boe,tv101wum-n53";
+};

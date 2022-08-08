@@ -13,7 +13,6 @@
 #include <linux/sizes.h>
 #include <linux/thunderbolt.h>
 
-#define DMA_TEST_HOPID			8
 #define DMA_TEST_TX_RING_SIZE		64
 #define DMA_TEST_RX_RING_SIZE		256
 #define DMA_TEST_FRAME_SIZE		SZ_4K
@@ -72,7 +71,9 @@ static const char * const dma_test_result_names[] = {
  * @svc: XDomain service the driver is bound to
  * @xd: XDomain the service belongs to
  * @rx_ring: Software ring holding RX frames
+ * @rx_hopid: HopID used for receiving frames
  * @tx_ring: Software ring holding TX frames
+ * @tx_hopid: HopID used for sending fames
  * @packets_to_send: Number of packets to send
  * @packets_to_receive: Number of packets to receive
  * @packets_sent: Actual number of packets sent
@@ -92,7 +93,9 @@ struct dma_test {
 	const struct tb_service *svc;
 	struct tb_xdomain *xd;
 	struct tb_ring *rx_ring;
+	int rx_hopid;
 	struct tb_ring *tx_ring;
+	int tx_hopid;
 	unsigned int packets_to_send;
 	unsigned int packets_to_receive;
 	unsigned int packets_sent;
@@ -119,10 +122,12 @@ static void *dma_test_pattern;
 static void dma_test_free_rings(struct dma_test *dt)
 {
 	if (dt->rx_ring) {
+		tb_xdomain_release_in_hopid(dt->xd, dt->rx_hopid);
 		tb_ring_free(dt->rx_ring);
 		dt->rx_ring = NULL;
 	}
 	if (dt->tx_ring) {
+		tb_xdomain_release_out_hopid(dt->xd, dt->tx_hopid);
 		tb_ring_free(dt->tx_ring);
 		dt->tx_ring = NULL;
 	}
@@ -151,6 +156,14 @@ static int dma_test_start_rings(struct dma_test *dt)
 
 		dt->tx_ring = ring;
 		e2e_tx_hop = ring->hop;
+
+		ret = tb_xdomain_alloc_out_hopid(xd, -1);
+		if (ret < 0) {
+			dma_test_free_rings(dt);
+			return ret;
+		}
+
+		dt->tx_hopid = ret;
 	}
 
 	if (dt->packets_to_receive) {
@@ -168,11 +181,19 @@ static int dma_test_start_rings(struct dma_test *dt)
 		}
 
 		dt->rx_ring = ring;
+
+		ret = tb_xdomain_alloc_in_hopid(xd, -1);
+		if (ret < 0) {
+			dma_test_free_rings(dt);
+			return ret;
+		}
+
+		dt->rx_hopid = ret;
 	}
 
-	ret = tb_xdomain_enable_paths(dt->xd, DMA_TEST_HOPID,
+	ret = tb_xdomain_enable_paths(dt->xd, dt->tx_hopid,
 				      dt->tx_ring ? dt->tx_ring->hop : 0,
-				      DMA_TEST_HOPID,
+				      dt->rx_hopid,
 				      dt->rx_ring ? dt->rx_ring->hop : 0);
 	if (ret) {
 		dma_test_free_rings(dt);
@@ -189,12 +210,18 @@ static int dma_test_start_rings(struct dma_test *dt)
 
 static void dma_test_stop_rings(struct dma_test *dt)
 {
+	int ret;
+
 	if (dt->rx_ring)
 		tb_ring_stop(dt->rx_ring);
 	if (dt->tx_ring)
 		tb_ring_stop(dt->tx_ring);
 
-	if (tb_xdomain_disable_paths(dt->xd))
+	ret = tb_xdomain_disable_paths(dt->xd, dt->tx_hopid,
+				       dt->tx_ring ? dt->tx_ring->hop : 0,
+				       dt->rx_hopid,
+				       dt->rx_ring ? dt->rx_ring->hop : 0);
+	if (ret)
 		dev_warn(&dt->svc->dev, "failed to disable DMA paths\n");
 
 	dma_test_free_rings(dt);

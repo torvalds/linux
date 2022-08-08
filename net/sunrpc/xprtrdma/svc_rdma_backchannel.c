@@ -93,7 +93,13 @@ static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
 	 */
 	get_page(virt_to_page(rqst->rq_buffer));
 	sctxt->sc_send_wr.opcode = IB_WR_SEND;
-	return svc_rdma_send(rdma, sctxt);
+	ret = svc_rdma_send(rdma, sctxt);
+	if (ret < 0)
+		return ret;
+
+	ret = wait_for_completion_killable(&sctxt->sc_done);
+	svc_rdma_send_ctxt_put(rdma, sctxt);
+	return ret;
 }
 
 /* Server-side transport endpoint wants a whole page for its send

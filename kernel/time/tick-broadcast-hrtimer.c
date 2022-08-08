@@ -53,7 +53,7 @@ static int bc_set_next(ktime_t expires, struct clock_event_device *bc)
 	 * reasons.
 	 *
 	 * Each caller tries to arm the hrtimer on its own CPU, but if the
-	 * hrtimer callbback function is currently running, then
+	 * hrtimer callback function is currently running, then
 	 * hrtimer_start() cannot move it and the timer stays on the CPU on
 	 * which it is assigned at the moment.
 	 *

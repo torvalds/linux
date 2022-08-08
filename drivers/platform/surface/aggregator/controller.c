@@ -1040,7 +1040,7 @@ static int ssam_dsm_load_u32(acpi_handle handle, u64 funcs, u64 func, u32 *ret)
 	union acpi_object *obj;
 	u64 val;
 
-	if (!(funcs & BIT(func)))
+	if (!(funcs & BIT_ULL(func)))
 		return 0; /* Not supported, leave *ret at its default value */
 
 	obj = acpi_evaluate_dsm_typed(handle, &SSAM_SSH_DSM_GUID,
@@ -1750,35 +1750,35 @@ EXPORT_SYMBOL_GPL(ssam_request_sync_with_buffer);
 
 /* -- Internal SAM requests. ------------------------------------------------ */
 
-static SSAM_DEFINE_SYNC_REQUEST_R(ssam_ssh_get_firmware_version, __le32, {
+SSAM_DEFINE_SYNC_REQUEST_R(ssam_ssh_get_firmware_version, __le32, {
 	.target_category = SSAM_SSH_TC_SAM,
 	.target_id       = 0x01,
 	.command_id      = 0x13,
 	.instance_id     = 0x00,
 });
 
-static SSAM_DEFINE_SYNC_REQUEST_R(ssam_ssh_notif_display_off, u8, {
+SSAM_DEFINE_SYNC_REQUEST_R(ssam_ssh_notif_display_off, u8, {
 	.target_category = SSAM_SSH_TC_SAM,
 	.target_id       = 0x01,
 	.command_id      = 0x15,
 	.instance_id     = 0x00,
 });
 
-static SSAM_DEFINE_SYNC_REQUEST_R(ssam_ssh_notif_display_on, u8, {
+SSAM_DEFINE_SYNC_REQUEST_R(ssam_ssh_notif_display_on, u8, {
 	.target_category = SSAM_SSH_TC_SAM,
 	.target_id       = 0x01,
 	.command_id      = 0x16,
 	.instance_id     = 0x00,
 });
 
-static SSAM_DEFINE_SYNC_REQUEST_R(ssam_ssh_notif_d0_exit, u8, {
+SSAM_DEFINE_SYNC_REQUEST_R(ssam_ssh_notif_d0_exit, u8, {
 	.target_category = SSAM_SSH_TC_SAM,
 	.target_id       = 0x01,
 	.command_id      = 0x33,
 	.instance_id     = 0x00,
 });
 
-static SSAM_DEFINE_SYNC_REQUEST_R(ssam_ssh_notif_d0_entry, u8, {
+SSAM_DEFINE_SYNC_REQUEST_R(ssam_ssh_notif_d0_entry, u8, {
 	.target_category = SSAM_SSH_TC_SAM,
 	.target_id       = 0x01,
 	.command_id      = 0x34,
@@ -1907,7 +1907,7 @@ static int ssam_ssh_event_disable(struct ssam_controller *ctrl,
 {
 	int status;
 
-	status = __ssam_ssh_event_request(ctrl, reg, reg.cid_enable, id, flags);
+	status = __ssam_ssh_event_request(ctrl, reg, reg.cid_disable, id, flags);
 
 	if (status < 0 && status != -EINVAL) {
 		ssam_err(ctrl,
@@ -2483,7 +2483,7 @@ int ssam_irq_setup(struct ssam_controller *ctrl)
 	 * interrupt, and let the SAM resume callback during the controller
 	 * resume process clear it.
 	 */
-	const int irqf = IRQF_SHARED | IRQF_ONESHOT | IRQF_TRIGGER_RISING;
+	const int irqf = IRQF_ONESHOT | IRQF_TRIGGER_RISING | IRQF_NO_AUTOEN;
 
 	gpiod = gpiod_get(dev, "ssam_wakeup-int", GPIOD_ASIS);
 	if (IS_ERR(gpiod))
@@ -2501,7 +2501,6 @@ int ssam_irq_setup(struct ssam_controller *ctrl)
 		return status;
 
 	ctrl->irq.num = irq;
-	disable_irq(ctrl->irq.num);
 	return 0;
 }
 

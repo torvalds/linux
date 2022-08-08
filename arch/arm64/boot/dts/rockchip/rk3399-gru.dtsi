@@ -10,6 +10,11 @@
 #include "rk3399-op1-opp.dtsi"
 
 / {
+	aliases {
+		mmc0 = &sdmmc;
+		mmc1 = &sdhci;
+	};
+
 	chosen {
 		stdout-path = "serial2:115200n8";
 	};

@@ -64,13 +64,12 @@ JPEG Control IDs
 .. _jpeg-quality-control:
 
 ``V4L2_CID_JPEG_COMPRESSION_QUALITY (integer)``
-    ``V4L2_CID_JPEG_COMPRESSION_QUALITY`` control determines trade-off
-    between image quality and size. It provides simpler method for
-    applications to control image quality, without a need for direct
-    reconfiguration of luminance and chrominance quantization tables. In
-    cases where a driver uses quantization tables configured directly by
-    an application, using interfaces defined elsewhere,
-    ``V4L2_CID_JPEG_COMPRESSION_QUALITY`` control should be set by
+    Determines trade-off between image quality and size.
+    It provides simpler method for applications to control image quality,
+    without a need for direct reconfiguration of luminance and chrominance
+    quantization tables. In cases where a driver uses quantization tables
+    configured directly by an application, using interfaces defined
+    elsewhere, ``V4L2_CID_JPEG_COMPRESSION_QUALITY`` control should be set by
     driver to 0.
 
     The value range of this control is driver-specific. Only positive,

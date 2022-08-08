@@ -6,6 +6,11 @@
  */
 
 / {
+	aliases {
+		mmc1 = &sdmmc;
+		mmc2 = &sdio;
+	};
+
 	vcc5v0_sys: vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";	/* +5V */

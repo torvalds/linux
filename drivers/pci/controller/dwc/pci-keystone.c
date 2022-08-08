@@ -346,8 +346,9 @@ static const struct irq_domain_ops ks_pcie_legacy_irq_domain_ops = {
 };
 
 /**
- * ks_pcie_set_dbi_mode() - Set DBI mode to access overlaid BAR mask
- * registers
+ * ks_pcie_set_dbi_mode() - Set DBI mode to access overlaid BAR mask registers
+ * @ks_pcie: A pointer to the keystone_pcie structure which holds the KeyStone
+ *	     PCIe host controller driver information.
  *
  * Since modification of dbi_cs2 involves different clock domain, read the
  * status back to ensure the transition is complete.
@@ -367,6 +368,8 @@ static void ks_pcie_set_dbi_mode(struct keystone_pcie *ks_pcie)
 
 /**
  * ks_pcie_clear_dbi_mode() - Disable DBI mode
+ * @ks_pcie: A pointer to the keystone_pcie structure which holds the KeyStone
+ *	     PCIe host controller driver information.
  *
  * Since modification of dbi_cs2 involves different clock domain, read the
  * status back to ensure the transition is complete.
@@ -449,6 +452,7 @@ static struct pci_ops ks_child_pcie_ops = {
 
 /**
  * ks_pcie_v3_65_add_bus() - keystone add_bus post initialization
+ * @bus: A pointer to the PCI bus structure.
  *
  * This sets BAR0 to enable inbound access for MSI_IRQ register
  */
@@ -488,6 +492,8 @@ static struct pci_ops ks_pcie_ops = {
 
 /**
  * ks_pcie_link_up() - Check if link up
+ * @pci: A pointer to the dw_pcie structure which holds the DesignWare PCIe host
+ *	 controller driver information.
  */
 static int ks_pcie_link_up(struct dw_pcie *pci)
 {
@@ -605,7 +611,6 @@ static void ks_pcie_msi_irq_handler(struct irq_desc *desc)
 
 /**
  * ks_pcie_legacy_irq_handler() - Handle legacy interrupt
- * @irq: IRQ line for legacy interrupts
  * @desc: Pointer to irq descriptor
  *
  * Traverse through pending legacy interrupts and invoke handler for each. Also
@@ -798,7 +803,8 @@ static int __init ks_pcie_host_init(struct pcie_port *pp)
 	int ret;
 
 	pp->bridge->ops = &ks_pcie_ops;
-	pp->bridge->child_ops = &ks_child_pcie_ops;
+	if (!ks_pcie->is_am6)
+		pp->bridge->child_ops = &ks_child_pcie_ops;
 
 	ret = ks_pcie_config_legacy_irq(ks_pcie);
 	if (ret)

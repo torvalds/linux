@@ -1149,6 +1149,12 @@ static ssize_t nvmet_subsys_attr_model_store_locked(struct nvmet_subsys *subsys,
 	if (!len)
 		return -EINVAL;
 
+	if (len > NVMET_MN_MAX_SIZE) {
+		pr_err("Model number size can not exceed %d Bytes\n",
+		       NVMET_MN_MAX_SIZE);
+		return -EINVAL;
+	}
+
 	for (pos = 0; pos < len; pos++) {
 		if (!nvmet_is_ascii(page[pos]))
 			return -EINVAL;

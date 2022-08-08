@@ -111,7 +111,7 @@ static struct clk_aliastable {
 /* access locks to SYS_FREQCTRL0/1 and SYS_CLKSRC registers */
 static spinlock_t alchemy_clk_fg0_lock;
 static spinlock_t alchemy_clk_fg1_lock;
-static spinlock_t alchemy_clk_csrc_lock;
+static DEFINE_SPINLOCK(alchemy_clk_csrc_lock);
 
 /* CPU Core clock *****************************************************/
 
@@ -996,7 +996,6 @@ static int __init alchemy_clk_setup_imux(int ctype)
 	if (!a)
 		return -ENOMEM;
 
-	spin_lock_init(&alchemy_clk_csrc_lock);
 	ret = 0;
 
 	for (i = 0; i < 6; i++) {

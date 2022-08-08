@@ -34,6 +34,7 @@ enum mt753x_id {
 /* Registers to mac forward control for unknown frames */
 #define MT7530_MFC			0x10
 #define  BC_FFP(x)			(((x) & 0xff) << 24)
+#define  BC_FFP_MASK			BC_FFP(~0)
 #define  UNM_FFP(x)			(((x) & 0xff) << 16)
 #define  UNM_FFP_MASK			UNM_FFP(~0)
 #define  UNU_FFP(x)			(((x) & 0xff) << 8)
@@ -256,6 +257,8 @@ enum mt7530_vlan_port_attr {
 #define  PMCR_RX_EN			BIT(13)
 #define  PMCR_BACKOFF_EN		BIT(9)
 #define  PMCR_BACKPR_EN			BIT(8)
+#define  PMCR_FORCE_EEE1G		BIT(7)
+#define  PMCR_FORCE_EEE100		BIT(6)
 #define  PMCR_TX_FC_EN			BIT(5)
 #define  PMCR_RX_FC_EN			BIT(4)
 #define  PMCR_FORCE_SPEED_1000		BIT(3)
@@ -280,7 +283,8 @@ enum mt7530_vlan_port_attr {
 #define  PMCR_LINK_SETTINGS_MASK	(PMCR_TX_EN | PMCR_FORCE_SPEED_1000 | \
 					 PMCR_RX_EN | PMCR_FORCE_SPEED_100 | \
 					 PMCR_TX_FC_EN | PMCR_RX_FC_EN | \
-					 PMCR_FORCE_FDX | PMCR_FORCE_LNK)
+					 PMCR_FORCE_FDX | PMCR_FORCE_LNK | \
+					 PMCR_FORCE_EEE1G | PMCR_FORCE_EEE100)
 #define  PMCR_CPU_PORT_SETTING(id)	(PMCR_FORCE_MODE_ID((id)) | \
 					 PMCR_IFG_XMIT(1) | PMCR_MAC_MODE | \
 					 PMCR_BACKOFF_EN | PMCR_BACKPR_EN | \
@@ -288,6 +292,15 @@ enum mt7530_vlan_port_attr {
 					 PMCR_TX_FC_EN | PMCR_RX_FC_EN | \
 					 PMCR_FORCE_SPEED_1000 | \
 					 PMCR_FORCE_FDX | PMCR_FORCE_LNK)
+
+#define MT7530_PMEEECR_P(x)		(0x3004 + (x) * 0x100)
+#define  WAKEUP_TIME_1000(x)		(((x) & 0xFF) << 24)
+#define  WAKEUP_TIME_100(x)		(((x) & 0xFF) << 16)
+#define  LPI_THRESH_MASK		GENMASK(15, 4)
+#define  LPI_THRESH_SHT			4
+#define  SET_LPI_THRESH(x)		(((x) << LPI_THRESH_SHT) & LPI_THRESH_MASK)
+#define  GET_LPI_THRESH(x)		(((x) & LPI_THRESH_MASK) >> LPI_THRESH_SHT)
+#define  LPI_MODE_EN			BIT(0)
 
 #define MT7530_PMSR_P(x)		(0x3008 + (x) * 0x100)
 #define  PMSR_EEE1G			BIT(7)

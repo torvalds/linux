@@ -3,6 +3,7 @@ Binding for MTK SPI Slave controller
 Required properties:
 - compatible: should be one of the following.
     - mediatek,mt2712-spi-slave: for mt2712 platforms
+    - mediatek,mt8195-spi-slave: for mt8195 platforms
 - reg: Address and length of the register set for the device.
 - interrupts: Should contain spi interrupt.
 - clocks: phandles to input clocks.

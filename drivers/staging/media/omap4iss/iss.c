@@ -456,6 +456,8 @@ static int iss_pipeline_enable(struct iss_pipeline *pipe,
 
 	pipe->do_propagation = false;
 
+	mutex_lock(&iss->media_dev.graph_mutex);
+
 	entity = &pipe->output->video.entity;
 	while (1) {
 		pad = &entity->pads[0];
@@ -472,6 +474,7 @@ static int iss_pipeline_enable(struct iss_pipeline *pipe,
 		ret = v4l2_subdev_call(subdev, video, s_stream, mode);
 		if (ret < 0 && ret != -ENOIOCTLCMD) {
 			iss_pipeline_disable(pipe, entity);
+			mutex_unlock(&iss->media_dev.graph_mutex);
 			return ret;
 		}
 
@@ -480,7 +483,9 @@ static int iss_pipeline_enable(struct iss_pipeline *pipe,
 			pipe->do_propagation = true;
 	}
 
+	mutex_unlock(&iss->media_dev.graph_mutex);
 	iss_print_status(pipe->output->iss);
+
 	return 0;
 }
 
@@ -960,7 +965,7 @@ iss_register_subdev_group(struct iss_device *iss,
 		}
 
 		subdev = v4l2_i2c_new_subdev_board(&iss->v4l2_dev, adapter,
-				board_info->board_info, NULL);
+						   board_info->board_info, NULL);
 		if (!subdev) {
 			dev_err(iss->dev, "Unable to register subdev %s\n",
 				board_info->board_info->type);
@@ -1236,8 +1241,10 @@ static int iss_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto error;
 
-	if (!omap4iss_get(iss))
+	if (!omap4iss_get(iss)) {
+		ret = -EINVAL;
 		goto error;
+	}
 
 	ret = iss_reset(iss);
 	if (ret < 0)

@@ -19,6 +19,8 @@ void bnxt_vf_reps_close(struct bnxt *bp);
 void bnxt_vf_reps_open(struct bnxt *bp);
 void bnxt_vf_rep_rx(struct bnxt *bp, struct sk_buff *skb);
 struct net_device *bnxt_get_vf_rep(struct bnxt *bp, u16 cfa_code);
+int bnxt_vf_reps_alloc(struct bnxt *bp);
+void bnxt_vf_reps_free(struct bnxt *bp);
 
 static inline u16 bnxt_vf_rep_get_fid(struct net_device *dev)
 {
@@ -61,5 +63,15 @@ static inline bool bnxt_dev_is_vf_rep(struct net_device *dev)
 {
 	return false;
 }
+
+static inline int bnxt_vf_reps_alloc(struct bnxt *bp)
+{
+	return 0;
+}
+
+static inline void bnxt_vf_reps_free(struct bnxt *bp)
+{
+}
+
 #endif /* CONFIG_BNXT_SRIOV */
 #endif /* BNXT_VFR_H */

@@ -369,7 +369,7 @@ all'inizio dell'avvio del sistema è attraverso la procedura
 Prima di inventare la vostra cache per gli oggetti più usati, considerate
 l'uso di una cache slab disponibile in ``include/linux/slab.h``.
 
-:c:func:`current()`
+:c:macro:`current`
 -------------------
 
 Definita in ``include/asm/current.h``

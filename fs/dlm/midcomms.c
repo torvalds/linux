@@ -22,8 +22,6 @@
  * into packets and sends them to the comms layer.
  */
 
-#include <asm/unaligned.h>
-
 #include "dlm_internal.h"
 #include "lowcomms.h"
 #include "config.h"
@@ -45,13 +43,22 @@ int dlm_process_incoming_buffer(int nodeid, unsigned char *buf, int len)
 	while (len >= sizeof(struct dlm_header)) {
 		hd = (struct dlm_header *)ptr;
 
-		/* no message should be more than this otherwise we
-		 * cannot deliver this message to upper layers
+		/* no message should be more than DEFAULT_BUFFER_SIZE or
+		 * less than dlm_header size.
+		 *
+		 * Some messages does not have a 8 byte length boundary yet
+		 * which can occur in a unaligned memory access of some dlm
+		 * messages. However this problem need to be fixed at the
+		 * sending side, for now it seems nobody run into architecture
+		 * related issues yet but it slows down some processing.
+		 * Fixing this issue should be scheduled in future by doing
+		 * the next major version bump.
 		 */
-		msglen = get_unaligned_le16(&hd->h_length);
-		if (msglen > DEFAULT_BUFFER_SIZE) {
-			log_print("received invalid length header: %u, will abort message parsing",
-				  msglen);
+		msglen = le16_to_cpu(hd->h_length);
+		if (msglen > DEFAULT_BUFFER_SIZE ||
+		    msglen < sizeof(struct dlm_header)) {
+			log_print("received invalid length header: %u from node %d, will abort message parsing",
+				  msglen, nodeid);
 			return -EBADMSG;
 		}
 
@@ -84,15 +91,7 @@ int dlm_process_incoming_buffer(int nodeid, unsigned char *buf, int len)
 			goto skip;
 		}
 
-		/* for aligned memory access, we just copy current message
-		 * to begin of the buffer which contains already parsed buffer
-		 * data and should provide align access for upper layers
-		 * because the start address of the buffer has a aligned
-		 * address. This memmove can be removed when the upperlayer
-		 * is capable of unaligned memory access.
-		 */
-		memmove(buf, ptr, msglen);
-		dlm_receive_buffer((union dlm_packet *)buf, nodeid);
+		dlm_receive_buffer((union dlm_packet *)ptr, nodeid);
 
 skip:
 		ret += msglen;

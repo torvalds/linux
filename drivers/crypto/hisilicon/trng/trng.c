@@ -18,6 +18,8 @@
 #define HISI_TRNG_REG		0x00F0
 #define HISI_TRNG_BYTES		4
 #define HISI_TRNG_QUALITY	512
+#define HISI_TRNG_VERSION	0x01B8
+#define HISI_TRNG_VER_V1	GENMASK(31, 0)
 #define SLEEP_US		10
 #define TIMEOUT_US		10000
 #define SW_DRBG_NUM_SHIFT	2
@@ -50,6 +52,7 @@ struct hisi_trng {
 	struct hisi_trng_list *trng_list;
 	struct list_head list;
 	struct hwrng rng;
+	u32 ver;
 	bool is_used;
 	struct mutex mutex;
 };
@@ -260,6 +263,7 @@ static int hisi_trng_probe(struct platform_device *pdev)
 		return PTR_ERR(trng->base);
 
 	trng->is_used = false;
+	trng->ver = readl(trng->base + HISI_TRNG_VERSION);
 	if (!trng_devices.is_init) {
 		INIT_LIST_HEAD(&trng_devices.list);
 		mutex_init(&trng_devices.lock);
@@ -267,7 +271,8 @@ static int hisi_trng_probe(struct platform_device *pdev)
 	}
 
 	hisi_trng_add_to_list(trng);
-	if (atomic_inc_return(&trng_active_devs) == 1) {
+	if (trng->ver != HISI_TRNG_VER_V1 &&
+	    atomic_inc_return(&trng_active_devs) == 1) {
 		ret = crypto_register_rng(&hisi_trng_alg);
 		if (ret) {
 			dev_err(&pdev->dev,
@@ -289,7 +294,8 @@ static int hisi_trng_probe(struct platform_device *pdev)
 	return ret;
 
 err_crypto_unregister:
-	if (atomic_dec_return(&trng_active_devs) == 0)
+	if (trng->ver != HISI_TRNG_VER_V1 &&
+	    atomic_dec_return(&trng_active_devs) == 0)
 		crypto_unregister_rng(&hisi_trng_alg);
 
 err_remove_from_list:
@@ -305,7 +311,8 @@ static int hisi_trng_remove(struct platform_device *pdev)
 	while (hisi_trng_del_from_list(trng))
 		;
 
-	if (atomic_dec_return(&trng_active_devs) == 0)
+	if (trng->ver != HISI_TRNG_VER_V1 &&
+	    atomic_dec_return(&trng_active_devs) == 0)
 		crypto_unregister_rng(&hisi_trng_alg);
 
 	return 0;

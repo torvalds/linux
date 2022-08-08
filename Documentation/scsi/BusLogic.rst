@@ -251,8 +251,6 @@ BT-445C	    VLB		Fast SCSI-2
 BT-747C	    EISA	Fast SCSI-2
 BT-757C	    EISA	Wide Fast SCSI-2
 BT-757CD    EISA	Wide Differential Fast SCSI-2
-BT-545C	    ISA		Fast SCSI-2
-BT-540CF    ISA		Fast SCSI-2
 ========    ====	==============================
 
 MultiMaster "S" Series Host Adapters:
@@ -263,17 +261,13 @@ BT-747S	    EISA	Fast SCSI-2
 BT-747D	    EISA	Differential Fast SCSI-2
 BT-757S	    EISA	Wide Fast SCSI-2
 BT-757D	    EISA	Wide Differential Fast SCSI-2
-BT-545S	    ISA		Fast SCSI-2
-BT-542D	    ISA		Differential Fast SCSI-2
 BT-742A	    EISA	SCSI-2 (742A revision H)
-BT-542B	    ISA		SCSI-2 (542B revision H)
 =======     ====	==============================
 
 MultiMaster "A" Series Host Adapters:
 
 =======     ====	==============================
 BT-742A	    EISA	SCSI-2 (742A revisions A - G)
-BT-542B	    ISA		SCSI-2 (542B revisions A - G)
 =======     ====	==============================
 
 AMI FastDisk Host Adapters that are true BusLogic MultiMaster clones are also
@@ -400,25 +394,10 @@ selected host adapter.
 
 The BusLogic Driver Probing Options comprise the following:
 
-IO:<integer>
-
-  The "IO:" option specifies an ISA I/O Address to be probed for a non-PCI
-  MultiMaster Host Adapter.  If neither "IO:" nor "NoProbeISA" options are
-  specified, then the standard list of BusLogic MultiMaster ISA I/O Addresses
-  will be probed (0x330, 0x334, 0x230, 0x234, 0x130, and 0x134).  Multiple
-  "IO:" options may be specified to precisely determine the I/O Addresses to
-  be probed, but the probe order will always follow the standard list.
-
 NoProbe
 
   The "NoProbe" option disables all probing and therefore no BusLogic Host
   Adapters will be detected.
-
-NoProbeISA
-
-  The "NoProbeISA" option disables probing of the standard BusLogic ISA I/O
-  Addresses and therefore only PCI MultiMaster and FlashPoint Host Adapters
-  will be detected.
 
 NoProbePCI
 
@@ -464,10 +443,7 @@ QueueDepth:<integer>
   Depth for devices that do not support Tagged Queuing.  If no Queue Depth
   option is provided, the Queue Depth will be determined automatically based
   on the Host Adapter's Total Queue Depth and the number, type, speed, and
-  capabilities of the detected Target Devices.  For Host Adapters that
-  require ISA Bounce Buffers, the Queue Depth is automatically set by default
-  to BusLogic_TaggedQueueDepthBB or BusLogic_UntaggedQueueDepthBB to avoid
-  excessive preallocation of DMA Bounce Buffer memory.  Target Devices that
+  capabilities of the detected Target Devices.  Target Devices that
   do not support Tagged Queuing always have their Queue Depth set to
   BusLogic_UntaggedQueueDepth or BusLogic_UntaggedQueueDepthBB, unless a
   lower Queue Depth option is provided.  A Queue Depth of 1 automatically

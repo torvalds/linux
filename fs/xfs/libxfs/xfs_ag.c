@@ -22,6 +22,11 @@
 #include "xfs_ag.h"
 #include "xfs_ag_resv.h"
 #include "xfs_health.h"
+#include "xfs_error.h"
+#include "xfs_bmap.h"
+#include "xfs_defer.h"
+#include "xfs_log_format.h"
+#include "xfs_trans.h"
 
 static int
 xfs_get_aghdr_buf(
@@ -483,6 +488,116 @@ xfs_ag_init_headers(
 			break;
 	}
 	return error;
+}
+
+int
+xfs_ag_shrink_space(
+	struct xfs_mount	*mp,
+	struct xfs_trans	**tpp,
+	xfs_agnumber_t		agno,
+	xfs_extlen_t		delta)
+{
+	struct xfs_alloc_arg	args = {
+		.tp	= *tpp,
+		.mp	= mp,
+		.type	= XFS_ALLOCTYPE_THIS_BNO,
+		.minlen = delta,
+		.maxlen = delta,
+		.oinfo	= XFS_RMAP_OINFO_SKIP_UPDATE,
+		.resv	= XFS_AG_RESV_NONE,
+		.prod	= 1
+	};
+	struct xfs_buf		*agibp, *agfbp;
+	struct xfs_agi		*agi;
+	struct xfs_agf		*agf;
+	int			error, err2;
+
+	ASSERT(agno == mp->m_sb.sb_agcount - 1);
+	error = xfs_ialloc_read_agi(mp, *tpp, agno, &agibp);
+	if (error)
+		return error;
+
+	agi = agibp->b_addr;
+
+	error = xfs_alloc_read_agf(mp, *tpp, agno, 0, &agfbp);
+	if (error)
+		return error;
+
+	agf = agfbp->b_addr;
+	/* some extra paranoid checks before we shrink the ag */
+	if (XFS_IS_CORRUPT(mp, agf->agf_length != agi->agi_length))
+		return -EFSCORRUPTED;
+	if (delta >= agi->agi_length)
+		return -EINVAL;
+
+	args.fsbno = XFS_AGB_TO_FSB(mp, agno,
+				    be32_to_cpu(agi->agi_length) - delta);
+
+	/*
+	 * Disable perag reservations so it doesn't cause the allocation request
+	 * to fail. We'll reestablish reservation before we return.
+	 */
+	error = xfs_ag_resv_free(agibp->b_pag);
+	if (error)
+		return error;
+
+	/* internal log shouldn't also show up in the free space btrees */
+	error = xfs_alloc_vextent(&args);
+	if (!error && args.agbno == NULLAGBLOCK)
+		error = -ENOSPC;
+
+	if (error) {
+		/*
+		 * if extent allocation fails, need to roll the transaction to
+		 * ensure that the AGFL fixup has been committed anyway.
+		 */
+		xfs_trans_bhold(*tpp, agfbp);
+		err2 = xfs_trans_roll(tpp);
+		if (err2)
+			return err2;
+		xfs_trans_bjoin(*tpp, agfbp);
+		goto resv_init_out;
+	}
+
+	/*
+	 * if successfully deleted from freespace btrees, need to confirm
+	 * per-AG reservation works as expected.
+	 */
+	be32_add_cpu(&agi->agi_length, -delta);
+	be32_add_cpu(&agf->agf_length, -delta);
+
+	err2 = xfs_ag_resv_init(agibp->b_pag, *tpp);
+	if (err2) {
+		be32_add_cpu(&agi->agi_length, delta);
+		be32_add_cpu(&agf->agf_length, delta);
+		if (err2 != -ENOSPC)
+			goto resv_err;
+
+		__xfs_bmap_add_free(*tpp, args.fsbno, delta, NULL, true);
+
+		/*
+		 * Roll the transaction before trying to re-init the per-ag
+		 * reservation. The new transaction is clean so it will cancel
+		 * without any side effects.
+		 */
+		error = xfs_defer_finish(tpp);
+		if (error)
+			return error;
+
+		error = -ENOSPC;
+		goto resv_init_out;
+	}
+	xfs_ialloc_log_agi(*tpp, agibp, XFS_AGI_LENGTH);
+	xfs_alloc_log_agf(*tpp, agfbp, XFS_AGF_LENGTH);
+	return 0;
+resv_init_out:
+	err2 = xfs_ag_resv_init(agibp->b_pag, *tpp);
+	if (!err2)
+		return error;
+resv_err:
+	xfs_warn(mp, "Error %d reserving per-AG metadata reserve pool.", err2);
+	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+	return err2;
 }
 
 /*

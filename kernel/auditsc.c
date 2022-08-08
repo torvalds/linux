@@ -667,7 +667,7 @@ static int audit_filter_rules(struct task_struct *tsk,
 			   logged upon error */
 			if (f->lsm_rule) {
 				if (need_sid) {
-					security_task_getsecid(tsk, &sid);
+					security_task_getsecid_subj(tsk, &sid);
 					need_sid = 0;
 				}
 				result = security_audit_rule_match(sid, f->type,
@@ -805,8 +805,7 @@ static int audit_in_mask(const struct audit_krule *rule, unsigned long val)
  * (i.e., the state is AUDIT_SETUP_CONTEXT or AUDIT_BUILD_CONTEXT).
  */
 static void audit_filter_syscall(struct task_struct *tsk,
-					     struct audit_context *ctx,
-					     struct list_head *list)
+				 struct audit_context *ctx)
 {
 	struct audit_entry *e;
 	enum audit_state state;
@@ -815,7 +814,7 @@ static void audit_filter_syscall(struct task_struct *tsk,
 		return;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(e, list, list) {
+	list_for_each_entry_rcu(e, &audit_filter_list[AUDIT_FILTER_EXIT], list) {
 		if (audit_in_mask(&e->rule, ctx->major) &&
 		    audit_filter_rules(tsk, &e->rule, ctx, NULL,
 				       &state, false)) {
@@ -1627,8 +1626,7 @@ void __audit_free(struct task_struct *tsk)
 		context->return_valid = AUDITSC_INVALID;
 		context->return_code = 0;
 
-		audit_filter_syscall(tsk, context,
-				     &audit_filter_list[AUDIT_FILTER_EXIT]);
+		audit_filter_syscall(tsk, context);
 		audit_filter_inodes(tsk, context);
 		if (context->current_state == AUDIT_RECORD_CONTEXT)
 			audit_log_exit();
@@ -1735,8 +1733,7 @@ void __audit_syscall_exit(int success, long return_code)
 		else
 			context->return_code  = return_code;
 
-		audit_filter_syscall(current, context,
-				     &audit_filter_list[AUDIT_FILTER_EXIT]);
+		audit_filter_syscall(current, context);
 		audit_filter_inodes(current, context);
 		if (context->current_state == AUDIT_RECORD_CONTEXT)
 			audit_log_exit();
@@ -2400,7 +2397,7 @@ void __audit_ptrace(struct task_struct *t)
 	context->target_auid = audit_get_loginuid(t);
 	context->target_uid = task_uid(t);
 	context->target_sessionid = audit_get_sessionid(t);
-	security_task_getsecid(t, &context->target_sid);
+	security_task_getsecid_obj(t, &context->target_sid);
 	memcpy(context->target_comm, t->comm, TASK_COMM_LEN);
 }
 
@@ -2427,7 +2424,7 @@ int audit_signal_info_syscall(struct task_struct *t)
 		ctx->target_auid = audit_get_loginuid(t);
 		ctx->target_uid = t_uid;
 		ctx->target_sessionid = audit_get_sessionid(t);
-		security_task_getsecid(t, &ctx->target_sid);
+		security_task_getsecid_obj(t, &ctx->target_sid);
 		memcpy(ctx->target_comm, t->comm, TASK_COMM_LEN);
 		return 0;
 	}
@@ -2448,7 +2445,7 @@ int audit_signal_info_syscall(struct task_struct *t)
 	axp->target_auid[axp->pid_count] = audit_get_loginuid(t);
 	axp->target_uid[axp->pid_count] = t_uid;
 	axp->target_sessionid[axp->pid_count] = audit_get_sessionid(t);
-	security_task_getsecid(t, &axp->target_sid[axp->pid_count]);
+	security_task_getsecid_obj(t, &axp->target_sid[axp->pid_count]);
 	memcpy(axp->target_comm[axp->pid_count], t->comm, TASK_COMM_LEN);
 	axp->pid_count++;
 

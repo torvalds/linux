@@ -1211,7 +1211,7 @@ static size_t mask_size(struct perf_cpu_map *map, int *max)
 	*max = 0;
 
 	for (i = 0; i < map->nr; i++) {
-		/* bit possition of the cpu is + 1 */
+		/* bit position of the cpu is + 1 */
 		int bit = map->map[i] + 1;
 
 		if (bit > *max)
@@ -1237,7 +1237,7 @@ void *cpu_map_data__alloc(struct perf_cpu_map *map, size_t *size, u16 *type, int
 	 *   mask  = size of 'struct perf_record_record_cpu_map' +
 	 *           maximum cpu bit converted to size of longs
 	 *
-	 * and finaly + the size of 'struct perf_record_cpu_map_data'.
+	 * and finally + the size of 'struct perf_record_cpu_map_data'.
 	 */
 	size_cpus = cpus_size(map);
 	size_mask = mask_size(map, max);

@@ -997,20 +997,16 @@ int cxgb4_tc_flower_destroy(struct net_device *dev,
 	if (!ch_flower)
 		return -ENOENT;
 
+	rhashtable_remove_fast(&adap->flower_tbl, &ch_flower->node,
+			       adap->flower_ht_params);
+
 	ret = cxgb4_flow_rule_destroy(dev, ch_flower->fs.tc_prio,
 				      &ch_flower->fs, ch_flower->filter_id);
 	if (ret)
-		goto err;
+		netdev_err(dev, "Flow rule destroy failed for tid: %u, ret: %d",
+			   ch_flower->filter_id, ret);
 
-	ret = rhashtable_remove_fast(&adap->flower_tbl, &ch_flower->node,
-				     adap->flower_ht_params);
-	if (ret) {
-		netdev_err(dev, "Flow remove from rhashtable failed");
-		goto err;
-	}
 	kfree_rcu(ch_flower, rcu);
-
-err:
 	return ret;
 }
 

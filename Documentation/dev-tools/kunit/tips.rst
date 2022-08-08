@@ -78,8 +78,82 @@ Similarly to the above, it can be useful to add test-specific logic.
 	void test_only_hook(void) { }
 	#endif
 
-TODO(dlatypov@google.com): add an example of using ``current->kunit_test`` in
-such a hook when it's not only updated for ``CONFIG_KASAN=y``.
+This test-only code can be made more useful by accessing the current kunit
+test, see below.
+
+Accessing the current test
+--------------------------
+
+In some cases, you need to call test-only code from outside the test file, e.g.
+like in the example above or if you're providing a fake implementation of an
+ops struct.
+There is a ``kunit_test`` field in ``task_struct``, so you can access it via
+``current->kunit_test``.
+
+Here's a slightly in-depth example of how one could implement "mocking":
+
+.. code-block:: c
+
+	#include <linux/sched.h> /* for current */
+
+	struct test_data {
+		int foo_result;
+		int want_foo_called_with;
+	};
+
+	static int fake_foo(int arg)
+	{
+		struct kunit *test = current->kunit_test;
+		struct test_data *test_data = test->priv;
+
+		KUNIT_EXPECT_EQ(test, test_data->want_foo_called_with, arg);
+		return test_data->foo_result;
+	}
+
+	static void example_simple_test(struct kunit *test)
+	{
+		/* Assume priv is allocated in the suite's .init */
+		struct test_data *test_data = test->priv;
+
+		test_data->foo_result = 42;
+		test_data->want_foo_called_with = 1;
+
+		/* In a real test, we'd probably pass a pointer to fake_foo somewhere
+		 * like an ops struct, etc. instead of calling it directly. */
+		KUNIT_EXPECT_EQ(test, fake_foo(1), 42);
+	}
+
+
+Note: here we're able to get away with using ``test->priv``, but if you wanted
+something more flexible you could use a named ``kunit_resource``, see :doc:`api/test`.
+
+Failing the current test
+------------------------
+
+But sometimes, you might just want to fail the current test. In that case, we
+have ``kunit_fail_current_test(fmt, args...)`` which is defined in ``<kunit/test-bug.h>`` and
+doesn't require pulling in ``<kunit/test.h>``.
+
+E.g. say we had an option to enable some extra debug checks on some data structure:
+
+.. code-block:: c
+
+	#include <kunit/test-bug.h>
+
+	#ifdef CONFIG_EXTRA_DEBUG_CHECKS
+	static void validate_my_data(struct data *data)
+	{
+		if (is_valid(data))
+			return;
+
+		kunit_fail_current_test("data %p is invalid", data);
+
+		/* Normal, non-KUnit, error reporting code here. */
+	}
+	#else
+	static void my_debug_function(void) { }
+	#endif
+
 
 Customizing error messages
 --------------------------

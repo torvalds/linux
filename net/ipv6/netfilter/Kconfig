@@ -69,7 +69,10 @@ config NF_REJECT_IPV6
 config NF_LOG_IPV6
 	tristate "IPv6 packet logging"
 	default m if NETFILTER_ADVANCED=n
-	select NF_LOG_COMMON
+	select NF_LOG_SYSLOG
+	help
+	  This is a backwards-compat option for the user's convenience
+	  (e.g. when running oldconfig). It selects CONFIG_NF_LOG_SYSLOG.
 
 config IP6_NF_IPTABLES
 	tristate "IP6 tables support (required for filtering)"

@@ -177,7 +177,7 @@ int esw_acl_ingress_lgcy_setup(struct mlx5_eswitch *esw,
 	}
 
 	if (!vport->ingress.acl) {
-		vport->ingress.acl = esw_acl_table_create(esw, vport->vport,
+		vport->ingress.acl = esw_acl_table_create(esw, vport,
 							  MLX5_FLOW_NAMESPACE_ESW_INGRESS,
 							  table_size);
 		if (IS_ERR(vport->ingress.acl)) {

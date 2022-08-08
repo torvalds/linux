@@ -9,6 +9,7 @@
 struct drm_i915_private;
 struct intel_crtc;
 struct intel_crtc_state;
+struct intel_encoder;
 
 #define I915_DISPLAY_CONFIG_RETRY 1
 int ilk_fdi_compute_config(struct intel_crtc *intel_crtc,
@@ -18,5 +19,7 @@ void ilk_fdi_disable(struct intel_crtc *crtc);
 void ilk_fdi_pll_disable(struct intel_crtc *intel_crtc);
 void ilk_fdi_pll_enable(const struct intel_crtc_state *crtc_state);
 void intel_fdi_init_hook(struct drm_i915_private *dev_priv);
+void hsw_fdi_link_train(struct intel_encoder *encoder,
+			const struct intel_crtc_state *crtc_state);
 
 #endif

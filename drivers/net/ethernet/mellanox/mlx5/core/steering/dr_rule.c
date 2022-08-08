@@ -952,6 +952,17 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 			return false;
 		}
 	}
+
+	if (match_criteria & DR_MATCHER_CRITERIA_MISC4) {
+		s_idx = offsetof(struct mlx5dr_match_param, misc4);
+		e_idx = min(s_idx + sizeof(param->misc4), value_size);
+
+		if (!dr_rule_cmp_value_to_mask(mask_p, param_p, s_idx, e_idx)) {
+			mlx5dr_err(matcher->tbl->dmn,
+				   "Rule misc4 parameters contains a value not specified by mask\n");
+			return false;
+		}
+	}
 	return true;
 }
 

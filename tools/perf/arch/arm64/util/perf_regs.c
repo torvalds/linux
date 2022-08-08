@@ -108,7 +108,7 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op)
 		/* [sp], [sp, NUM] or [sp,NUM] */
 		new_len = 7;	/* + ( % s p ) NULL */
 
-		/* If the arugment is [sp], need to fill offset '0' */
+		/* If the argument is [sp], need to fill offset '0' */
 		if (rm[2].rm_so == -1)
 			new_len += 1;
 		else

@@ -336,7 +336,7 @@ int zpool_shrink(struct zpool *zpool, unsigned int pages,
  * This may hold locks, disable interrupts, and/or preemption,
  * and the zpool_unmap_handle() must be called to undo those
  * actions.  The code that uses the mapped handle should complete
- * its operatons on the mapped handle memory quickly and unmap
+ * its operations on the mapped handle memory quickly and unmap
  * as soon as possible.  As the implementation may use per-cpu
  * data, multiple handles should not be mapped concurrently on
  * any cpu.

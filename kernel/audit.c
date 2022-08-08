@@ -2132,7 +2132,7 @@ int audit_log_task_context(struct audit_buffer *ab)
 	int error;
 	u32 sid;
 
-	security_task_getsecid(current, &sid);
+	security_task_getsecid_subj(current, &sid);
 	if (!sid)
 		return 0;
 
@@ -2353,7 +2353,7 @@ int audit_signal_info(int sig, struct task_struct *t)
 			audit_sig_uid = auid;
 		else
 			audit_sig_uid = uid;
-		security_task_getsecid(current, &audit_sig_sid);
+		security_task_getsecid_subj(current, &audit_sig_sid);
 	}
 
 	return audit_signal_info_syscall(t);
