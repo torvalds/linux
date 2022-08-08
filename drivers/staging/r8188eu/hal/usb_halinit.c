@@ -160,9 +160,8 @@ static void _InitQueueReservedPage(struct adapter *Adapter)
 	u32 numPubQ;
 	u32 value32;
 	u8 value8;
-	bool bWiFiConfig = pregistrypriv->wifi_spec;
 
-	if (bWiFiConfig) {
+	if (pregistrypriv->wifi_spec) {
 		if (haldata->OutEpQueueSel & TX_SELE_HQ)
 			numHQ =  0x29;
 
