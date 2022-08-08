@@ -338,6 +338,19 @@ static int mbox_get_get_trl(struct isst_id *id, int level, int avx_level, int *t
 	return 0;
 }
 
+static int mbox_get_get_trls(struct isst_id *id, int level, struct isst_pkg_ctdp_level_info *ctdp_level)
+{
+	int trl_max_levels = isst_get_trl_max_levels();
+	int i, ret;
+
+	for (i = 0; i < trl_max_levels; i++) {
+		ret = mbox_get_get_trl(id, level, i, ctdp_level->trl_ratios[i]);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
 static int mbox_get_trl_bucket_info(struct isst_id *id, int level, unsigned long long *buckets_info)
 {
 	int ret;
@@ -598,6 +611,7 @@ static struct isst_platform_ops mbox_ops = {
 	.get_pwr_info = mbox_get_pwr_info,
 	.get_coremask_info = mbox_get_coremask_info,
 	.get_get_trl = mbox_get_get_trl,
+	.get_get_trls = mbox_get_get_trls,
 	.get_trl_bucket_info = mbox_get_trl_bucket_info,
 	.set_tdp_level = mbox_set_tdp_level,
 	.get_pbf_info = mbox_get_pbf_info,

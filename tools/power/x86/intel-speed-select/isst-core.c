@@ -346,6 +346,12 @@ int isst_get_get_trl(struct isst_id *id, int level, int avx_level, int *trl)
 	return isst_ops->get_get_trl(id, level, avx_level, trl);
 }
 
+int isst_get_get_trls(struct isst_id *id, int level, struct isst_pkg_ctdp_level_info *ctdp_level)
+{
+	CHECK_CB(get_get_trls);
+	return isst_ops->get_get_trls(id, level, ctdp_level);
+}
+
 int isst_get_trl_bucket_info(struct isst_id *id, int level, unsigned long long *buckets_info)
 {
 	CHECK_CB(get_trl_bucket_info);
@@ -550,8 +556,6 @@ int isst_get_process_ctdp(struct isst_id *id, int tdp_level, struct isst_pkg_ctd
 
 	for (i = 0; i <= pkg_dev->levels; ++i) {
 		struct isst_pkg_ctdp_level_info *ctdp_level;
-		int trl_max_levels = isst_get_trl_max_levels();
-		int j;
 
 		if (tdp_level != 0xff && i != tdp_level)
 			continue;
@@ -618,12 +622,9 @@ int isst_get_process_ctdp(struct isst_id *id, int tdp_level, struct isst_pkg_ctd
 		if (ret)
 			return ret;
 
-		for (j = 0; j < trl_max_levels; j++) {
-			ret = isst_get_get_trl(id, i, j,
-				       ctdp_level->trl_ratios[j]);
-			if (ret)
-				return ret;
-		}
+		ret = isst_get_get_trls(id, i, ctdp_level);
+		if (ret)
+			return ret;
 	}
 
 	if (!valid)
