@@ -15,6 +15,7 @@
 #include "wow.h"
 #include "ps.h"
 #include "phy.h"
+#include "mac.h"
 
 static void rtw_fw_c2h_cmd_handle_ext(struct rtw_dev *rtwdev,
 				      struct sk_buff *skb)
@@ -2056,6 +2057,9 @@ void rtw_hw_scan_start(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 	rtwvif->scan_req = req;
 
 	ieee80211_stop_queues(rtwdev->hw);
+	rtw_leave_lps_deep(rtwdev);
+	rtw_hci_flush_all_queues(rtwdev, false);
+	rtw_mac_flush_all_queues(rtwdev, false);
 	if (req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR)
 		get_random_mask_addr(mac_addr, req->mac_addr,
 				     req->mac_addr_mask);
