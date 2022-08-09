@@ -379,7 +379,7 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 		((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_YUV10B_COMPACT)) |
 		 (s_RGA3_WIN0_RD_CTRL_SW_WIN0_YUV10B_COMPACT(1)));
 
-	/* Only on roster mode, yuv 10bit can change to compact or set endian */
+	/* Only on raster mode, yuv 10bit can change to compact or set endian */
 	if (msg->win0.rd_mode == RGA_RASTER_MODE && yuv10 == 1) {
 		reg =
 			((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_YUV10B_COMPACT)) |
@@ -1251,7 +1251,16 @@ static void set_win_info(struct rga_win_info_t *win, struct rga_img_info_t *img)
 	else if (img->rd_mode == RGA_TILE_MODE)
 		win->rd_mode = 2;
 
-	win->is_10b_compact = img->is_10b_compact;
+	switch (img->compact_mode) {
+	case RGA_10BIT_INCOMPACT:
+		win->is_10b_compact = 0;
+		break;
+	case RGA_10BIT_COMPACT:
+	default:
+		win->is_10b_compact = 1;
+		break;
+	}
+
 	win->is_10b_endian = img->is_10b_endian;
 }
 
@@ -1272,7 +1281,16 @@ static void set_wr_info(struct rga_req *req_rga, struct rga3_req *req)
 	else if (req_rga->dst.rd_mode == RGA_TILE_MODE)
 		req->wr.rd_mode = 2;
 
-	req->wr.is_10b_compact = req_rga->dst.is_10b_compact;
+	switch (req_rga->dst.compact_mode) {
+	case RGA_10BIT_INCOMPACT:
+		req->wr.is_10b_compact = 0;
+		break;
+	case RGA_10BIT_COMPACT:
+	default:
+		req->wr.is_10b_compact = 1;
+		break;
+	}
+
 	req->wr.is_10b_endian = req_rga->dst.is_10b_endian;
 }
 

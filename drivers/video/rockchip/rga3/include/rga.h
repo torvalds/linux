@@ -104,6 +104,11 @@ enum {
 };
 
 enum {
+	RGA_10BIT_COMPACT		= 0x0,
+	RGA_10BIT_INCOMPACT		= 0x1,
+};
+
+enum {
 	RGA_CONTEXT_NONE		= 0x0,
 	RGA_CONTEXT_SRC_FIX_ENABLE	= 0x1 << 0,
 	RGA_CONTEXT_SRC_CACHE_INFO	= 0x1 << 1,
@@ -496,7 +501,7 @@ struct rga_img_info_t {
 	uint16_t rotate_mode;
 	uint16_t rd_mode;
 
-	uint16_t is_10b_compact;
+	uint16_t compact_mode;
 	uint16_t is_10b_endian;
 
 	uint16_t enable;
