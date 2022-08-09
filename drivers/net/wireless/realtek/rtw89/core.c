@@ -3216,12 +3216,19 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 	struct rtw89_dev *rtwdev;
 	struct ieee80211_ops *ops;
 	u32 driver_data_size;
+	u32 early_feat_map = 0;
+	bool no_chanctx;
+
+	rtw89_early_fw_feature_recognize(device, chip, &early_feat_map);
 
 	ops = kmemdup(&rtw89_ops, sizeof(rtw89_ops), GFP_KERNEL);
 	if (!ops)
 		goto err;
 
-	if (chip->support_chanctx_num == 0) {
+	no_chanctx = chip->support_chanctx_num == 0 ||
+		     !(early_feat_map & BIT(RTW89_FW_FEATURE_SCAN_OFFLOAD));
+
+	if (no_chanctx) {
 		ops->add_chanctx = NULL;
 		ops->remove_chanctx = NULL;
 		ops->change_chanctx = NULL;
@@ -3239,6 +3246,9 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 	rtwdev->dev = device;
 	rtwdev->ops = ops;
 	rtwdev->chip = chip;
+
+	rtw89_debug(rtwdev, RTW89_DBG_FW, "probe driver %s chanctx\n",
+		    no_chanctx ? "without" : "with");
 
 	return rtwdev;
 

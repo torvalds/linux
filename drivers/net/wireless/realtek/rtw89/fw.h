@@ -2446,7 +2446,14 @@ struct rtw89_mfw_info {
 struct rtw89_mfw_hdr {
 	u8 sig;	/* RTW89_MFW_SIG */
 	u8 fw_nr;
-	u8 rsvd[14];
+	u8 rsvd0[2];
+	struct {
+		u8 major;
+		u8 minor;
+		u8 sub;
+		u8 idx;
+	} ver;
+	u8 rsvd1[8];
 	struct rtw89_mfw_info info[];
 } __packed;
 
@@ -2563,6 +2570,9 @@ struct rtw89_fw_h2c_rf_get_mccch {
 
 int rtw89_fw_check_rdy(struct rtw89_dev *rtwdev);
 int rtw89_fw_recognize(struct rtw89_dev *rtwdev);
+void rtw89_early_fw_feature_recognize(struct device *device,
+				      const struct rtw89_chip_info *chip,
+				      u32 *early_feat_map);
 int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type);
 int rtw89_load_firmware(struct rtw89_dev *rtwdev);
 void rtw89_unload_firmware(struct rtw89_dev *rtwdev);

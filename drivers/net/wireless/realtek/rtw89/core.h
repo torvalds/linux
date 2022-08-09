@@ -2561,6 +2561,18 @@ struct rtw89_fw_suit {
 #define RTW89_FW_SUIT_VER_CODE(s)	\
 	RTW89_FW_VER_CODE((s)->major_ver, (s)->minor_ver, (s)->sub_ver, (s)->sub_idex)
 
+#define RTW89_MFW_HDR_VER_CODE(mfw_hdr)		\
+	RTW89_FW_VER_CODE((mfw_hdr)->ver.major,	\
+			  (mfw_hdr)->ver.minor,	\
+			  (mfw_hdr)->ver.sub,	\
+			  (mfw_hdr)->ver.idx)
+
+#define RTW89_FW_HDR_VER_CODE(fw_hdr)				\
+	RTW89_FW_VER_CODE(GET_FW_HDR_MAJOR_VERSION(fw_hdr),	\
+			  GET_FW_HDR_MINOR_VERSION(fw_hdr),	\
+			  GET_FW_HDR_SUBVERSION(fw_hdr),	\
+			  GET_FW_HDR_SUBINDEX(fw_hdr))
+
 struct rtw89_fw_info {
 	const struct firmware *firmware;
 	struct rtw89_dev *rtwdev;

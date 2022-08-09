@@ -248,6 +248,46 @@ static void rtw89_fw_recognize_features(struct rtw89_dev *rtwdev)
 	}
 }
 
+void rtw89_early_fw_feature_recognize(struct device *device,
+				      const struct rtw89_chip_info *chip,
+				      u32 *early_feat_map)
+{
+	union {
+		struct rtw89_mfw_hdr mfw_hdr;
+		u8 fw_hdr[RTW89_FW_HDR_SIZE];
+	} buf = {};
+	const struct firmware *firmware;
+	u32 ver_code;
+	int ret;
+	int i;
+
+	ret = request_partial_firmware_into_buf(&firmware, chip->fw_name,
+						device, &buf, sizeof(buf), 0);
+	if (ret) {
+		dev_err(device, "failed to early request firmware: %d\n", ret);
+		goto out;
+	}
+
+	ver_code = buf.mfw_hdr.sig != RTW89_MFW_SIG ?
+		   RTW89_FW_HDR_VER_CODE(&buf.fw_hdr) :
+		   RTW89_MFW_HDR_VER_CODE(&buf.mfw_hdr);
+	if (!ver_code)
+		goto out;
+
+	for (i = 0; i < ARRAY_SIZE(fw_feat_tbl); i++) {
+		const struct __fw_feat_cfg *ent = &fw_feat_tbl[i];
+
+		if (chip->chip_id != ent->chip_id)
+			continue;
+
+		if (ent->cond(ver_code, ent->ver_code))
+			*early_feat_map |= BIT(ent->feature);
+	}
+
+out:
+	release_firmware(firmware);
+}
+
 int rtw89_fw_recognize(struct rtw89_dev *rtwdev)
 {
 	int ret;
