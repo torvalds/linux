@@ -108,7 +108,6 @@ static const struct irq_domain_ops hlwd_irq_domain_ops = {
 static unsigned int __hlwd_pic_get_irq(struct irq_domain *h)
 {
 	void __iomem *io_base = h->host_data;
-	int irq;
 	u32 irq_status;
 
 	irq_status = in_be32(io_base + HW_BROADWAY_ICR) &
@@ -116,23 +115,22 @@ static unsigned int __hlwd_pic_get_irq(struct irq_domain *h)
 	if (irq_status == 0)
 		return 0;	/* no more IRQs pending */
 
-	irq = __ffs(irq_status);
-	return irq_linear_revmap(h, irq);
+	return __ffs(irq_status);
 }
 
 static void hlwd_pic_irq_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct irq_domain *irq_domain = irq_desc_get_handler_data(desc);
-	unsigned int virq;
+	unsigned int hwirq;
 
 	raw_spin_lock(&desc->lock);
 	chip->irq_mask(&desc->irq_data); /* IRQ_LEVEL */
 	raw_spin_unlock(&desc->lock);
 
-	virq = __hlwd_pic_get_irq(irq_domain);
-	if (virq)
-		generic_handle_irq(virq);
+	hwirq = __hlwd_pic_get_irq(irq_domain);
+	if (hwirq)
+		generic_handle_domain_irq(irq_domain, hwirq);
 	else
 		pr_err("spurious interrupt!\n");
 
@@ -190,7 +188,8 @@ static struct irq_domain *hlwd_pic_init(struct device_node *np)
 
 unsigned int hlwd_pic_get_irq(void)
 {
-	return __hlwd_pic_get_irq(hlwd_irq_host);
+	unsigned int hwirq = __hlwd_pic_get_irq(hlwd_irq_host);
+	return hwirq ? irq_linear_revmap(hlwd_irq_host, hwirq) : 0;
 }
 
 /*

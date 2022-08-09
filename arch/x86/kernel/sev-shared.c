@@ -130,6 +130,8 @@ static enum es_result sev_es_ghcb_hv_call(struct ghcb *ghcb,
 		} else {
 			ret = ES_VMM_ERROR;
 		}
+	} else if (ghcb->save.sw_exit_info_1 & 0xffffffff) {
+		ret = ES_VMM_ERROR;
 	} else {
 		ret = ES_OK;
 	}

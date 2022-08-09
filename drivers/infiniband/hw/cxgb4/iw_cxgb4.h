@@ -990,9 +990,8 @@ int c4iw_destroy_srq(struct ib_srq *ib_srq, struct ib_udata *udata);
 int c4iw_create_srq(struct ib_srq *srq, struct ib_srq_init_attr *attrs,
 		    struct ib_udata *udata);
 int c4iw_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata);
-struct ib_qp *c4iw_create_qp(struct ib_pd *pd,
-			     struct ib_qp_init_attr *attrs,
-			     struct ib_udata *udata);
+int c4iw_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *attrs,
+		   struct ib_udata *udata);
 int c4iw_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				 int attr_mask, struct ib_udata *udata);
 int c4iw_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,

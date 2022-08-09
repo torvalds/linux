@@ -1019,10 +1019,8 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *sd,
 	case 6:
 		align = 2;
 		break;
-	case 1:
-	case 3:
-	case 5:
-	case 7:
+	default:
+		/* 1, 3, 5, 7 */
 		align = 3;
 		break;
 	}

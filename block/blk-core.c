@@ -14,7 +14,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/backing-dev.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
@@ -50,7 +49,6 @@
 #include "blk-mq.h"
 #include "blk-mq-sched.h"
 #include "blk-pm.h"
-#include "blk-rq-qos.h"
 
 struct dentry *blk_debugfs_root;
 
@@ -338,22 +336,24 @@ void blk_put_queue(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_put_queue);
 
-void blk_set_queue_dying(struct request_queue *q)
+void blk_queue_start_drain(struct request_queue *q)
 {
-	blk_queue_flag_set(QUEUE_FLAG_DYING, q);
-
 	/*
 	 * When queue DYING flag is set, we need to block new req
 	 * entering queue, so we call blk_freeze_queue_start() to
 	 * prevent I/O from crossing blk_queue_enter().
 	 */
 	blk_freeze_queue_start(q);
-
 	if (queue_is_mq(q))
 		blk_mq_wake_waiters(q);
-
 	/* Make blk_queue_enter() reexamine the DYING flag. */
 	wake_up_all(&q->mq_freeze_wq);
+}
+
+void blk_set_queue_dying(struct request_queue *q)
+{
+	blk_queue_flag_set(QUEUE_FLAG_DYING, q);
+	blk_queue_start_drain(q);
 }
 EXPORT_SYMBOL_GPL(blk_set_queue_dying);
 
@@ -386,17 +386,9 @@ void blk_cleanup_queue(struct request_queue *q)
 	 */
 	blk_freeze_queue(q);
 
-	rq_qos_exit(q);
-
 	blk_queue_flag_set(QUEUE_FLAG_DEAD, q);
 
-	/* for synchronous bio-based driver finish in-flight integrity i/o */
-	blk_flush_integrity();
-
-	/* @q won't process any more request, flush async actions */
-	del_timer_sync(&q->backing_dev_info->laptop_mode_wb_timer);
 	blk_sync_queue(q);
-
 	if (queue_is_mq(q))
 		blk_mq_exit_queue(q);
 
@@ -420,6 +412,30 @@ void blk_cleanup_queue(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_cleanup_queue);
 
+static bool blk_try_enter_queue(struct request_queue *q, bool pm)
+{
+	rcu_read_lock();
+	if (!percpu_ref_tryget_live(&q->q_usage_counter))
+		goto fail;
+
+	/*
+	 * The code that increments the pm_only counter must ensure that the
+	 * counter is globally visible before the queue is unfrozen.
+	 */
+	if (blk_queue_pm_only(q) &&
+	    (!pm || queue_rpm_status(q) == RPM_SUSPENDED))
+		goto fail_put;
+
+	rcu_read_unlock();
+	return true;
+
+fail_put:
+	percpu_ref_put(&q->q_usage_counter);
+fail:
+	rcu_read_unlock();
+	return false;
+}
+
 /**
  * blk_queue_enter() - try to increase q->q_usage_counter
  * @q: request queue pointer
@@ -429,40 +445,18 @@ int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags)
 {
 	const bool pm = flags & BLK_MQ_REQ_PM;
 
-	while (true) {
-		bool success = false;
-
-		rcu_read_lock();
-		if (percpu_ref_tryget_live(&q->q_usage_counter)) {
-			/*
-			 * The code that increments the pm_only counter is
-			 * responsible for ensuring that that counter is
-			 * globally visible before the queue is unfrozen.
-			 */
-			if ((pm && queue_rpm_status(q) != RPM_SUSPENDED) ||
-			    !blk_queue_pm_only(q)) {
-				success = true;
-			} else {
-				percpu_ref_put(&q->q_usage_counter);
-			}
-		}
-		rcu_read_unlock();
-
-		if (success)
-			return 0;
-
+	while (!blk_try_enter_queue(q, pm)) {
 		if (flags & BLK_MQ_REQ_NOWAIT)
 			return -EBUSY;
 
 		/*
-		 * read pair of barrier in blk_freeze_queue_start(),
-		 * we need to order reading __PERCPU_REF_DEAD flag of
-		 * .q_usage_counter and reading .mq_freeze_depth or
-		 * queue dying flag, otherwise the following wait may
-		 * never return if the two reads are reordered.
+		 * read pair of barrier in blk_freeze_queue_start(), we need to
+		 * order reading __PERCPU_REF_DEAD flag of .q_usage_counter and
+		 * reading .mq_freeze_depth or queue dying flag, otherwise the
+		 * following wait may never return if the two reads are
+		 * reordered.
 		 */
 		smp_rmb();
-
 		wait_event(q->mq_freeze_wq,
 			   (!q->mq_freeze_depth &&
 			    blk_pm_resume_queue(pm, q)) ||
@@ -470,23 +464,43 @@ int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags)
 		if (blk_queue_dying(q))
 			return -ENODEV;
 	}
+
+	return 0;
 }
 
 static inline int bio_queue_enter(struct bio *bio)
 {
-	struct request_queue *q = bio->bi_bdev->bd_disk->queue;
-	bool nowait = bio->bi_opf & REQ_NOWAIT;
-	int ret;
+	struct gendisk *disk = bio->bi_bdev->bd_disk;
+	struct request_queue *q = disk->queue;
 
-	ret = blk_queue_enter(q, nowait ? BLK_MQ_REQ_NOWAIT : 0);
-	if (unlikely(ret)) {
-		if (nowait && !blk_queue_dying(q))
+	while (!blk_try_enter_queue(q, false)) {
+		if (bio->bi_opf & REQ_NOWAIT) {
+			if (test_bit(GD_DEAD, &disk->state))
+				goto dead;
 			bio_wouldblock_error(bio);
-		else
-			bio_io_error(bio);
+			return -EBUSY;
+		}
+
+		/*
+		 * read pair of barrier in blk_freeze_queue_start(), we need to
+		 * order reading __PERCPU_REF_DEAD flag of .q_usage_counter and
+		 * reading .mq_freeze_depth or queue dying flag, otherwise the
+		 * following wait may never return if the two reads are
+		 * reordered.
+		 */
+		smp_rmb();
+		wait_event(q->mq_freeze_wq,
+			   (!q->mq_freeze_depth &&
+			    blk_pm_resume_queue(false, q)) ||
+			   test_bit(GD_DEAD, &disk->state));
+		if (test_bit(GD_DEAD, &disk->state))
+			goto dead;
 	}
 
-	return ret;
+	return 0;
+dead:
+	bio_io_error(bio);
+	return -ENODEV;
 }
 
 void blk_queue_exit(struct request_queue *q)
@@ -533,20 +547,14 @@ struct request_queue *blk_alloc_queue(int node_id)
 	if (ret)
 		goto fail_id;
 
-	q->backing_dev_info = bdi_alloc(node_id);
-	if (!q->backing_dev_info)
-		goto fail_split;
-
 	q->stats = blk_alloc_queue_stats();
 	if (!q->stats)
-		goto fail_stats;
+		goto fail_split;
 
 	q->node = node_id;
 
 	atomic_set(&q->nr_active_requests_shared_sbitmap, 0);
 
-	timer_setup(&q->backing_dev_info->laptop_mode_wb_timer,
-		    laptop_mode_timer_fn, 0);
 	timer_setup(&q->timeout, blk_rq_timed_out_timer, 0);
 	INIT_WORK(&q->timeout_work, blk_timeout_work);
 	INIT_LIST_HEAD(&q->icq_list);
@@ -571,7 +579,7 @@ struct request_queue *blk_alloc_queue(int node_id)
 	if (percpu_ref_init(&q->q_usage_counter,
 				blk_queue_usage_counter_release,
 				PERCPU_REF_INIT_ATOMIC, GFP_KERNEL))
-		goto fail_bdi;
+		goto fail_stats;
 
 	if (blkcg_init_queue(q))
 		goto fail_ref;
@@ -584,10 +592,8 @@ struct request_queue *blk_alloc_queue(int node_id)
 
 fail_ref:
 	percpu_ref_exit(&q->q_usage_counter);
-fail_bdi:
-	blk_free_queue_stats(q->stats);
 fail_stats:
-	bdi_put(q->backing_dev_info);
+	blk_free_queue_stats(q->stats);
 fail_split:
 	bioset_exit(&q->bio_split);
 fail_id:
@@ -833,7 +839,7 @@ static noinline_for_stack bool submit_bio_checks(struct bio *bio)
 	}
 
 	if (!test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
-		bio->bi_opf &= ~REQ_HIPRI;
+		bio_clear_hipri(bio);
 
 	switch (bio_op(bio)) {
 	case REQ_OP_DISCARD:
@@ -911,11 +917,18 @@ static blk_qc_t __submit_bio(struct bio *bio)
 	struct gendisk *disk = bio->bi_bdev->bd_disk;
 	blk_qc_t ret = BLK_QC_T_NONE;
 
-	if (blk_crypto_bio_prep(&bio)) {
-		if (!disk->fops->submit_bio)
-			return blk_mq_submit_bio(bio);
+	if (unlikely(bio_queue_enter(bio) != 0))
+		return BLK_QC_T_NONE;
+
+	if (!submit_bio_checks(bio) || !blk_crypto_bio_prep(&bio))
+		goto queue_exit;
+	if (disk->fops->submit_bio) {
 		ret = disk->fops->submit_bio(bio);
+		goto queue_exit;
 	}
+	return blk_mq_submit_bio(bio);
+
+queue_exit:
 	blk_queue_exit(disk->queue);
 	return ret;
 }
@@ -953,9 +966,6 @@ static blk_qc_t __submit_bio_noacct(struct bio *bio)
 		struct request_queue *q = bio->bi_bdev->bd_disk->queue;
 		struct bio_list lower, same;
 
-		if (unlikely(bio_queue_enter(bio) != 0))
-			continue;
-
 		/*
 		 * Create a fresh bio_list for all subordinate requests.
 		 */
@@ -991,23 +1001,12 @@ static blk_qc_t __submit_bio_noacct(struct bio *bio)
 static blk_qc_t __submit_bio_noacct_mq(struct bio *bio)
 {
 	struct bio_list bio_list[2] = { };
-	blk_qc_t ret = BLK_QC_T_NONE;
+	blk_qc_t ret;
 
 	current->bio_list = bio_list;
 
 	do {
-		struct gendisk *disk = bio->bi_bdev->bd_disk;
-
-		if (unlikely(bio_queue_enter(bio) != 0))
-			continue;
-
-		if (!blk_crypto_bio_prep(&bio)) {
-			blk_queue_exit(disk->queue);
-			ret = BLK_QC_T_NONE;
-			continue;
-		}
-
-		ret = blk_mq_submit_bio(bio);
+		ret = __submit_bio(bio);
 	} while ((bio = bio_list_pop(&bio_list[0])));
 
 	current->bio_list = NULL;
@@ -1025,9 +1024,6 @@ static blk_qc_t __submit_bio_noacct_mq(struct bio *bio)
  */
 blk_qc_t submit_bio_noacct(struct bio *bio)
 {
-	if (!submit_bio_checks(bio))
-		return BLK_QC_T_NONE;
-
 	/*
 	 * We only want one ->submit_bio to be active at a time, else stack
 	 * usage with stacked devices could be a problem.  Use current->bio_list

@@ -97,7 +97,7 @@ xfs_end_ioend(
 	/*
 	 * Just clean up the in-memory structures if the fs has been shut down.
 	 */
-	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+	if (xfs_is_shutdown(ip->i_mount)) {
 		error = -EIO;
 		goto done;
 	}
@@ -260,7 +260,7 @@ xfs_map_blocks(
 	int			retries = 0;
 	int			error = 0;
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	/*
@@ -440,7 +440,7 @@ xfs_discard_page(
 	xfs_fileoff_t		pageoff_fsb = XFS_B_TO_FSBT(mp, pageoff);
 	int			error;
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		goto out_invalidate;
 
 	xfs_alert_ratelimited(mp,
@@ -449,7 +449,7 @@ xfs_discard_page(
 
 	error = xfs_bmap_punch_delalloc_range(ip, start_fsb,
 			i_blocks_per_page(inode, page) - pageoff_fsb);
-	if (error && !XFS_FORCED_SHUTDOWN(mp))
+	if (error && !xfs_is_shutdown(mp))
 		xfs_alert(mp, "page discard unable to remove delalloc mapping.");
 out_invalidate:
 	iomap_invalidatepage(page, pageoff, PAGE_SIZE - pageoff);
@@ -460,22 +460,6 @@ static const struct iomap_writeback_ops xfs_writeback_ops = {
 	.prepare_ioend		= xfs_prepare_ioend,
 	.discard_page		= xfs_discard_page,
 };
-
-STATIC int
-xfs_vm_writepage(
-	struct page		*page,
-	struct writeback_control *wbc)
-{
-	struct xfs_writepage_ctx wpc = { };
-
-	if (WARN_ON_ONCE(current->journal_info)) {
-		redirty_page_for_writepage(wbc, page);
-		unlock_page(page);
-		return 0;
-	}
-
-	return iomap_writepage(page, wbc, &wpc.ctx, &xfs_writeback_ops);
-}
 
 STATIC int
 xfs_vm_writepages(
@@ -559,7 +543,6 @@ xfs_iomap_swapfile_activate(
 const struct address_space_operations xfs_address_space_operations = {
 	.readpage		= xfs_vm_readpage,
 	.readahead		= xfs_vm_readahead,
-	.writepage		= xfs_vm_writepage,
 	.writepages		= xfs_vm_writepages,
 	.set_page_dirty		= __set_page_dirty_nobuffers,
 	.releasepage		= iomap_releasepage,

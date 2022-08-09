@@ -33,6 +33,7 @@ enum iwl_device_family {
 	IWL_DEVICE_FAMILY_9000,
 	IWL_DEVICE_FAMILY_22000,
 	IWL_DEVICE_FAMILY_AX210,
+	IWL_DEVICE_FAMILY_BZ,
 };
 
 /*
@@ -321,7 +322,7 @@ struct iwl_fw_mon_regs {
  * @host_interrupt_operation_mode: device needs host interrupt operation
  *	mode set
  * @nvm_hw_section_num: the ID of the HW NVM section
- * @mac_addr_from_csr: read HW address from CSR registers
+ * @mac_addr_from_csr: read HW address from CSR registers at this offset
  * @features: hw features, any combination of feature_passlist
  * @pwr_tx_backoffs: translation table between power limits and backoffs
  * @max_tx_agg_size: max TX aggregation size of the ADDBA request/response
@@ -343,6 +344,8 @@ struct iwl_fw_mon_regs {
  *	supports 256 BA aggregation
  * @num_rbds: number of receive buffer descriptors to use
  *	(only used for multi-queue capable devices)
+ * @mac_addr_csr_base: CSR base register for MAC address access, if not set
+ *	assume 0x380
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -378,7 +381,7 @@ struct iwl_cfg {
 	    internal_wimax_coex:1,
 	    host_interrupt_operation_mode:1,
 	    high_temp:1,
-	    mac_addr_from_csr:1,
+	    mac_addr_from_csr:10,
 	    lp_xtal_workaround:1,
 	    disable_dummy_notification:1,
 	    apmg_not_supported:1,
@@ -512,6 +515,7 @@ extern const char iwl_ax211_name[];
 extern const char iwl_ax221_name[];
 extern const char iwl_ax231_name[];
 extern const char iwl_ax411_name[];
+extern const char iwl_bz_name[];
 #if IS_ENABLED(CONFIG_IWLDVM)
 extern const struct iwl_cfg iwl5300_agn_cfg;
 extern const struct iwl_cfg iwl5100_agn_cfg;

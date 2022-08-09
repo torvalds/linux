@@ -198,7 +198,7 @@ static int __init ttyprintk_init(void)
 	return 0;
 
 error:
-	put_tty_driver(ttyprintk_driver);
+	tty_driver_kref_put(ttyprintk_driver);
 	tty_port_destroy(&tpk_port.port);
 	return ret;
 }
@@ -206,7 +206,7 @@ error:
 static void __exit ttyprintk_exit(void)
 {
 	tty_unregister_driver(ttyprintk_driver);
-	put_tty_driver(ttyprintk_driver);
+	tty_driver_kref_put(ttyprintk_driver);
 	tty_port_destroy(&tpk_port.port);
 }
 

@@ -1172,7 +1172,6 @@ struct dvb_frontend *cx24117_attach(const struct cx24117_config *config,
 			"%s: Error attaching frontend %d\n",
 			KBUILD_MODNAME, demod);
 		goto error1;
-		break;
 	case 1:
 		/* new priv instance */
 		priv->i2c = i2c;

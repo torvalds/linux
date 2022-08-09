@@ -2226,8 +2226,8 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 		p_blk = &p_cli->pf_blks[CDUT_SEG_BLK(QED_CXT_ROCE_TID_SEG)];
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "-EINVALID elem type = %d", elem_type);
-		return -EINVAL;
+		DP_NOTICE(p_hwfn, "-EOPNOTSUPP elem type = %d", elem_type);
+		return -EOPNOTSUPP;
 	}
 
 	/* Calculate line in ilt */

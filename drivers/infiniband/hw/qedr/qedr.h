@@ -455,6 +455,7 @@ struct qedr_qp {
 	/* synchronization objects used with iwarp ep */
 	struct kref refcnt;
 	struct completion iwarp_cm_comp;
+	struct completion qp_rel_comp;
 	unsigned long iwarp_cm_flags; /* enum iwarp_cm_flags */
 };
 

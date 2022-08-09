@@ -6,6 +6,7 @@
  */
 #ifndef __iwl_fw_api_d3_h__
 #define __iwl_fw_api_d3_h__
+#include <iwl-trans.h>
 
 /**
  * enum iwl_d0i3_flags - d0i3 flags
@@ -389,11 +390,14 @@ struct iwl_wowlan_config_cmd {
 	u8 reserved;
 } __packed; /* WOWLAN_CONFIG_API_S_VER_5 */
 
+#define IWL_NUM_RSC	16
+#define WOWLAN_KEY_MAX_SIZE	32
+#define WOWLAN_GTK_KEYS_NUM     2
+#define WOWLAN_IGTK_KEYS_NUM	2
+
 /*
  * WOWLAN_TSC_RSC_PARAMS
  */
-#define IWL_NUM_RSC	16
-
 struct tkip_sc {
 	__le16 iv16;
 	__le16 pad;
@@ -425,10 +429,18 @@ struct iwl_wowlan_rsc_tsc_params_cmd_ver_2 {
 	union iwl_all_tsc_rsc all_tsc_rsc;
 } __packed; /* ALL_TSC_RSC_API_S_VER_2 */
 
-struct iwl_wowlan_rsc_tsc_params_cmd {
+struct iwl_wowlan_rsc_tsc_params_cmd_v4 {
 	struct iwl_wowlan_rsc_tsc_params_cmd_ver_2 params;
 	__le32 sta_id;
 } __packed; /* ALL_TSC_RSC_API_S_VER_4 */
+
+struct iwl_wowlan_rsc_tsc_params_cmd {
+	__le64 ucast_rsc[IWL_MAX_TID_COUNT];
+	__le64 mcast_rsc[WOWLAN_GTK_KEYS_NUM][IWL_MAX_TID_COUNT];
+	__le32 sta_id;
+#define IWL_MCAST_KEY_MAP_INVALID	0xff
+	u8 mcast_key_id_map[4];
+} __packed; /* ALL_TSC_RSC_API_S_VER_5 */
 
 #define IWL_MIC_KEY_SIZE	8
 struct iwl_mic_keys {
@@ -540,10 +552,6 @@ struct iwl_wowlan_gtk_status_v1 {
 	u8 tkip_mic_key[8];
 	struct iwl_wowlan_rsc_tsc_params_cmd_ver_2 rsc;
 } __packed; /* WOWLAN_GTK_MATERIAL_VER_1 */
-
-#define WOWLAN_KEY_MAX_SIZE	32
-#define WOWLAN_GTK_KEYS_NUM     2
-#define WOWLAN_IGTK_KEYS_NUM	2
 
 /**
  * struct iwl_wowlan_gtk_status - GTK status

@@ -79,12 +79,12 @@ static uint8_t *psp_get_srm(struct psp_context *psp, uint32_t *srm_version, uint
 
 	struct ta_hdcp_shared_memory *hdcp_cmd;
 
-	if (!psp->hdcp_context.hdcp_initialized) {
+	if (!psp->hdcp_context.context.initialized) {
 		DRM_WARN("Failed to get hdcp srm. HDCP TA is not initialized.");
 		return NULL;
 	}
 
-	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.context.mem_context.shared_buf;
 	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
 
 	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP_GET_SRM;
@@ -105,12 +105,12 @@ static int psp_set_srm(struct psp_context *psp, uint8_t *srm, uint32_t srm_size,
 
 	struct ta_hdcp_shared_memory *hdcp_cmd;
 
-	if (!psp->hdcp_context.hdcp_initialized) {
+	if (!psp->hdcp_context.context.initialized) {
 		DRM_WARN("Failed to get hdcp srm. HDCP TA is not initialized.");
 		return -EINVAL;
 	}
 
-	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.context.mem_context.shared_buf;
 	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
 
 	memcpy(hdcp_cmd->in_msg.hdcp_set_srm.srm_buf, srm, srm_size);
@@ -414,12 +414,12 @@ static bool enable_assr(void *handle, struct dc_link *link)
 	struct ta_dtm_shared_memory *dtm_cmd;
 	bool res = true;
 
-	if (!psp->dtm_context.dtm_initialized) {
+	if (!psp->dtm_context.context.initialized) {
 		DRM_INFO("Failed to enable ASSR, DTM TA is not initialized.");
 		return false;
 	}
 
-	dtm_cmd = (struct ta_dtm_shared_memory *)psp->dtm_context.dtm_shared_buf;
+	dtm_cmd = (struct ta_dtm_shared_memory *)psp->dtm_context.context.mem_context.shared_buf;
 
 	mutex_lock(&psp->dtm_context.mutex);
 	memset(dtm_cmd, 0, sizeof(struct ta_dtm_shared_memory));
@@ -655,10 +655,8 @@ struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev, struct 
 		INIT_DELAYED_WORK(&hdcp_work[i].property_validate_dwork, event_property_validate);
 
 		hdcp_work[i].hdcp.config.psp.handle = &adev->psp;
-		if (dc->ctx->dce_version == DCN_VERSION_3_1) {
+		if (dc->ctx->dce_version == DCN_VERSION_3_1)
 			hdcp_work[i].hdcp.config.psp.caps.dtm_v3_supported = 1;
-			hdcp_work[i].hdcp.config.psp.caps.opm_state_query_supported = false;
-		}
 		hdcp_work[i].hdcp.config.ddc.handle = dc_get_link_at_index(dc, i);
 		hdcp_work[i].hdcp.config.ddc.funcs.write_i2c = lp_write_i2c;
 		hdcp_work[i].hdcp.config.ddc.funcs.read_i2c = lp_read_i2c;

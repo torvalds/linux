@@ -1,14 +1,14 @@
 cat <<EOF
 /**
- * ${arch}${atomic}_inc_not_zero - increment unless the number is zero
+ * arch_${atomic}_inc_not_zero - increment unless the number is zero
  * @v: pointer of type ${atomic}_t
  *
  * Atomically increments @v by 1, if @v is non-zero.
  * Returns true if the increment was done.
  */
 static __always_inline bool
-${arch}${atomic}_inc_not_zero(${atomic}_t *v)
+arch_${atomic}_inc_not_zero(${atomic}_t *v)
 {
-	return ${arch}${atomic}_add_unless(v, 1, 0);
+	return arch_${atomic}_add_unless(v, 1, 0);
 }
 EOF

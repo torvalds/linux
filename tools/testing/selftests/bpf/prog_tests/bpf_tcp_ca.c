@@ -4,36 +4,21 @@
 #include <linux/err.h>
 #include <netinet/tcp.h>
 #include <test_progs.h>
+#include "network_helpers.h"
 #include "bpf_dctcp.skel.h"
 #include "bpf_cubic.skel.h"
 #include "bpf_tcp_nogpl.skel.h"
+#include "bpf_dctcp_release.skel.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
+#ifndef ENOTSUPP
+#define ENOTSUPP 524
+#endif
+
 static const unsigned int total_bytes = 10 * 1024 * 1024;
-static const struct timeval timeo_sec = { .tv_sec = 10 };
-static const size_t timeo_optlen = sizeof(timeo_sec);
 static int expected_stg = 0xeB9F;
 static int stop, duration;
-
-static int settimeo(int fd)
-{
-	int err;
-
-	err = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeo_sec,
-			 timeo_optlen);
-	if (CHECK(err == -1, "setsockopt(fd, SO_RCVTIMEO)", "errno:%d\n",
-		  errno))
-		return -1;
-
-	err = setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeo_sec,
-			 timeo_optlen);
-	if (CHECK(err == -1, "setsockopt(fd, SO_SNDTIMEO)", "errno:%d\n",
-		  errno))
-		return -1;
-
-	return 0;
-}
 
 static int settcpca(int fd, const char *tcp_ca)
 {
@@ -61,7 +46,7 @@ static void *server(void *arg)
 		goto done;
 	}
 
-	if (settimeo(fd)) {
+	if (settimeo(fd, 0)) {
 		err = -errno;
 		goto done;
 	}
@@ -114,7 +99,7 @@ static void do_test(const char *tcp_ca, const struct bpf_map *sk_stg_map)
 	}
 
 	if (settcpca(lfd, tcp_ca) || settcpca(fd, tcp_ca) ||
-	    settimeo(lfd) || settimeo(fd))
+	    settimeo(lfd, 0) || settimeo(fd, 0))
 		goto done;
 
 	/* bind, listen and start server thread to accept */
@@ -267,6 +252,77 @@ static void test_invalid_license(void)
 	libbpf_set_print(old_print_fn);
 }
 
+static void test_dctcp_fallback(void)
+{
+	int err, lfd = -1, cli_fd = -1, srv_fd = -1;
+	struct network_helper_opts opts = {
+		.cc = "cubic",
+	};
+	struct bpf_dctcp *dctcp_skel;
+	struct bpf_link *link = NULL;
+	char srv_cc[16];
+	socklen_t cc_len = sizeof(srv_cc);
+
+	dctcp_skel = bpf_dctcp__open();
+	if (!ASSERT_OK_PTR(dctcp_skel, "dctcp_skel"))
+		return;
+	strcpy(dctcp_skel->rodata->fallback, "cubic");
+	if (!ASSERT_OK(bpf_dctcp__load(dctcp_skel), "bpf_dctcp__load"))
+		goto done;
+
+	link = bpf_map__attach_struct_ops(dctcp_skel->maps.dctcp);
+	if (!ASSERT_OK_PTR(link, "dctcp link"))
+		goto done;
+
+	lfd = start_server(AF_INET6, SOCK_STREAM, "::1", 0, 0);
+	if (!ASSERT_GE(lfd, 0, "lfd") ||
+	    !ASSERT_OK(settcpca(lfd, "bpf_dctcp"), "lfd=>bpf_dctcp"))
+		goto done;
+
+	cli_fd = connect_to_fd_opts(lfd, &opts);
+	if (!ASSERT_GE(cli_fd, 0, "cli_fd"))
+		goto done;
+
+	srv_fd = accept(lfd, NULL, 0);
+	if (!ASSERT_GE(srv_fd, 0, "srv_fd"))
+		goto done;
+	ASSERT_STREQ(dctcp_skel->bss->cc_res, "cubic", "cc_res");
+	ASSERT_EQ(dctcp_skel->bss->tcp_cdg_res, -ENOTSUPP, "tcp_cdg_res");
+
+	err = getsockopt(srv_fd, SOL_TCP, TCP_CONGESTION, srv_cc, &cc_len);
+	if (!ASSERT_OK(err, "getsockopt(srv_fd, TCP_CONGESTION)"))
+		goto done;
+	ASSERT_STREQ(srv_cc, "cubic", "srv_fd cc");
+
+done:
+	bpf_link__destroy(link);
+	bpf_dctcp__destroy(dctcp_skel);
+	if (lfd != -1)
+		close(lfd);
+	if (srv_fd != -1)
+		close(srv_fd);
+	if (cli_fd != -1)
+		close(cli_fd);
+}
+
+static void test_rel_setsockopt(void)
+{
+	struct bpf_dctcp_release *rel_skel;
+	libbpf_print_fn_t old_print_fn;
+
+	err_str = "unknown func bpf_setsockopt";
+	found = false;
+
+	old_print_fn = libbpf_set_print(libbpf_debug_print);
+	rel_skel = bpf_dctcp_release__open_and_load();
+	libbpf_set_print(old_print_fn);
+
+	ASSERT_ERR_PTR(rel_skel, "rel_skel");
+	ASSERT_TRUE(found, "expected_err_msg");
+
+	bpf_dctcp_release__destroy(rel_skel);
+}
+
 void test_bpf_tcp_ca(void)
 {
 	if (test__start_subtest("dctcp"))
@@ -275,4 +331,8 @@ void test_bpf_tcp_ca(void)
 		test_cubic();
 	if (test__start_subtest("invalid_license"))
 		test_invalid_license();
+	if (test__start_subtest("dctcp_fallback"))
+		test_dctcp_fallback();
+	if (test__start_subtest("rel_setsockopt"))
+		test_rel_setsockopt();
 }

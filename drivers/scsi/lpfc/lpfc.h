@@ -114,6 +114,12 @@ struct lpfc_sli2_slim;
 #define LPFC_MBX_NO_WAIT	0
 #define LPFC_MBX_WAIT		1
 
+#define LPFC_CFG_PARAM_MAGIC_NUM 0xFEAA0005
+#define LPFC_PORT_CFG_NAME "/cfg/port.cfg"
+
+#define lpfc_rangecheck(val, min, max) \
+	((uint)(val) >= (uint)(min) && (val) <= (max))
+
 enum lpfc_polling_flags {
 	ENABLE_FCP_RING_POLLING = 0x1,
 	DISABLE_FCP_RING_INT    = 0x2
@@ -401,6 +407,160 @@ struct lpfc_trunk_link  {
 				     link1,
 				     link2,
 				     link3;
+};
+
+/* Format of congestion module parameters */
+struct lpfc_cgn_param {
+	uint32_t cgn_param_magic;
+	uint8_t  cgn_param_version;	/* version 1 */
+	uint8_t  cgn_param_mode;	/* 0=off 1=managed 2=monitor only */
+#define LPFC_CFG_OFF		0
+#define LPFC_CFG_MANAGED	1
+#define LPFC_CFG_MONITOR	2
+	uint8_t  cgn_rsvd1;
+	uint8_t  cgn_rsvd2;
+	uint8_t  cgn_param_level0;
+	uint8_t  cgn_param_level1;
+	uint8_t  cgn_param_level2;
+	uint8_t  byte11;
+	uint8_t  byte12;
+	uint8_t  byte13;
+	uint8_t  byte14;
+	uint8_t  byte15;
+};
+
+/* Max number of days of congestion data */
+#define LPFC_MAX_CGN_DAYS 10
+
+/* Format of congestion buffer info
+ * This structure defines memory thats allocated and registered with
+ * the HBA firmware. When adding or removing fields from this structure
+ * the alignment must match the HBA firmware.
+ */
+
+struct lpfc_cgn_info {
+	/* Header */
+	__le16   cgn_info_size;		/* is sizeof(struct lpfc_cgn_info) */
+	uint8_t  cgn_info_version;	/* represents format of structure */
+#define LPFC_CGN_INFO_V1	1
+#define LPFC_CGN_INFO_V2	2
+#define LPFC_CGN_INFO_V3	3
+	uint8_t  cgn_info_mode;		/* 0=off 1=managed 2=monitor only */
+	uint8_t  cgn_info_detect;
+	uint8_t  cgn_info_action;
+	uint8_t  cgn_info_level0;
+	uint8_t  cgn_info_level1;
+	uint8_t  cgn_info_level2;
+
+	/* Start Time */
+	uint8_t  cgn_info_month;
+	uint8_t  cgn_info_day;
+	uint8_t  cgn_info_year;
+	uint8_t  cgn_info_hour;
+	uint8_t  cgn_info_minute;
+	uint8_t  cgn_info_second;
+
+	/* minute / hours / daily indices */
+	uint8_t  cgn_index_minute;
+	uint8_t  cgn_index_hour;
+	uint8_t  cgn_index_day;
+
+	__le16   cgn_warn_freq;
+	__le16   cgn_alarm_freq;
+	__le16   cgn_lunq;
+	uint8_t  cgn_pad1[8];
+
+	/* Driver Information */
+	__le16   cgn_drvr_min[60];
+	__le32   cgn_drvr_hr[24];
+	__le32   cgn_drvr_day[LPFC_MAX_CGN_DAYS];
+
+	/* Congestion Warnings */
+	__le16   cgn_warn_min[60];
+	__le32   cgn_warn_hr[24];
+	__le32   cgn_warn_day[LPFC_MAX_CGN_DAYS];
+
+	/* Latency Information */
+	__le32   cgn_latency_min[60];
+	__le32   cgn_latency_hr[24];
+	__le32   cgn_latency_day[LPFC_MAX_CGN_DAYS];
+
+	/* Bandwidth Information */
+	__le16   cgn_bw_min[60];
+	__le16   cgn_bw_hr[24];
+	__le16   cgn_bw_day[LPFC_MAX_CGN_DAYS];
+
+	/* Congestion Alarms */
+	__le16   cgn_alarm_min[60];
+	__le32   cgn_alarm_hr[24];
+	__le32   cgn_alarm_day[LPFC_MAX_CGN_DAYS];
+
+	/* Start of congestion statistics */
+	uint8_t  cgn_stat_npm;		/* Notifications per minute */
+
+	/* Start Time */
+	uint8_t  cgn_stat_month;
+	uint8_t  cgn_stat_day;
+	uint8_t  cgn_stat_year;
+	uint8_t  cgn_stat_hour;
+	uint8_t  cgn_stat_minute;
+	uint8_t  cgn_pad2[2];
+
+	__le32   cgn_notification;
+	__le32   cgn_peer_notification;
+	__le32   link_integ_notification;
+	__le32   delivery_notification;
+
+	uint8_t  cgn_stat_cgn_month; /* Last congestion notification FPIN */
+	uint8_t  cgn_stat_cgn_day;
+	uint8_t  cgn_stat_cgn_year;
+	uint8_t  cgn_stat_cgn_hour;
+	uint8_t  cgn_stat_cgn_min;
+	uint8_t  cgn_stat_cgn_sec;
+
+	uint8_t  cgn_stat_peer_month; /* Last peer congestion FPIN */
+	uint8_t  cgn_stat_peer_day;
+	uint8_t  cgn_stat_peer_year;
+	uint8_t  cgn_stat_peer_hour;
+	uint8_t  cgn_stat_peer_min;
+	uint8_t  cgn_stat_peer_sec;
+
+	uint8_t  cgn_stat_lnk_month; /* Last link integrity FPIN */
+	uint8_t  cgn_stat_lnk_day;
+	uint8_t  cgn_stat_lnk_year;
+	uint8_t  cgn_stat_lnk_hour;
+	uint8_t  cgn_stat_lnk_min;
+	uint8_t  cgn_stat_lnk_sec;
+
+	uint8_t  cgn_stat_del_month; /* Last delivery notification FPIN */
+	uint8_t  cgn_stat_del_day;
+	uint8_t  cgn_stat_del_year;
+	uint8_t  cgn_stat_del_hour;
+	uint8_t  cgn_stat_del_min;
+	uint8_t  cgn_stat_del_sec;
+#define LPFC_CGN_STAT_SIZE	48
+#define LPFC_CGN_DATA_SIZE	(sizeof(struct lpfc_cgn_info) -  \
+				LPFC_CGN_STAT_SIZE - sizeof(uint32_t))
+
+	__le32   cgn_info_crc;
+#define LPFC_CGN_CRC32_MAGIC_NUMBER	0x1EDC6F41
+#define LPFC_CGN_CRC32_SEED		0xFFFFFFFF
+};
+
+#define LPFC_CGN_INFO_SZ	(sizeof(struct lpfc_cgn_info) -  \
+				sizeof(uint32_t))
+
+struct lpfc_cgn_stat {
+	atomic64_t total_bytes;
+	atomic64_t rcv_bytes;
+	atomic64_t rx_latency;
+#define LPFC_CGN_NOT_SENT	0xFFFFFFFFFFFFFFFFLL
+	atomic_t rx_io_cnt;
+};
+
+struct lpfc_cgn_acqe_stat {
+	atomic64_t alarm;
+	atomic64_t warn;
 };
 
 struct lpfc_vport {
@@ -869,7 +1029,10 @@ struct lpfc_hba {
 					 * capability
 					 */
 #define HBA_FLOGI_ISSUED	0x100000 /* FLOGI was issued */
+#define HBA_CGN_RSVD1		0x200000 /* Reserved CGN flag */
+#define HBA_CGN_DAY_WRAP	0x400000 /* HBA Congestion info day wraps */
 #define HBA_DEFER_FLOGI		0x800000 /* Defer FLOGI till read_sparm cmpl */
+#define HBA_SETUP		0x1000000 /* Signifies HBA setup is completed */
 #define HBA_NEEDS_CFG_PORT	0x2000000 /* SLI3 - needs a CONFIG_PORT mbox */
 #define HBA_HBEAT_INP		0x4000000 /* mbox HBEAT is in progress */
 #define HBA_HBEAT_TMO		0x8000000 /* HBEAT initiated after timeout */
@@ -922,7 +1085,6 @@ struct lpfc_hba {
 	uint8_t  wwpn[8];
 	uint32_t RandomData[7];
 	uint8_t  fcp_embed_io;
-	uint8_t  nvme_support;	/* Firmware supports NVME */
 	uint8_t  nvmet_support;	/* driver supports NVMET */
 #define LPFC_NVMET_MAX_PORTS	32
 	uint8_t  mds_diags_support;
@@ -1121,6 +1283,7 @@ struct lpfc_hba {
 	uint32_t total_iocbq_bufs;
 	struct list_head active_rrq_list;
 	spinlock_t hbalock;
+	struct work_struct  unblock_request_work; /* SCSI layer unblock IOs */
 
 	/* dma_mem_pools */
 	struct dma_pool *lpfc_sg_dma_buf_pool;
@@ -1194,6 +1357,8 @@ struct lpfc_hba {
 #ifdef LPFC_HDWQ_LOCK_STAT
 	struct dentry *debug_lockstat;
 #endif
+	struct dentry *debug_cgn_buffer;
+	struct dentry *debug_rx_monitor;
 	struct dentry *debug_ras_log;
 	atomic_t nvmeio_trc_cnt;
 	uint32_t nvmeio_trc_size;
@@ -1344,6 +1509,76 @@ struct lpfc_hba {
 	uint64_t ktime_seg10_min;
 	uint64_t ktime_seg10_max;
 #endif
+	/* CMF objects */
+	struct lpfc_cgn_stat __percpu *cmf_stat;
+	uint32_t cmf_interval_rate;  /* timer interval limit in ms */
+	uint32_t cmf_timer_cnt;
+#define LPFC_CMF_INTERVAL 90
+	uint64_t cmf_link_byte_count;
+	uint64_t cmf_max_line_rate;
+	uint64_t cmf_max_bytes_per_interval;
+	uint64_t cmf_last_sync_bw;
+#define  LPFC_CMF_BLK_SIZE 512
+	struct hrtimer cmf_timer;
+	atomic_t cmf_bw_wait;
+	atomic_t cmf_busy;
+	atomic_t cmf_stop_io;      /* To block request and stop IO's */
+	uint32_t cmf_active_mode;
+	uint32_t cmf_info_per_interval;
+#define LPFC_MAX_CMF_INFO 32
+	struct timespec64 cmf_latency;  /* Interval congestion timestamp */
+	uint32_t cmf_last_ts;   /* Interval congestion time (ms) */
+	uint32_t cmf_active_info;
+
+	/* Signal / FPIN handling for Congestion Mgmt */
+	u8 cgn_reg_fpin;           /* Negotiated value from RDF */
+	u8 cgn_init_reg_fpin;      /* Initial value from READ_CONFIG */
+#define LPFC_CGN_FPIN_NONE	0x0
+#define LPFC_CGN_FPIN_WARN	0x1
+#define LPFC_CGN_FPIN_ALARM	0x2
+#define LPFC_CGN_FPIN_BOTH	(LPFC_CGN_FPIN_WARN | LPFC_CGN_FPIN_ALARM)
+
+	u8 cgn_reg_signal;          /* Negotiated value from EDC */
+	u8 cgn_init_reg_signal;     /* Initial value from READ_CONFIG */
+		/* cgn_reg_signal and cgn_init_reg_signal use
+		 * enum fc_edc_cg_signal_cap_types
+		 */
+	u16 cgn_fpin_frequency;
+#define LPFC_FPIN_INIT_FREQ	0xffff
+	u32 cgn_sig_freq;
+	u32 cgn_acqe_cnt;
+
+	/* RX monitor handling for CMF */
+	struct rxtable_entry *rxtable;  /* RX_monitor information */
+	atomic_t rxtable_idx_head;
+#define LPFC_RXMONITOR_TABLE_IN_USE     (LPFC_MAX_RXMONITOR_ENTRY + 73)
+	atomic_t rxtable_idx_tail;
+	atomic_t rx_max_read_cnt;       /* Maximum read bytes */
+	uint64_t rx_block_cnt;
+
+	/* Congestion parameters from flash */
+	struct lpfc_cgn_param cgn_p;
+
+	/* Statistics counter for ACQE cgn alarms and warnings */
+	struct lpfc_cgn_acqe_stat cgn_acqe_stat;
+
+	/* Congestion buffer information */
+	struct lpfc_dmabuf *cgn_i;      /* Congestion Info buffer */
+	atomic_t cgn_fabric_warn_cnt;   /* Total warning cgn events for info */
+	atomic_t cgn_fabric_alarm_cnt;  /* Total alarm cgn events for info */
+	atomic_t cgn_sync_warn_cnt;     /* Total warning events for SYNC wqe */
+	atomic_t cgn_sync_alarm_cnt;    /* Total alarm events for SYNC wqe */
+	atomic_t cgn_driver_evt_cnt;    /* Total driver cgn events for fmw */
+	atomic_t cgn_latency_evt_cnt;
+	struct timespec64 cgn_daily_ts;
+	atomic64_t cgn_latency_evt;     /* Avg latency per minute */
+	unsigned long cgn_evt_timestamp;
+#define LPFC_CGN_TIMER_TO_MIN   60000 /* ms in a minute */
+	uint32_t cgn_evt_minute;
+#define LPFC_SEC_MIN		60
+#define LPFC_MIN_HOUR		60
+#define LPFC_HOUR_DAY		24
+#define LPFC_MIN_DAY		(LPFC_MIN_HOUR * LPFC_HOUR_DAY)
 
 	struct hlist_node cpuhp;	/* used for cpuhp per hba callback */
 	struct timer_list cpuhp_poll_timer;
@@ -1362,6 +1597,22 @@ struct lpfc_hba {
 	atomic_t dbg_log_cnt;
 	atomic_t dbg_log_dmping;
 	struct dbg_log_ent dbg_log[DBG_LOG_SZ];
+};
+
+#define LPFC_MAX_RXMONITOR_ENTRY	800
+#define LPFC_MAX_RXMONITOR_DUMP		32
+struct rxtable_entry {
+	uint64_t total_bytes;   /* Total no of read bytes requested */
+	uint64_t rcv_bytes;     /* Total no of read bytes completed */
+	uint64_t avg_io_size;
+	uint64_t avg_io_latency;/* Average io latency in microseconds */
+	uint64_t max_read_cnt;  /* Maximum read bytes */
+	uint64_t max_bytes_per_interval;
+	uint32_t cmf_busy;
+	uint32_t cmf_info;      /* CMF_SYNC_WQE info */
+	uint32_t io_cnt;
+	uint32_t timer_utilization;
+	uint32_t timer_interval;
 };
 
 static inline struct Scsi_Host *

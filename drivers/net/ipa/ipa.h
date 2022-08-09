@@ -23,34 +23,24 @@ struct icc_path;
 struct net_device;
 struct platform_device;
 
-struct ipa_clock;
+struct ipa_power;
 struct ipa_smp2p;
 struct ipa_interrupt;
 
 /**
- * enum ipa_flag - IPA state flags
- * @IPA_FLAG_RESUMED:	Whether resume from suspend has been signaled
- * @IPA_FLAG_COUNT:	Number of defined IPA flags
- */
-enum ipa_flag {
-	IPA_FLAG_RESUMED,
-	IPA_FLAG_COUNT,		/* Last; not a flag */
-};
-
-/**
  * struct ipa - IPA information
  * @gsi:		Embedded GSI structure
- * @flags:		Boolean state flags
  * @version:		IPA hardware version
  * @pdev:		Platform device
  * @completion:		Used to signal pipeline clear transfer complete
  * @nb:			Notifier block used for remoteproc SSR
  * @notifier:		Remoteproc SSR notifier
  * @smp2p:		SMP2P information
- * @clock:		IPA clocking information
+ * @power:		IPA power information
  * @table_addr:		DMA address of filter/route table content
  * @table_virt:		Virtual address of filter/route table content
  * @interrupt:		IPA Interrupt information
+ * @uc_powered:		true if power is active by proxy for microcontroller
  * @uc_loaded:		true after microcontroller has reported it's ready
  * @reg_addr:		DMA address used for IPA register access
  * @reg_virt:		Virtual address used for IPA register access
@@ -82,19 +72,19 @@ enum ipa_flag {
  */
 struct ipa {
 	struct gsi gsi;
-	DECLARE_BITMAP(flags, IPA_FLAG_COUNT);
 	enum ipa_version version;
 	struct platform_device *pdev;
 	struct completion completion;
 	struct notifier_block nb;
 	void *notifier;
 	struct ipa_smp2p *smp2p;
-	struct ipa_clock *clock;
+	struct ipa_power *power;
 
 	dma_addr_t table_addr;
 	__le64 *table_virt;
 
 	struct ipa_interrupt *interrupt;
+	bool uc_powered;
 	bool uc_loaded;
 
 	dma_addr_t reg_addr;
@@ -144,11 +134,11 @@ struct ipa {
  *
  * Activities performed at the init stage can be done without requiring
  * any access to IPA hardware.  Activities performed at the config stage
- * require the IPA clock to be running, because they involve access
- * to IPA registers.  The setup stage is performed only after the GSI
- * hardware is ready (more on this below).  The setup stage allows
- * the AP to perform more complex initialization by issuing "immediate
- * commands" using a special interface to the IPA.
+ * require IPA power, because they involve access to IPA registers.
+ * The setup stage is performed only after the GSI hardware is ready
+ * (more on this below).  The setup stage allows the AP to perform
+ * more complex initialization by issuing "immediate commands" using
+ * a special interface to the IPA.
  *
  * This function, @ipa_setup(), starts the setup stage.
  *

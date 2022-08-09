@@ -1445,10 +1445,11 @@ static int hvcs_initialize(void)
 	} else
 		num_ttys_to_alloc = hvcs_parm_num_devs;
 
-	hvcs_tty_driver = alloc_tty_driver(num_ttys_to_alloc);
-	if (!hvcs_tty_driver) {
+	hvcs_tty_driver = tty_alloc_driver(num_ttys_to_alloc,
+			TTY_DRIVER_REAL_RAW);
+	if (IS_ERR(hvcs_tty_driver)) {
 		mutex_unlock(&hvcs_init_mutex);
-		return -ENOMEM;
+		return PTR_ERR(hvcs_tty_driver);
 	}
 
 	if (hvcs_alloc_index_list(num_ttys_to_alloc)) {
@@ -1473,7 +1474,6 @@ static int hvcs_initialize(void)
 	 * throw us into a horrible recursive echo-echo-echo loop.
 	 */
 	hvcs_tty_driver->init_termios = hvcs_tty_termios;
-	hvcs_tty_driver->flags = TTY_DRIVER_REAL_RAW;
 
 	tty_set_operations(hvcs_tty_driver, &hvcs_ops);
 
@@ -1509,7 +1509,7 @@ buff_alloc_fail:
 register_fail:
 	hvcs_free_index_list();
 index_fail:
-	put_tty_driver(hvcs_tty_driver);
+	tty_driver_kref_put(hvcs_tty_driver);
 	hvcs_tty_driver = NULL;
 	mutex_unlock(&hvcs_init_mutex);
 	return rc;
@@ -1562,7 +1562,7 @@ static void __exit hvcs_module_exit(void)
 
 	hvcs_free_index_list();
 
-	put_tty_driver(hvcs_tty_driver);
+	tty_driver_kref_put(hvcs_tty_driver);
 
 	printk(KERN_INFO "HVCS: driver module removed.\n");
 }

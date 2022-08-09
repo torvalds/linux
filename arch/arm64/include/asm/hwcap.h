@@ -18,7 +18,7 @@
 #define COMPAT_HWCAP_EDSP	(1 << 7)
 #define COMPAT_HWCAP_JAVA	(1 << 8)
 #define COMPAT_HWCAP_IWMMXT	(1 << 9)
-#define COMPAT_HWCAP_CRUNCH	(1 << 10)
+#define COMPAT_HWCAP_CRUNCH	(1 << 10) /* Obsolete */
 #define COMPAT_HWCAP_THUMBEE	(1 << 11)
 #define COMPAT_HWCAP_NEON	(1 << 12)
 #define COMPAT_HWCAP_VFPv3	(1 << 13)

@@ -845,6 +845,11 @@ static int sve_set(struct task_struct *target,
 	}
 
 	sve_alloc(target);
+	if (!target->thread.sve_state) {
+		ret = -ENOMEM;
+		clear_tsk_thread_flag(target, TIF_SVE);
+		goto out;
+	}
 
 	/*
 	 * Ensure target->thread.sve_state is up to date with target's

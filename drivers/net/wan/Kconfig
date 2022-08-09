@@ -290,30 +290,6 @@ config SLIC_DS26522
 	  To compile this driver as a module, choose M here: the
 	  module will be called slic_ds26522.
 
-config DSCC4_PCISYNC
-	bool "Etinc PCISYNC features"
-	depends on DSCC4
-	help
-	  Due to Etinc's design choice for its PCISYNC cards, some operations
-	  are only allowed on specific ports of the DSCC4. This option is the
-	  only way for the driver to know that it shouldn't return a success
-	  code for these operations.
-
-	  Please say Y if your card is an Etinc's PCISYNC.
-
-config DSCC4_PCI_RST
-	bool "Hard reset support"
-	depends on DSCC4
-	help
-	  Various DSCC4 bugs forbid any reliable software reset of the ASIC.
-	  As a replacement, some vendors provide a way to assert the PCI #RST
-	  pin of DSCC4 through the GPIO port of the card. If you choose Y,
-	  the driver will make use of this feature before module removal
-	  (i.e. rmmod). The feature is known to be available on Commtech's
-	  cards. Contact your manufacturer for details.
-
-	  Say Y if your card supports this feature.
-
 config IXP4XX_HSS
 	tristate "Intel IXP4xx HSS (synchronous serial port) support"
 	depends on HDLC && IXP4XX_NPE && IXP4XX_QMGR
@@ -337,33 +313,6 @@ config LAPBETHER
 	  To compile this driver as a module, choose M here: the
 	  module will be called lapbether.
 
-	  If unsure, say N.
-
-config SBNI
-	tristate "Granch SBNI12 Leased Line adapter support"
-	depends on X86
-	help
-	  Driver for ISA SBNI12-xx cards which are low cost alternatives to
-	  leased line modems.
-
-	  You can find more information and last versions of drivers and
-	  utilities at <http://www.granch.ru/>. If you have any question you
-	  can send email to <sbni@granch.ru>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called sbni.
-
-	  If unsure, say N.
-
-config SBNI_MULTILINE
-	bool "Multiple line feature support"
-	depends on SBNI
-	help
-	  Schedule traffic for some parallel lines, via SBNI12 adapters.
-
-	  If you have two computers connected with two parallel lines it's
-	  possible to increase transfer rate nearly twice. You should have
-	  a program named 'sbniconfig' to configure adapters.
 
 	  If unsure, say N.
 

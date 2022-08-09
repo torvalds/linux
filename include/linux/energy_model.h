@@ -11,7 +11,7 @@
 #include <linux/types.h>
 
 /**
- * em_perf_state - Performance state of a performance domain
+ * struct em_perf_state - Performance state of a performance domain
  * @frequency:	The frequency in KHz, for consistency with CPUFreq
  * @power:	The power consumed at this level (by 1 CPU or by a registered
  *		device). It can be a total power: static and dynamic.
@@ -25,7 +25,7 @@ struct em_perf_state {
 };
 
 /**
- * em_perf_domain - Performance domain
+ * struct em_perf_domain - Performance domain
  * @table:		List of performance states, in ascending order
  * @nr_perf_states:	Number of performance states
  * @milliwatts:		Flag indicating the power values are in milli-Watts
@@ -52,6 +52,22 @@ struct em_perf_domain {
 
 #ifdef CONFIG_ENERGY_MODEL
 #define EM_MAX_POWER 0xFFFF
+
+/*
+ * Increase resolution of energy estimation calculations for 64-bit
+ * architectures. The extra resolution improves decision made by EAS for the
+ * task placement when two Performance Domains might provide similar energy
+ * estimation values (w/o better resolution the values could be equal).
+ *
+ * We increase resolution only if we have enough bits to allow this increased
+ * resolution (i.e. 64-bit). The costs for increasing resolution when 32-bit
+ * are pretty high and the returns do not justify the increased costs.
+ */
+#ifdef CONFIG_64BIT
+#define em_scale_power(p) ((p) * 1000)
+#else
+#define em_scale_power(p) (p)
+#endif
 
 struct em_data_callback {
 	/**
@@ -87,12 +103,12 @@ void em_dev_unregister_perf_domain(struct device *dev);
 
 /**
  * em_cpu_energy() - Estimates the energy consumed by the CPUs of a
-		performance domain
+ *		performance domain
  * @pd		: performance domain for which energy has to be estimated
  * @max_util	: highest utilization among CPUs of the domain
  * @sum_util	: sum of the utilization of all CPUs in the domain
  * @allowed_cpu_cap	: maximum allowed CPU capacity for the @pd, which
-			  might reflect reduced frequency (due to thermal)
+ *			  might reflect reduced frequency (due to thermal)
  *
  * This function must be used only for CPU devices. There is no validation,
  * i.e. if the EM is a CPU type and has cpumask allocated. It is called from

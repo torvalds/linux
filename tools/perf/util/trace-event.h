@@ -90,6 +90,9 @@ struct scripting_ops {
 	void (*process_stat)(struct perf_stat_config *config,
 			     struct evsel *evsel, u64 tstamp);
 	void (*process_stat_interval)(u64 tstamp);
+	void (*process_throttle)(union perf_event *event,
+				 struct perf_sample *sample,
+				 struct machine *machine);
 	int (*generate_script) (struct tep_handle *pevent, const char *outfile);
 };
 

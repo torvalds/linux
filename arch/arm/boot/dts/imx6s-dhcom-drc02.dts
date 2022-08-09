@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright (C) 2021 DH electronics GmbH
+ *
+ * DHCOM iMX6 variant:
+ * DHCM-iMX6S-C0800-R102-F0409-E-CAN2-RTC-I-01D2
+ * DHCOM PCB number: 493-400 or newer
+ * DRC02 PCB number: 568-100 or newer
+ */
+/dts-v1/;
+
+/*
+ * The kernel only distinguishes between i.MX6 Quad and DualLite,
+ * but the Solo is actually a DualLite with only one CPU. So use
+ * DualLite for the Solo and disable one CPU node.
+ */
+
+#include "imx6dl.dtsi"
+#include "imx6qdl-dhcom-som.dtsi"
+#include "imx6qdl-dhcom-drc02.dtsi"
+
+/ {
+	model = "DH electronics i.MX6S DHCOM on DRC02";
+	compatible = "dh,imx6s-dhcom-drc02", "dh,imx6s-dhcom-som",
+		     "fsl,imx6dl";
+
+	cpus {
+		/delete-node/ cpu@1;
+	};
+};

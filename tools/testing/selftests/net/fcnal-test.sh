@@ -37,6 +37,9 @@
 #
 # server / client nomenclature relative to ns-A
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
 VERBOSE=0
 
 NSA_DEV=eth1
@@ -286,6 +289,12 @@ set_sysctl()
 	run_cmd sysctl -q -w $*
 }
 
+# get sysctl values in NS-A
+get_sysctl()
+{
+	${NSA_CMD} sysctl -n $*
+}
+
 ################################################################################
 # Setup for tests
 
@@ -436,10 +445,13 @@ cleanup()
 		ip -netns ${NSA} link set dev ${NSA_DEV} down
 		ip -netns ${NSA} link del dev ${NSA_DEV}
 
+		ip netns pids ${NSA} | xargs kill 2>/dev/null
 		ip netns del ${NSA}
 	fi
 
+	ip netns pids ${NSB} | xargs kill 2>/dev/null
 	ip netns del ${NSB}
+	ip netns pids ${NSC} | xargs kill 2>/dev/null
 	ip netns del ${NSC} >/dev/null 2>&1
 }
 
@@ -1000,6 +1012,60 @@ ipv4_tcp_md5()
 	run_cmd nettest -s -I ${NSA_DEV} -M ${MD5_PW} -m ${NS_NET}
 	log_test $? 1 "MD5: VRF: Device must be a VRF - prefix"
 
+	test_ipv4_md5_vrf__vrf_server__no_bind_ifindex
+	test_ipv4_md5_vrf__global_server__bind_ifindex0
+}
+
+test_ipv4_md5_vrf__vrf_server__no_bind_ifindex()
+{
+	log_start
+	show_hint "Simulates applications using VRF without TCP_MD5SIG_FLAG_IFINDEX"
+	run_cmd nettest -s -I ${VRF} -M ${MD5_PW} -m ${NS_NET} --no-bind-key-ifindex &
+	sleep 1
+	run_cmd_nsb nettest -r ${NSA_IP} -X ${MD5_PW}
+	log_test $? 0 "MD5: VRF: VRF-bound server, unbound key accepts connection"
+
+	log_start
+	show_hint "Binding both the socket and the key is not required but it works"
+	run_cmd nettest -s -I ${VRF} -M ${MD5_PW} -m ${NS_NET} --force-bind-key-ifindex &
+	sleep 1
+	run_cmd_nsb nettest -r ${NSA_IP} -X ${MD5_PW}
+	log_test $? 0 "MD5: VRF: VRF-bound server, bound key accepts connection"
+}
+
+test_ipv4_md5_vrf__global_server__bind_ifindex0()
+{
+	# This particular test needs tcp_l3mdev_accept=1 for Global server to accept VRF connections
+	local old_tcp_l3mdev_accept
+	old_tcp_l3mdev_accept=$(get_sysctl net.ipv4.tcp_l3mdev_accept)
+	set_sysctl net.ipv4.tcp_l3mdev_accept=1
+
+	log_start
+	run_cmd nettest -s -M ${MD5_PW} -m ${NS_NET} --force-bind-key-ifindex &
+	sleep 1
+	run_cmd_nsb nettest -r ${NSA_IP} -X ${MD5_PW}
+	log_test $? 2 "MD5: VRF: Global server, Key bound to ifindex=0 rejects VRF connection"
+
+	log_start
+	run_cmd nettest -s -M ${MD5_PW} -m ${NS_NET} --force-bind-key-ifindex &
+	sleep 1
+	run_cmd_nsc nettest -r ${NSA_IP} -X ${MD5_PW}
+	log_test $? 0 "MD5: VRF: Global server, key bound to ifindex=0 accepts non-VRF connection"
+	log_start
+
+	run_cmd nettest -s -M ${MD5_PW} -m ${NS_NET} --no-bind-key-ifindex &
+	sleep 1
+	run_cmd_nsb nettest -r ${NSA_IP} -X ${MD5_PW}
+	log_test $? 0 "MD5: VRF: Global server, key not bound to ifindex accepts VRF connection"
+
+	log_start
+	run_cmd nettest -s -M ${MD5_PW} -m ${NS_NET} --no-bind-key-ifindex &
+	sleep 1
+	run_cmd_nsc nettest -r ${NSA_IP} -X ${MD5_PW}
+	log_test $? 0 "MD5: VRF: Global server, key not bound to ifindex accepts non-VRF connection"
+
+	# restore value
+	set_sysctl net.ipv4.tcp_l3mdev_accept="$old_tcp_l3mdev_accept"
 }
 
 ipv4_tcp_novrf()
@@ -3879,6 +3945,32 @@ use_case_ping_lla_multi()
 	log_test_addr ${MCAST}%${NSC_DEV} $? 0 "Post cycle ${NSA} ${NSA_DEV2}, ping out ns-C"
 }
 
+# Perform IPv{4,6} SNAT on ns-A, and verify TCP connection is successfully
+# established with ns-B.
+use_case_snat_on_vrf()
+{
+	setup "yes"
+
+	local port="12345"
+
+	run_cmd iptables -t nat -A POSTROUTING -p tcp -m tcp --dport ${port} -j SNAT --to-source ${NSA_LO_IP} -o ${VRF}
+	run_cmd ip6tables -t nat -A POSTROUTING -p tcp -m tcp --dport ${port} -j SNAT --to-source ${NSA_LO_IP6} -o ${VRF}
+
+	run_cmd_nsb nettest -s -l ${NSB_IP} -p ${port} &
+	sleep 1
+	run_cmd nettest -d ${VRF} -r ${NSB_IP} -p ${port}
+	log_test $? 0 "IPv4 TCP connection over VRF with SNAT"
+
+	run_cmd_nsb nettest -6 -s -l ${NSB_IP6} -p ${port} &
+	sleep 1
+	run_cmd nettest -6 -d ${VRF} -r ${NSB_IP6} -p ${port}
+	log_test $? 0 "IPv6 TCP connection over VRF with SNAT"
+
+	# Cleanup
+	run_cmd iptables -t nat -D POSTROUTING -p tcp -m tcp --dport ${port} -j SNAT --to-source ${NSA_LO_IP} -o ${VRF}
+	run_cmd ip6tables -t nat -D POSTROUTING -p tcp -m tcp --dport ${port} -j SNAT --to-source ${NSA_LO_IP6} -o ${VRF}
+}
+
 use_cases()
 {
 	log_section "Use cases"
@@ -3886,6 +3978,8 @@ use_cases()
 	use_case_br
 	log_subsection "Ping LLA with multiple interfaces"
 	use_case_ping_lla_multi
+	log_subsection "SNAT on VRF"
+	use_case_snat_on_vrf
 }
 
 ################################################################################
@@ -3946,7 +4040,7 @@ fi
 which nettest >/dev/null
 if [ $? -ne 0 ]; then
 	echo "'nettest' command not found; skipping tests"
-	exit 0
+	exit $ksft_skip
 fi
 
 declare -i nfail=0

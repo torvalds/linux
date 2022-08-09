@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: LGPL-2.1 */
 /*
- *   fs/cifs/cifsglob.h
  *
  *   Copyright (C) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
@@ -114,8 +113,6 @@ enum statusEnum {
 
 enum securityEnum {
 	Unspecified = 0,	/* not specified */
-	LANMAN,			/* Legacy LANMAN auth */
-	NTLM,			/* Legacy NTLM012 auth with NTLM hash */
 	NTLMv2,			/* Legacy NTLM auth with NTLMv2 hash */
 	RawNTLMSSP,		/* NTLMSSP without SPNEGO, NTLMv2 hash */
 	Kerberos,		/* Kerberos via SPNEGO */
@@ -634,7 +631,6 @@ struct TCP_Server_Info {
 	struct session_key session_key;
 	unsigned long lstrp; /* when we got last response from this server */
 	struct cifs_secmech secmech; /* crypto sec mech functs, descriptors */
-#define	CIFS_NEGFLAVOR_LANMAN	0	/* wct == 13, LANMAN */
 #define	CIFS_NEGFLAVOR_UNENCAP	1	/* wct == 17, but no ext_sec */
 #define	CIFS_NEGFLAVOR_EXTENDED	2	/* wct == 17, ext_sec bit set */
 	char	negflavor;	/* NEGOTIATE response flavor */
@@ -1403,6 +1399,7 @@ struct cifsInodeInfo {
 #define CIFS_INO_INVALID_MAPPING	  (4) /* pagecache is invalid */
 #define CIFS_INO_LOCK			  (5) /* lock bit for synchronization */
 #define CIFS_INO_MODIFIED_ATTR            (6) /* Indicate change in mtime/ctime */
+#define CIFS_INO_CLOSE_ON_LOCK            (7) /* Not to defer the close when lock is set */
 	unsigned long flags;
 	spinlock_t writers_lock;
 	unsigned int writers;		/* Number of writers on this inode */
@@ -1734,16 +1731,8 @@ static inline bool is_retryable_error(int error)
 
 /* Security Flags: indicate type of session setup needed */
 #define   CIFSSEC_MAY_SIGN	0x00001
-#define   CIFSSEC_MAY_NTLM	0x00002
 #define   CIFSSEC_MAY_NTLMV2	0x00004
 #define   CIFSSEC_MAY_KRB5	0x00008
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-#define   CIFSSEC_MAY_LANMAN	0x00010
-#define   CIFSSEC_MAY_PLNTXT	0x00020
-#else
-#define   CIFSSEC_MAY_LANMAN    0
-#define   CIFSSEC_MAY_PLNTXT    0
-#endif /* weak passwords */
 #define   CIFSSEC_MAY_SEAL	0x00040 /* not supported yet */
 #define   CIFSSEC_MAY_NTLMSSP	0x00080 /* raw ntlmssp with ntlmv2 */
 
@@ -1751,32 +1740,19 @@ static inline bool is_retryable_error(int error)
 /* note that only one of the following can be set so the
 result of setting MUST flags more than once will be to
 require use of the stronger protocol */
-#define   CIFSSEC_MUST_NTLM	0x02002
 #define   CIFSSEC_MUST_NTLMV2	0x04004
 #define   CIFSSEC_MUST_KRB5	0x08008
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-#define   CIFSSEC_MUST_LANMAN	0x10010
-#define   CIFSSEC_MUST_PLNTXT	0x20020
-#ifdef CONFIG_CIFS_UPCALL
-#define   CIFSSEC_MASK          0xBF0BF /* allows weak security but also krb5 */
-#else
-#define   CIFSSEC_MASK          0xB70B7 /* current flags supported if weak */
-#endif /* UPCALL */
-#else /* do not allow weak pw hash */
-#define   CIFSSEC_MUST_LANMAN	0
-#define   CIFSSEC_MUST_PLNTXT	0
 #ifdef CONFIG_CIFS_UPCALL
 #define   CIFSSEC_MASK          0x8F08F /* flags supported if no weak allowed */
 #else
 #define	  CIFSSEC_MASK          0x87087 /* flags supported if no weak allowed */
 #endif /* UPCALL */
-#endif /* WEAK_PW_HASH */
 #define   CIFSSEC_MUST_SEAL	0x40040 /* not supported yet */
 #define   CIFSSEC_MUST_NTLMSSP	0x80080 /* raw ntlmssp with ntlmv2 */
 
 #define   CIFSSEC_DEF (CIFSSEC_MAY_SIGN | CIFSSEC_MAY_NTLMV2 | CIFSSEC_MAY_NTLMSSP)
-#define   CIFSSEC_MAX (CIFSSEC_MUST_SIGN | CIFSSEC_MUST_NTLMV2)
-#define   CIFSSEC_AUTH_MASK (CIFSSEC_MAY_NTLM | CIFSSEC_MAY_NTLMV2 | CIFSSEC_MAY_LANMAN | CIFSSEC_MAY_PLNTXT | CIFSSEC_MAY_KRB5 | CIFSSEC_MAY_NTLMSSP)
+#define   CIFSSEC_MAX (CIFSSEC_MUST_NTLMV2)
+#define   CIFSSEC_AUTH_MASK (CIFSSEC_MAY_NTLMV2 | CIFSSEC_MAY_KRB5 | CIFSSEC_MAY_NTLMSSP)
 /*
  *****************************************************************
  * All constants go here
@@ -1940,10 +1916,6 @@ static inline char *get_security_type_str(enum securityEnum sectype)
 		return "Kerberos";
 	case NTLMv2:
 		return "NTLMv2";
-	case NTLM:
-		return "NTLM";
-	case LANMAN:
-		return "LANMAN";
 	default:
 		return "Unknown";
 	}

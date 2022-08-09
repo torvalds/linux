@@ -822,7 +822,7 @@ DEFINE_INTERRUPT_HANDLER_RAW(do_slb_fault)
 	/* IRQs are not reconciled here, so can't check irqs_disabled */
 	VM_WARN_ON(mfmsr() & MSR_EE);
 
-	if (unlikely(!(regs->msr & MSR_RI)))
+	if (regs_is_unrecoverable(regs))
 		return -EINVAL;
 
 	/*

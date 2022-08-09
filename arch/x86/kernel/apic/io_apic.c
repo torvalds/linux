@@ -764,7 +764,7 @@ static bool irq_active_low(int idx)
 static bool EISA_ELCR(unsigned int irq)
 {
 	if (irq < nr_legacy_irqs()) {
-		unsigned int port = 0x4d0 + (irq >> 3);
+		unsigned int port = PIC_ELCR1 + (irq >> 3);
 		return (inb(port) >> (irq & 7)) & 1;
 	}
 	apic_printk(APIC_VERBOSE, KERN_INFO

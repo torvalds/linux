@@ -242,7 +242,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_transition(struct mod_hdcp *hdcp,
 		}
 		callback_in_ms(0, output);
 		set_state_id(hdcp, output, H2_A5_AUTHENTICATED);
-		HDCP_FULL_DDC_TRACE(hdcp);
+		set_auth_complete(hdcp, output);
 		break;
 	case H2_A5_AUTHENTICATED:
 		if (input->rxstatus_read == FAIL ||
@@ -559,7 +559,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_dp_transition(struct mod_hdcp *hdcp,
 			break;
 		}
 		set_state_id(hdcp, output, D2_A5_AUTHENTICATED);
-		HDCP_FULL_DDC_TRACE(hdcp);
+		set_auth_complete(hdcp, output);
 		break;
 	case D2_A5_AUTHENTICATED:
 		if (input->rxstatus_read == FAIL ||

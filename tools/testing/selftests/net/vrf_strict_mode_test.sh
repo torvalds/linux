@@ -3,6 +3,9 @@
 
 # This test is designed for testing the new VRF strict_mode functionality.
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
 ret=0
 
 # identifies the "init" network namespace which is often called root network
@@ -371,18 +374,18 @@ vrf_strict_mode_check_support()
 
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
-	exit 0
+	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v ip)" ]; then
 	echo "SKIP: Could not run test without ip tool"
-	exit 0
+	exit $ksft_skip
 fi
 
 modprobe vrf &>/dev/null
 if [ ! -e /proc/sys/net/vrf/strict_mode ]; then
 	echo "SKIP: vrf sysctl does not exist"
-	exit 0
+	exit $ksft_skip
 fi
 
 cleanup &> /dev/null

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LGPL-2.1
 /*
- *   fs/cifs/sess.c
  *
  *   SMB/CIFS session setup handling routines
  *
@@ -799,30 +798,16 @@ cifs_select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
 		}
 	case CIFS_NEGFLAVOR_UNENCAP:
 		switch (requested) {
-		case NTLM:
 		case NTLMv2:
 			return requested;
 		case Unspecified:
 			if (global_secflags & CIFSSEC_MAY_NTLMV2)
 				return NTLMv2;
-			if (global_secflags & CIFSSEC_MAY_NTLM)
-				return NTLM;
 			break;
 		default:
 			break;
 		}
-		fallthrough;	/* to attempt LANMAN authentication next */
-	case CIFS_NEGFLAVOR_LANMAN:
-		switch (requested) {
-		case LANMAN:
-			return requested;
-		case Unspecified:
-			if (global_secflags & CIFSSEC_MAY_LANMAN)
-				return LANMAN;
-			fallthrough;
-		default:
-			return Unspecified;
-		}
+		fallthrough;
 	default:
 		return Unspecified;
 	}
@@ -877,7 +862,7 @@ sess_alloc_buffer(struct sess_data *sess_data, int wct)
 	return 0;
 
 out_free_smb_buf:
-	kfree(smb_buf);
+	cifs_small_buf_release(smb_buf);
 	sess_data->iov[0].iov_base = NULL;
 	sess_data->iov[0].iov_len = 0;
 	sess_data->buf0_type = CIFS_NO_BUFFER;
@@ -945,230 +930,6 @@ sess_sendreceive(struct sess_data *sess_data)
 	memcpy(&sess_data->iov[0], &rsp_iov, sizeof(struct kvec));
 
 	return rc;
-}
-
-/*
- * LANMAN and plaintext are less secure and off by default.
- * So we make this explicitly be turned on in kconfig (in the
- * build) and turned on at runtime (changed from the default)
- * in proc/fs/cifs or via mount parm.  Unfortunately this is
- * needed for old Win (e.g. Win95), some obscure NAS and OS/2
- */
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-static void
-sess_auth_lanman(struct sess_data *sess_data)
-{
-	int rc = 0;
-	struct smb_hdr *smb_buf;
-	SESSION_SETUP_ANDX *pSMB;
-	char *bcc_ptr;
-	struct cifs_ses *ses = sess_data->ses;
-	char lnm_session_key[CIFS_AUTH_RESP_SIZE];
-	__u16 bytes_remaining;
-
-	/* lanman 2 style sessionsetup */
-	/* wct = 10 */
-	rc = sess_alloc_buffer(sess_data, 10);
-	if (rc)
-		goto out;
-
-	pSMB = (SESSION_SETUP_ANDX *)sess_data->iov[0].iov_base;
-	bcc_ptr = sess_data->iov[2].iov_base;
-	(void)cifs_ssetup_hdr(ses, pSMB);
-
-	pSMB->req.hdr.Flags2 &= ~SMBFLG2_UNICODE;
-
-	if (ses->user_name != NULL) {
-		/* no capabilities flags in old lanman negotiation */
-		pSMB->old_req.PasswordLength = cpu_to_le16(CIFS_AUTH_RESP_SIZE);
-
-		/* Calculate hash with password and copy into bcc_ptr.
-		 * Encryption Key (stored as in cryptkey) gets used if the
-		 * security mode bit in Negotiate Protocol response states
-		 * to use challenge/response method (i.e. Password bit is 1).
-		 */
-		rc = calc_lanman_hash(ses->password, ses->server->cryptkey,
-				      ses->server->sec_mode & SECMODE_PW_ENCRYPT ?
-				      true : false, lnm_session_key);
-		if (rc)
-			goto out;
-
-		memcpy(bcc_ptr, (char *)lnm_session_key, CIFS_AUTH_RESP_SIZE);
-		bcc_ptr += CIFS_AUTH_RESP_SIZE;
-	} else {
-		pSMB->old_req.PasswordLength = 0;
-	}
-
-	/*
-	 * can not sign if LANMAN negotiated so no need
-	 * to calculate signing key? but what if server
-	 * changed to do higher than lanman dialect and
-	 * we reconnected would we ever calc signing_key?
-	 */
-
-	cifs_dbg(FYI, "Negotiating LANMAN setting up strings\n");
-	/* Unicode not allowed for LANMAN dialects */
-	ascii_ssetup_strings(&bcc_ptr, ses, sess_data->nls_cp);
-
-	sess_data->iov[2].iov_len = (long) bcc_ptr -
-			(long) sess_data->iov[2].iov_base;
-
-	rc = sess_sendreceive(sess_data);
-	if (rc)
-		goto out;
-
-	pSMB = (SESSION_SETUP_ANDX *)sess_data->iov[0].iov_base;
-	smb_buf = (struct smb_hdr *)sess_data->iov[0].iov_base;
-
-	/* lanman response has a word count of 3 */
-	if (smb_buf->WordCount != 3) {
-		rc = -EIO;
-		cifs_dbg(VFS, "bad word count %d\n", smb_buf->WordCount);
-		goto out;
-	}
-
-	if (le16_to_cpu(pSMB->resp.Action) & GUEST_LOGIN)
-		cifs_dbg(FYI, "Guest login\n"); /* BB mark SesInfo struct? */
-
-	ses->Suid = smb_buf->Uid;   /* UID left in wire format (le) */
-	cifs_dbg(FYI, "UID = %llu\n", ses->Suid);
-
-	bytes_remaining = get_bcc(smb_buf);
-	bcc_ptr = pByteArea(smb_buf);
-
-	/* BB check if Unicode and decode strings */
-	if (bytes_remaining == 0) {
-		/* no string area to decode, do nothing */
-	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
-		/* unicode string area must be word-aligned */
-		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
-			++bcc_ptr;
-			--bytes_remaining;
-		}
-		decode_unicode_ssetup(&bcc_ptr, bytes_remaining, ses,
-				      sess_data->nls_cp);
-	} else {
-		decode_ascii_ssetup(&bcc_ptr, bytes_remaining, ses,
-				    sess_data->nls_cp);
-	}
-
-	rc = sess_establish_session(sess_data);
-out:
-	sess_data->result = rc;
-	sess_data->func = NULL;
-	sess_free_buffer(sess_data);
-}
-
-#endif
-
-static void
-sess_auth_ntlm(struct sess_data *sess_data)
-{
-	int rc = 0;
-	struct smb_hdr *smb_buf;
-	SESSION_SETUP_ANDX *pSMB;
-	char *bcc_ptr;
-	struct cifs_ses *ses = sess_data->ses;
-	__u32 capabilities;
-	__u16 bytes_remaining;
-
-	/* old style NTLM sessionsetup */
-	/* wct = 13 */
-	rc = sess_alloc_buffer(sess_data, 13);
-	if (rc)
-		goto out;
-
-	pSMB = (SESSION_SETUP_ANDX *)sess_data->iov[0].iov_base;
-	bcc_ptr = sess_data->iov[2].iov_base;
-	capabilities = cifs_ssetup_hdr(ses, pSMB);
-
-	pSMB->req_no_secext.Capabilities = cpu_to_le32(capabilities);
-	if (ses->user_name != NULL) {
-		pSMB->req_no_secext.CaseInsensitivePasswordLength =
-				cpu_to_le16(CIFS_AUTH_RESP_SIZE);
-		pSMB->req_no_secext.CaseSensitivePasswordLength =
-				cpu_to_le16(CIFS_AUTH_RESP_SIZE);
-
-		/* calculate ntlm response and session key */
-		rc = setup_ntlm_response(ses, sess_data->nls_cp);
-		if (rc) {
-			cifs_dbg(VFS, "Error %d during NTLM authentication\n",
-					 rc);
-			goto out;
-		}
-
-		/* copy ntlm response */
-		memcpy(bcc_ptr, ses->auth_key.response + CIFS_SESS_KEY_SIZE,
-				CIFS_AUTH_RESP_SIZE);
-		bcc_ptr += CIFS_AUTH_RESP_SIZE;
-		memcpy(bcc_ptr, ses->auth_key.response + CIFS_SESS_KEY_SIZE,
-				CIFS_AUTH_RESP_SIZE);
-		bcc_ptr += CIFS_AUTH_RESP_SIZE;
-	} else {
-		pSMB->req_no_secext.CaseInsensitivePasswordLength = 0;
-		pSMB->req_no_secext.CaseSensitivePasswordLength = 0;
-	}
-
-	if (ses->capabilities & CAP_UNICODE) {
-		/* unicode strings must be word aligned */
-		if (sess_data->iov[0].iov_len % 2) {
-			*bcc_ptr = 0;
-			bcc_ptr++;
-		}
-		unicode_ssetup_strings(&bcc_ptr, ses, sess_data->nls_cp);
-	} else {
-		ascii_ssetup_strings(&bcc_ptr, ses, sess_data->nls_cp);
-	}
-
-
-	sess_data->iov[2].iov_len = (long) bcc_ptr -
-			(long) sess_data->iov[2].iov_base;
-
-	rc = sess_sendreceive(sess_data);
-	if (rc)
-		goto out;
-
-	pSMB = (SESSION_SETUP_ANDX *)sess_data->iov[0].iov_base;
-	smb_buf = (struct smb_hdr *)sess_data->iov[0].iov_base;
-
-	if (smb_buf->WordCount != 3) {
-		rc = -EIO;
-		cifs_dbg(VFS, "bad word count %d\n", smb_buf->WordCount);
-		goto out;
-	}
-
-	if (le16_to_cpu(pSMB->resp.Action) & GUEST_LOGIN)
-		cifs_dbg(FYI, "Guest login\n"); /* BB mark SesInfo struct? */
-
-	ses->Suid = smb_buf->Uid;   /* UID left in wire format (le) */
-	cifs_dbg(FYI, "UID = %llu\n", ses->Suid);
-
-	bytes_remaining = get_bcc(smb_buf);
-	bcc_ptr = pByteArea(smb_buf);
-
-	/* BB check if Unicode and decode strings */
-	if (bytes_remaining == 0) {
-		/* no string area to decode, do nothing */
-	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
-		/* unicode string area must be word-aligned */
-		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
-			++bcc_ptr;
-			--bytes_remaining;
-		}
-		decode_unicode_ssetup(&bcc_ptr, bytes_remaining, ses,
-				      sess_data->nls_cp);
-	} else {
-		decode_ascii_ssetup(&bcc_ptr, bytes_remaining, ses,
-				    sess_data->nls_cp);
-	}
-
-	rc = sess_establish_session(sess_data);
-out:
-	sess_data->result = rc;
-	sess_data->func = NULL;
-	sess_free_buffer(sess_data);
-	kfree(ses->auth_key.response);
-	ses->auth_key.response = NULL;
 }
 
 static void
@@ -1675,21 +1436,6 @@ static int select_sec(struct cifs_ses *ses, struct sess_data *sess_data)
 	}
 
 	switch (type) {
-	case LANMAN:
-		/* LANMAN and plaintext are less secure and off by default.
-		 * So we make this explicitly be turned on in kconfig (in the
-		 * build) and turned on at runtime (changed from the default)
-		 * in proc/fs/cifs or via mount parm.  Unfortunately this is
-		 * needed for old Win (e.g. Win95), some obscure NAS and OS/2 */
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-		sess_data->func = sess_auth_lanman;
-		break;
-#else
-		return -EOPNOTSUPP;
-#endif
-	case NTLM:
-		sess_data->func = sess_auth_ntlm;
-		break;
 	case NTLMv2:
 		sess_data->func = sess_auth_ntlmv2;
 		break;

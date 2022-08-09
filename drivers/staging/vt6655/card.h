@@ -3,8 +3,6 @@
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
- * File: card.h
- *
  * Purpose: Provide functions to setup NIC operation mode
  *
  * Author: Tevin Chen

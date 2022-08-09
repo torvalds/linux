@@ -250,14 +250,14 @@ static int __init led_create_procfs(void)
 
 	if (!lcd_no_led_support)
 	{
-		ent = proc_create_data("led", S_IRUGO|S_IWUSR, proc_pdc_root,
+		ent = proc_create_data("led", 0644, proc_pdc_root,
 					&led_proc_ops, (void *)LED_NOLCD); /* LED */
 		if (!ent) return -1;
 	}
 
 	if (led_type == LED_HASLCD)
 	{
-		ent = proc_create_data("lcd", S_IRUGO|S_IWUSR, proc_pdc_root,
+		ent = proc_create_data("lcd", 0644, proc_pdc_root,
 					&led_proc_ops, (void *)LED_HASLCD); /* LCD */
 		if (!ent) return -1;
 	}

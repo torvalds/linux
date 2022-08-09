@@ -577,7 +577,7 @@ static inline void pm_print_times_init(void) {}
 
 struct kobject *power_kobj;
 
-/**
+/*
  * state - control system sleep states.
  *
  * show() returns available sleep state labels, which may be "mem", "standby",

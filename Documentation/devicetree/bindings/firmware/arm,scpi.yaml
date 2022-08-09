@@ -131,9 +131,9 @@ properties:
 
         properties:
           compatible:
-            oneOf:
-              - const: arm,scpi-dvfs-clocks
-              - const: arm,scpi-variable-clocks
+            enum:
+              - arm,scpi-dvfs-clocks
+              - arm,scpi-variable-clocks
 
           '#clock-cells':
             const: 1

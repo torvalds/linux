@@ -302,7 +302,7 @@ int smack_populate_secattr(struct smack_known *skp);
 /*
  * Shared data.
  */
-extern int smack_enabled;
+extern int smack_enabled __initdata;
 extern int smack_cipso_direct;
 extern int smack_cipso_mapped;
 extern struct smack_known *smack_net_ambient;

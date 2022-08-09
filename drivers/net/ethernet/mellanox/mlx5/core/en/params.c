@@ -167,6 +167,18 @@ u16 mlx5e_get_rq_headroom(struct mlx5_core_dev *mdev,
 	return is_linear_skb ? mlx5e_get_linear_rq_headroom(params, xsk) : 0;
 }
 
+struct mlx5e_lro_param mlx5e_get_lro_param(struct mlx5e_params *params)
+{
+	struct mlx5e_lro_param lro_param;
+
+	lro_param = (struct mlx5e_lro_param) {
+		.enabled = params->lro_en,
+		.timeout = params->lro_timeout,
+	};
+
+	return lro_param;
+}
+
 u16 mlx5e_calc_sq_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *params)
 {
 	bool is_mpwqe = MLX5E_GET_PFLAG(params, MLX5E_PFLAG_SKB_TX_MPWQE);

@@ -342,9 +342,7 @@ static int nvme_ns_ioctl(struct nvme_ns *ns, unsigned int cmd,
 	case NVME_IOCTL_IO64_CMD:
 		return nvme_user_cmd64(ns->ctrl, ns, argp);
 	default:
-		if (!ns->ndev)
-			return -ENOTTY;
-		return nvme_nvm_ioctl(ns, cmd, argp);
+		return -ENOTTY;
 	}
 }
 

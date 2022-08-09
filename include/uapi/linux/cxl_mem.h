@@ -50,7 +50,7 @@ enum { CXL_CMDS };
 #define ___C(a, b) { b }
 static const struct {
 	const char *name;
-} cxl_command_names[] = { CXL_CMDS };
+} cxl_command_names[] __attribute__((__unused__)) = { CXL_CMDS };
 
 /*
  * Here's how this actually breaks out:

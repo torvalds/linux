@@ -59,6 +59,7 @@ perf-y += pstack.o
 perf-y += session.o
 perf-y += sample-raw.o
 perf-y += s390-sample-raw.o
+perf-y += amd-sample-raw.o
 perf-$(CONFIG_TRACE) += syscalltbl.o
 perf-y += ordered-events.o
 perf-y += namespaces.o

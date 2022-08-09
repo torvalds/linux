@@ -77,9 +77,9 @@
 #define MPT3SAS_DRIVER_NAME		"mpt3sas"
 #define MPT3SAS_AUTHOR "Avago Technologies <MPT-FusionLinux.pdl@avagotech.com>"
 #define MPT3SAS_DESCRIPTION	"LSI MPT Fusion SAS 3.0 Device Driver"
-#define MPT3SAS_DRIVER_VERSION		"37.101.00.00"
-#define MPT3SAS_MAJOR_VERSION		37
-#define MPT3SAS_MINOR_VERSION		101
+#define MPT3SAS_DRIVER_VERSION		"39.100.00.00"
+#define MPT3SAS_MAJOR_VERSION		39
+#define MPT3SAS_MINOR_VERSION		100
 #define MPT3SAS_BUILD_VERSION		0
 #define MPT3SAS_RELEASE_VERSION	00
 
@@ -354,6 +354,7 @@ struct mpt3sas_nvme_cmd {
 #define MPT3_SUP_REPLY_POST_HOST_INDEX_REG_COUNT_G3	12
 #define MPT3_SUP_REPLY_POST_HOST_INDEX_REG_COUNT_G35	16
 #define MPT3_SUP_REPLY_POST_HOST_INDEX_REG_OFFSET	(0x10)
+#define MPT3_MIN_IRQS					1
 
 /* OEM Identifiers */
 #define MFG10_OEM_ID_INVALID                   (0x00000000)
@@ -575,6 +576,7 @@ struct _sas_device {
 	u8	is_chassis_slot_valid;
 	u8	connector_name[5];
 	struct kref refcount;
+	u8	port_type;
 	struct hba_port *port;
 	struct sas_rphy *rphy;
 };
@@ -936,6 +938,8 @@ struct _event_ack_list {
  * @os_irq: irq number
  * @irqpoll: irq_poll object
  * @irq_poll_scheduled: Tells whether irq poll is scheduled or not
+ * @is_iouring_poll_q: Tells whether reply queues is assigned
+ *			to io uring poll queues or not
  * @list: this list
 */
 struct adapter_reply_queue {
@@ -949,7 +953,20 @@ struct adapter_reply_queue {
 	struct irq_poll         irqpoll;
 	bool			irq_poll_scheduled;
 	bool			irq_line_enable;
+	bool			is_iouring_poll_q;
 	struct list_head	list;
+};
+
+/**
+ * struct io_uring_poll_queue - the io uring poll queue structure
+ * @busy: Tells whether io uring poll queue is busy or not
+ * @pause: Tells whether IOs are paused on io uring poll queue or not
+ * @reply_q: reply queue mapped for io uring poll queue
+ */
+struct io_uring_poll_queue {
+	atomic_t	busy;
+	atomic_t	pause;
+	struct adapter_reply_queue *reply_q;
 };
 
 typedef void (*MPT_ADD_SGE)(void *paddr, u32 flags_length, dma_addr_t dma_addr);
@@ -1176,6 +1193,8 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @schedule_dead_ioc_flush_running_cmds: callback to flush pending commands
  * @thresh_hold: Max number of reply descriptors processed
  *				before updating Host Index
+ * @iopoll_q_start_index: starting index of io uring poll queues
+ *				in reply queue list
  * @drv_internal_flags: Bit map internal to driver
  * @drv_support_bitmap: driver's supported feature bit map
  * @use_32bit_dma: Flag to use 32 bit consistent dma mask
@@ -1372,11 +1391,13 @@ struct MPT3SAS_ADAPTER {
 	bool            msix_load_balance;
 	u16		thresh_hold;
 	u8		high_iops_queues;
+	u8		iopoll_q_start_index;
 	u32             drv_internal_flags;
 	u32		drv_support_bitmap;
 	u32             dma_mask;
 	bool		enable_sdev_max_qd;
 	bool		use_32bit_dma;
+	struct io_uring_poll_queue *io_uring_poll_queues;
 
 	/* internal commands, callback index */
 	u8		scsi_io_cb_idx;
@@ -1423,6 +1444,10 @@ struct MPT3SAS_ADAPTER {
 	u8		tm_custom_handling;
 	u8		nvme_abort_timeout;
 	u16		max_shutdown_latency;
+	u16		max_wideport_qd;
+	u16		max_narrowport_qd;
+	u16		max_nvme_qd;
+	u8		max_sata_qd;
 
 	/* static config pages */
 	struct mpt3sas_facts facts;
@@ -1730,10 +1755,12 @@ do {	ioc_err(ioc, "In func: %s\n", __func__); \
 	status, mpi_request, sz); } while (0)
 
 int mpt3sas_wait_for_ioc(struct MPT3SAS_ADAPTER *ioc, int wait_count);
-int
-mpt3sas_base_make_ioc_ready(struct MPT3SAS_ADAPTER *ioc, enum reset_type type);
+int mpt3sas_base_make_ioc_ready(struct MPT3SAS_ADAPTER *ioc, enum reset_type type);
 void mpt3sas_base_free_irq(struct MPT3SAS_ADAPTER *ioc);
 void mpt3sas_base_disable_msix(struct MPT3SAS_ADAPTER *ioc);
+int mpt3sas_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num);
+void mpt3sas_base_pause_mq_polling(struct MPT3SAS_ADAPTER *ioc);
+void mpt3sas_base_resume_mq_polling(struct MPT3SAS_ADAPTER *ioc);
 
 /* scsih shared API */
 struct scsi_cmnd *mpt3sas_scsih_scsi_lookup_get(struct MPT3SAS_ADAPTER *ioc,
@@ -1829,6 +1856,9 @@ int mpt3sas_config_get_pcie_device_pg0(struct MPT3SAS_ADAPTER *ioc,
 int mpt3sas_config_get_pcie_device_pg2(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2ConfigReply_t *mpi_reply, Mpi26PCIeDevicePage2_t *config_page,
 	u32 form, u32 handle);
+int mpt3sas_config_get_pcie_iounit_pg1(struct MPT3SAS_ADAPTER *ioc,
+	Mpi2ConfigReply_t *mpi_reply, Mpi26PCIeIOUnitPage1_t *config_page,
+	u16 sz);
 int mpt3sas_config_get_sas_iounit_pg0(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2ConfigReply_t *mpi_reply, Mpi2SasIOUnitPage0_t *config_page,
 	u16 sz);

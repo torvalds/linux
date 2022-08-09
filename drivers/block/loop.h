@@ -68,6 +68,7 @@ struct loop_device {
 	struct blk_mq_tag_set	tag_set;
 	struct gendisk		*lo_disk;
 	struct mutex		lo_mutex;
+	bool			idr_visible;
 };
 
 struct loop_cmd {

@@ -35,7 +35,7 @@ static inline int arch_is_kernel_initmem_freed(unsigned long addr)
  */
 #define __bootdata_preserved(var) __section(".boot.preserved.data." #var) var
 
-extern unsigned long __sdma, __edma;
-extern unsigned long __stext_dma, __etext_dma;
+extern unsigned long __samode31, __eamode31;
+extern unsigned long __stext_amode31, __etext_amode31;
 
 #endif

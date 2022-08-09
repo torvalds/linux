@@ -17,9 +17,9 @@
 };
 
 &fec1 {
-	compatible = "fsl,imx8qxp-fec", "fsl,imx6sx-fec";
+	compatible = "fsl,imx8qxp-fec", "fsl,imx8qm-fec", "fsl,imx6sx-fec";
 };
 
 &fec2 {
-	compatible = "fsl,imx8qxp-fec", "fsl,imx6sx-fec";
+	compatible = "fsl,imx8qxp-fec", "fsl,imx8qm-fec", "fsl,imx6sx-fec";
 };

@@ -63,7 +63,8 @@ static int ice_info_fw_api(struct ice_pf *pf, struct ice_info_ctx *ctx)
 {
 	struct ice_hw *hw = &pf->hw;
 
-	snprintf(ctx->buf, sizeof(ctx->buf), "%u.%u", hw->api_maj_ver, hw->api_min_ver);
+	snprintf(ctx->buf, sizeof(ctx->buf), "%u.%u.%u", hw->api_maj_ver,
+		 hw->api_min_ver, hw->api_patch);
 
 	return 0;
 }
@@ -477,7 +478,7 @@ struct ice_pf *ice_allocate_pf(struct device *dev)
 {
 	struct devlink *devlink;
 
-	devlink = devlink_alloc(&ice_devlink_ops, sizeof(struct ice_pf));
+	devlink = devlink_alloc(&ice_devlink_ops, sizeof(struct ice_pf), dev);
 	if (!devlink)
 		return NULL;
 
@@ -504,7 +505,7 @@ int ice_devlink_register(struct ice_pf *pf)
 	struct device *dev = ice_pf_to_dev(pf);
 	int err;
 
-	err = devlink_register(devlink, dev);
+	err = devlink_register(devlink);
 	if (err) {
 		dev_err(dev, "devlink registration failed: %d\n", err);
 		return err;

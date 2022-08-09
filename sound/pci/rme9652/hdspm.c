@@ -6575,34 +6575,25 @@ static int snd_hdspm_create(struct snd_card *card,
 		}
 	}
 
-	err = pci_enable_device(pci);
+	err = pcim_enable_device(pci);
 	if (err < 0)
 		return err;
 
 	pci_set_master(hdspm->pci);
 
-	err = pci_request_regions(pci, "hdspm");
+	err = pcim_iomap_regions(pci, 1 << 0, "hdspm");
 	if (err < 0)
 		return err;
 
 	hdspm->port = pci_resource_start(pci, 0);
 	io_extent = pci_resource_len(pci, 0);
-
-	dev_dbg(card->dev, "grabbed memory region 0x%lx-0x%lx\n",
-			hdspm->port, hdspm->port + io_extent - 1);
-
-	hdspm->iobase = ioremap(hdspm->port, io_extent);
-	if (!hdspm->iobase) {
-		dev_err(card->dev, "unable to remap region 0x%lx-0x%lx\n",
-				hdspm->port, hdspm->port + io_extent - 1);
-		return -EBUSY;
-	}
+	hdspm->iobase = pcim_iomap_table(pci)[0];
 	dev_dbg(card->dev, "remapped region (0x%lx) 0x%lx-0x%lx\n",
 			(unsigned long)hdspm->iobase, hdspm->port,
 			hdspm->port + io_extent - 1);
 
-	if (request_irq(pci->irq, snd_hdspm_interrupt,
-			IRQF_SHARED, KBUILD_MODNAME, hdspm)) {
+	if (devm_request_irq(&pci->dev, pci->irq, snd_hdspm_interrupt,
+			     IRQF_SHARED, KBUILD_MODNAME, hdspm)) {
 		dev_err(card->dev, "unable to use IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}
@@ -6614,7 +6605,7 @@ static int snd_hdspm_create(struct snd_card *card,
 
 	dev_dbg(card->dev, "kmalloc Mixer memory of %zd Bytes\n",
 		sizeof(*hdspm->mixer));
-	hdspm->mixer = kzalloc(sizeof(*hdspm->mixer), GFP_KERNEL);
+	hdspm->mixer = devm_kzalloc(&pci->dev, sizeof(*hdspm->mixer), GFP_KERNEL);
 	if (!hdspm->mixer)
 		return -ENOMEM;
 
@@ -6859,8 +6850,9 @@ static int snd_hdspm_create(struct snd_card *card,
 }
 
 
-static int snd_hdspm_free(struct hdspm * hdspm)
+static void snd_hdspm_card_free(struct snd_card *card)
 {
+	struct hdspm *hdspm = card->private_data;
 
 	if (hdspm->port) {
 		cancel_work_sync(&hdspm->midi_work);
@@ -6873,28 +6865,6 @@ static int snd_hdspm_free(struct hdspm * hdspm)
 		hdspm_write(hdspm, HDSPM_controlRegister,
 			    hdspm->control_register);
 	}
-
-	if (hdspm->irq >= 0)
-		free_irq(hdspm->irq, (void *) hdspm);
-
-	kfree(hdspm->mixer);
-	iounmap(hdspm->iobase);
-
-	if (hdspm->port)
-		pci_release_regions(hdspm->pci);
-
-	if (pci_is_enabled(hdspm->pci))
-		pci_disable_device(hdspm->pci);
-	return 0;
-}
-
-
-static void snd_hdspm_card_free(struct snd_card *card)
-{
-	struct hdspm *hdspm = card->private_data;
-
-	if (hdspm)
-		snd_hdspm_free(hdspm);
 }
 
 
@@ -6913,8 +6883,8 @@ static int snd_hdspm_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_new(&pci->dev, index[dev], id[dev],
-			   THIS_MODULE, sizeof(*hdspm), &card);
+	err = snd_devm_card_new(&pci->dev, index[dev], id[dev],
+				THIS_MODULE, sizeof(*hdspm), &card);
 	if (err < 0)
 		return err;
 
@@ -6925,7 +6895,7 @@ static int snd_hdspm_probe(struct pci_dev *pci,
 
 	err = snd_hdspm_create(card, hdspm);
 	if (err < 0)
-		goto free_card;
+		return err;
 
 	if (hdspm->io_type != MADIface) {
 		snprintf(card->shortname, sizeof(card->shortname), "%s_%x",
@@ -6944,28 +6914,18 @@ static int snd_hdspm_probe(struct pci_dev *pci,
 
 	err = snd_card_register(card);
 	if (err < 0)
-		goto free_card;
+		return err;
 
 	pci_set_drvdata(pci, card);
 
 	dev++;
 	return 0;
-
-free_card:
-	snd_card_free(card);
-	return err;
-}
-
-static void snd_hdspm_remove(struct pci_dev *pci)
-{
-	snd_card_free(pci_get_drvdata(pci));
 }
 
 static struct pci_driver hdspm_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_hdspm_ids,
 	.probe = snd_hdspm_probe,
-	.remove = snd_hdspm_remove,
 };
 
 module_pci_driver(hdspm_driver);

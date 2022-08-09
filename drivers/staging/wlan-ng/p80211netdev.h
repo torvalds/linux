@@ -180,7 +180,7 @@ struct wlandevice {
 	int (*close)(struct wlandevice *wlandev);
 	void (*reset)(struct wlandevice *wlandev);
 	int (*txframe)(struct wlandevice *wlandev, struct sk_buff *skb,
-		       union p80211_hdr *p80211_hdr,
+		       struct p80211_hdr *p80211_hdr,
 		       struct p80211_metawep *p80211_wep);
 	int (*mlmerequest)(struct wlandevice *wlandev, struct p80211msg *msg);
 	int (*set_multicast_list)(struct wlandevice *wlandev,

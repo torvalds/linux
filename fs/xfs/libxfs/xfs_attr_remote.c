@@ -51,7 +51,7 @@ xfs_attr3_rmt_blocks(
 	struct xfs_mount *mp,
 	int		attrlen)
 {
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		int buflen = XFS_ATTR3_RMT_BUF_SPACE(mp, mp->m_sb.sb_blocksize);
 		return (attrlen + buflen - 1) / buflen;
 	}
@@ -126,11 +126,11 @@ __xfs_attr3_rmt_read_verify(
 	int		blksize = mp->m_attr_geo->blksize;
 
 	/* no verification of non-crc buffers */
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
+	if (!xfs_has_crc(mp))
 		return 0;
 
 	ptr = bp->b_addr;
-	bno = bp->b_bn;
+	bno = xfs_buf_daddr(bp);
 	len = BBTOB(bp->b_length);
 	ASSERT(len >= blksize);
 
@@ -191,11 +191,11 @@ xfs_attr3_rmt_write_verify(
 	xfs_daddr_t	bno;
 
 	/* no verification of non-crc buffers */
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
+	if (!xfs_has_crc(mp))
 		return;
 
 	ptr = bp->b_addr;
-	bno = bp->b_bn;
+	bno = xfs_buf_daddr(bp);
 	len = BBTOB(bp->b_length);
 	ASSERT(len >= blksize);
 
@@ -246,7 +246,7 @@ xfs_attr3_rmt_hdr_set(
 {
 	struct xfs_attr3_rmt_hdr *rmt = ptr;
 
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
+	if (!xfs_has_crc(mp))
 		return 0;
 
 	rmt->rm_magic = cpu_to_be32(XFS_ATTR3_RMT_MAGIC);
@@ -284,7 +284,7 @@ xfs_attr_rmtval_copyout(
 	uint8_t		**dst)
 {
 	char		*src = bp->b_addr;
-	xfs_daddr_t	bno = bp->b_bn;
+	xfs_daddr_t	bno = xfs_buf_daddr(bp);
 	int		len = BBTOB(bp->b_length);
 	int		blksize = mp->m_attr_geo->blksize;
 
@@ -296,7 +296,7 @@ xfs_attr_rmtval_copyout(
 
 		byte_cnt = min(*valuelen, byte_cnt);
 
-		if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		if (xfs_has_crc(mp)) {
 			if (xfs_attr3_rmt_hdr_ok(src, ino, *offset,
 						  byte_cnt, bno)) {
 				xfs_alert(mp,
@@ -332,7 +332,7 @@ xfs_attr_rmtval_copyin(
 	uint8_t		**src)
 {
 	char		*dst = bp->b_addr;
-	xfs_daddr_t	bno = bp->b_bn;
+	xfs_daddr_t	bno = xfs_buf_daddr(bp);
 	int		len = BBTOB(bp->b_length);
 	int		blksize = mp->m_attr_geo->blksize;
 
@@ -672,7 +672,7 @@ xfs_attr_rmtval_invalidate(
  * routine until it returns something other than -EAGAIN.
  */
 int
-__xfs_attr_rmtval_remove(
+xfs_attr_rmtval_remove(
 	struct xfs_delattr_context	*dac)
 {
 	struct xfs_da_args		*args = dac->da_args;
@@ -696,6 +696,7 @@ __xfs_attr_rmtval_remove(
 	 */
 	if (!done) {
 		dac->flags |= XFS_DAC_DEFER_FINISH;
+		trace_xfs_attr_rmtval_remove_return(dac->dela_state, args->dp);
 		return -EAGAIN;
 	}
 

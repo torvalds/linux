@@ -998,7 +998,9 @@ mlx4_en_set_link_ksettings(struct net_device *dev,
 }
 
 static int mlx4_en_get_coalesce(struct net_device *dev,
-			      struct ethtool_coalesce *coal)
+				struct ethtool_coalesce *coal,
+				struct kernel_ethtool_coalesce *kernel_coal,
+				struct netlink_ext_ack *extack)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 
@@ -1020,7 +1022,9 @@ static int mlx4_en_get_coalesce(struct net_device *dev,
 }
 
 static int mlx4_en_set_coalesce(struct net_device *dev,
-			      struct ethtool_coalesce *coal)
+				struct ethtool_coalesce *coal,
+				struct kernel_ethtool_coalesce *kernel_coal,
+				struct netlink_ext_ack *extack)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 

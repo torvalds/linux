@@ -170,6 +170,7 @@ static void ptp_clock_release(struct device *dev)
 	struct ptp_clock *ptp = container_of(dev, struct ptp_clock, dev);
 
 	ptp_cleanup_pin_groups(ptp);
+	kfree(ptp->vclock_index);
 	mutex_destroy(&ptp->tsevq_mux);
 	mutex_destroy(&ptp->pincfg_mux);
 	mutex_destroy(&ptp->n_vclocks_mux);
@@ -283,15 +284,20 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	/* Create a posix clock and link it to the device. */
 	err = posix_clock_register(&ptp->clock, &ptp->dev);
 	if (err) {
+	        if (ptp->pps_source)
+	                pps_unregister_source(ptp->pps_source);
+
+		if (ptp->kworker)
+	                kthread_destroy_worker(ptp->kworker);
+
+		put_device(&ptp->dev);
+
 		pr_err("failed to create posix clock\n");
-		goto no_clock;
+		return ERR_PTR(err);
 	}
 
 	return ptp;
 
-no_clock:
-	if (ptp->pps_source)
-		pps_unregister_source(ptp->pps_source);
 no_pps:
 	ptp_cleanup_pin_groups(ptp);
 no_pin_groups:
@@ -320,8 +326,6 @@ int ptp_clock_unregister(struct ptp_clock *ptp)
 
 	ptp->defunct = 1;
 	wake_up_interruptible(&ptp->tsev_wq);
-
-	kfree(ptp->vclock_index);
 
 	if (ptp->kworker) {
 		kthread_cancel_delayed_work_sync(&ptp->aux_work);

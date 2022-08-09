@@ -15,9 +15,9 @@ description:
 
 properties:
   compatible:
-    oneOf:
-      - const: qcom,sm8250-sndcard
-      - const: qcom,qrb5165-rb5-sndcard
+    enum:
+      - qcom,sm8250-sndcard
+      - qcom,qrb5165-rb5-sndcard
 
   audio-routing:
     $ref: /schemas/types.yaml#/definitions/non-unique-string-array

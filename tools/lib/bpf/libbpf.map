@@ -371,7 +371,18 @@ LIBBPF_0.4.0 {
 LIBBPF_0.5.0 {
 	global:
 		bpf_map__initial_value;
+		bpf_map__pin_path;
 		bpf_map_lookup_and_delete_elem_flags;
+		bpf_program__attach_kprobe_opts;
+		bpf_program__attach_perf_event_opts;
+		bpf_program__attach_tracepoint_opts;
+		bpf_program__attach_uprobe_opts;
 		bpf_object__gen_loader;
+		btf__load_from_kernel_by_id;
+		btf__load_from_kernel_by_id_split;
+		btf__load_into_kernel;
+		btf__load_module_btf;
+		btf__load_vmlinux_btf;
+		btf_dump__dump_type_data;
 		libbpf_set_strict_mode;
 } LIBBPF_0.4.0;

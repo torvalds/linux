@@ -18,6 +18,22 @@ struct host1x_job_gather {
 	bool handled;
 };
 
+struct host1x_job_wait {
+	u32 id;
+	u32 threshold;
+	u32 next_class;
+	bool relative;
+};
+
+struct host1x_job_cmd {
+	bool is_wait;
+
+	union {
+		struct host1x_job_gather gather;
+		struct host1x_job_wait wait;
+	};
+};
+
 struct host1x_job_unpin_data {
 	struct host1x_bo *bo;
 	struct sg_table *sgt;

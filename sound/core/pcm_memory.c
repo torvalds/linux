@@ -67,7 +67,8 @@ static void do_free_pages(struct snd_card *card, struct snd_dma_buffer *dmab)
  *
  * the minimum size is snd_minimum_buffer.  it should be power of 2.
  */
-static int preallocate_pcm_pages(struct snd_pcm_substream *substream, size_t size)
+static int preallocate_pcm_pages(struct snd_pcm_substream *substream,
+				 size_t size, bool no_fallback)
 {
 	struct snd_dma_buffer *dmab = &substream->dma_buffer;
 	struct snd_card *card = substream->pcm->card;
@@ -79,6 +80,8 @@ static int preallocate_pcm_pages(struct snd_pcm_substream *substream, size_t siz
 				     size, dmab);
 		if (err != -ENOMEM)
 			return err;
+		if (no_fallback)
+			break;
 		size >>= 1;
 	} while (size >= snd_minimum_buffer);
 	dmab->bytes = 0; /* tell error */
@@ -86,7 +89,7 @@ static int preallocate_pcm_pages(struct snd_pcm_substream *substream, size_t siz
 		substream->pcm->card->number, substream->pcm->device,
 		substream->stream ? 'c' : 'p', substream->number,
 		substream->pcm->name, orig_size);
-	return 0;
+	return -ENOMEM;
 }
 
 /**
@@ -222,18 +225,31 @@ static inline void preallocate_info_init(struct snd_pcm_substream *substream)
 /*
  * pre-allocate the buffer and create a proc file for the substream
  */
-static void preallocate_pages(struct snd_pcm_substream *substream,
+static int preallocate_pages(struct snd_pcm_substream *substream,
 			      int type, struct device *data,
 			      size_t size, size_t max, bool managed)
 {
+	int err;
+
 	if (snd_BUG_ON(substream->dma_buffer.dev.type))
-		return;
+		return -EINVAL;
 
 	substream->dma_buffer.dev.type = type;
 	substream->dma_buffer.dev.dev = data;
 
-	if (size > 0 && preallocate_dma && substream->number < maximum_substreams)
-		preallocate_pcm_pages(substream, size);
+	if (size > 0) {
+		if (!max) {
+			/* no fallback, only also inform -ENOMEM */
+			err = preallocate_pcm_pages(substream, size, true);
+			if (err < 0)
+				return err;
+		} else if (preallocate_dma &&
+			   substream->number < maximum_substreams) {
+			err = preallocate_pcm_pages(substream, size, false);
+			if (err < 0 && err != -ENOMEM)
+				return err;
+		}
+	}
 
 	if (substream->dma_buffer.bytes > 0)
 		substream->buffer_bytes_max = substream->dma_buffer.bytes;
@@ -242,17 +258,22 @@ static void preallocate_pages(struct snd_pcm_substream *substream,
 		preallocate_info_init(substream);
 	if (managed)
 		substream->managed_buffer_alloc = 1;
+	return 0;
 }
 
-static void preallocate_pages_for_all(struct snd_pcm *pcm, int type,
+static int preallocate_pages_for_all(struct snd_pcm *pcm, int type,
 				      void *data, size_t size, size_t max,
 				      bool managed)
 {
 	struct snd_pcm_substream *substream;
-	int stream;
+	int stream, err;
 
-	for_each_pcm_substream(pcm, stream, substream)
-		preallocate_pages(substream, type, data, size, max, managed);
+	for_each_pcm_substream(pcm, stream, substream) {
+		err = preallocate_pages(substream, type, data, size, max, managed);
+		if (err < 0)
+			return err;
+	}
+	return 0;
 }
 
 /**
@@ -309,11 +330,22 @@ EXPORT_SYMBOL(snd_pcm_lib_preallocate_pages_for_all);
  * When a buffer is actually allocated before the PCM hw_params call, it
  * turns on the runtime buffer_changed flag for drivers changing their h/w
  * parameters accordingly.
+ *
+ * When @size is non-zero and @max is zero, this tries to allocate for only
+ * the exact buffer size without fallback, and may return -ENOMEM.
+ * Otherwise, the function tries to allocate smaller chunks if the allocation
+ * fails.  This is the behavior of snd_pcm_set_fixed_buffer().
+ *
+ * When both @size and @max are zero, the function only sets up the buffer
+ * for later dynamic allocations. It's used typically for buffers with
+ * SNDRV_DMA_TYPE_VMALLOC type.
+ *
+ * Upon successful buffer allocation and setup, the function returns 0.
  */
-void snd_pcm_set_managed_buffer(struct snd_pcm_substream *substream, int type,
+int snd_pcm_set_managed_buffer(struct snd_pcm_substream *substream, int type,
 				struct device *data, size_t size, size_t max)
 {
-	preallocate_pages(substream, type, data, size, max, true);
+	return preallocate_pages(substream, type, data, size, max, true);
 }
 EXPORT_SYMBOL(snd_pcm_set_managed_buffer);
 
@@ -329,11 +361,11 @@ EXPORT_SYMBOL(snd_pcm_set_managed_buffer);
  * Do pre-allocation to all substreams of the given pcm for the specified DMA
  * type and size, and set the managed_buffer_alloc flag to each substream.
  */
-void snd_pcm_set_managed_buffer_all(struct snd_pcm *pcm, int type,
-				    struct device *data,
-				    size_t size, size_t max)
+int snd_pcm_set_managed_buffer_all(struct snd_pcm *pcm, int type,
+				   struct device *data,
+				   size_t size, size_t max)
 {
-	preallocate_pages_for_all(pcm, type, data, size, max, true);
+	return preallocate_pages_for_all(pcm, type, data, size, max, true);
 }
 EXPORT_SYMBOL(snd_pcm_set_managed_buffer_all);
 
@@ -376,6 +408,9 @@ int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size)
 	    substream->dma_buffer.bytes >= size) {
 		dmab = &substream->dma_buffer; /* use the pre-allocated buffer */
 	} else {
+		/* dma_max=0 means the fixed size preallocation */
+		if (substream->dma_buffer.area && !substream->dma_max)
+			return -ENOMEM;
 		dmab = kzalloc(sizeof(*dmab), GFP_KERNEL);
 		if (! dmab)
 			return -ENOMEM;

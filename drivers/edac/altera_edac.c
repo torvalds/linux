@@ -539,10 +539,18 @@ module_platform_driver(altr_edac_driver);
  * trigger testing are different for each memory.
  */
 
+#ifdef CONFIG_EDAC_ALTERA_OCRAM
 static const struct edac_device_prv_data ocramecc_data;
+#endif
+#ifdef CONFIG_EDAC_ALTERA_L2C
 static const struct edac_device_prv_data l2ecc_data;
+#endif
+#ifdef CONFIG_EDAC_ALTERA_OCRAM
 static const struct edac_device_prv_data a10_ocramecc_data;
+#endif
+#ifdef CONFIG_EDAC_ALTERA_L2C
 static const struct edac_device_prv_data a10_l2ecc_data;
+#endif
 
 static irqreturn_t altr_edac_device_handler(int irq, void *dev_id)
 {
@@ -569,9 +577,9 @@ static irqreturn_t altr_edac_device_handler(int irq, void *dev_id)
 	return ret_value;
 }
 
-static ssize_t altr_edac_device_trig(struct file *file,
-				     const char __user *user_buf,
-				     size_t count, loff_t *ppos)
+static ssize_t __maybe_unused
+altr_edac_device_trig(struct file *file, const char __user *user_buf,
+		      size_t count, loff_t *ppos)
 
 {
 	u32 *ptemp, i, error_mask;
@@ -640,27 +648,27 @@ static ssize_t altr_edac_device_trig(struct file *file,
 	return count;
 }
 
-static const struct file_operations altr_edac_device_inject_fops = {
+static const struct file_operations altr_edac_device_inject_fops __maybe_unused = {
 	.open = simple_open,
 	.write = altr_edac_device_trig,
 	.llseek = generic_file_llseek,
 };
 
-static ssize_t altr_edac_a10_device_trig(struct file *file,
-					 const char __user *user_buf,
-					 size_t count, loff_t *ppos);
+static ssize_t __maybe_unused
+altr_edac_a10_device_trig(struct file *file, const char __user *user_buf,
+			  size_t count, loff_t *ppos);
 
-static const struct file_operations altr_edac_a10_device_inject_fops = {
+static const struct file_operations altr_edac_a10_device_inject_fops __maybe_unused = {
 	.open = simple_open,
 	.write = altr_edac_a10_device_trig,
 	.llseek = generic_file_llseek,
 };
 
-static ssize_t altr_edac_a10_device_trig2(struct file *file,
-					  const char __user *user_buf,
-					  size_t count, loff_t *ppos);
+static ssize_t __maybe_unused
+altr_edac_a10_device_trig2(struct file *file, const char __user *user_buf,
+			   size_t count, loff_t *ppos);
 
-static const struct file_operations altr_edac_a10_device_inject2_fops = {
+static const struct file_operations altr_edac_a10_device_inject2_fops __maybe_unused = {
 	.open = simple_open,
 	.write = altr_edac_a10_device_trig2,
 	.llseek = generic_file_llseek,
@@ -1697,9 +1705,9 @@ MODULE_DEVICE_TABLE(of, altr_edac_a10_device_of_match);
  * Based on xgene_edac.c peripheral code.
  */
 
-static ssize_t altr_edac_a10_device_trig(struct file *file,
-					 const char __user *user_buf,
-					 size_t count, loff_t *ppos)
+static ssize_t __maybe_unused
+altr_edac_a10_device_trig(struct file *file, const char __user *user_buf,
+			  size_t count, loff_t *ppos)
 {
 	struct edac_device_ctl_info *edac_dci = file->private_data;
 	struct altr_edac_device_dev *drvdata = edac_dci->pvt_info;
@@ -1729,9 +1737,9 @@ static ssize_t altr_edac_a10_device_trig(struct file *file,
  * slightly. A few Arria10 peripherals can use this injection function.
  * Inject the error into the memory and then readback to trigger the IRQ.
  */
-static ssize_t altr_edac_a10_device_trig2(struct file *file,
-					  const char __user *user_buf,
-					  size_t count, loff_t *ppos)
+static ssize_t __maybe_unused
+altr_edac_a10_device_trig2(struct file *file, const char __user *user_buf,
+			   size_t count, loff_t *ppos)
 {
 	struct edac_device_ctl_info *edac_dci = file->private_data;
 	struct altr_edac_device_dev *drvdata = edac_dci->pvt_info;
@@ -1804,11 +1812,8 @@ static void altr_edac_a10_irq_handler(struct irq_desc *desc)
 	regmap_read(edac->ecc_mgr_map, sm_offset, &irq_status);
 
 	bits = irq_status;
-	for_each_set_bit(bit, &bits, 32) {
-		irq = irq_linear_revmap(edac->domain, dberr * 32 + bit);
-		if (irq)
-			generic_handle_irq(irq);
-	}
+	for_each_set_bit(bit, &bits, 32)
+		generic_handle_domain_irq(edac->domain, dberr * 32 + bit);
 
 	chained_irq_exit(chip, desc);
 }

@@ -129,6 +129,9 @@ struct sdw_cdns {
 	struct sdw_cdns_streams pcm;
 	struct sdw_cdns_streams pdm;
 
+	int pdi_loopback_source;
+	int pdi_loopback_target;
+
 	void __iomem *registers;
 
 	bool link_up;
@@ -184,4 +187,8 @@ int cdns_bus_conf(struct sdw_bus *bus, struct sdw_bus_params *params);
 
 int cdns_set_sdw_stream(struct snd_soc_dai *dai,
 			void *stream, bool pcm, int direction);
+
+void sdw_cdns_check_self_clearing_bits(struct sdw_cdns *cdns, const char *string,
+				       bool initial_delay, int reset_iterations);
+
 #endif /* __SDW_CADENCE_H */

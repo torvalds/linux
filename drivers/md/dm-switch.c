@@ -504,6 +504,10 @@ static void switch_status(struct dm_target *ti, status_type_t type,
 			DMEMIT(" %s %llu", sctx->path_list[path_nr].dmdev->name,
 			       (unsigned long long)sctx->path_list[path_nr].start);
 		break;
+
+	case STATUSTYPE_IMA:
+		result[0] = '\0';
+		break;
 	}
 }
 

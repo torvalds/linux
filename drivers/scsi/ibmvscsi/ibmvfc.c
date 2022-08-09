@@ -1696,6 +1696,7 @@ static int ibmvfc_send_event(struct ibmvfc_event *evt,
 
 	spin_lock_irqsave(&evt->queue->l_lock, flags);
 	list_add_tail(&evt->queue_list, &evt->queue->sent);
+	atomic_set(&evt->active, 1);
 
 	mb();
 
@@ -1710,6 +1711,7 @@ static int ibmvfc_send_event(struct ibmvfc_event *evt,
 				     be64_to_cpu(crq_as_u64[1]));
 
 	if (rc) {
+		atomic_set(&evt->active, 0);
 		list_del(&evt->queue_list);
 		spin_unlock_irqrestore(&evt->queue->l_lock, flags);
 		del_timer(&evt->timer);
@@ -1737,7 +1739,6 @@ static int ibmvfc_send_event(struct ibmvfc_event *evt,
 
 		evt->done(evt);
 	} else {
-		atomic_set(&evt->active, 1);
 		spin_unlock_irqrestore(&evt->queue->l_lock, flags);
 		ibmvfc_trc_start(evt);
 	}
@@ -1926,7 +1927,7 @@ static int ibmvfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	struct ibmvfc_cmd *vfc_cmd;
 	struct ibmvfc_fcp_cmd_iu *iu;
 	struct ibmvfc_event *evt;
-	u32 tag_and_hwq = blk_mq_unique_tag(cmnd->request);
+	u32 tag_and_hwq = blk_mq_unique_tag(scsi_cmd_to_rq(cmnd));
 	u16 hwq = blk_mq_unique_tag_to_hwq(tag_and_hwq);
 	u16 scsi_channel;
 	int rc;
@@ -1956,7 +1957,7 @@ static int ibmvfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	memcpy(iu->cdb, cmnd->cmnd, cmnd->cmd_len);
 
 	if (cmnd->flags & SCMD_TAGGED) {
-		vfc_cmd->task_tag = cpu_to_be64(cmnd->tag);
+		vfc_cmd->task_tag = cpu_to_be64(scsi_cmd_to_rq(cmnd)->tag);
 		iu->pri_task_attr = IBMVFC_SIMPLE_TASK;
 	}
 
@@ -3292,14 +3293,18 @@ static int ibmvfc_scan_finished(struct Scsi_Host *shost, unsigned long time)
 	int done = 0;
 
 	spin_lock_irqsave(shost->host_lock, flags);
-	if (time >= (init_timeout * HZ)) {
+	if (!vhost->scan_timeout)
+		done = 1;
+	else if (time >= (vhost->scan_timeout * HZ)) {
 		dev_info(vhost->dev, "Scan taking longer than %d seconds, "
-			 "continuing initialization\n", init_timeout);
+			 "continuing initialization\n", vhost->scan_timeout);
 		done = 1;
 	}
 
-	if (vhost->scan_complete)
+	if (vhost->scan_complete) {
+		vhost->scan_timeout = init_timeout;
 		done = 1;
+	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	return done;
 }
@@ -6084,6 +6089,7 @@ static int ibmvfc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	vhost->client_scsi_channels = min(shost->nr_hw_queues, nr_scsi_channels);
 	vhost->using_channels = 0;
 	vhost->do_enquiry = 1;
+	vhost->scan_timeout = 0;
 
 	strcpy(vhost->partition_name, "UNKNOWN");
 	init_waitqueue_head(&vhost->work_wait_q);

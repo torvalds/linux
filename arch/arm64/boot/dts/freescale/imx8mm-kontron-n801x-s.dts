@@ -70,7 +70,9 @@
 		regulator-name = "rst-usb-eth2";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_usb_eth2>;
-		gpio = <&gpio3 2 GPIO_ACTIVE_LOW>;
+		gpio = <&gpio3 2 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-always-on;
 	};
 
 	reg_vdd_5v: regulator-5v {
@@ -95,7 +97,7 @@
 		clocks = <&osc_can>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <28 IRQ_TYPE_EDGE_FALLING>;
-		spi-max-frequency = <100000>;
+		spi-max-frequency = <10000000>;
 		vdd-supply = <&reg_vdd_3v3>;
 		xceiver-supply = <&reg_vdd_5v>;
 	};
@@ -111,7 +113,7 @@
 &fec1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
-	phy-connection-type = "rgmii";
+	phy-connection-type = "rgmii-rxid";
 	phy-handle = <&ethphy>;
 	status = "okay";
 

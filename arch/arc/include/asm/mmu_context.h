@@ -15,22 +15,23 @@
 #ifndef _ASM_ARC_MMU_CONTEXT_H
 #define _ASM_ARC_MMU_CONTEXT_H
 
-#include <asm/arcregs.h>
-#include <asm/tlb.h>
 #include <linux/sched/mm.h>
 
+#include <asm/tlb.h>
 #include <asm-generic/mm_hooks.h>
 
-/*		ARC700 ASID Management
+/*		ARC ASID Management
  *
- * ARC MMU provides 8-bit ASID (0..255) to TAG TLB entries, allowing entries
- * with same vaddr (different tasks) to co-exit. This provides for
- * "Fast Context Switch" i.e. no TLB flush on ctxt-switch
+ * MMU tags TLBs with an 8-bit ASID, avoiding need to flush the TLB on
+ * context-switch.
  *
- * Linux assigns each task a unique ASID. A simple round-robin allocation
- * of H/w ASID is done using software tracker @asid_cpu.
- * When it reaches max 255, the allocation cycle starts afresh by flushing
- * the entire TLB and wrapping ASID back to zero.
+ * ASID is managed per cpu, so task threads across CPUs can have different
+ * ASID. Global ASID management is needed if hardware supports TLB shootdown
+ * and/or shared TLB across cores, which ARC doesn't.
+ *
+ * Each task is assigned unique ASID, with a simple round-robin allocator
+ * tracked in @asid_cpu. When 8-bit value rolls over,a new cycle is started
+ * over from 0, and TLB is flushed
  *
  * A new allocation cycle, post rollover, could potentially reassign an ASID
  * to a different task. Thus the rule is to refresh the ASID in a new cycle.
@@ -93,7 +94,7 @@ static inline void get_new_mmu_context(struct mm_struct *mm)
 	asid_mm(mm, cpu) = asid_cpu(cpu);
 
 set_hw:
-	write_aux_reg(ARC_REG_PID, hw_pid(mm, cpu) | MMU_ENABLE);
+	mmu_setup_asid(mm, hw_pid(mm, cpu));
 
 	local_irq_restore(flags);
 }
@@ -146,10 +147,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	 */
 	cpumask_set_cpu(cpu, mm_cpumask(next));
 
-#ifdef ARC_USE_SCRATCH_REG
-	/* PGD cached in MMU reg to avoid 3 mem lookups: task->mm->pgd */
-	write_aux_reg(ARC_REG_SCRATCH_DATA0, next->pgd);
-#endif
+	mmu_setup_pgd(next, next->pgd);
 
 	get_new_mmu_context(next);
 }

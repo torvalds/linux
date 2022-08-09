@@ -1508,7 +1508,7 @@ MODULE_PARM_DESC(io, "SMC 99194 I/O base address");
 MODULE_PARM_DESC(irq, "SMC 99194 IRQ number");
 MODULE_PARM_DESC(ifport, "SMC 99194 interface port (0-default, 1-TP, 2-AUI)");
 
-int __init init_module(void)
+static int __init smc_init_module(void)
 {
 	if (io == 0)
 		printk(KERN_WARNING
@@ -1518,13 +1518,15 @@ int __init init_module(void)
 	devSMC9194 = smc_init(-1);
 	return PTR_ERR_OR_ZERO(devSMC9194);
 }
+module_init(smc_init_module);
 
-void __exit cleanup_module(void)
+static void __exit smc_cleanup_module(void)
 {
 	unregister_netdev(devSMC9194);
 	free_irq(devSMC9194->irq, devSMC9194);
 	release_region(devSMC9194->base_addr, SMC_IO_EXTENT);
 	free_netdev(devSMC9194);
 }
+module_exit(smc_cleanup_module);
 
 #endif /* MODULE */

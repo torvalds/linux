@@ -107,7 +107,8 @@ struct ti_sci_inta_msi_desc {
  *			address or data changes
  * @write_msi_msg_data:	Data parameter for the callback.
  *
- * @masked:	[PCI MSI/X] Mask bits
+ * @msi_mask:	[PCI MSI]   MSI cached mask bits
+ * @msix_ctrl:	[PCI MSI-X] MSI-X cached per vector control bits
  * @is_msix:	[PCI MSI/X] True if MSI-X
  * @multiple:	[PCI MSI/X] log2 num of messages allocated
  * @multi_cap:	[PCI MSI/X] log2 num of messages supported
@@ -139,7 +140,10 @@ struct msi_desc {
 	union {
 		/* PCI MSI/X specific data */
 		struct {
-			u32 masked;
+			union {
+				u32 msi_mask;
+				u32 msix_ctrl;
+			};
 			struct {
 				u8	is_msix		: 1;
 				u8	multiple	: 3;
@@ -232,10 +236,12 @@ void free_msi_entry(struct msi_desc *entry);
 void __pci_read_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
 void __pci_write_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
 
-u32 __pci_msix_desc_mask_irq(struct msi_desc *desc, u32 flag);
-void __pci_msi_desc_mask_irq(struct msi_desc *desc, u32 mask, u32 flag);
 void pci_msi_mask_irq(struct irq_data *data);
 void pci_msi_unmask_irq(struct irq_data *data);
+
+const struct attribute_group **msi_populate_sysfs(struct device *dev);
+void msi_destroy_sysfs(struct device *dev,
+		       const struct attribute_group **msi_irq_groups);
 
 /*
  * The arch hooks to setup up msi irqs. Default functions are implemented

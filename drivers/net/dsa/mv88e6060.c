@@ -290,7 +290,24 @@ static void mv88e6060_remove(struct mdio_device *mdiodev)
 {
 	struct dsa_switch *ds = dev_get_drvdata(&mdiodev->dev);
 
+	if (!ds)
+		return;
+
 	dsa_unregister_switch(ds);
+
+	dev_set_drvdata(&mdiodev->dev, NULL);
+}
+
+static void mv88e6060_shutdown(struct mdio_device *mdiodev)
+{
+	struct dsa_switch *ds = dev_get_drvdata(&mdiodev->dev);
+
+	if (!ds)
+		return;
+
+	dsa_switch_shutdown(ds);
+
+	dev_set_drvdata(&mdiodev->dev, NULL);
 }
 
 static const struct of_device_id mv88e6060_of_match[] = {
@@ -303,6 +320,7 @@ static const struct of_device_id mv88e6060_of_match[] = {
 static struct mdio_driver mv88e6060_driver = {
 	.probe	= mv88e6060_probe,
 	.remove = mv88e6060_remove,
+	.shutdown = mv88e6060_shutdown,
 	.mdiodrv.driver = {
 		.name = "mv88e6060",
 		.of_match_table = mv88e6060_of_match,

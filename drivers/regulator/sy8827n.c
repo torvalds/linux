@@ -19,6 +19,10 @@
 #define   SY8827N_MODE		(1 << 6)
 #define SY8827N_VSEL1		1
 #define SY8827N_CTRL		2
+#define SY8827N_ID1		3
+#define SY8827N_ID2		4
+#define SY8827N_PGOOD		5
+#define SY8827N_MAX		(SY8827N_PGOOD + 1)
 
 #define SY8827N_NVOLTAGES	64
 #define SY8827N_VSELMIN		600000
@@ -102,9 +106,19 @@ static int sy8827n_regulator_register(struct sy8827n_device_info *di,
 	return PTR_ERR_OR_ZERO(rdev);
 }
 
+static bool sy8827n_volatile_reg(struct device *dev, unsigned int reg)
+{
+	if (reg == SY8827N_PGOOD)
+		return true;
+	return false;
+}
+
 static const struct regmap_config sy8827n_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+	.volatile_reg = sy8827n_volatile_reg,
+	.num_reg_defaults_raw = SY8827N_MAX,
+	.cache_type = REGCACHE_FLAT,
 };
 
 static int sy8827n_i2c_probe(struct i2c_client *client)

@@ -217,6 +217,12 @@
 			reg = <0x4044 0x8>;
 			#phy-cells = <1>;
 		};
+
+		epwm_tbclk: clock@4140 {
+			compatible = "ti,am64-epwm-tbclk", "syscon";
+			reg = <0x4130 0x4>;
+			#clock-cells = <1>;
+		};
 	};
 
 	main_uart0: serial@2800000 {
@@ -858,5 +864,113 @@
 		clocks = <&k3_clks 114 0>;
 		clock-names = "fck";
 		max-functions = /bits/ 8 <1>;
+	};
+
+	epwm0: pwm@23000000 {
+		compatible = "ti,am64-epwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x0 0x23000000 0x0 0x100>;
+		power-domains = <&k3_pds 86 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&epwm_tbclk 0>, <&k3_clks 86 0>;
+		clock-names = "tbclk", "fck";
+	};
+
+	epwm1: pwm@23010000 {
+		compatible = "ti,am64-epwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x0 0x23010000 0x0 0x100>;
+		power-domains = <&k3_pds 87 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&epwm_tbclk 1>, <&k3_clks 87 0>;
+		clock-names = "tbclk", "fck";
+	};
+
+	epwm2: pwm@23020000 {
+		compatible = "ti,am64-epwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x0 0x23020000 0x0 0x100>;
+		power-domains = <&k3_pds 88 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&epwm_tbclk 2>, <&k3_clks 88 0>;
+		clock-names = "tbclk", "fck";
+	};
+
+	epwm3: pwm@23030000 {
+		compatible = "ti,am64-epwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x0 0x23030000 0x0 0x100>;
+		power-domains = <&k3_pds 89 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&epwm_tbclk 3>, <&k3_clks 89 0>;
+		clock-names = "tbclk", "fck";
+	};
+
+	epwm4: pwm@23040000 {
+		compatible = "ti,am64-epwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x0 0x23040000 0x0 0x100>;
+		power-domains = <&k3_pds 90 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&epwm_tbclk 4>, <&k3_clks 90 0>;
+		clock-names = "tbclk", "fck";
+	};
+
+	epwm5: pwm@23050000 {
+		compatible = "ti,am64-epwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x0 0x23050000 0x0 0x100>;
+		power-domains = <&k3_pds 91 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&epwm_tbclk 5>, <&k3_clks 91 0>;
+		clock-names = "tbclk", "fck";
+	};
+
+	epwm6: pwm@23060000 {
+		compatible = "ti,am64-epwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x0 0x23060000 0x0 0x100>;
+		power-domains = <&k3_pds 92 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&epwm_tbclk 6>, <&k3_clks 92 0>;
+		clock-names = "tbclk", "fck";
+	};
+
+	epwm7: pwm@23070000 {
+		compatible = "ti,am64-epwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x0 0x23070000 0x0 0x100>;
+		power-domains = <&k3_pds 93 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&epwm_tbclk 7>, <&k3_clks 93 0>;
+		clock-names = "tbclk", "fck";
+	};
+
+	epwm8: pwm@23080000 {
+		compatible = "ti,am64-epwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x0 0x23080000 0x0 0x100>;
+		power-domains = <&k3_pds 94 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&epwm_tbclk 8>, <&k3_clks 94 0>;
+		clock-names = "tbclk", "fck";
+	};
+
+	ecap0: pwm@23100000 {
+		compatible = "ti,am64-ecap", "ti,am3352-ecap";
+		#pwm-cells = <3>;
+		reg = <0x0 0x23100000 0x0 0x60>;
+		power-domains = <&k3_pds 51 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&k3_clks 51 0>;
+		clock-names = "fck";
+	};
+
+	ecap1: pwm@23110000 {
+		compatible = "ti,am64-ecap", "ti,am3352-ecap";
+		#pwm-cells = <3>;
+		reg = <0x0 0x23110000 0x0 0x60>;
+		power-domains = <&k3_pds 52 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&k3_clks 52 0>;
+		clock-names = "fck";
+	};
+
+	ecap2: pwm@23120000 {
+		compatible = "ti,am64-ecap", "ti,am3352-ecap";
+		#pwm-cells = <3>;
+		reg = <0x0 0x23120000 0x0 0x60>;
+		power-domains = <&k3_pds 53 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&k3_clks 53 0>;
+		clock-names = "fck";
 	};
 };

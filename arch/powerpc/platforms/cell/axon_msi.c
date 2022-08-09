@@ -12,8 +12,8 @@
 #include <linux/export.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
+#include <linux/debugfs.h>
 
-#include <asm/debugfs.h>
 #include <asm/dcr.h>
 #include <asm/machdep.h>
 #include <asm/prom.h>
@@ -480,6 +480,6 @@ void axon_msi_debug_setup(struct device_node *dn, struct axon_msic *msic)
 
 	snprintf(name, sizeof(name), "msic_%d", of_node_to_nid(dn));
 
-	debugfs_create_file(name, 0600, powerpc_debugfs_root, msic, &fops_msic);
+	debugfs_create_file(name, 0600, arch_debugfs_dir, msic, &fops_msic);
 }
 #endif /* DEBUG */

@@ -35,7 +35,7 @@ static DEFINE_SPINLOCK(pmc_pll_lock);
 static DEFINE_SPINLOCK(pmc_mck0_lock);
 static DEFINE_SPINLOCK(pmc_mckX_lock);
 
-/**
+/*
  * PLL clocks identifiers
  * @PLL_ID_CPU:		CPU PLL identifier
  * @PLL_ID_SYS:		System PLL identifier
@@ -56,7 +56,7 @@ enum pll_ids {
 	PLL_ID_MAX,
 };
 
-/**
+/*
  * PLL type identifiers
  * @PLL_TYPE_FRAC:	fractional PLL identifier
  * @PLL_TYPE_DIV:	divider PLL identifier
@@ -118,7 +118,7 @@ static const struct clk_pll_characteristics pll_characteristics = {
 	.output = pll_outputs,
 };
 
-/**
+/*
  * PLL clocks description
  * @n:		clock name
  * @p:		clock parent
@@ -285,7 +285,7 @@ static const struct {
 	},
 };
 
-/**
+/*
  * Master clock (MCK[1..4]) description
  * @n:			clock name
  * @ep:			extra parents names array
@@ -337,7 +337,7 @@ static const struct {
 	  .c = 1, },
 };
 
-/**
+/*
  * System clock description
  * @n:	clock name
  * @p:	clock parent name
@@ -361,7 +361,7 @@ static const struct {
 /* Mux table for programmable clocks. */
 static u32 sama7g5_prog_mux_table[] = { 0, 1, 2, 5, 6, 7, 8, 9, 10, };
 
-/**
+/*
  * Peripheral clock description
  * @n:		clock name
  * @p:		clock parent name
@@ -449,7 +449,7 @@ static const struct {
 	{ .n = "uhphs_clk",	.p = "mck1", .id = 106, },
 };
 
-/**
+/*
  * Generic clock description
  * @n:			clock name
  * @pp:			PLL parents

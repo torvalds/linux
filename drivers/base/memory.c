@@ -82,6 +82,12 @@ static struct bus_type memory_subsys = {
  */
 static DEFINE_XARRAY(memory_blocks);
 
+/*
+ * Memory groups, indexed by memory group id (mgid).
+ */
+static DEFINE_XARRAY_FLAGS(memory_groups, XA_FLAGS_ALLOC);
+#define MEMORY_GROUP_MARK_DYNAMIC	XA_MARK_1
+
 static BLOCKING_NOTIFIER_HEAD(memory_chain);
 
 int register_memory_notifier(struct notifier_block *nb)
@@ -177,7 +183,8 @@ static int memory_block_online(struct memory_block *mem)
 	struct zone *zone;
 	int ret;
 
-	zone = zone_for_pfn_range(mem->online_type, mem->nid, start_pfn, nr_pages);
+	zone = zone_for_pfn_range(mem->online_type, mem->nid, mem->group,
+				  start_pfn, nr_pages);
 
 	/*
 	 * Although vmemmap pages have a different lifecycle than the pages
@@ -193,7 +200,7 @@ static int memory_block_online(struct memory_block *mem)
 	}
 
 	ret = online_pages(start_pfn + nr_vmemmap_pages,
-			   nr_pages - nr_vmemmap_pages, zone);
+			   nr_pages - nr_vmemmap_pages, zone, mem->group);
 	if (ret) {
 		if (nr_vmemmap_pages)
 			mhp_deinit_memmap_on_memory(start_pfn, nr_vmemmap_pages);
@@ -205,7 +212,8 @@ static int memory_block_online(struct memory_block *mem)
 	 * now already properly populated.
 	 */
 	if (nr_vmemmap_pages)
-		adjust_present_page_count(zone, nr_vmemmap_pages);
+		adjust_present_page_count(pfn_to_page(start_pfn), mem->group,
+					  nr_vmemmap_pages);
 
 	return ret;
 }
@@ -215,24 +223,23 @@ static int memory_block_offline(struct memory_block *mem)
 	unsigned long start_pfn = section_nr_to_pfn(mem->start_section_nr);
 	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
 	unsigned long nr_vmemmap_pages = mem->nr_vmemmap_pages;
-	struct zone *zone;
 	int ret;
 
 	/*
 	 * Unaccount before offlining, such that unpopulated zone and kthreads
 	 * can properly be torn down in offline_pages().
 	 */
-	if (nr_vmemmap_pages) {
-		zone = page_zone(pfn_to_page(start_pfn));
-		adjust_present_page_count(zone, -nr_vmemmap_pages);
-	}
+	if (nr_vmemmap_pages)
+		adjust_present_page_count(pfn_to_page(start_pfn), mem->group,
+					  -nr_vmemmap_pages);
 
 	ret = offline_pages(start_pfn + nr_vmemmap_pages,
-			    nr_pages - nr_vmemmap_pages);
+			    nr_pages - nr_vmemmap_pages, mem->group);
 	if (ret) {
 		/* offline_pages() failed. Account back. */
 		if (nr_vmemmap_pages)
-			adjust_present_page_count(zone, nr_vmemmap_pages);
+			adjust_present_page_count(pfn_to_page(start_pfn),
+						  mem->group, nr_vmemmap_pages);
 		return ret;
 	}
 
@@ -374,12 +381,13 @@ static ssize_t phys_device_show(struct device *dev,
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
 static int print_allowed_zone(char *buf, int len, int nid,
+			      struct memory_group *group,
 			      unsigned long start_pfn, unsigned long nr_pages,
 			      int online_type, struct zone *default_zone)
 {
 	struct zone *zone;
 
-	zone = zone_for_pfn_range(online_type, nid, start_pfn, nr_pages);
+	zone = zone_for_pfn_range(online_type, nid, group, start_pfn, nr_pages);
 	if (zone == default_zone)
 		return 0;
 
@@ -392,9 +400,10 @@ static ssize_t valid_zones_show(struct device *dev,
 	struct memory_block *mem = to_memory_block(dev);
 	unsigned long start_pfn = section_nr_to_pfn(mem->start_section_nr);
 	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
+	struct memory_group *group = mem->group;
 	struct zone *default_zone;
+	int nid = mem->nid;
 	int len = 0;
-	int nid;
 
 	/*
 	 * Check the existing zone. Make sure that we do that only on the
@@ -413,14 +422,13 @@ static ssize_t valid_zones_show(struct device *dev,
 		goto out;
 	}
 
-	nid = mem->nid;
-	default_zone = zone_for_pfn_range(MMOP_ONLINE, nid, start_pfn,
-					  nr_pages);
+	default_zone = zone_for_pfn_range(MMOP_ONLINE, nid, group,
+					  start_pfn, nr_pages);
 
 	len += sysfs_emit_at(buf, len, "%s", default_zone->name);
-	len += print_allowed_zone(buf, len, nid, start_pfn, nr_pages,
+	len += print_allowed_zone(buf, len, nid, group, start_pfn, nr_pages,
 				  MMOP_ONLINE_KERNEL, default_zone);
-	len += print_allowed_zone(buf, len, nid, start_pfn, nr_pages,
+	len += print_allowed_zone(buf, len, nid, group, start_pfn, nr_pages,
 				  MMOP_ONLINE_MOVABLE, default_zone);
 out:
 	len += sysfs_emit_at(buf, len, "\n");
@@ -578,9 +586,9 @@ static struct memory_block *find_memory_block_by_id(unsigned long block_id)
 /*
  * Called under device_hotplug_lock.
  */
-struct memory_block *find_memory_block(struct mem_section *section)
+struct memory_block *find_memory_block(unsigned long section_nr)
 {
-	unsigned long block_id = memory_block_id(__section_nr(section));
+	unsigned long block_id = memory_block_id(section_nr);
 
 	return find_memory_block_by_id(block_id);
 }
@@ -634,7 +642,8 @@ int register_memory(struct memory_block *memory)
 }
 
 static int init_memory_block(unsigned long block_id, unsigned long state,
-			     unsigned long nr_vmemmap_pages)
+			     unsigned long nr_vmemmap_pages,
+			     struct memory_group *group)
 {
 	struct memory_block *mem;
 	int ret = 0;
@@ -652,6 +661,12 @@ static int init_memory_block(unsigned long block_id, unsigned long state,
 	mem->state = state;
 	mem->nid = NUMA_NO_NODE;
 	mem->nr_vmemmap_pages = nr_vmemmap_pages;
+	INIT_LIST_HEAD(&mem->group_next);
+
+	if (group) {
+		mem->group = group;
+		list_add(&mem->group_next, &group->memory_blocks);
+	}
 
 	ret = register_memory(mem);
 
@@ -671,7 +686,7 @@ static int add_memory_block(unsigned long base_section_nr)
 	if (section_count == 0)
 		return 0;
 	return init_memory_block(memory_block_id(base_section_nr),
-				 MEM_ONLINE, 0);
+				 MEM_ONLINE, 0,  NULL);
 }
 
 static void unregister_memory(struct memory_block *memory)
@@ -680,6 +695,11 @@ static void unregister_memory(struct memory_block *memory)
 		return;
 
 	WARN_ON(xa_erase(&memory_blocks, memory->dev.id) == NULL);
+
+	if (memory->group) {
+		list_del(&memory->group_next);
+		memory->group = NULL;
+	}
 
 	/* drop the ref. we got via find_memory_block() */
 	put_device(&memory->dev);
@@ -694,7 +714,8 @@ static void unregister_memory(struct memory_block *memory)
  * Called under device_hotplug_lock.
  */
 int create_memory_block_devices(unsigned long start, unsigned long size,
-				unsigned long vmemmap_pages)
+				unsigned long vmemmap_pages,
+				struct memory_group *group)
 {
 	const unsigned long start_block_id = pfn_to_block_id(PFN_DOWN(start));
 	unsigned long end_block_id = pfn_to_block_id(PFN_DOWN(start + size));
@@ -707,7 +728,8 @@ int create_memory_block_devices(unsigned long start, unsigned long size,
 		return -EINVAL;
 
 	for (block_id = start_block_id; block_id != end_block_id; block_id++) {
-		ret = init_memory_block(block_id, MEM_OFFLINE, vmemmap_pages);
+		ret = init_memory_block(block_id, MEM_OFFLINE, vmemmap_pages,
+					group);
 		if (ret)
 			break;
 	}
@@ -890,4 +912,165 @@ int for_each_memory_block(void *arg, walk_memory_blocks_func_t func)
 
 	return bus_for_each_dev(&memory_subsys, NULL, &cb_data,
 				for_each_memory_block_cb);
+}
+
+/*
+ * This is an internal helper to unify allocation and initialization of
+ * memory groups. Note that the passed memory group will be copied to a
+ * dynamically allocated memory group. After this call, the passed
+ * memory group should no longer be used.
+ */
+static int memory_group_register(struct memory_group group)
+{
+	struct memory_group *new_group;
+	uint32_t mgid;
+	int ret;
+
+	if (!node_possible(group.nid))
+		return -EINVAL;
+
+	new_group = kzalloc(sizeof(group), GFP_KERNEL);
+	if (!new_group)
+		return -ENOMEM;
+	*new_group = group;
+	INIT_LIST_HEAD(&new_group->memory_blocks);
+
+	ret = xa_alloc(&memory_groups, &mgid, new_group, xa_limit_31b,
+		       GFP_KERNEL);
+	if (ret) {
+		kfree(new_group);
+		return ret;
+	} else if (group.is_dynamic) {
+		xa_set_mark(&memory_groups, mgid, MEMORY_GROUP_MARK_DYNAMIC);
+	}
+	return mgid;
+}
+
+/**
+ * memory_group_register_static() - Register a static memory group.
+ * @nid: The node id.
+ * @max_pages: The maximum number of pages we'll have in this static memory
+ *	       group.
+ *
+ * Register a new static memory group and return the memory group id.
+ * All memory in the group belongs to a single unit, such as a DIMM. All
+ * memory belonging to a static memory group is added in one go to be removed
+ * in one go -- it's static.
+ *
+ * Returns an error if out of memory, if the node id is invalid, if no new
+ * memory groups can be registered, or if max_pages is invalid (0). Otherwise,
+ * returns the new memory group id.
+ */
+int memory_group_register_static(int nid, unsigned long max_pages)
+{
+	struct memory_group group = {
+		.nid = nid,
+		.s = {
+			.max_pages = max_pages,
+		},
+	};
+
+	if (!max_pages)
+		return -EINVAL;
+	return memory_group_register(group);
+}
+EXPORT_SYMBOL_GPL(memory_group_register_static);
+
+/**
+ * memory_group_register_dynamic() - Register a dynamic memory group.
+ * @nid: The node id.
+ * @unit_pages: Unit in pages in which is memory added/removed in this dynamic
+ *		memory group.
+ *
+ * Register a new dynamic memory group and return the memory group id.
+ * Memory within a dynamic memory group is added/removed dynamically
+ * in unit_pages.
+ *
+ * Returns an error if out of memory, if the node id is invalid, if no new
+ * memory groups can be registered, or if unit_pages is invalid (0, not a
+ * power of two, smaller than a single memory block). Otherwise, returns the
+ * new memory group id.
+ */
+int memory_group_register_dynamic(int nid, unsigned long unit_pages)
+{
+	struct memory_group group = {
+		.nid = nid,
+		.is_dynamic = true,
+		.d = {
+			.unit_pages = unit_pages,
+		},
+	};
+
+	if (!unit_pages || !is_power_of_2(unit_pages) ||
+	    unit_pages < PHYS_PFN(memory_block_size_bytes()))
+		return -EINVAL;
+	return memory_group_register(group);
+}
+EXPORT_SYMBOL_GPL(memory_group_register_dynamic);
+
+/**
+ * memory_group_unregister() - Unregister a memory group.
+ * @mgid: the memory group id
+ *
+ * Unregister a memory group. If any memory block still belongs to this
+ * memory group, unregistering will fail.
+ *
+ * Returns -EINVAL if the memory group id is invalid, returns -EBUSY if some
+ * memory blocks still belong to this memory group and returns 0 if
+ * unregistering succeeded.
+ */
+int memory_group_unregister(int mgid)
+{
+	struct memory_group *group;
+
+	if (mgid < 0)
+		return -EINVAL;
+
+	group = xa_load(&memory_groups, mgid);
+	if (!group)
+		return -EINVAL;
+	if (!list_empty(&group->memory_blocks))
+		return -EBUSY;
+	xa_erase(&memory_groups, mgid);
+	kfree(group);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(memory_group_unregister);
+
+/*
+ * This is an internal helper only to be used in core memory hotplug code to
+ * lookup a memory group. We don't care about locking, as we don't expect a
+ * memory group to get unregistered while adding memory to it -- because
+ * the group and the memory is managed by the same driver.
+ */
+struct memory_group *memory_group_find_by_id(int mgid)
+{
+	return xa_load(&memory_groups, mgid);
+}
+
+/*
+ * This is an internal helper only to be used in core memory hotplug code to
+ * walk all dynamic memory groups excluding a given memory group, either
+ * belonging to a specific node, or belonging to any node.
+ */
+int walk_dynamic_memory_groups(int nid, walk_memory_groups_func_t func,
+			       struct memory_group *excluded, void *arg)
+{
+	struct memory_group *group;
+	unsigned long index;
+	int ret = 0;
+
+	xa_for_each_marked(&memory_groups, index, group,
+			   MEMORY_GROUP_MARK_DYNAMIC) {
+		if (group == excluded)
+			continue;
+#ifdef CONFIG_NUMA
+		if (nid != NUMA_NO_NODE && group->nid != nid)
+			continue;
+#endif /* CONFIG_NUMA */
+		ret = func(group, arg);
+		if (ret)
+			break;
+	}
+	return ret;
 }

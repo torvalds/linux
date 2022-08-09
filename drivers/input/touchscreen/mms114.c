@@ -54,6 +54,7 @@
 
 enum mms_type {
 	TYPE_MMS114	= 114,
+	TYPE_MMS134S	= 134,
 	TYPE_MMS136	= 136,
 	TYPE_MMS152	= 152,
 	TYPE_MMS345L	= 345,
@@ -212,7 +213,7 @@ static irqreturn_t mms114_interrupt(int irq, void *dev_id)
 		goto out;
 
 	/* MMS136 has slightly different event size */
-	if (data->type == TYPE_MMS136)
+	if (data->type == TYPE_MMS134S || data->type == TYPE_MMS136)
 		touch_size = packet_size / MMS136_EVENT_SIZE;
 	else
 		touch_size = packet_size / MMS114_EVENT_SIZE;
@@ -281,6 +282,7 @@ static int mms114_get_version(struct mms114_data *data)
 		break;
 
 	case TYPE_MMS114:
+	case TYPE_MMS134S:
 	case TYPE_MMS136:
 		error = __mms114_read_reg(data, MMS114_TSP_REV, 6, buf);
 		if (error)
@@ -304,8 +306,9 @@ static int mms114_setup_regs(struct mms114_data *data)
 	if (error < 0)
 		return error;
 
-	/* Only MMS114 and MMS136 have configuration and power on registers */
-	if (data->type != TYPE_MMS114 && data->type != TYPE_MMS136)
+	/* MMS114, MMS134S and MMS136 have configuration and power on registers */
+	if (data->type != TYPE_MMS114 && data->type != TYPE_MMS134S &&
+	    data->type != TYPE_MMS136)
 		return 0;
 
 	error = mms114_set_active(data, true);
@@ -487,7 +490,8 @@ static int mms114_probe(struct i2c_client *client,
 				     0, data->props.max_y, 0, 0);
 	}
 
-	if (data->type == TYPE_MMS114 || data->type == TYPE_MMS136) {
+	if (data->type == TYPE_MMS114 || data->type == TYPE_MMS134S ||
+	    data->type == TYPE_MMS136) {
 		/*
 		 * The firmware handles movement and pressure fuzz, so
 		 * don't duplicate that in software.
@@ -611,6 +615,9 @@ static const struct of_device_id mms114_dt_match[] = {
 	{
 		.compatible = "melfas,mms114",
 		.data = (void *)TYPE_MMS114,
+	}, {
+		.compatible = "melfas,mms134s",
+		.data = (void *)TYPE_MMS134S,
 	}, {
 		.compatible = "melfas,mms136",
 		.data = (void *)TYPE_MMS136,

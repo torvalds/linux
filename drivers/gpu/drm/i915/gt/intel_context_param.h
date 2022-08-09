@@ -10,14 +10,10 @@
 
 #include "intel_context.h"
 
-int intel_context_set_ring_size(struct intel_context *ce, long sz);
-long intel_context_get_ring_size(struct intel_context *ce);
-
-static inline int
+static inline void
 intel_context_set_watchdog_us(struct intel_context *ce, u64 timeout_us)
 {
 	ce->watchdog.timeout_us = timeout_us;
-	return 0;
 }
 
 #endif /* INTEL_CONTEXT_PARAM_H */

@@ -7,6 +7,7 @@
  */
 /dts-v1/;
 #include "sama5d4.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Atmel SAMA5D4 Xplained";
@@ -36,16 +37,6 @@
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
 				status = "okay";
-			};
-
-			spi0: spi@f8010000 {
-				cs-gpios = <&pioC 3 0>, <0>, <0>, <0>;
-				status = "okay";
-				m25p80@0 {
-					compatible = "atmel,at25df321a";
-					spi-max-frequency = <50000000>;
-					reg = <0>;
-				};
 			};
 
 			i2c0: i2c@f8014000 {
@@ -90,6 +81,8 @@
 			};
 
 			spi1: spi@fc018000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_spi0_cs>;
 				cs-gpios = <&pioB 21 0>;
 				status = "okay";
 			};
@@ -146,6 +139,19 @@
 					pinctrl_macb0_phy_irq: macb0_phy_irq_0 {
 						atmel,pins =
 							<AT91_PIOE 1 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
+					};
+					pinctrl_spi0_cs: spi0_cs_default {
+						atmel,pins =
+							<AT91_PIOB 21 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+					};
+					pinctrl_gpio_leds: gpio_leds_default {
+						atmel,pins =
+							<AT91_PIOD 30 AT91_PERIPH_GPIO AT91_PINCTRL_NONE
+							 AT91_PIOE 15 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+					};
+					pinctrl_vcc_mmc1_reg: vcc_mmc1_reg {
+						atmel,pins =
+							<AT91_PIOE 4 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
 					};
 				};
 			};
@@ -245,13 +251,15 @@
 		pb_user1 {
 			label = "pb_user1";
 			gpios = <&pioE 8 GPIO_ACTIVE_HIGH>;
-			linux,code = <0x100>;
+			linux,code = <KEY_PROG1>;
 			wakeup-source;
 		};
 	};
 
 	leds {
 		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_leds>;
 		status = "okay";
 
 		d8 {
@@ -278,6 +286,8 @@
 
 	vcc_mmc1_reg: fixedregulator_mmc1 {
 		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_vcc_mmc1_reg>;
 		gpio = <&pioE 4 GPIO_ACTIVE_LOW>;
 		regulator-name = "VDD MCI1";
 		regulator-min-microvolt = <3300000>;

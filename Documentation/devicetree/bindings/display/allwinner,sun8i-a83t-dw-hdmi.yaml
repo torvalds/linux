@@ -174,7 +174,6 @@ examples:
         phy-names = "phy";
         pinctrl-names = "default";
         pinctrl-0 = <&hdmi_pins>;
-        status = "disabled";
 
         ports {
             #address-cells = <1>;
@@ -233,7 +232,6 @@ examples:
         phy-names = "phy";
         pinctrl-names = "default";
         pinctrl-0 = <&hdmi_pins>;
-        status = "disabled";
 
         ports {
             #address-cells = <1>;

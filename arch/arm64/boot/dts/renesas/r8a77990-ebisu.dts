@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for the ebisu board
+ * Device Tree Source for the Ebisu board with R-Car E3
  *
  * Copyright (C) 2018 Renesas Electronics Corp.
  */
@@ -8,6 +8,7 @@
 /dts-v1/;
 #include "r8a77990.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Renesas Ebisu board based on r8a77990";
@@ -77,6 +78,42 @@
 			hdmi_con_out: endpoint {
 				remote-endpoint = <&adv7511_out>;
 			};
+		};
+	};
+
+	keys {
+		compatible = "gpio-keys";
+
+		pinctrl-0 = <&keys_pins>;
+		pinctrl-names = "default";
+
+		key-1 {
+			gpios = <&gpio5 10 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_1>;
+			label = "SW4-1";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-2 {
+			gpios = <&gpio5 11 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_2>;
+			label = "SW4-2";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-3 {
+			gpios = <&gpio5 12 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_3>;
+			label = "SW4-3";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-4 {
+			gpios = <&gpio5 13 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_4>;
+			label = "SW4-4";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 	};
 
@@ -473,6 +510,12 @@
 		rohm,ddr-backup-power = <0x1>;
 		rohm,rstbmode-level;
 	};
+
+	eeprom@50 {
+		compatible = "rohm,br24t01", "atmel,24c01";
+		reg = <0x50>;
+		pagesize = <8>;
+	};
 };
 
 &lvds0 {
@@ -538,6 +581,11 @@
 	irq0_pins: irq0 {
 		groups = "intc_ex_irq0";
 		function = "intc_ex";
+	};
+
+	keys_pins: keys {
+		pins = "GP_5_10", "GP_5_11", "GP_5_12", "GP_5_13";
+		bias-pull-up;
 	};
 
 	pwm3_pins: pwm3 {

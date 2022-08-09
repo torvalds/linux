@@ -10,27 +10,8 @@
 #include <linux/init.h>
 
 #include "timekeeping.h"
+#include "tick-internal.h"
 
-
-/* Since jiffies uses a simple TICK_NSEC multiplier
- * conversion, the .shift value could be zero. However
- * this would make NTP adjustments impossible as they are
- * in units of 1/2^.shift. Thus we use JIFFIES_SHIFT to
- * shift both the nominator and denominator the same
- * amount, and give ntp adjustments in units of 1/2^8
- *
- * The value 8 is somewhat carefully chosen, as anything
- * larger can result in overflows. TICK_NSEC grows as HZ
- * shrinks, so values greater than 8 overflow 32bits when
- * HZ=100.
- */
-#if HZ < 34
-#define JIFFIES_SHIFT	6
-#elif HZ < 67
-#define JIFFIES_SHIFT	7
-#else
-#define JIFFIES_SHIFT	8
-#endif
 
 static u64 jiffies_read(struct clocksource *cs)
 {

@@ -1,6 +1,6 @@
 cat << EOF
 /**
- * ${arch}${atomic}_add_unless - add unless the number is already a given value
+ * arch_${atomic}_add_unless - add unless the number is already a given value
  * @v: pointer of type ${atomic}_t
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
@@ -9,8 +9,8 @@ cat << EOF
  * Returns true if the addition was done.
  */
 static __always_inline bool
-${arch}${atomic}_add_unless(${atomic}_t *v, ${int} a, ${int} u)
+arch_${atomic}_add_unless(${atomic}_t *v, ${int} a, ${int} u)
 {
-	return ${arch}${atomic}_fetch_add_unless(v, a, u) != u;
+	return arch_${atomic}_fetch_add_unless(v, a, u) != u;
 }
 EOF

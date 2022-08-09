@@ -20,11 +20,15 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - x-powers,axp202-usb-power-supply
-      - x-powers,axp221-usb-power-supply
-      - x-powers,axp223-usb-power-supply
-      - x-powers,axp813-usb-power-supply
+    oneOf:
+      - enum:
+          - x-powers,axp202-usb-power-supply
+          - x-powers,axp221-usb-power-supply
+          - x-powers,axp223-usb-power-supply
+          - x-powers,axp813-usb-power-supply
+      - items:
+          - const: x-powers,axp803-usb-power-supply
+          - const: x-powers,axp813-usb-power-supply
 
 
 required:

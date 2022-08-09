@@ -136,6 +136,14 @@ static inline void kuap_kernel_restore(struct pt_regs *regs, unsigned long kuap)
 	if (kuap_is_disabled())
 		return;
 
+	if (unlikely(kuap != KUAP_NONE)) {
+		current->thread.kuap = KUAP_NONE;
+		kuap_lock(kuap, false);
+	}
+
+	if (likely(regs->kuap == KUAP_NONE))
+		return;
+
 	current->thread.kuap = regs->kuap;
 
 	kuap_unlock(regs->kuap, false);

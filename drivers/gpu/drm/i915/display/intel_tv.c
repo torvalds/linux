@@ -1420,7 +1420,7 @@ static void intel_tv_pre_enable(struct intel_atomic_state *state,
 				const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct intel_tv *intel_tv = enc_to_tv(encoder);
 	const struct intel_tv_connector_state *tv_conn_state =
 		to_intel_tv_connector_state(conn_state);
@@ -1466,7 +1466,7 @@ static void intel_tv_pre_enable(struct intel_atomic_state *state,
 		break;
 	}
 
-	tv_ctl |= TV_ENC_PIPE_SEL(intel_crtc->pipe);
+	tv_ctl |= TV_ENC_PIPE_SEL(crtc->pipe);
 
 	switch (tv_mode->oversample) {
 	case 8:
@@ -1571,8 +1571,7 @@ static int
 intel_tv_detect_type(struct intel_tv *intel_tv,
 		      struct drm_connector *connector)
 {
-	struct drm_crtc *crtc = connector->state->crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *crtc = to_intel_crtc(connector->state->crtc);
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 tv_ctl, save_tv_ctl;
@@ -1594,7 +1593,7 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 	/* Poll for TV detection */
 	tv_ctl &= ~(TV_ENC_ENABLE | TV_ENC_PIPE_SEL_MASK | TV_TEST_MODE_MASK);
 	tv_ctl |= TV_TEST_MODE_MONITOR_DETECT;
-	tv_ctl |= TV_ENC_PIPE_SEL(intel_crtc->pipe);
+	tv_ctl |= TV_ENC_PIPE_SEL(crtc->pipe);
 
 	tv_dac &= ~(TVDAC_SENSE_MASK | DAC_A_MASK | DAC_B_MASK | DAC_C_MASK);
 	tv_dac |= (TVDAC_STATE_CHG_EN |
@@ -1619,7 +1618,7 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 	intel_de_write(dev_priv, TV_DAC, tv_dac);
 	intel_de_posting_read(dev_priv, TV_DAC);
 
-	intel_wait_for_vblank(dev_priv, intel_crtc->pipe);
+	intel_wait_for_vblank(dev_priv, crtc->pipe);
 
 	type = -1;
 	tv_dac = intel_de_read(dev_priv, TV_DAC);
@@ -1652,7 +1651,7 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 	intel_de_posting_read(dev_priv, TV_CTL);
 
 	/* For unknown reasons the hw barfs if we don't do this vblank wait. */
-	intel_wait_for_vblank(dev_priv, intel_crtc->pipe);
+	intel_wait_for_vblank(dev_priv, crtc->pipe);
 
 	/* Restore interrupt config */
 	if (connector->polled & DRM_CONNECTOR_POLL_HPD) {

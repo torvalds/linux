@@ -260,20 +260,19 @@
 };
 
 /* Ethernet */
-&cpsw_emac0 {
-	status = "okay";
+&cpsw_port1 {
 	phy-handle = <&ethphy0>;
 	phy-mode = "rgmii";
+	ti,dual-emac-pvid = <1>;
 };
 
-&cpsw_emac1 {
-	status = "okay";
+&cpsw_port2 {
 	phy-handle = <&ethphy1>;
 	phy-mode = "rgmii";
+	ti,dual-emac-pvid = <2>;
 };
 
-&davinci_mdio {
-	status = "okay";
+&davinci_mdio_sw {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mdio_pins>;
 
@@ -286,12 +285,11 @@
 	};
 };
 
-&mac {
+&mac_sw {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&ethernet_pins>;
 };
-
 
 &am33xx_pinmux {
 	ethernet_pins: pinmux_ethernet {

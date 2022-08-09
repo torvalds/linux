@@ -333,11 +333,11 @@ error_free:
 	goto out;
 }
 
-static int evsel__copy_config_terms(struct evsel *dst, struct evsel *src)
+int copy_config_terms(struct list_head *dst, struct list_head *src)
 {
 	struct evsel_config_term *pos, *tmp;
 
-	list_for_each_entry(pos, &src->config_terms, list) {
+	list_for_each_entry(pos, src, list) {
 		tmp = malloc(sizeof(*tmp));
 		if (tmp == NULL)
 			return -ENOMEM;
@@ -350,9 +350,14 @@ static int evsel__copy_config_terms(struct evsel *dst, struct evsel *src)
 				return -ENOMEM;
 			}
 		}
-		list_add_tail(&tmp->list, &dst->config_terms);
+		list_add_tail(&tmp->list, dst);
 	}
 	return 0;
+}
+
+static int evsel__copy_config_terms(struct evsel *dst, struct evsel *src)
+{
+	return copy_config_terms(&dst->config_terms, &src->config_terms);
 }
 
 /**
@@ -1385,16 +1390,21 @@ int evsel__disable(struct evsel *evsel)
 	return err;
 }
 
-static void evsel__free_config_terms(struct evsel *evsel)
+void free_config_terms(struct list_head *config_terms)
 {
 	struct evsel_config_term *term, *h;
 
-	list_for_each_entry_safe(term, h, &evsel->config_terms, list) {
+	list_for_each_entry_safe(term, h, config_terms, list) {
 		list_del_init(&term->list);
 		if (term->free_str)
 			zfree(&term->val.str);
 		free(term);
 	}
+}
+
+static void evsel__free_config_terms(struct evsel *evsel)
+{
+	free_config_terms(&evsel->config_terms);
 }
 
 void evsel__exit(struct evsel *evsel)
@@ -1656,7 +1666,7 @@ static int update_fds(struct evsel *evsel,
 	return 0;
 }
 
-static bool ignore_missing_thread(struct evsel *evsel,
+bool evsel__ignore_missing_thread(struct evsel *evsel,
 				  int nr_cpus, int cpu,
 				  struct perf_thread_map *threads,
 				  int thread, int err)
@@ -1709,59 +1719,43 @@ static void display_attr(struct perf_event_attr *attr)
 	}
 }
 
-static int perf_event_open(struct evsel *evsel,
-			   pid_t pid, int cpu, int group_fd,
-			   unsigned long flags)
+bool evsel__precise_ip_fallback(struct evsel *evsel)
 {
-	int precise_ip = evsel->core.attr.precise_ip;
-	int fd;
+	/* Do not try less precise if not requested. */
+	if (!evsel->precise_max)
+		return false;
 
-	while (1) {
-		pr_debug2_peo("sys_perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx",
-			  pid, cpu, group_fd, flags);
-
-		fd = sys_perf_event_open(&evsel->core.attr, pid, cpu, group_fd, flags);
-		if (fd >= 0)
-			break;
-
-		/* Do not try less precise if not requested. */
-		if (!evsel->precise_max)
-			break;
-
-		/*
-		 * We tried all the precise_ip values, and it's
-		 * still failing, so leave it to standard fallback.
-		 */
-		if (!evsel->core.attr.precise_ip) {
-			evsel->core.attr.precise_ip = precise_ip;
-			break;
-		}
-
-		pr_debug2_peo("\nsys_perf_event_open failed, error %d\n", -ENOTSUP);
-		evsel->core.attr.precise_ip--;
-		pr_debug2_peo("decreasing precise_ip by one (%d)\n", evsel->core.attr.precise_ip);
-		display_attr(&evsel->core.attr);
+	/*
+	 * We tried all the precise_ip values, and it's
+	 * still failing, so leave it to standard fallback.
+	 */
+	if (!evsel->core.attr.precise_ip) {
+		evsel->core.attr.precise_ip = evsel->precise_ip_original;
+		return false;
 	}
 
-	return fd;
+	if (!evsel->precise_ip_original)
+		evsel->precise_ip_original = evsel->core.attr.precise_ip;
+
+	evsel->core.attr.precise_ip--;
+	pr_debug2_peo("decreasing precise_ip by one (%d)\n", evsel->core.attr.precise_ip);
+	display_attr(&evsel->core.attr);
+	return true;
 }
 
-static int evsel__open_cpu(struct evsel *evsel, struct perf_cpu_map *cpus,
-		struct perf_thread_map *threads,
-		int start_cpu, int end_cpu)
+static struct perf_cpu_map *empty_cpu_map;
+static struct perf_thread_map *empty_thread_map;
+
+static int __evsel__prepare_open(struct evsel *evsel, struct perf_cpu_map *cpus,
+		struct perf_thread_map *threads)
 {
-	int cpu, thread, nthreads;
-	unsigned long flags = PERF_FLAG_FD_CLOEXEC;
-	int pid = -1, err, old_errno;
-	enum { NO_CHANGE, SET_TO_MAX, INCREASED_MAX } set_rlimit = NO_CHANGE;
+	int nthreads;
 
 	if ((perf_missing_features.write_backward && evsel->core.attr.write_backward) ||
 	    (perf_missing_features.aux_output     && evsel->core.attr.aux_output))
 		return -EINVAL;
 
 	if (cpus == NULL) {
-		static struct perf_cpu_map *empty_cpu_map;
-
 		if (empty_cpu_map == NULL) {
 			empty_cpu_map = perf_cpu_map__dummy_new();
 			if (empty_cpu_map == NULL)
@@ -1772,8 +1766,6 @@ static int evsel__open_cpu(struct evsel *evsel, struct perf_cpu_map *cpus,
 	}
 
 	if (threads == NULL) {
-		static struct perf_thread_map *empty_thread_map;
-
 		if (empty_thread_map == NULL) {
 			empty_thread_map = thread_map__new_by_tid(-1);
 			if (empty_thread_map == NULL)
@@ -1792,12 +1784,15 @@ static int evsel__open_cpu(struct evsel *evsel, struct perf_cpu_map *cpus,
 	    perf_evsel__alloc_fd(&evsel->core, cpus->nr, nthreads) < 0)
 		return -ENOMEM;
 
-	if (evsel->cgrp) {
-		flags |= PERF_FLAG_PID_CGROUP;
-		pid = evsel->cgrp->fd;
-	}
+	evsel->open_flags = PERF_FLAG_FD_CLOEXEC;
+	if (evsel->cgrp)
+		evsel->open_flags |= PERF_FLAG_PID_CGROUP;
 
-fallback_missing_features:
+	return 0;
+}
+
+static void evsel__disable_missing_features(struct evsel *evsel)
+{
 	if (perf_missing_features.weight_struct) {
 		evsel__set_sample_bit(evsel, WEIGHT);
 		evsel__reset_sample_bit(evsel, WEIGHT_STRUCT);
@@ -1809,7 +1804,7 @@ fallback_missing_features:
 		evsel->core.attr.clockid = 0;
 	}
 	if (perf_missing_features.cloexec)
-		flags &= ~(unsigned long)PERF_FLAG_FD_CLOEXEC;
+		evsel->open_flags &= ~(unsigned long)PERF_FLAG_FD_CLOEXEC;
 	if (perf_missing_features.mmap2)
 		evsel->core.attr.mmap2 = 0;
 	if (perf_missing_features.exclude_guest)
@@ -1825,9 +1820,169 @@ fallback_missing_features:
 		evsel->core.attr.bpf_event = 0;
 	if (perf_missing_features.branch_hw_idx)
 		evsel->core.attr.branch_sample_type &= ~PERF_SAMPLE_BRANCH_HW_INDEX;
-retry_sample_id:
 	if (perf_missing_features.sample_id_all)
 		evsel->core.attr.sample_id_all = 0;
+}
+
+int evsel__prepare_open(struct evsel *evsel, struct perf_cpu_map *cpus,
+			struct perf_thread_map *threads)
+{
+	int err;
+
+	err = __evsel__prepare_open(evsel, cpus, threads);
+	if (err)
+		return err;
+
+	evsel__disable_missing_features(evsel);
+
+	return err;
+}
+
+bool evsel__detect_missing_features(struct evsel *evsel)
+{
+	/*
+	 * Must probe features in the order they were added to the
+	 * perf_event_attr interface.
+	 */
+	if (!perf_missing_features.weight_struct &&
+	    (evsel->core.attr.sample_type & PERF_SAMPLE_WEIGHT_STRUCT)) {
+		perf_missing_features.weight_struct = true;
+		pr_debug2("switching off weight struct support\n");
+		return true;
+	} else if (!perf_missing_features.code_page_size &&
+	    (evsel->core.attr.sample_type & PERF_SAMPLE_CODE_PAGE_SIZE)) {
+		perf_missing_features.code_page_size = true;
+		pr_debug2_peo("Kernel has no PERF_SAMPLE_CODE_PAGE_SIZE support, bailing out\n");
+		return false;
+	} else if (!perf_missing_features.data_page_size &&
+	    (evsel->core.attr.sample_type & PERF_SAMPLE_DATA_PAGE_SIZE)) {
+		perf_missing_features.data_page_size = true;
+		pr_debug2_peo("Kernel has no PERF_SAMPLE_DATA_PAGE_SIZE support, bailing out\n");
+		return false;
+	} else if (!perf_missing_features.cgroup && evsel->core.attr.cgroup) {
+		perf_missing_features.cgroup = true;
+		pr_debug2_peo("Kernel has no cgroup sampling support, bailing out\n");
+		return false;
+	} else if (!perf_missing_features.branch_hw_idx &&
+	    (evsel->core.attr.branch_sample_type & PERF_SAMPLE_BRANCH_HW_INDEX)) {
+		perf_missing_features.branch_hw_idx = true;
+		pr_debug2("switching off branch HW index support\n");
+		return true;
+	} else if (!perf_missing_features.aux_output && evsel->core.attr.aux_output) {
+		perf_missing_features.aux_output = true;
+		pr_debug2_peo("Kernel has no attr.aux_output support, bailing out\n");
+		return false;
+	} else if (!perf_missing_features.bpf && evsel->core.attr.bpf_event) {
+		perf_missing_features.bpf = true;
+		pr_debug2_peo("switching off bpf_event\n");
+		return true;
+	} else if (!perf_missing_features.ksymbol && evsel->core.attr.ksymbol) {
+		perf_missing_features.ksymbol = true;
+		pr_debug2_peo("switching off ksymbol\n");
+		return true;
+	} else if (!perf_missing_features.write_backward && evsel->core.attr.write_backward) {
+		perf_missing_features.write_backward = true;
+		pr_debug2_peo("switching off write_backward\n");
+		return false;
+	} else if (!perf_missing_features.clockid_wrong && evsel->core.attr.use_clockid) {
+		perf_missing_features.clockid_wrong = true;
+		pr_debug2_peo("switching off clockid\n");
+		return true;
+	} else if (!perf_missing_features.clockid && evsel->core.attr.use_clockid) {
+		perf_missing_features.clockid = true;
+		pr_debug2_peo("switching off use_clockid\n");
+		return true;
+	} else if (!perf_missing_features.cloexec && (evsel->open_flags & PERF_FLAG_FD_CLOEXEC)) {
+		perf_missing_features.cloexec = true;
+		pr_debug2_peo("switching off cloexec flag\n");
+		return true;
+	} else if (!perf_missing_features.mmap2 && evsel->core.attr.mmap2) {
+		perf_missing_features.mmap2 = true;
+		pr_debug2_peo("switching off mmap2\n");
+		return true;
+	} else if (!perf_missing_features.exclude_guest &&
+		   (evsel->core.attr.exclude_guest || evsel->core.attr.exclude_host)) {
+		perf_missing_features.exclude_guest = true;
+		pr_debug2_peo("switching off exclude_guest, exclude_host\n");
+		return true;
+	} else if (!perf_missing_features.sample_id_all) {
+		perf_missing_features.sample_id_all = true;
+		pr_debug2_peo("switching off sample_id_all\n");
+		return true;
+	} else if (!perf_missing_features.lbr_flags &&
+			(evsel->core.attr.branch_sample_type &
+			 (PERF_SAMPLE_BRANCH_NO_CYCLES |
+			  PERF_SAMPLE_BRANCH_NO_FLAGS))) {
+		perf_missing_features.lbr_flags = true;
+		pr_debug2_peo("switching off branch sample type no (cycles/flags)\n");
+		return true;
+	} else if (!perf_missing_features.group_read &&
+		    evsel->core.attr.inherit &&
+		   (evsel->core.attr.read_format & PERF_FORMAT_GROUP) &&
+		   evsel__is_group_leader(evsel)) {
+		perf_missing_features.group_read = true;
+		pr_debug2_peo("switching off group read\n");
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool evsel__increase_rlimit(enum rlimit_action *set_rlimit)
+{
+	int old_errno;
+	struct rlimit l;
+
+	if (*set_rlimit < INCREASED_MAX) {
+		old_errno = errno;
+
+		if (getrlimit(RLIMIT_NOFILE, &l) == 0) {
+			if (*set_rlimit == NO_CHANGE) {
+				l.rlim_cur = l.rlim_max;
+			} else {
+				l.rlim_cur = l.rlim_max + 1000;
+				l.rlim_max = l.rlim_cur;
+			}
+			if (setrlimit(RLIMIT_NOFILE, &l) == 0) {
+				(*set_rlimit) += 1;
+				errno = old_errno;
+				return true;
+			}
+		}
+		errno = old_errno;
+	}
+
+	return false;
+}
+
+static int evsel__open_cpu(struct evsel *evsel, struct perf_cpu_map *cpus,
+		struct perf_thread_map *threads,
+		int start_cpu, int end_cpu)
+{
+	int cpu, thread, nthreads;
+	int pid = -1, err, old_errno;
+	enum rlimit_action set_rlimit = NO_CHANGE;
+
+	err = __evsel__prepare_open(evsel, cpus, threads);
+	if (err)
+		return err;
+
+	if (cpus == NULL)
+		cpus = empty_cpu_map;
+
+	if (threads == NULL)
+		threads = empty_thread_map;
+
+	if (evsel->core.system_wide)
+		nthreads = 1;
+	else
+		nthreads = threads->nr;
+
+	if (evsel->cgrp)
+		pid = evsel->cgrp->fd;
+
+fallback_missing_features:
+	evsel__disable_missing_features(evsel);
 
 	display_attr(&evsel->core.attr);
 
@@ -1835,46 +1990,38 @@ retry_sample_id:
 
 		for (thread = 0; thread < nthreads; thread++) {
 			int fd, group_fd;
+retry_open:
+			if (thread >= nthreads)
+				break;
 
 			if (!evsel->cgrp && !evsel->core.system_wide)
 				pid = perf_thread_map__pid(threads, thread);
 
 			group_fd = get_group_fd(evsel, cpu, thread);
-retry_open:
+
 			test_attr__ready();
 
-			fd = perf_event_open(evsel, pid, cpus->map[cpu],
-					     group_fd, flags);
+			pr_debug2_peo("sys_perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx",
+				pid, cpus->map[cpu], group_fd, evsel->open_flags);
+
+			fd = sys_perf_event_open(&evsel->core.attr, pid, cpus->map[cpu],
+						group_fd, evsel->open_flags);
 
 			FD(evsel, cpu, thread) = fd;
+
+			if (fd < 0) {
+				err = -errno;
+
+				pr_debug2_peo("\nsys_perf_event_open failed, error %d\n",
+					  err);
+				goto try_fallback;
+			}
 
 			bpf_counter__install_pe(evsel, cpu, fd);
 
 			if (unlikely(test_attr__enabled)) {
 				test_attr__open(&evsel->core.attr, pid, cpus->map[cpu],
-						fd, group_fd, flags);
-			}
-
-			if (fd < 0) {
-				err = -errno;
-
-				if (ignore_missing_thread(evsel, cpus->nr, cpu, threads, thread, err)) {
-					/*
-					 * We just removed 1 thread, so take a step
-					 * back on thread index and lower the upper
-					 * nthreads limit.
-					 */
-					nthreads--;
-					thread--;
-
-					/* ... and pretend like nothing have happened. */
-					err = 0;
-					continue;
-				}
-
-				pr_debug2_peo("\nsys_perf_event_open failed, error %d\n",
-					  err);
-				goto try_fallback;
+						fd, group_fd, evsel->open_flags);
 			}
 
 			pr_debug2_peo(" = %d\n", fd);
@@ -1911,117 +2058,29 @@ retry_open:
 	return 0;
 
 try_fallback:
+	if (evsel__precise_ip_fallback(evsel))
+		goto retry_open;
+
+	if (evsel__ignore_missing_thread(evsel, cpus->nr, cpu, threads, thread, err)) {
+		/* We just removed 1 thread, so lower the upper nthreads limit. */
+		nthreads--;
+
+		/* ... and pretend like nothing have happened. */
+		err = 0;
+		goto retry_open;
+	}
 	/*
 	 * perf stat needs between 5 and 22 fds per CPU. When we run out
 	 * of them try to increase the limits.
 	 */
-	if (err == -EMFILE && set_rlimit < INCREASED_MAX) {
-		struct rlimit l;
-
-		old_errno = errno;
-		if (getrlimit(RLIMIT_NOFILE, &l) == 0) {
-			if (set_rlimit == NO_CHANGE)
-				l.rlim_cur = l.rlim_max;
-			else {
-				l.rlim_cur = l.rlim_max + 1000;
-				l.rlim_max = l.rlim_cur;
-			}
-			if (setrlimit(RLIMIT_NOFILE, &l) == 0) {
-				set_rlimit++;
-				errno = old_errno;
-				goto retry_open;
-			}
-		}
-		errno = old_errno;
-	}
+	if (err == -EMFILE && evsel__increase_rlimit(&set_rlimit))
+		goto retry_open;
 
 	if (err != -EINVAL || cpu > 0 || thread > 0)
 		goto out_close;
 
-	/*
-	 * Must probe features in the order they were added to the
-	 * perf_event_attr interface.
-	 */
-	if (!perf_missing_features.weight_struct &&
-	    (evsel->core.attr.sample_type & PERF_SAMPLE_WEIGHT_STRUCT)) {
-		perf_missing_features.weight_struct = true;
-		pr_debug2("switching off weight struct support\n");
+	if (evsel__detect_missing_features(evsel))
 		goto fallback_missing_features;
-	} else if (!perf_missing_features.code_page_size &&
-	    (evsel->core.attr.sample_type & PERF_SAMPLE_CODE_PAGE_SIZE)) {
-		perf_missing_features.code_page_size = true;
-		pr_debug2_peo("Kernel has no PERF_SAMPLE_CODE_PAGE_SIZE support, bailing out\n");
-		goto out_close;
-	} else if (!perf_missing_features.data_page_size &&
-	    (evsel->core.attr.sample_type & PERF_SAMPLE_DATA_PAGE_SIZE)) {
-		perf_missing_features.data_page_size = true;
-		pr_debug2_peo("Kernel has no PERF_SAMPLE_DATA_PAGE_SIZE support, bailing out\n");
-		goto out_close;
-	} else if (!perf_missing_features.cgroup && evsel->core.attr.cgroup) {
-		perf_missing_features.cgroup = true;
-		pr_debug2_peo("Kernel has no cgroup sampling support, bailing out\n");
-		goto out_close;
-        } else if (!perf_missing_features.branch_hw_idx &&
-	    (evsel->core.attr.branch_sample_type & PERF_SAMPLE_BRANCH_HW_INDEX)) {
-		perf_missing_features.branch_hw_idx = true;
-		pr_debug2("switching off branch HW index support\n");
-		goto fallback_missing_features;
-	} else if (!perf_missing_features.aux_output && evsel->core.attr.aux_output) {
-		perf_missing_features.aux_output = true;
-		pr_debug2_peo("Kernel has no attr.aux_output support, bailing out\n");
-		goto out_close;
-	} else if (!perf_missing_features.bpf && evsel->core.attr.bpf_event) {
-		perf_missing_features.bpf = true;
-		pr_debug2_peo("switching off bpf_event\n");
-		goto fallback_missing_features;
-	} else if (!perf_missing_features.ksymbol && evsel->core.attr.ksymbol) {
-		perf_missing_features.ksymbol = true;
-		pr_debug2_peo("switching off ksymbol\n");
-		goto fallback_missing_features;
-	} else if (!perf_missing_features.write_backward && evsel->core.attr.write_backward) {
-		perf_missing_features.write_backward = true;
-		pr_debug2_peo("switching off write_backward\n");
-		goto out_close;
-	} else if (!perf_missing_features.clockid_wrong && evsel->core.attr.use_clockid) {
-		perf_missing_features.clockid_wrong = true;
-		pr_debug2_peo("switching off clockid\n");
-		goto fallback_missing_features;
-	} else if (!perf_missing_features.clockid && evsel->core.attr.use_clockid) {
-		perf_missing_features.clockid = true;
-		pr_debug2_peo("switching off use_clockid\n");
-		goto fallback_missing_features;
-	} else if (!perf_missing_features.cloexec && (flags & PERF_FLAG_FD_CLOEXEC)) {
-		perf_missing_features.cloexec = true;
-		pr_debug2_peo("switching off cloexec flag\n");
-		goto fallback_missing_features;
-	} else if (!perf_missing_features.mmap2 && evsel->core.attr.mmap2) {
-		perf_missing_features.mmap2 = true;
-		pr_debug2_peo("switching off mmap2\n");
-		goto fallback_missing_features;
-	} else if (!perf_missing_features.exclude_guest &&
-		   (evsel->core.attr.exclude_guest || evsel->core.attr.exclude_host)) {
-		perf_missing_features.exclude_guest = true;
-		pr_debug2_peo("switching off exclude_guest, exclude_host\n");
-		goto fallback_missing_features;
-	} else if (!perf_missing_features.sample_id_all) {
-		perf_missing_features.sample_id_all = true;
-		pr_debug2_peo("switching off sample_id_all\n");
-		goto retry_sample_id;
-	} else if (!perf_missing_features.lbr_flags &&
-			(evsel->core.attr.branch_sample_type &
-			 (PERF_SAMPLE_BRANCH_NO_CYCLES |
-			  PERF_SAMPLE_BRANCH_NO_FLAGS))) {
-		perf_missing_features.lbr_flags = true;
-		pr_debug2_peo("switching off branch sample type no (cycles/flags)\n");
-		goto fallback_missing_features;
-	} else if (!perf_missing_features.group_read &&
-		    evsel->core.attr.inherit &&
-		   (evsel->core.attr.read_format & PERF_FORMAT_GROUP) &&
-		   evsel__is_group_leader(evsel)) {
-		perf_missing_features.group_read = true;
-		pr_debug2_peo("switching off group read\n");
-		goto fallback_missing_features;
-	}
 out_close:
 	if (err)
 		threads->err_thread = thread;

@@ -470,9 +470,8 @@ static const struct nla_policy rsvp_policy[TCA_RSVP_MAX + 1] = {
 
 static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 		       struct tcf_proto *tp, unsigned long base,
-		       u32 handle,
-		       struct nlattr **tca,
-		       void **arg, bool ovr, bool rtnl_held,
+		       u32 handle, struct nlattr **tca,
+		       void **arg, u32 flags,
 		       struct netlink_ext_ack *extack)
 {
 	struct rsvp_head *data = rtnl_dereference(tp->root);
@@ -499,7 +498,7 @@ static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 	err = tcf_exts_init(&e, net, TCA_RSVP_ACT, TCA_RSVP_POLICE);
 	if (err < 0)
 		return err;
-	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, ovr, true,
+	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, flags,
 				extack);
 	if (err < 0)
 		goto errout2;

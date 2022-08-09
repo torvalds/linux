@@ -143,12 +143,6 @@ static inline int remove_cpu(unsigned int cpu) { return -EPERM; }
 static inline void smp_shutdown_nonboot_cpus(unsigned int primary_cpu) { }
 #endif	/* !CONFIG_HOTPLUG_CPU */
 
-/* Wrappers which go away once all code is converted */
-static inline void cpu_hotplug_begin(void) { cpus_write_lock(); }
-static inline void cpu_hotplug_done(void) { cpus_write_unlock(); }
-static inline void get_online_cpus(void) { cpus_read_lock(); }
-static inline void put_online_cpus(void) { cpus_read_unlock(); }
-
 #ifdef CONFIG_PM_SLEEP_SMP
 extern int freeze_secondary_cpus(int primary);
 extern void thaw_secondary_cpus(void);

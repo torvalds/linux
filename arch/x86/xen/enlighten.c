@@ -3,6 +3,7 @@
 #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
 #include <linux/memblock.h>
 #endif
+#include <linux/console.h>
 #include <linux/cpu.h>
 #include <linux/kexec.h>
 #include <linux/slab.h>
@@ -10,12 +11,15 @@
 
 #include <xen/xen.h>
 #include <xen/features.h>
+#include <xen/interface/sched.h>
+#include <xen/interface/version.h>
 #include <xen/page.h>
 
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/cpu.h>
 #include <asm/e820/api.h> 
+#include <asm/setup.h>
 
 #include "xen-ops.h"
 #include "smp.h"
@@ -52,9 +56,6 @@ DEFINE_PER_CPU(struct vcpu_info, xen_vcpu_info);
 DEFINE_PER_CPU(uint32_t, xen_vcpu_id);
 EXPORT_PER_CPU_SYMBOL(xen_vcpu_id);
 
-enum xen_domain_type xen_domain_type = XEN_NATIVE;
-EXPORT_SYMBOL_GPL(xen_domain_type);
-
 unsigned long *machine_to_phys_mapping = (void *)MACH2PHYS_VIRT_START;
 EXPORT_SYMBOL(machine_to_phys_mapping);
 unsigned long  machine_to_phys_nr;
@@ -69,10 +70,12 @@ __read_mostly int xen_have_vector_callback;
 EXPORT_SYMBOL_GPL(xen_have_vector_callback);
 
 /*
- * NB: needs to live in .data because it's used by xen_prepare_pvh which runs
- * before clearing the bss.
+ * NB: These need to live in .data or alike because they're used by
+ * xen_prepare_pvh() which runs before clearing the bss.
  */
-uint32_t xen_start_flags __section(".data") = 0;
+enum xen_domain_type __ro_after_init xen_domain_type = XEN_NATIVE;
+EXPORT_SYMBOL_GPL(xen_domain_type);
+uint32_t __ro_after_init xen_start_flags;
 EXPORT_SYMBOL(xen_start_flags);
 
 /*
@@ -256,6 +259,45 @@ int xen_vcpu_setup(int cpu)
 		xen_vcpu_info_reset(cpu);
 
 	return ((per_cpu(xen_vcpu, cpu) == NULL) ? -ENODEV : 0);
+}
+
+void __init xen_banner(void)
+{
+	unsigned version = HYPERVISOR_xen_version(XENVER_version, NULL);
+	struct xen_extraversion extra;
+
+	HYPERVISOR_xen_version(XENVER_extraversion, &extra);
+
+	pr_info("Booting kernel on %s\n", pv_info.name);
+	pr_info("Xen version: %u.%u%s%s\n",
+		version >> 16, version & 0xffff, extra.extraversion,
+		xen_feature(XENFEAT_mmu_pt_update_preserve_ad)
+		? " (preserve-AD)" : "");
+}
+
+/* Check if running on Xen version (major, minor) or later */
+bool xen_running_on_version_or_later(unsigned int major, unsigned int minor)
+{
+	unsigned int version;
+
+	if (!xen_domain())
+		return false;
+
+	version = HYPERVISOR_xen_version(XENVER_version, NULL);
+	if ((((version >> 16) == major) && ((version & 0xffff) >= minor)) ||
+		((version >> 16) > major))
+		return true;
+	return false;
+}
+
+void __init xen_add_preferred_consoles(void)
+{
+	add_preferred_console("xenboot", 0, NULL);
+	if (!boot_params.screen_info.orig_video_isVGA)
+		add_preferred_console("tty", 0, NULL);
+	add_preferred_console("hvc", 0, NULL);
+	if (boot_params.screen_info.orig_video_isVGA)
+		add_preferred_console("tty", 0, NULL);
 }
 
 void xen_reboot(int reason)

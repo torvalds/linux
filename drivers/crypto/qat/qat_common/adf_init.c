@@ -61,6 +61,7 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 	struct service_hndl *service;
 	struct list_head *list_itr;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	int ret;
 
 	if (!hw_data) {
 		dev_err(&GET_DEV(accel_dev),
@@ -88,8 +89,6 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 		return -EFAULT;
 	}
 
-	hw_data->enable_ints(accel_dev);
-
 	if (adf_ae_init(accel_dev)) {
 		dev_err(&GET_DEV(accel_dev),
 			"Failed to initialise Acceleration Engine\n");
@@ -110,6 +109,13 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 	}
 	set_bit(ADF_STATUS_IRQ_ALLOCATED, &accel_dev->status);
 
+	hw_data->enable_ints(accel_dev);
+	hw_data->enable_error_correction(accel_dev);
+
+	ret = hw_data->enable_pfvf_comms(accel_dev);
+	if (ret)
+		return ret;
+
 	/*
 	 * Subservice initialisation is divided into two stages: init and start.
 	 * This is to facilitate any ordering dependencies between services
@@ -125,9 +131,6 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 		}
 		set_bit(accel_dev->accel_id, service->init_status);
 	}
-
-	hw_data->enable_error_correction(accel_dev);
-	hw_data->enable_vf2pf_comms(accel_dev);
 
 	return 0;
 }

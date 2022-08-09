@@ -68,6 +68,7 @@ properties:
       - ti,k2g-pruss     # for 66AK2G SoC family
       - ti,am654-icssg   # for K3 AM65x SoC family
       - ti,j721e-icssg   # for K3 J721E SoC family
+      - ti,am642-icssg   # for K3 AM64x SoC family
 
   reg:
     maxItems: 1
@@ -83,6 +84,8 @@ properties:
 
   dma-ranges:
     maxItems: 1
+
+  dma-coherent: true
 
   power-domains:
     description: |
@@ -231,8 +234,8 @@ patternProperties:
     description: |
       Industrial Ethernet Peripheral to manage/generate Industrial Ethernet
       functions such as time stamping. Each PRUSS has either 1 IEP (on AM335x,
-      AM437x, AM57xx & 66AK2G SoCs) or 2 IEPs (on K3 AM65x & J721E SoCs ). IEP
-      is used for creating PTP clocks and generating PPS signals.
+      AM437x, AM57xx & 66AK2G SoCs) or 2 IEPs (on K3 AM65x, J721E & AM64x SoCs).
+      IEP is used for creating PTP clocks and generating PPS signals.
 
     type: object
 
@@ -323,17 +326,29 @@ additionalProperties: false
 # - interrupt-controller
 # - pru
 
-if:
-  properties:
-    compatible:
-      contains:
-        enum:
-          - ti,k2g-pruss
-          - ti,am654-icssg
-          - ti,j721e-icssg
-then:
-  required:
-    - power-domains
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - ti,k2g-pruss
+              - ti,am654-icssg
+              - ti,j721e-icssg
+              - ti,am642-icssg
+    then:
+      required:
+        - power-domains
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - ti,k2g-pruss
+    then:
+      required:
+        - dma-coherent
 
 examples:
   - |

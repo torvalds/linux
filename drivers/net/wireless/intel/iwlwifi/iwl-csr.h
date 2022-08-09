@@ -104,6 +104,10 @@
 /* GIO Chicken Bits (PCI Express bus link power management) */
 #define CSR_GIO_CHICKEN_BITS    (CSR_BASE+0x100)
 
+/* Doorbell NMI (since Bz) */
+#define CSR_DOORBELL_VECTOR	(CSR_BASE + 0x130)
+#define CSR_DOORBELL_VECTOR_NMI	BIT(1)
+
 /* host chicken bits */
 #define CSR_HOST_CHICKEN	(CSR_BASE + 0x204)
 #define CSR_HOST_CHICKEN_PM_IDLE_SRC_DIS_SB_PME	BIT(19)
@@ -266,6 +270,14 @@
 #define CSR_GP_CNTRL_REG_FLAG_RFKILL_WAKE_L1A_EN     (0x04000000)
 #define CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW          (0x08000000)
 
+/* From Bz we use these instead during init/reset flow */
+#define CSR_GP_CNTRL_REG_FLAG_MAC_INIT			BIT(6)
+#define CSR_GP_CNTRL_REG_FLAG_ROM_START			BIT(7)
+#define CSR_GP_CNTRL_REG_FLAG_MAC_STATUS		BIT(20)
+#define CSR_GP_CNTRL_REG_FLAG_BZ_MAC_ACCESS_REQ		BIT(21)
+#define CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_STATUS	BIT(28)
+#define CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_REQ	BIT(29)
+#define CSR_GP_CNTRL_REG_FLAG_SW_RESET			BIT(31)
 
 /* HW REV */
 #define CSR_HW_REV_DASH(_val)          (((_val) & 0x0000003) >> 0)
@@ -604,10 +616,10 @@ enum msix_hw_int_causes {
  *                     HW address related registers                          *
  *****************************************************************************/
 
-#define CSR_ADDR_BASE			(0x380)
-#define CSR_MAC_ADDR0_OTP		(CSR_ADDR_BASE)
-#define CSR_MAC_ADDR1_OTP		(CSR_ADDR_BASE + 4)
-#define CSR_MAC_ADDR0_STRAP		(CSR_ADDR_BASE + 8)
-#define CSR_MAC_ADDR1_STRAP		(CSR_ADDR_BASE + 0xC)
+#define CSR_ADDR_BASE(trans)			((trans)->cfg->mac_addr_from_csr)
+#define CSR_MAC_ADDR0_OTP(trans)		(CSR_ADDR_BASE(trans) + 0x00)
+#define CSR_MAC_ADDR1_OTP(trans)		(CSR_ADDR_BASE(trans) + 0x04)
+#define CSR_MAC_ADDR0_STRAP(trans)		(CSR_ADDR_BASE(trans) + 0x08)
+#define CSR_MAC_ADDR1_STRAP(trans)		(CSR_ADDR_BASE(trans) + 0x0c)
 
 #endif /* !__iwl_csr_h__ */

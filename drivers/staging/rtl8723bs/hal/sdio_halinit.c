@@ -556,8 +556,6 @@ static void _InitRFType(struct adapter *padapter)
 	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
 
 	pHalData->rf_chip	= RF_6052;
-
-	pHalData->rf_type = RF_1T1R;
 }
 
 static void _RfPowerSave(struct adapter *padapter)

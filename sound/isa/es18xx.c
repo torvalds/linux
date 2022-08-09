@@ -87,9 +87,6 @@
 struct snd_es18xx {
 	unsigned long port;		/* port of ESS chip */
 	unsigned long ctrl_port;	/* Control port of ESS chip */
-	struct resource *res_port;
-	struct resource *res_mpu_port;
-	struct resource *res_ctrl_port;
 	int irq;			/* IRQ number of ESS chip */
 	int dma1;			/* DMA1 */
 	int dma2;			/* DMA2 */
@@ -1531,7 +1528,7 @@ static int snd_es18xx_initialize(struct snd_es18xx *chip,
         return 0;
 }
 
-static int snd_es18xx_identify(struct snd_es18xx *chip)
+static int snd_es18xx_identify(struct snd_card *card, struct snd_es18xx *chip)
 {
 	int hi,lo;
 
@@ -1573,8 +1570,8 @@ static int snd_es18xx_identify(struct snd_es18xx *chip)
 		udelay(10);
 		chip->ctrl_port += inb(chip->port + 0x05);
 
-		chip->res_ctrl_port = request_region(chip->ctrl_port, 8, "ES18xx - CTRL");
-		if (!chip->res_ctrl_port) {
+		if (!devm_request_region(card->dev, chip->ctrl_port, 8,
+					 "ES18xx - CTRL")) {
 			snd_printk(KERN_ERR PFX "unable go grab port 0x%lx\n", chip->ctrl_port);
 			return -EBUSY;
 		}
@@ -1601,11 +1598,12 @@ static int snd_es18xx_identify(struct snd_es18xx *chip)
 	return 0;
 }
 
-static int snd_es18xx_probe(struct snd_es18xx *chip,
+static int snd_es18xx_probe(struct snd_card *card,
+			    struct snd_es18xx *chip,
 			    unsigned long mpu_port,
 			    unsigned long fm_port)
 {
-	if (snd_es18xx_identify(chip) < 0) {
+	if (snd_es18xx_identify(card, chip) < 0) {
 		snd_printk(KERN_ERR PFX "[0x%lx] ESS chip not found\n", chip->port);
                 return -ENODEV;
 	}
@@ -1722,31 +1720,6 @@ static int snd_es18xx_resume(struct snd_card *card)
 }
 #endif /* CONFIG_PM */
 
-static int snd_es18xx_free(struct snd_card *card)
-{
-	struct snd_es18xx *chip = card->private_data;
-
-	release_and_free_resource(chip->res_port);
-	release_and_free_resource(chip->res_ctrl_port);
-	release_and_free_resource(chip->res_mpu_port);
-	if (chip->irq >= 0)
-		free_irq(chip->irq, (void *) card);
-	if (chip->dma1 >= 0) {
-		disable_dma(chip->dma1);
-		free_dma(chip->dma1);
-	}
-	if (chip->dma2 >= 0 && chip->dma1 != chip->dma2) {
-		disable_dma(chip->dma2);
-		free_dma(chip->dma2);
-	}
-	return 0;
-}
-
-static int snd_es18xx_dev_free(struct snd_device *device)
-{
-	return snd_es18xx_free(device->card);
-}
-
 static int snd_es18xx_new_device(struct snd_card *card,
 				 unsigned long port,
 				 unsigned long mpu_port,
@@ -1754,10 +1727,6 @@ static int snd_es18xx_new_device(struct snd_card *card,
 				 int irq, int dma1, int dma2)
 {
 	struct snd_es18xx *chip = card->private_data;
-	static const struct snd_device_ops ops = {
-		.dev_free =	snd_es18xx_dev_free,
-        };
-	int err;
 
 	spin_lock_init(&chip->reg_lock);
  	spin_lock_init(&chip->mixer_lock);
@@ -1768,45 +1737,34 @@ static int snd_es18xx_new_device(struct snd_card *card,
         chip->audio2_vol = 0x00;
 	chip->active = 0;
 
-	chip->res_port = request_region(port, 16, "ES18xx");
-	if (chip->res_port == NULL) {
-		snd_es18xx_free(card);
+	if (!devm_request_region(card->dev, port, 16, "ES18xx")) {
 		snd_printk(KERN_ERR PFX "unable to grap ports 0x%lx-0x%lx\n", port, port + 16 - 1);
 		return -EBUSY;
 	}
 
-	if (request_irq(irq, snd_es18xx_interrupt, 0, "ES18xx",
-			(void *) card)) {
-		snd_es18xx_free(card);
+	if (devm_request_irq(card->dev, irq, snd_es18xx_interrupt, 0, "ES18xx",
+			     (void *) card)) {
 		snd_printk(KERN_ERR PFX "unable to grap IRQ %d\n", irq);
 		return -EBUSY;
 	}
 	chip->irq = irq;
 	card->sync_irq = chip->irq;
 
-	if (request_dma(dma1, "ES18xx DMA 1")) {
-		snd_es18xx_free(card);
+	if (snd_devm_request_dma(card->dev, dma1, "ES18xx DMA 1")) {
 		snd_printk(KERN_ERR PFX "unable to grap DMA1 %d\n", dma1);
 		return -EBUSY;
 	}
 	chip->dma1 = dma1;
 
-	if (dma2 != dma1 && request_dma(dma2, "ES18xx DMA 2")) {
-		snd_es18xx_free(card);
+	if (dma2 != dma1 &&
+	    snd_devm_request_dma(card->dev, dma2, "ES18xx DMA 2")) {
 		snd_printk(KERN_ERR PFX "unable to grap DMA2 %d\n", dma2);
 		return -EBUSY;
 	}
 	chip->dma2 = dma2;
 
-	if (snd_es18xx_probe(chip, mpu_port, fm_port) < 0) {
-		snd_es18xx_free(card);
+	if (snd_es18xx_probe(card, chip, mpu_port, fm_port) < 0)
 		return -ENODEV;
-	}
-	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
-	if (err < 0) {
-		snd_es18xx_free(card);
-		return err;
-	}
         return 0;
 }
 
@@ -2088,8 +2046,8 @@ static int snd_audiodrive_pnpc(int dev, struct snd_es18xx *chip,
 static int snd_es18xx_card_new(struct device *pdev, int dev,
 			       struct snd_card **cardp)
 {
-	return snd_card_new(pdev, index[dev], id[dev], THIS_MODULE,
-			    sizeof(struct snd_es18xx), cardp);
+	return snd_devm_card_new(pdev, index[dev], id[dev], THIS_MODULE,
+				 sizeof(struct snd_es18xx), cardp);
 }
 
 static int snd_audiodrive_probe(struct snd_card *card, int dev)
@@ -2164,10 +2122,8 @@ static int snd_es18xx_isa_probe1(int dev, struct device *devptr)
 	if (err < 0)
 		return err;
 	err = snd_audiodrive_probe(card, dev);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 	dev_set_drvdata(devptr, card);
 	return 0;
 }
@@ -2215,12 +2171,6 @@ static int snd_es18xx_isa_probe(struct device *pdev, unsigned int dev)
 	}
 }
 
-static void snd_es18xx_isa_remove(struct device *devptr,
-				  unsigned int dev)
-{
-	snd_card_free(dev_get_drvdata(devptr));
-}
-
 #ifdef CONFIG_PM
 static int snd_es18xx_isa_suspend(struct device *dev, unsigned int n,
 				  pm_message_t state)
@@ -2239,7 +2189,6 @@ static int snd_es18xx_isa_resume(struct device *dev, unsigned int n)
 static struct isa_driver snd_es18xx_isa_driver = {
 	.match		= snd_es18xx_isa_match,
 	.probe		= snd_es18xx_isa_probe,
-	.remove		= snd_es18xx_isa_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_es18xx_isa_suspend,
 	.resume		= snd_es18xx_isa_resume,
@@ -2271,23 +2220,14 @@ static int snd_audiodrive_pnp_detect(struct pnp_dev *pdev,
 	if (err < 0)
 		return err;
 	err = snd_audiodrive_pnp(dev, card->private_data, pdev);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 	err = snd_audiodrive_probe(card, dev);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 	pnp_set_drvdata(pdev, card);
 	dev++;
 	return 0;
-}
-
-static void snd_audiodrive_pnp_remove(struct pnp_dev *pdev)
-{
-	snd_card_free(pnp_get_drvdata(pdev));
 }
 
 #ifdef CONFIG_PM
@@ -2305,7 +2245,6 @@ static struct pnp_driver es18xx_pnp_driver = {
 	.name = "es18xx-pnpbios",
 	.id_table = snd_audiodrive_pnpbiosids,
 	.probe = snd_audiodrive_pnp_detect,
-	.remove = snd_audiodrive_pnp_remove,
 #ifdef CONFIG_PM
 	.suspend = snd_audiodrive_pnp_suspend,
 	.resume = snd_audiodrive_pnp_resume,
@@ -2331,25 +2270,15 @@ static int snd_audiodrive_pnpc_detect(struct pnp_card_link *pcard,
 		return res;
 
 	res = snd_audiodrive_pnpc(dev, card->private_data, pcard, pid);
-	if (res < 0) {
-		snd_card_free(card);
+	if (res < 0)
 		return res;
-	}
 	res = snd_audiodrive_probe(card, dev);
-	if (res < 0) {
-		snd_card_free(card);
+	if (res < 0)
 		return res;
-	}
 
 	pnp_set_card_drvdata(pcard, card);
 	dev++;
 	return 0;
-}
-
-static void snd_audiodrive_pnpc_remove(struct pnp_card_link *pcard)
-{
-	snd_card_free(pnp_get_card_drvdata(pcard));
-	pnp_set_card_drvdata(pcard, NULL);
 }
 
 #ifdef CONFIG_PM
@@ -2370,7 +2299,6 @@ static struct pnp_card_driver es18xx_pnpc_driver = {
 	.name = "es18xx",
 	.id_table = snd_audiodrive_pnpids,
 	.probe = snd_audiodrive_pnpc_detect,
-	.remove = snd_audiodrive_pnpc_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_audiodrive_pnpc_suspend,
 	.resume		= snd_audiodrive_pnpc_resume,

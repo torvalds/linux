@@ -99,7 +99,7 @@ static struct sk_buff *brcm_tag_xmit_ll(struct sk_buff *skb,
 	skb_push(skb, BRCM_TAG_LEN);
 
 	if (offset)
-		memmove(skb->data, skb->data + BRCM_TAG_LEN, offset);
+		dsa_alloc_etype_header(skb, BRCM_TAG_LEN);
 
 	brcm_tag = skb->data + offset;
 
@@ -136,7 +136,6 @@ static struct sk_buff *brcm_tag_xmit_ll(struct sk_buff *skb,
  */
 static struct sk_buff *brcm_tag_rcv_ll(struct sk_buff *skb,
 				       struct net_device *dev,
-				       struct packet_type *pt,
 				       unsigned int offset)
 {
 	int source_port;
@@ -167,7 +166,7 @@ static struct sk_buff *brcm_tag_rcv_ll(struct sk_buff *skb,
 	/* Remove Broadcom tag and update checksum */
 	skb_pull_rcsum(skb, BRCM_TAG_LEN);
 
-	skb->offload_fwd_mark = 1;
+	dsa_default_offload_fwd_mark(skb);
 
 	return skb;
 }
@@ -182,20 +181,16 @@ static struct sk_buff *brcm_tag_xmit(struct sk_buff *skb,
 }
 
 
-static struct sk_buff *brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev,
-				    struct packet_type *pt)
+static struct sk_buff *brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sk_buff *nskb;
 
 	/* skb->data points to the EtherType, the tag is right before it */
-	nskb = brcm_tag_rcv_ll(skb, dev, pt, 2);
+	nskb = brcm_tag_rcv_ll(skb, dev, 2);
 	if (!nskb)
 		return nskb;
 
-	/* Move the Ethernet DA and SA */
-	memmove(nskb->data - ETH_HLEN,
-		nskb->data - ETH_HLEN - BRCM_TAG_LEN,
-		2 * ETH_ALEN);
+	dsa_strip_etype_header(skb, BRCM_TAG_LEN);
 
 	return nskb;
 }
@@ -233,7 +228,7 @@ static struct sk_buff *brcm_leg_tag_xmit(struct sk_buff *skb,
 
 	skb_push(skb, BRCM_LEG_TAG_LEN);
 
-	memmove(skb->data, skb->data + BRCM_LEG_TAG_LEN, 2 * ETH_ALEN);
+	dsa_alloc_etype_header(skb, BRCM_LEG_TAG_LEN);
 
 	brcm_tag = skb->data + 2 * ETH_ALEN;
 
@@ -251,8 +246,7 @@ static struct sk_buff *brcm_leg_tag_xmit(struct sk_buff *skb,
 }
 
 static struct sk_buff *brcm_leg_tag_rcv(struct sk_buff *skb,
-					struct net_device *dev,
-					struct packet_type *pt)
+					struct net_device *dev)
 {
 	int source_port;
 	u8 *brcm_tag;
@@ -260,7 +254,7 @@ static struct sk_buff *brcm_leg_tag_rcv(struct sk_buff *skb,
 	if (unlikely(!pskb_may_pull(skb, BRCM_LEG_PORT_ID)))
 		return NULL;
 
-	brcm_tag = skb->data - 2;
+	brcm_tag = dsa_etype_header_pos_rx(skb);
 
 	source_port = brcm_tag[5] & BRCM_LEG_PORT_ID;
 
@@ -271,12 +265,9 @@ static struct sk_buff *brcm_leg_tag_rcv(struct sk_buff *skb,
 	/* Remove Broadcom tag and update checksum */
 	skb_pull_rcsum(skb, BRCM_LEG_TAG_LEN);
 
-	skb->offload_fwd_mark = 1;
+	dsa_default_offload_fwd_mark(skb);
 
-	/* Move the Ethernet DA and SA */
-	memmove(skb->data - ETH_HLEN,
-		skb->data - ETH_HLEN - BRCM_LEG_TAG_LEN,
-		2 * ETH_ALEN);
+	dsa_strip_etype_header(skb, BRCM_LEG_TAG_LEN);
 
 	return skb;
 }
@@ -302,11 +293,10 @@ static struct sk_buff *brcm_tag_xmit_prepend(struct sk_buff *skb,
 }
 
 static struct sk_buff *brcm_tag_rcv_prepend(struct sk_buff *skb,
-					    struct net_device *dev,
-					    struct packet_type *pt)
+					    struct net_device *dev)
 {
 	/* tag is prepended to the packet */
-	return brcm_tag_rcv_ll(skb, dev, pt, ETH_HLEN);
+	return brcm_tag_rcv_ll(skb, dev, ETH_HLEN);
 }
 
 static const struct dsa_device_ops brcm_prepend_netdev_ops = {

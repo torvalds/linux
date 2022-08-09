@@ -182,7 +182,7 @@ struct urb_listitem {
 	struct urb *urb;
 };
 
-static const u32 isp1763_hc_portsc1_fields[] = {
+static const u32 isp176x_hc_portsc1_fields[] = {
 	[PORT_OWNER]		= BIT(13),
 	[PORT_POWER]		= BIT(12),
 	[PORT_LSTATUS]		= BIT(10),
@@ -205,27 +205,28 @@ static u32 isp1760_hcd_read(struct usb_hcd *hcd, u32 field)
 }
 
 /*
- * We need, in isp1763, to write directly the values to the portsc1
+ * We need, in isp176x, to write directly the values to the portsc1
  * register so it will make the other values to trigger.
  */
 static void isp1760_hcd_portsc1_set_clear(struct isp1760_hcd *priv, u32 field,
 					  u32 val)
 {
-	u32 bit = isp1763_hc_portsc1_fields[field];
-	u32 port_status = readl(priv->base + ISP1763_HC_PORTSC1);
+	u32 bit = isp176x_hc_portsc1_fields[field];
+	u16 portsc1_reg = priv->is_isp1763 ? ISP1763_HC_PORTSC1 :
+		ISP176x_HC_PORTSC1;
+	u32 port_status = readl(priv->base + portsc1_reg);
 
 	if (val)
-		writel(port_status | bit, priv->base + ISP1763_HC_PORTSC1);
+		writel(port_status | bit, priv->base + portsc1_reg);
 	else
-		writel(port_status & ~bit, priv->base + ISP1763_HC_PORTSC1);
+		writel(port_status & ~bit, priv->base + portsc1_reg);
 }
 
 static void isp1760_hcd_write(struct usb_hcd *hcd, u32 field, u32 val)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 
-	if (unlikely(priv->is_isp1763 &&
-		     (field >= PORT_OWNER && field <= PORT_CONNECT)))
+	if (unlikely((field >= PORT_OWNER && field <= PORT_CONNECT)))
 		return isp1760_hcd_portsc1_set_clear(priv, field, val);
 
 	isp1760_field_write(priv->fields, field, val);
@@ -250,7 +251,7 @@ static int isp1760_hcd_set_and_wait(struct usb_hcd *hcd, u32 field,
 	isp1760_hcd_set(hcd, field);
 
 	return regmap_field_read_poll_timeout(priv->fields[field], val,
-					      val, 10, timeout_us);
+					      val, 0, timeout_us);
 }
 
 static int isp1760_hcd_set_and_wait_swap(struct usb_hcd *hcd, u32 field,
@@ -262,7 +263,7 @@ static int isp1760_hcd_set_and_wait_swap(struct usb_hcd *hcd, u32 field,
 	isp1760_hcd_set(hcd, field);
 
 	return regmap_field_read_poll_timeout(priv->fields[field], val,
-					      !val, 10, timeout_us);
+					      !val, 0, timeout_us);
 }
 
 static int isp1760_hcd_clear_and_wait(struct usb_hcd *hcd, u32 field,
@@ -274,7 +275,7 @@ static int isp1760_hcd_clear_and_wait(struct usb_hcd *hcd, u32 field,
 	isp1760_hcd_clear(hcd, field);
 
 	return regmap_field_read_poll_timeout(priv->fields[field], val,
-					      !val, 10, timeout_us);
+					      !val, 0, timeout_us);
 }
 
 static bool isp1760_hcd_is_set(struct usb_hcd *hcd, u32 field)
@@ -367,8 +368,7 @@ static void isp1760_mem_read(struct usb_hcd *hcd, u32 src_offset, void *dst,
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 
-	isp1760_hcd_write(hcd, MEM_BANK_SEL, ISP_BANK_0);
-	isp1760_hcd_write(hcd, MEM_START_ADDR, src_offset);
+	isp1760_reg_write(priv->regs, ISP176x_HC_MEMORY, src_offset);
 	ndelay(100);
 
 	bank_reads8(priv->base, src_offset, ISP_BANK_0, dst, bytes);
@@ -496,8 +496,7 @@ static void isp1760_ptd_read(struct usb_hcd *hcd, u32 ptd_offset, u32 slot,
 	u16 src_offset = ptd_offset + slot * sizeof(*ptd);
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 
-	isp1760_hcd_write(hcd, MEM_BANK_SEL, ISP_BANK_0);
-	isp1760_hcd_write(hcd, MEM_START_ADDR, src_offset);
+	isp1760_reg_write(priv->regs, ISP176x_HC_MEMORY, src_offset);
 	ndelay(90);
 
 	bank_reads8(priv->base, src_offset, ISP_BANK_0, (void *)ptd,
@@ -588,8 +587,8 @@ static void init_memory(struct isp1760_hcd *priv)
 
 	payload_addr = PAYLOAD_OFFSET;
 
-	for (i = 0, curr = 0; i < ARRAY_SIZE(mem->blocks); i++) {
-		for (j = 0; j < mem->blocks[i]; j++, curr++) {
+	for (i = 0, curr = 0; i < ARRAY_SIZE(mem->blocks); i++, curr += j) {
+		for (j = 0; j < mem->blocks[i]; j++) {
 			priv->memory_pool[curr + j].start = payload_addr;
 			priv->memory_pool[curr + j].size = mem->blocks_size[i];
 			priv->memory_pool[curr + j].free = 1;
@@ -731,12 +730,15 @@ static int isp1760_hc_setup(struct usb_hcd *hcd)
 
 	isp1760_hcd_write(hcd, HC_SCRATCH, pattern);
 
-	/* Change bus pattern */
-	scratch = isp1760_hcd_read(hcd, HC_CHIP_ID_HIGH);
-	dev_err(hcd->self.controller, "Scratch test 0x%08x\n", scratch);
+	/*
+	 * we do not care about the read value here we just want to
+	 * change bus pattern.
+	 */
+	isp1760_hcd_read(hcd, HC_CHIP_ID_HIGH);
 	scratch = isp1760_hcd_read(hcd, HC_SCRATCH);
 	if (scratch != pattern) {
-		dev_err(hcd->self.controller, "Scratch test failed. 0x%08x\n", scratch);
+		dev_err(hcd->self.controller, "Scratch test failed. 0x%08x\n",
+			scratch);
 		return -ENODEV;
 	}
 
@@ -1826,9 +1828,11 @@ static void packetize_urb(struct usb_hcd *hcd,
 			goto cleanup;
 
 		if (len > mem->blocks_size[ISP176x_BLOCK_NUM - 1])
-			len = mem->blocks_size[ISP176x_BLOCK_NUM - 1];
+			this_qtd_len = mem->blocks_size[ISP176x_BLOCK_NUM - 1];
+		else
+			this_qtd_len = len;
 
-		this_qtd_len = qtd_fill(qtd, buf, len);
+		this_qtd_len = qtd_fill(qtd, buf, this_qtd_len);
 		list_add_tail(&qtd->qtd_list, head);
 
 		len -= this_qtd_len;
@@ -1851,7 +1855,7 @@ static void packetize_urb(struct usb_hcd *hcd,
 				packet_type = OUT_PID;
 			else
 				packet_type = IN_PID;
-		} else if (usb_pipebulk(urb->pipe)
+		} else if (usb_pipebulk(urb->pipe) && maxpacketsize
 				&& (urb->transfer_flags & URB_ZERO_PACKET)
 				&& !(urb->transfer_buffer_length %
 							maxpacketsize)) {
@@ -1916,7 +1920,6 @@ static int isp1760_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	if (list_empty(&new_qtds))
 		return -ENOMEM;
 
-	retval = 0;
 	spin_lock_irqsave(&priv->lock, spinflags);
 
 	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
@@ -1972,16 +1975,20 @@ static void kill_transfer(struct usb_hcd *hcd, struct urb *urb,
 	/* We need to forcefully reclaim the slot since some transfers never
 	   return, e.g. interrupt transfers and NAKed bulk transfers. */
 	if (usb_pipecontrol(urb->pipe) || usb_pipebulk(urb->pipe)) {
-		skip_map = isp1760_hcd_read(hcd, HC_ATL_PTD_SKIPMAP);
-		skip_map |= (1 << qh->slot);
-		isp1760_hcd_write(hcd, HC_ATL_PTD_SKIPMAP, skip_map);
-		ndelay(100);
+		if (qh->slot != -1) {
+			skip_map = isp1760_hcd_read(hcd, HC_ATL_PTD_SKIPMAP);
+			skip_map |= (1 << qh->slot);
+			isp1760_hcd_write(hcd, HC_ATL_PTD_SKIPMAP, skip_map);
+			ndelay(100);
+		}
 		priv->atl_slots[qh->slot].qh = NULL;
 		priv->atl_slots[qh->slot].qtd = NULL;
 	} else {
-		skip_map = isp1760_hcd_read(hcd, HC_INT_PTD_SKIPMAP);
-		skip_map |= (1 << qh->slot);
-		isp1760_hcd_write(hcd, HC_INT_PTD_SKIPMAP, skip_map);
+		if (qh->slot != -1) {
+			skip_map = isp1760_hcd_read(hcd, HC_INT_PTD_SKIPMAP);
+			skip_map |= (1 << qh->slot);
+			isp1760_hcd_write(hcd, HC_INT_PTD_SKIPMAP, skip_map);
+		}
 		priv->int_slots[qh->slot].qh = NULL;
 		priv->int_slots[qh->slot].qtd = NULL;
 	}
@@ -2528,17 +2535,23 @@ int __init isp1760_init_kmem_once(void)
 			SLAB_MEM_SPREAD, NULL);
 
 	if (!qtd_cachep)
-		return -ENOMEM;
+		goto destroy_urb_listitem;
 
 	qh_cachep = kmem_cache_create("isp1760_qh", sizeof(struct isp1760_qh),
 			0, SLAB_TEMPORARY | SLAB_MEM_SPREAD, NULL);
 
-	if (!qh_cachep) {
-		kmem_cache_destroy(qtd_cachep);
-		return -ENOMEM;
-	}
+	if (!qh_cachep)
+		goto destroy_qtd;
 
 	return 0;
+
+destroy_qtd:
+	kmem_cache_destroy(qtd_cachep);
+
+destroy_urb_listitem:
+	kmem_cache_destroy(urb_listitem_cachep);
+
+	return -ENOMEM;
 }
 
 void isp1760_deinit_kmem_cache(void)

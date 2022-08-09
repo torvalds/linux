@@ -39,7 +39,26 @@ struct ipa_qmi {
 	bool indication_sent;
 };
 
+/**
+ * ipa_qmi_setup() - Set up for QMI message exchange
+ * @ipa:		IPA pointer
+ *
+ * This is called at the end of ipa_setup(), to prepare for the exchange
+ * of QMI messages that perform a "handshake" between the AP and modem.
+ * When the modem QMI server announces its presence, an AP request message
+ * supplies operating parameters to be used to the modem, and the modem
+ * acknowledges receipt of those parameters.  The modem will not touch the
+ * IPA hardware until this handshake is complete.
+ *
+ * If the modem crashes (or shuts down) a new handshake begins when the
+ * modem's QMI server is started again.
+ */
 int ipa_qmi_setup(struct ipa *ipa);
+
+/**
+ * ipa_qmi_teardown() - Tear down IPA QMI handles
+ * @ipa:		IPA pointer
+ */
 void ipa_qmi_teardown(struct ipa *ipa);
 
 #endif /* !_IPA_QMI_H_ */

@@ -843,8 +843,7 @@ void pmu_add_cpu_aliases_map(struct list_head *head, struct perf_pmu *pmu,
 			break;
 		}
 
-		if (pmu_is_uncore(name) &&
-		    pmu_uncore_alias_match(pname, name))
+		if (pmu->is_uncore && pmu_uncore_alias_match(pname, name))
 			goto new_alias;
 
 		if (strcmp(pname, name))
@@ -927,7 +926,7 @@ static int pmu_add_sys_aliases_iter_fn(struct pmu_event *pe, void *data)
 	return 0;
 }
 
-static void pmu_add_sys_aliases(struct list_head *head, struct perf_pmu *pmu)
+void pmu_add_sys_aliases(struct list_head *head, struct perf_pmu *pmu)
 {
 	struct pmu_sys_event_iter_data idata = {
 		.head = head,
@@ -946,6 +945,18 @@ perf_pmu__get_default_config(struct perf_pmu *pmu __maybe_unused)
 	return NULL;
 }
 
+char * __weak
+pmu_find_real_name(const char *name)
+{
+	return (char *)name;
+}
+
+char * __weak
+pmu_find_alias_name(const char *name __maybe_unused)
+{
+	return NULL;
+}
+
 static int pmu_max_precise(const char *name)
 {
 	char path[PATH_MAX];
@@ -959,13 +970,15 @@ static int pmu_max_precise(const char *name)
 	return max_precise;
 }
 
-static struct perf_pmu *pmu_lookup(const char *name)
+static struct perf_pmu *pmu_lookup(const char *lookup_name)
 {
 	struct perf_pmu *pmu;
 	LIST_HEAD(format);
 	LIST_HEAD(aliases);
 	__u32 type;
+	char *name = pmu_find_real_name(lookup_name);
 	bool is_hybrid = perf_pmu__hybrid_mounted(name);
+	char *alias_name;
 
 	/*
 	 * Check pmu name for hybrid and the pmu may be invalid in sysfs
@@ -996,6 +1009,16 @@ static struct perf_pmu *pmu_lookup(const char *name)
 
 	pmu->cpus = pmu_cpumask(name);
 	pmu->name = strdup(name);
+	if (!pmu->name)
+		goto err;
+
+	alias_name = pmu_find_alias_name(name);
+	if (alias_name) {
+		pmu->alias_name = strdup(alias_name);
+		if (!pmu->alias_name)
+			goto err;
+	}
+
 	pmu->type = type;
 	pmu->is_uncore = pmu_is_uncore(name);
 	if (pmu->is_uncore)
@@ -1018,15 +1041,22 @@ static struct perf_pmu *pmu_lookup(const char *name)
 	pmu->default_config = perf_pmu__get_default_config(pmu);
 
 	return pmu;
+err:
+	if (pmu->name)
+		free(pmu->name);
+	free(pmu);
+	return NULL;
 }
 
 static struct perf_pmu *pmu_find(const char *name)
 {
 	struct perf_pmu *pmu;
 
-	list_for_each_entry(pmu, &pmus, list)
-		if (!strcmp(pmu->name, name))
+	list_for_each_entry(pmu, &pmus, list) {
+		if (!strcmp(pmu->name, name) ||
+		    (pmu->alias_name && !strcmp(pmu->alias_name, name)))
 			return pmu;
+	}
 
 	return NULL;
 }
@@ -1920,11 +1950,49 @@ bool perf_pmu__has_hybrid(void)
 
 int perf_pmu__match(char *pattern, char *name, char *tok)
 {
+	if (!name)
+		return -1;
+
 	if (fnmatch(pattern, name, 0))
 		return -1;
 
 	if (tok && !perf_pmu__valid_suffix(name, tok))
 		return -1;
 
+	return 0;
+}
+
+int perf_pmu__cpus_match(struct perf_pmu *pmu, struct perf_cpu_map *cpus,
+			 struct perf_cpu_map **mcpus_ptr,
+			 struct perf_cpu_map **ucpus_ptr)
+{
+	struct perf_cpu_map *pmu_cpus = pmu->cpus;
+	struct perf_cpu_map *matched_cpus, *unmatched_cpus;
+	int matched_nr = 0, unmatched_nr = 0;
+
+	matched_cpus = perf_cpu_map__default_new();
+	if (!matched_cpus)
+		return -1;
+
+	unmatched_cpus = perf_cpu_map__default_new();
+	if (!unmatched_cpus) {
+		perf_cpu_map__put(matched_cpus);
+		return -1;
+	}
+
+	for (int i = 0; i < cpus->nr; i++) {
+		int cpu;
+
+		cpu = perf_cpu_map__idx(pmu_cpus, cpus->map[i]);
+		if (cpu == -1)
+			unmatched_cpus->map[unmatched_nr++] = cpus->map[i];
+		else
+			matched_cpus->map[matched_nr++] = cpus->map[i];
+	}
+
+	unmatched_cpus->nr = unmatched_nr;
+	matched_cpus->nr = matched_nr;
+	*mcpus_ptr = matched_cpus;
+	*ucpus_ptr = unmatched_cpus;
 	return 0;
 }

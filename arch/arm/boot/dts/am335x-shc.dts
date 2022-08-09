@@ -117,18 +117,6 @@
 	status = "okay";
 };
 
-&davinci_mdio {
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&davinci_mdio_default>;
-	pinctrl-1 = <&davinci_mdio_sleep>;
-	status = "okay";
-
-	ethernetphy0: ethernet-phy@0 {
-		reg = <0>;
-		smsc,disable-energy-detect;
-	};
-};
-
 &epwmss1 {
 	status = "okay";
 
@@ -193,15 +181,31 @@
 	};
 };
 
-&mac {
+&mac_sw {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&cpsw_default>;
 	pinctrl-1 = <&cpsw_sleep>;
 	status = "okay";
-	slaves = <1>;
-	cpsw_emac0: slave@200 {
-		phy-mode = "mii";
-		phy-handle = <&ethernetphy0>;
+};
+
+&cpsw_port1 {
+	phy-mode = "mii";
+	phy-handle = <&ethernetphy0>;
+	ti,dual-emac-pvid = <1>;
+};
+
+&cpsw_port2 {
+	status = "disabled";
+};
+
+&davinci_mdio_sw {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&davinci_mdio_default>;
+	pinctrl-1 = <&davinci_mdio_sleep>;
+
+	ethernetphy0: ethernet-phy@0 {
+		reg = <0>;
+		smsc,disable-energy-detect;
 	};
 };
 

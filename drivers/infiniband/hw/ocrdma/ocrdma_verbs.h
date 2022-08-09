@@ -75,9 +75,8 @@ int ocrdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 int ocrdma_resize_cq(struct ib_cq *, int cqe, struct ib_udata *);
 int ocrdma_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
 
-struct ib_qp *ocrdma_create_qp(struct ib_pd *,
-			       struct ib_qp_init_attr *attrs,
-			       struct ib_udata *);
+int ocrdma_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *attrs,
+		     struct ib_udata *udata);
 int _ocrdma_modify_qp(struct ib_qp *, struct ib_qp_attr *attr,
 		      int attr_mask);
 int ocrdma_modify_qp(struct ib_qp *, struct ib_qp_attr *attr,

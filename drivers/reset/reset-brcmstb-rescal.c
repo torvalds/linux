@@ -38,7 +38,7 @@ static int brcm_rescal_reset_set(struct reset_controller_dev *rcdev,
 	}
 
 	ret = readl_poll_timeout(base + BRCM_RESCAL_STATUS, reg,
-				 !(reg & BRCM_RESCAL_STATUS_BIT), 100, 1000);
+				 (reg & BRCM_RESCAL_STATUS_BIT), 100, 1000);
 	if (ret) {
 		dev_err(data->dev, "time out on SATA/PCIe rescal\n");
 		return ret;

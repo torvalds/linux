@@ -55,19 +55,15 @@ void mlx5e_devlink_port_unregister(struct mlx5e_priv *priv)
 {
 	struct devlink_port *dl_port = mlx5e_devlink_get_dl_port(priv);
 
-	if (dl_port->registered)
-		devlink_port_unregister(dl_port);
+	devlink_port_unregister(dl_port);
 }
 
 struct devlink_port *mlx5e_get_devlink_port(struct net_device *dev)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	struct devlink_port *port;
 
 	if (!netif_device_present(dev))
 		return NULL;
-	port = mlx5e_devlink_get_dl_port(priv);
-	if (port->registered)
-		return port;
-	return NULL;
+
+	return mlx5e_devlink_get_dl_port(priv);
 }

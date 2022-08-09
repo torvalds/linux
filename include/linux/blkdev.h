@@ -11,14 +11,12 @@
 #include <linux/minmax.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
-#include <linux/backing-dev-defs.h>
 #include <linux/wait.h>
 #include <linux/mempool.h>
 #include <linux/pfn.h>
 #include <linux/bio.h>
 #include <linux/stringify.h>
 #include <linux/gfp.h>
-#include <linux/bsg.h>
 #include <linux/smp.h>
 #include <linux/rcupdate.h>
 #include <linux/percpu-refcount.h>
@@ -28,14 +26,11 @@
 #include <linux/sbitmap.h>
 
 struct module;
-struct scsi_ioctl_command;
-
 struct request_queue;
 struct elevator_queue;
 struct blk_trace;
 struct request;
 struct sg_io_hdr;
-struct bsg_job;
 struct blkcg_gq;
 struct blk_flush_queue;
 struct pr_ops;
@@ -275,9 +270,6 @@ enum blk_queue_state {
 #define BLK_TAG_ALLOC_FIFO 0 /* allocate starting from 0 */
 #define BLK_TAG_ALLOC_RR 1 /* allocate starting from last allocated tag */
 
-#define BLK_SCSI_MAX_CMDS	(256)
-#define BLK_SCSI_CMD_PER_LONG	(BLK_SCSI_MAX_CMDS / (sizeof(long) * 8))
-
 /*
  * Zoned block device models (zoned limit).
  *
@@ -398,8 +390,6 @@ struct request_queue {
 	struct blk_mq_hw_ctx	**queue_hw_ctx;
 	unsigned int		nr_hw_queues;
 
-	struct backing_dev_info	*backing_dev_info;
-
 	/*
 	 * The queue owner gets to use this for whatever they like.
 	 * ll_rw_blk doesn't touch it.
@@ -423,6 +413,8 @@ struct request_queue {
 	int			id;
 
 	spinlock_t		queue_lock;
+
+	struct gendisk		*disk;
 
 	/*
 	 * queue kobject
@@ -506,11 +498,6 @@ struct request_queue {
 	unsigned int		max_active_zones;
 #endif /* CONFIG_BLK_DEV_ZONED */
 
-	/*
-	 * sg stuff
-	 */
-	unsigned int		sg_timeout;
-	unsigned int		sg_reserved_size;
 	int			node;
 	struct mutex		debugfs_mutex;
 #ifdef CONFIG_BLK_DEV_IO_TRACE
@@ -536,10 +523,6 @@ struct request_queue {
 	spinlock_t		unused_hctx_lock;
 
 	int			mq_freeze_depth;
-
-#if defined(CONFIG_BLK_DEV_BSG)
-	struct bsg_class_device bsg_dev;
-#endif
 
 #ifdef CONFIG_BLK_DEV_THROTTLING
 	/* Throttle data */
@@ -663,8 +646,6 @@ extern void blk_clear_pm_only(struct request_queue *q);
 #define dma_map_bvec(dev, bv, dir, attrs) \
 	dma_map_page_attrs(dev, (bv)->bv_page, (bv)->bv_offset, (bv)->bv_len, \
 	(dir), (attrs))
-
-#define queue_to_disk(q)	(dev_to_disk(kobj_to_dev((q)->kobj.parent)))
 
 static inline bool queue_is_mq(struct request_queue *q)
 {
@@ -888,16 +869,6 @@ extern blk_status_t blk_insert_cloned_request(struct request_queue *q,
 				     struct request *rq);
 int blk_rq_append_bio(struct request *rq, struct bio *bio);
 extern void blk_queue_split(struct bio **);
-extern int scsi_verify_blk_ioctl(struct block_device *, unsigned int);
-extern int scsi_cmd_blk_ioctl(struct block_device *, fmode_t,
-			      unsigned int, void __user *);
-extern int scsi_cmd_ioctl(struct request_queue *, struct gendisk *, fmode_t,
-			  unsigned int, void __user *);
-extern int sg_scsi_ioctl(struct request_queue *, struct gendisk *, fmode_t,
-			 struct scsi_ioctl_command __user *);
-extern int get_sg_io_hdr(struct sg_io_hdr *hdr, const void __user *argp);
-extern int put_sg_io_hdr(const struct sg_io_hdr *hdr, void __user *argp);
-
 extern int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags);
 extern void blk_queue_exit(struct request_queue *q);
 extern void blk_sync_queue(struct request_queue *q);
@@ -940,6 +911,10 @@ static inline struct request_queue *bdev_get_queue(struct block_device *bdev)
 #ifndef SECTOR_SIZE
 #define SECTOR_SIZE (1 << SECTOR_SHIFT)
 #endif
+
+#define PAGE_SECTORS_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
+#define PAGE_SECTORS		(1 << PAGE_SECTORS_SHIFT)
+#define SECTOR_MASK		(PAGE_SECTORS - 1)
 
 /*
  * blk_rq_pos()			: the current sector
@@ -1139,7 +1114,7 @@ void blk_queue_zone_write_granularity(struct request_queue *q,
 				      unsigned int size);
 extern void blk_queue_alignment_offset(struct request_queue *q,
 				       unsigned int alignment);
-void blk_queue_update_readahead(struct request_queue *q);
+void disk_update_readahead(struct gendisk *disk);
 extern void blk_limits_io_min(struct queue_limits *limits, unsigned int min);
 extern void blk_queue_io_min(struct request_queue *q, unsigned int min);
 extern void blk_limits_io_opt(struct queue_limits *limits, unsigned int opt);
@@ -1346,8 +1321,6 @@ static inline int sb_issue_zeroout(struct super_block *sb, sector_t block,
 				    gfp_mask, 0);
 }
 
-extern int blk_verify_command(unsigned char *cmd, fmode_t mode);
-
 static inline bool bdev_is_partition(struct block_device *bdev)
 {
 	return bdev->bd_partno;
@@ -1374,6 +1347,11 @@ static inline unsigned long queue_virt_boundary(const struct request_queue *q)
 static inline unsigned int queue_max_sectors(const struct request_queue *q)
 {
 	return q->limits.max_sectors;
+}
+
+static inline unsigned int queue_max_bytes(struct request_queue *q)
+{
+	return min_t(unsigned int, queue_max_sectors(q), INT_MAX >> 9) << 9;
 }
 
 static inline unsigned int queue_max_hw_sectors(const struct request_queue *q)
@@ -1519,6 +1497,22 @@ static inline int queue_limit_discard_alignment(struct queue_limits *lim, sector
 
 	/* Turn it back into bytes, gaah */
 	return offset << SECTOR_SHIFT;
+}
+
+/*
+ * Two cases of handling DISCARD merge:
+ * If max_discard_segments > 1, the driver takes every bio
+ * as a range and send them to controller together. The ranges
+ * needn't to be contiguous.
+ * Otherwise, the bios/requests will be handled as same as
+ * others which should be contiguous.
+ */
+static inline bool blk_discard_mergable(struct request *req)
+{
+	if (req_op(req) == REQ_OP_DISCARD &&
+	    queue_max_discard_segments(req->q) > 1)
+		return true;
+	return false;
 }
 
 static inline int bdev_discard_alignment(struct block_device *bdev)
@@ -1855,6 +1849,13 @@ struct block_device_operations {
 	char *(*devnode)(struct gendisk *disk, umode_t *mode);
 	struct module *owner;
 	const struct pr_ops *pr_ops;
+
+	/*
+	 * Special callback for probing GPT entry at a given sector.
+	 * Needed by Android devices, used by GPT scanner and MMC blk
+	 * driver.
+	 */
+	int (*alternative_gpt_sector)(struct gendisk *disk, sector_t *sector);
 };
 
 #ifdef CONFIG_COMPAT
@@ -1984,8 +1985,6 @@ void blkdev_put_no_open(struct block_device *bdev);
 struct block_device *bdev_alloc(struct gendisk *disk, u8 partno);
 void bdev_add(struct block_device *bdev, dev_t dev);
 struct block_device *I_BDEV(struct inode *inode);
-struct block_device *bdgrab(struct block_device *bdev);
-void bdput(struct block_device *);
 int truncate_bdev_range(struct block_device *bdev, fmode_t mode, loff_t lstart,
 		loff_t lend);
 

@@ -661,6 +661,8 @@ struct sdw_slave_ops {
  * initialized
  * @first_interrupt_done: status flag tracking if the interrupt handling
  * for a Slave happens for the first time after enumeration
+ * @is_mockup_device: status flag used to squelch errors in the command/control
+ * protocol for SoundWire mockup devices
  */
 struct sdw_slave {
 	struct sdw_slave_id id;
@@ -683,6 +685,7 @@ struct sdw_slave {
 	struct completion initialization_complete;
 	u32 unattach_request;
 	bool first_interrupt_done;
+	bool is_mockup_device;
 };
 
 #define dev_to_sdw_dev(_dev) container_of(_dev, struct sdw_slave, dev)

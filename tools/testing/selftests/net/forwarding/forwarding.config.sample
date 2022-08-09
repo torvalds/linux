@@ -39,3 +39,5 @@ NETIF_CREATE=yes
 # Timeout (in seconds) before ping exits regardless of how many packets have
 # been sent or received
 PING_TIMEOUT=5
+# IPv6 traceroute utility name.
+TROUTE6=traceroute6

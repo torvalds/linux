@@ -282,11 +282,9 @@ enum odm_cmninfo_e {
 	ODM_CMNINFO_PLATFORM = 0,
 	ODM_CMNINFO_ABILITY,					/*  ODM_ABILITY_E */
 	ODM_CMNINFO_INTERFACE,				/*  ODM_INTERFACE_E */
-	ODM_CMNINFO_MP_TEST_CHIP,
 	ODM_CMNINFO_IC_TYPE,					/*  ODM_IC_TYPE_E */
 	ODM_CMNINFO_CUT_VER,					/*  ODM_CUT_VERSION_E */
 	ODM_CMNINFO_FAB_VER,					/*  ODM_FAB_E */
-	ODM_CMNINFO_RF_TYPE,					/*  ODM_RF_PATH_E or ODM_RF_TYPE_E? */
 	ODM_CMNINFO_RFE_TYPE,
 	ODM_CMNINFO_PACKAGE_TYPE,
 	ODM_CMNINFO_EXT_LNA,					/*  true */
@@ -423,7 +421,6 @@ enum { /* tag_ODM_Fab_Version_Definition */
 	ODM_UMC		=	1,
 };
 
-/*  ODM_CMNINFO_RF_TYPE */
 /*  */
 /*  For example 1T2R (A+AB = BIT0|BIT4|BIT5) */
 /*  */
@@ -720,7 +717,6 @@ struct dm_odm_t { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	/*  Fab Version TSMC/UMC = 0/1 */
 	u8 FabVersion;
 	/*  RF Type 4T4R/3T3R/2T2R/1T2R/1T1R/... */
-	u8 RFType;
 	u8 RFEType;
 	/*  Board Type Normal/HighPower/MiniCard/SLIM/Combo/... = 0/1/2/3/4/... */
 	u8 BoardType;
@@ -802,7 +798,6 @@ struct dm_odm_t { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	bool bsta_state;
 	u8 RSSI_Min;
 	u8 InterfaceIndex; /*  Add for 92D  dual MAC: 0--Mac0 1--Mac1 */
-	bool bIsMPChip;
 	bool bOneEntryOnly;
 	/*  Common info for BTDM */
 	bool bBtEnabled;			/*  BT is disabled */
@@ -996,26 +991,6 @@ struct dm_odm_t { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	#if (BEAMFORMING_SUPPORT == 1)
 	RT_BEAMFORMING_INFO BeamformingInfo;
 	#endif
-};
-
-#define ODM_RF_PATH_MAX 2
-
-enum odm_rf_radio_path_e {
-	ODM_RF_PATH_A = 0,   /* Radio Path A */
-	ODM_RF_PATH_B = 1,   /* Radio Path B */
-	ODM_RF_PATH_C = 2,   /* Radio Path C */
-	ODM_RF_PATH_D = 3,   /* Radio Path D */
-	ODM_RF_PATH_AB,
-	ODM_RF_PATH_AC,
-	ODM_RF_PATH_AD,
-	ODM_RF_PATH_BC,
-	ODM_RF_PATH_BD,
-	ODM_RF_PATH_CD,
-	ODM_RF_PATH_ABC,
-	ODM_RF_PATH_ACD,
-	ODM_RF_PATH_BCD,
-	ODM_RF_PATH_ABCD,
-	/*   ODM_RF_PATH_MAX,    Max RF number 90 support */
 };
 
  enum odm_rf_content {

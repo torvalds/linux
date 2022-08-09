@@ -15,7 +15,7 @@
  * fw_elf_get_class - Get elf class
  * @fw: the ELF firmware image
  *
- * Note that we use and elf32_hdr to access the class since the start of the
+ * Note that we use elf32_hdr to access the class since the start of the
  * struct is the same for both elf class
  *
  * Return: elf class of the firmware

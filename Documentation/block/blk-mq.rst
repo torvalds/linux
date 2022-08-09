@@ -54,7 +54,7 @@ layer or if we want to try to merge requests. In both cases, requests will be
 sent to the software queue.
 
 Then, after the requests are processed by software queues, they will be placed
-at the hardware queue, a second stage queue were the hardware has direct access
+at the hardware queue, a second stage queue where the hardware has direct access
 to process those requests. However, if the hardware does not have enough
 resources to accept more requests, blk-mq will places requests on a temporary
 queue, to be sent in the future, when the hardware is able.

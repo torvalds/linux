@@ -93,11 +93,8 @@ static int dcss_kms_bridge_connector_init(struct dcss_kms_dev *kms)
 
 	ret = drm_bridge_attach(encoder, bridge, NULL,
 				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
-	if (ret < 0) {
-		dev_err(ddev->dev, "Unable to attach bridge %pOF\n",
-			bridge->of_node);
+	if (ret < 0)
 		return ret;
-	}
 
 	kms->connector = drm_bridge_connector_init(ddev, encoder);
 	if (IS_ERR(kms->connector)) {
@@ -132,8 +129,6 @@ struct dcss_kms_dev *dcss_kms_attach(struct dcss_dev *dcss)
 	ret = drm_vblank_init(drm, 1);
 	if (ret)
 		goto cleanup_mode_config;
-
-	drm->irq_enabled = true;
 
 	ret = dcss_kms_bridge_connector_init(kms);
 	if (ret)
@@ -178,7 +173,6 @@ void dcss_kms_detach(struct dcss_kms_dev *kms)
 	drm_kms_helper_poll_fini(drm);
 	drm_atomic_helper_shutdown(drm);
 	drm_crtc_vblank_off(&kms->crtc.base);
-	drm->irq_enabled = false;
 	drm_mode_config_cleanup(drm);
 	dcss_crtc_deinit(&kms->crtc, drm);
 	drm->dev_private = NULL;

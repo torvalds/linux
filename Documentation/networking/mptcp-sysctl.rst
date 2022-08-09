@@ -45,3 +45,15 @@ allow_join_initial_addr_port - BOOLEAN
 	This is a per-namespace sysctl.
 
 	Default: 1
+
+stale_loss_cnt - INTEGER
+	The number of MPTCP-level retransmission intervals with no traffic and
+	pending outstanding data on a given subflow required to declare it stale.
+	The packet scheduler ignores stale subflows.
+	A low stale_loss_cnt  value allows for fast active-backup switch-over,
+	an high value maximize links utilization on edge scenarios e.g. lossy
+	link with high BER or peer pausing the data processing.
+
+	This is a per-namespace sysctl.
+
+	Default: 4

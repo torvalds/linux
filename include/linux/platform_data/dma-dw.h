@@ -41,36 +41,39 @@ struct dw_dma_slave {
 
 /**
  * struct dw_dma_platform_data - Controller configuration parameters
+ * @nr_masters: Number of AHB masters supported by the controller
  * @nr_channels: Number of channels supported by hardware (max 8)
  * @chan_allocation_order: Allocate channels starting from 0 or 7
  * @chan_priority: Set channel priority increasing from 0 to 7 or 7 to 0.
  * @block_size: Maximum block size supported by the controller
- * @nr_masters: Number of AHB masters supported by the controller
  * @data_width: Maximum data width supported by hardware per AHB master
  *		(in bytes, power of 2)
  * @multi_block: Multi block transfers supported by hardware per channel.
  * @max_burst: Maximum value of burst transaction size supported by hardware
  *	       per channel (in units of CTL.SRC_TR_WIDTH/CTL.DST_TR_WIDTH).
  * @protctl: Protection control signals setting per channel.
+ * @quirks: Optional platform quirks.
  */
 struct dw_dma_platform_data {
-	unsigned int	nr_channels;
+	u32		nr_masters;
+	u32		nr_channels;
 #define CHAN_ALLOCATION_ASCENDING	0	/* zero to seven */
 #define CHAN_ALLOCATION_DESCENDING	1	/* seven to zero */
-	unsigned char	chan_allocation_order;
+	u32		chan_allocation_order;
 #define CHAN_PRIORITY_ASCENDING		0	/* chan0 highest */
 #define CHAN_PRIORITY_DESCENDING	1	/* chan7 highest */
-	unsigned char	chan_priority;
-	unsigned int	block_size;
-	unsigned char	nr_masters;
-	unsigned char	data_width[DW_DMA_MAX_NR_MASTERS];
-	unsigned char	multi_block[DW_DMA_MAX_NR_CHANNELS];
+	u32		chan_priority;
+	u32		block_size;
+	u32		data_width[DW_DMA_MAX_NR_MASTERS];
+	u32		multi_block[DW_DMA_MAX_NR_CHANNELS];
 	u32		max_burst[DW_DMA_MAX_NR_CHANNELS];
 #define CHAN_PROTCTL_PRIVILEGED		BIT(0)
 #define CHAN_PROTCTL_BUFFERABLE		BIT(1)
 #define CHAN_PROTCTL_CACHEABLE		BIT(2)
 #define CHAN_PROTCTL_MASK		GENMASK(2, 0)
-	unsigned char	protctl;
+	u32		protctl;
+#define DW_DMA_QUIRK_XBAR_PRESENT	BIT(0)
+	u32		quirks;
 };
 
 #endif /* _PLATFORM_DATA_DMA_DW_H */

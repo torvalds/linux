@@ -24,12 +24,40 @@
 #include "intel_reset_types.h"
 #include "intel_rc6_types.h"
 #include "intel_rps_types.h"
+#include "intel_migrate_types.h"
 #include "intel_wakeref.h"
 
 struct drm_i915_private;
 struct i915_ggtt;
 struct intel_engine_cs;
 struct intel_uncore;
+
+struct intel_mmio_range {
+	u32 start;
+	u32 end;
+};
+
+/*
+ * The hardware has multiple kinds of multicast register ranges that need
+ * special register steering (and future platforms are expected to add
+ * additional types).
+ *
+ * During driver startup, we initialize the steering control register to
+ * direct reads to a slice/subslice that are valid for the 'subslice' class
+ * of multicast registers.  If another type of steering does not have any
+ * overlap in valid steering targets with 'subslice' style registers, we will
+ * need to explicitly re-steer reads of registers of the other type.
+ *
+ * Only the replication types that may need additional non-default steering
+ * are listed here.
+ */
+enum intel_steering_type {
+	L3BANK,
+	MSLICE,
+	LNCF,
+
+	NUM_STEERING_TYPES
+};
 
 enum intel_submission_method {
 	INTEL_SUBMISSION_RING,
@@ -145,8 +173,15 @@ struct intel_gt {
 
 	struct i915_vma *scratch;
 
+	struct intel_migrate migrate;
+
+	const struct intel_mmio_range *steering_table[NUM_STEERING_TYPES];
+
 	struct intel_gt_info {
 		intel_engine_mask_t engine_mask;
+
+		u32 l3bank_mask;
+
 		u8 num_engines;
 
 		/* Media engine access to SFC per instance */
@@ -154,6 +189,8 @@ struct intel_gt {
 
 		/* Slice/subslice/EU info */
 		struct sseu_dev_info sseu;
+
+		unsigned long mslice_mask;
 	} info;
 };
 

@@ -29,9 +29,9 @@ config IXP4XX_ETH
 	  on IXP4xx processor.
 
 config PTP_1588_CLOCK_IXP46X
-	tristate "Intel IXP46x as PTP clock"
+	bool "Intel IXP46x as PTP clock"
 	depends on IXP4XX_ETH
-	depends on PTP_1588_CLOCK
+	depends on PTP_1588_CLOCK=y || PTP_1588_CLOCK=IXP4XX_ETH
 	default y
 	help
 	  This driver adds support for using the IXP46X as a PTP

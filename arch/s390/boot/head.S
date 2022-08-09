@@ -25,12 +25,14 @@
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
-#include <asm/thread_info.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
-#include "boot.h"
+#include <asm/sclp.h>
 
 #define ARCH_OFFSET	4
+
+#define EP_OFFSET	0x10008
+#define EP_STRING	"S390EP"
 
 __HEAD
 
@@ -275,11 +277,11 @@ iplstart:
 .Lcpuid:.fill	8,1,0
 
 #
-# startup-code at 0x10000, running in absolute addressing mode
+# normal startup-code, running in absolute addressing mode
 # this is called either by the ipl loader or directly by PSW restart
 # or linload or SALIPL
 #
-	.org	0x10000
+	.org	STARTUP_NORMAL_OFFSET
 SYM_CODE_START(startup)
 	j	startup_normal
 	.org	EP_OFFSET
@@ -292,9 +294,9 @@ SYM_CODE_START(startup)
 	.ascii	EP_STRING
 	.byte	0x00,0x01
 #
-# kdump startup-code at 0x10010, running in 64 bit absolute addressing mode
+# kdump startup-code, running in 64 bit absolute addressing mode
 #
-	.org	0x10010
+	.org	STARTUP_KDUMP_OFFSET
 	j	startup_kdump
 SYM_CODE_END(startup)
 SYM_CODE_START_LOCAL(startup_normal)
@@ -315,18 +317,16 @@ SYM_CODE_START_LOCAL(startup_normal)
 	xc	0x300(256),0x300
 	xc	0xe00(256),0xe00
 	xc	0xf00(256),0xf00
-	lctlg	%c0,%c15,.Lctl-.LPG0(%r13)	# load control registers
 	stcke	__LC_BOOT_CLOCK
 	mvc	__LC_LAST_UPDATE_CLOCK(8),__LC_BOOT_CLOCK+1
 	spt	6f-.LPG0(%r13)
 	mvc	__LC_LAST_UPDATE_TIMER(8),6f-.LPG0(%r13)
-	l	%r15,.Lstack-.LPG0(%r13)
+	larl	%r15,_stack_end-STACK_FRAME_OVERHEAD
+	brasl	%r14,sclp_early_setup_buffer
 	brasl	%r14,verify_facilities
 	brasl	%r14,startup_kernel
 SYM_CODE_END(startup_normal)
 
-.Lstack:
-	.long	BOOT_STACK_OFFSET + BOOT_STACK_SIZE - STACK_FRAME_OVERHEAD
 	.align	8
 6:	.long	0x7fffffff,0xffffffff
 .Lext_new_psw:
@@ -335,35 +335,6 @@ SYM_CODE_END(startup_normal)
 	.quad	0x0000000180000000,startup_pgm_check_handler
 .Lio_new_psw:
 	.quad	0x0002000180000000,0x1f0	# disabled wait
-.Lctl:	.quad	0x04040000		# cr0: AFP registers & secondary space
-	.quad	0			# cr1: primary space segment table
-	.quad	.Lduct			# cr2: dispatchable unit control table
-	.quad	0			# cr3: instruction authorization
-	.quad	0xffff			# cr4: instruction authorization
-	.quad	.Lduct			# cr5: primary-aste origin
-	.quad	0			# cr6:	I/O interrupts
-	.quad	0			# cr7:	secondary space segment table
-	.quad	0x0000000000008000	# cr8:	access registers translation
-	.quad	0			# cr9:	tracing off
-	.quad	0			# cr10: tracing off
-	.quad	0			# cr11: tracing off
-	.quad	0			# cr12: tracing off
-	.quad	0			# cr13: home space segment table
-	.quad	0xc0000000		# cr14: machine check handling off
-	.quad	.Llinkage_stack		# cr15: linkage stack operations
-
-	.section .dma.data,"aw",@progbits
-.Lduct: .long	0,.Laste,.Laste,0,.Lduald,0,0,0
-	.long	0,0,0,0,0,0,0,0
-.Llinkage_stack:
-	.long	0,0,0x89000000,0,0,0,0x8a000000,0
-	.align 64
-.Laste:	.quad	0,0xffffffffffffffff,0,0,0,0,0,0
-	.align	128
-.Lduald:.rept	8
-	.long	0x80000000,0,0,0	# invalid access-list entries
-	.endr
-	.previous
 
 #include "head_kdump.S"
 
@@ -386,15 +357,13 @@ SYM_CODE_START_LOCAL(startup_pgm_check_handler)
 	oi	__LC_RETURN_PSW+1,0x2	# set wait state bit
 	larl	%r9,.Lold_psw_disabled_wait
 	stg	%r9,__LC_PGM_NEW_PSW+8
-	l	%r15,.Ldump_info_stack-.Lold_psw_disabled_wait(%r9)
+	larl	%r15,_dump_info_stack_end-STACK_FRAME_OVERHEAD
 	brasl	%r14,print_pgm_check_info
 .Lold_psw_disabled_wait:
 	la	%r8,4095
 	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r8)
 	lpswe	__LC_RETURN_PSW		# disabled wait
 SYM_CODE_END(startup_pgm_check_handler)
-.Ldump_info_stack:
-	.long	0x5000 + PAGE_SIZE - STACK_FRAME_OVERHEAD
 
 #
 # params at 10400 (setup.h)
@@ -414,8 +383,5 @@ SYM_DATA_START(parmarea)
 	.byte	0
 	.org	PARMAREA+__PARMAREA_SIZE
 SYM_DATA_END(parmarea)
-
-	.org	EARLY_SCCB_OFFSET
-	.fill	4096
 
 	.org	HEAD_END

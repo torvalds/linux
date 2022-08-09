@@ -20,7 +20,6 @@
 #include <asm/xive.h>
 #include <asm/xive-regs.h>
 #include <asm/debug.h>
-#include <asm/debugfs.h>
 #include <asm/opal.h>
 
 #include <linux/debugfs.h>
@@ -93,7 +92,7 @@ void kvmppc_xive_native_cleanup_vcpu(struct kvm_vcpu *vcpu)
 	for (i = 0; i < KVMPPC_XIVE_Q_COUNT; i++) {
 		/* Free the escalation irq */
 		if (xc->esc_virq[i]) {
-			if (xc->xive->single_escalation)
+			if (kvmppc_xive_has_single_escalation(xc->xive))
 				xive_cleanup_single_escalation(vcpu, xc,
 							xc->esc_virq[i]);
 			free_irq(xc->esc_virq[i], vcpu);
@@ -168,11 +167,17 @@ int kvmppc_xive_native_connect_vcpu(struct kvm_device *dev,
 		goto bail;
 	}
 
+	if (!kvmppc_xive_check_save_restore(vcpu)) {
+		pr_err("inconsistent save-restore setup for VCPU %d\n", server_num);
+		rc = -EIO;
+		goto bail;
+	}
+
 	/*
 	 * Enable the VP first as the single escalation mode will
 	 * affect escalation interrupts numbering
 	 */
-	rc = xive_native_enable_vp(xc->vp_id, xive->single_escalation);
+	rc = xive_native_enable_vp(xc->vp_id, kvmppc_xive_has_single_escalation(xive));
 	if (rc) {
 		pr_err("Failed to enable VP in OPAL: %d\n", rc);
 		goto bail;
@@ -693,7 +698,7 @@ static int kvmppc_xive_native_set_queue_config(struct kvmppc_xive *xive,
 	}
 
 	rc = kvmppc_xive_attach_escalation(vcpu, priority,
-					   xive->single_escalation);
+					   kvmppc_xive_has_single_escalation(xive));
 error:
 	if (rc)
 		kvmppc_xive_native_cleanup_queue(vcpu, priority);
@@ -820,7 +825,7 @@ static int kvmppc_xive_reset(struct kvmppc_xive *xive)
 		for (prio = 0; prio < KVMPPC_XIVE_Q_COUNT; prio++) {
 
 			/* Single escalation, no queue 7 */
-			if (prio == 7 && xive->single_escalation)
+			if (prio == 7 && kvmppc_xive_has_single_escalation(xive))
 				break;
 
 			if (xc->esc_virq[prio]) {
@@ -1111,7 +1116,12 @@ static int kvmppc_xive_native_create(struct kvm_device *dev, u32 type)
 	 */
 	xive->nr_servers = KVM_MAX_VCPUS;
 
-	xive->single_escalation = xive_native_has_single_escalation();
+	if (xive_native_has_single_escalation())
+		xive->flags |= KVMPPC_XIVE_FLAG_SINGLE_ESCALATION;
+
+	if (xive_native_has_save_restore())
+		xive->flags |= KVMPPC_XIVE_FLAG_SAVE_RESTORE;
+
 	xive->ops = &kvmppc_xive_native_ops;
 
 	kvm->arch.xive = xive;
@@ -1257,7 +1267,7 @@ static void xive_native_debugfs_init(struct kvmppc_xive *xive)
 		return;
 	}
 
-	xive->dentry = debugfs_create_file(name, 0444, powerpc_debugfs_root,
+	xive->dentry = debugfs_create_file(name, 0444, arch_debugfs_dir,
 					   xive, &xive_native_debug_fops);
 
 	pr_debug("%s: created %s\n", __func__, name);

@@ -22,6 +22,7 @@ if NET_VENDOR_CADENCE
 config MACB
 	tristate "Cadence MACB/GEM support"
 	depends on HAS_DMA && COMMON_CLK
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select PHYLINK
 	select CRC32
 	help

@@ -216,11 +216,11 @@ cannot find a maintainer for the subsystem you are working on, Andrew
 Morton (akpm@linux-foundation.org) serves as a maintainer of last resort.
 
 You should also normally choose at least one mailing list to receive a copy
-of your patch set.  linux-kernel@vger.kernel.org functions as a list of
-last resort, but the volume on that list has caused a number of developers
-to tune it out.  Look in the MAINTAINERS file for a subsystem-specific
-list; your patch will probably get more attention there.  Please do not
-spam unrelated lists, though.
+of your patch set.  linux-kernel@vger.kernel.org should be used by default
+for all patches, but the volume on that list has caused a number of
+developers to tune it out.  Look in the MAINTAINERS file for a
+subsystem-specific list; your patch will probably get more attention there.
+Please do not spam unrelated lists, though.
 
 Many kernel-related lists are hosted on vger.kernel.org; you can find a
 list of them at http://vger.kernel.org/vger-lists.html.  There are

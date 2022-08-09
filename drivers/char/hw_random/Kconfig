@@ -524,6 +524,20 @@ config HW_RANDOM_XIPHERA
 	  To compile this driver as a module, choose M here: the
 	  module will be called xiphera-trng.
 
+config HW_RANDOM_ARM_SMCCC_TRNG
+	tristate "Arm SMCCC TRNG firmware interface support"
+	depends on HAVE_ARM_SMCCC_DISCOVERY
+	default HW_RANDOM
+	help
+	  Say 'Y' to enable the True Random Number Generator driver using
+	  the Arm SMCCC TRNG firmware interface. This reads entropy from
+	  higher exception levels (firmware, hypervisor). Uses SMCCC for
+	  communicating with the firmware:
+	  https://developer.arm.com/documentation/den0098/latest/
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called arm_smccc_trng.
+
 endif # HW_RANDOM
 
 config UML_RANDOM

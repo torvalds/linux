@@ -15,7 +15,6 @@
 #include <linux/gfp.h>
 
 #include <asm/setup.h>
-#include <asm/segment.h>
 #include <asm/page.h>
 #include <asm/traps.h>
 #include <asm/machdep.h>

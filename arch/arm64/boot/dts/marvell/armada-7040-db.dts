@@ -282,7 +282,7 @@
 &cp0_eth0 {
 	status = "okay";
 	/* Network PHY */
-	phy-mode = "10gbase-kr";
+	phy-mode = "10gbase-r";
 	/* Generic PHY, providing serdes lanes */
 	phys = <&cp0_comphy2 0>;
 

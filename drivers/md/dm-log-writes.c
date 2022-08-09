@@ -834,6 +834,10 @@ static void log_writes_status(struct dm_target *ti, status_type_t type,
 	case STATUSTYPE_TABLE:
 		DMEMIT("%s %s", lc->dev->name, lc->logdev->name);
 		break;
+
+	case STATUSTYPE_IMA:
+		*result = '\0';
+		break;
 	}
 }
 

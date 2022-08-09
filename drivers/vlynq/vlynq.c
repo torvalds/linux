@@ -342,14 +342,12 @@ static int vlynq_device_probe(struct device *dev)
 	return result;
 }
 
-static int vlynq_device_remove(struct device *dev)
+static void vlynq_device_remove(struct device *dev)
 {
 	struct vlynq_driver *drv = to_vlynq_driver(dev->driver);
 
 	if (drv->remove)
 		drv->remove(to_vlynq_device(dev));
-
-	return 0;
 }
 
 int __vlynq_register_driver(struct vlynq_driver *driver, struct module *owner)

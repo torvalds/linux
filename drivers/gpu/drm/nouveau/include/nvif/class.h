@@ -71,6 +71,7 @@
 #define PASCAL_CHANNEL_GPFIFO_A                       /* cla06f.h */ 0x0000c06f
 #define VOLTA_CHANNEL_GPFIFO_A                        /* clc36f.h */ 0x0000c36f
 #define TURING_CHANNEL_GPFIFO_A                       /* clc36f.h */ 0x0000c46f
+#define AMPERE_CHANNEL_GPFIFO_B                       /* clc36f.h */ 0x0000c76f
 
 #define NV50_DISP                                     /* cl5070.h */ 0x00005070
 #define G82_DISP                                      /* cl5070.h */ 0x00008270
@@ -200,6 +201,7 @@
 #define PASCAL_DMA_COPY_B                                            0x0000c1b5
 #define VOLTA_DMA_COPY_A                                             0x0000c3b5
 #define TURING_DMA_COPY_A                                            0x0000c5b5
+#define AMPERE_DMA_COPY_B                                            0x0000c7b5
 
 #define FERMI_DECOMPRESS                                             0x000090b8
 

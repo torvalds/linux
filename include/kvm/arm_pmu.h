@@ -61,7 +61,6 @@ int kvm_arm_pmu_v3_get_attr(struct kvm_vcpu *vcpu,
 int kvm_arm_pmu_v3_has_attr(struct kvm_vcpu *vcpu,
 			    struct kvm_device_attr *attr);
 int kvm_arm_pmu_v3_enable(struct kvm_vcpu *vcpu);
-int kvm_pmu_probe_pmuver(void);
 #else
 struct kvm_pmu {
 };
@@ -117,8 +116,6 @@ static inline u64 kvm_pmu_get_pmceid(struct kvm_vcpu *vcpu, bool pmceid1)
 {
 	return 0;
 }
-
-static inline int kvm_pmu_probe_pmuver(void) { return 0xf; }
 
 #endif
 

@@ -498,11 +498,11 @@ structure -- inode change time (ctime), access time (atime), data
 modification time (mtime), and deletion time (dtime). The four fields
 are 32-bit signed integers that represent seconds since the Unix epoch
 (1970-01-01 00:00:00 GMT), which means that the fields will overflow in
-January 2038. For inodes that are not linked from any directory but are
-still open (orphan inodes), the dtime field is overloaded for use with
-the orphan list. The superblock field ``s_last_orphan`` points to the
-first inode in the orphan list; dtime is then the number of the next
-orphaned inode, or zero if there are no more orphans.
+January 2038. If the filesystem does not have orphan_file feature, inodes
+that are not linked from any directory but are still open (orphan inodes) have
+the dtime field overloaded for use with the orphan list. The superblock field
+``s_last_orphan`` points to the first inode in the orphan list; dtime is then
+the number of the next orphaned inode, or zero if there are no more orphans.
 
 If the inode structure size ``sb->s_inode_size`` is larger than 128
 bytes and the ``i_inode_extra`` field is large enough to encompass the

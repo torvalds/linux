@@ -19,8 +19,8 @@
 #include <asm/mcfclk.h>
 
 DEFINE_CLK(0, "flexbus", 2, MCF_CLK);
-DEFINE_CLK(0, "mcfcan.0", 8, MCF_CLK);
-DEFINE_CLK(0, "mcfcan.1", 9, MCF_CLK);
+DEFINE_CLK(0, "flexcan.0", 8, MCF_CLK);
+DEFINE_CLK(0, "flexcan.1", 9, MCF_CLK);
 DEFINE_CLK(0, "imx1-i2c.1", 14, MCF_CLK);
 DEFINE_CLK(0, "mcfdspi.1", 15, MCF_CLK);
 DEFINE_CLK(0, "edma", 17, MCF_CLK);
@@ -142,6 +142,8 @@ static struct clk_lookup m5411x_clk_lookup[] = {
 
 static struct clk * const enable_clks[] __initconst = {
 	/* make sure these clocks are enabled */
+	&__clk_0_8, /* flexcan.0 */
+	&__clk_0_9, /* flexcan.1 */
 	&__clk_0_15, /* dspi.1 */
 	&__clk_0_17, /* eDMA */
 	&__clk_0_18, /* intc0 */
@@ -162,8 +164,6 @@ static struct clk * const enable_clks[] __initconst = {
 	&__clk_1_37, /* gpio */
 };
 static struct clk * const disable_clks[] __initconst = {
-	&__clk_0_8, /* can.0 */
-	&__clk_0_9, /* can.1 */
 	&__clk_0_14, /* i2c.1 */
 	&__clk_0_22, /* i2c.0 */
 	&__clk_0_23, /* dspi.0 */

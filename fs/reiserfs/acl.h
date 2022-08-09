@@ -48,7 +48,7 @@ static inline int reiserfs_acl_count(size_t size)
 }
 
 #ifdef CONFIG_REISERFS_FS_POSIX_ACL
-struct posix_acl *reiserfs_get_acl(struct inode *inode, int type);
+struct posix_acl *reiserfs_get_acl(struct inode *inode, int type, bool rcu);
 int reiserfs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
 		     struct posix_acl *acl, int type);
 int reiserfs_acl_chmod(struct inode *inode);

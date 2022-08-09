@@ -275,15 +275,15 @@
 			#interrupt-cells = <2>;
 		};
 
-		pcfg_pull_up: pcfg_pull_up {
+		pcfg_pull_up: pcfg-pull-up {
 			bias-pull-up;
 		};
 
-		pcfg_pull_down: pcfg_pull_down {
+		pcfg_pull_down: pcfg-pull-down {
 			bias-pull-down;
 		};
 
-		pcfg_pull_none: pcfg_pull_none {
+		pcfg_pull_none: pcfg-pull-none {
 			bias-disable;
 		};
 
@@ -638,8 +638,13 @@
 	power-domains = <&power RK3188_PD_GPU>;
 };
 
-&grf{
+&grf {
 	compatible = "rockchip,rk3188-grf", "syscon", "simple-mfd";
+
+	io_domains: io-domains {
+		compatible = "rockchip,rk3188-io-voltage-domain";
+		status = "disabled";
+	};
 
 	usbphy: usbphy {
 		compatible = "rockchip,rk3188-usb-phy",

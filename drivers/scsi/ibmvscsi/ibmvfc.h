@@ -876,6 +876,7 @@ struct ibmvfc_host {
 	int reinit;
 	int delay_init;
 	int scan_complete;
+	int scan_timeout;
 	int logged_in;
 	int mq_enabled;
 	int using_channels;

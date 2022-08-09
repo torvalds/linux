@@ -266,9 +266,6 @@ static enum mod_hdcp_status authenticated(struct mod_hdcp *hdcp,
 	mod_hdcp_execute_and_set(mod_hdcp_hdcp1_link_maintenance,
 			&input->link_maintenance, &status,
 			hdcp, "link_maintenance");
-
-	if (status != MOD_HDCP_STATUS_SUCCESS)
-		mod_hdcp_save_current_encryption_states(hdcp);
 out:
 	return status;
 }
@@ -447,9 +444,6 @@ static enum mod_hdcp_status authenticated_dp(struct mod_hdcp *hdcp,
 		mod_hdcp_execute_and_set(check_no_reauthentication_request_dp,
 				&input->reauth_request_check, &status,
 				hdcp, "reauth_request_check");
-
-	if (status != MOD_HDCP_STATUS_SUCCESS)
-		mod_hdcp_save_current_encryption_states(hdcp);
 out:
 	return status;
 }

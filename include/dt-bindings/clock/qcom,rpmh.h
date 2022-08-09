@@ -31,5 +31,7 @@
 #define RPMH_RF_CLK5_A				22
 #define RPMH_PKA_CLK				23
 #define RPMH_HWKM_CLK				24
+#define RPMH_QLINK_CLK				25
+#define RPMH_QLINK_CLK_A			26
 
 #endif

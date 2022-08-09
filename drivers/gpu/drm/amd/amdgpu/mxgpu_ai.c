@@ -258,6 +258,8 @@ static void xgpu_ai_mailbox_flr_work(struct work_struct *work)
 	amdgpu_virt_fini_data_exchange(adev);
 	atomic_set(&adev->in_gpu_reset, 1);
 
+	xgpu_ai_mailbox_trans_msg(adev, IDH_READY_TO_RESET, 0, 0, 0);
+
 	do {
 		if (xgpu_ai_mailbox_peek_msg(adev) == IDH_FLR_NOTIFICATION_CMPL)
 			goto flr_done;

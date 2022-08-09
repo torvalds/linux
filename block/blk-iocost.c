@@ -2988,34 +2988,29 @@ static void ioc_pd_free(struct blkg_policy_data *pd)
 	kfree(iocg);
 }
 
-static size_t ioc_pd_stat(struct blkg_policy_data *pd, char *buf, size_t size)
+static bool ioc_pd_stat(struct blkg_policy_data *pd, struct seq_file *s)
 {
 	struct ioc_gq *iocg = pd_to_iocg(pd);
 	struct ioc *ioc = iocg->ioc;
-	size_t pos = 0;
 
 	if (!ioc->enabled)
-		return 0;
+		return false;
 
 	if (iocg->level == 0) {
 		unsigned vp10k = DIV64_U64_ROUND_CLOSEST(
 			ioc->vtime_base_rate * 10000,
 			VTIME_PER_USEC);
-		pos += scnprintf(buf + pos, size - pos, " cost.vrate=%u.%02u",
-				  vp10k / 100, vp10k % 100);
+		seq_printf(s, " cost.vrate=%u.%02u", vp10k / 100, vp10k % 100);
 	}
 
-	pos += scnprintf(buf + pos, size - pos, " cost.usage=%llu",
-			 iocg->last_stat.usage_us);
+	seq_printf(s, " cost.usage=%llu", iocg->last_stat.usage_us);
 
 	if (blkcg_debug_stats)
-		pos += scnprintf(buf + pos, size - pos,
-				 " cost.wait=%llu cost.indebt=%llu cost.indelay=%llu",
-				 iocg->last_stat.wait_us,
-				 iocg->last_stat.indebt_us,
-				 iocg->last_stat.indelay_us);
-
-	return pos;
+		seq_printf(s, " cost.wait=%llu cost.indebt=%llu cost.indelay=%llu",
+			iocg->last_stat.wait_us,
+			iocg->last_stat.indebt_us,
+			iocg->last_stat.indelay_us);
+	return true;
 }
 
 static u64 ioc_weight_prfill(struct seq_file *sf, struct blkg_policy_data *pd,

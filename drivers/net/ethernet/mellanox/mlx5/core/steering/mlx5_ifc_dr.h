@@ -8,12 +8,6 @@ enum {
 	MLX5DR_STE_LU_TYPE_DONT_CARE			= 0x0f,
 };
 
-enum mlx5dr_ste_entry_type {
-	MLX5DR_STE_TYPE_TX		= 1,
-	MLX5DR_STE_TYPE_RX		= 2,
-	MLX5DR_STE_TYPE_MODIFY_PKT	= 6,
-};
-
 struct mlx5_ifc_ste_general_bits {
 	u8         entry_type[0x4];
 	u8         reserved_at_4[0x4];

@@ -98,13 +98,6 @@ static irqreturn_t psc_dma_bcom_irq(int irq, void *_psc_dma_stream)
 	return IRQ_HANDLED;
 }
 
-static int psc_dma_hw_free(struct snd_soc_component *component,
-			   struct snd_pcm_substream *substream)
-{
-	snd_pcm_set_runtime_buffer(substream, NULL);
-	return 0;
-}
-
 /**
  * psc_dma_trigger: start and stop the DMA transfer.
  *
@@ -285,15 +278,6 @@ psc_dma_pointer(struct snd_soc_component *component,
 	return bytes_to_frames(substream->runtime, count);
 }
 
-static int psc_dma_hw_params(struct snd_soc_component *component,
-			     struct snd_pcm_substream *substream,
-			     struct snd_pcm_hw_params *params)
-{
-	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
-
-	return 0;
-}
-
 static int psc_dma_new(struct snd_soc_component *component,
 		       struct snd_soc_pcm_runtime *rtd)
 {
@@ -310,60 +294,17 @@ static int psc_dma_new(struct snd_soc_component *component,
 	if (rc)
 		return rc;
 
-	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
-		rc = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, pcm->card->dev,
-				size, &pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream->dma_buffer);
-		if (rc)
-			goto playback_alloc_err;
-	}
-
-	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
-		rc = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, pcm->card->dev,
-				size, &pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream->dma_buffer);
-		if (rc)
-			goto capture_alloc_err;
-	}
-
-	return 0;
-
- capture_alloc_err:
-	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream)
-		snd_dma_free_pages(&pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream->dma_buffer);
-
- playback_alloc_err:
-	dev_err(card->dev, "Cannot allocate buffer(s)\n");
-
-	return -ENOMEM;
-}
-
-static void psc_dma_free(struct snd_soc_component *component,
-			 struct snd_pcm *pcm)
-{
-	struct snd_pcm_substream *substream;
-	int stream;
-
-	dev_dbg(component->dev, "psc_dma_free(pcm=%p)\n", pcm);
-
-	for (stream = 0; stream < 2; stream++) {
-		substream = pcm->streams[stream].substream;
-		if (substream) {
-			snd_dma_free_pages(&substream->dma_buffer);
-			substream->dma_buffer.area = NULL;
-			substream->dma_buffer.addr = 0;
-		}
-	}
+	return snd_pcm_set_fixed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, card->dev,
+					    size);
 }
 
 static const struct snd_soc_component_driver mpc5200_audio_dma_component = {
 	.name		= DRV_NAME,
 	.open		= psc_dma_open,
 	.close		= psc_dma_close,
-	.hw_free	= psc_dma_hw_free,
 	.pointer	= psc_dma_pointer,
 	.trigger	= psc_dma_trigger,
-	.hw_params	= psc_dma_hw_params,
 	.pcm_construct	= psc_dma_new,
-	.pcm_destruct	= psc_dma_free,
 };
 
 int mpc5200_audio_dma_create(struct platform_device *op)

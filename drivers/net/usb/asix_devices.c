@@ -197,7 +197,7 @@ static const struct net_device_ops ax88172_netdev_ops = {
 	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= asix_ioctl,
+	.ndo_eth_ioctl		= asix_ioctl,
 	.ndo_set_rx_mode	= ax88172_set_multicast,
 };
 
@@ -587,7 +587,7 @@ static const struct net_device_ops ax88772_netdev_ops = {
 	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_set_mac_address 	= asix_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= phy_do_ioctl_running,
+	.ndo_eth_ioctl		= phy_do_ioctl_running,
 	.ndo_set_rx_mode        = asix_set_multicast,
 };
 
@@ -706,7 +706,6 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 	u8 buf[ETH_ALEN] = {0}, chipcode = 0;
 	struct asix_common_private *priv;
 	int ret, i;
-	u32 phyid;
 
 	priv = devm_kzalloc(&dev->udev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -766,10 +765,6 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 		netdev_dbg(dev->net, "Failed to reset AX88772: %d\n", ret);
 		return ret;
 	}
-
-	/* Read PHYID register *AFTER* the PHY was reset properly */
-	phyid = asix_get_phyid(dev);
-	netdev_dbg(dev->net, "PHYID=0x%08x\n", phyid);
 
 	/* Asix framing packs multiple eth frames into a 2K usb bulk transfer */
 	if (dev->driver_info->flags & FLAG_FRAMING_AX) {
@@ -1105,7 +1100,7 @@ static const struct net_device_ops ax88178_netdev_ops = {
 	.ndo_set_mac_address 	= asix_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= asix_set_multicast,
-	.ndo_do_ioctl 		= asix_ioctl,
+	.ndo_eth_ioctl		= asix_ioctl,
 	.ndo_change_mtu 	= ax88178_change_mtu,
 };
 
@@ -1220,6 +1215,7 @@ static const struct driver_info ax88772b_info = {
 	.unbind = ax88772_unbind,
 	.status = asix_status,
 	.reset = ax88772_reset,
+	.stop = ax88772_stop,
 	.flags = FLAG_ETHER | FLAG_FRAMING_AX | FLAG_LINK_INTR |
 	         FLAG_MULTI_PACKET,
 	.rx_fixup = asix_rx_fixup_common,

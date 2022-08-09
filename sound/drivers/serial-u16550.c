@@ -115,7 +115,6 @@ struct snd_uart16550 {
 	int irq;
 
 	unsigned long base;
-	struct resource *res_base;
 
 	unsigned int speed;
 	unsigned int speed_base;
@@ -323,8 +322,7 @@ static int snd_uart16550_detect(struct snd_uart16550 *uart)
 		return -ENODEV;	/* Not configured */
 	}
 
-	uart->res_base = request_region(io_base, 8, "Serial MIDI");
-	if (uart->res_base == NULL) {
+	if (!devm_request_region(uart->card->dev, io_base, 8, "Serial MIDI")) {
 		snd_printk(KERN_ERR "u16550: can't grab port 0x%lx\n", io_base);
 		return -EBUSY;
 	}
@@ -752,21 +750,6 @@ static const struct snd_rawmidi_ops snd_uart16550_input =
 	.trigger =	snd_uart16550_input_trigger,
 };
 
-static int snd_uart16550_free(struct snd_uart16550 *uart)
-{
-	if (uart->irq >= 0)
-		free_irq(uart->irq, uart);
-	release_and_free_resource(uart->res_base);
-	kfree(uart);
-	return 0;
-};
-
-static int snd_uart16550_dev_free(struct snd_device *device)
-{
-	struct snd_uart16550 *uart = device->device_data;
-	return snd_uart16550_free(uart);
-}
-
 static int snd_uart16550_create(struct snd_card *card,
 				unsigned long iobase,
 				int irq,
@@ -776,14 +759,11 @@ static int snd_uart16550_create(struct snd_card *card,
 				int droponfull,
 				struct snd_uart16550 **ruart)
 {
-	static const struct snd_device_ops ops = {
-		.dev_free =	snd_uart16550_dev_free,
-	};
 	struct snd_uart16550 *uart;
 	int err;
 
 
-	uart = kzalloc(sizeof(*uart), GFP_KERNEL);
+	uart = devm_kzalloc(card->dev, sizeof(*uart), GFP_KERNEL);
 	if (!uart)
 		return -ENOMEM;
 	uart->adaptor = adaptor;
@@ -796,13 +776,12 @@ static int snd_uart16550_create(struct snd_card *card,
 	err = snd_uart16550_detect(uart);
 	if (err <= 0) {
 		printk(KERN_ERR "no UART detected at 0x%lx\n", iobase);
-		snd_uart16550_free(uart);
 		return -ENODEV;
 	}
 
 	if (irq >= 0 && irq != SNDRV_AUTO_IRQ) {
-		if (request_irq(irq, snd_uart16550_interrupt,
-				0, "Serial MIDI", uart)) {
+		if (devm_request_irq(card->dev, irq, snd_uart16550_interrupt,
+				     0, "Serial MIDI", uart)) {
 			snd_printk(KERN_WARNING
 				   "irq %d busy. Using Polling.\n", irq);
 		} else {
@@ -818,13 +797,6 @@ static int snd_uart16550_create(struct snd_card *card,
 	memset(uart->prev_status, 0x80, sizeof(unsigned char) * SNDRV_SERIAL_MAX_OUTS);
 	timer_setup(&uart->buffer_timer, snd_uart16550_buffer_timer, 0);
 	uart->timer_running = 0;
-
-	/* Register device */
-	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, uart, &ops);
-	if (err < 0) {
-		snd_uart16550_free(uart);
-		return err;
-	}
 
 	switch (uart->adaptor) {
 	case SNDRV_SERIAL_MS124W_SA:
@@ -927,8 +899,8 @@ static int snd_serial_probe(struct platform_device *devptr)
 		return -ENODEV;
 	}
 
-	err  = snd_card_new(&devptr->dev, index[dev], id[dev], THIS_MODULE,
-			    0, &card);
+	err  = snd_devm_card_new(&devptr->dev, index[dev], id[dev], THIS_MODULE,
+				 0, &card);
 	if (err < 0)
 		return err;
 
@@ -939,11 +911,11 @@ static int snd_serial_probe(struct platform_device *devptr)
 				   base[dev], adaptor[dev], droponfull[dev],
 				   &uart);
 	if (err < 0)
-		goto _err;
+		return err;
 
 	err = snd_uart16550_rmidi(uart, 0, outs[dev], ins[dev], &uart->rmidi);
 	if (err < 0)
-		goto _err;
+		return err;
 
 	sprintf(card->longname, "%s [%s] at %#lx, irq %d",
 		card->shortname,
@@ -953,19 +925,9 @@ static int snd_serial_probe(struct platform_device *devptr)
 
 	err = snd_card_register(card);
 	if (err < 0)
-		goto _err;
+		return err;
 
 	platform_set_drvdata(devptr, card);
-	return 0;
-
- _err:
-	snd_card_free(card);
-	return err;
-}
-
-static int snd_serial_remove(struct platform_device *devptr)
-{
-	snd_card_free(platform_get_drvdata(devptr));
 	return 0;
 }
 
@@ -973,7 +935,6 @@ static int snd_serial_remove(struct platform_device *devptr)
 
 static struct platform_driver snd_serial_driver = {
 	.probe		= snd_serial_probe,
-	.remove		=  snd_serial_remove,
 	.driver		= {
 		.name	= SND_SERIAL_DRIVER,
 	},

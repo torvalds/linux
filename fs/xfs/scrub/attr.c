@@ -25,11 +25,11 @@
  * reallocating the buffer if necessary.  Buffer contents are not preserved
  * across a reallocation.
  */
-int
+static int
 xchk_setup_xattr_buf(
 	struct xfs_scrub	*sc,
 	size_t			value_size,
-	xfs_km_flags_t		flags)
+	gfp_t			flags)
 {
 	size_t			sz;
 	struct xchk_xattr_buf	*ab = sc->buf;
@@ -57,7 +57,7 @@ xchk_setup_xattr_buf(
 	 * Don't zero the buffer upon allocation to avoid runtime overhead.
 	 * All users must be careful never to read uninitialized contents.
 	 */
-	ab = kmem_alloc_large(sizeof(*ab) + sz, flags);
+	ab = kvmalloc(sizeof(*ab) + sz, flags);
 	if (!ab)
 		return -ENOMEM;
 
@@ -79,7 +79,7 @@ xchk_setup_xattr(
 	 * without the inode lock held, which means we can sleep.
 	 */
 	if (sc->flags & XCHK_TRY_HARDER) {
-		error = xchk_setup_xattr_buf(sc, XATTR_SIZE_MAX, 0);
+		error = xchk_setup_xattr_buf(sc, XATTR_SIZE_MAX, GFP_KERNEL);
 		if (error)
 			return error;
 	}
@@ -138,7 +138,8 @@ xchk_xattr_listent(
 	 * doesn't work, we overload the seen_enough variable to convey
 	 * the error message back to the main scrub function.
 	 */
-	error = xchk_setup_xattr_buf(sx->sc, valuelen, KM_MAYFAIL);
+	error = xchk_setup_xattr_buf(sx->sc, valuelen,
+			GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (error == -ENOMEM)
 		error = -EDEADLOCK;
 	if (error) {
@@ -323,7 +324,8 @@ xchk_xattr_block(
 		return 0;
 
 	/* Allocate memory for block usage checking. */
-	error = xchk_setup_xattr_buf(ds->sc, 0, KM_MAYFAIL);
+	error = xchk_setup_xattr_buf(ds->sc, 0,
+			GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (error == -ENOMEM)
 		return -EDEADLOCK;
 	if (error)
@@ -334,7 +336,7 @@ xchk_xattr_block(
 	bitmap_zero(usedmap, mp->m_attr_geo->blksize);
 
 	/* Check all the padding. */
-	if (xfs_sb_version_hascrc(&ds->sc->mp->m_sb)) {
+	if (xfs_has_crc(ds->sc->mp)) {
 		struct xfs_attr3_leafblock	*leaf = bp->b_addr;
 
 		if (leaf->hdr.pad1 != 0 || leaf->hdr.pad2 != 0 ||

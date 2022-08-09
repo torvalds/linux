@@ -3403,6 +3403,7 @@ void unmap_mapping_pages(struct address_space *mapping, pgoff_t start,
 		unmap_mapping_range_tree(&mapping->i_mmap, &details);
 	i_mmap_unlock_write(mapping);
 }
+EXPORT_SYMBOL_GPL(unmap_mapping_pages);
 
 /**
  * unmap_mapping_range - unmap the portion of all mmaps in the specified
@@ -3903,6 +3904,15 @@ vm_fault_t do_set_pmd(struct vm_fault *vmf, struct page *page)
 
 	page = compound_head(page);
 	if (compound_order(page) != HPAGE_PMD_ORDER)
+		return ret;
+
+	/*
+	 * Just backoff if any subpage of a THP is corrupted otherwise
+	 * the corrupted page may mapped by PMD silently to escape the
+	 * check.  This kind of THP just can be PTE mapped.  Access to
+	 * the corrupted subpage should trigger SIGBUS as expected.
+	 */
+	if (unlikely(PageHasHWPoisoned(page)))
 		return ret;
 
 	/*

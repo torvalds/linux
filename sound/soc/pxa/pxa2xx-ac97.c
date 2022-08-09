@@ -202,15 +202,12 @@ static struct snd_soc_dai_driver pxa_ac97_dai_driver[] = {
 static const struct snd_soc_component_driver pxa_ac97_component = {
 	.name		= "pxa-ac97",
 	.pcm_construct	= pxa2xx_soc_pcm_new,
-	.pcm_destruct	= pxa2xx_soc_pcm_free,
 	.open		= pxa2xx_soc_pcm_open,
 	.close		= pxa2xx_soc_pcm_close,
 	.hw_params	= pxa2xx_soc_pcm_hw_params,
-	.hw_free	= pxa2xx_soc_pcm_hw_free,
 	.prepare	= pxa2xx_soc_pcm_prepare,
 	.trigger	= pxa2xx_soc_pcm_trigger,
 	.pointer	= pxa2xx_soc_pcm_pointer,
-	.mmap		= pxa2xx_soc_pcm_mmap,
 };
 
 #ifdef CONFIG_OF

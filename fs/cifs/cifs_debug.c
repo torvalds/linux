@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *   fs/cifs_debug.c
  *
  *   Copyright (C) International Business Machines  Corp., 2000,2005
  *
@@ -249,9 +248,6 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 #endif
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
 	seq_printf(m, ",ALLOW_INSECURE_LEGACY");
-#endif
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-	seq_printf(m, ",WEAK_PW_HASH");
 #endif
 #ifdef CONFIG_CIFS_POSIX
 	seq_printf(m, ",CIFS_POSIX");
@@ -929,14 +925,6 @@ cifs_security_flags_handle_must_flags(unsigned int *flags)
 		*flags = CIFSSEC_MUST_NTLMSSP;
 	else if ((*flags & CIFSSEC_MUST_NTLMV2) == CIFSSEC_MUST_NTLMV2)
 		*flags = CIFSSEC_MUST_NTLMV2;
-	else if ((*flags & CIFSSEC_MUST_NTLM) == CIFSSEC_MUST_NTLM)
-		*flags = CIFSSEC_MUST_NTLM;
-	else if (CIFSSEC_MUST_LANMAN &&
-		 (*flags & CIFSSEC_MUST_LANMAN) == CIFSSEC_MUST_LANMAN)
-		*flags = CIFSSEC_MUST_LANMAN;
-	else if (CIFSSEC_MUST_PLNTXT &&
-		 (*flags & CIFSSEC_MUST_PLNTXT) == CIFSSEC_MUST_PLNTXT)
-		*flags = CIFSSEC_MUST_PLNTXT;
 
 	*flags |= signflags;
 }

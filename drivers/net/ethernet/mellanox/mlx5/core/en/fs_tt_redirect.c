@@ -33,22 +33,22 @@ static char *fs_udp_type2str(enum fs_udp_type i)
 	}
 }
 
-static enum mlx5e_traffic_types fs_udp2tt(enum fs_udp_type i)
+static enum mlx5_traffic_types fs_udp2tt(enum fs_udp_type i)
 {
 	switch (i) {
 	case FS_IPV4_UDP:
-		return MLX5E_TT_IPV4_UDP;
+		return MLX5_TT_IPV4_UDP;
 	default: /* FS_IPV6_UDP */
-		return MLX5E_TT_IPV6_UDP;
+		return MLX5_TT_IPV6_UDP;
 	}
 }
 
-static enum fs_udp_type tt2fs_udp(enum mlx5e_traffic_types i)
+static enum fs_udp_type tt2fs_udp(enum mlx5_traffic_types i)
 {
 	switch (i) {
-	case MLX5E_TT_IPV4_UDP:
+	case MLX5_TT_IPV4_UDP:
 		return FS_IPV4_UDP;
-	case MLX5E_TT_IPV6_UDP:
+	case MLX5_TT_IPV6_UDP:
 		return FS_IPV6_UDP;
 	default:
 		return FS_UDP_NUM_TYPES;
@@ -75,7 +75,7 @@ static void fs_udp_set_dport_flow(struct mlx5_flow_spec *spec, enum fs_udp_type 
 
 struct mlx5_flow_handle *
 mlx5e_fs_tt_redirect_udp_add_rule(struct mlx5e_priv *priv,
-				  enum mlx5e_traffic_types ttc_type,
+				  enum mlx5_traffic_types ttc_type,
 				  u32 tir_num, u16 d_port)
 {
 	enum fs_udp_type type = tt2fs_udp(ttc_type);
@@ -124,7 +124,7 @@ static int fs_udp_add_default_rule(struct mlx5e_priv *priv, enum fs_udp_type typ
 	fs_udp = priv->fs.udp;
 	fs_udp_t = &fs_udp->tables[type];
 
-	dest = mlx5e_ttc_get_default_dest(priv, fs_udp2tt(type));
+	dest = mlx5_ttc_get_default_dest(priv->fs.ttc, fs_udp2tt(type));
 	rule = mlx5_add_flow_rules(fs_udp_t->t, NULL, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
@@ -259,7 +259,7 @@ static int fs_udp_disable(struct mlx5e_priv *priv)
 
 	for (i = 0; i < FS_UDP_NUM_TYPES; i++) {
 		/* Modify ttc rules destination to point back to the indir TIRs */
-		err = mlx5e_ttc_fwd_default_dest(priv, fs_udp2tt(i));
+		err = mlx5_ttc_fwd_default_dest(priv->fs.ttc, fs_udp2tt(i));
 		if (err) {
 			netdev_err(priv->netdev,
 				   "%s: modify ttc[%d] default destination failed, err(%d)\n",
@@ -281,7 +281,7 @@ static int fs_udp_enable(struct mlx5e_priv *priv)
 		dest.ft = priv->fs.udp->tables[i].t;
 
 		/* Modify ttc rules destination to point on the accel_fs FTs */
-		err = mlx5e_ttc_fwd_dest(priv, fs_udp2tt(i), &dest);
+		err = mlx5_ttc_fwd_dest(priv->fs.ttc, fs_udp2tt(i), &dest);
 		if (err) {
 			netdev_err(priv->netdev,
 				   "%s: modify ttc[%d] destination to accel failed, err(%d)\n",
@@ -401,7 +401,7 @@ static int fs_any_add_default_rule(struct mlx5e_priv *priv)
 	fs_any = priv->fs.any;
 	fs_any_t = &fs_any->table;
 
-	dest = mlx5e_ttc_get_default_dest(priv, MLX5E_TT_ANY);
+	dest = mlx5_ttc_get_default_dest(priv->fs.ttc, MLX5_TT_ANY);
 	rule = mlx5_add_flow_rules(fs_any_t->t, NULL, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
@@ -514,11 +514,11 @@ static int fs_any_disable(struct mlx5e_priv *priv)
 	int err;
 
 	/* Modify ttc rules destination to point back to the indir TIRs */
-	err = mlx5e_ttc_fwd_default_dest(priv, MLX5E_TT_ANY);
+	err = mlx5_ttc_fwd_default_dest(priv->fs.ttc, MLX5_TT_ANY);
 	if (err) {
 		netdev_err(priv->netdev,
 			   "%s: modify ttc[%d] default destination failed, err(%d)\n",
-			   __func__, MLX5E_TT_ANY, err);
+			   __func__, MLX5_TT_ANY, err);
 		return err;
 	}
 	return 0;
@@ -533,11 +533,11 @@ static int fs_any_enable(struct mlx5e_priv *priv)
 	dest.ft = priv->fs.any->table.t;
 
 	/* Modify ttc rules destination to point on the accel_fs FTs */
-	err = mlx5e_ttc_fwd_dest(priv, MLX5E_TT_ANY, &dest);
+	err = mlx5_ttc_fwd_dest(priv->fs.ttc, MLX5_TT_ANY, &dest);
 	if (err) {
 		netdev_err(priv->netdev,
 			   "%s: modify ttc[%d] destination to accel failed, err(%d)\n",
-			   __func__, MLX5E_TT_ANY, err);
+			   __func__, MLX5_TT_ANY, err);
 		return err;
 	}
 	return 0;

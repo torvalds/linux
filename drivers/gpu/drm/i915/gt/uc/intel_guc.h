@@ -6,12 +6,16 @@
 #ifndef _INTEL_GUC_H_
 #define _INTEL_GUC_H_
 
+#include <linux/xarray.h>
+#include <linux/delay.h>
+
 #include "intel_uncore.h"
 #include "intel_guc_fw.h"
 #include "intel_guc_fwif.h"
 #include "intel_guc_ct.h"
 #include "intel_guc_log.h"
 #include "intel_guc_reg.h"
+#include "intel_guc_slpc_types.h"
 #include "intel_uc_fw.h"
 #include "i915_utils.h"
 #include "i915_vma.h"
@@ -27,10 +31,17 @@ struct intel_guc {
 	struct intel_uc_fw fw;
 	struct intel_guc_log log;
 	struct intel_guc_ct ct;
+	struct intel_guc_slpc slpc;
+
+	/* Global engine used to submit requests to GuC */
+	struct i915_sched_engine *sched_engine;
+	struct i915_request *stalled_request;
 
 	/* intel_guc_recv interrupt related state */
 	spinlock_t irq_lock;
 	unsigned int msg_enabled_mask;
+
+	atomic_t outstanding_submission_g2h;
 
 	struct {
 		void (*reset)(struct intel_guc *guc);
@@ -38,13 +49,29 @@ struct intel_guc {
 		void (*disable)(struct intel_guc *guc);
 	} interrupts;
 
+	/*
+	 * contexts_lock protects the pool of free guc ids and a linked list of
+	 * guc ids available to be stolen
+	 */
+	spinlock_t contexts_lock;
+	struct ida guc_ids;
+	struct list_head guc_id_list;
+
+	bool submission_supported;
 	bool submission_selected;
+	bool rc_supported;
+	bool rc_selected;
 
 	struct i915_vma *ads_vma;
 	struct __guc_ads_blob *ads_blob;
+	u32 ads_regset_size;
+	u32 ads_golden_ctxt_size;
 
-	struct i915_vma *stage_desc_pool;
-	void *stage_desc_pool_vaddr;
+	struct i915_vma *lrc_desc_pool;
+	void *lrc_desc_pool_vaddr;
+
+	/* guc_id to intel_context lookup */
+	struct xarray context_lookup;
 
 	/* Control params for fw initialization */
 	u32 params[GUC_CTL_MAX_DWORDS];
@@ -74,7 +101,15 @@ static inline struct intel_guc *log_to_guc(struct intel_guc_log *log)
 static
 inline int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len)
 {
-	return intel_guc_ct_send(&guc->ct, action, len, NULL, 0);
+	return intel_guc_ct_send(&guc->ct, action, len, NULL, 0, 0);
+}
+
+static
+inline int intel_guc_send_nb(struct intel_guc *guc, const u32 *action, u32 len,
+			     u32 g2h_len_dw)
+{
+	return intel_guc_ct_send(&guc->ct, action, len, NULL, 0,
+				 MAKE_SEND_FLAGS(g2h_len_dw));
 }
 
 static inline int
@@ -82,7 +117,43 @@ intel_guc_send_and_receive(struct intel_guc *guc, const u32 *action, u32 len,
 			   u32 *response_buf, u32 response_buf_size)
 {
 	return intel_guc_ct_send(&guc->ct, action, len,
-				 response_buf, response_buf_size);
+				 response_buf, response_buf_size, 0);
+}
+
+static inline int intel_guc_send_busy_loop(struct intel_guc *guc,
+					   const u32 *action,
+					   u32 len,
+					   u32 g2h_len_dw,
+					   bool loop)
+{
+	int err;
+	unsigned int sleep_period_ms = 1;
+	bool not_atomic = !in_atomic() && !irqs_disabled();
+
+	/*
+	 * FIXME: Have caller pass in if we are in an atomic context to avoid
+	 * using in_atomic(). It is likely safe here as we check for irqs
+	 * disabled which basically all the spin locks in the i915 do but
+	 * regardless this should be cleaned up.
+	 */
+
+	/* No sleeping with spin locks, just busy loop */
+	might_sleep_if(loop && not_atomic);
+
+retry:
+	err = intel_guc_send_nb(guc, action, len, g2h_len_dw);
+	if (unlikely(err == -EBUSY && loop)) {
+		if (likely(not_atomic)) {
+			if (msleep_interruptible(sleep_period_ms))
+				return -EINTR;
+			sleep_period_ms = sleep_period_ms << 1;
+		} else {
+			cpu_relax();
+		}
+		goto retry;
+	}
+
+	return err;
 }
 
 static inline void intel_guc_to_host_event_handler(struct intel_guc *guc)
@@ -118,6 +189,7 @@ static inline u32 intel_guc_ggtt_offset(struct intel_guc *guc,
 }
 
 void intel_guc_init_early(struct intel_guc *guc);
+void intel_guc_init_late(struct intel_guc *guc);
 void intel_guc_init_send_regs(struct intel_guc *guc);
 void intel_guc_write_params(struct intel_guc *guc);
 int intel_guc_init(struct intel_guc *guc);
@@ -160,9 +232,25 @@ static inline bool intel_guc_is_ready(struct intel_guc *guc)
 	return intel_guc_is_fw_running(guc) && intel_guc_ct_enabled(&guc->ct);
 }
 
+static inline void intel_guc_reset_interrupts(struct intel_guc *guc)
+{
+	guc->interrupts.reset(guc);
+}
+
+static inline void intel_guc_enable_interrupts(struct intel_guc *guc)
+{
+	guc->interrupts.enable(guc);
+}
+
+static inline void intel_guc_disable_interrupts(struct intel_guc *guc)
+{
+	guc->interrupts.disable(guc);
+}
+
 static inline int intel_guc_sanitize(struct intel_guc *guc)
 {
 	intel_uc_fw_sanitize(&guc->fw);
+	intel_guc_disable_interrupts(guc);
 	intel_guc_ct_sanitize(&guc->ct);
 	guc->mmio_msg = 0;
 
@@ -183,8 +271,27 @@ static inline void intel_guc_disable_msg(struct intel_guc *guc, u32 mask)
 	spin_unlock_irq(&guc->irq_lock);
 }
 
-int intel_guc_reset_engine(struct intel_guc *guc,
-			   struct intel_engine_cs *engine);
+int intel_guc_wait_for_idle(struct intel_guc *guc, long timeout);
+
+int intel_guc_deregister_done_process_msg(struct intel_guc *guc,
+					  const u32 *msg, u32 len);
+int intel_guc_sched_done_process_msg(struct intel_guc *guc,
+				     const u32 *msg, u32 len);
+int intel_guc_context_reset_process_msg(struct intel_guc *guc,
+					const u32 *msg, u32 len);
+int intel_guc_engine_failure_process_msg(struct intel_guc *guc,
+					 const u32 *msg, u32 len);
+
+void intel_guc_find_hung_context(struct intel_engine_cs *engine);
+
+int intel_guc_global_policies_update(struct intel_guc *guc);
+
+void intel_guc_context_ban(struct intel_context *ce, struct i915_request *rq);
+
+void intel_guc_submission_reset_prepare(struct intel_guc *guc);
+void intel_guc_submission_reset(struct intel_guc *guc, bool stalled);
+void intel_guc_submission_reset_finish(struct intel_guc *guc);
+void intel_guc_submission_cancel_requests(struct intel_guc *guc);
 
 void intel_guc_load_status(struct intel_guc *guc, struct drm_printer *p);
 

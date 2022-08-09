@@ -1994,14 +1994,14 @@ setup_hw(struct hfc_pci *hc)
 	pci_set_master(hc->pdev);
 	if (!hc->irq) {
 		printk(KERN_WARNING "HFC-PCI: No IRQ for PCI card found\n");
-		return 1;
+		return -EINVAL;
 	}
 	hc->hw.pci_io =
 		(char __iomem *)(unsigned long)hc->pdev->resource[1].start;
 
 	if (!hc->hw.pci_io) {
 		printk(KERN_WARNING "HFC-PCI: No IO-Mem for PCI card found\n");
-		return 1;
+		return -ENOMEM;
 	}
 	/* Allocate memory for FIFOS */
 	/* the memory needs to be on a 32k boundary within the first 4G */
@@ -2012,7 +2012,7 @@ setup_hw(struct hfc_pci *hc)
 	if (!buffer) {
 		printk(KERN_WARNING
 		       "HFC-PCI: Error allocating memory for FIFO!\n");
-		return 1;
+		return -ENOMEM;
 	}
 	hc->hw.fifos = buffer;
 	pci_write_config_dword(hc->pdev, 0x80, hc->hw.dmahandle);
@@ -2022,7 +2022,7 @@ setup_hw(struct hfc_pci *hc)
 		       "HFC-PCI: Error in ioremap for PCI!\n");
 		dma_free_coherent(&hc->pdev->dev, 0x8000, hc->hw.fifos,
 				  hc->hw.dmahandle);
-		return 1;
+		return -ENOMEM;
 	}
 
 	printk(KERN_INFO

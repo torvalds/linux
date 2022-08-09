@@ -1046,7 +1046,7 @@
   {
     "EventCode": "0x4e010",
     "EventName": "PM_GCT_NOSLOT_IC_L3MISS",
-    "BriefDescription": "Gct empty for this thread due to icach l3 miss",
+    "BriefDescription": "Gct empty for this thread due to icache l3 miss",
     "PublicDescription": ""
   },
   {

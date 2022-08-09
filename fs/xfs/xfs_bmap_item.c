@@ -24,7 +24,6 @@
 #include "xfs_error.h"
 #include "xfs_log_priv.h"
 #include "xfs_log_recover.h"
-#include "xfs_quota.h"
 
 kmem_zone_t	*xfs_bui_zone;
 kmem_zone_t	*xfs_bud_zone;
@@ -487,17 +486,9 @@ xfs_bui_item_recover(
 			XFS_ATTR_FORK : XFS_DATA_FORK;
 	bui_type = bmap->me_flags & XFS_BMAP_EXTENT_TYPE_MASK;
 
-	/* Grab the inode. */
-	error = xfs_iget(mp, NULL, bmap->me_owner, 0, 0, &ip);
+	error = xlog_recover_iget(mp, bmap->me_owner, &ip);
 	if (error)
 		return error;
-
-	error = xfs_qm_dqattach(ip);
-	if (error)
-		goto err_rele;
-
-	if (VFS_I(ip)->i_nlink == 0)
-		xfs_iflags_set(ip, XFS_IRECOVERY);
 
 	/* Allocate transaction and do the work. */
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate,
@@ -522,6 +513,9 @@ xfs_bui_item_recover(
 	error = xfs_trans_log_finish_bmap_update(tp, budp, bui_type, ip,
 			whichfork, bmap->me_startoff, bmap->me_startblock,
 			&count, state);
+	if (error == -EFSCORRUPTED)
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bmap,
+				sizeof(*bmap));
 	if (error)
 		goto err_cancel;
 

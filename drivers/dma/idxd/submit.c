@@ -22,21 +22,13 @@ static struct idxd_desc *__get_desc(struct idxd_wq *wq, int idx, int cpu)
 		desc->hw->pasid = idxd->pasid;
 
 	/*
-	 * Descriptor completion vectors are 1...N for MSIX. We will round
-	 * robin through the N vectors.
+	 * On host, MSIX vecotr 0 is used for misc interrupt. Therefore when we match
+	 * vector 1:1 to the WQ id, we need to add 1
 	 */
-	wq->vec_ptr = desc->vector = (wq->vec_ptr % idxd->num_wq_irqs) + 1;
-	if (!idxd->int_handles) {
-		desc->hw->int_handle = wq->vec_ptr;
-	} else {
-		/*
-		 * int_handles are only for descriptor completion. However for device
-		 * MSIX enumeration, vec 0 is used for misc interrupts. Therefore even
-		 * though we are rotating through 1...N for descriptor interrupts, we
-		 * need to acqurie the int_handles from 0..N-1.
-		 */
-		desc->hw->int_handle = idxd->int_handles[desc->vector - 1];
-	}
+	if (!idxd->int_handles)
+		desc->hw->int_handle = wq->id + 1;
+	else
+		desc->hw->int_handle = idxd->int_handles[wq->id];
 
 	return desc;
 }
@@ -67,7 +59,7 @@ struct idxd_desc *idxd_alloc_desc(struct idxd_wq *wq, enum idxd_op_type optype)
 		if (signal_pending_state(TASK_INTERRUPTIBLE, current))
 			break;
 		idx = sbitmap_queue_get(sbq, &cpu);
-		if (idx > 0)
+		if (idx >= 0)
 			break;
 		schedule();
 	}
@@ -114,14 +106,13 @@ static void llist_abort_desc(struct idxd_wq *wq, struct idxd_irq_entry *ie,
 {
 	struct idxd_desc *d, *t, *found = NULL;
 	struct llist_node *head;
-	unsigned long flags;
 
 	desc->completion->status = IDXD_COMP_DESC_ABORT;
 	/*
 	 * Grab the list lock so it will block the irq thread handler. This allows the
 	 * abort code to locate the descriptor need to be aborted.
 	 */
-	spin_lock_irqsave(&ie->list_lock, flags);
+	spin_lock(&ie->list_lock);
 	head = llist_del_all(&ie->pending_llist);
 	if (head) {
 		llist_for_each_entry_safe(d, t, head, llnode) {
@@ -135,7 +126,7 @@ static void llist_abort_desc(struct idxd_wq *wq, struct idxd_irq_entry *ie,
 
 	if (!found)
 		found = list_abort_desc(wq, ie, desc);
-	spin_unlock_irqrestore(&ie->list_lock, flags);
+	spin_unlock(&ie->list_lock);
 
 	if (found)
 		complete_desc(found, IDXD_COMPLETE_ABORT);
@@ -148,13 +139,17 @@ int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 	void __iomem *portal;
 	int rc;
 
-	if (idxd->state != IDXD_DEV_ENABLED)
+	if (idxd->state != IDXD_DEV_ENABLED) {
+		idxd_free_desc(wq, desc);
 		return -EIO;
+	}
 
-	if (!percpu_ref_tryget_live(&wq->wq_active))
+	if (!percpu_ref_tryget_live(&wq->wq_active)) {
+		idxd_free_desc(wq, desc);
 		return -ENXIO;
+	}
 
-	portal = wq->portal;
+	portal = idxd_wq_portal_addr(wq);
 
 	/*
 	 * The wmb() flushes writes to coherent DMA data before
@@ -168,7 +163,7 @@ int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 	 * that we designated the descriptor to.
 	 */
 	if (desc->hw->flags & IDXD_OP_FLAG_RCI) {
-		ie = &idxd->irq_entries[desc->vector];
+		ie = &idxd->irq_entries[wq->id + 1];
 		llist_add(&desc->llnode, &ie->pending_llist);
 	}
 
@@ -183,8 +178,12 @@ int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 		 */
 		rc = enqcmds(portal, desc->hw);
 		if (rc < 0) {
+			percpu_ref_put(&wq->wq_active);
+			/* abort operation frees the descriptor */
 			if (ie)
 				llist_abort_desc(wq, ie, desc);
+			else
+				idxd_free_desc(wq, desc);
 			return rc;
 		}
 	}

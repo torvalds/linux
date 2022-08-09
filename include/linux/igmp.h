@@ -41,9 +41,6 @@ struct ip_sf_socklist {
 	__be32			sl_addr[];
 };
 
-#define IP_SFLSIZE(count)	(sizeof(struct ip_sf_socklist) + \
-	(count) * sizeof(__be32))
-
 #define IP_SFBLOCK	10	/* allocate this many at once */
 
 /* ip_mc_socklist is real list now. Speed is not argument;

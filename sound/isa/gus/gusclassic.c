@@ -135,7 +135,7 @@ static int snd_gusclassic_probe(struct device *dev, unsigned int n)
 	struct snd_gus_card *gus;
 	int error;
 
-	error = snd_card_new(dev, index[n], id[n], THIS_MODULE, 0, &card);
+	error = snd_devm_card_new(dev, index[n], id[n], THIS_MODULE, 0, &card);
 	if (error < 0)
 		return error;
 
@@ -144,37 +144,37 @@ static int snd_gusclassic_probe(struct device *dev, unsigned int n)
 
 	error = snd_gusclassic_create(card, dev, n, &gus);
 	if (error < 0)
-		goto out;
+		return error;
 
 	error = snd_gusclassic_detect(gus);
 	if (error < 0)
-		goto out;
+		return error;
 
 	gus->joystick_dac = joystick_dac[n];
 
 	error = snd_gus_initialize(gus);
 	if (error < 0)
-		goto out;
+		return error;
 
 	error = -ENODEV;
 	if (gus->max_flag || gus->ess_flag) {
 		dev_err(dev, "GUS Classic or ACE soundcard was "
 			"not detected at 0x%lx\n", gus->gf1.port);
-		goto out;
+		return error;
 	}
 
 	error = snd_gf1_new_mixer(gus);
 	if (error < 0)
-		goto out;
+		return error;
 
 	error = snd_gf1_pcm_new(gus, 0, 0);
 	if (error < 0)
-		goto out;
+		return error;
 
 	if (!gus->ace_flag) {
 		error = snd_gf1_rawmidi_new(gus, 0);
 		if (error < 0)
-			goto out;
+			return error;
 	}
 
 	sprintf(card->longname + strlen(card->longname),
@@ -187,27 +187,17 @@ static int snd_gusclassic_probe(struct device *dev, unsigned int n)
 
 	error = snd_card_register(card);
 	if (error < 0)
-		goto out;
+		return error;
 
 	dev_set_drvdata(dev, card);
 	return 0;
-
-out:	snd_card_free(card);
-	return error;
-}
-
-static void snd_gusclassic_remove(struct device *dev, unsigned int n)
-{
-	snd_card_free(dev_get_drvdata(dev));
 }
 
 static struct isa_driver snd_gusclassic_driver = {
 	.match		= snd_gusclassic_match,
 	.probe		= snd_gusclassic_probe,
-	.remove		= snd_gusclassic_remove,
 #if 0	/* FIXME */
 	.suspend	= snd_gusclassic_suspend,
-	.remove		= snd_gusclassic_remove,
 #endif
 	.driver		= {
 		.name	= DEV_NAME

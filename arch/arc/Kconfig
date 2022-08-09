@@ -49,9 +49,7 @@ config ARC
 	select PERF_USE_VMALLOC if ARC_CACHE_VIPT_ALIASING
 	select HAVE_ARCH_JUMP_LABEL if ISA_ARCV2 && !CPU_ENDIAN_BE32
 	select SET_FS
-
-config TRACE_IRQFLAGS_SUPPORT
-	def_bool y
+	select TRACE_IRQFLAGS_SUPPORT
 
 config LOCKDEP_SUPPORT
 	def_bool y
@@ -116,16 +114,9 @@ choice
 	default ARC_CPU_770 if ISA_ARCOMPACT
 	default ARC_CPU_HS if ISA_ARCV2
 
-if ISA_ARCOMPACT
-
-config ARC_CPU_750D
-	bool "ARC750D"
-	select ARC_CANT_LLSC
-	help
-	  Support for ARC750 core
-
 config ARC_CPU_770
 	bool "ARC770"
+	depends on ISA_ARCOMPACT
 	select ARC_HAS_SWAPE
 	help
 	  Support for ARC770 core introduced with Rel 4.10 (Summer 2011)
@@ -134,8 +125,6 @@ config ARC_CPU_770
 	           Shared Address Spaces (for sharing TLB entries in MMU)
 	  -Caches: New Prog Model, Region Flush
 	  -Insns: endian swap, load-locked/store-conditional, time-stamp-ctr
-
-endif #ISA_ARCOMPACT
 
 config ARC_CPU_HS
 	bool "ARC-HS"
@@ -274,32 +263,16 @@ config ARC_DCCM_BASE
 
 choice
 	prompt "MMU Version"
-	default ARC_MMU_V3 if ARC_CPU_770
-	default ARC_MMU_V2 if ARC_CPU_750D
-	default ARC_MMU_V4 if ARC_CPU_HS
-
-if ISA_ARCOMPACT
-
-config ARC_MMU_V1
-	bool "MMU v1"
-	help
-	  Orig ARC700 MMU
-
-config ARC_MMU_V2
-	bool "MMU v2"
-	help
-	  Fixed the deficiency of v1 - possible thrashing in memcpy scenario
-	  when 2 D-TLB and 1 I-TLB entries index into same 2way set.
+	default ARC_MMU_V3 if ISA_ARCOMPACT
+	default ARC_MMU_V4 if ISA_ARCV2
 
 config ARC_MMU_V3
 	bool "MMU v3"
-	depends on ARC_CPU_770
+	depends on ISA_ARCOMPACT
 	help
 	  Introduced with ARC700 4.10: New Features
 	  Variable Page size (1k-16k), var JTLB size 128 x (2 or 4)
 	  Shared Address Spaces (SASID)
-
-endif
 
 config ARC_MMU_V4
 	bool "MMU v4"
@@ -319,7 +292,6 @@ config ARC_PAGE_SIZE_8K
 
 config ARC_PAGE_SIZE_16K
 	bool "16KB"
-	depends on ARC_MMU_V3 || ARC_MMU_V4
 
 config ARC_PAGE_SIZE_4K
 	bool "4KB"
@@ -339,6 +311,10 @@ config ARC_HUGEPAGE_16M
 	bool "16MB"
 
 endchoice
+
+config PGTABLE_LEVELS
+	int "Number of Page table levels"
+	default 2
 
 config ARC_COMPACT_IRQ_LEVELS
 	depends on ISA_ARCOMPACT
@@ -562,9 +538,6 @@ config ARC_DW2_UNWIND
 	  but not slower, and it will give very useful debugging information.
 	  If you don't debug the kernel, you can say N, but we may not be able
 	  to solve problems without frame unwind information
-
-config ARC_DBG_TLB_PARANOIA
-	bool "Paranoia Checks in Low Level TLB Handlers"
 
 config ARC_DBG_JUMP_LABEL
 	bool "Paranoid checks in Static Keys (jump labels) code"

@@ -8,6 +8,12 @@
 #define SVLAN_ETHERTYPE		0x88a8
 #define DR_STE_ENABLE_FLOW_TAG	BIT(31)
 
+enum dr_ste_v0_entry_type {
+	DR_STE_TYPE_TX          = 1,
+	DR_STE_TYPE_RX          = 2,
+	DR_STE_TYPE_MODIFY_PKT  = 6,
+};
+
 enum dr_ste_v0_action_tunl {
 	DR_STE_TUNL_ACTION_NONE		= 0,
 	DR_STE_TUNL_ACTION_ENABLE	= 1,
@@ -292,8 +298,8 @@ static void dr_ste_v0_set_hit_addr(u8 *hw_ste_p, u64 icm_addr, u32 ht_size)
 	MLX5_SET(ste_general, hw_ste_p, next_table_base_31_5_size, index);
 }
 
-static void dr_ste_v0_init(u8 *hw_ste_p, u16 lu_type,
-			   u8 entry_type, u16 gvmi)
+static void dr_ste_v0_init_full(u8 *hw_ste_p, u16 lu_type,
+				enum dr_ste_v0_entry_type entry_type, u16 gvmi)
 {
 	dr_ste_v0_set_entry_type(hw_ste_p, entry_type);
 	dr_ste_v0_set_lu_type(hw_ste_p, lu_type);
@@ -305,6 +311,15 @@ static void dr_ste_v0_init(u8 *hw_ste_p, u16 lu_type,
 	MLX5_SET(ste_rx_steering_mult, hw_ste_p, gvmi, gvmi);
 	MLX5_SET(ste_rx_steering_mult, hw_ste_p, next_table_base_63_48, gvmi);
 	MLX5_SET(ste_rx_steering_mult, hw_ste_p, miss_address_63_48, gvmi);
+}
+
+static void dr_ste_v0_init(u8 *hw_ste_p, u16 lu_type,
+			   bool is_rx, u16 gvmi)
+{
+	enum dr_ste_v0_entry_type entry_type;
+
+	entry_type = is_rx ? DR_STE_TYPE_RX : DR_STE_TYPE_TX;
+	dr_ste_v0_init_full(hw_ste_p, lu_type, entry_type, gvmi);
 }
 
 static void dr_ste_v0_rx_set_flow_tag(u8 *hw_ste_p, u32 flow_tag)
@@ -380,13 +395,13 @@ static void dr_ste_v0_set_rewrite_actions(u8 *hw_ste_p, u16 num_of_actions,
 
 static void dr_ste_v0_arr_init_next(u8 **last_ste,
 				    u32 *added_stes,
-				    enum mlx5dr_ste_entry_type entry_type,
+				    enum dr_ste_v0_entry_type entry_type,
 				    u16 gvmi)
 {
 	(*added_stes)++;
 	*last_ste += DR_STE_SIZE;
-	dr_ste_v0_init(*last_ste, MLX5DR_STE_LU_TYPE_DONT_CARE,
-		       entry_type, gvmi);
+	dr_ste_v0_init_full(*last_ste, MLX5DR_STE_LU_TYPE_DONT_CARE,
+			    entry_type, gvmi);
 }
 
 static void
@@ -404,7 +419,7 @@ dr_ste_v0_set_actions_tx(struct mlx5dr_domain *dmn,
 	 * modify headers for outer headers only
 	 */
 	if (action_type_set[DR_ACTION_TYP_MODIFY_HDR]) {
-		dr_ste_v0_set_entry_type(last_ste, MLX5DR_STE_TYPE_MODIFY_PKT);
+		dr_ste_v0_set_entry_type(last_ste, DR_STE_TYPE_MODIFY_PKT);
 		dr_ste_v0_set_rewrite_actions(last_ste,
 					      attr->modify_actions,
 					      attr->modify_index);
@@ -417,7 +432,7 @@ dr_ste_v0_set_actions_tx(struct mlx5dr_domain *dmn,
 			if (i || action_type_set[DR_ACTION_TYP_MODIFY_HDR])
 				dr_ste_v0_arr_init_next(&last_ste,
 							added_stes,
-							MLX5DR_STE_TYPE_TX,
+							DR_STE_TYPE_TX,
 							attr->gvmi);
 
 			dr_ste_v0_set_tx_push_vlan(last_ste,
@@ -435,7 +450,7 @@ dr_ste_v0_set_actions_tx(struct mlx5dr_domain *dmn,
 		    action_type_set[DR_ACTION_TYP_PUSH_VLAN])
 			dr_ste_v0_arr_init_next(&last_ste,
 						added_stes,
-						MLX5DR_STE_TYPE_TX,
+						DR_STE_TYPE_TX,
 						attr->gvmi);
 
 		dr_ste_v0_set_tx_encap(last_ste,
@@ -469,7 +484,7 @@ dr_ste_v0_set_actions_rx(struct mlx5dr_domain *dmn,
 		dr_ste_v0_set_counter_id(last_ste, attr->ctr_id);
 
 	if (action_type_set[DR_ACTION_TYP_TNL_L3_TO_L2]) {
-		dr_ste_v0_set_entry_type(last_ste, MLX5DR_STE_TYPE_MODIFY_PKT);
+		dr_ste_v0_set_entry_type(last_ste, DR_STE_TYPE_MODIFY_PKT);
 		dr_ste_v0_set_rx_decap_l3(last_ste, attr->decap_with_vlan);
 		dr_ste_v0_set_rewrite_actions(last_ste,
 					      attr->decap_actions,
@@ -488,7 +503,7 @@ dr_ste_v0_set_actions_rx(struct mlx5dr_domain *dmn,
 			    action_type_set[DR_ACTION_TYP_TNL_L3_TO_L2])
 				dr_ste_v0_arr_init_next(&last_ste,
 							added_stes,
-							MLX5DR_STE_TYPE_RX,
+							DR_STE_TYPE_RX,
 							attr->gvmi);
 
 			dr_ste_v0_set_rx_pop_vlan(last_ste);
@@ -496,13 +511,13 @@ dr_ste_v0_set_actions_rx(struct mlx5dr_domain *dmn,
 	}
 
 	if (action_type_set[DR_ACTION_TYP_MODIFY_HDR]) {
-		if (dr_ste_v0_get_entry_type(last_ste) == MLX5DR_STE_TYPE_MODIFY_PKT)
+		if (dr_ste_v0_get_entry_type(last_ste) == DR_STE_TYPE_MODIFY_PKT)
 			dr_ste_v0_arr_init_next(&last_ste,
 						added_stes,
-						MLX5DR_STE_TYPE_MODIFY_PKT,
+						DR_STE_TYPE_MODIFY_PKT,
 						attr->gvmi);
 		else
-			dr_ste_v0_set_entry_type(last_ste, MLX5DR_STE_TYPE_MODIFY_PKT);
+			dr_ste_v0_set_entry_type(last_ste, DR_STE_TYPE_MODIFY_PKT);
 
 		dr_ste_v0_set_rewrite_actions(last_ste,
 					      attr->modify_actions,
@@ -510,10 +525,10 @@ dr_ste_v0_set_actions_rx(struct mlx5dr_domain *dmn,
 	}
 
 	if (action_type_set[DR_ACTION_TYP_TAG]) {
-		if (dr_ste_v0_get_entry_type(last_ste) == MLX5DR_STE_TYPE_MODIFY_PKT)
+		if (dr_ste_v0_get_entry_type(last_ste) == DR_STE_TYPE_MODIFY_PKT)
 			dr_ste_v0_arr_init_next(&last_ste,
 						added_stes,
-						MLX5DR_STE_TYPE_RX,
+						DR_STE_TYPE_RX,
 						attr->gvmi);
 
 		dr_ste_v0_rx_set_flow_tag(last_ste, attr->flow_tag);
@@ -1157,6 +1172,7 @@ dr_ste_v0_build_eth_ipv6_l3_l4_tag(struct mlx5dr_match_param *value,
 				   u8 *tag)
 {
 	struct mlx5dr_match_spec *spec = sb->inner ? &value->inner : &value->outer;
+	struct mlx5dr_match_misc *misc = &value->misc;
 
 	DR_STE_SET_TAG(eth_l4, tag, dst_port, spec, tcp_dport);
 	DR_STE_SET_TAG(eth_l4, tag, src_port, spec, tcp_sport);
@@ -1167,6 +1183,11 @@ dr_ste_v0_build_eth_ipv6_l3_l4_tag(struct mlx5dr_match_param *value,
 	DR_STE_SET_TAG(eth_l4, tag, dscp, spec, ip_dscp);
 	DR_STE_SET_TAG(eth_l4, tag, ecn, spec, ip_ecn);
 	DR_STE_SET_TAG(eth_l4, tag, ipv6_hop_limit, spec, ttl_hoplimit);
+
+	if (sb->inner)
+		DR_STE_SET_TAG(eth_l4, tag, flow_label, misc, inner_ipv6_flow_label);
+	else
+		DR_STE_SET_TAG(eth_l4, tag, flow_label, misc, outer_ipv6_flow_label);
 
 	if (spec->tcp_flags) {
 		DR_STE_SET_TCP_FLAGS(eth_l4, tag, spec);
@@ -1772,7 +1793,7 @@ dr_ste_v0_build_flex_parser_tnl_geneve_tlv_opt_init(struct mlx5dr_ste_build *sb,
 
 static int dr_ste_v0_build_flex_parser_tnl_gtpu_tag(struct mlx5dr_match_param *value,
 						    struct mlx5dr_ste_build *sb,
-						    uint8_t *tag)
+						    u8 *tag)
 {
 	struct mlx5dr_match_misc3 *misc3 = &value->misc3;
 
@@ -1802,7 +1823,7 @@ static void dr_ste_v0_build_flex_parser_tnl_gtpu_init(struct mlx5dr_ste_build *s
 static int
 dr_ste_v0_build_tnl_gtpu_flex_parser_0_tag(struct mlx5dr_match_param *value,
 					   struct mlx5dr_ste_build *sb,
-					   uint8_t *tag)
+					   u8 *tag)
 {
 	if (dr_is_flex_parser_0_id(sb->caps->flex_parser_id_gtpu_dw_0))
 		DR_STE_SET_FLEX_PARSER_FIELD(tag, gtpu_dw_0, sb->caps, &value->misc3);
@@ -1829,7 +1850,7 @@ dr_ste_v0_build_tnl_gtpu_flex_parser_0_init(struct mlx5dr_ste_build *sb,
 static int
 dr_ste_v0_build_tnl_gtpu_flex_parser_1_tag(struct mlx5dr_match_param *value,
 					   struct mlx5dr_ste_build *sb,
-					   uint8_t *tag)
+					   u8 *tag)
 {
 	if (dr_is_flex_parser_1_id(sb->caps->flex_parser_id_gtpu_dw_0))
 		DR_STE_SET_FLEX_PARSER_FIELD(tag, gtpu_dw_0, sb->caps, &value->misc3);

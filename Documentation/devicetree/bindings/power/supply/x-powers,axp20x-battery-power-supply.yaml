@@ -19,10 +19,14 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - x-powers,axp209-battery-power-supply
-      - x-powers,axp221-battery-power-supply
-      - x-powers,axp813-battery-power-supply
+    oneOf:
+      - const: x-powers,axp202-battery-power-supply
+      - const: x-powers,axp209-battery-power-supply
+      - const: x-powers,axp221-battery-power-supply
+      - items:
+          - const: x-powers,axp803-battery-power-supply
+          - const: x-powers,axp813-battery-power-supply
+      - const: x-powers,axp813-battery-power-supply
 
 required:
   - compatible

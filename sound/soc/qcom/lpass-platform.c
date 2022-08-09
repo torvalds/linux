@@ -156,8 +156,6 @@ static int lpass_platform_pcmops_open(struct snd_soc_component *component,
 		return -EINVAL;
 	}
 
-	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
-
 	return 0;
 }
 
@@ -630,16 +628,6 @@ static snd_pcm_uframes_t lpass_platform_pcmops_pointer(
 	return bytes_to_frames(substream->runtime, curr_addr - base_addr);
 }
 
-static int lpass_platform_pcmops_mmap(struct snd_soc_component *component,
-				      struct snd_pcm_substream *substream,
-				      struct vm_area_struct *vma)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-
-	return dma_mmap_coherent(component->dev, vma, runtime->dma_area,
-				 runtime->dma_addr, runtime->dma_bytes);
-}
-
 static irqreturn_t lpass_dma_interrupt_handler(
 			struct snd_pcm_substream *substream,
 			struct lpass_data *drvdata,
@@ -787,52 +775,10 @@ static int lpass_platform_pcm_new(struct snd_soc_component *component,
 				  struct snd_soc_pcm_runtime *soc_runtime)
 {
 	struct snd_pcm *pcm = soc_runtime->pcm;
-	struct snd_pcm_substream *psubstream, *csubstream;
-	int ret;
 	size_t size = lpass_platform_pcm_hardware.buffer_bytes_max;
 
-	psubstream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
-	if (psubstream) {
-		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
-					component->dev,
-					size, &psubstream->dma_buffer);
-		if (ret) {
-			dev_err(soc_runtime->dev, "Cannot allocate buffer(s)\n");
-			return ret;
-		}
-	}
-
-	csubstream = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
-	if (csubstream) {
-		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
-					component->dev,
-					size, &csubstream->dma_buffer);
-		if (ret) {
-			dev_err(soc_runtime->dev, "Cannot allocate buffer(s)\n");
-			if (psubstream)
-				snd_dma_free_pages(&psubstream->dma_buffer);
-			return ret;
-		}
-
-	}
-
-	return 0;
-}
-
-static void lpass_platform_pcm_free(struct snd_soc_component *component,
-				    struct snd_pcm *pcm)
-{
-	struct snd_pcm_substream *substream;
-	int i;
-
-	for_each_pcm_streams(i) {
-		substream = pcm->streams[i].substream;
-		if (substream) {
-			snd_dma_free_pages(&substream->dma_buffer);
-			substream->dma_buffer.area = NULL;
-			substream->dma_buffer.addr = 0;
-		}
-	}
+	return snd_pcm_set_fixed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+					    component->dev, size);
 }
 
 static int lpass_platform_pcmops_suspend(struct snd_soc_component *component)
@@ -877,9 +823,7 @@ static const struct snd_soc_component_driver lpass_component_driver = {
 	.prepare	= lpass_platform_pcmops_prepare,
 	.trigger	= lpass_platform_pcmops_trigger,
 	.pointer	= lpass_platform_pcmops_pointer,
-	.mmap		= lpass_platform_pcmops_mmap,
 	.pcm_construct	= lpass_platform_pcm_new,
-	.pcm_destruct	= lpass_platform_pcm_free,
 	.suspend		= lpass_platform_pcmops_suspend,
 	.resume			= lpass_platform_pcmops_resume,
 

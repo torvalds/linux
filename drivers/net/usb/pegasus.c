@@ -1001,7 +1001,8 @@ static const struct ethtool_ops ops = {
 	.set_link_ksettings = pegasus_set_link_ksettings,
 };
 
-static int pegasus_ioctl(struct net_device *net, struct ifreq *rq, int cmd)
+static int pegasus_siocdevprivate(struct net_device *net, struct ifreq *rq,
+				  void __user *udata, int cmd)
 {
 	__u16 *data = (__u16 *) &rq->ifr_ifru;
 	pegasus_t *pegasus = netdev_priv(net);
@@ -1269,7 +1270,7 @@ static int pegasus_resume(struct usb_interface *intf)
 static const struct net_device_ops pegasus_netdev_ops = {
 	.ndo_open =			pegasus_open,
 	.ndo_stop =			pegasus_close,
-	.ndo_do_ioctl =			pegasus_ioctl,
+	.ndo_siocdevprivate =		pegasus_siocdevprivate,
 	.ndo_start_xmit =		pegasus_start_xmit,
 	.ndo_set_rx_mode =		pegasus_set_multicast,
 	.ndo_tx_timeout =		pegasus_tx_timeout,

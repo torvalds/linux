@@ -15,3 +15,4 @@ obj-$(CONFIG_SH_DMAE) += shdma.o
 
 obj-$(CONFIG_RCAR_DMAC) += rcar-dmac.o
 obj-$(CONFIG_RENESAS_USB_DMAC) += usb-dmac.o
+obj-$(CONFIG_RZ_DMAC) += rz-dmac.o

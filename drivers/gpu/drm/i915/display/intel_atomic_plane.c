@@ -601,7 +601,12 @@ int intel_atomic_plane_check_clipping(struct intel_plane_state *plane_state,
 	return 0;
 }
 
-const struct drm_plane_helper_funcs intel_plane_helper_funcs = {
+static const struct drm_plane_helper_funcs intel_plane_helper_funcs = {
 	.prepare_fb = intel_prepare_plane_fb,
 	.cleanup_fb = intel_cleanup_plane_fb,
 };
+
+void intel_plane_helper_add(struct intel_plane *plane)
+{
+	drm_plane_helper_add(&plane->base, &intel_plane_helper_funcs);
+}

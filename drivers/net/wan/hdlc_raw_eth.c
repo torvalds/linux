@@ -20,7 +20,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
 
-static int raw_eth_ioctl(struct net_device *dev, struct ifreq *ifr);
+static int raw_eth_ioctl(struct net_device *dev, struct if_settings *ifs);
 
 static netdev_tx_t eth_tx(struct sk_buff *skb, struct net_device *dev)
 {
@@ -48,22 +48,22 @@ static struct hdlc_proto proto = {
 };
 
 
-static int raw_eth_ioctl(struct net_device *dev, struct ifreq *ifr)
+static int raw_eth_ioctl(struct net_device *dev, struct if_settings *ifs)
 {
-	raw_hdlc_proto __user *raw_s = ifr->ifr_settings.ifs_ifsu.raw_hdlc;
+	raw_hdlc_proto __user *raw_s = ifs->ifs_ifsu.raw_hdlc;
 	const size_t size = sizeof(raw_hdlc_proto);
 	raw_hdlc_proto new_settings;
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	unsigned int old_qlen;
 	int result;
 
-	switch (ifr->ifr_settings.type) {
+	switch (ifs->type) {
 	case IF_GET_PROTO:
 		if (dev_to_hdlc(dev)->proto != &proto)
 			return -EINVAL;
-		ifr->ifr_settings.type = IF_PROTO_HDLC_ETH;
-		if (ifr->ifr_settings.size < size) {
-			ifr->ifr_settings.size = size; /* data size wanted */
+		ifs->type = IF_PROTO_HDLC_ETH;
+		if (ifs->size < size) {
+			ifs->size = size; /* data size wanted */
 			return -ENOBUFS;
 		}
 		if (copy_to_user(raw_s, hdlc->state, size))

@@ -576,7 +576,7 @@ retry:
 
 			/* No one is going to touch shadow bb from now on. */
 			i915_gem_object_flush_map(bb->obj);
-			i915_gem_object_unlock(bb->obj);
+			i915_gem_ww_ctx_fini(&ww);
 		}
 	}
 	return 0;
@@ -630,7 +630,7 @@ retry:
 		return ret;
 	}
 
-	i915_gem_object_unlock(wa_ctx->indirect_ctx.obj);
+	i915_gem_ww_ctx_fini(&ww);
 
 	/* FIXME: we are not tracking our pinned VMA leaving it
 	 * up to the core to fix up the stray pin_count upon
@@ -1409,11 +1409,8 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 		intel_context_set_single_submission(ce);
 
 		/* Max ring buffer size */
-		if (!intel_uc_wants_guc_submission(&engine->gt->uc)) {
-			const unsigned int ring_size = 512 * SZ_4K;
-
-			ce->ring = __intel_context_ring_size(ring_size);
-		}
+		if (!intel_uc_wants_guc_submission(&engine->gt->uc))
+			ce->ring_size = SZ_2M;
 
 		s->shadow[i] = ce;
 	}

@@ -219,7 +219,7 @@ xlog_recover_validate_buf_type(
 	 * inconsistent state resulting in verification failures. Hence for now
 	 * just avoid the verification stage for non-crc filesystems
 	 */
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
+	if (!xfs_has_crc(mp))
 		return;
 
 	magic32 = be32_to_cpu(*(__be32 *)bp->b_addr);
@@ -497,7 +497,7 @@ xlog_recover_do_reg_buffer(
 			if (fa) {
 				xfs_alert(mp,
 	"dquot corrupt at %pS trying to replay into block 0x%llx",
-					fa, bp->b_bn);
+					fa, xfs_buf_daddr(bp));
 				goto next;
 			}
 		}
@@ -597,7 +597,7 @@ xlog_recover_do_inode_buffer(
 	 * Post recovery validation only works properly on CRC enabled
 	 * filesystems.
 	 */
-	if (xfs_sb_version_hascrc(&mp->m_sb))
+	if (xfs_has_crc(mp))
 		bp->b_ops = &xfs_inode_buf_ops;
 
 	inodes_per_buf = BBTOB(bp->b_length) >> mp->m_sb.sb_inodelog;
@@ -710,7 +710,7 @@ xlog_recover_get_buf_lsn(
 	uint16_t		blft;
 
 	/* v4 filesystems always recover immediately */
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
+	if (!xfs_has_crc(mp))
 		goto recover_immediately;
 
 	/*
@@ -787,7 +787,7 @@ xlog_recover_get_buf_lsn(
 		 * the relevant UUID in the superblock.
 		 */
 		lsn = be64_to_cpu(((struct xfs_dsb *)blk)->sb_lsn);
-		if (xfs_sb_version_hasmetauuid(&mp->m_sb))
+		if (xfs_has_metauuid(mp))
 			uuid = &((struct xfs_dsb *)blk)->sb_meta_uuid;
 		else
 			uuid = &((struct xfs_dsb *)blk)->sb_uuid;

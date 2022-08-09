@@ -757,7 +757,7 @@ EXPORT_SYMBOL(drm_kms_helper_poll_disable);
  * drm_kms_helper_poll_init - initialize and enable output polling
  * @dev: drm_device
  *
- * This function intializes and then also enables output polling support for
+ * This function initializes and then also enables output polling support for
  * @dev. Drivers which do not have reliable hotplug support in hardware can use
  * this helper infrastructure to regularly poll such connectors for changes in
  * their connection state.

@@ -8,13 +8,12 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_prime.h>
 
 #include "msm_drv.h"
 #include "msm_gem.h"
 #include "msm_kms.h"
 
-extern int msm_gem_mmap_obj(struct drm_gem_object *obj,
-					struct vm_area_struct *vma);
 static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma);
 
 /*
@@ -48,15 +47,8 @@ static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	struct drm_fb_helper *helper = (struct drm_fb_helper *)info->par;
 	struct msm_fbdev *fbdev = to_msm_fbdev(helper);
 	struct drm_gem_object *bo = msm_framebuffer_bo(fbdev->fb, 0);
-	int ret = 0;
 
-	ret = drm_gem_mmap_obj(bo, bo->size, vma);
-	if (ret) {
-		pr_err("%s:drm_gem_mmap_obj fail\n", __func__);
-		return ret;
-	}
-
-	return msm_gem_mmap_obj(bo, vma);
+	return drm_gem_prime_mmap(bo, vma);
 }
 
 static int msm_fbdev_create(struct drm_fb_helper *helper,
@@ -169,7 +161,7 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 	}
 
 	/* the fw fb could be anywhere in memory */
-	ret = drm_aperture_remove_framebuffers(false, "msm");
+	ret = drm_aperture_remove_framebuffers(false, dev->driver);
 	if (ret)
 		goto fini;
 

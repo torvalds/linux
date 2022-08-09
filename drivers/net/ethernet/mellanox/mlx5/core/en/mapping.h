@@ -24,4 +24,9 @@ struct mapping_ctx *mapping_create(size_t data_size, u32 max_id,
 				   bool delayed_removal);
 void mapping_destroy(struct mapping_ctx *ctx);
 
+/* adds mapping with an id or get an existing mapping with the same id
+ */
+struct mapping_ctx *
+mapping_create_for_id(u64 id, u8 type, size_t data_size, u32 max_id, bool delayed_removal);
+
 #endif /* __MLX5_MAPPING_H__ */

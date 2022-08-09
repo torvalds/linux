@@ -19,18 +19,18 @@
 #include "v9fs_vfs.h"
 #include "fid.h"
 
+static inline void __add_fid(struct dentry *dentry, struct p9_fid *fid)
+{
+	hlist_add_head(&fid->dlist, (struct hlist_head *)&dentry->d_fsdata);
+}
+
+
 /**
  * v9fs_fid_add - add a fid to a dentry
  * @dentry: dentry that the fid is being added to
  * @fid: fid to add
  *
  */
-
-static inline void __add_fid(struct dentry *dentry, struct p9_fid *fid)
-{
-	hlist_add_head(&fid->dlist, (struct hlist_head *)&dentry->d_fsdata);
-}
-
 void v9fs_fid_add(struct dentry *dentry, struct p9_fid *fid)
 {
 	spin_lock(&dentry->d_lock);
@@ -67,7 +67,7 @@ static struct p9_fid *v9fs_fid_find_inode(struct inode *inode, kuid_t uid)
 
 /**
  * v9fs_open_fid_add - add an open fid to an inode
- * @dentry: inode that the fid is being added to
+ * @inode: inode that the fid is being added to
  * @fid: fid to add
  *
  */

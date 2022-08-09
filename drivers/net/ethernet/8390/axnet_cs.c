@@ -128,7 +128,7 @@ static inline struct axnet_dev *PRIV(struct net_device *dev)
 static const struct net_device_ops axnet_netdev_ops = {
 	.ndo_open 		= axnet_open,
 	.ndo_stop		= axnet_close,
-	.ndo_do_ioctl		= axnet_ioctl,
+	.ndo_eth_ioctl		= axnet_ioctl,
 	.ndo_start_xmit		= axnet_start_xmit,
 	.ndo_tx_timeout		= axnet_tx_timeout,
 	.ndo_get_stats		= get_stats,

@@ -9,7 +9,6 @@
 #define __ASM_M68K_PROCESSOR_H
 
 #include <linux/thread_info.h>
-#include <asm/segment.h>
 #include <asm/fpu.h>
 #include <asm/ptrace.h>
 
@@ -75,11 +74,37 @@ static inline void wrusp(unsigned long usp)
 #define TASK_UNMAPPED_BASE	0
 #endif
 
+/* Address spaces (or Function Codes in Motorola lingo) */
+#define USER_DATA     1
+#define USER_PROGRAM  2
+#define SUPER_DATA    5
+#define SUPER_PROGRAM 6
+#define CPU_SPACE     7
+
+#ifdef CONFIG_CPU_HAS_ADDRESS_SPACES
+/*
+ * Set the SFC/DFC registers for special MM operations.  For most normal
+ * operation these remain set to USER_DATA for the uaccess routines.
+ */
+static inline void set_fc(unsigned long val)
+{
+	WARN_ON_ONCE(in_interrupt());
+
+	__asm__ __volatile__ ("movec %0,%/sfc\n\t"
+			      "movec %0,%/dfc\n\t"
+			      : /* no outputs */ : "r" (val) : "memory");
+}
+#else
+static inline void set_fc(unsigned long val)
+{
+}
+#endif /* CONFIG_CPU_HAS_ADDRESS_SPACES */
+
 struct thread_struct {
 	unsigned long  ksp;		/* kernel stack pointer */
 	unsigned long  usp;		/* user stack pointer */
 	unsigned short sr;		/* saved status register */
-	unsigned short fs;		/* saved fs (sfc, dfc) */
+	unsigned short fc;		/* saved fc (sfc, dfc) */
 	unsigned long  crp[2];		/* cpu root pointer */
 	unsigned long  esp0;		/* points to SR of stack frame */
 	unsigned long  faddr;		/* info about last fault */
@@ -92,7 +117,7 @@ struct thread_struct {
 #define INIT_THREAD  {							\
 	.ksp	= sizeof(init_stack) + (unsigned long) init_stack,	\
 	.sr	= PS_S,							\
-	.fs	= __KERNEL_DS,						\
+	.fc	= USER_DATA,						\
 }
 
 /*

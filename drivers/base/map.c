@@ -33,9 +33,9 @@ int kobj_map(struct kobj_map *domain, dev_t dev, unsigned long range,
 	     struct module *module, kobj_probe_t *probe,
 	     int (*lock)(dev_t, void *), void *data)
 {
-	unsigned n = MAJOR(dev + range - 1) - MAJOR(dev) + 1;
-	unsigned index = MAJOR(dev);
-	unsigned i;
+	unsigned int n = MAJOR(dev + range - 1) - MAJOR(dev) + 1;
+	unsigned int index = MAJOR(dev);
+	unsigned int i;
 	struct probe *p;
 
 	if (n > 255)
@@ -67,9 +67,9 @@ int kobj_map(struct kobj_map *domain, dev_t dev, unsigned long range,
 
 void kobj_unmap(struct kobj_map *domain, dev_t dev, unsigned long range)
 {
-	unsigned n = MAJOR(dev + range - 1) - MAJOR(dev) + 1;
-	unsigned index = MAJOR(dev);
-	unsigned i;
+	unsigned int n = MAJOR(dev + range - 1) - MAJOR(dev) + 1;
+	unsigned int index = MAJOR(dev);
+	unsigned int i;
 	struct probe *found = NULL;
 
 	if (n > 255)

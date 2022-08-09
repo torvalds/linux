@@ -342,12 +342,6 @@ static void nft_netdev_event(unsigned long event, struct net_device *dev,
 		return;
 	}
 
-	/* UNREGISTER events are also happening on netns exit.
-	 *
-	 * Although nf_tables core releases all tables/chains, only this event
-	 * handler provides guarantee that hook->ops.dev is still accessible,
-	 * so we cannot skip exiting net namespaces.
-	 */
 	__nft_release_basechain(ctx);
 }
 
@@ -364,6 +358,9 @@ static int nf_tables_netdev_event(struct notifier_block *this,
 
 	if (event != NETDEV_UNREGISTER &&
 	    event != NETDEV_CHANGENAME)
+		return NOTIFY_DONE;
+
+	if (!check_net(ctx.net))
 		return NOTIFY_DONE;
 
 	nft_net = nft_pernet(ctx.net);

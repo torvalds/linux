@@ -169,13 +169,11 @@ static int sunxi_rsb_device_probe(struct device *dev)
 	return drv->probe(rdev);
 }
 
-static int sunxi_rsb_device_remove(struct device *dev)
+static void sunxi_rsb_device_remove(struct device *dev)
 {
 	const struct sunxi_rsb_driver *drv = to_sunxi_rsb_driver(dev->driver);
 
 	drv->remove(to_sunxi_rsb_device(dev));
-
-	return 0;
 }
 
 static struct bus_type sunxi_rsb_bus = {

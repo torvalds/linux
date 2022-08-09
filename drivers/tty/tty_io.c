@@ -2290,8 +2290,6 @@ static int tty_fasync(int fd, struct file *filp, int on)
  *	Locking:
  *		Called functions take tty_ldiscs_lock
  *		current->signal->tty check is safe without locks
- *
- *	FIXME: may race normal receive processing
  */
 
 static int tiocsti(struct tty_struct *tty, char __user *p)
@@ -2307,8 +2305,10 @@ static int tiocsti(struct tty_struct *tty, char __user *p)
 	ld = tty_ldisc_ref_wait(tty);
 	if (!ld)
 		return -EIO;
+	tty_buffer_lock_exclusive(tty->port);
 	if (ld->ops->receive_buf)
 		ld->ops->receive_buf(tty, &ch, &mbz, 1);
+	tty_buffer_unlock_exclusive(tty->port);
 	tty_ldisc_deref(ld);
 	return 0;
 }
@@ -3437,19 +3437,6 @@ void tty_driver_kref_put(struct tty_driver *driver)
 	kref_put(&driver->kref, destruct_tty_driver);
 }
 EXPORT_SYMBOL(tty_driver_kref_put);
-
-void tty_set_operations(struct tty_driver *driver,
-			const struct tty_operations *op)
-{
-	driver->ops = op;
-};
-EXPORT_SYMBOL(tty_set_operations);
-
-void put_tty_driver(struct tty_driver *d)
-{
-	tty_driver_kref_put(d);
-}
-EXPORT_SYMBOL(put_tty_driver);
 
 /*
  * Called by a tty driver to register itself.

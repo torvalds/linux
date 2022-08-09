@@ -137,6 +137,20 @@ config COMPILE_TEST
 	  here. If you are a user/distributor, say N here to exclude useless
 	  drivers to be distributed.
 
+config WERROR
+	bool "Compile the kernel with warnings as errors"
+	default COMPILE_TEST
+	help
+	  A kernel build should not cause any compiler warnings, and this
+	  enables the '-Werror' flag to enforce that rule by default.
+
+	  However, if you have a new (or very old) compiler with odd and
+	  unusual warnings, or you have some architecture with problems,
+	  you may need to disable this config option in order to
+	  successfully build the kernel.
+
+	  If in doubt, say Y.
+
 config UAPI_HEADER_TEST
 	bool "Compile test UAPI headers"
 	depends on HEADERS_INSTALL && CC_CAN_LINK
@@ -774,6 +788,20 @@ config PRINTK_SAFE_LOG_BUF_SHIFT
 		     14 =>  16 KB for each CPU
 		     13 =>   8 KB for each CPU
 		     12 =>   4 KB for each CPU
+
+config PRINTK_INDEX
+	bool "Printk indexing debugfs interface"
+	depends on PRINTK && DEBUG_FS
+	help
+	  Add support for indexing of all printk formats known at compile time
+	  at <debugfs>/printk/index/<module>.
+
+	  This can be used as part of maintaining daemons which monitor
+	  /dev/kmsg, as it permits auditing the printk formats present in a
+	  kernel, allowing detection of cases where monitored printks are
+	  changed or no longer present.
+
+	  There is no additional runtime cost to printk with this enabled.
 
 #
 # Architectures with an unreliable sched_clock() should select this:
@@ -1508,11 +1536,6 @@ config PRINTK
 	  and makes the kernel more or less silent. As this makes it
 	  very difficult to diagnose system problems, saying N here is
 	  strongly discouraged.
-
-config PRINTK_NMI
-	def_bool y
-	depends on PRINTK
-	depends on HAVE_NMI
 
 config BUG
 	bool "BUG() support" if EXPERT

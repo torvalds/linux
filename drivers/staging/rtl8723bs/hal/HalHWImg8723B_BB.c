@@ -543,12 +543,12 @@ void ODM_ReadAndConfig_MP_8723B_PHY_REG(struct dm_odm_t *pDM_Odm)
 ******************************************************************************/
 
 static u32 Array_MP_8723B_PHY_REG_PG[] = {
-	0, 0, 0x00000e08, 0x0000ff00, 0x00003800,
-	0, 0, 0x0000086c, 0xffffff00, 0x32343600,
-	0, 0, 0x00000e00, 0xffffffff, 0x40424444,
-	0, 0, 0x00000e04, 0xffffffff, 0x28323638,
-	0, 0, 0x00000e10, 0xffffffff, 0x38404244,
-	0, 0, 0x00000e14, 0xffffffff, 0x26303436
+	0, 0x00000e08, 0x0000ff00, 0x00003800,
+	0, 0x0000086c, 0xffffff00, 0x32343600,
+	0, 0x00000e00, 0xffffffff, 0x40424444,
+	0, 0x00000e04, 0xffffffff, 0x28323638,
+	0, 0x00000e10, 0xffffffff, 0x38404244,
+	0, 0x00000e14, 0xffffffff, 0x26303436
 };
 
 void ODM_ReadAndConfig_MP_8723B_PHY_REG_PG(struct dm_odm_t *pDM_Odm)
@@ -559,13 +559,12 @@ void ODM_ReadAndConfig_MP_8723B_PHY_REG_PG(struct dm_odm_t *pDM_Odm)
 	pDM_Odm->PhyRegPgVersion = 1;
 	pDM_Odm->PhyRegPgValueType = PHY_REG_PG_EXACT_VALUE;
 
-	for (i = 0; i < ARRAY_SIZE(Array_MP_8723B_PHY_REG_PG); i += 5) {
+	for (i = 0; i < ARRAY_SIZE(Array_MP_8723B_PHY_REG_PG); i += 4) {
 		u32 v1 = Array[i];
 		u32 v2 = Array[i+1];
 		u32 v3 = Array[i+2];
 		u32 v4 = Array[i+3];
-		u32 v5 = Array[i+4];
 
-		odm_ConfigBB_PHY_REG_PG_8723B(pDM_Odm, v1, v2, v3, v4, v5);
+		odm_ConfigBB_PHY_REG_PG_8723B(pDM_Odm, v1, v2, v3, v4);
 	}
 }

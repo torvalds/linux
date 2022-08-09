@@ -637,9 +637,7 @@ static int panel_notify_sys(struct notifier_block *this, unsigned long code,
 }
 
 static struct notifier_block panel_notifier = {
-	panel_notify_sys,
-	NULL,
-	0
+	.notifier_call = panel_notify_sys,
 };
 
 int charlcd_register(struct charlcd *lcd)

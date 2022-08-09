@@ -80,6 +80,19 @@ config SWIOTLB
 	bool
 	select NEED_DMA_MAP_STATE
 
+config DMA_RESTRICTED_POOL
+	bool "DMA Restricted Pool"
+	depends on OF && OF_RESERVED_MEM && SWIOTLB
+	help
+	  This enables support for restricted DMA pools which provide a level of
+	  DMA memory protection on systems with limited hardware protection
+	  capabilities, such as those lacking an IOMMU.
+
+	  For more information see
+	  <Documentation/devicetree/bindings/reserved-memory/reserved-memory.txt>
+	  and <kernel/dma/swiotlb.c>.
+	  If unsure, say "n".
+
 #
 # Should be selected if we can mmap non-coherent mappings to userspace.
 # The only thing that is really required is a way to set an uncached bit
@@ -91,6 +104,10 @@ config DMA_NONCOHERENT_MMAP
 
 config DMA_COHERENT_POOL
 	select GENERIC_ALLOCATOR
+	bool
+
+config DMA_GLOBAL_POOL
+	select DMA_DECLARE_COHERENT
 	bool
 
 config DMA_REMAP

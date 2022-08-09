@@ -452,9 +452,9 @@ static void cfg80211_mgmt_registrations_update(struct wireless_dev *wdev)
 
 	lockdep_assert_held(&rdev->wiphy.mtx);
 
-	spin_lock_bh(&wdev->mgmt_registrations_lock);
+	spin_lock_bh(&rdev->mgmt_registrations_lock);
 	if (!wdev->mgmt_registrations_need_update) {
-		spin_unlock_bh(&wdev->mgmt_registrations_lock);
+		spin_unlock_bh(&rdev->mgmt_registrations_lock);
 		return;
 	}
 
@@ -479,7 +479,7 @@ static void cfg80211_mgmt_registrations_update(struct wireless_dev *wdev)
 	rcu_read_unlock();
 
 	wdev->mgmt_registrations_need_update = 0;
-	spin_unlock_bh(&wdev->mgmt_registrations_lock);
+	spin_unlock_bh(&rdev->mgmt_registrations_lock);
 
 	rdev_update_mgmt_frame_registrations(rdev, wdev, &upd);
 }
@@ -503,6 +503,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 				int match_len, bool multicast_rx,
 				struct netlink_ext_ack *extack)
 {
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct cfg80211_mgmt_registration *reg, *nreg;
 	int err = 0;
 	u16 mgmt_type;
@@ -548,7 +549,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 	if (!nreg)
 		return -ENOMEM;
 
-	spin_lock_bh(&wdev->mgmt_registrations_lock);
+	spin_lock_bh(&rdev->mgmt_registrations_lock);
 
 	list_for_each_entry(reg, &wdev->mgmt_registrations, list) {
 		int mlen = min(match_len, reg->match_len);
@@ -583,7 +584,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 		list_add(&nreg->list, &wdev->mgmt_registrations);
 	}
 	wdev->mgmt_registrations_need_update = 1;
-	spin_unlock_bh(&wdev->mgmt_registrations_lock);
+	spin_unlock_bh(&rdev->mgmt_registrations_lock);
 
 	cfg80211_mgmt_registrations_update(wdev);
 
@@ -591,7 +592,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 
  out:
 	kfree(nreg);
-	spin_unlock_bh(&wdev->mgmt_registrations_lock);
+	spin_unlock_bh(&rdev->mgmt_registrations_lock);
 
 	return err;
 }
@@ -602,7 +603,7 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlportid)
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct cfg80211_mgmt_registration *reg, *tmp;
 
-	spin_lock_bh(&wdev->mgmt_registrations_lock);
+	spin_lock_bh(&rdev->mgmt_registrations_lock);
 
 	list_for_each_entry_safe(reg, tmp, &wdev->mgmt_registrations, list) {
 		if (reg->nlportid != nlportid)
@@ -615,7 +616,7 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlportid)
 		schedule_work(&rdev->mgmt_registrations_update_wk);
 	}
 
-	spin_unlock_bh(&wdev->mgmt_registrations_lock);
+	spin_unlock_bh(&rdev->mgmt_registrations_lock);
 
 	if (nlportid && rdev->crit_proto_nlportid == nlportid) {
 		rdev->crit_proto_nlportid = 0;
@@ -628,15 +629,16 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlportid)
 
 void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev)
 {
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct cfg80211_mgmt_registration *reg, *tmp;
 
-	spin_lock_bh(&wdev->mgmt_registrations_lock);
+	spin_lock_bh(&rdev->mgmt_registrations_lock);
 	list_for_each_entry_safe(reg, tmp, &wdev->mgmt_registrations, list) {
 		list_del(&reg->list);
 		kfree(reg);
 	}
 	wdev->mgmt_registrations_need_update = 1;
-	spin_unlock_bh(&wdev->mgmt_registrations_lock);
+	spin_unlock_bh(&rdev->mgmt_registrations_lock);
 
 	cfg80211_mgmt_registrations_update(wdev);
 }
@@ -784,7 +786,7 @@ bool cfg80211_rx_mgmt_khz(struct wireless_dev *wdev, int freq, int sig_dbm,
 	data = buf + ieee80211_hdrlen(mgmt->frame_control);
 	data_len = len - ieee80211_hdrlen(mgmt->frame_control);
 
-	spin_lock_bh(&wdev->mgmt_registrations_lock);
+	spin_lock_bh(&rdev->mgmt_registrations_lock);
 
 	list_for_each_entry(reg, &wdev->mgmt_registrations, list) {
 		if (reg->frame_type != ftype)
@@ -808,7 +810,7 @@ bool cfg80211_rx_mgmt_khz(struct wireless_dev *wdev, int freq, int sig_dbm,
 		break;
 	}
 
-	spin_unlock_bh(&wdev->mgmt_registrations_lock);
+	spin_unlock_bh(&rdev->mgmt_registrations_lock);
 
 	trace_cfg80211_return_bool(result);
 	return result;

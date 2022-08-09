@@ -348,7 +348,10 @@ bool intel_dsc_source_support(const struct intel_crtc_state *crtc_state)
 	if (DISPLAY_VER(i915) >= 12)
 		return true;
 
-	if ((DISPLAY_VER(i915) >= 11 || IS_CANNONLAKE(i915)) && (pipe != PIPE_A || (cpu_transcoder == TRANSCODER_EDP || cpu_transcoder == TRANSCODER_DSI_0 || cpu_transcoder == TRANSCODER_DSI_1)))
+	if (DISPLAY_VER(i915) >= 11 &&
+	    (pipe != PIPE_A || cpu_transcoder == TRANSCODER_EDP ||
+	     cpu_transcoder == TRANSCODER_DSI_0 ||
+	     cpu_transcoder == TRANSCODER_DSI_1))
 		return true;
 
 	return false;

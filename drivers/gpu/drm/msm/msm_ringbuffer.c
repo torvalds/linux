@@ -7,10 +7,61 @@
 #include "msm_ringbuffer.h"
 #include "msm_gpu.h"
 
+static uint num_hw_submissions = 8;
+MODULE_PARM_DESC(num_hw_submissions, "The max # of jobs to write into ringbuffer (default 8)");
+module_param(num_hw_submissions, uint, 0600);
+
+static struct dma_fence *msm_job_dependency(struct drm_sched_job *job,
+		struct drm_sched_entity *s_entity)
+{
+	struct msm_gem_submit *submit = to_msm_submit(job);
+
+	if (!xa_empty(&submit->deps))
+		return xa_erase(&submit->deps, submit->last_dep++);
+
+	return NULL;
+}
+
+static struct dma_fence *msm_job_run(struct drm_sched_job *job)
+{
+	struct msm_gem_submit *submit = to_msm_submit(job);
+	struct msm_gpu *gpu = submit->gpu;
+
+	submit->hw_fence = msm_fence_alloc(submit->ring->fctx);
+
+	pm_runtime_get_sync(&gpu->pdev->dev);
+
+	/* TODO move submit path over to using a per-ring lock.. */
+	mutex_lock(&gpu->dev->struct_mutex);
+
+	msm_gpu_submit(gpu, submit);
+
+	mutex_unlock(&gpu->dev->struct_mutex);
+
+	pm_runtime_put(&gpu->pdev->dev);
+
+	return dma_fence_get(submit->hw_fence);
+}
+
+static void msm_job_free(struct drm_sched_job *job)
+{
+	struct msm_gem_submit *submit = to_msm_submit(job);
+
+	drm_sched_job_cleanup(job);
+	msm_gem_submit_put(submit);
+}
+
+const struct drm_sched_backend_ops msm_sched_ops = {
+	.dependency = msm_job_dependency,
+	.run_job = msm_job_run,
+	.free_job = msm_job_free
+};
+
 struct msm_ringbuffer *msm_ringbuffer_new(struct msm_gpu *gpu, int id,
 		void *memptrs, uint64_t memptrs_iova)
 {
 	struct msm_ringbuffer *ring;
+	long sched_timeout;
 	char name[32];
 	int ret;
 
@@ -32,7 +83,7 @@ struct msm_ringbuffer *msm_ringbuffer_new(struct msm_gpu *gpu, int id,
 
 	if (IS_ERR(ring->start)) {
 		ret = PTR_ERR(ring->start);
-		ring->start = 0;
+		ring->start = NULL;
 		goto fail;
 	}
 
@@ -45,13 +96,23 @@ struct msm_ringbuffer *msm_ringbuffer_new(struct msm_gpu *gpu, int id,
 	ring->memptrs = memptrs;
 	ring->memptrs_iova = memptrs_iova;
 
+	 /* currently managing hangcheck ourselves: */
+	sched_timeout = MAX_SCHEDULE_TIMEOUT;
+
+	ret = drm_sched_init(&ring->sched, &msm_sched_ops,
+			num_hw_submissions, 0, sched_timeout,
+			NULL, NULL, to_msm_bo(ring->bo)->name);
+	if (ret) {
+		goto fail;
+	}
+
 	INIT_LIST_HEAD(&ring->submits);
 	spin_lock_init(&ring->submit_lock);
 	spin_lock_init(&ring->preempt_lock);
 
 	snprintf(name, sizeof(name), "gpu-ring-%d", ring->id);
 
-	ring->fctx = msm_fence_context_alloc(gpu->dev, name);
+	ring->fctx = msm_fence_context_alloc(gpu->dev, &ring->memptrs->fence, name);
 
 	return ring;
 
@@ -65,9 +126,11 @@ void msm_ringbuffer_destroy(struct msm_ringbuffer *ring)
 	if (IS_ERR_OR_NULL(ring))
 		return;
 
+	drm_sched_fini(&ring->sched);
+
 	msm_fence_context_free(ring->fctx);
 
-	msm_gem_kernel_put(ring->bo, ring->gpu->aspace, false);
+	msm_gem_kernel_put(ring->bo, ring->gpu->aspace);
 
 	kfree(ring);
 }

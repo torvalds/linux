@@ -27,12 +27,12 @@
 #include <linux/list.h>
 #include <linux/sched.h>
 
+#include <drm/drm_fourcc.h>
 #include <drm/drm_mode_object.h>
 
 struct drm_clip_rect;
 struct drm_device;
 struct drm_file;
-struct drm_format_info;
 struct drm_framebuffer;
 struct drm_gem_object;
 
@@ -147,7 +147,7 @@ struct drm_framebuffer {
 	 * @pitches: Line stride per buffer. For userspace created object this
 	 * is copied from drm_mode_fb_cmd2.
 	 */
-	unsigned int pitches[4];
+	unsigned int pitches[DRM_FORMAT_MAX_PLANES];
 	/**
 	 * @offsets: Offset from buffer start to the actual pixel data in bytes,
 	 * per buffer. For userspace created object this is copied from
@@ -165,7 +165,7 @@ struct drm_framebuffer {
 	 * data (even for linear buffers). Specifying an x/y pixel offset is
 	 * instead done through the source rectangle in &struct drm_plane_state.
 	 */
-	unsigned int offsets[4];
+	unsigned int offsets[DRM_FORMAT_MAX_PLANES];
 	/**
 	 * @modifier: Data layout modifier. This is used to describe
 	 * tiling, or also special layouts (like compression) of auxiliary
@@ -210,7 +210,7 @@ struct drm_framebuffer {
 	 * This is used by the GEM framebuffer helpers, see e.g.
 	 * drm_gem_fb_create().
 	 */
-	struct drm_gem_object *obj[4];
+	struct drm_gem_object *obj[DRM_FORMAT_MAX_PLANES];
 };
 
 #define obj_to_fb(x) container_of(x, struct drm_framebuffer, base)

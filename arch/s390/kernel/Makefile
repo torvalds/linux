@@ -40,7 +40,7 @@ obj-y	+= sysinfo.o lgr.o os_info.o machine_kexec.o
 obj-y	+= runtime_instr.o cache.o fpu.o dumpstack.o guarded_storage.o sthyi.o
 obj-y	+= entry.o reipl.o relocate_kernel.o kdebugfs.o alternative.o
 obj-y	+= nospec-branch.o ipl_vmparm.o machine_kexec_reloc.o unwind_bc.o
-obj-y	+= smp.o
+obj-y	+= smp.o text_amode31.o
 
 extra-y				+= head64.o vmlinux.lds
 

@@ -19,12 +19,15 @@ properties:
       - maxim,max17047
       - maxim,max17050
       - maxim,max17055
+      - maxim,max77849-battery
 
   reg:
     maxItems: 1
 
   interrupts:
     maxItems: 1
+    description: |
+      The ALRT pin, an open-drain interrupt.
 
   maxim,rsns-microohm:
     $ref: /schemas/types.yaml#/definitions/uint32

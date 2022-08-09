@@ -884,7 +884,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 
 	vchiq_mmal_version(dev->instance, &major, &minor);
 
-	strcpy((char *)cap->driver, "bm2835 mmal");
+	strscpy(cap->driver, "bm2835 mmal", sizeof(cap->driver));
 	snprintf((char *)cap->card, sizeof(cap->card), "mmal service %d.%d",
 		 major, minor);
 

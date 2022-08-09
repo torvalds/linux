@@ -10,3 +10,4 @@ extern const struct lan9303_phy_ops lan9303_indirect_phy_ops;
 
 int lan9303_probe(struct lan9303 *chip, struct device_node *np);
 int lan9303_remove(struct lan9303 *chip);
+void lan9303_shutdown(struct lan9303 *chip);

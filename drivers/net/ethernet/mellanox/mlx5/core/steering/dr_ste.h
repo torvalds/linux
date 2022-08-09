@@ -146,7 +146,7 @@ struct mlx5dr_ste_ctx {
 
 	/* Getters and Setters */
 	void (*ste_init)(u8 *hw_ste_p, u16 lu_type,
-			 u8 entry_type, u16 gvmi);
+			 bool is_rx, u16 gvmi);
 	void (*set_next_lu_type)(u8 *hw_ste_p, u16 lu_type);
 	u16  (*get_next_lu_type)(u8 *hw_ste_p);
 	void (*set_miss_addr)(u8 *hw_ste_p, u64 miss_addr);

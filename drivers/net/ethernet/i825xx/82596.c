@@ -1110,9 +1110,6 @@ static void print_eth(unsigned char *add, char *str)
 	       add, add + 6, add, add[12], add[13], str);
 }
 
-static int io = 0x300;
-static int irq = 10;
-
 static const struct net_device_ops i596_netdev_ops = {
 	.ndo_open 		= i596_open,
 	.ndo_stop		= i596_close,
@@ -1123,7 +1120,7 @@ static const struct net_device_ops i596_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-struct net_device * __init i82596_probe(int unit)
+static struct net_device * __init i82596_probe(void)
 {
 	struct net_device *dev;
 	int i;
@@ -1140,14 +1137,6 @@ struct net_device * __init i82596_probe(int unit)
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
-	if (unit >= 0) {
-		sprintf(dev->name, "eth%d", unit);
-		netdev_boot_setup_check(dev);
-	} else {
-		dev->base_addr = io;
-		dev->irq = irq;
-	}
-
 #ifdef ENABLE_MVME16x_NET
 	if (MACH_IS_MVME16x) {
 		if (mvme16x_config & MVME16x_CONFIG_NO_ETHERNET) {
@@ -1155,7 +1144,7 @@ struct net_device * __init i82596_probe(int unit)
 			err = -ENODEV;
 			goto out;
 		}
-		memcpy(eth_addr, (void *) 0xfffc1f2c, ETH_ALEN);	/* YUCK! Get addr from NOVRAM */
+		memcpy(eth_addr, absolute_pointer(0xfffc1f2c), ETH_ALEN); /* YUCK! Get addr from NOVRAM */
 		dev->base_addr = MVME_I596_BASE;
 		dev->irq = (unsigned) MVME16x_IRQ_I596;
 		goto found;
@@ -1515,22 +1504,22 @@ static void set_multicast_list(struct net_device *dev)
 	}
 }
 
-#ifdef MODULE
 static struct net_device *dev_82596;
 
 static int debug = -1;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "i82596 debug mask");
 
-int __init init_module(void)
+static int __init i82596_init(void)
 {
 	if (debug >= 0)
 		i596_debug = debug;
-	dev_82596 = i82596_probe(-1);
+	dev_82596 = i82596_probe();
 	return PTR_ERR_OR_ZERO(dev_82596);
 }
+module_init(i82596_init);
 
-void __exit cleanup_module(void)
+static void __exit i82596_cleanup(void)
 {
 	unregister_netdev(dev_82596);
 #ifdef __mc68000__
@@ -1544,5 +1533,4 @@ void __exit cleanup_module(void)
 	free_page ((u32)(dev_82596->mem_start));
 	free_netdev(dev_82596);
 }
-
-#endif				/* MODULE */
+module_exit(i82596_cleanup);

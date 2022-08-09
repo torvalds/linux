@@ -4,7 +4,6 @@
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#define _RTW_IOCTL_SET_C_
 
 #include <drv_types.h>
 #include <rtw_debug.h>
@@ -27,7 +26,7 @@ u8 rtw_validate_ssid(struct ndis_802_11_ssid *ssid)
 {
 	u8 ret = true;
 
-	if (ssid->SsidLength > 32) {
+	if (ssid->ssid_length > 32) {
 		ret = false;
 		goto exit;
 	}
@@ -93,9 +92,9 @@ u8 rtw_do_join(struct adapter *padapter)
 
 				pmlmepriv->fw_state = WIFI_ADHOC_MASTER_STATE;
 
-				pibss = padapter->registrypriv.dev_network.MacAddress;
+				pibss = padapter->registrypriv.dev_network.mac_address;
 
-				memcpy(&pdev_network->Ssid, &pmlmepriv->assoc_ssid, sizeof(struct ndis_802_11_ssid));
+				memcpy(&pdev_network->ssid, &pmlmepriv->assoc_ssid, sizeof(struct ndis_802_11_ssid));
 
 				rtw_update_registrypriv_dev_network(padapter);
 
@@ -135,70 +134,6 @@ exit:
 	return ret;
 }
 
-u8 rtw_set_802_11_bssid(struct adapter *padapter, u8 *bssid)
-{
-	u8 status = _SUCCESS;
-
-	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-
-	netdev_dbg(padapter->pnetdev, "set bssid:%pM\n", bssid);
-
-	if ((bssid[0] == 0x00 && bssid[1] == 0x00 && bssid[2] == 0x00 && bssid[3] == 0x00 && bssid[4] == 0x00 && bssid[5] == 0x00) ||
-	    (bssid[0] == 0xFF && bssid[1] == 0xFF && bssid[2] == 0xFF && bssid[3] == 0xFF && bssid[4] == 0xFF && bssid[5] == 0xFF)) {
-		status = _FAIL;
-		goto exit;
-	}
-
-	spin_lock_bh(&pmlmepriv->lock);
-
-
-	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) == true)
-		goto handle_tkip_countermeasure;
-	else if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING) == true)
-		goto release_mlme_lock;
-
-	if (check_fwstate(pmlmepriv, _FW_LINKED|WIFI_ADHOC_MASTER_STATE) == true) {
-		if (!memcmp(&pmlmepriv->cur_network.network.MacAddress, bssid, ETH_ALEN)) {
-			if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) == false)
-				goto release_mlme_lock;/* it means driver is in WIFI_ADHOC_MASTER_STATE, we needn't create bss again. */
-		} else {
-			rtw_disassoc_cmd(padapter, 0, true);
-
-			if (check_fwstate(pmlmepriv, _FW_LINKED) == true)
-				rtw_indicate_disconnect(padapter);
-
-			rtw_free_assoc_resources(padapter, 1);
-
-			if ((check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true)) {
-				_clr_fwstate_(pmlmepriv, WIFI_ADHOC_MASTER_STATE);
-				set_fwstate(pmlmepriv, WIFI_ADHOC_STATE);
-			}
-		}
-	}
-
-handle_tkip_countermeasure:
-	if (rtw_handle_tkip_countermeasure(padapter, __func__) == _FAIL) {
-		status = _FAIL;
-		goto release_mlme_lock;
-	}
-
-	memset(&pmlmepriv->assoc_ssid, 0, sizeof(struct ndis_802_11_ssid));
-	memcpy(&pmlmepriv->assoc_bssid, bssid, ETH_ALEN);
-	pmlmepriv->assoc_by_bssid = true;
-
-	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) == true)
-		pmlmepriv->to_join = true;
-	else
-		status = rtw_do_join(padapter);
-
-release_mlme_lock:
-	spin_unlock_bh(&pmlmepriv->lock);
-
-exit:
-
-	return status;
-}
-
 u8 rtw_set_802_11_ssid(struct adapter *padapter, struct ndis_802_11_ssid *ssid)
 {
 	u8 status = _SUCCESS;
@@ -207,7 +142,7 @@ u8 rtw_set_802_11_ssid(struct adapter *padapter, struct ndis_802_11_ssid *ssid)
 	struct wlan_network *pnetwork = &pmlmepriv->cur_network;
 
 	netdev_dbg(padapter->pnetdev, "set ssid [%s] fw_state = 0x%08x\n",
-		   ssid->Ssid, get_fwstate(pmlmepriv));
+		   ssid->ssid, get_fwstate(pmlmepriv));
 
 	if (padapter->hw_init_completed == false) {
 		status = _FAIL;
@@ -222,8 +157,8 @@ u8 rtw_set_802_11_ssid(struct adapter *padapter, struct ndis_802_11_ssid *ssid)
 		goto release_mlme_lock;
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED|WIFI_ADHOC_MASTER_STATE) == true) {
-		if ((pmlmepriv->assoc_ssid.SsidLength == ssid->SsidLength) &&
-		    (!memcmp(&pmlmepriv->assoc_ssid.Ssid, ssid->Ssid, ssid->SsidLength))) {
+		if ((pmlmepriv->assoc_ssid.ssid_length == ssid->ssid_length) &&
+		    (!memcmp(&pmlmepriv->assoc_ssid.ssid, ssid->ssid, ssid->ssid_length))) {
 			if ((check_fwstate(pmlmepriv, WIFI_STATION_STATE) == false)) {
 				if (rtw_is_same_ibss(padapter, pnetwork) == false) {
 					/* if in WIFI_ADHOC_MASTER_STATE | WIFI_ADHOC_STATE, create bss or rejoin again */
@@ -354,7 +289,7 @@ u8 rtw_set_802_11_infrastructure_mode(struct adapter *padapter,
 {
 	struct	mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct	wlan_network	*cur_network = &pmlmepriv->cur_network;
-	enum ndis_802_11_network_infrastructure *pold_state = &(cur_network->network.InfrastructureMode);
+	enum ndis_802_11_network_infrastructure *pold_state = &(cur_network->network.infrastructure_mode);
 
 	if (*pold_state != networktype) {
 		if (*pold_state == Ndis802_11APMode) {
@@ -450,10 +385,8 @@ u8 rtw_set_802_11_bssid_list_scan(struct adapter *padapter, struct ndis_802_11_s
 		res = true;
 
 	} else {
-		if (rtw_is_scan_deny(padapter)) {
-			indicate_wx_scan_complete_event(padapter);
+		if (rtw_is_scan_deny(padapter))
 			return _SUCCESS;
-		}
 
 		spin_lock_bh(&pmlmepriv->lock);
 
@@ -494,14 +427,14 @@ u8 rtw_set_802_11_add_wep(struct adapter *padapter, struct ndis_802_11_wep *wep)
 	struct security_priv *psecuritypriv = &(padapter->securitypriv);
 	u8 ret = _SUCCESS;
 
-	keyid = wep->KeyIndex & 0x3fffffff;
+	keyid = wep->key_index & 0x3fffffff;
 
 	if (keyid >= 4) {
 		ret = false;
 		goto exit;
 	}
 
-	switch (wep->KeyLength) {
+	switch (wep->key_length) {
 	case 5:
 		psecuritypriv->dot11PrivacyAlgrthm = _WEP40_;
 		break;
@@ -513,9 +446,9 @@ u8 rtw_set_802_11_add_wep(struct adapter *padapter, struct ndis_802_11_wep *wep)
 		break;
 	}
 
-	memcpy(&(psecuritypriv->dot11DefKey[keyid].skey[0]), &(wep->KeyMaterial), wep->KeyLength);
+	memcpy(&(psecuritypriv->dot11DefKey[keyid].skey[0]), &(wep->key_material), wep->key_length);
 
-	psecuritypriv->dot11DefKeylen[keyid] = wep->KeyLength;
+	psecuritypriv->dot11DefKeylen[keyid] = wep->key_length;
 
 	psecuritypriv->dot11PrivacyKeyIndex = keyid;
 
@@ -542,7 +475,6 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 	struct wlan_bssid_ex	*pcur_bss = &pmlmepriv->cur_network.network;
 	struct sta_info *psta = NULL;
 	u8 short_GI = 0;
-	u8 rf_type = 0;
 
 	if ((check_fwstate(pmlmepriv, _FW_LINKED) != true)
 		&& (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) != true))
@@ -554,16 +486,13 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 
 	short_GI = query_ra_short_GI(psta);
 
-	if (IsSupportedHT(psta->wireless_mode)) {
-		rtw_hal_get_hwreg(adapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
-
-		max_rate = rtw_mcs_rate(rf_type,
-					((psta->bw_mode == CHANNEL_WIDTH_40)?1:0),
+	if (is_supported_ht(psta->wireless_mode)) {
+		max_rate = rtw_mcs_rate(psta->bw_mode == CHANNEL_WIDTH_40 ? 1 : 0,
 					short_GI,
 					psta->htpriv.ht_cap.mcs.rx_mask);
 	} else {
-		while ((pcur_bss->SupportedRates[i] != 0) && (pcur_bss->SupportedRates[i] != 0xFF)) {
-			rate = pcur_bss->SupportedRates[i]&0x7F;
+		while ((pcur_bss->supported_rates[i] != 0) && (pcur_bss->supported_rates[i] != 0xFF)) {
+			rate = pcur_bss->supported_rates[i]&0x7F;
 			if (rate > max_rate)
 				max_rate = rate;
 			i++;

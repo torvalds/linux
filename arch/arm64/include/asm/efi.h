@@ -14,6 +14,7 @@
 
 #ifdef CONFIG_EFI
 extern void efi_init(void);
+extern void efifb_setup_from_dmi(struct screen_info *si, const char *opt);
 #else
 #define efi_init()
 #endif
@@ -82,10 +83,6 @@ static inline unsigned long efi_get_max_initrd_addr(unsigned long image_addr)
 #define alloc_screen_info(x...)		&screen_info
 
 static inline void free_screen_info(struct screen_info *si)
-{
-}
-
-static inline void efifb_setup_from_dmi(struct screen_info *si, const char *opt)
 {
 }
 

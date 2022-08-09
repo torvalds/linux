@@ -288,6 +288,8 @@ static int spinand_ondie_ecc_prepare_io_req(struct nand_device *nand,
 	struct spinand_device *spinand = nand_to_spinand(nand);
 	bool enable = (req->mode != MTD_OPS_RAW);
 
+	memset(spinand->oobbuf, 0xff, nanddev_per_page_oobsize(nand));
+
 	/* Only enable or disable the engine */
 	return spinand_ecc_enable(spinand, enable);
 }
@@ -307,7 +309,7 @@ static int spinand_ondie_ecc_finish_io_req(struct nand_device *nand,
 	if (req->type == NAND_PAGE_WRITE)
 		return 0;
 
-	/* Finish a page write: check the status, report errors/bitflips */
+	/* Finish a page read: check the status, report errors/bitflips */
 	ret = spinand_check_ecc_status(spinand, engine_conf->status);
 	if (ret == -EBADMSG)
 		mtd->ecc_stats.failed++;

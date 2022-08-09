@@ -102,6 +102,9 @@ static int ql_status(struct path_selector *ps, struct dm_path *path,
 		case STATUSTYPE_TABLE:
 			DMEMIT("%u ", pi->repeat_count);
 			break;
+		case STATUSTYPE_IMA:
+			*result = '\0';
+			break;
 		}
 	}
 

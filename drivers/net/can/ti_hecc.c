@@ -786,6 +786,8 @@ static irqreturn_t ti_hecc_interrupt(int irq, void *dev_id)
 		int_status = hecc_read(priv, HECC_CANGIF0);
 	}
 
+	can_rx_offload_irq_finish(&priv->offload);
+
 	return IRQ_HANDLED;
 }
 

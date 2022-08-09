@@ -74,7 +74,6 @@ struct rtrs_clt_con {
 	u32			queue_num;
 	unsigned int		cpu;
 	struct mutex		con_mutex;
-	atomic_t		io_cnt;
 	int			cm_err;
 };
 
@@ -102,6 +101,7 @@ struct rtrs_clt_io_req {
 	unsigned int		usr_len;
 	void			*priv;
 	bool			in_use;
+	enum rtrs_mp_policy     mp_policy;
 	struct rtrs_clt_con	*con;
 	struct rtrs_sg_desc	*desc;
 	struct ib_sge		*sge;
@@ -230,10 +230,7 @@ int rtrs_clt_stats_migration_cnt_to_str(struct rtrs_clt_stats *stats, char *buf,
 					 size_t len);
 int rtrs_clt_reset_reconnects_stat(struct rtrs_clt_stats *stats, bool enable);
 int rtrs_clt_stats_reconnects_to_str(struct rtrs_clt_stats *stats, char *buf,
-				      size_t len);
-int rtrs_clt_reset_wc_comp_stats(struct rtrs_clt_stats *stats, bool enable);
-int rtrs_clt_stats_wc_completion_to_str(struct rtrs_clt_stats *stats, char *buf,
-					 size_t len);
+				     size_t len);
 int rtrs_clt_reset_rdma_stats(struct rtrs_clt_stats *stats, bool enable);
 ssize_t rtrs_clt_stats_rdma_to_str(struct rtrs_clt_stats *stats,
 				    char *page, size_t len);

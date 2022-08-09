@@ -325,10 +325,14 @@ static int dr_handle_pending_wc(struct mlx5dr_domain *dmn,
 
 	do {
 		ne = dr_poll_cq(send_ring->cq, 1);
-		if (ne < 0)
+		if (unlikely(ne < 0)) {
+			mlx5_core_warn_once(dmn->mdev, "SMFS QPN 0x%x is disabled/limited",
+					    send_ring->qp->qpn);
+			send_ring->err_state = true;
 			return ne;
-		else if (ne == 1)
+		} else if (ne == 1) {
 			send_ring->pending_wqe -= send_ring->signal_th;
+		}
 	} while (is_drain && send_ring->pending_wqe);
 
 	return 0;
@@ -360,6 +364,14 @@ static int dr_postsend_icm_data(struct mlx5dr_domain *dmn,
 	struct mlx5dr_send_ring *send_ring = dmn->send_ring;
 	u32 buff_offset;
 	int ret;
+
+	if (unlikely(dmn->mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR ||
+		     send_ring->err_state)) {
+		mlx5_core_dbg_once(dmn->mdev,
+				   "Skipping post send: QP err state: %d, device state: %d\n",
+				   send_ring->err_state, dmn->mdev->state);
+		return 0;
+	}
 
 	spin_lock(&send_ring->lock);
 
@@ -620,6 +632,7 @@ static int dr_cmd_modify_qp_rtr2rts(struct mlx5_core_dev *mdev,
 
 	MLX5_SET(qpc, qpc, retry_count, attr->retry_cnt);
 	MLX5_SET(qpc, qpc, rnr_retry, attr->rnr_retry);
+	MLX5_SET(qpc, qpc, primary_address_path.ack_timeout, 0x8); /* ~1ms */
 
 	MLX5_SET(rtr2rts_qp_in, in, opcode, MLX5_CMD_OP_RTR2RTS_QP);
 	MLX5_SET(rtr2rts_qp_in, in, qpn, dr_qp->qpn);
@@ -789,7 +802,7 @@ static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
 
 	cqc = MLX5_ADDR_OF(create_cq_in, in, cq_context);
 	MLX5_SET(cqc, cqc, log_cq_size, ilog2(ncqe));
-	MLX5_SET(cqc, cqc, c_eqn, eqn);
+	MLX5_SET(cqc, cqc, c_eqn_or_apu_element, eqn);
 	MLX5_SET(cqc, cqc, uar_page, uar->index);
 	MLX5_SET(cqc, cqc, log_page_size, cq->wq_ctrl.buf.page_shift -
 		 MLX5_ADAPTER_PAGE_SHIFT);

@@ -258,7 +258,7 @@ static void sysrq_handle_showallcpus(int key)
 	if (!trigger_all_cpu_backtrace()) {
 		struct pt_regs *regs = NULL;
 
-		if (in_irq())
+		if (in_hardirq())
 			regs = get_irq_regs();
 		if (regs) {
 			pr_info("CPU%d:\n", smp_processor_id());
@@ -280,7 +280,7 @@ static void sysrq_handle_showregs(int key)
 {
 	struct pt_regs *regs = NULL;
 
-	if (in_irq())
+	if (in_hardirq())
 		regs = get_irq_regs();
 	if (regs)
 		show_regs(regs);

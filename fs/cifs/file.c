@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LGPL-2.1
 /*
- *   fs/cifs/file.c
  *
  *   vfs operations that deal with files
  *
@@ -376,6 +375,8 @@ static void cifsFileInfo_put_final(struct cifsFileInfo *cifs_file)
 	struct cifsInodeInfo *cifsi = CIFS_I(inode);
 	struct cifsLockInfo *li, *tmp;
 	struct super_block *sb = inode->i_sb;
+
+	cifs_fscache_release_inode_cookie(inode);
 
 	/*
 	 * Delete any outstanding lock records. We'll lose them when the file
@@ -881,9 +882,12 @@ int cifs_close(struct inode *inode, struct file *file)
 		dclose = kmalloc(sizeof(struct cifs_deferred_close), GFP_KERNEL);
 		if ((cinode->oplock == CIFS_CACHE_RHW_FLG) &&
 		    cinode->lease_granted &&
+		    !test_bit(CIFS_INO_CLOSE_ON_LOCK, &cinode->flags) &&
 		    dclose) {
-			if (test_bit(CIFS_INO_MODIFIED_ATTR, &cinode->flags))
+			if (test_and_clear_bit(CIFS_INO_MODIFIED_ATTR, &cinode->flags)) {
 				inode->i_ctime = inode->i_mtime = current_time(inode);
+				cifs_fscache_update_inode_cookie(inode);
+			}
 			spin_lock(&cinode->deferred_lock);
 			cifs_add_deferred_close(cfile, dclose);
 			if (cfile->deferred_close_scheduled &&
@@ -1861,6 +1865,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *flock)
 	cifs_read_flock(flock, &type, &lock, &unlock, &wait_flag,
 			tcon->ses->server);
 	cifs_sb = CIFS_FILE_SB(file);
+	set_bit(CIFS_INO_CLOSE_ON_LOCK, &CIFS_I(d_inode(cfile->dentry))->flags);
 
 	if (cap_unix(tcon->ses) &&
 	    (CIFS_UNIX_FCNTL_CAP & le64_to_cpu(tcon->fsUnixInfo.Capability)) &&
@@ -3108,7 +3113,7 @@ static void collect_uncached_write_data(struct cifs_aio_ctx *ctx)
 	struct cifs_tcon *tcon;
 	struct cifs_sb_info *cifs_sb;
 	struct dentry *dentry = ctx->cfile->dentry;
-	int rc;
+	ssize_t rc;
 
 	tcon = tlink_tcon(ctx->cfile->tlink);
 	cifs_sb = CIFS_SB(dentry->d_sb);
@@ -4170,6 +4175,10 @@ static vm_fault_t
 cifs_page_mkwrite(struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
+	struct file *file = vmf->vma->vm_file;
+	struct inode *inode = file_inode(file);
+
+	cifs_fscache_wait_on_page_write(inode, page);
 
 	lock_page(page);
 	return VM_FAULT_LOCKED;
@@ -4235,13 +4244,16 @@ cifs_readv_complete(struct work_struct *work)
 		    (rdata->result == -EAGAIN && got_bytes)) {
 			flush_dcache_page(page);
 			SetPageUptodate(page);
-		}
+		} else
+			SetPageError(page);
 
 		unlock_page(page);
 
 		if (rdata->result == 0 ||
 		    (rdata->result == -EAGAIN && got_bytes))
 			cifs_readpage_to_fscache(rdata->mapping->host, page);
+		else
+			cifs_fscache_uncache_page(rdata->mapping->host, page);
 
 		got_bytes -= min_t(unsigned int, PAGE_SIZE, got_bytes);
 

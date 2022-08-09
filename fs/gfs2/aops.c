@@ -574,10 +574,9 @@ void adjust_fs_space(struct inode *inode)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
-	struct gfs2_inode *l_ip = GFS2_I(sdp->sd_sc_inode);
 	struct gfs2_statfs_change_host *m_sc = &sdp->sd_statfs_master;
 	struct gfs2_statfs_change_host *l_sc = &sdp->sd_statfs_local;
-	struct buffer_head *m_bh, *l_bh;
+	struct buffer_head *m_bh;
 	u64 fs_total, new_free;
 
 	if (gfs2_trans_begin(sdp, 2 * RES_STATFS, 0) != 0)
@@ -600,11 +599,7 @@ void adjust_fs_space(struct inode *inode)
 		(unsigned long long)new_free);
 	gfs2_statfs_change(sdp, new_free, new_free, 0);
 
-	if (gfs2_meta_inode_buffer(l_ip, &l_bh) != 0)
-		goto out2;
-	update_statfs(sdp, m_bh, l_bh);
-	brelse(l_bh);
-out2:
+	update_statfs(sdp, m_bh);
 	brelse(m_bh);
 out:
 	sdp->sd_rindex_uptodate = 0;

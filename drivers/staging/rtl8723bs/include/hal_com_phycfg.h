@@ -16,18 +16,6 @@ enum rate_section {
 	CCK = 0,
 	OFDM,
 	HT_MCS0_MCS7,
-	HT_MCS8_MCS15,
-	HT_MCS16_MCS23,
-	HT_MCS24_MCS31,
-};
-
-enum {
-	RF_1TX = 0,
-	RF_2TX,
-	RF_3TX,
-	RF_4TX,
-	RF_MAX_TX_NUM,
-	RF_TX_NUM_NONIMPLEMENT,
 };
 
 #define MAX_POWER_INDEX			0x3F
@@ -66,7 +54,7 @@ struct bb_register_def {
 
 };
 
-u8 PHY_GetTxPowerByRateBase(struct adapter *Adapter, u8 RfPath, u8 TxNum,
+u8 PHY_GetTxPowerByRateBase(struct adapter *Adapter, u8 RfPath,
 			    enum rate_section RateSection);
 
 u8 PHY_GetRateSectionIndexOfTxPowerByRate(struct adapter *padapter, u32	RegAddr,
@@ -81,9 +69,9 @@ u8 PHY_GetRateIndexOfTxPowerByRate(u8 Rate);
 void PHY_SetTxPowerIndexByRateSection(struct adapter *padapter, u8 RFPath, u8 Channel,
 				      u8 RateSection);
 
-s8 PHY_GetTxPowerByRate(struct adapter *padapter, u8 RFPath, u8	TxNum, u8 RateIndex);
+s8 PHY_GetTxPowerByRate(struct adapter *padapter, u8 RFPath, u8 RateIndex);
 
-void PHY_SetTxPowerByRate(struct adapter *padapter, u8 RFPath, u8 TxNum, u8 Rate,
+void PHY_SetTxPowerByRate(struct adapter *padapter, u8 RFPath, u8 Rate,
 			  s8 Value);
 
 void PHY_SetTxPowerLevelByPath(struct adapter *Adapter, u8 channel, u8 path);
@@ -94,7 +82,7 @@ void PHY_SetTxPowerIndexByRateArray(struct adapter *padapter, u8 RFPath,
 
 void PHY_InitTxPowerByRate(struct adapter *padapter);
 
-void PHY_StoreTxPowerByRate(struct adapter *padapter, u32 RfPath, u32 TxNum,
+void PHY_StoreTxPowerByRate(struct adapter *padapter, u32 RfPath,
 			    u32	RegAddr, u32 BitMask, u32 Data);
 
 void PHY_TxPowerByRateConfiguration(struct adapter *padapter);

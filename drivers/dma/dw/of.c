@@ -50,14 +50,9 @@ struct dw_dma_platform_data *dw_dma_parse_dt(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct dw_dma_platform_data *pdata;
-	u32 tmp, arr[DW_DMA_MAX_NR_MASTERS], mb[DW_DMA_MAX_NR_CHANNELS];
+	u32 tmp, arr[DW_DMA_MAX_NR_MASTERS];
 	u32 nr_masters;
 	u32 nr_channels;
-
-	if (!np) {
-		dev_err(&pdev->dev, "Missing DT data\n");
-		return NULL;
-	}
 
 	if (of_property_read_u32(np, "dma-masters", &nr_masters))
 		return NULL;
@@ -76,41 +71,29 @@ struct dw_dma_platform_data *dw_dma_parse_dt(struct platform_device *pdev)
 	pdata->nr_masters = nr_masters;
 	pdata->nr_channels = nr_channels;
 
-	if (!of_property_read_u32(np, "chan_allocation_order", &tmp))
-		pdata->chan_allocation_order = (unsigned char)tmp;
+	of_property_read_u32(np, "chan_allocation_order", &pdata->chan_allocation_order);
+	of_property_read_u32(np, "chan_priority", &pdata->chan_priority);
 
-	if (!of_property_read_u32(np, "chan_priority", &tmp))
-		pdata->chan_priority = tmp;
+	of_property_read_u32(np, "block_size", &pdata->block_size);
 
-	if (!of_property_read_u32(np, "block_size", &tmp))
-		pdata->block_size = tmp;
-
-	if (!of_property_read_u32_array(np, "data-width", arr, nr_masters)) {
-		for (tmp = 0; tmp < nr_masters; tmp++)
-			pdata->data_width[tmp] = arr[tmp];
-	} else if (!of_property_read_u32_array(np, "data_width", arr, nr_masters)) {
+	/* Try deprecated property first */
+	if (!of_property_read_u32_array(np, "data_width", arr, nr_masters)) {
 		for (tmp = 0; tmp < nr_masters; tmp++)
 			pdata->data_width[tmp] = BIT(arr[tmp] & 0x07);
 	}
 
-	if (!of_property_read_u32_array(np, "multi-block", mb, nr_channels)) {
-		for (tmp = 0; tmp < nr_channels; tmp++)
-			pdata->multi_block[tmp] = mb[tmp];
-	} else {
-		for (tmp = 0; tmp < nr_channels; tmp++)
-			pdata->multi_block[tmp] = 1;
-	}
+	/* If "data_width" and "data-width" both provided use the latter one */
+	of_property_read_u32_array(np, "data-width", pdata->data_width, nr_masters);
 
-	if (of_property_read_u32_array(np, "snps,max-burst-len", pdata->max_burst,
-				       nr_channels)) {
-		memset32(pdata->max_burst, DW_DMA_MAX_BURST, nr_channels);
-	}
+	memset32(pdata->multi_block, 1, nr_channels);
+	of_property_read_u32_array(np, "multi-block", pdata->multi_block, nr_channels);
 
-	if (!of_property_read_u32(np, "snps,dma-protection-control", &tmp)) {
-		if (tmp > CHAN_PROTCTL_MASK)
-			return NULL;
-		pdata->protctl = tmp;
-	}
+	memset32(pdata->max_burst, DW_DMA_MAX_BURST, nr_channels);
+	of_property_read_u32_array(np, "snps,max-burst-len", pdata->max_burst, nr_channels);
+
+	of_property_read_u32(np, "snps,dma-protection-control", &pdata->protctl);
+	if (pdata->protctl > CHAN_PROTCTL_MASK)
+		return NULL;
 
 	return pdata;
 }

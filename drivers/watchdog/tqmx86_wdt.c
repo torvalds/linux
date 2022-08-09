@@ -62,7 +62,7 @@ static const struct watchdog_info tqmx86_wdt_info = {
 	.identity	= "TQMx86 Watchdog",
 };
 
-static struct watchdog_ops tqmx86_wdt_ops = {
+static const struct watchdog_ops tqmx86_wdt_ops = {
 	.owner		= THIS_MODULE,
 	.start		= tqmx86_wdt_start,
 	.set_timeout	= tqmx86_wdt_set_timeout,

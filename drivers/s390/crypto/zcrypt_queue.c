@@ -40,8 +40,8 @@ static ssize_t online_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
+	struct zcrypt_queue *zq = dev_get_drvdata(dev);
 	struct ap_queue *aq = to_ap_queue(dev);
-	struct zcrypt_queue *zq = aq->private;
 	int online = aq->config && zq->online ? 1 : 0;
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", online);
@@ -51,8 +51,8 @@ static ssize_t online_store(struct device *dev,
 			    struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
+	struct zcrypt_queue *zq = dev_get_drvdata(dev);
 	struct ap_queue *aq = to_ap_queue(dev);
-	struct zcrypt_queue *zq = aq->private;
 	struct zcrypt_card *zc = zq->zcard;
 	int online;
 
@@ -83,7 +83,7 @@ static ssize_t load_show(struct device *dev,
 			 struct device_attribute *attr,
 			 char *buf)
 {
-	struct zcrypt_queue *zq = to_ap_queue(dev)->private;
+	struct zcrypt_queue *zq = dev_get_drvdata(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&zq->load));
 }
@@ -170,7 +170,7 @@ int zcrypt_queue_register(struct zcrypt_queue *zq)
 	int rc;
 
 	spin_lock(&zcrypt_list_lock);
-	zc = zq->queue->card->private;
+	zc = dev_get_drvdata(&zq->queue->card->ap_dev.device);
 	zcrypt_card_get(zc);
 	zq->zcard = zc;
 	zq->online = 1;	/* New devices are online by default. */

@@ -1389,8 +1389,8 @@ static void sbp_sense_mangle(struct sbp_target_request *req)
 		(sense[0] & 0x80) |		/* valid */
 		((sense[2] & 0xe0) >> 1) |	/* mark, eom, ili */
 		(sense[2] & 0x0f);		/* sense_key */
-	status[2] = se_cmd->scsi_asc;		/* sense_code */
-	status[3] = se_cmd->scsi_ascq;		/* sense_qualifier */
+	status[2] = 0;				/* XXX sense_code */
+	status[3] = 0;				/* XXX sense_qualifier */
 
 	/* information */
 	status[4] = sense[3];

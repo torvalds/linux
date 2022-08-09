@@ -541,28 +541,6 @@ static int snd_ad1816a_probe(struct snd_ad1816a *chip)
 	return 0;
 }
 
-static int snd_ad1816a_free(struct snd_ad1816a *chip)
-{
-	release_and_free_resource(chip->res_port);
-	if (chip->irq >= 0)
-		free_irq(chip->irq, (void *) chip);
-	if (chip->dma1 >= 0) {
-		snd_dma_disable(chip->dma1);
-		free_dma(chip->dma1);
-	}
-	if (chip->dma2 >= 0) {
-		snd_dma_disable(chip->dma2);
-		free_dma(chip->dma2);
-	}
-	return 0;
-}
-
-static int snd_ad1816a_dev_free(struct snd_device *device)
-{
-	struct snd_ad1816a *chip = device->device_data;
-	return snd_ad1816a_free(chip);
-}
-
 static const char *snd_ad1816a_chip_id(struct snd_ad1816a *chip)
 {
 	switch (chip->hardware) {
@@ -580,37 +558,31 @@ int snd_ad1816a_create(struct snd_card *card,
 		       unsigned long port, int irq, int dma1, int dma2,
 		       struct snd_ad1816a *chip)
 {
-	static const struct snd_device_ops ops = {
-		.dev_free =	snd_ad1816a_dev_free,
-	};
 	int error;
 
 	chip->irq = -1;
 	chip->dma1 = -1;
 	chip->dma2 = -1;
 
-	chip->res_port = request_region(port, 16, "AD1816A");
+	chip->res_port = devm_request_region(card->dev, port, 16, "AD1816A");
 	if (!chip->res_port) {
 		snd_printk(KERN_ERR "ad1816a: can't grab port 0x%lx\n", port);
-		snd_ad1816a_free(chip);
 		return -EBUSY;
 	}
-	if (request_irq(irq, snd_ad1816a_interrupt, 0, "AD1816A", (void *) chip)) {
+	if (devm_request_irq(card->dev, irq, snd_ad1816a_interrupt, 0,
+			     "AD1816A", (void *) chip)) {
 		snd_printk(KERN_ERR "ad1816a: can't grab IRQ %d\n", irq);
-		snd_ad1816a_free(chip);
 		return -EBUSY;
 	}
 	chip->irq = irq;
 	card->sync_irq = chip->irq;
-	if (request_dma(dma1, "AD1816A - 1")) {
+	if (snd_devm_request_dma(card->dev, dma1, "AD1816A - 1")) {
 		snd_printk(KERN_ERR "ad1816a: can't grab DMA1 %d\n", dma1);
-		snd_ad1816a_free(chip);
 		return -EBUSY;
 	}
 	chip->dma1 = dma1;
-	if (request_dma(dma2, "AD1816A - 2")) {
+	if (snd_devm_request_dma(card->dev, dma2, "AD1816A - 2")) {
 		snd_printk(KERN_ERR "ad1816a: can't grab DMA2 %d\n", dma2);
-		snd_ad1816a_free(chip);
 		return -EBUSY;
 	}
 	chip->dma2 = dma2;
@@ -620,19 +592,10 @@ int snd_ad1816a_create(struct snd_card *card,
 	spin_lock_init(&chip->lock);
 
 	error = snd_ad1816a_probe(chip);
-	if (error) {
-		snd_ad1816a_free(chip);
+	if (error)
 		return error;
-	}
 
 	snd_ad1816a_init(chip);
-
-	/* Register device */
-	error = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
-	if (error < 0) {
-		snd_ad1816a_free(chip);
-		return error;
-	}
 
 	return 0;
 }

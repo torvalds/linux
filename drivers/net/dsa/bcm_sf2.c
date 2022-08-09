@@ -68,7 +68,7 @@ static unsigned int bcm_sf2_num_active_ports(struct dsa_switch *ds)
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	unsigned int port, count = 0;
 
-	for (port = 0; port < ARRAY_SIZE(priv->port_sts); port++) {
+	for (port = 0; port < ds->num_ports; port++) {
 		if (dsa_is_cpu_port(ds, port))
 			continue;
 		if (priv->port_sts[port].enabled)
@@ -1199,7 +1199,6 @@ static const struct dsa_switch_ops bcm_sf2_ops = {
 	.port_pre_bridge_flags	= b53_br_flags_pre,
 	.port_bridge_flags	= b53_br_flags,
 	.port_stp_state_set	= b53_br_set_stp_state,
-	.port_set_mrouter	= b53_set_mrouter,
 	.port_fast_age		= b53_br_fast_age,
 	.port_vlan_filtering	= b53_vlan_filtering,
 	.port_vlan_add		= b53_vlan_add,
@@ -1513,6 +1512,9 @@ static int bcm_sf2_sw_remove(struct platform_device *pdev)
 {
 	struct bcm_sf2_priv *priv = platform_get_drvdata(pdev);
 
+	if (!priv)
+		return 0;
+
 	priv->wol_ports_mask = 0;
 	/* Disable interrupts */
 	bcm_sf2_intr_disable(priv);
@@ -1524,12 +1526,17 @@ static int bcm_sf2_sw_remove(struct platform_device *pdev)
 	if (priv->type == BCM7278_DEVICE_ID)
 		reset_control_assert(priv->rcdev);
 
+	platform_set_drvdata(pdev, NULL);
+
 	return 0;
 }
 
 static void bcm_sf2_sw_shutdown(struct platform_device *pdev)
 {
 	struct bcm_sf2_priv *priv = platform_get_drvdata(pdev);
+
+	if (!priv)
+		return;
 
 	/* For a kernel about to be kexec'd we want to keep the GPHY on for a
 	 * successful MDIO bus scan to occur. If we did turn off the GPHY
@@ -1539,6 +1546,10 @@ static void bcm_sf2_sw_shutdown(struct platform_device *pdev)
 	 */
 	if (priv->hw_params.num_gphy == 1)
 		bcm_sf2_gphy_enable_set(priv->dev->ds, true);
+
+	dsa_switch_shutdown(priv->dev->ds);
+
+	platform_set_drvdata(pdev, NULL);
 }
 
 #ifdef CONFIG_PM_SLEEP

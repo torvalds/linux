@@ -127,7 +127,8 @@ struct snd_soc_ops sof_sdw_rt1308_i2s_ops = {
 	.hw_params = rt1308_i2s_hw_params,
 };
 
-int sof_sdw_rt1308_init(const struct snd_soc_acpi_link_adr *link,
+int sof_sdw_rt1308_init(struct snd_soc_card *card,
+			const struct snd_soc_acpi_link_adr *link,
 			struct snd_soc_dai_link *dai_links,
 			struct sof_sdw_codec_info *info,
 			bool playback)

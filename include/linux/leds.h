@@ -33,6 +33,12 @@ enum led_brightness {
 	LED_FULL	= 255,
 };
 
+enum led_default_state {
+	LEDS_DEFSTATE_OFF	= 0,
+	LEDS_DEFSTATE_ON	= 1,
+	LEDS_DEFSTATE_KEEP	= 2,
+};
+
 struct led_init_data {
 	/* device fwnode handle */
 	struct fwnode_handle *fwnode;
@@ -520,9 +526,9 @@ struct gpio_led {
 	/* default_state should be one of LEDS_GPIO_DEFSTATE_(ON|OFF|KEEP) */
 	struct gpio_desc *gpiod;
 };
-#define LEDS_GPIO_DEFSTATE_OFF		0
-#define LEDS_GPIO_DEFSTATE_ON		1
-#define LEDS_GPIO_DEFSTATE_KEEP		2
+#define LEDS_GPIO_DEFSTATE_OFF		LEDS_DEFSTATE_OFF
+#define LEDS_GPIO_DEFSTATE_ON		LEDS_DEFSTATE_ON
+#define LEDS_GPIO_DEFSTATE_KEEP		LEDS_DEFSTATE_KEEP
 
 struct gpio_led_platform_data {
 	int 		num_leds;

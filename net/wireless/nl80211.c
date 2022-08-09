@@ -759,6 +759,10 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_RECONNECT_REQUESTED] = { .type = NLA_REJECT },
 	[NL80211_ATTR_SAR_SPEC] = NLA_POLICY_NESTED(sar_policy),
 	[NL80211_ATTR_DISABLE_HE] = { .type = NLA_FLAG },
+	[NL80211_ATTR_OBSS_COLOR_BITMAP] = { .type = NLA_U64 },
+	[NL80211_ATTR_COLOR_CHANGE_COUNT] = { .type = NLA_U8 },
+	[NL80211_ATTR_COLOR_CHANGE_COLOR] = { .type = NLA_U8 },
+	[NL80211_ATTR_COLOR_CHANGE_ELEMS] = NLA_POLICY_NESTED(nl80211_policy),
 };
 
 /* policy for the key attributes */
@@ -6527,8 +6531,7 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 	err = rdev_change_station(rdev, dev, mac_addr, &params);
 
  out_put_vlan:
-	if (params.vlan)
-		dev_put(params.vlan);
+	dev_put(params.vlan);
 
 	return err;
 }
@@ -6763,8 +6766,7 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 
 	err = rdev_add_station(rdev, dev, mac_addr, &params);
 
-	if (params.vlan)
-		dev_put(params.vlan);
+	dev_put(params.vlan);
 	return err;
 }
 
@@ -8489,8 +8491,7 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 		goto out_free;
 
 	nl80211_send_scan_start(rdev, wdev);
-	if (wdev->netdev)
-		dev_hold(wdev->netdev);
+	dev_hold(wdev->netdev);
 
 	return 0;
 
@@ -14803,6 +14804,106 @@ bad_tid_conf:
 	return ret;
 }
 
+static int nl80211_color_change(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct cfg80211_color_change_settings params = {};
+	struct net_device *dev = info->user_ptr[1];
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct nlattr **tb;
+	u16 offset;
+	int err;
+
+	if (!rdev->ops->color_change)
+		return -EOPNOTSUPP;
+
+	if (!wiphy_ext_feature_isset(&rdev->wiphy,
+				     NL80211_EXT_FEATURE_BSS_COLOR))
+		return -EOPNOTSUPP;
+
+	if (wdev->iftype != NL80211_IFTYPE_AP)
+		return -EOPNOTSUPP;
+
+	if (!info->attrs[NL80211_ATTR_COLOR_CHANGE_COUNT] ||
+	    !info->attrs[NL80211_ATTR_COLOR_CHANGE_COLOR] ||
+	    !info->attrs[NL80211_ATTR_COLOR_CHANGE_ELEMS])
+		return -EINVAL;
+
+	params.count = nla_get_u8(info->attrs[NL80211_ATTR_COLOR_CHANGE_COUNT]);
+	params.color = nla_get_u8(info->attrs[NL80211_ATTR_COLOR_CHANGE_COLOR]);
+
+	err = nl80211_parse_beacon(rdev, info->attrs, &params.beacon_next);
+	if (err)
+		return err;
+
+	tb = kcalloc(NL80211_ATTR_MAX + 1, sizeof(*tb), GFP_KERNEL);
+	if (!tb)
+		return -ENOMEM;
+
+	err = nla_parse_nested(tb, NL80211_ATTR_MAX,
+			       info->attrs[NL80211_ATTR_COLOR_CHANGE_ELEMS],
+			       nl80211_policy, info->extack);
+	if (err)
+		goto out;
+
+	err = nl80211_parse_beacon(rdev, tb, &params.beacon_color_change);
+	if (err)
+		goto out;
+
+	if (!tb[NL80211_ATTR_CNTDWN_OFFS_BEACON]) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	if (nla_len(tb[NL80211_ATTR_CNTDWN_OFFS_BEACON]) != sizeof(u16)) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	offset = nla_get_u16(tb[NL80211_ATTR_CNTDWN_OFFS_BEACON]);
+	if (offset >= params.beacon_color_change.tail_len) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	if (params.beacon_color_change.tail[offset] != params.count) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	params.counter_offset_beacon = offset;
+
+	if (tb[NL80211_ATTR_CNTDWN_OFFS_PRESP]) {
+		if (nla_len(tb[NL80211_ATTR_CNTDWN_OFFS_PRESP]) !=
+		    sizeof(u16)) {
+			err = -EINVAL;
+			goto out;
+		}
+
+		offset = nla_get_u16(tb[NL80211_ATTR_CNTDWN_OFFS_PRESP]);
+		if (offset >= params.beacon_color_change.probe_resp_len) {
+			err = -EINVAL;
+			goto out;
+		}
+
+		if (params.beacon_color_change.probe_resp[offset] !=
+		    params.count) {
+			err = -EINVAL;
+			goto out;
+		}
+
+		params.counter_offset_presp = offset;
+	}
+
+	wdev_lock(wdev);
+	err = rdev_color_change(rdev, dev, &params);
+	wdev_unlock(wdev);
+
+out:
+	kfree(tb);
+	return err;
+}
+
 #define NL80211_FLAG_NEED_WIPHY		0x01
 #define NL80211_FLAG_NEED_NETDEV	0x02
 #define NL80211_FLAG_NEED_RTNL		0x04
@@ -14860,9 +14961,7 @@ static int nl80211_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
 			return -ENETDOWN;
 		}
 
-		if (dev)
-			dev_hold(dev);
-
+		dev_hold(dev);
 		info->user_ptr[0] = rdev;
 	}
 
@@ -14884,8 +14983,7 @@ static void nl80211_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
 		if (ops->internal_flags & NL80211_FLAG_NEED_WDEV) {
 			struct wireless_dev *wdev = info->user_ptr[1];
 
-			if (wdev->netdev)
-				dev_put(wdev->netdev);
+			dev_put(wdev->netdev);
 		} else {
 			dev_put(info->user_ptr[1]);
 		}
@@ -15799,6 +15897,14 @@ static const struct genl_small_ops nl80211_small_ops[] = {
 		.doit = nl80211_set_sar_specs,
 		.flags = GENL_UNS_ADMIN_PERM,
 		.internal_flags = NL80211_FLAG_NEED_WIPHY |
+				  NL80211_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL80211_CMD_COLOR_CHANGE_REQUEST,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
+		.doit = nl80211_color_change,
+		.flags = GENL_UNS_ADMIN_PERM,
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 };
@@ -17429,6 +17535,51 @@ void cfg80211_ch_switch_started_notify(struct net_device *dev,
 				 count, quiet);
 }
 EXPORT_SYMBOL(cfg80211_ch_switch_started_notify);
+
+int cfg80211_bss_color_notify(struct net_device *dev, gfp_t gfp,
+			      enum nl80211_commands cmd, u8 count,
+			      u64 color_bitmap)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+	struct sk_buff *msg;
+	void *hdr;
+
+	ASSERT_WDEV_LOCK(wdev);
+
+	trace_cfg80211_bss_color_notify(dev, cmd, count, color_bitmap);
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
+	if (!msg)
+		return -ENOMEM;
+
+	hdr = nl80211hdr_put(msg, 0, 0, 0, cmd);
+	if (!hdr)
+		goto nla_put_failure;
+
+	if (nla_put_u32(msg, NL80211_ATTR_IFINDEX, dev->ifindex))
+		goto nla_put_failure;
+
+	if (cmd == NL80211_CMD_COLOR_CHANGE_STARTED &&
+	    nla_put_u32(msg, NL80211_ATTR_COLOR_CHANGE_COUNT, count))
+		goto nla_put_failure;
+
+	if (cmd == NL80211_CMD_OBSS_COLOR_COLLISION &&
+	    nla_put_u64_64bit(msg, NL80211_ATTR_OBSS_COLOR_BITMAP,
+			      color_bitmap, NL80211_ATTR_PAD))
+		goto nla_put_failure;
+
+	genlmsg_end(msg, hdr);
+
+	return genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy),
+				       msg, 0, NL80211_MCGRP_MLME, gfp);
+
+nla_put_failure:
+	nlmsg_free(msg);
+	return -EINVAL;
+}
+EXPORT_SYMBOL(cfg80211_bss_color_notify);
 
 void
 nl80211_radar_notify(struct cfg80211_registered_device *rdev,

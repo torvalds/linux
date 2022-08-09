@@ -131,18 +131,14 @@ static struct irq_chip ics_native_irq_chip = {
 	.irq_retrigger		= xics_retrigger,
 };
 
-static int ics_native_map(struct ics *ics, unsigned int virq)
+static int ics_native_check(struct ics *ics, unsigned int hw_irq)
 {
-	unsigned int vec = (unsigned int)virq_to_hw(virq);
 	struct ics_native *in = to_ics_native(ics);
 
-	pr_devel("%s: vec=0x%x\n", __func__, vec);
+	pr_devel("%s: hw_irq=0x%x\n", __func__, hw_irq);
 
-	if (vec < in->ibase || vec >= (in->ibase + in->icount))
+	if (hw_irq < in->ibase || hw_irq >= (in->ibase + in->icount))
 		return -EINVAL;
-
-	irq_set_chip_and_handler(virq, &ics_native_irq_chip, handle_fasteoi_irq);
-	irq_set_chip_data(virq, ics);
 
 	return 0;
 }
@@ -177,10 +173,11 @@ static int ics_native_host_match(struct ics *ics, struct device_node *node)
 }
 
 static struct ics ics_native_template = {
-	.map		= ics_native_map,
+	.check		= ics_native_check,
 	.mask_unknown	= ics_native_mask_unknown,
 	.get_server	= ics_native_get_server,
 	.host_match	= ics_native_host_match,
+	.chip = &ics_native_irq_chip,
 };
 
 static int __init ics_native_add_one(struct device_node *np)

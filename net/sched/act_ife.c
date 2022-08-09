@@ -479,11 +479,11 @@ static int populate_metalist(struct tcf_ife_info *ife, struct nlattr **tb,
 
 static int tcf_ife_init(struct net *net, struct nlattr *nla,
 			struct nlattr *est, struct tc_action **a,
-			int ovr, int bind, bool rtnl_held,
 			struct tcf_proto *tp, u32 flags,
 			struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, ife_net_id);
+	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_IFE_MAX + 1];
 	struct nlattr *tb2[IFE_META_MAX + 1];
 	struct tcf_chain *goto_ch = NULL;
@@ -532,7 +532,7 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 			kfree(p);
 			return err;
 		}
-		err = load_metalist(tb2, rtnl_held);
+		err = load_metalist(tb2, !(flags & TCA_ACT_FLAGS_NO_RTNL));
 		if (err) {
 			kfree(p);
 			return err;
@@ -560,7 +560,7 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 			return ret;
 		}
 		ret = ACT_P_CREATED;
-	} else if (!ovr) {
+	} else if (!(flags & TCA_ACT_FLAGS_REPLACE)) {
 		tcf_idr_release(*a, bind);
 		kfree(p);
 		return -EEXIST;
@@ -600,7 +600,8 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	}
 
 	if (tb[TCA_IFE_METALST]) {
-		err = populate_metalist(ife, tb2, exists, rtnl_held);
+		err = populate_metalist(ife, tb2, exists,
+					!(flags & TCA_ACT_FLAGS_NO_RTNL));
 		if (err)
 			goto metadata_parse_err;
 	} else {

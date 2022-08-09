@@ -340,6 +340,9 @@ static void acm_process_notification(struct acm *acm, unsigned char *buf)
 			acm->iocount.overrun++;
 		spin_unlock_irqrestore(&acm->read_lock, flags);
 
+		if (newctrl & ACM_CTRL_BRK)
+			tty_flip_buffer_push(&acm->port);
+
 		if (difference)
 			wake_up_all(&acm->wioctl);
 
@@ -475,11 +478,16 @@ static int acm_submit_read_urbs(struct acm *acm, gfp_t mem_flags)
 
 static void acm_process_read_urb(struct acm *acm, struct urb *urb)
 {
+	unsigned long flags;
+
 	if (!urb->actual_length)
 		return;
 
+	spin_lock_irqsave(&acm->read_lock, flags);
 	tty_insert_flip_string(&acm->port, urb->transfer_buffer,
 			urb->actual_length);
+	spin_unlock_irqrestore(&acm->read_lock, flags);
+
 	tty_flip_buffer_push(&acm->port);
 }
 
@@ -726,7 +734,8 @@ static void acm_port_destruct(struct tty_port *port)
 {
 	struct acm *acm = container_of(port, struct acm, port);
 
-	acm_release_minor(acm);
+	if (acm->minor != ACM_MINOR_INVALID)
+		acm_release_minor(acm);
 	usb_put_intf(acm->control);
 	kfree(acm->country_codes);
 	kfree(acm);
@@ -1323,8 +1332,10 @@ made_compressed_probe:
 	usb_get_intf(acm->control); /* undone in destruct() */
 
 	minor = acm_alloc_minor(acm);
-	if (minor < 0)
+	if (minor < 0) {
+		acm->minor = ACM_MINOR_INVALID;
 		goto err_put_port;
+	}
 
 	acm->minor = minor;
 	acm->dev = usb_dev;
@@ -2027,16 +2038,16 @@ static const struct tty_operations acm_ops = {
 static int __init acm_init(void)
 {
 	int retval;
-	acm_tty_driver = alloc_tty_driver(ACM_TTY_MINORS);
-	if (!acm_tty_driver)
-		return -ENOMEM;
+	acm_tty_driver = tty_alloc_driver(ACM_TTY_MINORS, TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(acm_tty_driver))
+		return PTR_ERR(acm_tty_driver);
 	acm_tty_driver->driver_name = "acm",
 	acm_tty_driver->name = "ttyACM",
 	acm_tty_driver->major = ACM_TTY_MAJOR,
 	acm_tty_driver->minor_start = 0,
 	acm_tty_driver->type = TTY_DRIVER_TYPE_SERIAL,
 	acm_tty_driver->subtype = SERIAL_TYPE_NORMAL,
-	acm_tty_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	acm_tty_driver->init_termios = tty_std_termios;
 	acm_tty_driver->init_termios.c_cflag = B9600 | CS8 | CREAD |
 								HUPCL | CLOCAL;
@@ -2044,14 +2055,14 @@ static int __init acm_init(void)
 
 	retval = tty_register_driver(acm_tty_driver);
 	if (retval) {
-		put_tty_driver(acm_tty_driver);
+		tty_driver_kref_put(acm_tty_driver);
 		return retval;
 	}
 
 	retval = usb_register(&acm_driver);
 	if (retval) {
 		tty_unregister_driver(acm_tty_driver);
-		put_tty_driver(acm_tty_driver);
+		tty_driver_kref_put(acm_tty_driver);
 		return retval;
 	}
 
@@ -2064,7 +2075,7 @@ static void __exit acm_exit(void)
 {
 	usb_deregister(&acm_driver);
 	tty_unregister_driver(acm_tty_driver);
-	put_tty_driver(acm_tty_driver);
+	tty_driver_kref_put(acm_tty_driver);
 	idr_destroy(&acm_minors);
 }
 

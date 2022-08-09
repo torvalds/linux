@@ -249,7 +249,7 @@ void workingset_age_nonresident(struct lruvec *lruvec, unsigned long nr_pages)
  * @target_memcg: the cgroup that is causing the reclaim
  * @page: the page being evicted
  *
- * Returns a shadow entry to be stored in @page->mapping->i_pages in place
+ * Return: a shadow entry to be stored in @page->mapping->i_pages in place
  * of the evicted @page so that a later refault can be detected.
  */
 void *workingset_eviction(struct page *page, struct mem_cgroup *target_memcg)
@@ -352,6 +352,7 @@ void workingset_refault(struct page *page, void *shadow)
 
 	inc_lruvec_state(lruvec, WORKINGSET_REFAULT_BASE + file);
 
+	mem_cgroup_flush_stats();
 	/*
 	 * Compare the distance to the existing workingset size. We
 	 * don't activate pages that couldn't stay resident even if

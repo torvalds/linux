@@ -44,7 +44,7 @@
 #include <asm/octeon/cvmx-gmxx-defs.h>
 #include <asm/octeon/cvmx-asxx-defs.h>
 
-/**
+/*
  * Return the MII PHY address associated with the given IPD
  * port. A result of -1 means there isn't a MII capable PHY
  * connected to this port. On chips supporting multiple MII
@@ -189,7 +189,7 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 	return -1;
 }
 
-/**
+/*
  * This function is the board specific method of determining an
  * ethernet ports link speed. Most Octeon boards have Marvell PHYs
  * and are handled by the fall through case. This function must be
@@ -274,7 +274,7 @@ union cvmx_helper_link_info __cvmx_helper_board_link_get(int ipd_port)
 	return result;
 }
 
-/**
+/*
  * This function is called by cvmx_helper_interface_probe() after it
  * determines the number of ports Octeon can support on a specific
  * interface. This function is the per board location to override
@@ -320,7 +320,7 @@ int __cvmx_helper_board_interface_probe(int interface, int supported_ports)
 	return supported_ports;
 }
 
-/**
+/*
  * Get the clock type used for the USB block based on board type.
  * Used by the USB code for auto configuration of clock type.
  *

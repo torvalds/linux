@@ -1297,6 +1297,14 @@ qed_iwarp_wait_cid_map_cleared(struct qed_hwfn *p_hwfn, struct qed_bmap *bmap)
 	prev_weight = weight;
 
 	while (weight) {
+		/* If the HW device is during recovery, all resources are
+		 * immediately reset without receiving a per-cid indication
+		 * from HW. In this case we don't expect the cid_map to be
+		 * cleared.
+		 */
+		if (p_hwfn->cdev->recov_in_prog)
+			return 0;
+
 		msleep(QED_IWARP_MAX_CID_CLEAN_TIME);
 
 		weight = bitmap_weight(bmap->bitmap, bmap->max_count);
@@ -1623,8 +1631,6 @@ qed_iwarp_get_listener(struct qed_hwfn *p_hwfn,
 	struct qed_iwarp_listener *listener = NULL;
 	static const u32 ip_zero[4] = { 0, 0, 0, 0 };
 	bool found = false;
-
-	qed_iwarp_print_cm_info(p_hwfn, cm_info);
 
 	list_for_each_entry(listener,
 			    &p_hwfn->p_rdma_info->iwarp.listen_list,

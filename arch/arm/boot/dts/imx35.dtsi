@@ -189,7 +189,7 @@
 				status = "disabled";
 			};
 
-			fec: fec@50038000 {
+			fec: ethernet@50038000 {
 				compatible = "fsl,imx35-fec", "fsl,imx27-fec";
 				reg = <0x50038000 0x4000>;
 				clocks = <&clks 46>, <&clks 8>;

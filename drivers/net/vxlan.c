@@ -4756,12 +4756,12 @@ static void __net_exit vxlan_exit_batch_net(struct list_head *net_list)
 	LIST_HEAD(list);
 	unsigned int h;
 
-	rtnl_lock();
 	list_for_each_entry(net, net_list, exit_list) {
 		struct vxlan_net *vn = net_generic(net, vxlan_net_id);
 
 		unregister_nexthop_notifier(net, &vn->nexthop_notifier_block);
 	}
+	rtnl_lock();
 	list_for_each_entry(net, net_list, exit_list)
 		vxlan_destroy_tunnels(net, &list);
 

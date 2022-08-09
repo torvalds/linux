@@ -171,9 +171,11 @@ enum nl80211_dfs_regions reg_get_dfs_region(struct wiphy *wiphy)
 {
 	const struct ieee80211_regdomain *regd = NULL;
 	const struct ieee80211_regdomain *wiphy_regd = NULL;
+	enum nl80211_dfs_regions dfs_region;
 
 	rcu_read_lock();
 	regd = get_cfg80211_regdom();
+	dfs_region = regd->dfs_region;
 
 	if (!wiphy)
 		goto out;
@@ -181,6 +183,11 @@ enum nl80211_dfs_regions reg_get_dfs_region(struct wiphy *wiphy)
 	wiphy_regd = get_wiphy_regdom(wiphy);
 	if (!wiphy_regd)
 		goto out;
+
+	if (wiphy->regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED) {
+		dfs_region = wiphy_regd->dfs_region;
+		goto out;
+	}
 
 	if (wiphy_regd->dfs_region == regd->dfs_region)
 		goto out;
@@ -193,7 +200,7 @@ enum nl80211_dfs_regions reg_get_dfs_region(struct wiphy *wiphy)
 out:
 	rcu_read_unlock();
 
-	return regd->dfs_region;
+	return dfs_region;
 }
 
 static void rcu_free_regdom(const struct ieee80211_regdomain *r)

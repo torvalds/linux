@@ -215,7 +215,7 @@ static inline long scaled_ppm_to_ppb(long ppm)
 	return (long)ppb;
 }
 
-#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
+#if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
 
 /**
  * ptp_clock_register() - register a PTP hardware clock driver
@@ -307,6 +307,33 @@ int ptp_schedule_worker(struct ptp_clock *ptp, unsigned long delay);
  */
 void ptp_cancel_worker_sync(struct ptp_clock *ptp);
 
+#else
+static inline struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
+						   struct device *parent)
+{ return NULL; }
+static inline int ptp_clock_unregister(struct ptp_clock *ptp)
+{ return 0; }
+static inline void ptp_clock_event(struct ptp_clock *ptp,
+				   struct ptp_clock_event *event)
+{ }
+static inline int ptp_clock_index(struct ptp_clock *ptp)
+{ return -1; }
+static inline int ptp_find_pin(struct ptp_clock *ptp,
+			       enum ptp_pin_function func, unsigned int chan)
+{ return -1; }
+static inline int ptp_schedule_worker(struct ptp_clock *ptp,
+				      unsigned long delay)
+{ return -EOPNOTSUPP; }
+static inline void ptp_cancel_worker_sync(struct ptp_clock *ptp)
+{ }
+#endif
+
+#if IS_BUILTIN(CONFIG_PTP_1588_CLOCK)
+/*
+ * These are called by the network core, and don't work if PTP is in
+ * a loadable module.
+ */
+
 /**
  * ptp_get_vclocks_index() - get all vclocks index on pclock, and
  *                           caller is responsible to free memory
@@ -327,26 +354,7 @@ int ptp_get_vclocks_index(int pclock_index, int **vclock_index);
  */
 void ptp_convert_timestamp(struct skb_shared_hwtstamps *hwtstamps,
 			   int vclock_index);
-
 #else
-static inline struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
-						   struct device *parent)
-{ return NULL; }
-static inline int ptp_clock_unregister(struct ptp_clock *ptp)
-{ return 0; }
-static inline void ptp_clock_event(struct ptp_clock *ptp,
-				   struct ptp_clock_event *event)
-{ }
-static inline int ptp_clock_index(struct ptp_clock *ptp)
-{ return -1; }
-static inline int ptp_find_pin(struct ptp_clock *ptp,
-			       enum ptp_pin_function func, unsigned int chan)
-{ return -1; }
-static inline int ptp_schedule_worker(struct ptp_clock *ptp,
-				      unsigned long delay)
-{ return -EOPNOTSUPP; }
-static inline void ptp_cancel_worker_sync(struct ptp_clock *ptp)
-{ }
 static inline int ptp_get_vclocks_index(int pclock_index, int **vclock_index)
 { return 0; }
 static inline void ptp_convert_timestamp(struct skb_shared_hwtstamps *hwtstamps,

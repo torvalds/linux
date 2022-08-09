@@ -62,9 +62,10 @@ static struct sk_buff *lan9303_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_push(skb, LAN9303_TAG_LEN);
 
 	/* make room between MACs and Ether-Type */
-	memmove(skb->data, skb->data + LAN9303_TAG_LEN, 2 * ETH_ALEN);
+	dsa_alloc_etype_header(skb, LAN9303_TAG_LEN);
 
-	lan9303_tag = (__be16 *)(skb->data + 2 * ETH_ALEN);
+	lan9303_tag = dsa_etype_header_pos_tx(skb);
+
 	tag = lan9303_xmit_use_arl(dp, skb->data) ?
 		LAN9303_TAG_TX_USE_ALR :
 		dp->index | LAN9303_TAG_TX_STP_OVERRIDE;
@@ -74,8 +75,7 @@ static struct sk_buff *lan9303_xmit(struct sk_buff *skb, struct net_device *dev)
 	return skb;
 }
 
-static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
-				   struct packet_type *pt)
+static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev)
 {
 	__be16 *lan9303_tag;
 	u16 lan9303_tag1;
@@ -87,13 +87,7 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
 		return NULL;
 	}
 
-	/* '->data' points into the middle of our special VLAN tag information:
-	 *
-	 * ~ MAC src   | 0x81 | 0x00 | 0xyy | 0xzz | ether type
-	 *                           ^
-	 *                        ->data
-	 */
-	lan9303_tag = (__be16 *)(skb->data - 2);
+	lan9303_tag = dsa_etype_header_pos_rx(skb);
 
 	if (lan9303_tag[0] != htons(ETH_P_8021Q)) {
 		dev_warn_ratelimited(&dev->dev, "Dropping packet due to invalid VLAN marker\n");
@@ -113,9 +107,11 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
 	 * and the current ethertype field.
 	 */
 	skb_pull_rcsum(skb, 2 + 2);
-	memmove(skb->data - ETH_HLEN, skb->data - (ETH_HLEN + LAN9303_TAG_LEN),
-		2 * ETH_ALEN);
-	skb->offload_fwd_mark = !(lan9303_tag1 & LAN9303_TAG_RX_TRAPPED_TO_CPU);
+
+	dsa_strip_etype_header(skb, LAN9303_TAG_LEN);
+
+	if (!(lan9303_tag1 & LAN9303_TAG_RX_TRAPPED_TO_CPU))
+		dsa_default_offload_fwd_mark(skb);
 
 	return skb;
 }

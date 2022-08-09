@@ -1078,12 +1078,17 @@ static void nfp_net_get_regs(struct net_device *netdev,
 }
 
 static int nfp_net_get_coalesce(struct net_device *netdev,
-				struct ethtool_coalesce *ec)
+				struct ethtool_coalesce *ec,
+				struct kernel_ethtool_coalesce *kernel_coal,
+				struct netlink_ext_ack *extack)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 
 	if (!(nn->cap & NFP_NET_CFG_CTRL_IRQMOD))
 		return -EINVAL;
+
+	ec->use_adaptive_rx_coalesce = nn->rx_coalesce_adapt_on;
+	ec->use_adaptive_tx_coalesce = nn->tx_coalesce_adapt_on;
 
 	ec->rx_coalesce_usecs       = nn->rx_coalesce_usecs;
 	ec->rx_max_coalesced_frames = nn->rx_coalesce_max_frames;
@@ -1327,7 +1332,9 @@ exit_close_nsp:
 }
 
 static int nfp_net_set_coalesce(struct net_device *netdev,
-				struct ethtool_coalesce *ec)
+				struct ethtool_coalesce *ec,
+				struct kernel_ethtool_coalesce *kernel_coal,
+				struct netlink_ext_ack *extack)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	unsigned int factor;
@@ -1361,19 +1368,18 @@ static int nfp_net_set_coalesce(struct net_device *netdev,
 	if (!ec->tx_coalesce_usecs && !ec->tx_max_coalesced_frames)
 		return -EINVAL;
 
-	if (ec->rx_coalesce_usecs * factor >= ((1 << 16) - 1))
+	if (nfp_net_coalesce_para_check(ec->rx_coalesce_usecs * factor,
+					ec->rx_max_coalesced_frames))
 		return -EINVAL;
 
-	if (ec->tx_coalesce_usecs * factor >= ((1 << 16) - 1))
-		return -EINVAL;
-
-	if (ec->rx_max_coalesced_frames >= ((1 << 16) - 1))
-		return -EINVAL;
-
-	if (ec->tx_max_coalesced_frames >= ((1 << 16) - 1))
+	if (nfp_net_coalesce_para_check(ec->tx_coalesce_usecs * factor,
+					ec->tx_max_coalesced_frames))
 		return -EINVAL;
 
 	/* configuration is valid */
+	nn->rx_coalesce_adapt_on = !!ec->use_adaptive_rx_coalesce;
+	nn->tx_coalesce_adapt_on = !!ec->use_adaptive_tx_coalesce;
+
 	nn->rx_coalesce_usecs      = ec->rx_coalesce_usecs;
 	nn->rx_coalesce_max_frames = ec->rx_max_coalesced_frames;
 	nn->tx_coalesce_usecs      = ec->tx_coalesce_usecs;
@@ -1445,7 +1451,8 @@ static int nfp_net_set_channels(struct net_device *netdev,
 
 static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
-				     ETHTOOL_COALESCE_MAX_FRAMES,
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE,
 	.get_drvinfo		= nfp_net_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
 	.get_ringparam		= nfp_net_get_ringparam,

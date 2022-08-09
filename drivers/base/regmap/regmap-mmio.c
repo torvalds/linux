@@ -15,7 +15,7 @@
 
 struct regmap_mmio_context {
 	void __iomem *regs;
-	unsigned val_bytes;
+	unsigned int val_bytes;
 	bool relaxed_mmio;
 
 	bool attached_clk;

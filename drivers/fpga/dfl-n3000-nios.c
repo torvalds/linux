@@ -461,7 +461,7 @@ static int n3000_nios_poll_stat_timeout(void __iomem *base, u64 *v)
 	 * We don't use the time based timeout here for performance.
 	 *
 	 * The regbus read/write is on the critical path of Intel PAC N3000
-	 * image programing. The time based timeout checking will add too much
+	 * image programming. The time based timeout checking will add too much
 	 * overhead on it. Usually the state changes in 1 or 2 loops on the
 	 * test server, and we set 10000 times loop here for safety.
 	 */

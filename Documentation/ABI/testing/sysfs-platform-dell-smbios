@@ -1,7 +1,7 @@
 What:		/sys/devices/platform/<platform>/tokens/*
 Date:		November 2017
 KernelVersion:	4.15
-Contact:	"Mario Limonciello" <mario.limonciello@dell.com>
+Contact:	Dell.Client.Kernel@dell.com
 Description:
 		A read-only description of Dell platform tokens
 		available on the machine.

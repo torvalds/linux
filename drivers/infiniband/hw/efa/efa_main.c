@@ -83,8 +83,7 @@ static int efa_request_mgmnt_irq(struct efa_dev *dev)
 	int err;
 
 	irq = &dev->admin_irq;
-	err = request_irq(irq->vector, irq->handler, 0, irq->name,
-			  irq->data);
+	err = request_irq(irq->irqn, irq->handler, 0, irq->name, irq->data);
 	if (err) {
 		dev_err(&dev->pdev->dev, "Failed to request admin irq (%d)\n",
 			err);
@@ -92,8 +91,8 @@ static int efa_request_mgmnt_irq(struct efa_dev *dev)
 	}
 
 	dev_dbg(&dev->pdev->dev, "Set affinity hint of mgmnt irq to %*pbl (irq vector: %d)\n",
-		nr_cpumask_bits, &irq->affinity_hint_mask, irq->vector);
-	irq_set_affinity_hint(irq->vector, &irq->affinity_hint_mask);
+		nr_cpumask_bits, &irq->affinity_hint_mask, irq->irqn);
+	irq_set_affinity_hint(irq->irqn, &irq->affinity_hint_mask);
 
 	return 0;
 }
@@ -106,15 +105,13 @@ static void efa_setup_mgmnt_irq(struct efa_dev *dev)
 		 "efa-mgmnt@pci:%s", pci_name(dev->pdev));
 	dev->admin_irq.handler = efa_intr_msix_mgmnt;
 	dev->admin_irq.data = dev;
-	dev->admin_irq.vector =
+	dev->admin_irq.irqn =
 		pci_irq_vector(dev->pdev, dev->admin_msix_vector_idx);
 	cpu = cpumask_first(cpu_online_mask);
-	dev->admin_irq.cpu = cpu;
 	cpumask_set_cpu(cpu,
 			&dev->admin_irq.affinity_hint_mask);
-	dev_info(&dev->pdev->dev, "Setup irq:0x%p vector:%d name:%s\n",
-		 &dev->admin_irq,
-		 dev->admin_irq.vector,
+	dev_info(&dev->pdev->dev, "Setup irq:%d name:%s\n",
+		 dev->admin_irq.irqn,
 		 dev->admin_irq.name);
 }
 
@@ -123,8 +120,8 @@ static void efa_free_mgmnt_irq(struct efa_dev *dev)
 	struct efa_irq *irq;
 
 	irq = &dev->admin_irq;
-	irq_set_affinity_hint(irq->vector, NULL);
-	free_irq(irq->vector, irq->data);
+	irq_set_affinity_hint(irq->irqn, NULL);
+	free_irq(irq->irqn, irq->data);
 }
 
 static int efa_set_mgmnt_irq(struct efa_dev *dev)
@@ -271,6 +268,7 @@ static const struct ib_device_ops efa_dev_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_ah, efa_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, efa_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, efa_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_qp, efa_qp, ibqp),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, efa_ucontext, ibucontext),
 };
 

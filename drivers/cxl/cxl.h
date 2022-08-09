@@ -140,7 +140,6 @@ struct cxl_device_reg_map {
 };
 
 struct cxl_register_map {
-	struct list_head list;
 	u64 block_offset;
 	u8 reg_type;
 	u8 barno;

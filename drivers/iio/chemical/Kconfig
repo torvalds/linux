@@ -131,6 +131,17 @@ config SENSIRION_SGP30
 	  To compile this driver as module, choose M here: the
 	  module will be called sgp30.
 
+config SENSIRION_SGP40
+	tristate "Sensirion SGP40 gas sensor"
+	depends on I2C
+	select CRC8
+	help
+	  Say Y here to build I2C interface to support Sensirion SGP40 gas
+	  sensor
+
+	  To compile this driver as module, choose M here: the
+	  module will be called sgp40.
+
 config SPS30
 	tristate
 	select IIO_BUFFER

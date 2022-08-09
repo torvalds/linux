@@ -208,6 +208,11 @@ static const struct iio_info adxl345_info = {
 	.write_raw_get_fmt	= adxl345_write_raw_get_fmt,
 };
 
+static void adxl345_powerdown(void *regmap)
+{
+	regmap_write(regmap, ADXL345_REG_POWER_CTL, ADXL345_POWER_CTL_STANDBY);
+}
+
 int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 		       enum adxl345_device_type type, const char *name)
 {
@@ -233,7 +238,6 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 		return -ENOMEM;
 
 	data = iio_priv(indio_dev);
-	dev_set_drvdata(dev, indio_dev);
 	data->regmap = regmap;
 	data->type = type;
 	/* Enable full-resolution mode */
@@ -260,28 +264,13 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 		return ret;
 	}
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(dev, "iio_device_register failed: %d\n", ret);
-		regmap_write(data->regmap, ADXL345_REG_POWER_CTL,
-			     ADXL345_POWER_CTL_STANDBY);
-	}
+	ret = devm_add_action_or_reset(dev, adxl345_powerdown, data->regmap);
+	if (ret < 0)
+		return ret;
 
-	return ret;
+	return devm_iio_device_register(dev, indio_dev);
 }
 EXPORT_SYMBOL_GPL(adxl345_core_probe);
-
-int adxl345_core_remove(struct device *dev)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct adxl345_data *data = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-
-	return regmap_write(data->regmap, ADXL345_REG_POWER_CTL,
-			    ADXL345_POWER_CTL_STANDBY);
-}
-EXPORT_SYMBOL_GPL(adxl345_core_remove);
 
 MODULE_AUTHOR("Eva Rachel Retuya <eraretuya@gmail.com>");
 MODULE_DESCRIPTION("ADXL345 3-Axis Digital Accelerometer core driver");

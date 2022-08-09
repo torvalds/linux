@@ -1,7 +1,10 @@
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: :doc:`../../../openrisc/todo`
-:Translator: Yanteng Si <siyanteng@loongson.cn>
+:Original: Documentation/openrisc/todo.rst
+
+:翻译:
+
+ 司延腾 Yanteng Si <siyanteng@loongson.cn>
 
 .. _cn_openrisc_todo.rst:
 

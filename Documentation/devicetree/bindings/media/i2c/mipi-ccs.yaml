@@ -83,10 +83,10 @@ properties:
           link-frequencies: true
           data-lanes: true
           bus-type:
-            oneOf:
-              - const: 1 # CSI-2 C-PHY
-              - const: 3 # CCP2
-              - const: 4 # CSI-2 D-PHY
+            enum:
+              - 1 # CSI-2 C-PHY
+              - 3 # CCP2
+              - 4 # CSI-2 D-PHY
 
         required:
           - link-frequencies

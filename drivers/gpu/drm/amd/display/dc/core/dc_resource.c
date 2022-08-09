@@ -1030,7 +1030,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 
 	/* Timing borders are part of vactive that we are also supposed to skip in addition
 	 * to any stream dst offset. Since dm logic assumes dst is in addressable
-	 * space we need to add the the left and top borders to dst offsets temporarily.
+	 * space we need to add the left and top borders to dst offsets temporarily.
 	 * TODO: fix in DM, stream dst is supposed to be in vactive
 	 */
 	pipe_ctx->stream->dst.x += timing->h_border_left;
@@ -1050,6 +1050,11 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	calculate_scaling_ratios(pipe_ctx);
 	/* depends on scaling ratios and recout, does not calculate offset yet */
 	calculate_viewport_size(pipe_ctx);
+
+	/* Stopgap for validation of ODM + MPO on one side of screen case */
+	if (pipe_ctx->plane_res.scl_data.viewport.height < 1 ||
+			pipe_ctx->plane_res.scl_data.viewport.width < 1)
+		return false;
 
 	/*
 	 * LB calculations depend on vp size, h/v_active and scaling ratios

@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
 /*
- *   include/uapi/linux/cifs/cifs_mount.h
  *
  *   Author(s): Scott Lovenberg (scott.lovenberg@gmail.com)
  *

@@ -11,14 +11,32 @@
 #include <linux/idr.h>
 #include <linux/pci.h>
 #include <linux/perf_event.h>
+#include <uapi/linux/idxd.h>
 #include "registers.h"
 
 #define IDXD_DRIVER_VERSION	"1.00"
 
 extern struct kmem_cache *idxd_desc_pool;
+extern bool tc_override;
 
-struct idxd_device;
 struct idxd_wq;
+struct idxd_dev;
+
+enum idxd_dev_type {
+	IDXD_DEV_NONE = -1,
+	IDXD_DEV_DSA = 0,
+	IDXD_DEV_IAX,
+	IDXD_DEV_WQ,
+	IDXD_DEV_GROUP,
+	IDXD_DEV_ENGINE,
+	IDXD_DEV_CDEV,
+	IDXD_DEV_MAX_TYPE,
+};
+
+struct idxd_dev {
+	struct device conf_dev;
+	enum idxd_dev_type type;
+};
 
 #define IDXD_REG_TIMEOUT	50
 #define IDXD_DRAIN_TIMEOUT	5000
@@ -34,8 +52,17 @@ enum idxd_type {
 #define IDXD_PMU_EVENT_MAX	64
 
 struct idxd_device_driver {
+	const char *name;
+	enum idxd_dev_type *type;
+	int (*probe)(struct idxd_dev *idxd_dev);
+	void (*remove)(struct idxd_dev *idxd_dev);
 	struct device_driver drv;
 };
+
+extern struct idxd_device_driver dsa_drv;
+extern struct idxd_device_driver idxd_drv;
+extern struct idxd_device_driver idxd_dmaengine_drv;
+extern struct idxd_device_driver idxd_user_drv;
 
 struct idxd_irq_entry {
 	struct idxd_device *idxd;
@@ -51,7 +78,7 @@ struct idxd_irq_entry {
 };
 
 struct idxd_group {
-	struct device conf_dev;
+	struct idxd_dev idxd_dev;
 	struct idxd_device *idxd;
 	struct grpcfg grpcfg;
 	int id;
@@ -110,7 +137,7 @@ enum idxd_wq_type {
 struct idxd_cdev {
 	struct idxd_wq *wq;
 	struct cdev cdev;
-	struct device dev;
+	struct idxd_dev idxd_dev;
 	int minor;
 };
 
@@ -136,9 +163,10 @@ struct idxd_dma_chan {
 
 struct idxd_wq {
 	void __iomem *portal;
+	u32 portal_offset;
 	struct percpu_ref wq_active;
 	struct completion wq_dead;
-	struct device conf_dev;
+	struct idxd_dev idxd_dev;
 	struct idxd_cdev *idxd_cdev;
 	struct wait_queue_head err_queue;
 	struct idxd_device *idxd;
@@ -153,7 +181,6 @@ struct idxd_wq {
 	enum idxd_wq_state state;
 	unsigned long flags;
 	union wqcfg *wqcfg;
-	u32 vec_ptr;		/* interrupt steering */
 	struct dsa_hw_desc **hw_descs;
 	int num_descs;
 	union {
@@ -174,7 +201,7 @@ struct idxd_wq {
 };
 
 struct idxd_engine {
-	struct device conf_dev;
+	struct idxd_dev idxd_dev;
 	int id;
 	struct idxd_group *group;
 	struct idxd_device *idxd;
@@ -194,7 +221,6 @@ struct idxd_hw {
 enum idxd_device_state {
 	IDXD_DEV_HALTED = -1,
 	IDXD_DEV_DISABLED = 0,
-	IDXD_DEV_CONF_READY,
 	IDXD_DEV_ENABLED,
 };
 
@@ -218,7 +244,7 @@ struct idxd_driver_data {
 };
 
 struct idxd_device {
-	struct device conf_dev;
+	struct idxd_dev idxd_dev;
 	struct idxd_driver_data *data;
 	struct list_head list;
 	struct idxd_hw hw;
@@ -226,7 +252,7 @@ struct idxd_device {
 	unsigned long flags;
 	int id;
 	int major;
-	u8 cmd_status;
+	u32 cmd_status;
 
 	struct pci_dev *pdev;
 	void __iomem *reg_base;
@@ -290,7 +316,6 @@ struct idxd_desc {
 	struct list_head list;
 	int id;
 	int cpu;
-	unsigned int vector;
 	struct idxd_wq *wq;
 };
 
@@ -302,11 +327,62 @@ enum idxd_completion_status {
 	IDXD_COMP_DESC_ABORT = 0xff,
 };
 
-#define confdev_to_idxd(dev) container_of(dev, struct idxd_device, conf_dev)
-#define confdev_to_wq(dev) container_of(dev, struct idxd_wq, conf_dev)
+#define idxd_confdev(idxd) &idxd->idxd_dev.conf_dev
+#define wq_confdev(wq) &wq->idxd_dev.conf_dev
+#define engine_confdev(engine) &engine->idxd_dev.conf_dev
+#define group_confdev(group) &group->idxd_dev.conf_dev
+#define cdev_dev(cdev) &cdev->idxd_dev.conf_dev
+
+#define confdev_to_idxd_dev(dev) container_of(dev, struct idxd_dev, conf_dev)
+#define idxd_dev_to_idxd(idxd_dev) container_of(idxd_dev, struct idxd_device, idxd_dev)
+#define idxd_dev_to_wq(idxd_dev) container_of(idxd_dev, struct idxd_wq, idxd_dev)
+
+static inline struct idxd_device *confdev_to_idxd(struct device *dev)
+{
+	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
+
+	return idxd_dev_to_idxd(idxd_dev);
+}
+
+static inline struct idxd_wq *confdev_to_wq(struct device *dev)
+{
+	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
+
+	return idxd_dev_to_wq(idxd_dev);
+}
+
+static inline struct idxd_engine *confdev_to_engine(struct device *dev)
+{
+	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
+
+	return container_of(idxd_dev, struct idxd_engine, idxd_dev);
+}
+
+static inline struct idxd_group *confdev_to_group(struct device *dev)
+{
+	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
+
+	return container_of(idxd_dev, struct idxd_group, idxd_dev);
+}
+
+static inline struct idxd_cdev *dev_to_cdev(struct device *dev)
+{
+	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
+
+	return container_of(idxd_dev, struct idxd_cdev, idxd_dev);
+}
+
+static inline void idxd_dev_set_type(struct idxd_dev *idev, int type)
+{
+	if (type >= IDXD_DEV_MAX_TYPE) {
+		idev->type = IDXD_DEV_NONE;
+		return;
+	}
+
+	idev->type = type;
+}
 
 extern struct bus_type dsa_bus_type;
-extern struct bus_type iax_bus_type;
 
 extern bool support_enqcmd;
 extern struct ida idxd_ida;
@@ -316,24 +392,24 @@ extern struct device_type idxd_wq_device_type;
 extern struct device_type idxd_engine_device_type;
 extern struct device_type idxd_group_device_type;
 
-static inline bool is_dsa_dev(struct device *dev)
+static inline bool is_dsa_dev(struct idxd_dev *idxd_dev)
 {
-	return dev->type == &dsa_device_type;
+	return idxd_dev->type == IDXD_DEV_DSA;
 }
 
-static inline bool is_iax_dev(struct device *dev)
+static inline bool is_iax_dev(struct idxd_dev *idxd_dev)
 {
-	return dev->type == &iax_device_type;
+	return idxd_dev->type == IDXD_DEV_IAX;
 }
 
-static inline bool is_idxd_dev(struct device *dev)
+static inline bool is_idxd_dev(struct idxd_dev *idxd_dev)
 {
-	return is_dsa_dev(dev) || is_iax_dev(dev);
+	return is_dsa_dev(idxd_dev) || is_iax_dev(idxd_dev);
 }
 
-static inline bool is_idxd_wq_dev(struct device *dev)
+static inline bool is_idxd_wq_dev(struct idxd_dev *idxd_dev)
 {
-	return dev->type == &idxd_wq_device_type;
+	return idxd_dev->type == IDXD_DEV_WQ;
 }
 
 static inline bool is_idxd_wq_dmaengine(struct idxd_wq *wq)
@@ -343,9 +419,14 @@ static inline bool is_idxd_wq_dmaengine(struct idxd_wq *wq)
 	return false;
 }
 
-static inline bool is_idxd_wq_cdev(struct idxd_wq *wq)
+static inline bool is_idxd_wq_user(struct idxd_wq *wq)
 {
 	return wq->type == IDXD_WQT_USER;
+}
+
+static inline bool is_idxd_wq_kernel(struct idxd_wq *wq)
+{
+	return wq->type == IDXD_WQT_KERNEL;
 }
 
 static inline bool wq_dedicated(struct idxd_wq *wq)
@@ -389,6 +470,24 @@ static inline int idxd_get_wq_portal_full_offset(int wq_id,
 	return ((wq_id * 4) << PAGE_SHIFT) + idxd_get_wq_portal_offset(prot);
 }
 
+#define IDXD_PORTAL_MASK	(PAGE_SIZE - 1)
+
+/*
+ * Even though this function can be accessed by multiple threads, it is safe to use.
+ * At worst the address gets used more than once before it gets incremented. We don't
+ * hit a threshold until iops becomes many million times a second. So the occasional
+ * reuse of the same address is tolerable compare to using an atomic variable. This is
+ * safe on a system that has atomic load/store for 32bit integers. Given that this is an
+ * Intel iEP device, that should not be a problem.
+ */
+static inline void __iomem *idxd_wq_portal_addr(struct idxd_wq *wq)
+{
+	int ofs = wq->portal_offset;
+
+	wq->portal_offset = (ofs + sizeof(struct dsa_raw_desc)) & IDXD_PORTAL_MASK;
+	return wq->portal + ofs;
+}
+
 static inline void idxd_wq_get(struct idxd_wq *wq)
 {
 	wq->client_count++;
@@ -403,6 +502,16 @@ static inline int idxd_wq_refcount(struct idxd_wq *wq)
 {
 	return wq->client_count;
 };
+
+int __must_check __idxd_driver_register(struct idxd_device_driver *idxd_drv,
+					struct module *module, const char *mod_name);
+#define idxd_driver_register(driver) \
+	__idxd_driver_register(driver, THIS_MODULE, KBUILD_MODNAME)
+
+void idxd_driver_unregister(struct idxd_device_driver *idxd_drv);
+
+#define module_idxd_driver(__idxd_driver) \
+	module_driver(__idxd_driver, idxd_driver_register, idxd_driver_unregister)
 
 int idxd_register_bus_type(void);
 void idxd_unregister_bus_type(void);
@@ -424,13 +533,20 @@ void idxd_mask_msix_vector(struct idxd_device *idxd, int vec_id);
 void idxd_unmask_msix_vector(struct idxd_device *idxd, int vec_id);
 
 /* device control */
+int idxd_register_idxd_drv(void);
+void idxd_unregister_idxd_drv(void);
+int idxd_device_drv_probe(struct idxd_dev *idxd_dev);
+void idxd_device_drv_remove(struct idxd_dev *idxd_dev);
+int drv_enable_wq(struct idxd_wq *wq);
+int __drv_enable_wq(struct idxd_wq *wq);
+void drv_disable_wq(struct idxd_wq *wq);
+void __drv_disable_wq(struct idxd_wq *wq);
 int idxd_device_init_reset(struct idxd_device *idxd);
 int idxd_device_enable(struct idxd_device *idxd);
 int idxd_device_disable(struct idxd_device *idxd);
 void idxd_device_reset(struct idxd_device *idxd);
-void idxd_device_cleanup(struct idxd_device *idxd);
+void idxd_device_clear_state(struct idxd_device *idxd);
 int idxd_device_config(struct idxd_device *idxd);
-void idxd_device_wqs_clear_state(struct idxd_device *idxd);
 void idxd_device_drain_pasid(struct idxd_device *idxd, int pasid);
 int idxd_device_load_config(struct idxd_device *idxd);
 int idxd_device_request_int_handle(struct idxd_device *idxd, int idx, int *handle,
@@ -443,12 +559,11 @@ void idxd_wqs_unmap_portal(struct idxd_device *idxd);
 int idxd_wq_alloc_resources(struct idxd_wq *wq);
 void idxd_wq_free_resources(struct idxd_wq *wq);
 int idxd_wq_enable(struct idxd_wq *wq);
-int idxd_wq_disable(struct idxd_wq *wq);
+int idxd_wq_disable(struct idxd_wq *wq, bool reset_config);
 void idxd_wq_drain(struct idxd_wq *wq);
 void idxd_wq_reset(struct idxd_wq *wq);
 int idxd_wq_map_portal(struct idxd_wq *wq);
 void idxd_wq_unmap_portal(struct idxd_wq *wq);
-void idxd_wq_disable_cleanup(struct idxd_wq *wq);
 int idxd_wq_set_pasid(struct idxd_wq *wq, int pasid);
 int idxd_wq_disable_pasid(struct idxd_wq *wq);
 void idxd_wq_quiesce(struct idxd_wq *wq);

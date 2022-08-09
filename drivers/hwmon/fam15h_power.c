@@ -166,7 +166,7 @@ static int read_registers(struct fam15h_power_data *data)
 
 	memset(data->cu_on, 0, sizeof(int) * MAX_CUS);
 
-	get_online_cpus();
+	cpus_read_lock();
 
 	/*
 	 * Choose the first online core of each compute unit, and then
@@ -190,7 +190,7 @@ static int read_registers(struct fam15h_power_data *data)
 
 	on_each_cpu_mask(mask, do_read_registers_on_cu, data, true);
 
-	put_online_cpus();
+	cpus_read_unlock();
 	free_cpumask_var(mask);
 
 	return 0;

@@ -6,7 +6,7 @@
  *  based heavily on the work of Stephen Cox, with additional
  *  help from RedRat Ltd.
  *
- * This driver began life based an an old version of the first-generation
+ * This driver began life based on an old version of the first-generation
  * lirc_mceusb driver from the lirc 0.7.2 distribution. It was then
  * significantly rewritten by Stephen Cox with the aid of RedRat Ltd's
  * Chris Dodge.

@@ -156,7 +156,7 @@ static void config_acp_dma_channel(void __iomem *acp_mmio, u8 ch_num,
 	acp_reg_write(priority_level, acp_mmio, mmACP_DMA_PRIO_0 + ch_num);
 }
 
-/* Initialize a dma descriptor in SRAM based on descritor information passed */
+/* Initialize a dma descriptor in SRAM based on descriptor information passed */
 static void config_dma_descriptor_in_sram(void __iomem *acp_mmio,
 					  u16 descr_idx,
 					  acp_dma_dscr_transfer_t *descr_info)
@@ -288,7 +288,7 @@ static void set_acp_to_i2s_dma_descriptors(void __iomem *acp_mmio, u32 size,
 					      &dmadscr[i]);
 	}
 	pre_config_reset(acp_mmio, ch);
-	/* Configure the DMA channel with the above descriptore */
+	/* Configure the DMA channel with the above descriptor */
 	config_acp_dma_channel(acp_mmio, ch, dma_dscr_idx - 1,
 			       NUM_DSCRS_PER_CHANNEL,
 			       ACP_DMA_PRIORITY_LEVEL_NORMAL);
@@ -322,7 +322,7 @@ static void acp_pte_config(void __iomem *acp_mmio, dma_addr_t addr,
 		high |= BIT(31);
 		acp_reg_write(high, acp_mmio, mmACP_SRBM_Targ_Idx_Data);
 
-		/* Move to next physically contiguos page */
+		/* Move to next physically contiguous page */
 		addr += PAGE_SIZE;
 	}
 }
@@ -602,11 +602,11 @@ static int acp_init(void __iomem *acp_mmio, u32 asic_type)
 		acp_reg_write(val, acp_mmio, mmACP_BT_UART_PAD_SEL);
 	}
 
-	/* initiailize Onion control DAGB register */
+	/* initialize Onion control DAGB register */
 	acp_reg_write(ACP_ONION_CNTL_DEFAULT, acp_mmio,
 		      mmACP_AXI2DAGB_ONION_CNTL);
 
-	/* initiailize Garlic control DAGB registers */
+	/* initialize Garlic control DAGB registers */
 	acp_reg_write(ACP_GARLIC_CNTL_DEFAULT, acp_mmio,
 		      mmACP_AXI2DAGB_GARLIC_CNTL);
 
@@ -621,7 +621,7 @@ static int acp_init(void __iomem *acp_mmio, u32 asic_type)
 	acp_reg_write(ACP_SRAM_BASE_ADDRESS, acp_mmio,
 		      mmACP_DMA_DESC_BASE_ADDR);
 
-	/* Num of descriptiors in SRAM 0x4, means 256 descriptors;(64 * 4) */
+	/* Num of descriptors in SRAM 0x4, means 256 descriptors;(64 * 4) */
 	acp_reg_write(0x4, acp_mmio, mmACP_DMA_DESC_MAX_NUM_DSCR);
 	acp_reg_write(ACP_EXTERNAL_INTR_CNTL__DMAIOCMask_MASK,
 		      acp_mmio, mmACP_EXTERNAL_INTR_CNTL);
@@ -1035,13 +1035,6 @@ static snd_pcm_uframes_t acp_dma_pointer(struct snd_soc_component *component,
 	return bytes_to_frames(runtime, pos);
 }
 
-static int acp_dma_mmap(struct snd_soc_component *component,
-			struct snd_pcm_substream *substream,
-			struct vm_area_struct *vma)
-{
-	return snd_pcm_lib_default_mmap(substream, vma);
-}
-
 static int acp_dma_prepare(struct snd_soc_component *component,
 			   struct snd_pcm_substream *substream)
 {
@@ -1205,7 +1198,6 @@ static const struct snd_soc_component_driver acp_asoc_platform = {
 	.hw_params	= acp_dma_hw_params,
 	.trigger	= acp_dma_trigger,
 	.pointer	= acp_dma_pointer,
-	.mmap		= acp_dma_mmap,
 	.prepare	= acp_dma_prepare,
 	.pcm_construct	= acp_dma_new,
 };

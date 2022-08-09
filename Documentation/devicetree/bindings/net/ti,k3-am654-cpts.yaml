@@ -45,9 +45,9 @@ properties:
     pattern: "^cpts@[0-9a-f]+$"
 
   compatible:
-    oneOf:
-      - const: ti,am65-cpts
-      - const: ti,j721e-cpts
+    enum:
+      - ti,am65-cpts
+      - ti,j721e-cpts
 
   reg:
     maxItems: 1

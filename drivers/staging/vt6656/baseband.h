@@ -3,8 +3,6 @@
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
- * File: baseband.h
- *
  * Purpose: Implement functions to access baseband
  *
  * Author: Jerry Chen

@@ -260,7 +260,8 @@ _bpftool()
 
     # Deal with options
     if [[ ${words[cword]} == -* ]]; then
-        local c='--version --json --pretty --bpffs --mapcompat --debug'
+        local c='--version --json --pretty --bpffs --mapcompat --debug \
+	       --use-loader --base-btf'
         COMPREPLY=( $( compgen -W "$c" -- "$cur" ) )
         return 0
     fi
@@ -278,7 +279,7 @@ _bpftool()
             _sysfs_get_netdevs
             return 0
             ;;
-        file|pinned)
+        file|pinned|-B|--base-btf)
             _filedir
             return 0
             ;;
@@ -291,7 +292,8 @@ _bpftool()
     # Remove all options so completions don't have to deal with them.
     local i
     for (( i=1; i < ${#words[@]}; )); do
-        if [[ ${words[i]::1} == - ]]; then
+        if [[ ${words[i]::1} == - ]] &&
+            [[ ${words[i]} != "-B" ]] && [[ ${words[i]} != "--base-btf" ]]; then
             words=( "${words[@]:0:i}" "${words[@]:i+1}" )
             [[ $i -le $cword ]] && cword=$(( cword - 1 ))
         else
@@ -343,7 +345,8 @@ _bpftool()
 
             local PROG_TYPE='id pinned tag name'
             local MAP_TYPE='id pinned name'
-            local METRIC_TYPE='cycles instructions l1d_loads llc_misses'
+            local METRIC_TYPE='cycles instructions l1d_loads llc_misses \
+                itlb_misses dtlb_misses'
             case $command in
                 show|list)
                     [[ $prev != "$command" ]] && return 0
@@ -404,8 +407,10 @@ _bpftool()
                             return 0
                             ;;
                         5)
-                            COMPREPLY=( $( compgen -W 'msg_verdict stream_verdict \
-                                stream_parser flow_dissector' -- "$cur" ) )
+                            local BPFTOOL_PROG_ATTACH_TYPES='msg_verdict \
+                                skb_verdict stream_verdict stream_parser \
+                                flow_dissector'
+                            COMPREPLY=( $( compgen -W "$BPFTOOL_PROG_ATTACH_TYPES" -- "$cur" ) )
                             return 0
                             ;;
                         6)
@@ -464,7 +469,7 @@ _bpftool()
 
                     case $prev in
                         type)
-                            COMPREPLY=( $( compgen -W "socket kprobe \
+                            local BPFTOOL_PROG_LOAD_TYPES='socket kprobe \
                                 kretprobe classifier flow_dissector \
                                 action tracepoint raw_tracepoint \
                                 xdp perf_event cgroup/skb cgroup/sock \
@@ -479,8 +484,8 @@ _bpftool()
                                 cgroup/post_bind4 cgroup/post_bind6 \
                                 cgroup/sysctl cgroup/getsockopt \
                                 cgroup/setsockopt cgroup/sock_release struct_ops \
-                                fentry fexit freplace sk_lookup" -- \
-                                                   "$cur" ) )
+                                fentry fexit freplace sk_lookup'
+                            COMPREPLY=( $( compgen -W "$BPFTOOL_PROG_LOAD_TYPES" -- "$cur" ) )
                             return 0
                             ;;
                         id)
@@ -698,15 +703,15 @@ _bpftool()
                             return 0
                             ;;
                         type)
-                            COMPREPLY=( $( compgen -W 'hash array prog_array \
-                                perf_event_array percpu_hash percpu_array \
-                                stack_trace cgroup_array lru_hash \
+                            local BPFTOOL_MAP_CREATE_TYPES='hash array \
+                                prog_array perf_event_array percpu_hash \
+                                percpu_array stack_trace cgroup_array lru_hash \
                                 lru_percpu_hash lpm_trie array_of_maps \
                                 hash_of_maps devmap devmap_hash sockmap cpumap \
                                 xskmap sockhash cgroup_storage reuseport_sockarray \
                                 percpu_cgroup_storage queue stack sk_storage \
-                                struct_ops inode_storage task_storage' -- \
-                                                   "$cur" ) )
+                                struct_ops inode_storage task_storage ringbuf'
+                            COMPREPLY=( $( compgen -W "$BPFTOOL_MAP_CREATE_TYPES" -- "$cur" ) )
                             return 0
                             ;;
                         key|value|flags|entries)
@@ -1017,34 +1022,37 @@ _bpftool()
                     return 0
                     ;;
                 attach|detach)
-                    local ATTACH_TYPES='ingress egress sock_create sock_ops \
-                        device bind4 bind6 post_bind4 post_bind6 connect4 connect6 \
+                    local BPFTOOL_CGROUP_ATTACH_TYPES='ingress egress \
+                        sock_create sock_ops device \
+                        bind4 bind6 post_bind4 post_bind6 connect4 connect6 \
                         getpeername4 getpeername6 getsockname4 getsockname6 \
                         sendmsg4 sendmsg6 recvmsg4 recvmsg6 sysctl getsockopt \
                         setsockopt sock_release'
                     local ATTACH_FLAGS='multi override'
                     local PROG_TYPE='id pinned tag name'
-                    case $prev in
-                        $command)
-                            _filedir
-                            return 0
-                            ;;
-                        ingress|egress|sock_create|sock_ops|device|bind4|bind6|\
-                        post_bind4|post_bind6|connect4|connect6|getpeername4|\
-                        getpeername6|getsockname4|getsockname6|sendmsg4|sendmsg6|\
-                        recvmsg4|recvmsg6|sysctl|getsockopt|setsockopt|sock_release)
+                    # Check for $prev = $command first
+                    if [ $prev = $command ]; then
+                        _filedir
+                        return 0
+                    # Then check for attach type. This is done outside of the
+                    # "case $prev in" to avoid writing the whole list of attach
+                    # types again as pattern to match (where we cannot reuse
+                    # our variable).
+                    elif [[ $BPFTOOL_CGROUP_ATTACH_TYPES =~ $prev ]]; then
                             COMPREPLY=( $( compgen -W "$PROG_TYPE" -- \
                                 "$cur" ) )
                             return 0
-                            ;;
+                    fi
+                    # case/esac for the other cases
+                    case $prev in
                         id)
                             _bpftool_get_prog_ids
                             return 0
                             ;;
                         *)
-                            if ! _bpftool_search_list "$ATTACH_TYPES"; then
-                                COMPREPLY=( $( compgen -W "$ATTACH_TYPES" -- \
-                                    "$cur" ) )
+                            if ! _bpftool_search_list "$BPFTOOL_CGROUP_ATTACH_TYPES"; then
+                                COMPREPLY=( $( compgen -W \
+                                    "$BPFTOOL_CGROUP_ATTACH_TYPES" -- "$cur" ) )
                             elif [[ "$command" == "attach" ]]; then
                                 # We have an attach type on the command line,
                                 # but it is not the previous word, or

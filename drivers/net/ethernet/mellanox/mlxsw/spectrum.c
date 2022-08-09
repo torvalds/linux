@@ -1207,7 +1207,7 @@ static const struct net_device_ops mlxsw_sp_port_netdev_ops = {
 	.ndo_vlan_rx_kill_vid	= mlxsw_sp_port_kill_vid,
 	.ndo_set_features	= mlxsw_sp_set_features,
 	.ndo_get_devlink_port	= mlxsw_sp_port_get_devlink_port,
-	.ndo_do_ioctl		= mlxsw_sp_port_ioctl,
+	.ndo_eth_ioctl		= mlxsw_sp_port_ioctl,
 };
 
 static int
@@ -2717,6 +2717,22 @@ mlxsw_sp_sample_trigger_params_unset(struct mlxsw_sp *mlxsw_sp,
 static int mlxsw_sp_netdevice_event(struct notifier_block *unused,
 				    unsigned long event, void *ptr);
 
+#define MLXSW_SP_DEFAULT_PARSING_DEPTH 96
+#define MLXSW_SP_INCREASED_PARSING_DEPTH 128
+#define MLXSW_SP_DEFAULT_VXLAN_UDP_DPORT 4789
+
+static void mlxsw_sp_parsing_init(struct mlxsw_sp *mlxsw_sp)
+{
+	mlxsw_sp->parsing.parsing_depth = MLXSW_SP_DEFAULT_PARSING_DEPTH;
+	mlxsw_sp->parsing.vxlan_udp_dport = MLXSW_SP_DEFAULT_VXLAN_UDP_DPORT;
+	mutex_init(&mlxsw_sp->parsing.lock);
+}
+
+static void mlxsw_sp_parsing_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	mutex_destroy(&mlxsw_sp->parsing.lock);
+}
+
 static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 			 const struct mlxsw_bus_info *mlxsw_bus_info,
 			 struct netlink_ext_ack *extack)
@@ -2727,6 +2743,7 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->core = mlxsw_core;
 	mlxsw_sp->bus_info = mlxsw_bus_info;
 
+	mlxsw_sp_parsing_init(mlxsw_sp);
 	mlxsw_core_emad_string_tlv_enable(mlxsw_core);
 
 	err = mlxsw_sp_base_mac_get(mlxsw_sp);
@@ -2926,6 +2943,7 @@ err_policers_init:
 	mlxsw_sp_fids_fini(mlxsw_sp);
 err_fids_init:
 	mlxsw_sp_kvdl_fini(mlxsw_sp);
+	mlxsw_sp_parsing_fini(mlxsw_sp);
 	return err;
 }
 
@@ -3046,6 +3064,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	mlxsw_sp_policers_fini(mlxsw_sp);
 	mlxsw_sp_fids_fini(mlxsw_sp);
 	mlxsw_sp_kvdl_fini(mlxsw_sp);
+	mlxsw_sp_parsing_fini(mlxsw_sp);
 }
 
 /* Per-FID flood tables are used for both "true" 802.1D FIDs and emulated
@@ -3609,6 +3628,69 @@ struct mlxsw_sp_port *mlxsw_sp_port_lower_dev_hold(struct net_device *dev)
 void mlxsw_sp_port_dev_put(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	dev_put(mlxsw_sp_port->dev);
+}
+
+int mlxsw_sp_parsing_depth_inc(struct mlxsw_sp *mlxsw_sp)
+{
+	char mprs_pl[MLXSW_REG_MPRS_LEN];
+	int err = 0;
+
+	mutex_lock(&mlxsw_sp->parsing.lock);
+
+	if (refcount_inc_not_zero(&mlxsw_sp->parsing.parsing_depth_ref))
+		goto out_unlock;
+
+	mlxsw_reg_mprs_pack(mprs_pl, MLXSW_SP_INCREASED_PARSING_DEPTH,
+			    mlxsw_sp->parsing.vxlan_udp_dport);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mprs), mprs_pl);
+	if (err)
+		goto out_unlock;
+
+	mlxsw_sp->parsing.parsing_depth = MLXSW_SP_INCREASED_PARSING_DEPTH;
+	refcount_set(&mlxsw_sp->parsing.parsing_depth_ref, 1);
+
+out_unlock:
+	mutex_unlock(&mlxsw_sp->parsing.lock);
+	return err;
+}
+
+void mlxsw_sp_parsing_depth_dec(struct mlxsw_sp *mlxsw_sp)
+{
+	char mprs_pl[MLXSW_REG_MPRS_LEN];
+
+	mutex_lock(&mlxsw_sp->parsing.lock);
+
+	if (!refcount_dec_and_test(&mlxsw_sp->parsing.parsing_depth_ref))
+		goto out_unlock;
+
+	mlxsw_reg_mprs_pack(mprs_pl, MLXSW_SP_DEFAULT_PARSING_DEPTH,
+			    mlxsw_sp->parsing.vxlan_udp_dport);
+	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mprs), mprs_pl);
+	mlxsw_sp->parsing.parsing_depth = MLXSW_SP_DEFAULT_PARSING_DEPTH;
+
+out_unlock:
+	mutex_unlock(&mlxsw_sp->parsing.lock);
+}
+
+int mlxsw_sp_parsing_vxlan_udp_dport_set(struct mlxsw_sp *mlxsw_sp,
+					 __be16 udp_dport)
+{
+	char mprs_pl[MLXSW_REG_MPRS_LEN];
+	int err;
+
+	mutex_lock(&mlxsw_sp->parsing.lock);
+
+	mlxsw_reg_mprs_pack(mprs_pl, mlxsw_sp->parsing.parsing_depth,
+			    be16_to_cpu(udp_dport));
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mprs), mprs_pl);
+	if (err)
+		goto out_unlock;
+
+	mlxsw_sp->parsing.vxlan_udp_dport = be16_to_cpu(udp_dport);
+
+out_unlock:
+	mutex_unlock(&mlxsw_sp->parsing.lock);
+	return err;
 }
 
 static void

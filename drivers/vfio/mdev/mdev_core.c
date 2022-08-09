@@ -138,10 +138,6 @@ int mdev_register_device(struct device *dev, const struct mdev_parent_ops *ops)
 	if (!dev)
 		return -EINVAL;
 
-	/* Not mandatory, but its absence could be a problem */
-	if (!ops->request)
-		dev_info(dev, "Driver cannot be asked to release device\n");
-
 	mutex_lock(&parent_list_lock);
 
 	/* Check for duplicate */
@@ -398,7 +394,7 @@ static void __exit mdev_exit(void)
 	mdev_bus_unregister();
 }
 
-module_init(mdev_init)
+subsys_initcall(mdev_init)
 module_exit(mdev_exit)
 
 MODULE_VERSION(DRIVER_VERSION);

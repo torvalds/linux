@@ -123,7 +123,7 @@
 # 1135 was get_kernel_syms
 # 1136 was query_module
 113	common	quotactl			sys_quotactl
-114	common	bdflush				sys_bdflush
+114	common	bdflush				sys_ni_syscall
 115	common	sysfs				sys_sysfs
 116	common	personality			sys_personality
 117	common	afs_syscall			sys_ni_syscall
@@ -367,3 +367,5 @@
 444	common	landlock_create_ruleset		sys_landlock_create_ruleset
 445	common	landlock_add_rule		sys_landlock_add_rule
 446	common	landlock_restrict_self		sys_landlock_restrict_self
+# 447 reserved for memfd_secret
+448	common	process_mrelease		sys_process_mrelease

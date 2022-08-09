@@ -24,10 +24,10 @@ description: |
 
 properties:
   compatible:
-    oneOf:
-      - const: ti,tlv320adc3140
-      - const: ti,tlv320adc5140
-      - const: ti,tlv320adc6140
+    enum:
+      - ti,tlv320adc3140
+      - ti,tlv320adc5140
+      - ti,tlv320adc6140
 
   reg:
     maxItems: 1

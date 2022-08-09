@@ -31,9 +31,9 @@ xfs_allocbt_dup_cursor(
 
 STATIC void
 xfs_allocbt_set_root(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_ptr	*ptr,
-	int			inc)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_ptr	*ptr,
+	int				inc)
 {
 	struct xfs_buf		*agbp = cur->bc_ag.agbp;
 	struct xfs_agf		*agf = agbp->b_addr;
@@ -50,10 +50,10 @@ xfs_allocbt_set_root(
 
 STATIC int
 xfs_allocbt_alloc_block(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_ptr	*start,
-	union xfs_btree_ptr	*new,
-	int			*stat)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_ptr	*start,
+	union xfs_btree_ptr		*new,
+	int				*stat)
 {
 	int			error;
 	xfs_agblock_t		bno;
@@ -87,7 +87,7 @@ xfs_allocbt_free_block(
 	xfs_agblock_t		bno;
 	int			error;
 
-	bno = xfs_daddr_to_agbno(cur->bc_mp, XFS_BUF_ADDR(bp));
+	bno = xfs_daddr_to_agbno(cur->bc_mp, xfs_buf_daddr(bp));
 	error = xfs_alloc_put_freelist(cur->bc_tp, agbp, NULL, bno, 1);
 	if (error)
 		return error;
@@ -103,11 +103,11 @@ xfs_allocbt_free_block(
  */
 STATIC void
 xfs_allocbt_update_lastrec(
-	struct xfs_btree_cur	*cur,
-	struct xfs_btree_block	*block,
-	union xfs_btree_rec	*rec,
-	int			ptr,
-	int			reason)
+	struct xfs_btree_cur		*cur,
+	const struct xfs_btree_block	*block,
+	const union xfs_btree_rec	*rec,
+	int				ptr,
+	int				reason)
 {
 	struct xfs_agf		*agf = cur->bc_ag.agbp->b_addr;
 	struct xfs_perag	*pag;
@@ -177,8 +177,8 @@ xfs_allocbt_get_maxrecs(
 
 STATIC void
 xfs_allocbt_init_key_from_rec(
-	union xfs_btree_key	*key,
-	union xfs_btree_rec	*rec)
+	union xfs_btree_key		*key,
+	const union xfs_btree_rec	*rec)
 {
 	key->alloc.ar_startblock = rec->alloc.ar_startblock;
 	key->alloc.ar_blockcount = rec->alloc.ar_blockcount;
@@ -186,10 +186,10 @@ xfs_allocbt_init_key_from_rec(
 
 STATIC void
 xfs_bnobt_init_high_key_from_rec(
-	union xfs_btree_key	*key,
-	union xfs_btree_rec	*rec)
+	union xfs_btree_key		*key,
+	const union xfs_btree_rec	*rec)
 {
-	__u32			x;
+	__u32				x;
 
 	x = be32_to_cpu(rec->alloc.ar_startblock);
 	x += be32_to_cpu(rec->alloc.ar_blockcount) - 1;
@@ -199,8 +199,8 @@ xfs_bnobt_init_high_key_from_rec(
 
 STATIC void
 xfs_cntbt_init_high_key_from_rec(
-	union xfs_btree_key	*key,
-	union xfs_btree_rec	*rec)
+	union xfs_btree_key		*key,
+	const union xfs_btree_rec	*rec)
 {
 	key->alloc.ar_blockcount = rec->alloc.ar_blockcount;
 	key->alloc.ar_startblock = 0;
@@ -229,23 +229,23 @@ xfs_allocbt_init_ptr_from_cur(
 
 STATIC int64_t
 xfs_bnobt_key_diff(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_key	*key)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key)
 {
-	xfs_alloc_rec_incore_t	*rec = &cur->bc_rec.a;
-	xfs_alloc_key_t		*kp = &key->alloc;
+	struct xfs_alloc_rec_incore	*rec = &cur->bc_rec.a;
+	const struct xfs_alloc_rec	*kp = &key->alloc;
 
 	return (int64_t)be32_to_cpu(kp->ar_startblock) - rec->ar_startblock;
 }
 
 STATIC int64_t
 xfs_cntbt_key_diff(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_key	*key)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key)
 {
-	xfs_alloc_rec_incore_t	*rec = &cur->bc_rec.a;
-	xfs_alloc_key_t		*kp = &key->alloc;
-	int64_t			diff;
+	struct xfs_alloc_rec_incore	*rec = &cur->bc_rec.a;
+	const struct xfs_alloc_rec	*kp = &key->alloc;
+	int64_t				diff;
 
 	diff = (int64_t)be32_to_cpu(kp->ar_blockcount) - rec->ar_blockcount;
 	if (diff)
@@ -256,9 +256,9 @@ xfs_cntbt_key_diff(
 
 STATIC int64_t
 xfs_bnobt_diff_two_keys(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_key	*k1,
-	union xfs_btree_key	*k2)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*k1,
+	const union xfs_btree_key	*k2)
 {
 	return (int64_t)be32_to_cpu(k1->alloc.ar_startblock) -
 			  be32_to_cpu(k2->alloc.ar_startblock);
@@ -266,11 +266,11 @@ xfs_bnobt_diff_two_keys(
 
 STATIC int64_t
 xfs_cntbt_diff_two_keys(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_key	*k1,
-	union xfs_btree_key	*k2)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*k1,
+	const union xfs_btree_key	*k2)
 {
-	int64_t			diff;
+	int64_t				diff;
 
 	diff =  be32_to_cpu(k1->alloc.ar_blockcount) -
 		be32_to_cpu(k2->alloc.ar_blockcount);
@@ -295,7 +295,7 @@ xfs_allocbt_verify(
 	if (!xfs_verify_magic(bp, block->bb_magic))
 		return __this_address;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		fa = xfs_btree_sblock_v5hdr_verify(bp);
 		if (fa)
 			return fa;
@@ -376,9 +376,9 @@ const struct xfs_buf_ops xfs_cntbt_buf_ops = {
 
 STATIC int
 xfs_bnobt_keys_inorder(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_key	*k1,
-	union xfs_btree_key	*k2)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*k1,
+	const union xfs_btree_key	*k2)
 {
 	return be32_to_cpu(k1->alloc.ar_startblock) <
 	       be32_to_cpu(k2->alloc.ar_startblock);
@@ -386,9 +386,9 @@ xfs_bnobt_keys_inorder(
 
 STATIC int
 xfs_bnobt_recs_inorder(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_rec	*r1,
-	union xfs_btree_rec	*r2)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_rec	*r1,
+	const union xfs_btree_rec	*r2)
 {
 	return be32_to_cpu(r1->alloc.ar_startblock) +
 		be32_to_cpu(r1->alloc.ar_blockcount) <=
@@ -397,9 +397,9 @@ xfs_bnobt_recs_inorder(
 
 STATIC int
 xfs_cntbt_keys_inorder(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_key	*k1,
-	union xfs_btree_key	*k2)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*k1,
+	const union xfs_btree_key	*k2)
 {
 	return be32_to_cpu(k1->alloc.ar_blockcount) <
 		be32_to_cpu(k2->alloc.ar_blockcount) ||
@@ -410,9 +410,9 @@ xfs_cntbt_keys_inorder(
 
 STATIC int
 xfs_cntbt_recs_inorder(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_rec	*r1,
-	union xfs_btree_rec	*r2)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_rec	*r1,
+	const union xfs_btree_rec	*r2)
 {
 	return be32_to_cpu(r1->alloc.ar_blockcount) <
 		be32_to_cpu(r2->alloc.ar_blockcount) ||
@@ -498,7 +498,7 @@ xfs_allocbt_init_common(
 	atomic_inc(&pag->pag_ref);
 	cur->bc_ag.pag = pag;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb))
+	if (xfs_has_crc(mp))
 		cur->bc_flags |= XFS_BTREE_CRC_BLOCKS;
 
 	return cur;

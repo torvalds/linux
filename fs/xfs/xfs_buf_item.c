@@ -428,7 +428,7 @@ xfs_buf_item_format(
 	 * occurs during recovery.
 	 */
 	if (bip->bli_flags & XFS_BLI_INODE_BUF) {
-		if (xfs_sb_version_has_v3inode(&lip->li_mountp->m_sb) ||
+		if (xfs_has_v3inodes(lip->li_mountp) ||
 		    !((bip->bli_flags & XFS_BLI_INODE_ALLOC_BUF) &&
 		      xfs_log_item_in_current_chkpt(lip)))
 			bip->__bli_format.blf_flags |= XFS_BLF_INODE_BUF;
@@ -581,7 +581,7 @@ xfs_buf_item_push(
 	if (bp->b_flags & XBF_WRITE_FAIL) {
 		xfs_buf_alert_ratelimited(bp, "XFS: Failing async write",
 	    "Failing async write on buffer block 0x%llx. Retrying async write.",
-					  (long long)bp->b_bn);
+					  (long long)xfs_buf_daddr(bp));
 	}
 
 	if (!xfs_buf_delwri_queue(bp, buffer_list))
@@ -616,7 +616,7 @@ xfs_buf_item_put(
 	 * that case, the bli is freed on buffer writeback completion.
 	 */
 	aborted = test_bit(XFS_LI_ABORTED, &lip->li_flags) ||
-		  XFS_FORCED_SHUTDOWN(lip->li_mountp);
+		  xfs_is_shutdown(lip->li_mountp);
 	dirty = bip->bli_flags & XFS_BLI_DIRTY;
 	if (dirty && !aborted)
 		return false;

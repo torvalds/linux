@@ -125,6 +125,11 @@ static const struct of_device_id max5481_match[] = {
 };
 MODULE_DEVICE_TABLE(of, max5481_match);
 
+static void max5481_wiper_save(void *data)
+{
+	max5481_write_cmd(data, MAX5481_COPY_AB_TO_NV, 0);
+}
+
 static int max5481_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
@@ -136,7 +141,6 @@ static int max5481_probe(struct spi_device *spi)
 	if (!indio_dev)
 		return -ENOMEM;
 
-	spi_set_drvdata(spi, indio_dev);
 	data = iio_priv(indio_dev);
 
 	data->spi = spi;
@@ -158,18 +162,11 @@ static int max5481_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	return iio_device_register(indio_dev);
-}
+	ret = devm_add_action(&spi->dev, max5481_wiper_save, data);
+	if (ret < 0)
+		return ret;
 
-static int max5481_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct max5481_data *data = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-
-	/* save wiper reg to NV reg */
-	return max5481_write_cmd(data, MAX5481_COPY_AB_TO_NV, 0);
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id max5481_id_table[] = {
@@ -187,7 +184,6 @@ static struct spi_driver max5481_driver = {
 		.of_match_table = max5481_match,
 	},
 	.probe = max5481_probe,
-	.remove = max5481_remove,
 	.id_table = max5481_id_table,
 };
 

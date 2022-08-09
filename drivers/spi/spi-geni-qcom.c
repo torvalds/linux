@@ -549,12 +549,6 @@ static void setup_fifo_xfer(struct spi_transfer *xfer,
 	 */
 	spin_lock_irq(&mas->lock);
 	geni_se_setup_m_cmd(se, m_cmd, FRAGMENTATION);
-
-	/*
-	 * TX_WATERMARK_REG should be set after SPI configuration and
-	 * setting up GENI SE engine, as driver starts data transfer
-	 * for the watermark interrupt.
-	 */
 	if (m_cmd & SPI_TX_ONLY) {
 		if (geni_spi_handle_tx(mas))
 			writel(mas->tx_wm, se->base + SE_GENI_TX_WATERMARK_REG);

@@ -207,6 +207,8 @@ int zpci_enable_device(struct zpci_dev *);
 int zpci_disable_device(struct zpci_dev *);
 int zpci_scan_configured_device(struct zpci_dev *zdev, u32 fh);
 int zpci_deconfigure_device(struct zpci_dev *zdev);
+void zpci_device_reserved(struct zpci_dev *zdev);
+bool zpci_is_device_configured(struct zpci_dev *zdev);
 
 int zpci_register_ioat(struct zpci_dev *, u8, u64, u64, u64);
 int zpci_unregister_ioat(struct zpci_dev *, u8);
@@ -216,9 +218,10 @@ void zpci_remove_reserved_devices(void);
 int clp_setup_writeback_mio(void);
 int clp_scan_pci_devices(void);
 int clp_query_pci_fn(struct zpci_dev *zdev);
-int clp_enable_fh(struct zpci_dev *, u8);
-int clp_disable_fh(struct zpci_dev *);
+int clp_enable_fh(struct zpci_dev *zdev, u32 *fh, u8 nr_dma_as);
+int clp_disable_fh(struct zpci_dev *zdev, u32 *fh);
 int clp_get_state(u32 fid, enum zpci_state *state);
+int clp_refresh_fh(u32 fid, u32 *fh);
 
 /* UID */
 void update_uid_checking(bool new);
@@ -271,6 +274,8 @@ struct zpci_dev *get_zdev_by_fid(u32);
 /* DMA */
 int zpci_dma_init(void);
 void zpci_dma_exit(void);
+int zpci_dma_init_device(struct zpci_dev *zdev);
+int zpci_dma_exit_device(struct zpci_dev *zdev);
 
 /* IRQ */
 int __init zpci_irq_init(void);

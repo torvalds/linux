@@ -741,12 +741,10 @@ struct pneigh_entry * pneigh_lookup(struct neigh_table *tbl,
 	write_pnet(&n->net, net);
 	memcpy(n->key, pkey, key_len);
 	n->dev = dev;
-	if (dev)
-		dev_hold(dev);
+	dev_hold(dev);
 
 	if (tbl->pconstructor && tbl->pconstructor(n)) {
-		if (dev)
-			dev_put(dev);
+		dev_put(dev);
 		kfree(n);
 		n = NULL;
 		goto out;
@@ -778,8 +776,7 @@ int pneigh_delete(struct neigh_table *tbl, struct net *net, const void *pkey,
 			write_unlock_bh(&tbl->lock);
 			if (tbl->pdestructor)
 				tbl->pdestructor(n);
-			if (n->dev)
-				dev_put(n->dev);
+			dev_put(n->dev);
 			kfree(n);
 			return 0;
 		}
@@ -812,8 +809,7 @@ static int pneigh_ifdown_and_unlock(struct neigh_table *tbl,
 		n->next = NULL;
 		if (tbl->pdestructor)
 			tbl->pdestructor(n);
-		if (n->dev)
-			dev_put(n->dev);
+		dev_put(n->dev);
 		kfree(n);
 	}
 	return -ENOENT;
@@ -1662,8 +1658,7 @@ void neigh_parms_release(struct neigh_table *tbl, struct neigh_parms *parms)
 	list_del(&parms->list);
 	parms->dead = 1;
 	write_unlock_bh(&tbl->lock);
-	if (parms->dev)
-		dev_put(parms->dev);
+	dev_put(parms->dev);
 	call_rcu(&parms->rcu_head, neigh_rcu_free_parms);
 }
 EXPORT_SYMBOL(neigh_parms_release);
@@ -2533,6 +2528,13 @@ static bool neigh_master_filtered(struct net_device *dev, int master_idx)
 		return false;
 
 	master = dev ? netdev_master_upper_dev_get(dev) : NULL;
+
+	/* 0 is already used to denote NDA_MASTER wasn't passed, therefore need another
+	 * invalid value for ifindex to denote "no master".
+	 */
+	if (master_idx == -1)
+		return !!master;
+
 	if (!master || master->ifindex != master_idx)
 		return true;
 
@@ -3315,12 +3317,13 @@ static int neigh_stat_seq_show(struct seq_file *seq, void *v)
 	struct neigh_statistics *st = v;
 
 	if (v == SEQ_START_TOKEN) {
-		seq_printf(seq, "entries  allocs destroys hash_grows  lookups hits  res_failed  rcv_probes_mcast rcv_probes_ucast  periodic_gc_runs forced_gc_runs unresolved_discards table_fulls\n");
+		seq_puts(seq, "entries  allocs   destroys hash_grows lookups  hits     res_failed rcv_probes_mcast rcv_probes_ucast periodic_gc_runs forced_gc_runs unresolved_discards table_fulls\n");
 		return 0;
 	}
 
-	seq_printf(seq, "%08x  %08lx %08lx %08lx  %08lx %08lx  %08lx  "
-			"%08lx %08lx  %08lx %08lx %08lx %08lx\n",
+	seq_printf(seq, "%08x %08lx %08lx %08lx   %08lx %08lx %08lx   "
+			"%08lx         %08lx         %08lx         "
+			"%08lx       %08lx            %08lx\n",
 		   atomic_read(&tbl->entries),
 
 		   st->allocs,

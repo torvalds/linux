@@ -305,27 +305,6 @@ static int renesas_sdhi_start_signal_voltage_switch(struct mmc_host *mmc,
 #define SH_MOBILE_SDHI_SCC_TMPPORT_CALIB_CODE_MASK	0x1f
 #define SH_MOBILE_SDHI_SCC_TMPPORT_MANUAL_MODE		BIT(7)
 
-static const u8 r8a7796_es13_calib_table[2][SDHI_CALIB_TABLE_MAX] = {
-	{ 3,  3,  3,  3,  3,  3,  3,  4,  4,  5,  6,  7,  8,  9, 10, 15,
-	 16, 16, 16, 16, 16, 16, 17, 18, 18, 19, 20, 21, 22, 23, 24, 25 },
-	{ 5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  6,  7,  8, 11,
-	 12, 17, 18, 18, 18, 18, 18, 18, 18, 19, 20, 21, 22, 23, 25, 25 }
-};
-
-static const u8 r8a77965_calib_table[2][SDHI_CALIB_TABLE_MAX] = {
-	{ 1,  2,  6,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 15, 15, 16,
-	 17, 18, 19, 20, 21, 22, 23, 24, 25, 25, 26, 27, 28, 29, 30, 31 },
-	{ 2,  3,  4,  4,  5,  6,  7,  9, 10, 11, 12, 13, 14, 15, 16, 17,
-	 17, 17, 20, 21, 22, 23, 24, 25, 27, 28, 29, 30, 31, 31, 31, 31 }
-};
-
-static const u8 r8a77990_calib_table[2][SDHI_CALIB_TABLE_MAX] = {
-	{ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 },
-	{ 0,  0,  0,  1,  2,  3,  3,  4,  4,  4,  5,  5,  6,  8,  9, 10,
-	 11, 12, 13, 15, 16, 17, 17, 18, 18, 19, 20, 22, 24, 25, 26, 26 }
-};
-
 static inline u32 sd_scc_read32(struct tmio_mmc_host *host,
 				struct renesas_sdhi *priv, int addr)
 {
@@ -582,6 +561,8 @@ static void renesas_sdhi_reset(struct tmio_mmc_host *host)
 		/* Unknown why but without polling reset status, it will hang */
 		read_poll_timeout(reset_control_status, ret, ret == 0, 1, 100,
 				  false, priv->rstc);
+		/* At least SDHI_VER_GEN2_SDR50 needs manual release of reset */
+		sd_ctrl_write16(host, CTL_RESET_SD, 0x0001);
 		priv->needs_adjust_hs400 = false;
 		renesas_sdhi_set_clock(host, host->clk_cache);
 	} else if (priv->scc_ctl) {
@@ -895,69 +876,12 @@ static void renesas_sdhi_enable_dma(struct tmio_mmc_host *host, bool enable)
 	renesas_sdhi_sdbuf_width(host, enable ? width : 16);
 }
 
-static const struct renesas_sdhi_quirks sdhi_quirks_4tap_nohs400 = {
-	.hs400_disabled = true,
-	.hs400_4taps = true,
-};
-
-static const struct renesas_sdhi_quirks sdhi_quirks_4tap = {
-	.hs400_4taps = true,
-	.hs400_bad_taps = BIT(2) | BIT(3) | BIT(6) | BIT(7),
-};
-
-static const struct renesas_sdhi_quirks sdhi_quirks_nohs400 = {
-	.hs400_disabled = true,
-};
-
-static const struct renesas_sdhi_quirks sdhi_quirks_bad_taps1357 = {
-	.hs400_bad_taps = BIT(1) | BIT(3) | BIT(5) | BIT(7),
-};
-
-static const struct renesas_sdhi_quirks sdhi_quirks_bad_taps2367 = {
-	.hs400_bad_taps = BIT(2) | BIT(3) | BIT(6) | BIT(7),
-};
-
-static const struct renesas_sdhi_quirks sdhi_quirks_r8a7796_es13 = {
-	.hs400_4taps = true,
-	.hs400_bad_taps = BIT(2) | BIT(3) | BIT(6) | BIT(7),
-	.hs400_calib_table = r8a7796_es13_calib_table,
-};
-
-static const struct renesas_sdhi_quirks sdhi_quirks_r8a77965 = {
-	.hs400_bad_taps = BIT(2) | BIT(3) | BIT(6) | BIT(7),
-	.hs400_calib_table = r8a77965_calib_table,
-};
-
-static const struct renesas_sdhi_quirks sdhi_quirks_r8a77990 = {
-	.hs400_calib_table = r8a77990_calib_table,
-};
-
-/*
- * Note for r8a7796 / r8a774a1: we can't distinguish ES1.1 and 1.2 as of now.
- * So, we want to treat them equally and only have a match for ES1.2 to enforce
- * this if there ever will be a way to distinguish ES1.2.
- */
-static const struct soc_device_attribute sdhi_quirks_match[]  = {
-	{ .soc_id = "r8a774a1", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_nohs400 },
-	{ .soc_id = "r8a7795", .revision = "ES1.*", .data = &sdhi_quirks_4tap_nohs400 },
-	{ .soc_id = "r8a7795", .revision = "ES2.0", .data = &sdhi_quirks_4tap },
-	{ .soc_id = "r8a7795", .revision = "ES3.*", .data = &sdhi_quirks_bad_taps2367 },
-	{ .soc_id = "r8a7796", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_nohs400 },
-	{ .soc_id = "r8a7796", .revision = "ES1.*", .data = &sdhi_quirks_r8a7796_es13 },
-	{ .soc_id = "r8a77961", .data = &sdhi_quirks_bad_taps1357 },
-	{ .soc_id = "r8a77965", .data = &sdhi_quirks_r8a77965 },
-	{ .soc_id = "r8a77980", .data = &sdhi_quirks_nohs400 },
-	{ .soc_id = "r8a77990", .data = &sdhi_quirks_r8a77990 },
-	{ /* Sentinel. */ },
-};
-
 int renesas_sdhi_probe(struct platform_device *pdev,
-		       const struct tmio_mmc_dma_ops *dma_ops)
+		       const struct tmio_mmc_dma_ops *dma_ops,
+		       const struct renesas_sdhi_of_data *of_data,
+		       const struct renesas_sdhi_quirks *quirks)
 {
 	struct tmio_mmc_data *mmd = pdev->dev.platform_data;
-	const struct renesas_sdhi_quirks *quirks = NULL;
-	const struct renesas_sdhi_of_data *of_data;
-	const struct soc_device_attribute *attr;
 	struct tmio_mmc_data *mmc_data;
 	struct tmio_mmc_dma *dma_priv;
 	struct tmio_mmc_host *host;
@@ -965,12 +889,6 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	int num_irqs, irq, ret, i;
 	struct resource *res;
 	u16 ver;
-
-	of_data = of_device_get_match_data(&pdev->dev);
-
-	attr = soc_device_match(sdhi_quirks_match);
-	if (attr)
-		quirks = attr->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)

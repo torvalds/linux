@@ -19,6 +19,7 @@
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_arp/arp_tables.h>
 #include <net/netfilter/nf_tables.h>
+#include <net/netfilter/nf_log.h>
 
 /* Used for matches where *info is larger than X byte */
 #define NFT_MATCH_LARGE_THRESH	192
@@ -257,8 +258,22 @@ nft_target_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	nft_compat_wait_for_destructors();
 
 	ret = xt_check_target(&par, size, proto, inv);
-	if (ret < 0)
+	if (ret < 0) {
+		if (ret == -ENOENT) {
+			const char *modname = NULL;
+
+			if (strcmp(target->name, "LOG") == 0)
+				modname = "nf_log_syslog";
+			else if (strcmp(target->name, "NFLOG") == 0)
+				modname = "nfnetlink_log";
+
+			if (modname &&
+			    nft_request_module(ctx->net, "%s", modname) == -EAGAIN)
+				return -EAGAIN;
+		}
+
 		return ret;
+	}
 
 	/* The standard target cannot be used */
 	if (!target->target)
@@ -683,14 +698,12 @@ static int nfnl_compat_get_rcu(struct sk_buff *skb,
 		goto out_put;
 	}
 
-	ret = netlink_unicast(info->sk, skb2, NETLINK_CB(skb).portid,
-			      MSG_DONTWAIT);
-	if (ret > 0)
-		ret = 0;
+	ret = nfnetlink_unicast(skb2, info->net, NETLINK_CB(skb).portid);
 out_put:
 	rcu_read_lock();
 	module_put(THIS_MODULE);
-	return ret == -EAGAIN ? -ENOBUFS : ret;
+
+	return ret;
 }
 
 static const struct nla_policy nfnl_compat_policy_get[NFTA_COMPAT_MAX+1] = {

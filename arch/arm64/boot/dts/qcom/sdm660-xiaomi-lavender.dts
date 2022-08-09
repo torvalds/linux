@@ -37,8 +37,6 @@
 
 &blsp1_uart2 {
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart_console_active>;
 };
 
 &tlmm {

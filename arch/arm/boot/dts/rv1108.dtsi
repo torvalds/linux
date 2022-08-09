@@ -265,6 +265,11 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
+		io_domains: io-domains {
+			compatible = "rockchip,rv1108-io-voltage-domain";
+			status = "disabled";
+		};
+
 		u2phy: usb2phy@100 {
 			compatible = "rockchip,rv1108-usb2phy";
 			reg = <0x100 0x0c>;
@@ -434,8 +439,13 @@
 	};
 
 	pmugrf: syscon@20060000 {
-		compatible = "rockchip,rv1108-pmugrf", "syscon";
+		compatible = "rockchip,rv1108-pmugrf", "syscon", "simple-mfd";
 		reg = <0x20060000 0x1000>;
+
+		pmu_io_domains: io-domains {
+			compatible = "rockchip,rv1108-pmu-io-voltage-domain";
+			status = "disabled";
+		};
 	};
 
 	usbgrf: syscon@202a0000 {
@@ -533,6 +543,17 @@
 		g-tx-fifo-size = <256 128 128 64 32 16>;
 		phys = <&u2phy_otg>;
 		phy-names = "usb2-phy";
+		status = "disabled";
+	};
+
+	sfc: spi@301c0000 {
+		compatible = "rockchip,sfc";
+		reg = <0x301c0000 0x4000>;
+		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_SFC>, <&cru HCLK_SFC>;
+		clock-names = "clk_sfc", "hclk_sfc";
+		pinctrl-0 = <&sfc_clk &sfc_cs0 &sfc_bus4>;
+		pinctrl-names = "default";
 		status = "disabled";
 	};
 
@@ -701,6 +722,32 @@
 
 			emmc_cmd: emmc-cmd {
 				rockchip,pins = <2 RK_PB4 2 &pcfg_pull_up_drv_8ma>;
+			};
+		};
+
+		sfc {
+			sfc_bus4: sfc-bus4 {
+				rockchip,pins =
+					<2 RK_PA0 3 &pcfg_pull_none>,
+					<2 RK_PA1 3 &pcfg_pull_none>,
+					<2 RK_PA2 3 &pcfg_pull_none>,
+					<2 RK_PA3 3 &pcfg_pull_none>;
+			};
+
+			sfc_bus2: sfc-bus2 {
+				rockchip,pins =
+					<2 RK_PA0 3 &pcfg_pull_none>,
+					<2 RK_PA1 3 &pcfg_pull_none>;
+			};
+
+			sfc_cs0: sfc-cs0 {
+				rockchip,pins =
+					<2 RK_PB4 3 &pcfg_pull_none>;
+			};
+
+			sfc_clk: sfc-clk {
+				rockchip,pins =
+					<2 RK_PB7 2 &pcfg_pull_none>;
 			};
 		};
 

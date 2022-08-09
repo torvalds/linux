@@ -958,19 +958,20 @@ done:
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_ctl);
 
-int ip_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+int ip_tunnel_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+			     void __user *data, int cmd)
 {
 	struct ip_tunnel_parm p;
 	int err;
 
-	if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
+	if (copy_from_user(&p, data, sizeof(p)))
 		return -EFAULT;
 	err = dev->netdev_ops->ndo_tunnel_ctl(dev, &p, cmd);
-	if (!err && copy_to_user(ifr->ifr_ifru.ifru_data, &p, sizeof(p)))
+	if (!err && copy_to_user(data, &p, sizeof(p)))
 		return -EFAULT;
 	return err;
 }
-EXPORT_SYMBOL_GPL(ip_tunnel_ioctl);
+EXPORT_SYMBOL_GPL(ip_tunnel_siocdevprivate);
 
 int __ip_tunnel_change_mtu(struct net_device *dev, int new_mtu, bool strict)
 {

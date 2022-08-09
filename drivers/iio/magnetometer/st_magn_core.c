@@ -9,16 +9,11 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/types.h>
-#include <linux/interrupt.h>
-#include <linux/i2c.h>
-#include <linux/irq.h>
-#include <linux/delay.h>
+#include <linux/mutex.h>
+#include <linux/sysfs.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-#include <linux/iio/buffer.h>
+#include <linux/iio/trigger.h>
 
 #include <linux/iio/common/st_sensors.h>
 #include "st_magn.h"
@@ -652,7 +647,7 @@ int st_magn_common_probe(struct iio_dev *indio_dev)
 		err = st_sensors_allocate_trigger(indio_dev,
 						ST_MAGN_TRIGGER_OPS);
 		if (err < 0)
-			goto st_magn_probe_trigger_error;
+			return err;
 	}
 
 	err = iio_device_register(indio_dev);
@@ -667,8 +662,6 @@ int st_magn_common_probe(struct iio_dev *indio_dev)
 st_magn_device_register_error:
 	if (mdata->irq > 0)
 		st_sensors_deallocate_trigger(indio_dev);
-st_magn_probe_trigger_error:
-	st_magn_deallocate_ring(indio_dev);
 	return err;
 }
 EXPORT_SYMBOL(st_magn_common_probe);
@@ -680,8 +673,6 @@ void st_magn_common_remove(struct iio_dev *indio_dev)
 	iio_device_unregister(indio_dev);
 	if (mdata->irq > 0)
 		st_sensors_deallocate_trigger(indio_dev);
-
-	st_magn_deallocate_ring(indio_dev);
 }
 EXPORT_SYMBOL(st_magn_common_remove);
 

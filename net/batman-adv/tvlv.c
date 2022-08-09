@@ -50,6 +50,9 @@ static void batadv_tvlv_handler_release(struct kref *ref)
  */
 static void batadv_tvlv_handler_put(struct batadv_tvlv_handler *tvlv_handler)
 {
+	if (!tvlv_handler)
+		return;
+
 	kref_put(&tvlv_handler->refcount, batadv_tvlv_handler_release);
 }
 
@@ -106,6 +109,9 @@ static void batadv_tvlv_container_release(struct kref *ref)
  */
 static void batadv_tvlv_container_put(struct batadv_tvlv_container *tvlv)
 {
+	if (!tvlv)
+		return;
+
 	kref_put(&tvlv->refcount, batadv_tvlv_container_release);
 }
 
@@ -438,8 +444,7 @@ int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
 						ogm_source, orig_node,
 						src, dst, tvlv_value,
 						tvlv_value_cont_len);
-		if (tvlv_handler)
-			batadv_tvlv_handler_put(tvlv_handler);
+		batadv_tvlv_handler_put(tvlv_handler);
 		tvlv_value = (u8 *)tvlv_value + tvlv_value_cont_len;
 		tvlv_value_len -= tvlv_value_cont_len;
 	}

@@ -84,7 +84,7 @@ static irqreturn_t sdv_gpio_pub_irq_handler(int irq, void *data)
 		return IRQ_NONE;
 
 	for_each_set_bit(irq_bit, &irq_stat, 32)
-		generic_handle_irq(irq_find_mapping(sd->id, irq_bit));
+		generic_handle_domain_irq(sd->id, irq_bit);
 
 	return IRQ_HANDLED;
 }

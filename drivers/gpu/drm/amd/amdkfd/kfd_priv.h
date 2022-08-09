@@ -196,6 +196,7 @@ struct kfd_event_interrupt_class {
 struct kfd_device_info {
 	enum amd_asic_type asic_family;
 	const char *asic_name;
+	uint32_t gfx_target_version;
 	const struct kfd_event_interrupt_class *event_interrupt_class;
 	unsigned int max_pasid_bits;
 	unsigned int max_no_of_hqd;
@@ -206,6 +207,7 @@ struct kfd_device_info {
 	bool supports_cwsr;
 	bool needs_iommu_device;
 	bool needs_pci_atomics;
+	uint32_t no_atomic_fw_version;
 	unsigned int num_sdma_engines;
 	unsigned int num_xgmi_sdma_engines;
 	unsigned int num_sdma_queues_per_engine;
@@ -1194,7 +1196,7 @@ int pm_debugfs_runlist(struct seq_file *m, void *data);
 
 int kfd_debugfs_hang_hws(struct kfd_dev *dev);
 int pm_debugfs_hang_hws(struct packet_manager *pm);
-int dqm_debugfs_execute_queues(struct device_queue_manager *dqm);
+int dqm_debugfs_hang_hws(struct device_queue_manager *dqm);
 
 #else
 

@@ -17,9 +17,8 @@ nf_conntrack_acct - BOOLEAN
 nf_conntrack_buckets - INTEGER
 	Size of hash table. If not specified as parameter during module
 	loading, the default size is calculated by dividing total memory
-	by 16384 to determine the number of buckets but the hash table will
-	never have fewer than 32 and limited to 16384 buckets. For systems
-	with more than 4GB of memory it will be 65536 buckets.
+	by 16384 to determine the number of buckets. The hash table will
+	never have fewer than 1024 and never more than 262144 buckets.
 	This sysctl is only writeable in the initial net namespace.
 
 nf_conntrack_checksum - BOOLEAN
@@ -100,8 +99,12 @@ nf_conntrack_log_invalid - INTEGER
 	Log invalid packets of a type specified by value.
 
 nf_conntrack_max - INTEGER
-	Size of connection tracking table.  Default value is
-	nf_conntrack_buckets value * 4.
+        Maximum number of allowed connection tracking entries. This value is set
+        to nf_conntrack_buckets by default.
+        Note that connection tracking entries are added to the table twice -- once
+        for the original direction and once for the reply direction (i.e., with
+        the reversed address). This means that with default settings a maxed-out
+        table will have a average hash chain length of 2, not 1.
 
 nf_conntrack_tcp_be_liberal - BOOLEAN
 	- 0 - disabled (default)
@@ -183,6 +186,13 @@ nf_conntrack_gre_timeout_stream - INTEGER (seconds)
 
 	This extended timeout will be used in case there is an GRE stream
 	detected.
+
+nf_hooks_lwtunnel - BOOLEAN
+	- 0 - disabled (default)
+	- not 0 - enabled
+
+	If this option is enabled, the lightweight tunnel netfilter hooks are
+	enabled. This option cannot be disabled once it is enabled.
 
 nf_flowtable_tcp_timeout - INTEGER (seconds)
         default 30

@@ -2746,9 +2746,9 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE("edgeport/down3.bin");
 
-module_param(ignore_cpu_rev, bool, S_IRUGO | S_IWUSR);
+module_param(ignore_cpu_rev, bool, 0644);
 MODULE_PARM_DESC(ignore_cpu_rev,
 			"Ignore the cpu revision when connecting to a device");
 
-module_param(default_uart_mode, int, S_IRUGO | S_IWUSR);
+module_param(default_uart_mode, int, 0644);
 MODULE_PARM_DESC(default_uart_mode, "Default uart_mode, 0=RS232, ...");
