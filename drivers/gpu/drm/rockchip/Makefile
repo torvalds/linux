@@ -30,5 +30,5 @@ rockchipdrm-$(CONFIG_DRM_ROCKCHIP_VVOP) += rockchip_drm_vvop.o
 
 obj-$(CONFIG_ROCKCHIP_DW_HDCP2) += dw_hdcp2.o
 obj-$(CONFIG_DRM_ROCKCHIP) += rockchipdrm.o
-
+obj-$(CONFIG_DRM_ROCKCHIP_RK618) += rk618/
 obj-$(CONFIG_DRM_ROCKCHIP_RK628) += rk628/

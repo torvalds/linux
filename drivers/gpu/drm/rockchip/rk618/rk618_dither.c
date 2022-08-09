@@ -5,6 +5,7 @@
  * Author: Wyon Bi <bivvy.bi@rock-chips.com>
  */
 
+#include <linux/module.h>
 #include "rk618_dither.h"
 
 #define RK618_FRC_REG			0x0054
@@ -48,3 +49,5 @@ void rk618_frc_dclk_invert(struct rk618 *rk618)
 	regmap_write(rk618->regmap, RK618_FRC_REG, FRC_DCLK_INV);
 }
 EXPORT_SYMBOL_GPL(rk618_frc_dclk_invert);
+
+MODULE_LICENSE("GPL");

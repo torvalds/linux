@@ -156,6 +156,7 @@ config ROCKCHIP_DW_HDCP2
 	  Choose this option to enable support for the Synopsys
 	  Designware HDCP2 Controller.
 
+source "drivers/gpu/drm/rockchip/rk618/Kconfig"
 source "drivers/gpu/drm/rockchip/rk628/Kconfig"
 
 endif
