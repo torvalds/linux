@@ -3114,6 +3114,7 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 	hw->vif_data_size = sizeof(struct rtw89_vif);
 	hw->sta_data_size = sizeof(struct rtw89_sta);
 	hw->txq_data_size = sizeof(struct rtw89_txq);
+	hw->chanctx_data_size = sizeof(struct rtw89_chanctx_cfg);
 
 	SET_IEEE80211_PERM_ADDR(hw, efuse->addr);
 

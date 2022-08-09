@@ -179,3 +179,56 @@ enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)
 	rtw89_set_entity_mode(rtwdev, mode);
 	return mode;
 }
+
+int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,
+			  struct ieee80211_chanctx_conf *ctx)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	struct rtw89_chanctx_cfg *cfg = (struct rtw89_chanctx_cfg *)ctx->drv_priv;
+	u8 idx;
+
+	idx = find_first_zero_bit(hal->entity_map, NUM_OF_RTW89_SUB_ENTITY);
+	if (idx > RTW89_SUB_ENTITY_0)
+		return -ENOENT;
+
+	rtw89_config_entity_chandef(rtwdev, idx, &ctx->def);
+	rtw89_set_channel(rtwdev);
+	cfg->idx = idx;
+	return 0;
+}
+
+void rtw89_chanctx_ops_remove(struct rtw89_dev *rtwdev,
+			      struct ieee80211_chanctx_conf *ctx)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	struct rtw89_chanctx_cfg *cfg = (struct rtw89_chanctx_cfg *)ctx->drv_priv;
+
+	clear_bit(cfg->idx, hal->entity_map);
+	rtw89_set_channel(rtwdev);
+}
+
+void rtw89_chanctx_ops_change(struct rtw89_dev *rtwdev,
+			      struct ieee80211_chanctx_conf *ctx,
+			      u32 changed)
+{
+	struct rtw89_chanctx_cfg *cfg = (struct rtw89_chanctx_cfg *)ctx->drv_priv;
+	u8 idx = cfg->idx;
+
+	if (changed & IEEE80211_CHANCTX_CHANGE_WIDTH) {
+		rtw89_config_entity_chandef(rtwdev, idx, &ctx->def);
+		rtw89_set_channel(rtwdev);
+	}
+}
+
+int rtw89_chanctx_ops_assign_vif(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif *rtwvif,
+				 struct ieee80211_chanctx_conf *ctx)
+{
+	return 0;
+}
+
+void rtw89_chanctx_ops_unassign_vif(struct rtw89_dev *rtwdev,
+				    struct rtw89_vif *rtwvif,
+				    struct ieee80211_chanctx_conf *ctx)
+{
+}

@@ -47,5 +47,18 @@ void rtw89_config_entity_chandef(struct rtw89_dev *rtwdev,
 				 const struct cfg80211_chan_def *chandef);
 void rtw89_entity_init(struct rtw89_dev *rtwdev);
 enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev);
+int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,
+			  struct ieee80211_chanctx_conf *ctx);
+void rtw89_chanctx_ops_remove(struct rtw89_dev *rtwdev,
+			      struct ieee80211_chanctx_conf *ctx);
+void rtw89_chanctx_ops_change(struct rtw89_dev *rtwdev,
+			      struct ieee80211_chanctx_conf *ctx,
+			      u32 changed);
+int rtw89_chanctx_ops_assign_vif(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif *rtwvif,
+				 struct ieee80211_chanctx_conf *ctx);
+void rtw89_chanctx_ops_unassign_vif(struct rtw89_dev *rtwdev,
+				    struct rtw89_vif *rtwvif,
+				    struct ieee80211_chanctx_conf *ctx);
 
 #endif
