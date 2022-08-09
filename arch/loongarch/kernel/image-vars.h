@@ -9,9 +9,6 @@
 
 __efistub_memcmp		= memcmp;
 __efistub_memchr		= memchr;
-__efistub_memcpy		= memcpy;
-__efistub_memmove		= memmove;
-__efistub_memset		= memset;
 __efistub_strcat		= strcat;
 __efistub_strcmp		= strcmp;
 __efistub_strlen		= strlen;
