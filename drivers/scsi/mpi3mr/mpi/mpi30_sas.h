@@ -30,4 +30,18 @@ struct mpi3_smp_passthrough_request {
 	struct mpi3_sge_common         request_sge;
 	struct mpi3_sge_common         response_sge;
 };
+
+struct mpi3_smp_passthrough_reply {
+	__le16                     host_tag;
+	u8                         ioc_use_only02;
+	u8                         function;
+	__le16                     ioc_use_only04;
+	u8                         ioc_use_only06;
+	u8                         msg_flags;
+	__le16                     ioc_use_only08;
+	__le16                     ioc_status;
+	__le32                     ioc_log_info;
+	__le16                     response_data_length;
+	__le16                     reserved12;
+};
 #endif

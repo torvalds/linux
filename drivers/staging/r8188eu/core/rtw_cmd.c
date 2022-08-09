@@ -10,7 +10,6 @@
 #include "../include/rtw_br_ext.h"
 #include "../include/rtw_mlme_ext.h"
 #include "../include/rtl8188e_dm.h"
-#include "../include/rtl8188e_sreset.h"
 
 /*
 Caller and the rtw_cmd_thread can protect cmd_q by spin_lock.
@@ -51,7 +50,6 @@ static int _rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
 
 	pcmdpriv->rsp_buf = pcmdpriv->rsp_allocated_buf  +  4 - ((size_t)(pcmdpriv->rsp_allocated_buf) & 3);
 
-	pcmdpriv->cmd_issued_cnt = 0;
 	pcmdpriv->cmd_done_cnt = 0;
 	pcmdpriv->rsp_cnt = 0;
 exit:
@@ -69,7 +67,7 @@ static int _rtw_init_evt_priv(struct evt_priv *pevtpriv)
 	atomic_set(&pevtpriv->event_seq, 0);
 	pevtpriv->evt_done_cnt = 0;
 
-	_init_workitem(&pevtpriv->c2h_wk, c2h_wk_callback, NULL);
+	INIT_WORK(&pevtpriv->c2h_wk, c2h_wk_callback);
 	pevtpriv->c2h_wk_alive = false;
 	pevtpriv->c2h_queue = rtw_cbuf_alloc(C2H_QUEUE_MAX_LEN + 1);
 
@@ -78,7 +76,7 @@ static int _rtw_init_evt_priv(struct evt_priv *pevtpriv)
 
 void rtw_free_evt_priv(struct	evt_priv *pevtpriv)
 {
-	_cancel_workitem_sync(&pevtpriv->c2h_wk);
+	cancel_work_sync(&pevtpriv->c2h_wk);
 	while (pevtpriv->c2h_wk_alive)
 		msleep(10);
 
@@ -255,8 +253,9 @@ int rtw_cmd_thread(void *context)
 _next:
 		if (padapter->bDriverStopped ||
 		    padapter->bSurpriseRemoved) {
-			DBG_88E("%s: DriverStopped(%d) SurpriseRemoved(%d) break at line %d\n",
-				__func__, padapter->bDriverStopped, padapter->bSurpriseRemoved, __LINE__);
+			netdev_dbg(padapter->pnetdev,
+				   "DriverStopped(%d) SurpriseRemoved(%d) break\n",
+				   padapter->bDriverStopped, padapter->bSurpriseRemoved);
 			break;
 		}
 
@@ -268,8 +267,6 @@ _next:
 			pcmd->res = H2C_DROPPED;
 			goto post_process;
 		}
-
-		pcmdpriv->cmd_issued_cnt++;
 
 		pcmd->cmdsz = _RND4((pcmd->cmdsz));/* _RND4 */
 
@@ -315,8 +312,6 @@ post_process:
 		pcmd = rtw_dequeue_cmd(pcmdpriv);
 		if (!pcmd)
 			break;
-
-		/* DBG_88E("%s: leaving... drop cmdcode:%u\n", __func__, pcmd->cmdcode); */
 
 		rtw_free_cmd_obj(pcmd);
 	} while (1);
@@ -579,7 +574,7 @@ u8 rtw_joinbss_cmd(struct adapter  *padapter, struct wlan_network *pnetwork)
 	else
 		padapter->pwrctrlpriv.smart_ps = padapter->registrypriv.smart_ps;
 
-	DBG_88E("%s: smart_ps =%d\n", __func__, padapter->pwrctrlpriv.smart_ps);
+	netdev_dbg(padapter->pnetdev, "smart_ps = %d\n", padapter->pwrctrlpriv.smart_ps);
 
 	pcmd->cmdsz = get_wlan_bssid_ex_sz(psecnetwork);/* get cmdsz before endian conversion */
 
@@ -800,8 +795,6 @@ u8 rtw_addbareq_cmd(struct adapter *padapter, u8 tid, u8 *addr)
 
 	init_h2fwcmd_w_parm_no_rsp(ph2c, paddbareq_parm, GEN_CMD_CODE(_AddBAReq));
 
-	/* DBG_88E("rtw_addbareq_cmd, tid =%d\n", tid); */
-
 	/* rtw_enqueue_cmd(pcmdpriv, ph2c); */
 	res = rtw_enqueue_cmd(pcmdpriv, ph2c);
 
@@ -953,7 +946,19 @@ static void traffic_status_watchdog(struct adapter *padapter)
 	pmlmepriv->LinkDetectInfo.bHigherBusyTxTraffic = bHigherBusyTxTraffic;
 }
 
-static void dynamic_chk_wk_hdl(struct adapter *padapter, u8 *pbuf, int sz)
+static void rtl8188e_sreset_xmit_status_check(struct adapter *padapter)
+{
+	u32 txdma_status;
+
+	txdma_status = rtw_read32(padapter, REG_TXDMA_STATUS);
+	if (txdma_status != 0x00) {
+		DBG_88E("%s REG_TXDMA_STATUS:0x%08x\n", __func__, txdma_status);
+		rtw_write32(padapter, REG_TXDMA_STATUS, txdma_status);
+	}
+	/* total xmit irp = 4 */
+}
+
+static void dynamic_chk_wk_hdl(struct adapter *padapter, u8 *pbuf)
 {
 	struct mlme_priv *pmlmepriv;
 
@@ -1003,7 +1008,6 @@ static void lps_ctrl_wk_hdl(struct adapter *padapter, u8 lps_ctrl_type)
 		SetHwReg8188EU(padapter, HW_VAR_H2C_FW_JOINBSSRPT, (u8 *)(&mstatus));
 		break;
 	case LPS_CTRL_SPECIAL_PACKET:
-		/* DBG_88E("LPS_CTRL_SPECIAL_PACKET\n"); */
 		pwrpriv->DelayLPSLastTimeStamp = jiffies;
 		LPS_Leave(padapter);
 		break;
@@ -1374,7 +1378,7 @@ u8 rtw_drvextra_cmd_hdl(struct adapter *padapter, unsigned char *pbuf)
 
 	switch (pdrvextra_cmd->ec_id) {
 	case DYNAMIC_CHK_WK_CID:
-		dynamic_chk_wk_hdl(padapter, pdrvextra_cmd->pbuf, pdrvextra_cmd->type_size);
+		dynamic_chk_wk_hdl(padapter, pdrvextra_cmd->pbuf);
 		break;
 	case POWER_SAVING_CTRL_WK_CID:
 		rtw_ps_processor(padapter);

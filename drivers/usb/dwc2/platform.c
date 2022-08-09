@@ -222,20 +222,16 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 	int i, ret;
 
 	hsotg->reset = devm_reset_control_get_optional(hsotg->dev, "dwc2");
-	if (IS_ERR(hsotg->reset)) {
-		ret = PTR_ERR(hsotg->reset);
-		dev_err(hsotg->dev, "error getting reset control %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(hsotg->reset))
+		return dev_err_probe(hsotg->dev, PTR_ERR(hsotg->reset),
+				     "error getting reset control\n");
 
 	reset_control_deassert(hsotg->reset);
 
 	hsotg->reset_ecc = devm_reset_control_get_optional(hsotg->dev, "dwc2-ecc");
-	if (IS_ERR(hsotg->reset_ecc)) {
-		ret = PTR_ERR(hsotg->reset_ecc);
-		dev_err(hsotg->dev, "error getting reset control for ecc %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(hsotg->reset_ecc))
+		return dev_err_probe(hsotg->dev, PTR_ERR(hsotg->reset_ecc),
+				     "error getting reset control for ecc\n");
 
 	reset_control_deassert(hsotg->reset_ecc);
 
@@ -251,11 +247,8 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 		case -ENOSYS:
 			hsotg->phy = NULL;
 			break;
-		case -EPROBE_DEFER:
-			return ret;
 		default:
-			dev_err(hsotg->dev, "error getting phy %d\n", ret);
-			return ret;
+			return dev_err_probe(hsotg->dev, ret, "error getting phy\n");
 		}
 	}
 
@@ -268,12 +261,8 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 			case -ENXIO:
 				hsotg->uphy = NULL;
 				break;
-			case -EPROBE_DEFER:
-				return ret;
 			default:
-				dev_err(hsotg->dev, "error getting usb phy %d\n",
-					ret);
-				return ret;
+				return dev_err_probe(hsotg->dev, ret, "error getting usb phy\n");
 			}
 		}
 	}
@@ -282,10 +271,8 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 
 	/* Clock */
 	hsotg->clk = devm_clk_get_optional(hsotg->dev, "otg");
-	if (IS_ERR(hsotg->clk)) {
-		dev_err(hsotg->dev, "cannot get otg clock\n");
-		return PTR_ERR(hsotg->clk);
-	}
+	if (IS_ERR(hsotg->clk))
+		return dev_err_probe(hsotg->dev, PTR_ERR(hsotg->clk), "cannot get otg clock\n");
 
 	/* Regulators */
 	for (i = 0; i < ARRAY_SIZE(hsotg->supplies); i++)
@@ -293,12 +280,9 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 
 	ret = devm_regulator_bulk_get(hsotg->dev, ARRAY_SIZE(hsotg->supplies),
 				      hsotg->supplies);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(hsotg->dev, "failed to request supplies: %d\n",
-				ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(hsotg->dev, ret, "failed to request supplies\n");
+
 	return 0;
 }
 
@@ -558,16 +542,12 @@ static int dwc2_driver_probe(struct platform_device *dev)
 		hsotg->usb33d = devm_regulator_get(hsotg->dev, "usb33d");
 		if (IS_ERR(hsotg->usb33d)) {
 			retval = PTR_ERR(hsotg->usb33d);
-			if (retval != -EPROBE_DEFER)
-				dev_err(hsotg->dev,
-					"failed to request usb33d supply: %d\n",
-					retval);
+			dev_err_probe(hsotg->dev, retval, "failed to request usb33d supply\n");
 			goto error;
 		}
 		retval = regulator_enable(hsotg->usb33d);
 		if (retval) {
-			dev_err(hsotg->dev,
-				"failed to enable usb33d supply: %d\n", retval);
+			dev_err_probe(hsotg->dev, retval, "failed to enable usb33d supply\n");
 			goto error;
 		}
 
@@ -582,8 +562,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 
 	retval = dwc2_drd_init(hsotg);
 	if (retval) {
-		if (retval != -EPROBE_DEFER)
-			dev_err(hsotg->dev, "failed to initialize dual-role\n");
+		dev_err_probe(hsotg->dev, retval, "failed to initialize dual-role\n");
 		goto error_init;
 	}
 
@@ -751,10 +730,12 @@ static int __maybe_unused dwc2_resume(struct device *dev)
 		spin_unlock_irqrestore(&dwc2->lock, flags);
 	}
 
-	/* Need to restore FORCEDEVMODE/FORCEHOSTMODE */
-	dwc2_force_dr_mode(dwc2);
-
-	dwc2_drd_resume(dwc2);
+	if (!dwc2->role_sw) {
+		/* Need to restore FORCEDEVMODE/FORCEHOSTMODE */
+		dwc2_force_dr_mode(dwc2);
+	} else {
+		dwc2_drd_resume(dwc2);
+	}
 
 	if (dwc2_is_device_mode(dwc2))
 		ret = dwc2_hsotg_resume(dwc2);

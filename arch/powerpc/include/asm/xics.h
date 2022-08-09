@@ -38,13 +38,13 @@ static inline int icp_native_init(void) { return -ENODEV; }
 
 /* PAPR ICP */
 #ifdef CONFIG_PPC_ICP_HV
-extern int icp_hv_init(void);
+int __init icp_hv_init(void);
 #else
 static inline int icp_hv_init(void) { return -ENODEV; }
 #endif
 
 #ifdef CONFIG_PPC_POWERNV
-extern int icp_opal_init(void);
+int __init icp_opal_init(void);
 extern void icp_opal_flush_interrupt(void);
 #else
 static inline int icp_opal_init(void) { return -ENODEV; }

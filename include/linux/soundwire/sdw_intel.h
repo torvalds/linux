@@ -92,7 +92,7 @@
  * firmware.
  */
 struct sdw_intel_stream_params_data {
-	struct snd_pcm_substream *substream;
+	int stream;
 	struct snd_soc_dai *dai;
 	struct snd_pcm_hw_params *hw_params;
 	int link_id;
@@ -105,7 +105,7 @@ struct sdw_intel_stream_params_data {
  * firmware.
  */
 struct sdw_intel_stream_free_data {
-	struct snd_pcm_substream *substream;
+	int stream;
 	struct snd_soc_dai *dai;
 	int link_id;
 };

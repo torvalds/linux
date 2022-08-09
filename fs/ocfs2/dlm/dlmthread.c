@@ -92,7 +92,7 @@ int __dlm_lockres_unused(struct dlm_lock_resource *res)
 		return 0;
 
 	/* Another node has this resource with this node as the master */
-	bit = find_next_bit(res->refmap, O2NM_MAX_NODES, 0);
+	bit = find_first_bit(res->refmap, O2NM_MAX_NODES);
 	if (bit < O2NM_MAX_NODES)
 		return 0;
 

@@ -65,7 +65,7 @@ void kobject_get_ownership(struct kobject *kobj, kuid_t *uid, kgid_t *gid)
  */
 static int populate_dir(struct kobject *kobj)
 {
-	struct kobj_type *t = get_ktype(kobj);
+	const struct kobj_type *t = get_ktype(kobj);
 	struct attribute *attr;
 	int error = 0;
 	int i;
@@ -346,7 +346,7 @@ EXPORT_SYMBOL(kobject_set_name);
  * to kobject_put(), not by a call to kfree directly to ensure that all of
  * the memory is cleaned up properly.
  */
-void kobject_init(struct kobject *kobj, struct kobj_type *ktype)
+void kobject_init(struct kobject *kobj, const struct kobj_type *ktype)
 {
 	char *err_str;
 
@@ -461,7 +461,7 @@ EXPORT_SYMBOL(kobject_add);
  * same type of error handling after a call to kobject_add() and kobject
  * lifetime rules are the same here.
  */
-int kobject_init_and_add(struct kobject *kobj, struct kobj_type *ktype,
+int kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
 			 struct kobject *parent, const char *fmt, ...)
 {
 	va_list args;
@@ -679,7 +679,7 @@ EXPORT_SYMBOL(kobject_get_unless_zero);
 static void kobject_cleanup(struct kobject *kobj)
 {
 	struct kobject *parent = kobj->parent;
-	struct kobj_type *t = get_ktype(kobj);
+	const struct kobj_type *t = get_ktype(kobj);
 	const char *name = kobj->name;
 
 	pr_debug("kobject: '%s' (%p): %s, parent %p\n",

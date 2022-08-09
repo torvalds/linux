@@ -904,13 +904,11 @@ static int inia100_build_scb(struct orc_host * host, struct orc_scb * scb, struc
 /**
  *	inia100_queue_lck		-	queue command with host
  *	@cmd: Command block
- *	@done: Completion function
  *
  *	Called by the mid layer to queue a command. Process the command
  *	block, build the host specific scb structures and if there is room
  *	queue the command down to the controller
  */
-
 static int inia100_queue_lck(struct scsi_cmnd *cmd)
 {
 	struct orc_scb *scb;

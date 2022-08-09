@@ -376,7 +376,7 @@ struct ieee80211_mgd_auth_data {
 
 	u8 key[WLAN_KEY_LEN_WEP104];
 	u8 key_len, key_idx;
-	bool done;
+	bool done, waiting;
 	bool peer_confirmed;
 	bool timeout_started;
 
@@ -1483,7 +1483,7 @@ struct ieee80211_local {
 };
 
 static inline struct ieee80211_sub_if_data *
-IEEE80211_DEV_TO_SUB_IF(struct net_device *dev)
+IEEE80211_DEV_TO_SUB_IF(const struct net_device *dev)
 {
 	return netdev_priv(dev);
 }

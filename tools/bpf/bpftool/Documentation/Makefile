@@ -1,6 +1,5 @@
-# SPDX-License-Identifier: GPL-2.0-only
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 include ../../../scripts/Makefile.include
-include ../../../scripts/utilities.mak
 
 INSTALL ?= install
 RM ?= rm -f
@@ -25,7 +24,7 @@ man: man8
 man8: $(DOC_MAN8)
 
 RST2MAN_DEP := $(shell command -v rst2man 2>/dev/null)
-RST2MAN_OPTS += --verbose
+RST2MAN_OPTS += --verbose --strip-comments
 
 list_pages = $(sort $(basename $(filter-out $(1),$(MAN8_RST))))
 see_also = $(subst " ",, \

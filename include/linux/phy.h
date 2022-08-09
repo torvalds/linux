@@ -87,8 +87,8 @@ extern const int phy_10gbit_features_array[1];
  *
  * @PHY_INTERFACE_MODE_NA: Not Applicable - don't touch
  * @PHY_INTERFACE_MODE_INTERNAL: No interface, MAC and PHY combined
- * @PHY_INTERFACE_MODE_MII: Median-independent interface
- * @PHY_INTERFACE_MODE_GMII: Gigabit median-independent interface
+ * @PHY_INTERFACE_MODE_MII: Media-independent interface
+ * @PHY_INTERFACE_MODE_GMII: Gigabit media-independent interface
  * @PHY_INTERFACE_MODE_SGMII: Serial gigabit media-independent interface
  * @PHY_INTERFACE_MODE_TBI: Ten Bit Interface
  * @PHY_INTERFACE_MODE_REVMII: Reverse Media Independent Interface
@@ -99,7 +99,7 @@ extern const int phy_10gbit_features_array[1];
  * @PHY_INTERFACE_MODE_RGMII_RXID: RGMII with Internal RX delay
  * @PHY_INTERFACE_MODE_RGMII_TXID: RGMII with Internal RX delay
  * @PHY_INTERFACE_MODE_RTBI: Reduced TBI
- * @PHY_INTERFACE_MODE_SMII: ??? MII
+ * @PHY_INTERFACE_MODE_SMII: Serial MII
  * @PHY_INTERFACE_MODE_XGMII: 10 gigabit media-independent interface
  * @PHY_INTERFACE_MODE_XLGMII:40 gigabit media-independent interface
  * @PHY_INTERFACE_MODE_MOCA: Multimedia over Coax

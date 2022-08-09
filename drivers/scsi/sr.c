@@ -335,7 +335,7 @@ static int sr_done(struct scsi_cmnd *SCpnt)
 	int block_sectors = 0;
 	long error_sector;
 	struct request *rq = scsi_cmd_to_rq(SCpnt);
-	struct scsi_cd *cd = scsi_cd(rq->rq_disk);
+	struct scsi_cd *cd = scsi_cd(rq->q->disk);
 
 #ifdef DEBUG
 	scmd_printk(KERN_INFO, SCpnt, "done: %x\n", result);
@@ -402,7 +402,7 @@ static blk_status_t sr_init_command(struct scsi_cmnd *SCpnt)
 	ret = scsi_alloc_sgtables(SCpnt);
 	if (ret != BLK_STS_OK)
 		return ret;
-	cd = scsi_cd(rq->rq_disk);
+	cd = scsi_cd(rq->q->disk);
 
 	SCSI_LOG_HLQUEUE(1, scmd_printk(KERN_INFO, SCpnt,
 		"Doing sr request, block = %d\n", block));
@@ -561,8 +561,7 @@ static void sr_block_release(struct gendisk *disk, fmode_t mode)
 static int sr_block_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 			  unsigned long arg)
 {
-	struct gendisk *disk = bdev->bd_disk;
-	struct scsi_cd *cd = scsi_cd(disk);
+	struct scsi_cd *cd = scsi_cd(bdev->bd_disk);
 	struct scsi_device *sdev = cd->device;
 	void __user *argp = (void __user *)arg;
 	int ret;
@@ -584,7 +583,7 @@ static int sr_block_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 		if (ret != -ENOSYS)
 			goto put;
 	}
-	ret = scsi_ioctl(sdev, disk, mode, cmd, argp);
+	ret = scsi_ioctl(sdev, mode, cmd, argp);
 
 put:
 	scsi_autopm_put_device(sdev);
@@ -684,9 +683,10 @@ static int sr_probe(struct device *dev)
 	disk->minors = 1;
 	sprintf(disk->disk_name, "sr%d", minor);
 	disk->fops = &sr_bdops;
-	disk->flags = GENHD_FL_CD | GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE;
+	disk->flags |= GENHD_FL_REMOVABLE | GENHD_FL_NO_PART;
 	disk->events = DISK_EVENT_MEDIA_CHANGE | DISK_EVENT_EJECT_REQUEST;
-	disk->event_flags = DISK_EVENT_FLAG_POLL | DISK_EVENT_FLAG_UEVENT;
+	disk->event_flags = DISK_EVENT_FLAG_POLL | DISK_EVENT_FLAG_UEVENT |
+				DISK_EVENT_FLAG_BLOCK_ON_EXCL_WRITE;
 
 	blk_queue_rq_timeout(sdev->request_queue, SR_TIMEOUT);
 
@@ -725,7 +725,6 @@ static int sr_probe(struct device *dev)
 	blk_pm_runtime_init(sdev->request_queue, dev);
 
 	dev_set_drvdata(dev, cd);
-	disk->flags |= GENHD_FL_REMOVABLE;
 	sr_revalidate_disk(cd);
 
 	error = device_add_disk(&sdev->sdev_gendev, disk, NULL);
@@ -856,7 +855,7 @@ static void get_capabilities(struct scsi_cd *cd)
 
 
 	/* allocate transfer buffer */
-	buffer = kmalloc(512, GFP_KERNEL | GFP_DMA);
+	buffer = kmalloc(512, GFP_KERNEL);
 	if (!buffer) {
 		sr_printk(KERN_ERR, cd, "out of memory.\n");
 		return;
@@ -994,7 +993,7 @@ static int sr_read_cdda_bpc(struct cdrom_device_info *cdi, void __user *ubuf,
 	rq->timeout = 60 * HZ;
 	bio = rq->bio;
 
-	blk_execute_rq(disk, rq, 0);
+	blk_execute_rq(rq, false);
 	if (scsi_req(rq)->result) {
 		struct scsi_sense_hdr sshdr;
 

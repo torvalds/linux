@@ -24,6 +24,7 @@ void ccu_gate_helper_disable(struct ccu_common *common, u32 gate)
 
 	spin_unlock_irqrestore(common->lock, flags);
 }
+EXPORT_SYMBOL_NS_GPL(ccu_gate_helper_disable, SUNXI_CCU);
 
 static void ccu_gate_disable(struct clk_hw *hw)
 {
@@ -49,6 +50,7 @@ int ccu_gate_helper_enable(struct ccu_common *common, u32 gate)
 
 	return 0;
 }
+EXPORT_SYMBOL_NS_GPL(ccu_gate_helper_enable, SUNXI_CCU);
 
 static int ccu_gate_enable(struct clk_hw *hw)
 {
@@ -64,6 +66,7 @@ int ccu_gate_helper_is_enabled(struct ccu_common *common, u32 gate)
 
 	return readl(common->base + common->reg) & gate;
 }
+EXPORT_SYMBOL_NS_GPL(ccu_gate_helper_is_enabled, SUNXI_CCU);
 
 static int ccu_gate_is_enabled(struct clk_hw *hw)
 {
@@ -124,3 +127,4 @@ const struct clk_ops ccu_gate_ops = {
 	.set_rate	= ccu_gate_set_rate,
 	.recalc_rate	= ccu_gate_recalc_rate,
 };
+EXPORT_SYMBOL_NS_GPL(ccu_gate_ops, SUNXI_CCU);

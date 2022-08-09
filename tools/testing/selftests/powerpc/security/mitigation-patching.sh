@@ -44,7 +44,10 @@ mitigations="barrier_nospec stf_barrier count_cache_flush rfi_flush entry_flush 
 
 for m in $mitigations
 do
-    do_one "$m" &
+    if [[ -f /sys/kernel/debug/powerpc/$m ]]
+    then
+        do_one "$m" &
+    fi
 done
 
 echo "Spawned threads enabling/disabling mitigations ..."

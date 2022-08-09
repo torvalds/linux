@@ -54,7 +54,7 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core, bool reload);
 
 struct mlxsw_tx_info {
-	u8 local_port;
+	u16 local_port;
 	bool is_emad;
 };
 
@@ -67,7 +67,7 @@ struct mlxsw_rx_md_info {
 		u16 tx_sys_port;
 		u16 tx_lag_id;
 	};
-	u8 tx_lag_port_index; /* Valid when 'tx_port_is_lag' is set. */
+	u16 tx_lag_port_index; /* Valid when 'tx_port_is_lag' is set. */
 	u8 tx_tc;
 	u8 latency_valid:1,
 	   tx_congestion_valid:1,
@@ -82,11 +82,11 @@ bool mlxsw_core_skb_transmit_busy(struct mlxsw_core *mlxsw_core,
 int mlxsw_core_skb_transmit(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
 			    const struct mlxsw_tx_info *tx_info);
 void mlxsw_core_ptp_transmitted(struct mlxsw_core *mlxsw_core,
-				struct sk_buff *skb, u8 local_port);
+				struct sk_buff *skb, u16 local_port);
 
 struct mlxsw_rx_listener {
-	void (*func)(struct sk_buff *skb, u8 local_port, void *priv);
-	u8 local_port;
+	void (*func)(struct sk_buff *skb, u16 local_port, void *priv);
+	u16 local_port;
 	u8 mirror_reason;
 	u16 trap_id;
 };
@@ -209,7 +209,7 @@ struct mlxsw_rx_info {
 		u16 sys_port;
 		u16 lag_id;
 	} u;
-	u8 lag_port_index;
+	u16 lag_port_index;
 	u8 mirror_reason;
 	int trap_id;
 };
@@ -218,36 +218,36 @@ void mlxsw_core_skb_receive(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
 			    struct mlxsw_rx_info *rx_info);
 
 void mlxsw_core_lag_mapping_set(struct mlxsw_core *mlxsw_core,
-				u16 lag_id, u8 port_index, u8 local_port);
-u8 mlxsw_core_lag_mapping_get(struct mlxsw_core *mlxsw_core,
-			      u16 lag_id, u8 port_index);
+				u16 lag_id, u8 port_index, u16 local_port);
+u16 mlxsw_core_lag_mapping_get(struct mlxsw_core *mlxsw_core,
+			       u16 lag_id, u8 port_index);
 void mlxsw_core_lag_mapping_clear(struct mlxsw_core *mlxsw_core,
-				  u16 lag_id, u8 local_port);
+				  u16 lag_id, u16 local_port);
 
 void *mlxsw_core_port_driver_priv(struct mlxsw_core_port *mlxsw_core_port);
-int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u8 local_port,
+int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u16 local_port,
 			 u32 port_number, bool split, u32 split_port_subnumber,
 			 bool splittable, u32 lanes,
 			 const unsigned char *switch_id,
 			 unsigned char switch_id_len);
-void mlxsw_core_port_fini(struct mlxsw_core *mlxsw_core, u8 local_port);
+void mlxsw_core_port_fini(struct mlxsw_core *mlxsw_core, u16 local_port);
 int mlxsw_core_cpu_port_init(struct mlxsw_core *mlxsw_core,
 			     void *port_driver_priv,
 			     const unsigned char *switch_id,
 			     unsigned char switch_id_len);
 void mlxsw_core_cpu_port_fini(struct mlxsw_core *mlxsw_core);
-void mlxsw_core_port_eth_set(struct mlxsw_core *mlxsw_core, u8 local_port,
+void mlxsw_core_port_eth_set(struct mlxsw_core *mlxsw_core, u16 local_port,
 			     void *port_driver_priv, struct net_device *dev);
-void mlxsw_core_port_ib_set(struct mlxsw_core *mlxsw_core, u8 local_port,
+void mlxsw_core_port_ib_set(struct mlxsw_core *mlxsw_core, u16 local_port,
 			    void *port_driver_priv);
-void mlxsw_core_port_clear(struct mlxsw_core *mlxsw_core, u8 local_port,
+void mlxsw_core_port_clear(struct mlxsw_core *mlxsw_core, u16 local_port,
 			   void *port_driver_priv);
 enum devlink_port_type mlxsw_core_port_type_get(struct mlxsw_core *mlxsw_core,
-						u8 local_port);
+						u16 local_port);
 struct devlink_port *
 mlxsw_core_port_devlink_port_get(struct mlxsw_core *mlxsw_core,
-				 u8 local_port);
-bool mlxsw_core_port_is_xm(const struct mlxsw_core *mlxsw_core, u8 local_port);
+				 u16 local_port);
+bool mlxsw_core_port_is_xm(const struct mlxsw_core *mlxsw_core, u16 local_port);
 struct mlxsw_env *mlxsw_core_env(const struct mlxsw_core *mlxsw_core);
 
 int mlxsw_core_schedule_dw(struct delayed_work *dwork, unsigned long delay);
@@ -316,11 +316,11 @@ struct mlxsw_driver {
 		    struct netlink_ext_ack *extack);
 	void (*fini)(struct mlxsw_core *mlxsw_core);
 	int (*basic_trap_groups_set)(struct mlxsw_core *mlxsw_core);
-	int (*port_type_set)(struct mlxsw_core *mlxsw_core, u8 local_port,
+	int (*port_type_set)(struct mlxsw_core *mlxsw_core, u16 local_port,
 			     enum devlink_port_type new_type);
-	int (*port_split)(struct mlxsw_core *mlxsw_core, u8 local_port,
+	int (*port_split)(struct mlxsw_core *mlxsw_core, u16 local_port,
 			  unsigned int count, struct netlink_ext_ack *extack);
-	int (*port_unsplit)(struct mlxsw_core *mlxsw_core, u8 local_port,
+	int (*port_unsplit)(struct mlxsw_core *mlxsw_core, u16 local_port,
 			    struct netlink_ext_ack *extack);
 	int (*sb_pool_get)(struct mlxsw_core *mlxsw_core,
 			   unsigned int sb_index, u16 pool_index,
@@ -394,7 +394,7 @@ struct mlxsw_driver {
 	 * is responsible for freeing the passed-in SKB.
 	 */
 	void (*ptp_transmitted)(struct mlxsw_core *mlxsw_core,
-				struct sk_buff *skb, u8 local_port);
+				struct sk_buff *skb, u16 local_port);
 
 	u8 txhdr_len;
 	const struct mlxsw_config_profile *profile;

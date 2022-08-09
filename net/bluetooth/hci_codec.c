@@ -25,9 +25,11 @@ static int hci_codec_list_add(struct list_head *list,
 	}
 	entry->transport = sent->transport;
 	entry->len = len;
-	entry->num_caps = rp->num_caps;
-	if (rp->num_caps)
+	entry->num_caps = 0;
+	if (rp) {
+		entry->num_caps = rp->num_caps;
 		memcpy(entry->caps, caps, len);
+	}
 	list_add(&entry->list, list);
 
 	return 0;
@@ -58,6 +60,18 @@ static void hci_read_codec_capabilities(struct hci_dev *hdev, __u8 transport,
 			__u32 len;
 
 			cmd->transport = i;
+
+			/* If Read_Codec_Capabilities command is not supported
+			 * then just add codec to the list without caps
+			 */
+			if (!(hdev->commands[45] & 0x08)) {
+				hci_dev_lock(hdev);
+				hci_codec_list_add(&hdev->local_codecs, cmd,
+						   NULL, NULL, 0);
+				hci_dev_unlock(hdev);
+				continue;
+			}
+
 			skb = __hci_cmd_sync(hdev, HCI_OP_READ_LOCAL_CODEC_CAPS,
 					     sizeof(*cmd), cmd,
 					     HCI_CMD_TIMEOUT);

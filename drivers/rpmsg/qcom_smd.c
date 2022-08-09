@@ -1467,7 +1467,7 @@ ATTRIBUTE_GROUPS(qcom_smd_edge);
  * @parent:    parent device for the edge
  * @node:      device_node describing the edge
  *
- * Returns an edge reference, or negative ERR_PTR() on failure.
+ * Return: an edge reference, or negative ERR_PTR() on failure.
  */
 struct qcom_smd_edge *qcom_smd_register_edge(struct device *parent,
 					     struct device_node *node)

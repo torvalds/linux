@@ -83,13 +83,14 @@ static struct map_sysfs_entry size_attribute =
 static struct map_sysfs_entry offset_attribute =
 	__ATTR(offset, S_IRUGO, map_offset_show, NULL);
 
-static struct attribute *attrs[] = {
+static struct attribute *map_attrs[] = {
 	&name_attribute.attr,
 	&addr_attribute.attr,
 	&size_attribute.attr,
 	&offset_attribute.attr,
 	NULL,	/* need to NULL terminate the list of attributes */
 };
+ATTRIBUTE_GROUPS(map);
 
 static void map_release(struct kobject *kobj)
 {
@@ -119,7 +120,7 @@ static const struct sysfs_ops map_sysfs_ops = {
 static struct kobj_type map_attr_type = {
 	.release	= map_release,
 	.sysfs_ops	= &map_sysfs_ops,
-	.default_attrs	= attrs,
+	.default_groups	= map_groups,
 };
 
 struct uio_portio {
@@ -178,6 +179,7 @@ static struct attribute *portio_attrs[] = {
 	&portio_porttype_attribute.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(portio);
 
 static void portio_release(struct kobject *kobj)
 {
@@ -207,7 +209,7 @@ static const struct sysfs_ops portio_sysfs_ops = {
 static struct kobj_type portio_attr_type = {
 	.release	= portio_release,
 	.sysfs_ops	= &portio_sysfs_ops,
-	.default_attrs	= portio_attrs,
+	.default_groups	= portio_groups,
 };
 
 static ssize_t name_show(struct device *dev,

@@ -189,13 +189,13 @@ static int submit_fence_sync(struct etnaviv_gem_submit *submit)
 			continue;
 
 		if (bo->flags & ETNA_SUBMIT_BO_WRITE) {
-			ret = dma_resv_get_fences(robj, &bo->excl,
+			ret = dma_resv_get_fences(robj, NULL,
 						  &bo->nr_shared,
 						  &bo->shared);
 			if (ret)
 				return ret;
 		} else {
-			bo->excl = dma_resv_get_excl_unlocked(robj);
+			bo->excl = dma_fence_get(dma_resv_excl_fence(robj));
 		}
 
 	}
@@ -466,6 +466,12 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if ((args->flags & ETNA_SUBMIT_SOFTPIN) &&
 	    priv->mmu_global->version != ETNAVIV_IOMMU_V2) {
 		DRM_ERROR("softpin requested on incompatible MMU\n");
+		return -EINVAL;
+	}
+
+	if (args->stream_size > SZ_128K || args->nr_relocs > SZ_128K ||
+	    args->nr_bos > SZ_128K || args->nr_pmrs > 128) {
+		DRM_ERROR("submit arguments out of size limits\n");
 		return -EINVAL;
 	}
 

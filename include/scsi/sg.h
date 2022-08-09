@@ -29,10 +29,6 @@
  * For utility and test programs see: http://sg.danny.cz/sg/sg3_utils.html
  */
 
-#ifdef __KERNEL__
-extern int sg_big_buff; /* for sysctl */
-#endif
-
 
 typedef struct sg_iovec /* same structure as used by readv() Linux system */
 {                       /* call. It defines one scatter-gather element. */

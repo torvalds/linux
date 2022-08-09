@@ -62,6 +62,7 @@ static inline unsigned long pte_index(unsigned long address)
 {
 	return (address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1);
 }
+#define pte_index pte_index
 
 #ifndef pmd_index
 static inline unsigned long pmd_index(unsigned long address)
@@ -256,6 +257,14 @@ static inline int pmdp_clear_flush_young(struct vm_area_struct *vma,
 	return 0;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+#endif
+
+#ifndef __HAVE_ARCH_PTEP_CLEAR
+static inline void ptep_clear(struct mm_struct *mm, unsigned long addr,
+			      pte_t *ptep)
+{
+	pte_clear(mm, addr, ptep);
+}
 #endif
 
 #ifndef __HAVE_ARCH_PTEP_GET_AND_CLEAR

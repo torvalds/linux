@@ -727,9 +727,23 @@ static acpi_status acpi_serdev_add_device(acpi_handle handle, u32 level,
 static int acpi_serdev_register_devices(struct serdev_controller *ctrl)
 {
 	acpi_status status;
+	bool skip;
+	int ret;
 
 	if (!has_acpi_companion(ctrl->dev.parent))
 		return -ENODEV;
+
+	/*
+	 * Skip registration on boards where the ACPI tables are known to
+	 * contain buggy devices. Note serdev_controller_add() must still
+	 * succeed in this case, so that the proper serdev devices can be
+	 * added "manually" later.
+	 */
+	ret = acpi_quirk_skip_serdev_enumeration(ctrl->dev.parent, &skip);
+	if (ret)
+		return ret;
+	if (skip)
+		return 0;
 
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 				     SERDEV_ACPI_MAX_SCAN_DEPTH,

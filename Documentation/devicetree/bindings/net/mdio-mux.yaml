@@ -15,9 +15,6 @@ description: |+
   bus multiplexer/switch will have one child node for each child bus.
 
 properties:
-  $nodename:
-    pattern: '^mdio-mux[\-@]?'
-
   mdio-parent-bus:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
@@ -32,12 +29,12 @@ properties:
 
 patternProperties:
   '^mdio@[0-9a-f]+$':
-    type: object
+    $ref: mdio.yaml#
+    unevaluatedProperties: false
 
     properties:
       reg:
         maxItems: 1
-        description: The sub-bus number.
 
 additionalProperties: true
 

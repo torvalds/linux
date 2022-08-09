@@ -30,6 +30,9 @@ static inline bool ceph_has_realms_with_quotas(struct inode *inode)
 	/* if root is the real CephFS root, we don't have quota realms */
 	if (root && ceph_ino(root) == CEPH_INO_ROOT)
 		return false;
+	/* MDS stray dirs have no quota realms */
+	if (ceph_vino_is_reserved(ceph_inode(inode)->i_vino))
+		return false;
 	/* otherwise, we can't know for sure */
 	return true;
 }
@@ -494,10 +497,24 @@ bool ceph_quota_update_statfs(struct ceph_fs_client *fsc, struct kstatfs *buf)
 		if (ci->i_max_bytes) {
 			total = ci->i_max_bytes >> CEPH_BLOCK_SHIFT;
 			used = ci->i_rbytes >> CEPH_BLOCK_SHIFT;
+			/* For quota size less than 4MB, use 4KB block size */
+			if (!total) {
+				total = ci->i_max_bytes >> CEPH_4K_BLOCK_SHIFT;
+				used = ci->i_rbytes >> CEPH_4K_BLOCK_SHIFT;
+	                        buf->f_frsize = 1 << CEPH_4K_BLOCK_SHIFT;
+			}
 			/* It is possible for a quota to be exceeded.
 			 * Report 'zero' in that case
 			 */
 			free = total > used ? total - used : 0;
+			/* For quota size less than 4KB, report the
+			 * total=used=4KB,free=0 when quota is full
+			 * and total=free=4KB, used=0 otherwise */
+			if (!total) {
+				total = 1;
+				free = ci->i_max_bytes > ci->i_rbytes ? 1 : 0;
+	                        buf->f_frsize = 1 << CEPH_4K_BLOCK_SHIFT;
+			}
 		}
 		spin_unlock(&ci->i_ceph_lock);
 		if (total) {

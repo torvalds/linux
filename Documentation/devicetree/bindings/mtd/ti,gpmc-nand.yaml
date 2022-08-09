@@ -16,7 +16,10 @@ description:
 
 properties:
   compatible:
-    const: ti,omap2-nand
+    items:
+      - enum:
+          - ti,am64-nand
+          - ti,omap2-nand
 
   reg:
     maxItems: 1
@@ -52,6 +55,11 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [8, 16]
     default: 8
+
+  rb-gpios:
+    description:
+      GPIO connection to R/B signal from NAND chip
+    maxItems: 1
 
 patternProperties:
   "@[0-9a-f]+$":

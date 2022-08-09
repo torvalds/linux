@@ -27,6 +27,9 @@
 #define XRX200_DMA_TX		1
 #define XRX200_DMA_BURST_LEN	8
 
+#define XRX200_DMA_PACKET_COMPLETE	0
+#define XRX200_DMA_PACKET_IN_PROGRESS	1
+
 /* cpu port mac */
 #define PMAC_RX_IPG		0x0024
 #define PMAC_RX_IPG_MASK	0xf
@@ -60,7 +63,14 @@ struct xrx200_chan {
 
 	struct napi_struct napi;
 	struct ltq_dma_channel dma;
-	struct sk_buff *skb[LTQ_DESC_NUM];
+
+	union {
+		struct sk_buff *skb[LTQ_DESC_NUM];
+		void *rx_buff[LTQ_DESC_NUM];
+	};
+
+	struct sk_buff *skb_head;
+	struct sk_buff *skb_tail;
 
 	struct xrx200_priv *priv;
 };
@@ -72,6 +82,7 @@ struct xrx200_priv {
 	struct xrx200_chan chan_rx;
 
 	u16 rx_buf_size;
+	u16 rx_skb_size;
 
 	struct net_device *net_dev;
 	struct device *dev;
@@ -107,6 +118,12 @@ static int xrx200_max_frame_len(int mtu)
 static int xrx200_buffer_size(int mtu)
 {
 	return round_up(xrx200_max_frame_len(mtu), 4 * XRX200_DMA_BURST_LEN);
+}
+
+static int xrx200_skb_size(u16 buf_size)
+{
+	return SKB_DATA_ALIGN(buf_size + NET_SKB_PAD + NET_IP_ALIGN) +
+		SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 }
 
 /* drop all the packets from the DMA ring */
@@ -167,30 +184,29 @@ static int xrx200_close(struct net_device *net_dev)
 	return 0;
 }
 
-static int xrx200_alloc_skb(struct xrx200_chan *ch)
+static int xrx200_alloc_buf(struct xrx200_chan *ch, void *(*alloc)(unsigned int size))
 {
-	struct sk_buff *skb = ch->skb[ch->dma.desc];
+	void *buf = ch->rx_buff[ch->dma.desc];
 	struct xrx200_priv *priv = ch->priv;
 	dma_addr_t mapping;
 	int ret = 0;
 
-	ch->skb[ch->dma.desc] = netdev_alloc_skb_ip_align(priv->net_dev,
-							  priv->rx_buf_size);
-	if (!ch->skb[ch->dma.desc]) {
+	ch->rx_buff[ch->dma.desc] = alloc(priv->rx_skb_size);
+	if (!ch->rx_buff[ch->dma.desc]) {
 		ret = -ENOMEM;
 		goto skip;
 	}
 
-	mapping = dma_map_single(priv->dev, ch->skb[ch->dma.desc]->data,
+	mapping = dma_map_single(priv->dev, ch->rx_buff[ch->dma.desc],
 				 priv->rx_buf_size, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(priv->dev, mapping))) {
-		dev_kfree_skb_any(ch->skb[ch->dma.desc]);
-		ch->skb[ch->dma.desc] = skb;
+		skb_free_frag(ch->rx_buff[ch->dma.desc]);
+		ch->rx_buff[ch->dma.desc] = buf;
 		ret = -ENOMEM;
 		goto skip;
 	}
 
-	ch->dma.desc_base[ch->dma.desc].addr = mapping;
+	ch->dma.desc_base[ch->dma.desc].addr = mapping + NET_SKB_PAD + NET_IP_ALIGN;
 	/* Make sure the address is written before we give it to HW */
 	wmb();
 skip:
@@ -204,12 +220,14 @@ static int xrx200_hw_receive(struct xrx200_chan *ch)
 {
 	struct xrx200_priv *priv = ch->priv;
 	struct ltq_dma_desc *desc = &ch->dma.desc_base[ch->dma.desc];
-	struct sk_buff *skb = ch->skb[ch->dma.desc];
-	int len = (desc->ctl & LTQ_DMA_SIZE_MASK);
+	void *buf = ch->rx_buff[ch->dma.desc];
+	u32 ctl = desc->ctl;
+	int len = (ctl & LTQ_DMA_SIZE_MASK);
 	struct net_device *net_dev = priv->net_dev;
+	struct sk_buff *skb;
 	int ret;
 
-	ret = xrx200_alloc_skb(ch);
+	ret = xrx200_alloc_buf(ch, napi_alloc_frag);
 
 	ch->dma.desc++;
 	ch->dma.desc %= LTQ_DESC_NUM;
@@ -220,13 +238,39 @@ static int xrx200_hw_receive(struct xrx200_chan *ch)
 		return ret;
 	}
 
+	skb = build_skb(buf, priv->rx_skb_size);
+	skb_reserve(skb, NET_SKB_PAD);
 	skb_put(skb, len);
-	skb->protocol = eth_type_trans(skb, net_dev);
-	netif_receive_skb(skb);
-	net_dev->stats.rx_packets++;
-	net_dev->stats.rx_bytes += len;
 
-	return 0;
+	/* add buffers to skb via skb->frag_list */
+	if (ctl & LTQ_DMA_SOP) {
+		ch->skb_head = skb;
+		ch->skb_tail = skb;
+		skb_reserve(skb, NET_IP_ALIGN);
+	} else if (ch->skb_head) {
+		if (ch->skb_head == ch->skb_tail)
+			skb_shinfo(ch->skb_tail)->frag_list = skb;
+		else
+			ch->skb_tail->next = skb;
+		ch->skb_tail = skb;
+		ch->skb_head->len += skb->len;
+		ch->skb_head->data_len += skb->len;
+		ch->skb_head->truesize += skb->truesize;
+	}
+
+	if (ctl & LTQ_DMA_EOP) {
+		ch->skb_head->protocol = eth_type_trans(ch->skb_head, net_dev);
+		net_dev->stats.rx_packets++;
+		net_dev->stats.rx_bytes += ch->skb_head->len;
+		netif_receive_skb(ch->skb_head);
+		ch->skb_head = NULL;
+		ch->skb_tail = NULL;
+		ret = XRX200_DMA_PACKET_COMPLETE;
+	} else {
+		ret = XRX200_DMA_PACKET_IN_PROGRESS;
+	}
+
+	return ret;
 }
 
 static int xrx200_poll_rx(struct napi_struct *napi, int budget)
@@ -241,7 +285,9 @@ static int xrx200_poll_rx(struct napi_struct *napi, int budget)
 
 		if ((desc->ctl & (LTQ_DMA_OWN | LTQ_DMA_C)) == LTQ_DMA_C) {
 			ret = xrx200_hw_receive(ch);
-			if (ret)
+			if (ret == XRX200_DMA_PACKET_IN_PROGRESS)
+				continue;
+			if (ret != XRX200_DMA_PACKET_COMPLETE)
 				return ret;
 			rx++;
 		} else {
@@ -362,12 +408,13 @@ xrx200_change_mtu(struct net_device *net_dev, int new_mtu)
 	struct xrx200_chan *ch_rx = &priv->chan_rx;
 	int old_mtu = net_dev->mtu;
 	bool running = false;
-	struct sk_buff *skb;
+	void *buff;
 	int curr_desc;
 	int ret = 0;
 
 	net_dev->mtu = new_mtu;
 	priv->rx_buf_size = xrx200_buffer_size(new_mtu);
+	priv->rx_skb_size = xrx200_skb_size(priv->rx_buf_size);
 
 	if (new_mtu <= old_mtu)
 		return ret;
@@ -383,14 +430,15 @@ xrx200_change_mtu(struct net_device *net_dev, int new_mtu)
 
 	for (ch_rx->dma.desc = 0; ch_rx->dma.desc < LTQ_DESC_NUM;
 	     ch_rx->dma.desc++) {
-		skb = ch_rx->skb[ch_rx->dma.desc];
-		ret = xrx200_alloc_skb(ch_rx);
+		buff = ch_rx->rx_buff[ch_rx->dma.desc];
+		ret = xrx200_alloc_buf(ch_rx, netdev_alloc_frag);
 		if (ret) {
 			net_dev->mtu = old_mtu;
 			priv->rx_buf_size = xrx200_buffer_size(old_mtu);
+			priv->rx_skb_size = xrx200_skb_size(priv->rx_buf_size);
 			break;
 		}
-		dev_kfree_skb_any(skb);
+		skb_free_frag(buff);
 	}
 
 	ch_rx->dma.desc = curr_desc;
@@ -443,7 +491,7 @@ static int xrx200_dma_init(struct xrx200_priv *priv)
 	ltq_dma_alloc_rx(&ch_rx->dma);
 	for (ch_rx->dma.desc = 0; ch_rx->dma.desc < LTQ_DESC_NUM;
 	     ch_rx->dma.desc++) {
-		ret = xrx200_alloc_skb(ch_rx);
+		ret = xrx200_alloc_buf(ch_rx, netdev_alloc_frag);
 		if (ret)
 			goto rx_free;
 	}
@@ -478,7 +526,7 @@ rx_ring_free:
 	/* free the allocated RX ring */
 	for (i = 0; i < LTQ_DESC_NUM; i++) {
 		if (priv->chan_rx.skb[i])
-			dev_kfree_skb_any(priv->chan_rx.skb[i]);
+			skb_free_frag(priv->chan_rx.rx_buff[i]);
 	}
 
 rx_free:
@@ -495,7 +543,7 @@ static void xrx200_hw_cleanup(struct xrx200_priv *priv)
 
 	/* free the allocated RX ring */
 	for (i = 0; i < LTQ_DESC_NUM; i++)
-		dev_kfree_skb_any(priv->chan_rx.skb[i]);
+		skb_free_frag(priv->chan_rx.rx_buff[i]);
 }
 
 static int xrx200_probe(struct platform_device *pdev)
@@ -520,6 +568,7 @@ static int xrx200_probe(struct platform_device *pdev)
 	net_dev->min_mtu = ETH_ZLEN;
 	net_dev->max_mtu = XRX200_DMA_DATA_LEN - xrx200_max_frame_len(0);
 	priv->rx_buf_size = xrx200_buffer_size(ETH_DATA_LEN);
+	priv->rx_skb_size = xrx200_skb_size(priv->rx_buf_size);
 
 	/* load the memory ranges */
 	priv->pmac_reg = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
@@ -564,8 +613,10 @@ static int xrx200_probe(struct platform_device *pdev)
 			 PMAC_HD_CTL);
 
 	/* setup NAPI */
-	netif_napi_add(net_dev, &priv->chan_rx.napi, xrx200_poll_rx, 32);
-	netif_tx_napi_add(net_dev, &priv->chan_tx.napi, xrx200_tx_housekeeping, 32);
+	netif_napi_add(net_dev, &priv->chan_rx.napi, xrx200_poll_rx,
+		       NAPI_POLL_WEIGHT);
+	netif_tx_napi_add(net_dev, &priv->chan_tx.napi, xrx200_tx_housekeeping,
+			  NAPI_POLL_WEIGHT);
 
 	platform_set_drvdata(pdev, priv);
 

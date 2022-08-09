@@ -338,13 +338,6 @@ void __init setup_arch(char **cmdline_p)
 		panic("No configuration setup");
 	}
 
-	paging_init();
-
-#ifdef CONFIG_NATFEAT
-	nf_init();
-#endif
-
-#ifndef CONFIG_SUN3
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (m68k_ramdisk.size) {
 		memblock_reserve(m68k_ramdisk.addr, m68k_ramdisk.size);
@@ -352,6 +345,12 @@ void __init setup_arch(char **cmdline_p)
 		initrd_end = initrd_start + m68k_ramdisk.size;
 		pr_info("initrd: %08lx - %08lx\n", initrd_start, initrd_end);
 	}
+#endif
+
+	paging_init();
+
+#ifdef CONFIG_NATFEAT
+	nf_init();
 #endif
 
 #ifdef CONFIG_ATARI
@@ -363,8 +362,6 @@ void __init setup_arch(char **cmdline_p)
 		dvma_init();
 	}
 #endif
-
-#endif /* !CONFIG_SUN3 */
 
 /* set ISA defs early as possible */
 #if defined(CONFIG_ISA) && defined(MULTI_ISA)

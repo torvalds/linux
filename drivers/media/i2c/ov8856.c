@@ -1445,6 +1445,9 @@ struct ov8856 {
 
 	const struct ov8856_lane_cfg *priv_lane;
 	u8 modes_size;
+
+	/* True if the device has been identified */
+	bool identified;
 };
 
 struct ov8856_lane_cfg {
@@ -1681,6 +1684,71 @@ static int ov8856_write_reg_list(struct ov8856 *ov8856,
 			return ret;
 		}
 	}
+
+	return 0;
+}
+
+static int ov8856_identify_module(struct ov8856 *ov8856)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&ov8856->sd);
+	int ret;
+	u32 val;
+
+	if (ov8856->identified)
+		return 0;
+
+	ret = ov8856_read_reg(ov8856, OV8856_REG_CHIP_ID,
+			      OV8856_REG_VALUE_24BIT, &val);
+	if (ret)
+		return ret;
+
+	if (val != OV8856_CHIP_ID) {
+		dev_err(&client->dev, "chip id mismatch: %x!=%x",
+			OV8856_CHIP_ID, val);
+		return -ENXIO;
+	}
+
+	ret = ov8856_write_reg(ov8856, OV8856_REG_MODE_SELECT,
+			       OV8856_REG_VALUE_08BIT, OV8856_MODE_STREAMING);
+	if (ret)
+		return ret;
+
+	ret = ov8856_write_reg(ov8856, OV8856_OTP_MODE_CTRL,
+			       OV8856_REG_VALUE_08BIT, OV8856_OTP_MODE_AUTO);
+	if (ret) {
+		dev_err(&client->dev, "failed to set otp mode");
+		return ret;
+	}
+
+	ret = ov8856_write_reg(ov8856, OV8856_OTP_LOAD_CTRL,
+			       OV8856_REG_VALUE_08BIT,
+			       OV8856_OTP_LOAD_CTRL_ENABLE);
+	if (ret) {
+		dev_err(&client->dev, "failed to enable load control");
+		return ret;
+	}
+
+	ret = ov8856_read_reg(ov8856, OV8856_MODULE_REVISION,
+			      OV8856_REG_VALUE_08BIT, &val);
+	if (ret) {
+		dev_err(&client->dev, "failed to read module revision");
+		return ret;
+	}
+
+	dev_info(&client->dev, "OV8856 revision %x (%s) at address 0x%02x\n",
+		 val,
+		 val == OV8856_2A_MODULE ? "2A" :
+		 val == OV8856_1B_MODULE ? "1B" : "unknown revision",
+		 client->addr);
+
+	ret = ov8856_write_reg(ov8856, OV8856_REG_MODE_SELECT,
+			       OV8856_REG_VALUE_08BIT, OV8856_MODE_STANDBY);
+	if (ret) {
+		dev_err(&client->dev, "failed to exit streaming mode");
+		return ret;
+	}
+
+	ov8856->identified = true;
 
 	return 0;
 }
@@ -1968,6 +2036,10 @@ static int ov8856_start_streaming(struct ov8856 *ov8856)
 	struct i2c_client *client = v4l2_get_subdevdata(&ov8856->sd);
 	const struct ov8856_reg_list *reg_list;
 	int link_freq_index, ret;
+
+	ret = ov8856_identify_module(ov8856);
+	if (ret)
+		return ret;
 
 	link_freq_index = ov8856->cur_mode->link_freq_index;
 	reg_list = &ov8856->priv_lane->link_freq_configs[link_freq_index].reg_list;
@@ -2276,65 +2348,6 @@ static const struct v4l2_subdev_internal_ops ov8856_internal_ops = {
 	.open = ov8856_open,
 };
 
-static int ov8856_identify_module(struct ov8856 *ov8856)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&ov8856->sd);
-	int ret;
-	u32 val;
-
-	ret = ov8856_read_reg(ov8856, OV8856_REG_CHIP_ID,
-			      OV8856_REG_VALUE_24BIT, &val);
-	if (ret)
-		return ret;
-
-	if (val != OV8856_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%x",
-			OV8856_CHIP_ID, val);
-		return -ENXIO;
-	}
-
-	ret = ov8856_write_reg(ov8856, OV8856_REG_MODE_SELECT,
-			       OV8856_REG_VALUE_08BIT, OV8856_MODE_STREAMING);
-	if (ret)
-		return ret;
-
-	ret = ov8856_write_reg(ov8856, OV8856_OTP_MODE_CTRL,
-			       OV8856_REG_VALUE_08BIT, OV8856_OTP_MODE_AUTO);
-	if (ret) {
-		dev_err(&client->dev, "failed to set otp mode");
-		return ret;
-	}
-
-	ret = ov8856_write_reg(ov8856, OV8856_OTP_LOAD_CTRL,
-			       OV8856_REG_VALUE_08BIT,
-			       OV8856_OTP_LOAD_CTRL_ENABLE);
-	if (ret) {
-		dev_err(&client->dev, "failed to enable load control");
-		return ret;
-	}
-
-	ret = ov8856_read_reg(ov8856, OV8856_MODULE_REVISION,
-			      OV8856_REG_VALUE_08BIT, &val);
-	if (ret) {
-		dev_err(&client->dev, "failed to read module revision");
-		return ret;
-	}
-
-	dev_info(&client->dev, "OV8856 revision %x (%s) at address 0x%02x\n",
-		 val,
-		 val == OV8856_2A_MODULE ? "2A" :
-		 val == OV8856_1B_MODULE ? "1B" : "unknown revision",
-		 client->addr);
-
-	ret = ov8856_write_reg(ov8856, OV8856_REG_MODE_SELECT,
-			       OV8856_REG_VALUE_08BIT, OV8856_MODE_STANDBY);
-	if (ret) {
-		dev_err(&client->dev, "failed to exit streaming mode");
-		return ret;
-	}
-
-	return 0;
-}
 
 static int ov8856_get_hwcfg(struct ov8856 *ov8856, struct device *dev)
 {
@@ -2458,6 +2471,7 @@ static int ov8856_probe(struct i2c_client *client)
 {
 	struct ov8856 *ov8856;
 	int ret;
+	bool full_power;
 
 	ov8856 = devm_kzalloc(&client->dev, sizeof(*ov8856), GFP_KERNEL);
 	if (!ov8856)
@@ -2472,16 +2486,19 @@ static int ov8856_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&ov8856->sd, client, &ov8856_subdev_ops);
 
-	ret = __ov8856_power_on(ov8856);
-	if (ret) {
-		dev_err(&client->dev, "failed to power on\n");
-		return ret;
-	}
+	full_power = acpi_dev_state_d0(&client->dev);
+	if (full_power) {
+		ret = __ov8856_power_on(ov8856);
+		if (ret) {
+			dev_err(&client->dev, "failed to power on\n");
+			return ret;
+		}
 
-	ret = ov8856_identify_module(ov8856);
-	if (ret) {
-		dev_err(&client->dev, "failed to find sensor: %d", ret);
-		goto probe_power_off;
+		ret = ov8856_identify_module(ov8856);
+		if (ret) {
+			dev_err(&client->dev, "failed to find sensor: %d", ret);
+			goto probe_power_off;
+		}
 	}
 
 	mutex_init(&ov8856->mutex);
@@ -2511,11 +2528,9 @@ static int ov8856_probe(struct i2c_client *client)
 		goto probe_error_media_entity_cleanup;
 	}
 
-	/*
-	 * Device is already turned on by i2c-core with ACPI domain PM.
-	 * Enable runtime PM and turn off the device.
-	 */
-	pm_runtime_set_active(&client->dev);
+	/* Set the device's state to active if it's in D0 state. */
+	if (full_power)
+		pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_idle(&client->dev);
 
@@ -2562,6 +2577,7 @@ static struct i2c_driver ov8856_i2c_driver = {
 	},
 	.probe_new = ov8856_probe,
 	.remove = ov8856_remove,
+	.flags = I2C_DRV_ACPI_WAIVE_D0_PROBE,
 };
 
 module_i2c_driver(ov8856_i2c_driver);

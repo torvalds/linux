@@ -2015,7 +2015,8 @@ static int setup_nodes(struct perf_session *session)
 {
 	struct numa_node *n;
 	unsigned long **nodes;
-	int node, cpu;
+	int node, idx;
+	struct perf_cpu cpu;
 	int *cpu2node;
 
 	if (c2c.node_info > 2)
@@ -2038,8 +2039,8 @@ static int setup_nodes(struct perf_session *session)
 	if (!cpu2node)
 		return -ENOMEM;
 
-	for (cpu = 0; cpu < c2c.cpus_cnt; cpu++)
-		cpu2node[cpu] = -1;
+	for (idx = 0; idx < c2c.cpus_cnt; idx++)
+		cpu2node[idx] = -1;
 
 	c2c.cpu2node = cpu2node;
 
@@ -2057,13 +2058,13 @@ static int setup_nodes(struct perf_session *session)
 		if (perf_cpu_map__empty(map))
 			continue;
 
-		for (cpu = 0; cpu < map->nr; cpu++) {
-			set_bit(map->map[cpu], set);
+		perf_cpu_map__for_each_cpu(cpu, idx, map) {
+			set_bit(cpu.cpu, set);
 
-			if (WARN_ONCE(cpu2node[map->map[cpu]] != -1, "node/cpu topology bug"))
+			if (WARN_ONCE(cpu2node[cpu.cpu] != -1, "node/cpu topology bug"))
 				return -EINVAL;
 
-			cpu2node[map->map[cpu]] = node;
+			cpu2node[cpu.cpu] = node;
 		}
 	}
 

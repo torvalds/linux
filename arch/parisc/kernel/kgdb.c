@@ -3,6 +3,7 @@
  * PA-RISC KGDB support
  *
  * Copyright (c) 2019 Sven Schnelle <svens@stackframe.org>
+ * Copyright (c) 2022 Helge Deller <deller@gmx.de>
  *
  */
 
@@ -207,3 +208,23 @@ int kgdb_arch_handle_exception(int trap, int signo,
 	}
 	return -1;
 }
+
+/* KGDB console driver which uses PDC to read chars from keyboard */
+
+static void kgdb_pdc_write_char(u8 chr)
+{
+	/* no need to print char. kgdb will do it. */
+}
+
+static struct kgdb_io kgdb_pdc_io_ops = {
+	.name		= "kgdb_pdc",
+	.read_char	= pdc_iodc_getc,
+	.write_char	= kgdb_pdc_write_char,
+};
+
+static int __init kgdb_pdc_init(void)
+{
+	kgdb_register_io_module(&kgdb_pdc_io_ops);
+	return 0;
+}
+early_initcall(kgdb_pdc_init);

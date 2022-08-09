@@ -17,6 +17,9 @@
 		reg = <0x3c>;
 		clocks = <&MCLK_CAM>;
 		clock-names = "xclk";
+		AVDD-supply = <&reg_2p8v>;
+		DOVDD-supply = <&reg_2p8v>;
+		DVDD-supply = <&reg_1p8v>;
 		status = "okay";
 
 		port {

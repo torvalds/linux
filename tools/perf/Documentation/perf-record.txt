@@ -30,8 +30,10 @@ OPTIONS
 
         - a symbolic event name	(use 'perf list' to list all events)
 
-        - a raw PMU event (eventsel+umask) in the form of rNNN where NNN is a
-	  hexadecimal event descriptor.
+        - a raw PMU event in the form of rN where N is a hexadecimal value
+          that represents the raw register encoding with the layout of the
+          event control registers as described by entries in
+          /sys/bus/event_sources/devices/cpu/format/*.
 
         - a symbolic or raw PMU event followed by an optional colon
 	  and a list of event modifiers, e.g., cpu-cycles:p.  See the
@@ -712,6 +714,15 @@ measurements:
  exit $?
 
 include::intel-hybrid.txt[]
+
+--debuginfod[=URLs]::
+	Specify debuginfod URL to be used when cacheing perf.data binaries,
+	it follows the same syntax as the DEBUGINFOD_URLS variable, like:
+
+	  http://192.168.122.174:8002
+
+	If the URLs is not specified, the value of DEBUGINFOD_URLS
+	system environment variable is used.
 
 SEE ALSO
 --------

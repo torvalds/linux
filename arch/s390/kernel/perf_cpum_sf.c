@@ -1179,7 +1179,7 @@ static void hw_collect_samples(struct perf_event *event, unsigned long *sdbt,
 	sample = (struct hws_basic_entry *) *sdbt;
 	while ((unsigned long *) sample < (unsigned long *) te) {
 		/* Check for an empty sample */
-		if (!sample->def)
+		if (!sample->def || sample->LS)
 			break;
 
 		/* Update perf event period */

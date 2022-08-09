@@ -27,7 +27,7 @@ static irqreturn_t isr_uh_routine(int irq, void *user_data)
 	struct wilc *wilc = user_data;
 
 	if (wilc->close) {
-		pr_err("Can't handle UH interrupt");
+		pr_err("Can't handle UH interrupt\n");
 		return IRQ_HANDLED;
 	}
 	return IRQ_WAKE_THREAD;
@@ -56,7 +56,7 @@ static int init_irq(struct net_device *dev)
 	ret = request_threaded_irq(wl->dev_irq_num, isr_uh_routine,
 				   isr_bh_routine,
 				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				   "WILC_IRQ", wl);
+				   dev->name, wl);
 	if (ret) {
 		netdev_err(dev, "Failed to request IRQ [%d]\n", ret);
 		return ret;
@@ -468,7 +468,7 @@ static int wlan_initialize_threads(struct net_device *dev)
 	struct wilc *wilc = vif->wilc;
 
 	wilc->txq_thread = kthread_run(wilc_txq_task, (void *)wilc,
-				       "K_TXQ_TASK");
+				       "%s-tx", dev->name);
 	if (IS_ERR(wilc->txq_thread)) {
 		netdev_err(dev, "couldn't create TXQ thread\n");
 		wilc->close = 0;
@@ -574,6 +574,7 @@ static int wilc_mac_open(struct net_device *ndev)
 	struct wilc *wl = vif->wilc;
 	int ret = 0;
 	struct mgmt_frame_regs mgmt_regs = {};
+	u8 addr[ETH_ALEN] __aligned(2);
 
 	if (!wl || !wl->dev) {
 		netdev_err(ndev, "device not ready\n");
@@ -596,10 +597,9 @@ static int wilc_mac_open(struct net_device *ndev)
 				vif->idx);
 
 	if (is_valid_ether_addr(ndev->dev_addr)) {
-		wilc_set_mac_address(vif, ndev->dev_addr);
+		ether_addr_copy(addr, ndev->dev_addr);
+		wilc_set_mac_address(vif, addr);
 	} else {
-		u8 addr[ETH_ALEN];
-
 		wilc_get_mac_address(vif, addr);
 		eth_hw_addr_set(ndev, addr);
 	}
@@ -905,7 +905,6 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 
 	wilc_wlan_cfg_deinit(wilc);
 	wlan_deinit_locks(wilc);
-	kfree(wilc->bus_data);
 	wiphy_unregister(wilc->wiphy);
 	wiphy_free(wilc->wiphy);
 }
@@ -962,8 +961,15 @@ struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 		ret = register_netdev(ndev);
 
 	if (ret) {
-		free_netdev(ndev);
-		return ERR_PTR(-EFAULT);
+		ret = -EFAULT;
+		goto error;
+	}
+
+	wl->hif_workqueue = alloc_ordered_workqueue("%s-wq", WQ_MEM_RECLAIM,
+						    ndev->name);
+	if (!wl->hif_workqueue) {
+		ret = -ENOMEM;
+		goto error;
 	}
 
 	ndev->needs_free_netdev = true;
@@ -977,6 +983,10 @@ struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 	synchronize_srcu(&wl->srcu);
 
 	return vif;
+
+  error:
+	free_netdev(ndev);
+	return ERR_PTR(ret);
 }
 
 MODULE_LICENSE("GPL");

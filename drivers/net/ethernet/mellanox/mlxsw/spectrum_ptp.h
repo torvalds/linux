@@ -31,13 +31,13 @@ struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp1_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state);
 
 void mlxsw_sp1_ptp_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
-			   u8 local_port);
+			   u16 local_port);
 
 void mlxsw_sp1_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
-			       struct sk_buff *skb, u8 local_port);
+			       struct sk_buff *skb, u16 local_port);
 
 void mlxsw_sp1_ptp_got_timestamp(struct mlxsw_sp *mlxsw_sp, bool ingress,
-				 u8 local_port, u8 message_type,
+				 u16 local_port, u8 message_type,
 				 u8 domain_number, u16 sequence_id,
 				 u64 timestamp);
 
@@ -80,20 +80,20 @@ static inline void mlxsw_sp1_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state)
 }
 
 static inline void mlxsw_sp1_ptp_receive(struct mlxsw_sp *mlxsw_sp,
-					 struct sk_buff *skb, u8 local_port)
+					 struct sk_buff *skb, u16 local_port)
 {
 	mlxsw_sp_rx_listener_no_mark_func(skb, local_port, mlxsw_sp);
 }
 
 static inline void mlxsw_sp1_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
-					     struct sk_buff *skb, u8 local_port)
+					     struct sk_buff *skb, u16 local_port)
 {
 	dev_kfree_skb_any(skb);
 }
 
 static inline void
 mlxsw_sp1_ptp_got_timestamp(struct mlxsw_sp *mlxsw_sp, bool ingress,
-			    u8 local_port, u8 message_type,
+			    u16 local_port, u8 message_type,
 			    u8 domain_number,
 			    u16 sequence_id, u64 timestamp)
 {
@@ -159,13 +159,13 @@ static inline void mlxsw_sp2_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state)
 }
 
 static inline void mlxsw_sp2_ptp_receive(struct mlxsw_sp *mlxsw_sp,
-					 struct sk_buff *skb, u8 local_port)
+					 struct sk_buff *skb, u16 local_port)
 {
 	mlxsw_sp_rx_listener_no_mark_func(skb, local_port, mlxsw_sp);
 }
 
 static inline void mlxsw_sp2_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
-					     struct sk_buff *skb, u8 local_port)
+					     struct sk_buff *skb, u16 local_port)
 {
 	dev_kfree_skb_any(skb);
 }

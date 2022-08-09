@@ -350,7 +350,7 @@ static const struct iio_enum hi8435_sensing_mode = {
 
 static const struct iio_chan_spec_ext_info hi8435_ext_info[] = {
 	IIO_ENUM("sensing_mode", IIO_SEPARATE, &hi8435_sensing_mode),
-	IIO_ENUM_AVAILABLE("sensing_mode", &hi8435_sensing_mode),
+	IIO_ENUM_AVAILABLE("sensing_mode", IIO_SHARED_BY_TYPE, &hi8435_sensing_mode),
 	{},
 };
 

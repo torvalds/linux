@@ -169,6 +169,11 @@
 			reg = <0>;
 			reset-gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
 			reset-assert-us = <10000>;
+			qca,disable-smarteee;
+			vddio-supply = <&vddh>;
+
+			vddh: vddh-regulator {
+			};
 		};
 	};
 };
@@ -324,6 +329,10 @@
 
 &pgc_gpu {
 	power-supply = <&sw1a_reg>;
+};
+
+&pgc_vpu {
+	power-supply = <&sw1c_reg>;
 };
 
 &qspi0 {

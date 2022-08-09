@@ -484,7 +484,7 @@
 
 
 /*
- * Bank Address Address Bits Register (Table 6-22)
+ * Bank Address Bits Register (Table 6-22)
  */
 
 #define S_MC_BA_RESERVED	    0

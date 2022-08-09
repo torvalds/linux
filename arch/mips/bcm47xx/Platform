@@ -4,4 +4,3 @@
 cflags-$(CONFIG_BCM47XX)	+=					\
 		-I$(srctree)/arch/mips/include/asm/mach-bcm47xx
 load-$(CONFIG_BCM47XX)		:= 0xffffffff80001000
-zload-$(CONFIG_BCM47XX)		+= 0xffffffff80400000

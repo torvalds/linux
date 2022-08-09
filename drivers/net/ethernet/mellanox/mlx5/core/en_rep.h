@@ -183,6 +183,13 @@ struct mlx5e_decap_entry {
 	struct rcu_head rcu;
 };
 
+struct mlx5e_mpls_info {
+	u32             label;
+	u8              tc;
+	u8              bos;
+	u8              ttl;
+};
+
 struct mlx5e_encap_entry {
 	/* attached neigh hash entry */
 	struct mlx5e_neigh_hash_entry *nhe;
@@ -196,6 +203,7 @@ struct mlx5e_encap_entry {
 	struct list_head route_list;
 	struct mlx5_pkt_reformat *pkt_reformat;
 	const struct ip_tunnel_info *tun_info;
+	struct mlx5e_mpls_info mpls_info;
 	unsigned char h_dest[ETH_ALEN];	/* destination eth addr	*/
 
 	struct net_device *out_dev;

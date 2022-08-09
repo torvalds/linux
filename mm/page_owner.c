@@ -46,7 +46,7 @@ static int __init early_page_owner_param(char *buf)
 }
 early_param("page_owner", early_page_owner_param);
 
-static bool need_page_owner(void)
+static __init bool need_page_owner(void)
 {
 	return page_owner_enabled;
 }
@@ -75,10 +75,12 @@ static noinline void register_early_stack(void)
 	early_handle = create_dummy_stack();
 }
 
-static void init_page_owner(void)
+static __init void init_page_owner(void)
 {
 	if (!page_owner_enabled)
 		return;
+
+	stack_depot_init();
 
 	register_dummy_stack();
 	register_failure_stack();

@@ -8,7 +8,7 @@
 #define LTQ_DMA_H__
 
 #define LTQ_DESC_SIZE		0x08	/* each descriptor is 64bit */
-#define LTQ_DESC_NUM		0x40	/* 64 descriptors / channel */
+#define LTQ_DESC_NUM		0xC0	/* 192 descriptors / channel */
 
 #define LTQ_DMA_OWN		BIT(31) /* owner bit */
 #define LTQ_DMA_C		BIT(30) /* complete bit */

@@ -245,6 +245,7 @@ const struct clk_ops ccu_mp_ops = {
 	.recalc_rate	= ccu_mp_recalc_rate,
 	.set_rate	= ccu_mp_set_rate,
 };
+EXPORT_SYMBOL_NS_GPL(ccu_mp_ops, SUNXI_CCU);
 
 /*
  * Support for MMC timing mode switching
@@ -325,3 +326,4 @@ const struct clk_ops ccu_mp_mmc_ops = {
 	.recalc_rate	= ccu_mp_mmc_recalc_rate,
 	.set_rate	= ccu_mp_mmc_set_rate,
 };
+EXPORT_SYMBOL_NS_GPL(ccu_mp_mmc_ops, SUNXI_CCU);

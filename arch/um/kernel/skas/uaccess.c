@@ -146,11 +146,6 @@ static int copy_chunk_from_user(unsigned long from, int len, void *arg)
 
 unsigned long raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	if (uaccess_kernel()) {
-		memcpy(to, (__force void*)from, n);
-		return 0;
-	}
-
 	return buffer_op((unsigned long) from, n, 0, copy_chunk_from_user, &to);
 }
 EXPORT_SYMBOL(raw_copy_from_user);
@@ -166,11 +161,6 @@ static int copy_chunk_to_user(unsigned long to, int len, void *arg)
 
 unsigned long raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	if (uaccess_kernel()) {
-		memcpy((__force void *) to, from, n);
-		return 0;
-	}
-
 	return buffer_op((unsigned long) to, n, 1, copy_chunk_to_user, &from);
 }
 EXPORT_SYMBOL(raw_copy_to_user);
@@ -196,12 +186,6 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
 
 	if (!access_ok(src, 1))
 		return -EFAULT;
-
-	if (uaccess_kernel()) {
-		strncpy(dst, (__force void *) src, count);
-		return strnlen(dst, count);
-	}
-
 	n = buffer_op((unsigned long) src, count, 0, strncpy_chunk_from_user,
 		      &ptr);
 	if (n != 0)
@@ -218,11 +202,6 @@ static int clear_chunk(unsigned long addr, int len, void *unused)
 
 unsigned long __clear_user(void __user *mem, unsigned long len)
 {
-	if (uaccess_kernel()) {
-		memset((__force void*)mem, 0, len);
-		return 0;
-	}
-
 	return buffer_op((unsigned long) mem, len, 1, clear_chunk, NULL);
 }
 EXPORT_SYMBOL(__clear_user);
@@ -245,10 +224,6 @@ long strnlen_user(const char __user *str, long len)
 
 	if (!access_ok(str, 1))
 		return -EFAULT;
-
-	if (uaccess_kernel())
-		return strnlen((__force char*)str, len) + 1;
-
 	n = buffer_op((unsigned long) str, len, 0, strnlen_chunk, &count);
 	if (n == 0)
 		return count + 1;
@@ -348,7 +323,6 @@ EXPORT_SYMBOL(arch_futex_atomic_op_inuser);
  * 0 - On success
  * -EFAULT - User access resulted in a page fault
  * -EAGAIN - Atomic operation was unable to complete due to contention
- * -ENOSYS - Function not implemented (only if !HAVE_FUTEX_CMPXCHG)
  */
 
 int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,

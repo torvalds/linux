@@ -11,7 +11,7 @@ from drgn.helpers.linux import list_for_each_entry, list_empty
 from drgn.helpers.linux import for_each_page
 from drgn.helpers.linux.cpumask import for_each_online_cpu
 from drgn.helpers.linux.percpu import per_cpu_ptr
-from drgn import container_of, FaultError, Object
+from drgn import container_of, FaultError, Object, cast
 
 
 DESC = """
@@ -69,15 +69,15 @@ def oo_objects(s):
 
 
 def count_partial(n, fn):
-    nr_pages = 0
-    for page in list_for_each_entry('struct page', n.partial.address_of_(),
-                                    'lru'):
-         nr_pages += fn(page)
-    return nr_pages
+    nr_objs = 0
+    for slab in list_for_each_entry('struct slab', n.partial.address_of_(),
+                                    'slab_list'):
+         nr_objs += fn(slab)
+    return nr_objs
 
 
-def count_free(page):
-    return page.objects - page.inuse
+def count_free(slab):
+    return slab.objects - slab.inuse
 
 
 def slub_get_slabinfo(s, cfg):
@@ -145,14 +145,14 @@ def detect_kernel_config():
     return cfg
 
 
-def for_each_slab_page(prog):
+def for_each_slab(prog):
     PGSlab = 1 << prog.constant('PG_slab')
     PGHead = 1 << prog.constant('PG_head')
 
     for page in for_each_page(prog):
         try:
             if page.flags.value_() & PGSlab:
-                yield page
+                yield cast('struct slab *', page)
         except FaultError:
             pass
 
@@ -190,13 +190,13 @@ def main():
                                        'list'):
             obj_cgroups.add(ptr.value_())
 
-        # look over all slab pages, belonging to non-root memcgs
-        # and look for objects belonging to the given memory cgroup
-        for page in for_each_slab_page(prog):
-            objcg_vec_raw = page.memcg_data.value_()
+        # look over all slab folios and look for objects belonging
+        # to the given memory cgroup
+        for slab in for_each_slab(prog):
+            objcg_vec_raw = slab.memcg_data.value_()
             if objcg_vec_raw == 0:
                 continue
-            cache = page.slab_cache
+            cache = slab.slab_cache
             if not cache:
                 continue
             addr = cache.value_()

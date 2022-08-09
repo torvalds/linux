@@ -439,7 +439,7 @@ process_slot:
 			break;
 		}
 		next_key_min_offset = key.offset + datal;
-		size = btrfs_item_size_nr(leaf, slot);
+		size = btrfs_item_size(leaf, slot);
 		read_extent_buffer(leaf, buf, btrfs_item_ptr_offset(leaf, slot),
 				   size);
 

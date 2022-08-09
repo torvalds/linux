@@ -219,7 +219,7 @@ int __intel_context_do_pin_ww(struct intel_context *ce,
 	 */
 
 	err = i915_gem_object_lock(ce->timeline->hwsp_ggtt->obj, ww);
-	if (!err && ce->ring->vma->obj)
+	if (!err)
 		err = i915_gem_object_lock(ce->ring->vma->obj, ww);
 	if (!err && ce->state)
 		err = i915_gem_object_lock(ce->state->obj, ww);
@@ -228,17 +228,17 @@ int __intel_context_do_pin_ww(struct intel_context *ce,
 	if (err)
 		return err;
 
-	err = i915_active_acquire(&ce->active);
+	err = ce->ops->pre_pin(ce, ww, &vaddr);
 	if (err)
 		goto err_ctx_unpin;
 
-	err = ce->ops->pre_pin(ce, ww, &vaddr);
+	err = i915_active_acquire(&ce->active);
 	if (err)
-		goto err_release;
+		goto err_post_unpin;
 
 	err = mutex_lock_interruptible(&ce->pin_mutex);
 	if (err)
-		goto err_post_unpin;
+		goto err_release;
 
 	intel_engine_pm_might_get(ce->engine);
 
@@ -273,11 +273,11 @@ int __intel_context_do_pin_ww(struct intel_context *ce,
 
 err_unlock:
 	mutex_unlock(&ce->pin_mutex);
+err_release:
+	i915_active_release(&ce->active);
 err_post_unpin:
 	if (!handoff)
 		ce->ops->post_unpin(ce);
-err_release:
-	i915_active_release(&ce->active);
 err_ctx_unpin:
 	intel_context_post_unpin(ce);
 
@@ -364,7 +364,7 @@ static int __intel_context_active(struct i915_active *active)
 	return 0;
 }
 
-static int __i915_sw_fence_call
+static int
 sw_fence_dummy_notify(struct i915_sw_fence *sf,
 		      enum i915_sw_fence_notify state)
 {

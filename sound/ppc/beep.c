@@ -99,7 +99,7 @@ static int snd_pmac_beep_event(struct input_dev *dev, unsigned int type,
 		return -1;
 
 	switch (code) {
-	case SND_BELL: if (hz) hz = 1000;
+	case SND_BELL: if (hz) hz = 1000; break;
 	case SND_TONE: break;
 	default: return -1;
 	}

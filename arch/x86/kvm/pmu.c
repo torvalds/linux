@@ -13,6 +13,8 @@
 #include <linux/types.h>
 #include <linux/kvm_host.h>
 #include <linux/perf_event.h>
+#include <linux/bsearch.h>
+#include <linux/sort.h>
 #include <asm/perf_event.h>
 #include "x86.h"
 #include "cpuid.h"
@@ -55,47 +57,45 @@ static void kvm_pmi_trigger_fn(struct irq_work *irq_work)
 	kvm_pmu_deliver_pmi(vcpu);
 }
 
+static inline void __kvm_perf_overflow(struct kvm_pmc *pmc, bool in_pmi)
+{
+	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
+
+	/* Ignore counters that have been reprogrammed already. */
+	if (test_and_set_bit(pmc->idx, pmu->reprogram_pmi))
+		return;
+
+	__set_bit(pmc->idx, (unsigned long *)&pmu->global_status);
+	kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
+
+	if (!pmc->intr)
+		return;
+
+	/*
+	 * Inject PMI. If vcpu was in a guest mode during NMI PMI
+	 * can be ejected on a guest mode re-entry. Otherwise we can't
+	 * be sure that vcpu wasn't executing hlt instruction at the
+	 * time of vmexit and is not going to re-enter guest mode until
+	 * woken up. So we should wake it, but this is impossible from
+	 * NMI context. Do it from irq work instead.
+	 */
+	if (in_pmi && !kvm_handling_nmi_from_guest(pmc->vcpu))
+		irq_work_queue(&pmc_to_pmu(pmc)->irq_work);
+	else
+		kvm_make_request(KVM_REQ_PMI, pmc->vcpu);
+}
+
 static void kvm_perf_overflow(struct perf_event *perf_event,
 			      struct perf_sample_data *data,
 			      struct pt_regs *regs)
 {
 	struct kvm_pmc *pmc = perf_event->overflow_handler_context;
-	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
 
-	if (!test_and_set_bit(pmc->idx, pmu->reprogram_pmi)) {
-		__set_bit(pmc->idx, (unsigned long *)&pmu->global_status);
-		kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
-	}
-}
-
-static void kvm_perf_overflow_intr(struct perf_event *perf_event,
-				   struct perf_sample_data *data,
-				   struct pt_regs *regs)
-{
-	struct kvm_pmc *pmc = perf_event->overflow_handler_context;
-	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
-
-	if (!test_and_set_bit(pmc->idx, pmu->reprogram_pmi)) {
-		__set_bit(pmc->idx, (unsigned long *)&pmu->global_status);
-		kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
-
-		/*
-		 * Inject PMI. If vcpu was in a guest mode during NMI PMI
-		 * can be ejected on a guest mode re-entry. Otherwise we can't
-		 * be sure that vcpu wasn't executing hlt instruction at the
-		 * time of vmexit and is not going to re-enter guest mode until
-		 * woken up. So we should wake it, but this is impossible from
-		 * NMI context. Do it from irq work instead.
-		 */
-		if (!kvm_is_in_guest())
-			irq_work_queue(&pmc_to_pmu(pmc)->irq_work);
-		else
-			kvm_make_request(KVM_REQ_PMI, pmc->vcpu);
-	}
+	__kvm_perf_overflow(pmc, true);
 }
 
 static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
-				  unsigned config, bool exclude_user,
+				  u64 config, bool exclude_user,
 				  bool exclude_kernel, bool intr,
 				  bool in_tx, bool in_tx_cp)
 {
@@ -110,6 +110,9 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 		.exclude_kernel = exclude_kernel,
 		.config = config,
 	};
+
+	if (type == PERF_TYPE_HARDWARE && config >= PERF_COUNT_HW_MAX)
+		return;
 
 	attr.sample_period = get_sample_period(pmc, pmc->counter);
 
@@ -126,7 +129,6 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 	}
 
 	event = perf_event_create_kernel_counter(&attr, -1, current,
-						 intr ? kvm_perf_overflow_intr :
 						 kvm_perf_overflow, pmc);
 	if (IS_ERR(event)) {
 		pr_debug_ratelimited("kvm_pmu: event creation failed %ld for pmc->idx = %d\n",
@@ -138,6 +140,7 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 	pmc_to_pmu(pmc)->event_count++;
 	clear_bit(pmc->idx, pmc_to_pmu(pmc)->reprogram_pmi);
 	pmc->is_paused = false;
+	pmc->intr = intr;
 }
 
 static void pmc_pause_counter(struct kvm_pmc *pmc)
@@ -171,13 +174,17 @@ static bool pmc_resume_counter(struct kvm_pmc *pmc)
 	return true;
 }
 
+static int cmp_u64(const void *a, const void *b)
+{
+	return *(__u64 *)a - *(__u64 *)b;
+}
+
 void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
 {
-	unsigned config, type = PERF_TYPE_RAW;
-	u8 event_select, unit_mask;
+	u64 config;
+	u32 type = PERF_TYPE_RAW;
 	struct kvm *kvm = pmc->vcpu->kvm;
 	struct kvm_pmu_event_filter *filter;
-	int i;
 	bool allow_event = true;
 
 	if (eventsel & ARCH_PERFMON_EVENTSEL_PIN_CONTROL)
@@ -192,37 +199,29 @@ void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
 
 	filter = srcu_dereference(kvm->arch.pmu_event_filter, &kvm->srcu);
 	if (filter) {
-		for (i = 0; i < filter->nevents; i++)
-			if (filter->events[i] ==
-			    (eventsel & AMD64_RAW_EVENT_MASK_NB))
-				break;
-		if (filter->action == KVM_PMU_EVENT_ALLOW &&
-		    i == filter->nevents)
-			allow_event = false;
-		if (filter->action == KVM_PMU_EVENT_DENY &&
-		    i < filter->nevents)
-			allow_event = false;
+		__u64 key = eventsel & AMD64_RAW_EVENT_MASK_NB;
+
+		if (bsearch(&key, filter->events, filter->nevents,
+			    sizeof(__u64), cmp_u64))
+			allow_event = filter->action == KVM_PMU_EVENT_ALLOW;
+		else
+			allow_event = filter->action == KVM_PMU_EVENT_DENY;
 	}
 	if (!allow_event)
 		return;
-
-	event_select = eventsel & ARCH_PERFMON_EVENTSEL_EVENT;
-	unit_mask = (eventsel & ARCH_PERFMON_EVENTSEL_UMASK) >> 8;
 
 	if (!(eventsel & (ARCH_PERFMON_EVENTSEL_EDGE |
 			  ARCH_PERFMON_EVENTSEL_INV |
 			  ARCH_PERFMON_EVENTSEL_CMASK |
 			  HSW_IN_TX |
 			  HSW_IN_TX_CHECKPOINTED))) {
-		config = kvm_x86_ops.pmu_ops->find_arch_event(pmc_to_pmu(pmc),
-						      event_select,
-						      unit_mask);
+		config = kvm_x86_ops.pmu_ops->pmc_perf_hw_id(pmc);
 		if (config != PERF_COUNT_HW_MAX)
 			type = PERF_TYPE_HARDWARE;
 	}
 
 	if (type == PERF_TYPE_RAW)
-		config = eventsel & X86_RAW_EVENT_MASK;
+		config = eventsel & AMD64_RAW_EVENT_MASK;
 
 	if (pmc->current_config == eventsel && pmc_resume_counter(pmc))
 		return;
@@ -268,7 +267,7 @@ void reprogram_fixed_counter(struct kvm_pmc *pmc, u8 ctrl, int idx)
 
 	pmc->current_config = (u64)ctrl;
 	pmc_reprogram_counter(pmc, PERF_TYPE_HARDWARE,
-			      kvm_x86_ops.pmu_ops->find_fixed_event(idx),
+			      kvm_x86_ops.pmu_ops->pmc_perf_hw_id(pmc),
 			      !(en_field & 0x2), /* exclude user */
 			      !(en_field & 0x1), /* exclude kernel */
 			      pmi, false, false);
@@ -490,6 +489,66 @@ void kvm_pmu_destroy(struct kvm_vcpu *vcpu)
 	kvm_pmu_reset(vcpu);
 }
 
+static void kvm_pmu_incr_counter(struct kvm_pmc *pmc)
+{
+	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
+	u64 prev_count;
+
+	prev_count = pmc->counter;
+	pmc->counter = (pmc->counter + 1) & pmc_bitmask(pmc);
+
+	reprogram_counter(pmu, pmc->idx);
+	if (pmc->counter < prev_count)
+		__kvm_perf_overflow(pmc, false);
+}
+
+static inline bool eventsel_match_perf_hw_id(struct kvm_pmc *pmc,
+	unsigned int perf_hw_id)
+{
+	u64 old_eventsel = pmc->eventsel;
+	unsigned int config;
+
+	pmc->eventsel &= (ARCH_PERFMON_EVENTSEL_EVENT | ARCH_PERFMON_EVENTSEL_UMASK);
+	config = kvm_x86_ops.pmu_ops->pmc_perf_hw_id(pmc);
+	pmc->eventsel = old_eventsel;
+	return config == perf_hw_id;
+}
+
+static inline bool cpl_is_matched(struct kvm_pmc *pmc)
+{
+	bool select_os, select_user;
+	u64 config = pmc->current_config;
+
+	if (pmc_is_gp(pmc)) {
+		select_os = config & ARCH_PERFMON_EVENTSEL_OS;
+		select_user = config & ARCH_PERFMON_EVENTSEL_USR;
+	} else {
+		select_os = config & 0x1;
+		select_user = config & 0x2;
+	}
+
+	return (static_call(kvm_x86_get_cpl)(pmc->vcpu) == 0) ? select_os : select_user;
+}
+
+void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 perf_hw_id)
+{
+	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
+	struct kvm_pmc *pmc;
+	int i;
+
+	for_each_set_bit(i, pmu->all_valid_pmc_idx, X86_PMC_IDX_MAX) {
+		pmc = kvm_x86_ops.pmu_ops->pmc_idx_to_pmc(pmu, i);
+
+		if (!pmc || !pmc_is_enabled(pmc) || !pmc_speculative_in_use(pmc))
+			continue;
+
+		/* Ignore checks for edge detect, pin control, invert and CMASK bits */
+		if (eventsel_match_perf_hw_id(pmc, perf_hw_id) && cpl_is_matched(pmc))
+			kvm_pmu_incr_counter(pmc);
+	}
+}
+EXPORT_SYMBOL_GPL(kvm_pmu_trigger_event);
+
 int kvm_vm_ioctl_set_pmu_event_filter(struct kvm *kvm, void __user *argp)
 {
 	struct kvm_pmu_event_filter tmp, *filter;
@@ -520,6 +579,11 @@ int kvm_vm_ioctl_set_pmu_event_filter(struct kvm *kvm, void __user *argp)
 
 	/* Ensure nevents can't be changed between the user copies. */
 	*filter = tmp;
+
+	/*
+	 * Sort the in-kernel list so that we can search it with bsearch.
+	 */
+	sort(&filter->events, filter->nevents, sizeof(__u64), cmp_u64, NULL);
 
 	mutex_lock(&kvm->lock);
 	filter = rcu_replace_pointer(kvm->arch.pmu_event_filter, filter,

@@ -3,6 +3,7 @@
 #include <dt-bindings/gpio/tegra194-gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/mailbox/tegra186-hsp.h>
+#include <dt-bindings/pinctrl/pinctrl-tegra-io-pad.h>
 #include <dt-bindings/pinctrl/pinctrl-tegra.h>
 #include <dt-bindings/power/tegra194-powergate.h>
 #include <dt-bindings/reset/tegra194-reset.h>
@@ -535,7 +536,6 @@
 				pex_rst {
 					nvidia,pins = "pex_l5_rst_n_pgg1";
 					nvidia,schmitt = <TEGRA_PIN_DISABLE>;
-					nvidia,lpdr = <TEGRA_PIN_ENABLE>;
 					nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 					nvidia,io-hv = <TEGRA_PIN_ENABLE>;
 					nvidia,tristate = <TEGRA_PIN_DISABLE>;
@@ -547,7 +547,6 @@
 				clkreq {
 					nvidia,pins = "pex_l5_clkreq_n_pgg0";
 					nvidia,schmitt = <TEGRA_PIN_DISABLE>;
-					nvidia,lpdr = <TEGRA_PIN_ENABLE>;
 					nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 					nvidia,io-hv = <TEGRA_PIN_ENABLE>;
 					nvidia,tristate = <TEGRA_PIN_DISABLE>;
@@ -593,6 +592,7 @@
 				compatible = "nvidia,tegra194-emc";
 				reg = <0x0 0x02c60000 0x0 0x90000>,
 				      <0x0 0x01780000 0x0 0x80000>;
+				interrupts = <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&bpmp TEGRA194_CLK_EMC>;
 				clock-names = "emc";
 
@@ -893,6 +893,9 @@
 					<&mc TEGRA194_MEMORY_CLIENT_SDMMCWA &emc>;
 			interconnect-names = "dma-mem", "write";
 			iommus = <&smmu TEGRA194_SID_SDMMC1>;
+			pinctrl-names = "sdmmc-3v3", "sdmmc-1v8";
+			pinctrl-0 = <&sdmmc1_3v3>;
+			pinctrl-1 = <&sdmmc1_1v8>;
 			nvidia,pad-autocal-pull-up-offset-3v3-timeout =
 									<0x07>;
 			nvidia,pad-autocal-pull-down-offset-3v3-timeout =
@@ -904,6 +907,10 @@
 			nvidia,pad-autocal-pull-down-offset-sdr104 = <0x00>;
 			nvidia,default-tap = <0x9>;
 			nvidia,default-trim = <0x5>;
+			sd-uhs-sdr25;
+			sd-uhs-sdr50;
+			sd-uhs-ddr50;
+			sd-uhs-sdr104;
 			status = "disabled";
 		};
 
@@ -920,6 +927,9 @@
 					<&mc TEGRA194_MEMORY_CLIENT_SDMMCW &emc>;
 			interconnect-names = "dma-mem", "write";
 			iommus = <&smmu TEGRA194_SID_SDMMC3>;
+			pinctrl-names = "sdmmc-3v3", "sdmmc-1v8";
+			pinctrl-0 = <&sdmmc3_3v3>;
+			pinctrl-1 = <&sdmmc3_1v8>;
 			nvidia,pad-autocal-pull-up-offset-1v8 = <0x00>;
 			nvidia,pad-autocal-pull-down-offset-1v8 = <0x7a>;
 			nvidia,pad-autocal-pull-up-offset-3v3-timeout = <0x07>;
@@ -932,6 +942,10 @@
 			nvidia,pad-autocal-pull-down-offset-sdr104 = <0x00>;
 			nvidia,default-tap = <0x9>;
 			nvidia,default-trim = <0x5>;
+			sd-uhs-sdr25;
+			sd-uhs-sdr50;
+			sd-uhs-ddr50;
+			sd-uhs-sdr104;
 			status = "disabled";
 		};
 
@@ -963,6 +977,11 @@
 			nvidia,default-tap = <0x8>;
 			nvidia,default-trim = <0x14>;
 			nvidia,dqs-trim = <40>;
+			cap-mmc-highspeed;
+			mmc-ddr-1_8v;
+			mmc-hs200-1_8v;
+			mmc-hs400-1_8v;
+			mmc-hs400-enhanced-strobe;
 			supports-cqe;
 			status = "disabled";
 		};
@@ -976,9 +995,8 @@
 				 <&bpmp TEGRA194_CLK_HDA2CODEC_2X>;
 			clock-names = "hda", "hda2hdmi", "hda2codec_2x";
 			resets = <&bpmp TEGRA194_RESET_HDA>,
-				 <&bpmp TEGRA194_RESET_HDA2HDMICODEC>,
-				 <&bpmp TEGRA194_RESET_HDA2CODEC_2X>;
-			reset-names = "hda", "hda2hdmi", "hda2codec_2x";
+				 <&bpmp TEGRA194_RESET_HDA2HDMICODEC>;
+			reset-names = "hda", "hda2hdmi";
 			power-domains = <&bpmp TEGRA194_POWER_DOMAIN_DISP>;
 			interconnects = <&mc TEGRA194_MEMORY_CLIENT_HDAR &emc>,
 					<&mc TEGRA194_MEMORY_CLIENT_HDAW &emc>;
@@ -1182,7 +1200,7 @@
 		};
 
 		hsp_top0: hsp@3c00000 {
-			compatible = "nvidia,tegra194-hsp", "nvidia,tegra186-hsp";
+			compatible = "nvidia,tegra194-hsp";
 			reg = <0x03c00000 0xa0000>;
 			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>,
 			             <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
@@ -1360,7 +1378,7 @@
 		};
 
 		hsp_aon: hsp@c150000 {
-			compatible = "nvidia,tegra194-hsp", "nvidia,tegra186-hsp";
+			compatible = "nvidia,tegra194-hsp";
 			reg = <0x0c150000 0x90000>;
 			interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>,
 			             <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
@@ -1472,6 +1490,101 @@
 
 			#interrupt-cells = <2>;
 			interrupt-controller;
+			sdmmc1_3v3: sdmmc1-3v3 {
+				pins = "sdmmc1-hv";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
+			};
+
+			sdmmc1_1v8: sdmmc1-1v8 {
+				pins = "sdmmc1-hv";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
+			};
+			sdmmc3_3v3: sdmmc3-3v3 {
+				pins = "sdmmc3-hv";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
+			};
+
+			sdmmc3_1v8: sdmmc3-1v8 {
+				pins = "sdmmc3-hv";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
+			};
+
+		};
+
+		iommu@10000000 {
+			compatible = "nvidia,tegra194-smmu", "nvidia,smmu-500";
+			reg = <0x10000000 0x800000>;
+			interrupts = <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
+			stream-match-mask = <0x7f80>;
+			#global-interrupts = <1>;
+			#iommu-cells = <1>;
+
+			nvidia,memory-controller = <&mc>;
+			status = "disabled";
 		};
 
 		smmu: iommu@12000000 {
@@ -1703,6 +1816,23 @@
 						<&mc TEGRA194_MEMORY_CLIENT_VICSWR &emc>;
 				interconnect-names = "dma-mem", "write";
 				iommus = <&smmu TEGRA194_SID_VIC>;
+				dma-coherent;
+			};
+
+			nvjpg@15380000 {
+				compatible = "nvidia,tegra194-nvjpg";
+				reg = <0x15380000 0x40000>;
+				clocks = <&bpmp TEGRA194_CLK_NVJPG>;
+				clock-names = "nvjpg";
+				resets = <&bpmp TEGRA194_RESET_NVJPG>;
+				reset-names = "nvjpg";
+
+				power-domains = <&bpmp TEGRA194_POWER_DOMAIN_NVJPG>;
+				interconnects = <&mc TEGRA194_MEMORY_CLIENT_NVJPGSRD &emc>,
+						<&mc TEGRA194_MEMORY_CLIENT_NVJPGSWR &emc>;
+				interconnect-names = "dma-mem", "write";
+				iommus = <&smmu TEGRA194_SID_NVJPG>;
+				dma-coherent;
 			};
 
 			nvdec@15480000 {
@@ -1722,6 +1852,25 @@
 				dma-coherent;
 
 				nvidia,host1x-class = <0xf0>;
+			};
+
+			nvenc@154c0000 {
+				compatible = "nvidia,tegra194-nvenc";
+				reg = <0x154c0000 0x40000>;
+				clocks = <&bpmp TEGRA194_CLK_NVENC>;
+				clock-names = "nvenc";
+				resets = <&bpmp TEGRA194_RESET_NVENC>;
+				reset-names = "nvenc";
+
+				power-domains = <&bpmp TEGRA194_POWER_DOMAIN_NVENCA>;
+				interconnects = <&mc TEGRA194_MEMORY_CLIENT_NVENCSRD &emc>,
+						<&mc TEGRA194_MEMORY_CLIENT_NVENCSRD1 &emc>,
+						<&mc TEGRA194_MEMORY_CLIENT_NVENCSWR &emc>;
+				interconnect-names = "dma-mem", "read-1", "write";
+				iommus = <&smmu TEGRA194_SID_NVENC>;
+				dma-coherent;
+
+				nvidia,host1x-class = <0x21>;
 			};
 
 			dpaux0: dpaux@155c0000 {
@@ -1858,6 +2007,25 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 				};
+			};
+
+			nvenc@15a80000 {
+				compatible = "nvidia,tegra194-nvenc";
+				reg = <0x15a80000 0x00040000>;
+				clocks = <&bpmp TEGRA194_CLK_NVENC1>;
+				clock-names = "nvenc";
+				resets = <&bpmp TEGRA194_RESET_NVENC1>;
+				reset-names = "nvenc";
+
+				power-domains = <&bpmp TEGRA194_POWER_DOMAIN_NVENCB>;
+				interconnects = <&mc TEGRA194_MEMORY_CLIENT_NVENC1SRD &emc>,
+						<&mc TEGRA194_MEMORY_CLIENT_NVENC1SRD1 &emc>,
+						<&mc TEGRA194_MEMORY_CLIENT_NVENC1SWR &emc>;
+				interconnect-names = "dma-mem", "read-1", "write";
+				iommus = <&smmu TEGRA194_SID_NVENC1>;
+				dma-coherent;
+
+				nvidia,host1x-class = <0x22>;
 			};
 
 			sor0: sor@15b00000 {
@@ -2007,7 +2175,6 @@
 		#size-cells = <2>;
 		device_type = "pci";
 		num-lanes = <1>;
-		num-viewport = <8>;
 		linux,pci-domain = <1>;
 
 		clocks = <&bpmp TEGRA194_CLK_PEX0_CORE_1>;
@@ -2040,7 +2207,6 @@
 		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE1R &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_PCIE1W &emc>;
 		interconnect-names = "dma-mem", "write";
-		iommus = <&smmu TEGRA194_SID_PCIE1>;
 		iommu-map = <0x0 &smmu TEGRA194_SID_PCIE1 0x1000>;
 		iommu-map-mask = <0x0>;
 		dma-coherent;
@@ -2061,7 +2227,6 @@
 		#size-cells = <2>;
 		device_type = "pci";
 		num-lanes = <1>;
-		num-viewport = <8>;
 		linux,pci-domain = <2>;
 
 		clocks = <&bpmp TEGRA194_CLK_PEX0_CORE_2>;
@@ -2094,7 +2259,6 @@
 		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE2AR &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_PCIE2AW &emc>;
 		interconnect-names = "dma-mem", "write";
-		iommus = <&smmu TEGRA194_SID_PCIE2>;
 		iommu-map = <0x0 &smmu TEGRA194_SID_PCIE2 0x1000>;
 		iommu-map-mask = <0x0>;
 		dma-coherent;
@@ -2115,7 +2279,6 @@
 		#size-cells = <2>;
 		device_type = "pci";
 		num-lanes = <1>;
-		num-viewport = <8>;
 		linux,pci-domain = <3>;
 
 		clocks = <&bpmp TEGRA194_CLK_PEX0_CORE_3>;
@@ -2148,7 +2311,6 @@
 		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE3R &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_PCIE3W &emc>;
 		interconnect-names = "dma-mem", "write";
-		iommus = <&smmu TEGRA194_SID_PCIE3>;
 		iommu-map = <0x0 &smmu TEGRA194_SID_PCIE3 0x1000>;
 		iommu-map-mask = <0x0>;
 		dma-coherent;
@@ -2169,7 +2331,6 @@
 		#size-cells = <2>;
 		device_type = "pci";
 		num-lanes = <4>;
-		num-viewport = <8>;
 		linux,pci-domain = <4>;
 
 		clocks = <&bpmp TEGRA194_CLK_PEX0_CORE_4>;
@@ -2202,7 +2363,6 @@
 		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE4R &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_PCIE4W &emc>;
 		interconnect-names = "dma-mem", "write";
-		iommus = <&smmu TEGRA194_SID_PCIE4>;
 		iommu-map = <0x0 &smmu TEGRA194_SID_PCIE4 0x1000>;
 		iommu-map-mask = <0x0>;
 		dma-coherent;
@@ -2223,7 +2383,6 @@
 		#size-cells = <2>;
 		device_type = "pci";
 		num-lanes = <8>;
-		num-viewport = <8>;
 		linux,pci-domain = <0>;
 
 		clocks = <&bpmp TEGRA194_CLK_PEX0_CORE_0>;
@@ -2256,7 +2415,6 @@
 		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE0R &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_PCIE0W &emc>;
 		interconnect-names = "dma-mem", "write";
-		iommus = <&smmu TEGRA194_SID_PCIE0>;
 		iommu-map = <0x0 &smmu TEGRA194_SID_PCIE0 0x1000>;
 		iommu-map-mask = <0x0>;
 		dma-coherent;
@@ -2277,15 +2435,13 @@
 		#size-cells = <2>;
 		device_type = "pci";
 		num-lanes = <8>;
-		num-viewport = <8>;
 		linux,pci-domain = <5>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pex_rst_c5_out_state>, <&clkreq_c5_bi_dir_state>;
 
-		clocks = <&bpmp TEGRA194_CLK_PEX1_CORE_5>,
-			 <&bpmp TEGRA194_CLK_PEX1_CORE_5M>;
-		clock-names = "core", "core_m";
+		clocks = <&bpmp TEGRA194_CLK_PEX1_CORE_5>;
+		clock-names = "core";
 
 		resets = <&bpmp TEGRA194_RESET_PEX1_CORE_5_APB>,
 			 <&bpmp TEGRA194_RESET_PEX1_CORE_5>;
@@ -2314,7 +2470,6 @@
 		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE5R &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_PCIE5W &emc>;
 		interconnect-names = "dma-mem", "write";
-		iommus = <&smmu TEGRA194_SID_PCIE5>;
 		iommu-map = <0x0 &smmu TEGRA194_SID_PCIE5 0x1000>;
 		iommu-map-mask = <0x0>;
 		dma-coherent;
@@ -2354,7 +2509,6 @@
 		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE4R &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_PCIE4W &emc>;
 		interconnect-names = "dma-mem", "write";
-		iommus = <&smmu TEGRA194_SID_PCIE4>;
 		iommu-map = <0x0 &smmu TEGRA194_SID_PCIE4 0x1000>;
 		iommu-map-mask = <0x0>;
 		dma-coherent;
@@ -2394,7 +2548,6 @@
 		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE0R &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_PCIE0W &emc>;
 		interconnect-names = "dma-mem", "write";
-		iommus = <&smmu TEGRA194_SID_PCIE0>;
 		iommu-map = <0x0 &smmu TEGRA194_SID_PCIE0 0x1000>;
 		iommu-map-mask = <0x0>;
 		dma-coherent;
@@ -2437,7 +2590,6 @@
 		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE5R &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_PCIE5W &emc>;
 		interconnect-names = "dma-mem", "write";
-		iommus = <&smmu TEGRA194_SID_PCIE5>;
 		iommu-map = <0x0 &smmu TEGRA194_SID_PCIE5 0x1000>;
 		iommu-map-mask = <0x0>;
 		dma-coherent;
@@ -2467,7 +2619,7 @@
 		compatible = "nvidia,tegra186-bpmp";
 		mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB
 				    TEGRA_HSP_DB_MASTER_BPMP>;
-		shmem = <&cpu_bpmp_tx &cpu_bpmp_rx>;
+		shmem = <&cpu_bpmp_tx>, <&cpu_bpmp_rx>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 		#power-domain-cells = <1>;
@@ -2731,7 +2883,7 @@
 		iommus = <&smmu TEGRA194_SID_APE>;
 	};
 
-	tcu: tcu {
+	tcu: serial {
 		compatible = "nvidia,tegra194-tcu";
 		mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_RX(0)>,
 		         <&hsp_aon TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_TX(1)>;
@@ -2739,39 +2891,33 @@
 	};
 
 	thermal-zones {
-		cpu {
-			thermal-sensors = <&{/bpmp/thermal}
-					   TEGRA194_BPMP_THERMAL_ZONE_CPU>;
+		cpu-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA194_BPMP_THERMAL_ZONE_CPU>;
 			status = "disabled";
 		};
 
-		gpu {
-			thermal-sensors = <&{/bpmp/thermal}
-					   TEGRA194_BPMP_THERMAL_ZONE_GPU>;
+		gpu-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA194_BPMP_THERMAL_ZONE_GPU>;
 			status = "disabled";
 		};
 
-		aux {
-			thermal-sensors = <&{/bpmp/thermal}
-					   TEGRA194_BPMP_THERMAL_ZONE_AUX>;
+		aux-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA194_BPMP_THERMAL_ZONE_AUX>;
 			status = "disabled";
 		};
 
-		pllx {
-			thermal-sensors = <&{/bpmp/thermal}
-					   TEGRA194_BPMP_THERMAL_ZONE_PLLX>;
+		pllx-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA194_BPMP_THERMAL_ZONE_PLLX>;
 			status = "disabled";
 		};
 
-		ao {
-			thermal-sensors = <&{/bpmp/thermal}
-					   TEGRA194_BPMP_THERMAL_ZONE_AO>;
+		ao-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA194_BPMP_THERMAL_ZONE_AO>;
 			status = "disabled";
 		};
 
-		tj {
-			thermal-sensors = <&{/bpmp/thermal}
-					   TEGRA194_BPMP_THERMAL_ZONE_TJ_MAX>;
+		tj-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA194_BPMP_THERMAL_ZONE_TJ_MAX>;
 			status = "disabled";
 		};
 	};

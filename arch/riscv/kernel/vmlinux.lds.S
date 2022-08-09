@@ -4,7 +4,7 @@
  * Copyright (C) 2017 SiFive
  */
 
-#define RO_EXCEPTION_TABLE_ALIGN	16
+#define RO_EXCEPTION_TABLE_ALIGN	4
 
 #ifdef CONFIG_XIP_KERNEL
 #include "vmlinux-xip.lds.S"
@@ -48,7 +48,6 @@ SECTIONS
 		ENTRY_TEXT
 		IRQENTRY_TEXT
 		SOFTIRQENTRY_TEXT
-		*(.fixup)
 		_etext = .;
 	}
 

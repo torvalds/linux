@@ -40,7 +40,7 @@
  */
 
 #include <linux/module.h>
-#include "../comedidev.h"
+#include <linux/comedi/comedidev.h>
 
 /* AI range is not configurable, it's set by jumpers on the board */
 static const struct comedi_lrange pcmda12_ranges = {

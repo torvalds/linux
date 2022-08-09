@@ -359,6 +359,9 @@ mt7615_queues_acq(struct seq_file *s, void *data)
 		int acs = i / MT7615_MAX_WMM_SETS;
 		u32 ctrl, val, qlen = 0;
 
+		if (wmm_idx == 3 && is_mt7663(&dev->mt76))
+			continue;
+
 		val = mt76_rr(dev, MT_PLE_AC_QEMPTY(acs, wmm_idx));
 		ctrl = BIT(31) | BIT(15) | (acs << 8);
 

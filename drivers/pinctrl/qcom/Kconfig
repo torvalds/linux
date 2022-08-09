@@ -302,6 +302,15 @@ config PINCTRL_SM6350
 	 Qualcomm Technologies Inc TLMM block found on the Qualcomm
 	 Technologies Inc SM6350 platform.
 
+config PINCTRL_SDX65
+	tristate "Qualcomm Technologies Inc SDX65 pin controller driver"
+	depends on GPIOLIB && OF
+	depends on PINCTRL_MSM
+	help
+	 This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	 Qualcomm Technologies Inc TLMM block found on the Qualcomm
+	 Technologies Inc SDX65 platform.
+
 config PINCTRL_SM8150
 	tristate "Qualcomm Technologies Inc SM8150 pin controller driver"
 	depends on OF
@@ -327,6 +336,15 @@ config PINCTRL_SM8350
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
 	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
 	  Technologies Inc SM8350 platform.
+
+config PINCTRL_SM8450
+	tristate "Qualcomm Technologies Inc SM8450 pin controller driver"
+	depends on GPIOLIB && OF
+	select PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
+	  Technologies Inc SM8450 platform.
 
 config PINCTRL_LPASS_LPI
 	tristate "Qualcomm Technologies Inc LPASS LPI pin controller driver"

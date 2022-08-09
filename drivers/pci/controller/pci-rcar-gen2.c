@@ -93,7 +93,7 @@
 
 #define RCAR_PCI_UNIT_REV_REG		(RCAR_AHBPCI_PCICOM_OFFSET + 0x48)
 
-struct rcar_pci_priv {
+struct rcar_pci {
 	struct device *dev;
 	void __iomem *reg;
 	struct resource mem_res;
@@ -105,7 +105,7 @@ struct rcar_pci_priv {
 static void __iomem *rcar_pci_cfg_base(struct pci_bus *bus, unsigned int devfn,
 				       int where)
 {
-	struct rcar_pci_priv *priv = bus->sysdata;
+	struct rcar_pci *priv = bus->sysdata;
 	int slot, val;
 
 	if (!pci_is_root_bus(bus) || PCI_FUNC(devfn))
@@ -132,7 +132,7 @@ static void __iomem *rcar_pci_cfg_base(struct pci_bus *bus, unsigned int devfn,
 
 static irqreturn_t rcar_pci_err_irq(int irq, void *pw)
 {
-	struct rcar_pci_priv *priv = pw;
+	struct rcar_pci *priv = pw;
 	struct device *dev = priv->dev;
 	u32 status = ioread32(priv->reg + RCAR_PCI_INT_STATUS_REG);
 
@@ -148,7 +148,7 @@ static irqreturn_t rcar_pci_err_irq(int irq, void *pw)
 	return IRQ_NONE;
 }
 
-static void rcar_pci_setup_errirq(struct rcar_pci_priv *priv)
+static void rcar_pci_setup_errirq(struct rcar_pci *priv)
 {
 	struct device *dev = priv->dev;
 	int ret;
@@ -166,11 +166,11 @@ static void rcar_pci_setup_errirq(struct rcar_pci_priv *priv)
 	iowrite32(val, priv->reg + RCAR_PCI_INT_ENABLE_REG);
 }
 #else
-static inline void rcar_pci_setup_errirq(struct rcar_pci_priv *priv) { }
+static inline void rcar_pci_setup_errirq(struct rcar_pci *priv) { }
 #endif
 
 /* PCI host controller setup */
-static void rcar_pci_setup(struct rcar_pci_priv *priv)
+static void rcar_pci_setup(struct rcar_pci *priv)
 {
 	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(priv);
 	struct device *dev = priv->dev;
@@ -279,7 +279,7 @@ static int rcar_pci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *cfg_res, *mem_res;
-	struct rcar_pci_priv *priv;
+	struct rcar_pci *priv;
 	struct pci_host_bridge *bridge;
 	void __iomem *reg;
 

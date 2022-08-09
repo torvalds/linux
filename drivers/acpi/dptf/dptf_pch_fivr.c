@@ -46,7 +46,7 @@ release_buffer:
 }
 
 /*
- * Presentation of attributes which are defined for INT1045
+ * Presentation of attributes which are defined for INTC10xx
  * They are:
  * freq_mhz_low_clock : Set PCH FIVR switching freq for
  *			FIVR clock 19.2MHz and 24MHz
@@ -151,6 +151,7 @@ static int pch_fivr_remove(struct platform_device *pdev)
 static const struct acpi_device_id pch_fivr_device_ids[] = {
 	{"INTC1045", 0},
 	{"INTC1049", 0},
+	{"INTC10A3", 0},
 	{"", 0},
 };
 MODULE_DEVICE_TABLE(acpi, pch_fivr_device_ids);

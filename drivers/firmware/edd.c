@@ -574,14 +574,6 @@ static EDD_DEVICE_ATTR(interface, 0444, edd_show_interface, edd_has_edd30);
 static EDD_DEVICE_ATTR(host_bus, 0444, edd_show_host_bus, edd_has_edd30);
 static EDD_DEVICE_ATTR(mbr_signature, 0444, edd_show_mbr_signature, edd_has_mbr_signature);
 
-
-/* These are default attributes that are added for every edd
- * device discovered.  There are none.
- */
-static struct attribute * def_attrs[] = {
-	NULL,
-};
-
 /* These attributes are conditional and only added for some devices. */
 static struct edd_attribute * edd_attrs[] = {
 	&edd_attr_raw_data,
@@ -619,7 +611,6 @@ static void edd_release(struct kobject * kobj)
 static struct kobj_type edd_ktype = {
 	.release	= edd_release,
 	.sysfs_ops	= &edd_attr_ops,
-	.default_attrs	= def_attrs,
 };
 
 static struct kset *edd_kset;

@@ -14,7 +14,7 @@
 #ifndef _ASOC_STA_350_H
 #define _ASOC_STA_350_H
 
-/* STA50 register addresses */
+/* STA350 register addresses */
 
 #define STA350_REGISTER_COUNT	0x4D
 #define STA350_COEF_COUNT 62

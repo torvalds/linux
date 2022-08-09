@@ -722,7 +722,7 @@ static void free_map_bootmem(struct page *memmap)
 		>> PAGE_SHIFT;
 
 	for (i = 0; i < nr_pages; i++, page++) {
-		magic = (unsigned long) page->freelist;
+		magic = page->index;
 
 		BUG_ON(magic == NODE_INFO);
 

@@ -57,10 +57,17 @@ static void __init st_of_clkgen_mux_setup(struct device_node *np,
 	const char **parents;
 	int num_parents = 0;
 
+	/*
+	 * First check for reg property within the node to keep backward
+	 * compatibility, then if reg doesn't exist look at the parent node
+	 */
 	reg = of_iomap(np, 0);
 	if (!reg) {
-		pr_err("%s: Failed to get base address\n", __func__);
-		return;
+		reg = of_iomap(of_get_parent(np), 0);
+		if (!reg) {
+			pr_err("%s: Failed to get base address\n", __func__);
+			return;
+		}
 	}
 
 	parents = clkgen_mux_get_parents(np, &num_parents);

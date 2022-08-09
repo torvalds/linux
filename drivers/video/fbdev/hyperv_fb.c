@@ -287,8 +287,6 @@ struct hvfb_par {
 
 static uint screen_width = HVFB_WIDTH;
 static uint screen_height = HVFB_HEIGHT;
-static uint screen_width_max = HVFB_WIDTH;
-static uint screen_height_max = HVFB_HEIGHT;
 static uint screen_depth;
 static uint screen_fb_size;
 static uint dio_fb_size; /* FB size for deferred IO */
@@ -582,7 +580,6 @@ static int synthvid_get_supported_resolution(struct hv_device *hdev)
 	int ret = 0;
 	unsigned long t;
 	u8 index;
-	int i;
 
 	memset(msg, 0, sizeof(struct synthvid_msg));
 	msg->vid_hdr.type = SYNTHVID_RESOLUTION_REQUEST;
@@ -611,13 +608,6 @@ static int synthvid_get_supported_resolution(struct hv_device *hdev)
 		pr_err("Invalid resolution index: %d\n", index);
 		ret = -ENODEV;
 		goto out;
-	}
-
-	for (i = 0; i < msg->resolution_resp.resolution_count; i++) {
-		screen_width_max = max_t(unsigned int, screen_width_max,
-		    msg->resolution_resp.supported_resolution[i].width);
-		screen_height_max = max_t(unsigned int, screen_height_max,
-		    msg->resolution_resp.supported_resolution[i].height);
 	}
 
 	screen_width =
@@ -941,7 +931,7 @@ static void hvfb_get_option(struct fb_info *info)
 
 	if (x < HVFB_WIDTH_MIN || y < HVFB_HEIGHT_MIN ||
 	    (synthvid_ver_ge(par->synthvid_version, SYNTHVID_VERSION_WIN10) &&
-	    (x > screen_width_max || y > screen_height_max)) ||
+	    (x * y * screen_depth / 8 > screen_fb_size)) ||
 	    (par->synthvid_version == SYNTHVID_VERSION_WIN8 &&
 	     x * y * screen_depth / 8 > SYNTHVID_FB_SIZE_WIN8) ||
 	    (par->synthvid_version == SYNTHVID_VERSION_WIN7 &&
@@ -1194,8 +1184,8 @@ static int hvfb_probe(struct hv_device *hdev,
 	}
 
 	hvfb_get_option(info);
-	pr_info("Screen resolution: %dx%d, Color depth: %d\n",
-		screen_width, screen_height, screen_depth);
+	pr_info("Screen resolution: %dx%d, Color depth: %d, Frame buffer size: %d\n",
+		screen_width, screen_height, screen_depth, screen_fb_size);
 
 	ret = hvfb_getmem(hdev, info);
 	if (ret) {

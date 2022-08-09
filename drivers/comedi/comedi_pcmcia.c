@@ -9,8 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-
-#include "comedi_pcmcia.h"
+#include <linux/comedi/comedi_pcmcia.h>
 
 /**
  * comedi_to_pcmcia_dev() - Return PCMCIA device attached to COMEDI device

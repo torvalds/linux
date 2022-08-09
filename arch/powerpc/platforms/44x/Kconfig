@@ -23,7 +23,6 @@ config BLUESTONE
 	select APM821xx
 	select FORCE_PCI
 	select PCI_MSI
-	select PPC4xx_MSI
 	select PPC4xx_PCI_EXPRESS
 	select IBM_EMAC_RGMII if IBM_EMAC
 	help
@@ -73,7 +72,6 @@ config KATMAI
 	select FORCE_PCI
 	select PPC4xx_PCI_EXPRESS
 	select PCI_MSI
-	select PPC4xx_MSI
 	help
 	  This option enables support for the AMCC PPC440SPe evaluation board.
 
@@ -115,7 +113,6 @@ config CANYONLANDS
 	select FORCE_PCI
 	select PPC4xx_PCI_EXPRESS
 	select PCI_MSI
-	select PPC4xx_MSI
 	select IBM_EMAC_RGMII if IBM_EMAC
 	select IBM_EMAC_ZMII if IBM_EMAC
 	help
@@ -141,7 +138,6 @@ config REDWOOD
 	select FORCE_PCI
 	select PPC4xx_PCI_EXPRESS
 	select PCI_MSI
-	select PPC4xx_MSI
 	help
 	  This option enables support for the AMCC PPC460SX Redwood board.
 

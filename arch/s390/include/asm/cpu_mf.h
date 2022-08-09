@@ -109,7 +109,9 @@ struct hws_basic_entry {
 	unsigned int AS:2;	    /* 29-30 PSW address-space control	 */
 	unsigned int I:1;	    /* 31 entry valid or invalid	 */
 	unsigned int CL:2;	    /* 32-33 Configuration Level	 */
-	unsigned int:14;
+	unsigned int H:1;	    /* 34 Host Indicator		 */
+	unsigned int LS:1;	    /* 35 Limited Sampling		 */
+	unsigned int:12;
 	unsigned int prim_asn:16;   /* primary ASN			 */
 	unsigned long long ia;	    /* Instruction Address		 */
 	unsigned long long gpp;     /* Guest Program Parameter		 */

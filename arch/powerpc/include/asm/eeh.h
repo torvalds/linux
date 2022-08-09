@@ -460,7 +460,7 @@ static inline void eeh_readsl(const volatile void __iomem *addr, void * buf,
 }
 
 
-void eeh_cache_debugfs_init(void);
+void __init eeh_cache_debugfs_init(void);
 
 #endif /* CONFIG_PPC64 */
 #endif /* __KERNEL__ */

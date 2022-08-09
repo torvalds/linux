@@ -159,9 +159,38 @@ int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
 	return 0;
 }
 
+static struct ftrace_hotpatch_trampoline *ftrace_get_trampoline(struct dyn_ftrace *rec)
+{
+	struct ftrace_hotpatch_trampoline *trampoline;
+	struct ftrace_insn insn;
+	s64 disp;
+	u16 opc;
+
+	if (copy_from_kernel_nofault(&insn, (void *)rec->ip, sizeof(insn)))
+		return ERR_PTR(-EFAULT);
+	disp = (s64)insn.disp * 2;
+	trampoline = (void *)(rec->ip + disp);
+	if (get_kernel_nofault(opc, &trampoline->brasl_opc))
+		return ERR_PTR(-EFAULT);
+	if (opc != 0xc015)
+		return ERR_PTR(-EINVAL);
+	return trampoline;
+}
+
 int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 		       unsigned long addr)
 {
+	struct ftrace_hotpatch_trampoline *trampoline;
+	u64 old;
+
+	trampoline = ftrace_get_trampoline(rec);
+	if (IS_ERR(trampoline))
+		return PTR_ERR(trampoline);
+	if (get_kernel_nofault(old, &trampoline->interceptor))
+		return -EFAULT;
+	if (old != old_addr)
+		return -EINVAL;
+	s390_kernel_write(&trampoline->interceptor, &addr, sizeof(addr));
 	return 0;
 }
 
@@ -188,6 +217,12 @@ static void brcl_enable(void *brcl)
 
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
+	struct ftrace_hotpatch_trampoline *trampoline;
+
+	trampoline = ftrace_get_trampoline(rec);
+	if (IS_ERR(trampoline))
+		return PTR_ERR(trampoline);
+	s390_kernel_write(&trampoline->interceptor, &addr, sizeof(addr));
 	brcl_enable((void *)rec->ip);
 	return 0;
 }
@@ -291,7 +326,7 @@ void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 
 	regs = ftrace_get_regs(fregs);
 	p = get_kprobe((kprobe_opcode_t *)ip);
-	if (unlikely(!p) || kprobe_disabled(p))
+	if (!regs || unlikely(!p) || kprobe_disabled(p))
 		goto out;
 
 	if (kprobe_running()) {

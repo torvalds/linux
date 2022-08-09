@@ -843,8 +843,6 @@ static void vmw_framebuffer_surface_destroy(struct drm_framebuffer *framebuffer)
 
 	drm_framebuffer_cleanup(framebuffer);
 	vmw_surface_unreference(&vfbs->surface);
-	if (vfbs->base.user_obj)
-		ttm_base_object_unref(&vfbs->base.user_obj);
 
 	kfree(vfbs);
 }
@@ -989,6 +987,16 @@ out_err1:
  * Buffer-object framebuffer code
  */
 
+static int vmw_framebuffer_bo_create_handle(struct drm_framebuffer *fb,
+					    struct drm_file *file_priv,
+					    unsigned int *handle)
+{
+	struct vmw_framebuffer_bo *vfbd =
+			vmw_framebuffer_to_vfbd(fb);
+
+	return drm_gem_handle_create(file_priv, &vfbd->buffer->base.base, handle);
+}
+
 static void vmw_framebuffer_bo_destroy(struct drm_framebuffer *framebuffer)
 {
 	struct vmw_framebuffer_bo *vfbd =
@@ -996,8 +1004,6 @@ static void vmw_framebuffer_bo_destroy(struct drm_framebuffer *framebuffer)
 
 	drm_framebuffer_cleanup(framebuffer);
 	vmw_bo_unreference(&vfbd->buffer);
-	if (vfbd->base.user_obj)
-		ttm_base_object_unref(&vfbd->base.user_obj);
 
 	kfree(vfbd);
 }
@@ -1063,6 +1069,7 @@ static int vmw_framebuffer_bo_dirty_ext(struct drm_framebuffer *framebuffer,
 }
 
 static const struct drm_framebuffer_funcs vmw_framebuffer_bo_funcs = {
+	.create_handle = vmw_framebuffer_bo_create_handle,
 	.destroy = vmw_framebuffer_bo_destroy,
 	.dirty = vmw_framebuffer_bo_dirty_ext,
 };
@@ -1188,7 +1195,7 @@ static int vmw_create_bo_proxy(struct drm_device *dev,
 	metadata.base_size.depth = 1;
 	metadata.scanout = true;
 
-	ret = vmw_gb_surface_define(vmw_priv(dev), 0, &metadata, srf_out);
+	ret = vmw_gb_surface_define(vmw_priv(dev), &metadata, srf_out);
 	if (ret) {
 		DRM_ERROR("Failed to allocate proxy content buffer\n");
 		return ret;
@@ -1251,6 +1258,7 @@ static int vmw_kms_new_framebuffer_bo(struct vmw_private *dev_priv,
 		goto out_err1;
 	}
 
+	vfbd->base.base.obj[0] = &bo->base.base;
 	drm_helper_mode_fill_fb_struct(dev, &vfbd->base.base, mode_cmd);
 	vfbd->base.bo = true;
 	vfbd->buffer = vmw_bo_reference(bo);
@@ -1368,34 +1376,13 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 						 const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
-	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
 	struct vmw_framebuffer *vfb = NULL;
 	struct vmw_surface *surface = NULL;
 	struct vmw_buffer_object *bo = NULL;
-	struct ttm_base_object *user_obj;
 	int ret;
 
-	/*
-	 * Take a reference on the user object of the resource
-	 * backing the kms fb. This ensures that user-space handle
-	 * lookups on that resource will always work as long as
-	 * it's registered with a kms framebuffer. This is important,
-	 * since vmw_execbuf_process identifies resources in the
-	 * command stream using user-space handles.
-	 */
-
-	user_obj = ttm_base_object_lookup(tfile, mode_cmd->handles[0]);
-	if (unlikely(user_obj == NULL)) {
-		DRM_ERROR("Could not locate requested kms frame buffer.\n");
-		return ERR_PTR(-ENOENT);
-	}
-
-	/**
-	 * End conditioned code.
-	 */
-
 	/* returns either a bo or surface */
-	ret = vmw_user_lookup_handle(dev_priv, tfile,
+	ret = vmw_user_lookup_handle(dev_priv, file_priv,
 				     mode_cmd->handles[0],
 				     &surface, &bo);
 	if (ret)
@@ -1428,10 +1415,8 @@ err_out:
 
 	if (ret) {
 		DRM_ERROR("failed to create vmw_framebuffer: %i\n", ret);
-		ttm_base_object_unref(&user_obj);
 		return ERR_PTR(ret);
-	} else
-		vfb->user_obj = user_obj;
+	}
 
 	return &vfb->base;
 }
@@ -2516,7 +2501,7 @@ void vmw_kms_helper_validation_finish(struct vmw_private *dev_priv,
 	if (file_priv)
 		vmw_execbuf_copy_fence_user(dev_priv, vmw_fpriv(file_priv),
 					    ret, user_fence_rep, fence,
-					    handle, -1, NULL);
+					    handle, -1);
 	if (out_fence)
 		*out_fence = fence;
 	else

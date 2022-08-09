@@ -133,7 +133,6 @@ static struct vdec_fb *vdec_get_cap_buffer(struct mtk_vcodec_ctx *ctx,
 	struct vdec_fb *pfb = &framebuf->frame_buffer;
 	struct vb2_buffer *dst_buf = &vb2_v4l2->vb2_buf;
 
-	pfb = &framebuf->frame_buffer;
 	pfb->base_y.va = NULL;
 	pfb->base_y.dma_addr = vb2_dma_contig_plane_dma_addr(dst_buf, 0);
 	pfb->base_y.size = ctx->q_data[MTK_Q_DATA_DST].sizeimage[0];

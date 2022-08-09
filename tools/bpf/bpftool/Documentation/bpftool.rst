@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+
 ================
 BPFTOOL
 ================
@@ -6,6 +8,8 @@ tool for inspection and simple manipulation of eBPF programs and maps
 -------------------------------------------------------------------------------
 
 :Manual section: 8
+
+.. include:: substitutions.rst
 
 SYNOPSIS
 ========
@@ -18,15 +22,14 @@ SYNOPSIS
 
 	*OBJECT* := { **map** | **program** | **cgroup** | **perf** | **net** | **feature** }
 
-	*OPTIONS* := { { **-V** | **--version** } |
-		{ **-j** | **--json** } [{ **-p** | **--pretty** }] | { **-d** | **--debug** } }
+	*OPTIONS* := { { **-V** | **--version** } | |COMMON_OPTIONS| }
 
 	*MAP-COMMANDS* :=
 	{ **show** | **list** | **create** | **dump** | **update** | **lookup** | **getnext** |
-		**delete** | **pin** | **event_pipe** | **help** }
+	**delete** | **pin** | **event_pipe** | **help** }
 
 	*PROG-COMMANDS* := { **show** | **list** | **dump jited** | **dump xlated** | **pin** |
-		**load** | **attach** | **detach** | **help** }
+	**load** | **attach** | **detach** | **help** }
 
 	*CGROUP-COMMANDS* := { **show** | **list** | **attach** | **detach** | **help** }
 

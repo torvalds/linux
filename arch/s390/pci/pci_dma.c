@@ -74,7 +74,7 @@ static unsigned long *dma_get_seg_table_origin(unsigned long *entry)
 		if (!sto)
 			return NULL;
 
-		set_rt_sto(entry, sto);
+		set_rt_sto(entry, virt_to_phys(sto));
 		validate_rt_entry(entry);
 		entry_clr_protected(entry);
 	}
@@ -91,7 +91,7 @@ static unsigned long *dma_get_page_table_origin(unsigned long *entry)
 		pto = dma_alloc_page_table();
 		if (!pto)
 			return NULL;
-		set_st_pto(entry, pto);
+		set_st_pto(entry, virt_to_phys(pto));
 		validate_st_entry(entry);
 		entry_clr_protected(entry);
 	}
@@ -117,7 +117,7 @@ unsigned long *dma_walk_cpu_trans(unsigned long *rto, dma_addr_t dma_addr)
 	return &pto[px];
 }
 
-void dma_update_cpu_trans(unsigned long *entry, void *page_addr, int flags)
+void dma_update_cpu_trans(unsigned long *entry, phys_addr_t page_addr, int flags)
 {
 	if (flags & ZPCI_PTE_INVALID) {
 		invalidate_pt_entry(entry);
@@ -132,11 +132,11 @@ void dma_update_cpu_trans(unsigned long *entry, void *page_addr, int flags)
 		entry_clr_protected(entry);
 }
 
-static int __dma_update_trans(struct zpci_dev *zdev, unsigned long pa,
+static int __dma_update_trans(struct zpci_dev *zdev, phys_addr_t pa,
 			      dma_addr_t dma_addr, size_t size, int flags)
 {
 	unsigned int nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
-	u8 *page_addr = (u8 *) (pa & PAGE_MASK);
+	phys_addr_t page_addr = (pa & PAGE_MASK);
 	unsigned long irq_flags;
 	unsigned long *entry;
 	int i, rc = 0;
@@ -217,7 +217,7 @@ out:
 	return ret;
 }
 
-static int dma_update_trans(struct zpci_dev *zdev, unsigned long pa,
+static int dma_update_trans(struct zpci_dev *zdev, phys_addr_t pa,
 			    dma_addr_t dma_addr, size_t size, int flags)
 {
 	int rc;
@@ -400,7 +400,7 @@ static void *s390_dma_alloc(struct device *dev, size_t size,
 {
 	struct zpci_dev *zdev = to_zpci(to_pci_dev(dev));
 	struct page *page;
-	unsigned long pa;
+	phys_addr_t pa;
 	dma_addr_t map;
 
 	size = PAGE_ALIGN(size);
@@ -411,18 +411,18 @@ static void *s390_dma_alloc(struct device *dev, size_t size,
 	pa = page_to_phys(page);
 	map = s390_dma_map_pages(dev, page, 0, size, DMA_BIDIRECTIONAL, 0);
 	if (dma_mapping_error(dev, map)) {
-		free_pages(pa, get_order(size));
+		__free_pages(page, get_order(size));
 		return NULL;
 	}
 
 	atomic64_add(size / PAGE_SIZE, &zdev->allocated_pages);
 	if (dma_handle)
 		*dma_handle = map;
-	return (void *) pa;
+	return phys_to_virt(pa);
 }
 
 static void s390_dma_free(struct device *dev, size_t size,
-			  void *pa, dma_addr_t dma_handle,
+			  void *vaddr, dma_addr_t dma_handle,
 			  unsigned long attrs)
 {
 	struct zpci_dev *zdev = to_zpci(to_pci_dev(dev));
@@ -430,7 +430,7 @@ static void s390_dma_free(struct device *dev, size_t size,
 	size = PAGE_ALIGN(size);
 	atomic64_sub(size / PAGE_SIZE, &zdev->allocated_pages);
 	s390_dma_unmap_pages(dev, dma_handle, size, DMA_BIDIRECTIONAL, 0);
-	free_pages((unsigned long) pa, get_order(size));
+	free_pages((unsigned long)vaddr, get_order(size));
 }
 
 /* Map a segment into a contiguous dma address area */
@@ -443,7 +443,7 @@ static int __s390_dma_map_sg(struct device *dev, struct scatterlist *sg,
 	dma_addr_t dma_addr_base, dma_addr;
 	int flags = ZPCI_PTE_VALID;
 	struct scatterlist *s;
-	unsigned long pa = 0;
+	phys_addr_t pa = 0;
 	int ret;
 
 	dma_addr_base = dma_alloc_address(dev, nr_pages);
@@ -598,7 +598,7 @@ int zpci_dma_init_device(struct zpci_dev *zdev)
 
 	}
 	if (zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
-			       (u64)zdev->dma_table)) {
+			       virt_to_phys(zdev->dma_table))) {
 		rc = -EIO;
 		goto free_bitmap;
 	}

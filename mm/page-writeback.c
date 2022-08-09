@@ -2496,7 +2496,11 @@ void folio_account_cleaned(struct folio *folio, struct address_space *mapping,
  * If warn is true, then emit a warning if the folio is not uptodate and has
  * not been truncated.
  *
- * The caller must hold lock_page_memcg().
+ * The caller must hold lock_page_memcg().  Most callers have the folio
+ * locked.  A few have the folio blocked from truncation through other
+ * means (eg zap_page_range() has it mapped and is holding the page table
+ * lock).  This can also be called from mark_buffer_dirty(), which I
+ * cannot prove is always protected against truncate.
  */
 void __folio_mark_dirty(struct folio *folio, struct address_space *mapping,
 			     int warn)

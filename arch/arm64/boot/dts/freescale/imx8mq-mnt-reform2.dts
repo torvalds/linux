@@ -12,6 +12,7 @@
 / {
 	model = "MNT Reform 2";
 	compatible = "mntre,reform2", "boundary,imx8mq-nitrogen8m-som", "fsl,imx8mq";
+	chassis-type = "laptop";
 
 	pcie1_refclk: clock-pcie1-refclk {
 		compatible = "fixed-clock";

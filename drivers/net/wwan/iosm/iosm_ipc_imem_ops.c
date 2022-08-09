@@ -176,11 +176,14 @@ channel_unavailable:
 	return false;
 }
 
-/* Release a sio link to CP. */
-void ipc_imem_sys_cdev_close(struct iosm_cdev *ipc_cdev)
+/**
+ * ipc_imem_sys_port_close - Release a sio link to CP.
+ * @ipc_imem:          Imem instance.
+ * @channel:           Channel instance.
+ */
+void ipc_imem_sys_port_close(struct iosm_imem *ipc_imem,
+			     struct ipc_mem_channel *channel)
 {
-	struct iosm_imem *ipc_imem = ipc_cdev->ipc_imem;
-	struct ipc_mem_channel *channel = ipc_cdev->channel;
 	enum ipc_phase curr_phase;
 	int status = 0;
 	u32 tail = 0;
@@ -638,6 +641,6 @@ int ipc_imem_sys_devlink_read(struct iosm_devlink *devlink, u8 *data,
 	memcpy(data, skb->data, skb->len);
 
 devlink_read_fail:
-	ipc_pcie_kfree_skb(devlink->pcie, skb);
+	dev_kfree_skb(skb);
 	return rc;
 }

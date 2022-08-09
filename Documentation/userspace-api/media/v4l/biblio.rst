@@ -417,3 +417,13 @@ VP8
 :title:     RFC 6386: "VP8 Data Format and Decoding Guide"
 
 :author:    J. Bankoski et al.
+
+.. _vp9:
+
+VP9
+===
+
+
+:title:     VP9 Bitstream & Decoding Process Specification
+
+:author:    Adrian Grange (Google), Peter de Rivaz (Argon Design), Jonathan Hunt (Argon Design)

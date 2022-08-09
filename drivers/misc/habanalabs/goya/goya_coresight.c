@@ -652,7 +652,7 @@ static int goya_config_spmu(struct hl_device *hdev,
 	return 0;
 }
 
-int goya_debug_coresight(struct hl_device *hdev, void *data)
+int goya_debug_coresight(struct hl_device *hdev, struct hl_ctx *ctx, void *data)
 {
 	struct hl_debug_params *params = data;
 	int rc = 0;
@@ -691,7 +691,7 @@ int goya_debug_coresight(struct hl_device *hdev, void *data)
 	return rc;
 }
 
-void goya_halt_coresight(struct hl_device *hdev)
+void goya_halt_coresight(struct hl_device *hdev, struct hl_ctx *ctx)
 {
 	struct hl_debug_params params = {};
 	int i, rc;

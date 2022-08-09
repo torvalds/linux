@@ -614,7 +614,6 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 /**
  *	atp870u_queuecommand_lck -	Queue SCSI command
  *	@req_p: request block
- *	@done: completion function
  *
  *	Queue a command to the ATP queue. Called with the host lock held.
  */

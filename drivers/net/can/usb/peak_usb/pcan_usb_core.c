@@ -291,6 +291,7 @@ static void peak_usb_write_bulk_callback(struct urb *urb)
 	struct peak_tx_urb_context *context = urb->context;
 	struct peak_usb_device *dev;
 	struct net_device *netdev;
+	int tx_bytes;
 
 	BUG_ON(!context);
 
@@ -305,10 +306,6 @@ static void peak_usb_write_bulk_callback(struct urb *urb)
 	/* check tx status */
 	switch (urb->status) {
 	case 0:
-		/* transmission complete */
-		netdev->stats.tx_packets++;
-		netdev->stats.tx_bytes += context->data_len;
-
 		/* prevent tx timeout */
 		netif_trans_update(netdev);
 		break;
@@ -327,12 +324,17 @@ static void peak_usb_write_bulk_callback(struct urb *urb)
 	}
 
 	/* should always release echo skb and corresponding context */
-	can_get_echo_skb(netdev, context->echo_index, NULL);
+	tx_bytes = can_get_echo_skb(netdev, context->echo_index, NULL);
 	context->echo_index = PCAN_USB_MAX_TX_URBS;
 
-	/* do wakeup tx queue in case of success only */
-	if (!urb->status)
+	if (!urb->status) {
+		/* transmission complete */
+		netdev->stats.tx_packets++;
+		netdev->stats.tx_bytes += tx_bytes;
+
+		/* do wakeup tx queue in case of success only */
 		netif_wake_queue(netdev);
+	}
 }
 
 /*
@@ -344,7 +346,6 @@ static netdev_tx_t peak_usb_ndo_start_xmit(struct sk_buff *skb,
 	struct peak_usb_device *dev = netdev_priv(netdev);
 	struct peak_tx_urb_context *context = NULL;
 	struct net_device_stats *stats = &netdev->stats;
-	struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
 	struct urb *urb;
 	u8 *obuf;
 	int i, err;
@@ -377,9 +378,6 @@ static netdev_tx_t peak_usb_ndo_start_xmit(struct sk_buff *skb,
 	}
 
 	context->echo_index = i;
-
-	/* Note: this works with CANFD frames too */
-	context->data_len = cfd->len;
 
 	usb_anchor_urb(urb, &dev->tx_submitted);
 

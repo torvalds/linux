@@ -363,7 +363,7 @@ updateblock:
 	pop	%rbx
 
 nowork:
-	ret
+	RET
 SYM_FUNC_END(sha512_transform_ssse3)
 
 ########################################################################

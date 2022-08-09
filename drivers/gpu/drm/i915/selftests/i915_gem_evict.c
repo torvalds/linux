@@ -442,6 +442,7 @@ static int igt_evict_contexts(void *arg)
 	/* Overfill the GGTT with context objects and so try to evict one. */
 	for_each_engine(engine, gt, id) {
 		struct i915_sw_fence fence;
+		struct i915_request *last = NULL;
 
 		count = 0;
 		onstack_fence_init(&fence);
@@ -479,6 +480,9 @@ static int igt_evict_contexts(void *arg)
 
 			i915_request_add(rq);
 			count++;
+			if (last)
+				i915_request_put(last);
+			last = i915_request_get(rq);
 			err = 0;
 		} while(1);
 		onstack_fence_fini(&fence);
@@ -486,6 +490,21 @@ static int igt_evict_contexts(void *arg)
 			count, engine->name);
 		if (err)
 			break;
+		if (last) {
+			if (i915_request_wait(last, 0, HZ) < 0) {
+				err = -EIO;
+				i915_request_put(last);
+				pr_err("Failed waiting for last request (on %s)",
+				       engine->name);
+				break;
+			}
+			i915_request_put(last);
+		}
+		err = intel_gt_wait_for_idle(engine->gt, HZ * 3);
+		if (err) {
+			pr_err("Failed to idle GT (on %s)", engine->name);
+			break;
+		}
 	}
 
 	mutex_lock(&ggtt->vm.mutex);
@@ -526,7 +545,7 @@ int i915_gem_evict_mock_selftests(void)
 		return -ENOMEM;
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-		err = i915_subtests(tests, &i915->gt);
+		err = i915_subtests(tests, to_gt(i915));
 
 	mock_destroy_device(i915);
 	return err;
@@ -538,8 +557,8 @@ int i915_gem_evict_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_evict_contexts),
 	};
 
-	if (intel_gt_is_wedged(&i915->gt))
+	if (intel_gt_is_wedged(to_gt(i915)))
 		return 0;
 
-	return intel_gt_live_subtests(tests, &i915->gt);
+	return intel_gt_live_subtests(tests, to_gt(i915));
 }

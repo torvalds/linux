@@ -9,8 +9,9 @@
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/uio.h>
+#include <linux/falloc.h>
 #include <linux/sched/mm.h>
-#include <linux/netfs.h>
+#include <trace/events/fscache.h>
 #include "internal.h"
 
 struct cachefiles_kiocb {
@@ -21,14 +22,18 @@ struct cachefiles_kiocb {
 		size_t		skipped;
 		size_t		len;
 	};
+	struct cachefiles_object *object;
 	netfs_io_terminated_t	term_func;
 	void			*term_func_priv;
 	bool			was_async;
+	unsigned int		inval_counter;	/* Copy of cookie->inval_counter */
+	u64			b_writing;
 };
 
 static inline void cachefiles_put_kiocb(struct cachefiles_kiocb *ki)
 {
 	if (refcount_dec_and_test(&ki->ki_refcnt)) {
+		cachefiles_put_object(ki->object, cachefiles_obj_put_ioreq);
 		fput(ki->iocb.ki_filp);
 		kfree(ki);
 	}
@@ -40,12 +45,22 @@ static inline void cachefiles_put_kiocb(struct cachefiles_kiocb *ki)
 static void cachefiles_read_complete(struct kiocb *iocb, long ret)
 {
 	struct cachefiles_kiocb *ki = container_of(iocb, struct cachefiles_kiocb, iocb);
+	struct inode *inode = file_inode(ki->iocb.ki_filp);
 
 	_enter("%ld", ret);
 
+	if (ret < 0)
+		trace_cachefiles_io_error(ki->object, inode, ret,
+					  cachefiles_trace_read_error);
+
 	if (ki->term_func) {
-		if (ret >= 0)
-			ret += ki->skipped;
+		if (ret >= 0) {
+			if (ki->object->cookie->inval_counter == ki->inval_counter)
+				ki->skipped += ret;
+			else
+				ret = -ESTALE;
+		}
+
 		ki->term_func(ki->term_func_priv, ret, ki->was_async);
 	}
 
@@ -58,15 +73,23 @@ static void cachefiles_read_complete(struct kiocb *iocb, long ret)
 static int cachefiles_read(struct netfs_cache_resources *cres,
 			   loff_t start_pos,
 			   struct iov_iter *iter,
-			   bool seek_data,
+			   enum netfs_read_from_hole read_hole,
 			   netfs_io_terminated_t term_func,
 			   void *term_func_priv)
 {
+	struct cachefiles_object *object;
 	struct cachefiles_kiocb *ki;
-	struct file *file = cres->cache_priv2;
+	struct file *file;
 	unsigned int old_nofs;
 	ssize_t ret = -ENOBUFS;
 	size_t len = iov_iter_count(iter), skipped = 0;
+
+	if (!fscache_wait_for_operation(cres, FSCACHE_WANT_READ))
+		goto presubmission_error;
+
+	fscache_count_read();
+	object = cachefiles_cres_object(cres);
+	file = cachefiles_cres_file(cres);
 
 	_enter("%pD,%li,%llx,%zx/%llx",
 	       file, file_inode(file)->i_ino, start_pos, len,
@@ -75,10 +98,12 @@ static int cachefiles_read(struct netfs_cache_resources *cres,
 	/* If the caller asked us to seek for data before doing the read, then
 	 * we should do that now.  If we find a gap, we fill it with zeros.
 	 */
-	if (seek_data) {
+	if (read_hole != NETFS_READ_HOLE_IGNORE) {
 		loff_t off = start_pos, off2;
 
-		off2 = vfs_llseek(file, off, SEEK_DATA);
+		off2 = cachefiles_inject_read_error();
+		if (off2 == 0)
+			off2 = vfs_llseek(file, off, SEEK_DATA);
 		if (off2 < 0 && off2 >= (loff_t)-MAX_ERRNO && off2 != -ENXIO) {
 			skipped = 0;
 			ret = off2;
@@ -90,6 +115,10 @@ static int cachefiles_read(struct netfs_cache_resources *cres,
 			 * in the region, so clear the rest of the buffer and
 			 * return success.
 			 */
+			ret = -ENODATA;
+			if (read_hole == NETFS_READ_HOLE_FAIL)
+				goto presubmission_error;
+
 			iov_iter_zero(len, iter);
 			skipped = len;
 			ret = 0;
@@ -100,7 +129,7 @@ static int cachefiles_read(struct netfs_cache_resources *cres,
 		iov_iter_zero(skipped, iter);
 	}
 
-	ret = -ENOBUFS;
+	ret = -ENOMEM;
 	ki = kzalloc(sizeof(struct cachefiles_kiocb), GFP_KERNEL);
 	if (!ki)
 		goto presubmission_error;
@@ -112,6 +141,8 @@ static int cachefiles_read(struct netfs_cache_resources *cres,
 	ki->iocb.ki_hint	= ki_hint_validate(file_write_hint(file));
 	ki->iocb.ki_ioprio	= get_current_ioprio();
 	ki->skipped		= skipped;
+	ki->object		= object;
+	ki->inval_counter	= cres->inval_counter;
 	ki->term_func		= term_func;
 	ki->term_func_priv	= term_func_priv;
 	ki->was_async		= true;
@@ -120,9 +151,13 @@ static int cachefiles_read(struct netfs_cache_resources *cres,
 		ki->iocb.ki_complete = cachefiles_read_complete;
 
 	get_file(ki->iocb.ki_filp);
+	cachefiles_grab_object(object, cachefiles_obj_get_ioreq);
 
+	trace_cachefiles_read(object, file_inode(file), ki->iocb.ki_pos, len - skipped);
 	old_nofs = memalloc_nofs_save();
-	ret = vfs_iocb_iter_read(file, &ki->iocb, iter);
+	ret = cachefiles_inject_read_error();
+	if (ret == 0)
+		ret = vfs_iocb_iter_read(file, &ki->iocb, iter);
 	memalloc_nofs_restore(old_nofs);
 	switch (ret) {
 	case -EIOCBQUEUED:
@@ -157,11 +192,70 @@ presubmission_error:
 }
 
 /*
+ * Query the occupancy of the cache in a region, returning where the next chunk
+ * of data starts and how long it is.
+ */
+static int cachefiles_query_occupancy(struct netfs_cache_resources *cres,
+				      loff_t start, size_t len, size_t granularity,
+				      loff_t *_data_start, size_t *_data_len)
+{
+	struct cachefiles_object *object;
+	struct file *file;
+	loff_t off, off2;
+
+	*_data_start = -1;
+	*_data_len = 0;
+
+	if (!fscache_wait_for_operation(cres, FSCACHE_WANT_READ))
+		return -ENOBUFS;
+
+	object = cachefiles_cres_object(cres);
+	file = cachefiles_cres_file(cres);
+	granularity = max_t(size_t, object->volume->cache->bsize, granularity);
+
+	_enter("%pD,%li,%llx,%zx/%llx",
+	       file, file_inode(file)->i_ino, start, len,
+	       i_size_read(file_inode(file)));
+
+	off = cachefiles_inject_read_error();
+	if (off == 0)
+		off = vfs_llseek(file, start, SEEK_DATA);
+	if (off == -ENXIO)
+		return -ENODATA; /* Beyond EOF */
+	if (off < 0 && off >= (loff_t)-MAX_ERRNO)
+		return -ENOBUFS; /* Error. */
+	if (round_up(off, granularity) >= start + len)
+		return -ENODATA; /* No data in range */
+
+	off2 = cachefiles_inject_read_error();
+	if (off2 == 0)
+		off2 = vfs_llseek(file, off, SEEK_HOLE);
+	if (off2 == -ENXIO)
+		return -ENODATA; /* Beyond EOF */
+	if (off2 < 0 && off2 >= (loff_t)-MAX_ERRNO)
+		return -ENOBUFS; /* Error. */
+
+	/* Round away partial blocks */
+	off = round_up(off, granularity);
+	off2 = round_down(off2, granularity);
+	if (off2 <= off)
+		return -ENODATA;
+
+	*_data_start = off;
+	if (off2 > start + len)
+		*_data_len = len;
+	else
+		*_data_len = off2 - off;
+	return 0;
+}
+
+/*
  * Handle completion of a write to the cache.
  */
 static void cachefiles_write_complete(struct kiocb *iocb, long ret)
 {
 	struct cachefiles_kiocb *ki = container_of(iocb, struct cachefiles_kiocb, iocb);
+	struct cachefiles_object *object = ki->object;
 	struct inode *inode = file_inode(ki->iocb.ki_filp);
 
 	_enter("%ld", ret);
@@ -170,9 +264,14 @@ static void cachefiles_write_complete(struct kiocb *iocb, long ret)
 	__sb_writers_acquired(inode->i_sb, SB_FREEZE_WRITE);
 	__sb_end_write(inode->i_sb, SB_FREEZE_WRITE);
 
+	if (ret < 0)
+		trace_cachefiles_io_error(object, inode, ret,
+					  cachefiles_trace_write_error);
+
+	atomic_long_sub(ki->b_writing, &object->volume->cache->b_writing);
+	set_bit(FSCACHE_COOKIE_HAVE_DATA, &object->cookie->flags);
 	if (ki->term_func)
 		ki->term_func(ki->term_func_priv, ret, ki->was_async);
-
 	cachefiles_put_kiocb(ki);
 }
 
@@ -185,17 +284,27 @@ static int cachefiles_write(struct netfs_cache_resources *cres,
 			    netfs_io_terminated_t term_func,
 			    void *term_func_priv)
 {
+	struct cachefiles_object *object;
+	struct cachefiles_cache *cache;
 	struct cachefiles_kiocb *ki;
 	struct inode *inode;
-	struct file *file = cres->cache_priv2;
+	struct file *file;
 	unsigned int old_nofs;
 	ssize_t ret = -ENOBUFS;
 	size_t len = iov_iter_count(iter);
+
+	if (!fscache_wait_for_operation(cres, FSCACHE_WANT_WRITE))
+		goto presubmission_error;
+	fscache_count_write();
+	object = cachefiles_cres_object(cres);
+	cache = object->volume->cache;
+	file = cachefiles_cres_file(cres);
 
 	_enter("%pD,%li,%llx,%zx/%llx",
 	       file, file_inode(file)->i_ino, start_pos, len,
 	       i_size_read(file_inode(file)));
 
+	ret = -ENOMEM;
 	ki = kzalloc(sizeof(struct cachefiles_kiocb), GFP_KERNEL);
 	if (!ki)
 		goto presubmission_error;
@@ -206,14 +315,18 @@ static int cachefiles_write(struct netfs_cache_resources *cres,
 	ki->iocb.ki_flags	= IOCB_DIRECT | IOCB_WRITE;
 	ki->iocb.ki_hint	= ki_hint_validate(file_write_hint(file));
 	ki->iocb.ki_ioprio	= get_current_ioprio();
+	ki->object		= object;
+	ki->inval_counter	= cres->inval_counter;
 	ki->start		= start_pos;
 	ki->len			= len;
 	ki->term_func		= term_func;
 	ki->term_func_priv	= term_func_priv;
 	ki->was_async		= true;
+	ki->b_writing		= (len + (1 << cache->bshift) - 1) >> cache->bshift;
 
 	if (ki->term_func)
 		ki->iocb.ki_complete = cachefiles_write_complete;
+	atomic_long_add(ki->b_writing, &cache->b_writing);
 
 	/* Open-code file_start_write here to grab freeze protection, which
 	 * will be released by another thread in aio_complete_rw().  Fool
@@ -225,9 +338,13 @@ static int cachefiles_write(struct netfs_cache_resources *cres,
 	__sb_writers_release(inode->i_sb, SB_FREEZE_WRITE);
 
 	get_file(ki->iocb.ki_filp);
+	cachefiles_grab_object(object, cachefiles_obj_get_ioreq);
 
+	trace_cachefiles_write(object, inode, ki->iocb.ki_pos, len);
 	old_nofs = memalloc_nofs_save();
-	ret = vfs_iocb_iter_write(file, &ki->iocb, iter);
+	ret = cachefiles_inject_write_error();
+	if (ret == 0)
+		ret = vfs_iocb_iter_write(file, &ki->iocb, iter);
 	memalloc_nofs_restore(old_nofs);
 	switch (ret) {
 	case -EIOCBQUEUED:
@@ -257,8 +374,8 @@ in_progress:
 
 presubmission_error:
 	if (term_func)
-		term_func(term_func_priv, -ENOMEM, false);
-	return -ENOMEM;
+		term_func(term_func_priv, ret, false);
+	return ret;
 }
 
 /*
@@ -268,47 +385,82 @@ presubmission_error:
 static enum netfs_read_source cachefiles_prepare_read(struct netfs_read_subrequest *subreq,
 						      loff_t i_size)
 {
-	struct fscache_retrieval *op = subreq->rreq->cache_resources.cache_priv;
+	enum cachefiles_prepare_read_trace why;
+	struct netfs_read_request *rreq = subreq->rreq;
+	struct netfs_cache_resources *cres = &rreq->cache_resources;
 	struct cachefiles_object *object;
 	struct cachefiles_cache *cache;
+	struct fscache_cookie *cookie = fscache_cres_cookie(cres);
 	const struct cred *saved_cred;
-	struct file *file = subreq->rreq->cache_resources.cache_priv2;
+	struct file *file = cachefiles_cres_file(cres);
+	enum netfs_read_source ret = NETFS_DOWNLOAD_FROM_SERVER;
 	loff_t off, to;
+	ino_t ino = file ? file_inode(file)->i_ino : 0;
 
 	_enter("%zx @%llx/%llx", subreq->len, subreq->start, i_size);
 
-	object = container_of(op->op.object,
-			      struct cachefiles_object, fscache);
-	cache = container_of(object->fscache.cache,
-			     struct cachefiles_cache, cache);
-
-	if (!file)
-		goto cache_fail_nosec;
-
-	if (subreq->start >= i_size)
-		return NETFS_FILL_WITH_ZEROES;
-
-	cachefiles_begin_secure(cache, &saved_cred);
-
-	off = vfs_llseek(file, subreq->start, SEEK_DATA);
-	if (off < 0 && off >= (loff_t)-MAX_ERRNO) {
-		if (off == (loff_t)-ENXIO)
-			goto download_and_store;
-		goto cache_fail;
+	if (subreq->start >= i_size) {
+		ret = NETFS_FILL_WITH_ZEROES;
+		why = cachefiles_trace_read_after_eof;
+		goto out_no_object;
 	}
 
-	if (off >= subreq->start + subreq->len)
+	if (test_bit(FSCACHE_COOKIE_NO_DATA_TO_READ, &cookie->flags)) {
+		__set_bit(NETFS_SREQ_WRITE_TO_CACHE, &subreq->flags);
+		why = cachefiles_trace_read_no_data;
+		goto out_no_object;
+	}
+
+	/* The object and the file may be being created in the background. */
+	if (!file) {
+		why = cachefiles_trace_read_no_file;
+		if (!fscache_wait_for_operation(cres, FSCACHE_WANT_READ))
+			goto out_no_object;
+		file = cachefiles_cres_file(cres);
+		if (!file)
+			goto out_no_object;
+		ino = file_inode(file)->i_ino;
+	}
+
+	object = cachefiles_cres_object(cres);
+	cache = object->volume->cache;
+	cachefiles_begin_secure(cache, &saved_cred);
+
+	off = cachefiles_inject_read_error();
+	if (off == 0)
+		off = vfs_llseek(file, subreq->start, SEEK_DATA);
+	if (off < 0 && off >= (loff_t)-MAX_ERRNO) {
+		if (off == (loff_t)-ENXIO) {
+			why = cachefiles_trace_read_seek_nxio;
+			goto download_and_store;
+		}
+		trace_cachefiles_io_error(object, file_inode(file), off,
+					  cachefiles_trace_seek_error);
+		why = cachefiles_trace_read_seek_error;
+		goto out;
+	}
+
+	if (off >= subreq->start + subreq->len) {
+		why = cachefiles_trace_read_found_hole;
 		goto download_and_store;
+	}
 
 	if (off > subreq->start) {
 		off = round_up(off, cache->bsize);
 		subreq->len = off - subreq->start;
+		why = cachefiles_trace_read_found_part;
 		goto download_and_store;
 	}
 
-	to = vfs_llseek(file, subreq->start, SEEK_HOLE);
-	if (to < 0 && to >= (loff_t)-MAX_ERRNO)
-		goto cache_fail;
+	to = cachefiles_inject_read_error();
+	if (to == 0)
+		to = vfs_llseek(file, subreq->start, SEEK_HOLE);
+	if (to < 0 && to >= (loff_t)-MAX_ERRNO) {
+		trace_cachefiles_io_error(object, file_inode(file), to,
+					  cachefiles_trace_seek_error);
+		why = cachefiles_trace_read_seek_error;
+		goto out;
+	}
 
 	if (to < subreq->start + subreq->len) {
 		if (subreq->start + subreq->len >= i_size)
@@ -318,32 +470,119 @@ static enum netfs_read_source cachefiles_prepare_read(struct netfs_read_subreque
 		subreq->len = to - subreq->start;
 	}
 
-	cachefiles_end_secure(cache, saved_cred);
-	return NETFS_READ_FROM_CACHE;
+	why = cachefiles_trace_read_have_data;
+	ret = NETFS_READ_FROM_CACHE;
+	goto out;
 
 download_and_store:
-	if (cachefiles_has_space(cache, 0, (subreq->len + PAGE_SIZE - 1) / PAGE_SIZE) == 0)
-		__set_bit(NETFS_SREQ_WRITE_TO_CACHE, &subreq->flags);
-cache_fail:
+	__set_bit(NETFS_SREQ_WRITE_TO_CACHE, &subreq->flags);
+out:
 	cachefiles_end_secure(cache, saved_cred);
-cache_fail_nosec:
-	return NETFS_DOWNLOAD_FROM_SERVER;
+out_no_object:
+	trace_cachefiles_prep_read(subreq, ret, why, ino);
+	return ret;
 }
 
 /*
  * Prepare for a write to occur.
  */
-static int cachefiles_prepare_write(struct netfs_cache_resources *cres,
-				    loff_t *_start, size_t *_len, loff_t i_size)
+static int __cachefiles_prepare_write(struct netfs_cache_resources *cres,
+				      loff_t *_start, size_t *_len, loff_t i_size,
+				      bool no_space_allocated_yet)
 {
-	loff_t start = *_start;
+	struct cachefiles_object *object = cachefiles_cres_object(cres);
+	struct cachefiles_cache *cache = object->volume->cache;
+	struct file *file = cachefiles_cres_file(cres);
+	loff_t start = *_start, pos;
 	size_t len = *_len, down;
+	int ret;
 
 	/* Round to DIO size */
 	down = start - round_down(start, PAGE_SIZE);
 	*_start = start - down;
 	*_len = round_up(down + len, PAGE_SIZE);
-	return 0;
+
+	/* We need to work out whether there's sufficient disk space to perform
+	 * the write - but we can skip that check if we have space already
+	 * allocated.
+	 */
+	if (no_space_allocated_yet)
+		goto check_space;
+
+	pos = cachefiles_inject_read_error();
+	if (pos == 0)
+		pos = vfs_llseek(file, *_start, SEEK_DATA);
+	if (pos < 0 && pos >= (loff_t)-MAX_ERRNO) {
+		if (pos == -ENXIO)
+			goto check_space; /* Unallocated tail */
+		trace_cachefiles_io_error(object, file_inode(file), pos,
+					  cachefiles_trace_seek_error);
+		return pos;
+	}
+	if ((u64)pos >= (u64)*_start + *_len)
+		goto check_space; /* Unallocated region */
+
+	/* We have a block that's at least partially filled - if we're low on
+	 * space, we need to see if it's fully allocated.  If it's not, we may
+	 * want to cull it.
+	 */
+	if (cachefiles_has_space(cache, 0, *_len / PAGE_SIZE,
+				 cachefiles_has_space_check) == 0)
+		return 0; /* Enough space to simply overwrite the whole block */
+
+	pos = cachefiles_inject_read_error();
+	if (pos == 0)
+		pos = vfs_llseek(file, *_start, SEEK_HOLE);
+	if (pos < 0 && pos >= (loff_t)-MAX_ERRNO) {
+		trace_cachefiles_io_error(object, file_inode(file), pos,
+					  cachefiles_trace_seek_error);
+		return pos;
+	}
+	if ((u64)pos >= (u64)*_start + *_len)
+		return 0; /* Fully allocated */
+
+	/* Partially allocated, but insufficient space: cull. */
+	fscache_count_no_write_space();
+	ret = cachefiles_inject_remove_error();
+	if (ret == 0)
+		ret = vfs_fallocate(file, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+				    *_start, *_len);
+	if (ret < 0) {
+		trace_cachefiles_io_error(object, file_inode(file), ret,
+					  cachefiles_trace_fallocate_error);
+		cachefiles_io_error_obj(object,
+					"CacheFiles: fallocate failed (%d)\n", ret);
+		ret = -EIO;
+	}
+
+	return ret;
+
+check_space:
+	return cachefiles_has_space(cache, 0, *_len / PAGE_SIZE,
+				    cachefiles_has_space_for_write);
+}
+
+static int cachefiles_prepare_write(struct netfs_cache_resources *cres,
+				    loff_t *_start, size_t *_len, loff_t i_size,
+				    bool no_space_allocated_yet)
+{
+	struct cachefiles_object *object = cachefiles_cres_object(cres);
+	struct cachefiles_cache *cache = object->volume->cache;
+	const struct cred *saved_cred;
+	int ret;
+
+	if (!cachefiles_cres_file(cres)) {
+		if (!fscache_wait_for_operation(cres, FSCACHE_WANT_WRITE))
+			return -ENOBUFS;
+		if (!cachefiles_cres_file(cres))
+			return -ENOBUFS;
+	}
+
+	cachefiles_begin_secure(cache, &saved_cred);
+	ret = __cachefiles_prepare_write(cres, _start, _len, i_size,
+					 no_space_allocated_yet);
+	cachefiles_end_secure(cache, saved_cred);
+	return ret;
 }
 
 /*
@@ -351,19 +590,11 @@ static int cachefiles_prepare_write(struct netfs_cache_resources *cres,
  */
 static void cachefiles_end_operation(struct netfs_cache_resources *cres)
 {
-	struct fscache_retrieval *op = cres->cache_priv;
-	struct file *file = cres->cache_priv2;
-
-	_enter("");
+	struct file *file = cachefiles_cres_file(cres);
 
 	if (file)
 		fput(file);
-	if (op) {
-		fscache_op_complete(&op->op, false);
-		fscache_put_retrieval(op);
-	}
-
-	_leave("");
+	fscache_end_cookie_access(fscache_cres_cookie(cres), fscache_access_io_end);
 }
 
 static const struct netfs_cache_ops cachefiles_netfs_cache_ops = {
@@ -372,49 +603,31 @@ static const struct netfs_cache_ops cachefiles_netfs_cache_ops = {
 	.write			= cachefiles_write,
 	.prepare_read		= cachefiles_prepare_read,
 	.prepare_write		= cachefiles_prepare_write,
+	.query_occupancy	= cachefiles_query_occupancy,
 };
 
 /*
  * Open the cache file when beginning a cache operation.
  */
-int cachefiles_begin_read_operation(struct netfs_read_request *rreq,
-				    struct fscache_retrieval *op)
+bool cachefiles_begin_operation(struct netfs_cache_resources *cres,
+				enum fscache_want_state want_state)
 {
-	struct cachefiles_object *object;
-	struct cachefiles_cache *cache;
-	struct path path;
-	struct file *file;
+	struct cachefiles_object *object = cachefiles_cres_object(cres);
 
-	_enter("");
-
-	object = container_of(op->op.object,
-			      struct cachefiles_object, fscache);
-	cache = container_of(object->fscache.cache,
-			     struct cachefiles_cache, cache);
-
-	path.mnt = cache->mnt;
-	path.dentry = object->backer;
-	file = open_with_fake_path(&path, O_RDWR | O_LARGEFILE | O_DIRECT,
-				   d_inode(object->backer), cache->cache_cred);
-	if (IS_ERR(file))
-		return PTR_ERR(file);
-	if (!S_ISREG(file_inode(file)->i_mode))
-		goto error_file;
-	if (unlikely(!file->f_op->read_iter) ||
-	    unlikely(!file->f_op->write_iter)) {
-		pr_notice("Cache does not support read_iter and write_iter\n");
-		goto error_file;
+	if (!cachefiles_cres_file(cres)) {
+		cres->ops = &cachefiles_netfs_cache_ops;
+		if (object->file) {
+			spin_lock(&object->lock);
+			if (!cres->cache_priv2 && object->file)
+				cres->cache_priv2 = get_file(object->file);
+			spin_unlock(&object->lock);
+		}
 	}
 
-	fscache_get_retrieval(op);
-	rreq->cache_resources.cache_priv = op;
-	rreq->cache_resources.cache_priv2 = file;
-	rreq->cache_resources.ops = &cachefiles_netfs_cache_ops;
-	rreq->cache_resources.debug_id = object->fscache.debug_id;
-	_leave("");
-	return 0;
+	if (!cachefiles_cres_file(cres) && want_state != FSCACHE_WANT_PARAMS) {
+		pr_err("failed to get cres->file\n");
+		return false;
+	}
 
-error_file:
-	fput(file);
-	return -EIO;
+	return true;
 }

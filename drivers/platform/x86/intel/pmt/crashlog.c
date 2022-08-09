@@ -8,6 +8,7 @@
  * Author: "Alexander Duyck" <alexander.h.duyck@linux.intel.com>
  */
 
+#include <linux/auxiliary_bus.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -15,9 +16,8 @@
 #include <linux/uaccess.h>
 #include <linux/overflow.h>
 
+#include "../vsec.h"
 #include "class.h"
-
-#define DRV_NAME		"pmt_crashlog"
 
 /* Crashlog discovery header types */
 #define CRASH_TYPE_OOBMSM	1
@@ -257,34 +257,34 @@ static struct intel_pmt_namespace pmt_crashlog_ns = {
 /*
  * initialization
  */
-static int pmt_crashlog_remove(struct platform_device *pdev)
+static void pmt_crashlog_remove(struct auxiliary_device *auxdev)
 {
-	struct pmt_crashlog_priv *priv = platform_get_drvdata(pdev);
+	struct pmt_crashlog_priv *priv = auxiliary_get_drvdata(auxdev);
 	int i;
 
 	for (i = 0; i < priv->num_entries; i++)
 		intel_pmt_dev_destroy(&priv->entry[i].entry, &pmt_crashlog_ns);
-
-	return 0;
 }
 
-static int pmt_crashlog_probe(struct platform_device *pdev)
+static int pmt_crashlog_probe(struct auxiliary_device *auxdev,
+			      const struct auxiliary_device_id *id)
 {
+	struct intel_vsec_device *intel_vsec_dev = auxdev_to_ivdev(auxdev);
 	struct pmt_crashlog_priv *priv;
 	size_t size;
 	int i, ret;
 
-	size = struct_size(priv, entry, pdev->num_resources);
-	priv = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	size = struct_size(priv, entry, intel_vsec_dev->num_resources);
+	priv = devm_kzalloc(&auxdev->dev, size, GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, priv);
+	auxiliary_set_drvdata(auxdev, priv);
 
-	for (i = 0; i < pdev->num_resources; i++) {
+	for (i = 0; i < intel_vsec_dev->num_resources; i++) {
 		struct intel_pmt_entry *entry = &priv->entry[i].entry;
 
-		ret = intel_pmt_dev_create(entry, &pmt_crashlog_ns, pdev, i);
+		ret = intel_pmt_dev_create(entry, &pmt_crashlog_ns, intel_vsec_dev, i);
 		if (ret < 0)
 			goto abort_probe;
 		if (ret)
@@ -295,26 +295,30 @@ static int pmt_crashlog_probe(struct platform_device *pdev)
 
 	return 0;
 abort_probe:
-	pmt_crashlog_remove(pdev);
+	pmt_crashlog_remove(auxdev);
 	return ret;
 }
 
-static struct platform_driver pmt_crashlog_driver = {
-	.driver = {
-		.name   = DRV_NAME,
-	},
-	.remove = pmt_crashlog_remove,
-	.probe  = pmt_crashlog_probe,
+static const struct auxiliary_device_id pmt_crashlog_id_table[] = {
+	{ .name = "intel_vsec.crashlog" },
+	{}
+};
+MODULE_DEVICE_TABLE(auxiliary, pmt_crashlog_id_table);
+
+static struct auxiliary_driver pmt_crashlog_aux_driver = {
+	.id_table	= pmt_crashlog_id_table,
+	.remove		= pmt_crashlog_remove,
+	.probe		= pmt_crashlog_probe,
 };
 
 static int __init pmt_crashlog_init(void)
 {
-	return platform_driver_register(&pmt_crashlog_driver);
+	return auxiliary_driver_register(&pmt_crashlog_aux_driver);
 }
 
 static void __exit pmt_crashlog_exit(void)
 {
-	platform_driver_unregister(&pmt_crashlog_driver);
+	auxiliary_driver_unregister(&pmt_crashlog_aux_driver);
 	xa_destroy(&crashlog_array);
 }
 
@@ -323,5 +327,4 @@ module_exit(pmt_crashlog_exit);
 
 MODULE_AUTHOR("Alexander Duyck <alexander.h.duyck@linux.intel.com>");
 MODULE_DESCRIPTION("Intel PMT Crashlog driver");
-MODULE_ALIAS("platform:" DRV_NAME);
 MODULE_LICENSE("GPL v2");

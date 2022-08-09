@@ -691,12 +691,6 @@ struct Scsi_Host {
 
 	/* ldm bits */
 	struct device		shost_gendev, shost_dev;
-	/*
-	 * The array size 3 provides space for one attribute group defined by
-	 * the SCSI core, one attribute group defined by the SCSI LLD and one
-	 * terminating NULL pointer.
-	 */
-	const struct attribute_group *shost_dev_attr_groups[3];
 
 	/*
 	 * Points to the transport data (if any) which is allocated

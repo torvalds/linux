@@ -182,15 +182,12 @@ static const struct hdmi_phy_features omap54xx_phy_feats = {
 int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy,
 		  unsigned int version)
 {
-	struct resource *res;
-
 	if (version == 4)
 		phy->features = &omap44xx_phy_feats;
 	else
 		phy->features = &omap54xx_phy_feats;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
-	phy->base = devm_ioremap_resource(&pdev->dev, res);
+	phy->base = devm_platform_ioremap_resource_byname(pdev, "phy");
 	if (IS_ERR(phy->base))
 		return PTR_ERR(phy->base);
 

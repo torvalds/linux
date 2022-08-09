@@ -114,11 +114,9 @@
 #include <linux/gfp.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-
-#include "../comedidev.h"
-
-#include "comedi_isadma.h"
-#include "comedi_8254.h"
+#include <linux/comedi/comedidev.h>
+#include <linux/comedi/comedi_8254.h>
+#include <linux/comedi/comedi_isadma.h>
 
 /*
  * Register I/O map

@@ -238,10 +238,6 @@ void pipe_lock(struct pipe_inode_info *);
 void pipe_unlock(struct pipe_inode_info *);
 void pipe_double_lock(struct pipe_inode_info *, struct pipe_inode_info *);
 
-extern unsigned int pipe_max_size;
-extern unsigned long pipe_user_pages_hard;
-extern unsigned long pipe_user_pages_soft;
-
 /* Wait for a pipe to be readable/writable while dropping the pipe lock */
 void pipe_wait_readable(struct pipe_inode_info *);
 void pipe_wait_writable(struct pipe_inode_info *);

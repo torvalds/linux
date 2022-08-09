@@ -176,7 +176,7 @@ applicable everywhere (see syntax).
 	y		y		y		Y/m/n
 	n		m		n		N/m
 	m		m		m		M/n
-	y		m		n		M/n
+	y		m		m		M/n
 	y		n		*		N
 	===		===		=============	==============
 

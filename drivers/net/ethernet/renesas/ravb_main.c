@@ -30,8 +30,7 @@
 #include <linux/spinlock.h>
 #include <linux/sys_soc.h>
 #include <linux/reset.h>
-
-#include <asm/div64.h>
+#include <linux/math64.h>
 
 #include "ravb.h"
 
@@ -1605,7 +1604,9 @@ static void ravb_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 }
 
 static void ravb_get_ringparam(struct net_device *ndev,
-			       struct ethtool_ringparam *ring)
+			       struct ethtool_ringparam *ring,
+			       struct kernel_ethtool_ringparam *kernel_ring,
+			       struct netlink_ext_ack *extack)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
 
@@ -1616,7 +1617,9 @@ static void ravb_get_ringparam(struct net_device *ndev,
 }
 
 static int ravb_set_ringparam(struct net_device *ndev,
-			      struct ethtool_ringparam *ring)
+			      struct ethtool_ringparam *ring,
+			      struct kernel_ethtool_ringparam *kernel_ring,
+			      struct netlink_ext_ack *extack)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
 	const struct ravb_hw_info *info = priv->info;
@@ -2218,10 +2221,6 @@ static int ravb_hwtstamp_set(struct net_device *ndev, struct ifreq *req)
 	if (copy_from_user(&config, req->ifr_data, sizeof(config)))
 		return -EFAULT;
 
-	/* Reserved for future extensions */
-	if (config.flags)
-		return -EINVAL;
-
 	switch (config.tx_type) {
 	case HWTSTAMP_TX_OFF:
 		tstamp_tx_ctrl = 0;
@@ -2488,8 +2487,7 @@ static int ravb_set_gti(struct net_device *ndev)
 	if (!rate)
 		return -EINVAL;
 
-	inc = 1000000000ULL << 20;
-	do_div(inc, rate);
+	inc = div64_ul(1000000000ULL << 20, rate);
 
 	if (inc < GTI_TIV_MIN || inc > GTI_TIV_MAX) {
 		dev_err(dev, "gti.tiv increment 0x%llx is outside the range 0x%x - 0x%x\n",

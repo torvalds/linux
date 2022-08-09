@@ -853,7 +853,8 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 			mt7915_gen_ppe_thresh(he_cap->ppe_thres, nss);
 		} else {
 			he_cap_elem->phy_cap_info[9] |=
-				IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_16US;
+				u8_encode_bits(IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_16US,
+					       IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK);
 		}
 		idx++;
 	}

@@ -285,14 +285,12 @@ EXPORT_SYMBOL(acpi_device_set_power);
 
 int acpi_bus_set_power(acpi_handle handle, int state)
 {
-	struct acpi_device *device;
-	int result;
+	struct acpi_device *device = acpi_fetch_acpi_dev(handle);
 
-	result = acpi_bus_get_device(handle, &device);
-	if (result)
-		return result;
+	if (device)
+		return acpi_device_set_power(device, state);
 
-	return acpi_device_set_power(device, state);
+	return -ENODEV;
 }
 EXPORT_SYMBOL(acpi_bus_set_power);
 
@@ -410,21 +408,20 @@ EXPORT_SYMBOL_GPL(acpi_device_update_power);
 
 int acpi_bus_update_power(acpi_handle handle, int *state_p)
 {
-	struct acpi_device *device;
-	int result;
+	struct acpi_device *device = acpi_fetch_acpi_dev(handle);
 
-	result = acpi_bus_get_device(handle, &device);
-	return result ? result : acpi_device_update_power(device, state_p);
+	if (device)
+		return acpi_device_update_power(device, state_p);
+
+	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(acpi_bus_update_power);
 
 bool acpi_bus_power_manageable(acpi_handle handle)
 {
-	struct acpi_device *device;
-	int result;
+	struct acpi_device *device = acpi_fetch_acpi_dev(handle);
 
-	result = acpi_bus_get_device(handle, &device);
-	return result ? false : device->flags.power_manageable;
+	return device && device->flags.power_manageable;
 }
 EXPORT_SYMBOL(acpi_bus_power_manageable);
 
@@ -543,11 +540,9 @@ acpi_status acpi_remove_pm_notifier(struct acpi_device *adev)
 
 bool acpi_bus_can_wakeup(acpi_handle handle)
 {
-	struct acpi_device *device;
-	int result;
+	struct acpi_device *device = acpi_fetch_acpi_dev(handle);
 
-	result = acpi_bus_get_device(handle, &device);
-	return result ? false : device->wakeup.flags.valid;
+	return device && device->wakeup.flags.valid;
 }
 EXPORT_SYMBOL(acpi_bus_can_wakeup);
 

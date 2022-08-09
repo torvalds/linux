@@ -626,7 +626,7 @@ bool dal_ddc_submit_aux_command(struct ddc_service *ddc,
 	do {
 		struct aux_payload current_payload;
 		bool is_end_of_payload = (retrieved + DEFAULT_AUX_MAX_DATA_SIZE) >=
-				payload->length ? true : false;
+				payload->length;
 		uint32_t payload_length = is_end_of_payload ?
 				payload->length - retrieved : DEFAULT_AUX_MAX_DATA_SIZE;
 

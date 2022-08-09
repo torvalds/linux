@@ -24,6 +24,22 @@ struct iommu_domain;
 struct reset_control;
 struct dma_buf_attachment;
 
+struct tegra_vde_soc {
+	bool supports_ref_pic_marking;
+};
+
+struct tegra_vde_bo {
+	struct iova *iova;
+	struct sg_table sgt;
+	struct tegra_vde *vde;
+	enum dma_data_direction dma_dir;
+	unsigned long dma_attrs;
+	dma_addr_t dma_handle;
+	dma_addr_t dma_addr;
+	void *dma_cookie;
+	size_t size;
+};
+
 struct tegra_vde {
 	void __iomem *sxe;
 	void __iomem *bsev;
@@ -48,6 +64,8 @@ struct tegra_vde {
 	struct iova_domain iova;
 	struct iova *iova_resv_static_addresses;
 	struct iova *iova_resv_last_page;
+	const struct tegra_vde_soc *soc;
+	struct tegra_vde_bo *secure_bo;
 	dma_addr_t iram_lists_addr;
 	u32 *iram;
 };

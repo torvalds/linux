@@ -253,9 +253,7 @@ endif
 #
 # Board-dependent options and extra files
 #
-ifdef need-compiler
 include $(srctree)/arch/mips/Kbuild.platforms
-endif
 
 ifdef CONFIG_PHYSICAL_START
 load-y					= $(CONFIG_PHYSICAL_START)

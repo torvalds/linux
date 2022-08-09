@@ -58,16 +58,6 @@ int sparx5_vlan_vid_add(struct sparx5_port *port, u16 vid, bool pvid,
 	struct sparx5 *sparx5 = port->sparx5;
 	int ret;
 
-	/* Make the port a member of the VLAN */
-	set_bit(port->portno, sparx5->vlan_mask[vid]);
-	ret = sparx5_vlant_set_mask(sparx5, vid);
-	if (ret)
-		return ret;
-
-	/* Default ingress vlan classification */
-	if (pvid)
-		port->pvid = vid;
-
 	/* Untagged egress vlan classification */
 	if (untagged && port->vid != vid) {
 		if (port->vid) {
@@ -78,6 +68,16 @@ int sparx5_vlan_vid_add(struct sparx5_port *port, u16 vid, bool pvid,
 		}
 		port->vid = vid;
 	}
+
+	/* Make the port a member of the VLAN */
+	set_bit(port->portno, sparx5->vlan_mask[vid]);
+	ret = sparx5_vlant_set_mask(sparx5, vid);
+	if (ret)
+		return ret;
+
+	/* Default ingress vlan classification */
+	if (pvid)
+		port->pvid = vid;
 
 	sparx5_vlan_port_apply(sparx5, port);
 

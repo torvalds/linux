@@ -19,6 +19,8 @@ enum sof_ipc_dbg_mem_zone {
 	SOF_IPC_MEM_ZONE_SYS_RUNTIME	= 1,	/**< System-runtime zone */
 	SOF_IPC_MEM_ZONE_RUNTIME	= 2,	/**< Runtime zone */
 	SOF_IPC_MEM_ZONE_BUFFER		= 3,	/**< Buffer zone */
+	SOF_IPC_MEM_ZONE_RUNTIME_SHARED	= 4,	/**< System runtime zone */
+	SOF_IPC_MEM_ZONE_SYS_SHARED	= 5,	/**< System shared zone */
 };
 
 /** ABI3.18 */

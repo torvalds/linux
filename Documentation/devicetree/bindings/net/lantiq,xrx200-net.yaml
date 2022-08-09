@@ -38,7 +38,6 @@ properties:
 required:
   - compatible
   - reg
-  - interrupt-parent
   - interrupts
   - interrupt-names
   - "#address-cells"

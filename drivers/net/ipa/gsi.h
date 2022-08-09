@@ -101,6 +101,7 @@ enum gsi_channel_state {
 	GSI_CHANNEL_STATE_STARTED		= 0x2,
 	GSI_CHANNEL_STATE_STOPPED		= 0x3,
 	GSI_CHANNEL_STATE_STOP_IN_PROC		= 0x4,
+	GSI_CHANNEL_STATE_FLOW_CONTROLLED	= 0x5,	/* IPA v4.2-v4.9 */
 	GSI_CHANNEL_STATE_ERROR			= 0xf,
 };
 
@@ -113,8 +114,6 @@ struct gsi_channel {
 	u8 tlv_count;			/* # entries in TLV FIFO */
 	u16 tre_count;
 	u16 event_count;
-
-	struct completion completion;	/* signals channel command completion */
 
 	struct gsi_ring tre_ring;
 	u32 evt_ring_id;
@@ -141,28 +140,27 @@ enum gsi_evt_ring_state {
 
 struct gsi_evt_ring {
 	struct gsi_channel *channel;
-	struct completion completion;	/* signals event ring state changes */
 	struct gsi_ring ring;
 };
 
 struct gsi {
 	struct device *dev;		/* Same as IPA device */
 	enum ipa_version version;
-	struct net_device dummy_dev;	/* needed for NAPI */
 	void __iomem *virt_raw;		/* I/O mapped address range */
 	void __iomem *virt;		/* Adjusted for most registers */
 	u32 irq;
 	u32 channel_count;
 	u32 evt_ring_count;
-	struct gsi_channel channel[GSI_CHANNEL_COUNT_MAX];
-	struct gsi_evt_ring evt_ring[GSI_EVT_RING_COUNT_MAX];
 	u32 event_bitmap;		/* allocated event rings */
 	u32 modem_channel_bitmap;	/* modem channels to allocate */
 	u32 type_enabled_bitmap;	/* GSI IRQ types enabled */
 	u32 ieob_enabled_bitmap;	/* IEOB IRQ enabled (event rings) */
-	struct completion completion;	/* for global EE commands */
 	int result;			/* Negative errno (generic commands) */
+	struct completion completion;	/* Signals GSI command completion */
 	struct mutex mutex;		/* protects commands, programming */
+	struct gsi_channel channel[GSI_CHANNEL_COUNT_MAX];
+	struct gsi_evt_ring evt_ring[GSI_EVT_RING_COUNT_MAX];
+	struct net_device dummy_dev;	/* needed for NAPI */
 };
 
 /**
@@ -217,6 +215,15 @@ int gsi_channel_start(struct gsi *gsi, u32 channel_id);
  * Return:	0 if successful, or a negative error code
  */
 int gsi_channel_stop(struct gsi *gsi, u32 channel_id);
+
+/**
+ * gsi_modem_channel_flow_control() - Set channel flow control state (IPA v4.2+)
+ * @gsi:	GSI pointer returned by gsi_setup()
+ * @channel_id:	Modem TX channel to control
+ * @enable:	Whether to enable flow control (i.e., prevent flow)
+ */
+void gsi_modem_channel_flow_control(struct gsi *gsi, u32 channel_id,
+				    bool enable);
 
 /**
  * gsi_channel_reset() - Reset an allocated GSI channel

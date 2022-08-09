@@ -929,7 +929,7 @@ static int ak8975_probe(struct i2c_client *client,
 	/* id will be NULL when enumerated via ACPI */
 	match = device_get_match_data(&client->dev);
 	if (match) {
-		chipset = (enum asahi_compass_chipset)(match);
+		chipset = (uintptr_t)match;
 		name = dev_name(&client->dev);
 	} else if (id) {
 		chipset = (enum asahi_compass_chipset)(id->driver_data);

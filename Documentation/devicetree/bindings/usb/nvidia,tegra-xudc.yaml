@@ -59,6 +59,19 @@ properties:
       - const: fs_src
       - const: hs_src
 
+  interconnects:
+    items:
+      - description: memory read client
+      - description: memory write client
+
+  interconnect-names:
+    items:
+      - const: dma-mem # read
+      - const: write
+
+  iommus:
+    maxItems: 1
+
   power-domains:
     items:
       - description: XUSBB(device) power-domain

@@ -165,7 +165,7 @@ err_free:
 
 static void virtio_i2c_del_vqs(struct virtio_device *vdev)
 {
-	vdev->config->reset(vdev);
+	virtio_reset_device(vdev);
 	vdev->config->del_vqs(vdev);
 }
 

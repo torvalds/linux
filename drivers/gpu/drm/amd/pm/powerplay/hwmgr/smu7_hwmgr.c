@@ -5498,14 +5498,6 @@ static int smu7_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 	uint32_t i, size = 0;
 	uint32_t len;
 
-	static const char *profile_name[7] = {"BOOTUP_DEFAULT",
-					"3D_FULL_SCREEN",
-					"POWER_SAVING",
-					"VIDEO",
-					"VR",
-					"COMPUTE",
-					"CUSTOM"};
-
 	static const char *title[8] = {"NUM",
 			"MODE_NAME",
 			"SCLK_UP_HYST",
@@ -5529,7 +5521,7 @@ static int smu7_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 	for (i = 0; i < len; i++) {
 		if (i == hwmgr->power_profile_mode) {
 			size += sysfs_emit_at(buf, size, "%3d %14s %s: %8d %16d %16d %16d %16d %16d\n",
-			i, profile_name[i], "*",
+			i, amdgpu_pp_profile_name[i], "*",
 			data->current_profile_setting.sclk_up_hyst,
 			data->current_profile_setting.sclk_down_hyst,
 			data->current_profile_setting.sclk_activity,
@@ -5540,12 +5532,12 @@ static int smu7_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 		}
 		if (smu7_profiling[i].bupdate_sclk)
 			size += sysfs_emit_at(buf, size, "%3d %16s: %8d %16d %16d ",
-			i, profile_name[i], smu7_profiling[i].sclk_up_hyst,
+			i, amdgpu_pp_profile_name[i], smu7_profiling[i].sclk_up_hyst,
 			smu7_profiling[i].sclk_down_hyst,
 			smu7_profiling[i].sclk_activity);
 		else
 			size += sysfs_emit_at(buf, size, "%3d %16s: %8s %16s %16s ",
-			i, profile_name[i], "-", "-", "-");
+			i, amdgpu_pp_profile_name[i], "-", "-", "-");
 
 		if (smu7_profiling[i].bupdate_mclk)
 			size += sysfs_emit_at(buf, size, "%16d %16d %16d\n",

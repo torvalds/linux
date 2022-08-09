@@ -874,7 +874,6 @@ static int owl_gpio_init(struct owl_pinctrl *pctrl)
 	chip->label = dev_name(pctrl->dev);
 	chip->parent = pctrl->dev;
 	chip->owner = THIS_MODULE;
-	chip->of_node = pctrl->dev->of_node;
 
 	pctrl->irq_chip.name = chip->of_node->name;
 	pctrl->irq_chip.irq_ack = owl_gpio_irq_ack;

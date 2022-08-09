@@ -13,8 +13,8 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/of_device.h>
+#include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regmap.h>
 #include <sound/core.h>
@@ -106,8 +106,8 @@ static const char * const supply_names[] = {
 };
 
 struct adau1701 {
-	int gpio_nreset;
-	int gpio_pll_mode[2];
+	struct gpio_desc  *gpio_nreset;
+	struct gpio_descs *gpio_pll_mode;
 	unsigned int dai_fmt;
 	unsigned int pll_clkdiv;
 	unsigned int sysclk;
@@ -303,39 +303,41 @@ static int adau1701_reset(struct snd_soc_component *component, unsigned int clkd
 	struct adau1701 *adau1701 = snd_soc_component_get_drvdata(component);
 	int ret;
 
+	DECLARE_BITMAP(values, 2);
 	sigmadsp_reset(adau1701->sigmadsp);
 
-	if (clkdiv != ADAU1707_CLKDIV_UNSET &&
-	    gpio_is_valid(adau1701->gpio_pll_mode[0]) &&
-	    gpio_is_valid(adau1701->gpio_pll_mode[1])) {
+	if (clkdiv != ADAU1707_CLKDIV_UNSET && adau1701->gpio_pll_mode) {
 		switch (clkdiv) {
 		case 64:
-			gpio_set_value_cansleep(adau1701->gpio_pll_mode[0], 0);
-			gpio_set_value_cansleep(adau1701->gpio_pll_mode[1], 0);
+			__assign_bit(0, values, 0);
+			__assign_bit(1, values, 0);
 			break;
 		case 256:
-			gpio_set_value_cansleep(adau1701->gpio_pll_mode[0], 0);
-			gpio_set_value_cansleep(adau1701->gpio_pll_mode[1], 1);
+			__assign_bit(0, values, 0);
+			__assign_bit(1, values, 1);
 			break;
 		case 384:
-			gpio_set_value_cansleep(adau1701->gpio_pll_mode[0], 1);
-			gpio_set_value_cansleep(adau1701->gpio_pll_mode[1], 0);
+			__assign_bit(0, values, 1);
+			__assign_bit(1, values, 0);
 			break;
-		case 0:	/* fallback */
+		case 0: /* fallback */
 		case 512:
-			gpio_set_value_cansleep(adau1701->gpio_pll_mode[0], 1);
-			gpio_set_value_cansleep(adau1701->gpio_pll_mode[1], 1);
+			__assign_bit(0, values, 1);
+			__assign_bit(1, values, 1);
 			break;
 		}
+		gpiod_set_array_value_cansleep(adau1701->gpio_pll_mode->ndescs,
+				adau1701->gpio_pll_mode->desc, adau1701->gpio_pll_mode->info,
+				values);
 	}
 
 	adau1701->pll_clkdiv = clkdiv;
 
-	if (gpio_is_valid(adau1701->gpio_nreset)) {
-		gpio_set_value_cansleep(adau1701->gpio_nreset, 0);
+	if (adau1701->gpio_nreset) {
+		gpiod_set_value_cansleep(adau1701->gpio_nreset, 0);
 		/* minimum reset time is 20ns */
 		udelay(1);
-		gpio_set_value_cansleep(adau1701->gpio_nreset, 1);
+		gpiod_set_value_cansleep(adau1701->gpio_nreset, 1);
 		/* power-up time may be as long as 85ms */
 		mdelay(85);
 	}
@@ -719,8 +721,8 @@ static void adau1701_remove(struct snd_soc_component *component)
 {
 	struct adau1701 *adau1701 = snd_soc_component_get_drvdata(component);
 
-	if (gpio_is_valid(adau1701->gpio_nreset))
-		gpio_set_value_cansleep(adau1701->gpio_nreset, 0);
+	if (adau1701->gpio_nreset)
+		gpiod_set_value_cansleep(adau1701->gpio_nreset, 0);
 
 	regulator_bulk_disable(ARRAY_SIZE(adau1701->supplies), adau1701->supplies);
 }
@@ -788,8 +790,6 @@ static int adau1701_i2c_probe(struct i2c_client *client,
 {
 	struct adau1701 *adau1701;
 	struct device *dev = &client->dev;
-	int gpio_nreset = -EINVAL;
-	int gpio_pll_mode[2] = { -EINVAL, -EINVAL };
 	int ret, i;
 
 	adau1701 = devm_kzalloc(dev, sizeof(*adau1701), GFP_KERNEL);
@@ -823,26 +823,6 @@ static int adau1701_i2c_probe(struct i2c_client *client,
 
 
 	if (dev->of_node) {
-		gpio_nreset = of_get_named_gpio(dev->of_node, "reset-gpio", 0);
-		if (gpio_nreset < 0 && gpio_nreset != -ENOENT) {
-			ret = gpio_nreset;
-			goto exit_regulators_disable;
-		}
-
-		gpio_pll_mode[0] = of_get_named_gpio(dev->of_node,
-						   "adi,pll-mode-gpios", 0);
-		if (gpio_pll_mode[0] < 0 && gpio_pll_mode[0] != -ENOENT) {
-			ret = gpio_pll_mode[0];
-			goto exit_regulators_disable;
-		}
-
-		gpio_pll_mode[1] = of_get_named_gpio(dev->of_node,
-						   "adi,pll-mode-gpios", 1);
-		if (gpio_pll_mode[1] < 0 && gpio_pll_mode[1] != -ENOENT) {
-			ret = gpio_pll_mode[1];
-			goto exit_regulators_disable;
-		}
-
 		of_property_read_u32(dev->of_node, "adi,pll-clkdiv",
 				     &adau1701->pll_clkdiv);
 
@@ -851,31 +831,19 @@ static int adau1701_i2c_probe(struct i2c_client *client,
 					  ARRAY_SIZE(adau1701->pin_config));
 	}
 
-	if (gpio_is_valid(gpio_nreset)) {
-		ret = devm_gpio_request_one(dev, gpio_nreset, GPIOF_OUT_INIT_LOW,
-					    "ADAU1701 Reset");
-		if (ret < 0)
-			goto exit_regulators_disable;
+	adau1701->gpio_nreset = devm_gpiod_get_optional(dev, "reset", GPIOD_IN);
+
+	if (IS_ERR(adau1701->gpio_nreset)) {
+		ret = PTR_ERR(adau1701->gpio_nreset);
+		goto exit_regulators_disable;
 	}
 
-	if (gpio_is_valid(gpio_pll_mode[0]) &&
-	    gpio_is_valid(gpio_pll_mode[1])) {
-		ret = devm_gpio_request_one(dev, gpio_pll_mode[0],
-					    GPIOF_OUT_INIT_LOW,
-					    "ADAU1701 PLL mode 0");
-		if (ret < 0)
-			goto exit_regulators_disable;
+	adau1701->gpio_pll_mode = devm_gpiod_get_array_optional(dev, "adi,pll-mode", GPIOD_OUT_LOW);
 
-		ret = devm_gpio_request_one(dev, gpio_pll_mode[1],
-					    GPIOF_OUT_INIT_LOW,
-					    "ADAU1701 PLL mode 1");
-		if (ret < 0)
-			goto exit_regulators_disable;
+	if (IS_ERR(adau1701->gpio_pll_mode)) {
+		ret = PTR_ERR(adau1701->gpio_pll_mode);
+		goto exit_regulators_disable;
 	}
-
-	adau1701->gpio_nreset = gpio_nreset;
-	adau1701->gpio_pll_mode[0] = gpio_pll_mode[0];
-	adau1701->gpio_pll_mode[1] = gpio_pll_mode[1];
 
 	i2c_set_clientdata(client, adau1701);
 

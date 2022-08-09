@@ -48,7 +48,6 @@
 #include "i915_debugfs_params.h"
 #include "i915_irq.h"
 #include "i915_scheduler.h"
-#include "i915_trace.h"
 #include "intel_pm.h"
 
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
@@ -65,7 +64,8 @@ static int i915_capabilities(struct seq_file *m, void *data)
 
 	intel_device_info_print_static(INTEL_INFO(i915), &p);
 	intel_device_info_print_runtime(RUNTIME_INFO(i915), &p);
-	intel_gt_info_print(&i915->gt.info, &p);
+	i915_print_iommu_status(i915, &p);
+	intel_gt_info_print(&to_gt(i915)->info, &p);
 	intel_driver_caps_print(&i915->caps, &p);
 
 	kernel_param_lock(THIS_MODULE);
@@ -293,7 +293,7 @@ static int i915_gpu_info_open(struct inode *inode, struct file *file)
 
 	gpu = NULL;
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-		gpu = i915_gpu_coredump(&i915->gt, ALL_ENGINES);
+		gpu = i915_gpu_coredump(to_gt(i915), ALL_ENGINES);
 	if (IS_ERR(gpu))
 		return PTR_ERR(gpu);
 
@@ -351,7 +351,7 @@ static const struct file_operations i915_error_state_fops = {
 static int i915_frequency_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
-	struct intel_gt *gt = &i915->gt;
+	struct intel_gt *gt = to_gt(i915);
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	intel_gt_pm_frequency_dump(gt, &p);
@@ -439,11 +439,11 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 static int i915_rps_boost_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct intel_rps *rps = &dev_priv->gt.rps;
+	struct intel_rps *rps = &to_gt(dev_priv)->rps;
 
 	seq_printf(m, "RPS enabled? %s\n", yesno(intel_rps_is_enabled(rps)));
 	seq_printf(m, "RPS active? %s\n", yesno(intel_rps_is_active(rps)));
-	seq_printf(m, "GPU busy? %s\n", yesno(dev_priv->gt.awake));
+	seq_printf(m, "GPU busy? %s\n", yesno(to_gt(dev_priv)->awake));
 	seq_printf(m, "Boosts outstanding? %d\n",
 		   atomic_read(&rps->num_waiters));
 	seq_printf(m, "Interactive? %d\n", READ_ONCE(rps->power.interactive));
@@ -476,7 +476,7 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 	seq_printf(m, "Runtime power status: %s\n",
 		   enableddisabled(!dev_priv->power_domains.init_wakeref));
 
-	seq_printf(m, "GPU idle: %s\n", yesno(!dev_priv->gt.awake));
+	seq_printf(m, "GPU idle: %s\n", yesno(!to_gt(dev_priv)->awake));
 	seq_printf(m, "IRQs disabled: %s\n",
 		   yesno(!intel_irqs_enabled(dev_priv)));
 #ifdef CONFIG_PM
@@ -508,18 +508,18 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	seq_printf(m, "GT awake? %s [%d], %llums\n",
-		   yesno(i915->gt.awake),
-		   atomic_read(&i915->gt.wakeref.count),
-		   ktime_to_ms(intel_gt_get_awake_time(&i915->gt)));
+		   yesno(to_gt(i915)->awake),
+		   atomic_read(&to_gt(i915)->wakeref.count),
+		   ktime_to_ms(intel_gt_get_awake_time(to_gt(i915))));
 	seq_printf(m, "CS timestamp frequency: %u Hz, %d ns\n",
-		   i915->gt.clock_frequency,
-		   i915->gt.clock_period_ns);
+		   to_gt(i915)->clock_frequency,
+		   to_gt(i915)->clock_period_ns);
 
 	p = drm_seq_file_printer(m);
 	for_each_uabi_engine(engine, i915)
 		intel_engine_dump(engine, &p, "%s\n", engine->name);
 
-	intel_gt_show_timelines(&i915->gt, &p, i915_request_show_with_schedule);
+	intel_gt_show_timelines(to_gt(i915), &p, i915_request_show_with_schedule);
 
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 
@@ -558,14 +558,14 @@ static int i915_wedged_get(void *data, u64 *val)
 {
 	struct drm_i915_private *i915 = data;
 
-	return intel_gt_debugfs_reset_show(&i915->gt, val);
+	return intel_gt_debugfs_reset_show(to_gt(i915), val);
 }
 
 static int i915_wedged_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
 
-	return intel_gt_debugfs_reset_store(&i915->gt, val);
+	return intel_gt_debugfs_reset_store(to_gt(i915), val);
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_wedged_fops,
@@ -581,7 +581,7 @@ i915_perf_noa_delay_set(void *data, u64 val)
 	 * This would lead to infinite waits as we're doing timestamp
 	 * difference on the CS with only 32bits.
 	 */
-	if (intel_gt_ns_to_clock_interval(&i915->gt, val) > U32_MAX)
+	if (intel_gt_ns_to_clock_interval(to_gt(i915), val) > U32_MAX)
 		return -EINVAL;
 
 	atomic64_set(&i915->perf.noa_programming_delay, val);
@@ -666,16 +666,18 @@ static int
 i915_drop_caches_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
+	unsigned int flags;
 	int ret;
 
 	DRM_DEBUG("Dropping caches: 0x%08llx [0x%08llx]\n",
 		  val, val & DROP_ALL);
 
-	ret = gt_drop_caches(&i915->gt, val);
+	ret = gt_drop_caches(to_gt(i915), val);
 	if (ret)
 		return ret;
 
 	fs_reclaim_acquire(GFP_KERNEL);
+	flags = memalloc_noreclaim_save();
 	if (val & DROP_BOUND)
 		i915_gem_shrink(NULL, i915, LONG_MAX, NULL, I915_SHRINK_BOUND);
 
@@ -684,6 +686,7 @@ i915_drop_caches_set(void *data, u64 val)
 
 	if (val & DROP_SHRINK_ALL)
 		i915_gem_shrink_all(i915);
+	memalloc_noreclaim_restore(flags);
 	fs_reclaim_release(GFP_KERNEL);
 
 	if (val & DROP_RCU)
@@ -702,7 +705,7 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_drop_caches_fops,
 static int i915_sseu_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
-	struct intel_gt *gt = &i915->gt;
+	struct intel_gt *gt = to_gt(i915);
 
 	return intel_sseu_status(m, gt);
 }
@@ -711,14 +714,14 @@ static int i915_forcewake_open(struct inode *inode, struct file *file)
 {
 	struct drm_i915_private *i915 = inode->i_private;
 
-	return intel_gt_pm_debugfs_forcewake_user_open(&i915->gt);
+	return intel_gt_pm_debugfs_forcewake_user_open(to_gt(i915));
 }
 
 static int i915_forcewake_release(struct inode *inode, struct file *file)
 {
 	struct drm_i915_private *i915 = inode->i_private;
 
-	return intel_gt_pm_debugfs_forcewake_user_release(&i915->gt);
+	return intel_gt_pm_debugfs_forcewake_user_release(to_gt(i915));
 }
 
 static const struct file_operations i915_forcewake_fops = {

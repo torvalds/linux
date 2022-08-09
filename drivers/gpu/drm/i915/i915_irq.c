@@ -35,6 +35,7 @@
 #include <drm/drm_drv.h>
 
 #include "display/intel_de.h"
+#include "display/intel_display_trace.h"
 #include "display/intel_display_types.h"
 #include "display/intel_fifo_underrun.h"
 #include "display/intel_hotplug.h"
@@ -49,7 +50,6 @@
 
 #include "i915_drv.h"
 #include "i915_irq.h"
-#include "i915_trace.h"
 #include "intel_pm.h"
 
 /**
@@ -224,7 +224,7 @@ static void intel_hpd_init_pins(struct drm_i915_private *dev_priv)
 static void
 intel_handle_vblank(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+	struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
 
 	drm_crtc_handle_vblank(&crtc->base);
 }
@@ -1040,7 +1040,7 @@ static void ivb_parity_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv), l3_parity.error_work);
-	struct intel_gt *gt = &dev_priv->gt;
+	struct intel_gt *gt = to_gt(dev_priv);
 	u32 error_status, row, bank, subbank;
 	char *parity_event[6];
 	u32 misccpctl;
@@ -1318,7 +1318,7 @@ static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 					 u32 crc2, u32 crc3,
 					 u32 crc4)
 {
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+	struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
 	struct intel_pipe_crc *pipe_crc = &crtc->pipe_crc;
 	u32 crcs[5] = { crc0, crc1, crc2, crc3, crc4 };
 
@@ -1357,7 +1357,7 @@ display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 static void flip_done_handler(struct drm_i915_private *i915,
 			      enum pipe pipe)
 {
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(i915, pipe);
+	struct intel_crtc *crtc = intel_crtc_for_pipe(i915, pipe);
 	struct drm_crtc_state *crtc_state = crtc->base.state;
 	struct drm_pending_vblank_event *e = crtc_state->event;
 	struct drm_device *dev = &i915->drm;
@@ -1718,9 +1718,9 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		intel_uncore_write(&dev_priv->uncore, VLV_MASTER_IER, MASTER_INTERRUPT_ENABLE);
 
 		if (gt_iir)
-			gen6_gt_irq_handler(&dev_priv->gt, gt_iir);
+			gen6_gt_irq_handler(to_gt(dev_priv), gt_iir);
 		if (pm_iir)
-			gen6_rps_irq_handler(&dev_priv->gt.rps, pm_iir);
+			gen6_rps_irq_handler(&to_gt(dev_priv)->rps, pm_iir);
 
 		if (hotplug_status)
 			i9xx_hpd_irq_handler(dev_priv, hotplug_status);
@@ -1777,7 +1777,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 		ier = intel_uncore_read(&dev_priv->uncore, VLV_IER);
 		intel_uncore_write(&dev_priv->uncore, VLV_IER, 0);
 
-		gen8_gt_irq_handler(&dev_priv->gt, master_ctl);
+		gen8_gt_irq_handler(to_gt(dev_priv), master_ctl);
 
 		if (iir & I915_DISPLAY_PORT_INTERRUPT)
 			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
@@ -2108,7 +2108,7 @@ static void ilk_display_irq_handler(struct drm_i915_private *dev_priv,
 	}
 
 	if (DISPLAY_VER(dev_priv) == 5 && de_iir & DE_PCU_EVENT)
-		gen5_rps_irq_handler(&dev_priv->gt.rps);
+		gen5_rps_irq_handler(&to_gt(dev_priv)->rps);
 }
 
 static void ivb_display_irq_handler(struct drm_i915_private *dev_priv,
@@ -2189,9 +2189,9 @@ static irqreturn_t ilk_irq_handler(int irq, void *arg)
 	if (gt_iir) {
 		raw_reg_write(regs, GTIIR, gt_iir);
 		if (GRAPHICS_VER(i915) >= 6)
-			gen6_gt_irq_handler(&i915->gt, gt_iir);
+			gen6_gt_irq_handler(to_gt(i915), gt_iir);
 		else
-			gen5_gt_irq_handler(&i915->gt, gt_iir);
+			gen5_gt_irq_handler(to_gt(i915), gt_iir);
 		ret = IRQ_HANDLED;
 	}
 
@@ -2209,7 +2209,7 @@ static irqreturn_t ilk_irq_handler(int irq, void *arg)
 		u32 pm_iir = raw_reg_read(regs, GEN6_PMIIR);
 		if (pm_iir) {
 			raw_reg_write(regs, GEN6_PMIIR, pm_iir);
-			gen6_rps_irq_handler(&i915->gt.rps, pm_iir);
+			gen6_rps_irq_handler(&to_gt(i915)->rps, pm_iir);
 			ret = IRQ_HANDLED;
 		}
 	}
@@ -2635,7 +2635,7 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	}
 
 	/* Find, queue (onto bottom-halves), then clear each source */
-	gen8_gt_irq_handler(&dev_priv->gt, master_ctl);
+	gen8_gt_irq_handler(to_gt(dev_priv), master_ctl);
 
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
 	if (master_ctl & ~GEN8_GT_IRQS) {
@@ -2715,7 +2715,7 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	void __iomem * const regs = i915->uncore.regs;
-	struct intel_gt *gt = &i915->gt;
+	struct intel_gt *gt = to_gt(i915);
 	u32 master_ctl;
 	u32 gu_misc_iir;
 
@@ -2771,8 +2771,8 @@ static inline void dg1_master_intr_enable(void __iomem * const regs)
 static irqreturn_t dg1_irq_handler(int irq, void *arg)
 {
 	struct drm_i915_private * const i915 = arg;
-	struct intel_gt *gt = &i915->gt;
-	void __iomem * const regs = i915->uncore.regs;
+	struct intel_gt *gt = to_gt(i915);
+	void __iomem * const regs = gt->uncore->regs;
 	u32 master_tile_ctl, master_ctl;
 	u32 gu_misc_iir;
 
@@ -3016,7 +3016,7 @@ static void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 	if (IS_CHERRYVIEW(dev_priv))
 		intel_uncore_write(uncore, DPINVGTT, DPINVGTT_STATUS_MASK_CHV);
 	else
-		intel_uncore_write(uncore, DPINVGTT, DPINVGTT_STATUS_MASK);
+		intel_uncore_write(uncore, DPINVGTT, DPINVGTT_STATUS_MASK_VLV);
 
 	i915_hotplug_interrupt_update_locked(dev_priv, 0xffffffff, 0);
 	intel_uncore_write(uncore, PORT_HOTPLUG_STAT, intel_uncore_read(&dev_priv->uncore, PORT_HOTPLUG_STAT));
@@ -3075,7 +3075,7 @@ static void ilk_irq_reset(struct drm_i915_private *dev_priv)
 		intel_uncore_write(uncore, EDP_PSR_IIR, 0xffffffff);
 	}
 
-	gen5_gt_irq_reset(&dev_priv->gt);
+	gen5_gt_irq_reset(to_gt(dev_priv));
 
 	ibx_irq_reset(dev_priv);
 }
@@ -3085,7 +3085,7 @@ static void valleyview_irq_reset(struct drm_i915_private *dev_priv)
 	intel_uncore_write(&dev_priv->uncore, VLV_MASTER_IER, 0);
 	intel_uncore_posting_read(&dev_priv->uncore, VLV_MASTER_IER);
 
-	gen5_gt_irq_reset(&dev_priv->gt);
+	gen5_gt_irq_reset(to_gt(dev_priv));
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	if (dev_priv->display_irqs_enabled)
@@ -3119,7 +3119,7 @@ static void gen8_irq_reset(struct drm_i915_private *dev_priv)
 
 	gen8_master_intr_disable(dev_priv->uncore.regs);
 
-	gen8_gt_irq_reset(&dev_priv->gt);
+	gen8_gt_irq_reset(to_gt(dev_priv));
 	gen8_display_irq_reset(dev_priv);
 	GEN3_IRQ_RESET(uncore, GEN8_PCU_);
 
@@ -3173,11 +3173,12 @@ static void gen11_display_irq_reset(struct drm_i915_private *dev_priv)
 
 static void gen11_irq_reset(struct drm_i915_private *dev_priv)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
+	struct intel_gt *gt = to_gt(dev_priv);
+	struct intel_uncore *uncore = gt->uncore;
 
 	gen11_master_intr_disable(dev_priv->uncore.regs);
 
-	gen11_gt_irq_reset(&dev_priv->gt);
+	gen11_gt_irq_reset(gt);
 	gen11_display_irq_reset(dev_priv);
 
 	GEN3_IRQ_RESET(uncore, GEN11_GU_MISC_);
@@ -3186,11 +3187,12 @@ static void gen11_irq_reset(struct drm_i915_private *dev_priv)
 
 static void dg1_irq_reset(struct drm_i915_private *dev_priv)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
+	struct intel_gt *gt = to_gt(dev_priv);
+	struct intel_uncore *uncore = gt->uncore;
 
 	dg1_master_intr_disable(dev_priv->uncore.regs);
 
-	gen11_gt_irq_reset(&dev_priv->gt);
+	gen11_gt_irq_reset(gt);
 	gen11_display_irq_reset(dev_priv);
 
 	GEN3_IRQ_RESET(uncore, GEN11_GU_MISC_);
@@ -3250,7 +3252,7 @@ static void cherryview_irq_reset(struct drm_i915_private *dev_priv)
 	intel_uncore_write(&dev_priv->uncore, GEN8_MASTER_IRQ, 0);
 	intel_uncore_posting_read(&dev_priv->uncore, GEN8_MASTER_IRQ);
 
-	gen8_gt_irq_reset(&dev_priv->gt);
+	gen8_gt_irq_reset(to_gt(dev_priv));
 
 	GEN3_IRQ_RESET(uncore, GEN8_PCU_);
 
@@ -3707,7 +3709,7 @@ static void ilk_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	ibx_irq_postinstall(dev_priv);
 
-	gen5_gt_irq_postinstall(&dev_priv->gt);
+	gen5_gt_irq_postinstall(to_gt(dev_priv));
 
 	GEN3_IRQ_INIT(uncore, DE, dev_priv->irq_mask,
 		      display_mask | extra_mask);
@@ -3744,7 +3746,7 @@ void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv)
 
 static void valleyview_irq_postinstall(struct drm_i915_private *dev_priv)
 {
-	gen5_gt_irq_postinstall(&dev_priv->gt);
+	gen5_gt_irq_postinstall(to_gt(dev_priv));
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	if (dev_priv->display_irqs_enabled)
@@ -3850,7 +3852,7 @@ static void gen8_irq_postinstall(struct drm_i915_private *dev_priv)
 	else if (HAS_PCH_SPLIT(dev_priv))
 		ibx_irq_postinstall(dev_priv);
 
-	gen8_gt_irq_postinstall(&dev_priv->gt);
+	gen8_gt_irq_postinstall(to_gt(dev_priv));
 	gen8_de_irq_postinstall(dev_priv);
 
 	gen8_master_intr_enable(dev_priv->uncore.regs);
@@ -3869,13 +3871,14 @@ static void gen11_de_irq_postinstall(struct drm_i915_private *dev_priv)
 
 static void gen11_irq_postinstall(struct drm_i915_private *dev_priv)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
+	struct intel_gt *gt = to_gt(dev_priv);
+	struct intel_uncore *uncore = gt->uncore;
 	u32 gu_misc_masked = GEN11_GU_MISC_GSE;
 
 	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		icp_irq_postinstall(dev_priv);
 
-	gen11_gt_irq_postinstall(&dev_priv->gt);
+	gen11_gt_irq_postinstall(gt);
 	gen11_de_irq_postinstall(dev_priv);
 
 	GEN3_IRQ_INIT(uncore, GEN11_GU_MISC_, ~gu_misc_masked, gu_misc_masked);
@@ -3886,10 +3889,11 @@ static void gen11_irq_postinstall(struct drm_i915_private *dev_priv)
 
 static void dg1_irq_postinstall(struct drm_i915_private *dev_priv)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
+	struct intel_gt *gt = to_gt(dev_priv);
+	struct intel_uncore *uncore = gt->uncore;
 	u32 gu_misc_masked = GEN11_GU_MISC_GSE;
 
-	gen11_gt_irq_postinstall(&dev_priv->gt);
+	gen11_gt_irq_postinstall(gt);
 
 	GEN3_IRQ_INIT(uncore, GEN11_GU_MISC_, ~gu_misc_masked, gu_misc_masked);
 
@@ -3900,13 +3904,13 @@ static void dg1_irq_postinstall(struct drm_i915_private *dev_priv)
 				   GEN11_DISPLAY_IRQ_ENABLE);
 	}
 
-	dg1_master_intr_enable(dev_priv->uncore.regs);
-	intel_uncore_posting_read(&dev_priv->uncore, DG1_MSTR_TILE_INTR);
+	dg1_master_intr_enable(uncore->regs);
+	intel_uncore_posting_read(uncore, DG1_MSTR_TILE_INTR);
 }
 
 static void cherryview_irq_postinstall(struct drm_i915_private *dev_priv)
 {
-	gen8_gt_irq_postinstall(&dev_priv->gt);
+	gen8_gt_irq_postinstall(to_gt(dev_priv));
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	if (dev_priv->display_irqs_enabled)
@@ -4069,7 +4073,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		intel_uncore_write16(&dev_priv->uncore, GEN2_IIR, iir);
 
 		if (iir & I915_USER_INTERRUPT)
-			intel_engine_cs_irq(dev_priv->gt.engine[RCS0], iir);
+			intel_engine_cs_irq(to_gt(dev_priv)->engine[RCS0], iir);
 
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
 			i8xx_error_irq_handler(dev_priv, eir, eir_stuck);
@@ -4177,7 +4181,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		intel_uncore_write(&dev_priv->uncore, GEN2_IIR, iir);
 
 		if (iir & I915_USER_INTERRUPT)
-			intel_engine_cs_irq(dev_priv->gt.engine[RCS0], iir);
+			intel_engine_cs_irq(to_gt(dev_priv)->engine[RCS0], iir);
 
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
 			i9xx_error_irq_handler(dev_priv, eir, eir_stuck);
@@ -4322,11 +4326,11 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		intel_uncore_write(&dev_priv->uncore, GEN2_IIR, iir);
 
 		if (iir & I915_USER_INTERRUPT)
-			intel_engine_cs_irq(dev_priv->gt.engine[RCS0],
+			intel_engine_cs_irq(to_gt(dev_priv)->engine[RCS0],
 					    iir);
 
 		if (iir & I915_BSD_USER_INTERRUPT)
-			intel_engine_cs_irq(dev_priv->gt.engine[VCS0],
+			intel_engine_cs_irq(to_gt(dev_priv)->engine[VCS0],
 					    iir >> 25);
 
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
@@ -4377,7 +4381,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 
 	/* pre-gen11 the guc irqs bits are in the upper 16 bits of the pm reg */
 	if (HAS_GT_UC(dev_priv) && GRAPHICS_VER(dev_priv) < 11)
-		dev_priv->gt.pm_guc_events = GUC_INTR_GUC2HOST << 16;
+		to_gt(dev_priv)->pm_guc_events = GUC_INTR_GUC2HOST << 16;
 
 	if (!HAS_DISPLAY(dev_priv))
 		return;

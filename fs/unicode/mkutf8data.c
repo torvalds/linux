@@ -3287,12 +3287,10 @@ static void write_file(void)
 		open_fail(utf8_name, errno);
 
 	fprintf(file, "/* This file is generated code, do not edit. */\n");
-	fprintf(file, "#ifndef __INCLUDED_FROM_UTF8NORM_C__\n");
-	fprintf(file, "#error Only nls_utf8-norm.c should include this file.\n");
-	fprintf(file, "#endif\n");
 	fprintf(file, "\n");
-	fprintf(file, "static const unsigned int utf8vers = %#x;\n",
-		unicode_maxage);
+	fprintf(file, "#include <linux/module.h>\n");
+	fprintf(file, "#include <linux/kernel.h>\n");
+	fprintf(file, "#include \"utf8n.h\"\n");
 	fprintf(file, "\n");
 	fprintf(file, "static const unsigned int utf8agetab[] = {\n");
 	for (i = 0; i != ages_count; i++)
@@ -3339,6 +3337,22 @@ static void write_file(void)
 		fprintf(file, "\n");
 	}
 	fprintf(file, "};\n");
+	fprintf(file, "\n");
+	fprintf(file, "struct utf8data_table utf8_data_table = {\n");
+	fprintf(file, "\t.utf8agetab = utf8agetab,\n");
+	fprintf(file, "\t.utf8agetab_size = ARRAY_SIZE(utf8agetab),\n");
+	fprintf(file, "\n");
+	fprintf(file, "\t.utf8nfdicfdata = utf8nfdicfdata,\n");
+	fprintf(file, "\t.utf8nfdicfdata_size = ARRAY_SIZE(utf8nfdicfdata),\n");
+	fprintf(file, "\n");
+	fprintf(file, "\t.utf8nfdidata = utf8nfdidata,\n");
+	fprintf(file, "\t.utf8nfdidata_size = ARRAY_SIZE(utf8nfdidata),\n");
+	fprintf(file, "\n");
+	fprintf(file, "\t.utf8data = utf8data,\n");
+	fprintf(file, "};\n");
+	fprintf(file, "EXPORT_SYMBOL_GPL(utf8_data_table);");
+	fprintf(file, "\n");
+	fprintf(file, "MODULE_LICENSE(\"GPL v2\");\n");
 	fclose(file);
 }
 

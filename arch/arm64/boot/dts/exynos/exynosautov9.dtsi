@@ -7,6 +7,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/soc/samsung,exynos-usi.h>
 
 / {
 	compatible = "samsung,exynosautov9";
@@ -256,16 +257,35 @@
 			reg = <0x17c20000 0x1000>;
 		};
 
-		/* USI: UART */
-		serial_0: uart@10300000 {
-			compatible = "samsung,exynos850-uart";
-			reg = <0x10300000 0x100>;
-			interrupts = <GIC_SPI 345 IRQ_TYPE_LEVEL_HIGH>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&uart0_bus_dual>;
+		syscon_peric0: syscon@10220000 {
+			compatible = "samsung,exynosautov9-sysreg", "syscon";
+			reg = <0x10220000 0x2000>;
+		};
+
+		usi_0: usi@103000c0 {
+			compatible = "samsung,exynos850-usi";
+			reg = <0x103000c0 0x20>;
+			samsung,sysreg = <&syscon_peric0 0x1000>;
+			samsung,mode = <USI_V2_UART>;
+			samsung,clkreq-on; /* needed for UART mode */
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
 			clocks = <&uart_clock>, <&uart_clock>;
-			clock-names = "uart", "clk_uart_baud0";
+			clock-names = "pclk", "ipclk";
 			status = "disabled";
+
+			/* USI: UART */
+			serial_0: serial@10300000 {
+				compatible = "samsung,exynos850-uart";
+				reg = <0x10300000 0xc0>;
+				interrupts = <GIC_SPI 345 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart0_bus_dual>;
+				clocks = <&uart_clock>, <&uart_clock>;
+				clock-names = "uart", "clk_uart_baud0";
+				status = "disabled";
+			};
 		};
 
 		ufs_0_phy: ufs0-phy@17e04000 {

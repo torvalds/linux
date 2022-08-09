@@ -38,6 +38,7 @@
 *******************************************************************************/
 
 #include <linux/errno.h>
+#include <linux/filter.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>

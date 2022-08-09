@@ -515,12 +515,6 @@ config NFT_FLOW_OFFLOAD
 	  This option adds the "flow_offload" expression that you can use to
 	  choose what flows are placed into the hardware.
 
-config NFT_COUNTER
-	tristate "Netfilter nf_tables counter module"
-	help
-	  This option adds the "counter" expression that you can use to
-	  include packet and byte counters in a rule.
-
 config NFT_CONNLIMIT
 	tristate "Netfilter nf_tables connlimit module"
 	depends on NF_CONNTRACK

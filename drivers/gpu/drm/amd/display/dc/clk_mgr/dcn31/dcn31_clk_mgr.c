@@ -66,7 +66,7 @@
 #define TO_CLK_MGR_DCN31(clk_mgr)\
 	container_of(clk_mgr, struct clk_mgr_dcn31, base)
 
-int dcn31_get_active_display_cnt_wa(
+static int dcn31_get_active_display_cnt_wa(
 		struct dc *dc,
 		struct dc_state *context)
 {
@@ -118,7 +118,7 @@ static void dcn31_disable_otg_wa(struct clk_mgr *clk_mgr_base, bool disable)
 	}
 }
 
-static void dcn31_update_clocks(struct clk_mgr *clk_mgr_base,
+void dcn31_update_clocks(struct clk_mgr *clk_mgr_base,
 			struct dc_state *context,
 			bool safe_to_lower)
 {
@@ -285,7 +285,7 @@ static void dcn31_enable_pme_wa(struct clk_mgr *clk_mgr_base)
 	dcn31_smu_enable_pme_wa(clk_mgr);
 }
 
-static void dcn31_init_clocks(struct clk_mgr *clk_mgr)
+void dcn31_init_clocks(struct clk_mgr *clk_mgr)
 {
 	memset(&(clk_mgr->clks), 0, sizeof(struct dc_clocks));
 	// Assumption is that boot state always supports pstate
@@ -295,7 +295,7 @@ static void dcn31_init_clocks(struct clk_mgr *clk_mgr)
 	clk_mgr->clks.zstate_support = DCN_ZSTATE_SUPPORT_UNKNOWN;
 }
 
-static bool dcn31_are_clock_states_equal(struct dc_clocks *a,
+bool dcn31_are_clock_states_equal(struct dc_clocks *a,
 		struct dc_clocks *b)
 {
 	if (a->dispclk_khz != b->dispclk_khz)
@@ -329,38 +329,38 @@ static struct clk_bw_params dcn31_bw_params = {
 
 };
 
-static struct wm_table ddr4_wm_table = {
+static struct wm_table ddr5_wm_table = {
 	.entries = {
 		{
 			.wm_inst = WM_A,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 6.09,
-			.sr_enter_plus_exit_time_us = 7.14,
+			.sr_exit_time_us = 9,
+			.sr_enter_plus_exit_time_us = 11,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_B,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 10.12,
-			.sr_enter_plus_exit_time_us = 11.48,
+			.sr_exit_time_us = 9,
+			.sr_enter_plus_exit_time_us = 11,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_C,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 10.12,
-			.sr_enter_plus_exit_time_us = 11.48,
+			.sr_exit_time_us = 9,
+			.sr_enter_plus_exit_time_us = 11,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_D,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 10.12,
-			.sr_enter_plus_exit_time_us = 11.48,
+			.sr_exit_time_us = 9,
+			.sr_enter_plus_exit_time_us = 11,
 			.valid = true,
 		},
 	}
@@ -541,10 +541,9 @@ static unsigned int find_clk_for_voltage(
 	return clock;
 }
 
-void dcn31_clk_mgr_helper_populate_bw_params(
-		struct clk_mgr_internal *clk_mgr,
-		struct integrated_info *bios_info,
-		const DpmClocks_t *clock_table)
+static void dcn31_clk_mgr_helper_populate_bw_params(struct clk_mgr_internal *clk_mgr,
+						    struct integrated_info *bios_info,
+						    const DpmClocks_t *clock_table)
 {
 	int i, j;
 	struct clk_bw_params *bw_params = clk_mgr->base.bw_params;
@@ -688,7 +687,7 @@ void dcn31_clk_mgr_construct(
 		if (ctx->dc_bios->integrated_info->memory_type == LpDdr5MemType) {
 			dcn31_bw_params.wm_table = lpddr5_wm_table;
 		} else {
-			dcn31_bw_params.wm_table = ddr4_wm_table;
+			dcn31_bw_params.wm_table = ddr5_wm_table;
 		}
 		/* Saved clocks configured at boot for debug purposes */
 		 dcn31_dump_clk_registers(&clk_mgr->base.base.boot_snapshot, &clk_mgr->base.base, &log_info);

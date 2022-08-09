@@ -105,7 +105,7 @@
 
 #define SEC_SQE_MASK_OFFSET		64
 #define SEC_SQE_MASK_LEN		48
-#define SEC_SHAPER_TYPE_RATE		128
+#define SEC_SHAPER_TYPE_RATE		400
 
 struct sec_hw_error {
 	u32 int_msk;

@@ -48,8 +48,8 @@ properties:
       and the instance to use in the second cell
 
   mdio:
-    type: object
-    $ref: "mdio.yaml#"
+    $ref: mdio.yaml#
+    unevaluatedProperties: false
     description: optional node for embedded MDIO controller
 
 required:

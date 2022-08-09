@@ -54,12 +54,8 @@ EXPORT_SYMBOL_GPL(nlmsvc_ops);
 
 static DEFINE_MUTEX(nlmsvc_mutex);
 static unsigned int		nlmsvc_users;
-static struct task_struct	*nlmsvc_task;
-static struct svc_rqst		*nlmsvc_rqst;
+static struct svc_serv		*nlmsvc_serv;
 unsigned long			nlmsvc_timeout;
-
-static atomic_t nlm_ntf_refcnt = ATOMIC_INIT(0);
-static DECLARE_WAIT_QUEUE_HEAD(nlm_ntf_wq);
 
 unsigned int lockd_net_id;
 
@@ -184,7 +180,12 @@ lockd(void *vrqstp)
 	nlm_shutdown_hosts();
 	cancel_delayed_work_sync(&ln->grace_period_end);
 	locks_end_grace(&ln->lockd_manager);
-	return 0;
+
+	dprintk("lockd_down: service stopped\n");
+
+	svc_exit_thread(rqstp);
+
+	module_put_and_kthread_exit(0);
 }
 
 static int create_lockd_listener(struct svc_serv *serv, const char *name,
@@ -290,8 +291,8 @@ static void lockd_down_net(struct svc_serv *serv, struct net *net)
 				__func__, net->ns.inum);
 		}
 	} else {
-		pr_err("%s: no users! task=%p, net=%x\n",
-			__func__, nlmsvc_task, net->ns.inum);
+		pr_err("%s: no users! net=%x\n",
+			__func__, net->ns.inum);
 		BUG();
 	}
 }
@@ -302,20 +303,16 @@ static int lockd_inetaddr_event(struct notifier_block *this,
 	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
 	struct sockaddr_in sin;
 
-	if ((event != NETDEV_DOWN) ||
-	    !atomic_inc_not_zero(&nlm_ntf_refcnt))
+	if (event != NETDEV_DOWN)
 		goto out;
 
-	if (nlmsvc_rqst) {
+	if (nlmsvc_serv) {
 		dprintk("lockd_inetaddr_event: removed %pI4\n",
 			&ifa->ifa_local);
 		sin.sin_family = AF_INET;
 		sin.sin_addr.s_addr = ifa->ifa_local;
-		svc_age_temp_xprts_now(nlmsvc_rqst->rq_server,
-			(struct sockaddr *)&sin);
+		svc_age_temp_xprts_now(nlmsvc_serv, (struct sockaddr *)&sin);
 	}
-	atomic_dec(&nlm_ntf_refcnt);
-	wake_up(&nlm_ntf_wq);
 
 out:
 	return NOTIFY_DONE;
@@ -332,21 +329,17 @@ static int lockd_inet6addr_event(struct notifier_block *this,
 	struct inet6_ifaddr *ifa = (struct inet6_ifaddr *)ptr;
 	struct sockaddr_in6 sin6;
 
-	if ((event != NETDEV_DOWN) ||
-	    !atomic_inc_not_zero(&nlm_ntf_refcnt))
+	if (event != NETDEV_DOWN)
 		goto out;
 
-	if (nlmsvc_rqst) {
+	if (nlmsvc_serv) {
 		dprintk("lockd_inet6addr_event: removed %pI6\n", &ifa->addr);
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_addr = ifa->addr;
 		if (ipv6_addr_type(&sin6.sin6_addr) & IPV6_ADDR_LINKLOCAL)
 			sin6.sin6_scope_id = ifa->idev->dev->ifindex;
-		svc_age_temp_xprts_now(nlmsvc_rqst->rq_server,
-			(struct sockaddr *)&sin6);
+		svc_age_temp_xprts_now(nlmsvc_serv, (struct sockaddr *)&sin6);
 	}
-	atomic_dec(&nlm_ntf_refcnt);
-	wake_up(&nlm_ntf_wq);
 
 out:
 	return NOTIFY_DONE;
@@ -357,86 +350,22 @@ static struct notifier_block lockd_inet6addr_notifier = {
 };
 #endif
 
-static void lockd_unregister_notifiers(void)
-{
-	unregister_inetaddr_notifier(&lockd_inetaddr_notifier);
-#if IS_ENABLED(CONFIG_IPV6)
-	unregister_inet6addr_notifier(&lockd_inet6addr_notifier);
-#endif
-	wait_event(nlm_ntf_wq, atomic_read(&nlm_ntf_refcnt) == 0);
-}
-
-static void lockd_svc_exit_thread(void)
-{
-	atomic_dec(&nlm_ntf_refcnt);
-	lockd_unregister_notifiers();
-	svc_exit_thread(nlmsvc_rqst);
-}
-
-static int lockd_start_svc(struct svc_serv *serv)
-{
-	int error;
-
-	if (nlmsvc_rqst)
-		return 0;
-
-	/*
-	 * Create the kernel thread and wait for it to start.
-	 */
-	nlmsvc_rqst = svc_prepare_thread(serv, &serv->sv_pools[0], NUMA_NO_NODE);
-	if (IS_ERR(nlmsvc_rqst)) {
-		error = PTR_ERR(nlmsvc_rqst);
-		printk(KERN_WARNING
-			"lockd_up: svc_rqst allocation failed, error=%d\n",
-			error);
-		lockd_unregister_notifiers();
-		goto out_rqst;
-	}
-
-	atomic_inc(&nlm_ntf_refcnt);
-	svc_sock_update_bufs(serv);
-	serv->sv_maxconn = nlm_max_connections;
-
-	nlmsvc_task = kthread_create(lockd, nlmsvc_rqst, "%s", serv->sv_name);
-	if (IS_ERR(nlmsvc_task)) {
-		error = PTR_ERR(nlmsvc_task);
-		printk(KERN_WARNING
-			"lockd_up: kthread_run failed, error=%d\n", error);
-		goto out_task;
-	}
-	nlmsvc_rqst->rq_task = nlmsvc_task;
-	wake_up_process(nlmsvc_task);
-
-	dprintk("lockd_up: service started\n");
-	return 0;
-
-out_task:
-	lockd_svc_exit_thread();
-	nlmsvc_task = NULL;
-out_rqst:
-	nlmsvc_rqst = NULL;
-	return error;
-}
-
 static const struct svc_serv_ops lockd_sv_ops = {
 	.svo_shutdown		= svc_rpcb_cleanup,
+	.svo_function		= lockd,
 	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
+	.svo_module		= THIS_MODULE,
 };
 
-static struct svc_serv *lockd_create_svc(void)
+static int lockd_get(void)
 {
 	struct svc_serv *serv;
+	int error;
 
-	/*
-	 * Check whether we're already up and running.
-	 */
-	if (nlmsvc_rqst) {
-		/*
-		 * Note: increase service usage, because later in case of error
-		 * svc_destroy() will be called.
-		 */
-		svc_get(nlmsvc_rqst->rq_server);
-		return nlmsvc_rqst->rq_server;
+	if (nlmsvc_serv) {
+		svc_get(nlmsvc_serv);
+		nlmsvc_users++;
+		return 0;
 	}
 
 	/*
@@ -454,14 +383,41 @@ static struct svc_serv *lockd_create_svc(void)
 	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, &lockd_sv_ops);
 	if (!serv) {
 		printk(KERN_WARNING "lockd_up: create service failed\n");
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
+
+	serv->sv_maxconn = nlm_max_connections;
+	error = svc_set_num_threads(serv, NULL, 1);
+	/* The thread now holds the only reference */
+	svc_put(serv);
+	if (error < 0)
+		return error;
+
+	nlmsvc_serv = serv;
 	register_inetaddr_notifier(&lockd_inetaddr_notifier);
 #if IS_ENABLED(CONFIG_IPV6)
 	register_inet6addr_notifier(&lockd_inet6addr_notifier);
 #endif
 	dprintk("lockd_up: service created\n");
-	return serv;
+	nlmsvc_users++;
+	return 0;
+}
+
+static void lockd_put(void)
+{
+	if (WARN(nlmsvc_users <= 0, "lockd_down: no users!\n"))
+		return;
+	if (--nlmsvc_users)
+		return;
+
+	unregister_inetaddr_notifier(&lockd_inetaddr_notifier);
+#if IS_ENABLED(CONFIG_IPV6)
+	unregister_inet6addr_notifier(&lockd_inet6addr_notifier);
+#endif
+
+	svc_set_num_threads(nlmsvc_serv, NULL, 0);
+	nlmsvc_serv = NULL;
+	dprintk("lockd_down: service destroyed\n");
 }
 
 /*
@@ -469,36 +425,21 @@ static struct svc_serv *lockd_create_svc(void)
  */
 int lockd_up(struct net *net, const struct cred *cred)
 {
-	struct svc_serv *serv;
 	int error;
 
 	mutex_lock(&nlmsvc_mutex);
 
-	serv = lockd_create_svc();
-	if (IS_ERR(serv)) {
-		error = PTR_ERR(serv);
-		goto err_create;
+	error = lockd_get();
+	if (error)
+		goto err;
+
+	error = lockd_up_net(nlmsvc_serv, net, cred);
+	if (error < 0) {
+		lockd_put();
+		goto err;
 	}
 
-	error = lockd_up_net(serv, net, cred);
-	if (error < 0) {
-		lockd_unregister_notifiers();
-		goto err_put;
-	}
-
-	error = lockd_start_svc(serv);
-	if (error < 0) {
-		lockd_down_net(serv, net);
-		goto err_put;
-	}
-	nlmsvc_users++;
-	/*
-	 * Note: svc_serv structures have an initial use count of 1,
-	 * so we exit through here on both success and failure.
-	 */
-err_put:
-	svc_destroy(serv);
-err_create:
+err:
 	mutex_unlock(&nlmsvc_mutex);
 	return error;
 }
@@ -511,27 +452,8 @@ void
 lockd_down(struct net *net)
 {
 	mutex_lock(&nlmsvc_mutex);
-	lockd_down_net(nlmsvc_rqst->rq_server, net);
-	if (nlmsvc_users) {
-		if (--nlmsvc_users)
-			goto out;
-	} else {
-		printk(KERN_ERR "lockd_down: no users! task=%p\n",
-			nlmsvc_task);
-		BUG();
-	}
-
-	if (!nlmsvc_task) {
-		printk(KERN_ERR "lockd_down: no lockd running.\n");
-		BUG();
-	}
-	kthread_stop(nlmsvc_task);
-	dprintk("lockd_down: service stopped\n");
-	lockd_svc_exit_thread();
-	dprintk("lockd_down: service destroyed\n");
-	nlmsvc_task = NULL;
-	nlmsvc_rqst = NULL;
-out:
+	lockd_down_net(nlmsvc_serv, net);
+	lockd_put();
 	mutex_unlock(&nlmsvc_mutex);
 }
 EXPORT_SYMBOL_GPL(lockd_down);

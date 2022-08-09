@@ -90,22 +90,28 @@ enum regulator_detection_severity {
  * @set_over_current_protection: Support enabling of and setting limits for over
  *	current situation detection. Detection can be configured for three
  *	levels of severity.
- *	REGULATOR_SEVERITY_PROT should automatically shut down the regulator(s).
- *	REGULATOR_SEVERITY_ERR should indicate that over-current situation is
- *		caused by an unrecoverable error but HW does not perform
- *		automatic shut down.
- *	REGULATOR_SEVERITY_WARN should indicate situation where hardware is
- *		still believed to not be damaged but that a board sepcific
- *		recovery action is needed. If lim_uA is 0 the limit should not
- *		be changed but the detection should just be enabled/disabled as
- *		is requested.
+ *
+ *	- REGULATOR_SEVERITY_PROT should automatically shut down the regulator(s).
+ *
+ *	- REGULATOR_SEVERITY_ERR should indicate that over-current situation is
+ *		  caused by an unrecoverable error but HW does not perform
+ *		  automatic shut down.
+ *
+ *	- REGULATOR_SEVERITY_WARN should indicate situation where hardware is
+ *		  still believed to not be damaged but that a board sepcific
+ *		  recovery action is needed. If lim_uA is 0 the limit should not
+ *		  be changed but the detection should just be enabled/disabled as
+ *		  is requested.
+ *
  * @set_over_voltage_protection: Support enabling of and setting limits for over
  *	voltage situation detection. Detection can be configured for same
- *	severities as over current protection.
+ *	severities as over current protection. Units of uV.
  * @set_under_voltage_protection: Support enabling of and setting limits for
- *	under situation detection.
+ *	under voltage situation detection. Detection can be configured for same
+ *	severities as over current protection. Units of uV.
  * @set_thermal_protection: Support enabling of and setting limits for over
- *	temperature situation detection.
+ *	temperature situation detection.Detection can be configured for same
+ *	severities as over current protection. Units of degree Kelvin.
  *
  * @set_active_discharge: Set active discharge enable/disable of regulators.
  *
@@ -554,7 +560,6 @@ struct regulator_irq_data {
  */
 struct regulator_irq_desc {
 	const char *name;
-	int irq_flags;
 	int fatal_cnt;
 	int reread_ms;
 	int irq_off_ms;
@@ -646,6 +651,40 @@ struct regulator_dev {
 	spinlock_t err_lock;
 };
 
+/*
+ * Convert error flags to corresponding notifications.
+ *
+ * Can be used by drivers which use the notification helpers to
+ * find out correct notification flags based on the error flags. Drivers
+ * can avoid storing both supported notification and error flags which
+ * may save few bytes.
+ */
+static inline int regulator_err2notif(int err)
+{
+	switch (err) {
+	case REGULATOR_ERROR_UNDER_VOLTAGE:
+		return REGULATOR_EVENT_UNDER_VOLTAGE;
+	case REGULATOR_ERROR_OVER_CURRENT:
+		return REGULATOR_EVENT_OVER_CURRENT;
+	case REGULATOR_ERROR_REGULATION_OUT:
+		return REGULATOR_EVENT_REGULATION_OUT;
+	case REGULATOR_ERROR_FAIL:
+		return REGULATOR_EVENT_FAIL;
+	case REGULATOR_ERROR_OVER_TEMP:
+		return REGULATOR_EVENT_OVER_TEMP;
+	case REGULATOR_ERROR_UNDER_VOLTAGE_WARN:
+		return REGULATOR_EVENT_UNDER_VOLTAGE_WARN;
+	case REGULATOR_ERROR_OVER_CURRENT_WARN:
+		return REGULATOR_EVENT_OVER_CURRENT_WARN;
+	case REGULATOR_ERROR_OVER_VOLTAGE_WARN:
+		return REGULATOR_EVENT_OVER_VOLTAGE_WARN;
+	case REGULATOR_ERROR_OVER_TEMP_WARN:
+		return REGULATOR_EVENT_OVER_TEMP_WARN;
+	}
+	return 0;
+}
+
+
 struct regulator_dev *
 regulator_register(const struct regulator_desc *regulator_desc,
 		   const struct regulator_config *config);
@@ -667,6 +706,8 @@ void *regulator_irq_helper(struct device *dev,
 			   int irq_flags, int common_errs, int *per_rdev_errs,
 			   struct regulator_dev **rdev, int rdev_amount);
 void regulator_irq_helper_cancel(void **handle);
+int regulator_irq_map_event_simple(int irq, struct regulator_irq_data *rid,
+				   unsigned long *dev_mask);
 
 void *rdev_get_drvdata(struct regulator_dev *rdev);
 struct device *rdev_get_dev(struct regulator_dev *rdev);

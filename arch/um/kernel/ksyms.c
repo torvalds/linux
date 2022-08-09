@@ -6,7 +6,7 @@
 #include <linux/module.h>
 #include <os.h>
 
-EXPORT_SYMBOL(set_signals);
+EXPORT_SYMBOL(um_set_signals);
 EXPORT_SYMBOL(signals_enabled);
 
 EXPORT_SYMBOL(os_stat_fd);

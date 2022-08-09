@@ -19,7 +19,11 @@
 #include <asm/sync.h>
 #include <asm/war.h>
 
-#define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)		\
+#define arch_futex_atomic_op_inuser arch_futex_atomic_op_inuser
+#define futex_atomic_cmpxchg_inatomic futex_atomic_cmpxchg_inatomic
+#include <asm-generic/futex.h>
+
+#define __futex_atomic_op(op, insn, ret, oldval, uaddr, oparg)		\
 {									\
 	if (cpu_has_llsc && IS_ENABLED(CONFIG_WAR_R10000_LLSC)) {	\
 		__asm__ __volatile__(					\
@@ -80,8 +84,10 @@
 		: "0" (0), GCC_OFF_SMALL_ASM() (*uaddr), "Jr" (oparg),	\
 		  "i" (-EFAULT)						\
 		: "memory");						\
-	} else								\
-		ret = -ENOSYS;						\
+	} else {							\
+		/* fallback for non-SMP */				\
+		ret = futex_atomic_op_inuser_local(op, oparg, oval, uaddr);	\
+	}								\
 }
 
 static inline int
@@ -94,23 +100,23 @@ arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 
 	switch (op) {
 	case FUTEX_OP_SET:
-		__futex_atomic_op("move $1, %z5", ret, oldval, uaddr, oparg);
+		__futex_atomic_op(op, "move $1, %z5", ret, oldval, uaddr, oparg);
 		break;
 
 	case FUTEX_OP_ADD:
-		__futex_atomic_op("addu $1, %1, %z5",
+		__futex_atomic_op(op, "addu $1, %1, %z5",
 				  ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_OR:
-		__futex_atomic_op("or	$1, %1, %z5",
+		__futex_atomic_op(op, "or	$1, %1, %z5",
 				  ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_ANDN:
-		__futex_atomic_op("and	$1, %1, %z5",
+		__futex_atomic_op(op, "and	$1, %1, %z5",
 				  ret, oldval, uaddr, ~oparg);
 		break;
 	case FUTEX_OP_XOR:
-		__futex_atomic_op("xor	$1, %1, %z5",
+		__futex_atomic_op(op, "xor	$1, %1, %z5",
 				  ret, oldval, uaddr, oparg);
 		break;
 	default:
@@ -193,8 +199,9 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 		: GCC_OFF_SMALL_ASM() (*uaddr), "Jr" (oldval), "Jr" (newval),
 		  "i" (-EFAULT)
 		: "memory");
-	} else
-		return -ENOSYS;
+	} else {
+		return futex_atomic_cmpxchg_inatomic_local(uval, uaddr, oldval, newval);
+	}
 
 	*uval = val;
 	return ret;

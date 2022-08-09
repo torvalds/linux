@@ -44,7 +44,7 @@ void test_global_func_args(void)
 	struct bpf_object *obj;
 	int err, prog_fd;
 
-	err = bpf_prog_load(file, BPF_PROG_TYPE_CGROUP_SKB, &obj, &prog_fd);
+	err = bpf_prog_test_load(file, BPF_PROG_TYPE_CGROUP_SKB, &obj, &prog_fd);
 	if (CHECK(err, "load program", "error %d loading %s\n", err, file))
 		return;
 

@@ -877,8 +877,10 @@ enum ath10k_cal_mode {
 	ATH10K_CAL_MODE_FILE,
 	ATH10K_CAL_MODE_OTP,
 	ATH10K_CAL_MODE_DT,
+	ATH10K_CAL_MODE_NVMEM,
 	ATH10K_PRE_CAL_MODE_FILE,
 	ATH10K_PRE_CAL_MODE_DT,
+	ATH10K_PRE_CAL_MODE_NVMEM,
 	ATH10K_CAL_MODE_EEPROM,
 };
 
@@ -898,10 +900,14 @@ static inline const char *ath10k_cal_mode_str(enum ath10k_cal_mode mode)
 		return "otp";
 	case ATH10K_CAL_MODE_DT:
 		return "dt";
+	case ATH10K_CAL_MODE_NVMEM:
+		return "nvmem";
 	case ATH10K_PRE_CAL_MODE_FILE:
 		return "pre-cal-file";
 	case ATH10K_PRE_CAL_MODE_DT:
 		return "pre-cal-dt";
+	case ATH10K_PRE_CAL_MODE_NVMEM:
+		return "pre-cal-nvmem";
 	case ATH10K_CAL_MODE_EEPROM:
 		return "eeprom";
 	}

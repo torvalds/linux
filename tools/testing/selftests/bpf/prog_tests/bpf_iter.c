@@ -469,12 +469,12 @@ static void test_overflow(bool test_e2big_overflow, bool ret1)
 	 * fills seq_file buffer and then the other will trigger
 	 * overflow and needs restart.
 	 */
-	map1_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, 4, 8, 1, 0);
-	if (CHECK(map1_fd < 0, "bpf_create_map",
+	map1_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL, 4, 8, 1, NULL);
+	if (CHECK(map1_fd < 0, "bpf_map_create",
 		  "map_creation failed: %s\n", strerror(errno)))
 		goto out;
-	map2_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, 4, 8, 1, 0);
-	if (CHECK(map2_fd < 0, "bpf_create_map",
+	map2_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL, 4, 8, 1, NULL);
+	if (CHECK(map2_fd < 0, "bpf_map_create",
 		  "map_creation failed: %s\n", strerror(errno)))
 		goto free_map1;
 
@@ -699,14 +699,13 @@ static void test_bpf_percpu_hash_map(void)
 	char buf[64];
 	void *val;
 
-	val = malloc(8 * bpf_num_possible_cpus());
-
 	skel = bpf_iter_bpf_percpu_hash_map__open();
 	if (CHECK(!skel, "bpf_iter_bpf_percpu_hash_map__open",
 		  "skeleton open failed\n"))
 		return;
 
 	skel->rodata->num_cpus = bpf_num_possible_cpus();
+	val = malloc(8 * bpf_num_possible_cpus());
 
 	err = bpf_iter_bpf_percpu_hash_map__load(skel);
 	if (CHECK(!skel, "bpf_iter_bpf_percpu_hash_map__load",
@@ -770,6 +769,7 @@ free_link:
 	bpf_link__destroy(link);
 out:
 	bpf_iter_bpf_percpu_hash_map__destroy(skel);
+	free(val);
 }
 
 static void test_bpf_array_map(void)
@@ -870,14 +870,13 @@ static void test_bpf_percpu_array_map(void)
 	void *val;
 	int len;
 
-	val = malloc(8 * bpf_num_possible_cpus());
-
 	skel = bpf_iter_bpf_percpu_array_map__open();
 	if (CHECK(!skel, "bpf_iter_bpf_percpu_array_map__open",
 		  "skeleton open failed\n"))
 		return;
 
 	skel->rodata->num_cpus = bpf_num_possible_cpus();
+	val = malloc(8 * bpf_num_possible_cpus());
 
 	err = bpf_iter_bpf_percpu_array_map__load(skel);
 	if (CHECK(!skel, "bpf_iter_bpf_percpu_array_map__load",
@@ -933,6 +932,7 @@ free_link:
 	bpf_link__destroy(link);
 out:
 	bpf_iter_bpf_percpu_array_map__destroy(skel);
+	free(val);
 }
 
 /* An iterator program deletes all local storage in a map. */
@@ -1206,13 +1206,14 @@ static void test_task_vma(void)
 		goto out;
 
 	/* Read CMP_BUFFER_SIZE (1kB) from bpf_iter. Read in small chunks
-	 * to trigger seq_file corner cases. The expected output is much
-	 * longer than 1kB, so the while loop will terminate.
+	 * to trigger seq_file corner cases.
 	 */
 	len = 0;
 	while (len < CMP_BUFFER_SIZE) {
 		err = read_fd_into_buffer(iter_fd, task_vma_output + len,
 					  min(read_size, CMP_BUFFER_SIZE - len));
+		if (!err)
+			break;
 		if (CHECK(err < 0, "read_iter_fd", "read_iter_fd failed\n"))
 			goto out;
 		len += err;

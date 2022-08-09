@@ -754,7 +754,8 @@ static void vgic_unregister_redist_iodev(struct kvm_vcpu *vcpu)
 static int vgic_register_all_redist_iodevs(struct kvm *kvm)
 {
 	struct kvm_vcpu *vcpu;
-	int c, ret = 0;
+	unsigned long c;
+	int ret = 0;
 
 	kvm_for_each_vcpu(c, vcpu, kvm) {
 		ret = vgic_register_redist_iodev(vcpu);
@@ -763,10 +764,12 @@ static int vgic_register_all_redist_iodevs(struct kvm *kvm)
 	}
 
 	if (ret) {
-		/* The current c failed, so we start with the previous one. */
+		/* The current c failed, so iterate over the previous ones. */
+		int i;
+
 		mutex_lock(&kvm->slots_lock);
-		for (c--; c >= 0; c--) {
-			vcpu = kvm_get_vcpu(kvm, c);
+		for (i = 0; i < c; i++) {
+			vcpu = kvm_get_vcpu(kvm, i);
 			vgic_unregister_redist_iodev(vcpu);
 		}
 		mutex_unlock(&kvm->slots_lock);
@@ -995,10 +998,10 @@ void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg, bool allow_group1)
 	struct kvm_vcpu *c_vcpu;
 	u16 target_cpus;
 	u64 mpidr;
-	int sgi, c;
+	int sgi;
 	int vcpu_id = vcpu->vcpu_id;
 	bool broadcast;
-	unsigned long flags;
+	unsigned long c, flags;
 
 	sgi = (reg & ICC_SGI1R_SGI_ID_MASK) >> ICC_SGI1R_SGI_ID_SHIFT;
 	broadcast = reg & BIT_ULL(ICC_SGI1R_IRQ_ROUTING_MODE_BIT);

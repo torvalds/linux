@@ -345,9 +345,6 @@ err:
 	return IRQ_HANDLED;
 }
 
-static const struct iio_trigger_ops afe4403_trigger_ops = {
-};
-
 #define AFE4403_TIMING_PAIRS			\
 	{ AFE440X_LED2STC,	0x000050 },	\
 	{ AFE440X_LED2ENDC,	0x0003e7 },	\
@@ -529,8 +526,6 @@ static int afe4403_probe(struct spi_device *spi)
 		}
 
 		iio_trigger_set_drvdata(afe->trig, indio_dev);
-
-		afe->trig->ops = &afe4403_trigger_ops;
 
 		ret = iio_trigger_register(afe->trig);
 		if (ret) {

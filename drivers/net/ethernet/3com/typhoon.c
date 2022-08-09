@@ -1138,7 +1138,9 @@ typhoon_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 }
 
 static void
-typhoon_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
+typhoon_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ering,
+		      struct kernel_ethtool_ringparam *kernel_ering,
+		      struct netlink_ext_ack *extack)
 {
 	ering->rx_max_pending = RXENT_ENTRIES;
 	ering->tx_max_pending = TXLO_ENTRIES - 1;
@@ -2276,6 +2278,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct net_device *dev;
 	struct typhoon *tp;
 	int card_id = (int) ent->driver_data;
+	u8 addr[ETH_ALEN] __aligned(4);
 	void __iomem *ioaddr;
 	void *shared;
 	dma_addr_t shared_dma;
@@ -2407,8 +2410,9 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto error_out_reset;
 	}
 
-	*(__be16 *)&dev->dev_addr[0] = htons(le16_to_cpu(xp_resp[0].parm1));
-	*(__be32 *)&dev->dev_addr[2] = htonl(le32_to_cpu(xp_resp[0].parm2));
+	*(__be16 *)&addr[0] = htons(le16_to_cpu(xp_resp[0].parm1));
+	*(__be32 *)&addr[2] = htonl(le32_to_cpu(xp_resp[0].parm2));
+	eth_hw_addr_set(dev, addr);
 
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		err_msg = "Could not obtain valid ethernet address, aborting";

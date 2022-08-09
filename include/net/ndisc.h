@@ -411,13 +411,7 @@ static inline void __ipv6_confirm_neigh(struct net_device *dev,
 
 	rcu_read_lock_bh();
 	n = __ipv6_neigh_lookup_noref(dev, pkey);
-	if (n) {
-		unsigned long now = jiffies;
-
-		/* avoid dirtying neighbour */
-		if (READ_ONCE(n->confirmed) != now)
-			WRITE_ONCE(n->confirmed, now);
-	}
+	neigh_confirm(n);
 	rcu_read_unlock_bh();
 }
 
@@ -428,13 +422,7 @@ static inline void __ipv6_confirm_neigh_stub(struct net_device *dev,
 
 	rcu_read_lock_bh();
 	n = __ipv6_neigh_lookup_noref_stub(dev, pkey);
-	if (n) {
-		unsigned long now = jiffies;
-
-		/* avoid dirtying neighbour */
-		if (READ_ONCE(n->confirmed) != now)
-			WRITE_ONCE(n->confirmed, now);
-	}
+	neigh_confirm(n);
 	rcu_read_unlock_bh();
 }
 
@@ -487,9 +475,9 @@ int igmp6_late_init(void);
 void igmp6_cleanup(void);
 void igmp6_late_cleanup(void);
 
-int igmp6_event_query(struct sk_buff *skb);
+void igmp6_event_query(struct sk_buff *skb);
 
-int igmp6_event_report(struct sk_buff *skb);
+void igmp6_event_report(struct sk_buff *skb);
 
 
 #ifdef CONFIG_SYSCTL

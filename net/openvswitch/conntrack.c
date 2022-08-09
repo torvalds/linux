@@ -25,6 +25,8 @@
 #include <net/netfilter/nf_nat.h>
 #endif
 
+#include <net/netfilter/nf_conntrack_act_ct.h>
+
 #include "datapath.h"
 #include "conntrack.h"
 #include "flow.h"
@@ -574,7 +576,7 @@ ovs_ct_expect_find(struct net *net, const struct nf_conntrack_zone *zone,
 			struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(h);
 
 			nf_ct_delete(ct, 0, 0);
-			nf_conntrack_put(&ct->ct_general);
+			nf_ct_put(ct);
 		}
 	}
 
@@ -723,7 +725,7 @@ static bool skb_nfct_cached(struct net *net,
 		if (nf_ct_is_confirmed(ct))
 			nf_ct_delete(ct, 0, 0);
 
-		nf_conntrack_put(&ct->ct_general);
+		nf_ct_put(ct);
 		nf_ct_set(skb, NULL, 0);
 		return false;
 	}
@@ -967,7 +969,8 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 
 		/* Associate skb with specified zone. */
 		if (tmpl) {
-			nf_conntrack_put(skb_nfct(skb));
+			ct = nf_ct_get(skb, &ctinfo);
+			nf_ct_put(ct);
 			nf_conntrack_get(&tmpl->ct_general);
 			nf_ct_set(skb, tmpl, IP_CT_NEW);
 		}
@@ -1045,6 +1048,8 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 			 */
 			nf_ct_set_tcp_be_liberal(ct);
 		}
+
+		nf_conn_act_ct_ext_fill(skb, ct, ctinfo);
 	}
 
 	return 0;
@@ -1245,6 +1250,8 @@ static int ovs_ct_commit(struct net *net, struct sw_flow_key *key,
 					 &info->labels.mask);
 		if (err)
 			return err;
+
+		nf_conn_act_ct_ext_add(ct);
 	} else if (IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS) &&
 		   labels_nonzero(&info->labels.mask)) {
 		err = ovs_ct_set_labels(ct, key, &info->labels.value,
@@ -1328,7 +1335,12 @@ int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 
 int ovs_ct_clear(struct sk_buff *skb, struct sw_flow_key *key)
 {
-	nf_conntrack_put(skb_nfct(skb));
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct;
+
+	ct = nf_ct_get(skb, &ctinfo);
+
+	nf_ct_put(ct);
 	nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
 	ovs_ct_fill_key(skb, key, false);
 
@@ -1716,7 +1728,6 @@ int ovs_ct_copy_action(struct net *net, const struct nlattr *attr,
 		goto err_free_ct;
 
 	__set_bit(IPS_CONFIRMED_BIT, &ct_info.ct->status);
-	nf_conntrack_get(&ct_info.ct->ct_general);
 	return 0;
 err_free_ct:
 	__ovs_ct_free_action(&ct_info);

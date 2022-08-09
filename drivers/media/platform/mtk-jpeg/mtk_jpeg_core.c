@@ -1361,10 +1361,8 @@ static int mtk_jpeg_probe(struct platform_device *pdev)
 	}
 
 	jpeg_irq = platform_get_irq(pdev, 0);
-	if (jpeg_irq < 0) {
-		dev_err(&pdev->dev, "Failed to get jpeg_irq %d.\n", jpeg_irq);
+	if (jpeg_irq < 0)
 		return jpeg_irq;
-	}
 
 	ret = devm_request_irq(&pdev->dev, jpeg_irq,
 			       jpeg->variant->irq_handler, 0, pdev->name, jpeg);

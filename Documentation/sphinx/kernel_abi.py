@@ -104,7 +104,7 @@ class KernelCmd(Directive):
         return nodeList
 
     def runCmd(self, cmd, **kwargs):
-        u"""Run command ``cmd`` and return it's stdout as unicode."""
+        u"""Run command ``cmd`` and return its stdout as unicode."""
 
         try:
             proc = subprocess.Popen(

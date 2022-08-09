@@ -324,7 +324,7 @@ static int adm1021_detect(struct i2c_client *client,
 {
 	struct i2c_adapter *adapter = client->adapter;
 	const char *type_name;
-	int conv_rate, status, config, man_id, dev_id;
+	int reg, conv_rate, status, config, man_id, dev_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		pr_debug("detect failed, smbus byte data not supported!\n");
@@ -349,9 +349,19 @@ static int adm1021_detect(struct i2c_client *client,
 	if (man_id < 0 || dev_id < 0)
 		return -ENODEV;
 
-	if (man_id == 0x4d && dev_id == 0x01)
+	if (man_id == 0x4d && dev_id == 0x01) {
+		/*
+		 * dev_id 0x01 matches MAX6680, MAX6695, MAX6696, and possibly
+		 * others. Read register which is unsupported on MAX1617 but
+		 * exists on all those chips and compare with the dev_id
+		 * register. If it matches, it may be a MAX1617A.
+		 */
+		reg = i2c_smbus_read_byte_data(client,
+					       ADM1023_REG_REM_TEMP_PREC);
+		if (reg != dev_id)
+			return -ENODEV;
 		type_name = "max1617a";
-	else if (man_id == 0x41) {
+	} else if (man_id == 0x41) {
 		if ((dev_id & 0xF0) == 0x30)
 			type_name = "adm1023";
 		else if ((dev_id & 0xF0) == 0x00)
@@ -395,13 +405,18 @@ static int adm1021_detect(struct i2c_client *client,
 
 		/*
 		 * LM84 Mfr ID is in a different place,
-		 * and it has more unused bits.
+		 * and it has more unused bits. Registers at 0xfe and 0xff
+		 * are undefined and return the most recently read value,
+		 * here the value of the configuration register.
 		 */
 		if (conv_rate == 0x00
+		    && man_id == config && dev_id == config
 		    && (config & 0x7F) == 0x00
 		    && (status & 0xAB) == 0x00) {
 			type_name = "lm84";
 		} else {
+			if ((config & 0x3f) || (status & 0x03))
+				return -ENODEV;
 			/* fail if low limits are larger than high limits */
 			if ((s8)llo > lhi || (s8)rlo > rhi)
 				return -ENODEV;

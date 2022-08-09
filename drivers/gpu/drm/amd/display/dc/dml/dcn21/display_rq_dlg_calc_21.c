@@ -1688,8 +1688,6 @@ void dml21_rq_dlg_get_dlg_reg(
 			mode_lib,
 			e2e_pipe_param,
 			num_pipes);
-	dlg_sys_param.t_srx_delay_us = mode_lib->ip.dcfclk_cstate_latency
-			/ dlg_sys_param.deepsleep_dcfclk_mhz; // TODO: Deprecated
 
 	print__dlg_sys_params_st(mode_lib, &dlg_sys_param);
 
@@ -1709,14 +1707,6 @@ void dml21_rq_dlg_get_dlg_reg(
 			cstate_en,
 			pstate_en);
 	dml_print("DML_DLG: Calculation for pipe[%d] end\n", pipe_idx);
-}
-
-void dml_rq_dlg_get_arb_params(struct display_mode_lib *mode_lib, display_arb_params_st *arb_param)
-{
-	memset(arb_param, 0, sizeof(*arb_param));
-	arb_param->max_req_outstanding = 256;
-	arb_param->min_req_outstanding = 68;
-	arb_param->sat_level_us = 60;
 }
 
 static void calculate_ttu_cursor(

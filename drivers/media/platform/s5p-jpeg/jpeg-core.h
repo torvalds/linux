@@ -142,7 +142,7 @@ struct s5p_jpeg_variant {
 	unsigned int		hw3250_compat:1;
 	unsigned int		htbl_reinit:1;
 	unsigned int		hw_ex4_compat:1;
-	struct v4l2_m2m_ops	*m2m_ops;
+	const struct v4l2_m2m_ops *m2m_ops;
 	irqreturn_t		(*jpeg_irq)(int irq, void *priv);
 	const char		*clk_names[JPEG_MAX_CLOCKS];
 	int			num_clocks;

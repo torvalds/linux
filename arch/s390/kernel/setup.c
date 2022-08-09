@@ -445,7 +445,7 @@ static void __init setup_lowcore_dat_off(void)
 	lc->lpp = LPP_MAGIC;
 	lc->machine_flags = S390_lowcore.machine_flags;
 	lc->preempt_count = S390_lowcore.preempt_count;
-	nmi_alloc_boot_cpu(lc);
+	nmi_alloc_mcesa_early(&lc->mcesad);
 	lc->sys_enter_timer = S390_lowcore.sys_enter_timer;
 	lc->exit_timer = S390_lowcore.exit_timer;
 	lc->user_timer = S390_lowcore.user_timer;
@@ -800,6 +800,8 @@ static void __init check_initrd(void)
 static void __init reserve_kernel(void)
 {
 	memblock_reserve(0, STARTUP_NORMAL_OFFSET);
+	memblock_reserve(OLDMEM_BASE, sizeof(unsigned long));
+	memblock_reserve(OLDMEM_SIZE, sizeof(unsigned long));
 	memblock_reserve(__amode31_base, __eamode31 - __samode31);
 	memblock_reserve(__pa(sclp_early_sccb), EXT_SCCB_READ_SCP);
 	memblock_reserve(__pa(_stext), _end - _stext);

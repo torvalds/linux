@@ -241,8 +241,8 @@ void test_pinning(void)
 		goto out;
 	}
 
-	map_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, sizeof(__u32),
-				sizeof(__u64), 1, 0);
+	map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL, sizeof(__u32),
+				sizeof(__u64), 1, NULL);
 	if (CHECK(map_fd < 0, "create pinmap manually", "fd %d\n", map_fd))
 		goto out;
 

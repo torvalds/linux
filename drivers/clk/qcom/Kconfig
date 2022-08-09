@@ -265,6 +265,14 @@ config MSM_MMCC_8974
 	  Say Y if you want to support multimedia devices such as display,
 	  graphics, video encode/decode, camera, etc.
 
+config MSM_GCC_8976
+	tristate "MSM8956/76 Global Clock Controller"
+	select QCOM_GDSC
+	help
+	  Support for the global clock controller on msm8956/76 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, SATA, PCIe, etc.
+
 config MSM_MMCC_8994
 	tristate "MSM8994 Multimedia Clock Controller"
 	select MSM_GCC_8994
@@ -564,6 +572,14 @@ config SM_CAMCC_8250
 	  Support for the camera clock controller on SM8250 devices.
 	  Say Y if you want to support camera devices and camera functionality.
 
+config SDX_GCC_65
+	tristate "SDX65 Global Clock Controller"
+	select QCOM_GDSC
+	help
+	  Support for the global clock controller on SDX65 devices.
+	  Say Y if you want to use peripheral devices such as UART,
+	  SPI, I2C, USB, SD/UFS, PCIe etc.
+
 config SM_DISPCC_8250
 	tristate "SM8150 and SM8250 Display Clock Controller"
 	depends on SM_GCC_8150 || SM_GCC_8250
@@ -615,6 +631,14 @@ config SM_GCC_8350
 	select QCOM_GDSC
 	help
 	  Support for the global clock controller on SM8350 devices.
+	  Say Y if you want to use peripheral devices such as UART,
+	  SPI, I2C, USB, SD/UFS, PCIe etc.
+
+config SM_GCC_8450
+	tristate "SM8450 Global Clock Controller"
+	select QCOM_GDSC
+	help
+	  Support for the global clock controller on SM8450 devices.
 	  Say Y if you want to use peripheral devices such as UART,
 	  SPI, I2C, USB, SD/UFS, PCIe etc.
 

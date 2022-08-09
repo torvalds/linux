@@ -36,8 +36,7 @@
 
 #include <linux/module.h>
 #include <linux/delay.h>
-
-#include "../comedi_pci.h"
+#include <linux/comedi/comedi_pci.h>
 
 #define ICP_MULTI_ADC_CSR	0x00	/* R/W: ADC command/status register */
 #define ICP_MULTI_ADC_CSR_ST	BIT(0)	/* Start ADC */

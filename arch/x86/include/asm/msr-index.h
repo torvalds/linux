@@ -476,6 +476,7 @@
 #define MSR_AMD64_ICIBSEXTDCTL		0xc001103c
 #define MSR_AMD64_IBSOPDATA4		0xc001103d
 #define MSR_AMD64_IBS_REG_COUNT_MAX	8 /* includes MSR_AMD64_IBSBRTARGET */
+#define MSR_AMD64_SVM_AVIC_DOORBELL	0xc001011b
 #define MSR_AMD64_VM_PAGE_FLUSH		0xc001011e
 #define MSR_AMD64_SEV_ES_GHCB		0xc0010130
 #define MSR_AMD64_SEV			0xc0010131
@@ -485,6 +486,23 @@
 #define MSR_AMD64_SEV_ES_ENABLED	BIT_ULL(MSR_AMD64_SEV_ES_ENABLED_BIT)
 
 #define MSR_AMD64_VIRT_SPEC_CTRL	0xc001011f
+
+/* AMD Collaborative Processor Performance Control MSRs */
+#define MSR_AMD_CPPC_CAP1		0xc00102b0
+#define MSR_AMD_CPPC_ENABLE		0xc00102b1
+#define MSR_AMD_CPPC_CAP2		0xc00102b2
+#define MSR_AMD_CPPC_REQ		0xc00102b3
+#define MSR_AMD_CPPC_STATUS		0xc00102b4
+
+#define AMD_CPPC_LOWEST_PERF(x)		(((x) >> 0) & 0xff)
+#define AMD_CPPC_LOWNONLIN_PERF(x)	(((x) >> 8) & 0xff)
+#define AMD_CPPC_NOMINAL_PERF(x)	(((x) >> 16) & 0xff)
+#define AMD_CPPC_HIGHEST_PERF(x)	(((x) >> 24) & 0xff)
+
+#define AMD_CPPC_MAX_PERF(x)		(((x) & 0xff) << 0)
+#define AMD_CPPC_MIN_PERF(x)		(((x) & 0xff) << 8)
+#define AMD_CPPC_DES_PERF(x)		(((x) & 0xff) << 16)
+#define AMD_CPPC_ENERGY_PERF_PREF(x)	(((x) & 0xff) << 24)
 
 /* Fam 17h MSRs */
 #define MSR_F17H_IRPERF			0xc00000e9

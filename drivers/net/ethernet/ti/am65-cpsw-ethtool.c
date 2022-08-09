@@ -453,8 +453,11 @@ static int am65_cpsw_set_channels(struct net_device *ndev,
 	return am65_cpsw_nuss_update_tx_chns(common, chs->tx_count);
 }
 
-static void am65_cpsw_get_ringparam(struct net_device *ndev,
-				    struct ethtool_ringparam *ering)
+static void
+am65_cpsw_get_ringparam(struct net_device *ndev,
+			struct ethtool_ringparam *ering,
+			struct kernel_ethtool_ringparam *kernel_ering,
+			struct netlink_ext_ack *extack)
 {
 	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
 

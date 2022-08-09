@@ -12,7 +12,6 @@ config ARCH_S5PV210
 	select CLKSRC_SAMSUNG_PWM
 	select COMMON_CLK_SAMSUNG
 	select GPIOLIB
-	select HAVE_S3C2410_I2C if I2C
 	select PINCTRL
 	select PINCTRL_EXYNOS
 	select SOC_SAMSUNG

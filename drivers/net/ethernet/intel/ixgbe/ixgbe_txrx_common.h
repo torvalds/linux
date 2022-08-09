@@ -35,8 +35,6 @@ int ixgbe_xsk_pool_setup(struct ixgbe_adapter *adapter,
 			 struct xsk_buff_pool *pool,
 			 u16 qid);
 
-void ixgbe_zca_free(struct zero_copy_allocator *alloc, unsigned long handle);
-
 bool ixgbe_alloc_rx_buffers_zc(struct ixgbe_ring *rx_ring, u16 cleaned_count);
 int ixgbe_clean_rx_irq_zc(struct ixgbe_q_vector *q_vector,
 			  struct ixgbe_ring *rx_ring,

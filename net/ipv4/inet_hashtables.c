@@ -307,7 +307,7 @@ static inline struct sock *inet_lookup_run_bpf(struct net *net,
 					       struct inet_hashinfo *hashinfo,
 					       struct sk_buff *skb, int doff,
 					       __be32 saddr, __be16 sport,
-					       __be32 daddr, u16 hnum)
+					       __be32 daddr, u16 hnum, const int dif)
 {
 	struct sock *sk, *reuse_sk;
 	bool no_reuseport;
@@ -315,8 +315,8 @@ static inline struct sock *inet_lookup_run_bpf(struct net *net,
 	if (hashinfo != &tcp_hashinfo)
 		return NULL; /* only TCP is supported */
 
-	no_reuseport = bpf_sk_lookup_run_v4(net, IPPROTO_TCP,
-					    saddr, sport, daddr, hnum, &sk);
+	no_reuseport = bpf_sk_lookup_run_v4(net, IPPROTO_TCP, saddr, sport,
+					    daddr, hnum, dif, &sk);
 	if (no_reuseport || IS_ERR_OR_NULL(sk))
 		return sk;
 
@@ -340,7 +340,7 @@ struct sock *__inet_lookup_listener(struct net *net,
 	/* Lookup redirect from BPF */
 	if (static_branch_unlikely(&bpf_sk_lookup_enabled)) {
 		result = inet_lookup_run_bpf(net, hashinfo, skb, doff,
-					     saddr, sport, daddr, hnum);
+					     saddr, sport, daddr, hnum, dif);
 		if (result)
 			goto done;
 	}

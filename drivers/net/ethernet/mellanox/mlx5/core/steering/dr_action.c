@@ -1560,6 +1560,12 @@ dr_action_modify_check_is_ttl_modify(const void *sw_action)
 	return sw_field == MLX5_ACTION_IN_FIELD_OUT_IP_TTL;
 }
 
+static bool dr_action_modify_ttl_ignore(struct mlx5dr_domain *dmn)
+{
+	return !mlx5dr_ste_supp_ttl_cs_recalc(&dmn->info.caps) &&
+	       !MLX5_CAP_ESW_FLOWTABLE(dmn->mdev, fdb_ipv4_ttl_modify);
+}
+
 static int dr_actions_convert_modify_header(struct mlx5dr_action *action,
 					    u32 max_hw_actions,
 					    u32 num_sw_actions,
@@ -1591,8 +1597,13 @@ static int dr_actions_convert_modify_header(struct mlx5dr_action *action,
 		if (ret)
 			return ret;
 
-		if (!(*modify_ttl))
-			*modify_ttl = dr_action_modify_check_is_ttl_modify(sw_action);
+		if (!(*modify_ttl) &&
+		    dr_action_modify_check_is_ttl_modify(sw_action)) {
+			if (dr_action_modify_ttl_ignore(dmn))
+				continue;
+
+			*modify_ttl = true;
+		}
 
 		/* Convert SW action to HW action */
 		ret = dr_action_modify_sw_to_hw(dmn,
@@ -1631,7 +1642,7 @@ static int dr_actions_convert_modify_header(struct mlx5dr_action *action,
 			 * modify actions doesn't exceeds the limit
 			 */
 			hw_idx++;
-			if ((num_sw_actions + hw_idx - i) >= max_hw_actions) {
+			if (hw_idx >= max_hw_actions) {
 				mlx5dr_dbg(dmn, "Modify header action number exceeds HW limit\n");
 				return -EINVAL;
 			}
@@ -1641,6 +1652,10 @@ static int dr_actions_convert_modify_header(struct mlx5dr_action *action,
 		hw_actions[hw_idx] = hw_action;
 		hw_idx++;
 	}
+
+	/* if the resulting HW actions list is empty, add NOP action */
+	if (!hw_idx)
+		hw_idx++;
 
 	*num_hw_actions = hw_idx;
 
@@ -1792,7 +1807,7 @@ mlx5dr_action_create_dest_vport(struct mlx5dr_domain *dmn,
 
 int mlx5dr_action_destroy(struct mlx5dr_action *action)
 {
-	if (refcount_read(&action->refcount) > 1)
+	if (WARN_ON_ONCE(refcount_read(&action->refcount) > 1))
 		return -EBUSY;
 
 	switch (action->action_type) {

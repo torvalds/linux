@@ -394,22 +394,15 @@ static int vmw_fb_create_bo(struct vmw_private *vmw_priv,
 	struct vmw_buffer_object *vmw_bo;
 	int ret;
 
-	vmw_bo = kmalloc(sizeof(*vmw_bo), GFP_KERNEL);
-	if (!vmw_bo) {
-		ret = -ENOMEM;
-		goto err_unlock;
-	}
-
-	ret = vmw_bo_init(vmw_priv, vmw_bo, size,
+	ret = vmw_bo_create(vmw_priv, size,
 			      &vmw_sys_placement,
 			      false, false,
-			      &vmw_bo_bo_free);
+			      &vmw_bo_bo_free, &vmw_bo);
 	if (unlikely(ret != 0))
-		goto err_unlock; /* init frees the buffer on failure */
+		return ret;
 
 	*out = vmw_bo;
 
-err_unlock:
 	return ret;
 }
 

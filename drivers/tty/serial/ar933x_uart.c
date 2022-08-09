@@ -707,11 +707,11 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 	struct ar933x_uart_port *up;
 	struct uart_port *port;
 	struct resource *mem_res;
-	struct resource *irq_res;
 	struct device_node *np;
 	unsigned int baud;
 	int id;
 	int ret;
+	int irq;
 
 	np = pdev->dev.of_node;
 	if (IS_ENABLED(CONFIG_OF) && np) {
@@ -730,11 +730,9 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 	if (id >= CONFIG_SERIAL_AR933X_NR_UARTS)
 		return -EINVAL;
 
-	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!irq_res) {
-		dev_err(&pdev->dev, "no IRQ resource\n");
-		return -EINVAL;
-	}
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	up = devm_kzalloc(&pdev->dev, sizeof(struct ar933x_uart_port),
 			  GFP_KERNEL);
@@ -766,7 +764,7 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 
 	port->mapbase = mem_res->start;
 	port->line = id;
-	port->irq = irq_res->start;
+	port->irq = irq;
 	port->dev = &pdev->dev;
 	port->type = PORT_AR933X;
 	port->iotype = UPIO_MEM32;

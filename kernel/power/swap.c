@@ -36,6 +36,8 @@
 
 #define HIBERNATE_SIG	"S1SUSPEND"
 
+u32 swsusp_hardware_signature;
+
 /*
  * When reading an {un,}compressed image, we may restore pages in place,
  * in which case some architectures need these pages cleaning before they
@@ -104,7 +106,8 @@ struct swap_map_handle {
 
 struct swsusp_header {
 	char reserved[PAGE_SIZE - 20 - sizeof(sector_t) - sizeof(int) -
-	              sizeof(u32)];
+	              sizeof(u32) - sizeof(u32)];
+	u32	hw_sig;
 	u32	crc32;
 	sector_t image;
 	unsigned int flags;	/* Flags to pass to the "boot" kernel */
@@ -312,7 +315,6 @@ static int hib_wait_io(struct hib_bio_batch *hb)
 /*
  * Saving part
  */
-
 static int mark_swapfiles(struct swap_map_handle *handle, unsigned int flags)
 {
 	int error;
@@ -324,6 +326,10 @@ static int mark_swapfiles(struct swap_map_handle *handle, unsigned int flags)
 		memcpy(swsusp_header->orig_sig,swsusp_header->sig, 10);
 		memcpy(swsusp_header->sig, HIBERNATE_SIG, 10);
 		swsusp_header->image = handle->first_sector;
+		if (swsusp_hardware_signature) {
+			swsusp_header->hw_sig = swsusp_hardware_signature;
+			flags |= SF_HW_SIG;
+		}
 		swsusp_header->flags = flags;
 		if (flags & SF_CRC32_MODE)
 			swsusp_header->crc32 = handle->crc32;
@@ -1535,6 +1541,12 @@ int swsusp_check(void)
 						swsusp_resume_block,
 						swsusp_header, NULL);
 		} else {
+			error = -EINVAL;
+		}
+		if (!error && swsusp_header->flags & SF_HW_SIG &&
+		    swsusp_header->hw_sig != swsusp_hardware_signature) {
+			pr_info("Suspend image hardware signature mismatch (%08x now %08x); aborting resume.\n",
+				swsusp_header->hw_sig, swsusp_hardware_signature);
 			error = -EINVAL;
 		}
 

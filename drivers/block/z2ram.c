@@ -327,6 +327,7 @@ static int z2ram_register_disk(int minor)
 	disk->major = Z2RAM_MAJOR;
 	disk->first_minor = minor;
 	disk->minors = 1;
+	disk->flags |= GENHD_FL_NO_PART;
 	disk->fops = &z2_fops;
 	if (minor)
 		sprintf(disk->disk_name, "z2ram%d", minor);

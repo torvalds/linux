@@ -139,13 +139,6 @@ struct cafe_camera {
  */
 #define CAFE_SMBUS_TIMEOUT (HZ)  /* generous */
 
-static inline struct cafe_camera *to_cam(struct v4l2_device *dev)
-{
-	struct mcam_camera *m = container_of(dev, struct mcam_camera, v4l2_dev);
-	return container_of(m, struct cafe_camera, mcam);
-}
-
-
 static int cafe_smbus_write_done(struct mcam_camera *mcam)
 {
 	unsigned long flags;

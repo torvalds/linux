@@ -45,8 +45,8 @@ static int mlxsw_sp2_mr_tcam_bind_group(struct mlxsw_sp *mlxsw_sp,
 }
 
 static const enum mlxsw_afk_element mlxsw_sp2_mr_tcam_usage_ipv4[] = {
-		MLXSW_AFK_ELEMENT_VIRT_ROUTER_8_10,
-		MLXSW_AFK_ELEMENT_VIRT_ROUTER_0_7,
+		MLXSW_AFK_ELEMENT_VIRT_ROUTER_MSB,
+		MLXSW_AFK_ELEMENT_VIRT_ROUTER_LSB,
 		MLXSW_AFK_ELEMENT_SRC_IP_0_31,
 		MLXSW_AFK_ELEMENT_DST_IP_0_31,
 };
@@ -89,8 +89,8 @@ static void mlxsw_sp2_mr_tcam_ipv4_fini(struct mlxsw_sp2_mr_tcam *mr_tcam)
 }
 
 static const enum mlxsw_afk_element mlxsw_sp2_mr_tcam_usage_ipv6[] = {
-		MLXSW_AFK_ELEMENT_VIRT_ROUTER_8_10,
-		MLXSW_AFK_ELEMENT_VIRT_ROUTER_0_7,
+		MLXSW_AFK_ELEMENT_VIRT_ROUTER_MSB,
+		MLXSW_AFK_ELEMENT_VIRT_ROUTER_LSB,
 		MLXSW_AFK_ELEMENT_SRC_IP_96_127,
 		MLXSW_AFK_ELEMENT_SRC_IP_64_95,
 		MLXSW_AFK_ELEMENT_SRC_IP_32_63,
@@ -189,10 +189,10 @@ mlxsw_sp2_mr_tcam_rule_parse(struct mlxsw_sp_acl_rule *rule,
 
 	rulei = mlxsw_sp_acl_rule_rulei(rule);
 	rulei->priority = priority;
-	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_VIRT_ROUTER_0_7,
+	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_VIRT_ROUTER_LSB,
 				       key->vrid, GENMASK(7, 0));
 	mlxsw_sp_acl_rulei_keymask_u32(rulei,
-				       MLXSW_AFK_ELEMENT_VIRT_ROUTER_8_10,
+				       MLXSW_AFK_ELEMENT_VIRT_ROUTER_MSB,
 				       key->vrid >> 8, GENMASK(2, 0));
 	switch (key->proto) {
 	case MLXSW_SP_L3_PROTO_IPV4:

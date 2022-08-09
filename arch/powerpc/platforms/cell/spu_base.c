@@ -387,7 +387,7 @@ spu_irq_class_2(int irq, void *data)
 	return stat ? IRQ_HANDLED : IRQ_NONE;
 }
 
-static int spu_request_irqs(struct spu *spu)
+static int __init spu_request_irqs(struct spu *spu)
 {
 	int ret = 0;
 
@@ -540,7 +540,7 @@ void spu_remove_dev_attr_group(struct attribute_group *attrs)
 }
 EXPORT_SYMBOL_GPL(spu_remove_dev_attr_group);
 
-static int spu_create_dev(struct spu *spu)
+static int __init spu_create_dev(struct spu *spu)
 {
 	int ret;
 
@@ -711,7 +711,7 @@ static void crash_kexec_stop_spus(void)
 	}
 }
 
-static void crash_register_spus(struct list_head *list)
+static void __init crash_register_spus(struct list_head *list)
 {
 	struct spu *spu;
 	int ret;

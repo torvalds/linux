@@ -85,14 +85,6 @@ static enum rdma_link_layer mlx4_ib_port_link_layer(struct ib_device *device,
 
 static struct workqueue_struct *wq;
 
-static void init_query_mad(struct ib_smp *mad)
-{
-	mad->base_version  = 1;
-	mad->mgmt_class    = IB_MGMT_CLASS_SUBN_LID_ROUTED;
-	mad->class_version = 1;
-	mad->method	   = IB_MGMT_METHOD_GET;
-}
-
 static int check_flow_steering_support(struct mlx4_dev *dev)
 {
 	int eth_num_ports = 0;
@@ -471,7 +463,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	if (!in_mad || !out_mad)
 		goto out;
 
-	init_query_mad(in_mad);
+	ib_init_query_mad(in_mad);
 	in_mad->attr_id = IB_SMP_ATTR_NODE_INFO;
 
 	err = mlx4_MAD_IFC(to_mdev(ibdev), MLX4_MAD_IFC_IGNORE_KEYS,
@@ -669,7 +661,7 @@ static int ib_link_query_port(struct ib_device *ibdev, u32 port,
 	if (!in_mad || !out_mad)
 		goto out;
 
-	init_query_mad(in_mad);
+	ib_init_query_mad(in_mad);
 	in_mad->attr_id  = IB_SMP_ATTR_PORT_INFO;
 	in_mad->attr_mod = cpu_to_be32(port);
 
@@ -721,7 +713,7 @@ static int ib_link_query_port(struct ib_device *ibdev, u32 port,
 
 	/* If reported active speed is QDR, check if is FDR-10 */
 	if (props->active_speed == IB_SPEED_QDR) {
-		init_query_mad(in_mad);
+		ib_init_query_mad(in_mad);
 		in_mad->attr_id = MLX4_ATTR_EXTENDED_PORT_INFO;
 		in_mad->attr_mod = cpu_to_be32(port);
 
@@ -848,7 +840,7 @@ int __mlx4_ib_query_gid(struct ib_device *ibdev, u32 port, int index,
 	if (!in_mad || !out_mad)
 		goto out;
 
-	init_query_mad(in_mad);
+	ib_init_query_mad(in_mad);
 	in_mad->attr_id  = IB_SMP_ATTR_PORT_INFO;
 	in_mad->attr_mod = cpu_to_be32(port);
 
@@ -870,7 +862,7 @@ int __mlx4_ib_query_gid(struct ib_device *ibdev, u32 port, int index,
 		}
 	}
 
-	init_query_mad(in_mad);
+	ib_init_query_mad(in_mad);
 	in_mad->attr_id  = IB_SMP_ATTR_GUID_INFO;
 	in_mad->attr_mod = cpu_to_be32(index / 8);
 
@@ -917,7 +909,7 @@ static int mlx4_ib_query_sl2vl(struct ib_device *ibdev, u32 port,
 	if (!in_mad || !out_mad)
 		goto out;
 
-	init_query_mad(in_mad);
+	ib_init_query_mad(in_mad);
 	in_mad->attr_id  = IB_SMP_ATTR_SL_TO_VL_TABLE;
 	in_mad->attr_mod = 0;
 
@@ -971,7 +963,7 @@ int __mlx4_ib_query_pkey(struct ib_device *ibdev, u32 port, u16 index,
 	if (!in_mad || !out_mad)
 		goto out;
 
-	init_query_mad(in_mad);
+	ib_init_query_mad(in_mad);
 	in_mad->attr_id  = IB_SMP_ATTR_PKEY_TABLE;
 	in_mad->attr_mod = cpu_to_be32(index / 32);
 
@@ -1990,7 +1982,7 @@ static int init_node_data(struct mlx4_ib_dev *dev)
 	if (!in_mad || !out_mad)
 		goto out;
 
-	init_query_mad(in_mad);
+	ib_init_query_mad(in_mad);
 	in_mad->attr_id = IB_SMP_ATTR_NODE_DESC;
 	if (mlx4_is_master(dev->dev))
 		mad_ifc_flags |= MLX4_MAD_IFC_NET_VIEW;
@@ -2784,10 +2776,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		if (err)
 			goto err_counter;
 
-		ibdev->ib_uc_qpns_bitmap =
-			kmalloc_array(BITS_TO_LONGS(ibdev->steer_qpn_count),
-				      sizeof(long),
-				      GFP_KERNEL);
+		ibdev->ib_uc_qpns_bitmap = bitmap_alloc(ibdev->steer_qpn_count,
+							GFP_KERNEL);
 		if (!ibdev->ib_uc_qpns_bitmap)
 			goto err_steer_qp_release;
 
@@ -2875,7 +2865,7 @@ err_diag_counters:
 	mlx4_ib_diag_cleanup(ibdev);
 
 err_steer_free_bitmap:
-	kfree(ibdev->ib_uc_qpns_bitmap);
+	bitmap_free(ibdev->ib_uc_qpns_bitmap);
 
 err_steer_qp_release:
 	mlx4_qp_release_range(dev, ibdev->steer_qpn_base,
@@ -2988,7 +2978,7 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 
 	mlx4_qp_release_range(dev, ibdev->steer_qpn_base,
 			      ibdev->steer_qpn_count);
-	kfree(ibdev->ib_uc_qpns_bitmap);
+	bitmap_free(ibdev->ib_uc_qpns_bitmap);
 
 	iounmap(ibdev->uar_map);
 	for (p = 0; p < ibdev->num_ports; ++p)
@@ -3247,7 +3237,7 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 	case MLX4_DEV_EVENT_PORT_MGMT_CHANGE:
 		ew = kmalloc(sizeof *ew, GFP_ATOMIC);
 		if (!ew)
-			break;
+			return;
 
 		INIT_WORK(&ew->work, handle_port_mgmt_change_event);
 		memcpy(&ew->ib_eqe, eqe, sizeof *eqe);

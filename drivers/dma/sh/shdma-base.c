@@ -115,8 +115,10 @@ static dma_cookie_t shdma_tx_submit(struct dma_async_tx_descriptor *tx)
 		ret = pm_runtime_get(schan->dev);
 
 		spin_unlock_irq(&schan->chan_lock);
-		if (ret < 0)
+		if (ret < 0) {
 			dev_err(schan->dev, "%s(): GET = %d\n", __func__, ret);
+			pm_runtime_put(schan->dev);
+		}
 
 		pm_runtime_barrier(schan->dev);
 
@@ -787,14 +789,6 @@ static int shdma_config(struct dma_chan *chan,
 		return -EINVAL;
 
 	/*
-	 * overriding the slave_id through dma_slave_config is deprecated,
-	 * but possibly some out-of-tree drivers still do it.
-	 */
-	if (WARN_ON_ONCE(config->slave_id &&
-			 config->slave_id != schan->real_slave_id))
-		schan->real_slave_id = config->slave_id;
-
-	/*
 	 * We could lock this, but you shouldn't be configuring the
 	 * channel, while using it...
 	 */
@@ -1042,9 +1036,7 @@ EXPORT_SYMBOL(shdma_cleanup);
 
 static int __init shdma_enter(void)
 {
-	shdma_slave_used = kcalloc(DIV_ROUND_UP(slave_num, BITS_PER_LONG),
-				   sizeof(long),
-				   GFP_KERNEL);
+	shdma_slave_used = bitmap_zalloc(slave_num, GFP_KERNEL);
 	if (!shdma_slave_used)
 		return -ENOMEM;
 	return 0;
@@ -1053,7 +1045,7 @@ module_init(shdma_enter);
 
 static void __exit shdma_exit(void)
 {
-	kfree(shdma_slave_used);
+	bitmap_free(shdma_slave_used);
 }
 module_exit(shdma_exit);
 

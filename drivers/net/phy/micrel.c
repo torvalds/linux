@@ -66,6 +66,19 @@
 #define KSZ8081_LMD_SHORT_INDICATOR		BIT(12)
 #define KSZ8081_LMD_DELTA_TIME_MASK		GENMASK(8, 0)
 
+/* Lan8814 general Interrupt control/status reg in GPHY specific block. */
+#define LAN8814_INTC				0x18
+#define LAN8814_INTS				0x1B
+
+#define LAN8814_INT_LINK_DOWN			BIT(2)
+#define LAN8814_INT_LINK_UP			BIT(0)
+#define LAN8814_INT_LINK			(LAN8814_INT_LINK_UP |\
+						 LAN8814_INT_LINK_DOWN)
+
+#define LAN8814_INTR_CTRL_REG			0x34
+#define LAN8814_INTR_CTRL_REG_POLARITY		BIT(1)
+#define LAN8814_INTR_CTRL_REG_INTR_ENABLE	BIT(0)
+
 /* PHY Control 1 */
 #define MII_KSZPHY_CTRL_1			0x1e
 #define KSZ8081_CTRL1_MDIX_STAT			BIT(4)
@@ -1565,6 +1578,14 @@ static int ksz886x_cable_test_get_status(struct phy_device *phydev,
 #define LAN_EXT_PAGE_ACCESS_ADDRESS_DATA		0x17
 #define LAN_EXT_PAGE_ACCESS_CTRL_EP_FUNC		0x4000
 
+#define LAN8814_QSGMII_SOFT_RESET			0x43
+#define LAN8814_QSGMII_SOFT_RESET_BIT			BIT(0)
+#define LAN8814_QSGMII_PCS1G_ANEG_CONFIG		0x13
+#define LAN8814_QSGMII_PCS1G_ANEG_CONFIG_ANEG_ENA	BIT(3)
+#define LAN8814_ALIGN_SWAP				0x4a
+#define LAN8814_ALIGN_TX_A_B_SWAP			0x1
+#define LAN8814_ALIGN_TX_A_B_SWAP_MASK			GENMASK(2, 0)
+
 #define LAN8804_ALIGN_SWAP				0x4a
 #define LAN8804_ALIGN_TX_A_B_SWAP			0x1
 #define LAN8804_ALIGN_TX_A_B_SWAP_MASK			GENMASK(2, 0)
@@ -1601,6 +1622,29 @@ static int lanphy_write_page_reg(struct phy_device *phydev, int page, u16 addr,
 	return 0;
 }
 
+static int lan8814_config_init(struct phy_device *phydev)
+{
+	int val;
+
+	/* Reset the PHY */
+	val = lanphy_read_page_reg(phydev, 4, LAN8814_QSGMII_SOFT_RESET);
+	val |= LAN8814_QSGMII_SOFT_RESET_BIT;
+	lanphy_write_page_reg(phydev, 4, LAN8814_QSGMII_SOFT_RESET, val);
+
+	/* Disable ANEG with QSGMII PCS Host side */
+	val = lanphy_read_page_reg(phydev, 5, LAN8814_QSGMII_PCS1G_ANEG_CONFIG);
+	val &= ~LAN8814_QSGMII_PCS1G_ANEG_CONFIG_ANEG_ENA;
+	lanphy_write_page_reg(phydev, 5, LAN8814_QSGMII_PCS1G_ANEG_CONFIG, val);
+
+	/* MDI-X setting for swap A,B transmit */
+	val = lanphy_read_page_reg(phydev, 2, LAN8814_ALIGN_SWAP);
+	val &= ~LAN8814_ALIGN_TX_A_B_SWAP_MASK;
+	val |= LAN8814_ALIGN_TX_A_B_SWAP;
+	lanphy_write_page_reg(phydev, 2, LAN8814_ALIGN_SWAP, val);
+
+	return 0;
+}
+
 static int lan8804_config_init(struct phy_device *phydev)
 {
 	int val;
@@ -1620,6 +1664,58 @@ static int lan8804_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static irqreturn_t lan8814_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, LAN8814_INTS);
+	if (irq_status < 0)
+		return IRQ_NONE;
+
+	if (!(irq_status & LAN8814_INT_LINK))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
+}
+
+static int lan8814_ack_interrupt(struct phy_device *phydev)
+{
+	/* bit[12..0] int status, which is a read and clear register. */
+	int rc;
+
+	rc = phy_read(phydev, LAN8814_INTS);
+
+	return (rc < 0) ? rc : 0;
+}
+
+static int lan8814_config_intr(struct phy_device *phydev)
+{
+	int err;
+
+	lanphy_write_page_reg(phydev, 4, LAN8814_INTR_CTRL_REG,
+			      LAN8814_INTR_CTRL_REG_POLARITY |
+			      LAN8814_INTR_CTRL_REG_INTR_ENABLE);
+
+	/* enable / disable interrupts */
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = lan8814_ack_interrupt(phydev);
+		if (err)
+			return err;
+
+		err =  phy_write(phydev, LAN8814_INTC, LAN8814_INT_LINK);
+	} else {
+		err =  phy_write(phydev, LAN8814_INTC, 0);
+		if (err)
+			return err;
+
+		err = lan8814_ack_interrupt(phydev);
+	}
+
+	return err;
+}
+
 static struct phy_driver ksphy_driver[] = {
 {
 	.phy_id		= PHY_ID_KS8737,
@@ -1630,8 +1726,8 @@ static struct phy_driver ksphy_driver[] = {
 	.config_init	= kszphy_config_init,
 	.config_intr	= kszphy_config_intr,
 	.handle_interrupt = kszphy_handle_interrupt,
-	.suspend	= genphy_suspend,
-	.resume		= genphy_resume,
+	.suspend	= kszphy_suspend,
+	.resume		= kszphy_resume,
 }, {
 	.phy_id		= PHY_ID_KSZ8021,
 	.phy_id_mask	= 0x00ffffff,
@@ -1645,8 +1741,8 @@ static struct phy_driver ksphy_driver[] = {
 	.get_sset_count = kszphy_get_sset_count,
 	.get_strings	= kszphy_get_strings,
 	.get_stats	= kszphy_get_stats,
-	.suspend	= genphy_suspend,
-	.resume		= genphy_resume,
+	.suspend	= kszphy_suspend,
+	.resume		= kszphy_resume,
 }, {
 	.phy_id		= PHY_ID_KSZ8031,
 	.phy_id_mask	= 0x00ffffff,
@@ -1660,8 +1756,8 @@ static struct phy_driver ksphy_driver[] = {
 	.get_sset_count = kszphy_get_sset_count,
 	.get_strings	= kszphy_get_strings,
 	.get_stats	= kszphy_get_stats,
-	.suspend	= genphy_suspend,
-	.resume		= genphy_resume,
+	.suspend	= kszphy_suspend,
+	.resume		= kszphy_resume,
 }, {
 	.phy_id		= PHY_ID_KSZ8041,
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
@@ -1692,8 +1788,8 @@ static struct phy_driver ksphy_driver[] = {
 	.get_sset_count = kszphy_get_sset_count,
 	.get_strings	= kszphy_get_strings,
 	.get_stats	= kszphy_get_stats,
-	.suspend	= genphy_suspend,
-	.resume		= genphy_resume,
+	.suspend	= kszphy_suspend,
+	.resume		= kszphy_resume,
 }, {
 	.name		= "Micrel KSZ8051",
 	/* PHY_BASIC_FEATURES */
@@ -1706,8 +1802,8 @@ static struct phy_driver ksphy_driver[] = {
 	.get_strings	= kszphy_get_strings,
 	.get_stats	= kszphy_get_stats,
 	.match_phy_device = ksz8051_match_phy_device,
-	.suspend	= genphy_suspend,
-	.resume		= genphy_resume,
+	.suspend	= kszphy_suspend,
+	.resume		= kszphy_resume,
 }, {
 	.phy_id		= PHY_ID_KSZ8001,
 	.name		= "Micrel KSZ8001 or KS8721",
@@ -1721,8 +1817,8 @@ static struct phy_driver ksphy_driver[] = {
 	.get_sset_count = kszphy_get_sset_count,
 	.get_strings	= kszphy_get_strings,
 	.get_stats	= kszphy_get_stats,
-	.suspend	= genphy_suspend,
-	.resume		= genphy_resume,
+	.suspend	= kszphy_suspend,
+	.resume		= kszphy_resume,
 }, {
 	.phy_id		= PHY_ID_KSZ8081,
 	.name		= "Micrel KSZ8081 or KSZ8091",
@@ -1752,8 +1848,8 @@ static struct phy_driver ksphy_driver[] = {
 	.config_init	= ksz8061_config_init,
 	.config_intr	= kszphy_config_intr,
 	.handle_interrupt = kszphy_handle_interrupt,
-	.suspend	= genphy_suspend,
-	.resume		= genphy_resume,
+	.suspend	= kszphy_suspend,
+	.resume		= kszphy_resume,
 }, {
 	.phy_id		= PHY_ID_KSZ9021,
 	.phy_id_mask	= 0x000ffffe,
@@ -1768,8 +1864,8 @@ static struct phy_driver ksphy_driver[] = {
 	.get_sset_count = kszphy_get_sset_count,
 	.get_strings	= kszphy_get_strings,
 	.get_stats	= kszphy_get_stats,
-	.suspend	= genphy_suspend,
-	.resume		= genphy_resume,
+	.suspend	= kszphy_suspend,
+	.resume		= kszphy_resume,
 	.read_mmd	= genphy_read_mmd_unsupported,
 	.write_mmd	= genphy_write_mmd_unsupported,
 }, {
@@ -1787,12 +1883,13 @@ static struct phy_driver ksphy_driver[] = {
 	.get_sset_count = kszphy_get_sset_count,
 	.get_strings	= kszphy_get_strings,
 	.get_stats	= kszphy_get_stats,
-	.suspend	= genphy_suspend,
+	.suspend	= kszphy_suspend,
 	.resume		= kszphy_resume,
 }, {
 	.phy_id		= PHY_ID_LAN8814,
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.name		= "Microchip INDY Gigabit Quad PHY",
+	.config_init	= lan8814_config_init,
 	.driver_data	= &ksz9021_type,
 	.probe		= kszphy_probe,
 	.soft_reset	= genphy_soft_reset,
@@ -1802,6 +1899,8 @@ static struct phy_driver ksphy_driver[] = {
 	.get_stats	= kszphy_get_stats,
 	.suspend	= genphy_suspend,
 	.resume		= kszphy_resume,
+	.config_intr	= lan8814_config_intr,
+	.handle_interrupt = lan8814_handle_interrupt,
 }, {
 	.phy_id		= PHY_ID_LAN8804,
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
@@ -1829,7 +1928,7 @@ static struct phy_driver ksphy_driver[] = {
 	.get_sset_count = kszphy_get_sset_count,
 	.get_strings	= kszphy_get_strings,
 	.get_stats	= kszphy_get_stats,
-	.suspend	= genphy_suspend,
+	.suspend	= kszphy_suspend,
 	.resume		= kszphy_resume,
 }, {
 	.phy_id		= PHY_ID_KSZ8873MLL,

@@ -53,16 +53,6 @@ static struct attribute *mmc_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(mmc_dev);
 
-/*
- * This currently matches any MMC driver to any MMC card - drivers
- * themselves make the decision whether to drive this card in their
- * probe method.
- */
-static int mmc_bus_match(struct device *dev, struct device_driver *drv)
-{
-	return 1;
-}
-
 static int
 mmc_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
@@ -226,7 +216,6 @@ static const struct dev_pm_ops mmc_bus_pm_ops = {
 static struct bus_type mmc_bus_type = {
 	.name		= "mmc",
 	.dev_groups	= mmc_dev_groups,
-	.match		= mmc_bus_match,
 	.uevent		= mmc_bus_uevent,
 	.probe		= mmc_bus_probe,
 	.remove		= mmc_bus_remove,

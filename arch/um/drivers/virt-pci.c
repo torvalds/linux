@@ -181,15 +181,15 @@ static unsigned long um_pci_cfgspace_read(void *priv, unsigned int offset,
 	/* buf->data is maximum size - we may only use parts of it */
 	struct um_pci_message_buffer *buf;
 	u8 *data;
-	unsigned long ret = ~0ULL;
+	unsigned long ret = ULONG_MAX;
 
 	if (!dev)
-		return ~0ULL;
+		return ULONG_MAX;
 
 	buf = get_cpu_var(um_pci_msg_bufs);
 	data = buf->data;
 
-	memset(data, 0xff, sizeof(data));
+	memset(buf->data, 0xff, sizeof(buf->data));
 
 	switch (size) {
 	case 1:
@@ -304,7 +304,7 @@ static unsigned long um_pci_bar_read(void *priv, unsigned int offset,
 	/* buf->data is maximum size - we may only use parts of it */
 	struct um_pci_message_buffer *buf;
 	u8 *data;
-	unsigned long ret = ~0ULL;
+	unsigned long ret = ULONG_MAX;
 
 	buf = get_cpu_var(um_pci_msg_bufs);
 	data = buf->data;
@@ -616,7 +616,7 @@ static void um_pci_virtio_remove(struct virtio_device *vdev)
 	int i;
 
         /* Stop all virtqueues */
-        vdev->config->reset(vdev);
+        virtio_reset_device(vdev);
         vdev->config->del_vqs(vdev);
 
 	device_set_wakeup_enable(&vdev->dev, false);

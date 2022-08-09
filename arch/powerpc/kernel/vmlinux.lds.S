@@ -322,10 +322,6 @@ SECTIONS
 #ifdef CONFIG_PPC32
 	.data : AT(ADDR(.data) - LOAD_OFFSET) {
 		DATA_DATA
-#ifdef CONFIG_UBSAN
-		*(.data..Lubsan_data*)
-		*(.data..Lubsan_type*)
-#endif
 		*(.data.rel*)
 		*(SDATA_MAIN)
 		*(.sdata2)
@@ -336,24 +332,18 @@ SECTIONS
 #else
 	.data : AT(ADDR(.data) - LOAD_OFFSET) {
 		DATA_DATA
-#ifdef CONFIG_UBSAN
-		*(.data..Lubsan_data*)
-		*(.data..Lubsan_type*)
-#endif
 		*(.data.rel*)
 		*(.toc1)
 		*(.branch_lt)
 	}
 
-	. = ALIGN(256);
-	.got : AT(ADDR(.got) - LOAD_OFFSET) {
-		__toc_start = .;
+	.got : AT(ADDR(.got) - LOAD_OFFSET) ALIGN(256) {
+		*(.got)
 #ifndef CONFIG_RELOCATABLE
 		__prom_init_toc_start = .;
-		arch/powerpc/kernel/prom_init.o*(.toc .got)
+		arch/powerpc/kernel/prom_init.o*(.toc)
 		__prom_init_toc_end = .;
 #endif
-		*(.got)
 		*(.toc)
 	}
 #endif

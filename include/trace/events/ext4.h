@@ -2837,6 +2837,29 @@ TRACE_EVENT(ext4_fc_track_range,
 		      __entry->end)
 	);
 
+TRACE_EVENT(ext4_update_sb,
+	TP_PROTO(struct super_block *sb, ext4_fsblk_t fsblk,
+		 unsigned int flags),
+
+	TP_ARGS(sb, fsblk, flags),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev)
+		__field(ext4_fsblk_t,	fsblk)
+		__field(unsigned int,	flags)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= sb->s_dev;
+		__entry->fsblk	= fsblk;
+		__entry->flags	= flags;
+	),
+
+	TP_printk("dev %d,%d fsblk %llu flags %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->fsblk, __entry->flags)
+);
+
 #endif /* _TRACE_EXT4_H */
 
 /* This part must be outside protection */

@@ -301,9 +301,6 @@ void gfs2_glock_queue_put(struct gfs2_glock *gl)
 
 void gfs2_glock_put(struct gfs2_glock *gl)
 {
-	/* last put could call sleepable dlm api */
-	might_sleep();
-
 	if (lockref_put_or_lock(&gl->gl_lockref))
 		return;
 
@@ -477,7 +474,7 @@ find_first_strong_holder(struct gfs2_glock *gl)
 
 /*
  * gfs2_instantiate - Call the glops instantiate function
- * @gl: The glock
+ * @gh: The glock holder
  *
  * Returns: 0 if instantiate was successful, 2 if type specific operation is
  * underway, or error.
@@ -1245,7 +1242,7 @@ out:
 }
 
 /**
- * gfs2_holder_init - initialize a struct gfs2_holder in the default way
+ * __gfs2_holder_init - initialize a struct gfs2_holder in the default way
  * @gl: the glock
  * @state: the state we're requesting
  * @flags: the modifier flags

@@ -602,7 +602,7 @@ static int dsi_phy_enable_resource(struct msm_dsi_phy *phy)
 static void dsi_phy_disable_resource(struct msm_dsi_phy *phy)
 {
 	clk_disable_unprepare(phy->ahb_clk);
-	pm_runtime_put_autosuspend(&phy->pdev->dev);
+	pm_runtime_put(&phy->pdev->dev);
 }
 
 static const struct of_device_id dsi_phy_dt_match[] = {
@@ -808,11 +808,13 @@ int msm_dsi_phy_enable(struct msm_dsi_phy *phy,
 			struct msm_dsi_phy_clk_request *clk_req,
 			struct msm_dsi_phy_shared_timings *shared_timings)
 {
-	struct device *dev = &phy->pdev->dev;
+	struct device *dev;
 	int ret;
 
 	if (!phy || !phy->cfg->ops.enable)
 		return -EINVAL;
+
+	dev = &phy->pdev->dev;
 
 	ret = dsi_phy_enable_resource(phy);
 	if (ret) {
@@ -890,17 +892,6 @@ bool msm_dsi_phy_set_continuous_clock(struct msm_dsi_phy *phy, bool enable)
 		return false;
 
 	return phy->cfg->ops.set_continuous_clock(phy, enable);
-}
-
-int msm_dsi_phy_get_clk_provider(struct msm_dsi_phy *phy,
-	struct clk **byte_clk_provider, struct clk **pixel_clk_provider)
-{
-	if (byte_clk_provider)
-		*byte_clk_provider = phy->provided_clocks->hws[DSI_BYTE_PLL_CLK]->clk;
-	if (pixel_clk_provider)
-		*pixel_clk_provider = phy->provided_clocks->hws[DSI_PIXEL_PLL_CLK]->clk;
-
-	return 0;
 }
 
 void msm_dsi_phy_pll_save_state(struct msm_dsi_phy *phy)

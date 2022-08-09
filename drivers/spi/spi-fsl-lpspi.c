@@ -913,7 +913,7 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	ret = devm_spi_register_controller(&pdev->dev, controller);
 	if (ret < 0) {
 		dev_err_probe(&pdev->dev, ret, "spi_register_controller error: %i\n", ret);
-		goto out_pm_get;
+		goto free_dma;
 	}
 
 	pm_runtime_mark_last_busy(fsl_lpspi->dev);
@@ -921,6 +921,8 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 
 	return 0;
 
+free_dma:
+	fsl_lpspi_dma_exit(controller);
 out_pm_get:
 	pm_runtime_dont_use_autosuspend(fsl_lpspi->dev);
 	pm_runtime_put_sync(fsl_lpspi->dev);
@@ -936,6 +938,8 @@ static int fsl_lpspi_remove(struct platform_device *pdev)
 	struct spi_controller *controller = platform_get_drvdata(pdev);
 	struct fsl_lpspi_data *fsl_lpspi =
 				spi_controller_get_devdata(controller);
+
+	fsl_lpspi_dma_exit(controller);
 
 	pm_runtime_disable(fsl_lpspi->dev);
 	return 0;

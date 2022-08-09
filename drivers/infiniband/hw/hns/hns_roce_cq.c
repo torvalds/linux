@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-#include <linux/platform_device.h>
 #include <rdma/ib_umem.h>
 #include <rdma/uverbs_ioctl.h>
 #include "hns_roce_device.h"
@@ -406,15 +405,6 @@ int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
 		goto err_cqn;
 	}
 
-	/*
-	 * For the QP created by kernel space, tptr value should be initialized
-	 * to zero; For the QP created by user space, it will cause synchronous
-	 * problems if tptr is set to zero here, so we initialize it in user
-	 * space.
-	 */
-	if (!udata && hr_cq->tptr_addr)
-		*hr_cq->tptr_addr = 0;
-
 	if (udata) {
 		resp.cqn = hr_cq->cqn;
 		ret = ib_copy_to_udata(udata, &resp,
@@ -440,9 +430,6 @@ int hns_roce_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_cq->device);
 	struct hns_roce_cq *hr_cq = to_hr_cq(ib_cq);
-
-	if (hr_dev->hw->destroy_cq)
-		hr_dev->hw->destroy_cq(ib_cq, udata);
 
 	free_cqc(hr_dev, hr_cq);
 	free_cqn(hr_dev, hr_cq->cqn);

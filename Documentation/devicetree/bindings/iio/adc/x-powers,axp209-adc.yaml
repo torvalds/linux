@@ -27,6 +27,7 @@ description: |
    8 | batt_v
    9 | batt_chrg_i
   10 | batt_dischrg_i
+  11 | ts_v
 
   AXP22x
   ------
@@ -34,6 +35,7 @@ description: |
    1 | batt_v
    2 | batt_chrg_i
    3 | batt_dischrg_i
+   4 | ts_v
 
   AXP813
   ------
@@ -42,6 +44,7 @@ description: |
    2 | batt_v
    3 | batt_chrg_i
    4 | batt_dischrg_i
+   5 | ts_v
 
 
 properties:

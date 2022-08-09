@@ -114,7 +114,7 @@ static void ixp4xx_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct ixp4xx_pata *ixpp = ap->host->private_data;
 
-	ata_dev_printk(adev, KERN_INFO, "configured for PIO%d 8bit\n",
+	ata_dev_info(adev, "configured for PIO%d 8bit\n",
 		       adev->pio_mode - XFER_PIO_0);
 	ixp4xx_set_8bit_timing(ixpp, adev->pio_mode);
 }
@@ -132,8 +132,8 @@ static unsigned int ixp4xx_mmio_data_xfer(struct ata_queued_cmd *qc,
 	struct ixp4xx_pata *ixpp = ap->host->private_data;
 	unsigned long flags;
 
-	ata_dev_printk(adev, KERN_DEBUG, "%s %d bytes\n", (rw == READ) ? "READ" : "WRITE",
-		       buflen);
+	ata_dev_dbg(adev, "%s %d bytes\n", (rw == READ) ? "READ" : "WRITE",
+		    buflen);
 	spin_lock_irqsave(ap->lock, flags);
 
 	/* set the expansion bus in 16bit mode and restore

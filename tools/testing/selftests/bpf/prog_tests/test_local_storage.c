@@ -28,10 +28,6 @@ static unsigned int duration;
 struct storage {
 	void *inode;
 	unsigned int value;
-	/* Lock ensures that spin locked versions of local stoage operations
-	 * also work, most operations in this tests are still single threaded
-	 */
-	struct bpf_spin_lock lock;
 };
 
 /* Fork and exec the provided rm binary and return the exit code of the
@@ -66,27 +62,24 @@ static int run_self_unlink(int *monitored_pid, const char *rm_path)
 
 static bool check_syscall_operations(int map_fd, int obj_fd)
 {
-	struct storage val = { .value = TEST_STORAGE_VALUE, .lock = { 0 } },
-		       lookup_val = { .value = 0, .lock = { 0 } };
+	struct storage val = { .value = TEST_STORAGE_VALUE },
+		       lookup_val = { .value = 0 };
 	int err;
 
 	/* Looking up an existing element should fail initially */
-	err = bpf_map_lookup_elem_flags(map_fd, &obj_fd, &lookup_val,
-					BPF_F_LOCK);
+	err = bpf_map_lookup_elem_flags(map_fd, &obj_fd, &lookup_val, 0);
 	if (CHECK(!err || errno != ENOENT, "bpf_map_lookup_elem",
 		  "err:%d errno:%d\n", err, errno))
 		return false;
 
 	/* Create a new element */
-	err = bpf_map_update_elem(map_fd, &obj_fd, &val,
-				  BPF_NOEXIST | BPF_F_LOCK);
+	err = bpf_map_update_elem(map_fd, &obj_fd, &val, BPF_NOEXIST);
 	if (CHECK(err < 0, "bpf_map_update_elem", "err:%d errno:%d\n", err,
 		  errno))
 		return false;
 
 	/* Lookup the newly created element */
-	err = bpf_map_lookup_elem_flags(map_fd, &obj_fd, &lookup_val,
-					BPF_F_LOCK);
+	err = bpf_map_lookup_elem_flags(map_fd, &obj_fd, &lookup_val, 0);
 	if (CHECK(err < 0, "bpf_map_lookup_elem", "err:%d errno:%d", err,
 		  errno))
 		return false;
@@ -102,8 +95,7 @@ static bool check_syscall_operations(int map_fd, int obj_fd)
 		return false;
 
 	/* The lookup should fail, now that the element has been deleted */
-	err = bpf_map_lookup_elem_flags(map_fd, &obj_fd, &lookup_val,
-					BPF_F_LOCK);
+	err = bpf_map_lookup_elem_flags(map_fd, &obj_fd, &lookup_val, 0);
 	if (CHECK(!err || errno != ENOENT, "bpf_map_lookup_elem",
 		  "err:%d errno:%d\n", err, errno))
 		return false;

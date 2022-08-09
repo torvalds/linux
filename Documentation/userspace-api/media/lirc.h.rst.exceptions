@@ -33,6 +33,7 @@ ignore define LIRC_CAN_SET_REC_DUTY_CYCLE
 # Obsolete ioctls
 
 ignore ioctl LIRC_GET_LENGTH
+ignore ioctl LIRC_SET_REC_TIMEOUT_REPORTS
 
 # rc protocols
 
@@ -73,6 +74,7 @@ ignore define PULSE_MASK
 
 ignore define LIRC_MODE2_SPACE
 ignore define LIRC_MODE2_PULSE
+ignore define LIRC_MODE2_TIMEOUT
 
 ignore define LIRC_VALUE_MASK
 ignore define LIRC_MODE2_MASK

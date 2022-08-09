@@ -78,6 +78,12 @@
 
 #define smnPCIE_ESM_CTRL			0x111003D0
 
+/*
+ * SMU support ECCTABLE since version 68.42.0,
+ * use this to check ECCTALE feature whether support
+ */
+#define SUPPORT_ECCTABLE_SMU_VERSION 0x00442a00
+
 static const struct smu_temperature_range smu13_thermal_policy[] =
 {
 	{-273150,  99000, 99000, -273150, 99000, 99000, -273150, 99000, 99000},
@@ -135,6 +141,7 @@ static const struct cmn2asic_msg_mapping aldebaran_message_map[SMU_MSG_MAX_COUNT
 	MSG_MAP(SetUclkDpmMode,			     PPSMC_MSG_SetUclkDpmMode,			0),
 	MSG_MAP(GfxDriverResetRecovery,		     PPSMC_MSG_GfxDriverResetRecovery,		0),
 	MSG_MAP(BoardPowerCalibration,		     PPSMC_MSG_BoardPowerCalibration,		0),
+	MSG_MAP(HeavySBR,                            PPSMC_MSG_HeavySBR,                        0),
 };
 
 static const struct cmn2asic_mapping aldebaran_clk_map[SMU_CLK_COUNT] = {
@@ -190,6 +197,7 @@ static const struct cmn2asic_mapping aldebaran_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP(SMU_METRICS),
 	TAB_MAP(DRIVER_SMU_CONFIG),
 	TAB_MAP(I2C_COMMANDS),
+	TAB_MAP(ECCINFO),
 };
 
 static const uint8_t aldebaran_throttler_map[] = {
@@ -223,6 +231,9 @@ static int aldebaran_tables_init(struct smu_context *smu)
 	SMU_TABLE_INIT(tables, SMU_TABLE_I2C_COMMANDS, sizeof(SwI2cRequest_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
+	SMU_TABLE_INIT(tables, SMU_TABLE_ECCINFO, sizeof(EccInfoTable_t),
+		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+
 	smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
 	if (!smu_table->metrics_table)
 		return -ENOMEM;
@@ -234,6 +245,10 @@ static int aldebaran_tables_init(struct smu_context *smu)
 		kfree(smu_table->metrics_table);
 		return -ENOMEM;
 	}
+
+	smu_table->ecc_table = kzalloc(tables[SMU_TABLE_ECCINFO].size, GFP_KERNEL);
+	if (!smu_table->ecc_table)
+		return -ENOMEM;
 
 	return 0;
 }
@@ -247,16 +262,6 @@ static int aldebaran_allocate_dpm_context(struct smu_context *smu)
 	if (!smu_dpm->dpm_context)
 		return -ENOMEM;
 	smu_dpm->dpm_context_size = sizeof(struct smu_13_0_dpm_context);
-
-	smu_dpm->dpm_current_power_state = kzalloc(sizeof(struct smu_power_state),
-						   GFP_KERNEL);
-	if (!smu_dpm->dpm_current_power_state)
-		return -ENOMEM;
-
-	smu_dpm->dpm_request_power_state = kzalloc(sizeof(struct smu_power_state),
-						   GFP_KERNEL);
-	if (!smu_dpm->dpm_request_power_state)
-		return -ENOMEM;
 
 	return 0;
 }
@@ -1601,7 +1606,8 @@ out_unlock:
 	mutex_unlock(&smu->metrics_lock);
 
 	adev->unique_id = ((uint64_t)upper32 << 32) | lower32;
-	sprintf(adev->serial, "%016llx", adev->unique_id);
+	if (adev->serial[0] == '\0')
+		sprintf(adev->serial, "%016llx", adev->unique_id);
 }
 
 static bool aldebaran_is_baco_supported(struct smu_context *smu)
@@ -1619,10 +1625,18 @@ static int aldebaran_set_df_cstate(struct smu_context *smu,
 
 static int aldebaran_allow_xgmi_power_down(struct smu_context *smu, bool en)
 {
-	return smu_cmn_send_smc_msg_with_param(smu,
-					       SMU_MSG_GmiPwrDnControl,
-					       en ? 0 : 1,
-					       NULL);
+	struct amdgpu_device *adev = smu->adev;
+
+	/* The message only works on master die and NACK will be sent
+	   back for other dies, only send it on master die */
+	if (!adev->smuio.funcs->get_socket_id(adev) &&
+	    !adev->smuio.funcs->get_die_id(adev))
+		return smu_cmn_send_smc_msg_with_param(smu,
+				   SMU_MSG_GmiPwrDnControl,
+				   en ? 0 : 1,
+				   NULL);
+	else
+		return 0;
 }
 
 static const struct throttling_logging_label {
@@ -1765,6 +1779,98 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 	return sizeof(struct gpu_metrics_v1_3);
 }
 
+static int aldebaran_check_ecc_table_support(struct smu_context *smu)
+{
+	uint32_t if_version = 0xff, smu_version = 0xff;
+	int ret = 0;
+
+	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
+	if (ret) {
+		/* return not support if failed get smu_version */
+		ret = -EOPNOTSUPP;
+	}
+
+	if (smu_version < SUPPORT_ECCTABLE_SMU_VERSION)
+		ret = -EOPNOTSUPP;
+
+	return ret;
+}
+
+static ssize_t aldebaran_get_ecc_info(struct smu_context *smu,
+					 void *table)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	EccInfoTable_t *ecc_table = NULL;
+	struct ecc_info_per_ch *ecc_info_per_channel = NULL;
+	int i, ret = 0;
+	struct umc_ecc_info *eccinfo = (struct umc_ecc_info *)table;
+
+	ret = aldebaran_check_ecc_table_support(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_cmn_update_table(smu,
+			       SMU_TABLE_ECCINFO,
+			       0,
+			       smu_table->ecc_table,
+			       false);
+	if (ret) {
+		dev_info(smu->adev->dev, "Failed to export SMU ecc table!\n");
+		return ret;
+	}
+
+	ecc_table = (EccInfoTable_t *)smu_table->ecc_table;
+
+	for (i = 0; i < ALDEBARAN_UMC_CHANNEL_NUM; i++) {
+		ecc_info_per_channel = &(eccinfo->ecc[i]);
+		ecc_info_per_channel->ce_count_lo_chip =
+			ecc_table->EccInfo[i].ce_count_lo_chip;
+		ecc_info_per_channel->ce_count_hi_chip =
+			ecc_table->EccInfo[i].ce_count_hi_chip;
+		ecc_info_per_channel->mca_umc_status =
+			ecc_table->EccInfo[i].mca_umc_status;
+		ecc_info_per_channel->mca_umc_addr =
+			ecc_table->EccInfo[i].mca_umc_addr;
+	}
+
+	return ret;
+}
+
+static int aldebaran_mode1_reset(struct smu_context *smu)
+{
+	u32 smu_version, fatal_err, param;
+	int ret = 0;
+	struct amdgpu_device *adev = smu->adev;
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	fatal_err = 0;
+	param = SMU_RESET_MODE_1;
+
+	/*
+	* PM FW support SMU_MSG_GfxDeviceDriverReset from 68.07
+	*/
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+	if (smu_version < 0x00440700) {
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_Mode1Reset, NULL);
+	}
+	else {
+		/* fatal error triggered by ras, PMFW supports the flag
+		   from 68.44.0 */
+		if ((smu_version >= 0x00442c00) && ras &&
+		    atomic_read(&ras->in_recovery))
+			fatal_err = 1;
+
+		param |= (fatal_err << 16);
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+					SMU_MSG_GfxDeviceDriverReset, param, NULL);
+	}
+
+	if (!ret)
+		msleep(SMU13_MODE1_RESET_WAIT_TIME_IN_MS);
+
+	return ret;
+}
+
 static int aldebaran_mode2_reset(struct smu_context *smu)
 {
 	u32 smu_version;
@@ -1812,6 +1918,14 @@ static int aldebaran_mode2_reset(struct smu_context *smu)
 		ret = 0;
 out:
 	mutex_unlock(&smu->message_lock);
+
+	return ret;
+}
+
+static int aldebaran_smu_handle_passthrough_sbr(struct smu_context *smu, bool enable)
+{
+	int ret = 0;
+	ret =  smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_HeavySBR, enable ? 1 : 0, NULL);
 
 	return ret;
 }
@@ -1925,13 +2039,15 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.get_gpu_metrics = aldebaran_get_gpu_metrics,
 	.mode1_reset_is_support = aldebaran_is_mode1_reset_supported,
 	.mode2_reset_is_support = aldebaran_is_mode2_reset_supported,
-	.mode1_reset = smu_v13_0_mode1_reset,
+	.smu_handle_passthrough_sbr = aldebaran_smu_handle_passthrough_sbr,
+	.mode1_reset = aldebaran_mode1_reset,
 	.set_mp1_state = aldebaran_set_mp1_state,
 	.mode2_reset = aldebaran_mode2_reset,
 	.wait_for_event = smu_v13_0_wait_for_event,
 	.i2c_init = aldebaran_i2c_control_init,
 	.i2c_fini = aldebaran_i2c_control_fini,
 	.send_hbm_bad_pages_num = aldebaran_smu_send_hbm_bad_page_num,
+	.get_ecc_info = aldebaran_get_ecc_info,
 };
 
 void aldebaran_set_ppt_funcs(struct smu_context *smu)

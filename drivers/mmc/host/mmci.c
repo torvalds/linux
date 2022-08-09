@@ -280,7 +280,7 @@ static struct variant_data variant_stm32_sdmmc = {
 static struct variant_data variant_stm32_sdmmcv2 = {
 	.fifosize		= 16 * 4,
 	.fifohalfsize		= 8 * 4,
-	.f_max			= 208000000,
+	.f_max			= 267000000,
 	.stm32_clkdiv		= true,
 	.cmdreg_cpsm_enable	= MCI_CPSM_STM32_ENABLE,
 	.cmdreg_lrsp_crc	= MCI_CPSM_STM32_LRSP_CRC,
@@ -2432,6 +2432,11 @@ static const struct amba_id mmci_ids[] = {
 	},
 	{
 		.id     = 0x00253180,
+		.mask	= 0xf0ffffff,
+		.data	= &variant_stm32_sdmmcv2,
+	},
+	{
+		.id     = 0x20253180,
 		.mask	= 0xf0ffffff,
 		.data	= &variant_stm32_sdmmcv2,
 	},

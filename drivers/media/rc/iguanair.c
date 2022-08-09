@@ -262,9 +262,6 @@ static int iguanair_receiver(struct iguanair *ir, bool enable)
 	ir->packet->header.direction = DIR_OUT;
 	ir->packet->header.cmd = enable ? CMD_RECEIVER_ON : CMD_RECEIVER_OFF;
 
-	if (enable)
-		ir_raw_event_reset(ir->rc);
-
 	return iguanair_send(ir, sizeof(ir->packet->header));
 }
 

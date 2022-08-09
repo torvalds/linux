@@ -1241,20 +1241,13 @@ char *bitmap_list_string(char *buf, char *end, unsigned long *bitmap,
 			 struct printf_spec spec, const char *fmt)
 {
 	int nr_bits = max_t(int, spec.field_width, 0);
-	/* current bit is 'cur', most recently seen range is [rbot, rtop] */
-	int cur, rbot, rtop;
 	bool first = true;
+	int rbot, rtop;
 
 	if (check_pointer(&buf, end, bitmap, spec))
 		return buf;
 
-	rbot = cur = find_first_bit(bitmap, nr_bits);
-	while (cur < nr_bits) {
-		rtop = cur;
-		cur = find_next_bit(bitmap, nr_bits, cur + 1);
-		if (cur < nr_bits && cur <= rtop + 1)
-			continue;
-
+	for_each_set_bitrange(rbot, rtop, bitmap, nr_bits) {
 		if (!first) {
 			if (buf < end)
 				*buf = ',';
@@ -1263,15 +1256,12 @@ char *bitmap_list_string(char *buf, char *end, unsigned long *bitmap,
 		first = false;
 
 		buf = number(buf, end, rbot, default_dec_spec);
-		if (rbot < rtop) {
-			if (buf < end)
-				*buf = '-';
-			buf++;
+		if (rtop == rbot + 1)
+			continue;
 
-			buf = number(buf, end, rtop, default_dec_spec);
-		}
-
-		rbot = cur;
+		if (buf < end)
+			*buf = '-';
+		buf = number(++buf, end, rtop - 1, default_dec_spec);
 	}
 	return buf;
 }
@@ -3564,7 +3554,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 				++fmt;
 
 			for ( ; *fmt && *fmt != ']'; ++fmt, ++len)
-				set_bit((u8)*fmt, set);
+				__set_bit((u8)*fmt, set);
 
 			/* no ']' or no character set found */
 			if (!*fmt || !len)
@@ -3574,7 +3564,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 			if (negate) {
 				bitmap_complement(set, set, 256);
 				/* exclude null '\0' byte */
-				clear_bit(0, set);
+				__clear_bit(0, set);
 			}
 
 			/* match must be non-empty */

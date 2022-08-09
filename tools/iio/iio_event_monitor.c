@@ -279,6 +279,7 @@ static void print_event(struct iio_event_data *event)
 		printf(", direction: %s", iio_ev_dir_text[dir]);
 
 	printf("\n");
+	fflush(stdout);
 }
 
 /* Enable or disable events in sysfs if the knob is available */

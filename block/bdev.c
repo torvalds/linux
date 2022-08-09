@@ -24,7 +24,6 @@
 #include <linux/pseudo_fs.h>
 #include <linux/uio.h>
 #include <linux/namei.h>
-#include <linux/cleancache.h>
 #include <linux/part_stat.h>
 #include <linux/uaccess.h>
 #include "../fs/internal.h"
@@ -88,10 +87,6 @@ void invalidate_bdev(struct block_device *bdev)
 		lru_add_drain_all();	/* make sure all lru add caches are flushed */
 		invalidate_mapping_pages(mapping, 0, -1);
 	}
-	/* 99% of the time, we don't need to flush the cleancache on the bdev.
-	 * But, for the strange corners, lets be cautious
-	 */
-	cleancache_invalidate_inode(mapping);
 }
 EXPORT_SYMBOL(invalidate_bdev);
 
@@ -665,7 +660,7 @@ static void blkdev_flush_mapping(struct block_device *bdev)
 static int blkdev_get_whole(struct block_device *bdev, fmode_t mode)
 {
 	struct gendisk *disk = bdev->bd_disk;
-	int ret = 0;
+	int ret;
 
 	if (disk->fops->open) {
 		ret = disk->fops->open(bdev, mode);
@@ -750,14 +745,6 @@ struct block_device *blkdev_get_no_open(dev_t dev)
 	if (!kobject_get_unless_zero(&bdev->bd_device.kobj))
 		bdev = NULL;
 	iput(inode);
-
-	if (!bdev)
-		return NULL;
-	if ((bdev->bd_disk->flags & GENHD_FL_HIDDEN)) {
-		put_device(&bdev->bd_device);
-		return NULL;
-	}
-
 	return bdev;
 }
 
@@ -837,7 +824,7 @@ struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder)
 		 * used in blkdev_get/put().
 		 */
 		if ((mode & FMODE_WRITE) && !bdev->bd_write_holder &&
-		    (disk->flags & GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE)) {
+		    (disk->event_flags & DISK_EVENT_FLAG_BLOCK_ON_EXCL_WRITE)) {
 			bdev->bd_write_holder = true;
 			unblock_events = false;
 		}
@@ -963,15 +950,15 @@ void blkdev_put(struct block_device *bdev, fmode_t mode)
 EXPORT_SYMBOL(blkdev_put);
 
 /**
- * lookup_bdev  - lookup a struct block_device by name
- * @pathname:	special file representing the block device
- * @dev:	return value of the block device's dev_t
+ * lookup_bdev() - Look up a struct block_device by name.
+ * @pathname: Name of the block device in the filesystem.
+ * @dev: Pointer to the block device's dev_t, if found.
  *
  * Lookup the block device's dev_t at @pathname in the current
- * namespace if possible and return it by @dev.
+ * namespace if possible and return it in @dev.
  *
- * RETURNS:
- * 0 if succeeded, errno otherwise.
+ * Context: May sleep.
+ * Return: 0 if succeeded, negative errno otherwise.
  */
 int lookup_bdev(const char *pathname, dev_t *dev)
 {

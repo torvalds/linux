@@ -890,7 +890,9 @@ static int set_pauseparam(struct net_device *dev,
 	return 0;
 }
 
-static void get_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
+static void get_sge_param(struct net_device *dev, struct ethtool_ringparam *e,
+			  struct kernel_ethtool_ringparam *kernel_e,
+			  struct netlink_ext_ack *extack)
 {
 	const struct port_info *pi = netdev_priv(dev);
 	const struct sge *s = &pi->adapter->sge;
@@ -906,7 +908,9 @@ static void get_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 	e->tx_pending = s->ethtxq[pi->first_qset].q.size;
 }
 
-static int set_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
+static int set_sge_param(struct net_device *dev, struct ethtool_ringparam *e,
+			 struct kernel_ethtool_ringparam *kernel_e,
+			 struct netlink_ext_ack *extack)
 {
 	int i;
 	const struct port_info *pi = netdev_priv(dev);
@@ -1989,6 +1993,15 @@ static int get_dump_data(struct net_device *dev, struct ethtool_dump *eth_dump,
 	return 0;
 }
 
+static bool cxgb4_fw_mod_type_info_available(unsigned int fw_mod_type)
+{
+	/* Read port module EEPROM as long as it is plugged-in and
+	 * safe to read.
+	 */
+	return (fw_mod_type != FW_PORT_MOD_TYPE_NONE &&
+		fw_mod_type != FW_PORT_MOD_TYPE_ERROR);
+}
+
 static int cxgb4_get_module_info(struct net_device *dev,
 				 struct ethtool_modinfo *modinfo)
 {
@@ -1997,7 +2010,7 @@ static int cxgb4_get_module_info(struct net_device *dev,
 	struct adapter *adapter = pi->adapter;
 	int ret;
 
-	if (!t4_is_inserted_mod_type(pi->mod_type))
+	if (!cxgb4_fw_mod_type_info_available(pi->mod_type))
 		return -EINVAL;
 
 	switch (pi->port_type) {

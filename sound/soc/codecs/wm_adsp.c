@@ -401,7 +401,7 @@ static int wm_coeff_put(struct snd_kcontrol *kctl,
 	int ret = 0;
 
 	mutex_lock(&cs_ctl->dsp->pwr_lock);
-	ret = cs_dsp_coeff_write_ctrl(cs_ctl, p, cs_ctl->len);
+	ret = cs_dsp_coeff_write_ctrl(cs_ctl, 0, p, cs_ctl->len);
 	mutex_unlock(&cs_ctl->dsp->pwr_lock);
 
 	return ret;
@@ -421,7 +421,7 @@ static int wm_coeff_tlv_put(struct snd_kcontrol *kctl,
 	if (copy_from_user(cs_ctl->cache, bytes, size))
 		ret = -EFAULT;
 	else
-		ret = cs_dsp_coeff_write_ctrl(cs_ctl, cs_ctl->cache, size);
+		ret = cs_dsp_coeff_write_ctrl(cs_ctl, 0, cs_ctl->cache, size);
 
 	mutex_unlock(&cs_ctl->dsp->pwr_lock);
 
@@ -464,7 +464,7 @@ static int wm_coeff_get(struct snd_kcontrol *kctl,
 	int ret;
 
 	mutex_lock(&cs_ctl->dsp->pwr_lock);
-	ret = cs_dsp_coeff_read_ctrl(cs_ctl, p, cs_ctl->len);
+	ret = cs_dsp_coeff_read_ctrl(cs_ctl, 0, p, cs_ctl->len);
 	mutex_unlock(&cs_ctl->dsp->pwr_lock);
 
 	return ret;
@@ -481,7 +481,7 @@ static int wm_coeff_tlv_get(struct snd_kcontrol *kctl,
 
 	mutex_lock(&cs_ctl->dsp->pwr_lock);
 
-	ret = cs_dsp_coeff_read_ctrl(cs_ctl, cs_ctl->cache, size);
+	ret = cs_dsp_coeff_read_ctrl(cs_ctl, 0, cs_ctl->cache, size);
 
 	if (!ret && copy_to_user(bytes, cs_ctl->cache, size))
 		ret = -EFAULT;
@@ -537,15 +537,20 @@ static unsigned int wmfw_convert_flags(unsigned int in, unsigned int len)
 	return out;
 }
 
-static int wmfw_add_ctl(struct wm_adsp *dsp, struct wm_coeff_ctl *ctl)
+static void wm_adsp_ctl_work(struct work_struct *work)
 {
+	struct wm_coeff_ctl *ctl = container_of(work,
+						struct wm_coeff_ctl,
+						work);
 	struct cs_dsp_coeff_ctl *cs_ctl = ctl->cs_ctl;
+	struct wm_adsp *dsp = container_of(cs_ctl->dsp,
+					   struct wm_adsp,
+					   cs_dsp);
 	struct snd_kcontrol_new *kcontrol;
-	int ret;
 
 	kcontrol = kzalloc(sizeof(*kcontrol), GFP_KERNEL);
 	if (!kcontrol)
-		return -ENOMEM;
+		return;
 
 	kcontrol->name = ctl->name;
 	kcontrol->info = wm_coeff_info;
@@ -571,29 +576,9 @@ static int wmfw_add_ctl(struct wm_adsp *dsp, struct wm_coeff_ctl *ctl)
 		break;
 	}
 
-	ret = snd_soc_add_component_controls(dsp->component, kcontrol, 1);
-	if (ret < 0)
-		goto err_kcontrol;
+	snd_soc_add_component_controls(dsp->component, kcontrol, 1);
 
 	kfree(kcontrol);
-
-	return 0;
-
-err_kcontrol:
-	kfree(kcontrol);
-	return ret;
-}
-
-static void wm_adsp_ctl_work(struct work_struct *work)
-{
-	struct wm_coeff_ctl *ctl = container_of(work,
-						struct wm_coeff_ctl,
-						work);
-	struct wm_adsp *dsp = container_of(ctl->cs_ctl->dsp,
-					   struct wm_adsp,
-					   cs_dsp);
-
-	wmfw_add_ctl(dsp, ctl);
 }
 
 static int wm_adsp_control_add(struct cs_dsp_coeff_ctl *cs_ctl)
@@ -700,7 +685,7 @@ int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name, int type,
 	if (len > cs_ctl->len)
 		return -EINVAL;
 
-	ret = cs_dsp_coeff_write_ctrl(cs_ctl, buf, len);
+	ret = cs_dsp_coeff_write_ctrl(cs_ctl, 0, buf, len);
 	if (ret)
 		return ret;
 
@@ -739,7 +724,7 @@ int wm_adsp_read_ctl(struct wm_adsp *dsp, const char *name, int type,
 	if (len > cs_ctl->len)
 		return -EINVAL;
 
-	return cs_dsp_coeff_read_ctrl(cs_ctl, buf, len);
+	return cs_dsp_coeff_read_ctrl(cs_ctl, 0, buf, len);
 }
 EXPORT_SYMBOL_GPL(wm_adsp_read_ctl);
 
@@ -911,11 +896,12 @@ int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 	struct wm_adsp *dsp = &dsps[mc->shift - 1];
 	char preload[32];
 
+	if (dsp->preloaded == ucontrol->value.integer.value[0])
+		return 0;
+
 	snprintf(preload, ARRAY_SIZE(preload), "%s Preload", dsp->cs_dsp.name);
 
-	dsp->preloaded = ucontrol->value.integer.value[0];
-
-	if (ucontrol->value.integer.value[0])
+	if (ucontrol->value.integer.value[0] || dsp->toggle_preload)
 		snd_soc_component_force_enable_pin(component, preload);
 	else
 		snd_soc_component_disable_pin(component, preload);
@@ -923,6 +909,13 @@ int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 	snd_soc_dapm_sync(dapm);
 
 	flush_work(&dsp->boot_work);
+
+	dsp->preloaded = ucontrol->value.integer.value[0];
+
+	if (dsp->toggle_preload) {
+		snd_soc_component_disable_pin(component, preload);
+		snd_soc_dapm_sync(dapm);
+	}
 
 	return 0;
 }
@@ -1448,7 +1441,8 @@ static int wm_adsp_buffer_parse_coeff(struct cs_dsp_coeff_ctl *cs_ctl)
 	int ret, i;
 
 	for (i = 0; i < 5; ++i) {
-		ret = cs_dsp_coeff_read_ctrl(cs_ctl, &coeff_v1, sizeof(coeff_v1));
+		ret = cs_dsp_coeff_read_ctrl(cs_ctl, 0, &coeff_v1,
+					     min(cs_ctl->len, sizeof(coeff_v1)));
 		if (ret < 0)
 			return ret;
 

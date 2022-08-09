@@ -76,7 +76,7 @@ static int spear_ohci_hcd_drv_probe(struct platform_device *pdev)
 		goto err_put_hcd;
 	}
 
-	hcd->rsrc_start = pdev->resource[0].start;
+	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
 
 	sohci_p = to_spear_ohci(hcd);

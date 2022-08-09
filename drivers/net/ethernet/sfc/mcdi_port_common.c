@@ -71,7 +71,6 @@ int efx_mcdi_set_link(struct efx_nic *efx, u32 capabilities,
 		      u32 flags, u32 loopback_mode, u32 loopback_speed)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_SET_LINK_IN_LEN);
-	int rc;
 
 	BUILD_BUG_ON(MC_CMD_SET_LINK_OUT_LEN != 0);
 
@@ -80,9 +79,8 @@ int efx_mcdi_set_link(struct efx_nic *efx, u32 capabilities,
 	MCDI_SET_DWORD(inbuf, SET_LINK_IN_LOOPBACK_MODE, loopback_mode);
 	MCDI_SET_DWORD(inbuf, SET_LINK_IN_LOOPBACK_SPEED, loopback_speed);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_SET_LINK, inbuf, sizeof(inbuf),
+	return efx_mcdi_rpc(efx, MC_CMD_SET_LINK, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL);
-	return rc;
 }
 
 int efx_mcdi_loopback_modes(struct efx_nic *efx, u64 *loopback_modes)

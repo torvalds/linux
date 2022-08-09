@@ -95,6 +95,10 @@
 	rts-gpios = <&gpio7 13 GPIO_ACTIVE_HIGH>; /* GPIO P */
 };
 
+&usbh1 {
+	disable-over-current;
+};
+
 &usdhc2 { /* SD card */
 	status = "okay";
 };

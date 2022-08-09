@@ -6,6 +6,7 @@
  * Copyright IBM Corp. 2018
  */
 
+#include <linux/if_vlan.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>

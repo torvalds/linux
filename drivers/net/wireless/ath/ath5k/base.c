@@ -727,6 +727,43 @@ ath5k_get_rate_hw_value(const struct ieee80211_hw *hw,
 	return hw_rate;
 }
 
+static bool ath5k_merge_ratetbl(struct ieee80211_sta *sta,
+				struct ath5k_buf *bf,
+				struct ieee80211_tx_info *tx_info)
+{
+	struct ieee80211_sta_rates *ratetbl;
+	u8 i;
+
+	if (!sta)
+		return false;
+
+	ratetbl = rcu_dereference(sta->rates);
+	if (!ratetbl)
+		return false;
+
+	if (tx_info->control.rates[0].idx < 0 ||
+	    tx_info->control.rates[0].count == 0)
+	{
+		i = 0;
+	} else {
+		bf->rates[0] = tx_info->control.rates[0];
+		i = 1;
+	}
+
+	for ( ; i < IEEE80211_TX_MAX_RATES; i++) {
+		bf->rates[i].idx = ratetbl->rate[i].idx;
+		bf->rates[i].flags = ratetbl->rate[i].flags;
+		if (tx_info->control.use_rts)
+			bf->rates[i].count = ratetbl->rate[i].count_rts;
+		else if (tx_info->control.use_cts_prot)
+			bf->rates[i].count = ratetbl->rate[i].count_cts;
+		else
+			bf->rates[i].count = ratetbl->rate[i].count;
+	}
+
+	return true;
+}
+
 static int
 ath5k_txbuf_setup(struct ath5k_hw *ah, struct ath5k_buf *bf,
 		  struct ath5k_txq *txq, int padsize,
@@ -737,6 +774,7 @@ ath5k_txbuf_setup(struct ath5k_hw *ah, struct ath5k_buf *bf,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	unsigned int pktlen, flags, keyidx = AR5K_TXKEYIX_INVALID;
 	struct ieee80211_rate *rate;
+	struct ieee80211_sta *sta;
 	unsigned int mrr_rate[3], mrr_tries[3];
 	int i, ret;
 	u16 hw_rate;
@@ -753,8 +791,16 @@ ath5k_txbuf_setup(struct ath5k_hw *ah, struct ath5k_buf *bf,
 	if (dma_mapping_error(ah->dev, bf->skbaddr))
 		return -ENOSPC;
 
-	ieee80211_get_tx_rates(info->control.vif, (control) ? control->sta : NULL, skb, bf->rates,
-			       ARRAY_SIZE(bf->rates));
+	if (control)
+		sta = control->sta;
+	else
+		sta = NULL;
+
+	if (!ath5k_merge_ratetbl(sta, bf, info)) {
+		ieee80211_get_tx_rates(info->control.vif,
+				       sta, skb, bf->rates,
+				       ARRAY_SIZE(bf->rates));
+	}
 
 	rate = ath5k_get_rate(ah->hw, info, bf, 0);
 

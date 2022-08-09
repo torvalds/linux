@@ -37,7 +37,7 @@ static const struct of_device_id iproc_pcie_of_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, iproc_pcie_of_match_table);
 
-static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
+static int iproc_pltfm_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct iproc_pcie *pcie;
@@ -115,30 +115,30 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int iproc_pcie_pltfm_remove(struct platform_device *pdev)
+static int iproc_pltfm_pcie_remove(struct platform_device *pdev)
 {
 	struct iproc_pcie *pcie = platform_get_drvdata(pdev);
 
 	return iproc_pcie_remove(pcie);
 }
 
-static void iproc_pcie_pltfm_shutdown(struct platform_device *pdev)
+static void iproc_pltfm_pcie_shutdown(struct platform_device *pdev)
 {
 	struct iproc_pcie *pcie = platform_get_drvdata(pdev);
 
 	iproc_pcie_shutdown(pcie);
 }
 
-static struct platform_driver iproc_pcie_pltfm_driver = {
+static struct platform_driver iproc_pltfm_pcie_driver = {
 	.driver = {
 		.name = "iproc-pcie",
 		.of_match_table = of_match_ptr(iproc_pcie_of_match_table),
 	},
-	.probe = iproc_pcie_pltfm_probe,
-	.remove = iproc_pcie_pltfm_remove,
-	.shutdown = iproc_pcie_pltfm_shutdown,
+	.probe = iproc_pltfm_pcie_probe,
+	.remove = iproc_pltfm_pcie_remove,
+	.shutdown = iproc_pltfm_pcie_shutdown,
 };
-module_platform_driver(iproc_pcie_pltfm_driver);
+module_platform_driver(iproc_pltfm_pcie_driver);
 
 MODULE_AUTHOR("Ray Jui <rjui@broadcom.com>");
 MODULE_DESCRIPTION("Broadcom iPROC PCIe platform driver");

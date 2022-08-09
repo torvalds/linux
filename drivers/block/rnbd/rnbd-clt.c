@@ -196,7 +196,7 @@ rnbd_get_cpu_qlist(struct rnbd_clt_session *sess, int cpu)
 		return per_cpu_ptr(sess->cpu_queues, bit);
 	} else if (cpu != 0) {
 		/* Search from 0 to cpu */
-		bit = find_next_bit(sess->cpu_queues_bm, cpu, 0);
+		bit = find_first_bit(sess->cpu_queues_bm, cpu);
 		if (bit < cpu)
 			return per_cpu_ptr(sess->cpu_queues, bit);
 	}
@@ -393,7 +393,7 @@ static void rnbd_put_iu(struct rnbd_clt_session *sess, struct rnbd_iu *iu)
 
 static void rnbd_softirq_done_fn(struct request *rq)
 {
-	struct rnbd_clt_dev *dev	= rq->rq_disk->private_data;
+	struct rnbd_clt_dev *dev	= rq->q->disk->private_data;
 	struct rnbd_clt_session *sess	= dev->sess;
 	struct rnbd_iu *iu;
 
@@ -433,7 +433,7 @@ static void msg_conf(void *priv, int errno)
 	schedule_work(&iu->work);
 }
 
-static int send_usr_msg(struct rtrs_clt *rtrs, int dir,
+static int send_usr_msg(struct rtrs_clt_sess *rtrs, int dir,
 			struct rnbd_iu *iu, struct kvec *vec,
 			size_t len, struct scatterlist *sg, unsigned int sg_len,
 			void (*conf)(struct work_struct *work),
@@ -1010,7 +1010,7 @@ static int rnbd_client_xfer_request(struct rnbd_clt_dev *dev,
 				     struct request *rq,
 				     struct rnbd_iu *iu)
 {
-	struct rtrs_clt *rtrs = dev->sess->rtrs;
+	struct rtrs_clt_sess *rtrs = dev->sess->rtrs;
 	struct rtrs_permit *permit = iu->permit;
 	struct rnbd_msg_io msg;
 	struct rtrs_clt_req_ops req_ops;
@@ -1133,7 +1133,7 @@ static blk_status_t rnbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 				   const struct blk_mq_queue_data *bd)
 {
 	struct request *rq = bd->rq;
-	struct rnbd_clt_dev *dev = rq->rq_disk->private_data;
+	struct rnbd_clt_dev *dev = rq->q->disk->private_data;
 	struct rnbd_iu *iu = blk_mq_rq_to_pdu(rq);
 	int err;
 	blk_status_t ret = BLK_STS_IOERR;

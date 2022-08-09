@@ -11,6 +11,7 @@ menuconfig ACPI
 	depends on ARCH_SUPPORTS_ACPI
 	select PNP
 	select NLS
+	select CRC32
 	default y if X86
 	help
 	  Advanced Configuration and Power Interface (ACPI) support for 
@@ -57,6 +58,9 @@ config ACPI_SYSTEM_POWER_STATES_SUPPORT
 	bool
 
 config ACPI_CCA_REQUIRED
+	bool
+
+config ACPI_TABLE_LIB
 	bool
 
 config ACPI_DEBUGGER
@@ -517,12 +521,51 @@ config ACPI_CONFIGFS
 	  userspace. The configurable ACPI groups will be visible under
 	  /config/acpi, assuming configfs is mounted under /config.
 
+config ACPI_PFRUT
+	tristate "ACPI Platform Firmware Runtime Update and Telemetry"
+	depends on 64BIT
+	help
+	  This mechanism allows certain pieces of the platform firmware
+	  to be updated on the fly while the system is running (runtime)
+	  without the need to restart it, which is key in the cases when
+	  the system needs to be available 100% of the time and it cannot
+	  afford the downtime related to restarting it, or when the work
+	  carried out by the system is particularly important, so it cannot
+	  be interrupted, and it is not practical to wait until it is complete.
+
+	  The existing firmware code can be modified (driver update) or
+	  extended by adding new code to the firmware (code injection).
+
+	  Besides, the telemetry driver allows user space to fetch telemetry
+	  data from the firmware with the help of the Platform Firmware Runtime
+	  Telemetry interface.
+
+	  To compile the drivers as modules, choose M here:
+	  the modules will be called pfr_update and pfr_telemetry.
+
 if ARM64
 source "drivers/acpi/arm64/Kconfig"
 
 config ACPI_PPTT
 	bool
 endif
+
+config ACPI_PCC
+	bool "ACPI PCC Address Space"
+	depends on PCC
+	default y
+	help
+	  The PCC Address Space also referred as PCC Operation Region pertains
+	  to the region of PCC subspace that succeeds the PCC signature.
+
+	  The PCC Operation Region works in conjunction with the PCC Table
+	  (Platform Communications Channel Table). PCC subspaces that are
+	  marked for use as PCC Operation Regions must not be used as PCC
+	  subspaces for the standard ACPI features such as CPPC, RASF, PDTT and
+	  MPST. These standard features must always use the PCC Table instead.
+
+	  Enable this feature if you want to set up and install the PCC Address
+	  Space handler to handle PCC OpRegion in the firmware.
 
 source "drivers/acpi/pmic/Kconfig"
 

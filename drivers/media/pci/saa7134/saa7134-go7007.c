@@ -56,11 +56,6 @@ struct saa7134_go7007 {
 	dma_addr_t bottom_dma;
 };
 
-static inline struct saa7134_go7007 *to_state(struct v4l2_subdev *sd)
-{
-	return container_of(sd, struct saa7134_go7007, sd);
-}
-
 static const struct go7007_board_info board_voyager = {
 	.flags		 = 0,
 	.sensor_flags	 = GO7007_SENSOR_656 |
@@ -385,7 +380,7 @@ MODULE_FIRMWARE("go7007/go7007tv.bin");
 static int saa7134_go7007_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 {
 #if 0
-	struct saa7134_go7007 *saa = to_state(sd);
+	struct saa7134_go7007 *saa = container_of(sd, struct saa7134_go7007, sd);
 	struct saa7134_dev *dev = saa->dev;
 
 	return saa7134_s_std_internal(dev, NULL, norm);

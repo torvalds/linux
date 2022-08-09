@@ -573,8 +573,8 @@ static int vlan_dev_init(struct net_device *dev)
 			   NETIF_F_ALL_FCOE;
 
 	dev->features |= dev->hw_features | NETIF_F_LLTX;
-	dev->gso_max_size = real_dev->gso_max_size;
-	dev->gso_max_segs = real_dev->gso_max_segs;
+	netif_set_gso_max_size(dev, real_dev->gso_max_size);
+	netif_set_gso_max_segs(dev, real_dev->gso_max_segs);
 	if (dev->features & NETIF_F_VLAN_FEATURES)
 		netdev_warn(real_dev, "VLAN features are set incorrectly.  Q-in-Q configurations may not work correctly.\n");
 
@@ -616,13 +616,13 @@ static int vlan_dev_init(struct net_device *dev)
 		return -ENOMEM;
 
 	/* Get vlan's reference to real_dev */
-	dev_hold(real_dev);
+	dev_hold_track(real_dev, &vlan->dev_tracker, GFP_KERNEL);
 
 	return 0;
 }
 
 /* Note: this function might be called multiple times for the same device. */
-void vlan_dev_uninit(struct net_device *dev)
+void vlan_dev_free_egress_priority(const struct net_device *dev)
 {
 	struct vlan_priority_tci_mapping *pm;
 	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
@@ -634,6 +634,16 @@ void vlan_dev_uninit(struct net_device *dev)
 			kfree(pm);
 		}
 	}
+}
+
+static void vlan_dev_uninit(struct net_device *dev)
+{
+	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
+
+	vlan_dev_free_egress_priority(dev);
+
+	/* Get rid of the vlan's reference to real_dev */
+	dev_put_track(vlan->real_dev, &vlan->dev_tracker);
 }
 
 static netdev_features_t vlan_dev_fix_features(struct net_device *dev,
@@ -846,9 +856,6 @@ static void vlan_dev_free(struct net_device *dev)
 
 	free_percpu(vlan->vlan_pcpu_stats);
 	vlan->vlan_pcpu_stats = NULL;
-
-	/* Get rid of the vlan's reference to real_dev */
-	dev_put(vlan->real_dev);
 }
 
 void vlan_setup(struct net_device *dev)

@@ -12,7 +12,6 @@
 #include <linux/writeback.h>
 #include <linux/pagevec.h>
 #include <linux/prefetch.h>
-#include <linux/cleancache.h>
 #include <linux/fsverity.h>
 #include "misc.h"
 #include "extent_io.h"
@@ -2314,8 +2313,8 @@ static int repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 	ASSERT(!(fs_info->sb->s_flags & SB_RDONLY));
 	BUG_ON(!mirror_num);
 
-	if (btrfs_is_zoned(fs_info))
-		return btrfs_repair_one_zone(fs_info, logical);
+	if (btrfs_repair_one_zone(fs_info, logical))
+		return 0;
 
 	bio = btrfs_bio_alloc(1);
 	bio->bi_iter.bi_size = 0;
@@ -3087,9 +3086,6 @@ static void end_bio_extent_readpage(struct bio *bio)
 			set_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags);
 			eb->read_mirror = mirror;
 			atomic_dec(&eb->io_pages);
-			if (test_and_clear_bit(EXTENT_BUFFER_READAHEAD,
-					       &eb->bflags))
-				btree_readahead_hook(eb, -EIO);
 		}
 readpage_ok:
 		if (likely(uptodate)) {
@@ -3187,13 +3183,12 @@ struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size)
 /**
  * Attempt to add a page to bio
  *
- * @bio:	destination bio
+ * @bio_ctrl:	record both the bio, and its bio_flags
  * @page:	page to add to the bio
  * @disk_bytenr:  offset of the new bio or to check whether we are adding
  *                a contiguous page to the previous one
- * @pg_offset:	starting offset in the page
  * @size:	portion of page that we want to write
- * @prev_bio_flags:  flags of previous bio to see if we can merge the current one
+ * @pg_offset:	starting offset in the page
  * @bio_flags:	flags of the current bio to see if we can merge them
  *
  * Attempt to add a page to bio considering stripe alignment etc.
@@ -3283,8 +3278,7 @@ static int calc_bio_boundaries(struct btrfs_bio_ctrl *bio_ctrl,
 	else
 		bio_ctrl->len_to_stripe_boundary = (u32)geom.len;
 
-	if (!btrfs_is_zoned(fs_info) ||
-	    bio_op(bio_ctrl->bio) != REQ_OP_ZONE_APPEND) {
+	if (bio_op(bio_ctrl->bio) != REQ_OP_ZONE_APPEND) {
 		bio_ctrl->len_to_oe_boundary = U32_MAX;
 		return 0;
 	}
@@ -3339,7 +3333,7 @@ static int alloc_new_bio(struct btrfs_inode *inode,
 		bio_set_dev(bio, bdev);
 		wbc_init_bio(wbc, bio);
 	}
-	if (btrfs_is_zoned(fs_info) && bio_op(bio) == REQ_OP_ZONE_APPEND) {
+	if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
 		struct btrfs_device *device;
 
 		device = btrfs_zoned_get_device(fs_info, disk_bytenr,
@@ -3583,15 +3577,6 @@ int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 		goto out;
 	}
 
-	if (!PageUptodate(page)) {
-		if (cleancache_get_page(page) == 0) {
-			BUG_ON(blocksize != PAGE_SIZE);
-			unlock_extent(tree, start, end);
-			unlock_page(page);
-			goto out;
-		}
-	}
-
 	if (page->index == last_byte >> PAGE_SHIFT) {
 		size_t zero_offset = offset_in_page(last_byte);
 
@@ -3785,12 +3770,13 @@ static void update_nr_written(struct writeback_control *wbc,
  * This returns < 0 if there were errors (page still locked)
  */
 static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
-		struct page *page, struct writeback_control *wbc,
-		unsigned long *nr_written)
+		struct page *page, struct writeback_control *wbc)
 {
 	const u64 page_end = page_offset(page) + PAGE_SIZE - 1;
 	u64 delalloc_start = page_offset(page);
 	u64 delalloc_to_write = 0;
+	/* How many pages are started by btrfs_run_delalloc_range() */
+	unsigned long nr_written = 0;
 	int ret;
 	int page_started = 0;
 
@@ -3806,7 +3792,7 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 			continue;
 		}
 		ret = btrfs_run_delalloc_range(inode, page, delalloc_start,
-				delalloc_end, &page_started, nr_written, wbc);
+				delalloc_end, &page_started, &nr_written, wbc);
 		if (ret) {
 			btrfs_page_set_error(inode->root->fs_info, page,
 					     page_offset(page), PAGE_SIZE);
@@ -3829,16 +3815,13 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 					 thresh);
 	}
 
-	/* did the fill delalloc function already unlock and start
-	 * the IO?
-	 */
+	/* Did btrfs_run_dealloc_range() already unlock and start the IO? */
 	if (page_started) {
 		/*
-		 * we've unlocked the page, so we can't update
-		 * the mapping's writeback index, just update
-		 * nr_to_write.
+		 * We've unlocked the page, so we can't update the mapping's
+		 * writeback index, just update nr_to_write.
 		 */
-		wbc->nr_to_write -= *nr_written;
+		wbc->nr_to_write -= nr_written;
 		return 1;
 	}
 
@@ -3910,7 +3893,6 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 				 struct writeback_control *wbc,
 				 struct extent_page_data *epd,
 				 loff_t i_size,
-				 unsigned long nr_written,
 				 int *nr_ret)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
@@ -3929,7 +3911,6 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 	if (ret) {
 		/* Fixup worker will requeue */
 		redirty_page_for_writepage(wbc, page);
-		update_nr_written(wbc, nr_written);
 		unlock_page(page);
 		return 1;
 	}
@@ -3938,7 +3919,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 	 * we don't want to touch the inode after unlocking the page,
 	 * so we update the mapping writeback index now
 	 */
-	update_nr_written(wbc, nr_written + 1);
+	update_nr_written(wbc, 1);
 
 	while (cur <= end) {
 		u64 disk_bytenr;
@@ -4076,7 +4057,6 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	size_t pg_offset;
 	loff_t i_size = i_size_read(inode);
 	unsigned long end_index = i_size >> PAGE_SHIFT;
-	unsigned long nr_written = 0;
 
 	trace___extent_writepage(page, inode, wbc);
 
@@ -4105,7 +4085,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	}
 
 	if (!epd->extent_locked) {
-		ret = writepage_delalloc(BTRFS_I(inode), page, wbc, &nr_written);
+		ret = writepage_delalloc(BTRFS_I(inode), page, wbc);
 		if (ret == 1)
 			return 0;
 		if (ret)
@@ -4113,7 +4093,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	}
 
 	ret = __extent_writepage_io(BTRFS_I(inode), page, wbc, epd, i_size,
-				    nr_written, &nr);
+				    &nr);
 	if (ret == 1)
 		return 0;
 
@@ -5189,8 +5169,6 @@ int extent_writepages(struct address_space *mapping,
 		      struct writeback_control *wbc)
 {
 	struct inode *inode = mapping->host;
-	const bool data_reloc = btrfs_is_data_reloc_root(BTRFS_I(inode)->root);
-	const bool zoned = btrfs_is_zoned(BTRFS_I(inode)->root->fs_info);
 	int ret = 0;
 	struct extent_page_data epd = {
 		.bio_ctrl = { 0 },
@@ -5202,11 +5180,9 @@ int extent_writepages(struct address_space *mapping,
 	 * Allow only a single thread to do the reloc work in zoned mode to
 	 * protect the write pointer updates.
 	 */
-	if (data_reloc && zoned)
-		btrfs_inode_lock(inode, 0);
+	btrfs_zoned_data_reloc_lock(BTRFS_I(inode));
 	ret = extent_write_cache_pages(mapping, wbc, &epd);
-	if (data_reloc && zoned)
-		btrfs_inode_unlock(inode, 0);
+	btrfs_zoned_data_reloc_unlock(BTRFS_I(inode));
 	ASSERT(ret <= 0);
 	if (ret < 0) {
 		end_write_bio(&epd, ret);
@@ -6865,14 +6841,24 @@ static void assert_eb_page_uptodate(const struct extent_buffer *eb,
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 
+	/*
+	 * If we are using the commit root we could potentially clear a page
+	 * Uptodate while we're using the extent buffer that we've previously
+	 * looked up.  We don't want to complain in this case, as the page was
+	 * valid before, we just didn't write it out.  Instead we want to catch
+	 * the case where we didn't actually read the block properly, which
+	 * would have !PageUptodate && !PageError, as we clear PageError before
+	 * reading.
+	 */
 	if (fs_info->sectorsize < PAGE_SIZE) {
-		bool uptodate;
+		bool uptodate, error;
 
 		uptodate = btrfs_subpage_test_uptodate(fs_info, page,
 						       eb->start, eb->len);
-		WARN_ON(!uptodate);
+		error = btrfs_subpage_test_error(fs_info, page, eb->start, eb->len);
+		WARN_ON(!uptodate && !error);
 	} else {
-		WARN_ON(!PageUptodate(page));
+		WARN_ON(!PageUptodate(page) && !PageError(page));
 	}
 }
 

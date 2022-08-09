@@ -26,10 +26,14 @@ intel_int0002_vgpio-y			:= int0002_vgpio.o
 obj-$(CONFIG_INTEL_INT0002_VGPIO)	+= intel_int0002_vgpio.o
 intel_oaktrail-y			:= oaktrail.o
 obj-$(CONFIG_INTEL_OAKTRAIL)		+= intel_oaktrail.o
+intel_vsec-y				:= vsec.o
+obj-$(CONFIG_INTEL_VSEC)		+= intel_vsec.o
 
 # Intel PMIC / PMC / P-Unit drivers
 intel_bxtwc_tmu-y			:= bxtwc_tmu.o
 obj-$(CONFIG_INTEL_BXTWC_PMIC_TMU)	+= intel_bxtwc_tmu.o
+intel_crystal_cove_charger-y		:= crystal_cove_charger.o
+obj-$(CONFIG_X86_ANDROID_TABLETS)	+= intel_crystal_cove_charger.o
 intel_chtdc_ti_pwrbtn-y			:= chtdc_ti_pwrbtn.o
 obj-$(CONFIG_INTEL_CHTDC_TI_PWRBTN)	+= intel_chtdc_ti_pwrbtn.o
 intel_mrfld_pwrbtn-y			:= mrfld_pwrbtn.o

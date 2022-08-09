@@ -35,17 +35,17 @@ static inline int psn_compare(u32 psn_a, u32 psn_b)
 
 struct rxe_ucontext {
 	struct ib_ucontext ibuc;
-	struct rxe_pool_entry	pelem;
+	struct rxe_pool_elem	elem;
 };
 
 struct rxe_pd {
 	struct ib_pd            ibpd;
-	struct rxe_pool_entry	pelem;
+	struct rxe_pool_elem	elem;
 };
 
 struct rxe_ah {
 	struct ib_ah		ibah;
-	struct rxe_pool_entry	pelem;
+	struct rxe_pool_elem	elem;
 	struct rxe_av		av;
 	bool			is_user;
 	int			ah_num;
@@ -60,7 +60,7 @@ struct rxe_cqe {
 
 struct rxe_cq {
 	struct ib_cq		ibcq;
-	struct rxe_pool_entry	pelem;
+	struct rxe_pool_elem	elem;
 	struct rxe_queue	*queue;
 	spinlock_t		cq_lock;
 	u8			notify;
@@ -95,7 +95,7 @@ struct rxe_rq {
 
 struct rxe_srq {
 	struct ib_srq		ibsrq;
-	struct rxe_pool_entry	pelem;
+	struct rxe_pool_elem	elem;
 	struct rxe_pd		*pd;
 	struct rxe_rq		rq;
 	u32			srq_num;
@@ -209,7 +209,7 @@ struct rxe_resp_info {
 
 struct rxe_qp {
 	struct ib_qp		ibqp;
-	struct rxe_pool_entry	pelem;
+	struct rxe_pool_elem	elem;
 	struct ib_qp_attr	attr;
 	unsigned int		valid;
 	unsigned int		mtu;
@@ -309,7 +309,7 @@ static inline int rkey_is_mw(u32 rkey)
 }
 
 struct rxe_mr {
-	struct rxe_pool_entry	pelem;
+	struct rxe_pool_elem	elem;
 	struct ib_mr		ibmr;
 
 	struct ib_umem		*umem;
@@ -342,7 +342,7 @@ enum rxe_mw_state {
 
 struct rxe_mw {
 	struct ib_mw		ibmw;
-	struct rxe_pool_entry	pelem;
+	struct rxe_pool_elem	elem;
 	spinlock_t		lock;
 	enum rxe_mw_state	state;
 	struct rxe_qp		*qp; /* Type 2 only */
@@ -354,7 +354,7 @@ struct rxe_mw {
 };
 
 struct rxe_mc_grp {
-	struct rxe_pool_entry	pelem;
+	struct rxe_pool_elem	elem;
 	spinlock_t		mcg_lock; /* guard group */
 	struct rxe_dev		*rxe;
 	struct list_head	qp_list;
@@ -365,7 +365,7 @@ struct rxe_mc_grp {
 };
 
 struct rxe_mc_elem {
-	struct rxe_pool_entry	pelem;
+	struct rxe_pool_elem	elem;
 	struct list_head	qp_list;
 	struct list_head	grp_list;
 	struct rxe_qp		*qp;
@@ -391,8 +391,6 @@ struct rxe_dev {
 	struct mutex	usdev_lock;
 
 	struct net_device	*ndev;
-
-	int			xmit_errors;
 
 	struct rxe_pool		uc_pool;
 	struct rxe_pool		pd_pool;
@@ -484,6 +482,6 @@ static inline struct rxe_pd *rxe_mw_pd(struct rxe_mw *mw)
 
 int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name);
 
-void rxe_mc_cleanup(struct rxe_pool_entry *arg);
+void rxe_mc_cleanup(struct rxe_pool_elem *elem);
 
 #endif /* RXE_VERBS_H */

@@ -36,8 +36,10 @@ report::
 
 	- a symbolic event name (use 'perf list' to list all events)
 
-	- a raw PMU event (eventsel+umask) in the form of rNNN where NNN is a
-	  hexadecimal event descriptor.
+	- a raw PMU event in the form of rN where N is a hexadecimal value
+	  that represents the raw register encoding with the layout of the
+	  event control registers as described by entries in
+	  /sys/bus/event_sources/devices/cpu/format/*.
 
         - a symbolic or raw PMU event followed by an optional colon
 	  and a list of event modifiers, e.g., cpu-cycles:p.  See the
@@ -492,6 +494,10 @@ This option can be enabled in perf config by setting the variable
 'stat.no-csv-summary'.
 
 $ perf config stat.no-csv-summary=true
+
+--cputype::
+Only enable events on applying cpu with this type for hybrid platform
+(e.g. core or atom)"
 
 EXAMPLES
 --------

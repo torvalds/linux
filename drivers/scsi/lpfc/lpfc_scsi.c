@@ -4393,6 +4393,7 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 		if (lpfc_cmd->result == IOERR_INVALID_RPI ||
 		    lpfc_cmd->result == IOERR_NO_RESOURCES ||
 		    lpfc_cmd->result == IOERR_ABORT_REQUESTED ||
+		    lpfc_cmd->result == IOERR_RPI_SUSPENDED ||
 		    lpfc_cmd->result == IOERR_SLER_CMD_RCV_FAILURE) {
 			cmd->result = DID_REQUEUE << 16;
 			break;
@@ -4448,10 +4449,11 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
 				 "9039 Iodone <%d/%llu> cmd x%px, error "
-				 "x%x SNS x%x x%x Data: x%x x%x\n",
+				 "x%x SNS x%x x%x LBA x%llx Data: x%x x%x\n",
 				 cmd->device->id, cmd->device->lun, cmd,
-				 cmd->result, *lp, *(lp + 3), cmd->retries,
-				 scsi_get_resid(cmd));
+				 cmd->result, *lp, *(lp + 3),
+				 (u64)scsi_get_lba(cmd),
+				 cmd->retries, scsi_get_resid(cmd));
 	}
 
 	lpfc_update_stats(vport, lpfc_cmd);

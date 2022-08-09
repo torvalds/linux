@@ -32,14 +32,31 @@ static bool in_range(unsigned long start, unsigned long size,
 		size <= range_end - start;
 }
 
+/*
+ * This function assumes that the range is mapped with PAGE_SIZE pages.
+ */
+static int __change_memory_common(unsigned long start, unsigned long size,
+				pgprot_t set_mask, pgprot_t clear_mask)
+{
+	struct page_change_data data;
+	int ret;
+
+	data.set_mask = set_mask;
+	data.clear_mask = clear_mask;
+
+	ret = apply_to_page_range(&init_mm, start, size, change_page_range,
+				  &data);
+
+	flush_tlb_kernel_range(start, start + size);
+	return ret;
+}
+
 static int change_memory_common(unsigned long addr, int numpages,
 				pgprot_t set_mask, pgprot_t clear_mask)
 {
 	unsigned long start = addr & PAGE_MASK;
 	unsigned long end = PAGE_ALIGN(addr) + numpages * PAGE_SIZE;
 	unsigned long size = end - start;
-	int ret;
-	struct page_change_data data;
 
 	WARN_ON_ONCE(start != addr);
 
@@ -50,14 +67,7 @@ static int change_memory_common(unsigned long addr, int numpages,
 	    !in_range(start, size, VMALLOC_START, VMALLOC_END))
 		return -EINVAL;
 
-	data.set_mask = set_mask;
-	data.clear_mask = clear_mask;
-
-	ret = apply_to_page_range(&init_mm, start, size, change_page_range,
-					&data);
-
-	flush_tlb_kernel_range(start, end);
-	return ret;
+	return __change_memory_common(start, size, set_mask, clear_mask);
 }
 
 int set_memory_ro(unsigned long addr, int numpages)
@@ -86,4 +96,16 @@ int set_memory_x(unsigned long addr, int numpages)
 	return change_memory_common(addr, numpages,
 					__pgprot(0),
 					__pgprot(L_PTE_XN));
+}
+
+int set_memory_valid(unsigned long addr, int numpages, int enable)
+{
+	if (enable)
+		return __change_memory_common(addr, PAGE_SIZE * numpages,
+					      __pgprot(L_PTE_VALID),
+					      __pgprot(0));
+	else
+		return __change_memory_common(addr, PAGE_SIZE * numpages,
+					      __pgprot(0),
+					      __pgprot(L_PTE_VALID));
 }

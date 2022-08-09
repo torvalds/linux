@@ -127,7 +127,8 @@ static void serial_out(struct uart_sunsu_port *up, int offset, int value)
 	 * gate outputs a logical one. Since we use level triggered interrupts
 	 * we have lockup and watchdog reset. We cannot mask IRQ because
 	 * keyboard shares IRQ with us (Word has it as Bob Smelik's design).
-	 * This problem is similar to what Alpha people suffer, see serial.c.
+	 * This problem is similar to what Alpha people suffer, see
+	 * 8250_alpha.c.
 	 */
 	if (offset == UART_MCR)
 		value |= UART_MCR_OUT2;

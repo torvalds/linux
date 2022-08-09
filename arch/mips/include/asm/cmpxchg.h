@@ -10,10 +10,9 @@
 
 #include <linux/bug.h>
 #include <linux/irqflags.h>
+#include <asm/asm.h>
 #include <asm/compiler.h>
-#include <asm/llsc.h>
 #include <asm/sync.h>
-#include <asm/war.h>
 
 /*
  * These functions doesn't exist, so if they are called you'll either:
@@ -48,7 +47,7 @@ extern unsigned long __xchg_called_with_bad_pointer(void)
 		"	move	$1, %z3				\n"	\
 		"	.set	" MIPS_ISA_ARCH_LEVEL "		\n"	\
 		"	" st "	$1, %1				\n"	\
-		"\t" __SC_BEQZ	"$1, 1b				\n"	\
+		"\t" __stringify(SC_BEQZ)	"	$1, 1b	\n"	\
 		"	.set	pop				\n"	\
 		: "=&r" (__ret), "=" GCC_OFF_SMALL_ASM() (*m)		\
 		: GCC_OFF_SMALL_ASM() (*m), "Jr" (val)			\
@@ -127,7 +126,7 @@ unsigned long __xchg(volatile void *ptr, unsigned long x, int size)
 		"	move	$1, %z4				\n"	\
 		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"	\
 		"	" st "	$1, %1				\n"	\
-		"\t" __SC_BEQZ	"$1, 1b				\n"	\
+		"\t" __stringify(SC_BEQZ)	"	$1, 1b	\n"	\
 		"	.set	pop				\n"	\
 		"2:	" __SYNC(full, loongson3_war) "		\n"	\
 		: "=&r" (__ret), "=" GCC_OFF_SMALL_ASM() (*m)		\
@@ -282,7 +281,7 @@ static inline unsigned long __cmpxchg64(volatile void *ptr,
 	/* Attempt to store new at ptr */
 	"	scd	%L1, %2				\n"
 	/* If we failed, loop! */
-	"\t" __SC_BEQZ "%L1, 1b				\n"
+	"\t" __stringify(SC_BEQZ) "	%L1, 1b		\n"
 	"2:	" __SYNC(full, loongson3_war) "		\n"
 	"	.set	pop				\n"
 	: "=&r"(ret),

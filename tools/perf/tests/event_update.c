@@ -75,10 +75,10 @@ static int process_event_cpus(struct perf_tool *tool __maybe_unused,
 
 	TEST_ASSERT_VAL("wrong id", ev->id == 123);
 	TEST_ASSERT_VAL("wrong type", ev->type == PERF_EVENT_UPDATE__CPUS);
-	TEST_ASSERT_VAL("wrong cpus", map->nr == 3);
-	TEST_ASSERT_VAL("wrong cpus", map->map[0] == 1);
-	TEST_ASSERT_VAL("wrong cpus", map->map[1] == 2);
-	TEST_ASSERT_VAL("wrong cpus", map->map[2] == 3);
+	TEST_ASSERT_VAL("wrong cpus", perf_cpu_map__nr(map) == 3);
+	TEST_ASSERT_VAL("wrong cpus", perf_cpu_map__cpu(map, 0).cpu == 1);
+	TEST_ASSERT_VAL("wrong cpus", perf_cpu_map__cpu(map, 1).cpu == 2);
+	TEST_ASSERT_VAL("wrong cpus", perf_cpu_map__cpu(map, 2).cpu == 3);
 	perf_cpu_map__put(map);
 	return 0;
 }

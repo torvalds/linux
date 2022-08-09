@@ -110,7 +110,7 @@ static const struct stb6100_regmask stb6100_template[] = {
 /*
  * Currently unused. Some boards might need it in the future
  */
-static inline void stb6100_normalise_regs(u8 regs[])
+static __always_unused inline void stb6100_normalise_regs(u8 regs[])
 {
 	int i;
 

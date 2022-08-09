@@ -69,7 +69,7 @@ struct pcie_app_reg {
 static int spear13xx_pcie_start_link(struct dw_pcie *pci)
 {
 	struct spear13xx_pcie *spear13xx_pcie = to_spear13xx_pcie(pci);
-	struct pcie_app_reg *app_reg = spear13xx_pcie->app_base;
+	struct pcie_app_reg __iomem *app_reg = spear13xx_pcie->app_base;
 
 	/* enable ltssm */
 	writel(DEVICE_TYPE_RC | (1 << MISCTRL_EN_ID)
@@ -83,7 +83,7 @@ static int spear13xx_pcie_start_link(struct dw_pcie *pci)
 static irqreturn_t spear13xx_pcie_irq_handler(int irq, void *arg)
 {
 	struct spear13xx_pcie *spear13xx_pcie = arg;
-	struct pcie_app_reg *app_reg = spear13xx_pcie->app_base;
+	struct pcie_app_reg __iomem *app_reg = spear13xx_pcie->app_base;
 	struct dw_pcie *pci = spear13xx_pcie->pci;
 	struct pcie_port *pp = &pci->pp;
 	unsigned int status;
@@ -102,7 +102,7 @@ static irqreturn_t spear13xx_pcie_irq_handler(int irq, void *arg)
 
 static void spear13xx_pcie_enable_interrupts(struct spear13xx_pcie *spear13xx_pcie)
 {
-	struct pcie_app_reg *app_reg = spear13xx_pcie->app_base;
+	struct pcie_app_reg __iomem *app_reg = spear13xx_pcie->app_base;
 
 	/* Enable MSI interrupt */
 	if (IS_ENABLED(CONFIG_PCI_MSI))
@@ -113,7 +113,7 @@ static void spear13xx_pcie_enable_interrupts(struct spear13xx_pcie *spear13xx_pc
 static int spear13xx_pcie_link_up(struct dw_pcie *pci)
 {
 	struct spear13xx_pcie *spear13xx_pcie = to_spear13xx_pcie(pci);
-	struct pcie_app_reg *app_reg = spear13xx_pcie->app_base;
+	struct pcie_app_reg __iomem *app_reg = spear13xx_pcie->app_base;
 
 	if (readl(&app_reg->app_status_1) & XMLH_LINK_UP)
 		return 1;

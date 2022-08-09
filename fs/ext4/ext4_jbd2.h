@@ -491,7 +491,7 @@ static inline int ext4_free_data_revoke_credits(struct inode *inode, int blocks)
 /*
  * This function controls whether or not we should try to go down the
  * dioread_nolock code paths, which makes it safe to avoid taking
- * i_mutex for direct I/O reads.  This only works for extent-based
+ * i_rwsem for direct I/O reads.  This only works for extent-based
  * files, and it doesn't work if data journaling is enabled, since the
  * dioread_nolock code uses b_private to pass information back to the
  * I/O completion handler, and this conflicts with the jbd's use of

@@ -2,6 +2,7 @@
 config IWLWIFI
 	tristate "Intel Wireless WiFi Next Gen AGN - Wireless-N/Advanced-N/Ultimate-N (iwlwifi) "
 	depends on PCI && HAS_IOMEM && CFG80211
+	depends on IWLMEI || !IWLMEI
 	select FW_LOADER
 	help
 	  Select to build the driver supporting the:
@@ -79,19 +80,6 @@ config IWLWIFI_OPMODE_MODULAR
 comment "WARNING: iwlwifi is useless without IWLDVM or IWLMVM"
 	depends on IWLDVM=n && IWLMVM=n
 
-config IWLWIFI_BCAST_FILTERING
-	bool "Enable broadcast filtering"
-	depends on IWLMVM
-	help
-	  Say Y here to enable default bcast filtering configuration.
-
-	  Enabling broadcast filtering will drop any incoming wireless
-	  broadcast frames, except some very specific predefined
-	  patterns (e.g. incoming arp requests).
-
-	  If unsure, don't enable this option, as some programs might
-	  expect incoming broadcasts for their normal operations.
-
 menu "Debugging Options"
 
 config IWLWIFI_DEBUG
@@ -146,3 +134,28 @@ config IWLWIFI_DEVICE_TRACING
 endmenu
 
 endif
+
+config IWLMEI
+	tristate "Intel Management Engine communication over WLAN"
+	depends on INTEL_MEI
+	depends on PM
+	help
+	  Enables the iwlmei kernel module.
+
+	  CSME stands for Converged Security and Management Engine. It is a CPU
+	  on the chipset and runs a dedicated firmware. AMT (Active Management
+	  Technology) is one of the applications that run on that CPU. AMT
+	  allows to control the platform remotely.
+
+	  This kernel module allows to communicate with the Intel Management
+	  Engine over Wifi. This is supported starting from Tiger Lake
+	  platforms and has been tested on 9260 devices only.
+	  If AMT is configured not to use the wireless device, this module is
+	  harmless (and useless).
+	  Enabling this option on a platform that has a different device and
+	  has Wireless enabled on AMT can prevent WiFi from working correctly.
+
+	  For more information see
+	  <https://software.intel.com/en-us/manageability/>
+
+	  If unsure, say N.

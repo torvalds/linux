@@ -61,7 +61,7 @@ struct cw_battery {
 	struct delayed_work battery_delay_work;
 	struct regmap *regmap;
 	struct power_supply *rk_bat;
-	struct power_supply_battery_info battery;
+	struct power_supply_battery_info *battery;
 	u8 *bat_profile;
 
 	bool charger_attached;
@@ -505,22 +505,22 @@ static int cw_battery_get_property(struct power_supply *psy,
 
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-		if (cw_bat->battery.charge_full_design_uah > 0)
-			val->intval = cw_bat->battery.charge_full_design_uah;
+		if (cw_bat->battery->charge_full_design_uah > 0)
+			val->intval = cw_bat->battery->charge_full_design_uah;
 		else
 			val->intval = 0;
 		break;
 
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
-		val->intval = cw_bat->battery.charge_full_design_uah;
+		val->intval = cw_bat->battery->charge_full_design_uah;
 		val->intval = val->intval * cw_bat->soc / 100;
 		break;
 
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		if (cw_battery_valid_time_to_empty(cw_bat) &&
-		    cw_bat->battery.charge_full_design_uah > 0) {
+		    cw_bat->battery->charge_full_design_uah > 0) {
 			/* calculate remaining capacity */
-			val->intval = cw_bat->battery.charge_full_design_uah;
+			val->intval = cw_bat->battery->charge_full_design_uah;
 			val->intval = val->intval * cw_bat->soc / 100;
 
 			/* estimate current based on time to empty */
@@ -687,6 +687,12 @@ static int cw_bat_probe(struct i2c_client *client)
 
 	ret = power_supply_get_battery_info(cw_bat->rk_bat, &cw_bat->battery);
 	if (ret) {
+		/* Allocate an empty battery */
+		cw_bat->battery = devm_kzalloc(&client->dev,
+					       sizeof(*cw_bat->battery),
+					       GFP_KERNEL);
+		if (!cw_bat->battery)
+			return -ENOMEM;
 		dev_warn(cw_bat->dev,
 			 "No monitored battery, some properties will be missing\n");
 	}
@@ -724,7 +730,7 @@ static int cw_bat_remove(struct i2c_client *client)
 	struct cw_battery *cw_bat = i2c_get_clientdata(client);
 
 	cancel_delayed_work_sync(&cw_bat->battery_delay_work);
-	power_supply_put_battery_info(cw_bat->rk_bat, &cw_bat->battery);
+	power_supply_put_battery_info(cw_bat->rk_bat, cw_bat->battery);
 	return 0;
 }
 

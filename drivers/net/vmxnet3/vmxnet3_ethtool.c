@@ -575,10 +575,11 @@ vmxnet3_get_link_ksettings(struct net_device *netdev,
 	return 0;
 }
 
-
 static void
 vmxnet3_get_ringparam(struct net_device *netdev,
-		      struct ethtool_ringparam *param)
+		      struct ethtool_ringparam *param,
+		      struct kernel_ethtool_ringparam *kernel_param,
+		      struct netlink_ext_ack *extack)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 
@@ -595,10 +596,11 @@ vmxnet3_get_ringparam(struct net_device *netdev,
 	param->rx_jumbo_pending = adapter->rx_ring2_size;
 }
 
-
 static int
 vmxnet3_set_ringparam(struct net_device *netdev,
-		      struct ethtool_ringparam *param)
+		      struct ethtool_ringparam *param,
+		      struct kernel_ethtool_ringparam *kernel_param,
+		      struct netlink_ext_ack *extack)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	u32 new_tx_ring_size, new_rx_ring_size, new_rx_ring2_size;

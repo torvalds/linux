@@ -4893,8 +4893,8 @@ static int cas_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	unsigned long casreg_len;
 	struct net_device *dev;
 	struct cas *cp;
-	int i, err, pci_using_dac;
 	u16 pci_cmd;
+	int i, err;
 	u8 orig_cacheline_size = 0, cas_cacheline_size = 0;
 
 	if (cas_version_printed++ == 0)
@@ -4965,23 +4965,10 @@ static int cas_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 
 	/* Configure DMA attributes. */
-	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
-		pci_using_dac = 1;
-		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
-		if (err < 0) {
-			dev_err(&pdev->dev, "Unable to obtain 64-bit DMA "
-			       "for consistent allocations\n");
-			goto err_out_free_res;
-		}
-
-	} else {
-		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
-		if (err) {
-			dev_err(&pdev->dev, "No usable DMA configuration, "
-			       "aborting\n");
-			goto err_out_free_res;
-		}
-		pci_using_dac = 0;
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (err) {
+		dev_err(&pdev->dev, "No usable DMA configuration, aborting\n");
+		goto err_out_free_res;
 	}
 
 	casreg_len = pci_resource_len(pdev, 0);
@@ -5087,8 +5074,7 @@ static int cas_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if ((cp->cas_flags & CAS_FLAG_NO_HW_CSUM) == 0)
 		dev->features |= NETIF_F_HW_CSUM | NETIF_F_SG;
 
-	if (pci_using_dac)
-		dev->features |= NETIF_F_HIGHDMA;
+	dev->features |= NETIF_F_HIGHDMA;
 
 	/* MTU range: 60 - varies or 9000 */
 	dev->min_mtu = CAS_MIN_MTU;

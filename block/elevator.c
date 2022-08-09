@@ -188,8 +188,10 @@ static void elevator_release(struct kobject *kobj)
 	kfree(e);
 }
 
-void __elevator_exit(struct request_queue *q, struct elevator_queue *e)
+void elevator_exit(struct request_queue *q)
 {
+	struct elevator_queue *e = q->elevator;
+
 	mutex_lock(&e->sysfs_lock);
 	blk_mq_exit_sched(q, e);
 	mutex_unlock(&e->sysfs_lock);
@@ -523,8 +525,6 @@ void elv_unregister_queue(struct request_queue *q)
 		kobject_del(&e->kobj);
 
 		e->registered = 0;
-		/* Re-enable throttling in case elevator disabled it */
-		wbt_enable_default(q);
 	}
 }
 
@@ -595,7 +595,8 @@ int elevator_switch_mq(struct request_queue *q,
 			elv_unregister_queue(q);
 
 		ioc_clear_queue(q);
-		elevator_exit(q, q->elevator);
+		blk_mq_sched_free_rqs(q);
+		elevator_exit(q);
 	}
 
 	ret = blk_mq_init_sched(q, new_e);
@@ -605,7 +606,8 @@ int elevator_switch_mq(struct request_queue *q,
 	if (new_e) {
 		ret = elv_register_queue(q, true);
 		if (ret) {
-			elevator_exit(q, q->elevator);
+			blk_mq_sched_free_rqs(q);
+			elevator_exit(q);
 			goto out;
 		}
 	}

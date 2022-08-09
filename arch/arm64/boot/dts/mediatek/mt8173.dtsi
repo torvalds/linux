@@ -1212,6 +1212,7 @@
 			interrupts = <GIC_SPI 191 IRQ_TYPE_LEVEL_LOW>;
 			power-domains = <&spm MT8173_POWER_DOMAIN_MM>;
 			clocks = <&mmsys CLK_MM_DISP_UFOE>;
+			mediatek,gce-client-reg = <&gce SUBSYS_1401XXXX 0xa000 0x1000>;
 		};
 
 		dsi0: dsi@1401b000 {
@@ -1316,6 +1317,7 @@
 			compatible = "mediatek,mt8173-disp-od";
 			reg = <0 0x14023000 0 0x1000>;
 			clocks = <&mmsys CLK_MM_DISP_OD>;
+			mediatek,gce-client-reg = <&gce SUBSYS_1402XXXX 0x3000 0x1000>;
 		};
 
 		hdmi0: hdmi@14025000 {

@@ -9,13 +9,13 @@
 #define MLX5_NUM_SPARE_EQE (0x80)
 
 struct mlx5_eq;
+struct mlx5_irq;
 struct mlx5_core_dev;
 
 struct mlx5_eq_param {
-	u8             irq_index;
 	int            nent;
 	u64            mask[4];
-	cpumask_var_t  affinity;
+	struct mlx5_irq *irq;
 };
 
 struct mlx5_eq *

@@ -305,6 +305,7 @@ enum ipc_phase {
  * @sio:			IPC SIO data structure pointer
  * @ipc_port:			IPC PORT data structure pointer
  * @pcie:			IPC PCIe
+ * @trace:			IPC trace data structure pointer
  * @dev:			Pointer to device structure
  * @ipc_requested_state:	Expected IPC state on CP.
  * @channels:			Channel list with UL/DL pipe pairs.
@@ -339,6 +340,7 @@ enum ipc_phase {
  * @ev_mux_net_transmit_pending:0 means inform the IPC tasklet to pass
  * @reset_det_n:		Reset detect flag
  * @pcie_wake_n:		Pcie wake flag
+ * @debugfs_dir:		Debug FS directory for driver-specific entries
  */
 struct iosm_imem {
 	struct iosm_mmio *mmio;
@@ -348,6 +350,9 @@ struct iosm_imem {
 	struct iosm_mux *mux;
 	struct iosm_cdev *ipc_port[IPC_MEM_MAX_CHANNELS];
 	struct iosm_pcie *pcie;
+#ifdef CONFIG_WWAN_DEBUGFS
+	struct iosm_trace *trace;
+#endif
 	struct device *dev;
 	enum ipc_mem_device_ipc_state ipc_requested_state;
 	struct ipc_mem_channel channels[IPC_MEM_MAX_CHANNELS];
@@ -376,6 +381,9 @@ struct iosm_imem {
 	   ev_mux_net_transmit_pending:1,
 	   reset_det_n:1,
 	   pcie_wake_n:1;
+#ifdef CONFIG_WWAN_DEBUGFS
+	struct dentry *debugfs_dir;
+#endif
 };
 
 /**

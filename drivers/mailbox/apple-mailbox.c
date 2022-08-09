@@ -364,8 +364,8 @@ static const struct apple_mbox_hw apple_mbox_m3_hw = {
 };
 
 static const struct of_device_id apple_mbox_of_match[] = {
-	{ .compatible = "apple,t8103-asc-mailbox", .data = &apple_mbox_asc_hw },
-	{ .compatible = "apple,t8103-m3-mailbox", .data = &apple_mbox_m3_hw },
+	{ .compatible = "apple,asc-mailbox-v4", .data = &apple_mbox_asc_hw },
+	{ .compatible = "apple,m3-mailbox-v2", .data = &apple_mbox_m3_hw },
 	{}
 };
 MODULE_DEVICE_TABLE(of, apple_mbox_of_match);

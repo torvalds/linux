@@ -21,6 +21,8 @@
 #include <net/snmp.h>
 #include <net/netns/hash.h>
 
+struct ip_tunnel_info;
+
 #define SIN6_LEN_RFC2133	24
 
 #define IPV6_MAXPLEN		65535
@@ -345,9 +347,9 @@ struct ipcm6_cookie {
 	struct sockcm_cookie sockc;
 	__s16 hlimit;
 	__s16 tclass;
+	__u16 gso_size;
 	__s8  dontfrag;
 	struct ipv6_txoptions *opt;
-	__u16 gso_size;
 };
 
 static inline void ipcm6_init(struct ipcm6_cookie *ipc6)
@@ -391,17 +393,20 @@ static inline void txopt_put(struct ipv6_txoptions *opt)
 		kfree_rcu(opt, rcu);
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 struct ip6_flowlabel *__fl6_sock_lookup(struct sock *sk, __be32 label);
 
 extern struct static_key_false_deferred ipv6_flowlabel_exclusive;
 static inline struct ip6_flowlabel *fl6_sock_lookup(struct sock *sk,
 						    __be32 label)
 {
-	if (static_branch_unlikely(&ipv6_flowlabel_exclusive.key))
+	if (static_branch_unlikely(&ipv6_flowlabel_exclusive.key) &&
+	    READ_ONCE(sock_net(sk)->ipv6.flowlabel_has_excl))
 		return __fl6_sock_lookup(sk, label) ? : ERR_PTR(-ENOENT);
 
 	return NULL;
 }
+#endif
 
 struct ipv6_txoptions *fl6_merge_options(struct ipv6_txoptions *opt_space,
 					 struct ip6_flowlabel *fl,

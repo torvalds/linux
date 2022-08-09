@@ -27,7 +27,6 @@
 
 static void atom_host_done(struct snd_sof_dev *sdev);
 static void atom_dsp_done(struct snd_sof_dev *sdev);
-static void atom_get_reply(struct snd_sof_dev *sdev);
 
 /*
  * Debug
@@ -71,8 +70,8 @@ void atom_dump(struct snd_sof_dev *sdev, u32 flags)
 	panic = snd_sof_dsp_read64(sdev, DSP_BAR, SHIM_IPCX);
 	atom_get_registers(sdev, &xoops, &panic_info, stack,
 			   STACK_DUMP_SIZE);
-	snd_sof_get_status(sdev, status, panic, &xoops, &panic_info, stack,
-			   STACK_DUMP_SIZE);
+	sof_print_oops_and_stack(sdev, KERN_ERR, status, panic, &xoops,
+				 &panic_info, stack, STACK_DUMP_SIZE);
 
 	/* provide some context for firmware debug */
 	imrx = snd_sof_dsp_read64(sdev, DSP_BAR, SHIM_IMRX);
@@ -154,8 +153,7 @@ irqreturn_t atom_irq_thread(int irq, void *context)
 		 * because the done bit can't be set in cmd_done function
 		 * which is triggered by msg
 		 */
-		atom_get_reply(sdev);
-		snd_sof_ipc_reply(sdev, ipcx);
+		snd_sof_ipc_process_reply(sdev, ipcx);
 
 		atom_dsp_done(sdev);
 
@@ -167,8 +165,8 @@ irqreturn_t atom_irq_thread(int irq, void *context)
 
 		/* Handle messages from DSP Core */
 		if ((ipcd & SOF_IPC_PANIC_MAGIC_MASK) == SOF_IPC_PANIC_MAGIC) {
-			snd_sof_dsp_panic(sdev, PANIC_OFFSET(ipcd) +
-					  MBOX_OFFSET);
+			snd_sof_dsp_panic(sdev, PANIC_OFFSET(ipcd) + MBOX_OFFSET,
+					  true);
 		} else {
 			snd_sof_ipc_msgs_rx(sdev);
 		}
@@ -194,45 +192,6 @@ int atom_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 	return 0;
 }
 EXPORT_SYMBOL_NS(atom_send_msg, SND_SOC_SOF_INTEL_ATOM_HIFI_EP);
-
-static void atom_get_reply(struct snd_sof_dev *sdev)
-{
-	struct snd_sof_ipc_msg *msg = sdev->msg;
-	struct sof_ipc_reply reply;
-	int ret = 0;
-
-	/*
-	 * Sometimes, there is unexpected reply ipc arriving. The reply
-	 * ipc belongs to none of the ipcs sent from driver.
-	 * In this case, the driver must ignore the ipc.
-	 */
-	if (!msg) {
-		dev_warn(sdev->dev, "unexpected ipc interrupt raised!\n");
-		return;
-	}
-
-	/* get reply */
-	sof_mailbox_read(sdev, sdev->host_box.offset, &reply, sizeof(reply));
-
-	if (reply.error < 0) {
-		memcpy(msg->reply_data, &reply, sizeof(reply));
-		ret = reply.error;
-	} else {
-		/* reply correct size ? */
-		if (reply.hdr.size != msg->reply_size) {
-			dev_err(sdev->dev, "error: reply expected %zu got %u bytes\n",
-				msg->reply_size, reply.hdr.size);
-			ret = -EINVAL;
-		}
-
-		/* read the message */
-		if (msg->reply_size > 0)
-			sof_mailbox_read(sdev, sdev->host_box.offset,
-					 msg->reply_data, msg->reply_size);
-	}
-
-	msg->reply_error = ret;
-}
 
 int atom_get_mailbox_offset(struct snd_sof_dev *sdev)
 {
@@ -334,7 +293,7 @@ static const char *fixup_tplg_name(struct snd_sof_dev *sdev,
 	return tplg_filename;
 }
 
-void atom_machine_select(struct snd_sof_dev *sdev)
+struct snd_soc_acpi_mach *atom_machine_select(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *sof_pdata = sdev->pdata;
 	const struct sof_dev_desc *desc = sof_pdata->desc;
@@ -345,7 +304,7 @@ void atom_machine_select(struct snd_sof_dev *sdev)
 	mach = snd_soc_acpi_find_machine(desc->machines);
 	if (!mach) {
 		dev_warn(sdev->dev, "warning: No matching ASoC machine driver found\n");
-		return;
+		return NULL;
 	}
 
 	pdev = to_platform_device(sdev->dev);
@@ -363,12 +322,13 @@ void atom_machine_select(struct snd_sof_dev *sdev)
 	if (!tplg_filename) {
 		dev_dbg(sdev->dev,
 			"error: no topology filename\n");
-		return;
+		return NULL;
 	}
 
 	sof_pdata->tplg_filename = tplg_filename;
 	mach->mach_params.acpi_ipc_irq_index = desc->irqindex_host_ipc;
-	sof_pdata->machine = mach;
+
+	return mach;
 }
 EXPORT_SYMBOL_NS(atom_machine_select, SND_SOC_SOF_INTEL_ATOM_HIFI_EP);
 
@@ -443,14 +403,14 @@ struct snd_soc_dai_driver atom_dai[] = {
 };
 EXPORT_SYMBOL_NS(atom_dai, SND_SOC_SOF_INTEL_ATOM_HIFI_EP);
 
-void atom_set_mach_params(const struct snd_soc_acpi_mach *mach,
+void atom_set_mach_params(struct snd_soc_acpi_mach *mach,
 			  struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *pdata = sdev->pdata;
 	const struct sof_dev_desc *desc = pdata->desc;
 	struct snd_soc_acpi_mach_params *mach_params;
 
-	mach_params = (struct snd_soc_acpi_mach_params *)&mach->mach_params;
+	mach_params = &mach->mach_params;
 	mach_params->platform = dev_name(sdev->dev);
 	mach_params->num_dai_drivers = desc->ops->num_drv;
 	mach_params->dai_drivers = desc->ops->drv;

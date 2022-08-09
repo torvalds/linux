@@ -22,9 +22,6 @@ struct thread_info {
 	__u32			cpu;		/* current CPU */
 	int			preempt_count;  /* 0 => preemptable,
 						   <0 => BUG */
-	mm_segment_t		addr_limit;	/* thread address space:
-					 	   0-0xBFFFFFFF for user
-						   0-0xFFFFFFFF for kernel */
 	struct thread_info	*real_thread;    /* Points to non-IRQ stack */
 	unsigned long aux_fp_regs[FP_SIZE];	/* auxiliary fp_regs to save/restore
 						   them out-of-band */
@@ -36,7 +33,6 @@ struct thread_info {
 	.flags =		0,		\
 	.cpu =		0,			\
 	.preempt_count = INIT_PREEMPT_COUNT,	\
-	.addr_limit =	KERNEL_DS,		\
 	.real_thread = NULL,			\
 }
 

@@ -749,6 +749,7 @@ ether3_probe(struct expansion_card *ec, const struct ecard_id *id)
 	const struct ether3_data *data = id->data;
 	struct net_device *dev;
 	int bus_type, ret;
+	u8 addr[ETH_ALEN];
 
 	ether3_banner();
 
@@ -776,7 +777,8 @@ ether3_probe(struct expansion_card *ec, const struct ecard_id *id)
 	priv(dev)->seeq = priv(dev)->base + data->base_offset;
 	dev->irq = ec->irq;
 
-	ether3_addr(dev->dev_addr, ec);
+	ether3_addr(addr, ec);
+	eth_hw_addr_set(dev, addr);
 
 	priv(dev)->dev = dev;
 	timer_setup(&priv(dev)->timer, ether3_ledoff, 0);

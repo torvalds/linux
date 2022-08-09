@@ -48,7 +48,7 @@
 	.balign IFETCH_ALIGN_BYTES;				\
 	.global name;						\
 	_ASM_NOKPROBE_SYMBOL(name);				\
-	DEFINE_FIXED_SYMBOL(name);				\
+	DEFINE_FIXED_SYMBOL(name, text);			\
 name:
 
 #define TRAMP_REAL_BEGIN(name)					\
@@ -76,31 +76,18 @@ name:
 	ld	reg,PACAKBASE(r13);	/* get high part of &label */	\
 	ori	reg,reg,FIXED_SYMBOL_ABS_ADDR(label)
 
-#define __LOAD_HANDLER(reg, label)					\
+#define __LOAD_HANDLER(reg, label, section)					\
 	ld	reg,PACAKBASE(r13);					\
-	ori	reg,reg,(ABS_ADDR(label))@l
+	ori	reg,reg,(ABS_ADDR(label, section))@l
 
 /*
  * Branches from unrelocated code (e.g., interrupts) to labels outside
  * head-y require >64K offsets.
  */
-#define __LOAD_FAR_HANDLER(reg, label)					\
+#define __LOAD_FAR_HANDLER(reg, label, section)					\
 	ld	reg,PACAKBASE(r13);					\
-	ori	reg,reg,(ABS_ADDR(label))@l;				\
-	addis	reg,reg,(ABS_ADDR(label))@h
-
-/*
- * Branch to label using its 0xC000 address. This results in instruction
- * address suitable for MSR[IR]=0 or 1, which allows relocation to be turned
- * on using mtmsr rather than rfid.
- *
- * This could set the 0xc bits for !RELOCATABLE as an immediate, rather than
- * load KBASE for a slight optimisation.
- */
-#define BRANCH_TO_C000(reg, label)					\
-	__LOAD_FAR_HANDLER(reg, label);					\
-	mtctr	reg;							\
-	bctr
+	ori	reg,reg,(ABS_ADDR(label, section))@l;				\
+	addis	reg,reg,(ABS_ADDR(label, section))@h
 
 /*
  * Interrupt code generation macros
@@ -111,9 +98,10 @@ name:
 #define IAREA		.L_IAREA_\name\()	/* PACA save area */
 #define IVIRT		.L_IVIRT_\name\()	/* Has virt mode entry point */
 #define IISIDE		.L_IISIDE_\name\()	/* Uses SRR0/1 not DAR/DSISR */
+#define ICFAR		.L_ICFAR_\name\()	/* Uses CFAR */
+#define ICFAR_IF_HVMODE	.L_ICFAR_IF_HVMODE_\name\() /* Uses CFAR if HV */
 #define IDAR		.L_IDAR_\name\()	/* Uses DAR (or SRR0) */
 #define IDSISR		.L_IDSISR_\name\()	/* Uses DSISR (or SRR1) */
-#define ISET_RI		.L_ISET_RI_\name\()	/* Run common code w/ MSR[RI]=1 */
 #define IBRANCH_TO_COMMON	.L_IBRANCH_TO_COMMON_\name\() /* ENTRY branch to common */
 #define IREALMODE_COMMON	.L_IREALMODE_COMMON_\name\() /* Common runs in realmode */
 #define IMASK		.L_IMASK_\name\()	/* IRQ soft-mask bit */
@@ -151,14 +139,17 @@ do_define_int n
 	.ifndef IISIDE
 		IISIDE=0
 	.endif
+	.ifndef ICFAR
+		ICFAR=1
+	.endif
+	.ifndef ICFAR_IF_HVMODE
+		ICFAR_IF_HVMODE=0
+	.endif
 	.ifndef IDAR
 		IDAR=0
 	.endif
 	.ifndef IDSISR
 		IDSISR=0
-	.endif
-	.ifndef ISET_RI
-		ISET_RI=1
 	.endif
 	.ifndef IBRANCH_TO_COMMON
 		IBRANCH_TO_COMMON=1
@@ -291,9 +282,21 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	HMT_MEDIUM
 	std	r10,IAREA+EX_R10(r13)		/* save r10 - r12 */
+	.if ICFAR
 BEGIN_FTR_SECTION
 	mfspr	r10,SPRN_CFAR
 END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
+	.elseif ICFAR_IF_HVMODE
+BEGIN_FTR_SECTION
+  BEGIN_FTR_SECTION_NESTED(69)
+	mfspr	r10,SPRN_CFAR
+  END_FTR_SECTION_NESTED(CPU_FTR_CFAR, CPU_FTR_CFAR, 69)
+FTR_SECTION_ELSE
+  BEGIN_FTR_SECTION_NESTED(69)
+	li	r10,0
+  END_FTR_SECTION_NESTED(CPU_FTR_CFAR, CPU_FTR_CFAR, 69)
+ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+	.endif
 	.if \ool
 	.if !\virt
 	b	tramp_real_\name
@@ -309,9 +312,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 BEGIN_FTR_SECTION
 	std	r9,IAREA+EX_PPR(r13)
 END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
+	.if ICFAR || ICFAR_IF_HVMODE
 BEGIN_FTR_SECTION
 	std	r10,IAREA+EX_CFAR(r13)
 END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
+	.endif
 	INTERRUPT_TO_KERNEL
 	mfctr	r10
 	std	r10,IAREA+EX_CTR(r13)
@@ -376,7 +381,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
  * This switches to virtual mode and sets MSR[RI].
  */
 .macro __GEN_COMMON_ENTRY name
-DEFINE_FIXED_SYMBOL(\name\()_common_real)
+DEFINE_FIXED_SYMBOL(\name\()_common_real, text)
 \name\()_common_real:
 	.if IKVM_REAL
 		KVMTEST \name kvm_interrupt
@@ -399,7 +404,7 @@ DEFINE_FIXED_SYMBOL(\name\()_common_real)
 	.endif
 
 	.balign IFETCH_ALIGN_BYTES
-DEFINE_FIXED_SYMBOL(\name\()_common_virt)
+DEFINE_FIXED_SYMBOL(\name\()_common_virt, text)
 \name\()_common_virt:
 	.if IKVM_VIRT
 		KVMTEST \name kvm_interrupt
@@ -413,7 +418,7 @@ DEFINE_FIXED_SYMBOL(\name\()_common_virt)
  * want to run in real mode.
  */
 .macro __GEN_REALMODE_COMMON_ENTRY name
-DEFINE_FIXED_SYMBOL(\name\()_common_real)
+DEFINE_FIXED_SYMBOL(\name\()_common_real, text)
 \name\()_common_real:
 	.if IKVM_REAL
 		KVMTEST \name kvm_interrupt
@@ -512,11 +517,6 @@ DEFINE_FIXED_SYMBOL(\name\()_common_real)
 	stb	r10,PACASRR_VALID(r13)
 	.endif
 
-	.if ISET_RI
-	li	r10,MSR_RI
-	mtmsrd	r10,1			/* Set MSR_RI */
-	.endif
-
 	.if ISTACK
 	.if IKUAP
 	kuap_save_amr_and_lock r9, r10, cr1, cr0
@@ -568,14 +568,17 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	.endif
 
 BEGIN_FTR_SECTION
+	.if ICFAR || ICFAR_IF_HVMODE
 	ld	r10,IAREA+EX_CFAR(r13)
+	.else
+	li	r10,0
+	.endif
 	std	r10,ORIG_GPR3(r1)
 END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	ld	r10,IAREA+EX_CTR(r13)
 	std	r10,_CTR(r1)
 	std	r2,GPR2(r1)		/* save r2 in stackframe	*/
-	SAVE_4GPRS(3, r1)		/* save r3 - r6 in stackframe   */
-	SAVE_2GPRS(7, r1)		/* save r7, r8 in stackframe	*/
+	SAVE_GPRS(3, 8, r1)		/* save r3 - r8 in stackframe   */
 	mflr	r9			/* Get LR, later save to stack	*/
 	ld	r2,PACATOC(r13)		/* get kernel TOC into r2	*/
 	std	r9,_LINK(r1)
@@ -693,8 +696,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	mtlr	r9
 	ld	r9,_CCR(r1)
 	mtcr	r9
-	REST_8GPRS(2, r1)
-	REST_4GPRS(10, r1)
+	REST_GPRS(2, 13, r1)
 	REST_GPR(0, r1)
 	/* restore original r1. */
 	ld	r1,GPR1(r1)
@@ -850,12 +852,12 @@ SOFT_MASK_TABLE(0xc000000000003000, 0xc000000000004000)
 
 #ifdef CONFIG_RELOCATABLE
 TRAMP_VIRT_BEGIN(system_call_vectored_tramp)
-	__LOAD_HANDLER(r10, system_call_vectored_common)
+	__LOAD_HANDLER(r10, system_call_vectored_common, virt_trampolines)
 	mtctr	r10
 	bctr
 
 TRAMP_VIRT_BEGIN(system_call_vectored_sigill_tramp)
-	__LOAD_HANDLER(r10, system_call_vectored_sigill)
+	__LOAD_HANDLER(r10, system_call_vectored_sigill, virt_trampolines)
 	mtctr	r10
 	bctr
 #endif
@@ -902,11 +904,6 @@ INT_DEFINE_BEGIN(system_reset)
 	IVEC=0x100
 	IAREA=PACA_EXNMI
 	IVIRT=0 /* no virt entry point */
-	/*
-	 * MSR_RI is not enabled, because PACA_EXNMI and nmi stack is
-	 * being used, so a nested NMI exception would corrupt it.
-	 */
-	ISET_RI=0
 	ISTACK=0
 	IKVM_REAL=1
 INT_DEFINE_END(system_reset)
@@ -964,7 +961,9 @@ TRAMP_REAL_BEGIN(system_reset_idle_wake)
 	/* We are waking up from idle, so may clobber any volatile register */
 	cmpwi	cr1,r5,2
 	bltlr	cr1	/* no state loss, return to idle caller with r3=SRR1 */
-	BRANCH_TO_C000(r12, DOTSYM(idle_return_gpr_loss))
+	__LOAD_FAR_HANDLER(r12, DOTSYM(idle_return_gpr_loss), real_trampolines)
+	mtctr	r12
+	bctr
 #endif
 
 #ifdef CONFIG_PPC_PSERIES
@@ -979,16 +978,14 @@ TRAMP_REAL_BEGIN(system_reset_fwnmi)
 EXC_COMMON_BEGIN(system_reset_common)
 	__GEN_COMMON_ENTRY system_reset
 	/*
-	 * Increment paca->in_nmi then enable MSR_RI. SLB or MCE will be able
-	 * to recover, but nested NMI will notice in_nmi and not recover
-	 * because of the use of the NMI stack. in_nmi reentrancy is tested in
-	 * system_reset_exception.
+	 * Increment paca->in_nmi. When the interrupt entry wrapper later
+	 * enable MSR_RI, then SLB or MCE will be able to recover, but a nested
+	 * NMI will notice in_nmi and not recover because of the use of the NMI
+	 * stack. in_nmi reentrancy is tested in system_reset_exception.
 	 */
 	lhz	r10,PACA_IN_NMI(r13)
 	addi	r10,r10,1
 	sth	r10,PACA_IN_NMI(r13)
-	li	r10,MSR_RI
-	mtmsrd 	r10,1
 
 	mr	r10,r1
 	ld	r1,PACA_NMI_EMERG_SP(r13)
@@ -1062,12 +1059,6 @@ INT_DEFINE_BEGIN(machine_check_early)
 	IAREA=PACA_EXMC
 	IVIRT=0 /* no virt entry point */
 	IREALMODE_COMMON=1
-	/*
-	 * MSR_RI is not enabled, because PACA_EXMC is being used, so a
-	 * nested machine check corrupts it. machine_check_common enables
-	 * MSR_RI.
-	 */
-	ISET_RI=0
 	ISTACK=0
 	IDAR=1
 	IDSISR=1
@@ -1078,7 +1069,6 @@ INT_DEFINE_BEGIN(machine_check)
 	IVEC=0x200
 	IAREA=PACA_EXMC
 	IVIRT=0 /* no virt entry point */
-	ISET_RI=0
 	IDAR=1
 	IDSISR=1
 	IKVM_REAL=1
@@ -1148,9 +1138,6 @@ EXC_COMMON_BEGIN(machine_check_early_common)
 BEGIN_FTR_SECTION
 	bl	enable_machine_check
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
-	li	r10,MSR_RI
-	mtmsrd	r10,1
-
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	machine_check_early
 	std	r3,RESULT(r1)	/* Save result */
@@ -1238,10 +1225,6 @@ EXC_COMMON_BEGIN(machine_check_common)
 	 * save area: PACA_EXMC instead of PACA_EXGEN.
 	 */
 	GEN_COMMON machine_check
-
-	/* Enable MSR_RI when finished with PACA_EXMC */
-	li	r10,MSR_RI
-	mtmsrd 	r10,1
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	machine_check_exception_async
 	b	interrupt_return_srr
@@ -1369,11 +1352,15 @@ EXC_COMMON_BEGIN(data_access_common)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	andis.	r0,r4,DSISR_DABRMATCH@h
 	bne-	1f
+#ifdef CONFIG_PPC_64S_HASH_MMU
 BEGIN_MMU_FTR_SECTION
 	bl	do_hash_fault
 MMU_FTR_SECTION_ELSE
 	bl	do_page_fault
 ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
+#else
+	bl	do_page_fault
+#endif
 	b	interrupt_return_srr
 
 1:	bl	do_break
@@ -1416,6 +1403,7 @@ EXC_VIRT_BEGIN(data_access_slb, 0x4380, 0x80)
 EXC_VIRT_END(data_access_slb, 0x4380, 0x80)
 EXC_COMMON_BEGIN(data_access_slb_common)
 	GEN_COMMON data_access_slb
+#ifdef CONFIG_PPC_64S_HASH_MMU
 BEGIN_MMU_FTR_SECTION
 	/* HPT case, do SLB fault */
 	addi	r3,r1,STACK_FRAME_OVERHEAD
@@ -1428,9 +1416,12 @@ MMU_FTR_SECTION_ELSE
 	/* Radix case, access is outside page table range */
 	li	r3,-EFAULT
 ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
+#else
+	li	r3,-EFAULT
+#endif
 	std	r3,RESULT(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	do_bad_slb_fault
+	bl	do_bad_segment_interrupt
 	b	interrupt_return_srr
 
 
@@ -1462,11 +1453,15 @@ EXC_VIRT_END(instruction_access, 0x4400, 0x80)
 EXC_COMMON_BEGIN(instruction_access_common)
 	GEN_COMMON instruction_access
 	addi	r3,r1,STACK_FRAME_OVERHEAD
+#ifdef CONFIG_PPC_64S_HASH_MMU
 BEGIN_MMU_FTR_SECTION
 	bl	do_hash_fault
 MMU_FTR_SECTION_ELSE
 	bl	do_page_fault
 ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
+#else
+	bl	do_page_fault
+#endif
 	b	interrupt_return_srr
 
 
@@ -1496,6 +1491,7 @@ EXC_VIRT_BEGIN(instruction_access_slb, 0x4480, 0x80)
 EXC_VIRT_END(instruction_access_slb, 0x4480, 0x80)
 EXC_COMMON_BEGIN(instruction_access_slb_common)
 	GEN_COMMON instruction_access_slb
+#ifdef CONFIG_PPC_64S_HASH_MMU
 BEGIN_MMU_FTR_SECTION
 	/* HPT case, do SLB fault */
 	addi	r3,r1,STACK_FRAME_OVERHEAD
@@ -1508,9 +1504,12 @@ MMU_FTR_SECTION_ELSE
 	/* Radix case, access is outside page table range */
 	li	r3,-EFAULT
 ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
+#else
+	li	r3,-EFAULT
+#endif
 	std	r3,RESULT(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	do_bad_slb_fault
+	bl	do_bad_segment_interrupt
 	b	interrupt_return_srr
 
 
@@ -1536,6 +1535,12 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
  *
  * If soft masked, the masked handler will note the pending interrupt for
  * replay, and clear MSR[EE] in the interrupted context.
+ *
+ * CFAR is not required because this is an asynchronous interrupt that in
+ * general won't have much bearing on the state of the CPU, with the possible
+ * exception of crash/debug IPIs, but those are generally moving to use SRESET
+ * IPIs. Unless this is an HV interrupt and KVM HV is possible, in which case
+ * it may be exiting the guest and need CFAR to be saved.
  */
 INT_DEFINE_BEGIN(hardware_interrupt)
 	IVEC=0x500
@@ -1543,6 +1548,10 @@ INT_DEFINE_BEGIN(hardware_interrupt)
 	IMASK=IRQS_DISABLED
 	IKVM_REAL=1
 	IKVM_VIRT=1
+	ICFAR=0
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	ICFAR_IF_HVMODE=1
+#endif
 INT_DEFINE_END(hardware_interrupt)
 
 EXC_REAL_BEGIN(hardware_interrupt, 0x500, 0x100)
@@ -1764,6 +1773,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_TM)
  * If PPC_WATCHDOG is configured, the soft masked handler will actually set
  * things back up to run soft_nmi_interrupt as a regular interrupt handler
  * on the emergency stack.
+ *
+ * CFAR is not required because this is asynchronous (see hardware_interrupt).
+ * A watchdog interrupt may like to have CFAR, but usually the interesting
+ * branch is long gone by that point (e.g., infinite loop).
  */
 INT_DEFINE_BEGIN(decrementer)
 	IVEC=0x900
@@ -1771,6 +1784,7 @@ INT_DEFINE_BEGIN(decrementer)
 #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 	IKVM_REAL=1
 #endif
+	ICFAR=0
 INT_DEFINE_END(decrementer)
 
 EXC_REAL_BEGIN(decrementer, 0x900, 0x80)
@@ -1846,6 +1860,8 @@ EXC_COMMON_BEGIN(hdecrementer_common)
  * If soft masked, the masked handler will note the pending interrupt for
  * replay, leaving MSR[EE] enabled in the interrupted context because the
  * doorbells are edge triggered.
+ *
+ * CFAR is not required, similarly to hardware_interrupt.
  */
 INT_DEFINE_BEGIN(doorbell_super)
 	IVEC=0xa00
@@ -1853,6 +1869,7 @@ INT_DEFINE_BEGIN(doorbell_super)
 #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 	IKVM_REAL=1
 #endif
+	ICFAR=0
 INT_DEFINE_END(doorbell_super)
 
 EXC_REAL_BEGIN(doorbell_super, 0xa00, 0x100)
@@ -1904,6 +1921,7 @@ INT_DEFINE_BEGIN(system_call)
 	IVEC=0xc00
 	IKVM_REAL=1
 	IKVM_VIRT=1
+	ICFAR=0
 INT_DEFINE_END(system_call)
 
 .macro SYSTEM_CALL virt
@@ -1942,12 +1960,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	HMT_MEDIUM
 
 	.if ! \virt
-	__LOAD_HANDLER(r10, system_call_common_real)
+	__LOAD_HANDLER(r10, system_call_common_real, real_vectors)
 	mtctr	r10
 	bctr
 	.else
 #ifdef CONFIG_RELOCATABLE
-	__LOAD_HANDLER(r10, system_call_common)
+	__LOAD_HANDLER(r10, system_call_common, virt_vectors)
 	mtctr	r10
 	bctr
 #else
@@ -2001,7 +2019,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	 * Requires __LOAD_FAR_HANDLER beause kvmppc_hcall lives
 	 * outside the head section.
 	 */
-	__LOAD_FAR_HANDLER(r10, kvmppc_hcall)
+	__LOAD_FAR_HANDLER(r10, kvmppc_hcall, real_trampolines)
 	mtctr   r10
 	bctr
 #else
@@ -2202,6 +2220,11 @@ EXC_COMMON_BEGIN(hmi_exception_common)
  * Interrupt 0xe80 - Directed Hypervisor Doorbell Interrupt.
  * This is an asynchronous interrupt in response to a msgsnd doorbell.
  * Similar to the 0xa00 doorbell but for host rather than guest.
+ *
+ * CFAR is not required (similar to doorbell_interrupt), unless KVM HV
+ * is enabled, in which case it may be a guest exit. Most PowerNV kernels
+ * include KVM support so it would be nice if this could be dynamically
+ * patched out if KVM was not currently running any guests.
  */
 INT_DEFINE_BEGIN(h_doorbell)
 	IVEC=0xe80
@@ -2209,6 +2232,9 @@ INT_DEFINE_BEGIN(h_doorbell)
 	IMASK=IRQS_DISABLED
 	IKVM_REAL=1
 	IKVM_VIRT=1
+#ifndef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	ICFAR=0
+#endif
 INT_DEFINE_END(h_doorbell)
 
 EXC_REAL_BEGIN(h_doorbell, 0xe80, 0x20)
@@ -2232,6 +2258,9 @@ EXC_COMMON_BEGIN(h_doorbell_common)
  * Interrupt 0xea0 - Hypervisor Virtualization Interrupt.
  * This is an asynchronous interrupt in response to an "external exception".
  * Similar to 0x500 but for host only.
+ *
+ * Like h_doorbell, CFAR is only required for KVM HV because this can be
+ * a guest exit.
  */
 INT_DEFINE_BEGIN(h_virt_irq)
 	IVEC=0xea0
@@ -2239,6 +2268,9 @@ INT_DEFINE_BEGIN(h_virt_irq)
 	IMASK=IRQS_DISABLED
 	IKVM_REAL=1
 	IKVM_VIRT=1
+#ifndef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	ICFAR=0
+#endif
 INT_DEFINE_END(h_virt_irq)
 
 EXC_REAL_BEGIN(h_virt_irq, 0xea0, 0x20)
@@ -2275,6 +2307,8 @@ EXC_VIRT_NONE(0x4ee0, 0x20)
  *
  * If soft masked, the masked handler will note the pending interrupt for
  * replay, and clear MSR[EE] in the interrupted context.
+ *
+ * CFAR is not used by perf interrupts so not required.
  */
 INT_DEFINE_BEGIN(performance_monitor)
 	IVEC=0xf00
@@ -2282,6 +2316,7 @@ INT_DEFINE_BEGIN(performance_monitor)
 #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 	IKVM_REAL=1
 #endif
+	ICFAR=0
 INT_DEFINE_END(performance_monitor)
 
 EXC_REAL_BEGIN(performance_monitor, 0xf00, 0x20)
@@ -2706,6 +2741,7 @@ EXC_VIRT_NONE(0x5800, 0x100)
 INT_DEFINE_BEGIN(soft_nmi)
 	IVEC=0x900
 	ISTACK=0
+	ICFAR=0
 INT_DEFINE_END(soft_nmi)
 
 /*
@@ -3025,7 +3061,7 @@ USE_FIXED_SECTION(virt_trampolines)
 	.align	7
 	.globl	__end_interrupts
 __end_interrupts:
-DEFINE_FIXED_SYMBOL(__end_interrupts)
+DEFINE_FIXED_SYMBOL(__end_interrupts, virt_trampolines)
 
 CLOSE_FIXED_SECTION(real_vectors);
 CLOSE_FIXED_SECTION(real_trampolines);

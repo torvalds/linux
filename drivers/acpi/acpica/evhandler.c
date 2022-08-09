@@ -386,7 +386,7 @@ acpi_ev_install_space_handler(struct acpi_namespace_node *node,
 		case ACPI_ADR_SPACE_DATA_TABLE:
 
 			handler = acpi_ex_data_table_space_handler;
-			setup = NULL;
+			setup = acpi_ev_data_table_region_setup;
 			break;
 
 		default:

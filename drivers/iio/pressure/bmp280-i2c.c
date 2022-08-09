@@ -58,7 +58,7 @@ static struct i2c_driver bmp280_i2c_driver = {
 	.driver = {
 		.name	= "bmp280",
 		.of_match_table = bmp280_of_i2c_match,
-		.pm = &bmp280_dev_pm_ops,
+		.pm = pm_ptr(&bmp280_dev_pm_ops),
 	},
 	.probe		= bmp280_i2c_probe,
 	.id_table	= bmp280_i2c_id,

@@ -984,12 +984,10 @@ struct sctp_transport {
 	} cacc;
 
 	struct {
-		__u32 last_rtx_chunks;
 		__u16 pmtu;
 		__u16 probe_size;
 		__u16 probe_high;
-		__u8 probe_count:3;
-		__u8 raise_count:5;
+		__u8 probe_count;
 		__u8 state;
 	} pl; /* plpmtud related */
 
@@ -1011,6 +1009,7 @@ void sctp_transport_reset_t3_rtx(struct sctp_transport *);
 void sctp_transport_reset_hb_timer(struct sctp_transport *);
 void sctp_transport_reset_reconf_timer(struct sctp_transport *transport);
 void sctp_transport_reset_probe_timer(struct sctp_transport *transport);
+void sctp_transport_reset_raise_timer(struct sctp_transport *transport);
 int sctp_transport_hold(struct sctp_transport *);
 void sctp_transport_put(struct sctp_transport *);
 void sctp_transport_update_rto(struct sctp_transport *, __u32);
@@ -1025,7 +1024,7 @@ bool sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu);
 void sctp_transport_immediate_rtx(struct sctp_transport *);
 void sctp_transport_dst_release(struct sctp_transport *t);
 void sctp_transport_dst_confirm(struct sctp_transport *t);
-bool sctp_transport_pl_send(struct sctp_transport *t);
+void sctp_transport_pl_send(struct sctp_transport *t);
 bool sctp_transport_pl_recv(struct sctp_transport *t);
 
 
@@ -1244,10 +1243,6 @@ enum sctp_endpoint_type {
  */
 
 struct sctp_ep_common {
-	/* Fields to help us manage our entries in the hash tables. */
-	struct hlist_node node;
-	int hashent;
-
 	/* Runtime type information.  What kind of endpoint is this? */
 	enum sctp_endpoint_type type;
 
@@ -1298,6 +1293,10 @@ struct sctp_ep_common {
 struct sctp_endpoint {
 	/* Common substructure for endpoint and association. */
 	struct sctp_ep_common base;
+
+	/* Fields to help us manage our entries in the hash tables. */
+	struct hlist_node node;
+	int hashent;
 
 	/* Associations: A list of current associations and mappings
 	 *	      to the data consumers for each association. This

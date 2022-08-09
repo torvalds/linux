@@ -38,8 +38,8 @@ struct bench_res {
 
 struct bench {
 	const char *name;
-	void (*validate)();
-	void (*setup)();
+	void (*validate)(void);
+	void (*setup)(void);
 	void *(*producer_thread)(void *ctx);
 	void *(*consumer_thread)(void *ctx);
 	void (*measure)(struct bench_res* res);
@@ -54,13 +54,16 @@ struct counter {
 extern struct env env;
 extern const struct bench *bench;
 
-void setup_libbpf();
+void setup_libbpf(void);
 void hits_drops_report_progress(int iter, struct bench_res *res, long delta_ns);
 void hits_drops_report_final(struct bench_res res[], int res_cnt);
 void false_hits_report_progress(int iter, struct bench_res *res, long delta_ns);
 void false_hits_report_final(struct bench_res res[], int res_cnt);
+void ops_report_progress(int iter, struct bench_res *res, long delta_ns);
+void ops_report_final(struct bench_res res[], int res_cnt);
 
-static inline __u64 get_time_ns() {
+static inline __u64 get_time_ns(void)
+{
 	struct timespec t;
 
 	clock_gettime(CLOCK_MONOTONIC, &t);

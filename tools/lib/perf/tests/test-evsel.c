@@ -130,6 +130,9 @@ static int test_stat_user_read(int event)
 	struct perf_event_attr attr = {
 		.type	= PERF_TYPE_HARDWARE,
 		.config	= event,
+#ifdef __aarch64__
+		.config1 = 0x2,		/* Request user access */
+#endif
 	};
 	int err, i;
 
@@ -150,7 +153,7 @@ static int test_stat_user_read(int event)
 	pc = perf_evsel__mmap_base(evsel, 0, 0);
 	__T("failed to get mmapped address", pc);
 
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__i386__) || defined(__x86_64__) || defined(__aarch64__)
 	__T("userspace counter access not supported", pc->cap_user_rdpmc);
 	__T("userspace counter access not enabled", pc->index);
 	__T("userspace counter width not set", pc->pmc_width >= 32);

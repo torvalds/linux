@@ -225,6 +225,7 @@ static struct attribute *uncore_attrs[] = {
 	&min_freq_khz.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(uncore);
 
 static void uncore_sysfs_entry_release(struct kobject *kobj)
 {
@@ -236,7 +237,7 @@ static void uncore_sysfs_entry_release(struct kobject *kobj)
 static struct kobj_type uncore_ktype = {
 	.release = uncore_sysfs_entry_release,
 	.sysfs_ops = &kobj_sysfs_ops,
-	.default_attrs = uncore_attrs,
+	.default_groups = uncore_groups,
 };
 
 /* Caller provides protection */

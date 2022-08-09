@@ -11,6 +11,7 @@
 #include "blk.h"
 #include "blk-mq.h"
 #include "blk-mq-debugfs.h"
+#include "blk-mq-sched.h"
 #include "blk-mq-tag.h"
 #include "blk-rq-qos.h"
 
@@ -28,6 +29,9 @@ static int queue_poll_stat_show(void *data, struct seq_file *m)
 {
 	struct request_queue *q = data;
 	int bucket;
+
+	if (!q->poll_stat)
+		return 0;
 
 	for (bucket = 0; bucket < (BLK_MQ_POLL_STATS_BKTS / 2); bucket++) {
 		seq_printf(m, "read  (%d Bytes): ", 1 << (9 + bucket));
@@ -122,7 +126,6 @@ static const char *const blk_queue_flag_name[] = {
 	QUEUE_FLAG_NAME(FUA),
 	QUEUE_FLAG_NAME(DAX),
 	QUEUE_FLAG_NAME(STATS),
-	QUEUE_FLAG_NAME(POLL_STATS),
 	QUEUE_FLAG_NAME(REGISTERED),
 	QUEUE_FLAG_NAME(QUIESCED),
 	QUEUE_FLAG_NAME(PCI_P2PDMA),

@@ -31,7 +31,6 @@
  * SOFTWARE.
  */
 
-#include <linux/platform_device.h>
 #include <linux/vmalloc.h>
 #include <rdma/ib_umem.h>
 #include "hns_roce_device.h"
@@ -81,7 +80,7 @@ static int alloc_mr_key(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr)
 		return -ENOMEM;
 	}
 
-	mr->key = hw_index_to_key(id);		/* MR key */
+	mr->key = hw_index_to_key(id); /* MR key */
 
 	err = hns_roce_table_get(hr_dev, &hr_dev->mr_table.mtpt_table,
 				 (unsigned long)id);
@@ -173,8 +172,7 @@ static int hns_roce_mr_enable(struct hns_roce_dev *hr_dev,
 	}
 
 	if (mr->type != MR_TYPE_FRMR)
-		ret = hr_dev->hw->write_mtpt(hr_dev, mailbox->buf, mr,
-					     mtpt_idx);
+		ret = hr_dev->hw->write_mtpt(hr_dev, mailbox->buf, mr);
 	else
 		ret = hr_dev->hw->frmr_write_mtpt(hr_dev, mailbox->buf, mr);
 	if (ret) {
@@ -363,12 +361,8 @@ int hns_roce_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 	struct hns_roce_mr *mr = to_hr_mr(ibmr);
 	int ret = 0;
 
-	if (hr_dev->hw->dereg_mr) {
-		ret = hr_dev->hw->dereg_mr(hr_dev, mr, udata);
-	} else {
-		hns_roce_mr_free(hr_dev, mr);
-		kfree(mr);
-	}
+	hns_roce_mr_free(hr_dev, mr);
+	kfree(mr);
 
 	return ret;
 }
@@ -614,10 +608,7 @@ static int mtr_map_region(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 			return -ENOBUFS;
 
 		for (i = 0; i < count && npage < max_count; i++) {
-			if (hr_dev->hw_rev == HNS_ROCE_HW_VER1)
-				addr = to_hr_hw_page_addr(pages[npage]);
-			else
-				addr = pages[npage];
+			addr = pages[npage];
 
 			mtts[i] = cpu_to_le64(addr);
 			npage++;
@@ -824,11 +815,11 @@ int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 }
 
 int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
-		      int offset, u64 *mtt_buf, int mtt_max, u64 *base_addr)
+		      u32 offset, u64 *mtt_buf, int mtt_max, u64 *base_addr)
 {
 	struct hns_roce_hem_cfg *cfg = &mtr->hem_cfg;
 	int mtt_count, left;
-	int start_index;
+	u32 start_index;
 	int total = 0;
 	__le64 *mtts;
 	u32 npage;
@@ -847,10 +838,7 @@ int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 				continue;
 
 			addr = cfg->root_ba + (npage << HNS_HW_PAGE_SHIFT);
-			if (hr_dev->hw_rev == HNS_ROCE_HW_VER1)
-				mtt_buf[total] = to_hr_hw_page_addr(addr);
-			else
-				mtt_buf[total] = addr;
+			mtt_buf[total] = addr;
 
 			total++;
 		}
@@ -884,10 +872,10 @@ done:
 static int mtr_init_buf_cfg(struct hns_roce_dev *hr_dev,
 			    struct hns_roce_buf_attr *attr,
 			    struct hns_roce_hem_cfg *cfg,
-			    unsigned int *buf_page_shift, int unalinged_size)
+			    unsigned int *buf_page_shift, u64 unalinged_size)
 {
 	struct hns_roce_buf_region *r;
-	int first_region_padding;
+	u64 first_region_padding;
 	int page_cnt, region_cnt;
 	unsigned int page_shift;
 	size_t buf_size;

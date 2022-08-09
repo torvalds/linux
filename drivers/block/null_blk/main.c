@@ -340,9 +340,9 @@ static int nullb_update_nr_hw_queues(struct nullb_device *dev,
 		return 0;
 
 	/*
-	 * Make sure at least one queue exists for each of submit and poll.
+	 * Make sure at least one submit queue exists.
 	 */
-	if (!submit_queues || !poll_queues)
+	if (!submit_queues)
 		return -EINVAL;
 
 	/*
@@ -1574,7 +1574,9 @@ static int null_poll(struct blk_mq_hw_ctx *hctx, struct io_comp_batch *iob)
 		cmd = blk_mq_rq_to_pdu(req);
 		cmd->error = null_process_cmd(cmd, req_op(req), blk_rq_pos(req),
 						blk_rq_sectors(req));
-		end_cmd(cmd);
+		if (!blk_mq_add_to_batch(req, iob, (__force int) cmd->error,
+					blk_mq_end_request_batch))
+			end_cmd(cmd);
 		nr++;
 	}
 
@@ -1850,7 +1852,6 @@ static int null_gendisk_register(struct nullb *nullb)
 
 	set_capacity(disk, size);
 
-	disk->flags |= GENHD_FL_EXT_DEVT | GENHD_FL_SUPPRESS_PARTITION_INFO;
 	disk->major		= null_major;
 	disk->first_minor	= nullb->index;
 	disk->minors		= 1;
@@ -1891,7 +1892,7 @@ static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 	if (g_shared_tag_bitmap)
 		set->flags |= BLK_MQ_F_TAG_HCTX_SHARED;
 	set->driver_data = nullb;
-	if (g_poll_queues)
+	if (poll_queues)
 		set->nr_maps = 3;
 	else
 		set->nr_maps = 1;
@@ -1918,8 +1919,6 @@ static int null_validate_conf(struct nullb_device *dev)
 
 	if (dev->poll_queues > g_poll_queues)
 		dev->poll_queues = g_poll_queues;
-	else if (dev->poll_queues == 0)
-		dev->poll_queues = 1;
 	dev->prev_poll_queues = dev->poll_queues;
 
 	dev->queue_mode = min_t(unsigned int, dev->queue_mode, NULL_Q_MQ);

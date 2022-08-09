@@ -877,7 +877,7 @@ static struct tegra_qspi_client_data *tegra_qspi_parse_cdata_dt(struct spi_devic
 	struct tegra_qspi_client_data *cdata;
 	struct device_node *slave_np = spi->dev.of_node;
 
-	cdata = kzalloc(sizeof(*cdata), GFP_KERNEL);
+	cdata = devm_kzalloc(&spi->dev, sizeof(*cdata), GFP_KERNEL);
 	if (!cdata)
 		return NULL;
 
@@ -886,14 +886,6 @@ static struct tegra_qspi_client_data *tegra_qspi_parse_cdata_dt(struct spi_devic
 	of_property_read_u32(slave_np, "nvidia,rx-clk-tap-delay",
 			     &cdata->rx_clk_tap_delay);
 	return cdata;
-}
-
-static void tegra_qspi_cleanup(struct spi_device *spi)
-{
-	struct tegra_qspi_client_data *cdata = spi->controller_data;
-
-	spi->controller_data = NULL;
-	kfree(cdata);
 }
 
 static int tegra_qspi_setup(struct spi_device *spi)
@@ -1229,7 +1221,6 @@ static int tegra_qspi_probe(struct platform_device *pdev)
 			    SPI_TX_DUAL | SPI_RX_DUAL | SPI_TX_QUAD | SPI_RX_QUAD;
 	master->bits_per_word_mask = SPI_BPW_MASK(32) | SPI_BPW_MASK(16) | SPI_BPW_MASK(8);
 	master->setup = tegra_qspi_setup;
-	master->cleanup = tegra_qspi_cleanup;
 	master->transfer_one_message = tegra_qspi_transfer_one_message;
 	master->num_chipselect = 1;
 	master->auto_runtime_pm = true;

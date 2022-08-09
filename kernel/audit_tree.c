@@ -94,7 +94,7 @@ static struct audit_tree *alloc_tree(const char *s)
 {
 	struct audit_tree *tree;
 
-	tree = kmalloc(sizeof(struct audit_tree) + strlen(s) + 1, GFP_KERNEL);
+	tree = kmalloc(struct_size(tree, pathname, strlen(s) + 1), GFP_KERNEL);
 	if (tree) {
 		refcount_set(&tree->count, 1);
 		tree->goner = 0;

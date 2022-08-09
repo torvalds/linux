@@ -8,9 +8,13 @@
 #include <net/netfilter/nf_tables_core.h>
 #include <net/netfilter/nf_tables.h>
 
+struct nft_last {
+	unsigned long	jiffies;
+	unsigned int	set;
+};
+
 struct nft_last_priv {
-	unsigned long	last_jiffies;
-	unsigned int	last_set;
+	struct nft_last	*last;
 };
 
 static const struct nla_policy nft_last_policy[NFTA_LAST_MAX + 1] = {
@@ -22,47 +26,55 @@ static int nft_last_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 			 const struct nlattr * const tb[])
 {
 	struct nft_last_priv *priv = nft_expr_priv(expr);
+	struct nft_last *last;
 	u64 last_jiffies;
-	u32 last_set = 0;
 	int err;
 
-	if (tb[NFTA_LAST_SET]) {
-		last_set = ntohl(nla_get_be32(tb[NFTA_LAST_SET]));
-		if (last_set == 1)
-			priv->last_set = 1;
-	}
+	last = kzalloc(sizeof(*last), GFP_KERNEL);
+	if (!last)
+		return -ENOMEM;
 
-	if (last_set && tb[NFTA_LAST_MSECS]) {
+	if (tb[NFTA_LAST_SET])
+		last->set = ntohl(nla_get_be32(tb[NFTA_LAST_SET]));
+
+	if (last->set && tb[NFTA_LAST_MSECS]) {
 		err = nf_msecs_to_jiffies64(tb[NFTA_LAST_MSECS], &last_jiffies);
 		if (err < 0)
-			return err;
+			goto err;
 
-		priv->last_jiffies = jiffies - (unsigned long)last_jiffies;
+		last->jiffies = jiffies - (unsigned long)last_jiffies;
 	}
+	priv->last = last;
 
 	return 0;
+err:
+	kfree(last);
+
+	return err;
 }
 
 static void nft_last_eval(const struct nft_expr *expr,
 			  struct nft_regs *regs, const struct nft_pktinfo *pkt)
 {
 	struct nft_last_priv *priv = nft_expr_priv(expr);
+	struct nft_last *last = priv->last;
 
-	if (READ_ONCE(priv->last_jiffies) != jiffies)
-		WRITE_ONCE(priv->last_jiffies, jiffies);
-	if (READ_ONCE(priv->last_set) == 0)
-		WRITE_ONCE(priv->last_set, 1);
+	if (READ_ONCE(last->jiffies) != jiffies)
+		WRITE_ONCE(last->jiffies, jiffies);
+	if (READ_ONCE(last->set) == 0)
+		WRITE_ONCE(last->set, 1);
 }
 
 static int nft_last_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	struct nft_last_priv *priv = nft_expr_priv(expr);
-	unsigned long last_jiffies = READ_ONCE(priv->last_jiffies);
-	u32 last_set = READ_ONCE(priv->last_set);
+	struct nft_last *last = priv->last;
+	unsigned long last_jiffies = READ_ONCE(last->jiffies);
+	u32 last_set = READ_ONCE(last->set);
 	__be64 msecs;
 
 	if (time_before(jiffies, last_jiffies)) {
-		WRITE_ONCE(priv->last_set, 0);
+		WRITE_ONCE(last->set, 0);
 		last_set = 0;
 	}
 
@@ -81,11 +93,32 @@ nla_put_failure:
 	return -1;
 }
 
+static void nft_last_destroy(const struct nft_ctx *ctx,
+			     const struct nft_expr *expr)
+{
+	struct nft_last_priv *priv = nft_expr_priv(expr);
+
+	kfree(priv->last);
+}
+
+static int nft_last_clone(struct nft_expr *dst, const struct nft_expr *src)
+{
+	struct nft_last_priv *priv_dst = nft_expr_priv(dst);
+
+	priv_dst->last = kzalloc(sizeof(*priv_dst->last), GFP_ATOMIC);
+	if (!priv_dst->last)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static const struct nft_expr_ops nft_last_ops = {
 	.type		= &nft_last_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_last_priv)),
 	.eval		= nft_last_eval,
 	.init		= nft_last_init,
+	.destroy	= nft_last_destroy,
+	.clone		= nft_last_clone,
 	.dump		= nft_last_dump,
 };
 

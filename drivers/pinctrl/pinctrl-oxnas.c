@@ -1232,7 +1232,6 @@ static int oxnas_gpio_probe(struct platform_device *pdev)
 
 	bank->id = id;
 	bank->gpio_chip.parent = &pdev->dev;
-	bank->gpio_chip.of_node = np;
 	bank->gpio_chip.ngpio = ngpios;
 	girq = &bank->gpio_chip.irq;
 	girq->chip = &bank->irq_chip;

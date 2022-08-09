@@ -93,7 +93,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		input-name = "gpio-keys";
 		label = "Side buttons";
 		pinctrl-names = "default";
 		pinctrl-0 = <&vol_down_pin_a>, <&cam_focus_pin_a>,
@@ -126,7 +125,6 @@
 
 	gpio-hall-sensor {
 		compatible = "gpio-keys";
-		input-name = "hall-sensors";
 		label = "Hall sensors";
 		pinctrl-names = "default";
 		pinctrl-0 = <&hall_sensor0_default>;

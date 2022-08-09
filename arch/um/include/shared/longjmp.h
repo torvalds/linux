@@ -18,7 +18,7 @@ extern void longjmp(jmp_buf, int);
 	enable = *(volatile int *)&signals_enabled;	\
 	n = setjmp(*buf);				\
 	if(n != 0)					\
-		set_signals_trace(enable);		\
+		um_set_signals_trace(enable);		\
 	n; })
 
 #endif

@@ -734,7 +734,7 @@ static int ipa_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_endpoint_exit;
 
-	ret = ipa_modem_init(ipa, modem_init);
+	ret = ipa_smp2p_init(ipa, modem_init);
 	if (ret)
 		goto err_table_exit;
 
@@ -776,7 +776,7 @@ err_deconfig:
 	ipa_deconfig(ipa);
 err_power_put:
 	pm_runtime_put_noidle(dev);
-	ipa_modem_exit(ipa);
+	ipa_smp2p_exit(ipa);
 err_table_exit:
 	ipa_table_exit(ipa);
 err_endpoint_exit:
@@ -827,7 +827,7 @@ static int ipa_remove(struct platform_device *pdev)
 	ipa_deconfig(ipa);
 out_power_put:
 	pm_runtime_put_noidle(dev);
-	ipa_modem_exit(ipa);
+	ipa_smp2p_exit(ipa);
 	ipa_table_exit(ipa);
 	ipa_endpoint_exit(ipa);
 	gsi_exit(&ipa->gsi);

@@ -6,6 +6,7 @@
 # Author: Felix Guo <felixguoxiuping@gmail.com>
 # Author: Brendan Higgins <brendanhiggins@google.com>
 
+import importlib.abc
 import importlib.util
 import logging
 import subprocess
@@ -21,6 +22,7 @@ import qemu_config
 
 KCONFIG_PATH = '.config'
 KUNITCONFIG_PATH = '.kunitconfig'
+OLD_KUNITCONFIG_PATH = 'last_used_kunitconfig'
 DEFAULT_KUNITCONFIG_PATH = 'tools/testing/kunit/configs/default.config'
 BROKEN_ALLCONFIG_PATH = 'tools/testing/kunit/configs/broken_on_uml.config'
 OUTFILE_PATH = 'test.log'
@@ -116,8 +118,7 @@ class LinuxSourceTreeOperationsQemu(LinuxSourceTreeOperations):
 		self._extra_qemu_params = qemu_arch_params.extra_qemu_params
 
 	def make_arch_qemuconfig(self, base_kunitconfig: kunit_config.Kconfig) -> None:
-		kconfig = kunit_config.Kconfig()
-		kconfig.parse_from_string(self._kconfig)
+		kconfig = kunit_config.parse_from_string(self._kconfig)
 		base_kunitconfig.merge_in_entries(kconfig)
 
 	def start(self, params: List[str], build_dir: str) -> subprocess.Popen:
@@ -180,6 +181,9 @@ def get_kconfig_path(build_dir) -> str:
 def get_kunitconfig_path(build_dir) -> str:
 	return get_file_path(build_dir, KUNITCONFIG_PATH)
 
+def get_old_kunitconfig_path(build_dir) -> str:
+	return get_file_path(build_dir, OLD_KUNITCONFIG_PATH)
+
 def get_outfile_path(build_dir) -> str:
 	return get_file_path(build_dir, OUTFILE_PATH)
 
@@ -206,6 +210,7 @@ def get_source_tree_ops_from_qemu_config(config_path: str,
 	# exists as a file.
 	module_path = '.' + os.path.join(os.path.basename(QEMU_CONFIGS_DIR), os.path.basename(config_path))
 	spec = importlib.util.spec_from_file_location(module_path, config_path)
+	assert spec is not None
 	config = importlib.util.module_from_spec(spec)
 	# See https://github.com/python/typeshed/pull/2626 for context.
 	assert isinstance(spec.loader, importlib.abc.Loader)
@@ -225,6 +230,7 @@ class LinuxSourceTree(object):
 	      build_dir: str,
 	      load_config=True,
 	      kunitconfig_path='',
+	      kconfig_add: Optional[List[str]]=None,
 	      arch=None,
 	      cross_compile=None,
 	      qemu_config_path=None) -> None:
@@ -249,8 +255,11 @@ class LinuxSourceTree(object):
 			if not os.path.exists(kunitconfig_path):
 				shutil.copyfile(DEFAULT_KUNITCONFIG_PATH, kunitconfig_path)
 
-		self._kconfig = kunit_config.Kconfig()
-		self._kconfig.read_from_file(kunitconfig_path)
+		self._kconfig = kunit_config.parse_file(kunitconfig_path)
+		if kconfig_add:
+			kconfig = kunit_config.parse_from_string('\n'.join(kconfig_add))
+			self._kconfig.merge_in_entries(kconfig)
+
 
 	def clean(self) -> bool:
 		try:
@@ -262,17 +271,18 @@ class LinuxSourceTree(object):
 
 	def validate_config(self, build_dir) -> bool:
 		kconfig_path = get_kconfig_path(build_dir)
-		validated_kconfig = kunit_config.Kconfig()
-		validated_kconfig.read_from_file(kconfig_path)
-		if not self._kconfig.is_subset_of(validated_kconfig):
-			invalid = self._kconfig.entries() - validated_kconfig.entries()
-			message = 'Provided Kconfig is not contained in validated .config. Following fields found in kunitconfig, ' \
-					  'but not in .config: %s' % (
-					', '.join([str(e) for e in invalid])
-			)
-			logging.error(message)
-			return False
-		return True
+		validated_kconfig = kunit_config.parse_file(kconfig_path)
+		if self._kconfig.is_subset_of(validated_kconfig):
+			return True
+		invalid = self._kconfig.entries() - validated_kconfig.entries()
+		message = 'Not all Kconfig options selected in kunitconfig were in the generated .config.\n' \
+			  'This is probably due to unsatisfied dependencies.\n' \
+			  'Missing: ' + ', '.join([str(e) for e in invalid])
+		if self._arch == 'um':
+			message += '\nNote: many Kconfig options aren\'t available on UML. You can try running ' \
+				   'on a different architecture with something like "--arch=x86_64".'
+		logging.error(message)
+		return False
 
 	def build_config(self, build_dir, make_options) -> bool:
 		kconfig_path = get_kconfig_path(build_dir)
@@ -285,24 +295,37 @@ class LinuxSourceTree(object):
 		except ConfigError as e:
 			logging.error(e)
 			return False
-		return self.validate_config(build_dir)
+		if not self.validate_config(build_dir):
+			return False
+
+		old_path = get_old_kunitconfig_path(build_dir)
+		if os.path.exists(old_path):
+			os.remove(old_path)  # write_to_file appends to the file
+		self._kconfig.write_to_file(old_path)
+		return True
+
+	def _kunitconfig_changed(self, build_dir: str) -> bool:
+		old_path = get_old_kunitconfig_path(build_dir)
+		if not os.path.exists(old_path):
+			return True
+
+		old_kconfig = kunit_config.parse_file(old_path)
+		return old_kconfig.entries() != self._kconfig.entries()
 
 	def build_reconfig(self, build_dir, make_options) -> bool:
 		"""Creates a new .config if it is not a subset of the .kunitconfig."""
 		kconfig_path = get_kconfig_path(build_dir)
-		if os.path.exists(kconfig_path):
-			existing_kconfig = kunit_config.Kconfig()
-			existing_kconfig.read_from_file(kconfig_path)
-			self._ops.make_arch_qemuconfig(self._kconfig)
-			if not self._kconfig.is_subset_of(existing_kconfig):
-				print('Regenerating .config ...')
-				os.remove(kconfig_path)
-				return self.build_config(build_dir, make_options)
-			else:
-				return True
-		else:
+		if not os.path.exists(kconfig_path):
 			print('Generating .config ...')
 			return self.build_config(build_dir, make_options)
+
+		existing_kconfig = kunit_config.parse_file(kconfig_path)
+		self._ops.make_arch_qemuconfig(self._kconfig)
+		if self._kconfig.is_subset_of(existing_kconfig) and not self._kunitconfig_changed(build_dir):
+			return True
+		print('Regenerating .config ...')
+		os.remove(kconfig_path)
+		return self.build_config(build_dir, make_options)
 
 	def build_kernel(self, alltests, jobs, build_dir, make_options) -> bool:
 		try:

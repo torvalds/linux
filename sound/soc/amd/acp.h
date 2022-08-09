@@ -151,6 +151,7 @@ struct audio_drv_data {
 	struct snd_pcm_substream *capture_i2sbt_stream;
 	void __iomem *acp_mmio;
 	u32 asic_type;
+	snd_pcm_sframes_t delay;
 };
 
 /*

@@ -13,7 +13,6 @@
 
 struct insert_pte_data {
 	u64 offset;
-	bool is_lmem;
 };
 
 #define CHUNK_SZ SZ_8M /* ~1ms at 8GiB/s preemption delay */
@@ -40,7 +39,7 @@ static void insert_pte(struct i915_address_space *vm,
 	struct insert_pte_data *d = data;
 
 	vm->insert_page(vm, px_dma(pt), d->offset, I915_CACHE_NONE,
-			d->is_lmem ? PTE_LM : 0);
+			i915_gem_object_is_lmem(pt->base) ? PTE_LM : 0);
 	d->offset += PAGE_SIZE;
 }
 
@@ -134,8 +133,7 @@ static struct i915_address_space *migrate_vm(struct intel_gt *gt)
 			goto err_vm;
 
 		/* Now allow the GPU to rewrite the PTE via its own ppGTT */
-		d.is_lmem = i915_gem_object_is_lmem(vm->vm.scratch[0]);
-		vm->vm.foreach(&vm->vm, base, base + sz, insert_pte, &d);
+		vm->vm.foreach(&vm->vm, base, d.offset - base, insert_pte, &d);
 	}
 
 	return &vm->vm;
@@ -281,10 +279,10 @@ static int emit_pte(struct i915_request *rq,
 	GEM_BUG_ON(GRAPHICS_VER(rq->engine->i915) < 8);
 
 	/* Compute the page directory offset for the target address range */
-	offset += (u64)rq->engine->instance << 32;
 	offset >>= 12;
 	offset *= sizeof(u64);
 	offset += 2 * CHUNK_SZ;
+	offset += (u64)rq->engine->instance << 32;
 
 	cs = intel_ring_begin(rq, 6);
 	if (IS_ERR(cs))
@@ -406,7 +404,7 @@ static int emit_copy(struct i915_request *rq, int size)
 
 int
 intel_context_migrate_copy(struct intel_context *ce,
-			   struct dma_fence *await,
+			   const struct i915_deps *deps,
 			   struct scatterlist *src,
 			   enum i915_cache_level src_cache_level,
 			   bool src_is_lmem,
@@ -433,8 +431,8 @@ intel_context_migrate_copy(struct intel_context *ce,
 			goto out_ce;
 		}
 
-		if (await) {
-			err = i915_request_await_dma_fence(rq, await);
+		if (deps) {
+			err = i915_request_await_deps(rq, deps);
 			if (err)
 				goto out_rq;
 
@@ -444,7 +442,7 @@ intel_context_migrate_copy(struct intel_context *ce,
 					goto out_rq;
 			}
 
-			await = NULL;
+			deps = NULL;
 		}
 
 		/* The PTE updates + copy must not be interrupted. */
@@ -527,7 +525,7 @@ static int emit_clear(struct i915_request *rq, int size, u32 value)
 
 int
 intel_context_migrate_clear(struct intel_context *ce,
-			    struct dma_fence *await,
+			    const struct i915_deps *deps,
 			    struct scatterlist *sg,
 			    enum i915_cache_level cache_level,
 			    bool is_lmem,
@@ -552,8 +550,8 @@ intel_context_migrate_clear(struct intel_context *ce,
 			goto out_ce;
 		}
 
-		if (await) {
-			err = i915_request_await_dma_fence(rq, await);
+		if (deps) {
+			err = i915_request_await_deps(rq, deps);
 			if (err)
 				goto out_rq;
 
@@ -563,7 +561,7 @@ intel_context_migrate_clear(struct intel_context *ce,
 					goto out_rq;
 			}
 
-			await = NULL;
+			deps = NULL;
 		}
 
 		/* The PTE updates + clear must not be interrupted. */
@@ -601,7 +599,7 @@ out_ce:
 
 int intel_migrate_copy(struct intel_migrate *m,
 		       struct i915_gem_ww_ctx *ww,
-		       struct dma_fence *await,
+		       const struct i915_deps *deps,
 		       struct scatterlist *src,
 		       enum i915_cache_level src_cache_level,
 		       bool src_is_lmem,
@@ -626,7 +624,7 @@ int intel_migrate_copy(struct intel_migrate *m,
 	if (err)
 		goto out;
 
-	err = intel_context_migrate_copy(ce, await,
+	err = intel_context_migrate_copy(ce, deps,
 					 src, src_cache_level, src_is_lmem,
 					 dst, dst_cache_level, dst_is_lmem,
 					 out);
@@ -640,7 +638,7 @@ out:
 int
 intel_migrate_clear(struct intel_migrate *m,
 		    struct i915_gem_ww_ctx *ww,
-		    struct dma_fence *await,
+		    const struct i915_deps *deps,
 		    struct scatterlist *sg,
 		    enum i915_cache_level cache_level,
 		    bool is_lmem,
@@ -663,7 +661,7 @@ intel_migrate_clear(struct intel_migrate *m,
 	if (err)
 		goto out;
 
-	err = intel_context_migrate_clear(ce, await, sg, cache_level,
+	err = intel_context_migrate_clear(ce, deps, sg, cache_level,
 					  is_lmem, value, out);
 
 	intel_context_unpin(ce);

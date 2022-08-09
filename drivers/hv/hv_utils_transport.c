@@ -13,7 +13,7 @@
 #include "hv_utils_transport.h"
 
 static DEFINE_SPINLOCK(hvt_list_lock);
-static struct list_head hvt_list = LIST_HEAD_INIT(hvt_list);
+static LIST_HEAD(hvt_list);
 
 static void hvt_reset(struct hvutil_transport *hvt)
 {

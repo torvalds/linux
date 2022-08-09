@@ -739,14 +739,13 @@ static int hci_uart_set_flags(struct hci_uart *hu, unsigned long flags)
  * Arguments:
  *
  *    tty        pointer to tty instance data
- *    file       pointer to open file object for device
  *    cmd        IOCTL command code
  *    arg        argument for IOCTL call (cmd dependent)
  *
  * Return Value:    Command dependent
  */
-static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file *file,
-			      unsigned int cmd, unsigned long arg)
+static int hci_uart_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
+			      unsigned long arg)
 {
 	struct hci_uart *hu = tty->disc_data;
 	int err = 0;

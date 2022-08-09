@@ -9,6 +9,7 @@ omapdrm-y := omap_drv.o \
 	omap_debugfs.o \
 	omap_crtc.o \
 	omap_plane.o \
+	omap_overlay.o \
 	omap_encoder.o \
 	omap_fb.o \
 	omap_gem.o \

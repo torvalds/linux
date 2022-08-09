@@ -101,10 +101,6 @@ errout:
 	return err;
 }
 
-static const struct nla_policy dn_fib_rule_policy[FRA_MAX+1] = {
-	FRA_GENERIC_POLICY,
-};
-
 static int dn_fib_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 {
 	struct dn_fib_rule *r = (struct dn_fib_rule *)rule;
@@ -235,7 +231,6 @@ static const struct fib_rules_ops __net_initconst dn_fib_rules_ops_template = {
 	.fill		= dn_fib_rule_fill,
 	.flush_cache	= dn_fib_rule_flush_cache,
 	.nlgroup	= RTNLGRP_DECnet_RULE,
-	.policy		= dn_fib_rule_policy,
 	.owner		= THIS_MODULE,
 	.fro_net	= &init_net,
 };

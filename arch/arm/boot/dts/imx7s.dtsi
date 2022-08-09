@@ -809,8 +809,6 @@
 			mipi_csi: mipi-csi@30750000 {
 				compatible = "fsl,imx7-mipi-csi2";
 				reg = <0x30750000 0x10000>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 				interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX7D_IPG_ROOT_CLK>,
 					 <&clks IMX7D_MIPI_CSI_ROOT_CLK>,
@@ -819,18 +817,22 @@
 				power-domains = <&pgc_mipi_phy>;
 				phy-supply = <&reg_1p0d>;
 				resets = <&src IMX7_RESET_MIPI_PHY_MRST>;
-				reset-names = "mrst";
 				status = "disabled";
 
-				port@0 {
-					reg = <0>;
-				};
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
 
-				port@1 {
-					reg = <1>;
+					port@0 {
+						reg = <0>;
+					};
 
-					mipi_vc0_to_csi_mux: endpoint {
-						remote-endpoint = <&csi_mux_from_mipi_vc0>;
+					port@1 {
+						reg = <1>;
+
+						mipi_vc0_to_csi_mux: endpoint {
+							remote-endpoint = <&csi_mux_from_mipi_vc0>;
+						};
 					};
 				};
 			};

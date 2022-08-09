@@ -444,6 +444,13 @@
 		reg = <0x422c>;
 	};
 
+	adc_mag_fck: adc_mag_fck@424c {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&sys_clkin_ck>, <&dpll_per_m2_ck>;
+		reg = <0x424c>;
+	};
+
 	l3_gclk: l3_gclk {
 		#clock-cells = <0>;
 		compatible = "fixed-factor-clock";

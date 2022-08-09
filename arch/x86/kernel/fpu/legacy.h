@@ -35,11 +35,7 @@ static inline void ldmxcsr(u32 mxcsr)
 	int err;							\
 	asm volatile("1:" #insn "\n\t"					\
 		     "2:\n"						\
-		     ".section .fixup,\"ax\"\n"				\
-		     "3:  movl $-1,%[err]\n"				\
-		     "    jmp  2b\n"					\
-		     ".previous\n"					\
-		     _ASM_EXTABLE(1b, 3b)				\
+		     _ASM_EXTABLE_TYPE_REG(1b, 2b, EX_TYPE_EFAULT_REG, %[err]) \
 		     : [err] "=r" (err), output				\
 		     : "0"(0), input);					\
 	err;								\

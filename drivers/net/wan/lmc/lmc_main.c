@@ -550,7 +550,7 @@ static int lmc_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
                            (timeout-- > 0))
                         cpu_relax();
 
-                    printk(KERN_DEBUG "%s: Waited %d for the Xilinx to clear it's memory\n", dev->name, 500000-timeout);
+                    printk(KERN_DEBUG "%s: Waited %d for the Xilinx to clear its memory\n", dev->name, 500000-timeout);
 
                     for(pos = 0; pos < xc.len; pos++){
                         switch(data[pos]){

@@ -122,6 +122,8 @@ void fwnode_handle_put(struct fwnode_handle *fwnode);
 
 int fwnode_irq_get(const struct fwnode_handle *fwnode, unsigned int index);
 
+void __iomem *fwnode_iomap(struct fwnode_handle *fwnode, int index);
+
 unsigned int device_get_child_node_count(struct device *dev);
 
 static inline bool device_property_read_bool(struct device *dev,
@@ -378,10 +380,6 @@ property_entries_dup(const struct property_entry *properties);
 
 void property_entries_free(const struct property_entry *properties);
 
-int device_add_properties(struct device *dev,
-			  const struct property_entry *properties);
-void device_remove_properties(struct device *dev);
-
 bool device_dma_supported(struct device *dev);
 
 enum dev_dma_attr device_get_dma_attr(struct device *dev);
@@ -401,9 +399,6 @@ struct fwnode_handle *fwnode_graph_get_remote_port(
 	const struct fwnode_handle *fwnode);
 struct fwnode_handle *fwnode_graph_get_remote_endpoint(
 	const struct fwnode_handle *fwnode);
-struct fwnode_handle *
-fwnode_graph_get_remote_node(const struct fwnode_handle *fwnode, u32 port,
-			     u32 endpoint);
 
 static inline bool fwnode_graph_is_endpoint(struct fwnode_handle *fwnode)
 {
@@ -418,7 +413,8 @@ static inline bool fwnode_graph_is_endpoint(struct fwnode_handle *fwnode)
  *				one.
  * @FWNODE_GRAPH_DEVICE_DISABLED: That the device to which the remote
  *				  endpoint of the given endpoint belongs to,
- *				  may be disabled.
+ *				  may be disabled, or that the endpoint is not
+ *				  connected.
  */
 #define FWNODE_GRAPH_ENDPOINT_NEXT	BIT(0)
 #define FWNODE_GRAPH_DEVICE_DISABLED	BIT(1)
@@ -426,6 +422,8 @@ static inline bool fwnode_graph_is_endpoint(struct fwnode_handle *fwnode)
 struct fwnode_handle *
 fwnode_graph_get_endpoint_by_id(const struct fwnode_handle *fwnode,
 				u32 port, u32 endpoint, unsigned long flags);
+unsigned int fwnode_graph_get_endpoint_count(struct fwnode_handle *fwnode,
+					     unsigned long flags);
 
 #define fwnode_graph_for_each_endpoint(fwnode, child)			\
 	for (child = NULL;						\

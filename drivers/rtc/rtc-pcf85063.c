@@ -514,21 +514,56 @@ static struct clk *pcf85063_clkout_register_clk(struct pcf85063 *pcf85063)
 }
 #endif
 
-static const struct pcf85063_config pcf85063tp_config = {
-	.regmap = {
-		.reg_bits = 8,
-		.val_bits = 8,
-		.max_register = 0x0a,
+enum pcf85063_type {
+	PCF85063,
+	PCF85063TP,
+	PCF85063A,
+	RV8263,
+	PCF85063_LAST_ID
+};
+
+static struct pcf85063_config pcf85063_cfg[] = {
+	[PCF85063] = {
+		.regmap = {
+			.reg_bits = 8,
+			.val_bits = 8,
+			.max_register = 0x0a,
+		},
+	},
+	[PCF85063TP] = {
+		.regmap = {
+			.reg_bits = 8,
+			.val_bits = 8,
+			.max_register = 0x0a,
+		},
+	},
+	[PCF85063A] = {
+		.regmap = {
+			.reg_bits = 8,
+			.val_bits = 8,
+			.max_register = 0x11,
+		},
+		.has_alarms = 1,
+	},
+	[RV8263] = {
+		.regmap = {
+			.reg_bits = 8,
+			.val_bits = 8,
+			.max_register = 0x11,
+		},
+		.has_alarms = 1,
+		.force_cap_7000 = 1,
 	},
 };
+
+static const struct i2c_device_id pcf85063_ids[];
 
 static int pcf85063_probe(struct i2c_client *client)
 {
 	struct pcf85063 *pcf85063;
 	unsigned int tmp;
 	int err;
-	const struct pcf85063_config *config = &pcf85063tp_config;
-	const void *data = of_device_get_match_data(&client->dev);
+	const struct pcf85063_config *config;
 	struct nvmem_config nvmem_cfg = {
 		.name = "pcf85063_nvram",
 		.reg_read = pcf85063_nvmem_read,
@@ -544,8 +579,17 @@ static int pcf85063_probe(struct i2c_client *client)
 	if (!pcf85063)
 		return -ENOMEM;
 
-	if (data)
-		config = data;
+	if (client->dev.of_node) {
+		config = of_device_get_match_data(&client->dev);
+		if (!config)
+			return -ENODEV;
+	} else {
+		enum pcf85063_type type =
+			i2c_match_id(pcf85063_ids, client)->driver_data;
+		if (type >= PCF85063_LAST_ID)
+			return -ENODEV;
+		config = &pcf85063_cfg[type];
+	}
 
 	pcf85063->regmap = devm_regmap_init_i2c(client, &config->regmap);
 	if (IS_ERR(pcf85063->regmap))
@@ -604,31 +648,21 @@ static int pcf85063_probe(struct i2c_client *client)
 	return devm_rtc_register_device(pcf85063->rtc);
 }
 
+static const struct i2c_device_id pcf85063_ids[] = {
+	{ "pcf85063", PCF85063 },
+	{ "pcf85063tp", PCF85063TP },
+	{ "pcf85063a", PCF85063A },
+	{ "rv8263", RV8263 },
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, pcf85063_ids);
+
 #ifdef CONFIG_OF
-static const struct pcf85063_config pcf85063a_config = {
-	.regmap = {
-		.reg_bits = 8,
-		.val_bits = 8,
-		.max_register = 0x11,
-	},
-	.has_alarms = 1,
-};
-
-static const struct pcf85063_config rv8263_config = {
-	.regmap = {
-		.reg_bits = 8,
-		.val_bits = 8,
-		.max_register = 0x11,
-	},
-	.has_alarms = 1,
-	.force_cap_7000 = 1,
-};
-
 static const struct of_device_id pcf85063_of_match[] = {
-	{ .compatible = "nxp,pcf85063", .data = &pcf85063tp_config },
-	{ .compatible = "nxp,pcf85063tp", .data = &pcf85063tp_config },
-	{ .compatible = "nxp,pcf85063a", .data = &pcf85063a_config },
-	{ .compatible = "microcrystal,rv8263", .data = &rv8263_config },
+	{ .compatible = "nxp,pcf85063", .data = &pcf85063_cfg[PCF85063] },
+	{ .compatible = "nxp,pcf85063tp", .data = &pcf85063_cfg[PCF85063TP] },
+	{ .compatible = "nxp,pcf85063a", .data = &pcf85063_cfg[PCF85063A] },
+	{ .compatible = "microcrystal,rv8263", .data = &pcf85063_cfg[RV8263] },
 	{}
 };
 MODULE_DEVICE_TABLE(of, pcf85063_of_match);
@@ -640,6 +674,7 @@ static struct i2c_driver pcf85063_driver = {
 		.of_match_table = of_match_ptr(pcf85063_of_match),
 	},
 	.probe_new	= pcf85063_probe,
+	.id_table	= pcf85063_ids,
 };
 
 module_i2c_driver(pcf85063_driver);

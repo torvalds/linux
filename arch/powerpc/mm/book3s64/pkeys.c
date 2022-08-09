@@ -66,7 +66,7 @@ static int __init dt_scan_storage_keys(unsigned long node,
 	return 1;
 }
 
-static int scan_pkey_feature(void)
+static int __init scan_pkey_feature(void)
 {
 	int ret;
 	int pkeys_total = 0;

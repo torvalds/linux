@@ -401,6 +401,7 @@ int intel_lpss_probe(struct device *dev,
 		return ret;
 
 	lpss->cell->swnode = info->swnode;
+	lpss->cell->ignore_resource_conflicts = info->ignore_resource_conflicts;
 
 	intel_lpss_init_dev(lpss);
 

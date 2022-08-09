@@ -3370,7 +3370,7 @@ one of the latency tracers, you will get the following results.
 
 Instances
 ---------
-In the tracefs tracing directory is a directory called "instances".
+In the tracefs tracing directory, there is a directory called "instances".
 This directory can have new directories created inside of it using
 mkdir, and removing directories with rmdir. The directory created
 with mkdir in this directory will already contain files and other

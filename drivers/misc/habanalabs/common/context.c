@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -13,13 +13,13 @@ void hl_encaps_handle_do_release(struct kref *ref)
 {
 	struct hl_cs_encaps_sig_handle *handle =
 		container_of(ref, struct hl_cs_encaps_sig_handle, refcount);
-	struct hl_ctx *ctx = handle->hdev->compute_ctx;
-	struct hl_encaps_signals_mgr *mgr = &ctx->sig_mgr;
+	struct hl_encaps_signals_mgr *mgr = &handle->ctx->sig_mgr;
 
 	spin_lock(&mgr->lock);
 	idr_remove(&mgr->handles, handle->id);
 	spin_unlock(&mgr->lock);
 
+	hl_ctx_put(handle->ctx);
 	kfree(handle);
 }
 
@@ -27,8 +27,7 @@ static void hl_encaps_handle_do_release_sob(struct kref *ref)
 {
 	struct hl_cs_encaps_sig_handle *handle =
 		container_of(ref, struct hl_cs_encaps_sig_handle, refcount);
-	struct hl_ctx *ctx = handle->hdev->compute_ctx;
-	struct hl_encaps_signals_mgr *mgr = &ctx->sig_mgr;
+	struct hl_encaps_signals_mgr *mgr = &handle->ctx->sig_mgr;
 
 	/* if we're here, then there was a signals reservation but cs with
 	 * encaps signals wasn't submitted, so need to put refcount
@@ -40,6 +39,7 @@ static void hl_encaps_handle_do_release_sob(struct kref *ref)
 	idr_remove(&mgr->handles, handle->id);
 	spin_unlock(&mgr->lock);
 
+	hl_ctx_put(handle->ctx);
 	kfree(handle);
 }
 
@@ -97,11 +97,9 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 		/* The engines are stopped as there is no executing CS, but the
 		 * Coresight might be still working by accessing addresses
 		 * related to the stopped engines. Hence stop it explicitly.
-		 * Stop only if this is the compute context, as there can be
-		 * only one compute context
 		 */
-		if ((hdev->in_debug) && (hdev->compute_ctx == ctx))
-			hl_device_set_debug_mode(hdev, false);
+		if (hdev->in_debug)
+			hl_device_set_debug_mode(hdev, ctx, false);
 
 		hdev->asic_funcs->ctx_fini(ctx);
 		hl_cb_va_pool_fini(ctx);
@@ -167,7 +165,7 @@ int hl_ctx_create(struct hl_device *hdev, struct hl_fpriv *hpriv)
 	hpriv->ctx = ctx;
 
 	/* TODO: remove the following line for multiple process support */
-	hdev->compute_ctx = ctx;
+	hdev->is_compute_ctx_active = true;
 
 	return 0;
 
@@ -272,6 +270,27 @@ void hl_ctx_get(struct hl_device *hdev, struct hl_ctx *ctx)
 int hl_ctx_put(struct hl_ctx *ctx)
 {
 	return kref_put(&ctx->refcount, hl_ctx_do_release);
+}
+
+struct hl_ctx *hl_get_compute_ctx(struct hl_device *hdev)
+{
+	struct hl_ctx *ctx = NULL;
+	struct hl_fpriv *hpriv;
+
+	mutex_lock(&hdev->fpriv_list_lock);
+
+	list_for_each_entry(hpriv, &hdev->fpriv_list, dev_node) {
+		/* There can only be a single user which has opened the compute device, so exit
+		 * immediately once we find him
+		 */
+		ctx = hpriv->ctx;
+		hl_ctx_get(hdev, ctx);
+		break;
+	}
+
+	mutex_unlock(&hdev->fpriv_list_lock);
+
+	return ctx;
 }
 
 /*

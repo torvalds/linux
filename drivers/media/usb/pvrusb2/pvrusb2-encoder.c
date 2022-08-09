@@ -188,8 +188,8 @@ static int pvr2_encoder_cmd(void *ctxt,
 	}
 
 
-	LOCK_TAKE(hdw->ctl_lock); while (1) {
-
+	LOCK_TAKE(hdw->ctl_lock);
+	while (1) {
 		if (!hdw->state_encoder_ok) {
 			ret = -EIO;
 			break;

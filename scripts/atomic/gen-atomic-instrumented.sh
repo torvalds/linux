@@ -34,6 +34,14 @@ gen_param_check()
 gen_params_checks()
 {
 	local meta="$1"; shift
+	local order="$1"; shift
+
+	if [ "${order}" = "_release" ]; then
+		printf "\tkcsan_release();\n"
+	elif [ -z "${order}" ] && ! meta_in "$meta" "slv"; then
+		# RMW with return value is fully ordered
+		printf "\tkcsan_mb();\n"
+	fi
 
 	while [ "$#" -gt 0 ]; do
 		gen_param_check "$meta" "$1"
@@ -56,7 +64,7 @@ gen_proto_order_variant()
 
 	local ret="$(gen_ret_type "${meta}" "${int}")"
 	local params="$(gen_params "${int}" "${atomic}" "$@")"
-	local checks="$(gen_params_checks "${meta}" "$@")"
+	local checks="$(gen_params_checks "${meta}" "${order}" "$@")"
 	local args="$(gen_args "$@")"
 	local retstmt="$(gen_ret_stmt "${meta}")"
 
@@ -75,29 +83,44 @@ EOF
 gen_xchg()
 {
 	local xchg="$1"; shift
+	local order="$1"; shift
 	local mult="$1"; shift
+
+	kcsan_barrier=""
+	if [ "${xchg%_local}" = "${xchg}" ]; then
+		case "$order" in
+		_release)	kcsan_barrier="kcsan_release()" ;;
+		"")			kcsan_barrier="kcsan_mb()" ;;
+		esac
+	fi
 
 	if [ "${xchg%${xchg#try_cmpxchg}}" = "try_cmpxchg" ] ; then
 
 cat <<EOF
-#define ${xchg}(ptr, oldp, ...) \\
+#define ${xchg}${order}(ptr, oldp, ...) \\
 ({ \\
 	typeof(ptr) __ai_ptr = (ptr); \\
 	typeof(oldp) __ai_oldp = (oldp); \\
+EOF
+[ -n "$kcsan_barrier" ] && printf "\t${kcsan_barrier}; \\\\\n"
+cat <<EOF
 	instrument_atomic_write(__ai_ptr, ${mult}sizeof(*__ai_ptr)); \\
 	instrument_atomic_write(__ai_oldp, ${mult}sizeof(*__ai_oldp)); \\
-	arch_${xchg}(__ai_ptr, __ai_oldp, __VA_ARGS__); \\
+	arch_${xchg}${order}(__ai_ptr, __ai_oldp, __VA_ARGS__); \\
 })
 EOF
 
 	else
 
 cat <<EOF
-#define ${xchg}(ptr, ...) \\
+#define ${xchg}${order}(ptr, ...) \\
 ({ \\
 	typeof(ptr) __ai_ptr = (ptr); \\
+EOF
+[ -n "$kcsan_barrier" ] && printf "\t${kcsan_barrier}; \\\\\n"
+cat <<EOF
 	instrument_atomic_write(__ai_ptr, ${mult}sizeof(*__ai_ptr)); \\
-	arch_${xchg}(__ai_ptr, __VA_ARGS__); \\
+	arch_${xchg}${order}(__ai_ptr, __VA_ARGS__); \\
 })
 EOF
 
@@ -145,21 +168,21 @@ done
 
 for xchg in "xchg" "cmpxchg" "cmpxchg64" "try_cmpxchg"; do
 	for order in "" "_acquire" "_release" "_relaxed"; do
-		gen_xchg "${xchg}${order}" ""
+		gen_xchg "${xchg}" "${order}" ""
 		printf "\n"
 	done
 done
 
 for xchg in "cmpxchg_local" "cmpxchg64_local" "sync_cmpxchg"; do
-	gen_xchg "${xchg}" ""
+	gen_xchg "${xchg}" "" ""
 	printf "\n"
 done
 
-gen_xchg "cmpxchg_double" "2 * "
+gen_xchg "cmpxchg_double" "" "2 * "
 
 printf "\n\n"
 
-gen_xchg "cmpxchg_double_local" "2 * "
+gen_xchg "cmpxchg_double_local" "" "2 * "
 
 cat <<EOF
 

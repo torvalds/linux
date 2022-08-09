@@ -7,6 +7,8 @@
 
 #define MT76_TM_TIMEOUT	10
 
+#include <net/netlink.h>
+
 /**
  * enum mt76_testmode_attr - testmode attributes inside NL80211_ATTR_TESTDATA
  *
@@ -45,6 +47,8 @@
  * @MT76_TM_ATTR_TX_TIME: packet transmission time, in unit of us (u32)
  *
  * @MT76_TM_ATTR_DRV_DATA: driver specific netlink attrs (nested)
+ *
+ * @MT76_TM_ATTR_MAC_ADDRS: array of nested MAC addresses (nested)
  */
 enum mt76_testmode_attr {
 	MT76_TM_ATTR_UNSPEC,
@@ -80,6 +84,8 @@ enum mt76_testmode_attr {
 	MT76_TM_ATTR_TX_TIME,
 
 	MT76_TM_ATTR_DRV_DATA,
+
+	MT76_TM_ATTR_MAC_ADDRS,
 
 	/* keep last */
 	NUM_MT76_TM_ATTRS,

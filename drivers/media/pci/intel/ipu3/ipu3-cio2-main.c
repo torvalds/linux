@@ -1713,11 +1713,6 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 	struct cio2_device *cio2;
 	int r;
 
-	cio2 = devm_kzalloc(dev, sizeof(*cio2), GFP_KERNEL);
-	if (!cio2)
-		return -ENOMEM;
-	cio2->pci_dev = pci_dev;
-
 	/*
 	 * On some platforms no connections to sensors are defined in firmware,
 	 * if the device has no endpoints then we can try to build those as
@@ -1734,6 +1729,11 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 		if (r)
 			return r;
 	}
+
+	cio2 = devm_kzalloc(dev, sizeof(*cio2), GFP_KERNEL);
+	if (!cio2)
+		return -ENOMEM;
+	cio2->pci_dev = pci_dev;
 
 	r = pcim_enable_device(pci_dev);
 	if (r) {
@@ -1966,12 +1966,19 @@ static int __maybe_unused cio2_suspend(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct cio2_device *cio2 = pci_get_drvdata(pci_dev);
 	struct cio2_queue *q = cio2->cur_queue;
+	int r;
 
 	dev_dbg(dev, "cio2 suspend\n");
 	if (!cio2->streaming)
 		return 0;
 
 	/* Stop stream */
+	r = v4l2_subdev_call(q->sensor, video, s_stream, 0);
+	if (r) {
+		dev_err(dev, "failed to stop sensor streaming\n");
+		return r;
+	}
+
 	cio2_hw_exit(cio2, q);
 	synchronize_irq(pci_dev->irq);
 
@@ -2005,8 +2012,16 @@ static int __maybe_unused cio2_resume(struct device *dev)
 	}
 
 	r = cio2_hw_init(cio2, q);
-	if (r)
+	if (r) {
 		dev_err(dev, "fail to init cio2 hw\n");
+		return r;
+	}
+
+	r = v4l2_subdev_call(q->sensor, video, s_stream, 1);
+	if (r) {
+		dev_err(dev, "fail to start sensor streaming\n");
+		cio2_hw_exit(cio2, q);
+	}
 
 	return r;
 }

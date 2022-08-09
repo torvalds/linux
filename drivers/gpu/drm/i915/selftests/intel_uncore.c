@@ -344,5 +344,5 @@ int intel_uncore_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_forcewake_domains),
 	};
 
-	return intel_gt_live_subtests(tests, &i915->gt);
+	return intel_gt_live_subtests(tests, to_gt(i915));
 }

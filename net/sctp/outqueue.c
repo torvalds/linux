@@ -547,6 +547,9 @@ void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 			sctp_assoc_update_retran_path(transport->asoc);
 		transport->asoc->rtx_data_chunks +=
 			transport->asoc->unack_data;
+		if (transport->pl.state == SCTP_PL_COMPLETE &&
+		    transport->asoc->unack_data)
+			sctp_transport_reset_probe_timer(transport);
 		break;
 	case SCTP_RTXR_FAST_RTX:
 		SCTP_INC_STATS(net, SCTP_MIB_FAST_RETRANSMITS);

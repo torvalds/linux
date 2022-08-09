@@ -136,16 +136,15 @@ struct mtip_compat_ide_task_request_s {
  * return value
  *	 true if device removed, else false
  */
-static bool mtip_check_surprise_removal(struct pci_dev *pdev)
+static bool mtip_check_surprise_removal(struct driver_data *dd)
 {
 	u16 vendor_id = 0;
-	struct driver_data *dd = pci_get_drvdata(pdev);
 
 	if (dd->sr)
 		return true;
 
        /* Read the vendorID from the configuration space */
-	pci_read_config_word(pdev, 0x00, &vendor_id);
+	pci_read_config_word(dd->pdev, 0x00, &vendor_id);
 	if (vendor_id == 0xFFFF) {
 		dd->sr = true;
 		if (dd->queue)
@@ -447,7 +446,7 @@ static int mtip_device_reset(struct driver_data *dd)
 {
 	int rv = 0;
 
-	if (mtip_check_surprise_removal(dd->pdev))
+	if (mtip_check_surprise_removal(dd))
 		return 0;
 
 	if (mtip_hba_reset(dd) < 0)
@@ -727,7 +726,7 @@ static inline void mtip_process_errors(struct driver_data *dd, u32 port_stat)
 		dev_warn(&dd->pdev->dev,
 			"Port stat errors %x unhandled\n",
 			(port_stat & ~PORT_IRQ_HANDLED));
-		if (mtip_check_surprise_removal(dd->pdev))
+		if (mtip_check_surprise_removal(dd))
 			return;
 	}
 	if (likely(port_stat & (PORT_IRQ_TF_ERR | PORT_IRQ_IF_ERR))) {
@@ -752,7 +751,7 @@ static inline irqreturn_t mtip_handle_irq(struct driver_data *data)
 		/* Acknowledge the interrupt status on the port.*/
 		port_stat = readl(port->mmio + PORT_IRQ_STAT);
 		if (unlikely(port_stat == 0xFFFFFFFF)) {
-			mtip_check_surprise_removal(dd->pdev);
+			mtip_check_surprise_removal(dd);
 			return IRQ_HANDLED;
 		}
 		writel(port_stat, port->mmio + PORT_IRQ_STAT);
@@ -796,7 +795,7 @@ static inline irqreturn_t mtip_handle_irq(struct driver_data *data)
 		}
 
 		if (unlikely(port_stat & PORT_IRQ_ERR)) {
-			if (unlikely(mtip_check_surprise_removal(dd->pdev))) {
+			if (unlikely(mtip_check_surprise_removal(dd))) {
 				/* don't proceed further */
 				return IRQ_HANDLED;
 			}
@@ -915,7 +914,7 @@ static int mtip_quiesce_io(struct mtip_port *port, unsigned long timeout)
 
 		msleep(100);
 
-		if (mtip_check_surprise_removal(port->dd->pdev))
+		if (mtip_check_surprise_removal(port->dd))
 			goto err_fault;
 
 		active = mtip_commands_active(port);
@@ -980,7 +979,7 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 		return -EFAULT;
 	}
 
-	if (mtip_check_surprise_removal(dd->pdev))
+	if (mtip_check_surprise_removal(dd))
 		return -EFAULT;
 
 	rq = blk_mq_alloc_request(dd->queue, REQ_OP_DRV_IN, BLK_MQ_REQ_RESERVED);
@@ -1015,14 +1014,14 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 	rq->timeout = timeout;
 
 	/* insert request and run queue */
-	blk_execute_rq(NULL, rq, true);
+	blk_execute_rq(rq, true);
 
 	if (int_cmd->status) {
 		dev_err(&dd->pdev->dev, "Internal command [%02X] failed %d\n",
 				fis->command, int_cmd->status);
 		rv = -EIO;
 
-		if (mtip_check_surprise_removal(dd->pdev) ||
+		if (mtip_check_surprise_removal(dd) ||
 			test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
 					&dd->dd_flag)) {
 			dev_err(&dd->pdev->dev,
@@ -2513,7 +2512,7 @@ static int mtip_ftl_rebuild_poll(struct driver_data *dd)
 		if (unlikely(test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
 				&dd->dd_flag)))
 			return -EFAULT;
-		if (mtip_check_surprise_removal(dd->pdev))
+		if (mtip_check_surprise_removal(dd))
 			return -EFAULT;
 
 		if (mtip_get_identify(dd->port, NULL) < 0)
@@ -2891,7 +2890,7 @@ static int mtip_hw_init(struct driver_data *dd)
 		 time_before(jiffies, timeout)) {
 		mdelay(100);
 	}
-	if (unlikely(mtip_check_surprise_removal(dd->pdev))) {
+	if (unlikely(mtip_check_surprise_removal(dd))) {
 		timetaken = jiffies - timetaken;
 		dev_warn(&dd->pdev->dev,
 			"Surprise removal detected at %u ms\n",
@@ -4098,7 +4097,7 @@ static void mtip_pci_remove(struct pci_dev *pdev)
 	list_add(&dd->remove_list, &removing_list);
 	spin_unlock_irqrestore(&dev_lock, flags);
 
-	mtip_check_surprise_removal(pdev);
+	mtip_check_surprise_removal(dd);
 	synchronize_irq(dd->pdev->irq);
 
 	/* Spin until workers are done */
@@ -4113,7 +4112,7 @@ static void mtip_pci_remove(struct pci_dev *pdev)
 			"Completion workers still active!\n");
 	}
 
-	blk_set_queue_dying(dd->queue);
+	blk_mark_disk_dead(dd->disk);
 	set_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag);
 
 	/* Clean up the block layer. */
@@ -4145,36 +4144,17 @@ static void mtip_pci_remove(struct pci_dev *pdev)
  *	0  Success
  *	<0 Error
  */
-static int mtip_pci_suspend(struct pci_dev *pdev, pm_message_t mesg)
+static int __maybe_unused mtip_pci_suspend(struct device *dev)
 {
 	int rv = 0;
-	struct driver_data *dd = pci_get_drvdata(pdev);
-
-	if (!dd) {
-		dev_err(&pdev->dev,
-			"Driver private datastructure is NULL\n");
-		return -EFAULT;
-	}
+	struct driver_data *dd = dev_get_drvdata(dev);
 
 	set_bit(MTIP_DDF_RESUME_BIT, &dd->dd_flag);
 
 	/* Disable ports & interrupts then send standby immediate */
 	rv = mtip_block_suspend(dd);
-	if (rv < 0) {
-		dev_err(&pdev->dev,
-			"Failed to suspend controller\n");
-		return rv;
-	}
-
-	/*
-	 * Save the pci config space to pdev structure &
-	 * disable the device
-	 */
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
-
-	/* Move to Low power state*/
-	pci_set_power_state(pdev, PCI_D3hot);
+	if (rv < 0)
+		dev_err(dev, "Failed to suspend controller\n");
 
 	return rv;
 }
@@ -4186,32 +4166,10 @@ static int mtip_pci_suspend(struct pci_dev *pdev, pm_message_t mesg)
  *      0  Success
  *      <0 Error
  */
-static int mtip_pci_resume(struct pci_dev *pdev)
+static int __maybe_unused mtip_pci_resume(struct device *dev)
 {
 	int rv = 0;
-	struct driver_data *dd;
-
-	dd = pci_get_drvdata(pdev);
-	if (!dd) {
-		dev_err(&pdev->dev,
-			"Driver private datastructure is NULL\n");
-		return -EFAULT;
-	}
-
-	/* Move the device to active State */
-	pci_set_power_state(pdev, PCI_D0);
-
-	/* Restore PCI configuration space */
-	pci_restore_state(pdev);
-
-	/* Enable the PCI device*/
-	rv = pcim_enable_device(pdev);
-	if (rv < 0) {
-		dev_err(&pdev->dev,
-			"Failed to enable card during resume\n");
-		goto err;
-	}
-	pci_set_master(pdev);
+	struct driver_data *dd = dev_get_drvdata(dev);
 
 	/*
 	 * Calls hbaReset, initPort, & startPort function
@@ -4219,9 +4177,8 @@ static int mtip_pci_resume(struct pci_dev *pdev)
 	 */
 	rv = mtip_block_resume(dd);
 	if (rv < 0)
-		dev_err(&pdev->dev, "Unable to resume\n");
+		dev_err(dev, "Unable to resume\n");
 
-err:
 	clear_bit(MTIP_DDF_RESUME_BIT, &dd->dd_flag);
 
 	return rv;
@@ -4252,14 +4209,15 @@ static const struct pci_device_id mtip_pci_tbl[] = {
 	{ 0 }
 };
 
+static SIMPLE_DEV_PM_OPS(mtip_pci_pm_ops, mtip_pci_suspend, mtip_pci_resume);
+
 /* Structure that describes the PCI driver functions. */
 static struct pci_driver mtip_pci_driver = {
 	.name			= MTIP_DRV_NAME,
 	.id_table		= mtip_pci_tbl,
 	.probe			= mtip_pci_probe,
 	.remove			= mtip_pci_remove,
-	.suspend		= mtip_pci_suspend,
-	.resume			= mtip_pci_resume,
+	.driver.pm		= &mtip_pci_pm_ops,
 	.shutdown		= mtip_pci_shutdown,
 };
 

@@ -4,6 +4,7 @@
  */
 
 #include <linux/bpf.h>
+#include <linux/filter.h>
 #include <linux/capability.h>
 #include <net/xdp_sock.h>
 #include <linux/slab.h>

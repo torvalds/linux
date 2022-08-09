@@ -20,7 +20,9 @@ properties:
       - items:
           - enum:
               - fsl,imx8qxp-lpi2c
+              - fsl,imx8dxl-lpi2c
               - fsl,imx8qm-lpi2c
+              - fsl,imx8ulp-lpi2c
           - const: fsl,imx7ulp-lpi2c
 
   reg:

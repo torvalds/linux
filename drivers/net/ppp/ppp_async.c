@@ -281,8 +281,7 @@ ppp_asynctty_write(struct tty_struct *tty, struct file *file,
  */
 
 static int
-ppp_asynctty_ioctl(struct tty_struct *tty, struct file *file,
-		   unsigned int cmd, unsigned long arg)
+ppp_asynctty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 {
 	struct asyncppp *ap = ap_get(tty);
 	int err, val;

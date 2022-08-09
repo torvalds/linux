@@ -250,7 +250,6 @@ mcp251xfd_regmap_crc_read_check_crc(const struct mcp251xfd_map_buf_crc * const b
 	return 0;
 }
 
-
 static int
 mcp251xfd_regmap_crc_read_one(struct mcp251xfd_priv *priv,
 			      struct spi_message *msg, unsigned int data_len)

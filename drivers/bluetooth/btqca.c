@@ -6,6 +6,7 @@
  */
 #include <linux/module.h>
 #include <linux/firmware.h>
+#include <linux/vmalloc.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -135,6 +136,50 @@ static int qca_read_fw_build_info(struct hci_dev *hdev)
 	}
 
 	hci_set_fw_info(hdev, "%s", build_label);
+
+out:
+	kfree_skb(skb);
+	return err;
+}
+
+static int qca_send_patch_config_cmd(struct hci_dev *hdev)
+{
+	const u8 cmd[] = { EDL_PATCH_CONFIG_CMD, 0x01, 0, 0, 0 };
+	struct sk_buff *skb;
+	struct edl_event_hdr *edl;
+	int err;
+
+	bt_dev_dbg(hdev, "QCA Patch config");
+
+	skb = __hci_cmd_sync_ev(hdev, EDL_PATCH_CMD_OPCODE, sizeof(cmd),
+				cmd, HCI_EV_VENDOR, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		err = PTR_ERR(skb);
+		bt_dev_err(hdev, "Sending QCA Patch config failed (%d)", err);
+		return err;
+	}
+
+	if (skb->len != 2) {
+		bt_dev_err(hdev, "QCA Patch config cmd size mismatch len %d", skb->len);
+		err = -EILSEQ;
+		goto out;
+	}
+
+	edl = (struct edl_event_hdr *)(skb->data);
+	if (!edl) {
+		bt_dev_err(hdev, "QCA Patch config with no header");
+		err = -EILSEQ;
+		goto out;
+	}
+
+	if (edl->cresp != EDL_PATCH_CONFIG_RES_EVT || edl->rtype != EDL_PATCH_CONFIG_CMD) {
+		bt_dev_err(hdev, "QCA Wrong packet received %d %d", edl->cresp,
+			   edl->rtype);
+		err = -EIO;
+		goto out;
+	}
+
+	err = 0;
 
 out:
 	kfree_skb(skb);
@@ -550,6 +595,9 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 	 * ROM version is derived from last two bytes of soc_ver.
 	 */
 	rom_ver = ((soc_ver & 0x00000f00) >> 0x04) | (soc_ver & 0x0000000f);
+
+	if (soc_type == QCA_WCN6750)
+		qca_send_patch_config_cmd(hdev);
 
 	/* Download rampatch file */
 	config.type = TLV_TYPE_PATCH;

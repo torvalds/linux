@@ -185,7 +185,7 @@ static int audit_match_perm(struct audit_context *ctx, int mask)
 	case AUDITSC_EXECVE:
 		return mask & AUDIT_PERM_EXEC;
 	case AUDITSC_OPENAT2:
-		return mask & ACC_MODE((u32)((struct open_how *)ctx->argv[2])->flags);
+		return mask & ACC_MODE((u32)ctx->openat2.flags);
 	default:
 		return 0;
 	}
@@ -666,7 +666,16 @@ static int audit_filter_rules(struct task_struct *tsk,
 			   logged upon error */
 			if (f->lsm_rule) {
 				if (need_sid) {
-					security_task_getsecid_subj(tsk, &sid);
+					/* @tsk should always be equal to
+					 * @current with the exception of
+					 * fork()/copy_process() in which case
+					 * the new @tsk creds are still a dup
+					 * of @current's creds so we can still
+					 * use security_current_getsecid_subj()
+					 * here even though it always refs
+					 * @current's creds
+					 */
+					security_current_getsecid_subj(&sid);
 					need_sid = 0;
 				}
 				result = security_audit_rule_match(sid, f->type,

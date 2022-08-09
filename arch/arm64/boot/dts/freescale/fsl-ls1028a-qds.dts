@@ -25,7 +25,7 @@
 		serial1 = &duart1;
 		mmc0 = &esdhc;
 		mmc1 = &esdhc1;
-		rtc1 = &ftm_alarm0;
+		rtc1 = &ftm_alarm1;
 	};
 
 	chosen {
@@ -211,6 +211,16 @@
 	status = "okay";
 };
 
+&enetc_port1 {
+	phy-handle = <&qds_phy1>;
+	phy-mode = "rgmii-id";
+	status = "okay";
+};
+
+&enetc_port2 {
+	status = "okay";
+};
+
 &esdhc {
 	status = "okay";
 };
@@ -232,6 +242,10 @@
 		spi-tx-bus-width = <1>; /* 1 SPI Tx line */
 		reg = <0>;
 	};
+};
+
+&ftm_alarm1 {
+	status = "okay";
 };
 
 &i2c0 {
@@ -270,11 +284,6 @@
 				compatible = "nxp,sa56004";
 				reg = <0x4c>;
 				vcc-supply = <&sb_3v3>;
-			};
-
-			rtc@51 {
-				compatible = "nxp,pcf2129";
-				reg = <0x51>;
 			};
 
 			eeprom@56 {
@@ -318,13 +327,25 @@
 
 };
 
-&enetc_port1 {
-	phy-handle = <&qds_phy1>;
-	phy-mode = "rgmii-id";
+&i2c1 {
 	status = "okay";
+
+	rtc@51 {
+		compatible = "nxp,pcf2129";
+		reg = <0x51>;
+	};
 };
 
 &lpuart0 {
+	status = "okay";
+};
+
+&lpuart1 {
+	status = "okay";
+};
+
+&mscc_felix_port4 {
+	ethernet = <&enetc_port2>;
 	status = "okay";
 };
 

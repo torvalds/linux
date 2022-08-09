@@ -272,12 +272,12 @@ void klp_shadow_free(void *obj, unsigned long id, klp_shadow_dtor_t dtor)
 EXPORT_SYMBOL_GPL(klp_shadow_free);
 
 /**
- * klp_shadow_free_all() - detach and free all <*, id> shadow variables
+ * klp_shadow_free_all() - detach and free all <_, id> shadow variables
  * @id:		data identifier
  * @dtor:	custom callback that can be used to unregister the variable
  *		and/or free data that the shadow variable points to (optional)
  *
- * This function releases the memory for all <*, id> shadow variable
+ * This function releases the memory for all <_, id> shadow variable
  * instances, callers should stop referencing them accordingly.
  */
 void klp_shadow_free_all(unsigned long id, klp_shadow_dtor_t dtor)
@@ -288,7 +288,7 @@ void klp_shadow_free_all(unsigned long id, klp_shadow_dtor_t dtor)
 
 	spin_lock_irqsave(&klp_shadow_lock, flags);
 
-	/* Delete all <*, id> from hash */
+	/* Delete all <_, id> from hash */
 	hash_for_each(klp_shadow_hash, i, shadow, node) {
 		if (klp_shadow_match(shadow, shadow->obj, id))
 			klp_shadow_free_struct(shadow, dtor);

@@ -144,7 +144,7 @@ int disk_register_independent_access_ranges(struct gendisk *disk,
 				   &q->kobj, "%s", "independent_access_ranges");
 	if (ret) {
 		q->ia_ranges = NULL;
-		kfree(iars);
+		kobject_put(&iars->kobj);
 		return ret;
 	}
 

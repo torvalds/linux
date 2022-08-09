@@ -11,6 +11,7 @@
 #include <linux/cc_platform.h>
 #include <linux/mem_encrypt.h>
 
+#include <asm/mshyperv.h>
 #include <asm/processor.h>
 
 static bool __maybe_unused intel_cc_platform_has(enum cc_attr attr)
@@ -50,6 +51,14 @@ static bool amd_cc_platform_has(enum cc_attr attr)
 	case CC_ATTR_GUEST_STATE_ENCRYPT:
 		return sev_status & MSR_AMD64_SEV_ES_ENABLED;
 
+	/*
+	 * With SEV, the rep string I/O instructions need to be unrolled
+	 * but SEV-ES supports them through the #VC handler.
+	 */
+	case CC_ATTR_GUEST_UNROLL_STRING_IO:
+		return (sev_status & MSR_AMD64_SEV_ENABLED) &&
+			!(sev_status & MSR_AMD64_SEV_ES_ENABLED);
+
 	default:
 		return false;
 	}
@@ -58,11 +67,18 @@ static bool amd_cc_platform_has(enum cc_attr attr)
 #endif
 }
 
+static bool hyperv_cc_platform_has(enum cc_attr attr)
+{
+	return attr == CC_ATTR_GUEST_MEM_ENCRYPT;
+}
 
 bool cc_platform_has(enum cc_attr attr)
 {
 	if (sme_me_mask)
 		return amd_cc_platform_has(attr);
+
+	if (hv_is_isolation_supported())
+		return hyperv_cc_platform_has(attr);
 
 	return false;
 }

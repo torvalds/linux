@@ -1276,8 +1276,11 @@ static const struct attribute_group temac_attr_group = {
  * ethtool support
  */
 
-static void ll_temac_ethtools_get_ringparam(struct net_device *ndev,
-					    struct ethtool_ringparam *ering)
+static void
+ll_temac_ethtools_get_ringparam(struct net_device *ndev,
+				struct ethtool_ringparam *ering,
+				struct kernel_ethtool_ringparam *kernel_ering,
+				struct netlink_ext_ack *extack)
 {
 	struct temac_local *lp = netdev_priv(ndev);
 
@@ -1291,8 +1294,11 @@ static void ll_temac_ethtools_get_ringparam(struct net_device *ndev,
 	ering->tx_pending = lp->tx_bd_num;
 }
 
-static int ll_temac_ethtools_set_ringparam(struct net_device *ndev,
-					   struct ethtool_ringparam *ering)
+static int
+ll_temac_ethtools_set_ringparam(struct net_device *ndev,
+				struct ethtool_ringparam *ering,
+				struct kernel_ethtool_ringparam *kernel_ering,
+				struct netlink_ext_ack *extack)
 {
 	struct temac_local *lp = netdev_priv(ndev);
 
@@ -1427,6 +1433,8 @@ static int temac_probe(struct platform_device *pdev)
 		lp->indirect_lock = devm_kmalloc(&pdev->dev,
 						 sizeof(*lp->indirect_lock),
 						 GFP_KERNEL);
+		if (!lp->indirect_lock)
+			return -ENOMEM;
 		spin_lock_init(lp->indirect_lock);
 	}
 

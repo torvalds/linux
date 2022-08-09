@@ -502,7 +502,9 @@ static void fm10k_set_msglevel(struct net_device *netdev, u32 data)
 }
 
 static void fm10k_get_ringparam(struct net_device *netdev,
-				struct ethtool_ringparam *ring)
+				struct ethtool_ringparam *ring,
+				struct kernel_ethtool_ringparam *kernel_ring,
+				struct netlink_ext_ack *extack)
 {
 	struct fm10k_intfc *interface = netdev_priv(netdev);
 
@@ -517,7 +519,9 @@ static void fm10k_get_ringparam(struct net_device *netdev,
 }
 
 static int fm10k_set_ringparam(struct net_device *netdev,
-			       struct ethtool_ringparam *ring)
+			       struct ethtool_ringparam *ring,
+			       struct kernel_ethtool_ringparam *kernel_ring,
+			       struct netlink_ext_ack *extack)
 {
 	struct fm10k_intfc *interface = netdev_priv(netdev);
 	struct fm10k_ring *temp_ring;

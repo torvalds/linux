@@ -29,6 +29,7 @@
 
 #include <linux/module.h>
 #include <linux/export.h>
+#include <linux/filter.h>
 #include <linux/sched/signal.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -161,7 +162,11 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 		break;
 	}
 
-	if (chan->psm && bdaddr_type_is_le(chan->src_type))
+	/* Use L2CAP_MODE_LE_FLOWCTL (CoC) in case of LE address and
+	 * L2CAP_MODE_EXT_FLOWCTL (ECRED) has not been set.
+	 */
+	if (chan->psm && bdaddr_type_is_le(chan->src_type) &&
+	    chan->mode != L2CAP_MODE_EXT_FLOWCTL)
 		chan->mode = L2CAP_MODE_LE_FLOWCTL;
 
 	chan->state = BT_BOUND;
@@ -170,6 +175,21 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 done:
 	release_sock(sk);
 	return err;
+}
+
+static void l2cap_sock_init_pid(struct sock *sk)
+{
+	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
+
+	/* Only L2CAP_MODE_EXT_FLOWCTL ever need to access the PID in order to
+	 * group the channels being requested.
+	 */
+	if (chan->mode != L2CAP_MODE_EXT_FLOWCTL)
+		return;
+
+	spin_lock(&sk->sk_peer_lock);
+	sk->sk_peer_pid = get_pid(task_tgid(current));
+	spin_unlock(&sk->sk_peer_lock);
 }
 
 static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr,
@@ -240,8 +260,14 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr,
 			return -EINVAL;
 	}
 
-	if (chan->psm && bdaddr_type_is_le(chan->src_type) && !chan->mode)
+	/* Use L2CAP_MODE_LE_FLOWCTL (CoC) in case of LE address and
+	 * L2CAP_MODE_EXT_FLOWCTL (ECRED) has not been set.
+	 */
+	if (chan->psm && bdaddr_type_is_le(chan->src_type) &&
+	    chan->mode != L2CAP_MODE_EXT_FLOWCTL)
 		chan->mode = L2CAP_MODE_LE_FLOWCTL;
+
+	l2cap_sock_init_pid(sk);
 
 	err = l2cap_chan_connect(chan, la.l2_psm, __le16_to_cpu(la.l2_cid),
 				 &la.l2_bdaddr, la.l2_bdaddr_type);
@@ -297,6 +323,8 @@ static int l2cap_sock_listen(struct socket *sock, int backlog)
 		err = -EOPNOTSUPP;
 		goto done;
 	}
+
+	l2cap_sock_init_pid(sk);
 
 	sk->sk_max_ack_backlog = backlog;
 	sk->sk_ack_backlog = 0;
@@ -876,6 +904,8 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 	struct l2cap_conn *conn;
 	int len, err = 0;
 	u32 opt;
+	u16 mtu;
+	u8 mode;
 
 	BT_DBG("sk %p", sk);
 
@@ -1058,16 +1088,16 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 			break;
 		}
 
-		if (copy_from_sockptr(&opt, optval, sizeof(u16))) {
+		if (copy_from_sockptr(&mtu, optval, sizeof(u16))) {
 			err = -EFAULT;
 			break;
 		}
 
 		if (chan->mode == L2CAP_MODE_EXT_FLOWCTL &&
 		    sk->sk_state == BT_CONNECTED)
-			err = l2cap_chan_reconfigure(chan, opt);
+			err = l2cap_chan_reconfigure(chan, mtu);
 		else
-			chan->imtu = opt;
+			chan->imtu = mtu;
 
 		break;
 
@@ -1089,14 +1119,14 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 			break;
 		}
 
-		if (copy_from_sockptr(&opt, optval, sizeof(u8))) {
+		if (copy_from_sockptr(&mode, optval, sizeof(u8))) {
 			err = -EFAULT;
 			break;
 		}
 
-		BT_DBG("opt %u", opt);
+		BT_DBG("mode %u", mode);
 
-		err = l2cap_set_mode(chan, opt);
+		err = l2cap_set_mode(chan, mode);
 		if (err)
 			break;
 

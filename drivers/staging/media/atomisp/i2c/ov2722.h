@@ -201,14 +201,13 @@ struct ov2722_device {
 	struct media_pad pad;
 	struct v4l2_mbus_framefmt format;
 	struct mutex input_lock;
+	struct ov2722_resolution *res;
 
 	struct camera_sensor_platform_data *platform_data;
 	int vt_pix_clk_freq_mhz;
-	int fmt_idx;
 	int run_mode;
 	u16 pixels_per_line;
 	u16 lines_per_frame;
-	u8 res;
 	u8 type;
 
 	struct v4l2_ctrl_handler ctrl_handler;

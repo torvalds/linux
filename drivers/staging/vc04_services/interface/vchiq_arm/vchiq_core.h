@@ -74,8 +74,6 @@
 	((fourcc) >>  8) & 0xff, \
 	(fourcc) & 0xff
 
-static_assert((sizeof(u32) * 8) == 32);
-
 #define BITSET_SIZE(b)        ((b + 31) >> 5)
 #define BITSET_WORD(b)        (b >> 5)
 #define BITSET_BIT(b)         (1 << (b & 31))

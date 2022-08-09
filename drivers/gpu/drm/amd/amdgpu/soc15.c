@@ -619,8 +619,8 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 static int soc15_asic_reset(struct amdgpu_device *adev)
 {
 	/* original raven doesn't have full asic reset */
-	if ((adev->apu_flags & AMD_APU_IS_RAVEN) &&
-	    !(adev->apu_flags & AMD_APU_IS_RAVEN2))
+	if ((adev->apu_flags & AMD_APU_IS_RAVEN) ||
+	    (adev->apu_flags & AMD_APU_IS_RAVEN2))
 		return 0;
 
 	switch (soc15_asic_reset_method(adev)) {
@@ -744,7 +744,7 @@ static void soc15_reg_base_init(struct amdgpu_device *adev)
 		vega10_reg_base_init(adev);
 		break;
 	case CHIP_RENOIR:
-		/* It's safe to do ip discovery here for Renior,
+		/* It's safe to do ip discovery here for Renoir,
 		 * it doesn't support SRIOV. */
 		if (amdgpu_discovery) {
 			r = amdgpu_discovery_reg_base_init(adev);
@@ -1114,8 +1114,11 @@ static int soc15_common_early_init(void *handle)
 				AMD_CG_SUPPORT_SDMA_LS |
 				AMD_CG_SUPPORT_VCN_MGCG;
 
+			/*
+			 * MMHUB PG needs to be disabled for Picasso for
+			 * stability reasons.
+			 */
 			adev->pg_flags = AMD_PG_SUPPORT_SDMA |
-				AMD_PG_SUPPORT_MMHUB |
 				AMD_PG_SUPPORT_VCN;
 		} else {
 			adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
@@ -1238,7 +1241,9 @@ static int soc15_common_sw_init(void *handle)
 	if (amdgpu_sriov_vf(adev))
 		xgpu_ai_mailbox_add_irq_id(adev);
 
-	adev->df.funcs->sw_init(adev);
+	if (adev->df.funcs &&
+	    adev->df.funcs->sw_init)
+		adev->df.funcs->sw_init(adev);
 
 	return 0;
 }
@@ -1250,7 +1255,10 @@ static int soc15_common_sw_fini(void *handle)
 	if (adev->nbio.ras_funcs &&
 	    adev->nbio.ras_funcs->ras_fini)
 		adev->nbio.ras_funcs->ras_fini(adev);
-	adev->df.funcs->sw_fini(adev);
+
+	if (adev->df.funcs &&
+	    adev->df.funcs->sw_fini)
+		adev->df.funcs->sw_fini(adev);
 	return 0;
 }
 

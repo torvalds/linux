@@ -46,6 +46,7 @@
 #include <linux/delay.h>
 #include <linux/prefetch.h>
 #include <linux/if_ether.h>
+#include <rdma/ib_mad.h>
 
 #include "roce_hsi.h"
 
@@ -1232,7 +1233,7 @@ int bnxt_qplib_modify_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_modify_qp req;
 	struct creq_modify_qp_resp resp;
-	u16 cmd_flags = 0, pkey;
+	u16 cmd_flags = 0;
 	u32 temp32[4];
 	u32 bmask;
 	int rc;
@@ -1255,11 +1256,9 @@ int bnxt_qplib_modify_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	if (bmask & CMDQ_MODIFY_QP_MODIFY_MASK_ACCESS)
 		req.access = qp->access;
 
-	if (bmask & CMDQ_MODIFY_QP_MODIFY_MASK_PKEY) {
-		if (!bnxt_qplib_get_pkey(res, &res->pkey_tbl,
-					 qp->pkey_index, &pkey))
-			req.pkey = cpu_to_le16(pkey);
-	}
+	if (bmask & CMDQ_MODIFY_QP_MODIFY_MASK_PKEY)
+		req.pkey = cpu_to_le16(IB_DEFAULT_PKEY_FULL);
+
 	if (bmask & CMDQ_MODIFY_QP_MODIFY_MASK_QKEY)
 		req.qkey = cpu_to_le32(qp->qkey);
 

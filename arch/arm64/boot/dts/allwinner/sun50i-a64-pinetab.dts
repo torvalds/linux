@@ -16,6 +16,7 @@
 / {
 	model = "PineTab, Development Sample";
 	compatible = "pine64,pinetab", "allwinner,sun50i-a64";
+	chassis-type = "tablet";
 
 	aliases {
 		serial0 = &uart0;

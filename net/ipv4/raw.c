@@ -99,8 +99,8 @@ int raw_hash_sk(struct sock *sk)
 
 	write_lock_bh(&h->lock);
 	sk_add_node(sk, head);
-	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	write_unlock_bh(&h->lock);
+	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 
 	return 0;
 }
@@ -717,30 +717,34 @@ static int raw_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct sockaddr_in *addr = (struct sockaddr_in *) uaddr;
+	struct net *net = sock_net(sk);
 	u32 tb_id = RT_TABLE_LOCAL;
 	int ret = -EINVAL;
 	int chk_addr_ret;
 
+	lock_sock(sk);
 	if (sk->sk_state != TCP_CLOSE || addr_len < sizeof(struct sockaddr_in))
 		goto out;
 
 	if (sk->sk_bound_dev_if)
-		tb_id = l3mdev_fib_table_by_index(sock_net(sk),
-						 sk->sk_bound_dev_if) ? : tb_id;
+		tb_id = l3mdev_fib_table_by_index(net,
+						  sk->sk_bound_dev_if) ? : tb_id;
 
-	chk_addr_ret = inet_addr_type_table(sock_net(sk), addr->sin_addr.s_addr,
-					    tb_id);
+	chk_addr_ret = inet_addr_type_table(net, addr->sin_addr.s_addr, tb_id);
 
 	ret = -EADDRNOTAVAIL;
-	if (addr->sin_addr.s_addr && chk_addr_ret != RTN_LOCAL &&
-	    chk_addr_ret != RTN_MULTICAST && chk_addr_ret != RTN_BROADCAST)
+	if (!inet_addr_valid_or_nonlocal(net, inet, addr->sin_addr.s_addr,
+					 chk_addr_ret))
 		goto out;
+
 	inet->inet_rcv_saddr = inet->inet_saddr = addr->sin_addr.s_addr;
 	if (chk_addr_ret == RTN_MULTICAST || chk_addr_ret == RTN_BROADCAST)
 		inet->inet_saddr = 0;  /* Use device */
 	sk_dst_reset(sk);
 	ret = 0;
-out:	return ret;
+out:
+	release_sock(sk);
+	return ret;
 }
 
 /*
@@ -970,7 +974,7 @@ struct proto raw_prot = {
 static struct sock *raw_get_first(struct seq_file *seq)
 {
 	struct sock *sk;
-	struct raw_hashinfo *h = PDE_DATA(file_inode(seq->file));
+	struct raw_hashinfo *h = pde_data(file_inode(seq->file));
 	struct raw_iter_state *state = raw_seq_private(seq);
 
 	for (state->bucket = 0; state->bucket < RAW_HTABLE_SIZE;
@@ -986,7 +990,7 @@ found:
 
 static struct sock *raw_get_next(struct seq_file *seq, struct sock *sk)
 {
-	struct raw_hashinfo *h = PDE_DATA(file_inode(seq->file));
+	struct raw_hashinfo *h = pde_data(file_inode(seq->file));
 	struct raw_iter_state *state = raw_seq_private(seq);
 
 	do {
@@ -1015,7 +1019,7 @@ static struct sock *raw_get_idx(struct seq_file *seq, loff_t pos)
 void *raw_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(&h->lock)
 {
-	struct raw_hashinfo *h = PDE_DATA(file_inode(seq->file));
+	struct raw_hashinfo *h = pde_data(file_inode(seq->file));
 
 	read_lock(&h->lock);
 	return *pos ? raw_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
@@ -1038,7 +1042,7 @@ EXPORT_SYMBOL_GPL(raw_seq_next);
 void raw_seq_stop(struct seq_file *seq, void *v)
 	__releases(&h->lock)
 {
-	struct raw_hashinfo *h = PDE_DATA(file_inode(seq->file));
+	struct raw_hashinfo *h = pde_data(file_inode(seq->file));
 
 	read_unlock(&h->lock);
 }

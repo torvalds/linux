@@ -377,12 +377,13 @@ static int imx_pgc_power_down(struct generic_pm_domain *genpd)
 		}
 	}
 
-	pm_runtime_put(domain->dev);
+	pm_runtime_put_sync_suspend(domain->dev);
 
 	return 0;
 
 out_clk_disable:
-	clk_bulk_disable_unprepare(domain->num_clks, domain->clks);
+	if (!domain->keep_clocks)
+		clk_bulk_disable_unprepare(domain->num_clks, domain->clks);
 
 	return ret;
 }
@@ -734,6 +735,7 @@ static const struct imx_pgc_domain imx8mm_pgc_domains[] = {
 			.map = IMX8MM_VPUH1_A53_DOMAIN,
 		},
 		.pgc   = BIT(IMX8MM_PGC_VPUH1),
+		.keep_clocks = true,
 	},
 
 	[IMX8MM_POWER_DOMAIN_DISPMIX] = {
@@ -840,6 +842,32 @@ static const struct imx_pgc_domain imx8mn_pgc_domains[] = {
 			.hskack = IMX8MN_GPUMIX_HSK_PWRDNACKN,
 		},
 		.pgc   = BIT(IMX8MN_PGC_GPUMIX),
+		.keep_clocks = true,
+	},
+
+	[IMX8MN_POWER_DOMAIN_DISPMIX] = {
+		.genpd = {
+			.name = "dispmix",
+		},
+			.bits  = {
+			.pxx = IMX8MN_DISPMIX_SW_Pxx_REQ,
+			.map = IMX8MN_DISPMIX_A53_DOMAIN,
+			.hskreq = IMX8MN_DISPMIX_HSK_PWRDNREQN,
+			.hskack = IMX8MN_DISPMIX_HSK_PWRDNACKN,
+		},
+		.pgc   = BIT(IMX8MN_PGC_DISPMIX),
+		.keep_clocks = true,
+	},
+
+	[IMX8MN_POWER_DOMAIN_MIPI] = {
+		.genpd = {
+			.name = "mipi",
+		},
+			.bits  = {
+			.pxx = IMX8MN_MIPI_SW_Pxx_REQ,
+			.map = IMX8MN_MIPI_A53_DOMAIN,
+		},
+		.pgc   = BIT(IMX8MN_PGC_MIPI),
 	},
 };
 

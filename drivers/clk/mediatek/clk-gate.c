@@ -16,28 +16,24 @@
 #include "clk-mtk.h"
 #include "clk-gate.h"
 
-static int mtk_cg_bit_is_cleared(struct clk_hw *hw)
+static u32 mtk_get_clockgating(struct clk_hw *hw)
 {
 	struct mtk_clk_gate *cg = to_mtk_clk_gate(hw);
 	u32 val;
 
 	regmap_read(cg->regmap, cg->sta_ofs, &val);
 
-	val &= BIT(cg->bit);
+	return val & BIT(cg->bit);
+}
 
-	return val == 0;
+static int mtk_cg_bit_is_cleared(struct clk_hw *hw)
+{
+	return mtk_get_clockgating(hw) == 0;
 }
 
 static int mtk_cg_bit_is_set(struct clk_hw *hw)
 {
-	struct mtk_clk_gate *cg = to_mtk_clk_gate(hw);
-	u32 val;
-
-	regmap_read(cg->regmap, cg->sta_ofs, &val);
-
-	val &= BIT(cg->bit);
-
-	return val != 0;
+	return mtk_get_clockgating(hw) != 0;
 }
 
 static void mtk_cg_set_bit(struct clk_hw *hw)
@@ -57,17 +53,15 @@ static void mtk_cg_clr_bit(struct clk_hw *hw)
 static void mtk_cg_set_bit_no_setclr(struct clk_hw *hw)
 {
 	struct mtk_clk_gate *cg = to_mtk_clk_gate(hw);
-	u32 cgbit = BIT(cg->bit);
 
-	regmap_update_bits(cg->regmap, cg->sta_ofs, cgbit, cgbit);
+	regmap_set_bits(cg->regmap, cg->sta_ofs, BIT(cg->bit));
 }
 
 static void mtk_cg_clr_bit_no_setclr(struct clk_hw *hw)
 {
 	struct mtk_clk_gate *cg = to_mtk_clk_gate(hw);
-	u32 cgbit = BIT(cg->bit);
 
-	regmap_update_bits(cg->regmap, cg->sta_ofs, cgbit, 0);
+	regmap_clear_bits(cg->regmap, cg->sta_ofs, BIT(cg->bit));
 }
 
 static int mtk_cg_enable(struct clk_hw *hw)

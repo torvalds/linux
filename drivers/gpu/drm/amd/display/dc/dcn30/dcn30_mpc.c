@@ -1362,7 +1362,7 @@ uint32_t mpcc3_acquire_rmu(struct mpc *mpc, int mpcc_id, int rmu_idx)
 	return -1;
 }
 
-int mpcc3_release_rmu(struct mpc *mpc, int mpcc_id)
+static int mpcc3_release_rmu(struct mpc *mpc, int mpcc_id)
 {
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
 	int rmu_idx;

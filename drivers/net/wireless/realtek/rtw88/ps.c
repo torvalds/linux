@@ -83,6 +83,9 @@ void rtw_power_mode_change(struct rtw_dev *rtwdev, bool enter)
 	/* Each request require an ack from firmware */
 	request |= POWER_MODE_ACK;
 
+	if (rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_TX_WAKE))
+		request |= POWER_TX_WAKE;
+
 	rtw_write8(rtwdev, rtwdev->hci.rpwm_addr, request);
 
 	/* Check firmware get the power requset and ack via cpwm register */

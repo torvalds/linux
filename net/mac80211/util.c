@@ -862,6 +862,19 @@ static void __iterate_stations(struct ieee80211_local *local,
 	}
 }
 
+void ieee80211_iterate_stations(struct ieee80211_hw *hw,
+				void (*iterator)(void *data,
+						 struct ieee80211_sta *sta),
+				void *data)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	mutex_lock(&local->sta_mtx);
+	__iterate_stations(local, iterator, data);
+	mutex_unlock(&local->sta_mtx);
+}
+EXPORT_SYMBOL_GPL(ieee80211_iterate_stations);
+
 void ieee80211_iterate_stations_atomic(struct ieee80211_hw *hw,
 			void (*iterator)(void *data,
 					 struct ieee80211_sta *sta),

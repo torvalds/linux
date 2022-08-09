@@ -35,7 +35,7 @@
 #include "mpc83xx.h"
 
 #define BCSR5_INT_USB		0x02
-static int mpc834xemds_usb_cfg(void)
+static int __init mpc834xemds_usb_cfg(void)
 {
 	struct device_node *np;
 	void __iomem *bcsr_regs = NULL;

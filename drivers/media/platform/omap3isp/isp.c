@@ -476,7 +476,8 @@ void omap3isp_hist_dma_done(struct isp_device *isp)
 	}
 }
 
-static inline void isp_isr_dbg(struct isp_device *isp, u32 irqstatus)
+static inline void __maybe_unused isp_isr_dbg(struct isp_device *isp,
+					      u32 irqstatus)
 {
 	static const char *name[] = {
 		"CSIA_IRQ",

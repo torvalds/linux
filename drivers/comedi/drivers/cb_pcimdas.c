@@ -34,12 +34,11 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/comedi/comedi_pci.h>
+#include <linux/comedi/comedi_8255.h>
+#include <linux/comedi/comedi_8254.h>
 
-#include "../comedi_pci.h"
-
-#include "comedi_8254.h"
 #include "plx9052.h"
-#include "8255.h"
 
 /*
  * PCI Bar 1 Register map

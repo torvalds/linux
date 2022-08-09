@@ -53,15 +53,18 @@ struct exception_table_entry {
 /*
  * ASM_EXCEPTIONTABLE_ENTRY_EFAULT() creates a special exception table entry
  * (with lowest bit set) for which the fault handler in fixup_exception() will
- * load -EFAULT into %r8 for a read or write fault, and zeroes the target
+ * load -EFAULT into %r29 for a read or write fault, and zeroes the target
  * register in case of a read fault in get_user().
  */
+#define ASM_EXCEPTIONTABLE_REG	29
+#define ASM_EXCEPTIONTABLE_VAR(__variable)		\
+	register long __variable __asm__ ("r29") = 0
 #define ASM_EXCEPTIONTABLE_ENTRY_EFAULT( fault_addr, except_addr )\
 	ASM_EXCEPTIONTABLE_ENTRY( fault_addr, except_addr + 1)
 
 #define __get_user_internal(sr, val, ptr)		\
 ({							\
-	register long __gu_err __asm__ ("r8") = 0;	\
+	ASM_EXCEPTIONTABLE_VAR(__gu_err);		\
 							\
 	switch (sizeof(*(ptr))) {			\
 	case 1: __get_user_asm(sr, val, "ldb", ptr); break; \
@@ -86,8 +89,8 @@ struct exception_table_entry {
 	__asm__("1: " ldx " 0(" sr "%2),%0\n"		\
 		"9:\n"					\
 		ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 9b)	\
-		: "=r"(__gu_val), "=r"(__gu_err)        \
-		: "r"(ptr), "1"(__gu_err));		\
+		: "=r"(__gu_val), "+r"(__gu_err)        \
+		: "r"(ptr));				\
 							\
 	(val) = (__force __typeof__(*(ptr))) __gu_val;	\
 }
@@ -120,8 +123,8 @@ struct exception_table_entry {
 		"9:\n"					\
 		ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 9b)	\
 		ASM_EXCEPTIONTABLE_ENTRY_EFAULT(2b, 9b)	\
-		: "=&r"(__gu_tmp.l), "=r"(__gu_err)	\
-		: "r"(ptr), "1"(__gu_err));		\
+		: "=&r"(__gu_tmp.l), "+r"(__gu_err)	\
+		: "r"(ptr));				\
 							\
 	(val) = __gu_tmp.t;				\
 }
@@ -131,14 +134,13 @@ struct exception_table_entry {
 
 #define __put_user_internal(sr, x, ptr)				\
 ({								\
-	register long __pu_err __asm__ ("r8") = 0;      	\
-        __typeof__(*(ptr)) __x = (__typeof__(*(ptr)))(x);	\
+	ASM_EXCEPTIONTABLE_VAR(__pu_err);		      	\
 								\
 	switch (sizeof(*(ptr))) {				\
-	case 1: __put_user_asm(sr, "stb", __x, ptr); break;	\
-	case 2: __put_user_asm(sr, "sth", __x, ptr); break;	\
-	case 4: __put_user_asm(sr, "stw", __x, ptr); break;	\
-	case 8: STD_USER(sr, __x, ptr); break;			\
+	case 1: __put_user_asm(sr, "stb", x, ptr); break;	\
+	case 2: __put_user_asm(sr, "sth", x, ptr); break;	\
+	case 4: __put_user_asm(sr, "stw", x, ptr); break;	\
+	case 8: STD_USER(sr, x, ptr); break;			\
 	default: BUILD_BUG();					\
 	}							\
 								\
@@ -147,7 +149,9 @@ struct exception_table_entry {
 
 #define __put_user(x, ptr)					\
 ({								\
-	__put_user_internal("%%sr3,", x, ptr);			\
+	__typeof__(&*(ptr)) __ptr = ptr;			\
+	__typeof__(*(__ptr)) __x = (__typeof__(*(__ptr)))(x);	\
+	__put_user_internal("%%sr3,", __x, __ptr);		\
 })
 
 #define __put_kernel_nofault(dst, src, type, err_label)		\
@@ -168,7 +172,8 @@ struct exception_table_entry {
  * gcc knows about, so there are no aliasing issues. These macros must
  * also be aware that fixups are executed in the context of the fault,
  * and any registers used there must be listed as clobbers.
- * r8 is already listed as err.
+ * The register holding the possible EFAULT error (ASM_EXCEPTIONTABLE_REG)
+ * is already listed as input and output register.
  */
 
 #define __put_user_asm(sr, stx, x, ptr)				\
@@ -176,8 +181,8 @@ struct exception_table_entry {
 		"1: " stx " %2,0(" sr "%1)\n"			\
 		"9:\n"						\
 		ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 9b)		\
-		: "=r"(__pu_err)				\
-		: "r"(ptr), "r"(x), "0"(__pu_err))
+		: "+r"(__pu_err)				\
+		: "r"(ptr), "r"(x))
 
 
 #if !defined(CONFIG_64BIT)
@@ -189,8 +194,8 @@ struct exception_table_entry {
 		"9:\n"						\
 		ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 9b)		\
 		ASM_EXCEPTIONTABLE_ENTRY_EFAULT(2b, 9b)		\
-		: "=r"(__pu_err)				\
-		: "r"(ptr), "r"(__val), "0"(__pu_err));		\
+		: "+r"(__pu_err)				\
+		: "r"(ptr), "r"(__val));			\
 } while (0)
 
 #endif /* !defined(CONFIG_64BIT) */

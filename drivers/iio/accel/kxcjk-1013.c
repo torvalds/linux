@@ -315,7 +315,7 @@ static const char *const kxtf9_samp_freq_avail =
 	"25 50 100 200 400 800";
 
 /* Refer to section 4 of the specification */
-static const struct {
+static __maybe_unused const struct {
 	int odr_bits;
 	int usec;
 } odr_start_up_times[KX_MAX_CHIPS][12] = {
@@ -927,7 +927,8 @@ static int kxcjk1013_read_raw(struct iio_dev *indio_dev,
 				mutex_unlock(&data->mutex);
 				return ret;
 			}
-			*val = sign_extend32(ret >> 4, 11);
+			*val = sign_extend32(ret >> chan->scan_type.shift,
+					     chan->scan_type.realbits - 1);
 			ret = kxcjk1013_set_power_state(data, false);
 		}
 		mutex_unlock(&data->mutex);
@@ -1589,11 +1590,14 @@ static int kxcjk1013_probe(struct i2c_client *client,
 	ret = iio_device_register(indio_dev);
 	if (ret < 0) {
 		dev_err(&client->dev, "unable to register iio device\n");
-		goto err_buffer_cleanup;
+		goto err_pm_cleanup;
 	}
 
 	return 0;
 
+err_pm_cleanup:
+	pm_runtime_dont_use_autosuspend(&client->dev);
+	pm_runtime_disable(&client->dev);
 err_buffer_cleanup:
 	iio_triggered_buffer_cleanup(indio_dev);
 err_trigger_unregister:

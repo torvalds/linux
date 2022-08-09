@@ -413,7 +413,7 @@ Description:
 			      "Over voltage", "Unspecified failure", "Cold",
 			      "Watchdog timer expire", "Safety timer expire",
 			      "Over current", "Calibration required", "Warm",
-			      "Cool", "Hot"
+			      "Cool", "Hot", "No battery"
 
 What:		/sys/class/power_supply/<supply_name>/precharge_current
 Date:		June 2017
@@ -454,6 +454,21 @@ Description:
 		Valid values:
 			      "Unknown", "Charging", "Discharging",
 			      "Not charging", "Full"
+
+What:		/sys/class/power_supply/<supply_name>/charge_behaviour
+Date:		November 2021
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Represents the charging behaviour.
+
+		Access: Read, Write
+
+		Valid values:
+			================ ====================================
+			auto:            Charge normally, respect thresholds
+			inhibit-charge:  Do not charge while AC is attached
+			force-discharge: Force discharge while AC is attached
+			================ ====================================
 
 What:		/sys/class/power_supply/<supply_name>/technology
 Date:		May 2007

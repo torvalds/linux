@@ -905,6 +905,17 @@ enabled, otherwise writing to this file will return ``-EBUSY``.
 The default value is 8.
 
 
+perf_user_access (arm64 only)
+=================================
+
+Controls user space access for reading perf event counters. When set to 1,
+user space can read performance monitor counter registers directly.
+
+The default value is 0 (access disabled).
+
+See Documentation/arm64/perf.rst for more information.
+
+
 pid_max
 =======
 

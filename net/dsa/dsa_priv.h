@@ -8,6 +8,7 @@
 #define __DSA_PRIV_H
 
 #include <linux/if_bridge.h>
+#include <linux/if_vlan.h>
 #include <linux/phy.h>
 #include <linux/netdevice.h>
 #include <linux/netpoll.h>
@@ -24,8 +25,6 @@ enum {
 	DSA_NOTIFIER_FDB_DEL,
 	DSA_NOTIFIER_HOST_FDB_ADD,
 	DSA_NOTIFIER_HOST_FDB_DEL,
-	DSA_NOTIFIER_HSR_JOIN,
-	DSA_NOTIFIER_HSR_LEAVE,
 	DSA_NOTIFIER_LAG_CHANGE,
 	DSA_NOTIFIER_LAG_JOIN,
 	DSA_NOTIFIER_LAG_LEAVE,
@@ -37,10 +36,8 @@ enum {
 	DSA_NOTIFIER_VLAN_DEL,
 	DSA_NOTIFIER_MTU,
 	DSA_NOTIFIER_TAG_PROTO,
-	DSA_NOTIFIER_MRP_ADD,
-	DSA_NOTIFIER_MRP_DEL,
-	DSA_NOTIFIER_MRP_ADD_RING_ROLE,
-	DSA_NOTIFIER_MRP_DEL_RING_ROLE,
+	DSA_NOTIFIER_TAG_PROTO_CONNECT,
+	DSA_NOTIFIER_TAG_PROTO_DISCONNECT,
 	DSA_NOTIFIER_TAG_8021Q_VLAN_ADD,
 	DSA_NOTIFIER_TAG_8021Q_VLAN_DEL,
 };
@@ -52,10 +49,11 @@ struct dsa_notifier_ageing_time_info {
 
 /* DSA_NOTIFIER_BRIDGE_* */
 struct dsa_notifier_bridge_info {
-	struct net_device *br;
+	struct dsa_bridge bridge;
 	int tree_index;
 	int sw_index;
 	int port;
+	bool tx_fwd_offload;
 };
 
 /* DSA_NOTIFIER_FDB_* */
@@ -103,20 +101,6 @@ struct dsa_notifier_tag_proto_info {
 	const struct dsa_device_ops *tag_ops;
 };
 
-/* DSA_NOTIFIER_MRP_* */
-struct dsa_notifier_mrp_info {
-	const struct switchdev_obj_mrp *mrp;
-	int sw_index;
-	int port;
-};
-
-/* DSA_NOTIFIER_MRP_* */
-struct dsa_notifier_mrp_ring_role_info {
-	const struct switchdev_obj_ring_role_mrp *mrp;
-	int sw_index;
-	int port;
-};
-
 /* DSA_NOTIFIER_TAG_8021Q_VLAN_* */
 struct dsa_notifier_tag_8021q_vlan_info {
 	int tree_index;
@@ -137,13 +121,6 @@ struct dsa_switchdev_event_work {
 	unsigned char addr[ETH_ALEN];
 	u16 vid;
 	bool host_addr;
-};
-
-/* DSA_NOTIFIER_HSR_* */
-struct dsa_notifier_hsr_info {
-	struct net_device *hsr;
-	int sw_index;
-	int port;
 };
 
 struct dsa_slave_priv {
@@ -170,7 +147,6 @@ void dsa_tag_driver_put(const struct dsa_device_ops *ops);
 const struct dsa_device_ops *dsa_find_tagger_by_name(const char *buf);
 
 bool dsa_schedule_work(struct work_struct *work);
-void dsa_flush_workqueue(void);
 const char *dsa_tag_protocol_to_str(const struct dsa_device_ops *ops);
 
 static inline int dsa_tag_protocol_overhead(const struct dsa_device_ops *ops)
@@ -258,54 +234,13 @@ int dsa_port_mrp_add_ring_role(const struct dsa_port *dp,
 			       const struct switchdev_obj_ring_role_mrp *mrp);
 int dsa_port_mrp_del_ring_role(const struct dsa_port *dp,
 			       const struct switchdev_obj_ring_role_mrp *mrp);
+int dsa_port_phylink_create(struct dsa_port *dp);
 int dsa_port_link_register_of(struct dsa_port *dp);
 void dsa_port_link_unregister_of(struct dsa_port *dp);
 int dsa_port_hsr_join(struct dsa_port *dp, struct net_device *hsr);
 void dsa_port_hsr_leave(struct dsa_port *dp, struct net_device *hsr);
 int dsa_port_tag_8021q_vlan_add(struct dsa_port *dp, u16 vid, bool broadcast);
 void dsa_port_tag_8021q_vlan_del(struct dsa_port *dp, u16 vid, bool broadcast);
-extern const struct phylink_mac_ops dsa_port_phylink_mac_ops;
-
-static inline bool dsa_port_offloads_bridge_port(struct dsa_port *dp,
-						 const struct net_device *dev)
-{
-	return dsa_port_to_bridge_port(dp) == dev;
-}
-
-static inline bool dsa_port_offloads_bridge(struct dsa_port *dp,
-					    const struct net_device *bridge_dev)
-{
-	/* DSA ports connected to a bridge, and event was emitted
-	 * for the bridge.
-	 */
-	return dp->bridge_dev == bridge_dev;
-}
-
-/* Returns true if any port of this tree offloads the given net_device */
-static inline bool dsa_tree_offloads_bridge_port(struct dsa_switch_tree *dst,
-						 const struct net_device *dev)
-{
-	struct dsa_port *dp;
-
-	list_for_each_entry(dp, &dst->ports, list)
-		if (dsa_port_offloads_bridge_port(dp, dev))
-			return true;
-
-	return false;
-}
-
-/* Returns true if any port of this tree offloads the given bridge */
-static inline bool dsa_tree_offloads_bridge(struct dsa_switch_tree *dst,
-					    const struct net_device *bridge_dev)
-{
-	struct dsa_port *dp;
-
-	list_for_each_entry(dp, &dst->ports, list)
-		if (dsa_port_offloads_bridge(dp, bridge_dev))
-			return true;
-
-	return false;
-}
 
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;
@@ -345,7 +280,7 @@ dsa_slave_to_master(const struct net_device *dev)
 static inline struct sk_buff *dsa_untag_bridge_pvid(struct sk_buff *skb)
 {
 	struct dsa_port *dp = dsa_slave_to_port(skb->dev);
-	struct net_device *br = dp->bridge_dev;
+	struct net_device *br = dsa_port_bridge_dev_get(dp);
 	struct net_device *dev = skb->dev;
 	struct net_device *upper_dev;
 	u16 vid, pvid, proto;
@@ -415,7 +350,7 @@ dsa_find_designated_bridge_port_by_vid(struct net_device *master, u16 vid)
 		if (dp->type != DSA_PORT_TYPE_USER)
 			continue;
 
-		if (!dp->bridge_dev)
+		if (!dp->bridge)
 			continue;
 
 		if (dp->stp_state != BR_STATE_LEARNING &&
@@ -444,7 +379,7 @@ dsa_find_designated_bridge_port_by_vid(struct net_device *master, u16 vid)
 /* If the ingress port offloads the bridge, we mark the frame as autonomously
  * forwarded by hardware, so the software bridge doesn't forward in twice, back
  * to us, because we already did. However, if we're in fallback mode and we do
- * software bridging, we are not offloading it, therefore the dp->bridge_dev
+ * software bridging, we are not offloading it, therefore the dp->bridge
  * pointer is not populated, and flooding needs to be done by software (we are
  * effectively operating in standalone ports mode).
  */
@@ -452,7 +387,7 @@ static inline void dsa_default_offload_fwd_mark(struct sk_buff *skb)
 {
 	struct dsa_port *dp = dsa_slave_to_port(skb->dev);
 
-	skb->offload_fwd_mark = !!(dp->bridge_dev);
+	skb->offload_fwd_mark = !!(dp->bridge);
 }
 
 /* Helper for removing DSA header tags from packets in the RX path.
@@ -546,8 +481,11 @@ int dsa_tree_change_tag_proto(struct dsa_switch_tree *dst,
 			      struct net_device *master,
 			      const struct dsa_device_ops *tag_ops,
 			      const struct dsa_device_ops *old_tag_ops);
-int dsa_bridge_num_get(const struct net_device *bridge_dev, int max);
-void dsa_bridge_num_put(const struct net_device *bridge_dev, int bridge_num);
+unsigned int dsa_bridge_num_get(const struct net_device *bridge_dev, int max);
+void dsa_bridge_num_put(const struct net_device *bridge_dev,
+			unsigned int bridge_num);
+struct dsa_bridge *dsa_tree_bridge_find(struct dsa_switch_tree *dst,
+					const struct net_device *br);
 
 /* tag_8021q.c */
 int dsa_tag_8021q_bridge_join(struct dsa_switch *ds,

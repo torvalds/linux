@@ -146,6 +146,7 @@ DECLARE_SUITE(pe_file_parsing);
 DECLARE_SUITE(expand_cgroup_events);
 DECLARE_SUITE(perf_time_to_tsc);
 DECLARE_SUITE(dlfilter);
+DECLARE_SUITE(sigtrap);
 
 /*
  * PowerPC and S390 do not support creation of instruction breakpoints using the

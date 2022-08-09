@@ -30,11 +30,6 @@ ibmphp:
   or ibmphp should store a pointer to its bus in struct slot.  Probably the
   former.
 
-* The functions get_max_adapter_speed() and get_bus_name() are commented out.
-  Can they be deleted?  There are also forward declarations at the top of
-  ibmphp_core.c as well as pointers in ibmphp_hotplug_slot_ops, likewise
-  commented out.
-
 * ibmphp_init_devno() takes a struct slot **, it could instead take a
   struct slot *.
 

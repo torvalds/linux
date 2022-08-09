@@ -60,7 +60,7 @@ save_registers:
 	popl	saved_context_eflags
 
 	movl	$ret_point, saved_eip
-	ret
+	RET
 
 
 restore_registers:
@@ -70,7 +70,7 @@ restore_registers:
 	movl	saved_context_edi, %edi
 	pushl	saved_context_eflags
 	popfl
-	ret
+	RET
 
 SYM_CODE_START(do_suspend_lowlevel)
 	call	save_processor_state
@@ -86,7 +86,7 @@ SYM_CODE_START(do_suspend_lowlevel)
 ret_point:
 	call	restore_registers
 	call	restore_processor_state
-	ret
+	RET
 SYM_CODE_END(do_suspend_lowlevel)
 
 .data

@@ -1656,7 +1656,7 @@ err_reg:
 	return ret;
 }
 
-static void hi846_power_off(struct hi846 *hi846)
+static int hi846_power_off(struct hi846 *hi846)
 {
 	if (hi846->rst_gpio)
 		gpiod_set_value_cansleep(hi846->rst_gpio, 1);
@@ -1665,7 +1665,7 @@ static void hi846_power_off(struct hi846 *hi846)
 		gpiod_set_value_cansleep(hi846->shutdown_gpio, 1);
 
 	clk_disable_unprepare(hi846->clock);
-	regulator_bulk_disable(HI846_NUM_SUPPLIES, hi846->supplies);
+	return regulator_bulk_disable(HI846_NUM_SUPPLIES, hi846->supplies);
 }
 
 static int __maybe_unused hi846_suspend(struct device *dev)
@@ -1677,9 +1677,7 @@ static int __maybe_unused hi846_suspend(struct device *dev)
 	if (hi846->streaming)
 		hi846_stop_streaming(hi846);
 
-	hi846_power_off(hi846);
-
-	return 0;
+	return hi846_power_off(hi846);
 }
 
 static int __maybe_unused hi846_resume(struct device *dev)
@@ -2164,7 +2162,11 @@ static int hi846_remove(struct i2c_client *client)
 	return 0;
 }
 
-static UNIVERSAL_DEV_PM_OPS(hi846_pm_ops, hi846_suspend, hi846_resume, NULL);
+static const struct dev_pm_ops hi846_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(hi846_suspend, hi846_resume, NULL)
+};
 
 static const struct of_device_id hi846_of_match[] = {
 	{ .compatible = "hynix,hi846", },

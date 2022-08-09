@@ -32,6 +32,21 @@ properties:
   clock-names:
     const: rtc
 
+  enable-gpios:
+    maxItems: 1
+    description: Used by wilc1000-spi to determine the GPIO line
+      connected to the ENABLE line.  If specified, reset-gpios
+      must be specified as well as otherwise the driver cannot
+      ensure the timing required between asserting ENABLE
+      and deasserting RESET.  This should be declared as an
+      active-high signal.
+
+  reset-gpios:
+    maxItems: 1
+    description: Used by wilc1000-spi to determine the GPIO line
+      connected to the RESET line.  This should be declared as an
+      active-low signal.
+
 required:
   - compatible
   - interrupts
@@ -40,6 +55,8 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
+
     spi {
       #address-cells = <1>;
       #size-cells = <0>;
@@ -51,6 +68,8 @@ examples:
         interrupts = <27 0>;
         clocks = <&pck1>;
         clock-names = "rtc";
+        enable-gpios = <&pioA 5 GPIO_ACTIVE_HIGH>;
+        reset-gpios = <&pioA 6 GPIO_ACTIVE_LOW>;
       };
     };
 

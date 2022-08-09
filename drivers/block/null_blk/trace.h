@@ -44,7 +44,7 @@ TRACE_EVENT(nullb_zone_op,
 		__entry->op = req_op(cmd->rq);
 		__entry->zone_no = zone_no;
 		__entry->zone_cond = zone_cond;
-		__assign_disk_name(__entry->disk, cmd->rq->rq_disk);
+		__assign_disk_name(__entry->disk, cmd->rq->q->disk);
 	    ),
 	    TP_printk("%s req=%-15s zone_no=%u zone_cond=%-10s",
 		      __print_disk_name(__entry->disk),

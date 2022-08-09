@@ -14,6 +14,9 @@
 #include <stdint.h>
 #include <time.h>
 #include <sched.h>
+#include <signal.h>
+
+#include <sys/eventfd.h>
 
 #define VCPU_ID		5
 
@@ -22,10 +25,15 @@
 #define SHINFO_REGION_SLOT	10
 #define PAGE_SIZE		4096
 
+#define DUMMY_REGION_GPA	(SHINFO_REGION_GPA + (2 * PAGE_SIZE))
+#define DUMMY_REGION_SLOT	11
+
+#define SHINFO_ADDR	(SHINFO_REGION_GPA)
 #define PVTIME_ADDR	(SHINFO_REGION_GPA + PAGE_SIZE)
 #define RUNSTATE_ADDR	(SHINFO_REGION_GPA + PAGE_SIZE + 0x20)
 #define VCPU_INFO_ADDR	(SHINFO_REGION_GPA + 0x40)
 
+#define SHINFO_VADDR	(SHINFO_REGION_GVA)
 #define RUNSTATE_VADDR	(SHINFO_REGION_GVA + PAGE_SIZE + 0x20)
 #define VCPU_INFO_VADDR	(SHINFO_REGION_GVA + 0x40)
 
@@ -38,20 +46,20 @@ static struct kvm_vm *vm;
 #define MIN_STEAL_TIME		50000
 
 struct pvclock_vcpu_time_info {
-        u32   version;
-        u32   pad0;
-        u64   tsc_timestamp;
-        u64   system_time;
-        u32   tsc_to_system_mul;
-        s8    tsc_shift;
-        u8    flags;
-        u8    pad[2];
+	u32   version;
+	u32   pad0;
+	u64   tsc_timestamp;
+	u64   system_time;
+	u32   tsc_to_system_mul;
+	s8    tsc_shift;
+	u8    flags;
+	u8    pad[2];
 } __attribute__((__packed__)); /* 32 bytes */
 
 struct pvclock_wall_clock {
-        u32   version;
-        u32   sec;
-        u32   nsec;
+	u32   version;
+	u32   sec;
+	u32   nsec;
 } __attribute__((__packed__));
 
 struct vcpu_runstate_info {
@@ -66,22 +74,44 @@ struct arch_vcpu_info {
 };
 
 struct vcpu_info {
-        uint8_t evtchn_upcall_pending;
-        uint8_t evtchn_upcall_mask;
-        unsigned long evtchn_pending_sel;
-        struct arch_vcpu_info arch;
-        struct pvclock_vcpu_time_info time;
+	uint8_t evtchn_upcall_pending;
+	uint8_t evtchn_upcall_mask;
+	unsigned long evtchn_pending_sel;
+	struct arch_vcpu_info arch;
+	struct pvclock_vcpu_time_info time;
 }; /* 64 bytes (x86) */
+
+struct shared_info {
+	struct vcpu_info vcpu_info[32];
+	unsigned long evtchn_pending[64];
+	unsigned long evtchn_mask[64];
+	struct pvclock_wall_clock wc;
+	uint32_t wc_sec_hi;
+	/* arch_shared_info here */
+};
 
 #define RUNSTATE_running  0
 #define RUNSTATE_runnable 1
 #define RUNSTATE_blocked  2
 #define RUNSTATE_offline  3
 
+static const char *runstate_names[] = {
+	"running",
+	"runnable",
+	"blocked",
+	"offline"
+};
+
+struct {
+	struct kvm_irq_routing info;
+	struct kvm_irq_routing_entry entries[2];
+} irq_routes;
+
 static void evtchn_handler(struct ex_regs *regs)
 {
 	struct vcpu_info *vi = (void *)VCPU_INFO_VADDR;
 	vi->evtchn_upcall_pending = 0;
+	vi->evtchn_pending_sel = 0;
 
 	GUEST_SYNC(0x20);
 }
@@ -127,7 +157,25 @@ static void guest_code(void)
 	GUEST_SYNC(6);
 	GUEST_ASSERT(rs->time[RUNSTATE_runnable] >= MIN_STEAL_TIME);
 
-	GUEST_DONE();
+	/* Attempt to deliver a *masked* interrupt */
+	GUEST_SYNC(7);
+
+	/* Wait until we see the bit set */
+	struct shared_info *si = (void *)SHINFO_VADDR;
+	while (!si->evtchn_pending[0])
+		__asm__ __volatile__ ("rep nop" : : : "memory");
+
+	/* Now deliver an *unmasked* interrupt */
+	GUEST_SYNC(8);
+
+	while (!si->evtchn_pending[1])
+		__asm__ __volatile__ ("rep nop" : : : "memory");
+
+	/* Change memslots and deliver an interrupt */
+	GUEST_SYNC(9);
+
+	for (;;)
+		__asm__ __volatile__ ("rep nop" : : : "memory");
 }
 
 static int cmp_timespec(struct timespec *a, struct timespec *b)
@@ -144,9 +192,18 @@ static int cmp_timespec(struct timespec *a, struct timespec *b)
 		return 0;
 }
 
+static void handle_alrm(int sig)
+{
+	TEST_FAIL("IRQ delivery timed out");
+}
+
 int main(int argc, char *argv[])
 {
 	struct timespec min_ts, max_ts, vm_ts;
+	bool verbose;
+
+	verbose = argc > 1 && (!strncmp(argv[1], "-v", 3) ||
+			       !strncmp(argv[1], "--verbose", 10));
 
 	int xen_caps = kvm_check_cap(KVM_CAP_XEN_HVM);
 	if (!(xen_caps & KVM_XEN_HVM_CONFIG_SHARED_INFO) ) {
@@ -155,6 +212,7 @@ int main(int argc, char *argv[])
 	}
 
 	bool do_runstate_tests = !!(xen_caps & KVM_XEN_HVM_CONFIG_RUNSTATE);
+	bool do_eventfd_tests = !!(xen_caps & KVM_XEN_HVM_CONFIG_EVTCHN_2LEVEL);
 
 	clock_gettime(CLOCK_REALTIME, &min_ts);
 
@@ -165,6 +223,11 @@ int main(int argc, char *argv[])
 	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
 				    SHINFO_REGION_GPA, SHINFO_REGION_SLOT, 2, 0);
 	virt_map(vm, SHINFO_REGION_GVA, SHINFO_REGION_GPA, 2);
+
+	struct shared_info *shinfo = addr_gpa2hva(vm, SHINFO_VADDR);
+
+	int zero_fd = open("/dev/zero", O_RDONLY);
+	TEST_ASSERT(zero_fd != -1, "Failed to open /dev/zero");
 
 	struct kvm_xen_hvm_config hvmc = {
 		.flags = KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL,
@@ -183,6 +246,16 @@ int main(int argc, char *argv[])
 		.u.shared_info.gfn = SHINFO_REGION_GPA / PAGE_SIZE,
 	};
 	vm_ioctl(vm, KVM_XEN_HVM_SET_ATTR, &ha);
+
+	/*
+	 * Test what happens when the HVA of the shinfo page is remapped after
+	 * the kernel has a reference to it. But make sure we copy the clock
+	 * info over since that's only set at setup time, and we test it later.
+	 */
+	struct pvclock_wall_clock wc_copy = shinfo->wc;
+	void *m = mmap(shinfo, PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_FIXED|MAP_PRIVATE, zero_fd, 0);
+	TEST_ASSERT(m == shinfo, "Failed to map /dev/zero over shared info");
+	shinfo->wc = wc_copy;
 
 	struct kvm_xen_vcpu_attr vi = {
 		.type = KVM_XEN_VCPU_ATTR_TYPE_VCPU_INFO,
@@ -212,6 +285,49 @@ int main(int argc, char *argv[])
 			.u.gpa = RUNSTATE_ADDR,
 		};
 		vcpu_ioctl(vm, VCPU_ID, KVM_XEN_VCPU_SET_ATTR, &st);
+	}
+
+	int irq_fd[2] = { -1, -1 };
+
+	if (do_eventfd_tests) {
+		irq_fd[0] = eventfd(0, 0);
+		irq_fd[1] = eventfd(0, 0);
+
+		/* Unexpected, but not a KVM failure */
+		if (irq_fd[0] == -1 || irq_fd[1] == -1)
+			do_eventfd_tests = false;
+	}
+
+	if (do_eventfd_tests) {
+		irq_routes.info.nr = 2;
+
+		irq_routes.entries[0].gsi = 32;
+		irq_routes.entries[0].type = KVM_IRQ_ROUTING_XEN_EVTCHN;
+		irq_routes.entries[0].u.xen_evtchn.port = 15;
+		irq_routes.entries[0].u.xen_evtchn.vcpu = VCPU_ID;
+		irq_routes.entries[0].u.xen_evtchn.priority = KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL;
+
+		irq_routes.entries[1].gsi = 33;
+		irq_routes.entries[1].type = KVM_IRQ_ROUTING_XEN_EVTCHN;
+		irq_routes.entries[1].u.xen_evtchn.port = 66;
+		irq_routes.entries[1].u.xen_evtchn.vcpu = VCPU_ID;
+		irq_routes.entries[1].u.xen_evtchn.priority = KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL;
+
+		vm_ioctl(vm, KVM_SET_GSI_ROUTING, &irq_routes);
+
+		struct kvm_irqfd ifd = { };
+
+		ifd.fd = irq_fd[0];
+		ifd.gsi = 32;
+		vm_ioctl(vm, KVM_IRQFD, &ifd);
+
+		ifd.fd = irq_fd[1];
+		ifd.gsi = 33;
+		vm_ioctl(vm, KVM_IRQFD, &ifd);
+
+		struct sigaction sa = { };
+		sa.sa_handler = handle_alrm;
+		sigaction(SIGALRM, &sa, NULL);
 	}
 
 	struct vcpu_info *vinfo = addr_gpa2hva(vm, VCPU_INFO_VADDR);
@@ -248,6 +364,8 @@ int main(int argc, char *argv[])
 
 			switch (uc.args[1]) {
 			case 0:
+				if (verbose)
+					printf("Delivering evtchn upcall\n");
 				evtchn_irq_expected = true;
 				vinfo->evtchn_upcall_pending = 1;
 				break;
@@ -256,11 +374,16 @@ int main(int argc, char *argv[])
 				TEST_ASSERT(!evtchn_irq_expected, "Event channel IRQ not seen");
 				if (!do_runstate_tests)
 					goto done;
+				if (verbose)
+					printf("Testing runstate %s\n", runstate_names[uc.args[1]]);
 				rst.type = KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_CURRENT;
 				rst.u.runstate.state = uc.args[1];
 				vcpu_ioctl(vm, VCPU_ID, KVM_XEN_VCPU_SET_ATTR, &rst);
 				break;
+
 			case 4:
+				if (verbose)
+					printf("Testing RUNSTATE_ADJUST\n");
 				rst.type = KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_ADJUST;
 				memset(&rst.u, 0, sizeof(rst.u));
 				rst.u.runstate.state = (uint64_t)-1;
@@ -274,6 +397,8 @@ int main(int argc, char *argv[])
 				break;
 
 			case 5:
+				if (verbose)
+					printf("Testing RUNSTATE_DATA\n");
 				rst.type = KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_DATA;
 				memset(&rst.u, 0, sizeof(rst.u));
 				rst.u.runstate.state = RUNSTATE_running;
@@ -282,16 +407,54 @@ int main(int argc, char *argv[])
 				rst.u.runstate.time_offline = 0x5a;
 				vcpu_ioctl(vm, VCPU_ID, KVM_XEN_VCPU_SET_ATTR, &rst);
 				break;
+
 			case 6:
+				if (verbose)
+					printf("Testing steal time\n");
 				/* Yield until scheduler delay exceeds target */
 				rundelay = get_run_delay() + MIN_STEAL_TIME;
 				do {
 					sched_yield();
 				} while (get_run_delay() < rundelay);
 				break;
+
+			case 7:
+				if (!do_eventfd_tests)
+					goto done;
+				if (verbose)
+					printf("Testing masked event channel\n");
+				shinfo->evtchn_mask[0] = 0x8000;
+				eventfd_write(irq_fd[0], 1UL);
+				alarm(1);
+				break;
+
+			case 8:
+				if (verbose)
+					printf("Testing unmasked event channel\n");
+				/* Unmask that, but deliver the other one */
+				shinfo->evtchn_pending[0] = 0;
+				shinfo->evtchn_mask[0] = 0;
+				eventfd_write(irq_fd[1], 1UL);
+				evtchn_irq_expected = true;
+				alarm(1);
+				break;
+
+			case 9:
+				if (verbose)
+					printf("Testing event channel after memslot change\n");
+				vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
+							    DUMMY_REGION_GPA, DUMMY_REGION_SLOT, 1, 0);
+				eventfd_write(irq_fd[0], 1UL);
+				evtchn_irq_expected = true;
+				alarm(1);
+				break;
+
 			case 0x20:
 				TEST_ASSERT(evtchn_irq_expected, "Unexpected event channel IRQ");
 				evtchn_irq_expected = false;
+				if (shinfo->evtchn_pending[1] &&
+				    shinfo->evtchn_pending[0])
+					goto done;
 				break;
 			}
 			break;
@@ -318,9 +481,19 @@ int main(int argc, char *argv[])
 	ti = addr_gpa2hva(vm, SHINFO_REGION_GPA + 0x40 + 0x20);
 	ti2 = addr_gpa2hva(vm, PVTIME_ADDR);
 
+	if (verbose) {
+		printf("Wall clock (v %d) %d.%09d\n", wc->version, wc->sec, wc->nsec);
+		printf("Time info 1: v %u tsc %" PRIu64 " time %" PRIu64 " mul %u shift %u flags %x\n",
+		       ti->version, ti->tsc_timestamp, ti->system_time, ti->tsc_to_system_mul,
+		       ti->tsc_shift, ti->flags);
+		printf("Time info 2: v %u tsc %" PRIu64 " time %" PRIu64 " mul %u shift %u flags %x\n",
+		       ti2->version, ti2->tsc_timestamp, ti2->system_time, ti2->tsc_to_system_mul,
+		       ti2->tsc_shift, ti2->flags);
+	}
+
 	vm_ts.tv_sec = wc->sec;
 	vm_ts.tv_nsec = wc->nsec;
-        TEST_ASSERT(wc->version && !(wc->version & 1),
+	TEST_ASSERT(wc->version && !(wc->version & 1),
 		    "Bad wallclock version %x", wc->version);
 	TEST_ASSERT(cmp_timespec(&min_ts, &vm_ts) <= 0, "VM time too old");
 	TEST_ASSERT(cmp_timespec(&max_ts, &vm_ts) >= 0, "VM time too new");
@@ -341,6 +514,15 @@ int main(int argc, char *argv[])
 		};
 		vcpu_ioctl(vm, VCPU_ID, KVM_XEN_VCPU_GET_ATTR, &rst);
 
+		if (verbose) {
+			printf("Runstate: %s(%d), entry %" PRIu64 " ns\n",
+			       rs->state <= RUNSTATE_offline ? runstate_names[rs->state] : "unknown",
+			       rs->state, rs->state_entry_time);
+			for (int i = RUNSTATE_running; i <= RUNSTATE_offline; i++) {
+				printf("State %s: %" PRIu64 " ns\n",
+				       runstate_names[i], rs->time[i]);
+			}
+		}
 		TEST_ASSERT(rs->state == rst.u.runstate.state, "Runstate mismatch");
 		TEST_ASSERT(rs->state_entry_time == rst.u.runstate.state_entry_time,
 			    "State entry time mismatch");

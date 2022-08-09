@@ -541,7 +541,7 @@ static struct attribute *port_diagc_attributes[] = {
 };
 
 static const struct attribute_group port_diagc_group = {
-	.name = "linkcontrol",
+	.name = "diag_counters",
 	.attrs = port_diagc_attributes,
 };
 

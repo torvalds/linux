@@ -255,7 +255,6 @@ static int es7241_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct es7241_data *priv;
-	int err;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -271,28 +270,19 @@ static int es7241_probe(struct platform_device *pdev)
 	es7241_parse_fmt(dev, priv);
 
 	priv->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(priv->reset)) {
-		err = PTR_ERR(priv->reset);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get 'reset' gpio: %d", err);
-		return err;
-	}
+	if (IS_ERR(priv->reset))
+		return dev_err_probe(dev, PTR_ERR(priv->reset),
+				     "Failed to get 'reset' gpio");
 
 	priv->m0 = devm_gpiod_get_optional(dev, "m0", GPIOD_OUT_LOW);
-	if (IS_ERR(priv->m0)) {
-		err = PTR_ERR(priv->m0);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get 'm0' gpio: %d", err);
-		return err;
-	}
+	if (IS_ERR(priv->m0))
+		return dev_err_probe(dev, PTR_ERR(priv->m0),
+				     "Failed to get 'm0' gpio");
 
 	priv->m1 = devm_gpiod_get_optional(dev, "m1", GPIOD_OUT_LOW);
-	if (IS_ERR(priv->m1)) {
-		err = PTR_ERR(priv->m1);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get 'm1' gpio: %d", err);
-		return err;
-	}
+	if (IS_ERR(priv->m1))
+		return dev_err_probe(dev, PTR_ERR(priv->m1),
+				     "Failed to get 'm1' gpio");
 
 	return devm_snd_soc_register_component(&pdev->dev,
 				      &es7241_component_driver,

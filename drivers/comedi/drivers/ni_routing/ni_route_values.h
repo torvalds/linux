@@ -20,7 +20,7 @@
 #ifndef _COMEDI_DRIVERS_NI_ROUTINT_NI_ROUTE_VALUES_H
 #define _COMEDI_DRIVERS_NI_ROUTINT_NI_ROUTE_VALUES_H
 
-#include "../../comedi.h"
+#include <linux/comedi.h>
 #include <linux/types.h>
 
 /*

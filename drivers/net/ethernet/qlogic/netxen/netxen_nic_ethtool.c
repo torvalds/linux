@@ -392,7 +392,9 @@ netxen_nic_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 
 static void
 netxen_nic_get_ringparam(struct net_device *dev,
-		struct ethtool_ringparam *ring)
+			 struct ethtool_ringparam *ring,
+			 struct kernel_ethtool_ringparam *kernel_ring,
+			 struct netlink_ext_ack *extack)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
 
@@ -430,7 +432,9 @@ netxen_validate_ringparam(u32 val, u32 min, u32 max, char *r_name)
 
 static int
 netxen_nic_set_ringparam(struct net_device *dev,
-		struct ethtool_ringparam *ring)
+			 struct ethtool_ringparam *ring,
+			 struct kernel_ethtool_ringparam *kernel_ring,
+			 struct netlink_ext_ack *extack)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
 	u16 max_rcv_desc = MAX_RCV_DESCRIPTORS_10G;

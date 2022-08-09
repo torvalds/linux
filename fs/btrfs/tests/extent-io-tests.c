@@ -56,6 +56,54 @@ static noinline int process_page_range(struct inode *inode, u64 start, u64 end,
 	return count;
 }
 
+#define STATE_FLAG_STR_LEN			256
+
+#define PRINT_ONE_FLAG(state, dest, cur, name)				\
+({									\
+	if (state->state & EXTENT_##name)				\
+		cur += scnprintf(dest + cur, STATE_FLAG_STR_LEN - cur,	\
+				 "%s" #name, cur == 0 ? "" : "|");	\
+})
+
+static void extent_flag_to_str(const struct extent_state *state, char *dest)
+{
+	int cur = 0;
+
+	dest[0] = 0;
+	PRINT_ONE_FLAG(state, dest, cur, DIRTY);
+	PRINT_ONE_FLAG(state, dest, cur, UPTODATE);
+	PRINT_ONE_FLAG(state, dest, cur, LOCKED);
+	PRINT_ONE_FLAG(state, dest, cur, NEW);
+	PRINT_ONE_FLAG(state, dest, cur, DELALLOC);
+	PRINT_ONE_FLAG(state, dest, cur, DEFRAG);
+	PRINT_ONE_FLAG(state, dest, cur, BOUNDARY);
+	PRINT_ONE_FLAG(state, dest, cur, NODATASUM);
+	PRINT_ONE_FLAG(state, dest, cur, CLEAR_META_RESV);
+	PRINT_ONE_FLAG(state, dest, cur, NEED_WAIT);
+	PRINT_ONE_FLAG(state, dest, cur, DAMAGED);
+	PRINT_ONE_FLAG(state, dest, cur, NORESERVE);
+	PRINT_ONE_FLAG(state, dest, cur, QGROUP_RESERVED);
+	PRINT_ONE_FLAG(state, dest, cur, CLEAR_DATA_RESV);
+}
+
+static void dump_extent_io_tree(const struct extent_io_tree *tree)
+{
+	struct rb_node *node;
+	char flags_str[STATE_FLAG_STR_LEN];
+
+	node = rb_first(&tree->state);
+	test_msg("io tree content:");
+	while (node) {
+		struct extent_state *state;
+
+		state = rb_entry(node, struct extent_state, rb_node);
+		extent_flag_to_str(state, flags_str);
+		test_msg("  start=%llu len=%llu flags=%s", state->start,
+			 state->end + 1 - state->start, flags_str);
+		node = rb_next(node);
+	}
+}
+
 static int test_find_delalloc(u32 sectorsize)
 {
 	struct inode *inode;
@@ -258,6 +306,8 @@ static int test_find_delalloc(u32 sectorsize)
 	}
 	ret = 0;
 out_bits:
+	if (ret)
+		dump_extent_io_tree(tmp);
 	clear_extent_bits(tmp, 0, total_dirty - 1, (unsigned)-1);
 out:
 	if (locked_page)
@@ -534,6 +584,8 @@ static int test_find_first_clear_extent_bit(void)
 
 	ret = 0;
 out:
+	if (ret)
+		dump_extent_io_tree(&tree);
 	clear_extent_bits(&tree, 0, (u64)-1, CHUNK_TRIMMED | CHUNK_ALLOCATED);
 
 	return ret;

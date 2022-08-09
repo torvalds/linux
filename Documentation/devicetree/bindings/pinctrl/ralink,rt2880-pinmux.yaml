@@ -44,6 +44,9 @@ patternProperties:
 
     additionalProperties: false
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - compatible
 

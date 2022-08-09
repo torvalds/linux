@@ -29,21 +29,49 @@ of the driver stack) that are not accessible to userspace.
 
 DEVICE CREATION, DRIVER BINDING
 ===============================
-The simplest way to arrange to use this driver is to just list it in the
-spi_board_info for a device as the driver it should use:  the "modalias"
-entry is "spidev", matching the name of the driver exposing this API.
-Set up the other device characteristics (bits per word, SPI clocking,
-chipselect polarity, etc) as usual, so you won't always need to override
-them later.
 
-(Sysfs also supports userspace driven binding/unbinding of drivers to
-devices.  That mechanism might be supported here in the future.)
+The spidev driver contains lists of SPI devices that are supported for
+the different hardware topology representations.
 
-When you do that, the sysfs node for the SPI device will include a child
-device node with a "dev" attribute that will be understood by udev or mdev.
-(Larger systems will have "udev".  Smaller ones may configure "mdev" into
-busybox; it's less featureful, but often enough.)  For a SPI device with
-chipselect C on bus B, you should see:
+The following are the SPI device tables supported by the spidev driver:
+
+    - struct spi_device_id spidev_spi_ids[]: list of devices that can be
+      bound when these are defined using a struct spi_board_info with a
+      .modalias field matching one of the entries in the table.
+
+    - struct of_device_id spidev_dt_ids[]: list of devices that can be
+      bound when these are defined using a Device Tree node that has a
+      compatible string matching one of the entries in the table.
+
+    - struct acpi_device_id spidev_acpi_ids[]: list of devices that can
+      be bound when these are defined using a ACPI device object with a
+      _HID matching one of the entries in the table.
+
+You are encouraged to add an entry for your SPI device name to relevant
+tables, if these don't already have an entry for the device. To do that,
+post a patch for spidev to the linux-spi@vger.kernel.org mailing list.
+
+It used to be supported to define an SPI device using the "spidev" name.
+For example, as .modalias = "spidev" or compatible = "spidev".  But this
+is no longer supported by the Linux kernel and instead a real SPI device
+name as listed in one of the tables must be used.
+
+Not having a real SPI device name will lead to an error being printed and
+the spidev driver failing to probe.
+
+Sysfs also supports userspace driven binding/unbinding of drivers to
+devices that do not bind automatically using one of the tables above.
+To make the spidev driver bind to such a device, use the following:
+
+    echo spidev > /sys/bus/spi/devices/spiB.C/driver_override
+    echo spiB.C > /sys/bus/spi/drivers/spidev/bind
+
+When the spidev driver is bound to a SPI device, the sysfs node for the
+device will include a child device node with a "dev" attribute that will
+be understood by udev or mdev (udev replacement from BusyBox; it's less
+featureful, but often enough).
+
+For a SPI device with chipselect C on bus B, you should see:
 
     /dev/spidevB.C ...
 	character special device, major number 153 with

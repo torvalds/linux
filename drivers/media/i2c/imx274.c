@@ -27,6 +27,7 @@
 
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
 /*
@@ -1367,6 +1368,10 @@ static int imx274_s_frame_interval(struct v4l2_subdev *sd,
 	int min, max, def;
 	int ret;
 
+	ret = pm_runtime_resume_and_get(&imx274->client->dev);
+	if (ret < 0)
+		return ret;
+
 	mutex_lock(&imx274->lock);
 	ret = imx274_set_frame_interval(imx274, fi->interval);
 
@@ -1398,6 +1403,7 @@ static int imx274_s_frame_interval(struct v4l2_subdev *sd,
 
 unlock:
 	mutex_unlock(&imx274->lock);
+	pm_runtime_put(&imx274->client->dev);
 
 	return ret;
 }
@@ -1457,7 +1463,7 @@ static int imx274_s_stream(struct v4l2_subdev *sd, int on)
 			goto fail;
 
 		/*
-		 * update frame rate & expsoure. if the last mode is different,
+		 * update frame rate & exposure. if the last mode is different,
 		 * HMAX could be changed. As the result, frame rate & exposure
 		 * are changed.
 		 * gain is not affected.
@@ -1494,7 +1500,7 @@ fail:
 /*
  * imx274_get_frame_length - Function for obtaining current frame length
  * @priv: Pointer to device structure
- * @val: Pointer to obainted value
+ * @val: Pointer to obtained value
  *
  * frame_length = vmax x (svr + 1), in unit of hmax.
  *
@@ -1904,7 +1910,21 @@ fail:
 	return err;
 }
 
+static int imx274_enum_mbus_code(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *sd_state,
+				 struct v4l2_subdev_mbus_code_enum *code)
+{
+	if (code->index > 0)
+		return -EINVAL;
+
+	/* only supported format in the driver is Raw 10 bits SRGGB */
+	code->code = MEDIA_BUS_FMT_SRGGB10_1X10;
+
+	return 0;
+}
+
 static const struct v4l2_subdev_pad_ops imx274_pad_ops = {
+	.enum_mbus_code = imx274_enum_mbus_code,
 	.get_fmt = imx274_get_fmt,
 	.set_fmt = imx274_set_fmt,
 	.get_selection = imx274_get_selection,
@@ -1938,27 +1958,66 @@ static const struct i2c_device_id imx274_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, imx274_id);
 
+static int imx274_fwnode_parse(struct device *dev)
+{
+	struct fwnode_handle *endpoint;
+	/* Only CSI2 is supported */
+	struct v4l2_fwnode_endpoint ep = {
+		.bus_type = V4L2_MBUS_CSI2_DPHY
+	};
+	int ret;
+
+	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
+	if (!endpoint) {
+		dev_err(dev, "Endpoint node not found\n");
+		return -EINVAL;
+	}
+
+	ret = v4l2_fwnode_endpoint_parse(endpoint, &ep);
+	fwnode_handle_put(endpoint);
+	if (ret == -ENXIO) {
+		dev_err(dev, "Unsupported bus type, should be CSI2\n");
+		return ret;
+	} else if (ret) {
+		dev_err(dev, "Parsing endpoint node failed %d\n", ret);
+		return ret;
+	}
+
+	/* Check number of data lanes, only 4 lanes supported */
+	if (ep.bus.mipi_csi2.num_data_lanes != 4) {
+		dev_err(dev, "Invalid data lanes: %d\n",
+			ep.bus.mipi_csi2.num_data_lanes);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int imx274_probe(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd;
 	struct stimx274 *imx274;
+	struct device *dev = &client->dev;
 	int ret;
 
 	/* initialize imx274 */
-	imx274 = devm_kzalloc(&client->dev, sizeof(*imx274), GFP_KERNEL);
+	imx274 = devm_kzalloc(dev, sizeof(*imx274), GFP_KERNEL);
 	if (!imx274)
 		return -ENOMEM;
 
 	mutex_init(&imx274->lock);
 
-	imx274->inck = devm_clk_get_optional(&client->dev, "inck");
+	ret = imx274_fwnode_parse(dev);
+	if (ret)
+		return ret;
+
+	imx274->inck = devm_clk_get_optional(dev, "inck");
 	if (IS_ERR(imx274->inck))
 		return PTR_ERR(imx274->inck);
 
-	ret = imx274_regulators_get(&client->dev, imx274);
+	ret = imx274_regulators_get(dev, imx274);
 	if (ret) {
-		dev_err(&client->dev,
-			"Failed to get power regulators, err: %d\n", ret);
+		dev_err(dev, "Failed to get power regulators, err: %d\n", ret);
 		return ret;
 	}
 
@@ -1977,7 +2036,7 @@ static int imx274_probe(struct i2c_client *client)
 	/* initialize regmap */
 	imx274->regmap = devm_regmap_init_i2c(client, &imx274_regmap_config);
 	if (IS_ERR(imx274->regmap)) {
-		dev_err(&client->dev,
+		dev_err(dev,
 			"regmap init failed: %ld\n", PTR_ERR(imx274->regmap));
 		ret = -ENODEV;
 		goto err_regmap;
@@ -1994,34 +2053,32 @@ static int imx274_probe(struct i2c_client *client)
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret = media_entity_pads_init(&sd->entity, 1, &imx274->pad);
 	if (ret < 0) {
-		dev_err(&client->dev,
+		dev_err(dev,
 			"%s : media entity init Failed %d\n", __func__, ret);
 		goto err_regmap;
 	}
 
 	/* initialize sensor reset gpio */
-	imx274->reset_gpio = devm_gpiod_get_optional(&client->dev, "reset",
+	imx274->reset_gpio = devm_gpiod_get_optional(dev, "reset",
 						     GPIOD_OUT_HIGH);
 	if (IS_ERR(imx274->reset_gpio)) {
 		if (PTR_ERR(imx274->reset_gpio) != -EPROBE_DEFER)
-			dev_err(&client->dev, "Reset GPIO not setup in DT");
+			dev_err(dev, "Reset GPIO not setup in DT");
 		ret = PTR_ERR(imx274->reset_gpio);
 		goto err_me;
 	}
 
 	/* power on the sensor */
-	ret = imx274_power_on(&client->dev);
+	ret = imx274_power_on(dev);
 	if (ret < 0) {
-		dev_err(&client->dev,
-			"%s : imx274 power on failed\n", __func__);
+		dev_err(dev, "%s : imx274 power on failed\n", __func__);
 		goto err_me;
 	}
 
 	/* initialize controls */
 	ret = v4l2_ctrl_handler_init(&imx274->ctrls.handler, 4);
 	if (ret < 0) {
-		dev_err(&client->dev,
-			"%s : ctrl handler init Failed\n", __func__);
+		dev_err(dev, "%s : ctrl handler init Failed\n", __func__);
 		goto err_power_off;
 	}
 
@@ -2064,23 +2121,22 @@ static int imx274_probe(struct i2c_client *client)
 	/* register subdevice */
 	ret = v4l2_async_register_subdev(sd);
 	if (ret < 0) {
-		dev_err(&client->dev,
-			"%s : v4l2_async_register_subdev failed %d\n",
+		dev_err(dev, "%s : v4l2_async_register_subdev failed %d\n",
 			__func__, ret);
 		goto err_ctrls;
 	}
 
-	pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
-	pm_runtime_idle(&client->dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	pm_runtime_idle(dev);
 
-	dev_info(&client->dev, "imx274 : imx274 probe success !\n");
+	dev_info(dev, "imx274 : imx274 probe success !\n");
 	return 0;
 
 err_ctrls:
 	v4l2_ctrl_handler_free(&imx274->ctrls.handler);
 err_power_off:
-	imx274_power_off(&client->dev);
+	imx274_power_off(dev);
 err_me:
 	media_entity_cleanup(&sd->entity);
 err_regmap:

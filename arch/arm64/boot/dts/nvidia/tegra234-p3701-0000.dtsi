@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0
+
+#include "tegra234.dtsi"
+
+/ {
+	model = "NVIDIA Jetson AGX Orin";
+	compatible = "nvidia,p3701-0000", "nvidia,tegra234";
+
+	bus@0 {
+		mmc@3460000 {
+			status = "okay";
+			bus-width = <8>;
+			non-removable;
+		};
+
+		rtc@c2a0000 {
+			status = "okay";
+		};
+
+		pmc@c360000 {
+			nvidia,invert-interrupt;
+		};
+	};
+};

@@ -184,7 +184,8 @@ void hpo_dp_link_encoder31_construct(struct dcn31_hpo_dp_link_encoder *enc31,
 void dcn31_hpo_dp_link_enc_enable_dp_output(
 	struct hpo_dp_link_encoder *enc,
 	const struct dc_link_settings *link_settings,
-	enum transmitter transmitter);
+	enum transmitter transmitter,
+	enum hpd_source_id hpd_source);
 
 void dcn31_hpo_dp_link_enc_disable_output(
 	struct hpo_dp_link_encoder *enc,

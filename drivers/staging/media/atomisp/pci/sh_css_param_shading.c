@@ -118,8 +118,10 @@ crop_and_interpolate(unsigned int cropped_width,
 		int ty, src_y0, src_y1;
 		unsigned int sy0, sy1, dy0, dy1, divy;
 
-		/* calculate target point and make sure it falls within
-		   the table */
+		/*
+		 * calculate target point and make sure it falls within
+		 * the table
+		 */
 		ty = out_start_row + i * out_cell_size;
 
 		/* calculate closest source points in shading table and
@@ -166,19 +168,24 @@ crop_and_interpolate(unsigned int cropped_width,
 			src_x1 = clamp(src_x1, 0, (int)table_width - 1);
 			tx = min(clamp(tx, 0, (int)sensor_width - 1),
 				 (int)table_cell_w);
-			/* calculate closest source points for distance
-			   computation */
+			/*
+			 * calculate closest source points for distance
+			 * computation
+			 */
 			sx0 = min(src_x0 * in_cell_size, sensor_width - 1);
 			sx1 = min(src_x1 * in_cell_size, sensor_width - 1);
-			/* calculate distances between source and target
-			   pixels */
+			/*
+			 * calculate distances between source and target
+			 * pixels
+			 */
 			dx0 = tx - sx0;
 			dx1 = sx1 - tx;
 			divx = sx1 - sx0;
 			/* if we're at the edge, we just use the closest
-			   point still in the grid. We make up for the divider
-			   in this case by setting the distance to
-			   out_cell_size, since it's actually 0. */
+			 * point still in the grid. We make up for the divider
+			 * in this case by setting the distance to
+			 * out_cell_size, since it's actually 0.
+			 */
 			if (divx == 0) {
 				dx0 = 1;
 				divx = 1;
@@ -242,8 +249,8 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 
 	if (!in_table) {
 		sh_css_params_shading_id_table_generate(target_table,
-							binary->sctbl_legacy_width_per_color,
-							binary->sctbl_legacy_height);
+							binary->sctbl_width_per_color,
+							binary->sctbl_height);
 		return;
 	}
 
@@ -271,43 +278,33 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 		      bds_denominator -
 		      binary->info->sp.pipeline.top_cropping;
 
-#if !defined(USE_WINDOWS_BINNING_FACTOR)
-	/* @deprecated{This part of the code will be replaced by the code
-	 * in the #else section below to make the calculation same across
-	 * all platforms.
-	 * Android and Windows platforms interpret the binning_factor parameter
-	 * differently. In Android, the binning factor is expressed in the form
-	 * 2^N * 2^N, whereas in Windows platform, the binning factor is N*N}
+	/*
+	 * We take into account the binning done by the sensor. We do this
+	 * by cropping the non-binned part of the shading table and then
+	 * increasing the size of a grid cell with this same binning factor.
 	 */
-
-	/* We take into account the binning done by the sensor. We do this
-	   by cropping the non-binned part of the shading table and then
-	   increasing the size of a grid cell with this same binning factor. */
 	input_width  <<= sensor_binning;
 	input_height <<= sensor_binning;
-	/* We also scale the padding by the same binning factor. This will
-	   make it much easier later on to calculate the padding of the
-	   shading table. */
+	/*
+	 * We also scale the padding by the same binning factor. This will
+	 * make it much easier later on to calculate the padding of the
+	 * shading table.
+	 */
 	left_padding  <<= sensor_binning;
 	right_padding <<= sensor_binning;
 	top_padding   <<= sensor_binning;
-#else
-	input_width   *= sensor_binning;
-	input_height  *= sensor_binning;
-	left_padding  *= sensor_binning;
-	right_padding *= sensor_binning;
-	top_padding   *= sensor_binning;
-#endif /*USE_WINDOWS_BINNING_FACTOR*/
 
-	/* during simulation, the used resolution can exceed the sensor
-	   resolution, so we clip it. */
+	/*
+	 * during simulation, the used resolution can exceed the sensor
+	 * resolution, so we clip it.
+	 */
 	input_width  = min(input_width,  in_table->sensor_width);
 	input_height = min(input_height, in_table->sensor_height);
 
 	/* This prepare_shading_table() function is called only in legacy API (not in new API).
 	   Then, the legacy shading table width and height should be used. */
-	table_width  = binary->sctbl_legacy_width_per_color;
-	table_height = binary->sctbl_legacy_height;
+	table_width  = binary->sctbl_width_per_color;
+	table_height = binary->sctbl_height;
 
 	result = ia_css_shading_table_alloc(table_width, table_height);
 	if (!result) {
@@ -318,8 +315,10 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 	result->sensor_height = in_table->sensor_height;
 	result->fraction_bits = in_table->fraction_bits;
 
-	/* now we crop the original shading table and then interpolate to the
-	   requested resolution and decimation factor. */
+	/*
+	 * now we crop the original shading table and then interpolate to the
+	 * requested resolution and decimation factor.
+	 */
 	for (i = 0; i < IA_CSS_SC_NUM_COLORS; i++) {
 		crop_and_interpolate(input_width, input_height,
 				     left_padding, right_padding, top_padding,
@@ -376,9 +375,10 @@ ia_css_shading_table_free(struct ia_css_shading_table *table)
 	if (!table)
 		return;
 
-	/* We only output logging when the table is not NULL, otherwise
+	/*
+	 * We only output logging when the table is not NULL, otherwise
 	 * logs will give the impression that a table was freed.
-	 * */
+	 */
 	IA_CSS_ENTER("");
 
 	for (i = 0; i < IA_CSS_SC_NUM_COLORS; i++) {

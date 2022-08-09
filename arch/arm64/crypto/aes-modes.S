@@ -363,15 +363,15 @@ ST5(	mov		v4.16b, vctr.16b		)
 	adr		x16, 1f
 	sub		x16, x16, x12, lsl #3
 	br		x16
-	hint		34			// bti c
+	bti		c
 	mov		v0.d[0], vctr.d[0]
-	hint		34			// bti c
+	bti		c
 	mov		v1.d[0], vctr.d[0]
-	hint		34			// bti c
+	bti		c
 	mov		v2.d[0], vctr.d[0]
-	hint		34			// bti c
+	bti		c
 	mov		v3.d[0], vctr.d[0]
-ST5(	hint		34				)
+ST5(	bti		c				)
 ST5(	mov		v4.d[0], vctr.d[0]		)
 1:	b		2f
 	.previous

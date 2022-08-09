@@ -121,10 +121,37 @@ static int iwl_mvm_create_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	struct iwl_rx_mpdu_desc *desc = (void *)pkt->data;
 	unsigned int headlen, fraglen, pad_len = 0;
 	unsigned int hdrlen = ieee80211_hdrlen(hdr->frame_control);
+	u8 mic_crc_len = u8_get_bits(desc->mac_flags1,
+				     IWL_RX_MPDU_MFLG1_MIC_CRC_LEN_MASK) << 1;
 
 	if (desc->mac_flags2 & IWL_RX_MPDU_MFLG2_PAD) {
 		len -= 2;
 		pad_len = 2;
+	}
+
+	/*
+	 * For non monitor interface strip the bytes the RADA might not have
+	 * removed. As monitor interface cannot exist with other interfaces
+	 * this removal is safe.
+	 */
+	if (mic_crc_len && !ieee80211_hw_check(mvm->hw, RX_INCLUDES_FCS)) {
+		u32 pkt_flags = le32_to_cpu(pkt->len_n_flags);
+
+		/*
+		 * If RADA was not enabled then decryption was not performed so
+		 * the MIC cannot be removed.
+		 */
+		if (!(pkt_flags & FH_RSCSR_RADA_EN)) {
+			if (WARN_ON(crypt_len > mic_crc_len))
+				return -EINVAL;
+
+			mic_crc_len -= crypt_len;
+		}
+
+		if (WARN_ON(mic_crc_len > len))
+			return -EINVAL;
+
+		len -= mic_crc_len;
 	}
 
 	/* If frame is small enough to fit in skb->head, pull it completely.
@@ -149,18 +176,8 @@ static int iwl_mvm_create_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	 */
 	hdrlen += crypt_len;
 
-	if (WARN_ONCE(headlen < hdrlen,
-		      "invalid packet lengths (hdrlen=%d, len=%d, crypt_len=%d)\n",
-		      hdrlen, len, crypt_len)) {
-		/*
-		 * We warn and trace because we want to be able to see
-		 * it in trace-cmd as well.
-		 */
-		IWL_DEBUG_RX(mvm,
-			     "invalid packet lengths (hdrlen=%d, len=%d, crypt_len=%d)\n",
-			     hdrlen, len, crypt_len);
+	if (unlikely(headlen < hdrlen))
 		return -EINVAL;
-	}
 
 	skb_put_data(skb, hdr, hdrlen);
 	skb_put_data(skb, (u8 *)hdr + hdrlen + pad_len, headlen - hdrlen);
@@ -172,8 +189,12 @@ static int iwl_mvm_create_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	 * in the cases the hardware didn't handle, since it's rare to see
 	 * such packets, even though the hardware did calculate the checksum
 	 * in this case, just starting after the MAC header instead.
+	 *
+	 * Starting from Bz hardware, it calculates starting directly after
+	 * the MAC header, so that matches mac80211's expectation.
 	 */
-	if (skb->ip_summed == CHECKSUM_COMPLETE) {
+	if (skb->ip_summed == CHECKSUM_COMPLETE &&
+	    mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_BZ) {
 		struct {
 			u8 hdr[6];
 			__be16 type;
@@ -766,8 +787,11 @@ static void iwl_mvm_release_frames_from_notif(struct iwl_mvm *mvm,
 	rcu_read_lock();
 
 	ba_data = rcu_dereference(mvm->baid_map[baid]);
-	if (WARN_ON_ONCE(!ba_data))
+	if (!ba_data) {
+		WARN(!(flags & IWL_MVM_RELEASE_FROM_RSS_SYNC),
+		     "BAID %d not found in map\n", baid);
 		goto out;
+	}
 
 	sta = rcu_dereference(mvm->fw_id_to_mac_id[ba_data->sta_id]);
 	if (WARN_ON_ONCE(IS_ERR_OR_NULL(sta)))
@@ -1961,8 +1985,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	} else if (format == RATE_MCS_VHT_MSK) {
 		u8 stbc = (rate_n_flags & RATE_MCS_STBC_MSK) >>
 			RATE_MCS_STBC_POS;
-			rx_status->nss =
-			((rate_n_flags & RATE_MCS_NSS_MSK) >>
+		rx_status->nss = ((rate_n_flags & RATE_MCS_NSS_MSK) >>
 			RATE_MCS_NSS_POS) + 1;
 		rx_status->rate_idx = rate_n_flags & RATE_MCS_CODE_MSK;
 		rx_status->encoding = RX_ENC_VHT;

@@ -90,7 +90,7 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	unsigned long val, mask = -1UL;
 	unsigned int n = 6;
 
-	if (is_32bit_task())
+	if (is_tsk_32bit_task(task))
 		mask = 0xffffffff;
 
 	while (n--) {
@@ -105,7 +105,7 @@ static inline void syscall_get_arguments(struct task_struct *task,
 
 static inline int syscall_get_arch(struct task_struct *task)
 {
-	if (is_32bit_task())
+	if (is_tsk_32bit_task(task))
 		return AUDIT_ARCH_PPC;
 	else if (IS_ENABLED(CONFIG_CPU_LITTLE_ENDIAN))
 		return AUDIT_ARCH_PPC64LE;

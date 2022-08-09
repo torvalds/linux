@@ -12,7 +12,7 @@
  *
  * All of the kthreads used for idle injection are created at init time.
  *
- * Next, the users of the the idle injection framework provide a cpumask via
+ * Next, the users of the idle injection framework provide a cpumask via
  * its register function. The kthreads will be synchronized with respect to
  * this cpumask.
  *

@@ -48,7 +48,7 @@
 /* # of doorbell bytes allocated for each process. */
 size_t kfd_doorbell_process_slice(struct kfd_dev *kfd)
 {
-	return roundup(kfd->device_info->doorbell_size *
+	return roundup(kfd->device_info.doorbell_size *
 			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS,
 			PAGE_SIZE);
 }
@@ -180,7 +180,7 @@ void __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 	if (inx >= KFD_MAX_NUM_OF_QUEUES_PER_PROCESS)
 		return NULL;
 
-	inx *= kfd->device_info->doorbell_size / sizeof(u32);
+	inx *= kfd->device_info.doorbell_size / sizeof(u32);
 
 	/*
 	 * Calculating the kernel doorbell offset using the first
@@ -201,7 +201,7 @@ void kfd_release_kernel_doorbell(struct kfd_dev *kfd, u32 __iomem *db_addr)
 	unsigned int inx;
 
 	inx = (unsigned int)(db_addr - kfd->doorbell_kernel_ptr)
-		* sizeof(u32) / kfd->device_info->doorbell_size;
+		* sizeof(u32) / kfd->device_info.doorbell_size;
 
 	mutex_lock(&kfd->doorbell_mutex);
 	__clear_bit(inx, kfd->doorbell_available_index);
@@ -239,7 +239,7 @@ unsigned int kfd_get_doorbell_dw_offset_in_bar(struct kfd_dev *kfd,
 	return kfd->doorbell_base_dw_offset +
 		pdd->doorbell_index
 		* kfd_doorbell_process_slice(kfd) / sizeof(u32) +
-		doorbell_id * kfd->device_info->doorbell_size / sizeof(u32);
+		doorbell_id * kfd->device_info.doorbell_size / sizeof(u32);
 }
 
 uint64_t kfd_get_number_elems(struct kfd_dev *kfd)

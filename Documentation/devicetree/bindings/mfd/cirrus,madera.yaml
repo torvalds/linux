@@ -221,7 +221,6 @@ required:
   - '#gpio-cells'
   - interrupt-controller
   - '#interrupt-cells'
-  - interrupt-parent
   - interrupts
   - AVDD-supply
   - DBVDD1-supply
@@ -246,8 +245,7 @@ examples:
 
             interrupt-controller;
             #interrupt-cells = <2>;
-            interrupts = <&host_irq1>;
-            interrupt-parent = <&gic>;
+            interrupts = <4 1 0>;
 
             gpio-controller;
             #gpio-cells = <2>;

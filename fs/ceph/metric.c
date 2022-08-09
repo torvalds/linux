@@ -160,8 +160,6 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	msg->hdr.version = cpu_to_le16(1);
 	msg->hdr.compat_version = cpu_to_le16(1);
 	msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
-	dout("client%llu send metrics to mds%d\n",
-	     ceph_client_gid(mdsc->fsc->client), s->s_mds);
 	ceph_con_send(&s->s_con, msg);
 
 	return true;

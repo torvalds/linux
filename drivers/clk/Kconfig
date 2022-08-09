@@ -169,6 +169,14 @@ config COMMON_CLK_CDCE706
 	help
 	  This driver supports TI CDCE706 programmable 3-PLL clock synthesizer.
 
+config COMMON_CLK_TPS68470
+	tristate "Clock Driver for TI TPS68470 PMIC"
+	depends on I2C
+	depends on INTEL_SKL_INT3472 || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  This driver supports the clocks provided by the TPS68470 PMIC.
+
 config COMMON_CLK_CDCE925
 	tristate "Clock driver for TI CDCE913/925/937/949 devices"
 	depends on I2C
@@ -220,6 +228,15 @@ config COMMON_CLK_GEMINI
 	help
 	  This driver supports the SoC clocks on the Cortina Systems Gemini
 	  platform, also known as SL3516 or CS3516.
+
+config COMMON_CLK_LAN966X
+	bool "Generic Clock Controller driver for LAN966X SoC"
+	depends on HAS_IOMEM
+	depends on OF
+	help
+	  This driver provides support for Generic Clock Controller(GCK) on
+	  LAN966X SoC. GCK generates and supplies clock to various peripherals
+	  within the SoC.
 
 config COMMON_CLK_ASPEED
 	bool "Clock driver for Aspeed BMC SoCs"
@@ -339,16 +356,6 @@ config COMMON_CLK_STM32MP157
 	help
 	  Support for stm32mp157 SoC family clocks
 
-config COMMON_CLK_STM32MP157_SCMI
-	bool "stm32mp157 Clock driver with Trusted Firmware"
-	depends on COMMON_CLK_STM32MP157
-	select COMMON_CLK_SCMI
-	select ARM_SCMI_PROTOCOL
-	default y
-	help
-	  Support for stm32mp157 SoC family clocks with Trusted Firmware using
-	  SCMI protocol.
-
 config COMMON_CLK_STM32F
 	def_bool COMMON_CLK && (MACH_STM32F429 || MACH_STM32F469 || MACH_STM32F746)
 	help
@@ -412,11 +419,13 @@ source "drivers/clk/samsung/Kconfig"
 source "drivers/clk/sifive/Kconfig"
 source "drivers/clk/socfpga/Kconfig"
 source "drivers/clk/sprd/Kconfig"
+source "drivers/clk/starfive/Kconfig"
 source "drivers/clk/sunxi/Kconfig"
 source "drivers/clk/sunxi-ng/Kconfig"
 source "drivers/clk/tegra/Kconfig"
 source "drivers/clk/ti/Kconfig"
 source "drivers/clk/uniphier/Kconfig"
+source "drivers/clk/visconti/Kconfig"
 source "drivers/clk/x86/Kconfig"
 source "drivers/clk/xilinx/Kconfig"
 source "drivers/clk/zynqmp/Kconfig"

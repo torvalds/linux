@@ -95,9 +95,9 @@ static uint32_t dcn31_smu_wait_for_response(struct clk_mgr_internal *clk_mgr, un
 	return res_val;
 }
 
-int dcn31_smu_send_msg_with_param(
-		struct clk_mgr_internal *clk_mgr,
-		unsigned int msg_id, unsigned int param)
+static int dcn31_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr,
+					 unsigned int msg_id,
+					 unsigned int param)
 {
 	uint32_t result;
 
@@ -118,6 +118,16 @@ int dcn31_smu_send_msg_with_param(
 	REG_WRITE(MP1_SMN_C2PMSG_67, msg_id);
 
 	result = dcn31_smu_wait_for_response(clk_mgr, 10, 200000);
+
+	if (result == VBIOSSMC_Result_Failed) {
+		if (msg_id == VBIOSSMC_MSG_TransferTableDram2Smu &&
+		    param == TABLE_WATERMARKS)
+			DC_LOG_WARNING("Watermarks table not configured properly by SMU");
+		else
+			ASSERT(0);
+		REG_WRITE(MP1_SMN_C2PMSG_91, VBIOSSMC_Result_OK);
+		return -1;
+	}
 
 	if (IS_SMU_TIMEOUT(result)) {
 		ASSERT(0);

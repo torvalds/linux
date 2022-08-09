@@ -371,6 +371,9 @@ The bits in the dirty bitmap are cleared before the ioctl returns, unless
 KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2 is enabled.  For more information,
 see the description of the capability.
 
+Note that the Xen shared info page, if configured, shall always be assumed
+to be dirty. KVM will not explicitly mark it such.
+
 4.9 KVM_SET_MEMORY_ALIAS
 ------------------------
 
@@ -1391,7 +1394,7 @@ documentation when it pops into existence).
 -------------------
 
 :Capability: KVM_CAP_ENABLE_CAP
-:Architectures: mips, ppc, s390
+:Architectures: mips, ppc, s390, x86
 :Type: vcpu ioctl
 :Parameters: struct kvm_enable_cap (in)
 :Returns: 0 on success; -1 on error
@@ -1566,6 +1569,7 @@ otherwise it will return EBUSY error.
 
   struct kvm_xsave {
 	__u32 region[1024];
+	__u32 extra[0];
   };
 
 This ioctl would copy current vcpu's xsave struct to the userspace.
@@ -1574,7 +1578,7 @@ This ioctl would copy current vcpu's xsave struct to the userspace.
 4.43 KVM_SET_XSAVE
 ------------------
 
-:Capability: KVM_CAP_XSAVE
+:Capability: KVM_CAP_XSAVE and KVM_CAP_XSAVE2
 :Architectures: x86
 :Type: vcpu ioctl
 :Parameters: struct kvm_xsave (in)
@@ -1585,9 +1589,18 @@ This ioctl would copy current vcpu's xsave struct to the userspace.
 
   struct kvm_xsave {
 	__u32 region[1024];
+	__u32 extra[0];
   };
 
-This ioctl would copy userspace's xsave struct to the kernel.
+This ioctl would copy userspace's xsave struct to the kernel. It copies
+as many bytes as are returned by KVM_CHECK_EXTENSION(KVM_CAP_XSAVE2),
+when invoked on the vm file descriptor. The size value returned by
+KVM_CHECK_EXTENSION(KVM_CAP_XSAVE2) will always be at least 4096.
+Currently, it is only greater than 4096 if a dynamic feature has been
+enabled with ``arch_prctl()``, but this may change in the future.
+
+The offsets of the state save areas in struct kvm_xsave follow the
+contents of CPUID leaf 0xD on the host.
 
 
 4.44 KVM_GET_XCRS
@@ -1683,6 +1696,10 @@ KVM_SET_CPUID2) that is consistent with hardware, kernel, and
 userspace capabilities, and with user requirements (for example, the
 user may wish to constrain cpuid to emulate older hardware, or for
 feature consistency across a cluster).
+
+Dynamically-enabled feature bits need to be requested with
+``arch_prctl()`` before calling this ioctl. Feature bits that have not
+been requested are excluded from the result.
 
 Note that certain capabilities, such as KVM_CAP_X86_DISABLE_EXITS, may
 expose cpuid features (e.g. MONITOR) which are not supported by kvm in
@@ -1796,6 +1813,7 @@ No flags are specified so far, the corresponding field must be set to zero.
 		struct kvm_irq_routing_msi msi;
 		struct kvm_irq_routing_s390_adapter adapter;
 		struct kvm_irq_routing_hv_sint hv_sint;
+		struct kvm_irq_routing_xen_evtchn xen_evtchn;
 		__u32 pad[8];
 	} u;
   };
@@ -1805,6 +1823,7 @@ No flags are specified so far, the corresponding field must be set to zero.
   #define KVM_IRQ_ROUTING_MSI 2
   #define KVM_IRQ_ROUTING_S390_ADAPTER 3
   #define KVM_IRQ_ROUTING_HV_SINT 4
+  #define KVM_IRQ_ROUTING_XEN_EVTCHN 5
 
 flags:
 
@@ -1855,6 +1874,20 @@ address_hi must be zero.
 	__u32 vcpu;
 	__u32 sint;
   };
+
+  struct kvm_irq_routing_xen_evtchn {
+	__u32 port;
+	__u32 vcpu;
+	__u32 priority;
+  };
+
+
+When KVM_CAP_XEN_HVM includes the KVM_XEN_HVM_CONFIG_EVTCHN_2LEVEL bit
+in its indication of supported features, routing to Xen event channels
+is supported. Although the priority field is present, only the value
+KVM_XEN_HVM_CONFIG_EVTCHN_2LEVEL is supported, which means delivery by
+2 level event channels. FIFO event channel support may be added in
+the future.
 
 
 4.55 KVM_SET_TSC_KHZ
@@ -3235,6 +3268,7 @@ number.
 
 :Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device,
              KVM_CAP_VCPU_ATTRIBUTES for vcpu device
+             KVM_CAP_SYS_ATTRIBUTES for system (/dev/kvm) device (no set)
 :Type: device ioctl, vm ioctl, vcpu ioctl
 :Parameters: struct kvm_device_attr
 :Returns: 0 on success, -1 on error
@@ -3269,7 +3303,8 @@ transferred is defined by the particular attribute.
 ------------------------
 
 :Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device,
-	     KVM_CAP_VCPU_ATTRIBUTES for vcpu device
+             KVM_CAP_VCPU_ATTRIBUTES for vcpu device
+             KVM_CAP_SYS_ATTRIBUTES for system (/dev/kvm) device
 :Type: device ioctl, vm ioctl, vcpu ioctl
 :Parameters: struct kvm_device_attr
 :Returns: 0 on success, -1 on error
@@ -3701,7 +3736,7 @@ KVM with the currently defined set of flags.
 :Architectures: s390
 :Type: vm ioctl
 :Parameters: struct kvm_s390_skeys
-:Returns: 0 on success, KVM_S390_GET_KEYS_NONE if guest is not using storage
+:Returns: 0 on success, KVM_S390_GET_SKEYS_NONE if guest is not using storage
           keys, negative value on error
 
 This ioctl is used to get guest storage key values on the s390
@@ -3720,7 +3755,7 @@ you want to get.
 
 The count field is the number of consecutive frames (starting from start_gfn)
 whose storage keys to get. The count field must be at least 1 and the maximum
-allowed value is defined as KVM_S390_SKEYS_ALLOC_MAX. Values outside this range
+allowed value is defined as KVM_S390_SKEYS_MAX. Values outside this range
 will cause the ioctl to return -EINVAL.
 
 The skeydata_addr field is the address to a buffer large enough to hold count
@@ -3744,7 +3779,7 @@ you want to set.
 
 The count field is the number of consecutive frames (starting from start_gfn)
 whose storage keys to get. The count field must be at least 1 and the maximum
-allowed value is defined as KVM_S390_SKEYS_ALLOC_MAX. Values outside this range
+allowed value is defined as KVM_S390_SKEYS_MAX. Values outside this range
 will cause the ioctl to return -EINVAL.
 
 The skeydata_addr field is the address to a buffer containing count bytes of
@@ -5134,6 +5169,15 @@ KVM_XEN_ATTR_TYPE_SHARED_INFO
   not aware of the Xen CPU id which is used as the index into the
   vcpu_info[] array, so cannot know the correct default location.
 
+  Note that the shared info page may be constantly written to by KVM;
+  it contains the event channel bitmap used to deliver interrupts to
+  a Xen guest, amongst other things. It is exempt from dirty tracking
+  mechanisms — KVM will not explicitly mark the page as dirty each
+  time an event channel interrupt is delivered to the guest! Thus,
+  userspace should always assume that the designated GFN is dirty if
+  any vCPU has been running or any event channel interrupts can be
+  routed to the guest.
+
 KVM_XEN_ATTR_TYPE_UPCALL_VECTOR
   Sets the exception vector used to deliver Xen event channel upcalls.
 
@@ -5502,6 +5546,34 @@ the trailing ``'\0'``, is indicated by ``name_size`` in the header.
 
 The Stats Data block contains an array of 64-bit values in the same order
 as the descriptors in Descriptors block.
+
+4.134 KVM_GET_XSAVE2
+--------------------
+
+:Capability: KVM_CAP_XSAVE2
+:Architectures: x86
+:Type: vcpu ioctl
+:Parameters: struct kvm_xsave (out)
+:Returns: 0 on success, -1 on error
+
+
+::
+
+  struct kvm_xsave {
+	__u32 region[1024];
+	__u32 extra[0];
+  };
+
+This ioctl would copy current vcpu's xsave struct to the userspace. It
+copies as many bytes as are returned by KVM_CHECK_EXTENSION(KVM_CAP_XSAVE2)
+when invoked on the vm file descriptor. The size value returned by
+KVM_CHECK_EXTENSION(KVM_CAP_XSAVE2) will always be at least 4096.
+Currently, it is only greater than 4096 if a dynamic feature has been
+enabled with ``arch_prctl()``, but this may change in the future.
+
+The offsets of the state save areas in struct kvm_xsave follow the contents
+of CPUID leaf 0xD on the host.
+
 
 5. The kvm_run structure
 ========================
@@ -6925,6 +6997,20 @@ indicated by the fd to the VM this is called on.
 This is intended to support intra-host migration of VMs between userspace VMMs,
 upgrading the VMM process without interrupting the guest.
 
+7.30 KVM_CAP_PPC_AIL_MODE_3
+-------------------------------
+
+:Capability: KVM_CAP_PPC_AIL_MODE_3
+:Architectures: ppc
+:Type: vm
+
+This capability indicates that the kernel supports the mode 3 setting for the
+"Address Translation Mode on Interrupt" aka "Alternate Interrupt Location"
+resource that is controlled with the H_SET_MODE hypercall.
+
+This capability allows a guest kernel to use a better-performance mode for
+handling interrupts and system calls.
+
 8. Other capabilities.
 ======================
 
@@ -7293,7 +7379,7 @@ trap and emulate MSRs that are outside of the scope of KVM as well as
 limit the attack surface on KVM's MSR emulation code.
 
 8.28 KVM_CAP_ENFORCE_PV_FEATURE_CPUID
------------------------------
+-------------------------------------
 
 Architectures: x86
 
@@ -7401,6 +7487,7 @@ PVHVM guests. Valid flags are::
   #define KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL	(1 << 1)
   #define KVM_XEN_HVM_CONFIG_SHARED_INFO	(1 << 2)
   #define KVM_XEN_HVM_CONFIG_RUNSTATE		(1 << 2)
+  #define KVM_XEN_HVM_CONFIG_EVTCHN_2LEVEL	(1 << 3)
 
 The KVM_XEN_HVM_CONFIG_HYPERCALL_MSR flag indicates that the KVM_XEN_HVM_CONFIG
 ioctl is available, for the guest to set its hypercall page.
@@ -7419,6 +7506,10 @@ vcpu_info is set.
 The KVM_XEN_HVM_CONFIG_RUNSTATE flag indicates that the runstate-related
 features KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_ADDR/_CURRENT/_DATA/_ADJUST are
 supported by the KVM_XEN_VCPU_SET_ATTR/KVM_XEN_VCPU_GET_ATTR ioctls.
+
+The KVM_XEN_HVM_CONFIG_EVTCHN_2LEVEL flag indicates that IRQ routing entries
+of the type KVM_IRQ_ROUTING_XEN_EVTCHN are supported, with the priority
+field set to indicate 2 level event channel delivery.
 
 8.31 KVM_CAP_PPC_MULTITCE
 -------------------------

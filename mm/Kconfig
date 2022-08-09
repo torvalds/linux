@@ -432,43 +432,20 @@ config NEED_PER_CPU_KM
 	bool
 	default y
 
-config CLEANCACHE
-	bool "Enable cleancache driver to cache clean pages if tmem is present"
-	help
-	  Cleancache can be thought of as a page-granularity victim cache
-	  for clean pages that the kernel's pageframe replacement algorithm
-	  (PFRA) would like to keep around, but can't since there isn't enough
-	  memory.  So when the PFRA "evicts" a page, it first attempts to use
-	  cleancache code to put the data contained in that page into
-	  "transcendent memory", memory that is not directly accessible or
-	  addressable by the kernel and is of unknown and possibly
-	  time-varying size.  And when a cleancache-enabled
-	  filesystem wishes to access a page in a file on disk, it first
-	  checks cleancache to see if it already contains it; if it does,
-	  the page is copied into the kernel and a disk access is avoided.
-	  When a transcendent memory driver is available (such as zcache or
-	  Xen transcendent memory), a significant I/O reduction
-	  may be achieved.  When none is available, all cleancache calls
-	  are reduced to a single pointer-compare-against-NULL resulting
-	  in a negligible performance hit.
+config NEED_PER_CPU_EMBED_FIRST_CHUNK
+	bool
 
-	  If unsure, say Y to enable cleancache
+config NEED_PER_CPU_PAGE_FIRST_CHUNK
+	bool
+
+config USE_PERCPU_NUMA_NODE_ID
+	bool
+
+config HAVE_SETUP_PER_CPU_AREA
+	bool
 
 config FRONTSWAP
-	bool "Enable frontswap to cache swap pages if tmem is present"
-	depends on SWAP
-	help
-	  Frontswap is so named because it can be thought of as the opposite
-	  of a "backing" store for a swap device.  The data is stored into
-	  "transcendent memory", memory that is not directly accessible or
-	  addressable by the kernel and is of unknown and possibly
-	  time-varying size.  When space in transcendent memory is available,
-	  a significant swap I/O reduction may be achieved.  When none is
-	  available, all frontswap calls are reduced to a single pointer-
-	  compare-against-NULL resulting in a negligible performance hit
-	  and swap data is stored as normal on the matching swap device.
-
-	  If unsure, say Y to enable frontswap.
+	bool
 
 config CMA
 	bool "Contiguous Memory Allocator"
@@ -533,7 +510,8 @@ config MEM_SOFT_DIRTY
 
 config ZSWAP
 	bool "Compressed cache for swap pages (EXPERIMENTAL)"
-	depends on FRONTSWAP && CRYPTO=y
+	depends on SWAP && CRYPTO=y
+	select FRONTSWAP
 	select ZPOOL
 	help
 	  A lightweight compressed cache for swap pages.  It takes
@@ -899,6 +877,20 @@ config IO_MAPPING
 
 config SECRETMEM
 	def_bool ARCH_HAS_SET_DIRECT_MAP && !EMBEDDED
+
+config ANON_VMA_NAME
+	bool "Anonymous VMA name support"
+	depends on PROC_FS && ADVISE_SYSCALLS && MMU
+
+	help
+	  Allow naming anonymous virtual memory areas.
+
+	  This feature allows assigning names to virtual memory areas. Assigned
+	  names can be later retrieved from /proc/pid/maps and /proc/pid/smaps
+	  and help identifying individual anonymous memory areas.
+	  Assigning a name to anonymous virtual memory area might prevent that
+	  area from being merged with adjacent virtual memory areas due to the
+	  difference in their name.
 
 source "mm/damon/Kconfig"
 

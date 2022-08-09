@@ -26,6 +26,7 @@ properties:
     enum:
       - xlnx,zynq-ddrc-a05
       - xlnx,zynqmp-ddrc-2.40a
+      - snps,ddrc-3.80a
 
   interrupts:
     maxItems: 1

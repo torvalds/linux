@@ -76,26 +76,6 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
 #define ZEN_CUR_TEMP_SHIFT			21
 #define ZEN_CUR_TEMP_RANGE_SEL_MASK		BIT(19)
 
-#define ZEN_SVI_BASE				0x0005A000
-
-/* F17h thermal registers through SMN */
-#define F17H_M01H_SVI_TEL_PLANE0		(ZEN_SVI_BASE + 0xc)
-#define F17H_M01H_SVI_TEL_PLANE1		(ZEN_SVI_BASE + 0x10)
-#define F17H_M31H_SVI_TEL_PLANE0		(ZEN_SVI_BASE + 0x14)
-#define F17H_M31H_SVI_TEL_PLANE1		(ZEN_SVI_BASE + 0x10)
-
-#define F17H_M01H_CFACTOR_ICORE			1000000	/* 1A / LSB	*/
-#define F17H_M01H_CFACTOR_ISOC			250000	/* 0.25A / LSB	*/
-#define F17H_M31H_CFACTOR_ICORE			1000000	/* 1A / LSB	*/
-#define F17H_M31H_CFACTOR_ISOC			310000	/* 0.31A / LSB	*/
-
-/* F19h thermal registers through SMN */
-#define F19H_M01_SVI_TEL_PLANE0			(ZEN_SVI_BASE + 0x14)
-#define F19H_M01_SVI_TEL_PLANE1			(ZEN_SVI_BASE + 0x10)
-
-#define F19H_M01H_CFACTOR_ICORE			1000000	/* 1A / LSB	*/
-#define F19H_M01H_CFACTOR_ISOC			310000	/* 0.31A / LSB	*/
-
 struct k10temp_data {
 	struct pci_dev *pdev;
 	void (*read_htcreg)(struct pci_dev *pdev, u32 *regval);
@@ -191,6 +171,10 @@ static const char *k10temp_temp_label[] = {
 	"Tccd6",
 	"Tccd7",
 	"Tccd8",
+	"Tccd9",
+	"Tccd10",
+	"Tccd11",
+	"Tccd12",
 };
 
 static int k10temp_read_labels(struct device *dev,
@@ -226,7 +210,7 @@ static int k10temp_read_temp(struct device *dev, u32 attr, int channel,
 			if (*val < 0)
 				*val = 0;
 			break;
-		case 2 ... 9:		/* Tccd{1-8} */
+		case 2 ... 13:		/* Tccd{1-12} */
 			amd_smn_read(amd_pci_dev_to_node_id(data->pdev),
 				     ZEN_CCD_TEMP(data->ccd_offset, channel - 2),
 						  &regval);
@@ -361,6 +345,10 @@ static const struct hwmon_channel_info *k10temp_info[] = {
 			   HWMON_T_INPUT | HWMON_T_LABEL,
 			   HWMON_T_INPUT | HWMON_T_LABEL,
 			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
 			   HWMON_T_INPUT | HWMON_T_LABEL),
 	NULL
 };
@@ -457,6 +445,11 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			data->ccd_offset = 0x300;
 			k10temp_get_ccd_support(pdev, data, 8);
 			break;
+		case 0x10 ... 0x1f:
+		case 0xa0 ... 0xaf:
+			data->ccd_offset = 0x300;
+			k10temp_get_ccd_support(pdev, data, 12);
+			break;
 		}
 	} else {
 		data->read_htcreg = read_htcreg_pci;
@@ -497,6 +490,7 @@ static const struct pci_device_id k10temp_id_table[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_17H_M60H_DF_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_17H_M70H_DF_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_19H_DF_F3) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_19H_M10H_DF_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_19H_M40H_DF_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_19H_M50H_DF_F3) },
 	{ PCI_VDEVICE(HYGON, PCI_DEVICE_ID_AMD_17H_DF_F3) },

@@ -62,6 +62,17 @@ config DEVTMPFS_MOUNT
 	  rescue mode with init=/bin/sh, even when the /dev directory
 	  on the rootfs is completely empty.
 
+config DEVTMPFS_SAFE
+	bool "Use nosuid,noexec mount options on devtmpfs"
+	depends on DEVTMPFS
+	help
+	  This instructs the kernel to include the MS_NOEXEC and MS_NOSUID mount
+	  flags when mounting devtmpfs.
+
+	  Notice: If enabled, things like /dev/mem cannot be mmapped
+	  with the PROT_EXEC flag. This can break, for example, non-KMS
+	  video drivers.
+
 config STANDALONE
 	bool "Select only drivers that don't need compile-time external firmware"
 	default y

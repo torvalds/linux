@@ -100,13 +100,16 @@ int smb2_get_sign_key(__u64 ses_id, struct TCP_Server_Info *server, u8 *key)
 	goto out;
 
 found:
-	if (ses->binding) {
+	spin_lock(&ses->chan_lock);
+	if (cifs_chan_needs_reconnect(ses, server) &&
+	    !CIFS_ALL_CHANS_NEED_RECONNECT(ses)) {
 		/*
 		 * If we are in the process of binding a new channel
 		 * to an existing session, use the master connection
 		 * session key
 		 */
 		memcpy(key, ses->smb3signingkey, SMB3_SIGN_KEY_SIZE);
+		spin_unlock(&ses->chan_lock);
 		goto out;
 	}
 
@@ -118,9 +121,11 @@ found:
 		chan = ses->chans + i;
 		if (chan->server == server) {
 			memcpy(key, chan->signkey, SMB3_SIGN_KEY_SIZE);
+			spin_unlock(&ses->chan_lock);
 			goto out;
 		}
 	}
+	spin_unlock(&ses->chan_lock);
 
 	cifs_dbg(VFS,
 		 "%s: Could not find channel signing key for session 0x%llx\n",
@@ -390,12 +395,18 @@ struct derivation_triplet {
 
 static int
 generate_smb3signingkey(struct cifs_ses *ses,
+			struct TCP_Server_Info *server,
 			const struct derivation_triplet *ptriplet)
 {
 	int rc;
-#ifdef CONFIG_CIFS_DEBUG_DUMP_KEYS
-	struct TCP_Server_Info *server = ses->server;
-#endif
+	bool is_binding = false;
+	int chan_index = 0;
+
+	spin_lock(&ses->chan_lock);
+	is_binding = !CIFS_ALL_CHANS_NEED_RECONNECT(ses);
+	chan_index = cifs_ses_get_chan_index(ses, server);
+	/* TODO: introduce ref counting for channels when the can be freed */
+	spin_unlock(&ses->chan_lock);
 
 	/*
 	 * All channels use the same encryption/decryption keys but
@@ -407,10 +418,10 @@ generate_smb3signingkey(struct cifs_ses *ses,
 	 * master connection signing key stored in the session
 	 */
 
-	if (ses->binding) {
+	if (is_binding) {
 		rc = generate_key(ses, ptriplet->signing.label,
 				  ptriplet->signing.context,
-				  cifs_ses_binding_channel(ses)->signkey,
+				  ses->chans[chan_index].signkey,
 				  SMB3_SIGN_KEY_SIZE);
 		if (rc)
 			return rc;
@@ -422,8 +433,11 @@ generate_smb3signingkey(struct cifs_ses *ses,
 		if (rc)
 			return rc;
 
+		/* safe to access primary channel, since it will never go away */
+		spin_lock(&ses->chan_lock);
 		memcpy(ses->chans[0].signkey, ses->smb3signingkey,
 		       SMB3_SIGN_KEY_SIZE);
+		spin_unlock(&ses->chan_lock);
 
 		rc = generate_key(ses, ptriplet->encryption.label,
 				  ptriplet->encryption.context,
@@ -470,7 +484,8 @@ generate_smb3signingkey(struct cifs_ses *ses,
 }
 
 int
-generate_smb30signingkey(struct cifs_ses *ses)
+generate_smb30signingkey(struct cifs_ses *ses,
+			 struct TCP_Server_Info *server)
 
 {
 	struct derivation_triplet triplet;
@@ -494,11 +509,12 @@ generate_smb30signingkey(struct cifs_ses *ses)
 	d->context.iov_base = "ServerOut";
 	d->context.iov_len = 10;
 
-	return generate_smb3signingkey(ses, &triplet);
+	return generate_smb3signingkey(ses, server, &triplet);
 }
 
 int
-generate_smb311signingkey(struct cifs_ses *ses)
+generate_smb311signingkey(struct cifs_ses *ses,
+			  struct TCP_Server_Info *server)
 
 {
 	struct derivation_triplet triplet;
@@ -522,7 +538,7 @@ generate_smb311signingkey(struct cifs_ses *ses)
 	d->context.iov_base = ses->preauth_sha_hash;
 	d->context.iov_len = 64;
 
-	return generate_smb3signingkey(ses, &triplet);
+	return generate_smb3signingkey(ses, server, &triplet);
 }
 
 int
@@ -624,8 +640,12 @@ smb2_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 
 	if (!is_signed)
 		return 0;
-	if (server->tcpStatus == CifsNeedNegotiate)
+	spin_lock(&cifs_tcp_ses_lock);
+	if (server->tcpStatus == CifsNeedNegotiate) {
+		spin_unlock(&cifs_tcp_ses_lock);
 		return 0;
+	}
+	spin_unlock(&cifs_tcp_ses_lock);
 	if (!is_binding && !server->session_estab) {
 		strncpy(shdr->Signature, "BSRSPYL", 8);
 		return 0;
@@ -741,30 +761,41 @@ static int
 smb2_get_mid_entry(struct cifs_ses *ses, struct TCP_Server_Info *server,
 		   struct smb2_hdr *shdr, struct mid_q_entry **mid)
 {
-	if (server->tcpStatus == CifsExiting)
+	spin_lock(&cifs_tcp_ses_lock);
+	if (server->tcpStatus == CifsExiting) {
+		spin_unlock(&cifs_tcp_ses_lock);
 		return -ENOENT;
+	}
 
 	if (server->tcpStatus == CifsNeedReconnect) {
+		spin_unlock(&cifs_tcp_ses_lock);
 		cifs_dbg(FYI, "tcp session dead - return to caller to retry\n");
 		return -EAGAIN;
 	}
 
 	if (server->tcpStatus == CifsNeedNegotiate &&
-	   shdr->Command != SMB2_NEGOTIATE)
+	   shdr->Command != SMB2_NEGOTIATE) {
+		spin_unlock(&cifs_tcp_ses_lock);
 		return -EAGAIN;
+	}
 
 	if (ses->status == CifsNew) {
 		if ((shdr->Command != SMB2_SESSION_SETUP) &&
-		    (shdr->Command != SMB2_NEGOTIATE))
+		    (shdr->Command != SMB2_NEGOTIATE)) {
+			spin_unlock(&cifs_tcp_ses_lock);
 			return -EAGAIN;
+		}
 		/* else ok - we are setting up session */
 	}
 
 	if (ses->status == CifsExiting) {
-		if (shdr->Command != SMB2_LOGOFF)
+		if (shdr->Command != SMB2_LOGOFF) {
+			spin_unlock(&cifs_tcp_ses_lock);
 			return -EAGAIN;
+		}
 		/* else ok - we are shutting down the session */
 	}
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	*mid = smb2_mid_entry_alloc(shdr, server);
 	if (*mid == NULL)
@@ -837,9 +868,13 @@ smb2_setup_async_request(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 			(struct smb2_hdr *)rqst->rq_iov[0].iov_base;
 	struct mid_q_entry *mid;
 
+	spin_lock(&cifs_tcp_ses_lock);
 	if (server->tcpStatus == CifsNeedNegotiate &&
-	   shdr->Command != SMB2_NEGOTIATE)
+	   shdr->Command != SMB2_NEGOTIATE) {
+		spin_unlock(&cifs_tcp_ses_lock);
 		return ERR_PTR(-EAGAIN);
+	}
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	smb2_seq_num_into_buf(server, shdr);
 

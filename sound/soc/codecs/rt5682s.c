@@ -824,11 +824,13 @@ static void rt5682s_jack_detect_handler(struct work_struct *work)
 		container_of(work, struct rt5682s_priv, jack_detect_work.work);
 	int val, btn_type;
 
-	while (!rt5682s->component)
-		usleep_range(10000, 15000);
-
-	while (!rt5682s->component->card->instantiated)
-		usleep_range(10000, 15000);
+	if (!rt5682s->component || !rt5682s->component->card ||
+	    !rt5682s->component->card->instantiated) {
+		/* card not yet ready, try later */
+		mod_delayed_work(system_power_efficient_wq,
+				 &rt5682s->jack_detect_work, msecs_to_jiffies(15));
+		return;
+	}
 
 	mutex_lock(&rt5682s->jdet_mutex);
 	mutex_lock(&rt5682s->calibrate_mutex);
@@ -1367,6 +1369,31 @@ static int rt5682s_hp_amp_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int rt5682s_stereo1_adc_mixl_event(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct rt5682s_priv *rt5682s = snd_soc_component_get_drvdata(component);
+	unsigned int delay = 0;
+
+	if (rt5682s->pdata.amic_delay)
+		delay = rt5682s->pdata.amic_delay;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		msleep(delay);
+		snd_soc_component_update_bits(component, RT5682S_STO1_ADC_DIG_VOL,
+			RT5682S_L_MUTE, 0);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		snd_soc_component_update_bits(component, RT5682S_STO1_ADC_DIG_VOL,
+			RT5682S_L_MUTE, RT5682S_L_MUTE);
+		break;
+	}
+
+	return 0;
+}
+
 static int sar_power_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
@@ -1680,9 +1707,10 @@ static const struct snd_soc_dapm_widget rt5682s_dapm_widgets[] = {
 	/* ADC Mixer */
 	SND_SOC_DAPM_SUPPLY("ADC Stereo1 Filter", RT5682S_PWR_DIG_2,
 		RT5682S_PWR_ADC_S1F_BIT, 0, set_filter_clk, SND_SOC_DAPM_PRE_PMU),
-	SND_SOC_DAPM_MIXER("Stereo1 ADC MIXL", RT5682S_STO1_ADC_DIG_VOL,
-		RT5682S_L_MUTE_SFT, 1, rt5682s_sto1_adc_l_mix,
-		ARRAY_SIZE(rt5682s_sto1_adc_l_mix)),
+	SND_SOC_DAPM_MIXER_E("Stereo1 ADC MIXL", SND_SOC_NOPM, 0, 0,
+		rt5682s_sto1_adc_l_mix, ARRAY_SIZE(rt5682s_sto1_adc_l_mix),
+		rt5682s_stereo1_adc_mixl_event,
+		SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_MIXER("Stereo1 ADC MIXR", RT5682S_STO1_ADC_DIG_VOL,
 		RT5682S_R_MUTE_SFT, 1, rt5682s_sto1_adc_r_mix,
 		ARRAY_SIZE(rt5682s_sto1_adc_r_mix)),
@@ -2885,6 +2913,8 @@ static int rt5682s_parse_dt(struct rt5682s_priv *rt5682s, struct device *dev)
 		&rt5682s->pdata.dmic_clk_rate);
 	device_property_read_u32(dev, "realtek,dmic-delay-ms",
 		&rt5682s->pdata.dmic_delay);
+	device_property_read_u32(dev, "realtek,amic-delay-ms",
+		&rt5682s->pdata.amic_delay);
 
 	rt5682s->pdata.ldo1_en = of_get_named_gpio(dev->of_node,
 		"realtek,ldo1-en-gpios", 0);

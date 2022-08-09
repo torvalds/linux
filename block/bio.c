@@ -26,7 +26,7 @@
 #include "blk-rq-qos.h"
 
 struct bio_alloc_cache {
-	struct bio_list		free_list;
+	struct bio		*free_list;
 	unsigned int		nr;
 };
 
@@ -569,7 +569,8 @@ static void bio_truncate(struct bio *bio, unsigned new_size)
 				offset = new_size - done;
 			else
 				offset = 0;
-			zero_user(bv.bv_page, offset, bv.bv_len - offset);
+			zero_user(bv.bv_page, bv.bv_offset + offset,
+				  bv.bv_len - offset);
 			truncated = true;
 		}
 		done += bv.bv_len;
@@ -630,7 +631,8 @@ static void bio_alloc_cache_prune(struct bio_alloc_cache *cache,
 	unsigned int i = 0;
 	struct bio *bio;
 
-	while ((bio = bio_list_pop(&cache->free_list)) != NULL) {
+	while ((bio = cache->free_list) != NULL) {
+		cache->free_list = bio->bi_next;
 		cache->nr--;
 		bio_free(bio);
 		if (++i == nr)
@@ -689,7 +691,8 @@ void bio_put(struct bio *bio)
 
 		bio_uninit(bio);
 		cache = per_cpu_ptr(bio->bi_pool->cache, get_cpu());
-		bio_list_add_head(&cache->free_list, bio);
+		bio->bi_next = cache->free_list;
+		cache->free_list = bio;
 		if (++cache->nr > ALLOC_CACHE_MAX + ALLOC_CACHE_SLACK)
 			bio_alloc_cache_prune(cache, ALLOC_CACHE_SLACK);
 		put_cpu();
@@ -1032,6 +1035,28 @@ int bio_add_page(struct bio *bio, struct page *page,
 	return len;
 }
 EXPORT_SYMBOL(bio_add_page);
+
+/**
+ * bio_add_folio - Attempt to add part of a folio to a bio.
+ * @bio: BIO to add to.
+ * @folio: Folio to add.
+ * @len: How many bytes from the folio to add.
+ * @off: First byte in this folio to add.
+ *
+ * Filesystems that use folios can call this function instead of calling
+ * bio_add_page() for each page in the folio.  If @off is bigger than
+ * PAGE_SIZE, this function can create a bio_vec that starts in a page
+ * after the bv_page.  BIOs do not support folios that are 4GiB or larger.
+ *
+ * Return: Whether the addition was successful.
+ */
+bool bio_add_folio(struct bio *bio, struct folio *folio, size_t len,
+		   size_t off)
+{
+	if (len > UINT_MAX || off > UINT_MAX)
+		return 0;
+	return bio_add_page(bio, &folio->page, len, off) > 0;
+}
 
 void __bio_release_pages(struct bio *bio, bool mark_dirty)
 {
@@ -1704,8 +1729,9 @@ struct bio *bio_alloc_kiocb(struct kiocb *kiocb, unsigned short nr_vecs,
 		return bio_alloc_bioset(GFP_KERNEL, nr_vecs, bs);
 
 	cache = per_cpu_ptr(bs->cache, get_cpu());
-	bio = bio_list_pop(&cache->free_list);
-	if (bio) {
+	if (cache->free_list) {
+		bio = cache->free_list;
+		cache->free_list = bio->bi_next;
 		cache->nr--;
 		put_cpu();
 		bio_init(bio, nr_vecs ? bio->bi_inline_vecs : NULL, nr_vecs);

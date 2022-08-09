@@ -170,7 +170,7 @@ static const struct {
 				     {1000, 0, 0x0E},
 				     {2000, 0, 0x0F} };
 
-static const struct {
+static __maybe_unused const struct {
 	int bw_bits;
 	int msec;
 } bmc150_accel_sample_upd_time[] = { {0x08, 64},
@@ -1783,11 +1783,14 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 	ret = iio_device_register(indio_dev);
 	if (ret < 0) {
 		dev_err(dev, "Unable to register iio device\n");
-		goto err_trigger_unregister;
+		goto err_pm_cleanup;
 	}
 
 	return 0;
 
+err_pm_cleanup:
+	pm_runtime_dont_use_autosuspend(dev);
+	pm_runtime_disable(dev);
 err_trigger_unregister:
 	bmc150_accel_unregister_triggers(data, BMC150_ACCEL_TRIGGERS - 1);
 err_buffer_cleanup:

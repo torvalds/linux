@@ -37,6 +37,17 @@ config DRM_PANEL_ASUS_Z00T_TM5P5_NT35596
 	  NT35596 1080x1920 video mode panel as found in some Asus
 	  Zenfone 2 Laser Z00T devices.
 
+config DRM_PANEL_BOE_BF060Y8M_AJ0
+	tristate "Boe BF060Y8M-AJ0 panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Boe BF060Y8M-AJ0
+	  5.99" AMOLED modules. The panel has a 1080x2160 resolution and
+	  uses 24 bit RGB per pixel. It provides a MIPI DSI interface to
+	  the host and backlight is controlled through DSI commands.
+
 config DRM_PANEL_BOE_HIMAX8279D
 	tristate "Boe Himax8279d panel"
 	depends on OF
@@ -95,6 +106,8 @@ config DRM_PANEL_EDP
 	depends on PM
 	select VIDEOMODE_HELPERS
 	select DRM_DP_AUX_BUS
+	select DRM_DP_HELPER
+	select DRM_KMS_HELPER
 	help
 	  DRM panel driver for dumb eDP panels that need at most a regulator and
 	  a GPIO to be powered up. Optionally a backlight can be attached so
@@ -141,7 +154,7 @@ config DRM_PANEL_ILITEK_ILI9341
 	tristate "Ilitek ILI9341 240x320 QVGA panels"
 	depends on OF && SPI
 	depends on DRM_KMS_HELPER
-	depends on DRM_KMS_CMA_HELPER
+	depends on DRM_GEM_CMA_HELPER
 	depends on BACKLIGHT_CLASS_DEVICE
 	select DRM_MIPI_DBI
 	help
@@ -188,6 +201,15 @@ config DRM_PANEL_JDI_LT070ME05000
 	  panel as found in Google Nexus 7 (2013) devices.
 	  The panel has a 1200(RGB)×1920 (WUXGA) resolution and uses
 	  24 bit per pixel.
+
+config DRM_PANEL_JDI_R63452
+	tristate "JDI R63452 Full HD DSI panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the JDI R63452
+	  DSI command mode panel as found in Xiaomi Mi 5 Devices.
 
 config DRM_PANEL_KHADAS_TS050
 	tristate "Khadas TS050 panel"
@@ -271,6 +293,17 @@ config DRM_PANEL_NOVATEK_NT35510
 	  Say Y here if you want to enable support for the panels built
 	  around the Novatek NT35510 display controller, such as some
 	  Hydis panels.
+
+config DRM_PANEL_NOVATEK_NT35950
+	tristate "Novatek NT35950 DSI panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the panels built
+	  around the Novatek NT35950 display controller, such as some
+	  Sharp panels used in Sony Xperia Z5 Premium and XZ Premium
+	  mobile phones.
 
 config DRM_PANEL_NOVATEK_NT36672A
 	tristate "Novatek NT36672A DSI panel"
@@ -579,6 +612,16 @@ config DRM_PANEL_SONY_ACX565AKM
 	help
 	  Say Y here if you want to enable support for the Sony ACX565AKM
 	  800x600 3.5" panel (found on the Nokia N900).
+
+config DRM_PANEL_SONY_TULIP_TRULY_NT35521
+	tristate "Sony Tulip Truly NT35521 panel"
+	depends on GPIOLIB && OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the Sony Tulip
+	  NT35521 1280x720 video mode panel as found on Sony Xperia M4
+	  Aqua phone.
 
 config DRM_PANEL_TDO_TL070WSH30
 	tristate "TDO TL070WSH30 DSI panel"

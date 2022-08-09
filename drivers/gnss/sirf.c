@@ -551,7 +551,7 @@ static void sirf_remove(struct serdev_device *serdev)
 		regulator_disable(data->vcc);
 
 	gnss_put_device(data->gdev);
-};
+}
 
 #ifdef CONFIG_OF
 static const struct of_device_id sirf_of_match[] = {

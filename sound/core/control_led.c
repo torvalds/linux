@@ -509,7 +509,7 @@ static char *parse_string(char *s, char *val, size_t val_size)
 	return s;
 }
 
-static char *parse_iface(char *s, unsigned int *val)
+static char *parse_iface(char *s, snd_ctl_elem_iface_t *val)
 {
 	if (!strncasecmp(s, "card", 4))
 		*val = SNDRV_CTL_ELEM_IFACE_CARD;

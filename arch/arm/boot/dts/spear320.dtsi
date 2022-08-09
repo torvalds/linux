@@ -120,6 +120,7 @@
 			gpiopinctrl: gpio@b3000000 {
 				compatible = "st,spear-plgpio";
 				reg = <0xb3000000 0x1000>;
+				regmap = <&pinmux>;
 				#interrupt-cells = <1>;
 				interrupt-controller;
 				gpio-controller;

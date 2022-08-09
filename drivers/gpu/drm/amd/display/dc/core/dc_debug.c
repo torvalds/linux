@@ -422,6 +422,8 @@ char *dc_status_to_str(enum dc_status status)
 		return "The operation is not supported.";
 	case DC_UNSUPPORTED_VALUE:
 		return "The value specified is not supported.";
+	case DC_NO_LINK_ENC_RESOURCE:
+		return "No link encoder resource";
 	case DC_ERROR_UNEXPECTED:
 		return "Unexpected error";
 	}

@@ -286,8 +286,8 @@ nfp_repr_transfer_features(struct net_device *netdev, struct net_device *lower)
 	if (repr->dst->u.port_info.lower_dev != lower)
 		return;
 
-	netdev->gso_max_size = lower->gso_max_size;
-	netdev->gso_max_segs = lower->gso_max_segs;
+	netif_set_gso_max_size(netdev, lower->gso_max_size);
+	netif_set_gso_max_segs(netdev, lower->gso_max_segs);
 
 	netdev_update_features(netdev);
 }
@@ -381,7 +381,7 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 
 	/* Advertise but disable TSO by default. */
 	netdev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
-	netdev->gso_max_segs = NFP_NET_LSO_MAX_SEGS;
+	netif_set_gso_max_segs(netdev, NFP_NET_LSO_MAX_SEGS);
 
 	netdev->priv_flags |= IFF_NO_QUEUE | IFF_DISABLE_NETPOLL;
 	netdev->features |= NETIF_F_LLTX;

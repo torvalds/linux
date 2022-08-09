@@ -282,7 +282,7 @@ static u64 mbm_overflow_count(u64 prev_msr, u64 cur_msr, unsigned int width)
 	u64 shift = 64 - width, chunks;
 
 	chunks = (cur_msr << shift) - (prev_msr << shift);
-	return chunks >>= shift;
+	return chunks >> shift;
 }
 
 static u64 __mon_event_count(u32 rmid, struct rmid_read *rr)

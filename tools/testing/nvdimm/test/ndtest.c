@@ -1054,10 +1054,6 @@ static __init int ndtest_init(void)
 	libnvdimm_test();
 	device_dax_test();
 	dax_pmem_test();
-	dax_pmem_core_test();
-#ifdef CONFIG_DEV_DAX_PMEM_COMPAT
-	dax_pmem_compat_test();
-#endif
 
 	nfit_test_setup(ndtest_resource_lookup, NULL);
 

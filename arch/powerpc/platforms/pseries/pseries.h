@@ -11,7 +11,7 @@
 
 struct device_node;
 
-extern void request_event_sources_irqs(struct device_node *np,
+void __init request_event_sources_irqs(struct device_node *np,
 				       irq_handler_t handler, const char *name);
 
 #include <linux/of.h>
@@ -113,6 +113,11 @@ int dlpar_workqueue_init(void);
 
 extern u32 pseries_security_flavor;
 void pseries_setup_security_mitigations(void);
+
+#ifdef CONFIG_PPC_64S_HASH_MMU
 void pseries_lpar_read_hblkrm_characteristics(void);
+#else
+static inline void pseries_lpar_read_hblkrm_characteristics(void) { }
+#endif
 
 #endif /* _PSERIES_PSERIES_H */

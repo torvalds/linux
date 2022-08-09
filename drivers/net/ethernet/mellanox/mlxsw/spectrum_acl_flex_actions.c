@@ -83,7 +83,7 @@ static int mlxsw_sp2_act_kvdl_set_activity_get(void *priv, u32 kvdl_index,
 }
 
 static int mlxsw_sp_act_kvdl_fwd_entry_add(void *priv, u32 *p_kvdl_index,
-					   u8 local_port)
+					   u16 local_port)
 {
 	struct mlxsw_sp *mlxsw_sp = priv;
 	char ppbs_pl[MLXSW_REG_PPBS_LEN];
@@ -132,7 +132,7 @@ mlxsw_sp_act_counter_index_put(void *priv, unsigned int counter_index)
 }
 
 static int
-mlxsw_sp_act_mirror_add(void *priv, u8 local_in_port,
+mlxsw_sp_act_mirror_add(void *priv, u16 local_in_port,
 			const struct net_device *out_dev,
 			bool ingress, int *p_span_id)
 {
@@ -159,7 +159,7 @@ err_analyzed_port_get:
 }
 
 static void
-mlxsw_sp_act_mirror_del(void *priv, u8 local_in_port, int span_id, bool ingress)
+mlxsw_sp_act_mirror_del(void *priv, u16 local_in_port, int span_id, bool ingress)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct mlxsw_sp *mlxsw_sp = priv;
@@ -192,7 +192,7 @@ static void mlxsw_sp_act_policer_del(void *priv, u16 policer_index)
 			     policer_index);
 }
 
-static int mlxsw_sp1_act_sampler_add(void *priv, u8 local_port,
+static int mlxsw_sp1_act_sampler_add(void *priv, u16 local_port,
 				     struct psample_group *psample_group,
 				     u32 rate, u32 trunc_size, bool truncate,
 				     bool ingress, int *p_span_id,
@@ -202,7 +202,7 @@ static int mlxsw_sp1_act_sampler_add(void *priv, u8 local_port,
 	return -EOPNOTSUPP;
 }
 
-static void mlxsw_sp1_act_sampler_del(void *priv, u8 local_port, int span_id,
+static void mlxsw_sp1_act_sampler_del(void *priv, u16 local_port, int span_id,
 				      bool ingress)
 {
 	WARN_ON_ONCE(1);
@@ -224,7 +224,7 @@ const struct mlxsw_afa_ops mlxsw_sp1_act_afa_ops = {
 	.sampler_del		= mlxsw_sp1_act_sampler_del,
 };
 
-static int mlxsw_sp2_act_sampler_add(void *priv, u8 local_port,
+static int mlxsw_sp2_act_sampler_add(void *priv, u16 local_port,
 				     struct psample_group *psample_group,
 				     u32 rate, u32 trunc_size, bool truncate,
 				     bool ingress, int *p_span_id,
@@ -272,7 +272,7 @@ err_span_agent_get:
 	return err;
 }
 
-static void mlxsw_sp2_act_sampler_del(void *priv, u8 local_port, int span_id,
+static void mlxsw_sp2_act_sampler_del(void *priv, u16 local_port, int span_id,
 				      bool ingress)
 {
 	struct mlxsw_sp_sample_trigger trigger = {

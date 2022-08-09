@@ -1302,4 +1302,53 @@ int cifs_update_super_prepath(struct cifs_sb_info *cifs_sb, char *prefix)
 	cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_USE_PREFIX_PATH;
 	return 0;
 }
+
+/** cifs_dfs_query_info_nonascii_quirk
+ * Handle weird Windows SMB server behaviour. It responds with
+ * STATUS_OBJECT_NAME_INVALID code to SMB2 QUERY_INFO request
+ * for "\<server>\<dfsname>\<linkpath>" DFS reference,
+ * where <dfsname> contains non-ASCII unicode symbols.
+ *
+ * Check such DFS reference and emulate -ENOENT if it is actual.
+ */
+int cifs_dfs_query_info_nonascii_quirk(const unsigned int xid,
+				       struct cifs_tcon *tcon,
+				       struct cifs_sb_info *cifs_sb,
+				       const char *linkpath)
+{
+	char *treename, *dfspath, sep;
+	int treenamelen, linkpathlen, rc;
+
+	treename = tcon->treeName;
+	/* MS-DFSC: All paths in REQ_GET_DFS_REFERRAL and RESP_GET_DFS_REFERRAL
+	 * messages MUST be encoded with exactly one leading backslash, not two
+	 * leading backslashes.
+	 */
+	sep = CIFS_DIR_SEP(cifs_sb);
+	if (treename[0] == sep && treename[1] == sep)
+		treename++;
+	linkpathlen = strlen(linkpath);
+	treenamelen = strnlen(treename, MAX_TREE_SIZE + 1);
+	dfspath = kzalloc(treenamelen + linkpathlen + 1, GFP_KERNEL);
+	if (!dfspath)
+		return -ENOMEM;
+	if (treenamelen)
+		memcpy(dfspath, treename, treenamelen);
+	memcpy(dfspath + treenamelen, linkpath, linkpathlen);
+	rc = dfs_cache_find(xid, tcon->ses, cifs_sb->local_nls,
+			    cifs_remap(cifs_sb), dfspath, NULL, NULL);
+	if (rc == 0) {
+		cifs_dbg(FYI, "DFS ref '%s' is found, emulate -EREMOTE\n",
+			 dfspath);
+		rc = -EREMOTE;
+	} else if (rc == -EEXIST) {
+		cifs_dbg(FYI, "DFS ref '%s' is not found, emulate -ENOENT\n",
+			 dfspath);
+		rc = -ENOENT;
+	} else {
+		cifs_dbg(FYI, "%s: dfs_cache_find returned %d\n", __func__, rc);
+	}
+	kfree(dfspath);
+	return rc;
+}
 #endif

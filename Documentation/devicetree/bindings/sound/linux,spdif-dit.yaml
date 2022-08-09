@@ -9,12 +9,17 @@ title: Dummy SPDIF Transmitter Device Tree Bindings
 maintainers:
   - Mark Brown <broonie@kernel.org>
 
+allOf:
+  - $ref: name-prefix.yaml#
+
 properties:
   compatible:
     const: linux,spdif-dit
 
   "#sound-dai-cells":
     const: 0
+
+  sound-name-prefix: true
 
 required:
   - "#sound-dai-cells"

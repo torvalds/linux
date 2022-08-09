@@ -63,10 +63,13 @@ static int create_event_hybrid(__u32 config_type, int *idx,
 static int pmu_cmp(struct parse_events_state *parse_state,
 		   struct perf_pmu *pmu)
 {
-	if (!parse_state->hybrid_pmu_name)
-		return 0;
+	if (parse_state->evlist && parse_state->evlist->hybrid_pmu_name)
+		return strcmp(parse_state->evlist->hybrid_pmu_name, pmu->name);
 
-	return strcmp(parse_state->hybrid_pmu_name, pmu->name);
+	if (parse_state->hybrid_pmu_name)
+		return strcmp(parse_state->hybrid_pmu_name, pmu->name);
+
+	return 0;
 }
 
 static int add_hw_hybrid(struct parse_events_state *parse_state,

@@ -611,7 +611,7 @@ int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
 	priv_rx->rxq = rxq;
 	priv_rx->sk = sk;
 
-	priv_rx->rq_stats = &priv->channel_stats[rxq].rq;
+	priv_rx->rq_stats = &priv->channel_stats[rxq]->rq;
 	priv_rx->sw_stats = &priv->tls->sw_stats;
 	mlx5e_set_ktls_rx_priv_ctx(tls_ctx, priv_rx);
 

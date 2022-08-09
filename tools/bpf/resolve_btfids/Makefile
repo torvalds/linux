@@ -9,7 +9,11 @@ ifeq ($(V),1)
   msg =
 else
   Q = @
-  msg = @printf '  %-8s %s%s\n' "$(1)" "$(notdir $(2))" "$(if $(3), $(3))";
+  ifeq ($(silent),1)
+    msg =
+  else
+    msg = @printf '  %-8s %s%s\n' "$(1)" "$(notdir $(2))" "$(if $(3), $(3))";
+  endif
   MAKEFLAGS=--no-print-directory
 endif
 
@@ -19,6 +23,7 @@ CC       = $(HOSTCC)
 LD       = $(HOSTLD)
 ARCH     = $(HOSTARCH)
 RM      ?= rm
+CROSS_COMPILE =
 
 OUTPUT ?= $(srctree)/tools/bpf/resolve_btfids/
 

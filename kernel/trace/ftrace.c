@@ -6394,6 +6394,27 @@ static int ftrace_cmp_ips(const void *a, const void *b)
 	return 0;
 }
 
+#ifdef CONFIG_FTRACE_SORT_STARTUP_TEST
+static void test_is_sorted(unsigned long *start, unsigned long count)
+{
+	int i;
+
+	for (i = 1; i < count; i++) {
+		if (WARN(start[i - 1] > start[i],
+			 "[%d] %pS at %lx is not sorted with %pS at %lx\n", i,
+			 (void *)start[i - 1], start[i - 1],
+			 (void *)start[i], start[i]))
+			break;
+	}
+	if (i == count)
+		pr_info("ftrace section at %px sorted properly\n", start);
+}
+#else
+static void test_is_sorted(unsigned long *start, unsigned long count)
+{
+}
+#endif
+
 static int ftrace_process_locs(struct module *mod,
 			       unsigned long *start,
 			       unsigned long *end)
@@ -6412,8 +6433,17 @@ static int ftrace_process_locs(struct module *mod,
 	if (!count)
 		return 0;
 
-	sort(start, count, sizeof(*start),
-	     ftrace_cmp_ips, NULL);
+	/*
+	 * Sorting mcount in vmlinux at build time depend on
+	 * CONFIG_BUILDTIME_MCOUNT_SORT, while mcount loc in
+	 * modules can not be sorted at build time.
+	 */
+	if (!IS_ENABLED(CONFIG_BUILDTIME_MCOUNT_SORT) || mod) {
+		sort(start, count, sizeof(*start),
+		     ftrace_cmp_ips, NULL);
+	} else {
+		test_is_sorted(start, count);
+	}
 
 	start_pg = ftrace_allocate_pages(count);
 	if (!start_pg)
@@ -7161,7 +7191,6 @@ static int __init ftrace_nodyn_init(void)
 core_initcall(ftrace_nodyn_init);
 
 static inline int ftrace_init_dyn_tracefs(struct dentry *d_tracer) { return 0; }
-static inline void ftrace_startup_enable(int command) { }
 static inline void ftrace_startup_all(int command) { }
 
 # define ftrace_startup_sysctl()	do { } while (0)
@@ -7761,7 +7790,7 @@ int ftrace_is_dead(void)
 
 /**
  * register_ftrace_function - register a function for profiling
- * @ops - ops structure that holds the function for profiling.
+ * @ops:	ops structure that holds the function for profiling.
  *
  * Register a function to be called by all functions in the
  * kernel.
@@ -7788,7 +7817,7 @@ EXPORT_SYMBOL_GPL(register_ftrace_function);
 
 /**
  * unregister_ftrace_function - unregister a function for profiling.
- * @ops - ops structure that holds the function to unregister
+ * @ops:	ops structure that holds the function to unregister
  *
  * Unregister a function that was added to be called by ftrace profiling.
  */

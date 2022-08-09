@@ -355,7 +355,7 @@ static int stk8312_read_raw(struct iio_dev *indio_dev,
 			mutex_unlock(&data->lock);
 			return ret;
 		}
-		*val = sign_extend32(ret, 7);
+		*val = sign_extend32(ret, chan->scan_type.realbits - 1);
 		ret = stk8312_set_mode(data,
 				       data->mode & (~STK8312_MODE_ACTIVE));
 		mutex_unlock(&data->lock);

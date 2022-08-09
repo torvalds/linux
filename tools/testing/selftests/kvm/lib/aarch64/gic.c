@@ -93,3 +93,69 @@ void gic_set_eoi(unsigned int intid)
 	GUEST_ASSERT(gic_common_ops);
 	gic_common_ops->gic_write_eoir(intid);
 }
+
+void gic_set_dir(unsigned int intid)
+{
+	GUEST_ASSERT(gic_common_ops);
+	gic_common_ops->gic_write_dir(intid);
+}
+
+void gic_set_eoi_split(bool split)
+{
+	GUEST_ASSERT(gic_common_ops);
+	gic_common_ops->gic_set_eoi_split(split);
+}
+
+void gic_set_priority_mask(uint64_t pmr)
+{
+	GUEST_ASSERT(gic_common_ops);
+	gic_common_ops->gic_set_priority_mask(pmr);
+}
+
+void gic_set_priority(unsigned int intid, unsigned int prio)
+{
+	GUEST_ASSERT(gic_common_ops);
+	gic_common_ops->gic_set_priority(intid, prio);
+}
+
+void gic_irq_set_active(unsigned int intid)
+{
+	GUEST_ASSERT(gic_common_ops);
+	gic_common_ops->gic_irq_set_active(intid);
+}
+
+void gic_irq_clear_active(unsigned int intid)
+{
+	GUEST_ASSERT(gic_common_ops);
+	gic_common_ops->gic_irq_clear_active(intid);
+}
+
+bool gic_irq_get_active(unsigned int intid)
+{
+	GUEST_ASSERT(gic_common_ops);
+	return gic_common_ops->gic_irq_get_active(intid);
+}
+
+void gic_irq_set_pending(unsigned int intid)
+{
+	GUEST_ASSERT(gic_common_ops);
+	gic_common_ops->gic_irq_set_pending(intid);
+}
+
+void gic_irq_clear_pending(unsigned int intid)
+{
+	GUEST_ASSERT(gic_common_ops);
+	gic_common_ops->gic_irq_clear_pending(intid);
+}
+
+bool gic_irq_get_pending(unsigned int intid)
+{
+	GUEST_ASSERT(gic_common_ops);
+	return gic_common_ops->gic_irq_get_pending(intid);
+}
+
+void gic_irq_set_config(unsigned int intid, bool is_edge)
+{
+	GUEST_ASSERT(gic_common_ops);
+	gic_common_ops->gic_irq_set_config(intid, is_edge);
+}

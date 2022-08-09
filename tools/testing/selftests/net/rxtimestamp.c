@@ -18,7 +18,7 @@
 #include <linux/net_tstamp.h>
 #include <linux/errqueue.h>
 
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+#include "../kselftest.h"
 
 struct options {
 	int so_timestamp;

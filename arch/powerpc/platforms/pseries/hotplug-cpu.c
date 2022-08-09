@@ -864,12 +864,13 @@ static int __init pseries_cpu_hotplug_init(void)
 	/* Processors can be added/removed only on LPAR */
 	if (firmware_has_feature(FW_FEATURE_LPAR)) {
 		for_each_node(node) {
-			alloc_bootmem_cpumask_var(&node_recorded_ids_map[node]);
+			if (!alloc_cpumask_var_node(&node_recorded_ids_map[node],
+						    GFP_KERNEL, node))
+				return -ENOMEM;
 
 			/* Record ids of CPU added at boot time */
-			cpumask_or(node_recorded_ids_map[node],
-				   node_recorded_ids_map[node],
-				   cpumask_of_node(node));
+			cpumask_copy(node_recorded_ids_map[node],
+				     cpumask_of_node(node));
 		}
 
 		of_reconfig_notifier_register(&pseries_smp_nb);

@@ -328,22 +328,14 @@ static int i801_check_pre(struct i801_priv *priv)
 
 	status = inb_p(SMBHSTSTS(priv));
 	if (status & SMBHSTSTS_HOST_BUSY) {
-		dev_err(&priv->pci_dev->dev, "SMBus is busy, can't use it!\n");
+		pci_err(priv->pci_dev, "SMBus is busy, can't use it!\n");
 		return -EBUSY;
 	}
 
 	status &= STATUS_FLAGS;
 	if (status) {
-		dev_dbg(&priv->pci_dev->dev, "Clearing status flags (%02x)\n",
-			status);
+		pci_dbg(priv->pci_dev, "Clearing status flags (%02x)\n", status);
 		outb_p(status, SMBHSTSTS(priv));
-		status = inb_p(SMBHSTSTS(priv)) & STATUS_FLAGS;
-		if (status) {
-			dev_err(&priv->pci_dev->dev,
-				"Failed clearing status flags (%02x)\n",
-				status);
-			return -EBUSY;
-		}
 	}
 
 	/*
@@ -356,27 +348,14 @@ static int i801_check_pre(struct i801_priv *priv)
 	if (priv->features & FEATURE_SMBUS_PEC) {
 		status = inb_p(SMBAUXSTS(priv)) & SMBAUXSTS_CRCE;
 		if (status) {
-			dev_dbg(&priv->pci_dev->dev,
-				"Clearing aux status flags (%02x)\n", status);
+			pci_dbg(priv->pci_dev, "Clearing aux status flags (%02x)\n", status);
 			outb_p(status, SMBAUXSTS(priv));
-			status = inb_p(SMBAUXSTS(priv)) & SMBAUXSTS_CRCE;
-			if (status) {
-				dev_err(&priv->pci_dev->dev,
-					"Failed clearing aux status flags (%02x)\n",
-					status);
-				return -EBUSY;
-			}
 		}
 	}
 
 	return 0;
 }
 
-/*
- * Convert the status register to an error code, and clear it.
- * Note that status only contains the bits we want to clear, not the
- * actual register value.
- */
 static int i801_check_post(struct i801_priv *priv, int status)
 {
 	int result = 0;
@@ -401,7 +380,6 @@ static int i801_check_post(struct i801_priv *priv, int status)
 		    !(status & SMBHSTSTS_FAILED))
 			dev_err(&priv->pci_dev->dev,
 				"Failed terminating the transaction\n");
-		outb_p(STATUS_FLAGS, SMBHSTSTS(priv));
 		return -ETIMEDOUT;
 	}
 
@@ -439,9 +417,6 @@ static int i801_check_post(struct i801_priv *priv, int status)
 		result = -EAGAIN;
 		dev_dbg(&priv->pci_dev->dev, "Lost arbitration\n");
 	}
-
-	/* Clear status flags except BYTE_DONE, to be cleared by caller */
-	outb_p(status, SMBHSTSTS(priv));
 
 	return result;
 }
@@ -523,9 +498,11 @@ static int i801_block_transaction_by_block(struct i801_priv *priv,
 		return -EOPNOTSUPP;
 	}
 
+	/* Set block buffer mode */
+	outb_p(inb_p(SMBAUXCTL(priv)) | SMBAUXCTL_E32B, SMBAUXCTL(priv));
+
 	inb_p(SMBHSTCNT(priv)); /* reset the data buffer index */
 
-	/* Use 32-byte buffer to process this transaction */
 	if (read_write == I2C_SMBUS_WRITE) {
 		len = data->block[0];
 		outb_p(len, SMBHSTDAT0(priv));
@@ -760,20 +737,17 @@ exit:
 	return i801_check_post(priv, status);
 }
 
-static int i801_set_block_buffer_mode(struct i801_priv *priv)
-{
-	outb_p(inb_p(SMBAUXCTL(priv)) | SMBAUXCTL_E32B, SMBAUXCTL(priv));
-	if ((inb_p(SMBAUXCTL(priv)) & SMBAUXCTL_E32B) == 0)
-		return -EIO;
-	return 0;
-}
-
 /* Block transaction function */
 static int i801_block_transaction(struct i801_priv *priv, union i2c_smbus_data *data,
 				  char read_write, int command)
 {
 	int result = 0;
 	unsigned char hostc;
+
+	if (read_write == I2C_SMBUS_READ && command == I2C_SMBUS_BLOCK_DATA)
+		data->block[0] = I2C_SMBUS_BLOCK_MAX;
+	else if (data->block[0] < 1 || data->block[0] > I2C_SMBUS_BLOCK_MAX)
+		return -EPROTO;
 
 	if (command == I2C_SMBUS_I2C_BLOCK_DATA) {
 		if (read_write == I2C_SMBUS_WRITE) {
@@ -788,22 +762,11 @@ static int i801_block_transaction(struct i801_priv *priv, union i2c_smbus_data *
 		}
 	}
 
-	if (read_write == I2C_SMBUS_WRITE
-	 || command == I2C_SMBUS_I2C_BLOCK_DATA) {
-		if (data->block[0] < 1)
-			data->block[0] = 1;
-		if (data->block[0] > I2C_SMBUS_BLOCK_MAX)
-			data->block[0] = I2C_SMBUS_BLOCK_MAX;
-	} else {
-		data->block[0] = 32;	/* max for SMBus block reads */
-	}
-
 	/* Experience has shown that the block buffer can only be used for
 	   SMBus (not I2C) block transactions, even though the datasheet
 	   doesn't mention this limitation. */
-	if ((priv->features & FEATURE_BLOCK_BUFFER)
-	 && command != I2C_SMBUS_I2C_BLOCK_DATA
-	 && i801_set_block_buffer_mode(priv) == 0)
+	if ((priv->features & FEATURE_BLOCK_BUFFER) &&
+	    command != I2C_SMBUS_I2C_BLOCK_DATA)
 		result = i801_block_transaction_by_block(priv, data,
 							 read_write,
 							 command);
@@ -951,8 +914,11 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 	}
 
 out:
-	/* Unlock the SMBus device for use by BIOS/ACPI */
-	outb_p(SMBHSTSTS_INUSE_STS, SMBHSTSTS(priv));
+	/*
+	 * Unlock the SMBus device for use by BIOS/ACPI,
+	 * and clear status flags if not done already.
+	 */
+	outb_p(SMBHSTSTS_INUSE_STS | STATUS_FLAGS, SMBHSTSTS(priv));
 
 	pm_runtime_mark_last_busy(&priv->pci_dev->dev);
 	pm_runtime_put_autosuspend(&priv->pci_dev->dev);
@@ -1009,66 +975,72 @@ static const struct i2c_algorithm smbus_algorithm = {
 	.functionality	= i801_func,
 };
 
+#define FEATURES_ICH5	(FEATURE_BLOCK_PROC | FEATURE_I2C_BLOCK_READ	| \
+			 FEATURE_IRQ | FEATURE_SMBUS_PEC		| \
+			 FEATURE_BLOCK_BUFFER | FEATURE_HOST_NOTIFY)
+#define FEATURES_ICH4	(FEATURE_SMBUS_PEC | FEATURE_BLOCK_BUFFER | \
+			 FEATURE_HOST_NOTIFY)
+
 static const struct pci_device_id i801_ids[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801AA_3) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801AB_3) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801BA_2) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_3) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_3) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801EB_3) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ESB_4) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH6_16) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_17) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ESB2_17) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_5) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH9_6) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_EP80579_1) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH10_4) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH10_5) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_5_3400_SERIES_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_COUGARPOINT_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF1) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF2) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_DH89XXCC_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PANTHERPOINT_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LYNXPOINT_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LYNXPOINT_LP_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_AVOTON_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS1) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS2) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_COLETOCREEK_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_GEMINILAKE_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WILDCATPOINT_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WILDCATPOINT_LP_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BAYTRAIL_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BRASWELL_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SUNRISEPOINT_H_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CDF_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_DNV_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_EBG_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BROXTON_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LEWISBURG_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LEWISBURG_SSKU_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_KABYLAKE_PCH_H_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CANNONLAKE_H_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CANNONLAKE_LP_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICELAKE_LP_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICELAKE_N_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_COMETLAKE_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_COMETLAKE_H_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_COMETLAKE_V_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ELKHART_LAKE_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_TIGERLAKE_LP_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_TIGERLAKE_H_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_JASPER_LAKE_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ALDER_LAKE_S_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ALDER_LAKE_P_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ALDER_LAKE_M_SMBUS) },
+	{ PCI_DEVICE_DATA(INTEL, 82801AA_3,		0)				 },
+	{ PCI_DEVICE_DATA(INTEL, 82801AB_3,		0)				 },
+	{ PCI_DEVICE_DATA(INTEL, 82801BA_2,		0)				 },
+	{ PCI_DEVICE_DATA(INTEL, 82801CA_3,		FEATURE_HOST_NOTIFY)		 },
+	{ PCI_DEVICE_DATA(INTEL, 82801DB_3,		FEATURES_ICH4)			 },
+	{ PCI_DEVICE_DATA(INTEL, 82801EB_3,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, ESB_4,			FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, ICH6_16,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, ICH7_17,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, ESB2_17,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, ICH8_5,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, ICH9_6,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, EP80579_1,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, ICH10_4,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, ICH10_5,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, 5_3400_SERIES_SMBUS,	FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, COUGARPOINT_SMBUS,	FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, PATSBURG_SMBUS,	FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, PATSBURG_SMBUS_IDF0,	FEATURES_ICH5 | FEATURE_IDF)	 },
+	{ PCI_DEVICE_DATA(INTEL, PATSBURG_SMBUS_IDF1,	FEATURES_ICH5 | FEATURE_IDF)	 },
+	{ PCI_DEVICE_DATA(INTEL, PATSBURG_SMBUS_IDF2,	FEATURES_ICH5 | FEATURE_IDF)	 },
+	{ PCI_DEVICE_DATA(INTEL, DH89XXCC_SMBUS,	FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, PANTHERPOINT_SMBUS,	FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, LYNXPOINT_SMBUS,	FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, LYNXPOINT_LP_SMBUS,	FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, AVOTON_SMBUS,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, WELLSBURG_SMBUS,	FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, WELLSBURG_SMBUS_MS0,	FEATURES_ICH5 | FEATURE_IDF)	 },
+	{ PCI_DEVICE_DATA(INTEL, WELLSBURG_SMBUS_MS1,	FEATURES_ICH5 | FEATURE_IDF)	 },
+	{ PCI_DEVICE_DATA(INTEL, WELLSBURG_SMBUS_MS2,	FEATURES_ICH5 | FEATURE_IDF)	 },
+	{ PCI_DEVICE_DATA(INTEL, COLETOCREEK_SMBUS,	FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, GEMINILAKE_SMBUS,	FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, WILDCATPOINT_SMBUS,	FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, WILDCATPOINT_LP_SMBUS,	FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, BAYTRAIL_SMBUS,	FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, BRASWELL_SMBUS,	FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, SUNRISEPOINT_H_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_SPT) },
+	{ PCI_DEVICE_DATA(INTEL, SUNRISEPOINT_LP_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_SPT) },
+	{ PCI_DEVICE_DATA(INTEL, CDF_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, DNV_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_SPT) },
+	{ PCI_DEVICE_DATA(INTEL, EBG_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, BROXTON_SMBUS,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, LEWISBURG_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_SPT) },
+	{ PCI_DEVICE_DATA(INTEL, LEWISBURG_SSKU_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_SPT) },
+	{ PCI_DEVICE_DATA(INTEL, KABYLAKE_PCH_H_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_SPT) },
+	{ PCI_DEVICE_DATA(INTEL, CANNONLAKE_H_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, CANNONLAKE_LP_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, ICELAKE_LP_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, ICELAKE_N_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, COMETLAKE_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, COMETLAKE_H_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, COMETLAKE_V_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_SPT) },
+	{ PCI_DEVICE_DATA(INTEL, ELKHART_LAKE_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, TIGERLAKE_LP_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, TIGERLAKE_H_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, JASPER_LAKE_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, ALDER_LAKE_S_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, ALDER_LAKE_P_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, ALDER_LAKE_M_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
 	{ 0, }
 };
 
@@ -1493,15 +1465,14 @@ static inline unsigned int i801_get_adapter_class(struct i801_priv *priv)
 }
 #endif
 
-static const struct itco_wdt_platform_data spt_tco_platform_data = {
-	.name = "Intel PCH",
-	.version = 4,
-};
-
 static struct platform_device *
 i801_add_tco_spt(struct i801_priv *priv, struct pci_dev *pci_dev,
 		 struct resource *tco_res)
 {
+	static const struct itco_wdt_platform_data pldata = {
+		.name = "Intel PCH",
+		.version = 4,
+	};
 	struct resource *res;
 	unsigned int devfn;
 	u64 base64_addr;
@@ -1544,22 +1515,20 @@ i801_add_tco_spt(struct i801_priv *priv, struct pci_dev *pci_dev,
 	res->flags = IORESOURCE_MEM;
 
 	return platform_device_register_resndata(&pci_dev->dev, "iTCO_wdt", -1,
-					tco_res, 2, &spt_tco_platform_data,
-					sizeof(spt_tco_platform_data));
+					tco_res, 2, &pldata, sizeof(pldata));
 }
-
-static const struct itco_wdt_platform_data cnl_tco_platform_data = {
-	.name = "Intel PCH",
-	.version = 6,
-};
 
 static struct platform_device *
 i801_add_tco_cnl(struct i801_priv *priv, struct pci_dev *pci_dev,
 		 struct resource *tco_res)
 {
-	return platform_device_register_resndata(&pci_dev->dev,
-			"iTCO_wdt", -1, tco_res, 1, &cnl_tco_platform_data,
-			sizeof(cnl_tco_platform_data));
+	static const struct itco_wdt_platform_data pldata = {
+		.name = "Intel PCH",
+		.version = 6,
+	};
+
+	return platform_device_register_resndata(&pci_dev->dev, "iTCO_wdt", -1,
+						 tco_res, 1, &pldata, sizeof(pldata));
 }
 
 static void i801_add_tco(struct i801_priv *priv)
@@ -1697,72 +1666,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	mutex_init(&priv->acpi_lock);
 
 	priv->pci_dev = dev;
-	switch (dev->device) {
-	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_H_SMBUS:
-	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_SMBUS:
-	case PCI_DEVICE_ID_INTEL_LEWISBURG_SMBUS:
-	case PCI_DEVICE_ID_INTEL_LEWISBURG_SSKU_SMBUS:
-	case PCI_DEVICE_ID_INTEL_DNV_SMBUS:
-	case PCI_DEVICE_ID_INTEL_KABYLAKE_PCH_H_SMBUS:
-	case PCI_DEVICE_ID_INTEL_COMETLAKE_V_SMBUS:
-		priv->features |= FEATURE_BLOCK_PROC;
-		priv->features |= FEATURE_I2C_BLOCK_READ;
-		priv->features |= FEATURE_IRQ;
-		priv->features |= FEATURE_SMBUS_PEC;
-		priv->features |= FEATURE_BLOCK_BUFFER;
-		priv->features |= FEATURE_TCO_SPT;
-		priv->features |= FEATURE_HOST_NOTIFY;
-		break;
-
-	case PCI_DEVICE_ID_INTEL_CANNONLAKE_H_SMBUS:
-	case PCI_DEVICE_ID_INTEL_CANNONLAKE_LP_SMBUS:
-	case PCI_DEVICE_ID_INTEL_CDF_SMBUS:
-	case PCI_DEVICE_ID_INTEL_ICELAKE_LP_SMBUS:
-	case PCI_DEVICE_ID_INTEL_ICELAKE_N_SMBUS:
-	case PCI_DEVICE_ID_INTEL_COMETLAKE_SMBUS:
-	case PCI_DEVICE_ID_INTEL_COMETLAKE_H_SMBUS:
-	case PCI_DEVICE_ID_INTEL_ELKHART_LAKE_SMBUS:
-	case PCI_DEVICE_ID_INTEL_TIGERLAKE_LP_SMBUS:
-	case PCI_DEVICE_ID_INTEL_TIGERLAKE_H_SMBUS:
-	case PCI_DEVICE_ID_INTEL_JASPER_LAKE_SMBUS:
-	case PCI_DEVICE_ID_INTEL_EBG_SMBUS:
-	case PCI_DEVICE_ID_INTEL_ALDER_LAKE_S_SMBUS:
-	case PCI_DEVICE_ID_INTEL_ALDER_LAKE_P_SMBUS:
-	case PCI_DEVICE_ID_INTEL_ALDER_LAKE_M_SMBUS:
-		priv->features |= FEATURE_BLOCK_PROC;
-		priv->features |= FEATURE_I2C_BLOCK_READ;
-		priv->features |= FEATURE_IRQ;
-		priv->features |= FEATURE_SMBUS_PEC;
-		priv->features |= FEATURE_BLOCK_BUFFER;
-		priv->features |= FEATURE_TCO_CNL;
-		priv->features |= FEATURE_HOST_NOTIFY;
-		break;
-
-	case PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF0:
-	case PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF1:
-	case PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF2:
-	case PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS0:
-	case PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS1:
-	case PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS2:
-		priv->features |= FEATURE_IDF;
-		fallthrough;
-	default:
-		priv->features |= FEATURE_BLOCK_PROC;
-		priv->features |= FEATURE_I2C_BLOCK_READ;
-		priv->features |= FEATURE_IRQ;
-		fallthrough;
-	case PCI_DEVICE_ID_INTEL_82801DB_3:
-		priv->features |= FEATURE_SMBUS_PEC;
-		priv->features |= FEATURE_BLOCK_BUFFER;
-		fallthrough;
-	case PCI_DEVICE_ID_INTEL_82801CA_3:
-		priv->features |= FEATURE_HOST_NOTIFY;
-		fallthrough;
-	case PCI_DEVICE_ID_INTEL_82801BA_2:
-	case PCI_DEVICE_ID_INTEL_82801AB_3:
-	case PCI_DEVICE_ID_INTEL_82801AA_3:
-		break;
-	}
+	priv->features = id->driver_data;
 
 	/* Disable features on user request */
 	for (i = 0; i < ARRAY_SIZE(i801_feature_names); i++) {

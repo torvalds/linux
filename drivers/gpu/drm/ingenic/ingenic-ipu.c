@@ -45,6 +45,12 @@ struct soc_info {
 			  unsigned int weight, unsigned int offset);
 };
 
+struct ingenic_ipu_private_state {
+	struct drm_private_state base;
+
+	unsigned int num_w, num_h, denom_w, denom_h;
+};
+
 struct ingenic_ipu {
 	struct drm_plane plane;
 	struct drm_device *drm;
@@ -54,12 +60,12 @@ struct ingenic_ipu {
 	const struct soc_info *soc_info;
 	bool clk_enabled;
 
-	unsigned int num_w, num_h, denom_w, denom_h;
-
 	dma_addr_t addr_y, addr_u, addr_v;
 
 	struct drm_property *sharpness_prop;
 	unsigned int sharpness;
+
+	struct drm_private_obj private_obj;
 };
 
 /* Signed 15.16 fixed-point math (for bicubic scaling coefficients) */
@@ -71,6 +77,36 @@ struct ingenic_ipu {
 static inline struct ingenic_ipu *plane_to_ingenic_ipu(struct drm_plane *plane)
 {
 	return container_of(plane, struct ingenic_ipu, plane);
+}
+
+static inline struct ingenic_ipu_private_state *
+to_ingenic_ipu_priv_state(struct drm_private_state *state)
+{
+	return container_of(state, struct ingenic_ipu_private_state, base);
+}
+
+static struct ingenic_ipu_private_state *
+ingenic_ipu_get_priv_state(struct ingenic_ipu *priv, struct drm_atomic_state *state)
+{
+	struct drm_private_state *priv_state;
+
+	priv_state = drm_atomic_get_private_obj_state(state, &priv->private_obj);
+	if (IS_ERR(priv_state))
+		return ERR_CAST(priv_state);
+
+	return to_ingenic_ipu_priv_state(priv_state);
+}
+
+static struct ingenic_ipu_private_state *
+ingenic_ipu_get_new_priv_state(struct ingenic_ipu *priv, struct drm_atomic_state *state)
+{
+	struct drm_private_state *priv_state;
+
+	priv_state = drm_atomic_get_new_private_obj_state(state, &priv->private_obj);
+	if (!priv_state)
+		return NULL;
+
+	return to_ingenic_ipu_priv_state(priv_state);
 }
 
 /*
@@ -293,9 +329,14 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 	const struct drm_format_info *finfo;
 	u32 ctrl, stride = 0, coef_index = 0, format = 0;
 	bool needs_modeset, upscaling_w, upscaling_h;
+	struct ingenic_ipu_private_state *ipu_state;
 	int err;
 
 	if (!newstate || !newstate->fb)
+		return;
+
+	ipu_state = ingenic_ipu_get_new_priv_state(ipu, state);
+	if (WARN_ON(!ipu_state))
 		return;
 
 	finfo = drm_format_info(newstate->fb->format->format);
@@ -470,27 +511,27 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 	if (ipu->soc_info->has_bicubic)
 		ctrl |= JZ_IPU_CTRL_ZOOM_SEL;
 
-	upscaling_w = ipu->num_w > ipu->denom_w;
+	upscaling_w = ipu_state->num_w > ipu_state->denom_w;
 	if (upscaling_w)
 		ctrl |= JZ_IPU_CTRL_HSCALE;
 
-	if (ipu->num_w != 1 || ipu->denom_w != 1) {
+	if (ipu_state->num_w != 1 || ipu_state->denom_w != 1) {
 		if (!ipu->soc_info->has_bicubic && !upscaling_w)
-			coef_index |= (ipu->denom_w - 1) << 16;
+			coef_index |= (ipu_state->denom_w - 1) << 16;
 		else
-			coef_index |= (ipu->num_w - 1) << 16;
+			coef_index |= (ipu_state->num_w - 1) << 16;
 		ctrl |= JZ_IPU_CTRL_HRSZ_EN;
 	}
 
-	upscaling_h = ipu->num_h > ipu->denom_h;
+	upscaling_h = ipu_state->num_h > ipu_state->denom_h;
 	if (upscaling_h)
 		ctrl |= JZ_IPU_CTRL_VSCALE;
 
-	if (ipu->num_h != 1 || ipu->denom_h != 1) {
+	if (ipu_state->num_h != 1 || ipu_state->denom_h != 1) {
 		if (!ipu->soc_info->has_bicubic && !upscaling_h)
-			coef_index |= ipu->denom_h - 1;
+			coef_index |= ipu_state->denom_h - 1;
 		else
-			coef_index |= ipu->num_h - 1;
+			coef_index |= ipu_state->num_h - 1;
 		ctrl |= JZ_IPU_CTRL_VRSZ_EN;
 	}
 
@@ -501,13 +542,13 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 	/* Set the LUT index register */
 	regmap_write(ipu->map, JZ_REG_IPU_RSZ_COEF_INDEX, coef_index);
 
-	if (ipu->num_w != 1 || ipu->denom_w != 1)
+	if (ipu_state->num_w != 1 || ipu_state->denom_w != 1)
 		ingenic_ipu_set_coefs(ipu, JZ_REG_IPU_HRSZ_COEF_LUT,
-				      ipu->num_w, ipu->denom_w);
+				      ipu_state->num_w, ipu_state->denom_w);
 
-	if (ipu->num_h != 1 || ipu->denom_h != 1)
+	if (ipu_state->num_h != 1 || ipu_state->denom_h != 1)
 		ingenic_ipu_set_coefs(ipu, JZ_REG_IPU_VRSZ_COEF_LUT,
-				      ipu->num_h, ipu->denom_h);
+				      ipu_state->num_h, ipu_state->denom_h);
 
 	/* Clear STATUS register */
 	regmap_write(ipu->map, JZ_REG_IPU_STATUS, 0);
@@ -519,7 +560,8 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 	dev_dbg(ipu->dev, "Scaling %ux%u to %ux%u (%u:%u horiz, %u:%u vert)\n",
 		newstate->src_w >> 16, newstate->src_h >> 16,
 		newstate->crtc_w, newstate->crtc_h,
-		ipu->num_w, ipu->denom_w, ipu->num_h, ipu->denom_h);
+		ipu_state->num_w, ipu_state->denom_w,
+		ipu_state->num_h, ipu_state->denom_h);
 }
 
 static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
@@ -533,6 +575,7 @@ static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
 	struct ingenic_ipu *ipu = plane_to_ingenic_ipu(plane);
 	struct drm_crtc *crtc = new_plane_state->crtc ?: old_plane_state->crtc;
 	struct drm_crtc_state *crtc_state;
+	struct ingenic_ipu_private_state *ipu_state;
 
 	if (!crtc)
 		return 0;
@@ -540,6 +583,10 @@ static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
 	crtc_state = drm_atomic_get_existing_crtc_state(state, crtc);
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
+
+	ipu_state = ingenic_ipu_get_priv_state(ipu, state);
+	if (IS_ERR(ipu_state))
+		return PTR_ERR(ipu_state);
 
 	/* Request a full modeset if we are enabling or disabling the IPU. */
 	if (!old_plane_state->crtc ^ !new_plane_state->crtc)
@@ -593,10 +640,10 @@ static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
 	if (num_h > max_h)
 		return -EINVAL;
 
-	ipu->num_w = num_w;
-	ipu->num_h = num_h;
-	ipu->denom_w = denom_w;
-	ipu->denom_h = denom_h;
+	ipu_state->num_w = num_w;
+	ipu_state->num_h = num_h;
+	ipu_state->denom_w = denom_w;
+	ipu_state->denom_h = denom_h;
 
 out_check_damage:
 	if (ingenic_drm_map_noncoherent(ipu->master))
@@ -679,6 +726,33 @@ static const struct drm_plane_funcs ingenic_ipu_plane_funcs = {
 	.atomic_set_property	= ingenic_ipu_plane_atomic_set_property,
 };
 
+static struct drm_private_state *
+ingenic_ipu_duplicate_state(struct drm_private_obj *obj)
+{
+	struct ingenic_ipu_private_state *state = to_ingenic_ipu_priv_state(obj->state);
+
+	state = kmemdup(state, sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
+
+	__drm_atomic_helper_private_obj_duplicate_state(obj, &state->base);
+
+	return &state->base;
+}
+
+static void ingenic_ipu_destroy_state(struct drm_private_obj *obj,
+				      struct drm_private_state *state)
+{
+	struct ingenic_ipu_private_state *priv_state = to_ingenic_ipu_priv_state(state);
+
+	kfree(priv_state);
+}
+
+static const struct drm_private_state_funcs ingenic_ipu_private_state_funcs = {
+	.atomic_duplicate_state = ingenic_ipu_duplicate_state,
+	.atomic_destroy_state = ingenic_ipu_destroy_state,
+};
+
 static irqreturn_t ingenic_ipu_irq_handler(int irq, void *arg)
 {
 	struct ingenic_ipu *ipu = arg;
@@ -717,6 +791,7 @@ static const struct regmap_config ingenic_ipu_regmap_config = {
 static int ingenic_ipu_bind(struct device *dev, struct device *master, void *d)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	struct ingenic_ipu_private_state *private_state;
 	const struct soc_info *soc_info;
 	struct drm_device *drm = d;
 	struct drm_plane *plane;
@@ -810,7 +885,20 @@ static int ingenic_ipu_bind(struct device *dev, struct device *master, void *d)
 		return err;
 	}
 
+	private_state = kzalloc(sizeof(*private_state), GFP_KERNEL);
+	if (!private_state) {
+		err = -ENOMEM;
+		goto err_clk_unprepare;
+	}
+
+	drm_atomic_private_obj_init(drm, &ipu->private_obj, &private_state->base,
+				    &ingenic_ipu_private_state_funcs);
+
 	return 0;
+
+err_clk_unprepare:
+	clk_unprepare(ipu->clk);
+	return err;
 }
 
 static void ingenic_ipu_unbind(struct device *dev,
@@ -818,6 +906,7 @@ static void ingenic_ipu_unbind(struct device *dev,
 {
 	struct ingenic_ipu *ipu = dev_get_drvdata(dev);
 
+	drm_atomic_private_obj_fini(&ipu->private_obj);
 	clk_unprepare(ipu->clk);
 }
 

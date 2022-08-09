@@ -6,34 +6,17 @@
 
 #include "utf8n.h"
 
-struct utf8data {
-	unsigned int maxage;
-	unsigned int offset;
-};
-
-#define __INCLUDED_FROM_UTF8NORM_C__
-#include "utf8data.h"
-#undef __INCLUDED_FROM_UTF8NORM_C__
-
-int utf8version_is_supported(u8 maj, u8 min, u8 rev)
+int utf8version_is_supported(const struct unicode_map *um, unsigned int version)
 {
-	int i = ARRAY_SIZE(utf8agetab) - 1;
-	unsigned int sb_utf8version = UNICODE_AGE(maj, min, rev);
+	int i = um->tables->utf8agetab_size - 1;
 
-	while (i >= 0 && utf8agetab[i] != 0) {
-		if (sb_utf8version == utf8agetab[i])
+	while (i >= 0 && um->tables->utf8agetab[i] != 0) {
+		if (version == um->tables->utf8agetab[i])
 			return 1;
 		i--;
 	}
 	return 0;
 }
-EXPORT_SYMBOL(utf8version_is_supported);
-
-int utf8version_latest(void)
-{
-	return utf8vers;
-}
-EXPORT_SYMBOL(utf8version_latest);
 
 /*
  * UTF-8 valid ranges.
@@ -168,7 +151,7 @@ typedef const unsigned char utf8trie_t;
  * underlying datatype: unsigned char.
  *
  * leaf[0]: The unicode version, stored as a generation number that is
- *          an index into utf8agetab[].  With this we can filter code
+ *          an index into ->utf8agetab[].  With this we can filter code
  *          points based on the unicode version in which they were
  *          defined.  The CCC of a non-defined code point is 0.
  * leaf[1]: Canonical Combining Class. During normalization, we need
@@ -316,21 +299,19 @@ utf8hangul(const char *str, unsigned char *hangul)
  * is well-formed and corresponds to a known unicode code point.  The
  * shorthand for this will be "is valid UTF-8 unicode".
  */
-static utf8leaf_t *utf8nlookup(const struct utf8data *data,
-			       unsigned char *hangul, const char *s, size_t len)
+static utf8leaf_t *utf8nlookup(const struct unicode_map *um,
+		enum utf8_normalization n, unsigned char *hangul, const char *s,
+		size_t len)
 {
-	utf8trie_t	*trie = NULL;
+	utf8trie_t	*trie = um->tables->utf8data + um->ntab[n]->offset;
 	int		offlen;
 	int		offset;
 	int		mask;
 	int		node;
 
-	if (!data)
-		return NULL;
 	if (len == 0)
 		return NULL;
 
-	trie = utf8data + data->offset;
 	node = 1;
 	while (node) {
 		offlen = (*trie & OFFLEN) >> OFFLEN_SHIFT;
@@ -392,172 +373,29 @@ static utf8leaf_t *utf8nlookup(const struct utf8data *data,
  *
  * Forwards to utf8nlookup().
  */
-static utf8leaf_t *utf8lookup(const struct utf8data *data,
-			      unsigned char *hangul, const char *s)
+static utf8leaf_t *utf8lookup(const struct unicode_map *um,
+		enum utf8_normalization n, unsigned char *hangul, const char *s)
 {
-	return utf8nlookup(data, hangul, s, (size_t)-1);
+	return utf8nlookup(um, n, hangul, s, (size_t)-1);
 }
-
-/*
- * Maximum age of any character in s.
- * Return -1 if s is not valid UTF-8 unicode.
- * Return 0 if only non-assigned code points are used.
- */
-int utf8agemax(const struct utf8data *data, const char *s)
-{
-	utf8leaf_t	*leaf;
-	int		age = 0;
-	int		leaf_age;
-	unsigned char	hangul[UTF8HANGULLEAF];
-
-	if (!data)
-		return -1;
-
-	while (*s) {
-		leaf = utf8lookup(data, hangul, s);
-		if (!leaf)
-			return -1;
-
-		leaf_age = utf8agetab[LEAF_GEN(leaf)];
-		if (leaf_age <= data->maxage && leaf_age > age)
-			age = leaf_age;
-		s += utf8clen(s);
-	}
-	return age;
-}
-EXPORT_SYMBOL(utf8agemax);
-
-/*
- * Minimum age of any character in s.
- * Return -1 if s is not valid UTF-8 unicode.
- * Return 0 if non-assigned code points are used.
- */
-int utf8agemin(const struct utf8data *data, const char *s)
-{
-	utf8leaf_t	*leaf;
-	int		age;
-	int		leaf_age;
-	unsigned char	hangul[UTF8HANGULLEAF];
-
-	if (!data)
-		return -1;
-	age = data->maxage;
-	while (*s) {
-		leaf = utf8lookup(data, hangul, s);
-		if (!leaf)
-			return -1;
-		leaf_age = utf8agetab[LEAF_GEN(leaf)];
-		if (leaf_age <= data->maxage && leaf_age < age)
-			age = leaf_age;
-		s += utf8clen(s);
-	}
-	return age;
-}
-EXPORT_SYMBOL(utf8agemin);
-
-/*
- * Maximum age of any character in s, touch at most len bytes.
- * Return -1 if s is not valid UTF-8 unicode.
- */
-int utf8nagemax(const struct utf8data *data, const char *s, size_t len)
-{
-	utf8leaf_t	*leaf;
-	int		age = 0;
-	int		leaf_age;
-	unsigned char	hangul[UTF8HANGULLEAF];
-
-	if (!data)
-		return -1;
-
-	while (len && *s) {
-		leaf = utf8nlookup(data, hangul, s, len);
-		if (!leaf)
-			return -1;
-		leaf_age = utf8agetab[LEAF_GEN(leaf)];
-		if (leaf_age <= data->maxage && leaf_age > age)
-			age = leaf_age;
-		len -= utf8clen(s);
-		s += utf8clen(s);
-	}
-	return age;
-}
-EXPORT_SYMBOL(utf8nagemax);
-
-/*
- * Maximum age of any character in s, touch at most len bytes.
- * Return -1 if s is not valid UTF-8 unicode.
- */
-int utf8nagemin(const struct utf8data *data, const char *s, size_t len)
-{
-	utf8leaf_t	*leaf;
-	int		leaf_age;
-	int		age;
-	unsigned char	hangul[UTF8HANGULLEAF];
-
-	if (!data)
-		return -1;
-	age = data->maxage;
-	while (len && *s) {
-		leaf = utf8nlookup(data, hangul, s, len);
-		if (!leaf)
-			return -1;
-		leaf_age = utf8agetab[LEAF_GEN(leaf)];
-		if (leaf_age <= data->maxage && leaf_age < age)
-			age = leaf_age;
-		len -= utf8clen(s);
-		s += utf8clen(s);
-	}
-	return age;
-}
-EXPORT_SYMBOL(utf8nagemin);
-
-/*
- * Length of the normalization of s.
- * Return -1 if s is not valid UTF-8 unicode.
- *
- * A string of Default_Ignorable_Code_Point has length 0.
- */
-ssize_t utf8len(const struct utf8data *data, const char *s)
-{
-	utf8leaf_t	*leaf;
-	size_t		ret = 0;
-	unsigned char	hangul[UTF8HANGULLEAF];
-
-	if (!data)
-		return -1;
-	while (*s) {
-		leaf = utf8lookup(data, hangul, s);
-		if (!leaf)
-			return -1;
-		if (utf8agetab[LEAF_GEN(leaf)] > data->maxage)
-			ret += utf8clen(s);
-		else if (LEAF_CCC(leaf) == DECOMPOSE)
-			ret += strlen(LEAF_STR(leaf));
-		else
-			ret += utf8clen(s);
-		s += utf8clen(s);
-	}
-	return ret;
-}
-EXPORT_SYMBOL(utf8len);
 
 /*
  * Length of the normalization of s, touch at most len bytes.
  * Return -1 if s is not valid UTF-8 unicode.
  */
-ssize_t utf8nlen(const struct utf8data *data, const char *s, size_t len)
+ssize_t utf8nlen(const struct unicode_map *um, enum utf8_normalization n,
+		const char *s, size_t len)
 {
 	utf8leaf_t	*leaf;
 	size_t		ret = 0;
 	unsigned char	hangul[UTF8HANGULLEAF];
 
-	if (!data)
-		return -1;
 	while (len && *s) {
-		leaf = utf8nlookup(data, hangul, s, len);
+		leaf = utf8nlookup(um, n, hangul, s, len);
 		if (!leaf)
 			return -1;
-		if (utf8agetab[LEAF_GEN(leaf)] > data->maxage)
+		if (um->tables->utf8agetab[LEAF_GEN(leaf)] >
+		    um->ntab[n]->maxage)
 			ret += utf8clen(s);
 		else if (LEAF_CCC(leaf) == DECOMPOSE)
 			ret += strlen(LEAF_STR(leaf));
@@ -568,7 +406,6 @@ ssize_t utf8nlen(const struct utf8data *data, const char *s, size_t len)
 	}
 	return ret;
 }
-EXPORT_SYMBOL(utf8nlen);
 
 /*
  * Set up an utf8cursor for use by utf8byte().
@@ -580,14 +417,13 @@ EXPORT_SYMBOL(utf8nlen);
  *
  * Returns -1 on error, 0 on success.
  */
-int utf8ncursor(struct utf8cursor *u8c, const struct utf8data *data,
-		const char *s, size_t len)
+int utf8ncursor(struct utf8cursor *u8c, const struct unicode_map *um,
+		enum utf8_normalization n, const char *s, size_t len)
 {
-	if (!data)
-		return -1;
 	if (!s)
 		return -1;
-	u8c->data = data;
+	u8c->um = um;
+	u8c->n = n;
 	u8c->s = s;
 	u8c->p = NULL;
 	u8c->ss = NULL;
@@ -604,23 +440,6 @@ int utf8ncursor(struct utf8cursor *u8c, const struct utf8data *data,
 		return -1;
 	return 0;
 }
-EXPORT_SYMBOL(utf8ncursor);
-
-/*
- * Set up an utf8cursor for use by utf8byte().
- *
- *   u8c    : pointer to cursor.
- *   data   : const struct utf8data to use for normalization.
- *   s      : NUL-terminated string.
- *
- * Returns -1 on error, 0 on success.
- */
-int utf8cursor(struct utf8cursor *u8c, const struct utf8data *data,
-	       const char *s)
-{
-	return utf8ncursor(u8c, data, s, (unsigned int)-1);
-}
-EXPORT_SYMBOL(utf8cursor);
 
 /*
  * Get one byte from the normalized form of the string described by u8c.
@@ -678,9 +497,9 @@ int utf8byte(struct utf8cursor *u8c)
 
 		/* Look up the data for the current character. */
 		if (u8c->p) {
-			leaf = utf8lookup(u8c->data, u8c->hangul, u8c->s);
+			leaf = utf8lookup(u8c->um, u8c->n, u8c->hangul, u8c->s);
 		} else {
-			leaf = utf8nlookup(u8c->data, u8c->hangul,
+			leaf = utf8nlookup(u8c->um, u8c->n, u8c->hangul,
 					   u8c->s, u8c->len);
 		}
 
@@ -690,7 +509,8 @@ int utf8byte(struct utf8cursor *u8c)
 
 		ccc = LEAF_CCC(leaf);
 		/* Characters that are too new have CCC 0. */
-		if (utf8agetab[LEAF_GEN(leaf)] > u8c->data->maxage) {
+		if (u8c->um->tables->utf8agetab[LEAF_GEN(leaf)] >
+		    u8c->um->ntab[u8c->n]->maxage) {
 			ccc = STOPPER;
 		} else if (ccc == DECOMPOSE) {
 			u8c->len -= utf8clen(u8c->s);
@@ -704,7 +524,7 @@ int utf8byte(struct utf8cursor *u8c)
 				goto ccc_mismatch;
 			}
 
-			leaf = utf8lookup(u8c->data, u8c->hangul, u8c->s);
+			leaf = utf8lookup(u8c->um, u8c->n, u8c->hangul, u8c->s);
 			if (!leaf)
 				return -1;
 			ccc = LEAF_CCC(leaf);
@@ -765,28 +585,10 @@ ccc_mismatch:
 		}
 	}
 }
-EXPORT_SYMBOL(utf8byte);
 
-const struct utf8data *utf8nfdi(unsigned int maxage)
-{
-	int i = ARRAY_SIZE(utf8nfdidata) - 1;
-
-	while (maxage < utf8nfdidata[i].maxage)
-		i--;
-	if (maxage > utf8nfdidata[i].maxage)
-		return NULL;
-	return &utf8nfdidata[i];
-}
-EXPORT_SYMBOL(utf8nfdi);
-
-const struct utf8data *utf8nfdicf(unsigned int maxage)
-{
-	int i = ARRAY_SIZE(utf8nfdicfdata) - 1;
-
-	while (maxage < utf8nfdicfdata[i].maxage)
-		i--;
-	if (maxage > utf8nfdicfdata[i].maxage)
-		return NULL;
-	return &utf8nfdicfdata[i];
-}
-EXPORT_SYMBOL(utf8nfdicf);
+#ifdef CONFIG_UNICODE_NORMALIZATION_SELFTEST_MODULE
+EXPORT_SYMBOL_GPL(utf8version_is_supported);
+EXPORT_SYMBOL_GPL(utf8nlen);
+EXPORT_SYMBOL_GPL(utf8ncursor);
+EXPORT_SYMBOL_GPL(utf8byte);
+#endif

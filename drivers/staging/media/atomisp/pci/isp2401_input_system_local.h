@@ -16,9 +16,6 @@
 #ifndef __INPUT_SYSTEM_LOCAL_H_INCLUDED__
 #define __INPUT_SYSTEM_LOCAL_H_INCLUDED__
 
-#include "type_support.h"
-#include "input_system_global.h"
-
 #include "csi_rx.h"
 #include "pixelgen.h"
 #include "isys_stream2mmio.h"
@@ -69,29 +66,6 @@ typedef enum {
 
 /* The number of stores for compressed format types */
 #define	N_MIPI_COMPRESSOR_CONTEXT	(N_RX_CHANNEL_ID * N_MIPI_FORMAT_CUSTOM)
-#define UNCOMPRESSED_BITS_PER_PIXEL_10	10
-#define UNCOMPRESSED_BITS_PER_PIXEL_12	12
-#define COMPRESSED_BITS_PER_PIXEL_6	6
-#define COMPRESSED_BITS_PER_PIXEL_7	7
-#define COMPRESSED_BITS_PER_PIXEL_8	8
-enum mipi_compressor {
-	MIPI_COMPRESSOR_NONE = 0,
-	MIPI_COMPRESSOR_10_6_10,
-	MIPI_COMPRESSOR_10_7_10,
-	MIPI_COMPRESSOR_10_8_10,
-	MIPI_COMPRESSOR_12_6_12,
-	MIPI_COMPRESSOR_12_7_12,
-	MIPI_COMPRESSOR_12_8_12,
-	N_MIPI_COMPRESSOR_METHODS
-};
-
-typedef enum {
-	MIPI_PREDICTOR_NONE = 0,
-	MIPI_PREDICTOR_TYPE1,
-	MIPI_PREDICTOR_TYPE2,
-	N_MIPI_PREDICTOR_TYPES
-} mipi_predictor_t;
-
 typedef struct input_system_state_s	input_system_state_t;
 struct input_system_state_s {
 	ibuf_ctrl_state_t	ibuf_ctrl_state[N_IBUF_CTRL_ID];

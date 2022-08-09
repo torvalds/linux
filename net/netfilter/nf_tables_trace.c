@@ -142,7 +142,7 @@ static int nf_trace_fill_pkt_info(struct sk_buff *nlskb,
 static int nf_trace_fill_rule_info(struct sk_buff *nlskb,
 				   const struct nft_traceinfo *info)
 {
-	if (!info->rule)
+	if (!info->rule || info->rule->is_last)
 		return 0;
 
 	/* a continue verdict with ->type == RETURN means that this is

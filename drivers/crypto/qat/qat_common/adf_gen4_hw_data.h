@@ -4,6 +4,7 @@
 #define ADF_GEN4_HW_CSR_DATA_H_
 
 #include "adf_accel_devices.h"
+#include "adf_cfg_common.h"
 
 /* Transport access */
 #define ADF_BANK_INT_SRC_SEL_MASK	0x44UL
@@ -94,6 +95,13 @@ do { \
 		   ADF_RING_BUNDLE_SIZE * (bank) + \
 		   ADF_RING_CSR_RING_SRV_ARB_EN, (value))
 
+/* Default ring mapping */
+#define ADF_GEN4_DEFAULT_RING_TO_SRV_MAP \
+	(ASYM << ADF_CFG_SERV_RING_PAIR_0_SHIFT | \
+	  SYM << ADF_CFG_SERV_RING_PAIR_1_SHIFT | \
+	 ASYM << ADF_CFG_SERV_RING_PAIR_2_SHIFT | \
+	  SYM << ADF_CFG_SERV_RING_PAIR_3_SHIFT)
+
 /* WDT timers
  *
  * Timeout is in cycles. Clock speed may vary across products but this
@@ -106,6 +114,15 @@ do { \
 #define ADF_SSMWDTPKEL_OFFSET		0x58
 #define ADF_SSMWDTPKEH_OFFSET		0x60
 
+/* Ring reset */
+#define ADF_RPRESET_POLL_TIMEOUT_US	(5 * USEC_PER_SEC)
+#define ADF_RPRESET_POLL_DELAY_US	20
+#define ADF_WQM_CSR_RPRESETCTL_RESET	BIT(0)
+#define ADF_WQM_CSR_RPRESETCTL(bank)	(0x6000 + ((bank) << 3))
+#define ADF_WQM_CSR_RPRESETSTS_STATUS	BIT(0)
+#define ADF_WQM_CSR_RPRESETSTS(bank)	(ADF_WQM_CSR_RPRESETCTL(bank) + 4)
+
 void adf_gen4_set_ssm_wdtimer(struct adf_accel_dev *accel_dev);
 void adf_gen4_init_hw_csr_ops(struct adf_hw_csr_ops *csr_ops);
+int adf_gen4_ring_pair_reset(struct adf_accel_dev *accel_dev, u32 bank_number);
 #endif

@@ -1454,23 +1454,33 @@ static int emac_dev_open(struct net_device *ndev)
 	}
 
 	/* Request IRQ */
-	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ,
-					    res_num))) {
-		for (irq_num = res->start; irq_num <= res->end; irq_num++) {
-			if (request_irq(irq_num, emac_irq, 0, ndev->name,
-					ndev)) {
-				dev_err(emac_dev,
-					"DaVinci EMAC: request_irq() failed\n");
-				ret = -EBUSY;
+	if (dev_of_node(&priv->pdev->dev)) {
+		while ((ret = platform_get_irq_optional(priv->pdev, res_num)) != -ENXIO) {
+			if (ret < 0)
+				goto rollback;
 
+			ret = request_irq(ret, emac_irq, 0, ndev->name, ndev);
+			if (ret) {
+				dev_err(emac_dev, "DaVinci EMAC: request_irq() failed\n");
 				goto rollback;
 			}
+			res_num++;
 		}
-		res_num++;
+	} else {
+		while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, res_num))) {
+			for (irq_num = res->start; irq_num <= res->end; irq_num++) {
+				ret = request_irq(irq_num, emac_irq, 0, ndev->name, ndev);
+				if (ret) {
+					dev_err(emac_dev, "DaVinci EMAC: request_irq() failed\n");
+					goto rollback;
+				}
+			}
+			res_num++;
+		}
+		/* prepare counters for rollback in case of an error */
+		res_num--;
+		irq_num--;
 	}
-	/* prepare counters for rollback in case of an error */
-	res_num--;
-	irq_num--;
 
 	/* Start/Enable EMAC hardware */
 	emac_hw_enable(priv);
@@ -1554,16 +1564,24 @@ err:
 	napi_disable(&priv->napi);
 
 rollback:
-	for (q = res_num; q >= 0; q--) {
-		res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, q);
-		/* at the first iteration, irq_num is already set to the
-		 * right value
-		 */
-		if (q != res_num)
-			irq_num = res->end;
+	if (dev_of_node(&priv->pdev->dev)) {
+		for (q = res_num - 1; q >= 0; q--) {
+			irq_num = platform_get_irq(priv->pdev, q);
+			if (irq_num > 0)
+				free_irq(irq_num, ndev);
+		}
+	} else {
+		for (q = res_num; q >= 0; q--) {
+			res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, q);
+			/* at the first iteration, irq_num is already set to the
+			 * right value
+			 */
+			if (q != res_num)
+				irq_num = res->end;
 
-		for (m = irq_num; m >= res->start; m--)
-			free_irq(m, ndev);
+			for (m = irq_num; m >= res->start; m--)
+				free_irq(m, ndev);
+		}
 	}
 	cpdma_ctlr_stop(priv->dma);
 	pm_runtime_put(&priv->pdev->dev);
@@ -1899,13 +1917,10 @@ static int davinci_emac_probe(struct platform_device *pdev)
 		goto err_free_txchan;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "error getting irq res\n");
-		rc = -ENOENT;
+	rc = platform_get_irq(pdev, 0);
+	if (rc < 0)
 		goto err_free_rxchan;
-	}
-	ndev->irq = res->start;
+	ndev->irq = rc;
 
 	rc = davinci_emac_try_get_mac(pdev, res_ctrl ? 0 : 1, priv->mac_addr);
 	if (!rc)

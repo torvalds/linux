@@ -107,7 +107,7 @@ reset_set(void *data, u64 val)
 	 * try to reset an active GPU.
 	 */
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&gpu->lock);
 
 	release_firmware(adreno_gpu->fw[ADRENO_FW_PM4]);
 	adreno_gpu->fw[ADRENO_FW_PM4] = NULL;
@@ -133,7 +133,7 @@ reset_set(void *data, u64 val)
 	gpu->funcs->recover(gpu);
 
 	pm_runtime_put_sync(&gpu->pdev->dev);
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&gpu->lock);
 
 	return 0;
 }

@@ -27,13 +27,14 @@
 #include <linux/task_work.h>
 #include <linux/ima.h>
 #include <linux/swap.h>
+#include <linux/kmemleak.h>
 
 #include <linux/atomic.h>
 
 #include "internal.h"
 
 /* sysctl tunables... */
-struct files_stat_struct files_stat = {
+static struct files_stat_struct files_stat = {
 	.max_files = NR_FILE
 };
 
@@ -75,22 +76,58 @@ unsigned long get_max_files(void)
 }
 EXPORT_SYMBOL_GPL(get_max_files);
 
+#if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
+
 /*
  * Handle nr_files sysctl
  */
-#if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
-int proc_nr_files(struct ctl_table *table, int write,
-                     void *buffer, size_t *lenp, loff_t *ppos)
+static int proc_nr_files(struct ctl_table *table, int write, void *buffer,
+			 size_t *lenp, loff_t *ppos)
 {
 	files_stat.nr_files = get_nr_files();
 	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
 }
-#else
-int proc_nr_files(struct ctl_table *table, int write,
-                     void *buffer, size_t *lenp, loff_t *ppos)
+
+static struct ctl_table fs_stat_sysctls[] = {
+	{
+		.procname	= "file-nr",
+		.data		= &files_stat,
+		.maxlen		= sizeof(files_stat),
+		.mode		= 0444,
+		.proc_handler	= proc_nr_files,
+	},
+	{
+		.procname	= "file-max",
+		.data		= &files_stat.max_files,
+		.maxlen		= sizeof(files_stat.max_files),
+		.mode		= 0644,
+		.proc_handler	= proc_doulongvec_minmax,
+		.extra1		= SYSCTL_LONG_ZERO,
+		.extra2		= SYSCTL_LONG_MAX,
+	},
+	{
+		.procname	= "nr_open",
+		.data		= &sysctl_nr_open,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &sysctl_nr_open_min,
+		.extra2		= &sysctl_nr_open_max,
+	},
+	{ }
+};
+
+static int __init init_fs_stat_sysctls(void)
 {
-	return -ENOSYS;
+	register_sysctl_init("fs", fs_stat_sysctls);
+	if (IS_ENABLED(CONFIG_BINFMT_MISC)) {
+		struct ctl_table_header *hdr;
+		hdr = register_sysctl_mount_point("fs/binfmt_misc");
+		kmemleak_not_leak(hdr);
+	}
+	return 0;
 }
+fs_initcall(init_fs_stat_sysctls);
 #endif
 
 static struct file *__alloc_file(int flags, const struct cred *cred)

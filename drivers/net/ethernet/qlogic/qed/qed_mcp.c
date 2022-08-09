@@ -4158,3 +4158,25 @@ qed_mcp_send_raw_debug_data(struct qed_hwfn *p_hwfn,
 	return qed_mcp_send_debug_data(p_hwfn, p_ptt,
 				       QED_MCP_DBG_DATA_TYPE_RAW, p_buf, size);
 }
+
+bool qed_mcp_is_esl_supported(struct qed_hwfn *p_hwfn)
+{
+	return !!(p_hwfn->mcp_info->capabilities &
+		  FW_MB_PARAM_FEATURE_SUPPORT_ENHANCED_SYS_LCK);
+}
+
+int qed_mcp_get_esl_status(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool *active)
+{
+	u32 resp = 0, param = 0;
+	int rc;
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_GET_MANAGEMENT_STATUS, 0, &resp, &param);
+	if (rc) {
+		DP_NOTICE(p_hwfn, "Failed to send ESL command, rc = %d\n", rc);
+		return rc;
+	}
+
+	*active = !!(param & FW_MB_PARAM_MANAGEMENT_STATUS_LOCKDOWN_ENABLED);
+
+	return 0;
+}

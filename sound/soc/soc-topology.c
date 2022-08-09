@@ -56,7 +56,7 @@ struct soc_tplg {
 	const struct firmware *fw;
 
 	/* runtime FW parsing */
-	const u8 *pos;		/* read postion */
+	const u8 *pos;		/* read position */
 	const u8 *hdr_pos;	/* header position */
 	unsigned int pass;	/* pass number */
 

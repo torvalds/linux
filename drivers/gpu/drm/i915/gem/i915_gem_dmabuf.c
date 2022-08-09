@@ -248,8 +248,19 @@ static int i915_gem_object_get_pages_dmabuf(struct drm_i915_gem_object *obj)
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
 
-	/* XXX: consider doing a vmap flush or something */
-	if (!HAS_LLC(i915) || i915_gem_object_can_bypass_llc(obj))
+	/*
+	 * DG1 is special here since it still snoops transactions even with
+	 * CACHE_NONE. This is not the case with other HAS_SNOOP platforms. We
+	 * might need to revisit this as we add new discrete platforms.
+	 *
+	 * XXX: Consider doing a vmap flush or something, where possible.
+	 * Currently we just do a heavy handed wbinvd_on_all_cpus() here since
+	 * the underlying sg_table might not even point to struct pages, so we
+	 * can't just call drm_clflush_sg or similar, like we do elsewhere in
+	 * the driver.
+	 */
+	if (i915_gem_object_can_bypass_llc(obj) ||
+	    (!HAS_LLC(i915) && !IS_DG1(i915)))
 		wbinvd_on_all_cpus();
 
 	sg_page_sizes = i915_sg_dma_sizes(pages->sgl);

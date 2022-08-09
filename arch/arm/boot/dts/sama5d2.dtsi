@@ -288,6 +288,7 @@
 				reg-names = "qspi_base", "qspi_mmap";
 				interrupts = <52 IRQ_TYPE_LEVEL_HIGH 7>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 52>;
+				clock-names = "pclk";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
@@ -299,6 +300,7 @@
 				reg-names = "qspi_base", "qspi_mmap";
 				interrupts = <53 IRQ_TYPE_LEVEL_HIGH 7>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 53>;
+				clock-names = "pclk";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";

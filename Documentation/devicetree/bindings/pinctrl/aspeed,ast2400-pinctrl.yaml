@@ -50,6 +50,9 @@ patternProperties:
                   TXD3, TXD4, UART6, USB11D1, USB11H2, USB2D1, USB2H1, USBCKI, VGABIOS_ROM,
                   VGAHS, VGAVS, VPI18, VPI24, VPI30, VPO12, VPO24, WDTRST1, WDTRST2]
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - compatible
 

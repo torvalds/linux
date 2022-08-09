@@ -143,6 +143,22 @@ void snd_hdac_stream_stop(struct hdac_stream *azx_dev)
 EXPORT_SYMBOL_GPL(snd_hdac_stream_stop);
 
 /**
+ * snd_hdac_stop_streams_and_chip - stop all streams and chip if running
+ * @bus: HD-audio core bus
+ */
+void snd_hdac_stop_streams_and_chip(struct hdac_bus *bus)
+{
+	struct hdac_stream *stream;
+
+	if (bus->chip_init) {
+		list_for_each_entry(stream, &bus->stream_list, list)
+			snd_hdac_stream_stop(stream);
+		snd_hdac_bus_stop_chip(bus);
+	}
+}
+EXPORT_SYMBOL_GPL(snd_hdac_stop_streams_and_chip);
+
+/**
  * snd_hdac_stream_reset - reset a stream
  * @azx_dev: HD-audio core stream to reset
  */
@@ -534,17 +550,11 @@ static void azx_timecounter_init(struct hdac_stream *azx_dev,
 	cc->mask = CLOCKSOURCE_MASK(32);
 
 	/*
-	 * Converting from 24 MHz to ns means applying a 125/3 factor.
-	 * To avoid any saturation issues in intermediate operations,
-	 * the 125 factor is applied first. The division is applied
-	 * last after reading the timecounter value.
-	 * Applying the 1/3 factor as part of the multiplication
-	 * requires at least 20 bits for a decent precision, however
-	 * overflows occur after about 4 hours or less, not a option.
+	 * Calculate the optimal mult/shift values. The counter wraps
+	 * around after ~178.9 seconds.
 	 */
-
-	cc->mult = 125; /* saturation after 195 years */
-	cc->shift = 0;
+	clocks_calc_mult_shift(&cc->mult, &cc->shift, 24000000,
+			       NSEC_PER_SEC, 178);
 
 	nsec = 0; /* audio time is elapsed time since trigger */
 	timecounter_init(tc, cc, nsec);

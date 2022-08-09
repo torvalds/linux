@@ -20,6 +20,7 @@ properties:
       - qcom,sm8150-usb-hs-phy
       - qcom,sm8250-usb-hs-phy
       - qcom,sm8350-usb-hs-phy
+      - qcom,sm8450-usb-hs-phy
       - qcom,usb-snps-femto-v2-phy
 
   reg:

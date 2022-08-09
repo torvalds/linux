@@ -1536,13 +1536,20 @@ static size_t trace__fprintf_tstamp(struct trace *trace, u64 tstamp, FILE *fp)
 	return fprintf(fp, "         ? ");
 }
 
+static pid_t workload_pid = -1;
 static bool done = false;
 static bool interrupted = false;
 
-static void sig_handler(int sig)
+static void sighandler_interrupt(int sig __maybe_unused)
 {
-	done = true;
-	interrupted = sig == SIGINT;
+	done = interrupted = true;
+}
+
+static void sighandler_chld(int sig __maybe_unused, siginfo_t *info,
+			    void *context __maybe_unused)
+{
+	if (info->si_pid == workload_pid)
+		done = true;
 }
 
 static size_t trace__fprintf_comm_tid(struct trace *trace, struct thread *thread, FILE *fp)
@@ -2726,6 +2733,8 @@ static size_t trace__fprintf_tp_fields(struct trace *trace, struct evsel *evsel,
 				offset = format_field__intval(field, sample, evsel->needs_swap);
 				syscall_arg.len = offset >> 16;
 				offset &= 0xffff;
+				if (field->flags & TEP_FIELD_IS_RELATIVE)
+					offset += field->offset + field->size;
 			}
 
 			val = (uintptr_t)(sample->raw_data + offset);
@@ -3257,10 +3266,21 @@ static void trace__set_bpf_map_syscalls(struct trace *trace)
 
 static struct bpf_program *trace__find_bpf_program_by_title(struct trace *trace, const char *name)
 {
+	struct bpf_program *pos, *prog = NULL;
+	const char *sec_name;
+
 	if (trace->bpf_obj == NULL)
 		return NULL;
 
-	return bpf_object__find_program_by_title(trace->bpf_obj, name);
+	bpf_object__for_each_program(pos, trace->bpf_obj) {
+		sec_name = bpf_program__section_name(pos);
+		if (sec_name && !strcmp(sec_name, name)) {
+			prog = pos;
+			break;
+		}
+	}
+
+	return prog;
 }
 
 static struct bpf_program *trace__find_syscall_bpf_prog(struct trace *trace, struct syscall *sc,
@@ -3925,7 +3945,6 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	bool draining = false;
 
 	trace->live = true;
-	signal(SIGCHLD, sig_handler);
 
 	if (!trace->raw_augmented_syscalls) {
 		if (trace->trace_syscalls && trace__add_syscall_newtp(trace))
@@ -3950,6 +3969,9 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		evsel__config_callchain(pgfault_min, &trace->opts, &callchain_param);
 		evlist__add(evlist, pgfault_min);
 	}
+
+	/* Enable ignoring missing threads when -u/-p option is defined. */
+	trace->opts.ignore_missing_thread = trace->opts.target.uid != UINT_MAX || trace->opts.target.pid;
 
 	if (trace->sched &&
 	    evlist__add_newtp(evlist, "sched", "sched_stat_runtime", trace__sched_stat_runtime))
@@ -4002,6 +4024,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 			fprintf(trace->output, "Couldn't run the workload!\n");
 			goto out_delete_evlist;
 		}
+		workload_pid = evlist->workload.pid;
 	}
 
 	err = evlist__open(evlist);
@@ -4871,10 +4894,16 @@ int cmd_trace(int argc, const char **argv)
 	const char * const trace_subcommands[] = { "record", NULL };
 	int err = -1;
 	char bf[BUFSIZ];
+	struct sigaction sigchld_act;
 
 	signal(SIGSEGV, sighandler_dump_stack);
 	signal(SIGFPE, sighandler_dump_stack);
-	signal(SIGINT, sig_handler);
+	signal(SIGINT, sighandler_interrupt);
+
+	memset(&sigchld_act, 0, sizeof(sigchld_act));
+	sigchld_act.sa_flags = SA_SIGINFO;
+	sigchld_act.sa_sigaction = sighandler_chld;
+	sigaction(SIGCHLD, &sigchld_act, NULL);
 
 	trace.evlist = evlist__new();
 	trace.sctbl = syscalltbl__new();

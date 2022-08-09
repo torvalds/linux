@@ -128,8 +128,6 @@ struct vnt_private {
 	u32                         memaddr;
 	u32                         ioaddr;
 
-	unsigned char byRxMode;
-
 	spinlock_t                  lock;
 
 	volatile int                iTDUsed[TYPE_MAXTD];
@@ -157,7 +155,7 @@ struct vnt_private {
 	unsigned char local_id;
 	unsigned char byRFType;
 
-	unsigned char byMaxPwrLevel;
+	unsigned char max_pwr_level;
 	unsigned char byZoneType;
 	bool bZoneRegExist;
 	unsigned char byOriginalZonetype;
@@ -165,7 +163,7 @@ struct vnt_private {
 	unsigned char abyCurrentNetAddr[ETH_ALEN]; __aligned(2)
 	bool bLinkPass;          /* link status: OK or fail */
 
-	unsigned int	uCurrRSSI;
+	unsigned int current_rssi;
 	unsigned char byCurrSQ;
 
 	unsigned long dwTxAntennaSel;
@@ -221,7 +219,7 @@ struct vnt_private {
 	bool bBarkerPreambleMd;
 
 	bool bRadioControlOff;
-	bool bRadioOff;
+	bool radio_off;
 	bool bEnablePSMode;
 	unsigned short wListenInterval;
 	bool bPWBitOn;
@@ -229,7 +227,7 @@ struct vnt_private {
 	/* GPIO Radio Control */
 	unsigned char byRadioCtl;
 	unsigned char byGPIO;
-	bool bHWRadioOff;
+	bool hw_radio_off;
 	bool bPrvActive4RadioOFF;
 	bool bGPIOBlockRead;
 

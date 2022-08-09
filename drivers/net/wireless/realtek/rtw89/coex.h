@@ -130,6 +130,12 @@ enum btc_rfctrl {
 	BTC_RFCTRL_MAX
 };
 
+enum btc_lps_state {
+	BTC_LPS_OFF = 0,
+	BTC_LPS_RF_OFF = 1,
+	BTC_LPS_RF_ON = 2
+};
+
 void rtw89_btc_ntfy_poweron(struct rtw89_dev *rtwdev);
 void rtw89_btc_ntfy_poweroff(struct rtw89_dev *rtwdev);
 void rtw89_btc_ntfy_init(struct rtw89_dev *rtwdev, u8 mode);

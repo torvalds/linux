@@ -30,11 +30,8 @@
 	pcie@1003000 {
 		status = "okay";
 
-		avdd-pll-uerefe-supply = <&vdd_pex_1v05>;
 		hvddio-pex-supply = <&vdd_1v8>;
 		dvddio-pex-supply = <&vdd_pex_1v05>;
-		dvdd-pex-pll-supply = <&vdd_pex_1v05>;
-		hvdd-pex-pll-e-supply = <&vdd_1v8>;
 		vddio-pex-ctl-supply = <&vdd_1v8>;
 
 		pci@1,0 {
@@ -266,7 +263,6 @@
 					regulator-min-microvolt = <1000000>;
 					regulator-max-microvolt = <1170000>;
 					regulator-enable-ramp-delay = <146>;
-					regulator-disable-ramp-delay = <4080>;
 					regulator-ramp-delay = <27500>;
 					regulator-ramp-delay-scale = <300>;
 					regulator-always-on;
@@ -282,7 +278,6 @@
 					regulator-min-microvolt = <1150000>;
 					regulator-max-microvolt = <1150000>;
 					regulator-enable-ramp-delay = <176>;
-					regulator-disable-ramp-delay = <145800>;
 					regulator-ramp-delay = <27500>;
 					regulator-ramp-delay-scale = <300>;
 					regulator-always-on;
@@ -298,7 +293,6 @@
 					regulator-min-microvolt = <1350000>;
 					regulator-max-microvolt = <1350000>;
 					regulator-enable-ramp-delay = <176>;
-					regulator-disable-ramp-delay = <32000>;
 					regulator-ramp-delay = <27500>;
 					regulator-ramp-delay-scale = <350>;
 					regulator-always-on;
@@ -314,7 +308,6 @@
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 					regulator-enable-ramp-delay = <242>;
-					regulator-disable-ramp-delay = <118000>;
 					regulator-ramp-delay = <27500>;
 					regulator-ramp-delay-scale = <360>;
 					regulator-always-on;
@@ -330,7 +323,6 @@
 					regulator-min-microvolt = <1200000>;
 					regulator-max-microvolt = <1200000>;
 					regulator-enable-ramp-delay = <26>;
-					regulator-disable-ramp-delay = <626>;
 					regulator-ramp-delay = <100000>;
 					regulator-ramp-delay-scale = <200>;
 					regulator-always-on;
@@ -346,7 +338,6 @@
 					regulator-min-microvolt = <1050000>;
 					regulator-max-microvolt = <1050000>;
 					regulator-enable-ramp-delay = <22>;
-					regulator-disable-ramp-delay = <650>;
 					regulator-ramp-delay = <100000>;
 					regulator-ramp-delay-scale = <200>;
 
@@ -360,7 +351,6 @@
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <3300000>;
 					regulator-enable-ramp-delay = <62>;
-					regulator-disable-ramp-delay = <650>;
 					regulator-ramp-delay = <100000>;
 					regulator-ramp-delay-scale = <200>;
 
@@ -378,7 +368,6 @@
 					regulator-min-microvolt = <850000>;
 					regulator-max-microvolt = <1100000>;
 					regulator-enable-ramp-delay = <22>;
-					regulator-disable-ramp-delay = <610>;
 					regulator-ramp-delay = <100000>;
 					regulator-ramp-delay-scale = <200>;
 					regulator-disable-active-discharge;
@@ -403,7 +392,6 @@
 					regulator-min-microvolt = <1050000>;
 					regulator-max-microvolt = <1050000>;
 					regulator-enable-ramp-delay = <24>;
-					regulator-disable-ramp-delay = <2768>;
 					regulator-ramp-delay = <100000>;
 					regulator-ramp-delay-scale = <200>;
 
@@ -417,7 +405,6 @@
 					regulator-min-microvolt = <1050000>;
 					regulator-max-microvolt = <1050000>;
 					regulator-enable-ramp-delay = <22>;
-					regulator-disable-ramp-delay = <1160>;
 					regulator-ramp-delay = <100000>;
 					regulator-ramp-delay-scale = <200>;
 
@@ -456,11 +443,6 @@
 		avdd-usb-supply = <&vdd_3v3_sys>;
 		dvddio-pex-supply = <&vdd_pex_1v05>;
 		hvddio-pex-supply = <&vdd_1v8>;
-		/* these really belong to the XUSB pad controller */
-		avdd-pll-utmip-supply = <&vdd_1v8>;
-		avdd-pll-uerefe-supply = <&vdd_pex_1v05>;
-		dvdd-usb-ss-pll-supply = <&vdd_pex_1v05>;
-		hvdd-usb-ss-pll-e-supply = <&vdd_1v8>;
 
 		status = "okay";
 	};
@@ -688,7 +670,7 @@
 					i2s4_port: port@1 {
 						reg = <1>;
 
-						i2s4_dap_ep: endpoint@0 {
+						i2s4_dap_ep: endpoint {
 							dai-format = "i2s";
 							/* Placeholder for external Codec */
 						};
@@ -706,7 +688,7 @@
 					port@0 {
 						reg = <0>;
 
-						dmic1_cif_ep: endpoint@0 {
+						dmic1_cif_ep: endpoint {
 							remote-endpoint = <&xbar_dmic1_ep>;
 						};
 					};
@@ -714,7 +696,7 @@
 					dmic1_port: port@1 {
 						reg = <1>;
 
-						dmic1_dap_ep: endpoint@0 {
+						dmic1_dap_ep: endpoint {
 							/* Placeholder for external Codec */
 						};
 					};
@@ -731,7 +713,7 @@
 					port@0 {
 						reg = <0>;
 
-						dmic2_cif_ep: endpoint@0 {
+						dmic2_cif_ep: endpoint {
 							remote-endpoint = <&xbar_dmic2_ep>;
 						};
 					};
@@ -739,7 +721,7 @@
 					dmic2_port: port@1 {
 						reg = <1>;
 
-						dmic2_dap_ep: endpoint@0 {
+						dmic2_dap_ep: endpoint {
 							/* Placeholder for external Codec */
 						};
 					};
@@ -1637,7 +1619,7 @@
 		status = "okay";
 
 		flash@0 {
-			compatible = "spi-nor";
+			compatible = "jedec,spi-nor";
 			reg = <0>;
 			spi-max-frequency = <104000000>;
 			spi-tx-bus-width = <2>;
@@ -1645,7 +1627,7 @@
 		};
 	};
 
-	clk32k_in: clock@0 {
+	clk32k_in: clock-32k {
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
 		#clock-cells = <0>;
@@ -1684,7 +1666,7 @@
 	};
 
 	thermal-zones {
-		cpu {
+		cpu-thermal {
 			trips {
 				cpu_trip_critical: critical {
 					temperature = <96500>;
@@ -1762,7 +1744,7 @@
 		method = "smc";
 	};
 
-	vdd_5v0_sys: regulator@0 {
+	vdd_5v0_sys: regulator-vdd-5v0-sys {
 		compatible = "regulator-fixed";
 
 		regulator-name = "VDD_5V0_SYS";
@@ -1772,14 +1754,13 @@
 		regulator-boot-on;
 	};
 
-	vdd_3v3_sys: regulator@1 {
+	vdd_3v3_sys: regulator-vdd-3v3-sys {
 		compatible = "regulator-fixed";
 
 		regulator-name = "VDD_3V3_SYS";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-enable-ramp-delay = <240>;
-		regulator-disable-ramp-delay = <11340>;
 		regulator-always-on;
 		regulator-boot-on;
 
@@ -1789,7 +1770,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_3v3_sd: regulator@2 {
+	vdd_3v3_sd: regulator-vdd-3v3-sd {
 		compatible = "regulator-fixed";
 
 		regulator-name = "VDD_3V3_SD";
@@ -1802,7 +1783,7 @@
 		vin-supply = <&vdd_3v3_sys>;
 	};
 
-	vdd_hdmi: regulator@3 {
+	vdd_hdmi: regulator-vdd-hdmi-5v0 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "VDD_HDMI_5V0";
@@ -1812,7 +1793,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_hub_3v3: regulator@4 {
+	vdd_hub_3v3: regulator-vdd-hub-3v3 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "VDD_HUB_3V3";
@@ -1825,7 +1806,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_cpu: regulator@5 {
+	vdd_cpu: regulator-vdd-cpu {
 		compatible = "regulator-fixed";
 
 		regulator-name = "VDD_CPU";
@@ -1840,7 +1821,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_gpu: regulator@6 {
+	vdd_gpu: regulator-vdd-gpu {
 		compatible = "pwm-regulator";
 		pwms = <&pwm 1 8000>;
 
@@ -1855,7 +1836,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	avdd_io_edp_1v05: regulator@7 {
+	avdd_io_edp_1v05: regulator-avdd-io-epd-1v05 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "AVDD_IO_EDP_1V05";
@@ -1868,7 +1849,7 @@
 		vin-supply = <&avdd_1v05_pll>;
 	};
 
-	vdd_5v0_usb: regulator@8 {
+	vdd_5v0_usb: regulator-vdd-5v-usb {
 		compatible = "regulator-fixed";
 
 		regulator-name = "VDD_5V_USB";

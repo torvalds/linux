@@ -21,8 +21,6 @@
 #include "../../kselftest.h"
 #include "rdvl.h"
 
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
-
 #define ARCH_MIN_VL SVE_VL_MIN
 
 struct vec_data {

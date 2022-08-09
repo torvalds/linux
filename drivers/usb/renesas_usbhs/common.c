@@ -589,11 +589,11 @@ static int usbhs_probe(struct platform_device *pdev)
 {
 	const struct renesas_usbhs_platform_info *info;
 	struct usbhs_priv *priv;
-	struct resource *irq_res;
 	struct device *dev = &pdev->dev;
 	struct gpio_desc *gpiod;
 	int ret;
 	u32 tmp;
+	int irq;
 
 	/* check device node */
 	if (dev_of_node(dev))
@@ -608,11 +608,9 @@ static int usbhs_probe(struct platform_device *pdev)
 	}
 
 	/* platform data */
-	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!irq_res) {
-		dev_err(dev, "Not enough Renesas USB platform resources.\n");
-		return -ENODEV;
-	}
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	/* usb private data */
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -669,9 +667,7 @@ static int usbhs_probe(struct platform_device *pdev)
 	/*
 	 * priv settings
 	 */
-	priv->irq	= irq_res->start;
-	if (irq_res->flags & IORESOURCE_IRQ_SHAREABLE)
-		priv->irqflags = IRQF_SHARED;
+	priv->irq = irq;
 	priv->pdev	= pdev;
 	INIT_DELAYED_WORK(&priv->notify_hotplug_work, usbhsc_notify_hotplug);
 	spin_lock_init(usbhs_priv_to_lock(priv));

@@ -373,8 +373,6 @@ struct es58x_operators {
  *	queue wake/stop logic should prevent this URB from getting
  *	empty. Please refer to es58x_get_tx_urb() for more details.
  * @tx_urbs_idle_cnt: number of urbs in @tx_urbs_idle.
- * @opened_channel_cnt: number of channels opened (c.f. es58x_open()
- *	and es58x_stop()).
  * @ktime_req_ns: kernel timestamp when es58x_set_realtime_diff_ns()
  *	was called.
  * @realtime_diff_ns: difference in nanoseconds between the clocks of
@@ -384,6 +382,10 @@ struct es58x_operators {
  *	in RX branches.
  * @rx_max_packet_size: Maximum length of bulk-in URB.
  * @num_can_ch: Number of CAN channel (i.e. number of elements of @netdev).
+ * @opened_channel_cnt: number of channels opened. Free of race
+ *	conditions because its two users (net_device_ops:ndo_open()
+ *	and net_device_ops:ndo_close()) guarantee that the network
+ *	stack big kernel lock (a.k.a. rtnl_mutex) is being hold.
  * @rx_cmd_buf_len: Length of @rx_cmd_buf.
  * @rx_cmd_buf: The device might split the URB commands in an
  *	arbitrary amount of pieces. This buffer is used to concatenate
@@ -406,7 +408,6 @@ struct es58x_device {
 	struct usb_anchor tx_urbs_busy;
 	struct usb_anchor tx_urbs_idle;
 	atomic_t tx_urbs_idle_cnt;
-	atomic_t opened_channel_cnt;
 
 	u64 ktime_req_ns;
 	s64 realtime_diff_ns;
@@ -415,6 +416,7 @@ struct es58x_device {
 
 	u16 rx_max_packet_size;
 	u8 num_can_ch;
+	u8 opened_channel_cnt;
 
 	u16 rx_cmd_buf_len;
 	union es58x_urb_cmd rx_cmd_buf;

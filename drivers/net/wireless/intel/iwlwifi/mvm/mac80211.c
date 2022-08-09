@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -54,79 +54,6 @@ static const struct ieee80211_iface_combination iwl_mvm_iface_combinations[] = {
 		.n_limits = ARRAY_SIZE(iwl_mvm_limits),
 	},
 };
-
-#ifdef CONFIG_IWLWIFI_BCAST_FILTERING
-/*
- * Use the reserved field to indicate magic values.
- * these values will only be used internally by the driver,
- * and won't make it to the fw (reserved will be 0).
- * BC_FILTER_MAGIC_IP - configure the val of this attribute to
- *	be the vif's ip address. in case there is not a single
- *	ip address (0, or more than 1), this attribute will
- *	be skipped.
- * BC_FILTER_MAGIC_MAC - set the val of this attribute to
- *	the LSB bytes of the vif's mac address
- */
-enum {
-	BC_FILTER_MAGIC_NONE = 0,
-	BC_FILTER_MAGIC_IP,
-	BC_FILTER_MAGIC_MAC,
-};
-
-static const struct iwl_fw_bcast_filter iwl_mvm_default_bcast_filters[] = {
-	{
-		/* arp */
-		.discard = 0,
-		.frame_type = BCAST_FILTER_FRAME_TYPE_ALL,
-		.attrs = {
-			{
-				/* frame type - arp, hw type - ethernet */
-				.offset_type =
-					BCAST_FILTER_OFFSET_PAYLOAD_START,
-				.offset = sizeof(rfc1042_header),
-				.val = cpu_to_be32(0x08060001),
-				.mask = cpu_to_be32(0xffffffff),
-			},
-			{
-				/* arp dest ip */
-				.offset_type =
-					BCAST_FILTER_OFFSET_PAYLOAD_START,
-				.offset = sizeof(rfc1042_header) + 2 +
-					  sizeof(struct arphdr) +
-					  ETH_ALEN + sizeof(__be32) +
-					  ETH_ALEN,
-				.mask = cpu_to_be32(0xffffffff),
-				/* mark it as special field */
-				.reserved1 = cpu_to_le16(BC_FILTER_MAGIC_IP),
-			},
-		},
-	},
-	{
-		/* dhcp offer bcast */
-		.discard = 0,
-		.frame_type = BCAST_FILTER_FRAME_TYPE_IPV4,
-		.attrs = {
-			{
-				/* udp dest port - 68 (bootp client)*/
-				.offset_type = BCAST_FILTER_OFFSET_IP_END,
-				.offset = offsetof(struct udphdr, dest),
-				.val = cpu_to_be32(0x00440000),
-				.mask = cpu_to_be32(0xffff0000),
-			},
-			{
-				/* dhcp - lsb bytes of client hw address */
-				.offset_type = BCAST_FILTER_OFFSET_IP_END,
-				.offset = 38,
-				.mask = cpu_to_be32(0xffffffff),
-				/* mark it as special field */
-				.reserved1 = cpu_to_le16(BC_FILTER_MAGIC_MAC),
-			},
-		},
-	},
-	/* last filter must be empty */
-	{},
-};
-#endif
 
 static const struct cfg80211_pmsr_capabilities iwl_mvm_pmsr_capa = {
 	.max_peers = IWL_MVM_TOF_MAX_APS,
@@ -191,6 +118,7 @@ struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
 	if (IS_ERR_OR_NULL(resp)) {
 		IWL_DEBUG_LAR(mvm, "Could not get update from FW %d\n",
 			      PTR_ERR_OR_ZERO(resp));
+		resp = NULL;
 		goto out;
 	}
 
@@ -212,7 +140,6 @@ struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
 				      __le16_to_cpu(resp->cap), resp_ver);
 	/* Store the return source id */
 	src_id = resp->source_id;
-	kfree(resp);
 	if (IS_ERR_OR_NULL(regd)) {
 		IWL_DEBUG_LAR(mvm, "Could not get parse update from FW %d\n",
 			      PTR_ERR_OR_ZERO(regd));
@@ -224,7 +151,10 @@ struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
 	mvm->lar_regdom_set = true;
 	mvm->mcc_src = src_id;
 
+	iwl_mei_set_country_code(__le16_to_cpu(resp->mcc));
+
 out:
+	kfree(resp);
 	return regd;
 }
 
@@ -296,7 +226,6 @@ static const u8 he_if_types_ext_capa_sta[] = {
 	 [0] = WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING,
 	 [2] = WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT,
 	 [7] = WLAN_EXT_CAPA8_OPMODE_NOTIF,
-	 [9] = WLAN_EXT_CAPA10_TWT_REQUESTER_SUPPORT,
 };
 
 static const struct wiphy_iftype_ext_capab he_iftypes_ext_capa[] = {
@@ -638,14 +567,21 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	}
 
 	if (iwl_mvm_is_oce_supported(mvm)) {
+		u8 scan_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+						    IWL_ALWAYS_LONG_GROUP,
+						    SCAN_REQ_UMAC, 0);
+
 		wiphy_ext_feature_set(hw->wiphy,
 			NL80211_EXT_FEATURE_ACCEPT_BCAST_PROBE_RESP);
 		wiphy_ext_feature_set(hw->wiphy,
 			NL80211_EXT_FEATURE_FILS_MAX_CHANNEL_TIME);
 		wiphy_ext_feature_set(hw->wiphy,
-			NL80211_EXT_FEATURE_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION);
-		wiphy_ext_feature_set(hw->wiphy,
 			NL80211_EXT_FEATURE_OCE_PROBE_REQ_HIGH_TX_RATE);
+
+		/* Old firmware also supports probe deferral and suppression */
+		if (scan_ver < 15)
+			wiphy_ext_feature_set(hw->wiphy,
+					      NL80211_EXT_FEATURE_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION);
 	}
 
 	if (mvm->nvm_data->sku_cap_11ax_enable &&
@@ -683,11 +619,6 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	}
 #endif
 
-#ifdef CONFIG_IWLWIFI_BCAST_FILTERING
-	/* assign default bcast filtering configuration */
-	mvm->bcast_filters = iwl_mvm_default_bcast_filters;
-#endif
-
 	ret = iwl_mvm_leds_init(mvm);
 	if (ret)
 		return ret;
@@ -707,8 +638,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	hw->netdev_features |= mvm->cfg->features;
 	if (!iwl_mvm_is_csum_supported(mvm))
-		hw->netdev_features &= ~(IWL_TX_CSUM_NETIF_FLAGS |
-					 NETIF_F_RXCSUM);
+		hw->netdev_features &= ~IWL_CSUM_NETIF_FLAGS_MASK;
 
 	if (mvm->cfg->vht_mu_mimo_supported)
 		wiphy_ext_feature_set(hw->wiphy,
@@ -717,6 +647,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_PROTECTED_TWT))
 		wiphy_ext_feature_set(hw->wiphy,
 				      NL80211_EXT_FEATURE_PROTECTED_TWT);
+
+	iwl_mvm_vendor_cmds_register(mvm);
 
 	hw->wiphy->available_antennas_tx = iwl_mvm_get_valid_tx_ant(mvm);
 	hw->wiphy->available_antennas_rx = iwl_mvm_get_valid_rx_ant(mvm);
@@ -1084,6 +1016,27 @@ int __iwl_mvm_mac_start(struct iwl_mvm *mvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
+	ret = iwl_mvm_mei_get_ownership(mvm);
+	if (ret)
+		return ret;
+
+	if (mvm->mei_nvm_data) {
+		/* We got the NIC, we can now free the MEI NVM data */
+		kfree(mvm->mei_nvm_data);
+		mvm->mei_nvm_data = NULL;
+
+		/*
+		 * We can't free the nvm_data we allocated based on the SAP
+		 * data because we registered to cfg80211 with the channels
+		 * allocated on mvm->nvm_data. Keep a pointer in temp_nvm_data
+		 * just in order to be able free it later.
+		 * NULLify nvm_data so that we will read the NVM from the
+		 * firmware this time.
+		 */
+		mvm->temp_nvm_data = mvm->nvm_data;
+		mvm->nvm_data = NULL;
+	}
+
 	if (test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED, &mvm->status)) {
 		/*
 		 * Now convert the HW_RESTART_REQUESTED flag to IN_HW_RESTART
@@ -1143,6 +1096,8 @@ static int iwl_mvm_mac_start(struct ieee80211_hw *hw)
 	clear_bit(IWL_MVM_STATUS_STARTING, &mvm->status);
 
 	mutex_unlock(&mvm->mutex);
+
+	iwl_mvm_mei_set_sw_rfkill_state(mvm);
 
 	return ret;
 }
@@ -1260,6 +1215,8 @@ static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 	 * ROC time event stops just as we get here.
 	 */
 	flush_work(&mvm->roc_done_wk);
+
+	iwl_mvm_mei_set_sw_rfkill_state(mvm);
 
 	mutex_lock(&mvm->mutex);
 	__iwl_mvm_mac_stop(mvm);
@@ -1531,6 +1488,15 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		mvm->monitor_on = true;
 
 	iwl_mvm_vif_dbgfs_register(mvm, vif);
+
+	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
+	    vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
+	    !mvm->csme_vif && mvm->mei_registered) {
+		iwl_mei_set_nic_info(vif->addr, mvm->nvm_data->hw_addr);
+		iwl_mei_set_netdev(ieee80211_vif_to_wdev(vif)->netdev);
+		mvm->csme_vif = vif;
+	}
+
 	goto out_unlock;
 
  out_unbind:
@@ -1582,6 +1548,11 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 		iwl_mvm_tcm_rm_vif(mvm, vif);
 
 	mutex_lock(&mvm->mutex);
+
+	if (vif == mvm->csme_vif) {
+		iwl_mei_set_netdev(NULL);
+		mvm->csme_vif = NULL;
+	}
 
 	probe_data = rcu_dereference_protected(mvmvif->probe_resp_data,
 					       lockdep_is_held(&mvm->mutex));
@@ -1688,6 +1659,7 @@ static void iwl_mvm_recalc_multicast(struct iwl_mvm *mvm)
 	struct iwl_mvm_mc_iter_data iter_data = {
 		.mvm = mvm,
 	};
+	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -1697,6 +1669,22 @@ static void iwl_mvm_recalc_multicast(struct iwl_mvm *mvm)
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 		iwl_mvm_mc_iface_iterator, &iter_data);
+
+	/*
+	 * Send a (synchronous) ech command so that we wait for the
+	 * multiple asynchronous MCAST_FILTER_CMD commands sent by
+	 * the interface iterator. Otherwise, we might get here over
+	 * and over again (by userspace just sending a lot of these)
+	 * and the CPU can send them faster than the firmware can
+	 * process them.
+	 * Note that the CPU is still faster - but with this we'll
+	 * actually send fewer commands overall because the CPU will
+	 * not schedule the work in mac80211 as frequently if it's
+	 * still running when rescheduled (possibly multiple times).
+	 */
+	ret = iwl_mvm_send_cmd_pdu(mvm, ECHO_CMD, 0, 0, NULL);
+	if (ret)
+		IWL_ERR(mvm, "Failed to synchronize multicast groups update\n");
 }
 
 static u64 iwl_mvm_prepare_multicast(struct ieee80211_hw *hw,
@@ -1785,162 +1773,6 @@ static void iwl_mvm_config_iface_filter(struct ieee80211_hw *hw,
 	iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 	mutex_unlock(&mvm->mutex);
 }
-
-#ifdef CONFIG_IWLWIFI_BCAST_FILTERING
-struct iwl_bcast_iter_data {
-	struct iwl_mvm *mvm;
-	struct iwl_bcast_filter_cmd *cmd;
-	u8 current_filter;
-};
-
-static void
-iwl_mvm_set_bcast_filter(struct ieee80211_vif *vif,
-			 const struct iwl_fw_bcast_filter *in_filter,
-			 struct iwl_fw_bcast_filter *out_filter)
-{
-	struct iwl_fw_bcast_filter_attr *attr;
-	int i;
-
-	memcpy(out_filter, in_filter, sizeof(*out_filter));
-
-	for (i = 0; i < ARRAY_SIZE(out_filter->attrs); i++) {
-		attr = &out_filter->attrs[i];
-
-		if (!attr->mask)
-			break;
-
-		switch (attr->reserved1) {
-		case cpu_to_le16(BC_FILTER_MAGIC_IP):
-			if (vif->bss_conf.arp_addr_cnt != 1) {
-				attr->mask = 0;
-				continue;
-			}
-
-			attr->val = vif->bss_conf.arp_addr_list[0];
-			break;
-		case cpu_to_le16(BC_FILTER_MAGIC_MAC):
-			attr->val = *(__be32 *)&vif->addr[2];
-			break;
-		default:
-			break;
-		}
-		attr->reserved1 = 0;
-		out_filter->num_attrs++;
-	}
-}
-
-static void iwl_mvm_bcast_filter_iterator(void *_data, u8 *mac,
-					  struct ieee80211_vif *vif)
-{
-	struct iwl_bcast_iter_data *data = _data;
-	struct iwl_mvm *mvm = data->mvm;
-	struct iwl_bcast_filter_cmd *cmd = data->cmd;
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_fw_bcast_mac *bcast_mac;
-	int i;
-
-	if (WARN_ON(mvmvif->id >= ARRAY_SIZE(cmd->macs)))
-		return;
-
-	bcast_mac = &cmd->macs[mvmvif->id];
-
-	/*
-	 * enable filtering only for associated stations, but not for P2P
-	 * Clients
-	 */
-	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p ||
-	    !vif->bss_conf.assoc)
-		return;
-
-	bcast_mac->default_discard = 1;
-
-	/* copy all configured filters */
-	for (i = 0; mvm->bcast_filters[i].attrs[0].mask; i++) {
-		/*
-		 * Make sure we don't exceed our filters limit.
-		 * if there is still a valid filter to be configured,
-		 * be on the safe side and just allow bcast for this mac.
-		 */
-		if (WARN_ON_ONCE(data->current_filter >=
-				 ARRAY_SIZE(cmd->filters))) {
-			bcast_mac->default_discard = 0;
-			bcast_mac->attached_filters = 0;
-			break;
-		}
-
-		iwl_mvm_set_bcast_filter(vif,
-					 &mvm->bcast_filters[i],
-					 &cmd->filters[data->current_filter]);
-
-		/* skip current filter if it contains no attributes */
-		if (!cmd->filters[data->current_filter].num_attrs)
-			continue;
-
-		/* attach the filter to current mac */
-		bcast_mac->attached_filters |=
-				cpu_to_le16(BIT(data->current_filter));
-
-		data->current_filter++;
-	}
-}
-
-bool iwl_mvm_bcast_filter_build_cmd(struct iwl_mvm *mvm,
-				    struct iwl_bcast_filter_cmd *cmd)
-{
-	struct iwl_bcast_iter_data iter_data = {
-		.mvm = mvm,
-		.cmd = cmd,
-	};
-
-	if (IWL_MVM_FW_BCAST_FILTER_PASS_ALL)
-		return false;
-
-	memset(cmd, 0, sizeof(*cmd));
-	cmd->max_bcast_filters = ARRAY_SIZE(cmd->filters);
-	cmd->max_macs = ARRAY_SIZE(cmd->macs);
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	/* use debugfs filters/macs if override is configured */
-	if (mvm->dbgfs_bcast_filtering.override) {
-		memcpy(cmd->filters, &mvm->dbgfs_bcast_filtering.cmd.filters,
-		       sizeof(cmd->filters));
-		memcpy(cmd->macs, &mvm->dbgfs_bcast_filtering.cmd.macs,
-		       sizeof(cmd->macs));
-		return true;
-	}
-#endif
-
-	/* if no filters are configured, do nothing */
-	if (!mvm->bcast_filters)
-		return false;
-
-	/* configure and attach these filters for each associated sta vif */
-	ieee80211_iterate_active_interfaces(
-		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-		iwl_mvm_bcast_filter_iterator, &iter_data);
-
-	return true;
-}
-
-static int iwl_mvm_configure_bcast_filter(struct iwl_mvm *mvm)
-{
-	struct iwl_bcast_filter_cmd cmd;
-
-	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BCAST_FILTERING))
-		return 0;
-
-	if (!iwl_mvm_bcast_filter_build_cmd(mvm, &cmd))
-		return 0;
-
-	return iwl_mvm_send_cmd_pdu(mvm, BCAST_FILTER_CMD, 0,
-				    sizeof(cmd), &cmd);
-}
-#else
-static inline int iwl_mvm_configure_bcast_filter(struct iwl_mvm *mvm)
-{
-	return 0;
-}
-#endif
 
 static int iwl_mvm_update_mu_groups(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif)
@@ -2148,24 +1980,24 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 		}
 
 		flags |= STA_CTXT_HE_PACKET_EXT;
-	} else if ((sta->he_cap.he_cap_elem.phy_cap_info[9] &
-		    IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_MASK) !=
-		  IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_RESERVED) {
+	} else if (u8_get_bits(sta->he_cap.he_cap_elem.phy_cap_info[9],
+			       IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK)
+		   != IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_RESERVED) {
 		int low_th = -1;
 		int high_th = -1;
 
 		/* Take the PPE thresholds from the nominal padding info */
-		switch (sta->he_cap.he_cap_elem.phy_cap_info[9] &
-			IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_MASK) {
-		case IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_0US:
+		switch (u8_get_bits(sta->he_cap.he_cap_elem.phy_cap_info[9],
+				    IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK)) {
+		case IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_0US:
 			low_th = IWL_HE_PKT_EXT_NONE;
 			high_th = IWL_HE_PKT_EXT_NONE;
 			break;
-		case IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_8US:
+		case IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_8US:
 			low_th = IWL_HE_PKT_EXT_BPSK;
 			high_th = IWL_HE_PKT_EXT_NONE;
 			break;
-		case IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_16US:
+		case IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_16US:
 			low_th = IWL_HE_PKT_EXT_NONE;
 			high_th = IWL_HE_PKT_EXT_BPSK;
 			break;
@@ -2393,6 +2225,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 						    IEEE80211_SMPS_DYNAMIC);
 			}
 		} else if (mvmvif->ap_sta_id != IWL_MVM_INVALID_STA) {
+			iwl_mvm_mei_host_disassociated(mvm);
 			/*
 			 * If update fails - SF might be running in associated
 			 * mode while disassociated - which is forbidden.
@@ -2452,7 +2285,6 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		}
 
 		iwl_mvm_recalc_multicast(mvm);
-		iwl_mvm_configure_bcast_filter(mvm);
 
 		/* reset rssi values */
 		mvmvif->bf_data.ave_beacon_signal = 0;
@@ -2500,11 +2332,6 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 				IWL_ERR(mvm,
 					"failed to update CQM thresholds\n");
 		}
-	}
-
-	if (changes & BSS_CHANGED_ARP_FILTER) {
-		IWL_DEBUG_MAC80211(mvm, "arp filter changed\n");
-		iwl_mvm_configure_bcast_filter(mvm);
 	}
 
 	if (changes & BSS_CHANGED_BANDWIDTH)
@@ -3129,6 +2956,69 @@ static void iwl_mvm_reset_cca_40mhz_workaround(struct iwl_mvm *mvm,
 	}
 }
 
+static void iwl_mvm_mei_host_associated(struct iwl_mvm *mvm,
+					struct ieee80211_vif *vif,
+					struct iwl_mvm_sta *mvm_sta)
+{
+#if IS_ENABLED(CONFIG_IWLMEI)
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mei_conn_info conn_info = {
+		.ssid_len = vif->bss_conf.ssid_len,
+		.channel = vif->bss_conf.chandef.chan->hw_value,
+	};
+
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		return;
+
+	if (!mvm->mei_registered)
+		return;
+
+	switch (mvm_sta->pairwise_cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
+		conn_info.pairwise_cipher = IWL_MEI_CIPHER_CCMP;
+		break;
+	case WLAN_CIPHER_SUITE_GCMP:
+		conn_info.pairwise_cipher = IWL_MEI_CIPHER_GCMP;
+		break;
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		conn_info.pairwise_cipher = IWL_MEI_CIPHER_GCMP_256;
+		break;
+	case 0:
+		/* open profile */
+		break;
+	default:
+		/* cipher not supported, don't send anything to iwlmei */
+		return;
+	}
+
+	switch (mvmvif->rekey_data.akm) {
+	case WLAN_AKM_SUITE_SAE & 0xff:
+		conn_info.auth_mode = IWL_MEI_AKM_AUTH_SAE;
+		break;
+	case WLAN_AKM_SUITE_PSK & 0xff:
+		conn_info.auth_mode = IWL_MEI_AKM_AUTH_RSNA_PSK;
+		break;
+	case WLAN_AKM_SUITE_8021X & 0xff:
+		conn_info.auth_mode = IWL_MEI_AKM_AUTH_RSNA;
+		break;
+	case 0:
+		/* open profile */
+		conn_info.auth_mode = IWL_MEI_AKM_AUTH_OPEN;
+		break;
+	default:
+		/* auth method / AKM not supported */
+		/* TODO: All the FT vesions of these? */
+		return;
+	}
+
+	memcpy(conn_info.ssid, vif->bss_conf.ssid, vif->bss_conf.ssid_len);
+	memcpy(conn_info.bssid,  vif->bss_conf.bssid, ETH_ALEN);
+
+	/* TODO: add support for collocated AP data */
+	iwl_mei_host_associated(&conn_info, NULL);
+#endif
+}
+
 static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta,
@@ -3273,12 +3163,18 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 			 * multicast data frames can be forwarded to the driver
 			 */
 			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
+			iwl_mvm_mei_host_associated(mvm, vif, mvm_sta);
 		}
 
 		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band,
 				     true);
 	} else if (old_state == IEEE80211_STA_AUTHORIZED &&
 		   new_state == IEEE80211_STA_ASSOC) {
+		/* once we move into assoc state, need to update rate scale to
+		 * disable using wide bandwidth
+		 */
+		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band,
+				     false);
 		if (!sta->tdls) {
 			/* Multicast data frames are no longer allowed */
 			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
@@ -3301,16 +3197,16 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		if (vif->type == NL80211_IFTYPE_AP) {
 			mvmvif->ap_assoc_sta_count--;
 			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
-		} else if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
-			/* remove session protection if still running */
+		} else if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
 			iwl_mvm_stop_session_protection(mvm, vif);
-		}
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_AUTH &&
 		   new_state == IEEE80211_STA_NONE) {
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_NONE &&
 		   new_state == IEEE80211_STA_NOTEXIST) {
+		if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
+			iwl_mvm_stop_session_protection(mvm, vif);
 		ret = iwl_mvm_rm_sta(mvm, vif, sta);
 		if (sta->tdls) {
 			iwl_mvm_recalc_tdls_state(mvm, vif, false);
@@ -3476,11 +3372,14 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_sta *mvmsta;
+	struct iwl_mvm_sta *mvmsta = NULL;
 	struct iwl_mvm_key_pn *ptk_pn;
 	int keyidx = key->keyidx;
 	int ret, i;
 	u8 key_offset;
+
+	if (sta)
+		mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
@@ -3582,7 +3481,7 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 		}
 
 		if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
-		    sta && iwl_mvm_has_new_rx_api(mvm) &&
+		    mvmsta && iwl_mvm_has_new_rx_api(mvm) &&
 		    key->flags & IEEE80211_KEY_FLAG_PAIRWISE &&
 		    (key->cipher == WLAN_CIPHER_SUITE_CCMP ||
 		     key->cipher == WLAN_CIPHER_SUITE_GCMP ||
@@ -3590,7 +3489,6 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 			struct ieee80211_key_seq seq;
 			int tid, q;
 
-			mvmsta = iwl_mvm_sta_from_mac80211(sta);
 			WARN_ON(rcu_access_pointer(mvmsta->ptk_pn[keyidx]));
 			ptk_pn = kzalloc(struct_size(ptk_pn, q,
 						     mvm->trans->num_rx_queues),
@@ -3616,6 +3514,9 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 			key_offset = key->hw_key_idx;
 		else
 			key_offset = STA_KEY_IDX_INVALID;
+
+		if (mvmsta && key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
+			mvmsta->pairwise_cipher = key->cipher;
 
 		IWL_DEBUG_MAC80211(mvm, "set hwcrypto key\n");
 		ret = iwl_mvm_set_sta_key(mvm, vif, sta, key, key_offset);
@@ -3657,12 +3558,11 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 			break;
 		}
 
-		if (sta && iwl_mvm_has_new_rx_api(mvm) &&
+		if (mvmsta && iwl_mvm_has_new_rx_api(mvm) &&
 		    key->flags & IEEE80211_KEY_FLAG_PAIRWISE &&
 		    (key->cipher == WLAN_CIPHER_SUITE_CCMP ||
 		     key->cipher == WLAN_CIPHER_SUITE_GCMP ||
 		     key->cipher == WLAN_CIPHER_SUITE_GCMP_256)) {
-			mvmsta = iwl_mvm_sta_from_mac80211(sta);
 			ptk_pn = rcu_dereference_protected(
 						mvmsta->ptk_pn[keyidx],
 						lockdep_is_held(&mvm->mutex));
@@ -5381,6 +5281,10 @@ static bool iwl_mvm_mac_can_aggregate(struct ieee80211_hw *hw,
 				      struct sk_buff *skb)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+		return iwl_mvm_tx_csum_bz(mvm, head, true) ==
+		       iwl_mvm_tx_csum_bz(mvm, skb, true);
 
 	/* For now don't aggregate IPv6 in AMSDU */
 	if (skb->protocol != htons(ETH_P_IP))

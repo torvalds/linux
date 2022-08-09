@@ -62,6 +62,38 @@ static u16 bcm_sf2_reg_rgmii_cntrl(struct bcm_sf2_priv *priv, int port)
 	return REG_SWITCH_STATUS;
 }
 
+static u16 bcm_sf2_reg_led_base(struct bcm_sf2_priv *priv, int port)
+{
+	switch (port) {
+	case 0:
+		return REG_LED_0_CNTRL;
+	case 1:
+		return REG_LED_1_CNTRL;
+	case 2:
+		return REG_LED_2_CNTRL;
+	}
+
+	switch (priv->type) {
+	case BCM4908_DEVICE_ID:
+		switch (port) {
+		case 3:
+			return REG_LED_3_CNTRL;
+		case 7:
+			return REG_LED_4_CNTRL;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
+	WARN_ONCE(1, "Unsupported port %d\n", port);
+
+	/* RO fallback reg */
+	return REG_SWITCH_STATUS;
+}
+
 /* Return the number of active ports, not counting the IMP (CPU) port */
 static unsigned int bcm_sf2_num_active_ports(struct dsa_switch *ds)
 {
@@ -187,9 +219,14 @@ static void bcm_sf2_gphy_enable_set(struct dsa_switch *ds, bool enable)
 
 	/* Use PHY-driven LED signaling */
 	if (!enable) {
-		reg = reg_readl(priv, REG_LED_CNTRL(0));
-		reg |= SPDLNK_SRC_SEL;
-		reg_writel(priv, reg, REG_LED_CNTRL(0));
+		u16 led_ctrl = bcm_sf2_reg_led_base(priv, 0);
+
+		if (priv->type == BCM7278_DEVICE_ID ||
+		    priv->type == BCM7445_DEVICE_ID) {
+			reg = reg_led_readl(priv, led_ctrl, 0);
+			reg |= LED_CNTRL_SPDLNK_SRC_SEL;
+			reg_led_writel(priv, reg, led_ctrl, 0);
+		}
 	}
 }
 
@@ -584,7 +621,7 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 	get_device(&priv->master_mii_bus->dev);
 	priv->master_mii_dn = dn;
 
-	priv->slave_mii_bus = devm_mdiobus_alloc(ds->dev);
+	priv->slave_mii_bus = mdiobus_alloc();
 	if (!priv->slave_mii_bus) {
 		of_node_put(dn);
 		return -ENOMEM;
@@ -644,8 +681,10 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 	}
 
 	err = mdiobus_register(priv->slave_mii_bus);
-	if (err && dn)
+	if (err && dn) {
+		mdiobus_free(priv->slave_mii_bus);
 		of_node_put(dn);
+	}
 
 	return err;
 }
@@ -653,6 +692,7 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 static void bcm_sf2_mdio_unregister(struct bcm_sf2_priv *priv)
 {
 	mdiobus_unregister(priv->slave_mii_bus);
+	mdiobus_free(priv->slave_mii_bus);
 	of_node_put(priv->master_mii_dn);
 }
 
@@ -1232,9 +1272,14 @@ static const u16 bcm_sf2_4908_reg_offsets[] = {
 	[REG_SPHY_CNTRL]	= 0x24,
 	[REG_CROSSBAR]		= 0xc8,
 	[REG_RGMII_11_CNTRL]	= 0x014c,
-	[REG_LED_0_CNTRL]	= 0x40,
-	[REG_LED_1_CNTRL]	= 0x4c,
-	[REG_LED_2_CNTRL]	= 0x58,
+	[REG_LED_0_CNTRL]		= 0x40,
+	[REG_LED_1_CNTRL]		= 0x4c,
+	[REG_LED_2_CNTRL]		= 0x58,
+	[REG_LED_3_CNTRL]		= 0x64,
+	[REG_LED_4_CNTRL]		= 0x88,
+	[REG_LED_5_CNTRL]		= 0xa0,
+	[REG_LED_AGGREGATE_CTRL]	= 0xb8,
+
 };
 
 static const struct bcm_sf2_of_data bcm_sf2_4908_data = {

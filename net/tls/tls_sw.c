@@ -1990,6 +1990,7 @@ recv_end:
 
 end:
 	release_sock(sk);
+	sk_defer_free_flush(sk);
 	if (psock)
 		sk_psock_put(sk, psock);
 	return copied ? : err;
@@ -2058,6 +2059,7 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 
 splice_read_end:
 	release_sock(sk);
+	sk_defer_free_flush(sk);
 	return copied ? : err;
 }
 
@@ -2328,10 +2330,6 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_prot_info *prot = &tls_ctx->prot_info;
 	struct tls_crypto_info *crypto_info;
-	struct tls12_crypto_info_aes_gcm_128 *gcm_128_info;
-	struct tls12_crypto_info_aes_gcm_256 *gcm_256_info;
-	struct tls12_crypto_info_aes_ccm_128 *ccm_128_info;
-	struct tls12_crypto_info_chacha20_poly1305 *chacha20_poly1305_info;
 	struct tls_sw_context_tx *sw_ctx_tx = NULL;
 	struct tls_sw_context_rx *sw_ctx_rx = NULL;
 	struct cipher_context *cctx;
@@ -2394,15 +2392,15 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 
 	switch (crypto_info->cipher_type) {
 	case TLS_CIPHER_AES_GCM_128: {
+		struct tls12_crypto_info_aes_gcm_128 *gcm_128_info;
+
+		gcm_128_info = (void *)crypto_info;
 		nonce_size = TLS_CIPHER_AES_GCM_128_IV_SIZE;
 		tag_size = TLS_CIPHER_AES_GCM_128_TAG_SIZE;
 		iv_size = TLS_CIPHER_AES_GCM_128_IV_SIZE;
-		iv = ((struct tls12_crypto_info_aes_gcm_128 *)crypto_info)->iv;
+		iv = gcm_128_info->iv;
 		rec_seq_size = TLS_CIPHER_AES_GCM_128_REC_SEQ_SIZE;
-		rec_seq =
-		 ((struct tls12_crypto_info_aes_gcm_128 *)crypto_info)->rec_seq;
-		gcm_128_info =
-			(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
+		rec_seq = gcm_128_info->rec_seq;
 		keysize = TLS_CIPHER_AES_GCM_128_KEY_SIZE;
 		key = gcm_128_info->key;
 		salt = gcm_128_info->salt;
@@ -2411,15 +2409,15 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		break;
 	}
 	case TLS_CIPHER_AES_GCM_256: {
+		struct tls12_crypto_info_aes_gcm_256 *gcm_256_info;
+
+		gcm_256_info = (void *)crypto_info;
 		nonce_size = TLS_CIPHER_AES_GCM_256_IV_SIZE;
 		tag_size = TLS_CIPHER_AES_GCM_256_TAG_SIZE;
 		iv_size = TLS_CIPHER_AES_GCM_256_IV_SIZE;
-		iv = ((struct tls12_crypto_info_aes_gcm_256 *)crypto_info)->iv;
+		iv = gcm_256_info->iv;
 		rec_seq_size = TLS_CIPHER_AES_GCM_256_REC_SEQ_SIZE;
-		rec_seq =
-		 ((struct tls12_crypto_info_aes_gcm_256 *)crypto_info)->rec_seq;
-		gcm_256_info =
-			(struct tls12_crypto_info_aes_gcm_256 *)crypto_info;
+		rec_seq = gcm_256_info->rec_seq;
 		keysize = TLS_CIPHER_AES_GCM_256_KEY_SIZE;
 		key = gcm_256_info->key;
 		salt = gcm_256_info->salt;
@@ -2428,15 +2426,15 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		break;
 	}
 	case TLS_CIPHER_AES_CCM_128: {
+		struct tls12_crypto_info_aes_ccm_128 *ccm_128_info;
+
+		ccm_128_info = (void *)crypto_info;
 		nonce_size = TLS_CIPHER_AES_CCM_128_IV_SIZE;
 		tag_size = TLS_CIPHER_AES_CCM_128_TAG_SIZE;
 		iv_size = TLS_CIPHER_AES_CCM_128_IV_SIZE;
-		iv = ((struct tls12_crypto_info_aes_ccm_128 *)crypto_info)->iv;
+		iv = ccm_128_info->iv;
 		rec_seq_size = TLS_CIPHER_AES_CCM_128_REC_SEQ_SIZE;
-		rec_seq =
-		((struct tls12_crypto_info_aes_ccm_128 *)crypto_info)->rec_seq;
-		ccm_128_info =
-		(struct tls12_crypto_info_aes_ccm_128 *)crypto_info;
+		rec_seq = ccm_128_info->rec_seq;
 		keysize = TLS_CIPHER_AES_CCM_128_KEY_SIZE;
 		key = ccm_128_info->key;
 		salt = ccm_128_info->salt;
@@ -2445,6 +2443,8 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		break;
 	}
 	case TLS_CIPHER_CHACHA20_POLY1305: {
+		struct tls12_crypto_info_chacha20_poly1305 *chacha20_poly1305_info;
+
 		chacha20_poly1305_info = (void *)crypto_info;
 		nonce_size = 0;
 		tag_size = TLS_CIPHER_CHACHA20_POLY1305_TAG_SIZE;

@@ -365,6 +365,31 @@ static unsigned int stm32_usart_receive_chars(struct uart_port *port, bool force
 	return size;
 }
 
+static void stm32_usart_tx_dma_terminate(struct stm32_port *stm32_port)
+{
+	dmaengine_terminate_async(stm32_port->tx_ch);
+	stm32_port->tx_dma_busy = false;
+}
+
+static bool stm32_usart_tx_dma_started(struct stm32_port *stm32_port)
+{
+	/*
+	 * We cannot use the function "dmaengine_tx_status" to know the
+	 * status of DMA. This function does not show if the "dma complete"
+	 * callback of the DMA transaction has been called. So we prefer
+	 * to use "tx_dma_busy" flag to prevent dual DMA transaction at the
+	 * same time.
+	 */
+	return stm32_port->tx_dma_busy;
+}
+
+static bool stm32_usart_tx_dma_enabled(struct stm32_port *stm32_port)
+{
+	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
+
+	return !!(readl_relaxed(stm32_port->port.membase + ofs->cr3) & USART_CR3_DMAT);
+}
+
 static void stm32_usart_tx_dma_complete(void *arg)
 {
 	struct uart_port *port = arg;
@@ -372,9 +397,8 @@ static void stm32_usart_tx_dma_complete(void *arg)
 	const struct stm32_usart_offsets *ofs = &stm32port->info->ofs;
 	unsigned long flags;
 
-	dmaengine_terminate_async(stm32port->tx_ch);
 	stm32_usart_clr_bits(port, ofs->cr3, USART_CR3_DMAT);
-	stm32port->tx_dma_busy = false;
+	stm32_usart_tx_dma_terminate(stm32port);
 
 	/* Let's see if we have pending data to send */
 	spin_lock_irqsave(&port->lock, flags);
@@ -428,10 +452,8 @@ static void stm32_usart_transmit_chars_pio(struct uart_port *port)
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 	struct circ_buf *xmit = &port->state->xmit;
 
-	if (stm32_port->tx_dma_busy) {
+	if (stm32_usart_tx_dma_enabled(stm32_port))
 		stm32_usart_clr_bits(port, ofs->cr3, USART_CR3_DMAT);
-		stm32_port->tx_dma_busy = false;
-	}
 
 	while (!uart_circ_empty(xmit)) {
 		/* Check that TDR is empty before filling FIFO */
@@ -455,12 +477,13 @@ static void stm32_usart_transmit_chars_dma(struct uart_port *port)
 	const struct stm32_usart_offsets *ofs = &stm32port->info->ofs;
 	struct circ_buf *xmit = &port->state->xmit;
 	struct dma_async_tx_descriptor *desc = NULL;
-	unsigned int count, i;
+	unsigned int count;
 
-	if (stm32port->tx_dma_busy)
+	if (stm32_usart_tx_dma_started(stm32port)) {
+		if (!stm32_usart_tx_dma_enabled(stm32port))
+			stm32_usart_set_bits(port, ofs->cr3, USART_CR3_DMAT);
 		return;
-
-	stm32port->tx_dma_busy = true;
+	}
 
 	count = uart_circ_chars_pending(xmit);
 
@@ -491,13 +514,21 @@ static void stm32_usart_transmit_chars_dma(struct uart_port *port)
 	if (!desc)
 		goto fallback_err;
 
+	/*
+	 * Set "tx_dma_busy" flag. This flag will be released when
+	 * dmaengine_terminate_async will be called. This flag helps
+	 * transmit_chars_dma not to start another DMA transaction
+	 * if the callback of the previous is not yet called.
+	 */
+	stm32port->tx_dma_busy = true;
+
 	desc->callback = stm32_usart_tx_dma_complete;
 	desc->callback_param = port;
 
 	/* Push current DMA TX transaction in the pending queue */
 	if (dma_submit_error(dmaengine_submit(desc))) {
 		/* dma no yet started, safe to free resources */
-		dmaengine_terminate_async(stm32port->tx_ch);
+		stm32_usart_tx_dma_terminate(stm32port);
 		goto fallback_err;
 	}
 
@@ -511,8 +542,7 @@ static void stm32_usart_transmit_chars_dma(struct uart_port *port)
 	return;
 
 fallback_err:
-	for (i = count; i > 0; i--)
-		stm32_usart_transmit_chars_pio(port);
+	stm32_usart_transmit_chars_pio(port);
 }
 
 static void stm32_usart_transmit_chars(struct uart_port *port)
@@ -520,14 +550,27 @@ static void stm32_usart_transmit_chars(struct uart_port *port)
 	struct stm32_port *stm32_port = to_stm32_port(port);
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 	struct circ_buf *xmit = &port->state->xmit;
+	u32 isr;
+	int ret;
 
 	if (port->x_char) {
-		if (stm32_port->tx_dma_busy)
+		if (stm32_usart_tx_dma_started(stm32_port) &&
+		    stm32_usart_tx_dma_enabled(stm32_port))
 			stm32_usart_clr_bits(port, ofs->cr3, USART_CR3_DMAT);
+
+		/* Check that TDR is empty before filling FIFO */
+		ret =
+		readl_relaxed_poll_timeout_atomic(port->membase + ofs->isr,
+						  isr,
+						  (isr & USART_SR_TXE),
+						  10, 1000);
+		if (ret)
+			dev_warn(port->dev, "1 character may be erased\n");
+
 		writel_relaxed(port->x_char, port->membase + ofs->tdr);
 		port->x_char = 0;
 		port->icount.tx++;
-		if (stm32_port->tx_dma_busy)
+		if (stm32_usart_tx_dma_started(stm32_port))
 			stm32_usart_set_bits(port, ofs->cr3, USART_CR3_DMAT);
 		return;
 	}
@@ -675,8 +718,11 @@ static void stm32_usart_stop_tx(struct uart_port *port)
 {
 	struct stm32_port *stm32_port = to_stm32_port(port);
 	struct serial_rs485 *rs485conf = &port->rs485;
+	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 
 	stm32_usart_tx_interrupt_disable(port);
+	if (stm32_usart_tx_dma_started(stm32_port) && stm32_usart_tx_dma_enabled(stm32_port))
+		stm32_usart_clr_bits(port, ofs->cr3, USART_CR3_DMAT);
 
 	if (rs485conf->flags & SER_RS485_ENABLED) {
 		if (rs485conf->flags & SER_RS485_RTS_ON_SEND) {
@@ -696,7 +742,7 @@ static void stm32_usart_start_tx(struct uart_port *port)
 	struct serial_rs485 *rs485conf = &port->rs485;
 	struct circ_buf *xmit = &port->state->xmit;
 
-	if (uart_circ_empty(xmit))
+	if (uart_circ_empty(xmit) && !port->x_char)
 		return;
 
 	if (rs485conf->flags & SER_RS485_ENABLED) {
@@ -719,9 +765,8 @@ static void stm32_usart_flush_buffer(struct uart_port *port)
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 
 	if (stm32_port->tx_ch) {
-		dmaengine_terminate_async(stm32_port->tx_ch);
+		stm32_usart_tx_dma_terminate(stm32_port);
 		stm32_usart_clr_bits(port, ofs->cr3, USART_CR3_DMAT);
-		stm32_port->tx_dma_busy = false;
 	}
 }
 
@@ -882,6 +927,12 @@ static void stm32_usart_shutdown(struct uart_port *port)
 	const struct stm32_usart_config *cfg = &stm32_port->info->cfg;
 	u32 val, isr;
 	int ret;
+
+	if (stm32_usart_tx_dma_enabled(stm32_port))
+		stm32_usart_clr_bits(port, ofs->cr3, USART_CR3_DMAT);
+
+	if (stm32_usart_tx_dma_started(stm32_port))
+		stm32_usart_tx_dma_terminate(stm32_port);
 
 	/* Disable modem control interrupts */
 	stm32_usart_disable_ms(port);
@@ -1419,8 +1470,6 @@ static int stm32_usart_of_dma_tx_probe(struct stm32_port *stm32port,
 	struct dma_slave_config config;
 	int ret;
 
-	stm32port->tx_dma_busy = false;
-
 	stm32port->tx_buf = dma_alloc_coherent(dev, TX_BUF_L,
 					       &stm32port->tx_dma_buf,
 					       GFP_KERNEL);
@@ -1570,7 +1619,6 @@ static int stm32_usart_serial_remove(struct platform_device *pdev)
 	writel_relaxed(cr3, port->membase + ofs->cr3);
 
 	if (stm32_port->tx_ch) {
-		dmaengine_terminate_async(stm32_port->tx_ch);
 		stm32_usart_of_dma_tx_remove(stm32_port, pdev);
 		dma_release_channel(stm32_port->tx_ch);
 	}

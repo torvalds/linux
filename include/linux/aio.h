@@ -20,8 +20,4 @@ static inline void kiocb_set_cancel_fn(struct kiocb *req,
 				       kiocb_cancel_fn *cancel) { }
 #endif /* CONFIG_AIO */
 
-/* for sysctl: */
-extern unsigned long aio_nr;
-extern unsigned long aio_max_nr;
-
 #endif /* __LINUX__AIO_H */

@@ -4,7 +4,7 @@ menu "PCI controller drivers"
 	depends on PCI
 
 config PCI_MVEBU
-	bool "Marvell EBU PCIe controller"
+	tristate "Marvell EBU PCIe controller"
 	depends on ARCH_MVEBU || ARCH_DOVE || COMPILE_TEST
 	depends on MVEBU_MBUS
 	depends on ARM
@@ -274,14 +274,14 @@ config PCIE_BRCMSTB
 		   BMIPS_GENERIC || COMPILE_TEST
 	depends on OF
 	depends on PCI_MSI_IRQ_DOMAIN
-	default ARCH_BRCMSTB
+	default ARCH_BRCMSTB || BMIPS_GENERIC
 	help
 	  Say Y here to enable PCIe host controller support for
 	  Broadcom STB based SoCs, like the Raspberry Pi 4.
 
 config PCI_HYPERV_INTERFACE
 	tristate "Hyper-V PCI Interface"
-	depends on X86 && HYPERV && PCI_MSI && PCI_MSI_IRQ_DOMAIN && X86_64
+	depends on ((X86 && X86_64) || ARM64) && HYPERV && PCI_MSI && PCI_MSI_IRQ_DOMAIN
 	help
 	  The Hyper-V PCI Interface is a helper driver allows other drivers to
 	  have a common interface with the Hyper-V PCI frontend driver.
@@ -332,8 +332,8 @@ config PCIE_APPLE
 	  If unsure, say Y if you have an Apple Silicon system.
 
 config PCIE_MT7621
-	bool "MediaTek MT7621 PCIe Controller"
-	depends on SOC_MT7621 || (MIPS && COMPILE_TEST)
+	tristate "MediaTek MT7621 PCIe Controller"
+	depends on SOC_MT7621 || COMPILE_TEST
 	select PHY_MT7621_PCI
 	default SOC_MT7621
 	help

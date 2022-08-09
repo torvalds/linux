@@ -498,6 +498,14 @@ config SERIAL_8250_MID
 	  present on the UART found on Intel Medfield SOC and various other
 	  Intel platforms.
 
+config SERIAL_8250_PERICOM
+	tristate "Support for Pericom and Acces I/O serial ports"
+	default SERIAL_8250
+	depends on SERIAL_8250 && PCI
+	help
+	  Selecting this option will enable handling of the extra features
+	  present on the Pericom and Acces I/O UARTs.
+
 config SERIAL_8250_PXA
 	tristate "PXA serial port support"
 	depends on SERIAL_8250

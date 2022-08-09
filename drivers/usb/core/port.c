@@ -9,6 +9,7 @@
 
 #include <linux/slab.h>
 #include <linux/pm_qos.h>
+#include <linux/component.h>
 
 #include "hub.h"
 
@@ -528,6 +529,32 @@ static void find_and_link_peer(struct usb_hub *hub, int port1)
 		link_peers_report(port_dev, peer);
 }
 
+static int connector_bind(struct device *dev, struct device *connector, void *data)
+{
+	int ret;
+
+	ret = sysfs_create_link(&dev->kobj, &connector->kobj, "connector");
+	if (ret)
+		return ret;
+
+	ret = sysfs_create_link(&connector->kobj, &dev->kobj, dev_name(dev));
+	if (ret)
+		sysfs_remove_link(&dev->kobj, "connector");
+
+	return ret;
+}
+
+static void connector_unbind(struct device *dev, struct device *connector, void *data)
+{
+	sysfs_remove_link(&connector->kobj, dev_name(dev));
+	sysfs_remove_link(&dev->kobj, "connector");
+}
+
+static const struct component_ops connector_ops = {
+	.bind = connector_bind,
+	.unbind = connector_unbind,
+};
+
 int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 {
 	struct usb_port *port_dev;
@@ -571,6 +598,13 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 	retval = dev_pm_qos_add_request(&port_dev->dev, port_dev->req,
 			DEV_PM_QOS_FLAGS, PM_QOS_FLAG_NO_POWER_OFF);
 	if (retval < 0) {
+		device_unregister(&port_dev->dev);
+		return retval;
+	}
+
+	retval = component_add(&port_dev->dev, &connector_ops);
+	if (retval) {
+		dev_warn(&port_dev->dev, "failed to add component\n");
 		device_unregister(&port_dev->dev);
 		return retval;
 	}
@@ -619,5 +653,6 @@ void usb_hub_remove_port_device(struct usb_hub *hub, int port1)
 	peer = port_dev->peer;
 	if (peer)
 		unlink_peers(port_dev, peer);
+	component_del(&port_dev->dev, &connector_ops);
 	device_unregister(&port_dev->dev);
 }

@@ -723,6 +723,8 @@ static inline bool nfp_fl_is_netdev_to_offload(struct net_device *netdev)
 		return true;
 	if (netif_is_gretap(netdev))
 		return true;
+	if (netif_is_ip6gretap(netdev))
+		return true;
 
 	return false;
 }

@@ -1299,21 +1299,6 @@ static struct packet_type arp_packet_type __read_mostly = {
 	.func =	arp_rcv,
 };
 
-static int arp_proc_init(void);
-
-void __init arp_init(void)
-{
-	neigh_table_init(NEIGH_ARP_TABLE, &arp_tbl);
-
-	dev_add_pack(&arp_packet_type);
-	arp_proc_init();
-#ifdef CONFIG_SYSCTL
-	neigh_sysctl_register(NULL, &arp_tbl.parms, NULL);
-#endif
-	register_netdevice_notifier(&arp_netdev_notifier);
-}
-
-#ifdef CONFIG_PROC_FS
 #if IS_ENABLED(CONFIG_AX25)
 
 /* ------------------------------------------------------------------------ */
@@ -1451,16 +1436,14 @@ static struct pernet_operations arp_net_ops = {
 	.exit = arp_net_exit,
 };
 
-static int __init arp_proc_init(void)
+void __init arp_init(void)
 {
-	return register_pernet_subsys(&arp_net_ops);
+	neigh_table_init(NEIGH_ARP_TABLE, &arp_tbl);
+
+	dev_add_pack(&arp_packet_type);
+	register_pernet_subsys(&arp_net_ops);
+#ifdef CONFIG_SYSCTL
+	neigh_sysctl_register(NULL, &arp_tbl.parms, NULL);
+#endif
+	register_netdevice_notifier(&arp_netdev_notifier);
 }
-
-#else /* CONFIG_PROC_FS */
-
-static int __init arp_proc_init(void)
-{
-	return 0;
-}
-
-#endif /* CONFIG_PROC_FS */

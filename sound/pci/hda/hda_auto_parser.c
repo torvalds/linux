@@ -92,14 +92,10 @@ static int compare_input_type(const void *ap, const void *bp)
  */
 static void reorder_outputs(unsigned int nums, hda_nid_t *pins)
 {
-	hda_nid_t nid;
-
 	switch (nums) {
 	case 3:
 	case 4:
-		nid = pins[1];
-		pins[1] = pins[2];
-		pins[2] = nid;
+		swap(pins[1], pins[2]);
 		break;
 	}
 }
@@ -985,7 +981,7 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 	int id = HDA_FIXUP_ID_NOT_SET;
 	const char *name = NULL;
 	const char *type = NULL;
-	int vendor, device;
+	unsigned int vendor, device;
 
 	if (codec->fixup_id != HDA_FIXUP_ID_NOT_SET)
 		return;

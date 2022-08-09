@@ -50,8 +50,8 @@
 #define IND_REG(index) \
 	(enc10->link_regs->index)
 
-void dcn201_link_encoder_get_max_link_cap(struct link_encoder *enc,
-	struct dc_link_settings *link_settings)
+static void dcn201_link_encoder_get_max_link_cap(struct link_encoder *enc,
+						 struct dc_link_settings *link_settings)
 {
 	uint32_t value1, value2;
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
@@ -66,7 +66,7 @@ void dcn201_link_encoder_get_max_link_cap(struct link_encoder *enc,
 	}
 }
 
-bool dcn201_link_encoder_is_in_alt_mode(struct link_encoder *enc)
+static bool dcn201_link_encoder_is_in_alt_mode(struct link_encoder *enc)
 {
 	uint32_t value;
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);

@@ -55,16 +55,13 @@ EXPORT_SYMBOL_GPL(snd_soc_acpi_find_machine);
 static acpi_status snd_soc_acpi_find_package(acpi_handle handle, u32 level,
 					     void *context, void **ret)
 {
-	struct acpi_device *adev;
+	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 	acpi_status status;
 	struct snd_soc_acpi_package_context *pkg_ctx = context;
 
 	pkg_ctx->data_valid = false;
 
-	if (acpi_bus_get_device(handle, &adev))
-		return AE_OK;
-
-	if (adev->status.present && adev->status.functional) {
+	if (adev && adev->status.present && adev->status.functional) {
 		struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
 		union acpi_object  *myobj = NULL;
 

@@ -2154,10 +2154,10 @@ static void pnv_msi_compose_msg(struct irq_data *d, struct msi_msg *msg)
 	int rc;
 
 	rc = __pnv_pci_ioda_msi_setup(phb, pdev, d->hwirq,
-				      entry->msi_attrib.is_64, msg);
+				      entry->pci.msi_attrib.is_64, msg);
 	if (rc)
 		dev_err(&pdev->dev, "Failed to setup %s-bit MSI #%ld : %d\n",
-			entry->msi_attrib.is_64 ? "64" : "32", d->hwirq, rc);
+			entry->pci.msi_attrib.is_64 ? "64" : "32", d->hwirq, rc);
 }
 
 /*
@@ -2265,7 +2265,7 @@ static const struct irq_domain_ops pnv_irq_domain_ops = {
 	.free   = pnv_irq_domain_free,
 };
 
-static int pnv_msi_allocate_domains(struct pci_controller *hose, unsigned int count)
+static int __init pnv_msi_allocate_domains(struct pci_controller *hose, unsigned int count)
 {
 	struct pnv_phb *phb = hose->private_data;
 	struct irq_domain *parent = irq_get_default_host();
@@ -2298,7 +2298,7 @@ static int pnv_msi_allocate_domains(struct pci_controller *hose, unsigned int co
 	return 0;
 }
 
-static void pnv_pci_init_ioda_msis(struct pnv_phb *phb)
+static void __init pnv_pci_init_ioda_msis(struct pnv_phb *phb)
 {
 	unsigned int count;
 	const __be32 *prop = of_get_property(phb->hose->dn,

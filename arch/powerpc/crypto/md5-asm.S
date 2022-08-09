@@ -38,15 +38,11 @@
 
 #define INITIALIZE \
 	PPC_STLU r1,-INT_FRAME_SIZE(r1); \
-	SAVE_8GPRS(14, r1);		/* push registers onto stack	*/ \
-	SAVE_4GPRS(22, r1);						   \
-	SAVE_GPR(26, r1)
+	SAVE_GPRS(14, 26, r1)		/* push registers onto stack	*/
 
 #define FINALIZE \
-	REST_8GPRS(14, r1);		/* pop registers from stack	*/ \
-	REST_4GPRS(22, r1);						   \
-	REST_GPR(26, r1);						   \
-	addi	r1,r1,INT_FRAME_SIZE;
+	REST_GPRS(14, 26, r1);		/* pop registers from stack	*/ \
+	addi	r1,r1,INT_FRAME_SIZE
 
 #ifdef __BIG_ENDIAN__
 #define LOAD_DATA(reg, off) \

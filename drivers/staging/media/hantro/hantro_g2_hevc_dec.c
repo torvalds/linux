@@ -8,20 +8,6 @@
 #include "hantro_hw.h"
 #include "hantro_g2_regs.h"
 
-#define HEVC_DEC_MODE	0xC
-
-#define BUS_WIDTH_32		0
-#define BUS_WIDTH_64		1
-#define BUS_WIDTH_128		2
-#define BUS_WIDTH_256		3
-
-static inline void hantro_write_addr(struct hantro_dev *vpu,
-				     unsigned long offset,
-				     dma_addr_t addr)
-{
-	vdpu_write(vpu, addr & 0xffffffff, offset);
-}
-
 static void prepare_tile_info_buffer(struct hantro_ctx *ctx)
 {
 	struct hantro_dev *vpu = ctx->dev;
@@ -368,6 +354,8 @@ static int set_ref(struct hantro_ctx *ctx)
 	const struct v4l2_hevc_dpb_entry *dpb = decode_params->dpb;
 	dma_addr_t luma_addr, chroma_addr, mv_addr = 0;
 	struct hantro_dev *vpu = ctx->dev;
+	struct vb2_v4l2_buffer *vb2_dst;
+	struct hantro_decoded_buffer *dst;
 	size_t cr_offset = hantro_hevc_chroma_offset(sps);
 	size_t mv_offset = hantro_hevc_motion_vectors_offset(sps);
 	u32 max_ref_frames;
@@ -448,32 +436,37 @@ static int set_ref(struct hantro_ctx *ctx)
 		if (dpb[i].rps == V4L2_HEVC_DPB_ENTRY_RPS_LT_CURR)
 			dpb_longterm_e |= BIT(V4L2_HEVC_DPB_ENTRIES_NUM_MAX - 1 - i);
 
-		hantro_write_addr(vpu, G2_REG_ADDR_REF(i), luma_addr);
-		hantro_write_addr(vpu, G2_REG_CHR_REF(i), chroma_addr);
-		hantro_write_addr(vpu, G2_REG_DMV_REF(i), mv_addr);
+		hantro_write_addr(vpu, G2_REF_LUMA_ADDR(i), luma_addr);
+		hantro_write_addr(vpu, G2_REF_CHROMA_ADDR(i), chroma_addr);
+		hantro_write_addr(vpu, G2_REF_MV_ADDR(i), mv_addr);
 	}
 
-	luma_addr = hantro_hevc_get_ref_buf(ctx, decode_params->pic_order_cnt_val);
+	vb2_dst = hantro_get_dst_buf(ctx);
+	dst = vb2_to_hantro_decoded_buf(&vb2_dst->vb2_buf);
+	luma_addr = hantro_get_dec_buf_addr(ctx, &dst->base.vb.vb2_buf);
 	if (!luma_addr)
 		return -ENOMEM;
+
+	if (hantro_hevc_add_ref_buf(ctx, decode_params->pic_order_cnt_val, luma_addr))
+		return -EINVAL;
 
 	chroma_addr = luma_addr + cr_offset;
 	mv_addr = luma_addr + mv_offset;
 
-	hantro_write_addr(vpu, G2_REG_ADDR_REF(i), luma_addr);
-	hantro_write_addr(vpu, G2_REG_CHR_REF(i), chroma_addr);
-	hantro_write_addr(vpu, G2_REG_DMV_REF(i++), mv_addr);
+	hantro_write_addr(vpu, G2_REF_LUMA_ADDR(i), luma_addr);
+	hantro_write_addr(vpu, G2_REF_CHROMA_ADDR(i), chroma_addr);
+	hantro_write_addr(vpu, G2_REF_MV_ADDR(i++), mv_addr);
 
-	hantro_write_addr(vpu, G2_ADDR_DST, luma_addr);
-	hantro_write_addr(vpu, G2_ADDR_DST_CHR, chroma_addr);
-	hantro_write_addr(vpu, G2_ADDR_DST_MV, mv_addr);
+	hantro_write_addr(vpu, G2_OUT_LUMA_ADDR, luma_addr);
+	hantro_write_addr(vpu, G2_OUT_CHROMA_ADDR, chroma_addr);
+	hantro_write_addr(vpu, G2_OUT_MV_ADDR, mv_addr);
 
 	hantro_hevc_ref_remove_unused(ctx);
 
 	for (; i < V4L2_HEVC_DPB_ENTRIES_NUM_MAX; i++) {
-		hantro_write_addr(vpu, G2_REG_ADDR_REF(i), 0);
-		hantro_write_addr(vpu, G2_REG_CHR_REF(i), 0);
-		hantro_write_addr(vpu, G2_REG_DMV_REF(i), 0);
+		hantro_write_addr(vpu, G2_REF_LUMA_ADDR(i), 0);
+		hantro_write_addr(vpu, G2_REF_CHROMA_ADDR(i), 0);
+		hantro_write_addr(vpu, G2_REF_MV_ADDR(i), 0);
 	}
 
 	hantro_reg_write(vpu, &g2_refer_lterm_e, dpb_longterm_e);
@@ -483,37 +476,28 @@ static int set_ref(struct hantro_ctx *ctx)
 
 static void set_buffers(struct hantro_ctx *ctx)
 {
-	struct vb2_v4l2_buffer *src_buf, *dst_buf;
+	struct vb2_v4l2_buffer *src_buf;
 	struct hantro_dev *vpu = ctx->dev;
-	const struct hantro_hevc_dec_ctrls *ctrls = &ctx->hevc_dec.ctrls;
-	const struct v4l2_ctrl_hevc_sps *sps = ctrls->sps;
-	size_t cr_offset = hantro_hevc_chroma_offset(sps);
-	dma_addr_t src_dma, dst_dma;
+	dma_addr_t src_dma;
 	u32 src_len, src_buf_len;
 
 	src_buf = hantro_get_src_buf(ctx);
-	dst_buf = hantro_get_dst_buf(ctx);
 
 	/* Source (stream) buffer. */
 	src_dma = vb2_dma_contig_plane_dma_addr(&src_buf->vb2_buf, 0);
 	src_len = vb2_get_plane_payload(&src_buf->vb2_buf, 0);
 	src_buf_len = vb2_plane_size(&src_buf->vb2_buf, 0);
 
-	hantro_write_addr(vpu, G2_ADDR_STR, src_dma);
+	hantro_write_addr(vpu, G2_STREAM_ADDR, src_dma);
 	hantro_reg_write(vpu, &g2_stream_len, src_len);
 	hantro_reg_write(vpu, &g2_strm_buffer_len, src_buf_len);
 	hantro_reg_write(vpu, &g2_strm_start_offset, 0);
 	hantro_reg_write(vpu, &g2_write_mvs_e, 1);
 
-	/* Destination (decoded frame) buffer. */
-	dst_dma = hantro_get_dec_buf_addr(ctx, &dst_buf->vb2_buf);
-
-	hantro_write_addr(vpu, G2_RASTER_SCAN, dst_dma);
-	hantro_write_addr(vpu, G2_RASTER_SCAN_CHR, dst_dma + cr_offset);
-	hantro_write_addr(vpu, G2_ADDR_TILE_SIZE, ctx->hevc_dec.tile_sizes.dma);
-	hantro_write_addr(vpu, G2_TILE_FILTER, ctx->hevc_dec.tile_filter.dma);
-	hantro_write_addr(vpu, G2_TILE_SAO, ctx->hevc_dec.tile_sao.dma);
-	hantro_write_addr(vpu, G2_TILE_BSD, ctx->hevc_dec.tile_bsd.dma);
+	hantro_write_addr(vpu, G2_TILE_SIZES_ADDR, ctx->hevc_dec.tile_sizes.dma);
+	hantro_write_addr(vpu, G2_TILE_FILTER_ADDR, ctx->hevc_dec.tile_filter.dma);
+	hantro_write_addr(vpu, G2_TILE_SAO_ADDR, ctx->hevc_dec.tile_sao.dma);
+	hantro_write_addr(vpu, G2_TILE_BSD_ADDR, ctx->hevc_dec.tile_bsd.dma);
 }
 
 static void prepare_scaling_list_buffer(struct hantro_ctx *ctx)
@@ -563,24 +547,7 @@ static void prepare_scaling_list_buffer(struct hantro_ctx *ctx)
 			for (k = 0; k < 8; k++)
 				*p++ = sc->scaling_list_32x32[i][8 * k + j];
 
-	hantro_write_addr(vpu, HEVC_SCALING_LIST, ctx->hevc_dec.scaling_lists.dma);
-}
-
-static void hantro_g2_check_idle(struct hantro_dev *vpu)
-{
-	int i;
-
-	for (i = 0; i < 3; i++) {
-		u32 status;
-
-		/* Make sure the VPU is idle */
-		status = vdpu_read(vpu, G2_REG_INTERRUPT);
-		if (status & G2_REG_INTERRUPT_DEC_E) {
-			dev_warn(vpu->dev, "device still running, aborting");
-			status |= G2_REG_INTERRUPT_DEC_ABORT_E | G2_REG_INTERRUPT_DEC_IRQ_DIS;
-			vdpu_write(vpu, status, G2_REG_INTERRUPT);
-		}
-	}
+	hantro_write_addr(vpu, G2_HEVC_SCALING_LIST_ADDR, ctx->hevc_dec.scaling_lists.dma);
 }
 
 int hantro_g2_hevc_dec_run(struct hantro_ctx *ctx)
@@ -618,9 +585,6 @@ int hantro_g2_hevc_dec_run(struct hantro_ctx *ctx)
 
 	/* Don't compress buffers */
 	hantro_reg_write(vpu, &g2_ref_compress_bypass, 1);
-
-	/* use NV12 as output format */
-	hantro_reg_write(vpu, &g2_out_rs_e, 1);
 
 	/* Bus width and max burst */
 	hantro_reg_write(vpu, &g2_buswidth, BUS_WIDTH_128);

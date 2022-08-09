@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2019-2021 Intel Corporation
+ * Copyright (C) 2019-2022 Intel Corporation
  */
 #include <linux/uuid.h>
 #include "iwl-drv.h"
@@ -242,17 +242,16 @@ found:
 IWL_EXPORT_SYMBOL(iwl_acpi_get_wifi_pkg_range);
 
 int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
-		     __le32 *block_list_array,
-		     int *block_list_size)
+		     struct iwl_tas_config_cmd_v3 *cmd)
 {
 	union acpi_object *wifi_pkg, *data;
-	int ret, tbl_rev, i;
-	bool enabled;
+	int ret, tbl_rev, i, block_list_size, enabled;
 
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_WTAS_METHOD);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
+	/* try to read wtas table revision 1 or revision 0*/
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
 					 ACPI_WTAS_WIFI_DATA_SIZE,
 					 &tbl_rev);
@@ -261,40 +260,54 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 		goto out_free;
 	}
 
-	if (wifi_pkg->package.elements[0].type != ACPI_TYPE_INTEGER ||
-	    tbl_rev != 0) {
+	if (tbl_rev == 1 && wifi_pkg->package.elements[1].type ==
+		ACPI_TYPE_INTEGER) {
+		u32 tas_selection =
+			(u32)wifi_pkg->package.elements[1].integer.value;
+		u16 override_iec =
+			(tas_selection & ACPI_WTAS_OVERRIDE_IEC_MSK) >> ACPI_WTAS_OVERRIDE_IEC_POS;
+		u16 enabled_iec = (tas_selection & ACPI_WTAS_ENABLE_IEC_MSK) >>
+			ACPI_WTAS_ENABLE_IEC_POS;
+
+		enabled = tas_selection & ACPI_WTAS_ENABLED_MSK;
+		cmd->override_tas_iec = cpu_to_le16(override_iec);
+		cmd->enable_tas_iec = cpu_to_le16(enabled_iec);
+
+	} else if (tbl_rev == 0 &&
+		wifi_pkg->package.elements[1].type == ACPI_TYPE_INTEGER) {
+		enabled = !!wifi_pkg->package.elements[1].integer.value;
+	} else {
 		ret = -EINVAL;
 		goto out_free;
 	}
 
-	enabled = !!wifi_pkg->package.elements[1].integer.value;
-
 	if (!enabled) {
-		*block_list_size = -1;
 		IWL_DEBUG_RADIO(fwrt, "TAS not enabled\n");
 		ret = 0;
 		goto out_free;
 	}
 
+	IWL_DEBUG_RADIO(fwrt, "Reading TAS table revision %d\n", tbl_rev);
 	if (wifi_pkg->package.elements[2].type != ACPI_TYPE_INTEGER ||
 	    wifi_pkg->package.elements[2].integer.value >
 	    APCI_WTAS_BLACK_LIST_MAX) {
 		IWL_DEBUG_RADIO(fwrt, "TAS invalid array size %llu\n",
-				wifi_pkg->package.elements[1].integer.value);
+				wifi_pkg->package.elements[2].integer.value);
 		ret = -EINVAL;
 		goto out_free;
 	}
-	*block_list_size = wifi_pkg->package.elements[2].integer.value;
+	block_list_size = wifi_pkg->package.elements[2].integer.value;
+	cmd->block_list_size = cpu_to_le32(block_list_size);
 
-	IWL_DEBUG_RADIO(fwrt, "TAS array size %d\n", *block_list_size);
-	if (*block_list_size > APCI_WTAS_BLACK_LIST_MAX) {
+	IWL_DEBUG_RADIO(fwrt, "TAS array size %u\n", block_list_size);
+	if (block_list_size > APCI_WTAS_BLACK_LIST_MAX) {
 		IWL_DEBUG_RADIO(fwrt, "TAS invalid array size value %u\n",
-				*block_list_size);
+				block_list_size);
 		ret = -EINVAL;
 		goto out_free;
 	}
 
-	for (i = 0; i < *block_list_size; i++) {
+	for (i = 0; i < block_list_size; i++) {
 		u32 country;
 
 		if (wifi_pkg->package.elements[3 + i].type !=
@@ -306,11 +319,11 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 		}
 
 		country = wifi_pkg->package.elements[3 + i].integer.value;
-		block_list_array[i] = cpu_to_le32(country);
+		cmd->block_list_array[i] = cpu_to_le32(country);
 		IWL_DEBUG_RADIO(fwrt, "TAS block list country %d\n", country);
 	}
 
-	ret = 0;
+	ret = 1;
 out_free:
 	kfree(data);
 	return ret;
@@ -789,7 +802,7 @@ int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
 				 * looking up in ACPI
 				 */
 				if (wifi_pkg->package.count !=
-				    min_size + profile_size * num_profiles) {
+				    hdr_size + profile_size * num_profiles) {
 					ret = -EINVAL;
 					goto out_free;
 				}
@@ -852,6 +865,8 @@ read_table:
 		}
 	}
 
+	fwrt->geo_num_profiles = num_profiles;
+	fwrt->geo_enabled = true;
 	ret = 0;
 out_free:
 	kfree(data);
@@ -873,10 +888,11 @@ bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
 	 * only one using version 36, so skip this version entirely.
 	 */
 	return IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) >= 38 ||
-	       IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) == 17 ||
-	       (IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) == 29 &&
-		((fwrt->trans->hw_rev & CSR_HW_REV_TYPE_MSK) ==
-		 CSR_HW_REV_TYPE_7265D));
+		(IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) == 17 &&
+		 fwrt->trans->hw_rev != CSR_HW_REV_TYPE_3160) ||
+		(IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) == 29 &&
+		 ((fwrt->trans->hw_rev & CSR_HW_REV_TYPE_MSK) ==
+		  CSR_HW_REV_TYPE_7265D));
 }
 IWL_EXPORT_SYMBOL(iwl_sar_geo_support);
 

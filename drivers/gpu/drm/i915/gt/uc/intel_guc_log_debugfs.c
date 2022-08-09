@@ -10,28 +10,80 @@
 #include "intel_guc.h"
 #include "intel_guc_log.h"
 #include "intel_guc_log_debugfs.h"
+#include "intel_uc.h"
+
+static u32 obj_to_guc_log_dump_size(struct drm_i915_gem_object *obj)
+{
+	u32 size;
+
+	if (!obj)
+		return PAGE_SIZE;
+
+	/* "0x%08x 0x%08x 0x%08x 0x%08x\n" => 16 bytes -> 44 chars => x2.75 */
+	size = ((obj->base.size * 11) + 3) / 4;
+
+	/* Add padding for final blank line, any extra header info, etc. */
+	size = PAGE_ALIGN(size + PAGE_SIZE);
+
+	return size;
+}
+
+static u32 guc_log_dump_size(struct intel_guc_log *log)
+{
+	struct intel_guc *guc = log_to_guc(log);
+
+	if (!intel_guc_is_supported(guc))
+		return PAGE_SIZE;
+
+	if (!log->vma)
+		return PAGE_SIZE;
+
+	return obj_to_guc_log_dump_size(log->vma->obj);
+}
 
 static int guc_log_dump_show(struct seq_file *m, void *data)
 {
 	struct drm_printer p = drm_seq_file_printer(m);
+	int ret;
 
-	return intel_guc_log_dump(m->private, &p, false);
+	ret = intel_guc_log_dump(m->private, &p, false);
+
+	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM) && seq_has_overflowed(m))
+		pr_warn_once("preallocated size:%zx for %s exceeded\n",
+			     m->size, __func__);
+
+	return ret;
 }
-DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(guc_log_dump);
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE_WITH_SIZE(guc_log_dump, guc_log_dump_size);
+
+static u32 guc_load_err_dump_size(struct intel_guc_log *log)
+{
+	struct intel_guc *guc = log_to_guc(log);
+	struct intel_uc *uc = container_of(guc, struct intel_uc, guc);
+
+	if (!intel_guc_is_supported(guc))
+		return PAGE_SIZE;
+
+	return obj_to_guc_log_dump_size(uc->load_err_log);
+}
 
 static int guc_load_err_log_dump_show(struct seq_file *m, void *data)
 {
 	struct drm_printer p = drm_seq_file_printer(m);
 
+	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM) && seq_has_overflowed(m))
+		pr_warn_once("preallocated size:%zx for %s exceeded\n",
+			     m->size, __func__);
+
 	return intel_guc_log_dump(m->private, &p, true);
 }
-DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(guc_load_err_log_dump);
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE_WITH_SIZE(guc_load_err_log_dump, guc_load_err_dump_size);
 
 static int guc_log_level_get(void *data, u64 *val)
 {
 	struct intel_guc_log *log = data;
 
-	if (!intel_guc_is_used(log_to_guc(log)))
+	if (!log->vma)
 		return -ENODEV;
 
 	*val = intel_guc_log_get_level(log);
@@ -43,7 +95,7 @@ static int guc_log_level_set(void *data, u64 val)
 {
 	struct intel_guc_log *log = data;
 
-	if (!intel_guc_is_used(log_to_guc(log)))
+	if (!log->vma)
 		return -ENODEV;
 
 	return intel_guc_log_set_level(log, val);

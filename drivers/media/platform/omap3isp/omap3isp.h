@@ -95,6 +95,8 @@ struct isp_csiphy_lanes_cfg {
  *		ISP_CCP2_PHY_DATA_CLOCK - Data/clock physical layer
  *		ISP_CCP2_PHY_DATA_STROBE - Data/strobe physical layer
  * @vpclk_div: Video port output clock control
+ * @vp_clk_pol: Video port output clock polarity
+ * @lanecfg: CCP2/CSI2 lane configuration
  */
 struct isp_ccp2_cfg {
 	unsigned int strobe_clk_pol:1;

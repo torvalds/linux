@@ -47,6 +47,10 @@ EXPORT_SYMBOL(store_vr_state)
  */
 _GLOBAL(load_up_altivec)
 	mfmsr	r5			/* grab the current MSR */
+#ifdef CONFIG_PPC_BOOK3S_64
+	/* interrupt doesn't set MSR[RI] and HPT can fault on current access */
+	ori	r5,r5,MSR_RI
+#endif
 	oris	r5,r5,MSR_VEC@h
 	MTMSRD(r5)			/* enable use of AltiVec now */
 	isync
@@ -125,6 +129,12 @@ _GLOBAL(load_up_vsx)
 	beql+	load_up_fpu		/* skip if already loaded */
 	andis.	r5,r12,MSR_VEC@h
 	beql+	load_up_altivec		/* skip if already loaded */
+
+#ifdef CONFIG_PPC_BOOK3S_64
+	/* interrupt doesn't set MSR[RI] and HPT can fault on current access */
+	li	r5,MSR_RI
+	mtmsrd	r5,1
+#endif
 
 	ld	r4,PACACURRENT(r13)
 	addi	r4,r4,THREAD		/* Get THREAD */

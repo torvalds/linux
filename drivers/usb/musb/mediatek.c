@@ -538,6 +538,8 @@ static int mtk_musb_probe(struct platform_device *pdev)
 	pinfo.num_res = pdev->num_resources;
 	pinfo.data = pdata;
 	pinfo.size_data = sizeof(*pdata);
+	pinfo.fwnode = of_fwnode_handle(np);
+	pinfo.of_node_reused = true;
 
 	glue->musb_pdev = platform_device_register_full(&pinfo);
 	if (IS_ERR(glue->musb_pdev)) {
