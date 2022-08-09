@@ -226,7 +226,7 @@ static void rtw89_traffic_stats_accu(struct rtw89_dev *rtwdev,
 }
 
 static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
-				     struct rtw89_channel_params *chan_param)
+				     struct rtw89_chan *chan)
 {
 	struct ieee80211_channel *channel = chandef->chan;
 	enum nl80211_chan_width width = chandef->width;
@@ -344,13 +344,13 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 		break;
 	}
 
-	chan_param->center_chan = center_chan;
-	chan_param->center_freq = center_freq;
-	chan_param->primary_chan = channel->hw_value;
-	chan_param->bandwidth = bandwidth;
-	chan_param->pri_ch_idx = primary_chan_idx;
-	chan_param->band_type = band;
-	chan_param->subband_type = subband;
+	chan->channel = center_chan;
+	chan->freq = center_freq;
+	chan->primary_channel = channel->hw_value;
+	chan->band_type = band;
+	chan->band_width = bandwidth;
+	chan->subband_type = subband;
+	chan->pri_ch_idx = primary_chan_idx;
 }
 
 void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
@@ -371,7 +371,7 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 	struct ieee80211_hw *hw = rtwdev->hw;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_hal *hal = &rtwdev->hal;
-	struct rtw89_channel_params ch_param;
+	struct rtw89_chan chan;
 	struct rtw89_channel_help_params bak;
 	u8 center_chan, bandwidth;
 	bool band_changed;
@@ -379,28 +379,28 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 
 	entity_active = rtw89_get_entity_state(rtwdev);
 
-	rtw89_get_channel_params(&hw->conf.chandef, &ch_param);
-	if (WARN(ch_param.center_chan == 0, "Invalid channel\n"))
+	rtw89_get_channel_params(&hw->conf.chandef, &chan);
+	if (WARN(chan.channel == 0, "Invalid channel\n"))
 		return;
 
-	center_chan = ch_param.center_chan;
-	bandwidth = ch_param.bandwidth;
-	band_changed = hal->current_band_type != ch_param.band_type;
+	center_chan = chan.channel;
+	bandwidth = chan.band_width;
+	band_changed = hal->current_band_type != chan.band_type;
 
 	hal->current_band_width = bandwidth;
 	hal->current_channel = center_chan;
-	hal->current_freq = ch_param.center_freq;
+	hal->current_freq = chan.freq;
 	hal->prev_primary_channel = hal->current_primary_channel;
 	hal->prev_band_type = hal->current_band_type;
-	hal->current_primary_channel = ch_param.primary_chan;
-	hal->current_band_type = ch_param.band_type;
-	hal->current_subband = ch_param.subband_type;
+	hal->current_primary_channel = chan.primary_channel;
+	hal->current_band_type = chan.band_type;
+	hal->current_subband = chan.subband_type;
 
 	rtw89_set_entity_state(rtwdev, true);
 
 	rtw89_chip_set_channel_prepare(rtwdev, &bak);
 
-	chip->ops->set_channel(rtwdev, &ch_param);
+	chip->ops->set_channel(rtwdev, &chan);
 
 	rtw89_core_set_chip_txpwr(rtwdev);
 

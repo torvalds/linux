@@ -542,12 +542,12 @@ void rtw89_phy_ra_assoc(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta)
 }
 
 u8 rtw89_phy_get_txsc(struct rtw89_dev *rtwdev,
-		      struct rtw89_channel_params *param,
+		      const struct rtw89_chan *chan,
 		      enum rtw89_bandwidth dbw)
 {
-	enum rtw89_bandwidth cbw = param->bandwidth;
-	u8 pri_ch = param->primary_chan;
-	u8 central_ch = param->center_chan;
+	enum rtw89_bandwidth cbw = chan->band_width;
+	u8 pri_ch = chan->primary_channel;
+	u8 central_ch = chan->channel;
 	u8 txsc_idx = 0;
 	u8 tmp = 0;
 

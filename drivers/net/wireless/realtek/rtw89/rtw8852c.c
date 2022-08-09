@@ -567,7 +567,7 @@ static void rtw8852c_power_trim(struct rtw89_dev *rtwdev)
 }
 
 static void rtw8852c_set_channel_mac(struct rtw89_dev *rtwdev,
-				     struct rtw89_channel_params *param,
+				     const struct rtw89_chan *chan,
 				     u8 mac_idx)
 {
 	u32 rf_mod = rtw89_mac_reg_by_idx(R_AX_WMAC_RFMOD, mac_idx);
@@ -578,24 +578,24 @@ static void rtw8852c_set_channel_mac(struct rtw89_dev *rtwdev,
 	u8 rf_mod_val = 0, chk_rate_mask = 0;
 	u32 txsc;
 
-	switch (param->bandwidth) {
+	switch (chan->band_width) {
 	case RTW89_CHANNEL_WIDTH_160:
-		txsc80 = rtw89_phy_get_txsc(rtwdev, param,
+		txsc80 = rtw89_phy_get_txsc(rtwdev, chan,
 					    RTW89_CHANNEL_WIDTH_80);
 		fallthrough;
 	case RTW89_CHANNEL_WIDTH_80:
-		txsc40 = rtw89_phy_get_txsc(rtwdev, param,
+		txsc40 = rtw89_phy_get_txsc(rtwdev, chan,
 					    RTW89_CHANNEL_WIDTH_40);
 		fallthrough;
 	case RTW89_CHANNEL_WIDTH_40:
-		txsc20 = rtw89_phy_get_txsc(rtwdev, param,
+		txsc20 = rtw89_phy_get_txsc(rtwdev, chan,
 					    RTW89_CHANNEL_WIDTH_20);
 		break;
 	default:
 		break;
 	}
 
-	switch (param->bandwidth) {
+	switch (chan->band_width) {
 	case RTW89_CHANNEL_WIDTH_160:
 		rf_mod_val = AX_WMAC_RFMOD_160M;
 		txsc = FIELD_PREP(B_AX_TXSC_20M_MASK, txsc20) |
@@ -620,7 +620,7 @@ static void rtw8852c_set_channel_mac(struct rtw89_dev *rtwdev,
 	rtw89_write8_mask(rtwdev, rf_mod, B_AX_WMAC_RFMOD_MASK, rf_mod_val);
 	rtw89_write32(rtwdev, sub_carr, txsc);
 
-	switch (param->band_type) {
+	switch (chan->band_type) {
 	case RTW89_BAND_2G:
 		chk_rate_mask = B_AX_BAND_MODE;
 		break;
@@ -629,7 +629,7 @@ static void rtw8852c_set_channel_mac(struct rtw89_dev *rtwdev,
 		chk_rate_mask = B_AX_CHECK_CCK_EN | B_AX_RTS_LIMIT_IN_OFDM6;
 		break;
 	default:
-		rtw89_warn(rtwdev, "Invalid band_type:%d\n", param->band_type);
+		rtw89_warn(rtwdev, "Invalid band_type:%d\n", chan->band_type);
 		return;
 	}
 	rtw89_write8_clr(rtwdev, chk_rate, B_AX_BAND_MODE | B_AX_CHECK_CCK_EN |
@@ -920,7 +920,7 @@ static void rtw8852c_decode_chan_idx(struct rtw89_dev *rtwdev, u8 chan_idx,
 }
 
 static void rtw8852c_set_gain_offset(struct rtw89_dev *rtwdev,
-				     const struct rtw89_channel_params *param,
+				     const struct rtw89_chan *chan,
 				     enum rtw89_phy_idx phy_idx,
 				     enum rtw89_rf_path path)
 {
@@ -939,7 +939,7 @@ static void rtw8852c_set_gain_offset(struct rtw89_dev *rtwdev,
 	if (rtwdev->dbcc_en && path == RF_PATH_B)
 		phy_idx = RTW89_PHY_1;
 
-	if (param->band_type == RTW89_BAND_2G) {
+	if (chan->band_type == RTW89_BAND_2G) {
 		offset_q0 = efuse_gain->offset[path][RTW89_GAIN_OFFSET_2G_CCK];
 		offset_base_q4 = efuse_gain->offset_base[phy_idx];
 
@@ -948,7 +948,7 @@ static void rtw8852c_set_gain_offset(struct rtw89_dev *rtwdev,
 		rtw89_phy_write32_mask(rtwdev, R_RPL_OFST, B_RPL_OFST_MASK, tmp & 0x7f);
 	}
 
-	switch (param->subband_type) {
+	switch (chan->subband_type) {
 	default:
 	case RTW89_CH_2G:
 		gain_band = RTW89_GAIN_OFFSET_2G_OFDM;
@@ -977,14 +977,14 @@ static void rtw8852c_set_gain_offset(struct rtw89_dev *rtwdev,
 }
 
 static void rtw8852c_ctrl_ch(struct rtw89_dev *rtwdev,
-			     const struct rtw89_channel_params *param,
+			     const struct rtw89_chan *chan,
 			     enum rtw89_phy_idx phy_idx)
 {
 	u8 sco;
-	u16 central_freq = param->center_freq;
-	u8 central_ch = param->center_chan;
-	u8 band = param->band_type;
-	u8 subband = param->subband_type;
+	u16 central_freq = chan->freq;
+	u8 central_ch = chan->channel;
+	u8 band = chan->band_type;
+	u8 subband = chan->subband_type;
 	bool is_2g = band == RTW89_BAND_2G;
 	u8 chan_idx;
 
@@ -996,7 +996,7 @@ static void rtw8852c_ctrl_ch(struct rtw89_dev *rtwdev,
 	if (phy_idx == RTW89_PHY_0) {
 		/* Path A */
 		rtw8852c_set_gain_error(rtwdev, subband, RF_PATH_A);
-		rtw8852c_set_gain_offset(rtwdev, param, phy_idx, RF_PATH_A);
+		rtw8852c_set_gain_offset(rtwdev, chan, phy_idx, RF_PATH_A);
 
 		if (is_2g)
 			rtw89_phy_write32_idx(rtwdev, R_PATH0_BAND_SEL_V1,
@@ -1009,7 +1009,7 @@ static void rtw8852c_ctrl_ch(struct rtw89_dev *rtwdev,
 		/* Path B */
 		if (!rtwdev->dbcc_en) {
 			rtw8852c_set_gain_error(rtwdev, subband, RF_PATH_B);
-			rtw8852c_set_gain_offset(rtwdev, param, phy_idx, RF_PATH_B);
+			rtw8852c_set_gain_offset(rtwdev, chan, phy_idx, RF_PATH_B);
 
 			if (is_2g)
 				rtw89_phy_write32_idx(rtwdev,
@@ -1038,7 +1038,7 @@ static void rtw8852c_ctrl_ch(struct rtw89_dev *rtwdev,
 	} else {
 		/* Path B */
 		rtw8852c_set_gain_error(rtwdev, subband, RF_PATH_B);
-		rtw8852c_set_gain_offset(rtwdev, param, phy_idx, RF_PATH_B);
+		rtw8852c_set_gain_offset(rtwdev, chan, phy_idx, RF_PATH_B);
 
 		if (is_2g)
 			rtw89_phy_write32_idx(rtwdev, R_PATH1_BAND_SEL_V1,
@@ -1095,7 +1095,7 @@ static void rtw8852c_ctrl_ch(struct rtw89_dev *rtwdev,
 		}
 	}
 
-	chan_idx = rtw8852c_encode_chan_idx(rtwdev, param->primary_chan, band);
+	chan_idx = rtw8852c_encode_chan_idx(rtwdev, chan->primary_channel, band);
 	rtw89_phy_write32_idx(rtwdev, R_MAC_PIN_SEL, B_CH_IDX_SEG0, chan_idx, phy_idx);
 }
 
@@ -1246,12 +1246,12 @@ rtw8852c_ctrl_bw(struct rtw89_dev *rtwdev, u8 pri_ch, u8 bw,
 }
 
 static u32 rtw8852c_spur_freq(struct rtw89_dev *rtwdev,
-			      struct rtw89_channel_params *param)
+			      const struct rtw89_chan *chan)
 {
-	u8 center_chan = param->center_chan;
-	u8 bw = param->bandwidth;
+	u8 center_chan = chan->channel;
+	u8 bw = chan->band_width;
 
-	switch (param->band_type) {
+	switch (chan->band_type) {
 	case RTW89_BAND_2G:
 		if (bw == RTW89_CHANNEL_WIDTH_20) {
 			if (center_chan >= 5 && center_chan <= 8)
@@ -1285,19 +1285,19 @@ static u32 rtw8852c_spur_freq(struct rtw89_dev *rtwdev,
 #define MAX_TONE_NUM 2048
 
 static void rtw8852c_set_csi_tone_idx(struct rtw89_dev *rtwdev,
-				      struct rtw89_channel_params *param,
+				      const struct rtw89_chan *chan,
 				      enum rtw89_phy_idx phy_idx)
 {
 	u32 spur_freq;
 	s32 freq_diff, csi_idx, csi_tone_idx;
 
-	spur_freq = rtw8852c_spur_freq(rtwdev, param);
+	spur_freq = rtw8852c_spur_freq(rtwdev, chan);
 	if (spur_freq == 0) {
 		rtw89_phy_write32_idx(rtwdev, R_SEG0CSI_EN, B_SEG0CSI_EN, 0, phy_idx);
 		return;
 	}
 
-	freq_diff = (spur_freq - param->center_freq) * 1000000;
+	freq_diff = (spur_freq - chan->freq) * 1000000;
 	csi_idx = s32_div_u32_round_closest(freq_diff, CARRIER_SPACING_78_125);
 	s32_div_u32_round_down(csi_idx, MAX_TONE_NUM, &csi_tone_idx);
 
@@ -1325,7 +1325,7 @@ static const struct rtw89_nbi_reg_def rtw8852c_nbi_reg_def[] = {
 };
 
 static void rtw8852c_set_nbi_tone_idx(struct rtw89_dev *rtwdev,
-				      struct rtw89_channel_params *param,
+				      const struct rtw89_chan *chan,
 				      enum rtw89_rf_path path)
 {
 	const struct rtw89_nbi_reg_def *nbi = &rtw8852c_nbi_reg_def[path];
@@ -1335,34 +1335,37 @@ static void rtw8852c_set_nbi_tone_idx(struct rtw89_dev *rtwdev,
 	s32 nbi_frac_idx, nbi_frac_tone_idx;
 	bool notch2_chk = false;
 
-	spur_freq = rtw8852c_spur_freq(rtwdev, param);
+	spur_freq = rtw8852c_spur_freq(rtwdev, chan);
 	if (spur_freq == 0) {
 		rtw89_phy_write32_mask(rtwdev, nbi->notch1_en.addr, nbi->notch1_en.mask, 0);
 		rtw89_phy_write32_mask(rtwdev, nbi->notch1_en.addr, nbi->notch1_en.mask, 0);
 		return;
 	}
 
-	fc = param->center_freq;
-	if (param->bandwidth == RTW89_CHANNEL_WIDTH_160) {
+	fc = chan->freq;
+	if (chan->band_width == RTW89_CHANNEL_WIDTH_160) {
 		fc = (spur_freq > fc) ? fc + 40 : fc - 40;
-		if ((fc > spur_freq && param->center_chan < param->primary_chan) ||
-		    (fc < spur_freq && param->center_chan > param->primary_chan))
+		if ((fc > spur_freq &&
+		     chan->channel < chan->primary_channel) ||
+		    (fc < spur_freq &&
+		     chan->channel > chan->primary_channel))
 			notch2_chk = true;
 	}
 
 	freq_diff = (spur_freq - fc) * 1000000;
 	nbi_idx = s32_div_u32_round_down(freq_diff, CARRIER_SPACING_312_5, &nbi_frac_idx);
 
-	if (param->bandwidth == RTW89_CHANNEL_WIDTH_20) {
+	if (chan->band_width == RTW89_CHANNEL_WIDTH_20) {
 		s32_div_u32_round_down(nbi_idx + 32, 64, &nbi_tone_idx);
 	} else {
-		u16 tone_para = (param->bandwidth == RTW89_CHANNEL_WIDTH_40) ? 128 : 256;
+		u16 tone_para = (chan->band_width == RTW89_CHANNEL_WIDTH_40) ?
+				128 : 256;
 
 		s32_div_u32_round_down(nbi_idx, tone_para, &nbi_tone_idx);
 	}
 	nbi_frac_tone_idx = s32_div_u32_round_closest(nbi_frac_idx, CARRIER_SPACING_78_125);
 
-	if (param->bandwidth == RTW89_CHANNEL_WIDTH_160 && notch2_chk) {
+	if (chan->band_width == RTW89_CHANNEL_WIDTH_160 && notch2_chk) {
 		rtw89_phy_write32_mask(rtwdev, nbi->notch2_idx.addr,
 				       nbi->notch2_idx.mask, nbi_tone_idx);
 		rtw89_phy_write32_mask(rtwdev, nbi->notch2_frac_idx.addr,
@@ -1404,42 +1407,42 @@ static void rtw8852c_spur_notch(struct rtw89_dev *rtwdev, u32 val,
 }
 
 static void rtw8852c_spur_elimination(struct rtw89_dev *rtwdev,
-				      struct rtw89_channel_params *param,
+				      const struct rtw89_chan *chan,
 				      u8 pri_ch_idx,
 				      enum rtw89_phy_idx phy_idx)
 {
-	rtw8852c_set_csi_tone_idx(rtwdev, param, phy_idx);
+	rtw8852c_set_csi_tone_idx(rtwdev, chan, phy_idx);
 
 	if (phy_idx == RTW89_PHY_0) {
-		if (param->bandwidth == RTW89_CHANNEL_WIDTH_160 &&
+		if (chan->band_width == RTW89_CHANNEL_WIDTH_160 &&
 		    (pri_ch_idx == RTW89_SC_20_LOWER ||
 		     pri_ch_idx == RTW89_SC_20_UP3X)) {
 			rtw8852c_spur_notch(rtwdev, 0xe7f, RTW89_PHY_0);
 			if (!rtwdev->dbcc_en)
 				rtw8852c_spur_notch(rtwdev, 0xe7f, RTW89_PHY_1);
-		} else if (param->bandwidth == RTW89_CHANNEL_WIDTH_160 &&
+		} else if (chan->band_width == RTW89_CHANNEL_WIDTH_160 &&
 			   (pri_ch_idx == RTW89_SC_20_UPPER ||
 			    pri_ch_idx == RTW89_SC_20_LOW3X)) {
 			rtw8852c_spur_notch(rtwdev, 0x280, RTW89_PHY_0);
 			if (!rtwdev->dbcc_en)
 				rtw8852c_spur_notch(rtwdev, 0x280, RTW89_PHY_1);
 		} else {
-			rtw8852c_set_nbi_tone_idx(rtwdev, param, RF_PATH_A);
+			rtw8852c_set_nbi_tone_idx(rtwdev, chan, RF_PATH_A);
 			if (!rtwdev->dbcc_en)
-				rtw8852c_set_nbi_tone_idx(rtwdev, param,
+				rtw8852c_set_nbi_tone_idx(rtwdev, chan,
 							  RF_PATH_B);
 		}
 	} else {
-		if (param->bandwidth == RTW89_CHANNEL_WIDTH_160 &&
+		if (chan->band_width == RTW89_CHANNEL_WIDTH_160 &&
 		    (pri_ch_idx == RTW89_SC_20_LOWER ||
 		     pri_ch_idx == RTW89_SC_20_UP3X)) {
 			rtw8852c_spur_notch(rtwdev, 0xe7f, RTW89_PHY_1);
-		} else if (param->bandwidth == RTW89_CHANNEL_WIDTH_160 &&
+		} else if (chan->band_width == RTW89_CHANNEL_WIDTH_160 &&
 			   (pri_ch_idx == RTW89_SC_20_UPPER ||
 			    pri_ch_idx == RTW89_SC_20_LOW3X)) {
 			rtw8852c_spur_notch(rtwdev, 0x280, RTW89_PHY_1);
 		} else {
-			rtw8852c_set_nbi_tone_idx(rtwdev, param, RF_PATH_B);
+			rtw8852c_set_nbi_tone_idx(rtwdev, chan, RF_PATH_B);
 		}
 	}
 
@@ -1450,14 +1453,14 @@ static void rtw8852c_spur_elimination(struct rtw89_dev *rtwdev,
 }
 
 static void rtw8852c_5m_mask(struct rtw89_dev *rtwdev,
-			     struct rtw89_channel_params *param,
+			     const struct rtw89_chan *chan,
 			     enum rtw89_phy_idx phy_idx)
 {
-	u8 pri_ch = param->primary_chan;
+	u8 pri_ch = chan->primary_channel;
 	bool mask_5m_low;
 	bool mask_5m_en;
 
-	switch (param->bandwidth) {
+	switch (chan->band_width) {
 	case RTW89_CHANNEL_WIDTH_40:
 		mask_5m_en = true;
 		mask_5m_low = pri_ch == 2;
@@ -1690,21 +1693,22 @@ static void rtw8852c_bb_sethw(struct rtw89_dev *rtwdev)
 }
 
 static void rtw8852c_set_channel_bb(struct rtw89_dev *rtwdev,
-				    struct rtw89_channel_params *param,
+				    const struct rtw89_chan *chan,
 				    enum rtw89_phy_idx phy_idx)
 {
-	bool cck_en = param->band_type == RTW89_BAND_2G;
-	u8 pri_ch_idx = param->pri_ch_idx;
+	bool cck_en = chan->band_type == RTW89_BAND_2G;
+	u8 pri_ch_idx = chan->pri_ch_idx;
 	u32 mask, reg;
 	u32 ru_alloc_msk[2] = {B_P80_AT_HIGH_FREQ_RU_ALLOC_PHY0,
 			       B_P80_AT_HIGH_FREQ_RU_ALLOC_PHY1};
 
-	if (param->band_type == RTW89_BAND_2G)
-		rtw8852c_ctrl_sco_cck(rtwdev, param->center_chan,
-				      param->primary_chan, param->bandwidth);
+	if (chan->band_type == RTW89_BAND_2G)
+		rtw8852c_ctrl_sco_cck(rtwdev, chan->channel,
+				      chan->primary_channel,
+				      chan->band_width);
 
-	rtw8852c_ctrl_ch(rtwdev, param, phy_idx);
-	rtw8852c_ctrl_bw(rtwdev, pri_ch_idx, param->bandwidth, phy_idx);
+	rtw8852c_ctrl_ch(rtwdev, chan, phy_idx);
+	rtw8852c_ctrl_bw(rtwdev, pri_ch_idx, chan->band_width, phy_idx);
 	if (cck_en) {
 		rtw89_phy_write32_mask(rtwdev, R_UPD_CLK_ADC, B_ENABLE_CCK, 1);
 		rtw89_phy_write32_mask(rtwdev, R_RXCCA_V1, B_RXCCA_DIS_V1, 0);
@@ -1717,17 +1721,17 @@ static void rtw8852c_set_channel_bb(struct rtw89_dev *rtwdev,
 				      B_PD_ARBITER_OFF, 0x1, phy_idx);
 	}
 
-	rtw8852c_spur_elimination(rtwdev, param, pri_ch_idx, phy_idx);
-	rtw8852c_ctrl_btg(rtwdev, param->band_type == RTW89_BAND_2G);
-	rtw8852c_5m_mask(rtwdev, param, phy_idx);
+	rtw8852c_spur_elimination(rtwdev, chan, pri_ch_idx, phy_idx);
+	rtw8852c_ctrl_btg(rtwdev, chan->band_type == RTW89_BAND_2G);
+	rtw8852c_5m_mask(rtwdev, chan, phy_idx);
 
-	if (param->bandwidth == RTW89_CHANNEL_WIDTH_160 &&
+	if (chan->band_width == RTW89_CHANNEL_WIDTH_160 &&
 	    rtwdev->hal.cv != CHIP_CAV) {
 		rtw89_phy_write32_idx(rtwdev, R_P80_AT_HIGH_FREQ,
 				      B_P80_AT_HIGH_FREQ, 0x0, phy_idx);
 		reg = rtw89_mac_reg_by_idx(R_P80_AT_HIGH_FREQ_BB_WRP,
 					   phy_idx);
-		if (param->primary_chan > param->center_chan) {
+		if (chan->primary_channel > chan->channel) {
 			rtw89_phy_write32_mask(rtwdev,
 					       R_P80_AT_HIGH_FREQ_RU_ALLOC,
 					       ru_alloc_msk[phy_idx], 1);
@@ -1742,8 +1746,8 @@ static void rtw8852c_set_channel_bb(struct rtw89_dev *rtwdev,
 		}
 	}
 
-	if (param->band_type == RTW89_BAND_6G &&
-	    param->bandwidth == RTW89_CHANNEL_WIDTH_160)
+	if (chan->band_type == RTW89_BAND_6G &&
+	    chan->band_width == RTW89_CHANNEL_WIDTH_160)
 		rtw89_phy_write32_idx(rtwdev, R_CDD_EVM_CHK_EN,
 				      B_CDD_EVM_CHK_EN, 0, phy_idx);
 	else
@@ -1773,11 +1777,11 @@ static void rtw8852c_set_channel_bb(struct rtw89_dev *rtwdev,
 }
 
 static void rtw8852c_set_channel(struct rtw89_dev *rtwdev,
-				 struct rtw89_channel_params *params)
+				 const struct rtw89_chan *chan)
 {
-	rtw8852c_set_channel_mac(rtwdev, params, RTW89_MAC_0);
-	rtw8852c_set_channel_bb(rtwdev, params, RTW89_PHY_0);
-	rtw8852c_set_channel_rf(rtwdev, params, RTW89_PHY_0);
+	rtw8852c_set_channel_mac(rtwdev, chan, RTW89_MAC_0);
+	rtw8852c_set_channel_bb(rtwdev, chan, RTW89_PHY_0);
+	rtw8852c_set_channel_rf(rtwdev, chan, RTW89_PHY_0);
 }
 
 static void rtw8852c_dfs_en(struct rtw89_dev *rtwdev, bool en)

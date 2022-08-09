@@ -660,7 +660,7 @@ static void rtw8852a_power_trim(struct rtw89_dev *rtwdev)
 }
 
 static void rtw8852a_set_channel_mac(struct rtw89_dev *rtwdev,
-				     struct rtw89_channel_params *param,
+				     const struct rtw89_chan *chan,
 				     u8 mac_idx)
 {
 	u32 rf_mod = rtw89_mac_reg_by_idx(R_AX_WMAC_RFMOD, mac_idx);
@@ -669,20 +669,20 @@ static void rtw8852a_set_channel_mac(struct rtw89_dev *rtwdev,
 	u32 chk_rate = rtw89_mac_reg_by_idx(R_AX_TXRATE_CHK, mac_idx);
 	u8 txsc20 = 0, txsc40 = 0;
 
-	switch (param->bandwidth) {
+	switch (chan->band_width) {
 	case RTW89_CHANNEL_WIDTH_80:
-		txsc40 = rtw89_phy_get_txsc(rtwdev, param,
+		txsc40 = rtw89_phy_get_txsc(rtwdev, chan,
 					    RTW89_CHANNEL_WIDTH_40);
 		fallthrough;
 	case RTW89_CHANNEL_WIDTH_40:
-		txsc20 = rtw89_phy_get_txsc(rtwdev, param,
+		txsc20 = rtw89_phy_get_txsc(rtwdev, chan,
 					    RTW89_CHANNEL_WIDTH_20);
 		break;
 	default:
 		break;
 	}
 
-	switch (param->bandwidth) {
+	switch (chan->band_width) {
 	case RTW89_CHANNEL_WIDTH_80:
 		rtw89_write8_mask(rtwdev, rf_mod, B_AX_WMAC_RFMOD_MASK, BIT(1));
 		rtw89_write32(rtwdev, sub_carr, txsc20 | (txsc40 << 4));
@@ -699,7 +699,7 @@ static void rtw8852a_set_channel_mac(struct rtw89_dev *rtwdev,
 		break;
 	}
 
-	if (param->center_chan > 14)
+	if (chan->channel > 14)
 		rtw89_write8_set(rtwdev, chk_rate,
 				 B_AX_CHECK_CCK_EN | B_AX_RTS_LIMIT_IN_OFDM6);
 	else
@@ -1130,35 +1130,36 @@ static void rtw8852a_bbrst_for_rfk(struct rtw89_dev *rtwdev,
 }
 
 static void rtw8852a_set_channel_bb(struct rtw89_dev *rtwdev,
-				    struct rtw89_channel_params *param,
+				    const struct rtw89_chan *chan,
 				    enum rtw89_phy_idx phy_idx)
 {
-	bool cck_en = param->center_chan <= 14;
-	u8 pri_ch_idx = param->pri_ch_idx;
+	bool cck_en = chan->channel <= 14;
+	u8 pri_ch_idx = chan->pri_ch_idx;
 
 	if (cck_en)
-		rtw8852a_ctrl_sco_cck(rtwdev, param->center_chan,
-				      param->primary_chan, param->bandwidth);
+		rtw8852a_ctrl_sco_cck(rtwdev, chan->channel,
+				      chan->primary_channel,
+				      chan->band_width);
 
-	rtw8852a_ctrl_ch(rtwdev, param->center_chan, phy_idx);
-	rtw8852a_ctrl_bw(rtwdev, pri_ch_idx, param->bandwidth, phy_idx);
+	rtw8852a_ctrl_ch(rtwdev, chan->channel, phy_idx);
+	rtw8852a_ctrl_bw(rtwdev, pri_ch_idx, chan->band_width, phy_idx);
 	if (cck_en) {
 		rtw89_phy_write32_mask(rtwdev, R_RXCCA, B_RXCCA_DIS, 0);
 	} else {
 		rtw89_phy_write32_mask(rtwdev, R_RXCCA, B_RXCCA_DIS, 1);
 		rtw8852a_bbrst_for_rfk(rtwdev, phy_idx);
 	}
-	rtw8852a_spur_elimination(rtwdev, param->center_chan);
+	rtw8852a_spur_elimination(rtwdev, chan->channel);
 	rtw89_phy_write32_mask(rtwdev, R_MAC_PIN_SEL, B_CH_IDX_SEG0,
-			       param->primary_chan);
+			       chan->primary_channel);
 	rtw8852a_bb_reset_all(rtwdev, phy_idx);
 }
 
 static void rtw8852a_set_channel(struct rtw89_dev *rtwdev,
-				 struct rtw89_channel_params *params)
+				 const struct rtw89_chan *chan)
 {
-	rtw8852a_set_channel_mac(rtwdev, params, RTW89_MAC_0);
-	rtw8852a_set_channel_bb(rtwdev, params, RTW89_PHY_0);
+	rtw8852a_set_channel_mac(rtwdev, chan, RTW89_MAC_0);
+	rtw8852a_set_channel_bb(rtwdev, chan, RTW89_PHY_0);
 }
 
 static void rtw8852a_dfs_en(struct rtw89_dev *rtwdev, bool en)

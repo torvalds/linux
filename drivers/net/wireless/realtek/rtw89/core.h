@@ -624,14 +624,14 @@ enum rtw89_sc_offset {
 	RTW89_SC_40_LOWER	= 10,
 };
 
-struct rtw89_channel_params {
-	u8 center_chan;
-	u32 center_freq;
-	u8 primary_chan;
-	u8 bandwidth;
-	u8 pri_ch_idx;
-	u8 band_type;
-	u8 subband_type;
+struct rtw89_chan {
+	u8 channel;
+	u32 freq;
+	u8 primary_channel;
+	enum rtw89_band band_type;
+	enum rtw89_bandwidth band_width;
+	enum rtw89_subband subband_type;
+	enum rtw89_sc_offset pri_ch_idx;
 };
 
 struct rtw89_channel_help_params {
@@ -2100,7 +2100,7 @@ struct rtw89_chip_ops {
 	bool (*write_rf)(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
 			 u32 addr, u32 mask, u32 data);
 	void (*set_channel)(struct rtw89_dev *rtwdev,
-			    struct rtw89_channel_params *param);
+			    const struct rtw89_chan *chan);
 	void (*set_channel_help)(struct rtw89_dev *rtwdev, bool enter,
 				 struct rtw89_channel_help_params *p);
 	int (*read_efuse)(struct rtw89_dev *rtwdev, u8 *log_map);

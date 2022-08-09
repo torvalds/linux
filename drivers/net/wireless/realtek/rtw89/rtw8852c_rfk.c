@@ -3802,11 +3802,12 @@ void rtw8852c_ctrl_bw_ch(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 }
 
 void rtw8852c_set_channel_rf(struct rtw89_dev *rtwdev,
-			     struct rtw89_channel_params *param,
+			     const struct rtw89_chan *chan,
 			     enum rtw89_phy_idx phy_idx)
 {
-	rtw8852c_ctrl_bw_ch(rtwdev, phy_idx, param->center_chan, param->band_type,
-			    param->bandwidth);
+	rtw8852c_ctrl_bw_ch(rtwdev, phy_idx, chan->channel,
+			    chan->band_type,
+			    chan->band_width);
 }
 
 void rtw8852c_mcc_get_ch_info(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
