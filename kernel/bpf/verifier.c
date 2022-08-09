@@ -504,7 +504,7 @@ static bool is_ptr_cast_function(enum bpf_func_id func_id)
 		func_id == BPF_FUNC_skc_to_tcp_request_sock;
 }
 
-static bool is_dynptr_acquire_function(enum bpf_func_id func_id)
+static bool is_dynptr_ref_function(enum bpf_func_id func_id)
 {
 	return func_id == BPF_FUNC_dynptr_data;
 }
@@ -518,7 +518,7 @@ static bool helper_multiple_ref_obj_use(enum bpf_func_id func_id,
 		ref_obj_uses++;
 	if (is_acquire_function(func_id, map))
 		ref_obj_uses++;
-	if (is_dynptr_acquire_function(func_id))
+	if (is_dynptr_ref_function(func_id))
 		ref_obj_uses++;
 
 	return ref_obj_uses > 1;
@@ -7320,6 +7320,23 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 			}
 		}
 		break;
+	case BPF_FUNC_dynptr_data:
+		for (i = 0; i < MAX_BPF_FUNC_REG_ARGS; i++) {
+			if (arg_type_is_dynptr(fn->arg_type[i])) {
+				if (meta.ref_obj_id) {
+					verbose(env, "verifier internal error: meta.ref_obj_id already set\n");
+					return -EFAULT;
+				}
+				/* Find the id of the dynptr we're tracking the reference of */
+				meta.ref_obj_id = stack_slot_get_id(env, &regs[BPF_REG_1 + i]);
+				break;
+			}
+		}
+		if (i == MAX_BPF_FUNC_REG_ARGS) {
+			verbose(env, "verifier internal error: no dynptr in bpf_dynptr_data()\n");
+			return -EFAULT;
+		}
+		break;
 	}
 
 	if (err)
@@ -7457,7 +7474,7 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 		return -EFAULT;
 	}
 
-	if (is_ptr_cast_function(func_id)) {
+	if (is_ptr_cast_function(func_id) || is_dynptr_ref_function(func_id)) {
 		/* For release_reference() */
 		regs[BPF_REG_0].ref_obj_id = meta.ref_obj_id;
 	} else if (is_acquire_function(func_id, meta.map_ptr)) {
@@ -7469,21 +7486,6 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 		regs[BPF_REG_0].id = id;
 		/* For release_reference() */
 		regs[BPF_REG_0].ref_obj_id = id;
-	} else if (is_dynptr_acquire_function(func_id)) {
-		int dynptr_id = 0, i;
-
-		/* Find the id of the dynptr we're tracking the reference of */
-		for (i = 0; i < MAX_BPF_FUNC_REG_ARGS; i++) {
-			if (arg_type_is_dynptr(fn->arg_type[i])) {
-				if (dynptr_id) {
-					verbose(env, "verifier internal error: multiple dynptr args in func\n");
-					return -EFAULT;
-				}
-				dynptr_id = stack_slot_get_id(env, &regs[BPF_REG_1 + i]);
-			}
-		}
-		/* For release_reference() */
-		regs[BPF_REG_0].ref_obj_id = dynptr_id;
 	}
 
 	do_refine_retval_range(regs, fn->ret_type, func_id, &meta);
