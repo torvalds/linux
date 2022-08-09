@@ -1597,12 +1597,10 @@ DECLARE_EVENT_CLASS(nfs_direct_req_class,
 		TP_ARGS(dreq),
 
 		TP_STRUCT__entry(
-			__field(const struct nfs_direct_req *, dreq)
 			__field(dev_t, dev)
 			__field(u64, fileid)
 			__field(u32, fhandle)
-			__field(int, ref)
-			__field(loff_t, io_start)
+			__field(loff_t, offset)
 			__field(ssize_t, count)
 			__field(ssize_t, bytes_left)
 			__field(ssize_t, error)
@@ -1614,12 +1612,10 @@ DECLARE_EVENT_CLASS(nfs_direct_req_class,
 			const struct nfs_inode *nfsi = NFS_I(inode);
 			const struct nfs_fh *fh = &nfsi->fh;
 
-			__entry->dreq = dreq;
 			__entry->dev = inode->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(fh);
-			__entry->ref = kref_read(&dreq->kref);
-			__entry->io_start = dreq->io_start;
+			__entry->offset = dreq->io_start;
 			__entry->count = dreq->count;
 			__entry->bytes_left = dreq->bytes_left;
 			__entry->error = dreq->error;
@@ -1627,13 +1623,14 @@ DECLARE_EVENT_CLASS(nfs_direct_req_class,
 		),
 
 		TP_printk(
-			"dreq=%p fileid=%02x:%02x:%llu fhandle=0x%08x ref=%d "
-			"io_start=%lld count=%zd bytes_left=%zd error=%zd flags=%s",
-			__entry->dreq, MAJOR(__entry->dev), MINOR(__entry->dev),
+			"error=%zd fileid=%02x:%02x:%llu fhandle=0x%08x "
+			"offset=%lld count=%zd bytes_left=%zd flags=%s",
+			__entry->error, MAJOR(__entry->dev),
+			MINOR(__entry->dev),
 			(unsigned long long)__entry->fileid,
-			__entry->fhandle, __entry->ref,
-			__entry->io_start, __entry->count, __entry->bytes_left,
-			__entry->error, nfs_show_direct_req_flags(__entry->flags)
+			__entry->fhandle, __entry->offset,
+			__entry->count, __entry->bytes_left,
+			nfs_show_direct_req_flags(__entry->flags)
 		)
 );
 
