@@ -122,6 +122,7 @@ static int max96755f_pinconf_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_BIAS_DISABLE:
 		if (FIELD_GET(PULL_UPDN_SEL, gpio_b_reg) != 0)
 			return -EINVAL;
+		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
 		if (FIELD_GET(PULL_UPDN_SEL, gpio_b_reg) != 1)
 			return -EINVAL;
