@@ -1330,11 +1330,15 @@ static int thermal_of_unbind(struct thermal_zone_device *tz,
  */
 void thermal_of_zone_unregister(struct thermal_zone_device *tz)
 {
+	struct thermal_trip *trips = tz->trips;
+	struct thermal_zone_params *tzp = tz->tzp;
+	struct thermal_zone_device_ops *ops = tz->ops;
+
 	thermal_zone_device_disable(tz);
 	thermal_zone_device_unregister(tz);
-	kfree(tz->trips);
-	kfree(tz->tzp);
-	kfree(tz->ops);
+	kfree(trips);
+	kfree(tzp);
+	kfree(ops);
 }
 EXPORT_SYMBOL_GPL(thermal_of_zone_unregister);
 
