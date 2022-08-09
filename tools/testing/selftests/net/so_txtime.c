@@ -421,7 +421,7 @@ static void usage(const char *progname)
 			"Options:\n"
 			"  -4            only IPv4\n"
 			"  -6            only IPv6\n"
-			"  -c <clock>    monotonic (default) or tai\n"
+			"  -c <clock>    monotonic or tai (default)\n"
 			"  -D <addr>     destination IP address (server)\n"
 			"  -S <addr>     source IP address (client)\n"
 			"  -r            run rx mode\n"
@@ -475,7 +475,7 @@ static void parse_opts(int argc, char **argv)
 			cfg_rx = true;
 			break;
 		case 't':
-			cfg_start_time_ns = strtol(optarg, NULL, 0);
+			cfg_start_time_ns = strtoll(optarg, NULL, 0);
 			break;
 		case 'm':
 			cfg_mark = strtol(optarg, NULL, 0);

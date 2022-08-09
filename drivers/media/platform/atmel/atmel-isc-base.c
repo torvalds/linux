@@ -8,10 +8,6 @@
  * Author: Eugen Hristev <eugen.hristev@microchip.com>
  *
  */
-
-#include <linux/clk.h>
-#include <linux/clkdev.h>
-#include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/math64.h>
@@ -100,297 +96,6 @@ static inline void isc_reset_awb_ctrls(struct isc_device *isc)
 	}
 }
 
-static int isc_wait_clk_stable(struct clk_hw *hw)
-{
-	struct isc_clk *isc_clk = to_isc_clk(hw);
-	struct regmap *regmap = isc_clk->regmap;
-	unsigned long timeout = jiffies + usecs_to_jiffies(1000);
-	unsigned int status;
-
-	while (time_before(jiffies, timeout)) {
-		regmap_read(regmap, ISC_CLKSR, &status);
-		if (!(status & ISC_CLKSR_SIP))
-			return 0;
-
-		usleep_range(10, 250);
-	}
-
-	return -ETIMEDOUT;
-}
-
-static int isc_clk_prepare(struct clk_hw *hw)
-{
-	struct isc_clk *isc_clk = to_isc_clk(hw);
-	int ret;
-
-	ret = pm_runtime_resume_and_get(isc_clk->dev);
-	if (ret < 0)
-		return ret;
-
-	return isc_wait_clk_stable(hw);
-}
-
-static void isc_clk_unprepare(struct clk_hw *hw)
-{
-	struct isc_clk *isc_clk = to_isc_clk(hw);
-
-	isc_wait_clk_stable(hw);
-
-	pm_runtime_put_sync(isc_clk->dev);
-}
-
-static int isc_clk_enable(struct clk_hw *hw)
-{
-	struct isc_clk *isc_clk = to_isc_clk(hw);
-	u32 id = isc_clk->id;
-	struct regmap *regmap = isc_clk->regmap;
-	unsigned long flags;
-	unsigned int status;
-
-	dev_dbg(isc_clk->dev, "ISC CLK: %s, id = %d, div = %d, parent id = %d\n",
-		__func__, id, isc_clk->div, isc_clk->parent_id);
-
-	spin_lock_irqsave(&isc_clk->lock, flags);
-	regmap_update_bits(regmap, ISC_CLKCFG,
-			   ISC_CLKCFG_DIV_MASK(id) | ISC_CLKCFG_SEL_MASK(id),
-			   (isc_clk->div << ISC_CLKCFG_DIV_SHIFT(id)) |
-			   (isc_clk->parent_id << ISC_CLKCFG_SEL_SHIFT(id)));
-
-	regmap_write(regmap, ISC_CLKEN, ISC_CLK(id));
-	spin_unlock_irqrestore(&isc_clk->lock, flags);
-
-	regmap_read(regmap, ISC_CLKSR, &status);
-	if (status & ISC_CLK(id))
-		return 0;
-	else
-		return -EINVAL;
-}
-
-static void isc_clk_disable(struct clk_hw *hw)
-{
-	struct isc_clk *isc_clk = to_isc_clk(hw);
-	u32 id = isc_clk->id;
-	unsigned long flags;
-
-	spin_lock_irqsave(&isc_clk->lock, flags);
-	regmap_write(isc_clk->regmap, ISC_CLKDIS, ISC_CLK(id));
-	spin_unlock_irqrestore(&isc_clk->lock, flags);
-}
-
-static int isc_clk_is_enabled(struct clk_hw *hw)
-{
-	struct isc_clk *isc_clk = to_isc_clk(hw);
-	u32 status;
-	int ret;
-
-	ret = pm_runtime_resume_and_get(isc_clk->dev);
-	if (ret < 0)
-		return 0;
-
-	regmap_read(isc_clk->regmap, ISC_CLKSR, &status);
-
-	pm_runtime_put_sync(isc_clk->dev);
-
-	return status & ISC_CLK(isc_clk->id) ? 1 : 0;
-}
-
-static unsigned long
-isc_clk_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
-{
-	struct isc_clk *isc_clk = to_isc_clk(hw);
-
-	return DIV_ROUND_CLOSEST(parent_rate, isc_clk->div + 1);
-}
-
-static int isc_clk_determine_rate(struct clk_hw *hw,
-				   struct clk_rate_request *req)
-{
-	struct isc_clk *isc_clk = to_isc_clk(hw);
-	long best_rate = -EINVAL;
-	int best_diff = -1;
-	unsigned int i, div;
-
-	for (i = 0; i < clk_hw_get_num_parents(hw); i++) {
-		struct clk_hw *parent;
-		unsigned long parent_rate;
-
-		parent = clk_hw_get_parent_by_index(hw, i);
-		if (!parent)
-			continue;
-
-		parent_rate = clk_hw_get_rate(parent);
-		if (!parent_rate)
-			continue;
-
-		for (div = 1; div < ISC_CLK_MAX_DIV + 2; div++) {
-			unsigned long rate;
-			int diff;
-
-			rate = DIV_ROUND_CLOSEST(parent_rate, div);
-			diff = abs(req->rate - rate);
-
-			if (best_diff < 0 || best_diff > diff) {
-				best_rate = rate;
-				best_diff = diff;
-				req->best_parent_rate = parent_rate;
-				req->best_parent_hw = parent;
-			}
-
-			if (!best_diff || rate < req->rate)
-				break;
-		}
-
-		if (!best_diff)
-			break;
-	}
-
-	dev_dbg(isc_clk->dev,
-		"ISC CLK: %s, best_rate = %ld, parent clk: %s @ %ld\n",
-		__func__, best_rate,
-		__clk_get_name((req->best_parent_hw)->clk),
-		req->best_parent_rate);
-
-	if (best_rate < 0)
-		return best_rate;
-
-	req->rate = best_rate;
-
-	return 0;
-}
-
-static int isc_clk_set_parent(struct clk_hw *hw, u8 index)
-{
-	struct isc_clk *isc_clk = to_isc_clk(hw);
-
-	if (index >= clk_hw_get_num_parents(hw))
-		return -EINVAL;
-
-	isc_clk->parent_id = index;
-
-	return 0;
-}
-
-static u8 isc_clk_get_parent(struct clk_hw *hw)
-{
-	struct isc_clk *isc_clk = to_isc_clk(hw);
-
-	return isc_clk->parent_id;
-}
-
-static int isc_clk_set_rate(struct clk_hw *hw,
-			     unsigned long rate,
-			     unsigned long parent_rate)
-{
-	struct isc_clk *isc_clk = to_isc_clk(hw);
-	u32 div;
-
-	if (!rate)
-		return -EINVAL;
-
-	div = DIV_ROUND_CLOSEST(parent_rate, rate);
-	if (div > (ISC_CLK_MAX_DIV + 1) || !div)
-		return -EINVAL;
-
-	isc_clk->div = div - 1;
-
-	return 0;
-}
-
-static const struct clk_ops isc_clk_ops = {
-	.prepare	= isc_clk_prepare,
-	.unprepare	= isc_clk_unprepare,
-	.enable		= isc_clk_enable,
-	.disable	= isc_clk_disable,
-	.is_enabled	= isc_clk_is_enabled,
-	.recalc_rate	= isc_clk_recalc_rate,
-	.determine_rate	= isc_clk_determine_rate,
-	.set_parent	= isc_clk_set_parent,
-	.get_parent	= isc_clk_get_parent,
-	.set_rate	= isc_clk_set_rate,
-};
-
-static int isc_clk_register(struct isc_device *isc, unsigned int id)
-{
-	struct regmap *regmap = isc->regmap;
-	struct device_node *np = isc->dev->of_node;
-	struct isc_clk *isc_clk;
-	struct clk_init_data init;
-	const char *clk_name = np->name;
-	const char *parent_names[3];
-	int num_parents;
-
-	if (id == ISC_ISPCK && !isc->ispck_required)
-		return 0;
-
-	num_parents = of_clk_get_parent_count(np);
-	if (num_parents < 1 || num_parents > 3)
-		return -EINVAL;
-
-	if (num_parents > 2 && id == ISC_ISPCK)
-		num_parents = 2;
-
-	of_clk_parent_fill(np, parent_names, num_parents);
-
-	if (id == ISC_MCK)
-		of_property_read_string(np, "clock-output-names", &clk_name);
-	else
-		clk_name = "isc-ispck";
-
-	init.parent_names	= parent_names;
-	init.num_parents	= num_parents;
-	init.name		= clk_name;
-	init.ops		= &isc_clk_ops;
-	init.flags		= CLK_SET_RATE_GATE | CLK_SET_PARENT_GATE;
-
-	isc_clk = &isc->isc_clks[id];
-	isc_clk->hw.init	= &init;
-	isc_clk->regmap		= regmap;
-	isc_clk->id		= id;
-	isc_clk->dev		= isc->dev;
-	spin_lock_init(&isc_clk->lock);
-
-	isc_clk->clk = clk_register(isc->dev, &isc_clk->hw);
-	if (IS_ERR(isc_clk->clk)) {
-		dev_err(isc->dev, "%s: clock register fail\n", clk_name);
-		return PTR_ERR(isc_clk->clk);
-	} else if (id == ISC_MCK)
-		of_clk_add_provider(np, of_clk_src_simple_get, isc_clk->clk);
-
-	return 0;
-}
-
-int isc_clk_init(struct isc_device *isc)
-{
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < ARRAY_SIZE(isc->isc_clks); i++)
-		isc->isc_clks[i].clk = ERR_PTR(-EINVAL);
-
-	for (i = 0; i < ARRAY_SIZE(isc->isc_clks); i++) {
-		ret = isc_clk_register(isc, i);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(isc_clk_init);
-
-void isc_clk_cleanup(struct isc_device *isc)
-{
-	unsigned int i;
-
-	of_clk_del_provider(isc->dev->of_node);
-
-	for (i = 0; i < ARRAY_SIZE(isc->isc_clks); i++) {
-		struct isc_clk *isc_clk = &isc->isc_clks[i];
-
-		if (!IS_ERR(isc_clk->clk))
-			clk_unregister(isc_clk->clk);
-	}
-}
-EXPORT_SYMBOL_GPL(isc_clk_cleanup);
 
 static int isc_queue_setup(struct vb2_queue *vq,
 			    unsigned int *nbuffers, unsigned int *nplanes,
@@ -912,6 +617,7 @@ static int isc_try_configure_rlp_dma(struct isc_device *isc, bool direct_dump)
 		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED8;
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
 		isc->try_config.bpp = 8;
+		isc->try_config.bpp_v4l2 = 8;
 		break;
 	case V4L2_PIX_FMT_SBGGR10:
 	case V4L2_PIX_FMT_SGBRG10:
@@ -921,6 +627,7 @@ static int isc_try_configure_rlp_dma(struct isc_device *isc, bool direct_dump)
 		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED16;
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
 		isc->try_config.bpp = 16;
+		isc->try_config.bpp_v4l2 = 16;
 		break;
 	case V4L2_PIX_FMT_SBGGR12:
 	case V4L2_PIX_FMT_SGBRG12:
@@ -930,24 +637,28 @@ static int isc_try_configure_rlp_dma(struct isc_device *isc, bool direct_dump)
 		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED16;
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
 		isc->try_config.bpp = 16;
+		isc->try_config.bpp_v4l2 = 16;
 		break;
 	case V4L2_PIX_FMT_RGB565:
 		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_RGB565;
 		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED16;
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
 		isc->try_config.bpp = 16;
+		isc->try_config.bpp_v4l2 = 16;
 		break;
 	case V4L2_PIX_FMT_ARGB444:
 		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_ARGB444;
 		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED16;
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
 		isc->try_config.bpp = 16;
+		isc->try_config.bpp_v4l2 = 16;
 		break;
 	case V4L2_PIX_FMT_ARGB555:
 		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_ARGB555;
 		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED16;
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
 		isc->try_config.bpp = 16;
+		isc->try_config.bpp_v4l2 = 16;
 		break;
 	case V4L2_PIX_FMT_ABGR32:
 	case V4L2_PIX_FMT_XBGR32:
@@ -955,42 +666,49 @@ static int isc_try_configure_rlp_dma(struct isc_device *isc, bool direct_dump)
 		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED32;
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
 		isc->try_config.bpp = 32;
+		isc->try_config.bpp_v4l2 = 32;
 		break;
 	case V4L2_PIX_FMT_YUV420:
 		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_YYCC;
 		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_YC420P;
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PLANAR;
 		isc->try_config.bpp = 12;
+		isc->try_config.bpp_v4l2 = 8; /* only first plane */
 		break;
 	case V4L2_PIX_FMT_YUV422P:
 		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_YYCC;
 		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_YC422P;
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PLANAR;
 		isc->try_config.bpp = 16;
+		isc->try_config.bpp_v4l2 = 8; /* only first plane */
 		break;
 	case V4L2_PIX_FMT_YUYV:
 		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_YCYC | ISC_RLP_CFG_YMODE_YUYV;
 		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED32;
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
 		isc->try_config.bpp = 16;
+		isc->try_config.bpp_v4l2 = 16;
 		break;
 	case V4L2_PIX_FMT_UYVY:
 		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_YCYC | ISC_RLP_CFG_YMODE_UYVY;
 		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED32;
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
 		isc->try_config.bpp = 16;
+		isc->try_config.bpp_v4l2 = 16;
 		break;
 	case V4L2_PIX_FMT_VYUY:
 		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_YCYC | ISC_RLP_CFG_YMODE_VYUY;
 		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED32;
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
 		isc->try_config.bpp = 16;
+		isc->try_config.bpp_v4l2 = 16;
 		break;
 	case V4L2_PIX_FMT_GREY:
 		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_DATY8;
 		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED8;
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
 		isc->try_config.bpp = 8;
+		isc->try_config.bpp_v4l2 = 8;
 		break;
 	case V4L2_PIX_FMT_Y16:
 		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_DATY10 | ISC_RLP_CFG_LSH;
@@ -1000,6 +718,7 @@ static int isc_try_configure_rlp_dma(struct isc_device *isc, bool direct_dump)
 		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED16;
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
 		isc->try_config.bpp = 16;
+		isc->try_config.bpp_v4l2 = 16;
 		break;
 	default:
 		return -EINVAL;
@@ -1248,8 +967,9 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 		pixfmt->height = isc->max_height;
 
 	pixfmt->field = V4L2_FIELD_NONE;
-	pixfmt->bytesperline = (pixfmt->width * isc->try_config.bpp) >> 3;
-	pixfmt->sizeimage = pixfmt->bytesperline * pixfmt->height;
+	pixfmt->bytesperline = (pixfmt->width * isc->try_config.bpp_v4l2) >> 3;
+	pixfmt->sizeimage = ((pixfmt->width * isc->try_config.bpp) >> 3) *
+			     pixfmt->height;
 
 	if (code)
 		*code = mbus_code;
@@ -1369,13 +1089,11 @@ static int isc_enum_framesizes(struct file *file, void *fh,
 			       struct v4l2_frmsizeenum *fsize)
 {
 	struct isc_device *isc = video_drvdata(file);
-	struct v4l2_subdev_frame_size_enum fse = {
-		.code = isc->config.sd_format->mbus_code,
-		.index = fsize->index,
-		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
-	};
 	int ret = -EINVAL;
 	int i;
+
+	if (fsize->index)
+		return -EINVAL;
 
 	for (i = 0; i < isc->num_user_formats; i++)
 		if (isc->user_formats[i]->fourcc == fsize->pixel_format)
@@ -1388,50 +1106,14 @@ static int isc_enum_framesizes(struct file *file, void *fh,
 	if (ret)
 		return ret;
 
-	ret = v4l2_subdev_call(isc->current_subdev->sd, pad, enum_frame_size,
-			       NULL, &fse);
-	if (ret)
-		return ret;
+	fsize->type = V4L2_FRMSIZE_TYPE_CONTINUOUS;
 
-	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
-	fsize->discrete.width = fse.max_width;
-	fsize->discrete.height = fse.max_height;
-
-	return 0;
-}
-
-static int isc_enum_frameintervals(struct file *file, void *fh,
-				    struct v4l2_frmivalenum *fival)
-{
-	struct isc_device *isc = video_drvdata(file);
-	struct v4l2_subdev_frame_interval_enum fie = {
-		.code = isc->config.sd_format->mbus_code,
-		.index = fival->index,
-		.width = fival->width,
-		.height = fival->height,
-		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
-	};
-	int ret = -EINVAL;
-	unsigned int i;
-
-	for (i = 0; i < isc->num_user_formats; i++)
-		if (isc->user_formats[i]->fourcc == fival->pixel_format)
-			ret = 0;
-
-	for (i = 0; i < isc->controller_formats_size; i++)
-		if (isc->controller_formats[i].fourcc == fival->pixel_format)
-			ret = 0;
-
-	if (ret)
-		return ret;
-
-	ret = v4l2_subdev_call(isc->current_subdev->sd, pad,
-			       enum_frame_interval, NULL, &fie);
-	if (ret)
-		return ret;
-
-	fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
-	fival->discrete = fie.interval;
+	fsize->stepwise.min_width = 16;
+	fsize->stepwise.max_width = isc->max_width;
+	fsize->stepwise.min_height = 16;
+	fsize->stepwise.max_height = isc->max_height;
+	fsize->stepwise.step_width = 1;
+	fsize->stepwise.step_height = 1;
 
 	return 0;
 }
@@ -1460,7 +1142,6 @@ static const struct v4l2_ioctl_ops isc_ioctl_ops = {
 	.vidioc_g_parm			= isc_g_parm,
 	.vidioc_s_parm			= isc_s_parm,
 	.vidioc_enum_framesizes		= isc_enum_framesizes,
-	.vidioc_enum_frameintervals	= isc_enum_frameintervals,
 
 	.vidioc_log_status		= v4l2_ctrl_log_status,
 	.vidioc_subscribe_event		= v4l2_ctrl_subscribe_event,
@@ -1608,10 +1289,15 @@ static void isc_hist_count(struct isc_device *isc, u32 *min, u32 *max)
 
 	if (!*min)
 		*min = 1;
+
+	v4l2_dbg(1, debug, &isc->v4l2_dev,
+		 "isc wb: hist_id %u, hist_count %u",
+		 ctrls->hist_id, *hist_count);
 }
 
 static void isc_wb_update(struct isc_ctrls *ctrls)
 {
+	struct isc_device *isc = container_of(ctrls, struct isc_device, ctrls);
 	u32 *hist_count = &ctrls->hist_count[0];
 	u32 c, offset[4];
 	u64 avg = 0;
@@ -1627,6 +1313,9 @@ static void isc_wb_update(struct isc_ctrls *ctrls)
 	avg = (u64)hist_count[ISC_HIS_CFG_MODE_GR] +
 		(u64)hist_count[ISC_HIS_CFG_MODE_GB];
 	avg >>= 1;
+
+	v4l2_dbg(1, debug, &isc->v4l2_dev,
+		 "isc wb: green components average %llu\n", avg);
 
 	/* Green histogram is null, nothing to do */
 	if (!avg)
@@ -1680,9 +1369,19 @@ static void isc_wb_update(struct isc_ctrls *ctrls)
 		else
 			gw_gain[c] = 1 << 9;
 
+		v4l2_dbg(1, debug, &isc->v4l2_dev,
+			 "isc wb: component %d, s_gain %u, gw_gain %u\n",
+			 c, s_gain[c], gw_gain[c]);
 		/* multiply both gains and adjust for decimals */
 		ctrls->gain[c] = s_gain[c] * gw_gain[c];
 		ctrls->gain[c] >>= 9;
+
+		/* make sure we are not out of range */
+		ctrls->gain[c] = clamp_val(ctrls->gain[c], 0, GENMASK(12, 0));
+
+		v4l2_dbg(1, debug, &isc->v4l2_dev,
+			 "isc wb: component %d, final gain %u\n",
+			 c, ctrls->gain[c]);
 	}
 }
 
@@ -1706,6 +1405,10 @@ static void isc_awb_work(struct work_struct *w)
 		return;
 
 	isc_hist_count(isc, &min, &max);
+
+	v4l2_dbg(1, debug, &isc->v4l2_dev,
+		 "isc wb mode %d: hist min %u , max %u\n", hist_id, min, max);
+
 	ctrls->hist_minmax[hist_id][HIST_MIN_INDEX] = min;
 	ctrls->hist_minmax[hist_id][HIST_MAX_INDEX] = max;
 
@@ -2181,7 +1884,7 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 	}
 
 	/* Register video device */
-	strscpy(vdev->name, "microchip-isc", sizeof(vdev->name));
+	strscpy(vdev->name, KBUILD_MODNAME, sizeof(vdev->name));
 	vdev->release		= video_device_release_empty;
 	vdev->fops		= &isc_fops;
 	vdev->ioctl_ops		= &isc_ioctl_ops;

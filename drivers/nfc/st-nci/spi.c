@@ -263,13 +263,11 @@ static int st_nci_spi_probe(struct spi_device *dev)
 	return r;
 }
 
-static int st_nci_spi_remove(struct spi_device *dev)
+static void st_nci_spi_remove(struct spi_device *dev)
 {
 	struct st_nci_spi_phy *phy = spi_get_drvdata(dev);
 
 	ndlc_remove(phy->ndlc);
-
-	return 0;
 }
 
 static struct spi_device_id st_nci_spi_id_table[] = {

@@ -15,7 +15,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include <media/v4l2-common.h>
 #include <media/tveeprom.h>
 #include "tea5767.h"

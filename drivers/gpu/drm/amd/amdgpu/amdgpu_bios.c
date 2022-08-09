@@ -464,3 +464,41 @@ success:
 	adev->is_atom_fw = (adev->asic_type >= CHIP_VEGA10) ? true : false;
 	return true;
 }
+
+/* helper function for soc15 and onwards to read bios from rom */
+bool amdgpu_soc15_read_bios_from_rom(struct amdgpu_device *adev,
+				     u8 *bios, u32 length_bytes)
+{
+	u32 *dw_ptr;
+	u32 i, length_dw;
+	u32 rom_index_offset;
+	u32 rom_data_offset;
+
+	if (bios == NULL)
+		return false;
+	if (length_bytes == 0)
+		return false;
+	/* APU vbios image is part of sbios image */
+	if (adev->flags & AMD_IS_APU)
+		return false;
+	if (!adev->smuio.funcs ||
+	    !adev->smuio.funcs->get_rom_index_offset ||
+	    !adev->smuio.funcs->get_rom_data_offset)
+		return false;
+
+	dw_ptr = (u32 *)bios;
+	length_dw = ALIGN(length_bytes, 4) / 4;
+
+	rom_index_offset =
+		adev->smuio.funcs->get_rom_index_offset(adev);
+	rom_data_offset =
+		adev->smuio.funcs->get_rom_data_offset(adev);
+
+	/* set rom index to 0 */
+	WREG32(rom_index_offset, 0);
+	/* read out the rom data */
+	for (i = 0; i < length_dw; i++)
+		dw_ptr[i] = RREG32(rom_data_offset);
+
+	return true;
+}

@@ -135,12 +135,8 @@ static void free_rd_atomic_resources(struct rxe_qp *qp)
 
 void free_rd_atomic_resource(struct rxe_qp *qp, struct resp_res *res)
 {
-	if (res->type == RXE_ATOMIC_MASK) {
+	if (res->type == RXE_ATOMIC_MASK)
 		kfree_skb(res->atomic.skb);
-	} else if (res->type == RXE_READ_MASK) {
-		if (res->read.mr)
-			rxe_drop_ref(res->read.mr);
-	}
 	res->type = 0;
 }
 
@@ -188,9 +184,6 @@ static void rxe_qp_init_misc(struct rxe_dev *rxe, struct rxe_qp *qp,
 		break;
 	}
 
-	INIT_LIST_HEAD(&qp->grp_list);
-
-	spin_lock_init(&qp->grp_lock);
 	spin_lock_init(&qp->state_lock);
 
 	atomic_set(&qp->ssn, 0);
@@ -330,11 +323,11 @@ int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 	struct rxe_cq *scq = to_rcq(init->send_cq);
 	struct rxe_srq *srq = init->srq ? to_rsrq(init->srq) : NULL;
 
-	rxe_add_ref(pd);
-	rxe_add_ref(rcq);
-	rxe_add_ref(scq);
+	rxe_get(pd);
+	rxe_get(rcq);
+	rxe_get(scq);
 	if (srq)
-		rxe_add_ref(srq);
+		rxe_get(srq);
 
 	qp->pd			= pd;
 	qp->rcq			= rcq;
@@ -366,10 +359,10 @@ err1:
 	qp->srq = NULL;
 
 	if (srq)
-		rxe_drop_ref(srq);
-	rxe_drop_ref(scq);
-	rxe_drop_ref(rcq);
-	rxe_drop_ref(pd);
+		rxe_put(srq);
+	rxe_put(scq);
+	rxe_put(rcq);
+	rxe_put(pd);
 
 	return err;
 }
@@ -528,7 +521,7 @@ static void rxe_qp_reset(struct rxe_qp *qp)
 	qp->resp.sent_psn_nak = 0;
 
 	if (qp->resp.mr) {
-		rxe_drop_ref(qp->resp.mr);
+		rxe_put(qp->resp.mr);
 		qp->resp.mr = NULL;
 	}
 
@@ -770,6 +763,20 @@ int rxe_qp_to_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask)
 	return 0;
 }
 
+int rxe_qp_chk_destroy(struct rxe_qp *qp)
+{
+	/* See IBA o10-2.2.3
+	 * An attempt to destroy a QP while attached to a mcast group
+	 * will fail immediately.
+	 */
+	if (atomic_read(&qp->mcg_num)) {
+		pr_debug("Attempt to destroy QP while attached to multicast group\n");
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
 /* called by the destroy qp verb */
 void rxe_qp_destroy(struct rxe_qp *qp)
 {
@@ -798,28 +805,24 @@ static void rxe_qp_do_cleanup(struct work_struct *work)
 {
 	struct rxe_qp *qp = container_of(work, typeof(*qp), cleanup_work.work);
 
-	rxe_drop_all_mcast_groups(qp);
-
 	if (qp->sq.queue)
 		rxe_queue_cleanup(qp->sq.queue);
 
 	if (qp->srq)
-		rxe_drop_ref(qp->srq);
+		rxe_put(qp->srq);
 
 	if (qp->rq.queue)
 		rxe_queue_cleanup(qp->rq.queue);
 
 	if (qp->scq)
-		rxe_drop_ref(qp->scq);
+		rxe_put(qp->scq);
 	if (qp->rcq)
-		rxe_drop_ref(qp->rcq);
+		rxe_put(qp->rcq);
 	if (qp->pd)
-		rxe_drop_ref(qp->pd);
+		rxe_put(qp->pd);
 
-	if (qp->resp.mr) {
-		rxe_drop_ref(qp->resp.mr);
-		qp->resp.mr = NULL;
-	}
+	if (qp->resp.mr)
+		rxe_put(qp->resp.mr);
 
 	if (qp_type(qp) == IB_QPT_RC)
 		sk_dst_reset(qp->sk->sk);

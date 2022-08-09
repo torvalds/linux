@@ -242,6 +242,7 @@ void mpi_rshift(MPI x, MPI a, unsigned int n)
 	}
 	MPN_NORMALIZE(x->d, x->nlimbs);
 }
+EXPORT_SYMBOL_GPL(mpi_rshift);
 
 /****************
  * Shift A by COUNT limbs to the left

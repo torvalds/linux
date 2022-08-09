@@ -16,7 +16,6 @@
 #include <linux/parser.h>
 #include <linux/slab.h>
 #include <linux/rculist.h>
-#include <linux/genhd.h>
 #include <linux/seq_file.h>
 #include <linux/ima.h>
 
@@ -429,7 +428,7 @@ static int ima_lsm_update_rule(struct ima_rule_entry *entry)
 	/*
 	 * ima_lsm_copy_rule() shallow copied all references, except for the
 	 * LSM references, from entry to nentry so we only want to free the LSM
-	 * references and the entry itself. All other memory refrences will now
+	 * references and the entry itself. All other memory references will now
 	 * be owned by nentry.
 	 */
 	ima_lsm_free_rule(entry);
@@ -712,7 +711,7 @@ int ima_match_policy(struct user_namespace *mnt_userns, struct inode *inode,
 				     func, mask, func_data))
 			continue;
 
-		action |= entry->flags & IMA_ACTION_FLAGS;
+		action |= entry->flags & IMA_NONACTION_FLAGS;
 
 		action |= entry->action & IMA_DO_MASK;
 		if (entry->action & IMA_APPRAISE) {

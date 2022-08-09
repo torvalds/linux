@@ -571,6 +571,8 @@
 #define MT_RX_STAT_2_OVERFLOW_ERRORS	GENMASK(31, 16)
 
 #define MT_TX_STA_0			0x170c
+#define MT_TX_STA_0_BEACONS		GENMASK(31, 16)
+
 #define MT_TX_STA_1			0x1710
 #define MT_TX_STA_2			0x1714
 

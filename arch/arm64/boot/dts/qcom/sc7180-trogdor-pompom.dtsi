@@ -33,7 +33,7 @@ ap_h1_spi: &spi0 {};
 };
 
 &alc5682 {
-	realtek,dmic-clk-driving-high = "true";
+	realtek,dmic-clk-driving-high;
 };
 
 &cpu6_alert0 {

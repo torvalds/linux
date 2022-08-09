@@ -142,7 +142,7 @@
 				<0x11006000 0x2000>;
 		};
 
-		pdma0: pdma@10e10000 {
+		pdma0: dma-controller@10e10000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x10E10000 0x1000>;
 			interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
@@ -153,7 +153,7 @@
 			#dma-requests = <32>;
 		};
 
-		pdma1: pdma@10eb0000 {
+		pdma1: dma-controller@10eb0000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x10EB0000 0x1000>;
 			interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
@@ -177,10 +177,11 @@
 			clocks = <&fin_pll>, <&clock_topc DOUT_SCLK_BUS0_PLL>,
 				 <&clock_topc DOUT_SCLK_BUS1_PLL>,
 				 <&clock_topc DOUT_SCLK_CC_PLL>,
-				 <&clock_topc DOUT_SCLK_MFC_PLL>;
+				 <&clock_topc DOUT_SCLK_MFC_PLL>,
+				 <&clock_topc DOUT_SCLK_AUD_PLL>;
 			clock-names = "fin_pll", "dout_sclk_bus0_pll",
 				      "dout_sclk_bus1_pll", "dout_sclk_cc_pll",
-				      "dout_sclk_mfc_pll";
+				      "dout_sclk_mfc_pll", "dout_sclk_aud_pll";
 		};
 
 		clock_top1: clock-controller@105e0000 {
@@ -218,12 +219,32 @@
 			compatible = "samsung,exynos7-clock-peric1";
 			reg = <0x14c80000 0xd00>;
 			#clock-cells = <1>;
-			clocks = <&fin_pll>, <&clock_top0 DOUT_ACLK_PERIC1>,
+			clocks = <&fin_pll>,
+				 <&clock_top0 DOUT_ACLK_PERIC1>,
 				 <&clock_top0 CLK_SCLK_UART1>,
 				 <&clock_top0 CLK_SCLK_UART2>,
-				 <&clock_top0 CLK_SCLK_UART3>;
-			clock-names = "fin_pll", "dout_aclk_peric1_66",
-				      "sclk_uart1", "sclk_uart2", "sclk_uart3";
+				 <&clock_top0 CLK_SCLK_UART3>,
+				 <&clock_top0 CLK_SCLK_SPI0>,
+				 <&clock_top0 CLK_SCLK_SPI1>,
+				 <&clock_top0 CLK_SCLK_SPI2>,
+				 <&clock_top0 CLK_SCLK_SPI3>,
+				 <&clock_top0 CLK_SCLK_SPI4>,
+				 <&clock_top0 CLK_SCLK_I2S1>,
+				 <&clock_top0 CLK_SCLK_PCM1>,
+				 <&clock_top0 CLK_SCLK_SPDIF>;
+			clock-names = "fin_pll",
+				      "dout_aclk_peric1_66",
+				      "sclk_uart1",
+				      "sclk_uart2",
+				      "sclk_uart3",
+				      "sclk_spi0",
+				      "sclk_spi1",
+				      "sclk_spi2",
+				      "sclk_spi3",
+				      "sclk_spi4",
+				      "sclk_i2s1",
+				      "sclk_pcm1",
+				      "sclk_spdif";
 		};
 
 		clock_peris: clock-controller@10040000 {
@@ -663,16 +684,15 @@
 			reg = <0x15500000 0x100>;
 			clocks = <&clock_fsys0 ACLK_USBDRD300>,
 			       <&clock_fsys0 OSCCLK_PHY_CLKOUT_USB30_PHY>,
-			       <&clock_fsys0 PHYCLK_USBDRD300_UDRD30_PIPE_PCLK_USER>,
 			       <&clock_fsys0 PHYCLK_USBDRD300_UDRD30_PHYCLK_USER>,
+			       <&clock_fsys0 PHYCLK_USBDRD300_UDRD30_PIPE_PCLK_USER>,
 			       <&clock_fsys0 SCLK_USBDRD300_REFCLK>;
-			clock-names = "phy", "ref", "phy_pipe",
-				"phy_utmi", "itp";
+			clock-names = "phy", "ref", "phy_utmi", "phy_pipe", "itp";
 			samsung,pmu-syscon = <&pmu_system_controller>;
 			#phy-cells = <1>;
 		};
 
-		usbdrd3 {
+		usbdrd: usb {
 			compatible = "samsung,exynos7-dwusb3";
 			clocks = <&clock_fsys0 ACLK_USBDRD300>,
 			       <&clock_fsys0 SCLK_USBDRD300_SUSPENDCLK>,

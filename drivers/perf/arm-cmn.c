@@ -71,9 +71,11 @@
 #define CMN_DTM_WPn(n)			(0x1A0 + (n) * 0x18)
 #define CMN_DTM_WPn_CONFIG(n)		(CMN_DTM_WPn(n) + 0x00)
 #define CMN_DTM_WPn_CONFIG_WP_DEV_SEL2	GENMASK_ULL(18,17)
-#define CMN_DTM_WPn_CONFIG_WP_COMBINE	BIT(6)
-#define CMN_DTM_WPn_CONFIG_WP_EXCLUSIVE	BIT(5)
-#define CMN_DTM_WPn_CONFIG_WP_GRP	BIT(4)
+#define CMN_DTM_WPn_CONFIG_WP_COMBINE	BIT(9)
+#define CMN_DTM_WPn_CONFIG_WP_EXCLUSIVE	BIT(8)
+#define CMN600_WPn_CONFIG_WP_COMBINE	BIT(6)
+#define CMN600_WPn_CONFIG_WP_EXCLUSIVE	BIT(5)
+#define CMN_DTM_WPn_CONFIG_WP_GRP	GENMASK_ULL(5, 4)
 #define CMN_DTM_WPn_CONFIG_WP_CHN_SEL	GENMASK_ULL(3, 1)
 #define CMN_DTM_WPn_CONFIG_WP_DEV_SEL	BIT(0)
 #define CMN_DTM_WPn_VAL(n)		(CMN_DTM_WPn(n) + 0x08)
@@ -155,6 +157,7 @@
 #define CMN_CONFIG_WP_COMBINE		GENMASK_ULL(27, 24)
 #define CMN_CONFIG_WP_DEV_SEL		GENMASK_ULL(50, 48)
 #define CMN_CONFIG_WP_CHN_SEL		GENMASK_ULL(55, 51)
+/* Note that we don't yet support the tertiary match group on newer IPs */
 #define CMN_CONFIG_WP_GRP		BIT_ULL(56)
 #define CMN_CONFIG_WP_EXCLUSIVE		BIT_ULL(57)
 #define CMN_CONFIG1_WP_VAL		GENMASK_ULL(63, 0)
@@ -353,7 +356,7 @@ static struct arm_cmn_node *arm_cmn_node(const struct arm_cmn *cmn,
 	return NULL;
 }
 
-struct dentry *arm_cmn_debugfs;
+static struct dentry *arm_cmn_debugfs;
 
 #ifdef CONFIG_DEBUG_FS
 static const char *arm_cmn_device_type(u8 type)
@@ -593,6 +596,9 @@ static umode_t arm_cmn_event_attr_is_visible(struct kobject *kobj,
 		unsigned int chan = eattr->eventid >> 5;
 
 		if ((intf & 4) && !(cmn->ports_used & BIT(intf & 3)))
+			return 0;
+
+		if (chan == 4 && cmn->model == CMN600)
 			return 0;
 
 		if ((chan == 5 && cmn->rsp_vc_num < 2) ||
@@ -905,15 +911,18 @@ static u32 arm_cmn_wp_config(struct perf_event *event)
 	u32 grp = CMN_EVENT_WP_GRP(event);
 	u32 exc = CMN_EVENT_WP_EXCLUSIVE(event);
 	u32 combine = CMN_EVENT_WP_COMBINE(event);
+	bool is_cmn600 = to_cmn(event->pmu)->model == CMN600;
 
 	config = FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_DEV_SEL, dev) |
 		 FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_CHN_SEL, chn) |
 		 FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_GRP, grp) |
-		 FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_EXCLUSIVE, exc) |
 		 FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_DEV_SEL2, dev >> 1);
+	if (exc)
+		config |= is_cmn600 ? CMN600_WPn_CONFIG_WP_EXCLUSIVE :
+				      CMN_DTM_WPn_CONFIG_WP_EXCLUSIVE;
 	if (combine && !grp)
-		config |= CMN_DTM_WPn_CONFIG_WP_COMBINE;
-
+		config |= is_cmn600 ? CMN600_WPn_CONFIG_WP_COMBINE :
+				      CMN_DTM_WPn_CONFIG_WP_COMBINE;
 	return config;
 }
 

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  *    Copyright IBM Corp. 2006
- *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
 #include <linux/memory_hotplug.h>
@@ -175,9 +174,9 @@ static int __ref modify_pte_table(pmd_t *pmd, unsigned long addr,
 
 				if (!new_page)
 					goto out;
-				pte_val(*pte) = __pa(new_page) | prot;
+				set_pte(pte, __pte(__pa(new_page) | prot));
 			} else {
-				pte_val(*pte) = __pa(addr) | prot;
+				set_pte(pte, __pte(__pa(addr) | prot));
 			}
 		} else {
 			continue;
@@ -243,7 +242,7 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 			    IS_ALIGNED(next, PMD_SIZE) &&
 			    MACHINE_HAS_EDAT1 && addr && direct &&
 			    !debug_pagealloc_enabled()) {
-				pmd_val(*pmd) = __pa(addr) | prot;
+				set_pmd(pmd, __pmd(__pa(addr) | prot));
 				pages++;
 				continue;
 			} else if (!direct && MACHINE_HAS_EDAT1) {
@@ -258,7 +257,7 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 				 */
 				new_page = vmemmap_alloc_block(PMD_SIZE, NUMA_NO_NODE);
 				if (new_page) {
-					pmd_val(*pmd) = __pa(new_page) | prot;
+					set_pmd(pmd, __pmd(__pa(new_page) | prot));
 					if (!IS_ALIGNED(addr, PMD_SIZE) ||
 					    !IS_ALIGNED(next, PMD_SIZE)) {
 						vmemmap_use_new_sub_pmd(addr, next);
@@ -339,7 +338,7 @@ static int modify_pud_table(p4d_t *p4d, unsigned long addr, unsigned long end,
 			    IS_ALIGNED(next, PUD_SIZE) &&
 			    MACHINE_HAS_EDAT2 && addr && direct &&
 			    !debug_pagealloc_enabled()) {
-				pud_val(*pud) = __pa(addr) | prot;
+				set_pud(pud, __pud(__pa(addr) | prot));
 				pages++;
 				continue;
 			}
@@ -585,13 +584,9 @@ void __init vmem_map_init(void)
 	__set_memory(__stext_amode31, (__etext_amode31 - __stext_amode31) >> PAGE_SHIFT,
 		     SET_MEMORY_RO | SET_MEMORY_X);
 
-	if (nospec_uses_trampoline() || !static_key_enabled(&cpu_has_bear)) {
-		/*
-		 * Lowcore must be executable for LPSWE
-		 * and expoline trampoline branch instructions.
-		 */
+	/* lowcore must be executable for LPSWE */
+	if (!static_key_enabled(&cpu_has_bear))
 		set_memory_x(0, 1);
-	}
 
 	pr_info("Write protected kernel read-only data: %luk\n",
 		(unsigned long)(__end_rodata - _stext) >> 10);

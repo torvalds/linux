@@ -235,6 +235,9 @@ enum cs8409_coefficient_index_registers {
 #define CS42L42_I2C_SLEEP_US			(2000)
 #define CS42L42_PDN_TIMEOUT_US			(250000)
 #define CS42L42_PDN_SLEEP_US			(2000)
+#define CS42L42_FULL_SCALE_VOL_MASK		(2)
+#define CS42L42_FULL_SCALE_VOL_0DB		(1)
+#define CS42L42_FULL_SCALE_VOL_MINUS6DB		(0)
 
 /* Dell BULLSEYE / WARLOCK / CYBORG Specific Definitions */
 
@@ -264,6 +267,8 @@ enum cs8409_coefficient_index_registers {
 enum {
 	CS8409_BULLSEYE,
 	CS8409_WARLOCK,
+	CS8409_WARLOCK_MLK,
+	CS8409_WARLOCK_MLK_DUAL_MIC,
 	CS8409_CYBORG,
 	CS8409_FIXUPS,
 	CS8409_DOLPHIN,

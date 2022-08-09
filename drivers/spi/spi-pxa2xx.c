@@ -13,7 +13,6 @@
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/gpio/consumer.h>
-#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -1163,57 +1162,6 @@ static int pxa2xx_spi_unprepare_transfer(struct spi_controller *controller)
 	return 0;
 }
 
-static void cleanup_cs(struct spi_device *spi)
-{
-	if (!gpio_is_valid(spi->cs_gpio))
-		return;
-
-	gpio_free(spi->cs_gpio);
-	spi->cs_gpio = -ENOENT;
-}
-
-static int setup_cs(struct spi_device *spi, struct chip_data *chip,
-		    struct pxa2xx_spi_chip *chip_info)
-{
-	struct driver_data *drv_data = spi_controller_get_devdata(spi->controller);
-
-	if (chip == NULL)
-		return 0;
-
-	if (chip_info == NULL)
-		return 0;
-
-	if (drv_data->ssp_type == CE4100_SSP)
-		return 0;
-
-	/*
-	 * NOTE: setup() can be called multiple times, possibly with
-	 * different chip_info, release previously requested GPIO.
-	 */
-	cleanup_cs(spi);
-
-	if (gpio_is_valid(chip_info->gpio_cs)) {
-		int gpio = chip_info->gpio_cs;
-		int err;
-
-		err = gpio_request(gpio, "SPI_CS");
-		if (err) {
-			dev_err(&spi->dev, "failed to request chip select GPIO%d\n", gpio);
-			return err;
-		}
-
-		err = gpio_direction_output(gpio, !(spi->mode & SPI_CS_HIGH));
-		if (err) {
-			gpio_free(gpio);
-			return err;
-		}
-
-		spi->cs_gpio = gpio;
-	}
-
-	return 0;
-}
-
 static int setup(struct spi_device *spi)
 {
 	struct pxa2xx_spi_chip *chip_info;
@@ -1222,7 +1170,6 @@ static int setup(struct spi_device *spi)
 	struct driver_data *drv_data =
 		spi_controller_get_devdata(spi->controller);
 	uint tx_thres, tx_hi_thres, rx_thres;
-	int err;
 
 	switch (drv_data->ssp_type) {
 	case QUARK_X1000_SSP:
@@ -1365,21 +1312,13 @@ static int setup(struct spi_device *spi)
 
 	spi_set_ctldata(spi, chip);
 
-	if (drv_data->ssp_type == CE4100_SSP)
-		return 0;
-
-	err = setup_cs(spi, chip, chip_info);
-	if (err)
-		kfree(chip);
-
-	return err;
+	return 0;
 }
 
 static void cleanup(struct spi_device *spi)
 {
 	struct chip_data *chip = spi_get_ctldata(spi);
 
-	cleanup_cs(spi);
 	kfree(chip);
 }
 
@@ -1455,6 +1394,11 @@ static const struct pci_device_id pxa2xx_spi_pci_compound_match[] = {
 	{ PCI_VDEVICE(INTEL, 0x5ac2), LPSS_BXT_SSP },
 	{ PCI_VDEVICE(INTEL, 0x5ac4), LPSS_BXT_SSP },
 	{ PCI_VDEVICE(INTEL, 0x5ac6), LPSS_BXT_SSP },
+	/* RPL-S */
+	{ PCI_VDEVICE(INTEL, 0x7a2a), LPSS_CNL_SSP },
+	{ PCI_VDEVICE(INTEL, 0x7a2b), LPSS_CNL_SSP },
+	{ PCI_VDEVICE(INTEL, 0x7a79), LPSS_CNL_SSP },
+	{ PCI_VDEVICE(INTEL, 0x7a7b), LPSS_CNL_SSP },
 	/* ADL-S */
 	{ PCI_VDEVICE(INTEL, 0x7aaa), LPSS_CNL_SSP },
 	{ PCI_VDEVICE(INTEL, 0x7aab), LPSS_CNL_SSP },

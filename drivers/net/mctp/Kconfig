@@ -21,6 +21,18 @@ config MCTP_SERIAL
 	  Say y here if you need to connect to MCTP endpoints over serial. To
 	  compile as a module, use m; the module will be called mctp-serial.
 
+config MCTP_TRANSPORT_I2C
+	tristate "MCTP SMBus/I2C transport"
+	# i2c-mux is optional, but we must build as a module if i2c-mux is a module
+	depends on I2C_MUX || !I2C_MUX
+	depends on I2C
+	depends on I2C_SLAVE
+	select MCTP_FLOWS
+	help
+	  Provides a driver to access MCTP devices over SMBus/I2C transport,
+	  from DMTF specification DSP0237. A MCTP protocol network device is
+	  created for each I2C bus that has been assigned a mctp-i2c device.
+
 endmenu
 
 endif

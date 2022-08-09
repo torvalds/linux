@@ -272,14 +272,6 @@ int mv88e6352_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 	return lane;
 }
 
-static bool mv88e6352_port_has_serdes(struct mv88e6xxx_chip *chip, int port)
-{
-	if (mv88e6xxx_serdes_get_lane(chip, port) >= 0)
-		return true;
-
-	return false;
-}
-
 struct mv88e6352_serdes_hw_stat {
 	char string[ETH_GSTRING_LEN];
 	int sizeof_stat;
@@ -293,20 +285,24 @@ static struct mv88e6352_serdes_hw_stat mv88e6352_serdes_hw_stats[] = {
 
 int mv88e6352_serdes_get_sset_count(struct mv88e6xxx_chip *chip, int port)
 {
-	if (mv88e6352_port_has_serdes(chip, port))
-		return ARRAY_SIZE(mv88e6352_serdes_hw_stats);
+	int err;
 
-	return 0;
+	err = mv88e6352_g2_scratch_port_has_serdes(chip, port);
+	if (err <= 0)
+		return err;
+
+	return ARRAY_SIZE(mv88e6352_serdes_hw_stats);
 }
 
 int mv88e6352_serdes_get_strings(struct mv88e6xxx_chip *chip,
 				 int port, uint8_t *data)
 {
 	struct mv88e6352_serdes_hw_stat *stat;
-	int i;
+	int err, i;
 
-	if (!mv88e6352_port_has_serdes(chip, port))
-		return 0;
+	err = mv88e6352_g2_scratch_port_has_serdes(chip, port);
+	if (err <= 0)
+		return err;
 
 	for (i = 0; i < ARRAY_SIZE(mv88e6352_serdes_hw_stats); i++) {
 		stat = &mv88e6352_serdes_hw_stats[i];
@@ -348,11 +344,12 @@ int mv88e6352_serdes_get_stats(struct mv88e6xxx_chip *chip, int port,
 {
 	struct mv88e6xxx_port *mv88e6xxx_port = &chip->ports[port];
 	struct mv88e6352_serdes_hw_stat *stat;
+	int i, err;
 	u64 value;
-	int i;
 
-	if (!mv88e6352_port_has_serdes(chip, port))
-		return 0;
+	err = mv88e6352_g2_scratch_port_has_serdes(chip, port);
+	if (err <= 0)
+		return err;
 
 	BUILD_BUG_ON(ARRAY_SIZE(mv88e6352_serdes_hw_stats) >
 		     ARRAY_SIZE(mv88e6xxx_port->serdes_stats));
@@ -419,8 +416,13 @@ unsigned int mv88e6352_serdes_irq_mapping(struct mv88e6xxx_chip *chip, int port)
 
 int mv88e6352_serdes_get_regs_len(struct mv88e6xxx_chip *chip, int port)
 {
-	if (!mv88e6352_port_has_serdes(chip, port))
-		return 0;
+	int err;
+
+	mv88e6xxx_reg_lock(chip);
+	err = mv88e6352_g2_scratch_port_has_serdes(chip, port);
+	mv88e6xxx_reg_unlock(chip);
+	if (err <= 0)
+		return err;
 
 	return 32 * sizeof(u16);
 }
@@ -432,7 +434,8 @@ void mv88e6352_serdes_get_regs(struct mv88e6xxx_chip *chip, int port, void *_p)
 	int err;
 	int i;
 
-	if (!mv88e6352_port_has_serdes(chip, port))
+	err = mv88e6352_g2_scratch_port_has_serdes(chip, port);
+	if (err <= 0)
 		return;
 
 	for (i = 0 ; i < 32; i++) {
@@ -1308,6 +1311,44 @@ void mv88e6390_serdes_get_regs(struct mv88e6xxx_chip *chip, int port, void *_p)
 		if (!err)
 			p[i] = reg;
 	}
+}
+
+static const int mv88e6352_serdes_p2p_to_reg[] = {
+	/* Index of value in microvolts corresponds to the register value */
+	14000, 112000, 210000, 308000, 406000, 504000, 602000, 700000,
+};
+
+int mv88e6352_serdes_set_tx_amplitude(struct mv88e6xxx_chip *chip, int port,
+				      int val)
+{
+	bool found = false;
+	u16 ctrl, reg;
+	int err;
+	int i;
+
+	err = mv88e6352_g2_scratch_port_has_serdes(chip, port);
+	if (err <= 0)
+		return err;
+
+	for (i = 0; i < ARRAY_SIZE(mv88e6352_serdes_p2p_to_reg); ++i) {
+		if (mv88e6352_serdes_p2p_to_reg[i] == val) {
+			reg = i;
+			found = true;
+			break;
+		}
+	}
+
+	if (!found)
+		return -EINVAL;
+
+	err = mv88e6352_serdes_read(chip, MV88E6352_SERDES_SPEC_CTRL2, &ctrl);
+	if (err)
+		return err;
+
+	ctrl &= ~MV88E6352_SERDES_OUT_AMP_MASK;
+	ctrl |= reg;
+
+	return mv88e6352_serdes_write(chip, MV88E6352_SERDES_SPEC_CTRL2, ctrl);
 }
 
 static int mv88e6393x_serdes_power_lane(struct mv88e6xxx_chip *chip, int lane,

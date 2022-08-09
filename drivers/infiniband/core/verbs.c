@@ -268,9 +268,6 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 		return ERR_PTR(-ENOMEM);
 
 	pd->device = device;
-	pd->uobject = NULL;
-	pd->__internal_mr = NULL;
-	atomic_set(&pd->usecnt, 0);
 	pd->flags = flags;
 
 	rdma_restrack_new(&pd->res, RDMA_RESTRACK_PD);
@@ -340,11 +337,6 @@ int ib_dealloc_pd_user(struct ib_pd *pd, struct ib_udata *udata)
 		WARN_ON(ret);
 		pd->__internal_mr = NULL;
 	}
-
-	/* uverbs manipulates usecnt with proper locking, while the kabi
-	 * requires the caller to guarantee we can't race here.
-	 */
-	WARN_ON(atomic_read(&pd->usecnt));
 
 	ret = pd->device->ops.dealloc_pd(pd, udata);
 	if (ret)
@@ -2153,6 +2145,7 @@ struct ib_mr *ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		return mr;
 
 	mr->device = pd->device;
+	mr->type = IB_MR_TYPE_USER;
 	mr->pd = pd;
 	mr->dm = NULL;
 	atomic_inc(&pd->usecnt);

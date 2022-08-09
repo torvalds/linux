@@ -12,7 +12,6 @@
 #include <linux/device.h>
 #include <linux/cpu.h>
 
-#include <asm/asm-prototypes.h>
 #include <asm/firmware.h>
 #include <asm/interrupt.h>
 #include <asm/machdep.h>

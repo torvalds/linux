@@ -872,16 +872,46 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	submit->nr_cmds = i;
 
+	/*
+	 * If using userspace provided seqno fence, validate that the id
+	 * is available before arming sched job.  Since access to fence_idr
+	 * is serialized on the queue lock, the slot should be still avail
+	 * after the job is armed
+	 */
+	if ((args->flags & MSM_SUBMIT_FENCE_SN_IN) &&
+			idr_find(&queue->fence_idr, args->fence)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	drm_sched_job_arm(&submit->base);
 
 	submit->user_fence = dma_fence_get(&submit->base.s_fence->finished);
 
-	/*
-	 * Allocate an id which can be used by WAIT_FENCE ioctl to map back
-	 * to the underlying fence.
-	 */
-	submit->fence_id = idr_alloc_cyclic(&queue->fence_idr,
-			submit->user_fence, 1, INT_MAX, GFP_KERNEL);
+	if (args->flags & MSM_SUBMIT_FENCE_SN_IN) {
+		/*
+		 * Userspace has assigned the seqno fence that it wants
+		 * us to use.  It is an error to pick a fence sequence
+		 * number that is not available.
+		 */
+		submit->fence_id = args->fence;
+		ret = idr_alloc_u32(&queue->fence_idr, submit->user_fence,
+				    &submit->fence_id, submit->fence_id,
+				    GFP_KERNEL);
+		/*
+		 * We've already validated that the fence_id slot is valid,
+		 * so if idr_alloc_u32 failed, it is a kernel bug
+		 */
+		WARN_ON(ret);
+	} else {
+		/*
+		 * Allocate an id which can be used by WAIT_FENCE ioctl to map
+		 * back to the underlying fence.
+		 */
+		submit->fence_id = idr_alloc_cyclic(&queue->fence_idr,
+						    submit->user_fence, 1,
+						    INT_MAX, GFP_KERNEL);
+	}
 	if (submit->fence_id < 0) {
 		ret = submit->fence_id = 0;
 		submit->fence_id = 0;

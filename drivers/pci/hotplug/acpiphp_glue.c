@@ -226,9 +226,9 @@ static void acpiphp_post_dock_fixup(struct acpi_device *adev)
 static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
 				       void **rv)
 {
+	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 	struct acpiphp_bridge *bridge = data;
 	struct acpiphp_context *context;
-	struct acpi_device *adev;
 	struct acpiphp_slot *slot;
 	struct acpiphp_func *newfunc;
 	acpi_status status = AE_OK;
@@ -238,6 +238,9 @@ static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
 	struct pci_dev *pdev = bridge->pci_dev;
 	u32 val;
 
+	if (!adev)
+		return AE_OK;
+
 	status = acpi_evaluate_integer(handle, "_ADR", NULL, &adr);
 	if (ACPI_FAILURE(status)) {
 		if (status != AE_NOT_FOUND)
@@ -245,8 +248,6 @@ static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
 				"can't evaluate _ADR (%#x)\n", status);
 		return AE_OK;
 	}
-	if (acpi_bus_get_device(handle, &adev))
-		return AE_OK;
 
 	device = (adr >> 16) & 0xffff;
 	function = adr & 0xffff;

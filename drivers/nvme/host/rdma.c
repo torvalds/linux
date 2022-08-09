@@ -978,11 +978,9 @@ static int nvme_rdma_configure_io_queues(struct nvme_rdma_ctrl *ctrl, bool new)
 			goto out_free_io_queues;
 		}
 
-		ctrl->ctrl.connect_q = blk_mq_init_queue(&ctrl->tag_set);
-		if (IS_ERR(ctrl->ctrl.connect_q)) {
-			ret = PTR_ERR(ctrl->ctrl.connect_q);
+		ret = nvme_ctrl_init_connect_q(&(ctrl->ctrl));
+		if (ret)
 			goto out_free_tag_set;
-		}
 	}
 
 	ret = nvme_rdma_start_io_queues(ctrl);
@@ -1283,6 +1281,22 @@ static int nvme_rdma_inv_rkey(struct nvme_rdma_queue *queue,
 	return ib_post_send(queue->qp, &wr, NULL);
 }
 
+static void nvme_rdma_dma_unmap_req(struct ib_device *ibdev, struct request *rq)
+{
+	struct nvme_rdma_request *req = blk_mq_rq_to_pdu(rq);
+
+	if (blk_integrity_rq(rq)) {
+		ib_dma_unmap_sg(ibdev, req->metadata_sgl->sg_table.sgl,
+				req->metadata_sgl->nents, rq_dma_dir(rq));
+		sg_free_table_chained(&req->metadata_sgl->sg_table,
+				      NVME_INLINE_METADATA_SG_CNT);
+	}
+
+	ib_dma_unmap_sg(ibdev, req->data_sgl.sg_table.sgl, req->data_sgl.nents,
+			rq_dma_dir(rq));
+	sg_free_table_chained(&req->data_sgl.sg_table, NVME_INLINE_SG_CNT);
+}
+
 static void nvme_rdma_unmap_data(struct nvme_rdma_queue *queue,
 		struct request *rq)
 {
@@ -1294,13 +1308,6 @@ static void nvme_rdma_unmap_data(struct nvme_rdma_queue *queue,
 	if (!blk_rq_nr_phys_segments(rq))
 		return;
 
-	if (blk_integrity_rq(rq)) {
-		ib_dma_unmap_sg(ibdev, req->metadata_sgl->sg_table.sgl,
-				req->metadata_sgl->nents, rq_dma_dir(rq));
-		sg_free_table_chained(&req->metadata_sgl->sg_table,
-				      NVME_INLINE_METADATA_SG_CNT);
-	}
-
 	if (req->use_sig_mr)
 		pool = &queue->qp->sig_mrs;
 
@@ -1309,9 +1316,7 @@ static void nvme_rdma_unmap_data(struct nvme_rdma_queue *queue,
 		req->mr = NULL;
 	}
 
-	ib_dma_unmap_sg(ibdev, req->data_sgl.sg_table.sgl, req->data_sgl.nents,
-			rq_dma_dir(rq));
-	sg_free_table_chained(&req->data_sgl.sg_table, NVME_INLINE_SG_CNT);
+	nvme_rdma_dma_unmap_req(ibdev, rq);
 }
 
 static int nvme_rdma_set_sg_null(struct nvme_command *c)
@@ -1522,22 +1527,11 @@ mr_put:
 	return -EINVAL;
 }
 
-static int nvme_rdma_map_data(struct nvme_rdma_queue *queue,
-		struct request *rq, struct nvme_command *c)
+static int nvme_rdma_dma_map_req(struct ib_device *ibdev, struct request *rq,
+		int *count, int *pi_count)
 {
 	struct nvme_rdma_request *req = blk_mq_rq_to_pdu(rq);
-	struct nvme_rdma_device *dev = queue->device;
-	struct ib_device *ibdev = dev->dev;
-	int pi_count = 0;
-	int count, ret;
-
-	req->num_sge = 1;
-	refcount_set(&req->ref, 2); /* send and recv completions */
-
-	c->common.flags |= NVME_CMD_SGL_METABUF;
-
-	if (!blk_rq_nr_phys_segments(rq))
-		return nvme_rdma_set_sg_null(c);
+	int ret;
 
 	req->data_sgl.sg_table.sgl = (struct scatterlist *)(req + 1);
 	ret = sg_alloc_table_chained(&req->data_sgl.sg_table,
@@ -1549,9 +1543,9 @@ static int nvme_rdma_map_data(struct nvme_rdma_queue *queue,
 	req->data_sgl.nents = blk_rq_map_sg(rq->q, rq,
 					    req->data_sgl.sg_table.sgl);
 
-	count = ib_dma_map_sg(ibdev, req->data_sgl.sg_table.sgl,
-			      req->data_sgl.nents, rq_dma_dir(rq));
-	if (unlikely(count <= 0)) {
+	*count = ib_dma_map_sg(ibdev, req->data_sgl.sg_table.sgl,
+			       req->data_sgl.nents, rq_dma_dir(rq));
+	if (unlikely(*count <= 0)) {
 		ret = -EIO;
 		goto out_free_table;
 	}
@@ -1570,15 +1564,49 @@ static int nvme_rdma_map_data(struct nvme_rdma_queue *queue,
 
 		req->metadata_sgl->nents = blk_rq_map_integrity_sg(rq->q,
 				rq->bio, req->metadata_sgl->sg_table.sgl);
-		pi_count = ib_dma_map_sg(ibdev,
-					 req->metadata_sgl->sg_table.sgl,
-					 req->metadata_sgl->nents,
-					 rq_dma_dir(rq));
-		if (unlikely(pi_count <= 0)) {
+		*pi_count = ib_dma_map_sg(ibdev,
+					  req->metadata_sgl->sg_table.sgl,
+					  req->metadata_sgl->nents,
+					  rq_dma_dir(rq));
+		if (unlikely(*pi_count <= 0)) {
 			ret = -EIO;
 			goto out_free_pi_table;
 		}
 	}
+
+	return 0;
+
+out_free_pi_table:
+	sg_free_table_chained(&req->metadata_sgl->sg_table,
+			      NVME_INLINE_METADATA_SG_CNT);
+out_unmap_sg:
+	ib_dma_unmap_sg(ibdev, req->data_sgl.sg_table.sgl, req->data_sgl.nents,
+			rq_dma_dir(rq));
+out_free_table:
+	sg_free_table_chained(&req->data_sgl.sg_table, NVME_INLINE_SG_CNT);
+	return ret;
+}
+
+static int nvme_rdma_map_data(struct nvme_rdma_queue *queue,
+		struct request *rq, struct nvme_command *c)
+{
+	struct nvme_rdma_request *req = blk_mq_rq_to_pdu(rq);
+	struct nvme_rdma_device *dev = queue->device;
+	struct ib_device *ibdev = dev->dev;
+	int pi_count = 0;
+	int count, ret;
+
+	req->num_sge = 1;
+	refcount_set(&req->ref, 2); /* send and recv completions */
+
+	c->common.flags |= NVME_CMD_SGL_METABUF;
+
+	if (!blk_rq_nr_phys_segments(rq))
+		return nvme_rdma_set_sg_null(c);
+
+	ret = nvme_rdma_dma_map_req(ibdev, rq, &count, &pi_count);
+	if (unlikely(ret))
+		return ret;
 
 	if (req->use_sig_mr) {
 		ret = nvme_rdma_map_sg_pi(queue, req, c, count, pi_count);
@@ -1603,23 +1631,12 @@ static int nvme_rdma_map_data(struct nvme_rdma_queue *queue,
 	ret = nvme_rdma_map_sg_fr(queue, req, c, count);
 out:
 	if (unlikely(ret))
-		goto out_unmap_pi_sg;
+		goto out_dma_unmap_req;
 
 	return 0;
 
-out_unmap_pi_sg:
-	if (blk_integrity_rq(rq))
-		ib_dma_unmap_sg(ibdev, req->metadata_sgl->sg_table.sgl,
-				req->metadata_sgl->nents, rq_dma_dir(rq));
-out_free_pi_table:
-	if (blk_integrity_rq(rq))
-		sg_free_table_chained(&req->metadata_sgl->sg_table,
-				      NVME_INLINE_METADATA_SG_CNT);
-out_unmap_sg:
-	ib_dma_unmap_sg(ibdev, req->data_sgl.sg_table.sgl, req->data_sgl.nents,
-			rq_dma_dir(rq));
-out_free_table:
-	sg_free_table_chained(&req->data_sgl.sg_table, NVME_INLINE_SG_CNT);
+out_dma_unmap_req:
+	nvme_rdma_dma_unmap_req(ibdev, rq);
 	return ret;
 }
 

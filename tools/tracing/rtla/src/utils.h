@@ -54,3 +54,4 @@ struct sched_attr {
 
 int parse_prio(char *arg, struct sched_attr *sched_param);
 int set_comm_sched_attr(const char *comm, struct sched_attr *attr);
+int set_cpu_dma_latency(int32_t latency);

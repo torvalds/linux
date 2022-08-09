@@ -32,12 +32,12 @@ static void int_exit(int sig)
 	int i;
 
 	for (i = 0; ifaces[i] > 0; i++) {
-		if (bpf_get_link_xdp_id(ifaces[i], &prog_id, xdp_flags)) {
-			printf("bpf_get_link_xdp_id failed\n");
+		if (bpf_xdp_query_id(ifaces[i], xdp_flags, &prog_id)) {
+			printf("bpf_xdp_query_id failed\n");
 			exit(1);
 		}
 		if (prog_id)
-			bpf_set_link_xdp_fd(ifaces[i], -1, xdp_flags);
+			bpf_xdp_detach(ifaces[i], xdp_flags, NULL);
 	}
 
 	exit(0);
@@ -210,7 +210,7 @@ int main(int argc, char **argv)
 		}
 
 		/* bind prog_fd to each interface */
-		ret = bpf_set_link_xdp_fd(ifindex, prog_fd, xdp_flags);
+		ret = bpf_xdp_attach(ifindex, prog_fd, xdp_flags, NULL);
 		if (ret) {
 			printf("Set xdp fd failed on %d\n", ifindex);
 			goto err_out;

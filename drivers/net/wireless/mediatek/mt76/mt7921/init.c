@@ -165,7 +165,7 @@ out:
 
 static int mt7921_init_hardware(struct mt7921_dev *dev)
 {
-	int ret, idx, i;
+	int ret, i;
 
 	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 
@@ -182,6 +182,13 @@ static int mt7921_init_hardware(struct mt7921_dev *dev)
 		return ret;
 	}
 
+	return 0;
+}
+
+static int mt7921_init_wcid(struct mt7921_dev *dev)
+{
+	int idx;
+
 	/* Beacon and mgmt frames should occupy wcid 0 */
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7921_WTBL_STA - 1);
 	if (idx)
@@ -193,6 +200,38 @@ static int mt7921_init_hardware(struct mt7921_dev *dev)
 	rcu_assign_pointer(dev->mt76.wcid[idx], &dev->mt76.global_wcid);
 
 	return 0;
+}
+
+static void mt7921_init_work(struct work_struct *work)
+{
+	struct mt7921_dev *dev = container_of(work, struct mt7921_dev,
+					      init_work);
+	int ret;
+
+	ret = mt7921_init_hardware(dev);
+	if (ret)
+		return;
+
+	mt76_set_stream_caps(&dev->mphy, true);
+	mt7921_set_stream_he_caps(&dev->phy);
+
+	ret = mt76_register_device(&dev->mt76, true, mt76_rates,
+				   ARRAY_SIZE(mt76_rates));
+	if (ret) {
+		dev_err(dev->mt76.dev, "register device failed\n");
+		return;
+	}
+
+	ret = mt7921_init_debugfs(dev);
+	if (ret) {
+		dev_err(dev->mt76.dev, "register debugfs failed\n");
+		return;
+	}
+
+	/* we support chip reset now */
+	dev->hw_init_done = true;
+
+	mt76_connac_mcu_set_deep_sleep(&dev->mt76, dev->pm.ds_enable);
 }
 
 int mt7921_register_device(struct mt7921_dev *dev)
@@ -222,21 +261,22 @@ int mt7921_register_device(struct mt7921_dev *dev)
 	spin_lock_init(&dev->sta_poll_lock);
 
 	INIT_WORK(&dev->reset_work, mt7921_mac_reset_work);
+	INIT_WORK(&dev->init_work, mt7921_init_work);
 
 	dev->pm.idle_timeout = MT7921_PM_TIMEOUT;
 	dev->pm.stats.last_wake_event = jiffies;
 	dev->pm.stats.last_doze_event = jiffies;
-
-	/* TODO: mt7921s run sleep mode on default  */
-	if (mt76_is_mmio(&dev->mt76)) {
+	if (!mt76_is_usb(&dev->mt76)) {
+		dev->pm.enable_user = true;
 		dev->pm.enable = true;
+		dev->pm.ds_enable_user = true;
 		dev->pm.ds_enable = true;
 	}
 
-	if (mt76_is_sdio(&dev->mt76))
+	if (!mt76_is_mmio(&dev->mt76))
 		hw->extra_tx_headroom += MT_SDIO_TXD_SIZE + MT_SDIO_HDR_SIZE;
 
-	ret = mt7921_init_hardware(dev);
+	ret = mt7921_init_wcid(dev);
 	if (ret)
 		return ret;
 
@@ -264,23 +304,7 @@ int mt7921_register_device(struct mt7921_dev *dev)
 	dev->mphy.hw->wiphy->available_antennas_rx = dev->mphy.chainmask;
 	dev->mphy.hw->wiphy->available_antennas_tx = dev->mphy.chainmask;
 
-	mt76_set_stream_caps(&dev->mphy, true);
-	mt7921_set_stream_he_caps(&dev->phy);
-
-	ret = mt76_register_device(&dev->mt76, true, mt76_rates,
-				   ARRAY_SIZE(mt76_rates));
-	if (ret)
-		return ret;
-
-	ret = mt7921_init_debugfs(dev);
-	if (ret)
-		return ret;
-
-	ret = mt76_connac_mcu_set_deep_sleep(&dev->mt76, dev->pm.ds_enable);
-	if (ret)
-		return ret;
-
-	dev->hw_init_done = true;
+	queue_work(system_wq, &dev->init_work);
 
 	return 0;
 }

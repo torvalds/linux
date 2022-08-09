@@ -67,6 +67,12 @@ ENTRY(__cpu_suspend)
 	ldr	r4, =cpu_suspend_size
 #endif
 	mov	r5, sp			@ current virtual SP
+#ifdef CONFIG_VMAP_STACK
+	@ Run the suspend code from the overflow stack so we don't have to rely
+	@ on vmalloc-to-phys conversions anywhere in the arch suspend code.
+	@ The original SP value captured in R5 will be restored on the way out.
+	ldr_this_cpu sp, overflow_stack_ptr, r6, r7
+#endif
 	add	r4, r4, #12		@ Space for pgd, virt sp, phys resume fn
 	sub	sp, sp, r4		@ allocate CPU state on stack
 	ldr	r3, =sleep_save_sp
@@ -113,6 +119,13 @@ ENTRY(cpu_resume_mmu)
 ENDPROC(cpu_resume_mmu)
 	.popsection
 cpu_resume_after_mmu:
+#if defined(CONFIG_VMAP_STACK) && !defined(CONFIG_ARM_LPAE)
+	@ Before using the vmap'ed stack, we have to switch to swapper_pg_dir
+	@ as the ID map does not cover the vmalloc region.
+	mrc	p15, 0, ip, c2, c0, 1	@ read TTBR1
+	mcr	p15, 0, ip, c2, c0, 0	@ set TTBR0
+	instr_sync
+#endif
 	bl	cpu_init		@ restore the und/abt/irq banked regs
 	mov	r0, #0			@ return zero on success
 	ldmfd	sp!, {r4 - r11, pc}

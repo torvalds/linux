@@ -35,7 +35,6 @@
 #include <linux/hash.h>
 #include <linux/uaccess.h>
 #include <linux/pm_runtime.h>
-#include <linux/blk-cgroup.h>
 
 #include <trace/events/block.h>
 
@@ -44,6 +43,7 @@
 #include "blk-mq-sched.h"
 #include "blk-pm.h"
 #include "blk-wbt.h"
+#include "blk-cgroup.h"
 
 static DEFINE_SPINLOCK(elv_list_lock);
 static LIST_HEAD(elv_list);
@@ -191,6 +191,9 @@ static void elevator_release(struct kobject *kobj)
 void elevator_exit(struct request_queue *q)
 {
 	struct elevator_queue *e = q->elevator;
+
+	ioc_clear_queue(q);
+	blk_mq_sched_free_rqs(q);
 
 	mutex_lock(&e->sysfs_lock);
 	blk_mq_exit_sched(q, e);
@@ -516,9 +519,11 @@ int elv_register_queue(struct request_queue *q, bool uevent)
 
 void elv_unregister_queue(struct request_queue *q)
 {
+	struct elevator_queue *e = q->elevator;
+
 	lockdep_assert_held(&q->sysfs_lock);
 
-	if (q) {
+	if (e && e->registered) {
 		struct elevator_queue *e = q->elevator;
 
 		kobject_uevent(&e->kobj, KOBJ_REMOVE);
@@ -591,11 +596,7 @@ int elevator_switch_mq(struct request_queue *q,
 	lockdep_assert_held(&q->sysfs_lock);
 
 	if (q->elevator) {
-		if (q->elevator->registered)
-			elv_unregister_queue(q);
-
-		ioc_clear_queue(q);
-		blk_mq_sched_free_rqs(q);
+		elv_unregister_queue(q);
 		elevator_exit(q);
 	}
 
@@ -606,7 +607,6 @@ int elevator_switch_mq(struct request_queue *q,
 	if (new_e) {
 		ret = elv_register_queue(q, true);
 		if (ret) {
-			blk_mq_sched_free_rqs(q);
 			elevator_exit(q);
 			goto out;
 		}

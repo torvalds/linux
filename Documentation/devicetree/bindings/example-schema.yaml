@@ -162,6 +162,16 @@ properties:
       don't need a type.
     enum: [ 100, 200, 300 ]
 
+  vendor,int-array-variable-length-and-constrained-values:
+    description: Array might define what type of elements might be used (e.g.
+      their range).
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 2
+    maxItems: 3
+    items:
+      minimum: 0
+      maximum: 8
+
   child-node:
     description: Child nodes are just another property from a json-schema
       perspective.
@@ -207,6 +217,10 @@ allOf:
     then:
       required:
         - foo-supply
+    else:
+      # If otherwise the property is not allowed:
+      properties:
+        foo-supply: false
   # Altering schema depending on presence of properties is usually done by
   # dependencies (see above), however some adjustments might require if:
   - if:

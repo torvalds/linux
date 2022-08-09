@@ -5,6 +5,8 @@
 #ifndef SELFTEST_KVM_PROCESSOR_H
 #define SELFTEST_KVM_PROCESSOR_H
 
+#include <linux/compiler.h>
+
 /* Bits in the region/segment table entry */
 #define REGION_ENTRY_ORIGIN	~0xfffUL /* region/segment table origin	   */
 #define REGION_ENTRY_PROTECT	0x200	 /* region protection bit	   */
@@ -18,5 +20,11 @@
 #define PAGE_INVALID	0x400		/* HW invalid bit    */
 #define PAGE_PROTECT	0x200		/* HW read-only bit  */
 #define PAGE_NOEXEC	0x100		/* HW no-execute bit */
+
+/* Is there a portable way to do this? */
+static inline void cpu_relax(void)
+{
+	barrier();
+}
 
 #endif

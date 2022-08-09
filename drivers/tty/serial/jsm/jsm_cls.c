@@ -350,7 +350,7 @@ static void cls_assert_modem_signals(struct jsm_channel *ch)
 static void cls_copy_data_from_uart_to_queue(struct jsm_channel *ch)
 {
 	int qleft = 0;
-	u8 linestatus = 0;
+	u8 linestatus;
 	u8 error_mask = 0;
 	u16 head;
 	u16 tail;
@@ -365,8 +365,6 @@ static void cls_copy_data_from_uart_to_queue(struct jsm_channel *ch)
 	head = ch->ch_r_head & RQUEUEMASK;
 	tail = ch->ch_r_tail & RQUEUEMASK;
 
-	/* Get our cached LSR */
-	linestatus = ch->ch_cached_lsr;
 	ch->ch_cached_lsr = 0;
 
 	/* Store how much space we have left in the queue */
@@ -737,21 +735,7 @@ static void cls_param(struct jsm_channel *ch)
 	if (ch->ch_c_cflag & CSTOPB)
 		lcr |= UART_LCR_STOP;
 
-	switch (ch->ch_c_cflag & CSIZE) {
-	case CS5:
-		lcr |= UART_LCR_WLEN5;
-		break;
-	case CS6:
-		lcr |= UART_LCR_WLEN6;
-		break;
-	case CS7:
-		lcr |= UART_LCR_WLEN7;
-		break;
-	case CS8:
-	default:
-		lcr |= UART_LCR_WLEN8;
-		break;
-	}
+	lcr |= UART_LCR_WLEN(tty_get_char_size(ch->ch_c_cflag));
 
 	ier = readb(&ch->ch_cls_uart->ier);
 	uart_lcr = readb(&ch->ch_cls_uart->lcr);

@@ -1,113 +1,123 @@
-What:           /sys/kernel/debug/hisi_sec2/<bdf>/clear_enable
-Date:           Oct 2019
-Contact:        linux-crypto@vger.kernel.org
-Description:    Enabling/disabling of clear action after reading
+What:		/sys/kernel/debug/hisi_sec2/<bdf>/clear_enable
+Date:		Oct 2019
+Contact:	linux-crypto@vger.kernel.org
+Description:	Enabling/disabling of clear action after reading
 		the SEC debug registers.
 		0: disable, 1: enable.
 		Only available for PF, and take no other effect on SEC.
 
-What:           /sys/kernel/debug/hisi_sec2/<bdf>/current_qm
-Date:           Oct 2019
-Contact:        linux-crypto@vger.kernel.org
-Description:    One SEC controller has one PF and multiple VFs, each function
+What:		/sys/kernel/debug/hisi_sec2/<bdf>/current_qm
+Date:		Oct 2019
+Contact:	linux-crypto@vger.kernel.org
+Description:	One SEC controller has one PF and multiple VFs, each function
 		has a QM. This file can be used to select the QM which below
 		qm refers to.
 		Only available for PF.
 
-What:           /sys/kernel/debug/hisi_sec2/<bdf>/qm/qm_regs
-Date:           Oct 2019
-Contact:        linux-crypto@vger.kernel.org
-Description:    Dump of QM related debug registers.
+What:		/sys/kernel/debug/hisi_sec2/<bdf>/alg_qos
+Date:		Jun 2021
+Contact:	linux-crypto@vger.kernel.org
+Description:	The <bdf> is related the function for PF and VF.
+		SEC driver supports to configure each function's QoS, the driver
+		supports to write <bdf> value to alg_qos in the host. Such as
+		"echo <bdf> value > alg_qos". The qos value is 1~1000, means
+		1/1000~1000/1000 of total QoS. The driver reading alg_qos to
+		get related QoS in the host and VM, Such as "cat alg_qos".
+
+What:		/sys/kernel/debug/hisi_sec2/<bdf>/qm/qm_regs
+Date:		Oct 2019
+Contact:	linux-crypto@vger.kernel.org
+Description:	Dump of QM related debug registers.
 		Available for PF and VF in host. VF in guest currently only
 		has one debug register.
 
-What:           /sys/kernel/debug/hisi_sec2/<bdf>/qm/current_q
-Date:           Oct 2019
-Contact:        linux-crypto@vger.kernel.org
-Description:    One QM of SEC may contain multiple queues. Select specific
+What:		/sys/kernel/debug/hisi_sec2/<bdf>/qm/current_q
+Date:		Oct 2019
+Contact:	linux-crypto@vger.kernel.org
+Description:	One QM of SEC may contain multiple queues. Select specific
 		queue to show its debug registers in above 'regs'.
 		Only available for PF.
 
-What:           /sys/kernel/debug/hisi_sec2/<bdf>/qm/clear_enable
-Date:           Oct 2019
-Contact:        linux-crypto@vger.kernel.org
-Description:    Enabling/disabling of clear action after reading
+What:		/sys/kernel/debug/hisi_sec2/<bdf>/qm/clear_enable
+Date:		Oct 2019
+Contact:	linux-crypto@vger.kernel.org
+Description:	Enabling/disabling of clear action after reading
 		the SEC's QM debug registers.
 		0: disable, 1: enable.
 		Only available for PF, and take no other effect on SEC.
 
-What:           /sys/kernel/debug/hisi_sec2/<bdf>/qm/err_irq
-Date:           Apr 2020
-Contact:        linux-crypto@vger.kernel.org
-Description:    Dump the number of invalid interrupts for
+What:		/sys/kernel/debug/hisi_sec2/<bdf>/qm/err_irq
+Date:		Apr 2020
+Contact:	linux-crypto@vger.kernel.org
+Description:	Dump the number of invalid interrupts for
 		QM task completion.
 		Available for both PF and VF, and take no other effect on SEC.
 
-What:           /sys/kernel/debug/hisi_sec2/<bdf>/qm/aeq_irq
-Date:           Apr 2020
-Contact:        linux-crypto@vger.kernel.org
-Description:    Dump the number of QM async event queue interrupts.
+What:		/sys/kernel/debug/hisi_sec2/<bdf>/qm/aeq_irq
+Date:		Apr 2020
+Contact:	linux-crypto@vger.kernel.org
+Description:	Dump the number of QM async event queue interrupts.
 		Available for both PF and VF, and take no other effect on SEC.
 
-What:           /sys/kernel/debug/hisi_sec2/<bdf>/qm/abnormal_irq
-Date:           Apr 2020
-Contact:        linux-crypto@vger.kernel.org
-Description:    Dump the number of interrupts for QM abnormal event.
+What:		/sys/kernel/debug/hisi_sec2/<bdf>/qm/abnormal_irq
+Date:		Apr 2020
+Contact:	linux-crypto@vger.kernel.org
+Description:	Dump the number of interrupts for QM abnormal event.
 		Available for both PF and VF, and take no other effect on SEC.
 
-What:           /sys/kernel/debug/hisi_sec2/<bdf>/qm/create_qp_err
-Date:           Apr 2020
-Contact:        linux-crypto@vger.kernel.org
-Description:    Dump the number of queue allocation errors.
+What:		/sys/kernel/debug/hisi_sec2/<bdf>/qm/create_qp_err
+Date:		Apr 2020
+Contact:	linux-crypto@vger.kernel.org
+Description:	Dump the number of queue allocation errors.
 		Available for both PF and VF, and take no other effect on SEC.
 
-What:           /sys/kernel/debug/hisi_sec2/<bdf>/qm/mb_err
-Date:           Apr 2020
-Contact:        linux-crypto@vger.kernel.org
-Description:    Dump the number of failed QM mailbox commands.
+What:		/sys/kernel/debug/hisi_sec2/<bdf>/qm/mb_err
+Date:		Apr 2020
+Contact:	linux-crypto@vger.kernel.org
+Description:	Dump the number of failed QM mailbox commands.
 		Available for both PF and VF, and take no other effect on SEC.
 
-What:           /sys/kernel/debug/hisi_sec2/<bdf>/qm/status
-Date:           Apr 2020
-Contact:        linux-crypto@vger.kernel.org
-Description:    Dump the status of the QM.
+What:		/sys/kernel/debug/hisi_sec2/<bdf>/qm/status
+Date:		Apr 2020
+Contact:	linux-crypto@vger.kernel.org
+Description:	Dump the status of the QM.
 		Four states: initiated, started, stopped and closed.
 		Available for both PF and VF, and take no other effect on SEC.
 
-What:           /sys/kernel/debug/hisi_sec2/<bdf>/sec_dfx/send_cnt
-Date:           Apr 2020
-Contact:        linux-crypto@vger.kernel.org
-Description:    Dump the total number of sent requests.
+What:		/sys/kernel/debug/hisi_sec2/<bdf>/sec_dfx/send_cnt
+Date:		Apr 2020
+Contact:	linux-crypto@vger.kernel.org
+Description:	Dump the total number of sent requests.
 		Available for both PF and VF, and take no other effect on SEC.
 
-What:           /sys/kernel/debug/hisi_sec2/<bdf>/sec_dfx/recv_cnt
-Date:           Apr 2020
-Contact:        linux-crypto@vger.kernel.org
-Description:    Dump the total number of received requests.
+What:		/sys/kernel/debug/hisi_sec2/<bdf>/sec_dfx/recv_cnt
+Date:		Apr 2020
+Contact:	linux-crypto@vger.kernel.org
+Description:	Dump the total number of received requests.
 		Available for both PF and VF, and take no other effect on SEC.
 
-What:           /sys/kernel/debug/hisi_sec2/<bdf>/sec_dfx/send_busy_cnt
-Date:           Apr 2020
-Contact:        linux-crypto@vger.kernel.org
-Description:    Dump the total number of requests sent with returning busy.
+What:		/sys/kernel/debug/hisi_sec2/<bdf>/sec_dfx/send_busy_cnt
+Date:		Apr 2020
+Contact:	linux-crypto@vger.kernel.org
+Description:	Dump the total number of requests sent with returning busy.
 		Available for both PF and VF, and take no other effect on SEC.
 
-What:           /sys/kernel/debug/hisi_sec2/<bdf>/sec_dfx/err_bd_cnt
-Date:           Apr 2020
-Contact:        linux-crypto@vger.kernel.org
-Description:    Dump the total number of BD type error requests
+What:		/sys/kernel/debug/hisi_sec2/<bdf>/sec_dfx/err_bd_cnt
+Date:		Apr 2020
+Contact:	linux-crypto@vger.kernel.org
+Description:	Dump the total number of BD type error requests
 		to be received.
 		Available for both PF and VF, and take no other effect on SEC.
 
-What:           /sys/kernel/debug/hisi_sec2/<bdf>/sec_dfx/invalid_req_cnt
-Date:           Apr 2020
-Contact:        linux-crypto@vger.kernel.org
-Description:    Dump the total number of invalid requests being received.
+What:		/sys/kernel/debug/hisi_sec2/<bdf>/sec_dfx/invalid_req_cnt
+Date:		Apr 2020
+Contact:	linux-crypto@vger.kernel.org
+Description:	Dump the total number of invalid requests being received.
 		Available for both PF and VF, and take no other effect on SEC.
 
-What:           /sys/kernel/debug/hisi_sec2/<bdf>/sec_dfx/done_flag_cnt
-Date:           Apr 2020
-Contact:        linux-crypto@vger.kernel.org
-Description:    Dump the total number of completed but marked error requests
+What:		/sys/kernel/debug/hisi_sec2/<bdf>/sec_dfx/done_flag_cnt
+Date:		Apr 2020
+Contact:	linux-crypto@vger.kernel.org
+Description:	Dump the total number of completed but marked error requests
 		to be received.
 		Available for both PF and VF, and take no other effect on SEC.

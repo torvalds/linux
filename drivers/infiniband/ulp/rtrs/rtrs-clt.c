@@ -297,6 +297,7 @@ static bool rtrs_clt_change_state_from_to(struct rtrs_clt_path *clt_path,
 	return changed;
 }
 
+static void rtrs_clt_stop_and_destroy_conns(struct rtrs_clt_path *clt_path);
 static void rtrs_rdma_error_recovery(struct rtrs_clt_con *con)
 {
 	struct rtrs_clt_path *clt_path = to_clt_path(con->c.path);
@@ -304,16 +305,7 @@ static void rtrs_rdma_error_recovery(struct rtrs_clt_con *con)
 	if (rtrs_clt_change_state_from_to(clt_path,
 					   RTRS_CLT_CONNECTED,
 					   RTRS_CLT_RECONNECTING)) {
-		struct rtrs_clt_sess *clt = clt_path->clt;
-		unsigned int delay_ms;
-
-		/*
-		 * Normal scenario, reconnect if we were successfully connected
-		 */
-		delay_ms = clt->reconnect_delay_sec * 1000;
-		queue_delayed_work(rtrs_wq, &clt_path->reconnect_dwork,
-				   msecs_to_jiffies(delay_ms +
-						    prandom_u32() % RTRS_RECONNECT_SEED));
+		queue_work(rtrs_wq, &clt_path->err_recovery_work);
 	} else {
 		/*
 		 * Error can happen just on establishing new connection,
@@ -917,7 +909,7 @@ static inline void path_it_deinit(struct path_it *it)
 {
 	struct list_head *skip, *tmp;
 	/*
-	 * The skip_list is used only for the MIN_INFLIGHT policy.
+	 * The skip_list is used only for the MIN_INFLIGHT and MIN_LATENCY policies.
 	 * We need to remove paths from it, so that next IO can insert
 	 * paths (->mp_skip_entry) into a skip_list again.
 	 */
@@ -1511,6 +1503,22 @@ static void rtrs_clt_init_hb(struct rtrs_clt_path *clt_path)
 static void rtrs_clt_reconnect_work(struct work_struct *work);
 static void rtrs_clt_close_work(struct work_struct *work);
 
+static void rtrs_clt_err_recovery_work(struct work_struct *work)
+{
+	struct rtrs_clt_path *clt_path;
+	struct rtrs_clt_sess *clt;
+	int delay_ms;
+
+	clt_path = container_of(work, struct rtrs_clt_path, err_recovery_work);
+	clt = clt_path->clt;
+	delay_ms = clt->reconnect_delay_sec * 1000;
+	rtrs_clt_stop_and_destroy_conns(clt_path);
+	queue_delayed_work(rtrs_wq, &clt_path->reconnect_dwork,
+			   msecs_to_jiffies(delay_ms +
+					    prandom_u32() %
+					    RTRS_RECONNECT_SEED));
+}
+
 static struct rtrs_clt_path *alloc_path(struct rtrs_clt_sess *clt,
 					const struct rtrs_addr *path,
 					size_t con_num, u32 nr_poll_queues)
@@ -1562,6 +1570,7 @@ static struct rtrs_clt_path *alloc_path(struct rtrs_clt_sess *clt,
 	clt_path->state = RTRS_CLT_CONNECTING;
 	atomic_set(&clt_path->connected_cnt, 0);
 	INIT_WORK(&clt_path->close_work, rtrs_clt_close_work);
+	INIT_WORK(&clt_path->err_recovery_work, rtrs_clt_err_recovery_work);
 	INIT_DELAYED_WORK(&clt_path->reconnect_dwork, rtrs_clt_reconnect_work);
 	rtrs_clt_init_hb(clt_path);
 
@@ -2326,6 +2335,7 @@ static void rtrs_clt_close_work(struct work_struct *work)
 
 	clt_path = container_of(work, struct rtrs_clt_path, close_work);
 
+	cancel_work_sync(&clt_path->err_recovery_work);
 	cancel_delayed_work_sync(&clt_path->reconnect_dwork);
 	rtrs_clt_stop_and_destroy_conns(clt_path);
 	rtrs_clt_change_state_get_old(clt_path, RTRS_CLT_CLOSED, NULL);
@@ -2638,7 +2648,6 @@ static void rtrs_clt_reconnect_work(struct work_struct *work)
 {
 	struct rtrs_clt_path *clt_path;
 	struct rtrs_clt_sess *clt;
-	unsigned int delay_ms;
 	int err;
 
 	clt_path = container_of(to_delayed_work(work), struct rtrs_clt_path,
@@ -2655,8 +2664,6 @@ static void rtrs_clt_reconnect_work(struct work_struct *work)
 	}
 	clt_path->reconnect_attempts++;
 
-	/* Stop everything */
-	rtrs_clt_stop_and_destroy_conns(clt_path);
 	msleep(RTRS_RECONNECT_BACKOFF);
 	if (rtrs_clt_change_state_get_old(clt_path, RTRS_CLT_CONNECTING, NULL)) {
 		err = init_path(clt_path);
@@ -2669,11 +2676,7 @@ static void rtrs_clt_reconnect_work(struct work_struct *work)
 reconnect_again:
 	if (rtrs_clt_change_state_get_old(clt_path, RTRS_CLT_RECONNECTING, NULL)) {
 		clt_path->stats->reconnects.fail_cnt++;
-		delay_ms = clt->reconnect_delay_sec * 1000;
-		queue_delayed_work(rtrs_wq, &clt_path->reconnect_dwork,
-				   msecs_to_jiffies(delay_ms +
-						    prandom_u32() %
-						    RTRS_RECONNECT_SEED));
+		queue_work(rtrs_wq, &clt_path->err_recovery_work);
 	}
 }
 
@@ -2908,6 +2911,7 @@ int rtrs_clt_reconnect_from_sysfs(struct rtrs_clt_path *clt_path)
 						 &old_state);
 	if (changed) {
 		clt_path->reconnect_attempts = 0;
+		rtrs_clt_stop_and_destroy_conns(clt_path);
 		queue_delayed_work(rtrs_wq, &clt_path->reconnect_dwork, 0);
 	}
 	if (changed || old_state == RTRS_CLT_RECONNECTING) {

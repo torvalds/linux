@@ -22,35 +22,41 @@ properties:
       - qcom,lpass-cpu
       - qcom,apq8016-lpass-cpu
       - qcom,sc7180-lpass-cpu
+      - qcom,sc7280-lpass-cpu
 
   reg:
-    maxItems: 2
+    minItems: 2
+    maxItems: 6
     description: LPAIF core registers
 
   reg-names:
-    maxItems: 2
+    minItems: 2
+    maxItems: 6
 
   clocks:
     minItems: 3
-    maxItems: 6
+    maxItems: 7
 
   clock-names:
     minItems: 3
-    maxItems: 6
+    maxItems: 7
 
   interrupts:
-    maxItems: 2
+    minItems: 2
+    maxItems: 4
     description: LPAIF DMA buffer interrupt
 
   interrupt-names:
-    maxItems: 2
+    minItems: 2
+    maxItems: 4
 
   qcom,adsp:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: Phandle for the audio DSP node
 
   iommus:
-    maxItems: 2
+    minItems: 2
+    maxItems: 3
     description: Phandle to apps_smmu node with sid mask
 
   power-domains:
@@ -69,7 +75,7 @@ patternProperties:
   "^dai-link@[0-9a-f]$":
     type: object
     description: |
-      LPASS CPU dai node for each I2S device. Bindings of each node
+      LPASS CPU dai node for each I2S device or Soundwire device. Bindings of each node
       depends on the specific driver providing the functionality and
       properties.
     properties:
@@ -170,6 +176,59 @@ allOf:
             - items:   #for I2S and HDMI
                 - const: lpass-irq-lpaif
                 - const: lpass-irq-hdmi
+      required:
+        - iommus
+        - power-domains
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,sc7280-lpass-cpu
+
+    then:
+      properties:
+        clock-names:
+          oneOf:
+            - items:   #for I2S
+                - const: aon_cc_audio_hm_h
+                - const: core_cc_sysnoc_mport_core
+                - const: core_cc_ext_if1_ibit
+            - items:   #for Soundwire
+                - const: aon_cc_audio_hm_h
+                - const: audio_cc_codec_mem0
+                - const: audio_cc_codec_mem1
+                - const: audio_cc_codec_mem2
+            - items:   #for HDMI
+                - const: aon_cc_audio_hm_h
+
+        reg-names:
+          anyOf:
+            - items:   #for I2S
+                - const: lpass-lpaif
+            - items:   #for I2S and HDMI
+                - const: lpass-hdmiif
+                - const: lpass-lpaif
+            - items:   #for I2S, soundwire and HDMI
+                - const: lpass-hdmiif
+                - const: lpass-lpaif
+                - const: lpass-rxtx-cdc-dma-lpm
+                - const: lpass-rxtx-lpaif
+                - const: lpass-va-lpaif
+                - const: lpass-va-cdc-dma-lpm
+        interrupt-names:
+          anyOf:
+            - items:   #for I2S
+                - const: lpass-irq-lpaif
+            - items:   #for I2S and HDMI
+                - const: lpass-irq-lpaif
+                - const: lpass-irq-hdmi
+            - items:   #for I2S, soundwire and HDMI
+                - const: lpass-irq-lpaif
+                - const: lpass-irq-hdmi
+                - const: lpass-irq-vaif
+                - const: lpass-irq-rxtxif
+
       required:
         - iommus
         - power-domains

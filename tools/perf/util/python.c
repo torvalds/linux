@@ -58,9 +58,20 @@ int parse_callchain_record(const char *arg __maybe_unused,
 }
 
 /*
- * Add this one here not to drag util/env.c
+ * Add these not to drag util/env.c
  */
 struct perf_env perf_env;
+
+const char *perf_env__cpuid(struct perf_env *env __maybe_unused)
+{
+	return NULL;
+}
+
+// This one is a bit easier, wouldn't drag too much, but leave it as a stub we need it here
+const char *perf_env__arch(struct perf_env *env __maybe_unused)
+{
+	return NULL;
+}
 
 /*
  * Add this one here not to drag util/stat-shadow.c

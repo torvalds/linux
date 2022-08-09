@@ -81,6 +81,7 @@ struct sof_card_private {
 	struct snd_soc_jack sof_headset;
 	struct list_head hdmi_pcm_list;
 	bool common_hdmi_codec_drv;
+	bool idisp_codec;
 };
 
 static int sof_rt5682_quirk_cb(const struct dmi_system_id *id)
@@ -210,6 +211,19 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 					SOF_BT_OFFLOAD_SSP(2) |
 					SOF_SSP_BT_OFFLOAD_PRESENT),
 
+	},
+	{
+		.callback = sof_rt5682_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Google_Brya"),
+			DMI_MATCH(DMI_OEM_STRING, "AUDIO-MAX98360_ALC5682I_I2S_AMP_SSP2"),
+		},
+		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
+					SOF_RT5682_SSP_CODEC(0) |
+					SOF_SPEAKER_AMP_PRESENT |
+					SOF_MAX98360A_SPEAKER_AMP_PRESENT |
+					SOF_RT5682_SSP_AMP(2) |
+					SOF_RT5682_NUM_HDMIDEV(4)),
 	},
 	{}
 };
@@ -369,11 +383,16 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 
 	pll_out = params_rate(params) * 512;
 
-	/* Configure pll for codec */
-	ret = snd_soc_dai_set_pll(codec_dai, pll_id, pll_source, pll_in,
-				  pll_out);
-	if (ret < 0)
-		dev_err(rtd->dev, "snd_soc_dai_set_pll err = %d\n", ret);
+	/* when MCLK is 512FS, no need to set PLL configuration additionally. */
+	if (pll_in == pll_out)
+		clk_id = RT5682S_SCLK_S_MCLK;
+	else {
+		/* Configure pll for codec */
+		ret = snd_soc_dai_set_pll(codec_dai, pll_id, pll_source, pll_in,
+					  pll_out);
+		if (ret < 0)
+			dev_err(rtd->dev, "snd_soc_dai_set_pll err = %d\n", ret);
+	}
 
 	/* Configure sysclk for codec */
 	ret = snd_soc_dai_set_sysclk(codec_dai, clk_id,
@@ -417,7 +436,7 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 	int i = 0;
 
 	/* HDMI is not supported by SOF on Baytrail/CherryTrail */
-	if (is_legacy_cpu)
+	if (is_legacy_cpu || !ctx->idisp_codec)
 		return 0;
 
 	if (list_empty(&ctx->hdmi_pcm_list))
@@ -558,11 +577,14 @@ static struct snd_soc_dai_link_component dummy_component[] = {
 	}
 };
 
+#define IDISP_CODEC_MASK	0x4
+
 static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 							  int ssp_codec,
 							  int ssp_amp,
 							  int dmic_be_num,
-							  int hdmi_num)
+							  int hdmi_num,
+							  bool idisp_codec)
 {
 	struct snd_soc_dai_link_component *idisp_components;
 	struct snd_soc_dai_link_component *cpus;
@@ -676,13 +698,18 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		if (!links[id].cpus->dai_name)
 			goto devm_err;
 
-		idisp_components[i - 1].name = "ehdaudio0D2";
-		idisp_components[i - 1].dai_name = devm_kasprintf(dev,
-								  GFP_KERNEL,
-								  "intel-hdmi-hifi%d",
-								  i);
-		if (!idisp_components[i - 1].dai_name)
-			goto devm_err;
+		if (idisp_codec) {
+			idisp_components[i - 1].name = "ehdaudio0D2";
+			idisp_components[i - 1].dai_name = devm_kasprintf(dev,
+									  GFP_KERNEL,
+									  "intel-hdmi-hifi%d",
+									  i);
+			if (!idisp_components[i - 1].dai_name)
+				goto devm_err;
+		} else {
+			idisp_components[i - 1].name = "snd-soc-dummy";
+			idisp_components[i - 1].dai_name = "snd-soc-dummy-dai";
+		}
 
 		links[id].codecs = &idisp_components[i - 1];
 		links[id].num_codecs = 1;
@@ -838,6 +865,9 @@ static int sof_audio_probe(struct platform_device *pdev)
 		/* default number of HDMI DAI's */
 		if (!hdmi_num)
 			hdmi_num = 3;
+
+		if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
+			ctx->idisp_codec = true;
 	}
 
 	/* need to get main clock from pmc */
@@ -892,7 +922,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 		sof_audio_card_rt5682.num_links++;
 
 	dai_links = sof_card_dai_links_create(&pdev->dev, ssp_codec, ssp_amp,
-					      dmic_be_num, hdmi_num);
+					      dmic_be_num, hdmi_num, ctx->idisp_codec);
 	if (!dai_links)
 		return -ENOMEM;
 
@@ -1033,6 +1063,14 @@ static const struct platform_device_id board_ids[] = {
 					SOF_BT_OFFLOAD_SSP(2) |
 					SOF_SSP_BT_OFFLOAD_PRESENT),
 	},
+	{
+		.name = "adl_rt5682",
+		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
+					SOF_RT5682_SSP_CODEC(0) |
+					SOF_RT5682_NUM_HDMIDEV(4) |
+					SOF_BT_OFFLOAD_SSP(2) |
+					SOF_SSP_BT_OFFLOAD_PRESENT),
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, board_ids);
@@ -1056,3 +1094,4 @@ MODULE_AUTHOR("Mac Chiang <mac.chiang@intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_MAXIM_COMMON);
+MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_REALTEK_COMMON);

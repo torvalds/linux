@@ -492,7 +492,6 @@ enum exec_status {
 	SAS_INTERRUPTED,
 	SAS_QUEUE_FULL,
 	SAS_DEVICE_UNKNOWN,
-	SAS_SG_ERR,
 	SAS_OPEN_REJECT,
 	SAS_OPEN_TO,
 	SAS_PROTO_RESPONSE,
@@ -553,6 +552,21 @@ struct sas_ata_task {
 	u8     stp_affil_pol:1;
 
 	u8     device_control_reg_update:1;
+
+	bool   force_phy;
+	int    force_phy_id;
+};
+
+/* LLDDs rely on these values */
+enum sas_internal_abort {
+	SAS_INTERNAL_ABORT_SINGLE	= 0,
+	SAS_INTERNAL_ABORT_DEV		= 1,
+};
+
+struct sas_internal_abort_task {
+	enum sas_internal_abort type;
+	unsigned int qid;
+	u16 tag;
 };
 
 struct sas_smp_task {
@@ -577,6 +591,11 @@ struct sas_ssp_task {
 	struct scsi_cmnd *cmd;
 };
 
+struct sas_tmf_task {
+	u8 tmf;
+	u16 tag_of_task_to_be_managed;
+};
+
 struct sas_task {
 	struct domain_device *dev;
 
@@ -589,6 +608,7 @@ struct sas_task {
 		struct sas_ata_task ata_task;
 		struct sas_smp_task smp_task;
 		struct sas_ssp_task ssp_task;
+		struct sas_internal_abort_task abort_task;
 	};
 
 	struct scatterlist *scatter;
@@ -602,6 +622,7 @@ struct sas_task {
 	void   *lldd_task;	  /* for use by LLDDs */
 	void   *uldd_task;
 	struct sas_task_slow *slow_task;
+	struct sas_tmf_task *tmf;
 };
 
 struct sas_task_slow {
@@ -617,11 +638,15 @@ struct sas_task_slow {
 #define SAS_TASK_STATE_DONE         2
 #define SAS_TASK_STATE_ABORTED      4
 #define SAS_TASK_NEED_DEV_RESET     8
-#define SAS_TASK_AT_INITIATOR       16
 
 extern struct sas_task *sas_alloc_task(gfp_t flags);
 extern struct sas_task *sas_alloc_slow_task(gfp_t flags);
 extern void sas_free_task(struct sas_task *task);
+
+static inline bool sas_is_internal_abort(struct sas_task *task)
+{
+	return task->task_proto == SAS_PROTOCOL_INTERNAL_ABORT;
+}
 
 struct sas_domain_function_template {
 	/* The class calls these to notify the LLDD of an event. */
@@ -637,13 +662,17 @@ struct sas_domain_function_template {
 	/* Task Management Functions. Must be called from process context. */
 	int (*lldd_abort_task)(struct sas_task *);
 	int (*lldd_abort_task_set)(struct domain_device *, u8 *lun);
-	int (*lldd_clear_aca)(struct domain_device *, u8 *lun);
 	int (*lldd_clear_task_set)(struct domain_device *, u8 *lun);
 	int (*lldd_I_T_nexus_reset)(struct domain_device *);
 	int (*lldd_ata_check_ready)(struct domain_device *);
 	void (*lldd_ata_set_dmamode)(struct domain_device *);
 	int (*lldd_lu_reset)(struct domain_device *, u8 *lun);
 	int (*lldd_query_task)(struct sas_task *);
+
+	/* Special TMF callbacks */
+	void (*lldd_tmf_exec_complete)(struct domain_device *dev);
+	void (*lldd_tmf_aborted)(struct sas_task *task);
+	bool (*lldd_abort_timeout)(struct sas_task *task, void *data);
 
 	/* Port and Adapter management */
 	int (*lldd_clear_nexus_port)(struct asd_sas_port *);
@@ -673,6 +702,11 @@ extern int sas_slave_configure(struct scsi_device *);
 extern int sas_change_queue_depth(struct scsi_device *, int new_depth);
 extern int sas_bios_param(struct scsi_device *, struct block_device *,
 			  sector_t capacity, int *hsc);
+int sas_execute_internal_abort_single(struct domain_device *device,
+				      u16 tag, unsigned int qid,
+				      void *data);
+int sas_execute_internal_abort_dev(struct domain_device *device,
+				   unsigned int qid, void *data);
 extern struct scsi_transport_template *
 sas_domain_attach_transport(struct sas_domain_function_template *);
 extern struct device_attribute dev_attr_phy_event_threshold;
@@ -685,7 +719,7 @@ int  sas_ex_revalidate_domain(struct domain_device *);
 
 void sas_unregister_domain_devices(struct asd_sas_port *port, int gone);
 void sas_init_disc(struct sas_discovery *disc, struct asd_sas_port *);
-int  sas_discover_event(struct asd_sas_port *, enum discover_event ev);
+void sas_discover_event(struct asd_sas_port *, enum discover_event ev);
 
 int  sas_discover_sata(struct domain_device *);
 int  sas_discover_end_dev(struct domain_device *);
@@ -711,9 +745,15 @@ struct sas_phy *sas_get_local_phy(struct domain_device *dev);
 
 int sas_request_addr(struct Scsi_Host *shost, u8 *addr);
 
-int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
-			  gfp_t gfp_flags);
-int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
-			 gfp_t gfp_flags);
+int sas_abort_task_set(struct domain_device *dev, u8 *lun);
+int sas_clear_task_set(struct domain_device *dev, u8 *lun);
+int sas_lu_reset(struct domain_device *dev, u8 *lun);
+int sas_query_task(struct sas_task *task, u16 tag);
+int sas_abort_task(struct sas_task *task, u16 tag);
+
+void sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
+			   gfp_t gfp_flags);
+void sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
+			   gfp_t gfp_flags);
 
 #endif /* _SASLIB_H_ */

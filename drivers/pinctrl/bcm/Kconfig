@@ -29,6 +29,20 @@ config PINCTRL_BCM2835
 	help
 	   Say Y here to enable the Broadcom BCM2835 GPIO driver.
 
+config PINCTRL_BCM4908
+	tristate "Broadcom BCM4908 pinmux driver"
+	depends on OF && (ARCH_BCM4908 || COMPILE_TEST)
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	default ARCH_BCM4908
+	help
+	  Driver for BCM4908 family SoCs with integrated pin controller.
+
+	  If compiled as module it will be called pinctrl-bcm4908.
+
 config PINCTRL_BCM63XX
 	bool
 	select PINMUX

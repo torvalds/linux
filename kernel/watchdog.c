@@ -848,7 +848,7 @@ void __init lockup_detector_init(void)
 		pr_info("Disabling watchdog on nohz_full cores by default\n");
 
 	cpumask_copy(&watchdog_cpumask,
-		     housekeeping_cpumask(HK_FLAG_TIMER));
+		     housekeeping_cpumask(HK_TYPE_TIMER));
 
 	if (!watchdog_nmi_probe())
 		nmi_watchdog_available = true;

@@ -658,9 +658,8 @@ static int ssd1307fb_probe(struct i2c_client *client)
 
 	par->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(par->reset)) {
-		dev_err(dev, "failed to get reset gpio: %ld\n",
-			PTR_ERR(par->reset));
-		ret = PTR_ERR(par->reset);
+		ret = dev_err_probe(dev, PTR_ERR(par->reset),
+				    "failed to get reset gpio\n");
 		goto fb_alloc_error;
 	}
 
@@ -670,7 +669,7 @@ static int ssd1307fb_probe(struct i2c_client *client)
 		if (ret == -ENODEV) {
 			par->vbat_reg = NULL;
 		} else {
-			dev_err(dev, "failed to get VBAT regulator: %d\n", ret);
+			dev_err_probe(dev, ret, "failed to get VBAT regulator\n");
 			goto fb_alloc_error;
 		}
 	}

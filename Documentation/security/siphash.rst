@@ -121,26 +121,36 @@ even scarier, uses an easily brute-forcable 64-bit key (with a 32-bit output)
 instead of SipHash's 128-bit key. However, this may appeal to some
 high-performance `jhash` users.
 
-Danger!
+HalfSipHash support is provided through the "hsiphash" family of functions.
 
-Do not ever use HalfSipHash except for as a hashtable key function, and only
-then when you can be absolutely certain that the outputs will never be
-transmitted out of the kernel. This is only remotely useful over `jhash` as a
-means of mitigating hashtable flooding denial of service attacks.
+.. warning::
+   Do not ever use the hsiphash functions except for as a hashtable key
+   function, and only then when you can be absolutely certain that the outputs
+   will never be transmitted out of the kernel. This is only remotely useful
+   over `jhash` as a means of mitigating hashtable flooding denial of service
+   attacks.
 
-Generating a HalfSipHash key
-============================
+On 64-bit kernels, the hsiphash functions actually implement SipHash-1-3, a
+reduced-round variant of SipHash, instead of HalfSipHash-1-3. This is because in
+64-bit code, SipHash-1-3 is no slower than HalfSipHash-1-3, and can be faster.
+Note, this does *not* mean that in 64-bit kernels the hsiphash functions are the
+same as the siphash ones, or that they are secure; the hsiphash functions still
+use a less secure reduced-round algorithm and truncate their outputs to 32
+bits.
+
+Generating a hsiphash key
+=========================
 
 Keys should always be generated from a cryptographically secure source of
-random numbers, either using get_random_bytes or get_random_once:
+random numbers, either using get_random_bytes or get_random_once::
 
-hsiphash_key_t key;
-get_random_bytes(&key, sizeof(key));
+	hsiphash_key_t key;
+	get_random_bytes(&key, sizeof(key));
 
 If you're not deriving your key from here, you're doing it wrong.
 
-Using the HalfSipHash functions
-===============================
+Using the hsiphash functions
+============================
 
 There are two variants of the function, one that takes a list of integers, and
 one that takes a buffer::
@@ -183,7 +193,7 @@ You may then iterate like usual over the returned hash bucket.
 Performance
 ===========
 
-HalfSipHash is roughly 3 times slower than JenkinsHash. For many replacements,
-this will not be a problem, as the hashtable lookup isn't the bottleneck. And
-in general, this is probably a good sacrifice to make for the security and DoS
-resistance of HalfSipHash.
+hsiphash() is roughly 3 times slower than jhash(). For many replacements, this
+will not be a problem, as the hashtable lookup isn't the bottleneck. And in
+general, this is probably a good sacrifice to make for the security and DoS
+resistance of hsiphash().

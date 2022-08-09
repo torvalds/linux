@@ -128,13 +128,6 @@ asmlinkage void __div0(void)
 	error("Attempting division by 0!");
 }
 
-const unsigned long __stack_chk_guard = 0x000a0dff;
-
-void __stack_chk_fail(void)
-{
-	error("stack-protector: Kernel stack is corrupted\n");
-}
-
 extern int do_decompress(u8 *input, int len, u8 *output, void (*error)(char *x));
 
 

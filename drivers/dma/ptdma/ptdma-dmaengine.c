@@ -100,12 +100,17 @@ static struct pt_dma_desc *pt_handle_active_desc(struct pt_dma_chan *chan,
 		spin_lock_irqsave(&chan->vc.lock, flags);
 
 		if (desc) {
-			if (desc->status != DMA_ERROR)
-				desc->status = DMA_COMPLETE;
+			if (desc->status != DMA_COMPLETE) {
+				if (desc->status != DMA_ERROR)
+					desc->status = DMA_COMPLETE;
 
-			dma_cookie_complete(tx_desc);
-			dma_descriptor_unmap(tx_desc);
-			list_del(&desc->vd.node);
+				dma_cookie_complete(tx_desc);
+				dma_descriptor_unmap(tx_desc);
+				list_del(&desc->vd.node);
+			} else {
+				/* Don't handle it twice */
+				tx_desc = NULL;
+			}
 		}
 
 		desc = pt_next_dma_desc(chan);
@@ -233,8 +238,13 @@ static void pt_issue_pending(struct dma_chan *dma_chan)
 	struct pt_dma_chan *chan = to_pt_chan(dma_chan);
 	struct pt_dma_desc *desc;
 	unsigned long flags;
+	bool engine_is_idle = true;
 
 	spin_lock_irqsave(&chan->vc.lock, flags);
+
+	desc = pt_next_dma_desc(chan);
+	if (desc)
+		engine_is_idle = false;
 
 	vchan_issue_pending(&chan->vc);
 
@@ -243,7 +253,7 @@ static void pt_issue_pending(struct dma_chan *dma_chan)
 	spin_unlock_irqrestore(&chan->vc.lock, flags);
 
 	/* If there was nothing active, start processing */
-	if (desc)
+	if (engine_is_idle)
 		pt_cmd_callback(desc, 0);
 }
 

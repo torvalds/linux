@@ -244,7 +244,7 @@ void vmx_pi_start_assignment(struct kvm *kvm)
 }
 
 /*
- * pi_update_irte - set IRTE for Posted-Interrupts
+ * vmx_pi_update_irte - set IRTE for Posted-Interrupts
  *
  * @kvm: kvm
  * @host_irq: host irq of the interrupt
@@ -252,8 +252,8 @@ void vmx_pi_start_assignment(struct kvm *kvm)
  * @set: set or unset PI
  * returns 0 on success, < 0 on failure
  */
-int pi_update_irte(struct kvm *kvm, unsigned int host_irq, uint32_t guest_irq,
-		   bool set)
+int vmx_pi_update_irte(struct kvm *kvm, unsigned int host_irq,
+		       uint32_t guest_irq, bool set)
 {
 	struct kvm_kernel_irq_routing_entry *e;
 	struct kvm_irq_routing_table *irq_rt;

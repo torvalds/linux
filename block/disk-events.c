@@ -4,7 +4,7 @@
  */
 #include <linux/export.h>
 #include <linux/moduleparam.h>
-#include <linux/genhd.h>
+#include <linux/blkdev.h>
 #include "blk.h"
 
 struct disk_events {

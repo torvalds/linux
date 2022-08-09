@@ -538,10 +538,8 @@ static void shutdown(struct tty_struct *tty, struct serial_state *info)
 	 */
 	free_irq(IRQ_AMIGA_VERTB, info);
 
-	if (info->xmit.buf) {
-		free_page((unsigned long) info->xmit.buf);
-		info->xmit.buf = NULL;
-	}
+	free_page((unsigned long)info->xmit.buf);
+	info->xmit.buf = NULL;
 
 	info->IER = 0;
 	amiga_custom.intena = IF_RBF | IF_TBE;

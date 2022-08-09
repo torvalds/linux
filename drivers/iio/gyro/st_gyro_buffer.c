@@ -7,7 +7,6 @@
  * Denis Ciocca <denis.ciocca@st.com>
  */
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -65,6 +64,3 @@ int st_gyro_allocate_ring(struct iio_dev *indio_dev)
 		NULL, &st_sensors_trigger_handler, &st_gyro_buffer_setup_ops);
 }
 
-MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
-MODULE_DESCRIPTION("STMicroelectronics gyroscopes buffer");
-MODULE_LICENSE("GPL v2");

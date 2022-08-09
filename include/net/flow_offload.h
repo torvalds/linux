@@ -148,6 +148,10 @@ enum flow_action_id {
 	FLOW_ACTION_MPLS_MANGLE,
 	FLOW_ACTION_GATE,
 	FLOW_ACTION_PPPOE_PUSH,
+	FLOW_ACTION_JUMP,
+	FLOW_ACTION_PIPE,
+	FLOW_ACTION_VLAN_PUSH_ETH,
+	FLOW_ACTION_VLAN_POP_ETH,
 	NUM_FLOW_ACTIONS,
 };
 
@@ -209,6 +213,10 @@ struct flow_action_entry {
 			__be16		proto;
 			u8		prio;
 		} vlan;
+		struct {				/* FLOW_ACTION_VLAN_PUSH_ETH */
+			unsigned char dst[ETH_ALEN];
+			unsigned char src[ETH_ALEN];
+		} vlan_push_eth;
 		struct {				/* FLOW_ACTION_MANGLE */
 							/* FLOW_ACTION_ADD */
 			enum flow_action_mangle_base htype;
@@ -235,9 +243,16 @@ struct flow_action_entry {
 		struct {				/* FLOW_ACTION_POLICE */
 			u32			burst;
 			u64			rate_bytes_ps;
+			u64			peakrate_bytes_ps;
+			u32			avrate;
+			u16			overhead;
 			u64			burst_pkt;
 			u64			rate_pkt_ps;
 			u32			mtu;
+			struct {
+				enum flow_action_id	act_id;
+				u32			extval;
+			} exceed, notexceed;
 		} police;
 		struct {				/* FLOW_ACTION_CT */
 			int action;
@@ -300,6 +315,12 @@ static inline bool flow_action_has_entries(const struct flow_action *action)
 static inline bool flow_offload_has_one_action(const struct flow_action *action)
 {
 	return action->num_entries == 1;
+}
+
+static inline bool flow_action_is_last_entry(const struct flow_action *action,
+					     const struct flow_action_entry *entry)
+{
+	return entry == &action->entries[action->num_entries - 1];
 }
 
 #define flow_action_for_each(__i, __act, __actions)			\

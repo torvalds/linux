@@ -15,6 +15,7 @@ struct intel_crtc_state;
 enum pipe;
 
 void intel_dpll_init_clock_hook(struct drm_i915_private *dev_priv);
+int intel_dpll_crtc_compute_clock(struct intel_crtc_state *crtc_state);
 int vlv_calc_dpll_params(int refclk, struct dpll *clock);
 int pnv_calc_dpll_params(int refclk, struct dpll *clock);
 int i9xx_calc_dpll_params(int refclk, struct dpll *clock);

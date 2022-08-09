@@ -8,7 +8,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger.h>
 #include <linux/interrupt.h>
@@ -77,8 +76,4 @@ st_sensors_get_buffer_element_error:
 
 	return IRQ_HANDLED;
 }
-EXPORT_SYMBOL(st_sensors_trigger_handler);
-
-MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
-MODULE_DESCRIPTION("STMicroelectronics ST-sensors buffer");
-MODULE_LICENSE("GPL v2");
+EXPORT_SYMBOL_NS(st_sensors_trigger_handler, IIO_ST_SENSORS);

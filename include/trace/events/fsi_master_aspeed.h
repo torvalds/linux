@@ -72,6 +72,18 @@ TRACE_EVENT(fsi_master_aspeed_opb_error,
 		)
 	);
 
+TRACE_EVENT(fsi_master_aspeed_cfam_reset,
+	TP_PROTO(bool start),
+	TP_ARGS(start),
+	TP_STRUCT__entry(
+		__field(bool,	start)
+	),
+	TP_fast_assign(
+		__entry->start = start;
+	),
+	TP_printk("%s", __entry->start ? "start" : "end")
+);
+
 #endif
 
 #include <trace/define_trace.h>

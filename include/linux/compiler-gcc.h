@@ -97,6 +97,10 @@
 #define KASAN_ABI_VERSION 4
 #endif
 
+#ifdef CONFIG_SHADOW_CALL_STACK
+#define __noscs __attribute__((__no_sanitize__("shadow-call-stack")))
+#endif
+
 #if __has_attribute(__no_sanitize_address__)
 #define __no_sanitize_address __attribute__((no_sanitize_address))
 #else
@@ -150,6 +154,9 @@
 #else
 #define __diag_GCC_8(s)
 #endif
+
+#define __diag_ignore_all(option, comment) \
+	__diag_GCC(8, ignore, option)
 
 /*
  * Prior to 9.1, -Wno-alloc-size-larger-than (and therefore the "alloc_size"

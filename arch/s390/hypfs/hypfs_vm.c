@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
+#include <asm/extable.h>
 #include <asm/diag.h>
 #include <asm/ebcdic.h>
 #include <asm/timex.h>

@@ -62,7 +62,8 @@ core_param(novmcoredd, vmcoredd_disabled, bool, 0);
 /* Device Dump Size */
 static size_t vmcoredd_orig_sz;
 
-static DECLARE_RWSEM(vmcore_cb_rwsem);
+static DEFINE_SPINLOCK(vmcore_cb_lock);
+DEFINE_STATIC_SRCU(vmcore_cb_srcu);
 /* List of registered vmcore callbacks. */
 static LIST_HEAD(vmcore_cb_list);
 /* Whether the vmcore has been opened once. */
@@ -70,8 +71,8 @@ static bool vmcore_opened;
 
 void register_vmcore_cb(struct vmcore_cb *cb)
 {
-	down_write(&vmcore_cb_rwsem);
 	INIT_LIST_HEAD(&cb->next);
+	spin_lock(&vmcore_cb_lock);
 	list_add_tail(&cb->next, &vmcore_cb_list);
 	/*
 	 * Registering a vmcore callback after the vmcore was opened is
@@ -79,14 +80,14 @@ void register_vmcore_cb(struct vmcore_cb *cb)
 	 */
 	if (vmcore_opened)
 		pr_warn_once("Unexpected vmcore callback registration\n");
-	up_write(&vmcore_cb_rwsem);
+	spin_unlock(&vmcore_cb_lock);
 }
 EXPORT_SYMBOL_GPL(register_vmcore_cb);
 
 void unregister_vmcore_cb(struct vmcore_cb *cb)
 {
-	down_write(&vmcore_cb_rwsem);
-	list_del(&cb->next);
+	spin_lock(&vmcore_cb_lock);
+	list_del_rcu(&cb->next);
 	/*
 	 * Unregistering a vmcore callback after the vmcore was opened is
 	 * very unusual (e.g., forced driver removal), but we cannot stop
@@ -94,7 +95,9 @@ void unregister_vmcore_cb(struct vmcore_cb *cb)
 	 */
 	if (vmcore_opened)
 		pr_warn_once("Unexpected vmcore callback unregistration\n");
-	up_write(&vmcore_cb_rwsem);
+	spin_unlock(&vmcore_cb_lock);
+
+	synchronize_srcu(&vmcore_cb_srcu);
 }
 EXPORT_SYMBOL_GPL(unregister_vmcore_cb);
 
@@ -103,9 +106,8 @@ static bool pfn_is_ram(unsigned long pfn)
 	struct vmcore_cb *cb;
 	bool ret = true;
 
-	lockdep_assert_held_read(&vmcore_cb_rwsem);
-
-	list_for_each_entry(cb, &vmcore_cb_list, next) {
+	list_for_each_entry_srcu(cb, &vmcore_cb_list, next,
+				 srcu_read_lock_held(&vmcore_cb_srcu)) {
 		if (unlikely(!cb->pfn_is_ram))
 			continue;
 		ret = cb->pfn_is_ram(cb, pfn);
@@ -118,9 +120,9 @@ static bool pfn_is_ram(unsigned long pfn)
 
 static int open_vmcore(struct inode *inode, struct file *file)
 {
-	down_read(&vmcore_cb_rwsem);
+	spin_lock(&vmcore_cb_lock);
 	vmcore_opened = true;
-	up_read(&vmcore_cb_rwsem);
+	spin_unlock(&vmcore_cb_lock);
 
 	return 0;
 }
@@ -133,6 +135,7 @@ ssize_t read_from_oldmem(char *buf, size_t count,
 	unsigned long pfn, offset;
 	size_t nr_bytes;
 	ssize_t read = 0, tmp;
+	int idx;
 
 	if (!count)
 		return 0;
@@ -140,7 +143,7 @@ ssize_t read_from_oldmem(char *buf, size_t count,
 	offset = (unsigned long)(*ppos % PAGE_SIZE);
 	pfn = (unsigned long)(*ppos / PAGE_SIZE);
 
-	down_read(&vmcore_cb_rwsem);
+	idx = srcu_read_lock(&vmcore_cb_srcu);
 	do {
 		if (count > (PAGE_SIZE - offset))
 			nr_bytes = PAGE_SIZE - offset;
@@ -165,7 +168,7 @@ ssize_t read_from_oldmem(char *buf, size_t count,
 						       offset, userbuf);
 		}
 		if (tmp < 0) {
-			up_read(&vmcore_cb_rwsem);
+			srcu_read_unlock(&vmcore_cb_srcu, idx);
 			return tmp;
 		}
 
@@ -176,8 +179,8 @@ ssize_t read_from_oldmem(char *buf, size_t count,
 		++pfn;
 		offset = 0;
 	} while (count);
+	srcu_read_unlock(&vmcore_cb_srcu, idx);
 
-	up_read(&vmcore_cb_rwsem);
 	return read;
 }
 
@@ -477,7 +480,7 @@ static const struct vm_operations_struct vmcore_mmap_ops = {
 
 /**
  * vmcore_alloc_buf - allocate buffer in vmalloc memory
- * @sizez: size of buffer
+ * @size: size of buffer
  *
  * If CONFIG_MMU is defined, use vmalloc_user() to allow users to mmap
  * the buffer to user-space by means of remap_vmalloc_range().
@@ -568,18 +571,18 @@ static int vmcore_remap_oldmem_pfn(struct vm_area_struct *vma,
 			    unsigned long from, unsigned long pfn,
 			    unsigned long size, pgprot_t prot)
 {
-	int ret;
+	int ret, idx;
 
 	/*
-	 * Check if oldmem_pfn_is_ram was registered to avoid
-	 * looping over all pages without a reason.
+	 * Check if a callback was registered to avoid looping over all
+	 * pages without a reason.
 	 */
-	down_read(&vmcore_cb_rwsem);
+	idx = srcu_read_lock(&vmcore_cb_srcu);
 	if (!list_empty(&vmcore_cb_list))
 		ret = remap_oldmem_pfn_checked(vma, from, pfn, size, prot);
 	else
 		ret = remap_oldmem_pfn_range(vma, from, pfn, size, prot);
-	up_read(&vmcore_cb_rwsem);
+	srcu_read_unlock(&vmcore_cb_srcu, idx);
 	return ret;
 }
 

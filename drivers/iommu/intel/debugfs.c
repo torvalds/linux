@@ -344,15 +344,15 @@ static void pgtable_walk_level(struct seq_file *m, struct dma_pte *pde,
 
 static int show_device_domain_translation(struct device *dev, void *data)
 {
-	struct dmar_domain *domain = find_domain(dev);
+	struct device_domain_info *info = dev_iommu_priv_get(dev);
+	struct dmar_domain *domain = info->domain;
 	struct seq_file *m = data;
 	u64 path[6] = { 0 };
 
 	if (!domain)
 		return 0;
 
-	seq_printf(m, "Device %s with pasid %d @0x%llx\n",
-		   dev_name(dev), domain->default_pasid,
+	seq_printf(m, "Device %s @0x%llx\n", dev_name(dev),
 		   (u64)virt_to_phys(domain->pgd));
 	seq_puts(m, "IOVA_PFN\t\tPML5E\t\t\tPML4E\t\t\tPDPE\t\t\tPDE\t\t\tPTE\n");
 

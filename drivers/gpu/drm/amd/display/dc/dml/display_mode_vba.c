@@ -47,6 +47,7 @@ static void recalculate_params(
 		unsigned int num_pipes);
 
 static unsigned int CursorBppEnumToBits(enum cursor_bpp ebpp);
+static void cache_debug_params(struct display_mode_lib *mode_lib);
 
 unsigned int dml_get_voltage_level(
 		struct display_mode_lib *mode_lib,
@@ -73,6 +74,7 @@ unsigned int dml_get_voltage_level(
 		PixelClockAdjustmentForProgressiveToInterlaceUnit(mode_lib);
 	}
 	mode_lib->funcs.validate(mode_lib);
+	cache_debug_params(mode_lib);
 
 	return mode_lib->vba.VoltageLevel;
 }
@@ -743,6 +745,28 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 
 	mode_lib->vba.GPUVMEnable = mode_lib->vba.GPUVMEnable && !!ip->gpuvm_enable;
 	mode_lib->vba.HostVMEnable = mode_lib->vba.HostVMEnable && !!ip->hostvm_enable;
+}
+
+/**
+ * ********************************************************************************************
+ * cache_debug_params: Cache any params that needed to be maintained from the initial validation
+ * for debug purposes.
+ *
+ * The DML getters can modify some of the VBA params that we are interested in (for example when
+ * calculating with dummy p-state latency), so cache any params here that we want for debugging
+ *
+ * @param [in] mode_lib: mode_lib input/output of validate call
+ *
+ * @return: void
+ *
+ * ********************************************************************************************
+ */
+static void cache_debug_params(struct display_mode_lib *mode_lib)
+{
+	int k = 0;
+
+	for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; k++)
+		mode_lib->vba.CachedActiveDRAMClockChangeLatencyMargin[k] = mode_lib->vba.ActiveDRAMClockChangeLatencyMargin[k];
 }
 
 // in wm mode we pull the parameters needed from the display_e2e_pipe_params_st structs

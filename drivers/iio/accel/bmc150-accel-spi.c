@@ -35,11 +35,9 @@ static int bmc150_accel_probe(struct spi_device *spi)
 				       true);
 }
 
-static int bmc150_accel_remove(struct spi_device *spi)
+static void bmc150_accel_remove(struct spi_device *spi)
 {
 	bmc150_accel_core_remove(&spi->dev);
-
-	return 0;
 }
 
 static const struct acpi_device_id bmc150_accel_acpi_match[] = {
@@ -84,3 +82,4 @@ module_spi_driver(bmc150_accel_driver);
 MODULE_AUTHOR("Markus Pargmann <mpa@pengutronix.de>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("BMC150 SPI accelerometer driver");
+MODULE_IMPORT_NS(IIO_BMC150);

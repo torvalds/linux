@@ -9,7 +9,7 @@
  * this archive for more details.
  */
 
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <linux/signal.h>
 #include <linux/uprobes.h>
 #include <linux/key.h>
@@ -294,7 +294,7 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 	}
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME)
-		tracehook_notify_resume(regs);
+		resume_user_mode_work(regs);
 }
 
 static unsigned long get_tm_stackpointer(struct task_struct *tsk)

@@ -1,12 +1,13 @@
 Linux Networking Documentation
 ==============================
 
+Refer to :ref:`netdev-FAQ` for a guide on netdev development process specifics.
+
 Contents:
 
 .. toctree::
    :maxdepth: 2
 
-   netdev-FAQ
    af_xdp
    bareudp
    batman-adv
@@ -96,6 +97,7 @@ Contents:
    sctp
    secid
    seg6-sysctl
+   smc-sysctl
    statistics
    strparser
    switchdev

@@ -8,6 +8,7 @@
  * address space, e.g. all NOMMU machines.
  */
 #include <linux/string.h>
+#include <asm-generic/access_ok.h>
 
 #ifdef CONFIG_UACCESS_MEMCPY
 #include <asm/unaligned.h>
@@ -77,8 +78,6 @@ do {									\
 		goto err_label;						\
 } while (0)
 
-#define HAVE_GET_KERNEL_NOFAULT 1
-
 static inline __must_check unsigned long
 raw_copy_from_user(void *to, const void __user * from, unsigned long n)
 {
@@ -95,49 +94,6 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 #define INLINE_COPY_FROM_USER
 #define INLINE_COPY_TO_USER
 #endif /* CONFIG_UACCESS_MEMCPY */
-
-#ifdef CONFIG_SET_FS
-#define MAKE_MM_SEG(s)	((mm_segment_t) { (s) })
-
-#ifndef KERNEL_DS
-#define KERNEL_DS	MAKE_MM_SEG(~0UL)
-#endif
-
-#ifndef USER_DS
-#define USER_DS		MAKE_MM_SEG(TASK_SIZE - 1)
-#endif
-
-#ifndef get_fs
-#define get_fs()	(current_thread_info()->addr_limit)
-
-static inline void set_fs(mm_segment_t fs)
-{
-	current_thread_info()->addr_limit = fs;
-}
-#endif
-
-#ifndef uaccess_kernel
-#define uaccess_kernel() (get_fs().seg == KERNEL_DS.seg)
-#endif
-
-#ifndef user_addr_max
-#define user_addr_max() (uaccess_kernel() ? ~0UL : TASK_SIZE)
-#endif
-
-#endif /* CONFIG_SET_FS */
-
-#define access_ok(addr, size) __access_ok((unsigned long)(addr),(size))
-
-/*
- * The architecture should really override this if possible, at least
- * doing a check on the get_fs()
- */
-#ifndef __access_ok
-static inline int __access_ok(unsigned long addr, unsigned long size)
-{
-	return 1;
-}
-#endif
 
 /*
  * These are the main single-value transfer routines.  They automatically

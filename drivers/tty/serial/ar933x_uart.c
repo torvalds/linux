@@ -613,7 +613,7 @@ static void ar933x_uart_wait_xmitr(struct ar933x_uart_port *up)
 	} while ((status & AR933X_UART_DATA_TX_CSR) == 0);
 }
 
-static void ar933x_uart_console_putchar(struct uart_port *port, int ch)
+static void ar933x_uart_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	struct ar933x_uart_port *up =
 		container_of(port, struct ar933x_uart_port, port);

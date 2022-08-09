@@ -5,6 +5,8 @@
 #include <linux/pci.h>
 #include <linux/irq.h>
 
+#include <asm/pmac_feature.h>
+
 /*
  * Declaration for the various functions exported by the
  * pmac_* files. Mostly for use by pmac_setup

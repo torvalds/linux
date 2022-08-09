@@ -1,25 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
-if VIDEO_V4L2
+if VIDEO_DEV && SPI
 
 comment "SPI I2C drivers auto-selected by 'Autoselect ancillary drivers'"
 	depends on MEDIA_HIDE_ANCILLARY_SUBDRV && SPI
 
-menu "SPI helper chips"
-	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
-
-config VIDEO_GS1662
-	tristate "Gennum Serializers video"
-	depends on SPI && VIDEO_V4L2
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	help
-	  Enable the GS1662 driver which serializes video streams.
-
-endmenu
-
-endif
-
-if SPI
 menu "Media SPI Adapters"
 
 config CXD2880_SPI_DRV
@@ -28,6 +12,14 @@ config CXD2880_SPI_DRV
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Choose if you would like to have SPI interface support for Sony CXD2880.
+
+config VIDEO_GS1662
+	tristate "Gennum Serializers video"
+	depends on SPI && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Enable the GS1662 driver which serializes video streams.
 
 endmenu
 

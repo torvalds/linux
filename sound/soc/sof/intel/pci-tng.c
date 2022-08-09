@@ -25,7 +25,6 @@ static struct snd_soc_acpi_mach sof_tng_machines[] = {
 	{
 		.id = "INT343A",
 		.drv_name = "edison",
-		.sof_fw_filename = "sof-byt.ri",
 		.sof_tplg_filename = "sof-byt.tplg",
 	},
 	{}
@@ -166,7 +165,7 @@ const struct snd_sof_dsp_ops sof_tng_ops = {
 	.get_window_offset = atom_get_window_offset,
 
 	.ipc_msg_data	= sof_ipc_msg_data,
-	.ipc_pcm_params	= sof_ipc_pcm_params,
+	.set_stream_data_offset = sof_set_stream_data_offset,
 
 	/* machine driver */
 	.machine_select = atom_machine_select,

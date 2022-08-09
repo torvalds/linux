@@ -59,6 +59,7 @@
 #include "lib/hv_vhca.h"
 #include "lib/clock.h"
 #include "en/rx_res.h"
+#include "en/selq.h"
 
 extern const struct net_device_ops mlx5e_netdev_ops;
 struct page_pool;
@@ -172,8 +173,9 @@ struct page_pool;
 #define MLX5E_KLM_ENTRIES_PER_WQE(wqe_size)\
 	ALIGN_DOWN(MLX5E_KLM_MAX_ENTRIES_PER_WQE(wqe_size), MLX5_UMR_KLM_ALIGNMENT)
 
-#define MLX5E_MAX_KLM_PER_WQE \
-	MLX5E_KLM_ENTRIES_PER_WQE(MLX5E_TX_MPW_MAX_NUM_DS << MLX5_MKEY_BSF_OCTO_SIZE)
+#define MLX5E_MAX_KLM_PER_WQE(mdev) \
+	MLX5E_KLM_ENTRIES_PER_WQE(mlx5e_get_sw_max_sq_mpw_wqebbs(mlx5e_get_max_sq_wqebbs(mdev)) \
+				   << MLX5_MKEY_BSF_OCTO_SIZE)
 
 #define MLX5E_MSG_LEVEL			NETIF_MSG_LINK
 
@@ -219,6 +221,32 @@ static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
 	return is_kdump_kernel() ?
 		MLX5E_MIN_NUM_CHANNELS :
 		min_t(int, mlx5_comp_vectors_count(mdev), MLX5E_MAX_NUM_CHANNELS);
+}
+
+/* The maximum WQE size can be retrieved by max_wqe_sz_sq in
+ * bytes units. Driver hardens the limitation to 1KB (16
+ * WQEBBs), unless firmware capability is stricter.
+ */
+static inline u16 mlx5e_get_max_sq_wqebbs(struct mlx5_core_dev *mdev)
+{
+	return min_t(u16, MLX5_SEND_WQE_MAX_WQEBBS,
+		     MLX5_CAP_GEN(mdev, max_wqe_sz_sq) / MLX5_SEND_WQE_BB);
+}
+
+static inline u16 mlx5e_get_sw_max_sq_mpw_wqebbs(u16 max_sq_wqebbs)
+{
+/* The return value will be multiplied by MLX5_SEND_WQEBB_NUM_DS.
+ * Since max_sq_wqebbs may be up to MLX5_SEND_WQE_MAX_WQEBBS == 16,
+ * see mlx5e_get_max_sq_wqebbs(), the multiplication (16 * 4 == 64)
+ * overflows the 6-bit DS field of Ctrl Segment. Use a bound lower
+ * than MLX5_SEND_WQE_MAX_WQEBBS to let a full-session WQE be
+ * cache-aligned.
+ */
+#if L1_CACHE_BYTES < 128
+	return min_t(u16, max_sq_wqebbs, MLX5_SEND_WQE_MAX_WQEBBS - 1);
+#else
+	return min_t(u16, max_sq_wqebbs, MLX5_SEND_WQE_MAX_WQEBBS - 2);
+#endif
 }
 
 struct mlx5e_tx_wqe {
@@ -377,6 +405,7 @@ enum {
 	MLX5E_SQ_STATE_VLAN_NEED_L2_INLINE,
 	MLX5E_SQ_STATE_PENDING_XSK_TX,
 	MLX5E_SQ_STATE_PENDING_TLS_RX_RESYNC,
+	MLX5E_SQ_STATE_XDP_MULTIBUF,
 };
 
 struct mlx5e_tx_mpwqe {
@@ -427,12 +456,12 @@ struct mlx5e_txqsq {
 	struct netdev_queue       *txq;
 	u32                        sqn;
 	u16                        stop_room;
+	u16                        max_sq_mpw_wqebbs;
 	u8                         min_inline_mode;
 	struct device             *pdev;
 	__be32                     mkey_be;
 	unsigned long              state;
 	unsigned int               hw_mtu;
-	struct hwtstamp_config    *tstamp;
 	struct mlx5_clock         *clock;
 	struct net_device         *netdev;
 	struct mlx5_core_dev      *mdev;
@@ -446,6 +475,7 @@ struct mlx5e_txqsq {
 	struct work_struct         recover_work;
 	struct mlx5e_ptpsq        *ptpsq;
 	cqe_ts_to_ns               ptp_cyc2time;
+	u16                        max_sq_wqebbs;
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_dma_info {
@@ -486,7 +516,7 @@ struct mlx5e_xdp_info {
 		} frame;
 		struct {
 			struct mlx5e_rq *rq;
-			struct mlx5e_dma_info di;
+			struct page *page;
 		} page;
 	};
 };
@@ -508,7 +538,7 @@ struct mlx5e_xdpsq;
 typedef int (*mlx5e_fp_xmit_xdp_frame_check)(struct mlx5e_xdpsq *);
 typedef bool (*mlx5e_fp_xmit_xdp_frame)(struct mlx5e_xdpsq *,
 					struct mlx5e_xmit_data *,
-					struct mlx5e_xdp_info *,
+					struct skb_shared_info *,
 					int);
 
 struct mlx5e_xdpsq {
@@ -540,6 +570,8 @@ struct mlx5e_xdpsq {
 	u32                        sqn;
 	struct device             *pdev;
 	__be32                     mkey_be;
+	u16                        stop_room;
+	u16                        max_sq_mpw_wqebbs;
 	u8                         min_inline_mode;
 	unsigned long              state;
 	unsigned int               hw_mtu;
@@ -547,6 +579,7 @@ struct mlx5e_xdpsq {
 	/* control path */
 	struct mlx5_wq_ctrl        wq_ctrl;
 	struct mlx5e_channel      *channel;
+	u16                        max_sq_wqebbs;
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_ktls_resync_resp;
@@ -575,6 +608,7 @@ struct mlx5e_icosq {
 	/* control path */
 	struct mlx5_wq_ctrl        wq_ctrl;
 	struct mlx5e_channel      *channel;
+	u16                        max_sq_wqebbs;
 
 	struct work_struct         recover_work;
 } ____cacheline_aligned_in_smp;
@@ -681,6 +715,7 @@ struct mlx5e_rq {
 			u8                     umr_in_progress;
 			u8                     umr_last_bulk;
 			u8                     umr_completed;
+			u8                     min_wqe_bulk;
 			struct mlx5e_shampo_hd *shampo;
 		} mpwqe;
 	};
@@ -876,9 +911,8 @@ struct mlx5e_trap;
 
 struct mlx5e_priv {
 	/* priv data path fields - start */
+	struct mlx5e_selq selq;
 	struct mlx5e_txqsq **txq2sq;
-	int **channel_tc2realtxq;
-	int port_ptp_tc2realtxq[MLX5E_MAX_NUM_TC];
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	struct mlx5e_dcbx_dp       dcbx_dp;
 #endif
@@ -921,7 +955,6 @@ struct mlx5e_priv {
 	u16                        drop_rq_q_counter;
 	struct notifier_block      events_nb;
 	struct notifier_block      blocking_events_nb;
-	int                        num_tc_x_num_ch;
 
 	struct udp_tunnel_nic_info nic_info;
 #ifdef CONFIG_MLX5_CORE_EN_DCB

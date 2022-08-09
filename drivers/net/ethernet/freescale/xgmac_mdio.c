@@ -14,6 +14,7 @@
 
 #include <linux/acpi.h>
 #include <linux/acpi_mdio.h>
+#include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/mdio.h>
@@ -36,9 +37,10 @@ struct tgec_mdio_controller {
 } __packed;
 
 #define MDIO_STAT_ENC		BIT(6)
-#define MDIO_STAT_CLKDIV(x)	(((x>>1) & 0xff) << 8)
+#define MDIO_STAT_CLKDIV(x)	(((x) & 0x1ff) << 7)
 #define MDIO_STAT_BSY		BIT(0)
 #define MDIO_STAT_RD_ER		BIT(1)
+#define MDIO_STAT_PRE_DIS	BIT(5)
 #define MDIO_CTL_DEV_ADDR(x) 	(x & 0x1f)
 #define MDIO_CTL_PORT_ADDR(x)	((x & 0x1f) << 5)
 #define MDIO_CTL_PRE_DIS	BIT(10)
@@ -50,6 +52,8 @@ struct tgec_mdio_controller {
 
 struct mdio_fsl_priv {
 	struct	tgec_mdio_controller __iomem *mdio_base;
+	struct	clk *enet_clk;
+	u32	mdc_freq;
 	bool	is_little_endian;
 	bool	has_a009885;
 	bool	has_a011043;
@@ -239,7 +243,7 @@ static int xgmac_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 	if ((xgmac_read32(&regs->mdio_stat, endian) & MDIO_STAT_RD_ER) &&
 	    !priv->has_a011043) {
 		dev_dbg(&bus->dev,
-			"Error while reading PHY%d reg at %d.%hhu\n",
+			"Error while reading PHY%d reg at %d.%d\n",
 			phy_id, dev_addr, regnum);
 		ret = 0xffff;
 	} else {
@@ -252,6 +256,50 @@ irq_restore:
 		local_irq_restore(flags);
 
 	return ret;
+}
+
+static int xgmac_mdio_set_mdc_freq(struct mii_bus *bus)
+{
+	struct mdio_fsl_priv *priv = (struct mdio_fsl_priv *)bus->priv;
+	struct tgec_mdio_controller __iomem *regs = priv->mdio_base;
+	struct device *dev = bus->parent;
+	u32 mdio_stat, div;
+
+	if (device_property_read_u32(dev, "clock-frequency", &priv->mdc_freq))
+		return 0;
+
+	priv->enet_clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(priv->enet_clk)) {
+		dev_err(dev, "Input clock unknown, not changing MDC frequency");
+		return PTR_ERR(priv->enet_clk);
+	}
+
+	div = ((clk_get_rate(priv->enet_clk) / priv->mdc_freq) - 1) / 2;
+	if (div < 5 || div > 0x1ff) {
+		dev_err(dev, "Requested MDC frequency is out of range, ignoring");
+		return -EINVAL;
+	}
+
+	mdio_stat = xgmac_read32(&regs->mdio_stat, priv->is_little_endian);
+	mdio_stat &= ~MDIO_STAT_CLKDIV(0x1ff);
+	mdio_stat |= MDIO_STAT_CLKDIV(div);
+	xgmac_write32(mdio_stat, &regs->mdio_stat, priv->is_little_endian);
+	return 0;
+}
+
+static void xgmac_mdio_set_suppress_preamble(struct mii_bus *bus)
+{
+	struct mdio_fsl_priv *priv = (struct mdio_fsl_priv *)bus->priv;
+	struct tgec_mdio_controller __iomem *regs = priv->mdio_base;
+	struct device *dev = bus->parent;
+	u32 mdio_stat;
+
+	if (!device_property_read_bool(dev, "suppress-preamble"))
+		return;
+
+	mdio_stat = xgmac_read32(&regs->mdio_stat, priv->is_little_endian);
+	mdio_stat |= MDIO_STAT_PRE_DIS;
+	xgmac_write32(mdio_stat, &regs->mdio_stat, priv->is_little_endian);
 }
 
 static int xgmac_mdio_probe(struct platform_device *pdev)
@@ -273,7 +321,7 @@ static int xgmac_mdio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	bus = mdiobus_alloc_size(sizeof(struct mdio_fsl_priv));
+	bus = devm_mdiobus_alloc_size(&pdev->dev, sizeof(struct mdio_fsl_priv));
 	if (!bus)
 		return -ENOMEM;
 
@@ -284,13 +332,11 @@ static int xgmac_mdio_probe(struct platform_device *pdev)
 	bus->probe_capabilities = MDIOBUS_C22_C45;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%pa", &res->start);
 
-	/* Set the PHY base address */
 	priv = bus->priv;
-	priv->mdio_base = ioremap(res->start, resource_size(res));
-	if (!priv->mdio_base) {
-		ret = -ENOMEM;
-		goto err_ioremap;
-	}
+	priv->mdio_base = devm_ioremap(&pdev->dev, res->start,
+				       resource_size(res));
+	if (!priv->mdio_base)
+		return -ENOMEM;
 
 	/* For both ACPI and DT cases, endianness of MDIO controller
 	 * needs to be specified using "little-endian" property.
@@ -303,6 +349,12 @@ static int xgmac_mdio_probe(struct platform_device *pdev)
 	priv->has_a011043 = device_property_read_bool(&pdev->dev,
 						      "fsl,erratum-a011043");
 
+	xgmac_mdio_set_suppress_preamble(bus);
+
+	ret = xgmac_mdio_set_mdc_freq(bus);
+	if (ret)
+		return ret;
+
 	fwnode = pdev->dev.fwnode;
 	if (is_of_node(fwnode))
 		ret = of_mdiobus_register(bus, to_of_node(fwnode));
@@ -312,30 +364,10 @@ static int xgmac_mdio_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 	if (ret) {
 		dev_err(&pdev->dev, "cannot register MDIO bus\n");
-		goto err_registration;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, bus);
-
-	return 0;
-
-err_registration:
-	iounmap(priv->mdio_base);
-
-err_ioremap:
-	mdiobus_free(bus);
-
-	return ret;
-}
-
-static int xgmac_mdio_remove(struct platform_device *pdev)
-{
-	struct mii_bus *bus = platform_get_drvdata(pdev);
-	struct mdio_fsl_priv *priv = bus->priv;
-
-	mdiobus_unregister(bus);
-	iounmap(priv->mdio_base);
-	mdiobus_free(bus);
 
 	return 0;
 }
@@ -364,7 +396,6 @@ static struct platform_driver xgmac_mdio_driver = {
 		.acpi_match_table = xgmac_acpi_match,
 	},
 	.probe = xgmac_mdio_probe,
-	.remove = xgmac_mdio_remove,
 };
 
 module_platform_driver(xgmac_mdio_driver);

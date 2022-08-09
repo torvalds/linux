@@ -21,6 +21,7 @@ struct macvlan_dev {
 	struct hlist_node	hlist;
 	struct macvlan_port	*port;
 	struct net_device	*lowerdev;
+	netdevice_tracker	dev_tracker;
 	void			*accel_priv;
 	struct vlan_pcpu_stats __percpu *pcpu_stats;
 

@@ -185,9 +185,11 @@ examples:
         };
     };
 
-    led-controller@0 {
+  - |
+    #include <dt-bindings/leds/common.h>
+
+    led-controller {
         compatible = "maxim,max77693-led";
-        reg = <0 0x100>;
 
         led {
             function = LED_FUNCTION_FLASH;
@@ -198,6 +200,9 @@ examples:
             flash-max-timeout-us = <500000>;
         };
     };
+
+  - |
+    #include <dt-bindings/leds/common.h>
 
     i2c {
         #address-cells = <1>;

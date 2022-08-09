@@ -13,21 +13,15 @@
 
 #ifdef __powerpc64__
 #if defined(_CALL_ELF) && _CALL_ELF == 2
-#define PPC64_ELF_ABI_v2
+#define PPC64_ELF_ABI_v2 1
 #else
-#define PPC64_ELF_ABI_v1
+#define PPC64_ELF_ABI_v1 1
 #endif
 #endif /* __powerpc64__ */
 
 #ifndef __ASSEMBLY__
 
 typedef __vector128 vector128;
-
-typedef struct {
-	unsigned long entry;
-	unsigned long toc;
-	unsigned long env;
-} func_descr_t;
 
 #endif /* __ASSEMBLY__ */
 

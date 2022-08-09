@@ -14,7 +14,7 @@ data from LCD controller (FIMD) through the SoC internal writeback data
 path.  There are multiple FIMC instances in the SoCs (up to 4), having
 slightly different capabilities, like pixel alignment constraints, rotator
 availability, LCD writeback support, etc. The driver is located at
-drivers/media/platform/exynos4-is directory.
+drivers/media/platform/samsung/exynos4-is directory.
 
 Supported SoCs
 --------------

@@ -112,6 +112,7 @@ struct ipa_endpoint_tx_data {
 
 /**
  * struct ipa_endpoint_rx_data - configuration data for RX endpoints
+ * @buffer_size: requested receive buffer size (bytes)
  * @pad_align:	power-of-2 boundary to which packet payload is aligned
  * @aggr_close_eof: whether aggregation closes on end-of-frame
  *
@@ -125,6 +126,7 @@ struct ipa_endpoint_tx_data {
  * a "frame" consisting of several transfers has ended.
  */
 struct ipa_endpoint_rx_data {
+	u32 buffer_size;
 	u32 pad_align;
 	bool aggr_close_eof;
 };

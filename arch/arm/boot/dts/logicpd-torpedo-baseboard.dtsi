@@ -93,7 +93,8 @@
 
 &gpmc {
 	ranges = <0 0 0x30000000 0x1000000	/* CS0: 16MB for NAND */
-		  1 0 0x2c000000 0x1000000>;	/* CS1: 16MB for LAN9221 */
+		  1 0 0x2c000000 0x1000000	/* CS1: 16MB for LAN9221 */
+		  6 0 0x28000000 0x1000000>;	/* CS6: 16MB for ISP1763 */
 
 	ethernet@gpmc {
 		pinctrl-names = "default";
@@ -101,6 +102,44 @@
 		interrupt-parent = <&gpio5>;
 		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;		/* gpio129 */
 		reg = <1 0 0xff>;
+	};
+
+	usb@6,0 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&isp1763_pins>;
+		compatible = "nxp,usb-isp1763";
+		reg = <0x6 0x0 0xff>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names = "host";
+		bus-width = <16>;
+		dr_mode = "host";
+		gpmc,mux-add-data = <0>;
+		gpmc,device-width = <2>;
+		gpmc,wait-pin = <0>;
+		gpmc,burst-length = <4>;
+		gpmc,cycle2cycle-samecsen;
+		gpmc,cycle2cycle-diffcsen;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <45>;
+		gpmc,cs-wr-off-ns = <45>;
+		gpmc,adv-on-ns = <0>;
+		gpmc,adv-rd-off-ns = <0>;
+		gpmc,adv-wr-off-ns = <0>;
+		gpmc,oe-on-ns = <0>;
+		gpmc,oe-off-ns = <45>;
+		gpmc,we-on-ns = <0>;
+		gpmc,we-off-ns = <25>;
+		gpmc,rd-cycle-ns = <60>;
+		gpmc,wr-cycle-ns = <45>;
+		gpmc,access-ns = <35>;
+		gpmc,page-burst-access-ns = <0>;
+		gpmc,bus-turnaround-ns = <0>;
+		gpmc,cycle2cycle-delay-ns = <60>;
+		gpmc,wait-monitoring-ns = <0>;
+		gpmc,clk-activation-ns = <0>;
+		gpmc,wr-data-mux-bus-ns = <5>;
+		gpmc,wr-access-ns = <20>;
 	};
 };
 

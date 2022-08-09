@@ -180,9 +180,11 @@ bpf_object__open_mem(const void *obj_buf, size_t obj_buf_sz,
 		     const struct bpf_object_open_opts *opts);
 
 /* deprecated bpf_object__open variants */
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_object__open_mem() instead")
 LIBBPF_API struct bpf_object *
 bpf_object__open_buffer(const void *obj_buf, size_t obj_buf_sz,
 			const char *name);
+LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_object__open_file() instead")
 LIBBPF_API struct bpf_object *
 bpf_object__open_xattr(struct bpf_object_open_attr *attr);
 
@@ -244,8 +246,10 @@ struct bpf_object *bpf_object__next(struct bpf_object *prev);
 	     (pos) = (tmp), (tmp) = bpf_object__next(tmp))
 
 typedef void (*bpf_object_clear_priv_t)(struct bpf_object *, void *);
+LIBBPF_DEPRECATED_SINCE(0, 7, "storage via set_priv/priv is deprecated")
 LIBBPF_API int bpf_object__set_priv(struct bpf_object *obj, void *priv,
 				    bpf_object_clear_priv_t clear_priv);
+LIBBPF_DEPRECATED_SINCE(0, 7, "storage via set_priv/priv is deprecated")
 LIBBPF_API void *bpf_object__priv(const struct bpf_object *prog);
 
 LIBBPF_API int
@@ -277,9 +281,10 @@ bpf_object__prev_program(const struct bpf_object *obj, struct bpf_program *prog)
 
 typedef void (*bpf_program_clear_priv_t)(struct bpf_program *, void *);
 
+LIBBPF_DEPRECATED_SINCE(0, 7, "storage via set_priv/priv is deprecated")
 LIBBPF_API int bpf_program__set_priv(struct bpf_program *prog, void *priv,
 				     bpf_program_clear_priv_t clear_priv);
-
+LIBBPF_DEPRECATED_SINCE(0, 7, "storage via set_priv/priv is deprecated")
 LIBBPF_API void *bpf_program__priv(const struct bpf_program *prog);
 LIBBPF_API void bpf_program__set_ifindex(struct bpf_program *prog,
 					 __u32 ifindex);
@@ -419,6 +424,29 @@ LIBBPF_API struct bpf_link *
 bpf_program__attach_kprobe_opts(const struct bpf_program *prog,
                                 const char *func_name,
                                 const struct bpf_kprobe_opts *opts);
+
+struct bpf_kprobe_multi_opts {
+	/* size of this struct, for forward/backward compatibility */
+	size_t sz;
+	/* array of function symbols to attach */
+	const char **syms;
+	/* array of function addresses to attach */
+	const unsigned long *addrs;
+	/* array of user-provided values fetchable through bpf_get_attach_cookie */
+	const __u64 *cookies;
+	/* number of elements in syms/addrs/cookies arrays */
+	size_t cnt;
+	/* create return kprobes */
+	bool retprobe;
+	size_t :0;
+};
+
+#define bpf_kprobe_multi_opts__last_field retprobe
+
+LIBBPF_API struct bpf_link *
+bpf_program__attach_kprobe_multi_opts(const struct bpf_program *prog,
+				      const char *pattern,
+				      const struct bpf_kprobe_multi_opts *opts);
 
 struct bpf_uprobe_opts {
 	/* size of this struct, for forward/backward compatiblity */
@@ -591,26 +619,39 @@ LIBBPF_API int bpf_program__nth_fd(const struct bpf_program *prog, int n);
 /*
  * Adjust type of BPF program. Default is kprobe.
  */
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_socket_filter(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_tracepoint(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_raw_tracepoint(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_kprobe(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_lsm(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_sched_cls(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_sched_act(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_xdp(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_perf_event(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_tracing(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_struct_ops(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_extension(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_sk_lookup(struct bpf_program *prog);
 
-LIBBPF_API enum bpf_prog_type bpf_program__get_type(const struct bpf_program *prog);
+LIBBPF_API enum bpf_prog_type bpf_program__type(const struct bpf_program *prog);
 LIBBPF_API void bpf_program__set_type(struct bpf_program *prog,
 				      enum bpf_prog_type type);
 
 LIBBPF_API enum bpf_attach_type
-bpf_program__get_expected_attach_type(const struct bpf_program *prog);
+bpf_program__expected_attach_type(const struct bpf_program *prog);
 LIBBPF_API void
 bpf_program__set_expected_attach_type(struct bpf_program *prog,
 				      enum bpf_attach_type type);
@@ -631,18 +672,31 @@ LIBBPF_API int
 bpf_program__set_attach_target(struct bpf_program *prog, int attach_prog_fd,
 			       const char *attach_func_name);
 
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_socket_filter(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_tracepoint(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_raw_tracepoint(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_kprobe(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_lsm(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_sched_cls(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_sched_act(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_xdp(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_perf_event(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_tracing(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_struct_ops(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_extension(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_sk_lookup(const struct bpf_program *prog);
 
 /*
@@ -706,7 +760,8 @@ bpf_object__prev_map(const struct bpf_object *obj, const struct bpf_map *map);
 LIBBPF_API int bpf_map__fd(const struct bpf_map *map);
 LIBBPF_API int bpf_map__reuse_fd(struct bpf_map *map, int fd);
 /* get map definition */
-LIBBPF_API const struct bpf_map_def *bpf_map__def(const struct bpf_map *map);
+LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 8, "use appropriate getters or setters instead")
+const struct bpf_map_def *bpf_map__def(const struct bpf_map *map);
 /* get map name */
 LIBBPF_API const char *bpf_map__name(const struct bpf_map *map);
 /* get/set map type */
@@ -715,6 +770,7 @@ LIBBPF_API int bpf_map__set_type(struct bpf_map *map, enum bpf_map_type type);
 /* get/set map size (max_entries) */
 LIBBPF_API __u32 bpf_map__max_entries(const struct bpf_map *map);
 LIBBPF_API int bpf_map__set_max_entries(struct bpf_map *map, __u32 max_entries);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_map__set_max_entries() instead")
 LIBBPF_API int bpf_map__resize(struct bpf_map *map, __u32 max_entries);
 /* get/set map flags */
 LIBBPF_API __u32 bpf_map__map_flags(const struct bpf_map *map);
@@ -739,8 +795,10 @@ LIBBPF_API __u64 bpf_map__map_extra(const struct bpf_map *map);
 LIBBPF_API int bpf_map__set_map_extra(struct bpf_map *map, __u64 map_extra);
 
 typedef void (*bpf_map_clear_priv_t)(struct bpf_map *, void *);
+LIBBPF_DEPRECATED_SINCE(0, 7, "storage via set_priv/priv is deprecated")
 LIBBPF_API int bpf_map__set_priv(struct bpf_map *map, void *priv,
 				 bpf_map_clear_priv_t clear_priv);
+LIBBPF_DEPRECATED_SINCE(0, 7, "storage via set_priv/priv is deprecated")
 LIBBPF_API void *bpf_map__priv(const struct bpf_map *map);
 LIBBPF_API int bpf_map__set_initial_value(struct bpf_map *map,
 					  const void *data, size_t size);
@@ -757,7 +815,6 @@ LIBBPF_API bool bpf_map__is_offload_neutral(const struct bpf_map *map);
  */
 LIBBPF_API bool bpf_map__is_internal(const struct bpf_map *map);
 LIBBPF_API int bpf_map__set_pin_path(struct bpf_map *map, const char *path);
-LIBBPF_API const char *bpf_map__get_pin_path(const struct bpf_map *map);
 LIBBPF_API const char *bpf_map__pin_path(const struct bpf_map *map);
 LIBBPF_API bool bpf_map__is_pinned(const struct bpf_map *map);
 LIBBPF_API int bpf_map__pin(struct bpf_map *map, const char *path);
@@ -832,12 +889,41 @@ struct bpf_xdp_set_link_opts {
 };
 #define bpf_xdp_set_link_opts__last_field old_fd
 
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_xdp_attach() instead")
 LIBBPF_API int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_xdp_attach() instead")
 LIBBPF_API int bpf_set_link_xdp_fd_opts(int ifindex, int fd, __u32 flags,
 					const struct bpf_xdp_set_link_opts *opts);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_xdp_query_id() instead")
 LIBBPF_API int bpf_get_link_xdp_id(int ifindex, __u32 *prog_id, __u32 flags);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_xdp_query() instead")
 LIBBPF_API int bpf_get_link_xdp_info(int ifindex, struct xdp_link_info *info,
 				     size_t info_size, __u32 flags);
+
+struct bpf_xdp_attach_opts {
+	size_t sz;
+	int old_prog_fd;
+	size_t :0;
+};
+#define bpf_xdp_attach_opts__last_field old_prog_fd
+
+struct bpf_xdp_query_opts {
+	size_t sz;
+	__u32 prog_id;		/* output */
+	__u32 drv_prog_id;	/* output */
+	__u32 hw_prog_id;	/* output */
+	__u32 skb_prog_id;	/* output */
+	__u8 attach_mode;	/* output */
+	size_t :0;
+};
+#define bpf_xdp_query_opts__last_field attach_mode
+
+LIBBPF_API int bpf_xdp_attach(int ifindex, int prog_fd, __u32 flags,
+			      const struct bpf_xdp_attach_opts *opts);
+LIBBPF_API int bpf_xdp_detach(int ifindex, __u32 flags,
+			      const struct bpf_xdp_attach_opts *opts);
+LIBBPF_API int bpf_xdp_query(int ifindex, int flags, struct bpf_xdp_query_opts *opts);
+LIBBPF_API int bpf_xdp_query_id(int ifindex, int flags, __u32 *prog_id);
 
 /* TC related API */
 enum bpf_tc_attach_point {
@@ -1226,6 +1312,35 @@ LIBBPF_API int bpf_object__attach_skeleton(struct bpf_object_skeleton *s);
 LIBBPF_API void bpf_object__detach_skeleton(struct bpf_object_skeleton *s);
 LIBBPF_API void bpf_object__destroy_skeleton(struct bpf_object_skeleton *s);
 
+struct bpf_var_skeleton {
+	const char *name;
+	struct bpf_map **map;
+	void **addr;
+};
+
+struct bpf_object_subskeleton {
+	size_t sz; /* size of this struct, for forward/backward compatibility */
+
+	const struct bpf_object *obj;
+
+	int map_cnt;
+	int map_skel_sz; /* sizeof(struct bpf_map_skeleton) */
+	struct bpf_map_skeleton *maps;
+
+	int prog_cnt;
+	int prog_skel_sz; /* sizeof(struct bpf_prog_skeleton) */
+	struct bpf_prog_skeleton *progs;
+
+	int var_cnt;
+	int var_skel_sz; /* sizeof(struct bpf_var_skeleton) */
+	struct bpf_var_skeleton *vars;
+};
+
+LIBBPF_API int
+bpf_object__open_subskeleton(struct bpf_object_subskeleton *s);
+LIBBPF_API void
+bpf_object__destroy_subskeleton(struct bpf_object_subskeleton *s);
+
 struct gen_loader_opts {
 	size_t sz; /* size of this struct, for forward/backward compatiblity */
 	const char *data;
@@ -1264,6 +1379,115 @@ LIBBPF_API int bpf_linker__add_file(struct bpf_linker *linker,
 				    const struct bpf_linker_file_opts *opts);
 LIBBPF_API int bpf_linker__finalize(struct bpf_linker *linker);
 LIBBPF_API void bpf_linker__free(struct bpf_linker *linker);
+
+/*
+ * Custom handling of BPF program's SEC() definitions
+ */
+
+struct bpf_prog_load_opts; /* defined in bpf.h */
+
+/* Called during bpf_object__open() for each recognized BPF program. Callback
+ * can use various bpf_program__set_*() setters to adjust whatever properties
+ * are necessary.
+ */
+typedef int (*libbpf_prog_setup_fn_t)(struct bpf_program *prog, long cookie);
+
+/* Called right before libbpf performs bpf_prog_load() to load BPF program
+ * into the kernel. Callback can adjust opts as necessary.
+ */
+typedef int (*libbpf_prog_prepare_load_fn_t)(struct bpf_program *prog,
+					     struct bpf_prog_load_opts *opts, long cookie);
+
+/* Called during skeleton attach or through bpf_program__attach(). If
+ * auto-attach is not supported, callback should return 0 and set link to
+ * NULL (it's not considered an error during skeleton attach, but it will be
+ * an error for bpf_program__attach() calls). On error, error should be
+ * returned directly and link set to NULL. On success, return 0 and set link
+ * to a valid struct bpf_link.
+ */
+typedef int (*libbpf_prog_attach_fn_t)(const struct bpf_program *prog, long cookie,
+				       struct bpf_link **link);
+
+struct libbpf_prog_handler_opts {
+	/* size of this struct, for forward/backward compatiblity */
+	size_t sz;
+	/* User-provided value that is passed to prog_setup_fn,
+	 * prog_prepare_load_fn, and prog_attach_fn callbacks. Allows user to
+	 * register one set of callbacks for multiple SEC() definitions and
+	 * still be able to distinguish them, if necessary. For example,
+	 * libbpf itself is using this to pass necessary flags (e.g.,
+	 * sleepable flag) to a common internal SEC() handler.
+	 */
+	long cookie;
+	/* BPF program initialization callback (see libbpf_prog_setup_fn_t).
+	 * Callback is optional, pass NULL if it's not necessary.
+	 */
+	libbpf_prog_setup_fn_t prog_setup_fn;
+	/* BPF program loading callback (see libbpf_prog_prepare_load_fn_t).
+	 * Callback is optional, pass NULL if it's not necessary.
+	 */
+	libbpf_prog_prepare_load_fn_t prog_prepare_load_fn;
+	/* BPF program attach callback (see libbpf_prog_attach_fn_t).
+	 * Callback is optional, pass NULL if it's not necessary.
+	 */
+	libbpf_prog_attach_fn_t prog_attach_fn;
+};
+#define libbpf_prog_handler_opts__last_field prog_attach_fn
+
+/**
+ * @brief **libbpf_register_prog_handler()** registers a custom BPF program
+ * SEC() handler.
+ * @param sec section prefix for which custom handler is registered
+ * @param prog_type BPF program type associated with specified section
+ * @param exp_attach_type Expected BPF attach type associated with specified section
+ * @param opts optional cookie, callbacks, and other extra options
+ * @return Non-negative handler ID is returned on success. This handler ID has
+ * to be passed to *libbpf_unregister_prog_handler()* to unregister such
+ * custom handler. Negative error code is returned on error.
+ *
+ * *sec* defines which SEC() definitions are handled by this custom handler
+ * registration. *sec* can have few different forms:
+ *   - if *sec* is just a plain string (e.g., "abc"), it will match only
+ *   SEC("abc"). If BPF program specifies SEC("abc/whatever") it will result
+ *   in an error;
+ *   - if *sec* is of the form "abc/", proper SEC() form is
+ *   SEC("abc/something"), where acceptable "something" should be checked by
+ *   *prog_init_fn* callback, if there are additional restrictions;
+ *   - if *sec* is of the form "abc+", it will successfully match both
+ *   SEC("abc") and SEC("abc/whatever") forms;
+ *   - if *sec* is NULL, custom handler is registered for any BPF program that
+ *   doesn't match any of the registered (custom or libbpf's own) SEC()
+ *   handlers. There could be only one such generic custom handler registered
+ *   at any given time.
+ *
+ * All custom handlers (except the one with *sec* == NULL) are processed
+ * before libbpf's own SEC() handlers. It is allowed to "override" libbpf's
+ * SEC() handlers by registering custom ones for the same section prefix
+ * (i.e., it's possible to have custom SEC("perf_event/LLC-load-misses")
+ * handler).
+ *
+ * Note, like much of global libbpf APIs (e.g., libbpf_set_print(),
+ * libbpf_set_strict_mode(), etc)) these APIs are not thread-safe. User needs
+ * to ensure synchronization if there is a risk of running this API from
+ * multiple threads simultaneously.
+ */
+LIBBPF_API int libbpf_register_prog_handler(const char *sec,
+					    enum bpf_prog_type prog_type,
+					    enum bpf_attach_type exp_attach_type,
+					    const struct libbpf_prog_handler_opts *opts);
+/**
+ * @brief *libbpf_unregister_prog_handler()* unregisters previously registered
+ * custom BPF program SEC() handler.
+ * @param handler_id handler ID returned by *libbpf_register_prog_handler()*
+ * after successful registration
+ * @return 0 on success, negative error code if handler isn't found
+ *
+ * Note, like much of global libbpf APIs (e.g., libbpf_set_print(),
+ * libbpf_set_strict_mode(), etc)) these APIs are not thread-safe. User needs
+ * to ensure synchronization if there is a risk of running this API from
+ * multiple threads simultaneously.
+ */
+LIBBPF_API int libbpf_unregister_prog_handler(int handler_id);
 
 #ifdef __cplusplus
 } /* extern "C" */

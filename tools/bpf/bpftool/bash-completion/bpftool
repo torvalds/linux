@@ -1003,9 +1003,25 @@ _bpftool()
                             ;;
                     esac
                     ;;
+                subskeleton)
+                    case $prev in
+                        $command)
+                            _filedir
+                            return 0
+                            ;;
+                        *)
+                            _bpftool_once_attr 'name'
+                            return 0
+                            ;;
+                    esac
+                    ;;
+                min_core_btf)
+                    _filedir
+                    return 0
+                    ;;
                 *)
                     [[ $prev == $object ]] && \
-                        COMPREPLY=( $( compgen -W 'object skeleton help' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W 'object skeleton subskeleton help min_core_btf' -- "$cur" ) )
                     ;;
             esac
             ;;

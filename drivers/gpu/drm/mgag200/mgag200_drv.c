@@ -14,6 +14,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_ioctl.h>
+#include <drm/drm_module.h>
 #include <drm/drm_pciids.h>
 
 #include "mgag200_drv.h"
@@ -375,24 +376,7 @@ static struct pci_driver mgag200_pci_driver = {
 	.remove = mgag200_pci_remove,
 };
 
-static int __init mgag200_init(void)
-{
-	if (drm_firmware_drivers_only() && mgag200_modeset == -1)
-		return -EINVAL;
-
-	if (mgag200_modeset == 0)
-		return -EINVAL;
-
-	return pci_register_driver(&mgag200_pci_driver);
-}
-
-static void __exit mgag200_exit(void)
-{
-	pci_unregister_driver(&mgag200_pci_driver);
-}
-
-module_init(mgag200_init);
-module_exit(mgag200_exit);
+drm_module_pci_driver_if_modeset(mgag200_pci_driver, mgag200_modeset);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

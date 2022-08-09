@@ -12,6 +12,7 @@ LIBPERF_0.0.1 {
 		perf_cpu_map__empty;
 		perf_cpu_map__max;
 		perf_cpu_map__has;
+		perf_thread_map__new_array;
 		perf_thread_map__new_dummy;
 		perf_thread_map__set_pid;
 		perf_thread_map__comm;

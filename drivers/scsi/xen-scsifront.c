@@ -757,7 +757,7 @@ static int scsifront_alloc_ring(struct vscsifrnt_info *info)
 free_irq:
 	unbind_from_irqhandler(info->irq, info);
 free_gnttab:
-	gnttab_end_foreign_access(info->ring_ref, 0,
+	gnttab_end_foreign_access(info->ring_ref,
 				  (unsigned long)info->ring.sring);
 
 	return err;
@@ -766,7 +766,7 @@ free_gnttab:
 static void scsifront_free_ring(struct vscsifrnt_info *info)
 {
 	unbind_from_irqhandler(info->irq, info);
-	gnttab_end_foreign_access(info->ring_ref, 0,
+	gnttab_end_foreign_access(info->ring_ref,
 				  (unsigned long)info->ring.sring);
 }
 

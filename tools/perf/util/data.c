@@ -48,12 +48,16 @@ int perf_data__create_dir(struct perf_data *data, int nr)
 		struct perf_data_file *file = &files[i];
 
 		ret = asprintf(&file->path, "%s/data.%d", data->path, i);
-		if (ret < 0)
+		if (ret < 0) {
+			ret = -ENOMEM;
 			goto out_err;
+		}
 
 		ret = open(file->path, O_RDWR|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR);
-		if (ret < 0)
+		if (ret < 0) {
+			ret = -errno;
 			goto out_err;
+		}
 
 		file->fd = ret;
 	}

@@ -106,18 +106,13 @@ static void show_regwindow32(struct pt_regs *regs)
 {
 	struct reg_window32 __user *rw;
 	struct reg_window32 r_w;
-	mm_segment_t old_fs;
 	
 	__asm__ __volatile__ ("flushw");
 	rw = compat_ptr((unsigned int)regs->u_regs[14]);
-	old_fs = get_fs();
-	set_fs (USER_DS);
 	if (copy_from_user (&r_w, rw, sizeof(r_w))) {
-		set_fs (old_fs);
 		return;
 	}
 
-	set_fs (old_fs);			
 	printk("l0: %08x l1: %08x l2: %08x l3: %08x "
 	       "l4: %08x l5: %08x l6: %08x l7: %08x\n",
 	       r_w.locals[0], r_w.locals[1], r_w.locals[2], r_w.locals[3],
@@ -136,7 +131,6 @@ static void show_regwindow(struct pt_regs *regs)
 	struct reg_window __user *rw;
 	struct reg_window *rwk;
 	struct reg_window r_w;
-	mm_segment_t old_fs;
 
 	if ((regs->tstate & TSTATE_PRIV) || !(test_thread_flag(TIF_32BIT))) {
 		__asm__ __volatile__ ("flushw");
@@ -145,14 +139,10 @@ static void show_regwindow(struct pt_regs *regs)
 		rwk = (struct reg_window *)
 			(regs->u_regs[14] + STACK_BIAS);
 		if (!(regs->tstate & TSTATE_PRIV)) {
-			old_fs = get_fs();
-			set_fs (USER_DS);
 			if (copy_from_user (&r_w, rw, sizeof(r_w))) {
-				set_fs (old_fs);
 				return;
 			}
 			rwk = &r_w;
-			set_fs (old_fs);			
 		}
 	} else {
 		show_regwindow32(regs);
@@ -598,7 +588,6 @@ int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
 		memset(child_trap_frame, 0, child_stack_sz);
 		__thread_flag_byte_ptr(t)[TI_FLAG_BYTE_CWP] = 
 			(current_pt_regs()->tstate + 1) & TSTATE_CWP;
-		t->current_ds = ASI_P;
 		t->kregs->u_regs[UREG_G1] = sp; /* function */
 		t->kregs->u_regs[UREG_G2] = arg;
 		return 0;
@@ -613,7 +602,6 @@ int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
 	t->kregs->u_regs[UREG_FP] = sp;
 	__thread_flag_byte_ptr(t)[TI_FLAG_BYTE_CWP] = 
 		(regs->tstate + 1) & TSTATE_CWP;
-	t->current_ds = ASI_AIUS;
 	if (sp != regs->u_regs[UREG_FP]) {
 		unsigned long csp;
 

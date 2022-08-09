@@ -1034,10 +1034,7 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 			      pte_t *orig_pte)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	struct page_vma_mapped_walk pvmw = {
-		.page = page,
-		.vma = vma,
-	};
+	DEFINE_PAGE_VMA_WALK(pvmw, page, vma, 0, 0);
 	int swapped;
 	int err = -EFAULT;
 	struct mmu_notifier_range range;
@@ -1177,7 +1174,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 	ptep_clear_flush(vma, addr, ptep);
 	set_pte_at_notify(mm, addr, ptep, newpte);
 
-	page_remove_rmap(page, false);
+	page_remove_rmap(page, vma, false);
 	if (!page_mapped(page))
 		try_to_free_swap(page);
 	put_page(page);
@@ -1250,16 +1247,6 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
 			err = 0;
 		} else if (pages_identical(page, kpage))
 			err = replace_page(vma, page, kpage, orig_pte);
-	}
-
-	if ((vma->vm_flags & VM_LOCKED) && kpage && !err) {
-		munlock_vma_page(page);
-		if (!PageMlocked(kpage)) {
-			unlock_page(page);
-			lock_page(kpage);
-			mlock_vma_page(kpage);
-			page = kpage;		/* for final unlock */
-		}
 	}
 
 out_unlock:
@@ -2567,7 +2554,8 @@ void __ksm_exit(struct mm_struct *mm)
 struct page *ksm_might_need_to_copy(struct page *page,
 			struct vm_area_struct *vma, unsigned long address)
 {
-	struct anon_vma *anon_vma = page_anon_vma(page);
+	struct folio *folio = page_folio(page);
+	struct anon_vma *anon_vma = folio_anon_vma(folio);
 	struct page *new_page;
 
 	if (PageKsm(page)) {
@@ -2595,26 +2583,29 @@ struct page *ksm_might_need_to_copy(struct page *page,
 		SetPageDirty(new_page);
 		__SetPageUptodate(new_page);
 		__SetPageLocked(new_page);
+#ifdef CONFIG_SWAP
+		count_vm_event(KSM_SWPIN_COPY);
+#endif
 	}
 
 	return new_page;
 }
 
-void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
+void rmap_walk_ksm(struct folio *folio, const struct rmap_walk_control *rwc)
 {
 	struct stable_node *stable_node;
 	struct rmap_item *rmap_item;
 	int search_new_forks = 0;
 
-	VM_BUG_ON_PAGE(!PageKsm(page), page);
+	VM_BUG_ON_FOLIO(!folio_test_ksm(folio), folio);
 
 	/*
 	 * Rely on the page lock to protect against concurrent modifications
 	 * to that page's node of the stable tree.
 	 */
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
 
-	stable_node = page_stable_node(page);
+	stable_node = folio_stable_node(folio);
 	if (!stable_node)
 		return;
 again:
@@ -2649,11 +2640,11 @@ again:
 			if (rwc->invalid_vma && rwc->invalid_vma(vma, rwc->arg))
 				continue;
 
-			if (!rwc->rmap_one(page, vma, addr, rwc->arg)) {
+			if (!rwc->rmap_one(folio, vma, addr, rwc->arg)) {
 				anon_vma_unlock_read(anon_vma);
 				return;
 			}
-			if (rwc->done && rwc->done(page)) {
+			if (rwc->done && rwc->done(folio)) {
 				anon_vma_unlock_read(anon_vma);
 				return;
 			}
@@ -2826,8 +2817,7 @@ static void wait_while_offlining(void)
 #define KSM_ATTR_RO(_name) \
 	static struct kobj_attribute _name##_attr = __ATTR_RO(_name)
 #define KSM_ATTR(_name) \
-	static struct kobj_attribute _name##_attr = \
-		__ATTR(_name, 0644, _name##_show, _name##_store)
+	static struct kobj_attribute _name##_attr = __ATTR_RW(_name)
 
 static ssize_t sleep_millisecs_show(struct kobject *kobj,
 				    struct kobj_attribute *attr, char *buf)

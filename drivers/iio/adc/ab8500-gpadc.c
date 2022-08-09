@@ -942,7 +942,6 @@ static const struct iio_info ab8500_gpadc_info = {
 	.read_raw = ab8500_gpadc_read_raw,
 };
 
-#ifdef CONFIG_PM
 static int ab8500_gpadc_runtime_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
@@ -965,7 +964,6 @@ static int ab8500_gpadc_runtime_resume(struct device *dev)
 
 	return ret;
 }
-#endif
 
 /**
  * ab8500_gpadc_parse_channel() - process devicetree channel configuration
@@ -1199,20 +1197,16 @@ static int ab8500_gpadc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct dev_pm_ops ab8500_gpadc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(ab8500_gpadc_runtime_suspend,
-			   ab8500_gpadc_runtime_resume,
-			   NULL)
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(ab8500_gpadc_pm_ops,
+				 ab8500_gpadc_runtime_suspend,
+				 ab8500_gpadc_runtime_resume, NULL);
 
 static struct platform_driver ab8500_gpadc_driver = {
 	.probe = ab8500_gpadc_probe,
 	.remove = ab8500_gpadc_remove,
 	.driver = {
 		.name = "ab8500-gpadc",
-		.pm = &ab8500_gpadc_pm_ops,
+		.pm = pm_ptr(&ab8500_gpadc_pm_ops),
 	},
 };
 builtin_platform_driver(ab8500_gpadc_driver);

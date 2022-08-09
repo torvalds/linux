@@ -23,6 +23,8 @@ properties:
   leds:
     description: A list of LED nodes
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
 
   brightness-levels:
     description:

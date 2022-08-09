@@ -136,6 +136,11 @@ properties:
 
           ti,syscon-efuse:
             $ref: /schemas/types.yaml#/definitions/phandle-array
+            items:
+              - items:
+                  - description: Phandle to the system control device node which
+                      provides access to efuse
+                  - description: offset to efuse registers???
             description:
               Phandle to the system control device node which provides access
               to efuse IO range with MAC addresses

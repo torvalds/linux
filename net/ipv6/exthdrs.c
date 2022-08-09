@@ -1344,14 +1344,14 @@ ipv6_renew_options(struct sock *sk, struct ipv6_txoptions *opt,
 	return opt2;
 }
 
-struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
-					  struct ipv6_txoptions *opt)
+struct ipv6_txoptions *__ipv6_fixup_options(struct ipv6_txoptions *opt_space,
+					    struct ipv6_txoptions *opt)
 {
 	/*
 	 * ignore the dest before srcrt unless srcrt is being included.
 	 * --yoshfuji
 	 */
-	if (opt && opt->dst0opt && !opt->srcrt) {
+	if (opt->dst0opt && !opt->srcrt) {
 		if (opt_space != opt) {
 			memcpy(opt_space, opt, sizeof(*opt_space));
 			opt = opt_space;
@@ -1362,7 +1362,7 @@ struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
 
 	return opt;
 }
-EXPORT_SYMBOL_GPL(ipv6_fixup_options);
+EXPORT_SYMBOL_GPL(__ipv6_fixup_options);
 
 /**
  * fl6_update_dst - update flowi destination address with info given

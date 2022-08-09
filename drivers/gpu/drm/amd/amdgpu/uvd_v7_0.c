@@ -25,6 +25,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_uvd.h"
+#include "amdgpu_cs.h"
 #include "soc15.h"
 #include "soc15d.h"
 #include "soc15_common.h"
@@ -1275,14 +1276,15 @@ static int uvd_v7_0_ring_test_ring(struct amdgpu_ring *ring)
  * uvd_v7_0_ring_patch_cs_in_place - Patch the IB for command submission.
  *
  * @p: the CS parser with the IBs
- * @ib_idx: which IB to patch
+ * @job: which job this ib is in
+ * @ib: which IB to patch
  *
  */
 static int uvd_v7_0_ring_patch_cs_in_place(struct amdgpu_cs_parser *p,
-					   uint32_t ib_idx)
+					   struct amdgpu_job *job,
+					   struct amdgpu_ib *ib)
 {
-	struct amdgpu_ring *ring = to_amdgpu_ring(p->entity->rq->sched);
-	struct amdgpu_ib *ib = &p->job->ibs[ib_idx];
+	struct amdgpu_ring *ring = to_amdgpu_ring(job->base.sched);
 	unsigned i;
 
 	/* No patching necessary for the first instance */
@@ -1290,12 +1292,12 @@ static int uvd_v7_0_ring_patch_cs_in_place(struct amdgpu_cs_parser *p,
 		return 0;
 
 	for (i = 0; i < ib->length_dw; i += 2) {
-		uint32_t reg = amdgpu_get_ib_value(p, ib_idx, i);
+		uint32_t reg = amdgpu_ib_get_value(ib, i);
 
 		reg -= p->adev->reg_offset[UVD_HWIP][0][1];
 		reg += p->adev->reg_offset[UVD_HWIP][1][1];
 
-		amdgpu_set_ib_value(p, ib_idx, i, reg);
+		amdgpu_ib_set_value(ib, i, reg);
 	}
 	return 0;
 }

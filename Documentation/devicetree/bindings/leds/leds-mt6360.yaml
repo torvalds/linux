@@ -43,8 +43,6 @@ patternProperties:
           - 4 # LED output FLASH1
           - 5 # LED output FLASH2
 
-unevaluatedProperties: false
-
 required:
   - compatible
   - "#address-cells"

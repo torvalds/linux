@@ -1902,7 +1902,6 @@ void blk_fill_rwbs(char *rwbs, unsigned int op)
 
 	switch (op & REQ_OP_MASK) {
 	case REQ_OP_WRITE:
-	case REQ_OP_WRITE_SAME:
 		rwbs[i++] = 'W';
 		break;
 	case REQ_OP_DISCARD:

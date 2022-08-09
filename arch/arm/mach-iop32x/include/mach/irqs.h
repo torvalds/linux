@@ -9,6 +9,6 @@
 #ifndef __IRQS_H
 #define __IRQS_H
 
-#define NR_IRQS			32
+#define NR_IRQS			33
 
 #endif

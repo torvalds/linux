@@ -255,12 +255,11 @@ static int ltv350qv_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ltv350qv_remove(struct spi_device *spi)
+static void ltv350qv_remove(struct spi_device *spi)
 {
 	struct ltv350qv *lcd = spi_get_drvdata(spi);
 
 	ltv350qv_power(lcd, FB_BLANK_POWERDOWN);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

@@ -159,7 +159,7 @@
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 
-	rtc: ds1307@68 {
+	rtc: rtc@68 {
 		compatible = "dallas,ds1307";
 		reg = <0x68>;
 	};

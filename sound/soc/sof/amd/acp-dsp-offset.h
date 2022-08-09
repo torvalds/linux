@@ -61,6 +61,7 @@
 #define ACP_DSP_SW_INTR_STAT                    0x1818
 #define ACP_SW_INTR_TRIG                        0x181C
 #define ACP_ERROR_STATUS			0x18C4
+#define ACP_AXI2DAGB_SEM_0			0x1880
 
 /* Registers from ACP_SHA block */
 #define ACP_SHA_DSP_FW_QUALIFIER		0x1C70

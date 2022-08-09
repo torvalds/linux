@@ -18,15 +18,15 @@
  * http://www.national.com/pf/LM/LM82.html
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/jiffies.h>
-#include <linux/i2c.h>
-#include <linux/hwmon-sysfs.h>
-#include <linux/hwmon.h>
+#include <linux/bits.h>
 #include <linux/err.h>
+#include <linux/i2c.h>
+#include <linux/init.h>
+#include <linux/hwmon.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/regmap.h>
+#include <linux/slab.h>
 #include <linux/sysfs.h>
 
 /*
@@ -66,35 +66,35 @@ enum chips { lm83, lm82 };
 #define LM83_REG_R_TCRIT		0x42
 #define LM83_REG_W_TCRIT		0x5A
 
-/*
- * Conversions and various macros
- * The LM83 uses signed 8-bit values with LSB = 1 degree Celsius.
- */
-
-#define TEMP_FROM_REG(val)	((val) * 1000)
-#define TEMP_TO_REG(val)	((val) <= -128000 ? -128 : \
-				 (val) >= 127000 ? 127 : \
-				 (val) < 0 ? ((val) - 500) / 1000 : \
-				 ((val) + 500) / 1000)
-
-static const u8 LM83_REG_R_TEMP[] = {
+static const u8 LM83_REG_TEMP[] = {
 	LM83_REG_R_LOCAL_TEMP,
 	LM83_REG_R_REMOTE1_TEMP,
 	LM83_REG_R_REMOTE2_TEMP,
 	LM83_REG_R_REMOTE3_TEMP,
+};
+
+static const u8 LM83_REG_MAX[] = {
 	LM83_REG_R_LOCAL_HIGH,
 	LM83_REG_R_REMOTE1_HIGH,
 	LM83_REG_R_REMOTE2_HIGH,
 	LM83_REG_R_REMOTE3_HIGH,
-	LM83_REG_R_TCRIT,
 };
 
-static const u8 LM83_REG_W_HIGH[] = {
-	LM83_REG_W_LOCAL_HIGH,
-	LM83_REG_W_REMOTE1_HIGH,
-	LM83_REG_W_REMOTE2_HIGH,
-	LM83_REG_W_REMOTE3_HIGH,
-	LM83_REG_W_TCRIT,
+/* alarm and fault registers and bits, indexed by channel */
+static const u8 LM83_ALARM_REG[] = {
+	LM83_REG_R_STATUS1, LM83_REG_R_STATUS2, LM83_REG_R_STATUS1, LM83_REG_R_STATUS2
+};
+
+static const u8 LM83_MAX_ALARM_BIT[] = {
+	BIT(6), BIT(7), BIT(4), BIT(4)
+};
+
+static const u8 LM83_CRIT_ALARM_BIT[] = {
+	BIT(0), BIT(0), BIT(1), BIT(1)
+};
+
+static const u8 LM83_FAULT_BIT[] = {
+	0, BIT(5), BIT(2), BIT(2)
 };
 
 /*
@@ -102,180 +102,274 @@ static const u8 LM83_REG_W_HIGH[] = {
  */
 
 struct lm83_data {
-	struct i2c_client *client;
-	const struct attribute_group *groups[3];
-	struct mutex update_lock;
-	bool valid; /* false until following fields are valid */
-	unsigned long last_updated; /* in jiffies */
-
-	/* registers values */
-	s8 temp[9];	/* 0..3: input 1-4,
-			   4..7: high limit 1-4,
-			   8   : critical limit */
-	u16 alarms; /* bitvector, combined */
+	struct regmap *regmap;
+	enum chips type;
 };
 
-static struct lm83_data *lm83_update_device(struct device *dev)
+/* regmap code */
+
+static int lm83_regmap_reg_read(void *context, unsigned int reg, unsigned int *val)
 {
-	struct lm83_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
+	struct i2c_client *client = context;
+	int ret;
 
-	mutex_lock(&data->update_lock);
+	ret = i2c_smbus_read_byte_data(client, reg);
+	if (ret < 0)
+		return ret;
 
-	if (time_after(jiffies, data->last_updated + HZ * 2) || !data->valid) {
-		int nr;
+	*val = ret;
+	return 0;
+}
 
-		dev_dbg(&client->dev, "Updating lm83 data.\n");
-		for (nr = 0; nr < 9; nr++) {
-			data->temp[nr] =
-			    i2c_smbus_read_byte_data(client,
-			    LM83_REG_R_TEMP[nr]);
-		}
-		data->alarms =
-		    i2c_smbus_read_byte_data(client, LM83_REG_R_STATUS1)
-		    + (i2c_smbus_read_byte_data(client, LM83_REG_R_STATUS2)
-		    << 8);
+/*
+ * The regmap write function maps read register addresses to write register
+ * addresses. This is necessary for regmap register caching to work.
+ * An alternative would be to clear the regmap cache whenever a register is
+ * written, but that would be much more expensive.
+ */
+static int lm83_regmap_reg_write(void *context, unsigned int reg, unsigned int val)
+{
+	struct i2c_client *client = context;
 
-		data->last_updated = jiffies;
-		data->valid = true;
+	switch (reg) {
+	case LM83_REG_R_CONFIG:
+	case LM83_REG_R_LOCAL_HIGH:
+	case LM83_REG_R_REMOTE2_HIGH:
+		reg += 0x06;
+		break;
+	case LM83_REG_R_REMOTE1_HIGH:
+	case LM83_REG_R_REMOTE3_HIGH:
+	case LM83_REG_R_TCRIT:
+		reg += 0x18;
+		break;
+	default:
+		break;
 	}
 
-	mutex_unlock(&data->update_lock);
-
-	return data;
+	return i2c_smbus_write_byte_data(client, reg, val);
 }
 
-/*
- * Sysfs stuff
- */
-
-static ssize_t temp_show(struct device *dev, struct device_attribute *devattr,
-			 char *buf)
+static bool lm83_regmap_is_volatile(struct device *dev, unsigned int reg)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct lm83_data *data = lm83_update_device(dev);
-	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp[attr->index]));
+	switch (reg) {
+	case LM83_REG_R_LOCAL_TEMP:
+	case LM83_REG_R_REMOTE1_TEMP:
+	case LM83_REG_R_REMOTE2_TEMP:
+	case LM83_REG_R_REMOTE3_TEMP:
+	case LM83_REG_R_STATUS1:
+	case LM83_REG_R_STATUS2:
+		return true;
+	default:
+		return false;
+	}
 }
 
-static ssize_t temp_store(struct device *dev,
-			  struct device_attribute *devattr, const char *buf,
-			  size_t count)
+static const struct regmap_config lm83_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.cache_type = REGCACHE_RBTREE,
+	.volatile_reg = lm83_regmap_is_volatile,
+	.reg_read = lm83_regmap_reg_read,
+	.reg_write = lm83_regmap_reg_write,
+};
+
+/* hwmon API */
+
+static int lm83_temp_read(struct device *dev, u32 attr, int channel, long *val)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct lm83_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
-	long val;
-	int nr = attr->index;
+	unsigned int regval;
 	int err;
 
-	err = kstrtol(buf, 10, &val);
-	if (err < 0)
-		return err;
-
-	mutex_lock(&data->update_lock);
-	data->temp[nr] = TEMP_TO_REG(val);
-	i2c_smbus_write_byte_data(client, LM83_REG_W_HIGH[nr - 4],
-				  data->temp[nr]);
-	mutex_unlock(&data->update_lock);
-	return count;
+	switch (attr) {
+	case hwmon_temp_input:
+		err = regmap_read(data->regmap, LM83_REG_TEMP[channel], &regval);
+		if (err < 0)
+			return err;
+		*val = (s8)regval * 1000;
+		break;
+	case hwmon_temp_max:
+		err = regmap_read(data->regmap, LM83_REG_MAX[channel], &regval);
+		if (err < 0)
+			return err;
+		*val = (s8)regval * 1000;
+		break;
+	case hwmon_temp_crit:
+		err = regmap_read(data->regmap, LM83_REG_R_TCRIT, &regval);
+		if (err < 0)
+			return err;
+		*val = (s8)regval * 1000;
+		break;
+	case hwmon_temp_max_alarm:
+		err = regmap_read(data->regmap, LM83_ALARM_REG[channel], &regval);
+		if (err < 0)
+			return err;
+		*val = !!(regval & LM83_MAX_ALARM_BIT[channel]);
+		break;
+	case hwmon_temp_crit_alarm:
+		err = regmap_read(data->regmap, LM83_ALARM_REG[channel], &regval);
+		if (err < 0)
+			return err;
+		*val = !!(regval & LM83_CRIT_ALARM_BIT[channel]);
+		break;
+	case hwmon_temp_fault:
+		err = regmap_read(data->regmap, LM83_ALARM_REG[channel], &regval);
+		if (err < 0)
+			return err;
+		*val = !!(regval & LM83_FAULT_BIT[channel]);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
 }
 
-static ssize_t alarms_show(struct device *dev, struct device_attribute *dummy,
-			   char *buf)
+static int lm83_temp_write(struct device *dev, u32 attr, int channel, long val)
 {
-	struct lm83_data *data = lm83_update_device(dev);
-	return sprintf(buf, "%d\n", data->alarms);
+	struct lm83_data *data = dev_get_drvdata(dev);
+	unsigned int regval;
+	int err;
+
+	regval = DIV_ROUND_CLOSEST(clamp_val(val, -128000, 127000), 1000);
+
+	switch (attr) {
+	case hwmon_temp_max:
+		err = regmap_write(data->regmap, LM83_REG_MAX[channel], regval);
+		if (err < 0)
+			return err;
+		break;
+	case hwmon_temp_crit:
+		err = regmap_write(data->regmap, LM83_REG_R_TCRIT, regval);
+		if (err < 0)
+			return err;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
 }
 
-static ssize_t alarm_show(struct device *dev,
-			  struct device_attribute *devattr, char *buf)
+static int lm83_chip_read(struct device *dev, u32 attr, int channel, long *val)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct lm83_data *data = lm83_update_device(dev);
-	int bitnr = attr->index;
+	struct lm83_data *data = dev_get_drvdata(dev);
+	unsigned int regval;
+	int err;
 
-	return sprintf(buf, "%d\n", (data->alarms >> bitnr) & 1);
+	switch (attr) {
+	case hwmon_chip_alarms:
+		err = regmap_read(data->regmap, LM83_REG_R_STATUS1, &regval);
+		if (err < 0)
+			return err;
+		*val = regval;
+		err = regmap_read(data->regmap, LM83_REG_R_STATUS2, &regval);
+		if (err < 0)
+			return err;
+		*val |= regval << 8;
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
 }
 
-static SENSOR_DEVICE_ATTR_RO(temp1_input, temp, 0);
-static SENSOR_DEVICE_ATTR_RO(temp2_input, temp, 1);
-static SENSOR_DEVICE_ATTR_RO(temp3_input, temp, 2);
-static SENSOR_DEVICE_ATTR_RO(temp4_input, temp, 3);
-static SENSOR_DEVICE_ATTR_RW(temp1_max, temp, 4);
-static SENSOR_DEVICE_ATTR_RW(temp2_max, temp, 5);
-static SENSOR_DEVICE_ATTR_RW(temp3_max, temp, 6);
-static SENSOR_DEVICE_ATTR_RW(temp4_max, temp, 7);
-static SENSOR_DEVICE_ATTR_RO(temp1_crit, temp, 8);
-static SENSOR_DEVICE_ATTR_RO(temp2_crit, temp, 8);
-static SENSOR_DEVICE_ATTR_RW(temp3_crit, temp, 8);
-static SENSOR_DEVICE_ATTR_RO(temp4_crit, temp, 8);
+static int lm83_read(struct device *dev, enum hwmon_sensor_types type,
+		     u32 attr, int channel, long *val)
+{
+	switch (type) {
+	case hwmon_chip:
+		return lm83_chip_read(dev, attr, channel, val);
+	case hwmon_temp:
+		return lm83_temp_read(dev, attr, channel, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
 
-/* Individual alarm files */
-static SENSOR_DEVICE_ATTR_RO(temp1_crit_alarm, alarm, 0);
-static SENSOR_DEVICE_ATTR_RO(temp3_crit_alarm, alarm, 1);
-static SENSOR_DEVICE_ATTR_RO(temp3_fault, alarm, 2);
-static SENSOR_DEVICE_ATTR_RO(temp3_max_alarm, alarm, 4);
-static SENSOR_DEVICE_ATTR_RO(temp1_max_alarm, alarm, 6);
-static SENSOR_DEVICE_ATTR_RO(temp2_crit_alarm, alarm, 8);
-static SENSOR_DEVICE_ATTR_RO(temp4_crit_alarm, alarm, 9);
-static SENSOR_DEVICE_ATTR_RO(temp4_fault, alarm, 10);
-static SENSOR_DEVICE_ATTR_RO(temp4_max_alarm, alarm, 12);
-static SENSOR_DEVICE_ATTR_RO(temp2_fault, alarm, 13);
-static SENSOR_DEVICE_ATTR_RO(temp2_max_alarm, alarm, 15);
-/* Raw alarm file for compatibility */
-static DEVICE_ATTR_RO(alarms);
+static int lm83_write(struct device *dev, enum hwmon_sensor_types type,
+		      u32 attr, int channel, long val)
+{
+	switch (type) {
+	case hwmon_temp:
+		return lm83_temp_write(dev, attr, channel, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
 
-static struct attribute *lm83_attributes[] = {
-	&sensor_dev_attr_temp1_input.dev_attr.attr,
-	&sensor_dev_attr_temp3_input.dev_attr.attr,
-	&sensor_dev_attr_temp1_max.dev_attr.attr,
-	&sensor_dev_attr_temp3_max.dev_attr.attr,
-	&sensor_dev_attr_temp1_crit.dev_attr.attr,
-	&sensor_dev_attr_temp3_crit.dev_attr.attr,
+static umode_t lm83_is_visible(const void *_data, enum hwmon_sensor_types type,
+			       u32 attr, int channel)
+{
+	const struct lm83_data *data = _data;
 
-	&sensor_dev_attr_temp1_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp3_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp3_fault.dev_attr.attr,
-	&sensor_dev_attr_temp3_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
-	&dev_attr_alarms.attr,
+	/*
+	 * LM82 only supports a single external channel, modeled as channel 2.
+	 */
+	if (data->type == lm82 && (channel == 1 || channel == 3))
+		return 0;
+
+	switch (type) {
+	case hwmon_chip:
+		if (attr == hwmon_chip_alarms)
+			return 0444;
+		break;
+	case hwmon_temp:
+		switch (attr) {
+		case hwmon_temp_input:
+		case hwmon_temp_max_alarm:
+		case hwmon_temp_crit_alarm:
+			return 0444;
+		case hwmon_temp_fault:
+			if (channel)
+				return 0444;
+			break;
+		case hwmon_temp_max:
+			return 0644;
+		case hwmon_temp_crit:
+			if (channel == 2)
+				return 0644;
+			return 0444;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static const struct hwmon_channel_info *lm83_info[] = {
+	HWMON_CHANNEL_INFO(chip, HWMON_C_ALARMS),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM | HWMON_T_FAULT
+			   ),
 	NULL
 };
 
-static const struct attribute_group lm83_group = {
-	.attrs = lm83_attributes,
+static const struct hwmon_ops lm83_hwmon_ops = {
+	.is_visible = lm83_is_visible,
+	.read = lm83_read,
+	.write = lm83_write,
 };
 
-static struct attribute *lm83_attributes_opt[] = {
-	&sensor_dev_attr_temp2_input.dev_attr.attr,
-	&sensor_dev_attr_temp4_input.dev_attr.attr,
-	&sensor_dev_attr_temp2_max.dev_attr.attr,
-	&sensor_dev_attr_temp4_max.dev_attr.attr,
-	&sensor_dev_attr_temp2_crit.dev_attr.attr,
-	&sensor_dev_attr_temp4_crit.dev_attr.attr,
-
-	&sensor_dev_attr_temp2_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp4_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp4_fault.dev_attr.attr,
-	&sensor_dev_attr_temp4_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp2_fault.dev_attr.attr,
-	&sensor_dev_attr_temp2_max_alarm.dev_attr.attr,
-	NULL
+static const struct hwmon_chip_info lm83_chip_info = {
+	.ops = &lm83_hwmon_ops,
+	.info = lm83_info,
 };
-
-static const struct attribute_group lm83_group_opt = {
-	.attrs = lm83_attributes_opt,
-};
-
-/*
- * Real code
- */
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm83_detect(struct i2c_client *new_client,
+static int lm83_detect(struct i2c_client *client,
 		       struct i2c_board_info *info)
 {
-	struct i2c_adapter *adapter = new_client->adapter;
+	struct i2c_adapter *adapter = client->adapter;
 	const char *name;
 	u8 man_id, chip_id;
 
@@ -283,22 +377,30 @@ static int lm83_detect(struct i2c_client *new_client,
 		return -ENODEV;
 
 	/* Detection */
-	if ((i2c_smbus_read_byte_data(new_client, LM83_REG_R_STATUS1) & 0xA8) ||
-	    (i2c_smbus_read_byte_data(new_client, LM83_REG_R_STATUS2) & 0x48) ||
-	    (i2c_smbus_read_byte_data(new_client, LM83_REG_R_CONFIG) & 0x41)) {
+	if ((i2c_smbus_read_byte_data(client, LM83_REG_R_STATUS1) & 0xA8) ||
+	    (i2c_smbus_read_byte_data(client, LM83_REG_R_STATUS2) & 0x48) ||
+	    (i2c_smbus_read_byte_data(client, LM83_REG_R_CONFIG) & 0x41)) {
 		dev_dbg(&adapter->dev, "LM83 detection failed at 0x%02x\n",
-			new_client->addr);
+			client->addr);
 		return -ENODEV;
 	}
 
 	/* Identification */
-	man_id = i2c_smbus_read_byte_data(new_client, LM83_REG_R_MAN_ID);
+	man_id = i2c_smbus_read_byte_data(client, LM83_REG_R_MAN_ID);
 	if (man_id != 0x01)	/* National Semiconductor */
 		return -ENODEV;
 
-	chip_id = i2c_smbus_read_byte_data(new_client, LM83_REG_R_CHIP_ID);
+	chip_id = i2c_smbus_read_byte_data(client, LM83_REG_R_CHIP_ID);
 	switch (chip_id) {
 	case 0x03:
+		/*
+		 * According to the LM82 datasheet dated March 2013, recent
+		 * revisions of LM82 have a die revision of 0x03. This was
+		 * confirmed with a real chip. Further details in this revision
+		 * of the LM82 datasheet strongly suggest that LM82 is just a
+		 * repackaged LM83. It is therefore impossible to distinguish
+		 * those chips from LM83, and they will be misdetected as LM83.
+		 */
 		name = "lm83";
 		break;
 	case 0x01:
@@ -306,9 +408,9 @@ static int lm83_detect(struct i2c_client *new_client,
 		break;
 	default:
 		/* identification failed */
-		dev_info(&adapter->dev,
-			 "Unsupported chip (man_id=0x%02X, chip_id=0x%02X)\n",
-			 man_id, chip_id);
+		dev_dbg(&adapter->dev,
+			"Unsupported chip (man_id=0x%02X, chip_id=0x%02X)\n",
+			man_id, chip_id);
 		return -ENODEV;
 	}
 
@@ -317,47 +419,37 @@ static int lm83_detect(struct i2c_client *new_client,
 	return 0;
 }
 
-static const struct i2c_device_id lm83_id[];
-
-static int lm83_probe(struct i2c_client *new_client)
-{
-	struct device *hwmon_dev;
-	struct lm83_data *data;
-
-	data = devm_kzalloc(&new_client->dev, sizeof(struct lm83_data),
-			    GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	data->client = new_client;
-	mutex_init(&data->update_lock);
-
-	/*
-	 * Register sysfs hooks
-	 * The LM82 can only monitor one external diode which is
-	 * at the same register as the LM83 temp3 entry - so we
-	 * declare 1 and 3 common, and then 2 and 4 only for the LM83.
-	 */
-	data->groups[0] = &lm83_group;
-	if (i2c_match_id(lm83_id, new_client)->driver_data == lm83)
-		data->groups[1] = &lm83_group_opt;
-
-	hwmon_dev = devm_hwmon_device_register_with_groups(&new_client->dev,
-							   new_client->name,
-							   data, data->groups);
-	return PTR_ERR_OR_ZERO(hwmon_dev);
-}
-
-/*
- * Driver data (common to all clients)
- */
-
 static const struct i2c_device_id lm83_id[] = {
 	{ "lm83", lm83 },
 	{ "lm82", lm82 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm83_id);
+
+static int lm83_probe(struct i2c_client *client)
+{
+	struct device *dev = &client->dev;
+	struct device *hwmon_dev;
+	struct lm83_data *data;
+
+	data = devm_kzalloc(dev, sizeof(struct lm83_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->regmap = devm_regmap_init(dev, NULL, client, &lm83_regmap_config);
+	if (IS_ERR(data->regmap))
+		return PTR_ERR(data->regmap);
+
+	data->type = i2c_match_id(lm83_id, client)->driver_data;
+
+	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name,
+							 data, &lm83_chip_info, NULL);
+	return PTR_ERR_OR_ZERO(hwmon_dev);
+}
+
+/*
+ * Driver data (common to all clients)
+ */
 
 static struct i2c_driver lm83_driver = {
 	.class		= I2C_CLASS_HWMON,

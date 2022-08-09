@@ -434,6 +434,19 @@ config NET_DEVLINK
 config PAGE_POOL
 	bool
 
+config PAGE_POOL_STATS
+	default n
+	bool "Page pool stats"
+	depends on PAGE_POOL
+	help
+	  Enable page pool statistics to track page allocation and recycling
+	  in page pools. This option incurs additional CPU cost in allocation
+	  and recycle paths and additional memory cost to store the statistics.
+	  These statistics are only available if this option is enabled and if
+	  the driver using the page pool supports exporting this data.
+
+	  If unsure, say N.
+
 config FAILOVER
 	tristate "Generic failover module"
 	help

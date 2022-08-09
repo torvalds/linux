@@ -134,7 +134,7 @@ SYM_FUNC_END(mte_copy_tags_to_user)
 /*
  * Save the tags in a page
  *   x0 - page address
- *   x1 - tag storage
+ *   x1 - tag storage, MTE_PAGE_TAG_STORAGE bytes
  */
 SYM_FUNC_START(mte_save_page_tags)
 	multitag_transfer_size x7, x5
@@ -158,7 +158,7 @@ SYM_FUNC_END(mte_save_page_tags)
 /*
  * Restore the tags in a page
  *   x0 - page address
- *   x1 - tag storage
+ *   x1 - tag storage, MTE_PAGE_TAG_STORAGE bytes
  */
 SYM_FUNC_START(mte_restore_page_tags)
 	multitag_transfer_size x7, x5

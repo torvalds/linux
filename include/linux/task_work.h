@@ -19,6 +19,11 @@ enum task_work_notify_mode {
 	TWA_SIGNAL,
 };
 
+static inline bool task_work_pending(struct task_struct *task)
+{
+	return READ_ONCE(task->task_works);
+}
+
 int task_work_add(struct task_struct *task, struct callback_head *twork,
 			enum task_work_notify_mode mode);
 

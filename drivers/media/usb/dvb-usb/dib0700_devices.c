@@ -12,7 +12,7 @@
 #include "dib9000.h"
 #include "mt2060.h"
 #include "mt2266.h"
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include "xc5000.h"
 #include "xc4000.h"
 #include "s5h1411.h"

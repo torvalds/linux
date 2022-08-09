@@ -22,17 +22,27 @@
  * Authors: Christian König
  */
 
-#include <linux/dma-buf-map.h>
+#include <linux/iosys-map.h>
 #include <linux/io-mapping.h>
 #include <linux/scatterlist.h>
 
 #include <drm/ttm/ttm_resource.h>
 #include <drm/ttm/ttm_bo_driver.h>
 
+/**
+ * ttm_resource_init - resource object constructure
+ * @bo: buffer object this resources is allocated for
+ * @place: placement of the resource
+ * @res: the resource object to inistilize
+ *
+ * Initialize a new resource object. Counterpart of &ttm_resource_fini.
+ */
 void ttm_resource_init(struct ttm_buffer_object *bo,
                        const struct ttm_place *place,
                        struct ttm_resource *res)
 {
+	struct ttm_resource_manager *man;
+
 	res->start = 0;
 	res->num_pages = PFN_UP(bo->base.size);
 	res->mem_type = place->mem_type;
@@ -41,8 +51,32 @@ void ttm_resource_init(struct ttm_buffer_object *bo,
 	res->bus.offset = 0;
 	res->bus.is_iomem = false;
 	res->bus.caching = ttm_cached;
+	res->bo = bo;
+
+	man = ttm_manager_type(bo->bdev, place->mem_type);
+	spin_lock(&bo->bdev->lru_lock);
+	man->usage += bo->base.size;
+	spin_unlock(&bo->bdev->lru_lock);
 }
 EXPORT_SYMBOL(ttm_resource_init);
+
+/**
+ * ttm_resource_fini - resource destructor
+ * @man: the resource manager this resource belongs to
+ * @res: the resource to clean up
+ *
+ * Should be used by resource manager backends to clean up the TTM resource
+ * objects before freeing the underlying structure. Counterpart of
+ * &ttm_resource_init
+ */
+void ttm_resource_fini(struct ttm_resource_manager *man,
+		       struct ttm_resource *res)
+{
+	spin_lock(&man->bdev->lru_lock);
+	man->usage -= res->bo->base.size;
+	spin_unlock(&man->bdev->lru_lock);
+}
+EXPORT_SYMBOL(ttm_resource_fini);
 
 int ttm_resource_alloc(struct ttm_buffer_object *bo,
 		       const struct ttm_place *place,
@@ -116,21 +150,33 @@ bool ttm_resource_compat(struct ttm_resource *res,
 }
 EXPORT_SYMBOL(ttm_resource_compat);
 
+void ttm_resource_set_bo(struct ttm_resource *res,
+			 struct ttm_buffer_object *bo)
+{
+	spin_lock(&bo->bdev->lru_lock);
+	res->bo = bo;
+	spin_unlock(&bo->bdev->lru_lock);
+}
+
 /**
  * ttm_resource_manager_init
  *
  * @man: memory manager object to init
- * @p_size: size managed area in pages.
+ * @bdev: ttm device this manager belongs to
+ * @size: size of managed resources in arbitrary units
  *
  * Initialise core parts of a manager object.
  */
 void ttm_resource_manager_init(struct ttm_resource_manager *man,
-			       unsigned long p_size)
+			       struct ttm_device *bdev,
+			       uint64_t size)
 {
 	unsigned i;
 
 	spin_lock_init(&man->move_lock);
-	man->size = p_size;
+	man->bdev = bdev;
+	man->size = size;
+	man->usage = 0;
 
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)
 		INIT_LIST_HEAD(&man->lru[i]);
@@ -192,6 +238,24 @@ int ttm_resource_manager_evict_all(struct ttm_device *bdev,
 EXPORT_SYMBOL(ttm_resource_manager_evict_all);
 
 /**
+ * ttm_resource_manager_usage
+ *
+ * @man: A memory manager object.
+ *
+ * Return how many resources are currently used.
+ */
+uint64_t ttm_resource_manager_usage(struct ttm_resource_manager *man)
+{
+	uint64_t usage;
+
+	spin_lock(&man->bdev->lru_lock);
+	usage = man->usage;
+	spin_unlock(&man->bdev->lru_lock);
+	return usage;
+}
+EXPORT_SYMBOL(ttm_resource_manager_usage);
+
+/**
  * ttm_resource_manager_debug
  *
  * @man: manager type to dump.
@@ -203,13 +267,14 @@ void ttm_resource_manager_debug(struct ttm_resource_manager *man,
 	drm_printf(p, "  use_type: %d\n", man->use_type);
 	drm_printf(p, "  use_tt: %d\n", man->use_tt);
 	drm_printf(p, "  size: %llu\n", man->size);
+	drm_printf(p, "  usage: %llu\n", ttm_resource_manager_usage(man));
 	if (man->func->debug)
 		man->func->debug(man, p);
 }
 EXPORT_SYMBOL(ttm_resource_manager_debug);
 
 static void ttm_kmap_iter_iomap_map_local(struct ttm_kmap_iter *iter,
-					  struct dma_buf_map *dmap,
+					  struct iosys_map *dmap,
 					  pgoff_t i)
 {
 	struct ttm_kmap_iter_iomap *iter_io =
@@ -236,11 +301,11 @@ retry:
 	addr = io_mapping_map_local_wc(iter_io->iomap, iter_io->cache.offs +
 				       (((resource_size_t)i - iter_io->cache.i)
 					<< PAGE_SHIFT));
-	dma_buf_map_set_vaddr_iomem(dmap, addr);
+	iosys_map_set_vaddr_iomem(dmap, addr);
 }
 
 static void ttm_kmap_iter_iomap_unmap_local(struct ttm_kmap_iter *iter,
-					    struct dma_buf_map *map)
+					    struct iosys_map *map)
 {
 	io_mapping_unmap_local(map->vaddr_iomem);
 }
@@ -291,14 +356,14 @@ EXPORT_SYMBOL(ttm_kmap_iter_iomap_init);
  */
 
 static void ttm_kmap_iter_linear_io_map_local(struct ttm_kmap_iter *iter,
-					      struct dma_buf_map *dmap,
+					      struct iosys_map *dmap,
 					      pgoff_t i)
 {
 	struct ttm_kmap_iter_linear_io *iter_io =
 		container_of(iter, typeof(*iter_io), base);
 
 	*dmap = iter_io->dmap;
-	dma_buf_map_incr(dmap, i * PAGE_SIZE);
+	iosys_map_incr(dmap, i * PAGE_SIZE);
 }
 
 static const struct ttm_kmap_iter_ops ttm_kmap_iter_linear_io_ops = {
@@ -334,7 +399,7 @@ ttm_kmap_iter_linear_io_init(struct ttm_kmap_iter_linear_io *iter_io,
 	}
 
 	if (mem->bus.addr) {
-		dma_buf_map_set_vaddr(&iter_io->dmap, mem->bus.addr);
+		iosys_map_set_vaddr(&iter_io->dmap, mem->bus.addr);
 		iter_io->needs_unmap = false;
 	} else {
 		size_t bus_size = (size_t)mem->num_pages << PAGE_SHIFT;
@@ -342,23 +407,23 @@ ttm_kmap_iter_linear_io_init(struct ttm_kmap_iter_linear_io *iter_io,
 		iter_io->needs_unmap = true;
 		memset(&iter_io->dmap, 0, sizeof(iter_io->dmap));
 		if (mem->bus.caching == ttm_write_combined)
-			dma_buf_map_set_vaddr_iomem(&iter_io->dmap,
-						    ioremap_wc(mem->bus.offset,
-							       bus_size));
+			iosys_map_set_vaddr_iomem(&iter_io->dmap,
+						  ioremap_wc(mem->bus.offset,
+							     bus_size));
 		else if (mem->bus.caching == ttm_cached)
-			dma_buf_map_set_vaddr(&iter_io->dmap,
-					      memremap(mem->bus.offset, bus_size,
-						       MEMREMAP_WB |
-						       MEMREMAP_WT |
-						       MEMREMAP_WC));
+			iosys_map_set_vaddr(&iter_io->dmap,
+					    memremap(mem->bus.offset, bus_size,
+						     MEMREMAP_WB |
+						     MEMREMAP_WT |
+						     MEMREMAP_WC));
 
 		/* If uncached requested or if mapping cached or wc failed */
-		if (dma_buf_map_is_null(&iter_io->dmap))
-			dma_buf_map_set_vaddr_iomem(&iter_io->dmap,
-						    ioremap(mem->bus.offset,
-							    bus_size));
+		if (iosys_map_is_null(&iter_io->dmap))
+			iosys_map_set_vaddr_iomem(&iter_io->dmap,
+						  ioremap(mem->bus.offset,
+							  bus_size));
 
-		if (dma_buf_map_is_null(&iter_io->dmap)) {
+		if (iosys_map_is_null(&iter_io->dmap)) {
 			ret = -ENOMEM;
 			goto out_io_free;
 		}
@@ -387,7 +452,7 @@ ttm_kmap_iter_linear_io_fini(struct ttm_kmap_iter_linear_io *iter_io,
 			     struct ttm_device *bdev,
 			     struct ttm_resource *mem)
 {
-	if (iter_io->needs_unmap && dma_buf_map_is_set(&iter_io->dmap)) {
+	if (iter_io->needs_unmap && iosys_map_is_set(&iter_io->dmap)) {
 		if (iter_io->dmap.is_iomem)
 			iounmap(iter_io->dmap.vaddr_iomem);
 		else

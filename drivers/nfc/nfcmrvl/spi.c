@@ -174,12 +174,11 @@ static int nfcmrvl_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int nfcmrvl_spi_remove(struct spi_device *spi)
+static void nfcmrvl_spi_remove(struct spi_device *spi)
 {
 	struct nfcmrvl_spi_drv_data *drv_data = spi_get_drvdata(spi);
 
 	nfcmrvl_nci_unregister_dev(drv_data->priv);
-	return 0;
 }
 
 static const struct of_device_id of_nfcmrvl_spi_match[] __maybe_unused = {

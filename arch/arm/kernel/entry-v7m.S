@@ -39,16 +39,25 @@ __irq_entry:
 	@
 	@ Invoke the IRQ handler
 	@
-	mrs	r0, ipsr
-	ldr	r1, =V7M_xPSR_EXCEPTIONNO
-	and	r0, r1
-	sub	r0, #16
-	mov	r1, sp
-	stmdb	sp!, {lr}
-	@ routine called with r0 = irq number, r1 = struct pt_regs *
-	bl	nvic_handle_irq
+	mov	r0, sp
+	ldr_this_cpu sp, irq_stack_ptr, r1, r2
 
-	pop	{lr}
+	@
+	@ If we took the interrupt while running in the kernel, we may already
+	@ be using the IRQ stack, so revert to the original value in that case.
+	@
+	subs	r2, sp, r0		@ SP above bottom of IRQ stack?
+	rsbscs	r2, r2, #THREAD_SIZE	@ ... and below the top?
+	movcs	sp, r0
+
+	push	{r0, lr}		@ preserve LR and original SP
+
+	@ routine called with r0 = struct pt_regs *
+	bl	generic_handle_arch_irq
+
+	pop	{r0, lr}
+	mov	sp, r0
+
 	@
 	@ Check for any pending work if returning to user
 	@
@@ -101,15 +110,17 @@ ENTRY(__switch_to)
 	str	sp, [ip], #4
 	str	lr, [ip], #4
 	mov	r5, r0
+	mov	r6, r2			@ Preserve 'next'
 	add	r4, r2, #TI_CPU_SAVE
 	ldr	r0, =thread_notify_head
 	mov	r1, #THREAD_NOTIFY_SWITCH
 	bl	atomic_notifier_call_chain
-	mov	ip, r4
 	mov	r0, r5
-	ldmia	ip!, {r4 - r11}		@ Load all regs saved previously
-	ldr	sp, [ip]
-	ldr	pc, [ip, #4]!
+	mov	r1, r6
+	ldmia	r4, {r4 - r12, lr}	@ Load all regs saved previously
+	set_current r1, r2
+	mov	sp, ip
+	bx	lr
 	.fnend
 ENDPROC(__switch_to)
 

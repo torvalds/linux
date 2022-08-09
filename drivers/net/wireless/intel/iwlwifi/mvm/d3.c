@@ -31,7 +31,7 @@ void iwl_mvm_set_rekey_data(struct ieee80211_hw *hw,
 	memcpy(mvmvif->rekey_data.kck, data->kck, data->kck_len);
 	mvmvif->rekey_data.akm = data->akm & 0xFF;
 	mvmvif->rekey_data.replay_ctr =
-		cpu_to_le64(be64_to_cpup((__be64 *)data->replay_ctr));
+		cpu_to_le64(be64_to_cpup((const __be64 *)data->replay_ctr));
 	mvmvif->rekey_data.valid = true;
 
 	mutex_unlock(&mvm->mutex);
@@ -453,8 +453,7 @@ static int iwl_mvm_wowlan_config_rsc_tsc(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-					WOWLAN_TSC_RSC_PARAM,
+	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, WOWLAN_TSC_RSC_PARAM,
 					IWL_FW_CMD_VER_UNKNOWN);
 	int ret;
 
@@ -672,8 +671,7 @@ static int iwl_mvm_send_patterns(struct iwl_mvm *mvm,
 		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
 	};
 	int i, err;
-	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-					WOWLAN_PATTERNS,
+	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd.id,
 					IWL_FW_CMD_VER_UNKNOWN);
 
 	if (!wowlan->n_patterns)
@@ -921,8 +919,7 @@ iwl_mvm_get_wowlan_config(struct iwl_mvm *mvm,
 	wowlan_config_cmd->flags = ENABLE_L3_FILTERING |
 		ENABLE_NBNS_FILTERING | ENABLE_DHCP_FILTERING;
 
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-				  WOWLAN_CONFIGURATION, 0) < 6) {
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, WOWLAN_CONFIGURATION, 0) < 6) {
 		/* Query the last used seqno and set it */
 		int ret = iwl_mvm_get_last_nonqos_seq(mvm, vif);
 
@@ -1017,8 +1014,7 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 
 	if (!fw_has_api(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_API_TKIP_MIC_KEYS)) {
-		int ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-						WOWLAN_TKIP_PARAM,
+		int ver = iwl_fw_lookup_cmd_ver(mvm->fw, WOWLAN_TKIP_PARAM,
 						IWL_FW_CMD_VER_UNKNOWN);
 		struct wowlan_key_tkip_data tkip_data = {};
 		int size;
@@ -1058,7 +1054,6 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 		};
 
 		cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
-						IWL_ALWAYS_LONG_GROUP,
 						WOWLAN_KEK_KCK_MATERIAL,
 						IWL_FW_CMD_VER_UNKNOWN);
 		if (WARN_ON(cmd_ver != 2 && cmd_ver != 3 && cmd_ver != 4 &&
@@ -1089,7 +1084,7 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 					sizeof(struct iwl_wowlan_kek_kck_material_cmd_v2);
 			/* skip the sta_id at the beginning */
 			_kek_kck_cmd = (void *)
-				((u8 *)_kek_kck_cmd) + sizeof(kek_kck_cmd.sta_id);
+				((u8 *)_kek_kck_cmd + sizeof(kek_kck_cmd.sta_id));
 		}
 
 		IWL_DEBUG_WOWLAN(mvm, "setting akm %d\n",
@@ -1489,7 +1484,7 @@ static void iwl_mvm_report_wakeup_reasons(struct iwl_mvm *mvm,
 		int pktsize = status->wake_packet_bufsize;
 		int pktlen = status->wake_packet_length;
 		const u8 *pktdata = status->wake_packet;
-		struct ieee80211_hdr *hdr = (void *)pktdata;
+		const struct ieee80211_hdr *hdr = (const void *)pktdata;
 		int truncated = pktlen - pktsize;
 
 		/* this would be a firmware bug */
@@ -2074,8 +2069,7 @@ iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm, u8 sta_id)
 	};
 	int ret, len;
 	u8 notif_ver;
-	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-					   WOWLAN_GET_STATUSES,
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd.id,
 					   IWL_FW_CMD_VER_UNKNOWN);
 
 	if (cmd_ver == IWL_FW_CMD_VER_UNKNOWN)
@@ -2182,8 +2176,7 @@ out_free_resp:
 static struct iwl_wowlan_status_data *
 iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, u8 sta_id)
 {
-	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-					   OFFLOADS_QUERY_CMD,
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, OFFLOADS_QUERY_CMD,
 					   IWL_FW_CMD_VER_UNKNOWN);
 	__le32 station_id = cpu_to_le32(sta_id);
 	u32 cmd_size = cmd_ver != IWL_FW_CMD_VER_UNKNOWN ? sizeof(station_id) : 0;
@@ -2704,7 +2697,9 @@ static int iwl_mvm_d3_test_open(struct inode *inode, struct file *file)
 
 	/* start pseudo D3 */
 	rtnl_lock();
+	wiphy_lock(mvm->hw->wiphy);
 	err = __iwl_mvm_suspend(mvm->hw, mvm->hw->wiphy->wowlan_config, true);
+	wiphy_unlock(mvm->hw->wiphy);
 	rtnl_unlock();
 	if (err > 0)
 		err = -EINVAL;
@@ -2760,7 +2755,9 @@ static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 	iwl_fw_dbg_read_d3_debug_data(&mvm->fwrt);
 
 	rtnl_lock();
+	wiphy_lock(mvm->hw->wiphy);
 	__iwl_mvm_resume(mvm, true);
+	wiphy_unlock(mvm->hw->wiphy);
 	rtnl_unlock();
 
 	iwl_mvm_resume_tcm(mvm);

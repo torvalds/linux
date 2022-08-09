@@ -148,7 +148,7 @@ static void evtchnl_free(struct xen_drm_front_info *front_info,
 
 	/* end access and free the page */
 	if (evtchnl->gref != GRANT_INVALID_REF)
-		gnttab_end_foreign_access(evtchnl->gref, 0, page);
+		gnttab_end_foreign_access(evtchnl->gref, page);
 
 	memset(evtchnl, 0, sizeof(*evtchnl));
 }

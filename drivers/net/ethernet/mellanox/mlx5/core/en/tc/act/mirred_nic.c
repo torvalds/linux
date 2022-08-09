@@ -7,7 +7,8 @@
 static bool
 tc_act_can_offload_mirred_nic(struct mlx5e_tc_act_parse_state *parse_state,
 			      const struct flow_action_entry *act,
-			      int act_index)
+			      int act_index,
+			      struct mlx5_flow_attr *attr)
 {
 	struct netlink_ext_ack *extack = parse_state->extack;
 	struct mlx5e_tc_flow *flow = parse_state->flow;
@@ -39,8 +40,7 @@ tc_act_parse_mirred_nic(struct mlx5e_tc_act_parse_state *parse_state,
 {
 	attr->parse_attr->mirred_ifindex[0] = act->dev->ifindex;
 	flow_flag_set(parse_state->flow, HAIRPIN);
-	attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-			MLX5_FLOW_CONTEXT_ACTION_COUNT;
+	attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 
 	return 0;
 }

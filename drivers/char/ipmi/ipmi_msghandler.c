@@ -3677,8 +3677,11 @@ static void cleanup_smi_msgs(struct ipmi_smi *intf)
 void ipmi_unregister_smi(struct ipmi_smi *intf)
 {
 	struct ipmi_smi_watcher *w;
-	int intf_num = intf->intf_num, index;
+	int intf_num, index;
 
+	if (!intf)
+		return;
+	intf_num = intf->intf_num;
 	mutex_lock(&ipmi_interfaces_mutex);
 	intf->intf_num = -1;
 	intf->in_shutdown = true;
@@ -4518,6 +4521,8 @@ return_unspecified:
 		} else
 			/* The message was sent, start the timer. */
 			intf_start_seq_timer(intf, msg->msgid);
+		requeue = 0;
+		goto out;
 	} else if (((msg->rsp[0] >> 2) != ((msg->data[0] >> 2) | 1))
 		   || (msg->rsp[1] != msg->data[1])) {
 		/*

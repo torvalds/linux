@@ -44,12 +44,3 @@ examples:
         interrupts = <31>;
         #clock-cells = <1>;
     };
-
-    serial@1000a000 {
-        compatible = "fsl,imx27-uart", "fsl,imx21-uart";
-        reg = <0x1000a000 0x1000>;
-        interrupts = <20>;
-        clocks = <&clks IMX27_CLK_UART1_IPG_GATE>,
-                 <&clks IMX27_CLK_PER1_GATE>;
-        clock-names = "ipg", "per";
-    };

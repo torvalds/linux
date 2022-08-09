@@ -130,6 +130,10 @@
 #define R_AX_CH10_TXBD_IDX	0x137C /* Management Queue band 1 */
 #define R_AX_CH11_TXBD_IDX	0x1380 /* HI Queue band 1 */
 #define R_AX_CH12_TXBD_IDX	0x1080 /* FWCMD Queue */
+#define R_AX_CH10_TXBD_IDX_V1	0x11D0
+#define R_AX_CH11_TXBD_IDX_V1	0x11D4
+#define R_AX_RXQ_RXBD_IDX_V1	0x1218
+#define R_AX_RPQ_RXBD_IDX_V1	0x121C
 #define TXBD_HW_IDX_MASK	GENMASK(27, 16)
 #define TXBD_HOST_IDX_MASK	GENMASK(11, 0)
 
@@ -163,6 +167,36 @@
 #define R_AX_RXQ_RXBD_DESA_H	0x1104
 #define R_AX_RPQ_RXBD_DESA_L	0x1108
 #define R_AX_RPQ_RXBD_DESA_H	0x110C
+#define R_AX_RXQ_RXBD_DESA_L_V1 0x1220
+#define R_AX_RXQ_RXBD_DESA_H_V1 0x1224
+#define R_AX_RPQ_RXBD_DESA_L_V1 0x1228
+#define R_AX_RPQ_RXBD_DESA_H_V1 0x122C
+#define R_AX_ACH0_TXBD_DESA_L_V1 0x1230
+#define R_AX_ACH0_TXBD_DESA_H_V1 0x1234
+#define R_AX_ACH1_TXBD_DESA_L_V1 0x1238
+#define R_AX_ACH1_TXBD_DESA_H_V1 0x123C
+#define R_AX_ACH2_TXBD_DESA_L_V1 0x1240
+#define R_AX_ACH2_TXBD_DESA_H_V1 0x1244
+#define R_AX_ACH3_TXBD_DESA_L_V1 0x1248
+#define R_AX_ACH3_TXBD_DESA_H_V1 0x124C
+#define R_AX_ACH4_TXBD_DESA_L_V1 0x1250
+#define R_AX_ACH4_TXBD_DESA_H_V1 0x1254
+#define R_AX_ACH5_TXBD_DESA_L_V1 0x1258
+#define R_AX_ACH5_TXBD_DESA_H_V1 0x125C
+#define R_AX_ACH6_TXBD_DESA_L_V1 0x1260
+#define R_AX_ACH6_TXBD_DESA_H_V1 0x1264
+#define R_AX_ACH7_TXBD_DESA_L_V1 0x1268
+#define R_AX_ACH7_TXBD_DESA_H_V1 0x126C
+#define R_AX_CH8_TXBD_DESA_L_V1 0x1270
+#define R_AX_CH8_TXBD_DESA_H_V1 0x1274
+#define R_AX_CH9_TXBD_DESA_L_V1 0x1278
+#define R_AX_CH9_TXBD_DESA_H_V1 0x127C
+#define R_AX_CH12_TXBD_DESA_L_V1 0x1280
+#define R_AX_CH12_TXBD_DESA_H_V1 0x1284
+#define R_AX_CH10_TXBD_DESA_L_V1 0x1458
+#define R_AX_CH10_TXBD_DESA_H_V1 0x145C
+#define R_AX_CH11_TXBD_DESA_L_V1 0x1460
+#define R_AX_CH11_TXBD_DESA_H_V1 0x1464
 #define B_AX_DESC_NUM_MSK		GENMASK(11, 0)
 
 #define R_AX_RXQ_RXBD_NUM	0x1020
@@ -180,6 +214,10 @@
 #define R_AX_CH10_TXBD_NUM	0x1338
 #define R_AX_CH11_TXBD_NUM	0x133A
 #define R_AX_CH12_TXBD_NUM	0x1038
+#define R_AX_RXQ_RXBD_NUM_V1	0x1210
+#define R_AX_RPQ_RXBD_NUM_V1	0x1212
+#define R_AX_CH10_TXBD_NUM_V1	0x1438
+#define R_AX_CH11_TXBD_NUM_V1	0x143A
 
 #define R_AX_ACH0_BDRAM_CTRL	0x1200
 #define R_AX_ACH1_BDRAM_CTRL	0x1204
@@ -194,6 +232,19 @@
 #define R_AX_CH10_BDRAM_CTRL	0x1320
 #define R_AX_CH11_BDRAM_CTRL	0x1324
 #define R_AX_CH12_BDRAM_CTRL	0x1228
+#define R_AX_ACH0_BDRAM_CTRL_V1 0x1300
+#define R_AX_ACH1_BDRAM_CTRL_V1 0x1304
+#define R_AX_ACH2_BDRAM_CTRL_V1 0x1308
+#define R_AX_ACH3_BDRAM_CTRL_V1 0x130C
+#define R_AX_ACH4_BDRAM_CTRL_V1 0x1310
+#define R_AX_ACH5_BDRAM_CTRL_V1 0x1314
+#define R_AX_ACH6_BDRAM_CTRL_V1 0x1318
+#define R_AX_ACH7_BDRAM_CTRL_V1 0x131C
+#define R_AX_CH8_BDRAM_CTRL_V1 0x1320
+#define R_AX_CH9_BDRAM_CTRL_V1 0x1324
+#define R_AX_CH12_BDRAM_CTRL_V1 0x1328
+#define R_AX_CH10_BDRAM_CTRL_V1 0x1420
+#define R_AX_CH11_BDRAM_CTRL_V1 0x1424
 #define BDRAM_SIDX_MASK		GENMASK(7, 0)
 #define BDRAM_MAX_MASK		GENMASK(15, 8)
 #define BDRAM_MIN_MASK		GENMASK(23, 16)
@@ -382,6 +433,23 @@ enum rtw89_pcie_clkdly_hw {
 	PCIE_CLKDLY_HW_200US = 0x5,
 };
 
+struct rtw89_pci_ch_dma_addr {
+	u32 num;
+	u32 idx;
+	u32 bdram;
+	u32 desa_l;
+	u32 desa_h;
+};
+
+struct rtw89_pci_ch_dma_addr_set {
+	struct rtw89_pci_ch_dma_addr tx[RTW89_TXCH_NUM];
+	struct rtw89_pci_ch_dma_addr rx[RTW89_RXCH_NUM];
+};
+
+struct rtw89_pci_info {
+	const struct rtw89_pci_ch_dma_addr_set *dma_addr_set;
+};
+
 struct rtw89_pci_bd_ram {
 	u8 start_idx;
 	u8 max_num;
@@ -469,11 +537,7 @@ struct rtw89_pci_dma_ring {
 	u8 desc_size;
 	dma_addr_t dma;
 
-	u32 addr_num;
-	u32 addr_idx;
-	u32 addr_bdram;
-	u32 addr_desa_l;
-	u32 addr_desa_h;
+	struct rtw89_pci_ch_dma_addr addr;
 
 	u32 len;
 	u32 wp; /* host idx */
@@ -626,5 +690,12 @@ static inline bool rtw89_pci_ltr_is_err_reg_val(u32 val)
 }
 
 extern const struct dev_pm_ops rtw89_pm_ops;
+extern const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set;
+extern const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set_v1;
+
+struct pci_device_id;
+
+int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id);
+void rtw89_pci_remove(struct pci_dev *pdev);
 
 #endif

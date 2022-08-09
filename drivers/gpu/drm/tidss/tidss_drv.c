@@ -17,6 +17,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_managed.h>
+#include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
 
 #include "tidss_dispc.h"
@@ -251,7 +252,7 @@ static struct platform_driver tidss_platform_driver = {
 	},
 };
 
-module_platform_driver(tidss_platform_driver);
+drm_module_platform_driver(tidss_platform_driver);
 
 MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@ti.com>");
 MODULE_DESCRIPTION("TI Keystone DSS Driver");

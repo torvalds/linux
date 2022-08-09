@@ -756,7 +756,7 @@ static void sifive_serial_poll_put_char(struct uart_port *port,
  */
 
 #ifdef CONFIG_SERIAL_EARLYCON
-static void early_sifive_serial_putc(struct uart_port *port, int c)
+static void early_sifive_serial_putc(struct uart_port *port, unsigned char c)
 {
 	while (__ssp_early_readl(port, SIFIVE_SERIAL_TXDATA_OFFS) &
 	       SIFIVE_SERIAL_TXDATA_FULL_MASK)
@@ -800,7 +800,7 @@ OF_EARLYCON_DECLARE(sifive, "sifive,fu540-c000-uart0",
 
 static struct sifive_serial_port *sifive_serial_console_ports[SIFIVE_SERIAL_MAX_PORTS];
 
-static void sifive_serial_console_putchar(struct uart_port *port, int ch)
+static void sifive_serial_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	struct sifive_serial_port *ssp = port_to_sifive_serial_port(port);
 

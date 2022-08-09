@@ -17,7 +17,7 @@ assert sys.version_info >= (3, 7), "Python version is too old"
 
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any, Iterable, Sequence, List, Optional
+from typing import Iterable, List, Optional, Sequence, Tuple
 
 import kunit_json
 import kunit_kernel
@@ -32,7 +32,6 @@ class KunitStatus(Enum):
 @dataclass
 class KunitResult:
 	status: KunitStatus
-	result: Any
 	elapsed_time: float
 
 @dataclass
@@ -82,10 +81,8 @@ def config_tests(linux: kunit_kernel.LinuxSourceTree,
 	config_end = time.time()
 	if not success:
 		return KunitResult(KunitStatus.CONFIG_FAILURE,
-				   'could not configure kernel',
 				   config_end - config_start)
 	return KunitResult(KunitStatus.SUCCESS,
-			   'configured kernel successfully',
 			   config_end - config_start)
 
 def build_tests(linux: kunit_kernel.LinuxSourceTree,
@@ -100,14 +97,11 @@ def build_tests(linux: kunit_kernel.LinuxSourceTree,
 	build_end = time.time()
 	if not success:
 		return KunitResult(KunitStatus.BUILD_FAILURE,
-				   'could not build kernel',
 				   build_end - build_start)
 	if not success:
 		return KunitResult(KunitStatus.BUILD_FAILURE,
-				   'could not build kernel',
 				   build_end - build_start)
 	return KunitResult(KunitStatus.SUCCESS,
-			   'built kernel successfully',
 			   build_end - build_start)
 
 def config_and_build_tests(linux: kunit_kernel.LinuxSourceTree,
@@ -173,14 +167,14 @@ def exec_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest) -
 			filter_glob=filter_glob,
 			build_dir=request.build_dir)
 
-		result = parse_tests(request, run_result)
+		_, test_result = parse_tests(request, run_result)
 		# run_kernel() doesn't block on the kernel exiting.
 		# That only happens after we get the last line of output from `run_result`.
 		# So exec_time here actually contains parsing + execution time, which is fine.
 		test_end = time.time()
 		exec_time += test_end - test_start
 
-		test_counts.add_subtest_counts(result.result.counts)
+		test_counts.add_subtest_counts(test_result.counts)
 
 	if len(filter_globs) == 1 and test_counts.crashed > 0:
 		bd = request.build_dir
@@ -189,7 +183,7 @@ def exec_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest) -
 				bd, bd, kunit_kernel.get_outfile_path(bd), bd, sys.argv[0]))
 
 	kunit_status = _map_to_overall_status(test_counts.get_status())
-	return KunitResult(status=kunit_status, result=result, elapsed_time=exec_time)
+	return KunitResult(status=kunit_status, elapsed_time=exec_time)
 
 def _map_to_overall_status(test_status: kunit_parser.TestStatus) -> KunitStatus:
 	if test_status in (kunit_parser.TestStatus.SUCCESS, kunit_parser.TestStatus.SKIPPED):
@@ -197,7 +191,7 @@ def _map_to_overall_status(test_status: kunit_parser.TestStatus) -> KunitStatus:
 	else:
 		return KunitStatus.TEST_FAILURE
 
-def parse_tests(request: KunitParseRequest, input_data: Iterable[str]) -> KunitResult:
+def parse_tests(request: KunitParseRequest, input_data: Iterable[str]) -> Tuple[KunitResult, kunit_parser.Test]:
 	parse_start = time.time()
 
 	test_result = kunit_parser.Test()
@@ -231,11 +225,9 @@ def parse_tests(request: KunitParseRequest, input_data: Iterable[str]) -> KunitR
 			print(json_obj)
 
 	if test_result.status != kunit_parser.TestStatus.SUCCESS:
-		return KunitResult(KunitStatus.TEST_FAILURE, test_result,
-				   parse_end - parse_start)
+		return KunitResult(KunitStatus.TEST_FAILURE, parse_end - parse_start), test_result
 
-	return KunitResult(KunitStatus.SUCCESS, test_result,
-				parse_end - parse_start)
+	return KunitResult(KunitStatus.SUCCESS, parse_end - parse_start), test_result
 
 def run_tests(linux: kunit_kernel.LinuxSourceTree,
 	      request: KunitRequest) -> KunitResult:
@@ -513,7 +505,7 @@ def main(argv, linux=None):
 		request = KunitParseRequest(raw_output=cli_args.raw_output,
 					    build_dir='',
 					    json=cli_args.json)
-		result = parse_tests(request, kunit_output)
+		result, _ = parse_tests(request, kunit_output)
 		if result.status != KunitStatus.SUCCESS:
 			sys.exit(1)
 	else:

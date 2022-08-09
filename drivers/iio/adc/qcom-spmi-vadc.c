@@ -122,15 +122,15 @@ struct vadc_priv {
 	struct mutex		 lock;
 };
 
-static const struct vadc_prescale_ratio vadc_prescale_ratios[] = {
-	{.num =  1, .den =  1},
-	{.num =  1, .den =  3},
-	{.num =  1, .den =  4},
-	{.num =  1, .den =  6},
-	{.num =  1, .den = 20},
-	{.num =  1, .den =  8},
-	{.num = 10, .den = 81},
-	{.num =  1, .den = 10}
+static const struct u32_fract vadc_prescale_ratios[] = {
+	{ .numerator =  1, .denominator =  1 },
+	{ .numerator =  1, .denominator =  3 },
+	{ .numerator =  1, .denominator =  4 },
+	{ .numerator =  1, .denominator =  6 },
+	{ .numerator =  1, .denominator = 20 },
+	{ .numerator =  1, .denominator =  8 },
+	{ .numerator = 10, .denominator = 81 },
+	{ .numerator =  1, .denominator = 10 },
 };
 
 static int vadc_read(struct vadc_priv *vadc, u16 offset, u8 *data)
@@ -404,13 +404,13 @@ err:
 	return ret;
 }
 
-static int vadc_prescaling_from_dt(u32 num, u32 den)
+static int vadc_prescaling_from_dt(u32 numerator, u32 denominator)
 {
 	unsigned int pre;
 
 	for (pre = 0; pre < ARRAY_SIZE(vadc_prescale_ratios); pre++)
-		if (vadc_prescale_ratios[pre].num == num &&
-		    vadc_prescale_ratios[pre].den == den)
+		if (vadc_prescale_ratios[pre].numerator == numerator &&
+		    vadc_prescale_ratios[pre].denominator == denominator)
 			break;
 
 	if (pre == ARRAY_SIZE(vadc_prescale_ratios))

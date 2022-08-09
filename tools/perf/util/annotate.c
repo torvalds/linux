@@ -33,6 +33,7 @@
 #include "string2.h"
 #include "util/event.h"
 #include "arch/common.h"
+#include "namespaces.h"
 #include <regex.h>
 #include <pthread.h>
 #include <linux/bitops.h>
@@ -1696,6 +1697,15 @@ fallback:
 		 * DSO is the same as when 'perf record' ran.
 		 */
 		__symbol__join_symfs(filename, filename_size, dso->long_name);
+
+		if (access(filename, R_OK) && errno == ENOENT && dso->nsinfo) {
+			char *new_name = filename_with_chroot(dso->nsinfo->pid,
+							      filename);
+			if (new_name) {
+				strlcpy(filename, new_name, filename_size);
+				free(new_name);
+			}
+		}
 	}
 
 	free(build_id_path);
@@ -2037,6 +2047,7 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 	objdump_process.argv = objdump_argv;
 	objdump_process.out = -1;
 	objdump_process.err = -1;
+	objdump_process.no_stderr = 1;
 	if (start_command(&objdump_process)) {
 		pr_err("Failure starting to run %s\n", command);
 		err = -1;

@@ -349,7 +349,7 @@ static int __init cosa_init(void)
 		}
 	} else {
 		cosa_major = register_chrdev(0, "cosa", &cosa_fops);
-		if (!cosa_major) {
+		if (cosa_major < 0) {
 			pr_warn("unable to register chardev\n");
 			err = -EIO;
 			goto out;

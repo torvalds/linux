@@ -413,12 +413,56 @@ int tegra_plane_format(u32 fourcc, u32 *format, u32 *swap)
 		*swap = BYTE_SWAP_SWAP2;
 		break;
 
+	case DRM_FORMAT_YVYU:
+		if (!swap)
+			return -EINVAL;
+
+		*format = WIN_COLOR_DEPTH_YCbCr422;
+		*swap = BYTE_SWAP_SWAP4;
+		break;
+
+	case DRM_FORMAT_VYUY:
+		if (!swap)
+			return -EINVAL;
+
+		*format = WIN_COLOR_DEPTH_YCbCr422;
+		*swap = BYTE_SWAP_SWAP4HW;
+		break;
+
 	case DRM_FORMAT_YUV420:
 		*format = WIN_COLOR_DEPTH_YCbCr420P;
 		break;
 
 	case DRM_FORMAT_YUV422:
 		*format = WIN_COLOR_DEPTH_YCbCr422P;
+		break;
+
+	case DRM_FORMAT_YUV444:
+		*format = WIN_COLOR_DEPTH_YCbCr444P;
+		break;
+
+	case DRM_FORMAT_NV12:
+		*format = WIN_COLOR_DEPTH_YCbCr420SP;
+		break;
+
+	case DRM_FORMAT_NV21:
+		*format = WIN_COLOR_DEPTH_YCrCb420SP;
+		break;
+
+	case DRM_FORMAT_NV16:
+		*format = WIN_COLOR_DEPTH_YCbCr422SP;
+		break;
+
+	case DRM_FORMAT_NV61:
+		*format = WIN_COLOR_DEPTH_YCrCb422SP;
+		break;
+
+	case DRM_FORMAT_NV24:
+		*format = WIN_COLOR_DEPTH_YCbCr444SP;
+		break;
+
+	case DRM_FORMAT_NV42:
+		*format = WIN_COLOR_DEPTH_YCrCb444SP;
 		break;
 
 	default:
@@ -441,13 +485,13 @@ bool tegra_plane_format_is_indexed(unsigned int format)
 	return false;
 }
 
-bool tegra_plane_format_is_yuv(unsigned int format, bool *planar, unsigned int *bpc)
+bool tegra_plane_format_is_yuv(unsigned int format, unsigned int *planes, unsigned int *bpc)
 {
 	switch (format) {
 	case WIN_COLOR_DEPTH_YCbCr422:
 	case WIN_COLOR_DEPTH_YUV422:
-		if (planar)
-			*planar = false;
+		if (planes)
+			*planes = 1;
 
 		if (bpc)
 			*bpc = 8;
@@ -462,8 +506,23 @@ bool tegra_plane_format_is_yuv(unsigned int format, bool *planar, unsigned int *
 	case WIN_COLOR_DEPTH_YUV422R:
 	case WIN_COLOR_DEPTH_YCbCr422RA:
 	case WIN_COLOR_DEPTH_YUV422RA:
-		if (planar)
-			*planar = true;
+	case WIN_COLOR_DEPTH_YCbCr444P:
+		if (planes)
+			*planes = 3;
+
+		if (bpc)
+			*bpc = 8;
+
+		return true;
+
+	case WIN_COLOR_DEPTH_YCrCb420SP:
+	case WIN_COLOR_DEPTH_YCbCr420SP:
+	case WIN_COLOR_DEPTH_YCrCb422SP:
+	case WIN_COLOR_DEPTH_YCbCr422SP:
+	case WIN_COLOR_DEPTH_YCrCb444SP:
+	case WIN_COLOR_DEPTH_YCbCr444SP:
+		if (planes)
+			*planes = 2;
 
 		if (bpc)
 			*bpc = 8;
@@ -471,8 +530,8 @@ bool tegra_plane_format_is_yuv(unsigned int format, bool *planar, unsigned int *
 		return true;
 	}
 
-	if (planar)
-		*planar = false;
+	if (planes)
+		*planes = 1;
 
 	return false;
 }

@@ -67,10 +67,8 @@ struct intel_memory_region {
 	struct io_mapping iomap;
 	struct resource region;
 
-	/* For fake LMEM */
-	struct drm_mm_node fake_mappable;
-
 	resource_size_t io_start;
+	resource_size_t io_size;
 	resource_size_t min_page_size;
 	resource_size_t total;
 	resource_size_t avail;
@@ -80,8 +78,6 @@ struct intel_memory_region {
 	enum intel_region_id id;
 	char name[16];
 	bool private; /* not for userspace */
-
-	dma_addr_t remap_addr;
 
 	struct {
 		struct mutex lock; /* Protects access to objects */
@@ -103,6 +99,7 @@ intel_memory_region_create(struct drm_i915_private *i915,
 			   resource_size_t size,
 			   resource_size_t min_page_size,
 			   resource_size_t io_start,
+			   resource_size_t io_size,
 			   u16 type,
 			   u16 instance,
 			   const struct intel_memory_region_ops *ops);

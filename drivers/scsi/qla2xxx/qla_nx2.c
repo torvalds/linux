@@ -1938,8 +1938,7 @@ qla8044_device_state_handler(struct scsi_qla_host *vha)
 	dev_state = qla8044_rd_direct(vha, QLA8044_CRB_DEV_STATE_INDEX);
 	ql_dbg(ql_dbg_p3p, vha, 0xb0ce,
 	    "Device state is 0x%x = %s\n",
-	    dev_state, dev_state < MAX_STATES ?
-	    qdev_state(dev_state) : "Unknown");
+	    dev_state, qdev_state(dev_state));
 
 	/* wait for 30 seconds for device to go ready */
 	dev_init_timeout = jiffies + (ha->fcoe_dev_init_timeout * HZ);
@@ -1952,8 +1951,7 @@ qla8044_device_state_handler(struct scsi_qla_host *vha)
 				ql_log(ql_log_warn, vha, 0xb0cf,
 				    "%s: Device Init Failed 0x%x = %s\n",
 				    QLA2XXX_DRIVER_NAME, dev_state,
-				    dev_state < MAX_STATES ?
-				    qdev_state(dev_state) : "Unknown");
+				    qdev_state(dev_state));
 				qla8044_wr_direct(vha,
 				    QLA8044_CRB_DEV_STATE_INDEX,
 				    QLA8XXX_DEV_FAILED);
@@ -1963,8 +1961,7 @@ qla8044_device_state_handler(struct scsi_qla_host *vha)
 		dev_state = qla8044_rd_direct(vha, QLA8044_CRB_DEV_STATE_INDEX);
 		ql_log(ql_log_info, vha, 0xb0d0,
 		    "Device state is 0x%x = %s\n",
-		    dev_state, dev_state < MAX_STATES ?
-		    qdev_state(dev_state) : "Unknown");
+		    dev_state, qdev_state(dev_state));
 
 		/* NOTE: Make sure idc unlocked upon exit of switch statement */
 		switch (dev_state) {

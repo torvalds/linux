@@ -433,8 +433,7 @@ void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u32 port_num)
 
 	dev->port[port_num].dbg_cc_params = dbg_cc_params;
 
-	dbg_cc_params->root = debugfs_create_dir("cc_params",
-						 mdev->priv.dbg_root);
+	dbg_cc_params->root = debugfs_create_dir("cc_params", mlx5_debugfs_get_dev_root(mdev));
 
 	for (i = 0; i < MLX5_IB_DBG_CC_MAX; i++) {
 		dbg_cc_params->params[i].offset = i;

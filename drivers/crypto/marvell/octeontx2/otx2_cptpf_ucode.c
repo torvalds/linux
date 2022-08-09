@@ -1076,6 +1076,39 @@ static void delete_engine_grps(struct pci_dev *pdev,
 		delete_engine_group(&pdev->dev, &eng_grps->grp[i]);
 }
 
+#define PCI_DEVID_CN10K_RNM 0xA098
+#define RNM_ENTROPY_STATUS  0x8
+
+static void rnm_to_cpt_errata_fixup(struct device *dev)
+{
+	struct pci_dev *pdev;
+	void __iomem *base;
+	int timeout = 5000;
+
+	pdev = pci_get_device(PCI_VENDOR_ID_CAVIUM, PCI_DEVID_CN10K_RNM, NULL);
+	if (!pdev)
+		return;
+
+	base = pci_ioremap_bar(pdev, 0);
+	if (!base)
+		goto put_pdev;
+
+	while ((readq(base + RNM_ENTROPY_STATUS) & 0x7F) != 0x40) {
+		cpu_relax();
+		udelay(1);
+		timeout--;
+		if (!timeout) {
+			dev_warn(dev, "RNM is not producing entropy\n");
+			break;
+		}
+	}
+
+	iounmap(base);
+
+put_pdev:
+	pci_dev_put(pdev);
+}
+
 int otx2_cpt_get_eng_grp(struct otx2_cpt_eng_grps *eng_grps, int eng_type)
 {
 
@@ -1111,6 +1144,7 @@ int otx2_cpt_create_eng_grps(struct otx2_cptpf_dev *cptpf,
 	struct otx2_cpt_engines engs[OTX2_CPT_MAX_ETYPES_PER_GRP] = { {0} };
 	struct pci_dev *pdev = cptpf->pdev;
 	struct fw_info_t fw_info;
+	u64 reg_val;
 	int ret = 0;
 
 	mutex_lock(&eng_grps->lock);
@@ -1189,9 +1223,17 @@ int otx2_cpt_create_eng_grps(struct otx2_cptpf_dev *cptpf,
 
 	if (is_dev_otx2(pdev))
 		goto unlock;
+
+	/*
+	 * Ensure RNM_ENTROPY_STATUS[NORMAL_CNT] = 0x40 before writing
+	 * CPT_AF_CTL[RNM_REQ_EN] = 1 as a workaround for HW errata.
+	 */
+	rnm_to_cpt_errata_fixup(&pdev->dev);
+
 	/*
 	 * Configure engine group mask to allow context prefetching
-	 * for the groups.
+	 * for the groups and enable random number request, to enable
+	 * CPT to request random numbers from RNM.
 	 */
 	otx2_cpt_write_af_reg(&cptpf->afpf_mbox, pdev, CPT_AF_CTL,
 			      OTX2_CPT_ALL_ENG_GRPS_MASK << 3 | BIT_ULL(16),
@@ -1203,6 +1245,18 @@ int otx2_cpt_create_eng_grps(struct otx2_cptpf_dev *cptpf,
 	 */
 	otx2_cpt_write_af_reg(&cptpf->afpf_mbox, pdev, CPT_AF_CTX_FLUSH_TIMER,
 			      CTX_FLUSH_TIMER_CNT, BLKADDR_CPT0);
+
+	/*
+	 * Set CPT_AF_DIAG[FLT_DIS], as a workaround for HW errata, when
+	 * CPT_AF_DIAG[FLT_DIS] = 0 and a CPT engine access to LLC/DRAM
+	 * encounters a fault/poison, a rare case may result in
+	 * unpredictable data being delivered to a CPT engine.
+	 */
+	otx2_cpt_read_af_reg(&cptpf->afpf_mbox, pdev, CPT_AF_DIAG, &reg_val,
+			     BLKADDR_CPT0);
+	otx2_cpt_write_af_reg(&cptpf->afpf_mbox, pdev, CPT_AF_DIAG,
+			      reg_val | BIT_ULL(24), BLKADDR_CPT0);
+
 	mutex_unlock(&eng_grps->lock);
 	return 0;
 

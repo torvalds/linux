@@ -139,9 +139,9 @@ void dcn31_update_clocks(struct clk_mgr *clk_mgr_base,
 	 * also if safe to lower is false, we just go in the higher state
 	 */
 	if (safe_to_lower) {
-		if (new_clocks->zstate_support == DCN_ZSTATE_SUPPORT_ALLOW &&
+		if (new_clocks->zstate_support != DCN_ZSTATE_SUPPORT_DISALLOW &&
 				new_clocks->zstate_support != clk_mgr_base->clks.zstate_support) {
-			dcn31_smu_set_Z9_support(clk_mgr, true);
+			dcn31_smu_set_zstate_support(clk_mgr, new_clocks->zstate_support);
 			dm_helpers_enable_periodic_detection(clk_mgr_base->ctx, true);
 			clk_mgr_base->clks.zstate_support = new_clocks->zstate_support;
 		}
@@ -167,7 +167,7 @@ void dcn31_update_clocks(struct clk_mgr *clk_mgr_base,
 	} else {
 		if (new_clocks->zstate_support == DCN_ZSTATE_SUPPORT_DISALLOW &&
 				new_clocks->zstate_support != clk_mgr_base->clks.zstate_support) {
-			dcn31_smu_set_Z9_support(clk_mgr, false);
+			dcn31_smu_set_zstate_support(clk_mgr, DCN_ZSTATE_SUPPORT_DISALLOW);
 			dm_helpers_enable_periodic_detection(clk_mgr_base->ctx, false);
 			clk_mgr_base->clks.zstate_support = new_clocks->zstate_support;
 		}
@@ -697,6 +697,8 @@ void dcn31_clk_mgr_construct(
 	clk_mgr->base.base.dprefclk_khz = 600000;
 	clk_mgr->base.dccg->ref_dtbclk_khz = 600000;
 	dce_clock_read_ss_info(&clk_mgr->base);
+	/*if bios enabled SS, driver needs to adjust dtb clock, only enable with correct bios*/
+	//clk_mgr->base.dccg->ref_dtbclk_khz = dce_adjust_dp_ref_freq_for_ss(clk_mgr_internal, clk_mgr->base.base.dprefclk_khz);
 
 	clk_mgr->base.base.bw_params = &dcn31_bw_params;
 

@@ -206,15 +206,13 @@ error_disable_reg:
 	return ret;
 }
 
-static int ltc1660_remove(struct spi_device *spi)
+static void ltc1660_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ltc1660_priv *priv = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	regulator_disable(priv->vref_reg);
-
-	return 0;
 }
 
 static const struct of_device_id ltc1660_dt_ids[] = {

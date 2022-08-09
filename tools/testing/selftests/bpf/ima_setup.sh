@@ -12,7 +12,7 @@ LOG_FILE="$(mktemp /tmp/ima_setup.XXXX.log)"
 
 usage()
 {
-	echo "Usage: $0 <setup|cleanup|run> <existing_tmp_dir>"
+	echo "Usage: $0 <setup|cleanup|run|modify-bin|restore-bin|load-policy> <existing_tmp_dir>"
 	exit 1
 }
 
@@ -51,6 +51,7 @@ setup()
 
 	ensure_mount_securityfs
 	echo "measure func=BPRM_CHECK fsuuid=${mount_uuid}" > ${IMA_POLICY_FILE}
+	echo "measure func=BPRM_CHECK fsuuid=${mount_uuid}" > ${mount_dir}/policy_test
 }
 
 cleanup() {
@@ -75,6 +76,32 @@ run()
 	local copied_bin_path="${mount_dir}/$(basename ${TEST_BINARY})"
 
 	exec "${copied_bin_path}"
+}
+
+modify_bin()
+{
+	local tmp_dir="$1"
+	local mount_dir="${tmp_dir}/mnt"
+	local copied_bin_path="${mount_dir}/$(basename ${TEST_BINARY})"
+
+	echo "mod" >> "${copied_bin_path}"
+}
+
+restore_bin()
+{
+	local tmp_dir="$1"
+	local mount_dir="${tmp_dir}/mnt"
+	local copied_bin_path="${mount_dir}/$(basename ${TEST_BINARY})"
+
+	truncate -s -4 "${copied_bin_path}"
+}
+
+load_policy()
+{
+	local tmp_dir="$1"
+	local mount_dir="${tmp_dir}/mnt"
+
+	echo ${mount_dir}/policy_test > ${IMA_POLICY_FILE} 2> /dev/null
 }
 
 catch()
@@ -105,6 +132,12 @@ main()
 		cleanup "${tmp_dir}"
 	elif [[ "${action}" == "run" ]]; then
 		run "${tmp_dir}"
+	elif [[ "${action}" == "modify-bin" ]]; then
+		modify_bin "${tmp_dir}"
+	elif [[ "${action}" == "restore-bin" ]]; then
+		restore_bin "${tmp_dir}"
+	elif [[ "${action}" == "load-policy" ]]; then
+		load_policy "${tmp_dir}"
 	else
 		echo "Unknown action: ${action}"
 		exit 1

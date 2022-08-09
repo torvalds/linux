@@ -6,12 +6,29 @@
 #include <linux/rhashtable.h>
 #include <net/netfilter/nf_flow_table.h>
 #include <net/netfilter/nf_tables.h>
+#include <linux/if_vlan.h>
 
 static unsigned int
 nf_flow_offload_inet_hook(void *priv, struct sk_buff *skb,
 			  const struct nf_hook_state *state)
 {
+	struct vlan_ethhdr *veth;
+	__be16 proto;
+
 	switch (skb->protocol) {
+	case htons(ETH_P_8021Q):
+		veth = (struct vlan_ethhdr *)skb_mac_header(skb);
+		proto = veth->h_vlan_encapsulated_proto;
+		break;
+	case htons(ETH_P_PPP_SES):
+		proto = nf_flow_pppoe_proto(skb);
+		break;
+	default:
+		proto = skb->protocol;
+		break;
+	}
+
+	switch (proto) {
 	case htons(ETH_P_IP):
 		return nf_flow_offload_ip_hook(priv, skb, state);
 	case htons(ETH_P_IPV6):

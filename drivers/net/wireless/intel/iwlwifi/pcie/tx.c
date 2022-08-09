@@ -154,7 +154,7 @@ static int iwl_pcie_txq_build_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
 	void *tfd;
 	u32 num_tbs;
 
-	tfd = txq->tfds + trans->txqs.tfd.size * txq->write_ptr;
+	tfd = (u8 *)txq->tfds + trans->txqs.tfd.size * txq->write_ptr;
 
 	if (reset)
 		memset(tfd, 0, trans->txqs.tfd.size);
@@ -540,7 +540,7 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 					  trans->cfg->min_txq_size);
 		else
 			slots_num = max_t(u32, IWL_DEFAULT_QUEUE_SIZE,
-					  trans->cfg->min_256_ba_txq_size);
+					  trans->cfg->min_ba_txq_size);
 		trans->txqs.txq[txq_id] = &trans_pcie->txq_memory[txq_id];
 		ret = iwl_txq_alloc(trans, trans->txqs.txq[txq_id], slots_num,
 				    cmd_queue);
@@ -594,7 +594,7 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 					  trans->cfg->min_txq_size);
 		else
 			slots_num = max_t(u32, IWL_DEFAULT_QUEUE_SIZE,
-					  trans->cfg->min_256_ba_txq_size);
+					  trans->cfg->min_ba_txq_size);
 		ret = iwl_txq_init(trans, trans->txqs.txq[txq_id], slots_num,
 				   cmd_queue);
 		if (ret) {
@@ -877,7 +877,7 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id,
 	if (configure_scd) {
 		iwl_scd_txq_set_inactive(trans, txq_id);
 
-		iwl_trans_write_mem(trans, stts_addr, (void *)zero_val,
+		iwl_trans_write_mem(trans, stts_addr, (const void *)zero_val,
 				    ARRAY_SIZE(zero_val));
 	}
 
@@ -1114,7 +1114,7 @@ int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 
 	/* map the remaining (adjusted) nocopy/dup fragments */
 	for (i = 0; i < IWL_MAX_CMD_TBS_PER_TFD; i++) {
-		const void *data = cmddata[i];
+		void *data = (void *)(uintptr_t)cmddata[i];
 
 		if (!cmdlen[i])
 			continue;
@@ -1123,7 +1123,7 @@ int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 			continue;
 		if (cmd->dataflags[i] & IWL_HCMD_DFL_DUP)
 			data = dup_buf;
-		phys_addr = dma_map_single(trans->dev, (void *)data,
+		phys_addr = dma_map_single(trans->dev, data,
 					   cmdlen[i], DMA_TO_DEVICE);
 		if (dma_mapping_error(trans->dev, phys_addr)) {
 			iwl_txq_gen1_tfd_unmap(trans, out_meta, txq,
@@ -1201,7 +1201,7 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 	cmd = txq->entries[cmd_index].cmd;
 	meta = &txq->entries[cmd_index].meta;
 	group_id = cmd->hdr.group_id;
-	cmd_id = iwl_cmd_id(cmd->hdr.cmd, group_id, 0);
+	cmd_id = WIDE_ID(group_id, cmd->hdr.cmd);
 
 	iwl_txq_gen1_tfd_unmap(trans, meta, txq, index);
 

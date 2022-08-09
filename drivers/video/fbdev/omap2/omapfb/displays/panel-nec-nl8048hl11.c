@@ -327,7 +327,7 @@ err_gpio:
 	return r;
 }
 
-static int nec_8048_remove(struct spi_device *spi)
+static void nec_8048_remove(struct spi_device *spi)
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
@@ -341,8 +341,6 @@ static int nec_8048_remove(struct spi_device *spi)
 	nec_8048_disconnect(dssdev);
 
 	omap_dss_put_device(in);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

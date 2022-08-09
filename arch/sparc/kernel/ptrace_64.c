@@ -25,7 +25,6 @@
 #include <linux/audit.h>
 #include <linux/signal.h>
 #include <linux/regset.h>
-#include <linux/tracehook.h>
 #include <trace/syscall.h>
 #include <linux/compat.h>
 #include <linux/elf.h>
@@ -1095,7 +1094,7 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 		user_exit();
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		ret = tracehook_report_syscall_entry(regs);
+		ret = ptrace_report_syscall_entry(regs);
 
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_sys_enter(regs, regs->u_regs[UREG_G1]);
@@ -1118,7 +1117,7 @@ asmlinkage void syscall_trace_leave(struct pt_regs *regs)
 		trace_sys_exit(regs, regs->u_regs[UREG_I0]);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(regs, 0);
+		ptrace_report_syscall_exit(regs, 0);
 
 	if (test_thread_flag(TIF_NOHZ))
 		user_enter();

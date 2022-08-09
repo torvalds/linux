@@ -10,7 +10,6 @@
 #define _ASM_THREAD_INFO_H
 
 #include <asm/page.h>
-#include <asm/segment.h>
 
 #ifdef __KERNEL__
 
@@ -31,7 +30,6 @@ struct thread_info {
 	unsigned long	   flags;		/* low level flags */
 	int		   cpu;			/* cpu we're on */
 	int		   preempt_count;	/* 0 => preemptable, <0 => BUG */
-	mm_segment_t		addr_limit;
 };
 
 /*
@@ -43,7 +41,6 @@ struct thread_info {
 	.flags =	0,			\
 	.cpu =		0,			\
 	.preempt_count = INIT_PREEMPT_COUNT,	\
-	.addr_limit	= KERNEL_DS,		\
 }
 
 /* how to get the thread information struct from C */

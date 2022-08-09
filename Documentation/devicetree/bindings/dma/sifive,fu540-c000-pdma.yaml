@@ -22,6 +22,9 @@ description: |
 
   https://static.dev.sifive.com/FU540-C000-v1.0.pdf
 
+allOf:
+  - $ref: "dma-controller.yaml#"
+
 properties:
   compatible:
     items:
@@ -41,13 +44,12 @@ required:
   - compatible
   - reg
   - interrupts
-  - '#dma-cells'
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
-    dma@3000000 {
+    dma-controller@3000000 {
       compatible = "sifive,fu540-c000-pdma";
       reg = <0x3000000 0x8000>;
       interrupts = <23>, <24>, <25>, <26>, <27>, <28>, <29>, <30>;

@@ -19,6 +19,7 @@ properties:
       - items:
           - enum:
               - qcom,ipq8074-qusb2-phy
+              - qcom,msm8953-qusb2-phy
               - qcom,msm8996-qusb2-phy
               - qcom,msm8998-qusb2-phy
               - qcom,qcm2290-qusb2-phy

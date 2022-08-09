@@ -1309,21 +1309,20 @@ int pm8001_mpi_msg_free_get(struct inbound_queue_table *circularQ,
  * pm8001_mpi_build_cmd- build the message queue for transfer, update the PI to
  * FW to tell the fw to get this message from IOMB.
  * @pm8001_ha: our hba card information
- * @circularQ: the inbound queue we want to transfer to HBA.
+ * @q_index: the index in the inbound queue we want to transfer to HBA.
  * @opCode: the operation code represents commands which LLDD and fw recognized.
  * @payload: the command payload of each operation command.
  * @nb: size in bytes of the command payload
  * @responseQueue: queue to interrupt on w/ command response (if any)
  */
 int pm8001_mpi_build_cmd(struct pm8001_hba_info *pm8001_ha,
-			 struct inbound_queue_table *circularQ,
-			 u32 opCode, void *payload, size_t nb,
+			 u32 q_index, u32 opCode, void *payload, size_t nb,
 			 u32 responseQueue)
 {
 	u32 Header = 0, hpriority = 0, bc = 1, category = 0x02;
 	void *pMessage;
 	unsigned long flags;
-	int q_index = circularQ - pm8001_ha->inbnd_q_tbl;
+	struct inbound_queue_table *circularQ = &pm8001_ha->inbnd_q_tbl[q_index];
 	int rv;
 	u32 htag = le32_to_cpu(*(__le32 *)payload);
 
@@ -1522,7 +1521,6 @@ void pm8001_work_fn(struct work_struct *work)
 	case IO_XFER_ERROR_BREAK:
 	{	/* This one stashes the sas_task instead */
 		struct sas_task *t = (struct sas_task *)pm8001_dev;
-		u32 tag;
 		struct pm8001_ccb_info *ccb;
 		struct pm8001_hba_info *pm8001_ha = pw->pm8001_ha;
 		unsigned long flags, flags1;
@@ -1544,8 +1542,8 @@ void pm8001_work_fn(struct work_struct *work)
 		/* Search for a possible ccb that matches the task */
 		for (i = 0; ccb = NULL, i < PM8001_MAX_CCB; i++) {
 			ccb = &pm8001_ha->ccb_info[i];
-			tag = ccb->ccb_tag;
-			if ((tag != 0xFFFFFFFF) && (ccb->task == t))
+			if ((ccb->ccb_tag != PM8001_INVALID_TAG) &&
+			    (ccb->task == t))
 				break;
 		}
 		if (!ccb) {
@@ -1561,17 +1559,16 @@ void pm8001_work_fn(struct work_struct *work)
 			atomic_dec(&pm8001_dev->running_req);
 		spin_lock_irqsave(&t->task_state_lock, flags1);
 		t->task_state_flags &= ~SAS_TASK_STATE_PENDING;
-		t->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
 		t->task_state_flags |= SAS_TASK_STATE_DONE;
 		if (unlikely((t->task_state_flags & SAS_TASK_STATE_ABORTED))) {
 			spin_unlock_irqrestore(&t->task_state_lock, flags1);
 			pm8001_dbg(pm8001_ha, FAIL, "task 0x%p done with event 0x%x resp 0x%x stat 0x%x but aborted by upper layer!\n",
 				   t, pw->handler, ts->resp, ts->stat);
-			pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
+			pm8001_ccb_task_free(pm8001_ha, ccb);
 			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 		} else {
 			spin_unlock_irqrestore(&t->task_state_lock, flags1);
-			pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
+			pm8001_ccb_task_free(pm8001_ha, ccb);
 			mb();/* in order to force CPU ordering */
 			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 			t->task_done(t);
@@ -1580,7 +1577,6 @@ void pm8001_work_fn(struct work_struct *work)
 	case IO_XFER_OPEN_RETRY_TIMEOUT:
 	{	/* This one stashes the sas_task instead */
 		struct sas_task *t = (struct sas_task *)pm8001_dev;
-		u32 tag;
 		struct pm8001_ccb_info *ccb;
 		struct pm8001_hba_info *pm8001_ha = pw->pm8001_ha;
 		unsigned long flags, flags1;
@@ -1614,8 +1610,8 @@ void pm8001_work_fn(struct work_struct *work)
 		/* Search for a possible ccb that matches the task */
 		for (i = 0; ccb = NULL, i < PM8001_MAX_CCB; i++) {
 			ccb = &pm8001_ha->ccb_info[i];
-			tag = ccb->ccb_tag;
-			if ((tag != 0xFFFFFFFF) && (ccb->task == t))
+			if ((ccb->ccb_tag != PM8001_INVALID_TAG) &&
+			    (ccb->task == t))
 				break;
 		}
 		if (!ccb) {
@@ -1686,19 +1682,13 @@ void pm8001_work_fn(struct work_struct *work)
 		struct task_status_struct *ts;
 		struct sas_task *task;
 		int i;
-		u32 tag, device_id;
+		u32 device_id;
 
 		for (i = 0; ccb = NULL, i < PM8001_MAX_CCB; i++) {
 			ccb = &pm8001_ha->ccb_info[i];
 			task = ccb->task;
 			ts = &task->task_status;
-			tag = ccb->ccb_tag;
-			/* check if tag is NULL */
-			if (!tag) {
-				pm8001_dbg(pm8001_ha, FAIL,
-					"tag Null\n");
-				continue;
-			}
+
 			if (task != NULL) {
 				dev = task->dev;
 				if (!dev) {
@@ -1707,10 +1697,10 @@ void pm8001_work_fn(struct work_struct *work)
 					continue;
 				}
 				/*complete sas task and update to top layer */
-				pm8001_ccb_task_free(pm8001_ha, task, ccb, tag);
+				pm8001_ccb_task_free(pm8001_ha, ccb);
 				ts->resp = SAS_TASK_COMPLETE;
 				task->task_done(task);
-			} else if (tag != 0xFFFFFFFF) {
+			} else if (ccb->ccb_tag != PM8001_INVALID_TAG) {
 				/* complete the internal commands/non-sas task */
 				pm8001_dev = ccb->device;
 				if (pm8001_dev->dcompletion) {
@@ -1718,7 +1708,7 @@ void pm8001_work_fn(struct work_struct *work)
 					pm8001_dev->dcompletion = NULL;
 				}
 				complete(pm8001_ha->nvmd_completion);
-				pm8001_tag_free(pm8001_ha, tag);
+				pm8001_ccb_free(pm8001_ha, ccb);
 			}
 		}
 		/* Deregister all the device ids  */
@@ -1757,22 +1747,16 @@ int pm8001_handle_event(struct pm8001_hba_info *pm8001_ha, void *data,
 static void pm8001_send_abort_all(struct pm8001_hba_info *pm8001_ha,
 		struct pm8001_device *pm8001_ha_dev)
 {
-	int res;
-	u32 ccb_tag;
 	struct pm8001_ccb_info *ccb;
-	struct sas_task *task = NULL;
+	struct sas_task *task;
 	struct task_abort_req task_abort;
-	struct inbound_queue_table *circularQ;
 	u32 opc = OPC_INB_SATA_ABORT;
 	int ret;
 
-	if (!pm8001_ha_dev) {
-		pm8001_dbg(pm8001_ha, FAIL, "dev is null\n");
-		return;
-	}
+	pm8001_ha_dev->id |= NCQ_ABORT_ALL_FLAG;
+	pm8001_ha_dev->id &= ~NCQ_READ_LOG_FLAG;
 
 	task = sas_alloc_slow_task(GFP_ATOMIC);
-
 	if (!task) {
 		pm8001_dbg(pm8001_ha, FAIL, "cannot allocate task\n");
 		return;
@@ -1780,27 +1764,23 @@ static void pm8001_send_abort_all(struct pm8001_hba_info *pm8001_ha,
 
 	task->task_done = pm8001_task_done;
 
-	res = pm8001_tag_alloc(pm8001_ha, &ccb_tag);
-	if (res)
+	ccb = pm8001_ccb_alloc(pm8001_ha, pm8001_ha_dev, task);
+	if (!ccb) {
+		sas_free_task(task);
 		return;
-
-	ccb = &pm8001_ha->ccb_info[ccb_tag];
-	ccb->device = pm8001_ha_dev;
-	ccb->ccb_tag = ccb_tag;
-	ccb->task = task;
-
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
+	}
 
 	memset(&task_abort, 0, sizeof(task_abort));
 	task_abort.abort_all = cpu_to_le32(1);
 	task_abort.device_id = cpu_to_le32(pm8001_ha_dev->device_id);
-	task_abort.tag = cpu_to_le32(ccb_tag);
+	task_abort.tag = cpu_to_le32(ccb->ccb_tag);
 
-	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &task_abort,
-			sizeof(task_abort), 0);
-	if (ret)
-		pm8001_tag_free(pm8001_ha, ccb_tag);
-
+	ret = pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &task_abort,
+				   sizeof(task_abort), 0);
+	if (ret) {
+		sas_free_task(task);
+		pm8001_ccb_free(pm8001_ha, ccb);
+	}
 }
 
 static void pm8001_send_read_log(struct pm8001_hba_info *pm8001_ha,
@@ -1808,36 +1788,26 @@ static void pm8001_send_read_log(struct pm8001_hba_info *pm8001_ha,
 {
 	struct sata_start_req sata_cmd;
 	int res;
-	u32 ccb_tag;
 	struct pm8001_ccb_info *ccb;
 	struct sas_task *task = NULL;
 	struct host_to_dev_fis fis;
 	struct domain_device *dev;
-	struct inbound_queue_table *circularQ;
 	u32 opc = OPC_INB_SATA_HOST_OPSTART;
 
 	task = sas_alloc_slow_task(GFP_ATOMIC);
-
 	if (!task) {
 		pm8001_dbg(pm8001_ha, FAIL, "cannot allocate task !!!\n");
 		return;
 	}
 	task->task_done = pm8001_task_done;
 
-	res = pm8001_tag_alloc(pm8001_ha, &ccb_tag);
-	if (res) {
-		sas_free_task(task);
-		pm8001_dbg(pm8001_ha, FAIL, "cannot allocate tag !!!\n");
-		return;
-	}
-
-	/* allocate domain device by ourselves as libsas
-	 * is not going to provide any
-	*/
+	/*
+	 * Allocate domain device by ourselves as libsas is not going to
+	 * provide any.
+	 */
 	dev = kzalloc(sizeof(struct domain_device), GFP_ATOMIC);
 	if (!dev) {
 		sas_free_task(task);
-		pm8001_tag_free(pm8001_ha, ccb_tag);
 		pm8001_dbg(pm8001_ha, FAIL,
 			   "Domain device cannot be allocated\n");
 		return;
@@ -1845,15 +1815,15 @@ static void pm8001_send_read_log(struct pm8001_hba_info *pm8001_ha,
 	task->dev = dev;
 	task->dev->lldd_dev = pm8001_ha_dev;
 
-	ccb = &pm8001_ha->ccb_info[ccb_tag];
-	ccb->device = pm8001_ha_dev;
-	ccb->ccb_tag = ccb_tag;
-	ccb->task = task;
+	ccb = pm8001_ccb_alloc(pm8001_ha, pm8001_ha_dev, task);
+	if (!ccb) {
+		sas_free_task(task);
+		kfree(dev);
+		return;
+	}
+
 	pm8001_ha_dev->id |= NCQ_READ_LOG_FLAG;
 	pm8001_ha_dev->id |= NCQ_2ND_RLE_FLAG;
-
-	memset(&sata_cmd, 0, sizeof(sata_cmd));
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 
 	/* construct read log FIS */
 	memset(&fis, 0, sizeof(struct host_to_dev_fis));
@@ -1863,16 +1833,17 @@ static void pm8001_send_read_log(struct pm8001_hba_info *pm8001_ha,
 	fis.lbal = 0x10;
 	fis.sector_count = 0x1;
 
-	sata_cmd.tag = cpu_to_le32(ccb_tag);
+	memset(&sata_cmd, 0, sizeof(sata_cmd));
+	sata_cmd.tag = cpu_to_le32(ccb->ccb_tag);
 	sata_cmd.device_id = cpu_to_le32(pm8001_ha_dev->device_id);
-	sata_cmd.ncqtag_atap_dir_m |= ((0x1 << 7) | (0x5 << 9));
+	sata_cmd.ncqtag_atap_dir_m = cpu_to_le32((0x1 << 7) | (0x5 << 9));
 	memcpy(&sata_cmd.sata_fis, &fis, sizeof(struct host_to_dev_fis));
 
-	res = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &sata_cmd,
-			sizeof(sata_cmd), 0);
+	res = pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &sata_cmd,
+				   sizeof(sata_cmd), 0);
 	if (res) {
 		sas_free_task(task);
-		pm8001_tag_free(pm8001_ha, ccb_tag);
+		pm8001_ccb_free(pm8001_ha, ccb);
 		kfree(dev);
 	}
 }
@@ -2105,16 +2076,15 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		   psspPayload->ssp_resp_iu.status);
 	spin_lock_irqsave(&t->task_state_lock, flags);
 	t->task_state_flags &= ~SAS_TASK_STATE_PENDING;
-	t->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
 	t->task_state_flags |= SAS_TASK_STATE_DONE;
 	if (unlikely((t->task_state_flags & SAS_TASK_STATE_ABORTED))) {
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
 		pm8001_dbg(pm8001_ha, FAIL, "task 0x%p done with io_status 0x%x resp 0x%x stat 0x%x but aborted by upper layer!\n",
 			   t, status, ts->resp, ts->stat);
-		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
+		pm8001_ccb_task_free(pm8001_ha, ccb);
 	} else {
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
-		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
+		pm8001_ccb_task_free(pm8001_ha, ccb);
 		mb();/* in order to force CPU ordering */
 		t->task_done(t);
 	}
@@ -2273,16 +2243,15 @@ static void mpi_ssp_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	}
 	spin_lock_irqsave(&t->task_state_lock, flags);
 	t->task_state_flags &= ~SAS_TASK_STATE_PENDING;
-	t->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
 	t->task_state_flags |= SAS_TASK_STATE_DONE;
 	if (unlikely((t->task_state_flags & SAS_TASK_STATE_ABORTED))) {
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
 		pm8001_dbg(pm8001_ha, FAIL, "task 0x%p done with event 0x%x resp 0x%x stat 0x%x but aborted by upper layer!\n",
 			   t, event, ts->resp, ts->stat);
-		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
+		pm8001_ccb_task_free(pm8001_ha, ccb);
 	} else {
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
-		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
+		pm8001_ccb_task_free(pm8001_ha, ccb);
 		mb();/* in order to force CPU ordering */
 		t->task_done(t);
 	}
@@ -2313,11 +2282,6 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	status = le32_to_cpu(psataPayload->status);
 	param = le32_to_cpu(psataPayload->param);
 	tag = le32_to_cpu(psataPayload->tag);
-
-	if (!tag) {
-		pm8001_dbg(pm8001_ha, FAIL, "tag null\n");
-		return;
-	}
 
 	ccb = &pm8001_ha->ccb_info[tag];
 	t = ccb->task;
@@ -2392,11 +2356,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			ts->stat = SAS_SAM_STAT_GOOD;
 			/* check if response is for SEND READ LOG */
 			if (pm8001_dev &&
-				(pm8001_dev->id & NCQ_READ_LOG_FLAG)) {
-				/* set new bit for abort_all */
-				pm8001_dev->id |= NCQ_ABORT_ALL_FLAG;
-				/* clear bit for read log */
-				pm8001_dev->id = pm8001_dev->id & 0x7FFFFFFF;
+			    (pm8001_dev->id & NCQ_READ_LOG_FLAG)) {
 				pm8001_send_abort_all(pm8001_ha, pm8001_dev);
 				/* Free the tag */
 				pm8001_tag_free(pm8001_ha, tag);
@@ -2418,7 +2378,8 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 				len = sizeof(struct pio_setup_fis);
 				pm8001_dbg(pm8001_ha, IO,
 					   "PIO read len = %d\n", len);
-			} else if (t->ata_task.use_ncq) {
+			} else if (t->ata_task.use_ncq &&
+				   t->data_dir != DMA_NONE) {
 				len = sizeof(struct set_dev_bits_fis);
 				pm8001_dbg(pm8001_ha, IO, "FPDMA len = %d\n",
 					   len);
@@ -2512,7 +2473,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 				IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS);
 			ts->resp = SAS_TASK_UNDELIVERED;
 			ts->stat = SAS_QUEUE_FULL;
-			pm8001_ccb_task_free_done(pm8001_ha, t, ccb, tag);
+			pm8001_ccb_task_free_done(pm8001_ha, ccb);
 			return;
 		}
 		break;
@@ -2528,7 +2489,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 				IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS);
 			ts->resp = SAS_TASK_UNDELIVERED;
 			ts->stat = SAS_QUEUE_FULL;
-			pm8001_ccb_task_free_done(pm8001_ha, t, ccb, tag);
+			pm8001_ccb_task_free_done(pm8001_ha, ccb);
 			return;
 		}
 		break;
@@ -2550,7 +2511,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 				IO_OPEN_CNX_ERROR_STP_RESOURCES_BUSY);
 			ts->resp = SAS_TASK_UNDELIVERED;
 			ts->stat = SAS_QUEUE_FULL;
-			pm8001_ccb_task_free_done(pm8001_ha, t, ccb, tag);
+			pm8001_ccb_task_free_done(pm8001_ha, ccb);
 			return;
 		}
 		break;
@@ -2621,7 +2582,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 				    IO_DS_NON_OPERATIONAL);
 			ts->resp = SAS_TASK_UNDELIVERED;
 			ts->stat = SAS_QUEUE_FULL;
-			pm8001_ccb_task_free_done(pm8001_ha, t, ccb, tag);
+			pm8001_ccb_task_free_done(pm8001_ha, ccb);
 			return;
 		}
 		break;
@@ -2641,7 +2602,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 				    IO_DS_IN_ERROR);
 			ts->resp = SAS_TASK_UNDELIVERED;
 			ts->stat = SAS_QUEUE_FULL;
-			pm8001_ccb_task_free_done(pm8001_ha, t, ccb, tag);
+			pm8001_ccb_task_free_done(pm8001_ha, ccb);
 			return;
 		}
 		break;
@@ -2665,17 +2626,16 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	}
 	spin_lock_irqsave(&t->task_state_lock, flags);
 	t->task_state_flags &= ~SAS_TASK_STATE_PENDING;
-	t->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
 	t->task_state_flags |= SAS_TASK_STATE_DONE;
 	if (unlikely((t->task_state_flags & SAS_TASK_STATE_ABORTED))) {
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
 		pm8001_dbg(pm8001_ha, FAIL,
 			   "task 0x%p done with io_status 0x%x resp 0x%x stat 0x%x but aborted by upper layer!\n",
 			   t, status, ts->resp, ts->stat);
-		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
+		pm8001_ccb_task_free(pm8001_ha, ccb);
 	} else {
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
-		pm8001_ccb_task_free_done(pm8001_ha, t, ccb, tag);
+		pm8001_ccb_task_free_done(pm8001_ha, ccb);
 	}
 }
 
@@ -3022,18 +2982,15 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	}
 	spin_lock_irqsave(&t->task_state_lock, flags);
 	t->task_state_flags &= ~SAS_TASK_STATE_PENDING;
-	t->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
 	t->task_state_flags |= SAS_TASK_STATE_DONE;
 	if (unlikely((t->task_state_flags & SAS_TASK_STATE_ABORTED))) {
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
 		pm8001_dbg(pm8001_ha, FAIL, "task 0x%p done with io_status 0x%x resp 0x%x stat 0x%x but aborted by upper layer!\n",
 			   t, status, ts->resp, ts->stat);
-		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
+		pm8001_ccb_task_free(pm8001_ha, ccb);
 	} else {
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
-		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
-		mb();/* in order to force CPU ordering */
-		t->task_done(t);
+		pm8001_ccb_task_free_done(pm8001_ha, ccb);
 	}
 }
 
@@ -3049,12 +3006,12 @@ void pm8001_mpi_set_dev_state_resp(struct pm8001_hba_info *pm8001_ha,
 	u32 device_id = le32_to_cpu(pPayload->device_id);
 	u8 pds = le32_to_cpu(pPayload->pds_nds) & PDS_BITS;
 	u8 nds = le32_to_cpu(pPayload->pds_nds) & NDS_BITS;
-	pm8001_dbg(pm8001_ha, MSG, "Set device id = 0x%x state from 0x%x to 0x%x status = 0x%x!\n",
+
+	pm8001_dbg(pm8001_ha, MSG,
+		   "Set device id = 0x%x state from 0x%x to 0x%x status = 0x%x!\n",
 		   device_id, pds, nds, status);
 	complete(pm8001_dev->setds_completion);
-	ccb->task = NULL;
-	ccb->ccb_tag = 0xFFFFFFFF;
-	pm8001_tag_free(pm8001_ha, tag);
+	pm8001_ccb_free(pm8001_ha, ccb);
 }
 
 void pm8001_mpi_set_nvmd_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
@@ -3064,15 +3021,14 @@ void pm8001_mpi_set_nvmd_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	u32 tag = le32_to_cpu(pPayload->tag);
 	struct pm8001_ccb_info *ccb = &pm8001_ha->ccb_info[tag];
 	u32 dlen_status = le32_to_cpu(pPayload->dlen_status);
+
 	complete(pm8001_ha->nvmd_completion);
 	pm8001_dbg(pm8001_ha, MSG, "Set nvm data complete!\n");
 	if ((dlen_status & NVMD_STAT) != 0) {
 		pm8001_dbg(pm8001_ha, FAIL, "Set nvm data error %x\n",
 				dlen_status);
 	}
-	ccb->task = NULL;
-	ccb->ccb_tag = 0xFFFFFFFF;
-	pm8001_tag_free(pm8001_ha, tag);
+	pm8001_ccb_free(pm8001_ha, ccb);
 }
 
 void
@@ -3097,9 +3053,7 @@ pm8001_mpi_get_nvmd_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		/* We should free tag during failure also, the tag is not being
 		 * freed by requesting path anywhere.
 		 */
-		ccb->task = NULL;
-		ccb->ccb_tag = 0xFFFFFFFF;
-		pm8001_tag_free(pm8001_ha, tag);
+		pm8001_ccb_free(pm8001_ha, ccb);
 		return;
 	}
 	if (ir_tds_bn_dps_das_nvm & IPMode) {
@@ -3143,9 +3097,7 @@ pm8001_mpi_get_nvmd_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	 */
 	complete(pm8001_ha->nvmd_completion);
 	pm8001_dbg(pm8001_ha, MSG, "Get nvmd data complete!\n");
-	ccb->task = NULL;
-	ccb->ccb_tag = 0xFFFFFFFF;
-	pm8001_tag_free(pm8001_ha, tag);
+	pm8001_ccb_free(pm8001_ha, ccb);
 }
 
 int pm8001_mpi_local_phy_ctl(struct pm8001_hba_info *pm8001_ha, void *piomb)
@@ -3292,17 +3244,14 @@ static void pm8001_hw_event_ack_req(struct pm8001_hba_info *pm8001_ha,
 	struct hw_event_ack_req	 payload;
 	u32 opc = OPC_INB_SAS_HW_EVENT_ACK;
 
-	struct inbound_queue_table *circularQ;
-
 	memset((u8 *)&payload, 0, sizeof(payload));
-	circularQ = &pm8001_ha->inbnd_q_tbl[Qnum];
 	payload.tag = cpu_to_le32(1);
 	payload.sea_phyid_portid = cpu_to_le32(((SEA & 0xFFFF) << 8) |
 		((phyId & 0x0F) << 4) | (port_id & 0x0F));
 	payload.param0 = cpu_to_le32(param0);
 	payload.param1 = cpu_to_le32(param1);
-	pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload,
-			sizeof(payload), 0);
+
+	pm8001_mpi_build_cmd(pm8001_ha, Qnum, opc, &payload, sizeof(payload), 0);
 }
 
 static int pm8001_chip_phy_ctl_req(struct pm8001_hba_info *pm8001_ha,
@@ -3556,9 +3505,7 @@ int pm8001_mpi_reg_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		break;
 	}
 	complete(pm8001_dev->dcompletion);
-	ccb->task = NULL;
-	ccb->ccb_tag = 0xFFFFFFFF;
-	pm8001_tag_free(pm8001_ha, htag);
+	pm8001_ccb_free(pm8001_ha, ccb);
 	return 0;
 }
 
@@ -3591,6 +3538,7 @@ int pm8001_mpi_fw_flash_update_resp(struct pm8001_hba_info *pm8001_ha,
 		(struct fw_flash_Update_resp *)(piomb + 4);
 	u32 tag = le32_to_cpu(ppayload->tag);
 	struct pm8001_ccb_info *ccb = &pm8001_ha->ccb_info[tag];
+
 	status = le32_to_cpu(ppayload->status);
 	switch (status) {
 	case FLASH_UPDATE_COMPLETE_PENDING_REBOOT:
@@ -3628,9 +3576,7 @@ int pm8001_mpi_fw_flash_update_resp(struct pm8001_hba_info *pm8001_ha,
 		break;
 	}
 	kfree(ccb->fw_control_context);
-	ccb->task = NULL;
-	ccb->ccb_tag = 0xFFFFFFFF;
-	pm8001_tag_free(pm8001_ha, tag);
+	pm8001_ccb_free(pm8001_ha, ccb);
 	complete(pm8001_ha->nvmd_completion);
 	return 0;
 }
@@ -3665,10 +3611,6 @@ int pm8001_mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 
 	status = le32_to_cpu(pPayload->status);
 	tag = le32_to_cpu(pPayload->tag);
-	if (!tag) {
-		pm8001_dbg(pm8001_ha, FAIL, " TAG NULL. RETURNING !!!\n");
-		return -1;
-	}
 
 	scp = le32_to_cpu(pPayload->scp);
 	ccb = &pm8001_ha->ccb_info[tag];
@@ -3696,19 +3638,17 @@ int pm8001_mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	}
 	spin_lock_irqsave(&t->task_state_lock, flags);
 	t->task_state_flags &= ~SAS_TASK_STATE_PENDING;
-	t->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
 	t->task_state_flags |= SAS_TASK_STATE_DONE;
 	spin_unlock_irqrestore(&t->task_state_lock, flags);
-	pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
+	pm8001_ccb_task_free(pm8001_ha, ccb);
 	mb();
 
 	if (pm8001_dev->id & NCQ_ABORT_ALL_FLAG) {
-		pm8001_tag_free(pm8001_ha, tag);
 		sas_free_task(t);
-		/* clear the flag */
-		pm8001_dev->id &= 0xBFFFFFFF;
-	} else
+		pm8001_dev->id &= ~NCQ_ABORT_ALL_FLAG;
+	} else {
 		t->task_done(t);
+	}
 
 	return 0;
 }
@@ -4143,7 +4083,6 @@ static int pm8001_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 	u32 req_len, resp_len;
 	struct smp_req smp_cmd;
 	u32 opc;
-	struct inbound_queue_table *circularQ;
 
 	memset(&smp_cmd, 0, sizeof(smp_cmd));
 	/*
@@ -4169,7 +4108,6 @@ static int pm8001_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 	}
 
 	opc = OPC_INB_SMP_REQUEST;
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 	smp_cmd.tag = cpu_to_le32(ccb->ccb_tag);
 	smp_cmd.long_smp_req.long_req_addr =
 		cpu_to_le64((u64)sg_dma_address(&task->smp_task.smp_req));
@@ -4180,8 +4118,8 @@ static int pm8001_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 	smp_cmd.long_smp_req.long_resp_size =
 		cpu_to_le32((u32)sg_dma_len(&task->smp_task.smp_resp)-4);
 	build_smp_cmd(pm8001_dev->device_id, smp_cmd.tag, &smp_cmd);
-	rc = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc,
-			&smp_cmd, sizeof(smp_cmd), 0);
+	rc = pm8001_mpi_build_cmd(pm8001_ha, 0, opc,
+				  &smp_cmd, sizeof(smp_cmd), 0);
 	if (rc)
 		goto err_out_2;
 
@@ -4209,9 +4147,7 @@ static int pm8001_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 	struct pm8001_device *pm8001_dev = dev->lldd_dev;
 	struct ssp_ini_io_start_req ssp_cmd;
 	u32 tag = ccb->ccb_tag;
-	int ret;
 	u64 phys_addr;
-	struct inbound_queue_table *circularQ;
 	u32 opc = OPC_INB_SSPINIIOSTART;
 	memset(&ssp_cmd, 0, sizeof(ssp_cmd));
 	memcpy(ssp_cmd.ssp_iu.lun, task->ssp_task.LUN, 8);
@@ -4227,7 +4163,6 @@ static int pm8001_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 	ssp_cmd.ssp_iu.efb_prio_attr |= (task->ssp_task.task_attr & 7);
 	memcpy(ssp_cmd.ssp_iu.cdb, task->ssp_task.cmd->cmnd,
 	       task->ssp_task.cmd->cmd_len);
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 
 	/* fill in PRD (scatter/gather) table, if any */
 	if (task->num_scatter > 1) {
@@ -4248,9 +4183,9 @@ static int pm8001_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 		ssp_cmd.len = cpu_to_le32(task->total_xfer_len);
 		ssp_cmd.esgl = 0;
 	}
-	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &ssp_cmd,
-			sizeof(ssp_cmd), 0);
-	return ret;
+
+	return pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &ssp_cmd,
+				    sizeof(ssp_cmd), 0);
 }
 
 static int pm8001_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
@@ -4260,32 +4195,30 @@ static int pm8001_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 	struct domain_device *dev = task->dev;
 	struct pm8001_device *pm8001_ha_dev = dev->lldd_dev;
 	u32 tag = ccb->ccb_tag;
-	int ret;
 	struct sata_start_req sata_cmd;
 	u32 hdr_tag, ncg_tag = 0;
 	u64 phys_addr;
 	u32 ATAP = 0x0;
 	u32 dir;
-	struct inbound_queue_table *circularQ;
 	unsigned long flags;
 	u32  opc = OPC_INB_SATA_HOST_OPSTART;
+
 	memset(&sata_cmd, 0, sizeof(sata_cmd));
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
-	if (task->data_dir == DMA_NONE) {
+
+	if (task->data_dir == DMA_NONE && !task->ata_task.use_ncq) {
 		ATAP = 0x04;  /* no data*/
 		pm8001_dbg(pm8001_ha, IO, "no data\n");
 	} else if (likely(!task->ata_task.device_control_reg_update)) {
-		if (task->ata_task.dma_xfer) {
+		if (task->ata_task.use_ncq &&
+		    dev->sata_dev.class != ATA_DEV_ATAPI) {
+			ATAP = 0x07; /* FPDMA */
+			pm8001_dbg(pm8001_ha, IO, "FPDMA\n");
+		} else if (task->ata_task.dma_xfer) {
 			ATAP = 0x06; /* DMA */
 			pm8001_dbg(pm8001_ha, IO, "DMA\n");
 		} else {
 			ATAP = 0x05; /* PIO*/
 			pm8001_dbg(pm8001_ha, IO, "PIO\n");
-		}
-		if (task->ata_task.use_ncq &&
-			dev->sata_dev.class != ATA_DEV_ATAPI) {
-			ATAP = 0x07; /* FPDMA */
-			pm8001_dbg(pm8001_ha, IO, "FPDMA\n");
 		}
 	}
 	if (task->ata_task.use_ncq && pm8001_get_ncq_tag(task, &hdr_tag)) {
@@ -4336,7 +4269,6 @@ static int pm8001_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 			ts->resp = SAS_TASK_COMPLETE;
 			ts->stat = SAS_SAM_STAT_GOOD;
 			task->task_state_flags &= ~SAS_TASK_STATE_PENDING;
-			task->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
 			task->task_state_flags |= SAS_TASK_STATE_DONE;
 			if (unlikely((task->task_state_flags &
 					SAS_TASK_STATE_ABORTED))) {
@@ -4346,20 +4278,18 @@ static int pm8001_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 					   "task 0x%p resp 0x%x  stat 0x%x but aborted by upper layer\n",
 					   task, ts->resp,
 					   ts->stat);
-				pm8001_ccb_task_free(pm8001_ha, task, ccb, tag);
+				pm8001_ccb_task_free(pm8001_ha, ccb);
 			} else {
 				spin_unlock_irqrestore(&task->task_state_lock,
 							flags);
-				pm8001_ccb_task_free_done(pm8001_ha, task,
-								ccb, tag);
+				pm8001_ccb_task_free_done(pm8001_ha, ccb);
 				return 0;
 			}
 		}
 	}
 
-	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &sata_cmd,
-			sizeof(sata_cmd), 0);
-	return ret;
+	return pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &sata_cmd,
+				    sizeof(sata_cmd), 0);
 }
 
 /**
@@ -4371,11 +4301,9 @@ static int
 pm8001_chip_phy_start_req(struct pm8001_hba_info *pm8001_ha, u8 phy_id)
 {
 	struct phy_start_req payload;
-	struct inbound_queue_table *circularQ;
-	int ret;
 	u32 tag = 0x01;
 	u32 opcode = OPC_INB_PHYSTART;
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
+
 	memset(&payload, 0, sizeof(payload));
 	payload.tag = cpu_to_le32(tag);
 	/*
@@ -4392,9 +4320,9 @@ pm8001_chip_phy_start_req(struct pm8001_hba_info *pm8001_ha, u8 phy_id)
 	memcpy(payload.sas_identify.sas_addr,
 		pm8001_ha->sas_addr, SAS_ADDR_SIZE);
 	payload.sas_identify.phy_id = phy_id;
-	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opcode, &payload,
-			sizeof(payload), 0);
-	return ret;
+
+	return pm8001_mpi_build_cmd(pm8001_ha, 0, opcode, &payload,
+				    sizeof(payload), 0);
 }
 
 /**
@@ -4406,17 +4334,15 @@ static int pm8001_chip_phy_stop_req(struct pm8001_hba_info *pm8001_ha,
 				    u8 phy_id)
 {
 	struct phy_stop_req payload;
-	struct inbound_queue_table *circularQ;
-	int ret;
 	u32 tag = 0x01;
 	u32 opcode = OPC_INB_PHYSTOP;
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
+
 	memset(&payload, 0, sizeof(payload));
 	payload.tag = cpu_to_le32(tag);
 	payload.phy_id = cpu_to_le32(phy_id);
-	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opcode, &payload,
-			sizeof(payload), 0);
-	return ret;
+
+	return pm8001_mpi_build_cmd(pm8001_ha, 0, opcode, &payload,
+				    sizeof(payload), 0);
 }
 
 /*
@@ -4428,9 +4354,8 @@ static int pm8001_chip_reg_dev_req(struct pm8001_hba_info *pm8001_ha,
 	struct reg_dev_req payload;
 	u32	opc;
 	u32 stp_sspsmp_sata = 0x4;
-	struct inbound_queue_table *circularQ;
 	u32 linkrate, phy_id;
-	int rc, tag = 0xdeadbeef;
+	int rc;
 	struct pm8001_ccb_info *ccb;
 	u8 retryFlag = 0x1;
 	u16 firstBurstSize = 0;
@@ -4438,16 +4363,13 @@ static int pm8001_chip_reg_dev_req(struct pm8001_hba_info *pm8001_ha,
 	struct domain_device *dev = pm8001_dev->sas_device;
 	struct domain_device *parent_dev = dev->parent;
 	struct pm8001_port *port = dev->port->lldd_port;
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 
 	memset(&payload, 0, sizeof(payload));
-	rc = pm8001_tag_alloc(pm8001_ha, &tag);
-	if (rc)
-		return rc;
-	ccb = &pm8001_ha->ccb_info[tag];
-	ccb->device = pm8001_dev;
-	ccb->ccb_tag = tag;
-	payload.tag = cpu_to_le32(tag);
+	ccb = pm8001_ccb_alloc(pm8001_ha, pm8001_dev, NULL);
+	if (!ccb)
+		return -SAS_QUEUE_FULL;
+
+	payload.tag = cpu_to_le32(ccb->ccb_tag);
 	if (flag == 1)
 		stp_sspsmp_sata = 0x02; /*direct attached sata */
 	else {
@@ -4474,8 +4396,12 @@ static int pm8001_chip_reg_dev_req(struct pm8001_hba_info *pm8001_ha,
 		cpu_to_le32(ITNT | (firstBurstSize * 0x10000));
 	memcpy(payload.sas_addr, pm8001_dev->sas_device->sas_addr,
 		SAS_ADDR_SIZE);
-	rc = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload,
-			sizeof(payload), 0);
+
+	rc = pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &payload,
+				  sizeof(payload), 0);
+	if (rc)
+		pm8001_ccb_free(pm8001_ha, ccb);
+
 	return rc;
 }
 
@@ -4487,18 +4413,15 @@ int pm8001_chip_dereg_dev_req(struct pm8001_hba_info *pm8001_ha,
 {
 	struct dereg_dev_req payload;
 	u32 opc = OPC_INB_DEREG_DEV_HANDLE;
-	int ret;
-	struct inbound_queue_table *circularQ;
 
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 	memset(&payload, 0, sizeof(payload));
 	payload.tag = cpu_to_le32(1);
 	payload.device_id = cpu_to_le32(device_id);
 	pm8001_dbg(pm8001_ha, MSG, "unregister device device_id = %d\n",
 		   device_id);
-	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload,
-			sizeof(payload), 0);
-	return ret;
+
+	return pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &payload,
+				    sizeof(payload), 0);
 }
 
 /**
@@ -4511,17 +4434,15 @@ static int pm8001_chip_phy_ctl_req(struct pm8001_hba_info *pm8001_ha,
 	u32 phyId, u32 phy_op)
 {
 	struct local_phy_ctl_req payload;
-	struct inbound_queue_table *circularQ;
-	int ret;
 	u32 opc = OPC_INB_LOCAL_PHY_CONTROL;
+
 	memset(&payload, 0, sizeof(payload));
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 	payload.tag = cpu_to_le32(1);
 	payload.phyop_phyid =
 		cpu_to_le32(((phy_op & 0xff) << 8) | (phyId & 0x0F));
-	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload,
-			sizeof(payload), 0);
-	return ret;
+
+	return pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &payload,
+				    sizeof(payload), 0);
 }
 
 static u32 pm8001_chip_is_our_interrupt(struct pm8001_hba_info *pm8001_ha)
@@ -4556,38 +4477,43 @@ pm8001_chip_isr(struct pm8001_hba_info *pm8001_ha, u8 vec)
 }
 
 static int send_task_abort(struct pm8001_hba_info *pm8001_ha, u32 opc,
-	u32 dev_id, u8 flag, u32 task_tag, u32 cmd_tag)
+	u32 dev_id, enum sas_internal_abort type, u32 task_tag, u32 cmd_tag)
 {
 	struct task_abort_req task_abort;
-	struct inbound_queue_table *circularQ;
-	int ret;
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
+
 	memset(&task_abort, 0, sizeof(task_abort));
-	if (ABORT_SINGLE == (flag & ABORT_MASK)) {
+	if (type == SAS_INTERNAL_ABORT_SINGLE) {
 		task_abort.abort_all = 0;
 		task_abort.device_id = cpu_to_le32(dev_id);
 		task_abort.tag_to_abort = cpu_to_le32(task_tag);
-		task_abort.tag = cpu_to_le32(cmd_tag);
-	} else if (ABORT_ALL == (flag & ABORT_MASK)) {
+	} else if (type == SAS_INTERNAL_ABORT_DEV) {
 		task_abort.abort_all = cpu_to_le32(1);
 		task_abort.device_id = cpu_to_le32(dev_id);
-		task_abort.tag = cpu_to_le32(cmd_tag);
+	} else {
+		pm8001_dbg(pm8001_ha, EH, "unknown type (%d)\n", type);
+		return -EIO;
 	}
-	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &task_abort,
-			sizeof(task_abort), 0);
-	return ret;
+
+	task_abort.tag = cpu_to_le32(cmd_tag);
+
+	return pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &task_abort,
+				    sizeof(task_abort), 0);
 }
 
 /*
  * pm8001_chip_abort_task - SAS abort task when error or exception happened.
  */
 int pm8001_chip_abort_task(struct pm8001_hba_info *pm8001_ha,
-	struct pm8001_device *pm8001_dev, u8 flag, u32 task_tag, u32 cmd_tag)
+	struct pm8001_ccb_info *ccb)
 {
-	u32 opc, device_id;
+	struct sas_task *task = ccb->task;
+	struct sas_internal_abort_task *abort = &task->abort_task;
+	struct pm8001_device *pm8001_dev = ccb->device;
 	int rc = TMF_RESP_FUNC_FAILED;
+	u32 opc, device_id;
+
 	pm8001_dbg(pm8001_ha, EH, "cmd_tag = %x, abort task tag = 0x%x\n",
-		   cmd_tag, task_tag);
+		   ccb->ccb_tag, abort->tag);
 	if (pm8001_dev->dev_type == SAS_END_DEVICE)
 		opc = OPC_INB_SSP_ABORT;
 	else if (pm8001_dev->dev_type == SAS_SATA_DEV)
@@ -4595,8 +4521,8 @@ int pm8001_chip_abort_task(struct pm8001_hba_info *pm8001_ha,
 	else
 		opc = OPC_INB_SMP_ABORT;/* SMP */
 	device_id = pm8001_dev->device_id;
-	rc = send_task_abort(pm8001_ha, opc, device_id, flag,
-		task_tag, cmd_tag);
+	rc = send_task_abort(pm8001_ha, opc, device_id, abort->type,
+			     abort->tag, ccb->ccb_tag);
 	if (rc != TMF_RESP_FUNC_COMPLETE)
 		pm8001_dbg(pm8001_ha, EH, "rc= %d\n", rc);
 	return rc;
@@ -4609,28 +4535,25 @@ int pm8001_chip_abort_task(struct pm8001_hba_info *pm8001_ha,
  * @tmf: task management function.
  */
 int pm8001_chip_ssp_tm_req(struct pm8001_hba_info *pm8001_ha,
-	struct pm8001_ccb_info *ccb, struct pm8001_tmf_task *tmf)
+	struct pm8001_ccb_info *ccb, struct sas_tmf_task *tmf)
 {
 	struct sas_task *task = ccb->task;
 	struct domain_device *dev = task->dev;
 	struct pm8001_device *pm8001_dev = dev->lldd_dev;
 	u32 opc = OPC_INB_SSPINITMSTART;
-	struct inbound_queue_table *circularQ;
 	struct ssp_ini_tm_start_req sspTMCmd;
-	int ret;
 
 	memset(&sspTMCmd, 0, sizeof(sspTMCmd));
 	sspTMCmd.device_id = cpu_to_le32(pm8001_dev->device_id);
-	sspTMCmd.relate_tag = cpu_to_le32(tmf->tag_of_task_to_be_managed);
+	sspTMCmd.relate_tag = cpu_to_le32((u32)tmf->tag_of_task_to_be_managed);
 	sspTMCmd.tmf = cpu_to_le32(tmf->tmf);
 	memcpy(sspTMCmd.lun, task->ssp_task.LUN, 8);
 	sspTMCmd.tag = cpu_to_le32(ccb->ccb_tag);
 	if (pm8001_ha->chip_id != chip_8001)
-		sspTMCmd.ds_ads_m = 0x08;
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
-	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &sspTMCmd,
-			sizeof(sspTMCmd), 0);
-	return ret;
+		sspTMCmd.ds_ads_m = cpu_to_le32(0x08);
+
+	return pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &sspTMCmd,
+				    sizeof(sspTMCmd), 0);
 }
 
 int pm8001_chip_get_nvmd_req(struct pm8001_hba_info *pm8001_ha,
@@ -4639,9 +4562,7 @@ int pm8001_chip_get_nvmd_req(struct pm8001_hba_info *pm8001_ha,
 	u32 opc = OPC_INB_GET_NVMD_DATA;
 	u32 nvmd_type;
 	int rc;
-	u32 tag;
 	struct pm8001_ccb_info *ccb;
-	struct inbound_queue_table *circularQ;
 	struct get_nvm_data_req nvmd_req;
 	struct fw_control_ex *fw_control_context;
 	struct pm8001_ioctl_payload *ioctl_payload = payload;
@@ -4652,17 +4573,16 @@ int pm8001_chip_get_nvmd_req(struct pm8001_hba_info *pm8001_ha,
 		return -ENOMEM;
 	fw_control_context->usrAddr = (u8 *)ioctl_payload->func_specific;
 	fw_control_context->len = ioctl_payload->rd_length;
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 	memset(&nvmd_req, 0, sizeof(nvmd_req));
-	rc = pm8001_tag_alloc(pm8001_ha, &tag);
-	if (rc) {
+
+	ccb = pm8001_ccb_alloc(pm8001_ha, NULL, NULL);
+	if (!ccb) {
 		kfree(fw_control_context);
-		return rc;
+		return -SAS_QUEUE_FULL;
 	}
-	ccb = &pm8001_ha->ccb_info[tag];
-	ccb->ccb_tag = tag;
 	ccb->fw_control_context = fw_control_context;
-	nvmd_req.tag = cpu_to_le32(tag);
+
+	nvmd_req.tag = cpu_to_le32(ccb->ccb_tag);
 
 	switch (nvmd_type) {
 	case TWI_DEVICE: {
@@ -4719,11 +4639,12 @@ int pm8001_chip_get_nvmd_req(struct pm8001_hba_info *pm8001_ha,
 	default:
 		break;
 	}
-	rc = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &nvmd_req,
-			sizeof(nvmd_req), 0);
+
+	rc = pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &nvmd_req,
+				  sizeof(nvmd_req), 0);
 	if (rc) {
 		kfree(fw_control_context);
-		pm8001_tag_free(pm8001_ha, tag);
+		pm8001_ccb_free(pm8001_ha, ccb);
 	}
 	return rc;
 }
@@ -4734,9 +4655,7 @@ int pm8001_chip_set_nvmd_req(struct pm8001_hba_info *pm8001_ha,
 	u32 opc = OPC_INB_SET_NVMD_DATA;
 	u32 nvmd_type;
 	int rc;
-	u32 tag;
 	struct pm8001_ccb_info *ccb;
-	struct inbound_queue_table *circularQ;
 	struct set_nvm_data_req nvmd_req;
 	struct fw_control_ex *fw_control_context;
 	struct pm8001_ioctl_payload *ioctl_payload = payload;
@@ -4745,20 +4664,20 @@ int pm8001_chip_set_nvmd_req(struct pm8001_hba_info *pm8001_ha,
 	fw_control_context = kzalloc(sizeof(struct fw_control_ex), GFP_KERNEL);
 	if (!fw_control_context)
 		return -ENOMEM;
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
+
 	memcpy(pm8001_ha->memoryMap.region[NVMD].virt_ptr,
 		&ioctl_payload->func_specific,
 		ioctl_payload->wr_length);
 	memset(&nvmd_req, 0, sizeof(nvmd_req));
-	rc = pm8001_tag_alloc(pm8001_ha, &tag);
-	if (rc) {
+
+	ccb = pm8001_ccb_alloc(pm8001_ha, NULL, NULL);
+	if (!ccb) {
 		kfree(fw_control_context);
-		return -EBUSY;
+		return -SAS_QUEUE_FULL;
 	}
-	ccb = &pm8001_ha->ccb_info[tag];
 	ccb->fw_control_context = fw_control_context;
-	ccb->ccb_tag = tag;
-	nvmd_req.tag = cpu_to_le32(tag);
+
+	nvmd_req.tag = cpu_to_le32(ccb->ccb_tag);
 	switch (nvmd_type) {
 	case TWI_DEVICE: {
 		u32 twi_addr, twi_page_size;
@@ -4804,11 +4723,12 @@ int pm8001_chip_set_nvmd_req(struct pm8001_hba_info *pm8001_ha,
 	default:
 		break;
 	}
-	rc = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &nvmd_req,
+
+	rc = pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &nvmd_req,
 			sizeof(nvmd_req), 0);
 	if (rc) {
 		kfree(fw_control_context);
-		pm8001_tag_free(pm8001_ha, tag);
+		pm8001_ccb_free(pm8001_ha, ccb);
 	}
 	return rc;
 }
@@ -4825,12 +4745,9 @@ pm8001_chip_fw_flash_update_build(struct pm8001_hba_info *pm8001_ha,
 {
 	struct fw_flash_Update_req payload;
 	struct fw_flash_updata_info *info;
-	struct inbound_queue_table *circularQ;
-	int ret;
 	u32 opc = OPC_INB_FW_FLASH_UPDATE;
 
 	memset(&payload, 0, sizeof(struct fw_flash_Update_req));
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 	info = fw_flash_updata_info;
 	payload.tag = cpu_to_le32(tag);
 	payload.cur_image_len = cpu_to_le32(info->cur_image_len);
@@ -4841,9 +4758,9 @@ pm8001_chip_fw_flash_update_build(struct pm8001_hba_info *pm8001_ha,
 		cpu_to_le32(lower_32_bits(le64_to_cpu(info->sgl.addr)));
 	payload.sgl_addr_hi =
 		cpu_to_le32(upper_32_bits(le64_to_cpu(info->sgl.addr)));
-	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload,
-			sizeof(payload), 0);
-	return ret;
+
+	return pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &payload,
+				    sizeof(payload), 0);
 }
 
 int
@@ -4854,7 +4771,6 @@ pm8001_chip_fw_flash_update_req(struct pm8001_hba_info *pm8001_ha,
 	struct fw_control_info *fw_control;
 	struct fw_control_ex *fw_control_context;
 	int rc;
-	u32 tag;
 	struct pm8001_ccb_info *ccb;
 	void *buffer = pm8001_ha->memoryMap.region[FW_FLASH].virt_ptr;
 	dma_addr_t phys_addr = pm8001_ha->memoryMap.region[FW_FLASH].phys_addr;
@@ -4878,16 +4794,21 @@ pm8001_chip_fw_flash_update_req(struct pm8001_hba_info *pm8001_ha,
 	fw_control_context->virtAddr = buffer;
 	fw_control_context->phys_addr = phys_addr;
 	fw_control_context->len = fw_control->len;
-	rc = pm8001_tag_alloc(pm8001_ha, &tag);
+
+	ccb = pm8001_ccb_alloc(pm8001_ha, NULL, NULL);
+	if (!ccb) {
+		kfree(fw_control_context);
+		return -SAS_QUEUE_FULL;
+	}
+	ccb->fw_control_context = fw_control_context;
+
+	rc = pm8001_chip_fw_flash_update_build(pm8001_ha, &flash_update_info,
+					       ccb->ccb_tag);
 	if (rc) {
 		kfree(fw_control_context);
-		return -EBUSY;
+		pm8001_ccb_free(pm8001_ha, ccb);
 	}
-	ccb = &pm8001_ha->ccb_info[tag];
-	ccb->fw_control_context = fw_control_context;
-	ccb->ccb_tag = tag;
-	rc = pm8001_chip_fw_flash_update_build(pm8001_ha, &flash_update_info,
-		tag);
+
 	return rc;
 }
 
@@ -4974,54 +4895,53 @@ pm8001_chip_set_dev_state_req(struct pm8001_hba_info *pm8001_ha,
 	struct pm8001_device *pm8001_dev, u32 state)
 {
 	struct set_dev_state_req payload;
-	struct inbound_queue_table *circularQ;
 	struct pm8001_ccb_info *ccb;
 	int rc;
-	u32 tag;
 	u32 opc = OPC_INB_SET_DEVICE_STATE;
+
 	memset(&payload, 0, sizeof(payload));
-	rc = pm8001_tag_alloc(pm8001_ha, &tag);
-	if (rc)
-		return -1;
-	ccb = &pm8001_ha->ccb_info[tag];
-	ccb->ccb_tag = tag;
-	ccb->device = pm8001_dev;
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
-	payload.tag = cpu_to_le32(tag);
+
+	ccb = pm8001_ccb_alloc(pm8001_ha, pm8001_dev, NULL);
+	if (!ccb)
+		return -SAS_QUEUE_FULL;
+
+	payload.tag = cpu_to_le32(ccb->ccb_tag);
 	payload.device_id = cpu_to_le32(pm8001_dev->device_id);
 	payload.nds = cpu_to_le32(state);
-	rc = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload,
-			sizeof(payload), 0);
-	return rc;
 
+	rc = pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &payload,
+				  sizeof(payload), 0);
+	if (rc)
+		pm8001_ccb_free(pm8001_ha, ccb);
+
+	return rc;
 }
 
 static int
 pm8001_chip_sas_re_initialization(struct pm8001_hba_info *pm8001_ha)
 {
 	struct sas_re_initialization_req payload;
-	struct inbound_queue_table *circularQ;
 	struct pm8001_ccb_info *ccb;
 	int rc;
-	u32 tag;
 	u32 opc = OPC_INB_SAS_RE_INITIALIZE;
+
 	memset(&payload, 0, sizeof(payload));
-	rc = pm8001_tag_alloc(pm8001_ha, &tag);
-	if (rc)
-		return -ENOMEM;
-	ccb = &pm8001_ha->ccb_info[tag];
-	ccb->ccb_tag = tag;
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
-	payload.tag = cpu_to_le32(tag);
+
+	ccb = pm8001_ccb_alloc(pm8001_ha, NULL, NULL);
+	if (!ccb)
+		return -SAS_QUEUE_FULL;
+
+	payload.tag = cpu_to_le32(ccb->ccb_tag);
 	payload.SSAHOLT = cpu_to_le32(0xd << 25);
 	payload.sata_hol_tmo = cpu_to_le32(80);
 	payload.open_reject_cmdretries_data_retries = cpu_to_le32(0xff00ff);
-	rc = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload,
-			sizeof(payload), 0);
-	if (rc)
-		pm8001_tag_free(pm8001_ha, tag);
-	return rc;
 
+	rc = pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &payload,
+				  sizeof(payload), 0);
+	if (rc)
+		pm8001_ccb_free(pm8001_ha, ccb);
+
+	return rc;
 }
 
 const struct pm8001_dispatch pm8001_8001_dispatch = {

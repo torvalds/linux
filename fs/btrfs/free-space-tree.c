@@ -25,6 +25,8 @@ static struct btrfs_root *btrfs_free_space_root(
 		.offset = 0,
 	};
 
+	if (btrfs_fs_incompat(block_group->fs_info, EXTENT_TREE_V2))
+		key.offset = block_group->global_root_id;
 	return btrfs_global_root(block_group->fs_info, &key);
 }
 

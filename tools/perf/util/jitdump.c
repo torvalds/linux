@@ -382,15 +382,15 @@ jit_inject_event(struct jit_buf_desc *jd, union perf_event *event)
 
 static pid_t jr_entry_pid(struct jit_buf_desc *jd, union jr_entry *jr)
 {
-	if (jd->nsi && jd->nsi->in_pidns)
-		return jd->nsi->tgid;
+	if (jd->nsi && nsinfo__in_pidns(jd->nsi))
+		return nsinfo__tgid(jd->nsi);
 	return jr->load.pid;
 }
 
 static pid_t jr_entry_tid(struct jit_buf_desc *jd, union jr_entry *jr)
 {
-	if (jd->nsi && jd->nsi->in_pidns)
-		return jd->nsi->pid;
+	if (jd->nsi && nsinfo__in_pidns(jd->nsi))
+		return nsinfo__pid(jd->nsi);
 	return jr->load.tid;
 }
 
@@ -779,7 +779,7 @@ jit_detect(char *mmap_name, pid_t pid, struct nsinfo *nsi)
 	 * pid does not match mmap pid
 	 * pid==0 in system-wide mode (synthesized)
 	 */
-	if (pid && pid2 != nsi->nstgid)
+	if (pid && pid2 != nsinfo__nstgid(nsi))
 		return -1;
 	/*
 	 * validate suffix

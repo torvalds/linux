@@ -37,9 +37,15 @@
  * a 2-byte nop if the size of the area is not divisible by 6.
  */
 .macro alt_pad_fill bytes
-	.fill	( \bytes ) / 6, 6, 0xc0040000
-	.fill	( \bytes ) % 6 / 4, 4, 0x47000000
-	.fill	( \bytes ) % 6 % 4 / 2, 2, 0x0700
+	.rept	( \bytes ) / 6
+	brcl	0,0
+	.endr
+	.rept	( \bytes ) % 6 / 4
+	nop
+	.endr
+	.rept	( \bytes ) % 6 % 4 / 2
+	nopr
+	.endr
 .endm
 
 /*

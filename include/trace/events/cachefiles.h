@@ -426,8 +426,8 @@ TRACE_EVENT(cachefiles_vol_coherency,
 	    );
 
 TRACE_EVENT(cachefiles_prep_read,
-	    TP_PROTO(struct netfs_read_subrequest *sreq,
-		     enum netfs_read_source source,
+	    TP_PROTO(struct netfs_io_subrequest *sreq,
+		     enum netfs_io_source source,
 		     enum cachefiles_prepare_read_trace why,
 		     ino_t cache_inode),
 
@@ -437,7 +437,7 @@ TRACE_EVENT(cachefiles_prep_read,
 		    __field(unsigned int,		rreq		)
 		    __field(unsigned short,		index		)
 		    __field(unsigned short,		flags		)
-		    __field(enum netfs_read_source,	source		)
+		    __field(enum netfs_io_source,	source		)
 		    __field(enum cachefiles_prepare_read_trace,	why	)
 		    __field(size_t,			len		)
 		    __field(loff_t,			start		)

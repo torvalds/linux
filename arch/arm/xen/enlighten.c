@@ -337,12 +337,15 @@ int __init arch_xen_unpopulated_init(struct resource **res)
 
 	if (!nr_reg) {
 		pr_err("No extended regions are found\n");
+		of_node_put(np);
 		return -EINVAL;
 	}
 
 	regs = kcalloc(nr_reg, sizeof(*regs), GFP_KERNEL);
-	if (!regs)
+	if (!regs) {
+		of_node_put(np);
 		return -ENOMEM;
+	}
 
 	/*
 	 * Create resource from extended regions provided by the hypervisor to be
@@ -403,8 +406,8 @@ int __init arch_xen_unpopulated_init(struct resource **res)
 	*res = &xen_resource;
 
 err:
+	of_node_put(np);
 	kfree(regs);
-
 	return rc;
 }
 #endif
@@ -424,8 +427,10 @@ static void __init xen_dt_guest_init(void)
 
 	if (of_address_to_resource(xen_node, GRANT_TABLE_INDEX, &res)) {
 		pr_err("Xen grant table region is not found\n");
+		of_node_put(xen_node);
 		return;
 	}
+	of_node_put(xen_node);
 	xen_grant_frames = res.start;
 }
 

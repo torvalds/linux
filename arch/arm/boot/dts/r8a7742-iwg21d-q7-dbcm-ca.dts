@@ -91,10 +91,10 @@
 
 &gpio0 {
 	/* Disable hogging GP0_18 to output LOW */
-	/delete-node/ qspi_en;
+	/delete-node/ qspi-en-hog;
 
 	/* Hog GP0_18 to output HIGH to enable VIN2 */
-	vin2_en {
+	vin2-en-hog {
 		gpio-hog;
 		gpios = <18 GPIO_ACTIVE_HIGH>;
 		output-high;

@@ -78,6 +78,9 @@ int remove_phb_dynamic(struct pci_controller *phb)
 
 	pseries_msi_free_domains(phb);
 
+	/* Keep a reference so phb isn't freed yet */
+	get_device(&host_bridge->dev);
+
 	/* Remove the PCI bus and unregister the bridge device from sysfs */
 	phb->bus = NULL;
 	pci_remove_bus(b);
@@ -101,6 +104,7 @@ int remove_phb_dynamic(struct pci_controller *phb)
 	 * the pcibios_free_controller_deferred() callback;
 	 * see pseries_root_bridge_prepare().
 	 */
+	put_device(&host_bridge->dev);
 
 	return 0;
 }

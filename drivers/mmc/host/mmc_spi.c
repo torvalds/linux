@@ -1489,7 +1489,7 @@ nomem:
 }
 
 
-static int mmc_spi_remove(struct spi_device *spi)
+static void mmc_spi_remove(struct spi_device *spi)
 {
 	struct mmc_host		*mmc = dev_get_drvdata(&spi->dev);
 	struct mmc_spi_host	*host = mmc_priv(mmc);
@@ -1507,7 +1507,6 @@ static int mmc_spi_remove(struct spi_device *spi)
 	spi->max_speed_hz = mmc->f_max;
 	mmc_spi_put_pdata(spi);
 	mmc_free_host(mmc);
-	return 0;
 }
 
 static const struct spi_device_id mmc_spi_dev_ids[] = {

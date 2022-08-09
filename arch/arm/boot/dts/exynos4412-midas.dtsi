@@ -987,19 +987,19 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sleep0>;
 
-	mhl_int: mhl-int {
+	mhl_int: mhl-int-pins {
 		samsung,pins = "gpf3-5";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	i2c_mhl_bus: i2c-mhl-bus {
+	i2c_mhl_bus: i2c-mhl-bus-pins {
 		samsung,pins = "gpf0-4", "gpf0-6";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	sleep0: sleep-states {
+	sleep0: sleep-state {
 		PIN_SLP(gpa0-0, INPUT, NONE);
 		PIN_SLP(gpa0-1, OUT0, NONE);
 		PIN_SLP(gpa0-2, INPUT, NONE);
@@ -1102,52 +1102,52 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sleep1>;
 
-	gpio_keys: gpio-keys {
+	gpio_keys: gpio-keys-pins {
 		samsung,pins = "gpx0-1", "gpx2-2", "gpx2-7", "gpx3-3";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	bt_shutdown: bt-shutdown {
+	bt_shutdown: bt-shutdown-pins {
 		samsung,pins = "gpl0-6";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	bt_host_wakeup: bt-host-wakeup {
+	bt_host_wakeup: bt-host-wakeup-pins {
 		samsung,pins = "gpx2-6";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	bt_device_wakeup: bt-device-wakeup {
+	bt_device_wakeup: bt-device-wakeup-pins {
 		samsung,pins = "gpx3-1";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	max77686_irq: max77686-irq {
+	max77686_irq: max77686-irq-pins {
 		samsung,pins = "gpx0-7";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	max77693_irq: max77693-irq {
+	max77693_irq: max77693-irq-pins {
 		samsung,pins = "gpx1-5";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	max77693_fuel_irq: max77693-fuel-irq {
+	max77693_fuel_irq: max77693-fuel-irq-pins {
 		samsung,pins = "gpx2-3";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	sdhci2_cd: sdhci2-cd-irq {
+	sdhci2_cd: sdhci2-cd-irq-pins {
 		samsung,pins = "gpx3-4";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	hdmi_hpd: hdmi-hpd {
+	hdmi_hpd: hdmi-hpd-pins {
 		samsung,pins = "gpx3-7";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
 	};
 
-	sleep1: sleep-states {
+	sleep1: sleep-state {
 		PIN_SLP(gpk0-0, PREV, NONE);
 		PIN_SLP(gpk0-1, PREV, NONE);
 		PIN_SLP(gpk0-2, OUT0, NONE);
@@ -1300,7 +1300,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sleep2>;
 
-	sleep2: sleep-states {
+	sleep2: sleep-state {
 		PIN_SLP(gpz-0, INPUT, DOWN);
 		PIN_SLP(gpz-1, INPUT, DOWN);
 		PIN_SLP(gpz-2, INPUT, DOWN);
@@ -1315,7 +1315,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sleep3>;
 
-	sleep3: sleep-states {
+	sleep3: sleep-state {
 		PIN_SLP(gpv0-0, INPUT, DOWN);
 		PIN_SLP(gpv0-1, INPUT, DOWN);
 		PIN_SLP(gpv0-2, INPUT, DOWN);

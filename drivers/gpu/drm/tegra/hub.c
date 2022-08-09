@@ -540,8 +540,8 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	struct tegra_plane *p = to_tegra_plane(plane);
 	u32 value, min_width, bypass = 0;
 	dma_addr_t base, addr_flag = 0;
-	unsigned int bpc;
-	bool yuv, planar;
+	unsigned int bpc, planes;
+	bool yuv;
 	int err;
 
 	/* rien ne va plus */
@@ -559,7 +559,7 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 		return;
 	}
 
-	yuv = tegra_plane_format_is_yuv(tegra_plane_state->format, &planar, &bpc);
+	yuv = tegra_plane_format_is_yuv(tegra_plane_state->format, &planes, &bpc);
 
 	tegra_dc_assign_shared_plane(dc, p);
 
@@ -660,20 +660,26 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	value = PITCH(fb->pitches[0]);
 	tegra_plane_writel(p, value, DC_WIN_PLANAR_STORAGE);
 
-	if (yuv && planar) {
+	if (yuv && planes > 1) {
 		base = tegra_plane_state->iova[1] + fb->offsets[1];
 		base |= addr_flag;
 
 		tegra_plane_writel(p, upper_32_bits(base), DC_WINBUF_START_ADDR_HI_U);
 		tegra_plane_writel(p, lower_32_bits(base), DC_WINBUF_START_ADDR_U);
 
-		base = tegra_plane_state->iova[2] + fb->offsets[2];
-		base |= addr_flag;
+		if (planes > 2) {
+			base = tegra_plane_state->iova[2] + fb->offsets[2];
+			base |= addr_flag;
 
-		tegra_plane_writel(p, upper_32_bits(base), DC_WINBUF_START_ADDR_HI_V);
-		tegra_plane_writel(p, lower_32_bits(base), DC_WINBUF_START_ADDR_V);
+			tegra_plane_writel(p, upper_32_bits(base), DC_WINBUF_START_ADDR_HI_V);
+			tegra_plane_writel(p, lower_32_bits(base), DC_WINBUF_START_ADDR_V);
+		}
 
-		value = PITCH_U(fb->pitches[2]) | PITCH_V(fb->pitches[2]);
+		value = PITCH_U(fb->pitches[1]);
+
+		if (planes > 2)
+			value |= PITCH_V(fb->pitches[2]);
+
 		tegra_plane_writel(p, value, DC_WIN_PLANAR_STORAGE_UV);
 	} else {
 		tegra_plane_writel(p, 0, DC_WINBUF_START_ADDR_U);

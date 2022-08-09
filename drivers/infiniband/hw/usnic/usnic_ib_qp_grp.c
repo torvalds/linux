@@ -32,7 +32,6 @@
  */
 #include <linux/bug.h>
 #include <linux/errno.h>
-#include <linux/module.h>
 #include <linux/spinlock.h>
 
 #include "usnic_log.h"

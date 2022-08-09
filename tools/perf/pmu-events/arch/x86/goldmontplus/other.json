@@ -1,98 +1,96 @@
 [
     {
+        "BriefDescription": "Cycles code-fetch stalled due to any reason.",
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts cycles that fetch is stalled due to any reason. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes.  This will include cycles due to an ITLB miss, ICache miss and other events.",
-        "EventCode": "0x86",
         "Counter": "0,1,2,3",
-        "UMask": "0x0",
-        "PEBScounters": "0,1,2,3",
+        "EventCode": "0x86",
         "EventName": "FETCH_STALL.ALL",
         "PDIR_COUNTER": "na",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Cycles code-fetch stalled due to any reason."
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts cycles that fetch is stalled due to any reason. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes.  This will include cycles due to an ITLB miss, ICache miss and other events.",
+        "SampleAfterValue": "200003"
     },
     {
+        "BriefDescription": "Cycles the code-fetch stalls and an ITLB miss is outstanding.",
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts cycles that fetch is stalled due to an outstanding ITLB miss. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes due to an ITLB miss.  Note: this event is not the same as page walk cycles to retrieve an instruction translation.",
-        "EventCode": "0x86",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "PEBScounters": "0,1,2,3",
+        "EventCode": "0x86",
         "EventName": "FETCH_STALL.ITLB_FILL_PENDING_CYCLES",
         "PDIR_COUNTER": "na",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Cycles the code-fetch stalls and an ITLB miss is outstanding."
-    },
-    {
-        "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts the number of issue slots per core cycle that were not consumed by the backend due to either a full resource  in the backend (RESOURCE_FULL) or due to the processor recovering from some event (RECOVERY).",
-        "EventCode": "0xCA",
-        "Counter": "0,1,2,3",
-        "UMask": "0x0",
         "PEBScounters": "0,1,2,3",
-        "EventName": "ISSUE_SLOTS_NOT_CONSUMED.ANY",
-        "PDIR_COUNTER": "na",
+        "PublicDescription": "Counts cycles that fetch is stalled due to an outstanding ITLB miss. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes due to an ITLB miss.  Note: this event is not the same as page walk cycles to retrieve an instruction translation.",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Unfilled issue slots per cycle"
+        "UMask": "0x1"
     },
     {
-        "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts the number of issue slots per core cycle that were not consumed because of a full resource in the backend.  Including but not limited to resources such as the Re-order Buffer (ROB), reservation stations (RS), load/store buffers, physical registers, or any other needed machine resource that is currently unavailable.   Note that uops must be available for consumption in order for this event to fire.  If a uop is not available (Instruction Queue is empty), this event will not count.",
-        "EventCode": "0xCA",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "PEBScounters": "0,1,2,3",
-        "EventName": "ISSUE_SLOTS_NOT_CONSUMED.RESOURCE_FULL",
-        "PDIR_COUNTER": "na",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Unfilled issue slots per cycle because of a full resource in the backend"
-    },
-    {
-        "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts the number of issue slots per core cycle that were not consumed by the backend because allocation is stalled waiting for a mispredicted jump to retire or other branch-like conditions (e.g. the event is relevant during certain microcode flows).   Counts all issue slots blocked while within this window including slots where uops were not available in the Instruction Queue.",
-        "EventCode": "0xCA",
-        "Counter": "0,1,2,3",
-        "UMask": "0x2",
-        "PEBScounters": "0,1,2,3",
-        "EventName": "ISSUE_SLOTS_NOT_CONSUMED.RECOVERY",
-        "PDIR_COUNTER": "na",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Unfilled issue slots per cycle to recover"
-    },
-    {
+        "BriefDescription": "Cycles hardware interrupts are masked",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts hardware interrupts received by the processor.",
-        "EventCode": "0xCB",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "PEBScounters": "0,1,2,3",
-        "EventName": "HW_INTERRUPTS.RECEIVED",
-        "PDIR_COUNTER": "na",
-        "SampleAfterValue": "203",
-        "BriefDescription": "Hardware interrupts received"
-    },
-    {
-        "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the number of core cycles during which interrupts are masked (disabled). Increments by 1 each core cycle that EFLAGS.IF is 0, regardless of whether interrupts are pending or not.",
         "EventCode": "0xCB",
-        "Counter": "0,1,2,3",
-        "UMask": "0x2",
-        "PEBScounters": "0,1,2,3",
         "EventName": "HW_INTERRUPTS.MASKED",
         "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts the number of core cycles during which interrupts are masked (disabled). Increments by 1 each core cycle that EFLAGS.IF is 0, regardless of whether interrupts are pending or not.",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Cycles hardware interrupts are masked"
+        "UMask": "0x2"
     },
     {
+        "BriefDescription": "Cycles pending interrupts are masked",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts core cycles during which there are pending interrupts, but interrupts are masked (EFLAGS.IF = 0).",
-        "EventCode": "0xCB",
         "Counter": "0,1,2,3",
-        "UMask": "0x4",
-        "PEBScounters": "0,1,2,3",
+        "EventCode": "0xCB",
         "EventName": "HW_INTERRUPTS.PENDING_AND_MASKED",
         "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts core cycles during which there are pending interrupts, but interrupts are masked (EFLAGS.IF = 0).",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Cycles pending interrupts are masked"
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Hardware interrupts received",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xCB",
+        "EventName": "HW_INTERRUPTS.RECEIVED",
+        "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts hardware interrupts received by the processor.",
+        "SampleAfterValue": "203",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Unfilled issue slots per cycle",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xCA",
+        "EventName": "ISSUE_SLOTS_NOT_CONSUMED.ANY",
+        "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts the number of issue slots per core cycle that were not consumed by the backend due to either a full resource  in the backend (RESOURCE_FULL) or due to the processor recovering from some event (RECOVERY).",
+        "SampleAfterValue": "200003"
+    },
+    {
+        "BriefDescription": "Unfilled issue slots per cycle to recover",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xCA",
+        "EventName": "ISSUE_SLOTS_NOT_CONSUMED.RECOVERY",
+        "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts the number of issue slots per core cycle that were not consumed by the backend because allocation is stalled waiting for a mispredicted jump to retire or other branch-like conditions (e.g. the event is relevant during certain microcode flows).   Counts all issue slots blocked while within this window including slots where uops were not available in the Instruction Queue.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Unfilled issue slots per cycle because of a full resource in the backend",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xCA",
+        "EventName": "ISSUE_SLOTS_NOT_CONSUMED.RESOURCE_FULL",
+        "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts the number of issue slots per core cycle that were not consumed because of a full resource in the backend.  Including but not limited to resources such as the Re-order Buffer (ROB), reservation stations (RS), load/store buffers, physical registers, or any other needed machine resource that is currently unavailable.   Note that uops must be available for consumption in order for this event to fire.  If a uop is not available (Instruction Queue is empty), this event will not count.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x1"
     }
 ]

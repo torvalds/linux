@@ -25,6 +25,14 @@
 #define THREAD_SIZE		(PAGE_SIZE << THREAD_SIZE_ORDER)
 #define THREAD_START_SP		(THREAD_SIZE - 8)
 
+#ifdef CONFIG_VMAP_STACK
+#define THREAD_ALIGN		(2 * THREAD_SIZE)
+#else
+#define THREAD_ALIGN		THREAD_SIZE
+#endif
+
+#define OVERFLOW_STACK_SIZE	SZ_4K
+
 #ifndef __ASSEMBLY__
 
 struct task_struct;
@@ -54,9 +62,6 @@ struct cpu_context_save {
 struct thread_info {
 	unsigned long		flags;		/* low level flags */
 	int			preempt_count;	/* 0 => preemptable, <0 => bug */
-#ifndef CONFIG_THREAD_INFO_IN_TASK
-	struct task_struct	*task;		/* main task structure */
-#endif
 	__u32			cpu;		/* cpu */
 	__u32			cpu_domain;	/* cpu domain */
 	struct cpu_context_save	cpu_context;	/* cpu context */
@@ -72,38 +77,14 @@ struct thread_info {
 
 #define INIT_THREAD_INFO(tsk)						\
 {									\
-	INIT_THREAD_INFO_TASK(tsk)					\
 	.flags		= 0,						\
 	.preempt_count	= INIT_PREEMPT_COUNT,				\
 }
-
-#ifdef CONFIG_THREAD_INFO_IN_TASK
-#define INIT_THREAD_INFO_TASK(tsk)
 
 static inline struct task_struct *thread_task(struct thread_info* ti)
 {
 	return (struct task_struct *)ti;
 }
-
-#else
-#define INIT_THREAD_INFO_TASK(tsk)	.task = &(tsk),
-
-static inline struct task_struct *thread_task(struct thread_info* ti)
-{
-	return ti->task;
-}
-
-/*
- * how to get the thread information struct from C
- */
-static inline struct thread_info *current_thread_info(void) __attribute_const__;
-
-static inline struct thread_info *current_thread_info(void)
-{
-	return (struct thread_info *)
-		(current_stack_pointer & ~(THREAD_SIZE - 1));
-}
-#endif
 
 #define thread_saved_pc(tsk)	\
 	((unsigned long)(task_thread_info(tsk)->cpu_context.pc))

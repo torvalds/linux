@@ -95,7 +95,7 @@ static int ir_imon_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	struct imon_dec *data = &dev->raw->imon;
 
 	if (!is_timing_event(ev)) {
-		if (ev.reset)
+		if (ev.overflow)
 			data->state = STATE_INACTIVE;
 		return 0;
 	}

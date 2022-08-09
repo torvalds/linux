@@ -13,6 +13,7 @@
 #include <linux/tracepoint.h>
 
 #include "i915_drv.h"
+#include "i915_irq.h"
 #include "intel_crtc.h"
 #include "intel_display_types.h"
 

@@ -11,7 +11,6 @@
 #include <linux/iio/iio.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
@@ -523,7 +522,7 @@ static int ad5592r_alloc_channels(struct iio_dev *iio_dev)
 		if (!ret)
 			st->channel_modes[reg] = tmp;
 
-		fwnode_property_read_u32(child, "adi,off-state", &tmp);
+		ret = fwnode_property_read_u32(child, "adi,off-state", &tmp);
 		if (!ret)
 			st->channel_offstate[reg] = tmp;
 	}
@@ -661,7 +660,7 @@ error_disable_reg:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ad5592r_probe);
+EXPORT_SYMBOL_NS_GPL(ad5592r_probe, IIO_AD5592R);
 
 void ad5592r_remove(struct device *dev)
 {
@@ -675,7 +674,7 @@ void ad5592r_remove(struct device *dev)
 	if (st->reg)
 		regulator_disable(st->reg);
 }
-EXPORT_SYMBOL_GPL(ad5592r_remove);
+EXPORT_SYMBOL_NS_GPL(ad5592r_remove, IIO_AD5592R);
 
 MODULE_AUTHOR("Paul Cercueil <paul.cercueil@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD5592R multi-channel converters");

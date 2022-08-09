@@ -812,6 +812,10 @@
 
 #define IND_ACC_TABLE(table)		((table) << 8)
 
+/* */
+#define REG_IND_EEE_GLOB2_LO		0x34
+#define REG_IND_EEE_GLOB2_HI		0x35
+
 /* Driver set switch broadcast storm protection at 10% rate. */
 #define BROADCAST_STORM_PROT_RATE	10
 

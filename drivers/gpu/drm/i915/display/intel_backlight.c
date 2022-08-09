@@ -13,6 +13,7 @@
 #include "intel_dp_aux_backlight.h"
 #include "intel_dsi_dcs_backlight.h"
 #include "intel_panel.h"
+#include "intel_pci_config.h"
 
 /**
  * scale - scale values from one range to another
@@ -432,6 +433,8 @@ static void ext_pwm_disable_backlight(const struct drm_connector_state *old_conn
 {
 	struct intel_connector *connector = to_intel_connector(old_conn_state->connector);
 	struct intel_panel *panel = &connector->panel;
+
+	intel_backlight_set_pwm_level(old_conn_state, level);
 
 	panel->backlight.pwm_state.enabled = false;
 	pwm_apply_state(panel->backlight.pwm, &panel->backlight.pwm_state);

@@ -103,11 +103,11 @@ on the following table.
 
     ``LIRC_MODE2_PULSE``
 
-        Signifies the presence of IR in microseconds.
+        Signifies the presence of IR in microseconds, also known as *flash*.
 
     ``LIRC_MODE2_SPACE``
 
-        Signifies absence of IR in microseconds.
+        Signifies absence of IR in microseconds, also known as *gap*.
 
     ``LIRC_MODE2_FREQUENCY``
 
@@ -120,6 +120,13 @@ on the following table.
         When the timeout set with :ref:`lirc_set_rec_timeout` expires due
         to no IR being detected, this packet will be sent, with the number
         of microseconds with no IR.
+
+    ``LIRC_MODE2_OVERFLOW``
+
+        Signifies that the IR receiver encounter an overflow, and some IR
+        is missing. The IR data after this should be correct again. The
+        actual value is not important, but this is set to 0xffffff by the
+        kernel for compatibility with lircd.
 
 .. _lirc-mode-pulse:
 

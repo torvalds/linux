@@ -605,6 +605,30 @@ static void at91sam9_sdram_standby(void)
 		at91_ramc_write(1, AT91_SDRAMC_LPR, saved_lpr1);
 }
 
+static void sama7g5_standby(void)
+{
+	int pwrtmg, ratio;
+
+	pwrtmg = readl(soc_pm.data.ramc[0] + UDDRC_PWRCTL);
+	ratio = readl(soc_pm.data.pmc + AT91_PMC_RATIO);
+
+	/*
+	 * Place RAM into self-refresh after a maximum idle clocks. The maximum
+	 * idle clocks is configured by bootloader in
+	 * UDDRC_PWRMGT.SELFREF_TO_X32.
+	 */
+	writel(pwrtmg | UDDRC_PWRCTL_SELFREF_EN,
+	       soc_pm.data.ramc[0] + UDDRC_PWRCTL);
+	/* Divide CPU clock by 16. */
+	writel(ratio & ~AT91_PMC_RATIO_RATIO, soc_pm.data.pmc + AT91_PMC_RATIO);
+
+	cpu_do_idle();
+
+	/* Restore previous configuration. */
+	writel(ratio, soc_pm.data.pmc + AT91_PMC_RATIO);
+	writel(pwrtmg, soc_pm.data.ramc[0] + UDDRC_PWRCTL);
+}
+
 struct ramc_info {
 	void (*idle)(void);
 	unsigned int memctrl;
@@ -615,6 +639,7 @@ static const struct ramc_info ramc_infos[] __initconst = {
 	{ .idle = at91sam9_sdram_standby, .memctrl = AT91_MEMCTRL_SDRAMC},
 	{ .idle = at91_ddr_standby, .memctrl = AT91_MEMCTRL_DDRSDR},
 	{ .idle = sama5d3_ddr_standby, .memctrl = AT91_MEMCTRL_DDRSDR},
+	{ .idle = sama7g5_standby, },
 };
 
 static const struct of_device_id ramc_ids[] __initconst = {
@@ -622,7 +647,7 @@ static const struct of_device_id ramc_ids[] __initconst = {
 	{ .compatible = "atmel,at91sam9260-sdramc", .data = &ramc_infos[1] },
 	{ .compatible = "atmel,at91sam9g45-ddramc", .data = &ramc_infos[2] },
 	{ .compatible = "atmel,sama5d3-ddramc", .data = &ramc_infos[3] },
-	{ .compatible = "microchip,sama7g5-uddrc", },
+	{ .compatible = "microchip,sama7g5-uddrc", .data = &ramc_infos[4], },
 	{ /*sentinel*/ }
 };
 

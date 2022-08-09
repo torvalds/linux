@@ -18,6 +18,13 @@ enum nhlt_link_type {
 	NHLT_LINK_INVALID
 };
 
+enum nhlt_device_type {
+	NHLT_DEVICE_BT = 0,
+	NHLT_DEVICE_DMIC = 1,
+	NHLT_DEVICE_I2S = 4,
+	NHLT_DEVICE_INVALID
+};
+
 #if IS_ENABLED(CONFIG_ACPI) && IS_ENABLED(CONFIG_SND_INTEL_NHLT)
 
 struct wav_fmt {
@@ -40,13 +47,6 @@ struct wav_fmt_ext {
 	u32 channel_mask;
 	u8 sub_fmt[16];
 } __packed;
-
-enum nhlt_device_type {
-	NHLT_DEVICE_BT = 0,
-	NHLT_DEVICE_DMIC = 1,
-	NHLT_DEVICE_I2S = 4,
-	NHLT_DEVICE_INVALID
-};
 
 struct nhlt_specific_cfg {
 	u32 size;
@@ -133,6 +133,9 @@ void intel_nhlt_free(struct nhlt_acpi_table *addr);
 int intel_nhlt_get_dmic_geo(struct device *dev, struct nhlt_acpi_table *nhlt);
 
 bool intel_nhlt_has_endpoint_type(struct nhlt_acpi_table *nhlt, u8 link_type);
+
+int intel_nhlt_ssp_endpoint_mask(struct nhlt_acpi_table *nhlt, u8 device_type);
+
 struct nhlt_specific_cfg *
 intel_nhlt_get_endpoint_blob(struct device *dev, struct nhlt_acpi_table *nhlt,
 			     u32 bus_id, u8 link_type, u8 vbps, u8 bps,
@@ -161,6 +164,11 @@ static inline bool intel_nhlt_has_endpoint_type(struct nhlt_acpi_table *nhlt,
 						u8 link_type)
 {
 	return false;
+}
+
+static inline int intel_nhlt_ssp_endpoint_mask(struct nhlt_acpi_table *nhlt, u8 device_type)
+{
+	return 0;
 }
 
 static inline struct nhlt_specific_cfg *

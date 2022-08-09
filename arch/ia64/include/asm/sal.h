@@ -420,7 +420,7 @@ typedef struct sal_log_processor_info {
 	 * The rest of this structure consists of variable-length arrays, which can't be
 	 * expressed in C.
 	 */
-	sal_log_mod_error_info_t info[0];
+	sal_log_mod_error_info_t info[];
 	/*
 	 * This is what the rest looked like if C supported variable-length arrays:
 	 *

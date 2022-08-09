@@ -823,7 +823,7 @@ static int buffer_activate(struct saa7134_dev *dev,
 {
 	struct saa7134_dmaqueue *dmaq = buf->vb2.vb2_buf.vb2_queue->drv_priv;
 	unsigned long base,control,bpl;
-	unsigned long bpl_uv,lines_uv,base2,base3,tmp; /* planar */
+	unsigned long bpl_uv, lines_uv, base2, base3; /* planar */
 
 	video_dbg("buffer_activate buf=%p\n", buf);
 	buf->top_seen = 0;
@@ -868,11 +868,8 @@ static int buffer_activate(struct saa7134_dev *dev,
 		lines_uv = dev->height >> dev->fmt->vshift;
 		base2    = base + bpl * dev->height;
 		base3    = base2 + bpl_uv * lines_uv;
-		if (dev->fmt->uvswap) {
-			tmp = base2;
-			base2 = base3;
-			base3 = tmp;
-		}
+		if (dev->fmt->uvswap)
+			swap(base2, base3);
 		video_dbg("uv: bpl=%ld lines=%ld base2/3=%ld/%ld\n",
 			bpl_uv,lines_uv,base2,base3);
 		if (V4L2_FIELD_HAS_BOTH(dev->field)) {
@@ -1537,8 +1534,6 @@ int saa7134_s_std(struct file *file, void *priv, v4l2_std_id id)
 		if (i == TVNORMS)
 			return -EINVAL;
 	}
-
-	id = tvnorms[i].id;
 
 	if (!is_empress(file) && fh == dev->overlay_owner) {
 		spin_lock_irqsave(&dev->slock, flags);

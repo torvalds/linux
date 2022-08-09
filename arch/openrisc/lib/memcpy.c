@@ -101,7 +101,7 @@ void *memcpy(void *dest, __const void *src, __kernel_size_t n)
  */
 void *memcpy(void *dest, __const void *src, __kernel_size_t n)
 {
-	unsigned char *d = (unsigned char *)dest, *s = (unsigned char *)src;
+	unsigned char *d, *s;
 	uint32_t *dest_w = (uint32_t *)dest, *src_w = (uint32_t *)src;
 
 	/* If both source and dest are word aligned copy words */

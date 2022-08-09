@@ -516,7 +516,7 @@ static const struct uart_ops owl_uart_ops = {
 
 #ifdef CONFIG_SERIAL_OWL_CONSOLE
 
-static void owl_console_putchar(struct uart_port *port, int ch)
+static void owl_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	if (!port->membase)
 		return;

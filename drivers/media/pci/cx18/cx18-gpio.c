@@ -12,7 +12,7 @@
 #include "cx18-io.h"
 #include "cx18-cards.h"
 #include "cx18-gpio.h"
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 
 /********************* GPIO stuffs *********************/
 

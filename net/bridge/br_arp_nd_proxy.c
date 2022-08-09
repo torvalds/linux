@@ -84,7 +84,7 @@ static void br_arp_send(struct net_bridge *br, struct net_bridge_port *p,
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		skb->pkt_type = PACKET_HOST;
 
-		netif_rx_ni(skb);
+		netif_rx(skb);
 	}
 }
 
@@ -364,7 +364,7 @@ static void br_nd_send(struct net_bridge *br, struct net_bridge_port *p,
 		reply->ip_summed = CHECKSUM_UNNECESSARY;
 		reply->pkt_type = PACKET_HOST;
 
-		netif_rx_ni(reply);
+		netif_rx(reply);
 	}
 }
 

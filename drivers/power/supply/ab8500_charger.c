@@ -163,7 +163,7 @@ enum ab8500_usb_state {
 #define USB_CH_IP_CUR_LVL_1P4		1400000
 #define USB_CH_IP_CUR_LVL_1P5		1500000
 
-#define VBAT_TRESH_IP_CUR_RED		3800
+#define VBAT_TRESH_IP_CUR_RED		3800000
 
 #define to_ab8500_charger_usb_device_info(x) container_of((x), \
 	struct ab8500_charger, usb_chg)
@@ -171,7 +171,7 @@ enum ab8500_usb_state {
 	struct ab8500_charger, ac_chg)
 
 /**
- * struct ab8500_charger_interrupts - ab8500 interupts
+ * struct ab8500_charger_interrupts - ab8500 interrupts
  * @name:	name of the interrupt
  * @isr		function pointer to the isr
  */
@@ -1083,7 +1083,7 @@ static int ab8500_vbus_in_curr_to_regval(struct ab8500_charger *di, int curr_ua)
 
 /**
  * ab8500_charger_get_usb_cur() - get usb current
- * @di:		pointer to the ab8500_charger structre
+ * @di:		pointer to the ab8500_charger structure
  *
  * The usb stack provides the maximum current that can be drawn from
  * the standard usb host. This will be in uA.
@@ -1920,7 +1920,11 @@ static int ab8500_charger_get_ext_psy_data(struct device *dev, void *data)
 
 	di = to_ab8500_charger_usb_device_info(usb_chg);
 
-	/* For all psy where the driver name appears in any supplied_to */
+	/*
+	 * For all psy where the driver name appears in any supplied_to
+	 * in practice what we will find will always be "ab8500_fg" as
+	 * the fuel gauge is responsible of keeping track of VBAT.
+	 */
 	j = match_string(supplicants, ext->num_supplicants, psy->desc->name);
 	if (j < 0)
 		return 0;
@@ -1937,7 +1941,10 @@ static int ab8500_charger_get_ext_psy_data(struct device *dev, void *data)
 		case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 			switch (ext->desc->type) {
 			case POWER_SUPPLY_TYPE_BATTERY:
-				di->vbat = ret.intval / 1000;
+				/* This will always be "ab8500_fg" */
+				dev_dbg(di->dev, "get VBAT from %s\n",
+					dev_name(&ext->dev));
+				di->vbat = ret.intval;
 				break;
 			default:
 				break;
@@ -1966,7 +1973,7 @@ static void ab8500_charger_check_vbat_work(struct work_struct *work)
 		struct ab8500_charger, check_vbat_work.work);
 
 	class_for_each_device(power_supply_class, NULL,
-		di->usb_chg.psy, ab8500_charger_get_ext_psy_data);
+			      &di->usb_chg, ab8500_charger_get_ext_psy_data);
 
 	/* First run old_vbat is 0. */
 	if (di->old_vbat == 0)
@@ -1991,8 +1998,8 @@ static void ab8500_charger_check_vbat_work(struct work_struct *work)
 	 * No need to check the battery voltage every second when not close to
 	 * the threshold.
 	 */
-	if (di->vbat < (VBAT_TRESH_IP_CUR_RED + 100) &&
-		(di->vbat > (VBAT_TRESH_IP_CUR_RED - 100)))
+	if (di->vbat < (VBAT_TRESH_IP_CUR_RED + 100000) &&
+		(di->vbat > (VBAT_TRESH_IP_CUR_RED - 100000)))
 			t = 1;
 
 	queue_delayed_work(di->charger_wq, &di->check_vbat_work, t * HZ);
@@ -3414,11 +3421,6 @@ static struct platform_driver *const ab8500_charger_component_drivers[] = {
 	&ab8500_chargalg_driver,
 };
 
-static int ab8500_charger_compare_dev(struct device *dev, void *data)
-{
-	return dev == data;
-}
-
 static int ab8500_charger_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -3443,17 +3445,19 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->parent = dev_get_drvdata(pdev->dev.parent);
 
 	/* Get ADC channels */
-	di->adc_main_charger_v = devm_iio_channel_get(dev, "main_charger_v");
-	if (IS_ERR(di->adc_main_charger_v)) {
-		ret = dev_err_probe(dev, PTR_ERR(di->adc_main_charger_v),
-				    "failed to get ADC main charger voltage\n");
-		return ret;
-	}
-	di->adc_main_charger_c = devm_iio_channel_get(dev, "main_charger_c");
-	if (IS_ERR(di->adc_main_charger_c)) {
-		ret = dev_err_probe(dev, PTR_ERR(di->adc_main_charger_c),
-				    "failed to get ADC main charger current\n");
-		return ret;
+	if (!is_ab8505(di->parent)) {
+		di->adc_main_charger_v = devm_iio_channel_get(dev, "main_charger_v");
+		if (IS_ERR(di->adc_main_charger_v)) {
+			ret = dev_err_probe(dev, PTR_ERR(di->adc_main_charger_v),
+					    "failed to get ADC main charger voltage\n");
+			return ret;
+		}
+		di->adc_main_charger_c = devm_iio_channel_get(dev, "main_charger_c");
+		if (IS_ERR(di->adc_main_charger_c)) {
+			ret = dev_err_probe(dev, PTR_ERR(di->adc_main_charger_c),
+					    "failed to get ADC main charger current\n");
+			return ret;
+		}
 	}
 	di->adc_vbus_v = devm_iio_channel_get(dev, "vbus_v");
 	if (IS_ERR(di->adc_vbus_v)) {
@@ -3657,8 +3661,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 
 		while ((d = platform_find_device_by_driver(p, drv))) {
 			put_device(p);
-			component_match_add(dev, &match,
-					    ab8500_charger_compare_dev, d);
+			component_match_add(dev, &match, component_compare_dev, d);
 			p = d;
 		}
 		put_device(p);

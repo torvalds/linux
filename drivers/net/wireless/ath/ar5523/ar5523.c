@@ -104,7 +104,7 @@ static void ar5523_cmd_rx_cb(struct urb *urb)
 	}
 
 	if (urb->actual_length < sizeof(struct ar5523_cmd_hdr)) {
-		ar5523_err(ar, "RX USB to short.\n");
+		ar5523_err(ar, "RX USB too short.\n");
 		goto skip;
 	}
 

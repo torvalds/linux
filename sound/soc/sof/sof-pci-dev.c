@@ -67,7 +67,30 @@ static const struct dmi_system_id sof_tplg_table[] = {
 		},
 		.driver_data = "sof-adl-max98390-ssp2-rt5682-ssp0.tplg",
 	},
-
+	{
+		.callback = sof_tplg_cb,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Google_Brya"),
+			DMI_MATCH(DMI_OEM_STRING, "AUDIO_AMP-MAX98360_ALC5682VS_I2S_2WAY"),
+		},
+		.driver_data = "sof-adl-max98360a-rt5682-2way.tplg",
+	},
+	{
+		.callback = sof_tplg_cb,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Google_Brya"),
+			DMI_MATCH(DMI_OEM_STRING, "AUDIO-AUDIO_MAX98357_ALC5682I_I2S_2WAY"),
+		},
+		.driver_data = "sof-adl-max98357a-rt5682-2way.tplg",
+	},
+	{
+		.callback = sof_tplg_cb,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Google_Brya"),
+			DMI_MATCH(DMI_OEM_STRING, "AUDIO-MAX98360_ALC5682I_I2S_AMP_SSP2"),
+		},
+		.driver_data = "sof-adl-max98357a-rt5682.tplg",
+	},
 	{}
 };
 
@@ -129,6 +152,11 @@ int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	int ret;
 
 	dev_dbg(&pci->dev, "PCI DSP detected");
+
+	if (!desc) {
+		dev_err(dev, "error: no matching PCI descriptor\n");
+		return -ENODEV;
+	}
 
 	if (!desc->ops) {
 		dev_err(dev, "error: no matching PCI descriptor ops\n");

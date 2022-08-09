@@ -368,10 +368,12 @@ static int tad_pmu_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id tad_pmu_of_match[] = {
 	{ .compatible = "marvell,cn10k-tad-pmu", },
 	{},
 };
+#endif
 
 static struct platform_driver tad_pmu_driver = {
 	.driver         = {

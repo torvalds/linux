@@ -5156,8 +5156,8 @@ int evergreen_suspend(struct radeon_device *rdev)
 	radeon_pm_suspend(rdev);
 	radeon_audio_fini(rdev);
 	if (rdev->has_uvd) {
-		uvd_v1_0_fini(rdev);
 		radeon_uvd_suspend(rdev);
+		uvd_v1_0_fini(rdev);
 	}
 	r700_cp_stop(rdev);
 	r600_dma_stop(rdev);

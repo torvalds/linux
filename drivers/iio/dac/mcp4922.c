@@ -172,7 +172,7 @@ error_disable_reg:
 	return ret;
 }
 
-static int mcp4922_remove(struct spi_device *spi)
+static void mcp4922_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct mcp4922_state *state;
@@ -180,8 +180,6 @@ static int mcp4922_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	state = iio_priv(indio_dev);
 	regulator_disable(state->vref_reg);
-
-	return 0;
 }
 
 static const struct spi_device_id mcp4922_id[] = {

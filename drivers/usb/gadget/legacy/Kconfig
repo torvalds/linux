@@ -500,7 +500,7 @@ endif
 # or video class gadget drivers), or specific hardware, here.
 config USB_G_WEBCAM
 	tristate "USB Webcam Gadget"
-	depends on VIDEO_V4L2
+	depends on VIDEO_DEV
 	select USB_LIBCOMPOSITE
 	select VIDEOBUF2_DMA_SG
 	select VIDEOBUF2_VMALLOC

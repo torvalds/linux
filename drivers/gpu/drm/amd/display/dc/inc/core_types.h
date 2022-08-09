@@ -54,6 +54,7 @@ void enable_surface_flip_reporting(struct dc_plane_state *plane_state,
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 #include "dm_cp_psp.h"
 #endif
+#include "link_hwss.h"
 
 /************ link *****************/
 struct link_init_data {
@@ -249,12 +250,10 @@ struct resource_pool {
 	/* Number of USB4 DPIA (DisplayPort Input Adapter) link objects created.*/
 	unsigned int usb4_dpia_count;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	unsigned int hpo_dp_stream_enc_count;
 	struct hpo_dp_stream_encoder *hpo_dp_stream_enc[MAX_HPO_DP2_ENCODERS];
 	unsigned int hpo_dp_link_enc_count;
 	struct hpo_dp_link_encoder *hpo_dp_link_enc[MAX_HPO_DP2_LINK_ENCODERS];
-#endif
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct dc_3dlut *mpc_lut[MAX_PIPES];
 	struct dc_transfer_func *mpc_shaper[MAX_PIPES];
@@ -307,9 +306,7 @@ struct stream_resource {
 	struct display_stream_compressor *dsc;
 	struct timing_generator *tg;
 	struct stream_encoder *stream_enc;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct hpo_dp_stream_encoder *hpo_dp_stream_enc;
-#endif
 	struct audio *audio;
 
 	struct pixel_clk_params pix_clk_params;
@@ -334,18 +331,12 @@ struct plane_resource {
 	struct dcn_fe_bandwidth bw;
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 #define LINK_RES_HPO_DP_REC_MAP__MASK 0xFFFF
 #define LINK_RES_HPO_DP_REC_MAP__SHIFT 0
-#endif
 
 /* all mappable hardware resources used to enable a link */
 struct link_resource {
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct hpo_dp_link_encoder *hpo_dp_link_enc;
-#else
-	void *dummy;
-#endif
 };
 
 union pipe_update_flags {
@@ -425,11 +416,9 @@ struct resource_context {
 	uint8_t dp_clock_source_ref_count;
 	bool is_dsc_acquired[MAX_PIPES];
 	struct link_enc_cfg_context link_enc_cfg_ctx;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool is_hpo_dp_stream_enc_acquired[MAX_HPO_DP2_ENCODERS];
 	unsigned int hpo_dp_link_enc_to_link_idx[MAX_HPO_DP2_LINK_ENCODERS];
 	int hpo_dp_link_enc_ref_cnts[MAX_HPO_DP2_LINK_ENCODERS];
-#endif
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool is_mpc_3dlut_acquired[MAX_PIPES];
 #endif

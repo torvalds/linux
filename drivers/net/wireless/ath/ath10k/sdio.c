@@ -1633,7 +1633,7 @@ static void ath10k_sdio_hif_power_down(struct ath10k *ar)
 		return;
 	}
 
-	ret = mmc_hw_reset(ar_sdio->func->card->host);
+	ret = mmc_hw_reset(ar_sdio->func->card);
 	if (ret)
 		ath10k_warn(ar, "unable to reset sdio: %d\n", ret);
 

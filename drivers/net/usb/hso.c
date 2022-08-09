@@ -2319,7 +2319,7 @@ static struct hso_device *hso_create_device(struct usb_interface *intf,
 {
 	struct hso_device *hso_dev;
 
-	hso_dev = kzalloc(sizeof(*hso_dev), GFP_ATOMIC);
+	hso_dev = kzalloc(sizeof(*hso_dev), GFP_KERNEL);
 	if (!hso_dev)
 		return NULL;
 

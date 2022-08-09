@@ -33,12 +33,13 @@
 
 /* fill a qtd, returning how much of the buffer we were able to queue up */
 
-static int
+static unsigned int
 qtd_fill(struct ehci_hcd *ehci, struct ehci_qtd *qtd, dma_addr_t buf,
 		  size_t len, int token, int maxpacket)
 {
-	int	i, count;
+	unsigned int count;
 	u64	addr = buf;
+	int	i;
 
 	/* one buffer entry per 4K ... first might be short or unaligned */
 	qtd->hw_buf[0] = cpu_to_hc32(ehci, (u32)addr);
@@ -652,7 +653,7 @@ qh_urb_transaction (
 	 * and may serve as a control status ack
 	 */
 	for (;;) {
-		int this_qtd_len;
+		unsigned int this_qtd_len;
 
 		this_qtd_len = qtd_fill(ehci, qtd, buf, this_sg_len, token,
 				maxpacket);

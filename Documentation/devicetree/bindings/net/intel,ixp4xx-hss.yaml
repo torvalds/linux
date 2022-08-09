@@ -25,39 +25,62 @@ properties:
 
   intel,npe-handle:
     $ref: '/schemas/types.yaml#/definitions/phandle-array'
-    maxItems: 1
+    items:
+      items:
+        - description: phandle to the NPE this HSS instance is using
+        - description: the NPE instance number
     description: phandle to the NPE this HSS instance is using
       and the instance to use in the second cell
 
   intel,queue-chl-rxtrig:
     $ref: '/schemas/types.yaml#/definitions/phandle-array'
-    maxItems: 1
+    items:
+      - items:
+          - description: phandle to the RX trigger queue on the NPE
+          - description: the queue instance number
     description: phandle to the RX trigger queue on the NPE
 
   intel,queue-chl-txready:
     $ref: '/schemas/types.yaml#/definitions/phandle-array'
-    maxItems: 1
+    items:
+      - items:
+          - description: phandle to the TX ready queue on the NPE
+          - description: the queue instance number
     description: phandle to the TX ready queue on the NPE
 
   intel,queue-pkt-rx:
     $ref: '/schemas/types.yaml#/definitions/phandle-array'
-    maxItems: 1
+    items:
+      - items:
+          - description: phandle to the RX queue on the NPE
+          - description: the queue instance number
     description: phandle to the packet RX queue on the NPE
 
   intel,queue-pkt-tx:
     $ref: '/schemas/types.yaml#/definitions/phandle-array'
     maxItems: 4
+    items:
+      items:
+        - description: phandle to the TX queue on the NPE
+        - description: the queue instance number
     description: phandle to the packet TX0, TX1, TX2 and TX3 queues on the NPE
 
   intel,queue-pkt-rxfree:
     $ref: '/schemas/types.yaml#/definitions/phandle-array'
     maxItems: 4
+    items:
+      items:
+        - description: phandle to the RXFREE queue on the NPE
+        - description: the queue instance number
     description: phandle to the packet RXFREE0, RXFREE1, RXFREE2 and
       RXFREE3 queues on the NPE
 
   intel,queue-pkt-txdone:
     $ref: '/schemas/types.yaml#/definitions/phandle-array'
-    maxItems: 1
+    items:
+      - items:
+          - description: phandle to the TXDONE queue on the NPE
+          - description: the queue instance number
     description: phandle to the packet TXDONE queue on the NPE
 
   cts-gpios:

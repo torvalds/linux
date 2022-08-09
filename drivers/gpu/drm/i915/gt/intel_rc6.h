@@ -6,7 +6,7 @@
 #ifndef INTEL_RC6_H
 #define INTEL_RC6_H
 
-#include "i915_reg.h"
+#include "i915_reg_defs.h"
 
 struct intel_engine_cs;
 struct intel_rc6;

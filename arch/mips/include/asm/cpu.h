@@ -310,11 +310,6 @@ enum cpu_type_enum {
 	CPU_SR71000, CPU_TX49XX,
 
 	/*
-	 * TX3900 class processors
-	 */
-	CPU_TX3912, CPU_TX3922, CPU_TX3927,
-
-	/*
 	 * MIPS32 class processors
 	 */
 	CPU_4KC, CPU_4KEC, CPU_4KSC, CPU_24K, CPU_34K, CPU_1004K, CPU_74K,
@@ -367,7 +362,6 @@ enum cpu_type_enum {
 #define MIPS_CPU_4KEX		BIT_ULL( 1)	/* "R4K" exception model */
 #define MIPS_CPU_3K_CACHE	BIT_ULL( 2)	/* R3000-style caches */
 #define MIPS_CPU_4K_CACHE	BIT_ULL( 3)	/* R4000-style caches */
-#define MIPS_CPU_TX39_CACHE	BIT_ULL( 4)	/* TX3900-style caches */
 #define MIPS_CPU_FPU		BIT_ULL( 5)	/* CPU has FPU */
 #define MIPS_CPU_32FPR		BIT_ULL( 6)	/* 32 dbl. prec. FP registers */
 #define MIPS_CPU_COUNTER	BIT_ULL( 7)	/* Cycle count/compare */

@@ -43,31 +43,13 @@ static const struct gpiod_lookup arizona_soc_gpios[] = {
 	{ "arizona", 4, "wlf,micd-pol", 0, GPIO_ACTIVE_LOW },
 };
 
-/*
- * The AOSP 3.5 mm Headset: Accessory Specification gives the following values:
- * Function A Play/Pause:           0 ohm
- * Function D Voice assistant:    135 ohm
- * Function B Volume Up           240 ohm
- * Function C Volume Down         470 ohm
- * Minimum Mic DC resistance     1000 ohm
- * Minimum Ear speaker impedance   16 ohm
- * Note the first max value below must be less then the min. speaker impedance,
- * to allow CTIA/OMTP detection to work. The other max values are the closest
- * value from extcon-arizona.c:arizona_micd_levels halfway 2 button resistances.
- */
-static const struct arizona_micd_range arizona_micd_aosp_ranges[] = {
-	{ .max =  11, .key = KEY_PLAYPAUSE },
-	{ .max = 186, .key = KEY_VOICECOMMAND },
-	{ .max = 348, .key = KEY_VOLUMEUP },
-	{ .max = 752, .key = KEY_VOLUMEDOWN },
-};
-
 static void arizona_spi_acpi_remove_lookup(void *lookup)
 {
 	gpiod_remove_lookup_table(lookup);
 }
 
-static int arizona_spi_acpi_probe(struct arizona *arizona)
+/* For ACPI tables from boards which ship with Windows as factory OS */
+static int arizona_spi_acpi_windows_probe(struct arizona *arizona)
 {
 	struct gpiod_lookup_table *lookup;
 	acpi_status status;
@@ -95,6 +77,65 @@ static int arizona_spi_acpi_probe(struct arizona *arizona)
 	status = acpi_evaluate_object(ACPI_HANDLE(arizona->dev), "CLKE", NULL, NULL);
 	if (ACPI_FAILURE(status))
 		dev_warn(arizona->dev, "Failed to enable 32KHz clk ACPI error %d\n", status);
+
+	return 0;
+}
+
+/* For ACPI tables from boards which ship with Android as factory OS */
+static int arizona_spi_acpi_android_probe(struct arizona *arizona)
+{
+	int ret;
+
+	/*
+	 * Get the reset GPIO, treating -ENOENT as -EPROBE_DEFER to wait for
+	 * the x86-android-tablets module to register the board specific GPIO
+	 * lookup table.
+	 */
+	arizona->pdata.reset = devm_gpiod_get(arizona->dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(arizona->pdata.reset)) {
+		ret = PTR_ERR(arizona->pdata.reset);
+		if (ret == -ENOENT) {
+			dev_info_once(arizona->dev,
+				      "Deferring probe till GPIO lookup is registered\n");
+			ret = -EPROBE_DEFER;
+		}
+		return dev_err_probe(arizona->dev, ret, "getting reset GPIO\n");
+	}
+
+	return 0;
+}
+
+/*
+ * The AOSP 3.5 mm Headset: Accessory Specification gives the following values:
+ * Function A Play/Pause:           0 ohm
+ * Function D Voice assistant:    135 ohm
+ * Function B Volume Up           240 ohm
+ * Function C Volume Down         470 ohm
+ * Minimum Mic DC resistance     1000 ohm
+ * Minimum Ear speaker impedance   16 ohm
+ * Note the first max value below must be less then the min. speaker impedance,
+ * to allow CTIA/OMTP detection to work. The other max values are the closest
+ * value from extcon-arizona.c:arizona_micd_levels halfway 2 button resistances.
+ */
+static const struct arizona_micd_range arizona_micd_aosp_ranges[] = {
+	{ .max =  11, .key = KEY_PLAYPAUSE },
+	{ .max = 186, .key = KEY_VOICECOMMAND },
+	{ .max = 348, .key = KEY_VOLUMEUP },
+	{ .max = 752, .key = KEY_VOLUMEDOWN },
+};
+
+static int arizona_spi_acpi_probe(struct arizona *arizona)
+{
+	struct acpi_device *adev = ACPI_COMPANION(arizona->dev);
+	int ret;
+
+	if (acpi_dev_hid_uid_match(adev, "10WM5102", NULL))
+		ret = arizona_spi_acpi_android_probe(arizona);
+	else
+		ret = arizona_spi_acpi_windows_probe(arizona);
+
+	if (ret)
+		return ret;
 
 	/*
 	 * Some DSDTs wrongly declare the IRQ trigger-type as IRQF_TRIGGER_FALLING
@@ -128,6 +169,10 @@ static const struct acpi_device_id arizona_acpi_match[] = {
 	},
 	{
 		.id = "WM510205",
+		.driver_data = WM5102,
+	},
+	{
+		.id = "10WM5102",
 		.driver_data = WM5102,
 	},
 	{ }
@@ -206,13 +251,11 @@ static int arizona_spi_probe(struct spi_device *spi)
 	return arizona_dev_init(arizona);
 }
 
-static int arizona_spi_remove(struct spi_device *spi)
+static void arizona_spi_remove(struct spi_device *spi)
 {
 	struct arizona *arizona = spi_get_drvdata(spi);
 
 	arizona_dev_exit(arizona);
-
-	return 0;
 }
 
 static const struct spi_device_id arizona_spi_ids[] = {
@@ -226,7 +269,7 @@ static const struct spi_device_id arizona_spi_ids[] = {
 MODULE_DEVICE_TABLE(spi, arizona_spi_ids);
 
 #ifdef CONFIG_OF
-const struct of_device_id arizona_spi_of_match[] = {
+static const struct of_device_id arizona_spi_of_match[] = {
 	{ .compatible = "wlf,wm5102", .data = (void *)WM5102 },
 	{ .compatible = "wlf,wm5110", .data = (void *)WM5110 },
 	{ .compatible = "wlf,wm8280", .data = (void *)WM8280 },

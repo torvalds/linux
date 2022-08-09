@@ -48,11 +48,11 @@
 			status = "okay";
 		};
 
-		vdd_1v5: fixed-regulator-vdd_1v5@1 {
+		vdd_1v15: fixed-regulator-vdd_1v15@1 {
 			compatible = "regulator-fixed";
-			regulator-name = "VDD_1V5";
-			regulator-min-microvolt = <1500000>;
-			regulator-max-microvolt = <1500000>;
+			regulator-name = "VDD_1V15";
+			regulator-min-microvolt = <1150000>;
+			regulator-max-microvolt = <1150000>;
 			regulator-always-on;
 			status = "okay";
 		};

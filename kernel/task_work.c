@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/spinlock.h>
 #include <linux/task_work.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 
 static struct callback_head work_exited; /* all we need is ->next == NULL */
 
@@ -78,7 +78,7 @@ task_work_cancel_match(struct task_struct *task,
 	struct callback_head *work;
 	unsigned long flags;
 
-	if (likely(!task->task_works))
+	if (likely(!task_work_pending(task)))
 		return NULL;
 	/*
 	 * If cmpxchg() fails we continue without updating pprev.

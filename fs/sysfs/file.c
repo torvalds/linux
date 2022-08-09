@@ -703,19 +703,6 @@ int sysfs_change_owner(struct kobject *kobj, kuid_t kuid, kgid_t kgid)
 
 	ktype = get_ktype(kobj);
 	if (ktype) {
-		struct attribute **kattr;
-
-		/*
-		 * Change owner of the default attributes associated with the
-		 * ktype of @kobj.
-		 */
-		for (kattr = ktype->default_attrs; kattr && *kattr; kattr++) {
-			error = sysfs_file_change_owner(kobj, (*kattr)->name,
-							kuid, kgid);
-			if (error)
-				return error;
-		}
-
 		/*
 		 * Change owner of the default groups associated with the
 		 * ktype of @kobj.

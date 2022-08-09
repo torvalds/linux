@@ -47,12 +47,9 @@ static int __init ima_add_boot_aggregate(void)
 	struct integrity_iint_cache tmp_iint, *iint = &tmp_iint;
 	struct ima_event_data event_data = { .iint = iint,
 					     .filename = boot_aggregate_name };
+	struct ima_max_digest_data hash;
 	int result = -ENOMEM;
 	int violation = 0;
-	struct {
-		struct ima_digest_data hdr;
-		char digest[TPM_MAX_DIGEST_SIZE];
-	} hash;
 
 	memset(iint, 0, sizeof(*iint));
 	memset(&hash, 0, sizeof(hash));

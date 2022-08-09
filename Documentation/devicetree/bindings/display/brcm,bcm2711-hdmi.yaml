@@ -72,8 +72,7 @@ properties:
       - const: hpd-removed
 
   ddc:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: >
       Phandle of the I2C controller used for DDC EDID probing
 

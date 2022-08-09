@@ -341,7 +341,6 @@ static int rt9120_get_reg_size(unsigned int reg)
 {
 	switch (reg) {
 	case 0x00:
-	case 0x09:
 	case 0x20 ... 0x27:
 		return 2;
 	case 0x30 ... 0x3D:

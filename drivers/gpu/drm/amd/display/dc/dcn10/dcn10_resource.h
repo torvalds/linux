@@ -27,6 +27,7 @@
 #define __DC_RESOURCE_DCN10_H__
 
 #include "core_types.h"
+#include "dml/dcn10/dcn10_fpu.h"
 
 #define TO_DCN10_RES_POOL(pool)\
 	container_of(pool, struct dcn10_resource_pool, base)
@@ -34,6 +35,9 @@
 struct dc;
 struct resource_pool;
 struct _vcs_dpi_display_pipe_params_st;
+
+extern struct _vcs_dpi_ip_params_st dcn1_0_ip;
+extern struct _vcs_dpi_soc_bounding_box_st dcn1_0_soc;
 
 struct dcn10_resource_pool {
 	struct resource_pool base;

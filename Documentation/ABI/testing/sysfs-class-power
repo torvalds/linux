@@ -380,13 +380,17 @@ Description:
 		algorithm to adjust the charge rate dynamically, without
 		any user configuration required. "Custom" means that the charger
 		uses the charge_control_* properties as configuration for some
-		different algorithm.
+		different algorithm. "Long Life" means the charger reduces its
+		charging rate in order to prolong the battery health. "Bypass"
+		means the charger bypasses the charging path around the
+		integrated converter allowing for a "smart" wall adaptor to
+		perform the power conversion externally.
 
 		Access: Read, Write
 
 		Valid values:
 			      "Unknown", "N/A", "Trickle", "Fast", "Standard",
-			      "Adaptive", "Custom"
+			      "Adaptive", "Custom", "Long Life", "Bypass"
 
 What:		/sys/class/power_supply/<supply_name>/charge_term_current
 Date:		July 2014

@@ -14,6 +14,7 @@
 #include <linux/mfd/max8997.h>
 #include <linux/mfd/max8997-private.h>
 #include <linux/regulator/consumer.h>
+#include <linux/devm-helpers.h>
 
 /* MAX8997_REG_STATUS4 */
 #define DCINOK_SHIFT		1
@@ -92,13 +93,6 @@ static int max8997_battery_get_property(struct power_supply *psy,
 	}
 
 	return 0;
-}
-
-static void max8997_battery_extcon_evt_stop_work(void *data)
-{
-	struct charger_data *charger = data;
-
-	cancel_work_sync(&charger->extcon_work);
 }
 
 static void max8997_battery_extcon_evt_worker(struct work_struct *work)
@@ -255,8 +249,8 @@ static int max8997_battery_probe(struct platform_device *pdev)
 	}
 
 	if (!IS_ERR(charger->reg) && !IS_ERR_OR_NULL(charger->edev)) {
-		INIT_WORK(&charger->extcon_work, max8997_battery_extcon_evt_worker);
-		ret = devm_add_action(&pdev->dev, max8997_battery_extcon_evt_stop_work, charger);
+		ret = devm_work_autocancel(&pdev->dev, &charger->extcon_work,
+					   max8997_battery_extcon_evt_worker);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to add extcon evt stop action: %d\n", ret);
 			return ret;

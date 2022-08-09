@@ -9,6 +9,8 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 
+#include "vlv_sideband_reg.h"
+
 enum pipe;
 struct drm_i915_private;
 

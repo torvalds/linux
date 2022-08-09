@@ -12,7 +12,6 @@
 #include "display/intel_global_state.h"
 
 #include "i915_drv.h"
-#include "i915_reg.h"
 
 struct drm_device;
 struct drm_i915_private;

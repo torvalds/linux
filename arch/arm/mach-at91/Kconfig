@@ -63,6 +63,7 @@ config SOC_SAMA7G5
 	select HAVE_AT91_GENERATED_CLK
 	select HAVE_AT91_SAM9X60_PLL
 	select HAVE_AT91_UTMI
+	select PM_OPP
 	select SOC_SAMA7
 	help
 	  Select this if you are using one of Microchip's SAMA7G5 family SoC.

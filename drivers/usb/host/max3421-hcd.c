@@ -1926,7 +1926,7 @@ error:
 	return retval;
 }
 
-static int
+static void
 max3421_remove(struct spi_device *spi)
 {
 	struct max3421_hcd *max3421_hcd;
@@ -1947,7 +1947,6 @@ max3421_remove(struct spi_device *spi)
 	free_irq(spi->irq, hcd);
 
 	usb_put_hcd(hcd);
-	return 0;
 }
 
 static const struct of_device_id max3421_of_match_table[] = {

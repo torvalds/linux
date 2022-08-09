@@ -4,6 +4,8 @@
  * Copyright © 2016 Intel Corporation
  */
 
+#include <drm/drm_cache.h>
+
 #include "display/intel_frontbuffer.h"
 
 #include "i915_drv.h"

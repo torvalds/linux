@@ -34,7 +34,7 @@
 typedef struct bp_tag {
 	unsigned short id;	/* tag id */
 	unsigned short size;	/* size of this record excluding the structure*/
-	unsigned long data[0];	/* data */
+	unsigned long data[];	/* data */
 } bp_tag_t;
 
 struct bp_meminfo {

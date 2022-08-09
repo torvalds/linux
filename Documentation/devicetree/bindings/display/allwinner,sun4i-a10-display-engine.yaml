@@ -69,6 +69,8 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     minItems: 1
     maxItems: 2
+    items:
+      maxItems: 1
     description: |
       Available display engine frontends (DE 1.0) or mixers (DE
       2.0/3.0) available.

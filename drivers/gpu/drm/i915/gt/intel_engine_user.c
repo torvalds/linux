@@ -47,6 +47,7 @@ static const u8 uabi_classes[] = {
 	[COPY_ENGINE_CLASS] = I915_ENGINE_CLASS_COPY,
 	[VIDEO_DECODE_CLASS] = I915_ENGINE_CLASS_VIDEO,
 	[VIDEO_ENHANCEMENT_CLASS] = I915_ENGINE_CLASS_VIDEO_ENHANCE,
+	/* TODO: Add COMPUTE_CLASS mapping once ABI is available */
 };
 
 static int engine_cmp(void *priv, const struct list_head *A,
@@ -139,6 +140,7 @@ const char *intel_engine_class_repr(u8 class)
 		[COPY_ENGINE_CLASS] = "bcs",
 		[VIDEO_DECODE_CLASS] = "vcs",
 		[VIDEO_ENHANCEMENT_CLASS] = "vecs",
+		[COMPUTE_CLASS] = "ccs",
 	};
 
 	if (class >= ARRAY_SIZE(uabi_names) || !uabi_names[class])
@@ -162,6 +164,7 @@ static int legacy_ring_idx(const struct legacy_ring *ring)
 		[COPY_ENGINE_CLASS] = { BCS0, 1 },
 		[VIDEO_DECODE_CLASS] = { VCS0, I915_MAX_VCS },
 		[VIDEO_ENHANCEMENT_CLASS] = { VECS0, I915_MAX_VECS },
+		[COMPUTE_CLASS] = { CCS0, I915_MAX_CCS },
 	};
 
 	if (GEM_DEBUG_WARN_ON(ring->class >= ARRAY_SIZE(map)))
@@ -190,7 +193,7 @@ static void add_legacy_ring(struct legacy_ring *ring,
 void intel_engines_driver_register(struct drm_i915_private *i915)
 {
 	struct legacy_ring ring = {};
-	u8 uabi_instances[4] = {};
+	u8 uabi_instances[5] = {};
 	struct list_head *it, *next;
 	struct rb_node **p, *prev;
 	LIST_HEAD(engines);

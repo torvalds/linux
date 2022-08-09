@@ -426,7 +426,7 @@ static int bdw_rt5677_probe(struct platform_device *pdev)
 	if (!bdw_rt5677)
 		return -ENOMEM;
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	mach = pdev->dev.platform_data;
 	ret = snd_soc_fixup_dai_links_platform_name(&bdw_rt5677_card,
 						    mach->mach_params.platform);

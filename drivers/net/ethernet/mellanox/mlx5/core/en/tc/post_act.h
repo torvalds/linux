@@ -24,6 +24,14 @@ mlx5e_tc_post_act_add(struct mlx5e_post_act *post_act, struct mlx5_flow_attr *at
 void
 mlx5e_tc_post_act_del(struct mlx5e_post_act *post_act, struct mlx5e_post_act_handle *handle);
 
+int
+mlx5e_tc_post_act_offload(struct mlx5e_post_act *post_act,
+			  struct mlx5e_post_act_handle *handle);
+
+void
+mlx5e_tc_post_act_unoffload(struct mlx5e_post_act *post_act,
+			    struct mlx5e_post_act_handle *handle);
+
 struct mlx5_flow_table *
 mlx5e_tc_post_act_get_ft(struct mlx5e_post_act *post_act);
 

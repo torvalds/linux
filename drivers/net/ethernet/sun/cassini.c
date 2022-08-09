@@ -88,6 +88,7 @@
 #include <asm/io.h>
 #include <asm/byteorder.h>
 #include <linux/uaccess.h>
+#include <linux/jiffies.h>
 
 #define cas_page_map(x)      kmap_atomic((x))
 #define cas_page_unmap(x)    kunmap_atomic((x))
@@ -1234,19 +1235,6 @@ static void cas_init_rx_dma(struct cas *cp)
 	 */
 	readl(cp->regs + REG_INTR_STATUS_ALIAS);
 	writel(INTR_RX_DONE | INTR_RX_BUF_UNAVAIL, cp->regs + REG_ALIAS_CLEAR);
-	if (cp->cas_flags & CAS_FLAG_REG_PLUS) {
-		for (i = 1; i < N_RX_COMP_RINGS; i++)
-			readl(cp->regs + REG_PLUS_INTRN_STATUS_ALIAS(i));
-
-		/* 2 is different from 3 and 4 */
-		if (N_RX_COMP_RINGS > 1)
-			writel(INTR_RX_DONE_ALT | INTR_RX_BUF_UNAVAIL_1,
-			       cp->regs + REG_PLUS_ALIASN_CLEAR(1));
-
-		for (i = 2; i < N_RX_COMP_RINGS; i++)
-			writel(INTR_RX_DONE_ALT,
-			       cp->regs + REG_PLUS_ALIASN_CLEAR(i));
-	}
 
 	/* set up pause thresholds */
 	val  = CAS_BASE(RX_PAUSE_THRESH_OFF,
@@ -3508,9 +3496,6 @@ enable_rx_done:
 		if (N_RX_DESC_RINGS > 1)
 			writel(RX_DESC_RINGN_SIZE(1) - 4,
 			       cp->regs + REG_PLUS_RX_KICK1);
-
-		for (i = 1; i < N_RX_COMP_RINGS; i++)
-			writel(0, cp->regs + REG_PLUS_RX_COMPN_TAIL(i));
 	}
 }
 
@@ -4063,8 +4048,8 @@ static void cas_link_timer(struct timer_list *t)
 
 	if (link_transition_timeout != 0 &&
 	    cp->link_transition_jiffies_valid &&
-	    ((jiffies - cp->link_transition_jiffies) >
-	      (link_transition_timeout))) {
+	    time_is_before_jiffies(cp->link_transition_jiffies +
+	      link_transition_timeout)) {
 		/* One-second counter so link-down workaround doesn't
 		 * cause resets to occur so fast as to fool the switch
 		 * into thinking the link is down.
@@ -4679,7 +4664,7 @@ static void cas_set_msglevel(struct net_device *dev, u32 value)
 static int cas_get_regs_len(struct net_device *dev)
 {
 	struct cas *cp = netdev_priv(dev);
-	return cp->casreg_len < CAS_MAX_REGS ? cp->casreg_len: CAS_MAX_REGS;
+	return min_t(int, cp->casreg_len, CAS_MAX_REGS);
 }
 
 static void cas_get_regs(struct net_device *dev, struct ethtool_regs *regs,

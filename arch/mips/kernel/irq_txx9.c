@@ -72,11 +72,6 @@ static void txx9_irq_unmask(struct irq_data *d)
 	__raw_writel((__raw_readl(ilrp) & ~(0xff << ofs))
 		     | (txx9irq[irq_nr].level << ofs),
 		     ilrp);
-#ifdef CONFIG_CPU_TX39XX
-	/* update IRCSR */
-	__raw_writel(0, &txx9_ircptr->imr);
-	__raw_writel(irc_elevel, &txx9_ircptr->imr);
-#endif
 }
 
 static inline void txx9_irq_mask(struct irq_data *d)
@@ -88,15 +83,7 @@ static inline void txx9_irq_mask(struct irq_data *d)
 	__raw_writel((__raw_readl(ilrp) & ~(0xff << ofs))
 		     | (irc_dlevel << ofs),
 		     ilrp);
-#ifdef CONFIG_CPU_TX39XX
-	/* update IRCSR */
-	__raw_writel(0, &txx9_ircptr->imr);
-	__raw_writel(irc_elevel, &txx9_ircptr->imr);
-	/* flush write buffer */
-	__raw_readl(&txx9_ircptr->ssr);
-#else
 	mmiowb();
-#endif
 }
 
 static void txx9_irq_mask_ack(struct irq_data *d)

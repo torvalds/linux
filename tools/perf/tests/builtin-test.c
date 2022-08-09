@@ -279,6 +279,7 @@ static const char *shell_test__description(char *description, size_t size,
 {
 	FILE *fp;
 	char filename[PATH_MAX];
+	int ch;
 
 	path__join(filename, sizeof(filename), path, name);
 	fp = fopen(filename, "r");
@@ -286,7 +287,9 @@ static const char *shell_test__description(char *description, size_t size,
 		return NULL;
 
 	/* Skip shebang */
-	while (fgetc(fp) != '\n');
+	do {
+		ch = fgetc(fp);
+	} while (ch != EOF && ch != '\n');
 
 	description = fgets(description, size, fp);
 	fclose(fp);
@@ -417,7 +420,8 @@ static int run_shell_tests(int argc, const char *argv[], int i, int width,
 			.priv = &st,
 		};
 
-		if (!perf_test__matches(test_suite.desc, curr, argc, argv))
+		if (test_suite.desc == NULL ||
+		    !perf_test__matches(test_suite.desc, curr, argc, argv))
 			continue;
 
 		st.file = ent->d_name;

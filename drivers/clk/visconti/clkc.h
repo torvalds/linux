@@ -73,4 +73,7 @@ int visconti_clk_register_gates(struct visconti_clk_provider *data,
 				 int num_gate,
 				 const struct visconti_reset_data *reset,
 				 spinlock_t *lock);
+
+#define NO_RESET 0xFF
+
 #endif /* _VISCONTI_CLKC_H_ */

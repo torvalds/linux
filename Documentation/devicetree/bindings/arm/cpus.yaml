@@ -173,6 +173,7 @@ properties:
       - nvidia,tegra194-carmel
       - qcom,krait
       - qcom,kryo
+      - qcom,kryo250
       - qcom,kryo260
       - qcom,kryo280
       - qcom,kryo385
@@ -232,17 +233,19 @@ properties:
           - ti,am4372
 
   cpu-release-addr:
-    $ref: '/schemas/types.yaml#/definitions/uint64'
-
+    oneOf:
+      - $ref: '/schemas/types.yaml#/definitions/uint32'
+      - $ref: '/schemas/types.yaml#/definitions/uint64'
     description:
+      The DT specification defines this as 64-bit always, but some 32-bit Arm
+      systems have used a 32-bit value which must be supported.
       Required for systems that have an "enable-method"
         property value of "spin-table".
-      On ARM v8 64-bit systems must be a two cell
-        property identifying a 64-bit zero-initialised
-        memory location.
 
   cpu-idle-states:
     $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    items:
+      maxItems: 1
     description: |
       List of phandles to idle state nodes supported
       by this cpu (see ./idle-states.yaml).

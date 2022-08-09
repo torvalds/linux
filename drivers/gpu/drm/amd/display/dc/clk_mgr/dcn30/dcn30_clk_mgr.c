@@ -25,30 +25,23 @@
 
 #include "dccg.h"
 #include "clk_mgr_internal.h"
-
 #include "dcn30_clk_mgr_smu_msg.h"
 #include "dcn20/dcn20_clk_mgr.h"
 #include "dce100/dce_clk_mgr.h"
+#include "dcn30/dcn30_clk_mgr.h"
 #include "reg_helper.h"
 #include "core_types.h"
 #include "dm_helpers.h"
-
 #include "atomfirmware.h"
-
-
 #include "sienna_cichlid_ip_offset.h"
 #include "dcn/dcn_3_0_0_offset.h"
 #include "dcn/dcn_3_0_0_sh_mask.h"
-
 #include "nbio/nbio_7_4_offset.h"
-
-#include "dcn/dpcs_3_0_0_offset.h"
-#include "dcn/dpcs_3_0_0_sh_mask.h"
-
+#include "dpcs/dpcs_3_0_0_offset.h"
+#include "dpcs/dpcs_3_0_0_sh_mask.h"
 #include "mmhub/mmhub_2_0_0_offset.h"
 #include "mmhub/mmhub_2_0_0_sh_mask.h"
-/*we don't have clk folder yet*/
-#include "dcn30/dcn30_clk_mgr.h"
+#include "dcn30_smu11_driver_if.h"
 
 #undef FN
 #define FN(reg_name, field_name) \
@@ -83,7 +76,7 @@ static const struct clk_mgr_mask clk_mgr_mask = {
 
 
 /* Query SMU for all clock states for a particular clock */
-static void dcn3_init_single_clock(struct clk_mgr_internal *clk_mgr, PPCLK_e clk, unsigned int *entry_0, unsigned int *num_levels)
+static void dcn3_init_single_clock(struct clk_mgr_internal *clk_mgr, uint32_t clk, unsigned int *entry_0, unsigned int *num_levels)
 {
 	unsigned int i;
 	char *entry_i = (char *)entry_0;
@@ -184,6 +177,7 @@ void dcn3_init_clocks(struct clk_mgr *clk_mgr_base)
 	dcn3_init_single_clock(clk_mgr, PPCLK_DCEFCLK,
 			&clk_mgr_base->bw_params->clk_table.entries[0].dcfclk_mhz,
 			&num_levels);
+	dcn30_smu_set_min_deep_sleep_dcef_clk(clk_mgr, 0);
 
 	/* DTBCLK */
 	dcn3_init_single_clock(clk_mgr, PPCLK_DTBCLK,

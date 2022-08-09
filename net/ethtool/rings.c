@@ -53,7 +53,9 @@ static int rings_reply_size(const struct ethnl_req_info *req_base,
 	       nla_total_size(sizeof(u32)) +	/* _RINGS_RX_MINI */
 	       nla_total_size(sizeof(u32)) +	/* _RINGS_RX_JUMBO */
 	       nla_total_size(sizeof(u32)) +	/* _RINGS_TX */
-	       nla_total_size(sizeof(u32));     /* _RINGS_RX_BUF_LEN */
+	       nla_total_size(sizeof(u32)) +	/* _RINGS_RX_BUF_LEN */
+	       nla_total_size(sizeof(u8))  +	/* _RINGS_TCP_DATA_SPLIT */
+	       nla_total_size(sizeof(u32));	/* _RINGS_CQE_SIZE */
 }
 
 static int rings_fill_reply(struct sk_buff *skb,
@@ -61,8 +63,10 @@ static int rings_fill_reply(struct sk_buff *skb,
 			    const struct ethnl_reply_data *reply_base)
 {
 	const struct rings_reply_data *data = RINGS_REPDATA(reply_base);
-	const struct kernel_ethtool_ringparam *kernel_ringparam = &data->kernel_ringparam;
+	const struct kernel_ethtool_ringparam *kr = &data->kernel_ringparam;
 	const struct ethtool_ringparam *ringparam = &data->ringparam;
+
+	WARN_ON(kr->tcp_data_split > ETHTOOL_TCP_DATA_SPLIT_ENABLED);
 
 	if ((ringparam->rx_max_pending &&
 	     (nla_put_u32(skb, ETHTOOL_A_RINGS_RX_MAX,
@@ -84,9 +88,13 @@ static int rings_fill_reply(struct sk_buff *skb,
 			  ringparam->tx_max_pending) ||
 	      nla_put_u32(skb, ETHTOOL_A_RINGS_TX,
 			  ringparam->tx_pending)))  ||
-	    (kernel_ringparam->rx_buf_len &&
-	     (nla_put_u32(skb, ETHTOOL_A_RINGS_RX_BUF_LEN,
-			  kernel_ringparam->rx_buf_len))))
+	    (kr->rx_buf_len &&
+	     (nla_put_u32(skb, ETHTOOL_A_RINGS_RX_BUF_LEN, kr->rx_buf_len))) ||
+	    (kr->tcp_data_split &&
+	     (nla_put_u8(skb, ETHTOOL_A_RINGS_TCP_DATA_SPLIT,
+			 kr->tcp_data_split))) ||
+	    (kr->cqe_size &&
+	     (nla_put_u32(skb, ETHTOOL_A_RINGS_CQE_SIZE, kr->cqe_size))))
 		return -EMSGSIZE;
 
 	return 0;
@@ -114,6 +122,7 @@ const struct nla_policy ethnl_rings_set_policy[] = {
 	[ETHTOOL_A_RINGS_RX_JUMBO]		= { .type = NLA_U32 },
 	[ETHTOOL_A_RINGS_TX]			= { .type = NLA_U32 },
 	[ETHTOOL_A_RINGS_RX_BUF_LEN]            = NLA_POLICY_MIN(NLA_U32, 1),
+	[ETHTOOL_A_RINGS_CQE_SIZE]		= NLA_POLICY_MIN(NLA_U32, 1),
 };
 
 int ethnl_set_rings(struct sk_buff *skb, struct genl_info *info)
@@ -154,6 +163,8 @@ int ethnl_set_rings(struct sk_buff *skb, struct genl_info *info)
 	ethnl_update_u32(&ringparam.tx_pending, tb[ETHTOOL_A_RINGS_TX], &mod);
 	ethnl_update_u32(&kernel_ringparam.rx_buf_len,
 			 tb[ETHTOOL_A_RINGS_RX_BUF_LEN], &mod);
+	ethnl_update_u32(&kernel_ringparam.cqe_size,
+			 tb[ETHTOOL_A_RINGS_CQE_SIZE], &mod);
 	ret = 0;
 	if (!mod)
 		goto out_ops;
@@ -182,6 +193,15 @@ int ethnl_set_rings(struct sk_buff *skb, struct genl_info *info)
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[ETHTOOL_A_RINGS_RX_BUF_LEN],
 				    "setting rx buf len not supported");
+		goto out_ops;
+	}
+
+	if (kernel_ringparam.cqe_size &&
+	    !(ops->supported_ring_params & ETHTOOL_RING_USE_CQE_SIZE)) {
+		ret = -EOPNOTSUPP;
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[ETHTOOL_A_RINGS_CQE_SIZE],
+				    "setting cqe size not supported");
 		goto out_ops;
 	}
 

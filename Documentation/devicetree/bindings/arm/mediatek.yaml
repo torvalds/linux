@@ -32,6 +32,10 @@ properties:
           - const: mediatek,mt6580
       - items:
           - enum:
+              - prestigio,pmt5008-3g
+          - const: mediatek,mt6582
+      - items:
+          - enum:
               - fairphone,fp1
               - mundoreader,bq-aquaris5
           - const: mediatek,mt6589

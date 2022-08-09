@@ -636,6 +636,18 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 			atomic_read(&genpd->sd_count) > 0)
 		return -EBUSY;
 
+	/*
+	 * The children must be in their deepest (powered-off) states to allow
+	 * the parent to be powered off. Note that, there's no need for
+	 * additional locking, as powering on a child, requires the parent's
+	 * lock to be acquired first.
+	 */
+	list_for_each_entry(link, &genpd->parent_links, parent_node) {
+		struct generic_pm_domain *child = link->child;
+		if (child->state_idx < child->state_count - 1)
+			return -EBUSY;
+	}
+
 	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
 		enum pm_qos_flags_status stat;
 
@@ -1072,6 +1084,13 @@ static void genpd_sync_power_off(struct generic_pm_domain *genpd, bool use_lock,
 	if (genpd->suspended_count != genpd->device_count
 	    || atomic_read(&genpd->sd_count) > 0)
 		return;
+
+	/* Check that the children are in their deepest (powered-off) state. */
+	list_for_each_entry(link, &genpd->parent_links, parent_node) {
+		struct generic_pm_domain *child = link->child;
+		if (child->state_idx < child->state_count - 1)
+			return;
+	}
 
 	/* Choose the deepest state when suspending */
 	genpd->state_idx = genpd->state_count - 1;
@@ -2058,9 +2077,9 @@ static int genpd_remove(struct generic_pm_domain *genpd)
 		kfree(link);
 	}
 
-	genpd_debug_remove(genpd);
 	list_del(&genpd->gpd_list_node);
 	genpd_unlock(genpd);
+	genpd_debug_remove(genpd);
 	cancel_work_sync(&genpd->power_off_work);
 	if (genpd_is_cpu_domain(genpd))
 		free_cpumask_var(genpd->cpus);
@@ -2248,12 +2267,8 @@ int of_genpd_add_provider_simple(struct device_node *np,
 	/* Parse genpd OPP table */
 	if (genpd->set_performance_state) {
 		ret = dev_pm_opp_of_add_table(&genpd->dev);
-		if (ret) {
-			if (ret != -EPROBE_DEFER)
-				dev_err(&genpd->dev, "Failed to add OPP table: %d\n",
-					ret);
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(&genpd->dev, ret, "Failed to add OPP table\n");
 
 		/*
 		 * Save table for faster processing while setting performance
@@ -2312,9 +2327,8 @@ int of_genpd_add_provider_onecell(struct device_node *np,
 		if (genpd->set_performance_state) {
 			ret = dev_pm_opp_of_add_table_indexed(&genpd->dev, i);
 			if (ret) {
-				if (ret != -EPROBE_DEFER)
-					dev_err(&genpd->dev, "Failed to add OPP table for index %d: %d\n",
-						i, ret);
+				dev_err_probe(&genpd->dev, ret,
+					      "Failed to add OPP table for index %d\n", i);
 				goto error;
 			}
 
@@ -2672,12 +2686,8 @@ static int __genpd_dev_pm_attach(struct device *dev, struct device *base_dev,
 	ret = genpd_add_device(pd, dev, base_dev);
 	mutex_unlock(&gpd_list_lock);
 
-	if (ret < 0) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to add to PM domain %s: %d",
-				pd->name, ret);
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed to add to PM domain %s\n", pd->name);
 
 	dev->pm_domain->detach = genpd_dev_pm_detach;
 	dev->pm_domain->sync = genpd_dev_pm_sync;

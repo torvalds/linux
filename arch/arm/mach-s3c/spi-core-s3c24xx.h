@@ -16,12 +16,6 @@ static inline void s3c24xx_spi_setname(char *name)
 #ifdef CONFIG_S3C64XX_DEV_SPI0
 	s3c64xx_device_spi0.name = name;
 #endif
-#ifdef CONFIG_S3C64XX_DEV_SPI1
-	s3c64xx_device_spi1.name = name;
-#endif
-#ifdef CONFIG_S3C64XX_DEV_SPI2
-	s3c64xx_device_spi2.name = name;
-#endif
 }
 
 #endif /* __PLAT_S3C_SPI_CORE_S3C24XX_H */

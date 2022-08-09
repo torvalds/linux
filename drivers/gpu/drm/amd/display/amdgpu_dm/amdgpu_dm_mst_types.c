@@ -25,8 +25,8 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_dp_mst_helper.h>
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_mst_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 #include "dm_services.h"
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
@@ -47,6 +47,9 @@
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 #include "dc/dcn20/dcn20_resource.h"
+bool is_timing_changed(struct dc_stream_state *cur_stream,
+		       struct dc_stream_state *new_stream);
+
 #endif
 
 static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
@@ -159,7 +162,7 @@ static const struct drm_connector_funcs dm_dp_mst_connector_funcs = {
 };
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-static bool needs_dsc_aux_workaround(struct dc_link *link)
+bool needs_dsc_aux_workaround(struct dc_link *link)
 {
 	if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_90CC24 &&
 	    (link->dpcd_caps.dpcd_rev.raw == DPCD_REV_14 || link->dpcd_caps.dpcd_rev.raw == DPCD_REV_12) &&
@@ -206,6 +209,25 @@ static bool validate_dsc_caps_on_connector(struct amdgpu_dm_connector *aconnecto
 				  dsc_caps, dsc_branch_dec_caps,
 				  &dc_sink->dsc_caps.dsc_dec_caps))
 		return false;
+
+	return true;
+}
+
+static bool retrieve_downstream_port_device(struct amdgpu_dm_connector *aconnector)
+{
+	union dp_downstream_port_present ds_port_present;
+
+	if (!aconnector->dsc_aux)
+		return false;
+
+	if (drm_dp_dpcd_read(aconnector->dsc_aux, DP_DOWNSTREAMPORT_PRESENT, &ds_port_present, 1) < 0) {
+		DRM_INFO("Failed to read downstream_port_present 0x05 from DFP of branch device\n");
+		return false;
+	}
+
+	aconnector->mst_downstream_port_present = ds_port_present;
+	DRM_INFO("Downstream port present %d, type %d\n",
+			ds_port_present.fields.PORT_PRESENT, ds_port_present.fields.PORT_TYPE);
 
 	return true;
 }
@@ -289,6 +311,10 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 			if (!validate_dsc_caps_on_connector(aconnector))
 				memset(&aconnector->dc_sink->dsc_caps,
 				       0, sizeof(aconnector->dc_sink->dsc_caps));
+
+			if (!retrieve_downstream_port_device(aconnector))
+				memset(&aconnector->mst_downstream_port_present,
+					0, sizeof(aconnector->mst_downstream_port_present));
 #endif
 		}
 	}
@@ -576,6 +602,21 @@ static void set_dsc_configs_from_fairness_vars(struct dsc_mst_fairness_params *p
 		} else {
 			params[i].timing->flags.DSC = 0;
 		}
+		params[i].timing->dsc_cfg.mst_pbn = vars[i + k].pbn;
+	}
+
+	for (i = 0; i < count; i++) {
+		if (params[i].sink) {
+			if (params[i].sink->sink_signal != SIGNAL_TYPE_VIRTUAL &&
+				params[i].sink->sink_signal != SIGNAL_TYPE_NONE)
+				DRM_DEBUG_DRIVER("%s i=%d dispname=%s\n", __func__, i,
+					params[i].sink->edid_caps.display_name);
+		}
+
+		DRM_DEBUG_DRIVER("dsc=%d bits_per_pixel=%d pbn=%d\n",
+			params[i].timing->flags.DSC,
+			params[i].timing->dsc_cfg.bits_per_pixel,
+			vars[i + k].pbn);
 	}
 }
 
@@ -888,22 +929,31 @@ static bool is_dsc_need_re_compute(
 	struct dc_state *dc_state,
 	struct dc_link *dc_link)
 {
-	int i;
+	int i, j;
 	bool is_dsc_need_re_compute = false;
+	struct amdgpu_dm_connector *stream_on_link[MAX_PIPES];
+	int new_stream_on_link_num = 0;
+	struct amdgpu_dm_connector *aconnector;
+	struct dc_stream_state *stream;
+	const struct dc *dc = dc_link->dc;
 
-	/* only check phy used by mst branch */
+	/* only check phy used by dsc mst branch */
 	if (dc_link->type != dc_connection_mst_branch)
 		return false;
 
+	if (!(dc_link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT ||
+		dc_link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_PASSTHROUGH_SUPPORT))
+		return false;
+
+	for (i = 0; i < MAX_PIPES; i++)
+		stream_on_link[i] = NULL;
+
 	/* check if there is mode change in new request */
 	for (i = 0; i < dc_state->stream_count; i++) {
-		struct amdgpu_dm_connector *aconnector;
-		struct dc_stream_state *stream;
 		struct drm_crtc_state *new_crtc_state;
 		struct drm_connector_state *new_conn_state;
 
 		stream = dc_state->streams[i];
-
 		if (!stream)
 			continue;
 
@@ -915,8 +965,10 @@ static bool is_dsc_need_re_compute(
 		if (!aconnector)
 			continue;
 
-		new_conn_state = drm_atomic_get_new_connector_state(state, &aconnector->base);
+		stream_on_link[new_stream_on_link_num] = aconnector;
+		new_stream_on_link_num++;
 
+		new_conn_state = drm_atomic_get_new_connector_state(state, &aconnector->base);
 		if (!new_conn_state)
 			continue;
 
@@ -927,7 +979,6 @@ static bool is_dsc_need_re_compute(
 			continue;
 
 		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_conn_state->crtc);
-
 		if (!new_crtc_state)
 			continue;
 
@@ -937,7 +988,34 @@ static bool is_dsc_need_re_compute(
 		if (new_crtc_state->enable && new_crtc_state->active) {
 			if (new_crtc_state->mode_changed || new_crtc_state->active_changed ||
 				new_crtc_state->connectors_changed)
-				is_dsc_need_re_compute = true;
+				return true;
+		}
+	}
+
+	/* check current_state if there stream on link but it is not in
+	 * new request state
+	 */
+	for (i = 0; i < dc->current_state->stream_count; i++) {
+		stream = dc->current_state->streams[i];
+		/* only check stream on the mst hub */
+		if (stream->link != dc_link)
+			continue;
+
+		aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
+		if (!aconnector)
+			continue;
+
+		for (j = 0; j < new_stream_on_link_num; j++) {
+			if (stream_on_link[j]) {
+				if (aconnector == stream_on_link[j])
+					break;
+			}
+		}
+
+		if (j == new_stream_on_link_num) {
+			/* not in new state */
+			is_dsc_need_re_compute = true;
+			break;
 		}
 	}
 
@@ -1005,4 +1083,197 @@ bool compute_mst_dsc_configs_for_state(struct drm_atomic_state *state,
 	return true;
 }
 
+static bool
+	pre_compute_mst_dsc_configs_for_state(struct drm_atomic_state *state,
+					      struct dc_state *dc_state,
+					      struct dsc_mst_fairness_vars *vars)
+{
+	int i, j;
+	struct dc_stream_state *stream;
+	bool computed_streams[MAX_PIPES];
+	struct amdgpu_dm_connector *aconnector;
+	int link_vars_start_index = 0;
+
+	for (i = 0; i < dc_state->stream_count; i++)
+		computed_streams[i] = false;
+
+	for (i = 0; i < dc_state->stream_count; i++) {
+		stream = dc_state->streams[i];
+
+		if (stream->signal != SIGNAL_TYPE_DISPLAY_PORT_MST)
+			continue;
+
+		aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
+
+		if (!aconnector || !aconnector->dc_sink)
+			continue;
+
+		if (!aconnector->dc_sink->dsc_caps.dsc_dec_caps.is_dsc_supported)
+			continue;
+
+		if (computed_streams[i])
+			continue;
+
+		if (!is_dsc_need_re_compute(state, dc_state, stream->link))
+			continue;
+
+		mutex_lock(&aconnector->mst_mgr.lock);
+		if (!compute_mst_dsc_configs_for_link(state,
+						      dc_state,
+						      stream->link,
+						      vars,
+						      &link_vars_start_index)) {
+			mutex_unlock(&aconnector->mst_mgr.lock);
+			return false;
+		}
+		mutex_unlock(&aconnector->mst_mgr.lock);
+
+		for (j = 0; j < dc_state->stream_count; j++) {
+			if (dc_state->streams[j]->link == stream->link)
+				computed_streams[j] = true;
+		}
+	}
+
+	return true;
+}
+
+static int find_crtc_index_in_state_by_stream(struct drm_atomic_state *state,
+					      struct dc_stream_state *stream)
+{
+	int i;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *new_state, *old_state;
+
+	for_each_oldnew_crtc_in_state(state, crtc, old_state, new_state, i) {
+		struct dm_crtc_state *dm_state = to_dm_crtc_state(new_state);
+
+		if (dm_state->stream == stream)
+			return i;
+	}
+	return -1;
+}
+
+static bool is_link_to_dschub(struct dc_link *dc_link)
+{
+	union dpcd_dsc_basic_capabilities *dsc_caps =
+			&dc_link->dpcd_caps.dsc_caps.dsc_basic_caps;
+
+	/* only check phy used by dsc mst branch */
+	if (dc_link->type != dc_connection_mst_branch)
+		return false;
+
+	if (!(dsc_caps->fields.dsc_support.DSC_SUPPORT ||
+	      dsc_caps->fields.dsc_support.DSC_PASSTHROUGH_SUPPORT))
+		return false;
+	return true;
+}
+
+static bool is_dsc_precompute_needed(struct drm_atomic_state *state)
+{
+	int i;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	bool ret = false;
+
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		struct dm_crtc_state *dm_crtc_state = to_dm_crtc_state(new_crtc_state);
+
+		if (!amdgpu_dm_find_first_crtc_matching_connector(state, crtc)) {
+			ret =  false;
+			break;
+		}
+		if (dm_crtc_state->stream && dm_crtc_state->stream->link)
+			if (is_link_to_dschub(dm_crtc_state->stream->link))
+				ret = true;
+	}
+	return ret;
+}
+
+void pre_validate_dsc(struct drm_atomic_state *state,
+		      struct dm_atomic_state **dm_state_ptr,
+		      struct dsc_mst_fairness_vars *vars)
+{
+	int i;
+	struct dm_atomic_state *dm_state;
+	struct dc_state *local_dc_state = NULL;
+
+	if (!is_dsc_precompute_needed(state)) {
+		DRM_INFO_ONCE("DSC precompute is not needed.\n");
+		return;
+	}
+	if (dm_atomic_get_state(state, dm_state_ptr)) {
+		DRM_INFO_ONCE("dm_atomic_get_state() failed\n");
+		return;
+	}
+	dm_state = *dm_state_ptr;
+
+	/*
+	 * create local vailable for dc_state. copy content of streams of dm_state->context
+	 * to local variable. make sure stream pointer of local variable not the same as stream
+	 * from dm_state->context.
+	 */
+
+	local_dc_state = kmemdup(dm_state->context, sizeof(struct dc_state), GFP_KERNEL);
+	if (!local_dc_state)
+		return;
+
+	for (i = 0; i < local_dc_state->stream_count; i++) {
+		struct dc_stream_state *stream = dm_state->context->streams[i];
+		int ind = find_crtc_index_in_state_by_stream(state, stream);
+
+		if (ind >= 0) {
+			struct amdgpu_dm_connector *aconnector;
+			struct drm_connector_state *drm_new_conn_state;
+			struct dm_connector_state *dm_new_conn_state;
+			struct dm_crtc_state *dm_old_crtc_state;
+
+			aconnector =
+				amdgpu_dm_find_first_crtc_matching_connector(state,
+									     state->crtcs[ind].ptr);
+			drm_new_conn_state =
+				drm_atomic_get_new_connector_state(state,
+								   &aconnector->base);
+			dm_new_conn_state = to_dm_connector_state(drm_new_conn_state);
+			dm_old_crtc_state = to_dm_crtc_state(state->crtcs[ind].old_state);
+
+			local_dc_state->streams[i] =
+				create_validate_stream_for_sink(aconnector,
+								&state->crtcs[ind].new_state->mode,
+								dm_new_conn_state,
+								dm_old_crtc_state->stream);
+		}
+	}
+
+	if (!pre_compute_mst_dsc_configs_for_state(state, local_dc_state, vars)) {
+		DRM_INFO_ONCE("pre_compute_mst_dsc_configs_for_state() failed\n");
+		goto clean_exit;
+	}
+
+	/*
+	 * compare local_streams -> timing  with dm_state->context,
+	 * if the same set crtc_state->mode-change = 0;
+	 */
+	for (i = 0; i < local_dc_state->stream_count; i++) {
+		struct dc_stream_state *stream = dm_state->context->streams[i];
+
+		if (local_dc_state->streams[i] &&
+		    is_timing_changed(stream, local_dc_state->streams[i])) {
+			DRM_INFO_ONCE("crtc[%d] needs mode_changed\n", i);
+		} else {
+			int ind = find_crtc_index_in_state_by_stream(state, stream);
+
+			if (ind >= 0)
+				state->crtcs[ind].new_state->mode_changed = 0;
+		}
+	}
+clean_exit:
+	for (i = 0; i < local_dc_state->stream_count; i++) {
+		struct dc_stream_state *stream = dm_state->context->streams[i];
+
+		if (local_dc_state->streams[i] != stream)
+			dc_stream_release(local_dc_state->streams[i]);
+	}
+
+	kfree(local_dc_state);
+}
 #endif

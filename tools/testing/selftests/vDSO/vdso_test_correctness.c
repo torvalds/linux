@@ -20,6 +20,7 @@
 #include <limits.h>
 
 #include "vdso_config.h"
+#include "../kselftest.h"
 
 static const char **name;
 
@@ -306,10 +307,8 @@ static void test_clock_gettime(void)
 		return;
 	}
 
-	for (int clock = 0; clock < sizeof(clocknames) / sizeof(clocknames[0]);
-	     clock++) {
+	for (int clock = 0; clock < ARRAY_SIZE(clocknames); clock++)
 		test_one_clock_gettime(clock, clocknames[clock]);
-	}
 
 	/* Also test some invalid clock ids */
 	test_one_clock_gettime(-1, "invalid");
@@ -370,10 +369,8 @@ static void test_clock_gettime64(void)
 		return;
 	}
 
-	for (int clock = 0; clock < sizeof(clocknames) / sizeof(clocknames[0]);
-	     clock++) {
+	for (int clock = 0; clock < ARRAY_SIZE(clocknames); clock++)
 		test_one_clock_gettime64(clock, clocknames[clock]);
-	}
 
 	/* Also test some invalid clock ids */
 	test_one_clock_gettime64(-1, "invalid");

@@ -57,7 +57,6 @@
 #include <asm/vdso.h>
 #include <asm/debug.h>
 #include <asm/kexec.h>
-#include <asm/asm-prototypes.h>
 #include <asm/cpu_has_feature.h>
 #include <asm/ftrace.h>
 #include <asm/kup.h>
@@ -716,7 +715,7 @@ void smp_send_stop(void)
 }
 #endif /* CONFIG_NMI_IPI */
 
-struct task_struct *current_set[NR_CPUS];
+static struct task_struct *current_set[NR_CPUS];
 
 static void smp_store_cpu_info(int id)
 {

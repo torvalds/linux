@@ -100,7 +100,7 @@ struct sigaction {
 /* IRIX compatible stack_t  */
 typedef struct sigaltstack {
 	void __user *ss_sp;
-	size_t ss_size;
+	__kernel_size_t ss_size;
 	int ss_flags;
 } stack_t;
 

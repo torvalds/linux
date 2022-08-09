@@ -390,20 +390,20 @@ MODULE_DEVICE_TABLE(of, sun4i_pwm_dt_ids);
 
 static int sun4i_pwm_probe(struct platform_device *pdev)
 {
-	struct sun4i_pwm_chip *pwm;
+	struct sun4i_pwm_chip *sun4ichip;
 	int ret;
 
-	pwm = devm_kzalloc(&pdev->dev, sizeof(*pwm), GFP_KERNEL);
-	if (!pwm)
+	sun4ichip = devm_kzalloc(&pdev->dev, sizeof(*sun4ichip), GFP_KERNEL);
+	if (!sun4ichip)
 		return -ENOMEM;
 
-	pwm->data = of_device_get_match_data(&pdev->dev);
-	if (!pwm->data)
+	sun4ichip->data = of_device_get_match_data(&pdev->dev);
+	if (!sun4ichip->data)
 		return -ENODEV;
 
-	pwm->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(pwm->base))
-		return PTR_ERR(pwm->base);
+	sun4ichip->base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(sun4ichip->base))
+		return PTR_ERR(sun4ichip->base);
 
 	/*
 	 * All hardware variants need a source clock that is divided and
@@ -416,30 +416,30 @@ static int sun4i_pwm_probe(struct platform_device *pdev)
 	 * unnamed one of the PWM device) and if this is not found we fall
 	 * back to the first clock of the PWM.
 	 */
-	pwm->clk = devm_clk_get_optional(&pdev->dev, "mod");
-	if (IS_ERR(pwm->clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(pwm->clk),
+	sun4ichip->clk = devm_clk_get_optional(&pdev->dev, "mod");
+	if (IS_ERR(sun4ichip->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(sun4ichip->clk),
 				     "get mod clock failed\n");
 
-	if (!pwm->clk) {
-		pwm->clk = devm_clk_get(&pdev->dev, NULL);
-		if (IS_ERR(pwm->clk))
-			return dev_err_probe(&pdev->dev, PTR_ERR(pwm->clk),
+	if (!sun4ichip->clk) {
+		sun4ichip->clk = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(sun4ichip->clk))
+			return dev_err_probe(&pdev->dev, PTR_ERR(sun4ichip->clk),
 					     "get unnamed clock failed\n");
 	}
 
-	pwm->bus_clk = devm_clk_get_optional(&pdev->dev, "bus");
-	if (IS_ERR(pwm->bus_clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(pwm->bus_clk),
+	sun4ichip->bus_clk = devm_clk_get_optional(&pdev->dev, "bus");
+	if (IS_ERR(sun4ichip->bus_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(sun4ichip->bus_clk),
 				     "get bus clock failed\n");
 
-	pwm->rst = devm_reset_control_get_optional_shared(&pdev->dev, NULL);
-	if (IS_ERR(pwm->rst))
-		return dev_err_probe(&pdev->dev, PTR_ERR(pwm->rst),
+	sun4ichip->rst = devm_reset_control_get_optional_shared(&pdev->dev, NULL);
+	if (IS_ERR(sun4ichip->rst))
+		return dev_err_probe(&pdev->dev, PTR_ERR(sun4ichip->rst),
 				     "get reset failed\n");
 
 	/* Deassert reset */
-	ret = reset_control_deassert(pwm->rst);
+	ret = reset_control_deassert(sun4ichip->rst);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot deassert reset control: %pe\n",
 			ERR_PTR(ret));
@@ -450,45 +450,45 @@ static int sun4i_pwm_probe(struct platform_device *pdev)
 	 * We're keeping the bus clock on for the sake of simplicity.
 	 * Actually it only needs to be on for hardware register accesses.
 	 */
-	ret = clk_prepare_enable(pwm->bus_clk);
+	ret = clk_prepare_enable(sun4ichip->bus_clk);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot prepare and enable bus_clk %pe\n",
 			ERR_PTR(ret));
 		goto err_bus;
 	}
 
-	pwm->chip.dev = &pdev->dev;
-	pwm->chip.ops = &sun4i_pwm_ops;
-	pwm->chip.npwm = pwm->data->npwm;
+	sun4ichip->chip.dev = &pdev->dev;
+	sun4ichip->chip.ops = &sun4i_pwm_ops;
+	sun4ichip->chip.npwm = sun4ichip->data->npwm;
 
-	spin_lock_init(&pwm->ctrl_lock);
+	spin_lock_init(&sun4ichip->ctrl_lock);
 
-	ret = pwmchip_add(&pwm->chip);
+	ret = pwmchip_add(&sun4ichip->chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to add PWM chip: %d\n", ret);
 		goto err_pwm_add;
 	}
 
-	platform_set_drvdata(pdev, pwm);
+	platform_set_drvdata(pdev, sun4ichip);
 
 	return 0;
 
 err_pwm_add:
-	clk_disable_unprepare(pwm->bus_clk);
+	clk_disable_unprepare(sun4ichip->bus_clk);
 err_bus:
-	reset_control_assert(pwm->rst);
+	reset_control_assert(sun4ichip->rst);
 
 	return ret;
 }
 
 static int sun4i_pwm_remove(struct platform_device *pdev)
 {
-	struct sun4i_pwm_chip *pwm = platform_get_drvdata(pdev);
+	struct sun4i_pwm_chip *sun4ichip = platform_get_drvdata(pdev);
 
-	pwmchip_remove(&pwm->chip);
+	pwmchip_remove(&sun4ichip->chip);
 
-	clk_disable_unprepare(pwm->bus_clk);
-	reset_control_assert(pwm->rst);
+	clk_disable_unprepare(sun4ichip->bus_clk);
+	reset_control_assert(sun4ichip->rst);
 
 	return 0;
 }

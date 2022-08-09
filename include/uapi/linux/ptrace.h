@@ -114,7 +114,7 @@ struct ptrace_rseq_configuration {
 
 /*
  * These values are stored in task->ptrace_message
- * by tracehook_report_syscall_* to describe the current syscall-stop.
+ * by ptrace_stop to describe the current syscall-stop.
  */
 #define PTRACE_EVENTMSG_SYSCALL_ENTRY	1
 #define PTRACE_EVENTMSG_SYSCALL_EXIT	2

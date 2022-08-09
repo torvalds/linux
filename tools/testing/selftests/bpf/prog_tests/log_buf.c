@@ -78,7 +78,7 @@ static void obj_load_log_buf(void)
 	ASSERT_OK_PTR(strstr(libbpf_log_buf, "prog 'bad_prog': BPF program load failed"),
 		      "libbpf_log_not_empty");
 	ASSERT_OK_PTR(strstr(obj_log_buf, "DATASEC license"), "obj_log_not_empty");
-	ASSERT_OK_PTR(strstr(good_log_buf, "0: R1=ctx(id=0,off=0,imm=0) R10=fp0"),
+	ASSERT_OK_PTR(strstr(good_log_buf, "0: R1=ctx(off=0,imm=0) R10=fp0"),
 		      "good_log_verbose");
 	ASSERT_OK_PTR(strstr(bad_log_buf, "invalid access to map value, value_size=16 off=16000 size=4"),
 		      "bad_log_not_empty");
@@ -175,7 +175,7 @@ static void bpf_prog_load_log_buf(void)
 	opts.log_level = 2;
 	fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, "good_prog", "GPL",
 			   good_prog_insns, good_prog_insn_cnt, &opts);
-	ASSERT_OK_PTR(strstr(log_buf, "0: R1=ctx(id=0,off=0,imm=0) R10=fp0"), "good_log_2");
+	ASSERT_OK_PTR(strstr(log_buf, "0: R1=ctx(off=0,imm=0) R10=fp0"), "good_log_2");
 	ASSERT_GE(fd, 0, "good_fd2");
 	if (fd >= 0)
 		close(fd);
@@ -202,7 +202,7 @@ static void bpf_btf_load_log_buf(void)
 	const void *raw_btf_data;
 	__u32 raw_btf_size;
 	struct btf *btf;
-	char *log_buf;
+	char *log_buf = NULL;
 	int fd = -1;
 
 	btf = btf__new_empty();

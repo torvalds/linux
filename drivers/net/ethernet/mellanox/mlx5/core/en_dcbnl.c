@@ -1142,7 +1142,7 @@ static int mlx5e_update_trust_state_hw(struct mlx5e_priv *priv, void *context)
 	err = mlx5_set_trust_state(priv->mdev, *trust_state);
 	if (err)
 		return err;
-	priv->dcbx_dp.trust_state = *trust_state;
+	WRITE_ONCE(priv->dcbx_dp.trust_state, *trust_state);
 
 	return 0;
 }
@@ -1187,16 +1187,28 @@ static int mlx5e_set_dscp2prio(struct mlx5e_priv *priv, u8 dscp, u8 prio)
 static int mlx5e_trust_initialize(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
+	u8 trust_state;
 	int err;
 
-	priv->dcbx_dp.trust_state = MLX5_QPTS_TRUST_PCP;
-
-	if (!MLX5_DSCP_SUPPORTED(mdev))
+	if (!MLX5_DSCP_SUPPORTED(mdev)) {
+		WRITE_ONCE(priv->dcbx_dp.trust_state, MLX5_QPTS_TRUST_PCP);
 		return 0;
+	}
 
-	err = mlx5_query_trust_state(priv->mdev, &priv->dcbx_dp.trust_state);
+	err = mlx5_query_trust_state(priv->mdev, &trust_state);
 	if (err)
 		return err;
+	WRITE_ONCE(priv->dcbx_dp.trust_state, trust_state);
+
+	if (priv->dcbx_dp.trust_state == MLX5_QPTS_TRUST_PCP && priv->dcbx.dscp_app_cnt) {
+		/*
+		 * Align the driver state with the register state.
+		 * Temporary state change is required to enable the app list reset.
+		 */
+		priv->dcbx_dp.trust_state = MLX5_QPTS_TRUST_DSCP;
+		mlx5e_dcbnl_delete_app(priv);
+		priv->dcbx_dp.trust_state = MLX5_QPTS_TRUST_PCP;
+	}
 
 	mlx5e_params_calc_trust_tx_min_inline_mode(priv->mdev, &priv->channels.params,
 						   priv->dcbx_dp.trust_state);

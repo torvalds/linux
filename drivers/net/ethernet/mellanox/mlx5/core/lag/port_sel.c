@@ -505,7 +505,7 @@ static int mlx5_lag_create_inner_ttc_table(struct mlx5_lag *ldev)
 	struct ttc_params ttc_params = {};
 
 	mlx5_lag_set_inner_ttc_params(ldev, &ttc_params);
-	port_sel->inner.ttc = mlx5_create_ttc_table(dev, &ttc_params);
+	port_sel->inner.ttc = mlx5_create_inner_ttc_table(dev, &ttc_params);
 	if (IS_ERR(port_sel->inner.ttc))
 		return PTR_ERR(port_sel->inner.ttc);
 

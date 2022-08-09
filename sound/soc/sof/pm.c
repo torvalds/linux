@@ -48,22 +48,6 @@ static u32 snd_sof_dsp_power_target(struct snd_sof_dev *sdev)
 	return target_dsp_state;
 }
 
-static int sof_send_pm_ctx_ipc(struct snd_sof_dev *sdev, int cmd)
-{
-	struct sof_ipc_pm_ctx pm_ctx;
-	struct sof_ipc_reply reply;
-
-	memset(&pm_ctx, 0, sizeof(pm_ctx));
-
-	/* configure ctx save ipc message */
-	pm_ctx.hdr.size = sizeof(pm_ctx);
-	pm_ctx.hdr.cmd = SOF_IPC_GLB_PM_MSG | cmd;
-
-	/* send ctx save ipc to dsp */
-	return sof_ipc_tx_message(sdev->ipc, pm_ctx.hdr.cmd, &pm_ctx,
-				 sizeof(pm_ctx), &reply, sizeof(reply));
-}
-
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE)
 static void sof_cache_debugfs(struct snd_sof_dev *sdev)
 {
@@ -86,6 +70,8 @@ static void sof_cache_debugfs(struct snd_sof_dev *sdev)
 static int sof_resume(struct device *dev, bool runtime_resume)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
+	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
+	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
 	u32 old_state = sdev->dsp_power_state.state;
 	int ret;
 
@@ -159,20 +145,23 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 	}
 
 	/* restore pipelines */
-	ret = sof_set_up_pipelines(sdev, false);
-	if (ret < 0) {
-		dev_err(sdev->dev,
-			"error: failed to restore pipeline after resume %d\n",
-			ret);
-		return ret;
+	if (tplg_ops->set_up_all_pipelines) {
+		ret = tplg_ops->set_up_all_pipelines(sdev, false);
+		if (ret < 0) {
+			dev_err(sdev->dev, "Failed to restore pipeline after resume %d\n", ret);
+			return ret;
+		}
 	}
 
+	/* Notify clients not managed by pm framework about core resume */
+	sof_resume_clients(sdev);
+
 	/* notify DSP of system resume */
-	ret = sof_send_pm_ctx_ipc(sdev, SOF_IPC_PM_CTX_RESTORE);
-	if (ret < 0)
-		dev_err(sdev->dev,
-			"error: ctx_restore ipc error during resume %d\n",
-			ret);
+	if (pm_ops && pm_ops->ctx_restore) {
+		ret = pm_ops->ctx_restore(sdev);
+		if (ret < 0)
+			dev_err(sdev->dev, "ctx_restore IPC error during resume: %d\n", ret);
+	}
 
 	return ret;
 }
@@ -180,6 +169,9 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 static int sof_suspend(struct device *dev, bool runtime_suspend)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
+	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
+	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
+	pm_message_t pm_state;
 	u32 target_state = 0;
 	int ret;
 
@@ -205,15 +197,23 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	}
 
 	target_state = snd_sof_dsp_power_target(sdev);
+	pm_state.event = target_state;
 
 	/* Skip to platform-specific suspend if DSP is entering D0 */
-	if (target_state == SOF_DSP_PM_D0)
+	if (target_state == SOF_DSP_PM_D0) {
+		/* Notify clients not managed by pm framework about core suspend */
+		sof_suspend_clients(sdev, pm_state);
 		goto suspend;
+	}
 
-	sof_tear_down_pipelines(sdev, false);
+	if (tplg_ops->tear_down_all_pipelines)
+		tplg_ops->tear_down_all_pipelines(sdev, false);
 
 	/* release trace */
 	snd_sof_release_trace(sdev);
+
+	/* Notify clients not managed by pm framework about core suspend */
+	sof_suspend_clients(sdev, pm_state);
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE)
 	/* cache debugfs contents during runtime suspend */
@@ -221,21 +221,20 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 		sof_cache_debugfs(sdev);
 #endif
 	/* notify DSP of upcoming power down */
-	ret = sof_send_pm_ctx_ipc(sdev, SOF_IPC_PM_CTX_SAVE);
-	if (ret == -EBUSY || ret == -EAGAIN) {
-		/*
-		 * runtime PM has logic to handle -EBUSY/-EAGAIN so
-		 * pass these errors up
-		 */
-		dev_err(sdev->dev,
-			"error: ctx_save ipc error during suspend %d\n",
-			ret);
-		return ret;
-	} else if (ret < 0) {
-		/* FW in unexpected state, continue to power down */
-		dev_warn(sdev->dev,
-			 "ctx_save ipc error %d, proceeding with suspend\n",
-			 ret);
+	if (pm_ops && pm_ops->ctx_save) {
+		ret = pm_ops->ctx_save(sdev);
+		if (ret == -EBUSY || ret == -EAGAIN) {
+			/*
+			 * runtime PM has logic to handle -EBUSY/-EAGAIN so
+			 * pass these errors up
+			 */
+			dev_err(sdev->dev, "ctx_save IPC error during suspend: %d\n", ret);
+			return ret;
+		} else if (ret < 0) {
+			/* FW in unexpected state, continue to power down */
+			dev_warn(sdev->dev, "ctx_save IPC error: %d, proceeding with suspend\n",
+				 ret);
+		}
 	}
 
 suspend:
@@ -267,9 +266,11 @@ suspend:
 
 int snd_sof_dsp_power_down_notify(struct snd_sof_dev *sdev)
 {
+	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
+
 	/* Notify DSP of upcoming power down */
-	if (sof_ops(sdev)->remove)
-		return sof_send_pm_ctx_ipc(sdev, SOF_IPC_PM_CTX_SAVE);
+	if (sof_ops(sdev)->remove && pm_ops && pm_ops->ctx_save)
+		return pm_ops->ctx_save(sdev);
 
 	return 0;
 }

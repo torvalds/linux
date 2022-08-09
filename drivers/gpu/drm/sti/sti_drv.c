@@ -144,11 +144,6 @@ static const struct drm_driver sti_driver = {
 	.minor = DRIVER_MINOR,
 };
 
-static int compare_of(struct device *dev, void *data)
-{
-	return dev->of_node == data;
-}
-
 static int sti_init(struct drm_device *ddev)
 {
 	struct sti_private *private;
@@ -244,7 +239,7 @@ static int sti_platform_probe(struct platform_device *pdev)
 	child_np = of_get_next_available_child(node, NULL);
 
 	while (child_np) {
-		drm_of_component_match_add(dev, &match, compare_of,
+		drm_of_component_match_add(dev, &match, component_compare_of,
 					   child_np);
 		child_np = of_get_next_available_child(node, child_np);
 	}
@@ -287,6 +282,9 @@ static struct platform_driver * const drivers[] = {
 
 static int sti_drm_init(void)
 {
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
+
 	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 module_init(sti_drm_init);

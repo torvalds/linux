@@ -60,6 +60,8 @@ config EXTRA_FIRMWARE
 	  image since it combines both GPL and non-GPL work. You should
 	  consult a lawyer of your own before distributing such an image.
 
+	  NOTE: Compressed files are not supported in EXTRA_FIRMWARE.
+
 config EXTRA_FIRMWARE_DIR
 	string "Firmware blobs root directory"
 	depends on EXTRA_FIRMWARE != ""
@@ -168,6 +170,9 @@ config FW_LOADER_COMPRESS
 	  Currently only XZ-compressed files are supported, and they have to
 	  be compressed with either none or crc32 integrity check type (pass
 	  "-C crc32" option to xz command).
+
+	  Compressed firmware support does not apply to firmware images
+	  that are built into the kernel image (CONFIG_EXTRA_FIRMWARE).
 
 config FW_CACHE
 	bool "Enable firmware caching during suspend"

@@ -24,7 +24,6 @@
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Joerg Roedel <jroedel@suse.de>");
 
-#define MAX_DEVICES		0x10000
 #define PRI_QUEUE_SIZE		512
 
 struct pri_queue {
@@ -71,7 +70,6 @@ struct fault {
 	struct pasid_state *state;
 	struct mm_struct *mm;
 	u64 address;
-	u16 devid;
 	u32 pasid;
 	u16 tag;
 	u16 finish;
@@ -124,6 +122,15 @@ static struct device_state *get_device_state(u16 devid)
 static void free_device_state(struct device_state *dev_state)
 {
 	struct iommu_group *group;
+
+	/* Get rid of any remaining pasid states */
+	free_pasid_states(dev_state);
+
+	/*
+	 * Wait until the last reference is dropped before freeing
+	 * the device state.
+	 */
+	wait_event(dev_state->wq, !atomic_read(&dev_state->count));
 
 	/*
 	 * First detach device from domain - No more PRI requests will arrive
@@ -537,7 +544,7 @@ static int ppr_notifier(struct notifier_block *nb, unsigned long e, void *data)
 	ret = NOTIFY_DONE;
 
 	/* In kdump kernel pci dev is not initialized yet -> send INVALID */
-	if (amd_iommu_is_attach_deferred(NULL, &pdev->dev)) {
+	if (amd_iommu_is_attach_deferred(&pdev->dev)) {
 		amd_iommu_complete_ppr(pdev, iommu_fault->pasid,
 				       PPR_INVALID, tag);
 		goto out;
@@ -850,15 +857,7 @@ void amd_iommu_free_device(struct pci_dev *pdev)
 
 	spin_unlock_irqrestore(&state_lock, flags);
 
-	/* Get rid of any remaining pasid states */
-	free_pasid_states(dev_state);
-
 	put_device_state(dev_state);
-	/*
-	 * Wait until the last reference is dropped before freeing
-	 * the device state.
-	 */
-	wait_event(dev_state->wq, !atomic_read(&dev_state->count));
 	free_device_state(dev_state);
 }
 EXPORT_SYMBOL(amd_iommu_free_device);
@@ -955,8 +954,8 @@ out:
 
 static void __exit amd_iommu_v2_exit(void)
 {
-	struct device_state *dev_state;
-	int i;
+	struct device_state *dev_state, *next;
+	unsigned long flags;
 
 	if (!amd_iommu_v2_supported())
 		return;
@@ -969,17 +968,17 @@ static void __exit amd_iommu_v2_exit(void)
 	 * The loop below might call flush_workqueue(), so call
 	 * destroy_workqueue() after it
 	 */
-	for (i = 0; i < MAX_DEVICES; ++i) {
-		dev_state = get_device_state(i);
+	spin_lock_irqsave(&state_lock, flags);
 
-		if (dev_state == NULL)
-			continue;
-
+	list_for_each_entry_safe(dev_state, next, &state_list, list) {
 		WARN_ON_ONCE(1);
 
 		put_device_state(dev_state);
-		amd_iommu_free_device(dev_state->pdev);
+		list_del(&dev_state->list);
+		free_device_state(dev_state);
 	}
+
+	spin_unlock_irqrestore(&state_lock, flags);
 
 	destroy_workqueue(iommu_wq);
 }

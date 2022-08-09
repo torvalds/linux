@@ -4,8 +4,7 @@
 #ifndef _NFP_NET_SRIOV_H_
 #define _NFP_NET_SRIOV_H_
 
-/**
- * SRIOV VF configuration.
+/* SRIOV VF configuration.
  * The configuration memory begins with a mailbox region for communication with
  * the firmware followed by individual VF entries.
  */

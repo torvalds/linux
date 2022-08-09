@@ -30,7 +30,7 @@ struct max96712_priv {
 	struct regmap *regmap;
 	struct gpio_desc *gpiod_pwdn;
 
-	struct v4l2_fwnode_bus_mipi_csi2 mipi;
+	struct v4l2_mbus_config_mipi_csi2 mipi;
 
 	struct v4l2_subdev sd;
 	struct v4l2_ctrl_handler ctrl_handler;

@@ -56,6 +56,7 @@ static int pasemi_smb_pci_probe(struct pci_dev *dev,
 	if (!smbus->ioaddr)
 		return -EBUSY;
 
+	smbus->adapter.class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	error = pasemi_i2c_common_probe(smbus);
 	if (error)
 		return error;

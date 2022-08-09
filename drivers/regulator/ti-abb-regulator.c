@@ -42,7 +42,7 @@
 /**
  * struct ti_abb_info - ABB information per voltage setting
  * @opp_sel:	one of TI_ABB macro
- * @vset:	(optional) vset value that LDOVBB needs to be overriden with.
+ * @vset:	(optional) vset value that LDOVBB needs to be overridden with.
  *
  * Array of per voltage entries organized in the same order as regulator_desc's
  * volt_table list. (selector is used to index from this array)
@@ -484,7 +484,7 @@ static int ti_abb_init_timings(struct device *dev, struct ti_abb *abb)
 	/* Calculate cycle rate */
 	cycle_rate = DIV_ROUND_CLOSEST(clock_cycles * 10, clk_rate);
 
-	/* Calulate SR2_WTCNT_VALUE */
+	/* Calculate SR2_WTCNT_VALUE */
 	sr2_wt_cnt_val = DIV_ROUND_CLOSEST(abb->settling_time * 10, cycle_rate);
 
 	dev_dbg(dev, "%s: Clk_rate=%ld, sr2_cnt=0x%08x\n", __func__,
@@ -688,7 +688,7 @@ MODULE_DEVICE_TABLE(of, ti_abb_of_match);
  * @pdev: ABB platform device
  *
  * Initializes an individual ABB LDO for required Body-Bias. ABB is used to
- * addional bias supply to SoC modules for power savings or mandatory stability
+ * additional bias supply to SoC modules for power savings or mandatory stability
  * configuration at certain Operating Performance Points(OPPs).
  *
  * Return: 0 on success or appropriate error value when fails

@@ -57,7 +57,9 @@ properties:
               - renesas,sdhi-r8a77990  # R-Car E3
               - renesas,sdhi-r8a77995  # R-Car D3
               - renesas,sdhi-r8a779a0  # R-Car V3U
+              - renesas,sdhi-r9a07g043 # RZ/G2UL
               - renesas,sdhi-r9a07g044 # RZ/G2{L,LC}
+              - renesas,sdhi-r9a07g054 # RZ/V2L
           - const: renesas,rcar-gen3-sdhi # R-Car Gen3 or RZ/G2
 
   reg:
@@ -107,7 +109,10 @@ allOf:
       properties:
         compatible:
           contains:
-            const: renesas,sdhi-r9a07g044
+            enum:
+              - renesas,sdhi-r9a07g043
+              - renesas,sdhi-r9a07g044
+              - renesas,sdhi-r9a07g054
     then:
       properties:
         clocks:

@@ -33,7 +33,6 @@
 
 /* Intermittent includes, delete this after v5.14-rc1 */
 #include <linux/soc/ixp4xx/cpu.h>
-#include <mach/ixp4xx-regs.h>
 
 #define MAX_KEYLEN 32
 

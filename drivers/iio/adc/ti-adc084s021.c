@@ -248,7 +248,7 @@ static const struct of_device_id adc084s021_of_match[] = {
 MODULE_DEVICE_TABLE(of, adc084s021_of_match);
 
 static const struct spi_device_id adc084s021_id[] = {
-	{ ADC084S021_DRIVER_NAME, 0},
+	{ ADC084S021_DRIVER_NAME, 0 },
 	{}
 };
 MODULE_DEVICE_TABLE(spi, adc084s021_id);

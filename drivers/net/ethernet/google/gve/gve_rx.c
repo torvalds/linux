@@ -439,7 +439,7 @@ static bool gve_rx_ctx_init(struct gve_rx_ctx *ctx, struct gve_rx_ring *rx)
 		if (frag_size > rx->packet_buffer_size) {
 			packet_size_error = true;
 			netdev_warn(priv->dev,
-				    "RX fragment error: packet_buffer_size=%d, frag_size=%d, droping packet.",
+				    "RX fragment error: packet_buffer_size=%d, frag_size=%d, dropping packet.",
 				    rx->packet_buffer_size, be16_to_cpu(desc->len));
 		}
 		page_info = &rx->data.page_info[idx];

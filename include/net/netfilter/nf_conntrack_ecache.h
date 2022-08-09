@@ -21,10 +21,10 @@ enum nf_ct_ecache_state {
 
 struct nf_conntrack_ecache {
 	unsigned long cache;		/* bitops want long */
-	u16 missed;			/* missed events */
 	u16 ctmask;			/* bitmask of ct events to be delivered */
 	u16 expmask;			/* bitmask of expect events to be delivered */
 	enum nf_ct_ecache_state state:8;/* ecache state */
+	u32 missed;			/* missed events */
 	u32 portid;			/* netlink portid of destroyer */
 };
 
@@ -166,9 +166,6 @@ void nf_conntrack_ecache_work(struct net *net, enum nf_ct_ecache_state state);
 void nf_conntrack_ecache_pernet_init(struct net *net);
 void nf_conntrack_ecache_pernet_fini(struct net *net);
 
-int nf_conntrack_ecache_init(void);
-void nf_conntrack_ecache_fini(void);
-
 static inline bool nf_conntrack_ecache_dwork_pending(const struct net *net)
 {
 	return net->ct.ecache_dwork_pending;
@@ -194,16 +191,6 @@ static inline void nf_conntrack_ecache_pernet_init(struct net *net)
 static inline void nf_conntrack_ecache_pernet_fini(struct net *net)
 {
 }
-
-static inline int nf_conntrack_ecache_init(void)
-{
-	return 0;
-}
-
-static inline void nf_conntrack_ecache_fini(void)
-{
-}
-
 static inline bool nf_conntrack_ecache_dwork_pending(const struct net *net) { return false; }
 #endif /* CONFIG_NF_CONNTRACK_EVENTS */
 #endif /*_NF_CONNTRACK_ECACHE_H*/

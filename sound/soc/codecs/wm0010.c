@@ -969,7 +969,7 @@ static int wm0010_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int wm0010_spi_remove(struct spi_device *spi)
+static void wm0010_spi_remove(struct spi_device *spi)
 {
 	struct wm0010_priv *wm0010 = spi_get_drvdata(spi);
 
@@ -980,8 +980,6 @@ static int wm0010_spi_remove(struct spi_device *spi)
 
 	if (wm0010->irq)
 		free_irq(wm0010->irq, wm0010);
-
-	return 0;
 }
 
 static struct spi_driver wm0010_spi_driver = {

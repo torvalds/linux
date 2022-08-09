@@ -4,6 +4,8 @@
 
 #include <linux/sched.h>
 #include <linux/ftrace.h>
+#include <linux/kprobes.h>
+#include <linux/llist.h>
 #include <asm/ptrace.h>
 #include <asm/stacktrace.h>
 
@@ -36,9 +38,20 @@ struct unwind_state {
 	struct pt_regs *regs;
 	unsigned long sp, ip;
 	int graph_idx;
+	struct llist_node *kr_cur;
 	bool reliable;
 	bool error;
 };
+
+/* Recover the return address modified by kretprobe and ftrace_graph. */
+static inline unsigned long unwind_recover_ret_addr(struct unwind_state *state,
+						    unsigned long ip)
+{
+	ip = ftrace_graph_ret_addr(state->task, &state->graph_idx, ip, NULL);
+	if (is_kretprobe_trampoline(ip))
+		ip = kretprobe_find_ret_addr(state->task, (void *)state->sp, &state->kr_cur);
+	return ip;
+}
 
 void __unwind_start(struct unwind_state *state, struct task_struct *task,
 		    struct pt_regs *regs, unsigned long first_frame);

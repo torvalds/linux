@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#ifndef _KERNEL_SCHED_AUTOGROUP_H
+#define _KERNEL_SCHED_AUTOGROUP_H
+
 #ifdef CONFIG_SCHED_AUTOGROUP
 
 struct autogroup {
@@ -27,6 +30,7 @@ extern bool task_wants_autogroup(struct task_struct *p, struct task_group *tg);
 static inline struct task_group *
 autogroup_task_group(struct task_struct *p, struct task_group *tg)
 {
+	extern unsigned int sysctl_sched_autogroup_enabled;
 	int enabled = READ_ONCE(sysctl_sched_autogroup_enabled);
 
 	if (enabled && task_wants_autogroup(p, tg))
@@ -58,3 +62,5 @@ static inline int autogroup_path(struct task_group *tg, char *buf, int buflen)
 }
 
 #endif /* CONFIG_SCHED_AUTOGROUP */
+
+#endif /* _KERNEL_SCHED_AUTOGROUP_H */

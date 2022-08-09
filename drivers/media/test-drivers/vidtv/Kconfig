@@ -7,5 +7,4 @@ config DVB_VIDTV
 	  validate the existing APIs in the media subsystem. It can also aid developers
 	  working on userspace applications.
 
-
 	  When in doubt, say N.

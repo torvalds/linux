@@ -146,15 +146,14 @@ static int vchiq_ioc_create_service(struct vchiq_instance *instance,
 	struct vchiq_service_params_kernel params;
 	int srvstate;
 
+	if (args->is_open && !instance->connected)
+		return -ENOTCONN;
+
 	user_service = kmalloc(sizeof(*user_service), GFP_KERNEL);
 	if (!user_service)
 		return -ENOMEM;
 
 	if (args->is_open) {
-		if (!instance->connected) {
-			kfree(user_service);
-			return -ENOTCONN;
-		}
 		srvstate = VCHIQ_SRVSTATE_OPENING;
 	} else {
 		srvstate = instance->connected ?

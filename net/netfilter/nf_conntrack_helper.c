@@ -550,11 +550,11 @@ void nf_nat_helper_unregister(struct nf_conntrack_nat_helper *nat)
 }
 EXPORT_SYMBOL_GPL(nf_nat_helper_unregister);
 
-static const struct nf_ct_ext_type helper_extend = {
-	.len	= sizeof(struct nf_conn_help),
-	.align	= __alignof__(struct nf_conn_help),
-	.id	= NF_CT_EXT_HELPER,
-};
+void nf_ct_set_auto_assign_helper_warned(struct net *net)
+{
+	nf_ct_pernet(net)->auto_assign_helper_warned = true;
+}
+EXPORT_SYMBOL_GPL(nf_ct_set_auto_assign_helper_warned);
 
 void nf_conntrack_helper_pernet_init(struct net *net)
 {
@@ -565,28 +565,17 @@ void nf_conntrack_helper_pernet_init(struct net *net)
 
 int nf_conntrack_helper_init(void)
 {
-	int ret;
 	nf_ct_helper_hsize = 1; /* gets rounded up to use one page */
 	nf_ct_helper_hash =
 		nf_ct_alloc_hashtable(&nf_ct_helper_hsize, 0);
 	if (!nf_ct_helper_hash)
 		return -ENOMEM;
 
-	ret = nf_ct_extend_register(&helper_extend);
-	if (ret < 0) {
-		pr_err("nf_ct_helper: Unable to register helper extension.\n");
-		goto out_extend;
-	}
-
 	INIT_LIST_HEAD(&nf_ct_nat_helpers);
 	return 0;
-out_extend:
-	kvfree(nf_ct_helper_hash);
-	return ret;
 }
 
 void nf_conntrack_helper_fini(void)
 {
-	nf_ct_extend_unregister(&helper_extend);
 	kvfree(nf_ct_helper_hash);
 }

@@ -4151,7 +4151,7 @@ static int gcc_sm6125_probe(struct platform_device *pdev)
 
 	/*
 	 * Enable DUAL_EDGE mode for MCLK RCGs
-	 * This is requierd to enable MND divider mode
+	 * This is required to enable MND divider mode
 	 */
 	regmap_update_bits(regmap, 0x51004, 0x3000, 0x2000);
 	regmap_update_bits(regmap, 0x51020, 0x3000, 0x2000);

@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/soc/qcom/qcom,eud.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Qualcomm Embedded USB Debugger
+
+maintainers:
+  - Souradeep Chowdhury <quic_schowdhu@quicinc.com>
+
+description:
+  This binding is used to describe the Qualcomm Embedded USB Debugger, which is
+  mini USB-hub implemented on chip to support USB-based debug capabilities.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - qcom,sc7280-eud
+      - const: qcom,eud
+
+  reg:
+    items:
+      - description: EUD Base Register Region
+      - description: EUD Mode Manager Register
+
+  interrupts:
+    description: EUD interrupt
+    maxItems: 1
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    description:
+      These ports is to be attached to the endpoint of the DWC3 controller node
+      and type C connector node. The controller has the "usb-role-switch"
+      property.
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: This port is to be attached to the DWC3 controller.
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: This port is to be attached to the type C connector.
+
+required:
+  - compatible
+  - reg
+  - ports
+
+additionalProperties: false
+
+examples:
+  - |
+    eud@88e0000 {
+           compatible = "qcom,sc7280-eud","qcom,eud";
+           reg = <0x88e0000 0x2000>,
+                 <0x88e2000 0x1000>;
+           ports {
+                   #address-cells = <1>;
+                   #size-cells = <0>;
+                   port@0 {
+                           reg = <0>;
+                           eud_ep: endpoint {
+                                   remote-endpoint = <&usb2_role_switch>;
+                           };
+                   };
+                   port@1 {
+                           reg = <1>;
+                           eud_con: endpoint {
+                                   remote-endpoint = <&con_eud>;
+                           };
+                   };
+           };
+    };

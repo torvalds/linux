@@ -1861,6 +1861,20 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct Qdisc *sch, str
 	return 0;
 }
 
+static int
+nfp_setup_tc_no_dev(struct nfp_app *app, enum tc_setup_type type, void *data)
+{
+	if (!data)
+		return -EOPNOTSUPP;
+
+	switch (type) {
+	case TC_SETUP_ACT:
+		return nfp_setup_tc_act_offload(app, data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 int
 nfp_flower_indr_setup_tc_cb(struct net_device *netdev, struct Qdisc *sch, void *cb_priv,
 			    enum tc_setup_type type, void *type_data,
@@ -1868,7 +1882,7 @@ nfp_flower_indr_setup_tc_cb(struct net_device *netdev, struct Qdisc *sch, void *
 			    void (*cleanup)(struct flow_block_cb *block_cb))
 {
 	if (!netdev)
-		return -EOPNOTSUPP;
+		return nfp_setup_tc_no_dev(cb_priv, type, data);
 
 	if (!nfp_fl_is_netdev_to_offload(netdev))
 		return -EOPNOTSUPP;

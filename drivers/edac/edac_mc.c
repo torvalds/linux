@@ -213,12 +213,12 @@ void *edac_align_ptr(void **p, unsigned int size, int n_elems)
 	else if (size > sizeof(char))
 		align = sizeof(short);
 	else
-		return (char *)ptr;
+		return ptr;
 
 	r = (unsigned long)ptr % align;
 
 	if (r == 0)
-		return (char *)ptr;
+		return ptr;
 
 	*p += align - r;
 

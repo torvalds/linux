@@ -209,7 +209,8 @@ static void test_lpm_order(void)
 static void test_lpm_map(int keysize)
 {
 	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_NO_PREALLOC);
-	size_t i, j, n_matches, n_matches_after_delete, n_nodes, n_lookups;
+	volatile size_t n_matches, n_matches_after_delete;
+	size_t i, j, n_nodes, n_lookups;
 	struct tlpm_node *t, *list = NULL;
 	struct bpf_lpm_trie_key *key;
 	uint8_t *data, *value;

@@ -13,7 +13,7 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/genhd.h>
+#include <linux/blkdev.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <uapi/linux/sed-opal.h>

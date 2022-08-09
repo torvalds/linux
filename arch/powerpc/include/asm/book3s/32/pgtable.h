@@ -298,28 +298,35 @@ static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, p
 				     unsigned long clr, unsigned long set, int huge)
 {
 	pte_basic_t old;
-	unsigned long tmp;
 
-	__asm__ __volatile__(
+	if (mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
+		unsigned long tmp;
+
+		asm volatile(
 #ifndef CONFIG_PTE_64BIT
-"1:	lwarx	%0, 0, %3\n"
-"	andc	%1, %0, %4\n"
+	"1:	lwarx	%0, 0, %3\n"
+	"	andc	%1, %0, %4\n"
 #else
-"1:	lwarx	%L0, 0, %3\n"
-"	lwz	%0, -4(%3)\n"
-"	andc	%1, %L0, %4\n"
+	"1:	lwarx	%L0, 0, %3\n"
+	"	lwz	%0, -4(%3)\n"
+	"	andc	%1, %L0, %4\n"
 #endif
-"	or	%1, %1, %5\n"
-"	stwcx.	%1, 0, %3\n"
-"	bne-	1b"
-	: "=&r" (old), "=&r" (tmp), "=m" (*p)
+	"	or	%1, %1, %5\n"
+	"	stwcx.	%1, 0, %3\n"
+	"	bne-	1b"
+		: "=&r" (old), "=&r" (tmp), "=m" (*p)
 #ifndef CONFIG_PTE_64BIT
-	: "r" (p),
+		: "r" (p),
 #else
-	: "b" ((unsigned long)(p) + 4),
+		: "b" ((unsigned long)(p) + 4),
 #endif
-	  "r" (clr), "r" (set), "m" (*p)
-	: "cc" );
+		  "r" (clr), "r" (set), "m" (*p)
+		: "cc" );
+	} else {
+		old = pte_val(*p);
+
+		*p = __pte((old & ~(pte_basic_t)clr) | set);
+	}
 
 	return old;
 }
@@ -372,8 +379,8 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 #define __HAVE_ARCH_PTE_SAME
 #define pte_same(A,B)	(((pte_val(A) ^ pte_val(B)) & ~_PAGE_HASHPTE) == 0)
 
-#define pmd_page(pmd)		\
-	pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT)
+#define pmd_pfn(pmd)		(pmd_val(pmd) >> PAGE_SHIFT)
+#define pmd_page(pmd)		pfn_to_page(pmd_pfn(pmd))
 
 /*
  * Encode and decode a swap entry.

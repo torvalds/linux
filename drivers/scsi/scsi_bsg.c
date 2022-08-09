@@ -12,7 +12,7 @@
 static int scsi_bsg_sg_io_fn(struct request_queue *q, struct sg_io_v4 *hdr,
 		fmode_t mode, unsigned int timeout)
 {
-	struct scsi_request *sreq;
+	struct scsi_cmnd *scmd;
 	struct request *rq;
 	struct bio *bio;
 	int ret;
@@ -31,21 +31,19 @@ static int scsi_bsg_sg_io_fn(struct request_queue *q, struct sg_io_v4 *hdr,
 		return PTR_ERR(rq);
 	rq->timeout = timeout;
 
-	ret = -ENOMEM;
-	sreq = scsi_req(rq);
-	sreq->cmd_len = hdr->request_len;
-	if (sreq->cmd_len > BLK_MAX_CDB) {
-		sreq->cmd = kzalloc(sreq->cmd_len, GFP_KERNEL);
-		if (!sreq->cmd)
-			goto out_put_request;
+	scmd = blk_mq_rq_to_pdu(rq);
+	scmd->cmd_len = hdr->request_len;
+	if (scmd->cmd_len > sizeof(scmd->cmnd)) {
+		ret = -EINVAL;
+		goto out_put_request;
 	}
 
 	ret = -EFAULT;
-	if (copy_from_user(sreq->cmd, uptr64(hdr->request), sreq->cmd_len))
-		goto out_free_cmd;
+	if (copy_from_user(scmd->cmnd, uptr64(hdr->request), scmd->cmd_len))
+		goto out_put_request;
 	ret = -EPERM;
-	if (!scsi_cmd_allowed(sreq->cmd, mode))
-		goto out_free_cmd;
+	if (!scsi_cmd_allowed(scmd->cmnd, mode))
+		goto out_put_request;
 
 	ret = 0;
 	if (hdr->dout_xfer_len) {
@@ -57,7 +55,7 @@ static int scsi_bsg_sg_io_fn(struct request_queue *q, struct sg_io_v4 *hdr,
 	}
 
 	if (ret)
-		goto out_free_cmd;
+		goto out_put_request;
 
 	bio = rq->bio;
 	blk_execute_rq(rq, !(hdr->flags & BSG_FLAG_Q_AT_TAIL));
@@ -65,35 +63,34 @@ static int scsi_bsg_sg_io_fn(struct request_queue *q, struct sg_io_v4 *hdr,
 	/*
 	 * fill in all the output members
 	 */
-	hdr->device_status = sreq->result & 0xff;
-	hdr->transport_status = host_byte(sreq->result);
+	hdr->device_status = scmd->result & 0xff;
+	hdr->transport_status = host_byte(scmd->result);
 	hdr->driver_status = 0;
-	if (scsi_status_is_check_condition(sreq->result))
+	if (scsi_status_is_check_condition(scmd->result))
 		hdr->driver_status = DRIVER_SENSE;
 	hdr->info = 0;
 	if (hdr->device_status || hdr->transport_status || hdr->driver_status)
 		hdr->info |= SG_INFO_CHECK;
 	hdr->response_len = 0;
 
-	if (sreq->sense_len && hdr->response) {
+	if (scmd->sense_len && hdr->response) {
 		int len = min_t(unsigned int, hdr->max_response_len,
-					sreq->sense_len);
+				scmd->sense_len);
 
-		if (copy_to_user(uptr64(hdr->response), sreq->sense, len))
+		if (copy_to_user(uptr64(hdr->response), scmd->sense_buffer,
+				 len))
 			ret = -EFAULT;
 		else
 			hdr->response_len = len;
 	}
 
 	if (rq_data_dir(rq) == READ)
-		hdr->din_resid = sreq->resid_len;
+		hdr->din_resid = scmd->resid_len;
 	else
-		hdr->dout_resid = sreq->resid_len;
+		hdr->dout_resid = scmd->resid_len;
 
 	blk_rq_unmap_user(bio);
 
-out_free_cmd:
-	scsi_req_free_cmd(scsi_req(rq));
 out_put_request:
 	blk_mq_free_request(rq);
 	return ret;

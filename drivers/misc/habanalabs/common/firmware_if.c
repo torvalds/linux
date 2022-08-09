@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2021 HabanaLabs, Ltd.
+ * Copyright 2016-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -214,7 +214,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	dma_addr_t pkt_dma_addr;
 	struct hl_bd *sent_bd;
 	u32 tmp, expected_ack_val, pi;
-	int rc = 0;
+	int rc;
 
 	pkt = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev, len,
 								&pkt_dma_addr);
@@ -228,8 +228,11 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 
 	mutex_lock(&hdev->send_cpu_message_lock);
 
-	if (hdev->disabled)
+	/* CPU-CP messages can be sent during soft-reset */
+	if (hdev->disabled && !hdev->reset_info.is_in_soft_reset) {
+		rc = 0;
 		goto out;
+	}
 
 	if (hdev->device_cpu_disabled) {
 		rc = -EIO;
@@ -958,15 +961,17 @@ int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, u32 pll_index,
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 			HL_CPUCP_INFO_TIMEOUT_USEC, &result);
-	if (rc)
+	if (rc) {
 		dev_err(hdev->dev, "Failed to read PLL info, error %d\n", rc);
+		return rc;
+	}
 
 	pll_freq_arr[0] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT0_MASK, result);
 	pll_freq_arr[1] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT1_MASK, result);
 	pll_freq_arr[2] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT2_MASK, result);
 	pll_freq_arr[3] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT3_MASK, result);
 
-	return rc;
+	return 0;
 }
 
 int hl_fw_cpucp_power_get(struct hl_device *hdev, u64 *power)
@@ -1202,8 +1207,6 @@ static int hl_fw_read_preboot_caps(struct hl_device *hdev,
 		hdev,
 		cpu_boot_status_reg,
 		status,
-		(status == CPU_BOOT_STATUS_IN_UBOOT) ||
-		(status == CPU_BOOT_STATUS_DRAM_RDY) ||
 		(status == CPU_BOOT_STATUS_NIC_FW_RDY) ||
 		(status == CPU_BOOT_STATUS_READY_TO_BOOT) ||
 		(status == CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT),
@@ -2681,4 +2684,139 @@ int hl_fw_init_cpu(struct hl_device *hdev)
 	return  prop->dynamic_fw_load ?
 			hl_fw_dynamic_init_cpu(hdev, fw_loader) :
 			hl_fw_static_init_cpu(hdev, fw_loader);
+}
+
+void hl_fw_set_pll_profile(struct hl_device *hdev)
+{
+	hl_fw_set_frequency(hdev, hdev->asic_prop.clk_pll_index,
+				hdev->asic_prop.max_freq_value);
+}
+
+int hl_fw_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk)
+{
+	long value;
+
+	if (!hl_device_operational(hdev, NULL))
+		return -ENODEV;
+
+	if (!hdev->pdev) {
+		*cur_clk = 0;
+		*max_clk = 0;
+		return 0;
+	}
+
+	value = hl_fw_get_frequency(hdev, hdev->asic_prop.clk_pll_index, false);
+
+	if (value < 0) {
+		dev_err(hdev->dev, "Failed to retrieve device max clock %ld\n", value);
+		return value;
+	}
+
+	*max_clk = (value / 1000 / 1000);
+
+	value = hl_fw_get_frequency(hdev, hdev->asic_prop.clk_pll_index, true);
+
+	if (value < 0) {
+		dev_err(hdev->dev, "Failed to retrieve device current clock %ld\n", value);
+		return value;
+	}
+
+	*cur_clk = (value / 1000 / 1000);
+
+	return 0;
+}
+
+long hl_fw_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr)
+{
+	struct cpucp_packet pkt;
+	u32 used_pll_idx;
+	u64 result;
+	int rc;
+
+	rc = get_used_pll_index(hdev, pll_index, &used_pll_idx);
+	if (rc)
+		return rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	if (curr)
+		pkt.ctl = cpu_to_le32(CPUCP_PACKET_FREQUENCY_CURR_GET <<
+						CPUCP_PKT_CTL_OPCODE_SHIFT);
+	else
+		pkt.ctl = cpu_to_le32(CPUCP_PACKET_FREQUENCY_GET << CPUCP_PKT_CTL_OPCODE_SHIFT);
+
+	pkt.pll_index = cpu_to_le32((u32)used_pll_idx);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt), 0, &result);
+
+	if (rc) {
+		dev_err(hdev->dev, "Failed to get frequency of PLL %d, error %d\n",
+			used_pll_idx, rc);
+		return rc;
+	}
+
+	return (long) result;
+}
+
+void hl_fw_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq)
+{
+	struct cpucp_packet pkt;
+	u32 used_pll_idx;
+	int rc;
+
+	rc = get_used_pll_index(hdev, pll_index, &used_pll_idx);
+	if (rc)
+		return;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_FREQUENCY_SET << CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.pll_index = cpu_to_le32((u32)used_pll_idx);
+	pkt.value = cpu_to_le64(freq);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt), 0, NULL);
+
+	if (rc)
+		dev_err(hdev->dev, "Failed to set frequency to PLL %d, error %d\n",
+			used_pll_idx, rc);
+}
+
+long hl_fw_get_max_power(struct hl_device *hdev)
+{
+	struct cpucp_packet pkt;
+	u64 result;
+	int rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_MAX_POWER_GET << CPUCP_PKT_CTL_OPCODE_SHIFT);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt), 0, &result);
+
+	if (rc) {
+		dev_err(hdev->dev, "Failed to get max power, error %d\n", rc);
+		return rc;
+	}
+
+	return result;
+}
+
+void hl_fw_set_max_power(struct hl_device *hdev)
+{
+	struct cpucp_packet pkt;
+	int rc;
+
+	/* TODO: remove this after simulator supports this packet */
+	if (!hdev->pdev)
+		return;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_MAX_POWER_SET << CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.value = cpu_to_le64(hdev->max_power);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt), 0, NULL);
+
+	if (rc)
+		dev_err(hdev->dev, "Failed to set max power, error %d\n", rc);
 }

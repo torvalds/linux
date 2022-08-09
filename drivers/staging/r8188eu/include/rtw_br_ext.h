@@ -4,11 +4,6 @@
 #ifndef _RTW_BR_EXT_H_
 #define _RTW_BR_EXT_H_
 
-#define _DEBUG_ERR		DBG_88E
-#define _DEBUG_INFO		DBG_88E
-#define DEBUG_WARN		DBG_88E
-#define DEBUG_INFO		DBG_88E
-#define DEBUG_ERR		DBG_88E
 #define GET_MY_HWADDR(padapter)		((padapter)->eeprompriv.mac_addr)
 
 #define NAT25_HASH_BITS		4

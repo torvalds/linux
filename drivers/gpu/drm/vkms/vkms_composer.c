@@ -157,7 +157,7 @@ static void compose_plane(struct vkms_composer *primary_composer,
 	void *vaddr;
 	void (*pixel_blend)(const u8 *p_src, u8 *p_dst);
 
-	if (WARN_ON(dma_buf_map_is_null(&primary_composer->map[0])))
+	if (WARN_ON(iosys_map_is_null(&primary_composer->map[0])))
 		return;
 
 	vaddr = plane_composer->map[0].vaddr;
@@ -187,7 +187,7 @@ static int compose_active_planes(void **vaddr_out,
 		}
 	}
 
-	if (WARN_ON(dma_buf_map_is_null(&primary_composer->map[0])))
+	if (WARN_ON(iosys_map_is_null(&primary_composer->map[0])))
 		return -EINVAL;
 
 	vaddr = primary_composer->map[0].vaddr;

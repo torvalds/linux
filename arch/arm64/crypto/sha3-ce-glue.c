@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 /*
  * sha3-ce-glue.c - core SHA-3 transform using v8.2 Crypto Extensions
  *
