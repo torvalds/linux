@@ -329,7 +329,7 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 
 	if (!entity_active || band_changed) {
 		rtw89_btc_ntfy_switch_band(rtwdev, RTW89_PHY_0, chan.band_type);
-		rtw89_chip_rfk_band_changed(rtwdev);
+		rtw89_chip_rfk_band_changed(rtwdev, RTW89_PHY_0);
 	}
 }
 

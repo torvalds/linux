@@ -1278,9 +1278,10 @@ static void rtw8852a_rfk_channel(struct rtw89_dev *rtwdev)
 	rtw8852a_dpk(rtwdev, phy_idx);
 }
 
-static void rtw8852a_rfk_band_changed(struct rtw89_dev *rtwdev)
+static void rtw8852a_rfk_band_changed(struct rtw89_dev *rtwdev,
+				      enum rtw89_phy_idx phy_idx)
 {
-	rtw8852a_tssi_scan(rtwdev, RTW89_PHY_0);
+	rtw8852a_tssi_scan(rtwdev, phy_idx);
 }
 
 static void rtw8852a_rfk_scan(struct rtw89_dev *rtwdev, bool start)
