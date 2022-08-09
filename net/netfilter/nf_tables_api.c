@@ -5467,6 +5467,27 @@ err_set_elem_expr:
 	return ERR_PTR(err);
 }
 
+static int nft_set_ext_check(const struct nft_set_ext_tmpl *tmpl, u8 id, u32 len)
+{
+	len += nft_set_ext_types[id].len;
+	if (len > tmpl->ext_len[id] ||
+	    len > U8_MAX)
+		return -1;
+
+	return 0;
+}
+
+static int nft_set_ext_memcpy(const struct nft_set_ext_tmpl *tmpl, u8 id,
+			      void *to, const void *from, u32 len)
+{
+	if (nft_set_ext_check(tmpl, id, len) < 0)
+		return -1;
+
+	memcpy(to, from, len);
+
+	return 0;
+}
+
 void *nft_set_elem_init(const struct nft_set *set,
 			const struct nft_set_ext_tmpl *tmpl,
 			const u32 *key, const u32 *key_end,
@@ -5477,17 +5498,26 @@ void *nft_set_elem_init(const struct nft_set *set,
 
 	elem = kzalloc(set->ops->elemsize + tmpl->len, gfp);
 	if (elem == NULL)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	ext = nft_set_elem_ext(set, elem);
 	nft_set_ext_init(ext, tmpl);
 
-	if (nft_set_ext_exists(ext, NFT_SET_EXT_KEY))
-		memcpy(nft_set_ext_key(ext), key, set->klen);
-	if (nft_set_ext_exists(ext, NFT_SET_EXT_KEY_END))
-		memcpy(nft_set_ext_key_end(ext), key_end, set->klen);
-	if (nft_set_ext_exists(ext, NFT_SET_EXT_DATA))
-		memcpy(nft_set_ext_data(ext), data, set->dlen);
+	if (nft_set_ext_exists(ext, NFT_SET_EXT_KEY) &&
+	    nft_set_ext_memcpy(tmpl, NFT_SET_EXT_KEY,
+			       nft_set_ext_key(ext), key, set->klen) < 0)
+		goto err_ext_check;
+
+	if (nft_set_ext_exists(ext, NFT_SET_EXT_KEY_END) &&
+	    nft_set_ext_memcpy(tmpl, NFT_SET_EXT_KEY_END,
+			       nft_set_ext_key_end(ext), key_end, set->klen) < 0)
+		goto err_ext_check;
+
+	if (nft_set_ext_exists(ext, NFT_SET_EXT_DATA) &&
+	    nft_set_ext_memcpy(tmpl, NFT_SET_EXT_DATA,
+			       nft_set_ext_data(ext), data, set->dlen) < 0)
+		goto err_ext_check;
+
 	if (nft_set_ext_exists(ext, NFT_SET_EXT_EXPIRATION)) {
 		*nft_set_ext_expiration(ext) = get_jiffies_64() + expiration;
 		if (expiration == 0)
@@ -5497,6 +5527,11 @@ void *nft_set_elem_init(const struct nft_set *set,
 		*nft_set_ext_timeout(ext) = timeout;
 
 	return elem;
+
+err_ext_check:
+	kfree(elem);
+
+	return ERR_PTR(-EINVAL);
 }
 
 static void __nft_set_elem_expr_destroy(const struct nft_ctx *ctx,
@@ -5584,13 +5619,24 @@ err_expr:
 }
 
 static int nft_set_elem_expr_setup(struct nft_ctx *ctx,
+				   const struct nft_set_ext_tmpl *tmpl,
 				   const struct nft_set_ext *ext,
 				   struct nft_expr *expr_array[],
 				   u32 num_exprs)
 {
 	struct nft_set_elem_expr *elem_expr = nft_set_ext_expr(ext);
+	u32 len = sizeof(struct nft_set_elem_expr);
 	struct nft_expr *expr;
 	int i, err;
+
+	if (num_exprs == 0)
+		return 0;
+
+	for (i = 0; i < num_exprs; i++)
+		len += expr_array[i]->ops->size;
+
+	if (nft_set_ext_check(tmpl, NFT_SET_EXT_EXPRESSIONS, len) < 0)
+		return -EINVAL;
 
 	for (i = 0; i < num_exprs; i++) {
 		expr = nft_setelem_expr_at(elem_expr, elem_expr->size);
@@ -6054,17 +6100,23 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 		}
 	}
 
-	err = -ENOMEM;
 	elem.priv = nft_set_elem_init(set, &tmpl, elem.key.val.data,
 				      elem.key_end.val.data, elem.data.val.data,
 				      timeout, expiration, GFP_KERNEL_ACCOUNT);
-	if (elem.priv == NULL)
+	if (IS_ERR(elem.priv)) {
+		err = PTR_ERR(elem.priv);
 		goto err_parse_data;
+	}
 
 	ext = nft_set_elem_ext(set, elem.priv);
 	if (flags)
 		*nft_set_ext_flags(ext) = flags;
+
 	if (ulen > 0) {
+		if (nft_set_ext_check(&tmpl, NFT_SET_EXT_USERDATA, ulen) < 0) {
+			err = -EINVAL;
+			goto err_elem_userdata;
+		}
 		udata = nft_set_ext_userdata(ext);
 		udata->len = ulen - 1;
 		nla_memcpy(&udata->data, nla[NFTA_SET_ELEM_USERDATA], ulen);
@@ -6073,14 +6125,14 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 		*nft_set_ext_obj(ext) = obj;
 		obj->use++;
 	}
-	err = nft_set_elem_expr_setup(ctx, ext, expr_array, num_exprs);
+	err = nft_set_elem_expr_setup(ctx, &tmpl, ext, expr_array, num_exprs);
 	if (err < 0)
-		goto err_elem_expr;
+		goto err_elem_free;
 
 	trans = nft_trans_elem_alloc(ctx, NFT_MSG_NEWSETELEM, set);
 	if (trans == NULL) {
 		err = -ENOMEM;
-		goto err_elem_expr;
+		goto err_elem_free;
 	}
 
 	ext->genmask = nft_genmask_cur(ctx->net) | NFT_SET_ELEM_BUSY_MASK;
@@ -6126,10 +6178,10 @@ err_set_full:
 	nft_setelem_remove(ctx->net, set, &elem);
 err_element_clash:
 	kfree(trans);
-err_elem_expr:
+err_elem_free:
 	if (obj)
 		obj->use--;
-
+err_elem_userdata:
 	nf_tables_set_elem_destroy(ctx, set, elem.priv);
 err_parse_data:
 	if (nla[NFTA_SET_ELEM_DATA] != NULL)
@@ -6311,8 +6363,10 @@ static int nft_del_setelem(struct nft_ctx *ctx, struct nft_set *set,
 	elem.priv = nft_set_elem_init(set, &tmpl, elem.key.val.data,
 				      elem.key_end.val.data, NULL, 0, 0,
 				      GFP_KERNEL_ACCOUNT);
-	if (elem.priv == NULL)
+	if (IS_ERR(elem.priv)) {
+		err = PTR_ERR(elem.priv);
 		goto fail_elem_key_end;
+	}
 
 	ext = nft_set_elem_ext(set, elem.priv);
 	if (flags)
