@@ -26,6 +26,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+#include <linux/rk_hdmirx_config.h>
 #include <linux/rockchip/rockchip_sip.h>
 #include <linux/seq_file.h>
 #include <linux/v4l2-dv-timings.h>
@@ -226,21 +227,26 @@ struct rk_hdmirx_dev {
 	u32 hpd_trigger_level;
 	u32 cur_vic;
 	u32 cur_fmt_fourcc;
+	u32 cur_color_range;
+	u32 cur_color_space;
 	u32 color_depth;
 	u32 cpu_freq_khz;
 	u32 bound_cpu;
+	u32 fps;
 	u32 wdt_cfg_bound_cpu;
 	u8 edid[EDID_BLOCK_SIZE * 2];
 	hdmi_codec_plugged_cb plugged_cb;
-	spinlock_t dma_rst_lock;
+	spinlock_t rst_lock;
 };
 
 static bool tx_5v_power_present(struct rk_hdmirx_dev *hdmirx_dev);
 static void hdmirx_set_fmt(struct hdmirx_stream *stream,
 		struct v4l2_pix_format_mplane *pixm, bool try);
+static void hdmirx_audio_set_state(struct rk_hdmirx_dev *hdmirx_dev, enum audio_stat stat);
 static void hdmirx_audio_setup(struct rk_hdmirx_dev *hdmirx_dev);
 static u32 hdmirx_audio_fs(struct rk_hdmirx_dev *hdmirx_dev);
 static u32 hdmirx_audio_ch(struct rk_hdmirx_dev *hdmirx_dev);
+static void hdmirx_audio_fifo_init(struct rk_hdmirx_dev *hdmirx_dev);
 static void hdmirx_audio_handle_plugged_change(struct rk_hdmirx_dev *hdmirx_dev, bool plugged);
 static void hdmirx_audio_interrupts_setup(struct rk_hdmirx_dev *hdmirx_dev, bool en);
 static int hdmirx_set_cpu_limit_freq(struct rk_hdmirx_dev *hdmirx_dev);
@@ -319,6 +325,11 @@ static u8 edid_init_data_600M[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC0,
 };
 
+static char *hdmirx_color_space[8] = {
+	"xvYCC601", "xvYCC709", "sYCC601", "Adobe_YCC601",
+	"Adobe_RGB", "BT2020_YcCbcCrc", "BT2020_RGB"
+};
+
 static const struct v4l2_dv_timings_cap hdmirx_timings_cap = {
 	.type = V4L2_DV_BT_656_1120,
 	.reserved = { 0 },
@@ -365,9 +376,9 @@ static void hdmirx_writel(struct rk_hdmirx_dev *hdmirx_dev, int reg, u32 val)
 {
 	unsigned long lock_flags = 0;
 
-	spin_lock_irqsave(&hdmirx_dev->dma_rst_lock,  lock_flags);
+	spin_lock_irqsave(&hdmirx_dev->rst_lock, lock_flags);
 	writel(val, hdmirx_dev->regs + reg);
-	spin_unlock_irqrestore(&hdmirx_dev->dma_rst_lock, lock_flags);
+	spin_unlock_irqrestore(&hdmirx_dev->rst_lock, lock_flags);
 }
 
 static u32 hdmirx_readl(struct rk_hdmirx_dev *hdmirx_dev, int reg)
@@ -375,9 +386,9 @@ static u32 hdmirx_readl(struct rk_hdmirx_dev *hdmirx_dev, int reg)
 	unsigned long lock_flags = 0;
 	u32 val;
 
-	spin_lock_irqsave(&hdmirx_dev->dma_rst_lock,  lock_flags);
+	spin_lock_irqsave(&hdmirx_dev->rst_lock, lock_flags);
 	val = readl(hdmirx_dev->regs + reg);
-	spin_unlock_irqrestore(&hdmirx_dev->dma_rst_lock, lock_flags);
+	spin_unlock_irqrestore(&hdmirx_dev->rst_lock, lock_flags);
 	return val;
 }
 
@@ -385,19 +396,39 @@ static void hdmirx_reset_dma(struct rk_hdmirx_dev *hdmirx_dev)
 {
 	unsigned long lock_flags = 0;
 
-	spin_lock_irqsave(&hdmirx_dev->dma_rst_lock,  lock_flags);
+	spin_lock_irqsave(&hdmirx_dev->rst_lock, lock_flags);
 	reset_control_assert(hdmirx_dev->rst_a);
 	reset_control_deassert(hdmirx_dev->rst_a);
-	spin_unlock_irqrestore(&hdmirx_dev->dma_rst_lock, lock_flags);
+	spin_unlock_irqrestore(&hdmirx_dev->rst_lock, lock_flags);
+}
+
+static void hdmirx_reset_all(struct rk_hdmirx_dev *hdmirx_dev)
+{
+	unsigned long lock_flags = 0;
+
+	spin_lock_irqsave(&hdmirx_dev->rst_lock, lock_flags);
+	reset_control_assert(hdmirx_dev->rst_a);
+	reset_control_assert(hdmirx_dev->rst_p);
+	reset_control_assert(hdmirx_dev->rst_ref);
+	reset_control_assert(hdmirx_dev->rst_biu);
+	reset_control_deassert(hdmirx_dev->rst_a);
+	reset_control_deassert(hdmirx_dev->rst_p);
+	reset_control_deassert(hdmirx_dev->rst_ref);
+	reset_control_deassert(hdmirx_dev->rst_biu);
+	spin_unlock_irqrestore(&hdmirx_dev->rst_lock, lock_flags);
 }
 
 static void hdmirx_update_bits(struct rk_hdmirx_dev *hdmirx_dev, int reg, u32 mask,
 		u32 data)
 {
-	u32 val = hdmirx_readl(hdmirx_dev, reg) & ~mask;
+	unsigned long lock_flags = 0;
+	u32 val;
 
+	spin_lock_irqsave(&hdmirx_dev->rst_lock, lock_flags);
+	val = readl(hdmirx_dev->regs + reg) & ~mask;
 	val |= (data & mask);
-	hdmirx_writel(hdmirx_dev, reg, val);
+	writel(val, hdmirx_dev->regs + reg);
+	spin_unlock_irqrestore(&hdmirx_dev->rst_lock, lock_flags);
 }
 
 static int hdmirx_subscribe_event(struct v4l2_fh *fh,
@@ -604,6 +635,55 @@ static void hdmirx_get_pix_fmt(struct rk_hdmirx_dev *hdmirx_dev)
 			pix_fmt_str[hdmirx_dev->pix_fmt]);
 }
 
+static void hdmirx_get_color_space(struct rk_hdmirx_dev *hdmirx_dev)
+{
+	u32 val;
+	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
+
+	/*
+	 * Note: PKTDEC_ACR_PB3_0 contents only updated after
+	 * reading pktdec_aviif_ph2_1 unless snapshot feature
+	 * is disabled using pktdec_snapshot_bypass
+	 */
+	hdmirx_readl(hdmirx_dev, PKTDEC_AVIIF_PH2_1);
+	val = hdmirx_readl(hdmirx_dev, PKTDEC_AVIIF_PB3_0);
+	hdmirx_dev->cur_color_space = (val & EXTEND_COLORIMETRY) >> 28;
+
+	v4l2_dbg(2, debug, v4l2_dev, "%s: video standard: %s\n", __func__,
+		 hdmirx_color_space[hdmirx_dev->cur_color_space]);
+}
+
+static void hdmirx_get_color_range(struct rk_hdmirx_dev *hdmirx_dev)
+{
+	u32 val;
+	int color_range;
+	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
+
+	/*
+	 * Note: PKTDEC_ACR_PB3_0 contents only updated after
+	 * reading pktdec_aviif_ph2_1 unless snapshot feature
+	 * is disabled using pktdec_snapshot_bypass
+	 */
+	hdmirx_readl(hdmirx_dev, PKTDEC_AVIIF_PH2_1);
+	val = hdmirx_readl(hdmirx_dev, PKTDEC_AVIIF_PB3_0);
+	color_range = (val & RGB_QUANTIZATION_RANGE) >> 26;
+	if (hdmirx_dev->pix_fmt != HDMIRX_RGB888) {
+		hdmirx_dev->cur_color_range = color_range;
+	} else {
+		if (color_range != HDMIRX_DEFAULT_RANGE) {
+			hdmirx_dev->cur_color_range = color_range;
+		} else {
+			(hdmirx_dev->cur_vic) ?
+			(hdmirx_dev->cur_color_range = HDMIRX_LIMIT_RANGE) :
+			(hdmirx_dev->cur_color_range = HDMIRX_FULL_RANGE);
+		}
+	}
+
+	v4l2_dbg(2, debug, v4l2_dev, "%s: color_range: %s\n", __func__,
+		(hdmirx_dev->cur_color_range == HDMIRX_DEFAULT_RANGE) ? "default" :
+		(hdmirx_dev->cur_color_range == HDMIRX_FULL_RANGE ? "full" : "limit"));
+}
+
 static void hdmirx_get_timings(struct rk_hdmirx_dev *hdmirx_dev,
 			       struct v4l2_bt_timings *bt, bool from_dma)
 {
@@ -670,6 +750,7 @@ static void hdmirx_get_timings(struct rk_hdmirx_dev *hdmirx_dev,
 	bt->vfrontporch = vfp;
 	bt->vsync = vs;
 	bt->vbackporch = vbp;
+	hdmirx_dev->fps = fps;
 
 	v4l2_dbg(1, debug, v4l2_dev, "get timings from %s\n", from_dma ? "dma" : "ctrl");
 	v4l2_dbg(1, debug, v4l2_dev,
@@ -718,10 +799,13 @@ static int hdmirx_get_detected_timings(struct rk_hdmirx_dev *hdmirx_dev,
 	val = hdmirx_readl(hdmirx_dev, DMA_STATUS11);
 	field_type = (val & HDMIRX_TYPE_MASK) >> 7;
 	hdmirx_get_pix_fmt(hdmirx_dev);
+	hdmirx_get_color_range(hdmirx_dev);
+	hdmirx_get_color_space(hdmirx_dev);
 	bt->interlaced = field_type & BIT(0) ?
 		V4L2_DV_INTERLACED : V4L2_DV_PROGRESSIVE;
+	hdmirx_readl(hdmirx_dev, PKTDEC_AVIIF_PH2_1);
 	val = hdmirx_readl(hdmirx_dev, PKTDEC_AVIIF_PB7_4);
-	hdmirx_dev->cur_vic =  val | VIC_VAL_MASK;
+	hdmirx_dev->cur_vic =  val & VIC_VAL_MASK;
 	hdmirx_get_colordepth(hdmirx_dev);
 	color_depth = hdmirx_dev->color_depth;
 	deframer_st = hdmirx_readl(hdmirx_dev, DEFRAMER_STATUS);
@@ -1903,6 +1987,100 @@ static int hdmirx_start_streaming(struct vb2_queue *queue, unsigned int count)
 	return 0;
 }
 
+static void hdmirx_set_mute(struct rk_hdmirx_dev *hdmirx_dev, enum mute_type type)
+{
+	struct hdmirx_stream *stream = &hdmirx_dev->stream;
+
+	switch (type) {
+	case MUTE_OFF:
+		if ((stream->curr_buf != NULL || stream->next_buf != NULL) &&
+		    hdmirx_dev->get_timing)
+			hdmirx_update_bits(hdmirx_dev, DMA_CONFIG6,
+					   HDMIRX_DMA_EN, HDMIRX_DMA_EN);
+		break;
+	case MUTE_VIDEO:
+		hdmirx_update_bits(hdmirx_dev, DMA_CONFIG6, HDMIRX_DMA_EN, 0);
+		break;
+
+	default:
+		break;
+	}
+}
+
+static int hdmirx_get_hdcp_auth_status(struct rk_hdmirx_dev *hdmirx_dev)
+{
+	u32 val;
+
+	hdmirx_writel(hdmirx_dev, HDCP_INT_CLEAR, 0xffffffff);
+	msleep(200);
+	val = hdmirx_readl(hdmirx_dev, HDCP_INT_STATUS) & 0x40;
+
+	return val ? 1 : 0;
+}
+
+static long hdmirx_ioctl_default(struct file *file, void *fh,
+				 bool valid_prio, unsigned int cmd, void *arg)
+{
+	struct hdmirx_stream *stream = video_drvdata(file);
+	struct rk_hdmirx_dev *hdmirx_dev = stream->hdmirx_dev;
+	long ret = 0;
+	bool hpd;
+	enum mute_type type;
+	enum audio_stat stat;
+
+	if (!arg)
+		return -EINVAL;
+
+	switch (cmd) {
+	case RK_HDMIRX_CMD_GET_FPS:
+		*(int *)arg = hdmirx_dev->get_timing ? hdmirx_dev->fps : 0;
+		break;
+	case RK_HDMIRX_CMD_GET_SIGNAL_STABLE_STATUS:
+		*(int *)arg = hdmirx_dev->get_timing;
+		break;
+	case RK_HDMIRX_CMD_SET_HPD:
+		hpd = *(int *)arg ? true : false;
+		hdmirx_hpd_ctrl(hdmirx_dev, hpd);
+		break;
+	case RK_HDMIRX_CMD_SET_MUTE:
+		type = *(int *)arg;
+		hdmirx_set_mute(hdmirx_dev, type);
+		break;
+	case RK_HDMIRX_CMD_SOFT_RESET:
+		hdmirx_reset_all(hdmirx_dev);
+		schedule_delayed_work_on(hdmirx_dev->bound_cpu,
+					 &hdmirx_dev->delayed_work_hotplug,
+					 msecs_to_jiffies(10));
+		break;
+	case RK_HDMIRX_CMD_GET_HDCP_STATUS:
+		*(int *)arg = hdmirx_get_hdcp_auth_status(hdmirx_dev);
+		break;
+	case RK_HDMIRX_CMD_SET_AUDIO_STATE:
+		stat = *(enum audio_stat *)arg;
+		hdmirx_audio_set_state(hdmirx_dev, stat);
+		break;
+	case RK_HDMIRX_CMD_RESET_AUDIO_FIFO:
+		hdmirx_audio_fifo_init(hdmirx_dev);
+		break;
+	case RK_HDMIRX_CMD_GET_INPUT_MODE:
+		*(int *)arg = hdmirx_dev->is_dvi_mode ? MODE_DVI : MODE_HDMI;
+		break;
+	case RK_HDMIRX_CMD_GET_COLOR_RANGE:
+		hdmirx_get_color_range(hdmirx_dev);
+		*(int *)arg = hdmirx_dev->cur_color_range;
+		break;
+	case RK_HDMIRX_CMD_GET_COLOR_SPACE:
+		hdmirx_get_color_space(hdmirx_dev);
+		*(int *)arg = hdmirx_dev->cur_color_space;
+		break;
+
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 // ---------------------- vb2 queue -------------------------
 static struct vb2_ops hdmirx_vb2_ops = {
 	.queue_setup = hdmirx_queue_setup,
@@ -1966,6 +2144,7 @@ static const struct v4l2_ioctl_ops hdmirx_v4l2_ioctl_ops = {
 	.vidioc_log_status = v4l2_ctrl_log_status,
 	.vidioc_subscribe_event = hdmirx_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
+	.vidioc_default = hdmirx_ioctl_default,
 };
 
 static const struct v4l2_file_operations hdmirx_fops = {
@@ -2582,6 +2761,22 @@ static void hdmirx_audio_clk_ppm_inc(struct rk_hdmirx_dev *hdmirx_dev, int ppm)
 		__func__, hdmirx_dev->audio_state.hdmirx_aud_clkrate, rate, delta);
 	clk_set_rate(hdmirx_dev->clks[1].clk, rate);
 	hdmirx_dev->audio_state.hdmirx_aud_clkrate = rate;
+}
+
+static void hdmirx_audio_set_state(struct rk_hdmirx_dev *hdmirx_dev, enum audio_stat stat)
+{
+	switch (stat) {
+	case AUDIO_OFF:
+		cancel_delayed_work_sync(&hdmirx_dev->delayed_work_audio);
+		hdmirx_update_bits(hdmirx_dev, GLOBAL_SWENABLE, AUDIO_ENABLE, 0);
+		break;
+	case AUDIO_ON:
+		schedule_delayed_work_on(hdmirx_dev->bound_cpu,
+					 &hdmirx_dev->delayed_work_audio, HZ / 2);
+		break;
+	default:
+		break;
+	}
 }
 
 static void hdmirx_audio_setup(struct rk_hdmirx_dev *hdmirx_dev)
@@ -3690,7 +3885,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 
 	mutex_init(&hdmirx_dev->stream_lock);
 	mutex_init(&hdmirx_dev->work_lock);
-	spin_lock_init(&hdmirx_dev->dma_rst_lock);
+	spin_lock_init(&hdmirx_dev->rst_lock);
 	INIT_WORK(&hdmirx_dev->work_wdt_config,
 			hdmirx_work_wdt_config);
 	INIT_DELAYED_WORK(&hdmirx_dev->delayed_work_hotplug,
