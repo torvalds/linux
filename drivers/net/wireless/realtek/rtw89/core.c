@@ -233,10 +233,8 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 	u32 primary_freq, center_freq;
 	u8 center_chan;
 	u8 bandwidth = RTW89_CHANNEL_WIDTH_20;
-	u8 primary_chan_idx = 0;
 	u32 offset;
 	u8 band;
-	u8 subband;
 
 	center_chan = channel->hw_value;
 	primary_freq = channel->center_freq;
@@ -246,15 +244,12 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 	case NL80211_CHAN_WIDTH_20_NOHT:
 	case NL80211_CHAN_WIDTH_20:
 		bandwidth = RTW89_CHANNEL_WIDTH_20;
-		primary_chan_idx = RTW89_SC_DONT_CARE;
 		break;
 	case NL80211_CHAN_WIDTH_40:
 		bandwidth = RTW89_CHANNEL_WIDTH_40;
 		if (primary_freq > center_freq) {
-			primary_chan_idx = RTW89_SC_20_UPPER;
 			center_chan -= 2;
 		} else {
-			primary_chan_idx = RTW89_SC_20_LOWER;
 			center_chan += 2;
 		}
 		break;
@@ -263,11 +258,9 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 		bandwidth = nl_to_rtw89_bandwidth(width);
 		if (primary_freq > center_freq) {
 			offset = (primary_freq - center_freq - 10) / 20;
-			primary_chan_idx = RTW89_SC_20_UPPER + offset * 2;
 			center_chan -= 2 + offset * 4;
 		} else {
 			offset = (center_freq - primary_freq - 10) / 20;
-			primary_chan_idx = RTW89_SC_20_LOWER + offset * 2;
 			center_chan += 2 + offset * 4;
 		}
 		break;
@@ -289,68 +282,7 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 		break;
 	}
 
-	switch (band) {
-	default:
-	case RTW89_BAND_2G:
-		switch (center_chan) {
-		default:
-		case 1 ... 14:
-			subband = RTW89_CH_2G;
-			break;
-		}
-		break;
-	case RTW89_BAND_5G:
-		switch (center_chan) {
-		default:
-		case 36 ... 64:
-			subband = RTW89_CH_5G_BAND_1;
-			break;
-		case 100 ... 144:
-			subband = RTW89_CH_5G_BAND_3;
-			break;
-		case 149 ... 177:
-			subband = RTW89_CH_5G_BAND_4;
-			break;
-		}
-		break;
-	case RTW89_BAND_6G:
-		switch (center_chan) {
-		default:
-		case 1 ... 29:
-			subband = RTW89_CH_6G_BAND_IDX0;
-			break;
-		case 33 ... 61:
-			subband = RTW89_CH_6G_BAND_IDX1;
-			break;
-		case 65 ... 93:
-			subband = RTW89_CH_6G_BAND_IDX2;
-			break;
-		case 97 ... 125:
-			subband = RTW89_CH_6G_BAND_IDX3;
-			break;
-		case 129 ... 157:
-			subband = RTW89_CH_6G_BAND_IDX4;
-			break;
-		case 161 ... 189:
-			subband = RTW89_CH_6G_BAND_IDX5;
-			break;
-		case 193 ... 221:
-			subband = RTW89_CH_6G_BAND_IDX6;
-			break;
-		case 225 ... 253:
-			subband = RTW89_CH_6G_BAND_IDX7;
-			break;
-		}
-		break;
-	}
-
-	chan->channel = center_chan;
-	chan->freq = center_freq;
-	chan->primary_channel = channel->hw_value;
-	chan->band_type = band;
-	chan->band_width = bandwidth;
-	chan->subband_type = subband;
-	chan->pri_ch_idx = primary_chan_idx;
+	rtw89_chan_create(chan, center_chan, channel->hw_value, band, bandwidth);
 }
 
 void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)

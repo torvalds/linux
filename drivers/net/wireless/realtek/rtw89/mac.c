@@ -3655,7 +3655,6 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 			   u32 len)
 {
 	struct ieee80211_vif *vif = rtwdev->scan_info.scanning_vif;
-	const struct rtw89_chan *cur = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	struct rtw89_chan new;
 	u8 reason, status, tx_fail, band;
 	u16 chan;
@@ -3682,11 +3681,7 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 		rtw89_hw_scan_complete(rtwdev, vif, false);
 		break;
 	case RTW89_SCAN_ENTER_CH_NOTIFY:
-		new = *cur;
-		new.channel = chan;
-		new.primary_channel = chan;
-		new.band_type = band;
-		new.band_width = RTW89_CHANNEL_WIDTH_20;
+		rtw89_chan_create(&new, chan, chan, band, RTW89_CHANNEL_WIDTH_20);
 		rtw89_assign_entity_chan(rtwdev, RTW89_SUB_ENTITY_0, &new);
 		if (rtw89_is_op_chan(rtwdev, band, chan)) {
 			rtw89_store_op_chan(rtwdev, false);

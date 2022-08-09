@@ -2388,11 +2388,8 @@ void rtw89_store_op_chan(struct rtw89_dev *rtwdev, bool backup)
 		scan_info->op_bw = cur->band_width;
 		scan_info->op_band = cur->band_type;
 	} else {
-		new = *cur;
-		new.primary_channel = scan_info->op_pri_ch;
-		new.channel = scan_info->op_chan;
-		new.band_width = scan_info->op_bw;
-		new.band_type = scan_info->op_band;
+		rtw89_chan_create(&new, scan_info->op_chan, scan_info->op_pri_ch,
+				  scan_info->op_band, scan_info->op_bw);
 		rtw89_assign_entity_chan(rtwdev, RTW89_SUB_ENTITY_0, &new);
 	}
 }

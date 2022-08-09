@@ -632,10 +632,14 @@ enum rtw89_sc_offset {
 
 struct rtw89_chan {
 	u8 channel;
-	u32 freq;
 	u8 primary_channel;
 	enum rtw89_band band_type;
 	enum rtw89_bandwidth band_width;
+
+	/* The follow-up are derived from the above. We must ensure that it
+	 * is assigned correctly in rtw89_chan_create() if new one is added.
+	 */
+	u32 freq;
 	enum rtw89_subband subband_type;
 	enum rtw89_sc_offset pri_ch_idx;
 };
