@@ -364,13 +364,12 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
 		size_t pgbase;
 		unsigned npages, i;
 
-		result = iov_iter_get_pages_alloc(iter, &pagevec, 
+		result = iov_iter_get_pages_alloc2(iter, &pagevec,
 						  rsize, &pgbase);
 		if (result < 0)
 			break;
 	
 		bytes = result;
-		iov_iter_advance(iter, bytes);
 		npages = (result + pgbase + PAGE_SIZE - 1) / PAGE_SIZE;
 		for (i = 0; i < npages; i++) {
 			struct nfs_page *req;
@@ -478,7 +477,7 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, struct iov_iter *iter,
 	if (!is_sync_kiocb(iocb))
 		dreq->iocb = iocb;
 
-	if (iter_is_iovec(iter))
+	if (user_backed_iter(iter))
 		dreq->flags = NFS_ODIRECT_SHOULD_DIRTY;
 
 	if (!swap)
@@ -812,13 +811,12 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
 		size_t pgbase;
 		unsigned npages, i;
 
-		result = iov_iter_get_pages_alloc(iter, &pagevec, 
+		result = iov_iter_get_pages_alloc2(iter, &pagevec,
 						  wsize, &pgbase);
 		if (result < 0)
 			break;
 
 		bytes = result;
-		iov_iter_advance(iter, bytes);
 		npages = (result + pgbase + PAGE_SIZE - 1) / PAGE_SIZE;
 		for (i = 0; i < npages; i++) {
 			struct nfs_page *req;

@@ -282,35 +282,6 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 }
 #endif
 
-static size_t
-hugetlbfs_read_actor(struct page *page, unsigned long offset,
-			struct iov_iter *to, unsigned long size)
-{
-	size_t copied = 0;
-	int i, chunksize;
-
-	/* Find which 4k chunk and offset with in that chunk */
-	i = offset >> PAGE_SHIFT;
-	offset = offset & ~PAGE_MASK;
-
-	while (size) {
-		size_t n;
-		chunksize = PAGE_SIZE;
-		if (offset)
-			chunksize -= offset;
-		if (chunksize > size)
-			chunksize = size;
-		n = copy_page_to_iter(&page[i], offset, chunksize, to);
-		copied += n;
-		if (n != chunksize)
-			return copied;
-		offset = 0;
-		size -= chunksize;
-		i++;
-	}
-	return copied;
-}
-
 /*
  * Support for read() - Find the page attached to f_mapping and copy out the
  * data. This provides functionality similar to filemap_read().
@@ -360,7 +331,7 @@ static ssize_t hugetlbfs_read_iter(struct kiocb *iocb, struct iov_iter *to)
 			/*
 			 * We have the page, copy it to user space buffer.
 			 */
-			copied = hugetlbfs_read_actor(page, offset, to, nr);
+			copied = copy_page_to_iter(page, offset, nr, to);
 			put_page(page);
 		}
 		offset += copied;

@@ -1200,7 +1200,7 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 	struct page **pages = (struct page **)bv;
 	ssize_t size, left;
 	unsigned len, i = 0;
-	size_t offset;
+	size_t offset, trim;
 	int ret = 0;
 
 	/*
@@ -1218,16 +1218,19 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 	 * result to ensure the bio's total size is correct. The remainder of
 	 * the iov data will be picked up in the next bio iteration.
 	 */
-	size = iov_iter_get_pages(iter, pages, UINT_MAX - bio->bi_iter.bi_size,
+	size = iov_iter_get_pages2(iter, pages, UINT_MAX - bio->bi_iter.bi_size,
 				  nr_pages, &offset);
-	if (size > 0) {
-		nr_pages = DIV_ROUND_UP(offset + size, PAGE_SIZE);
-		size = ALIGN_DOWN(size, bdev_logical_block_size(bio->bi_bdev));
-	} else
-		nr_pages = 0;
+	if (unlikely(size <= 0))
+		return size ? size : -EFAULT;
 
-	if (unlikely(size <= 0)) {
-		ret = size ? size : -EFAULT;
+	nr_pages = DIV_ROUND_UP(offset + size, PAGE_SIZE);
+
+	trim = size & (bdev_logical_block_size(bio->bi_bdev) - 1);
+	iov_iter_revert(iter, trim);
+
+	size -= trim;
+	if (unlikely(!size)) {
+		ret = -EFAULT;
 		goto out;
 	}
 
@@ -1246,7 +1249,7 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 		offset = 0;
 	}
 
-	iov_iter_advance(iter, size - left);
+	iov_iter_revert(iter, left);
 out:
 	while (i < nr_pages)
 		put_page(pages[i++]);

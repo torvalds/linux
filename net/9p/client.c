@@ -1495,7 +1495,7 @@ p9_client_read_once(struct p9_fid *fid, u64 offset, struct iov_iter *to,
 	struct p9_client *clnt = fid->clnt;
 	struct p9_req_t *req;
 	int count = iov_iter_count(to);
-	int rsize, non_zc = 0;
+	int rsize, received, non_zc = 0;
 	char *dataptr;
 
 	*err = 0;
@@ -1524,36 +1524,40 @@ p9_client_read_once(struct p9_fid *fid, u64 offset, struct iov_iter *to,
 	}
 	if (IS_ERR(req)) {
 		*err = PTR_ERR(req);
+		if (!non_zc)
+			iov_iter_revert(to, count - iov_iter_count(to));
 		return 0;
 	}
 
 	*err = p9pdu_readf(&req->rc, clnt->proto_version,
-			   "D", &count, &dataptr);
+			   "D", &received, &dataptr);
 	if (*err) {
+		if (!non_zc)
+			iov_iter_revert(to, count - iov_iter_count(to));
 		trace_9p_protocol_dump(clnt, &req->rc);
 		p9_req_put(clnt, req);
 		return 0;
 	}
-	if (rsize < count) {
-		pr_err("bogus RREAD count (%d > %d)\n", count, rsize);
-		count = rsize;
+	if (rsize < received) {
+		pr_err("bogus RREAD count (%d > %d)\n", received, rsize);
+		received = rsize;
 	}
 
 	p9_debug(P9_DEBUG_9P, "<<< RREAD count %d\n", count);
 
 	if (non_zc) {
-		int n = copy_to_iter(dataptr, count, to);
+		int n = copy_to_iter(dataptr, received, to);
 
-		if (n != count) {
+		if (n != received) {
 			*err = -EFAULT;
 			p9_req_put(clnt, req);
 			return n;
 		}
 	} else {
-		iov_iter_advance(to, count);
+		iov_iter_revert(to, count - received - iov_iter_count(to));
 	}
 	p9_req_put(clnt, req);
-	return count;
+	return received;
 }
 EXPORT_SYMBOL(p9_client_read_once);
 
@@ -1571,6 +1575,7 @@ p9_client_write(struct p9_fid *fid, u64 offset, struct iov_iter *from, int *err)
 	while (iov_iter_count(from)) {
 		int count = iov_iter_count(from);
 		int rsize = fid->iounit;
+		int written;
 
 		if (!rsize || rsize > clnt->msize - P9_IOHDRSZ)
 			rsize = clnt->msize - P9_IOHDRSZ;
@@ -1588,27 +1593,29 @@ p9_client_write(struct p9_fid *fid, u64 offset, struct iov_iter *from, int *err)
 					    offset, rsize, from);
 		}
 		if (IS_ERR(req)) {
+			iov_iter_revert(from, count - iov_iter_count(from));
 			*err = PTR_ERR(req);
 			break;
 		}
 
-		*err = p9pdu_readf(&req->rc, clnt->proto_version, "d", &count);
+		*err = p9pdu_readf(&req->rc, clnt->proto_version, "d", &written);
 		if (*err) {
+			iov_iter_revert(from, count - iov_iter_count(from));
 			trace_9p_protocol_dump(clnt, &req->rc);
 			p9_req_put(clnt, req);
 			break;
 		}
-		if (rsize < count) {
-			pr_err("bogus RWRITE count (%d > %d)\n", count, rsize);
-			count = rsize;
+		if (rsize < written) {
+			pr_err("bogus RWRITE count (%d > %d)\n", written, rsize);
+			written = rsize;
 		}
 
 		p9_debug(P9_DEBUG_9P, "<<< RWRITE count %d\n", count);
 
 		p9_req_put(clnt, req);
-		iov_iter_advance(from, count);
-		total += count;
-		offset += count;
+		iov_iter_revert(from, count - written - iov_iter_count(from));
+		total += written;
+		offset += written;
 	}
 	return total;
 }
