@@ -675,67 +675,127 @@ void rtw_set_dtim_period(struct rtw_dev *rtwdev, int dtim_period)
 	rtw_write8(rtwdev, REG_DTIM_COUNTER_ROOT, dtim_period - 1);
 }
 
+void rtw_update_channel(struct rtw_dev *rtwdev, u8 center_channel,
+			u8 primary_channel, enum rtw_supported_band band,
+			enum rtw_bandwidth bandwidth)
+{
+	enum nl80211_band nl_band = rtw_hw_to_nl80211_band(band);
+	struct rtw_hal *hal = &rtwdev->hal;
+	u8 *cch_by_bw = hal->cch_by_bw;
+	u32 center_freq, primary_freq;
+	enum rtw_sar_bands sar_band;
+	u8 primary_channel_idx;
+
+	center_freq = ieee80211_channel_to_frequency(center_channel, nl_band);
+	primary_freq = ieee80211_channel_to_frequency(primary_channel, nl_band);
+
+	/* assign the center channel used while 20M bw is selected */
+	cch_by_bw[RTW_CHANNEL_WIDTH_20] = primary_channel;
+
+	/* assign the center channel used while current bw is selected */
+	cch_by_bw[bandwidth] = center_channel;
+
+	switch (bandwidth) {
+	case RTW_CHANNEL_WIDTH_20:
+		primary_channel_idx = RTW_SC_DONT_CARE;
+		break;
+	case RTW_CHANNEL_WIDTH_40:
+		if (primary_freq > center_freq)
+			primary_channel_idx = RTW_SC_20_UPPER;
+		else
+			primary_channel_idx = RTW_SC_20_LOWER;
+		break;
+	case RTW_CHANNEL_WIDTH_80:
+		if (primary_freq > center_freq) {
+			if (primary_freq - center_freq == 10)
+				primary_channel_idx = RTW_SC_20_UPPER;
+			else
+				primary_channel_idx = RTW_SC_20_UPMOST;
+
+			/* assign the center channel used
+			 * while 40M bw is selected
+			 */
+			cch_by_bw[RTW_CHANNEL_WIDTH_40] = center_channel + 4;
+		} else {
+			if (center_freq - primary_freq == 10)
+				primary_channel_idx = RTW_SC_20_LOWER;
+			else
+				primary_channel_idx = RTW_SC_20_LOWEST;
+
+			/* assign the center channel used
+			 * while 40M bw is selected
+			 */
+			cch_by_bw[RTW_CHANNEL_WIDTH_40] = center_channel - 4;
+		}
+		break;
+	default:
+		break;
+	}
+
+	switch (center_channel) {
+	case 1 ... 14:
+		sar_band = RTW_SAR_BAND_0;
+		break;
+	case 36 ... 64:
+		sar_band = RTW_SAR_BAND_1;
+		break;
+	case 100 ... 144:
+		sar_band = RTW_SAR_BAND_3;
+		break;
+	case 149 ... 177:
+		sar_band = RTW_SAR_BAND_4;
+		break;
+	default:
+		WARN(1, "unknown ch(%u) to SAR band\n", center_channel);
+		sar_band = RTW_SAR_BAND_0;
+		break;
+	}
+
+	hal->current_primary_channel_index = primary_channel_idx;
+	hal->current_band_width = bandwidth;
+	hal->primary_channel = primary_channel;
+	hal->current_channel = center_channel;
+	hal->current_band_type = band;
+	hal->sar_band = sar_band;
+}
+
 void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 			    struct rtw_channel_params *chan_params)
 {
 	struct ieee80211_channel *channel = chandef->chan;
 	enum nl80211_chan_width width = chandef->width;
-	u8 *cch_by_bw = chan_params->cch_by_bw;
 	u32 primary_freq, center_freq;
 	u8 center_chan;
 	u8 bandwidth = RTW_CHANNEL_WIDTH_20;
-	u8 primary_chan_idx = 0;
-	u8 i;
 
 	center_chan = channel->hw_value;
 	primary_freq = channel->center_freq;
 	center_freq = chandef->center_freq1;
 
-	/* assign the center channel used while 20M bw is selected */
-	cch_by_bw[RTW_CHANNEL_WIDTH_20] = channel->hw_value;
-
 	switch (width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
 	case NL80211_CHAN_WIDTH_20:
 		bandwidth = RTW_CHANNEL_WIDTH_20;
-		primary_chan_idx = RTW_SC_DONT_CARE;
 		break;
 	case NL80211_CHAN_WIDTH_40:
 		bandwidth = RTW_CHANNEL_WIDTH_40;
-		if (primary_freq > center_freq) {
-			primary_chan_idx = RTW_SC_20_UPPER;
+		if (primary_freq > center_freq)
 			center_chan -= 2;
-		} else {
-			primary_chan_idx = RTW_SC_20_LOWER;
+		else
 			center_chan += 2;
-		}
 		break;
 	case NL80211_CHAN_WIDTH_80:
 		bandwidth = RTW_CHANNEL_WIDTH_80;
 		if (primary_freq > center_freq) {
-			if (primary_freq - center_freq == 10) {
-				primary_chan_idx = RTW_SC_20_UPPER;
+			if (primary_freq - center_freq == 10)
 				center_chan -= 2;
-			} else {
-				primary_chan_idx = RTW_SC_20_UPMOST;
+			else
 				center_chan -= 6;
-			}
-			/* assign the center channel used
-			 * while 40M bw is selected
-			 */
-			cch_by_bw[RTW_CHANNEL_WIDTH_40] = center_chan + 4;
 		} else {
-			if (center_freq - primary_freq == 10) {
-				primary_chan_idx = RTW_SC_20_LOWER;
+			if (center_freq - primary_freq == 10)
 				center_chan += 2;
-			} else {
-				primary_chan_idx = RTW_SC_20_LOWEST;
+			else
 				center_chan += 6;
-			}
-			/* assign the center channel used
-			 * while 40M bw is selected
-			 */
-			cch_by_bw[RTW_CHANNEL_WIDTH_40] = center_chan - 4;
 		}
 		break;
 	default:
@@ -745,13 +805,7 @@ void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 
 	chan_params->center_chan = center_chan;
 	chan_params->bandwidth = bandwidth;
-	chan_params->primary_chan_idx = primary_chan_idx;
-
-	/* assign the center channel used while current bw is selected */
-	cch_by_bw[bandwidth] = center_chan;
-
-	for (i = bandwidth + 1; i <= RTW_MAX_CHANNEL_WIDTH; i++)
-		cch_by_bw[i] = 0;
+	chan_params->primary_chan = channel->hw_value;
 }
 
 void rtw_set_channel(struct rtw_dev *rtwdev)
@@ -760,45 +814,21 @@ void rtw_set_channel(struct rtw_dev *rtwdev)
 	struct ieee80211_hw *hw = rtwdev->hw;
 	struct rtw_hal *hal = &rtwdev->hal;
 	struct rtw_channel_params ch_param;
-	u8 center_chan, bandwidth, primary_chan_idx;
-	u8 i;
+	u8 center_chan, primary_chan, bandwidth, band;
 
 	rtw_get_channel_params(&hw->conf.chandef, &ch_param);
 	if (WARN(ch_param.center_chan == 0, "Invalid channel\n"))
 		return;
 
 	center_chan = ch_param.center_chan;
+	primary_chan = ch_param.primary_chan;
 	bandwidth = ch_param.bandwidth;
-	primary_chan_idx = ch_param.primary_chan_idx;
+	band = ch_param.center_chan > 14 ? RTW_BAND_5G : RTW_BAND_2G;
 
-	hal->current_band_width = bandwidth;
-	hal->current_channel = center_chan;
-	hal->current_primary_channel_index = primary_chan_idx;
-	hal->current_band_type = center_chan > 14 ? RTW_BAND_5G : RTW_BAND_2G;
+	rtw_update_channel(rtwdev, center_chan, primary_chan, band, bandwidth);
 
-	switch (center_chan) {
-	case 1 ... 14:
-		hal->sar_band = RTW_SAR_BAND_0;
-		break;
-	case 36 ... 64:
-		hal->sar_band = RTW_SAR_BAND_1;
-		break;
-	case 100 ... 144:
-		hal->sar_band = RTW_SAR_BAND_3;
-		break;
-	case 149 ... 177:
-		hal->sar_band = RTW_SAR_BAND_4;
-		break;
-	default:
-		WARN(1, "unknown ch(%u) to SAR band\n", center_chan);
-		hal->sar_band = RTW_SAR_BAND_0;
-		break;
-	}
-
-	for (i = RTW_CHANNEL_WIDTH_20; i <= RTW_MAX_CHANNEL_WIDTH; i++)
-		hal->cch_by_bw[i] = ch_param.cch_by_bw[i];
-
-	chip->ops->set_channel(rtwdev, center_chan, bandwidth, primary_chan_idx);
+	chip->ops->set_channel(rtwdev, center_chan, bandwidth,
+			       hal->current_primary_channel_index);
 
 	if (hal->current_band_type == RTW_BAND_5G) {
 		rtw_coex_switchband_notify(rtwdev, COEX_SWITCH_TO_5G);
