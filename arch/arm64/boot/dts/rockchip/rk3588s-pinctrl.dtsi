@@ -601,9 +601,9 @@
 				/* hdmim1_rx_cec */
 				<3 RK_PD1 5 &pcfg_pull_none>,
 				/* hdmim1_rx_scl */
-				<3 RK_PD2 5 &pcfg_pull_none>,
+				<3 RK_PD2 5 &pcfg_pull_none_smt>,
 				/* hdmim1_rx_sda */
-				<3 RK_PD3 5 &pcfg_pull_none>,
+				<3 RK_PD3 5 &pcfg_pull_none_smt>,
 				/* hdmim1_rx_hpdin */
 				<3 RK_PD4 5 &pcfg_pull_none>;
 		};
@@ -626,14 +626,14 @@
 		hdmim1_rx_scl: hdmim1-rx-scl {
 			rockchip,pins =
 				/* hdmim1_rx_scl */
-				<3 RK_PD2 5 &pcfg_pull_none>;
+				<3 RK_PD2 5 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
 		hdmim1_rx_sda: hdmim1-rx-sda {
 			rockchip,pins =
 				/* hdmim1_rx_sda */
-				<3 RK_PD3 5 &pcfg_pull_none>;
+				<3 RK_PD3 5 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
