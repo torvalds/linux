@@ -248,7 +248,7 @@ int data_slice_out_of_bounds_map_value(void *ctx)
 
 /* A data slice can't be used after it has been released */
 SEC("?raw_tp")
-int data_slice_use_after_release(void *ctx)
+int data_slice_use_after_release1(void *ctx)
 {
 	struct bpf_dynptr ptr;
 	struct sample *sample;
@@ -269,6 +269,42 @@ int data_slice_use_after_release(void *ctx)
 
 done:
 	bpf_ringbuf_discard_dynptr(&ptr, 0);
+	return 0;
+}
+
+/* A data slice can't be used after it has been released.
+ *
+ * This tests the case where the data slice tracks a dynptr (ptr2)
+ * that is at a non-zero offset from the frame pointer (ptr1 is at fp,
+ * ptr2 is at fp - 16).
+ */
+SEC("?raw_tp")
+int data_slice_use_after_release2(void *ctx)
+{
+	struct bpf_dynptr ptr1, ptr2;
+	struct sample *sample;
+
+	bpf_ringbuf_reserve_dynptr(&ringbuf, 64, 0, &ptr1);
+	bpf_ringbuf_reserve_dynptr(&ringbuf, sizeof(*sample), 0, &ptr2);
+
+	sample = bpf_dynptr_data(&ptr2, 0, sizeof(*sample));
+	if (!sample)
+		goto done;
+
+	sample->pid = 23;
+
+	bpf_ringbuf_submit_dynptr(&ptr2, 0);
+
+	/* this should fail */
+	sample->pid = 23;
+
+	bpf_ringbuf_submit_dynptr(&ptr1, 0);
+
+	return 0;
+
+done:
+	bpf_ringbuf_discard_dynptr(&ptr2, 0);
+	bpf_ringbuf_discard_dynptr(&ptr1, 0);
 	return 0;
 }
 
