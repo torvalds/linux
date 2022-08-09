@@ -5,13 +5,19 @@
 #include <linux/uaccess.h>
 #include <asm/termios.h>
 
-#ifndef INIT_C_CC
 /*	intr=^C		quit=^\		erase=del	kill=^U
 	eof=^D		vtime=\0	vmin=\1		sxtc=\0
 	start=^Q	stop=^S		susp=^Z		eol=\0
 	reprint=^R	discard=^O	werase=^W	lnext=^V
 	eol2=\0
 */
+
+#ifdef VDSUSP
+#define INIT_C_CC_VDSUSP_EXTRA [VDSUSP] = 'Y'-0x40,
+#else
+#define INIT_C_CC_VDSUSP_EXTRA
+#endif
+
 #define INIT_C_CC {		\
 	[VINTR] = 'C'-0x40,	\
 	[VQUIT] = '\\'-0x40,	\
@@ -25,8 +31,8 @@
 	[VDISCARD] = 'O'-0x40,	\
 	[VWERASE] = 'W'-0x40,	\
 	[VLNEXT] = 'V'-0x40,	\
+	INIT_C_CC_VDSUSP_EXTRA	\
 	[VMIN] = 1 }
-#endif
 
 int user_termio_to_kernel_termios(struct ktermios *, struct termio __user *);
 int kernel_termios_to_user_termio(struct termio __user *, struct ktermios *);
