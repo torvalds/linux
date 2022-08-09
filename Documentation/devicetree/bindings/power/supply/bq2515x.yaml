@@ -8,8 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: TI bq2515x 500-mA Linear charger family
 
 maintainers:
-  - Dan Murphy <dmurphy@ti.com>
-  - Ricardo Rivera-Matos <r-rivera-matos@ti.com>
+  - Andrew Davis <afd@ti.com>
 
 description: |
   The BQ2515x family is a highly integrated battery charge management IC that
