@@ -2240,6 +2240,17 @@ int __parse_events(struct evlist *evlist, const char *str,
 	return ret;
 }
 
+int parse_event(struct evlist *evlist, const char *str)
+{
+	struct parse_events_error err;
+	int ret;
+
+	parse_events_error__init(&err);
+	ret = parse_events(evlist, str, &err);
+	parse_events_error__exit(&err);
+	return ret;
+}
+
 void parse_events_error__init(struct parse_events_error *err)
 {
 	bzero(err, sizeof(*err));
@@ -2256,13 +2267,8 @@ void parse_events_error__exit(struct parse_events_error *err)
 void parse_events_error__handle(struct parse_events_error *err, int idx,
 				char *str, char *help)
 {
-	if (WARN(!str, "WARNING: failed to provide error string\n"))
+	if (WARN(!str || !err, "WARNING: failed to provide error string or struct\n"))
 		goto out_free;
-	if (!err) {
-		/* Assume caller does not want message printed */
-		pr_debug("event syntax error: %s\n", str);
-		goto out_free;
-	}
 	switch (err->num_errors) {
 	case 0:
 		err->idx = idx;

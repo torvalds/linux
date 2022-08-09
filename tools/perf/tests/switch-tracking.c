@@ -364,7 +364,7 @@ static int test__switch_tracking(struct test_suite *test __maybe_unused, int sub
 	perf_evlist__set_maps(&evlist->core, cpus, threads);
 
 	/* First event */
-	err = parse_events(evlist, "cpu-clock:u", NULL);
+	err = parse_event(evlist, "cpu-clock:u");
 	if (err) {
 		pr_debug("Failed to parse event dummy:u\n");
 		goto out_err;
@@ -375,14 +375,14 @@ static int test__switch_tracking(struct test_suite *test __maybe_unused, int sub
 	/* Second event */
 	if (perf_pmu__has_hybrid()) {
 		cycles = "cpu_core/cycles/u";
-		err = parse_events(evlist, cycles, NULL);
+		err = parse_event(evlist, cycles);
 		if (err) {
 			cycles = "cpu_atom/cycles/u";
 			pr_debug("Trying %s\n", cycles);
-			err = parse_events(evlist, cycles, NULL);
+			err = parse_event(evlist, cycles);
 		}
 	} else {
-		err = parse_events(evlist, cycles, NULL);
+		err = parse_event(evlist, cycles);
 	}
 	if (err) {
 		pr_debug("Failed to parse event %s\n", cycles);
@@ -398,7 +398,7 @@ static int test__switch_tracking(struct test_suite *test __maybe_unused, int sub
 		goto out;
 	}
 
-	err = parse_events(evlist, sched_switch, NULL);
+	err = parse_event(evlist, sched_switch);
 	if (err) {
 		pr_debug("Failed to parse event %s\n", sched_switch);
 		goto out_err;
@@ -428,7 +428,7 @@ static int test__switch_tracking(struct test_suite *test __maybe_unused, int sub
 	evsel__set_sample_bit(cycles_evsel, TIME);
 
 	/* Fourth event */
-	err = parse_events(evlist, "dummy:u", NULL);
+	err = parse_event(evlist, "dummy:u");
 	if (err) {
 		pr_debug("Failed to parse event dummy:u\n");
 		goto out_err;
