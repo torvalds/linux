@@ -13,12 +13,13 @@
 #include <linux/regmap.h>
 #include <linux/mfd/rk618.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_of.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
 
 #include <video/videomode.h>
 
@@ -64,7 +65,7 @@ static int rk618_rgb_connector_get_modes(struct drm_connector *connector)
 	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 	int num_modes = 0;
 
-	num_modes = drm_panel_get_modes(rgb->panel);
+	num_modes = drm_panel_get_modes(rgb->panel, connector);
 
 	if (info->num_bus_formats)
 		rgb->bus_format = info->bus_formats[0];
@@ -91,9 +92,6 @@ rk618_rgb_connector_detect(struct drm_connector *connector, bool force)
 
 static void rk618_rgb_connector_destroy(struct drm_connector *connector)
 {
-	struct rk618_rgb *rgb = connector_to_rgb(connector);
-
-	drm_panel_detach(rgb->panel);
 	drm_connector_cleanup(connector);
 }
 
@@ -161,7 +159,8 @@ static void rk618_rgb_bridge_disable(struct drm_bridge *bridge)
 	clk_disable_unprepare(rgb->clock);
 }
 
-static int rk618_rgb_bridge_attach(struct drm_bridge *bridge)
+static int rk618_rgb_bridge_attach(struct drm_bridge *bridge,
+				   enum drm_bridge_attach_flags flags)
 {
 	struct rk618_rgb *rgb = bridge_to_rgb(bridge);
 	struct device *dev = rgb->dev;
@@ -181,13 +180,12 @@ static int rk618_rgb_bridge_attach(struct drm_bridge *bridge)
 		drm_connector_helper_add(connector,
 					 &rk618_rgb_connector_helper_funcs);
 		drm_connector_attach_encoder(connector, bridge->encoder);
-		drm_panel_attach(rgb->panel, connector);
 
 		rgb->sub_dev.connector = &rgb->connector;
 		rgb->sub_dev.of_node = rgb->dev->of_node;
 		rockchip_drm_register_sub_dev(&rgb->sub_dev);
 	} else {
-		ret = drm_bridge_attach(bridge->encoder, rgb->bridge, bridge);
+		ret = drm_bridge_attach(bridge->encoder, rgb->bridge, bridge, 0);
 		if (ret) {
 			dev_err(dev, "failed to attach bridge\n");
 			return ret;

@@ -265,8 +265,8 @@ static void rk618_scaler_bridge_disable(struct drm_bridge *bridge)
 }
 
 static void rk618_scaler_bridge_mode_set(struct drm_bridge *bridge,
-					 struct drm_display_mode *mode,
-					 struct drm_display_mode *adjusted)
+					 const struct drm_display_mode *mode,
+					 const struct drm_display_mode *adjusted)
 {
 	struct rk618_scaler *scl = bridge_to_scaler(bridge);
 	struct drm_connector *connector;
@@ -285,7 +285,7 @@ static void rk618_scaler_bridge_mode_set(struct drm_bridge *bridge,
 		if (connector->connector_type == DRM_MODE_CONNECTOR_HDMIA)
 			continue;
 
-		if (connector->encoder_ids[0] != bridge->encoder->base.id)
+		if (!drm_connector_has_possible_encoder(connector, bridge->encoder))
 			continue;
 
 		list_for_each_entry(mode, &connector->modes, head) {
@@ -310,7 +310,8 @@ static void rk618_scaler_bridge_mode_set(struct drm_bridge *bridge,
 		     dclk_rate, sclk_rate);
 }
 
-static int rk618_scaler_bridge_attach(struct drm_bridge *bridge)
+static int rk618_scaler_bridge_attach(struct drm_bridge *bridge,
+				      enum drm_bridge_attach_flags flags)
 {
 	struct rk618_scaler *scl = bridge_to_scaler(bridge);
 	struct device *dev = scl->dev;
@@ -331,7 +332,7 @@ static int rk618_scaler_bridge_attach(struct drm_bridge *bridge)
 		if (!scl->bridge)
 			return -EPROBE_DEFER;
 
-		ret = drm_bridge_attach(bridge->encoder, scl->bridge, bridge);
+		ret = drm_bridge_attach(bridge->encoder, scl->bridge, bridge, 0);
 		if (ret) {
 			dev_err(dev, "failed to attach bridge\n");
 			return ret;

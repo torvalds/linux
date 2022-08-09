@@ -21,10 +21,11 @@
 #endif
 
 #include <drm/drm_of.h>
-#include <drm/drmP.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_probe_helper.h>
 
 #include <sound/hdmi-codec.h>
 
@@ -722,7 +723,7 @@ static int rk618_hdmi_config_video_avi(struct rk618_hdmi *hdmi,
 	union hdmi_infoframe frame;
 	int rc;
 
-	rc = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi, mode, false);
+	rc = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi, &hdmi->connector, mode);
 
 	if (hdmi->hdmi_data.enc_out_format == HDMI_COLORSPACE_YUV444)
 		frame.avi.colorspace = HDMI_COLORSPACE_YUV444;
@@ -1031,8 +1032,8 @@ rk618_hdmi_connector_helper_funcs = {
 };
 
 static void rk618_hdmi_bridge_mode_set(struct drm_bridge *bridge,
-				       struct drm_display_mode *mode,
-				       struct drm_display_mode *adj_mode)
+				       const struct drm_display_mode *mode,
+				       const struct drm_display_mode *adj_mode)
 {
 	struct rk618_hdmi *hdmi = bridge_to_hdmi(bridge);
 
@@ -1065,7 +1066,8 @@ static void rk618_hdmi_bridge_disable(struct drm_bridge *bridge)
 	clk_disable_unprepare(hdmi->clock);
 }
 
-static int rk618_hdmi_bridge_attach(struct drm_bridge *bridge)
+static int rk618_hdmi_bridge_attach(struct drm_bridge *bridge,
+				    enum drm_bridge_attach_flags flags)
 {
 	struct rk618_hdmi *hdmi = bridge_to_hdmi(bridge);
 	struct device *dev = hdmi->dev;
@@ -1105,7 +1107,7 @@ static int rk618_hdmi_bridge_attach(struct drm_bridge *bridge)
 		if (!hdmi->bridge)
 			return -EPROBE_DEFER;
 
-		ret = drm_bridge_attach(bridge->encoder, hdmi->bridge, bridge);
+		ret = drm_bridge_attach(bridge->encoder, hdmi->bridge, bridge, 0);
 		if (ret) {
 			dev_err(dev, "failed to attach bridge\n");
 			return ret;
@@ -1234,7 +1236,7 @@ static void rk618_hdmi_audio_shutdown(struct device *dev, void *d)
 	/* do nothing */
 }
 
-static int rk618_hdmi_audio_digital_mute(struct device *dev, void *d, bool mute)
+static int rk618_hdmi_audio_mute_stream(struct device *dev, void *d, bool mute, int direction)
 {
 	struct rk618_hdmi *hdmi = dev_get_drvdata(dev);
 
@@ -1279,7 +1281,7 @@ static int rk618_hdmi_audio_get_eld(struct device *dev, void *d,
 static const struct hdmi_codec_ops audio_codec_ops = {
 	.hw_params = rk618_hdmi_audio_hw_params,
 	.audio_shutdown = rk618_hdmi_audio_shutdown,
-	.digital_mute = rk618_hdmi_audio_digital_mute,
+	.mute_stream = rk618_hdmi_audio_mute_stream,
 	.get_eld = rk618_hdmi_audio_get_eld,
 };
 
