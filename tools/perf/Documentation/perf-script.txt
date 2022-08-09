@@ -228,7 +228,7 @@ OPTIONS
 	Instruction Trace decoding.
 
 	The machine_pid and vcpu fields are derived from data resulting from using
-	perf insert to insert a perf.data file recorded inside a virtual machine into
+	perf inject to insert a perf.data file recorded inside a virtual machine into
 	a perf.data file recorded on the host at the same time.
 
 	Finally, a user may not set fields to none for all event types.
