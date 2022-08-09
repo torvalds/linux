@@ -877,6 +877,8 @@ int bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid)
 		goto err;
 
 	ret = bch2_snapshot_node_set_deleted(trans, snapid);
+	if (ret)
+		goto err;
 
 	h = bch2_trans_kmalloc(trans, sizeof(*h));
 	ret = PTR_ERR_OR_ZERO(h);
