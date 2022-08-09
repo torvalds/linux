@@ -397,7 +397,7 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 		if (is_zero_ether_addr(rtwvif->bssid))
 			rtw_clear_op_chan(rtwdev);
 		else
-			rtw_store_op_chan(rtwdev);
+			rtw_store_op_chan(rtwdev, true);
 	}
 
 	if (changed & BSS_CHANGED_BEACON_INT) {

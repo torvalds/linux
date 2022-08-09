@@ -14,6 +14,7 @@
 #include "util.h"
 #include "wow.h"
 #include "ps.h"
+#include "phy.h"
 
 static void rtw_fw_c2h_cmd_handle_ext(struct rtw_dev *rtwdev,
 				      struct sk_buff *skb)
@@ -2087,10 +2088,9 @@ void rtw_hw_scan_complete(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 	rtw_core_scan_complete(rtwdev, vif, true);
 
 	rtwvif = (struct rtw_vif *)vif->drv_priv;
-	if (chan) {
-		hal->current_channel = chan;
-		hal->current_band_type = chan > 14 ? RTW_BAND_5G : RTW_BAND_2G;
-	}
+	if (chan)
+		rtw_store_op_chan(rtwdev, false);
+	rtw_phy_set_tx_power_level(rtwdev, hal->current_channel);
 	ieee80211_wake_queues(rtwdev->hw);
 	ieee80211_scan_completed(rtwdev->hw, &info);
 
@@ -2179,14 +2179,23 @@ void rtw_hw_scan_status_report(struct rtw_dev *rtwdev, struct sk_buff *skb)
 		rtw_dbg(rtwdev, RTW_DBG_HW_SCAN, "HW scan aborted with code: %d\n", rc);
 }
 
-void rtw_store_op_chan(struct rtw_dev *rtwdev)
+void rtw_store_op_chan(struct rtw_dev *rtwdev, bool backup)
 {
 	struct rtw_hw_scan_info *scan_info = &rtwdev->scan_info;
 	struct rtw_hal *hal = &rtwdev->hal;
+	u8 band;
 
-	scan_info->op_chan = hal->current_channel;
-	scan_info->op_bw = hal->current_band_width;
-	scan_info->op_pri_ch_idx = hal->current_primary_channel_index;
+	if (backup) {
+		scan_info->op_chan = hal->current_channel;
+		scan_info->op_bw = hal->current_band_width;
+		scan_info->op_pri_ch_idx = hal->current_primary_channel_index;
+		scan_info->op_pri_ch = hal->primary_channel;
+	} else {
+		band = scan_info->op_chan > 14 ? RTW_BAND_5G : RTW_BAND_2G;
+		rtw_update_channel(rtwdev, scan_info->op_chan,
+				   scan_info->op_pri_ch,
+				   band, scan_info->op_bw);
+	}
 }
 
 void rtw_clear_op_chan(struct rtw_dev *rtwdev)
@@ -2196,6 +2205,7 @@ void rtw_clear_op_chan(struct rtw_dev *rtwdev)
 	scan_info->op_chan = 0;
 	scan_info->op_bw = 0;
 	scan_info->op_pri_ch_idx = 0;
+	scan_info->op_pri_ch = 0;
 }
 
 static bool rtw_is_op_chan(struct rtw_dev *rtwdev, u8 channel)
@@ -2210,7 +2220,7 @@ void rtw_hw_scan_chan_switch(struct rtw_dev *rtwdev, struct sk_buff *skb)
 	struct rtw_hal *hal = &rtwdev->hal;
 	struct rtw_c2h_cmd *c2h;
 	enum rtw_scan_notify_id id;
-	u8 chan, status;
+	u8 chan, band, status;
 
 	if (!test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
 		return;
@@ -2221,10 +2231,13 @@ void rtw_hw_scan_chan_switch(struct rtw_dev *rtwdev, struct sk_buff *skb)
 	status = GET_CHAN_SWITCH_STATUS(c2h->payload);
 
 	if (id == RTW_SCAN_NOTIFY_ID_POSTSWITCH) {
-		if (rtw_is_op_chan(rtwdev, chan))
+		band = chan > 14 ? RTW_BAND_5G : RTW_BAND_2G;
+		rtw_update_channel(rtwdev, chan, chan, band,
+				   RTW_CHANNEL_WIDTH_20);
+		if (rtw_is_op_chan(rtwdev, chan)) {
+			rtw_store_op_chan(rtwdev, false);
 			ieee80211_wake_queues(rtwdev->hw);
-		hal->current_channel = chan;
-		hal->current_band_type = chan > 14 ? RTW_BAND_5G : RTW_BAND_2G;
+		}
 	} else if (id == RTW_SCAN_NOTIFY_ID_PRESWITCH) {
 		if (IS_CH_5G_BAND(chan)) {
 			rtw_coex_switchband_notify(rtwdev, COEX_SWITCH_TO_5G);
