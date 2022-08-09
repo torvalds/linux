@@ -3,6 +3,7 @@
  */
 
 #include "chan.h"
+#include "debug.h"
 
 static enum rtw89_subband rtw89_get_subband_type(enum rtw89_band band,
 						 u8 center_chan)
@@ -153,4 +154,28 @@ void rtw89_entity_init(struct rtw89_dev *rtwdev)
 
 	bitmap_zero(hal->entity_map, NUM_OF_RTW89_SUB_ENTITY);
 	rtw89_config_default_chandef(rtwdev);
+}
+
+enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	enum rtw89_entity_mode mode;
+	u8 weight;
+
+	weight = bitmap_weight(hal->entity_map, NUM_OF_RTW89_SUB_ENTITY);
+	switch (weight) {
+	default:
+		rtw89_warn(rtwdev, "unknown ent chan weight: %d\n", weight);
+		bitmap_zero(hal->entity_map, NUM_OF_RTW89_SUB_ENTITY);
+		fallthrough;
+	case 0:
+		rtw89_config_default_chandef(rtwdev);
+		fallthrough;
+	case 1:
+		mode = RTW89_ENTITY_MODE_SCC;
+		break;
+	}
+
+	rtw89_set_entity_mode(rtwdev, mode);
+	return mode;
 }

@@ -21,6 +21,22 @@ static inline void rtw89_set_entity_state(struct rtw89_dev *rtwdev, bool active)
 	WRITE_ONCE(hal->entity_active, active);
 }
 
+static inline
+enum rtw89_entity_mode rtw89_get_entity_mode(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+
+	return READ_ONCE(hal->entity_mode);
+}
+
+static inline void rtw89_set_entity_mode(struct rtw89_dev *rtwdev,
+					 enum rtw89_entity_mode mode)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+
+	WRITE_ONCE(hal->entity_mode, mode);
+}
+
 void rtw89_chan_create(struct rtw89_chan *chan, u8 center_chan, u8 primary_chan,
 		       enum rtw89_band band, enum rtw89_bandwidth bandwidth);
 bool rtw89_assign_entity_chan(struct rtw89_dev *rtwdev,
@@ -30,5 +46,6 @@ void rtw89_config_entity_chandef(struct rtw89_dev *rtwdev,
 				 enum rtw89_sub_entity_idx idx,
 				 const struct cfg80211_chan_def *chandef);
 void rtw89_entity_init(struct rtw89_dev *rtwdev);
+enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev);
 
 #endif

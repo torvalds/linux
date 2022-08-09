@@ -2623,6 +2623,10 @@ struct rtw89_sar_info {
 	};
 };
 
+enum rtw89_entity_mode {
+	RTW89_ENTITY_MODE_SCC,
+};
+
 struct rtw89_hal {
 	u32 rx_fltr;
 	u8 cv;
@@ -2638,6 +2642,7 @@ struct rtw89_hal {
 	struct cfg80211_chan_def chandef[NUM_OF_RTW89_SUB_ENTITY];
 
 	bool entity_active;
+	enum rtw89_entity_mode entity_mode;
 
 	struct rtw89_chan chan[NUM_OF_RTW89_SUB_ENTITY];
 	struct rtw89_chan_rcd chan_rcd[NUM_OF_RTW89_SUB_ENTITY];

@@ -295,51 +295,69 @@ void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_chan *chan;
+	enum rtw89_sub_entity_idx sub_entity_idx;
+	enum rtw89_phy_idx phy_idx;
+	enum rtw89_entity_mode mode;
 	bool entity_active;
 
 	entity_active = rtw89_get_entity_state(rtwdev);
 	if (!entity_active)
 		return;
 
-	chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	mode = rtw89_get_entity_mode(rtwdev);
+	if (WARN(mode != RTW89_ENTITY_MODE_SCC, "Invalid ent mode: %d\n", mode))
+		return;
+
+	sub_entity_idx = RTW89_SUB_ENTITY_0;
+	phy_idx = RTW89_PHY_0;
+	chan = rtw89_chan_get(rtwdev, sub_entity_idx);
 	if (chip->ops->set_txpwr)
-		chip->ops->set_txpwr(rtwdev, chan, RTW89_PHY_0);
+		chip->ops->set_txpwr(rtwdev, chan, phy_idx);
 }
 
 void rtw89_set_channel(struct rtw89_dev *rtwdev)
 {
-	const struct cfg80211_chan_def *chandef =
-		rtw89_chandef_get(rtwdev, RTW89_SUB_ENTITY_0);
 	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct cfg80211_chan_def *chandef;
+	enum rtw89_sub_entity_idx sub_entity_idx;
+	enum rtw89_mac_idx mac_idx;
+	enum rtw89_phy_idx phy_idx;
 	struct rtw89_chan chan;
 	struct rtw89_channel_help_params bak;
+	enum rtw89_entity_mode mode;
 	bool band_changed;
 	bool entity_active;
 
 	entity_active = rtw89_get_entity_state(rtwdev);
 
+	mode = rtw89_entity_recalc(rtwdev);
+	if (WARN(mode != RTW89_ENTITY_MODE_SCC, "Invalid ent mode: %d\n", mode))
+		return;
+
+	sub_entity_idx = RTW89_SUB_ENTITY_0;
+	mac_idx = RTW89_MAC_0;
+	phy_idx = RTW89_PHY_0;
+	chandef = rtw89_chandef_get(rtwdev, sub_entity_idx);
 	rtw89_get_channel_params(chandef, &chan);
 	if (WARN(chan.channel == 0, "Invalid channel\n"))
 		return;
 
-	band_changed = rtw89_assign_entity_chan(rtwdev, RTW89_SUB_ENTITY_0, &chan);
+	band_changed = rtw89_assign_entity_chan(rtwdev, sub_entity_idx, &chan);
 
-	rtw89_set_entity_state(rtwdev, true);
+	rtw89_chip_set_channel_prepare(rtwdev, &bak, &chan, mac_idx, phy_idx);
 
-	rtw89_chip_set_channel_prepare(rtwdev, &bak, &chan,
-				       RTW89_MAC_0, RTW89_PHY_0);
-
-	chip->ops->set_channel(rtwdev, &chan, RTW89_MAC_0, RTW89_PHY_0);
+	chip->ops->set_channel(rtwdev, &chan, mac_idx, phy_idx);
 
 	rtw89_core_set_chip_txpwr(rtwdev);
 
-	rtw89_chip_set_channel_done(rtwdev, &bak, &chan,
-				    RTW89_MAC_0, RTW89_PHY_0);
+	rtw89_chip_set_channel_done(rtwdev, &bak, &chan, mac_idx, phy_idx);
 
 	if (!entity_active || band_changed) {
-		rtw89_btc_ntfy_switch_band(rtwdev, RTW89_PHY_0, chan.band_type);
-		rtw89_chip_rfk_band_changed(rtwdev, RTW89_PHY_0);
+		rtw89_btc_ntfy_switch_band(rtwdev, phy_idx, chan.band_type);
+		rtw89_chip_rfk_band_changed(rtwdev, phy_idx);
 	}
+
+	rtw89_set_entity_state(rtwdev, true);
 }
 
 static enum rtw89_core_tx_type
