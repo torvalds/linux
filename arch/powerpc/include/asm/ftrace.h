@@ -10,6 +10,13 @@
 
 #define HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
 
+/* Ignore unused weak functions which will have larger offsets */
+#ifdef CONFIG_MPROFILE_KERNEL
+#define FTRACE_MCOUNT_MAX_OFFSET	12
+#elif defined(CONFIG_PPC32)
+#define FTRACE_MCOUNT_MAX_OFFSET	8
+#endif
+
 #ifndef __ASSEMBLY__
 extern void _mcount(void);
 
