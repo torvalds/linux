@@ -1025,10 +1025,8 @@ static int adc_tm5_probe(struct platform_device *pdev)
 	adc_tm->base = reg;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "get_irq failed: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = adc_tm5_get_dt_data(adc_tm, node);
 	if (ret) {
