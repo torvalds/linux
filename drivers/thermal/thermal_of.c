@@ -1102,6 +1102,7 @@ static struct device_node *of_thermal_zone_find(struct device_node *sensor, int 
 			}
 		}
 	}
+	tz = ERR_PTR(-EINVAL);
 out:
 	of_node_put(np);
 	return tz;
