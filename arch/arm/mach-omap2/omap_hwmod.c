@@ -3454,7 +3454,7 @@ static int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
 	}
 
 	if (list_empty(&oh->slave_ports)) {
-		oi = kcalloc(1, sizeof(*oi), GFP_KERNEL);
+		oi = kzalloc(sizeof(*oi), GFP_KERNEL);
 		if (!oi)
 			goto out_free_class;
 
